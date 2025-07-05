@@ -9,7 +9,7 @@ Date:   Thu Apr 22 17:52:22 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/957042
-
+---
  misc/nacl/naclrun                  |  15 ++
  src/all-nacl.bash                  |   8 +-
  src/cmd/8g/ggen.c                  |  12 +-
@@ -47,3 +47,1330 @@ Date:   Thu Apr 22 17:52:22 2010 -0700
  test/sigchld.go                    |   1 +
  test/stack.go                      |   2 +-
  36 files changed, 423 insertions(+), 484 deletions(-)
+
+diff --git a/misc/nacl/naclrun b/misc/nacl/naclrun
+new file mode 100755
+index 0000000000..1cdcf876c2
+--- /dev/null
++++ b/misc/nacl/naclrun
+@@ -0,0 +1,15 @@
++#!/bin/sh
++# Copyright 2010 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Run nacl binary in debug mode (allow file access)
++# and then grep away the chatter.
++# See ../../src/pkg/exp/nacl/README for more on
++# how to configure NaCl.
++
++nacl -d "$@" >/tmp/nacl.out.$$ 2>&1
++status=$?
++egrep -v 'DEBUG MODE ENABLED|^\[[0-9]+,' /tmp/nacl.out.$$
++rm -f /tmp/nacl.out.$$
++exit $status
+diff --git a/src/all-nacl.bash b/src/all-nacl.bash
+index 23107d25e3..817b911c07 100755
+--- a/src/all-nacl.bash
++++ b/src/all-nacl.bash
+@@ -7,6 +7,7 @@
+ 
+ export GOARCH=386
+ export GOOS=nacl
++export GORUN="$GOROOT/misc/nacl/naclrun"
+ 
+ set -e
+ bash make.bash
+@@ -17,6 +18,11 @@ xcd() {
+ 	builtin cd $1
+ }
+ 
++(xcd pkg
++make install
++make test
++) || exit $?
++
+ (xcd pkg/exp/nacl/srpc
+ make clean
+ make install
+@@ -38,5 +44,5 @@ make
+ ) || exit $?
+ 
+ (xcd ../test
+-./run-nacl
++./run
+ ) || exit $?
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index c1cad74bee..110446a0d7 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -8,6 +8,7 @@
+ #include "opt.h"
+ 
+ static Prog *pret;
++static Node *naclnop;
+ 
+ void
+ compile(Node *fn)
+@@ -23,6 +24,7 @@ compile(Node *fn)
+ 		newproc = sysfunc("newproc");
+ 		deferproc = sysfunc("deferproc");
+ 		deferreturn = sysfunc("deferreturn");
++		naclnop = sysfunc("naclnop");
+ 		panicindex = sysfunc("panicindex");
+ 		panicslice = sysfunc("panicslice");
+ 		throwreturn = sysfunc("throwreturn");
+@@ -95,8 +97,16 @@ compile(Node *fn)
+ 	gclean();
+ 	if(nerrors != 0)
+ 		goto ret;
+-	if(hasdefer)
++	if(hasdefer) {
++		// On Native client, insert call to no-op function
++		// to force alignment immediately before call to deferreturn,
++		// so that when jmpdefer subtracts 5 from the second CALL's
++		// return address and then the return masks off the low bits,
++		// we'll back up to the NOPs immediately after the dummy CALL.
++		if(strcmp(getgoos(), "nacl") == 0)
++			ginscall(naclnop, 0);
+ 		ginscall(deferreturn, 0);
++	}
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 4e8c0560d9..0fca6fa0f8 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -226,8 +226,11 @@ addsize(Sym *s, Sym *t)
+ vlong
+ datoff(vlong addr)
+ {
+-	if(addr >= INITDAT)
++	if(addr >= INITDAT) {
++		if(HEADTYPE == 8)
++			return addr - INITDAT + rnd(HEADR+textsize, 4096);
+ 		return addr - INITDAT + rnd(HEADR+textsize, INITRND);
++	}
+ 	diag("datoff %#llx", addr);
+ 	return 0;
+ }
+@@ -548,6 +551,14 @@ asmb(void)
+ 		}
+ 		cflush();
+ 		break;
++	case 8:
++		// Native Client only needs to round
++		// text segment file address to 4096 bytes,
++		// but text segment memory address rounds
++		// to INITRND (65536).
++		v = rnd(HEADR+textsize, 4096);
++		seek(cout, v, 0);
++		break;
+ 	Elfseek:
+ 	case 10:
+ 		v = rnd(HEADR+textsize, INITRND);
+@@ -829,15 +840,25 @@ asmb(void)
+ 		ph = newElfPhdr();
+ 		ph->type = PT_LOAD;
+ 		ph->flags = PF_X+PF_R;
+-		ph->vaddr = va - fo;
+-		ph->paddr = va - fo;
+-		ph->off = 0;
+-		ph->filesz = w + fo;
+-		ph->memsz = w + fo;
++		if(HEADTYPE != 8) {	// Include header, but not on Native Client.
++			va -= fo;
++			w += fo;
++			fo = 0;
++		}
++		ph->vaddr = va;
++		ph->paddr = va;
++		ph->off = fo;
++		ph->filesz = w;
++		ph->memsz = INITDAT - va;
+ 		ph->align = INITRND;
+ 
+-		fo = rnd(fo+w, INITRND);
+-		va = rnd(va+w, INITRND);
++		// NaCl text segment file address rounds to 4096;
++		// only memory address rounds to INITRND.
++		if(HEADTYPE == 8)
++			fo = rnd(fo+w, 4096);
++		else
++			fo = rnd(fo+w, INITRND);
++		va = INITDAT;
+ 		w = datsize;
+ 
+ 		ph = newElfPhdr();
+@@ -941,7 +962,7 @@ asmb(void)
+ 		ph->flags = PF_W+PF_R;
+ 		ph->align = 4;
+ 
+-		fo = ELFRESERVE;
++		fo = HEADR;
+ 		va = startva + fo;
+ 		w = textsize;
+ 
+@@ -953,7 +974,12 @@ asmb(void)
+ 		sh->size = w;
+ 		sh->addralign = 4;
+ 
+-		fo = rnd(fo+w, INITRND);
++		// NaCl text segment file address rounds to 4096;
++		// only memory address rounds to INITRND.
++		if(HEADTYPE == 8)
++			fo = rnd(fo+w, 4096);
++		else
++			fo = rnd(fo+w, INITRND);
+ 		va = rnd(va+w, INITRND);
+ 		w = datsize;
+ 
+@@ -1013,7 +1039,7 @@ asmb(void)
+ 		switch(HEADTYPE) {
+ 		case 8:
+ 			eh->ident[EI_OSABI] = ELFOSABI_NACL;
+-			eh->ident[EI_ABIVERSION] = 6;
++			eh->ident[EI_ABIVERSION] = 7;
+ 			eh->flags = 0x200000;	// aligned mod 32
+ 			break;
+ 		case 9:
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 8f02bdefda..5b0f307233 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -302,6 +302,7 @@ EXTERN	Sym*	symlist;
+ EXTERN	int32	symsize;
+ EXTERN	Prog*	textp;
+ EXTERN	int32	textsize;
++EXTERN	int32	textpad;
+ EXTERN	int	version;
+ EXTERN	Prog	zprg;
+ EXTERN	int	dtype;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index cd7984d715..82f4e47b7c 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -280,7 +280,12 @@ main(int argc, char *argv[])
+ 		if(INITDAT == -1)
+ 			INITDAT = 0;
+ 		if(INITRND == -1)
+-			INITRND = 4096;
++			INITRND = 65536;
++		
++		// 512 kB of address space for closures.
++		// (Doesn't take any space in the binary file.)
++		// Closures are 64 bytes each, so this is 8,192 closures.
++		textpad = 512*1024;
+ 		break;
+ 	case 10: /* PE executable */
+ 		peinit();
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index f649777ec3..0245d72b9b 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -108,7 +108,7 @@ start:
+ 	}while(again);
+ 
+ 	if(INITRND) {
+-		INITDAT = rnd(c, INITRND);
++		INITDAT = rnd(c+textpad, INITRND);
+ 		if(INITDAT != idat) {
+ 			idat = INITDAT;
+ 			goto start;
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 3fca81b6a5..0a0aafc344 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -29,11 +29,7 @@ if [ -z "$O" ]; then
+ 	exit 2
+ fi
+ 
+-E=""
+-case "$GOOS" in
+-nacl)
+-	E="nacl"
+-esac
++E="$GORUN"
+ 
+ # TODO(kaib): proper emulator strategy
+ case x"$GOARCH" in
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 4057ed97d1..a9c400a9ce 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -150,6 +150,25 @@ TEST=\
+ BENCH=\
+ 	$(filter-out $(NOBENCH),$(TEST))
+ 
++# Disable tests that NaCl cannot run yet.
++ifeq ($(GOOS),nacl)
++NOTEST+=archive/tar  # no pipe
++NOTEST+=debug/dwarf  # no pread
++NOTEST+=debug/macho  # no pread
++NOTEST+=debug/elf    # no pread
++NOTEST+=exec         # no pipe
++NOTEST+=http         # no network
++NOTEST+=log          # no runtime.Caller
++NOTEST+=net          # no network
++NOTEST+=os           # many things unimplemented
++NOTEST+=os/signal    # no signals
++NOTEST+=path         # tree walking does not work
++NOTEST+=rpc          # no network
++NOTEST+=syslog       # no network
++NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
++NOTEST+=websocket    # no network
++endif
++
+ clean.dirs: $(addsuffix .clean, $(DIRS))
+ install.dirs: $(addsuffix .install, $(DIRS))
+ nuke.dirs: $(addsuffix .nuke, $(DIRS))
+diff --git a/src/pkg/os/stat_nacl.go b/src/pkg/os/stat_nacl.go
+index be693e8147..a44d0b0b6e 100644
+--- a/src/pkg/os/stat_nacl.go
++++ b/src/pkg/os/stat_nacl.go
+@@ -15,15 +15,15 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Ino = uint64(stat.Ino)
+ 	fi.Nlink = uint64(stat.Nlink)
+ 	fi.Mode = stat.Mode
+-	fi.Uid = stat.Uid
+-	fi.Gid = stat.Gid
++	fi.Uid = int(stat.Uid)
++	fi.Gid = int(stat.Gid)
+ 	fi.Rdev = uint64(stat.Rdev)
+-	fi.Size = uint64(stat.Size)
+-	fi.Blksize = uint64(stat.Blksize)
+-	fi.Blocks = uint64(stat.Blocks)
+-	fi.Atime_ns = uint64(stat.Atime) * 1e9
+-	fi.Mtime_ns = uint64(stat.Mtime) * 1e9
+-	fi.Ctime_ns = uint64(stat.Ctime) * 1e9
++	fi.Size = int64(stat.Size)
++	fi.Blksize = int64(stat.Blksize)
++	fi.Blocks = int64(stat.Blocks)
++	fi.Atime_ns = int64(stat.Atime) * 1e9
++	fi.Mtime_ns = int64(stat.Mtime) * 1e9
++	fi.Ctime_ns = int64(stat.Ctime) * 1e9
+ 	for i := len(name) - 1; i >= 0; i-- {
+ 		if name[i] == '/' {
+ 			name = name[i+1:]
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index f7da0251e5..6b3ab21e35 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -154,8 +154,12 @@ runtime.acid.$(GOARCH): runtime.h proc.c
+ 
+ # 386 traceback is really amd64 traceback
+ ifeq ($(GOARCH),386)
+-
+ traceback.$O:	amd64/traceback.c
+ 	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
++endif
+ 
++# NaCl closure is special.
++ifeq ($(GOOS),nacl)
++closure.$O: nacl/$(GOARCH)/closure.c
++	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+ endif
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 8b733b6a4a..473e8a836f 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -324,6 +324,10 @@ struct MHeap
+ 	// range of addresses we might see in the heap
+ 	byte *min;
+ 	byte *max;
++	
++	// range of addresses we might see in a Native Client closure
++	byte *closure_min;
++	byte *closure_max;
+ 
+ 	// central free lists for small size classes.
+ 	// the union makes sure that the MCentrals are
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index f78dabf88b..2324eff290 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -56,18 +56,36 @@ scanblock(int32 depth, byte *b, int64 n)
+ 	n /= PtrSize;
+ 	for(i=0; i<n; i++) {
+ 		obj = vp[i];
+-		if(obj == nil || (byte*)obj < mheap.min || (byte*)obj >= mheap.max)
++		if(obj == nil)
+ 			continue;
+-		if(mlookup(obj, &obj, &size, nil, &refp)) {
+-			ref = *refp;
+-			switch(ref & ~RefFlags) {
+-			case RefNone:
+-				if(Debug > 1)
+-					printf("%d found at %p: ", depth, &vp[i]);
+-				*refp = RefSome | (ref & RefFlags);
+-				if(!(ref & RefNoPointers))
+-					scanblock(depth+1, obj, size);
+-				break;
++		if(mheap.closure_min != nil && mheap.closure_min <= (byte*)obj && (byte*)obj < mheap.closure_max) {
++			if((((uintptr)obj) & 63) != 0)
++				continue;
++
++			// Looks like a Native Client closure.
++			// Actual pointer is pointed at by address in first instruction.
++			// Embedded pointer starts at byte 2.
++			// If it is f4f4f4f4 then that space hasn't been
++			// used for a closure yet (f4 is the HLT instruction).
++			// See nacl/386/closure.c for more.
++			void **pp;
++			pp = *(void***)((byte*)obj+2);
++			if(pp == (void**)0xf4f4f4f4)	// HLT... - not a closure after all
++				continue;
++			obj = *pp;
++		}
++		if(mheap.min <= (byte*)obj && (byte*)obj < mheap.max) {
++			if(mlookup(obj, &obj, &size, nil, &refp)) {
++				ref = *refp;
++				switch(ref & ~RefFlags) {
++				case RefNone:
++					if(Debug > 1)
++						printf("%d found at %p: ", depth, &vp[i]);
++					*refp = RefSome | (ref & RefFlags);
++					if(!(ref & RefNoPointers))
++						scanblock(depth+1, obj, size);
++					break;
++				}
+ 			}
+ 		}
+ 	}
+@@ -310,8 +328,8 @@ gc(int32 force)
+ 		if(fing == nil)
+ 			fing = newproc1((byte*)runfinq, nil, 0, 0);
+ 		else if(fingwait) {
+-			ready(fing);
+ 			fingwait = 0;
++			ready(fing);
+ 		}
+ 	}
+ 	m->locks--;
+@@ -359,6 +377,7 @@ runfinq(void)
+ 			f->fn = nil;
+ 			f->arg = nil;
+ 			f->next = nil;
++			free(f);
+ 		}
+ 		gc(1);	// trigger another gc to clean up the finalized objects, if possible
+ 	}
+diff --git a/src/pkg/runtime/nacl/386/closure.c b/src/pkg/runtime/nacl/386/closure.c
+new file mode 100644
+index 0000000000..6a27d6ec6f
+--- /dev/null
++++ b/src/pkg/runtime/nacl/386/closure.c
+@@ -0,0 +1,247 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Closure implementation for Native Client.
++ * Native Client imposes some interesting restrictions.
++ *
++ * First, we can only add new code to the code segment
++ * through a special system call, and we have to pick the
++ * maximum amount of code we're going to add that way
++ * at link time (8l reserves 512 kB for us).
++ *
++ * Second, once we've added the code we can't ever
++ * change it or delete it.  If we want to garbage collect
++ * the memory and then reuse it for another closure,
++ * we have to do so without editing the code.
++ *
++ * To address both of these, we fill the code segment pieces
++ * with very stylized closures.  Each has the form given below
++ * in the comments on the closasm array, with ** replaced by
++ * a pointer to a single word of memory.  The garbage collector
++ * treats a pointer to such a closure as equivalent to the value
++ * held in **.  This tiled run of closures is called the closure array.
++ *
++ * The ptr points at a ClosureData structure, defined below,
++ * which gives the function, arguments, and size for the
++ * closuretramp function.  The ClosureData structure has
++ * in it a pointer to a ClosureFreeList structure holding the index
++ * of the closure in the closure array (but not a pointer to it). 
++ * That structure has a finalizer: when the garbage collector
++ * notices that the ClosureFreeList structure is not referenced
++ * anymore, that means the closure is not referenced, so it
++ * can be reused.  To do that, the ClosureFreeList entry is put
++ * onto an actual free list.
++ */
++#include "runtime.h"
++#include "malloc.h"
++
++// NaCl system call to copy data into text segment.
++extern int32 dyncode_copy(void*, void*, int32);
++
++enum{
++	// Allocate chunks of 4096 bytes worth of closures:
++	// at 64 bytes each, that's 64 closures.
++	ClosureChunk = 4096,
++	ClosureSize = 64,
++};
++
++typedef struct ClosureFreeList ClosureFreeList;
++struct ClosureFreeList
++{
++	ClosureFreeList *next;
++	int32 index;	// into closure array
++};
++
++// Known to closasm
++typedef struct ClosureData ClosureData;
++struct ClosureData
++{
++	ClosureFreeList *free;
++	byte *fn;
++	int32 siz;
++	// then args
++};
++
++// List of the closure data pointer blocks we've allocated
++// and hard-coded in the closure text segments.
++// The list keeps the pointer blocks from getting collected.
++typedef struct ClosureDataList ClosureDataList;
++struct ClosureDataList
++{
++	ClosureData **block;
++	ClosureDataList *next;
++};
++
++static struct {
++	Lock;
++	byte *code;
++	byte *ecode;
++	ClosureFreeList *free;
++	ClosureDataList *datalist;
++	byte buf[ClosureChunk];
++} clos;
++
++static byte closasm[64] = {
++	0x8b, 0x1d, 0, 0, 0, 0,	// MOVL **, BX
++	0x8b, 0x4b, 8,		// MOVL 8(BX), CX
++	0x8d, 0x73, 12,		// LEAL 12(BX), SI
++	0x29, 0xcc,		// SUBL CX, SP
++	0x89, 0xe7,		// MOVL SP, DI
++	0xc1, 0xe9, 2,		// SHRL $2, CX
++	0xf3, 0xa5,		// REP MOVSL
++	0x8b, 0x5b, 4,		// MOVL 4(BX), BX
++	0x90, 0x90, 0x90,	// NOP...
++	0x83, 0xe3, ~31,	// ANDL $~31, BX
++	0xff, 0xd3,		// CALL *BX
++	// --- 32-byte boundary
++	0x8b, 0x1d, 0, 0, 0, 0,	// MOVL **, BX
++	0x03, 0x63, 8,		// ADDL 8(BX), SP
++	0x5b,			// POPL BX
++	0x83, 0xe3, ~31,	// ANDL $~31, BX
++	0xff, 0xe3,		// JMP *BX
++	0xf4,			// HLT...
++	0xf4, 0xf4, 0xf4, 0xf4,
++	0xf4, 0xf4, 0xf4, 0xf4,
++	0xf4, 0xf4, 0xf4, 0xf4,
++	0xf4, 0xf4, 0xf4, 0xf4,
++	// --- 32-byte boundary
++};
++
++// Returns immediate pointer from closure code block.
++// Triple pointer:
++//	p is the instruction stream
++//	p+2 is the location of the immediate value
++//	*(p+2) is the immediate value, a word in the pointer block
++//		permanently associated with this closure.
++//	**(p+2) is the ClosureData* pointer temporarily associated
++//		with this closure.
++//
++#define codeptr(p) *(ClosureData***)((byte*)(p)+2)
++
++void
++finclosure(void *v)
++{
++	byte *p;
++	ClosureFreeList *f;
++
++	f = v;
++	p = clos.code + f->index*ClosureSize;
++	*codeptr(p) = nil;
++
++	lock(&clos);
++	f->next = clos.free;
++	clos.free = f;
++	unlock(&clos);
++}
++
++#pragma textflag 7
++// func closure(siz int32,
++//	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
++//	arg0, arg1, arg2 *ptr) (func(xxx) yyy)
++void
++·closure(int32 siz, byte *fn, byte *arg0)
++{
++	byte *p, **ret;
++	int32 e, i, n, off;
++	extern byte data[], etext[];
++	ClosureData *d, **block;
++	ClosureDataList *l;
++	ClosureFreeList *f;
++
++	if(siz < 0 || siz%4 != 0)
++		throw("bad closure size");
++
++	ret = (byte**)((byte*)&arg0 + siz);
++
++	if(siz > 100) {
++		// TODO(rsc): implement stack growth preamble?
++		throw("closure too big");
++	}
++
++	lock(&clos);
++	if(clos.free == nil) {
++		// Allocate more closures.
++		if(clos.code == nil) {
++			// First time: find closure space, between end of text
++			// segment and beginning of data.
++			clos.code = (byte*)(((uintptr)etext + 65535) & ~65535);
++			clos.ecode = clos.code;
++			mheap.closure_min = clos.code;
++			mheap.closure_max = data;
++		}
++		if(clos.ecode+ClosureChunk > data) {
++			// Last ditch effort: garbage collect and hope.
++			unlock(&clos);
++			gc(1);
++			lock(&clos);
++			if(clos.free != nil)
++				goto alloc;
++			throw("ran out of room for closures in text segment");
++		}
++
++		n = ClosureChunk/ClosureSize;
++		
++		// Allocate the pointer block as opaque to the
++		// garbage collector.  Finalizers will clean up.
++		block = mallocgc(n*sizeof block[0], RefNoPointers, 1, 1);
++
++		// Pointers into the pointer block are getting added
++		// to the text segment; keep a pointer here in the data
++		// segment so that the garbage collector doesn't free
++		// the block itself.
++		l = mal(sizeof *l);
++		l->block = block;
++		l->next = clos.datalist;
++		clos.datalist = l;
++
++		p = clos.buf;
++		off = (clos.ecode - clos.code)/ClosureSize;
++		for(i=0; i<n; i++) {
++			f = mal(sizeof *f);
++			f->index = off++;
++			f->next = clos.free;
++			clos.free = f;
++
++			// There are two hard-coded immediate values in
++			// the assembly that need to be pp+i, one 2 bytes in
++			// and one 2 bytes after the 32-byte boundary.
++			mcpy(p, closasm, ClosureSize);
++			*(ClosureData***)(p+2) = block+i;
++			*(ClosureData***)(p+32+2) = block+i;
++			p += ClosureSize;
++		}
++
++		if(p != clos.buf+sizeof clos.buf)
++			throw("bad buf math in closure");
++
++		e = dyncode_copy(clos.ecode, clos.buf, ClosureChunk);
++		if(e != 0) {
++			fd = 2;
++			printf("dyncode_copy: error %d\n", e);
++			throw("dyncode_copy");
++		}
++		clos.ecode += ClosureChunk;
++	}
++
++alloc:
++	// Grab a free closure and save the data pointer in its indirect pointer.
++	f = clos.free;
++	clos.free = f->next;
++	f->next = nil;
++	p = clos.code + f->index*ClosureSize;
++
++	d = mal(sizeof(*d)+siz);
++	d->free = f;
++	d->fn = fn;
++	d->siz = siz;
++	mcpy((byte*)(d+1), (byte*)&arg0, siz);
++	*codeptr(p) = d;
++	addfinalizer(f, finclosure, 0);
++	unlock(&clos);
++
++	*ret = p;
++}
++
++
+diff --git a/src/pkg/runtime/nacl/386/sys.s b/src/pkg/runtime/nacl/386/sys.s
+index 356d85eff0..e855351b92 100644
+--- a/src/pkg/runtime/nacl/386/sys.s
++++ b/src/pkg/runtime/nacl/386/sys.s
+@@ -20,6 +20,8 @@
+ #define SYS_mutex_lock  71
+ #define SYS_mutex_unlock 73
+ #define SYS_gettimeofday 40
++#define SYS_dyncode_copy 104
++
+ 
+ #define SYSCALL(x)	$(0x10000+SYS_/**/x * 32)
+ 
+@@ -55,6 +57,15 @@ TEXT	mutex_unlock(SB),7,$0
+ TEXT thread_create(SB),7,$0
+ 	JMP	SYSCALL(thread_create)
+ 
++TEXT dyncode_copy(SB),7,$0
++	JMP	SYSCALL(dyncode_copy)
++
++// For Native Client: a simple no-op function.
++// Inserting a call to this no-op is a simple way
++// to trigger an alignment.
++TEXT ·naclnop(SB),7,$0
++	RET
++
+ TEXT ·mmap(SB),7,$24
+ 	MOVL	a1+0(FP), BX
+ 	MOVL	a2+4(FP), CX	// round up to 64 kB boundary; silences nacl warning
+diff --git a/src/pkg/runtime/nacl/thread.c b/src/pkg/runtime/nacl/thread.c
+index 4112eaa993..392be870ff 100644
+--- a/src/pkg/runtime/nacl/thread.c
++++ b/src/pkg/runtime/nacl/thread.c
+@@ -88,7 +88,7 @@ unlock(Lock *l)
+ }
+ 
+ void
+-destroylock(Lock *l)
++destroylock(Lock*)
+ {
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_nacl.go b/src/pkg/syscall/syscall_nacl.go
+index 6a5d9c2d69..7b40a22ad0 100644
+--- a/src/pkg/syscall/syscall_nacl.go
++++ b/src/pkg/syscall/syscall_nacl.go
+@@ -131,7 +131,7 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+ func Mkdir(path string, mode int) (errno int) { return ENACL }
+ 
+ func Lstat(path string, stat *Stat_t) (errno int) {
+-	return ENACL
++	return Stat(path, stat)
+ }
+ 
+ func Chdir(path string) (errno int) { return ENACL }
+diff --git a/test/env.go b/test/env.go
+index 2cf9ddf381..b12a72973b 100644
+--- a/test/env.go
++++ b/test/env.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # NaCl runner does not expose environment
+ // $G $F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/bug243.go b/test/fixedbugs/bug243.go
+index 01112dae73..837b91035f 100644
+--- a/test/fixedbugs/bug243.go
++++ b/test/fixedbugs/bug243.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # no network
+ // $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+diff --git a/test/nacl-pass.txt b/test/nacl-pass.txt
+deleted file mode 100644
+index 91a9cc8df9..0000000000
+--- a/test/nacl-pass.txt
++++ /dev/null
+@@ -1,355 +0,0 @@
+-./64bit.go
+-./args.go
+-./assign.go
+-./bigalg.go
+-./blank.go
+-./blank1.go
+-./chancap.go
+-./char_lit.go
+-./closedchan.go
+-./cmp1.go
+-./complit.go
+-./compos.go
+-./const.go
+-./const1.go
+-./const2.go
+-./const3.go
+-./convert.go
+-./convert3.go
+-./convlit.go
+-./convlit1.go
+-./copy.go
+-./ddd1.go
+-./ddd2.go
+-./ddd3.go
+-./decl.go
+-./declbad.go
+-./defer.go
+-./empty.go
+-./escape.go
+-./escape1.go
+-./float_lit.go
+-./floatcmp.go
+-./for.go
+-./func.go
+-./func1.go
+-./func2.go
+-./func3.go
+-./func4.go
+-./gc.go
+-./gc1.go
+-./hashmap.go
+-./hilbert.go
+-./if.go
+-./if1.go
+-./import.go
+-./import1.go
+-./import2.go
+-./import3.go
+-./indirect.go
+-./indirect1.go
+-./initcomma.go
+-./initialize.go
+-./initializerr.go
+-./initsyscall.go
+-./int_lit.go
+-./intcvt.go
+-./iota.go
+-./literal.go
+-./map.go
+-./method.go
+-./method1.go
+-./method2.go
+-./method3.go
+-./named.go
+-./named1.go
+-./nil.go
+-./parentype.go
+-./range.go
+-./rename.go
+-./rename1.go
+-./runtime.go
+-./sieve.go
+-./simassign.go
+-./string_lit.go
+-./stringrange.go
+-./switch.go
+-./switch1.go
+-./test0.go
+-./typeswitch.go
+-./typeswitch1.go
+-./typeswitch2.go
+-./utf.go
+-./varinit.go
+-./vectors.go
+-ken/array.go
+-ken/chan.go
+-ken/chan1.go
+-ken/complit.go
+-ken/divconst.go
+-ken/divmod.go
+-ken/embed.go
+-ken/for.go
+-ken/interbasic.go
+-ken/interfun.go
+-ken/mfunc.go
+-ken/modconst.go
+-ken/ptrfun.go
+-ken/ptrvar.go
+-ken/range.go
+-ken/robfor.go
+-ken/robfunc.go
+-ken/robif.go
+-ken/shift.go
+-ken/simparray.go
+-ken/simpbool.go
+-ken/simpconv.go
+-ken/simpfun.go
+-ken/simpvar.go
+-ken/slicearray.go
+-ken/sliceslice.go
+-ken/strvar.go
+-chan/fifo.go
+-chan/perm.go
+-chan/select.go
+-chan/sieve.go
+-interface/bigdata.go
+-interface/convert.go
+-interface/convert1.go
+-interface/convert2.go
+-interface/embed.go
+-interface/embed0.go
+-interface/embed1.go
+-interface/explicit.go
+-interface/fake.go
+-interface/pointer.go
+-interface/receiver.go
+-interface/receiver1.go
+-interface/recursive.go
+-interface/struct.go
+-syntax/forvar.go
+-syntax/import.go
+-syntax/interface.go
+-syntax/semi1.go
+-syntax/semi2.go
+-syntax/semi3.go
+-syntax/semi4.go
+-syntax/semi5.go
+-syntax/semi6.go
+-syntax/semi7.go
+-syntax/slice.go
+-fixedbugs/bug000.go
+-fixedbugs/bug001.go
+-fixedbugs/bug002.go
+-fixedbugs/bug003.go
+-fixedbugs/bug004.go
+-fixedbugs/bug005.go
+-fixedbugs/bug006.go
+-fixedbugs/bug007.go
+-fixedbugs/bug008.go
+-fixedbugs/bug009.go
+-fixedbugs/bug010.go
+-fixedbugs/bug011.go
+-fixedbugs/bug012.go
+-fixedbugs/bug013.go
+-fixedbugs/bug014.go
+-fixedbugs/bug015.go
+-fixedbugs/bug017.go
+-fixedbugs/bug020.go
+-fixedbugs/bug021.go
+-fixedbugs/bug022.go
+-fixedbugs/bug023.go
+-fixedbugs/bug024.go
+-fixedbugs/bug026.go
+-fixedbugs/bug028.go
+-fixedbugs/bug030.go
+-fixedbugs/bug031.go
+-fixedbugs/bug035.go
+-fixedbugs/bug036.go
+-fixedbugs/bug037.go
+-fixedbugs/bug038.go
+-fixedbugs/bug039.go
+-fixedbugs/bug040.go
+-fixedbugs/bug045.go
+-fixedbugs/bug046.go
+-fixedbugs/bug047.go
+-fixedbugs/bug048.go
+-fixedbugs/bug049.go
+-fixedbugs/bug050.go
+-fixedbugs/bug051.go
+-fixedbugs/bug052.go
+-fixedbugs/bug053.go
+-fixedbugs/bug054.go
+-fixedbugs/bug055.go
+-fixedbugs/bug056.go
+-fixedbugs/bug057.go
+-fixedbugs/bug058.go
+-fixedbugs/bug059.go
+-fixedbugs/bug060.go
+-fixedbugs/bug061.go
+-fixedbugs/bug062.go
+-fixedbugs/bug063.go
+-fixedbugs/bug064.go
+-fixedbugs/bug065.go
+-fixedbugs/bug066.go
+-fixedbugs/bug068.go
+-fixedbugs/bug069.go
+-fixedbugs/bug071.go
+-fixedbugs/bug072.go
+-fixedbugs/bug073.go
+-fixedbugs/bug074.go
+-fixedbugs/bug075.go
+-fixedbugs/bug076.go
+-fixedbugs/bug077.go
+-fixedbugs/bug078.go
+-fixedbugs/bug080.go
+-fixedbugs/bug082.go
+-fixedbugs/bug083.go
+-fixedbugs/bug084.go
+-fixedbugs/bug085.go
+-fixedbugs/bug086.go
+-fixedbugs/bug087.go
+-fixedbugs/bug088.go
+-fixedbugs/bug089.go
+-fixedbugs/bug090.go
+-fixedbugs/bug091.go
+-fixedbugs/bug092.go
+-fixedbugs/bug094.go
+-fixedbugs/bug096.go
+-fixedbugs/bug097.go
+-fixedbugs/bug098.go
+-fixedbugs/bug099.go
+-fixedbugs/bug101.go
+-fixedbugs/bug102.go
+-fixedbugs/bug103.go
+-fixedbugs/bug104.go
+-fixedbugs/bug106.go
+-fixedbugs/bug107.go
+-fixedbugs/bug108.go
+-fixedbugs/bug109.go
+-fixedbugs/bug110.go
+-fixedbugs/bug111.go
+-fixedbugs/bug112.go
+-fixedbugs/bug114.go
+-fixedbugs/bug115.go
+-fixedbugs/bug116.go
+-fixedbugs/bug117.go
+-fixedbugs/bug118.go
+-fixedbugs/bug119.go
+-fixedbugs/bug120.go
+-fixedbugs/bug121.go
+-fixedbugs/bug122.go
+-fixedbugs/bug123.go
+-fixedbugs/bug126.go
+-fixedbugs/bug127.go
+-fixedbugs/bug128.go
+-fixedbugs/bug129.go
+-fixedbugs/bug130.go
+-fixedbugs/bug131.go
+-fixedbugs/bug132.go
+-fixedbugs/bug133.go
+-fixedbugs/bug135.go
+-fixedbugs/bug136.go
+-fixedbugs/bug137.go
+-fixedbugs/bug139.go
+-fixedbugs/bug140.go
+-fixedbugs/bug141.go
+-fixedbugs/bug142.go
+-fixedbugs/bug143.go
+-fixedbugs/bug144.go
+-fixedbugs/bug145.go
+-fixedbugs/bug146.go
+-fixedbugs/bug149.go
+-fixedbugs/bug150.go
+-fixedbugs/bug151.go
+-fixedbugs/bug152.go
+-fixedbugs/bug153.go
+-fixedbugs/bug154.go
+-fixedbugs/bug155.go
+-fixedbugs/bug156.go
+-fixedbugs/bug157.go
+-fixedbugs/bug158.go
+-fixedbugs/bug160.go
+-fixedbugs/bug161.go
+-fixedbugs/bug163.go
+-fixedbugs/bug164.go
+-fixedbugs/bug165.go
+-fixedbugs/bug167.go
+-fixedbugs/bug168.go
+-fixedbugs/bug169.go
+-fixedbugs/bug170.go
+-fixedbugs/bug171.go
+-fixedbugs/bug172.go
+-fixedbugs/bug173.go
+-fixedbugs/bug174.go
+-fixedbugs/bug175.go
+-fixedbugs/bug176.go
+-fixedbugs/bug177.go
+-fixedbugs/bug178.go
+-fixedbugs/bug179.go
+-fixedbugs/bug180.go
+-fixedbugs/bug181.go
+-fixedbugs/bug182.go
+-fixedbugs/bug183.go
+-fixedbugs/bug184.go
+-fixedbugs/bug185.go
+-fixedbugs/bug186.go
+-fixedbugs/bug187.go
+-fixedbugs/bug188.go
+-fixedbugs/bug189.go
+-fixedbugs/bug190.go
+-fixedbugs/bug191.go
+-fixedbugs/bug192.go
+-fixedbugs/bug193.go
+-fixedbugs/bug194.go
+-fixedbugs/bug195.go
+-fixedbugs/bug196.go
+-fixedbugs/bug197.go
+-fixedbugs/bug198.go
+-fixedbugs/bug199.go
+-fixedbugs/bug200.go
+-fixedbugs/bug201.go
+-fixedbugs/bug202.go
+-fixedbugs/bug203.go
+-fixedbugs/bug204.go
+-fixedbugs/bug205.go
+-fixedbugs/bug206.go
+-fixedbugs/bug207.go
+-fixedbugs/bug208.go
+-fixedbugs/bug209.go
+-fixedbugs/bug211.go
+-fixedbugs/bug212.go
+-fixedbugs/bug213.go
+-fixedbugs/bug214.go
+-fixedbugs/bug215.go
+-fixedbugs/bug216.go
+-fixedbugs/bug217.go
+-fixedbugs/bug218.go
+-fixedbugs/bug219.go
+-fixedbugs/bug220.go
+-fixedbugs/bug221.go
+-fixedbugs/bug222.go
+-fixedbugs/bug223.go
+-fixedbugs/bug224.go
+-fixedbugs/bug225.go
+-fixedbugs/bug226.go
+-fixedbugs/bug227.go
+-fixedbugs/bug228.go
+-fixedbugs/bug229.go
+-fixedbugs/bug230.go
+-fixedbugs/bug231.go
+-fixedbugs/bug232.go
+-fixedbugs/bug233.go
+-fixedbugs/bug234.go
+-fixedbugs/bug235.go
+-fixedbugs/bug236.go
+-fixedbugs/bug237.go
+-fixedbugs/bug238.go
+-fixedbugs/bug239.go
+-fixedbugs/bug240.go
+-fixedbugs/bug241.go
+-fixedbugs/bug244.go
+-fixedbugs/bug245.go
+-fixedbugs/bug247.go
+-fixedbugs/bug248.go
+-fixedbugs/bug249.go
+diff --git a/test/nilptr/arrayindex.go b/test/nilptr/arrayindex.go
+index c42dedee81..1767acc275 100644
+--- a/test/nilptr/arrayindex.go
++++ b/test/nilptr/arrayindex.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
+ // $G $D/$F.go && $L $F.$A &&
+ //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+diff --git a/test/nilptr/arrayindex1.go b/test/nilptr/arrayindex1.go
+index 59126f82d5..c16cac4053 100644
+--- a/test/nilptr/arrayindex1.go
++++ b/test/nilptr/arrayindex1.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
+ // $G $D/$F.go && $L $F.$A &&
+ //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+diff --git a/test/nilptr/arraytoslice.go b/test/nilptr/arraytoslice.go
+index 4864d68552..65b2f8a765 100644
+--- a/test/nilptr/arraytoslice.go
++++ b/test/nilptr/arraytoslice.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
+ // $G $D/$F.go && $L $F.$A &&
+ //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+diff --git a/test/nilptr/arraytoslice1.go b/test/nilptr/arraytoslice1.go
+index 1a479dcdb2..b5240a803a 100644
+--- a/test/nilptr/arraytoslice1.go
++++ b/test/nilptr/arraytoslice1.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
+ // $G $D/$F.go && $L $F.$A &&
+ //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+diff --git a/test/nilptr/arraytoslice2.go b/test/nilptr/arraytoslice2.go
+index 0990b899dd..38e1a5cb28 100644
+--- a/test/nilptr/arraytoslice2.go
++++ b/test/nilptr/arraytoslice2.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
+ // $G $D/$F.go && $L $F.$A &&
+ //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+diff --git a/test/nilptr/slicearray.go b/test/nilptr/slicearray.go
+index 7a156b5e64..5f88010df8 100644
+--- a/test/nilptr/slicearray.go
++++ b/test/nilptr/slicearray.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
+ // $G $D/$F.go && $L $F.$A &&
+ //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+diff --git a/test/nilptr/structfield.go b/test/nilptr/structfield.go
+index 22db500d7d..9f70ecc70f 100644
+--- a/test/nilptr/structfield.go
++++ b/test/nilptr/structfield.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
+ // $G $D/$F.go && $L $F.$A &&
+ //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+diff --git a/test/nilptr/structfield1.go b/test/nilptr/structfield1.go
+index 520136805f..1a120890a0 100644
+--- a/test/nilptr/structfield1.go
++++ b/test/nilptr/structfield1.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
+ // $G $D/$F.go && $L $F.$A &&
+ //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+diff --git a/test/nilptr/structfield2.go b/test/nilptr/structfield2.go
+index a0a552c933..25ea8f665c 100644
+--- a/test/nilptr/structfield2.go
++++ b/test/nilptr/structfield2.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
+ // $G $D/$F.go && $L $F.$A &&
+ //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+diff --git a/test/nilptr/structfieldaddr.go b/test/nilptr/structfieldaddr.go
+index 32e9f79315..b5d370ca8b 100644
+--- a/test/nilptr/structfieldaddr.go
++++ b/test/nilptr/structfieldaddr.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # do not bother on NaCl
+ // $G $D/$F.go && $L $F.$A &&
+ //	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+diff --git a/test/nul1.go b/test/nul1.go
+index 026d397544..5e45963312 100644
+--- a/test/nul1.go
++++ b/test/nul1.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # NaCl runner elides NUL in output
+ // $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
+ // errchk $G -e tmp.go
+ // rm -f tmp.go
+diff --git a/test/recover3.go b/test/recover3.go
+index f719b0ced1..b982ec8fa5 100644
+--- a/test/recover3.go
++++ b/test/recover3.go
+@@ -1,3 +1,4 @@
++// [ $GOOS != nacl ] || exit 0  # NaCl cannot recover from signals
+ // $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+diff --git a/test/run b/test/run
+index 78014c867f..b3f54f12f2 100755
+--- a/test/run
++++ b/test/run
+@@ -22,7 +22,7 @@ esac
+ 
+ case X"$GOOS" in
+ Xnacl)
+-	export E="nacl"
++	export E=${GORUN:-$GOROOT/misc/nacl/naclrun}
+ esac
+ 
+ export G=${A}g
+diff --git a/test/run-nacl b/test/run-nacl
+deleted file mode 100755
+index 2f5b7ba26f..0000000000
+--- a/test/run-nacl
++++ /dev/null
+@@ -1,84 +0,0 @@
+-#!/bin/sh
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-case X"$GOARCH" in
+-X386)
+-	# After downloading the Native Client binary distribution,
+-	# copy build/native_client/scons-out/opt-*/obj/src/trusted/service_runtime/sel_ldr
+-	# into your path as "nacl".  You might need to wrap it to get rid of the
+-	# 'Exit syscall handler' print.  To do that, install the binary as nacl.bin and
+-	# make this script nacl: 
+-	#	#!/bin/sh
+-	#	nacl.bin "$@" 2>&1 | grep -v 'Exit syscall handler: 0'
+-	#	exit 0
+-	export A=8
+-	export E=nacl
+-	;;
+-*)
+-	echo 1>&2 run: unsupported '$GOARCH'
+-	exit 1
+-esac
+-
+-export G=${A}g
+-export L=${A}l
+-export GOTRACEBACK=0
+-
+-failed=0
+-
+-export PATH=/bin:/usr/bin:/usr/local/bin:${GOBIN:-$HOME/bin}:$HOME/bin:$(pwd)
+-
+-RUNFILE=/tmp/gorun-$$-$USER
+-TMP1FILE=/tmp/gotest1-$$-$USER
+-TMP2FILE=/tmp/gotest2-$$-$USER
+-
+-# don't run the machine out of memory: limit individual processes to 4GB.
+-# on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
+-ulimit -v 4000000
+-
+-for i in $(cat nacl-pass.txt)
+-do
+-	export F=$(basename $i .go)
+-	dir=$(dirname $i)
+-	export D=$dir
+-	sed '/^\/\//!q; s|//||g; s|./\$A.out|$E &|' $i >$RUNFILE
+-	if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
+-	then
+-		echo
+-		echo "===========" $i
+-		cat $TMP1FILE
+-		cat $TMP2FILE
+-		echo >&2 fail: $i
+-	elif test -s $TMP1FILE || test -s $TMP2FILE
+-	then
+-		echo
+-		echo "===========" $i
+-		cat $TMP1FILE
+-		cat $TMP2FILE
+-	elif [ $dir = "bugs" ]
+-	then
+-		echo $i succeeded with no output.
+-	fi
+-done | # clean up some stack noise
+-	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
+-	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
+-		s!'$RUNFILE'!$RUNFILE!g
+-		s/ PC=0x[0-9a-f]*/ PC=xxx/
+-		s/^pc: 0x[0-9a-f]*/pc: xxx/
+-		/^Trace\/breakpoint trap/d
+-		/^Trace\/BPT trap/d
+-		/RUNFILE/ s/line 1: *[0-9][0-9]* /line 1: PID /
+-		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
+-		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
+-
+-case $failed in
+-0)
+-	echo PASS
+-	;;
+-1)
+-	echo FAIL
+-esac
+-rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+-
+-exit $failed
+diff --git a/test/sigchld.go b/test/sigchld.go
+index 5b95314df6..3887e2d024 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -1,3 +1,4 @@
++// if [ $GOOS == nacl ]; then echo survived SIGCHLD; exit 0; fi  # NaCl has no signals.
+ // $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+diff --git a/test/stack.go b/test/stack.go
+index 168830f70a..816b555a4c 100644
+--- a/test/stack.go
++++ b/test/stack.go
+@@ -68,5 +68,5 @@ func main() {
+ 	for i := 0; i < len(t); i++ {
+ 		t[i] = 1
+ 	}
+-	recur(10000)
++	recur(8000)
+ }

@@ -10,7 +10,159 @@ Date:   Fri Jul 16 13:34:36 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1868041
-
+---
  src/cmd/gc/lex.c         | 55 ++++++++++++++++++++++++------------------------
  src/cmd/goyacc/goyacc.go | 12 +++++------
  2 files changed, 34 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 88f53b48c5..592ac22f04 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1110,7 +1110,7 @@ caseout:
+ 
+ /*
+  * read and interpret syntax that looks like
+- * //line 15 parse.y
++ * //line parse.y:15
+  * as a discontenuity in sequential line numbers.
+  * the next line of input comes from parse.y:15
+  */
+@@ -1124,44 +1124,45 @@ getlinepragma(void)
+ 	for(i=0; i<5; i++) {
+ 		c = getr();
+ 		if(c != "line "[i])
+-			return c;
++			goto out;
+ 	}
+ 
+-	n = 0;
+-	for(;;) {
+-		c = getr();
+-		if(!isdigit(c))
+-			break;
+-		n = n*10 + (c-'0');
+-	}
+-
+-	if(c != ' ' || n == 0)
+-		return c;
+-
+ 	cp = lexbuf;
+ 	ep = lexbuf+sizeof(lexbuf)-5;
+ 	for(;;) {
+ 		c = getr();
++		if(c == '\n' || c == EOF)
++			goto out;
+ 		if(c == ' ')
+ 			continue;
+-		if(c == '\n')
+-			break;
+-		*cp++ = c;
+-		if(cp >= ep)
++		if(c == ':')
+ 			break;
++		if(cp < ep)
++			*cp++ = c;
+ 	}
+ 	*cp = 0;
+-//	n--;	// weve already seen the newline
+-	if(n > 0) {
+-		// try to avoid allocating file name over and over
+-		for(h=hist; h!=H; h=h->link) {
+-			if(h->name != nil && strcmp(h->name, lexbuf) == 0) {
+-				linehist(h->name, n, 0);
+-				return c;
+-			}
++
++	n = 0;
++	for(;;) {
++		c = getr();
++		if(!isdigit(c))
++			break;
++		n = n*10 + (c-'0');
++	}
++
++	if(c != '\n' || n <= 0)
++		goto out;
++
++	// try to avoid allocating file name over and over
++	for(h=hist; h!=H; h=h->link) {
++		if(h->name != nil && strcmp(h->name, lexbuf) == 0) {
++			linehist(h->name, n, 0);
++			goto out;
+ 		}
+-		linehist(strdup(lexbuf), n, 0);
+ 	}
++	linehist(strdup(lexbuf), n, 0);
++
++out:
+ 	return c;
+ }
+ 
+@@ -1205,7 +1206,7 @@ yylex(void)
+ 	// Track last two tokens returned by yylex.
+ 	yyprev = yylast;
+ 	yylast = lx;
+-	return lx;
++ 	return lx;
+ }
+ 
+ static int
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index bc867fccf3..39098cc81f 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -675,7 +675,7 @@ outer:
+ 	//
+ 	if t == MARK {
+ 		if !lflag {
+-			fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
++			fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
+ 		}
+ 		for {
+ 			c := getrune(finput)
+@@ -1032,7 +1032,7 @@ func chfind(t int, s string) int {
+ func cpyunion() {
+ 
+ 	if !lflag {
+-		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
++		fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
+ 	}
+ 	fmt.Fprintf(ftable, "type\tyySymType\tstruct")
+ 
+@@ -1075,7 +1075,7 @@ func cpycode() {
+ 		lineno++
+ 	}
+ 	if !lflag {
+-		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
++		fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
+ 	}
+ 	for c != EOF {
+ 		if c == '%' {
+@@ -1158,7 +1158,7 @@ func dumpprod(curprod []int, max int) {
+ func cpyact(curprod []int, max int) {
+ 
+ 	if !lflag {
+-		fmt.Fprintf(fcode, "\n//line %v %v\n", lineno, infile)
++		fmt.Fprintf(fcode, "\n//line %v:%v\n", infile, lineno)
+ 	}
+ 
+ 	lno := lineno
+@@ -2066,7 +2066,7 @@ nextk:
+ func output() {
+ 	var c, u, v int
+ 
+-	fmt.Fprintf(ftable, "\n//line 1 yacctab\n")
++	fmt.Fprintf(ftable, "\n//line yacctab:1\n")
+ 	fmt.Fprintf(ftable, "var\tyyExca = []int {\n")
+ 
+ 	noset := mkset()
+@@ -2827,7 +2827,7 @@ func others() {
+ 	}
+ 
+ 	// copy yaccpar
+-	fmt.Fprintf(ftable, "\n//line 1 yaccpar\n")
++	fmt.Fprintf(ftable, "\n//line yaccpar:1\n")
+ 
+ 	parts := strings.Split(yaccpar, "yyrun()", 2)
+ 	fmt.Fprintf(ftable, "%v", parts[0])

@@ -16,7 +16,58 @@ Date:   Wed May 18 20:07:16 2016 +0000
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/transport.go      | 13 ++++++-------
  src/net/http/transport_test.go | 15 +++++++++++++++
  2 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 865dbdd508..17e6270151 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -195,13 +195,12 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ 		// Transport.
+ 		return
+ 	}
+-	if t.TLSClientConfig != nil {
+-		// Be conservative for now (for Go 1.6) at least and
+-		// don't automatically enable http2 if they've
+-		// specified a custom TLS config. Let them opt-in
+-		// themselves via http2.ConfigureTransport so we don't
+-		// surprise them by modifying their tls.Config.
+-		// Issue 14275.
++	if t.TLSClientConfig != nil || t.Dial != nil || t.DialTLS != nil {
++		// Be conservative and don't automatically enable
++		// http2 if they've specified a custom TLS config or
++		// custom dialers. Let them opt-in themselves via
++		// http2.ConfigureTransport so we don't surprise them
++		// by modifying their tls.Config. Issue 14275.
+ 		return
+ 	}
+ 	if t.ExpectContinueTimeout != 0 && t != DefaultTransport {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 48b1b309d3..ab05c31cb5 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2986,6 +2986,21 @@ func TestTransportAutomaticHTTP2_ExpectContinueTimeout(t *testing.T) {
+ 	}, false)
+ }
+ 
++func TestTransportAutomaticHTTP2_Dial(t *testing.T) {
++	var d net.Dialer
++	testTransportAutoHTTP(t, &Transport{
++		Dial: d.Dial,
++	}, false)
++}
++
++func TestTransportAutomaticHTTP2_DialTLS(t *testing.T) {
++	testTransportAutoHTTP(t, &Transport{
++		DialTLS: func(network, addr string) (net.Conn, error) {
++			panic("unused")
++		},
++	}, false)
++}
++
+ func testTransportAutoHTTP(t *testing.T, tr *Transport, wantH2 bool) {
+ 	_, err := tr.RoundTrip(new(Request))
+ 	if err == nil {

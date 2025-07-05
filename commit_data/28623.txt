@@ -13,6 +13,22 @@ Date:   Tue Jun 14 15:32:39 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/lookup_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index e22d1fbf79..b3aeb85afb 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -453,6 +453,10 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
++	}
++
+ 	for i, fn := range []func() func(){forceGoDNS, forceCgoDNS} {
+ 		fixup := fn()
+ 		if fixup == nil {

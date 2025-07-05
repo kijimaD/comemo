@@ -7,6 +7,20 @@ Date:   Sun Jan 6 22:44:04 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7067047
-
+---
  src/pkg/bytes/bytes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index cb4dae6aec..e3ee5b1d88 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ // Compare returns an integer comparing two byte slices lexicographically.
+-// The result will be 0 if a==b, -1 if a < b, and +1 if a > b
++// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+ // A nil argument is equivalent to an empty slice.
+ func Compare(a, b []byte) int {
+ 	m := len(a)

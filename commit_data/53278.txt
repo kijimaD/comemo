@@ -13,7 +13,7 @@ Date:   Mon Aug 8 22:20:16 2022 +0700
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go        |  8 ++++----
  src/cmd/compile/internal/noder/sizes.go         |  4 ++--
  src/cmd/compile/internal/objw/objw.go           |  4 ++--
@@ -23,3 +23,240 @@ Date:   Mon Aug 8 22:20:16 2022 +0700
  src/cmd/compile/internal/types/size.go          |  9 +++++----
  src/cmd/compile/internal/types/universe.go      |  8 ++++----
  8 files changed, 28 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index aa5063f741..09bc0fbf85 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -359,7 +359,7 @@ func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Ty
+ 		result.inparams = append(result.inparams,
+ 			s.assignParamOrReturn(t, nil, false))
+ 	}
+-	s.stackOffset = types.Rnd(s.stackOffset, int64(types.RegSize))
++	s.stackOffset = types.RoundUp(s.stackOffset, int64(types.RegSize))
+ 	result.inRegistersUsed = s.rUsed.intRegs + s.rUsed.floatRegs
+ 
+ 	// Outputs
+@@ -403,7 +403,7 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo
+ 		result.inparams = append(result.inparams,
+ 			s.assignParamOrReturn(f.Type, f.Nname, false))
+ 	}
+-	s.stackOffset = types.Rnd(s.stackOffset, int64(types.RegSize))
++	s.stackOffset = types.RoundUp(s.stackOffset, int64(types.RegSize))
+ 	result.inRegistersUsed = s.rUsed.intRegs + s.rUsed.floatRegs
+ 
+ 	// Outputs
+@@ -539,7 +539,7 @@ func alignTo(a int64, t int) int64 {
+ 	if t == 0 {
+ 		return a
+ 	}
+-	return types.Rnd(a, int64(t))
++	return types.RoundUp(a, int64(t))
+ }
+ 
+ // stackSlot returns a stack offset for a param or result of the
+@@ -647,7 +647,7 @@ func (state *assignState) floatUsed() int {
+ // can register allocate, FALSE otherwise (and updates state
+ // accordingly).
+ func (state *assignState) regassignIntegral(t *types.Type) bool {
+-	regsNeeded := int(types.Rnd(t.Size(), int64(types.PtrSize)) / int64(types.PtrSize))
++	regsNeeded := int(types.RoundUp(t.Size(), int64(types.PtrSize)) / int64(types.PtrSize))
+ 	if t.IsComplex() {
+ 		regsNeeded = 2
+ 	}
+diff --git a/src/cmd/compile/internal/noder/sizes.go b/src/cmd/compile/internal/noder/sizes.go
+index 7820746db1..107f4d0adf 100644
+--- a/src/cmd/compile/internal/noder/sizes.go
++++ b/src/cmd/compile/internal/noder/sizes.go
+@@ -82,7 +82,7 @@ func (s *gcSizes) Offsetsof(fields []*types2.Var) []int64 {
+ 	for i, f := range fields {
+ 		typ := f.Type()
+ 		a := s.Alignof(typ)
+-		o = types.Rnd(o, a)
++		o = types.RoundUp(o, a)
+ 		offsets[i] = o
+ 		o += s.Sizeof(typ)
+ 	}
+@@ -134,7 +134,7 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
+ 		}
+ 
+ 		// gc: Size includes alignment padding.
+-		return types.Rnd(offsets[n-1]+last, s.Alignof(t))
++		return types.RoundUp(offsets[n-1]+last, s.Alignof(t))
+ 	case *types2.Interface:
+ 		return int64(types.PtrSize) * 2
+ 	case *types2.Chan, *types2.Map, *types2.Pointer, *types2.Signature:
+diff --git a/src/cmd/compile/internal/objw/objw.go b/src/cmd/compile/internal/objw/objw.go
+index ed5ad754d9..a73ed286ae 100644
+--- a/src/cmd/compile/internal/objw/objw.go
++++ b/src/cmd/compile/internal/objw/objw.go
+@@ -40,14 +40,14 @@ func UintN(s *obj.LSym, off int, v uint64, wid int) int {
+ }
+ 
+ func SymPtr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+-	off = int(types.Rnd(int64(off), int64(types.PtrSize)))
++	off = int(types.RoundUp(int64(off), int64(types.PtrSize)))
+ 	s.WriteAddr(base.Ctxt, int64(off), types.PtrSize, x, int64(xoff))
+ 	off += types.PtrSize
+ 	return off
+ }
+ 
+ func SymPtrWeak(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+-	off = int(types.Rnd(int64(off), int64(types.PtrSize)))
++	off = int(types.RoundUp(int64(off), int64(types.PtrSize)))
+ 	s.WriteWeakAddr(base.Ctxt, int64(off), types.PtrSize, x, int64(xoff))
+ 	off += types.PtrSize
+ 	return off
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 302d0790fc..8fb2d50c40 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -562,7 +562,7 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
+ 	if t.Sym() == nil && len(m) == 0 {
+ 		return ot
+ 	}
+-	noff := int(types.Rnd(int64(ot), int64(types.PtrSize)))
++	noff := int(types.RoundUp(int64(ot), int64(types.PtrSize)))
+ 	if noff != ot {
+ 		base.Fatalf("unexpected alignment in dextratype for %v", t)
+ 	}
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 825b32aa80..31e6feece5 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -159,7 +159,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 			w = 1
+ 		}
+ 		s.stksize += w
+-		s.stksize = types.Rnd(s.stksize, n.Type().Alignment())
++		s.stksize = types.RoundUp(s.stksize, n.Type().Alignment())
+ 		if n.Type().HasPointers() {
+ 			s.stkptrsize = s.stksize
+ 			lastHasPtr = true
+@@ -169,8 +169,8 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		n.SetFrameOffset(-s.stksize)
+ 	}
+ 
+-	s.stksize = types.Rnd(s.stksize, int64(types.RegSize))
+-	s.stkptrsize = types.Rnd(s.stkptrsize, int64(types.RegSize))
++	s.stksize = types.RoundUp(s.stksize, int64(types.RegSize))
++	s.stkptrsize = types.RoundUp(s.stkptrsize, int64(types.RegSize))
+ }
+ 
+ const maxStackSize = 1 << 30
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 1e5313f95e..86b5358e3c 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -521,7 +521,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 				typ = types.NewPtr(typ)
+ 			}
+ 
+-			offset = types.Rnd(offset, typ.Alignment())
++			offset = types.RoundUp(offset, typ.Alignment())
+ 			ptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
+ 			offset += typ.Size()
+ 
+@@ -5625,13 +5625,13 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 
+ 	for _, arg := range args {
+ 		t := arg.Type
+-		off = types.Rnd(off, t.Alignment())
++		off = types.RoundUp(off, t.Alignment())
+ 		size := t.Size()
+ 		callArgs = append(callArgs, arg)
+ 		callArgTypes = append(callArgTypes, t)
+ 		off += size
+ 	}
+-	off = types.Rnd(off, int64(types.RegSize))
++	off = types.RoundUp(off, int64(types.RegSize))
+ 
+ 	// Issue call
+ 	var call *ssa.Value
+@@ -5656,11 +5656,11 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	// Load results
+ 	res := make([]*ssa.Value, len(results))
+ 	for i, t := range results {
+-		off = types.Rnd(off, t.Alignment())
++		off = types.RoundUp(off, t.Alignment())
+ 		res[i] = s.resultOfCall(call, int64(i), t)
+ 		off += t.Size()
+ 	}
+-	off = types.Rnd(off, int64(types.PtrSize))
++	off = types.RoundUp(off, int64(types.PtrSize))
+ 
+ 	// Remember how much callee stack space we needed.
+ 	call.AuxInt = off
+@@ -7284,14 +7284,14 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ func defframe(s *State, e *ssafn, f *ssa.Func) {
+ 	pp := s.pp
+ 
+-	frame := types.Rnd(s.maxarg+e.stksize, int64(types.RegSize))
++	frame := types.RoundUp(s.maxarg+e.stksize, int64(types.RegSize))
+ 	if Arch.PadFrame != nil {
+ 		frame = Arch.PadFrame(frame)
+ 	}
+ 
+ 	// Fill in argument and frame size.
+ 	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-	pp.Text.To.Val = int32(types.Rnd(f.OwnAux.ArgWidth(), int64(types.RegSize)))
++	pp.Text.To.Val = int32(types.RoundUp(f.OwnAux.ArgWidth(), int64(types.RegSize)))
+ 	pp.Text.To.Offset = frame
+ 
+ 	p := pp.Text
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index d034808132..397819309d 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -63,9 +63,10 @@ var CalcSizeDisabled bool
+ // the size of a pointer, set in gc.Main (see ../gc/main.go).
+ var defercalc int
+ 
+-func Rnd(o int64, r int64) int64 {
++// RoundUp rounds o to a multiple of r, r is a power of 2.
++func RoundUp(o int64, r int64) int64 {
+ 	if r < 1 || r > 8 || r&(r-1) != 0 {
+-		base.Fatalf("rnd %d", r)
++		base.Fatalf("Round %d", r)
+ 	}
+ 	return (o + r - 1) &^ (r - 1)
+ }
+@@ -187,7 +188,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 			maxalign = int32(f.Type.align)
+ 		}
+ 		if f.Type.align > 0 {
+-			o = Rnd(o, int64(f.Type.align))
++			o = RoundUp(o, int64(f.Type.align))
+ 		}
+ 		if isStruct { // For receiver/args/results, do not set, it depends on ABI
+ 			f.Offset = o
+@@ -223,7 +224,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 
+ 	// final width is rounded
+ 	if flag != 0 {
+-		o = Rnd(o, int64(maxalign))
++		o = RoundUp(o, int64(maxalign))
+ 	}
+ 	t.align = uint8(maxalign)
+ 
+diff --git a/src/cmd/compile/internal/types/universe.go b/src/cmd/compile/internal/types/universe.go
+index 765a9f19e8..473311034e 100644
+--- a/src/cmd/compile/internal/types/universe.go
++++ b/src/cmd/compile/internal/types/universe.go
+@@ -46,12 +46,12 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 	}
+ 
+ 	SlicePtrOffset = 0
+-	SliceLenOffset = Rnd(SlicePtrOffset+int64(PtrSize), int64(PtrSize))
+-	SliceCapOffset = Rnd(SliceLenOffset+int64(PtrSize), int64(PtrSize))
+-	SliceSize = Rnd(SliceCapOffset+int64(PtrSize), int64(PtrSize))
++	SliceLenOffset = RoundUp(SlicePtrOffset+int64(PtrSize), int64(PtrSize))
++	SliceCapOffset = RoundUp(SliceLenOffset+int64(PtrSize), int64(PtrSize))
++	SliceSize = RoundUp(SliceCapOffset+int64(PtrSize), int64(PtrSize))
+ 
+ 	// string is same as slice wo the cap
+-	StringSize = Rnd(SliceLenOffset+int64(PtrSize), int64(PtrSize))
++	StringSize = RoundUp(SliceLenOffset+int64(PtrSize), int64(PtrSize))
+ 
+ 	for et := Kind(0); et < NTYPE; et++ {
+ 		SimType[et] = et

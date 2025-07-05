@@ -7,6 +7,20 @@ Date:   Sat May 1 13:10:01 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/1004045
-
+---
  misc/cgo/gmp/gmp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/gmp/gmp.go b/misc/cgo/gmp/gmp.go
+index 33c16de773..f7bbe9c514 100644
+--- a/misc/cgo/gmp/gmp.go
++++ b/misc/cgo/gmp/gmp.go
+@@ -190,7 +190,7 @@ func (z *Int) SetString(s string, base int) os.Error {
+ 	if C.mpz_set_str(&z.i[0], p, C.int(base)) < 0 {
+ 		return os.EINVAL
+ 	}
+-	return z
++	return nil
+ }
+ 
+ // String returns the decimal representation of z.

@@ -13,7 +13,32 @@ Date:   Wed Nov 27 18:31:36 2019 +0000
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modget/get.go             | 2 ++
  src/cmd/go/testdata/script/mod_issue35317.txt | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 9a6b29350a..2a0f634658 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -458,7 +458,9 @@ func runGet(cmd *base.Command, args []string) {
+ 	modOnly := make(map[string]*query)
+ 	for _, q := range queries {
+ 		if q.m.Version == "none" {
++			modOnlyMu.Lock()
+ 			modOnly[q.m.Path] = q
++			modOnlyMu.Unlock()
+ 			continue
+ 		}
+ 		if q.path == q.m.Path {
+diff --git a/src/cmd/go/testdata/script/mod_issue35317.txt b/src/cmd/go/testdata/script/mod_issue35317.txt
+index 003390b710..92416a54e4 100644
+--- a/src/cmd/go/testdata/script/mod_issue35317.txt
++++ b/src/cmd/go/testdata/script/mod_issue35317.txt
+@@ -5,4 +5,4 @@ env GO111MODULE=on
+ [short] skip
+ 
+ go mod init example.com
+-go get golang.org/x/text@v0.3.0 golang.org/x/internal@v0.1.0
++go get golang.org/x/text@v0.3.0 golang.org/x/internal@v0.1.0 golang.org/x/exp@none

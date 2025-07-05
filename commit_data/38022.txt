@@ -16,7 +16,7 @@ Date:   Tue Sep 25 12:49:22 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/build.go        |   3 +-
  src/go/build/deps_test.go    |   3 +-
  src/go/build/gc.go           | 120 -------------------------------------
@@ -24,3 +24,375 @@ Date:   Tue Sep 25 12:49:22 2018 -0700
  src/internal/goroot/gc.go    | 140 +++++++++++++++++++++++++++++++++++++++++++
  src/internal/goroot/gccgo.go |  27 +++++++++
  6 files changed, 171 insertions(+), 128 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index b68a712a7d..14b007c25a 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/doc"
+ 	"go/parser"
+ 	"go/token"
++	"internal/goroot"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+@@ -656,7 +657,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 			}
+ 			tried.goroot = dir
+ 		}
+-		if ctxt.Compiler == "gccgo" && isStandardPackage(path) {
++		if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
+ 			p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
+ 			p.Goroot = true
+ 			p.Root = ctxt.GOROOT
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 244c745d41..91617714f6 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -258,7 +258,7 @@ var pkgDeps = map[string][]string{
+ 	"encoding/pem":                   {"L4"},
+ 	"encoding/xml":                   {"L4", "encoding"},
+ 	"flag":                           {"L4", "OS"},
+-	"go/build":                       {"L4", "OS", "GOPARSER"},
++	"go/build":                       {"L4", "OS", "GOPARSER", "internal/goroot"},
+ 	"html":                           {"L4"},
+ 	"image/draw":                     {"L4", "image/internal/imageutil"},
+ 	"image/gif":                      {"L4", "compress/lzw", "image/color/palette", "image/draw"},
+@@ -266,6 +266,7 @@ var pkgDeps = map[string][]string{
+ 	"image/jpeg":                     {"L4", "image/internal/imageutil"},
+ 	"image/png":                      {"L4", "compress/zlib"},
+ 	"index/suffixarray":              {"L4", "regexp"},
++	"internal/goroot":                {"L4", "OS"},
+ 	"internal/singleflight":          {"sync"},
+ 	"internal/trace":                 {"L4", "OS"},
+ 	"math/big":                       {"L4"},
+diff --git a/src/go/build/gc.go b/src/go/build/gc.go
+index e2be2cbb1d..3025cd5681 100644
+--- a/src/go/build/gc.go
++++ b/src/go/build/gc.go
+@@ -7,131 +7,11 @@
+ package build
+ 
+ import (
+-	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+-	"strings"
+-	"sync"
+ )
+ 
+ // getToolDir returns the default value of ToolDir.
+ func getToolDir() string {
+ 	return filepath.Join(runtime.GOROOT(), "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
+ }
+-
+-// isStandardPackage is not used for the gc toolchain.
+-// However, this function may be called when using `go build -compiler=gccgo`.
+-func isStandardPackage(path string) bool {
+-	return gccgoSearch.isStandard(path)
+-}
+-
+-// gccgoSearch holds the gccgo search directories.
+-type gccgoDirs struct {
+-	once sync.Once
+-	dirs []string
+-}
+-
+-// gccgoSearch is used to check whether a gccgo package exists in the
+-// standard library.
+-var gccgoSearch gccgoDirs
+-
+-// init finds the gccgo search directories. If this fails it leaves dirs == nil.
+-func (gd *gccgoDirs) init() {
+-	gccgo := os.Getenv("GCCGO")
+-	if gccgo == "" {
+-		gccgo = "gccgo"
+-	}
+-	bin, err := exec.LookPath(gccgo)
+-	if err != nil {
+-		return
+-	}
+-
+-	allDirs, err := exec.Command(bin, "-print-search-dirs").Output()
+-	if err != nil {
+-		return
+-	}
+-	versionB, err := exec.Command(bin, "-dumpversion").Output()
+-	if err != nil {
+-		return
+-	}
+-	version := strings.TrimSpace(string(versionB))
+-	machineB, err := exec.Command(bin, "-dumpmachine").Output()
+-	if err != nil {
+-		return
+-	}
+-	machine := strings.TrimSpace(string(machineB))
+-
+-	dirsEntries := strings.Split(string(allDirs), "\n")
+-	const prefix = "libraries: ="
+-	var dirs []string
+-	for _, dirEntry := range dirsEntries {
+-		if strings.HasPrefix(dirEntry, prefix) {
+-			dirs = filepath.SplitList(strings.TrimPrefix(dirEntry, prefix))
+-			break
+-		}
+-	}
+-	if len(dirs) == 0 {
+-		return
+-	}
+-
+-	var lastDirs []string
+-	for _, dir := range dirs {
+-		goDir := filepath.Join(dir, "go", version)
+-		if fi, err := os.Stat(goDir); err == nil && fi.IsDir() {
+-			gd.dirs = append(gd.dirs, goDir)
+-			goDir = filepath.Join(goDir, machine)
+-			if fi, err = os.Stat(goDir); err == nil && fi.IsDir() {
+-				gd.dirs = append(gd.dirs, goDir)
+-			}
+-		}
+-		if fi, err := os.Stat(dir); err == nil && fi.IsDir() {
+-			lastDirs = append(lastDirs, dir)
+-		}
+-	}
+-	gd.dirs = append(gd.dirs, lastDirs...)
+-}
+-
+-// isStandard returns whether path is a standard library for gccgo.
+-func (gd *gccgoDirs) isStandard(path string) bool {
+-	// Quick check: if the first path component has a '.', it's not
+-	// in the standard library. This skips most GOPATH directories.
+-	i := strings.Index(path, "/")
+-	if i < 0 {
+-		i = len(path)
+-	}
+-	if strings.Contains(path[:i], ".") {
+-		return false
+-	}
+-
+-	if path == "unsafe" {
+-		// Special case.
+-		return true
+-	}
+-
+-	gd.once.Do(gd.init)
+-	if gd.dirs == nil {
+-		// We couldn't find the gccgo search directories.
+-		// Best guess, since the first component did not contain
+-		// '.', is that this is a standard library package.
+-		return true
+-	}
+-
+-	for _, dir := range gd.dirs {
+-		full := filepath.Join(dir, path)
+-		pkgdir, pkg := filepath.Split(full)
+-		for _, p := range [...]string{
+-			full,
+-			full + ".gox",
+-			pkgdir + "lib" + pkg + ".so",
+-			pkgdir + "lib" + pkg + ".a",
+-			full + ".o",
+-		} {
+-			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+-				return true
+-			}
+-		}
+-	}
+-
+-	return false
+-}
+diff --git a/src/go/build/gccgo.go b/src/go/build/gccgo.go
+index 59e089d69d..c6aac9aa1b 100644
+--- a/src/go/build/gccgo.go
++++ b/src/go/build/gccgo.go
+@@ -12,9 +12,3 @@ import "runtime"
+ func getToolDir() string {
+ 	return envOr("GCCGOTOOLDIR", runtime.GCCGOTOOLDIR)
+ }
+-
+-// isStandardPackage returns whether path names a standard library package.
+-// This uses a list generated at build time.
+-func isStandardPackage(path string) bool {
+-	return stdpkg[path]
+-}
+diff --git a/src/internal/goroot/gc.go b/src/internal/goroot/gc.go
+new file mode 100644
+index 0000000000..b9da9a5301
+--- /dev/null
++++ b/src/internal/goroot/gc.go
+@@ -0,0 +1,140 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gc
++
++package goroot
++
++import (
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"sync"
++)
++
++// IsStandardPackage returns whether path is a standard package,
++// given goroot and compiler.
++func IsStandardPackage(goroot, compiler, path string) bool {
++	switch compiler {
++	case "gc":
++		dir := filepath.Join(goroot, "src", path)
++		_, err := os.Stat(dir)
++		return err == nil
++	case "gccgo":
++		return gccgoSearch.isStandard(path)
++	default:
++		panic("unknown compiler " + compiler)
++	}
++}
++
++// gccgoSearch holds the gccgo search directories.
++type gccgoDirs struct {
++	once sync.Once
++	dirs []string
++}
++
++// gccgoSearch is used to check whether a gccgo package exists in the
++// standard library.
++var gccgoSearch gccgoDirs
++
++// init finds the gccgo search directories. If this fails it leaves dirs == nil.
++func (gd *gccgoDirs) init() {
++	gccgo := os.Getenv("GCCGO")
++	if gccgo == "" {
++		gccgo = "gccgo"
++	}
++	bin, err := exec.LookPath(gccgo)
++	if err != nil {
++		return
++	}
++
++	allDirs, err := exec.Command(bin, "-print-search-dirs").Output()
++	if err != nil {
++		return
++	}
++	versionB, err := exec.Command(bin, "-dumpversion").Output()
++	if err != nil {
++		return
++	}
++	version := strings.TrimSpace(string(versionB))
++	machineB, err := exec.Command(bin, "-dumpmachine").Output()
++	if err != nil {
++		return
++	}
++	machine := strings.TrimSpace(string(machineB))
++
++	dirsEntries := strings.Split(string(allDirs), "\n")
++	const prefix = "libraries: ="
++	var dirs []string
++	for _, dirEntry := range dirsEntries {
++		if strings.HasPrefix(dirEntry, prefix) {
++			dirs = filepath.SplitList(strings.TrimPrefix(dirEntry, prefix))
++			break
++		}
++	}
++	if len(dirs) == 0 {
++		return
++	}
++
++	var lastDirs []string
++	for _, dir := range dirs {
++		goDir := filepath.Join(dir, "go", version)
++		if fi, err := os.Stat(goDir); err == nil && fi.IsDir() {
++			gd.dirs = append(gd.dirs, goDir)
++			goDir = filepath.Join(goDir, machine)
++			if fi, err = os.Stat(goDir); err == nil && fi.IsDir() {
++				gd.dirs = append(gd.dirs, goDir)
++			}
++		}
++		if fi, err := os.Stat(dir); err == nil && fi.IsDir() {
++			lastDirs = append(lastDirs, dir)
++		}
++	}
++	gd.dirs = append(gd.dirs, lastDirs...)
++}
++
++// isStandard returns whether path is a standard library for gccgo.
++func (gd *gccgoDirs) isStandard(path string) bool {
++	// Quick check: if the first path component has a '.', it's not
++	// in the standard library. This skips most GOPATH directories.
++	i := strings.Index(path, "/")
++	if i < 0 {
++		i = len(path)
++	}
++	if strings.Contains(path[:i], ".") {
++		return false
++	}
++
++	if path == "unsafe" {
++		// Special case.
++		return true
++	}
++
++	gd.once.Do(gd.init)
++	if gd.dirs == nil {
++		// We couldn't find the gccgo search directories.
++		// Best guess, since the first component did not contain
++		// '.', is that this is a standard library package.
++		return true
++	}
++
++	for _, dir := range gd.dirs {
++		full := filepath.Join(dir, path)
++		pkgdir, pkg := filepath.Split(full)
++		for _, p := range [...]string{
++			full,
++			full + ".gox",
++			pkgdir + "lib" + pkg + ".so",
++			pkgdir + "lib" + pkg + ".a",
++			full + ".o",
++		} {
++			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
++				return true
++			}
++		}
++	}
++
++	return false
++}
+diff --git a/src/internal/goroot/gccgo.go b/src/internal/goroot/gccgo.go
+new file mode 100644
+index 0000000000..098e77d893
+--- /dev/null
++++ b/src/internal/goroot/gccgo.go
+@@ -0,0 +1,27 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gccgo
++
++package goroot
++
++import (
++	"os"
++	"path/filepath"
++)
++
++// IsStandardPackage returns whether path is a standard package,
++// given goroot and compiler.
++func IsStandardPackage(goroot, compiler, path string) bool {
++	switch compiler {
++	case "gc":
++		dir := filepath.Join(goroot, "src", path)
++		_, err := os.Stat(dir)
++		return err == nil
++	case "gccgo":
++		return stdpkg[path]
++	default:
++		panic("unknown compiler " + compiler)
++	}
++}

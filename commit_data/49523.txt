@@ -17,10 +17,93 @@ Date:   Tue Aug 24 09:28:43 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/go/types/check.go       | 2 +-
  src/go/types/instantiate.go | 2 +-
  src/go/types/predicates.go  | 8 +++-----
  src/go/types/subst.go       | 2 +-
  src/go/types/typelists.go   | 8 ++++++++
  5 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 909bf8d52d..ab3a388e9f 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -407,7 +407,7 @@ func (check *Checker) recordInferred(call ast.Expr, targs []Type, sig *Signature
+ 	assert(call != nil)
+ 	assert(sig != nil)
+ 	if m := check.Inferred; m != nil {
+-		m[call] = Inferred{&TypeList{targs}, sig}
++		m[call] = Inferred{NewTypeList(targs), sig}
+ 	}
+ }
+ 
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 3ee09b7e84..5f691d5246 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -131,7 +131,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
+ 
+ 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
+ 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is loaded
+-		named.targs = &TypeList{targs}
++		named.targs = NewTypeList(targs)
+ 		named.instance = &instance{pos}
+ 		if check != nil {
+ 			check.typMap[h] = named
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 2f4ef9dace..d4055bb0cc 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -312,16 +312,14 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 				return false
+ 			}
+ 
+-			if nargs := len(xargs); nargs > 0 {
++			if len(xargs) > 0 {
+ 				// Instances are identical if their original type and type arguments
+ 				// are identical.
+ 				if !Identical(x.orig, y.orig) {
+ 					return false
+ 				}
+-				for i := 0; i < nargs; i++ {
+-					xa := xargs[i]
+-					ya := yargs[i]
+-					if !Identical(xa, ya) {
++				for i, xa := range xargs {
++					if !Identical(xa, yargs[i]) {
+ 						return false
+ 					}
+ 				}
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 8b8d6fb82a..1c53cdaf2c 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -233,7 +233,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		// It's ok to provide a nil *Checker because the newly created type
+ 		// doesn't need to be (lazily) expanded; it's expanded below.
+ 		named := (*Checker)(nil).newNamed(tname, t.orig, nil, t.tparams, t.methods) // t is loaded, so tparams and methods are available
+-		named.targs = &TypeList{newTArgs}
++		named.targs = NewTypeList(newTArgs)
+ 		subst.typMap[h] = named
+ 		t.expand(subst.typMap) // must happen after typMap update to avoid infinite recursion
+ 
+diff --git a/src/go/types/typelists.go b/src/go/types/typelists.go
+index a8181404bf..ef8ea1f32b 100644
+--- a/src/go/types/typelists.go
++++ b/src/go/types/typelists.go
+@@ -27,6 +27,14 @@ func (l *TParamList) list() []*TypeParam {
+ // TypeList holds a list of types.
+ type TypeList struct{ types []Type }
+ 
++// NewTypeList returns a new TypeList with the types in list.
++func NewTypeList(list []Type) *TypeList {
++	if len(list) == 0 {
++		return nil
++	}
++	return &TypeList{list}
++}
++
+ // Len returns the number of types in the list.
+ // It is safe to call on a nil receiver.
+ func (l *TypeList) Len() int { return len(l.list()) }

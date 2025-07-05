@@ -7,6 +7,23 @@ Date:   Wed Dec 21 21:20:17 2011 +0900
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5505053
-
+---
  src/cmd/go/testflag.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index c4aa8c6bd2..249a9316b1 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -80,10 +80,9 @@ var testFlagDefn = []*testFlagSpec{
+ // test.out's arguments.
+ func testFlags(args []string) (passToTest []string) {
+ 	for i := 0; i < len(args); i++ {
+-		arg := args[i]
+ 		f, value, extraWord := testFlag(args, i)
+ 		if f == nil {
+-			args = append(args, arg)
++			passToTest = append(passToTest, args[i])
+ 			continue
+ 		}
+ 		switch f.name {

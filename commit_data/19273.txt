@@ -12,7 +12,7 @@ Date:   Fri May 2 13:17:55 2014 -0700
     R=golang-codereviews, adonovan
     CC=golang-codereviews
     https://golang.org/cl/96980043
-
+---
  src/cmd/api/goapi.go                 | 2 +-
  src/cmd/go/clean.go                  | 2 +-
  src/cmd/go/get.go                    | 2 +-
@@ -36,3 +36,326 @@ Date:   Fri May 2 13:17:55 2014 -0700
  src/pkg/syscall/route_openbsd.go     | 2 +-
  src/pkg/time/zoneinfo_windows.go     | 2 +-
  22 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index a62c874210..4bde794a13 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -817,7 +817,7 @@ func (w *Walker) emitFunc(f *types.Func) {
+ func (w *Walker) emitMethod(m *types.Selection) {
+ 	sig := m.Type().(*types.Signature)
+ 	recv := sig.Recv().Type()
+-	// report exported methods with unexported reveiver base type
++	// report exported methods with unexported receiver base type
+ 	if true {
+ 		base := recv
+ 		if p, _ := recv.(*types.Pointer); p != nil {
+diff --git a/src/cmd/go/clean.go b/src/cmd/go/clean.go
+index 16687f72f7..30a17b87a0 100644
+--- a/src/cmd/go/clean.go
++++ b/src/cmd/go/clean.go
+@@ -153,7 +153,7 @@ func clean(p *Package) {
+ 		elem+".test.exe",
+ 	)
+ 
+-	// Remove a potental executable for each .go file in the directory that
++	// Remove a potential executable for each .go file in the directory that
+ 	// is not part of the directory's package.
+ 	for _, dir := range dirs {
+ 		name := dir.Name()
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index e61da7e2ad..c4217fe24c 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -73,7 +73,7 @@ func runGet(cmd *Command, args []string) {
+ 	}
+ 	exitIfErrors()
+ 
+-	// Phase 2. Rescan packages and reevaluate args list.
++	// Phase 2. Rescan packages and re-evaluate args list.
+ 
+ 	// Code we downloaded and all code that depends on it
+ 	// needs to be evicted from the package cache so that
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index 3fe2327ad2..c467a11910 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -78,7 +78,7 @@ func Remove(h Interface, i int) interface{} {
+ 	return h.Pop()
+ }
+ 
+-// Fix reestablishes the heap ordering after the element at index i has changed its value.
++// Fix re-establishes the heap ordering after the element at index i has changed its value.
+ // Changing the value of the element at index i and then calling Fix is equivalent to,
+ // but less expensive than, calling Remove(h, i) followed by a Push of the new value.
+ // The complexity is O(log(n)) where n = h.Len().
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index 94bb5e99e7..f38b701f1b 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -141,7 +141,7 @@ func hashForServerKeyExchange(sigType, hashFunc uint8, version uint16, slices ..
+ 
+ // pickTLS12HashForSignature returns a TLS 1.2 hash identifier for signing a
+ // ServerKeyExchange given the signature type being used and the client's
+-// advertized list of supported signature and hash combinations.
++// advertised list of supported signature and hash combinations.
+ func pickTLS12HashForSignature(sigType uint8, clientSignatureAndHashes []signatureAndHash) (uint8, error) {
+ 	if len(clientSignatureAndHashes) == 0 {
+ 		// If the client didn't specify any signature_algorithms
+diff --git a/src/pkg/math/big/rat.go b/src/pkg/math/big/rat.go
+index 0fd19c6124..f0973b3902 100644
+--- a/src/pkg/math/big/rat.go
++++ b/src/pkg/math/big/rat.go
+@@ -47,7 +47,7 @@ func (z *Rat) SetFloat64(f float64) *Rat {
+ 
+ 	shift := 52 - exp
+ 
+-	// Optimisation (?): partially pre-normalise.
++	// Optimization (?): partially pre-normalise.
+ 	for mantissa&1 == 0 && shift > 0 {
+ 		mantissa >>= 1
+ 		shift--
+diff --git a/src/pkg/math/cmplx/pow.go b/src/pkg/math/cmplx/pow.go
+index 81821a3ff6..1630b879b8 100644
+--- a/src/pkg/math/cmplx/pow.go
++++ b/src/pkg/math/cmplx/pow.go
+@@ -43,7 +43,7 @@ import "math"
+ //    IEEE      -10,+10     30000       9.4e-15     1.5e-15
+ 
+ // Pow returns x**y, the base-x exponential of y.
+-// For generalized compatiblity with math.Pow:
++// For generalized compatibility with math.Pow:
+ //	Pow(0, ±0) returns 1+0i
+ //	Pow(0, c) for real(c)<0 returns Inf+0i if imag(c) is zero, otherwise Inf+Inf i.
+ func Pow(x, y complex128) complex128 {
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 9df5cc4818..8576cf844a 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -527,7 +527,7 @@ func (w *countingWriter) Write(p []byte) (n int, err error) {
+ 	return len(p), nil
+ }
+ 
+-// rangesMIMESize returns the nunber of bytes it takes to encode the
++// rangesMIMESize returns the number of bytes it takes to encode the
+ // provided ranges as a multipart response.
+ func rangesMIMESize(ranges []httpRange, contentType string, contentSize int64) (encSize int64) {
+ 	var w countingWriter
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 8b586ef7c3..dda8578030 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -16,7 +16,7 @@ var (
+ 	// networking functionality.
+ 	supportsIPv4 bool
+ 
+-	// supportsIPv6 reports whether the platfrom supports IPv6
++	// supportsIPv6 reports whether the platform supports IPv6
+ 	// networking functionality.
+ 	supportsIPv6 bool
+ 
+@@ -207,7 +207,7 @@ missingBrackets:
+ }
+ 
+ func splitHostZone(s string) (host, zone string) {
+-	// The IPv6 scoped addressing zone identifer starts after the
++	// The IPv6 scoped addressing zone identifier starts after the
+ 	// last percent sign.
+ 	if i := last(s, '%'); i > 0 {
+ 		host, zone = s[:i], s[i+1:]
+@@ -232,7 +232,7 @@ func JoinHostPort(host, port string) string {
+ // address or a DNS name and returns an internet protocol family
+ // address. It returns a list that contains a pair of different
+ // address family addresses when addr is a DNS name and the name has
+-// mutiple address family records. The result contains at least one
++// multiple address family records. The result contains at least one
+ // address when error is nil.
+ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) {
+ 	var (
+diff --git a/src/pkg/net/sendfile_dragonfly.go b/src/pkg/net/sendfile_dragonfly.go
+index a2219c1633..bc88fd3b90 100644
+--- a/src/pkg/net/sendfile_dragonfly.go
++++ b/src/pkg/net/sendfile_dragonfly.go
+@@ -23,7 +23,7 @@ const maxSendfileSize int = 4 << 20
+ // if handled == false, sendFile performed no work.
+ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	// DragonFly uses 0 as the "until EOF" value. If you pass in more bytes than the
+-	// file contains, it will loop back to the beginning ad nauseum until it's sent
++	// file contains, it will loop back to the beginning ad nauseam until it's sent
+ 	// exactly the number of bytes told to. As such, we need to know exactly how many
+ 	// bytes to send.
+ 	var remain int64 = 0
+diff --git a/src/pkg/net/sendfile_freebsd.go b/src/pkg/net/sendfile_freebsd.go
+index 42fe799efb..ffc147262a 100644
+--- a/src/pkg/net/sendfile_freebsd.go
++++ b/src/pkg/net/sendfile_freebsd.go
+@@ -23,7 +23,7 @@ const maxSendfileSize int = 4 << 20
+ // if handled == false, sendFile performed no work.
+ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	// FreeBSD uses 0 as the "until EOF" value. If you pass in more bytes than the
+-	// file contains, it will loop back to the beginning ad nauseum until it's sent
++	// file contains, it will loop back to the beginning ad nauseam until it's sent
+ 	// exactly the number of bytes told to. As such, we need to know exactly how many
+ 	// bytes to send.
+ 	var remain int64 = 0
+diff --git a/src/pkg/regexp/syntax/prog.go b/src/pkg/regexp/syntax/prog.go
+index c4563ae752..089b90db11 100644
+--- a/src/pkg/regexp/syntax/prog.go
++++ b/src/pkg/regexp/syntax/prog.go
+@@ -597,7 +597,7 @@ func (p runeSlice) Sort() {
+ // makeOnePass creates a onepass Prog, if possible. It is possible if at any alt,
+ // the match engine can always tell which branch to take. The routine may modify
+ // p if it is turned into a onepass Prog. If it isn't possible for this to be a
+-// onepass Prog, the Prog syntax.NotOnePass is returned. makeOnePass is resursive
++// onepass Prog, the Prog syntax.NotOnePass is returned. makeOnePass is recursive
+ // to the size of the Prog
+ func (p *Prog) makeOnePass() *Prog {
+ 	var (
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index 98080457cb..26aa0b8be5 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -20,7 +20,7 @@ import (
+ 	"text/tabwriter"
+ )
+ 
+-// BUG(rsc): Profiles are incomplete and inaccuate on NetBSD and OS X.
++// BUG(rsc): Profiles are incomplete and inaccurate on NetBSD and OS X.
+ // See http://golang.org/issue/6047 for details.
+ 
+ // A Profile is a collection of stack traces showing the call sequences
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 242c5fffa2..e980c295c3 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -287,7 +287,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+ // Notes on stable sorting:
+ // The used algorithms are simple and provable correct on all input and use
+ // only logarithmic additional stack space.  They perform well if compared
+-// experimentaly to other stable in-place sorting algorithms.
++// experimentally to other stable in-place sorting algorithms.
+ //
+ // Remarks on other algorithms evaluated:
+ //  - GCC's 4.6.3 stable_sort with merge_without_buffer from libstdc++:
+diff --git a/src/pkg/syscall/dir_plan9.go b/src/pkg/syscall/dir_plan9.go
+index d9fb26b133..697bf5499c 100644
+--- a/src/pkg/syscall/dir_plan9.go
++++ b/src/pkg/syscall/dir_plan9.go
+@@ -54,7 +54,7 @@ var nullDir = Dir{
+ }
+ 
+ // Null assigns special "don't touch" values to members of d to
+-// avoid modifiying them during syscall.Wstat.
++// avoid modifying them during syscall.Wstat.
+ func (d *Dir) Null() { *d = nullDir }
+ 
+ // Marshal encodes a 9P stat message corresponding to d into b
+diff --git a/src/pkg/syscall/fd_nacl.go b/src/pkg/syscall/fd_nacl.go
+index cbc8315e44..19cd98acb1 100644
+--- a/src/pkg/syscall/fd_nacl.go
++++ b/src/pkg/syscall/fd_nacl.go
+@@ -194,7 +194,7 @@ func Seek(fd int, offset int64, whence int) (int64, error) {
+ 	return f.impl.seek(offset, whence)
+ }
+ 
+-// defaulFileImpl imlements fileImpl.
++// defaulFileImpl implements fileImpl.
+ // It can be embedded to complete a partial fileImpl implementation.
+ type defaultFileImpl struct{}
+ 
+diff --git a/src/pkg/syscall/mksyscall_windows.go b/src/pkg/syscall/mksyscall_windows.go
+index 0fd1c3c05a..4225588de7 100644
+--- a/src/pkg/syscall/mksyscall_windows.go
++++ b/src/pkg/syscall/mksyscall_windows.go
+@@ -135,7 +135,7 @@ func (p *Param) TmpVarCode() string {
+ }
+ 
+ // SyscallArgList returns source code fragments representing p parameter
+-// in syscall. Slices are transated into 2 syscall parameters: pointer to
++// in syscall. Slices are translated into 2 syscall parameters: pointer to
+ // the first element and length.
+ func (p *Param) SyscallArgList() []string {
+ 	var s string
+@@ -321,7 +321,7 @@ func extractParams(s string, f *Fn) ([]*Param, error) {
+ 
+ // extractSection extracts text out of string s starting after start
+ // and ending just before end. found return value will indicate success,
+-// and prefix, body and sufix will contain correspondent parts of string s.
++// and prefix, body and suffix will contain correspondent parts of string s.
+ func extractSection(s string, start, end rune) (prefix, body, suffix string, found bool) {
+ 	s = trim(s)
+ 	if strings.HasPrefix(s, string(start)) {
+@@ -617,7 +617,7 @@ func main() {
+ 	}
+ }
+ 
+-// TODO: use println instead to print in the folowing template
++// TODO: use println instead to print in the following template
+ const srcTemplate = `
+ 
+ {{define "main"}}// go build mksyscall_windows.go && ./mksyscall_windows{{range .Files}} {{.}}{{end}}
+diff --git a/src/pkg/syscall/route_dragonfly.go b/src/pkg/syscall/route_dragonfly.go
+index acad7a2be8..79190d2b01 100644
+--- a/src/pkg/syscall/route_dragonfly.go
++++ b/src/pkg/syscall/route_dragonfly.go
+@@ -30,7 +30,7 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ }
+ 
+ // InterfaceAnnounceMessage represents a routing message containing
+-// network interface arrival and depature information.
++// network interface arrival and departure information.
+ type InterfaceAnnounceMessage struct {
+ 	Header IfAnnounceMsghdr
+ }
+diff --git a/src/pkg/syscall/route_freebsd.go b/src/pkg/syscall/route_freebsd.go
+index eba6752b7b..15897b1aca 100644
+--- a/src/pkg/syscall/route_freebsd.go
++++ b/src/pkg/syscall/route_freebsd.go
+@@ -36,7 +36,7 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ }
+ 
+ // InterfaceAnnounceMessage represents a routing message containing
+-// network interface arrival and depature information.
++// network interface arrival and departure information.
+ type InterfaceAnnounceMessage struct {
+ 	Header IfAnnounceMsghdr
+ }
+diff --git a/src/pkg/syscall/route_netbsd.go b/src/pkg/syscall/route_netbsd.go
+index a6baa02f80..9883aebaf5 100644
+--- a/src/pkg/syscall/route_netbsd.go
++++ b/src/pkg/syscall/route_netbsd.go
+@@ -27,7 +27,7 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ }
+ 
+ // InterfaceAnnounceMessage represents a routing message containing
+-// network interface arrival and depature information.
++// network interface arrival and departure information.
+ type InterfaceAnnounceMessage struct {
+ 	Header IfAnnounceMsghdr
+ }
+diff --git a/src/pkg/syscall/route_openbsd.go b/src/pkg/syscall/route_openbsd.go
+index 223c157791..19f902db74 100644
+--- a/src/pkg/syscall/route_openbsd.go
++++ b/src/pkg/syscall/route_openbsd.go
+@@ -27,7 +27,7 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ }
+ 
+ // InterfaceAnnounceMessage represents a routing message containing
+-// network interface arrival and depature information.
++// network interface arrival and departure information.
+ type InterfaceAnnounceMessage struct {
+ 	Header IfAnnounceMsghdr
+ }
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index 377a892153..6046743e67 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -90,7 +90,7 @@ func toEnglishName(stdname, dstname string) (string, error) {
+ 	return "", errors.New(`English name for time zone "` + stdname + `" not found in registry`)
+ }
+ 
+-// extractCAPS exracts capital letters from description desc.
++// extractCAPS extracts capital letters from description desc.
+ func extractCAPS(desc string) string {
+ 	var short []rune
+ 	for _, c := range desc {

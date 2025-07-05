@@ -17,7 +17,291 @@ Date:   Fri Jun 17 14:50:39 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/26767
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/swt.go      |  84 +++++-------------
  src/cmd/compile/internal/gc/swt_test.go | 150 ++++++--------------------------
  2 files changed, 50 insertions(+), 184 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index c053099681..46e3950ac3 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -267,7 +267,7 @@ func (s *exprSwitch) walk(sw *Node) {
+ 		}
+ 
+ 		// sort and compile constants
+-		sort.Sort(caseClauseByExpr(cc[:run]))
++		sort.Sort(caseClauseByConstVal(cc[:run]))
+ 		a := s.walkCases(cc[:run])
+ 		cas = append(cas, a)
+ 		cc = cc[run:]
+@@ -315,7 +315,7 @@ func (s *exprSwitch) walkCases(cc []caseClause) *Node {
+ 	mid := cc[half-1].node.Left
+ 	le := Nod(OLE, s.exprname, mid)
+ 	if Isconst(mid, CTSTR) {
+-		// Search by length and then by value; see exprcmp.
++		// Search by length and then by value; see caseClauseByConstVal.
+ 		lenlt := Nod(OLT, Nod(OLEN, s.exprname, nil), Nod(OLEN, mid, nil))
+ 		leneq := Nod(OEQ, Nod(OLEN, s.exprname, nil), Nod(OLEN, mid, nil))
+ 		a.Left = Nod(OOROR, lenlt, Nod(OANDAND, leneq, le))
+@@ -778,71 +778,35 @@ func (s *typeSwitch) walkCases(cc []caseClause) *Node {
+ 	return a
+ }
+ 
+-type caseClauseByExpr []caseClause
+-
+-func (x caseClauseByExpr) Len() int      { return len(x) }
+-func (x caseClauseByExpr) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+-func (x caseClauseByExpr) Less(i, j int) bool {
+-	return exprcmp(x[i], x[j]) < 0
+-}
+-
+-func exprcmp(c1, c2 caseClause) int {
+-	// sort non-constants last
+-	if !c1.isconst {
+-		return +1
+-	}
+-	if !c2.isconst {
+-		return -1
+-	}
+-
+-	n1 := c1.node.Left
+-	n2 := c2.node.Left
+-
+-	// sort by type (for switches on interface)
+-	ct := n1.Val().Ctype()
+-	if ct > n2.Val().Ctype() {
+-		return +1
+-	}
+-	if ct < n2.Val().Ctype() {
+-		return -1
+-	}
+-	if !Eqtype(n1.Type, n2.Type) {
+-		if n1.Type.Vargen > n2.Type.Vargen {
+-			return +1
+-		} else {
+-			return -1
+-		}
+-	}
+-
+-	// sort by constant value to enable binary search
+-	switch ct {
+-	case CTFLT:
+-		return n1.Val().U.(*Mpflt).Cmp(n2.Val().U.(*Mpflt))
+-	case CTINT, CTRUNE:
+-		return n1.Val().U.(*Mpint).Cmp(n2.Val().U.(*Mpint))
+-	case CTSTR:
++// caseClauseByConstVal sorts clauses by constant value to enable binary search.
++type caseClauseByConstVal []caseClause
++
++func (x caseClauseByConstVal) Len() int      { return len(x) }
++func (x caseClauseByConstVal) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
++func (x caseClauseByConstVal) Less(i, j int) bool {
++	v1 := x[i].node.Left.Val().U
++	v2 := x[j].node.Left.Val().U
++
++	switch v1 := v1.(type) {
++	case *Mpflt:
++		return v1.Cmp(v2.(*Mpflt)) < 0
++	case *Mpint:
++		return v1.Cmp(v2.(*Mpint)) < 0
++	case string:
+ 		// Sort strings by length and then by value.
+ 		// It is much cheaper to compare lengths than values,
+ 		// and all we need here is consistency.
+ 		// We respect this sorting in exprSwitch.walkCases.
+-		a := n1.Val().U.(string)
+-		b := n2.Val().U.(string)
+-		if len(a) < len(b) {
+-			return -1
+-		}
+-		if len(a) > len(b) {
+-			return +1
+-		}
+-		if a == b {
+-			return 0
+-		}
+-		if a < b {
+-			return -1
++		a := v1
++		b := v2.(string)
++		if len(a) != len(b) {
++			return len(a) < len(b)
+ 		}
+-		return +1
++		return a < b
+ 	}
+ 
+-	return 0
++	Fatalf("caseClauseByConstVal passed bad clauses %v < %v", x[i].node.Left, x[j].node.Left)
++	return false
+ }
+ 
+ type caseClauseByType []caseClause
+diff --git a/src/cmd/compile/internal/gc/swt_test.go b/src/cmd/compile/internal/gc/swt_test.go
+index 332433d31d..8b86df6616 100644
+--- a/src/cmd/compile/internal/gc/swt_test.go
++++ b/src/cmd/compile/internal/gc/swt_test.go
+@@ -9,136 +9,38 @@ import (
+ 	"testing"
+ )
+ 
+-func TestExprcmp(t *testing.T) {
+-	testdata := []struct {
+-		a, b caseClause
+-		want int
++func nodrune(r rune) *Node {
++	return nodlit(Val{&Mpint{Val: *big.NewInt(int64(r)), Rune: true}})
++}
++
++func nodflt(f float64) *Node {
++	return nodlit(Val{&Mpflt{Val: *big.NewFloat(f)}})
++}
++
++func TestCaseClauseByConstVal(t *testing.T) {
++	tests := []struct {
++		a, b *Node
+ 	}{
+-		// Non-constants.
+-		{
+-			caseClause{node: Nod(OXXX, nil, nil)},
+-			caseClause{node: Nod(OXXX, nil, nil), isconst: true},
+-			+1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, nil, nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nil, nil)},
+-			-1,
+-		},
+-		// Type switches
+-		{
+-			caseClause{node: Nod(OXXX, Nodintconst(0), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, Nodbool(true), nil), isconst: true},
+-			-1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, Nodbool(true), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, Nodintconst(1), nil), isconst: true},
+-			+1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, &Node{Type: &Type{Etype: TBOOL, Vargen: 1}}, nil), isconst: true},
+-			caseClause{node: Nod(OXXX, &Node{Type: &Type{Etype: TINT, Vargen: 0}}, nil), isconst: true},
+-			+1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, &Node{Type: &Type{Etype: TBOOL, Vargen: 1}}, nil), isconst: true},
+-			caseClause{node: Nod(OXXX, &Node{Type: &Type{Etype: TINT, Vargen: 1}}, nil), isconst: true},
+-			-1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, &Node{Type: &Type{Etype: TBOOL, Vargen: 0}}, nil), isconst: true},
+-			caseClause{node: Nod(OXXX, &Node{Type: &Type{Etype: TINT, Vargen: 1}}, nil), isconst: true},
+-			-1,
+-		},
+-		// Constant values.
+ 		// CTFLT
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpflt{Val: *big.NewFloat(0.1)}}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpflt{Val: *big.NewFloat(0.2)}}), nil), isconst: true},
+-			-1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpflt{Val: *big.NewFloat(0.1)}}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpflt{Val: *big.NewFloat(0.1)}}), nil), isconst: true},
+-			0,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpflt{Val: *big.NewFloat(0.2)}}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpflt{Val: *big.NewFloat(0.1)}}), nil), isconst: true},
+-			+1,
+-		},
++		{nodflt(0.1), nodflt(0.2)},
+ 		// CTINT
+-		{
+-			caseClause{node: Nod(OXXX, Nodintconst(0), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, Nodintconst(1), nil), isconst: true},
+-			-1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, Nodintconst(1), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, Nodintconst(1), nil), isconst: true},
+-			0,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, Nodintconst(1), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, Nodintconst(0), nil), isconst: true},
+-			+1,
+-		},
++		{Nodintconst(0), Nodintconst(1)},
+ 		// CTRUNE
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpint{Val: *big.NewInt('a'), Rune: true}}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpint{Val: *big.NewInt('b'), Rune: true}}), nil), isconst: true},
+-			-1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpint{Val: *big.NewInt('b'), Rune: true}}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpint{Val: *big.NewInt('b'), Rune: true}}), nil), isconst: true},
+-			0,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpint{Val: *big.NewInt('b'), Rune: true}}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{&Mpint{Val: *big.NewInt('a'), Rune: true}}), nil), isconst: true},
+-			+1,
+-		},
++		{nodrune('a'), nodrune('b')},
+ 		// CTSTR
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{"ab"}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{"abc"}), nil), isconst: true},
+-			-1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{"abc"}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{"xyz"}), nil), isconst: true},
+-			-1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{"abc"}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{"abc"}), nil), isconst: true},
+-			0,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{"abc"}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{"ab"}), nil), isconst: true},
+-			+1,
+-		},
+-		{
+-			caseClause{node: Nod(OXXX, nodlit(Val{"xyz"}), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodlit(Val{"abc"}), nil), isconst: true},
+-			+1,
+-		},
+-		// Everything else should compare equal.
+-		{
+-			caseClause{node: Nod(OXXX, nodnil(), nil), isconst: true},
+-			caseClause{node: Nod(OXXX, nodnil(), nil), isconst: true},
+-			0,
+-		},
++		{nodlit(Val{"ab"}), nodlit(Val{"abc"})},
++		{nodlit(Val{"ab"}), nodlit(Val{"xyz"})},
++		{nodlit(Val{"abc"}), nodlit(Val{"xyz"})},
+ 	}
+-	for i, d := range testdata {
+-		got := exprcmp(d.a, d.b)
+-		if d.want != got {
+-			t.Errorf("%d: exprcmp(a, b) = %d; want %d", i, got, d.want)
+-			t.Logf("\ta = caseClause{node: %#v, isconst: %v}", d.a.node, d.a.isconst)
+-			t.Logf("\tb = caseClause{node: %#v, isconst: %v}", d.b.node, d.b.isconst)
++	for i, test := range tests {
++		a := caseClause{node: Nod(OXXX, test.a, nil)}
++		b := caseClause{node: Nod(OXXX, test.b, nil)}
++		s := caseClauseByConstVal{a, b}
++		if less := s.Less(0, 1); !less {
++			t.Errorf("%d: caseClauseByConstVal(%v, %v) = false", i, test.a, test.b)
++		}
++		if less := s.Less(1, 0); less {
++			t.Errorf("%d: caseClauseByConstVal(%v, %v) = true", i, test.a, test.b)
+ 		}
+ 	}
+ }

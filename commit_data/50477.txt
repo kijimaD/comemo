@@ -13,10 +13,106 @@ Date:   Tue Oct 19 18:59:34 2021 +0300
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/cmd/compile/internal/inline/inl.go |  3 +--
  test/fixedbugs/issue49100b.go          | 27 +++++++++++++++++++++++++++
  test/fixedbugs/issue49100b.out         |  6 ++++++
  test/inline.go                         | 13 +++++++++++++
  test/linkname.dir/linkname1.go         |  2 +-
  5 files changed, 48 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 483b3d5d46..da905bd627 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -358,8 +358,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 			return true
+ 		}
+ 
+-	case ir.ORANGE,
+-		ir.OSELECT,
++	case ir.OSELECT,
+ 		ir.OGO,
+ 		ir.ODEFER,
+ 		ir.ODCLTYPE, // can't print yet
+diff --git a/test/fixedbugs/issue49100b.go b/test/fixedbugs/issue49100b.go
+new file mode 100644
+index 0000000000..992ff96d54
+--- /dev/null
++++ b/test/fixedbugs/issue49100b.go
+@@ -0,0 +1,27 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func r(j int) {
++loop:
++	for i, c := range "goclang" {
++		if i == 2 {
++			continue loop
++		}
++		println(string(c))
++	}
++}
++
++func main() {
++loop:
++	for j := 0; j < 4; j++ {
++		r(j)
++		if j == 0 {
++			break loop
++		}
++	}
++}
+diff --git a/test/fixedbugs/issue49100b.out b/test/fixedbugs/issue49100b.out
+new file mode 100644
+index 0000000000..d5abb928ee
+--- /dev/null
++++ b/test/fixedbugs/issue49100b.out
+@@ -0,0 +1,6 @@
++g
++o
++l
++a
++n
++g
+diff --git a/test/inline.go b/test/inline.go
+index 599d5233e0..d0ebe84aa5 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -160,6 +160,19 @@ func switchType(x interface{}) int { // ERROR "can inline switchType" "x does no
+ 	}
+ }
+ 
++func inlineRangeIntoMe(data []int) { // ERROR "can inline inlineRangeIntoMe" "data does not escape"
++	rangeFunc(data, 12) // ERROR "inlining call to rangeFunc"
++}
++
++func rangeFunc(xs []int, b int) int { // ERROR "can inline rangeFunc" "xs does not escape"
++	for i, x := range xs {
++		if x == b {
++			return i
++		}
++	}
++	return -1
++}
++
+ type T struct{}
+ 
+ func (T) meth(int, int) {} // ERROR "can inline T.meth"
+diff --git a/test/linkname.dir/linkname1.go b/test/linkname.dir/linkname1.go
+index c61a0d7d95..7d51b94802 100644
+--- a/test/linkname.dir/linkname1.go
++++ b/test/linkname.dir/linkname1.go
+@@ -1,6 +1,6 @@
+ package x
+ 
+-func indexByte(xs []byte, b byte) int { // ERROR "xs does not escape"
++func indexByte(xs []byte, b byte) int { // ERROR "xs does not escape" "can inline indexByte"
+ 	for i, x := range xs {
+ 		if x == b {
+ 			return i

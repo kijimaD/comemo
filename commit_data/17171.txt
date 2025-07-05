@@ -13,7 +13,49 @@ Date:   Tue Aug 13 11:11:05 2013 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/12804043
-
+---
  src/pkg/text/template/exec_test.go | 3 +++
  src/pkg/text/template/funcs.go     | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index b898565931..3d110af9cc 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -64,6 +64,7 @@ type T struct {
+ 	VariadicFunc    func(...string) string
+ 	VariadicFuncInt func(int, ...string) string
+ 	NilOKFunc       func(*int) bool
++	ErrFunc         func() (string, error)
+ 	// Template to test evaluation of templates.
+ 	Tmpl *Template
+ 	// Unexported field; cannot be accessed by template.
+@@ -129,6 +130,7 @@ var tVal = &T{
+ 	VariadicFunc:      func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
+ 	VariadicFuncInt:   func(a int, s ...string) string { return fmt.Sprint(a, "=<", strings.Join(s, "+"), ">") },
+ 	NilOKFunc:         func(s *int) bool { return s == nil },
++	ErrFunc:           func() (string, error) { return "bla", nil },
+ 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X
+ }
+ 
+@@ -322,6 +324,7 @@ var execTests = []execTest{
+ 	{"if .BinaryFunc call", "{{ if .BinaryFunc}}{{call .BinaryFunc `1` `2`}}{{end}}", "[1=2]", tVal, true},
+ 	{"if not .BinaryFunc call", "{{ if not .BinaryFunc}}{{call .BinaryFunc `1` `2`}}{{else}}No{{end}}", "No", tVal, true},
+ 	{"Interface Call", `{{stringer .S}}`, "foozle", map[string]interface{}{"S": bytes.NewBufferString("foozle")}, true},
++	{".ErrFunc", "{{call .ErrFunc}}", "bla", tVal, true},
+ 
+ 	// Erroneous function calls (check args).
+ 	{".BinaryFuncTooFew", "{{call .BinaryFunc `1`}}", "", tVal, false},
+diff --git a/src/pkg/text/template/funcs.go b/src/pkg/text/template/funcs.go
+index 8187663648..643a728cb7 100644
+--- a/src/pkg/text/template/funcs.go
++++ b/src/pkg/text/template/funcs.go
+@@ -199,7 +199,7 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
+ 		argv[i] = value
+ 	}
+ 	result := v.Call(argv)
+-	if len(result) == 2 {
++	if len(result) == 2 && !result[1].IsNil() {
+ 		return result[0].Interface(), result[1].Interface().(error)
+ 	}
+ 	return result[0].Interface(), nil

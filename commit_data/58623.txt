@@ -22,7 +22,7 @@ Date:   Fri Nov 17 17:56:27 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/trace/goroutinesv2.go                             |  4 +---
  src/internal/trace/v2/event.go                                 | 10 ++++++++--
  src/internal/trace/v2/order.go                                 |  7 +++++++
@@ -30,3 +30,104 @@ Date:   Fri Nov 17 17:56:27 2023 +0000
  src/internal/trace/v2/testtrace/validation.go                  |  7 ++++++-
  src/internal/trace/v2/trace_test.go                            |  2 +-
  6 files changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/trace/goroutinesv2.go b/src/internal/trace/goroutinesv2.go
+index c5e5fadc0b..65856fb80e 100644
+--- a/src/internal/trace/goroutinesv2.go
++++ b/src/internal/trace/goroutinesv2.go
+@@ -299,9 +299,7 @@ func (s *GoroutineSummarizer) Event(ev *tracev2.Event) {
+ 				if creatorG := s.gs[ev.Goroutine()]; creatorG != nil && len(creatorG.activeRegions) > 0 {
+ 					regions := creatorG.activeRegions
+ 					s := regions[len(regions)-1]
+-					if s.TaskID != tracev2.NoTask {
+-						g.activeRegions = []*UserRegionSummary{{TaskID: s.TaskID, Start: ev}}
+-					}
++					g.activeRegions = []*UserRegionSummary{{TaskID: s.TaskID, Start: ev}}
+ 				}
+ 				s.gs[g.ID] = g
+ 			case tracev2.GoRunning:
+diff --git a/src/internal/trace/v2/event.go b/src/internal/trace/v2/event.go
+index 3700cbcc2f..763313c332 100644
+--- a/src/internal/trace/v2/event.go
++++ b/src/internal/trace/v2/event.go
+@@ -203,8 +203,14 @@ type RangeAttribute struct {
+ // are of the same type).
+ type TaskID uint64
+ 
+-// NoTask indicates the lack of a task.
+-const NoTask = TaskID(0)
++const (
++	// NoTask indicates the lack of a task.
++	NoTask = TaskID(^uint64(0))
++
++	// BackgroundTask is the global task that events are attached to if there was
++	// no other task in the context at the point the event was emitted.
++	BackgroundTask = TaskID(0)
++)
+ 
+ // Task provides details about a Task event.
+ type Task struct {
+diff --git a/src/internal/trace/v2/order.go b/src/internal/trace/v2/order.go
+index 8b503d4dc4..531b45eb02 100644
+--- a/src/internal/trace/v2/order.go
++++ b/src/internal/trace/v2/order.go
+@@ -525,6 +525,13 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		// Get the parent ID, but don't validate it. There's no guarantee
+ 		// we actually have information on whether it's active.
+ 		parentID := TaskID(ev.args[1])
++		if parentID == BackgroundTask {
++			// Note: a value of 0 here actually means no parent, *not* the
++			// background task. Automatic background task attachment only
++			// applies to regions.
++			parentID = NoTask
++			ev.args[1] = uint64(NoTask)
++		}
+ 
+ 		// Validate the name and record it. We'll need to pass it through to
+ 		// EvUserTaskEnd.
+diff --git a/src/internal/trace/v2/testdata/generators/go122-task-across-generations.go b/src/internal/trace/v2/testdata/generators/go122-task-across-generations.go
+index 94e9933996..06ef96e51a 100644
+--- a/src/internal/trace/v2/testdata/generators/go122-task-across-generations.go
++++ b/src/internal/trace/v2/testdata/generators/go122-task-across-generations.go
+@@ -29,7 +29,7 @@ func gen(t *testgen.Trace) {
+ 	b1 := g1.Batch(trace.ThreadID(0), 0)
+ 	b1.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+ 	b1.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
+-	b1.Event("UserTaskBegin", trace.TaskID(2), trace.NoTask, "my task", testgen.NoStack)
++	b1.Event("UserTaskBegin", trace.TaskID(2), trace.TaskID(0) /* 0 means no parent, not background */, "my task", testgen.NoStack)
+ 
+ 	g2 := t.Generation(2)
+ 
+diff --git a/src/internal/trace/v2/testtrace/validation.go b/src/internal/trace/v2/testtrace/validation.go
+index a2654a10e4..448ef9d9dd 100644
+--- a/src/internal/trace/v2/testtrace/validation.go
++++ b/src/internal/trace/v2/testtrace/validation.go
+@@ -256,9 +256,14 @@ func (v *Validator) Event(ev trace.Event) error {
+ 	case trace.EventTaskBegin:
+ 		// Validate task begin.
+ 		t := ev.Task()
+-		if t.ID == trace.NoTask {
++		if t.ID == trace.NoTask || t.ID == trace.BackgroundTask {
++			// The background task should never have an event emitted for it.
+ 			e.Errorf("found invalid task ID for task of type %s", t.Type)
+ 		}
++		if t.Parent == trace.BackgroundTask {
++			// It's not possible for a task to be a subtask of the background task.
++			e.Errorf("found background task as the parent for task of type %s", t.Type)
++		}
+ 		// N.B. Don't check the task type. Empty string is a valid task type.
+ 		v.tasks[t.ID] = t.Type
+ 	case trace.EventTaskEnd:
+diff --git a/src/internal/trace/v2/trace_test.go b/src/internal/trace/v2/trace_test.go
+index 7823b01e93..b2d7781991 100644
+--- a/src/internal/trace/v2/trace_test.go
++++ b/src/internal/trace/v2/trace_test.go
+@@ -35,7 +35,7 @@ func TestTraceAnnotations(t *testing.T) {
+ 			{trace.EventRegionEnd, trace.TaskID(1), []string{"region0"}},
+ 			{trace.EventTaskEnd, trace.TaskID(1), []string{"task0"}},
+ 			//  Currently, pre-existing region is not recorded to avoid allocations.
+-			{trace.EventRegionBegin, trace.NoTask, []string{"post-existing region"}},
++			{trace.EventRegionBegin, trace.BackgroundTask, []string{"post-existing region"}},
+ 		}
+ 		r, err := trace.NewReader(bytes.NewReader(tb))
+ 		if err != nil {

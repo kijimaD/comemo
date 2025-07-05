@@ -12,7 +12,40 @@ Date:   Wed Aug 5 16:11:57 2015 -0700
     Change-Id: I775198f03ce7420348721ffc5e7d2bab065465b1
     Reviewed-on: https://go-review.googlesource.com/13266
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 3 ++-
  src/cmd/compile/internal/ssa/tighten.go  | 7 +++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index dac107dd18..9056531634 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -101,7 +101,8 @@ func regalloc(f *Func) {
+ 
+ 	var oldSched []*Value
+ 
+-	// Hack to find sp and sb Values and assign them a register. (TODO: make not so hacky)
++	// Hack to find sp and sb Values and assign them a register.
++	// TODO: make not so hacky; update the tighten pass when this is done
+ 	var sp, sb *Value
+ 	for _, v := range f.Entry.Values {
+ 		switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index a43218095e..02b1f701f5 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -57,6 +57,13 @@ func tighten(f *Func) {
+ 				if v.Op == OpPhi {
+ 					continue
+ 				}
++				if v.Op == OpSB || v.Op == OpSP {
++					// regalloc expects OpSP and OpSB values to be in the entry block,
++					// so don't move them.
++					// TODO: Handle this more gracefully in regalloc and
++					// remove this restriction.
++					continue
++				}
+ 				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && len(v.Args) < 2 {
+ 					// v is used in exactly one block, and it is not b.
+ 					// Furthermore, it takes at most one input,

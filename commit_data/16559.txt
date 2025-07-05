@@ -12,9 +12,186 @@ Date:   Wed Jun 12 18:13:34 2013 -0700
     R=rsc, minux.ma, iant, alex.brainman
     CC=golang-dev
     https://golang.org/cl/10234044
-
+---
  src/cmd/go/doc.go          |  4 ++++
  src/cmd/go/test.go         |  4 ++++
  src/cmd/go/testflag.go     | 13 +++++++++++
  src/pkg/testing/testing.go | 54 ++++++++++++++++++++++++++++++++++++++--------
  4 files changed, 66 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 9a83a2026d..a76cc53076 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -770,6 +770,10 @@ control the execution of any test:
+ 	    garbage collector, provided the test can run in the available
+ 	    memory without garbage collection.
+ 
++	-outputdir directory
++	    Place output files from profiling in the specified directory,
++	    by default the directory in which "go test" is running.
++
+ 	-parallel n
+ 	    Allow parallel execution of test functions that call t.Parallel.
+ 	    The value of this flag is the maximum number of tests to run
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 703ca7476b..11972cc8cc 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -156,6 +156,10 @@ control the execution of any test:
+ 	    garbage collector, provided the test can run in the available
+ 	    memory without garbage collection.
+ 
++	-outputdir directory
++	    Place output files from profiling in the specified directory,
++	    by default the directory in which "go test" is running.
++
+ 	-parallel n
+ 	    Allow parallel execution of test functions that call t.Parallel.
+ 	    The value of this flag is the maximum number of tests to run
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 28b9ef4c20..7326b90762 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -33,6 +33,7 @@ var usageMessage = `Usage of go test:
+   -memprofilerate=0: passes -test.memprofilerate to test
+   -blockprofile="": pases -test.blockprofile to test
+   -blockprofilerate=0: passes -test.blockprofilerate to test
++  -outputdir=$PWD: passes -test.outputdir to test
+   -parallel=0: passes -test.parallel to test
+   -run="": passes -test.run to test
+   -short=false: passes -test.short to test
+@@ -87,6 +88,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "memprofilerate", passToTest: true},
+ 	{name: "blockprofile", passToTest: true},
+ 	{name: "blockprofilerate", passToTest: true},
++	{name: "outputdir", passToTest: true},
+ 	{name: "parallel", passToTest: true},
+ 	{name: "run", passToTest: true},
+ 	{name: "short", boolVar: new(bool), passToTest: true},
+@@ -105,6 +107,7 @@ var testFlagDefn = []*testFlagSpec{
+ //	go test -x math
+ func testFlags(args []string) (packageNames, passToTest []string) {
+ 	inPkg := false
++	outputDir := ""
+ 	for i := 0; i < len(args); i++ {
+ 		if !strings.HasPrefix(args[i], "-") {
+ 			if !inPkg && packageNames == nil {
+@@ -170,6 +173,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			testTimeout = value
+ 		case "blockprofile", "cpuprofile", "memprofile":
+ 			testProfile = true
++		case "outputdir":
++			outputDir = value
+ 		case "cover":
+ 			switch value {
+ 			case "set", "count", "atomic":
+@@ -185,6 +190,14 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			passToTest = append(passToTest, "-test."+f.name+"="+value)
+ 		}
+ 	}
++	// Tell the test what directory we're running in, so it can write the profiles there.
++	if testProfile && outputDir == "" {
++		dir, err := os.Getwd()
++		if err != nil {
++			fatalf("error from os.Getwd: %s", err)
++		}
++		passToTest = append(passToTest, "-test.outputdir", dir)
++	}
+ 	return
+ }
+ 
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 312d287329..7f7ae20070 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -114,6 +114,12 @@ var (
+ 	// full test of the package.
+ 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
+ 
++	// The directory in which to create profile files and the like. When run from
++	// "go test", the binary always runs in the source directory for the package;
++	// this flag lets "go test" tell the binary to write the files in the directory where
++	// the "go test" command is run.
++	outputDir = flag.String("test.outputdir", "", "directory in which to write profiles")
++
+ 	// Report as tests are run; default is silent for success.
+ 	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
+ 	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
+@@ -466,7 +472,7 @@ func before() {
+ 		runtime.MemProfileRate = *memProfileRate
+ 	}
+ 	if *cpuProfile != "" {
+-		f, err := os.Create(*cpuProfile)
++		f, err := os.Create(toOutputDir(*cpuProfile))
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: %s", err)
+ 			return
+@@ -489,29 +495,59 @@ func after() {
+ 		pprof.StopCPUProfile() // flushes profile to disk
+ 	}
+ 	if *memProfile != "" {
+-		f, err := os.Create(*memProfile)
++		f, err := os.Create(toOutputDir(*memProfile))
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: %s", err)
+-			return
++			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
++			os.Exit(2)
+ 		}
+ 		if err = pprof.WriteHeapProfile(f); err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *memProfile, err)
++			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *memProfile, err)
++			os.Exit(2)
+ 		}
+ 		f.Close()
+ 	}
+ 	if *blockProfile != "" && *blockProfileRate >= 0 {
+-		f, err := os.Create(*blockProfile)
++		f, err := os.Create(toOutputDir(*blockProfile))
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: %s", err)
+-			return
++			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
++			os.Exit(2)
+ 		}
+ 		if err = pprof.Lookup("block").WriteTo(f, 0); err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *blockProfile, err)
++			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
++			os.Exit(2)
+ 		}
+ 		f.Close()
+ 	}
+ }
+ 
++// toOutputDir returns the file name relocated, if required, to outputDir.
++// Simple implementation to avoid pulling in path/filepath.
++func toOutputDir(path string) string {
++	if *outputDir == "" || path == "" {
++		return path
++	}
++	if runtime.GOOS == "windows" {
++		// On Windows, it's clumsy, but we can be almost always correct
++		// by just looking for a drive letter and a colon.
++		// Absolute paths always have a drive letter (ignoring UNC).
++		// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
++		// what to do, but even then path/filepath doesn't help.
++		// TODO: Worth doing better? Probably not, because we're here only
++		// under the management of go test.
++		if len(path) >= 2 {
++			letter, colon := path[0], path[1]
++			if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
++				// If path starts with a drive letter we're stuck with it regardless.
++				return path
++			}
++		}
++	}
++	if os.IsPathSeparator(path[0]) {
++		return path
++	}
++	return fmt.Sprintf("%s%c%s", *outputDir, os.PathSeparator, path)
++}
++
+ var timer *time.Timer
+ 
+ // startAlarm starts an alarm if requested.

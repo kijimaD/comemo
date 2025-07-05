@@ -12,6 +12,33 @@ Date:   Tue Dec 5 21:53:30 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/pkix/pkix.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 3cf884e4eb..7b32220b74 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -35,8 +35,8 @@ var attributeTypeNames = map[string]string{
+ 	"2.5.4.17": "POSTALCODE",
+ }
+ 
+-// String implements the fmt.Stringer interface. It loosely follows the
+-// string conversion rules for Distinguished Names from RFC 2253.
++// String returns a string representation of the sequence r,
++// roughly following the RFC 2253 Distinguished Names syntax.
+ func (r RDNSequence) String() string {
+ 	s := ""
+ 	for i := 0; i < len(r); i++ {
+@@ -221,8 +221,8 @@ func (n Name) ToRDNSequence() (ret RDNSequence) {
+ 	return ret
+ }
+ 
+-// String implements the fmt.Stringer interface. It loosely follows the
+-// string conversion rules for Distinguished Names from RFC 2253.
++// String returns the string form of n, roughly following
++// the RFC 2253 Distinguished Names syntax.
+ func (n Name) String() string {
+ 	return n.ToRDNSequence().String()
+ }

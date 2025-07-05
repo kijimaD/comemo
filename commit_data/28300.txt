@@ -11,9 +11,64 @@ Date:   Thu May 12 15:13:22 2016 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cover/cover.go                  | 2 +-
  src/cmd/dist/test.go                    | 2 +-
  src/cmd/internal/pprof/report/report.go | 4 +++-
  src/cmd/link/internal/ld/objfile.go     | 2 +-
  4 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 46495950e9..a9ed66eea0 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -388,7 +388,7 @@ func trimComments(file *ast.File, fset *token.FileSet) []*ast.CommentGroup {
+ 			}
+ 		}
+ 		if list != nil {
+-			comments = append(comments, &ast.CommentGroup{list})
++			comments = append(comments, &ast.CommentGroup{List: list})
+ 		}
+ 	}
+ 	return comments
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 3d123c2c86..1a1f7d961b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -699,7 +699,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		return false
+ 	default:
+-		log.Fatal("internal error: unknown buildmode %s", mode)
++		log.Fatalf("internal error: unknown buildmode %s", mode)
+ 		return false
+ 	}
+ }
+diff --git a/src/cmd/internal/pprof/report/report.go b/src/cmd/internal/pprof/report/report.go
+index c492b752b9..b11ad2ab36 100644
+--- a/src/cmd/internal/pprof/report/report.go
++++ b/src/cmd/internal/pprof/report/report.go
+@@ -205,7 +205,9 @@ func nodesPerSymbol(ns nodes, symbols []*objSymbol) map[*objSymbol]nodes {
+ // offset to adjust the sample addresses.
+ func annotateAssembly(insns []plugin.Inst, samples nodes, base uint64) nodes {
+ 	// Add end marker to simplify printing loop.
+-	insns = append(insns, plugin.Inst{^uint64(0), "", "", 0})
++	insns = append(insns, plugin.Inst{
++		Addr: ^uint64(0),
++	})
+ 
+ 	// Ensure samples are sorted by address.
+ 	samples.sort(addressOrder)
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index d16431ddaa..be9832dc45 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -538,7 +538,7 @@ func (r *objReader) readSymName() string {
+ 		origName = make([]byte, n)
+ 		r.readFull(origName)
+ 	} else if err != nil {
+-		log.Fatalf("%s: error reading symbol: %v", err)
++		log.Fatalf("%s: error reading symbol: %v", r.pn, err)
+ 	}
+ 	adjName := r.rdBuf[:0]
+ 	for {

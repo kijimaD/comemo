@@ -9,10 +9,96 @@ Date:   Wed Oct 14 21:47:08 2009 -0700
     DELTA=30  (30 added, 0 deleted, 0 changed)
     OCL=35751
     CL=35756
-
+---
  src/cmd/5a/lex.c   |  3 +++
  src/cmd/5l/5.out.h |  3 +++
  src/cmd/5l/asm.c   | 19 +++++++++++++++++++
  src/cmd/5l/optab.c |  2 ++
  src/cmd/5l/span.c  |  3 +++
  5 files changed, 30 insertions(+)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index c5e9a3e786..44ce3bb403 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -359,6 +359,9 @@ struct
+ 	"MOVWD",	LTYPE3, AMOVWD,
+ 	"MOVWF",		LTYPE3, AMOVWF,
+ 
++	"LDREX",		LTYPE3, ALDREX,
++	"STREX",		LTYPE9, ASTREX,
++
+ /*
+ 	"ABSF",		LTYPEI, AABSF,
+ 	"ABSD",		LTYPEI, AABSD,
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index f78b3f6b73..07f0596fbd 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -176,6 +176,9 @@ enum	as
+ 
+ 	ASIGNAME,
+ 
++	ALDREX,
++	ASTREX,
++
+ 	ALAST,
+ };
+ 
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 1abf07bbec..6cd4b2390c 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1706,6 +1706,25 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
+ 		// o1 = olr(instoffset, p->to.reg, REGTMP, p->scond);	// mov O(R), Rtmp
+ 		o1 = ((p->scond&C_SCOND)<<28) | (0x12fff<<8) | (1<<4) | p->to.reg;		// BX R
+ 		break;
++	case 77:	/* ldrex oreg,reg */
++		aclass(&p->from);
++		if(instoffset != 0)
++			diag("offset must be zero in LDREX");
++		o1 = (0x19<<20) | (0xf9f);
++		o1 |= p->from.reg << 16;
++		o1 |= p->to.reg << 12;
++		o1 |= (p->scond & C_SCOND) << 28;
++		break;
++	case 78:	/* strex reg,oreg,reg */
++		aclass(&p->from);
++		if(instoffset != 0)
++			diag("offset must be zero in STREX");
++		o1 = (0x3<<23) | (0xf9<<4);
++		o1 |= p->from.reg << 16;
++		o1 |= p->reg << 0;
++		o1 |= p->to.reg << 12;
++		o1 |= (p->scond & C_SCOND) << 28;
++		break;
+ 	}
+ 
+ 	v = p->pc;
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index 88067c4b0a..92fe12fc29 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -281,6 +281,8 @@ Optab	optab[] =
+ 	{ AMOVHU,	C_LEXT,	C_NONE,	C_REG,		73, 8, REGSB,	LFROM|V4 },
+ 	{ AMOVHU,	C_LAUTO,C_NONE, C_REG,		73, 8, REGSP,	LFROM|V4 },
+ 	{ AMOVHU,	C_LOREG,C_NONE,	C_REG,		73, 8, 0,	LFROM|V4 },
++	{ ALDREX,	C_SOREG,C_NONE,	C_REG,		77, 4, 0 },
++	{ ASTREX,	C_SOREG,C_REG,	C_REG,		78, 4, 0 },
+ 
+ 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
+ };
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 72121bf32d..1272b05ecc 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -1095,6 +1095,9 @@ buildop(void)
+ 			oprange[AMULLU] = oprange[r];
+ 			oprange[AMULALU] = oprange[r];
+ 			break;
++		case ALDREX:
++		case ASTREX:
++			break;
+ 		}
+ 	}
+ }

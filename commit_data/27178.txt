@@ -28,8 +28,157 @@ Date:   Sat Mar 12 12:13:11 2016 +0100
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/rt0_darwin_arm.s   | 28 +++++++++++++++++++---------
  src/runtime/rt0_darwin_arm64.s | 28 +++++++++++++++++++++-------
  src/runtime/rt0_linux_arm64.s  | 27 +++++++++++++++++++++------
  3 files changed, 61 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/rt0_darwin_arm.s b/src/runtime/rt0_darwin_arm.s
+index cbbea80ff8..59733d3ff6 100644
+--- a/src/runtime/rt0_darwin_arm.s
++++ b/src/runtime/rt0_darwin_arm.s
+@@ -16,12 +16,15 @@ TEXT _rt0_arm_darwin(SB),7,$-4
+ //
+ // Note that all currently shipping darwin/arm platforms require
+ // cgo and do not support c-shared.
+-TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$0
+-	// R11 is REGTMP, reserved for liblink. It is used below to
+-	// move R0/R1 into globals. However in the darwin ARMv7 calling
+-	// convention, it is a callee-saved register. So we save it to a
+-	// temporary register.
+-	MOVW  R11, R2
++TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$32
++	// Preserve callee-save registers.
++	MOVW    R4, 12(R13)
++	MOVW    R5, 16(R13)
++	MOVW    R6, 20(R13)
++	MOVW    R7, 24(R13)
++	MOVW    R8, 28(R13)
++	MOVW    R11, 32(R13)
++
+ 	MOVW  R0, _rt0_arm_darwin_lib_argc<>(SB)
+ 	MOVW  R1, _rt0_arm_darwin_lib_argv<>(SB)
+ 
+@@ -35,9 +38,8 @@ TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$0
+ 	B.EQ  nocgo
+ 	MOVW  $_rt0_arm_darwin_lib_go(SB), R0
+ 	MOVW  $0, R1
+-	MOVW  R2, R11
+ 	BL    (R3)
+-	RET
++	B rr
+ nocgo:
+ 	MOVW  $0x400000, R0
+ 	MOVW  R0, (R13) // stacksize
+@@ -46,10 +48,18 @@ nocgo:
+ 	MOVW  $0, R0
+ 	MOVW  R0, 8(R13) // fnarg
+ 	MOVW  $runtime·newosproc0(SB), R3
+-	MOVW  R2, R11
+ 	BL    (R3)
++rr:
++	// Restore callee-save registers and return.
++	MOVW    12(R13), R4
++	MOVW    16(R13), R5
++	MOVW    20(R13), R6
++	MOVW    24(R13), R7
++	MOVW    28(R13), R8
++	MOVW    32(R13), R11
+ 	RET
+ 
++
+ TEXT _rt0_arm_darwin_lib_go(SB),NOSPLIT,$0
+ 	MOVW  _rt0_arm_darwin_lib_argc<>(SB), R0
+ 	MOVW  _rt0_arm_darwin_lib_argv<>(SB), R1
+diff --git a/src/runtime/rt0_darwin_arm64.s b/src/runtime/rt0_darwin_arm64.s
+index fa676c0abe..0a1feb14a4 100644
+--- a/src/runtime/rt0_darwin_arm64.s
++++ b/src/runtime/rt0_darwin_arm64.s
+@@ -16,12 +16,17 @@ TEXT _rt0_arm64_darwin(SB),NOSPLIT,$-8
+ //
+ // Note that all currently shipping darwin/arm64 platforms require
+ // cgo and do not support c-shared.
+-TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$0
+-	// R27 is REGTMP, reserved for liblink. It is used below to
+-	// move R0/R1 into globals. However in the standard ARM64 calling
+-	// convention, it is a callee-saved register. So we save it to a
+-	// temporary register.
+-	MOVD  R27, R7
++TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$88
++	// Preserve callee-save registers.
++	MOVD R19, 24(RSP)
++	MOVD R20, 32(RSP)
++	MOVD R21, 40(RSP)
++	MOVD R22, 48(RSP)
++	MOVD R23, 56(RSP)
++	MOVD R24, 64(RSP)
++	MOVD R25, 72(RSP)
++	MOVD R26, 80(RSP)
++	MOVD R27, 88(RSP)
+ 
+ 	MOVD  R0, _rt0_arm64_darwin_lib_argc<>(SB)
+ 	MOVD  R1, _rt0_arm64_darwin_lib_argv<>(SB)
+@@ -36,7 +41,16 @@ TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$0
+ 	MOVD  $0, R1
+ 	BL    (R4)
+ 
+-	MOVD  R7, R27
++	// Restore callee-save registers.
++	MOVD 24(RSP), R19
++	MOVD 32(RSP), R20
++	MOVD 40(RSP), R21
++	MOVD 48(RSP), R22
++	MOVD 56(RSP), R23
++	MOVD 64(RSP), R24
++	MOVD 72(RSP), R25
++	MOVD 80(RSP), R26
++	MOVD 88(RSP), R27
+ 	RET
+ 
+ TEXT _rt0_arm64_darwin_lib_go(SB),NOSPLIT,$0
+diff --git a/src/runtime/rt0_linux_arm64.s b/src/runtime/rt0_linux_arm64.s
+index 2b32e35209..31c2367bca 100644
+--- a/src/runtime/rt0_linux_arm64.s
++++ b/src/runtime/rt0_linux_arm64.s
+@@ -11,11 +11,17 @@ TEXT _rt0_arm64_linux(SB),NOSPLIT,$-8
+ 
+ // When building with -buildmode=c-shared, this symbol is called when the shared
+ // library is loaded.
+-TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$40
+-	// R27 is REGTMP, reserved for liblink. It is used below to
+-	// move R0/R1 into globals. However in the standard ARM64 calling
+-	// convention, it is a callee-saved register.
+-	MOVD	R27, 24(RSP)
++TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$88
++	// Preserve callee-save registers.
++	MOVD R19, 24(RSP)
++	MOVD R20, 32(RSP)
++	MOVD R21, 40(RSP)
++	MOVD R22, 48(RSP)
++	MOVD R23, 56(RSP)
++	MOVD R24, 64(RSP)
++	MOVD R25, 72(RSP)
++	MOVD R26, 80(RSP)
++	MOVD R27, 88(RSP)
+ 
+ 	MOVD	R0, _rt0_arm64_linux_lib_argc<>(SB)
+ 	MOVD	R1, _rt0_arm64_linux_lib_argv<>(SB)
+@@ -42,7 +48,16 @@ nocgo:
+ 	BL	(R4)
+ 
+ restore:
+-	MOVD	24(RSP), R27
++	// Restore callee-save registers.
++	MOVD 24(RSP), R19
++	MOVD 32(RSP), R20
++	MOVD 40(RSP), R21
++	MOVD 48(RSP), R22
++	MOVD 56(RSP), R23
++	MOVD 64(RSP), R24
++	MOVD 72(RSP), R25
++	MOVD 80(RSP), R26
++	MOVD 88(RSP), R27
+ 	RET
+ 
+ TEXT _rt0_arm64_linux_lib_go(SB),NOSPLIT,$0

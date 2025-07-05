@@ -7,7 +7,7 @@ Date:   Sun Nov 8 21:08:27 2009 -0800
     R=r, iant
     CC=go-dev
     http://go/go-review/1025024
-
+---
  doc/contribute.html               | 36 +++++++++++++++++++++++++++---------
  doc/go_mem.html                   |  9 ++++++---
  lib/codereview/codereview.py      | 10 +++++++++-
@@ -19,3 +19,327 @@ Date:   Sun Nov 8 21:08:27 2009 -0800
  src/pkg/go/parser/interface.go    | 12 ++++--------
  src/pkg/os/os_test.go             |  2 +-
  10 files changed, 56 insertions(+), 54 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 5e40c9e12f..01a2c41c03 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -1,10 +1,5 @@
+ <!-- Contributing to the Go project -->
+ 
+-<!-- TODO(rsc):
+-	Mention community resources like IRC, mailing lists,
+-	change list email groups, etc.
+--->
+-
+ <h2>Introduction</h2>
+ 
+ <p>
+@@ -26,6 +21,29 @@ enables discussions about design before much code
+ has been written.
+ </p>
+ 
++<h2>Community resources</h2>
++
++<p>
++For real-time help, there may be users or developers on the
++<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server.
++</p>
++
++<p>
++The official mailing list for discussion of the Go language is
++<a href="http://groups.google.com/group/golang-nuts">Go Nuts</a>.
++</p>
++
++<p>
++Bugs can be reported using the <a href="http://code.google.com/p/go/issues/list">Go issue tracker</a>.
++</p>
++
++<p>
++For those who wish to keep up with development,
++there is another mailing list, <a href="http://groups.google.com/group/golang-checkins">golang-checkins</a>,
++that receives a message summarizing each checkin to the Go repository.
++</p>
++
++
+ <h2>Creating a new package</h2>
+ 
+ <p>
+@@ -244,7 +262,7 @@ The Mercurial configuration file format does not allow environment variable subs
+ <p>
+ The code review server uses a Google Account to authenticate.
+ (If you can use the account to
+-<a href="https://www.google.com/accounts/Login?hl=en&continue=http://www.google.com/">sign in at google.com</a>,
++<a href="https://www.google.com/accounts/Login?hl=en&amp;continue=http://www.google.com/">sign in at google.com</a>,
+ you can use it to sign in to the code review server.)
+ </p>
+ 
+@@ -425,7 +443,7 @@ warning: conflicts during merge.
+ <i>merging src/pkg/flag/flag_test.go failed!</i>
+ 1 file updated, 0 files merged, 0 files removed, 1 file unresolved
+ use 'hg resolve' to retry unresolved file merges
+-$ 
++$
+ </pre>
+ 
+ <p>
+@@ -468,8 +486,8 @@ that you have corrected the file.
+ </p>
+ 
+ <p>
+-If you had been editing the file, say for debugging, but do not 
+-care to preserve your changes, you can run 
++If you had been editing the file, say for debugging, but do not
++care to preserve your changes, you can run
+ <code>hg revert flag_test.go</code> to abandon your
+ changes.
+ </p>
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 1ecddddff0..ede79720a6 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -233,7 +233,7 @@ The <code>sync</code> package implements two lock data types,
+ </p>
+ 
+ <p class="rule">
+-For any <code>sync.Mutex</code> variable <code>l</code> and <i>n</i> &lt; <i>m</i>,
++For any <code>sync.Mutex</code> or <code>sync.RWMutex</code> variable <code>l</code> and <i>n</i> &lt; <i>m</i>,
+ the <i>n</i>'th call to <code>l.Unlock()</code> happens before the <i>m</i>'th call to <code>l.Lock()</code> returns.
+ </p>
+ 
+@@ -265,8 +265,11 @@ before the second call to <code>l.Lock()</code> (in <code>main</code>) returns,
+ which happens before the <code>print</code>.
+ </p>
+ 
+-<p>
+-TODO(rsc): <code>sync.RWMutex</code>.
++<p class="rule">
++For any call to <code>l.RLock</code> on a <code>sync.RWMutex</code> variable <code>l</code>,
++there is an <i>n</i> such that the <code>l.RLock</code> happens (returns) after the <i>n</i>'th call to
++<code>l.Unlock</code> and the matching <code>l.RUnlock</code> happens
++before the <i>n</i>+1'th call to <code>l.Lock</code>.
+ </p>
+ 
+ <h3>Once</h3>
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index a8ba54025a..e5878e296d 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1078,7 +1078,15 @@ def sync(ui, repo, **opts):
+ 	sync_changes(ui, repo)
+ 
+ def sync_note(msg):
+-	if msg == 'resolving manifests\n' or msg == 'searching for changes\n':
++	# we run sync (pull -u) in verbose mode to get the
++	# list of files being updated, but that drags along
++	# a bunch of messages we don't care about.
++	# omit them.
++	if msg == 'resolving manifests\n':
++		return
++	if msg == 'searching for changes\n':
++		return
++	if msg == "couldn't find merge tool hgmerge\n":
+ 		return
+ 	sys.stdout.write(msg)
+ 
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 2960f2a11e..14dd57fa17 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -293,7 +293,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OCONVIFACE:
+ 	case OARRAYBYTESTR:
+ 	case ORUNESTR:
+-		if(n->type->sym == S)
++		if(n->type == T || n->type->sym == S)
+ 			fmtprint(f, "(%T)(", n->type);
+ 		else
+ 			fmtprint(f, "%T(", n->type);
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index e66d72a353..c529f7d94d 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -15,12 +15,6 @@ import (
+ )
+ 
+ 
+-// TODO:
+-//	- maybe define an interface
+-//	- Reader: ReadRune, UnreadRune ?
+-//		could make ReadRune generic if we dropped UnreadRune
+-//	- buffered output
+-
+ const (
+ 	defaultBufSize = 4096;
+ )
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 2fe494f7bc..a39166d961 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -197,7 +197,6 @@ type Reader interface {
+ }
+ 
+ // Inflate state.
+-// TODO(rsc): Expose this or not?
+ type inflater struct {
+ 	// Input/output sources.
+ 	r	Reader;
+diff --git a/src/pkg/crypto/hmac/hmac_test.go b/src/pkg/crypto/hmac/hmac_test.go
+index 82ed3ab821..6df6484134 100644
+--- a/src/pkg/crypto/hmac/hmac_test.go
++++ b/src/pkg/crypto/hmac/hmac_test.go
+@@ -4,8 +4,6 @@
+ 
+ package hmac
+ 
+-// TODO(rsc): better test
+-
+ import (
+ 	"hash";
+ 	"fmt";
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 75eb7064bf..3d04c349c4 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -133,7 +133,7 @@ func commentEscape(w io.Writer, s []byte) {
+ 	last := 0;
+ 	for i := 0; i < len(s)-1; i++ {
+ 		if s[i] == s[i+1] && (s[i] == '`' || s[i] == '\'') {
+-			template.HtmlEscape(w, s[last:i]);
++			template.HTMLEscape(w, s[last:i]);
+ 			last = i+2;
+ 			switch s[i] {
+ 			case '`':
+@@ -144,7 +144,7 @@ func commentEscape(w io.Writer, s []byte) {
+ 			i++;	// loop will add one more
+ 		}
+ 	}
+-	template.HtmlEscape(w, s[last:len(s)]);
++	template.HTMLEscape(w, s[last:len(s)]);
+ }
+ 
+ 
+@@ -211,10 +211,9 @@ func unindent(block [][]byte) {
+ //
+ // TODO(rsc): I'd like to pass in an array of variable names []string
+ // and then italicize those strings when they appear as words.
+-func ToHtml(w io.Writer, s []byte) {
++func ToHTML(w io.Writer, s []byte) {
+ 	inpara := false;
+ 
+-	/* TODO(rsc): 6g cant generate code for these
+ 	close := func() {
+ 		if inpara {
+ 			w.Write(html_endp);
+@@ -227,7 +226,6 @@ func ToHtml(w io.Writer, s []byte) {
+ 			inpara = true;
+ 		}
+ 	};
+-	*/
+ 
+ 	lines := split(s);
+ 	unindent(lines);
+@@ -235,19 +233,13 @@ func ToHtml(w io.Writer, s []byte) {
+ 		line := lines[i];
+ 		if isBlank(line) {
+ 			// close paragraph
+-			if inpara {
+-				w.Write(html_endp);
+-				inpara = false;
+-			}
++			close();
+ 			i++;
+ 			continue;
+ 		}
+ 		if indentLen(line) > 0 {
+ 			// close paragraph
+-			if inpara {
+-				w.Write(html_endp);
+-				inpara = false;
+-			}
++			close();
+ 
+ 			// count indented or blank lines
+ 			j := i+1;
+@@ -268,21 +260,15 @@ func ToHtml(w io.Writer, s []byte) {
+ 			// just html escaping
+ 			w.Write(html_pre);
+ 			for _, line := range block {
+-				template.HtmlEscape(w, line);
++				template.HTMLEscape(w, line);
+ 			}
+ 			w.Write(html_endpre);
+ 			continue;
+ 		}
+ 		// open paragraph
+-		if !inpara {
+-			w.Write(html_p);
+-			inpara = true;
+-		}
++		open();
+ 		commentEscape(w, lines[i]);
+ 		i++;
+ 	}
+-	if inpara {
+-		w.Write(html_endp);
+-		inpara = false;
+-	}
++	close();
+ }
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 714add4331..3c9be7532c 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -63,8 +63,7 @@ func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
+ 
+ 	var p parser;
+ 	p.init(filename, data, 0);
+-	x := p.parseExpr();	// TODO 6g bug - function call order in expr lists
+-	return x, p.GetError(scanner.Sorted);
++	return p.parseExpr(), p.GetError(scanner.Sorted);
+ }
+ 
+ 
+@@ -81,8 +80,7 @@ func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
+ 
+ 	var p parser;
+ 	p.init(filename, data, 0);
+-	list := p.parseStmtList();	// TODO 6g bug - function call order in expr lists
+-	return list, p.GetError(scanner.Sorted);
++	return p.parseStmtList(), p.GetError(scanner.Sorted);
+ }
+ 
+ 
+@@ -99,8 +97,7 @@ func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
+ 
+ 	var p parser;
+ 	p.init(filename, data, 0);
+-	list := p.parseDeclList();	// TODO 6g bug - function call order in expr lists
+-	return list, p.GetError(scanner.Sorted);
++	return p.parseDeclList(), p.GetError(scanner.Sorted);
+ }
+ 
+ 
+@@ -130,8 +127,7 @@ func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error
+ 
+ 	var p parser;
+ 	p.init(filename, data, mode);
+-	prog := p.parseFile();	// TODO 6g bug - function call order in expr lists
+-	return prog, p.GetError(scanner.NoMultiples);
++	return p.parseFile(), p.GetError(scanner.NoMultiples);
+ }
+ 
+ 
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 4601c45b9e..832ce60833 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -511,7 +511,7 @@ func TestTime(t *testing.T) {
+ 	// A common failure mode on Darwin is to get 0, 0,
+ 	// because it returns the time in registers instead of
+ 	// filling in the structure passed to the system call.
+-	// TODO(rsc): Too bad the compiler doesn't know that
++	// Too bad the compiler doesn't know that
+ 	// 365.24*86400 is an integer.
+ 	sec, nsec, err := Time();
+ 	if sec < (2009-1970)*36524*864 {

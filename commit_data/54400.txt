@@ -17,7 +17,7 @@ Date:   Wed Oct 12 14:57:47 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/wait6_dragonfly.go   | 18 ++++++++++++++++++
  src/os/wait6_freebsd64.go   | 20 ++++++++++++++++++++
  src/os/wait6_freebsd_386.go | 18 ++++++++++++++++++
@@ -25,3 +25,161 @@ Date:   Wed Oct 12 14:57:47 2022 -0400
  src/os/wait6_netbsd.go      | 18 ++++++++++++++++++
  src/os/wait_wait6.go        | 18 +-----------------
  6 files changed, 93 insertions(+), 17 deletions(-)
+
+diff --git a/src/os/wait6_dragonfly.go b/src/os/wait6_dragonfly.go
+new file mode 100644
+index 0000000000..cc3af39a23
+--- /dev/null
++++ b/src/os/wait6_dragonfly.go
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++const _P_PID = 0
++
++func wait6(idtype, id, options int) (status int, errno syscall.Errno) {
++	var status32 int32 // C.int
++	_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, uintptr(idtype), uintptr(id), uintptr(unsafe.Pointer(&status32)), uintptr(options), 0, 0)
++	return int(status32), errno
++}
+diff --git a/src/os/wait6_freebsd64.go b/src/os/wait6_freebsd64.go
+new file mode 100644
+index 0000000000..b2677c533a
+--- /dev/null
++++ b/src/os/wait6_freebsd64.go
+@@ -0,0 +1,20 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build freebsd && (amd64 || arm64 || riscv64)
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++const _P_PID = 0
++
++func wait6(idtype, id, options int) (status int, errno syscall.Errno) {
++	var status32 int32 // C.int
++	_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, uintptr(idtype), uintptr(id), uintptr(unsafe.Pointer(&status32)), uintptr(options), 0, 0)
++	return int(status32), errno
++}
+diff --git a/src/os/wait6_freebsd_386.go b/src/os/wait6_freebsd_386.go
+new file mode 100644
+index 0000000000..30b01c564d
+--- /dev/null
++++ b/src/os/wait6_freebsd_386.go
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++const _P_PID = 0
++
++func wait6(idtype, id, options int) (status int, errno syscall.Errno) {
++	// freebsd32_wait6_args{ idtype, id1, id2, status, options, wrusage, info }
++	_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, uintptr(idtype), uintptr(id), 0, uintptr(unsafe.Pointer(&status)), uintptr(options), 0, 0, 0, 0)
++	return status, errno
++}
+diff --git a/src/os/wait6_freebsd_arm.go b/src/os/wait6_freebsd_arm.go
+new file mode 100644
+index 0000000000..0fd8af012e
+--- /dev/null
++++ b/src/os/wait6_freebsd_arm.go
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++const _P_PID = 0
++
++func wait6(idtype, id, options int) (status int, errno syscall.Errno) {
++	// freebsd32_wait6_args{ idtype, pad, id1, id2, status, options, wrusage, info }
++	_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, uintptr(idtype), 0, uintptr(id), 0, uintptr(unsafe.Pointer(&status)), uintptr(options), 0, 0, 0)
++	return status, errno
++}
+diff --git a/src/os/wait6_netbsd.go b/src/os/wait6_netbsd.go
+new file mode 100644
+index 0000000000..0bbb73d490
+--- /dev/null
++++ b/src/os/wait6_netbsd.go
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++const _P_PID = 1 // not 0 as on FreeBSD and Dragonfly!
++
++func wait6(idtype, id, options int) (status int, errno syscall.Errno) {
++	var status32 int32 // C.int
++	_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, uintptr(idtype), uintptr(id), uintptr(unsafe.Pointer(&status32)), uintptr(options), 0, 0)
++	return int(status32), errno
++}
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index e5cf87b135..1031428826 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -11,29 +11,13 @@ import (
+ 	"syscall"
+ )
+ 
+-const (
+-	_P_PID        = 0 // everywhere except for NetBSD?
+-	_P_PID_NETBSD = 1 // on NetBSD, 0 is P_ALL
+-)
+-
+ // blockUntilWaitable attempts to block until a call to p.Wait will
+ // succeed immediately, and reports whether it has done so.
+ // It does not actually call p.Wait.
+ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	var errno syscall.Errno
+ 	for {
+-		// The arguments on 32-bit FreeBSD look like the following:
+-		// - freebsd32_wait6_args{ idtype, id1, id2, status, options, wrusage, info } or
+-		// - freebsd32_wait6_args{ idtype, pad, id1, id2, status, options, wrusage, info } when PAD64_REQUIRED=1 on ARM, MIPS or PowerPC
+-		if runtime.GOOS == "freebsd" && runtime.GOARCH == "386" {
+-			_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
+-		} else if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
+-			_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0)
+-		} else if runtime.GOOS == "netbsd" {
+-			_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID_NETBSD, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+-		} else {
+-			_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+-		}
++		_, errno = wait6(_P_PID, p.Pid, syscall.WEXITED|syscall.WNOWAIT)
+ 		if errno != syscall.EINTR {
+ 			break
+ 		}

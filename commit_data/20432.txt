@@ -6,6 +6,21 @@ Date:   Sun Sep 7 20:52:22 2014 -0700
     
     CC=golang-codereviews
     https://golang.org/cl/132670045
-
+---
  doc/go1.4.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index 8cabeb4eb6..c5da7b72b6 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -17,6 +17,9 @@ crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
+ crypto/tls: support programmatic selection of server certificates (CL 107400043)
+ encoding/gob: remove unsafe (CL 102680045)
+ misc: deleted editor support; refer to https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins instead (CL 105470043)
++net/http: add Request.BasicAuth method (CL 76540043)
++net/http: add Transport.DialTLS hook (CL 137940043)
++net/http/httputil: add ReverseProxy.ErrorLog (CL 132750043)
+ os: implement symlink support for windows (CL 86160044)
+ runtime: implement monotonic clocks on windows (CL 108700045)
+ runtime/race: freebsd is supported (CL 107270043)

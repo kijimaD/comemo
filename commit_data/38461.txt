@@ -16,8 +16,189 @@ Date:   Tue Oct 30 12:58:50 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  11 ++-
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 102 ++++++++++++++++++++++++++-
  test/codegen/strings.go                      |  12 ++++
  3 files changed, 121 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 3a40d98495..6b2d3f77cf 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -286,7 +286,16 @@
+ (Move [7] dst src mem) ->
+ 	(MOVLstore [3] dst (MOVLload [3] src mem)
+ 		(MOVLstore dst (MOVLload src mem) mem))
+-(Move [s] dst src mem) && s > 8 && s < 16 ->
++(Move [9] dst src mem) ->
++	(MOVBstore [8] dst (MOVBload [8] src mem)
++		(MOVQstore dst (MOVQload src mem) mem))
++(Move [10] dst src mem) ->
++	(MOVWstore [8] dst (MOVWload [8] src mem)
++		(MOVQstore dst (MOVQload src mem) mem))
++(Move [12] dst src mem) ->
++	(MOVLstore [8] dst (MOVLload [8] src mem)
++		(MOVQstore dst (MOVQload src mem) mem))
++(Move [s] dst src mem) && s == 11 || s >= 13 && s <= 15 ->
+ 	(MOVQstore [s-8] dst (MOVQload [s-8] src mem)
+ 		(MOVQstore dst (MOVQload src mem) mem))
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 3ac860c1a2..43d77c97a4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -932,7 +932,7 @@ func rewriteValueAMD64(v *Value) bool {
+ 	case OpMod8u:
+ 		return rewriteValueAMD64_OpMod8u_0(v)
+ 	case OpMove:
+-		return rewriteValueAMD64_OpMove_0(v) || rewriteValueAMD64_OpMove_10(v)
++		return rewriteValueAMD64_OpMove_0(v) || rewriteValueAMD64_OpMove_10(v) || rewriteValueAMD64_OpMove_20(v)
+ 	case OpMul16:
+ 		return rewriteValueAMD64_OpMul16_0(v)
+ 	case OpMul32:
+@@ -62736,8 +62736,95 @@ func rewriteValueAMD64_OpMove_10(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Move [9] dst src mem)
++	// cond:
++	// result: (MOVBstore [8] dst (MOVBload [8] src mem) (MOVQstore dst (MOVQload src mem) mem))
++	for {
++		if v.AuxInt != 9 {
++			break
++		}
++		_ = v.Args[2]
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVBstore)
++		v.AuxInt = 8
++		v.AddArg(dst)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, typ.UInt8)
++		v0.AuxInt = 8
++		v0.AddArg(src)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstore, types.TypeMem)
++		v1.AddArg(dst)
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
++		v2.AddArg(src)
++		v2.AddArg(mem)
++		v1.AddArg(v2)
++		v1.AddArg(mem)
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Move [10] dst src mem)
++	// cond:
++	// result: (MOVWstore [8] dst (MOVWload [8] src mem) (MOVQstore dst (MOVQload src mem) mem))
++	for {
++		if v.AuxInt != 10 {
++			break
++		}
++		_ = v.Args[2]
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVWstore)
++		v.AuxInt = 8
++		v.AddArg(dst)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, typ.UInt16)
++		v0.AuxInt = 8
++		v0.AddArg(src)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstore, types.TypeMem)
++		v1.AddArg(dst)
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
++		v2.AddArg(src)
++		v2.AddArg(mem)
++		v1.AddArg(v2)
++		v1.AddArg(mem)
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Move [12] dst src mem)
++	// cond:
++	// result: (MOVLstore [8] dst (MOVLload [8] src mem) (MOVQstore dst (MOVQload src mem) mem))
++	for {
++		if v.AuxInt != 12 {
++			break
++		}
++		_ = v.Args[2]
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVLstore)
++		v.AuxInt = 8
++		v.AddArg(dst)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, typ.UInt32)
++		v0.AuxInt = 8
++		v0.AddArg(src)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstore, types.TypeMem)
++		v1.AddArg(dst)
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
++		v2.AddArg(src)
++		v2.AddArg(mem)
++		v1.AddArg(v2)
++		v1.AddArg(mem)
++		v.AddArg(v1)
++		return true
++	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 8 && s < 16
++	// cond: s == 11 || s >= 13 && s <= 15
+ 	// result: (MOVQstore [s-8] dst (MOVQload [s-8] src mem) (MOVQstore dst (MOVQload src mem) mem))
+ 	for {
+ 		s := v.AuxInt
+@@ -62745,7 +62832,7 @@ func rewriteValueAMD64_OpMove_10(v *Value) bool {
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(s > 8 && s < 16) {
++		if !(s == 11 || s >= 13 && s <= 15) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVQstore)
+@@ -62830,6 +62917,15 @@ func rewriteValueAMD64_OpMove_10(v *Value) bool {
+ 		v.AddArg(v2)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueAMD64_OpMove_20(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
++	typ := &b.Func.Config.Types
++	_ = typ
+ 	// match: (Move [s] dst src mem)
+ 	// cond: s > 16 && s%16 != 0 && s%16 > 8 && !config.useSSE
+ 	// result: (Move [s-s%16] (OffPtr <dst.Type> dst [s%16]) (OffPtr <src.Type> src [s%16]) (MOVQstore [8] dst (MOVQload [8] src mem) (MOVQstore dst (MOVQload src mem) mem)))
+diff --git a/test/codegen/strings.go b/test/codegen/strings.go
+index 39ee2e8b9f..d688b6cbf9 100644
+--- a/test/codegen/strings.go
++++ b/test/codegen/strings.go
+@@ -44,6 +44,18 @@ func ConstantLoad() {
+ 	//   386:`MOVL\t\$858927408, \(`,`DUFFCOPY`
+ 	// arm64:`MOVD\t\$3978425819141910832`,`MOVD\t\$1650538808`,`MOVD\t\$25699`,`MOVD\t\$101`
+ 	bsink = []byte("0123456789abcde")
++
++	// 56 = 0x38
++	// amd64:`MOVQ\t\$3978425819141910832`,`MOVB\t\$56`
++	bsink = []byte("012345678")
++
++	// 14648 = 0x3938
++	// amd64:`MOVQ\t\$3978425819141910832`,`MOVW\t\$14648`
++	bsink = []byte("0123456789")
++
++	// 1650538808 = 0x62613938
++	// amd64:`MOVQ\t\$3978425819141910832`,`MOVL\t\$1650538808`
++	bsink = []byte("0123456789ab")
+ }
+ 
+ var bsink []byte

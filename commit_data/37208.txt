@@ -19,9 +19,194 @@ Date:   Mon Jul 9 23:00:35 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/122878
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/go_test.go            | 15 +++++++++++++
  src/cmd/go/internal/list/list.go | 46 +++++++++++++++++++++++++++++-----------
  src/cmd/go/internal/load/pkg.go  |  5 +++--
  src/cmd/go/internal/load/test.go | 25 ++++++++++++++++++----
  4 files changed, 73 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 889a6d5df1..00dde724c5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1409,6 +1409,21 @@ func TestImportCycle(t *testing.T) {
+ 	tg.run("list", "-e", "-json", "selfimport")
+ }
+ 
++func TestListImportMap(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.run("list", "-f", "{{.ImportPath}}: {{.ImportMap}}", "net", "fmt")
++	tg.grepStdout(`^net: map\[(.* )?golang_org/x/net/dns/dnsmessage:vendor/golang_org/x/net/dns/dnsmessage.*\]`, "net/http should have rewritten dnsmessage import")
++	tg.grepStdout(`^fmt: map\[\]`, "fmt should have no rewritten imports")
++	tg.run("list", "-deps", "-test", "-f", "{{.ImportPath}} MAP: {{.ImportMap}}\n{{.ImportPath}} IMPORT: {{.Imports}}", "fmt")
++	tg.grepStdout(`^flag \[fmt\.test\] MAP: map\[fmt:fmt \[fmt\.test\]\]`, "flag [fmt.test] should import fmt [fmt.test] as fmt")
++	tg.grepStdout(`^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]`, "fmt.test should import testing [fmt.test] as testing")
++	tg.grepStdout(`^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]`, "fmt.test should import testing [fmt.test] as testing")
++	tg.grepStdoutNot(`^fmt\.test MAP: map\[(.* )?os:`, "fmt.test should not import a modified os")
++	tg.grepStdout(`^fmt\.test IMPORT: \[fmt \[fmt\.test\] fmt_test \[fmt\.test\] os testing \[fmt\.test\] testing/internal/testdeps \[fmt\.test\]\]`, "wrong imports for fmt.test")
++}
++
+ // cmd/go: custom import path checking should not apply to Go packages without import comment.
+ func TestIssue10952(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 218999c7e8..50bb53e933 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -83,10 +83,11 @@ syntax of package template. The default output is equivalent to -f
+         CgoPkgConfig []string // cgo: pkg-config names
+ 
+         // Dependency information
+-        Imports      []string // import paths used by this package
+-        Deps         []string // all (recursively) imported dependencies
+-        TestImports  []string // imports from TestGoFiles
+-        XTestImports []string // imports from XTestGoFiles
++        Imports      []string          // import paths used by this package
++        ImportMap    map[string]string // map from source import to ImportPath (identity entries omitted)
++        Deps         []string          // all (recursively) imported dependencies
++        TestImports  []string          // imports from TestGoFiles
++        XTestImports []string          // imports from XTestGoFiles
+ 
+         // Error information
+         Incomplete bool            // this package or a dependency has an error
+@@ -348,22 +349,30 @@ func runList(cmd *base.Command, args []string) {
+ 		// This must happen only once the build code is done
+ 		// looking at import paths, because it will get very confused
+ 		// if it sees these.
++		old := make(map[string]string)
+ 		for _, p := range all {
+ 			if p.ForTest != "" {
+-				p.ImportPath += " [" + p.ForTest + ".test]"
++				new := p.ImportPath + " [" + p.ForTest + ".test]"
++				old[new] = p.ImportPath
++				p.ImportPath = new
+ 			}
+ 			p.DepOnly = !cmdline[p]
+ 		}
+ 		// Update import path lists to use new strings.
++		m := make(map[string]string)
+ 		for _, p := range all {
+-			j := 0
+-			for i := range p.Imports {
+-				// Internal skips "C"
+-				if p.Imports[i] == "C" {
+-					continue
++			for _, p1 := range p.Internal.Imports {
++				if p1.ForTest != "" {
++					m[old[p1.ImportPath]] = p1.ImportPath
++				}
++			}
++			for i, old := range p.Imports {
++				if new := m[old]; new != "" {
++					p.Imports[i] = new
+ 				}
+-				p.Imports[i] = p.Internal.Imports[j].ImportPath
+-				j++
++			}
++			for old := range m {
++				delete(m, old)
+ 			}
+ 		}
+ 		// Recompute deps lists using new strings, from the leaves up.
+@@ -383,6 +392,19 @@ func runList(cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
++	// Record non-identity import mappings in p.ImportMap.
++	for _, p := range pkgs {
++		for i, srcPath := range p.Internal.RawImports {
++			path := p.Imports[i]
++			if path != srcPath {
++				if p.ImportMap == nil {
++					p.ImportMap = make(map[string]string)
++				}
++				p.ImportMap[srcPath] = path
++			}
++		}
++	}
++
+ 	for _, p := range pkgs {
+ 		do(&p.PackagePublic)
+ 	}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 400b338a20..d369fde266 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -87,8 +87,9 @@ type PackagePublic struct {
+ 	CgoPkgConfig []string `json:",omitempty"` // cgo: pkg-config names
+ 
+ 	// Dependency information
+-	Imports []string `json:",omitempty"` // import paths used by this package
+-	Deps    []string `json:",omitempty"` // all (recursively) imported dependencies
++	Imports   []string          `json:",omitempty"` // import paths used by this package
++	ImportMap map[string]string `json:",omitempty"` // map from source import to ImportPath (identity entries omitted)
++	Deps      []string          `json:",omitempty"` // all (recursively) imported dependencies
+ 
+ 	// Error information
+ 	Incomplete bool            `json:",omitempty"` // was there an error loading this package or dependencies?
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 7cc6e910af..2cc7c6cb2a 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -114,16 +114,17 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
+ 		ptest.Target = ""
+ 		// Note: The preparation of the vet config requires that common
+-		// indexes in ptest.Imports, ptest.Internal.Imports, and ptest.Internal.RawImports
++		// indexes in ptest.Imports and ptest.Internal.RawImports
+ 		// all line up (but RawImports can be shorter than the others).
+ 		// That is, for 0 ≤ i < len(RawImports),
+-		// RawImports[i] is the import string in the program text,
+-		// Imports[i] is the expanded import string (vendoring applied or relative path expanded away),
+-		// and Internal.Imports[i] is the corresponding *Package.
++		// RawImports[i] is the import string in the program text, and
++		// Imports[i] is the expanded import string (vendoring applied or relative path expanded away).
+ 		// Any implicitly added imports appear in Imports and Internal.Imports
+ 		// but not RawImports (because they were not in the source code).
+ 		// We insert TestImports, imports, and rawTestImports at the start of
+ 		// these lists to preserve the alignment.
++		// Note that p.Internal.Imports may not be aligned with p.Imports/p.Internal.RawImports,
++		// but we insert at the beginning there too just for consistency.
+ 		ptest.Imports = str.StringList(p.TestImports, p.Imports)
+ 		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
+ 		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
+@@ -181,6 +182,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 			GoFiles:    []string{"_testmain.go"},
+ 			ImportPath: p.ImportPath + ".test",
+ 			Root:       p.Root,
++			Imports:    str.StringList(TestMainDeps),
+ 		},
+ 		Internal: PackageInternal{
+ 			Build:      &build.Package{Name: "main"},
+@@ -236,13 +238,28 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 	t.Cover = cover
+ 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
+ 		pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
++		pmain.Imports = append(pmain.Imports, ptest.ImportPath)
+ 		t.ImportTest = true
+ 	}
+ 	if pxtest != nil {
+ 		pmain.Internal.Imports = append(pmain.Internal.Imports, pxtest)
++		pmain.Imports = append(pmain.Imports, pxtest.ImportPath)
+ 		t.ImportXtest = true
+ 	}
+ 
++	// Sort and dedup pmain.Imports.
++	// Only matters for go list -test output.
++	sort.Strings(pmain.Imports)
++	w := 0
++	for _, path := range pmain.Imports {
++		if w == 0 || path != pmain.Imports[w-1] {
++			pmain.Imports[w] = path
++			w++
++		}
++	}
++	pmain.Imports = pmain.Imports[:w]
++	pmain.Internal.RawImports = str.StringList(pmain.Imports)
++
+ 	if ptest != p {
+ 		// We have made modifications to the package p being tested
+ 		// and are rebuilding p (as ptest).

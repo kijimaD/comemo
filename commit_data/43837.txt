@@ -13,6 +13,38 @@ Date:   Fri Apr 24 20:49:35 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/main.go | 19 ++++++-------------
  1 file changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index fcd391da90..a5f2092f0f 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -346,20 +346,13 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		if err := ctxt.Out.Mmap(filesize); err != nil {
+ 			panic(err)
+ 		}
+-		// Asmb will redirect symbols to the output file mmap, and relocations
+-		// will be applied directly there.
+-		bench.Start("Asmb")
+-		thearch.Asmb(ctxt)
+-		bench.Start("reloc")
+-		ctxt.reloc()
+-	} else {
+-		// If we don't mmap, we need to apply relocations before
+-		// writing out.
+-		bench.Start("reloc")
+-		ctxt.reloc()
+-		bench.Start("Asmb")
+-		thearch.Asmb(ctxt)
+ 	}
++	// Asmb will redirect symbols to the output file mmap, and relocations
++	// will be applied directly there.
++	bench.Start("Asmb")
++	thearch.Asmb(ctxt)
++	bench.Start("reloc")
++	ctxt.reloc()
+ 	bench.Start("Asmb2")
+ 	thearch.Asmb2(ctxt)
+ 

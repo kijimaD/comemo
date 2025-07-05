@@ -8,7 +8,7 @@ Date:   Sun Jan 29 10:14:36 2012 -0800
     R=rsc, r, rsc
     CC=golang-dev
     https://golang.org/cl/5576067
-
+---
  src/Make.ctool                  | 50 +++++++++++++++++++++++++++++++++++++++++
  src/cmd/cov/Makefile            |  6 ++---
  src/cmd/go/tool.go              |  2 +-
@@ -17,3 +17,173 @@ Date:   Sun Jan 29 10:14:36 2012 -0800
  src/cmd/prof/{gopprof => pprof} |  0
  src/sudo.bash                   |  9 +++++---
  7 files changed, 68 insertions(+), 17 deletions(-)
+
+diff --git a/src/Make.ctool b/src/Make.ctool
+new file mode 100644
+index 0000000000..715fab62ae
+--- /dev/null
++++ b/src/Make.ctool
+@@ -0,0 +1,50 @@
++# Copyright 2010 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Makefile for commands written in C.
++
++# Tools always go into $GOROOT/bin/go-tool
++
++ifeq (windows,$(findstring windows, $(shell uname | tr A-Z a-z | sed 's/mingw/windows/')))
++TARG:=$(TARG).exe
++endif
++
++$(TARG): $(OFILES) $(LIB)
++	$(HOST_LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lmach -lbio -l9 -lm $(HOST_LDFLAGS)
++
++$(OFILES): $(HFILES)
++
++CLEANFILES+=y.tab.[ch]
++
++clean:
++	rm -f *.$(HOST_O) $(TARG) $(CLEANFILES)
++
++nuke: clean
++	rm -f "$(GOROOT)/bin/go-tool/$(TARG)"
++
++ifneq ($(NOINSTALL),1)
++install: $(QUOTED_GOROOT)/bin/go-tool/$(TARG)
++endif
++
++$(QUOTED_GOROOT)/bin/go-tool/$(TARG): $(TARG)
++	mkdir -p "$(GOROOT)/bin/go-tool" && cp $(TARG) "$(GOROOT)/bin/go-tool/$(TARG)"
++
++y.tab.h: $(YFILES)
++	bison -y $(HOST_YFLAGS) $(YFILES)
++
++y.tab.c: y.tab.h
++	test -f y.tab.c && touch y.tab.c
++
++all: $(TARG)
++
++# Use $(PWD)/$*.c so that gdb shows full path in stack traces.
++%.$(HOST_O): %.c
++	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
++
++# These are used by enough different Makefiles to be
++# worth writing down in one place, even if they don't
++# apply to every command that builds with Make.ccmd
++../%l/enam.o:
++	cd ../$*l; $(MAKE) enam.o
++
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index c080f4a284..616e94f647 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -9,7 +9,7 @@ O:=$(HOST_O)
+ # We call the binary 6cov to avoid confusion and because this binary
+ # is linked only with amd64 and x86 support.
+ 
+-TARG=6cov
++TARG=cov
+ OFILES=\
+ 	main.$O\
+ 	tree.$O\
+@@ -18,7 +18,7 @@ HFILES=\
+ 	tree.h\
+ 
+ NOINSTALL=1
+-include ../../Make.ccmd
++include ../../Make.ctool
+ 
+ ifeq ($(GOOS),windows)
+ NAME=windows
+@@ -38,4 +38,4 @@ install-darwin: $(TARG)
+ 	@true
+ 
+ install-default: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++	cp $(TARG) "$(GOBIN)"/go-tool/$(TARG)
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 24ed78bdab..12be9a8036 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -87,7 +87,7 @@ func listTools() {
+ 		exitStatus = 2
+ 		return
+ 	}
+-	sort.StringSlice(names).Sort()
++	sort.Strings(names)
+ 	for _, name := range names {
+ 		// Unify presentation by going to lower case.
+ 		name = strings.ToLower(name)
+diff --git a/src/cmd/nm/Makefile b/src/cmd/nm/Makefile
+index 81bc348deb..f2a89d83f5 100644
+--- a/src/cmd/nm/Makefile
++++ b/src/cmd/nm/Makefile
+@@ -8,8 +8,8 @@ O:=$(HOST_O)
+ # The directory is nm because the source is portable and general.
+ # We call the binary 6nm to avoid confusion with the host nm.
+ 
+-TARG=6nm
++TARG=nm
+ OFILES=\
+ 	nm.$O\
+ 
+-include ../../Make.ccmd
++include ../../Make.ctool
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index 292a6482a2..9266814a0a 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -5,16 +5,14 @@
+ include ../../Make.inc
+ O:=$(HOST_O)
+ 
+-# The directory is prof because the source is portable and general.
+-# We call the binary 6prof to avoid confusion and because this binary
+-# is linked only with amd64 and x86 support.
++# This binary is linked only with amd64 and x86 support.
+ 
+-TARG=6prof
++TARG=prof
+ OFILES=\
+ 	main.$O\
+ 
+ NOINSTALL=1
+-include ../../Make.ccmd
++include ../../Make.ctool
+ 
+ ifeq ($(GOOS),windows)
+ NAME=windows
+@@ -34,7 +32,7 @@ install-darwin: $(TARG)
+ 	@true
+ 
+ install-default: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++	cp $(TARG) "$(GOBIN)"/go-tool/$(TARG)
+ 
+-install-pprof: gopprof
+-	cp gopprof "$(GOBIN)"/gopprof
++install-pprof: pprof
++	cp pprof "$(GOBIN)"/go-tool/pprof
+diff --git a/src/cmd/prof/gopprof b/src/cmd/prof/pprof
+similarity index 100%
+rename from src/cmd/prof/gopprof
+rename to src/cmd/prof/pprof
+diff --git a/src/sudo.bash b/src/sudo.bash
+index 3322a1856d..3e4843dc28 100755
+--- a/src/sudo.bash
++++ b/src/sudo.bash
+@@ -20,7 +20,10 @@ fi
+ 
+ for i in prof cov
+ do
+-	sudo cp "$GOROOT"/src/cmd/$i/6$i /usr/local/bin/6$i
+-	sudo chgrp procmod /usr/local/bin/6$i
+-	sudo chmod g+s /usr/local/bin/6$i
++	# Remove old binaries if present
++	sudo rm -f /usr/local/bin/6$i
++	# Install new binaries
++	sudo cp "$GOROOT"/src/cmd/$i/$i /usr/local/bin/go$i
++	sudo chgrp procmod /usr/local/bin/go$i
++	sudo chmod g+s /usr/local/bin/go$i
+ done

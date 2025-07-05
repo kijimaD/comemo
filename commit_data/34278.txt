@@ -17,6 +17,24 @@ Date:   Fri Oct 13 12:41:09 2017 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/symtab.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index c77298e870..5adce1530b 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -639,6 +639,12 @@ func (ctxt *Link) symtab() {
+ 		moduledata.AddAddr(ctxt.Arch, modulehashes)
+ 		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Shlibs)))
+ 		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Shlibs)))
++	} else {
++		moduledata.AddUint(ctxt.Arch, 0) // modulename
++		moduledata.AddUint(ctxt.Arch, 0)
++		moduledata.AddUint(ctxt.Arch, 0) // moduleshashes slice
++		moduledata.AddUint(ctxt.Arch, 0)
++		moduledata.AddUint(ctxt.Arch, 0)
+ 	}
+ 
+ 	hasmain := ctxt.BuildMode == BuildModeExe || ctxt.BuildMode == BuildModePIE

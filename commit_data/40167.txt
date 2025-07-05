@@ -30,7 +30,7 @@ Date:   Tue Apr 2 17:26:49 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170638
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go   |  9 ++++-
  src/cmd/compile/internal/ssa/debug.go | 24 +++++++----
  src/cmd/internal/dwarf/dwarf.go       | 70 ++++++++++++++++++++------------
@@ -40,3 +40,471 @@ Date:   Tue Apr 2 17:26:49 2019 -0400
  src/cmd/link/internal/ld/dwarf.go     | 76 ++++-------------------------------
  src/cmd/link/internal/sym/symbol.go   | 12 +++++-
  8 files changed, 131 insertions(+), 126 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 969b596907..dc3fb64e27 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -140,6 +140,12 @@ func Main(archInit func(*Arch)) {
+ 	Ctxt.DiagFlush = flusherrors
+ 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 
++	// UseBASEntries is preferred because it shaves about 2% off build time, but LLDB, dsymutil, and dwarfdump
++	// on Darwin don't support it properly, especially since macOS 10.14 (Mojave).  This is exposed as a flag
++	// to allow testing with LLVM tools on Linux, and to help with reporting this bug to the LLVM project.
++	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
++	Ctxt.UseBASEntries = Ctxt.Headtype != objabi.Hdarwin
++
+ 	localpkg = types.NewPkg("", "")
+ 	localpkg.Prefix = "\"\""
+ 
+@@ -254,12 +260,13 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+ 	flag.BoolVar(&newescape, "newescape", true, "enable new escape analysis")
++	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
+ 	objabi.Flagparse(usage)
+ 
+ 	// Record flags that affect the build result. (And don't
+ 	// record flags that don't, since that would cause spurious
+ 	// changes in the binary.)
+-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "newescape")
++	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "newescape", "dwarfbasentries")
+ 
+ 	Ctxt.Flag_shared = flag_dynlink || flag_shared
+ 	Ctxt.Flag_dynlink = flag_dynlink
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index c2736d837c..13fe67cbca 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -1077,6 +1077,12 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
+ // PutLocationList adds list (a location list in its intermediate representation) to listSym.
+ func (debugInfo *FuncDebug) PutLocationList(list []byte, ctxt *obj.Link, listSym, startPC *obj.LSym) {
+ 	getPC := debugInfo.GetPC
++
++	if ctxt.UseBASEntries {
++		listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, ^0)
++		listSym.WriteAddr(ctxt, listSym.Size, ctxt.Arch.PtrSize, startPC, 0)
++	}
++
+ 	// Re-read list, translating its address from block/value ID to PC.
+ 	for i := 0; i < len(list); {
+ 		begin := getPC(decodeValue(ctxt, readPtr(ctxt, list[i:])))
+@@ -1090,17 +1096,21 @@ func (debugInfo *FuncDebug) PutLocationList(list []byte, ctxt *obj.Link, listSym
+ 			end = 1
+ 		}
+ 
+-		writePtr(ctxt, list[i:], uint64(begin))
+-		writePtr(ctxt, list[i+ctxt.Arch.PtrSize:], uint64(end))
++		if ctxt.UseBASEntries {
++			listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, int64(begin))
++			listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, int64(end))
++		} else {
++			listSym.WriteCURelativeAddr(ctxt, listSym.Size, startPC, int64(begin))
++			listSym.WriteCURelativeAddr(ctxt, listSym.Size, startPC, int64(end))
++		}
++
+ 		i += 2 * ctxt.Arch.PtrSize
+-		i += 2 + int(ctxt.Arch.ByteOrder.Uint16(list[i:]))
++		datalen := 2 + int(ctxt.Arch.ByteOrder.Uint16(list[i:]))
++		listSym.WriteBytes(ctxt, listSym.Size, list[i:i+datalen]) // copy datalen and location encoding
++		i += datalen
+ 	}
+ 
+-	// Base address entry.
+-	listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, ^0)
+-	listSym.WriteAddr(ctxt, listSym.Size, ctxt.Arch.PtrSize, startPC, 0)
+ 	// Location list contents, now with real PCs.
+-	listSym.WriteBytes(ctxt, listSym.Size, list)
+ 	// End entry.
+ 	listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, 0)
+ 	listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, 0)
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index df80039063..b709e9dce9 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -91,18 +91,19 @@ type Range struct {
+ // This container is used by the PutFunc* variants below when
+ // creating the DWARF subprogram DIE(s) for a function.
+ type FnState struct {
+-	Name       string
+-	Importpath string
+-	Info       Sym
+-	Filesym    Sym
+-	Loc        Sym
+-	Ranges     Sym
+-	Absfn      Sym
+-	StartPC    Sym
+-	Size       int64
+-	External   bool
+-	Scopes     []Scope
+-	InlCalls   InlCalls
++	Name          string
++	Importpath    string
++	Info          Sym
++	Filesym       Sym
++	Loc           Sym
++	Ranges        Sym
++	Absfn         Sym
++	StartPC       Sym
++	Size          int64
++	External      bool
++	Scopes        []Scope
++	InlCalls      InlCalls
++	UseBASEntries bool
+ }
+ 
+ func EnableLogging(doit bool) {
+@@ -181,6 +182,7 @@ type Context interface {
+ 	AddInt(s Sym, size int, i int64)
+ 	AddBytes(s Sym, b []byte)
+ 	AddAddress(s Sym, t interface{}, ofs int64)
++	AddCURelativeAddress(s Sym, t interface{}, ofs int64)
+ 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
+ 	AddDWARFAddrSectionOffset(s Sym, t interface{}, ofs int64)
+ 	CurrentOffset(s Sym) int64
+@@ -987,18 +989,11 @@ func PutIntConst(ctxt Context, info, typ Sym, name string, val int64) {
+ 	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_sdata, DW_CLS_CONSTANT, val, nil)
+ }
+ 
+-// PutRanges writes a range table to sym. All addresses in ranges are
+-// relative to some base address. If base is not nil, then they're
+-// relative to the start of base. If base is nil, then the caller must
+-// arrange a base address some other way (such as a DW_AT_low_pc
+-// attribute).
+-func PutRanges(ctxt Context, sym Sym, base Sym, ranges []Range) {
++// PutBasedRanges writes a range table to sym. All addresses in ranges are
++// relative to some base address, which must be arranged by the caller
++// (e.g., with a DW_AT_low_pc attribute, or in a BASE-prefixed range).
++func PutBasedRanges(ctxt Context, sym Sym, ranges []Range) {
+ 	ps := ctxt.PtrSize()
+-	// Write base address entry.
+-	if base != nil {
+-		ctxt.AddInt(sym, ps, -1)
+-		ctxt.AddAddress(sym, base, 0)
+-	}
+ 	// Write ranges.
+ 	for _, r := range ranges {
+ 		ctxt.AddInt(sym, ps, r.Start)
+@@ -1009,6 +1004,31 @@ func PutRanges(ctxt Context, sym Sym, base Sym, ranges []Range) {
+ 	ctxt.AddInt(sym, ps, 0)
+ }
+ 
++// PutRanges writes a range table to s.Ranges.
++// All addresses in ranges are relative to s.base.
++func (s *FnState) PutRanges(ctxt Context, ranges []Range) {
++	ps := ctxt.PtrSize()
++	sym, base := s.Ranges, s.StartPC
++
++	if s.UseBASEntries {
++		// Using a Base Address Selection Entry reduces the number of relocations, but
++		// this is not done on macOS because it is not supported by dsymutil/dwarfdump/lldb
++		ctxt.AddInt(sym, ps, -1)
++		ctxt.AddAddress(sym, base, 0)
++		PutBasedRanges(ctxt, sym, ranges)
++		return
++	}
++
++	// Write ranges full of relocations
++	for _, r := range ranges {
++		ctxt.AddCURelativeAddress(sym, base, r.Start)
++		ctxt.AddCURelativeAddress(sym, base, r.End)
++	}
++	// Write trailer.
++	ctxt.AddInt(sym, ps, 0)
++	ctxt.AddInt(sym, ps, 0)
++}
++
+ // Return TRUE if the inlined call in the specified slot is empty,
+ // meaning it has a zero-length range (no instructions), and all
+ // of its children are empty.
+@@ -1202,7 +1222,7 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error
+ 
+ 	if abbrev == DW_ABRV_INLINED_SUBROUTINE_RANGES {
+ 		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Len(), s.Ranges)
+-		PutRanges(ctxt, s.Ranges, s.StartPC, ic.Ranges)
++		s.PutRanges(ctxt, ic.Ranges)
+ 	} else {
+ 		st := ic.Ranges[0].Start
+ 		en := ic.Ranges[0].End
+@@ -1357,7 +1377,7 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
+ 			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES)
+ 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Len(), s.Ranges)
+ 
+-			PutRanges(ctxt, s.Ranges, s.StartPC, scope.Ranges)
++			s.PutRanges(ctxt, scope.Ranges)
+ 		}
+ 
+ 		curscope = putscope(ctxt, s, scopes, curscope, fnabbrev, encbuf)
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 1c1681d128..12385b59a0 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -112,9 +112,7 @@ func (s *LSym) WriteInt(ctxt *Link, off int64, siz int, i int64) {
+ 	}
+ }
+ 
+-// WriteAddr writes an address of size siz into s at offset off.
+-// rsym and roff specify the relocation for the address.
+-func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
++func (s *LSym) writeAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64, rtype objabi.RelocType) {
+ 	// Allow 4-byte addresses for DWARF.
+ 	if siz != ctxt.Arch.PtrSize && siz != 4 {
+ 		ctxt.Diag("WriteAddr: bad address size %d in %s", siz, s.Name)
+@@ -127,10 +125,24 @@ func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64)
+ 	}
+ 	r.Siz = uint8(siz)
+ 	r.Sym = rsym
+-	r.Type = objabi.R_ADDR
++	r.Type = rtype
+ 	r.Add = roff
+ }
+ 
++// WriteAddr writes an address of size siz into s at offset off.
++// rsym and roff specify the relocation for the address.
++func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
++	s.writeAddr(ctxt, off, siz, rsym, roff, objabi.R_ADDR)
++}
++
++// WriteCURelativeAddr writes a pointer-sized address into s at offset off.
++// rsym and roff specify the relocation for the address which will be
++// resolved by the linker to an offset from the DW_AT_low_pc attribute of
++// the DWARF Compile Unit of rsym.
++func (s *LSym) WriteCURelativeAddr(ctxt *Link, off int64, rsym *LSym, roff int64) {
++	s.writeAddr(ctxt, off, ctxt.Arch.PtrSize, rsym, roff, objabi.R_ADDRCUOFF)
++}
++
+ // WriteOff writes a 4 byte offset to rsym+roff into s at offset off.
+ // After linking the 4 bytes stored at s+off will be
+ // rsym+roff-(start of section that s is in).
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 5d4e5db27f..3ea29a87a9 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -648,6 +648,7 @@ type Link struct {
+ 
+ 	InParallel           bool // parallel backend phase in effect
+ 	Framepointer_enabled bool
++	UseBASEntries        bool // Use Base Address Selection Entries in location lists and PC ranges
+ 
+ 	// state for writing objects
+ 	Text []*LSym
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 0aa0d2ac44..a7927f50b7 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -471,6 +471,11 @@ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+ 		ls.WriteInt(c.Link, ls.Size, size, value)
+ 	}
+ }
++func (c dwCtxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
++	ls := s.(*LSym)
++	rsym := data.(*LSym)
++	ls.WriteCURelativeAddr(c.Link, ls.Size, rsym, value)
++}
+ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+ 	panic("should be used only in the linker")
+ }
+@@ -578,18 +583,19 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
+ 	dwctxt := dwCtxt{ctxt}
+ 	filesym := ctxt.fileSymbol(s)
+ 	fnstate := &dwarf.FnState{
+-		Name:       s.Name,
+-		Importpath: myimportpath,
+-		Info:       info,
+-		Filesym:    filesym,
+-		Loc:        loc,
+-		Ranges:     ranges,
+-		Absfn:      absfunc,
+-		StartPC:    s,
+-		Size:       s.Size,
+-		External:   !s.Static(),
+-		Scopes:     scopes,
+-		InlCalls:   inlcalls,
++		Name:          s.Name,
++		Importpath:    myimportpath,
++		Info:          info,
++		Filesym:       filesym,
++		Loc:           loc,
++		Ranges:        ranges,
++		Absfn:         absfunc,
++		StartPC:       s,
++		Size:          s.Size,
++		External:      !s.Static(),
++		Scopes:        scopes,
++		InlCalls:      inlcalls,
++		UseBASEntries: ctxt.UseBASEntries,
+ 	}
+ 	if absfunc != nil {
+ 		err = dwarf.PutAbstractFunc(dwctxt, fnstate)
+@@ -630,13 +636,14 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
+ 	dwctxt := dwCtxt{ctxt}
+ 	filesym := ctxt.fileSymbol(s)
+ 	fnstate := dwarf.FnState{
+-		Name:       s.Name,
+-		Importpath: myimportpath,
+-		Info:       absfn,
+-		Filesym:    filesym,
+-		Absfn:      absfn,
+-		External:   !s.Static(),
+-		Scopes:     scopes,
++		Name:          s.Name,
++		Importpath:    myimportpath,
++		Info:          absfn,
++		Filesym:       filesym,
++		Absfn:         absfn,
++		External:      !s.Static(),
++		Scopes:        scopes,
++		UseBASEntries: ctxt.UseBASEntries,
+ 	}
+ 	if err := dwarf.PutAbstractFunc(dwctxt, &fnstate); err != nil {
+ 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 974c7ed329..39c8a7f120 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -51,6 +51,13 @@ func (c dwctxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+ 	s.(*sym.Symbol).AddAddrPlus(c.linkctxt.Arch, data.(*sym.Symbol), value)
+ }
+ 
++func (c dwctxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
++	if value != 0 {
++		value -= (data.(*sym.Symbol)).Value
++	}
++	s.(*sym.Symbol).AddCURelativeAddrPlus(c.linkctxt.Arch, data.(*sym.Symbol), value)
++}
++
+ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+ 	ls := s.(*sym.Symbol)
+ 	switch size {
+@@ -1352,7 +1359,7 @@ func writepcranges(ctxt *Link, unit *compilationUnit, base *sym.Symbol, pcs []dw
+ 	// Create PC ranges for this CU.
+ 	newattr(unit.dwinfo, dwarf.DW_AT_ranges, dwarf.DW_CLS_PTR, ranges.Size, ranges)
+ 	newattr(unit.dwinfo, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, base.Value, base)
+-	dwarf.PutRanges(dwarfctxt, ranges, nil, pcs)
++	dwarf.PutBasedRanges(dwarfctxt, ranges, pcs)
+ 
+ 	if ctxt.HeadType == objabi.Haix {
+ 		addDwsectCUSize(".debug_ranges", unit.lib.String(), uint64(ranges.Size-unitLengthOffset))
+@@ -1871,10 +1878,6 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 			if rangeSym != nil && rangeSym.Size > 0 {
+ 				rangeSym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
+ 				rangeSym.Type = sym.SDWARFRANGE
+-				// LLVM doesn't support base address entries. Strip them out so LLDB and dsymutil don't get confused.
+-				if ctxt.HeadType == objabi.Hdarwin {
+-					removeDwarfAddrListBaseAddress(ctxt, dsym, rangeSym, false)
+-				}
+ 				if ctxt.HeadType == objabi.Haix {
+ 					addDwsectCUSize(".debug_ranges", unit.lib.String(), uint64(rangeSym.Size))
+ 
+@@ -1987,10 +1990,6 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
+ 					reloc.Sym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
+ 					syms = append(syms, reloc.Sym)
+ 					empty = false
+-					// LLVM doesn't support base address entries. Strip them out so LLDB and dsymutil don't get confused.
+-					if ctxt.HeadType == objabi.Hdarwin {
+-						removeDwarfAddrListBaseAddress(ctxt, fn, reloc.Sym, true)
+-					}
+ 					// One location list entry per function, but many relocations to it. Don't duplicate.
+ 					break
+ 				}
+@@ -2007,65 +2006,6 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
+ 	return syms
+ }
+ 
+-// removeDwarfAddrListBaseAddress removes base address selector entries from
+-// DWARF location lists and range lists.
+-func removeDwarfAddrListBaseAddress(ctxt *Link, info, list *sym.Symbol, isloclist bool) {
+-	// The list symbol contains multiple lists, but they're all for the
+-	// same function, and it's not empty.
+-	fn := list.R[0].Sym
+-
+-	// Discard the relocations for the base address entries.
+-	list.R = list.R[:0]
+-
+-	// Add relocations for each location entry's start and end addresses,
+-	// so that the base address entries aren't necessary.
+-	// We could remove them entirely, but that's more work for a relatively
+-	// small size win. If dsymutil runs it'll throw them away anyway.
+-
+-	// relocate adds a CU-relative relocation to fn+addr at offset.
+-	relocate := func(addr uint64, offset int) {
+-		list.R = append(list.R, sym.Reloc{
+-			Off:  int32(offset),
+-			Siz:  uint8(ctxt.Arch.PtrSize),
+-			Type: objabi.R_ADDRCUOFF,
+-			Add:  int64(addr),
+-			Sym:  fn,
+-		})
+-	}
+-
+-	for i := 0; i < len(list.P); {
+-		first := readPtr(ctxt, list.P[i:])
+-		second := readPtr(ctxt, list.P[i+ctxt.Arch.PtrSize:])
+-
+-		if (first == 0 && second == 0) ||
+-			first == ^uint64(0) ||
+-			(ctxt.Arch.PtrSize == 4 && first == uint64(^uint32(0))) {
+-			// Base address selection entry or end of list. Ignore.
+-			i += ctxt.Arch.PtrSize * 2
+-			continue
+-		}
+-
+-		relocate(first, i)
+-		relocate(second, i+ctxt.Arch.PtrSize)
+-
+-		// Skip past the actual location.
+-		i += ctxt.Arch.PtrSize * 2
+-		if isloclist {
+-			i += 2 + int(ctxt.Arch.ByteOrder.Uint16(list.P[i:]))
+-		}
+-	}
+-
+-	// Rewrite the DIE's relocations to point to the first location entry,
+-	// not the now-useless base address selection entry.
+-	for i := range info.R {
+-		r := &info.R[i]
+-		if r.Sym != list {
+-			continue
+-		}
+-		r.Add += int64(2 * ctxt.Arch.PtrSize)
+-	}
+-}
+-
+ // Read a pointer-sized uint from the beginning of buf.
+ func readPtr(ctxt *Link, buf []byte) uint64 {
+ 	switch ctxt.Arch.PtrSize {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index 8b70d61846..88a28f5b99 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -172,7 +172,7 @@ func (s *Symbol) SetUint(arch *sys.Arch, r int64, v uint64) int64 {
+ 	return s.setUintXX(arch, r, v, int64(arch.PtrSize))
+ }
+ 
+-func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
++func (s *Symbol) addAddrPlus(arch *sys.Arch, t *Symbol, add int64, typ objabi.RelocType) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA
+ 	}
+@@ -184,11 +184,19 @@ func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
+ 	r.Sym = t
+ 	r.Off = int32(i)
+ 	r.Siz = uint8(arch.PtrSize)
+-	r.Type = objabi.R_ADDR
++	r.Type = typ
+ 	r.Add = add
+ 	return i + int64(r.Siz)
+ }
+ 
++func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
++	return s.addAddrPlus(arch, t, add, objabi.R_ADDR)
++}
++
++func (s *Symbol) AddCURelativeAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
++	return s.addAddrPlus(arch, t, add, objabi.R_ADDRCUOFF)
++}
++
+ func (s *Symbol) AddPCRelPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA

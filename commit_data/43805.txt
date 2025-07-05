@@ -11,8 +11,156 @@ Date:   Thu Apr 23 22:27:23 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 14 +++++++-------
  src/cmd/compile/internal/ssa/rewrite.go        |  5 +++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 22 +++++++++++-----------
  3 files changed, 23 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 30a34da825..fdd2154c93 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1923,31 +1923,31 @@
+ 	&& mem.Op == OpStaticCall
+ 	&& isSameSym(mem.Aux, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+-	-> mem
++	=> mem
+ (Store (Load (OffPtr [c] (SP)) mem) x mem)
+ 	&& isConstZero(x)
+ 	&& mem.Op == OpStaticCall
+ 	&& isSameSym(mem.Aux, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+-	-> mem
++	=> mem
+ (Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
+ 	&& isConstZero(x)
+ 	&& mem.Op == OpStaticCall
+ 	&& isSameSym(mem.Aux, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+-	-> mem
++	=> mem
+ // nil checks just need to rewrite to something useless.
+ // they will be deadcode eliminated soon afterwards.
+ (NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
+-	&& isSameSym(sym, "runtime.newobject")
++	&& symNamed(sym, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+ 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
+-	-> (Invalid)
++	=> (Invalid)
+ (NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
+-	&& isSameSym(sym, "runtime.newobject")
++	&& symNamed(sym, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+ 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
+-	-> (Invalid)
++	=> (Invalid)
+ 
+ // Evaluate constant address comparisons.
+ (EqPtr  x x) -> (ConstBool [1])
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index ed9b7bd4a1..0e2d7eb5aa 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -373,6 +373,11 @@ func canMergeLoad(target, load *Value) bool {
+ 	return true
+ }
+ 
++// symNamed reports whether sym's name is name.
++func symNamed(sym Sym, name string) bool {
++	return sym.String() == name
++}
++
+ // isSameSym reports whether sym is the same as the given named symbol
+ func isSameSym(sym interface{}, name string) bool {
+ 	s, ok := sym.(fmt.Stringer)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index cbfb17d9d2..8afb743549 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -16009,7 +16009,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
+-	// cond: isSameSym(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
++	// cond: symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
+ 	// result: (Invalid)
+ 	for {
+ 		if v_0.Op != OpLoad {
+@@ -16020,7 +16020,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+ 		if v_0_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		c := v_0_0.AuxInt
++		c := auxIntToInt64(v_0_0.AuxInt)
+ 		v_0_0_0 := v_0_0.Args[0]
+ 		if v_0_0_0.Op != OpSP {
+ 			break
+@@ -16029,15 +16029,15 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+ 		if v_0_1.Op != OpStaticCall {
+ 			break
+ 		}
+-		sym := v_0_1.Aux
+-		if !(isSameSym(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
++		sym := auxToSym(v_0_1.Aux)
++		if !(symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
+ 			break
+ 		}
+ 		v.reset(OpInvalid)
+ 		return true
+ 	}
+ 	// match: (NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
+-	// cond: isSameSym(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
++	// cond: symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
+ 	// result: (Invalid)
+ 	for {
+ 		if v_0.Op != OpOffPtr {
+@@ -16052,7 +16052,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+ 		if v_0_0_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		c := v_0_0_0.AuxInt
++		c := auxIntToInt64(v_0_0_0.AuxInt)
+ 		v_0_0_0_0 := v_0_0_0.Args[0]
+ 		if v_0_0_0_0.Op != OpSP {
+ 			break
+@@ -16061,8 +16061,8 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+ 		if v_0_0_1.Op != OpStaticCall {
+ 			break
+ 		}
+-		sym := v_0_0_1.Aux
+-		if !(isSameSym(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
++		sym := auxToSym(v_0_0_1.Aux)
++		if !(symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
+ 			break
+ 		}
+ 		v.reset(OpInvalid)
+@@ -21606,7 +21606,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
+ 		if v_0_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		c := v_0_0.AuxInt
++		c := auxIntToInt64(v_0_0.AuxInt)
+ 		v_0_0_0 := v_0_0.Args[0]
+ 		if v_0_0_0.Op != OpSP {
+ 			break
+@@ -21634,7 +21634,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
+ 		if v_0_0_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		c := v_0_0_0.AuxInt
++		c := auxIntToInt64(v_0_0_0.AuxInt)
+ 		v_0_0_0_0 := v_0_0_0.Args[0]
+ 		if v_0_0_0_0.Op != OpSP {
+ 			break
+@@ -24091,7 +24091,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
+ 		if v_0_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		c := v_0_0.AuxInt
++		c := auxIntToInt64(v_0_0.AuxInt)
+ 		v_0_0_0 := v_0_0.Args[0]
+ 		if v_0_0_0.Op != OpSP || mem != v_1 || !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
+ 			break

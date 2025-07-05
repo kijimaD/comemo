@@ -12,7 +12,7 @@ Date:   Wed Oct 10 22:35:27 2012 +0200
     R=golang-dev, daniel.morsing, iant
     CC=golang-dev
     https://golang.org/cl/6618062
-
+---
  test/ddd2.dir/ddd2.go                             | 16 +++++++++
  test/{ => ddd2.dir}/ddd3.go                       |  5 ---
  test/ddd2.go                                      | 15 ++------
@@ -29,3 +29,437 @@ Date:   Wed Oct 10 22:35:27 2012 +0200
  test/interface/recursive1.go                      | 12 ++-----
  test/run.go                                       |  5 ---
  15 files changed, 143 insertions(+), 133 deletions(-)
+
+diff --git a/test/ddd2.dir/ddd2.go b/test/ddd2.dir/ddd2.go
+new file mode 100644
+index 0000000000..c9a2675926
+--- /dev/null
++++ b/test/ddd2.dir/ddd2.go
+@@ -0,0 +1,16 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is compiled and then imported by ddd3.go.
++
++package ddd
++
++func Sum(args ...int) int {
++	s := 0
++	for _, v := range args {
++		s += v
++	}
++	return s
++}
++
+diff --git a/test/ddd3.go b/test/ddd2.dir/ddd3.go
+similarity index 75%
+rename from test/ddd3.go
+rename to test/ddd2.dir/ddd3.go
+index d8de0a77e9..5486fe8a04 100644
+--- a/test/ddd3.go
++++ b/test/ddd2.dir/ddd3.go
+@@ -1,8 +1,3 @@
+-// $G $D/ddd2.go && $G $D/$F.go && $L $F.$A && ./$A.out
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
+-
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/ddd2.go b/test/ddd2.go
+index a141a39c76..0d9f634ab6 100644
+--- a/test/ddd2.go
++++ b/test/ddd2.go
+@@ -1,18 +1,9 @@
+-// skip
++// rundir
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file is compiled and then imported by ddd3.go.
+-
+-package ddd
+-
+-func Sum(args ...int) int {
+-	s := 0
+-	for _, v := range args {
+-		s += v
+-	}
+-	return s
+-}
++// Test that variadic functions work across package boundaries.
+ 
++package ignored
+diff --git a/test/fixedbugs/bug437.dir/x.go b/test/fixedbugs/bug437.dir/x.go
+new file mode 100644
+index 0000000000..364d017afa
+--- /dev/null
++++ b/test/fixedbugs/bug437.dir/x.go
+@@ -0,0 +1,25 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test converting a type defined in a different package to an
++// interface defined in a third package, where the interface has a
++// hidden method.  This used to cause a link error with gccgo.
++
++package main
++
++import (
++	"./one"
++	"./two"
++)
++
++func F(i1 one.I1) {
++	switch v := i1.(type) {
++	case two.S2:
++		one.F1(v)
++	}
++}
++
++func main() {
++	F(nil)
++}
+diff --git a/test/fixedbugs/bug437.go b/test/fixedbugs/bug437.go
+index b1e76a6a74..5c4a2ad0dc 100644
+--- a/test/fixedbugs/bug437.go
++++ b/test/fixedbugs/bug437.go
+@@ -1,7 +1,4 @@
+-// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go && $G $D/$F.go && $L $F.$A && ./$A.out
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// rundir
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -11,20 +8,4 @@
+ // interface defined in a third package, where the interface has a
+ // hidden method.  This used to cause a link error with gccgo.
+ 
+-package main
+-
+-import (
+-	"./one"
+-	"./two"
+-)
+-
+-func F(i1 one.I1) {
+-	switch v := i1.(type) {
+-	case two.S2:
+-		one.F1(v)
+-	}
+-}
+-
+-func main() {
+-	F(nil)
+-}
++package ignored
+diff --git a/test/interface/embed0.go b/test/interface/embed1.dir/embed0.go
+similarity index 93%
+rename from test/interface/embed0.go
+rename to test/interface/embed1.dir/embed0.go
+index e2ee20adeb..728bec74e8 100644
+--- a/test/interface/embed0.go
++++ b/test/interface/embed1.dir/embed0.go
+@@ -1,5 +1,3 @@
+-// skip # used by embed1.go
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/interface/embed1.dir/embed1.go b/test/interface/embed1.dir/embed1.go
+new file mode 100644
+index 0000000000..7dfb1dbc0a
+--- /dev/null
++++ b/test/interface/embed1.dir/embed1.go
+@@ -0,0 +1,43 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that embedded interface types can have local methods.
++
++package main
++
++import "./embed0"
++
++type T int
++func (t T) m() {}
++
++type I interface { m() }
++type J interface { I }
++
++type PI interface { p.I }
++type PJ interface { p.J }
++
++func main() {
++	var i I
++	var j J
++	var t T
++	i = t
++	j = t
++	_ = i
++	_ = j
++	i = j
++	_ = i
++	j = i
++	_ = j
++	var pi PI
++	var pj PJ
++	var pt p.T
++	pi = pt
++	pj = pt
++	_ = pi
++	_ = pj
++	pi = pj
++	_ = pi
++	pj = pi
++	_ = pj
++}
+diff --git a/test/interface/embed1.go b/test/interface/embed1.go
+index 07b873a633..784b82bb07 100644
+--- a/test/interface/embed1.go
++++ b/test/interface/embed1.go
+@@ -1,7 +1,4 @@
+-// $G $D/embed0.go && $G $D/$F.go && $L $F.$A && ./$A.out
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// rundir
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -9,40 +6,4 @@
+ 
+ // Test that embedded interface types can have local methods.
+ 
+-package main
+-
+-import "./embed0"
+-
+-type T int
+-func (t T) m() {}
+-
+-type I interface { m() }
+-type J interface { I }
+-
+-type PI interface { p.I }
+-type PJ interface { p.J }
+-
+-func main() {
+-	var i I
+-	var j J
+-	var t T
+-	i = t
+-	j = t
+-	_ = i
+-	_ = j
+-	i = j
+-	_ = i
+-	j = i
+-	_ = j
+-	var pi PI
+-	var pj PJ
+-	var pt p.T
+-	pi = pt
+-	pj = pt
+-	_ = pi
+-	_ = pj
+-	pi = pj
+-	_ = pi
+-	pj = pi
+-	_ = pj
+-}
++package ignored
+diff --git a/test/interface/private1.go b/test/interface/private.dir/private1.go
+similarity index 92%
+rename from test/interface/private1.go
+rename to test/interface/private.dir/private1.go
+index 3281c38be6..75eee51f5a 100644
+--- a/test/interface/private1.go
++++ b/test/interface/private.dir/private1.go
+@@ -1,5 +1,3 @@
+-// skip # used by private.go
+-
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/interface/private.dir/prog.go b/test/interface/private.dir/prog.go
+new file mode 100644
+index 0000000000..abea7d625c
+--- /dev/null
++++ b/test/interface/private.dir/prog.go
+@@ -0,0 +1,33 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that unexported methods are not visible outside the package.
++// Does not compile.
++
++package main
++
++import "./private1"
++
++type Exported interface {
++	private()
++}
++
++type Implementation struct{}
++
++func (p *Implementation) private() {}
++
++func main() {
++	var x Exported
++	x = new(Implementation)
++	x.private()
++
++	var px p.Exported
++	px = p.X
++
++	px.private()			// ERROR "private"
++
++	px = new(Implementation)	// ERROR "private"
++
++	x = px				// ERROR "private"
++}
+diff --git a/test/interface/private.go b/test/interface/private.go
+index 0a42385ea7..a0da249c92 100644
+--- a/test/interface/private.go
++++ b/test/interface/private.go
+@@ -1,7 +1,4 @@
+-// $G $D/${F}1.go && errchk $G $D/$F.go
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// errorcheckdir
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -10,29 +7,4 @@
+ // Test that unexported methods are not visible outside the package.
+ // Does not compile.
+ 
+-package main
+-
+-import "./private1"
+-
+-type Exported interface {
+-	private()
+-}
+-
+-type Implementation struct{}
+-
+-func (p *Implementation) private() {}
+-
+-func main() {
+-	var x Exported
+-	x = new(Implementation)
+-	x.private()
+-
+-	var px p.Exported
+-	px = p.X
+-
+-	px.private()			// ERROR "private"
+-
+-	px = new(Implementation)	// ERROR "private"
+-
+-	x = px				// ERROR "private"
+-}
++package ignored
+diff --git a/test/interface/recursive1.dir/recursive1.go b/test/interface/recursive1.dir/recursive1.go
+new file mode 100644
+index 0000000000..441f0ecaa5
+--- /dev/null
++++ b/test/interface/recursive1.dir/recursive1.go
+@@ -0,0 +1,15 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Mutually recursive type definitions imported and used by recursive1.go.
++
++package p
++
++type I1 interface {
++	F() I2
++}
++
++type I2 interface {
++	I1
++}
+diff --git a/test/interface/recursive2.go b/test/interface/recursive1.dir/recursive2.go
+similarity index 72%
+rename from test/interface/recursive2.go
+rename to test/interface/recursive1.dir/recursive2.go
+index 3a1059960c..e8048c672b 100644
+--- a/test/interface/recursive2.go
++++ b/test/interface/recursive1.dir/recursive2.go
+@@ -1,8 +1,3 @@
+-// $G $D/recursive1.go && $G $D/$F.go
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
+-
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/interface/recursive1.go b/test/interface/recursive1.go
+index cc3cdc37f1..62f6108844 100644
+--- a/test/interface/recursive1.go
++++ b/test/interface/recursive1.go
+@@ -1,4 +1,4 @@
+-// skip # used by recursive2
++// compiledir
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -6,12 +6,4 @@
+ 
+ // Mutually recursive type definitions imported and used by recursive1.go.
+ 
+-package p
+-
+-type I1 interface {
+-	F() I2
+-}
+-
+-type I2 interface {
+-	I1
+-}
++package ignored
+diff --git a/test/run.go b/test/run.go
+index b79323dd17..6b881eb1f0 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -647,16 +647,12 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
+ 
+ var skipOkay = map[string]bool{
+ 	"args.go":                 true,
+-	"ddd3.go":                 true,
+ 	"index.go":                true,
+ 	"linkx.go":                true,
+ 	"nul1.go":                 true,
+ 	"rotate.go":               true,
+ 	"sigchld.go":              true,
+ 	"sinit.go":                true,
+-	"interface/embed1.go":     true,
+-	"interface/private.go":    true,
+-	"interface/recursive2.go": true,
+ 	"dwarf/main.go":           true,
+ 	"dwarf/z1.go":             true,
+ 	"dwarf/z10.go":            true,
+@@ -686,7 +682,6 @@ var skipOkay = map[string]bool{
+ 	"fixedbugs/bug385_32.go":  true, // arch-specific errors.
+ 	"fixedbugs/bug385_64.go":  true, // arch-specific errors.
+ 	"fixedbugs/bug429.go":     true,
+-	"fixedbugs/bug437.go":     true,
+ 	"bugs/bug395.go":          true,
+ 	"bugs/bug434.go":          true,
+ }

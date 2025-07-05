@@ -11,8 +11,109 @@ Date:   Thu May 4 11:25:01 2017 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 21 +++++++++++++++++----
  src/go/types/stdlib_test.go          |  1 +
  test/fixedbugs/issue20227.go         | 16 ++++++++++++++++
  3 files changed, 34 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index f9ea92ce50..a465d4a7bb 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1037,15 +1037,13 @@ func evconst(n *Node) {
+ 		cmplxmpy(v.U.(*Mpcplx), rv.U.(*Mpcplx))
+ 
+ 	case ODIV_ | CTCPLX_:
+-		if rv.U.(*Mpcplx).Real.CmpFloat64(0) == 0 && rv.U.(*Mpcplx).Imag.CmpFloat64(0) == 0 {
++		if !cmplxdiv(v.U.(*Mpcplx), rv.U.(*Mpcplx)) {
+ 			yyerror("complex division by zero")
+ 			rv.U.(*Mpcplx).Real.SetFloat64(1.0)
+ 			rv.U.(*Mpcplx).Imag.SetFloat64(0.0)
+ 			break
+ 		}
+ 
+-		cmplxdiv(v.U.(*Mpcplx), rv.U.(*Mpcplx))
+-
+ 	case OEQ_ | CTNIL_:
+ 		goto settrue
+ 
+@@ -1591,7 +1589,11 @@ func cmplxmpy(v *Mpcplx, rv *Mpcplx) {
+ 
+ // complex divide v /= rv
+ //	(a, b) / (c, d) = ((a*c + b*d), (b*c - a*d))/(c*c + d*d)
+-func cmplxdiv(v *Mpcplx, rv *Mpcplx) {
++func cmplxdiv(v *Mpcplx, rv *Mpcplx) bool {
++	if rv.Real.CmpFloat64(0) == 0 && rv.Imag.CmpFloat64(0) == 0 {
++		return false
++	}
++
+ 	var ac Mpflt
+ 	var bd Mpflt
+ 	var bc Mpflt
+@@ -1599,6 +1601,7 @@ func cmplxdiv(v *Mpcplx, rv *Mpcplx) {
+ 	var cc_plus_dd Mpflt
+ 
+ 	cc_plus_dd.Set(&rv.Real)
++
+ 	cc_plus_dd.Mul(&rv.Real) // cc
+ 
+ 	ac.Set(&rv.Imag)
+@@ -1607,6 +1610,14 @@ func cmplxdiv(v *Mpcplx, rv *Mpcplx) {
+ 
+ 	cc_plus_dd.Add(&ac) // cc+dd
+ 
++	// We already checked that c and d are not both zero, but we can't
++	// assume that c²+d² != 0 follows, because for tiny values of c
++	// and/or d c²+d² can underflow to zero.  Check that c²+d² is
++	// nonzero,return if it's not.
++	if cc_plus_dd.CmpFloat64(0) == 0 {
++		return false
++	}
++
+ 	ac.Set(&v.Real)
+ 
+ 	ac.Mul(&rv.Real) // ac
+@@ -1632,6 +1643,8 @@ func cmplxdiv(v *Mpcplx, rv *Mpcplx) {
+ 
+ 	v.Imag.Sub(&ad)         // bc-ad
+ 	v.Imag.Quo(&cc_plus_dd) // (bc+ad)/(cc+dd)
++
++	return true
+ }
+ 
+ // Is n a Go language constant (as opposed to a compile-time constant)?
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index a268d3b3bb..3f02dd98ba 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -171,6 +171,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue18459.go", // go/types doesn't check validity of //go:xxx directives
+ 		"issue18882.go", // go/types doesn't check validity of //go:xxx directives
+ 		"issue20232.go", // go/types handles larger constants than gc
++		"issue20227.go", // go/types does not handle this yet
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue20227.go b/test/fixedbugs/issue20227.go
+new file mode 100644
+index 0000000000..4448eb5438
+--- /dev/null
++++ b/test/fixedbugs/issue20227.go
+@@ -0,0 +1,16 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20227: panic while constructing constant "1i/1e-600000000"
++
++package p
++
++var _ = 1 / 1e-600000000i  // ERROR "complex division by zero"
++var _ = 1i / 1e-600000000  // ERROR "complex division by zero"
++var _ = 1i / 1e-600000000i // ERROR "complex division by zero"
++
++var _ = 1 / (1e-600000000 + 1e-600000000i)  // ERROR "complex division by zero"
++var _ = 1i / (1e-600000000 + 1e-600000000i) // ERROR "complex division by zero"

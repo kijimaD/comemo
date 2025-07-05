@@ -9,6 +9,30 @@ Date:   Wed Mar 7 02:22:08 2012 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5758066
-
+---
  test/run.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/test/run.go b/test/run.go
+index 34ff57b74d..c9c78b5686 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -265,6 +265,10 @@ func (t *test) run() {
+ 	err = ioutil.WriteFile(filepath.Join(t.tempDir, t.gofile), srcBytes, 0644)
+ 	check(err)
+ 	
++	// A few tests (of things like the environment) require these to be set.
++	os.Setenv("GOOS", runtime.GOOS)
++	os.Setenv("GOARCH", runtime.GOARCH)
++
+ 	useTmp := true
+ 	runcmd := func(args ...string) ([]byte, error) {
+ 		cmd := exec.Command(args[0], args[1:]...)
+@@ -274,7 +278,6 @@ func (t *test) run() {
+ 		if useTmp {
+ 			cmd.Dir = t.tempDir
+ 		}
+-		cmd.Env = append(cmd.Env, "GOOS="+runtime.GOOS, "GOARCH="+runtime.GOARCH)
+ 		err := cmd.Run()
+ 		return buf.Bytes(), err
+ 	}

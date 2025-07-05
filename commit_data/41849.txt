@@ -10,7 +10,7 @@ Date:   Mon Oct 28 21:51:00 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203218
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/fix/main.go                      | 49 ++-------------------------
  src/cmd/fix/main_test.go                 |  4 ++-
  src/cmd/go/internal/modfile/read_test.go | 33 ++----------------
@@ -18,3 +18,321 @@ Date:   Mon Oct 28 21:51:00 2019 +0000
  src/cmd/gofmt/gofmt_test.go              |  4 +--
  src/cmd/internal/diff/diff.go            | 58 ++++++++++++++++++++++++++++++++
  6 files changed, 75 insertions(+), 119 deletions(-)
+
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index f54a5e0d96..80b3c76350 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -15,11 +15,11 @@ import (
+ 	"go/token"
+ 	"io/ioutil"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"sort"
+ 	"strings"
++
++	"cmd/internal/diff"
+ )
+ 
+ var (
+@@ -186,7 +186,7 @@ func processFile(filename string, useStdin bool) error {
+ 	}
+ 
+ 	if *doDiff {
+-		data, err := diff(src, newSrc)
++		data, err := diff.Diff("go-fix", src, newSrc)
+ 		if err != nil {
+ 			return fmt.Errorf("computing diff: %s", err)
+ 		}
+@@ -237,46 +237,3 @@ func isGoFile(f os.FileInfo) bool {
+ 	name := f.Name()
+ 	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
+ }
+-
+-func writeTempFile(dir, prefix string, data []byte) (string, error) {
+-	file, err := ioutil.TempFile(dir, prefix)
+-	if err != nil {
+-		return "", err
+-	}
+-	_, err = file.Write(data)
+-	if err1 := file.Close(); err == nil {
+-		err = err1
+-	}
+-	if err != nil {
+-		os.Remove(file.Name())
+-		return "", err
+-	}
+-	return file.Name(), nil
+-}
+-
+-func diff(b1, b2 []byte) (data []byte, err error) {
+-	f1, err := writeTempFile("", "go-fix", b1)
+-	if err != nil {
+-		return
+-	}
+-	defer os.Remove(f1)
+-
+-	f2, err := writeTempFile("", "go-fix", b2)
+-	if err != nil {
+-		return
+-	}
+-	defer os.Remove(f2)
+-
+-	cmd := "diff"
+-	if runtime.GOOS == "plan9" {
+-		cmd = "/bin/ape/diff"
+-	}
+-
+-	data, err = exec.Command(cmd, "-u", f1, f2).CombinedOutput()
+-	if len(data) > 0 {
+-		// diff exits with a non-zero status when the files don't match.
+-		// Ignore that failure as long as we get output.
+-		err = nil
+-	}
+-	return
+-}
+diff --git a/src/cmd/fix/main_test.go b/src/cmd/fix/main_test.go
+index 8868140ade..ee74f24c6e 100644
+--- a/src/cmd/fix/main_test.go
++++ b/src/cmd/fix/main_test.go
+@@ -9,6 +9,8 @@ import (
+ 	"go/parser"
+ 	"strings"
+ 	"testing"
++
++	"cmd/internal/diff"
+ )
+ 
+ type testCase struct {
+@@ -123,7 +125,7 @@ func TestRewrite(t *testing.T) {
+ }
+ 
+ func tdiff(t *testing.T, a, b string) {
+-	data, err := diff([]byte(a), []byte(b))
++	data, err := diff.Diff("go-fix-test", []byte(a), []byte(b))
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+diff --git a/src/cmd/go/internal/modfile/read_test.go b/src/cmd/go/internal/modfile/read_test.go
+index 32401304b9..3c88e69281 100644
+--- a/src/cmd/go/internal/modfile/read_test.go
++++ b/src/cmd/go/internal/modfile/read_test.go
+@@ -9,11 +9,12 @@ import (
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
++
++	"cmd/internal/diff"
+ )
+ 
+ // exists reports whether the named file exists.
+@@ -282,37 +283,9 @@ func (eq *eqchecker) checkValue(v, w reflect.Value) error {
+ 	return nil
+ }
+ 
+-// diff returns the output of running diff on b1 and b2.
+-func diff(b1, b2 []byte) (data []byte, err error) {
+-	f1, err := ioutil.TempFile("", "testdiff")
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer os.Remove(f1.Name())
+-	defer f1.Close()
+-
+-	f2, err := ioutil.TempFile("", "testdiff")
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer os.Remove(f2.Name())
+-	defer f2.Close()
+-
+-	f1.Write(b1)
+-	f2.Write(b2)
+-
+-	data, err = exec.Command("diff", "-u", f1.Name(), f2.Name()).CombinedOutput()
+-	if len(data) > 0 {
+-		// diff exits with a non-zero status when the files don't match.
+-		// Ignore that failure as long as we get output.
+-		err = nil
+-	}
+-	return
+-}
+-
+ // tdiff logs the diff output to t.Error.
+ func tdiff(t *testing.T, a, b string) {
+-	data, err := diff([]byte(a), []byte(b))
++	data, err := diff.Diff("modfile-test", []byte(a), []byte(b))
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index d7a77a9682..9e472b2d51 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -16,11 +16,12 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"runtime/pprof"
+ 	"strings"
++
++	"cmd/internal/diff"
+ )
+ 
+ var (
+@@ -141,7 +142,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 			}
+ 		}
+ 		if *doDiff {
+-			data, err := diff(src, res, filename)
++			data, err := diffWithReplaceTempFile(src, res, filename)
+ 			if err != nil {
+ 				return fmt.Errorf("computing diff: %s", err)
+ 			}
+@@ -227,47 +228,12 @@ func gofmtMain() {
+ 	}
+ }
+ 
+-func writeTempFile(dir, prefix string, data []byte) (string, error) {
+-	file, err := ioutil.TempFile(dir, prefix)
+-	if err != nil {
+-		return "", err
+-	}
+-	_, err = file.Write(data)
+-	if err1 := file.Close(); err == nil {
+-		err = err1
+-	}
+-	if err != nil {
+-		os.Remove(file.Name())
+-		return "", err
+-	}
+-	return file.Name(), nil
+-}
+-
+-func diff(b1, b2 []byte, filename string) (data []byte, err error) {
+-	f1, err := writeTempFile("", "gofmt", b1)
+-	if err != nil {
+-		return
+-	}
+-	defer os.Remove(f1)
+-
+-	f2, err := writeTempFile("", "gofmt", b2)
+-	if err != nil {
+-		return
+-	}
+-	defer os.Remove(f2)
+-
+-	cmd := "diff"
+-	if runtime.GOOS == "plan9" {
+-		cmd = "/bin/ape/diff"
+-	}
+-
+-	data, err = exec.Command(cmd, "-u", f1, f2).CombinedOutput()
++func diffWithReplaceTempFile(b1, b2 []byte, filename string) ([]byte, error) {
++	data, err := diff.Diff("gofmt", b1, b2)
+ 	if len(data) > 0 {
+-		// diff exits with a non-zero status when the files don't match.
+-		// Ignore that failure as long as we get output.
+ 		return replaceTempFilename(data, filename)
+ 	}
+-	return
++	return data, err
+ }
+ 
+ // replaceTempFilename replaces temporary filenames in diff with actual one.
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 3008365cd2..98d3eb7eb2 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -112,7 +112,7 @@ func runTest(t *testing.T, in, out string) {
+ 		}
+ 
+ 		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
+-		d, err := diff(expected, got, in)
++		d, err := diffWithReplaceTempFile(expected, got, in)
+ 		if err == nil {
+ 			t.Errorf("%s", d)
+ 		}
+@@ -194,7 +194,7 @@ func TestDiff(t *testing.T) {
+ 	in := []byte("first\nsecond\n")
+ 	out := []byte("first\nthird\n")
+ 	filename := "difftest.txt"
+-	b, err := diff(in, out, filename)
++	b, err := diffWithReplaceTempFile(in, out, filename)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/internal/diff/diff.go b/src/cmd/internal/diff/diff.go
+new file mode 100644
+index 0000000000..e9d2c23780
+--- /dev/null
++++ b/src/cmd/internal/diff/diff.go
+@@ -0,0 +1,58 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package diff implements a Diff function that compare two inputs
++// using the 'diff' tool.
++package diff
++
++import (
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"runtime"
++)
++
++// Returns diff of two arrays of bytes in diff tool format.
++func Diff(prefix string, b1, b2 []byte) ([]byte, error) {
++	f1, err := writeTempFile(prefix, b1)
++	if err != nil {
++		return nil, err
++	}
++	defer os.Remove(f1)
++
++	f2, err := writeTempFile(prefix, b2)
++	if err != nil {
++		return nil, err
++	}
++	defer os.Remove(f2)
++
++	cmd := "diff"
++	if runtime.GOOS == "plan9" {
++		cmd = "/bin/ape/diff"
++	}
++
++	data, err := exec.Command(cmd, "-u", f1, f2).CombinedOutput()
++	if len(data) > 0 {
++		// diff exits with a non-zero status when the files don't match.
++		// Ignore that failure as long as we get output.
++		err = nil
++	}
++	return data, err
++}
++
++func writeTempFile(prefix string, data []byte) (string, error) {
++	file, err := ioutil.TempFile("", prefix)
++	if err != nil {
++		return "", err
++	}
++	_, err = file.Write(data)
++	if err1 := file.Close(); err == nil {
++		err = err1
++	}
++	if err != nil {
++		os.Remove(file.Name())
++		return "", err
++	}
++	return file.Name(), nil
++}

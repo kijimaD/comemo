@@ -15,7 +15,7 @@ Date:   Mon Oct 10 16:46:28 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/30938
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go | 11 ++++--
  src/cmd/compile/internal/gc/lex.go | 30 ++++++++++-----
  src/cmd/compile/internal/gc/ssa.go |  4 +-
@@ -23,3 +23,338 @@ Date:   Mon Oct 10 16:46:28 2016 -0400
  src/runtime/proc.go                | 56 ++++++++++++++++++---------
  test/nowritebarrier.go             | 78 ++++++++++++++++++++++++++++++++++++++
  6 files changed, 194 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 9928b522d3..d385e76fc9 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1317,7 +1317,7 @@ func checknowritebarrierrec() {
+ 	visitBottomUp(xtop, func(list []*Node, recursive bool) {
+ 		// Functions with write barriers have depth 0.
+ 		for _, n := range list {
+-			if n.Func.WBLineno != 0 {
++			if n.Func.WBLineno != 0 && n.Func.Pragma&Yeswritebarrierrec == 0 {
+ 				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBLineno}
+ 			}
+ 		}
+@@ -1329,6 +1329,12 @@ func checknowritebarrierrec() {
+ 		for _ = range list {
+ 			c.stable = false
+ 			for _, n := range list {
++				if n.Func.Pragma&Yeswritebarrierrec != 0 {
++					// Don't propagate write
++					// barrier up to a
++					// yeswritebarrierrec function.
++					continue
++				}
+ 				if n.Func.WBLineno == 0 {
+ 					c.curfn = n
+ 					c.visitcodelist(n.Nbody)
+@@ -1393,9 +1399,6 @@ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
+ 	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
+ 		return
+ 	}
+-	if (compiling_runtime || fn.Sym.Pkg == Runtimepkg) && fn.Sym.Name == "allocm" {
+-		return
+-	}
+ 	defn := fn.Name.Defn
+ 
+ 	fnbest, ok := c.best[defn]
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 39026fc83f..b3c7a63a02 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -64,16 +64,21 @@ func plan9quote(s string) string {
+ type Pragma syntax.Pragma
+ 
+ const (
+-	Nointerface       Pragma = 1 << iota
+-	Noescape                 // func parameters don't escape
+-	Norace                   // func must not have race detector annotations
+-	Nosplit                  // func should not execute on separate stack
+-	Noinline                 // func should not be inlined
+-	Systemstack              // func must run on system stack
+-	Nowritebarrier           // emit compiler error instead of write barrier
+-	Nowritebarrierrec        // error on write barrier in this or recursive callees
+-	CgoUnsafeArgs            // treat a pointer to one arg as a pointer to them all
+-	UintptrEscapes           // pointers converted to uintptr escape
++	Nointerface    Pragma = 1 << iota
++	Noescape              // func parameters don't escape
++	Norace                // func must not have race detector annotations
++	Nosplit               // func should not execute on separate stack
++	Noinline              // func should not be inlined
++	CgoUnsafeArgs         // treat a pointer to one arg as a pointer to them all
++	UintptrEscapes        // pointers converted to uintptr escape
++
++	// Runtime-only pragmas.
++	// See ../../../../runtime/README.md for detailed descriptions.
++
++	Systemstack        // func must run on system stack
++	Nowritebarrier     // emit compiler error instead of write barrier
++	Nowritebarrierrec  // error on write barrier in this or recursive callees
++	Yeswritebarrierrec // cancels Nowritebarrierrec in this function and callees
+ )
+ 
+ func pragmaValue(verb string) Pragma {
+@@ -105,6 +110,11 @@ func pragmaValue(verb string) Pragma {
+ 			yyerror("//go:nowritebarrierrec only allowed in runtime")
+ 		}
+ 		return Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
++	case "go:yeswritebarrierrec":
++		if !compiling_runtime {
++			yyerror("//go:yeswritebarrierrec only allowed in runtime")
++		}
++		return Yeswritebarrierrec
+ 	case "go:cgo_unsafe_args":
+ 		return CgoUnsafeArgs
+ 	case "go:uintptrescapes":
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d8dae83b5c..fd7f0571d4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3312,7 +3312,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
+ 	// }
+ 
+ 	if s.noWB {
+-		s.Fatalf("write barrier prohibited")
++		s.Error("write barrier prohibited")
+ 	}
+ 	if s.WBLineno == 0 {
+ 		s.WBLineno = left.Line
+@@ -3377,7 +3377,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32, skip
+ 	// }
+ 
+ 	if s.noWB {
+-		s.Fatalf("write barrier prohibited")
++		s.Error("write barrier prohibited")
+ 	}
+ 	if s.WBLineno == 0 {
+ 		s.WBLineno = left.Line
+diff --git a/src/runtime/HACKING.md b/src/runtime/HACKING.md
+new file mode 100644
+index 0000000000..c80e81a193
+--- /dev/null
++++ b/src/runtime/HACKING.md
+@@ -0,0 +1,49 @@
++This is a very incomplete and probably out-of-date guide to
++programming in the Go runtime and how it differs from writing normal
++Go.
++
++Runtime-only compiler directives
++================================
++
++In addition to the "//go:" directives documented in "go doc compile",
++the compiler supports additional directives only in the runtime.
++
++go:systemstack
++--------------
++
++`go:systemstack` indicates that a function must run on the system
++stack. This is checked dynamically by a special function prologue.
++
++go:nowritebarrier
++-----------------
++
++`go:nowritebarrier` directs the compiler to emit an error if the
++following function contains any write barriers. (It *does not*
++suppress the generation of write barriers; it is simply an assertion.)
++
++Usually you want `go:nowritebarrierrec`. `go:nowritebarrier` is
++primarily useful in situations where it's "nice" not to have write
++barriers, but not required for correctness.
++
++go:nowritebarrierrec and go:yeswritebarrierrec
++----------------------------------------------
++
++`go:nowritebarrierrec` directs the compiler to emit an error if the
++following function or any function it calls recursively, up to a
++`go:yeswritebarrierrec`, contains a write barrier.
++
++Logically, the compiler floods the call graph starting from each
++`go:nowritebarrierrec` function and produces an error if it encounters
++a function containing a write barrier. This flood stops at
++`go:yeswritebarrierrec` functions.
++
++`go:nowritebarrierrec` is used in the implementation of the write
++barrier to prevent infinite loops.
++
++Both directives are used in the scheduler. The write barrier requires
++an active P (`getg().m.p != nil`) and scheduler code often runs
++without an active P. In this case, `go:nowritebarrierrec` is used on
++functions that release the P or may run without a P and
++`go:yeswritebarrierrec` is used when code re-acquires an active P.
++Since these are function-level annotations, code that releases or
++acquires a P may need to be split across two functions.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1b5c1d3f5b..9acd21fd71 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1275,8 +1275,10 @@ type cgothreadstart struct {
+ // Can use p for allocation context if needed.
+ // fn is recorded as the new m's m.mstartfn.
+ //
+-// This function it known to the compiler to inhibit the
+-// go:nowritebarrierrec annotation because it uses P for allocation.
++// This function is allowed to have write barriers even if the caller
++// isn't because it borrows _p_.
++//
++//go:yeswritebarrierrec
+ func allocm(_p_ *p, fn func()) *m {
+ 	_g_ := getg()
+ 	_g_.m.locks++ // disable GC because it can be called from sysmon
+@@ -2459,7 +2461,11 @@ func entersyscallblock_handoff() {
+ // Arrange for it to run on a cpu again.
+ // This is called only from the go syscall library, not
+ // from the low-level system calls used by the runtime.
++//
++// Write barriers are not allowed because our P may have been stolen.
++//
+ //go:nosplit
++//go:nowritebarrierrec
+ func exitsyscall(dummy int32) {
+ 	_g_ := getg()
+ 
+@@ -2552,22 +2558,7 @@ func exitsyscallfast() bool {
+ 	// Try to re-acquire the last P.
+ 	if _g_.m.p != 0 && _g_.m.p.ptr().status == _Psyscall && atomic.Cas(&_g_.m.p.ptr().status, _Psyscall, _Prunning) {
+ 		// There's a cpu for us, so we can run.
+-		_g_.m.mcache = _g_.m.p.ptr().mcache
+-		_g_.m.p.ptr().m.set(_g_.m)
+-		if _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
+-			if trace.enabled {
+-				// The p was retaken and then enter into syscall again (since _g_.m.syscalltick has changed).
+-				// traceGoSysBlock for this syscall was already emitted,
+-				// but here we effectively retake the p from the new syscall running on the same p.
+-				systemstack(func() {
+-					// Denote blocking of the new syscall.
+-					traceGoSysBlock(_g_.m.p.ptr())
+-					// Denote completion of the current syscall.
+-					traceGoSysExit(0)
+-				})
+-			}
+-			_g_.m.p.ptr().syscalltick++
+-		}
++		exitsyscallfast_reacquired()
+ 		return true
+ 	}
+ 
+@@ -2597,6 +2588,35 @@ func exitsyscallfast() bool {
+ 	return false
+ }
+ 
++// exitsyscallfast_reacquired is the exitsyscall path on which this G
++// has successfully reacquired the P it was running on before the
++// syscall.
++//
++// This function is allowed to have write barriers because exitsyscall
++// has acquired a P at this point.
++//
++//go:yeswritebarrierrec
++//go:nosplit
++func exitsyscallfast_reacquired() {
++	_g_ := getg()
++	_g_.m.mcache = _g_.m.p.ptr().mcache
++	_g_.m.p.ptr().m.set(_g_.m)
++	if _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
++		if trace.enabled {
++			// The p was retaken and then enter into syscall again (since _g_.m.syscalltick has changed).
++			// traceGoSysBlock for this syscall was already emitted,
++			// but here we effectively retake the p from the new syscall running on the same p.
++			systemstack(func() {
++				// Denote blocking of the new syscall.
++				traceGoSysBlock(_g_.m.p.ptr())
++				// Denote completion of the current syscall.
++				traceGoSysExit(0)
++			})
++		}
++		_g_.m.p.ptr().syscalltick++
++	}
++}
++
+ func exitsyscallfast_pidle() bool {
+ 	lock(&sched.lock)
+ 	_p_ := pidleget()
+diff --git a/test/nowritebarrier.go b/test/nowritebarrier.go
+new file mode 100644
+index 0000000000..23dce753b0
+--- /dev/null
++++ b/test/nowritebarrier.go
+@@ -0,0 +1,78 @@
++// errorcheck -+
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test go:nowritebarrier and related directives.
++
++package p
++
++type t struct {
++	f *t
++}
++
++var x t
++var y *t
++
++//go:nowritebarrier
++func a1() {
++	x.f = y // ERROR "write barrier prohibited"
++	a2()    // no error
++}
++
++//go:noinline
++func a2() {
++	x.f = y
++}
++
++//go:nowritebarrierrec
++func b1() {
++	b2()
++}
++
++//go:noinline
++func b2() {
++	x.f = y // ERROR "write barrier prohibited by caller"
++}
++
++// Test recursive cycles through nowritebarrierrec and yeswritebarrierrec.
++
++//go:nowritebarrierrec
++func c1() {
++	c2()
++}
++
++//go:yeswritebarrierrec
++func c2() {
++	c3()
++}
++
++func c3() {
++	x.f = y
++	c4()
++}
++
++//go:nowritebarrierrec
++func c4() {
++	c2()
++}
++
++//go:nowritebarrierrec
++func d1() {
++	d2()
++}
++
++func d2() {
++	d3()
++}
++
++func d3() {
++	x.f = y // ERROR "write barrier prohibited by caller"
++	d4()
++}
++
++//go:yeswritebarrierrec
++func d4() {
++	d2()
++}

@@ -20,6 +20,29 @@ Date:   Sun Mar 7 14:56:52 2021 -0800
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/example_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/example_test.go b/src/net/http/example_test.go
+index c677d52238..2f411d1d2e 100644
+--- a/src/net/http/example_test.go
++++ b/src/net/http/example_test.go
+@@ -45,12 +45,15 @@ func ExampleGet() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	robots, err := io.ReadAll(res.Body)
++	body, err := io.ReadAll(res.Body)
+ 	res.Body.Close()
++	if res.StatusCode > 299 {
++		log.Fatalf("Response failed with status code: %d and\nbody: %s\n", res.StatusCode, body)
++	}
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	fmt.Printf("%s", robots)
++	fmt.Printf("%s", body)
+ }
+ 
+ func ExampleFileServer() {

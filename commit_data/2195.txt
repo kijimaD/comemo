@@ -8,8 +8,77 @@ Date:   Tue May 12 16:16:52 2009 -0700
     DELTA=10  (0 added, 0 deleted, 10 changed)
     OCL=28717
     CL=28720
-
+---
  src/lib/json/struct.go      | 2 +-
  src/lib/reflect/all_test.go | 8 ++++----
  src/lib/reflect/value.go    | 4 ++--
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/lib/json/struct.go b/src/lib/json/struct.go
+index cfba2ce6df..ac26895572 100644
+--- a/src/lib/json/struct.go
++++ b/src/lib/json/struct.go
+@@ -176,7 +176,7 @@ func (b *_StructBuilder) Map() {
+ 	if v := b.val; v.Kind() == reflect.PtrKind {
+ 		pv := v.(reflect.PtrValue);
+ 		if pv.Get() == nil {
+-			pv.SetSub(reflect.NewInitValue(pv.Type().(reflect.PtrType).Sub()))
++			pv.SetSub(reflect.NewZeroValue(pv.Type().(reflect.PtrType).Sub()))
+ 		}
+ 	}
+ }
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index 65c6ea289a..8d4ea48651 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -49,7 +49,7 @@ func typedump(s, t string) {
+ 
+ func valuedump(s, t string) {
+ 	typ := reflect.ParseTypeString("", s);
+-	v := reflect.NewInitValue(typ);
++	v := reflect.NewZeroValue(typ);
+ 	if v == nil {
+ 		panicln("valuedump", s);
+ 	}
+@@ -279,7 +279,7 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	t = reflect.ParseTypeString("", "[]int32");
+ 	v := reflect.NewSliceValue(t.(ArrayType), 5, 10);
+ 	t1 := reflect.ParseTypeString("", "*[]int32");
+-	v1 := reflect.NewInitValue(t1);
++	v1 := reflect.NewZeroValue(t1);
+ 	if v1 == nil { panic("V1 is nil"); }
+ 	v1.(reflect.PtrValue).SetSub(v);
+ 	a := v1.Interface().(*[]int32);
+@@ -533,7 +533,7 @@ func TestIsNil(t *testing.T) {
+ 	doNil := []string{"*int", "interface{}", "map[string]int", "func() bool", "chan int", "[]string"};
+ 	for i, ts := range doNotNil {
+ 		ty := reflect.ParseTypeString("", ts);
+-		v := reflect.NewInitValue(ty);
++		v := reflect.NewZeroValue(ty);
+ 		if nilable, ok := v.(Nillable); ok {
+ 			t.Errorf("%s is nilable; should not be", ts)
+ 		}
+@@ -541,7 +541,7 @@ func TestIsNil(t *testing.T) {
+ 
+ 	for i, ts := range doNil {
+ 		ty := reflect.ParseTypeString("", ts);
+-		v := reflect.NewInitValue(ty);
++		v := reflect.NewZeroValue(ty);
+ 		if nilable, ok := v.(Nillable); !ok {
+ 			t.Errorf("%s is not nilable; should be", ts)
+ 		}
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 2772ff1e17..d20d8cbe01 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -874,8 +874,8 @@ func newValueAddr(typ Type, addr Addr) Value {
+ 	return c(typ, addr);
+ }
+ 
+-// NewInitValue creates a new, zero-initialized Value for the specified Type.
+-func NewInitValue(typ Type) Value {
++// NewZeroValue creates a new, zero-initialized Value for the specified Type.
++func NewZeroValue(typ Type) Value {
+ 	// Some values cannot be made this way.
+ 	switch typ.Kind() {
+ 	case ArrayKind:

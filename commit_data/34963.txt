@@ -17,8 +17,52 @@ Date:   Wed Nov 29 12:26:59 2017 -0800
     Change-Id: I46dc7c54b1347143d02d6b9635038230cda6d164
     Reviewed-on: https://go-review.googlesource.com/80760
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 4 ++--
  src/cmd/go/internal/work/exec.go    | 1 -
  src/cmd/go/internal/work/gc.go      | 5 -----
  3 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 4e470b6d8d..b651c9acb3 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1230,8 +1230,8 @@ func concurrentBackendAllowed() bool {
+ 	if Debug_vlog || debugstr != "" || debuglive > 0 {
+ 		return false
+ 	}
+-	// TODO: test and add builders for GOEXPERIMENT values, and enable
+-	if os.Getenv("GOEXPERIMENT") != "" {
++	// TODO: Test and delete these conditions.
++	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 || objabi.Clobberdead_enabled != 0 {
+ 		return false
+ 	}
+ 	// TODO: fix races and enable the following flags
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 067b20a217..2e170fa040 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -220,7 +220,6 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
+ 		// or perhaps restrict the environment variables passed to subprocesses.
+ 		magic := []string{
+-			"GOEXPERIMENT",
+ 			"GOCLOBBERDEADHASH",
+ 			"GOSSAFUNC",
+ 			"GO_SSA_PHI_LOC_CUTOFF",
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 4a181d9730..eaa54d106f 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -147,11 +147,6 @@ func gcBackendConcurrency(gcflags []string) int {
+ 		log.Fatalf("GO19CONCURRENTCOMPILATION must be 0, 1, or unset, got %q", e)
+ 	}
+ 
+-	if os.Getenv("GOEXPERIMENT") != "" {
+-		// Concurrent compilation is presumed incompatible with GOEXPERIMENTs.
+-		canDashC = false
+-	}
+-
+ CheckFlags:
+ 	for _, flag := range gcflags {
+ 		// Concurrent compilation is presumed incompatible with any gcflags,

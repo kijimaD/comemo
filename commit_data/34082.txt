@@ -18,6 +18,29 @@ Date:   Mon Oct 2 16:40:38 2017 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/chan_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index 69c64b5f37..b6188f5e87 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"internal/testenv"
+ 	"math"
+ 	"runtime"
+ 	"sync"
+@@ -433,6 +434,9 @@ func TestSelectStress(t *testing.T) {
+ 
+ func TestSelectFairness(t *testing.T) {
+ 	const trials = 10000
++	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
++		testenv.SkipFlaky(t, 22047)
++	}
+ 	c1 := make(chan byte, trials+1)
+ 	c2 := make(chan byte, trials+1)
+ 	for i := 0; i < trials+1; i++ {

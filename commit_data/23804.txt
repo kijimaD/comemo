@@ -24,10 +24,200 @@ Date:   Sun Jun 7 22:47:59 2015 -0400
     Change-Id: I06ad994032d8cff3438c9b3eaa8d853915128af5
     Reviewed-on: https://go-review.googlesource.com/10815
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 11 +++++++--
  src/reflect/all_test.go                | 40 +++++++++++++++---------------
  src/reflect/type.go                    |  5 +++-
  src/runtime/chan.go                    | 11 ++++++++-
  src/runtime/mbitmap.go                 | 45 ++++++++++++++++++++++++++++++++++
  5 files changed, 88 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 8ef2380e07..08343e88ee 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1403,10 +1403,17 @@ func dalgsym(t *Type) *Sym {
+ // is 32 pointers, the bits for which fit in 4 bytes. So maxPtrmaskBytes
+ // must be >= 4.
+ //
+-// We use 16 because the GC programs do have some constant overhead
++// We used to use 16 because the GC programs do have some constant overhead
+ // to get started, and processing 128 pointers seems to be enough to
+ // amortize that overhead well.
+-const maxPtrmaskBytes = 16
++//
++// To make sure that the runtime's chansend can call typeBitsBulkBarrier,
++// we raised the limit to 2048, so that even 32-bit systems are guaranteed to
++// use bitmaps for objects up to 64 kB in size.
++//
++// Also known to reflect/type.go.
++//
++const maxPtrmaskBytes = 2048
+ 
+ // dgcsym emits and returns a data symbol containing GC information for type t,
+ // along with a boolean reporting whether the UseGCProg bit should be set in
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 9a99f742d6..83952b42df 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4595,39 +4595,39 @@ func TestGCBits(t *testing.T) {
+ 	verifyGCBits(t, ArrayOf(1, Tptrscalar), lit(1))
+ 	verifyGCBits(t, TypeOf([2]Xscalar{}), empty)
+ 	verifyGCBits(t, ArrayOf(2, Tscalar), empty)
+-	verifyGCBits(t, TypeOf([100]Xscalar{}), empty)
+-	verifyGCBits(t, ArrayOf(100, Tscalar), empty)
++	verifyGCBits(t, TypeOf([10000]Xscalar{}), empty)
++	verifyGCBits(t, ArrayOf(10000, Tscalar), empty)
+ 	verifyGCBits(t, TypeOf([2]Xptr{}), lit(1, 1))
+ 	verifyGCBits(t, ArrayOf(2, Tptr), lit(1, 1))
+-	verifyGCBits(t, TypeOf([100]Xptr{}), rep(100, lit(1)))
+-	verifyGCBits(t, ArrayOf(100, Tptr), rep(100, lit(1)))
++	verifyGCBits(t, TypeOf([10000]Xptr{}), rep(10000, lit(1)))
++	verifyGCBits(t, ArrayOf(10000, Tptr), rep(10000, lit(1)))
+ 	verifyGCBits(t, TypeOf([2]Xscalarptr{}), lit(0, 1, 0, 1))
+ 	verifyGCBits(t, ArrayOf(2, Tscalarptr), lit(0, 1, 0, 1))
+-	verifyGCBits(t, TypeOf([100]Xscalarptr{}), rep(100, lit(0, 1)))
+-	verifyGCBits(t, ArrayOf(100, Tscalarptr), rep(100, lit(0, 1)))
++	verifyGCBits(t, TypeOf([10000]Xscalarptr{}), rep(10000, lit(0, 1)))
++	verifyGCBits(t, ArrayOf(10000, Tscalarptr), rep(10000, lit(0, 1)))
+ 	verifyGCBits(t, TypeOf([2]Xptrscalar{}), lit(1, 0, 1))
+ 	verifyGCBits(t, ArrayOf(2, Tptrscalar), lit(1, 0, 1))
+-	verifyGCBits(t, TypeOf([100]Xptrscalar{}), rep(100, lit(1, 0)))
+-	verifyGCBits(t, ArrayOf(100, Tptrscalar), rep(100, lit(1, 0)))
+-	verifyGCBits(t, TypeOf([1][100]Xptrscalar{}), rep(100, lit(1, 0)))
+-	verifyGCBits(t, ArrayOf(1, ArrayOf(100, Tptrscalar)), rep(100, lit(1, 0)))
+-	verifyGCBits(t, TypeOf([2][100]Xptrscalar{}), rep(200, lit(1, 0)))
+-	verifyGCBits(t, ArrayOf(2, ArrayOf(100, Tptrscalar)), rep(200, lit(1, 0)))
++	verifyGCBits(t, TypeOf([10000]Xptrscalar{}), rep(10000, lit(1, 0)))
++	verifyGCBits(t, ArrayOf(10000, Tptrscalar), rep(10000, lit(1, 0)))
++	verifyGCBits(t, TypeOf([1][10000]Xptrscalar{}), rep(10000, lit(1, 0)))
++	verifyGCBits(t, ArrayOf(1, ArrayOf(10000, Tptrscalar)), rep(10000, lit(1, 0)))
++	verifyGCBits(t, TypeOf([2][10000]Xptrscalar{}), rep(2*10000, lit(1, 0)))
++	verifyGCBits(t, ArrayOf(2, ArrayOf(10000, Tptrscalar)), rep(2*10000, lit(1, 0)))
+ 
+ 	verifyGCBits(t, TypeOf((chan [100]Xscalar)(nil)), lit(1))
+ 	verifyGCBits(t, ChanOf(BothDir, ArrayOf(100, Tscalar)), lit(1))
+ 
+-	verifyGCBits(t, TypeOf((func([100]Xscalarptr))(nil)), lit(1))
+-	verifyGCBits(t, FuncOf([]Type{ArrayOf(100, Tscalarptr)}, nil, false), lit(1))
++	verifyGCBits(t, TypeOf((func([10000]Xscalarptr))(nil)), lit(1))
++	verifyGCBits(t, FuncOf([]Type{ArrayOf(10000, Tscalarptr)}, nil, false), lit(1))
+ 
+-	verifyGCBits(t, TypeOf((map[[100]Xscalarptr]Xscalar)(nil)), lit(1))
+-	verifyGCBits(t, MapOf(ArrayOf(100, Tscalarptr), Tscalar), lit(1))
++	verifyGCBits(t, TypeOf((map[[10000]Xscalarptr]Xscalar)(nil)), lit(1))
++	verifyGCBits(t, MapOf(ArrayOf(10000, Tscalarptr), Tscalar), lit(1))
+ 
+-	verifyGCBits(t, TypeOf((*[100]Xscalar)(nil)), lit(1))
+-	verifyGCBits(t, PtrTo(ArrayOf(100, Tscalar)), lit(1))
++	verifyGCBits(t, TypeOf((*[10000]Xscalar)(nil)), lit(1))
++	verifyGCBits(t, PtrTo(ArrayOf(10000, Tscalar)), lit(1))
+ 
+-	verifyGCBits(t, TypeOf(([][100]Xscalar)(nil)), lit(1))
+-	verifyGCBits(t, SliceOf(ArrayOf(100, Tscalar)), lit(1))
++	verifyGCBits(t, TypeOf(([][10000]Xscalar)(nil)), lit(1))
++	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
+ 
+ 	hdr := make([]byte, 8/PtrSize)
+ 	verifyGCBits(t, MapBucketOf(Tscalar, Tptr), join(hdr, rep(8, lit(0)), rep(8, lit(1)), lit(1)))
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index e55a0d146c..340fc7a771 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1797,6 +1797,9 @@ func SliceOf(t Type) Type {
+ 	return cachePut(ckey, &slice.rtype)
+ }
+ 
++// See cmd/compile/internal/gc/reflect.go for derivation of constant.
++const maxPtrmaskBytes = 2048
++
+ // ArrayOf returns the array type with the given count and element type.
+ // For example, if t represents int, ArrayOf(5, t) represents [5]int.
+ //
+@@ -1865,7 +1868,7 @@ func ArrayOf(count int, elem Type) Type {
+ 		array.gcdata = typ.gcdata
+ 		array.ptrdata = typ.ptrdata
+ 
+-	case typ.kind&kindGCProg == 0 && array.size <= 16*8*ptrSize:
++	case typ.kind&kindGCProg == 0 && array.size <= maxPtrmaskBytes*8*ptrSize:
+ 		// Element is small with pointer mask; array is still small.
+ 		// Create direct pointer mask by turning each 1 bit in elem
+ 		// into count 1 bits in larger mask.
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 87e05bdf6c..a9eb83aeb3 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -165,7 +165,16 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 
+ 			recvg := sg.g
+ 			if sg.elem != nil {
+-				typedmemmove(c.elemtype, unsafe.Pointer(sg.elem), ep)
++				// This is the only place in the entire runtime where one goroutine
++				// writes to the stack of another goroutine. The GC assumes that
++				// stack writes only happen when the goroutine is running and are
++				// only done by that goroutine. Using a write barrier is sufficient to
++				// make up for violating that assumption, but the write barrier has to work.
++				// typedmemmove will call heapBitsBulkBarrier, but the target bytes
++				// are not in the heap, so that will not help. We arrange to call
++				// memmove and typeBitsBulkBarrier instead.
++				memmove(sg.elem, ep, c.elemtype.size)
++				typeBitsBulkBarrier(c.elemtype, uintptr(sg.elem), c.elemtype.size)
+ 				sg.elem = nil
+ 			}
+ 			recvg.param = unsafe.Pointer(sg)
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index c97bf0a450..146ffbfcb6 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -413,6 +413,51 @@ func heapBitsBulkBarrier(p, size uintptr) {
+ 	}
+ }
+ 
++// typeBitsBulkBarrier executes writebarrierptr_nostore
++// for every pointer slot in the memory range [p, p+size),
++// using the type bitmap to locate those pointer slots.
++// The type typ must correspond exactly to [p, p+size).
++// This executes the write barriers necessary after a copy.
++// Both p and size must be pointer-aligned.
++// The type typ must have a plain bitmap, not a GC program.
++// The only use of this function is in channel sends, and the
++// 64 kB channel element limit takes care of this for us.
++//
++// Must not be preempted because it typically runs right after memmove,
++// and the GC must not complete between those two.
++//
++//go:nosplit
++func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
++	if typ == nil {
++		throw("runtime: typeBitsBulkBarrier without type")
++	}
++	if typ.size != size {
++		println("runtime: typeBitsBulkBarrier with type ", *typ._string, " of size ", typ.size, " but memory size", size)
++		throw("runtime: invalid typeBitsBulkBarrier")
++	}
++	if typ.kind&kindGCProg != 0 {
++		println("runtime: typeBitsBulkBarrier with type ", *typ._string, " with GC prog")
++		throw("runtime: invalid typeBitsBulkBarrier")
++	}
++	if !writeBarrierEnabled {
++		return
++	}
++	ptrmask := typ.gcdata
++	var bits uint32
++	for i := uintptr(0); i < typ.ptrdata; i += ptrSize {
++		if i&(ptrSize*8-1) == 0 {
++			bits = uint32(*ptrmask)
++			ptrmask = addb(ptrmask, 1)
++		} else {
++			bits = bits >> 1
++		}
++		if bits&1 != 0 {
++			x := (*uintptr)(unsafe.Pointer(p + i))
++			writebarrierptr_nostore(x, *x)
++		}
++	}
++}
++
+ // The methods operating on spans all require that h has been returned
+ // by heapBitsForSpan and that size, n, total are the span layout description
+ // returned by the mspan's layout method.

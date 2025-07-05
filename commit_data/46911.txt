@@ -22,9 +22,135 @@ Date:   Sun Jan 24 18:21:06 2021 +0800
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/internal/poll/sendfile_bsd.go     |  4 +++
  src/internal/poll/sendfile_linux.go   |  3 ++
  src/internal/poll/sendfile_solaris.go |  3 ++
  src/net/sendfile_test.go              | 65 +++++++++++++++++++++++++++++++++++
  4 files changed, 75 insertions(+)
+
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+index a24e41dcaa..66005a9f5c 100644
+--- a/src/internal/poll/sendfile_bsd.go
++++ b/src/internal/poll/sendfile_bsd.go
+@@ -18,6 +18,10 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 		return 0, err
+ 	}
+ 	defer dstFD.writeUnlock()
++	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
++		return 0, err
++	}
++
+ 	dst := int(dstFD.Sysfd)
+ 	var written int64
+ 	var err error
+diff --git a/src/internal/poll/sendfile_linux.go b/src/internal/poll/sendfile_linux.go
+index d64283007d..d6442e8666 100644
+--- a/src/internal/poll/sendfile_linux.go
++++ b/src/internal/poll/sendfile_linux.go
+@@ -16,6 +16,9 @@ func SendFile(dstFD *FD, src int, remain int64) (int64, error) {
+ 		return 0, err
+ 	}
+ 	defer dstFD.writeUnlock()
++	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
++		return 0, err
++	}
+ 
+ 	dst := int(dstFD.Sysfd)
+ 	var written int64
+diff --git a/src/internal/poll/sendfile_solaris.go b/src/internal/poll/sendfile_solaris.go
+index 762992e9eb..748c85131e 100644
+--- a/src/internal/poll/sendfile_solaris.go
++++ b/src/internal/poll/sendfile_solaris.go
+@@ -20,6 +20,9 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 		return 0, err
+ 	}
+ 	defer dstFD.writeUnlock()
++	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
++		return 0, err
++	}
+ 
+ 	dst := int(dstFD.Sysfd)
+ 	var written int64
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 657a36599f..d6057fd839 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -10,8 +10,10 @@ import (
+ 	"bytes"
+ 	"crypto/sha256"
+ 	"encoding/hex"
++	"errors"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -313,3 +315,66 @@ func TestSendfilePipe(t *testing.T) {
+ 
+ 	wg.Wait()
+ }
++
++// Issue 43822: tests that returns EOF when conn write timeout.
++func TestSendfileOnWriteTimeoutExceeded(t *testing.T) {
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++
++	errc := make(chan error, 1)
++	go func(ln Listener) (retErr error) {
++		defer func() {
++			errc <- retErr
++			close(errc)
++		}()
++
++		conn, err := ln.Accept()
++		if err != nil {
++			return err
++		}
++		defer conn.Close()
++
++		// Set the write deadline in the past(1h ago). It makes
++		// sure that it is always write timeout.
++		if err := conn.SetWriteDeadline(time.Now().Add(-1 * time.Hour)); err != nil {
++			return err
++		}
++
++		f, err := os.Open(newton)
++		if err != nil {
++			return err
++		}
++		defer f.Close()
++
++		_, err = io.Copy(conn, f)
++		if errors.Is(err, os.ErrDeadlineExceeded) {
++			return nil
++		}
++
++		if err == nil {
++			err = fmt.Errorf("expected ErrDeadlineExceeded, but got nil")
++		}
++		return err
++	}(ln)
++
++	conn, err := Dial("tcp", ln.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++
++	n, err := io.Copy(ioutil.Discard, conn)
++	if err != nil {
++		t.Fatalf("expected nil error, but got %v", err)
++	}
++	if n != 0 {
++		t.Fatalf("expected receive zero, but got %d byte(s)", n)
++	}
++
++	if err := <-errc; err != nil {
++		t.Fatal(err)
++	}
++}

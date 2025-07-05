@@ -8,6 +8,23 @@ Date:   Tue Jan 17 11:48:20 2012 +0400
     R=golang-dev, r
     CC=golang-dev, mpimenov
     https://golang.org/cl/5545065
-
+---
  src/pkg/old/netchan/common.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/old/netchan/common.go b/src/pkg/old/netchan/common.go
+index 710b63ac50..d0daf53720 100644
+--- a/src/pkg/old/netchan/common.go
++++ b/src/pkg/old/netchan/common.go
+@@ -165,9 +165,11 @@ func (cs *clientSet) sync(timeout time.Duration) error {
+ 	deadline := time.Now().Add(timeout)
+ 	// seq remembers the clients and their seqNum at point of entry.
+ 	seq := make(map[unackedCounter]int64)
++	cs.mu.Lock()
+ 	for client := range cs.clients {
+ 		seq[client] = client.seq()
+ 	}
++	cs.mu.Unlock()
+ 	for {
+ 		pending := false
+ 		cs.mu.Lock()

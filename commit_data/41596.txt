@@ -22,7 +22,43 @@ Date:   Sun Oct 13 22:33:18 2019 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go        | 12 ++++++++++++
  src/cmd/go/testdata/script/env_write.txt |  4 ++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 17852deed1..b80b181642 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -343,6 +343,18 @@ func checkEnvWrite(key, val string, env []cfg.EnvVar) error {
+ 		return fmt.Errorf("unknown go command variable %s", key)
+ 	}
+ 
++	// Some variables can only have one of a few valid values. If set to an
++	// invalid value, the next cmd/go invocation might fail immediately,
++	// even 'go env -w' itself.
++	switch key {
++	case "GO111MODULE":
++		switch val {
++		case "", "auto", "on", "off":
++		default:
++			return fmt.Errorf("invalid %s value %q", key, val)
++		}
++	}
++
+ 	if !utf8.ValidString(val) {
+ 		return fmt.Errorf("invalid UTF-8 in %s=... value", key)
+ 	}
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index 695cc83f3d..7dbb1d9028 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -85,3 +85,7 @@ stderr 'multiple values for key: GOOS'
+ # go env -w rejects missing variables
+ ! go env -w GOOS
+ stderr 'arguments must be KEY=VALUE: invalid argument: GOOS'
++
++# go env -w rejects invalid GO111MODULE values, as otherwise cmd/go would break
++! go env -w GO111MODULE=badvalue
++stderr 'invalid GO111MODULE value "badvalue"'

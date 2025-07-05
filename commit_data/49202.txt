@@ -27,9 +27,197 @@ Date:   Wed Jul 28 21:09:31 2021 -0700
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/cgocall.go                             | 20 +++++++++----
  src/runtime/crash_cgo_test.go                      |  9 ++++++
  src/runtime/testdata/testprogcgo/tracebackctxt.go  | 33 ++++++++++++++++++++--
  src/runtime/testdata/testprogcgo/tracebackctxt_c.c | 14 ++++++++-
  4 files changed, 67 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 8ffb48a888..2626216f95 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -212,6 +212,8 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	// a different M. The call to unlockOSThread is in unwindm.
+ 	lockOSThread()
+ 
++	checkm := gp.m
++
+ 	// Save current syscall parameters, so m.syscall can be
+ 	// used again if callback decide to make syscall.
+ 	syscall := gp.m.syscall
+@@ -227,15 +229,20 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 
+ 	osPreemptExtExit(gp.m)
+ 
+-	cgocallbackg1(fn, frame, ctxt)
++	cgocallbackg1(fn, frame, ctxt) // will call unlockOSThread
+ 
+ 	// At this point unlockOSThread has been called.
+ 	// The following code must not change to a different m.
+ 	// This is enforced by checking incgo in the schedule function.
+ 
++	gp.m.incgo = true
++
++	if gp.m != checkm {
++		throw("m changed unexpectedly in cgocallbackg")
++	}
++
+ 	osPreemptExtEnter(gp.m)
+ 
+-	gp.m.incgo = true
+ 	// going back to cgo call
+ 	reentersyscall(savedpc, uintptr(savedsp))
+ 
+@@ -244,6 +251,11 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 
+ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	gp := getg()
++
++	// When we return, undo the call to lockOSThread in cgocallbackg.
++	// We must still stay on the same m.
++	defer unlockOSThread()
++
+ 	if gp.m.needextram || atomic.Load(&extraMWaiters) > 0 {
+ 		gp.m.needextram = false
+ 		systemstack(newextram)
+@@ -323,10 +335,6 @@ func unwindm(restore *bool) {
+ 
+ 		releasem(mp)
+ 	}
+-
+-	// Undo the call to lockOSThread in cgocallbackg.
+-	// We must still stay on the same m.
+-	unlockOSThread()
+ }
+ 
+ // called from assembly
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 7d25c51aa2..5729942cee 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -282,6 +282,15 @@ func TestCgoTracebackContext(t *testing.T) {
+ 	}
+ }
+ 
++func TestCgoTracebackContextPreemption(t *testing.T) {
++	t.Parallel()
++	got := runTestProg(t, "testprogcgo", "TracebackContextPreemption")
++	want := "OK\n"
++	if got != want {
++		t.Errorf("expected %q got %v", want, got)
++	}
++}
++
+ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
+ 	t.Parallel()
+ 	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le") {
+diff --git a/src/runtime/testdata/testprogcgo/tracebackctxt.go b/src/runtime/testdata/testprogcgo/tracebackctxt.go
+index 51fa4ad25c..62ff8eccd6 100644
+--- a/src/runtime/testdata/testprogcgo/tracebackctxt.go
++++ b/src/runtime/testdata/testprogcgo/tracebackctxt.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The __attribute__((weak)) used below doesn't seem to work on Windows.
+-
+ package main
+ 
+ // Test the context argument to SetCgoTraceback.
+@@ -14,20 +12,24 @@ package main
+ extern void C1(void);
+ extern void C2(void);
+ extern void tcContext(void*);
++extern void tcContextSimple(void*);
+ extern void tcTraceback(void*);
+ extern void tcSymbolizer(void*);
+ extern int getContextCount(void);
++extern void TracebackContextPreemptionCallGo(int);
+ */
+ import "C"
+ 
+ import (
+ 	"fmt"
+ 	"runtime"
++	"sync"
+ 	"unsafe"
+ )
+ 
+ func init() {
+ 	register("TracebackContext", TracebackContext)
++	register("TracebackContextPreemption", TracebackContextPreemption)
+ }
+ 
+ var tracebackOK bool
+@@ -105,3 +107,30 @@ wantLoop:
+ 		tracebackOK = false
+ 	}
+ }
++
++// Issue 47441.
++func TracebackContextPreemption() {
++	runtime.SetCgoTraceback(0, unsafe.Pointer(C.tcTraceback), unsafe.Pointer(C.tcContextSimple), unsafe.Pointer(C.tcSymbolizer))
++
++	const funcs = 10
++	const calls = 1e5
++	var wg sync.WaitGroup
++	for i := 0; i < funcs; i++ {
++		wg.Add(1)
++		go func(i int) {
++			defer wg.Done()
++			for j := 0; j < calls; j++ {
++				C.TracebackContextPreemptionCallGo(C.int(i*calls + j))
++			}
++		}(i)
++	}
++	wg.Wait()
++
++	fmt.Println("OK")
++}
++
++//export TracebackContextPreemptionGoFunction
++func TracebackContextPreemptionGoFunction(i C.int) {
++	// Do some busy work.
++	fmt.Sprintf("%d\n", i)
++}
+diff --git a/src/runtime/testdata/testprogcgo/tracebackctxt_c.c b/src/runtime/testdata/testprogcgo/tracebackctxt_c.c
+index 900cada0d3..910cb7b899 100644
+--- a/src/runtime/testdata/testprogcgo/tracebackctxt_c.c
++++ b/src/runtime/testdata/testprogcgo/tracebackctxt_c.c
+@@ -11,6 +11,7 @@
+ // Functions exported from Go.
+ extern void G1(void);
+ extern void G2(void);
++extern void TracebackContextPreemptionGoFunction(int);
+ 
+ void C1() {
+ 	G1();
+@@ -62,10 +63,17 @@ void tcContext(void* parg) {
+ 	}
+ }
+ 
++void tcContextSimple(void* parg) {
++	struct cgoContextArg* arg = (struct cgoContextArg*)(parg);
++	if (arg->context == 0) {
++		arg->context = 1;
++	}
++}
++
+ void tcTraceback(void* parg) {
+ 	int base, i;
+ 	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
+-	if (arg->context == 0) {
++	if (arg->context == 0 && arg->sigContext == 0) {
+ 		// This shouldn't happen in this program.
+ 		abort();
+ 	}
+@@ -89,3 +97,7 @@ void tcSymbolizer(void *parg) {
+ 	arg->func = "cFunction";
+ 	arg->lineno = arg->pc + (arg->more << 16);
+ }
++
++void TracebackContextPreemptionCallGo(int i) {
++	TracebackContextPreemptionGoFunction(i);
++}

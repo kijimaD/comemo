@@ -17,7 +17,7 @@ Date:   Mon Oct 19 19:19:17 2020 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/syscall/unix/at_aix.go              |   1 +
  src/internal/syscall/unix/at_js.go               |  13 +++
  src/internal/syscall/unix/at_solaris.go          |   2 +
@@ -37,3 +37,450 @@ Date:   Mon Oct 19 19:19:17 2020 +0200
  src/syscall/fs_wasip1.go                         |  20 +++-
  src/syscall/syscall_windows.go                   |  20 +++-
  18 files changed, 232 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at_aix.go b/src/internal/syscall/unix/at_aix.go
+index 425df98211..3fe3285ce2 100644
+--- a/src/internal/syscall/unix/at_aix.go
++++ b/src/internal/syscall/unix/at_aix.go
+@@ -11,4 +11,5 @@ package unix
+ const (
+ 	AT_REMOVEDIR        = 0x1
+ 	AT_SYMLINK_NOFOLLOW = 0x1
++	UTIME_OMIT          = -0x3
+ )
+diff --git a/src/internal/syscall/unix/at_js.go b/src/internal/syscall/unix/at_js.go
+new file mode 100644
+index 0000000000..d05ccce895
+--- /dev/null
++++ b/src/internal/syscall/unix/at_js.go
+@@ -0,0 +1,13 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++const (
++	// UTIME_OMIT is the sentinel value to indicate that a time value should not
++	// be changed. It is useful for example to indicate for example with UtimesNano
++	// to avoid changing AccessTime or ModifiedTime.
++	// Its value must match syscall/fs_js.go
++	UTIME_OMIT = -0x2
++)
+diff --git a/src/internal/syscall/unix/at_solaris.go b/src/internal/syscall/unix/at_solaris.go
+index e917c4fc9b..4ab224d670 100644
+--- a/src/internal/syscall/unix/at_solaris.go
++++ b/src/internal/syscall/unix/at_solaris.go
+@@ -16,4 +16,6 @@ func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err
+ const (
+ 	AT_REMOVEDIR        = 0x1
+ 	AT_SYMLINK_NOFOLLOW = 0x1000
++
++	UTIME_OMIT = -0x2
+ )
+diff --git a/src/internal/syscall/unix/at_sysnum_darwin.go b/src/internal/syscall/unix/at_sysnum_darwin.go
+index aaaaa4751c..208ff34d03 100644
+--- a/src/internal/syscall/unix/at_sysnum_darwin.go
++++ b/src/internal/syscall/unix/at_sysnum_darwin.go
+@@ -6,3 +6,5 @@ package unix
+ 
+ const AT_REMOVEDIR = 0x80
+ const AT_SYMLINK_NOFOLLOW = 0x0020
++
++const UTIME_OMIT = -0x2
+diff --git a/src/internal/syscall/unix/at_sysnum_dragonfly.go b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+index cec9abce6a..b7ed3f732b 100644
+--- a/src/internal/syscall/unix/at_sysnum_dragonfly.go
++++ b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+@@ -12,3 +12,5 @@ const fstatatTrap uintptr = syscall.SYS_FSTATAT
+ 
+ const AT_REMOVEDIR = 0x2
+ const AT_SYMLINK_NOFOLLOW = 0x1
++
++const UTIME_OMIT = -0x1
+diff --git a/src/internal/syscall/unix/at_sysnum_freebsd.go b/src/internal/syscall/unix/at_sysnum_freebsd.go
+index 530f5c2a2b..9cd5da6ce3 100644
+--- a/src/internal/syscall/unix/at_sysnum_freebsd.go
++++ b/src/internal/syscall/unix/at_sysnum_freebsd.go
+@@ -10,6 +10,8 @@ const (
+ 	AT_REMOVEDIR        = 0x800
+ 	AT_SYMLINK_NOFOLLOW = 0x200
+ 
++	UTIME_OMIT = -0x2
++
+ 	unlinkatTrap       uintptr = syscall.SYS_UNLINKAT
+ 	openatTrap         uintptr = syscall.SYS_OPENAT
+ 	posixFallocateTrap uintptr = syscall.SYS_POSIX_FALLOCATE
+diff --git a/src/internal/syscall/unix/at_sysnum_linux.go b/src/internal/syscall/unix/at_sysnum_linux.go
+index b9b8495e32..7c3b15c303 100644
+--- a/src/internal/syscall/unix/at_sysnum_linux.go
++++ b/src/internal/syscall/unix/at_sysnum_linux.go
+@@ -14,4 +14,6 @@ const (
+ 	AT_FDCWD            = -0x64
+ 	AT_REMOVEDIR        = 0x200
+ 	AT_SYMLINK_NOFOLLOW = 0x100
++
++	UTIME_OMIT = 0x3ffffffe
+ )
+diff --git a/src/internal/syscall/unix/at_sysnum_netbsd.go b/src/internal/syscall/unix/at_sysnum_netbsd.go
+index fe45e296d7..becc1bdf82 100644
+--- a/src/internal/syscall/unix/at_sysnum_netbsd.go
++++ b/src/internal/syscall/unix/at_sysnum_netbsd.go
+@@ -12,3 +12,5 @@ const fstatatTrap uintptr = syscall.SYS_FSTATAT
+ 
+ const AT_REMOVEDIR = 0x800
+ const AT_SYMLINK_NOFOLLOW = 0x200
++
++const UTIME_OMIT = (1 << 30) - 2
+diff --git a/src/internal/syscall/unix/at_sysnum_openbsd.go b/src/internal/syscall/unix/at_sysnum_openbsd.go
+index c2d48b9914..fd389477ec 100644
+--- a/src/internal/syscall/unix/at_sysnum_openbsd.go
++++ b/src/internal/syscall/unix/at_sysnum_openbsd.go
+@@ -12,3 +12,5 @@ const fstatatTrap uintptr = syscall.SYS_FSTATAT
+ 
+ const AT_REMOVEDIR = 0x08
+ const AT_SYMLINK_NOFOLLOW = 0x02
++
++const UTIME_OMIT = -0x1
+diff --git a/src/internal/syscall/unix/at_wasip1.go b/src/internal/syscall/unix/at_wasip1.go
+new file mode 100644
+index 0000000000..3d47d7ebe0
+--- /dev/null
++++ b/src/internal/syscall/unix/at_wasip1.go
+@@ -0,0 +1,13 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++const (
++	// UTIME_OMIT is the sentinel value to indicate that a time value should not
++	// be changed. It is useful for example to indicate for example with UtimesNano
++	// to avoid changing AccessTime or ModifiedTime.
++	// Its value must match syscall/fs_wasip1.go
++	UTIME_OMIT = -0x2
++)
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 6e05df160e..8336487c14 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -447,6 +447,7 @@ func chmod(name string, mode FileMode) error {
+ 
+ // Chtimes changes the access and modification times of the named
+ // file, similar to the Unix utime() or utimes() functions.
++// A zero time.Time value will leave the corresponding file time unchanged.
+ //
+ // The underlying filesystem may truncate or round the values to a
+ // less precise time unit.
+@@ -457,6 +458,12 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
+ 	d.Null()
+ 	d.Atime = uint32(atime.Unix())
+ 	d.Mtime = uint32(mtime.Unix())
++	if atime.IsZero() {
++		d.Atime = 0xFFFFFFFF
++	}
++	if mtime.IsZero() {
++		d.Mtime = 0xFFFFFFFF
++	}
+ 
+ 	var buf [syscall.STATFIXLEN]byte
+ 	n, err := d.Marshal(buf[:])
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 4e0f7c1d80..e06ab1b7b9 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -173,14 +173,22 @@ func (f *File) Sync() error {
+ 
+ // Chtimes changes the access and modification times of the named
+ // file, similar to the Unix utime() or utimes() functions.
++// A zero time.Time value will leave the corresponding file time unchanged.
+ //
+ // The underlying filesystem may truncate or round the values to a
+ // less precise time unit.
+ // If there is an error, it will be of type *PathError.
+ func Chtimes(name string, atime time.Time, mtime time.Time) error {
+ 	var utimes [2]syscall.Timespec
+-	utimes[0] = syscall.NsecToTimespec(atime.UnixNano())
+-	utimes[1] = syscall.NsecToTimespec(mtime.UnixNano())
++	set := func(i int, t time.Time) {
++		if t.IsZero() {
++			utimes[i] = syscall.Timespec{Sec: _UTIME_OMIT, Nsec: _UTIME_OMIT}
++		} else {
++			utimes[i] = syscall.NsecToTimespec(t.UnixNano())
++		}
++	}
++	set(0, atime)
++	set(1, mtime)
+ 	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
+ 		return &PathError{Op: "chtimes", Path: name, Err: e}
+ 	}
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index a14295cfff..f0e5d3cd4f 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -14,6 +14,8 @@ import (
+ 	"syscall"
+ )
+ 
++const _UTIME_OMIT = unix.UTIME_OMIT
++
+ // fixLongPath is a noop on non-Windows platforms.
+ func fixLongPath(path string) string {
+ 	return path
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 7e495069ef..f5a436e235 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -15,6 +15,8 @@ import (
+ 	"unsafe"
+ )
+ 
++const _UTIME_OMIT = 0
++
+ // file is the real representation of *File.
+ // The extra level of indirection ensures that no clients of os
+ // can overwrite this data, which could cause the finalizer
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index a0d9411b6e..3f4fbabb2d 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1386,6 +1386,128 @@ func TestChtimes(t *testing.T) {
+ 	testChtimes(t, f.Name())
+ }
+ 
++func TestChtimesWithZeroTimes(t *testing.T) {
++	file := newFile("chtimes-with-zero", t)
++	_, err := file.Write([]byte("hello, world\n"))
++	if err != nil {
++		t.Fatalf("Write: %s", err)
++	}
++	fName := file.Name()
++	defer Remove(file.Name())
++	err = file.Close()
++	if err != nil {
++		t.Errorf("%v", err)
++	}
++	fs, err := Stat(fName)
++	if err != nil {
++		t.Fatal(err)
++	}
++	startAtime := Atime(fs)
++	startMtime := fs.ModTime()
++	switch runtime.GOOS {
++	case "js":
++		startAtime = startAtime.Truncate(time.Second)
++		startMtime = startMtime.Truncate(time.Second)
++	}
++	at0 := startAtime
++	mt0 := startMtime
++	t0 := startMtime.Truncate(time.Second).Add(1 * time.Hour)
++
++	tests := []struct {
++		aTime     time.Time
++		mTime     time.Time
++		wantATime time.Time
++		wantMTime time.Time
++	}{
++		{
++			aTime:     time.Time{},
++			mTime:     time.Time{},
++			wantATime: startAtime,
++			wantMTime: startMtime,
++		},
++		{
++			aTime:     t0.Add(200 * time.Second),
++			mTime:     time.Time{},
++			wantATime: t0.Add(200 * time.Second),
++			wantMTime: startMtime,
++		},
++		{
++			aTime:     time.Time{},
++			mTime:     t0.Add(100 * time.Second),
++			wantATime: t0.Add(200 * time.Second),
++			wantMTime: t0.Add(100 * time.Second),
++		},
++		{
++			aTime:     t0.Add(300 * time.Second),
++			mTime:     t0.Add(100 * time.Second),
++			wantATime: t0.Add(300 * time.Second),
++			wantMTime: t0.Add(100 * time.Second),
++		},
++	}
++
++	for _, tt := range tests {
++		// Now change the times accordingly.
++		if err := Chtimes(fName, tt.aTime, tt.mTime); err != nil {
++			t.Error(err)
++		}
++
++		// Finally verify the expectations.
++		fs, err = Stat(fName)
++		if err != nil {
++			t.Error(err)
++		}
++		at0 = Atime(fs)
++		mt0 = fs.ModTime()
++
++		if got, want := at0, tt.wantATime; !got.Equal(want) {
++			errormsg := fmt.Sprintf("AccessTime mismatch with values ATime:%q-MTime:%q\ngot:  %q\nwant: %q", tt.aTime, tt.mTime, got, want)
++			switch runtime.GOOS {
++			case "plan9":
++				// Mtime is the time of the last change of
++				// content.  Similarly, atime is set whenever
++				// the contents are accessed; also, it is set
++				// whenever mtime is set.
++			case "windows":
++				t.Error(errormsg)
++			default: // unix's
++				if got, want := at0, tt.wantATime; !got.Equal(want) {
++					mounts, err := ReadFile("/bin/mounts")
++					if err != nil {
++						mounts, err = ReadFile("/etc/mtab")
++					}
++					if strings.Contains(string(mounts), "noatime") {
++						t.Log(errormsg)
++						t.Log("A filesystem is mounted with noatime; ignoring.")
++					} else {
++						switch runtime.GOOS {
++						case "netbsd", "dragonfly":
++							// On a 64-bit implementation, birth time is generally supported and cannot be changed.
++							// When supported, atime update is restricted and depends on the file system and on the
++							// OS configuration.
++							if strings.Contains(runtime.GOARCH, "64") {
++								t.Log(errormsg)
++								t.Log("Filesystem might not support atime changes; ignoring.")
++							}
++						default:
++							t.Error(errormsg)
++						}
++					}
++				}
++			}
++		}
++		if got, want := mt0, tt.wantMTime; !got.Equal(want) {
++			errormsg := fmt.Sprintf("ModTime mismatch with values ATime:%q-MTime:%q\ngot:  %q\nwant: %q", tt.aTime, tt.mTime, got, want)
++			switch runtime.GOOS {
++			case "dragonfly":
++				t.Log(errormsg)
++				t.Log("Mtime is always updated; ignoring.")
++			default:
++				t.Error(errormsg)
++			}
++		}
++	}
++}
++
+ // Use TempDir (via newDir) to make sure we're on a local file system,
+ // so that timings are not distorted by latency and caching.
+ // On NFS, timings can be off due to caching of meta-data on
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index ce0aa88828..793b9a2d41 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -273,6 +273,8 @@ func Lchown(path string, uid, gid int) error {
+ }
+ 
+ func UtimesNano(path string, ts []Timespec) error {
++	// UTIME_OMIT value must match internal/syscall/unix/at_js.go
++	const UTIME_OMIT = -0x2
+ 	if err := checkPath(path); err != nil {
+ 		return err
+ 	}
+@@ -281,6 +283,18 @@ func UtimesNano(path string, ts []Timespec) error {
+ 	}
+ 	atime := ts[0].Sec
+ 	mtime := ts[1].Sec
++	if atime == UTIME_OMIT || mtime == UTIME_OMIT {
++		var st Stat_t
++		if err := Stat(path, &st); err != nil {
++			return err
++		}
++		if atime == UTIME_OMIT {
++			atime = st.Atime
++		}
++		if mtime == UTIME_OMIT {
++			mtime = st.Mtime
++		}
++	}
+ 	_, err := fsCall("utimes", path, atime, mtime)
+ 	return err
+ }
+diff --git a/src/syscall/fs_wasip1.go b/src/syscall/fs_wasip1.go
+index fa7c5c8885..84c65c070f 100644
+--- a/src/syscall/fs_wasip1.go
++++ b/src/syscall/fs_wasip1.go
+@@ -663,17 +663,33 @@ func Lchown(path string, uid, gid int) error {
+ }
+ 
+ func UtimesNano(path string, ts []Timespec) error {
++	// UTIME_OMIT value must match internal/syscall/unix/at_wasip1.go
++	const UTIME_OMIT = -0x2
+ 	if path == "" {
+ 		return EINVAL
+ 	}
+ 	dirFd, pathPtr, pathLen := preparePath(path)
++	atime := TimespecToNsec(ts[0])
++	mtime := TimespecToNsec(ts[1])
++	if ts[0].Nsec == UTIME_OMIT || ts[1].Nsec == UTIME_OMIT {
++		var st Stat_t
++		if err := Stat(path, &st); err != nil {
++			return err
++		}
++		if ts[0].Nsec == UTIME_OMIT {
++			atime = int64(st.Atime)
++		}
++		if ts[1].Nsec == UTIME_OMIT {
++			mtime = int64(st.Mtime)
++		}
++	}
+ 	errno := path_filestat_set_times(
+ 		dirFd,
+ 		LOOKUP_SYMLINK_FOLLOW,
+ 		pathPtr,
+ 		pathLen,
+-		timestamp(TimespecToNsec(ts[0])),
+-		timestamp(TimespecToNsec(ts[1])),
++		timestamp(atime),
++		timestamp(mtime),
+ 		FILESTAT_SET_ATIM|FILESTAT_SET_MTIM,
+ 	)
+ 	return errnoErr(errno)
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index cf6049a2f2..1f7753663b 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -635,8 +635,14 @@ func Utimes(path string, tv []Timeval) (err error) {
+ 		return e
+ 	}
+ 	defer Close(h)
+-	a := NsecToFiletime(tv[0].Nanoseconds())
+-	w := NsecToFiletime(tv[1].Nanoseconds())
++	a := Filetime{}
++	w := Filetime{}
++	if tv[0].Nanoseconds() != 0 {
++		a = NsecToFiletime(tv[0].Nanoseconds())
++	}
++	if tv[0].Nanoseconds() != 0 {
++		w = NsecToFiletime(tv[1].Nanoseconds())
++	}
+ 	return SetFileTime(h, nil, &a, &w)
+ }
+ 
+@@ -655,8 +661,14 @@ func UtimesNano(path string, ts []Timespec) (err error) {
+ 		return e
+ 	}
+ 	defer Close(h)
+-	a := NsecToFiletime(TimespecToNsec(ts[0]))
+-	w := NsecToFiletime(TimespecToNsec(ts[1]))
++	a := Filetime{}
++	w := Filetime{}
++	if TimespecToNsec(ts[0]) != 0 {
++		a = NsecToFiletime(TimespecToNsec(ts[0]))
++	}
++	if TimespecToNsec(ts[1]) != 0 {
++		w = NsecToFiletime(TimespecToNsec(ts[1]))
++	}
+ 	return SetFileTime(h, nil, &a, &w)
+ }
+ 

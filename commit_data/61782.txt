@@ -16,6 +16,20 @@ Date:   Thu Nov 21 21:24:11 2024 -0500
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/http/transport_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 2ef754967a..d742b78cf8 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -7173,8 +7173,6 @@ func testValidateClientRequestTrailers(t *testing.T, mode testMode) {
+ }
+ 
+ func TestTransportServerProtocols(t *testing.T) {
+-	t.Skip("https://go.dev/issue/67816: skip test until h2_bundle.go is updated")
+-
+ 	CondSkipHTTP2(t)
+ 	DefaultTransport.(*Transport).CloseIdleConnections()
+ 

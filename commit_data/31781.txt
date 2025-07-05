@@ -27,7 +27,7 @@ Date:   Sun Feb 5 23:43:31 2017 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                | 24 +++++++---
  src/cmd/compile/internal/ssa/config.go            |  3 ++
  src/cmd/compile/internal/ssa/export_test.go       |  3 ++
@@ -36,3 +36,240 @@ Date:   Sun Feb 5 23:43:31 2017 -0500
  src/cmd/compile/internal/ssa/writebarrier.go      | 53 +++++++++++++++--------
  src/cmd/compile/internal/ssa/writebarrier_test.go |  4 +-
  7 files changed, 63 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e776d3f9f4..7534a1b422 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2359,6 +2359,14 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, skip skipMa
+ 	if left.Op == ONAME && skip == 0 {
+ 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
+ 	}
++	if isReflectHeaderDataField(left) {
++		// Package unsafe's documentation says storing pointers into
++		// reflect.SliceHeader and reflect.StringHeader's Data fields
++		// is valid, even though they have type uintptr (#19168).
++		// Mark it pointer type to signal the writebarrier pass to
++		// insert a write barrier.
++		t = Types[TUNSAFEPTR]
++	}
+ 	if deref {
+ 		// Treat as a mem->mem move.
+ 		if wb && !ssa.IsStackAddr(addr) {
+@@ -3422,9 +3430,9 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value) {
+ 
+ 	var val *ssa.Value
+ 	if right == nil {
+-		val = s.newValue2I(ssa.OpZeroWB, ssa.TypeMem, sizeAlignAuxInt(t), left, s.mem())
++		val = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), left, s.mem())
+ 	} else {
+-		val = s.newValue3I(ssa.OpMoveWB, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
++		val = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
+ 	}
+ 	//val.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(t))}
+ 	val.Aux = t
+@@ -3560,24 +3568,24 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
+ func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
+ 	switch {
+ 	case t.IsPtrShaped():
+-		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
+ 		store.Aux = t
+ 		s.vars[&memVar] = store
+ 	case t.IsString():
+ 		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), right)
+-		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+ 		store.Aux = ptrto(Types[TUINT8])
+ 		s.vars[&memVar] = store
+ 	case t.IsSlice():
+ 		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), right)
+-		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+ 		store.Aux = ptrto(Types[TUINT8])
+ 		s.vars[&memVar] = store
+ 	case t.IsInterface():
+ 		// itab field is treated as a scalar.
+ 		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
+ 		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(ptrto(Types[TUINT8])), s.config.PtrSize, left)
+-		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
+ 		store.Aux = ptrto(Types[TUINT8])
+ 		s.vars[&memVar] = store
+ 	case t.IsStruct():
+@@ -4962,6 +4970,10 @@ func (e *ssaExport) Debug_wb() bool {
+ 	return Debug_wb != 0
+ }
+ 
++func (e *ssaExport) UseWriteBarrier() bool {
++	return use_writebarrier
++}
++
+ func (e *ssaExport) Syslook(name string) *obj.LSym {
+ 	return Linksym(syslook(name).Sym)
+ }
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 978c0d6fa8..c447fc89c0 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -139,6 +139,9 @@ type Frontend interface {
+ 	// Syslook returns a symbol of the runtime function/variable with the
+ 	// given name.
+ 	Syslook(string) *obj.LSym
++
++	// UseWriteBarrier returns whether write barrier is enabled
++	UseWriteBarrier() bool
+ }
+ 
+ // interface used to hold *gc.Node. We'd use *gc.Node directly but
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index b687076a28..699e0efc20 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -88,6 +88,9 @@ func (DummyFrontend) AllocFrame(f *Func) {
+ func (DummyFrontend) Syslook(s string) *obj.LSym {
+ 	return obj.Linklookup(TestCtxt, s, 0)
+ }
++func (DummyFrontend) UseWriteBarrier() bool {
++	return true // only writebarrier_test cares
++}
+ 
+ func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Log() bool                            { return true }
+diff --git a/src/cmd/compile/internal/ssa/loop_test.go b/src/cmd/compile/internal/ssa/loop_test.go
+index 0901263432..40c9aee4ad 100644
+--- a/src/cmd/compile/internal/ssa/loop_test.go
++++ b/src/cmd/compile/internal/ssa/loop_test.go
+@@ -66,7 +66,7 @@ func TestLoopConditionS390X(t *testing.T) {
+ 			Goto("b1")),
+ 		Bloc("b3",
+ 			Valu("retdef", OpVarDef, TypeMem, 0, nil, "mem"),
+-			Valu("store", OpStore, TypeMem, 8, nil, "ret", "phisum", "retdef"),
++			Valu("store", OpStore, TypeMem, 8, TypeInt64, "ret", "phisum", "retdef"),
+ 			Exit("store")))
+ 	CheckFunc(fun.f)
+ 	Compile(fun.f)
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index 488b7faf29..e6a5f9b5db 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -41,7 +41,7 @@ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
+ 			Valu("load", OpLoad, typ, 0, nil, "argptr", "mem"),
+ 			Valu("c", OpConst64, TypeUInt64, amount, nil),
+ 			Valu("shift", op, typ, 0, nil, "load", "c"),
+-			Valu("store", OpStore, TypeMem, 8, nil, "resptr", "shift", "mem"),
++			Valu("store", OpStore, TypeMem, 8, TypeUInt64, "resptr", "shift", "mem"),
+ 			Exit("store")))
+ 	Compile(fun.f)
+ 	return fun
+@@ -101,7 +101,7 @@ func makeShiftExtensionFunc(c *Config, amount int64, lshift, rshift Op, typ Type
+ 			Valu("c", OpConst64, TypeUInt64, amount, nil),
+ 			Valu("lshift", lshift, typ, 0, nil, "load", "c"),
+ 			Valu("rshift", rshift, typ, 0, nil, "lshift", "c"),
+-			Valu("store", OpStore, TypeMem, 8, nil, "resptr", "rshift", "mem"),
++			Valu("store", OpStore, TypeMem, 8, TypeUInt64, "resptr", "rshift", "mem"),
+ 			Exit("store")))
+ 	Compile(fun.f)
+ 	return fun
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 961cf2b2a8..ad53089d80 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -9,8 +9,25 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-// writebarrier expands write barrier ops (StoreWB, MoveWB, etc.) into
+-// branches and runtime calls, like
++// needwb returns whether we need write barrier for store op v.
++// v must be Store/Move/Zero.
++func needwb(v *Value) bool {
++	t, ok := v.Aux.(Type)
++	if !ok {
++		v.Fatalf("store aux is not a type: %s", v.LongString())
++	}
++	if !t.HasPointer() {
++		return false
++	}
++	if IsStackAddr(v.Args[0]) {
++		return false // write on stack doesn't need write barrier
++	}
++	return true
++}
++
++// writebarrier pass inserts write barriers for store ops (Store, Move, Zero)
++// when necessary (the condition above). It rewrites store ops to branches
++// and runtime calls, like
+ //
+ // if writeBarrier.enabled {
+ //   writebarrierptr(ptr, val)
+@@ -18,11 +35,13 @@ import (
+ //   *ptr = val
+ // }
+ //
+-// If ptr is an address of a stack slot, write barrier will be removed
+-// and a normal store will be used.
+ // A sequence of WB stores for many pointer fields of a single type will
+ // be emitted together, with a single branch.
+ func writebarrier(f *Func) {
++	if !f.Config.fe.UseWriteBarrier() {
++		return
++	}
++
+ 	var sb, sp, wbaddr, const0 *Value
+ 	var writebarrierptr, typedmemmove, typedmemclr *obj.LSym
+ 	var stores, after []*Value
+@@ -30,27 +49,23 @@ func writebarrier(f *Func) {
+ 	var storeNumber []int32
+ 
+ 	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no stores to expand
+-		// rewrite write barrier for stack writes to ordinary Store/Move/Zero,
+-		// record presence of non-stack WB ops.
++		// first, identify all the stores that need to insert a write barrier.
++		// mark them with WB ops temporarily. record presence of WB ops.
+ 		hasStore := false
+ 		for _, v := range b.Values {
+ 			switch v.Op {
+-			case OpStoreWB, OpMoveWB, OpZeroWB:
+-				if IsStackAddr(v.Args[0]) {
++			case OpStore, OpMove, OpZero:
++				if needwb(v) {
+ 					switch v.Op {
+-					case OpStoreWB:
+-						v.Op = OpStore
+-					case OpMoveWB:
+-						v.Op = OpMove
+-						v.Aux = nil
+-					case OpZeroWB:
+-						v.Op = OpZero
+-						v.Aux = nil
++					case OpStore:
++						v.Op = OpStoreWB
++					case OpMove:
++						v.Op = OpMoveWB
++					case OpZero:
++						v.Op = OpZeroWB
+ 					}
+-					continue
++					hasStore = true
+ 				}
+-				hasStore = true
+-				break
+ 			}
+ 		}
+ 		if !hasStore {
+diff --git a/src/cmd/compile/internal/ssa/writebarrier_test.go b/src/cmd/compile/internal/ssa/writebarrier_test.go
+index c2ba695971..aaaa35a064 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier_test.go
++++ b/src/cmd/compile/internal/ssa/writebarrier_test.go
+@@ -17,8 +17,8 @@ func TestWriteBarrierStoreOrder(t *testing.T) {
+ 			Valu("sp", OpSP, TypeInvalid, 0, nil),
+ 			Valu("v", OpConstNil, ptrType, 0, nil),
+ 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
+-			Valu("wb2", OpStoreWB, TypeMem, 8, nil, "addr1", "v", "wb1"),
+-			Valu("wb1", OpStoreWB, TypeMem, 8, nil, "addr1", "v", "start"), // wb1 and wb2 are out of order
++			Valu("wb2", OpStore, TypeMem, 8, ptrType, "addr1", "v", "wb1"),
++			Valu("wb1", OpStore, TypeMem, 8, ptrType, "addr1", "v", "start"), // wb1 and wb2 are out of order
+ 			Goto("exit")),
+ 		Bloc("exit",
+ 			Exit("wb2")))

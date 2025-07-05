@@ -47,8 +47,153 @@ Date:   Fri Mar 29 10:43:31 2019 -0700
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/export_test.go |  2 ++
  src/runtime/proc.go        | 28 ++++++++++---------
  src/runtime/proc_test.go   | 67 ++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 84 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 9eaf92dc7c..a16e664895 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -34,6 +34,8 @@ var Fastlog2 = fastlog2
+ var Atoi = atoi
+ var Atoi32 = atoi32
+ 
++var Nanotime = nanotime
++
+ type LFNode struct {
+ 	Next    uint64
+ 	Pushcnt uintptr
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 6b5b3e2b2b..29763d328a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4380,10 +4380,24 @@ func retake(now int64) uint32 {
+ 		}
+ 		pd := &_p_.sysmontick
+ 		s := _p_.status
++		sysretake := false
++		if s == _Prunning || s == _Psyscall {
++			// Preempt G if it's running for too long.
++			t := int64(_p_.schedtick)
++			if int64(pd.schedtick) != t {
++				pd.schedtick = uint32(t)
++				pd.schedwhen = now
++			} else if pd.schedwhen+forcePreemptNS <= now {
++				preemptone(_p_)
++				// In case of syscall, preemptone() doesn't
++				// work, because there is no M wired to P.
++				sysretake = true
++			}
++		}
+ 		if s == _Psyscall {
+ 			// Retake P from syscall if it's there for more than 1 sysmon tick (at least 20us).
+ 			t := int64(_p_.syscalltick)
+-			if int64(pd.syscalltick) != t {
++			if !sysretake && int64(pd.syscalltick) != t {
+ 				pd.syscalltick = uint32(t)
+ 				pd.syscallwhen = now
+ 				continue
+@@ -4412,18 +4426,6 @@ func retake(now int64) uint32 {
+ 			}
+ 			incidlelocked(1)
+ 			lock(&allpLock)
+-		} else if s == _Prunning {
+-			// Preempt G if it's running for too long.
+-			t := int64(_p_.schedtick)
+-			if int64(pd.schedtick) != t {
+-				pd.schedtick = uint32(t)
+-				pd.schedwhen = now
+-				continue
+-			}
+-			if pd.schedwhen+forcePreemptNS > now {
+-				continue
+-			}
+-			preemptone(_p_)
+ 		}
+ 	}
+ 	unlock(&allpLock)
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 1715324aa0..09b0652bee 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"fmt"
+ 	"math"
+ 	"net"
+ 	"runtime"
+@@ -910,3 +911,69 @@ func TestLockOSThreadAvoidsStatePropagation(t *testing.T) {
+ 		t.Errorf("want %q, got %q", want, output)
+ 	}
+ }
++
++// fakeSyscall emulates a system call.
++//go:nosplit
++func fakeSyscall(duration time.Duration) {
++	runtime.Entersyscall()
++	for start := runtime.Nanotime(); runtime.Nanotime()-start < int64(duration); {
++	}
++	runtime.Exitsyscall()
++}
++
++// Check that a goroutine will be preempted if it is calling short system calls.
++func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("no preemption on wasm yet")
++	}
++
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
++
++	interations := 10
++	if testing.Short() {
++		interations = 1
++	}
++	const (
++		maxDuration = 3 * time.Second
++		nroutines   = 8
++	)
++
++	for i := 0; i < interations; i++ {
++		c := make(chan bool, nroutines)
++		stop := uint32(0)
++
++		start := time.Now()
++		for g := 0; g < nroutines; g++ {
++			go func(stop *uint32) {
++				c <- true
++				for atomic.LoadUint32(stop) == 0 {
++					fakeSyscall(syscallDuration)
++				}
++				c <- true
++			}(&stop)
++		}
++		// wait until all goroutines have started.
++		for g := 0; g < nroutines; g++ {
++			<-c
++		}
++		atomic.StoreUint32(&stop, 1)
++		// wait until all goroutines have finished.
++		for g := 0; g < nroutines; g++ {
++			<-c
++		}
++		duration := time.Since(start)
++
++		if duration > maxDuration {
++			t.Errorf("timeout exceeded: %v (%v)", duration, maxDuration)
++		}
++	}
++}
++
++func TestPreemptionAfterSyscall(t *testing.T) {
++	for _, i := range []time.Duration{10, 100, 1000} {
++		d := i * time.Microsecond
++		t.Run(fmt.Sprint(d), func(t *testing.T) {
++			testPreemptionAfterSyscall(t, d)
++		})
++	}
++}

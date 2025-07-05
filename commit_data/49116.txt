@@ -20,9 +20,290 @@ Date:   Fri Jul 9 15:24:15 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/encoding_test.go | 42 ++++++++++++++++
  src/internal/fuzz/fuzz.go          | 32 +++----------
  src/internal/fuzz/worker.go        | 26 ++++++++--
  src/internal/fuzz/worker_test.go   | 98 ++++++++++++++++++++++++++++++++++++++
  4 files changed, 170 insertions(+), 28 deletions(-)
+
+diff --git a/src/internal/fuzz/encoding_test.go b/src/internal/fuzz/encoding_test.go
+index 3cd8d0e2ab..314f82a995 100644
+--- a/src/internal/fuzz/encoding_test.go
++++ b/src/internal/fuzz/encoding_test.go
+@@ -5,6 +5,7 @@
+ package fuzz
+ 
+ import (
++	"strconv"
+ 	"strings"
+ 	"testing"
+ )
+@@ -120,3 +121,44 @@ float32(2.5)`,
+ 		})
+ 	}
+ }
++
++// BenchmarkMarshalCorpusFile measures the time it takes to serialize byte
++// slices of various sizes to a corpus file. The slice contains a repeating
++// sequence of bytes 0-255 to mix escaped and non-escaped characters.
++func BenchmarkMarshalCorpusFile(b *testing.B) {
++	buf := make([]byte, 1024*1024)
++	for i := 0; i < len(buf); i++ {
++		buf[i] = byte(i)
++	}
++
++	for sz := 1; sz <= len(buf); sz <<= 1 {
++		sz := sz
++		b.Run(strconv.Itoa(sz), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				b.SetBytes(int64(sz))
++				marshalCorpusFile(buf[:sz])
++			}
++		})
++	}
++}
++
++// BenchmarkUnmarshalCorpusfile measures the time it takes to deserialize
++// files encoding byte slices of various sizes. The slice contains a repeating
++// sequence of bytes 0-255 to mix escaped and non-escaped characters.
++func BenchmarkUnmarshalCorpusFile(b *testing.B) {
++	buf := make([]byte, 1024*1024)
++	for i := 0; i < len(buf); i++ {
++		buf[i] = byte(i)
++	}
++
++	for sz := 1; sz <= len(buf); sz <<= 1 {
++		sz := sz
++		data := marshalCorpusFile(buf[:sz])
++		b.Run(strconv.Itoa(sz), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				b.SetBytes(int64(sz))
++				unmarshalCorpusFile(data)
++			}
++		})
++	}
++}
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 9ffa8beb16..673727e291 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -110,30 +110,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 		defer cancel()
+ 	}
+ 
+-	// TODO(jayconrod): do we want to support fuzzing different binaries?
+-	dir := "" // same as self
+-	binPath := os.Args[0]
+-	args := append([]string{"-test.fuzzworker"}, os.Args[1:]...)
+-	env := os.Environ() // same as self
+-
+-	// newWorker creates a worker but doesn't start it yet.
+-	newWorker := func() (*worker, error) {
+-		mem, err := sharedMemTempFile(workerSharedMemSize)
+-		if err != nil {
+-			return nil, err
+-		}
+-		memMu := make(chan *sharedMem, 1)
+-		memMu <- mem
+-		return &worker{
+-			dir:         dir,
+-			binPath:     binPath,
+-			args:        args,
+-			env:         env[:len(env):len(env)], // copy on append to ensure workers don't overwrite each other.
+-			coordinator: c,
+-			memMu:       memMu,
+-		}, nil
+-	}
+-
+ 	// fuzzCtx is used to stop workers, for example, after finding a crasher.
+ 	fuzzCtx, cancelWorkers := context.WithCancel(ctx)
+ 	defer cancelWorkers()
+@@ -163,11 +139,17 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 	}
+ 
+ 	// Start workers.
++	// TODO(jayconrod): do we want to support fuzzing different binaries?
++	dir := "" // same as self
++	binPath := os.Args[0]
++	args := append([]string{"-test.fuzzworker"}, os.Args[1:]...)
++	env := os.Environ() // same as self
++
+ 	errC := make(chan error)
+ 	workers := make([]*worker, opts.Parallel)
+ 	for i := range workers {
+ 		var err error
+-		workers[i], err = newWorker()
++		workers[i], err = newWorker(c, dir, binPath, args, env)
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index d8cc10d3d4..2acbf30ead 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -59,6 +59,23 @@ type worker struct {
+ 	termC       chan struct{} // closed by wait when worker process terminates
+ }
+ 
++func newWorker(c *coordinator, dir, binPath string, args, env []string) (*worker, error) {
++	mem, err := sharedMemTempFile(workerSharedMemSize)
++	if err != nil {
++		return nil, err
++	}
++	memMu := make(chan *sharedMem, 1)
++	memMu <- mem
++	return &worker{
++		dir:         dir,
++		binPath:     binPath,
++		args:        args,
++		env:         env[:len(env):len(env)], // copy on append to ensure workers don't overwrite each other.
++		coordinator: c,
++		memMu:       memMu,
++	}, nil
++}
++
+ // cleanup releases persistent resources associated with the worker.
+ func (w *worker) cleanup() error {
+ 	mem := <-w.memMu
+@@ -625,8 +642,11 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 	start := time.Now()
+ 	defer func() { resp.TotalDuration = time.Since(start) }()
+ 
+-	fuzzCtx, cancel := context.WithTimeout(ctx, args.Timeout)
+-	defer cancel()
++	if args.Timeout != 0 {
++		var cancel func()
++		ctx, cancel = context.WithTimeout(ctx, args.Timeout)
++		defer cancel()
++	}
+ 	mem := <-ws.memMu
+ 	defer func() {
+ 		resp.Count = mem.header().count
+@@ -654,7 +674,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 	}
+ 	for {
+ 		select {
+-		case <-fuzzCtx.Done():
++		case <-ctx.Done():
+ 			return resp
+ 
+ 		default:
+diff --git a/src/internal/fuzz/worker_test.go b/src/internal/fuzz/worker_test.go
+index b536b3db12..6c75fc412c 100644
+--- a/src/internal/fuzz/worker_test.go
++++ b/src/internal/fuzz/worker_test.go
+@@ -6,11 +6,26 @@ package fuzz
+ 
+ import (
+ 	"context"
++	"flag"
+ 	"fmt"
++	"io"
+ 	"os"
++	"os/signal"
++	"reflect"
+ 	"testing"
+ )
+ 
++var benchmarkWorkerFlag = flag.Bool("benchmarkworker", false, "")
++
++func TestMain(m *testing.M) {
++	flag.Parse()
++	if *benchmarkWorkerFlag {
++		runBenchmarkWorker()
++		return
++	}
++	os.Exit(m.Run())
++}
++
+ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
+ 	origEnv := os.Getenv("GODEBUG")
+ 	defer func() { os.Setenv("GODEBUG", origEnv) }()
+@@ -46,3 +61,86 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
+ 		ws.fuzz(context.Background(), fuzzArgs{Limit: 1})
+ 	}
+ }
++
++// BenchmarkWorkerPing acts as the coordinator and measures the time it takes
++// a worker to respond to N pings. This is a rough measure of our RPC latency.
++func BenchmarkWorkerPing(b *testing.B) {
++	b.SetParallelism(1)
++	w := newWorkerForTest(b)
++	for i := 0; i < b.N; i++ {
++		if err := w.client.ping(context.Background()); err != nil {
++			b.Fatal(err)
++		}
++	}
++}
++
++// BenchmarkWorkerFuzz acts as the coordinator and measures the time it takes
++// a worker to mutate a given input and call a trivial fuzz function N times.
++func BenchmarkWorkerFuzz(b *testing.B) {
++	b.SetParallelism(1)
++	w := newWorkerForTest(b)
++	data := marshalCorpusFile([]byte(nil))
++	for i := int64(0); i < int64(b.N); {
++		args := fuzzArgs{
++			Limit:   int64(b.N) - i,
++			Timeout: workerFuzzDuration,
++		}
++		_, resp, err := w.client.fuzz(context.Background(), data, args)
++		if err != nil {
++			b.Fatal(err)
++		}
++		if resp.Err != "" {
++			b.Fatal(resp.Err)
++		}
++		if resp.Count == 0 {
++			b.Fatal("worker did not make progress")
++		}
++		i += resp.Count
++	}
++}
++
++// newWorkerForTest creates and starts a worker process for testing or
++// benchmarking. The worker process calls RunFuzzWorker, which responds to
++// RPC messages until it's stopped. The process is stopped and cleaned up
++// automatically when the test is done.
++func newWorkerForTest(tb testing.TB) *worker {
++	tb.Helper()
++	c, err := newCoordinator(CoordinateFuzzingOpts{
++		Types: []reflect.Type{reflect.TypeOf([]byte(nil))},
++		Log:   io.Discard,
++	})
++	if err != nil {
++		tb.Fatal(err)
++	}
++	dir := ""             // same as self
++	binPath := os.Args[0] // same as self
++	args := append(os.Args[1:], "-benchmarkworker")
++	env := os.Environ() // same as self
++	w, err := newWorker(c, dir, binPath, args, env)
++	if err != nil {
++		tb.Fatal(err)
++	}
++	tb.Cleanup(func() {
++		if err := w.cleanup(); err != nil {
++			tb.Error(err)
++		}
++	})
++	if err := w.startAndPing(context.Background()); err != nil {
++		tb.Fatal(err)
++	}
++	tb.Cleanup(func() {
++		if err := w.stop(); err != nil {
++			tb.Error(err)
++		}
++	})
++	return w
++}
++
++func runBenchmarkWorker() {
++	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
++	defer cancel()
++	fn := func(CorpusEntry) error { return nil }
++	if err := RunFuzzWorker(ctx, fn); err != nil && err != ctx.Err() {
++		panic(err)
++	}
++}

@@ -23,7 +23,7 @@ Date:   Tue Mar 19 11:14:35 2013 -0700
     R=r, cnicolaou
     CC=gobot, golang-dev
     https://golang.org/cl/7496048
-
+---
  lib/godoc/package.html               |  4 +-
  lib/godoc/package.txt                |  2 +-
  src/cmd/godoc/godoc.go               | 14 +++----
@@ -35,3 +35,390 @@ Date:   Tue Mar 19 11:14:35 2013 -0700
  src/pkg/go/doc/testdata/a0.go        | 23 +++++++++++
  src/pkg/go/doc/testdata/template.txt |  2 +-
  10 files changed, 150 insertions(+), 61 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 6795d142d1..33c2c27917 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -169,9 +169,11 @@
+ 	{{with $.Notes}}
+ 		{{range $marker, $content := .}}
+ 			<h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
++			<ul>
+ 			{{range .}}
+-			{{comment_html .}}
++			<li>{{html .Body}}</li>
+ 			{{end}}
++			</ul>
+ 		{{end}}
+ 	{{end}}
+ {{end}}
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index 765bd769e1..bc11fc3c54 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -67,7 +67,7 @@ TYPES
+ {{range $marker, $content := .}}
+ {{$marker}}S
+ 
+-{{range $content}}{{comment_text . "    " "\t"}}
++{{range $content}}{{comment_text .Body "   " "\t"}}
+ {{end}}{{end}}{{end}}{{end}}{{/*
+ 
+ ---------------------------------------
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 872b0dc1ed..82ede0d14e 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -911,12 +911,12 @@ type PageInfo struct {
+ 	Err     error  // error or nil
+ 
+ 	// package info
+-	FSet     *token.FileSet      // nil if no package documentation
+-	PDoc     *doc.Package        // nil if no package documentation
+-	Examples []*doc.Example      // nil if no example code
+-	Notes    map[string][]string // nil if no package Notes
+-	PAst     *ast.File           // nil if no AST with package exports
+-	IsMain   bool                // true for package main
++	FSet     *token.FileSet         // nil if no package documentation
++	PDoc     *doc.Package           // nil if no package documentation
++	Examples []*doc.Example         // nil if no example code
++	Notes    map[string][]*doc.Note // nil if no package Notes
++	PAst     *ast.File              // nil if no AST with package exports
++	IsMain   bool                   // true for package main
+ 
+ 	// directory info
+ 	Dirs    *DirList  // nil if no directory information
+@@ -1100,7 +1100,7 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) (inf
+ 
+ 			// collect any notes that we want to show
+ 			if info.PDoc.Notes != nil {
+-				info.Notes = make(map[string][]string)
++				info.Notes = make(map[string][]*doc.Note)
+ 				for _, m := range notesToShow {
+ 					if n := info.PDoc.Notes[m]; n != nil {
+ 						info.Notes[m] = n
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 65b1b83eba..96d867caea 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -17,17 +17,11 @@ type Package struct {
+ 	ImportPath string
+ 	Imports    []string
+ 	Filenames  []string
++	Notes      map[string][]*Note
+ 	// DEPRECATED. For backward compatibility Bugs is still populated,
+ 	// but all new code should use Notes instead.
+ 	Bugs []string
+ 
+-	// Notes such as TODO(userid): or SECURITY(userid):
+-	// along the lines of BUG(userid). Any marker with 2 or more upper
+-	// case [A-Z] letters is recognised.
+-	// BUG is explicitly not included in these notes but will
+-	// be in a subsequent change when the Bugs field above is removed.
+-	Notes map[string][]string
+-
+ 	// declarations
+ 	Consts []*Value
+ 	Types  []*Type
+@@ -70,6 +64,16 @@ type Func struct {
+ 	Level int    // embedding level; 0 means not embedded
+ }
+ 
++// A Note represents marked comments starting with "MARKER(uid): note body".
++// Any note with a marker of 2 or more upper case [A-Z] letters and a uid of
++// at least one character is recognized. The ":" following the uid is optional.
++// Notes are collected in the Package.Notes map indexed by the notes marker.
++type Note struct {
++	Pos  token.Pos // position of the comment containing the marker
++	UID  string    // uid found with the marker
++	Body string    // note body text
++}
++
+ // Mode values control the operation of New.
+ type Mode int
+ 
+@@ -97,8 +101,8 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+ 		ImportPath: importPath,
+ 		Imports:    sortedKeys(r.imports),
+ 		Filenames:  r.filenames,
+-		Bugs:       r.bugs,
+ 		Notes:      r.notes,
++		Bugs:       noteBodies(r.notes["BUG"]),
+ 		Consts:     sortedValues(r.values, token.CONST),
+ 		Types:      sortedTypes(r.types, mode&AllMethods != 0),
+ 		Vars:       sortedValues(r.values, token.VAR),
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index a1b7b84be9..7e1422d0c4 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -148,8 +148,7 @@ type reader struct {
+ 	// package properties
+ 	doc       string // package documentation, if any
+ 	filenames []string
+-	bugs      []string
+-	notes     map[string][]string
++	notes     map[string][]*Note
+ 
+ 	// declarations
+ 	imports map[string]int
+@@ -401,21 +400,54 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ }
+ 
+ var (
+-	noteMarker  = regexp.MustCompile(`^/[/*][ \t]*([A-Z][A-Z]+)\(.+\):[ \t]*(.*)`) // MARKER(uid)
+-	noteContent = regexp.MustCompile(`[^ \n\r\t]+`)                                // at least one non-whitespace char
++	noteMarker    = `([A-Z][A-Z]+)\(([^)]+)\):?`                    // MARKER(uid), MARKER at least 2 chars, uid at least 1 char
++	noteMarkerRx  = regexp.MustCompile(`^[ \t]*` + noteMarker)      // MARKER(uid) at text start
++	noteCommentRx = regexp.MustCompile(`^/[/*][ \t]*` + noteMarker) // MARKER(uid) at comment start
+ )
+ 
+-func readNote(c *ast.CommentGroup) (marker, annotation string) {
+-	text := c.List[0].Text
+-	if m := noteMarker.FindStringSubmatch(text); m != nil {
+-		if btxt := m[2]; noteContent.MatchString(btxt) {
+-			// non-empty MARKER comment; collect comment without the MARKER prefix
+-			list := append([]*ast.Comment(nil), c.List...) // make a copy
+-			list[0].Text = m[2]
+-			return m[1], (&ast.CommentGroup{List: list}).Text()
++// readNote collects a single note from a sequence of comments.
++//
++func (r *reader) readNote(list []*ast.Comment) {
++	text := (&ast.CommentGroup{List: list}).Text()
++	if m := noteMarkerRx.FindStringSubmatchIndex(text); m != nil {
++		// The note body starts after the marker.
++		// We remove any formatting so that we don't
++		// get spurious line breaks/indentation when
++		// showing the TODO body.
++		body := clean(text[m[1]:])
++		if body != "" {
++			marker := text[m[2]:m[3]]
++			r.notes[marker] = append(r.notes[marker], &Note{
++				Pos:  list[0].Pos(),
++				UID:  text[m[4]:m[5]],
++				Body: body,
++			})
++		}
++	}
++}
++
++// readNotes extracts notes from comments.
++// A note must start at the beginning of a comment with "MARKER(uid):"
++// and is followed by the note body (e.g., "// BUG(gri): fix this").
++// The note ends at the end of the comment group or at the start of
++// another note in the same comment group, whichever comes first.
++//
++func (r *reader) readNotes(comments []*ast.CommentGroup) {
++	for _, group := range comments {
++		i := -1 // comment index of most recent note start, valid if >= 0
++		list := group.List
++		for j, c := range list {
++			if noteCommentRx.MatchString(c.Text) {
++				if i >= 0 {
++					r.readNote(list[i:j])
++				}
++				i = j
++			}
++		}
++		if i >= 0 {
++			r.readNote(list[i:])
+ 		}
+ 	}
+-	return "", ""
+ }
+ 
+ // readFile adds the AST for a source file to the reader.
+@@ -484,14 +516,7 @@ func (r *reader) readFile(src *ast.File) {
+ 	}
+ 
+ 	// collect MARKER(...): annotations
+-	for _, c := range src.Comments {
+-		if marker, text := readNote(c); marker != "" {
+-			r.notes[marker] = append(r.notes[marker], text)
+-			if marker == "BUG" {
+-				r.bugs = append(r.bugs, text)
+-			}
+-		}
+-	}
++	r.readNotes(src.Comments)
+ 	src.Comments = nil // consumed unassociated comments - remove from AST
+ }
+ 
+@@ -502,7 +527,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
+ 	r.mode = mode
+ 	r.types = make(map[string]*namedType)
+ 	r.funcs = make(methodSet)
+-	r.notes = make(map[string][]string)
++	r.notes = make(map[string][]*Note)
+ 
+ 	// sort package files before reading them so that the
+ 	// result does not depend on map iteration order
+@@ -764,6 +789,17 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
+ 	return list
+ }
+ 
++// noteBodies returns a list of note body strings given a list of notes.
++// This is only used to populate the deprecated Package.Bugs field.
++//
++func noteBodies(notes []*Note) []string {
++	var list []string
++	for _, n := range notes {
++		list = append(list, n.Body)
++	}
++	return list
++}
++
+ // ----------------------------------------------------------------------------
+ // Predeclared identifiers
+ 
+diff --git a/src/pkg/go/doc/testdata/a.0.golden b/src/pkg/go/doc/testdata/a.0.golden
+index ae3756c842..cd98f4e0eb 100644
+--- a/src/pkg/go/doc/testdata/a.0.golden
++++ b/src/pkg/go/doc/testdata/a.0.golden
+@@ -9,16 +9,24 @@ FILENAMES
+ 	testdata/a1.go
+ 
+ BUGS .Bugs is now deprecated, please use .Notes instead
+-	// bug0 
+-	// bug1 
++	// bug0
++	// bug1
+ 
+ BUGS
+-	// bug0 
+-	// bug1 
++	// bug0 (uid: uid)
++	// bug1 (uid: uid)
++
++NOTES
++	// 1 of 4 - this is the first line of note 1 - note 1 continues on ... (uid: foo)
++	// 2 of 4 (uid: foo)
++	// 3 of 4 (uid: bar)
++	// 4 of 4 - this is the last line of note 4 (uid: bar)
++	// This note which contains a (parenthesized) subphrase must ... (uid: bam)
++	// The ':' after the marker and uid is optional. (uid: xxx)
+ 
+ SECBUGS
+-	// sec hole 0 need to fix asap 
++	// sec hole 0 need to fix asap (uid: uid)
+ 
+ TODOS
+-	// todo0 
+-	// todo1 
++	// todo0 (uid: uid)
++	// todo1 (uid: uid)
+diff --git a/src/pkg/go/doc/testdata/a.1.golden b/src/pkg/go/doc/testdata/a.1.golden
+index ae3756c842..cd98f4e0eb 100644
+--- a/src/pkg/go/doc/testdata/a.1.golden
++++ b/src/pkg/go/doc/testdata/a.1.golden
+@@ -9,16 +9,24 @@ FILENAMES
+ 	testdata/a1.go
+ 
+ BUGS .Bugs is now deprecated, please use .Notes instead
+-	// bug0 
+-	// bug1 
++	// bug0
++	// bug1
+ 
+ BUGS
+-	// bug0 
+-	// bug1 
++	// bug0 (uid: uid)
++	// bug1 (uid: uid)
++
++NOTES
++	// 1 of 4 - this is the first line of note 1 - note 1 continues on ... (uid: foo)
++	// 2 of 4 (uid: foo)
++	// 3 of 4 (uid: bar)
++	// 4 of 4 - this is the last line of note 4 (uid: bar)
++	// This note which contains a (parenthesized) subphrase must ... (uid: bam)
++	// The ':' after the marker and uid is optional. (uid: xxx)
+ 
+ SECBUGS
+-	// sec hole 0 need to fix asap 
++	// sec hole 0 need to fix asap (uid: uid)
+ 
+ TODOS
+-	// todo0 
+-	// todo1 
++	// todo0 (uid: uid)
++	// todo1 (uid: uid)
+diff --git a/src/pkg/go/doc/testdata/a.2.golden b/src/pkg/go/doc/testdata/a.2.golden
+index ae3756c842..cd98f4e0eb 100644
+--- a/src/pkg/go/doc/testdata/a.2.golden
++++ b/src/pkg/go/doc/testdata/a.2.golden
+@@ -9,16 +9,24 @@ FILENAMES
+ 	testdata/a1.go
+ 
+ BUGS .Bugs is now deprecated, please use .Notes instead
+-	// bug0 
+-	// bug1 
++	// bug0
++	// bug1
+ 
+ BUGS
+-	// bug0 
+-	// bug1 
++	// bug0 (uid: uid)
++	// bug1 (uid: uid)
++
++NOTES
++	// 1 of 4 - this is the first line of note 1 - note 1 continues on ... (uid: foo)
++	// 2 of 4 (uid: foo)
++	// 3 of 4 (uid: bar)
++	// 4 of 4 - this is the last line of note 4 (uid: bar)
++	// This note which contains a (parenthesized) subphrase must ... (uid: bam)
++	// The ':' after the marker and uid is optional. (uid: xxx)
+ 
+ SECBUGS
+-	// sec hole 0 need to fix asap 
++	// sec hole 0 need to fix asap (uid: uid)
+ 
+ TODOS
+-	// todo0 
+-	// todo1 
++	// todo0 (uid: uid)
++	// todo1 (uid: uid)
+diff --git a/src/pkg/go/doc/testdata/a0.go b/src/pkg/go/doc/testdata/a0.go
+index 71af470eea..2420c8a483 100644
+--- a/src/pkg/go/doc/testdata/a0.go
++++ b/src/pkg/go/doc/testdata/a0.go
+@@ -15,3 +15,26 @@ package a
+ 
+ // SECBUG(uid): sec hole 0
+ // need to fix asap
++
++// Multiple notes may be in the same comment group and should be
++// recognized individually. Notes may start in the middle of a
++// comment group as long as they start at the beginning of an
++// individual comment.
++//
++// NOTE(foo): 1 of 4 - this is the first line of note 1
++// - note 1 continues on this 2nd line
++// - note 1 continues on this 3rd line
++// NOTE(foo): 2 of 4
++// NOTE(bar): 3 of 4
++/* NOTE(bar): 4 of 4 */
++// - this is the last line of note 4
++//
++//
++
++// NOTE(bam): This note which contains a (parenthesized) subphrase
++//            must appear in its entirety.
++
++// NOTE(xxx) The ':' after the marker and uid is optional.
++
++// NOTE(): NO uid - should not show up.
++// NOTE()  NO uid - should not show up.
+diff --git a/src/pkg/go/doc/testdata/template.txt b/src/pkg/go/doc/testdata/template.txt
+index d3882b6b95..26482f7c24 100644
+--- a/src/pkg/go/doc/testdata/template.txt
++++ b/src/pkg/go/doc/testdata/template.txt
+@@ -64,5 +64,5 @@ BUGS .Bugs is now deprecated, please use .Notes instead
+ {{range .}}	{{synopsis .}}
+ {{end}}{{end}}{{with .Notes}}{{range $marker, $content := .}}
+ {{$marker}}S
+-{{range $content}}	{{synopsis .}}
++{{range $content}}	{{synopsis .Body}} (uid: {{.UID}})
+ {{end}}{{end}}{{end}}
+\ No newline at end of file

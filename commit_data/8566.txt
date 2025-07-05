@@ -11,8 +11,214 @@ Date:   Wed Jun 1 09:49:51 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4550094
-
+---
  src/pkg/unicode/letter.go     | 24 ++++++++---------------
  src/pkg/unicode/maketables.go | 45 ++++++++++++++++++++++++++++---------------
  src/pkg/unicode/tables.go     | 13 ++++++++-----
  3 files changed, 45 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index 06cb67e51f..047bef19b9 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -15,6 +15,7 @@ const (
+ // code points within the set. The ranges are listed in two slices
+ // to save space: a slice of 16-bit ranges and a slice of 32-bit ranges.
+ // The two slices must be in sorted order and non-overlapping.
++// Also, R32 should contain only values >= 0x10000 (1<<16).
+ type RangeTable struct {
+ 	R16 []Range16
+ 	R32 []Range32
+@@ -30,7 +31,7 @@ type Range16 struct {
+ 
+ // Range32 represents of a range of Unicode code points and is used when one or
+ //  more of the values will not fit in 16 bits.  The range runs from Lo to Hi
+-// inclusive and has the specified stride.
++// inclusive and has the specified stride. Lo and Hi must always be >= 1<<16.
+ type Range32 struct {
+ 	Lo     uint32
+ 	Hi     uint32
+@@ -48,8 +49,8 @@ type Range32 struct {
+ //	{UpperLower, UpperLower, UpperLower}
+ // The constant UpperLower has an otherwise impossible delta value.
+ type CaseRange struct {
+-	Lo    int
+-	Hi    int
++	Lo    uint32
++	Hi    uint32
+ 	Delta d
+ }
+ 
+@@ -121,6 +122,7 @@ func is32(ranges []Range32, rune uint32) bool {
+ func Is(rangeTab *RangeTable, rune int) bool {
+ 	// common case: rune is ASCII or Latin-1.
+ 	if rune < 0x100 {
++		// Only need to check R16, since R32 is always >= 1<<16.
+ 		r16 := uint16(rune)
+ 		for _, r := range rangeTab.R16 {
+ 			if r16 > r.Hi {
+@@ -131,16 +133,6 @@ func Is(rangeTab *RangeTable, rune int) bool {
+ 			}
+ 			return (r16-r.Lo)%r.Stride == 0
+ 		}
+-		r32 := uint32(rune)
+-		for _, r := range rangeTab.R32 {
+-			if r32 > r.Hi {
+-				continue
+-			}
+-			if r32 < r.Lo {
+-				return false
+-			}
+-			return (r32-r.Lo)%r.Stride == 0
+-		}
+ 		return false
+ 	}
+ 	r16 := rangeTab.R16
+@@ -210,7 +202,7 @@ func to(_case int, rune int, caseRange []CaseRange) int {
+ 	for lo < hi {
+ 		m := lo + (hi-lo)/2
+ 		r := caseRange[m]
+-		if r.Lo <= rune && rune <= r.Hi {
++		if int(r.Lo) <= rune && rune <= int(r.Hi) {
+ 			delta := int(r.Delta[_case])
+ 			if delta > MaxRune {
+ 				// In an Upper-Lower sequence, which always starts with
+@@ -223,11 +215,11 @@ func to(_case int, rune int, caseRange []CaseRange) int {
+ 				// bit in the sequence offset.
+ 				// The constants UpperCase and TitleCase are even while LowerCase
+ 				// is odd so we take the low bit from _case.
+-				return r.Lo + ((rune-r.Lo)&^1 | _case&1)
++				return int(r.Lo) + ((rune-int(r.Lo))&^1 | _case&1)
+ 			}
+ 			return rune + delta
+ 		}
+-		if rune < r.Lo {
++		if rune < int(r.Lo) {
+ 			hi = m
+ 		} else {
+ 			lo = m + 1
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 68bd1ab9ec..c3cf32b48d 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -434,14 +434,7 @@ func dumpRange(header string, inCategory Op) {
+ 				break
+ 			}
+ 		}
+-		if size == 16 && (lo >= 1<<16 || hi >= 1<<16) {
+-			fmt.Print("\t},\n")
+-			fmt.Print("\tR32: []Range32{\n")
+-			size = 32
+-			count = &range32Count
+-		}
+-		fmt.Printf(format, lo, hi, stride)
+-		*count++
++		size, count = printRange(uint32(lo), uint32(hi), uint32(stride), size, count)
+ 		// next range: start looking where this range ends
+ 		next = hi + 1
+ 	}
+@@ -449,6 +442,30 @@ func dumpRange(header string, inCategory Op) {
+ 	fmt.Print("}\n\n")
+ }
+ 
++func printRange(lo, hi, stride uint32, size int, count *int) (int, *int) {
++	if size == 16 && hi >= 1<<16 {
++		if lo < 1<<16 {
++			if lo+stride != hi {
++				log.Fatalf("unexpected straddle: %U %U %d", lo, hi, stride)
++			}
++			// No range contains U+FFFF as an instance, so split
++			// the range into two entries. That way we can maintain
++			// the invariant that R32 contains only >= 1<<16.
++			fmt.Printf(format, lo, lo, 1)
++			lo = hi
++			stride = 1
++			*count++
++		}
++		fmt.Print("\t},\n")
++		fmt.Print("\tR32: []Range32{\n")
++		size = 32
++		count = &range32Count
++	}
++	fmt.Printf(format, lo, hi, stride)
++	*count++
++	return size, count
++}
++
+ func fullCategoryTest(list []string) {
+ 	for _, name := range list {
+ 		if _, ok := category[name]; !ok {
+@@ -634,14 +651,7 @@ func printScriptOrProperty(doProps bool) {
+ 		size := 16
+ 		count := &range16Count
+ 		for _, s := range ranges {
+-			if size == 16 && (s.Lo >= 1<<16 || s.Hi >= 1<<16) {
+-				fmt.Print("\t},\n")
+-				fmt.Print("\tR32: []Range32{\n")
+-				size = 32
+-				count = &range32Count
+-			}
+-			*count++
+-			fmt.Printf(format, s.Lo, s.Hi, s.Stride)
++			size, count = printRange(s.Lo, s.Hi, s.Stride, size, count)
+ 		}
+ 		fmt.Print("\t},\n")
+ 		fmt.Print("}\n\n")
+@@ -876,6 +886,9 @@ var range16Count = 0 // Number of entries in the 16-bit range tables.
+ var range32Count = 0 // Number of entries in the 32-bit range tables.
+ 
+ func printSizes() {
++	if *test {
++		return
++	}
+ 	fmt.Println()
+ 	fmt.Printf("// Range entries: %d 16-bit, %d 32-bit, %d total.\n", range16Count, range32Count, range16Count+range32Count)
+ 	range16Bytes := range16Count * 3 * 2
+diff --git a/src/pkg/unicode/tables.go b/src/pkg/unicode/tables.go
+index e8c0c1a299..fc2bdd8d2d 100644
+--- a/src/pkg/unicode/tables.go
++++ b/src/pkg/unicode/tables.go
+@@ -331,9 +331,10 @@ var _Mc = &RangeTable{
+ 		{0xabe3, 0xabe4, 1},
+ 		{0xabe6, 0xabe7, 1},
+ 		{0xabe9, 0xabea, 1},
++		{0xabec, 0xabec, 1},
+ 	},
+ 	R32: []Range32{
+-		{0xabec, 0x11000, 25620},
++		{0x11000, 0x11000, 1},
+ 		{0x11002, 0x11082, 128},
+ 		{0x110b0, 0x110b2, 1},
+ 		{0x110b7, 0x110b8, 1},
+@@ -1118,9 +1119,10 @@ var _Po = &RangeTable{
+ 		{0xff1b, 0xff1f, 4},
+ 		{0xff20, 0xff3c, 28},
+ 		{0xff61, 0xff64, 3},
++		{0xff65, 0xff65, 1},
+ 	},
+ 	R32: []Range32{
+-		{0xff65, 0x10100, 411},
++		{0x10100, 0x10100, 1},
+ 		{0x10101, 0x1039f, 670},
+ 		{0x103d0, 0x10857, 1159},
+ 		{0x1091f, 0x1093f, 32},
+@@ -1439,9 +1441,10 @@ var _So = &RangeTable{
+ 		{0xfdfd, 0xffe4, 487},
+ 		{0xffe8, 0xffed, 5},
+ 		{0xffee, 0xfffc, 14},
++		{0xfffd, 0xfffd, 1},
+ 	},
+ 	R32: []Range32{
+-		{0xfffd, 0x10102, 261},
++		{0x10102, 0x10102, 1},
+ 		{0x10137, 0x1013f, 1},
+ 		{0x10179, 0x10189, 1},
+ 		{0x10190, 0x1019b, 1},
+@@ -4762,5 +4765,5 @@ var _CaseRanges = []CaseRange{
+ 	{0x10428, 0x1044F, d{-40, 0, -40}},
+ }
+ 
+-// Range entries: 2712 16-bit, 545 32-bit, 3257 total.
+-// Range bytes: 16272 16-bit, 6540 32-bit, 22812 total.
++// Range entries: 2715 16-bit, 545 32-bit, 3260 total.
++// Range bytes: 16290 16-bit, 6540 32-bit, 22830 total.

@@ -7,6 +7,49 @@ Date:   Tue Dec 4 17:00:19 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6868057
-
+---
  src/pkg/net/timeout_test.go | 17 ++++-------------
  1 file changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 9749d03b93..42a121f3c5 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -410,16 +410,7 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
+ 	ln := newLocalListener(t)
+ 	defer ln.Close()
+-	donec := make(chan struct{})
+-	defer close(donec)
+-
+-	testsDone := func() bool {
+-		select {
+-		case <-donec:
+-			return true
+-		}
+-		return false
+-	}
++	acceptc := make(chan error, 1)
+ 
+ 	// The server, with no timeouts of its own, sending bytes to clients
+ 	// as fast as it can.
+@@ -428,9 +419,7 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
+ 		for {
+ 			c, err := ln.Accept()
+ 			if err != nil {
+-				if !testsDone() {
+-					t.Fatalf("Accept: %v", err)
+-				}
++				acceptc <- err
+ 				return
+ 			}
+ 			go func() {
+@@ -504,6 +493,8 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
+ 			select {
+ 			case res := <-servec:
+ 				t.Logf("for %v: server in %v wrote %d, %v", name, res.d, res.n, res.err)
++			case err := <-acceptc:
++				t.Fatalf("for %v: server Accept = %v", name, err)
+ 			case <-time.After(tooLong):
+ 				t.Fatalf("for %v, timeout waiting for server to finish writing", name)
+ 			}

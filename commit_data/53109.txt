@@ -17,7 +17,7 @@ Date:   Tue Jul 12 11:04:44 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/flag.go    |  1 +
  src/cmd/compile/internal/noder/reader.go |  2 +-
  src/cmd/compile/internal/noder/writer.go |  2 +-
@@ -26,3 +26,202 @@ Date:   Tue Jul 12 11:04:44 2022 -0700
  src/internal/pkgbits/flags.go            |  9 +++++++++
  src/internal/pkgbits/sync.go             | 11 -----------
  7 files changed, 56 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 4de0df21cb..df828940ac 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -165,6 +165,7 @@ func ParseFlags() {
+ 	if buildcfg.Experiment.Unified {
+ 		Debug.Unified = 1
+ 	}
++	Debug.SyncFrames = -1 // disable sync markers by default
+ 
+ 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
+ 
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index c56c658bef..00aafff2d9 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1072,7 +1072,7 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
+ 	assert(ctxt == ir.PAUTO || ctxt == ir.PPARAM || ctxt == ir.PPARAMOUT)
+ 
+ 	r.Sync(pkgbits.SyncAddLocal)
+-	if pkgbits.EnableSync {
++	if r.p.SyncMarkers() {
+ 		want := r.Int()
+ 		if have := len(r.locals); have != want {
+ 			base.FatalfAt(name.Pos(), "locals table has desynced")
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 3c247dff4e..7830b94cd8 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -995,7 +995,7 @@ func (w *writer) funcarg(param *types2.Var, result bool) {
+ func (w *writer) addLocal(obj *types2.Var) {
+ 	w.Sync(pkgbits.SyncAddLocal)
+ 	idx := len(w.localsIdx)
+-	if pkgbits.EnableSync {
++	if w.p.SyncMarkers() {
+ 		w.Int(idx)
+ 	}
+ 	if w.localsIdx == nil {
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 0b5fd9705c..5e233b8770 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -18,6 +18,12 @@ import (
+ // A PkgDecoder provides methods for decoding a package's Unified IR
+ // export data.
+ type PkgDecoder struct {
++	// version is the file format version.
++	version uint32
++
++	// sync indicates whether the file uses sync markers.
++	sync bool
++
+ 	// pkgPath is the package path for the package to be decoded.
+ 	//
+ 	// TODO(mdempsky): Remove; unneeded since CL 391014.
+@@ -52,6 +58,9 @@ type PkgDecoder struct {
+ // TODO(mdempsky): Remove; unneeded since CL 391014.
+ func (pr *PkgDecoder) PkgPath() string { return pr.pkgPath }
+ 
++// SyncMarkers reports whether pr uses sync markers.
++func (pr *PkgDecoder) SyncMarkers() bool { return pr.sync }
++
+ // NewPkgDecoder returns a PkgDecoder initialized to read the Unified
+ // IR export data from input. pkgPath is the package path for the
+ // compilation unit that produced the export data.
+@@ -67,9 +76,18 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
+ 
+ 	r := strings.NewReader(input)
+ 
+-	var version uint32
+-	assert(binary.Read(r, binary.LittleEndian, &version) == nil)
+-	assert(version == 0)
++	assert(binary.Read(r, binary.LittleEndian, &pr.version) == nil)
++
++	switch pr.version {
++	default:
++		panic(fmt.Errorf("unsupported version: %v", pr.version))
++	case 0:
++		// no flags
++	case 1:
++		var flags uint32
++		assert(binary.Read(r, binary.LittleEndian, &flags) == nil)
++		pr.sync = flags&flagSyncMarkers != 0
++	}
+ 
+ 	assert(binary.Read(r, binary.LittleEndian, pr.elemEndsEnds[:]) == nil)
+ 
+@@ -215,7 +233,7 @@ func (r *Decoder) rawReloc(k RelocKind, idx int) Index {
+ //
+ // If EnableSync is false, then Sync is a no-op.
+ func (r *Decoder) Sync(mWant SyncMarker) {
+-	if !EnableSync {
++	if !r.common.sync {
+ 		return
+ 	}
+ 
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index 1326a135cf..c50c838caa 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -14,6 +14,13 @@ import (
+ 	"runtime"
+ )
+ 
++// currentVersion is the current version number.
++//
++//   - v0: initial prototype
++//
++//   - v1: adds the flags uint32 word
++const currentVersion uint32 = 1
++
+ // A PkgEncoder provides methods for encoding a package's Unified IR
+ // export data.
+ type PkgEncoder struct {
+@@ -25,15 +32,21 @@ type PkgEncoder struct {
+ 	// elems[RelocString][stringsIdx[s]] == s (if present).
+ 	stringsIdx map[string]Index
+ 
++	// syncFrames is the number of frames to write at each sync
++	// marker. A negative value means sync markers are omitted.
+ 	syncFrames int
+ }
+ 
++// SyncMarkers reports whether pw uses sync markers.
++func (pw *PkgEncoder) SyncMarkers() bool { return pw.syncFrames >= 0 }
++
+ // NewPkgEncoder returns an initialized PkgEncoder.
+ //
+ // syncFrames is the number of caller frames that should be serialized
+ // at Sync points. Serializing additional frames results in larger
+ // export data files, but can help diagnosing desync errors in
+-// higher-level Unified IR reader/writer code.
++// higher-level Unified IR reader/writer code. If syncFrames is
++// negative, then sync markers are omitted entirely.
+ func NewPkgEncoder(syncFrames int) PkgEncoder {
+ 	return PkgEncoder{
+ 		stringsIdx: make(map[string]Index),
+@@ -51,7 +64,13 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
+ 		assert(binary.Write(out, binary.LittleEndian, x) == nil)
+ 	}
+ 
+-	writeUint32(0) // version
++	writeUint32(currentVersion)
++
++	var flags uint32
++	if pw.SyncMarkers() {
++		flags |= flagSyncMarkers
++	}
++	writeUint32(flags)
+ 
+ 	// Write elemEndsEnds.
+ 	var sum uint32
+@@ -204,7 +223,7 @@ func (w *Encoder) rawReloc(r RelocKind, idx Index) int {
+ }
+ 
+ func (w *Encoder) Sync(m SyncMarker) {
+-	if !EnableSync {
++	if !w.p.SyncMarkers() {
+ 		return
+ 	}
+ 
+diff --git a/src/internal/pkgbits/flags.go b/src/internal/pkgbits/flags.go
+new file mode 100644
+index 0000000000..654222745f
+--- /dev/null
++++ b/src/internal/pkgbits/flags.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkgbits
++
++const (
++	flagSyncMarkers = 1 << iota // file format contains sync markers
++)
+diff --git a/src/internal/pkgbits/sync.go b/src/internal/pkgbits/sync.go
+index 90301c32b7..6a5999eb6b 100644
+--- a/src/internal/pkgbits/sync.go
++++ b/src/internal/pkgbits/sync.go
+@@ -9,17 +9,6 @@ import (
+ 	"strings"
+ )
+ 
+-// EnableSync controls whether sync markers are written into unified
+-// IR's export data format and also whether they're expected when
+-// reading them back in. They're inessential to the correct
+-// functioning of unified IR, but are helpful during development to
+-// detect mistakes.
+-//
+-// When sync is enabled, writer stack frames will also be included in
+-// the export data. Currently, a fixed number of frames are included,
+-// controlled by -d=syncframes (default 0).
+-const EnableSync = true
+-
+ // fmtFrames formats a backtrace for reporting reader/writer desyncs.
+ func fmtFrames(pcs ...uintptr) []string {
+ 	res := make([]string, 0, len(pcs))

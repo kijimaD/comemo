@@ -8,6 +8,22 @@ Date:   Wed Dec 2 23:23:11 2009 -0800
     
     R=ken2
     https://golang.org/cl/164091
-
+---
  src/cmd/gc/lex.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f858aa95ec..c202f3ecdc 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1065,7 +1065,9 @@ loop:
+ 		goto loop;
+ 	c = chartorune(&rune, str);
+ 	if(rune == Runeerror && c == 1) {
+-		yyerror("illegal rune in string");
++		lineno = lexlineno;
++		yyerror("illegal UTF-8 sequence in comment or string");
++		flusherrors();
+ 		for(c=0; c<i; c++)
+ 			print(" %.2x", *(uchar*)(str+c));
+ 		print("\n");

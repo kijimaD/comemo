@@ -16,7 +16,129 @@ Date:   Thu Sep 24 18:54:58 2020 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM.rules | 10 ++++-----
  src/cmd/compile/internal/ssa/rewriteARM.go | 36 +++++++++++++++---------------
  2 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index cfedde5d5e..5d948c1975 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -243,8 +243,8 @@
+ (Leq16U x y) => (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+ (Leq32U x y) => (LessEqualU (CMP x y))
+ 
+-(OffPtr [off] ptr:(SP)) -> (MOVWaddr [off] ptr)
+-(OffPtr [off] ptr) -> (ADDconst [off] ptr)
++(OffPtr [off] ptr:(SP)) => (MOVWaddr [int32(off)] ptr)
++(OffPtr [off] ptr) => (ADDconst [int32(off)] ptr)
+ 
+ (Addr ...) -> (MOVWaddr ...)
+ (LocalAddr {sym} base _) => (MOVWaddr {sym} base)
+@@ -1470,6 +1470,6 @@
+ (GE (CMPconst [0] l:(XORshiftRLreg x y z)) yes no) && l.Uses==1 => (GE (TEQshiftRLreg x y z) yes no)
+ (GE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) && l.Uses==1 => (GE (TEQshiftRAreg x y z) yes no)
+ 
+-(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read8(sym, off))])
+-(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
+-(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))])
++(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read8(sym, int64(off)))])
++(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
++(MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index eff01927df..d92613da02 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -4600,15 +4600,15 @@ func rewriteValueARM_OpARMMOVBUload(v *Value) bool {
+ 	}
+ 	// match: (MOVBUload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVWconst [int64(read8(sym, off))])
++	// result: (MOVWconst [int32(read8(sym, int64(off)))])
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
+ 		if v_0.Op != OpSB || !(symIsRO(sym)) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(read8(sym, off))
++		v.AuxInt = int32ToAuxInt(int32(read8(sym, int64(off))))
+ 		return true
+ 	}
+ 	return false
+@@ -5513,15 +5513,15 @@ func rewriteValueARM_OpARMMOVHUload(v *Value) bool {
+ 	}
+ 	// match: (MOVHUload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVWconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
++	// result: (MOVWconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
+ 		if v_0.Op != OpSB || !(symIsRO(sym)) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(read16(sym, off, config.ctxt.Arch.ByteOrder))
++		v.AuxInt = int32ToAuxInt(int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))
+ 		return true
+ 	}
+ 	return false
+@@ -6234,15 +6234,15 @@ func rewriteValueARM_OpARMMOVWload(v *Value) bool {
+ 	}
+ 	// match: (MOVWload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVWconst [int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))])
++	// result: (MOVWconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
+ 		if v_0.Op != OpSB || !(symIsRO(sym)) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))
++		v.AuxInt = int32ToAuxInt(int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder)))
+ 		return true
+ 	}
+ 	return false
+@@ -14648,25 +14648,25 @@ func rewriteValueARM_OpNot(v *Value) bool {
+ func rewriteValueARM_OpOffPtr(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (OffPtr [off] ptr:(SP))
+-	// result: (MOVWaddr [off] ptr)
++	// result: (MOVWaddr [int32(off)] ptr)
+ 	for {
+-		off := v.AuxInt
++		off := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		if ptr.Op != OpSP {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWaddr)
+-		v.AuxInt = off
++		v.AuxInt = int32ToAuxInt(int32(off))
+ 		v.AddArg(ptr)
+ 		return true
+ 	}
+ 	// match: (OffPtr [off] ptr)
+-	// result: (ADDconst [off] ptr)
++	// result: (ADDconst [int32(off)] ptr)
+ 	for {
+-		off := v.AuxInt
++		off := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		v.reset(OpARMADDconst)
+-		v.AuxInt = off
++		v.AuxInt = int32ToAuxInt(int32(off))
+ 		v.AddArg(ptr)
+ 		return true
+ 	}

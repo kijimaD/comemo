@@ -8,7 +8,32 @@ Date:   Wed Aug 6 00:27:14 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/118610043
-
+---
  src/cmd/cc/lex.c | 1 +
  src/cmd/gc/lex.c | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 4248437643..55fc36b1e0 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -203,6 +203,7 @@ main(int argc, char *argv[])
+ 	
+ 	flagparse(&argc, &argv, usage);
+ 	ctxt->debugasm = debug['S'];
++	ctxt->debugvlog = debug['v'];
+ 
+ 	if(argc < 1 && outfile == 0)
+ 		usage();
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 291edb859d..b8252a225e 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -319,6 +319,7 @@ main(int argc, char *argv[])
+ 
+ 	flagparse(&argc, &argv, usage);
+ 	ctxt->debugasm = debug['S'];
++	ctxt->debugvlog = debug['v'];
+ 
+ 	if(argc < 1)
+ 		usage();

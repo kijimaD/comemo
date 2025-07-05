@@ -11,6 +11,20 @@ Date:   Wed Apr 25 16:03:26 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/base64/base64_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index 9f5c493dbf..f019654f5b 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -159,7 +159,7 @@ func TestDecode(t *testing.T) {
+ 
+ 			dbuf, err = tt.enc.DecodeString(encoded)
+ 			testEqual(t, "DecodeString(%q) = error %v, want %v", encoded, err, error(nil))
+-			testEqual(t, "DecodeString(%q) = %q, want %q", string(dbuf), p.decoded)
++			testEqual(t, "DecodeString(%q) = %q, want %q", encoded, string(dbuf), p.decoded)
+ 		}
+ 	}
+ }

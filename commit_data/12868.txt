@@ -9,6 +9,20 @@ Date:   Tue Apr 10 12:51:36 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5999043
-
+---
  src/cmd/6c/cgen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index 71822586c4..1fe0156c64 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -1672,7 +1672,7 @@ copy:
+ 		regsalloc(&nod2, nn);
+ 		nn->type = t;
+ 
+-		gins(AMOVL, &nod1, &nod2);
++		gins(AMOVQ, &nod1, &nod2);
+ 		regfree(&nod1);
+ 
+ 		nod2.type = typ(TIND, t);

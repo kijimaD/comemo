@@ -15,7 +15,7 @@ Date:   Tue Mar 1 13:54:22 2011 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4252048
-
+---
  doc/gccgo_contribute.html       |  2 +-
  doc/gccgo_install.html          |  2 +-
  doc/go_faq.html                 | 18 +++++++++---------
@@ -23,3 +23,150 @@ Date:   Tue Mar 1 13:54:22 2011 -0800
  doc/go_spec.html                |  2 +-
  doc/install.html                |  6 +++---
  6 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index cab6967f36..8eeb3a5c5c 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -45,7 +45,7 @@ a <code>gcc-interface</code> subdirectory.
+ </p>
+ 
+ <p>
+-The runtime library for <code>gccgo</code> is mostly the same as the
++The run-time library for <code>gccgo</code> is mostly the same as the
+ library in <a href="http://code.google.com/p/go">the main Go
+ repository</a>.  The library code in the Go repository is periodically
+ copied into the <code>gofrontend</code> and the <code>gcc</code>
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index 2ab6dcdae9..159fab7bb5 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -116,7 +116,7 @@ gccgo -o file file.o
+ 
+ <p>
+ To run the resulting file, you will need to tell the program where to
+-find the Go runtime library. This can be done either by setting
++find the compiled Go packages. This can be done either by setting
+ <code>LD_LIBRARY_PATH</code> in your environment:
+ 
+ <pre>
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 6258f5808b..0d5a6000ca 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -730,7 +730,7 @@ Why doesn't my multi-goroutine program use multiple CPUs?</h3>
+ 
+ <p>
+ Under the gc compilers you must set <code>GOMAXPROCS</code> to allow the
+-runtime to utilise more than one OS thread. Under <code>gccgo</code> an OS
++run-time support to utilise more than one OS thread. Under <code>gccgo</code> an OS
+ thread will be created for each goroutine, and <code>GOMAXPROCS</code> is
+ effectively equal to the number of running goroutines.  
+ </p>
+@@ -738,7 +738,7 @@ effectively equal to the number of running goroutines.
+ <p>
+ Programs that perform concurrent computation should benefit from an increase in
+ <code>GOMAXPROCS</code>. (See the <a
+-href="http://golang.org/pkg/runtime/#GOMAXPROCS">runtime package
++href="http://golang.org/pkg/runtime/#GOMAXPROCS"><code>runtime</code> package's
+ documentation</a>.)
+ </p>
+ 
+@@ -759,8 +759,8 @@ penalty involved in sending data between threads.
+ </p>
+ 
+ <p>
+-The Go runtime's scheduler is not as good as it needs to be. In future, it
+-should recognise such cases and optimize its use of OS threads. For now,
++Go's goroutine scheduler is not as good as it needs to be. In future, it
++should recognize such cases and optimize its use of OS threads. For now,
+ <code>GOMAXPROCS</code> should be set on a per-application basis.
+ </p>
+ 
+@@ -942,13 +942,13 @@ parser are already available in <a href="/pkg/go/"><code>/pkg/go</code></a>.)
+ We also considered using LLVM for <code>6g</code> but we felt it was too large and
+ slow to meet our performance goals.
+ 
+-<h3 id="How_is_the_runtime_implemented">
+-How is the runtime implemented?</h3>
++<h3 id="How_is_the_run_time_support_implemented">
++How is the run-time support implemented?</h3>
+ 
+ <p>
+-Again due to bootstrapping issues, the runtime is mostly in C (with a
++Again due to bootstrapping issues, the run-time code is mostly in C (with a
+ tiny bit of assembler) although Go is capable of implementing most of
+-it now. <code>Gccgo</code>'s runtime uses <code>glibc</code>.
++it now. <code>Gccgo</code>'s run-time support uses <code>glibc</code>.
+ <code>Gc</code> uses a custom library, to keep the footprint under
+ control; it is
+ compiled with a version of the Plan 9 C compiler that supports
+@@ -968,7 +968,7 @@ type checks, reflection, and even panic-time stack traces.
+ <p>
+ A trivial C "hello, world" program compiled and linked statically using gcc
+ on Linux is around 750 kB.  An equivalent Go program is around 1.8 MB, but
+-that includes a more powerful runtime.  We believe that with some effort
++that includes more powerful run-time support.  We believe that with some effort
+ the size of Go binaries can be reduced.
+ 
+ <h2 id="Performance">Performance</h2>
+diff --git a/doc/go_for_cpp_programmers.html b/doc/go_for_cpp_programmers.html
+index 608ab147b3..7168f1d057 100644
+--- a/doc/go_for_cpp_programmers.html
++++ b/doc/go_for_cpp_programmers.html
+@@ -555,7 +555,7 @@ When you want the equivalent of a virtual function, use an interface.
+ A variable which has an interface type may be converted to have a
+ different interface type using a special construct called a type assertion.
+ This is implemented dynamically
+-at runtime, like C++ <code>dynamic_cast</code>.  Unlike
++at run time, like C++ <code>dynamic_cast</code>.  Unlike
+ <code>dynamic_cast</code>, there does
+ not need to be any declared relationship between the two interfaces.
+ 
+@@ -589,7 +589,7 @@ must unbox using a type assertion to recover
+ values of the contained type.  As the typing is dynamic rather
+ than static, there is no equivalent of the way that a C++ template may
+ inline the relevant operations.  The operations are fully type-checked
+-at runtime, but all operations will involve a function call.
++at run time, but all operations will involve a function call.
+ 
+ <pre>
+ type iterator interface {
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 25eb3c4644..e91730a021 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4698,7 +4698,7 @@ func protect(g func()) {
+ 	defer func() {
+ 		log.Println("done")  // Println executes normally even in there is a panic
+ 		if x := recover(); x != nil {
+-			log.Printf("runtime panic: %v", x)
++			log.Printf("run time panic: %v", x)
+ 		}
+ 	}
+ 	log.Println("start")
+diff --git a/doc/install.html b/doc/install.html
+index d8fa8b468c..09f5be5567 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -54,7 +54,7 @@ architectures.
+ </dl>
+ 
+ <p>
+-Except for things like low-level operating system interface code, the runtime
++Except for things like low-level operating system interface code, the run-time
+ support is the same in all ports and includes a mark-and-sweep garbage collector
+ (a fancier one is in the works), efficient array and string slicing,
+ support for segmented stacks, and a strong goroutine implementation.
+@@ -419,9 +419,9 @@ to override the defaults.
+ <code>$GOARM</code> (arm, default=6)
+ </dt>
+ <dd>
+-	The ARM architecture version the runtime libraries should target.
++	The ARM architecture version the run-time libraries should target.
+ 	ARMv6 cores have more efficient synchronization primitives. Setting
+-	<code>$GOARM</code> to 5 will compile the runtime libraries using
++	<code>$GOARM</code> to 5 will compile the run-time libraries using
+ 	just SWP instructions that work on older architectures as well.
+ 	Running v6 code on an older core will cause an illegal instruction trap.
+ </dd>

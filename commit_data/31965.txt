@@ -20,7 +20,56 @@ Date:   Sat Mar 25 12:55:40 2017 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_android_arm.c   | 13 +++++--------
  src/runtime/cgo/gcc_android_arm64.c |  6 +++++-
  2 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_android_arm.c b/src/runtime/cgo/gcc_android_arm.c
+index c7b13f9a7f..d8936ea007 100644
+--- a/src/runtime/cgo/gcc_android_arm.c
++++ b/src/runtime/cgo/gcc_android_arm.c
+@@ -10,13 +10,6 @@
+ 
+ #define magic1 (0x23581321U)
+ 
+-// PTHREAD_KEYS_MAX has been added to sys/limits.h at head in bionic:
+-// https://android.googlesource.com/platform/bionic/+/master/libc/include/sys/limits.h
+-// TODO(crawshaw): remove this definition when NDK r10d is required.
+-#ifndef PTHREAD_KEYS_MAX
+-#define PTHREAD_KEYS_MAX 128
+-#endif
+-
+ // inittls allocates a thread-local storage slot for g.
+ //
+ // It finds the first available slot using pthread_key_create and uses
+@@ -32,7 +25,11 @@ inittls(void **tlsg, void **tlsbase)
+ 		fatalf("pthread_key_create failed: %d", err);
+ 	}
+ 	pthread_setspecific(k, (void*)magic1);
+-	for (i=0; i<PTHREAD_KEYS_MAX; i++) {
++	// If thread local slots are laid out as we expect, our magic word will
++	// be located at some low offset from tlsbase. However, just in case something went
++	// wrong, the search is limited to sensible offsets. PTHREAD_KEYS_MAX was the
++	// original limit, but issue 19472 made a higher limit necessary.
++	for (i=0; i<384; i++) {
+ 		if (*(tlsbase+i) == (void*)magic1) {
+ 			*tlsg = (void*)(i*sizeof(void *));
+ 			pthread_setspecific(k, 0);
+diff --git a/src/runtime/cgo/gcc_android_arm64.c b/src/runtime/cgo/gcc_android_arm64.c
+index f8ad684de3..499a11f738 100644
+--- a/src/runtime/cgo/gcc_android_arm64.c
++++ b/src/runtime/cgo/gcc_android_arm64.c
+@@ -25,7 +25,11 @@ inittls(void **tlsg, void **tlsbase)
+ 		fatalf("pthread_key_create failed: %d", err);
+ 	}
+ 	pthread_setspecific(k, (void*)magic1);
+-	for (i=0; i<PTHREAD_KEYS_MAX; i++) {
++	// If thread local slots are laid out as we expect, our magic word will
++	// be located at some low offset from tlsbase. However, just in case something went
++	// wrong, the search is limited to sensible offsets. PTHREAD_KEYS_MAX was the
++	// original limit, but issue 19472 made a higher limit necessary.
++	for (i=0; i<384; i++) {
+ 		if (*(tlsbase+i) == (void*)magic1) {
+ 			*tlsg = (void*)(i*sizeof(void *));
+ 			pthread_setspecific(k, 0);

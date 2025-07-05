@@ -9,7 +9,7 @@ Date:   Wed Jan 18 16:12:24 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5554056
-
+---
  test/deferprint.go        |  2 +-
  test/deferprint.out       |  2 ++
  test/fixedbugs/bug067.go  |  2 +-
@@ -32,3 +32,435 @@ Date:   Wed Jan 18 16:12:24 2012 -0800
  test/sigchld.go           |  4 ++--
  test/sigchld.out          |  1 +
  21 files changed, 86 insertions(+), 88 deletions(-)
+
+diff --git a/test/deferprint.go b/test/deferprint.go
+index f1e75266f7..0e0c618216 100644
+--- a/test/deferprint.go
++++ b/test/deferprint.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/deferprint.out b/test/deferprint.out
+new file mode 100644
+index 0000000000..a71cfcebd7
+--- /dev/null
++++ b/test/deferprint.out
+@@ -0,0 +1,2 @@
++printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
++42 true false true +1.500000e+000 world 0x0 [0/0]0x0 0x0 0x0 255
+diff --git a/test/fixedbugs/bug067.go b/test/fixedbugs/bug067.go
+index b812f01169..328d191bb4 100644
+--- a/test/fixedbugs/bug067.go
++++ b/test/fixedbugs/bug067.go
+@@ -10,6 +10,6 @@ var c chan int
+ 
+ func main() {
+ 	c = make(chan int);
+-	go func() { print("ok\n"); c <- 0 } ();
++	go func() { c <- 0 } ();
+ 	<-c
+ }
+diff --git a/test/fixedbugs/bug328.go b/test/fixedbugs/bug328.go
+index 64041f4129..825298371f 100644
+--- a/test/fixedbugs/bug328.go
++++ b/test/fixedbugs/bug328.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug328.out b/test/fixedbugs/bug328.out
+new file mode 100644
+index 0000000000..9982566dc0
+--- /dev/null
++++ b/test/fixedbugs/bug328.out
+@@ -0,0 +1 @@
++0x0
+diff --git a/test/golden.out b/test/golden.out
+index 58a0df2854..d7ecbdc878 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,50 +1,8 @@
+ 
+ == ./
+ 
+-=========== ./deferprint.go
+-printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+-42 true false true +1.500000e+000 world 0x0 [0/0]0x0 0x0 0x0 255
+-
+-=========== ./goprint.go
+-42 true false true +1.500000e+000 world 0x0 [0/0]0x0 0x0 0x0 255
+-
+-=========== ./helloworld.go
+-hello, world
+-
+-=========== ./printbig.go
+--9223372036854775808
+-9223372036854775807
+-
+-=========== ./sigchld.go
+-survived SIGCHLD
+-
+ == ken/
+ 
+-=========== ken/cplx0.go
+-(+5.000000e+000+6.000000e+000i)
+-(+5.000000e+000+6.000000e+000i)
+-(+5.000000e+000+6.000000e+000i)
+-(+5.000000e+000+6.000000e+000i)
+-
+-=========== ken/cplx3.go
+-(+1.292308e+000-1.384615e-001i)
+-(+1.292308e+000-1.384615e-001i)
+-
+-=========== ken/cplx5.go
+-(+5.000000e+000-5.000000e+000i)
+-(+5.000000e+000-5.000000e+000i)
+-(+5.000000e+000-5.000000e+000i)
+-(+5.000000e+000-5.000000e+000i)
+-(+5.000000e+000-5.000000e+000i)
+-(+5.000000e+000-5.000000e+000i)
+-(+5.000000e+000-5.000000e+000i)
+-
+-=========== ken/intervar.go
+- print 1 bio 2 file 3 -- abc
+-
+-=========== ken/string.go
+-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+-
+ == chan/
+ 
+ == interface/
+@@ -55,10 +13,4 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ 
+ == fixedbugs/
+ 
+-=========== fixedbugs/bug067.go
+-ok
+-
+-=========== fixedbugs/bug328.go
+-0x0
+-
+ == bugs/
+diff --git a/test/goprint.go b/test/goprint.go
+index c0e34c750e..53ed055a07 100644
+--- a/test/goprint.go
++++ b/test/goprint.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/goprint.out b/test/goprint.out
+new file mode 100644
+index 0000000000..da3919ed64
+--- /dev/null
++++ b/test/goprint.out
+@@ -0,0 +1 @@
++42 true false true +1.500000e+000 world 0x0 [0/0]0x0 0x0 0x0 255
+diff --git a/test/helloworld.go b/test/helloworld.go
+index e55a74bbd3..16c95f0068 100644
+--- a/test/helloworld.go
++++ b/test/helloworld.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// $G $F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/helloworld.out b/test/helloworld.out
+new file mode 100644
+index 0000000000..4b5fa63702
+--- /dev/null
++++ b/test/helloworld.out
+@@ -0,0 +1 @@
++hello, world
+diff --git a/test/ken/cplx0.go b/test/ken/cplx0.go
+index ba1fa196fd..f38ce5b65d 100644
+--- a/test/ken/cplx0.go
++++ b/test/ken/cplx0.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/cplx0.out b/test/ken/cplx0.out
+new file mode 100644
+index 0000000000..7627c28df7
+--- /dev/null
++++ b/test/ken/cplx0.out
+@@ -0,0 +1,4 @@
++(+5.000000e+000+6.000000e+000i)
++(+5.000000e+000+6.000000e+000i)
++(+5.000000e+000+6.000000e+000i)
++(+5.000000e+000+6.000000e+000i)
+diff --git a/test/ken/cplx3.go b/test/ken/cplx3.go
+index fa6ff1d52e..048c93eef6 100644
+--- a/test/ken/cplx3.go
++++ b/test/ken/cplx3.go
+@@ -19,10 +19,29 @@ const (
+ func main() {
+ 	c0 := C1
+ 	c0 = (c0 + c0 + c0) / (c0 + c0 + 3i)
+-	println(c0)
++	r, i := real(c0), imag(c0)
++	d := r - 1.292308
++	if d < 0 {
++		d = - d
++	}
++	if d > 1e-6 {
++		println(r, "!= 1.292308")
++		panic(0)
++	}
++	d = i + 0.1384615
++	if d < 0 {
++		d = - d
++	}
++	if d > 1e-6 {
++		println(i, "!= -0.1384615")
++		panic(0)
++	}
+ 
+ 	c := *(*complex128)(unsafe.Pointer(&c0))
+-	println(c)
++	if c != c0 {
++		println(c, "!=", c)
++		panic(0)
++	}
+ 
+ 	var a interface{}
+ 	switch c := reflect.ValueOf(a); c.Kind() {
+diff --git a/test/ken/cplx5.go b/test/ken/cplx5.go
+index d425a7c4c0..e6696674b0 100644
+--- a/test/ken/cplx5.go
++++ b/test/ken/cplx5.go
+@@ -19,36 +19,52 @@ func main() {
+ 	for i := 0; i < len(a); i++ {
+ 		a[i] = complex(float64(i), float64(-i))
+ 	}
+-	println(a[5])
++	if a[5] != 5-5i {
++		panic(a[5])
++	}
+ 
+ 	// slice of complex128
+ 	s = make([]complex128, len(a))
+ 	for i := 0; i < len(s); i++ {
+ 		s[i] = a[i]
+ 	}
+-	println(s[5])
++	if s[5] != 5-5i {
++		panic(s[5])
++	}
+ 
+ 	// chan
+ 	c = make(chan complex128)
+ 	go chantest(c)
+-	println(<-c)
++	vc := <-c
++	if vc != 5-5i {
++		panic(vc)
++	}
+ 
+ 	// pointer of complex128
+ 	v := a[5]
+ 	pv := &v
+-	println(*pv)
++	if *pv != 5-5i {
++		panic(*pv)
++	}
+ 
+ 	// field of complex128
+ 	f.c = a[5]
+-	println(f.c)
++	if f.c != 5-5i {
++		panic(f.c)
++	}
+ 
+ 	// map of complex128
+ 	m = make(map[complex128]complex128)
+ 	for i := 0; i < len(s); i++ {
+ 		m[-a[i]] = a[i]
+ 	}
+-	println(m[5i-5])
+-	println(m[complex(-5, 5)])
++	if m[5i-5] != 5-5i {
++		panic(m[5i-5])
++	}
++	vm := m[complex(-5, 5)]
++	if vm != 5-5i {
++		panic(vm)
++	}
+ }
+ 
+ func chantest(c chan complex128) { c <- a[5] }
+diff --git a/test/ken/intervar.go b/test/ken/intervar.go
+index c2aaaa8705..73d1b0660b 100644
+--- a/test/ken/intervar.go
++++ b/test/ken/intervar.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ type	Iputs	interface {
+-	puts	(s string);
++	puts	(s string) string;
+ }
+ 
+ // ---------
+@@ -17,9 +17,9 @@ type	Print	struct {
+ 	put	Iputs;
+ }
+ 
+-func (p *Print) dop() {
+-	print(" print ", p.whoami);
+-	p.put.puts("abc");
++func (p *Print) dop() string {
++	r := " print " + string(p.whoami + '0')
++	return r + p.put.puts("abc");
+ }
+ 
+ // ---------
+@@ -29,9 +29,9 @@ type	Bio	struct {
+ 	put	Iputs;
+ }
+ 
+-func (b *Bio) puts(s string) {
+-	print(" bio ", b.whoami);
+-	b.put.puts(s);
++func (b *Bio) puts(s string) string {
++	r := " bio " + string(b.whoami + '0')
++	return r + b.put.puts(s);
+ }
+ 
+ // ---------
+@@ -41,8 +41,8 @@ type	File	struct {
+ 	put	Iputs;
+ }
+ 
+-func (f *File) puts(s string) {
+-	print(" file ", f.whoami, " -- ", s);
++func (f *File) puts(s string) string {
++	return " file " + string(f.whoami + '0') + " -- " + s
+ }
+ 
+ func
+@@ -59,6 +59,9 @@ main() {
+ 
+ 	f.whoami = 3;
+ 
+-	p.dop();
+-	print("\n");
++	r := p.dop();
++	expected := " print 1 bio 2 file 3 -- abc"
++	if r != expected {
++		panic(r + " != " + expected)
++	}
+ }
+diff --git a/test/ken/string.go b/test/ken/string.go
+index b74bd7d6f1..e051082429 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -71,16 +71,14 @@ func main() {
+ 	/* create string with integer constant */
+ 	c = string('x')
+ 	if c != "x" {
+-		print("create int ", c)
+-		panic("fail")
++		panic("create int " + c)
+ 	}
+ 
+ 	/* create string with integer variable */
+ 	v := 'x'
+ 	c = string(v)
+ 	if c != "x" {
+-		print("create int ", c)
+-		panic("fail")
++		panic("create int " + c)
+ 	}
+ 
+ 	/* create string with byte array */
+@@ -90,8 +88,7 @@ func main() {
+ 	z1[2] = 'c'
+ 	c = string(z1[0:])
+ 	if c != "abc" {
+-		print("create byte array ", c)
+-		panic("fail")
++		panic("create byte array " + c)
+ 	}
+ 
+ 	/* create string with int array */
+@@ -101,8 +98,7 @@ func main() {
+ 	z2[2] = 'c'
+ 	c = string(z2[0:])
+ 	if c != "a\u1234c" {
+-		print("create int array ", c)
+-		panic("fail")
++		panic("create int array " + c)
+ 	}
+ 
+ 	/* create string with byte array pointer */
+@@ -112,7 +108,6 @@ func main() {
+ 	z3[2] = 'c'
+ 	c = string(z3[0:])
+ 	if c != "abc" {
+-		print("create array pointer ", c)
+-		panic("fail")
++		panic("create array pointer " + c)
+ 	}
+ }
+diff --git a/test/ken/string.out b/test/ken/string.out
+new file mode 100644
+index 0000000000..8bc36bc6f5
+--- /dev/null
++++ b/test/ken/string.out
+@@ -0,0 +1 @@
++abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+diff --git a/test/printbig.go b/test/printbig.go
+index bbb707004f..d867bdc646 100644
+--- a/test/printbig.go
++++ b/test/printbig.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// $G $F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/printbig.out b/test/printbig.out
+new file mode 100644
+index 0000000000..6a16b15d98
+--- /dev/null
++++ b/test/printbig.out
+@@ -0,0 +1,2 @@
++-9223372036854775808
++9223372036854775807
+diff --git a/test/sigchld.go b/test/sigchld.go
+index 74d428efc2..e7c3d5abb4 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -1,5 +1,5 @@
+-// ([ "$GOOS" = windows ] && echo survived SIGCHLD) ||
+-// ($G $D/$F.go && $L $F.$A && ./$A.out)
++// [ "$GOOS" == windows ] ||
++// ($G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/sigchld.out b/test/sigchld.out
+new file mode 100644
+index 0000000000..477d025796
+--- /dev/null
++++ b/test/sigchld.out
+@@ -0,0 +1 @@
++survived SIGCHLD

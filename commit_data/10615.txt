@@ -7,7 +7,7 @@ Date:   Mon Dec 5 15:48:21 2011 -0500
     R=golang-dev, bradfitz, gri, r, agl
     CC=golang-dev
     https://golang.org/cl/5434095
-
+---
  src/pkg/strconv/atob.go       |  17 +++++--
  src/pkg/strconv/atob_test.go  |   4 +-
  src/pkg/strconv/atof.go       |  49 ++++++++++----------
@@ -22,3 +22,971 @@ Date:   Mon Dec 5 15:48:21 2011 -0500
  src/pkg/strconv/quote.go      |  24 ++++++++++
  src/pkg/strconv/quote_test.go |  12 +++++
  13 files changed, 221 insertions(+), 269 deletions(-)
+
+diff --git a/src/pkg/strconv/atob.go b/src/pkg/strconv/atob.go
+index e2d87bc0f2..1508118d2a 100644
+--- a/src/pkg/strconv/atob.go
++++ b/src/pkg/strconv/atob.go
+@@ -4,10 +4,10 @@
+ 
+ package strconv
+ 
+-// Atob returns the boolean value represented by the string.
++// ParseBool returns the boolean value represented by the string.
+ // It accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False.
+ // Any other value returns an error.
+-func Atob(str string) (value bool, err error) {
++func ParseBool(str string) (value bool, err error) {
+ 	switch str {
+ 	case "1", "t", "T", "true", "TRUE", "True":
+ 		return true, nil
+@@ -17,10 +17,19 @@ func Atob(str string) (value bool, err error) {
+ 	return false, &NumError{str, ErrSyntax}
+ }
+ 
+-// Btoa returns "true" or "false" according to the value of the boolean argument
+-func Btoa(b bool) string {
++// FormatBool returns "true" or "false" according to the value of b
++func FormatBool(b bool) string {
+ 	if b {
+ 		return "true"
+ 	}
+ 	return "false"
+ }
++
++// AppendBool appends "true" or "false", according to the value of b,
++// to dst and returns the extended buffer.
++func AppendBool(dst []byte, b bool) []byte {
++	if b {
++		return append(dst, "true"...)
++	}
++	return append(dst, "false"...)
++}
+diff --git a/src/pkg/strconv/atob_test.go b/src/pkg/strconv/atob_test.go
+index 2f31eb5e07..a7c1454eb1 100644
+--- a/src/pkg/strconv/atob_test.go
++++ b/src/pkg/strconv/atob_test.go
+@@ -32,9 +32,9 @@ var atobtests = []atobTest{
+ 	{"True", true, nil},
+ }
+ 
+-func TestAtob(t *testing.T) {
++func TestParseBool(t *testing.T) {
+ 	for _, test := range atobtests {
+-		b, e := Atob(test.in)
++		b, e := ParseBool(test.in)
+ 		if test.err != nil {
+ 			// expect an error
+ 			if e == nil {
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index 06dae8564d..1642c18d74 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -338,21 +338,7 @@ func (d *decimal) atof32() (f float32, ok bool) {
+ 	return
+ }
+ 
+-// Atof32 converts the string s to a 32-bit floating-point number.
+-//
+-// If s is well-formed and near a valid floating point number,
+-// Atof32 returns the nearest floating point number rounded
+-// using IEEE754 unbiased rounding.
+-//
+-// The errors that Atof32 returns have concrete type *NumError
+-// and include err.Num = s.
+-//
+-// If s is not syntactically well-formed, Atof32 returns err.Error = ErrSyntax.
+-//
+-// If s is syntactically well-formed but is more than 1/2 ULP
+-// away from the largest floating point number of the given size,
+-// Atof32 returns f = ±Inf, err.Error = ErrRange.
+-func Atof32(s string) (f float32, err error) {
++func atof32(s string) (f float32, err error) {
+ 	if val, ok := special(s); ok {
+ 		return float32(val), nil
+ 	}
+@@ -374,10 +360,7 @@ func Atof32(s string) (f float32, err error) {
+ 	return f, err
+ }
+ 
+-// Atof64 converts the string s to a 64-bit floating-point number.
+-// Except for the type of its result, its definition is the same as that
+-// of Atof32.
+-func Atof64(s string) (f float64, err error) {
++func atof64(s string) (f float64, err error) {
+ 	if val, ok := special(s); ok {
+ 		return val, nil
+ 	}
+@@ -399,14 +382,28 @@ func Atof64(s string) (f float64, err error) {
+ 	return f, err
+ }
+ 
+-// AtofN converts the string s to a 64-bit floating-point number,
+-// but it rounds the result assuming that it will be stored in a value
+-// of n bits (32 or 64).
+-func AtofN(s string, n int) (f float64, err error) {
+-	if n == 32 {
+-		f1, err1 := Atof32(s)
++// ParseFloat converts the string s to a floating-point number
++// with the precision specified by bitSize: 32 for float32, or 64 for float64.
++// When bitSize=32, the result still has type float64, but it will be
++// convertible to float32 without changing its value.
++//
++// If s is well-formed and near a valid floating point number,
++// ParseFloat returns the nearest floating point number rounded
++// using IEEE754 unbiased rounding.
++//
++// The errors that ParseFloat returns have concrete type *NumError
++// and include err.Num = s.
++//
++// If s is not syntactically well-formed, ParseFloat returns err.Error = ErrSyntax.
++//
++// If s is syntactically well-formed but is more than 1/2 ULP
++// away from the largest floating point number of the given size,
++// ParseFloat returns f = ±Inf, err.Error = ErrRange.
++func ParseFloat(s string, bitSize int) (f float64, err error) {
++	if bitSize == 32 {
++		f1, err1 := atof32(s)
+ 		return float64(f1), err1
+ 	}
+-	f1, err1 := Atof64(s)
++	f1, err1 := atof64(s)
+ 	return f1, err1
+ }
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index 871bf0cd5e..a9820d1bba 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -128,33 +128,23 @@ func testAtof(t *testing.T, opt bool) {
+ 	oldopt := SetOptimize(opt)
+ 	for i := 0; i < len(atoftests); i++ {
+ 		test := &atoftests[i]
+-		out, err := Atof64(test.in)
+-		outs := Ftoa64(out, 'g', -1)
++		out, err := ParseFloat(test.in, 64)
++		outs := FormatFloat(out, 'g', -1, 64)
+ 		if outs != test.out || !reflect.DeepEqual(err, test.err) {
+-			t.Errorf("Atof64(%v) = %v, %v want %v, %v",
+-				test.in, out, err, test.out, test.err)
+-		}
+-
+-		out, err = AtofN(test.in, 64)
+-		outs = FtoaN(out, 'g', -1, 64)
+-		if outs != test.out || !reflect.DeepEqual(err, test.err) {
+-			t.Errorf("AtofN(%v, 64) = %v, %v want %v, %v",
++			t.Errorf("ParseFloat(%v, 64) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+ 		}
+ 
+ 		if float64(float32(out)) == out {
+-			out32, err := Atof32(test.in)
+-			outs := Ftoa32(out32, 'g', -1)
+-			if outs != test.out || !reflect.DeepEqual(err, test.err) {
+-				t.Errorf("Atof32(%v) = %v, %v want %v, %v  # %v",
+-					test.in, out32, err, test.out, test.err, out)
++			out, err := ParseFloat(test.in, 32)
++			out32 := float32(out)
++			if float64(out32) != out {
++				t.Errorf("ParseFloat(%v, 32) = %v, not a float32 (closest is %v)", test.in, out, float64(out32))
++				continue
+ 			}
+-
+-			out, err := AtofN(test.in, 32)
+-			out32 = float32(out)
+-			outs = FtoaN(float64(out32), 'g', -1, 32)
++			outs := FormatFloat(float64(out32), 'g', -1, 32)
+ 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
+-				t.Errorf("AtofN(%v, 32) = %v, %v want %v, %v  # %v",
++				t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
+ 					test.in, out32, err, test.out, test.err, out)
+ 			}
+ 		}
+@@ -168,24 +158,24 @@ func TestAtofSlow(t *testing.T) { testAtof(t, false) }
+ 
+ func BenchmarkAtof64Decimal(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Atof64("33909")
++		ParseFloat("33909", 64)
+ 	}
+ }
+ 
+ func BenchmarkAtof64Float(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Atof64("339.7784")
++		ParseFloat("339.7784", 64)
+ 	}
+ }
+ 
+ func BenchmarkAtof64FloatExp(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Atof64("-5.09e75")
++		ParseFloat("-5.09e75", 64)
+ 	}
+ }
+ 
+ func BenchmarkAtof64Big(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Atof64("123456789123456789123456789")
++		ParseFloat("123456789123456789123456789", 64)
+ 	}
+ }
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index 2c6c3d58de..438d496948 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -20,15 +20,9 @@ type NumError struct {
+ 
+ func (e *NumError) Error() string { return `parsing "` + e.Num + `": ` + e.Err.Error() }
+ 
+-func computeIntsize() uint {
+-	siz := uint(8)
+-	for 1<<siz != 0 {
+-		siz *= 2
+-	}
+-	return siz
+-}
++const intSize = 32 << uint(^uint(0)>>63)
+ 
+-var IntSize = computeIntsize()
++const IntSize = intSize // number of bits in int, uint (32 or 64)
+ 
+ // Return the first number n such that n*base >= 1<<64.
+ func cutoff64(base int) uint64 {
+@@ -38,17 +32,13 @@ func cutoff64(base int) uint64 {
+ 	return (1<<64-1)/uint64(base) + 1
+ }
+ 
+-// Btoui64 interprets a string s in an arbitrary base b (2 to 36)
+-// and returns the corresponding value n.  If b == 0, the base
+-// is taken from the string prefix: base 16 for "0x", base 8 for "0",
+-// and base 10 otherwise.
+-//
+-// The errors that Btoui64 returns have concrete type *NumError
+-// and include err.Num = s.  If s is empty or contains invalid
+-// digits, err.Error = ErrSyntax; if the value corresponding
+-// to s cannot be represented by a uint64, err.Error = ErrRange.
+-func Btoui64(s string, b int) (n uint64, err error) {
+-	var cutoff uint64
++// ParseUint is like ParseInt but for unsigned numbers.
++func ParseUint(s string, b int, bitSize int) (n uint64, err error) {
++	var cutoff, maxVal uint64
++
++	if bitSize == 0 {
++		bitSize = int(IntSize)
++	}
+ 
+ 	s0 := s
+ 	switch {
+@@ -82,6 +72,7 @@ func Btoui64(s string, b int) (n uint64, err error) {
+ 
+ 	n = 0
+ 	cutoff = cutoff64(b)
++	maxVal = 1<<uint(bitSize) - 1
+ 
+ 	for i := 0; i < len(s); i++ {
+ 		var v byte
+@@ -113,7 +104,7 @@ func Btoui64(s string, b int) (n uint64, err error) {
+ 		n *= uint64(b)
+ 
+ 		n1 := n + uint64(v)
+-		if n1 < n {
++		if n1 < n || n1 > maxVal {
+ 			// n+v overflows
+ 			n = 1<<64 - 1
+ 			err = ErrRange
+@@ -128,18 +119,25 @@ Error:
+ 	return n, &NumError{s0, err}
+ }
+ 
+-// Atoui64 interprets a string s as a decimal number and
+-// returns the corresponding value n.
++// ParseInt interprets a string s in an arbitrary base b (2 to 36)
++// and returns the corresponding value n.  If b == 0, the base
++// is taken from the string prefix: base 16 for "0x", base 8 for "0",
++// and base 10 otherwise.
+ //
+-// Atoui64 returns err.Error = ErrSyntax if s is empty or contains invalid digits.
+-// It returns err.Error = ErrRange if s cannot be represented by a uint64.
+-func Atoui64(s string) (n uint64, err error) {
+-	return Btoui64(s, 10)
+-}
++// The bitSize argument specifies the integer type
++// that the result must fit into.  Bit sizes 0, 8, 16, 32, and 64
++// correspond to int, int8, int16, int32, and int64.
++//
++// The errors that ParseInt returns have concrete type *NumError
++// and include err.Num = s.  If s is empty or contains invalid
++// digits, err.Error = ErrSyntax; if the value corresponding
++// to s cannot be represented by a signed integer of the
++// given size, err.Error = ErrRange.
++func ParseInt(s string, base int, bitSize int) (i int64, err error) {
++	if bitSize == 0 {
++		bitSize = int(IntSize)
++	}
+ 
+-// Btoi64 is like Btoui64 but allows signed numbers and
+-// returns its result in an int64.
+-func Btoi64(s string, base int) (i int64, err error) {
+ 	// Empty string bad.
+ 	if len(s) == 0 {
+ 		return 0, &NumError{s, ErrSyntax}
+@@ -157,16 +155,17 @@ func Btoi64(s string, base int) (i int64, err error) {
+ 
+ 	// Convert unsigned and check range.
+ 	var un uint64
+-	un, err = Btoui64(s, base)
++	un, err = ParseUint(s, base, bitSize)
+ 	if err != nil && err.(*NumError).Err != ErrRange {
+ 		err.(*NumError).Num = s0
+ 		return 0, err
+ 	}
+-	if !neg && un >= 1<<63 {
+-		return 1<<63 - 1, &NumError{s0, ErrRange}
++	cutoff := uint64(1 << uint(bitSize-1))
++	if !neg && un >= cutoff {
++		return int64(cutoff - 1), &NumError{s0, ErrRange}
+ 	}
+-	if neg && un > 1<<63 {
+-		return -1 << 63, &NumError{s0, ErrRange}
++	if neg && un > cutoff {
++		return -int64(cutoff), &NumError{s0, ErrRange}
+ 	}
+ 	n := int64(un)
+ 	if neg {
+@@ -175,35 +174,8 @@ func Btoi64(s string, base int) (i int64, err error) {
+ 	return n, nil
+ }
+ 
+-// Atoi64 is like Atoui64 but allows signed numbers and
+-// returns its result in an int64.
+-func Atoi64(s string) (i int64, err error) { return Btoi64(s, 10) }
+-
+-// Atoui is like Atoui64 but returns its result as a uint.
+-func Atoui(s string) (i uint, err error) {
+-	i1, e1 := Atoui64(s)
+-	if e1 != nil && e1.(*NumError).Err != ErrRange {
+-		return 0, e1
+-	}
+-	i = uint(i1)
+-	if uint64(i) != i1 {
+-		return ^uint(0), &NumError{s, ErrRange}
+-	}
+-	return i, nil
+-}
+-
+-// Atoi is like Atoi64 but returns its result as an int.
++// Atoi is shorthand for ParseInt(s, 10, 0).
+ func Atoi(s string) (i int, err error) {
+-	i1, e1 := Atoi64(s)
+-	if e1 != nil && e1.(*NumError).Err != ErrRange {
+-		return 0, e1
+-	}
+-	i = int(i1)
+-	if int64(i) != i1 {
+-		if i1 < 0 {
+-			return -1 << (IntSize - 1), &NumError{s, ErrRange}
+-		}
+-		return 1<<(IntSize-1) - 1, &NumError{s, ErrRange}
+-	}
+-	return i, nil
++	i64, err := ParseInt(s, 10, 0)
++	return int(i64), err
+ }
+diff --git a/src/pkg/strconv/atoi_test.go b/src/pkg/strconv/atoi_test.go
+index 9ee11b7102..2d06efed0d 100644
+--- a/src/pkg/strconv/atoi_test.go
++++ b/src/pkg/strconv/atoi_test.go
+@@ -187,10 +187,10 @@ func init() {
+ 	}
+ }
+ 
+-func TestAtoui64(t *testing.T) {
++func TestParseUint64(t *testing.T) {
+ 	for i := range atoui64tests {
+ 		test := &atoui64tests[i]
+-		out, err := Atoui64(test.in)
++		out, err := ParseUint(test.in, 10, 64)
+ 		if test.out != out || !reflect.DeepEqual(test.err, err) {
+ 			t.Errorf("Atoui64(%q) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+@@ -198,21 +198,21 @@ func TestAtoui64(t *testing.T) {
+ 	}
+ }
+ 
+-func TestBtoui64(t *testing.T) {
++func TestParseUint64Base(t *testing.T) {
+ 	for i := range btoui64tests {
+ 		test := &btoui64tests[i]
+-		out, err := Btoui64(test.in, 0)
++		out, err := ParseUint(test.in, 0, 64)
+ 		if test.out != out || !reflect.DeepEqual(test.err, err) {
+-			t.Errorf("Btoui64(%q) = %v, %v want %v, %v",
++			t.Errorf("ParseUint(%q) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+ 		}
+ 	}
+ }
+ 
+-func TestAtoi64(t *testing.T) {
++func TestParseInt64(t *testing.T) {
+ 	for i := range atoi64tests {
+ 		test := &atoi64tests[i]
+-		out, err := Atoi64(test.in)
++		out, err := ParseInt(test.in, 10, 64)
+ 		if test.out != out || !reflect.DeepEqual(test.err, err) {
+ 			t.Errorf("Atoi64(%q) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+@@ -220,23 +220,23 @@ func TestAtoi64(t *testing.T) {
+ 	}
+ }
+ 
+-func TestBtoi64(t *testing.T) {
++func TestParseInt64Base(t *testing.T) {
+ 	for i := range btoi64tests {
+ 		test := &btoi64tests[i]
+-		out, err := Btoi64(test.in, 0)
++		out, err := ParseInt(test.in, 0, 64)
+ 		if test.out != out || !reflect.DeepEqual(test.err, err) {
+-			t.Errorf("Btoi64(%q) = %v, %v want %v, %v",
++			t.Errorf("ParseInt(%q) = %v, %v want %v, %v",
+ 				test.in, out, err, test.out, test.err)
+ 		}
+ 	}
+ }
+ 
+-func TestAtoui(t *testing.T) {
++func TestParseUint(t *testing.T) {
+ 	switch IntSize {
+ 	case 32:
+ 		for i := range atoui32tests {
+ 			test := &atoui32tests[i]
+-			out, err := Atoui(test.in)
++			out, err := ParseUint(test.in, 10, 0)
+ 			if test.out != uint32(out) || !reflect.DeepEqual(test.err, err) {
+ 				t.Errorf("Atoui(%q) = %v, %v want %v, %v",
+ 					test.in, out, err, test.out, test.err)
+@@ -245,7 +245,7 @@ func TestAtoui(t *testing.T) {
+ 	case 64:
+ 		for i := range atoui64tests {
+ 			test := &atoui64tests[i]
+-			out, err := Atoui(test.in)
++			out, err := ParseUint(test.in, 10, 0)
+ 			if test.out != uint64(out) || !reflect.DeepEqual(test.err, err) {
+ 				t.Errorf("Atoui(%q) = %v, %v want %v, %v",
+ 					test.in, out, err, test.out, test.err)
+@@ -254,12 +254,12 @@ func TestAtoui(t *testing.T) {
+ 	}
+ }
+ 
+-func TestAtoi(t *testing.T) {
++func TestParseInt(t *testing.T) {
+ 	switch IntSize {
+ 	case 32:
+ 		for i := range atoi32tests {
+ 			test := &atoi32tests[i]
+-			out, err := Atoi(test.in)
++			out, err := ParseInt(test.in, 10, 0)
+ 			if test.out != int32(out) || !reflect.DeepEqual(test.err, err) {
+ 				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+ 					test.in, out, err, test.out, test.err)
+@@ -268,7 +268,7 @@ func TestAtoi(t *testing.T) {
+ 	case 64:
+ 		for i := range atoi64tests {
+ 			test := &atoi64tests[i]
+-			out, err := Atoi(test.in)
++			out, err := ParseInt(test.in, 10, 0)
+ 			if test.out != int64(out) || !reflect.DeepEqual(test.err, err) {
+ 				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+ 					test.in, out, err, test.out, test.err)
+@@ -279,24 +279,24 @@ func TestAtoi(t *testing.T) {
+ 
+ func BenchmarkAtoi(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Atoi("12345678")
++		ParseInt("12345678", 10, 0)
+ 	}
+ }
+ 
+ func BenchmarkAtoiNeg(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Atoi("-12345678")
++		ParseInt("-12345678", 10, 0)
+ 	}
+ }
+ 
+ func BenchmarkAtoi64(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Atoi64("12345678901234")
++		ParseInt("12345678901234", 10, 64)
+ 	}
+ }
+ 
+ func BenchmarkAtoi64Neg(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Atoi64("-12345678901234")
++		ParseInt("-12345678901234", 10, 64)
+ 	}
+ }
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 9785ca6916..47877e373a 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -31,7 +31,7 @@ func pow2(i int) float64 {
+ func myatof64(s string) (f float64, ok bool) {
+ 	a := strings.SplitN(s, "p", 2)
+ 	if len(a) == 2 {
+-		n, err := strconv.Atoi64(a[0])
++		n, err := strconv.ParseInt(a[0], 10, 64)
+ 		if err != nil {
+ 			return 0, false
+ 		}
+@@ -63,7 +63,7 @@ func myatof64(s string) (f float64, ok bool) {
+ 		}
+ 		return v * pow2(e), true
+ 	}
+-	f1, err := strconv.Atof64(s)
++	f1, err := strconv.ParseFloat(s, 64)
+ 	if err != nil {
+ 		return 0, false
+ 	}
+@@ -87,7 +87,8 @@ func myatof32(s string) (f float32, ok bool) {
+ 		}
+ 		return float32(float64(n) * pow2(e)), true
+ 	}
+-	f1, err1 := strconv.Atof32(s)
++	f64, err1 := strconv.ParseFloat(s, 32)
++	f1 := float32(f64)
+ 	if err1 != nil {
+ 		return 0, false
+ 	}
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index 8342b6abe7..e1ea0a3503 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -22,8 +22,10 @@ type floatInfo struct {
+ var float32info = floatInfo{23, 8, -127}
+ var float64info = floatInfo{52, 11, -1023}
+ 
+-// Ftoa32 converts the 32-bit floating-point number f to a string,
+-// according to the format fmt and precision prec.
++// FormatFloat converts the floating-point number f to a string,
++// according to the format fmt and precision prec.  It rounds the
++// result assuming that the original was obtained from a floating-point
++// value of bitSize bits (32 for float32, 64 for float64).
+ //
+ // The format fmt is one of
+ // 'b' (-ddddp±ddd, a binary exponent),
+@@ -43,24 +45,17 @@ var float64info = floatInfo{52, 11, -1023}
+ // Ftoa32(f) is not the same as Ftoa64(float32(f)),
+ // because correct rounding and the number of digits
+ // needed to identify f depend on the precision of the representation.
+-func Ftoa32(f float32, fmt byte, prec int) string {
+-	return genericFtoa(uint64(math.Float32bits(f)), fmt, prec, &float32info)
+-}
+-
+-// Ftoa64 is like Ftoa32 but converts a 64-bit floating-point number.
+-func Ftoa64(f float64, fmt byte, prec int) string {
++func FormatFloat(f float64, fmt byte, prec int, n int) string {
++	if n == 32 {
++		return genericFtoa(uint64(math.Float32bits(float32(f))), fmt, prec, &float32info)
++	}
+ 	return genericFtoa(math.Float64bits(f), fmt, prec, &float64info)
+ }
+ 
+-// FtoaN converts the 64-bit floating-point number f to a string,
+-// according to the format fmt and precision prec, but it rounds the
+-// result assuming that it was obtained from a floating-point value
+-// of n bits (32 or 64).
+-func FtoaN(f float64, fmt byte, prec int, n int) string {
+-	if n == 32 {
+-		return Ftoa32(float32(f), fmt, prec)
+-	}
+-	return Ftoa64(f, fmt, prec)
++// AppendFloat appends the string form of the floating-point number f,
++// as generated by FormatFloat, to dst and returns the extended buffer.
++func AppendFloat(dst []byte, f float64, fmt byte, prec int, n int) []byte {
++	return append(dst, FormatFloat(f, fmt, prec, n)...)
+ }
+ 
+ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index 8bac5da452..02206d5ad2 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -128,47 +128,47 @@ var ftoatests = []ftoaTest{
+ func TestFtoa(t *testing.T) {
+ 	for i := 0; i < len(ftoatests); i++ {
+ 		test := &ftoatests[i]
+-		s := Ftoa64(test.f, test.fmt, test.prec)
+-		if s != test.s {
+-			t.Error("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
+-		}
+-		s = FtoaN(test.f, test.fmt, test.prec, 64)
++		s := FormatFloat(test.f, test.fmt, test.prec, 64)
+ 		if s != test.s {
+ 			t.Error("testN=64", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
+ 		}
++		x := AppendFloat([]byte("abc"), test.f, test.fmt, test.prec, 64)
++		if string(x) != "abc"+test.s {
++			t.Error("AppendFloat testN=64", test.f, string(test.fmt), test.prec, "want", "abc"+test.s, "got", string(x))
++		}
+ 		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
+-			s := Ftoa32(float32(test.f), test.fmt, test.prec)
+-			if s != test.s {
+-				t.Error("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
+-			}
+-			s = FtoaN(test.f, test.fmt, test.prec, 32)
++			s := FormatFloat(test.f, test.fmt, test.prec, 32)
+ 			if s != test.s {
+ 				t.Error("testN=32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
+ 			}
++			x := AppendFloat([]byte("abc"), test.f, test.fmt, test.prec, 32)
++			if string(x) != "abc"+test.s {
++				t.Error("AppendFloat testN=32", test.f, string(test.fmt), test.prec, "want", "abc"+test.s, "got", string(x))
++			}
+ 		}
+ 	}
+ }
+ 
+ func BenchmarkFtoa64Decimal(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Ftoa64(33909, 'g', -1)
++		FormatFloat(33909, 'g', -1, 64)
+ 	}
+ }
+ 
+ func BenchmarkFtoa64Float(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Ftoa64(339.7784, 'g', -1)
++		FormatFloat(339.7784, 'g', -1, 64)
+ 	}
+ }
+ 
+ func BenchmarkFtoa64FloatExp(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Ftoa64(-5.09e75, 'g', -1)
++		FormatFloat(-5.09e75, 'g', -1, 64)
+ 	}
+ }
+ 
+ func BenchmarkFtoa64Big(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Ftoa64(123456789123456789123456789, 'g', -1)
++		FormatFloat(123456789123456789123456789, 'g', -1, 64)
+ 	}
+ }
+diff --git a/src/pkg/strconv/itoa.go b/src/pkg/strconv/itoa.go
+index a0a7496641..29a1a81d86 100644
+--- a/src/pkg/strconv/itoa.go
++++ b/src/pkg/strconv/itoa.go
+@@ -4,10 +4,11 @@
+ 
+ package strconv
+ 
+-// Uitob64 returns the string representation of i in the given base.
+-func Uitob64(u uint64, base uint) string {
++// FormatUint returns the string representation of i in the given base.
++func FormatUint(i uint64, base int) string {
++	u := i
+ 	if base < 2 || 36 < base {
+-		panic("invalid base " + Uitoa(base))
++		panic("invalid base " + Itoa(base))
+ 	}
+ 	if u == 0 {
+ 		return "0"
+@@ -26,32 +27,31 @@ func Uitob64(u uint64, base uint) string {
+ 	return string(buf[j:])
+ }
+ 
+-// Itob64 returns the string representation of i in the given base.
+-func Itob64(i int64, base uint) string {
++// FormatInt returns the string representation of i in the given base.
++func FormatInt(i int64, base int) string {
+ 	if i == 0 {
+ 		return "0"
+ 	}
+ 
+ 	if i < 0 {
+-		return "-" + Uitob64(-uint64(i), base)
++		return "-" + FormatUint(-uint64(i), base)
+ 	}
+-	return Uitob64(uint64(i), base)
++	return FormatUint(uint64(i), base)
+ }
+ 
+-// Itoa64 returns the decimal string representation of i.
+-func Itoa64(i int64) string { return Itob64(i, 10) }
+-
+-// Uitoa64 returns the decimal string representation of i.
+-func Uitoa64(i uint64) string { return Uitob64(i, 10) }
+-
+-// Uitob returns the string representation of i in the given base.
+-func Uitob(i uint, base uint) string { return Uitob64(uint64(i), base) }
+-
+-// Itob returns the string representation of i in the given base.
+-func Itob(i int, base uint) string { return Itob64(int64(i), base) }
++// Itoa is shorthand for FormatInt(i, 10).
++func Itoa(i int) string {
++	return FormatInt(int64(i), 10)
++}
+ 
+-// Itoa returns the decimal string representation of i.
+-func Itoa(i int) string { return Itob64(int64(i), 10) }
++// AppendInt appends the string form of the integer i,
++// as generated by FormatInt, to dst and returns the extended buffer.
++func AppendInt(dst []byte, i int64, base int) []byte {
++	return append(dst, FormatInt(i, base)...)
++}
+ 
+-// Uitoa returns the decimal string representation of i.
+-func Uitoa(i uint) string { return Uitob64(uint64(i), 10) }
++// AppendUint appends the string form of the unsigned integer i,
++// as generated by FormatUint, to dst and returns the extended buffer.
++func AppendUint(dst []byte, i uint64, base int) []byte {
++	return append(dst, FormatUint(i, base)...)
++}
+diff --git a/src/pkg/strconv/itoa_test.go b/src/pkg/strconv/itoa_test.go
+index 8514b21e47..99be968fff 100644
+--- a/src/pkg/strconv/itoa_test.go
++++ b/src/pkg/strconv/itoa_test.go
+@@ -11,7 +11,7 @@ import (
+ 
+ type itob64Test struct {
+ 	in   int64
+-	base uint
++	base int
+ 	out  string
+ }
+ 
+@@ -60,73 +60,43 @@ var itob64tests = []itob64Test{
+ 
+ func TestItoa(t *testing.T) {
+ 	for _, test := range itob64tests {
+-		s := Itob64(test.in, test.base)
++		s := FormatInt(test.in, test.base)
+ 		if s != test.out {
+-			t.Errorf("Itob64(%v, %v) = %v want %v",
++			t.Errorf("FormatInt(%v, %v) = %v want %v",
+ 				test.in, test.base, s, test.out)
+ 		}
++		x := AppendInt([]byte("abc"), test.in, test.base)
++		if string(x) != "abc"+test.out {
++			t.Errorf("AppendInt(%q, %v, %v) = %q want %v",
++				"abc", test.in, test.base, x, test.out)
++		}
+ 
+ 		if test.in >= 0 {
+-			s := Uitob64(uint64(test.in), test.base)
++			s := FormatUint(uint64(test.in), test.base)
+ 			if s != test.out {
+-				t.Errorf("Uitob64(%v, %v) = %v want %v",
++				t.Errorf("FormatUint(%v, %v) = %v want %v",
+ 					test.in, test.base, s, test.out)
+ 			}
+-		}
+-
+-		if int64(int(test.in)) == test.in {
+-			s := Itob(int(test.in), test.base)
+-			if s != test.out {
+-				t.Errorf("Itob(%v, %v) = %v want %v",
+-					test.in, test.base, s, test.out)
+-			}
+-
+-			if test.in >= 0 {
+-				s := Uitob(uint(test.in), test.base)
+-				if s != test.out {
+-					t.Errorf("Uitob(%v, %v) = %v want %v",
+-						test.in, test.base, s, test.out)
+-				}
++			x := AppendUint([]byte("abc"), uint64(test.in), test.base)
++			if string(x) != "abc"+test.out {
++				t.Errorf("AppendUint(%q, %v, %v) = %q want %v",
++					"abc", uint64(test.in), test.base, x, test.out)
+ 			}
+ 		}
+ 
+-		if test.base == 10 {
+-			s := Itoa64(test.in)
++		if test.base == 10 && int64(int(test.in)) == test.in {
++			s := Itoa(int(test.in))
+ 			if s != test.out {
+-				t.Errorf("Itoa64(%v) = %v want %v",
++				t.Errorf("Itoa(%v) = %v want %v",
+ 					test.in, s, test.out)
+ 			}
+-
+-			if test.in >= 0 {
+-				s := Uitob64(uint64(test.in), test.base)
+-				if s != test.out {
+-					t.Errorf("Uitob64(%v, %v) = %v want %v",
+-						test.in, test.base, s, test.out)
+-				}
+-			}
+-
+-			if int64(int(test.in)) == test.in {
+-				s := Itoa(int(test.in))
+-				if s != test.out {
+-					t.Errorf("Itoa(%v) = %v want %v",
+-						test.in, s, test.out)
+-				}
+-
+-				if test.in >= 0 {
+-					s := Uitoa(uint(test.in))
+-					if s != test.out {
+-						t.Errorf("Uitoa(%v) = %v want %v",
+-							test.in, s, test.out)
+-					}
+-				}
+-			}
+ 		}
+ 	}
+ }
+ 
+ type uitob64Test struct {
+ 	in   uint64
+-	base uint
++	base int
+ 	out  string
+ }
+ 
+@@ -141,34 +111,16 @@ var uitob64tests = []uitob64Test{
+ 
+ func TestUitoa(t *testing.T) {
+ 	for _, test := range uitob64tests {
+-		s := Uitob64(test.in, test.base)
++		s := FormatUint(test.in, test.base)
+ 		if s != test.out {
+-			t.Errorf("Uitob64(%v, %v) = %v want %v",
++			t.Errorf("FormatUint(%v, %v) = %v want %v",
+ 				test.in, test.base, s, test.out)
+ 		}
+-
+-		if uint64(uint(test.in)) == test.in {
+-			s := Uitob(uint(test.in), test.base)
+-			if s != test.out {
+-				t.Errorf("Uitob(%v, %v) = %v want %v",
+-					test.in, test.base, s, test.out)
+-			}
++		x := AppendUint([]byte("abc"), test.in, test.base)
++		if string(x) != "abc"+test.out {
++			t.Errorf("AppendUint(%q, %v, %v) = %q want %v",
++				"abc", test.in, test.base, x, test.out)
+ 		}
+ 
+-		if test.base == 10 {
+-			s := Uitoa64(test.in)
+-			if s != test.out {
+-				t.Errorf("Uitoa64(%v) = %v want %v",
+-					test.in, s, test.out)
+-			}
+-
+-			if uint64(uint(test.in)) == test.in {
+-				s := Uitoa(uint(test.in))
+-				if s != test.out {
+-					t.Errorf("Uitoa(%v) = %v want %v",
+-						test.in, s, test.out)
+-				}
+-			}
+-		}
+ 	}
+ }
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index 9b48c07fb1..30b384df8e 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -92,6 +92,12 @@ func Quote(s string) string {
+ 	return quoteWith(s, '"', false)
+ }
+ 
++// AppendQuote appends a double-quoted Go string literal representing s,
++// as generated by Quote, to dst and returns the extended buffer.
++func AppendQuote(dst []byte, s string) []byte {
++	return append(dst, Quote(s)...)
++}
++
+ // QuoteToASCII returns a double-quoted Go string literal representing s.
+ // The returned string uses Go escape sequences (\t, \n, \xFF, \u0100) for
+ // non-ASCII characters and non-printable characters as defined by
+@@ -100,6 +106,12 @@ func QuoteToASCII(s string) string {
+ 	return quoteWith(s, '"', true)
+ }
+ 
++// AppendQuoteToASCII appends a double-quoted Go string literal representing s,
++// as generated by QuoteToASCII, to dst and returns the extended buffer.
++func AppendQuoteToASCII(dst []byte, s string) []byte {
++	return append(dst, QuoteToASCII(s)...)
++}
++
+ // QuoteRune returns a single-quoted Go character literal representing the
+ // rune.  The returned string uses Go escape sequences (\t, \n, \xFF, \u0100)
+ // for control characters and non-printable characters as defined by
+@@ -109,6 +121,12 @@ func QuoteRune(rune int) string {
+ 	return quoteWith(string(rune), '\'', false)
+ }
+ 
++// AppendQuoteRune appends a single-quoted Go character literal representing the rune,
++// as generated by QuoteRune, to dst and returns the extended buffer.
++func AppendQuoteRune(dst []byte, rune int) []byte {
++	return append(dst, QuoteRune(rune)...)
++}
++
+ // QuoteRuneToASCII returns a single-quoted Go character literal representing
+ // the rune.  The returned string uses Go escape sequences (\t, \n, \xFF,
+ // \u0100) for non-ASCII characters and non-printable characters as defined
+@@ -118,6 +136,12 @@ func QuoteRuneToASCII(rune int) string {
+ 	return quoteWith(string(rune), '\'', true)
+ }
+ 
++// AppendQuoteRune appends a single-quoted Go character literal representing the rune,
++// as generated by QuoteRuneToASCII, to dst and returns the extended buffer.
++func AppendQuoteRuneToASCII(dst []byte, rune int) []byte {
++	return append(dst, QuoteRuneToASCII(rune)...)
++}
++
+ // CanBackquote returns whether the string s would be
+ // a valid Go string literal if enclosed in backquotes.
+ func CanBackquote(s string) bool {
+diff --git a/src/pkg/strconv/quote_test.go b/src/pkg/strconv/quote_test.go
+index 9a597700d2..e440797162 100644
+--- a/src/pkg/strconv/quote_test.go
++++ b/src/pkg/strconv/quote_test.go
+@@ -29,6 +29,9 @@ func TestQuote(t *testing.T) {
+ 		if out := Quote(tt.in); out != tt.out {
+ 			t.Errorf("Quote(%s) = %s, want %s", tt.in, out, tt.out)
+ 		}
++		if out := AppendQuote([]byte("abc"), tt.in); string(out) != "abc"+tt.out {
++			t.Errorf("AppendQuote(%q, %s) = %s, want %s", "abc", tt.in, out, "abc"+tt.out)
++		}
+ 	}
+ }
+ 
+@@ -37,6 +40,9 @@ func TestQuoteToASCII(t *testing.T) {
+ 		if out := QuoteToASCII(tt.in); out != tt.ascii {
+ 			t.Errorf("QuoteToASCII(%s) = %s, want %s", tt.in, out, tt.ascii)
+ 		}
++		if out := AppendQuoteToASCII([]byte("abc"), tt.in); string(out) != "abc"+tt.ascii {
++			t.Errorf("AppendQuoteToASCII(%q, %s) = %s, want %s", "abc", tt.in, out, "abc"+tt.ascii)
++		}
+ 	}
+ }
+ 
+@@ -63,6 +69,9 @@ func TestQuoteRune(t *testing.T) {
+ 		if out := QuoteRune(tt.in); out != tt.out {
+ 			t.Errorf("QuoteRune(%U) = %s, want %s", tt.in, out, tt.out)
+ 		}
++		if out := AppendQuoteRune([]byte("abc"), tt.in); string(out) != "abc"+tt.out {
++			t.Errorf("AppendQuoteRune(%q, %U) = %s, want %s", "abc", tt.in, out, "abc"+tt.out)
++		}
+ 	}
+ }
+ 
+@@ -71,6 +80,9 @@ func TestQuoteRuneToASCII(t *testing.T) {
+ 		if out := QuoteRuneToASCII(tt.in); out != tt.ascii {
+ 			t.Errorf("QuoteRuneToASCII(%U) = %s, want %s", tt.in, out, tt.ascii)
+ 		}
++		if out := AppendQuoteRuneToASCII([]byte("abc"), tt.in); string(out) != "abc"+tt.ascii {
++			t.Errorf("AppendQuoteRuneToASCII(%q, %U) = %s, want %s", "abc", tt.in, out, "abc"+tt.ascii)
++		}
+ 	}
+ }
+ 

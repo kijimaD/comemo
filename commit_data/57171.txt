@@ -35,10 +35,252 @@ Date:   Thu Jul 6 12:30:39 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/handler.go      | 24 ++++++++++++++-------
  src/log/slog/handler_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++
  src/log/slog/record.go       | 24 ++++++++++++++++++---
  src/log/slog/value.go        | 34 ++++++++++++++++++++++++++++++
  src/log/slog/value_test.go   | 12 +++++++++++
  5 files changed, 134 insertions(+), 10 deletions(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index dc4c2d92bd..e479ca8a4c 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -221,6 +221,11 @@ func (h *commonHandler) enabled(l Level) bool {
+ }
+ 
+ func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
++	// We are going to ignore empty groups, so if the entire slice consists of
++	// them, there is nothing to do.
++	if countEmptyGroups(as) == len(as) {
++		return h
++	}
+ 	h2 := h.clone()
+ 	// Pre-format the attributes as an optimization.
+ 	state := h2.newHandleState((*buffer.Buffer)(&h2.preformattedAttrs), false, "")
+@@ -308,15 +313,20 @@ func (s *handleState) appendNonBuiltIns(r Record) {
+ 	}
+ 	// Attrs in Record -- unlike the built-in ones, they are in groups started
+ 	// from WithGroup.
+-	s.prefix.WriteString(s.h.groupPrefix)
+-	s.openGroups()
+-	r.Attrs(func(a Attr) bool {
+-		s.appendAttr(a)
+-		return true
+-	})
++	// If the record has no Attrs, don't output any groups.
++	nOpenGroups := s.h.nOpenGroups
++	if r.NumAttrs() > 0 {
++		s.prefix.WriteString(s.h.groupPrefix)
++		s.openGroups()
++		nOpenGroups = len(s.h.groups)
++		r.Attrs(func(a Attr) bool {
++			s.appendAttr(a)
++			return true
++		})
++	}
+ 	if s.h.json {
+ 		// Close all open groups.
+-		for range s.h.groups {
++		for range s.h.groups[:nOpenGroups] {
+ 			s.buf.WriteByte('}')
+ 		}
+ 		// Close the top-level object.
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 741e86a826..f43d841483 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -214,6 +214,28 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			wantText: "msg=message h.a=1",
+ 			wantJSON: `{"msg":"message","h":{"a":1}}`,
+ 		},
++		{
++			name:    "nested empty group",
++			replace: removeKeys(TimeKey, LevelKey),
++			attrs: []Attr{
++				Group("g",
++					Group("h",
++						Group("i"), Group("j"))),
++			},
++			wantText: `msg=message`,
++			wantJSON: `{"msg":"message"}`,
++		},
++		{
++			name:    "nested non-empty group",
++			replace: removeKeys(TimeKey, LevelKey),
++			attrs: []Attr{
++				Group("g",
++					Group("h",
++						Group("i"), Group("j", Int("a", 1)))),
++			},
++			wantText: `msg=message g.h.j.a=1`,
++			wantJSON: `{"msg":"message","g":{"h":{"j":{"a":1}}}}`,
++		},
+ 		{
+ 			name:    "escapes",
+ 			replace: removeKeys(TimeKey, LevelKey),
+@@ -281,6 +303,34 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			wantText: "msg=message p1=1 s1.s2.a=one s1.s2.b=2",
+ 			wantJSON: `{"msg":"message","p1":1,"s1":{"s2":{"a":"one","b":2}}}`,
+ 		},
++		{
++			name:    "empty with-groups",
++			replace: removeKeys(TimeKey, LevelKey),
++			with: func(h Handler) Handler {
++				return h.WithGroup("x").WithGroup("y")
++			},
++			wantText: "msg=message",
++			wantJSON: `{"msg":"message"}`,
++		},
++		{
++			name:    "empty with-groups, no non-empty attrs",
++			replace: removeKeys(TimeKey, LevelKey),
++			with: func(h Handler) Handler {
++				return h.WithGroup("x").WithAttrs([]Attr{Group("g")}).WithGroup("y")
++			},
++			wantText: "msg=message",
++			wantJSON: `{"msg":"message"}`,
++		},
++		{
++			name:    "one empty with-group",
++			replace: removeKeys(TimeKey, LevelKey),
++			with: func(h Handler) Handler {
++				return h.WithGroup("x").WithAttrs([]Attr{Int("a", 1)}).WithGroup("y")
++			},
++			attrs:    []Attr{Group("g", Group("h"))},
++			wantText: "msg=message x.a=1",
++			wantJSON: `{"msg":"message","x":{"a":1}}`,
++		},
+ 		{
+ 			name:     "GroupValue as Attr value",
+ 			replace:  removeKeys(TimeKey, LevelKey),
+diff --git a/src/log/slog/record.go b/src/log/slog/record.go
+index 972552d519..67b76f34e1 100644
+--- a/src/log/slog/record.go
++++ b/src/log/slog/record.go
+@@ -93,9 +93,17 @@ func (r Record) Attrs(f func(Attr) bool) {
+ }
+ 
+ // AddAttrs appends the given Attrs to the Record's list of Attrs.
++// It omits empty groups.
+ func (r *Record) AddAttrs(attrs ...Attr) {
+-	n := copy(r.front[r.nFront:], attrs)
+-	r.nFront += n
++	var i int
++	for i = 0; i < len(attrs) && r.nFront < len(r.front); i++ {
++		a := attrs[i]
++		if a.Value.isEmptyGroup() {
++			continue
++		}
++		r.front[r.nFront] = a
++		r.nFront++
++	}
+ 	// Check if a copy was modified by slicing past the end
+ 	// and seeing if the Attr there is non-zero.
+ 	if cap(r.back) > len(r.back) {
+@@ -104,15 +112,25 @@ func (r *Record) AddAttrs(attrs ...Attr) {
+ 			panic("copies of a slog.Record were both modified")
+ 		}
+ 	}
+-	r.back = append(r.back, attrs[n:]...)
++	ne := countEmptyGroups(attrs[i:])
++	r.back = slices.Grow(r.back, len(attrs[i:])-ne)
++	for _, a := range attrs[i:] {
++		if !a.Value.isEmptyGroup() {
++			r.back = append(r.back, a)
++		}
++	}
+ }
+ 
+ // Add converts the args to Attrs as described in [Logger.Log],
+ // then appends the Attrs to the Record's list of Attrs.
++// It omits empty groups.
+ func (r *Record) Add(args ...any) {
+ 	var a Attr
+ 	for len(args) > 0 {
+ 		a, args = argsToAttr(args)
++		if a.Value.isEmptyGroup() {
++			continue
++		}
+ 		if r.nFront < len(r.front) {
+ 			r.front[r.nFront] = a
+ 			r.nFront++
+diff --git a/src/log/slog/value.go b/src/log/slog/value.go
+index 71a59d2639..224848f695 100644
+--- a/src/log/slog/value.go
++++ b/src/log/slog/value.go
+@@ -164,9 +164,32 @@ func DurationValue(v time.Duration) Value {
+ // GroupValue returns a new Value for a list of Attrs.
+ // The caller must not subsequently mutate the argument slice.
+ func GroupValue(as ...Attr) Value {
++	// Remove empty groups.
++	// It is simpler overall to do this at construction than
++	// to check each Group recursively for emptiness.
++	if n := countEmptyGroups(as); n > 0 {
++		as2 := make([]Attr, 0, len(as)-n)
++		for _, a := range as {
++			if !a.Value.isEmptyGroup() {
++				as2 = append(as2, a)
++			}
++		}
++		as = as2
++	}
+ 	return Value{num: uint64(len(as)), any: groupptr(unsafe.SliceData(as))}
+ }
+ 
++// countEmptyGroups returns the number of empty group values in its argument.
++func countEmptyGroups(as []Attr) int {
++	n := 0
++	for _, a := range as {
++		if a.Value.isEmptyGroup() {
++			n++
++		}
++	}
++	return n
++}
++
+ // AnyValue returns a Value for the supplied value.
+ //
+ // If the supplied value is of type Value, it is returned
+@@ -399,6 +422,17 @@ func (v Value) Equal(w Value) bool {
+ 	}
+ }
+ 
++// isEmptyGroup reports whether v is a group that has no attributes.
++func (v Value) isEmptyGroup() bool {
++	if v.Kind() != KindGroup {
++		return false
++	}
++	// We do not need to recursively examine the group's Attrs for emptiness,
++	// because GroupValue removed them when the group was constructed, and
++	// groups are immutable.
++	return len(v.group()) == 0
++}
++
+ // append appends a text representation of v to dst.
+ // v is formatted as with fmt.Sprint.
+ func (v Value) append(dst []byte) []byte {
+diff --git a/src/log/slog/value_test.go b/src/log/slog/value_test.go
+index 615bed79d9..923a4e0ccc 100644
+--- a/src/log/slog/value_test.go
++++ b/src/log/slog/value_test.go
+@@ -229,6 +229,18 @@ func TestZeroTime(t *testing.T) {
+ 	}
+ }
+ 
++func TestEmptyGroup(t *testing.T) {
++	g := GroupValue(
++		Int("a", 1),
++		Group("g1", Group("g2")),
++		Group("g3", Group("g4", Int("b", 2))))
++	got := g.Group()
++	want := []Attr{Int("a", 1), Group("g3", Group("g4", Int("b", 2)))}
++	if !attrsEqual(got, want) {
++		t.Errorf("\ngot  %v\nwant %v", got, want)
++	}
++}
++
+ type replace struct {
+ 	v Value
+ }

@@ -8,7 +8,53 @@ Date:   Fri Jul 3 09:44:59 2009 -0700
     R=ken
     OCL=31124
     CL=31144
-
+---
  src/cmd/gc/subr.c |  2 +-
  src/cmd/gc/walk.c | 14 ++++++--------
  2 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 2e0c6b07da..3ceaa4e964 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -327,7 +327,7 @@ algtype(Type *t)
+ {
+ 	int a;
+ 
+-	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN || t->etype == TFUNC)
++	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP)
+ 		a = AMEM;	// just bytes (int, ptr, etc)
+ 	else if(t->etype == TSTRING)
+ 		a = ASTRING;	// string
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 50e333797f..6d102982cb 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -610,7 +610,7 @@ loop:
+ 			goto nottop;
+ 		walkconv(n);
+ 		goto ret;
+-	
++
+ 	case OCONVNOP:
+ 		goto ret;
+ 
+@@ -2111,13 +2111,11 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
+ 	&& structnext(&peekl) != T
+ 	&& listnext(&peekr) == N
+ 	&& eqtypenoname(r->type, *nl)) {
+-		// TODO(rsc): clumsy check for differently aligned structs.
+-		// need to handle eventually, but this keeps us
+-		// from inserting bugs
+-		if(r->type->width != (*nl)->width) {
+-			fprint(2, "oops: %T %d %T %d\n", r->type, r->type->width, (*nl), (*nl)->width);
+-			yyerror("misaligned multiple return (6g's fault)");
+-		}
++		// clumsy check for differently aligned structs.
++		// now that output structs are aligned separately
++		// from the input structs, should never happen.
++		if(r->type->width != (*nl)->width)
++			fatal("misaligned multiple return\n\t%T\n\t%T", r->type, *nl);
+ 		a = nodarg(*nl, fp);
+ 		a->type = r->type;
+ 		return convas(nod(OAS, a, r));

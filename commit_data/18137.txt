@@ -10,6 +10,20 @@ Date:   Mon Dec 30 13:29:56 2013 -0800
     R=golang-codereviews, r, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/45350043
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index bc9ec682a0..329e2adb18 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3929,7 +3929,7 @@ an untyped complex constant.
+ 
+ <pre>
+ const ic = complex(0, c)   // ic == 3.75i  (untyped complex constant)
+-const iΘ = complex(0, Θ)   // iΘ == 1.5i   (type complex128)
++const iΘ = complex(0, Θ)   // iΘ == 1i     (type complex128)
+ </pre>
+ 
+ <p>

@@ -13,7 +13,33 @@ Date:   Sun Dec 23 16:48:38 2018 -0500
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/all_test.go | 1 +
  src/reflect/value.go    | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 4b215f120c..10b52456f3 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -1009,6 +1009,7 @@ func TestIsNil(t *testing.T) {
+ 		struct{ x func() bool }{},
+ 		struct{ x chan int }{},
+ 		struct{ x []string }{},
++		struct{ x unsafe.Pointer }{},
+ 	}
+ 	for _, ts := range doNil {
+ 		ty := TypeOf(ts).Field(0).Type
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 8906febb9b..7ae2dd8d10 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1031,7 +1031,7 @@ func (v Value) InterfaceData() [2]uintptr {
+ func (v Value) IsNil() bool {
+ 	k := v.kind()
+ 	switch k {
+-	case Chan, Func, Map, Ptr:
++	case Chan, Func, Map, Ptr, UnsafePointer:
+ 		if v.flag&flagMethod != 0 {
+ 			return false
+ 		}

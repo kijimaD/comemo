@@ -14,7 +14,7 @@ Date:   Sun Apr 19 19:01:49 2015 +0900
     Change-Id: I34ca5e98f6de72863f85b2527478b20d8d5394dd
     Reviewed-on: https://go-review.googlesource.com/9109
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial.go           |  4 ++--
  src/net/net.go            | 25 ++++++++++++++++++++-----
  src/net/tcpsock_plan9.go  | 19 ++++++++++++++-----
@@ -22,3 +22,248 @@ Date:   Sun Apr 19 19:01:49 2015 +0900
  src/net/unixsock_plan9.go |  2 +-
  src/net/unixsock_posix.go |  7 +++++--
  6 files changed, 63 insertions(+), 21 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index a204e5723b..feca759f82 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -180,8 +180,8 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
+ 	c, err := dial(network, addrs.first(isIPv4), dialer, d.deadline())
+ 	if d.KeepAlive > 0 && err == nil {
+ 		if tc, ok := c.(*TCPConn); ok {
+-			tc.SetKeepAlive(true)
+-			tc.SetKeepAlivePeriod(d.KeepAlive)
++			setKeepAlive(tc.fd, true)
++			setKeepAlivePeriod(tc.fd, d.KeepAlive)
+ 			testHookSetKeepAlive()
+ 		}
+ 	}
+diff --git a/src/net/net.go b/src/net/net.go
+index d1029832bf..f38aed6919 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -192,7 +192,10 @@ func (c *conn) SetDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.setDeadline(t)
++	if err := c.fd.setDeadline(t); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+@@ -200,7 +203,10 @@ func (c *conn) SetReadDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.setReadDeadline(t)
++	if err := c.fd.setReadDeadline(t); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+@@ -208,7 +214,10 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.setWriteDeadline(t)
++	if err := c.fd.setWriteDeadline(t); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // SetReadBuffer sets the size of the operating system's
+@@ -217,7 +226,10 @@ func (c *conn) SetReadBuffer(bytes int) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return setReadBuffer(c.fd, bytes)
++	if err := setReadBuffer(c.fd, bytes); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // SetWriteBuffer sets the size of the operating system's
+@@ -226,7 +238,10 @@ func (c *conn) SetWriteBuffer(bytes int) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return setWriteBuffer(c.fd, bytes)
++	if err := setWriteBuffer(c.fd, bytes); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // File sets the underlying os.File to blocking mode and returns a copy.
+diff --git a/src/net/tcpsock_plan9.go b/src/net/tcpsock_plan9.go
+index deb2424c27..a0b2630910 100644
+--- a/src/net/tcpsock_plan9.go
++++ b/src/net/tcpsock_plan9.go
+@@ -69,7 +69,7 @@ func (c *TCPConn) CloseWrite() error {
+ // some operating systems after sec seconds have elapsed any remaining
+ // unsent data may be discarded.
+ func (c *TCPConn) SetLinger(sec int) error {
+-	return syscall.EPLAN9
++	return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
+ }
+ 
+ // SetKeepAlive sets whether the operating system should send
+@@ -78,7 +78,10 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ 	if !c.ok() {
+ 		return syscall.EPLAN9
+ 	}
+-	return setKeepAlive(c.fd, keepalive)
++	if err := setKeepAlive(c.fd, keepalive); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // SetKeepAlivePeriod sets period between keep alives.
+@@ -86,7 +89,10 @@ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
+ 	if !c.ok() {
+ 		return syscall.EPLAN9
+ 	}
+-	return setKeepAlivePeriod(c.fd, d)
++	if err := setKeepAlivePeriod(c.fd, d); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // SetNoDelay controls whether the operating system should delay
+@@ -94,7 +100,7 @@ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
+ // algorithm).  The default is true (no delay), meaning that data is
+ // sent as soon as possible after a Write.
+ func (c *TCPConn) SetNoDelay(noDelay bool) error {
+-	return syscall.EPLAN9
++	return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
+ }
+ 
+ // DialTCP connects to the remote address raddr on the network net,
+@@ -183,7 +189,10 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ 	if l == nil || l.fd == nil || l.fd.ctl == nil {
+ 		return syscall.EINVAL
+ 	}
+-	return l.fd.setDeadline(t)
++	if err := l.fd.setDeadline(t); err != nil {
++		return &OpError{Op: "set", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // File returns a copy of the underlying os.File, set to blocking
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index 78a3b8bf83..62f9ee1c3f 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -53,7 +53,7 @@ type TCPConn struct {
+ 
+ func newTCPConn(fd *netFD) *TCPConn {
+ 	c := &TCPConn{conn{fd}}
+-	c.SetNoDelay(true)
++	setNoDelay(c.fd, true)
+ 	return c
+ }
+ 
+@@ -114,7 +114,10 @@ func (c *TCPConn) SetLinger(sec int) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return setLinger(c.fd, sec)
++	if err := setLinger(c.fd, sec); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // SetKeepAlive sets whether the operating system should send
+@@ -123,7 +126,10 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return setKeepAlive(c.fd, keepalive)
++	if err := setKeepAlive(c.fd, keepalive); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // SetKeepAlivePeriod sets period between keep alives.
+@@ -131,7 +137,10 @@ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return setKeepAlivePeriod(c.fd, d)
++	if err := setKeepAlivePeriod(c.fd, d); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // SetNoDelay controls whether the operating system should delay
+@@ -142,7 +151,10 @@ func (c *TCPConn) SetNoDelay(noDelay bool) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return setNoDelay(c.fd, noDelay)
++	if err := setNoDelay(c.fd, noDelay); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // DialTCP connects to the remote address raddr on the network net,
+@@ -280,7 +292,10 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ 	if l == nil || l.fd == nil {
+ 		return syscall.EINVAL
+ 	}
+-	return l.fd.setDeadline(t)
++	if err := l.fd.setDeadline(t); err != nil {
++		return &OpError{Op: "set", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // File returns a copy of the underlying os.File, set to blocking
+diff --git a/src/net/unixsock_plan9.go b/src/net/unixsock_plan9.go
+index 410933ddd1..a2fb86278f 100644
+--- a/src/net/unixsock_plan9.go
++++ b/src/net/unixsock_plan9.go
+@@ -122,7 +122,7 @@ func (l *UnixListener) Addr() Addr { return nil }
+ // SetDeadline sets the deadline associated with the listener.
+ // A zero time value disables the deadline.
+ func (l *UnixListener) SetDeadline(t time.Time) error {
+-	return syscall.EPLAN9
++	return &OpError{Op: "set", Net: "<nil>", Addr: nil, Err: syscall.EPLAN9}
+ }
+ 
+ // File returns a copy of the underlying os.File, set to blocking
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index 5cb2f436b6..ed5ffd391f 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -356,11 +356,14 @@ func (l *UnixListener) Addr() Addr { return l.fd.laddr }
+ 
+ // SetDeadline sets the deadline associated with the listener.
+ // A zero time value disables the deadline.
+-func (l *UnixListener) SetDeadline(t time.Time) (err error) {
++func (l *UnixListener) SetDeadline(t time.Time) error {
+ 	if l == nil || l.fd == nil {
+ 		return syscall.EINVAL
+ 	}
+-	return l.fd.setDeadline(t)
++	if err := l.fd.setDeadline(t); err != nil {
++		return &OpError{Op: "set", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
++	}
++	return nil
+ }
+ 
+ // File returns a copy of the underlying os.File, set to blocking

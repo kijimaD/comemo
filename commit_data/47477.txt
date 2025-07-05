@@ -44,6 +44,22 @@ Date:   Fri Mar 19 20:19:33 2021 -0600
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/sys_windows_arm64.s | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index c8c96acd06..0b77e6d048 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -573,7 +573,7 @@ TEXT runtime·wintls(SB),NOSPLIT,$0
+ ok:
+ 
+ 	// Save offset from R18 into tls_g.
+-	LSL	$3, R1
+-	ADD	$TEB_TlsSlots, R1
+-	MOVD	R1, runtime·tls_g(SB)
++	LSL	$3, R0
++	ADD	$TEB_TlsSlots, R0
++	MOVD	R0, runtime·tls_g(SB)
+ 	RET

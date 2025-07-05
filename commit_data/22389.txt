@@ -12,7 +12,7 @@ Date:   Wed Mar 11 12:58:47 2015 -0700
     Change-Id: Ie5efe89b247841e0b3f82aac5256b2c606ef67dc
     Reviewed-on: https://go-review.googlesource.com/7431
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/cplx.go     |  3 ---
  src/cmd/internal/gc/gsubr.go    |  3 ---
  src/cmd/internal/gc/obj.go      |  3 ---
@@ -42,3 +42,508 @@ Date:   Wed Mar 11 12:58:47 2015 -0700
  src/runtime/select.go           |  2 +-
  src/runtime/type.go             |  2 +-
  28 files changed, 35 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/internal/gc/cplx.go b/src/cmd/internal/gc/cplx.go
+index 5351d2b0c3..0097571390 100644
+--- a/src/cmd/internal/gc/cplx.go
++++ b/src/cmd/internal/gc/cplx.go
+@@ -238,9 +238,6 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
+ 	}
+ }
+ 
+-/*
+- * cplx.c
+- */
+ func Complexop(n *Node, res *Node) bool {
+ 	if n != nil && n.Type != nil {
+ 		if Iscomplex[n.Type.Etype] {
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 44e0d22a87..8540b920b5 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -76,9 +76,6 @@ func Samereg(a *Node, b *Node) bool {
+ 	return true
+ }
+ 
+-/*
+- * gsubr.c
+- */
+ func Gbranch(as int, t *Type, likely int) *obj.Prog {
+ 	p := Prog(as)
+ 	p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/internal/gc/obj.go b/src/cmd/internal/gc/obj.go
+index cb5b914803..d59898f286 100644
+--- a/src/cmd/internal/gc/obj.go
++++ b/src/cmd/internal/gc/obj.go
+@@ -294,9 +294,6 @@ func dstringptr(s *Sym, off int, str string) int {
+ 	return off
+ }
+ 
+-/*
+- * gobj.c
+- */
+ func Datastring(s string, a *obj.Addr) {
+ 	sym := stringsym(s)
+ 	a.Type = obj.TYPE_MEM
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index 81b02e1e1b..208ecb80ff 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -12,10 +12,6 @@ import (
+ )
+ 
+ // "Portable" code generation.
+-// Compiled separately for 5g, 6g, and 8g, so allowed to use gg.h, opt.h.
+-// Must code to the intersection of the three back ends.
+-
+-//#include	"opt.h"
+ 
+ var makefuncdatasym_nsym int32
+ 
+@@ -350,9 +346,6 @@ func Cgen_checknil(n *Node) {
+ 	Thearch.Gins(obj.ACHECKNIL, n, nil)
+ }
+ 
+-/*
+- * ggen.c
+- */
+ func compile(fn *Node) {
+ 	if Newproc == nil {
+ 		Newproc = Sysfunc("newproc")
+diff --git a/src/cmd/internal/gc/popt.go b/src/cmd/internal/gc/popt.go
+index 46f844e08c..d4cb4b676a 100644
+--- a/src/cmd/internal/gc/popt.go
++++ b/src/cmd/internal/gc/popt.go
+@@ -38,8 +38,6 @@ import (
+ )
+ 
+ // "Portable" optimizations.
+-// Compiled separately for 5g, 6g, and 8g, so allowed to use gg.h, opt.h.
+-// Must code to the intersection of the three back ends.
+ 
+ // Derived from Inferno utils/6c/gc.h
+ // http://code.google.com/p/inferno-os/source/browse/utils/6c/gc.h
+@@ -168,26 +166,9 @@ type OptStats struct {
+ 
+ var Ostats OptStats
+ 
+-/*
+- * reg.c
+- */
+-
+-/*
+- * peep.c
+-void	peep(Prog*);
+-void	excise(Flow*);
+-int	copyu(Prog*, Adr*, Adr*);
+-*/
+-
+-/*
+- * prog.c
+-
+-void proginfo(ProgInfo*, Prog*);
+-*/
+-// p is a call instruction. Does the call fail to return?
+-
+ var noreturn_symlist [10]*Sym
+ 
++// p is a call instruction. Does the call fail to return?
+ func Noreturn(p *obj.Prog) bool {
+ 	if noreturn_symlist[0] == nil {
+ 		noreturn_symlist[0] = Pkglookup("panicindex", Runtimepkg)
+diff --git a/src/cmd/internal/gc/racewalk.go b/src/cmd/internal/gc/racewalk.go
+index 3fd2c268f3..2b3fc306f9 100644
+--- a/src/cmd/internal/gc/racewalk.go
++++ b/src/cmd/internal/gc/racewalk.go
+@@ -629,7 +629,7 @@ func hascallspred(n *Node, c interface{}) {
+ 	}
+ }
+ 
+-// appendinit is like addinit in subr.c
++// appendinit is like addinit in subr.go
+ // but appends rather than prepends.
+ func appendinit(np **Node, init *NodeList) {
+ 	if init == nil {
+diff --git a/src/cmd/internal/gc/range.go b/src/cmd/internal/gc/range.go
+index 8dbb002b24..ca901d2bb3 100644
+--- a/src/cmd/internal/gc/range.go
++++ b/src/cmd/internal/gc/range.go
+@@ -306,7 +306,7 @@ func walkrange(n *Node) {
+ 		hit := n.Alloc
+ 		hit.Type = th
+ 		n.Left = nil
+-		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.c:hiter
++		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.go:hiter
+ 		valname := newname(th.Type.Down.Sym) // ditto
+ 
+ 		fn := syslook("mapiterinit", 1)
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 19694ad3d8..60d6ea510f 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -107,7 +107,7 @@ func lsort(l *Sig, f func(*Sig, *Sig) int) *Sig {
+ // the given map type.  This type is not visible to users -
+ // we include only enough information to generate a correct GC
+ // program for it.
+-// Make sure this stays in sync with ../../runtime/hashmap.c!
++// Make sure this stays in sync with ../../runtime/hashmap.go!
+ const (
+ 	BUCKETSIZE = 8
+ 	MAXKEYSIZE = 128
+@@ -236,7 +236,7 @@ func hiter(t *Type) *Type {
+ 	//    bucket uintptr
+ 	//    checkBucket uintptr
+ 	// }
+-	// must match ../../runtime/hashmap.c:hash_iter.
++	// must match ../../runtime/hashmap.go:hash_iter.
+ 	var field [12]*Type
+ 	field[0] = makefield("key", Ptrto(t.Down))
+ 
+diff --git a/src/cmd/internal/gc/select.go b/src/cmd/internal/gc/select.go
+index 5816428deb..e3c92947bc 100644
+--- a/src/cmd/internal/gc/select.go
++++ b/src/cmd/internal/gc/select.go
+@@ -324,7 +324,7 @@ out:
+ 	lineno = int32(lno)
+ }
+ 
+-// Keep in sync with src/runtime/chan.h.
++// Keep in sync with src/runtime/runtime2.go and src/runtime/select.go.
+ func selecttype(size int32) *Type {
+ 	// TODO(dvyukov): it's possible to generate SudoG and Scase only once
+ 	// and then cache; and also cache Select per size.
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index af45015ccb..e88b4c28b0 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -2636,7 +2636,7 @@ func vmatch2(l *Node, r *Node) bool {
+ 
+ /*
+  * is any name mentioned in l also mentioned in r?
+- * called by sinit.c
++ * called by sinit.go
+  */
+ func vmatch1(l *Node, r *Node) bool {
+ 	/*
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 1752dddd8d..bf1148fd07 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -201,9 +201,9 @@ type Type interface {
+ // See golang.org/issue/4876 for more details.
+ 
+ /*
+- * These data structures are known to the compiler (../../cmd/gc/reflect.c).
++ * These data structures are known to the compiler (../../cmd/internal/gc/reflect.go).
+  * A few are known to ../runtime/type.go to convey to debuggers.
+- * They are also known to ../runtime/type.h.
++ * They are also known to ../runtime/type.go.
+  */
+ 
+ // A Kind represents the specific kind of type that a Type represents.
+@@ -1143,7 +1143,7 @@ func implements(T, V *rtype) bool {
+ 	// methods along the way, or else V does not implement T.
+ 	// This lets us run the scan in overall linear time instead of
+ 	// the quadratic time  a naive search would require.
+-	// See also ../runtime/iface.c.
++	// See also ../runtime/iface.go.
+ 	if V.Kind() == Interface {
+ 		v := (*interfaceType)(unsafe.Pointer(V))
+ 		i := 0
+@@ -1637,13 +1637,10 @@ func (gc *gcProg) align(a uintptr) {
+ 	gc.size = align(gc.size, a)
+ }
+ 
+-// These constants must stay in sync with ../runtime/mgc0.h.
++// These constants must stay in sync with ../runtime/mbitmap.go.
+ const (
+ 	bitsScalar  = 1
+ 	bitsPointer = 2
+-
+-	bitsIface = 2
+-	bitsEface = 3
+ )
+ 
+ // Make sure these routines stay in sync with ../../runtime/hashmap.go!
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index ad48152730..ad106f53dd 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -176,7 +176,7 @@ type emptyInterface struct {
+ 
+ // nonEmptyInterface is the header for a interface value with methods.
+ type nonEmptyInterface struct {
+-	// see ../runtime/iface.c:/Itab
++	// see ../runtime/iface.go:/Itab
+ 	itab *struct {
+ 		ityp   *rtype // static interface type
+ 		typ    *rtype // dynamic concrete type
+diff --git a/src/runtime/cgocallback.go b/src/runtime/cgocallback.go
+index 2c89143208..20ce87d4ca 100644
+--- a/src/runtime/cgocallback.go
++++ b/src/runtime/cgocallback.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import "unsafe"
+ 
+-// These functions are called from C code via cgo/callbacks.c.
++// These functions are called from C code via cgo/callbacks.go.
+ 
+ // Allocate memory.  This allocates the requested number of bytes in
+ // memory controlled by the Go runtime.  The allocated memory will be
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index 8a357c1f23..66dfd6f8d8 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -453,7 +453,7 @@ func TestMultiConsumer(t *testing.T) {
+ func TestShrinkStackDuringBlockedSend(t *testing.T) {
+ 	// make sure that channel operations still work when we are
+ 	// blocked on a channel send and we shrink the stack.
+-	// NOTE: this test probably won't fail unless stack.c:StackDebug
++	// NOTE: this test probably won't fail unless stack1.go:StackDebug
+ 	// is set to >= 1.
+ 	const n = 10
+ 	c := make(chan int)
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index ca049dd632..aaaef48381 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -68,7 +68,7 @@ const (
+ 	// Maximum key or value size to keep inline (instead of mallocing per element).
+ 	// Must fit in a uint8.
+ 	// Fast versions cannot handle big values - the cutoff size for
+-	// fast versions in ../../cmd/gc/walk.c must be at most this value.
++	// fast versions in ../../cmd/internal/gc/walk.go must be at most this value.
+ 	maxKeySize   = 128
+ 	maxValueSize = 128
+ 
+@@ -103,7 +103,7 @@ const (
+ 
+ // A header for a Go map.
+ type hmap struct {
+-	// Note: the format of the Hmap is encoded in ../../cmd/gc/reflect.c and
++	// Note: the format of the Hmap is encoded in ../../cmd/internal/gc/reflect.go and
+ 	// ../reflect/type.go.  Don't change this structure without also changing that code!
+ 	count int // # live cells == size of map.  Must be first (used by len() builtin)
+ 	flags uint8
+@@ -137,11 +137,11 @@ type bmap struct {
+ }
+ 
+ // A hash iteration structure.
+-// If you modify hiter, also change cmd/gc/reflect.c to indicate
++// If you modify hiter, also change cmd/internal/gc/reflect.go to indicate
+ // the layout of this structure.
+ type hiter struct {
+-	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/gc/range.c).
+-	value       unsafe.Pointer // Must be in second position (see cmd/gc/range.c).
++	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/internal/gc/range.go).
++	value       unsafe.Pointer // Must be in second position (see cmd/internal/gc/range.go).
+ 	t           *maptype
+ 	h           *hmap
+ 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
+@@ -597,7 +597,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	}
+ 
+ 	if unsafe.Sizeof(hiter{})/ptrSize != 12 {
+-		throw("hash_iter size incorrect") // see ../../cmd/gc/reflect.c
++		throw("hash_iter size incorrect") // see ../../cmd/internal/gc/reflect.go
+ 	}
+ 	it.t = t
+ 	it.h = h
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 87ccc13df9..c33456258f 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -114,7 +114,7 @@ const (
+ 	_64bit = 1 << (^uintptr(0) >> 63) / 2
+ 
+ 	// Computed constant.  The definition of MaxSmallSize and the
+-	// algorithm in msize.c produce some number of different allocation
++	// algorithm in msize.go produces some number of different allocation
+ 	// size classes.  NumSizeClasses is that number.  It's needed here
+ 	// because there are static arrays of this length; when msize runs its
+ 	// size choosing algorithm it double-checks that NumSizeClasses agrees.
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index a6dbe45ba1..8aab903ab9 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -4,7 +4,7 @@
+ 
+ // Central free lists.
+ //
+-// See malloc.h for an overview.
++// See malloc.go for an overview.
+ //
+ // The MCentral doesn't actually contain the list of free objects; the MSpan does.
+ // Each MCentral is two lists of MSpans: those with free objects (c->nonempty)
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index c1106b6281..bb2f4e7e24 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -4,7 +4,7 @@
+ 
+ // Fixed-size object allocator.  Returned memory is not zeroed.
+ //
+-// See malloc.h for overview.
++// See malloc.go for overview.
+ 
+ package runtime
+ 
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 3276ab8344..b17be92875 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -58,7 +58,7 @@ func markroot(desc *parfor, i uint32) {
+ 	var gcw gcWorkProducer
+ 	gcw.initFromCache()
+ 
+-	// Note: if you add a case here, please also update heapdump.c:dumproots.
++	// Note: if you add a case here, please also update heapdump.go:dumproots.
+ 	switch i {
+ 	case _RootData:
+ 		scanblock(uintptr(unsafe.Pointer(&data)), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)), gcdatamask.bytedata, &gcw)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index fc4dfeea97..e94b79fb8f 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -158,7 +158,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ 		if len(h_allspans) > 0 {
+ 			copy(new, h_allspans)
+ 			// Don't free the old array if it's referenced by sweep.
+-			// See the comment in mgc0.c.
++			// See the comment in mgc.go.
+ 			if h.allspans != mheap_.gcspans {
+ 				sysFree(unsafe.Pointer(h.allspans), uintptr(cap(h_allspans))*ptrSize, &memstats.other_sys)
+ 			}
+diff --git a/src/runtime/msize.go b/src/runtime/msize.go
+index f2a7cb9ddd..9ba145dbf6 100644
+--- a/src/runtime/msize.go
++++ b/src/runtime/msize.go
+@@ -4,7 +4,7 @@
+ 
+ // Malloc small size classes.
+ //
+-// See malloc.h for overview.
++// See malloc.go for overview.
+ //
+ // The size classes are chosen so that rounding an allocation
+ // request up to the next size class wastes at most 12.5% (1.125x).
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 19b6833a32..88cf42fe41 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -64,9 +64,6 @@ type mstats struct {
+ 
+ var memstats mstats
+ 
+-// Note: the MemStats struct should be kept in sync with
+-// struct MStats in malloc.h
+-
+ // A MemStats records statistics about the memory allocator.
+ type MemStats struct {
+ 	// General statistics.
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index f49f28edff..ae9f78c27b 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -28,7 +28,7 @@ func getncpu() int32 {
+ 
+ // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
+ // thus the code is largely similar. See Linux implementation
+-// and lock_futex.c for comments.
++// and lock_futex.go for comments.
+ 
+ //go:nosplit
+ func futexsleep(addr *uint32, val uint32, ns int64) {
+diff --git a/src/runtime/rune.go b/src/runtime/rune.go
+index a9f6835818..99c38e0bd9 100644
+--- a/src/runtime/rune.go
++++ b/src/runtime/rune.go
+@@ -15,7 +15,7 @@
+ 
+ /*
+  * This code is copied, with slight editing due to type differences,
+- * from a subset of ../lib9/utf/rune.c
++ * from a subset of ../lib9/utf/rune.c [which no longer exists]
+  */
+ 
+ package runtime
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index f0d26c8edc..ae30adb2fc 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -435,7 +435,7 @@ func reflect_typelinks() []*_type {
+ 	return ret
+ }
+ 
+-// TODO: move back into mgc0.c when converted to Go
++// TODO: move back into mgc.go
+ func readgogc() int32 {
+ 	p := gogetenv("GOGC")
+ 	if p == "" {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index abd12544ae..13c5dee078 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -14,7 +14,7 @@ const (
+ 	//
+ 	// If you add to this list, add to the list
+ 	// of "okay during garbage collection" status
+-	// in mgc0.c too.
++	// in mgcmark.go too.
+ 	_Gidle            = iota // 0
+ 	_Grunnable               // 1 runnable and on a run queue
+ 	_Grunning                // 2
+@@ -129,7 +129,7 @@ type gobuf struct {
+ }
+ 
+ // Known to compiler.
+-// Changes here must also be made in src/cmd/gc/select.c's selecttype.
++// Changes here must also be made in src/cmd/internal/gc/select.go's selecttype.
+ type sudog struct {
+ 	g           *g
+ 	selectdone  *uint32
+@@ -316,7 +316,7 @@ type p struct {
+ 	m           *m     // back-link to associated m (nil if idle)
+ 	mcache      *mcache
+ 
+-	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.c)
++	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
+ 	deferpoolbuf [5][32]*_defer
+ 
+ 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
+@@ -420,7 +420,7 @@ const (
+ 
+ // Layout of in-memory per-function information prepared by linker
+ // See http://golang.org/s/go12symtab.
+-// Keep in sync with linker and with ../../libmach/sym.c
++// Keep in sync with linker
+ // and with package debug/gosym and with symtab.go in package runtime.
+ type _func struct {
+ 	entry   uintptr // start pc
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 8a4ff68197..73fcb439f1 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -371,7 +371,7 @@ loop:
+ 		c = cas.c
+ 		sg := acquireSudog()
+ 		sg.g = gp
+-		// Note: selectdone is adjusted for stack copies in stack.c:adjustsudogs
++		// Note: selectdone is adjusted for stack copies in stack1.go:adjustsudogs
+ 		sg.selectdone = (*uint32)(noescape(unsafe.Pointer(&done)))
+ 		sg.elem = cas.elem
+ 		sg.releasetime = 0
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 64d7c30056..70ed24cd87 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import "unsafe"
+ 
+-// Needs to be in sync with ../../cmd/ld/decodesym.c:/^commonsize and pkg/reflect/type.go:/type.
++// Needs to be in sync with ../../cmd/internal/ld/decodesym.go:/^commonsize and pkg/reflect/type.go:/type.
+ type _type struct {
+ 	size       uintptr
+ 	hash       uint32

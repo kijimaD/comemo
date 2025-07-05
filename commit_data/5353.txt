@@ -7,6 +7,20 @@ Date:   Mon Apr 26 22:49:14 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/968043
-
+---
  .hgignore | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.hgignore b/.hgignore
+index 0ac82faaa8..f5ebf6f211 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -27,7 +27,7 @@ src/pkg/Make.deps
+ src/pkg/exp/ogle/ogle
+ src/pkg/os/signal/unix.go
+ src/pkg/runtime/*/asm.h
+-src/pkg/runtime/cgo2c
++src/pkg/runtime/goc2c
+ src/pkg/runtime/mkversion
+ src/pkg/runtime/runtime.acid.*
+ src/pkg/runtime/version.go

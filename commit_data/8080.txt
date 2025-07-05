@@ -8,7 +8,7 @@ Date:   Wed Apr 13 16:57:44 2011 -0700
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/4417042
-
+---
  src/cmd/cgo/ast.go       |   2 +-
  src/cmd/cgo/gcc.go       |  58 ++++++++++++-------------
  src/cmd/cgo/main.go      |   6 +--
@@ -18,3 +18,1041 @@ Date:   Wed Apr 13 16:57:44 2011 -0700
  src/cmd/goyacc/goyacc.go | 110 +++++++++++++++++++++++------------------------
  src/cmd/goyacc/units.y   |  30 ++++++-------
  8 files changed, 141 insertions(+), 131 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index f5d884eafd..46e33686d2 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -30,7 +30,7 @@ func parse(name string, flags uint) *ast.File {
+ 			}
+ 			os.Exit(2)
+ 		}
+-		fatal("parsing %s: %s", name, err)
++		fatalf("parsing %s: %s", name, err)
+ 	}
+ 	return ast1
+ }
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 11810db53f..ae5ca2c7da 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -79,7 +79,7 @@ NextLine:
+ 		l = strings.TrimSpace(l[4:])
+ 		fields := strings.Split(l, ":", 2)
+ 		if len(fields) != 2 {
+-			fatal("%s: bad #cgo line: %s", srcfile, line)
++			fatalf("%s: bad #cgo line: %s", srcfile, line)
+ 		}
+ 
+ 		var k string
+@@ -97,17 +97,17 @@ NextLine:
+ 				continue NextLine
+ 			}
+ 		default:
+-			fatal("%s: bad #cgo option: %s", srcfile, fields[0])
++			fatalf("%s: bad #cgo option: %s", srcfile, fields[0])
+ 		}
+ 
+ 		if k != "CFLAGS" && k != "LDFLAGS" {
+-			fatal("%s: unsupported #cgo option %s", srcfile, k)
++			fatalf("%s: unsupported #cgo option %s", srcfile, k)
+ 		}
+ 
+ 		v := strings.TrimSpace(fields[1])
+ 		args, err := splitQuoted(v)
+ 		if err != nil {
+-			fatal("%s: bad #cgo option %s: %s", srcfile, k, err.String())
++			fatalf("%s: bad #cgo option %s: %s", srcfile, k, err.String())
+ 		}
+ 		if oldv, ok := p.CgoFlags[k]; ok {
+ 			p.CgoFlags[k] = oldv + " " + v
+@@ -317,7 +317,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	b.WriteString("}\n")
+ 	stderr := p.gccErrors(b.Bytes())
+ 	if stderr == "" {
+-		fatal("gcc produced no output\non input:\n%s", b.Bytes())
++		fatalf("gcc produced no output\non input:\n%s", b.Bytes())
+ 	}
+ 
+ 	names := make([]*Name, len(toSniff))
+@@ -383,7 +383,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		error(token.NoPos, "could not determine kind of name for C.%s", n.Go)
+ 	}
+ 	if nerrors > 0 {
+-		fatal("unresolved names")
++		fatalf("unresolved names")
+ 	}
+ 	return needType
+ }
+@@ -422,7 +422,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 	for {
+ 		e, err := r.Next()
+ 		if err != nil {
+-			fatal("reading DWARF entry: %s", err)
++			fatalf("reading DWARF entry: %s", err)
+ 		}
+ 		if e == nil {
+ 			break
+@@ -433,7 +433,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 			for {
+ 				e, err := r.Next()
+ 				if err != nil {
+-					fatal("reading DWARF entry: %s", err)
++					fatalf("reading DWARF entry: %s", err)
+ 				}
+ 				if e.Tag == 0 {
+ 					break
+@@ -452,27 +452,27 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 			name, _ := e.Val(dwarf.AttrName).(string)
+ 			typOff, _ := e.Val(dwarf.AttrType).(dwarf.Offset)
+ 			if name == "" || typOff == 0 {
+-				fatal("malformed DWARF TagVariable entry")
++				fatalf("malformed DWARF TagVariable entry")
+ 			}
+ 			if !strings.HasPrefix(name, "__cgo__") {
+ 				break
+ 			}
+ 			typ, err := d.Type(typOff)
+ 			if err != nil {
+-				fatal("loading DWARF type: %s", err)
++				fatalf("loading DWARF type: %s", err)
+ 			}
+ 			t, ok := typ.(*dwarf.PtrType)
+ 			if !ok || t == nil {
+-				fatal("internal error: %s has non-pointer type", name)
++				fatalf("internal error: %s has non-pointer type", name)
+ 			}
+ 			i, err := strconv.Atoi(name[7:])
+ 			if err != nil {
+-				fatal("malformed __cgo__ name: %s", name)
++				fatalf("malformed __cgo__ name: %s", name)
+ 			}
+ 			if enums[i] != 0 {
+ 				t, err := d.Type(enums[i])
+ 				if err != nil {
+-					fatal("loading DWARF type: %s", err)
++					fatalf("loading DWARF type: %s", err)
+ 				}
+ 				types[i] = t
+ 			} else {
+@@ -632,14 +632,14 @@ func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
+ 	if f, err = elf.Open(gccTmp); err != nil {
+ 		if f, err = macho.Open(gccTmp); err != nil {
+ 			if f, err = pe.Open(gccTmp); err != nil {
+-				fatal("cannot parse gcc output %s as ELF or Mach-O or PE object", gccTmp)
++				fatalf("cannot parse gcc output %s as ELF or Mach-O or PE object", gccTmp)
+ 			}
+ 		}
+ 	}
+ 
+ 	d, err := f.DWARF()
+ 	if err != nil {
+-		fatal("cannot load DWARF debug information from %s: %s", gccTmp, err)
++		fatalf("cannot load DWARF debug information from %s: %s", gccTmp, err)
+ 	}
+ 	return d
+ }
+@@ -807,7 +807,7 @@ func (tr *TypeRepr) Set(repr string, fargs ...interface{}) {
+ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 	if t, ok := c.m[dtype]; ok {
+ 		if t.Go == nil {
+-			fatal("type conversion loop at %s", dtype)
++			fatalf("type conversion loop at %s", dtype)
+ 		}
+ 		return t
+ 	}
+@@ -830,11 +830,11 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 
+ 	switch dt := dtype.(type) {
+ 	default:
+-		fatal("unexpected type: %s", dtype)
++		fatalf("unexpected type: %s", dtype)
+ 
+ 	case *dwarf.AddrType:
+ 		if t.Size != c.ptrSize {
+-			fatal("unexpected: %d-byte address type - %s", t.Size, dtype)
++			fatalf("unexpected: %d-byte address type - %s", t.Size, dtype)
+ 		}
+ 		t.Go = c.uintptr
+ 		t.Align = t.Size
+@@ -860,7 +860,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 
+ 	case *dwarf.CharType:
+ 		if t.Size != 1 {
+-			fatal("unexpected: %d-byte char type - %s", t.Size, dtype)
++			fatalf("unexpected: %d-byte char type - %s", t.Size, dtype)
+ 		}
+ 		t.Go = c.int8
+ 		t.Align = 1
+@@ -880,7 +880,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		}
+ 		switch t.Size + int64(signed) {
+ 		default:
+-			fatal("unexpected: %d-byte enum type - %s", t.Size, dtype)
++			fatalf("unexpected: %d-byte enum type - %s", t.Size, dtype)
+ 		case 1:
+ 			t.Go = c.uint8
+ 		case 2:
+@@ -902,7 +902,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 	case *dwarf.FloatType:
+ 		switch t.Size {
+ 		default:
+-			fatal("unexpected: %d-byte float type - %s", t.Size, dtype)
++			fatalf("unexpected: %d-byte float type - %s", t.Size, dtype)
+ 		case 4:
+ 			t.Go = c.float32
+ 		case 8:
+@@ -915,7 +915,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 	case *dwarf.ComplexType:
+ 		switch t.Size {
+ 		default:
+-			fatal("unexpected: %d-byte complex type - %s", t.Size, dtype)
++			fatalf("unexpected: %d-byte complex type - %s", t.Size, dtype)
+ 		case 8:
+ 			t.Go = c.complex64
+ 		case 16:
+@@ -933,11 +933,11 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 
+ 	case *dwarf.IntType:
+ 		if dt.BitSize > 0 {
+-			fatal("unexpected: %d-bit int type - %s", dt.BitSize, dtype)
++			fatalf("unexpected: %d-bit int type - %s", dt.BitSize, dtype)
+ 		}
+ 		switch t.Size {
+ 		default:
+-			fatal("unexpected: %d-byte int type - %s", t.Size, dtype)
++			fatalf("unexpected: %d-byte int type - %s", t.Size, dtype)
+ 		case 1:
+ 			t.Go = c.int8
+ 		case 2:
+@@ -1022,18 +1022,18 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 
+ 	case *dwarf.UcharType:
+ 		if t.Size != 1 {
+-			fatal("unexpected: %d-byte uchar type - %s", t.Size, dtype)
++			fatalf("unexpected: %d-byte uchar type - %s", t.Size, dtype)
+ 		}
+ 		t.Go = c.uint8
+ 		t.Align = 1
+ 
+ 	case *dwarf.UintType:
+ 		if dt.BitSize > 0 {
+-			fatal("unexpected: %d-bit uint type - %s", dt.BitSize, dtype)
++			fatalf("unexpected: %d-bit uint type - %s", dt.BitSize, dtype)
+ 		}
+ 		switch t.Size {
+ 		default:
+-			fatal("unexpected: %d-byte uint type - %s", t.Size, dtype)
++			fatalf("unexpected: %d-byte uint type - %s", t.Size, dtype)
+ 		case 1:
+ 			t.Go = c.uint8
+ 		case 2:
+@@ -1067,7 +1067,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 	}
+ 
+ 	if t.C.Empty() {
+-		fatal("internal error: did not create C name for %s", dtype)
++		fatalf("internal error: did not create C name for %s", dtype)
+ 	}
+ 
+ 	return t
+@@ -1229,7 +1229,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
+ 		off = dt.ByteSize
+ 	}
+ 	if off != dt.ByteSize {
+-		fatal("struct size calculation error")
++		fatalf("struct size calculation error")
+ 	}
+ 	buf.WriteString("}")
+ 	csyntax = buf.String()
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 584e547087..00ffc45063 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -177,11 +177,11 @@ func main() {
+ 
+ 	arch := os.Getenv("GOARCH")
+ 	if arch == "" {
+-		fatal("$GOARCH is not set")
++		fatalf("$GOARCH is not set")
+ 	}
+ 	ptrSize := ptrSizeMap[arch]
+ 	if ptrSize == 0 {
+-		fatal("unknown $GOARCH %q", arch)
++		fatalf("unknown $GOARCH %q", arch)
+ 	}
+ 
+ 	// Clear locale variables so gcc emits English errors [sic].
+@@ -205,7 +205,7 @@ func main() {
+ 	for _, input := range goFiles {
+ 		f, err := os.Open(input)
+ 		if err != nil {
+-			fatal("%s", err)
++			fatalf("%s", err)
+ 		}
+ 		io.Copy(h, f)
+ 		f.Close()
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 4a5fa6a73f..abf8c8bc20 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -105,7 +105,7 @@ func dynimport(obj string) (syms, imports []string) {
+ 	if f, err1 = elf.Open(obj); err1 != nil {
+ 		if f, err2 = pe.Open(obj); err2 != nil {
+ 			if f, err3 = macho.Open(obj); err3 != nil {
+-				fatal("cannot parse %s as ELF (%v) or PE (%v) or Mach-O (%v)", obj, err1, err2, err3)
++				fatalf("cannot parse %s as ELF (%v) or PE (%v) or Mach-O (%v)", obj, err1, err2, err3)
+ 			}
+ 			isMacho = true
+ 		}
+@@ -114,7 +114,7 @@ func dynimport(obj string) (syms, imports []string) {
+ 	var err os.Error
+ 	syms, err = f.ImportedSymbols()
+ 	if err != nil {
+-		fatal("cannot load dynamic symbols: %v", err)
++		fatalf("cannot load dynamic symbols: %v", err)
+ 	}
+ 	if isMacho {
+ 		// remove leading _ that OS X insists on
+@@ -127,7 +127,7 @@ func dynimport(obj string) (syms, imports []string) {
+ 
+ 	imports, err = f.ImportedLibraries()
+ 	if err != nil {
+-		fatal("cannot load dynamic imports: %v", err)
++		fatalf("cannot load dynamic imports: %v", err)
+ 	}
+ 
+ 	return
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index b4f56e31e0..1ca24103e3 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -18,23 +18,23 @@ import (
+ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 	cmd, err := exec.LookPath(argv[0])
+ 	if err != nil {
+-		fatal("exec %s: %s", argv[0], err)
++		fatalf("exec %s: %s", argv[0], err)
+ 	}
+ 	r0, w0, err := os.Pipe()
+ 	if err != nil {
+-		fatal("%s", err)
++		fatalf("%s", err)
+ 	}
+ 	r1, w1, err := os.Pipe()
+ 	if err != nil {
+-		fatal("%s", err)
++		fatalf("%s", err)
+ 	}
+ 	r2, w2, err := os.Pipe()
+ 	if err != nil {
+-		fatal("%s", err)
++		fatalf("%s", err)
+ 	}
+ 	p, err := os.StartProcess(cmd, argv, &os.ProcAttr{Files: []*os.File{r0, w1, w2}})
+ 	if err != nil {
+-		fatal("%s", err)
++		fatalf("%s", err)
+ 	}
+ 	defer p.Release()
+ 	r0.Close()
+@@ -58,14 +58,14 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 
+ 	w, err := p.Wait(0)
+ 	if err != nil {
+-		fatal("%s", err)
++		fatalf("%s", err)
+ 	}
+ 	ok = w.Exited() && w.ExitStatus() == 0
+ 	return
+ }
+ 
+ // Die with an error message.
+-func fatal(msg string, args ...interface{}) {
++func fatalf(msg string, args ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
+ 	os.Exit(2)
+ }
+@@ -97,7 +97,7 @@ func isName(s string) bool {
+ func creat(name string) *os.File {
+ 	f, err := os.Create(name)
+ 	if err != nil {
+-		fatal("%s", err)
++		fatalf("%s", err)
+ 	}
+ 	return f
+ }
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index c112844162..b811c61a2d 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -63,6 +63,7 @@ func main() {
+ 				}
+ 				name = name[:colon]
+ 			}
++			name = strings.ToLower(name)
+ 			if name[len(name)-1] == 'f' {
+ 				printfList[name] = skip
+ 			} else {
+@@ -205,35 +206,38 @@ func (f *File) checkCallExpr(call *ast.CallExpr) {
+ }
+ 
+ // printfList records the formatted-print functions. The value is the location
+-// of the format parameter.
++// of the format parameter. Names are lower-cased so the lookup is
++// case insensitive.
+ var printfList = map[string]int{
+-	"Errorf":  0,
+-	"Fatalf":  0,
+-	"Fprintf": 1,
+-	"Panicf":  0,
+-	"Printf":  0,
+-	"Sprintf": 0,
++	"errorf":  0,
++	"fatalf":  0,
++	"fprintf": 1,
++	"panicf":  0,
++	"printf":  0,
++	"sprintf": 0,
+ }
+ 
+ // printList records the unformatted-print functions. The value is the location
+-// of the first parameter to be printed.
++// of the first parameter to be printed.  Names are lower-cased so the lookup is
++// case insensitive.
+ var printList = map[string]int{
+-	"Error":  0,
+-	"Fatal":  0,
+-	"Fprint": 1, "Fprintln": 1,
+-	"Panic": 0, "Panicln": 0,
+-	"Print": 0, "Println": 0,
+-	"Sprint": 0, "Sprintln": 0,
++	"error":  0,
++	"fatal":  0,
++	"fprint": 1, "fprintln": 1,
++	"panic": 0, "panicln": 0,
++	"print": 0, "println": 0,
++	"sprint": 0, "sprintln": 0,
+ }
+ 
+ // checkCall triggers the print-specific checks if the call invokes a print function.
+-func (f *File) checkCall(call *ast.CallExpr, name string) {
++func (f *File) checkCall(call *ast.CallExpr, Name string) {
++	name := strings.ToLower(Name)
+ 	if skip, ok := printfList[name]; ok {
+-		f.checkPrintf(call, name, skip)
++		f.checkPrintf(call, Name, skip)
+ 		return
+ 	}
+ 	if skip, ok := printList[name]; ok {
+-		f.checkPrint(call, name, skip)
++		f.checkPrint(call, Name, skip)
+ 		return
+ 	}
+ }
+@@ -362,8 +366,14 @@ func BadFunctionUsedInTests() {
+ 	fmt.Printf("%s%%%d", "hi", 3)      // right # percents
+ 	fmt.Printf("%.*d", 3, 3)           // right # percents, with a *
+ 	fmt.Printf("%.*d", 3, 3, 3)        // wrong # percents, with a *
++	printf("now is the time", "buddy") // no %s
+ 	Printf("now is the time", "buddy") // no %s
+ 	f := new(File)
+ 	f.Warn(0, "%s", "hello", 3)  // % in call to added function
+ 	f.Warnf(0, "%s", "hello", 3) // wrong # %s in call to added function
+ }
++
++// printf is used by the test.
++func printf(format string, args ...interface{}) {
++	panic("don't call - testing only")
++}
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 2a1ed46fc7..220c994920 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -382,7 +382,7 @@ outer:
+ 	for {
+ 		switch t {
+ 		default:
+-			error("syntax error tok=%v", t-PRIVATE)
++			errorf("syntax error tok=%v", t-PRIVATE)
+ 
+ 		case MARK, ENDFILE:
+ 			break outer
+@@ -392,14 +392,14 @@ outer:
+ 		case START:
+ 			t = gettok()
+ 			if t != IDENTIFIER {
+-				error("bad %%start construction")
++				errorf("bad %%start construction")
+ 			}
+ 			start = chfind(1, tokname)
+ 
+ 		case TYPEDEF:
+ 			t = gettok()
+ 			if t != TYPENAME {
+-				error("bad syntax in %%type")
++				errorf("bad syntax in %%type")
+ 			}
+ 			ty = numbval
+ 			for {
+@@ -410,7 +410,7 @@ outer:
+ 					if t < NTBASE {
+ 						j = TYPE(toklev[t])
+ 						if j != 0 && j != ty {
+-							error("type redeclaration of token ",
++							errorf("type redeclaration of token ",
+ 								tokset[t].name)
+ 						} else {
+ 							toklev[t] = SETTYPE(toklev[t], ty)
+@@ -418,7 +418,7 @@ outer:
+ 					} else {
+ 						j = nontrst[t-NTBASE].value
+ 						if j != 0 && j != ty {
+-							error("type redeclaration of nonterminal %v",
++							errorf("type redeclaration of nonterminal %v",
+ 								nontrst[t-NTBASE].name)
+ 						} else {
+ 							nontrst[t-NTBASE].value = ty
+@@ -464,18 +464,18 @@ outer:
+ 				case IDENTIFIER:
+ 					j = chfind(0, tokname)
+ 					if j >= NTBASE {
+-						error("%v defined earlier as nonterminal", tokname)
++						errorf("%v defined earlier as nonterminal", tokname)
+ 					}
+ 					if lev != 0 {
+ 						if ASSOC(toklev[j]) != 0 {
+-							error("redeclaration of precedence of %v", tokname)
++							errorf("redeclaration of precedence of %v", tokname)
+ 						}
+ 						toklev[j] = SETASC(toklev[j], lev)
+ 						toklev[j] = SETPLEV(toklev[j], i)
+ 					}
+ 					if ty != 0 {
+ 						if TYPE(toklev[j]) != 0 {
+-							error("redeclaration of type of %v", tokname)
++							errorf("redeclaration of type of %v", tokname)
+ 						}
+ 						toklev[j] = SETTYPE(toklev[j], ty)
+ 					}
+@@ -498,7 +498,7 @@ outer:
+ 	}
+ 
+ 	if t == ENDFILE {
+-		error("unexpected EOF before %%")
++		errorf("unexpected EOF before %%")
+ 	}
+ 
+ 	// put out non-literal terminals
+@@ -533,7 +533,7 @@ outer:
+ 	curprod := make([]int, RULEINC)
+ 	t = gettok()
+ 	if t != IDENTCOLON {
+-		error("bad syntax on first rule")
++		errorf("bad syntax on first rule")
+ 	}
+ 
+ 	if start == 0 {
+@@ -557,11 +557,11 @@ outer:
+ 		} else if t == IDENTCOLON {
+ 			curprod[mem] = chfind(1, tokname)
+ 			if curprod[mem] < NTBASE {
+-				error("token illegal on LHS of grammar rule")
++				errorf("token illegal on LHS of grammar rule")
+ 			}
+ 			mem++
+ 		} else {
+-			error("illegal rule: missing semicolon or | ?")
++			errorf("illegal rule: missing semicolon or | ?")
+ 		}
+ 
+ 		// read rule body
+@@ -582,11 +582,11 @@ outer:
+ 			}
+ 			if t == PREC {
+ 				if gettok() != IDENTIFIER {
+-					error("illegal %%prec syntax")
++					errorf("illegal %%prec syntax")
+ 				}
+ 				j = chfind(2, tokname)
+ 				if j >= NTBASE {
+-					error("nonterminal " + nontrst[j-NTBASE].name + " illegal after %%prec")
++					errorf("nonterminal " + nontrst[j-NTBASE].name + " illegal after %%prec")
+ 				}
+ 				levprd[nprod] = toklev[j]
+ 				t = gettok()
+@@ -642,7 +642,7 @@ outer:
+ 			// no explicit action, LHS has value
+ 			tempty := curprod[1]
+ 			if tempty < 0 {
+-				error("must return a value, since LHS has a type")
++				errorf("must return a value, since LHS has a type")
+ 			}
+ 			if tempty >= NTBASE {
+ 				tempty = nontrst[tempty-NTBASE].value
+@@ -650,7 +650,7 @@ outer:
+ 				tempty = TYPE(toklev[tempty])
+ 			}
+ 			if tempty != nontrst[curprod[0]-NTBASE].value {
+-				error("default action causes potential type clash")
++				errorf("default action causes potential type clash")
+ 			}
+ 			fmt.Fprintf(fcode, "\ncase %v:", nprod)
+ 			fmt.Fprintf(fcode, "\n\t%sVAL.%v = %sS[%spt-0].%v;",
+@@ -773,7 +773,7 @@ func defin(nt int, s string) int {
+ 			case 'v':
+ 				val = '\v'
+ 			default:
+-				error("invalid escape %v", s[1:3])
++				errorf("invalid escape %v", s[1:3])
+ 			}
+ 		} else if s[2] == 'u' && len(s) == 2+1+4 { // \unnnn sequence
+ 			val = 0
+@@ -788,16 +788,16 @@ func defin(nt int, s string) int {
+ 				case c >= 'A' && c <= 'F':
+ 					c -= 'A' - 10
+ 				default:
+-					error("illegal \\unnnn construction")
++					errorf("illegal \\unnnn construction")
+ 				}
+ 				val = val*16 + c
+ 				s = s[1:]
+ 			}
+ 			if val == 0 {
+-				error("'\\u0000' is illegal")
++				errorf("'\\u0000' is illegal")
+ 			}
+ 		} else {
+-			error("unknown escape")
++			errorf("unknown escape")
+ 		}
+ 	} else {
+ 		val = extval
+@@ -855,7 +855,7 @@ func gettok() int {
+ 		}
+ 
+ 		if c != '>' {
+-			error("unterminated < ... > clause")
++			errorf("unterminated < ... > clause")
+ 		}
+ 
+ 		for i = 1; i <= ntypes; i++ {
+@@ -881,7 +881,7 @@ func gettok() int {
+ 		for {
+ 			c = getrune(finput)
+ 			if c == '\n' || c == EOF {
+-				error("illegal or missing ' or \"")
++				errorf("illegal or missing ' or \"")
+ 			}
+ 			if c == '\\' {
+ 				tokname += string('\\')
+@@ -926,7 +926,7 @@ func gettok() int {
+ 				return resrv[c].value
+ 			}
+ 		}
+-		error("invalid escape, or illegal reserved word: %v", tokname)
++		errorf("invalid escape, or illegal reserved word: %v", tokname)
+ 
+ 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+ 		numbval = c - '0'
+@@ -1004,7 +1004,7 @@ func fdtype(t int) int {
+ 		s = tokset[t].name
+ 	}
+ 	if v <= 0 {
+-		error("must specify type for %v", s)
++		errorf("must specify type for %v", s)
+ 	}
+ 	return v
+ }
+@@ -1026,7 +1026,7 @@ func chfind(t int, s string) int {
+ 
+ 	// cannot find name
+ 	if t > 1 {
+-		error("%v should have been defined earlier", s)
++		errorf("%v should have been defined earlier", s)
+ 	}
+ 	return defin(t, s)
+ }
+@@ -1047,7 +1047,7 @@ out:
+ 	for {
+ 		c := getrune(finput)
+ 		if c == EOF {
+-			error("EOF encountered while processing %%union")
++			errorf("EOF encountered while processing %%union")
+ 		}
+ 		ftable.WriteRune(c)
+ 		switch c {
+@@ -1097,7 +1097,7 @@ func cpycode() {
+ 		c = getrune(finput)
+ 	}
+ 	lineno = lno
+-	error("eof before %%}")
++	errorf("eof before %%}")
+ }
+ 
+ //
+@@ -1115,11 +1115,11 @@ func skipcom() int {
+ 			}
+ 			c = getrune(finput)
+ 		}
+-		error("EOF inside comment")
++		errorf("EOF inside comment")
+ 		return 0
+ 	}
+ 	if c != '*' {
+-		error("illegal comment")
++		errorf("illegal comment")
+ 	}
+ 
+ 	nl := 0 // lines skipped
+@@ -1196,7 +1196,7 @@ loop:
+ 			if c == '<' {
+ 				ungetrune(finput, c)
+ 				if gettok() != TYPENAME {
+-					error("bad syntax on $<ident> clause")
++					errorf("bad syntax on $<ident> clause")
+ 				}
+ 				tok = numbval
+ 				c = getrune(finput)
+@@ -1226,13 +1226,13 @@ loop:
+ 				ungetrune(finput, c)
+ 				j = j * s
+ 				if j >= max {
+-					error("Illegal use of $%v", j)
++					errorf("Illegal use of $%v", j)
+ 				}
+ 			} else if isword(c) || c == '_' || c == '.' {
+ 				// look for $name
+ 				ungetrune(finput, c)
+ 				if gettok() != IDENTIFIER {
+-					error("$ must be followed by an identifier")
++					errorf("$ must be followed by an identifier")
+ 				}
+ 				tokn := chfind(2, tokname)
+ 				fnd := -1
+@@ -1240,7 +1240,7 @@ loop:
+ 				if c != '@' {
+ 					ungetrune(finput, c)
+ 				} else if gettok() != NUMBER {
+-					error("@ must be followed by number")
++					errorf("@ must be followed by number")
+ 				} else {
+ 					fnd = numbval
+ 				}
+@@ -1253,7 +1253,7 @@ loop:
+ 					}
+ 				}
+ 				if j >= max {
+-					error("$name or $name@number not found")
++					errorf("$name or $name@number not found")
+ 				}
+ 			} else {
+ 				fcode.WriteRune('$')
+@@ -1268,7 +1268,7 @@ loop:
+ 			// put out the proper tag
+ 			if ntypes != 0 {
+ 				if j <= 0 && tok < 0 {
+-					error("must specify type of $%v", j)
++					errorf("must specify type of $%v", j)
+ 				}
+ 				if tok < 0 {
+ 					tok = fdtype(curprod[j])
+@@ -1315,7 +1315,7 @@ loop:
+ 				fcode.WriteRune(c)
+ 				c = getrune(finput)
+ 			}
+-			error("EOF inside comment")
++			errorf("EOF inside comment")
+ 
+ 		case '\'', '"':
+ 			// character string or constant
+@@ -1333,16 +1333,16 @@ loop:
+ 					break swt
+ 				}
+ 				if c == '\n' {
+-					error("newline in string or char const")
++					errorf("newline in string or char const")
+ 				}
+ 				fcode.WriteRune(c)
+ 				c = getrune(finput)
+ 			}
+-			error("EOF in string or character constant")
++			errorf("EOF in string or character constant")
+ 
+ 		case EOF:
+ 			lineno = lno
+-			error("action does not terminate")
++			errorf("action does not terminate")
+ 
+ 		case '\n':
+ 			lineno++
+@@ -1356,14 +1356,14 @@ func openup() {
+ 	infile = flag.Arg(0)
+ 	finput = open(infile)
+ 	if finput == nil {
+-		error("cannot open %v", infile)
++		errorf("cannot open %v", infile)
+ 	}
+ 
+ 	foutput = nil
+ 	if vflag != "" {
+ 		foutput = create(vflag)
+ 		if foutput == nil {
+-			error("can't create file %v", vflag)
++			errorf("can't create file %v", vflag)
+ 		}
+ 	}
+ 
+@@ -1373,7 +1373,7 @@ func openup() {
+ 	}
+ 	ftable = create(oflag)
+ 	if ftable == nil {
+-		error("can't create file %v", oflag)
++		errorf("can't create file %v", oflag)
+ 	}
+ 
+ }
+@@ -1433,7 +1433,7 @@ func cpres() {
+ 			}
+ 		}
+ 		if n == 0 {
+-			error("nonterminal %v not defined", nontrst[i].name)
++			errorf("nonterminal %v not defined", nontrst[i].name)
+ 			continue
+ 		}
+ 		pres[i] = make([][]int, n)
+@@ -1506,7 +1506,7 @@ more:
+ 		}
+ 		if pempty[i] != OK {
+ 			fatfl = 0
+-			error("nonterminal " + nontrst[i].name + " never derives any token string")
++			errorf("nonterminal " + nontrst[i].name + " never derives any token string")
+ 		}
+ 	}
+ 
+@@ -1921,11 +1921,11 @@ look:
+ 	// state is new
+ 	zznewstate++
+ 	if nolook != 0 {
+-		error("yacc state/nolook error")
++		errorf("yacc state/nolook error")
+ 	}
+ 	pstate[nstate+2] = p2
+ 	if nstate+1 >= NSTATES {
+-		error("too many states")
++		errorf("too many states")
+ 	}
+ 	if c >= NTBASE {
+ 		mstates[nstate] = ntstates[c-NTBASE]
+@@ -2061,7 +2061,7 @@ nextk:
+ 		}
+ 		return off + rr
+ 	}
+-	error("no space in action table")
++	errorf("no space in action table")
+ 	return 0
+ }
+ 
+@@ -2623,7 +2623,7 @@ nextgp:
+ 			if s > maxa {
+ 				maxa = s
+ 				if maxa >= ACTSIZE {
+-					error("a array overflow")
++					errorf("a array overflow")
+ 				}
+ 			}
+ 			if amem[s] != 0 {
+@@ -2646,7 +2646,7 @@ nextgp:
+ 		}
+ 		return
+ 	}
+-	error("cannot place goto %v\n", i)
++	errorf("cannot place goto %v\n", i)
+ }
+ 
+ func stin(i int) {
+@@ -2705,7 +2705,7 @@ nextn:
+ 				maxa = s
+ 			}
+ 			if amem[s] != 0 && amem[s] != q[r+1] {
+-				error("clobber of a array, pos'n %v, by %v", s, q[r+1])
++				errorf("clobber of a array, pos'n %v, by %v", s, q[r+1])
+ 			}
+ 			amem[s] = q[r+1]
+ 		}
+@@ -2715,7 +2715,7 @@ nextn:
+ 		}
+ 		return
+ 	}
+-	error("Error; failure to place state %v", i)
++	errorf("Error; failure to place state %v", i)
+ }
+ 
+ //
+@@ -3014,7 +3014,7 @@ func getrune(f *bufio.Reader) int {
+ 		return EOF
+ 	}
+ 	if err != nil {
+-		error("read error: %v", err)
++		errorf("read error: %v", err)
+ 	}
+ 	//fmt.Printf("rune = %v n=%v\n", string(c), n);
+ 	return c
+@@ -3038,7 +3038,7 @@ func write(f *bufio.Writer, b []byte, n int) int {
+ func open(s string) *bufio.Reader {
+ 	fi, err := os.Open(s)
+ 	if err != nil {
+-		error("error opening %v: %v", s, err)
++		errorf("error opening %v: %v", s, err)
+ 	}
+ 	//fmt.Printf("open %v\n", s);
+ 	return bufio.NewReader(fi)
+@@ -3047,7 +3047,7 @@ func open(s string) *bufio.Reader {
+ func create(s string) *bufio.Writer {
+ 	fo, err := os.Create(s)
+ 	if err != nil {
+-		error("error creating %v: %v", s, err)
++		errorf("error creating %v: %v", s, err)
+ 	}
+ 	//fmt.Printf("create %v mode %v\n", s);
+ 	return bufio.NewWriter(fo)
+@@ -3056,7 +3056,7 @@ func create(s string) *bufio.Writer {
+ //
+ // write out error comment
+ //
+-func error(s string, v ...interface{}) {
++func errorf(s string, v ...interface{}) {
+ 	nerrors++
+ 	fmt.Fprintf(stderr, s, v...)
+ 	fmt.Fprintf(stderr, ": %v:%v\n", infile, lineno)
+diff --git a/src/cmd/goyacc/units.y b/src/cmd/goyacc/units.y
+index c1c1409c76..06ce11693c 100644
+--- a/src/cmd/goyacc/units.y
++++ b/src/cmd/goyacc/units.y
+@@ -90,7 +90,7 @@ prog:
+ 		$2.node = $3;
+ 		$2.node.dim[0] = 1;
+ 		if f != 0 {
+-			Error("redefinition of %v", $2.name);
++			Errorf("redefinition of %v", $2.name);
+ 		} else
+ 		if vflag {
+ 			fmt.Printf("%v\t%v\n", $2.name, &$2.node);
+@@ -106,7 +106,7 @@ prog:
+ 			}
+ 		}
+ 		if i >= Ndim {
+-			Error("too many dimensions");
++			Errorf("too many dimensions");
+ 			i = Ndim-1;
+ 		}
+ 		fund[i] = $2;
+@@ -116,7 +116,7 @@ prog:
+ 		$2.node.dim[0] = 1;
+ 		$2.node.dim[i] = 1;
+ 		if f != 0 {
+-			Error("redefinition of %v", $2.name);
++			Errorf("redefinition of %v", $2.name);
+ 		} else
+ 		if vflag {
+ 			fmt.Printf("%v\t#\n", $2.name);
+@@ -175,7 +175,7 @@ expr2:
+ 
+ 		for i=1; i<Ndim; i++ {
+ 			if $3.dim[i] != 0 {
+-				Error("exponent has units");
++				Errorf("exponent has units");
+ 				$$ = $1;
+ 				break;
+ 			}
+@@ -183,7 +183,7 @@ expr2:
+ 		if i >= Ndim {
+ 			i = int($3.vval);
+ 			if float64(i) != $3.vval {
+-				Error("exponent not integral");
++				Errorf("exponent not integral");
+ 			}
+ 			xpn(&$$, &$1, i);
+ 		}
+@@ -200,7 +200,7 @@ expr0:
+ 	VAR
+ 	{
+ 		if $1.node.dim[0] == 0 {
+-			Error("undefined %v", $1.name);
++			Errorf("undefined %v", $1.name);
+ 			$$ = one;
+ 		} else
+ 			$$ = $1.node;
+@@ -284,7 +284,7 @@ numb:
+ }
+ 
+ func (UnitsLex) Error(s string) {
+-	Error("syntax error, last name: %v", sym)
++	Errorf("syntax error, last name: %v", sym)
+ }
+ 
+ func main() {
+@@ -391,7 +391,7 @@ func rdigit(c int) bool {
+ 	return false
+ }
+ 
+-func Error(s string, v ...interface{}) {
++func Errorf(s string, v ...interface{}) {
+ 	fmt.Printf("%v: %v\n\t", lineno, line)
+ 	fmt.Printf(s, v...)
+ 	fmt.Printf("\n")
+@@ -411,7 +411,7 @@ func add(c, a, b *Node) {
+ 		d = a.dim[i]
+ 		c.dim[i] = d
+ 		if d != b.dim[i] {
+-			Error("add must be like units")
++			Errorf("add must be like units")
+ 		}
+ 	}
+ 	c.vval = fadd(a.vval, b.vval)
+@@ -425,7 +425,7 @@ func sub(c, a, b *Node) {
+ 		d = a.dim[i]
+ 		c.dim[i] = d
+ 		if d != b.dim[i] {
+-			Error("sub must be like units")
++			Errorf("sub must be like units")
+ 		}
+ 	}
+ 	c.vval = fadd(a.vval, -b.vval)
+@@ -711,11 +711,11 @@ func fmul(a, b float64) float64 {
+ 	}
+ 
+ 	if l > Maxe {
+-		Error("overflow in multiply")
++		Errorf("overflow in multiply")
+ 		return 1
+ 	}
+ 	if l < -Maxe {
+-		Error("underflow in multiply")
++		Errorf("underflow in multiply")
+ 		return 0
+ 	}
+ 	return a * b
+@@ -728,7 +728,7 @@ func fdiv(a, b float64) float64 {
+ 
+ 	if b <= 0 {
+ 		if b == 0 {
+-			Error("division by zero: %v %v", a, b)
++			Errorf("division by zero: %v %v", a, b)
+ 			return 1
+ 		}
+ 		l = math.Log(-b)
+@@ -746,11 +746,11 @@ func fdiv(a, b float64) float64 {
+ 	}
+ 
+ 	if l < -Maxe {
+-		Error("overflow in divide")
++		Errorf("overflow in divide")
+ 		return 1
+ 	}
+ 	if l > Maxe {
+-		Error("underflow in divide")
++		Errorf("underflow in divide")
+ 		return 0
+ 	}
+ 	return a / b

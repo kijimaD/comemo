@@ -8,6 +8,20 @@ Date:   Tue Jan 13 16:32:46 2009 -0800
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=22662
     CL=22691
-
+---
  src/cmd/6a/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6a/Makefile b/src/cmd/6a/Makefile
+index db54157815..73baf7ffd1 100644
+--- a/src/cmd/6a/Makefile
++++ b/src/cmd/6a/Makefile
+@@ -30,7 +30,7 @@ $(OFILES): $(HFILES)
+ lex.$O:	../cc/macbody ../cc/lexbody
+ 
+ y.tab.h: $(YFILES)
+-	yacc $(YFLAGS) $(YFILES)
++	bison -y $(YFLAGS) $(YFILES)
+ 
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c

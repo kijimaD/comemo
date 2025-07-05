@@ -11,7 +11,7 @@ Date:   Wed Apr 22 12:41:14 2015 +1200
     Change-Id: I9c51d30716239df51186860b9842a5e9b27264d3
     Reviewed-on: https://go-review.googlesource.com/9230
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/5g/util.go                 | 12 ------------
  src/cmd/6g/util.go                 | 12 ------------
  src/cmd/7g/gsubr.go                |  2 +-
@@ -37,3 +37,452 @@ Date:   Wed Apr 22 12:41:14 2015 +1200
  src/cmd/internal/obj/x86/obj6.go   |  2 +-
  src/cmd/internal/obj/x86/util.go   | 12 ------------
  24 files changed, 33 insertions(+), 141 deletions(-)
+
+diff --git a/src/cmd/5g/util.go b/src/cmd/5g/util.go
+deleted file mode 100644
+index bb5eedb15a..0000000000
+--- a/src/cmd/5g/util.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func bool2int(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/6g/util.go b/src/cmd/6g/util.go
+deleted file mode 100644
+index bb5eedb15a..0000000000
+--- a/src/cmd/6g/util.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func bool2int(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/7g/gsubr.go
+index 138e2ddb18..a34a4306ae 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/7g/gsubr.go
+@@ -447,7 +447,7 @@ func intLiteral(n *gc.Node) (x int64, ok bool) {
+ 	case gc.CTINT, gc.CTRUNE:
+ 		return gc.Mpgetfix(n.Val.U.Xval), true
+ 	case gc.CTBOOL:
+-		return int64(bool2int(n.Val.U.Bval)), true
++		return int64(obj.Bool2int(n.Val.U.Bval)), true
+ 	}
+ 	return
+ }
+diff --git a/src/cmd/7g/util.go b/src/cmd/7g/util.go
+deleted file mode 100644
+index bb5eedb15a..0000000000
+--- a/src/cmd/7g/util.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func bool2int(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/8g/util.go b/src/cmd/8g/util.go
+deleted file mode 100644
+index bb5eedb15a..0000000000
+--- a/src/cmd/8g/util.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func bool2int(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/9g/gsubr.go b/src/cmd/9g/gsubr.go
+index 2c4db9cda4..86ea01a3d5 100644
+--- a/src/cmd/9g/gsubr.go
++++ b/src/cmd/9g/gsubr.go
+@@ -526,7 +526,7 @@ func intLiteral(n *gc.Node) (x int64, ok bool) {
+ 	case gc.CTINT, gc.CTRUNE:
+ 		return gc.Mpgetfix(n.Val.U.Xval), true
+ 	case gc.CTBOOL:
+-		return int64(bool2int(n.Val.U.Bval)), true
++		return int64(obj.Bool2int(n.Val.U.Bval)), true
+ 	}
+ 	return
+ }
+diff --git a/src/cmd/9g/util.go b/src/cmd/9g/util.go
+deleted file mode 100644
+index bb5eedb15a..0000000000
+--- a/src/cmd/9g/util.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func bool2int(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/internal/gc/const.go b/src/cmd/internal/gc/const.go
+index d09273b700..ad2915812e 100644
+--- a/src/cmd/internal/gc/const.go
++++ b/src/cmd/internal/gc/const.go
+@@ -1417,7 +1417,7 @@ func Convconst(con *Node, t *Type, val *Val) {
+ 			i = Mpgetfix(val.U.Xval)
+ 
+ 		case CTBOOL:
+-			i = int64(bool2int(val.U.Bval))
++			i = int64(obj.Bool2int(val.U.Bval))
+ 
+ 		case CTNIL:
+ 			i = 0
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 34b9612f67..1f6b7d2ec6 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -87,7 +87,7 @@ func Gbranch(as int, t *Type, likely int) *obj.Prog {
+ 	p.To.Val = nil
+ 	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' {
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(bool2int(likely > 0))
++		p.From.Offset = int64(obj.Bool2int(likely > 0))
+ 	}
+ 
+ 	return p
+@@ -417,7 +417,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		case CTBOOL:
+ 			a.Sym = nil
+ 			a.Type = obj.TYPE_CONST
+-			a.Offset = int64(bool2int(n.Val.U.Bval))
++			a.Offset = int64(obj.Bool2int(n.Val.U.Bval))
+ 
+ 		case CTNIL:
+ 			a.Sym = nil
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index 3c4a11e4eb..5848f98af0 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -191,17 +191,17 @@ func cmpstackvar(a *Node, b *Node) int {
+ 	}
+ 
+ 	if a.Used != b.Used {
+-		return bool2int(b.Used) - bool2int(a.Used)
++		return obj.Bool2int(b.Used) - obj.Bool2int(a.Used)
+ 	}
+ 
+-	ap := bool2int(haspointers(a.Type))
+-	bp := bool2int(haspointers(b.Type))
++	ap := obj.Bool2int(haspointers(a.Type))
++	bp := obj.Bool2int(haspointers(b.Type))
+ 	if ap != bp {
+ 		return bp - ap
+ 	}
+ 
+-	ap = bool2int(a.Needzero)
+-	bp = bool2int(b.Needzero)
++	ap = obj.Bool2int(a.Needzero)
++	bp = obj.Bool2int(b.Needzero)
+ 	if ap != bp {
+ 		return bp - ap
+ 	}
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 47e24a5205..47697befba 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -678,7 +678,7 @@ func haspointers(t *Type) bool {
+ 		ret = true
+ 	}
+ 
+-	t.Haspointers = 1 + uint8(bool2int(ret))
++	t.Haspointers = 1 + uint8(obj.Bool2int(ret))
+ 	return ret
+ }
+ 
+@@ -1066,7 +1066,7 @@ ok:
+ 
+ 		ot = dcommontype(s, ot, t)
+ 		xt = ot - 3*Widthptr
+-		ot = duint8(s, ot, uint8(bool2int(isddd)))
++		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
+ 
+ 		// two slice headers: in and out.
+ 		ot = int(Rnd(int64(ot), int64(Widthptr)))
+@@ -1146,7 +1146,7 @@ ok:
+ 		}
+ 
+ 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
+-		ot = duint8(s, ot, uint8(bool2int(isreflexive(t.Down))))
++		ot = duint8(s, ot, uint8(obj.Bool2int(isreflexive(t.Down))))
+ 
+ 	case TPTR32, TPTR64:
+ 		if t.Type.Etype == TANY {
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 4823b44e1c..eabbdc2e4d 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -1831,8 +1831,8 @@ OpSwitch:
+ 				n.Type = nil
+ 				return
+ 			}
+-			et := bool2int(checkmake(t, "len", l) < 0)
+-			et |= bool2int(r != nil && checkmake(t, "cap", r) < 0)
++			et := obj.Bool2int(checkmake(t, "len", l) < 0)
++			et |= obj.Bool2int(r != nil && checkmake(t, "cap", r) < 0)
+ 			if et != 0 {
+ 				n.Type = nil
+ 				return
+@@ -2820,12 +2820,12 @@ func keydup(n *Node, hash []*Node) {
+ 			if Eqtype(a.Left.Type, n.Type) {
+ 				cmp.Right = a.Left
+ 				evconst(&cmp)
+-				b = uint32(bool2int(cmp.Val.U.Bval))
++				b = uint32(obj.Bool2int(cmp.Val.U.Bval))
+ 			}
+ 		} else if Eqtype(a.Type, n.Type) {
+ 			cmp.Right = a
+ 			evconst(&cmp)
+-			b = uint32(bool2int(cmp.Val.U.Bval))
++			b = uint32(obj.Bool2int(cmp.Val.U.Bval))
+ 		}
+ 
+ 		if b != 0 {
+diff --git a/src/cmd/internal/gc/util.go b/src/cmd/internal/gc/util.go
+index c3f7db2e98..7b593dc42c 100644
+--- a/src/cmd/internal/gc/util.go
++++ b/src/cmd/internal/gc/util.go
+@@ -8,13 +8,6 @@ import (
+ 	"strings"
+ )
+ 
+-func bool2int(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}
+-
+ func (n *Node) Line() string {
+ 	return obj.Linklinefmt(Ctxt, int(n.Lineno), false, false)
+ }
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 65d68476de..0960647af2 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -829,7 +829,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.
+ 	if ctxt.Cursym.Cfunc != 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+ 	} else {
+-		p.To.Sym = ctxt.Symmorestack[bool2int(noctxt)]
++		p.To.Sym = ctxt.Symmorestack[obj.Bool2int(noctxt)]
+ 	}
+ 
+ 	// BLS	start
+diff --git a/src/cmd/internal/obj/arm/util.go b/src/cmd/internal/obj/arm/util.go
+deleted file mode 100644
+index f036c5ffea..0000000000
+--- a/src/cmd/internal/obj/arm/util.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package arm
+-
+-func bool2int(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 94dc4b1a61..6e00cb55ab 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -831,7 +831,7 @@ func regoff(ctxt *obj.Link, a *obj.Addr) uint32 {
+ 
+ func ispcdisp(v int32) int {
+ 	/* pc-relative addressing will reach? */
+-	return bool2int(v >= -0xfffff && v <= 0xfffff && (v&3) == 0)
++	return obj.Bool2int(v >= -0xfffff && v <= 0xfffff && (v&3) == 0)
+ }
+ 
+ func isaddcon(v int64) int {
+@@ -842,14 +842,14 @@ func isaddcon(v int64) int {
+ 	if (v & 0xFFF) == 0 {
+ 		v >>= 12
+ 	}
+-	return bool2int(v <= 0xFFF)
++	return obj.Bool2int(v <= 0xFFF)
+ }
+ 
+ func isbitcon(v uint64) int {
+ 	/*  fancy bimm32 or bimm64? */
+ 	// TODO(aram):
+ 	return 0
+-	// return bool2int(findmask(v) != nil || (v>>32) == 0 && findmask(v|(v<<32)) != nil)
++	// return obj.Bool2int(findmask(v) != nil || (v>>32) == 0 && findmask(v|(v<<32)) != nil)
+ }
+ 
+ func autoclass(l int64) int {
+@@ -2188,7 +2188,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 	case 24: /* mov/mvn Rs,Rd -> add $0,Rs,Rd or orr Rs,ZR,Rd */
+ 		rf := int(p.From.Reg)
+ 		rt := int(p.To.Reg)
+-		s := bool2int(rf == REGSP || rt == REGSP)
++		s := obj.Bool2int(rf == REGSP || rt == REGSP)
+ 		if p.As == AMVN || p.As == AMVNW {
+ 			if s != 0 {
+ 				ctxt.Diag("illegal SP reference\n%v", p)
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 59a2659928..09fb6d6083 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -583,7 +583,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if !(p.From3.Offset&obj.NOSPLIT != 0) {
+-				p = stacksplit(ctxt, p, ctxt.Autosize, bool2int(cursym.Text.From3.Offset&obj.NEEDCTXT == 0)) // emit split check
++				p = stacksplit(ctxt, p, ctxt.Autosize, obj.Bool2int(cursym.Text.From3.Offset&obj.NEEDCTXT == 0)) // emit split check
+ 			}
+ 
+ 			aoffset = ctxt.Autosize
+diff --git a/src/cmd/internal/obj/arm64/util.go b/src/cmd/internal/obj/arm64/util.go
+deleted file mode 100644
+index 7cb50404dc..0000000000
+--- a/src/cmd/internal/obj/arm64/util.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package arm64
+-
+-func bool2int(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index e05061fa83..87a46ca9fb 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -758,7 +758,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, noctxt bool) *obj.
+ 	if ctxt.Cursym.Cfunc != 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+ 	} else {
+-		p.To.Sym = ctxt.Symmorestack[bool2int(noctxt)]
++		p.To.Sym = ctxt.Symmorestack[obj.Bool2int(noctxt)]
+ 	}
+ 
+ 	// BR	start
+diff --git a/src/cmd/internal/obj/ppc64/util.go b/src/cmd/internal/obj/ppc64/util.go
+deleted file mode 100644
+index 0df4af78d8..0000000000
+--- a/src/cmd/internal/obj/ppc64/util.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ppc64
+-
+-func bool2int(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 189f9611ce..03e6ad9116 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -641,3 +641,10 @@ var Anames = []string{
+ 	"VARDEF",
+ 	"VARKILL",
+ }
++
++func Bool2int(b bool) int {
++	if b {
++		return 1
++	}
++	return 0
++}
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 6a367c21dc..480e2ddce6 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2985,7 +2985,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 	f3t := int(p.F3t) * Ymax
+ 	tt := int(p.Tt) * Ymax
+ 
+-	xo := bool2int(o.op[0] == 0x0f)
++	xo := obj.Bool2int(o.op[0] == 0x0f)
+ 	z := 0
+ 	var a *obj.Addr
+ 	var l int
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 31475733e3..d4c10e61cb 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -990,7 +990,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, noc
+ 	if ctxt.Cursym.Cfunc != 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+ 	} else {
+-		p.To.Sym = ctxt.Symmorestack[bool2int(noctxt)]
++		p.To.Sym = ctxt.Symmorestack[obj.Bool2int(noctxt)]
+ 	}
+ 
+ 	p = obj.Appendp(ctxt, p)
+diff --git a/src/cmd/internal/obj/x86/util.go b/src/cmd/internal/obj/x86/util.go
+deleted file mode 100644
+index dceedf85ea..0000000000
+--- a/src/cmd/internal/obj/x86/util.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package x86
+-
+-func bool2int(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}

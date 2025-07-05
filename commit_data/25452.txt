@@ -32,7 +32,7 @@ Date:   Wed Oct 28 12:58:58 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/file_unix.go                        | 25 +++++++++++-------
  src/os/os_test.go                          | 42 ++++++++++++++++++++++++++++++
  src/os/stat_darwin.go                      | 28 +++++++-------------
@@ -46,3 +46,592 @@ Date:   Wed Oct 28 12:58:58 2015 +0200
  src/os/{types_notwin.go => types_plan9.go} |  6 +----
  src/os/types_unix.go                       | 27 +++++++++++++++++++
  12 files changed, 158 insertions(+), 166 deletions(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 68d0a6e64c..8261b90b49 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -12,6 +12,10 @@ import (
+ 	"syscall"
+ )
+ 
++func sameFile(fs1, fs2 *fileStat) bool {
++	return fs1.sys.Dev == fs2.sys.Dev && fs1.sys.Ino == fs2.sys.Ino
++}
++
+ func rename(oldname, newname string) error {
+ 	e := syscall.Rename(oldname, newname)
+ 	if e != nil {
+@@ -152,23 +156,25 @@ func (f *File) Stat() (FileInfo, error) {
+ 	if f == nil {
+ 		return nil, ErrInvalid
+ 	}
+-	var stat syscall.Stat_t
+-	err := syscall.Fstat(f.fd, &stat)
++	var fs fileStat
++	err := syscall.Fstat(f.fd, &fs.sys)
+ 	if err != nil {
+ 		return nil, &PathError{"stat", f.name, err}
+ 	}
+-	return fileInfoFromStat(&stat, f.name), nil
++	fillFileStatFromSys(&fs, f.name)
++	return &fs, nil
+ }
+ 
+ // Stat returns a FileInfo describing the named file.
+ // If there is an error, it will be of type *PathError.
+ func Stat(name string) (FileInfo, error) {
+-	var stat syscall.Stat_t
+-	err := syscall.Stat(name, &stat)
++	var fs fileStat
++	err := syscall.Stat(name, &fs.sys)
+ 	if err != nil {
+ 		return nil, &PathError{"stat", name, err}
+ 	}
+-	return fileInfoFromStat(&stat, name), nil
++	fillFileStatFromSys(&fs, name)
++	return &fs, nil
+ }
+ 
+ // Lstat returns a FileInfo describing the named file.
+@@ -176,12 +182,13 @@ func Stat(name string) (FileInfo, error) {
+ // describes the symbolic link.  Lstat makes no attempt to follow the link.
+ // If there is an error, it will be of type *PathError.
+ func Lstat(name string) (FileInfo, error) {
+-	var stat syscall.Stat_t
+-	err := syscall.Lstat(name, &stat)
++	var fs fileStat
++	err := syscall.Lstat(name, &fs.sys)
+ 	if err != nil {
+ 		return nil, &PathError{"lstat", name, err}
+ 	}
+-	return fileInfoFromStat(&stat, name), nil
++	fillFileStatFromSys(&fs, name)
++	return &fs, nil
+ }
+ 
+ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index be9fa91028..ef06ba28d1 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -296,6 +296,48 @@ func TestReaddir(t *testing.T) {
+ 	testReaddir(sysdir.name, sysdir.files, t)
+ }
+ 
++func benchmarkReaddirname(path string, b *testing.B) {
++	var nentries int
++	for i := 0; i < b.N; i++ {
++		f, err := Open(path)
++		if err != nil {
++			b.Fatalf("open %q failed: %v", path, err)
++		}
++		ns, err := f.Readdirnames(-1)
++		f.Close()
++		if err != nil {
++			b.Fatalf("readdirnames %q failed: %v", path, err)
++		}
++		nentries = len(ns)
++	}
++	b.Logf("benchmarkReaddirname %q: %d entries", path, nentries)
++}
++
++func benchmarkReaddir(path string, b *testing.B) {
++	var nentries int
++	for i := 0; i < b.N; i++ {
++		f, err := Open(path)
++		if err != nil {
++			b.Fatalf("open %q failed: %v", path, err)
++		}
++		fs, err := f.Readdir(-1)
++		f.Close()
++		if err != nil {
++			b.Fatalf("readdir %q failed: %v", path, err)
++		}
++		nentries = len(fs)
++	}
++	b.Logf("benchmarkReaddir %q: %d entries", path, nentries)
++}
++
++func BenchmarkReaddirname(b *testing.B) {
++	benchmarkReaddirname(".", b)
++}
++
++func BenchmarkReaddir(b *testing.B) {
++	benchmarkReaddir(".", b)
++}
++
+ // Read the directory one entry at a time.
+ func smallReaddirnames(file *File, length int, t *testing.T) []string {
+ 	names := make([]string, length)
+diff --git a/src/os/stat_darwin.go b/src/os/stat_darwin.go
+index 0eea522015..9dc7a99fb7 100644
+--- a/src/os/stat_darwin.go
++++ b/src/os/stat_darwin.go
+@@ -9,21 +9,12 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *fileStat) bool {
+-	stat1 := fs1.sys.(*syscall.Stat_t)
+-	stat2 := fs2.sys.(*syscall.Stat_t)
+-	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+-}
+-
+-func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &fileStat{
+-		name:    basename(name),
+-		size:    int64(st.Size),
+-		modTime: timespecToTime(st.Mtimespec),
+-		sys:     st,
+-	}
+-	fs.mode = FileMode(st.Mode & 0777)
+-	switch st.Mode & syscall.S_IFMT {
++func fillFileStatFromSys(fs *fileStat, name string) {
++	fs.name = basename(name)
++	fs.size = int64(fs.sys.Size)
++	fs.modTime = timespecToTime(fs.sys.Mtimespec)
++	fs.mode = FileMode(fs.sys.Mode & 0777)
++	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK, syscall.S_IFWHT:
+ 		fs.mode |= ModeDevice
+ 	case syscall.S_IFCHR:
+@@ -39,16 +30,15 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	case syscall.S_IFSOCK:
+ 		fs.mode |= ModeSocket
+ 	}
+-	if st.Mode&syscall.S_ISGID != 0 {
++	if fs.sys.Mode&syscall.S_ISGID != 0 {
+ 		fs.mode |= ModeSetgid
+ 	}
+-	if st.Mode&syscall.S_ISUID != 0 {
++	if fs.sys.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
+-	if st.Mode&syscall.S_ISVTX != 0 {
++	if fs.sys.Mode&syscall.S_ISVTX != 0 {
+ 		fs.mode |= ModeSticky
+ 	}
+-	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+diff --git a/src/os/stat_dragonfly.go b/src/os/stat_dragonfly.go
+index 605c1d9b64..69e63230eb 100644
+--- a/src/os/stat_dragonfly.go
++++ b/src/os/stat_dragonfly.go
+@@ -9,21 +9,12 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *fileStat) bool {
+-	stat1 := fs1.sys.(*syscall.Stat_t)
+-	stat2 := fs2.sys.(*syscall.Stat_t)
+-	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+-}
+-
+-func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &fileStat{
+-		name:    basename(name),
+-		size:    int64(st.Size),
+-		modTime: timespecToTime(st.Mtim),
+-		sys:     st,
+-	}
+-	fs.mode = FileMode(st.Mode & 0777)
+-	switch st.Mode & syscall.S_IFMT {
++func fillFileStatFromSys(fs *fileStat, name string) {
++	fs.name = basename(name)
++	fs.size = int64(fs.sys.Size)
++	fs.modTime = timespecToTime(fs.sys.Mtim)
++	fs.mode = FileMode(fs.sys.Mode & 0777)
++	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
+ 	case syscall.S_IFCHR:
+@@ -39,16 +30,15 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	case syscall.S_IFSOCK:
+ 		fs.mode |= ModeSocket
+ 	}
+-	if st.Mode&syscall.S_ISGID != 0 {
++	if fs.sys.Mode&syscall.S_ISGID != 0 {
+ 		fs.mode |= ModeSetgid
+ 	}
+-	if st.Mode&syscall.S_ISUID != 0 {
++	if fs.sys.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
+-	if st.Mode&syscall.S_ISVTX != 0 {
++	if fs.sys.Mode&syscall.S_ISVTX != 0 {
+ 		fs.mode |= ModeSticky
+ 	}
+-	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+diff --git a/src/os/stat_freebsd.go b/src/os/stat_freebsd.go
+index 2ffb60fe25..e9d38aa722 100644
+--- a/src/os/stat_freebsd.go
++++ b/src/os/stat_freebsd.go
+@@ -9,21 +9,12 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *fileStat) bool {
+-	stat1 := fs1.sys.(*syscall.Stat_t)
+-	stat2 := fs2.sys.(*syscall.Stat_t)
+-	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+-}
+-
+-func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &fileStat{
+-		name:    basename(name),
+-		size:    int64(st.Size),
+-		modTime: timespecToTime(st.Mtimespec),
+-		sys:     st,
+-	}
+-	fs.mode = FileMode(st.Mode & 0777)
+-	switch st.Mode & syscall.S_IFMT {
++func fillFileStatFromSys(fs *fileStat, name string) {
++	fs.name = basename(name)
++	fs.size = int64(fs.sys.Size)
++	fs.modTime = timespecToTime(fs.sys.Mtimespec)
++	fs.mode = FileMode(fs.sys.Mode & 0777)
++	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
+ 	case syscall.S_IFCHR:
+@@ -39,16 +30,15 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	case syscall.S_IFSOCK:
+ 		fs.mode |= ModeSocket
+ 	}
+-	if st.Mode&syscall.S_ISGID != 0 {
++	if fs.sys.Mode&syscall.S_ISGID != 0 {
+ 		fs.mode |= ModeSetgid
+ 	}
+-	if st.Mode&syscall.S_ISUID != 0 {
++	if fs.sys.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
+-	if st.Mode&syscall.S_ISVTX != 0 {
++	if fs.sys.Mode&syscall.S_ISVTX != 0 {
+ 		fs.mode |= ModeSticky
+ 	}
+-	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+diff --git a/src/os/stat_linux.go b/src/os/stat_linux.go
+index 605c1d9b64..69e63230eb 100644
+--- a/src/os/stat_linux.go
++++ b/src/os/stat_linux.go
+@@ -9,21 +9,12 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *fileStat) bool {
+-	stat1 := fs1.sys.(*syscall.Stat_t)
+-	stat2 := fs2.sys.(*syscall.Stat_t)
+-	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+-}
+-
+-func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &fileStat{
+-		name:    basename(name),
+-		size:    int64(st.Size),
+-		modTime: timespecToTime(st.Mtim),
+-		sys:     st,
+-	}
+-	fs.mode = FileMode(st.Mode & 0777)
+-	switch st.Mode & syscall.S_IFMT {
++func fillFileStatFromSys(fs *fileStat, name string) {
++	fs.name = basename(name)
++	fs.size = int64(fs.sys.Size)
++	fs.modTime = timespecToTime(fs.sys.Mtim)
++	fs.mode = FileMode(fs.sys.Mode & 0777)
++	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
+ 	case syscall.S_IFCHR:
+@@ -39,16 +30,15 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	case syscall.S_IFSOCK:
+ 		fs.mode |= ModeSocket
+ 	}
+-	if st.Mode&syscall.S_ISGID != 0 {
++	if fs.sys.Mode&syscall.S_ISGID != 0 {
+ 		fs.mode |= ModeSetgid
+ 	}
+-	if st.Mode&syscall.S_ISUID != 0 {
++	if fs.sys.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
+-	if st.Mode&syscall.S_ISVTX != 0 {
++	if fs.sys.Mode&syscall.S_ISVTX != 0 {
+ 		fs.mode |= ModeSticky
+ 	}
+-	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+diff --git a/src/os/stat_nacl.go b/src/os/stat_nacl.go
+index a503b59fa3..d3bed14e43 100644
+--- a/src/os/stat_nacl.go
++++ b/src/os/stat_nacl.go
+@@ -9,21 +9,12 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *fileStat) bool {
+-	stat1 := fs1.sys.(*syscall.Stat_t)
+-	stat2 := fs2.sys.(*syscall.Stat_t)
+-	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+-}
+-
+-func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &fileStat{
+-		name:    basename(name),
+-		size:    int64(st.Size),
+-		modTime: timespecToTime(st.Mtime, st.MtimeNsec),
+-		sys:     st,
+-	}
+-	fs.mode = FileMode(st.Mode & 0777)
+-	switch st.Mode & syscall.S_IFMT {
++func fillFileStatFromSys(fs *fileStat, name string) {
++	fs.name = basename(name)
++	fs.size = int64(fs.sys.Size)
++	fs.modTime = timespecToTime(fs.sys.Mtime, fs.sys.MtimeNsec)
++	fs.mode = FileMode(fs.sys.Mode & 0777)
++	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
+ 	case syscall.S_IFCHR:
+@@ -39,16 +30,15 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	case syscall.S_IFSOCK:
+ 		fs.mode |= ModeSocket
+ 	}
+-	if st.Mode&syscall.S_ISGID != 0 {
++	if fs.sys.Mode&syscall.S_ISGID != 0 {
+ 		fs.mode |= ModeSetgid
+ 	}
+-	if st.Mode&syscall.S_ISUID != 0 {
++	if fs.sys.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
+-	if st.Mode&syscall.S_ISVTX != 0 {
++	if fs.sys.Mode&syscall.S_ISVTX != 0 {
+ 		fs.mode |= ModeSticky
+ 	}
+-	return fs
+ }
+ 
+ func timespecToTime(sec, nsec int64) time.Time {
+diff --git a/src/os/stat_netbsd.go b/src/os/stat_netbsd.go
+index 2ffb60fe25..e9d38aa722 100644
+--- a/src/os/stat_netbsd.go
++++ b/src/os/stat_netbsd.go
+@@ -9,21 +9,12 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *fileStat) bool {
+-	stat1 := fs1.sys.(*syscall.Stat_t)
+-	stat2 := fs2.sys.(*syscall.Stat_t)
+-	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+-}
+-
+-func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &fileStat{
+-		name:    basename(name),
+-		size:    int64(st.Size),
+-		modTime: timespecToTime(st.Mtimespec),
+-		sys:     st,
+-	}
+-	fs.mode = FileMode(st.Mode & 0777)
+-	switch st.Mode & syscall.S_IFMT {
++func fillFileStatFromSys(fs *fileStat, name string) {
++	fs.name = basename(name)
++	fs.size = int64(fs.sys.Size)
++	fs.modTime = timespecToTime(fs.sys.Mtimespec)
++	fs.mode = FileMode(fs.sys.Mode & 0777)
++	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
+ 	case syscall.S_IFCHR:
+@@ -39,16 +30,15 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	case syscall.S_IFSOCK:
+ 		fs.mode |= ModeSocket
+ 	}
+-	if st.Mode&syscall.S_ISGID != 0 {
++	if fs.sys.Mode&syscall.S_ISGID != 0 {
+ 		fs.mode |= ModeSetgid
+ 	}
+-	if st.Mode&syscall.S_ISUID != 0 {
++	if fs.sys.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
+-	if st.Mode&syscall.S_ISVTX != 0 {
++	if fs.sys.Mode&syscall.S_ISVTX != 0 {
+ 		fs.mode |= ModeSticky
+ 	}
+-	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+diff --git a/src/os/stat_openbsd.go b/src/os/stat_openbsd.go
+index 605c1d9b64..69e63230eb 100644
+--- a/src/os/stat_openbsd.go
++++ b/src/os/stat_openbsd.go
+@@ -9,21 +9,12 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *fileStat) bool {
+-	stat1 := fs1.sys.(*syscall.Stat_t)
+-	stat2 := fs2.sys.(*syscall.Stat_t)
+-	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+-}
+-
+-func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &fileStat{
+-		name:    basename(name),
+-		size:    int64(st.Size),
+-		modTime: timespecToTime(st.Mtim),
+-		sys:     st,
+-	}
+-	fs.mode = FileMode(st.Mode & 0777)
+-	switch st.Mode & syscall.S_IFMT {
++func fillFileStatFromSys(fs *fileStat, name string) {
++	fs.name = basename(name)
++	fs.size = int64(fs.sys.Size)
++	fs.modTime = timespecToTime(fs.sys.Mtim)
++	fs.mode = FileMode(fs.sys.Mode & 0777)
++	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
+ 	case syscall.S_IFCHR:
+@@ -39,16 +30,15 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	case syscall.S_IFSOCK:
+ 		fs.mode |= ModeSocket
+ 	}
+-	if st.Mode&syscall.S_ISGID != 0 {
++	if fs.sys.Mode&syscall.S_ISGID != 0 {
+ 		fs.mode |= ModeSetgid
+ 	}
+-	if st.Mode&syscall.S_ISUID != 0 {
++	if fs.sys.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
+-	if st.Mode&syscall.S_ISVTX != 0 {
++	if fs.sys.Mode&syscall.S_ISVTX != 0 {
+ 		fs.mode |= ModeSticky
+ 	}
+-	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+diff --git a/src/os/stat_solaris.go b/src/os/stat_solaris.go
+index 605c1d9b64..69e63230eb 100644
+--- a/src/os/stat_solaris.go
++++ b/src/os/stat_solaris.go
+@@ -9,21 +9,12 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *fileStat) bool {
+-	stat1 := fs1.sys.(*syscall.Stat_t)
+-	stat2 := fs2.sys.(*syscall.Stat_t)
+-	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+-}
+-
+-func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &fileStat{
+-		name:    basename(name),
+-		size:    int64(st.Size),
+-		modTime: timespecToTime(st.Mtim),
+-		sys:     st,
+-	}
+-	fs.mode = FileMode(st.Mode & 0777)
+-	switch st.Mode & syscall.S_IFMT {
++func fillFileStatFromSys(fs *fileStat, name string) {
++	fs.name = basename(name)
++	fs.size = int64(fs.sys.Size)
++	fs.modTime = timespecToTime(fs.sys.Mtim)
++	fs.mode = FileMode(fs.sys.Mode & 0777)
++	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
+ 	case syscall.S_IFCHR:
+@@ -39,16 +30,15 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	case syscall.S_IFSOCK:
+ 		fs.mode |= ModeSocket
+ 	}
+-	if st.Mode&syscall.S_ISGID != 0 {
++	if fs.sys.Mode&syscall.S_ISGID != 0 {
+ 		fs.mode |= ModeSetgid
+ 	}
+-	if st.Mode&syscall.S_ISUID != 0 {
++	if fs.sys.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
+-	if st.Mode&syscall.S_ISVTX != 0 {
++	if fs.sys.Mode&syscall.S_ISVTX != 0 {
+ 		fs.mode |= ModeSticky
+ 	}
+-	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+diff --git a/src/os/types_notwin.go b/src/os/types_plan9.go
+similarity index 93%
+rename from src/os/types_notwin.go
+rename to src/os/types_plan9.go
+index ea1a073930..6d46ca9dd3 100644
+--- a/src/os/types_notwin.go
++++ b/src/os/types_plan9.go
+@@ -2,13 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !windows
+-
+ package os
+ 
+-import (
+-	"time"
+-)
++import "time"
+ 
+ // A fileStat is the implementation of FileInfo returned by Stat and Lstat.
+ type fileStat struct {
+diff --git a/src/os/types_unix.go b/src/os/types_unix.go
+new file mode 100644
+index 0000000000..056220c09b
+--- /dev/null
++++ b/src/os/types_unix.go
+@@ -0,0 +1,27 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++// +build !plan9
++
++package os
++
++import (
++	"syscall"
++	"time"
++)
++
++// A fileStat is the implementation of FileInfo returned by Stat and Lstat.
++type fileStat struct {
++	name    string
++	size    int64
++	mode    FileMode
++	modTime time.Time
++	sys     syscall.Stat_t
++}
++
++func (fs *fileStat) Size() int64        { return fs.size }
++func (fs *fileStat) Mode() FileMode     { return fs.mode }
++func (fs *fileStat) ModTime() time.Time { return fs.modTime }
++func (fs *fileStat) Sys() interface{}   { return &fs.sys }

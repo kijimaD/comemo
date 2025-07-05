@@ -16,6 +16,25 @@ Date:   Thu Nov 10 09:44:39 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/go/build/build_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index db50d45d84..3eebfd8e9e 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -681,8 +681,11 @@ func TestImportDirTarget(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if p.PkgTargetRoot == "" || p.PkgObj == "" {
+-		t.Errorf("p.PkgTargetRoot == %q, p.PkgObj == %q, want non-empty", p.PkgTargetRoot, p.PkgObj)
++	if p.PkgTargetRoot == "" {
++		t.Errorf("p.PkgTargetRoot == %q, want non-empty", p.PkgTargetRoot)
++	}
++	if testenv.HasCGO() && p.PkgObj == "" {
++		t.Errorf("p.PkgObj == %q, want non-empty", p.PkgObj)
+ 	}
+ }
+ 

@@ -12,8 +12,82 @@ Date:   Thu Nov 3 17:51:15 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5302082
-
+---
  src/cmd/gc/reflect.c     |  9 ++++++---
  src/cmd/gc/subr.c        |  7 +++++--
  test/fixedbugs/bug372.go | 28 ++++++++++++++++++++++++++++
  3 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 86df3a378d..d59d1a5397 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -158,10 +158,13 @@ methods(Type *t)
+ 	// generating code if necessary.
+ 	a = nil;
+ 	for(f=mt->xmethod; f; f=f->down) {
+-		if(f->type->etype != TFUNC)
+-			continue;
+ 		if(f->etype != TFIELD)
+-			fatal("methods: not field");
++			fatal("methods: not field %T", f);
++		if (f->type->etype != TFUNC || f->type->thistuple == 0)
++			fatal("non-method on %T method %S %T\n", mt, f->sym, f);
++		if (!getthisx(f->type)->type)
++			fatal("receiver with no type on %T method %S %T\n", mt, f->sym, f);
++
+ 		method = f->sym;
+ 		if(method == nil)
+ 			continue;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b12153df34..11feb61a97 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2178,8 +2178,11 @@ expandmeth(Sym *s, Type *t)
+ 			if(c == 0)
+ 				continue;
+ 			if(c == 1) {
+-				sl->good = 1;
+-				sl->field = f;
++				// addot1 may have dug out arbitrary fields, we only want methods.
++				if(f->type->etype == TFUNC && f->type->thistuple > 0) {
++					sl->good = 1;
++					sl->field = f;
++				}
+ 			}
+ 			break;
+ 		}
+diff --git a/test/fixedbugs/bug372.go b/test/fixedbugs/bug372.go
+new file mode 100644
+index 0000000000..a6f7208bbd
+--- /dev/null
++++ b/test/fixedbugs/bug372.go
+@@ -0,0 +1,28 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug372
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2355
++package main
++
++type T struct {}
++func (T) m() string { return "T" }
++
++type TT struct {
++	T
++	m func() string
++}
++
++
++func ff() string { return "ff" }
++
++func main() {
++	var tt TT
++	tt.m = ff
++
++	if tt.m() != "ff" {
++		println(tt.m(), "!= \"ff\"")
++	}
++}

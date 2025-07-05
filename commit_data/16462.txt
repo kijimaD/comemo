@@ -7,6 +7,30 @@ Date:   Sun Jun 2 11:36:09 2013 +0200
     R=golang-dev, dave, r
     CC=golang-dev
     https://golang.org/cl/9935043
-
+---
  .hgignore | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index b140555fd9..d85ce379a7 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -32,7 +32,6 @@ misc/dashboard/builder/builder
+ misc/goplay/goplay
+ misc/osx/*.pkg
+ misc/osx/*.dmg
+-src/cmd/6a/6a
+ src/cmd/?a/y.output
+ src/cmd/?l/enam.c
+ src/cmd/cc/y.output
+@@ -40,10 +39,6 @@ src/cmd/dist/dist.dSYM
+ src/cmd/gc/mkbuiltin1
+ src/cmd/gc/opnames.h
+ src/cmd/gc/y.output
+-src/pkg/exp/norm/maketables
+-src/pkg/exp/norm/maketesttables
+-src/pkg/exp/norm/normregtest
+-src/pkg/exp/ebnflint/ebnflint
+ src/pkg/go/doc/headscan
+ src/pkg/runtime/goc2c
+ src/pkg/runtime/mkversion

@@ -9,6 +9,25 @@ Date:   Mon Oct 6 13:12:03 2008 -0700
     DELTA=3  (0 added, 2 deleted, 1 changed)
     OCL=16537
     CL=16545
-
+---
  test/fixedbugs/bug026.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug026.go b/test/fixedbugs/bug026.go
+index 05925ef3f0..1d97c18ae5 100644
+--- a/test/fixedbugs/bug026.go
++++ b/test/fixedbugs/bug026.go
+@@ -6,12 +6,10 @@
+ 
+ package main
+ 
+-export Vector;
+-
+ type Element interface {
+ }
+ 
+-type Vector struct {
++export type Vector struct {
+ }
+ 
+ func (v *Vector) Insert(i int, e Element) {

@@ -12,7 +12,35 @@ Date:   Fri Feb 7 18:42:26 2025 +0700
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/internal/auth/auth.go          | 3 ++-
  src/cmd/go/testdata/script/goauth_git.txt | 2 ++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/auth/auth.go b/src/cmd/go/internal/auth/auth.go
+index 79e0d8b5e8..83c28d160c 100644
+--- a/src/cmd/go/internal/auth/auth.go
++++ b/src/cmd/go/internal/auth/auth.go
+@@ -128,7 +128,8 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
+ 	// If no GOAUTH command provided a credential for the given url
+ 	// and an error occurred, log the error.
+ 	if cfg.BuildX && url != "" {
+-		if ok := loadCredential(&http.Request{}, url); !ok && len(cmdErrs) > 0 {
++		req := &http.Request{Header: make(http.Header)}
++		if ok := loadCredential(req, url); !ok && len(cmdErrs) > 0 {
+ 			log.Printf("GOAUTH encountered errors for %s:", url)
+ 			for _, err := range cmdErrs {
+ 				log.Printf("  %v", err)
+diff --git a/src/cmd/go/testdata/script/goauth_git.txt b/src/cmd/go/testdata/script/goauth_git.txt
+index 4fae39aaa7..37c9b19a04 100644
+--- a/src/cmd/go/testdata/script/goauth_git.txt
++++ b/src/cmd/go/testdata/script/goauth_git.txt
+@@ -49,6 +49,8 @@ go get vcs-test.golang.org/auth/or401
+ go mod tidy
+ go list all
+ stdout vcs-test.golang.org/auth/or404
++# With cached credentials, re-downloading in debug mode should succeed.
++go get -x vcs-test.golang.org/auth/or401
+ 
+ # Clearing GOAUTH credentials should result in failures.
+ env GOAUTH='off'

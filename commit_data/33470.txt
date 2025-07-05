@@ -11,10 +11,197 @@ Date:   Thu Aug 17 09:11:36 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/macho/file.go                            |  19 +++++
  src/debug/macho/file_test.go                       |  79 +++++++++++++++++----
  src/debug/macho/macho.go                           |   9 +++
  .../testdata/clang-386-darwin-exec-with-rpath      | Bin 0 -> 8416 bytes
  .../testdata/clang-amd64-darwin-exec-with-rpath    | Bin 0 -> 8432 bytes
  5 files changed, 94 insertions(+), 13 deletions(-)
+
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index 306e9ae1da..cbf24787be 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -143,6 +143,12 @@ type Dysymtab struct {
+ 	IndirectSyms []uint32 // indices into Symtab.Syms
+ }
+ 
++// A Rpath represents a Mach-O rpath command.
++type Rpath struct {
++	LoadBytes
++	Path string
++}
++
+ // A Symbol is a Mach-O 32-bit or 64-bit symbol table entry.
+ type Symbol struct {
+ 	Name  string
+@@ -258,6 +264,19 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		default:
+ 			f.Loads[i] = LoadBytes(cmddat)
+ 
++		case LoadCmdRpath:
++			var hdr RpathCmd
++			b := bytes.NewReader(cmddat)
++			if err := binary.Read(b, bo, &hdr); err != nil {
++				return nil, err
++			}
++			l := new(Rpath)
++			if hdr.Path >= uint32(len(cmddat)) {
++				return nil, &FormatError{offset, "invalid path in rpath command", hdr.Path}
++			}
++			l.Path = cstring(cmddat[hdr.Path:])
++			f.Loads[i] = l
++
+ 		case LoadCmdDylib:
+ 			var hdr DylibCmd
+ 			b := bytes.NewReader(cmddat)
+diff --git a/src/debug/macho/file_test.go b/src/debug/macho/file_test.go
+index 01a8e70121..30705b1bc7 100644
+--- a/src/debug/macho/file_test.go
++++ b/src/debug/macho/file_test.go
+@@ -96,6 +96,52 @@ var fileTests = []fileTest{
+ 			{"__debug_str", "__DWARF", 0x10000215c, 0x60, 0x115c, 0x0, 0x0, 0x0, 0x0},
+ 		},
+ 	},
++	{
++		"testdata/clang-386-darwin-exec-with-rpath",
++		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0x10, 0x42c, 0x1200085},
++		[]interface{}{
++			nil, // LC_SEGMENT
++			nil, // LC_SEGMENT
++			nil, // LC_SEGMENT
++			nil, // LC_SEGMENT
++			nil, // LC_DYLD_INFO_ONLY
++			nil, // LC_SYMTAB
++			nil, // LC_DYSYMTAB
++			nil, // LC_LOAD_DYLINKER
++			nil, // LC_UUID
++			nil, // LC_VERSION_MIN_MACOSX
++			nil, // LC_SOURCE_VERSION
++			nil, // LC_MAIN
++			nil, // LC_LOAD_DYLIB
++			&Rpath{nil, "/my/rpath"},
++			nil, // LC_FUNCTION_STARTS
++			nil, // LC_DATA_IN_CODE
++		},
++		nil,
++	},
++	{
++		"testdata/clang-amd64-darwin-exec-with-rpath",
++		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0x2, 0x10, 0x4c8, 0x200085},
++		[]interface{}{
++			nil, // LC_SEGMENT
++			nil, // LC_SEGMENT
++			nil, // LC_SEGMENT
++			nil, // LC_SEGMENT
++			nil, // LC_DYLD_INFO_ONLY
++			nil, // LC_SYMTAB
++			nil, // LC_DYSYMTAB
++			nil, // LC_LOAD_DYLINKER
++			nil, // LC_UUID
++			nil, // LC_VERSION_MIN_MACOSX
++			nil, // LC_SOURCE_VERSION
++			nil, // LC_MAIN
++			nil, // LC_LOAD_DYLIB
++			&Rpath{nil, "/my/rpath"},
++			nil, // LC_FUNCTION_STARTS
++			nil, // LC_DATA_IN_CODE
++		},
++		nil,
++	},
+ }
+ 
+ func TestOpen(t *testing.T) {
+@@ -133,6 +179,12 @@ func TestOpen(t *testing.T) {
+ 				if !reflect.DeepEqual(have, want) {
+ 					t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+ 				}
++			case *Rpath:
++				have := l
++				have.LoadBytes = nil
++				if !reflect.DeepEqual(have, want) {
++					t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++				}
+ 			default:
+ 				t.Errorf("open %s, section %d: unknown load command\n\thave %#v\n\twant %#v\n", tt.file, i, l, want)
+ 			}
+@@ -143,22 +195,23 @@ func TestOpen(t *testing.T) {
+ 			t.Errorf("open %s: len(Loads) = %d, want %d", tt.file, fn, tn)
+ 		}
+ 
+-		for i, sh := range f.Sections {
+-			if i >= len(tt.sections) {
+-				break
++		if tt.sections != nil {
++			for i, sh := range f.Sections {
++				if i >= len(tt.sections) {
++					break
++				}
++				have := &sh.SectionHeader
++				want := tt.sections[i]
++				if !reflect.DeepEqual(have, want) {
++					t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++				}
+ 			}
+-			have := &sh.SectionHeader
+-			want := tt.sections[i]
+-			if !reflect.DeepEqual(have, want) {
+-				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++			tn = len(tt.sections)
++			fn = len(f.Sections)
++			if tn != fn {
++				t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
+ 			}
+ 		}
+-		tn = len(tt.sections)
+-		fn = len(f.Sections)
+-		if tn != fn {
+-			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
+-		}
+-
+ 	}
+ }
+ 
+diff --git a/src/debug/macho/macho.go b/src/debug/macho/macho.go
+index 045adb090a..907be31341 100644
+--- a/src/debug/macho/macho.go
++++ b/src/debug/macho/macho.go
+@@ -87,6 +87,7 @@ const (
+ 	LoadCmdDylib      LoadCmd = 0xc // load dylib command
+ 	LoadCmdDylinker   LoadCmd = 0xf // id dylinker command (not load dylinker command)
+ 	LoadCmdSegment64  LoadCmd = 0x19
++	LoadCmdRpath      LoadCmd = 0x8000001c
+ )
+ 
+ var cmdStrings = []intName{
+@@ -95,6 +96,7 @@ var cmdStrings = []intName{
+ 	{uint32(LoadCmdUnixThread), "LoadCmdUnixThread"},
+ 	{uint32(LoadCmdDylib), "LoadCmdDylib"},
+ 	{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
++	{uint32(LoadCmdRpath), "LoadCmdRpath"},
+ }
+ 
+ func (i LoadCmd) String() string   { return stringName(uint32(i), cmdStrings, false) }
+@@ -175,6 +177,13 @@ type (
+ 		CompatVersion  uint32
+ 	}
+ 
++	// A RpathCmd is a Mach-O rpath command.
++	RpathCmd struct {
++		Cmd  LoadCmd
++		Len  uint32
++		Path uint32
++	}
++
+ 	// A Thread is a Mach-O thread state command.
+ 	Thread struct {
+ 		Cmd  LoadCmd
+diff --git a/src/debug/macho/testdata/clang-386-darwin-exec-with-rpath b/src/debug/macho/testdata/clang-386-darwin-exec-with-rpath
+new file mode 100644
+index 0000000000..a8720feb92
+Binary files /dev/null and b/src/debug/macho/testdata/clang-386-darwin-exec-with-rpath differ
+diff --git a/src/debug/macho/testdata/clang-amd64-darwin-exec-with-rpath b/src/debug/macho/testdata/clang-amd64-darwin-exec-with-rpath
+new file mode 100644
+index 0000000000..191c7688cb
+Binary files /dev/null and b/src/debug/macho/testdata/clang-amd64-darwin-exec-with-rpath differ

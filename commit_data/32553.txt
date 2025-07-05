@@ -11,6 +11,20 @@ Date:   Sun Apr 30 14:47:04 2017 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/sync/map_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/map_test.go b/src/sync/map_test.go
+index 4aa3dd3886..b60a1c7bed 100644
+--- a/src/sync/map_test.go
++++ b/src/sync/map_test.go
+@@ -103,7 +103,7 @@ func TestMapMatchesRWMutex(t *testing.T) {
+ }
+ 
+ func TestMapMatchesDeepCopy(t *testing.T) {
+-	if err := quick.CheckEqual(applyMap, applyRWMutexMap, nil); err != nil {
++	if err := quick.CheckEqual(applyMap, applyDeepCopyMap, nil); err != nil {
+ 		t.Error(err)
+ 	}
+ }

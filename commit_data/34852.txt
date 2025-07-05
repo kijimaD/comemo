@@ -25,7 +25,7 @@ Date:   Mon Nov 20 16:47:08 2017 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/fmt_test.go           |  2 +-
  src/cmd/compile/internal/gc/main.go   |  2 +-
  src/cmd/compile/internal/gc/ssa.go    | 16 +++++++++++-----
@@ -33,3 +33,188 @@ Date:   Mon Nov 20 16:47:08 2017 -0500
  src/cmd/internal/obj/inl.go           | 16 +++++++++++++++-
  src/cmd/internal/obj/util.go          | 21 ++++++++++-----------
  6 files changed, 40 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index ff0d8a118b..3f329dea9c 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -600,7 +600,6 @@ var knownFormats = map[string]string{
+ 	"*cmd/internal/dwarf.Location %#v":                "",
+ 	"*cmd/internal/obj.Addr %v":                       "",
+ 	"*cmd/internal/obj.LSym %v":                       "",
+-	"*cmd/internal/obj.Prog %s":                       "",
+ 	"*math/big.Int %#x":                               "",
+ 	"*math/big.Int %s":                                "",
+ 	"[16]byte %x":                                     "",
+@@ -704,6 +703,7 @@ var knownFormats = map[string]string{
+ 	"rune %c":          "",
+ 	"string %-*s":      "",
+ 	"string %-16s":     "",
++	"string %-6s":      "",
+ 	"string %.*s":      "",
+ 	"string %q":        "",
+ 	"string %s":        "",
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index be2fe552f6..262d000f3d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -398,7 +398,7 @@ func Main(archInit func(*Arch)) {
+ 	// enable inlining.  for now:
+ 	//	default: inlining on.  (debug['l'] == 1)
+ 	//	-l: inlining off  (debug['l'] == 0)
+-	//	-ll, -lll: inlining on again, with extra debugging (debug['l'] > 1)
++	//	-l=2, -l=3: inlining on again, with extra debugging (debug['l'] > 1)
+ 	if Debug['l'] <= 1 {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 254cf63c1c..0bd5cea73e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4663,7 +4663,13 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	}
+ 
+ 	if logProgs {
++		filename := ""
+ 		for p := pp.Text; p != nil; p = p.Link {
++			if p.Pos.IsKnown() && p.InnermostFilename() != filename {
++				filename = p.InnermostFilename()
++				f.Logf("# %s\n", filename)
++			}
++
+ 			var s string
+ 			if v, ok := progToValue[p]; ok {
+ 				s = v.String()
+@@ -4672,7 +4678,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 			} else {
+ 				s = "   " // most value and branch strings are 2-3 characters long
+ 			}
+-			f.Logf("%s\t%s\n", s, p)
++			f.Logf(" %-6s\t%.5d (%s)\t%s\n", s, p.Pc, p.InnermostLineNumber(), p.InstructionString())
+ 		}
+ 		if f.HTMLWriter != nil {
+ 			// LineHist is defunct now - this code won't do
+@@ -4686,9 +4692,9 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 			filename := ""
+ 			for p := pp.Text; p != nil; p = p.Link {
+ 				// Don't spam every line with the file name, which is often huge.
+-				// Only print changes.
+-				if f := p.FileName(); f != filename {
+-					filename = f
++				// Only print changes, and "unknown" is not a change.
++				if p.Pos.IsKnown() && p.InnermostFilename() != filename {
++					filename = p.InnermostFilename()
+ 					buf.WriteString("<dt class=\"ssa-prog-src\"></dt><dd class=\"ssa-prog\">")
+ 					buf.WriteString(html.EscapeString("# " + filename))
+ 					buf.WriteString("</dd>")
+@@ -4702,7 +4708,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				}
+ 				buf.WriteString("</dt>")
+ 				buf.WriteString("<dd class=\"ssa-prog\">")
+-				buf.WriteString(fmt.Sprintf("%.5d <span class=\"line-number\">(%s)</span> %s", p.Pc, p.LineNumber(), html.EscapeString(p.InstructionString())))
++				buf.WriteString(fmt.Sprintf("%.5d <span class=\"line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), html.EscapeString(p.InstructionString())))
+ 				buf.WriteString("</dd>")
+ 			}
+ 			buf.WriteString("</dl>")
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 288ad19bc3..832ed8d320 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
++	"sort"
+ 	"strings"
+ )
+ 
+@@ -120,6 +121,7 @@ func (v *Value) LongString() string {
+ 		}
+ 	}
+ 	if len(names) != 0 {
++		sort.Strings(names) // Otherwise a source of variation in debugging output.
+ 		s += " (" + strings.Join(names, ", ") + ")"
+ 	}
+ 	return s
+diff --git a/src/cmd/internal/obj/inl.go b/src/cmd/internal/obj/inl.go
+index 116921995a..d4f040d89f 100644
+--- a/src/cmd/internal/obj/inl.go
++++ b/src/cmd/internal/obj/inl.go
+@@ -23,6 +23,9 @@ import "cmd/internal/src"
+ //  8     h()
+ //  9     h()
+ // 10 }
++// 11 func h() {
++// 12     println("H")
++// 13 }
+ //
+ // Assuming the global tree starts empty, inlining will produce the
+ // following tree:
+@@ -66,7 +69,7 @@ func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym) int {
+ // InlTree, main() contains inlined AST nodes from h(), but the
+ // outermost position for those nodes is line 2.
+ func (ctxt *Link) OutermostPos(xpos src.XPos) src.Pos {
+-	pos := ctxt.PosTable.Pos(xpos)
++	pos := ctxt.InnermostPos(xpos)
+ 
+ 	outerxpos := xpos
+ 	for ix := pos.Base().InliningIndex(); ix >= 0; {
+@@ -77,6 +80,17 @@ func (ctxt *Link) OutermostPos(xpos src.XPos) src.Pos {
+ 	return ctxt.PosTable.Pos(outerxpos)
+ }
+ 
++// InnermostPos returns the innermost position corresponding to xpos,
++// that is, the code that is inlined and that inlines nothing else.
++// In the example for InlTree above, the code for println within h
++// would have an innermost position with line number 12, whether
++// h was not inlined, inlined into g, g-then-f, or g-then-f-then-main.
++// This corresponds to what someone debugging main, f, g, or h might
++// expect to see while single-stepping.
++func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
++	return ctxt.PosTable.Pos(xpos)
++}
++
+ func dumpInlTree(ctxt *Link, tree InlTree) {
+ 	for i, call := range tree.nodes {
+ 		pos := ctxt.PosTable.Pos(call.Pos)
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 867c69f3ef..245e9e9e9b 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -18,26 +18,25 @@ func (p *Prog) Line() string {
+ 	return p.Ctxt.OutermostPos(p.Pos).Format(false, true)
+ }
+ 
+-// LineNumber returns a string containing the line number for p's position
+-func (p *Prog) LineNumber() string {
+-	pos := p.Ctxt.OutermostPos(p.Pos)
++// InnermostLineNumber returns a string containing the line number for the
++// innermost inlined function (if any inlining) at p's position
++func (p *Prog) InnermostLineNumber() string {
++	pos := p.Ctxt.InnermostPos(p.Pos)
+ 	if !pos.IsKnown() {
+ 		return "?"
+ 	}
+ 	return fmt.Sprintf("%d", pos.Line())
+ }
+ 
+-// FileName returns a string containing the filename for p's position
+-func (p *Prog) FileName() string {
+-	// TODO LineNumber and FileName cases don't handle full generality of positions,
+-	// but because these are currently used only for GOSSAFUNC debugging output, that
+-	// is okay.  The intent is that "LineNumber()" yields the rapidly varying part,
+-	// while "FileName()" yields the longer and slightly more constant material.
+-	pos := p.Ctxt.OutermostPos(p.Pos)
++// InnermostFilename returns a string containing the innermost
++// (in inlining) filename at p's position
++func (p *Prog) InnermostFilename() string {
++	// TODO For now, this is only used for debugging output, and if we need more/better information, it might change.
++	// An example of what we might want to see is the full stack of positions for inlined code, so we get some visibility into what is recorded there.
++	pos := p.Ctxt.InnermostPos(p.Pos)
+ 	if !pos.IsKnown() {
+ 		return "<unknown file name>"
+ 	}
+-
+ 	return pos.Filename()
+ }
+ 

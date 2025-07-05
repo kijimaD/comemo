@@ -15,6 +15,31 @@ Date:   Tue Nov 8 17:44:53 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/client_test.go | 13 ++++++++-----
  1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index ba5602245b..2fe6e2164f 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -251,11 +251,14 @@ func TestClientRedirects(t *testing.T) {
+ 	var checkErr error
+ 	var lastVia []*Request
+ 	var lastReq *Request
+-	c = &Client{CheckRedirect: func(req *Request, via []*Request) error {
+-		lastReq = req
+-		lastVia = via
+-		return checkErr
+-	}}
++	c = &Client{
++		Transport: tr,
++		CheckRedirect: func(req *Request, via []*Request) error {
++			lastReq = req
++			lastVia = via
++			return checkErr
++		},
++	}
+ 	res, err := c.Get(ts.URL)
+ 	if err != nil {
+ 		t.Fatalf("Get error: %v", err)

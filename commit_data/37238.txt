@@ -7,6 +7,20 @@ Date:   Thu Jul 12 14:35:39 2018 +0800
     Change-Id: I877c82788f3edbcb0b334b42049c1a06f36a6477
     Reviewed-on: https://go-review.googlesource.com/123517
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 1e2d5d39ed..627be09d08 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -137,7 +137,7 @@ func (p *Parser) asmText(operands [][]lex.Token) {
+ 	// Bizarre syntax: $frameSize-argSize is two words, not subtraction.
+ 	// Both frameSize and argSize must be simple integers; only frameSize
+ 	// can be negative.
+-	// The "-argSize" may be missing; if so, set it to obj.ArgsSizeUnknown.
++	// The "-argSize" may be missing; if so, set it to objabi.ArgsSizeUnknown.
+ 	// Parse left to right.
+ 	op := operands[next]
+ 	if len(op) < 2 || op[0].ScanToken != '$' {

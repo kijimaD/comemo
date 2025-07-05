@@ -7,9 +7,94 @@ Date:   Mon Jun 14 18:07:17 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1703041
-
+---
  src/pkg/runtime/darwin/386/signal.c   |  4 +++-
  src/pkg/runtime/darwin/amd64/signal.c |  4 +++-
  test/golden.out                       |  4 ----
  test/zerodivide.go                    | 12 ++++--------
  4 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 7c0c381d37..b4af42bb4f 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -54,7 +54,9 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 		// Not necessary in Snow Leopard (si_code will be != 0).
+ 		if(sig == SIGFPE && info->si_code == 0) {
+ 			pc = (byte*)r->eip;
+-			if(pc[0] == 0xF7)
++			if(pc[0] == 0x66)	// 16-bit instruction prefix
++				pc++;
++			if(pc[0] == 0xF6 || pc[0] == 0xF7)
+ 				info->si_code = FPE_INTDIV;
+ 		}
+ 		
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index 8145e8d8f4..b3fa8404f1 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -63,7 +63,9 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 			pc = (byte*)r->rip;
+ 			if((pc[0]&0xF0) == 0x40)	// 64-bit REX prefix
+ 				pc++;
+-			if(pc[0] == 0xF7)
++			else if(pc[0] == 0x66)	// 16-bit instruction prefix
++				pc++;
++			if(pc[0] == 0xF6 || pc[0] == 0xF7)
+ 				info->si_code = FPE_INTDIV;
+ 		}
+ 		
+diff --git a/test/golden.out b/test/golden.out
+index d6d9d576a1..24e24a28e1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -54,10 +54,6 @@ FAIL
+ Hello World!
+ 
+ =========== ./zerodivide.go
+-int16 0/0: expected "divide"; got "runtime error: floating point error"
+-int16 1/0: expected "divide"; got "runtime error: floating point error"
+-uint16 0/0: expected "divide"; got "runtime error: floating point error"
+-uint16 1/0: expected "divide"; got "runtime error: floating point error"
+ complex 0/0: expected no error; got "runtime error: complex divide by zero"
+ complex64 0/0: expected no error; got "runtime error: complex divide by zero"
+ complex128 0/0: expected no error; got "runtime error: complex divide by zero"
+diff --git a/test/zerodivide.go b/test/zerodivide.go
+index 38a040ade6..948aedd930 100644
+--- a/test/zerodivide.go
++++ b/test/zerodivide.go
+@@ -56,30 +56,26 @@ func use(v interface{}) {
+ var errorTests = []ErrorTest{
+ 	// All integer divide by zero should error.
+ 	ErrorTest{ "int 0/0", func() { use(i/j) }, "divide", },
+-// TODO commented out: fails in 8g.
+-//	ErrorTest{ "int8 0/0", func() { use(i8/j8) }, "divide", },
++	ErrorTest{ "int8 0/0", func() { use(i8/j8) }, "divide", },
+ 	ErrorTest{ "int16 0/0", func() { use(i16/j16) }, "divide", },
+ 	ErrorTest{ "int32 0/0", func() { use(i32/j32) }, "divide", },
+ 	ErrorTest{ "int64 0/0", func() { use(i64/j64) }, "divide", },
+ 
+ 	ErrorTest{ "int 1/0", func() { use(k/j) }, "divide", },
+-// TODO commented out: fails in 8g.
+-//	ErrorTest{ "int8 1/0", func() { use(k8/j8) }, "divide", },
++	ErrorTest{ "int8 1/0", func() { use(k8/j8) }, "divide", },
+ 	ErrorTest{ "int16 1/0", func() { use(k16/j16) }, "divide", },
+ 	ErrorTest{ "int32 1/0", func() { use(k32/j32) }, "divide", },
+ 	ErrorTest{ "int64 1/0", func() { use(k64/j64) }, "divide", },
+ 
+ 	ErrorTest{ "uint 0/0", func() { use(u/v) }, "divide", },
+-// TODO commented out: fails in 8g.
+-//	ErrorTest{ "uint8 0/0", func() { use(u8/v8) }, "divide", },
++	ErrorTest{ "uint8 0/0", func() { use(u8/v8) }, "divide", },
+ 	ErrorTest{ "uint16 0/0", func() { use(u16/v16) }, "divide", },
+ 	ErrorTest{ "uint32 0/0", func() { use(u32/v32) }, "divide", },
+ 	ErrorTest{ "uint64 0/0", func() { use(u64/v64) }, "divide", },
+ 	ErrorTest{ "uintptr 0/0", func() { use(up/vp) }, "divide", },
+ 
+ 	ErrorTest{ "uint 1/0", func() { use(w/v) }, "divide", },
+-// TODO commented out: fails in 8g.
+-//	ErrorTest{ "uint8 1/0", func() { use(w8/v8) }, "divide", },
++	ErrorTest{ "uint8 1/0", func() { use(w8/v8) }, "divide", },
+ 	ErrorTest{ "uint16 1/0", func() { use(w16/v16) }, "divide", },
+ 	ErrorTest{ "uint32 1/0", func() { use(w32/v32) }, "divide", },
+ 	ErrorTest{ "uint64 1/0", func() { use(w64/v64) }, "divide", },

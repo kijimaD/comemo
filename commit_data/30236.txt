@@ -21,6 +21,35 @@ Date:   Tue Oct 18 17:29:37 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/31367
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mheap.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 9c691c6887..d17363261e 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -141,19 +141,19 @@ var mheap_ mheap
+ type mSpanState uint8
+ 
+ const (
+-	_MSpanInUse mSpanState = iota // allocated for garbage collected heap
+-	_MSpanStack                   // allocated for use by stack allocator
++	_MSpanDead  mSpanState = iota
++	_MSpanInUse            // allocated for garbage collected heap
++	_MSpanStack            // allocated for use by stack allocator
+ 	_MSpanFree
+-	_MSpanDead
+ )
+ 
+ // mSpanStateNames are the names of the span states, indexed by
+ // mSpanState.
+ var mSpanStateNames = []string{
++	"_MSpanDead",
+ 	"_MSpanInUse",
+ 	"_MSpanStack",
+ 	"_MSpanFree",
+-	"_MSpanDead",
+ }
+ 
+ // mSpanList heads a linked list of spans.

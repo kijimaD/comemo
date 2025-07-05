@@ -15,6 +15,21 @@ Date:   Sun Apr 9 13:39:12 2023 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/wait_unimp.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+index d4aac372fb..810e35da63 100644
+--- a/src/os/wait_unimp.go
++++ b/src/os/wait_unimp.go
+@@ -3,8 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // aix, darwin, js/wasm, openbsd, solaris and wasip1/wasm don't implement
+-// waitid/wait6. netbsd implements wait6, but that is causing test
+-// failures, see issue #48789.
++// waitid/wait6.
+ 
+ //go:build aix || darwin || (js && wasm) || openbsd || solaris || wasip1
+ 

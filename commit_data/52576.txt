@@ -25,7 +25,88 @@ Date:   Sat Mar 12 17:27:42 2022 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/build/build.go      | 21 ++++++++++++++-------
  src/go/build/build_test.go | 21 +++++++++++++++++++++
  2 files changed, 35 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 836e279d92..039b422dab 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -17,7 +17,6 @@ import (
+ 	"internal/goversion"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	pathpkg "path"
+@@ -186,13 +185,21 @@ func hasSubdir(root, dir string) (rel string, ok bool) {
+ 	return filepath.ToSlash(dir[len(root):]), true
+ }
+ 
+-// readDir calls ctxt.ReadDir (if not nil) or else ioutil.ReadDir.
+-func (ctxt *Context) readDir(path string) ([]fs.FileInfo, error) {
++// readDir calls ctxt.ReadDir (if not nil) or else os.ReadDir.
++func (ctxt *Context) readDir(path string) ([]fs.DirEntry, error) {
++	// TODO: add a fs.DirEntry version of Context.ReadDir
+ 	if f := ctxt.ReadDir; f != nil {
+-		return f(path)
++		fis, err := f(path)
++		if err != nil {
++			return nil, err
++		}
++		des := make([]fs.DirEntry, len(fis))
++		for i, fi := range fis {
++			des[i] = fs.FileInfoToDirEntry(fi)
++		}
++		return des, nil
+ 	}
+-	// TODO: use os.ReadDir
+-	return ioutil.ReadDir(path)
++	return os.ReadDir(path)
+ }
+ 
+ // openFile calls ctxt.OpenFile (if not nil) or else os.Open.
+@@ -836,7 +843,7 @@ Found:
+ 		if d.IsDir() {
+ 			continue
+ 		}
+-		if d.Mode()&fs.ModeSymlink != 0 {
++		if d.Type() == fs.ModeSymlink {
+ 			if ctxt.isDir(ctxt.joinPath(p.Dir, d.Name())) {
+ 				// Symlinks to directories are not source files.
+ 				continue
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 36bcae179e..8fa17c7343 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -567,6 +567,27 @@ func TestImportVendor(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkImportVendor(b *testing.B) {
++	testenv.MustHaveGoBuild(b) // really must just have source
++
++	b.Setenv("GO111MODULE", "off")
++
++	ctxt := Default
++	wd, err := os.Getwd()
++	if err != nil {
++		b.Fatal(err)
++	}
++	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
++	dir := filepath.Join(ctxt.GOPATH, "src/a/b")
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_, err := ctxt.Import("c/d", dir, 0)
++		if err != nil {
++			b.Fatalf("cannot find vendored c/d from testdata src/a/b directory: %v", err)
++		}
++	}
++}
++
+ func TestImportVendorFailure(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 

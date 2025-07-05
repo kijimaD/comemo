@@ -9,6 +9,40 @@ Date:   Thu Aug 30 20:58:31 2018 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/html/template/example_test.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/src/html/template/example_test.go b/src/html/template/example_test.go
+index 3fc982054e..533c0dd961 100644
+--- a/src/html/template/example_test.go
++++ b/src/html/template/example_test.go
+@@ -123,6 +123,28 @@ func Example_escape() {
+ 
+ }
+ 
++func ExampleTemplate_Delims() {
++	const text = "<<.Greeting>> {{.Name}}"
++
++	data := struct {
++		Greeting string
++		Name     string
++	}{
++		Greeting: "Hello",
++		Name:     "Joe",
++	}
++
++	t := template.Must(template.New("tpl").Delims("<<", ">>").Parse(text))
++
++	err := t.Execute(os.Stdout, data)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	// Output:
++	// Hello {{.Name}}
++}
++
+ // The following example is duplicated in text/template; keep them in sync.
+ 
+ func ExampleTemplate_block() {

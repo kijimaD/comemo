@@ -7,6 +7,20 @@ Date:   Mon Jul 18 17:54:32 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4763048
-
+---
  src/pkg/time/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 26f40d1419..d07e1ad498 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -434,7 +434,7 @@ func skip(value, prefix string) (string, os.Error) {
+ // structure.  Also, if the input string represents an inconsistent time
+ // (such as having the wrong day of the week), the returned value will also
+ // be inconsistent.  In any case, the elements of the returned time will be
+-// sane: hours in 0..23, minutes in 0..59, day of month in 0..31, etc.
++// sane: hours in 0..23, minutes in 0..59, day of month in 1..31, etc.
+ // Years must be in the range 0000..9999.
+ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 	var t Time

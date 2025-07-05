@@ -9,7 +9,46 @@ Date:   Tue Jul 25 11:34:30 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/ar.go  |  4 ++++
  src/cmd/link/internal/ld/lib.go | 11 ++++++++++-
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 8827b76aed..c8115a67d7 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -82,6 +82,10 @@ func hostArchive(ctxt *Link, name string) {
+ 		Exitf("file %s too short", name)
+ 	}
+ 
++	if string(magbuf[:]) != ARMAG {
++		Exitf("%s is not an archive file", name)
++	}
++
+ 	var arhdr ArHdr
+ 	l := nextar(f, f.Offset(), &arhdr)
+ 	if l <= 0 {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 023410512c..9955628038 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -724,8 +724,17 @@ func genhash(ctxt *Link, lib *Library) {
+ 	}
+ 	defer f.Close()
+ 
++	var magbuf [len(ARMAG)]byte
++	if _, err := io.ReadFull(f, magbuf[:]); err != nil {
++		Exitf("file %s too short", lib.File)
++	}
++
++	if string(magbuf[:]) != ARMAG {
++		Exitf("%s is not an archive file", lib.File)
++	}
++
+ 	var arhdr ArHdr
+-	l := nextar(f, int64(len(ARMAG)), &arhdr)
++	l := nextar(f, f.Offset(), &arhdr)
+ 	if l <= 0 {
+ 		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
+ 		return

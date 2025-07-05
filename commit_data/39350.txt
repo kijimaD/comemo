@@ -17,6 +17,20 @@ Date:   Wed Feb 13 19:19:33 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/textproto/reader_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/textproto/reader_test.go b/src/net/textproto/reader_test.go
+index f85fbdc36d..6d9bcd841b 100644
+--- a/src/net/textproto/reader_test.go
++++ b/src/net/textproto/reader_test.go
+@@ -332,7 +332,7 @@ func TestReadMultiLineError(t *testing.T) {
+ 	if msg != wantMsg {
+ 		t.Errorf("ReadResponse: msg=%q, want %q", msg, wantMsg)
+ 	}
+-	if err.Error() != "550 "+wantMsg {
++	if err != nil && err.Error() != "550 "+wantMsg {
+ 		t.Errorf("ReadResponse: error=%q, want %q", err.Error(), "550 "+wantMsg)
+ 	}
+ }

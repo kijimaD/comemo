@@ -12,6 +12,22 @@ Date:   Sat Jun 4 14:46:42 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  doc/go1.19.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index db2bb91ae8..512db3981f 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -196,10 +196,6 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="library">Core library</h2>
+ 
+-<p>
+-  TODO: <a href="https://go.dev/issue/51940">https://go.dev/issue/51940</a>: all: move dev.boringcrypto into main branch behind GOEXPERIMENT
+-</p>
+-
+ <p>
+   TODO: complete this section
+ </p>

@@ -9,6 +9,42 @@ Date:   Sat Feb 7 13:31:34 2009 -0800
     R=r
     OCL=24641
     CL=24641
-
+---
  src/cmd/6g/align.c | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index a2a8e2808b..dabd6385e7 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -50,18 +50,28 @@ offmod(Type *t)
+ 	}
+ }
+ 
++uint32
++arrayelemwidth(Type *t)
++{
++
++	while(t->etype == TARRAY && t->bound >= 0)
++		t = t->type;
++	return t->width;
++}
++
+ uint32
+ widstruct(Type *t, uint32 o, int flag)
+ {
+ 	Type *f;
+-	int32 w;
++	int32 w, m;
+ 
+ 	for(f=t->type; f!=T; f=f->down) {
+ 		if(f->etype != TFIELD)
+ 			fatal("widstruct: not TFIELD: %lT", f);
+ 		dowidth(f->type);
+ 		w = f->type->width;
+-		o = rnd(o, w);
++		m = arrayelemwidth(f->type);
++		o = rnd(o, m);
+ 		f->width = o;	// really offset for TFIELD
+ 		o += w;
+ 	}

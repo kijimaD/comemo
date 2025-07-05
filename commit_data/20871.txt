@@ -8,6 +8,22 @@ Date:   Tue Oct 21 10:10:11 2014 -0700
     R=minux, rsc
     CC=golang-codereviews
     https://golang.org/cl/158280043
-
+---
  src/cmd/ld/data.c | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 9983a9281c..61847546a3 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -633,9 +633,7 @@ addstrdata(char *name, char *value)
+ 	s->dupok = 1;
+ 	reachable = s->reachable;
+ 	addaddr(ctxt, s, sp);
+-	adduint32(ctxt, s, strlen(value));
+-	if(PtrSize == 8)
+-		adduint32(ctxt, s, 0);  // round struct to pointer width
++	adduintxx(ctxt, s, strlen(value), PtrSize);
+ 
+ 	// addstring, addaddr, etc., mark the symbols as reachable.
+ 	// In this case that is not necessarily true, so stick to what

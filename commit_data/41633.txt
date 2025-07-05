@@ -16,8 +16,150 @@ Date:   Wed Oct 16 08:54:58 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/goobj2/objfile.go     | 18 +++++++++++++++---
  src/cmd/internal/obj/objfile2.go       |  9 +++++----
  src/cmd/link/internal/loader/loader.go |  7 ++++---
  3 files changed, 24 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index bc3a0072f1..ef32c4873e 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -20,6 +20,7 @@ import (
+ //
+ //    Header struct {
+ //       Magic   [...]byte   // "\x00go114LD"
++//       Flags   uint32
+ //       // TODO: Fingerprint
+ //       Offsets [...]uint32 // byte offset of each block below
+ //    }
+@@ -148,6 +149,7 @@ const (
+ // TODO: probably no need to export this.
+ type Header struct {
+ 	Magic   string
++	Flags   uint32
+ 	Offsets [NBlk]uint32
+ }
+ 
+@@ -155,6 +157,7 @@ const Magic = "\x00go114LD"
+ 
+ func (h *Header) Write(w *Writer) {
+ 	w.RawString(h.Magic)
++	w.Uint32(h.Flags)
+ 	for _, x := range h.Offsets {
+ 		w.Uint32(x)
+ 	}
+@@ -167,6 +170,8 @@ func (h *Header) Read(r *Reader) error {
+ 		return errors.New("wrong magic, not a Go object file")
+ 	}
+ 	off := uint32(len(h.Magic))
++	h.Flags = r.uint32At(off)
++	off += 4
+ 	for i := range h.Offsets {
+ 		h.Offsets[i] = r.uint32At(off)
+ 		off += 4
+@@ -175,7 +180,7 @@ func (h *Header) Read(r *Reader) error {
+ }
+ 
+ func (h *Header) Size() int {
+-	return len(h.Magic) + 4*len(h.Offsets)
++	return len(h.Magic) + 4 + 4*len(h.Offsets)
+ }
+ 
+ // Symbol definition.
+@@ -189,6 +194,10 @@ type Sym struct {
+ 
+ const SymABIstatic = ^uint16(0)
+ 
++const (
++	ObjFlagShared = 1 << iota
++)
++
+ const (
+ 	SymFlagDupok = 1 << iota
+ 	SymFlagLocal
+@@ -196,7 +205,6 @@ const (
+ 	SymFlagLeaf
+ 	SymFlagCFunc
+ 	SymFlagReflectMethod
+-	SymFlagShared // This is really silly
+ 	SymFlagTopFrame
+ )
+ 
+@@ -226,7 +234,6 @@ func (s *Sym) Typelink() bool      { return s.Flag&SymFlagTypelink != 0 }
+ func (s *Sym) Leaf() bool          { return s.Flag&SymFlagLeaf != 0 }
+ func (s *Sym) CFunc() bool         { return s.Flag&SymFlagCFunc != 0 }
+ func (s *Sym) ReflectMethod() bool { return s.Flag&SymFlagReflectMethod != 0 }
+-func (s *Sym) Shared() bool        { return s.Flag&SymFlagShared != 0 }
+ func (s *Sym) TopFrame() bool      { return s.Flag&SymFlagTopFrame != 0 }
+ 
+ // Symbol reference.
+@@ -596,3 +603,8 @@ func (r *Reader) PcdataBase() uint32 {
+ func (r *Reader) ReadOnly() bool {
+ 	return r.readonly
+ }
++
++// Flags returns the flag bits read from the object file header.
++func (r *Reader) Flags() uint32 {
++	return r.h.Flags
++}
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 843f6fb5ea..f3389612d6 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -35,7 +35,11 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
+ 
+ 	// Header
+ 	// We just reserve the space. We'll fill in the offsets later.
+-	h := goobj2.Header{Magic: goobj2.Magic}
++	flags := uint32(0)
++	if ctxt.Flag_shared {
++		flags |= goobj2.ObjFlagShared
++	}
++	h := goobj2.Header{Magic: goobj2.Magic, Flags: flags}
+ 	h.Write(w.Writer)
+ 
+ 	// String table
+@@ -231,9 +235,6 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.ReflectMethod() {
+ 		flag |= goobj2.SymFlagReflectMethod
+ 	}
+-	if w.ctxt.Flag_shared { // This is really silly
+-		flag |= goobj2.SymFlagShared
+-	}
+ 	if s.TopFrame() {
+ 		flag |= goobj2.SymFlagTopFrame
+ 	}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 1cd44fd1b6..c155f27dcb 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -56,7 +56,8 @@ type Reloc struct {
+ type oReader struct {
+ 	*goobj2.Reader
+ 	unit      *sym.CompilationUnit
+-	version   int // version of static symbol
++	version   int    // version of static symbol
++	flags     uint32 // read from object file
+ 	pkgprefix string
+ }
+ 
+@@ -460,7 +461,7 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
+ 	}
+ 	localSymVersion := syms.IncVersion()
+ 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
+-	or := &oReader{r, unit, localSymVersion, pkgprefix}
++	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix}
+ 
+ 	// Autolib
+ 	lib.ImportStrings = append(lib.ImportStrings, r.Autolib()...)
+@@ -770,7 +771,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		if osym.ReflectMethod() {
+ 			s.Attr |= sym.AttrReflectMethod
+ 		}
+-		if osym.Shared() {
++		if r.Flags()&goobj2.ObjFlagShared != 0 {
+ 			s.Attr |= sym.AttrShared
+ 		}
+ 		if osym.TopFrame() {

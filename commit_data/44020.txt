@@ -12,6 +12,20 @@ Date:   Tue May 5 03:16:46 2020 +1000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_riscv64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 31dc94ce54..d7c45a183d 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -446,7 +446,7 @@ CALLFN(·call1073741824, 1073741824)
+ // func goexit(neverCallThisFunction)
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	MOV	ZERO, ZERO	// NOP
+ 	JMP	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit

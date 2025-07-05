@@ -45,7 +45,57 @@ Date:   Thu Feb 25 04:00:01 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/get.go     |  3 ++-
  src/cmd/go/go_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 572a865448..01b4e015d2 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -104,7 +104,8 @@ func runGet(cmd *Command, args []string) {
+ 	if *getT {
+ 		mode |= getTestDeps
+ 	}
+-	for _, arg := range downloadPaths(args) {
++	args = downloadPaths(args)
++	for _, arg := range args {
+ 		download(arg, nil, &stk, mode)
+ 	}
+ 	exitIfErrors()
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2fda20ce03..4839b9bcbb 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2965,3 +2965,30 @@ func TestGenerateUsesBuildContext(t *testing.T) {
+ 	tg.run("generate", "gen")
+ 	tg.grepStdout("darwin 386", "unexpected GOOS/GOARCH combination")
+ }
++
++// Issue 14450: go get -u .../ tried to import not downloaded package
++func TestGoGetUpdateWithWildcard(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	const aPkgImportPath = "github.com/tmwh/go-get-issue-14450/a"
++	tg.run("get", aPkgImportPath)
++	tg.run("get", "-u", ".../")
++	tg.grepStderrNot("cannot find package", "did not update packages given wildcard path")
++
++	var expectedPkgPaths = []string{
++		"src/github.com/tmwh/go-get-issue-14450/b",
++		"src/github.com/tmwh/go-get-issue-14450-b-dependency/c",
++		"src/github.com/tmwh/go-get-issue-14450-b-dependency/d",
++	}
++
++	for _, importPath := range expectedPkgPaths {
++		_, err := os.Stat(tg.path(importPath))
++		tg.must(err)
++	}
++	const notExpectedPkgPath = "src/github.com/tmwh/go-get-issue-14450-c-dependency/e"
++	tg.mustNotExist(tg.path(notExpectedPkgPath))
++}

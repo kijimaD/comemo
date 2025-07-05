@@ -11,7 +11,103 @@ Date:   Wed Mar 5 14:28:11 2014 -0500
     R=golang-codereviews, gobot, r, rsc
     CC=golang-codereviews
     https://golang.org/cl/34680044
-
+---
  src/cmd/go/build.go | 49 ++++++++++++++++++++++++++++++-------------------
  src/cmd/go/test.go  | 10 ++++++++--
  2 files changed, 38 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index bf30be70e4..6966a4e912 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -813,25 +813,7 @@ func (b *builder) build(a *action) (err error) {
+ 
+ 	var gofiles, cfiles, sfiles, objects, cgoObjects []string
+ 
+-	// If we're doing coverage, preprocess the .go files and put them in the work directory
+-	if a.p.coverMode != "" {
+-		for _, file := range a.p.GoFiles {
+-			sourceFile := filepath.Join(a.p.Dir, file)
+-			cover := a.p.coverVars[file]
+-			if cover == nil || isTestFile(file) {
+-				// Not covering this file.
+-				gofiles = append(gofiles, file)
+-				continue
+-			}
+-			coverFile := filepath.Join(obj, file)
+-			if err := b.cover(a, coverFile, sourceFile, 0644, cover.Var); err != nil {
+-				return err
+-			}
+-			gofiles = append(gofiles, coverFile)
+-		}
+-	} else {
+-		gofiles = append(gofiles, a.p.GoFiles...)
+-	}
++	gofiles = append(gofiles, a.p.GoFiles...)
+ 	cfiles = append(cfiles, a.p.CFiles...)
+ 	sfiles = append(sfiles, a.p.SFiles...)
+ 
+@@ -888,6 +870,35 @@ func (b *builder) build(a *action) (err error) {
+ 		gofiles = append(gofiles, outGo...)
+ 	}
+ 
++	// If we're doing coverage, preprocess the .go files and put them in the work directory
++	if a.p.coverMode != "" {
++		for i, file := range gofiles {
++			var sourceFile string
++			var coverFile string
++			var key string
++			if strings.HasSuffix(file, ".cgo1.go") {
++				// cgo files have absolute paths
++				base := filepath.Base(file)
++				sourceFile = file
++				coverFile = filepath.Join(obj, base)
++				key = strings.TrimSuffix(base, ".cgo1.go") + ".go"
++			} else {
++				sourceFile = filepath.Join(a.p.Dir, file)
++				coverFile = filepath.Join(obj, file)
++				key = file
++			}
++			cover := a.p.coverVars[key]
++			if cover == nil || isTestFile(file) {
++				// Not covering this file.
++				continue
++			}
++			if err := b.cover(a, coverFile, sourceFile, 0666, cover.Var); err != nil {
++				return err
++			}
++			gofiles[i] = coverFile
++		}
++	}
++
+ 	// Prepare Go import path list.
+ 	inc := b.includeArgs("-I", a.deps)
+ 
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index a6fe19d2cb..3344f0e5b8 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -415,7 +415,10 @@ func runTest(cmd *Command, args []string) {
+ 			p.Stale = true // rebuild
+ 			p.fake = true  // do not warn about rebuild
+ 			p.coverMode = testCoverMode
+-			p.coverVars = declareCoverVars(p.ImportPath, p.GoFiles...)
++			var coverFiles []string
++			coverFiles = append(coverFiles, p.GoFiles...)
++			coverFiles = append(coverFiles, p.CgoFiles...)
++			p.coverVars = declareCoverVars(p.ImportPath, coverFiles...)
+ 		}
+ 	}
+ 
+@@ -622,7 +625,10 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 
+ 		if localCover {
+ 			ptest.coverMode = testCoverMode
+-			ptest.coverVars = declareCoverVars(ptest.ImportPath, ptest.GoFiles...)
++			var coverFiles []string
++			coverFiles = append(coverFiles, ptest.GoFiles...)
++			coverFiles = append(coverFiles, ptest.CgoFiles...)
++			ptest.coverVars = declareCoverVars(ptest.ImportPath, coverFiles...)
+ 		}
+ 	} else {
+ 		ptest = p

@@ -2010,3 +2010,94 @@ Date:   Thu May 17 21:04:07 2018 -0400
  test/syntax/typesw.go                              |     2 +-
  test/uintptrescapes2.go                            |    20 +-
  1997 files changed, 248741 insertions(+), 154603 deletions(-)
+
+diff --cc src/crypto/rsa/rsa.go
+index 9af5cbb165,83d74967aa..9302ea8535
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@@ -42,10 -40,14 +42,16 @@@ var bigOne = big.NewInt(1
+  type PublicKey struct {
+  	N *big.Int // modulus
+  	E int      // public exponent
+ +
+ +	boring unsafe.Pointer
+  }
+  
++ // Size returns the modulus size in bytes. Raw signatures and ciphertexts
++ // for or by this public key will have the same size.
++ func (pub *PublicKey) Size() int {
++ 	return (pub.N.BitLen() + 7) / 8
++ }
++ 
+  // OAEPOptions is an interface for passing options to OAEP decryption using the
+  // crypto.Decrypter interface.
+  type OAEPOptions struct {
+diff --cc src/crypto/sha1/sha1.go
+index 1588684950,db70b7d09a..a9546bb0a5
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@@ -154,11 -150,10 +154,11 @@@ func (d *digest) Write(p []byte) (nn in
+  	return
+  }
+  
+- func (d0 *digest) Sum(in []byte) []byte {
++ func (d *digest) Sum(in []byte) []byte {
+ +	boringUnreachable()
+- 	// Make a copy of d0 so that caller can keep writing and summing.
+- 	d := *d0
+- 	hash := d.checkSum()
++ 	// Make a copy of d so that caller can keep writing and summing.
++ 	d0 := *d
++ 	hash := d0.checkSum()
+  	return append(in, hash[:]...)
+  }
+  
+diff --cc src/crypto/sha256/sha256.go
+index ce731fbf2c,1389de2727..6ac585f795
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@@ -223,12 -223,11 +231,12 @@@ func (d *digest) Write(p []byte) (nn in
+  	return
+  }
+  
+- func (d0 *digest) Sum(in []byte) []byte {
++ func (d *digest) Sum(in []byte) []byte {
+ +	boring.Unreachable()
+- 	// Make a copy of d0 so that caller can keep writing and summing.
+- 	d := *d0
+- 	hash := d.checkSum()
+- 	if d.is224 {
++ 	// Make a copy of d so that caller can keep writing and summing.
++ 	d0 := *d
++ 	hash := d0.checkSum()
++ 	if d0.is224 {
+  		return append(in, hash[:Size224]...)
+  	}
+  	return append(in, hash[:]...)
+diff --cc src/crypto/sha512/sha512.go
+index 97c07f8a6b,24fde7dce7..355d7bbe07
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@@ -292,15 -286,12 +296,15 @@@ func (d *digest) Write(p []byte) (nn in
+  	return
+  }
+  
+- func (d0 *digest) Sum(in []byte) []byte {
+- 	if d0.function != crypto.SHA512_224 && d0.function != crypto.SHA512_256 {
++ func (d *digest) Sum(in []byte) []byte {
+++	if d.function != crypto.SHA512_224 && d.function != crypto.SHA512_256 {
+ +		boring.Unreachable()
+ +	}
+- 	// Make a copy of d0 so that caller can keep writing and summing.
+- 	d := new(digest)
+- 	*d = *d0
+- 	hash := d.checkSum()
+- 	switch d.function {
++ 	// Make a copy of d so that caller can keep writing and summing.
++ 	d0 := new(digest)
++ 	*d0 = *d
++ 	hash := d0.checkSum()
++ 	switch d0.function {
+  	case crypto.SHA384:
+  		return append(in, hash[:Size384]...)
+  	case crypto.SHA512_224:

@@ -11,6 +11,33 @@ Date:   Wed May 12 18:25:20 2021 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/fuzz.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index c46220e3ec..b4145f58dc 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -465,14 +465,18 @@ func (c *coordinator) updateStats(result fuzzResult) {
+ }
+ 
+ func (c *coordinator) logStats() {
+-	// TODO(jayconrod,katiehockman): consider printing the amount of coverage
+-	// that has been reached so far (perhaps a percentage of edges?)
+ 	elapsed := time.Since(c.startTime)
+ 	if c.coverageOnlyRun() {
+ 		fmt.Fprintf(c.opts.Log, "gathering baseline coverage, elapsed: %.1fs, workers: %d, left: %d\n", elapsed.Seconds(), c.opts.Parallel, c.covOnlyInputs)
+ 	} else {
+ 		rate := float64(c.count) / elapsed.Seconds()
+-		fmt.Fprintf(c.opts.Log, "fuzzing, elapsed: %.1fs, execs: %d (%.0f/sec), workers: %d, interesting: %d\n", elapsed.Seconds(), c.count, rate, c.opts.Parallel, c.interestingCount)
++		edges, hits := len(c.coverageData), 0
++		for _, c := range c.coverageData {
++			if c > 0 {
++				hits++
++			}
++		}
++		fmt.Fprintf(c.opts.Log, "fuzzing, elapsed: %.1fs, execs: %d (%.0f/sec), workers: %d, interesting: %d, coverage: %d/%d\n", elapsed.Seconds(), c.count, rate, c.opts.Parallel, c.interestingCount, hits, edges)
+ 	}
+ }
+ 

@@ -15,10 +15,247 @@ Date:   Thu Feb 25 13:47:16 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/223054
-
+---
  src/pkg/exp/4s/xs.go                        | 14 +++----
  src/pkg/go/printer/printer.go               | 59 ++++++++++++++++-------------
  src/pkg/go/printer/testdata/comments.golden |  7 +++-
  src/pkg/go/printer/testdata/comments.input  |  7 +++-
  src/pkg/math/all_test.go                    |  2 +-
  5 files changed, 53 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/exp/4s/xs.go b/src/pkg/exp/4s/xs.go
+index c5493e719e..d8f0ce2a11 100644
+--- a/src/pkg/exp/4s/xs.go
++++ b/src/pkg/exp/4s/xs.go
+@@ -145,13 +145,13 @@ var txbits = [NCOL][32]byte{
+ }
+ 
+ var txpix = [NCOL]draw.Color{
+-	draw.Yellow,            /* yellow */
+-	draw.Cyan,              /* cyan */
+-	draw.Green,             /* lime green */
+-	draw.GreyBlue,          /* slate */
+-	draw.Red,               /* red */
+-	draw.GreyGreen,         /* olive green */
+-	draw.Blue,              /* blue */
++	draw.Yellow, /* yellow */
++	draw.Cyan, /* cyan */
++	draw.Green, /* lime green */
++	draw.GreyBlue, /* slate */
++	draw.Red, /* red */
++	draw.GreyGreen, /* olive green */
++	draw.Blue, /* blue */
+ 	draw.Color(0xFF55AAFF), /* pink */
+ 	draw.Color(0xFFAAFFFF), /* lavender */
+ 	draw.Color(0xBB005DFF), /* maroon */
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 95f0058c7f..3db42e37b1 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -205,22 +205,16 @@ func (p *printer) write(data []byte) {
+ }
+ 
+ 
+-func (p *printer) writeNewlines(n int) {
++func (p *printer) writeNewlines(n int, useFF bool) {
+ 	if n > 0 {
+ 		if n > maxNewlines {
+ 			n = maxNewlines
+ 		}
+-		p.write(newlines[0:n])
+-	}
+-}
+-
+-
+-func (p *printer) writeFormfeeds(n int) {
+-	if n > 0 {
+-		if n > maxNewlines {
+-			n = maxNewlines
++		if useFF {
++			p.write(formfeeds[0:n])
++		} else {
++			p.write(newlines[0:n])
+ 		}
+-		p.write(formfeeds[0:n])
+ 	}
+ }
+ 
+@@ -360,7 +354,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
+ 		// use formfeeds to break columns before a comment;
+ 		// this is analogous to using formfeeds to separate
+ 		// individual lines of /*-style comments
+-		p.writeFormfeeds(pos.Line - p.last.Line)
++		p.writeNewlines(pos.Line-p.last.Line, true)
+ 	}
+ }
+ 
+@@ -591,9 +585,10 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ // writeCommentSuffix writes a line break after a comment if indicated
+ // and processes any leftover indentation information. If a line break
+ // is needed, the kind of break (newline vs formfeed) depends on the
+-// pending whitespace.
++// pending whitespace. writeCommentSuffix returns true if a pending
++// formfeed was dropped from the whitespace buffer.
+ //
+-func (p *printer) writeCommentSuffix(needsLinebreak bool) {
++func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
+ 	for i, ch := range p.buffer {
+ 		switch ch {
+ 		case blank, vtab:
+@@ -603,9 +598,13 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
+ 			// don't loose indentation information
+ 		case newline, formfeed:
+ 			// if we need a line break, keep exactly one
++			// but remember if we dropped any formfeeds
+ 			if needsLinebreak {
+ 				needsLinebreak = false
+ 			} else {
++				if ch == formfeed {
++					droppedFF = true
++				}
+ 				p.buffer[i] = ignore
+ 			}
+ 		}
+@@ -616,6 +615,8 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
+ 	if needsLinebreak {
+ 		p.write([]byte{'\n'})
+ 	}
++
++	return
+ }
+ 
+ 
+@@ -623,9 +624,10 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
+ // and prints it together with the buffered whitespace (i.e., the whitespace
+ // that needs to be written before the next token). A heuristic is used to mix
+ // the comments and whitespace. The isKeyword parameter indicates if the next
+-// token is a keyword or not.
++// token is a keyword or not. intersperseComments returns true if a pending
++// formfeed was dropped from the whitespace buffer.
+ //
+-func (p *printer) intersperseComments(next token.Position, isKeyword bool) {
++func (p *printer) intersperseComments(next token.Position, isKeyword bool) (droppedFF bool) {
+ 	isFirst := true
+ 	needsLinebreak := false
+ 	var last *ast.Comment
+@@ -643,7 +645,7 @@ func (p *printer) intersperseComments(next token.Position, isKeyword bool) {
+ 		// follows on the same line: separate with an extra blank
+ 		p.write([]byte{' '})
+ 	}
+-	p.writeCommentSuffix(needsLinebreak)
++	return p.writeCommentSuffix(needsLinebreak)
+ }
+ 
+ 
+@@ -772,12 +774,13 @@ func (p *printer) print(args ...) {
+ 		p.pos = next
+ 
+ 		if data != nil {
+-			p.flush(next, isKeyword)
++			droppedFF := p.flush(next, isKeyword)
+ 
+ 			// intersperse extra newlines if present in the source
+ 			// (don't do this in flush as it will cause extra newlines
+-			// at the end of a file)
+-			p.writeNewlines(next.Line - p.pos.Line)
++			// at the end of a file) - use formfeeds if we dropped one
++			// before
++			p.writeNewlines(next.Line-p.pos.Line, droppedFF)
+ 
+ 			p.writeItem(next, data, tag)
+ 		}
+@@ -794,15 +797,19 @@ func (p *printer) commentBefore(next token.Position) bool {
+ 
+ 
+ // Flush prints any pending comments and whitespace occuring
+-// textually before the position of the next item.
++// textually before the position of the next item. Flush returns
++// true if a pending formfeed character was dropped from the
++// whitespace buffer as a result of interspersing comments.
+ //
+-func (p *printer) flush(next token.Position, isKeyword bool) {
+-	// if there are comments before the next item, intersperse them
++func (p *printer) flush(next token.Position, isKeyword bool) (droppedFF bool) {
+ 	if p.commentBefore(next) {
+-		p.intersperseComments(next, isKeyword)
++		// if there are comments before the next item, intersperse them
++		droppedFF = p.intersperseComments(next, isKeyword)
++	} else {
++		// otherwise, write any leftover whitespace
++		p.writeWhitespace(len(p.buffer))
+ 	}
+-	// write any leftover whitespace
+-	p.writeWhitespace(len(p.buffer))
++	return
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 4242688f56..c59031f870 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -105,10 +105,13 @@ func _() {
+ }
+ 
+ 
+-func abs(x int) int {
++func _(x int) int {
+ 	if x < 0 {	// the tab printed before this comment's // must not affect the remaining lines
+ 		return -x	// this statement should be properly indented
+ 	}
++	if x < 0 {	/* the tab printed before this comment's /* must not affect the remaining lines */
++		return -x	// this statement should be properly indented
++	}
+ 	return x
+ }
+ 
+@@ -389,6 +392,8 @@ func _() {
+ 
+ func ( /* comment1 */ T /* comment2 */ ) _()	{}
+ 
++func _() { /* one-liner */ }
++
+ 
+ // Line comments with tabs
+ func _() {
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 427065a8f1..c02defb0d7 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -105,10 +105,13 @@ func _() {
+ }
+ 
+ 
+-func abs(x int) int {
++func _(x int) int {
+ 	if x < 0 {  // the tab printed before this comment's // must not affect the remaining lines
+ 		return -x  // this statement should be properly indented
+ 	}
++	if x < 0 {  /* the tab printed before this comment's /* must not affect the remaining lines */
++		return -x  // this statement should be properly indented
++	}
+ 	return x
+ }
+ 
+@@ -390,6 +393,8 @@ func _() {
+ 
+ func (/* comment1 */ T /* comment2 */) _() {}
+ 
++func _() { /* one-liner */ }
++
+ 
+ // Line comments with tabs
+ func _() {
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index ef4806540a..d80f4ee133 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -1205,7 +1205,7 @@ func TestFmin(t *testing.T) {
+ func TestFmod(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Fmod(10, vf[i]); fmod[i] != f { /*!close(fmod[i], f)*/
+-							t.Errorf("Fmod(10, %g) = %g, want %g\n", vf[i], f, fmod[i])
++			t.Errorf("Fmod(10, %g) = %g, want %g\n", vf[i], f, fmod[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vffmodSC); i++ {

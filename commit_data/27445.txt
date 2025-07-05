@@ -11,7 +11,7 @@ Date:   Mon Mar 28 09:40:53 2016 -0700
     Change-Id: I310538a1f60bbab470a6375e813e9d5eb52c5bbf
     Reviewed-on: https://go-review.googlesource.com/21230
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  8 ++++----
  src/cmd/compile/internal/gc/align.go     |  6 +++---
  src/cmd/compile/internal/gc/cgen.go      |  8 ++++----
@@ -24,3 +24,332 @@ Date:   Mon Mar 28 09:40:53 2016 -0700
  src/cmd/compile/internal/gc/type.go      | 14 +++++++++-----
  src/cmd/compile/internal/gc/typecheck.go | 14 +++++++-------
  11 files changed, 40 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index a23e38d2be..eb6bacf901 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -566,8 +566,8 @@ func memrun(t *Type, fields []*Field, start int) (size int64, next int) {
+ 			break
+ 		}
+ 	}
+-	end := fields[next-1].Width + fields[next-1].Type.Width
+-	return end - fields[start].Width, next
++	end := fields[next-1].Offset + fields[next-1].Type.Width
++	return end - fields[start].Offset, next
+ }
+ 
+ // ispaddedfield reports whether the i'th field of struct type t is followed
+@@ -579,7 +579,7 @@ func ispaddedfield(t *Type, fields []*Field, i int) bool {
+ 	}
+ 	end := t.Width
+ 	if i+1 < len(fields) {
+-		end = fields[i+1].Width
++		end = fields[i+1].Offset
+ 	}
+-	return fields[i].Width+fields[i].Type.Width != end
++	return fields[i].Offset+fields[i].Type.Width != end
+ }
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 8c9190d0cf..50bb05a367 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -18,7 +18,7 @@ func Rnd(o int64, r int64) int64 {
+ func offmod(t *Type) {
+ 	o := int32(0)
+ 	for _, f := range t.Fields().Slice() {
+-		f.Width = int64(o)
++		f.Offset = int64(o)
+ 		o += int32(Widthptr)
+ 		if int64(o) >= Thearch.MAXWIDTH {
+ 			Yyerror("interface too large")
+@@ -53,7 +53,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		if f.Type.Align > 0 {
+ 			o = Rnd(o, int64(f.Type.Align))
+ 		}
+-		f.Width = o // really offset for TFIELD
++		f.Offset = o
+ 		if f.Nname != nil {
+ 			// this same stackparam logic is in addrescapes
+ 			// in typecheck.go.  usually addrescapes runs after
+@@ -388,7 +388,7 @@ func Argsize(t *Type) int {
+ 
+ 	for _, p := range recvsParamsResults {
+ 		for _, f := range p(t).Fields().Slice() {
+-			if x := f.Width + f.Type.Width; x > w {
++			if x := f.Offset + f.Type.Width; x > w {
+ 				w = x
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index f31bc60d01..f6dda213f6 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -1681,7 +1681,7 @@ func Igen(n *Node, a *Node, res *Node) {
+ 		a.Op = OINDREG
+ 		a.Reg = int16(Thearch.REGSP)
+ 		a.Addable = true
+-		a.Xoffset = fp.Width + Ctxt.FixedFrameSize()
++		a.Xoffset = fp.Offset + Ctxt.FixedFrameSize()
+ 		a.Type = n.Type
+ 		return
+ 
+@@ -2226,7 +2226,7 @@ func stkof(n *Node) int64 {
+ 
+ 		f := t.Results().Field(0)
+ 		if f != nil {
+-			return f.Width + Ctxt.FixedFrameSize()
++			return f.Offset + Ctxt.FixedFrameSize()
+ 		}
+ 	}
+ 
+@@ -2565,7 +2565,7 @@ func cgen_callret(n *Node, res *Node) {
+ 	nod.Reg = int16(Thearch.REGSP)
+ 	nod.Addable = true
+ 
+-	nod.Xoffset = fp.Width + Ctxt.FixedFrameSize()
++	nod.Xoffset = fp.Offset + Ctxt.FixedFrameSize()
+ 	nod.Type = fp.Type
+ 	Cgen_as(res, &nod)
+ }
+@@ -2588,7 +2588,7 @@ func cgen_aret(n *Node, res *Node) {
+ 	nod1.Op = OINDREG
+ 	nod1.Reg = int16(Thearch.REGSP)
+ 	nod1.Addable = true
+-	nod1.Xoffset = fp.Width + Ctxt.FixedFrameSize()
++	nod1.Xoffset = fp.Offset + Ctxt.FixedFrameSize()
+ 	nod1.Type = fp.Type
+ 
+ 	if res.Op != OREGISTER {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index fdbb66486f..5c54edf12a 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -601,7 +601,7 @@ func dumpasmhdr() {
+ 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
+ 			for _, t := range t.Fields().Slice() {
+ 				if !isblanksym(t.Sym) {
+-					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, t.Sym.Name, int(t.Width))
++					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, t.Sym.Name, int(t.Offset))
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index b96da806a5..6a7b64a7be 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -1235,7 +1235,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
+ 		}
+ 
+ 		for _, field := range t.Fields().Slice() {
+-			if !visitComponents(field.Type, startOffset+field.Width, f) {
++			if !visitComponents(field.Type, startOffset+field.Offset, f) {
+ 				return false
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 2c5939bf2b..6fa76e765d 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -551,10 +551,10 @@ func nodarg(t interface{}, fp int) *Node {
+ 		if first == nil {
+ 			Fatalf("nodarg: bad struct")
+ 		}
+-		if first.Width == BADWIDTH {
++		if first.Offset == BADWIDTH {
+ 			Fatalf("nodarg: offset not computed for %v", t)
+ 		}
+-		n.Xoffset = first.Width
++		n.Xoffset = first.Offset
+ 		n.Addable = true
+ 	case *Field:
+ 		if fp == 1 || fp == -1 {
+@@ -568,10 +568,10 @@ func nodarg(t interface{}, fp int) *Node {
+ 		n = Nod(ONAME, nil, nil)
+ 		n.Type = t.Type
+ 		n.Sym = t.Sym
+-		if t.Width == BADWIDTH {
++		if t.Offset == BADWIDTH {
+ 			Fatalf("nodarg: offset not computed for %v", t)
+ 		}
+-		n.Xoffset = t.Width
++		n.Xoffset = t.Offset
+ 		n.Addable = true
+ 		n.Orig = t.Nname
+ 	default:
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index ceea9d7df6..a0f0819ca0 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -939,7 +939,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 	case TSTRUCT:
+ 		var o int64
+ 		for _, t1 := range t.Fields().Slice() {
+-			fieldoffset := t1.Width
++			fieldoffset := t1.Offset
+ 			*xoffset += fieldoffset - o
+ 			onebitwalktype1(t1.Type, xoffset, bv)
+ 			o = fieldoffset + t1.Type.Width
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index d02bf66d3f..4239d4068a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -144,7 +144,7 @@ func mapbucket(t *Type) *Type {
+ 
+ 	// Double-check that overflow field is final memory in struct,
+ 	// with no padding at end. See comment above.
+-	if ovf.Width != bucket.Width-int64(Widthptr) {
++	if ovf.Offset != bucket.Width-int64(Widthptr) {
+ 		Yyerror("bad math in mapbucket for %v", t)
+ 	}
+ 
+@@ -754,7 +754,7 @@ func typeptrdata(t *Type) int64 {
+ 				lastPtrField = t1
+ 			}
+ 		}
+-		return lastPtrField.Width + typeptrdata(lastPtrField.Type)
++		return lastPtrField.Offset + typeptrdata(lastPtrField.Type)
+ 
+ 	default:
+ 		Fatalf("typeptrdata: unexpected type, %v", t)
+@@ -1273,7 +1273,7 @@ ok:
+ 			// ../../../../runtime/type.go:/structField
+ 			ot = dnameField(s, ot, f)
+ 			ot = dsymptr(s, ot, dtypesym(f.Type), 0)
+-			ot = duintptr(s, ot, uint64(f.Width)) // field offset
++			ot = duintptr(s, ot, uint64(f.Offset))
+ 		}
+ 	}
+ 
+@@ -1619,7 +1619,7 @@ func (p *GCProg) emit(t *Type, offset int64) {
+ 
+ 	case TSTRUCT:
+ 		for _, t1 := range t.Fields().Slice() {
+-			p.emit(t1.Type, offset+t1.Width)
++			p.emit(t1.Type, offset+t1.Offset)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9b8ef20fed..d022f2c79d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2565,7 +2565,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		return nil
+ 	}
+ 	fp := res.Field(0)
+-	return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
++	return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Offset, s.sp)
+ }
+ 
+ // etypesign returns the signed-ness of e, for integer/pointer etypes.
+@@ -4127,7 +4127,7 @@ func fieldIdx(n *Node) int {
+ 			i++
+ 			continue
+ 		}
+-		if t1.Width != n.Xoffset {
++		if t1.Offset != n.Xoffset {
+ 			panic("field offset doesn't match")
+ 		}
+ 		return i
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index dbd3f78557..b9d74592e8 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -166,9 +166,13 @@ type Field struct {
+ 	Sym   *Sym
+ 	Nname *Node
+ 
+-	Type  *Type   // field type
+-	Width int64   // TODO(mdempsky): Rename to offset.
+-	Note  *string // literal string annotation
++	Type *Type // field type
++
++	// Offset in bytes of this field or method within its enclosing struct
++	// or interface Type.
++	Offset int64
++
++	Note *string // literal string annotation
+ }
+ 
+ // Fields is a pointer to a slice of *Field.
+@@ -226,7 +230,7 @@ func typ(et EType) *Type {
+ 
+ func newField() *Field {
+ 	return &Field{
+-		Width: BADWIDTH,
++		Offset: BADWIDTH,
+ 	}
+ }
+ 
+@@ -672,7 +676,7 @@ func (t *Type) FieldType(i int) ssa.Type {
+ 	return t.Field(i).Type
+ }
+ func (t *Type) FieldOff(i int) int64 {
+-	return t.Field(i).Width
++	return t.Field(i).Offset
+ }
+ 
+ func (t *Type) NumElem() int64 {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index cd6aabfd23..1851bcc3c0 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2407,7 +2407,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 		}
+ 
+ 		n.Sym = methodsym(n.Sym, t, 0)
+-		n.Xoffset = f1.Width
++		n.Xoffset = f1.Offset
+ 		n.Type = f1.Type
+ 		n.Op = ODOTINTER
+ 		return true
+@@ -2433,7 +2433,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 	}
+ 
+ 	n.Sym = methodsym(n.Sym, t, 0)
+-	n.Xoffset = f2.Width
++	n.Xoffset = f2.Offset
+ 	n.Type = f2.Type
+ 	n.Op = ODOTMETH
+ 	return true
+@@ -2482,10 +2482,10 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 		if f2 != nil {
+ 			Yyerror("%v is both field and method", n.Sym)
+ 		}
+-		if f1.Width == BADWIDTH {
++		if f1.Offset == BADWIDTH {
+ 			Fatalf("lookdot badwidth %v %p", f1, f1)
+ 		}
+-		n.Xoffset = f1.Width
++		n.Xoffset = f1.Offset
+ 		n.Type = f1.Type
+ 		if obj.Fieldtrack_enabled > 0 {
+ 			dotField[typeSym{t.Orig, s}] = f1
+@@ -2552,7 +2552,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 		}
+ 
+ 		n.Sym = methodsym(n.Sym, n.Left.Type, 0)
+-		n.Xoffset = f2.Width
++		n.Xoffset = f2.Offset
+ 		n.Type = f2.Type
+ 
+ 		//		print("lookdot found [%p] %T\n", f2->type, f2->type);
+@@ -3060,7 +3060,7 @@ func typecheckcomplit(n *Node) *Node {
+ 				n1 = assignconv(n1, f.Type, "field value")
+ 				n1 = Nod(OKEY, newname(f.Sym), n1)
+ 				n1.Left.Type = structkey
+-				n1.Left.Xoffset = f.Width
++				n1.Left.Xoffset = f.Offset
+ 				n1.Left.Typecheck = 1
+ 				ls[i1] = n1
+ 				f = it.Next()
+@@ -3110,7 +3110,7 @@ func typecheckcomplit(n *Node) *Node {
+ 
+ 				l.Left = newname(s)
+ 				l.Left.Type = structkey
+-				l.Left.Xoffset = f.Width
++				l.Left.Xoffset = f.Offset
+ 				l.Left.Typecheck = 1
+ 				s = f.Sym
+ 				fielddup(newname(s), hash)

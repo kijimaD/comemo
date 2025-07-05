@@ -7,7 +7,46 @@ Date:   Tue May 19 15:15:52 2015 -0400
     Change-Id: I348223d0336e28d95b8e68d7653aa547acc7c9c3
     Reviewed-on: https://go-review.googlesource.com/10262
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/gc/cgen.go | 6 ++++++
  src/cmd/internal/gc/walk.go | 3 +++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 002439ce36..e003ea9f4f 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -785,6 +785,9 @@ abop: // asymmetric binary
+ var sys_wbptr *Node
+ 
+ func cgen_wbptr(n, res *Node) {
++	if Curfn != nil && Curfn.Func.Nowritebarrier {
++		Yyerror("write barrier prohibited")
++	}
+ 	if Debug_wb > 0 {
+ 		Warn("write barrier")
+ 	}
+@@ -828,6 +831,9 @@ func cgen_wbptr(n, res *Node) {
+ }
+ 
+ func cgen_wbfat(n, res *Node) {
++	if Curfn != nil && Curfn.Func.Nowritebarrier {
++		Yyerror("write barrier prohibited")
++	}
+ 	if Debug_wb > 0 {
+ 		Warn("write barrier")
+ 	}
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index a7f5256b19..36e4d66b33 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -2217,6 +2217,9 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
+ 			return n
+ 		}
+ 		// Use slow path always for race detector.
++		if Curfn != nil && Curfn.Func.Nowritebarrier {
++			Yyerror("write barrier prohibited")
++		}
+ 		if Debug_wb > 0 {
+ 			Warnl(int(n.Lineno), "write barrier")
+ 		}

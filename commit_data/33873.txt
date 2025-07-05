@@ -10,6 +10,20 @@ Date:   Wed Sep 13 19:54:40 2017 -0700
     Change-Id: I073049310bca9632e50e9ca3ff79eec402122793
     Reviewed-on: https://go-review.googlesource.com/63750
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/rand/rand.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 85871725a6..8edb22e1da 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -346,7 +346,7 @@ func Float32() float32 { return globalRand.Float32() }
+ func Perm(n int) []int { return globalRand.Perm(n) }
+ 
+ // Shuffle pseudo-randomizes the order of elements using the default Source.
+-// n is the number of elements. Shuffle panics if n <= 0.
++// n is the number of elements. Shuffle panics if n < 0.
+ // swap swaps the elements with indexes i and j.
+ func Shuffle(n int, swap func(i, j int)) { globalRand.Shuffle(n, swap) }
+ 

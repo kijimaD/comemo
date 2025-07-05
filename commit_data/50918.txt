@@ -17,7 +17,33 @@ Date:   Wed Nov 17 10:17:31 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 4 +++-
  test/fixedbugs/issue49619.go                    | 2 +-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index e22fabb410..f35baabbf9 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1384,7 +1384,9 @@ func WriteBasicTypes() {
+ 		}
+ 		writeType(types.NewPtr(types.Types[types.TSTRING]))
+ 		writeType(types.NewPtr(types.Types[types.TUNSAFEPTR]))
+-		writeType(types.AnyType)
++		if base.Flag.G > 0 {
++			writeType(types.AnyType)
++		}
+ 
+ 		// emit type structs for error and func(error) string.
+ 		// The latter is the type of an auto-generated wrapper.
+diff --git a/test/fixedbugs/issue49619.go b/test/fixedbugs/issue49619.go
+index c9f3cbc4ad..f34dfac192 100644
+--- a/test/fixedbugs/issue49619.go
++++ b/test/fixedbugs/issue49619.go
+@@ -1,4 +1,4 @@
+-// build
++// build -gcflags=-G=3
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

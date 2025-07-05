@@ -9,6 +9,26 @@ Date:   Mon Oct 7 11:41:27 2013 -0400
     R=golang-dev, r, rsc
     CC=aram.h, golang-dev
     https://golang.org/cl/14374045
-
+---
  lib/codereview/codereview.py | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 01d14c4a23..052e31c264 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -61,6 +61,14 @@ import time
+ from mercurial import commands as hg_commands
+ from mercurial import util as hg_util
+ 
++# bind Plan 9 preferred dotfile location
++if os.sys.platform == 'plan9':
++	try:
++		import plan9
++		n = plan9.bind(os.path.expanduser("~/lib"), os.path.expanduser("~"), plan9.MBEFORE)
++	except ImportError:
++		pass
++
+ defaultcc = None
+ codereview_disabled = None
+ real_rollback = None

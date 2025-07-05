@@ -24,7 +24,7 @@ Date:   Fri Oct 2 16:25:17 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/cache.go         | 70 ++++++++++++---------------
  src/cmd/go/internal/modfetch/coderepo_test.go | 28 +++--------
  src/cmd/go/internal/modfetch/fetch.go         | 22 +++++++--
@@ -32,3 +32,384 @@ Date:   Fri Oct 2 16:25:17 2020 -0400
  src/cmd/go/internal/modload/mvs.go            |  6 +--
  src/cmd/go/internal/modload/query.go          | 10 ++--
  6 files changed, 87 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index e3074b775e..6eadb026c9 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -14,6 +14,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
++	"sync"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+@@ -155,16 +156,30 @@ func SideLock() (unlock func(), err error) {
+ type cachingRepo struct {
+ 	path  string
+ 	cache par.Cache // cache for all operations
+-	r     Repo
++
++	once     sync.Once
++	initRepo func() (Repo, error)
++	r        Repo
+ }
+ 
+-func newCachingRepo(r Repo) *cachingRepo {
++func newCachingRepo(path string, initRepo func() (Repo, error)) *cachingRepo {
+ 	return &cachingRepo{
+-		r:    r,
+-		path: r.ModulePath(),
++		path:     path,
++		initRepo: initRepo,
+ 	}
+ }
+ 
++func (r *cachingRepo) repo() Repo {
++	r.once.Do(func() {
++		var err error
++		r.r, err = r.initRepo()
++		if err != nil {
++			r.r = errRepo{r.path, err}
++		}
++	})
++	return r.r
++}
++
+ func (r *cachingRepo) ModulePath() string {
+ 	return r.path
+ }
+@@ -175,7 +190,7 @@ func (r *cachingRepo) Versions(prefix string) ([]string, error) {
+ 		err  error
+ 	}
+ 	c := r.cache.Do("versions:"+prefix, func() interface{} {
+-		list, err := r.r.Versions(prefix)
++		list, err := r.repo().Versions(prefix)
+ 		return cached{list, err}
+ 	}).(cached)
+ 
+@@ -197,7 +212,7 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
+ 			return cachedInfo{info, nil}
+ 		}
+ 
+-		info, err = r.r.Stat(rev)
++		info, err = r.repo().Stat(rev)
+ 		if err == nil {
+ 			// If we resolved, say, 1234abcde to v0.0.0-20180604122334-1234abcdef78,
+ 			// then save the information under the proper version, for future use.
+@@ -224,7 +239,7 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
+ 
+ func (r *cachingRepo) Latest() (*RevInfo, error) {
+ 	c := r.cache.Do("latest:", func() interface{} {
+-		info, err := r.r.Latest()
++		info, err := r.repo().Latest()
+ 
+ 		// Save info for likely future Stat call.
+ 		if err == nil {
+@@ -258,7 +273,7 @@ func (r *cachingRepo) GoMod(version string) ([]byte, error) {
+ 			return cached{text, nil}
+ 		}
+ 
+-		text, err = r.r.GoMod(version)
++		text, err = r.repo().GoMod(version)
+ 		if err == nil {
+ 			if err := checkGoMod(r.path, version, text); err != nil {
+ 				return cached{text, err}
+@@ -277,26 +292,11 @@ func (r *cachingRepo) GoMod(version string) ([]byte, error) {
+ }
+ 
+ func (r *cachingRepo) Zip(dst io.Writer, version string) error {
+-	return r.r.Zip(dst, version)
+-}
+-
+-// Stat is like Lookup(path).Stat(rev) but avoids the
+-// repository path resolution in Lookup if the result is
+-// already cached on local disk.
+-func Stat(proxy, path, rev string) (*RevInfo, error) {
+-	_, info, err := readDiskStat(path, rev)
+-	if err == nil {
+-		return info, nil
+-	}
+-	repo, err := Lookup(proxy, path)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return repo.Stat(rev)
++	return r.repo().Zip(dst, version)
+ }
+ 
+-// InfoFile is like Stat but returns the name of the file containing
+-// the cached information.
++// InfoFile is like Lookup(path).Stat(version) but returns the name of the file
++// containing the cached information.
+ func InfoFile(path, version string) (string, error) {
+ 	if !semver.IsValid(version) {
+ 		return "", fmt.Errorf("invalid version %q", version)
+@@ -307,10 +307,7 @@ func InfoFile(path, version string) (string, error) {
+ 	}
+ 
+ 	err := TryProxies(func(proxy string) error {
+-		repo, err := Lookup(proxy, path)
+-		if err == nil {
+-			_, err = repo.Stat(version)
+-		}
++		_, err := Lookup(proxy, path).Stat(version)
+ 		return err
+ 	})
+ 	if err != nil {
+@@ -336,11 +333,7 @@ func GoMod(path, rev string) ([]byte, error) {
+ 			rev = info.Version
+ 		} else {
+ 			err := TryProxies(func(proxy string) error {
+-				repo, err := Lookup(proxy, path)
+-				if err != nil {
+-					return err
+-				}
+-				info, err := repo.Stat(rev)
++				info, err := Lookup(proxy, path).Stat(rev)
+ 				if err == nil {
+ 					rev = info.Version
+ 				}
+@@ -357,11 +350,8 @@ func GoMod(path, rev string) ([]byte, error) {
+ 		return data, nil
+ 	}
+ 
+-	err = TryProxies(func(proxy string) error {
+-		repo, err := Lookup(proxy, path)
+-		if err == nil {
+-			data, err = repo.GoMod(rev)
+-		}
++	err = TryProxies(func(proxy string) (err error) {
++		data, err = Lookup(proxy, path).GoMod(rev)
+ 		return err
+ 	})
+ 	return data, err
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index f69c193b86..28c5e67a28 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -60,7 +60,6 @@ var altVgotests = map[string]string{
+ type codeRepoTest struct {
+ 	vcs         string
+ 	path        string
+-	lookErr     string
+ 	mpath       string
+ 	rev         string
+ 	err         string
+@@ -332,9 +331,9 @@ var codeRepoTests = []codeRepoTest{
+ 		// package in subdirectory - custom domain
+ 		// In general we can't reject these definitively in Lookup,
+ 		// but gopkg.in is special.
+-		vcs:     "git",
+-		path:    "gopkg.in/yaml.v2/abc",
+-		lookErr: "invalid module path \"gopkg.in/yaml.v2/abc\"",
++		vcs:  "git",
++		path: "gopkg.in/yaml.v2/abc",
++		err:  "invalid module path \"gopkg.in/yaml.v2/abc\"",
+ 	},
+ 	{
+ 		// package in subdirectory - github
+@@ -440,16 +439,7 @@ func TestCodeRepo(t *testing.T) {
+ 						testenv.MustHaveExecPath(t, tt.vcs)
+ 					}
+ 
+-					repo, err := Lookup("direct", tt.path)
+-					if tt.lookErr != "" {
+-						if err != nil && err.Error() == tt.lookErr {
+-							return
+-						}
+-						t.Errorf("Lookup(%q): %v, want error %q", tt.path, err, tt.lookErr)
+-					}
+-					if err != nil {
+-						t.Fatalf("Lookup(%q): %v", tt.path, err)
+-					}
++					repo := Lookup("direct", tt.path)
+ 
+ 					if tt.mpath == "" {
+ 						tt.mpath = tt.path
+@@ -685,10 +675,7 @@ func TestCodeRepoVersions(t *testing.T) {
+ 					testenv.MustHaveExecPath(t, tt.vcs)
+ 				}
+ 
+-				repo, err := Lookup("direct", tt.path)
+-				if err != nil {
+-					t.Fatalf("Lookup(%q): %v", tt.path, err)
+-				}
++				repo := Lookup("direct", tt.path)
+ 				list, err := repo.Versions(tt.prefix)
+ 				if err != nil {
+ 					t.Fatalf("Versions(%q): %v", tt.prefix, err)
+@@ -763,10 +750,7 @@ func TestLatest(t *testing.T) {
+ 					testenv.MustHaveExecPath(t, tt.vcs)
+ 				}
+ 
+-				repo, err := Lookup("direct", tt.path)
+-				if err != nil {
+-					t.Fatalf("Lookup(%q): %v", tt.path, err)
+-				}
++				repo := Lookup("direct", tt.path)
+ 				info, err := repo.Latest()
+ 				if err != nil {
+ 					if tt.err != "" {
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 1d90002faa..599419977a 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -233,12 +233,28 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
+ 		}
+ 	}()
+ 
++	var unrecoverableErr error
+ 	err = TryProxies(func(proxy string) error {
+-		repo, err := Lookup(proxy, mod.Path)
++		if unrecoverableErr != nil {
++			return unrecoverableErr
++		}
++		repo := Lookup(proxy, mod.Path)
++		err := repo.Zip(f, mod.Version)
+ 		if err != nil {
+-			return err
++			// Zip may have partially written to f before failing.
++			// (Perhaps the server crashed while sending the file?)
++			// Since we allow fallback on error in some cases, we need to fix up the
++			// file to be empty again for the next attempt.
++			if _, err := f.Seek(0, io.SeekStart); err != nil {
++				unrecoverableErr = err
++				return err
++			}
++			if err := f.Truncate(0); err != nil {
++				unrecoverableErr = err
++				return err
++			}
+ 		}
+-		return repo.Zip(f, mod.Version)
++		return err
+ 	})
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index eed4dd4258..4936ec11aa 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -188,27 +188,26 @@ type lookupCacheKey struct {
+ //
+ // A successful return does not guarantee that the module
+ // has any defined versions.
+-func Lookup(proxy, path string) (Repo, error) {
++func Lookup(proxy, path string) Repo {
+ 	if traceRepo {
+ 		defer logCall("Lookup(%q, %q)", proxy, path)()
+ 	}
+ 
+ 	type cached struct {
+-		r   Repo
+-		err error
++		r Repo
+ 	}
+ 	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() interface{} {
+-		r, err := lookup(proxy, path)
+-		if err == nil {
+-			if traceRepo {
++		r := newCachingRepo(path, func() (Repo, error) {
++			r, err := lookup(proxy, path)
++			if err == nil && traceRepo {
+ 				r = newLoggingRepo(r)
+ 			}
+-			r = newCachingRepo(r)
+-		}
+-		return cached{r, err}
++			return r, err
++		})
++		return cached{r}
+ 	}).(cached)
+ 
+-	return c.r, c.err
++	return c.r
+ }
+ 
+ // lookup returns the module with the given module path.
+@@ -228,7 +227,7 @@ func lookup(proxy, path string) (r Repo, err error) {
+ 
+ 	switch proxy {
+ 	case "off":
+-		return nil, errProxyOff
++		return errRepo{path, errProxyOff}, nil
+ 	case "direct":
+ 		return lookupDirect(path)
+ 	case "noproxy":
+@@ -407,6 +406,23 @@ func (l *loggingRepo) Zip(dst io.Writer, version string) error {
+ 	return l.r.Zip(dst, version)
+ }
+ 
++// errRepo is a Repo that returns the same error for all operations.
++//
++// It is useful in conjunction with caching, since cache hits will not attempt
++// the prohibited operations.
++type errRepo struct {
++	modulePath string
++	err        error
++}
++
++func (r errRepo) ModulePath() string { return r.modulePath }
++
++func (r errRepo) Versions(prefix string) (tags []string, err error) { return nil, r.err }
++func (r errRepo) Stat(rev string) (*RevInfo, error)                 { return nil, r.err }
++func (r errRepo) Latest() (*RevInfo, error)                         { return nil, r.err }
++func (r errRepo) GoMod(version string) ([]byte, error)              { return nil, r.err }
++func (r errRepo) Zip(dst io.Writer, version string) error           { return r.err }
++
+ // A notExistError is like os.ErrNotExist, but with a custom message
+ type notExistError struct {
+ 	err error
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 24856260d4..65329524f9 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -77,11 +77,7 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string,
+ 	// so there's no need for us to add extra caching here.
+ 	var versions []string
+ 	err := modfetch.TryProxies(func(proxy string) error {
+-		repo, err := modfetch.Lookup(proxy, path)
+-		if err != nil {
+-			return err
+-		}
+-		allVersions, err := repo.Versions("")
++		allVersions, err := modfetch.Lookup(proxy, path).Versions("")
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index e75d901ec6..44076fb615 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -229,14 +229,15 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		// If the identifier is not a canonical semver tag — including if it's a
+ 		// semver tag with a +metadata suffix — then modfetch.Stat will populate
+ 		// info.Version with a suitable pseudo-version.
+-		info, err := modfetch.Stat(proxy, path, query)
++		repo := modfetch.Lookup(proxy, path)
++		info, err := repo.Stat(query)
+ 		if err != nil {
+ 			queryErr := err
+ 			// The full query doesn't correspond to a tag. If it is a semantic version
+ 			// with a +metadata suffix, see if there is a tag without that suffix:
+ 			// semantic versioning defines them to be equivalent.
+ 			if canonicalQuery != "" && query != canonicalQuery {
+-				info, err = modfetch.Stat(proxy, path, canonicalQuery)
++				info, err = repo.Stat(canonicalQuery)
+ 				if err != nil && !errors.Is(err, os.ErrNotExist) {
+ 					return info, err
+ 				}
+@@ -266,10 +267,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 	}
+ 
+ 	// Load versions and execute query.
+-	repo, err := modfetch.Lookup(proxy, path)
+-	if err != nil {
+-		return nil, err
+-	}
++	repo := modfetch.Lookup(proxy, path)
+ 	versions, err := repo.Versions(prefix)
+ 	if err != nil {
+ 		return nil, err

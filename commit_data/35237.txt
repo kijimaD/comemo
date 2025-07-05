@@ -9,6 +9,27 @@ Date:   Fri Jan 19 09:34:24 2018 -0800
     Change-Id: I33b4bdc60b9983ab62d87bfa0ae3ff33304269c0
     Reviewed-on: https://go-review.googlesource.com/88515
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_faq.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index c038bc46bd..f273688705 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -479,6 +479,15 @@ as when hosting an untrusted program, the implementation could interlock
+ map access.
+ </p>
+ 
++<p>
++Map access is unsafe only when updates are occurring.
++As long as all goroutines are only reading—looking up elements in the map,
++including iterating through it using a
++<code>for</code> <code>range</code> loop—and not changing the map
++by assigning to elements or doing deletions,
++it is safe for them to access the map concurrently without synchronization.
++</p>
++
+ <h3 id="language_changes">
+ Will you accept my language change?</h3>
+ 

@@ -16,10 +16,111 @@ Date:   Tue Aug 31 09:31:56 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go |  1 +
  src/cmd/compile/internal/typecheck/iimport.go |  6 +++++-
  test/typeparam/issue48094.dir/a.go            | 26 ++++++++++++++++++++++++++
  test/typeparam/issue48094.dir/main.go         | 20 ++++++++++++++++++++
  test/typeparam/issue48094.go                  |  7 +++++++
  5 files changed, 59 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 89eab4df16..f001017a86 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1692,6 +1692,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		isBuiltin := n.BuiltinOp != ir.OXXX
+ 		w.bool(isBuiltin)
+ 		if isBuiltin {
++			w.bool(n.Sym().Pkg == types.UnsafePkg)
+ 			w.string(n.Sym().Name)
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 0dfc33db20..45bf2563aa 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1269,7 +1269,11 @@ func (r *importReader) node() ir.Node {
+ 	case ir.ONAME:
+ 		isBuiltin := r.bool()
+ 		if isBuiltin {
+-			return types.BuiltinPkg.Lookup(r.string()).Def.(*ir.Name)
++			pkg := types.BuiltinPkg
++			if r.bool() {
++				pkg = types.UnsafePkg
++			}
++			return pkg.Lookup(r.string()).Def.(*ir.Name)
+ 		}
+ 		return r.localName()
+ 
+diff --git a/test/typeparam/issue48094.dir/a.go b/test/typeparam/issue48094.dir/a.go
+new file mode 100644
+index 0000000000..dd8c16f3ae
+--- /dev/null
++++ b/test/typeparam/issue48094.dir/a.go
+@@ -0,0 +1,26 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import "unsafe"
++
++func F[T any]() uintptr {
++	var t T
++	return unsafe.Sizeof(t)
++}
++
++func G[T any]() uintptr {
++	var t T
++	return unsafe.Alignof(t)
++}
++
++//func H[T any]() uintptr {
++//	type S struct {
++//		a T
++//		b T
++//	}
++//	var s S
++//	return unsafe.Offsetof(s.b)
++//}
+diff --git a/test/typeparam/issue48094.dir/main.go b/test/typeparam/issue48094.dir/main.go
+new file mode 100644
+index 0000000000..eb1ddbe231
+--- /dev/null
++++ b/test/typeparam/issue48094.dir/main.go
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "a"
++
++func main() {
++	if a.F[int64]() != 8 {
++		panic("bad")
++	}
++	if a.G[int8]() != 1 {
++		panic("bad")
++	}
++	// TODO: enable once 47631 is fixed.
++	//if a.H[int64]() != 8 {
++	//	panic("bad")
++	//}
++}
+diff --git a/test/typeparam/issue48094.go b/test/typeparam/issue48094.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue48094.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

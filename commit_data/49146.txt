@@ -18,7 +18,7 @@ Date:   Sun Jul 18 15:51:31 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        |  73 ++++++++++----
  src/cmd/compile/internal/types2/builtins_test.go   |  13 ++-
  src/cmd/compile/internal/types2/infer.go           |   4 +-
@@ -26,3 +26,359 @@ Date:   Sun Jul 18 15:51:31 2021 -0700
  .../internal/types2/testdata/check/builtins.go2    | 107 +++++++++++++++++++++
  .../types2/testdata/fixedbugs/issue40301.go2       |   4 +-
  6 files changed, 182 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 14be24e251..2af2679d5e 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -624,19 +624,22 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Alignof:
+ 		// unsafe.Alignof(x T) uintptr
+-		if asTypeParam(x.typ) != nil {
+-			check.errorf(call, invalidOp+"unsafe.Alignof undefined for %s", x)
+-			return
+-		}
+ 		check.assignment(x, nil, "argument to unsafe.Alignof")
+ 		if x.mode == invalid {
+ 			return
+ 		}
+ 
+-		x.mode = constant_
+-		x.val = constant.MakeInt64(check.conf.alignof(x.typ))
++		if hasVarSize(x.typ) {
++			x.mode = value
++			if check.Types != nil {
++				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
++			}
++		} else {
++			x.mode = constant_
++			x.val = constant.MakeInt64(check.conf.alignof(x.typ))
++			// result is constant - no need to record signature
++		}
+ 		x.typ = Typ[Uintptr]
+-		// result is constant - no need to record signature
+ 
+ 	case _Offsetof:
+ 		// unsafe.Offsetof(x T) uintptr, where x must be a selector
+@@ -674,30 +677,43 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 
+-		// TODO(gri) Should we pass x.typ instead of base (and indirect report if derefStructPtr indirected)?
++		// TODO(gri) Should we pass x.typ instead of base (and have indirect report if derefStructPtr indirected)?
+ 		check.recordSelection(selx, FieldVal, base, obj, index, false)
+ 
+-		offs := check.conf.offsetof(base, index)
+-		x.mode = constant_
+-		x.val = constant.MakeInt64(offs)
++		// The field offset is considered a variable even if the field is declared before
++		// the part of the struct which is variable-sized. This makes both the rules
++		// simpler and also permits (or at least doesn't prevent) a compiler from re-
++		// arranging struct fields if it wanted to.
++		if hasVarSize(base) {
++			x.mode = value
++			if check.Types != nil {
++				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], obj.Type()))
++			}
++		} else {
++			x.mode = constant_
++			x.val = constant.MakeInt64(check.conf.offsetof(base, index))
++			// result is constant - no need to record signature
++		}
+ 		x.typ = Typ[Uintptr]
+-		// result is constant - no need to record signature
+ 
+ 	case _Sizeof:
+ 		// unsafe.Sizeof(x T) uintptr
+-		if asTypeParam(x.typ) != nil {
+-			check.errorf(call, invalidOp+"unsafe.Sizeof undefined for %s", x)
+-			return
+-		}
+ 		check.assignment(x, nil, "argument to unsafe.Sizeof")
+ 		if x.mode == invalid {
+ 			return
+ 		}
+ 
+-		x.mode = constant_
+-		x.val = constant.MakeInt64(check.conf.sizeof(x.typ))
++		if hasVarSize(x.typ) {
++			x.mode = value
++			if check.Types != nil {
++				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
++			}
++		} else {
++			x.mode = constant_
++			x.val = constant.MakeInt64(check.conf.sizeof(x.typ))
++			// result is constant - no need to record signature
++		}
+ 		x.typ = Typ[Uintptr]
+-		// result is constant - no need to record signature
+ 
+ 	case _Slice:
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
+@@ -769,6 +785,25 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	return true
+ }
+ 
++// hasVarSize reports if the size of type t is variable due to type parameters.
++func hasVarSize(t Type) bool {
++	switch t := under(t).(type) {
++	case *Array:
++		return hasVarSize(t.elem)
++	case *Struct:
++		for _, f := range t.fields {
++			if hasVarSize(f.typ) {
++				return true
++			}
++		}
++	case *TypeParam:
++		return true
++	case *Named, *Union, *instance, *top:
++		unreachable()
++	}
++	return false
++}
++
+ // applyTypeFunc applies f to x. If x is a type parameter,
+ // the result is a type parameter constrained by an new
+ // interface bound. The type bounds for that interface
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index 82c786b86e..52dbba1cb9 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -7,6 +7,7 @@ package types2_test
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
++	"strings"
+ 	"testing"
+ 
+ 	. "cmd/compile/internal/types2"
+@@ -111,12 +112,15 @@ var builtinCalls = []struct {
+ 
+ 	{"Alignof", `_ = unsafe.Alignof(0)`, `invalid type`},                 // constant
+ 	{"Alignof", `var x struct{}; _ = unsafe.Alignof(x)`, `invalid type`}, // constant
++	{"Alignof", `var x P; _ = unsafe.Alignof(x)`, `func(p.P₁) uintptr`},
+ 
+ 	{"Offsetof", `var x struct{f bool}; _ = unsafe.Offsetof(x.f)`, `invalid type`},           // constant
+ 	{"Offsetof", `var x struct{_ int; f bool}; _ = unsafe.Offsetof((&x).f)`, `invalid type`}, // constant
++	{"Offsetof", `var x struct{_ int; f P}; _ = unsafe.Offsetof((&x).f)`, `func(p.P₁) uintptr`},
+ 
+ 	{"Sizeof", `_ = unsafe.Sizeof(0)`, `invalid type`},                 // constant
+ 	{"Sizeof", `var x struct{}; _ = unsafe.Sizeof(x)`, `invalid type`}, // constant
++	{"Sizeof", `var x P; _ = unsafe.Sizeof(x)`, `func(p.P₁) uintptr`},
+ 
+ 	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
+ 	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
+@@ -149,9 +153,14 @@ func TestBuiltinSignatures(t *testing.T) {
+ 	}
+ }
+ 
++func parseGenericSrc(path, src string) (*syntax.File, error) {
++	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
++	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics)
++}
++
+ func testBuiltinSignature(t *testing.T, name, src0, want string) {
+-	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _() { %s }`, src0)
+-	f, err := parseSrc("", src)
++	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P any]() { %s }`, src0)
++	f, err := parseGenericSrc("", src)
+ 	if err != nil {
+ 		t.Errorf("%s: %s", src0, err)
+ 		return
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index e5d94e44d9..b44ff7377a 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -401,8 +401,8 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ 
+ 	// u.x.types() now contains the incoming type arguments plus any additional type
+ 	// arguments for which there were structural constraints. The newly inferred non-
+-	// nil entries may still contain references to other type parameters. For instance,
+-	// for [A any, B interface{type []C}, C interface{type *A}], if A == int
++	// nil entries may still contain references to other type parameters.
++	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+ 	// remaining type parameters by substituting the type parameters in this type list
+ 	// until nothing changes anymore.
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index cb789598e5..6a3d19d8ea 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -48,7 +48,7 @@ type StdSizes struct {
+ func (s *StdSizes) Alignof(T Type) int64 {
+ 	// For arrays and structs, alignment is defined in terms
+ 	// of alignment of the elements and fields, respectively.
+-	switch t := optype(T).(type) {
++	switch t := under(T).(type) {
+ 	case *Array:
+ 		// spec: "For a variable x of array type: unsafe.Alignof(x)
+ 		// is the same as unsafe.Alignof(x[0]), but at least 1."
+@@ -73,6 +73,8 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 		if t.Info()&IsString != 0 {
+ 			return s.WordSize
+ 		}
++	case *TypeParam, *Union:
++		unreachable()
+ 	}
+ 	a := s.Sizeof(T) // may be 0
+ 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
+@@ -118,7 +120,7 @@ var basicSizes = [...]byte{
+ }
+ 
+ func (s *StdSizes) Sizeof(T Type) int64 {
+-	switch t := optype(T).(type) {
++	switch t := under(T).(type) {
+ 	case *Basic:
+ 		assert(isTyped(T))
+ 		k := t.kind
+@@ -148,10 +150,10 @@ func (s *StdSizes) Sizeof(T Type) int64 {
+ 		}
+ 		offsets := s.Offsetsof(t.fields)
+ 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
+-	case *Union:
+-		panic("Sizeof unimplemented for union")
+ 	case *Interface:
+ 		return s.WordSize * 2
++	case *TypeParam, *Union:
++		unreachable()
+ 	}
+ 	return s.WordSize // catch-all
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins.go2 b/src/cmd/compile/internal/types2/testdata/check/builtins.go2
+index 8fe6d7b332..3881090603 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins.go2
+@@ -6,6 +6,8 @@
+ 
+ package builtins
+ 
++import "unsafe"
++
+ // close
+ 
+ type C0 interface{ int }
+@@ -127,3 +129,108 @@ func _[T Bss]() {
+ 	_ = make(T, 10)
+ 	_ = make(T, 10, 20)
+ }
++
++// unsafe.Alignof
++
++func _[T comparable]() {
++	var (
++		b int64
++		a [10]T
++		s struct{ f T }
++		p *T
++		l []T
++		f func(T)
++		i interface{ m() T }
++		c chan T
++		m map[T]T
++		t T
++	)
++
++	const bb = unsafe.Alignof(b)
++	assert(bb == 8)
++	const _ = unsafe /* ERROR not constant */ .Alignof(a)
++	const _ = unsafe /* ERROR not constant */ .Alignof(s)
++	const pp = unsafe.Alignof(p)
++	assert(pp == 8)
++	const ll = unsafe.Alignof(l)
++	assert(ll == 8)
++	const ff = unsafe.Alignof(f)
++	assert(ff == 8)
++	const ii = unsafe.Alignof(i)
++	assert(ii == 8)
++	const cc = unsafe.Alignof(c)
++	assert(cc == 8)
++	const mm = unsafe.Alignof(m)
++	assert(mm == 8)
++	const _ = unsafe /* ERROR not constant */ .Alignof(t)
++}
++
++// unsafe.Offsetof
++
++func _[T comparable]() {
++	var (
++		b struct{ _, f int64 }
++		a struct{ _, f [10]T }
++		s struct{ _, f struct{ f T } }
++		p struct{ _, f *T }
++		l struct{ _, f []T }
++		f struct{ _, f func(T) }
++		i struct{ _, f interface{ m() T } }
++		c struct{ _, f chan T }
++		m struct{ _, f map[T]T }
++		t struct{ _, f T }
++	)
++
++	const bb = unsafe.Offsetof(b.f)
++	assert(bb == 8)
++	const _ = unsafe /* ERROR not constant */ .Alignof(a)
++	const _ = unsafe /* ERROR not constant */ .Alignof(s)
++	const pp = unsafe.Offsetof(p.f)
++	assert(pp == 8)
++	const ll = unsafe.Offsetof(l.f)
++	assert(ll == 24)
++	const ff = unsafe.Offsetof(f.f)
++	assert(ff == 8)
++	const ii = unsafe.Offsetof(i.f)
++	assert(ii == 16)
++	const cc = unsafe.Offsetof(c.f)
++	assert(cc == 8)
++	const mm = unsafe.Offsetof(m.f)
++	assert(mm == 8)
++	const _ = unsafe /* ERROR not constant */ .Alignof(t)
++}
++
++// unsafe.Sizeof
++
++func _[T comparable]() {
++	var (
++		b int64
++		a [10]T
++		s struct{ f T }
++		p *T
++		l []T
++		f func(T)
++		i interface{ m() T }
++		c chan T
++		m map[T]T
++		t T
++	)
++
++	const bb = unsafe.Sizeof(b)
++	assert(bb == 8)
++	const _ = unsafe /* ERROR not constant */ .Alignof(a)
++	const _ = unsafe /* ERROR not constant */ .Alignof(s)
++	const pp = unsafe.Sizeof(p)
++	assert(pp == 8)
++	const ll = unsafe.Sizeof(l)
++	assert(ll == 24)
++	const ff = unsafe.Sizeof(f)
++	assert(ff == 8)
++	const ii = unsafe.Sizeof(i)
++	assert(ii == 16)
++	const cc = unsafe.Sizeof(c)
++	assert(cc == 8)
++	const mm = unsafe.Sizeof(m)
++	assert(mm == 8)
++	const _ = unsafe /* ERROR not constant */ .Alignof(t)
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40301.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40301.go2
+index 5d97855f8a..c78f9a1fa0 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40301.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40301.go2
+@@ -7,6 +7,6 @@ package p
+ import "unsafe"
+ 
+ func _[T any](x T) {
+-	_ = unsafe /* ERROR undefined */ .Alignof(x)
+-	_ = unsafe /* ERROR undefined */ .Sizeof(x)
++	_ = unsafe.Alignof(x)
++	_ = unsafe.Sizeof(x)
+ }

@@ -18,6 +18,24 @@ Date:   Tue Apr 12 15:47:17 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/all_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 4a76ef8608..e1b26d9c68 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -1476,6 +1476,12 @@ func TestFunc(t *testing.T) {
+ 	if i != 10 || j != 20 || k != 30 || l != (two{40, 50}) || m != 60 || n != 70 || o != 80 {
+ 		t.Errorf("Call returned %d, %d, %d, %v, %d, %g, %d; want 10, 20, 30, [40, 50], 60, 70, 80", i, j, k, l, m, n, o)
+ 	}
++
++	for i, v := range ret {
++		if v.CanAddr() {
++			t.Errorf("result %d is addressable", i)
++		}
++	}
+ }
+ 
+ type emptyStruct struct{}

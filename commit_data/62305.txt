@@ -29,8 +29,286 @@ Date:   Sun Feb 16 17:24:19 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules |  12 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 149 ++++++++++++++++++++----
  test/codegen/load_type_from_itab.go             |  24 ++++
  3 files changed, 161 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 0339370517..8a54645fee 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2756,10 +2756,14 @@
+ (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 1 && d.Type.Size() == 1 => (RotateLeft(64|32|16|8) x (Add8  <c.Type> c d))
+ 
+ // Loading constant values from dictionaries and itabs.
+-(Load <t> (OffPtr [off]                       (Addr {s} sb)       ) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+-(Load <t> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+-(Load <t> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+-(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
++(Load <typ.BytePtr> (OffPtr [off]                       (Addr {s} sb)       ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
++(Load <typ.BytePtr> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
++(Load <typ.BytePtr> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
++(Load <typ.BytePtr> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
++(Load <typ.Uintptr> (OffPtr [off]                       (Addr {s} sb)       ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
++(Load <typ.Uintptr> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
++(Load <typ.Uintptr> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
++(Load <typ.Uintptr> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+ 
+ // Loading constant values from runtime._type.hash.
+ (Load <t> (OffPtr [off]                       (Addr {sym} _)       ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index d0b6e0b100..0cdaded87f 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -13519,6 +13519,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	typ := &b.Func.Config.Types
+ 	// match: (Load <t1> p1 (Store {t2} p2 x _))
+ 	// cond: isSamePtr(p1, p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size()
+ 	// result: x
+@@ -14103,12 +14104,11 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Load <t> (OffPtr [off] (Addr {s} sb) ) _)
+-	// cond: t.IsUintptr() && isFixedSym(s, off)
++	// match: (Load <typ.BytePtr> (OffPtr [off] (Addr {s} sb) ) _)
++	// cond: isFixedSym(s, off)
+ 	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+ 	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
++		if v.Type != typ.BytePtr || v_0.Op != OpOffPtr {
+ 			break
+ 		}
+ 		off := auxIntToInt64(v_0.AuxInt)
+@@ -14118,7 +14118,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		}
+ 		s := auxToSym(v_0_0.Aux)
+ 		sb := v_0_0.Args[0]
+-		if !(t.IsUintptr() && isFixedSym(s, off)) {
++		if !(isFixedSym(s, off)) {
+ 			break
+ 		}
+ 		v.reset(OpAddr)
+@@ -14126,12 +14126,11 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		v.AddArg(sb)
+ 		return true
+ 	}
+-	// match: (Load <t> (OffPtr [off] (Convert (Addr {s} sb) _) ) _)
+-	// cond: t.IsUintptr() && isFixedSym(s, off)
++	// match: (Load <typ.BytePtr> (OffPtr [off] (Convert (Addr {s} sb) _) ) _)
++	// cond: isFixedSym(s, off)
+ 	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+ 	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
++		if v.Type != typ.BytePtr || v_0.Op != OpOffPtr {
+ 			break
+ 		}
+ 		off := auxIntToInt64(v_0.AuxInt)
+@@ -14145,7 +14144,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		}
+ 		s := auxToSym(v_0_0_0.Aux)
+ 		sb := v_0_0_0.Args[0]
+-		if !(t.IsUintptr() && isFixedSym(s, off)) {
++		if !(isFixedSym(s, off)) {
+ 			break
+ 		}
+ 		v.reset(OpAddr)
+@@ -14153,12 +14152,11 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		v.AddArg(sb)
+ 		return true
+ 	}
+-	// match: (Load <t> (OffPtr [off] (ITab (IMake (Addr {s} sb) _))) _)
+-	// cond: t.IsUintptr() && isFixedSym(s, off)
++	// match: (Load <typ.BytePtr> (OffPtr [off] (ITab (IMake (Addr {s} sb) _))) _)
++	// cond: isFixedSym(s, off)
+ 	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+ 	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
++		if v.Type != typ.BytePtr || v_0.Op != OpOffPtr {
+ 			break
+ 		}
+ 		off := auxIntToInt64(v_0.AuxInt)
+@@ -14176,7 +14174,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		}
+ 		s := auxToSym(v_0_0_0_0.Aux)
+ 		sb := v_0_0_0_0.Args[0]
+-		if !(t.IsUintptr() && isFixedSym(s, off)) {
++		if !(isFixedSym(s, off)) {
+ 			break
+ 		}
+ 		v.reset(OpAddr)
+@@ -14184,12 +14182,123 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		v.AddArg(sb)
+ 		return true
+ 	}
+-	// match: (Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)
+-	// cond: t.IsUintptr() && isFixedSym(s, off)
++	// match: (Load <typ.BytePtr> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)
++	// cond: isFixedSym(s, off)
+ 	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+ 	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
++		if v.Type != typ.BytePtr || v_0.Op != OpOffPtr {
++			break
++		}
++		off := auxIntToInt64(v_0.AuxInt)
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpITab {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpIMake {
++			break
++		}
++		v_0_0_0_0 := v_0_0_0.Args[0]
++		if v_0_0_0_0.Op != OpConvert {
++			break
++		}
++		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
++		if v_0_0_0_0_0.Op != OpAddr {
++			break
++		}
++		s := auxToSym(v_0_0_0_0_0.Aux)
++		sb := v_0_0_0_0_0.Args[0]
++		if !(isFixedSym(s, off)) {
++			break
++		}
++		v.reset(OpAddr)
++		v.Aux = symToAux(fixedSym(b.Func, s, off))
++		v.AddArg(sb)
++		return true
++	}
++	// match: (Load <typ.Uintptr> (OffPtr [off] (Addr {s} sb) ) _)
++	// cond: isFixedSym(s, off)
++	// result: (Addr {fixedSym(b.Func, s, off)} sb)
++	for {
++		if v.Type != typ.Uintptr || v_0.Op != OpOffPtr {
++			break
++		}
++		off := auxIntToInt64(v_0.AuxInt)
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpAddr {
++			break
++		}
++		s := auxToSym(v_0_0.Aux)
++		sb := v_0_0.Args[0]
++		if !(isFixedSym(s, off)) {
++			break
++		}
++		v.reset(OpAddr)
++		v.Aux = symToAux(fixedSym(b.Func, s, off))
++		v.AddArg(sb)
++		return true
++	}
++	// match: (Load <typ.Uintptr> (OffPtr [off] (Convert (Addr {s} sb) _) ) _)
++	// cond: isFixedSym(s, off)
++	// result: (Addr {fixedSym(b.Func, s, off)} sb)
++	for {
++		if v.Type != typ.Uintptr || v_0.Op != OpOffPtr {
++			break
++		}
++		off := auxIntToInt64(v_0.AuxInt)
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConvert {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpAddr {
++			break
++		}
++		s := auxToSym(v_0_0_0.Aux)
++		sb := v_0_0_0.Args[0]
++		if !(isFixedSym(s, off)) {
++			break
++		}
++		v.reset(OpAddr)
++		v.Aux = symToAux(fixedSym(b.Func, s, off))
++		v.AddArg(sb)
++		return true
++	}
++	// match: (Load <typ.Uintptr> (OffPtr [off] (ITab (IMake (Addr {s} sb) _))) _)
++	// cond: isFixedSym(s, off)
++	// result: (Addr {fixedSym(b.Func, s, off)} sb)
++	for {
++		if v.Type != typ.Uintptr || v_0.Op != OpOffPtr {
++			break
++		}
++		off := auxIntToInt64(v_0.AuxInt)
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpITab {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpIMake {
++			break
++		}
++		v_0_0_0_0 := v_0_0_0.Args[0]
++		if v_0_0_0_0.Op != OpAddr {
++			break
++		}
++		s := auxToSym(v_0_0_0_0.Aux)
++		sb := v_0_0_0_0.Args[0]
++		if !(isFixedSym(s, off)) {
++			break
++		}
++		v.reset(OpAddr)
++		v.Aux = symToAux(fixedSym(b.Func, s, off))
++		v.AddArg(sb)
++		return true
++	}
++	// match: (Load <typ.Uintptr> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)
++	// cond: isFixedSym(s, off)
++	// result: (Addr {fixedSym(b.Func, s, off)} sb)
++	for {
++		if v.Type != typ.Uintptr || v_0.Op != OpOffPtr {
+ 			break
+ 		}
+ 		off := auxIntToInt64(v_0.AuxInt)
+@@ -14211,7 +14320,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		}
+ 		s := auxToSym(v_0_0_0_0_0.Aux)
+ 		sb := v_0_0_0_0_0.Args[0]
+-		if !(t.IsUintptr() && isFixedSym(s, off)) {
++		if !(isFixedSym(s, off)) {
+ 			break
+ 		}
+ 		v.reset(OpAddr)
+diff --git a/test/codegen/load_type_from_itab.go b/test/codegen/load_type_from_itab.go
+new file mode 100644
+index 0000000000..b47044fcbd
+--- /dev/null
++++ b/test/codegen/load_type_from_itab.go
+@@ -0,0 +1,24 @@
++// asmcheck
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test makes sure that we statically load a type from an itab, instead
++// of doing a indirect load from thet itab.
++
++package codegen
++
++type M interface{ M() }
++type A interface{ A() }
++
++type Impl struct{}
++
++func (*Impl) M() {}
++func (*Impl) A() {}
++
++func main() {
++	var a M = &Impl{}
++	// amd64:`LEAQ\ttype:.*Impl`
++	a.(A).A()
++}

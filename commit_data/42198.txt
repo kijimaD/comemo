@@ -20,7 +20,46 @@ Date:   Tue Nov 12 17:22:28 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/proc.go | 9 ++++++++-
  src/runtime/time.go | 4 ++--
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 3252173c0a..34d5928aa3 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4073,10 +4073,17 @@ func (pp *p) destroy() {
+ 	}
+ 	if len(pp.timers) > 0 {
+ 		plocal := getg().m.p.ptr()
+-		// The world is stopped so we don't need to hold timersLock.
++		// The world is stopped, but we acquire timersLock to
++		// protect against sysmon calling timeSleepUntil.
++		// This is the only case where we hold the timersLock of
++		// more than one P, so there are no deadlock concerns.
++		lock(&plocal.timersLock)
++		lock(&pp.timersLock)
+ 		moveTimers(plocal, pp.timers)
+ 		pp.timers = nil
+ 		pp.adjustTimers = 0
++		unlock(&pp.timersLock)
++		unlock(&plocal.timersLock)
+ 	}
+ 	// If there's a background worker, make it runnable and put
+ 	// it on the global queue so it can clean itself up.
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 39df413ad9..47b326289b 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -855,8 +855,8 @@ func cleantimers(pp *p) bool {
+ 
+ // moveTimers moves a slice of timers to pp. The slice has been taken
+ // from a different P.
+-// This is currently called when the world is stopped, but it could
+-// work as long as the timers for pp are locked.
++// This is currently called when the world is stopped, but the caller
++// is expected to have locked the timers for pp.
+ func moveTimers(pp *p, timers []*timer) {
+ 	for _, t := range timers {
+ 	loop:

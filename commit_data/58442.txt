@@ -16,7 +16,7 @@ Date:   Sat Aug 26 04:42:50 2023 +1000
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/crypto/internal/bigmod/nat_riscv64.s |  6 +--
  src/internal/bytealg/compare_riscv64.s   | 12 +++---
  src/internal/bytealg/equal_riscv64.s     | 10 ++---
@@ -28,3 +28,534 @@ Date:   Sat Aug 26 04:42:50 2023 +1000
  src/runtime/preempt_riscv64.s            |  2 +-
  src/runtime/sys_linux_riscv64.s          |  4 +-
  10 files changed, 65 insertions(+), 65 deletions(-)
+
+diff --git a/src/crypto/internal/bigmod/nat_riscv64.s b/src/crypto/internal/bigmod/nat_riscv64.s
+index 1d8c8c8900..c1d9cc0dd4 100644
+--- a/src/crypto/internal/bigmod/nat_riscv64.s
++++ b/src/crypto/internal/bigmod/nat_riscv64.s
+@@ -80,10 +80,10 @@ loop:
+ 	MOV	X16, 2*8(X5)	// z[2]
+ 	MOV	X19, 3*8(X5)	// z[3]
+ 
+-	ADDI	$32, X5
+-	ADDI	$32, X7
++	ADD	$32, X5
++	ADD	$32, X7
+ 
+-	ADDI	$-4, X30
++	SUB	$4, X30
+ 	BNEZ	X30, loop
+ 
+ done:
+diff --git a/src/internal/bytealg/compare_riscv64.s b/src/internal/bytealg/compare_riscv64.s
+index a4164a2b81..b1e1f7bcc7 100644
+--- a/src/internal/bytealg/compare_riscv64.s
++++ b/src/internal/bytealg/compare_riscv64.s
+@@ -53,7 +53,7 @@ use_a_len:
+ 	ADD	$8, X7, X7
+ 	SUB	X7, X5, X5
+ align:
+-	ADD	$-1, X7
++	SUB	$1, X7
+ 	MOVBU	0(X10), X8
+ 	MOVBU	0(X12), X9
+ 	BNE	X8, X9, cmp
+@@ -79,7 +79,7 @@ compare32:
+ 	BNE	X17, X18, cmp8b
+ 	ADD	$32, X10
+ 	ADD	$32, X12
+-	ADD	$-32, X5
++	SUB	$32, X5
+ 	BGE	X5, X6, compare32
+ 	BEQZ	X5, cmp_len
+ 
+@@ -95,7 +95,7 @@ compare16:
+ 	BNE	X17, X18, cmp8b
+ 	ADD	$16, X10
+ 	ADD	$16, X12
+-	ADD	$-16, X5
++	SUB	$16, X5
+ 	BEQZ	X5, cmp_len
+ 
+ check8_unaligned:
+@@ -128,7 +128,7 @@ compare8_unaligned:
+ 	BNE	X29, X30, cmp1h
+ 	ADD	$8, X10
+ 	ADD	$8, X12
+-	ADD	$-8, X5
++	SUB	$8, X5
+ 	BGE	X5, X6, compare8_unaligned
+ 	BEQZ	X5, cmp_len
+ 
+@@ -150,7 +150,7 @@ compare4_unaligned:
+ 	BNE	X19, X20, cmp1d
+ 	ADD	$4, X10
+ 	ADD	$4, X12
+-	ADD	$-4, X5
++	SUB	$4, X5
+ 	BGE	X5, X6, compare4_unaligned
+ 
+ compare1:
+@@ -160,7 +160,7 @@ compare1:
+ 	BNE	X8, X9, cmp
+ 	ADD	$1, X10
+ 	ADD	$1, X12
+-	ADD	$-1, X5
++	SUB	$1, X5
+ 	JMP	compare1
+ 
+ 	// Compare 8 bytes of memory in X15/X16 that are known to differ.
+diff --git a/src/internal/bytealg/equal_riscv64.s b/src/internal/bytealg/equal_riscv64.s
+index 503aac5751..7f470ce0a0 100644
+--- a/src/internal/bytealg/equal_riscv64.s
++++ b/src/internal/bytealg/equal_riscv64.s
+@@ -41,7 +41,7 @@ TEXT memequal<>(SB),NOSPLIT|NOFRAME,$0
+ 	ADD	$8, X9, X9
+ 	SUB	X9, X12, X12
+ align:
+-	ADD	$-1, X9
++	SUB	$1, X9
+ 	MOVBU	0(X10), X19
+ 	MOVBU	0(X11), X20
+ 	BNE	X19, X20, not_eq
+@@ -67,7 +67,7 @@ loop32:
+ 	BNE	X16, X17, not_eq
+ 	ADD	$32, X10
+ 	ADD	$32, X11
+-	ADD	$-32, X12
++	SUB	$32, X12
+ 	BGE	X12, X9, loop32
+ 	BEQZ	X12, eq
+ 
+@@ -83,7 +83,7 @@ loop16:
+ 	BNE	X21, X22, not_eq
+ 	ADD	$16, X10
+ 	ADD	$16, X11
+-	ADD	$-16, X12
++	SUB	$16, X12
+ 	BGE	X12, X23, loop16
+ 	BEQZ	X12, eq
+ 
+@@ -105,7 +105,7 @@ loop4:
+ 	BNE	X16, X17, not_eq
+ 	ADD	$4, X10
+ 	ADD	$4, X11
+-	ADD	$-4, X12
++	SUB	$4, X12
+ 	BGE	X12, X23, loop4
+ 
+ loop1:
+@@ -115,7 +115,7 @@ loop1:
+ 	BNE	X19, X20, not_eq
+ 	ADD	$1, X10
+ 	ADD	$1, X11
+-	ADD	$-1, X12
++	SUB	$1, X12
+ 	JMP	loop1
+ 
+ not_eq:
+diff --git a/src/internal/bytealg/indexbyte_riscv64.s b/src/internal/bytealg/indexbyte_riscv64.s
+index 8be78ed950..de00983c7b 100644
+--- a/src/internal/bytealg/indexbyte_riscv64.s
++++ b/src/internal/bytealg/indexbyte_riscv64.s
+@@ -13,7 +13,7 @@ TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT,$0-40
+ 	AND	$0xff, X13
+ 	MOV	X10, X12		// store base for later
+ 	ADD	X10, X11		// end
+-	ADD	$-1, X10
++	SUB	$1, X10
+ 
+ loop:
+ 	ADD	$1, X10
+@@ -35,7 +35,7 @@ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
+ 	AND	$0xff, X12
+ 	MOV	X10, X13		// store base for later
+ 	ADD	X10, X11		// end
+-	ADD	$-1, X10
++	SUB	$1, X10
+ 
+ loop:
+ 	ADD	$1, X10
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index e37c8a1e1f..491635b1cf 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -9,7 +9,7 @@
+ // func rt0_go()
+ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	// X2 = stack; A0 = argc; A1 = argv
+-	ADD	$-24, X2
++	SUB	$24, X2
+ 	MOV	A0, 8(X2)	// argc
+ 	MOV	A1, 16(X2)	// argv
+ 
+@@ -57,7 +57,7 @@ nocgo:
+ 
+ 	// create a new goroutine to start program
+ 	MOV	$runtime·mainPC(SB), T0		// entry
+-	ADD	$-16, X2
++	SUB	$16, X2
+ 	MOV	T0, 8(X2)
+ 	MOV	ZERO, 0(X2)
+ 	CALL	runtime·newproc(SB)
+@@ -161,7 +161,7 @@ TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
+ 
+ 	// switch to crashstack
+ 	MOV	(g_stack+stack_hi)(g), X11
+-	ADD	$(-4*8), X11
++	SUB	$(4*8), X11
+ 	MOV	X11, X2
+ 
+ 	// call target function
+@@ -219,7 +219,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOV	(g_sched+gobuf_sp)(g), X2
+ 	// Create a stack frame on g0 to call newstack.
+ 	MOV	ZERO, -8(X2)	// Zero saved LR in frame
+-	ADD	$-8, X2
++	SUB	$8, X2
+ 	CALL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+@@ -304,7 +304,7 @@ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
+ 	MOV	0(CTXT), T1			// code pointer
+ 	MOV	(g_sched+gobuf_sp)(g), X2	// sp = m->g0->sched.sp
+ 	// we don't need special macro for regabi since arg0(X10) = g
+-	ADD	$-16, X2
++	SUB	$16, X2
+ 	MOV	X10, 8(X2)			// setup g
+ 	MOV	ZERO, 0(X2)			// clear return address
+ 	JALR	RA, T1
+@@ -366,7 +366,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
+ 	// Now on a scheduling stack (a pthread-created stack).
+ g0:
+ 	// Save room for two of our pointers.
+-	ADD	$-16, X2
++	SUB	$16, X2
+ 	MOV	X9, 0(X2)	// save old g on stack
+ 	MOV	(g_stack+stack_hi)(X9), X9
+ 	SUB	X8, X9, X8
+diff --git a/src/runtime/memclr_riscv64.s b/src/runtime/memclr_riscv64.s
+index 1c1e6ab54d..16c511c603 100644
+--- a/src/runtime/memclr_riscv64.s
++++ b/src/runtime/memclr_riscv64.s
+@@ -23,7 +23,7 @@ TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
+ 	SUB	X5, X9, X5
+ 	SUB	X5, X11, X11
+ align:
+-	ADD	$-1, X5
++	SUB	$1, X5
+ 	MOVB	ZERO, 0(X10)
+ 	ADD	$1, X10
+ 	BNEZ	X5, align
+@@ -47,7 +47,7 @@ loop64:
+ 	MOV	ZERO, 48(X10)
+ 	MOV	ZERO, 56(X10)
+ 	ADD	$64, X10
+-	ADD	$-64, X11
++	SUB	$64, X11
+ 	BGE	X11, X9, loop64
+ 	BEQZ	X11, done
+ 
+@@ -60,7 +60,7 @@ zero32:
+ 	MOV	ZERO, 16(X10)
+ 	MOV	ZERO, 24(X10)
+ 	ADD	$32, X10
+-	ADD	$-32, X11
++	SUB	$32, X11
+ 	BEQZ	X11, done
+ 
+ check16:
+@@ -70,7 +70,7 @@ zero16:
+ 	MOV	ZERO, 0(X10)
+ 	MOV	ZERO, 8(X10)
+ 	ADD	$16, X10
+-	ADD	$-16, X11
++	SUB	$16, X11
+ 	BEQZ	X11, done
+ 
+ check8:
+@@ -79,7 +79,7 @@ check8:
+ zero8:
+ 	MOV	ZERO, 0(X10)
+ 	ADD	$8, X10
+-	ADD	$-8, X11
++	SUB	$8, X11
+ 	BEQZ	X11, done
+ 
+ check4:
+@@ -91,13 +91,13 @@ zero4:
+ 	MOVB	ZERO, 2(X10)
+ 	MOVB	ZERO, 3(X10)
+ 	ADD	$4, X10
+-	ADD	$-4, X11
++	SUB	$4, X11
+ 
+ loop1:
+ 	BEQZ	X11, done
+ 	MOVB	ZERO, 0(X10)
+ 	ADD	$1, X10
+-	ADD	$-1, X11
++	SUB	$1, X11
+ 	JMP	loop1
+ 
+ done:
+diff --git a/src/runtime/memmove_riscv64.s b/src/runtime/memmove_riscv64.s
+index f5db86562b..e099a64100 100644
+--- a/src/runtime/memmove_riscv64.s
++++ b/src/runtime/memmove_riscv64.s
+@@ -32,7 +32,7 @@ TEXT runtime·memmove<ABIInternal>(SB),NOSPLIT,$-0-24
+ 	SUB	X5, X9, X5
+ 	SUB	X5, X12, X12
+ f_align:
+-	ADD	$-1, X5
++	SUB	$1, X5
+ 	MOVB	0(X11), X14
+ 	MOVB	X14, 0(X10)
+ 	ADD	$1, X10
+@@ -65,7 +65,7 @@ f_loop64:
+ 	MOV	X21, 56(X10)
+ 	ADD	$64, X10
+ 	ADD	$64, X11
+-	ADD	$-64, X12
++	SUB	$64, X12
+ 	BGE	X12, X9, f_loop64
+ 	BEQZ	X12, done
+ 
+@@ -83,7 +83,7 @@ f_loop32:
+ 	MOV	X17, 24(X10)
+ 	ADD	$32, X10
+ 	ADD	$32, X11
+-	ADD	$-32, X12
++	SUB	$32, X12
+ 	BGE	X12, X9, f_loop32
+ 	BEQZ	X12, done
+ 
+@@ -97,7 +97,7 @@ f_loop16:
+ 	MOV	X15, 8(X10)
+ 	ADD	$16, X10
+ 	ADD	$16, X11
+-	ADD	$-16, X12
++	SUB	$16, X12
+ 	BGE	X12, X9, f_loop16
+ 	BEQZ	X12, done
+ 
+@@ -109,7 +109,7 @@ f_loop8:
+ 	MOV	X14, 0(X10)
+ 	ADD	$8, X10
+ 	ADD	$8, X11
+-	ADD	$-8, X12
++	SUB	$8, X12
+ 	BGE	X12, X9, f_loop8
+ 	BEQZ	X12, done
+ 	JMP	f_loop4_check
+@@ -136,7 +136,7 @@ f_loop8_unaligned:
+ 	MOVB	X21, 7(X10)
+ 	ADD	$8, X10
+ 	ADD	$8, X11
+-	ADD	$-8, X12
++	SUB	$8, X12
+ 	BGE	X12, X9, f_loop8_unaligned
+ 
+ f_loop4_check:
+@@ -153,7 +153,7 @@ f_loop4:
+ 	MOVB	X17, 3(X10)
+ 	ADD	$4, X10
+ 	ADD	$4, X11
+-	ADD	$-4, X12
++	SUB	$4, X12
+ 	BGE	X12, X9, f_loop4
+ 
+ f_loop1:
+@@ -162,7 +162,7 @@ f_loop1:
+ 	MOVB	X14, 0(X10)
+ 	ADD	$1, X10
+ 	ADD	$1, X11
+-	ADD	$-1, X12
++	SUB	$1, X12
+ 	JMP	f_loop1
+ 
+ backward:
+@@ -182,9 +182,9 @@ backward:
+ 	// Move one byte at a time until we reach 8 byte alignment.
+ 	SUB	X5, X12, X12
+ b_align:
+-	ADD	$-1, X5
+-	ADD	$-1, X10
+-	ADD	$-1, X11
++	SUB	$1, X5
++	SUB	$1, X10
++	SUB	$1, X11
+ 	MOVB	0(X11), X14
+ 	MOVB	X14, 0(X10)
+ 	BNEZ	X5, b_align
+@@ -197,8 +197,8 @@ b_loop_check:
+ 	MOV	$64, X9
+ 	BLT	X12, X9, b_loop32_check
+ b_loop64:
+-	ADD	$-64, X10
+-	ADD	$-64, X11
++	SUB	$64, X10
++	SUB	$64, X11
+ 	MOV	0(X11), X14
+ 	MOV	8(X11), X15
+ 	MOV	16(X11), X16
+@@ -215,7 +215,7 @@ b_loop64:
+ 	MOV	X19, 40(X10)
+ 	MOV	X20, 48(X10)
+ 	MOV	X21, 56(X10)
+-	ADD	$-64, X12
++	SUB	$64, X12
+ 	BGE	X12, X9, b_loop64
+ 	BEQZ	X12, done
+ 
+@@ -223,8 +223,8 @@ b_loop32_check:
+ 	MOV	$32, X9
+ 	BLT	X12, X9, b_loop16_check
+ b_loop32:
+-	ADD	$-32, X10
+-	ADD	$-32, X11
++	SUB	$32, X10
++	SUB	$32, X11
+ 	MOV	0(X11), X14
+ 	MOV	8(X11), X15
+ 	MOV	16(X11), X16
+@@ -233,7 +233,7 @@ b_loop32:
+ 	MOV	X15, 8(X10)
+ 	MOV	X16, 16(X10)
+ 	MOV	X17, 24(X10)
+-	ADD	$-32, X12
++	SUB	$32, X12
+ 	BGE	X12, X9, b_loop32
+ 	BEQZ	X12, done
+ 
+@@ -241,13 +241,13 @@ b_loop16_check:
+ 	MOV	$16, X9
+ 	BLT	X12, X9, b_loop8_check
+ b_loop16:
+-	ADD	$-16, X10
+-	ADD	$-16, X11
++	SUB	$16, X10
++	SUB	$16, X11
+ 	MOV	0(X11), X14
+ 	MOV	8(X11), X15
+ 	MOV	X14, 0(X10)
+ 	MOV	X15, 8(X10)
+-	ADD	$-16, X12
++	SUB	$16, X12
+ 	BGE	X12, X9, b_loop16
+ 	BEQZ	X12, done
+ 
+@@ -255,11 +255,11 @@ b_loop8_check:
+ 	MOV	$8, X9
+ 	BLT	X12, X9, b_loop4_check
+ b_loop8:
+-	ADD	$-8, X10
+-	ADD	$-8, X11
++	SUB	$8, X10
++	SUB	$8, X11
+ 	MOV	0(X11), X14
+ 	MOV	X14, 0(X10)
+-	ADD	$-8, X12
++	SUB	$8, X12
+ 	BGE	X12, X9, b_loop8
+ 	BEQZ	X12, done
+ 	JMP	b_loop4_check
+@@ -268,8 +268,8 @@ b_loop8_unaligned_check:
+ 	MOV	$8, X9
+ 	BLT	X12, X9, b_loop4_check
+ b_loop8_unaligned:
+-	ADD	$-8, X10
+-	ADD	$-8, X11
++	SUB	$8, X10
++	SUB	$8, X11
+ 	MOVB	0(X11), X14
+ 	MOVB	1(X11), X15
+ 	MOVB	2(X11), X16
+@@ -286,15 +286,15 @@ b_loop8_unaligned:
+ 	MOVB	X19, 5(X10)
+ 	MOVB	X20, 6(X10)
+ 	MOVB	X21, 7(X10)
+-	ADD	$-8, X12
++	SUB	$8, X12
+ 	BGE	X12, X9, b_loop8_unaligned
+ 
+ b_loop4_check:
+ 	MOV	$4, X9
+ 	BLT	X12, X9, b_loop1
+ b_loop4:
+-	ADD	$-4, X10
+-	ADD	$-4, X11
++	SUB	$4, X10
++	SUB	$4, X11
+ 	MOVB	0(X11), X14
+ 	MOVB	1(X11), X15
+ 	MOVB	2(X11), X16
+@@ -303,16 +303,16 @@ b_loop4:
+ 	MOVB	X15, 1(X10)
+ 	MOVB	X16, 2(X10)
+ 	MOVB	X17, 3(X10)
+-	ADD	$-4, X12
++	SUB	$4, X12
+ 	BGE	X12, X9, b_loop4
+ 
+ b_loop1:
+ 	BEQZ	X12, done
+-	ADD	$-1, X10
+-	ADD	$-1, X11
++	SUB	$1, X10
++	SUB	$1, X11
+ 	MOVB	0(X11), X14
+ 	MOVB	X14, 0(X10)
+-	ADD	$-1, X12
++	SUB	$1, X12
+ 	JMP	b_loop1
+ 
+ done:
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 0bfbd379e0..a96ae59c15 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -576,7 +576,7 @@ func genRISCV64() {
+ 	}
+ 
+ 	p("MOV X1, -%d(X2)", l.stack)
+-	p("ADD $-%d, X2", l.stack)
++	p("SUB $%d, X2", l.stack)
+ 	l.save()
+ 	p("CALL ·asyncPreempt2(SB)")
+ 	l.restore()
+diff --git a/src/runtime/preempt_riscv64.s b/src/runtime/preempt_riscv64.s
+index 56df6c30e0..bbb6447dc5 100644
+--- a/src/runtime/preempt_riscv64.s
++++ b/src/runtime/preempt_riscv64.s
+@@ -5,7 +5,7 @@
+ 
+ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOV X1, -464(X2)
+-	ADD $-464, X2
++	SUB $464, X2
+ 	MOV X5, 8(X2)
+ 	MOV X6, 16(X2)
+ 	MOV X7, 24(X2)
+diff --git a/src/runtime/sys_linux_riscv64.s b/src/runtime/sys_linux_riscv64.s
+index d1558fd6f7..ffec2b5b75 100644
+--- a/src/runtime/sys_linux_riscv64.s
++++ b/src/runtime/sys_linux_riscv64.s
+@@ -256,7 +256,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$40-12
+ 	MOV	(g_sched+gobuf_sp)(T1), X2
+ 
+ noswitch:
+-	ADDI	$-24, X2 // Space for result
++	SUB	$24, X2 // Space for result
+ 	ANDI	$~7, X2 // Align for C code
+ 	MOV	$8(X2), A1
+ 
+@@ -328,7 +328,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$40-8
+ 	MOV	(g_sched+gobuf_sp)(T1), X2
+ 
+ noswitch:
+-	ADDI	$-24, X2 // Space for result
++	SUB	$24, X2 // Space for result
+ 	ANDI	$~7, X2 // Align for C code
+ 	MOV	$8(X2), A1
+ 

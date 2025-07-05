@@ -11,7 +11,77 @@ Date:   Fri Jan 6 20:41:14 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/server.go     |  3 +++
  2 files changed, 50 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index c2be58108b..072da2552b 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5126,3 +5126,50 @@ func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
+ 		t.Fatalf("Got: %q, want ok", slurp)
+ 	}
+ }
++
++// Issue 18535: test that the Server doesn't try to do a background
++// read if it's already done one.
++func TestServerDuplicateBackgroundRead(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++
++	const goroutines = 5
++	const requests = 2000
++
++	hts := httptest.NewServer(HandlerFunc(NotFound))
++	defer hts.Close()
++
++	reqBytes := []byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")
++
++	var wg sync.WaitGroup
++	for i := 0; i < goroutines; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			cn, err := net.Dial("tcp", hts.Listener.Addr().String())
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			defer cn.Close()
++
++			wg.Add(1)
++			go func() {
++				defer wg.Done()
++				io.Copy(ioutil.Discard, cn)
++			}()
++
++			for j := 0; j < requests; j++ {
++				if t.Failed() {
++					return
++				}
++				_, err := cn.Write(reqBytes)
++				if err != nil {
++					t.Error(err)
++					return
++				}
++			}
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index bf1014134c..96236489bd 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -636,6 +636,9 @@ func (cr *connReader) startBackgroundRead() {
+ 	if cr.inRead {
+ 		panic("invalid concurrent Body.Read call")
+ 	}
++	if cr.hasByte {
++		return
++	}
+ 	cr.inRead = true
+ 	cr.conn.rwc.SetReadDeadline(time.Time{})
+ 	go cr.backgroundRead()

@@ -13,6 +13,23 @@ Date:   Sat Mar 9 03:10:36 2024 +0000
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/compress/gzip/gzip_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/compress/gzip/gzip_test.go b/src/compress/gzip/gzip_test.go
+index 12c8e18207..5aeb2e2675 100644
+--- a/src/compress/gzip/gzip_test.go
++++ b/src/compress/gzip/gzip_test.go
+@@ -200,6 +200,11 @@ func TestWriterFlush(t *testing.T) {
+ 	if n2 == n3 {
+ 		t.Fatal("Flush didn't flush any data")
+ 	}
++
++	if err := w.Close(); err != nil {
++		t.Fatal(err)
++	}
++
+ }
+ 
+ // Multiple gzip files concatenated form a valid gzip file.

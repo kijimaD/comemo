@@ -28,6 +28,19 @@ Date:   Sat Sep 9 04:14:42 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/os_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 25837dce9e..da70c398e8 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1180,6 +1180,7 @@ func TestRenameCaseDifference(pt *testing.T) {
+ 			// Stat does not return the real case of the file (it returns what the called asked for)
+ 			// So we have to use readdir to get the real name of the file.
+ 			dirNames, err := fd.Readdirnames(-1)
++			fd.Close()
+ 			if err != nil {
+ 				t.Fatalf("readdirnames: %s", err)
+ 			}

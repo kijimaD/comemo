@@ -8,6 +8,20 @@ Date:   Tue Nov 30 10:37:57 2010 -0800
     R=gri
     CC=golang-dev, snilsson
     https://golang.org/cl/3280044
-
+---
  src/pkg/sort/sort.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index c5b848414a..2abe22d5c7 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -63,7 +63,7 @@ func swapRange(data Interface, a, b, n int) {
+ }
+ 
+ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
+-	m := (lo + hi) / 2
++	m := lo + (hi-lo)/2 // Written like this to avoid integer overflow.
+ 	if hi-lo > 40 {
+ 		// Tukey's ``Ninther,'' median of three medians of three.
+ 		s := (hi - lo) / 8

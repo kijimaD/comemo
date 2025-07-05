@@ -9,6 +9,98 @@ Date:   Fri Mar 14 23:32:12 2014 +0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/75940043
-
+---
  src/pkg/runtime/mgc0.c | 49 +++++++++++++++++++++++++++++--------------------
  1 file changed, 29 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index b7f6adf394..a726fb41d1 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -248,6 +248,7 @@ static int32	fingwait;
+ static Lock	gclock;
+ 
+ static void	runfinq(void);
++static void	wakefing(void);
+ static void	bgsweep(void);
+ static Workbuf* getempty(Workbuf*);
+ static Workbuf* getfull(Workbuf*);
+@@ -1880,6 +1881,7 @@ static struct
+ {
+ 	G*	g;
+ 	bool	parked;
++	uint32	lastsweepgen;
+ 
+ 	MSpan**	spans;
+ 	uint32	nspan;
+@@ -1894,18 +1896,18 @@ bgsweep(void)
+ 	for(;;) {
+ 		while(runtime·sweepone() != -1) {
+ 			gcstats.nbgsweep++;
++			if(sweep.lastsweepgen != runtime·mheap.sweepgen) {
++				// If bgsweep does not catch up for any reason
++				// (does not finish before next GC),
++				// we still need to kick off runfinq at least once per GC.
++				sweep.lastsweepgen = runtime·mheap.sweepgen;
++				wakefing();
++			}
+ 			runtime·gosched();
+ 		}
++		// kick off goroutine to run queued finalizers
++		wakefing();
+ 		runtime·lock(&gclock);
+-		if(finq != nil) {
+-			// kick off or wake up goroutine to run queued finalizers
+-			if(fing == nil)
+-				fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
+-			else if(fingwait) {
+-				fingwait = 0;
+-				runtime·ready(fing);
+-			}
+-		}
+ 		if(!runtime·mheap.sweepdone) {
+ 			// It's possible if GC has happened between sweepone has
+ 			// returned -1 and gclock lock.
+@@ -2257,17 +2259,8 @@ runtime·gc(int32 force)
+ 
+ 	// now that gc is done, kick off finalizer thread if needed
+ 	if(!ConcurrentSweep) {
+-		if(finq != nil) {
+-			runtime·lock(&gclock);
+-			// kick off or wake up goroutine to run queued finalizers
+-			if(fing == nil)
+-				fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
+-			else if(fingwait) {
+-				fingwait = 0;
+-				runtime·ready(fing);
+-			}
+-			runtime·unlock(&gclock);
+-		}
++		// kick off goroutine to run queued finalizers
++		wakefing();
+ 		// give the queued finalizers, if any, a chance to run
+ 		runtime·gosched();
+ 	}
+@@ -2621,6 +2614,22 @@ runfinq(void)
+ 	}
+ }
+ 
++static void
++wakefing(void)
++{
++	if(finq == nil)
++		return;
++	runtime·lock(&gclock);
++	// kick off or wake up goroutine to run queued finalizers
++	if(fing == nil)
++		fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
++	else if(fingwait) {
++		fingwait = 0;
++		runtime·ready(fing);
++	}
++	runtime·unlock(&gclock);
++}
++
+ void
+ runtime·marknogc(void *v)
+ {

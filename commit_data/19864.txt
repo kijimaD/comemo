@@ -10,7 +10,140 @@ Date:   Fri Aug 1 11:18:11 2014 +1000
     R=golang-codereviews, dvyukov, patrick, aram.h, minux
     CC=golang-codereviews
     https://golang.org/cl/108700045
-
+---
  src/pkg/runtime/os_windows.c | 46 ++++++++++++++++++++++++++++++++++----------
  src/pkg/time/sleep_test.go   | 22 ++++++++++++++++++---
  2 files changed, 55 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 159af048f6..ee6eed002f 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -23,7 +23,6 @@
+ #pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
+ #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
+ #pragma dynimport runtime·GetSystemInfo GetSystemInfo "kernel32.dll"
+-#pragma dynimport runtime·GetSystemTimeAsFileTime GetSystemTimeAsFileTime "kernel32.dll"
+ #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
+ #pragma dynimport runtime·LoadLibrary LoadLibraryW "kernel32.dll"
+ #pragma dynimport runtime·LoadLibraryA LoadLibraryA "kernel32.dll"
+@@ -55,7 +54,6 @@ extern void *runtime·GetEnvironmentStringsW;
+ extern void *runtime·GetProcAddress;
+ extern void *runtime·GetStdHandle;
+ extern void *runtime·GetSystemInfo;
+-extern void *runtime·GetSystemTimeAsFileTime;
+ extern void *runtime·GetThreadContext;
+ extern void *runtime·LoadLibrary;
+ extern void *runtime·LoadLibraryA;
+@@ -265,17 +263,42 @@ runtime·unminit(void)
+ {
+ }
+ 
++// Described in http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
++typedef struct KSYSTEM_TIME {
++	uint32	LowPart;
++	int32	High1Time;
++	int32	High2Time;
++} KSYSTEM_TIME;
++
++const KSYSTEM_TIME* INTERRUPT_TIME	= (KSYSTEM_TIME*)0x7ffe0008;
++const KSYSTEM_TIME* SYSTEM_TIME		= (KSYSTEM_TIME*)0x7ffe0014;
++
+ #pragma textflag NOSPLIT
+ int64
+-runtime·nanotime(void)
++runtime·systime(KSYSTEM_TIME *timeaddr)
+ {
+-	int64 filetime;
+-
+-	runtime·stdcall(runtime·GetSystemTimeAsFileTime, 1, &filetime);
++	KSYSTEM_TIME t;
++	int32 i;
++
++	for(i = 0; i < 10000; i++) {
++		// these fields must be read in that order (see URL above)
++		t.High1Time = timeaddr->High1Time;
++		t.LowPart = timeaddr->LowPart;
++		t.High2Time = timeaddr->High2Time;
++		if(t.High1Time == t.High2Time)
++			return (int64)t.High1Time<<32 | t.LowPart;
++		if((i%100) == 0)
++			runtime·osyield();
++	}
++	runtime·throw("interrupt/system time is changing too fast");
++	return 0;
++}
+ 
+-	// Filetime is 100s of nanoseconds since January 1, 1601.
+-	// Convert to nanoseconds since January 1, 1970.
+-	return (filetime - 116444736000000000LL) * 100LL;
++#pragma textflag NOSPLIT
++int64
++runtime·nanotime(void)
++{
++	return runtime·systime(INTERRUPT_TIME) * 100LL;
+ }
+ 
+ void
+@@ -283,7 +306,10 @@ time·now(int64 sec, int32 usec)
+ {
+ 	int64 ns;
+ 
+-	ns = runtime·nanotime();
++	// SystemTime is 100s of nanoseconds since January 1, 1601.
++	// Convert to nanoseconds since January 1, 1970.
++	ns = (runtime·systime(SYSTEM_TIME) - 116444736000000000LL) * 100LL;
++
+ 	sec = ns / 1000000000LL;
+ 	usec = ns - sec * 1000000000LL;
+ 	FLUSH(&sec);
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index d78490d444..2cfb6a59c2 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -15,6 +15,14 @@ import (
+ 	. "time"
+ )
+ 
++// Go runtime uses different Windows timers for time.Now and sleeping.
++// These can tick at different frequencies and can arrive out of sync.
++// The effect can be seen, for example, as time.Sleep(100ms) is actually
++// shorter then 100ms when measured as difference between time.Now before and
++// after time.Sleep call. This was observed on Windows XP SP3 (windows/386).
++// windowsInaccuracy is to ignore such errors.
++const windowsInaccuracy = 17 * Millisecond
++
+ func TestSleep(t *testing.T) {
+ 	const delay = 100 * Millisecond
+ 	go func() {
+@@ -23,8 +31,12 @@ func TestSleep(t *testing.T) {
+ 	}()
+ 	start := Now()
+ 	Sleep(delay)
++	delayadj := delay
++	if runtime.GOOS == "windows" {
++		delayadj -= windowsInaccuracy
++	}
+ 	duration := Now().Sub(start)
+-	if duration < delay {
++	if duration < delayadj {
+ 		t.Fatalf("Sleep(%s) slept for only %s", delay, duration)
+ 	}
+ }
+@@ -150,10 +162,14 @@ func TestAfter(t *testing.T) {
+ 	const delay = 100 * Millisecond
+ 	start := Now()
+ 	end := <-After(delay)
+-	if duration := Now().Sub(start); duration < delay {
++	delayadj := delay
++	if runtime.GOOS == "windows" {
++		delayadj -= windowsInaccuracy
++	}
++	if duration := Now().Sub(start); duration < delayadj {
+ 		t.Fatalf("After(%s) slept for only %d ns", delay, duration)
+ 	}
+-	if min := start.Add(delay); end.Before(min) {
++	if min := start.Add(delayadj); end.Before(min) {
+ 		t.Fatalf("After(%s) expect >= %s, got %s", delay, min, end)
+ 	}
+ }

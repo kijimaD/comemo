@@ -11,7 +11,7 @@ Date:   Wed Jan 13 17:50:02 2010 -0800
     R=r, dho
     CC=golang-dev
     https://golang.org/cl/186143
-
+---
  src/pkg/runtime/Makefile       |  4 ++++
  src/pkg/runtime/darwin/mem.c   | 28 ++++++++++++++++++++++++++++
  src/pkg/runtime/freebsd/mem.c  | 28 ++++++++++++++++++++++++++++
@@ -25,3 +25,347 @@ Date:   Wed Jan 13 17:50:02 2010 -0800
  src/pkg/runtime/runtime1.cgo   | 11 +++++++++++
  src/pkg/runtime/string.cgo     |  2 +-
  12 files changed, 148 insertions(+), 66 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 80bb521b31..370a97309f 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -62,6 +62,7 @@ OFILES=\
+ 	reflect.$O\
+ 	rune.$O\
+ 	runtime.$O\
++	runtime1.$O\
+ 	rt0.$O\
+ 	sema.$O\
+ 	signal.$O\
+@@ -73,6 +74,7 @@ OFILES=\
+ 	thread.$O\
+ 	traceback.$O\
+ 	$(OFILES_$(GOARCH))\
++	$(OFILES_$(GOOS))\
+ 
+ HFILES=\
+ 	cgocall.h\
+@@ -84,6 +86,8 @@ HFILES=\
+ 	$(GOOS)/signals.h\
+ 	$(GOOS)/$(GOARCH)/defs.h\
+ 
++GOFILES+=$(GOFILES_$(GOOS))
++
+ include ../../Make.pkg
+ 
+ clean: clean-local
+diff --git a/src/pkg/runtime/darwin/mem.c b/src/pkg/runtime/darwin/mem.c
+new file mode 100644
+index 0000000000..52e351a7d7
+--- /dev/null
++++ b/src/pkg/runtime/darwin/mem.c
+@@ -0,0 +1,28 @@
++#include "runtime.h"
++#include "defs.h"
++#include "os.h"
++#include "malloc.h"
++
++void*
++SysAlloc(uintptr n)
++{
++	mstats.sys += n;
++	return runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++}
++
++void
++SysUnused(void *v, uintptr n)
++{
++	USED(v);
++	USED(n);
++	// TODO(rsc): call madvise MADV_DONTNEED
++}
++
++void
++SysFree(void *v, uintptr n)
++{
++	USED(v);
++	USED(n);
++	// TODO(rsc): call munmap
++}
++
+diff --git a/src/pkg/runtime/freebsd/mem.c b/src/pkg/runtime/freebsd/mem.c
+new file mode 100644
+index 0000000000..52e351a7d7
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/mem.c
+@@ -0,0 +1,28 @@
++#include "runtime.h"
++#include "defs.h"
++#include "os.h"
++#include "malloc.h"
++
++void*
++SysAlloc(uintptr n)
++{
++	mstats.sys += n;
++	return runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++}
++
++void
++SysUnused(void *v, uintptr n)
++{
++	USED(v);
++	USED(n);
++	// TODO(rsc): call madvise MADV_DONTNEED
++}
++
++void
++SysFree(void *v, uintptr n)
++{
++	USED(v);
++	USED(n);
++	// TODO(rsc): call munmap
++}
++
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/linux/mem.c
+new file mode 100644
+index 0000000000..7f837bd45e
+--- /dev/null
++++ b/src/pkg/runtime/linux/mem.c
+@@ -0,0 +1,40 @@
++#include "runtime.h"
++#include "defs.h"
++#include "os.h"
++#include "malloc.h"
++
++void*
++SysAlloc(uintptr n)
++{
++	void *p;
++
++	mstats.sys += n;
++	p = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++	if(p < (void*)4096) {
++		if(p == (void*)EACCES) {
++			printf("mmap: access denied\n");
++			printf("If you're running SELinux, enable execmem for this process.\n");
++		} else {
++			printf("mmap: errno=%p\n", p);
++		}
++		exit(2);
++	}
++	return p;
++}
++
++void
++SysUnused(void *v, uintptr n)
++{
++	USED(v);
++	USED(n);
++	// TODO(rsc): call madvise MADV_DONTNEED
++}
++
++void
++SysFree(void *v, uintptr n)
++{
++	USED(v);
++	USED(n);
++	// TODO(rsc): call munmap
++}
++
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index a85c39d83d..6acbac2eb0 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -205,41 +205,6 @@ mallocinit(void)
+ 	free(malloc(1));
+ }
+ 
+-void*
+-SysAlloc(uintptr n)
+-{
+-	void *p;
+-
+-	mstats.sys += n;
+-	p = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(p < (void*)4096) {
+-		if(p == (void*)EACCES) {
+-			printf("mmap: access denied\n");
+-			printf("If you're running SELinux, enable execmem for this process.\n");
+-		} else {
+-			printf("mmap: errno=%p\n", p);
+-		}
+-		exit(2);
+-	}
+-	return p;
+-}
+-
+-void
+-SysUnused(void *v, uintptr n)
+-{
+-	USED(v);
+-	USED(n);
+-	// TODO(rsc): call madvise MADV_DONTNEED
+-}
+-
+-void
+-SysFree(void *v, uintptr n)
+-{
+-	USED(v);
+-	USED(n);
+-	// TODO(rsc): call munmap
+-}
+-
+ // Runtime stubs.
+ 
+ void*
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index b3fa8e0dfb..e07faf39f1 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -303,6 +303,10 @@ void*	mallocgc(uintptr size, uint32 flag, int32 dogc);
+ int32	mlookup(void *v, byte **base, uintptr *size, uint32 **ref);
+ void	gc(int32 force);
+ 
++void*	SysAlloc(uintptr);
++void	SysUnused(void*, uintptr);
++void	SysFree(void*, uintptr);
++
+ enum
+ {
+ 	RefcountOverhead = 4,	// one uint32 per object
+diff --git a/src/pkg/runtime/mem.c b/src/pkg/runtime/mem.c
+deleted file mode 100644
+index f2796b7295..0000000000
+--- a/src/pkg/runtime/mem.c
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs.h"
+-
+-// Stubs for memory management.
+-// In a separate file so they can be overridden during testing of gc.
+-
+-enum
+-{
+-	NHUNK		= 20<<20,
+-};
+-
+-void
+-runtime·mal(uint32 n, uint8 *ret)
+-{
+-	ret = mal(n);
+-	FLUSH(&ret);
+-}
+diff --git a/src/pkg/runtime/mingw/mem.c b/src/pkg/runtime/mingw/mem.c
+new file mode 100644
+index 0000000000..256ad9a7b4
+--- /dev/null
++++ b/src/pkg/runtime/mingw/mem.c
+@@ -0,0 +1,29 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "os.h"
++#include "defs.h"
++#include "malloc.h"
++
++void*
++SysAlloc(uintptr n)
++{
++	return stdcall(VirtualAlloc, nil, n, 0x3000, 0x40);
++}
++
++void
++SysUnused(void *v, uintptr n)
++{
++	USED(v);
++	USED(n);
++}
++
++void
++SysFree(void *v, uintptr n)
++{
++	USED(v);
++	USED(n);
++}
++
+diff --git a/src/pkg/runtime/mingw/os.h b/src/pkg/runtime/mingw/os.h
+index 8470cc0e58..3864dbf8f1 100644
+--- a/src/pkg/runtime/mingw/os.h
++++ b/src/pkg/runtime/mingw/os.h
+@@ -11,6 +11,8 @@ void *get_proc_addr(void *library, void *name);
+ void *stdcall(void *fn, ...);
+ void *stdcall_raw(void *fn, ...);
+ 
++extern void *VirtualAlloc;
++
+ #define goargs mingw_goargs
+ void mingw_goargs(void);
+ 
+diff --git a/src/pkg/runtime/mingw/thread.c b/src/pkg/runtime/mingw/thread.c
+index 979fd42247..89f33f8a4a 100644
+--- a/src/pkg/runtime/mingw/thread.c
++++ b/src/pkg/runtime/mingw/thread.c
+@@ -15,13 +15,13 @@ void *ExitProcess;
+ void *GetStdHandle;
+ void *SetEvent;
+ void *WriteFile;
++void *VirtualAlloc;
+ 
+ static void *CreateEvent;
+ static void *CreateThread;
+ static void *GetModuleHandle;
+ static void *GetProcAddress;
+ static void *LoadLibraryEx;
+-static void *VirtualAlloc;
+ static void *WaitForSingleObject;
+ 
+ static void*
+@@ -148,14 +148,6 @@ write(int32 fd, void *buf, int32 n)
+ 	return written;
+ }
+ 
+-uint8*
+-runtime_mmap(byte *addr, uint32 len, int32 prot,
+-	int32 flags, int32 fd, uint32 off)
+-{
+-	USED(prot, flags, fd, off);
+-	return stdcall(VirtualAlloc, addr, len, 0x3000, 0x40);
+-}
+-
+ void*
+ get_symdat_addr(void)
+ {
+diff --git a/src/pkg/runtime/runtime1.cgo b/src/pkg/runtime/runtime1.cgo
+new file mode 100644
+index 0000000000..7e5f323c12
+--- /dev/null
++++ b/src/pkg/runtime/runtime1.cgo
+@@ -0,0 +1,11 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++#include "runtime.h"
++
++func mal(n uint32) (ret *uint8) {
++	ret = mal(n);
++}
++
+diff --git a/src/pkg/runtime/string.cgo b/src/pkg/runtime/string.cgo
+index 03b05618d8..c615768f3c 100644
+--- a/src/pkg/runtime/string.cgo
++++ b/src/pkg/runtime/string.cgo
+@@ -31,7 +31,7 @@ findnullw(uint16 *s)
+ 	return l;
+ }
+ 
+-int32 maxstring;
++int32 maxstring = 256;
+ 
+ String
+ gostringsize(int32 l)

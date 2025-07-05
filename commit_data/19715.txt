@@ -8,7 +8,66 @@ Date:   Thu Jul 10 15:15:32 2014 -0400
     R=rsc, iant, dave
     CC=golang-codereviews
     https://golang.org/cl/109390043
-
+---
  misc/nacl/README           | 10 +++++++---
  misc/nacl/go_nacl_arm_exec | 10 ++++++++++
  2 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/misc/nacl/README b/misc/nacl/README
+index 9cc2bda604..710587dfce 100644
+--- a/misc/nacl/README
++++ b/misc/nacl/README
+@@ -3,10 +3,11 @@ Native Client
+ 
+ This document outlines the basics of building and developing the Go runtime and programs in the Native Client (NaCl) environment.
+ 
+-Go 1.3 supports two architectures
++Go 1.3 supports three architectures
+ 
+  * nacl/386 which is standard 386.
+  * nacl/amd64p32 which is a 64 bit architecture, where the address space is limited to a 4gb window. 
++ * nacl/arm which is 32-bit ARMv7A architecture with 1GB address space.
+ 
+ For background it is recommended that you read http://golang.org/s/go13nacl.
+ 
+@@ -28,12 +29,14 @@ The zip file contains a small skeleton that can be used to download the correct
+ 	% cd /opt/nacl_sdk
+ 	% ./naclsdk update
+ 
+-At this time pepper_33 is the stable version. If naclsdk downloads a later version, please adjust accordingly.
++At this time pepper_33 is the stable version. If naclsdk downloads a later version, please adjust accordingly. As of June 2014, only the canary sdk provides support for nacl/arm.
+ 
+-The cmd/go helper scripts expect that the runtime loaders, sel_ldr_x86_{32,64} are in your path. I find it easiest to make a symlink from the NaCl distribution to my $GOPATH/bin directory.
++The cmd/go helper scripts expect that the runtime loaders, sel_ldr_{x86_{32,64},arm} and nacl_helper_bootstrap_arm are in your path. I find it easiest to make a symlink from the NaCl distribution to my $GOPATH/bin directory.
+ 
+ 	% ln -nfs /opt/nacl_sdk/pepper_33/tools/sel_ldr_x86_32 $GOPATH/bin/sel_ldr_x86_32
+ 	% ln -nfs /opt/nacl_sdk/pepper_33/tools/sel_ldr_x86_64 $GOPATH/bin/sel_ldr_x86_64
++	% ln -nfs /opt/nacl_sdk/pepper_canary/tools/sel_ldr_arm $GOPATH/bin/sel_ldr_arm
++	% ln -nfs /opt/nacl_sdk/pepper_canary/tools/nacl_helper_bootstrap_arm $GOPATH/bin/nacl_helper_bootstrap_arm # only required for NaCl/ARM.
+ 
+ Support scripts
+ ---------------
+@@ -42,6 +45,7 @@ Symlink the two scripts in this directory into your $PATH, just as you did with
+ 
+ 	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_amd64p32_exec $GOPATH/bin/go_nacl_amd64p32_exec
+ 	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_386_exec $GOPATH/bin/go_nacl_386_exec
++	% ln -nfs $GOROOT/go/misc/nacl/go_nacl_arm_exec $GOPATH/bin/go_nacl_arm_exec
+ 
+ Building and testing
+ --------------------
+diff --git a/misc/nacl/go_nacl_arm_exec b/misc/nacl/go_nacl_arm_exec
+new file mode 100755
+index 0000000000..4275cb1111
+--- /dev/null
++++ b/misc/nacl/go_nacl_arm_exec
+@@ -0,0 +1,10 @@
++#!/bin/bash
++
++eval $(go env)
++
++export NACLENV_GOARCH=$GOARCH
++export NACLENV_GOOS=$GOOS
++export NACLENV_GOROOT=/go
++export NACLENV_NACLPWD=$(pwd | sed "s;$GOROOT;/go;")
++
++exec nacl_helper_bootstrap_arm $(which sel_ldr_arm) --reserved_at_zero=0xXXXXXXXXXXXXXXXX -l /dev/null -S -e "$@"

@@ -114,6 +114,32 @@ Date:   Thu Jul 20 10:58:23 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 688f36afb0..f4523ee7a2 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -879,13 +879,19 @@ func gcSetTriggerRatio(triggerRatio float64) {
+ 
+ // gcGoalUtilization is the goal CPU utilization for
+ // marking as a fraction of GOMAXPROCS.
+-const gcGoalUtilization = 0.25
++const gcGoalUtilization = 0.30
+ 
+ // gcBackgroundUtilization is the fixed CPU utilization for background
+ // marking. It must be <= gcGoalUtilization. The difference between
+ // gcGoalUtilization and gcBackgroundUtilization will be made up by
+ // mark assists. The scheduler will aim to use within 50% of this
+ // goal.
++//
++// Setting this to < gcGoalUtilization avoids saturating the trigger
++// feedback controller when there are no assists, which allows it to
++// better control CPU and heap growth. However, the larger the gap,
++// the more mutator assists are expected to happen, which impact
++// mutator latency.
+ const gcBackgroundUtilization = 0.25
+ 
+ // gcCreditSlack is the amount of scan work credit that can can

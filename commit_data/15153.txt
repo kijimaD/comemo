@@ -7,6 +7,19 @@ Date:   Wed Feb 6 08:21:03 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7311053
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index aec4580312..d7e8930575 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -161,6 +161,7 @@ Francesc Campoy <campoy@golang.org>
+ Francisco Souza <franciscossouza@gmail.com>
+ Frithjof Schulze <schulze@math.uni-hannover.de>
+ Fumitoshi Ukai <ukai@google.com>
++Gaal Yahas <gaal@google.com>
+ Gary Burd <gary@beagledreams.com> <gary.burd@gmail.com>
+ Georg Reinke <guelfey@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>

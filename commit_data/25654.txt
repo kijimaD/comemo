@@ -12,7 +12,7 @@ Date:   Thu Nov 12 15:35:50 2015 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_386.s           | 6 +++---
  src/runtime/asm_amd64.s         | 4 ++--
  src/runtime/asm_amd64p32.s      | 4 ++--
@@ -20,3 +20,116 @@ Date:   Thu Nov 12 15:35:50 2015 -0800
  src/runtime/rt0_linux_ppc64le.s | 3 ++-
  src/runtime/runtime.go          | 2 --
  6 files changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 8db8aa9eef..3654db4d0c 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -83,7 +83,7 @@ needtls:
+ 	// store through it, to make sure it works
+ 	get_tls(BX)
+ 	MOVL	$0x123, g(BX)
+-	MOVL	runtime·tls0(SB), AX
++	MOVL	runtime·m0+m_tls(SB), AX
+ 	CMPL	AX, $0x123
+ 	JEQ	ok
+ 	MOVL	AX, 0	// abort
+@@ -765,11 +765,11 @@ done:
+ 	RET
+ 
+ TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
+-	// set up ldt 7 to point at tls0
++	// set up ldt 7 to point at m0.tls
+ 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
+ 	// the entry number is just a hint.  setldt will set up GS with what it used.
+ 	MOVL	$7, 0(SP)
+-	LEAL	runtime·tls0(SB), AX
++	LEAL	runtime·m0+m_tls(SB), AX
+ 	MOVL	AX, 4(SP)
+ 	MOVL	$32, 8(SP)	// sizeof(tls array)
+ 	CALL	runtime·setldt(SB)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 2f8940a678..4e5e8f7512 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -104,13 +104,13 @@ needtls:
+ 	JMP ok
+ #endif
+ 
+-	LEAQ	runtime·tls0(SB), DI
++	LEAQ	runtime·m0+m_tls(SB), DI
+ 	CALL	runtime·settls(SB)
+ 
+ 	// store through it, to make sure it works
+ 	get_tls(BX)
+ 	MOVQ	$0x123, g(BX)
+-	MOVQ	runtime·tls0(SB), AX
++	MOVQ	runtime·m0+m_tls(SB), AX
+ 	CMPQ	AX, $0x123
+ 	JEQ 2(PC)
+ 	MOVL	AX, 0	// abort
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index aeb9d131b2..8119d91e1b 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -39,13 +39,13 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ nocpuinfo:	
+ 	
+ needtls:
+-	LEAL	runtime·tls0(SB), DI
++	LEAL	runtime·m0+m_tls(SB), DI
+ 	CALL	runtime·settls(SB)
+ 
+ 	// store through it, to make sure it works
+ 	get_tls(BX)
+ 	MOVQ	$0x123, g(BX)
+-	MOVQ	runtime·tls0(SB), AX
++	MOVQ	runtime·m0+m_tls(SB), AX
+ 	CMPQ	AX, $0x123
+ 	JEQ 2(PC)
+ 	MOVL	AX, 0	// abort
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index f5301db1a4..bd514724f1 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -577,9 +577,6 @@ func profilem(mp *m) {
+ 	rbuf := make([]byte, unsafe.Sizeof(*r)+15)
+ 
+ 	tls := &mp.tls[0]
+-	if mp == &m0 {
+-		tls = &tls0[0]
+-	}
+ 	gp := *((**g)(unsafe.Pointer(tls)))
+ 
+ 	// align Context to 16 bytes
+diff --git a/src/runtime/rt0_linux_ppc64le.s b/src/runtime/rt0_linux_ppc64le.s
+index 5616e1d5b3..ac7b9225a4 100644
+--- a/src/runtime/rt0_linux_ppc64le.s
++++ b/src/runtime/rt0_linux_ppc64le.s
+@@ -1,3 +1,4 @@
++#include "go_asm.h"
+ #include "textflag.h"
+ 
+ TEXT _rt0_ppc64le_linux(SB),NOSPLIT,$0
+@@ -22,7 +23,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
+ 	// Statically linked
+ 	MOVD	0(R1), R3 // argc
+ 	ADD	$8, R1, R4 // argv
+-	MOVD	$runtime·tls0(SB), R13 // TLS
++	MOVD	$runtime·m0+m_tls(SB), R13 // TLS
+ 	ADD	$0x7000, R13
+ 
+ dlink:
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 0bbe42739d..265edf28b3 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -19,8 +19,6 @@ var ticks struct {
+ 	val  uint64
+ }
+ 
+-var tls0 [8]uintptr // available storage for m0's TLS; not necessarily used; opaque to GC
+-
+ // Note: Called by runtime/pprof in addition to runtime code.
+ func tickspersecond() int64 {
+ 	r := int64(atomic.Load64(&ticks.val))

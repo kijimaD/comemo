@@ -15,8 +15,51 @@ Date:   Sun Sep 3 00:08:17 2023 +0800
     Reviewed-by: Keith Randall <khr@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/ARM64Ops.go | 4 ++--
  src/cmd/compile/internal/ssa/_gen/rulegen.go  | 2 +-
  src/cmd/internal/obj/x86/asm6.go              | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+index 3ded6e7a55..5a98aa0c54 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+@@ -196,9 +196,9 @@ func init() {
+ 		{name: "MULL", argLength: 2, reg: gp21, asm: "SMULL", commutative: true},                                      // arg0 * arg1, signed, 32-bit mult results in 64-bit
+ 		{name: "UMULL", argLength: 2, reg: gp21, asm: "UMULL", commutative: true},                                     // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
+ 		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV"},                                                           // arg0 / arg1, signed
+-		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                                                          // arg0 / arg1, unsighed
++		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                                                          // arg0 / arg1, unsigned
+ 		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW"},                                                         // arg0 / arg1, signed, 32 bit
+-		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                                                        // arg0 / arg1, unsighed, 32 bit
++		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                                                        // arg0 / arg1, unsigned, 32 bit
+ 		{name: "MOD", argLength: 2, reg: gp21, asm: "REM"},                                                            // arg0 % arg1, signed
+ 		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM"},                                                          // arg0 % arg1, unsigned
+ 		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                                                          // arg0 % arg1, signed, 32 bit
+diff --git a/src/cmd/compile/internal/ssa/_gen/rulegen.go b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+index 15be9a1c50..072df298f3 100644
+--- a/src/cmd/compile/internal/ssa/_gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+@@ -1400,7 +1400,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
+ 	if op.name == "" {
+ 		// Failed to find the op.
+ 		// Run through everything again with strict=false
+-		// to generate useful diagnosic messages before failing.
++		// to generate useful diagnostic messages before failing.
+ 		for _, x := range genericOps {
+ 			match(x, false, "generic")
+ 		}
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 5e988eaf48..bdd75b4ef8 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -301,7 +301,7 @@ const (
+ 	Py   = 0x80 // defaults to 64-bit mode
+ 	Py1  = 0x81 // symbolic; exact value doesn't matter
+ 	Py3  = 0x83 // symbolic; exact value doesn't matter
+-	Pavx = 0x84 // symbolic: exact value doesn't matter
++	Pavx = 0x84 // symbolic; exact value doesn't matter
+ 
+ 	RxrEvex = 1 << 4 // AVX512 extension to REX.R/VEX.R
+ 	Rxw     = 1 << 3 // =1, 64-bit operand size

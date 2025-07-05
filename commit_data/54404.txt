@@ -14,8 +14,55 @@ Date:   Wed Jun 8 10:56:36 2022 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/411276
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  misc/cgo/testsanitizers/cc_test.go   | 2 ++
  misc/cgo/testsanitizers/msan_test.go | 6 +++++-
  src/cmd/dist/test.go                 | 5 +++--
  3 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index 3c67448dcd..af85f99325 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -540,6 +540,8 @@ func mSanSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+ 		return goarch == "amd64" || goarch == "arm64"
++	case "freebsd":
++		return goarch == "amd64"
+ 	default:
+ 		return false
+ 	}
+diff --git a/misc/cgo/testsanitizers/msan_test.go b/misc/cgo/testsanitizers/msan_test.go
+index 4043e3ecf9..96397e0a87 100644
+--- a/misc/cgo/testsanitizers/msan_test.go
++++ b/misc/cgo/testsanitizers/msan_test.go
+@@ -24,7 +24,11 @@ func TestMSAN(t *testing.T) {
+ 	}
+ 
+ 	t.Parallel()
+-	requireOvercommit(t)
++	// Overcommit is enabled by default on FreeBSD (vm.overcommit=0, see tuning(7)).
++	// Do not skip tests with stricter overcommit settings unless testing shows that FreeBSD has similar issues.
++	if goos == "linux" {
++		requireOvercommit(t)
++	}
+ 	config := configure("memory")
+ 	config.skipIfCSanitizerBroken(t)
+ 
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index fb0f1e1352..54eb41c8a4 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -832,8 +832,9 @@ func (t *tester) registerTests() {
+ 		if gohostos == "linux" && (goarch == "amd64" || goarch == "ppc64le") {
+ 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
+ 		}
+-		if goos == "linux" {
+-			// because syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only built on linux.
++		if goos == "linux" || (goos == "freebsd" && goarch == "amd64") {
++			// because Pdeathsig of syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only
++			// supported on Linux and FreeBSD.
+ 			t.registerHostTest("testsanitizers", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+ 		}
+ 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {

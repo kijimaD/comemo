@@ -27,7 +27,38 @@ Date:   Mon Mar 25 11:14:27 2024 -0500
     Reviewed-by: Eli Bendersky <eliben@google.com>
     Auto-Submit: Than McIntosh <thanm@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/crypto/aes/cbc_ppc64x.go | 4 ++--
  src/crypto/aes/gcm_ppc64x.go | 3 ++-
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/aes/cbc_ppc64x.go b/src/crypto/aes/cbc_ppc64x.go
+index 2cb9606e58..d5b491e8e1 100644
+--- a/src/crypto/aes/cbc_ppc64x.go
++++ b/src/crypto/aes/cbc_ppc64x.go
+@@ -59,9 +59,9 @@ func (x *cbc) CryptBlocks(dst, src []byte) {
+ 	}
+ 	if len(src) > 0 {
+ 		if x.enc == cbcEncrypt {
+-			cryptBlocksChain(&src[0], &dst[0], len(src), &x.b.enc[0], &x.iv[0], x.enc, len(x.b.enc)/4-1)
++			cryptBlocksChain(&src[0], &dst[0], len(src), &x.b.enc[0], &x.iv[0], x.enc, int(x.b.l)/4-1)
+ 		} else {
+-			cryptBlocksChain(&src[0], &dst[0], len(src), &x.b.dec[0], &x.iv[0], x.enc, len(x.b.dec)/4-1)
++			cryptBlocksChain(&src[0], &dst[0], len(src), &x.b.dec[0], &x.iv[0], x.enc, int(x.b.l)/4-1)
+ 		}
+ 	}
+ }
+diff --git a/src/crypto/aes/gcm_ppc64x.go b/src/crypto/aes/gcm_ppc64x.go
+index f206b47607..20b0eade0a 100644
+--- a/src/crypto/aes/gcm_ppc64x.go
++++ b/src/crypto/aes/gcm_ppc64x.go
+@@ -119,7 +119,8 @@ func (g *gcmAsm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
+ // counterCryptASM implements counterCrypt which then allows the loop to
+ // be unrolled and optimized.
+ func (g *gcmAsm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
+-	counterCryptASM(len(g.cipher.enc)/4-1, out, in, counter, &g.cipher.enc[0])
++	counterCryptASM(int(g.cipher.l)/4-1, out, in, counter, &g.cipher.enc[0])
++
+ }
+ 
+ // increments the rightmost 32-bits of the count value by 1.

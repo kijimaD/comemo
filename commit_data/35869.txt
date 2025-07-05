@@ -7,6 +7,34 @@ Date:   Wed Mar 14 11:19:42 2018 -0700
     Change-Id: I7ed40507a019c0bf521ba748fc22c03d74bb17b7
     Reviewed-on: https://go-review.googlesource.com/100719
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/big/nat.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index c1812e3544..436c108c96 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -5,6 +5,11 @@
+ // This file implements unsigned multi-precision integers (natural
+ // numbers). They are the building blocks for the implementation
+ // of signed integers, rationals, and floating-point numbers.
++//
++// Caution: This implementation relies on the function "alias"
++//          which assumes that (nat) slice capacities are never
++//          changed (no 3-operand slice expressions). If that
++//          changes, alias needs to be updated for correctness.
+ 
+ package big
+ 
+@@ -352,6 +357,10 @@ func karatsuba(z, x, y nat) {
+ }
+ 
+ // alias reports whether x and y share the same base array.
++// Note: alias assumes that the capacity of underlying arrays
++//       is never changed for nat values; i.e. that there are
++//       no 3-operand slice expressions in this code (or worse,
++//       reflect-based operations to the same effect).
+ func alias(x, y nat) bool {
+ 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
+ }

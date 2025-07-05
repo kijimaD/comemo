@@ -9,7 +9,58 @@ Date:   Mon Jul 13 18:17:24 2015 -0600
     Change-Id: I83530533db84b07cb88dbf6ec690be48a06a9d7d
     Reviewed-on: https://go-review.googlesource.com/12152
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec/exec.go      | 10 ++++++++++
  src/os/exec/exec_test.go | 21 +++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index a263795814..e3c6fb62b1 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -180,6 +180,16 @@ func (c *Cmd) stdin() (f *os.File, err error) {
+ 	c.closeAfterWait = append(c.closeAfterWait, pw)
+ 	c.goroutine = append(c.goroutine, func() error {
+ 		_, err := io.Copy(pw, c.Stdin)
++
++		// Ignore EPIPE errors copying to stdin if the program
++		// completed successfully otherwise.
++		// See Issue 9173.
++		if pe, ok := err.(*os.PathError); ok &&
++			pe.Op == "write" && pe.Path == "|1" &&
++			pe.Err == syscall.EPIPE {
++			err = nil
++		}
++
+ 		if err1 := pw.Close(); err == nil {
+ 			err = err1
+ 		}
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 96d41cbc8e..6888d29cd8 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -765,3 +765,24 @@ func TestHelperProcess(*testing.T) {
+ 		os.Exit(2)
+ 	}
+ }
++
++// Issue 9173: ignore stdin pipe writes if the program completes successfully.
++func TestIgnorePipeErrorOnSuccess(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	// We really only care about testing this on Unixy things.
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++		t.Skipf("skipping test on %q", runtime.GOOS)
++	}
++
++	cmd := helperCommand(t, "echo", "foo")
++	var out bytes.Buffer
++	cmd.Stdin = strings.NewReader(strings.Repeat("x", 10<<20))
++	cmd.Stdout = &out
++	if err := cmd.Run(); err != nil {
++		t.Fatal(err)
++	}
++	if got, want := out.String(), "foo\n"; got != want {
++		t.Errorf("output = %q; want %q", got, want)
++	}
++}

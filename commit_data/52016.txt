@@ -24,10 +24,248 @@ Date:   Tue Mar 22 08:49:52 2022 -0400
     Trust: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/51868.txt                                 |  36 ++++++++
  src/debug/pe/section.go                            |  12 +++
  src/debug/pe/symbol.go                             |  59 +++++++++++++
  src/debug/pe/symbols_test.go                       |  91 +++++++++++++++++++++
  .../llvm-mingw-20211002-msvcrt-x86_64-crt2         | Bin 0 -> 24046 bytes
  5 files changed, 198 insertions(+)
+
+diff --git a/api/next/51868.txt b/api/next/51868.txt
+new file mode 100644
+index 0000000000..cbf0324d5f
+--- /dev/null
++++ b/api/next/51868.txt
+@@ -0,0 +1,36 @@
++pkg debug/pe, const IMAGE_COMDAT_SELECT_ANY = 2 #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_ANY ideal-int #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_ASSOCIATIVE = 5 #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_ASSOCIATIVE ideal-int #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_EXACT_MATCH = 4 #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_EXACT_MATCH ideal-int #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_LARGEST = 6 #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_LARGEST ideal-int #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_NODUPLICATES = 1 #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_NODUPLICATES ideal-int #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_SAME_SIZE = 3 #51686
++pkg debug/pe, const IMAGE_COMDAT_SELECT_SAME_SIZE ideal-int #51686
++pkg debug/pe, const IMAGE_SCN_CNT_CODE = 32 #51686
++pkg debug/pe, const IMAGE_SCN_CNT_CODE ideal-int #51686
++pkg debug/pe, const IMAGE_SCN_CNT_INITIALIZED_DATA = 64 #51686
++pkg debug/pe, const IMAGE_SCN_CNT_INITIALIZED_DATA ideal-int #51686
++pkg debug/pe, const IMAGE_SCN_CNT_UNINITIALIZED_DATA = 128 #51686
++pkg debug/pe, const IMAGE_SCN_CNT_UNINITIALIZED_DATA ideal-int #51686
++pkg debug/pe, const IMAGE_SCN_LNK_COMDAT = 4096 #51686
++pkg debug/pe, const IMAGE_SCN_LNK_COMDAT ideal-int #51686
++pkg debug/pe, const IMAGE_SCN_MEM_DISCARDABLE = 33554432 #51686
++pkg debug/pe, const IMAGE_SCN_MEM_DISCARDABLE ideal-int #51686
++pkg debug/pe, const IMAGE_SCN_MEM_EXECUTE = 536870912 #51686
++pkg debug/pe, const IMAGE_SCN_MEM_EXECUTE ideal-int #51686
++pkg debug/pe, const IMAGE_SCN_MEM_READ = 1073741824 #51686
++pkg debug/pe, const IMAGE_SCN_MEM_READ ideal-int #51686
++pkg debug/pe, const IMAGE_SCN_MEM_WRITE = 2147483648 #51686
++pkg debug/pe, const IMAGE_SCN_MEM_WRITE ideal-int #51686
++pkg debug/pe, method (*File) COFFSymbolReadSectionDefAux(int) (*COFFSymbolAuxFormat5, error) #51686
++pkg debug/pe, type COFFSymbolAuxFormat5 struct #51686
++pkg debug/pe, type COFFSymbolAuxFormat5 struct, Checksum uint32 #51686
++pkg debug/pe, type COFFSymbolAuxFormat5 struct, NumLineNumbers uint16 #51686
++pkg debug/pe, type COFFSymbolAuxFormat5 struct, NumRelocs uint16 #51686
++pkg debug/pe, type COFFSymbolAuxFormat5 struct, SecNum uint16 #51686
++pkg debug/pe, type COFFSymbolAuxFormat5 struct, Selection uint8 #51686
++pkg debug/pe, type COFFSymbolAuxFormat5 struct, Size uint32 #51686
+diff --git a/src/debug/pe/section.go b/src/debug/pe/section.go
+index b641158ecc..ee59dedeb4 100644
+--- a/src/debug/pe/section.go
++++ b/src/debug/pe/section.go
+@@ -109,3 +109,15 @@ func (s *Section) Data() ([]byte, error) {
+ func (s *Section) Open() io.ReadSeeker {
+ 	return io.NewSectionReader(s.sr, 0, 1<<63-1)
+ }
++
++// Section characteristics flags.
++const (
++	IMAGE_SCN_CNT_CODE               = 0x00000020
++	IMAGE_SCN_CNT_INITIALIZED_DATA   = 0x00000040
++	IMAGE_SCN_CNT_UNINITIALIZED_DATA = 0x00000080
++	IMAGE_SCN_LNK_COMDAT             = 0x00001000
++	IMAGE_SCN_MEM_DISCARDABLE        = 0x02000000
++	IMAGE_SCN_MEM_EXECUTE            = 0x20000000
++	IMAGE_SCN_MEM_READ               = 0x40000000
++	IMAGE_SCN_MEM_WRITE              = 0x80000000
++)
+diff --git a/src/debug/pe/symbol.go b/src/debug/pe/symbol.go
+index 7fa5948641..0dfd5d90b8 100644
+--- a/src/debug/pe/symbol.go
++++ b/src/debug/pe/symbol.go
+@@ -8,6 +8,7 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
++	"unsafe"
+ )
+ 
+ const COFFSymbolSize = 18
+@@ -96,3 +97,61 @@ type Symbol struct {
+ 	Type          uint16
+ 	StorageClass  uint8
+ }
++
++// COFFSymbolAuxFormat5 describes the expected form of an aux symbol
++// attached to a section definition symbol. The PE format defines a
++// number of different aux symbol formats: format 1 for function
++// definitions, format 2 for .be and .ef symbols, and so on. Format 5
++// holds extra info associated with a section definition, including
++// number of relocations + line numbers, as well as COMDAT info. See
++// https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-5-section-definitions
++// for more on what's going on here.
++type COFFSymbolAuxFormat5 struct {
++	Size           uint32
++	NumRelocs      uint16
++	NumLineNumbers uint16
++	Checksum       uint32
++	SecNum         uint16
++	Selection      uint8
++	_              [3]uint8 // padding
++}
++
++// These constants make up the possible values for the 'Selection'
++// field in an AuxFormat5.
++const (
++	IMAGE_COMDAT_SELECT_NODUPLICATES = 1
++	IMAGE_COMDAT_SELECT_ANY          = 2
++	IMAGE_COMDAT_SELECT_SAME_SIZE    = 3
++	IMAGE_COMDAT_SELECT_EXACT_MATCH  = 4
++	IMAGE_COMDAT_SELECT_ASSOCIATIVE  = 5
++	IMAGE_COMDAT_SELECT_LARGEST      = 6
++)
++
++// COFFSymbolReadSectionDefAux returns a blob of axiliary information
++// (including COMDAT info) for a section definition symbol. Here 'idx'
++// is the index of a section symbol in the main COFFSymbol array for
++// the File. Return value is a pointer to the appropriate aux symbol
++// struct. For more info, see:
++//
++// auxiliary symbols: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-symbol-records
++// COMDAT sections: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#comdat-sections-object-only
++// auxiliary info for section definitions: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-5-section-definitions
++//
++func (f *File) COFFSymbolReadSectionDefAux(idx int) (*COFFSymbolAuxFormat5, error) {
++	var rv *COFFSymbolAuxFormat5
++	if idx < 0 || idx > len(f.COFFSymbols) {
++		return rv, fmt.Errorf("invalid symbol index")
++	}
++	pesym := &f.COFFSymbols[idx]
++	const IMAGE_SYM_CLASS_STATIC = 3
++	if pesym.StorageClass != uint8(IMAGE_SYM_CLASS_STATIC) {
++		return rv, fmt.Errorf("incorrect symbol storage class")
++	}
++	if pesym.NumberOfAuxSymbols == 0 || idx+1 >= len(f.COFFSymbols) {
++		return rv, fmt.Errorf("aux symbol unavailable")
++	}
++	// Locate and return a pointer to the successor aux symbol.
++	pesymn := &f.COFFSymbols[idx+1]
++	rv = (*COFFSymbolAuxFormat5)(unsafe.Pointer(pesymn))
++	return rv, nil
++}
+diff --git a/src/debug/pe/symbols_test.go b/src/debug/pe/symbols_test.go
+new file mode 100644
+index 0000000000..c4dcd95391
+--- /dev/null
++++ b/src/debug/pe/symbols_test.go
+@@ -0,0 +1,91 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pe
++
++import (
++	"fmt"
++	"testing"
++)
++
++type testpoint struct {
++	name   string
++	ok     bool
++	err    string
++	auxstr string
++}
++
++func TestReadCOFFSymbolAuxInfo(t *testing.T) {
++	testpoints := map[int]testpoint{
++		39: testpoint{
++			name:   ".rdata$.refptr.__native_startup_lock",
++			ok:     true,
++			auxstr: "{Size:8 NumRelocs:1 NumLineNumbers:0 Checksum:0 SecNum:16 Selection:2 _:[0 0 0]}",
++		},
++		81: testpoint{
++			name:   ".debug_line",
++			ok:     true,
++			auxstr: "{Size:994 NumRelocs:1 NumLineNumbers:0 Checksum:1624223678 SecNum:32 Selection:0 _:[0 0 0]}",
++		},
++		155: testpoint{
++			name: ".file",
++			ok:   false,
++			err:  "incorrect symbol storage class",
++		},
++	}
++
++	// The testdata PE object file below was selected from a release
++	// build from https://github.com/mstorsjo/llvm-mingw/releases; it
++	// corresponds to the mingw "crt2.o" object. The object itself was
++	// built using an x86_64 HOST=linux TARGET=windows clang cross
++	// compiler based on LLVM 13. More build details can be found at
++	// https://github.com/mstorsjo/llvm-mingw/releases.
++	f, err := Open("testdata/llvm-mingw-20211002-msvcrt-x86_64-crt2")
++	if err != nil {
++		t.Errorf("open failed with %v", err)
++	}
++	defer f.Close()
++	for k := range f.COFFSymbols {
++		tp, ok := testpoints[k]
++		if !ok {
++			continue
++		}
++		sym := &f.COFFSymbols[k]
++		if sym.NumberOfAuxSymbols == 0 {
++			t.Errorf("expected aux symbols for sym %d", k)
++			continue
++		}
++		name, nerr := sym.FullName(f.StringTable)
++		if nerr != nil {
++			t.Errorf("FullName(%d) failed with %v", k, nerr)
++			continue
++		}
++		if name != tp.name {
++			t.Errorf("name check for %d, got %s want %s", k, name, tp.name)
++			continue
++		}
++		ap, err := f.COFFSymbolReadSectionDefAux(k)
++		if tp.ok {
++			if err != nil {
++				t.Errorf("unexpected failure on %d, got error %v", k, err)
++				continue
++			}
++			got := fmt.Sprintf("%+v", *ap)
++			if got != tp.auxstr {
++				t.Errorf("COFFSymbolReadSectionDefAux on %d bad return, got:\n%s\nwant:\n%s\n", k, got, tp.auxstr)
++				continue
++			}
++		} else {
++			if err == nil {
++				t.Errorf("unexpected non-failure on %d", k)
++				continue
++			}
++			got := fmt.Sprintf("%v", err)
++			if got != tp.err {
++				t.Errorf("COFFSymbolReadSectionDefAux %d wrong error, got %q want %q", k, got, tp.err)
++				continue
++			}
++		}
++	}
++}
+diff --git a/src/debug/pe/testdata/llvm-mingw-20211002-msvcrt-x86_64-crt2 b/src/debug/pe/testdata/llvm-mingw-20211002-msvcrt-x86_64-crt2
+new file mode 100644
+index 0000000000..5576c1c49e
+Binary files /dev/null and b/src/debug/pe/testdata/llvm-mingw-20211002-msvcrt-x86_64-crt2 differ

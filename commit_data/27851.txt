@@ -12,8 +12,243 @@ Date:   Fri Apr 15 08:56:01 2016 +0200
     Change-Id: I8cedb5e45fbad2679246839f609bcac4f9052403
     Reviewed-on: https://go-review.googlesource.com/22016
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/color/ycbcr.go             | 16 ++++-----
  src/image/internal/imageutil/gen.go  | 16 ++++-----
  src/image/internal/imageutil/impl.go | 64 ++++++++++++++++++------------------
  3 files changed, 48 insertions(+), 48 deletions(-)
+
+diff --git a/src/image/color/ycbcr.go b/src/image/color/ycbcr.go
+index 2e985fece1..55549c3fce 100644
+--- a/src/image/color/ycbcr.go
++++ b/src/image/color/ycbcr.go
+@@ -60,7 +60,7 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
+ 	// but uses fewer branches and is faster.
+ 	// Note that the uint8 type conversion in the return
+ 	// statement will convert ^int32(0) to 0xff.
+-	// The code below to compute b and g uses a similar pattern.
++	// The code below to compute g and b uses a similar pattern.
+ 	r := yy1 + 91881*cr1
+ 	if uint32(r)&0xff000000 == 0 {
+ 		r >>= 16
+@@ -68,13 +68,6 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
+ 		r = ^(r >> 31)
+ 	}
+ 
+-	b := yy1 + 116130*cb1
+-	if uint32(b)&0xff000000 == 0 {
+-		b >>= 16
+-	} else {
+-		b = ^(b >> 31)
+-	}
+-
+ 	g := yy1 - 22554*cb1 - 46802*cr1
+ 	if uint32(g)&0xff000000 == 0 {
+ 		g >>= 16
+@@ -82,6 +75,13 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
+ 		g = ^(g >> 31)
+ 	}
+ 
++	b := yy1 + 116130*cb1
++	if uint32(b)&0xff000000 == 0 {
++		b >>= 16
++	} else {
++		b = ^(b >> 31)
++	}
++
+ 	return uint8(r), uint8(g), uint8(b)
+ }
+ 
+diff --git a/src/image/internal/imageutil/gen.go b/src/image/internal/imageutil/gen.go
+index 6f8d2b2f5d..b9158d0ce9 100644
+--- a/src/image/internal/imageutil/gen.go
++++ b/src/image/internal/imageutil/gen.go
+@@ -111,7 +111,7 @@ const sratioCase = `
+ 				// but uses fewer branches and is faster.
+ 				// Note that the uint8 type conversion in the return
+ 				// statement will convert ^int32(0) to 0xff.
+-				// The code below to compute b and g uses a similar pattern.
++				// The code below to compute g and b uses a similar pattern.
+ 				r := yy1 + 91881*cr1
+ 				if uint32(r)&0xff000000 == 0 {
+ 					r >>= 16
+@@ -119,13 +119,6 @@ const sratioCase = `
+ 					r = ^(r >> 31)
+ 				}
+ 
+-				b := yy1 + 116130*cb1
+-				if uint32(b)&0xff000000 == 0 {
+-					b >>= 16
+-				} else {
+-					b = ^(b >> 31)
+-				}
+-
+ 				g := yy1 - 22554*cb1 - 46802*cr1
+ 				if uint32(g)&0xff000000 == 0 {
+ 					g >>= 16
+@@ -133,6 +126,13 @@ const sratioCase = `
+ 					g = ^(g >> 31)
+ 				}
+ 
++				b := yy1 + 116130*cb1
++				if uint32(b)&0xff000000 == 0 {
++					b >>= 16
++				} else {
++					b = ^(b >> 31)
++				}
++
+ 				dpix[x+0] = uint8(r)
+ 				dpix[x+1] = uint8(g)
+ 				dpix[x+2] = uint8(b)
+diff --git a/src/image/internal/imageutil/impl.go b/src/image/internal/imageutil/impl.go
+index 0993f3145c..39b455fdfa 100644
+--- a/src/image/internal/imageutil/impl.go
++++ b/src/image/internal/imageutil/impl.go
+@@ -60,7 +60,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 				// but uses fewer branches and is faster.
+ 				// Note that the uint8 type conversion in the return
+ 				// statement will convert ^int32(0) to 0xff.
+-				// The code below to compute b and g uses a similar pattern.
++				// The code below to compute g and b uses a similar pattern.
+ 				r := yy1 + 91881*cr1
+ 				if uint32(r)&0xff000000 == 0 {
+ 					r >>= 16
+@@ -68,13 +68,6 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					r = ^(r >> 31)
+ 				}
+ 
+-				b := yy1 + 116130*cb1
+-				if uint32(b)&0xff000000 == 0 {
+-					b >>= 16
+-				} else {
+-					b = ^(b >> 31)
+-				}
+-
+ 				g := yy1 - 22554*cb1 - 46802*cr1
+ 				if uint32(g)&0xff000000 == 0 {
+ 					g >>= 16
+@@ -82,6 +75,13 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					g = ^(g >> 31)
+ 				}
+ 
++				b := yy1 + 116130*cb1
++				if uint32(b)&0xff000000 == 0 {
++					b >>= 16
++				} else {
++					b = ^(b >> 31)
++				}
++
+ 				dpix[x+0] = uint8(r)
+ 				dpix[x+1] = uint8(g)
+ 				dpix[x+2] = uint8(b)
+@@ -115,7 +115,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 				// but uses fewer branches and is faster.
+ 				// Note that the uint8 type conversion in the return
+ 				// statement will convert ^int32(0) to 0xff.
+-				// The code below to compute b and g uses a similar pattern.
++				// The code below to compute g and b uses a similar pattern.
+ 				r := yy1 + 91881*cr1
+ 				if uint32(r)&0xff000000 == 0 {
+ 					r >>= 16
+@@ -123,13 +123,6 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					r = ^(r >> 31)
+ 				}
+ 
+-				b := yy1 + 116130*cb1
+-				if uint32(b)&0xff000000 == 0 {
+-					b >>= 16
+-				} else {
+-					b = ^(b >> 31)
+-				}
+-
+ 				g := yy1 - 22554*cb1 - 46802*cr1
+ 				if uint32(g)&0xff000000 == 0 {
+ 					g >>= 16
+@@ -137,6 +130,13 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					g = ^(g >> 31)
+ 				}
+ 
++				b := yy1 + 116130*cb1
++				if uint32(b)&0xff000000 == 0 {
++					b >>= 16
++				} else {
++					b = ^(b >> 31)
++				}
++
+ 				dpix[x+0] = uint8(r)
+ 				dpix[x+1] = uint8(g)
+ 				dpix[x+2] = uint8(b)
+@@ -170,7 +170,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 				// but uses fewer branches and is faster.
+ 				// Note that the uint8 type conversion in the return
+ 				// statement will convert ^int32(0) to 0xff.
+-				// The code below to compute b and g uses a similar pattern.
++				// The code below to compute g and b uses a similar pattern.
+ 				r := yy1 + 91881*cr1
+ 				if uint32(r)&0xff000000 == 0 {
+ 					r >>= 16
+@@ -178,13 +178,6 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					r = ^(r >> 31)
+ 				}
+ 
+-				b := yy1 + 116130*cb1
+-				if uint32(b)&0xff000000 == 0 {
+-					b >>= 16
+-				} else {
+-					b = ^(b >> 31)
+-				}
+-
+ 				g := yy1 - 22554*cb1 - 46802*cr1
+ 				if uint32(g)&0xff000000 == 0 {
+ 					g >>= 16
+@@ -192,6 +185,13 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					g = ^(g >> 31)
+ 				}
+ 
++				b := yy1 + 116130*cb1
++				if uint32(b)&0xff000000 == 0 {
++					b >>= 16
++				} else {
++					b = ^(b >> 31)
++				}
++
+ 				dpix[x+0] = uint8(r)
+ 				dpix[x+1] = uint8(g)
+ 				dpix[x+2] = uint8(b)
+@@ -224,7 +224,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 				// but uses fewer branches and is faster.
+ 				// Note that the uint8 type conversion in the return
+ 				// statement will convert ^int32(0) to 0xff.
+-				// The code below to compute b and g uses a similar pattern.
++				// The code below to compute g and b uses a similar pattern.
+ 				r := yy1 + 91881*cr1
+ 				if uint32(r)&0xff000000 == 0 {
+ 					r >>= 16
+@@ -232,13 +232,6 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					r = ^(r >> 31)
+ 				}
+ 
+-				b := yy1 + 116130*cb1
+-				if uint32(b)&0xff000000 == 0 {
+-					b >>= 16
+-				} else {
+-					b = ^(b >> 31)
+-				}
+-
+ 				g := yy1 - 22554*cb1 - 46802*cr1
+ 				if uint32(g)&0xff000000 == 0 {
+ 					g >>= 16
+@@ -246,6 +239,13 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 					g = ^(g >> 31)
+ 				}
+ 
++				b := yy1 + 116130*cb1
++				if uint32(b)&0xff000000 == 0 {
++					b >>= 16
++				} else {
++					b = ^(b >> 31)
++				}
++
+ 				dpix[x+0] = uint8(r)
+ 				dpix[x+1] = uint8(g)
+ 				dpix[x+2] = uint8(b)

@@ -23,7 +23,7 @@ Date:   Thu Dec 10 18:48:33 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/277932
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go     |  1 +
  src/cmd/compile/internal/gc/closure.go   | 13 +++++++------
  src/cmd/compile/internal/gc/dcl.go       | 22 +++++++++++++---------
@@ -40,3 +40,433 @@ Date:   Thu Dec 10 18:48:33 2020 -0500
  src/cmd/compile/internal/gc/universe.go  | 25 +++++++++++++++----------
  src/cmd/compile/internal/gc/unsafe.go    | 18 +++++++++++-------
  15 files changed, 77 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 212e4c46ae..9944a3a38a 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -119,6 +119,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 		}
+ 		f.Offset = o
+ 		if n := ir.AsNode(f.Nname); n != nil {
++			n := n.Name()
+ 			// addrescapes has similar code to update these offsets.
+ 			// Usually addrescapes runs after widstruct,
+ 			// in which case we could drop this,
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 954fa1a452..6a3ee45a12 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -192,7 +192,7 @@ func capturevars(fn *ir.Func) {
+ 
+ 		var outer ir.Node
+ 		outer = v.Outer
+-		outermost := v.Defn
++		outermost := v.Defn.(*ir.Name)
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+ 		if outermost.Class() != ir.PPARAMOUT && !outermost.Name().Addrtaken() && !outermost.Name().Assigned() && v.Type().Width <= 128 {
+@@ -414,25 +414,26 @@ func walkclosure(clo ir.Node, init *ir.Nodes) ir.Node {
+ 	return walkexpr(cfn, init)
+ }
+ 
+-func typecheckpartialcall(dot ir.Node, sym *types.Sym) *ir.CallPartExpr {
+-	switch dot.Op() {
++func typecheckpartialcall(n ir.Node, sym *types.Sym) *ir.CallPartExpr {
++	switch n.Op() {
+ 	case ir.ODOTINTER, ir.ODOTMETH:
+ 		break
+ 
+ 	default:
+ 		base.Fatalf("invalid typecheckpartialcall")
+ 	}
++	dot := n.(*ir.SelectorExpr)
+ 
+ 	// Create top-level function.
+ 	fn := makepartialcall(dot, dot.Type(), sym)
+ 	fn.SetWrapper(true)
+ 
+-	return ir.NewCallPartExpr(dot.Pos(), dot.Left(), dot.(*ir.SelectorExpr).Selection, fn)
++	return ir.NewCallPartExpr(dot.Pos(), dot.Left(), dot.Selection, fn)
+ }
+ 
+ // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
+ // for partial calls.
+-func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
++func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.Func {
+ 	rcvrtype := dot.Left().Type()
+ 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
+ 
+@@ -508,7 +509,7 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
+ // partialCallType returns the struct type used to hold all the information
+ // needed in the closure for n (n must be a OCALLPART node).
+ // The address of a variable of the returned type can be cast to a func.
+-func partialCallType(n ir.Node) *types.Type {
++func partialCallType(n *ir.CallPartExpr) *types.Type {
+ 	t := tostruct([]*ir.Field{
+ 		namedfield("F", types.Types[types.TUINTPTR]),
+ 		namedfield("R", n.Left().Type()),
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index ad2dc99f89..a2c9edb481 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -165,10 +165,10 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
+ 			if Curfn != nil {
+ 				init = append(init, ir.Nod(ir.ODCL, v, nil))
+ 			}
+-			e = ir.Nod(ir.OAS, v, e)
+-			init = append(init, e)
+-			if e.Right() != nil {
+-				v.Defn = e
++			as := ir.Nod(ir.OAS, v, e)
++			init = append(init, as)
++			if e != nil {
++				v.Defn = as
+ 			}
+ 		}
+ 	}
+@@ -799,7 +799,7 @@ func makefuncsym(s *types.Sym) {
+ }
+ 
+ // setNodeNameFunc marks a node as a function.
+-func setNodeNameFunc(n ir.Node) {
++func setNodeNameFunc(n *ir.Name) {
+ 	if n.Op() != ir.ONAME || n.Class() != ir.Pxxx {
+ 		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
+ 	}
+@@ -861,12 +861,16 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
+ 	return c
+ }
+ 
+-func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) {
+-	if n.Op() != ir.OCALLFUNC {
++func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
++	if nn.Op() != ir.OCALLFUNC {
+ 		return
+ 	}
+-	fn := n.Left()
+-	if fn == nil || fn.Op() != ir.ONAME || fn.Class() != ir.PFUNC || fn.Name().Defn == nil {
++	n := nn.(*ir.CallExpr)
++	if n.Left() == nil || n.Left().Op() != ir.ONAME {
++		return
++	}
++	fn := n.Left().(*ir.Name)
++	if fn.Class() != ir.PFUNC || fn.Name().Defn == nil {
+ 		return
+ 	}
+ 	if !isRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+index 7664bde1c5..b9c88c0d5b 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -110,7 +110,7 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds [
+ 		}
+ 	}
+ 
+-	v := names[0]
++	v := names[0].(*ir.Name)
+ 	if dclcontext != ir.PEXTERN {
+ 		numLocalEmbed++
+ 		v = ir.NewNameAt(v.Pos(), lookupN("embed.", numLocalEmbed))
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 593dd3b2f8..16d45a00aa 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -74,7 +74,7 @@ func dumpexport(bout *bio.Writer) {
+ 	}
+ }
+ 
+-func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) ir.Node {
++func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) *ir.Name {
+ 	n := ir.AsNode(s.PkgDef())
+ 	if n == nil {
+ 		// iimport should have created a stub ONONAME
+@@ -92,7 +92,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) ir.Node {
+ 	if n.Op() != ir.ONONAME && n.Op() != op {
+ 		redeclare(base.Pos, s, fmt.Sprintf("during import %q", ipkg.Path))
+ 	}
+-	return n
++	return n.(*ir.Name)
+ }
+ 
+ // importtype returns the named type declared by symbol s.
+@@ -102,7 +102,6 @@ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
+ 	n := importsym(ipkg, s, ir.OTYPE)
+ 	if n.Op() != ir.OTYPE {
+ 		t := types.NewNamed(n)
+-
+ 		n.SetOp(ir.OTYPE)
+ 		n.SetPos(pos)
+ 		n.SetType(t)
+@@ -121,7 +120,7 @@ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
+ func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class, t *types.Type) ir.Node {
+ 	n := importsym(ipkg, s, op)
+ 	if n.Op() != ir.ONONAME {
+-		if n.Op() == op && (n.Class() != ctxt || !types.Identical(n.Type(), t)) {
++		if n.Op() == op && (op == ir.ONAME && n.Class() != ctxt || !types.Identical(n.Type(), t)) {
+ 			redeclare(base.Pos, s, fmt.Sprintf("during import %q", ipkg.Path))
+ 		}
+ 		return nil
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 39e9425978..25b241e236 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -31,13 +31,21 @@ func sysvar(name string) *obj.LSym {
+ // isParamStackCopy reports whether this is the on-stack copy of a
+ // function parameter that moved to the heap.
+ func isParamStackCopy(n ir.Node) bool {
+-	return n.Op() == ir.ONAME && (n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT) && n.Name().Heapaddr != nil
++	if n.Op() != ir.ONAME {
++		return false
++	}
++	name := n.(*ir.Name)
++	return (name.Class() == ir.PPARAM || name.Class() == ir.PPARAMOUT) && name.Heapaddr != nil
+ }
+ 
+ // isParamHeapCopy reports whether this is the on-heap copy of
+ // a function parameter that moved to the heap.
+ func isParamHeapCopy(n ir.Node) bool {
+-	return n.Op() == ir.ONAME && n.Class() == ir.PAUTOHEAP && n.Name().Stackcopy != nil
++	if n.Op() != ir.ONAME {
++		return false
++	}
++	name := n.(*ir.Name)
++	return name.Class() == ir.PAUTOHEAP && name.Name().Stackcopy != nil
+ }
+ 
+ // autotmpname returns the name for an autotmp variable numbered n.
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 2ef9d1ad35..8de4d84f2d 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -48,10 +48,10 @@ func fninit(n []ir.Node) {
+ 		if n.Op() == ir.ONONAME {
+ 			continue
+ 		}
+-		if n.Op() != ir.ONAME || n.Class() != ir.PEXTERN {
++		if n.Op() != ir.ONAME || n.(*ir.Name).Class() != ir.PEXTERN {
+ 			base.Fatalf("bad inittask: %v", n)
+ 		}
+-		deps = append(deps, n.Sym().Linksym())
++		deps = append(deps, n.(*ir.Name).Sym().Linksym())
+ 	}
+ 
+ 	// Make a function that contains all the initialization statements.
+@@ -86,10 +86,10 @@ func fninit(n []ir.Node) {
+ 	// Record user init functions.
+ 	for i := 0; i < renameinitgen; i++ {
+ 		s := lookupN("init.", i)
+-		fn := ir.AsNode(s.Def).Name().Defn
++		fn := ir.AsNode(s.Def).Name().Defn.(*ir.Func)
+ 		// Skip init functions with empty bodies.
+ 		if fn.Body().Len() == 1 {
+-			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.List().Len() == 0 {
++			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.(*ir.BlockStmt).List().Len() == 0 {
+ 				continue
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+index 7870e00221..9a07ca71bd 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -323,7 +323,7 @@ func (d *initDeps) foundDep(n *ir.Name) {
+ 	}
+ 	d.seen.Add(n)
+ 	if d.transitive && n.Class() == ir.PFUNC {
+-		d.inspectList(n.Defn.Body())
++		d.inspectList(n.Defn.(*ir.Func).Body())
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 77b11c5d5d..03e787f718 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -244,7 +244,7 @@ func Main(archInit func(*Arch)) {
+ 	timings.Start("fe", "typecheck", "top1")
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.Left().Name().Alias()) {
++		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).Left().Name().Alias()) {
+ 			xtop[i] = typecheck(n, ctxStmt)
+ 		}
+ 	}
+@@ -256,7 +256,7 @@ func Main(archInit func(*Arch)) {
+ 	timings.Start("fe", "typecheck", "top2")
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.Left().Name().Alias() {
++		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).Left().Name().Alias() {
+ 			xtop[i] = typecheck(n, ctxStmt)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index cfff1baad6..615b8bdbf1 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -986,7 +986,7 @@ func typenamesym(t *types.Type) *types.Sym {
+ 	return s
+ }
+ 
+-func typename(t *types.Type) ir.Node {
++func typename(t *types.Type) *ir.AddrExpr {
+ 	s := typenamesym(t)
+ 	if s.Def == nil {
+ 		n := ir.NewNameAt(src.NoXPos, s)
+@@ -1002,7 +1002,7 @@ func typename(t *types.Type) ir.Node {
+ 	return n
+ }
+ 
+-func itabname(t, itype *types.Type) ir.Node {
++func itabname(t, itype *types.Type) *ir.AddrExpr {
+ 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
+ 		base.Fatalf("itabname(%v, %v)", t, itype)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/scc.go b/src/cmd/compile/internal/gc/scc.go
+index fa7af1274b..6e63d5287a 100644
+--- a/src/cmd/compile/internal/gc/scc.go
++++ b/src/cmd/compile/internal/gc/scc.go
+@@ -101,9 +101,11 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
+ 			}
+ 		case ir.OCALLPART:
+ 			fn := ir.AsNode(callpartMethod(n).Nname)
+-			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
+-				if m := v.visit(fn.Name().Defn.(*ir.Func)); m < min {
+-					min = m
++			if fn != nil && fn.Op() == ir.ONAME {
++				if fn := fn.(*ir.Name); fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
++					if m := v.visit(fn.Name().Defn.(*ir.Func)); m < min {
++						min = m
++					}
+ 				}
+ 			}
+ 		case ir.OCLOSURE:
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index e519c57273..03998b99be 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1234,7 +1234,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 		left := dot.Left() // skip final .M
+ 		// TODO(mdempsky): Remove dependency on dotlist.
+ 		if !dotlist[0].field.Type.IsPtr() {
+-			left = ir.Nod(ir.OADDR, left, nil)
++			left = nodAddr(left)
+ 		}
+ 		as := ir.Nod(ir.OAS, nthis, convnop(left, rcvr))
+ 		fn.PtrBody().Append(as)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 70f05236c0..2f3c876c77 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2791,7 +2791,7 @@ func pushtype(nn ir.Node, t *types.Type) ir.Node {
+ 		// For *T, return &T{...}.
+ 		n.SetRight(ir.TypeNode(t.Elem()))
+ 
+-		addr := ir.NodAt(n.Pos(), ir.OADDR, n, nil)
++		addr := nodAddrAt(n.Pos(), n)
+ 		addr.SetImplicit(true)
+ 		return addr
+ 	}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 66ca0d01b3..21ddc78089 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -152,23 +152,27 @@ func initUniverse() {
+ 
+ 	for _, s := range &builtinFuncs {
+ 		s2 := types.BuiltinPkg.Lookup(s.name)
+-		s2.Def = NewName(s2)
+-		ir.AsNode(s2.Def).SetSubOp(s.op)
++		def := NewName(s2)
++		def.SetSubOp(s.op)
++		s2.Def = def
+ 	}
+ 
+ 	for _, s := range &unsafeFuncs {
+ 		s2 := unsafepkg.Lookup(s.name)
+-		s2.Def = NewName(s2)
+-		ir.AsNode(s2.Def).SetSubOp(s.op)
++		def := NewName(s2)
++		def.SetSubOp(s.op)
++		s2.Def = def
+ 	}
+ 
+ 	s = types.BuiltinPkg.Lookup("true")
+-	s.Def = nodbool(true)
+-	ir.AsNode(s.Def).SetSym(lookup("true"))
++	b := nodbool(true)
++	b.(*ir.Name).SetSym(lookup("true"))
++	s.Def = b
+ 
+ 	s = types.BuiltinPkg.Lookup("false")
+-	s.Def = nodbool(false)
+-	ir.AsNode(s.Def).SetSym(lookup("false"))
++	b = nodbool(false)
++	b.(*ir.Name).SetSym(lookup("false"))
++	s.Def = b
+ 
+ 	s = lookup("_")
+ 	types.BlankSym = s
+@@ -187,8 +191,9 @@ func initUniverse() {
+ 
+ 	types.Types[types.TNIL] = types.New(types.TNIL)
+ 	s = types.BuiltinPkg.Lookup("nil")
+-	s.Def = nodnil()
+-	ir.AsNode(s.Def).SetSym(s)
++	nnil := nodnil()
++	nnil.(*ir.NilExpr).SetSym(s)
++	s.Def = nnil
+ 
+ 	s = types.BuiltinPkg.Lookup("iota")
+ 	s.Def = ir.NewIota(base.Pos, s)
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index d7ae5d7aaa..02dd302975 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -31,18 +31,20 @@ func evalunsafe(n ir.Node) int64 {
+ 			base.Errorf("invalid expression %v", n)
+ 			return 0
+ 		}
++		sel := n.Left().(*ir.SelectorExpr)
+ 
+ 		// Remember base of selector to find it back after dot insertion.
+ 		// Since r->left may be mutated by typechecking, check it explicitly
+ 		// first to track it correctly.
+-		n.Left().SetLeft(typecheck(n.Left().Left(), ctxExpr))
+-		sbase := n.Left().Left()
++		sel.SetLeft(typecheck(sel.Left(), ctxExpr))
++		sbase := sel.Left()
+ 
+-		n.SetLeft(typecheck(n.Left(), ctxExpr))
+-		if n.Left().Type() == nil {
++		tsel := typecheck(sel, ctxExpr)
++		n.SetLeft(tsel)
++		if tsel.Type() == nil {
+ 			return 0
+ 		}
+-		switch n.Left().Op() {
++		switch tsel.Op() {
+ 		case ir.ODOT, ir.ODOTPTR:
+ 			break
+ 		case ir.OCALLPART:
+@@ -55,7 +57,8 @@ func evalunsafe(n ir.Node) int64 {
+ 
+ 		// Sum offsets for dots until we reach sbase.
+ 		var v int64
+-		for r := n.Left(); r != sbase; r = r.Left() {
++		var next ir.Node
++		for r := tsel; r != sbase; r = next {
+ 			switch r.Op() {
+ 			case ir.ODOTPTR:
+ 				// For Offsetof(s.f), s may itself be a pointer,
+@@ -68,8 +71,9 @@ func evalunsafe(n ir.Node) int64 {
+ 				fallthrough
+ 			case ir.ODOT:
+ 				v += r.Offset()
++				next = r.Left()
+ 			default:
+-				ir.Dump("unsafenmagic", n.Left())
++				ir.Dump("unsafenmagic", tsel)
+ 				base.Fatalf("impossible %v node after dot insertion", r.Op())
+ 			}
+ 		}

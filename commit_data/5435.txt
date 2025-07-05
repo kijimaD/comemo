@@ -7,7 +7,65 @@ Date:   Mon May 3 17:47:40 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1081042
-
+---
  src/pkg/runtime/slice.c    |  4 +---
  src/pkg/strconv/decimal.go | 17 +++++------------
  2 files changed, 6 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index d967b1669b..4162b8daa2 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -186,9 +186,7 @@ void
+ void
+ ·slicecopy(Slice to, Slice fm, uintptr width, int32 ret)
+ {
+-	if(fm.array == nil || fm.len == 0 ||
+-	   to.array == nil || to.len == 0 ||
+-	   width == 0) {
++	if(fm.len == 0 || to.len == 0 || width == 0) {
+ 		ret = 0;
+ 		goto out;
+ 	}
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index 3a7ebf926b..b3348512f4 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -41,32 +41,25 @@ func (a *decimal) String() string {
+ 		buf[w] = '.'
+ 		w++
+ 		w += digitZero(buf[w : w+-a.dp])
+-		w += copy(buf[w:w+a.nd], a.d[0:a.nd])
++		w += copy(buf[w:], a.d[0:a.nd])
+ 
+ 	case a.dp < a.nd:
+ 		// decimal point in middle of digits
+-		w += copy(buf[w:w+a.dp], a.d[0:a.dp])
++		w += copy(buf[w:], a.d[0:a.dp])
+ 		buf[w] = '.'
+ 		w++
+-		w += copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd])
++		w += copy(buf[w:], a.d[a.dp:a.nd])
+ 
+ 	default:
+ 		// zeros fill space between digits and decimal point
+-		w += copy(buf[w:w+a.nd], a.d[0:a.nd])
++		w += copy(buf[w:], a.d[0:a.nd])
+ 		w += digitZero(buf[w : w+a.dp-a.nd])
+ 	}
+ 	return string(buf[0:w])
+ }
+ 
+-func copy(dst []byte, src []byte) int {
+-	for i := 0; i < len(dst); i++ {
+-		dst[i] = src[i]
+-	}
+-	return len(dst)
+-}
+-
+ func digitZero(dst []byte) int {
+-	for i := 0; i < len(dst); i++ {
++	for i := range dst {
+ 		dst[i] = '0'
+ 	}
+ 	return len(dst)

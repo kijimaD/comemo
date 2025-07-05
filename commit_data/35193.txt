@@ -9,6 +9,28 @@ Date:   Tue Jan 9 12:42:28 2018 -0800
     Change-Id: Id6e86eebe44809db12a0e14014c474bf4fbf5108
     Reviewed-on: https://go-review.googlesource.com/87035
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index bb76134248..0f55b075a6 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of January 3, 2018",
++	"Subtitle": "Version of January 9, 2018",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3619,7 +3619,7 @@ For unsigned integer values, the operations <code>+</code>,
+ computed modulo 2<sup><i>n</i></sup>, where <i>n</i> is the bit width of
+ the <a href="#Numeric_types">unsigned integer</a>'s type.
+ Loosely speaking, these unsigned integer operations
+-discard high bits upon overflow, and programs may rely on ``wrap around''.
++discard high bits upon overflow, and programs may rely on "wrap around".
+ </p>
+ <p>
+ For signed integers, the operations <code>+</code>,

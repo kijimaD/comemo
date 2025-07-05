@@ -12,7 +12,7 @@ Date:   Tue Jun 28 09:43:14 2011 +1000
     R=adg, dsymonds, alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/4661051
-
+---
  misc/dashboard/builder/main.go                 |  8 +--
  src/cmd/cgo/gcc.go                             | 10 ++--
  src/cmd/cgo/out.go                             |  2 +-
@@ -74,3 +74,1303 @@ Date:   Tue Jun 28 09:43:14 2011 +1000
  src/pkg/testing/testing.go                     |  2 +-
  src/pkg/unicode/maketables.go                  | 12 ++---
  60 files changed, 280 insertions(+), 104 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 9a714fe79f..bee663d6cf 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -161,7 +161,7 @@ func NewBuilder(builder string) (*Builder, os.Error) {
+ 	b := &Builder{name: builder}
+ 
+ 	// get goos/goarch from builder string
+-	s := strings.Split(builder, "-", 3)
++	s := strings.SplitN(builder, "-", 3)
+ 	if len(s) >= 2 {
+ 		b.goos, b.goarch = s[0], s[1]
+ 	} else {
+@@ -177,7 +177,7 @@ func NewBuilder(builder string) (*Builder, os.Error) {
+ 	if err != nil {
+ 		return nil, fmt.Errorf("readKeys %s (%s): %s", b.name, fn, err)
+ 	}
+-	v := strings.Split(string(c), "\n", -1)
++	v := strings.Split(string(c), "\n")
+ 	b.key = v[0]
+ 	if len(v) >= 3 {
+ 		b.codeUsername, b.codePassword = v[1], v[2]
+@@ -392,7 +392,7 @@ func (b *Builder) envvWindows() []string {
+ 		skip[name] = true
+ 	}
+ 	for _, kv := range os.Environ() {
+-		s := strings.Split(kv, "=", 2)
++		s := strings.SplitN(kv, "=", 2)
+ 		name := strings.ToUpper(s[0])
+ 		switch {
+ 		case name == "":
+@@ -602,7 +602,7 @@ var revisionRe = regexp.MustCompile(`^([^ ]+) +[0-9]+:([0-9a-f]+)$`)
+ // firstTag returns the hash and tag of the most recent tag matching re.
+ func firstTag(re *regexp.Regexp) (hash string, tag string, err os.Error) {
+ 	o, _, err := runLog(nil, "", goroot, "hg", "tags")
+-	for _, l := range strings.Split(o, "\n", -1) {
++	for _, l := range strings.Split(o, "\n") {
+ 		if l == "" {
+ 			continue
+ 		}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 6b930f151e..a4d83f1e7f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -66,7 +66,7 @@ func cname(s string) string {
+ // preamble. Multiple occurrences are concatenated with a separating space,
+ // even across files.
+ func (p *Package) ParseFlags(f *File, srcfile string) {
+-	linesIn := strings.Split(f.Preamble, "\n", -1)
++	linesIn := strings.Split(f.Preamble, "\n")
+ 	linesOut := make([]string, 0, len(linesIn))
+ 
+ NextLine:
+@@ -78,7 +78,7 @@ NextLine:
+ 		}
+ 
+ 		l = strings.TrimSpace(l[4:])
+-		fields := strings.Split(l, ":", 2)
++		fields := strings.SplitN(l, ":", 2)
+ 		if len(fields) != 2 {
+ 			fatalf("%s: bad #cgo line: %s", srcfile, line)
+ 		}
+@@ -275,7 +275,7 @@ func (p *Package) loadDefines(f *File) {
+ 	b.WriteString(f.Preamble)
+ 	stdout := p.gccDefines(b.Bytes())
+ 
+-	for _, line := range strings.Split(stdout, "\n", -1) {
++	for _, line := range strings.Split(stdout, "\n") {
+ 		if len(line) < 9 || line[0:7] != "#define" {
+ 			continue
+ 		}
+@@ -397,7 +397,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		isConst[i] = true // until proven otherwise
+ 	}
+ 
+-	for _, line := range strings.Split(stderr, "\n", -1) {
++	for _, line := range strings.Split(stderr, "\n") {
+ 		if len(line) < 9 || line[0:9] != "cgo-test:" {
+ 			// the user will see any compiler errors when the code is compiled later.
+ 			continue
+@@ -1188,7 +1188,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 			if ss, ok := dwarfToName[s]; ok {
+ 				s = ss
+ 			}
+-			s = strings.Join(strings.Split(s, " ", -1), "") // strip spaces
++			s = strings.Join(strings.Split(s, " "), "") // strip spaces
+ 			name := c.Ident("_Ctype_" + s)
+ 			typedef[name.Name] = t.Go
+ 			t.Go = name
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 7eecb3437f..6802dd1cf3 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -148,7 +148,7 @@ func dynimport(obj string) {
+ 			fatalf("cannot load imported symbols from PE file %s: %v", obj, err)
+ 		}
+ 		for _, s := range sym {
+-			ss := strings.Split(s, ":", -1)
++			ss := strings.Split(s, ":")
+ 			fmt.Printf("#pragma dynimport %s %s %q\n", ss[0], ss[0], strings.ToLower(ss[1]))
+ 		}
+ 		return
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index af44fa16ad..ec969b74a4 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -267,8 +267,8 @@ func (dir *Directory) lookupLocal(name string) *Directory {
+ 
+ // lookup looks for the *Directory for a given path, relative to dir.
+ func (dir *Directory) lookup(path string) *Directory {
+-	d := strings.Split(dir.Path, string(filepath.Separator), -1)
+-	p := strings.Split(path, string(filepath.Separator), -1)
++	d := strings.Split(dir.Path, string(filepath.Separator))
++	p := strings.Split(path, string(filepath.Separator))
+ 	i := 0
+ 	for i < len(d) {
+ 		if i >= len(p) || d[i] != p[i] {
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 30f18e8820..8209781225 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -160,7 +160,7 @@ func readDirList(filename string) ([]string, os.Error) {
+ 		}
+ 		return e == nil && isPkgDir(d)
+ 	}
+-	list := canonicalizePaths(strings.Split(string(contents), "\n", -1), filter)
++	list := canonicalizePaths(strings.Split(string(contents), "\n"), filter)
+ 	// for each parent path, remove all it's children q
+ 	// (requirement for binary search to work when filtering)
+ 	i := 0
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 61caee101d..91bd905d8e 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -901,7 +901,7 @@ func isIdentifier(s string) bool {
+ // identifier, Lookup returns a LookupResult, and a list of alternative
+ // spellings, if any. If the query syntax is wrong, an error is reported.
+ func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, err os.Error) {
+-	ss := strings.Split(query, ".", -1)
++	ss := strings.Split(query, ".")
+ 
+ 	// check query syntax
+ 	for _, s := range ss {
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index bce22121e0..02d7463078 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -19,6 +19,7 @@ GOFILES=\
+ 	procattr.go\
+ 	reflect.go\
+ 	sortslice.go\
++	stringssplit.go\
+ 	typecheck.go\
+ 
+ include ../../Make.cmd
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index 05495bc0d8..e7e7013c56 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -53,7 +53,7 @@ func main() {
+ 
+ 	if *allowedRewrites != "" {
+ 		allowed = make(map[string]bool)
+-		for _, f := range strings.Split(*allowedRewrites, ",", -1) {
++		for _, f := range strings.Split(*allowedRewrites, ",") {
+ 			allowed[f] = true
+ 		}
+ 	}
+diff --git a/src/cmd/gofix/stringssplit.go b/src/cmd/gofix/stringssplit.go
+new file mode 100644
+index 0000000000..4a1fe93d39
+--- /dev/null
++++ b/src/cmd/gofix/stringssplit.go
+@@ -0,0 +1,71 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++	"go/token"
++)
++
++var stringssplitFix = fix{
++	"stringssplit",
++	stringssplit,
++	`Restore strings.Split to its original meaning and add strings.SplitN. Bytes too.
++
++http://codereview.appspot.com/4661051
++`,
++}
++
++func init() {
++	register(stringssplitFix)
++}
++
++func stringssplit(f *ast.File) bool {
++	if !imports(f, "bytes") && !imports(f, "strings") {
++		return false
++	}
++
++	fixed := false
++	walk(f, func(n interface{}) {
++		call, ok := n.(*ast.CallExpr)
++		// func Split(s, sep string, n int) []string
++		// func SplitAfter(s, sep string, n int) []string
++		if !ok || len(call.Args) != 3 {
++			return
++		}
++		// Is this our function?
++		switch {
++		case isPkgDot(call.Fun, "bytes", "Split"):
++		case isPkgDot(call.Fun, "bytes", "SplitAfter"):
++		case isPkgDot(call.Fun, "strings", "Split"):
++		case isPkgDot(call.Fun, "strings", "SplitAfter"):
++		default:
++			return
++		}
++
++		sel := call.Fun.(*ast.SelectorExpr)
++		args := call.Args
++		fixed = true // We're committed.
++
++		// Is the last argument -1? If so, drop the arg.
++		// (Actually we just look for a negative integer literal.)
++		// Otherwise, Split->SplitN and keep the arg.
++		final := args[2]
++		if unary, ok := final.(*ast.UnaryExpr); ok && unary.Op == token.SUB {
++			if lit, ok := unary.X.(*ast.BasicLit); ok {
++				// Is it an integer? If so, it's a negative integer and that's what we're after.
++				if lit.Kind == token.INT {
++					// drop the last arg.
++					call.Args = args[0:2]
++					return
++				}
++			}
++		}
++
++		// If not, rename and keep the argument list.
++		sel.Sel.Name += "N"
++	})
++	return fixed
++}
+diff --git a/src/cmd/gofix/stringssplit_test.go b/src/cmd/gofix/stringssplit_test.go
+new file mode 100644
+index 0000000000..b925722af7
+--- /dev/null
++++ b/src/cmd/gofix/stringssplit_test.go
+@@ -0,0 +1,51 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(stringssplitTests)
++}
++
++var stringssplitTests = []testCase{
++	{
++		Name: "stringssplit.0",
++		In: `package main
++
++import (
++	"bytes"
++	"strings"
++)
++
++func f() {
++	bytes.Split(a, b, c)
++	bytes.Split(a, b, -1)
++	bytes.SplitAfter(a, b, c)
++	bytes.SplitAfter(a, b, -1)
++	strings.Split(a, b, c)
++	strings.Split(a, b, -1)
++	strings.SplitAfter(a, b, c)
++	strings.SplitAfter(a, b, -1)
++}
++`,
++		Out: `package main
++
++import (
++	"bytes"
++	"strings"
++)
++
++func f() {
++	bytes.SplitN(a, b, c)
++	bytes.Split(a, b)
++	bytes.SplitAfterN(a, b, c)
++	bytes.SplitAfter(a, b)
++	strings.SplitN(a, b, c)
++	strings.Split(a, b)
++	strings.SplitAfterN(a, b, c)
++	strings.SplitAfter(a, b)
++}
++`,
++	},
++}
+diff --git a/src/cmd/gofix/testdata/reflect.template.go.in b/src/cmd/gofix/testdata/reflect.template.go.in
+index ba06de4e3a..1f5a8128fd 100644
+--- a/src/cmd/gofix/testdata/reflect.template.go.in
++++ b/src/cmd/gofix/testdata/reflect.template.go.in
+@@ -444,7 +444,7 @@ func (t *Template) newVariable(words []string) *variableElement {
+ 	bar := strings.IndexRune(lastWord, '|')
+ 	if bar >= 0 {
+ 		words[len(words)-1] = lastWord[0:bar]
+-		formatters = strings.Split(lastWord[bar+1:], "|", -1)
++		formatters = strings.Split(lastWord[bar+1:], "|")
+ 	}
+ 
+ 	// We could remember the function address here and avoid the lookup later,
+@@ -705,7 +705,7 @@ func (t *Template) findVar(st *state, s string) reflect.Value {
+ 	if s == "@" {
+ 		return indirectPtr(data, numStars)
+ 	}
+-	for _, elem := range strings.Split(s, ".", -1) {
++	for _, elem := range strings.Split(s, ".") {
+ 		// Look up field; data must be a struct or map.
+ 		data = t.lookup(st, data, elem)
+ 		if data == nil {
+diff --git a/src/cmd/gofix/testdata/reflect.template.go.out b/src/cmd/gofix/testdata/reflect.template.go.out
+index c362884559..f2f56ef3c2 100644
+--- a/src/cmd/gofix/testdata/reflect.template.go.out
++++ b/src/cmd/gofix/testdata/reflect.template.go.out
+@@ -444,7 +444,7 @@ func (t *Template) newVariable(words []string) *variableElement {
+ 	bar := strings.IndexRune(lastWord, '|')
+ 	if bar >= 0 {
+ 		words[len(words)-1] = lastWord[0:bar]
+-		formatters = strings.Split(lastWord[bar+1:], "|", -1)
++		formatters = strings.Split(lastWord[bar+1:], "|")
+ 	}
+ 
+ 	// We could remember the function address here and avoid the lookup later,
+@@ -705,7 +705,7 @@ func (t *Template) findVar(st *state, s string) reflect.Value {
+ 	if s == "@" {
+ 		return indirectPtr(data, numStars)
+ 	}
+-	for _, elem := range strings.Split(s, ".", -1) {
++	for _, elem := range strings.Split(s, ".") {
+ 		// Look up field; data must be a struct or map.
+ 		data = t.lookup(st, data, elem)
+ 		if !data.IsValid() {
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index a72530307e..70700554ba 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -20,8 +20,8 @@ func runTest(t *testing.T, dirname, in, out, flags string) {
+ 	// process flags
+ 	*simplifyAST = false
+ 	*rewriteRule = ""
+-	for _, flag := range strings.Split(flags, " ", -1) {
+-		elts := strings.Split(flag, "=", 2)
++	for _, flag := range strings.Split(flags, " ") {
++		elts := strings.SplitN(flag, "=", 2)
+ 		name := elts[0]
+ 		value := ""
+ 		if len(elts) == 2 {
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 4c24282f36..f7f1fe8243 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -22,7 +22,7 @@ func initRewrite() {
+ 		rewrite = nil // disable any previous rewrite
+ 		return
+ 	}
+-	f := strings.Split(*rewriteRule, "->", -1)
++	f := strings.Split(*rewriteRule, "->")
+ 	if len(f) != 2 {
+ 		fmt.Fprintf(os.Stderr, "rewrite rule must be of the form 'pattern -> replacement'\n")
+ 		os.Exit(2)
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index d209fa82bf..129c0459a6 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -146,11 +146,11 @@ var vcsList = []*vcs{&git, &hg, &bzr, &svn}
+ // hostname - i.e. contains at least one '.' and the last part is at least 2
+ // characters.
+ func isRemote(pkg string) bool {
+-	parts := strings.Split(pkg, "/", 2)
++	parts := strings.SplitN(pkg, "/", 2)
+ 	if len(parts) != 2 {
+ 		return false
+ 	}
+-	parts = strings.Split(parts[0], ".", -1)
++	parts = strings.Split(parts[0], ".")
+ 	if len(parts) < 2 || len(parts[len(parts)-1]) < 2 {
+ 		return false
+ 	}
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index b811c61a2d..73bd2faeff 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -50,7 +50,7 @@ func main() {
+ 	flag.Parse()
+ 
+ 	if *printfuncs != "" {
+-		for _, name := range strings.Split(*printfuncs, ",", -1) {
++		for _, name := range strings.Split(*printfuncs, ",") {
+ 			if len(name) == 0 {
+ 				flag.Usage()
+ 			}
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 220c994920..543f8b1e86 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -2834,7 +2834,7 @@ func others() {
+ 	// copy yaccpar
+ 	fmt.Fprintf(ftable, "\n//line yaccpar:1\n")
+ 
+-	parts := strings.Split(yaccpar, prefix+"run()", 2)
++	parts := strings.SplitN(yaccpar, prefix+"run()", 2)
+ 	fmt.Fprintf(ftable, "%v", parts[0])
+ 	ftable.Write(fcode.Bytes())
+ 	fmt.Fprintf(ftable, "%v", parts[1])
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index 1f3e5e7365..6a197bd54b 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -282,7 +282,7 @@ func hgModified() ([]string, os.Error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return strings.Split(strings.TrimSpace(out), "\n", -1), nil
++	return strings.Split(strings.TrimSpace(out), "\n"), nil
+ }
+ 
+ // hgAdd adds name to the repository.
+diff --git a/src/pkg/asn1/common.go b/src/pkg/asn1/common.go
+index 9db887e251..854f4da480 100644
+--- a/src/pkg/asn1/common.go
++++ b/src/pkg/asn1/common.go
+@@ -83,7 +83,7 @@ type fieldParameters struct {
+ // parseFieldParameters will parse it into a fieldParameters structure,
+ // ignoring unknown parts of the string.
+ func parseFieldParameters(str string) (ret fieldParameters) {
+-	for _, part := range strings.Split(str, ",", -1) {
++	for _, part := range strings.Split(str, ",") {
+ 		switch {
+ 		case part == "optional":
+ 			ret.optional = true
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 0f9ac98637..3cec60f96c 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -212,26 +212,40 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+ 	return a[0 : na+1]
+ }
+ 
+-// Split slices s into subslices separated by sep and returns a slice of
++// SplitN slices s into subslices separated by sep and returns a slice of
+ // the subslices between those separators.
+-// If sep is empty, Split splits after each UTF-8 sequence.
++// If sep is empty, SplitN splits after each UTF-8 sequence.
+ // The count determines the number of subslices to return:
+ //   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
+ //   n == 0: the result is nil (zero subslices)
+ //   n < 0: all subslices
+-func Split(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
++func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
+ 
+-// SplitAfter slices s into subslices after each instance of sep and
++// SplitAfterN slices s into subslices after each instance of sep and
+ // returns a slice of those subslices.
+-// If sep is empty, Split splits after each UTF-8 sequence.
++// If sep is empty, SplitAfterN splits after each UTF-8 sequence.
+ // The count determines the number of subslices to return:
+ //   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
+ //   n == 0: the result is nil (zero subslices)
+ //   n < 0: all subslices
+-func SplitAfter(s, sep []byte, n int) [][]byte {
++func SplitAfterN(s, sep []byte, n int) [][]byte {
+ 	return genSplit(s, sep, len(sep), n)
+ }
+ 
++// Split slices s into all subslices separated by sep and returns a slice of
++// the subslices between those separators.
++// If sep is empty, Split splits after each UTF-8 sequence.
++// It is equivalent to SplitN with a count of -1.
++func Split(s, sep []byte) [][]byte { return genSplit(s, sep, 0, -1) }
++
++// SplitAfter slices s into all subslices after each instance of sep and
++// returns a slice of those subslices.
++// If sep is empty, SplitAfter splits after each UTF-8 sequence.
++// It is equivalent to SplitAfterN with a count of -1.
++func SplitAfter(s, sep []byte) [][]byte {
++	return genSplit(s, sep, len(sep), -1)
++}
++
+ // Fields splits the array s around each instance of one or more consecutive white space
+ // characters, returning a slice of subarrays of s or an empty list if s contains only white space.
+ func Fields(s []byte) [][]byte {
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 4ce291a4f6..7539353091 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -6,6 +6,7 @@ package bytes_test
+ 
+ import (
+ 	. "bytes"
++	"reflect"
+ 	"testing"
+ 	"unicode"
+ 	"utf8"
+@@ -315,7 +316,7 @@ var explodetests = []ExplodeTest{
+ 
+ func TestExplode(t *testing.T) {
+ 	for _, tt := range explodetests {
+-		a := Split([]byte(tt.s), nil, tt.n)
++		a := SplitN([]byte(tt.s), nil, tt.n)
+ 		result := arrayOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Explode("%s", %d) = %v; want %v`, tt.s, tt.n, result, tt.a)
+@@ -354,7 +355,7 @@ var splittests = []SplitTest{
+ 
+ func TestSplit(t *testing.T) {
+ 	for _, tt := range splittests {
+-		a := Split([]byte(tt.s), []byte(tt.sep), tt.n)
++		a := SplitN([]byte(tt.s), []byte(tt.sep), tt.n)
+ 		result := arrayOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+@@ -367,6 +368,12 @@ func TestSplit(t *testing.T) {
+ 		if string(s) != tt.s {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+ 		}
++		if tt.n < 0 {
++			b := Split([]byte(tt.s), []byte(tt.sep))
++			if !reflect.DeepEqual(a, b) {
++				t.Errorf("Split disagrees withSplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
++			}
++		}
+ 	}
+ }
+ 
+@@ -388,7 +395,7 @@ var splitaftertests = []SplitTest{
+ 
+ func TestSplitAfter(t *testing.T) {
+ 	for _, tt := range splitaftertests {
+-		a := SplitAfter([]byte(tt.s), []byte(tt.sep), tt.n)
++		a := SplitAfterN([]byte(tt.s), []byte(tt.sep), tt.n)
+ 		result := arrayOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+@@ -398,6 +405,12 @@ func TestSplitAfter(t *testing.T) {
+ 		if string(s) != tt.s {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+ 		}
++		if tt.n < 0 {
++			b := SplitAfter([]byte(tt.s), []byte(tt.sep))
++			if !reflect.DeepEqual(a, b) {
++				t.Errorf("SplitAfter disagrees withSplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/compress/lzw/reader_test.go b/src/pkg/compress/lzw/reader_test.go
+index 72121a6b56..f8042b0d19 100644
+--- a/src/pkg/compress/lzw/reader_test.go
++++ b/src/pkg/compress/lzw/reader_test.go
+@@ -84,7 +84,7 @@ var lzwTests = []lzwTest{
+ func TestReader(t *testing.T) {
+ 	b := bytes.NewBuffer(nil)
+ 	for _, tt := range lzwTests {
+-		d := strings.Split(tt.desc, ";", -1)
++		d := strings.Split(tt.desc, ";")
+ 		var order Order
+ 		switch d[1] {
+ 		case "LSB":
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 9145880a23..20a81574d0 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -202,8 +202,8 @@ func matchHostnames(pattern, host string) bool {
+ 		return false
+ 	}
+ 
+-	patternParts := strings.Split(pattern, ".", -1)
+-	hostParts := strings.Split(host, ".", -1)
++	patternParts := strings.Split(pattern, ".")
++	hostParts := strings.Split(host, ".")
+ 
+ 	if len(patternParts) != len(hostParts) {
+ 		return false
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index 5831b0e979..7ec797114c 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -1229,7 +1229,7 @@ func (p *process) attachAllThreads() os.Error {
+ 					return err
+ 				}
+ 
+-				statParts := strings.Split(string(statFile), " ", 4)
++				statParts := strings.SplitN(string(statFile), " ", 4)
+ 				if len(statParts) > 2 && statParts[2] == "Z" {
+ 					// tid is a zombie
+ 					p.logTrace("thread %d is a zombie", tid)
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index c45a7d70a6..f6cebb9055 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -55,7 +55,7 @@ func TestCatGoodAndBadFile(t *testing.T) {
+ 		t.Errorf("expected Waitmsg from cat combined; got %T: %v", err, err)
+ 	}
+ 	s := string(bs)
+-	sp := strings.Split(s, "\n", 2)
++	sp := strings.SplitN(s, "\n", 2)
+ 	if len(sp) != 2 {
+ 		t.Fatalf("expected two lines from cat; got %q", s)
+ 	}
+diff --git a/src/pkg/exec/lp_plan9.go b/src/pkg/exec/lp_plan9.go
+index c4e2a7a0f9..e4751a4df2 100644
+--- a/src/pkg/exec/lp_plan9.go
++++ b/src/pkg/exec/lp_plan9.go
+@@ -42,7 +42,7 @@ func LookPath(file string) (string, os.Error) {
+ 	}
+ 
+ 	path := os.Getenv("path")
+-	for _, dir := range strings.Split(path, "\000", -1) {
++	for _, dir := range strings.Split(path, "\000") {
+ 		if err := findExecutable(dir + "/" + file); err == nil {
+ 			return dir + "/" + file, nil
+ 		}
+diff --git a/src/pkg/exec/lp_unix.go b/src/pkg/exec/lp_unix.go
+index cdf7207688..008fb11a81 100644
+--- a/src/pkg/exec/lp_unix.go
++++ b/src/pkg/exec/lp_unix.go
+@@ -39,7 +39,7 @@ func LookPath(file string) (string, os.Error) {
+ 		return "", &Error{file, err}
+ 	}
+ 	pathenv := os.Getenv("PATH")
+-	for _, dir := range strings.Split(pathenv, ":", -1) {
++	for _, dir := range strings.Split(pathenv, ":") {
+ 		if dir == "" {
+ 			// Unix shell semantics: path element "" means "."
+ 			dir = "."
+diff --git a/src/pkg/exec/lp_windows.go b/src/pkg/exec/lp_windows.go
+index 47763458f8..7581088eb0 100644
+--- a/src/pkg/exec/lp_windows.go
++++ b/src/pkg/exec/lp_windows.go
+@@ -47,7 +47,7 @@ func LookPath(file string) (f string, err os.Error) {
+ 		x = `.COM;.EXE;.BAT;.CMD`
+ 	}
+ 	exts := []string{}
+-	for _, e := range strings.Split(strings.ToLower(x), `;`, -1) {
++	for _, e := range strings.Split(strings.ToLower(x), `;`) {
+ 		if e == "" {
+ 			continue
+ 		}
+@@ -67,7 +67,7 @@ func LookPath(file string) (f string, err os.Error) {
+ 			return
+ 		}
+ 	} else {
+-		for _, dir := range strings.Split(pathenv, `;`, -1) {
++		for _, dir := range strings.Split(pathenv, `;`) {
+ 			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
+ 				return
+ 			}
+diff --git a/src/pkg/exp/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+index a8db523ea1..ff0d24c692 100644
+--- a/src/pkg/exp/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -154,7 +154,7 @@ func cmdLoad(args []byte) os.Error {
+ 		}
+ 		println("Attached to", pid)
+ 	} else {
+-		parts := strings.Split(path, " ", -1)
++		parts := strings.Split(path, " ")
+ 		if len(parts) == 0 {
+ 			fname = ""
+ 		} else {
+diff --git a/src/pkg/go/ast/print_test.go b/src/pkg/go/ast/print_test.go
+index 0820dcfcef..30b396fcf6 100644
+--- a/src/pkg/go/ast/print_test.go
++++ b/src/pkg/go/ast/print_test.go
+@@ -53,7 +53,7 @@ var tests = []struct {
+ // Split s into lines, trim whitespace from all lines, and return
+ // the concatenated non-empty lines.
+ func trim(s string) string {
+-	lines := strings.Split(s, "\n", -1)
++	lines := strings.Split(s, "\n")
+ 	i := 0
+ 	for _, line := range lines {
+ 		line = strings.TrimSpace(line)
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index 20f8f2913f..e0000b5344 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -139,7 +139,7 @@ func goodOSArch(filename string) bool {
+ 	if dot := strings.Index(filename, "."); dot != -1 {
+ 		filename = filename[:dot]
+ 	}
+-	l := strings.Split(filename, "_", -1)
++	l := strings.Split(filename, "_")
+ 	n := len(l)
+ 	if n == 0 {
+ 		return true
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index f1ebfa97b9..85640af796 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -58,7 +58,7 @@ func CommentText(comment *ast.CommentGroup) string {
+ 		}
+ 
+ 		// Split on newlines.
+-		cl := strings.Split(c, "\n", -1)
++		cl := strings.Split(c, "\n")
+ 
+ 		// Walk lines, stripping trailing white space and adding to list.
+ 		for _, l := range cl {
+diff --git a/src/pkg/html/token_test.go b/src/pkg/html/token_test.go
+index c17b436aab..c794612abc 100644
+--- a/src/pkg/html/token_test.go
++++ b/src/pkg/html/token_test.go
+@@ -161,7 +161,7 @@ func TestTokenizer(t *testing.T) {
+ loop:
+ 	for _, tt := range tokenTests {
+ 		z := NewTokenizer(bytes.NewBuffer([]byte(tt.html)))
+-		for i, s := range strings.Split(tt.golden, "$", -1) {
++		for i, s := range strings.Split(tt.golden, "$") {
+ 			if z.Next() == ErrorToken {
+ 				t.Errorf("%s token %d: want %q got error %v", tt.desc, i, s, z.Error())
+ 				continue loop
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 2be3ede774..01a941650b 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -197,7 +197,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		if len(line) == 0 {
+ 			break
+ 		}
+-		parts := strings.Split(string(line), ":", 2)
++		parts := strings.SplitN(string(line), ":", 2)
+ 		if len(parts) < 2 {
+ 			h.printf("cgi: bogus header line: %s", string(line))
+ 			continue
+diff --git a/src/pkg/http/cgi/host_test.go b/src/pkg/http/cgi/host_test.go
+index bbdb715cf9..3b9dad5c0c 100644
+--- a/src/pkg/http/cgi/host_test.go
++++ b/src/pkg/http/cgi/host_test.go
+@@ -46,7 +46,7 @@ readlines:
+ 		}
+ 		linesRead++
+ 		trimmedLine := strings.TrimRight(line, "\r\n")
+-		split := strings.Split(trimmedLine, "=", 2)
++		split := strings.SplitN(trimmedLine, "=", 2)
+ 		if len(split) != 2 {
+ 			t.Fatalf("Unexpected %d parts from invalid line number %v: %q; existing map=%v",
+ 				len(split), linesRead, line, m)
+diff --git a/src/pkg/http/cookie.go b/src/pkg/http/cookie.go
+index 79c239b46e..fe70431bbb 100644
+--- a/src/pkg/http/cookie.go
++++ b/src/pkg/http/cookie.go
+@@ -41,7 +41,7 @@ type Cookie struct {
+ func readSetCookies(h Header) []*Cookie {
+ 	cookies := []*Cookie{}
+ 	for _, line := range h["Set-Cookie"] {
+-		parts := strings.Split(strings.TrimSpace(line), ";", -1)
++		parts := strings.Split(strings.TrimSpace(line), ";")
+ 		if len(parts) == 1 && parts[0] == "" {
+ 			continue
+ 		}
+@@ -175,7 +175,7 @@ func readCookies(h Header, filter string) []*Cookie {
+ 	}
+ 
+ 	for _, line := range lines {
+-		parts := strings.Split(strings.TrimSpace(line), ";", -1)
++		parts := strings.Split(strings.TrimSpace(line), ";")
+ 		if len(parts) == 1 && parts[0] == "" {
+ 			continue
+ 		}
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 139fe2cb0f..0b830053a9 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -259,7 +259,7 @@ func parseRange(s string, size int64) ([]httpRange, os.Error) {
+ 		return nil, os.NewError("invalid range")
+ 	}
+ 	var ranges []httpRange
+-	for _, ra := range strings.Split(s[len(b):], ",", -1) {
++	for _, ra := range strings.Split(s[len(b):], ",") {
+ 		i := strings.Index(ra, "-")
+ 		if i < 0 {
+ 			return nil, os.NewError("invalid range")
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index cd6965fa5d..456476a212 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -543,7 +543,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	}
+ 
+ 	var f []string
+-	if f = strings.Split(s, " ", 3); len(f) < 3 {
++	if f = strings.SplitN(s, " ", 3); len(f) < 3 {
+ 		return nil, &badStringError{"malformed HTTP request", s}
+ 	}
+ 	req.Method, req.RawURL, req.Proto = f[0], f[1], f[2]
+@@ -662,11 +662,11 @@ func ParseQuery(query string) (m Values, err os.Error) {
+ }
+ 
+ func parseQuery(m Values, query string) (err os.Error) {
+-	for _, kv := range strings.Split(query, "&", -1) {
++	for _, kv := range strings.Split(query, "&") {
+ 		if len(kv) == 0 {
+ 			continue
+ 		}
+-		kvPair := strings.Split(kv, "=", 2)
++		kvPair := strings.SplitN(kv, "=", 2)
+ 
+ 		var key, value string
+ 		var e os.Error
+@@ -703,7 +703,7 @@ func (r *Request) ParseForm() (err os.Error) {
+ 			return os.NewError("missing form body")
+ 		}
+ 		ct := r.Header.Get("Content-Type")
+-		switch strings.Split(ct, ";", 2)[0] {
++		switch strings.SplitN(ct, ";", 2)[0] {
+ 		case "text/plain", "application/x-www-form-urlencoded", "":
+ 			const maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
+ 			b, e := ioutil.ReadAll(io.LimitReader(r.Body, maxFormSize+1))
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index 6c0c441a94..915327a69e 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -95,7 +95,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (resp *Response, err os.Error)
+ 		}
+ 		return nil, err
+ 	}
+-	f := strings.Split(line, " ", 3)
++	f := strings.SplitN(line, " ", 3)
+ 	if len(f) < 2 {
+ 		return nil, &badStringError{"malformed HTTP response", line}
+ 	}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 08cbed7ad8..ab960f4f0a 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -421,7 +421,7 @@ func errorKludge(w *response) {
+ 	msg += " would ignore this error page if this text weren't here.\n"
+ 
+ 	// Is it text?  ("Content-Type" is always in the map)
+-	baseType := strings.Split(w.header.Get("Content-Type"), ";", 2)[0]
++	baseType := strings.SplitN(w.header.Get("Content-Type"), ";", 2)[0]
+ 	switch baseType {
+ 	case "text/html":
+ 		io.WriteString(w, "<!-- ")
+diff --git a/src/pkg/http/spdy/read.go b/src/pkg/http/spdy/read.go
+index 8adec7bd4f..c6b6ab3af8 100644
+--- a/src/pkg/http/spdy/read.go
++++ b/src/pkg/http/spdy/read.go
+@@ -174,7 +174,7 @@ func parseHeaderValueBlock(r io.Reader, streamId uint32) (http.Header, os.Error)
+ 		if _, err := io.ReadFull(r, value); err != nil {
+ 			return nil, err
+ 		}
+-		valueList := strings.Split(string(value), "\x00", -1)
++		valueList := strings.Split(string(value), "\x00")
+ 		for _, v := range valueList {
+ 			h.Add(name, v)
+ 		}
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index f72c3d239a..2502c1fee1 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -334,7 +334,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Erro
+ 		return nil, nil
+ 	}
+ 
+-	encodings := strings.Split(raw[0], ",", -1)
++	encodings := strings.Split(raw[0], ",")
+ 	te := make([]string, 0, len(encodings))
+ 	// TODO: Even though we only support "identity" and "chunked"
+ 	// encodings, the loop below is designed with foresight. One
+@@ -450,7 +450,7 @@ func fixTrailer(header Header, te []string) (Header, os.Error) {
+ 
+ 	header.Del("Trailer")
+ 	trailer := make(Header)
+-	keys := strings.Split(raw, ",", -1)
++	keys := strings.Split(raw, ",")
+ 	for _, key := range keys {
+ 		key = CanonicalHeaderKey(strings.TrimSpace(key))
+ 		switch key {
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index 9ad159010b..3c16c880d5 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -329,7 +329,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
+ 			return nil, err
+ 		}
+ 		if resp.StatusCode != 200 {
+-			f := strings.Split(resp.Status, " ", 2)
++			f := strings.SplitN(resp.Status, " ", 2)
+ 			conn.Close()
+ 			return nil, os.NewError(f[1])
+ 		}
+@@ -383,7 +383,7 @@ func useProxy(addr string) bool {
+ 		addr = addr[:strings.LastIndex(addr, ":")]
+ 	}
+ 
+-	for _, p := range strings.Split(no_proxy, ",", -1) {
++	for _, p := range strings.Split(no_proxy, ",") {
+ 		p = strings.ToLower(strings.TrimSpace(p))
+ 		if len(p) == 0 {
+ 			continue
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index beb0b8200d..e934b27c4d 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -508,8 +508,8 @@ func (v Values) Encode() string {
+ // resolvePath applies special path segments from refs and applies
+ // them to base, per RFC 2396.
+ func resolvePath(basepath string, refpath string) string {
+-	base := strings.Split(basepath, "/", -1)
+-	refs := strings.Split(refpath, "/", -1)
++	base := strings.Split(basepath, "/")
++	refs := strings.Split(refpath, "/")
+ 	if len(base) == 0 {
+ 		base = []string{""}
+ 	}
+diff --git a/src/pkg/mail/message.go b/src/pkg/mail/message.go
+index fce287bd8e..e227d17d6f 100644
+--- a/src/pkg/mail/message.go
++++ b/src/pkg/mail/message.go
+@@ -425,7 +425,7 @@ func (p *addrParser) len() int {
+ }
+ 
+ func decodeRFC2047Word(s string) (string, os.Error) {
+-	fields := strings.Split(s, "?", -1)
++	fields := strings.Split(s, "?")
+ 	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" {
+ 		return "", os.NewError("mail: address not RFC 2047 encoded")
+ 	}
+diff --git a/src/pkg/mime/mediatype.go b/src/pkg/mime/mediatype.go
+index 96edbd6725..40c735c5ba 100644
+--- a/src/pkg/mime/mediatype.go
++++ b/src/pkg/mime/mediatype.go
+@@ -134,7 +134,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string) {
+ }
+ 
+ func decode2231Enc(v string) string {
+-	sv := strings.Split(v, "'", 3)
++	sv := strings.SplitN(v, "'", 3)
+ 	if len(sv) != 3 {
+ 		return ""
+ 	}
+diff --git a/src/pkg/patch/patch.go b/src/pkg/patch/patch.go
+index d4977dc990..fcc8307e09 100644
+--- a/src/pkg/patch/patch.go
++++ b/src/pkg/patch/patch.go
+@@ -319,4 +319,4 @@ func hasPrefix(s []byte, t string) bool {
+ 
+ // splitLines returns the result of splitting s into lines.
+ // The \n on each line is preserved.
+-func splitLines(s []byte) [][]byte { return bytes.SplitAfter(s, newline, -1) }
++func splitLines(s []byte) [][]byte { return bytes.SplitAfter(s, newline) }
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index dcd8017add..b181483ed6 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -136,7 +136,7 @@ func SplitList(path string) []string {
+ 	if path == "" {
+ 		return []string{}
+ 	}
+-	return strings.Split(path, string(ListSeparator), -1)
++	return strings.Split(path, string(ListSeparator))
+ }
+ 
+ // Split splits path immediately following the final Separator,
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 17ba6a453a..07845d128b 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -495,7 +495,7 @@ func (server *Server) readRequest(codec ServerCodec) (req *Request, service *ser
+ 		return
+ 	}
+ 
+-	serviceMethod := strings.Split(req.ServiceMethod, ".", -1)
++	serviceMethod := strings.Split(req.ServiceMethod, ".")
+ 	if len(serviceMethod) != 2 {
+ 		err = os.NewError("rpc: service/method request ill-formed: " + req.ServiceMethod)
+ 		return
+diff --git a/src/pkg/runtime/debug/stack.go b/src/pkg/runtime/debug/stack.go
+index e5fae632b1..a533a5c3bf 100644
+--- a/src/pkg/runtime/debug/stack.go
++++ b/src/pkg/runtime/debug/stack.go
+@@ -52,7 +52,7 @@ func stack() []byte {
+ 			if err != nil {
+ 				continue
+ 			}
+-			lines = bytes.Split(data, []byte{'\n'}, -1)
++			lines = bytes.Split(data, []byte{'\n'})
+ 			lastFile = file
+ 		}
+ 		line-- // in stack trace, lines are 1-indexed but our array is 0-indexed
+diff --git a/src/pkg/runtime/debug/stack_test.go b/src/pkg/runtime/debug/stack_test.go
+index f4bdc46244..4aeea13ffd 100644
+--- a/src/pkg/runtime/debug/stack_test.go
++++ b/src/pkg/runtime/debug/stack_test.go
+@@ -35,7 +35,7 @@ func (t T) method() []byte {
+ */
+ func TestStack(t *testing.T) {
+ 	b := T(0).method()
+-	lines := strings.Split(string(b), "\n", -1)
++	lines := strings.Split(string(b), "\n")
+ 	if len(lines) <= 6 {
+ 		t.Fatal("too few lines")
+ 	}
+diff --git a/src/pkg/smtp/smtp.go b/src/pkg/smtp/smtp.go
+index d716df56b9..2d5e862471 100644
+--- a/src/pkg/smtp/smtp.go
++++ b/src/pkg/smtp/smtp.go
+@@ -93,11 +93,11 @@ func (c *Client) ehlo() os.Error {
+ 		return err
+ 	}
+ 	ext := make(map[string]string)
+-	extList := strings.Split(msg, "\n", -1)
++	extList := strings.Split(msg, "\n")
+ 	if len(extList) > 1 {
+ 		extList = extList[1:]
+ 		for _, line := range extList {
+-			args := strings.Split(line, " ", 2)
++			args := strings.SplitN(line, " ", 2)
+ 			if len(args) > 1 {
+ 				ext[args[0]] = args[1]
+ 			} else {
+@@ -106,7 +106,7 @@ func (c *Client) ehlo() os.Error {
+ 		}
+ 	}
+ 	if mechs, ok := ext["AUTH"]; ok {
+-		c.auth = strings.Split(mechs, " ", -1)
++		c.auth = strings.Split(mechs, " ")
+ 	}
+ 	c.ext = ext
+ 	return err
+diff --git a/src/pkg/smtp/smtp_test.go b/src/pkg/smtp/smtp_test.go
+index 49363adf0a..c053557d7f 100644
+--- a/src/pkg/smtp/smtp_test.go
++++ b/src/pkg/smtp/smtp_test.go
+@@ -64,8 +64,8 @@ func (f faker) Close() os.Error {
+ }
+ 
+ func TestBasic(t *testing.T) {
+-	basicServer = strings.Join(strings.Split(basicServer, "\n", -1), "\r\n")
+-	basicClient = strings.Join(strings.Split(basicClient, "\n", -1), "\r\n")
++	basicServer = strings.Join(strings.Split(basicServer, "\n"), "\r\n")
++	basicClient = strings.Join(strings.Split(basicClient, "\n"), "\r\n")
+ 
+ 	var cmdbuf bytes.Buffer
+ 	bcmdbuf := bufio.NewWriter(&cmdbuf)
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 34baeee39b..3096957f5d 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -28,7 +28,7 @@ func pow2(i int) float64 {
+ // Wrapper around strconv.Atof64.  Handles dddddp+ddd (binary exponent)
+ // itself, passes the rest on to strconv.Atof64.
+ func myatof64(s string) (f float64, ok bool) {
+-	a := strings.Split(s, "p", 2)
++	a := strings.SplitN(s, "p", 2)
+ 	if len(a) == 2 {
+ 		n, err := strconv.Atoi64(a[0])
+ 		if err != nil {
+@@ -72,7 +72,7 @@ func myatof64(s string) (f float64, ok bool) {
+ // Wrapper around strconv.Atof32.  Handles dddddp+ddd (binary exponent)
+ // itself, passes the rest on to strconv.Atof32.
+ func myatof32(s string) (f float32, ok bool) {
+-	a := strings.Split(s, "p", 2)
++	a := strings.SplitN(s, "p", 2)
+ 	if len(a) == 2 {
+ 		n, err := strconv.Atoi(a[0])
+ 		if err != nil {
+@@ -116,7 +116,7 @@ func TestFp(t *testing.T) {
+ 		if len(line) == 0 || line[0] == '#' {
+ 			continue
+ 		}
+-		a := strings.Split(line, " ", -1)
++		a := strings.Split(line, " ")
+ 		if len(a) != 4 {
+ 			t.Error("testfp.txt:", lineno, ": wrong field count")
+ 			continue
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index bfd057180d..6afbc7dc2f 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -198,26 +198,40 @@ func genSplit(s, sep string, sepSave, n int) []string {
+ 	return a[0 : na+1]
+ }
+ 
+-// Split slices s into substrings separated by sep and returns a slice of
++// SplitN slices s into substrings separated by sep and returns a slice of
+ // the substrings between those separators.
+-// If sep is empty, Split splits after each UTF-8 sequence.
++// If sep is empty, SplitN splits after each UTF-8 sequence.
+ // The count determines the number of substrings to return:
+ //   n > 0: at most n substrings; the last substring will be the unsplit remainder.
+ //   n == 0: the result is nil (zero substrings)
+ //   n < 0: all substrings
+-func Split(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
++func SplitN(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
+ 
+-// SplitAfter slices s into substrings after each instance of sep and
++// SplitAfterN slices s into substrings after each instance of sep and
+ // returns a slice of those substrings.
+-// If sep is empty, Split splits after each UTF-8 sequence.
++// If sep is empty, SplitAfterN splits after each UTF-8 sequence.
+ // The count determines the number of substrings to return:
+ //   n > 0: at most n substrings; the last substring will be the unsplit remainder.
+ //   n == 0: the result is nil (zero substrings)
+ //   n < 0: all substrings
+-func SplitAfter(s, sep string, n int) []string {
++func SplitAfterN(s, sep string, n int) []string {
+ 	return genSplit(s, sep, len(sep), n)
+ }
+ 
++// Split slices s into all substrings separated by sep and returns a slice of
++// the substrings between those separators.
++// If sep is empty, Split splits after each UTF-8 sequence.
++// It is equivalent to SplitN with a count of -1.
++func Split(s, sep string) []string { return genSplit(s, sep, 0, -1) }
++
++// SplitAfter slices s into all substrings after each instance of sep and
++// returns a slice of those substrings.
++// If sep is empty, SplitAfter splits after each UTF-8 sequence.
++// It is equivalent to SplitAfterN with a count of -1.
++func SplitAfter(s, sep string) []string {
++	return genSplit(s, sep, len(sep), -1)
++}
++
+ // Fields splits the string s around each instance of one or more consecutive white space
+ // characters, returning an array of substrings of s or an empty list if s contains only white space.
+ func Fields(s string) []string {
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index a1a635dddb..c546173393 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -186,7 +186,7 @@ var explodetests = []ExplodeTest{
+ 
+ func TestExplode(t *testing.T) {
+ 	for _, tt := range explodetests {
+-		a := Split(tt.s, "", tt.n)
++		a := SplitN(tt.s, "", tt.n)
+ 		if !eq(a, tt.a) {
+ 			t.Errorf("explode(%q, %d) = %v; want %v", tt.s, tt.n, a, tt.a)
+ 			continue
+@@ -223,7 +223,7 @@ var splittests = []SplitTest{
+ 
+ func TestSplit(t *testing.T) {
+ 	for _, tt := range splittests {
+-		a := Split(tt.s, tt.sep, tt.n)
++		a := SplitN(tt.s, tt.sep, tt.n)
+ 		if !eq(a, tt.a) {
+ 			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a)
+ 			continue
+@@ -235,6 +235,12 @@ func TestSplit(t *testing.T) {
+ 		if s != tt.s {
+ 			t.Errorf("Join(Split(%q, %q, %d), %q) = %q", tt.s, tt.sep, tt.n, tt.sep, s)
+ 		}
++		if tt.n < 0 {
++			b := Split(tt.s, tt.sep)
++			if !reflect.DeepEqual(a, b) {
++				t.Errorf("Split disagrees with SplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
++			}
++		}
+ 	}
+ }
+ 
+@@ -256,7 +262,7 @@ var splitaftertests = []SplitTest{
+ 
+ func TestSplitAfter(t *testing.T) {
+ 	for _, tt := range splitaftertests {
+-		a := SplitAfter(tt.s, tt.sep, tt.n)
++		a := SplitAfterN(tt.s, tt.sep, tt.n)
+ 		if !eq(a, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a)
+ 			continue
+@@ -265,6 +271,12 @@ func TestSplitAfter(t *testing.T) {
+ 		if s != tt.s {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+ 		}
++		if tt.n < 0 {
++			b := SplitAfter(tt.s, tt.sep)
++			if !reflect.DeepEqual(a, b) {
++				t.Errorf("SplitAfter disagrees with SplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
++			}
++		}
+ 	}
+ }
+ 
+@@ -623,8 +635,8 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
+ 	if s1 == s2 {
+ 		return true
+ 	}
+-	e1 := Split(s1, "", -1)
+-	e2 := Split(s2, "", -1)
++	e1 := Split(s1, "")
++	e2 := Split(s2, "")
+ 	for i, c1 := range e1 {
+ 		if i > len(e2) {
+ 			break
+diff --git a/src/pkg/template/execute.go b/src/pkg/template/execute.go
+index 5bc7ff7e9f..464b620c98 100644
+--- a/src/pkg/template/execute.go
++++ b/src/pkg/template/execute.go
+@@ -114,7 +114,7 @@ func (t *Template) findVar(st *state, s string) reflect.Value {
+ 	if s == "@" {
+ 		return indirectPtr(data, numStars)
+ 	}
+-	for _, elem := range strings.Split(s, ".", -1) {
++	for _, elem := range strings.Split(s, ".") {
+ 		// Look up field; data must be a struct or map.
+ 		data = t.lookup(st, data, elem)
+ 		if !data.IsValid() {
+diff --git a/src/pkg/template/parse.go b/src/pkg/template/parse.go
+index b4aa5fcd2d..dedf9ad8e9 100644
+--- a/src/pkg/template/parse.go
++++ b/src/pkg/template/parse.go
+@@ -483,7 +483,7 @@ func extractFormatters(words []string) (formatters []string) {
+ 		}
+ 	}
+ 	words[len(words)-1] = lastWord[0:bar]
+-	formatters = strings.Split(lastWord[bar+1:], "|", -1)
++	formatters = strings.Split(lastWord[bar+1:], "|")
+ 	return
+ }
+ 
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 297f6ad0dc..ba721523e1 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -287,7 +287,7 @@ func parseCpuList() {
+ 	if len(*cpuListStr) == 0 {
+ 		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+ 	} else {
+-		for _, val := range strings.Split(*cpuListStr, ",", -1) {
++		for _, val := range strings.Split(*cpuListStr, ",") {
+ 			cpu, err := strconv.Atoi(val)
+ 			if err != nil || cpu <= 0 {
+ 				println("invalid value for -test.cpu")
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 421d294552..156e84c0f0 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -156,7 +156,7 @@ const (
+ )
+ 
+ func parseCategory(line string) (state State) {
+-	field := strings.Split(line, ";", -1)
++	field := strings.Split(line, ";")
+ 	if len(field) != NumField {
+ 		logger.Fatalf("%5s: %d fields (expected %d)\n", line, len(field), NumField)
+ 	}
+@@ -253,7 +253,7 @@ func all(scripts map[string][]Script) []string {
+ // Extract the version number from the URL
+ func version() string {
+ 	// Break on slashes and look for the first numeric field
+-	fields := strings.Split(*url, "/", -1)
++	fields := strings.Split(*url, "/")
+ 	for _, f := range fields {
+ 		if len(f) > 0 && '0' <= f[0] && f[0] <= '9' {
+ 			return f
+@@ -336,7 +336,7 @@ func loadCasefold() {
+ 		if line[0] == '#' {
+ 			continue
+ 		}
+-		field := strings.Split(line, "; ", -1)
++		field := strings.Split(line, "; ")
+ 		if len(field) != 4 {
+ 			logger.Fatalf("CaseFolding.txt %.5s...: %d fields (expected %d)\n", line, len(field), 4)
+ 		}
+@@ -372,7 +372,7 @@ func printCategories() {
+ 		return
+ 	}
+ 	// Find out which categories to dump
+-	list := strings.Split(*tablelist, ",", -1)
++	list := strings.Split(*tablelist, ",")
+ 	if *tablelist == "all" {
+ 		list = allCategories()
+ 	}
+@@ -588,7 +588,7 @@ func parseScript(line string, scripts map[string][]Script) {
+ 	if len(line) == 0 {
+ 		return
+ 	}
+-	field := strings.Split(line, ";", -1)
++	field := strings.Split(line, ";")
+ 	if len(field) != 2 {
+ 		logger.Fatalf("%s: %d fields (expected 2)\n", line, len(field))
+ 	}
+@@ -685,7 +685,7 @@ func printScriptOrProperty(doProps bool) {
+ 	resp.Body.Close()
+ 
+ 	// Find out which scripts to dump
+-	list := strings.Split(flaglist, ",", -1)
++	list := strings.Split(flaglist, ",")
+ 	if flaglist == "all" {
+ 		list = all(table)
+ 	}

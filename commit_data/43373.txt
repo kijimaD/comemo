@@ -14,8 +14,70 @@ Date:   Mon Mar 30 10:06:54 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/elf.go  | 2 --
  src/cmd/link/internal/ld/go.go   | 7 -------
  src/cmd/link/internal/ld/main.go | 8 ++++----
  3 files changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index c5c07d63f7..e15f94d5e0 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2393,8 +2393,6 @@ func elfadddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
+ 
+ func elfadddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
+ 	ldr.SetSymDynid(s, int32(Nelfsym))
+-	// temporary until wafefront moves past addexport
+-	ldr.Syms[s].Dynid = ldr.SymDynid(s)
+ 	Nelfsym++
+ 	d := ldr.MakeSymbolUpdater(syms.DynSym2)
+ 	name := ldr.SymExtname(s)
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 575ca6febe..0e4198572b 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -412,8 +412,6 @@ func (ctxt *Link) addexport() {
+ 						}
+ 						su := ctxt.loader.MakeSymbolUpdater(rs)
+ 						su.SetType(sym.SUNDEFEXT)
+-						// temporary until the wavefront moves past addexport
+-						ctxt.loader.Syms[rs].Type = sym.SUNDEFEXT
+ 					}
+ 				}
+ 			}
+@@ -431,11 +429,6 @@ func (ctxt *Link) addexport() {
+ 	for _, lib := range dynlib {
+ 		adddynlib(ctxt, lib)
+ 	}
+-
+-	// temporary until the wavefront moves past addexport:
+-	// copy any changes to loader.Sym symbols back into the sym.Symbol world.
+-	modified := []loader.Sym{ctxt.DynSym2, ctxt.Dynamic2, ctxt.DynStr2}
+-	ctxt.loader.PropagateLoaderChangesToSymbols(modified, 0)
+ }
+ 
+ type Pkg struct {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 2570026238..3772c5090c 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -281,14 +281,14 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	bench.Start("textbuildid")
+ 	ctxt.textbuildid()
+-
+-	bench.Start("loadlibfull")
++	bench.Start("addexport")
+ 	setupdynexp(ctxt)
+ 	ctxt.setArchSyms(BeforeLoadlibFull)
++	ctxt.addexport()
++
++	bench.Start("loadlibfull")
+ 	ctxt.loadlibfull() // XXX do it here for now
+ 
+-	bench.Start("addexport")
+-	ctxt.addexport()
+ 	bench.Start("Gentext")
+ 	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
+ 	bench.Start("textaddress")

@@ -10,7 +10,95 @@ Date:   Wed Mar 23 23:14:35 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21057
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/json/stream.go      | 22 +++++++++++++++++++++-
  src/encoding/json/stream_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/stream.go b/src/encoding/json/stream.go
+index f5612692b8..b740d32a7d 100644
+--- a/src/encoding/json/stream.go
++++ b/src/encoding/json/stream.go
+@@ -168,6 +168,10 @@ func nonSpace(b []byte) bool {
+ type Encoder struct {
+ 	w   io.Writer
+ 	err error
++
++	indentBuf    *bytes.Buffer
++	indentPrefix string
++	indentValue  string
+ }
+ 
+ // NewEncoder returns a new encoder that writes to w.
+@@ -198,13 +202,29 @@ func (enc *Encoder) Encode(v interface{}) error {
+ 	// digits coming.
+ 	e.WriteByte('\n')
+ 
+-	if _, err = enc.w.Write(e.Bytes()); err != nil {
++	b := e.Bytes()
++	if enc.indentBuf != nil {
++		enc.indentBuf.Reset()
++		err = Indent(enc.indentBuf, b, enc.indentPrefix, enc.indentValue)
++		if err != nil {
++			return err
++		}
++		b = enc.indentBuf.Bytes()
++	}
++	if _, err = enc.w.Write(b); err != nil {
+ 		enc.err = err
+ 	}
+ 	encodeStatePool.Put(e)
+ 	return err
+ }
+ 
++// Indent sets the encoder to format each encoded object with Indent.
++func (enc *Encoder) Indent(prefix, indent string) {
++	enc.indentBuf = new(bytes.Buffer)
++	enc.indentPrefix = prefix
++	enc.indentValue = indent
++}
++
+ // RawMessage is a raw encoded JSON object.
+ // It implements Marshaler and Unmarshaler and can
+ // be used to delay JSON decoding or precompute a JSON encoding.
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index cca644eb41..db25708f4c 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -57,6 +57,36 @@ func TestEncoder(t *testing.T) {
+ 	}
+ }
+ 
++var streamEncodedIndent = `0.1
++"hello"
++null
++true
++false
++[
++>."a",
++>."b",
++>."c"
++>]
++{
++>."ß": "long s",
++>."K": "Kelvin"
++>}
++3.14
++`
++
++func TestEncoderIndent(t *testing.T) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	enc.Indent(">", ".")
++	for _, v := range streamTest {
++		enc.Encode(v)
++	}
++	if have, want := buf.String(), streamEncodedIndent; have != want {
++		t.Error("indented encoding mismatch")
++		diff(t, []byte(have), []byte(want))
++	}
++}
++
+ func TestDecoder(t *testing.T) {
+ 	for i := 0; i <= len(streamTest); i++ {
+ 		// Use stream without newlines as input,

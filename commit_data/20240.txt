@@ -21,7 +21,7 @@ Date:   Wed Aug 27 11:15:47 2014 -0400
     R=golang-codereviews, dvyukov, josharian, rsc
     CC=golang-codereviews, khr
     https://golang.org/cl/132960044
-
+---
  src/pkg/runtime/heapdump.c      |  14 ++-
  src/pkg/runtime/mgc0.c          |  19 ++--
  src/pkg/runtime/mprof.goc       |   2 +-
@@ -33,3 +33,1024 @@ Date:   Wed Aug 27 11:15:47 2014 -0400
  src/pkg/runtime/traceback_arm.c |   2 +-
  src/pkg/runtime/traceback_x86.c |   2 +-
  10 files changed, 308 insertions(+), 87 deletions(-)
+
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index 61f6fc2d95..ea299d0a2e 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -396,7 +396,7 @@ dumpgoroutine(G *gp)
+ 	dumpint((uintptr)sp);
+ 	dumpint(gp->goid);
+ 	dumpint(gp->gopc);
+-	dumpint(gp->status);
++	dumpint(runtime·readgstatus(gp));
+ 	dumpbool(gp->issystem);
+ 	dumpbool(false);  // isbackground
+ 	dumpint(gp->waitsince);
+@@ -442,14 +442,16 @@ dumpgs(void)
+ {
+ 	G *gp;
+ 	uint32 i;
++	uint32 status;
+ 
+ 	// goroutines & stacks
+ 	for(i = 0; i < runtime·allglen; i++) {
+ 		gp = runtime·allg[i];
+-		switch(gp->status){
++		status = runtime·readgstatus(gp); // The world is stopped so gp will not be in a scan state.
++		switch(status){
+ 		default:
+-			runtime·printf("unexpected G.status %d\n", gp->status);
+-			runtime·throw("mark - bad status");
++			runtime·printf("runtime: unexpected G.status %d\n", status);
++			runtime·throw("dumpgs in STW - bad status");
+ 		case Gdead:
+ 			break;
+ 		case Grunnable:
+@@ -730,7 +732,7 @@ mdump(G *gp)
+ 	flush();
+ 
+ 	gp->param = nil;
+-	gp->status = Grunning;
++	runtime·casgstatus(gp, Gwaiting, Grunning);
+ 	runtime·gogo(&gp->sched);
+ }
+ 
+@@ -751,7 +753,7 @@ runtime∕debug·WriteHeapDump(uintptr fd)
+ 	dumpfd = fd;
+ 
+ 	// Call dump routine on M stack.
+-	g->status = Gwaiting;
++	runtime·casgstatus(g, Grunning, Gwaiting);
+ 	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
+ 	runtime·mcall(mdump);
+ 
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index db89f6036f..61961f6471 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -484,6 +484,7 @@ markroot(ParFor *desc, uint32 i)
+ 	uint32 spanidx, sg;
+ 	G *gp;
+ 	void *p;
++	uint32 status;
+ 
+ 	USED(&desc);
+ 	// Note: if you add a case here, please also update heapdump.c:dumproots.
+@@ -540,7 +541,8 @@ markroot(ParFor *desc, uint32 i)
+ 		gp = runtime·allg[i - RootCount];
+ 		// remember when we've first observed the G blocked
+ 		// needed only to output in traceback
+-		if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince == 0)
++		status = runtime·readgstatus(gp);
++		if((status == Gwaiting || status == Gsyscall) && gp->waitsince == 0)
+ 			gp->waitsince = work.tstart;
+ 		// Shrink a stack if not much of it is being used.
+ 		runtime·shrinkstack(gp);
+@@ -737,13 +739,14 @@ scanstack(G *gp)
+ 	Stktop *stk;
+ 	uintptr sp, guard;
+ 
+-	switch(gp->status){
++	switch(runtime·readgstatus(gp)) {
+ 	default:
+-		runtime·printf("unexpected G.status %d (goroutine %p %D)\n", gp->status, gp, gp->goid);
++		runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
+ 		runtime·throw("mark - bad status");
+ 	case Gdead:
+ 		return;
+ 	case Grunning:
++		runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
+ 		runtime·throw("mark - world not stopped");
+ 	case Grunnable:
+ 	case Gsyscall:
+@@ -860,7 +863,7 @@ runtime·MSpan_EnsureSwept(MSpan *s)
+ 	}
+ 	// unfortunate condition, and we don't have efficient means to wait
+ 	while(runtime·atomicload(&s->sweepgen) != sg)
+-		runtime·osyield();  
++		runtime·osyield();
+ }
+ 
+ // Sweep frees or collects finalizers for blocks not marked in the mark phase.
+@@ -1349,7 +1352,7 @@ runtime·gc(int32 force)
+ 			a.start_time = runtime·nanotime();
+ 		// switch to g0, call gc(&a), then switch back
+ 		g->param = &a;
+-		g->status = Gwaiting;
++		runtime·casgstatus(g, Grunning, Gwaiting);
+ 		g->waitreason = runtime·gostringnocopy((byte*)"garbage collection");
+ 		runtime·mcall(mgc);
+ 	}
+@@ -1373,7 +1376,7 @@ mgc(G *gp)
+ {
+ 	gc(gp->param);
+ 	gp->param = nil;
+-	gp->status = Grunning;
++	runtime·casgstatus(gp, Gwaiting, Grunning);
+ 	runtime·gogo(&gp->sched);
+ }
+ 
+@@ -1384,14 +1387,14 @@ runtime·gc_m(void)
+ 	G *gp;
+ 
+ 	gp = g->m->curg;
+-	gp->status = Gwaiting;
++	runtime·casgstatus(gp, Grunning, Gwaiting);
+ 	gp->waitreason = runtime·gostringnocopy((byte*)"garbage collection");
+ 
+ 	a.start_time = (uint64)(g->m->scalararg[0]) | ((uint64)(g->m->scalararg[1]) << 32);
+ 	a.eagersweep = g->m->scalararg[2];
+ 	gc(&a);
+ 
+-	gp->status = Grunning;
++	runtime·casgstatus(gp, Gwaiting, Grunning);
+ }
+ 
+ static void
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index a79081c72f..a96edee21a 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -288,7 +288,7 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
+ 			saveg(pc, sp, g, r++);
+ 			for(i = 0; i < runtime·allglen; i++) {
+ 				gp = runtime·allg[i];
+-				if(gp == g || gp->status == Gdead)
++				if(gp == g || runtime·readgstatus(gp) == Gdead)
+ 					continue;
+ 				saveg(~(uintptr)0, ~(uintptr)0, gp, r++);
+ 			}
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index d0284f9c20..dc3d2e93bf 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -477,6 +477,7 @@ bool
+ runtime·canpanic(G *gp)
+ {
+ 	M *m;
++	uint32 status;
+ 
+ 	// Note that g is m->gsignal, different from gp.
+ 	// Note also that g->m can change at preemption, so m can go stale
+@@ -490,7 +491,8 @@ runtime·canpanic(G *gp)
+ 		return false;
+ 	if(m->locks-m->softfloat != 0 || m->mallocing != 0 || m->throwing != 0 || m->gcing != 0 || m->dying != 0)
+ 		return false;
+-	if(gp->status != Grunning || gp->syscallsp != 0)
++	status = runtime·readgstatus(gp);
++	if((status&~Gscan) != Grunning || gp->syscallsp != 0)
+ 		return false;
+ #ifdef GOOS_windows
+ 	if(m->libcallsp != 0)
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 1f687ebc92..756f86bd99 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -284,8 +284,10 @@ runtime·goroutineheader(G *gp)
+ {
+ 	String status;
+ 	int64 waitfor;
++	uint32 gpstatus;
+ 
+-	switch(gp->status) {
++	gpstatus = runtime·readgstatus(gp);
++	switch(gpstatus) {
+ 	case Gidle:
+ 		status = runtime·gostringnocopy((byte*)"idle");
+ 		break;
+@@ -304,6 +306,30 @@ runtime·goroutineheader(G *gp)
+ 		else
+ 			status = runtime·gostringnocopy((byte*)"waiting");
+ 		break;
++	case Gscan:
++		status = runtime·gostringnocopy((byte*)"scan");
++		break;
++	case Gscanrunnable:
++		status =  runtime·gostringnocopy((byte*)"scanrunnable");
++		break;
++	case Gscanrunning:
++		status = runtime·gostringnocopy((byte*)"scanrunning");
++		break;
++	case Gscansyscall:
++		status = runtime·gostringnocopy((byte*)"scansyscall");
++		break;
++	case Gscanenqueue:
++		status = runtime·gostringnocopy((byte*)"scanenqueue");
++		break;
++	case Gscanwaiting:
++		if(gp->waitreason.str != nil)
++			status = gp->waitreason;
++		else
++			status = runtime·gostringnocopy((byte*)"scanwaiting");
++		break;
++	case Gcopystack:
++		status = runtime·gostringnocopy((byte*)"copystack");
++		break;
+ 	default:
+ 		status = runtime·gostringnocopy((byte*)"???");
+ 		break;
+@@ -311,7 +337,8 @@ runtime·goroutineheader(G *gp)
+ 
+ 	// approx time the G is blocked, in minutes
+ 	waitfor = 0;
+-	if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince != 0)
++	gpstatus = gpstatus&~Gscan; // drop the scan bit
++	if((gpstatus == Gwaiting || gpstatus == Gsyscall) && gp->waitsince != 0)
+ 		waitfor = (runtime·nanotime() - gp->waitsince) / (60LL*1000*1000*1000);
+ 
+ 	runtime·printf("goroutine %D [%S", gp->goid, status);
+@@ -322,12 +349,19 @@ runtime·goroutineheader(G *gp)
+ 	runtime·printf("]:\n");
+ }
+ 
++static void
++dumpgstatus(G* gp)
++{
++	runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
++}
++
+ void
+ runtime·tracebackothers(G *me)
+ {
+ 	G *gp;
+ 	int32 traceback;
+ 	uintptr i;
++	uint32 status;
+ 
+ 	traceback = runtime·gotraceback(nil);
+ 	
+@@ -341,13 +375,14 @@ runtime·tracebackothers(G *me)
+ 	runtime·lock(&allglock);
+ 	for(i = 0; i < runtime·allglen; i++) {
+ 		gp = runtime·allg[i];
+-		if(gp == me || gp == g->m->curg || gp->status == Gdead)
++		if(gp == me || gp == g->m->curg || runtime·readgstatus(gp) == Gdead)
+ 			continue;
+ 		if(gp->issystem && traceback < 2)
+ 			continue;
+ 		runtime·printf("\n");
+ 		runtime·goroutineheader(gp);
+-		if(gp->status == Grunning) {
++		status = runtime·readgstatus(gp);
++		if((status&~Gscan) == Grunning){
+ 			runtime·printf("\tgoroutine running on other thread; stack unavailable\n");
+ 			runtime·printcreatedby(gp);
+ 		} else
+@@ -360,7 +395,7 @@ static void
+ checkmcount(void)
+ {
+ 	// sched lock is held
+-	if(runtime·sched.mcount > runtime·sched.maxmcount) {
++	if(runtime·sched.mcount > runtime·sched.maxmcount){
+ 		runtime·printf("runtime: program exceeds %d-thread limit\n", runtime·sched.maxmcount);
+ 		runtime·throw("thread exhaustion");
+ 	}
+@@ -393,13 +428,17 @@ mcommoninit(M *mp)
+ void
+ runtime·ready(G *gp)
+ {
++	uint32 status;
++
++	status = runtime·readgstatus(gp);
+ 	// Mark runnable.
+ 	g->m->locks++;  // disable preemption because it can be holding p in a local var
+-	if(gp->status != Gwaiting) {
+-		runtime·printf("goroutine %D has status %d\n", gp->goid, gp->status);
++	if((status&~Gscan) != Gwaiting){
++		dumpgstatus(gp);
+ 		runtime·throw("bad g->status in ready");
+ 	}
+-	gp->status = Grunnable;
++	// status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
++	runtime·casgstatus(gp, Gwaiting, Grunnable);
+ 	runqput(g->m->p, gp);
+ 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0)  // TODO: fast atomic
+ 		wakep();
+@@ -503,6 +542,97 @@ runtime·freezetheworld(void)
+ 	runtime·usleep(1000);
+ }
+ 
++static bool
++isscanstatus(uint32 status)
++{
++	if(status == Gscan)
++		runtime·throw("isscanstatus: Bad status Gscan");
++	return (status&Gscan) == Gscan;
++}
++
++// All reads and writes of g's status go through readgstatus, casgstatus
++// castogscanstatus, casfromgscanstatus.
++uint32
++runtime·readgstatus(G *gp)
++{
++	return runtime·atomicload(&gp->atomicstatus);
++}
++
++// The Gscanstatuses are acting like locks and this releases them.
++// If it proves to be a performance hit we should be able to make these
++// simple atomic stores but for now we are going to throw if
++// we see an inconsistent state.
++void
++runtime·casfromgscanstatus(G *gp, uint32 oldval, uint32 newval)
++{
++	bool success = false;
++
++	// Check that transition is valid.
++	switch(oldval) {
++	case Gscanrunnable:
++	case Gscanwaiting:
++	case Gscanrunning:
++	case Gscansyscall:
++		if(newval == (oldval&~Gscan))
++			success = runtime·cas(&gp->atomicstatus, oldval, newval);
++		break;
++	case Gscanenqueue:
++		if(newval == Gwaiting)
++			success = runtime·cas(&gp->atomicstatus, oldval, newval);
++		break;
++	}	
++	if(!success){
++		runtime·printf("runtime: casfromgscanstatus failed gp=%p, oldval=%d, newval=%d\n",  
++			gp, oldval, newval);
++		dumpgstatus(gp);
++		runtime·throw("casfromgscanstatus: gp->status is not in scan state");
++	}
++}
++
++// This will return false if the gp is not in the expected status and the cas fails. 
++// This acts like a lock acquire while the casfromgstatus acts like a lock release.
++bool
++runtime·castogscanstatus(G *gp, uint32 oldval, uint32 newval)
++{
++	switch(oldval) {
++	case Grunnable:
++	case Gwaiting:
++	case Gsyscall:
++		if(newval == (oldval|Gscan))
++			return runtime·cas(&gp->atomicstatus, oldval, newval);
++		break;
++	case Grunning:
++		if(newval == Gscanrunning || newval == Gscanenqueue)
++			return runtime·cas(&gp->atomicstatus, oldval, newval);
++		break;   
++	}
++
++	runtime·printf("runtime: castogscanstatus oldval=%d newval=%d\n", oldval, newval);
++	runtime·throw("castogscanstatus");
++	return false; // not reached
++}
++
++// If asked to move to or from a Gscanstatus this will throw. Use the castogscanstatus
++// and casfromgscanstatus instead.
++// casgstatus will loop if the g->atomicstatus is in a Gscan status until the routine that 
++// put it in the Gscan state is finished.
++void
++runtime·casgstatus(G *gp, uint32 oldval, uint32 newval)
++{
++	if(isscanstatus(oldval) || isscanstatus(newval) || oldval == newval) {
++		runtime·printf("casgstatus: oldval=%d, newval=%d\n", oldval, newval);
++		runtime·throw("casgstatus: bad incoming values");
++	}
++
++	while(!runtime·cas(&gp->atomicstatus, oldval, newval)) {
++		// loop if gp->atomicstatus is in a  scan state giving
++		// GC time to finish and change the state to oldval.
++	}
++}
++
++// This is used by the GC as well as the routines that do stack dumps. In the case
++// of GC all the routines can be reliably stopped. This is not always the case
++// when the system is in panic or being exited.
+ void
+ runtime·stoptheworld(void)
+ {
+@@ -524,7 +654,7 @@ runtime·stoptheworld(void)
+ 	runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);
+ 	preemptall();
+ 	// stop current P
+-	g->m->p->status = Pgcstop;
++	g->m->p->status = Pgcstop; // Pgcstop is only diagnostic.
+ 	runtime·sched.stopwait--;
+ 	// try to retake all P's in Psyscall status
+ 	for(i = 0; i < runtime·gomaxprocs; i++) {
+@@ -845,7 +975,9 @@ runtime·newextram(void)
+ 	gp->syscallsp = gp->sched.sp;
+ 	gp->syscallstack = gp->stackbase;
+ 	gp->syscallguard = gp->stackguard;
+-	gp->status = Gsyscall;
++	// malg returns status as Gidle, change to Gsyscall before adding to allg
++	// where GC will see it.
++	runtime·casgstatus(gp, Gidle, Gsyscall);
+ 	gp->m = mp;
+ 	mp->curg = gp;
+ 	mp->locked = LockInternal;
+@@ -1055,7 +1187,7 @@ handoffp(P *p)
+ 	// no local work, check that there are no spinning/idle M's,
+ 	// otherwise our help is not required
+ 	if(runtime·atomicload(&runtime·sched.nmspinning) + runtime·atomicload(&runtime·sched.npidle) == 0 &&  // TODO: fast atomic
+-		runtime·cas(&runtime·sched.nmspinning, 0, 1)) {
++		runtime·cas(&runtime·sched.nmspinning, 0, 1)){
+ 		startm(p, true);
+ 		return;
+ 	}
+@@ -1100,6 +1232,7 @@ static void
+ stoplockedm(void)
+ {
+ 	P *p;
++	uint32 status;
+ 
+ 	if(g->m->lockedg == nil || g->m->lockedg->lockedm != g->m)
+ 		runtime·throw("stoplockedm: inconsistent locking");
+@@ -1112,8 +1245,12 @@ stoplockedm(void)
+ 	// Wait until another thread schedules lockedg again.
+ 	runtime·notesleep(&g->m->park);
+ 	runtime·noteclear(&g->m->park);
+-	if(g->m->lockedg->status != Grunnable)
++	status = runtime·readgstatus(g->m->lockedg);
++	if((status&~Gscan) != Grunnable){
++		runtime·printf("runtime:stoplockedm: g is not Grunnable or Gscanrunnable");
++		dumpgstatus(g);
+ 		runtime·throw("stoplockedm: not runnable");
++	}
+ 	acquirep(g->m->nextp);
+ 	g->m->nextp = nil;
+ }
+@@ -1166,12 +1303,8 @@ static void
+ execute(G *gp)
+ {
+ 	int32 hz;
+-
+-	if(gp->status != Grunnable) {
+-		runtime·printf("execute: bad g status %d\n", gp->status);
+-		runtime·throw("execute: bad g status");
+-	}
+-	gp->status = Grunning;
++	
++	runtime·casgstatus(gp, Grunnable, Grunning);
+ 	gp->waitsince = 0;
+ 	gp->preempt = false;
+ 	gp->stackguard0 = gp->stackguard;
+@@ -1219,7 +1352,7 @@ top:
+ 	gp = runtime·netpoll(false);  // non-blocking
+ 	if(gp) {
+ 		injectglist(gp->schedlink);
+-		gp->status = Grunnable;
++		runtime·casgstatus(gp, Gwaiting, Grunnable);
+ 		return gp;
+ 	}
+ 	// If number of spinning M's >= number of busy P's, block.
+@@ -1291,7 +1424,7 @@ stop:
+ 			if(p) {
+ 				acquirep(p);
+ 				injectglist(gp->schedlink);
+-				gp->status = Grunnable;
++				runtime·casgstatus(gp, Gwaiting, Grunnable);
+ 				return gp;
+ 			}
+ 			injectglist(gp);
+@@ -1334,7 +1467,7 @@ injectglist(G *glist)
+ 	for(n = 0; glist; n++) {
+ 		gp = glist;
+ 		glist = gp->schedlink;
+-		gp->status = Grunnable;
++		runtime·casgstatus(gp, Gwaiting, Grunnable); 
+ 		globrunqput(gp);
+ 	}
+ 	runtime·unlock(&runtime·sched.lock);
+@@ -1420,8 +1553,6 @@ dropg(void)
+ void
+ runtime·park(bool(*unlockf)(G*, void*), void *lock, String reason)
+ {
+-	if(g->status != Grunning)
+-		runtime·throw("bad g status");
+ 	g->m->waitlock = lock;
+ 	g->m->waitunlockf = unlockf;
+ 	g->waitreason = reason;
+@@ -1450,7 +1581,7 @@ runtime·park_m(G *gp)
+ {
+ 	bool ok;
+ 
+-	gp->status = Gwaiting;
++	runtime·casgstatus(gp, Grunning, Gwaiting);
+ 	dropg();
+ 
+ 	if(g->m->waitunlockf) {
+@@ -1458,7 +1589,7 @@ runtime·park_m(G *gp)
+ 		g->m->waitunlockf = nil;
+ 		g->m->waitlock = nil;
+ 		if(!ok) {
+-			gp->status = Grunnable;
++			runtime·casgstatus(gp, Gwaiting, Grunnable); 
+ 			execute(gp);  // Schedule it back, never returns.
+ 		}
+ 	}
+@@ -1477,9 +1608,14 @@ runtime·gosched(void)
+ void
+ runtime·gosched_m(G *gp)
+ {
+-	if(gp->status != Grunning)
++	uint32 status;
++
++	status = runtime·readgstatus(gp);
++	if ((status&~Gscan) != Grunning){
++		dumpgstatus(gp);
+ 		runtime·throw("bad g status");
+-	gp->status = Grunnable;
++	}
++	runtime·casgstatus(gp, Grunning, Grunnable);
+ 	dropg();
+ 	runtime·lock(&runtime·sched.lock);
+ 	globrunqput(gp);
+@@ -1496,8 +1632,6 @@ runtime·gosched_m(G *gp)
+ void
+ runtime·goexit(void)
+ {
+-	if(g->status != Grunning)
+-		runtime·throw("bad g status");
+ 	if(raceenabled)
+ 		runtime·racegoend();
+ 	runtime·mcall(goexit0);
+@@ -1507,7 +1641,7 @@ runtime·goexit(void)
+ static void
+ goexit0(G *gp)
+ {
+-	gp->status = Gdead;
++	runtime·casgstatus(gp, Grunning, Gdead);
+ 	gp->m = nil;
+ 	gp->lockedm = nil;
+ 	g->m->lockedg = nil;
+@@ -1519,7 +1653,7 @@ goexit0(G *gp)
+ 	gp->waitreason.str = nil;
+ 	gp->waitreason.len = 0;
+ 	gp->param = nil;
+-	
++
+ 	dropg();
+ 
+ 	if(g->m->locked & ~LockExternal) {
+@@ -1566,7 +1700,7 @@ void
+ 	g->syscallpc = g->sched.pc;
+ 	g->syscallstack = g->stackbase;
+ 	g->syscallguard = g->stackguard;
+-	g->status = Gsyscall;
++	runtime·casgstatus(g, Grunning, Gsyscall);
+ 	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
+ 		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
+ 		//	g->syscallsp, g->syscallguard-StackGuard, g->syscallstack);
+@@ -1618,7 +1752,7 @@ void
+ 	g->syscallpc = g->sched.pc;
+ 	g->syscallstack = g->stackbase;
+ 	g->syscallguard = g->stackguard;
+-	g->status = Gsyscall;
++	runtime·casgstatus(g, Grunning, Gsyscall);
+ 	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
+ 		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
+ 		//	g->syscallsp, g->syscallguard-StackGuard, g->syscallstack);
+@@ -1650,7 +1784,7 @@ runtime·entersyscallblock_m(void)
+ 	gp->syscallpc = gp->sched.pc;
+ 	gp->syscallstack = gp->stackbase;
+ 	gp->syscallguard = gp->stackguard;
+-	gp->status = Gsyscall;
++	runtime·casgstatus(gp, Grunning, Gsyscall);
+ 	if(gp->syscallsp < gp->syscallguard-StackGuard || gp->syscallstack < gp->syscallsp) {
+ 		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
+ 		//	gp->syscallsp, gp->syscallguard-StackGuard, gp->syscallstack);
+@@ -1674,7 +1808,9 @@ runtime·exitsyscall(void)
+ 	if(exitsyscallfast()) {
+ 		// There's a cpu for us, so we can run.
+ 		g->m->p->syscalltick++;
+-		g->status = Grunning;
++		// We need to cas the status and scan before resuming...
++		runtime·casgstatus(g, Gsyscall, Grunning);
++
+ 		// Garbage collector isn't running (since we are),
+ 		// so okay to clear gcstack and gcsp.
+ 		g->syscallstack = (uintptr)nil;
+@@ -1750,7 +1886,7 @@ exitsyscall0(G *gp)
+ {
+ 	P *p;
+ 
+-	gp->status = Grunnable;
++	runtime·casgstatus(gp, Gsyscall, Grunnable);
+ 	dropg();
+ 	runtime·lock(&runtime·sched.lock);
+ 	p = pidleget();
+@@ -1919,7 +2055,6 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 	P *p;
+ 	int32 siz;
+ 
+-//runtime·printf("newproc1 %p %p narg=%d nret=%d\n", fn->fn, argp, narg, nret);
+ 	if(fn == nil) {
+ 		g->m->throwing = -1;  // do not dump full stacks
+ 		runtime·throw("go of nil func value");
+@@ -1941,9 +2076,13 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 			runtime·throw("invalid stack in newg");
+ 	} else {
+ 		newg = runtime·malg(StackMin);
+-		allgadd(newg);
++		runtime·casgstatus(newg, Gidle, Gdead);
++		allgadd(newg); // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
+ 	}
+ 
++	if(runtime·readgstatus(newg) != Gdead) 
++		runtime·throw("newproc1: new g is not Gdead");
++
+ 	sp = (byte*)newg->stackbase;
+ 	sp -= siz;
+ 	runtime·memmove(sp, argp, narg);
+@@ -1959,7 +2098,8 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 	newg->sched.g = newg;
+ 	runtime·gostartcallfn(&newg->sched, fn);
+ 	newg->gopc = (uintptr)callerpc;
+-	newg->status = Grunnable;
++	runtime·casgstatus(newg, Gdead, Grunnable);
++
+ 	if(p->goidcache == p->goidcacheend) {
+ 		// Sched.goidgen is the last allocated id,
+ 		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
+@@ -1988,6 +2128,9 @@ allgadd(G *gp)
+ 	G **new;
+ 	uintptr cap;
+ 
++	if (runtime·readgstatus(gp) == Gidle) 
++		runtime·throw("allgadd: bad status Gidle");
++
+ 	runtime·lock(&allglock);
+ 	if(runtime·allglen >= allgcap) {
+ 		cap = 4096/sizeof(new[0]);
+@@ -2013,6 +2156,9 @@ gfput(P *p, G *gp)
+ 	uintptr stksize;
+ 	Stktop *top;
+ 
++	if (runtime·readgstatus(gp) != Gdead) 
++		runtime·throw("gfput: bad status (not Gdead)");
++
+ 	if(gp->stackguard - StackGuard != gp->stack0)
+ 		runtime·throw("invalid stack in gfput");
+ 	stksize = gp->stackbase + sizeof(Stktop) - gp->stack0;
+@@ -2607,13 +2753,18 @@ checkdead(void)
+ 		gp = runtime·allg[i];
+ 		if(gp->issystem)
+ 			continue;
+-		s = gp->status;
+-		if(s == Gwaiting)
++		s = runtime·readgstatus(gp);
++		switch(s&~Gscan) {
++		case Gwaiting:
+ 			grunning++;
+-		else if(s == Grunnable || s == Grunning || s == Gsyscall) {
++			break;
++		case Grunnable:
++		case Grunning:
++		case Gsyscall:
+ 			runtime·unlock(&allglock);
+ 			runtime·printf("runtime: checkdead: find g %D in status %d\n", gp->goid, s);
+ 			runtime·throw("checkdead: runnable g");
++			break;
+ 		}
+ 	}
+ 	runtime·unlock(&allglock);
+@@ -2837,6 +2988,9 @@ preemptall(void)
+ // simultaneously executing runtime·newstack.
+ // No lock needs to be held.
+ // Returns true if preemption request was issued.
++// The actual preemption will happen at some point in the future
++// and will be indicated by the gp->status no longer being
++// Grunning
+ static bool
+ preemptone(P *p)
+ {
+@@ -2850,6 +3004,10 @@ preemptone(P *p)
+ 	if(gp == nil || gp == mp->g0)
+ 		return false;
+ 	gp->preempt = true;
++	// Every call in a go routine checks for stack overflow by
++	// comparing the current stack pointer to gp->stackguard0.
++	// Setting gp->stackguard0 to StackPreempt folds
++	// preemption into the normal stack overflow check.
+ 	gp->stackguard0 = StackPreempt;
+ 	return true;
+ }
+@@ -2935,7 +3093,7 @@ runtime·schedtrace(bool detailed)
+ 		mp = gp->m;
+ 		lockedm = gp->lockedm;
+ 		runtime·printf("  G%D: status=%d(%S) m=%d lockedm=%d\n",
+-			gp->goid, gp->status, gp->waitreason, mp ? mp->id : -1,
++			gp->goid, runtime·readgstatus(gp), gp->waitreason, mp ? mp->id : -1,
+ 			lockedm ? lockedm->id : -1);
+ 	}
+ 	runtime·unlock(&allglock);
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+index 1ed6c26eba..de58daa130 100644
+--- a/src/pkg/runtime/proc.go
++++ b/src/pkg/runtime/proc.go
+@@ -6,6 +6,9 @@ package runtime
+ 
+ import "unsafe"
+ 
++// This is not mechanically generated
++// so be very careful and refer to runtime.h
++// for the definitive enum.
+ const (
+ 	gStatusidle = iota
+ 	gStatusRunnable
+@@ -14,6 +17,14 @@ const (
+ 	gStatusWaiting
+ 	gStatusMoribundUnused
+ 	gStatusDead
++	gStatusEnqueue
++	gStatusCopystack
++	gStatusScan         = 0x1000
++	gStatusScanRunnable = gStatusScan + gStatusRunnable
++	gStatusScanRunning  = gStatusScan + gStatusRunning
++	gStatusScanSyscall  = gStatusScan + gStatusSyscall
++	gStatusScanWaiting  = gStatusScan + gStatusWaiting
++	gStatusScanEnqueue  = gStatusScan + gStatusEnqueue
+ )
+ 
+ var parkunlock_c byte
+@@ -24,12 +35,18 @@ func Gosched() {
+ 	mcall(&gosched_m)
+ }
+ 
++func readgStatus(gp *g) uint32 {
++	//return atomic.LoadUint32(&gp.atomicstatus) // TODO: add bootstrap code to provide.
++	return gp.atomicstatus
++}
++
+ // Puts the current goroutine into a waiting state and calls unlockf.
+ // If unlockf returns false, the goroutine is resumed.
+ func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
+ 	mp := acquirem()
+ 	gp := mp.curg
+-	if gp.status != gStatusRunning {
++	status := readgStatus(gp)
++	if status != gStatusRunning && status != gStatusScanRunning {
+ 		gothrow("gopark: bad g status")
+ 	}
+ 	mp.waitlock = lock
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8d4773b9f7..ae098459fa 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -126,13 +126,25 @@ enum
+ 	// If you add to this list, add to the list
+ 	// of "okay during garbage collection" status
+ 	// in mgc0.c too.
+-	Gidle,
+-	Grunnable,
+-	Grunning,
+-	Gsyscall,
+-	Gwaiting,
+-	Gmoribund_unused,  // currently unused, but hardcoded in gdb scripts
+-	Gdead,
++	Gidle,                                 // 0
++	Grunnable,                             // 1 runnable and on a run queue
++	Grunning,                              // 2
++	Gsyscall,                              // 3
++	Gwaiting,                              // 4
++	Gmoribund_unused,                      // 5 currently unused, but hardcoded in gdb scripts
++	Gdead,                                 // 6
++	Genqueue,                              // 7 Only the Gscanenqueue is used.
++	Gcopystack,                            // 8 in this state when newstack is moving the stack
++	// the following encode that the GC is scanning the stack and what to do when it is done 
++	Gscan = 0x1000,                        // atomicstatus&~Gscan = the non-scan state,
++	// Gscanidle =     Gscan + Gidle,      // Not used. Gidle only used with newly malloced gs
++	Gscanrunnable = Gscan + Grunnable,     //  0x1001 When scanning complets make Grunnable (it is already on run queue)
++	Gscanrunning =  Gscan + Grunning,      //  0x1002 Used to tell preemption newstack routine to scan preempted stack.
++	Gscansyscall =  Gscan + Gsyscall,      //  0x1003 When scanning completes make is Gsyscall
++	Gscanwaiting =  Gscan + Gwaiting,      //  0x1004 When scanning completes make it Gwaiting
++	// Gscanmoribund_unused,               //  not possible
++	// Gscandead,                          //  not possible
++	Gscanenqueue = Gscan + Genqueue,       //  When scanning completes make it Grunnable and put on runqueue
+ };
+ enum
+ {
+@@ -276,7 +288,7 @@ struct	G
+ 	uintptr	stack0;
+ 	uintptr	stacksize;
+ 	void*	param;		// passed parameter on wakeup
+-	int16	status;
++	uint32	atomicstatus;
+ 	int64	goid;
+ 	int64	waitsince;	// approx time when the G become blocked
+ 	String	waitreason;	// if status==Gwaiting
+@@ -285,6 +297,8 @@ struct	G
+ 	bool	issystem;	// do not output in stack dump, ignore in deadlock detector
+ 	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
+ 	bool	paniconfault;	// panic (instead of crash) on unexpected fault address
++	bool    preemptscan;    // preempted g does scan for GC
++	bool    scancheck;      // debug: cleared at begining of scan cycle, set by scan, tested at end of cycle
+ 	int8	raceignore;	// ignore race detection events
+ 	M*	m;		// for debuggers, but offset not hard-coded
+ 	M*	lockedm;
+@@ -681,6 +695,9 @@ void	runtime·algslicecopy(uintptr, void*, void*);
+ void	runtime·intercopy(uintptr, void*, void*);
+ void	runtime·nilintercopy(uintptr, void*, void*);
+ 
++uint32  runtime·readgstatus(G *gp);
++void    runtime·casgstatus(G*, uint32, uint32);
++
+ /*
+  * deferred subroutine calls
+  */
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 61205bd478..78d1e149e7 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -337,15 +337,20 @@ runtime·oldstack(void)
+ 			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, (uintptr)g->m->cret, (uintptr)argsize);
+ 	}
+ 
+-	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
+-	// happens during a function call inside entersyscall.
+-	oldstatus = gp->status;
+-	
+ 	gp->sched = top->gobuf;
+ 	gp->sched.ret = g->m->cret;
+ 	g->m->cret = 0; // drop reference
+-	gp->status = Gwaiting;
+-	gp->waitreason = runtime·gostringnocopy((byte*)"stack unsplit");
++	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
++	// happens during a function call inside entersyscall.
++
++	oldstatus = runtime·readgstatus(gp);
++	oldstatus &= ~Gscan;
++	if(oldstatus != Grunning && oldstatus != Gsyscall) {
++		runtime·printf("runtime: oldstack status=%d\n", oldstatus);
++		runtime·throw("oldstack");
++	}
++	runtime·casgstatus(gp, oldstatus, Gcopystack);
++	gp->waitreason = runtime·gostringnocopy((byte*)"stack unsplit");	
+ 
+ 	if(argsize > 0) {
+ 		sp -= argsize;
+@@ -363,8 +368,7 @@ runtime·oldstack(void)
+ 	gp->stackguard0 = gp->stackguard;
+ 	gp->panicwrap = top->panicwrap;
+ 	runtime·stackfree(gp, old, top);
+-
+-	gp->status = oldstatus;
++	runtime·casgstatus(gp, Gcopystack, oldstatus); // oldstatus is Grunning or Gsyscall
+ 	runtime·gogo(&gp->sched);
+ }
+ 
+@@ -768,6 +772,7 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	uintptr oldsize, used;
+ 	AdjustInfo adjinfo;
+ 	Stktop *oldtop, *newtop;
++	uint32 oldstatus;
+ 
+ 	if(gp->syscallstack != 0)
+ 		runtime·throw("can't handle stack copy in syscall yet");
+@@ -801,7 +806,12 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	
+ 	// copy the stack (including Stktop) to the new location
+ 	runtime·memmove(newbase - used, oldbase - used, used);
+-	
++	oldstatus = runtime·readgstatus(gp);
++	oldstatus &= ~Gscan;
++	if (oldstatus == Gwaiting || oldstatus == Grunnable)
++		runtime·casgstatus(gp, oldstatus, Gcopystack); // oldstatus is Gwaiting or Grunnable
++	else
++		runtime·throw("copystack: bad status, not Gwaiting or Grunnable");
+ 	// Swap out old stack for new one
+ 	gp->stackbase = (uintptr)newtop;
+ 	gp->stackguard = (uintptr)newstk + StackGuard;
+@@ -810,6 +820,8 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 		gp->stack0 = (uintptr)newstk;
+ 	gp->sched.sp = (uintptr)(newbase - used);
+ 
++	runtime·casgstatus(gp, Gcopystack, oldstatus); // oldstatus is Gwaiting or Grunnable
++
+ 	// free old stack
+ 	runtime·stackfree(gp, oldstk, oldtop);
+ }
+@@ -831,6 +843,9 @@ runtime·round2(int32 x)
+ // m->moreframesize bytes, copy m->moreargsize bytes to the new frame,
+ // and then act as though runtime·lessstack called the function at
+ // m->morepc.
++//
++// g->atomicstatus will be Grunning, Gsyscall or Gscanrunning, Gscansyscall upon entry. 
++// If the GC is trying to stop this g then it will set preemptscan to true.
+ void
+ runtime·newstack(void)
+ {
+@@ -853,11 +868,13 @@ runtime·newstack(void)
+ 		runtime·throw("runtime: wrong goroutine in newstack");
+ 	}
+ 
++	// The goroutine must be executing in order to call newstack, so the possible states are
++	// Grunning and Gsyscall (and, due to GC, also Gscanrunning and Gscansyscall).	
++
+ 	// gp->status is usually Grunning, but it could be Gsyscall if a stack overflow
+ 	// happens during a function call inside entersyscall.
+ 	gp = g->m->curg;
+-	oldstatus = gp->status;
+-
++	oldstatus = runtime·readgstatus(gp) & ~Gscan;
+ 	framesize = g->m->moreframesize;
+ 	argsize = g->m->moreargsize;
+ 	moreargp = g->m->moreargp;
+@@ -866,7 +883,8 @@ runtime·newstack(void)
+ 	g->m->morebuf.pc = (uintptr)nil;
+ 	g->m->morebuf.lr = (uintptr)nil;
+ 	g->m->morebuf.sp = (uintptr)nil;
+-	gp->status = Gwaiting;
++
++	runtime·casgstatus(gp, oldstatus, Gwaiting); // oldstatus is not in a Gscan status
+ 	gp->waitreason = runtime·gostringnocopy((byte*)"stack growth");
+ 	newstackcall = framesize==1;
+ 	if(newstackcall)
+@@ -892,6 +910,7 @@ runtime·newstack(void)
+ 			gp->sched.pc, gp->sched.sp, gp->sched.lr, gp->sched.ctxt);
+ 	}
+ 	if(sp < gp->stackguard - StackGuard) {
++		runtime·printf("runtime: gp=%p, gp->status=%d, oldstatus=%d\n ", (void*)gp, runtime·readgstatus(gp), oldstatus);
+ 		runtime·printf("runtime: split stack overflow: %p < %p\n", sp, gp->stackguard - StackGuard);
+ 		runtime·throw("runtime: split stack overflow");
+ 	}
+@@ -908,17 +927,18 @@ runtime·newstack(void)
+ 			runtime·throw("runtime: g is running but p is not");
+ 		if(oldstatus == Gsyscall && g->m->locks == 0)
+ 			runtime·throw("runtime: stack growth during syscall");
++
+ 		// Be conservative about where we preempt.
+ 		// We are interested in preempting user Go code, not runtime code.
+ 		if(oldstatus != Grunning || g->m->locks || g->m->mallocing || g->m->gcing || g->m->p->status != Prunning) {
+ 			// Let the goroutine keep running for now.
+ 			// gp->preempt is set, so it will be preempted next time.
+ 			gp->stackguard0 = gp->stackguard;
+-			gp->status = oldstatus;
++			runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Gsyscall or Grunning
+ 			runtime·gogo(&gp->sched);	// never return
+ 		}
+ 		// Act like goroutine called runtime.Gosched.
+-		gp->status = oldstatus;
++		runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Gsyscall or Grunning
+ 		runtime·gosched_m(gp);	// never return
+ 	}
+ 
+@@ -933,6 +953,8 @@ runtime·newstack(void)
+ 			oldbase = (byte*)gp->stackbase + sizeof(Stktop);
+ 			oldsize = oldbase - oldstk;
+ 			newsize = oldsize * 2;
++			// Note that the concurrent GC might be scanning the stack as we try to replace it.
++			// copystack takes care of the appropriate coordination with the stack scanner.
+ 			copystack(gp, nframes, newsize);
+ 			if(StackDebug >= 1)
+ 				runtime·printf("stack grow done\n");
+@@ -940,7 +962,7 @@ runtime·newstack(void)
+ 				runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
+ 				runtime·throw("stack overflow");
+ 			}
+-			gp->status = oldstatus;
++			runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Gsyscall or Grunning
+ 			runtime·gogo(&gp->sched);
+ 		}
+ 		// TODO: if stack is uncopyable because we're in C code, patch return value at
+@@ -1017,7 +1039,7 @@ runtime·newstack(void)
+ 		runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
+ 		gp->sched.ctxt = nil;
+ 	}
+-	gp->status = oldstatus;
++	runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Grunning or Gsyscall
+ 	runtime·gogo(&label);
+ 
+ 	*(int32*)345 = 123;	// never return
+@@ -1055,7 +1077,7 @@ runtime·shrinkstack(G *gp)
+ 
+ 	if(!runtime·copystack)
+ 		return;
+-	if(gp->status == Gdead)
++	if(runtime·readgstatus(gp) == Gdead)
+ 		return;
+ 	if(gp->stackbase == 0)
+ 		runtime·throw("stackbase == 0");
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 778d95a28b..0ae40a6484 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -327,7 +327,7 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ {
+ 	int32 n;
+ 
+-	if(gp->status == Gsyscall) {
++	if((runtime·readgstatus(gp)&~Gscan) == Gsyscall){
+ 		// Override signal registers if blocked in system call.
+ 		pc = gp->syscallpc;
+ 		sp = gp->syscallsp;
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index a88e9372db..7c76daf4cf 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -402,7 +402,7 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ 
+ 	USED(lr);
+ 
+-	if(gp->status == Gsyscall) {
++	if((runtime·readgstatus(gp)&~Gscan) == Gsyscall){
+ 		// Override signal registers if blocked in system call.
+ 		pc = gp->syscallpc;
+ 		sp = gp->syscallsp;

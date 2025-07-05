@@ -10,6 +10,20 @@ Date:   Thu Aug 18 15:40:23 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/424902
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/parser/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index c55b026005..36f9db9ddf 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2096,7 +2096,7 @@ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
+ 		// accept potential variable declaration but complain
+ 		if p.tok == token.VAR {
+ 			p.next()
+-			p.error(p.pos, "var declaration not allowed in 'IF' initializer")
++			p.error(p.pos, "var declaration not allowed in if initializer")
+ 		}
+ 		init, _ = p.parseSimpleStmt(basic)
+ 	}

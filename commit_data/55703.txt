@@ -24,10 +24,281 @@ Date:   Tue Feb 28 18:43:14 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                              |  6 +-
  src/cmd/go/internal/load/pkg.go                    | 81 +++++++++++++-------
  src/cmd/go/internal/work/build.go                  |  6 +-
  src/cmd/go/testdata/script/build_pgo_auto.txt      | 12 ---
  .../go/testdata/script/build_pgo_auto_multi.txt    | 87 ++++++++++++++++++++++
  5 files changed, 150 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index fe17709016..523540869a 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -202,8 +202,10 @@
+ //		run through go run and go test respectively.
+ //	-pgo file
+ //		specify the file path of a profile for profile-guided optimization (PGO).
+-//		Special name "auto" lets the go command select a file named
+-//		"default.pgo" in the main package's directory if that file exists.
++//		When the special name "auto" is specified, for each main package in the
++//		build, the go command selects a file named "default.pgo" in the package's
++//		directory if that file exists, and applies it to the (transitive)
++//		dependencies of the main package (other packages are not affected).
+ //		Special name "off" turns off PGO.
+ //	-pkgdir dir
+ //		install and load all packages from dir instead of the usual locations.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index cfb853e979..6284955228 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -23,6 +23,7 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"runtime/debug"
++	"slices"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -2905,34 +2906,55 @@ func setPGOProfilePath(pkgs []*Package) {
+ 		return
+ 
+ 	case "auto":
+-		// Locate PGO profile from the main package.
+-
+-		setError := func(p *Package) {
+-			if p.Error == nil {
+-				p.Error = &PackageError{Err: errors.New("-pgo=auto requires exactly one main package")}
++		// Locate PGO profiles from the main packages, and
++		// attach the profile to the main package and its
++		// dependencies.
++		// If we're builing multiple main packages, they may
++		// have different profiles. We may need to split (unshare)
++		// the dependency graph so they can attach different
++		// profiles.
++		for _, p := range pkgs {
++			if p.Name != "main" {
++				continue
++			}
++			pmain := p
++			file := filepath.Join(pmain.Dir, "default.pgo")
++			if _, err := os.Stat(file); err != nil {
++				continue // no profile
+ 			}
+-		}
+ 
+-		var mainpkg *Package
+-		for _, p := range pkgs {
+-			if p.Name == "main" {
+-				if mainpkg != nil {
+-					setError(p)
+-					setError(mainpkg)
+-					continue
++			copied := make(map[*Package]*Package)
++			var split func(p *Package) *Package
++			split = func(p *Package) *Package {
++				if len(pkgs) > 1 && p != pmain {
++					// Make a copy, then attach profile.
++					// No need to copy if there is only one root package (we can
++					// attach profile directly in-place).
++					// Also no need to copy the main package.
++					if p1 := copied[p]; p1 != nil {
++						return p1
++					}
++					if p.Internal.PGOProfile != "" {
++						panic("setPGOProfilePath: already have profile")
++					}
++					p1 := new(Package)
++					*p1 = *p
++					// Unalias the Internal.Imports slice, which is we're going to
++					// modify. We don't copy other slices as we don't change them.
++					p1.Internal.Imports = slices.Clone(p.Internal.Imports)
++					copied[p] = p1
++					p = p1
+ 				}
+-				mainpkg = p
+-			}
+-		}
+-		if mainpkg == nil {
+-			// No main package, no default.pgo to look for.
+-			return
+-		}
+-		file := filepath.Join(mainpkg.Dir, "default.pgo")
+-		if fi, err := os.Stat(file); err == nil && !fi.IsDir() {
+-			for _, p := range PackageList(pkgs) {
+ 				p.Internal.PGOProfile = file
++				// Recurse to dependencies.
++				for i, pp := range p.Internal.Imports {
++					p.Internal.Imports[i] = split(pp)
++				}
++				return p
+ 			}
++
++			// Replace the package and imports with the PGO version.
++			split(pmain)
+ 		}
+ 
+ 	default:
+@@ -2979,11 +3001,18 @@ func CheckPackageErrors(pkgs []*Package) {
+ 	seen := map[string]bool{}
+ 	reported := map[string]bool{}
+ 	for _, pkg := range PackageList(pkgs) {
+-		if seen[pkg.ImportPath] && !reported[pkg.ImportPath] {
+-			reported[pkg.ImportPath] = true
++		// -pgo=auto with multiple main packages can cause a package being
++		// built multiple times (with different profiles).
++		// We check that package import path + profile path is unique.
++		key := pkg.ImportPath
++		if pkg.Internal.PGOProfile != "" {
++			key += " pgo:" + pkg.Internal.PGOProfile
++		}
++		if seen[key] && !reported[key] {
++			reported[key] = true
+ 			base.Errorf("internal error: duplicate loads of %s", pkg.ImportPath)
+ 		}
+-		seen[pkg.ImportPath] = true
++		seen[key] = true
+ 	}
+ 	base.ExitIfErrors()
+ }
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 2f2860aeb5..68c780db7e 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -159,8 +159,10 @@ and test commands:
+ 		run through go run and go test respectively.
+ 	-pgo file
+ 		specify the file path of a profile for profile-guided optimization (PGO).
+-		Special name "auto" lets the go command select a file named
+-		"default.pgo" in the main package's directory if that file exists.
++		When the special name "auto" is specified, for each main package in the
++		build, the go command selects a file named "default.pgo" in the package's
++		directory if that file exists, and applies it to the (transitive)
++		dependencies of the main package (other packages are not affected).
+ 		Special name "off" turns off PGO.
+ 	-pkgdir dir
+ 		install and load all packages from dir instead of the usual locations.
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto.txt b/src/cmd/go/testdata/script/build_pgo_auto.txt
+index b78137dbf9..b3dcdcc481 100644
+--- a/src/cmd/go/testdata/script/build_pgo_auto.txt
++++ b/src/cmd/go/testdata/script/build_pgo_auto.txt
+@@ -11,10 +11,6 @@ stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
+ go build -n -pgo=auto ./a/...
+ stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+ 
+-# error with multiple packages
+-! go build -n -pgo=auto ./b/...
+-stderr '-pgo=auto requires exactly one main package'
+-
+ # build succeeds without PGO when default.pgo file is absent
+ go build -n -pgo=auto -o nopgo.exe ./nopgo
+ stderr 'compile.*nopgo.go'
+@@ -54,14 +50,6 @@ package main_test
+ import "testing"
+ func TestExternal(*testing.T) {}
+ -- a/a1/default.pgo --
+--- b/b1/b1.go --
+-package main
+-func main() {}
+--- b/b1/default.pgo --
+--- b/b2/b2.go --
+-package main
+-func main() {}
+--- b/b2/default.pgo --
+ -- nopgo/nopgo.go --
+ package main
+ func main() {}
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto_multi.txt b/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
+new file mode 100644
+index 0000000000..6905ad94f6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
+@@ -0,0 +1,87 @@
++# Test go build -pgo=auto flag with multiple main packages.
++
++go build -n -pgo=auto ./a ./b ./nopgo
++
++# a/default.pgo applies to package a and (transitive)
++# dependencies.
++stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*a(/|\\\\)a\.go'
++stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
++stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep2(/|\\\\)dep2\.go'
++stderr -count=1 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep3(/|\\\\)dep3\.go'
++
++# b/default.pgo applies to package b and (transitive)
++# dependencies.
++stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b\.go'
++stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
++stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep2(/|\\\\)dep2\.go'
++stderr -count=1 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep3(/|\\\\)dep3\.go'
++
++# nopgo should be built without PGO.
++! stderr 'compile.*-pgoprofile=.*nopgo(/|\\\\)nopgo\.go'
++
++# Dependencies should also be built without PGO.
++# Here we want to match a compile action without -pgoprofile,
++# by matching 3 occurrences of "compile dep.go", among which
++# 2 of them have -pgoprofile (therefore one without).
++stderr -count=3 'compile.*dep(/|\\\\)dep.go'
++stderr -count=2 'compile.*-pgoprofile=.*dep(/|\\\\)dep\.go'
++
++stderr -count=3 'compile.*dep2(/|\\\\)dep2.go'
++stderr -count=2 'compile.*-pgoprofile=.*dep2(/|\\\\)dep2\.go'
++
++stderr -count=3 'compile.*dep3(/|\\\\)dep3.go'
++stderr -count=2 'compile.*-pgoprofile=.*dep3(/|\\\\)dep3\.go'
++
++# go test works the same way
++go test -n -pgo=auto ./a ./b ./nopgo
++stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*a(/|\\\\)a_test\.go'
++stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
++stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b_test\.go'
++stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
++! stderr 'compile.*-pgoprofile=.*nopgo(/|\\\\)nopgo_test\.go'
++
++# Here we have 3 main packages, a, b, and nopgo, where a and b each has
++# its own default.pgo profile, and nopgo has none.
++# All 3 main packages import dep and dep2, both of which then import dep3
++# (a diamond-shape import graph).
++-- go.mod --
++module test
++go 1.20
++-- a/a.go --
++package main
++import _ "test/dep"
++import _ "test/dep2"
++func main() {}
++-- a/a_test.go --
++package main
++import "testing"
++func TestA(*testing.T) {}
++-- a/default.pgo --
++dummy profile a
++-- b/b.go --
++package main
++import _ "test/dep"
++import _ "test/dep2"
++func main() {}
++-- b/b_test.go --
++package main
++import "testing"
++func TestB(*testing.T) {}
++-- b/default.pgo --
++dummy profile b
++-- nopgo/nopgo.go --
++package main
++import _ "test/dep"
++import _ "test/dep2"
++func main() {}
++-- nopgo/nopgo_test.go --
++package main
++import "testing"
++func TestNopgo(*testing.T) {}
++-- dep/dep.go --
++package dep
++import _ "test/dep3"
++-- dep2/dep2.go --
++package dep2
++-- dep3/dep3.go --
++package dep3

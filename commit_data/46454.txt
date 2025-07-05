@@ -15,6 +15,29 @@ Date:   Thu Dec 31 16:51:12 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/walk/order.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 681f5dcc76..a2bd0cf10a 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -102,7 +102,7 @@ func (o *orderState) newTemp(t *types.Type, clear bool) *ir.Name {
+ 
+ // copyExpr behaves like newTemp but also emits
+ // code to initialize the temporary to the value n.
+-func (o *orderState) copyExpr(n ir.Node) ir.Node {
++func (o *orderState) copyExpr(n ir.Node) *ir.Name {
+ 	return o.copyExpr1(n, false)
+ }
+ 
+@@ -518,7 +518,7 @@ func (o *orderState) call(nn ir.Node) {
+ 				x := o.copyExpr(arg.X)
+ 				arg.X = x
+ 				x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
+-				n.KeepAlive = append(n.KeepAlive, x.(*ir.Name))
++				n.KeepAlive = append(n.KeepAlive, x)
+ 			}
+ 		}
+ 	}

@@ -15,9 +15,197 @@ Date:   Tue Dec 11 17:13:50 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                   |  7 ++-
  src/cmd/go/internal/test/test.go                  | 17 +++--
  src/cmd/go/testdata/script/build_cache_output.txt |  7 ++-
  src/cmd/go/testdata/script/mod_test_cached.txt    | 77 +++++++++++++++++++++++
  4 files changed, 100 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 35b0790bc9..4eb4ba690f 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -64,7 +64,7 @@ type PackagePublic struct {
+ 	Doc           string                `json:",omitempty"` // package documentation string
+ 	Target        string                `json:",omitempty"` // installed target for this package (may be executable)
+ 	Shlib         string                `json:",omitempty"` // the shared library that contains this package (only set when -linkshared)
+-	Root          string                `json:",omitempty"` // Go root or Go path dir containing this package
++	Root          string                `json:",omitempty"` // Go root, Go path dir, or module root dir containing this package
+ 	ConflictDir   string                `json:",omitempty"` // Dir is hidden by this other directory
+ 	ForTest       string                `json:",omitempty"` // package is only for use in named test
+ 	Export        string                `json:",omitempty"` // file containing export data (set by go list -export)
+@@ -647,6 +647,11 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
+ 				buildMode = build.ImportComment
+ 			}
+ 			data.p, data.err = cfg.BuildContext.ImportDir(r.dir, buildMode)
++			if data.p.Root == "" && cfg.ModulesEnabled {
++				if info := ModPackageModuleInfo(path); info != nil {
++					data.p.Root = info.Dir
++				}
++			}
+ 		} else if r.err != nil {
+ 			data.p = new(build.Package)
+ 			data.err = fmt.Errorf("unknown import path %q: %v", r.path, r.err)
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index eed2d437c9..cc7c4564e5 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1250,6 +1250,15 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 		return false
+ 	}
+ 
++	if a.Package.Root == "" {
++		// Caching does not apply to tests outside of any module, GOPATH, or GOROOT.
++		if cache.DebugTest {
++			fmt.Fprintf(os.Stderr, "testcache: caching disabled for package outside of module root, GOPATH, or GOROOT: %s\n", a.Package.ImportPath)
++		}
++		c.disableCache = true
++		return false
++	}
++
+ 	var cacheArgs []string
+ 	for _, arg := range testArgs {
+ 		i := strings.Index(arg, "=")
+@@ -1437,8 +1446,8 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
+ 			if !filepath.IsAbs(name) {
+ 				name = filepath.Join(pwd, name)
+ 			}
+-			if !inDir(name, a.Package.Root) {
+-				// Do not recheck files outside the GOPATH or GOROOT root.
++			if a.Package.Root == "" || !inDir(name, a.Package.Root) {
++				// Do not recheck files outside the module, GOPATH, or GOROOT root.
+ 				break
+ 			}
+ 			fmt.Fprintf(h, "stat %s %x\n", name, hashStat(name))
+@@ -1446,8 +1455,8 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
+ 			if !filepath.IsAbs(name) {
+ 				name = filepath.Join(pwd, name)
+ 			}
+-			if !inDir(name, a.Package.Root) {
+-				// Do not recheck files outside the GOPATH or GOROOT root.
++			if a.Package.Root == "" || !inDir(name, a.Package.Root) {
++				// Do not recheck files outside the module, GOPATH, or GOROOT root.
+ 				break
+ 			}
+ 			fh, err := hashOpen(name)
+diff --git a/src/cmd/go/testdata/script/build_cache_output.txt b/src/cmd/go/testdata/script/build_cache_output.txt
+index 89e3ff0f1e..0d94bf61a9 100644
+--- a/src/cmd/go/testdata/script/build_cache_output.txt
++++ b/src/cmd/go/testdata/script/build_cache_output.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++env GODEBUG=gocachetest=1
+ 
+ [!gc] skip
+ [short] skip # clears cache, rebuilds too much
+@@ -32,7 +33,7 @@ stderr 'main.go:2.* can inline main' # from compiler
+ stderr '\d+ symbols' # from linker
+ 
+ # Running a test should run the compiler, linker, and the test the first time.
+-go test -v -x -gcflags=-m -ldflags=-v p_test.go
++go test -v -x -gcflags=-m -ldflags=-v p
+ stderr 'compile( |\.exe"?)'
+ stderr 'p_test.go:.*can inline Test' # from compile of p_test
+ stderr 'testmain\.go:.*inlin' # from compile of testmain
+@@ -42,7 +43,7 @@ stderr 'p\.test( |\.exe"?)'
+ stdout 'TEST' # from test
+ 
+ # ... but not the second, even though it still prints the compiler, linker, and test output.
+-go test -v -x -gcflags=-m -ldflags=-v p_test.go
++go test -v -x -gcflags=-m -ldflags=-v p
+ ! stderr 'compile( |\.exe"?)'
+ stderr 'p_test.go:.*can inline Test' # from compile of p_test
+ stderr 'testmain\.go:.*inlin' # from compile of testmain
+@@ -60,7 +61,7 @@ func f(x *int) *int { return x }
+ package main
+ func main() {}
+ 
+--- p_test.go --
++-- p/p_test.go --
+ package p
+ import "testing"
+ func Test(t *testing.T) {println("TEST")}
+diff --git a/src/cmd/go/testdata/script/mod_test_cached.txt b/src/cmd/go/testdata/script/mod_test_cached.txt
+new file mode 100644
+index 0000000000..ffd573c02a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_test_cached.txt
+@@ -0,0 +1,77 @@
++[short] skip
++
++env GO111MODULE=on
++env GOCACHE=$WORK/gocache
++env GODEBUG=gocachetest=1
++
++# The first run of a test should not be cached.
++# The second run should be.
++go test -run=WriteTmp .
++! stdout '(cached)'
++go test -run=WriteTmp .
++stdout '(cached)'
++
++# 'go test' without arguments should never be cached.
++go test -run=WriteTmp
++! stdout '(cached)'
++go test -run=WriteTmp
++! stdout '(cached)'
++
++# We should never cache a test run from command-line files.
++go test -run=WriteTmp ./foo_test.go
++! stdout '(cached)'
++go test -run=WriteTmp ./foo_test.go
++! stdout '(cached)'
++
++[!exec:sleep] stop
++# The go command refuses to cache access to files younger than 2s, so sleep that long.
++exec sleep 2
++
++# Touching a file that the test reads from within its testdata should invalidate the cache.
++go test -run=ReadTestdata .
++! stdout '(cached)'
++go test -run=ReadTestdata .
++stdout '(cached)'
++cp testdata/bar.txt testdata/foo.txt
++go test -run=ReadTestdata .
++! stdout '(cached)'
++
++-- go.mod --
++module golang.org/issue/29111/foo
++
++-- foo.go --
++package foo
++
++-- testdata/foo.txt --
++foo
++-- testdata/bar.txt --
++bar
++
++-- foo_test.go --
++package foo_test
++
++import (
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++func TestWriteTmp(t *testing.T) {
++	dir, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++	err = ioutil.WriteFile(filepath.Join(dir, "x"), nil, 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestReadTestdata(t *testing.T) {
++	_, err := ioutil.ReadFile("testdata/foo.txt")
++	if err != nil {
++		t.Fatal(err)
++	}
++}

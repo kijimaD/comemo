@@ -7,6 +7,20 @@ Date:   Mon Jan 11 09:34:38 2016 -0800
     Change-Id: I5a0206e8074f3a2790954c45a217922b7b3fe851
     Reviewed-on: https://go-review.googlesource.com/18487
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 4756e1a099..b622eb4526 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -99,7 +99,7 @@ func buildTestProg(t *testing.T, binary string) (string, error) {
+ 		exe = ""
+ 		target.err = fmt.Errorf("building %s: %v\n%s", binary, err, out)
+ 		testprog.target[binary] = target
+-		return "", err
++		return "", target.err
+ 	}
+ 	target.exe = exe
+ 	testprog.target[binary] = target

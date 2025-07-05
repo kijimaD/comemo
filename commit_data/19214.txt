@@ -9,6 +9,21 @@ Date:   Mon Apr 21 00:08:39 2014 -0400
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/89330043
-
+---
  src/lib9/main.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib9/main.c b/src/lib9/main.c
+index 6de53c10ab..088b09523c 100644
+--- a/src/lib9/main.c
++++ b/src/lib9/main.c
+@@ -52,8 +52,8 @@ main(int argc, char **argv)
+ 	// don't display the crash dialog
+ 	DWORD mode = SetErrorMode(SEM_NOGPFAULTERRORBOX);
+ 	SetErrorMode(mode | SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+-	argv0 = argv[0];
+ #endif
++	argv0 = argv[0];
+ 	p9main(argc, argv);
+ 	exits("main");
+ 	return 99;

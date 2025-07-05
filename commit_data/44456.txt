@@ -13,9 +13,77 @@ Date:   Tue Jun 30 07:55:16 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go   | 4 +---
  src/cmd/compile/internal/gc/sinit.go | 3 ++-
  src/cmd/internal/obj/plist.go        | 3 +++
  src/cmd/internal/obj/sym.go          | 5 +++++
  4 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 01126dc048..4f511f9c7b 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -291,10 +291,8 @@ func addGCLocals() {
+ 		}
+ 		if x := s.Func.StackObjects; x != nil {
+ 			attr := int16(obj.RODATA)
+-			if s.DuplicateOK() {
+-				attr |= obj.DUPOK
+-			}
+ 			ggloblsym(x, int32(len(x.P)), attr)
++			x.Set(obj.AttrStatic, true)
+ 		}
+ 		if x := s.Func.OpenCodedDeferInfo; x != nil {
+ 			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 3c7571819e..83274bf6a3 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"fmt"
+ )
+ 
+@@ -360,7 +361,7 @@ var statuniqgen int // name generator for static temps
+ // returned node for readonly nodes.
+ func staticname(t *types.Type) *Node {
+ 	// Don't use lookupN; it interns the resulting string, but these are all unique.
+-	n := newname(lookup(fmt.Sprintf(".stmp_%d", statuniqgen)))
++	n := newname(lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
+ 	statuniqgen++
+ 	addvar(n, t, PEXTERN)
+ 	return n
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index d4f9089a2e..b27e6c163d 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -170,6 +170,9 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+ 	} else if flag&TLSBSS != 0 {
+ 		s.Type = objabi.STLSBSS
+ 	}
++	if strings.HasPrefix(s.Name, "\"\"."+StaticNamePref) {
++		s.Set(AttrStatic, true)
++	}
+ }
+ 
+ // EmitEntryLiveness generates PCDATA Progs after p to switch to the
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index bfc405cffb..7f5d9ebeea 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -264,6 +264,11 @@ func isNonPkgSym(ctxt *Link, s *LSym) bool {
+ 	return false
+ }
+ 
++// StaticNamePref is the prefix the front end applies to static temporary
++// variables. When turned into LSyms, these can be tagged as static so
++// as to avoid inserting them into the linker's name lookup tables.
++const StaticNamePref = ".stmp_"
++
+ type traverseFlag uint32
+ 
+ const (

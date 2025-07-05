@@ -12,7 +12,103 @@ Date:   Tue Sep 22 02:14:28 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/gzip/gunzip.go      | 16 ++++++++++++++++
  src/compress/gzip/gunzip_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+)
+
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index dc276535d3..91473bf598 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -167,6 +167,9 @@ func (z *Reader) readString() (string, error) {
+ func (z *Reader) read2() (uint32, error) {
+ 	_, err := io.ReadFull(z.r, z.buf[0:2])
+ 	if err != nil {
++		if err == io.EOF {
++			err = io.ErrUnexpectedEOF
++		}
+ 		return 0, err
+ 	}
+ 	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil
+@@ -175,6 +178,13 @@ func (z *Reader) read2() (uint32, error) {
+ func (z *Reader) readHeader(save bool) error {
+ 	_, err := io.ReadFull(z.r, z.buf[0:10])
+ 	if err != nil {
++		// RFC1952 section 2.2 says the following:
++		//	A gzip file consists of a series of "members" (compressed data sets).
++		//
++		// Other than this, the specification does not clarify whether a
++		// "series" is defined as "one or more" or "zero or more". To err on the
++		// side of caution, Go interprets this to mean "zero or more".
++		// Thus, it is okay to return io.EOF here.
+ 		return err
+ 	}
+ 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
+@@ -196,6 +206,9 @@ func (z *Reader) readHeader(save bool) error {
+ 		}
+ 		data := make([]byte, n)
+ 		if _, err = io.ReadFull(z.r, data); err != nil {
++			if err == io.EOF {
++				err = io.ErrUnexpectedEOF
++			}
+ 			return err
+ 		}
+ 		if save {
+@@ -260,6 +273,9 @@ func (z *Reader) Read(p []byte) (n int, err error) {
+ 
+ 	// Finished file; check checksum + size.
+ 	if _, err := io.ReadFull(z.r, z.buf[0:8]); err != nil {
++		if err == io.EOF {
++			err = io.ErrUnexpectedEOF
++		}
+ 		z.err = err
+ 		return 0, err
+ 	}
+diff --git a/src/compress/gzip/gunzip_test.go b/src/compress/gzip/gunzip_test.go
+index 0636dec9ab..209896a7fc 100644
+--- a/src/compress/gzip/gunzip_test.go
++++ b/src/compress/gzip/gunzip_test.go
+@@ -6,6 +6,7 @@ package gzip
+ 
+ import (
+ 	"bytes"
++	"compress/flate"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -408,3 +409,34 @@ Found:
+ 		t.Fatalf("third reset: err=%v, want io.EOF", err)
+ 	}
+ }
++
++func TestNilStream(t *testing.T) {
++	// Go liberally interprets RFC1952 section 2.2 to mean that a gzip file
++	// consist of zero or more members. Thus, we test that a nil stream is okay.
++	_, err := NewReader(bytes.NewReader(nil))
++	if err != io.EOF {
++		t.Fatalf("NewReader(nil) on empty stream: got %v, want &v", err, io.EOF)
++	}
++}
++
++func TestTruncatedStreams(t *testing.T) {
++	const data = "\x1f\x8b\b\x04\x00\tn\x88\x00\xff\a\x00foo bar\xcbH\xcd\xc9\xc9\xd7Q(\xcf/\xcaI\x01\x04:r\xab\xff\f\x00\x00\x00"
++
++	// Intentionally iterate starting with at least one byte in the stream.
++	for i := 1; i < len(data)-1; i++ {
++		r, err := NewReader(strings.NewReader(data[:i]))
++		if err != nil {
++			if err != io.ErrUnexpectedEOF {
++				t.Errorf("NewReader(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
++			}
++			continue
++		}
++		_, err = io.Copy(ioutil.Discard, r)
++		if ferr, ok := err.(*flate.ReadError); ok {
++			err = ferr.Err
++		}
++		if err != io.ErrUnexpectedEOF {
++			t.Errorf("io.Copy(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
++		}
++	}
++}

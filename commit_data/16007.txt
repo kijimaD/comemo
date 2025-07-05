@@ -14,8 +14,77 @@ Date:   Fri Mar 29 12:39:19 2013 -0700
     R=golang-dev, r, gri
     CC=golang-dev
     https://golang.org/cl/8164043
-
+---
  src/pkg/bytes/buffer.go      |  5 +++++
  src/pkg/bytes/buffer_test.go | 32 ++++++++++++++++++++++++++++++++
  src/pkg/bytes/export_test.go |  4 ++++
  3 files changed, 41 insertions(+)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 85c1577985..0328f4c2d8 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -87,6 +87,11 @@ func (b *Buffer) grow(n int) int {
+ 		var buf []byte
+ 		if b.buf == nil && n <= len(b.bootstrap) {
+ 			buf = b.bootstrap[0:]
++		} else if m+n <= cap(b.buf) {
++			// We can slide things down instead of
++			// allocating a new slice.
++			copy(b.buf[:], b.buf[b.off:])
++			buf = b.buf[:m]
+ 		} else {
+ 			// not enough space anywhere
+ 			buf = makeSlice(2*cap(b.buf) + n)
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index f9fb2625a0..d629809b57 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -475,3 +475,35 @@ func TestUnreadByte(t *testing.T) {
+ 		t.Errorf("ReadByte = %q; want %q", c, 'm')
+ 	}
+ }
++
++// Tests that we occasionally compact. Issue 5154.
++func TestBufferGrowth(t *testing.T) {
++	var b Buffer
++	buf := make([]byte, 1024)
++	b.Write(buf[0:1])
++	var cap0 int
++	for i := 0; i < 5<<10; i++ {
++		b.Write(buf)
++		b.Read(buf)
++		if i == 0 {
++			cap0 = b.Cap()
++		}
++	}
++	cap1 := b.Cap()
++	if cap1 > cap0 {
++		t.Errorf("buffer cap = %d; too big", cap1)
++	}
++}
++
++// From Issue 5154.
++func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
++	buf := make([]byte, 1024)
++	for i := 0; i < b.N; i++ {
++		var b Buffer
++		b.Write(buf[0:1])
++		for i := 0; i < 5<<10; i++ {
++			b.Write(buf)
++			b.Read(buf)
++		}
++	}
++}
+diff --git a/src/pkg/bytes/export_test.go b/src/pkg/bytes/export_test.go
+index f61523e60b..3b915d5ead 100644
+--- a/src/pkg/bytes/export_test.go
++++ b/src/pkg/bytes/export_test.go
+@@ -7,3 +7,7 @@ package bytes
+ // Export func for testing
+ var IndexBytePortable = indexBytePortable
+ var EqualPortable = equalPortable
++
++func (b *Buffer) Cap() int {
++	return cap(b.buf)
++}

@@ -9,6 +9,19 @@ Date:   Tue Dec 15 17:37:47 2009 -0800
     R=r
     CC=golang-dev, hoisie
     https://golang.org/cl/180056
-
+---
  src/pkg/syscall/asm_linux_386.s | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/syscall/asm_linux_386.s b/src/pkg/syscall/asm_linux_386.s
+index 533dddaf9b..e427f2eefb 100644
+--- a/src/pkg/syscall/asm_linux_386.s
++++ b/src/pkg/syscall/asm_linux_386.s
+@@ -75,7 +75,6 @@ TEXT syscall·RawSyscall(SB),7,$0
+ 	MOVL	$0, 24(SP)	// r2
+ 	NEGL	AX
+ 	MOVL	AX, 28(SP)  // errno
+-	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok1:
+ 	MOVL	AX, 20(SP)	// r1

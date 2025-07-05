@@ -8,6 +8,29 @@ Date:   Mon Oct 19 18:46:46 2009 -0700
     DELTA=16  (0 added, 16 deleted, 0 changed)
     OCL=35892
     CL=35895
-
+---
  test/bugs/bug210.go | 16 ----------------
  1 file changed, 16 deletions(-)
+
+diff --git a/test/bugs/bug210.go b/test/bugs/bug210.go
+deleted file mode 100644
+index a40dab1600..0000000000
+--- a/test/bugs/bug210.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// $G $D/$F.go || echo BUG: should compile
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-type T struct {
+-	children []T;
+-}
+-
+-/*
+-uetli:/home/gri/go/test/bugs gri$ 6g bug210.go
+-bug210.go:10: invalid recursive type []T
+-*/

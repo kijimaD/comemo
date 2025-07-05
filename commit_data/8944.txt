@@ -9,6 +9,30 @@ Date:   Tue Jul 5 17:00:18 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4675047
-
+---
  src/cmd/godoc/dirtrees.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index ec969b74a4..e98e93a461 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -30,7 +30,7 @@ type Directory struct {
+ func isGoFile(fi FileInfo) bool {
+ 	name := fi.Name()
+ 	return fi.IsRegular() &&
+-		!strings.HasPrefix(name, ".") && // ignore .files
++		len(name) > 0 && name[0] != '.' && // ignore .files
+ 		filepath.Ext(name) == ".go"
+ }
+ 
+@@ -43,7 +43,8 @@ func isPkgFile(fi FileInfo) bool {
+ 
+ func isPkgDir(fi FileInfo) bool {
+ 	name := fi.Name()
+-	return fi.IsDirectory() && len(name) > 0 && name[0] != '_'
++	return fi.IsDirectory() && len(name) > 0 &&
++		name[0] != '_' && name[0] != '.' // ignore _files and .files
+ }
+ 
+ 

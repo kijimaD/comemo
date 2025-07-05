@@ -25,7 +25,7 @@ Date:   Wed Feb 8 11:41:32 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5624047
-
+---
  doc/go1.html                       |  10 +++
  doc/go1.tmpl                       |  10 +++
  src/pkg/exp/types/check.go         |  11 +--
@@ -36,3 +36,514 @@ Date:   Wed Feb 8 11:41:32 2012 -0800
  src/pkg/go/scanner/scanner.go      |  11 ++-
  src/pkg/go/scanner/scanner_test.go |  47 ++++++-------
  9 files changed, 128 insertions(+), 138 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index e3d2354e64..7613c38805 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1041,6 +1041,16 @@ useful for scanning text other then Go source files. Instead, the
+ for that purpose.
+ </p>
+ 
++<p>
++The <a href="/pkg/go/scanner/#ErrorHandler"><code>ErrorHandler</code></a> provided
++to the scanner's <a href="/pkg/go/scanner/#Scanner.Init"><code>Init</code></a> method is
++now simply a function rather than an interface. The <code>ErrorVector</code> type has
++been removed in favor of the (existing) <a href="/pkg/go/scanner/#ErrorList"><code>ErrorList</code></a>
++type, and the <code>ErrorVector</code> methods have been migrated. Instead of embedding
++an <code>ErrorVector</code> in a client of the scanner, now a client should maintain
++an <code>ErrorList</code>.
++</p>
++
+ <p>
+ The set of parse functions provided by the <a href="/pkg/go/parser/"><code>go/parser</code></a>
+ package has been reduced to the primary parse function
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 8f27682780..f6e69e6ca2 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -944,6 +944,16 @@ useful for scanning text other then Go source files. Instead, the
+ for that purpose.
+ </p>
+ 
++<p>
++The <a href="/pkg/go/scanner/#ErrorHandler"><code>ErrorHandler</code></a> provided
++to the scanner's <a href="/pkg/go/scanner/#Scanner.Init"><code>Init</code></a> method is
++now simply a function rather than an interface. The <code>ErrorVector</code> type has
++been removed in favor of the (existing) <a href="/pkg/go/scanner/#ErrorList"><code>ErrorList</code></a>
++type, and the <code>ErrorVector</code> methods have been migrated. Instead of embedding
++an <code>ErrorVector</code> in a client of the scanner, now a client should maintain
++an <code>ErrorList</code>.
++</p>
++
+ <p>
+ The set of parse functions provided by the <a href="/pkg/go/parser/"><code>go/parser</code></a>
+ package has been reduced to the primary parse function
+diff --git a/src/pkg/exp/types/check.go b/src/pkg/exp/types/check.go
+index 09e29d1261..ae0beb4e9b 100644
+--- a/src/pkg/exp/types/check.go
++++ b/src/pkg/exp/types/check.go
+@@ -17,14 +17,14 @@ import (
+ const debug = false
+ 
+ type checker struct {
+-	fset *token.FileSet
+-	scanner.ErrorVector
+-	types map[ast.Expr]Type
++	fset   *token.FileSet
++	errors scanner.ErrorList
++	types  map[ast.Expr]Type
+ }
+ 
+ func (c *checker) errorf(pos token.Pos, format string, args ...interface{}) string {
+ 	msg := fmt.Sprintf(format, args...)
+-	c.Error(c.fset.Position(pos), msg)
++	c.errors.Add(c.fset.Position(pos), msg)
+ 	return msg
+ }
+ 
+@@ -221,5 +221,6 @@ func Check(fset *token.FileSet, pkg *ast.Package) (types map[ast.Expr]Type, err
+ 		c.checkObj(obj, false)
+ 	}
+ 
+-	return c.types, c.GetError(scanner.NoMultiples)
++	c.errors.RemoveMultiples()
++	return c.types, c.errors.Err()
+ }
+diff --git a/src/pkg/go/ast/resolve.go b/src/pkg/go/ast/resolve.go
+index c7c8e7c101..908e61c5da 100644
+--- a/src/pkg/go/ast/resolve.go
++++ b/src/pkg/go/ast/resolve.go
+@@ -14,12 +14,12 @@ import (
+ )
+ 
+ type pkgBuilder struct {
+-	scanner.ErrorVector
+-	fset *token.FileSet
++	fset   *token.FileSet
++	errors scanner.ErrorList
+ }
+ 
+ func (p *pkgBuilder) error(pos token.Pos, msg string) {
+-	p.Error(p.fset.Position(pos), msg)
++	p.errors.Add(p.fset.Position(pos), msg)
+ }
+ 
+ func (p *pkgBuilder) errorf(pos token.Pos, format string, args ...interface{}) {
+@@ -169,5 +169,6 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer,
+ 		pkgScope.Outer = universe // reset universe scope
+ 	}
+ 
+-	return &Package{pkgName, pkgScope, imports, files}, p.GetError(scanner.Sorted)
++	p.errors.Sort()
++	return &Package{pkgName, pkgScope, imports, files}, p.errors.Err()
+ }
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index f1b4ce34d1..5c203a7846 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -80,13 +80,25 @@ const (
+ // are returned via a scanner.ErrorList which is sorted by file position.
+ //
+ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode) (*ast.File, error) {
++	// get source
+ 	text, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
++	// parse source
+ 	var p parser
+ 	p.init(fset, filename, text, mode)
+-	return p.parseFile(), p.errors()
++	f := p.parseFile()
++
++	// sort errors
++	if p.mode&SpuriousErrors == 0 {
++		p.errors.RemoveMultiples()
++	} else {
++		p.errors.Sort()
++	}
++
++	return f, p.errors.Err()
+ }
+ 
+ // ParseDir calls ParseFile for the files in the directory specified by path and
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 6bee8de9f6..e6dffa3709 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -18,8 +18,8 @@ import (
+ 
+ // The parser structure holds the parser's internal state.
+ type parser struct {
+-	file *token.File
+-	scanner.ErrorVector
++	file    *token.File
++	errors  scanner.ErrorList
+ 	scanner scanner.Scanner
+ 
+ 	// Tracing/debugging
+@@ -58,7 +58,8 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mod
+ 	if mode&ParseComments != 0 {
+ 		m = scanner.ScanComments
+ 	}
+-	p.scanner.Init(p.file, src, p, m)
++	eh := func(pos token.Position, msg string) { p.errors.Add(pos, msg) }
++	p.scanner.Init(p.file, src, eh, m)
+ 
+ 	p.mode = mode
+ 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
+@@ -74,14 +75,6 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mod
+ 	p.openLabelScope()
+ }
+ 
+-func (p *parser) errors() error {
+-	m := scanner.Sorted
+-	if p.mode&SpuriousErrors == 0 {
+-		m = scanner.NoMultiples
+-	}
+-	return p.GetError(m)
+-}
+-
+ // ----------------------------------------------------------------------------
+ // Scoping support
+ 
+@@ -334,7 +327,7 @@ func (p *parser) next() {
+ }
+ 
+ func (p *parser) error(pos token.Pos, msg string) {
+-	p.Error(p.file.Position(pos), msg)
++	p.errors.Add(p.file.Position(pos), msg)
+ }
+ 
+ func (p *parser) errorExpected(pos token.Pos, msg string) {
+@@ -2123,7 +2116,7 @@ func (p *parser) parseFile() *ast.File {
+ 	// Don't bother parsing the rest if we had errors already.
+ 	// Likely not a Go source file at all.
+ 
+-	if p.ErrorCount() == 0 && p.mode&PackageClauseOnly == 0 {
++	if p.errors.Len() == 0 && p.mode&PackageClauseOnly == 0 {
+ 		// import decls
+ 		for p.tok == token.IMPORT {
+ 			decls = append(decls, p.parseGenDecl(token.IMPORT, parseImportSpec))
+diff --git a/src/pkg/go/scanner/errors.go b/src/pkg/go/scanner/errors.go
+index cd9620b878..8a75a96508 100644
+--- a/src/pkg/go/scanner/errors.go
++++ b/src/pkg/go/scanner/errors.go
+@@ -11,44 +11,18 @@ import (
+ 	"sort"
+ )
+ 
+-// An implementation of an ErrorHandler may be provided to the Scanner.
+-// If a syntax error is encountered and a handler was installed, Error
+-// is called with a position and an error message. The position points
+-// to the beginning of the offending token.
+-//
+-type ErrorHandler interface {
+-	Error(pos token.Position, msg string)
+-}
+-
+-// ErrorVector implements the ErrorHandler interface. It maintains a list
+-// of errors which can be retrieved with GetErrorList and GetError. The
+-// zero value for an ErrorVector is an empty ErrorVector ready to use.
+-//
+-// A common usage pattern is to embed an ErrorVector alongside a
+-// scanner in a data structure that uses the scanner. By passing a
+-// reference to an ErrorVector to the scanner's Init call, default
+-// error handling is obtained.
+-//
+-type ErrorVector struct {
+-	errors []*Error
+-}
+-
+-// Reset resets an ErrorVector to no errors.
+-func (h *ErrorVector) Reset() { h.errors = h.errors[:0] }
+-
+-// ErrorCount returns the number of errors collected.
+-func (h *ErrorVector) ErrorCount() int { return len(h.errors) }
+-
+-// Within ErrorVector, an error is represented by an Error node. The
+-// position Pos, if valid, points to the beginning of the offending
+-// token, and the error condition is described by Msg.
++// In an ErrorList, an error is represented by an *Error.
++// The position Pos, if valid, points to the beginning of
++// the offending token, and the error condition is described
++// by Msg.
+ //
+ type Error struct {
+ 	Pos token.Position
+ 	Msg string
+ }
+ 
+-func (e *Error) Error() string {
++// Error implements the error interface.
++func (e Error) Error() string {
+ 	if e.Pos.Filename != "" || e.Pos.IsValid() {
+ 		// don't print "<unknown position>"
+ 		// TODO(gri) reconsider the semantics of Position.IsValid
+@@ -57,9 +31,19 @@ func (e *Error) Error() string {
+ 	return e.Msg
+ }
+ 
+-// An ErrorList is a (possibly sorted) list of Errors.
++// ErrorList is a list of *Errors.
++// The zero value for an ErrorList is an empty ErrorList ready to use.
++//
+ type ErrorList []*Error
+ 
++// Add adds an Error with given position and error message to an ErrorList.
++func (p *ErrorList) Add(pos token.Position, msg string) {
++	*p = append(*p, &Error{pos, msg})
++}
++
++// Reset resets an ErrorList to no errors.
++func (p *ErrorList) Reset() { *p = (*p)[0:0] }
++
+ // ErrorList implements the sort Interface.
+ func (p ErrorList) Len() int      { return len(p) }
+ func (p ErrorList) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+@@ -84,72 +68,47 @@ func (p ErrorList) Less(i, j int) bool {
+ 	return false
+ }
+ 
++// Sort sorts an ErrorList. *Error entries are sorted by position,
++// other errors are sorted by error message, and before any *Error
++// entry.
++//
++func (p ErrorList) Sort() {
++	sort.Sort(p)
++}
++
++// RemoveMultiples sorts an ErrorList and removes all but the first error per line.
++func (p *ErrorList) RemoveMultiples() {
++	sort.Sort(p)
++	var last token.Position // initial last.Line is != any legal error line
++	i := 0
++	for _, e := range *p {
++		if e.Pos.Filename != last.Filename || e.Pos.Line != last.Line {
++			last = e.Pos
++			(*p)[i] = e
++			i++
++		}
++	}
++	(*p) = (*p)[0:i]
++}
++
++// An ErrorList implements the error interface.
+ func (p ErrorList) Error() string {
+ 	switch len(p) {
+ 	case 0:
+-		return "unspecified error"
++		return "no errors"
+ 	case 1:
+ 		return p[0].Error()
+ 	}
+ 	return fmt.Sprintf("%s (and %d more errors)", p[0], len(p)-1)
+ }
+ 
+-// These constants control the construction of the ErrorList
+-// returned by GetErrors.
+-//
+-const (
+-	Raw         = iota // leave error list unchanged
+-	Sorted             // sort error list by file, line, and column number
+-	NoMultiples        // sort error list and leave only the first error per line
+-)
+-
+-// GetErrorList returns the list of errors collected by an ErrorVector.
+-// The construction of the ErrorList returned is controlled by the mode
+-// parameter. If there are no errors, the result is nil.
+-//
+-func (h *ErrorVector) GetErrorList(mode int) ErrorList {
+-	if len(h.errors) == 0 {
+-		return nil
+-	}
+-
+-	list := make(ErrorList, len(h.errors))
+-	copy(list, h.errors)
+-
+-	if mode >= Sorted {
+-		sort.Sort(list)
+-	}
+-
+-	if mode >= NoMultiples {
+-		var last token.Position // initial last.Line is != any legal error line
+-		i := 0
+-		for _, e := range list {
+-			if e.Pos.Filename != last.Filename || e.Pos.Line != last.Line {
+-				last = e.Pos
+-				list[i] = e
+-				i++
+-			}
+-		}
+-		list = list[0:i]
+-	}
+-
+-	return list
+-}
+-
+-// GetError is like GetErrorList, but it returns an error instead
+-// so that a nil result can be assigned to an error variable and
+-// remains nil.
+-//
+-func (h *ErrorVector) GetError(mode int) error {
+-	if len(h.errors) == 0 {
++// Err returns an error equivalent to this error list.
++// If the list is empty, Err returns nil.
++func (p ErrorList) Err() error {
++	if len(p) == 0 {
+ 		return nil
+ 	}
+-
+-	return h.GetErrorList(mode)
+-}
+-
+-// ErrorVector implements the ErrorHandler interface.
+-func (h *ErrorVector) Error(pos token.Position, msg string) {
+-	h.errors = append(h.errors, &Error{pos, msg})
++	return p
+ }
+ 
+ // PrintError is a utility function that prints a list of errors to w,
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 0aabfe34c4..458e1f9f37 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -30,6 +30,13 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++// An ErrorHandler may be provided to Scanner.Init. If a syntax error is
++// encountered and a handler was installed, the handler is called with a
++// position and an error message. The position points to the beginning of
++// the offending token.
++//
++type ErrorHandler func(pos token.Position, msg string)
++
+ // A Scanner holds the scanner's internal state while processing
+ // a given text.  It can be allocated as part of another data
+ // structure but must be initialized via Init before use.
+@@ -103,7 +110,7 @@ const (
+ // line information which is already present is ignored. Init causes a
+ // panic if the file size does not match the src size.
+ //
+-// Calls to Scan will use the error handler err if they encounter a
++// Calls to Scan will invoke the error handler err if they encounter a
+ // syntax error and err is not nil. Also, for each error encountered,
+ // the Scanner field ErrorCount is incremented by one. The mode parameter
+ // determines how comments are handled.
+@@ -134,7 +141,7 @@ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode
+ 
+ func (s *Scanner) error(offs int, msg string) {
+ 	if s.err != nil {
+-		s.err.Error(s.file.Position(s.file.Pos(offs)), msg)
++		s.err(s.file.Position(s.file.Pos(offs)), msg)
+ 	}
+ 	s.ErrorCount++
+ }
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index e7f7cd1c1e..06223e23bd 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -186,14 +186,6 @@ var source = func() []byte {
+ 	return src
+ }()
+ 
+-type testErrorHandler struct {
+-	t *testing.T
+-}
+-
+-func (h *testErrorHandler) Error(pos token.Position, msg string) {
+-	h.t.Errorf("Error() called (msg = %s)", msg)
+-}
+-
+ func newlineCount(s string) int {
+ 	n := 0
+ 	for i := 0; i < len(s); i++ {
+@@ -226,9 +218,14 @@ func TestScan(t *testing.T) {
+ 	src_linecount := newlineCount(string(source))
+ 	whitespace_linecount := newlineCount(whitespace)
+ 
++	// error handler
++	eh := func(_ token.Position, msg string) {
++		t.Errorf("error handler called (msg = %s)", msg)
++	}
++
+ 	// verify scan
+ 	var s Scanner
+-	s.Init(fset.AddFile("", fset.Base(), len(source)), source, &testErrorHandler{t}, ScanComments|dontInsertSemis)
++	s.Init(fset.AddFile("", fset.Base(), len(source)), source, eh, ScanComments|dontInsertSemis)
+ 	index := 0
+ 	// epos is the expected position
+ 	epos := token.Position{
+@@ -569,36 +566,37 @@ func TestStdErrorHander(t *testing.T) {
+ 		"//line File1:1\n" +
+ 		"@ @ @" // original file, line 1 again
+ 
+-	v := new(ErrorVector)
++	var list ErrorList
++	eh := func(pos token.Position, msg string) { list.Add(pos, msg) }
++
+ 	var s Scanner
+-	s.Init(fset.AddFile("File1", fset.Base(), len(src)), []byte(src), v, dontInsertSemis)
++	s.Init(fset.AddFile("File1", fset.Base(), len(src)), []byte(src), eh, dontInsertSemis)
+ 	for {
+ 		if _, tok, _ := s.Scan(); tok == token.EOF {
+ 			break
+ 		}
+ 	}
+ 
+-	list := v.GetErrorList(Raw)
++	if len(list) != s.ErrorCount {
++		t.Errorf("found %d errors, expected %d", len(list), s.ErrorCount)
++	}
++
+ 	if len(list) != 9 {
+ 		t.Errorf("found %d raw errors, expected 9", len(list))
+ 		PrintError(os.Stderr, list)
+ 	}
+ 
+-	list = v.GetErrorList(Sorted)
++	list.Sort()
+ 	if len(list) != 9 {
+ 		t.Errorf("found %d sorted errors, expected 9", len(list))
+ 		PrintError(os.Stderr, list)
+ 	}
+ 
+-	list = v.GetErrorList(NoMultiples)
++	list.RemoveMultiples()
+ 	if len(list) != 4 {
+ 		t.Errorf("found %d one-per-line errors, expected 4", len(list))
+ 		PrintError(os.Stderr, list)
+ 	}
+-
+-	if v.ErrorCount() != s.ErrorCount {
+-		t.Errorf("found %d errors, expected %d", v.ErrorCount(), s.ErrorCount)
+-	}
+ }
+ 
+ type errorCollector struct {
+@@ -607,16 +605,15 @@ type errorCollector struct {
+ 	pos token.Position // last error position encountered
+ }
+ 
+-func (h *errorCollector) Error(pos token.Position, msg string) {
+-	h.cnt++
+-	h.msg = msg
+-	h.pos = pos
+-}
+-
+ func checkError(t *testing.T, src string, tok token.Token, pos int, err string) {
+ 	var s Scanner
+ 	var h errorCollector
+-	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &h, ScanComments|dontInsertSemis)
++	eh := func(pos token.Position, msg string) {
++		h.cnt++
++		h.msg = msg
++		h.pos = pos
++	}
++	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), eh, ScanComments|dontInsertSemis)
+ 	_, tok0, _ := s.Scan()
+ 	_, tok1, _ := s.Scan()
+ 	if tok0 != tok {

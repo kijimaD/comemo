@@ -13,6 +13,33 @@ Date:   Tue Jun 23 06:23:04 2015 +1000
     Change-Id: I72cca03d7ad0d64fd649fa33a9ead2f31bd2977b
     Reviewed-on: https://go-review.googlesource.com/11325
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/asm/internal/asm/parse.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index d7b5250913..18cc27fa83 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -807,16 +807,17 @@ func (p *Parser) term() uint64 {
+ 		case lex.LSH:
+ 			p.next()
+ 			shift := p.factor()
+-			// shift is a uint, so can never be negative.
++			if int64(shift) < 0 {
++				p.errorf("left shift with high bit set")
++			}
+ 			return value << shift
+ 		case lex.RSH:
+ 			p.next()
+ 			shift := p.term()
+-			// shift is a uint, so can never be negative.
+-			if value&(1<<63) != 0 {
++			if int64(shift) < 0 {
+ 				p.errorf("right shift with high bit set")
+ 			}
+-			value >>= uint(shift)
++			value >>= shift
+ 		case '&':
+ 			p.next()
+ 			value &= p.factor()

@@ -15,8 +15,112 @@ Date:   Thu Dec 20 10:56:47 2018 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .../golang.org/x/sys/windows/svc/svc_test.go       |  8 ++----
  .../x/sys/windows/syscall_windows_test.go          | 29 +++-------------------
  src/cmd/vendor/vendor.json                         | 12 ++++-----
  3 files changed, 12 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/svc/svc_test.go b/src/cmd/vendor/golang.org/x/sys/windows/svc/svc_test.go
+index 60eb4478e4..feed8fabde 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/svc/svc_test.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/svc/svc_test.go
+@@ -121,13 +121,9 @@ func TestExample(t *testing.T) {
+ 		t.Fatalf("Delete failed: %s", err)
+ 	}
+ 
+-	cmd := `Get-Eventlog -LogName Application -Newest 100` +
+-		` | Where Source -eq "myservice"` +
+-		` | Select -first 10` +
+-		` | Format-table -HideTableHeaders -property ReplacementStrings`
+-	out, err := exec.Command("powershell", "-Command", cmd).CombinedOutput()
++	out, err := exec.Command("wevtutil.exe", "qe", "Application", "/q:*[System[Provider[@Name='myservice']]]", "/rd:true", "/c:10").CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("powershell failed: %v\n%v", err, string(out))
++		t.Fatalf("wevtutil failed: %v\n%v", err, string(out))
+ 	}
+ 	if want := strings.Join(append([]string{name}, args...), "-"); !strings.Contains(string(out), want) {
+ 		t.Errorf("%q string does not contain %q", string(out), want)
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows_test.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows_test.go
+index 0e27464e8c..539dda2413 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows_test.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"path/filepath"
+ 	"syscall"
+ 	"testing"
+-	"unsafe"
+ 
+ 	"golang.org/x/sys/windows"
+ )
+@@ -54,34 +53,14 @@ func TestWin32finddata(t *testing.T) {
+ }
+ 
+ func TestFormatMessage(t *testing.T) {
+-	dll := windows.MustLoadDLL("pdh.dll")
+-
+-	pdhOpenQuery := func(datasrc *uint16, userdata uint32, query *windows.Handle) (errno uintptr) {
+-		r0, _, _ := syscall.Syscall(dll.MustFindProc("PdhOpenQueryW").Addr(), 3, uintptr(unsafe.Pointer(datasrc)), uintptr(userdata), uintptr(unsafe.Pointer(query)))
+-		return r0
+-	}
+-
+-	pdhCloseQuery := func(query windows.Handle) (errno uintptr) {
+-		r0, _, _ := syscall.Syscall(dll.MustFindProc("PdhCloseQuery").Addr(), 1, uintptr(query), 0, 0)
+-		return r0
+-	}
+-
+-	var q windows.Handle
+-	name, err := windows.UTF16PtrFromString("no_such_source")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	errno := pdhOpenQuery(name, 0, &q)
+-	if errno == 0 {
+-		pdhCloseQuery(q)
+-		t.Fatal("PdhOpenQuery succeeded, but expected to fail.")
+-	}
++	dll := windows.MustLoadDLL("netevent.dll")
+ 
++	const TITLE_SC_MESSAGE_BOX uint32 = 0xC0001B75
+ 	const flags uint32 = syscall.FORMAT_MESSAGE_FROM_HMODULE | syscall.FORMAT_MESSAGE_ARGUMENT_ARRAY | syscall.FORMAT_MESSAGE_IGNORE_INSERTS
+ 	buf := make([]uint16, 300)
+-	_, err = windows.FormatMessage(flags, uintptr(dll.Handle), uint32(errno), 0, buf, nil)
++	_, err := windows.FormatMessage(flags, uintptr(dll.Handle), TITLE_SC_MESSAGE_BOX, 0, buf, nil)
+ 	if err != nil {
+-		t.Fatalf("FormatMessage for handle=%x and errno=%x failed: %v", dll.Handle, errno, err)
++		t.Fatalf("FormatMessage for handle=%x and errno=%x failed: %v", dll.Handle, TITLE_SC_MESSAGE_BOX, err)
+ 	}
+ }
+ 
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index 1dcf16d5a9..b44f022457 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -137,10 +137,10 @@
+ 			"revisionTime": "2018-12-13T07:38:38Z"
+ 		},
+ 		{
+-			"checksumSHA1": "s+lofQ+SCdhmy0cQp9FpdQncuuI=",
++			"checksumSHA1": "WoSat9PbqZFXREek5bkUBr256/Q=",
+ 			"path": "golang.org/x/sys/windows",
+-			"revision": "90868a75fefd03942536221d7c0e2f84ec62a668",
+-			"revisionTime": "2018-08-01T20:46:00Z"
++			"revision": "074acd46bca67915925527c07849494d115e7c43",
++			"revisionTime": "2018-12-18T18:24:21Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "yEg3f1MGwuyDh5NrNEGkWKlTyqY=",
+@@ -149,10 +149,10 @@
+ 			"revisionTime": "2018-08-01T20:46:00Z"
+ 		},
+ 		{
+-			"checksumSHA1": "ZDwqsuoZqQq/XMQ0R0dJ4oK41lU=",
++			"checksumSHA1": "sL1Y17u+ri3uepsUZOZ4uopiPEg=",
+ 			"path": "golang.org/x/sys/windows/svc",
+-			"revision": "90868a75fefd03942536221d7c0e2f84ec62a668",
+-			"revisionTime": "2018-08-01T20:46:00Z"
++			"revision": "074acd46bca67915925527c07849494d115e7c43",
++			"revisionTime": "2018-12-18T18:24:21Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "e9KJPWrdqg5PMkbE2w60Io8rY4M=",

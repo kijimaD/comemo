@@ -10,7 +10,80 @@ Date:   Wed Apr 16 11:32:16 2014 -0700
     R=dvyukov
     CC=golang-codereviews
     https://golang.org/cl/87970045
-
+---
  src/pkg/net/http/httptest/server_test.go | 12 +++++-------
  src/pkg/net/http/transport_test.go       | 12 +++++++++++-
  2 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/http/httptest/server_test.go b/src/pkg/net/http/httptest/server_test.go
+index 14f8bed18e..501cc8a999 100644
+--- a/src/pkg/net/http/httptest/server_test.go
++++ b/src/pkg/net/http/httptest/server_test.go
+@@ -5,7 +5,6 @@
+ package httptest
+ 
+ import (
+-	"flag"
+ 	"io/ioutil"
+ 	"net/http"
+ 	"testing"
+@@ -30,15 +29,13 @@ func TestServer(t *testing.T) {
+ 	}
+ }
+ 
+-var testIssue7264 = flag.Bool("issue7264", false, "enable failing test for issue 7264")
+-
+ func TestIssue7264(t *testing.T) {
+-	if !*testIssue7264 {
+-		t.Skip("skipping failing test for issue 7264")
+-	}
+ 	for i := 0; i < 1000; i++ {
+ 		func() {
+-			ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
++			inHandler := make(chan bool, 1)
++			ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++				inHandler <- true
++			}))
+ 			defer ts.Close()
+ 			tr := &http.Transport{
+ 				ResponseHeaderTimeout: time.Nanosecond,
+@@ -46,6 +43,7 @@ func TestIssue7264(t *testing.T) {
+ 			defer tr.CloseIdleConnections()
+ 			c := &http.Client{Transport: tr}
+ 			res, err := c.Get(ts.URL)
++			<-inHandler
+ 			if err == nil {
+ 				res.Body.Close()
+ 			}
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 17c9aaef1e..ab459738df 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -1250,9 +1250,13 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping timeout test in -short mode")
+ 	}
++	inHandler := make(chan bool, 1)
+ 	mux := NewServeMux()
+-	mux.HandleFunc("/fast", func(w ResponseWriter, r *Request) {})
++	mux.HandleFunc("/fast", func(w ResponseWriter, r *Request) {
++		inHandler <- true
++	})
+ 	mux.HandleFunc("/slow", func(w ResponseWriter, r *Request) {
++		inHandler <- true
+ 		time.Sleep(2 * time.Second)
+ 	})
+ 	ts := httptest.NewServer(mux)
+@@ -1275,6 +1279,12 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
+ 	}
+ 	for i, tt := range tests {
+ 		res, err := c.Get(ts.URL + tt.path)
++		select {
++		case <-inHandler:
++		case <-time.After(5 * time.Second):
++			t.Errorf("never entered handler for test index %d, %s", i, tt.path)
++			continue
++		}
+ 		if err != nil {
+ 			uerr, ok := err.(*url.Error)
+ 			if !ok {

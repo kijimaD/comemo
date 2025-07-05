@@ -12,7 +12,45 @@ Date:   Mon Mar 20 02:21:50 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go     | 7 +++++--
  src/cmd/compile/internal/gc/typecheck.go | 1 +
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index c31464272d..ee3c7aec7e 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -126,7 +126,7 @@ func dowidth(t *Type) {
+ 	if t.Width == -2 {
+ 		if !t.Broke() {
+ 			t.SetBroke(true)
+-			yyerrorl(t.Pos, "invalid recursive type %v", t)
++			yyerrorl(t.nod.Pos, "invalid recursive type %v", t)
+ 		}
+ 
+ 		t.Width = 0
+@@ -143,7 +143,10 @@ func dowidth(t *Type) {
+ 	defercalc++
+ 
+ 	lno := lineno
+-	lineno = t.Pos
++	if t.nod != nil {
++		lineno = t.nod.Pos
++	}
++
+ 	t.Width = -2
+ 	t.Align = 0
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 81880e0694..27b9bb7b5e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3822,6 +3822,7 @@ func typecheckdef(n *Node) *Node {
+ 		}
+ 		n.Walkdef = 1
+ 		n.Type = typ(TFORW)
++		n.Type.nod = n
+ 		n.Type.Sym = n.Sym // TODO(gri) this also happens in typecheckdeftype(n) - where should it happen?
+ 		nerrors0 := nerrors
+ 		typecheckdeftype(n)

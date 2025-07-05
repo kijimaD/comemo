@@ -14,8 +14,562 @@ Date:   Fri Sep 27 00:23:45 2024 +1000
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s |  55 ++++++------
  src/cmd/internal/obj/riscv/anames.go        |  42 ++++-----
  src/cmd/internal/obj/riscv/cpu.go           | 134 ++++++++++++++--------------
  3 files changed, 119 insertions(+), 112 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 8ac043d56c..37c0c1d858 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -6,7 +6,9 @@
+ 
+ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ start:
++	//
+ 	// Unprivileged ISA
++	//
+ 
+ 	// 2.4: Integer Computational Instructions
+ 
+@@ -139,7 +141,7 @@ start:
+ 	// 2.7: Memory Ordering Instructions
+ 	FENCE						// 0f00f00f
+ 
+-	// 5.2: Integer Computational Instructions (RV64I)
++	// 4.2: Integer Computational Instructions (RV64I)
+ 	ADDIW	$1, X5, X6				// 1b831200
+ 	SLLIW	$1, X5, X6				// 1b931200
+ 	SRLIW	$1, X5, X6				// 1bd31200
+@@ -164,18 +166,25 @@ start:
+ 	SUBW	$1, X6					// 1b03f3ff
+ 	SRAW	$1, X6					// 1b531340
+ 
+-	// 5.3: Load and Store Instructions (RV64I)
++	// 4.3: Load and Store Instructions (RV64I)
+ 	LD	(X5), X6				// 03b30200
+ 	LD	4(X5), X6				// 03b34200
+ 	SD	X5, (X6)				// 23305300
+ 	SD	X5, 4(X6)				// 23325300
+ 
+-	// 7.1: Multiplication Operations
++	// 8.1: Base Counters and Timers (Zicntr)
++	RDCYCLE		X5				// f32200c0
++	RDTIME		X5				// f32210c0
++	RDINSTRET	X5				// f32220c0
++
++	// 13.1: Multiplication Operations
+ 	MUL	X5, X6, X7				// b3035302
+ 	MULH	X5, X6, X7				// b3135302
+ 	MULHU	X5, X6, X7				// b3335302
+ 	MULHSU	X5, X6, X7				// b3235302
+ 	MULW	X5, X6, X7				// bb035302
++
++	// 13.2: Division Operations
+ 	DIV	X5, X6, X7				// b3435302
+ 	DIVU	X5, X6, X7				// b3535302
+ 	REM	X5, X6, X7				// b3635302
+@@ -185,13 +194,13 @@ start:
+ 	REMW	X5, X6, X7				// bb635302
+ 	REMUW	X5, X6, X7				// bb735302
+ 
+-	// 8.2: Load-Reserved/Store-Conditional
++	// 14.2: Load-Reserved/Store-Conditional (Zalrsc)
+ 	LRW	(X5), X6				// 2fa30214
+ 	LRD	(X5), X6				// 2fb30214
+ 	SCW	X5, (X6), X7				// af23531a
+ 	SCD	X5, (X6), X7				// af33531a
+ 
+-	// 8.3: Atomic Memory Operations
++	// 14.4: Atomic Memory Operations (Zaamo)
+ 	AMOSWAPW	X5, (X6), X7			// af23530e
+ 	AMOSWAPD	X5, (X6), X7			// af33530e
+ 	AMOADDW		X5, (X6), X7			// af235306
+@@ -211,18 +220,13 @@ start:
+ 	AMOMINUW	X5, (X6), X7			// af2353c6
+ 	AMOMINUD	X5, (X6), X7			// af3353c6
+ 
+-	// 10.1: Base Counters and Timers
+-	RDCYCLE		X5				// f32200c0
+-	RDTIME		X5				// f32210c0
+-	RDINSTRET	X5				// f32220c0
+-
+-	// 11.5: Single-Precision Load and Store Instructions
++	// 20.5: Single-Precision Load and Store Instructions
+ 	FLW	(X5), F0				// 07a00200
+ 	FLW	4(X5), F0				// 07a04200
+ 	FSW	F0, (X5)				// 27a00200
+ 	FSW	F0, 4(X5)				// 27a20200
+ 
+-	// 11.6: Single-Precision Floating-Point Computational Instructions
++	// 20.6: Single-Precision Floating-Point Computational Instructions
+ 	FADDS	F1, F0, F2				// 53011000
+ 	FSUBS	F1, F0, F2				// 53011008
+ 	FMULS	F1, F0, F2				// 53011010
+@@ -231,7 +235,7 @@ start:
+ 	FMAXS	F1, F0, F2				// 53111028
+ 	FSQRTS	F0, F1					// d3000058
+ 
+-	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
++	// 20.7: Single-Precision Floating-Point Conversion and Move Instructions
+ 	FCVTWS	F0, X5					// d31200c0
+ 	FCVTWS.RNE	F0, X5				// d30200c0
+ 	FCVTWS.RTZ	F0, X5				// d31200c0
+@@ -272,21 +276,21 @@ start:
+ 	FNMSUBS	F1, F2, F3, F4				// 4b822018
+ 	FNMADDS	F1, F2, F3, F4				// 4f822018
+ 
+-	// 11.8: Single-Precision Floating-Point Compare Instructions
++	// 20.8: Single-Precision Floating-Point Compare Instructions
+ 	FEQS	F0, F1, X7				// d3a300a0
+ 	FLTS	F0, F1, X7				// d39300a0
+ 	FLES	F0, F1, X7				// d38300a0
+ 
+-	// 11.9: Single-Precision Floating-Point Classify Instruction
++	// 20.9: Single-Precision Floating-Point Classify Instruction
+ 	FCLASSS	F0, X5					// d31200e0
+ 
+-	// 12.3: Double-Precision Load and Store Instructions
++	// 21.3: Double-Precision Load and Store Instructions
+ 	FLD	(X5), F0				// 07b00200
+ 	FLD	4(X5), F0				// 07b04200
+ 	FSD	F0, (X5)				// 27b00200
+ 	FSD	F0, 4(X5)				// 27b20200
+ 
+-	// 12.4: Double-Precision Floating-Point Computational Instructions
++	// 21.4: Double-Precision Floating-Point Computational Instructions
+ 	FADDD	F1, F0, F2				// 53011002
+ 	FSUBD	F1, F0, F2				// 5301100a
+ 	FMULD	F1, F0, F2				// 53011012
+@@ -295,7 +299,7 @@ start:
+ 	FMAXD	F1, F0, F2				// 5311102a
+ 	FSQRTD	F0, F1					// d300005a
+ 
+-	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
++	// 21.5: Double-Precision Floating-Point Conversion and Move Instructions
+ 	FCVTWD	F0, X5					// d31200c2
+ 	FCVTWD.RNE	F0, X5				// d30200c2
+ 	FCVTWD.RTZ	F0, X5				// d31200c2
+@@ -336,11 +340,10 @@ start:
+ 	FNMSUBD	F1, F2, F3, F4				// 4b82201a
+ 	FNMADDD	F1, F2, F3, F4				// 4f82201a
+ 
+-	// 12.6: Double-Precision Floating-Point Classify Instruction
++	// 21.7: Double-Precision Floating-Point Classify Instruction
+ 	FCLASSD	F0, X5					// d31200e2
+ 
+-	// RISC-V Bit-Manipulation ISA-extensions (1.0)
+-	// 1.1: Address Generation Instructions (Zba)
++	// 28.4.1: Address Generation Instructions (Zba)
+ 	ADDUW		X10, X11, X12			// 3b86a508
+ 	ADDUW		X10, X11			// bb85a508
+ 	SH1ADD		X11, X12, X13			// b326b620
+@@ -360,7 +363,7 @@ start:
+ 	SLLIUW		$63, X17, X18			// 1b99f80b
+ 	SLLIUW		$1, X18, X19			// 9b191908
+ 
+-	// 1.2: Basic Bit Manipulation (Zbb)
++	// 28.4.2: Basic Bit Manipulation (Zbb)
+ 	ANDN	X19, X20, X21				// b37a3a41 or 93caf9ffb37a5a01
+ 	ANDN	X19, X20				// 337a3a41 or 93cff9ff337afa01
+ 	CLZ	X20, X21				// 931a0a60
+@@ -385,7 +388,7 @@ start:
+ 	XNOR	X18, X19				// b3c92941 or b3c9290193c9f9ff
+ 	ZEXTH	X19, X20				// 3bca0908
+ 
+-	// 1.3: Bitwise Rotation (Zbb)
++	// 28.4.2: Bitwise Rotation (Zbb)
+ 	ROL	X8, X9, X10				// 33958460 or b30f8040b3dff4013395840033e5af00
+ 	ROL	X8, X9					// b3948460 or b30f8040b3dff401b3948400b3e49f00
+ 	ROLW	X9, X10, X11				// bb159560 or b30f9040bb5ff501bb159500b3e5bf00
+@@ -403,7 +406,7 @@ start:
+ 	ORCB	X5, X6					// 13d37228
+ 	REV8	X7, X8					// 13d4836b
+ 
+-	// 1.5: Single-bit Instructions (Zbs)
++	// 28.4.4: Single-bit Instructions (Zbs)
+ 	BCLR	X23, X24, X25				// b31c7c49
+ 	BCLR	$63, X24				// 131cfc4b
+ 	BCLRI	$1, X25, X26				// 139d1c48
+@@ -417,9 +420,11 @@ start:
+ 	BSET	$63, X9					// 9394f42b
+ 	BSETI	$1, X10, X11				// 93151528
+ 
++	//
+ 	// Privileged ISA
++	//
+ 
+-	// 3.2.1: Environment Call and Breakpoint
++	// 3.3.1: Environment Call and Breakpoint
+ 	ECALL						// 73000000
+ 	SCALL						// 73000000
+ 	EBREAK						// 73001000
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index 53cf1c95dc..dbdce22687 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -57,6 +57,18 @@ var Anames = []string{
+ 	"SRAW",
+ 	"LD",
+ 	"SD",
++	"CSRRW",
++	"CSRRS",
++	"CSRRC",
++	"CSRRWI",
++	"CSRRSI",
++	"CSRRCI",
++	"RDCYCLE",
++	"RDCYCLEH",
++	"RDTIME",
++	"RDTIMEH",
++	"RDINSTRET",
++	"RDINSTRETH",
+ 	"MUL",
+ 	"MULH",
+ 	"MULHU",
+@@ -92,12 +104,6 @@ var Anames = []string{
+ 	"AMOMAXUW",
+ 	"AMOMINW",
+ 	"AMOMINUW",
+-	"RDCYCLE",
+-	"RDCYCLEH",
+-	"RDTIME",
+-	"RDTIMEH",
+-	"RDINSTRET",
+-	"RDINSTRETH",
+ 	"FRCSR",
+ 	"FSCSR",
+ 	"FRRM",
+@@ -202,21 +208,6 @@ var Anames = []string{
+ 	"FLEQ",
+ 	"FLTQ",
+ 	"FCLASSQ",
+-	"CSRRW",
+-	"CSRRS",
+-	"CSRRC",
+-	"CSRRWI",
+-	"CSRRSI",
+-	"CSRRCI",
+-	"ECALL",
+-	"SCALL",
+-	"EBREAK",
+-	"SBREAK",
+-	"MRET",
+-	"SRET",
+-	"DRET",
+-	"WFI",
+-	"SFENCEVMA",
+ 	"ADDUW",
+ 	"SH1ADD",
+ 	"SH1ADDUW",
+@@ -632,6 +623,15 @@ var Anames = []string{
+ 	"VMV2RV",
+ 	"VMV4RV",
+ 	"VMV8RV",
++	"ECALL",
++	"SCALL",
++	"EBREAK",
++	"SBREAK",
++	"MRET",
++	"SRET",
++	"DRET",
++	"WFI",
++	"SFENCEVMA",
+ 	"WORD",
+ 	"BEQZ",
+ 	"BGEZ",
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index ba655c01d8..b9924d6fc8 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -324,11 +324,13 @@ const (
+ //
+ // As well as some pseudo-mnemonics (e.g. MOV) used only in the assembler.
+ //
+-// See also "The RISC-V Instruction Set Manual" at https://riscv.org/specifications/.
++// See also "The RISC-V Instruction Set Manual" at https://riscv.org/technical/specifications/.
+ //
+ // If you modify this table, you MUST run 'go generate' to regenerate anames.go!
+ const (
+-	// Unprivileged ISA (Document Version 20190608-Base-Ratified)
++	//
++	// Unprivileged ISA (version 20240411)
++	//
+ 
+ 	// 2.4: Integer Computational Instructions
+ 	AADDI = obj.ABaseRISCV + obj.A_ARCHSPECIFIC + iota
+@@ -379,7 +381,7 @@ const (
+ 	AFENCETSO
+ 	APAUSE
+ 
+-	// 5.2: Integer Computational Instructions (RV64I)
++	// 4.2: Integer Computational Instructions (RV64I)
+ 	AADDIW
+ 	ASLLIW
+ 	ASRLIW
+@@ -390,16 +392,34 @@ const (
+ 	ASUBW
+ 	ASRAW
+ 
+-	// 5.3: Load and Store Instructions (RV64I)
++	// 4.3: Load and Store Instructions (RV64I)
+ 	ALD
+ 	ASD
+ 
+-	// 7.1: Multiplication Operations
++	// 7.1: CSR Instructions (Zicsr)
++	ACSRRW
++	ACSRRS
++	ACSRRC
++	ACSRRWI
++	ACSRRSI
++	ACSRRCI
++
++	// 8.1: Base Counters and Timers (Zicntr)
++	ARDCYCLE
++	ARDCYCLEH
++	ARDTIME
++	ARDTIMEH
++	ARDINSTRET
++	ARDINSTRETH
++
++	// 13.1: Multiplication Operations
+ 	AMUL
+ 	AMULH
+ 	AMULHU
+ 	AMULHSU
+ 	AMULW
++
++	// 13.2: Division Operations
+ 	ADIV
+ 	ADIVU
+ 	AREM
+@@ -409,13 +429,13 @@ const (
+ 	AREMW
+ 	AREMUW
+ 
+-	// 8.2: Load-Reserved/Store-Conditional Instructions
++	// 14.2: Load-Reserved/Store-Conditional Instructions (Zalrsc)
+ 	ALRD
+ 	ASCD
+ 	ALRW
+ 	ASCW
+ 
+-	// 8.3: Atomic Memory Operations
++	// 14.4: Atomic Memory Operations (Zaamo)
+ 	AAMOSWAPD
+ 	AAMOADDD
+ 	AAMOANDD
+@@ -435,15 +455,7 @@ const (
+ 	AAMOMINW
+ 	AAMOMINUW
+ 
+-	// 10.1: Base Counters and Timers
+-	ARDCYCLE
+-	ARDCYCLEH
+-	ARDTIME
+-	ARDTIMEH
+-	ARDINSTRET
+-	ARDINSTRETH
+-
+-	// 11.2: Floating-Point Control and Status Register
++	// 20.2: Floating-Point Control and Status Register
+ 	AFRCSR
+ 	AFSCSR
+ 	AFRRM
+@@ -453,11 +465,11 @@ const (
+ 	AFSRMI
+ 	AFSFLAGSI
+ 
+-	// 11.5: Single-Precision Load and Store Instructions
++	// 20.5: Single-Precision Load and Store Instructions
+ 	AFLW
+ 	AFSW
+ 
+-	// 11.6: Single-Precision Floating-Point Computational Instructions
++	// 20.6: Single-Precision Floating-Point Computational Instructions
+ 	AFADDS
+ 	AFSUBS
+ 	AFMULS
+@@ -470,7 +482,7 @@ const (
+ 	AFNMADDS
+ 	AFNMSUBS
+ 
+-	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
++	// 20.7: Single-Precision Floating-Point Conversion and Move Instructions
+ 	AFCVTWS
+ 	AFCVTLS
+ 	AFCVTSW
+@@ -487,19 +499,19 @@ const (
+ 	AFMVXW
+ 	AFMVWX
+ 
+-	// 11.8: Single-Precision Floating-Point Compare Instructions
++	// 20.8: Single-Precision Floating-Point Compare Instructions
+ 	AFEQS
+ 	AFLTS
+ 	AFLES
+ 
+-	// 11.9: Single-Precision Floating-Point Classify Instruction
++	// 20.9: Single-Precision Floating-Point Classify Instruction
+ 	AFCLASSS
+ 
+-	// 12.3: Double-Precision Load and Store Instructions
++	// 21.3: Double-Precision Load and Store Instructions
+ 	AFLD
+ 	AFSD
+ 
+-	// 12.4: Double-Precision Floating-Point Computational Instructions
++	// 21.4: Double-Precision Floating-Point Computational Instructions
+ 	AFADDD
+ 	AFSUBD
+ 	AFMULD
+@@ -512,7 +524,7 @@ const (
+ 	AFNMADDD
+ 	AFNMSUBD
+ 
+-	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
++	// 21.5: Double-Precision Floating-Point Conversion and Move Instructions
+ 	AFCVTWD
+ 	AFCVTLD
+ 	AFCVTDW
+@@ -529,19 +541,19 @@ const (
+ 	AFMVXD
+ 	AFMVDX
+ 
+-	// 12.6: Double-Precision Floating-Point Compare Instructions
++	// 21.6: Double-Precision Floating-Point Compare Instructions
+ 	AFEQD
+ 	AFLTD
+ 	AFLED
+ 
+-	// 12.7: Double-Precision Floating-Point Classify Instruction
++	// 21.7: Double-Precision Floating-Point Classify Instruction
+ 	AFCLASSD
+ 
+-	// 13.1 Quad-Precision Load and Store Instructions
++	// 22.1 Quad-Precision Load and Store Instructions
+ 	AFLQ
+ 	AFSQ
+ 
+-	// 13.2: Quad-Precision Computational Instructions
++	// 22.2: Quad-Precision Computational Instructions
+ 	AFADDQ
+ 	AFSUBQ
+ 	AFMULQ
+@@ -554,7 +566,7 @@ const (
+ 	AFNMADDQ
+ 	AFNMSUBQ
+ 
+-	// 13.3 Quad-Precision Convert and Move Instructions
++	// 22.3 Quad-Precision Convert and Move Instructions
+ 	AFCVTWQ
+ 	AFCVTLQ
+ 	AFCVTSQ
+@@ -571,46 +583,15 @@ const (
+ 	AFSGNJNQ
+ 	AFSGNJXQ
+ 
+-	// 13.4 Quad-Precision Floating-Point Compare Instructions
++	// 22.4 Quad-Precision Floating-Point Compare Instructions
+ 	AFEQQ
+ 	AFLEQ
+ 	AFLTQ
+ 
+-	// 13.5 Quad-Precision Floating-Point Classify Instruction
++	// 22.5 Quad-Precision Floating-Point Classify Instruction
+ 	AFCLASSQ
+ 
+-	// Privileged ISA (Version 20190608-Priv-MSU-Ratified)
+-
+-	// 3.1.9: Instructions to Access CSRs
+-	ACSRRW
+-	ACSRRS
+-	ACSRRC
+-	ACSRRWI
+-	ACSRRSI
+-	ACSRRCI
+-
+-	// 3.2.1: Environment Call and Breakpoint
+-	AECALL
+-	ASCALL
+-	AEBREAK
+-	ASBREAK
+-
+-	// 3.2.2: Trap-Return Instructions
+-	AMRET
+-	ASRET
+-	ADRET
+-
+-	// 3.2.3: Wait for Interrupt
+-	AWFI
+-
+-	// 4.2.1: Supervisor Memory-Management Fence Instruction
+-	ASFENCEVMA
+-
+-	//
+-	// RISC-V Bit-Manipulation ISA-extensions (1.0)
+-	//
+-
+-	// 1.1: Address Generation Instructions (Zba)
++	// 28.4.1: Address Generation Instructions (Zba)
+ 	AADDUW
+ 	ASH1ADD
+ 	ASH1ADDUW
+@@ -620,7 +601,7 @@ const (
+ 	ASH3ADDUW
+ 	ASLLIUW
+ 
+-	// 1.2: Basic Bit Manipulation (Zbb)
++	// 28.4.2: Basic Bit Manipulation (Zbb)
+ 	AANDN
+ 	AORN
+ 	AXNOR
+@@ -638,7 +619,7 @@ const (
+ 	ASEXTH
+ 	AZEXTH
+ 
+-	// 1.3: Bitwise Rotation (Zbb)
++	// 28.4.3: Bitwise Rotation (Zbb)
+ 	AROL
+ 	AROLW
+ 	AROR
+@@ -648,7 +629,7 @@ const (
+ 	AORCB
+ 	AREV8
+ 
+-	// 1.5: Single-bit Instructions (Zbs)
++	// 28.4.4: Single-bit Instructions (Zbs)
+ 	ABCLR
+ 	ABCLRI
+ 	ABEXT
+@@ -1149,6 +1130,27 @@ const (
+ 	AVMV4RV
+ 	AVMV8RV
+ 
++	//
++	// Privileged ISA (version 20240411)
++	//
++
++	// 3.3.1: Environment Call and Breakpoint
++	AECALL
++	ASCALL
++	AEBREAK
++	ASBREAK
++
++	// 3.3.2: Trap-Return Instructions
++	AMRET
++	ASRET
++	ADRET
++
++	// 3.3.3: Wait for Interrupt
++	AWFI
++
++	// 10.2: Supervisor Memory-Management Fence Instruction
++	ASFENCEVMA
++
+ 	// The escape hatch. Inserts a single 32-bit word.
+ 	AWORD
+ 

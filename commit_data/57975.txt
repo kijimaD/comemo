@@ -15,7 +15,7 @@ Date:   Wed Sep 13 19:26:32 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  .../internal/inline/inlheur/analyze_func_params.go |  38 +--
  src/cmd/compile/internal/ir/func.go                |  41 +++-
  src/cmd/compile/internal/ir/name.go                |  11 +-
@@ -32,3 +32,1001 @@ Date:   Wed Sep 13 19:26:32 2023 -0700
  src/cmd/compile/internal/typecheck/subr.go         |  12 +-
  test/live_uintptrkeepalive.go                      |   7 +-
  15 files changed, 179 insertions(+), 361 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+index 1fc24afe68..03ac3fd957 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+@@ -21,42 +21,12 @@ type paramsAnalyzer struct {
+ 	*condLevelTracker
+ }
+ 
+-// dclParams returns a slice containing the non-blank, named params
+-// for the specific function (plus rcvr as well if applicable) in
+-// declaration order.
+-func dclParams(fn *ir.Func) []*ir.Name {
+-	params := []*ir.Name{}
+-	for _, n := range fn.Dcl {
+-		if n.Op() != ir.ONAME {
+-			continue
+-		}
+-		if n.Class != ir.PPARAM {
+-			continue
+-		}
+-		params = append(params, n)
+-	}
+-	return params
+-}
+-
+ // getParams returns an *ir.Name slice containing all params for the
+-// function (plus rcvr as well if applicable). Note that this slice
+-// includes entries for blanks; entries in the returned slice corresponding
+-// to blanks or unnamed params will be nil.
++// function (plus rcvr as well if applicable).
+ func getParams(fn *ir.Func) []*ir.Name {
+-	dclparms := dclParams(fn)
+-	dclidx := 0
+-	recvrParms := fn.Type().RecvParams()
+-	params := make([]*ir.Name, len(recvrParms))
+-	for i := range recvrParms {
+-		var v *ir.Name
+-		if recvrParms[i].Sym != nil &&
+-			!recvrParms[i].Sym.IsBlank() {
+-			v = dclparms[dclidx]
+-			dclidx++
+-		}
+-		params[i] = v
+-	}
+-	return params
++	sig := fn.Type()
++	numParams := sig.NumRecvs() + sig.NumParams()
++	return fn.Dcl[:numParams]
+ }
+ 
+ func makeParamsAnalyzer(fn *ir.Func) *paramsAnalyzer {
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index e28bbbd577..ded9acced2 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -65,9 +65,7 @@ type Func struct {
+ 	// include closurevars until transforming closures during walk.
+ 	// Names must be listed PPARAMs, PPARAMOUTs, then PAUTOs,
+ 	// with PPARAMs and PPARAMOUTs in order corresponding to the function signature.
+-	// However, as anonymous or blank PPARAMs are not actually declared,
+-	// they are omitted from Dcl.
+-	// Anonymous and blank PPARAMOUTs are declared as ~rNN and ~bNN Names, respectively.
++	// Anonymous and blank params are declared as ~pNN (for PPARAMs) and ~rNN (for PPARAMOUTs).
+ 	Dcl []*Name
+ 
+ 	// ClosureVars lists the free variables that are used within a
+@@ -455,3 +453,40 @@ func IsFuncPCIntrinsic(n *CallExpr) bool {
+ 	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
+ 		fn.Pkg.Path == "internal/abi"
+ }
++
++// DeclareParams creates Names for all of the parameters in fn's
++// signature and adds them to fn.Dcl.
++//
++// If setNname is true, then it also sets types.Field.Nname for each
++// parameter.
++func (fn *Func) DeclareParams(setNname bool) {
++	if fn.Dcl != nil {
++		base.FatalfAt(fn.Pos(), "%v already has Dcl", fn)
++	}
++
++	declareParams := func(params []*types.Field, ctxt Class, prefix string, offset int) {
++		for i, param := range params {
++			sym := param.Sym
++			if sym == nil || sym.IsBlank() {
++				sym = fn.Sym().Pkg.LookupNum(prefix, i)
++			}
++
++			name := NewNameAt(param.Pos, sym, param.Type)
++			name.Class = ctxt
++			name.Curfn = fn
++			fn.Dcl[offset+i] = name
++
++			if setNname {
++				param.Nname = name
++			}
++		}
++	}
++
++	sig := fn.Type()
++	params := sig.RecvParams()
++	results := sig.Results()
++
++	fn.Dcl = make([]*Name, len(params)+len(results))
++	declareParams(params, PPARAM, "~p", 0)
++	declareParams(results, PPARAMOUT, "~r", len(params))
++}
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 2d780bdaf7..2844c0b869 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -102,16 +102,13 @@ func NewBuiltin(sym *types.Sym, op Op) *Name {
+ }
+ 
+ // NewLocal returns a new function-local variable with the given name and type.
+-func (fn *Func) NewLocal(pos src.XPos, sym *types.Sym, class Class, typ *types.Type) *Name {
+-	switch class {
+-	case PPARAM, PPARAMOUT, PAUTO:
+-		// ok
+-	default:
+-		base.FatalfAt(pos, "NewLocal: unexpected class for %v: %v", sym, class)
++func (fn *Func) NewLocal(pos src.XPos, sym *types.Sym, typ *types.Type) *Name {
++	if fn.Dcl == nil {
++		base.FatalfAt(pos, "must call DeclParams on %v first", fn)
+ 	}
+ 
+ 	n := NewNameAt(pos, sym, typ)
+-	n.Class = class
++	n.Class = PAUTO
+ 	n.Curfn = fn
+ 	fn.Dcl = append(fn.Dcl, n)
+ 	return n
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 300084aea6..954b7bc782 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -318,11 +318,18 @@ func (op Op) IsCmp() bool {
+ 	return false
+ }
+ 
+-// Nodes is a pointer to a slice of *Node.
+-// For fields that are not used in most nodes, this is used instead of
+-// a slice to save space.
++// Nodes is a slice of Node.
+ type Nodes []Node
+ 
++// ToNodes returns s as a slice of Nodes.
++func ToNodes[T Node](s []T) Nodes {
++	res := make(Nodes, len(s))
++	for i, n := range s {
++		res[i] = n
++	}
++	return res
++}
++
+ // Append appends entries to Nodes.
+ func (n *Nodes) Append(a ...Node) {
+ 	if len(a) == 0 {
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index 1c48351ab2..c7debd9897 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -205,15 +205,15 @@ func s15a8(x *[15]int64) [15]int64 {
+ 			`"relatedInformation":[`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: y = z:"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y := z (assign-pair)"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~R0 = y:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~r0 = y:"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y.b (dot of pointer)"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u0026y.b (assign-pair)"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r0 = ~R0:"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return ~R0 (return)"}]}`)
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~r0 = \u0026y.b (assign-pair)"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r0 = ~r0:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return ~r0 (return)"}]}`)
+ 	})
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 760170ddfc..d4ccfb087b 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -107,6 +107,11 @@ type reader struct {
+ 	locals      []*ir.Name
+ 	closureVars []*ir.Name
+ 
++	// funarghack is used during inlining to suppress setting
++	// Field.Nname to the inlined copies of the parameters. This is
++	// necessary because we reuse the same types.Type as the original
++	// function, and most of the compiler still relies on field.Nname to
++	// find parameters/results.
+ 	funarghack bool
+ 
+ 	// methodSym is the name of method's name, if reading a method.
+@@ -145,14 +150,6 @@ type reader struct {
+ 
+ 	// Label to return to.
+ 	retlabel *types.Sym
+-
+-	// inlvars is the list of variables that the inlinee's arguments are
+-	// assigned to, one for each receiver and normal parameter, in order.
+-	inlvars ir.Nodes
+-
+-	// retvars is the list of variables that the inlinee's results are
+-	// assigned to, one for each result parameter, in order.
+-	retvars ir.Nodes
+ }
+ 
+ // A readerDict represents an instantiated "compile-time dictionary,"
+@@ -1237,7 +1234,7 @@ func (r *reader) funcBody(fn *ir.Func) {
+ 	}
+ 
+ 	ir.WithFunc(fn, func() {
+-		r.funcargs(fn)
++		r.declareParams()
+ 
+ 		if r.syntheticBody(fn.Pos()) {
+ 			return
+@@ -1294,7 +1291,7 @@ func (r *reader) callShaped(pos src.XPos) {
+ 		shapedFn = shapedMethodExpr(pos, shapedObj, r.methodSym)
+ 	}
+ 
+-	recvs, params := r.syntheticArgs(pos)
++	params := r.syntheticArgs()
+ 
+ 	// Construct the arguments list: receiver (if any), then runtime
+ 	// dictionary, and finally normal parameters.
+@@ -1306,7 +1303,10 @@ func (r *reader) callShaped(pos src.XPos) {
+ 	// putting the dictionary parameter after that is the least invasive
+ 	// solution at the moment.
+ 	var args ir.Nodes
+-	args.Append(recvs...)
++	if r.methodSym != nil {
++		args.Append(params[0])
++		params = params[1:]
++	}
+ 	args.Append(typecheck.Expr(ir.NewAddrExpr(pos, r.p.dictNameOf(r.dict))))
+ 	args.Append(params...)
+ 
+@@ -1315,44 +1315,9 @@ func (r *reader) callShaped(pos src.XPos) {
+ 
+ // syntheticArgs returns the recvs and params arguments passed to the
+ // current function.
+-func (r *reader) syntheticArgs(pos src.XPos) (recvs, params ir.Nodes) {
++func (r *reader) syntheticArgs() ir.Nodes {
+ 	sig := r.curfn.Nname.Type()
+-
+-	inlVarIdx := 0
+-	addParams := func(out *ir.Nodes, params []*types.Field) {
+-		for _, param := range params {
+-			var arg ir.Node
+-			if param.Nname != nil {
+-				name := param.Nname.(*ir.Name)
+-				if !ir.IsBlank(name) {
+-					if r.inlCall != nil {
+-						// During inlining, we want the respective inlvar where we
+-						// assigned the callee's arguments.
+-						arg = r.inlvars[inlVarIdx]
+-					} else {
+-						// Otherwise, we can use the parameter itself directly.
+-						base.AssertfAt(name.Curfn == r.curfn, name.Pos(), "%v has curfn %v, but want %v", name, name.Curfn, r.curfn)
+-						arg = name
+-					}
+-				}
+-			}
+-
+-			// For anonymous and blank parameters, we don't have an *ir.Name
+-			// to use as the argument. However, since we know the shaped
+-			// function won't use the value either, we can just pass the
+-			// zero value.
+-			if arg == nil {
+-				arg = ir.NewZero(pos, param.Type)
+-			}
+-
+-			out.Append(arg)
+-			inlVarIdx++
+-		}
+-	}
+-
+-	addParams(&recvs, sig.Recvs())
+-	addParams(&params, sig.Params())
+-	return
++	return ir.ToNodes(r.curfn.Dcl[:sig.NumRecvs()+sig.NumParams()])
+ }
+ 
+ // syntheticTailCall emits a tail call to fn, passing the given
+@@ -1489,105 +1454,32 @@ func (dict *readerDict) varType() *types.Type {
+ 	return types.NewArray(types.Types[types.TUINTPTR], dict.numWords())
+ }
+ 
+-func (r *reader) funcargs(fn *ir.Func) {
+-	sig := fn.Nname.Type()
+-
+-	if recv := sig.Recv(); recv != nil {
+-		r.funcarg(recv, recv.Sym, ir.PPARAM)
+-	}
+-	for _, param := range sig.Params() {
+-		r.funcarg(param, param.Sym, ir.PPARAM)
+-	}
+-
+-	for i, param := range sig.Results() {
+-		sym := param.Sym
++func (r *reader) declareParams() {
++	r.curfn.DeclareParams(!r.funarghack)
+ 
+-		if sym == nil || sym.IsBlank() {
+-			prefix := "~r"
+-			if r.inlCall != nil {
+-				prefix = "~R"
+-			} else if sym != nil {
+-				prefix = "~b"
+-			}
+-			sym = typecheck.LookupNum(prefix, i)
++	for _, name := range r.curfn.Dcl {
++		if name.Sym().Name == dictParamName {
++			r.dictParam = name
++			continue
+ 		}
+ 
+-		r.funcarg(param, sym, ir.PPARAMOUT)
++		r.addLocal(name)
+ 	}
+ }
+ 
+-func (r *reader) funcarg(param *types.Field, sym *types.Sym, ctxt ir.Class) {
+-	if sym == nil {
+-		assert(ctxt == ir.PPARAM)
+-		if r.inlCall != nil {
+-			r.inlvars.Append(ir.BlankNode)
+-		}
+-		return
+-	}
+-
+-	name := r.addLocal(r.inlPos(param.Pos), sym, ctxt, param.Type)
+-
+-	if r.inlCall == nil {
+-		if !r.funarghack {
+-			param.Nname = name
+-		}
+-	} else {
+-		if ctxt == ir.PPARAMOUT {
+-			r.retvars.Append(name)
+-		} else {
+-			r.inlvars.Append(name)
+-		}
+-	}
+-}
+-
+-func (r *reader) addLocal(pos src.XPos, sym *types.Sym, ctxt ir.Class, typ *types.Type) *ir.Name {
+-	assert(ctxt == ir.PAUTO || ctxt == ir.PPARAM || ctxt == ir.PPARAMOUT)
+-
+-	name := ir.NewNameAt(pos, sym, typ)
+-
+-	if name.Sym().Name == dictParamName {
+-		r.dictParam = name
+-	} else {
+-		if r.synthetic == nil {
+-			r.Sync(pkgbits.SyncAddLocal)
+-			if r.p.SyncMarkers() {
+-				want := r.Int()
+-				if have := len(r.locals); have != want {
+-					base.FatalfAt(name.Pos(), "locals table has desynced")
+-				}
++func (r *reader) addLocal(name *ir.Name) {
++	if r.synthetic == nil {
++		r.Sync(pkgbits.SyncAddLocal)
++		if r.p.SyncMarkers() {
++			want := r.Int()
++			if have := len(r.locals); have != want {
++				base.FatalfAt(name.Pos(), "locals table has desynced")
+ 			}
+-			r.varDictIndex(name)
+ 		}
+-
+-		r.locals = append(r.locals, name)
+-	}
+-
+-	name.SetUsed(true)
+-
+-	// TODO(mdempsky): Move earlier.
+-	if ir.IsBlank(name) {
+-		return name
++		r.varDictIndex(name)
+ 	}
+ 
+-	if r.inlCall != nil {
+-		if ctxt == ir.PAUTO {
+-			name.SetInlLocal(true)
+-		} else {
+-			name.SetInlFormal(true)
+-			ctxt = ir.PAUTO
+-		}
+-	}
+-
+-	name.Class = ctxt
+-	name.Curfn = r.curfn
+-
+-	r.curfn.Dcl = append(r.curfn.Dcl, name)
+-
+-	if ctxt == ir.PAUTO {
+-		name.SetFrameOffset(0)
+-	}
+-
+-	return name
++	r.locals = append(r.locals, name)
+ }
+ 
+ func (r *reader) useLocal() *ir.Name {
+@@ -1836,7 +1728,8 @@ func (r *reader) assign() (ir.Node, bool) {
+ 		_, sym := r.localIdent()
+ 		typ := r.typ()
+ 
+-		name := r.addLocal(pos, sym, ir.PAUTO, typ)
++		name := r.curfn.NewLocal(pos, sym, typ)
++		r.addLocal(name)
+ 		return name, true
+ 
+ 	case assignExpr:
+@@ -2076,10 +1969,8 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ 		clause.RTypes = rtypes
+ 
+ 		if ident != nil {
+-			pos := r.pos()
+-			typ := r.typ()
+-
+-			name := r.addLocal(pos, ident.Sym(), ir.PAUTO, typ)
++			name := r.curfn.NewLocal(r.pos(), ident.Sym(), r.typ())
++			r.addLocal(name)
+ 			clause.Var = name
+ 			name.Defn = tag
+ 		}
+@@ -2651,14 +2542,11 @@ func (r *reader) curry(origPos src.XPos, ifaceHack bool, fun ir.Node, arg0, arg1
+ 	typ := types.NewSignature(nil, params, results)
+ 
+ 	addBody := func(pos src.XPos, r *reader, captured []ir.Node) {
+-		recvs, params := r.syntheticArgs(pos)
+-		assert(len(recvs) == 0)
+-
+ 		fun := captured[0]
+ 
+ 		var args ir.Nodes
+ 		args.Append(captured[1:]...)
+-		args.Append(params...)
++		args.Append(r.syntheticArgs()...)
+ 
+ 		r.syntheticTailCall(pos, fun, args)
+ 	}
+@@ -2689,10 +2577,8 @@ func (r *reader) methodExprWrap(origPos src.XPos, recv *types.Type, implicits []
+ 	typ := types.NewSignature(nil, params, results)
+ 
+ 	addBody := func(pos src.XPos, r *reader, captured []ir.Node) {
+-		recvs, args := r.syntheticArgs(pos)
+-		assert(len(recvs) == 0)
+-
+ 		fn := captured[0]
++		args := r.syntheticArgs()
+ 
+ 		// Rewrite first argument based on implicits/deref/addr.
+ 		{
+@@ -2805,17 +2691,13 @@ func syntheticSig(sig *types.Type) (params, results []*types.Field) {
+ 	clone := func(params []*types.Field) []*types.Field {
+ 		res := make([]*types.Field, len(params))
+ 		for i, param := range params {
+-			sym := param.Sym
+-			if sym == nil || sym.Name == "_" {
+-				sym = typecheck.LookupNum(".anon", i)
+-			}
+ 			// TODO(mdempsky): It would be nice to preserve the original
+ 			// parameter positions here instead, but at least
+ 			// typecheck.NewMethodType replaces them with base.Pos, making
+ 			// them useless. Worse, the positions copied from base.Pos may
+ 			// have inlining contexts, which we definitely don't want here
+ 			// (e.g., #54625).
+-			res[i] = types.NewField(base.AutogeneratedPos, sym, param.Type)
++			res[i] = types.NewField(base.AutogeneratedPos, param.Sym, param.Type)
+ 			res[i].SetIsDDD(param.IsDDD())
+ 		}
+ 		return res
+@@ -3492,6 +3374,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
+ 	r.inlFunc = fn
+ 	r.inlTreeIndex = inlIndex
+ 	r.inlPosBases = make(map[*src.PosBase]*src.PosBase)
++	r.funarghack = true
+ 
+ 	r.closureVars = make([]*ir.Name, len(r.inlFunc.ClosureVars))
+ 	for i, cv := range r.inlFunc.ClosureVars {
+@@ -3506,7 +3389,17 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
+ 		r.dictParam = r.closureVars[len(r.closureVars)-1] // dictParam is last; see reader.funcLit
+ 	}
+ 
+-	r.funcargs(fn)
++	r.declareParams()
++
++	var inlvars, retvars []*ir.Name
++	{
++		sig := r.curfn.Type()
++		endParams := sig.NumRecvs() + sig.NumParams()
++		endResults := endParams + sig.NumResults()
++
++		inlvars = r.curfn.Dcl[:endParams]
++		retvars = r.curfn.Dcl[endParams:endResults]
++	}
+ 
+ 	r.delayResults = fn.Inl.CanDelayResults
+ 
+@@ -3529,15 +3422,14 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
+ 	args.Append(call.Args...)
+ 
+ 	// Create assignment to declare and initialize inlvars.
+-	as2 := ir.NewAssignListStmt(call.Pos(), ir.OAS2, r.inlvars, args)
++	as2 := ir.NewAssignListStmt(call.Pos(), ir.OAS2, ir.ToNodes(inlvars), args)
+ 	as2.Def = true
+ 	var as2init ir.Nodes
+-	for _, name := range r.inlvars {
++	for _, name := range inlvars {
+ 		if ir.IsBlank(name) {
+ 			continue
+ 		}
+ 		// TODO(mdempsky): Use inlined position of name.Pos() instead?
+-		name := name.(*ir.Name)
+ 		as2init.Append(ir.NewDecl(call.Pos(), ir.ODCL, name))
+ 		name.Defn = as2
+ 	}
+@@ -3547,9 +3439,8 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
+ 	if !r.delayResults {
+ 		// If not delaying retvars, declare and zero initialize the
+ 		// result variables now.
+-		for _, name := range r.retvars {
++		for _, name := range retvars {
+ 			// TODO(mdempsky): Use inlined position of name.Pos() instead?
+-			name := name.(*ir.Name)
+ 			init.Append(ir.NewDecl(call.Pos(), ir.ODCL, name))
+ 			ras := ir.NewAssignStmt(call.Pos(), name, nil)
+ 			init.Append(typecheck.Stmt(ras))
+@@ -3582,7 +3473,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
+ 		var edit func(ir.Node) ir.Node
+ 		edit = func(n ir.Node) ir.Node {
+ 			if ret, ok := n.(*ir.ReturnStmt); ok {
+-				n = typecheck.Stmt(r.inlReturn(ret))
++				n = typecheck.Stmt(r.inlReturn(ret, retvars))
+ 			}
+ 			ir.EditChildren(n, edit)
+ 			return n
+@@ -3595,17 +3486,20 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
+ 	// Reparent any declarations into the caller function.
+ 	for _, name := range r.curfn.Dcl {
+ 		name.Curfn = callerfn
+-		callerfn.Dcl = append(callerfn.Dcl, name)
+ 
+-		if name.AutoTemp() {
+-			name.SetEsc(ir.EscUnknown)
++		if name.Class != ir.PAUTO {
++			name.SetPos(r.inlPos(name.Pos()))
++			name.SetInlFormal(true)
++			name.Class = ir.PAUTO
++		} else {
+ 			name.SetInlLocal(true)
+ 		}
+ 	}
++	callerfn.Dcl = append(callerfn.Dcl, r.curfn.Dcl...)
+ 
+ 	body.Append(ir.NewLabelStmt(call.Pos(), r.retlabel))
+ 
+-	res := ir.NewInlinedCallExpr(call.Pos(), body, append([]ir.Node(nil), r.retvars...))
++	res := ir.NewInlinedCallExpr(call.Pos(), body, ir.ToNodes(retvars))
+ 	res.SetInit(init)
+ 	res.SetType(call.Type())
+ 	res.SetTypecheck(1)
+@@ -3618,20 +3512,19 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
+ 
+ // inlReturn returns a statement that can substitute for the given
+ // return statement when inlining.
+-func (r *reader) inlReturn(ret *ir.ReturnStmt) *ir.BlockStmt {
++func (r *reader) inlReturn(ret *ir.ReturnStmt, retvars []*ir.Name) *ir.BlockStmt {
+ 	pos := r.inlCall.Pos()
+ 
+ 	block := ir.TakeInit(ret)
+ 
+ 	if results := ret.Results; len(results) != 0 {
+-		assert(len(r.retvars) == len(results))
++		assert(len(retvars) == len(results))
+ 
+-		as2 := ir.NewAssignListStmt(pos, ir.OAS2, append([]ir.Node(nil), r.retvars...), ret.Results)
++		as2 := ir.NewAssignListStmt(pos, ir.OAS2, ir.ToNodes(retvars), ret.Results)
+ 
+ 		if r.delayResults {
+-			for _, name := range r.retvars {
++			for _, name := range retvars {
+ 				// TODO(mdempsky): Use inlined position of name.Pos() instead?
+-				name := name.(*ir.Name)
+ 				block.Append(ir.NewDecl(pos, ir.ODCL, name))
+ 				name.Defn = as2
+ 			}
+@@ -3667,18 +3560,11 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
+ 		r.funcBody(tmpfn)
+ 	}
+ 
+-	used := usedLocals(tmpfn.Body)
+-
++	// Move tmpfn's params to fn.Inl.Dcl, and reparent under fn.
+ 	for _, name := range tmpfn.Dcl {
+-		if name.Class != ir.PAUTO || used.Has(name) {
+-			name.Curfn = fn
+-			fn.Inl.Dcl = append(fn.Inl.Dcl, name)
+-		} else {
+-			// TODO(mdempsky): Simplify code after confident that this never
+-			// happens anymore.
+-			base.FatalfAt(name.Pos(), "unused auto: %v", name)
+-		}
++		name.Curfn = fn
+ 	}
++	fn.Inl.Dcl = tmpfn.Dcl
+ 	fn.Inl.HaveDcl = true
+ 
+ 	// Double check that we didn't change fn.Dcl by accident.
+@@ -3895,19 +3781,9 @@ func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *t
+ 	sig := newWrapperType(wrapper, method)
+ 
+ 	fn := ir.NewFunc(pos, pos, sym, sig)
++	fn.DeclareParams(true)
+ 	fn.SetDupok(true) // TODO(mdempsky): Leave unset for local, non-generic wrappers?
+ 
+-	// TODO(mdempsky): De-duplicate with similar logic in funcargs.
+-	defParams := func(class ir.Class, params []*types.Field) {
+-		for _, param := range params {
+-			param.Nname = fn.NewLocal(param.Pos, param.Sym, class, param.Type)
+-		}
+-	}
+-
+-	defParams(ir.PPARAM, sig.Recvs())
+-	defParams(ir.PPARAM, sig.Params())
+-	defParams(ir.PPARAMOUT, sig.Results())
+-
+ 	return fn
+ }
+ 
+@@ -3946,11 +3822,7 @@ func newWrapperType(recvType *types.Type, method *types.Field) *types.Type {
+ 	clone := func(params []*types.Field) []*types.Field {
+ 		res := make([]*types.Field, len(params))
+ 		for i, param := range params {
+-			sym := param.Sym
+-			if sym == nil || sym.Name == "_" {
+-				sym = typecheck.LookupNum(".anon", i)
+-			}
+-			res[i] = types.NewField(param.Pos, sym, param.Type)
++			res[i] = types.NewField(param.Pos, param.Sym, param.Type)
+ 			res[i].SetIsDDD(param.IsDDD())
+ 		}
+ 		return res
+@@ -3960,7 +3832,7 @@ func newWrapperType(recvType *types.Type, method *types.Field) *types.Type {
+ 
+ 	var recv *types.Field
+ 	if recvType != nil {
+-		recv = types.NewField(sig.Recv().Pos, typecheck.Lookup(".this"), recvType)
++		recv = types.NewField(sig.Recv().Pos, sig.Recv().Sym, recvType)
+ 	}
+ 	params := clone(sig.Params())
+ 	results := clone(sig.Results())
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 76c8bb8f2d..79c884c22f 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1114,7 +1114,7 @@ func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dic
+ 	w.sig = sig
+ 	w.dict = dict
+ 
+-	w.funcargs(sig)
++	w.declareParams(sig)
+ 	if w.Bool(block != nil) {
+ 		w.stmts(block.List)
+ 		w.pos(block.Rbrace)
+@@ -1123,24 +1123,18 @@ func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dic
+ 	return w.Flush(), w.closureVars
+ }
+ 
+-func (w *writer) funcargs(sig *types2.Signature) {
+-	do := func(params *types2.Tuple, result bool) {
++func (w *writer) declareParams(sig *types2.Signature) {
++	addLocals := func(params *types2.Tuple) {
+ 		for i := 0; i < params.Len(); i++ {
+-			w.funcarg(params.At(i), result)
++			w.addLocal(params.At(i))
+ 		}
+ 	}
+ 
+ 	if recv := sig.Recv(); recv != nil {
+-		w.funcarg(recv, false)
+-	}
+-	do(sig.Params(), false)
+-	do(sig.Results(), true)
+-}
+-
+-func (w *writer) funcarg(param *types2.Var, result bool) {
+-	if param.Name() != "" || result {
+-		w.addLocal(param)
++		w.addLocal(recv)
+ 	}
++	addLocals(sig.Params())
++	addLocals(sig.Results())
+ }
+ 
+ // addLocal records the declaration of a new local variable.
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index c52cb2c4df..a0f5522153 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -156,9 +156,9 @@ func hashFunc(t *types.Type) *ir.Func {
+ 	sym.Def = fn.Nname
+ 	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
+ 
+-	params, _ := typecheck.DeclFunc(fn)
+-	np := params[0]
+-	nh := params[1]
++	typecheck.DeclFunc(fn)
++	np := fn.Dcl[0]
++	nh := fn.Dcl[1]
+ 
+ 	switch t.Kind() {
+ 	case types.TARRAY:
+@@ -382,10 +382,10 @@ func eqFunc(t *types.Type) *ir.Func {
+ 	sym.Def = fn.Nname
+ 	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
+ 
+-	params, results := typecheck.DeclFunc(fn)
+-	np := params[0]
+-	nq := params[1]
+-	nr := results[0]
++	typecheck.DeclFunc(fn)
++	np := fn.Dcl[0]
++	nq := fn.Dcl[1]
++	nr := fn.Dcl[2]
+ 
+ 	// Label to jump to if an equality test fails.
+ 	neq := typecheck.AutoLabel(".neq")
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index a6b956338c..b2c4b1997f 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -55,16 +55,15 @@ type Conf struct {
+ 
+ func (c *Conf) Frontend() Frontend {
+ 	if c.fe == nil {
+-		f := ir.NewFunc(src.NoXPos, src.NoXPos, &types.Sym{
+-			Pkg:  types.NewPkg("my/import/path", "path"),
+-			Name: "function",
+-		}, nil)
+-		f.LSym = &obj.LSym{Name: "my/import/path.function"}
++		pkg := types.NewPkg("my/import/path", "path")
++		fn := ir.NewFunc(src.NoXPos, src.NoXPos, pkg.Lookup("function"), types.NewSignature(nil, nil, nil))
++		fn.DeclareParams(true)
++		fn.LSym = &obj.LSym{Name: "my/import/path.function"}
+ 
+ 		c.fe = TestFrontend{
+ 			t:    c.tb,
+ 			ctxt: c.config.ctxt,
+-			f:    f,
++			f:    fn,
+ 		}
+ 	}
+ 	return c.fe
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index f65fe497ec..56af9ce781 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -249,8 +249,8 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	// Reuse f's types.Sym to create a new ODCLFUNC/function.
+ 	// TODO(mdempsky): Means we can't set sym.Def in Declfunc, ugh.
+ 	fn := ir.NewFunc(pos, pos, f.Sym(), types.NewSignature(nil,
+-		typecheck.NewFuncParams(ft.Params(), true),
+-		typecheck.NewFuncParams(ft.Results(), false)))
++		typecheck.NewFuncParams(ft.Params()),
++		typecheck.NewFuncParams(ft.Results())))
+ 	fn.ABI = wrapperABI
+ 	typecheck.DeclFunc(fn)
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 805814ab86..4660d050e5 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -673,7 +673,7 @@ func (s *state) setHeapaddr(pos src.XPos, n *ir.Name, ptr *ssa.Value) {
+ 
+ 	// Declare variable to hold address.
+ 	sym := &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg}
+-	addr := s.curfn.NewLocal(pos, sym, ir.PAUTO, types.NewPtr(n.Type()))
++	addr := s.curfn.NewLocal(pos, sym, types.NewPtr(n.Type()))
+ 	addr.SetUsed(true)
+ 	types.CalcSize(addr.Type())
+ 
+@@ -7928,7 +7928,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t
+ 	}
+ 
+ 	sym := &types.Sym{Name: node.Sym().Name + suffix, Pkg: types.LocalPkg}
+-	n := e.curfn.NewLocal(parent.N.Pos(), sym, ir.PAUTO, t)
++	n := e.curfn.NewLocal(parent.N.Pos(), sym, t)
+ 	n.SetUsed(true)
+ 	n.SetEsc(ir.EscNever)
+ 	types.CalcSize(t)
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index c25ea3448d..4a847e8558 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -16,32 +16,18 @@ import (
+ 
+ var funcStack []*ir.Func // stack of previous values of ir.CurFunc
+ 
+-// DeclFunc creates and returns ONAMEs for the parameters and results
+-// of the given function. It also sets ir.CurFunc, and adds fn to
++// DeclFunc declares the parameters for fn and adds it to
+ // Target.Funcs.
+ //
+-// After the caller is done constructing fn, it must call
+-// FinishFuncBody.
+-func DeclFunc(fn *ir.Func) (params, results []*ir.Name) {
+-	typ := fn.Type()
+-
+-	// Currently, DeclFunc is only used to create normal functions, not
+-	// methods. If a use case for creating methods shows up, we can
+-	// extend it to support those too.
+-	if typ.Recv() != nil {
+-		base.FatalfAt(fn.Pos(), "unexpected receiver parameter")
+-	}
+-
+-	params = declareParams(fn, ir.PPARAM, typ.Params())
+-	results = declareParams(fn, ir.PPARAMOUT, typ.Results())
+-
+-	funcStack = append(funcStack, ir.CurFunc)
+-	ir.CurFunc = fn
+-
++// Before returning, it sets CurFunc to fn. When the caller is done
++// constructing fn, it must call FinishFuncBody to restore CurFunc.
++func DeclFunc(fn *ir.Func) {
++	fn.DeclareParams(true)
+ 	fn.Nname.Defn = fn
+ 	Target.Funcs = append(Target.Funcs, fn)
+ 
+-	return
++	funcStack = append(funcStack, ir.CurFunc)
++	ir.CurFunc = fn
+ }
+ 
+ // FinishFuncBody restores ir.CurFunc to its state before the last
+@@ -56,65 +42,29 @@ func CheckFuncStack() {
+ 	}
+ }
+ 
+-func declareParams(fn *ir.Func, ctxt ir.Class, params []*types.Field) []*ir.Name {
+-	names := make([]*ir.Name, len(params))
+-	for i, param := range params {
+-		names[i] = declareParam(fn, ctxt, i, param)
+-	}
+-	return names
+-}
+-
+-func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *types.Field) *ir.Name {
+-	sym := param.Sym
+-	if ctxt == ir.PPARAMOUT {
+-		if sym == nil {
+-			// Name so that escape analysis can track it. ~r stands for 'result'.
+-			sym = LookupNum("~r", i)
+-		} else if sym.IsBlank() {
+-			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
+-			// The name must be different from ~r above because if you have
+-			//	func f() (_ int)
+-			//	func g() int
+-			// f is allowed to use a plain 'return' with no arguments, while g is not.
+-			// So the two cases must be distinguished.
+-			sym = LookupNum("~b", i)
+-		}
+-	}
+-
+-	if sym == nil {
+-		return nil
+-	}
+-
+-	name := fn.NewLocal(param.Pos, sym, ctxt, param.Type)
+-	param.Nname = name
+-	return name
+-}
+-
+ // make a new Node off the books.
+-func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
++func TempAt(pos src.XPos, curfn *ir.Func, typ *types.Type) *ir.Name {
+ 	if curfn == nil {
+-		base.Fatalf("no curfn for TempAt")
++		base.FatalfAt(pos, "no curfn for TempAt")
+ 	}
+-	if t == nil {
+-		base.Fatalf("TempAt called with nil type")
++	if typ == nil {
++		base.FatalfAt(pos, "TempAt called with nil type")
+ 	}
+-	if t.Kind() == types.TFUNC && t.Recv() != nil {
+-		base.Fatalf("misuse of method type: %v", t)
++	if typ.Kind() == types.TFUNC && typ.Recv() != nil {
++		base.FatalfAt(pos, "misuse of method type: %v", typ)
+ 	}
++	types.CalcSize(typ)
+ 
+-	s := &types.Sym{
++	sym := &types.Sym{
+ 		Name: autotmpname(len(curfn.Dcl)),
+ 		Pkg:  types.LocalPkg,
+ 	}
+-	n := curfn.NewLocal(pos, s, ir.PAUTO, t)
+-	s.Def = n // TODO(mdempsky): Should be unnecessary.
+-	n.SetEsc(ir.EscNever)
+-	n.SetUsed(true)
+-	n.SetAutoTemp(true)
++	name := curfn.NewLocal(pos, sym, typ)
++	name.SetEsc(ir.EscNever)
++	name.SetUsed(true)
++	name.SetAutoTemp(true)
+ 
+-	types.CalcSize(t)
+-
+-	return n
++	return name
+ }
+ 
+ var (
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 9bb3f79392..89380ec387 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -224,6 +224,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
+ 
+ 	// Create a new wrapper function without parameters or results.
+ 	wrapperFn := ir.NewClosureFunc(n.Pos(), n.Pos(), n.Op(), types.NewSignature(nil, nil, nil), ir.CurFunc, Target)
++	wrapperFn.DeclareParams(true)
+ 	wrapperFn.SetWrapper(true)
+ 
+ 	// argps collects the list of operands within the call expression
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 7b7da79f22..6cc93c45fb 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -26,18 +26,10 @@ func LookupNum(prefix string, n int) *types.Sym {
+ }
+ 
+ // Given funarg struct list, return list of fn args.
+-func NewFuncParams(origs []*types.Field, mustname bool) []*types.Field {
++func NewFuncParams(origs []*types.Field) []*types.Field {
+ 	res := make([]*types.Field, len(origs))
+ 	for i, orig := range origs {
+-		s := orig.Sym
+-		if mustname && (s == nil || s.Name == "_") {
+-			// invent a name so that we can refer to it in the trampoline
+-			s = LookupNum(".anon", i)
+-		} else if s != nil && s.Pkg != types.LocalPkg {
+-			// TODO(mdempsky): Preserve original position, name, and package.
+-			s = Lookup(s.Name)
+-		}
+-		p := types.NewField(orig.Pos, s, orig.Type)
++		p := types.NewField(orig.Pos, orig.Sym, orig.Type)
+ 		p.SetIsDDD(orig.IsDDD())
+ 		res[i] = p
+ 	}
+diff --git a/test/live_uintptrkeepalive.go b/test/live_uintptrkeepalive.go
+index 566734e505..f681f683fc 100644
+--- a/test/live_uintptrkeepalive.go
++++ b/test/live_uintptrkeepalive.go
+@@ -1,5 +1,6 @@
+ // errorcheck -0 -m -live -std
+ 
++//go:build !windows && !js && !wasip1
+ // +build !windows,!js,!wasip1
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+@@ -22,7 +23,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-func implicit(uintptr) // ERROR "assuming arg#1 is unsafe uintptr"
++func implicit(uintptr) // ERROR "assuming ~p0 is unsafe uintptr"
+ 
+ //go:uintptrkeepalive
+ //go:nosplit
+@@ -47,13 +48,13 @@ func autotmpSyscall() { // ERROR "can inline autotmpSyscall"
+ func localImplicit() { // ERROR "can inline localImplicit"
+ 	var t int
+ 	p := unsafe.Pointer(&t)
+-	implicit(uintptr(p))           // ERROR "live at call to implicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++	implicit(uintptr(p)) // ERROR "live at call to implicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ }
+ 
+ func localExplicit() { // ERROR "can inline localExplicit"
+ 	var t int
+ 	p := unsafe.Pointer(&t)
+-	explicit(uintptr(p))           // ERROR "live at call to explicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++	explicit(uintptr(p)) // ERROR "live at call to explicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ }
+ 
+ func localSyscall() { // ERROR "can inline localSyscall"

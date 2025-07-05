@@ -15,6 +15,22 @@ Date:   Thu Jul 30 22:35:56 2015 -0400
     Change-Id: I0db4e3a1ed4f88ccddf0d30228982960091d9fb7
     Reviewed-on: https://go-review.googlesource.com/13010
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/internal/obj/arm/asm5.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index e50dcf56f8..610637c42e 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -472,8 +472,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
+ 			break
+ 		}
+ 
+-		if (p.To.Type == obj.TYPE_MEM && p.To.Reg != REG_R13 && p.To.Reg != REG_R9) || // MOVW Rx, X(Ry), y != 13 && y != 9
+-			(p.From.Type == obj.TYPE_MEM && p.From.Reg != REG_R13 && p.From.Reg != REG_R9) { // MOVW X(Rx), Ry, x != 13 && x != 9
++		if (p.To.Type == obj.TYPE_MEM && p.To.Reg != REG_R9) || // MOVW Rx, X(Ry), y != 9
++			(p.From.Type == obj.TYPE_MEM && p.From.Reg != REG_R9) { // MOVW X(Rx), Ry, x != 9
+ 			var a *obj.Addr
+ 			if p.To.Type == obj.TYPE_MEM {
+ 				a = &p.To

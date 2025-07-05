@@ -13,6 +13,27 @@ Date:   Fri May 19 19:39:29 2023 +0100
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/pprof/pprof.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index db03af1c44..385eb423f7 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -27,6 +27,15 @@
+ // If you are not using DefaultServeMux, you will have to register handlers
+ // with the mux you are using.
+ //
++// # Parameters
++//
++// Parameters can be passed via GET query params:
++//
++//   - debug=N (all profiles): response format: N = 0: binary (default), N > 0: plaintext
++//   - gc=N (heap profile): N > 0: run a garbage collection cycle before profiling
++//   - seconds=N (allocs, block, goroutine, heap, mutex, threadcreate profiles): return a delta profile
++//   - seconds=N (cpu (profile), trace profiles): profile for the given duration
++//
+ // # Usage examples
+ //
+ // Use the pprof tool to look at the heap profile:

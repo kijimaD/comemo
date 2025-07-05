@@ -23,7 +23,7 @@ Date:   Wed Sep 28 14:13:24 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/assignments.go  | 18 +++++-----------
  src/cmd/compile/internal/types2/conversions.go  |  8 ++-----
  src/go/types/assignments.go                     | 18 +++++-----------
@@ -37,3 +37,346 @@ Date:   Wed Sep 28 14:13:24 2022 -0700
  test/fixedbugs/issue48471.go                    | 16 +++++++-------
  test/fixedbugs/issue5358.go                     |  2 +-
  12 files changed, 46 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 2eca8238f9..e9cb62418e 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -85,20 +85,12 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		return
+ 	}
+ 
+-	reason := ""
+-	if ok, code := x.assignableTo(check, T, &reason); !ok {
+-		if check.conf.CompilerErrorMessages {
+-			if reason != "" {
+-				check.errorf(x, code, "cannot use %s as type %s in %s:\n\t%s", x, T, context, reason)
+-			} else {
+-				check.errorf(x, code, "cannot use %s as type %s in %s", x, T, context)
+-			}
++	cause := ""
++	if ok, code := x.assignableTo(check, T, &cause); !ok {
++		if cause != "" {
++			check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, cause)
+ 		} else {
+-			if reason != "" {
+-				check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, reason)
+-			} else {
+-				check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
+-			}
++			check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
+ 		}
+ 		x.mode = invalid
+ 	}
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 3b6a804335..8c0607d608 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -70,15 +70,11 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	}
+ 
+ 	if !ok {
+-		var err error_
+-		err.code = _InvalidConversion
+ 		if cause != "" {
+-			err.errorf(x, "cannot convert %s to type %s:", x, T)
+-			err.errorf(nopos, cause)
++			check.errorf(x, _InvalidConversion, "cannot convert %s to type %s: %s", x, T, cause)
+ 		} else {
+-			err.errorf(x, "cannot convert %s to type %s", x, T)
++			check.errorf(x, _InvalidConversion, "cannot convert %s to type %s", x, T)
+ 		}
+-		check.report(&err)
+ 		x.mode = invalid
+ 		return
+ 	}
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 958d966e92..15a12c69af 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -84,20 +84,12 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		return
+ 	}
+ 
+-	reason := ""
+-	if ok, code := x.assignableTo(check, T, &reason); !ok {
+-		if compilerErrorMessages {
+-			if reason != "" {
+-				check.errorf(x, code, "cannot use %s as type %s in %s:\n\t%s", x, T, context, reason)
+-			} else {
+-				check.errorf(x, code, "cannot use %s as type %s in %s", x, T, context)
+-			}
++	cause := ""
++	if ok, code := x.assignableTo(check, T, &cause); !ok {
++		if cause != "" {
++			check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, cause)
+ 		} else {
+-			if reason != "" {
+-				check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, reason)
+-			} else {
+-				check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
+-			}
++			check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
+ 		}
+ 		x.mode = invalid
+ 	}
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 43842a4132..ad88da90d7 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -8,7 +8,6 @@ package types
+ 
+ import (
+ 	"go/constant"
+-	"go/token"
+ 	"unicode"
+ )
+ 
+@@ -71,15 +70,11 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	}
+ 
+ 	if !ok {
+-		var err error_
+-		err.code = _InvalidConversion
+ 		if cause != "" {
+-			err.errorf(x.Pos(), "cannot convert %s to type %s:", x, T)
+-			err.errorf(token.NoPos, cause)
++			check.errorf(x, _InvalidConversion, "cannot convert %s to type %s: %s", x, T, cause)
+ 		} else {
+-			err.errorf(x.Pos(), "cannot convert %s to type %s", x, T)
++			check.errorf(x, _InvalidConversion, "cannot convert %s to type %s", x, T)
+ 		}
+-		check.report(&err)
+ 		x.mode = invalid
+ 		return
+ 	}
+diff --git a/src/internal/types/testdata/spec/conversions.go b/src/internal/types/testdata/spec/conversions.go
+index 773f0917f2..fc014fc2b0 100644
+--- a/src/internal/types/testdata/spec/conversions.go
++++ b/src/internal/types/testdata/spec/conversions.go
+@@ -34,10 +34,10 @@ func _[
+ 	T3 ~int | ~float64 | ~bool,
+ 	T4 ~int | ~string,
+ ]() {
+-	_ = T1(0 /* ERROR cannot convert 0 .* to type T1:\n\tT1 does not contain specific types */)
+-	_ = T2(1 /* ERROR cannot convert 1 .* to type T2:\n\tT2 does not contain specific types */)
+-	_ = T3(2 /* ERROR cannot convert 2 .* to type T3:\n\tcannot convert 2 .* to type bool \(in T3\) */)
+-	_ = T4(3.14 /* ERROR cannot convert 3.14 .* to type T4:\n\tcannot convert 3.14 .* to type int \(in T4\) */)
++	_ = T1(0 /* ERROR cannot convert 0 .* to type T1: T1 does not contain specific types */)
++	_ = T2(1 /* ERROR cannot convert 1 .* to type T2: T2 does not contain specific types */)
++	_ = T3(2 /* ERROR cannot convert 2 .* to type T3: cannot convert 2 .* to type bool \(in T3\) */)
++	_ = T4(3.14 /* ERROR cannot convert 3.14 .* to type T4: cannot convert 3.14 .* to type int \(in T4\) */)
+ }
+ 
+ // "x is assignable to T"
+@@ -66,7 +66,7 @@ func _[X Foo, T Bar](x X) T       { return T(x) }
+ func _[X Foo | Bar, T Bar](x X) T { return T(x) }
+ func _[X Foo, T Foo | Bar](x X) T { return T(x) }
+ func _[X Foo, T Far](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Foo\) to type T:\n\tcannot convert Foo \(in X\) to type Far \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Foo\) to type T: cannot convert Foo \(in X\) to type Far \(in T\) */)
+ }
+ 
+ // "x's type and T are unnamed pointer types and their pointer base types
+@@ -76,7 +76,7 @@ func _[X ~*Foo, T ~*Bar](x X) T         { return T(x) }
+ func _[X ~*Foo | ~*Bar, T ~*Bar](x X) T { return T(x) }
+ func _[X ~*Foo, T ~*Foo | ~*Bar](x X) T { return T(x) }
+ func _[X ~*Foo, T ~*Far](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*Foo\) to type T:\n\tcannot convert \*Foo \(in X\) to type \*Far \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*Foo\) to type T: cannot convert \*Foo \(in X\) to type \*Far \(in T\) */)
+ }
+ 
+ // Verify that the defined types in constraints are considered for the rule above.
+@@ -109,14 +109,14 @@ func _[X Float, T Float](x X) T    { return T(x) }
+ 
+ func _[X, T Integer | Unsigned | Float](x X) T { return T(x) }
+ func _[X, T Integer | ~string](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~string\) to type T:\n\tcannot convert string \(in X\) to type int \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~string\) to type T: cannot convert string \(in X\) to type int \(in T\) */)
+ }
+ 
+ // "x's type and T are both complex types"
+ 
+ func _[X, T Complex](x X) T { return T(x) }
+ func _[X, T Float | Complex](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float \| Complex\) to type T:\n\tcannot convert float32 \(in X\) to type complex64 \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float \| Complex\) to type T: cannot convert float32 \(in X\) to type complex64 \(in T\) */)
+ }
+ 
+ // "x is an integer or a slice of bytes or runes and T is a string type"
+@@ -129,7 +129,7 @@ func _[T ~string](x myInt) T    { return T(x) }
+ func _[X Integer](x X) string   { return string(x) }
+ func _[X Integer](x X) myString { return myString(x) }
+ func _[X Integer](x X) *string {
+-	return (*string)(x /* ERROR cannot convert x \(variable of type X constrained by Integer\) to type \*string:\n\tcannot convert int \(in X\) to type \*string */)
++	return (*string)(x /* ERROR cannot convert x \(variable of type X constrained by Integer\) to type \*string: cannot convert int \(in X\) to type \*string */)
+ }
+ 
+ func _[T ~string](x []byte) T                           { return T(x) }
+@@ -138,7 +138,7 @@ func _[X ~[]byte, T ~string](x X) T                     { return T(x) }
+ func _[X ~[]rune, T ~string](x X) T                     { return T(x) }
+ func _[X Integer | ~[]byte | ~[]rune, T ~string](x X) T { return T(x) }
+ func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~\[\]byte \| ~\[\]rune\) to type T:\n\tcannot convert int \(in X\) to type \*string \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~\[\]byte \| ~\[\]rune\) to type T: cannot convert int \(in X\) to type \*string \(in T\) */)
+ }
+ 
+ // "x is a string and T is a slice of bytes or runes"
+@@ -146,14 +146,14 @@ func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
+ func _[T ~[]byte](x string) T { return T(x) }
+ func _[T ~[]rune](x string) T { return T(x) }
+ func _[T ~[]rune](x *string) T {
+-	return T(x /* ERROR cannot convert x \(variable of type \*string\) to type T:\n\tcannot convert \*string to type \[\]rune \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type \*string\) to type T: cannot convert \*string to type \[\]rune \(in T\) */)
+ }
+ 
+ func _[X ~string, T ~[]byte](x X) T           { return T(x) }
+ func _[X ~string, T ~[]rune](x X) T           { return T(x) }
+ func _[X ~string, T ~[]byte | ~[]rune](x X) T { return T(x) }
+ func _[X ~*string, T ~[]byte | ~[]rune](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*string\) to type T:\n\tcannot convert \*string \(in X\) to type \[\]byte \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*string\) to type T: cannot convert \*string \(in X\) to type \[\]byte \(in T\) */)
+ }
+ 
+ // package unsafe:
+@@ -164,7 +164,7 @@ type myUintptr uintptr
+ func _[X ~uintptr](x X) unsafe.Pointer  { return unsafe.Pointer(x) }
+ func _[T unsafe.Pointer](x myUintptr) T { return T(x) }
+ func _[T unsafe.Pointer](x int64) T {
+-	return T(x /* ERROR cannot convert x \(variable of type int64\) to type T:\n\tcannot convert int64 to type unsafe\.Pointer \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type int64\) to type T: cannot convert int64 to type unsafe\.Pointer \(in T\) */)
+ }
+ 
+ // "and vice versa"
+@@ -173,7 +173,7 @@ func _[T ~uintptr](x unsafe.Pointer) T  { return T(x) }
+ func _[X unsafe.Pointer](x X) uintptr   { return uintptr(x) }
+ func _[X unsafe.Pointer](x X) myUintptr { return myUintptr(x) }
+ func _[X unsafe.Pointer](x X) int64 {
+-	return int64(x /* ERROR cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to type int64:\n\tcannot convert unsafe\.Pointer \(in X\) to type int64 */)
++	return int64(x /* ERROR cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to type int64: cannot convert unsafe\.Pointer \(in X\) to type int64 */)
+ }
+ 
+ // "x is a slice, T is an array or pointer-to-array type,
+diff --git a/test/alias2.go b/test/alias2.go
+index d7101420bd..2846e5dc31 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -46,8 +46,8 @@ var _ A0 = T0{}
+ var _ T0 = A0{}
+ 
+ // But aliases and original types cannot be used with new types based on them.
+-var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use T0{} \(value of type T0\) as type N0 in variable declaration"
+-var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use A0{} \(value of type T0\) as type N0 in variable declaration"
++var _ N0 = T0{} // ERROR "cannot use T0{} \(value of type T0\) as N0 value in variable declaration"
++var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type T0\) as N0 value in variable declaration"
+ 
+ var _ A5 = Value{}
+ 
+@@ -82,10 +82,10 @@ func _() {
+ 	var _ A0 = T0{}
+ 	var _ T0 = A0{}
+ 
+-	var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use T0{} \(value of type T0\) as type N0 in variable declaration"
+-	var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use A0{} \(value of type T0\) as type N0 in variable declaration"
++	var _ N0 = T0{} // ERROR "cannot use T0{} \(value of type T0\) as N0 value in variable declaration"
++	var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type T0\) as N0 value in variable declaration"
+ 
+-	var _ A5 = Value{} // ERROR "cannot use reflect\.Value{} \(type reflect.Value\) as type A5 in assignment|cannot use Value{} \(value of type reflect.Value\) as type A5 in variable declaration"
++	var _ A5 = Value{} // ERROR "cannot use Value{} \(value of type reflect\.Value\) as A5 value in variable declaration"
+ }
+ 
+ // Invalid type alias declarations.
+diff --git a/test/append1.go b/test/append1.go
+index 397be570d9..437e30ca23 100644
+--- a/test/append1.go
++++ b/test/append1.go
+@@ -17,6 +17,6 @@ func main() {
+ 	_ = append(s...)       // ERROR "cannot use ... on first argument|not enough arguments in call to append"
+ 	_ = append(s, 2, s...) // ERROR "too many arguments to append|too many arguments in call to append"
+ 
+-	_ = append(s, make([]int, 0))     // ERROR "cannot use make.* as type int in append|cannot use make.* \(value of type \[\]int\) as type int in argument to append"
++	_ = append(s, make([]int, 0))     // ERROR "cannot use make\(\[\]int, 0\) \(value of type \[\]int\) as int value in argument to append"
+ 	_ = append(s, make([]int, -1)...) // ERROR "negative len argument in make|index -1.* must not be negative"
+ }
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 639b0bfdbd..e003555986 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -19,7 +19,7 @@ var (
+ 	_ = sum(1.0, 2.0)
+ 	_ = sum(1.5)      // ERROR "1\.5 .untyped float constant. as int|integer"
+ 	_ = sum("hello")  // ERROR ".hello. (.untyped string constant. as int|.type untyped string. as type int)|incompatible"
+-	_ = sum([]int{1}) // ERROR "\[\]int{.*}.*as type int"
++	_ = sum([]int{1}) // ERROR "\[\]int{.*}.*as int value"
+ )
+ 
+ func sum3(int, int, int) int { return 0 }
+diff --git a/test/fixedbugs/bug389.go b/test/fixedbugs/bug389.go
+index 209be8e6f7..3e8adb9728 100644
+--- a/test/fixedbugs/bug389.go
++++ b/test/fixedbugs/bug389.go
+@@ -9,4 +9,4 @@ package foo
+ 
+ func fn(a float32) {}
+ 
+-var f func(arg int) = fn // ERROR "cannot use fn .type func.float32.. as type func.int. in assignment|different parameter types|cannot use fn .*type func.*float32.. as type func.*int. in variable declaration"
++var f func(arg int) = fn // ERROR "different parameter types|cannot use fn .*type func.*float32.. as func.*int. value in variable declaration"
+diff --git a/test/fixedbugs/issue17645.go b/test/fixedbugs/issue17645.go
+index 111fa81e13..6eed5f1a38 100644
+--- a/test/fixedbugs/issue17645.go
++++ b/test/fixedbugs/issue17645.go
+@@ -12,5 +12,5 @@ type Foo struct {
+ 
+ func main() {
+ 	var s []int
+-	var _ string = append(s, Foo{""}) // ERROR "cannot use .. \(.*untyped string.*\) as .*int.*|incompatible type" "cannot use Foo{.*} \(.*type Foo\) as type int in .*append" "cannot use append\(s\, Foo{.*}\) \(.*type \[\]int\) as type string in (assignment|variable declaration)"
++	var _ string = append(s, Foo{""}) // ERROR "cannot use append\(s, Foo{…}\) .* as string value in variable declaration" "cannot use Foo{…} .* as int value in argument to append" "cannot use .* as int value in struct literal"
+ }
+diff --git a/test/fixedbugs/issue48471.go b/test/fixedbugs/issue48471.go
+index 8b8d64370a..062cb5ab95 100644
+--- a/test/fixedbugs/issue48471.go
++++ b/test/fixedbugs/issue48471.go
+@@ -33,17 +33,17 @@ func (T6) m(int) string { return "" }
+ func f(I)
+ 
+ func g() {
+-	f(new(T)) // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in argument to f:\n\t\*T does not implement I \(missing method M\)"
++	f(new(T)) // ERROR "cannot use new\(T\) \(.*type \*T\) as I value in argument to f: \*T does not implement I \(missing method M\)"
+ 
+ 	var i I
+-	i = new(T)    // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in assignment:\n\t\*T does not implement I \(missing method M\)"
+-	i = I(new(T)) // ERROR "cannot convert new\(T\) \(.*type \*T\) to type I:\n\t\*T does not implement I \(missing method M\)"
+-	i = new(T2)   // ERROR "cannot use new\(T2\) \(.*type \*T2\) as type I in assignment:\n\t\*T2 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
++	i = new(T)    // ERROR "cannot use new\(T\) \(.*type \*T\) as I value in assignment: \*T does not implement I \(missing method M\)"
++	i = I(new(T)) // ERROR "cannot convert new\(T\) \(.*type \*T\) to type I: \*T does not implement I \(missing method M\)"
++	i = new(T2)   // ERROR "cannot use new\(T2\) \(.*type \*T2\) as I value in assignment: \*T2 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
+ 
+-	i = new(T3) // ERROR "cannot use new\(T3\) \(.*type \*T3\) as type I in assignment:\n\t\*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
++	i = new(T3) // ERROR "cannot use new\(T3\) \(.*type \*T3\) as I value in assignment: \*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
+ 
+-	i = T4{}   // ERROR "cannot use T4\{\} \(.*type T4\) as type I in assignment:\n\tT4 does not implement I \(method M has pointer receiver\)"
+-	i = new(I) // ERROR "cannot use new\(I\) \(.*type \*I\) as type I in assignment:\n\t\*I does not implement I \(type \*I is pointer to interface, not interface\)"
++	i = T4{}   // ERROR "cannot use T4\{\} \(.*type T4\) as I value in assignment: T4 does not implement I \(method M has pointer receiver\)"
++	i = new(I) // ERROR "cannot use new\(I\) \(.*type \*I\) as I value in assignment: \*I does not implement I \(type \*I is pointer to interface, not interface\)"
+ 
+ 	_ = i.(*T2) // ERROR "impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
+ 	_ = i.(*T3) // ERROR "impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
+@@ -51,6 +51,6 @@ func g() {
+ 	_ = i.(T6)  // ERROR "impossible type assertion: i.\(T6\)\n\tT6 does not implement I \(missing method M\)\n\t\thave m\(int\) string\n\t\twant M\(int\)"
+ 
+ 	var t *T4
+-	t = i // ERROR "cannot use i \(variable of type I\) as type \*T4 in assignment:\n\tneed type assertion"
++	t = i // ERROR "cannot use i \(variable of type I\) as \*T4 value in assignment: need type assertion"
+ 	_ = i
+ }
+diff --git a/test/fixedbugs/issue5358.go b/test/fixedbugs/issue5358.go
+index 25f1e521fe..cfe8a9242a 100644
+--- a/test/fixedbugs/issue5358.go
++++ b/test/fixedbugs/issue5358.go
+@@ -13,5 +13,5 @@ func f(x int, y ...int) {}
+ func g() (int, []int)
+ 
+ func main() {
+-	f(g()) // ERROR "as type int in|incompatible type"
++	f(g()) // ERROR "as int value in|incompatible type"
+ }

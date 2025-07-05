@@ -33,7 +33,7 @@ Date:   Mon Sep 28 18:20:12 2020 -0400
     Reviewed-by: Carlos Eduardo Seo <carlos.seo@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64enc.s |  4 ++--
  src/cmd/compile/internal/ppc64/ssa.go        | 12 +++++-----
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  9 ++++---
@@ -42,3 +42,299 @@ Date:   Mon Sep 28 18:20:12 2020 -0400
  src/cmd/internal/obj/ppc64/asm9.go           | 35 ++++++++++++++--------------
  test/codegen/shift.go                        | 17 ++++++++------
  7 files changed, 50 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64enc.s b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+index 88a7609ba8..869f8c2d4f 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+@@ -287,8 +287,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	RLDICRCC $0, R4, $15, R6        // 788603c5
+ 	RLDIC $0, R4, $15, R6           // 788603c8
+ 	RLDICCC $0, R4, $15, R6         // 788603c9
+-	CLRLSLWI $16, R5, $8, R4        // 54a4861e
+-	CLRLSLDI $2, R4, $24, R3        // 78831588
++	CLRLSLWI $8, R5, $6, R4         // 54a430b2
++	CLRLSLDI $24, R4, $4, R3        // 78832508
+ 
+ 	BEQ 0(PC)                       // 41820000
+ 	BGE 0(PC)                       // 40800000
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index a5fbdaffba..d83b2df379 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -570,9 +570,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		r1 := v.Args[0].Reg()
+ 		shifts := v.AuxInt
+ 		p := s.Prog(v.Op.Asm())
+-		// clrlslwi ra,rs,sh,mb will become rlwinm ra,rs,sh,mb-sh,31-n as described in ISA
+-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)})
++		// clrlslwi ra,rs,mb,sh will become rlwinm ra,rs,sh,mb-sh,31-sh as described in ISA
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)})
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+@@ -582,9 +582,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		r1 := v.Args[0].Reg()
+ 		shifts := v.AuxInt
+ 		p := s.Prog(v.Op.Asm())
+-		// clrlsldi ra,rs,sh,mb will become rldic ra,rs,sh,mb-sh
+-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)})
++		// clrlsldi ra,rs,mb,sh will become rldic ra,rs,sh,mb-sh
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)})
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index de30d003e6..83ee4c499b 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -1018,13 +1018,12 @@
+ (SLDconst [c] z:(MOVHZreg x)) && c < 16 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,48,63,64)] x)
+ (SLDconst [c] z:(MOVWZreg x)) && c < 32 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,32,63,64)] x)
+ 
+-(SLDconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+-(SLDconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
++(SLDconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
++(SLDconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(64-getPPC64ShiftMaskLength(d)) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+ (SLWconst [c] z:(MOVBZreg x)) && z.Uses == 1 && c < 8 => (CLRLSLWI [newPPC64ShiftAuxInt(c,24,31,32)] x)
+ (SLWconst [c] z:(MOVHZreg x)) && z.Uses == 1 && c < 16 => (CLRLSLWI [newPPC64ShiftAuxInt(c,16,31,32)] x)
+-(SLWconst [c] z:(MOVWZreg x)) && z.Uses == 1 && c < 24 => (CLRLSLWI [newPPC64ShiftAuxInt(c,8,31,32)] x)
+-(SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+-(SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
++(SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
++(SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+ // special case for power9
+ (SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && objabi.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 9f4de83a77..5d8b3ddc4e 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1380,8 +1380,8 @@ func GetPPC64Shiftme(auxint int64) int64 {
+ 	return int64(int8(auxint))
+ }
+ 
+-// Catch the simple ones first
+-// TODO: Later catch more cases
++// This verifies that the mask occupies the
++// rightmost bits.
+ func isPPC64ValidShiftMask(v int64) bool {
+ 	if ((v + 1) & v) == 0 {
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 29ec3992f2..9822637b05 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -12831,7 +12831,7 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SLDconst [c] z:(ANDconst [d] x))
+-	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
++	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (64-getPPC64ShiftMaskLength(d))
+ 	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+ 	for {
+ 		c := auxIntToInt64(v.AuxInt)
+@@ -12841,7 +12841,7 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
+ 		}
+ 		d := auxIntToInt64(z.AuxInt)
+ 		x := z.Args[0]
+-		if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
++		if !(z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (64-getPPC64ShiftMaskLength(d))) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64CLRLSLDI)
+@@ -12850,7 +12850,7 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SLDconst [c] z:(AND (MOVDconst [d]) x))
+-	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
++	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(64-getPPC64ShiftMaskLength(d))
+ 	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+ 	for {
+ 		c := auxIntToInt64(v.AuxInt)
+@@ -12867,7 +12867,7 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
+ 			}
+ 			d := auxIntToInt64(z_0.AuxInt)
+ 			x := z_1
+-			if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
++			if !(z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (64-getPPC64ShiftMaskLength(d))) {
+ 				continue
+ 			}
+ 			v.reset(OpPPC64CLRLSLDI)
+@@ -12953,26 +12953,8 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (SLWconst [c] z:(MOVWZreg x))
+-	// cond: z.Uses == 1 && c < 24
+-	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,8,31,32)] x)
+-	for {
+-		c := auxIntToInt64(v.AuxInt)
+-		z := v_0
+-		if z.Op != OpPPC64MOVWZreg {
+-			break
+-		}
+-		x := z.Args[0]
+-		if !(z.Uses == 1 && c < 24) {
+-			break
+-		}
+-		v.reset(OpPPC64CLRLSLWI)
+-		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 8, 31, 32))
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (SLWconst [c] z:(ANDconst [d] x))
+-	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
++	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d))
+ 	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+ 	for {
+ 		c := auxIntToInt64(v.AuxInt)
+@@ -12982,7 +12964,7 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
+ 		}
+ 		d := auxIntToInt64(z.AuxInt)
+ 		x := z.Args[0]
+-		if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
++		if !(z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (32-getPPC64ShiftMaskLength(d))) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64CLRLSLWI)
+@@ -12991,7 +12973,7 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SLWconst [c] z:(AND (MOVDconst [d]) x))
+-	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
++	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d))
+ 	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+ 	for {
+ 		c := auxIntToInt64(v.AuxInt)
+@@ -13008,7 +12990,7 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
+ 			}
+ 			d := auxIntToInt64(z_0.AuxInt)
+ 			x := z_1
+-			if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
++			if !(z.Uses == 1 && isPPC64ValidShiftMask(d) && c <= (32-getPPC64ShiftMaskLength(d))) {
+ 				continue
+ 			}
+ 			v.reset(OpPPC64CLRLSLWI)
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 9f06bdf8b3..928e299f43 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -2749,7 +2749,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			me := int(d)
+ 			sh := c.regoff(&p.From)
+ 			if me < 0 || me > 63 || sh > 63 {
+-				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh)
++				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh, p)
+ 			}
+ 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(me))
+ 
+@@ -2757,19 +2757,19 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			mb := int(d)
+ 			sh := c.regoff(&p.From)
+ 			if mb < 0 || mb > 63 || sh > 63 {
+-				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh)
++				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh, p)
+ 			}
+ 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(mb))
+ 
+ 		case ACLRLSLDI:
+ 			// This is an extended mnemonic defined in the ISA section C.8.1
+-			// clrlsldi ra,rs,n,b --> rldic ra,rs,n,b-n
++			// clrlsldi ra,rs,b,n --> rldic ra,rs,n,b-n
+ 			// It maps onto RLDIC so is directly generated here based on the operands from
+ 			// the clrlsldi.
+-			b := int(d)
+-			n := c.regoff(&p.From)
+-			if n > int32(b) || b > 63 {
+-				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b)
++			n := int32(d)
++			b := c.regoff(&p.From)
++			if n > b || b > 63 {
++				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b, p)
+ 			}
+ 			o1 = AOP_RLDIC(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
+ 
+@@ -3395,14 +3395,15 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		v := c.regoff(&p.From)
+ 		switch p.As {
+ 		case ACLRLSLWI:
+-			b := c.regoff(p.GetFrom3())
++			n := c.regoff(p.GetFrom3())
+ 			// This is an extended mnemonic described in the ISA C.8.2
+-			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
++			// clrlslwi ra,rs,b,n -> rlwinm ra,rs,n,b-n,31-n
+ 			// It maps onto rlwinm which is directly generated here.
+-			if v < 0 || v > 32 || b > 32 {
+-				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
++			if n > v || v >= 32 {
++				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, n, p)
+ 			}
+-			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
++
++			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(n), uint32(v-n), uint32(31-n))
+ 		default:
+ 			var mask [2]uint8
+ 			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
+@@ -3414,16 +3415,16 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		v := c.regoff(&p.From)
+ 		switch p.As {
+ 		case ACLRLSLWI:
+-			b := c.regoff(p.GetFrom3())
+-			if v > b || b > 32 {
++			n := c.regoff(p.GetFrom3())
++			if n > v || v >= 32 {
+ 				// Message will match operands from the ISA even though in the
+ 				// code it uses 'v'
+-				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
++				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, n, p)
+ 			}
+ 			// This is an extended mnemonic described in the ISA C.8.2
+-			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
++			// clrlslwi ra,rs,b,n -> rlwinm ra,rs,n,b-n,31-n
+ 			// It generates the rlwinm directly here.
+-			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
++			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(n), uint32(v-n), uint32(31-n))
+ 		default:
+ 			var mask [2]uint8
+ 			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index abc4b091c9..bbfc85ffbb 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -187,8 +187,8 @@ func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, x32 int32, v64 uint64
+ 	// ppc64le:-"AND","CLRLSLWI"
+ 	// ppc64:-"AND","CLRLSLWI"
+ 	f := (v8 &0xF) << 2
+-	// ppc64le:-"AND","CLRLSLWI"
+-        // ppc64:-"AND","CLRLSLWI"
++	// ppc64le:"CLRLSLWI"
++	// ppc64:"CLRLSLWI"
+ 	f += byte(v16)<<3
+ 	// ppc64le:-"AND","CLRLSLWI"
+ 	// ppc64:-"AND","CLRLSLWI"
+@@ -196,12 +196,15 @@ func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, x32 int32, v64 uint64
+ 	// ppc64le:-"AND","CLRLSLWI"
+ 	// ppc64:-"AND","CLRLSLWI"
+ 	h := (v32 & 0xFFFFF) << 2
+-	// ppc64le:-"AND","CLRLSLWI"
+-        // ppc64:-"AND","CLRLSLWI"
+-	h += uint32(v64)<<4
+-	// ppc64le:-"AND","CLRLSLDI"
+-	// ppc64:-"AND","CLRLSLDI"
++	// ppc64le:"CLRLSLDI"
++	// ppc64:"CLRLSLDI"
+ 	i := (v64 & 0xFFFFFFFF) << 5
++	// ppc64le:-"CLRLSLDI"
++	// ppc64:-"CLRLSLDI"
++	i += (v64 & 0xFFFFFFF) << 38
++	// ppc64le/power9:-"CLRLSLDI"
++	// ppc64/power9:-"CLRLSLDI"
++	i += (v64 & 0xFFFF00) << 10
+ 	// ppc64le/power9:-"SLD","EXTSWSLI"
+ 	// ppc64/power9:-"SLD","EXTSWSLI"
+ 	j := int64(x32+32)*8

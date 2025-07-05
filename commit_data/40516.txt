@@ -22,7 +22,7 @@ Date:   Tue May 21 08:24:27 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rsa/pkcs1v15_test.go         |  6 ++---
  src/crypto/tls/handshake_server_test.go | 22 ++++++++---------
  src/crypto/tls/tls_test.go              | 22 +++++++++--------
@@ -33,3 +33,539 @@ Date:   Tue May 21 08:24:27 2019 -0400
  src/net/http/internal/testcert.go       |  8 ++++--
  src/net/smtp/smtp_test.go               |  8 +++---
  9 files changed, 91 insertions(+), 76 deletions(-)
+
+diff --git a/src/crypto/rsa/pkcs1v15_test.go b/src/crypto/rsa/pkcs1v15_test.go
+index 47444f311c..7e62560a04 100644
+--- a/src/crypto/rsa/pkcs1v15_test.go
++++ b/src/crypto/rsa/pkcs1v15_test.go
+@@ -274,8 +274,8 @@ func TestShortSessionKey(t *testing.T) {
+ 	}
+ }
+ 
+-// In order to generate new test vectors you'll need the PEM form of this key:
+-// -----BEGIN RSA PRIVATE KEY-----
++// In order to generate new test vectors you'll need the PEM form of this key (and s/TESTING/PRIVATE/):
++// -----BEGIN RSA TESTING KEY-----
+ // MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
+ // fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
+ // /ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
+@@ -283,7 +283,7 @@ func TestShortSessionKey(t *testing.T) {
+ // EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
+ // IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
+ // tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
+-// -----END RSA PRIVATE KEY-----
++// -----END RSA TESTING KEY-----
+ 
+ var rsaPrivateKey = &PrivateKey{
+ 	PublicKey: PublicKey{
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 131de0f2fc..843a0a70f0 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -1351,8 +1351,8 @@ o0RIvFkTgxYEiKSBXCUNmAysEbEoVr4dzWFihAm/1oDGRY2CLLTYg5vbySK3KhIR
+ e/oCO8HJ/+rJnahJ05XX1Q7lNQ==
+ -----END CERTIFICATE-----`
+ 
+-const clientKeyPEM = `
+------BEGIN RSA PRIVATE KEY-----
++var clientKeyPEM = testingKey(`
++-----BEGIN RSA TESTING KEY-----
+ MIICXQIBAAKBgQC6b6qGvc+/n/LvXJRgeG/oE/LRlm/N2TJuIjfOQfnKXSms4Sfa
+ YaLugcsQx980WJWG6T0Z5lwnc2DIjXgC9B2kmAmjGXBpPCViZiqrIiPFe4U4Ty4J
+ czKnvT6brcqEB+YPOv93xZ1BhQCKtpvusKQ/LUxM5kI+u1HI3UhU9AyORwIDAQAB
+@@ -1366,7 +1366,7 @@ jUCVJzJA5ORJrn8g64u2eGK28z/LFQbv9wXgCwfc72R468BdawFSLa/m2EECQGbZ
+ rWiFla26IVXV0xcD98VWJsTBZMlgPnSOqoMdM1kSEd4fUmlAYI/dFzV1XYSkOmVr
+ FhdZnklmpVDeu27P4c0CQQCuCOup0FlJSBpWY1TTfun/KMBkBatMz0VMA3d7FKIU
+ csPezl677Yjo8u1r/KzeI6zLg87Z8E6r6ZWNc9wBSZK6
+------END RSA PRIVATE KEY-----`
++-----END RSA TESTING KEY-----`)
+ 
+ const clientECDSACertificatePEM = `
+ -----BEGIN CERTIFICATE-----
+@@ -1383,17 +1383,17 @@ C3JosDJdYUoCdFzCgbkWqD8pyDbHgf9stlvZcPE4O1BIKJTLCRpS8V3ujfK58PDa
+ jWVim34BmT0Y9hCaOGGbLlfk+syxis7iI6CH8OFnUes=
+ -----END CERTIFICATE-----`
+ 
+-const clientECDSAKeyPEM = `
++var clientECDSAKeyPEM = testingKey(`
+ -----BEGIN EC PARAMETERS-----
+ BgUrgQQAIw==
+ -----END EC PARAMETERS-----
+------BEGIN EC PRIVATE KEY-----
++-----BEGIN EC TESTING KEY-----
+ MIHcAgEBBEIBkJN9X4IqZIguiEVKMqeBUP5xtRsEv4HJEtOpOGLELwO53SD78Ew8
+ k+wLWoqizS3NpQyMtrU8JFdWfj+C57UNkOugBwYFK4EEACOhgYkDgYYABACVjJF1
+ FMBexFe01MNvja5oHt1vzobhfm6ySD6B5U7ixohLZNz1MLvT/2XMW/TdtWo+PtAd
+ 3kfDdq0Z9kUsjLzYHQFMH3CQRnZIi4+DzEpcj0B22uCJ7B0rxE4wdihBsmKo+1vx
+ +U56jb0JuK7qixgnTy5w/hOWusPTQBbNZU6sER7m8Q==
+------END EC PRIVATE KEY-----`
++-----END EC TESTING KEY-----`)
+ 
+ const clientEd25519CertificatePEM = `
+ -----BEGIN CERTIFICATE-----
+@@ -1406,10 +1406,10 @@ QQD8GRcqlKUx+inILn9boF2KTjRAOdazENwZ/qAicbP1j6FYDc308YUkv+Y9FN/f
+ 7Q7hF9gRomDQijcjKsJGqjoI
+ -----END CERTIFICATE-----`
+ 
+-const clientEd25519KeyPEM = `
+------BEGIN PRIVATE KEY-----
++var clientEd25519KeyPEM = testingKey(`
++-----BEGIN TESTING KEY-----
+ MC4CAQAwBQYDK2VwBCIEINifzf07d9qx3d44e0FSbV4mC/xQxT644RRbpgNpin7I
+------END PRIVATE KEY-----`
++-----END TESTING KEY-----`)
+ 
+ func TestClientAuth(t *testing.T) {
+ 	var certPath, keyPath, ecdsaCertPath, ecdsaKeyPath, ed25519CertPath, ed25519KeyPath string
+@@ -1761,7 +1761,7 @@ nIPhKls4T0hFoLvjJnXpAgMBAAGjTTBLMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE
+ DDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMBYGA1UdEQQPMA2CC2V4YW1wbGUu
+ Y29tMA0GCSqGSIb3DQEBCwUAA0EAxDuUS+BrrS3c+h+k+fQPOmOScy6yTX9mHw0Q
+ KbucGamXYEy0URIwOdO0tQ3LHPc1YGvYSPwkDjkjqECs2Vm/AA==
+------END CERTIFICATE-----`), []byte(`-----BEGIN RSA PRIVATE KEY-----
++-----END CERTIFICATE-----`), []byte(testingKey(`-----BEGIN RSA TESTING KEY-----
+ MIIBOgIBAAJBAN17PWsVQPBrHYdPFtycVQ/0CFyAQYwdVXaefhVURYUkHojwL82T
+ HRfLJCWuYVgHMRCcg+EqWzhPSEWgu+MmdekCAwEAAQJBALjQYNTdXF4CFBbXwUz/
+ yt9QFDYT9B5WT/12jeGAe653gtYS6OOi/+eAkGmzg1GlRnw6fOfn+HYNFDORST7z
+@@ -1769,7 +1769,7 @@ yt9QFDYT9B5WT/12jeGAe653gtYS6OOi/+eAkGmzg1GlRnw6fOfn+HYNFDORST7z
+ nKpbtU22+PbIMSJ+e80fmY9LIPx5N4HTAiAthGSimMR9bloz0EY3GyuUEyqoDgMd
+ hXxjuno2WesoJQIgemilbcALXpxsLmZLgcQ2KSmaVr7jb5ECx9R+hYKTw1sCIG4s
+ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
+------END RSA PRIVATE KEY-----`))
++-----END RSA TESTING KEY-----`)))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index df39509a6d..a07727c92b 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -37,7 +37,7 @@ r5QuVbpQhH6u+0UgcW0jp9QwpxoPTLTWGXEWBBBurxFwiCBhkQ+V
+ -----END CERTIFICATE-----
+ `
+ 
+-var rsaKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
++var rsaKeyPEM = testingKey(`-----BEGIN RSA TESTING KEY-----
+ MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
+ k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
+ 6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
+@@ -45,12 +45,12 @@ MQIhAPW+eyZo7ay3lMz1V01WVjNKK9QSn1MJlb06h/LuYv9FAiEA25WPedKgVyCW
+ SmUwbPw8fnTcpqDWE3yTO3vKcebqMSsCIBF3UmVue8YU3jybC3NxuXq3wNm34R8T
+ xVLHwDXh/6NJAiEAl2oHGGLz64BuAfjKrqwz7qMYr9HCLIe/YsoWq/olzScCIQDi
+ D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
+------END RSA PRIVATE KEY-----
+-`
++-----END RSA TESTING KEY-----
++`)
+ 
+ // keyPEM is the same as rsaKeyPEM, but declares itself as just
+ // "PRIVATE KEY", not "RSA PRIVATE KEY".  https://golang.org/issue/4477
+-var keyPEM = `-----BEGIN PRIVATE KEY-----
++var keyPEM = testingKey(`-----BEGIN TESTING KEY-----
+ MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
+ k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
+ 6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
+@@ -58,8 +58,8 @@ MQIhAPW+eyZo7ay3lMz1V01WVjNKK9QSn1MJlb06h/LuYv9FAiEA25WPedKgVyCW
+ SmUwbPw8fnTcpqDWE3yTO3vKcebqMSsCIBF3UmVue8YU3jybC3NxuXq3wNm34R8T
+ xVLHwDXh/6NJAiEAl2oHGGLz64BuAfjKrqwz7qMYr9HCLIe/YsoWq/olzScCIQDi
+ D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
+------END PRIVATE KEY-----
+-`
++-----END TESTING KEY-----
++`)
+ 
+ var ecdsaCertPEM = `-----BEGIN CERTIFICATE-----
+ MIIB/jCCAWICCQDscdUxw16XFDAJBgcqhkjOPQQBMEUxCzAJBgNVBAYTAkFVMRMw
+@@ -76,17 +76,17 @@ H5jBImIxPL4WxQNiBTexAkF8D1EtpYuWdlVQ80/h/f4pBcGiXPqX5h2PQSQY7hP1
+ -----END CERTIFICATE-----
+ `
+ 
+-var ecdsaKeyPEM = `-----BEGIN EC PARAMETERS-----
++var ecdsaKeyPEM = testingKey(`-----BEGIN EC PARAMETERS-----
+ BgUrgQQAIw==
+ -----END EC PARAMETERS-----
+------BEGIN EC PRIVATE KEY-----
++-----BEGIN EC TESTING KEY-----
+ MIHcAgEBBEIBrsoKp0oqcv6/JovJJDoDVSGWdirrkgCWxrprGlzB9o0X8fV675X0
+ NwuBenXFfeZvVcwluO7/Q9wkYoPd/t3jGImgBwYFK4EEACOhgYkDgYYABAFj36bL
+ 06h5JRGUNB1X/Hwuw64uKW2GGJLVPPhoYMcg/ALWaW+d/t+DmV5xikwKssuFq4Bz
+ VQldyCXTXGgu7OC0AQCC/Y/+ODK3NFKlRi+AsG3VQDSV4tgHLqZBBus0S6pPcg1q
+ kohxS/xfFg/TEwRSSws+roJr4JFKpO2t3/be5OdqmQ==
+------END EC PRIVATE KEY-----
+-`
++-----END EC TESTING KEY-----
++`)
+ 
+ var keyPairTests = []struct {
+ 	algo string
+@@ -1142,3 +1142,5 @@ func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
+ 		t.Fatalf("Certificates were mutated by BuildNameToCertificate\nGot: %#v\nWant: %#v\n", got, want)
+ 	}
+ }
++
++func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+diff --git a/src/crypto/x509/pem_decrypt_test.go b/src/crypto/x509/pem_decrypt_test.go
+index 685d5ee156..dacef8b861 100644
+--- a/src/crypto/x509/pem_decrypt_test.go
++++ b/src/crypto/x509/pem_decrypt_test.go
+@@ -80,8 +80,8 @@ var testData = []struct {
+ 	{
+ 		kind:     PEMCipherDES,
+ 		password: []byte("asdf"),
+-		pemData: []byte(`
+------BEGIN RSA PRIVATE KEY-----
++		pemData: []byte(testingKey(`
++-----BEGIN RSA TESTING KEY-----
+ Proc-Type: 4,ENCRYPTED
+ DEK-Info: DES-CBC,34F09A4FC8DE22B5
+ 
+@@ -92,7 +92,7 @@ qtHb1kirfGKEtgWTF+ynyco6+2gMXNu70L7nJcnxnV/RLFkHt7AUU1yrclxz7eZz
+ XOH9VfTjb52q/I8Suozq9coVQwg4tXfIoYUdT//O+mB7zJb9HI9Ps77b9TxDE6Gm
+ 4C9brwZ3zg2vqXcwwV6QRZMtyll9rOpxkbw6NPlpfBqkc3xS51bbxivbO/Nve4KD
+ r12ymjFNF4stXCfJnNqKoZ50BHmEEUDu5Wb0fpVn82XrGw7CYc4iug==
+------END RSA PRIVATE KEY-----`),
++-----END RSA TESTING KEY-----`)),
+ 		plainDER: `
+ MIIBPAIBAAJBAPASZe+tCPU6p80AjHhDkVsLYa51D35e/YGa8QcZyooeZM8EHozo
+ KD0fNiKI+53bHdy07N+81VQ8/ejPcRoXPlsCAwEAAQJBAMTxIuSq27VpR+zZ7WJf
+@@ -105,8 +105,8 @@ glcRgT6QCEtz2wIhANSyqaFtosIkHKqrDUGfz/bb5tqMYTAnBruVPaf/WEOBAiEA
+ 	{
+ 		kind:     PEMCipher3DES,
+ 		password: []byte("asdf"),
+-		pemData: []byte(`
+------BEGIN RSA PRIVATE KEY-----
++		pemData: []byte(testingKey(`
++-----BEGIN RSA TESTING KEY-----
+ Proc-Type: 4,ENCRYPTED
+ DEK-Info: DES-EDE3-CBC,C1F4A6A03682C2C7
+ 
+@@ -117,7 +117,7 @@ Fgx5f84nT+/ovvreG+xeOzWgvtKo0UUZVrhGOgfKLpa57adumcJ6SkUuBtEFpZFB
+ ldw5w7WC7d13x2LsRkwo8ZrDKgIV+Y9GNvhuCCkTzNP0V3gNeJpd201HZHR+9n3w
+ 3z0VjR/MGqsfcy1ziEWMNOO53At3zlG6zP05aHMnMcZoVXadEK6L1gz++inSSDCq
+ gI0UJP4e3JVB7AkgYymYAwiYALAkoEIuanxoc50njJk=
+------END RSA PRIVATE KEY-----`),
++-----END RSA TESTING KEY-----`)),
+ 		plainDER: `
+ MIIBOwIBAAJBANOCXKdoNS/iP/MAbl9cf1/SF3P+Ns7ZeNL27CfmDh0O6Zduaax5
+ NBiumd2PmjkaCu7lQ5JOibHfWn+xJsc3kw0CAwEAAQJANX/W8d1Q/sCqzkuAn4xl
+@@ -130,8 +130,8 @@ tZZZxCtPAm7shftEib0VU77Lk8MsXJcx2C4voRsjEw==`,
+ 	{
+ 		kind:     PEMCipherAES128,
+ 		password: []byte("asdf"),
+-		pemData: []byte(`
+------BEGIN RSA PRIVATE KEY-----
++		pemData: []byte(testingKey(`
++-----BEGIN RSA TESTING KEY-----
+ Proc-Type: 4,ENCRYPTED
+ DEK-Info: AES-128-CBC,D4492E793FC835CC038A728ED174F78A
+ 
+@@ -142,7 +142,7 @@ GZbBpf1jDH/pr0iGonuAdl2PCCZUiy+8eLsD2tyviHUkFLOB+ykYoJ5t8ngZ/B6D
+ 3NbvRVvYTgs8K9EPk4K+5R+P2kD8J8KvEIGxVa1vz8QoCJ/jr7Ka2rvNgPCex5/E
+ 080LzLHPCrXKdlr/f50yhNWq08ZxMWQFkui+FDHPDUaEELKAXV8/5PDxw80Rtybo
+ AVYoCVIbZXZCuCO81op8UcOgEpTtyU5Lgh3Mw5scQL0=
+------END RSA PRIVATE KEY-----`),
++-----END RSA TESTING KEY-----`)),
+ 		plainDER: `
+ MIIBOgIBAAJBAMBlj5FxYtqbcy8wY89d/S7n0+r5MzD9F63BA/Lpl78vQKtdJ5dT
+ cDGh/rBt1ufRrNp0WihcmZi7Mpl/3jHjiWECAwEAAQJABNOHYnKhtDIqFYj1OAJ3
+@@ -155,8 +155,8 @@ B3WlRNTXR2WsJ5JdByezg9xzdXzULqmga0OE339a`,
+ 	{
+ 		kind:     PEMCipherAES192,
+ 		password: []byte("asdf"),
+-		pemData: []byte(`
+------BEGIN RSA PRIVATE KEY-----
++		pemData: []byte(testingKey(`
++-----BEGIN RSA TESTING KEY-----
+ Proc-Type: 4,ENCRYPTED
+ DEK-Info: AES-192-CBC,E2C9FB02BCA23ADE1829F8D8BC5F5369
+ 
+@@ -167,7 +167,7 @@ Rb7tshNTMqHbCpyo9Rn3UxeFIf9efdl8YLiMoIqc7J8E5e9VlbeQSdLMQOgDAQJG
+ ReUtTw8exmKsY4gsSjhkg5uiw7/ZB1Ihto0qnfQJgjGc680qGkT1d6JfvOfeYAk6
+ xn5RqS/h8rYAYm64KnepfC9vIujo4NqpaREDmaLdX5MJPQ+SlytITQvgUsUq3q/t
+ Ss85xjQEZH3hzwjQqdJvmA4hYP6SUjxYpBM+02xZ1Xw=
+------END RSA PRIVATE KEY-----`),
++-----END RSA TESTING KEY-----`)),
+ 		plainDER: `
+ MIIBOwIBAAJBAMGcRrZiNNmtF20zyS6MQ7pdGx17aFDl+lTl+qnLuJRUCMUG05xs
+ OmxmL/O1Qlf+bnqR8Bgg65SfKg21SYuLhiMCAwEAAQJBAL94uuHyO4wux2VC+qpj
+@@ -180,8 +180,8 @@ uZ3pWbaXf5PNuQIgAcdXarvhelH2w2piY1g3BPeFqhzBSCK/yLGxR82KIh8CIQDD
+ 	{
+ 		kind:     PEMCipherAES256,
+ 		password: []byte("asdf"),
+-		pemData: []byte(`
+------BEGIN RSA PRIVATE KEY-----
++		pemData: []byte(testingKey(`
++-----BEGIN RSA TESTING KEY-----
+ Proc-Type: 4,ENCRYPTED
+ DEK-Info: AES-256-CBC,8E7ED5CD731902CE938957A886A5FFBD
+ 
+@@ -192,7 +192,7 @@ Pz3RZScwIuubzTGJ1x8EzdffYOsdCa9Mtgpp3L136+23dOd6L/qK2EG2fzrJSHs/
+ 2XugkleBFSMKzEp9mxXKRfa++uidQvMZTFLDK9w5YjrRvMBo/l2BoZIsq0jAIE1N
+ sv5Z/KwlX+3MDEpPQpUwGPlGGdLnjI3UZ+cjgqBcoMiNc6HfgbBgYJSU6aDSHuCk
+ clCwByxWkBNgJ2GrkwNrF26v+bGJJJNR4SKouY1jQf0=
+------END RSA PRIVATE KEY-----`),
++-----END RSA TESTING KEY-----`)),
+ 		plainDER: `
+ MIIBOgIBAAJBAKy3GFkstoCHIEeUU/qO8207m8WSrjksR+p9B4tf1w5k+2O1V/GY
+ AQ5WFCApItcOkQe/I0yZZJk/PmCqMzSxrc8CAwEAAQJAOCAz0F7AW9oNelVQSP8F
+@@ -207,15 +207,15 @@ PXHYtPqxQIbD2pScR5qum7iGUh11lEUPkmt+2uqS`,
+ 		// openssl genrsa -aes128 -passout pass:asdf -out server.orig.key 128
+ 		kind:     PEMCipherAES128,
+ 		password: []byte("asdf"),
+-		pemData: []byte(`
+------BEGIN RSA PRIVATE KEY-----
++		pemData: []byte(testingKey(`
++-----BEGIN RSA TESTING KEY-----
+ Proc-Type: 4,ENCRYPTED
+ DEK-Info: AES-128-CBC,74611ABC2571AF11B1BF9B69E62C89E7
+ 
+ 6ei/MlytjE0FFgZOGQ+jrwomKfpl8kdefeE0NSt/DMRrw8OacHAzBNi3pPEa0eX3
+ eND9l7C9meCirWovjj9QWVHrXyugFuDIqgdhQ8iHTgCfF3lrmcttVrbIfMDw+smD
+ hTP8O1mS/MHl92NE0nhv0w==
+------END RSA PRIVATE KEY-----`),
++-----END RSA TESTING KEY-----`)),
+ 		plainDER: `
+ MGMCAQACEQC6ssxmYuauuHGOCDAI54RdAgMBAAECEQCWIn6Yv2O+kBcDF7STctKB
+ AgkA8SEfu/2i3g0CCQDGNlXbBHX7kQIIK3Ww5o0cYbECCQDCimPb0dYGsQIIeQ7A
+@@ -223,14 +223,14 @@ jryIst8=`,
+ 	},
+ }
+ 
+-const incompleteBlockPEM = `
+------BEGIN RSA PRIVATE KEY-----
++var incompleteBlockPEM = testingKey(`
++-----BEGIN RSA TESTING KEY-----
+ Proc-Type: 4,ENCRYPTED
+ DEK-Info: AES-128-CBC,74611ABC2571AF11B1BF9B69E62C89E7
+ 
+ 6L8yXK2MTQUWBk4ZD6OvCiYp+mXyR1594TQ1K38MxGvDw5pwcDME2Lek8RrR5fd40P2XsL2Z4KKt
+ ai+OP1BZUetfK6AW4MiqB2FDyIdOAJ8XeWuZy21Wtsh8wPD6yYOFM/w7WZL8weX3Y0TSeG/T
+------END RSA PRIVATE KEY-----`
++-----END RSA TESTING KEY-----`)
+ 
+ func TestIncompleteBlock(t *testing.T) {
+ 	// incompleteBlockPEM contains ciphertext that is not a multiple of the
+@@ -245,3 +245,5 @@ func TestIncompleteBlock(t *testing.T) {
+ 		t.Fatalf("Expected error containing %q but got: %q", expectedSubstr, e)
+ 	}
+ }
++
++func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 7dadb77dfd..833497d275 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -112,8 +112,8 @@ FF53oIpvxe/SCOymfWq/LW849Ytv3Xwod0+wzAP8STXG4HSELS4UedPYeHJJJYcZ
+ -----END PUBLIC KEY-----
+ `
+ 
+-var pemPrivateKey = `
+------BEGIN RSA PRIVATE KEY-----
++var pemPrivateKey = testingKey(`
++-----BEGIN RSA TESTING KEY-----
+ MIICXAIBAAKBgQCxoeCUW5KJxNPxMp+KmCxKLc1Zv9Ny+4CFqcUXVUYH69L3mQ7v
+ IWrJ9GBfcaA7BPQqUlWxWM+OCEQZH1EZNIuqRMNQVuIGCbz5UQ8w6tS0gcgdeGX7
+ J7jgCQ4RK3F/PuCM38QBLaHx988qG8NMc6VKErBjctCXFHQt14lerd5KpQIDAQAB
+@@ -127,8 +127,8 @@ MTXIvf7Wmv6E++eFcnT461FlGAUHRV+bQQXGsItR/opIG7mGogIkVXa3E1MCQARX
+ AAA7eoZ9AEHflUeuLn9QJI/r0hyQQLEtrpwv6rDT1GCWaLII5HJ6NUFVf4TTcqxo
+ 6vdM4QGKTJoO+SaCyP0CQFdpcxSAuzpFcKv0IlJ8XzS/cy+mweCMwyJ1PFEc4FX6
+ wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
+------END RSA PRIVATE KEY-----
+-`
++-----END RSA TESTING KEY-----
++`)
+ 
+ // pemEd25519Key is the example from RFC 8410, Secrion 4.
+ var pemEd25519Key = `
+@@ -1245,8 +1245,8 @@ func TestParsePEMCRL(t *testing.T) {
+ func TestImports(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+ 
+-	if err := exec.Command(testenv.GoToolPath(t), "run", "x509_test_import.go").Run(); err != nil {
+-		t.Errorf("failed to run x509_test_import.go: %s", err)
++	if out, err := exec.Command(testenv.GoToolPath(t), "run", "x509_test_import.go").CombinedOutput(); err != nil {
++		t.Errorf("failed to run x509_test_import.go: %s\n%s", err, out)
+ 	}
+ }
+ 
+diff --git a/src/crypto/x509/x509_test_import.go b/src/crypto/x509/x509_test_import.go
+index 3fda7da188..b778df261a 100644
+--- a/src/crypto/x509/x509_test_import.go
++++ b/src/crypto/x509/x509_test_import.go
+@@ -15,6 +15,7 @@ import (
+ 	"crypto/x509/pkix"
+ 	"encoding/pem"
+ 	"math/big"
++	"strings"
+ 	"time"
+ )
+ 
+@@ -41,7 +42,7 @@ func main() {
+ 	}
+ }
+ 
+-var pemPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
++var pemPrivateKey = testingKey(`-----BEGIN RSA TESTING KEY-----
+ MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
+ fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
+ /ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
+@@ -49,5 +50,7 @@ RTUCIQDasvGASLqmjeffBNLTXV2A5g4t+kLVCpsEIZAycV5GswIhANEPLmax0ME/
+ EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
+ IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
+ tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
+------END RSA PRIVATE KEY-----
+-`
++-----END RSA TESTING KEY-----
++`)
++
++func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index 204611bda0..8515b46498 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -285,7 +285,7 @@ func BenchmarkDecode(b *testing.B) {
+ 	}
+ }
+ 
+-var pemData = `verify return:0
++var pemData = testingKey(`verify return:0
+ -----BEGIN CERTIFICATE-----
+ sdlfkjskldfj
+   -----BEGIN CERTIFICATE-----
+@@ -296,13 +296,13 @@ Certificate chain
+ -----BEGIN CERTIFICATE-----
+ testing
+ -----BEGIN CERTIFICATE-----
+------BEGIN CERTIFICATE----- 
++-----BEGIN CERTIFICATE-----
+ MIID6TCCA1ICAQEwDQYJKoZIhvcNAQEFBQAwgYsxCzAJBgNVBAYTAlVTMRMwEQYD
+ VQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2NvMRQwEgYDVQQK
+-EwtHb29nbGUgSW5jLjEMMAoGA1UECxMDRW5nMQwwCgYDVQQDEwNhZ2wxHTAbBgkq 
+-hkiG9w0BCQEWDmFnbEBnb29nbGUuY29tMB4XDTA5MDkwOTIyMDU0M1oXDTEwMDkw  
+-OTIyMDU0M1owajELMAkGA1UEBhMCQVUxEzARBgNVBAgTClNvbWUtU3RhdGUxITAf  	  
+-BgNVBAoTGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEjMCEGA1UEAxMaZXVyb3Bh		  
++EwtHb29nbGUgSW5jLjEMMAoGA1UECxMDRW5nMQwwCgYDVQQDEwNhZ2wxHTAbBgkq
++hkiG9w0BCQEWDmFnbEBnb29nbGUuY29tMB4XDTA5MDkwOTIyMDU0M1oXDTEwMDkw
++OTIyMDU0M1owajELMAkGA1UEBhMCQVUxEzARBgNVBAgTClNvbWUtU3RhdGUxITAf
++BgNVBAoTGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEjMCEGA1UEAxMaZXVyb3Bh
+ LnNmby5jb3JwLmdvb2dsZS5jb20wggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIK
+ AoICAQC6pgYt7/EibBDumASF+S0qvqdL/f+nouJw2T1Qc8GmXF/iiUcrsgzh/Fd8
+ pDhz/T96Qg9IyR4ztuc2MXrmPra+zAuSf5bevFReSqvpIt8Duv0HbDbcqs/XKPfB
+@@ -318,15 +318,15 @@ Pomjn71GNTtDeWAXibjCgdL6iHACCF6Htbl0zGlG0OAK+bdn0QIDAQABMA0GCSqG
+ SIb3DQEBBQUAA4GBAOKnQDtqBV24vVqvesL5dnmyFpFPXBn3WdFfwD6DzEb21UVG
+ 5krmJiu+ViipORJPGMkgoL6BjU21XI95VQbun5P8vvg8Z+FnFsvRFY3e1CCzAVQY
+ ZsUkLw2I7zI/dNlWdB8Xp7v+3w9sX5N3J/WuJ1KOO5m26kRlHQo7EzT3974g
+------END CERTIFICATE-----   
++-----END CERTIFICATE-----
+  1 s:/C=ZA/O=Ca Inc./CN=CA Inc
+ 
+------BEGIN RSA PRIVATE KEY-----   	
+-Proc-Type: 4,ENCRYPTED	  
+-DEK-Info: DES-EDE3-CBC,80C7C7A09690757A  	
+-  	
++-----BEGIN RSA TESTING KEY-----
++Proc-Type: 4,ENCRYPTED
++DEK-Info: DES-EDE3-CBC,80C7C7A09690757A
++
+ eQp5ZkH6CyHBz7BZfUPxyLCCmftsBJ7HlqGb8Ld21cSwnzWZ4/SIlhyrUtsfw7VR
+-2TTwA+odo9ex7GdxOTaH8oZFumIRoiEjHsk8U7Bhntp+ekkPP79xunnN7hb7hkhr   
++2TTwA+odo9ex7GdxOTaH8oZFumIRoiEjHsk8U7Bhntp+ekkPP79xunnN7hb7hkhr
+ yGDQZgA7s2cQHQ71v3gwT2BACAft26jCjbM1wgNzBnJ8M0Rzn68YWqaPtdBu8qb/
+ zVR5JB1mnqvTSbFsfF5yMc6o2WQ9jJCl6KypnMl+BpL+dlvdjYVK4l9lYsB1Hs3d
+ +zDBbWxos818zzhS8/y6eIfiSG27cqrbhURbmgiSfDXjncK4m/pLcQ7mmBL6mFOr
+@@ -338,7 +338,7 @@ BTiHcL3s3KrJu1vDVrshvxfnz71KTeNnZH8UbOqT5i7fPGyXtY1XJddcbI/Q6tXf
+ wHFsZc20TzSdsVLBtwksUacpbDogcEVMctnNrB8FIrB3vZEv9Q0Z1VeY7nmTpF+6
+ a+z2P7acL7j6A6Pr3+q8P9CPiPC7zFonVzuVPyB8GchGR2hytyiOVpuD9+k8hcuw
+ ZWAaUoVtWIQ52aKS0p19G99hhb+IVANC4akkdHV4SP8i7MVNZhfUmg==
+------END RSA PRIVATE KEY-----
++-----END RSA TESTING KEY-----
+ 
+ 
+ -----BEGIN EMPTY-----
+@@ -363,7 +363,7 @@ Header: 1
+ -----BEGIN HEADERS-----
+ Header: 1
+ 
+------END HEADERS-----`
++-----END HEADERS-----`)
+ 
+ var certificate = &Block{Type: "CERTIFICATE",
+ 	Headers: map[string]string{},
+@@ -582,7 +582,7 @@ var privateKey2 = &Block{
+ 	},
+ }
+ 
+-var pemPrivateKey2 = `-----BEGIN RSA PRIVATE KEY-----
++var pemPrivateKey2 = testingKey(`-----BEGIN RSA TESTING KEY-----
+ Proc-Type: 4,ENCRYPTED
+ Content-Domain: RFC822
+ DEK-Info: AES-128-CBC,BFCD243FEDBB40A4AA6DDAA1335473A4
+@@ -594,8 +594,8 @@ y9QEsXO5czLWesYpJaXaF5N6EOhB+6UXIPhO6eOPUSATu963k64TivYJ9KZB4CtR
+ GjA4DbE7Z4dk9coyZ9HIpT0jcsQGr497Jqw8dZGhABPGXEnVPOeyspng1SX64hKA
+ N4XPksobn/NO2IDvPM7N9ZCe+aeyDEkE8QmP6mPScLuGvzSrsgOxWTMWF7Dbdzj0
+ tJQLJRZ+ItT5Irl4owSEBNLahC1j3fhQavbj9WVAfKk=
+------END RSA PRIVATE KEY-----
+-`
++-----END RSA TESTING KEY-----
++`)
+ 
+ func TestBadEncode(t *testing.T) {
+ 	b := &Block{Type: "BAD", Headers: map[string]string{"X:Y": "Z"}}
+@@ -610,3 +610,5 @@ func TestBadEncode(t *testing.T) {
+ 		t.Fatalf("EncodeToMemory returned non-nil data")
+ 	}
+ }
++
++func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+diff --git a/src/net/http/internal/testcert.go b/src/net/http/internal/testcert.go
+index 407890920f..2284a836fb 100644
+--- a/src/net/http/internal/testcert.go
++++ b/src/net/http/internal/testcert.go
+@@ -4,6 +4,8 @@
+ 
+ package internal
+ 
++import "strings"
++
+ // LocalhostCert is a PEM-encoded TLS cert with SAN IPs
+ // "127.0.0.1" and "[::1]", expiring at Jan 29 16:00:00 2084 GMT.
+ // generated from src/crypto/tls:
+@@ -24,7 +26,7 @@ fblo6RBxUQ==
+ -----END CERTIFICATE-----`)
+ 
+ // LocalhostKey is the private key for localhostCert.
+-var LocalhostKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
++var LocalhostKey = []byte(testingKey(`-----BEGIN RSA TESTING KEY-----
+ MIICXgIBAAKBgQDuLnQAI3mDgey3VBzWnB2L39JUU4txjeVE6myuDqkM/uGlfjb9
+ SjY1bIw4iA5sBBZzHi3z0h1YV8QPuxEbi4nW91IJm2gsvvZhIrCHS3l6afab4pZB
+ l2+XsDulrKBxKKtD1rGxlG4LjncdabFn9gvLZad2bSysqz/qTAUStTvqJQIDAQAB
+@@ -38,4 +40,6 @@ fQtuUE9txblTu14q3N7gHRZB4ZMhFYyDy8CKrN2cPg/Fvyt0Xlp/DoCzjA0CQQDU
+ y2ptGsuSmgUtWj3NM9xuwYPm+Z/F84K6+ARYiZ6PYj013sovGKUFfYAqVXVlxtIX
+ qyUBnu3X9ps8ZfjLZO7BAkEAlT4R5Yl6cGhaJQYZHOde3JEMhNRcVFMO8dJDaFeo
+ f9Oeos0UUothgiDktdQHxdNEwLjQf7lJJBzV+5OtwswCWA==
+------END RSA PRIVATE KEY-----`)
++-----END RSA TESTING KEY-----`))
++
++func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index e366ef8015..8195f91419 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -900,8 +900,8 @@ tN8URjVmyEo=
+ -----END CERTIFICATE-----`)
+ 
+ // localhostKey is the private key for localhostCert.
+-var localhostKey = []byte(`
+------BEGIN RSA PRIVATE KEY-----
++var localhostKey = []byte(testingKey(`
++-----BEGIN RSA TESTING KEY-----
+ MIICXgIBAAKBgQDScVtBC45ayNsa16NylbPXnc6XOJkzhtWMn2Niu43DmfZHLq5h
+ AB9+Gpok4icKaZxV7ayImCWzIf1pGHq8qKhsFshRddRTUAF3np5sDOW3QuhsuXHu
+ lkQzLfQuoiL0TrOYvdi90bOliWQVGdGurAS1ZhsYF/fOc7bnRLnoIJYfZQIDAQAB
+@@ -915,4 +915,6 @@ vNjJu3yvoEZeIeuzouX9TJE21/33FaeDdsXbRhQEj23cqR38qFHsF1qAYNMCQQDP
+ QXLEiJoClkR2orAmqjPLVhR3t2oB3INcnEjLNSq8LHyQEfXyaFfu4U9l5+fRPL2i
+ jiC0k/9L5dHUsF0XZothAkEA23ddgRs+Id/HxtojqqUT27B8MT/IGNrYsp4DvS/c
+ qgkeluku4GjxRlDMBuXk94xOBEinUs+p/hwP1Alll80Tpg==
+------END RSA PRIVATE KEY-----`)
++-----END RSA TESTING KEY-----`))
++
++func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }

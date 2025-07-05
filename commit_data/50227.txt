@@ -13,7 +13,39 @@ Date:   Sat Oct 9 15:17:03 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules | 2 +-
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 9c476d885a..8b73ee14ea 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -472,7 +472,7 @@
+ (GetCallerPC ...) => (LoweredGetCallerPC ...)
+ (GetCallerSP ...) => (LoweredGetCallerSP ...)
+ 
+-(HasCPUFeature {s}) => (SETNE (CMPQconst [0] (LoweredHasCPUFeature {s})))
++(HasCPUFeature {s}) => (SETNE (CMPLconst [0] (LoweredHasCPUFeature {s})))
+ (Addr {sym} base) => (LEAQ {sym} base)
+ (LocalAddr {sym} base _) => (LEAQ {sym} base)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 88c76dd169..201fbf2954 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -29254,11 +29254,11 @@ func rewriteValueAMD64_OpHasCPUFeature(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (HasCPUFeature {s})
+-	// result: (SETNE (CMPQconst [0] (LoweredHasCPUFeature {s})))
++	// result: (SETNE (CMPLconst [0] (LoweredHasCPUFeature {s})))
+ 	for {
+ 		s := auxToSym(v.Aux)
+ 		v.reset(OpAMD64SETNE)
+-		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconst, types.TypeFlags)
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconst, types.TypeFlags)
+ 		v0.AuxInt = int32ToAuxInt(0)
+ 		v1 := b.NewValue0(v.Pos, OpAMD64LoweredHasCPUFeature, typ.UInt64)
+ 		v1.Aux = symToAux(s)

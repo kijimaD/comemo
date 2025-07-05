@@ -21,7 +21,39 @@ Date:   Wed May 10 13:53:39 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/43131
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/all_test.go | 1 +
  src/reflect/type.go     | 8 +++++---
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index b3b82f8b2a..4953e4ff83 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -6016,6 +6016,7 @@ func TestTypeStrings(t *testing.T) {
+ 		{ChanOf(3, TypeOf(XM{})), "chan reflect_test.XM"},
+ 		{MapOf(TypeOf(int(0)), TypeOf(XM{})), "map[int]reflect_test.XM"},
+ 		{ArrayOf(3, TypeOf(XM{})), "[3]reflect_test.XM"},
++		{ArrayOf(3, TypeOf(struct{}{})), "[3]struct {}"},
+ 	}
+ 
+ 	for i, test := range stringTests {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 637392f4e7..1849c4b8d4 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2814,9 +2814,11 @@ func ArrayOf(count int, elem Type) Type {
+ 	array.hash = fnv1(array.hash, ']')
+ 	array.elem = typ
+ 	array.ptrToThis = 0
+-	max := ^uintptr(0) / typ.size
+-	if uintptr(count) > max {
+-		panic("reflect.ArrayOf: array size would exceed virtual address space")
++	if typ.size > 0 {
++		max := ^uintptr(0) / typ.size
++		if uintptr(count) > max {
++			panic("reflect.ArrayOf: array size would exceed virtual address space")
++		}
+ 	}
+ 	array.size = typ.size * uintptr(count)
+ 	if count > 0 && typ.ptrdata != 0 {

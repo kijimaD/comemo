@@ -70,7 +70,7 @@ Date:   Thu Jun 21 10:14:18 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |   3 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  20 +--
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   2 +
@@ -78,3 +78,346 @@ Date:   Thu Jun 21 10:14:18 2018 +0000
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 178 +++++++++++++++++++++++++++
  test/codegen/arithmetic.go                   |   5 +
  6 files changed, 235 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 584cc4c4bd..4ecdb769f3 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -837,7 +837,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpAMD64ADDQload, ssa.OpAMD64ADDLload, ssa.OpAMD64SUBQload, ssa.OpAMD64SUBLload,
+ 		ssa.OpAMD64ANDQload, ssa.OpAMD64ANDLload, ssa.OpAMD64ORQload, ssa.OpAMD64ORLload,
+ 		ssa.OpAMD64XORQload, ssa.OpAMD64XORLload, ssa.OpAMD64ADDSDload, ssa.OpAMD64ADDSSload,
+-		ssa.OpAMD64SUBSDload, ssa.OpAMD64SUBSSload, ssa.OpAMD64MULSDload, ssa.OpAMD64MULSSload:
++		ssa.OpAMD64SUBSDload, ssa.OpAMD64SUBSSload, ssa.OpAMD64MULSDload, ssa.OpAMD64MULSSload,
++		ssa.OpAMD64DIVSDload, ssa.OpAMD64DIVSSload:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index bf3a116045..eab66d17ab 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1037,10 +1037,10 @@
+ 	((ADD|SUB|AND|OR|XOR)Qload [off1+off2] {sym} val base mem)
+ ((ADD|SUB|AND|OR|XOR)Lload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+ 	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {sym} val base mem)
+-((ADD|SUB|MUL)SSload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+-	((ADD|SUB|MUL)SSload [off1+off2] {sym} val base mem)
+-((ADD|SUB|MUL)SDload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
+-	((ADD|SUB|MUL)SDload [off1+off2] {sym} val base mem)
++((ADD|SUB|MUL|DIV)SSload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
++	((ADD|SUB|MUL|DIV)SSload [off1+off2] {sym} val base mem)
++((ADD|SUB|MUL|DIV)SDload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(off1+off2) ->
++	((ADD|SUB|MUL|DIV)SDload [off1+off2] {sym} val base mem)
+ ((ADD|AND|OR|XOR)Qconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+ 	((ADD|AND|OR|XOR)Qconstmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
+ ((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+@@ -1079,12 +1079,12 @@
+ ((ADD|SUB|AND|OR|XOR)Lload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+ 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+-((ADD|SUB|MUL)SSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
++((ADD|SUB|MUL|DIV)SSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+ 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+-	((ADD|SUB|MUL)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+-((ADD|SUB|MUL)SDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
++	((ADD|SUB|MUL|DIV)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
++((ADD|SUB|MUL|DIV)SDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
+ 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+-	((ADD|SUB|MUL)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
++	((ADD|SUB|MUL|DIV)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+ ((ADD|AND|OR|XOR)Qconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+ 	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) ->
+ 	((ADD|AND|OR|XOR)Qconstmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+@@ -2274,8 +2274,8 @@
+ // TODO: add indexed variants?
+ ((ADD|SUB|AND|OR|XOR)Q x l:(MOVQload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Qload x [off] {sym} ptr mem)
+ ((ADD|SUB|AND|OR|XOR)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Lload x [off] {sym} ptr mem)
+-((ADD|SUB|MUL)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL)SDload x [off] {sym} ptr mem)
+-((ADD|SUB|MUL)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL)SSload x [off] {sym} ptr mem)
++((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
++((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
+ 
+ // Merge ADDQconst and LEAQ into atomic loads.
+ (MOVQatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 1140958670..4735ea1bc0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -189,6 +189,8 @@ func init() {
+ 		{name: "SUBSDload", argLength: 3, reg: fp21load, asm: "SUBSD", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp64 arg0 - tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
+ 		{name: "MULSSload", argLength: 3, reg: fp21load, asm: "MULSS", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp32 arg0 * tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
+ 		{name: "MULSDload", argLength: 3, reg: fp21load, asm: "MULSD", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp64 arg0 * tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
++		{name: "DIVSSload", argLength: 3, reg: fp21load, asm: "DIVSS", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp32 arg0 / tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
++		{name: "DIVSDload", argLength: 3, reg: fp21load, asm: "DIVSD", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp64 arg0 / tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
+ 
+ 		// binary ops
+ 		{name: "ADDQ", argLength: 2, reg: gp21sp, asm: "ADDQ", commutative: true, clobberFlags: true},                                                                   // arg0 + arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 34b1d8a4bb..3554623840 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -462,6 +462,8 @@ const (
+ 	OpAMD64SUBSDload
+ 	OpAMD64MULSSload
+ 	OpAMD64MULSDload
++	OpAMD64DIVSSload
++	OpAMD64DIVSDload
+ 	OpAMD64ADDQ
+ 	OpAMD64ADDL
+ 	OpAMD64ADDQconst
+@@ -5543,6 +5545,42 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "DIVSSload",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		symEffect:      SymRead,
++		asm:            x86.ADIVSS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:           "DIVSDload",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		symEffect:      SymRead,
++		asm:            x86.ADIVSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
+ 	{
+ 		name:         "ADDQ",
+ 		argLen:       2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 4ffd6b5d18..245f795d90 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -157,6 +157,14 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64CMPXCHGLlock_0(v)
+ 	case OpAMD64CMPXCHGQlock:
+ 		return rewriteValueAMD64_OpAMD64CMPXCHGQlock_0(v)
++	case OpAMD64DIVSD:
++		return rewriteValueAMD64_OpAMD64DIVSD_0(v)
++	case OpAMD64DIVSDload:
++		return rewriteValueAMD64_OpAMD64DIVSDload_0(v)
++	case OpAMD64DIVSS:
++		return rewriteValueAMD64_OpAMD64DIVSS_0(v)
++	case OpAMD64DIVSSload:
++		return rewriteValueAMD64_OpAMD64DIVSSload_0(v)
+ 	case OpAMD64LEAL:
+ 		return rewriteValueAMD64_OpAMD64LEAL_0(v)
+ 	case OpAMD64LEAL1:
+@@ -8808,6 +8816,176 @@ func rewriteValueAMD64_OpAMD64CMPXCHGQlock_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64DIVSD_0(v *Value) bool {
++	// match: (DIVSD x l:(MOVSDload [off] {sym} ptr mem))
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (DIVSDload x [off] {sym} ptr mem)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVSDload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64DIVSDload)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(x)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64DIVSDload_0(v *Value) bool {
++	// match: (DIVSDload [off1] {sym} val (ADDQconst [off2] base) mem)
++	// cond: is32Bit(off1+off2)
++	// result: (DIVSDload [off1+off2] {sym} val base mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		val := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64ADDQconst {
++			break
++		}
++		off2 := v_1.AuxInt
++		base := v_1.Args[0]
++		mem := v.Args[2]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(OpAMD64DIVSDload)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(val)
++		v.AddArg(base)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (DIVSDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// result: (DIVSDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		_ = v.Args[2]
++		val := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64LEAQ {
++			break
++		}
++		off2 := v_1.AuxInt
++		sym2 := v_1.Aux
++		base := v_1.Args[0]
++		mem := v.Args[2]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpAMD64DIVSDload)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(val)
++		v.AddArg(base)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64DIVSS_0(v *Value) bool {
++	// match: (DIVSS x l:(MOVSSload [off] {sym} ptr mem))
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (DIVSSload x [off] {sym} ptr mem)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVSSload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64DIVSSload)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(x)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64DIVSSload_0(v *Value) bool {
++	// match: (DIVSSload [off1] {sym} val (ADDQconst [off2] base) mem)
++	// cond: is32Bit(off1+off2)
++	// result: (DIVSSload [off1+off2] {sym} val base mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		val := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64ADDQconst {
++			break
++		}
++		off2 := v_1.AuxInt
++		base := v_1.Args[0]
++		mem := v.Args[2]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(OpAMD64DIVSSload)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(val)
++		v.AddArg(base)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (DIVSSload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// result: (DIVSSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		_ = v.Args[2]
++		val := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64LEAQ {
++			break
++		}
++		off2 := v_1.AuxInt
++		sym2 := v_1.Aux
++		base := v_1.Args[0]
++		mem := v.Args[2]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpAMD64DIVSSload)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(val)
++		v.AddArg(base)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64LEAL_0(v *Value) bool {
+ 	// match: (LEAL [c] {s} (ADDLconst [d] x))
+ 	// cond: is32Bit(c+d)
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index f358020f55..a7f2906db9 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -112,6 +112,11 @@ func ConstDivs(n1 uint, n2 int) (uint, int) {
+ 	return a, b
+ }
+ 
++func FloatDivs(a []float32) float32 {
++	// amd64:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
++	return a[1] / a[2]
++}
++
+ func Pow2Mods(n1 uint, n2 int) (uint, int) {
+ 	// 386:"ANDL\t[$]31",-"DIVL"
+ 	// amd64:"ANDQ\t[$]31",-"DIVQ"

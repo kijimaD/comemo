@@ -15,7 +15,7 @@ Date:   Sun Oct 11 02:35:53 2009 -0700
     DELTA=1459  (1327 added, 11 deleted, 121 changed)
     OCL=34382
     CL=35581
-
+---
  usr/austin/eval/abort.go     |    8 +
  usr/austin/eval/eval_test.go |   11 +-
  usr/austin/eval/expr.go      |  171 +++++-
@@ -25,3 +25,2220 @@ Date:   Sun Oct 11 02:35:53 2009 -0700
  usr/austin/eval/stmt_test.go |    4 +-
  usr/austin/eval/world.go     |   17 +-
  8 files changed, 1447 insertions(+), 132 deletions(-)
+
+diff --git a/usr/austin/eval/abort.go b/usr/austin/eval/abort.go
+index 53747f3e1b..38ad2bf625 100644
+--- a/usr/austin/eval/abort.go
++++ b/usr/austin/eval/abort.go
+@@ -58,6 +58,14 @@ func (e IndexError) String() string {
+ 	return fmt.Sprintf("index %d exceeds length %d", e.Idx, e.Len);
+ }
+ 
++type SliceError struct {
++	Lo, Hi, Cap int64;
++}
++
++func (e SliceError) String() string {
++	return fmt.Sprintf("slice [%d:%d]; cap %d", e.Lo, e.Hi, e.Cap);
++}
++
+ type KeyError struct {
+ 	Key interface {};
+ }
+diff --git a/usr/austin/eval/eval_test.go b/usr/austin/eval/eval_test.go
+index 75c30a7a56..192a2e782c 100644
+--- a/usr/austin/eval/eval_test.go
++++ b/usr/austin/eval/eval_test.go
+@@ -65,7 +65,7 @@ func (a test) run(t *testing.T, name string) {
+ 			t.Errorf("%s: Compile %s succeeded; want %s", name, src, j.cerr);
+ 			break;
+ 		}
+-		
++
+ 		val, err := code.Run();
+ 		if err != nil {
+ 			if j.rterr == "" {
+@@ -82,7 +82,7 @@ func (a test) run(t *testing.T, name string) {
+ 			t.Errorf("%s: Run %s succeeded; want %s", name, src, j.rterr);
+ 			break;
+ 		}
+-	
++
+ 		if !j.noval && !reflect.DeepEqual(val, j.val) {
+ 			t.Errorf("%s: Run %s = %T(%v) want %T(%v)", name, src, val, val, j.val, j.val);
+ 		}
+@@ -122,6 +122,13 @@ func Run(stmts string) test {
+ 	return test([]job{job{code: stmts, noval: true}})
+ }
+ 
++// Two statements without error.
++// TODO(rsc): Should be possible with Run but the parser
++// won't let us do both top-level and non-top-level statements.
++func Run2(stmt1, stmt2 string) test {
++	return test([]job{job{code: stmt1, noval: true}, job{code: stmt2, noval: true}})
++}
++
+ // Statement runs and test one expression's value
+ func Val1(stmts string, expr1 string, val1 interface{}) test {
+ 	return test([]job{
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index e8ca933146..ea4fc082b7 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -11,6 +11,7 @@ import (
+ 	"log";
+ 	"strconv";
+ 	"strings";
++	"os";
+ )
+ 
+ // An expr is the result of compiling an expression.  It stores the
+@@ -160,7 +161,11 @@ func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
+ 			a.diag("negative %s: %s", negErr, val);
+ 			return nil;
+ 		}
+-		if max != -1 && val.Cmp(bignum.Int(max)) >= 0 {
++		bound := max;
++		if negErr == "slice" {
++			bound++;
++		}
++		if max != -1 && val.Cmp(bignum.Int(bound)) >= 0 {
+ 			a.diag("index %s exceeds length %d", val, max);
+ 			return nil;
+ 		}
+@@ -289,7 +294,7 @@ func (a *assignCompiler) allowMapForms(nls int) {
+ 	a.allowMap = true;
+ 
+ 	// Update unpacking info if this is r, ok = a[x]
+-	if nls == 2 && len(a.rs) == 1 && a.rs[0].evalMapValue != nil {
++	if nls == 2 && len(a.rs) == 1 && a.rs[0] != nil && a.rs[0].evalMapValue != nil {
+ 		a.isUnpack = true;
+ 		a.rmt = NewMultiType([]Type {a.rs[0].t, BoolType});
+ 		a.isMapUnpack = true;
+@@ -551,7 +556,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 		args := make([]*expr, len(x.Args));
+ 		bad := false;
+ 		for i, arg := range x.Args {
+-			if i == 0 && l.t == Type(makeType) {
++			if i == 0 && l != nil && (l.t == Type(makeType) || l.t == Type(newType)) {
+ 				argei := &exprInfo{a.compiler, arg.Pos()};
+ 				args[i] = argei.exprFromType(a.compileType(a.block, arg));
+ 			} else {
+@@ -561,7 +566,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 				bad = true;
+ 			}
+ 		}
+-		if l == nil || bad {
++		if bad || l == nil {
+ 			return nil;
+ 		}
+ 		if a.constant {
+@@ -583,8 +588,13 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 
+ 	case *ast.IndexExpr:
+ 		if x.End != nil {
+-			a.diagAt(x, "slice expression not implemented");
+-			return nil;
++			arr := a.compile(x.X, false);
++			lo := a.compile(x.Index, false);
++			hi := a.compile(x.End, false);
++			if arr == nil || lo == nil || hi == nil {
++				return nil;
++			}
++			return ei.compileSliceExpr(arr, lo, hi);
+ 		}
+ 		l, r := a.compile(x.X, false), a.compile(x.Index, false);
+ 		if l == nil || r == nil {
+@@ -926,6 +936,86 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
+ 	return builder(v);
+ }
+ 
++func (a *exprInfo) compileSliceExpr(arr, lo, hi *expr) *expr {
++	// Type check object
++	arr = arr.derefArray();
++
++	var at Type;
++	var maxIndex int64 = -1;
++
++	switch lt := arr.t.lit().(type) {
++	case *ArrayType:
++		at = NewSliceType(lt.Elem);
++		maxIndex = lt.Len;
++
++	case *SliceType:
++		at = lt;
++
++	case *stringType:
++		at = lt;
++
++	default:
++		a.diag("cannot slice %v", arr.t);
++		return nil;
++	}
++
++	// Type check index and convert to int
++	// XXX(Spec) It's unclear if ideal floats with no
++	// fractional part are allowed here.  6g allows it.  I
++	// believe that's wrong.
++	lo = lo.convertToInt(maxIndex, "slice", "slice");
++	hi = hi.convertToInt(maxIndex, "slice", "slice");
++	if lo == nil || hi == nil {
++		return nil;
++	}
++
++	expr := a.newExpr(at, "slice expression");
++
++	// Compile
++	lof := lo.asInt();
++	hif := hi.asInt();
++	switch lt := arr.t.lit().(type) {
++	case *ArrayType:
++		arrf := arr.asArray();
++		bound := lt.Len;
++		expr.eval = func(t *Thread) Slice {
++			arr, lo, hi := arrf(t), lof(t), hif(t);
++			if lo > hi || hi > bound || lo < 0 {
++				t.Abort(SliceError{lo, hi, bound});
++			}
++			return Slice{arr.Sub(lo, bound - lo), hi - lo, bound - lo}
++		};
++
++	case *SliceType:
++		arrf := arr.asSlice();
++		expr.eval = func(t *Thread) Slice {
++			arr, lo, hi := arrf(t), lof(t), hif(t);
++			if lo > hi || hi > arr.Cap || lo < 0 {
++				t.Abort(SliceError{lo, hi, arr.Cap});
++			}
++			return Slice{arr.Base.Sub(lo, arr.Cap - lo), hi - lo, arr.Cap - lo}
++		};
++
++	case *stringType:
++		arrf := arr.asString();
++		// TODO(austin) This pulls over the whole string in a
++		// remote setting, instead of creating a substring backed
++		// by remote memory.
++		expr.eval = func(t *Thread) string {
++			arr, lo, hi := arrf(t), lof(t), hif(t);
++			if lo > hi || hi > int64(len(arr)) || lo < 0 {
++				t.Abort(SliceError{lo, hi, int64(len(arr))});
++			}
++			return arr[lo:hi];
++		}
++
++	default:
++		log.Crashf("unexpected left operand type %T", arr.t.lit());
++	}
++
++	return expr;
++}
++
+ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
+ 	// Type check object
+ 	l = l.derefArray();
+@@ -1297,9 +1387,66 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
+ 			return nil;
+ 		}
+ 
+-	case closeType, closedType, newType, panicType, paniclnType, printType, printlnType:
++	case closeType, closedType:
+ 		a.diag("built-in function %s not implemented", ft.builtin);
+ 		return nil;
++
++	case newType:
++		if !checkCount(1, 1) {
++			return nil;
++		}
++
++		t := as[0].valType;
++		expr := a.newExpr(NewPtrType(t), "new");
++		expr.eval = func(*Thread) Value {
++			return t.Zero();
++		};
++		return expr;
++
++	case panicType, paniclnType, printType, printlnType:
++		evals := make([]func(*Thread)interface{}, len(as));
++		for i, x := range as {
++			evals[i] = x.asInterface();
++		}
++		spaces := ft == paniclnType || ft == printlnType;
++		newline := ft != printType;
++		printer := func(t *Thread) {
++			for i, eval := range evals {
++				if i > 0 && spaces {
++					print(" ");
++				}
++				v := eval(t);
++				type stringer interface { String() string }
++				switch v1 := v.(type) {
++				case bool:
++					print(v1);
++				case uint64:
++					print(v1);
++				case int64:
++					print(v1);
++				case float64:
++					print(v1);
++				case string:
++					print(v1);
++				case stringer:
++					print(v1.String());
++				default:
++					print("???");
++				}
++			}
++			if newline {
++				print("\n");
++			}
++		};
++		expr := a.newExpr(EmptyType, "print");
++		expr.exec = printer;
++		if ft == panicType || ft == paniclnType {
++			expr.exec = func(t *Thread) {
++				printer(t);
++				t.Abort(os.NewError("panic"));
++			}
++		}
++		return expr;
+ 	}
+ 
+ 	log.Crashf("unexpected built-in function '%s'", ft.builtin);
+@@ -1680,13 +1827,9 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
+ 		expr.genBinOpMul(l, r);
+ 
+ 	case token.QUO:
+-		// TODO(austin) Clear higher bits that may have
+-		// accumulated in our temporary.
+ 		expr.genBinOpQuo(l, r);
+ 
+ 	case token.REM:
+-		// TODO(austin) Clear higher bits that may have
+-		// accumulated in our temporary.
+ 		expr.genBinOpRem(l, r);
+ 
+ 	case token.AND:
+@@ -1745,6 +1888,12 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
+ 	case token.NEQ:
+ 		expr.genBinOpNeq(l, r);
+ 
++	case token.LAND:
++		expr.genBinOpLogAnd(l, r);
++
++	case token.LOR:
++		expr.genBinOpLogOr(l, r);
++
+ 	default:
+ 		log.Crashf("Compilation of binary op %v not implemented", op);
+ 	}
+diff --git a/usr/austin/eval/expr1.go b/usr/austin/eval/expr1.go
+index d337ea1770..7787a2112f 100644
+--- a/usr/austin/eval/expr1.go
++++ b/usr/austin/eval/expr1.go
+@@ -1,4 +1,3 @@
+-
+ // This file is machine generated by gen.go.
+ // 6g gen.go && 6l gen.6 && ./6.out >expr1.go
+ 
+@@ -58,31 +57,31 @@ func (a *expr) asMulti() (func(*Thread) []Value) {
+ 
+ func (a *expr) asInterface() (func(*Thread) interface{}) {
+ 	switch sf := a.eval.(type) {
+-	case func(*Thread)bool:
+-		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)uint64:
++	case func(t *Thread)bool:
+ 		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)int64:
++	case func(t *Thread)uint64:
+ 		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)*bignum.Integer:
++	case func(t *Thread)int64:
+ 		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)float64:
++	case func()*bignum.Integer:
++		return func(*Thread) interface{} { return sf() }
++	case func(t *Thread)float64:
+ 		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)*bignum.Rational:
++	case func()*bignum.Rational:
++		return func(*Thread) interface{} { return sf() }
++	case func(t *Thread)string:
+ 		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)string:
++	case func(t *Thread)ArrayValue:
+ 		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)ArrayValue:
++	case func(t *Thread)StructValue:
+ 		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)StructValue:
++	case func(t *Thread)Value:
+ 		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)Value:
++	case func(t *Thread)Func:
+ 		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)Func:
++	case func(t *Thread)Slice:
+ 		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)Slice:
+-		return func(t *Thread) interface{} { return sf(t) }
+-	case func(*Thread)Map:
++	case func(t *Thread)Map:
+ 		return func(t *Thread) interface{} { return sf(t) }
+ 	default:
+ 		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos);
+@@ -272,16 +271,104 @@ func (a *expr) genUnaryOpXor(v *expr) {
+ 	}
+ }
+ 
++func (a *expr) genBinOpLogAnd(l, r *expr) {
++	lf := l.asBool();
++	rf := r.asBool();
++	a.eval = func(t *Thread) bool { return lf(t) && rf(t) }
++}
++
++func (a *expr) genBinOpLogOr(l, r *expr) {
++	lf := l.asBool();
++	rf := r.asBool();
++	a.eval = func(t *Thread) bool { return lf(t) || rf(t) }
++}
++
+ func (a *expr) genBinOpAdd(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); return l + r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l + r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l + r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l + r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l + r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l + r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); return l + r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l + r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l + r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l + r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l + r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l + r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -290,7 +377,31 @@ func (a *expr) genBinOpAdd(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) float64 { l, r := lf(t), rf(t); return l + r }
++		switch t.Bits {
++		case 32:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				ret = l + r;
++				return float64(float32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				ret = l + r;
++				return float64(float64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				ret = l + r;
++				return float64(float(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -299,22 +410,101 @@ func (a *expr) genBinOpAdd(l, r *expr) {
+ 	case *stringType:
+ 		lf := l.asString();
+ 		rf := r.asString();
+-		a.eval = func(t *Thread) string { l, r := lf(t), rf(t); return l + r }
++		a.eval = func(t *Thread) string {
++			l, r := lf(t), rf(t);
++			return l + r
++		}
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+ 	}
+ }
+ 
+ func (a *expr) genBinOpSub(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); return l - r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l - r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l - r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l - r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l - r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l - r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); return l - r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l - r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l - r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l - r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l - r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l - r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -323,7 +513,31 @@ func (a *expr) genBinOpSub(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) float64 { l, r := lf(t), rf(t); return l - r }
++		switch t.Bits {
++		case 32:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				ret = l - r;
++				return float64(float32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				ret = l - r;
++				return float64(float64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				ret = l - r;
++				return float64(float(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -335,15 +549,91 @@ func (a *expr) genBinOpSub(l, r *expr) {
+ }
+ 
+ func (a *expr) genBinOpMul(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); return l * r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l * r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l * r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l * r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l * r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l * r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); return l * r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l * r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l * r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l * r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l * r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l * r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -352,7 +642,31 @@ func (a *expr) genBinOpMul(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) float64 { l, r := lf(t), rf(t); return l * r }
++		switch t.Bits {
++		case 32:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				ret = l * r;
++				return float64(float32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				ret = l * r;
++				return float64(float64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				ret = l * r;
++				return float64(float(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -364,15 +678,91 @@ func (a *expr) genBinOpMul(l, r *expr) {
+ }
+ 
+ func (a *expr) genBinOpQuo(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l / r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l / r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -381,7 +771,31 @@ func (a *expr) genBinOpQuo(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) float64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l / r }
++		switch t.Bits {
++		case 32:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return float64(float32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return float64(float64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) float64 {
++				l, r := lf(t), rf(t);
++				var ret float64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r;
++				return float64(float(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -393,15 +807,91 @@ func (a *expr) genBinOpQuo(l, r *expr) {
+ }
+ 
+ func (a *expr) genBinOpRem(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l % r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l % r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -413,15 +903,91 @@ func (a *expr) genBinOpRem(l, r *expr) {
+ }
+ 
+ func (a *expr) genBinOpAnd(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); return l & r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l & r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l & r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l & r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l & r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l & r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); return l & r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l & r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l & r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l & r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l & r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l & r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -433,15 +999,91 @@ func (a *expr) genBinOpAnd(l, r *expr) {
+ }
+ 
+ func (a *expr) genBinOpOr(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); return l | r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l | r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l | r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l | r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l | r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l | r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); return l | r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l | r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l | r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l | r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l | r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l | r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -453,15 +1095,91 @@ func (a *expr) genBinOpOr(l, r *expr) {
+ }
+ 
+ func (a *expr) genBinOpXor(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); return l ^ r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l ^ r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l ^ r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l ^ r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l ^ r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l ^ r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); return l ^ r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l ^ r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l ^ r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l ^ r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l ^ r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l ^ r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -473,15 +1191,91 @@ func (a *expr) genBinOpXor(l, r *expr) {
+ }
+ 
+ func (a *expr) genBinOpAndNot(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); return l &^ r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l &^ r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l &^ r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l &^ r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l &^ r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l &^ r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); return l &^ r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l &^ r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l &^ r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l &^ r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l &^ r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l &^ r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -493,45 +1287,203 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
+ }
+ 
+ func (a *expr) genBinOpShl(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); return l << r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l << r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l << r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l << r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l << r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l << r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); return l << r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l << r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l << r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l << r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l << r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l << r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+ 	}
+ }
+ 
+ func (a *expr) genBinOpShr(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); return l >> r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l >> r;
++				return uint64(uint8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l >> r;
++				return uint64(uint16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l >> r;
++				return uint64(uint32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l >> r;
++				return uint64(uint64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) uint64 {
++				l, r := lf(t), rf(t);
++				var ret uint64;
++				ret = l >> r;
++				return uint64(uint(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); return l >> r }
++		switch t.Bits {
++		case 8:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l >> r;
++				return int64(int8(ret))
++			}
++		case 16:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l >> r;
++				return int64(int16(ret))
++			}
++		case 32:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l >> r;
++				return int64(int32(ret))
++			}
++		case 64:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l >> r;
++				return int64(int64(ret))
++			}
++		case 0:
++			a.eval = func(t *Thread) int64 {
++				l, r := lf(t), rf(t);
++				var ret int64;
++				ret = l >> r;
++				return int64(int(ret))
++			}
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+ 	}
+ }
+ 
+ func (a *expr) genBinOpLss(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l < r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l < r
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l < r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l < r
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -540,7 +1492,10 @@ func (a *expr) genBinOpLss(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l < r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l < r
++		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -549,22 +1504,31 @@ func (a *expr) genBinOpLss(l, r *expr) {
+ 	case *stringType:
+ 		lf := l.asString();
+ 		rf := r.asString();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l < r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l < r
++		}
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+ 	}
+ }
+ 
+ func (a *expr) genBinOpGtr(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l > r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l > r
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l > r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l > r
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -573,7 +1537,10 @@ func (a *expr) genBinOpGtr(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l > r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l > r
++		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -582,22 +1549,31 @@ func (a *expr) genBinOpGtr(l, r *expr) {
+ 	case *stringType:
+ 		lf := l.asString();
+ 		rf := r.asString();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l > r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l > r
++		}
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+ 	}
+ }
+ 
+ func (a *expr) genBinOpLeq(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l <= r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l <= r
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l <= r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l <= r
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -606,7 +1582,10 @@ func (a *expr) genBinOpLeq(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l <= r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l <= r
++		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -615,22 +1594,31 @@ func (a *expr) genBinOpLeq(l, r *expr) {
+ 	case *stringType:
+ 		lf := l.asString();
+ 		rf := r.asString();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l <= r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l <= r
++		}
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+ 	}
+ }
+ 
+ func (a *expr) genBinOpGeq(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l >= r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l >= r
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l >= r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l >= r
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -639,7 +1627,10 @@ func (a *expr) genBinOpGeq(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l >= r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l >= r
++		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -648,26 +1639,38 @@ func (a *expr) genBinOpGeq(l, r *expr) {
+ 	case *stringType:
+ 		lf := l.asString();
+ 		rf := r.asString();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l >= r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l >= r
++		}
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+ 	}
+ }
+ 
+ func (a *expr) genBinOpEql(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *boolType:
+ 		lf := l.asBool();
+ 		rf := r.asBool();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l == r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l == r
++		}
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l == r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l == r
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l == r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l == r
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -676,7 +1679,10 @@ func (a *expr) genBinOpEql(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l == r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l == r
++		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -685,38 +1691,59 @@ func (a *expr) genBinOpEql(l, r *expr) {
+ 	case *stringType:
+ 		lf := l.asString();
+ 		rf := r.asString();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l == r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l == r
++		}
+ 	case *PtrType:
+ 		lf := l.asPtr();
+ 		rf := r.asPtr();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l == r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l == r
++		}
+ 	case *FuncType:
+ 		lf := l.asFunc();
+ 		rf := r.asFunc();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l == r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l == r
++		}
+ 	case *MapType:
+ 		lf := l.asMap();
+ 		rf := r.asMap();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l == r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l == r
++		}
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+ 	}
+ }
+ 
+ func (a *expr) genBinOpNeq(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ 	case *boolType:
+ 		lf := l.asBool();
+ 		rf := r.asBool();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l != r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l != r
++		}
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l != r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l != r
++		}
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l != r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l != r
++		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -725,7 +1752,10 @@ func (a *expr) genBinOpNeq(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l != r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l != r
++		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -734,19 +1764,31 @@ func (a *expr) genBinOpNeq(l, r *expr) {
+ 	case *stringType:
+ 		lf := l.asString();
+ 		rf := r.asString();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l != r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l != r
++		}
+ 	case *PtrType:
+ 		lf := l.asPtr();
+ 		rf := r.asPtr();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l != r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l != r
++		}
+ 	case *FuncType:
+ 		lf := l.asFunc();
+ 		rf := r.asFunc();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l != r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l != r
++		}
+ 	case *MapType:
+ 		lf := l.asMap();
+ 		rf := r.asMap();
+-		a.eval = func(t *Thread) bool { l, r := lf(t), rf(t); return l != r }
++		a.eval = func(t *Thread) bool {
++			l, r := lf(t), rf(t);
++			return l != r
++		}
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+ 	}
+diff --git a/usr/austin/eval/gen.go b/usr/austin/eval/gen.go
+index 5e7465e3d7..06939e58c7 100644
+--- a/usr/austin/eval/gen.go
++++ b/usr/austin/eval/gen.go
+@@ -22,6 +22,11 @@ type Op struct {
+ 	Types []*Type;
+ }
+ 
++type Size struct {
++	Bits int;
++	Sized string;
++}
++
+ type Type struct {
+ 	Repr string;
+ 	Value string;
+@@ -29,14 +34,21 @@ type Type struct {
+ 	As string;
+ 	IsIdeal bool;
+ 	HasAssign bool;
++	Sizes []Size;
+ }
+ 
+ var (
+ 	boolType = &Type{ Repr: "*boolType", Value: "BoolValue", Native: "bool", As: "asBool" };
+-	uintType = &Type{ Repr: "*uintType", Value: "UintValue", Native: "uint64", As: "asUint" };
+-	intType = &Type{ Repr: "*intType", Value: "IntValue", Native: "int64", As: "asInt" };
++	uintType = &Type{ Repr: "*uintType", Value: "UintValue", Native: "uint64", As: "asUint",
++		Sizes: []Size{ Size{8, "uint8"}, Size{16, "uint16"}, Size{32, "uint32"}, Size{64, "uint64"}, Size{0, "uint"}}
++	};
++	intType = &Type{ Repr: "*intType", Value: "IntValue", Native: "int64", As: "asInt",
++		Sizes: []Size{Size{8, "int8"}, Size{16, "int16"}, Size{32, "int32"}, Size{64, "int64"}, Size{0, "int"}}
++	};
+ 	idealIntType = &Type{ Repr: "*idealIntType", Value: "IdealIntValue", Native: "*bignum.Integer", As: "asIdealInt", IsIdeal: true };
+-	floatType = &Type{ Repr: "*floatType", Value: "FloatValue", Native: "float64", As: "asFloat" };
++	floatType = &Type{ Repr: "*floatType", Value: "FloatValue", Native: "float64", As: "asFloat",
++		Sizes: []Size{Size{32, "float32"}, Size{64, "float64"}, Size{0, "float"}}
++	};
+ 	idealFloatType = &Type{ Repr: "*idealFloatType", Value: "IdealFloatValue", Native: "*bignum.Rational", As: "asIdealFloat", IsIdeal: true };
+ 	stringType = &Type{ Repr: "*stringType", Value: "StringValue", Native: "string", As: "asString" };
+ 	arrayType = &Type{ Repr: "*ArrayType", Value: "ArrayValue", Native: "ArrayValue", As: "asArray", HasAssign: true };
+@@ -91,12 +103,12 @@ var binOps = []Op{
+ 	Op{ Name: "Sub", Expr: "l - r", ConstExpr: "l.Sub(r)", Types: numbers },
+ 	Op{ Name: "Mul", Expr: "l * r", ConstExpr: "l.Mul(r)", Types: numbers },
+ 	Op{ Name: "Quo",
+-		Body: "if r == 0 { t.Abort(DivByZeroError{}) } return l / r",
++		Body: "if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r",
+ 		ConstExpr: "l.Quo(r)",
+ 		Types: numbers,
+ 	},
+ 	Op{ Name: "Rem",
+-		Body: "if r == 0 { t.Abort(DivByZeroError{}) } return l % r",
++		Body: "if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r",
+ 		ConstExpr: "l.Rem(r)",
+ 		Types: integers,
+ 	},
+@@ -163,10 +175,11 @@ func (a *expr) asMulti() (func(*Thread) []Value) {
+ func (a *expr) asInterface() (func(*Thread) interface{}) {
+ 	switch sf := a.eval.(type) {
+ «.repeated section Types»
+-	case func(*Thread)«Native»:
+ «.section IsIdeal»
+-		return func(t *Thread) interface{} { return sf(t) }
++	case func()«Native»:
++		return func(*Thread) interface{} { return sf() }
+ «.or»
++	case func(t *Thread)«Native»:
+ 		return func(t *Thread) interface{} { return sf(t) }
+ «.end»
+ «.end»
+@@ -263,26 +276,68 @@ func (a *expr) genUnaryOp«Name»(v *expr) {
+ }
+ 
+ «.end»
++func (a *expr) genBinOpLogAnd(l, r *expr) {
++	lf := l.asBool();
++	rf := r.asBool();
++	a.eval = func(t *Thread) bool { return lf(t) && rf(t) }
++}
++
++func (a *expr) genBinOpLogOr(l, r *expr) {
++	lf := l.asBool();
++	rf := r.asBool();
++	a.eval = func(t *Thread) bool { return lf(t) || rf(t) }
++}
++
+ «.repeated section BinaryOps»
+ func (a *expr) genBinOp«Name»(l, r *expr) {
+-	switch l.t.lit().(type) {
++	switch t := l.t.lit().(type) {
+ «.repeated section Types»
+ 	case «Repr»:
+-«.section IsIdeal»
++	«.section IsIdeal»
+ 		l := l.«As»()();
+ 		r := r.«As»()();
+ 		val := «ConstExpr»;
+-«.section ReturnType»
++		«.section ReturnType»
+ 		a.eval = func(t *Thread) «ReturnType» { return val }
+-«.or»
++		«.or»
+ 		a.eval = func() «Native» { return val }
+-«.end»
+-«.or»
++		«.end»
++	«.or»
+ 		lf := l.«As»();
+ 		rf := r.«.section AsRightName»«@»«.or»«As»«.end»();
+-		a.eval = func(t *Thread) «.section ReturnType»«@»«.or»«Native»«.end» { l, r := lf(t), rf(t); «.section Body»«Body»«.or»return «Expr»«.end» }
+-«.end»
+-«.end»
++		«.section ReturnType»
++		a.eval = func(t *Thread) «@» {
++			l, r := lf(t), rf(t);
++			return «Expr»
++		}
++		«.or»
++		«.section Sizes»
++		switch t.Bits {
++		«.repeated section @»
++		case «Bits»:
++			a.eval = func(t *Thread) «Native» {
++				l, r := lf(t), rf(t);
++				var ret «Native»;
++				«.section Body»
++				«Body»;
++				«.or»
++				ret = «Expr»;
++				«.end»
++				return «Native»(«Sized»(ret))
++			}
++		«.end»
++		default:
++			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
++		}
++		«.or»
++		a.eval = func(t *Thread) «Native» {
++			l, r := lf(t), rf(t);
++			return «Expr»
++		}
++		«.end»
++		«.end»
++	«.end»
++	«.end»
+ 	default:
+ 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
+ 	}
+diff --git a/usr/austin/eval/main.go b/usr/austin/eval/main.go
+index a4401e1dd5..2a6d94845e 100644
+--- a/usr/austin/eval/main.go
++++ b/usr/austin/eval/main.go
+@@ -7,11 +7,66 @@ package main
+ import (
+ 	"./_obj/eval";
+ 	"bufio";
++	"flag";
++	"go/parser";
++	"go/scanner";
++	"io";
+ 	"os";
+ )
+ 
++var filename = flag.String("f", "", "file to run");
++
+ func main() {
++	flag.Parse();
+ 	w := eval.NewWorld();
++	if *filename != "" {
++		data, err := io.ReadFile(*filename);
++		if err != nil {
++			println(err.String());
++			os.Exit(1);
++		}
++		file, err := parser.ParseFile(*filename, data, 0);
++		if err != nil {
++			println(err.String());
++			os.Exit(1);
++		}
++		code, err := w.CompileDeclList(file.Decls);
++		if err != nil {
++			if list, ok := err.(scanner.ErrorList); ok {
++				for _, e := range list {
++					println(e.String());
++				}
++			} else {
++				println(err.String());
++			}
++			os.Exit(1);
++		}
++		_, err := code.Run();
++		if err != nil {
++			println(err.String());
++			os.Exit(1);
++		}
++		code, err = w.Compile("init()");
++		if code != nil {
++			_, err := code.Run();
++			if err != nil {
++				println(err.String());
++				os.Exit(1);
++			}
++		}
++		code, err = w.Compile("main()");
++		if err != nil {
++			println(err.String());
++			os.Exit(1);
++		}
++		_, err = code.Run();
++		if err != nil {
++			println(err.String());
++			os.Exit(1);
++		}
++		os.Exit(0);
++	}
++
+ 	r := bufio.NewReader(os.Stdin);
+ 	for {
+ 		print("; ");
+diff --git a/usr/austin/eval/stmt_test.go b/usr/austin/eval/stmt_test.go
+index 77e907088a..e94adfb602 100644
+--- a/usr/austin/eval/stmt_test.go
++++ b/usr/austin/eval/stmt_test.go
+@@ -331,9 +331,11 @@ var stmtTests = []test {
+ 	CErr("x := make(map[int] int); (func(a,b int){})(x[0])", "not enough"),
+ 	CErr("x := make(map[int] int); x[1] = oneTwo()", "too many"),
+ 	RErr("x := make(map[int] int); i = x[1]", "key '1' not found"),
+-	
++
+ 	// Functions
+ 	Val2("func fib(n int) int { if n <= 2 { return n } return fib(n-1) + fib(n-2) }", "fib(4)", 5, "fib(10)", 89),
++	Run("func f1(){}"),
++	Run2("func f1(){}", "f1()"),
+ }
+ 
+ func TestStmt(t *testing.T) {
+diff --git a/usr/austin/eval/world.go b/usr/austin/eval/world.go
+index 397da097a8..6d547f6e83 100644
+--- a/usr/austin/eval/world.go
++++ b/usr/austin/eval/world.go
+@@ -12,9 +12,6 @@ import (
+ 	"os";
+ )
+ 
+-// TODO: Make CompileExpr and CompileStmts
+-// methods on World.
+-
+ type World struct {
+ 	scope *Scope;
+ 	frame *Frame;
+@@ -41,10 +38,10 @@ type stmtCode struct {
+ 	code code;
+ }
+ 
+-func (w *World) compileStmts(stmts []ast.Stmt) (Code, os.Error) {
++func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
+ 	if len(stmts) == 1 {
+ 		if s, ok := stmts[0].(*ast.ExprStmt); ok {
+-			return w.compileExpr(s.X);
++			return w.CompileExpr(s.X);
+ 		}
+ 	}
+ 	errors := scanner.NewErrorVector();
+@@ -73,12 +70,12 @@ func (w *World) compileStmts(stmts []ast.Stmt) (Code, os.Error) {
+ 	return &stmtCode{w, fc.get()}, nil;
+ }
+ 
+-func (w *World) compileDecls(decls []ast.Decl) (Code, os.Error) {	
++func (w *World) CompileDeclList(decls []ast.Decl) (Code, os.Error) {
+ 	stmts := make([]ast.Stmt, len(decls));
+ 	for i, d := range decls {
+ 		stmts[i] = &ast.DeclStmt{d};
+ 	}
+-	return w.compileStmts(stmts);
++	return w.CompileStmtList(stmts);
+ }
+ 
+ func (s *stmtCode) Type() Type {
+@@ -97,7 +94,7 @@ type exprCode struct {
+ 	eval func(Value, *Thread);
+ }
+ 
+-func (w *World) compileExpr(e ast.Expr) (Code, os.Error) {
++func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
+ 	errors := scanner.NewErrorVector();
+ 	cc := &compiler{errors, 0, 0};
+ 
+@@ -144,13 +141,13 @@ func (e *exprCode) Run() (Value, os.Error) {
+ func (w *World) Compile(text string) (Code, os.Error) {
+ 	stmts, err := parser.ParseStmtList("input", text);
+ 	if err == nil {
+-		return w.compileStmts(stmts);
++		return w.CompileStmtList(stmts);
+ 	}
+ 
+ 	// Otherwise try as DeclList.
+ 	decls, err1 := parser.ParseDeclList("input", text);
+ 	if err1 == nil {
+-		return w.compileDecls(decls);
++		return w.CompileDeclList(decls);
+ 	}
+ 
+ 	// Have to pick an error.

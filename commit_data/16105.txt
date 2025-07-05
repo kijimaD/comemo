@@ -12,6 +12,33 @@ Date:   Fri Apr 5 08:04:02 2013 +1100
     R=golang-dev, bradfitz, adg
     CC=golang-dev
     https://golang.org/cl/8378043
-
+---
  doc/godocs.js | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 5d12da131f..6875f74d8c 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -179,6 +179,13 @@ function fixFocus() {
+   }).resize();
+ }
+ 
++function toggleHash() {
++    var hash = $(window.location.hash);
++    if (hash.is('.toggle')) {
++      hash.addClass('toggleVisible').removeClass('toggle');
++    }
++}
++
+ $(document).ready(function() {
+   bindSearchEvents();
+   generateTOC();
+@@ -190,6 +197,7 @@ $(document).ready(function() {
+   bindToggleLinks(".indexLink", "");
+   setupDropdownPlayground();
+   fixFocus();
++  toggleHash();
+ });
+ 
+ })();

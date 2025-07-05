@@ -19,7 +19,59 @@ Date:   Wed Nov 9 19:18:26 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5359054
-
+---
  src/pkg/html/parse.go      | 18 +++++++++++++++---
  src/pkg/html/parse_test.go |  2 +-
  2 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index f47d4ea147..c64eb66fcb 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -470,10 +470,15 @@ func inHeadIM(p *parser) (insertionMode, bool) {
+ 			implied = true
+ 		}
+ 	case EndTagToken:
+-		if p.tok.Data == "head" {
++		switch p.tok.Data {
++		case "head":
+ 			pop = true
++		case "body", "html", "br":
++			implied = true
++		default:
++			// Ignore the token.
++			return inHeadIM, true
+ 		}
+-		// TODO.
+ 	case CommentToken:
+ 		p.addChild(&Node{
+ 			Type: CommentNode,
+@@ -524,7 +529,14 @@ func afterHeadIM(p *parser) (insertionMode, bool) {
+ 			framesetOK = true
+ 		}
+ 	case EndTagToken:
+-		// TODO.
++		switch p.tok.Data {
++		case "body", "html", "br":
++			implied = true
++			framesetOK = true
++		default:
++			// Ignore the token.
++			return afterHeadIM, true
++		}
+ 	case CommentToken:
+ 		p.addChild(&Node{
+ 			Type: CommentNode,
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 27979225b3..14863da79f 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
+ 		n int
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+-		{"tests1.dat", 92},
++		{"tests1.dat", 99},
+ 		{"tests2.dat", 0},
+ 		{"tests3.dat", 0},
+ 	}

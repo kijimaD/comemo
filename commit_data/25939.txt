@@ -23,7 +23,147 @@ Date:   Wed Dec 2 15:41:44 2015 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/reader.go      | 38 ++++++++++++++++++++----
  src/archive/tar/reader_test.go | 67 +++++++++++++++++++++++++++++++++++++++---
  2 files changed, 96 insertions(+), 9 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 5319f2b629..4aa7edbce3 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -440,19 +440,47 @@ func (*parser) parseString(b []byte) string {
+ 	return string(b[0:n])
+ }
+ 
++// parseNumeric parses the input as being encoded in either base-256 or octal.
++// This function may return negative numbers.
++// If parsing fails or an integer overflow occurs, err will be set.
+ func (p *parser) parseNumeric(b []byte) int64 {
+-	// Check for binary format first.
++	// Check for base-256 (binary) format first.
++	// If the first bit is set, then all following bits constitute a two's
++	// complement encoded number in big-endian byte order.
+ 	if len(b) > 0 && b[0]&0x80 != 0 {
+-		var x int64
++		// Handling negative numbers relies on the following identity:
++		//	-a-1 == ^a
++		//
++		// If the number is negative, we use an inversion mask to invert the
++		// data bytes and treat the value as an unsigned number.
++		var inv byte // 0x00 if positive or zero, 0xff if negative
++		if b[0]&0x40 != 0 {
++			inv = 0xff
++		}
++
++		var x uint64
+ 		for i, c := range b {
++			c ^= inv // Inverts c only if inv is 0xff, otherwise does nothing
+ 			if i == 0 {
+-				c &= 0x7f // ignore signal bit in first byte
++				c &= 0x7f // Ignore signal bit in first byte
++			}
++			if (x >> 56) > 0 {
++				p.err = ErrHeader // Integer overflow
++				return 0
+ 			}
+-			x = x<<8 | int64(c)
++			x = x<<8 | uint64(c)
++		}
++		if (x >> 63) > 0 {
++			p.err = ErrHeader // Integer overflow
++			return 0
++		}
++		if inv == 0xff {
++			return ^int64(x)
+ 		}
+-		return x
++		return int64(x)
+ 	}
+ 
++	// Normal case is base-8 (octal) format.
+ 	return p.parseOctal(b)
+ }
+ 
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 21d51ebc0e..7b148b5122 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -326,10 +326,7 @@ var untarTests = []*untarTest{
+ 	},
+ 	{
+ 		file: "testdata/issue12435.tar",
+-		// TODO(dsnet): Currently the library does not detect that this file is
+-		// malformed. Instead, it incorrectly believes that file just ends.
+-		// At least the library doesn't crash anymore.
+-		// err:  ErrHeader,
++		err:  ErrHeader,
+ 	},
+ }
+ 
+@@ -1064,3 +1061,65 @@ func TestParsePAXRecord(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestParseNumeric(t *testing.T) {
++	var vectors = []struct {
++		input  string
++		output int64
++		ok     bool
++	}{
++		// Test base-256 (binary) encoded values.
++		{"", 0, true},
++		{"\x80", 0, true},
++		{"\x80\x00", 0, true},
++		{"\x80\x00\x00", 0, true},
++		{"\xbf", (1 << 6) - 1, true},
++		{"\xbf\xff", (1 << 14) - 1, true},
++		{"\xbf\xff\xff", (1 << 22) - 1, true},
++		{"\xff", -1, true},
++		{"\xff\xff", -1, true},
++		{"\xff\xff\xff", -1, true},
++		{"\xc0", -1 * (1 << 6), true},
++		{"\xc0\x00", -1 * (1 << 14), true},
++		{"\xc0\x00\x00", -1 * (1 << 22), true},
++		{"\x87\x76\xa2\x22\xeb\x8a\x72\x61", 537795476381659745, true},
++		{"\x80\x00\x00\x00\x07\x76\xa2\x22\xeb\x8a\x72\x61", 537795476381659745, true},
++		{"\xf7\x76\xa2\x22\xeb\x8a\x72\x61", -615126028225187231, true},
++		{"\xff\xff\xff\xff\xf7\x76\xa2\x22\xeb\x8a\x72\x61", -615126028225187231, true},
++		{"\x80\x7f\xff\xff\xff\xff\xff\xff\xff", math.MaxInt64, true},
++		{"\x80\x80\x00\x00\x00\x00\x00\x00\x00", 0, false},
++		{"\xff\x80\x00\x00\x00\x00\x00\x00\x00", math.MinInt64, true},
++		{"\xff\x7f\xff\xff\xff\xff\xff\xff\xff", 0, false},
++		{"\xf5\xec\xd1\xc7\x7e\x5f\x26\x48\x81\x9f\x8f\x9b", 0, false},
++
++		// Test base-8 (octal) encoded values.
++		{"0000000\x00", 0, true},
++		{" \x0000000\x00", 0, true},
++		{" \x0000003\x00", 3, true},
++		{"00000000227\x00", 0227, true},
++		{"032033\x00 ", 032033, true},
++		{"320330\x00 ", 0320330, true},
++		{"0000660\x00 ", 0660, true},
++		{"\x00 0000660\x00 ", 0660, true},
++		{"0123456789abcdef", 0, false},
++		{"0123456789\x00abcdef", 0, false},
++		{"01234567\x0089abcdef", 342391, true},
++		{"0123\x7e\x5f\x264123", 0, false},
++	}
++
++	for _, v := range vectors {
++		var p parser
++		num := p.parseNumeric([]byte(v.input))
++		ok := (p.err == nil)
++		if v.ok != ok {
++			if v.ok {
++				t.Errorf("parseNumeric(%q): got parsing failure, want success", v.input)
++			} else {
++				t.Errorf("parseNumeric(%q): got parsing success, want failure", v.input)
++			}
++		}
++		if ok && num != v.output {
++			t.Errorf("parseNumeric(%q): got %d, want %d", v.input, num, v.output)
++		}
++	}
++}

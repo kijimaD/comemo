@@ -18,6 +18,28 @@ Date:   Mon Mar 7 17:10:19 2016 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index a8f460b428..41c53c3c13 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -949,8 +949,6 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 	// reclaimed until the next GC cycle.
+ 	clearpools()
+ 
+-	work.finalizersDone = false
+-
+ 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
+ 		gcController.startCycle()
+ 		work.heapGoal = gcController.heapGoal
+@@ -1738,6 +1736,7 @@ func gcResetMarkState() {
+ 
+ 	work.bytesMarked = 0
+ 	work.initialHeapLive = memstats.heap_live
++	work.finalizersDone = false
+ }
+ 
+ // Hooks for other packages

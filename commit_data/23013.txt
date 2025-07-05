@@ -7,6 +7,25 @@ Date:   Sat Apr 18 18:19:06 2015 -0700
     Change-Id: I4ee6dac32bd3759aabdfdc92b235282785fbcca9
     Reviewed-on: https://go-review.googlesource.com/9083
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/proc1.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 2786e7e441..a46ebc8cec 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2711,6 +2711,13 @@ func incidlelocked(v int32) {
+ // Check for deadlock situation.
+ // The check is based on number of running M's, if 0 -> deadlock.
+ func checkdead() {
++	// For -buildmode=c-shared or -buildmode=c-archive it's OK if
++	// there are no running goroutines.  The calling program is
++	// assumed to be running.
++	if islibrary || isarchive {
++		return
++	}
++
+ 	// If we are dying because of a signal caught on an already idle thread,
+ 	// freezetheworld will cause all running threads to block.
+ 	// And runtime will essentially enter into deadlock state,

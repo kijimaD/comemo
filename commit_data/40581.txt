@@ -11,6 +11,34 @@ Date:   Thu May 30 18:08:08 2019 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/os_unix_test.go | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index fa4c594136..45cb6fc21f 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -259,12 +259,19 @@ func newFileTest(t *testing.T, blocking bool) {
+ 	}
+ 	defer file.Close()
+ 
++	timeToWrite := 100 * time.Millisecond
++	timeToDeadline := 1 * time.Millisecond
++	if !blocking {
++		// Use a longer time to avoid flakes.
++		// We won't be waiting this long anyhow.
++		timeToWrite = 1 * time.Second
++	}
++
+ 	// Try to read with deadline (but don't block forever).
+ 	b := make([]byte, 1)
+-	// Send something after 100ms.
+-	timer := time.AfterFunc(100*time.Millisecond, func() { syscall.Write(p[1], []byte("a")) })
++	timer := time.AfterFunc(timeToWrite, func() { syscall.Write(p[1], []byte("a")) })
+ 	defer timer.Stop()
+-	file.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
++	file.SetReadDeadline(time.Now().Add(timeToDeadline))
+ 	_, err := file.Read(b)
+ 	if !blocking {
+ 		// We want it to fail with a timeout.

@@ -9,6 +9,20 @@ Date:   Tue Jul 24 21:57:18 2012 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/6401054
-
+---
  src/pkg/net/net_posix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/net_posix.go b/src/pkg/net/net_posix.go
+index 8e126c14d7..3bcc54fe53 100644
+--- a/src/pkg/net/net_posix.go
++++ b/src/pkg/net/net_posix.go
+@@ -46,7 +46,7 @@ func (c *conn) LocalAddr() Addr {
+ 	return c.fd.laddr
+ }
+ 
+-// RemoteAddr returns the remote network address, a *UDPAddr.
++// RemoteAddr returns the remote network address.
+ func (c *conn) RemoteAddr() Addr {
+ 	if !c.ok() {
+ 		return nil

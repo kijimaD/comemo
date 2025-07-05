@@ -11,6 +11,19 @@ Date:   Wed Apr 14 17:31:09 2021 -0700
     Trust: Damien Neil <dneil@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/zoneinfo_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index 136bb7bb8a..f032aa7924 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -7,6 +7,7 @@ package time_test
+ import (
+ 	"errors"
+ 	"fmt"
++	"os"
+ 	"reflect"
+ 	"testing"
+ 	"time"

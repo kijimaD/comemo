@@ -18,6 +18,19 @@ Date:   Thu Mar 16 14:41:44 2023 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/opGen.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b5ca35953c..2c1c0dc567 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -5039,7 +5039,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredCtz32",
+ 		argLen:       1,
+ 		clobberFlags: true,
+-		asm:          x86.ABSFL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239}, // AX CX DX BX BP SI DI

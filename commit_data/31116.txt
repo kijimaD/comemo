@@ -12,6 +12,25 @@ Date:   Wed Feb 1 21:23:03 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/36113
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/testing/testing.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index b4dd40f36b..5efbc244fe 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1027,6 +1027,13 @@ func startAlarm() {
+ 	}
+ }
+ 
++// stopAlarm turns off the alarm.
++func stopAlarm() {
++	if *timeout > 0 {
++		timer.Stop()
++	}
++}
++
+ func parseCpuList() {
+ 	for _, val := range strings.Split(*cpuListStr, ",") {
+ 		val = strings.TrimSpace(val)

@@ -7,6 +7,22 @@ Date:   Mon Dec 19 17:31:20 2011 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5489082
-
+---
  src/pkg/net/http/request_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 714cb64f47..2a9c7ea28b 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -202,8 +202,8 @@ func validateTestMultipartContents(t *testing.T, req *Request, allMem bool) {
+ 	if g, e := req.FormValue("texta"), textaValue; g != e {
+ 		t.Errorf("texta value = %q, want %q", g, e)
+ 	}
+-	if g, e := req.FormValue("texta"), textaValue; g != e {
+-		t.Errorf("texta value = %q, want %q", g, e)
++	if g, e := req.FormValue("textb"), textbValue; g != e {
++		t.Errorf("textb value = %q, want %q", g, e)
+ 	}
+ 	if g := req.FormValue("missing"); g != "" {
+ 		t.Errorf("missing value = %q, want empty string", g)

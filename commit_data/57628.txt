@@ -15,7 +15,7 @@ Date:   Fri Aug 18 19:40:33 2023 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/compare/compare.go        | 28 +++++------
  .../compile/internal/devirtualize/devirtualize.go  |  4 +-
  src/cmd/compile/internal/devirtualize/pgo.go       |  2 +-
@@ -25,3 +25,318 @@ Date:   Fri Aug 18 19:40:33 2023 -0700
  src/cmd/compile/internal/typecheck/expr.go         | 55 ++++++++++++++++++++++
  src/cmd/compile/internal/walk/convert.go           |  2 +-
  8 files changed, 79 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/compare/compare.go b/src/cmd/compile/internal/compare/compare.go
+index 1674065556..2f6db78b74 100644
+--- a/src/cmd/compile/internal/compare/compare.go
++++ b/src/cmd/compile/internal/compare/compare.go
+@@ -198,15 +198,15 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
+ 				// Enforce ordering by starting a new set of reorderable conditions.
+ 				conds = append(conds, []ir.Node{})
+ 			}
+-			p := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym)
+-			q := ir.NewSelectorExpr(base.Pos, ir.OXDOT, nq, f.Sym)
+ 			switch {
+ 			case f.Type.IsString():
++				p := typecheck.DotField(base.Pos, typecheck.Expr(np), i)
++				q := typecheck.DotField(base.Pos, typecheck.Expr(nq), i)
+ 				eqlen, eqmem := EqString(p, q)
+ 				and(eqlen)
+ 				and(eqmem)
+ 			default:
+-				and(ir.NewBinaryExpr(base.Pos, ir.OEQ, p, q))
++				and(eqfield(np, nq, i))
+ 			}
+ 			if typeCanPanic {
+ 				// Also enforce ordering after something that can panic.
+@@ -219,13 +219,12 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
+ 		cost, size, next := eqStructFieldCost(t, i)
+ 		if cost <= 4 {
+ 			// Cost of 4 or less: use plain field equality.
+-			s := fields[i:next]
+-			for _, f := range s {
+-				and(eqfield(np, nq, ir.OEQ, f.Sym))
++			for j := i; j < next; j++ {
++				and(eqfield(np, nq, j))
+ 			}
+ 		} else {
+ 			// Higher cost: use memequal.
+-			cc := eqmem(np, nq, f.Sym, size)
++			cc := eqmem(np, nq, i, size)
+ 			and(cc)
+ 		}
+ 		i = next
+@@ -348,19 +347,18 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
+ // eqfield returns the node
+ //
+ //	p.field == q.field
+-func eqfield(p ir.Node, q ir.Node, op ir.Op, field *types.Sym) ir.Node {
+-	nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)
+-	ny := ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)
+-	ne := ir.NewBinaryExpr(base.Pos, op, nx, ny)
+-	return ne
++func eqfield(p, q ir.Node, field int) ir.Node {
++	nx := typecheck.DotField(base.Pos, typecheck.Expr(p), field)
++	ny := typecheck.DotField(base.Pos, typecheck.Expr(q), field)
++	return typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.OEQ, nx, ny))
+ }
+ 
+ // eqmem returns the node
+ //
+ //	memequal(&p.field, &q.field, size)
+-func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
+-	nx := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)))
+-	ny := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)))
++func eqmem(p, q ir.Node, field int, size int64) ir.Node {
++	nx := typecheck.Expr(typecheck.NodAddr(typecheck.DotField(base.Pos, p, field)))
++	ny := typecheck.Expr(typecheck.NodAddr(typecheck.DotField(base.Pos, q, field)))
+ 
+ 	fn, needsize := eqmemfunc(size, nx.Type().Elem())
+ 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
+diff --git a/src/cmd/compile/internal/devirtualize/devirtualize.go b/src/cmd/compile/internal/devirtualize/devirtualize.go
+index b156b66312..93882a3496 100644
+--- a/src/cmd/compile/internal/devirtualize/devirtualize.go
++++ b/src/cmd/compile/internal/devirtualize/devirtualize.go
+@@ -113,10 +113,9 @@ func staticCall(call *ir.CallExpr) {
+ 
+ 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, nil)
+ 	dt.SetType(typ)
+-	x := typecheck.Callee(ir.NewSelectorExpr(sel.Pos(), ir.OXDOT, dt, sel.Sel))
++	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
+ 	switch x.Op() {
+ 	case ir.ODOTMETH:
+-		x := x.(*ir.SelectorExpr)
+ 		if base.Flag.LowerM != 0 {
+ 			base.WarnfAt(call.Pos(), "devirtualizing %v to %v", sel, typ)
+ 		}
+@@ -124,7 +123,6 @@ func staticCall(call *ir.CallExpr) {
+ 		call.X = x
+ 	case ir.ODOTINTER:
+ 		// Promoted method from embedded interface-typed field (#42279).
+-		x := x.(*ir.SelectorExpr)
+ 		if base.Flag.LowerM != 0 {
+ 			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", sel, typ)
+ 		}
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index d339ba172b..2b6eb145ac 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -347,7 +347,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	assertAsList := ir.NewAssignListStmt(pos, ir.OAS2, []ir.Node{tmpnode, tmpok}, []ir.Node{typecheck.Expr(assert)})
+ 	init.Append(typecheck.Stmt(assertAsList))
+ 
+-	concreteCallee := typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, tmpnode, method))
++	concreteCallee := typecheck.XDotMethod(pos, tmpnode, method, true)
+ 	// Copy slice so edits in one location don't affect another.
+ 	argvars = append([]ir.Node(nil), argvars...)
+ 	concreteCall := typecheck.Call(pos, concreteCallee, argvars, call.IsDDD)
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 628719a922..5349db3879 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -7,7 +7,6 @@ package noder
+ import (
+ 	"go/constant"
+ 
+-	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/typecheck"
+@@ -83,29 +82,6 @@ func Deref(pos src.XPos, typ *types.Type, x ir.Node) *ir.StarExpr {
+ 	return n
+ }
+ 
+-func DotField(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
+-	op, typ := ir.ODOT, x.Type()
+-	if typ.IsPtr() {
+-		op, typ = ir.ODOTPTR, typ.Elem()
+-	}
+-	if !typ.IsStruct() {
+-		base.FatalfAt(pos, "DotField of non-struct: %L", x)
+-	}
+-
+-	// TODO(mdempsky): This is the backend's responsibility.
+-	types.CalcSize(typ)
+-
+-	field := typ.Field(index)
+-	return dot(pos, field.Type, op, x, field)
+-}
+-
+-func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Field) *ir.SelectorExpr {
+-	n := ir.NewSelectorExpr(pos, op, x, selection.Sym)
+-	n.Selection = selection
+-	typed(typ, n)
+-	return n
+-}
+-
+ // Statements
+ 
+ var one = constant.MakeInt64(1)
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index adba0b961f..008d7d5598 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2173,7 +2173,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		pos := r.pos()
+ 		_, sym := r.selector()
+ 
+-		return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
++		return typecheck.XDotField(pos, x, sym)
+ 
+ 	case exprMethodVal:
+ 		recv := r.expr()
+@@ -2208,7 +2208,7 @@ func (r *reader) expr() (res ir.Node) {
+ 				recv = typecheck.Expr(ir.NewConvExpr(recv.Pos(), ir.OCONVNOP, typ, recv))
+ 			}
+ 
+-			n := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, recv, wrapperFn.Sel)).(*ir.SelectorExpr)
++			n := typecheck.XDotMethod(pos, recv, wrapperFn.Sel, false)
+ 
+ 			// As a consistency check here, we make sure "n" selected the
+ 			// same method (represented by a types.Field) that wrapperFn
+@@ -2347,7 +2347,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		x := r.expr()
+ 		pos := r.pos()
+ 		for i, n := 0, r.Len(); i < n; i++ {
+-			x = Implicit(DotField(pos, x, r.Len()))
++			x = Implicit(typecheck.DotField(pos, x, r.Len()))
+ 		}
+ 		if r.Bool() { // needs deref
+ 			x = Implicit(Deref(pos, x.Type().Elem(), x))
+@@ -2374,7 +2374,7 @@ func (r *reader) expr() (res ir.Node) {
+ 				// There are also corner cases where semantically it's perhaps
+ 				// significant; e.g., fixedbugs/issue15975.go, #38634, #52025.
+ 
+-				fun = typecheck.Callee(ir.NewSelectorExpr(method.Pos(), ir.OXDOT, recv, method.Sel))
++				fun = typecheck.XDotMethod(method.Pos(), recv, method.Sel, true)
+ 			} else {
+ 				if recv.Type().IsInterface() {
+ 					// N.B., this happens currently for typeparam/issue51521.go
+@@ -2665,7 +2665,7 @@ func (r *reader) methodExprWrap(origPos src.XPos, recv *types.Type, implicits []
+ 		{
+ 			arg := args[0]
+ 			for _, ix := range implicits {
+-				arg = Implicit(DotField(pos, arg, ix))
++				arg = Implicit(typecheck.DotField(pos, arg, ix))
+ 			}
+ 			if deref {
+ 				arg = Implicit(Deref(pos, arg.Type().Elem(), arg))
+@@ -3947,7 +3947,7 @@ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
+ 
+ 	fn.SetWrapper(true) // TODO(mdempsky): Leave unset for tail calls?
+ 
+-	dot := ir.NewSelectorExpr(pos, ir.OXDOT, recv, method.Sym)
++	dot := typecheck.XDotMethod(pos, recv, method.Sym, true)
+ 	call := typecheck.Call(pos, dot, args, method.Type.IsVariadic()).(*ir.CallExpr)
+ 
+ 	if method.Type.NumResults() == 0 {
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index ba2bf85db3..29f9c79393 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -203,8 +203,7 @@ func hashFunc(t *types.Type) *ir.Func {
+ 			if !compare.IsRegularMemory(f.Type) {
+ 				hashel := hashfor(f.Type)
+ 				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
+-				nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
+-				na := typecheck.NodAddr(nx)
++				na := typecheck.NodAddr(typecheck.DotField(base.Pos, np, i))
+ 				call.Args.Append(na)
+ 				call.Args.Append(nh)
+ 				fn.Body.Append(ir.NewAssignStmt(base.Pos, nh, call))
+@@ -218,8 +217,7 @@ func hashFunc(t *types.Type) *ir.Func {
+ 			// h = hashel(&p.first, size, h)
+ 			hashel := hashmem(f.Type)
+ 			call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
+-			nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
+-			na := typecheck.NodAddr(nx)
++			na := typecheck.NodAddr(typecheck.DotField(base.Pos, np, i))
+ 			call.Args.Append(na)
+ 			call.Args.Append(nh)
+ 			call.Args.Append(ir.NewInt(base.Pos, size))
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 7e4b9f5621..edf0472567 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ )
+ 
+ // tcAddr typechecks an OADDR node.
+@@ -436,6 +437,60 @@ func tcConv(n *ir.ConvExpr) ir.Node {
+ 	return n
+ }
+ 
++// DotField returns a field selector expression that selects the
++// index'th field of the given expression, which must be of struct or
++// pointer-to-struct type.
++func DotField(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
++	op, typ := ir.ODOT, x.Type()
++	if typ.IsPtr() {
++		op, typ = ir.ODOTPTR, typ.Elem()
++	}
++	if !typ.IsStruct() {
++		base.FatalfAt(pos, "DotField of non-struct: %L", x)
++	}
++
++	// TODO(mdempsky): This is the backend's responsibility.
++	types.CalcSize(typ)
++
++	field := typ.Field(index)
++	return dot(pos, field.Type, op, x, field)
++}
++
++func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Field) *ir.SelectorExpr {
++	n := ir.NewSelectorExpr(pos, op, x, selection.Sym)
++	n.Selection = selection
++	n.SetType(typ)
++	n.SetTypecheck(1)
++	return n
++}
++
++// XDotMethod returns an expression representing the field selection
++// x.sym. If any implicit field selection are necessary, those are
++// inserted too.
++func XDotField(pos src.XPos, x ir.Node, sym *types.Sym) *ir.SelectorExpr {
++	n := Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
++	// TODO(mdempsky): Assert n is ODOT/ODOTPTR.
++	return n
++}
++
++// XDotMethod returns an expression representing the method value
++// x.sym (i.e., x is a value, not a type). If any implicit field
++// selection are necessary, those are inserted too.
++//
++// If callee is true, the result is an ODOTMETH/ODOTINTER, otherwise
++// an OMETHVALUE.
++func XDotMethod(pos src.XPos, x ir.Node, sym *types.Sym, callee bool) *ir.SelectorExpr {
++	n := ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)
++	if callee {
++		n = Callee(n).(*ir.SelectorExpr)
++		// TODO(mdempsky): Assert n is ODOTMETH/ODOTINTER.
++	} else {
++		n = Expr(n).(*ir.SelectorExpr)
++		// TODO(mdempsky): Assert n is OMETHVALUE.
++	}
++	return n
++}
++
+ // tcDot typechecks an OXDOT or ODOT node.
+ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
+ 	if n.Op() == ir.OXDOT {
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index f7367a3b78..dd074b9f91 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -418,7 +418,7 @@ func soleComponent(init *ir.Nodes, n ir.Node) ir.Node {
+ 				appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n, nil))
+ 				continue
+ 			}
+-			n = typecheck.Expr(ir.NewSelectorExpr(n.Pos(), ir.OXDOT, n, n.Type().Field(0).Sym))
++			n = typecheck.DotField(n.Pos(), n, 0)
+ 		case n.Type().IsArray():
+ 			n = typecheck.Expr(ir.NewIndexExpr(n.Pos(), n, ir.NewInt(base.Pos, 0)))
+ 		default:

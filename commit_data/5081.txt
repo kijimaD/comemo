@@ -7,8 +7,144 @@ Date:   Fri Mar 19 15:17:18 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/622041
-
+---
  src/pkg/runtime/mingw/syscall.cgo     | 27 ++++++++++++---------------
  src/pkg/syscall/mksyscall_mingw.sh    | 16 +++++++++++++---
  src/pkg/syscall/zsyscall_mingw_386.go | 10 +++++-----
  3 files changed, 30 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/runtime/mingw/syscall.cgo b/src/pkg/runtime/mingw/syscall.cgo
+index 25726f7390..6bccc486dc 100644
+--- a/src/pkg/runtime/mingw/syscall.cgo
++++ b/src/pkg/runtime/mingw/syscall.cgo
+@@ -6,18 +6,6 @@ package syscall
+ #include "runtime.h"
+ #include "os.h"
+ 
+-static uintptr
+-stdcallerr(uintptr *lasterr, uintptr trap, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6, uintptr a7, uintptr a8, uintptr a9)
+-{
+-	uintptr r;
+-
+-	·entersyscall();
+-	r = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+-	*lasterr = (uintptr)stdcall_raw(GetLastError);
+-	·exitsyscall();
+-	return r;
+-}
+-
+ func loadlibraryex(filename uintptr) (handle uint32) {
+ 	handle = (uint32)stdcall(LoadLibraryEx, filename, 0, 0);
+ }
+@@ -27,18 +15,27 @@ func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
+ }
+ 
+ func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	r1 = stdcallerr(&err, trap, a1, a2, a3, 0, 0, 0, 0, 0, 0);
++	·entersyscall();
++	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3);
+ 	r2 = 0;
++	err = (uintptr)stdcall_raw(GetLastError);
++	·exitsyscall();
+ }
+ 
+ func Syscall6(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	r1 = stdcallerr(&err, trap, a1, a2, a3, a4, a5, a6, 0, 0, 0);
++	·entersyscall();
++	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6);
+ 	r2 = 0;
++	err = (uintptr)stdcall_raw(GetLastError);
++	·exitsyscall();
+ }
+ 
+ func Syscall9(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, lasterr uintptr) {
+-	r1 = stdcallerr(&lasterr, trap, a1, a2, a3, a4, a5, a6, a7, a8, a9);
++	·entersyscall();
++	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+ 	r2 = 0;
++	lasterr = (uintptr)stdcall_raw(GetLastError);
++	·exitsyscall();
+ }
+ 
+ func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+diff --git a/src/pkg/syscall/mksyscall_mingw.sh b/src/pkg/syscall/mksyscall_mingw.sh
+index 4913b3655d..52fb1c3bb0 100755
+--- a/src/pkg/syscall/mksyscall_mingw.sh
++++ b/src/pkg/syscall/mksyscall_mingw.sh
+@@ -109,7 +109,7 @@ while(<>) {
+ 	# Go function header.
+ 	$text .= sprintf "func %s(%s) (%s) {\n", $func, join(', ', @in), join(', ', @out);
+ 
+-	# Prepare arguments to Syscall9.
++	# Prepare arguments to Syscall.
+ 	my @args = ();
+ 	my $n = 0;
+ 	foreach my $p (@in) {
+@@ -138,8 +138,18 @@ while(<>) {
+ 	}
+ 
+ 	# Determine which form to use; pad args with zeros.
+-	my $asm = "Syscall9";
+-	if(@args <= 9) {
++	my $asm = "Syscall";
++	if(@args <= 3) {
++		while(@args < 3) {
++			push @args, "0";
++		}
++	} elsif(@args <= 6) {
++		$asm = "Syscall6";
++		while(@args < 6) {
++			push @args, "0";
++		}
++	} elsif(@args <= 9) {
++		$asm = "Syscall9";
+ 		while(@args < 9) {
+ 			push @args, "0";
+ 		}
+diff --git a/src/pkg/syscall/zsyscall_mingw_386.go b/src/pkg/syscall/zsyscall_mingw_386.go
+index c2bc912ac4..4c16ac5d61 100644
+--- a/src/pkg/syscall/zsyscall_mingw_386.go
++++ b/src/pkg/syscall/zsyscall_mingw_386.go
+@@ -16,13 +16,13 @@ var (
+ )
+ 
+ func GetLastError() (lasterrno int) {
+-	r0, _, _ := Syscall9(procGetLastError, 0, 0, 0, 0, 0, 0, 0, 0, 0)
++	r0, _, _ := Syscall(procGetLastError, 0, 0, 0)
+ 	lasterrno = int(r0)
+ 	return
+ }
+ 
+ func LoadLibrary(libname string) (handle uint32, errno int) {
+-	r0, _, e1 := Syscall9(procLoadLibraryW, uintptr(unsafe.Pointer(StringToUTF16Ptr(libname))), 0, 0, 0, 0, 0, 0, 0, 0)
++	r0, _, e1 := Syscall(procLoadLibraryW, uintptr(unsafe.Pointer(StringToUTF16Ptr(libname))), 0, 0)
+ 	handle = uint32(r0)
+ 	if uint32(r0) == 0 {
+ 		errno = int(e1)
+@@ -33,7 +33,7 @@ func LoadLibrary(libname string) (handle uint32, errno int) {
+ }
+ 
+ func FreeLibrary(handle uint32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall9(procFreeLibrary, uintptr(handle), 0, 0, 0, 0, 0, 0, 0, 0)
++	r0, _, e1 := Syscall(procFreeLibrary, uintptr(handle), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if uint32(r0) == 0 {
+ 		errno = int(e1)
+@@ -44,7 +44,7 @@ func FreeLibrary(handle uint32) (ok bool, errno int) {
+ }
+ 
+ func GetProcAddress(module uint32, procname string) (proc uint32, errno int) {
+-	r0, _, e1 := Syscall9(procGetProcAddress, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0, 0, 0, 0, 0, 0, 0)
++	r0, _, e1 := Syscall(procGetProcAddress, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
+ 	proc = uint32(r0)
+ 	if uint32(r0) == 0 {
+ 		errno = int(e1)
+@@ -55,7 +55,7 @@ func GetProcAddress(module uint32, procname string) (proc uint32, errno int) {
+ }
+ 
+ func GetVersion() (ver uint32, errno int) {
+-	r0, _, e1 := Syscall9(procGetVersion, 0, 0, 0, 0, 0, 0, 0, 0, 0)
++	r0, _, e1 := Syscall(procGetVersion, 0, 0, 0)
+ 	ver = uint32(r0)
+ 	if uint32(r0) == 0 {
+ 		errno = int(e1)

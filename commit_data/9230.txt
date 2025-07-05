@@ -9,8 +9,73 @@ Date:   Wed Jul 27 19:31:11 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4816059
-
+---
  src/cmd/gc/closure.c     |  5 +++++
  src/cmd/gc/lex.c         |  5 +++--
  test/fixedbugs/bug355.go | 18 ++++++++++++++++++
  3 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 7e7b405260..1261eefb7d 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -84,6 +84,11 @@ typecheckclosure(Node *func, int top)
+ 	oldfn = curfn;
+ 	typecheck(&func->ntype, Etype);
+ 	func->type = func->ntype->type;
++	if(curfn == nil) {
++		xtop = list(xtop, func);
++		return;
++	}
++
+ 	if(func->type != T) {
+ 		curfn = func;
+ 		typechecklist(func->nbody, Etop);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 6845a8ecd6..24a244e40f 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -255,7 +255,7 @@ main(int argc, char *argv[])
+ 	resumecheckwidth();
+ 
+ 	for(l=xtop; l; l=l->next)
+-		if(l->n->op == ODCLFUNC) {
++		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE) {
+ 			curfn = l->n;
+ 			saveerrors();
+ 			typechecklist(l->n->nbody, Etop);
+@@ -274,8 +274,9 @@ main(int argc, char *argv[])
+ 	while(closures) {
+ 		l = closures;
+ 		closures = nil;
+-		for(; l; l=l->next)
++		for(; l; l=l->next) {
+ 			funccompile(l->n, 1);
++		}
+ 	}
+ 
+ 	for(l=externdcl; l; l=l->next)
+diff --git a/test/fixedbugs/bug355.go b/test/fixedbugs/bug355.go
+new file mode 100644
+index 0000000000..a9cf0161b0
+--- /dev/null
++++ b/test/fixedbugs/bug355.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var f = func() int {
++	type S int
++	return 42
++}
++
++func main() {
++	if f() != 42 {
++		panic("BUG: bug355")
++	}
++}

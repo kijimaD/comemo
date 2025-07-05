@@ -20,9 +20,99 @@ Date:   Thu Nov 14 12:56:46 2024 +0100
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/crypto/internal/fips/check/check.go          | 12 ++++++++++++
  src/crypto/internal/fips/check/check_test.go     |  6 ++++++
  src/crypto/internal/fips/check/checktest/asm.s   |  4 ++--
  src/crypto/internal/fips/check/checktest/test.go |  9 ++++++++-
  4 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/internal/fips/check/check.go b/src/crypto/internal/fips/check/check.go
+index 71405cdf7f..9d1a88d78e 100644
+--- a/src/crypto/internal/fips/check/check.go
++++ b/src/crypto/internal/fips/check/check.go
+@@ -15,6 +15,7 @@ package check
+ import (
+ 	"crypto/internal/fips/hmac"
+ 	"crypto/internal/fips/sha256"
++	"internal/asan"
+ 	"internal/byteorder"
+ 	"internal/godebug"
+ 	"io"
+@@ -77,6 +78,17 @@ func init() {
+ 		return
+ 	}
+ 
++	if asan.Enabled {
++		// ASAN disapproves of reading swaths of global memory below.
++		// One option would be to expose runtime.asanunpoison through
++		// crypto/internal/fipsdeps and then call it to unpoison the range
++		// before reading it, but it is unclear whether that would then cause
++		// false negatives. For now, FIPS+ASAN doesn't need to work.
++		// If this is made to work, also re-enable the test in check_test.go.
++		panic("fips140: cannot verify in asan mode")
++		return
++	}
++
+ 	switch v {
+ 	case "on", "only", "debug":
+ 		// ok
+diff --git a/src/crypto/internal/fips/check/check_test.go b/src/crypto/internal/fips/check/check_test.go
+index 56d7a19503..f0ca7f4251 100644
+--- a/src/crypto/internal/fips/check/check_test.go
++++ b/src/crypto/internal/fips/check/check_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"crypto/internal/fips/check/checktest"
+ 	"fmt"
+ 	"internal/abi"
++	"internal/asan"
+ 	"internal/godebug"
+ 	"os"
+ 	"os/exec"
+@@ -37,6 +38,11 @@ func TestVerify(t *testing.T) {
+ 	if !Supported() {
+ 		t.Skipf("skipping on %s-%s", runtime.GOOS, runtime.GOARCH)
+ 	}
++	if asan.Enabled {
++		// Verification panics with asan; don't bother.
++		t.Skipf("skipping with -asan")
++		return
++	}
+ 
+ 	cmd := exec.Command(os.Args[0], "-test.v")
+ 	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
+diff --git a/src/crypto/internal/fips/check/checktest/asm.s b/src/crypto/internal/fips/check/checktest/asm.s
+index 1151a1345b..090f87b1ec 100644
+--- a/src/crypto/internal/fips/check/checktest/asm.s
++++ b/src/crypto/internal/fips/check/checktest/asm.s
+@@ -2,5 +2,5 @@
+ 
+ #include "textflag.h"
+ 
+-DATA ·RODATA(SB)/4, $2
+-GLOBL ·RODATA(SB), RODATA, $4
++DATA crypto∕internal∕fips∕check∕checktest·RODATA(SB)/4, $2
++GLOBL crypto∕internal∕fips∕check∕checktest·RODATA(SB), RODATA, $4
+diff --git a/src/crypto/internal/fips/check/checktest/test.go b/src/crypto/internal/fips/check/checktest/test.go
+index b234316d7a..84d92332b5 100644
+--- a/src/crypto/internal/fips/check/checktest/test.go
++++ b/src/crypto/internal/fips/check/checktest/test.go
+@@ -6,10 +6,17 @@
+ // the crypto/internal/fips/check test.
+ package checktest
+ 
+-import _ "crypto/internal/fips/check"
++import (
++	_ "crypto/internal/fips/check"
++	_ "unsafe" // go:linkname
++)
+ 
+ var NOPTRDATA int = 1
+ 
++// The linkname here disables asan registration of this global,
++// because asan gets mad about rodata globals.
++//
++//go:linkname RODATA crypto/internal/fips/check/checktest.RODATA
+ var RODATA int32 // set to 2 in asm.s
+ 
+ // DATA needs to have both a pointer and an int so that _some_ of it gets

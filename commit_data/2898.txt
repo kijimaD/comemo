@@ -8,8 +8,79 @@ Date:   Thu Aug 6 13:07:05 2009 -0700
     DELTA=29  (28 added, 1 deleted, 0 changed)
     OCL=32829
     CL=32837
-
+---
  src/pkg/runtime/extern.go            |  3 +++
  src/pkg/runtime/proc.c               | 24 +++++++++++++++++++++++-
  test/bench/spectral-norm-parallel.go |  2 ++
  3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 1f6561394c..d002e48136 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -40,3 +40,6 @@ func LockOSThread()
+ // If the calling goroutine has not called LockOSThread, UnlockOSThread is a no-op.
+ func UnlockOSThread()
+ 
++// GOMAXPROCS sets the maximum number of CPUs that can be executing
++// simultaneously.   This call will go away when the scheduler improves.
++func GOMAXPROCS(n int)
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3c8ef54fe7..47356851b9 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -807,6 +807,29 @@ runtime·LockOSThread(void)
+ 	g->lockedm = m;
+ }
+ 
++// delete when scheduler is stronger
++void
++runtime·GOMAXPROCS(int32 n)
++{
++	if(n < 1)
++		n = 1;
++
++	lock(&sched);
++	sched.gomaxprocs = n;
++	sched.mcpumax = n;
++	// handle fewer procs
++	while(sched.mcpu > sched.mcpumax) {
++		noteclear(&sched.stopped);
++		sched.waitstop = 1;
++		unlock(&sched);
++		notesleep(&sched.stopped);
++		lock(&sched);
++	}
++	// handle more procs
++	matchmg();
++	unlock(&sched);
++}
++
+ void
+ runtime·UnlockOSThread(void)
+ {
+@@ -821,4 +844,3 @@ runtime·mid(uint32 ret)
+ 	ret = m->id;
+ 	FLUSH(&ret);
+ }
+-
+diff --git a/test/bench/spectral-norm-parallel.go b/test/bench/spectral-norm-parallel.go
+index 0de2273ee7..9e7f33885f 100644
+--- a/test/bench/spectral-norm-parallel.go
++++ b/test/bench/spectral-norm-parallel.go
+@@ -40,6 +40,7 @@ import (
+ 	"flag";
+ 	"fmt";
+ 	"math";
++	"runtime";
+ )
+ 
+ var n = flag.Int("n", 2000, "count")
+@@ -92,6 +93,7 @@ func (v Vec) ATimesTransp(u Vec) {
+ 
+ func main() {
+ 	flag.Parse();
++	runtime.GOMAXPROCS(*nCPU);
+ 	N := *n;
+ 	u := make(Vec, N);
+ 	for i := 0; i < N; i++ {

@@ -10,6 +10,27 @@ Date:   Fri Mar 27 01:59:31 2015 +0000
     Change-Id: Id487898962e7ab7adf98b0854c2f1802116bec11
     Reviewed-on: https://go-review.googlesource.com/8132
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/go/testflag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 19a5dddc91..5652e5466c 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -30,6 +30,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	// local.
+ 	{name: "c", boolVar: &testC},
+ 	{name: "cover", boolVar: &testCover},
++	{name: "covermode"},
+ 	{name: "coverpkg"},
+ 	{name: "o"},
+ 
+@@ -53,7 +54,6 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "bench", passToTest: true},
+ 	{name: "benchmem", boolVar: new(bool), passToTest: true},
+ 	{name: "benchtime", passToTest: true},
+-	{name: "covermode"},
+ 	{name: "coverprofile", passToTest: true},
+ 	{name: "cpu", passToTest: true},
+ 	{name: "cpuprofile", passToTest: true},

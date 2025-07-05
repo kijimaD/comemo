@@ -12,7 +12,7 @@ Date:   Tue Nov 7 17:35:46 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: shuang cui <imcusg@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/cgo/handle.go     |  4 ++--
  src/runtime/cpuprof.go        |  4 ++--
  src/runtime/debug.go          |  2 +-
@@ -32,3 +32,415 @@ Date:   Tue Nov 7 17:35:46 2023 +0800
  src/runtime/pprof/runtime.go  |  2 +-
  src/runtime/symtab.go         |  8 ++++----
  18 files changed, 43 insertions(+), 43 deletions(-)
+
+diff --git a/src/runtime/cgo/handle.go b/src/runtime/cgo/handle.go
+index 061dfb0e2e..59b65da2b6 100644
+--- a/src/runtime/cgo/handle.go
++++ b/src/runtime/cgo/handle.go
+@@ -61,8 +61,8 @@ import (
+ //	}
+ //
+ // Some C functions accept a void* argument that points to an arbitrary
+-// data value supplied by the caller. It is not safe to coerce a cgo.Handle
+-// (an integer) to a Go unsafe.Pointer, but instead we can pass the address
++// data value supplied by the caller. It is not safe to coerce a [cgo.Handle]
++// (an integer) to a Go [unsafe.Pointer], but instead we can pass the address
+ // of the cgo.Handle to the void* parameter, as in this variant of the
+ // previous example:
+ //
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 0d7eeacb39..72f589944d 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -202,8 +202,8 @@ func (p *cpuProfile) addExtra() {
+ // The details of generating that format have changed,
+ // so this functionality has been removed.
+ //
+-// Deprecated: Use the runtime/pprof package,
+-// or the handlers in the net/http/pprof package,
++// Deprecated: Use the [runtime/pprof] package,
++// or the handlers in the [net/http/pprof] package,
+ // or the testing package's -test.cpuprofile flag instead.
+ func CPUProfile() []byte {
+ 	panic("CPUProfile no longer available")
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 9a92b45ff3..1cd9189ed5 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -11,7 +11,7 @@ import (
+ 
+ // GOMAXPROCS sets the maximum number of CPUs that can be executing
+ // simultaneously and returns the previous setting. It defaults to
+-// the value of runtime.NumCPU. If n < 1, it does not change the current setting.
++// the value of [runtime.NumCPU]. If n < 1, it does not change the current setting.
+ // This call will go away when the scheduler improves.
+ func GOMAXPROCS(n int) int {
+ 	if GOARCH == "wasm" && n > 1 {
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 0f53928fe8..cb3248d64d 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -214,7 +214,7 @@ func SetTraceback(level string)
+ //
+ // The memory limit is always respected by the Go runtime, so to
+ // effectively disable this behavior, set the limit very high.
+-// math.MaxInt64 is the canonical value for disabling the limit,
++// [math.MaxInt64] is the canonical value for disabling the limit,
+ // but values much greater than the available memory on the underlying
+ // system work just as well.
+ //
+diff --git a/src/runtime/debug/stack.go b/src/runtime/debug/stack.go
+index 5d810af540..3999840d3c 100644
+--- a/src/runtime/debug/stack.go
++++ b/src/runtime/debug/stack.go
+@@ -17,7 +17,7 @@ func PrintStack() {
+ }
+ 
+ // Stack returns a formatted stack trace of the goroutine that calls it.
+-// It calls runtime.Stack with a large enough buffer to capture the entire trace.
++// It calls [runtime.Stack] with a large enough buffer to capture the entire trace.
+ func Stack() []byte {
+ 	buf := make([]byte, 1024)
+ 	for {
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 3590ccd965..b507f25e18 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -93,7 +93,7 @@ func (e errorAddressString) Error() string {
+ // The address provided is best-effort.
+ // The veracity of the result may depend on the platform.
+ // Errors providing this method will only be returned as
+-// a result of using runtime/debug.SetPanicOnFault.
++// a result of using [runtime/debug.SetPanicOnFault].
+ func (e errorAddressString) Addr() uintptr {
+ 	return e.addr
+ }
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 26dcf0bd52..cc88a659ca 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -5,7 +5,7 @@
+ /*
+ Package runtime contains operations that interact with Go's runtime system,
+ such as functions to control goroutines. It also includes the low-level type information
+-used by the reflect package; see reflect's documentation for the programmable
++used by the reflect package; see [reflect]'s documentation for the programmable
+ interface to the run-time type system.
+ 
+ # Environment Variables
+@@ -285,10 +285,10 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ // It returns the number of entries written to pc.
+ //
+ // To translate these PCs into symbolic information such as function
+-// names and line numbers, use CallersFrames. CallersFrames accounts
++// names and line numbers, use [CallersFrames]. CallersFrames accounts
+ // for inlined functions and adjusts the return program counters into
+ // call program counters. Iterating over the returned slice of PCs
+-// directly is discouraged, as is using FuncForPC on any of the
++// directly is discouraged, as is using [FuncForPC] on any of the
+ // returned PCs, since these cannot account for inlining or return
+ // program counter adjustment.
+ func Callers(skip int, pc []uintptr) int {
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 8d79df622d..5895404217 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -18,7 +18,7 @@ metric sets may not intersect.
+ 
+ Metrics are designated by a string key, rather than, for example, a field name in
+ a struct. The full list of supported metrics is always available in the slice of
+-Descriptions returned by All. Each Description also includes useful information
++Descriptions returned by [All]. Each [Description] also includes useful information
+ about the metric.
+ 
+ Thus, users of this API are encouraged to sample supported metrics defined by the
+diff --git a/src/runtime/metrics/sample.go b/src/runtime/metrics/sample.go
+index 4cf8cdf799..9efc5c5f06 100644
+--- a/src/runtime/metrics/sample.go
++++ b/src/runtime/metrics/sample.go
+@@ -24,7 +24,7 @@ type Sample struct {
+ // Implemented in the runtime.
+ func runtime_readMetrics(unsafe.Pointer, int, int)
+ 
+-// Read populates each Value field in the given slice of metric samples.
++// Read populates each [Value] field in the given slice of metric samples.
+ //
+ // Desired metrics should be present in the slice with the appropriate name.
+ // The user of this API is encouraged to re-use the same slice between calls for
+@@ -32,7 +32,7 @@ func runtime_readMetrics(unsafe.Pointer, int, int)
+ //
+ // Note that re-use has some caveats. Notably, Values should not be read or
+ // manipulated while a Read with that value is outstanding; that is a data race.
+-// This property includes pointer-typed Values (for example, Float64Histogram)
++// This property includes pointer-typed Values (for example, [Float64Histogram])
+ // whose underlying storage will be reused by Read when possible. To safely use
+ // such values in a concurrent setting, all data must be deep-copied.
+ //
+@@ -40,7 +40,7 @@ func runtime_readMetrics(unsafe.Pointer, int, int)
+ // must share no underlying memory. When in doubt, create a new []Sample from
+ // scratch, which is always safe, though may be inefficient.
+ //
+-// Sample values with names not appearing in All will have their Value populated
++// Sample values with names not appearing in [All] will have their Value populated
+ // as KindBad to indicate that the name is unknown.
+ func Read(m []Sample) {
+ 	runtime_readMetrics(unsafe.Pointer(&m[0]), len(m), cap(m))
+diff --git a/src/runtime/metrics/value.go b/src/runtime/metrics/value.go
+index ed9a33d87c..3059749f1a 100644
+--- a/src/runtime/metrics/value.go
++++ b/src/runtime/metrics/value.go
+@@ -9,7 +9,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-// ValueKind is a tag for a metric Value which indicates its type.
++// ValueKind is a tag for a metric [Value] which indicates its type.
+ type ValueKind int
+ 
+ const (
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 147018ef44..18cd93e77e 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -330,11 +330,11 @@ func isGoPointerWithoutSpan(p unsafe.Pointer) bool {
+ // There is no guarantee that finalizers will run before a program exits,
+ // so typically they are useful only for releasing non-memory resources
+ // associated with an object during a long-running program.
+-// For example, an os.File object could use a finalizer to close the
++// For example, an [os.File] object could use a finalizer to close the
+ // associated operating system file descriptor when a program discards
+ // an os.File without calling Close, but it would be a mistake
+ // to depend on a finalizer to flush an in-memory I/O buffer such as a
+-// bufio.Writer, because the buffer would not be flushed at program exit.
++// [bufio.Writer], because the buffer would not be flushed at program exit.
+ //
+ // It is not guaranteed that a finalizer will run if the size of *obj is
+ // zero bytes, because it may share same address with other zero-size
+@@ -357,14 +357,14 @@ func isGoPointerWithoutSpan(p unsafe.Pointer) bool {
+ // the object is reachable until it is no longer required.
+ // Objects stored in global variables, or that can be found by tracing
+ // pointers from a global variable, are reachable. For other objects,
+-// pass the object to a call of the KeepAlive function to mark the
++// pass the object to a call of the [KeepAlive] function to mark the
+ // last point in the function where the object must be reachable.
+ //
+ // For example, if p points to a struct, such as os.File, that contains
+ // a file descriptor d, and p has a finalizer that closes that file
+ // descriptor, and if the last use of p in a function is a call to
+ // syscall.Write(p.d, buf, size), then p may be unreachable as soon as
+-// the program enters syscall.Write. The finalizer may run at that moment,
++// the program enters [syscall.Write]. The finalizer may run at that moment,
+ // closing p.d, causing syscall.Write to fail because it is writing to
+ // a closed file descriptor (or, worse, to an entirely different
+ // file descriptor opened by a different goroutine). To avoid this problem,
+@@ -509,11 +509,11 @@ okarg:
+ //	// No more uses of p after this point.
+ //
+ // Without the KeepAlive call, the finalizer could run at the start of
+-// syscall.Read, closing the file descriptor before syscall.Read makes
++// [syscall.Read], closing the file descriptor before syscall.Read makes
+ // the actual system call.
+ //
+ // Note: KeepAlive should only be used to prevent finalizers from
+-// running prematurely. In particular, when used with unsafe.Pointer,
++// running prematurely. In particular, when used with [unsafe.Pointer],
+ // the rules for valid uses of unsafe.Pointer still apply.
+ func KeepAlive(x any) {
+ 	// Introduce a use of x that the compiler can't eliminate.
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 146f1aaa52..df939b6532 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -792,7 +792,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
+ // If len(p) >= n, MutexProfile copies the profile into p and returns n, true.
+ // Otherwise, MutexProfile does not change p, and returns n, false.
+ //
+-// Most clients should use the runtime/pprof package
++// Most clients should use the [runtime/pprof] package
+ // instead of calling MutexProfile directly.
+ func MutexProfile(p []BlockProfileRecord) (n int, ok bool) {
+ 	lock(&profBlockLock)
+@@ -1169,7 +1169,7 @@ func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n
+ // If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
+ // If len(p) < n, GoroutineProfile does not change p and returns n, false.
+ //
+-// Most clients should use the runtime/pprof package instead
++// Most clients should use the [runtime/pprof] package instead
+ // of calling GoroutineProfile directly.
+ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 
+diff --git a/src/runtime/mspanset.go b/src/runtime/mspanset.go
+index 34c65aaa96..5687627e3a 100644
+--- a/src/runtime/mspanset.go
++++ b/src/runtime/mspanset.go
+@@ -284,7 +284,7 @@ func (s *atomicSpanSetSpinePointer) Load() spanSetSpinePointer {
+ 
+ // Stores the spanSetSpinePointer.
+ //
+-// It has the same semantics as atomic.UnsafePointer.
++// It has the same semantics as [atomic.UnsafePointer].
+ func (s *atomicSpanSetSpinePointer) StoreNoWB(p spanSetSpinePointer) {
+ 	s.a.StoreNoWB(p.p)
+ }
+diff --git a/src/runtime/pinner.go b/src/runtime/pinner.go
+index 0cc48e2164..ea5b909aea 100644
+--- a/src/runtime/pinner.go
++++ b/src/runtime/pinner.go
+@@ -17,14 +17,14 @@ type Pinner struct {
+ }
+ 
+ // Pin pins a Go object, preventing it from being moved or freed by the garbage
+-// collector until the Unpin method has been called.
++// collector until the [Pinner.Unpin] method has been called.
+ //
+ // A pointer to a pinned object can be directly stored in C memory or can be
+ // contained in Go memory passed to C functions. If the pinned object itself
+ // contains pointers to Go objects, these objects must be pinned separately if they
+ // are going to be accessed from C code.
+ //
+-// The argument must be a pointer of any type or an unsafe.Pointer.
++// The argument must be a pointer of any type or an [unsafe.Pointer].
+ // It's safe to call Pin on non-Go pointers, in which case Pin will do nothing.
+ func (p *Pinner) Pin(pointer any) {
+ 	if p.pinner == nil {
+@@ -61,7 +61,7 @@ func (p *Pinner) Pin(pointer any) {
+ 	}
+ }
+ 
+-// Unpin unpins all pinned objects of the Pinner.
++// Unpin unpins all pinned objects of the [Pinner].
+ func (p *Pinner) Unpin() {
+ 	p.pinner.unpin()
+ 
+diff --git a/src/runtime/pprof/label.go b/src/runtime/pprof/label.go
+index d39e0ad58e..3684ae34e5 100644
+--- a/src/runtime/pprof/label.go
++++ b/src/runtime/pprof/label.go
+@@ -54,7 +54,7 @@ func (l *labelMap) String() string {
+ 	return "{" + strings.Join(keyVals, ", ") + "}"
+ }
+ 
+-// WithLabels returns a new context.Context with the given labels added.
++// WithLabels returns a new [context.Context] with the given labels added.
+ // A label overwrites a prior label with the same key.
+ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
+ 	parentLabels := labelValue(ctx)
+@@ -72,7 +72,7 @@ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
+ }
+ 
+ // Labels takes an even number of strings representing key-value pairs
+-// and makes a LabelSet containing them.
++// and makes a [LabelSet] containing them.
+ // A label overwrites a prior label with the same key.
+ // Currently only the CPU and goroutine profiles utilize any labels
+ // information.
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 17a490efed..d3a3c788b1 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -107,7 +107,7 @@ import (
+ //	mutex        - stack traces of holders of contended mutexes
+ //
+ // These predefined profiles maintain themselves and panic on an explicit
+-// Add or Remove method call.
++// [Profile.Add] or [Profile.Remove] method call.
+ //
+ // The heap profile reports statistics as of the most recently completed
+ // garbage collection; it elides more recent allocation to avoid skewing
+@@ -127,7 +127,7 @@ import (
+ // the program began (including garbage-collected bytes).
+ //
+ // The CPU profile is not available as a Profile. It has a special API,
+-// the StartCPUProfile and StopCPUProfile functions, because it streams
++// the [StartCPUProfile] and [StopCPUProfile] functions, because it streams
+ // output to a writer during profiling.
+ type Profile struct {
+ 	name  string
+@@ -242,7 +242,7 @@ func Profiles() []*Profile {
+ 	return all
+ }
+ 
+-// Name returns this profile's name, which can be passed to Lookup to reobtain the profile.
++// Name returns this profile's name, which can be passed to [Lookup] to reobtain the profile.
+ func (p *Profile) Name() string {
+ 	return p.name
+ }
+@@ -260,9 +260,9 @@ func (p *Profile) Count() int {
+ // Add adds the current execution stack to the profile, associated with value.
+ // Add stores value in an internal map, so value must be suitable for use as
+ // a map key and will not be garbage collected until the corresponding
+-// call to Remove. Add panics if the profile already contains a stack for value.
++// call to [Profile.Remove]. Add panics if the profile already contains a stack for value.
+ //
+-// The skip parameter has the same meaning as runtime.Caller's skip
++// The skip parameter has the same meaning as [runtime.Caller]'s skip
+ // and controls where the stack trace begins. Passing skip=0 begins the
+ // trace in the function calling Add. For example, given this
+ // execution stack:
+@@ -515,7 +515,7 @@ func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
+ 
+ // Interface to system profiles.
+ 
+-// WriteHeapProfile is shorthand for Lookup("heap").WriteTo(w, 0).
++// WriteHeapProfile is shorthand for [Lookup]("heap").WriteTo(w, 0).
+ // It is preserved for backwards compatibility.
+ func WriteHeapProfile(w io.Writer) error {
+ 	return writeHeap(w, 0)
+@@ -765,8 +765,8 @@ var cpu struct {
+ // Go code built with -buildmode=c-archive or -buildmode=c-shared.
+ // StartCPUProfile relies on the SIGPROF signal, but that signal will
+ // be delivered to the main program's SIGPROF signal handler (if any)
+-// not to the one used by Go. To make it work, call os/signal.Notify
+-// for syscall.SIGPROF, but note that doing so may break any profiling
++// not to the one used by Go. To make it work, call [os/signal.Notify]
++// for [syscall.SIGPROF], but note that doing so may break any profiling
+ // being done by the main program.
+ func StartCPUProfile(w io.Writer) error {
+ 	// The runtime routines allow a variable profiling rate,
+diff --git a/src/runtime/pprof/runtime.go b/src/runtime/pprof/runtime.go
+index 71f89ca680..8d37c7d3ad 100644
+--- a/src/runtime/pprof/runtime.go
++++ b/src/runtime/pprof/runtime.go
+@@ -31,7 +31,7 @@ func runtime_getProfLabel() unsafe.Pointer
+ 
+ // SetGoroutineLabels sets the current goroutine's labels to match ctx.
+ // A new goroutine inherits the labels of the goroutine that created it.
+-// This is a lower-level API than Do, which should be used instead when possible.
++// This is a lower-level API than [Do], which should be used instead when possible.
+ func SetGoroutineLabels(ctx context.Context) {
+ 	ctxLabels, _ := ctx.Value(labelContextKey{}).(*labelMap)
+ 	runtime_setProfLabel(unsafe.Pointer(ctxLabels))
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 60adb37eac..87b687a196 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ // Frames may be used to get function/file/line information for a
+-// slice of PC values returned by Callers.
++// slice of PC values returned by [Callers].
+ type Frames struct {
+ 	// callers is a slice of PCs that have not yet been expanded to frames.
+ 	callers []uintptr
+@@ -70,9 +70,9 @@ type Frame struct {
+ 	funcInfo funcInfo
+ }
+ 
+-// CallersFrames takes a slice of PC values returned by Callers and
++// CallersFrames takes a slice of PC values returned by [Callers] and
+ // prepares to return function/file/line information.
+-// Do not change the slice until you are done with the Frames.
++// Do not change the slice until you are done with the [Frames].
+ func CallersFrames(callers []uintptr) *Frames {
+ 	f := &Frames{callers: callers}
+ 	f.frames = f.frameStore[:0]
+@@ -642,7 +642,7 @@ func (md *moduledata) funcName(nameOff int32) string {
+ 	return gostringnocopy(&md.funcnametab[nameOff])
+ }
+ 
+-// FuncForPC returns a *Func describing the function that contains the
++// FuncForPC returns a *[Func] describing the function that contains the
+ // given program counter address, or else nil.
+ //
+ // If pc represents multiple functions because of inlining, it returns

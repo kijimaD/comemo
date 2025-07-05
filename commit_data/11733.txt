@@ -9,7 +9,43 @@ Date:   Thu Feb 9 14:12:55 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5642072
-
+---
  src/pkg/fmt/scan.go      | 2 +-
  src/pkg/fmt/scan_test.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 36c6aebad0..fa9a5584a8 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -512,7 +512,7 @@ func (s *ss) scanBool(verb rune) bool {
+ 		}
+ 		return true
+ 	case 'f', 'F':
+-		if s.accept("aL") && (!s.accept("lL") || !s.accept("sS") || !s.accept("eE")) {
++		if s.accept("aA") && (!s.accept("lL") || !s.accept("sS") || !s.accept("eE")) {
+ 			s.error(boolError)
+ 		}
+ 		return false
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index b26c828cbf..61b48f9cc6 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -317,6 +317,7 @@ var overflowTests = []ScanTest{
+ 	{"(1-1e500i)", &complex128Val, 0},
+ }
+ 
++var truth bool
+ var i, j, k int
+ var f float64
+ var s, t string
+@@ -350,6 +351,9 @@ var multiTests = []ScanfMultiTest{
+ 
+ 	// Bad UTF-8: should see every byte.
+ 	{"%c%c%c", "\xc2X\xc2", args(&r1, &r2, &r3), args(utf8.RuneError, 'X', utf8.RuneError), ""},
++
++	// Fixed bugs
++	{"%v%v", "FALSE23", args(&truth, &i), args(false, 23), ""},
+ }
+ 
+ func testScan(name string, t *testing.T, scan func(r io.Reader, a ...interface{}) (int, error)) {

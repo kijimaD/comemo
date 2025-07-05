@@ -11,6 +11,31 @@ Date:   Fri Sep 14 13:40:22 2012 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6514043
-
+---
  src/pkg/os/exec/exec.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/os/exec/exec.go b/src/pkg/os/exec/exec.go
+index 3db3ab095d..c4907cd7d7 100644
+--- a/src/pkg/os/exec/exec.go
++++ b/src/pkg/os/exec/exec.go
+@@ -143,6 +143,9 @@ func (c *Cmd) argv() []string {
+ func (c *Cmd) stdin() (f *os.File, err error) {
+ 	if c.Stdin == nil {
+ 		f, err = os.Open(os.DevNull)
++		if err != nil {
++			return
++		}
+ 		c.closeAfterStart = append(c.closeAfterStart, f)
+ 		return
+ 	}
+@@ -182,6 +185,9 @@ func (c *Cmd) stderr() (f *os.File, err error) {
+ func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err error) {
+ 	if w == nil {
+ 		f, err = os.OpenFile(os.DevNull, os.O_WRONLY, 0)
++		if err != nil {
++			return
++		}
+ 		c.closeAfterStart = append(c.closeAfterStart, f)
+ 		return
+ 	}

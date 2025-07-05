@@ -25,9 +25,165 @@ Date:   Thu Apr 30 23:10:35 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go               | 11 ++++-
  src/cmd/link/internal/ld/deadcode_test.go          | 54 +++++++++-------------
  .../internal/ld/testdata/deadcode/reflectcall.go   | 24 ++++++++++
  .../link/internal/ld/testdata/deadcode/typedesc.go | 16 +++++++
  4 files changed, 71 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 49c5668c86..c91a18a167 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -6,6 +6,7 @@ package ld
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/goobj2"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+@@ -154,7 +155,15 @@ func (d *deadcodePass) flood() {
+ 		}
+ 		naux := d.ldr.NAux(symIdx)
+ 		for i := 0; i < naux; i++ {
+-			d.mark(d.ldr.Aux2(symIdx, i).Sym(), symIdx)
++			a := d.ldr.Aux2(symIdx, i)
++			if a.Type() == goobj2.AuxGotype && !d.ctxt.linkShared {
++				// A symbol being reachable doesn't imply we need its
++				// type descriptor. Don't mark it.
++				// XXX we need that for GCProg generation when linking
++				// shared library. why?
++				continue
++			}
++			d.mark(a.Sym(), symIdx)
+ 		}
+ 		// Some host object symbols have an outer object, which acts like a
+ 		// "carrier" symbol, or it holds all the symbols for a particular
+diff --git a/src/cmd/link/internal/ld/deadcode_test.go b/src/cmd/link/internal/ld/deadcode_test.go
+index 197a057c2f..23a8685bbb 100644
+--- a/src/cmd/link/internal/ld/deadcode_test.go
++++ b/src/cmd/link/internal/ld/deadcode_test.go
+@@ -14,28 +14,9 @@ import (
+ 	"testing"
+ )
+ 
+-// This example uses reflect.Value.Call, but not
+-// reflect.{Value,Type}.Method. This should not
+-// need to bring all methods live.
+-const deadcodeTestSrc = `
+-package main
+-import "reflect"
+-
+-func f() { println("call") }
+-
+-type T int
+-func (T) M() {}
+-
+-func main() {
+-	v := reflect.ValueOf(f)
+-	v.Call(nil)
+-	i := interface{}(T(1))
+-	println(i)
+-}
+-`
+-
+ func TestDeadcode(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	t.Parallel()
+ 
+ 	tmpdir, err := ioutil.TempDir("", "TestDeadcode")
+ 	if err != nil {
+@@ -43,19 +24,26 @@ func TestDeadcode(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 
+-	src := filepath.Join(tmpdir, "main.go")
+-	err = ioutil.WriteFile(src, []byte(deadcodeTestSrc), 0666)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	exe := filepath.Join(tmpdir, "main.exe")
+-
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-dumpdep", "-o", exe, src)
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
++	tests := []struct {
++		src     string
++		pattern string
++	}{
++		{"reflectcall", "main.T.M"},
++		{"typedesc", "type.main.T"},
+ 	}
+-	if bytes.Contains(out, []byte("main.T.M")) {
+-		t.Errorf("main.T.M should not be reachable. Output:\n%s", out)
++	for _, test := range tests {
++		t.Run(test.src, func(t *testing.T) {
++			t.Parallel()
++			src := filepath.Join("testdata", "deadcode", test.src+".go")
++			exe := filepath.Join(tmpdir, test.src+".exe")
++			cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-dumpdep", "-o", exe, src)
++			out, err := cmd.CombinedOutput()
++			if err != nil {
++				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
++			}
++			if bytes.Contains(out, []byte(test.pattern)) {
++				t.Errorf("%s should not be reachable. Output:\n%s", test.pattern, out)
++			}
++		})
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/testdata/deadcode/reflectcall.go b/src/cmd/link/internal/ld/testdata/deadcode/reflectcall.go
+new file mode 100644
+index 0000000000..af95e466e8
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/deadcode/reflectcall.go
+@@ -0,0 +1,24 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This example uses reflect.Value.Call, but not
++// reflect.{Value,Type}.Method. This should not
++// need to bring all methods live.
++
++package main
++
++import "reflect"
++
++func f() { println("call") }
++
++type T int
++
++func (T) M() {}
++
++func main() {
++	v := reflect.ValueOf(f)
++	v.Call(nil)
++	i := interface{}(T(1))
++	println(i)
++}
+diff --git a/src/cmd/link/internal/ld/testdata/deadcode/typedesc.go b/src/cmd/link/internal/ld/testdata/deadcode/typedesc.go
+new file mode 100644
+index 0000000000..82460935e8
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/deadcode/typedesc.go
+@@ -0,0 +1,16 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that a live variable doesn't bring its type
++// descriptor live.
++
++package main
++
++type T [10]string
++
++var t T
++
++func main() {
++	println(t[8])
++}

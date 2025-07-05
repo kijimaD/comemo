@@ -11,6 +11,20 @@ Date:   Thu Mar 6 00:08:34 2014 +1100
     R=golang-codereviews, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/71460044
-
+---
  src/pkg/syscall/mksysnum_dragonfly.pl | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/mksysnum_dragonfly.pl b/src/pkg/syscall/mksysnum_dragonfly.pl
+index 769c29ea73..3eba3ab3d5 100755
+--- a/src/pkg/syscall/mksysnum_dragonfly.pl
++++ b/src/pkg/syscall/mksysnum_dragonfly.pl
+@@ -20,7 +20,7 @@ const (
+ EOF
+ 
+ while(<>){
+-	if(/^([0-9]+)\s+STD\s+\S+\s+({ \S+\s+(\w+).*)$/){
++	if(/^([0-9]+)\s+STD\s+({ \S+\s+(\w+).*)$/){
+ 		my $num = $1;
+ 		my $proto = $2;
+ 		my $name = "SYS_$3";

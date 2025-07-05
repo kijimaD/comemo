@@ -13,6 +13,43 @@ Date:   Tue Oct 18 10:01:56 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/31450
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/cmd/compile/internal/gc/range.go | 14 +++++++++-----
  1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 59dfba5b1e..b59047428f 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -393,13 +393,11 @@ func memclrrange(n, v1, v2, a *Node) bool {
+ 		return false
+ 	}
+ 
+-	// TODO: Use memclrHasPointers if there are pointers.
+-
+ 	// Convert to
+ 	// if len(a) != 0 {
+ 	// 	hp = &a[0]
+ 	// 	hn = len(a)*sizeof(elem(a))
+-	// 	memclrNoHeapPointers(hp, hn)
++	// 	memclr{NoHeap,Has}Pointers(hp, hn)
+ 	// 	i = len(a) - 1
+ 	// }
+ 	n.Op = OIF
+@@ -425,8 +423,14 @@ func memclrrange(n, v1, v2, a *Node) bool {
+ 	tmp = conv(tmp, Types[TUINTPTR])
+ 	n.Nbody.Append(nod(OAS, hn, tmp))
+ 
+-	// memclrNoHeapPointers(hp, hn)
+-	fn := mkcall("memclrNoHeapPointers", nil, nil, hp, hn)
++	var fn *Node
++	if haspointers(a.Type.Elem()) {
++		// memclrHasPointers(hp, hn)
++		fn = mkcall("memclrHasPointers", nil, nil, hp, hn)
++	} else {
++		// memclrNoHeapPointers(hp, hn)
++		fn = mkcall("memclrNoHeapPointers", nil, nil, hp, hn)
++	}
+ 
+ 	n.Nbody.Append(fn)
+ 

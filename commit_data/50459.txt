@@ -15,9 +15,104 @@ Date:   Mon Oct 25 21:43:07 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/358621
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/operand.go                      | 9 ++++-----
  src/cmd/compile/internal/types2/predicates.go                   | 7 ++++---
  src/cmd/compile/internal/types2/testdata/spec/assignability.go2 | 8 +++++---
  src/cmd/compile/internal/types2/unify.go                        | 6 +++---
  4 files changed, 16 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 92ae0a95fc..e4db0554f3 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -282,9 +282,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	// Vu is typed
+ 
+ 	// x's type V and T have identical underlying types
+-	// and at least one of V or T is not a named type
+-	// and neither is a type parameter.
+-	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) && Vp == nil && Tp == nil {
++	// and at least one of V or T is not a named type.
++	if Identical(Vu, Tu) && (!hasName(V) || !hasName(T)) {
+ 		return true, 0
+ 	}
+ 
+@@ -311,10 +310,10 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	// x is a bidirectional channel value, T is a channel
+ 	// type, x's type V and T have identical element types,
+-	// and at least one of V or T is not a named type
++	// and at least one of V or T is not a named type.
+ 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
+ 		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
+-			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
++			return !hasName(V) || !hasName(T), _InvalidChanAssign
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 4faa09ebd0..409715ad9d 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -6,9 +6,10 @@
+ 
+ package types2
+ 
+-// isNamed reports whether typ has a name.
+-// isNamed may be called with types that are not fully set up.
+-func isNamed(typ Type) bool {
++// hasName reports whether typ has a name. This includes
++// predeclared types, defined types, and type parameters.
++// hasName may be called with types that are not fully set up.
++func hasName(typ Type) bool {
+ 	switch typ.(type) {
+ 	case *Basic, *Named, *TypeParam:
+ 		return true
+diff --git a/src/cmd/compile/internal/types2/testdata/spec/assignability.go2 b/src/cmd/compile/internal/types2/testdata/spec/assignability.go2
+index 1507cabb1d..ab8f9c08b2 100644
+--- a/src/cmd/compile/internal/types2/testdata/spec/assignability.go2
++++ b/src/cmd/compile/internal/types2/testdata/spec/assignability.go2
+@@ -33,8 +33,9 @@ func _[TP any](X TP) {
+ 	X = X
+ }
+ 
+-// "x's type V and T have identical underlying types and at least one
+-// of V or T is not a defined type and neither is a type parameter"
++// "x's type V and T have identical underlying types
++// and at least one of V or T is not a named type."
++// (here a named type is a type with a name)
+ func _[TP1, TP2 Interface](X1 TP1, X2 TP2) {
+ 	b = B // ERROR cannot use B .* as int value
+ 	a = A
+@@ -69,7 +70,8 @@ func _[TP Interface](X TP) {
+ 	X = i // ERROR cannot use i .* as TP value
+ }
+ 
+-// "x is a bidirectional channel value, T is a channel type, x's type V and T have identical element types, and at least one of V or T is not a defined type"
++// "x is a bidirectional channel value, T is a channel type, x's type V and T have identical element types, and at least one of V or T is not a named type"
++// (here a named type is a type with a name)
+ type (
+ 	_SendChan = chan<- int
+ 	_RecvChan = <-chan int
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index a252c5e1a5..7f636c30d3 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -235,13 +235,13 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// If exact unification is known to fail because we attempt to
+ 		// match a type name against an unnamed type literal, consider
+ 		// the underlying type of the named type.
+-		// (Subtle: We use isNamed to include any type with a name (incl.
++		// (Subtle: We use hasName to include any type with a name (incl.
+ 		// basic types and type parameters. We use asNamed because we only
+ 		// want *Named types.)
+ 		switch {
+-		case !isNamed(x) && y != nil && asNamed(y) != nil:
++		case !hasName(x) && y != nil && asNamed(y) != nil:
+ 			return u.nify(x, under(y), p)
+-		case x != nil && asNamed(x) != nil && !isNamed(y):
++		case x != nil && asNamed(x) != nil && !hasName(y):
+ 			return u.nify(under(x), y, p)
+ 		}
+ 	}

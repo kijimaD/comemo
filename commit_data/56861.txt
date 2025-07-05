@@ -17,6 +17,24 @@ Date:   Thu May 25 21:43:33 2023 -0400
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mbarrier.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 4bcc170ef9..159a298155 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -112,12 +112,6 @@ import (
+ // compiler will generate a write barrier for writes through that
+ // pointer (because it doesn't know it's not a heap pointer).
+ //
+-// One might be tempted to ignore the write barrier if slot points
+-// into to the stack. Don't do it! Mark termination only re-scans
+-// frames that have potentially been active since the concurrent scan,
+-// so it depends on write barriers to track changes to pointers in
+-// stack frames that have not been active.
+-//
+ //
+ // Global writes:
+ //

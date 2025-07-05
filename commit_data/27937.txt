@@ -11,6 +11,23 @@ Date:   Thu Apr 21 10:42:25 2016 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/pe/string.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/debug/pe/string.go b/src/debug/pe/string.go
+index f0928d09c5..e00bd97dd4 100644
+--- a/src/debug/pe/string.go
++++ b/src/debug/pe/string.go
+@@ -10,9 +10,8 @@ import (
+ 	"io"
+ )
+ 
+-// TODO(brainman): return error from cstring and see what errors we get and what to do about it
+-
+-// cstring converts ASCII byte sequence b to string. It stops once it finds 0.
++// cstring converts ASCII byte sequence b to string.
++// It stops once it finds 0 or reaches end of b.
+ func cstring(b []byte) string {
+ 	var i int
+ 	for i = 0; i < len(b) && b[i] != 0; i++ {

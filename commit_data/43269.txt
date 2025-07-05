@@ -18,6 +18,28 @@ Date:   Fri Mar 20 19:08:13 2020 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 76832ca829..c813807e09 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3251,11 +3251,16 @@ func init() {
+ 	}
+ 	// alias defines pkg.fn = pkg2.fn2 for all architectures in archs for which pkg2.fn2 exists.
+ 	alias := func(pkg, fn, pkg2, fn2 string, archs ...*sys.Arch) {
++		aliased := false
+ 		for _, a := range archs {
+ 			if b, ok := intrinsics[intrinsicKey{a, pkg2, fn2}]; ok {
+ 				intrinsics[intrinsicKey{a, pkg, fn}] = b
++				aliased = true
+ 			}
+ 		}
++		if !aliased {
++			panic(fmt.Sprintf("attempted to alias undefined intrinsic: %s.%s", pkg, fn))
++		}
+ 	}
+ 
+ 	/******** runtime ********/

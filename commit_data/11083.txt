@@ -10,8 +10,163 @@ Date:   Tue Jan 10 09:48:10 2012 -0800
     R=golang-dev, dsymonds, minux.ma
     CC=golang-dev
     https://golang.org/cl/5533058
-
+---
  src/pkg/runtime/defs_darwin.go      |  5 ++---
  src/pkg/runtime/defs_darwin_386.h   | 13 +++++++------
  src/pkg/runtime/defs_darwin_amd64.h | 19 ++++++++++---------
  3 files changed, 19 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_darwin.go b/src/pkg/runtime/defs_darwin.go
+index 3f3e41d86b..80b7a4f277 100644
+--- a/src/pkg/runtime/defs_darwin.go
++++ b/src/pkg/runtime/defs_darwin.go
+@@ -7,8 +7,8 @@
+ /*
+ Input to cgo.
+ 
+-GOARCH=amd64 cgo -cdefs defs.go >amd64/defs.h
+-GOARCH=386 cgo -cdefs defs.go >386/defs.h
++GOARCH=amd64 cgo -cdefs defs_darwin.go >defs_darwin_amd64.h
++GOARCH=386 cgo -cdefs defs_darwin.go >defs_darwin_386.h
+ */
+ 
+ package runtime
+@@ -55,7 +55,6 @@ const (
+ 
+ 	MACH_SEND_TIMEOUT   = C.MACH_SEND_TIMEOUT
+ 	MACH_SEND_INTERRUPT = C.MACH_SEND_INTERRUPT
+-	MACH_SEND_CANCEL    = C.MACH_SEND_CANCEL
+ 	MACH_SEND_ALWAYS    = C.MACH_SEND_ALWAYS
+ 	MACH_SEND_TRAILER   = C.MACH_SEND_TRAILER
+ 	MACH_RCV_TIMEOUT    = C.MACH_RCV_TIMEOUT
+diff --git a/src/pkg/runtime/defs_darwin_386.h b/src/pkg/runtime/defs_darwin_386.h
+index 6d1863ce20..3606bad941 100644
+--- a/src/pkg/runtime/defs_darwin_386.h
++++ b/src/pkg/runtime/defs_darwin_386.h
+@@ -1,5 +1,5 @@
+ // Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs.go
++// cgo -cdefs defs_darwin.go
+ 
+ 
+ enum {
+@@ -33,7 +33,6 @@ enum {
+ 
+ 	MACH_SEND_TIMEOUT	= 0x10,
+ 	MACH_SEND_INTERRUPT	= 0x40,
+-	MACH_SEND_CANCEL	= 0x80,
+ 	MACH_SEND_ALWAYS	= 0x10000,
+ 	MACH_SEND_TRAILER	= 0x20000,
+ 	MACH_RCV_TIMEOUT	= 0x100,
+@@ -197,10 +196,10 @@ struct Itimerval {
+ };
+ 
+ struct FPControl {
+-	byte	Pad_godefs_0[2];
++	byte	Pad_cgo_0[2];
+ };
+ struct FPStatus {
+-	byte	Pad_godefs_0[2];
++	byte	Pad_cgo_0[2];
+ };
+ struct RegMMST {
+ 	int8	mmst_reg[10];
+@@ -276,7 +275,8 @@ struct FloatState64 {
+ 	int32	fpu_reserved1;
+ };
+ struct ExceptionState64 {
+-	uint32	trapno;
++	uint16	trapno;
++	uint16	cpu;
+ 	uint32	err;
+ 	uint64	faultvaddr;
+ };
+@@ -339,7 +339,8 @@ struct FloatState32 {
+ 	int32	fpu_reserved1;
+ };
+ struct ExceptionState32 {
+-	uint32	trapno;
++	uint16	trapno;
++	uint16	cpu;
+ 	uint32	err;
+ 	uint32	faultvaddr;
+ };
+diff --git a/src/pkg/runtime/defs_darwin_amd64.h b/src/pkg/runtime/defs_darwin_amd64.h
+index a8493e4a44..c28225f4cf 100644
+--- a/src/pkg/runtime/defs_darwin_amd64.h
++++ b/src/pkg/runtime/defs_darwin_amd64.h
+@@ -1,5 +1,5 @@
+ // Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs.go
++// cgo -cdefs defs_darwin.go
+ 
+ 
+ enum {
+@@ -33,7 +33,6 @@ enum {
+ 
+ 	MACH_SEND_TIMEOUT	= 0x10,
+ 	MACH_SEND_INTERRUPT	= 0x40,
+-	MACH_SEND_CANCEL	= 0x80,
+ 	MACH_SEND_ALWAYS	= 0x10000,
+ 	MACH_SEND_TRAILER	= 0x20000,
+ 	MACH_RCV_TIMEOUT	= 0x100,
+@@ -164,7 +163,7 @@ struct StackT {
+ 	byte	*ss_sp;
+ 	uint64	ss_size;
+ 	int32	ss_flags;
+-	byte	Pad_godefs_0[4];
++	byte	Pad_cgo_0[4];
+ };
+ typedef	byte	Sighandler[8];
+ 
+@@ -191,7 +190,7 @@ struct Siginfo {
+ struct Timeval {
+ 	int64	tv_sec;
+ 	int32	tv_usec;
+-	byte	Pad_godefs_0[4];
++	byte	Pad_cgo_0[4];
+ };
+ struct Itimerval {
+ 	Timeval	it_interval;
+@@ -199,10 +198,10 @@ struct Itimerval {
+ };
+ 
+ struct FPControl {
+-	byte	Pad_godefs_0[2];
++	byte	Pad_cgo_0[2];
+ };
+ struct FPStatus {
+-	byte	Pad_godefs_0[2];
++	byte	Pad_cgo_0[2];
+ };
+ struct RegMMST {
+ 	int8	mmst_reg[10];
+@@ -278,7 +277,8 @@ struct FloatState64 {
+ 	int32	fpu_reserved1;
+ };
+ struct ExceptionState64 {
+-	uint32	trapno;
++	uint16	trapno;
++	uint16	cpu;
+ 	uint32	err;
+ 	uint64	faultvaddr;
+ };
+@@ -286,7 +286,7 @@ struct Mcontext64 {
+ 	ExceptionState64	es;
+ 	Regs64	ss;
+ 	FloatState64	fs;
+-	byte	Pad_godefs_0[4];
++	byte	Pad_cgo_0[4];
+ };
+ 
+ struct Regs32 {
+@@ -342,7 +342,8 @@ struct FloatState32 {
+ 	int32	fpu_reserved1;
+ };
+ struct ExceptionState32 {
+-	uint32	trapno;
++	uint16	trapno;
++	uint16	cpu;
+ 	uint32	err;
+ 	uint32	faultvaddr;
+ };

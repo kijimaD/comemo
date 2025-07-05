@@ -14,9 +14,73 @@ Date:   Fri Sep 28 15:42:19 2018 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/rand/eagain.go    |  2 +-
  src/crypto/rand/rand_unix.go |  2 +-
  src/crypto/x509/root_aix.go  | 10 ++++++++++
  src/crypto/x509/root_unix.go |  3 ++-
  4 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/rand/eagain.go b/src/crypto/rand/eagain.go
+index 7ed2f47ea6..045d037d20 100644
+--- a/src/crypto/rand/eagain.go
++++ b/src/crypto/rand/eagain.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+ 
+ package rand
+ 
+diff --git a/src/crypto/rand/rand_unix.go b/src/crypto/rand/rand_unix.go
+index d49f693746..f3091f51c5 100644
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd plan9 solaris
++// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd plan9 solaris
+ 
+ // Unix cryptographically secure pseudorandom number
+ // generator.
+diff --git a/src/crypto/x509/root_aix.go b/src/crypto/x509/root_aix.go
+new file mode 100644
+index 0000000000..6d427739a4
+--- /dev/null
++++ b/src/crypto/x509/root_aix.go
+@@ -0,0 +1,10 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++// Possible certificate files; stop after finding one.
++var certFiles = []string{
++	"/var/ssl/certs/ca-bundle.crt",
++}
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index 8e7036234d..48de50b4ea 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
++// +build aix dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package x509
+ 
+@@ -19,6 +19,7 @@ var certDirectories = []string{
+ 	"/usr/local/share/certs",       // FreeBSD
+ 	"/etc/pki/tls/certs",           // Fedora/RHEL
+ 	"/etc/openssl/certs",           // NetBSD
++	"/var/ssl/certs",               // AIX
+ }
+ 
+ const (

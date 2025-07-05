@@ -12,7 +12,7 @@ Date:   Thu May 21 13:28:06 2015 -0400
     Change-Id: I4029580f470038240c5181a37ea4202ba971f9ef
     Reviewed-on: https://go-review.googlesource.com/10286
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  misc/nacl/testzip.proto                                    |   2 +-
  src/cmd/dist/build.go                                      |   2 +-
  src/cmd/go/pkg.go                                          |   2 +-
@@ -56,3 +56,199 @@ Date:   Thu May 21 13:28:06 2015 -0400
  src/cmd/{link => newlink}/util.go                          |   0
  src/cmd/{link => newlink}/write.go                         |   0
  42 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 1c013c1784..8e53726ea5 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -35,7 +35,7 @@ go	src=..
+ 				gofmt_test.go
+ 				testdata
+ 					+
+-			link
++			newlink
+ 				testdata
+ 					+
+ 		archive
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 64b2399972..47c0a0a1d1 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -374,7 +374,7 @@ var oldtool = []string{
+ // Unreleased directories (relative to $GOROOT) that should
+ // not be in release branches.
+ var unreleased = []string{
+-	"src/cmd/link",
++	"src/cmd/newlink",
+ 	"src/cmd/objwriter",
+ 	"src/debug/goobj",
+ 	"src/old",
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index f9cf14fd2c..41e66ef9c9 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -412,7 +412,7 @@ var goTools = map[string]targetDir{
+ 	"cmd/dist":                             toTool,
+ 	"cmd/doc":                              toTool,
+ 	"cmd/fix":                              toTool,
+-	"cmd/link":                             toTool,
++	"cmd/newlink":                          toTool,
+ 	"cmd/nm":                               toTool,
+ 	"cmd/objdump":                          toTool,
+ 	"cmd/old5a":                            toTool,
+diff --git a/src/cmd/link/auto.go b/src/cmd/newlink/auto.go
+similarity index 100%
+rename from src/cmd/link/auto.go
+rename to src/cmd/newlink/auto.go
+diff --git a/src/cmd/link/auto_test.go b/src/cmd/newlink/auto_test.go
+similarity index 100%
+rename from src/cmd/link/auto_test.go
+rename to src/cmd/newlink/auto_test.go
+diff --git a/src/cmd/link/dead.go b/src/cmd/newlink/dead.go
+similarity index 100%
+rename from src/cmd/link/dead.go
+rename to src/cmd/newlink/dead.go
+diff --git a/src/cmd/link/dead_test.go b/src/cmd/newlink/dead_test.go
+similarity index 100%
+rename from src/cmd/link/dead_test.go
+rename to src/cmd/newlink/dead_test.go
+diff --git a/src/cmd/link/debug.go b/src/cmd/newlink/debug.go
+similarity index 100%
+rename from src/cmd/link/debug.go
+rename to src/cmd/newlink/debug.go
+diff --git a/src/cmd/link/hex_test.go b/src/cmd/newlink/hex_test.go
+similarity index 100%
+rename from src/cmd/link/hex_test.go
+rename to src/cmd/newlink/hex_test.go
+diff --git a/src/cmd/link/layout.go b/src/cmd/newlink/layout.go
+similarity index 100%
+rename from src/cmd/link/layout.go
+rename to src/cmd/newlink/layout.go
+diff --git a/src/cmd/link/layout_test.go b/src/cmd/newlink/layout_test.go
+similarity index 100%
+rename from src/cmd/link/layout_test.go
+rename to src/cmd/newlink/layout_test.go
+diff --git a/src/cmd/link/link_test.go b/src/cmd/newlink/link_test.go
+similarity index 100%
+rename from src/cmd/link/link_test.go
+rename to src/cmd/newlink/link_test.go
+diff --git a/src/cmd/link/load.go b/src/cmd/newlink/load.go
+similarity index 100%
+rename from src/cmd/link/load.go
+rename to src/cmd/newlink/load.go
+diff --git a/src/cmd/link/macho.go b/src/cmd/newlink/macho.go
+similarity index 100%
+rename from src/cmd/link/macho.go
+rename to src/cmd/newlink/macho.go
+diff --git a/src/cmd/link/macho_test.go b/src/cmd/newlink/macho_test.go
+similarity index 100%
+rename from src/cmd/link/macho_test.go
+rename to src/cmd/newlink/macho_test.go
+diff --git a/src/cmd/link/main.go b/src/cmd/newlink/main.go
+similarity index 100%
+rename from src/cmd/link/main.go
+rename to src/cmd/newlink/main.go
+diff --git a/src/cmd/link/pclntab.go b/src/cmd/newlink/pclntab.go
+similarity index 100%
+rename from src/cmd/link/pclntab.go
+rename to src/cmd/newlink/pclntab.go
+diff --git a/src/cmd/link/pclntab_test.go b/src/cmd/newlink/pclntab_test.go
+similarity index 100%
+rename from src/cmd/link/pclntab_test.go
+rename to src/cmd/newlink/pclntab_test.go
+diff --git a/src/cmd/link/prog.go b/src/cmd/newlink/prog.go
+similarity index 100%
+rename from src/cmd/link/prog.go
+rename to src/cmd/newlink/prog.go
+diff --git a/src/cmd/link/prog_test.go b/src/cmd/newlink/prog_test.go
+similarity index 100%
+rename from src/cmd/link/prog_test.go
+rename to src/cmd/newlink/prog_test.go
+diff --git a/src/cmd/link/runtime.go b/src/cmd/newlink/runtime.go
+similarity index 100%
+rename from src/cmd/link/runtime.go
+rename to src/cmd/newlink/runtime.go
+diff --git a/src/cmd/link/scan.go b/src/cmd/newlink/scan.go
+similarity index 100%
+rename from src/cmd/link/scan.go
+rename to src/cmd/newlink/scan.go
+diff --git a/src/cmd/link/testdata/Makefile b/src/cmd/newlink/testdata/Makefile
+similarity index 100%
+rename from src/cmd/link/testdata/Makefile
+rename to src/cmd/newlink/testdata/Makefile
+diff --git a/src/cmd/link/testdata/autosection.6 b/src/cmd/newlink/testdata/autosection.6
+similarity index 100%
+rename from src/cmd/link/testdata/autosection.6
+rename to src/cmd/newlink/testdata/autosection.6
+diff --git a/src/cmd/link/testdata/autosection.s b/src/cmd/newlink/testdata/autosection.s
+similarity index 100%
+rename from src/cmd/link/testdata/autosection.s
+rename to src/cmd/newlink/testdata/autosection.s
+diff --git a/src/cmd/link/testdata/autoweak.6 b/src/cmd/newlink/testdata/autoweak.6
+similarity index 100%
+rename from src/cmd/link/testdata/autoweak.6
+rename to src/cmd/newlink/testdata/autoweak.6
+diff --git a/src/cmd/link/testdata/autoweak.s b/src/cmd/newlink/testdata/autoweak.s
+similarity index 100%
+rename from src/cmd/link/testdata/autoweak.s
+rename to src/cmd/newlink/testdata/autoweak.s
+diff --git a/src/cmd/link/testdata/dead.6 b/src/cmd/newlink/testdata/dead.6
+similarity index 100%
+rename from src/cmd/link/testdata/dead.6
+rename to src/cmd/newlink/testdata/dead.6
+diff --git a/src/cmd/link/testdata/dead.s b/src/cmd/newlink/testdata/dead.s
+similarity index 100%
+rename from src/cmd/link/testdata/dead.s
+rename to src/cmd/newlink/testdata/dead.s
+diff --git a/src/cmd/link/testdata/genpcln.go b/src/cmd/newlink/testdata/genpcln.go
+similarity index 100%
+rename from src/cmd/link/testdata/genpcln.go
+rename to src/cmd/newlink/testdata/genpcln.go
+diff --git a/src/cmd/link/testdata/hello.6 b/src/cmd/newlink/testdata/hello.6
+similarity index 100%
+rename from src/cmd/link/testdata/hello.6
+rename to src/cmd/newlink/testdata/hello.6
+diff --git a/src/cmd/link/testdata/hello.s b/src/cmd/newlink/testdata/hello.s
+similarity index 100%
+rename from src/cmd/link/testdata/hello.s
+rename to src/cmd/newlink/testdata/hello.s
+diff --git a/src/cmd/link/testdata/layout.6 b/src/cmd/newlink/testdata/layout.6
+similarity index 100%
+rename from src/cmd/link/testdata/layout.6
+rename to src/cmd/newlink/testdata/layout.6
+diff --git a/src/cmd/link/testdata/layout.s b/src/cmd/newlink/testdata/layout.s
+similarity index 100%
+rename from src/cmd/link/testdata/layout.s
+rename to src/cmd/newlink/testdata/layout.s
+diff --git a/src/cmd/link/testdata/link.hello.darwin.amd64 b/src/cmd/newlink/testdata/link.hello.darwin.amd64
+similarity index 100%
+rename from src/cmd/link/testdata/link.hello.darwin.amd64
+rename to src/cmd/newlink/testdata/link.hello.darwin.amd64
+diff --git a/src/cmd/link/testdata/macho.amd64.exit9 b/src/cmd/newlink/testdata/macho.amd64.exit9
+similarity index 100%
+rename from src/cmd/link/testdata/macho.amd64.exit9
+rename to src/cmd/newlink/testdata/macho.amd64.exit9
+diff --git a/src/cmd/link/testdata/macho.amd64.hello b/src/cmd/newlink/testdata/macho.amd64.hello
+similarity index 100%
+rename from src/cmd/link/testdata/macho.amd64.hello
+rename to src/cmd/newlink/testdata/macho.amd64.hello
+diff --git a/src/cmd/link/testdata/macho.amd64.helloro b/src/cmd/newlink/testdata/macho.amd64.helloro
+similarity index 100%
+rename from src/cmd/link/testdata/macho.amd64.helloro
+rename to src/cmd/newlink/testdata/macho.amd64.helloro
+diff --git a/src/cmd/link/testdata/pclntab.6 b/src/cmd/newlink/testdata/pclntab.6
+similarity index 100%
+rename from src/cmd/link/testdata/pclntab.6
+rename to src/cmd/newlink/testdata/pclntab.6
+diff --git a/src/cmd/link/testdata/pclntab.s b/src/cmd/newlink/testdata/pclntab.s
+similarity index 100%
+rename from src/cmd/link/testdata/pclntab.s
+rename to src/cmd/newlink/testdata/pclntab.s
+diff --git a/src/cmd/link/util.go b/src/cmd/newlink/util.go
+similarity index 100%
+rename from src/cmd/link/util.go
+rename to src/cmd/newlink/util.go
+diff --git a/src/cmd/link/write.go b/src/cmd/newlink/write.go
+similarity index 100%
+rename from src/cmd/link/write.go
+rename to src/cmd/newlink/write.go

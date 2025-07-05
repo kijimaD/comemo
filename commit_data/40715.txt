@@ -19,6 +19,36 @@ Date:   Wed Jun 19 18:31:43 2019 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/key_schedule.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/crypto/tls/key_schedule.go b/src/crypto/tls/key_schedule.go
+index 3cd6e8297a..83e5480fc5 100644
+--- a/src/crypto/tls/key_schedule.go
++++ b/src/crypto/tls/key_schedule.go
+@@ -7,6 +7,7 @@ package tls
+ import (
+ 	"crypto/elliptic"
+ 	"crypto/hmac"
++	"crypto/subtle"
+ 	"errors"
+ 	"golang.org/x/crypto/cryptobyte"
+ 	"golang.org/x/crypto/curve25519"
+@@ -193,8 +194,16 @@ func (p *x25519Parameters) SharedKey(peerPublicKey []byte) []byte {
+ 	if len(peerPublicKey) != 32 {
+ 		return nil
+ 	}
++
+ 	var theirPublicKey, sharedKey [32]byte
+ 	copy(theirPublicKey[:], peerPublicKey)
+ 	curve25519.ScalarMult(&sharedKey, &p.privateKey, &theirPublicKey)
++
++	// Check for low-order inputs. See RFC 8422, Section 5.11.
++	var allZeroes [32]byte
++	if subtle.ConstantTimeCompare(allZeroes[:], sharedKey[:]) == 1 {
++		return nil
++	}
++
+ 	return sharedKey[:]
+ }

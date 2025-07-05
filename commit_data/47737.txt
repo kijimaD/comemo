@@ -19,8 +19,83 @@ Date:   Wed Apr 7 12:56:43 2021 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/walk/convert.go | 11 ++++++++++-
  test/abi/convT64_criteria.go             | 25 +++++++++++++++++++++++++
  test/abi/convT64_criteria.out            |  1 +
  3 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 168f42ee48..3d30aefd5f 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -316,6 +317,14 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
+ 		return false
+ 	}
+ 
++	// Helper to determine whether a given type (when passed to a
++	// function) will fit into a single integer register, assuming
++	// that the reg abi is in effect. This is somewhat ad-hoc, there
++	// may be a cleaner way to do this.
++	fitsInSingleIntReg := func(t *types.Type) bool {
++		return from.IsScalar() || types.IsDirectIface(from)
++	}
++
+ 	tkind := to.Tie()
+ 	switch from.Tie() {
+ 	case 'I':
+@@ -332,7 +341,7 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
+ 			return "convT32", false
+ 		case from.Size() == 8 && isFloatLike(from):
+ 			return "convT64F", false
+-		case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers():
++		case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers() && (!objabi.Experiment.RegabiArgs || fitsInSingleIntReg(from)):
+ 			return "convT64", false
+ 		}
+ 		if sc := from.SoleComponent(); sc != nil {
+diff --git a/test/abi/convT64_criteria.go b/test/abi/convT64_criteria.go
+new file mode 100644
+index 0000000000..165bdfabde
+--- /dev/null
++++ b/test/abi/convT64_criteria.go
+@@ -0,0 +1,25 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++type MyStruct struct {
++	F0 [0]float64
++	F1 byte
++	F2 int16
++	_  struct {
++		F0 uint32
++	}
++}
++
++func main() {
++	p0 := MyStruct{F0: [0]float64{}, F1: byte(27), F2: int16(9887)}
++	fmt.Println(p0)
++}
+diff --git a/test/abi/convT64_criteria.out b/test/abi/convT64_criteria.out
+new file mode 100644
+index 0000000000..8ac8571456
+--- /dev/null
++++ b/test/abi/convT64_criteria.out
+@@ -0,0 +1 @@
++{[] 27 9887 {0}}

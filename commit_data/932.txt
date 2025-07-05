@@ -9,6 +9,21 @@ Date:   Wed Oct 22 11:27:18 2008 -0700
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=17624
     CL=17624
-
+---
  usr/gri/pretty/test.sh | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index f35bb87ed1..c17f59660d 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -21,7 +21,8 @@ count() {
+ apply1() {
+ 	#echo $1 $2
+ 	case `basename $F` in
+-	selftest.go | func3.go ) ;; # skip - these are test cases for syntax errors
++	selftest.go | func3.go ) ;;  # skip - these are test cases for syntax errors
++	newfn.go ) ;;  # skip these - cannot parse w/o type information
+ 	* ) $1 $2; count ;;
+ 	esac
+ }

@@ -9,6 +9,22 @@ Date:   Sun Jun 21 09:10:39 2015 +1000
     Change-Id: Ic46fda0f42cefedc3f6085c0e77e67616ce4955e
     Reviewed-on: https://go-review.googlesource.com/11297
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/parse.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 72e91b8e55..7f956cb2a8 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -807,9 +807,7 @@ func (p *Parser) term() uint64 {
+ 		case lex.LSH:
+ 			p.next()
+ 			shift := p.factor()
+-			if int64(shift) < 0 {
+-				p.errorf("negative left shift %d", shift)
+-			}
++			// shift is a uint, so can never be negative.
+ 			return value << shift
+ 		case lex.RSH:
+ 			p.next()

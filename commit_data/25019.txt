@@ -11,6 +11,23 @@ Date:   Wed Sep 16 22:06:16 2015 +1200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7bcc6f5375..d511e1bff4 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1001,9 +1001,9 @@ func hostlink() {
+ 		// anyway.
+ 		argv = append(argv, "-Wl,-Bsymbolic-functions")
+ 		if UseRelro() {
+-			argv = append(argv, "-shared")
++			argv = append(argv, "-Wl,-z,relro")
+ 		}
+-		argv = append(argv, "-Wl,-z,relro")
++		argv = append(argv, "-shared")
+ 	}
+ 
+ 	if Linkshared && Iself {

@@ -7,10 +7,103 @@ Date:   Mon Jan 26 17:48:27 2009 -0800
     R=r
     OCL=23542
     CL=23542
-
+---
  usr/gri/pretty/parser.go    | 12 ++++++------
  usr/gri/pretty/printer.go   |  4 +++-
  usr/gri/pretty/scanner.go   |  2 ++
  usr/gri/pretty/selftest2.go |  2 +-
  usr/gri/pretty/test.sh      |  2 +-
  5 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index fc20c2fbea..8af9591a19 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -1186,11 +1186,11 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
+ }
+ 
+ 
+-func (P *Parser) ParseGoStat() *AST.Stat {
+-	P.Trace("GoStat");
++func (P *Parser) ParseInvocationStat(keyword int) *AST.Stat {
++	P.Trace("InvocationStat");
+ 
+-	s := AST.NewStat(P.pos, Scanner.GO);
+-	P.Expect(Scanner.GO);
++	s := AST.NewStat(P.pos, keyword);
++	P.Expect(keyword);
+ 	s.Expr = P.ParseExpression(1);
+ 
+ 	P.Ecart();
+@@ -1434,8 +1434,8 @@ func (P *Parser) ParseStatement() *AST.Stat {
+ 		Scanner.LBRACK, Scanner.STRUCT,  // composite type
+ 		Scanner.MUL, Scanner.AND, Scanner.ARROW:  // unary
+ 		s = P.ParseSimpleStat(false);
+-	case Scanner.GO:
+-		s = P.ParseGoStat();
++	case Scanner.GO, Scanner.DEFER:
++		s = P.ParseInvocationStat(P.tok);
+ 	case Scanner.RETURN:
+ 		s = P.ParseReturnStat();
+ 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO, Scanner.FALLTHROUGH:
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 87b5f68167..9de403e5dc 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -776,7 +776,9 @@ func (P *Printer) Stat(s *AST.Stat) {
+ 		P.indentation--;
+ 		P.newlines = 1;
+ 
+-	case Scanner.GO, Scanner.RETURN, Scanner.FALLTHROUGH, Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
++	case
++		Scanner.GO, Scanner.DEFER, Scanner.RETURN, Scanner.FALLTHROUGH,
++		Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
+ 		P.Token(s.Pos, s.Tok);
+ 		if s.Expr != nil {
+ 			P.separator = blank;
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 49aaecb6ad..0fcf104362 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -84,6 +84,7 @@ const (
+ 	CONTINUE;
+ 
+ 	DEFAULT;
++	DEFER;
+ 	ELSE;
+ 	FALLTHROUGH;
+ 	FOR;
+@@ -185,6 +186,7 @@ func TokenString(tok int) string {
+ 	case CONTINUE: return "continue";
+ 
+ 	case DEFAULT: return "default";
++	case DEFER: return "defer";
+ 	case ELSE: return "else";
+ 	case FALLTHROUGH: return "fallthrough";
+ 	case FOR: return "for";
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index 7b5fc64945..ab3e0e4ae7 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -123,7 +123,7 @@ func f3(a *[]int, m map[string] int) {
+ 	var i string;
+ 	var x int;
+ 	for i, x = range m {
+-		println(i, x);
++		defer println(i, x);
+ 	}
+ }
+ 
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 9d07fe81fb..29b2c818f6 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -27,7 +27,7 @@ apply1() {
+ 	# the following have semantic errors: bug039.go | bug040.go
+ 	method1.go | selftest1.go | func3.go | \
+ 	bug014.go | bug025.go | bug029.go | bug032.go | bug039.go | bug040.go | bug050.go |  bug068.go | \
+-	bug088.go | bug083.go | bug106.go | bug125.go | bug126.go | bug132.go ) ;;
++	bug088.go | bug083.go | bug106.go | bug125.go | bug126.go | bug132.go | bug133.go ) ;;
+ 	* ) $1 $2; count $F;;
+ 	esac
+ }

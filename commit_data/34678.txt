@@ -40,7 +40,84 @@ Date:   Thu Sep 28 15:07:48 2017 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strings/strings.go      | 28 +++++++++++++++++++++++++++-
  src/strings/strings_test.go | 16 ++++++++++++++++
  2 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index a7941fbb90..73bba9278c 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -542,7 +542,33 @@ func Repeat(s string, count int) string {
+ }
+ 
+ // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
+-func ToUpper(s string) string { return Map(unicode.ToUpper, s) }
++func ToUpper(s string) string {
++	isASCII, hasLower := true, false
++	for i := 0; i < len(s); i++ {
++		c := s[i]
++		if c >= utf8.RuneSelf {
++			isASCII = false
++			break
++		}
++		hasLower = hasLower || (c >= 'a' && c <= 'z')
++	}
++
++	if isASCII { // optimize for ASCII-only strings.
++		if !hasLower {
++			return s
++		}
++		b := make([]byte, len(s))
++		for i := 0; i < len(s); i++ {
++			c := s[i]
++			if c >= 'a' && c <= 'z' {
++				c -= 'a' - 'A'
++			}
++			b[i] = c
++		}
++		return string(b)
++	}
++	return Map(unicode.ToUpper, s)
++}
+ 
+ // ToLower returns a copy of the string s with all Unicode letters mapped to their lower case.
+ func ToLower(s string) string { return Map(unicode.ToLower, s) }
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 869be9c477..b185e7eec8 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -518,9 +518,12 @@ func runStringTests(t *testing.T, f func(string) string, funcName string, testCa
+ 
+ var upperTests = []StringTest{
+ 	{"", ""},
++	{"ONLYUPPER", "ONLYUPPER"},
+ 	{"abc", "ABC"},
+ 	{"AbC123", "ABC123"},
+ 	{"azAZ09_", "AZAZ09_"},
++	{"longStrinGwitHmixofsmaLLandcAps", "LONGSTRINGWITHMIXOFSMALLANDCAPS"},
++	{"long\u0250string\u0250with\u0250nonascii\u2C6Fchars", "LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS"},
+ 	{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
+ }
+ 
+@@ -648,6 +651,19 @@ func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTest
+ 
+ func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+ 
++func BenchmarkToUpper(b *testing.B) {
++	for _, tc := range upperTests {
++		b.Run(tc.in, func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				actual := ToUpper(tc.in)
++				if actual != tc.out {
++					b.Errorf("ToUpper(%q) = %q; want %q", tc.in, actual, tc.out)
++				}
++			}
++		})
++	}
++}
++
+ func BenchmarkMapNoChanges(b *testing.B) {
+ 	identity := func(r rune) rune {
+ 		return r

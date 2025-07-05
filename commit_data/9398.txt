@@ -12,7 +12,7 @@ Date:   Wed Aug 17 13:28:29 2011 -0400
     R=paulzhol, rsc, mikioh.mikioh
     CC=ality, golang-dev
     https://golang.org/cl/4779041
-
+---
  src/pkg/net/Makefile             |  48 ++++-
  src/pkg/net/file_plan9.go        |  33 ++++
  src/pkg/net/file_test.go         |   4 +-
@@ -36,3 +36,4339 @@ Date:   Wed Aug 17 13:28:29 2011 -0400
  src/pkg/net/unixsock_posix.go    | 418 +++++++++++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_plan9.go |   7 +-
  22 files changed, 2549 insertions(+), 1435 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 8e634d6a56..eba9e26d9d 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -9,16 +9,14 @@ GOFILES=\
+ 	dial.go\
+ 	dnsclient.go\
+ 	dnsmsg.go\
+-	fd_$(GOOS).go\
+ 	hosts.go\
+ 	interface.go\
+ 	ip.go\
+-	ipsock.go\
+ 	iprawsock.go\
++	ipsock.go\
+ 	net.go\
+ 	parse.go\
+ 	pipe.go\
+-	sock.go\
+ 	tcpsock.go\
+ 	udpsock.go\
+ 	unixsock.go\
+@@ -27,14 +25,21 @@ GOFILES_freebsd=\
+ 	dnsclient_unix.go\
+ 	dnsconfig.go\
+ 	fd.go\
++	fd_$(GOOS).go\
+ 	file.go\
+ 	interface_bsd.go\
+ 	interface_freebsd.go\
++	iprawsock_posix.go\
++	ipsock_posix.go\
+ 	lookup_unix.go\
+ 	newpollserver.go\
+ 	port.go\
+ 	sendfile_stub.go\
++	sock.go\
+ 	sock_bsd.go\
++	tcpsock_posix.go\
++	udpsock_posix.go\
++	unixsock_posix.go\
+ 
+ ifeq ($(CGO_ENABLED),1)
+ CGOFILES_freebsd=\
+@@ -48,14 +53,21 @@ GOFILES_darwin=\
+ 	dnsclient_unix.go\
+ 	dnsconfig.go\
+ 	fd.go\
++	fd_$(GOOS).go\
+ 	file.go\
+ 	interface_bsd.go\
+ 	interface_darwin.go\
++	iprawsock_posix.go\
++	ipsock_posix.go\
+ 	lookup_unix.go\
+ 	newpollserver.go\
+ 	port.go\
+ 	sendfile_stub.go\
++	sock.go\
+ 	sock_bsd.go\
++	tcpsock_posix.go\
++	udpsock_posix.go\
++	unixsock_posix.go\
+ 
+ ifeq ($(CGO_ENABLED),1)
+ CGOFILES_darwin=\
+@@ -69,13 +81,20 @@ GOFILES_linux=\
+ 	dnsclient_unix.go\
+ 	dnsconfig.go\
+ 	fd.go\
++	fd_$(GOOS).go\
+ 	file.go\
+ 	interface_linux.go\
++	iprawsock_posix.go\
++	ipsock_posix.go\
+ 	lookup_unix.go\
+ 	newpollserver.go\
+ 	port.go\
+ 	sendfile_linux.go\
++	sock.go\
+ 	sock_linux.go\
++	tcpsock_posix.go\
++	udpsock_posix.go\
++	unixsock_posix.go\
+ 
+ ifeq ($(CGO_ENABLED),1)
+ CGOFILES_linux=\
+@@ -89,27 +108,46 @@ GOFILES_openbsd=\
+ 	dnsclient_unix.go\
+ 	dnsconfig.go\
+ 	fd.go\
++	fd_$(GOOS).go\
+ 	file.go\
+ 	interface_bsd.go\
+ 	interface_openbsd.go\
++	iprawsock_posix.go\
++	ipsock_posix.go\
+ 	lookup_unix.go\
+ 	newpollserver.go\
+ 	port.go\
+ 	sendfile_stub.go\
++	sock.go\
+ 	sock_bsd.go\
++	tcpsock_posix.go\
++	udpsock_posix.go\
++	unixsock_posix.go\
+ 	cgo_stub.go\
+ 
+ GOFILES_plan9=\
++	file_plan9.go\
+ 	interface_stub.go\
+-	lookup_unix.go\
+-	sendfile_stub.go\
++	iprawsock_plan9.go\
++	ipsock_plan9.go\
++	lookup_plan9.go\
++	tcpsock_plan9.go\
++	udpsock_plan9.go\
++	unixsock_plan9.go\
+ 
+ GOFILES_windows=\
++	fd_$(GOOS).go\
+ 	file_windows.go\
+ 	interface_windows.go\
++	iprawsock_posix.go\
++	ipsock_posix.go\
+ 	lookup_windows.go\
+ 	sendfile_windows.go\
++	sock.go\
+ 	sock_windows.go\
++	tcpsock_posix.go\
++	udpsock_posix.go\
++	unixsock_posix.go\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+ ifneq ($(CGOFILES_$(GOOS)),)
+diff --git a/src/pkg/net/file_plan9.go b/src/pkg/net/file_plan9.go
+new file mode 100644
+index 0000000000..a07e743318
+--- /dev/null
++++ b/src/pkg/net/file_plan9.go
+@@ -0,0 +1,33 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os"
++)
++
++// FileConn returns a copy of the network connection corresponding to
++// the open file f.  It is the caller's responsibility to close f when
++// finished.  Closing c does not affect f, and closing f does not
++// affect c.
++func FileConn(f *os.File) (c Conn, err os.Error) {
++	return nil, os.EPLAN9
++}
++
++// FileListener returns a copy of the network listener corresponding
++// to the open file f.  It is the caller's responsibility to close l
++// when finished.  Closing c does not affect l, and closing l does not
++// affect c.
++func FileListener(f *os.File) (l Listener, err os.Error) {
++	return nil, os.EPLAN9
++}
++
++// FilePacketConn returns a copy of the packet network connection
++// corresponding to the open file f.  It is the caller's
++// responsibility to close f when finished.  Closing c does not affect
++// f, and closing f does not affect c.
++func FilePacketConn(f *os.File) (c PacketConn, err os.Error) {
++	return nil, os.EPLAN9
++}
+diff --git a/src/pkg/net/file_test.go b/src/pkg/net/file_test.go
+index bd1e2c9d7b..9a8c2dcbc4 100644
+--- a/src/pkg/net/file_test.go
++++ b/src/pkg/net/file_test.go
+@@ -57,7 +57,7 @@ func testFileListener(t *testing.T, net, laddr string) {
+ }
+ 
+ func TestFileListener(t *testing.T) {
+-	if runtime.GOOS == "windows" {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	testFileListener(t, "tcp", "127.0.0.1")
+@@ -116,7 +116,7 @@ func testFilePacketConnDial(t *testing.T, net, raddr string) {
+ }
+ 
+ func TestFilePacketConn(t *testing.T) {
+-	if runtime.GOOS == "windows" {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	testFilePacketConnListen(t, "udp", "127.0.0.1:0")
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 43047a78e6..662b9f57bd 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -8,22 +8,8 @@ package net
+ 
+ import (
+ 	"os"
+-	"sync"
+-	"syscall"
+ )
+ 
+-var onceReadProtocols sync.Once
+-
+-func sockaddrToIP(sa syscall.Sockaddr) Addr {
+-	switch sa := sa.(type) {
+-	case *syscall.SockaddrInet4:
+-		return &IPAddr{sa.Addr[0:]}
+-	case *syscall.SockaddrInet6:
+-		return &IPAddr{sa.Addr[0:]}
+-	}
+-	return nil
+-}
+-
+ // IPAddr represents the address of a IP end point.
+ type IPAddr struct {
+ 	IP IP
+@@ -39,27 +25,6 @@ func (a *IPAddr) String() string {
+ 	return a.IP.String()
+ }
+ 
+-func (a *IPAddr) family() int {
+-	if a == nil || len(a.IP) <= 4 {
+-		return syscall.AF_INET
+-	}
+-	if a.IP.To4() != nil {
+-		return syscall.AF_INET
+-	}
+-	return syscall.AF_INET6
+-}
+-
+-func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
+-	return ipToSockaddr(family, a.IP, 0)
+-}
+-
+-func (a *IPAddr) toAddr() sockaddr {
+-	if a == nil { // nil *IPAddr
+-		return nil // nil interface
+-	}
+-	return a
+-}
+-
+ // ResolveIPAddr parses addr as a IP address and resolves domain
+ // names to numeric addresses on the network net, which must be
+ // "ip", "ip4" or "ip6".  A literal IPv6 host address must be
+@@ -72,168 +37,6 @@ func ResolveIPAddr(net, addr string) (*IPAddr, os.Error) {
+ 	return &IPAddr{ip}, nil
+ }
+ 
+-// IPConn is the implementation of the Conn and PacketConn
+-// interfaces for IP network connections.
+-type IPConn struct {
+-	fd *netFD
+-}
+-
+-func newIPConn(fd *netFD) *IPConn { return &IPConn{fd} }
+-
+-func (c *IPConn) ok() bool { return c != nil && c.fd != nil }
+-
+-// Implementation of the Conn interface - see Conn for documentation.
+-
+-// Read implements the net.Conn Read method.
+-func (c *IPConn) Read(b []byte) (n int, err os.Error) {
+-	n, _, err = c.ReadFrom(b)
+-	return
+-}
+-
+-// Write implements the net.Conn Write method.
+-func (c *IPConn) Write(b []byte) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	return c.fd.Write(b)
+-}
+-
+-// Close closes the IP connection.
+-func (c *IPConn) Close() os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	err := c.fd.Close()
+-	c.fd = nil
+-	return err
+-}
+-
+-// LocalAddr returns the local network address.
+-func (c *IPConn) LocalAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.laddr
+-}
+-
+-// RemoteAddr returns the remote network address, a *IPAddr.
+-func (c *IPConn) RemoteAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.raddr
+-}
+-
+-// SetTimeout implements the net.Conn SetTimeout method.
+-func (c *IPConn) SetTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setTimeout(c.fd, nsec)
+-}
+-
+-// SetReadTimeout implements the net.Conn SetReadTimeout method.
+-func (c *IPConn) SetReadTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setReadTimeout(c.fd, nsec)
+-}
+-
+-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
+-func (c *IPConn) SetWriteTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setWriteTimeout(c.fd, nsec)
+-}
+-
+-// SetReadBuffer sets the size of the operating system's
+-// receive buffer associated with the connection.
+-func (c *IPConn) SetReadBuffer(bytes int) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setReadBuffer(c.fd, bytes)
+-}
+-
+-// SetWriteBuffer sets the size of the operating system's
+-// transmit buffer associated with the connection.
+-func (c *IPConn) SetWriteBuffer(bytes int) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setWriteBuffer(c.fd, bytes)
+-}
+-
+-// IP-specific methods.
+-
+-// ReadFromIP reads a IP packet from c, copying the payload into b.
+-// It returns the number of bytes copied into b and the return address
+-// that was on the packet.
+-//
+-// ReadFromIP can be made to time out and return an error with
+-// Timeout() == true after a fixed time limit; see SetTimeout and
+-// SetReadTimeout.
+-func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err os.Error) {
+-	if !c.ok() {
+-		return 0, nil, os.EINVAL
+-	}
+-	// TODO(cw,rsc): consider using readv if we know the family
+-	// type to avoid the header trim/copy
+-	n, sa, err := c.fd.ReadFrom(b)
+-	switch sa := sa.(type) {
+-	case *syscall.SockaddrInet4:
+-		addr = &IPAddr{sa.Addr[0:]}
+-		if len(b) >= 4 { // discard ipv4 header
+-			hsize := (int(b[0]) & 0xf) * 4
+-			copy(b, b[hsize:])
+-			n -= hsize
+-		}
+-	case *syscall.SockaddrInet6:
+-		addr = &IPAddr{sa.Addr[0:]}
+-	}
+-	return
+-}
+-
+-// ReadFrom implements the net.PacketConn ReadFrom method.
+-func (c *IPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+-	if !c.ok() {
+-		return 0, nil, os.EINVAL
+-	}
+-	n, uaddr, err := c.ReadFromIP(b)
+-	return n, uaddr.toAddr(), err
+-}
+-
+-// WriteToIP writes a IP packet to addr via c, copying the payload from b.
+-//
+-// WriteToIP can be made to time out and return
+-// an error with Timeout() == true after a fixed time limit;
+-// see SetTimeout and SetWriteTimeout.
+-// On packet-oriented connections, write timeouts are rare.
+-func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	sa, err1 := addr.sockaddr(c.fd.family)
+-	if err1 != nil {
+-		return 0, &OpError{Op: "write", Net: "ip", Addr: addr, Error: err1}
+-	}
+-	return c.fd.WriteTo(b, sa)
+-}
+-
+-// WriteTo implements the net.PacketConn WriteTo method.
+-func (c *IPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	a, ok := addr.(*IPAddr)
+-	if !ok {
+-		return 0, &OpError{"writeto", "ip", addr, os.EINVAL}
+-	}
+-	return c.WriteToIP(b, a)
+-}
+-
+ // Convert "host" into IP address.
+ func hostToIP(net, host string) (ip IP, err os.Error) {
+ 	var addr IP
+@@ -264,100 +67,3 @@ func hostToIP(net, host string) (ip IP, err os.Error) {
+ Error:
+ 	return nil, err
+ }
+-
+-var protocols map[string]int
+-
+-func readProtocols() {
+-	protocols = make(map[string]int)
+-	if file, err := open("/etc/protocols"); err == nil {
+-		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+-			// tcp    6   TCP    # transmission control protocol
+-			if i := byteIndex(line, '#'); i >= 0 {
+-				line = line[0:i]
+-			}
+-			f := getFields(line)
+-			if len(f) < 2 {
+-				continue
+-			}
+-			if proto, _, ok := dtoi(f[1], 0); ok {
+-				protocols[f[0]] = proto
+-				for _, alias := range f[2:] {
+-					protocols[alias] = proto
+-				}
+-			}
+-		}
+-		file.close()
+-	}
+-}
+-
+-func splitNetProto(netProto string) (net string, proto int, err os.Error) {
+-	onceReadProtocols.Do(readProtocols)
+-	i := last(netProto, ':')
+-	if i < 0 { // no colon
+-		return "", 0, os.NewError("no IP protocol specified")
+-	}
+-	net = netProto[0:i]
+-	protostr := netProto[i+1:]
+-	proto, i, ok := dtoi(protostr, 0)
+-	if !ok || i != len(protostr) {
+-		// lookup by name
+-		proto, ok = protocols[protostr]
+-		if ok {
+-			return
+-		}
+-	}
+-	return
+-}
+-
+-// DialIP connects to the remote address raddr on the network net,
+-// which must be "ip", "ip4", or "ip6".
+-func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
+-	net, proto, err := splitNetProto(netProto)
+-	if err != nil {
+-		return
+-	}
+-	switch net {
+-	case "ip", "ip4", "ip6":
+-	default:
+-		return nil, UnknownNetworkError(net)
+-	}
+-	if raddr == nil {
+-		return nil, &OpError{"dial", "ip", nil, errMissingAddress}
+-	}
+-	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
+-	if e != nil {
+-		return nil, e
+-	}
+-	return newIPConn(fd), nil
+-}
+-
+-// ListenIP listens for incoming IP packets addressed to the
+-// local address laddr.  The returned connection c's ReadFrom
+-// and WriteTo methods can be used to receive and send IP
+-// packets with per-packet addressing.
+-func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err os.Error) {
+-	net, proto, err := splitNetProto(netProto)
+-	if err != nil {
+-		return
+-	}
+-	switch net {
+-	case "ip", "ip4", "ip6":
+-	default:
+-		return nil, UnknownNetworkError(net)
+-	}
+-	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
+-	if e != nil {
+-		return nil, e
+-	}
+-	return newIPConn(fd), nil
+-}
+-
+-// BindToDevice binds an IPConn to a network interface.
+-func (c *IPConn) BindToDevice(device string) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	c.fd.incref()
+-	defer c.fd.decref()
+-	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
+-}
+diff --git a/src/pkg/net/iprawsock_plan9.go b/src/pkg/net/iprawsock_plan9.go
+new file mode 100644
+index 0000000000..808e17974f
+--- /dev/null
++++ b/src/pkg/net/iprawsock_plan9.go
+@@ -0,0 +1,99 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// (Raw) IP sockets stubs for Plan 9
++
++package net
++
++import (
++	"os"
++)
++
++// IPConn is the implementation of the Conn and PacketConn
++// interfaces for IP network connections.
++type IPConn bool
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read implements the net.Conn Read method.
++func (c *IPConn) Read(b []byte) (n int, err os.Error) {
++	return 0, os.EPLAN9
++}
++
++// Write implements the net.Conn Write method.
++func (c *IPConn) Write(b []byte) (n int, err os.Error) {
++	return 0, os.EPLAN9
++}
++
++// Close closes the IP connection.
++func (c *IPConn) Close() os.Error {
++	return os.EPLAN9
++}
++
++// LocalAddr returns the local network address.
++func (c *IPConn) LocalAddr() Addr {
++	return nil
++}
++
++// RemoteAddr returns the remote network address, a *IPAddr.
++func (c *IPConn) RemoteAddr() Addr {
++	return nil
++}
++
++// SetTimeout implements the net.Conn SetTimeout method.
++func (c *IPConn) SetTimeout(nsec int64) os.Error {
++	return os.EPLAN9
++}
++
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
++func (c *IPConn) SetReadTimeout(nsec int64) os.Error {
++	return os.EPLAN9
++}
++
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
++func (c *IPConn) SetWriteTimeout(nsec int64) os.Error {
++	return os.EPLAN9
++}
++
++// IP-specific methods.
++
++// ReadFrom implements the net.PacketConn ReadFrom method.
++func (c *IPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
++	err = os.EPLAN9
++	return
++}
++
++// WriteToIP writes a IP packet to addr via c, copying the payload from b.
++//
++// WriteToIP can be made to time out and return
++// an error with Timeout() == true after a fixed time limit;
++// see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections, write timeouts are rare.
++func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (n int, err os.Error) {
++	return 0, os.EPLAN9
++}
++
++// WriteTo implements the net.PacketConn WriteTo method.
++func (c *IPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
++	return 0, os.EPLAN9
++}
++
++func splitNetProto(netProto string) (net string, proto int, err os.Error) {
++	err = os.EPLAN9
++	return
++}
++
++// DialIP connects to the remote address raddr on the network net,
++// which must be "ip", "ip4", or "ip6".
++func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
++	return nil, os.EPLAN9
++}
++
++// ListenIP listens for incoming IP packets addressed to the
++// local address laddr.  The returned connection c's ReadFrom
++// and WriteTo methods can be used to receive and send IP
++// packets with per-packet addressing.
++func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err os.Error) {
++	return nil, os.EPLAN9
++}
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+new file mode 100644
+index 0000000000..4e11518006
+--- /dev/null
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -0,0 +1,305 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// (Raw) IP sockets
++
++package net
++
++import (
++	"os"
++	"sync"
++	"syscall"
++)
++
++var onceReadProtocols sync.Once
++
++func sockaddrToIP(sa syscall.Sockaddr) Addr {
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		return &IPAddr{sa.Addr[0:]}
++	case *syscall.SockaddrInet6:
++		return &IPAddr{sa.Addr[0:]}
++	}
++	return nil
++}
++
++func (a *IPAddr) family() int {
++	if a == nil || len(a.IP) <= 4 {
++		return syscall.AF_INET
++	}
++	if a.IP.To4() != nil {
++		return syscall.AF_INET
++	}
++	return syscall.AF_INET6
++}
++
++func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
++	return ipToSockaddr(family, a.IP, 0)
++}
++
++func (a *IPAddr) toAddr() sockaddr {
++	if a == nil { // nil *IPAddr
++		return nil // nil interface
++	}
++	return a
++}
++
++// IPConn is the implementation of the Conn and PacketConn
++// interfaces for IP network connections.
++type IPConn struct {
++	fd *netFD
++}
++
++func newIPConn(fd *netFD) *IPConn { return &IPConn{fd} }
++
++func (c *IPConn) ok() bool { return c != nil && c.fd != nil }
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read implements the net.Conn Read method.
++func (c *IPConn) Read(b []byte) (n int, err os.Error) {
++	n, _, err = c.ReadFrom(b)
++	return
++}
++
++// Write implements the net.Conn Write method.
++func (c *IPConn) Write(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Write(b)
++}
++
++// Close closes the IP connection.
++func (c *IPConn) Close() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	err := c.fd.Close()
++	c.fd = nil
++	return err
++}
++
++// LocalAddr returns the local network address.
++func (c *IPConn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.laddr
++}
++
++// RemoteAddr returns the remote network address, a *IPAddr.
++func (c *IPConn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.raddr
++}
++
++// SetTimeout implements the net.Conn SetTimeout method.
++func (c *IPConn) SetTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setTimeout(c.fd, nsec)
++}
++
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
++func (c *IPConn) SetReadTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadTimeout(c.fd, nsec)
++}
++
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
++func (c *IPConn) SetWriteTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteTimeout(c.fd, nsec)
++}
++
++// SetReadBuffer sets the size of the operating system's
++// receive buffer associated with the connection.
++func (c *IPConn) SetReadBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadBuffer(c.fd, bytes)
++}
++
++// SetWriteBuffer sets the size of the operating system's
++// transmit buffer associated with the connection.
++func (c *IPConn) SetWriteBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteBuffer(c.fd, bytes)
++}
++
++// IP-specific methods.
++
++// ReadFromIP reads a IP packet from c, copying the payload into b.
++// It returns the number of bytes copied into b and the return address
++// that was on the packet.
++//
++// ReadFromIP can be made to time out and return an error with
++// Timeout() == true after a fixed time limit; see SetTimeout and
++// SetReadTimeout.
++func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	// TODO(cw,rsc): consider using readv if we know the family
++	// type to avoid the header trim/copy
++	n, sa, err := c.fd.ReadFrom(b)
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		addr = &IPAddr{sa.Addr[0:]}
++		if len(b) >= 4 { // discard ipv4 header
++			hsize := (int(b[0]) & 0xf) * 4
++			copy(b, b[hsize:])
++			n -= hsize
++		}
++	case *syscall.SockaddrInet6:
++		addr = &IPAddr{sa.Addr[0:]}
++	}
++	return
++}
++
++// ReadFrom implements the net.PacketConn ReadFrom method.
++func (c *IPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	n, uaddr, err := c.ReadFromIP(b)
++	return n, uaddr.toAddr(), err
++}
++
++// WriteToIP writes a IP packet to addr via c, copying the payload from b.
++//
++// WriteToIP can be made to time out and return
++// an error with Timeout() == true after a fixed time limit;
++// see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections, write timeouts are rare.
++func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	sa, err1 := addr.sockaddr(c.fd.family)
++	if err1 != nil {
++		return 0, &OpError{Op: "write", Net: "ip", Addr: addr, Error: err1}
++	}
++	return c.fd.WriteTo(b, sa)
++}
++
++// WriteTo implements the net.PacketConn WriteTo method.
++func (c *IPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	a, ok := addr.(*IPAddr)
++	if !ok {
++		return 0, &OpError{"writeto", "ip", addr, os.EINVAL}
++	}
++	return c.WriteToIP(b, a)
++}
++
++var protocols map[string]int
++
++func readProtocols() {
++	protocols = make(map[string]int)
++	if file, err := open("/etc/protocols"); err == nil {
++		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
++			// tcp    6   TCP    # transmission control protocol
++			if i := byteIndex(line, '#'); i >= 0 {
++				line = line[0:i]
++			}
++			f := getFields(line)
++			if len(f) < 2 {
++				continue
++			}
++			if proto, _, ok := dtoi(f[1], 0); ok {
++				protocols[f[0]] = proto
++				for _, alias := range f[2:] {
++					protocols[alias] = proto
++				}
++			}
++		}
++		file.close()
++	}
++}
++
++func splitNetProto(netProto string) (net string, proto int, err os.Error) {
++	onceReadProtocols.Do(readProtocols)
++	i := last(netProto, ':')
++	if i < 0 { // no colon
++		return "", 0, os.NewError("no IP protocol specified")
++	}
++	net = netProto[0:i]
++	protostr := netProto[i+1:]
++	proto, i, ok := dtoi(protostr, 0)
++	if !ok || i != len(protostr) {
++		// lookup by name
++		proto, ok = protocols[protostr]
++		if ok {
++			return
++		}
++	}
++	return
++}
++
++// DialIP connects to the remote address raddr on the network net,
++// which must be "ip", "ip4", or "ip6".
++func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
++	net, proto, err := splitNetProto(netProto)
++	if err != nil {
++		return
++	}
++	switch net {
++	case "ip", "ip4", "ip6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if raddr == nil {
++		return nil, &OpError{"dial", "ip", nil, errMissingAddress}
++	}
++	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
++	if e != nil {
++		return nil, e
++	}
++	return newIPConn(fd), nil
++}
++
++// ListenIP listens for incoming IP packets addressed to the
++// local address laddr.  The returned connection c's ReadFrom
++// and WriteTo methods can be used to receive and send IP
++// packets with per-packet addressing.
++func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err os.Error) {
++	net, proto, err := splitNetProto(netProto)
++	if err != nil {
++		return
++	}
++	switch net {
++	case "ip", "ip4", "ip6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
++	if e != nil {
++		return nil, e
++	}
++	return newIPConn(fd), nil
++}
++
++// BindToDevice binds an IPConn to a network interface.
++func (c *IPConn) BindToDevice(device string) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	c.fd.incref()
++	defer c.fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
++}
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index e831d9afc0..4e2a5622b3 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -8,94 +8,10 @@ package net
+ 
+ import (
+ 	"os"
+-	"syscall"
+ )
+ 
+-// Should we try to use the IPv4 socket interface if we're
+-// only dealing with IPv4 sockets?  As long as the host system
+-// understands IPv6, it's okay to pass IPv4 addresses to the IPv6
+-// interface.  That simplifies our code and is most general.
+-// Unfortunately, we need to run on kernels built without IPv6
+-// support too.  So probe the kernel to figure it out.
+-//
+-// probeIPv6Stack probes both basic IPv6 capability and IPv6 IPv4-
+-// mapping capability which is controlled by IPV6_V6ONLY socket
+-// option and/or kernel state "net.inet6.ip6.v6only".
+-// It returns two boolean values.  If the first boolean value is
+-// true, kernel supports basic IPv6 functionality.  If the second
+-// boolean value is true, kernel supports IPv6 IPv4-mapping.
+-func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+-	var probes = []struct {
+-		la TCPAddr
+-		ok bool
+-	}{
+-		// IPv6 communication capability
+-		{TCPAddr{IP: ParseIP("::1")}, false},
+-		// IPv6 IPv4-mapped address communication capability
+-		{TCPAddr{IP: IPv4(127, 0, 0, 1)}, false},
+-	}
+-
+-	for i := range probes {
+-		s, errno := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+-		if errno != 0 {
+-			continue
+-		}
+-		defer closesocket(s)
+-		sa, err := probes[i].la.toAddr().sockaddr(syscall.AF_INET6)
+-		if err != nil {
+-			continue
+-		}
+-		errno = syscall.Bind(s, sa)
+-		if errno != 0 {
+-			continue
+-		}
+-		probes[i].ok = true
+-	}
+-
+-	return probes[0].ok, probes[1].ok
+-}
+-
+ var supportsIPv6, supportsIPv4map = probeIPv6Stack()
+ 
+-// favoriteAddrFamily returns the appropriate address family to
+-// the given net, raddr, laddr and mode.  At first it figures
+-// address family out from the net.  If mode indicates "listen"
+-// and laddr.(type).IP is nil, it assumes that the user wants to
+-// make a passive connection with wildcard address family, both
+-// INET and INET6, and wildcard address.  Otherwise guess: if the
+-// addresses are IPv4 then returns INET, or else returns INET6.
+-func favoriteAddrFamily(net string, raddr, laddr sockaddr, mode string) int {
+-	switch net[len(net)-1] {
+-	case '4':
+-		return syscall.AF_INET
+-	case '6':
+-		return syscall.AF_INET6
+-	}
+-
+-	if mode == "listen" {
+-		switch a := laddr.(type) {
+-		case *TCPAddr:
+-			if a.IP == nil && supportsIPv6 {
+-				return syscall.AF_INET6
+-			}
+-		case *UDPAddr:
+-			if a.IP == nil && supportsIPv6 {
+-				return syscall.AF_INET6
+-			}
+-		case *IPAddr:
+-			if a.IP == nil && supportsIPv6 {
+-				return syscall.AF_INET6
+-			}
+-		}
+-	}
+-
+-	if (laddr == nil || laddr.family() == syscall.AF_INET) &&
+-		(raddr == nil || raddr.family() == syscall.AF_INET) {
+-		return syscall.AF_INET
+-	}
+-	return syscall.AF_INET6
+-}
+-
+ func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
+ 	if filter == anyaddr {
+ 		// We'll take any IP address, but since the dialing code
+@@ -143,93 +59,12 @@ func ipv6only(x IP) IP {
+ 	return nil
+ }
+ 
+-// TODO(rsc): if syscall.OS == "linux", we're supposed to read
+-// /proc/sys/net/core/somaxconn,
+-// to take advantage of kernels that have raised the limit.
+-func listenBacklog() int { return syscall.SOMAXCONN }
+-
+-// Internet sockets (TCP, UDP)
+-
+-// A sockaddr represents a TCP or UDP network address that can
+-// be converted into a syscall.Sockaddr.
+-type sockaddr interface {
+-	Addr
+-	sockaddr(family int) (syscall.Sockaddr, os.Error)
+-	family() int
+-}
+-
+-func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
+-	var oserr os.Error
+-	var la, ra syscall.Sockaddr
+-	family := favoriteAddrFamily(net, raddr, laddr, mode)
+-	if laddr != nil {
+-		if la, oserr = laddr.sockaddr(family); oserr != nil {
+-			goto Error
+-		}
+-	}
+-	if raddr != nil {
+-		if ra, oserr = raddr.sockaddr(family); oserr != nil {
+-			goto Error
+-		}
+-	}
+-	fd, oserr = socket(net, family, socktype, proto, la, ra, toAddr)
+-	if oserr != nil {
+-		goto Error
+-	}
+-	return fd, nil
+-
+-Error:
+-	addr := raddr
+-	if mode == "listen" {
+-		addr = laddr
+-	}
+-	return nil, &OpError{mode, net, addr, oserr}
+-}
+-
+ type InvalidAddrError string
+ 
+ func (e InvalidAddrError) String() string  { return string(e) }
+ func (e InvalidAddrError) Timeout() bool   { return false }
+ func (e InvalidAddrError) Temporary() bool { return false }
+ 
+-func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+-	switch family {
+-	case syscall.AF_INET:
+-		if len(ip) == 0 {
+-			ip = IPv4zero
+-		}
+-		if ip = ip.To4(); ip == nil {
+-			return nil, InvalidAddrError("non-IPv4 address")
+-		}
+-		s := new(syscall.SockaddrInet4)
+-		for i := 0; i < IPv4len; i++ {
+-			s.Addr[i] = ip[i]
+-		}
+-		s.Port = port
+-		return s, nil
+-	case syscall.AF_INET6:
+-		if len(ip) == 0 {
+-			ip = IPv6zero
+-		}
+-		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
+-		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
+-		// which it refuses to do.  Rewrite to the IPv6 all zeros.
+-		if ip.Equal(IPv4zero) {
+-			ip = IPv6zero
+-		}
+-		if ip = ip.To16(); ip == nil {
+-			return nil, InvalidAddrError("non-IPv6 address")
+-		}
+-		s := new(syscall.SockaddrInet6)
+-		for i := 0; i < IPv6len; i++ {
+-			s.Addr[i] = ip[i]
+-		}
+-		s.Port = port
+-		return s, nil
+-	}
+-	return nil, InvalidAddrError("unexpected socket family")
+-}
+-
+ // SplitHostPort splits a network address of the form
+ // "host:port" or "[host]:port" into host and port.
+ // The latter form must be used when host contains a colon.
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+new file mode 100644
+index 0000000000..9e5da6d38a
+--- /dev/null
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -0,0 +1,305 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// IP sockets stubs for Plan 9
++
++package net
++
++import (
++	"os"
++)
++
++// probeIPv6Stack returns two boolean values.  If the first boolean value is
++// true, kernel supports basic IPv6 functionality.  If the second
++// boolean value is true, kernel supports IPv6 IPv4-mapping.
++func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
++	return false, false
++}
++
++// parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
++func parsePlan9Addr(s string) (ip IP, iport int, err os.Error) {
++	var (
++		addr IP
++		p, i int
++		ok   bool
++	)
++	addr = IPv4zero // address contains port only
++	i = byteIndex(s, '!')
++	if i >= 0 {
++		addr = ParseIP(s[:i])
++		if addr == nil {
++			err = os.NewError("net: parsing IP failed")
++			goto Error
++		}
++	}
++	p, _, ok = dtoi(s[i+1:], 0)
++	if !ok {
++		err = os.NewError("net: parsing port failed")
++		goto Error
++	}
++	if p < 0 || p > 0xFFFF {
++		err = &AddrError{"invalid port", string(p)}
++		goto Error
++	}
++	return addr, p, nil
++
++Error:
++	return nil, 0, err
++}
++
++func readPlan9Addr(proto, filename string) (addr Addr, err os.Error) {
++	var buf [128]byte
++
++	f, err := os.Open(filename)
++	if err != nil {
++		return
++	}
++	n, err := f.Read(buf[:])
++	if err != nil {
++		return
++	}
++	ip, port, err := parsePlan9Addr(string(buf[:n]))
++	if err != nil {
++		return
++	}
++	switch proto {
++	case "tcp":
++		addr = &TCPAddr{ip, port}
++	case "udp":
++		addr = &UDPAddr{ip, port}
++	default:
++		return nil, os.NewError("unknown protocol " + proto)
++	}
++	return addr, nil
++}
++
++type plan9Conn struct {
++	proto, name, dir string
++	ctl, data        *os.File
++	laddr, raddr     Addr
++}
++
++func newPlan9Conn(proto, name string, ctl *os.File, laddr, raddr Addr) *plan9Conn {
++	return &plan9Conn{proto, name, "/net/" + proto + "/" + name, ctl, nil, laddr, raddr}
++}
++
++func (c *plan9Conn) ok() bool { return c != nil && c.ctl != nil }
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read implements the net.Conn Read method.
++func (c *plan9Conn) Read(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	if c.data == nil {
++		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
++		if err != nil {
++			return 0, err
++		}
++	}
++	n, err = c.data.Read(b)
++	if c.proto == "udp" && err == os.EOF {
++		n = 0
++		err = nil
++	}
++	return
++}
++
++// Write implements the net.Conn Write method.
++func (c *plan9Conn) Write(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	if c.data == nil {
++		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
++		if err != nil {
++			return 0, err
++		}
++	}
++	return c.data.Write(b)
++}
++
++// Close closes the connection.
++func (c *plan9Conn) Close() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	err := c.ctl.Close()
++	if err != nil {
++		return err
++	}
++	if c.data != nil {
++		err = c.data.Close()
++	}
++	c.ctl = nil
++	c.data = nil
++	return err
++}
++
++// LocalAddr returns the local network address.
++func (c *plan9Conn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.laddr
++}
++
++// RemoteAddr returns the remote network address.
++func (c *plan9Conn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.raddr
++}
++
++// SetTimeout implements the net.Conn SetTimeout method.
++func (c *plan9Conn) SetTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return os.EPLAN9
++}
++
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
++func (c *plan9Conn) SetReadTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return os.EPLAN9
++}
++
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
++func (c *plan9Conn) SetWriteTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return os.EPLAN9
++}
++
++func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, err os.Error) {
++	var (
++		ip   IP
++		port int
++	)
++	switch a := addr.(type) {
++	case *TCPAddr:
++		proto = "tcp"
++		ip = a.IP
++		port = a.Port
++	case *UDPAddr:
++		proto = "udp"
++		ip = a.IP
++		port = a.Port
++	default:
++		err = UnknownNetworkError(net)
++		return
++	}
++
++	clone, dest, err := queryCS1(proto, ip, port)
++	if err != nil {
++		return
++	}
++	f, err := os.OpenFile(clone, os.O_RDWR, 0)
++	if err != nil {
++		return
++	}
++	var buf [16]byte
++	n, err := f.Read(buf[:])
++	if err != nil {
++		return
++	}
++	return f, dest, proto, string(buf[:n]), nil
++}
++
++func dialPlan9(net string, laddr, raddr Addr) (c *plan9Conn, err os.Error) {
++	f, dest, proto, name, err := startPlan9(net, raddr)
++	if err != nil {
++		return
++	}
++	_, err = f.WriteString("connect " + dest)
++	if err != nil {
++		return
++	}
++	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
++	if err != nil {
++		return
++	}
++	raddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/remote")
++	if err != nil {
++		return
++	}
++	return newPlan9Conn(proto, name, f, laddr, raddr), nil
++}
++
++type plan9Listener struct {
++	proto, name, dir string
++	ctl              *os.File
++	laddr            Addr
++}
++
++func listenPlan9(net string, laddr Addr) (l *plan9Listener, err os.Error) {
++	f, dest, proto, name, err := startPlan9(net, laddr)
++	if err != nil {
++		return
++	}
++	_, err = f.WriteString("announce " + dest)
++	if err != nil {
++		return
++	}
++	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
++	if err != nil {
++		return
++	}
++	l = new(plan9Listener)
++	l.proto = proto
++	l.name = name
++	l.dir = "/net/" + proto + "/" + name
++	l.ctl = f
++	l.laddr = laddr
++	return l, nil
++}
++
++func (l *plan9Listener) plan9Conn() *plan9Conn {
++	return newPlan9Conn(l.proto, l.name, l.ctl, l.laddr, nil)
++}
++
++func (l *plan9Listener) acceptPlan9() (c *plan9Conn, err os.Error) {
++	f, err := os.Open(l.dir + "/listen")
++	if err != nil {
++		return
++	}
++	var buf [16]byte
++	n, err := f.Read(buf[:])
++	if err != nil {
++		return
++	}
++	name := string(buf[:n])
++	laddr, err := readPlan9Addr(l.proto, l.dir+"/local")
++	if err != nil {
++		return
++	}
++	raddr, err := readPlan9Addr(l.proto, l.dir+"/remote")
++	if err != nil {
++		return
++	}
++	return newPlan9Conn(l.proto, name, f, laddr, raddr), nil
++}
++
++func (l *plan9Listener) Accept() (c Conn, err os.Error) {
++	c1, err := l.acceptPlan9()
++	if err != nil {
++		return
++	}
++	return c1, nil
++}
++
++func (l *plan9Listener) Close() os.Error {
++	if l == nil || l.ctl == nil {
++		return os.EINVAL
++	}
++	return l.ctl.Close()
++}
++
++func (l *plan9Listener) Addr() Addr { return l.laddr }
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+new file mode 100644
+index 0000000000..0c522fb7fb
+--- /dev/null
++++ b/src/pkg/net/ipsock_posix.go
+@@ -0,0 +1,174 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++// Should we try to use the IPv4 socket interface if we're
++// only dealing with IPv4 sockets?  As long as the host system
++// understands IPv6, it's okay to pass IPv4 addresses to the IPv6
++// interface.  That simplifies our code and is most general.
++// Unfortunately, we need to run on kernels built without IPv6
++// support too.  So probe the kernel to figure it out.
++//
++// probeIPv6Stack probes both basic IPv6 capability and IPv6 IPv4-
++// mapping capability which is controlled by IPV6_V6ONLY socket
++// option and/or kernel state "net.inet6.ip6.v6only".
++// It returns two boolean values.  If the first boolean value is
++// true, kernel supports basic IPv6 functionality.  If the second
++// boolean value is true, kernel supports IPv6 IPv4-mapping.
++func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
++	var probes = []struct {
++		la TCPAddr
++		ok bool
++	}{
++		// IPv6 communication capability
++		{TCPAddr{IP: ParseIP("::1")}, false},
++		// IPv6 IPv4-mapped address communication capability
++		{TCPAddr{IP: IPv4(127, 0, 0, 1)}, false},
++	}
++
++	for i := range probes {
++		s, errno := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
++		if errno != 0 {
++			continue
++		}
++		defer closesocket(s)
++		sa, err := probes[i].la.toAddr().sockaddr(syscall.AF_INET6)
++		if err != nil {
++			continue
++		}
++		errno = syscall.Bind(s, sa)
++		if errno != 0 {
++			continue
++		}
++		probes[i].ok = true
++	}
++
++	return probes[0].ok, probes[1].ok
++}
++
++// favoriteAddrFamily returns the appropriate address family to
++// the given net, raddr, laddr and mode.  At first it figures
++// address family out from the net.  If mode indicates "listen"
++// and laddr.(type).IP is nil, it assumes that the user wants to
++// make a passive connection with wildcard address family, both
++// INET and INET6, and wildcard address.  Otherwise guess: if the
++// addresses are IPv4 then returns INET, or else returns INET6.
++func favoriteAddrFamily(net string, raddr, laddr sockaddr, mode string) int {
++	switch net[len(net)-1] {
++	case '4':
++		return syscall.AF_INET
++	case '6':
++		return syscall.AF_INET6
++	}
++
++	if mode == "listen" {
++		switch a := laddr.(type) {
++		case *TCPAddr:
++			if a.IP == nil && supportsIPv6 {
++				return syscall.AF_INET6
++			}
++		case *UDPAddr:
++			if a.IP == nil && supportsIPv6 {
++				return syscall.AF_INET6
++			}
++		case *IPAddr:
++			if a.IP == nil && supportsIPv6 {
++				return syscall.AF_INET6
++			}
++		}
++	}
++
++	if (laddr == nil || laddr.family() == syscall.AF_INET) &&
++		(raddr == nil || raddr.family() == syscall.AF_INET) {
++		return syscall.AF_INET
++	}
++	return syscall.AF_INET6
++}
++
++// TODO(rsc): if syscall.OS == "linux", we're supposed to read
++// /proc/sys/net/core/somaxconn,
++// to take advantage of kernels that have raised the limit.
++func listenBacklog() int { return syscall.SOMAXCONN }
++
++// Internet sockets (TCP, UDP)
++
++// A sockaddr represents a TCP or UDP network address that can
++// be converted into a syscall.Sockaddr.
++type sockaddr interface {
++	Addr
++	sockaddr(family int) (syscall.Sockaddr, os.Error)
++	family() int
++}
++
++func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
++	var oserr os.Error
++	var la, ra syscall.Sockaddr
++	family := favoriteAddrFamily(net, raddr, laddr, mode)
++	if laddr != nil {
++		if la, oserr = laddr.sockaddr(family); oserr != nil {
++			goto Error
++		}
++	}
++	if raddr != nil {
++		if ra, oserr = raddr.sockaddr(family); oserr != nil {
++			goto Error
++		}
++	}
++	fd, oserr = socket(net, family, socktype, proto, la, ra, toAddr)
++	if oserr != nil {
++		goto Error
++	}
++	return fd, nil
++
++Error:
++	addr := raddr
++	if mode == "listen" {
++		addr = laddr
++	}
++	return nil, &OpError{mode, net, addr, oserr}
++}
++
++func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
++	switch family {
++	case syscall.AF_INET:
++		if len(ip) == 0 {
++			ip = IPv4zero
++		}
++		if ip = ip.To4(); ip == nil {
++			return nil, InvalidAddrError("non-IPv4 address")
++		}
++		s := new(syscall.SockaddrInet4)
++		for i := 0; i < IPv4len; i++ {
++			s.Addr[i] = ip[i]
++		}
++		s.Port = port
++		return s, nil
++	case syscall.AF_INET6:
++		if len(ip) == 0 {
++			ip = IPv6zero
++		}
++		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
++		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
++		// which it refuses to do.  Rewrite to the IPv6 all zeros.
++		if ip.Equal(IPv4zero) {
++			ip = IPv6zero
++		}
++		if ip = ip.To16(); ip == nil {
++			return nil, InvalidAddrError("non-IPv6 address")
++		}
++		s := new(syscall.SockaddrInet6)
++		for i := 0; i < IPv6len; i++ {
++			s.Addr[i] = ip[i]
++		}
++		s.Port = port
++		return s, nil
++	}
++	return nil, InvalidAddrError("unexpected socket family")
++}
+diff --git a/src/pkg/net/lookup_plan9.go b/src/pkg/net/lookup_plan9.go
+new file mode 100644
+index 0000000000..37d6b8e315
+--- /dev/null
++++ b/src/pkg/net/lookup_plan9.go
+@@ -0,0 +1,226 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os"
++)
++
++func query(filename, query string, bufSize int) (res []string, err os.Error) {
++	file, err := os.OpenFile(filename, os.O_RDWR, 0)
++	if err != nil {
++		return
++	}
++	defer file.Close()
++
++	_, err = file.WriteString(query)
++	if err != nil {
++		return
++	}
++	_, err = file.Seek(0, 0)
++	if err != nil {
++		return
++	}
++	buf := make([]byte, bufSize)
++	for {
++		n, _ := file.Read(buf)
++		if n <= 0 {
++			break
++		}
++		res = append(res, string(buf[:n]))
++	}
++	return
++}
++
++func queryCS(net, host, service string) (res []string, err os.Error) {
++	switch net {
++	case "tcp4", "tcp6":
++		net = "tcp"
++	case "udp4", "udp6":
++		net = "udp"
++	}
++	if host == "" {
++		host = "*"
++	}
++	return query("/net/cs", net+"!"+host+"!"+service, 128)
++}
++
++func queryCS1(net string, ip IP, port int) (clone, dest string, err os.Error) {
++	ips := "*"
++	if !ip.IsUnspecified() {
++		ips = ip.String()
++	}
++	lines, err := queryCS(net, ips, itoa(port))
++	if err != nil {
++		return
++	}
++	f := getFields(lines[0])
++	if len(f) < 2 {
++		return "", "", os.NewError("net: bad response from ndb/cs")
++	}
++	clone, dest = f[0], f[1]
++	return
++}
++
++func queryDNS(addr string, typ string) (res []string, err os.Error) {
++	return query("/net/dns", addr+" "+typ, 1024)
++}
++
++// LookupHost looks up the given host using the local resolver.
++// It returns an array of that host's addresses.
++func LookupHost(host string) (addrs []string, err os.Error) {
++	// Use /net/cs insead of /net/dns because cs knows about
++	// host names in local network (e.g. from /lib/ndb/local)
++	lines, err := queryCS("tcp", host, "1")
++	if err != nil {
++		return
++	}
++	for _, line := range lines {
++		f := getFields(line)
++		if len(f) < 2 {
++			continue
++		}
++		addr := f[1]
++		if i := byteIndex(addr, '!'); i >= 0 {
++			addr = addr[:i] // remove port
++		}
++		if ParseIP(addr) == nil {
++			continue
++		}
++		addrs = append(addrs, addr)
++	}
++	return
++}
++
++// LookupIP looks up host using the local resolver.
++// It returns an array of that host's IPv4 and IPv6 addresses.
++func LookupIP(host string) (ips []IP, err os.Error) {
++	addrs, err := LookupHost(host)
++	if err != nil {
++		return
++	}
++	for _, addr := range addrs {
++		if ip := ParseIP(addr); ip != nil {
++			ips = append(ips, ip)
++		}
++	}
++	return
++}
++
++// LookupPort looks up the port for the given network and service.
++func LookupPort(network, service string) (port int, err os.Error) {
++	switch network {
++	case "tcp4", "tcp6":
++		network = "tcp"
++	case "udp4", "udp6":
++		network = "udp"
++	}
++	lines, err := queryCS(network, "127.0.0.1", service)
++	if err != nil {
++		return
++	}
++	unknownPortError := &AddrError{"unknown port", network + "/" + service}
++	if len(lines) == 0 {
++		return 0, unknownPortError
++	}
++	f := getFields(lines[0])
++	if len(f) < 2 {
++		return 0, unknownPortError
++	}
++	s := f[1]
++	if i := byteIndex(s, '!'); i >= 0 {
++		s = s[i+1:] // remove address
++	}
++	if n, _, ok := dtoi(s, 0); ok {
++		return n, nil
++	}
++	return 0, unknownPortError
++}
++
++// LookupCNAME returns the canonical DNS host for the given name.
++// Callers that do not care about the canonical name can call
++// LookupHost or LookupIP directly; both take care of resolving
++// the canonical name as part of the lookup.
++func LookupCNAME(name string) (cname string, err os.Error) {
++	lines, err := queryDNS(name, "cname")
++	if err != nil {
++		return
++	}
++	if len(lines) > 0 {
++		if f := getFields(lines[0]); len(f) >= 3 {
++			return f[2] + ".", nil
++		}
++	}
++	return "", os.NewError("net: bad response from ndb/dns")
++}
++
++// LookupSRV tries to resolve an SRV query of the given service,
++// protocol, and domain name, as specified in RFC 2782. In most cases
++// the proto argument can be the same as the corresponding
++// Addr.Network(). The returned records are sorted by priority 
++// and randomized by weight within a priority.
++func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.Error) {
++	target := "_" + service + "._" + proto + "." + name
++	lines, err := queryDNS(target, "srv")
++	if err != nil {
++		return
++	}
++	for _, line := range lines {
++		f := getFields(line)
++		if len(f) < 6 {
++			continue
++		}
++		port, _, portOk := dtoi(f[2], 0)
++		priority, _, priorityOk := dtoi(f[3], 0)
++		weight, _, weightOk := dtoi(f[4], 0)
++		if !(portOk && priorityOk && weightOk) {
++			continue
++		}
++		addrs = append(addrs, &SRV{f[5], uint16(port), uint16(priority), uint16(weight)})
++		cname = f[0]
++	}
++	byPriorityWeight(addrs).sort()
++	return
++}
++
++// LookupMX returns the DNS MX records for the given domain name sorted by preference.
++func LookupMX(name string) (mx []*MX, err os.Error) {
++	lines, err := queryDNS(name, "mx")
++	if err != nil {
++		return
++	}
++	for _, line := range lines {
++		f := getFields(line)
++		if len(f) < 4 {
++			continue
++		}
++		if pref, _, ok := dtoi(f[2], 0); ok {
++			mx = append(mx, &MX{f[3], uint16(pref)})
++		}
++	}
++	byPref(mx).sort()
++	return
++}
++
++// LookupAddr performs a reverse lookup for the given address, returning a list
++// of names mapping to that address.
++func LookupAddr(addr string) (name []string, err os.Error) {
++	arpa, err := reverseaddr(addr)
++	if err != nil {
++		return
++	}
++	lines, err := queryDNS(arpa, "ptr")
++	if err != nil {
++		return
++	}
++	for _, line := range lines {
++		f := getFields(line)
++		if len(f) < 3 {
++			continue
++		}
++		name = append(name, f[2])
++	}
++	return
++}
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index 226f354d30..8d51eba18c 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -12,8 +12,8 @@ import (
+ )
+ 
+ func TestReadLine(t *testing.T) {
+-	// /etc/services file does not exist on windows.
+-	if runtime.GOOS == "windows" {
++	// /etc/services file does not exist on windows and Plan 9.
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	filename := "/etc/services" // a nice big file
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 36780d789d..7d7f7fc01c 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -146,8 +146,8 @@ func TestTCPServer(t *testing.T) {
+ }
+ 
+ func TestUnixServer(t *testing.T) {
+-	// "unix" sockets are not supported on windows.
+-	if runtime.GOOS == "windows" {
++	// "unix" sockets are not supported on windows and Plan 9.
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	os.Remove("/tmp/gotest.net")
+@@ -225,8 +225,8 @@ func TestUDPServer(t *testing.T) {
+ }
+ 
+ func TestUnixDatagramServer(t *testing.T) {
+-	// "unix" sockets are not supported on windows.
+-	if runtime.GOOS == "windows" {
++	// "unix" sockets are not supported on windows and Plan 9.
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	for _, isEmpty := range []bool{false} {
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index a118fced4e..f5c0a27810 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -7,21 +7,9 @@
+ package net
+ 
+ import (
+-	"io"
+ 	"os"
+-	"syscall"
+ )
+ 
+-func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+-	switch sa := sa.(type) {
+-	case *syscall.SockaddrInet4:
+-		return &TCPAddr{sa.Addr[0:], sa.Port}
+-	case *syscall.SockaddrInet6:
+-		return &TCPAddr{sa.Addr[0:], sa.Port}
+-	}
+-	return nil
+-}
+-
+ // TCPAddr represents the address of a TCP end point.
+ type TCPAddr struct {
+ 	IP   IP
+@@ -38,27 +26,6 @@ func (a *TCPAddr) String() string {
+ 	return JoinHostPort(a.IP.String(), itoa(a.Port))
+ }
+ 
+-func (a *TCPAddr) family() int {
+-	if a == nil || len(a.IP) <= 4 {
+-		return syscall.AF_INET
+-	}
+-	if a.IP.To4() != nil {
+-		return syscall.AF_INET
+-	}
+-	return syscall.AF_INET6
+-}
+-
+-func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
+-	return ipToSockaddr(family, a.IP, a.Port)
+-}
+-
+-func (a *TCPAddr) toAddr() sockaddr {
+-	if a == nil { // nil *TCPAddr
+-		return nil // nil interface
+-	}
+-	return a
+-}
+-
+ // ResolveTCPAddr parses addr as a TCP address of the form
+ // host:port and resolves domain names or port names to
+ // numeric addresses on the network net, which must be "tcp",
+@@ -71,242 +38,3 @@ func ResolveTCPAddr(net, addr string) (*TCPAddr, os.Error) {
+ 	}
+ 	return &TCPAddr{ip, port}, nil
+ }
+-
+-// TCPConn is an implementation of the Conn interface
+-// for TCP network connections.
+-type TCPConn struct {
+-	fd *netFD
+-}
+-
+-func newTCPConn(fd *netFD) *TCPConn {
+-	c := &TCPConn{fd}
+-	c.SetNoDelay(true)
+-	return c
+-}
+-
+-func (c *TCPConn) ok() bool { return c != nil && c.fd != nil }
+-
+-// Implementation of the Conn interface - see Conn for documentation.
+-
+-// Read implements the net.Conn Read method.
+-func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	return c.fd.Read(b)
+-}
+-
+-// ReadFrom implements the io.ReaderFrom ReadFrom method.
+-func (c *TCPConn) ReadFrom(r io.Reader) (int64, os.Error) {
+-	if n, err, handled := sendFile(c.fd, r); handled {
+-		return n, err
+-	}
+-	return genericReadFrom(c, r)
+-}
+-
+-// Write implements the net.Conn Write method.
+-func (c *TCPConn) Write(b []byte) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	return c.fd.Write(b)
+-}
+-
+-// Close closes the TCP connection.
+-func (c *TCPConn) Close() os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	err := c.fd.Close()
+-	c.fd = nil
+-	return err
+-}
+-
+-// LocalAddr returns the local network address, a *TCPAddr.
+-func (c *TCPConn) LocalAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.laddr
+-}
+-
+-// RemoteAddr returns the remote network address, a *TCPAddr.
+-func (c *TCPConn) RemoteAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.raddr
+-}
+-
+-// SetTimeout implements the net.Conn SetTimeout method.
+-func (c *TCPConn) SetTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setTimeout(c.fd, nsec)
+-}
+-
+-// SetReadTimeout implements the net.Conn SetReadTimeout method.
+-func (c *TCPConn) SetReadTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setReadTimeout(c.fd, nsec)
+-}
+-
+-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
+-func (c *TCPConn) SetWriteTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setWriteTimeout(c.fd, nsec)
+-}
+-
+-// SetReadBuffer sets the size of the operating system's
+-// receive buffer associated with the connection.
+-func (c *TCPConn) SetReadBuffer(bytes int) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setReadBuffer(c.fd, bytes)
+-}
+-
+-// SetWriteBuffer sets the size of the operating system's
+-// transmit buffer associated with the connection.
+-func (c *TCPConn) SetWriteBuffer(bytes int) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setWriteBuffer(c.fd, bytes)
+-}
+-
+-// SetLinger sets the behavior of Close() on a connection
+-// which still has data waiting to be sent or to be acknowledged.
+-//
+-// If sec < 0 (the default), Close returns immediately and
+-// the operating system finishes sending the data in the background.
+-//
+-// If sec == 0, Close returns immediately and the operating system
+-// discards any unsent or unacknowledged data.
+-//
+-// If sec > 0, Close blocks for at most sec seconds waiting for
+-// data to be sent and acknowledged.
+-func (c *TCPConn) SetLinger(sec int) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setLinger(c.fd, sec)
+-}
+-
+-// SetKeepAlive sets whether the operating system should send
+-// keepalive messages on the connection.
+-func (c *TCPConn) SetKeepAlive(keepalive bool) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setKeepAlive(c.fd, keepalive)
+-}
+-
+-// SetNoDelay controls whether the operating system should delay
+-// packet transmission in hopes of sending fewer packets
+-// (Nagle's algorithm).  The default is true (no delay), meaning
+-// that data is sent as soon as possible after a Write.
+-func (c *TCPConn) SetNoDelay(noDelay bool) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setNoDelay(c.fd, noDelay)
+-}
+-
+-// File returns a copy of the underlying os.File, set to blocking mode.
+-// It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (c *TCPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+-
+-// DialTCP connects to the remote address raddr on the network net,
+-// which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is used
+-// as the local address for the connection.
+-func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
+-	if raddr == nil {
+-		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
+-	}
+-	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+-	if e != nil {
+-		return nil, e
+-	}
+-	return newTCPConn(fd), nil
+-}
+-
+-// TCPListener is a TCP network listener.
+-// Clients should typically use variables of type Listener
+-// instead of assuming TCP.
+-type TCPListener struct {
+-	fd *netFD
+-}
+-
+-// ListenTCP announces on the TCP address laddr and returns a TCP listener.
+-// Net must be "tcp", "tcp4", or "tcp6".
+-// If laddr has a port of 0, it means to listen on some available port.
+-// The caller can use l.Addr() to retrieve the chosen address.
+-func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
+-	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
+-	if err != nil {
+-		return nil, err
+-	}
+-	errno := syscall.Listen(fd.sysfd, listenBacklog())
+-	if errno != 0 {
+-		closesocket(fd.sysfd)
+-		return nil, &OpError{"listen", "tcp", laddr, os.Errno(errno)}
+-	}
+-	l = new(TCPListener)
+-	l.fd = fd
+-	return l, nil
+-}
+-
+-// AcceptTCP accepts the next incoming call and returns the new connection
+-// and the remote address.
+-func (l *TCPListener) AcceptTCP() (c *TCPConn, err os.Error) {
+-	if l == nil || l.fd == nil || l.fd.sysfd < 0 {
+-		return nil, os.EINVAL
+-	}
+-	fd, err := l.fd.accept(sockaddrToTCP)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return newTCPConn(fd), nil
+-}
+-
+-// Accept implements the Accept method in the Listener interface;
+-// it waits for the next call and returns a generic Conn.
+-func (l *TCPListener) Accept() (c Conn, err os.Error) {
+-	c1, err := l.AcceptTCP()
+-	if err != nil {
+-		return nil, err
+-	}
+-	return c1, nil
+-}
+-
+-// Close stops listening on the TCP address.
+-// Already Accepted connections are not closed.
+-func (l *TCPListener) Close() os.Error {
+-	if l == nil || l.fd == nil {
+-		return os.EINVAL
+-	}
+-	return l.fd.Close()
+-}
+-
+-// Addr returns the listener's network address, a *TCPAddr.
+-func (l *TCPListener) Addr() Addr { return l.fd.laddr }
+-
+-// SetTimeout sets the deadline associated with the listener
+-func (l *TCPListener) SetTimeout(nsec int64) os.Error {
+-	if l == nil || l.fd == nil {
+-		return os.EINVAL
+-	}
+-	return setTimeout(l.fd, nsec)
+-}
+-
+-// File returns a copy of the underlying os.File, set to blocking mode.
+-// It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (l *TCPListener) File() (f *os.File, err os.Error) { return l.fd.dup() }
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+new file mode 100644
+index 0000000000..f4f6e9fee1
+--- /dev/null
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -0,0 +1,63 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TCP for Plan 9
++
++package net
++
++import (
++	"os"
++)
++
++// TCPConn is an implementation of the Conn interface
++// for TCP network connections.
++type TCPConn struct {
++	plan9Conn
++}
++
++// DialTCP connects to the remote address raddr on the network net,
++// which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is used
++// as the local address for the connection.
++func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if raddr == nil {
++		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
++	}
++	c1, err := dialPlan9(net, laddr, raddr)
++	if err != nil {
++		return
++	}
++	return &TCPConn{*c1}, nil
++}
++
++// TCPListener is a TCP network listener.
++// Clients should typically use variables of type Listener
++// instead of assuming TCP.
++type TCPListener struct {
++	plan9Listener
++}
++
++// ListenTCP announces on the TCP address laddr and returns a TCP listener.
++// Net must be "tcp", "tcp4", or "tcp6".
++// If laddr has a port of 0, it means to listen on some available port.
++// The caller can use l.Addr() to retrieve the chosen address.
++func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if laddr == nil {
++		return nil, &OpError{"listen", "tcp", nil, errMissingAddress}
++	}
++	l1, err := listenPlan9(net, laddr)
++	if err != nil {
++		return
++	}
++	return &TCPListener{*l1}, nil
++}
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+new file mode 100644
+index 0000000000..5560301b40
+--- /dev/null
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -0,0 +1,283 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TCP sockets
++
++package net
++
++import (
++	"io"
++	"os"
++	"syscall"
++)
++
++func sockaddrToTCP(sa syscall.Sockaddr) Addr {
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		return &TCPAddr{sa.Addr[0:], sa.Port}
++	case *syscall.SockaddrInet6:
++		return &TCPAddr{sa.Addr[0:], sa.Port}
++	}
++	return nil
++}
++
++func (a *TCPAddr) family() int {
++	if a == nil || len(a.IP) <= 4 {
++		return syscall.AF_INET
++	}
++	if a.IP.To4() != nil {
++		return syscall.AF_INET
++	}
++	return syscall.AF_INET6
++}
++
++func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
++	return ipToSockaddr(family, a.IP, a.Port)
++}
++
++func (a *TCPAddr) toAddr() sockaddr {
++	if a == nil { // nil *TCPAddr
++		return nil // nil interface
++	}
++	return a
++}
++
++// TCPConn is an implementation of the Conn interface
++// for TCP network connections.
++type TCPConn struct {
++	fd *netFD
++}
++
++func newTCPConn(fd *netFD) *TCPConn {
++	c := &TCPConn{fd}
++	c.SetNoDelay(true)
++	return c
++}
++
++func (c *TCPConn) ok() bool { return c != nil && c.fd != nil }
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read implements the net.Conn Read method.
++func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Read(b)
++}
++
++// ReadFrom implements the io.ReaderFrom ReadFrom method.
++func (c *TCPConn) ReadFrom(r io.Reader) (int64, os.Error) {
++	if n, err, handled := sendFile(c.fd, r); handled {
++		return n, err
++	}
++	return genericReadFrom(c, r)
++}
++
++// Write implements the net.Conn Write method.
++func (c *TCPConn) Write(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Write(b)
++}
++
++// Close closes the TCP connection.
++func (c *TCPConn) Close() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	err := c.fd.Close()
++	c.fd = nil
++	return err
++}
++
++// LocalAddr returns the local network address, a *TCPAddr.
++func (c *TCPConn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.laddr
++}
++
++// RemoteAddr returns the remote network address, a *TCPAddr.
++func (c *TCPConn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.raddr
++}
++
++// SetTimeout implements the net.Conn SetTimeout method.
++func (c *TCPConn) SetTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setTimeout(c.fd, nsec)
++}
++
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
++func (c *TCPConn) SetReadTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadTimeout(c.fd, nsec)
++}
++
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
++func (c *TCPConn) SetWriteTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteTimeout(c.fd, nsec)
++}
++
++// SetReadBuffer sets the size of the operating system's
++// receive buffer associated with the connection.
++func (c *TCPConn) SetReadBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadBuffer(c.fd, bytes)
++}
++
++// SetWriteBuffer sets the size of the operating system's
++// transmit buffer associated with the connection.
++func (c *TCPConn) SetWriteBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteBuffer(c.fd, bytes)
++}
++
++// SetLinger sets the behavior of Close() on a connection
++// which still has data waiting to be sent or to be acknowledged.
++//
++// If sec < 0 (the default), Close returns immediately and
++// the operating system finishes sending the data in the background.
++//
++// If sec == 0, Close returns immediately and the operating system
++// discards any unsent or unacknowledged data.
++//
++// If sec > 0, Close blocks for at most sec seconds waiting for
++// data to be sent and acknowledged.
++func (c *TCPConn) SetLinger(sec int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setLinger(c.fd, sec)
++}
++
++// SetKeepAlive sets whether the operating system should send
++// keepalive messages on the connection.
++func (c *TCPConn) SetKeepAlive(keepalive bool) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setKeepAlive(c.fd, keepalive)
++}
++
++// SetNoDelay controls whether the operating system should delay
++// packet transmission in hopes of sending fewer packets
++// (Nagle's algorithm).  The default is true (no delay), meaning
++// that data is sent as soon as possible after a Write.
++func (c *TCPConn) SetNoDelay(noDelay bool) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setNoDelay(c.fd, noDelay)
++}
++
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *TCPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
++
++// DialTCP connects to the remote address raddr on the network net,
++// which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is used
++// as the local address for the connection.
++func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
++	if raddr == nil {
++		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
++	}
++	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
++	if e != nil {
++		return nil, e
++	}
++	return newTCPConn(fd), nil
++}
++
++// TCPListener is a TCP network listener.
++// Clients should typically use variables of type Listener
++// instead of assuming TCP.
++type TCPListener struct {
++	fd *netFD
++}
++
++// ListenTCP announces on the TCP address laddr and returns a TCP listener.
++// Net must be "tcp", "tcp4", or "tcp6".
++// If laddr has a port of 0, it means to listen on some available port.
++// The caller can use l.Addr() to retrieve the chosen address.
++func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
++	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
++	if err != nil {
++		return nil, err
++	}
++	errno := syscall.Listen(fd.sysfd, listenBacklog())
++	if errno != 0 {
++		closesocket(fd.sysfd)
++		return nil, &OpError{"listen", "tcp", laddr, os.Errno(errno)}
++	}
++	l = new(TCPListener)
++	l.fd = fd
++	return l, nil
++}
++
++// AcceptTCP accepts the next incoming call and returns the new connection
++// and the remote address.
++func (l *TCPListener) AcceptTCP() (c *TCPConn, err os.Error) {
++	if l == nil || l.fd == nil || l.fd.sysfd < 0 {
++		return nil, os.EINVAL
++	}
++	fd, err := l.fd.accept(sockaddrToTCP)
++	if err != nil {
++		return nil, err
++	}
++	return newTCPConn(fd), nil
++}
++
++// Accept implements the Accept method in the Listener interface;
++// it waits for the next call and returns a generic Conn.
++func (l *TCPListener) Accept() (c Conn, err os.Error) {
++	c1, err := l.AcceptTCP()
++	if err != nil {
++		return nil, err
++	}
++	return c1, nil
++}
++
++// Close stops listening on the TCP address.
++// Already Accepted connections are not closed.
++func (l *TCPListener) Close() os.Error {
++	if l == nil || l.fd == nil {
++		return os.EINVAL
++	}
++	return l.fd.Close()
++}
++
++// Addr returns the listener's network address, a *TCPAddr.
++func (l *TCPListener) Addr() Addr { return l.fd.laddr }
++
++// SetTimeout sets the deadline associated with the listener
++func (l *TCPListener) SetTimeout(nsec int64) os.Error {
++	if l == nil || l.fd == nil {
++		return os.EINVAL
++	}
++	return setTimeout(l.fd, nsec)
++}
++
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (l *TCPListener) File() (f *os.File, err os.Error) { return l.fd.dup() }
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 94e249d62f..3dfa71675f 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -8,19 +8,8 @@ package net
+ 
+ import (
+ 	"os"
+-	"syscall"
+ )
+ 
+-func sockaddrToUDP(sa syscall.Sockaddr) Addr {
+-	switch sa := sa.(type) {
+-	case *syscall.SockaddrInet4:
+-		return &UDPAddr{sa.Addr[0:], sa.Port}
+-	case *syscall.SockaddrInet6:
+-		return &UDPAddr{sa.Addr[0:], sa.Port}
+-	}
+-	return nil
+-}
+-
+ // UDPAddr represents the address of a UDP end point.
+ type UDPAddr struct {
+ 	IP   IP
+@@ -37,27 +26,6 @@ func (a *UDPAddr) String() string {
+ 	return JoinHostPort(a.IP.String(), itoa(a.Port))
+ }
+ 
+-func (a *UDPAddr) family() int {
+-	if a == nil || len(a.IP) <= 4 {
+-		return syscall.AF_INET
+-	}
+-	if a.IP.To4() != nil {
+-		return syscall.AF_INET
+-	}
+-	return syscall.AF_INET6
+-}
+-
+-func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
+-	return ipToSockaddr(family, a.IP, a.Port)
+-}
+-
+-func (a *UDPAddr) toAddr() sockaddr {
+-	if a == nil { // nil *UDPAddr
+-		return nil // nil interface
+-	}
+-	return a
+-}
+-
+ // ResolveUDPAddr parses addr as a UDP address of the form
+ // host:port and resolves domain names or port names to
+ // numeric addresses on the network net, which must be "udp",
+@@ -70,254 +38,3 @@ func ResolveUDPAddr(net, addr string) (*UDPAddr, os.Error) {
+ 	}
+ 	return &UDPAddr{ip, port}, nil
+ }
+-
+-// UDPConn is the implementation of the Conn and PacketConn
+-// interfaces for UDP network connections.
+-type UDPConn struct {
+-	fd *netFD
+-}
+-
+-func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{fd} }
+-
+-func (c *UDPConn) ok() bool { return c != nil && c.fd != nil }
+-
+-// Implementation of the Conn interface - see Conn for documentation.
+-
+-// Read implements the net.Conn Read method.
+-func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	return c.fd.Read(b)
+-}
+-
+-// Write implements the net.Conn Write method.
+-func (c *UDPConn) Write(b []byte) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	return c.fd.Write(b)
+-}
+-
+-// Close closes the UDP connection.
+-func (c *UDPConn) Close() os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	err := c.fd.Close()
+-	c.fd = nil
+-	return err
+-}
+-
+-// LocalAddr returns the local network address.
+-func (c *UDPConn) LocalAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.laddr
+-}
+-
+-// RemoteAddr returns the remote network address, a *UDPAddr.
+-func (c *UDPConn) RemoteAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.raddr
+-}
+-
+-// SetTimeout implements the net.Conn SetTimeout method.
+-func (c *UDPConn) SetTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setTimeout(c.fd, nsec)
+-}
+-
+-// SetReadTimeout implements the net.Conn SetReadTimeout method.
+-func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setReadTimeout(c.fd, nsec)
+-}
+-
+-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
+-func (c *UDPConn) SetWriteTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setWriteTimeout(c.fd, nsec)
+-}
+-
+-// SetReadBuffer sets the size of the operating system's
+-// receive buffer associated with the connection.
+-func (c *UDPConn) SetReadBuffer(bytes int) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setReadBuffer(c.fd, bytes)
+-}
+-
+-// SetWriteBuffer sets the size of the operating system's
+-// transmit buffer associated with the connection.
+-func (c *UDPConn) SetWriteBuffer(bytes int) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setWriteBuffer(c.fd, bytes)
+-}
+-
+-// UDP-specific methods.
+-
+-// ReadFromUDP reads a UDP packet from c, copying the payload into b.
+-// It returns the number of bytes copied into b and the return address
+-// that was on the packet.
+-//
+-// ReadFromUDP can be made to time out and return an error with Timeout() == true
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
+-func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
+-	if !c.ok() {
+-		return 0, nil, os.EINVAL
+-	}
+-	n, sa, err := c.fd.ReadFrom(b)
+-	switch sa := sa.(type) {
+-	case *syscall.SockaddrInet4:
+-		addr = &UDPAddr{sa.Addr[0:], sa.Port}
+-	case *syscall.SockaddrInet6:
+-		addr = &UDPAddr{sa.Addr[0:], sa.Port}
+-	}
+-	return
+-}
+-
+-// ReadFrom implements the net.PacketConn ReadFrom method.
+-func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+-	if !c.ok() {
+-		return 0, nil, os.EINVAL
+-	}
+-	n, uaddr, err := c.ReadFromUDP(b)
+-	return n, uaddr.toAddr(), err
+-}
+-
+-// WriteToUDP writes a UDP packet to addr via c, copying the payload from b.
+-//
+-// WriteToUDP can be made to time out and return
+-// an error with Timeout() == true after a fixed time limit;
+-// see SetTimeout and SetWriteTimeout.
+-// On packet-oriented connections, write timeouts are rare.
+-func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	sa, err1 := addr.sockaddr(c.fd.family)
+-	if err1 != nil {
+-		return 0, &OpError{Op: "write", Net: "udp", Addr: addr, Error: err1}
+-	}
+-	return c.fd.WriteTo(b, sa)
+-}
+-
+-// WriteTo implements the net.PacketConn WriteTo method.
+-func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	a, ok := addr.(*UDPAddr)
+-	if !ok {
+-		return 0, &OpError{"writeto", "udp", addr, os.EINVAL}
+-	}
+-	return c.WriteToUDP(b, a)
+-}
+-
+-// DialUDP connects to the remote address raddr on the network net,
+-// which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is used
+-// as the local address for the connection.
+-func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err os.Error) {
+-	switch net {
+-	case "udp", "udp4", "udp6":
+-	default:
+-		return nil, UnknownNetworkError(net)
+-	}
+-	if raddr == nil {
+-		return nil, &OpError{"dial", "udp", nil, errMissingAddress}
+-	}
+-	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+-	if e != nil {
+-		return nil, e
+-	}
+-	return newUDPConn(fd), nil
+-}
+-
+-// ListenUDP listens for incoming UDP packets addressed to the
+-// local address laddr.  The returned connection c's ReadFrom
+-// and WriteTo methods can be used to receive and send UDP
+-// packets with per-packet addressing.
+-func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
+-	switch net {
+-	case "udp", "udp4", "udp6":
+-	default:
+-		return nil, UnknownNetworkError(net)
+-	}
+-	if laddr == nil {
+-		return nil, &OpError{"listen", "udp", nil, errMissingAddress}
+-	}
+-	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+-	if e != nil {
+-		return nil, e
+-	}
+-	return newUDPConn(fd), nil
+-}
+-
+-// BindToDevice binds a UDPConn to a network interface.
+-func (c *UDPConn) BindToDevice(device string) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	c.fd.incref()
+-	defer c.fd.decref()
+-	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
+-}
+-
+-// File returns a copy of the underlying os.File, set to blocking mode.
+-// It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (c *UDPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+-
+-var errInvalidMulticast = os.NewError("invalid IPv4 multicast address")
+-
+-// JoinGroup joins the IPv4 multicast group named by addr.
+-// The UDPConn must use the "udp4" network.
+-func (c *UDPConn) JoinGroup(addr IP) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	ip := addr.To4()
+-	if ip == nil {
+-		return &OpError{"joingroup", "udp", &IPAddr{ip}, errInvalidMulticast}
+-	}
+-	mreq := &syscall.IPMreq{
+-		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
+-	}
+-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
+-	if err != nil {
+-		return &OpError{"joingroup", "udp", &IPAddr{ip}, err}
+-	}
+-	return nil
+-}
+-
+-// LeaveGroup exits the IPv4 multicast group named by addr.
+-func (c *UDPConn) LeaveGroup(addr IP) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	ip := addr.To4()
+-	if ip == nil {
+-		return &OpError{"leavegroup", "udp", &IPAddr{ip}, errInvalidMulticast}
+-	}
+-	mreq := &syscall.IPMreq{
+-		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
+-	}
+-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq))
+-	if err != nil {
+-		return &OpError{"leavegroup", "udp", &IPAddr{ip}, err}
+-	}
+-	return nil
+-}
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+new file mode 100644
+index 0000000000..bb7196041a
+--- /dev/null
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -0,0 +1,187 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// UDP for Plan 9
++
++package net
++
++import (
++	"os"
++)
++
++// UDPConn is the implementation of the Conn and PacketConn
++// interfaces for UDP network connections.
++type UDPConn struct {
++	plan9Conn
++}
++
++// UDP-specific methods.
++
++// ReadFromUDP reads a UDP packet from c, copying the payload into b.
++// It returns the number of bytes copied into b and the return address
++// that was on the packet.
++//
++// ReadFromUDP can be made to time out and return an error with Timeout() == true
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	if c.data == nil {
++		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
++		if err != nil {
++			return 0, nil, err
++		}
++	}
++	buf := make([]byte, udpHeaderSize+len(b))
++	m, err := c.data.Read(buf)
++	if err != nil {
++		return
++	}
++	if m < udpHeaderSize {
++		return 0, nil, os.NewError("short read reading UDP header")
++	}
++	buf = buf[:m]
++
++	h, buf := unmarshalUDPHeader(buf)
++	n = copy(b, buf)
++	return n, &UDPAddr{h.raddr, int(h.rport)}, nil
++}
++
++// ReadFrom implements the net.PacketConn ReadFrom method.
++func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	return c.ReadFromUDP(b)
++}
++
++// WriteToUDP writes a UDP packet to addr via c, copying the payload from b.
++//
++// WriteToUDP can be made to time out and return
++// an error with Timeout() == true after a fixed time limit;
++// see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections, write timeouts are rare.
++func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	if c.data == nil {
++		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
++		if err != nil {
++			return 0, err
++		}
++	}
++	h := new(udpHeader)
++	h.raddr = addr.IP.To16()
++	h.laddr = c.laddr.(*UDPAddr).IP.To16()
++	h.ifcaddr = IPv6zero // ignored (receive only)
++	h.rport = uint16(addr.Port)
++	h.lport = uint16(c.laddr.(*UDPAddr).Port)
++
++	buf := make([]byte, udpHeaderSize+len(b))
++	i := copy(buf, h.Bytes())
++	copy(buf[i:], b)
++	return c.data.Write(buf)
++}
++
++// WriteTo implements the net.PacketConn WriteTo method.
++func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	a, ok := addr.(*UDPAddr)
++	if !ok {
++		return 0, &OpError{"writeto", "udp", addr, os.EINVAL}
++	}
++	return c.WriteToUDP(b, a)
++}
++
++// DialUDP connects to the remote address raddr on the network net,
++// which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is used
++// as the local address for the connection.
++func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err os.Error) {
++	switch net {
++	case "udp", "udp4", "udp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if raddr == nil {
++		return nil, &OpError{"dial", "udp", nil, errMissingAddress}
++	}
++	c1, err := dialPlan9(net, laddr, raddr)
++	if err != nil {
++		return
++	}
++	return &UDPConn{*c1}, nil
++}
++
++const udpHeaderSize = 16*3 + 2*2
++
++type udpHeader struct {
++	raddr, laddr, ifcaddr IP
++	rport, lport          uint16
++}
++
++func (h *udpHeader) Bytes() []byte {
++	b := make([]byte, udpHeaderSize)
++	i := 0
++	i += copy(b[i:i+16], h.raddr)
++	i += copy(b[i:i+16], h.laddr)
++	i += copy(b[i:i+16], h.ifcaddr)
++	b[i], b[i+1], i = byte(h.rport>>8), byte(h.rport), i+2
++	b[i], b[i+1], i = byte(h.lport>>8), byte(h.lport), i+2
++	return b
++}
++
++func unmarshalUDPHeader(b []byte) (*udpHeader, []byte) {
++	h := new(udpHeader)
++	h.raddr, b = IP(b[:16]), b[16:]
++	h.laddr, b = IP(b[:16]), b[16:]
++	h.ifcaddr, b = IP(b[:16]), b[16:]
++	h.rport, b = uint16(b[0])<<8|uint16(b[1]), b[2:]
++	h.lport, b = uint16(b[0])<<8|uint16(b[1]), b[2:]
++	return h, b
++}
++
++// ListenUDP listens for incoming UDP packets addressed to the
++// local address laddr.  The returned connection c's ReadFrom
++// and WriteTo methods can be used to receive and send UDP
++// packets with per-packet addressing.
++func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
++	switch net {
++	case "udp", "udp4", "udp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if laddr == nil {
++		return nil, &OpError{"listen", "udp", nil, errMissingAddress}
++	}
++	l, err := listenPlan9(net, laddr)
++	if err != nil {
++		return
++	}
++	_, err = l.ctl.WriteString("headers")
++	if err != nil {
++		return
++	}
++	return &UDPConn{*l.plan9Conn()}, nil
++}
++
++// JoinGroup joins the IPv4 multicast group named by addr.
++// The UDPConn must use the "udp4" network.
++func (c *UDPConn) JoinGroup(addr IP) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return os.EPLAN9
++}
++
++// LeaveGroup exits the IPv4 multicast group named by addr.
++func (c *UDPConn) LeaveGroup(addr IP) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return os.EPLAN9
++}
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+new file mode 100644
+index 0000000000..d4ea056f3c
+--- /dev/null
++++ b/src/pkg/net/udpsock_posix.go
+@@ -0,0 +1,294 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// UDP sockets
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func sockaddrToUDP(sa syscall.Sockaddr) Addr {
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		return &UDPAddr{sa.Addr[0:], sa.Port}
++	case *syscall.SockaddrInet6:
++		return &UDPAddr{sa.Addr[0:], sa.Port}
++	}
++	return nil
++}
++
++func (a *UDPAddr) family() int {
++	if a == nil || len(a.IP) <= 4 {
++		return syscall.AF_INET
++	}
++	if a.IP.To4() != nil {
++		return syscall.AF_INET
++	}
++	return syscall.AF_INET6
++}
++
++func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
++	return ipToSockaddr(family, a.IP, a.Port)
++}
++
++func (a *UDPAddr) toAddr() sockaddr {
++	if a == nil { // nil *UDPAddr
++		return nil // nil interface
++	}
++	return a
++}
++
++// UDPConn is the implementation of the Conn and PacketConn
++// interfaces for UDP network connections.
++type UDPConn struct {
++	fd *netFD
++}
++
++func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{fd} }
++
++func (c *UDPConn) ok() bool { return c != nil && c.fd != nil }
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read implements the net.Conn Read method.
++func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Read(b)
++}
++
++// Write implements the net.Conn Write method.
++func (c *UDPConn) Write(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Write(b)
++}
++
++// Close closes the UDP connection.
++func (c *UDPConn) Close() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	err := c.fd.Close()
++	c.fd = nil
++	return err
++}
++
++// LocalAddr returns the local network address.
++func (c *UDPConn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.laddr
++}
++
++// RemoteAddr returns the remote network address, a *UDPAddr.
++func (c *UDPConn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.raddr
++}
++
++// SetTimeout implements the net.Conn SetTimeout method.
++func (c *UDPConn) SetTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setTimeout(c.fd, nsec)
++}
++
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
++func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadTimeout(c.fd, nsec)
++}
++
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
++func (c *UDPConn) SetWriteTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteTimeout(c.fd, nsec)
++}
++
++// SetReadBuffer sets the size of the operating system's
++// receive buffer associated with the connection.
++func (c *UDPConn) SetReadBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadBuffer(c.fd, bytes)
++}
++
++// SetWriteBuffer sets the size of the operating system's
++// transmit buffer associated with the connection.
++func (c *UDPConn) SetWriteBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteBuffer(c.fd, bytes)
++}
++
++// UDP-specific methods.
++
++// ReadFromUDP reads a UDP packet from c, copying the payload into b.
++// It returns the number of bytes copied into b and the return address
++// that was on the packet.
++//
++// ReadFromUDP can be made to time out and return an error with Timeout() == true
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	n, sa, err := c.fd.ReadFrom(b)
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		addr = &UDPAddr{sa.Addr[0:], sa.Port}
++	case *syscall.SockaddrInet6:
++		addr = &UDPAddr{sa.Addr[0:], sa.Port}
++	}
++	return
++}
++
++// ReadFrom implements the net.PacketConn ReadFrom method.
++func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	n, uaddr, err := c.ReadFromUDP(b)
++	return n, uaddr.toAddr(), err
++}
++
++// WriteToUDP writes a UDP packet to addr via c, copying the payload from b.
++//
++// WriteToUDP can be made to time out and return
++// an error with Timeout() == true after a fixed time limit;
++// see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections, write timeouts are rare.
++func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	sa, err1 := addr.sockaddr(c.fd.family)
++	if err1 != nil {
++		return 0, &OpError{Op: "write", Net: "udp", Addr: addr, Error: err1}
++	}
++	return c.fd.WriteTo(b, sa)
++}
++
++// WriteTo implements the net.PacketConn WriteTo method.
++func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	a, ok := addr.(*UDPAddr)
++	if !ok {
++		return 0, &OpError{"writeto", "udp", addr, os.EINVAL}
++	}
++	return c.WriteToUDP(b, a)
++}
++
++// DialUDP connects to the remote address raddr on the network net,
++// which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is used
++// as the local address for the connection.
++func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err os.Error) {
++	switch net {
++	case "udp", "udp4", "udp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if raddr == nil {
++		return nil, &OpError{"dial", "udp", nil, errMissingAddress}
++	}
++	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
++	if e != nil {
++		return nil, e
++	}
++	return newUDPConn(fd), nil
++}
++
++// ListenUDP listens for incoming UDP packets addressed to the
++// local address laddr.  The returned connection c's ReadFrom
++// and WriteTo methods can be used to receive and send UDP
++// packets with per-packet addressing.
++func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
++	switch net {
++	case "udp", "udp4", "udp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if laddr == nil {
++		return nil, &OpError{"listen", "udp", nil, errMissingAddress}
++	}
++	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
++	if e != nil {
++		return nil, e
++	}
++	return newUDPConn(fd), nil
++}
++
++// BindToDevice binds a UDPConn to a network interface.
++func (c *UDPConn) BindToDevice(device string) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	c.fd.incref()
++	defer c.fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
++}
++
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *UDPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
++
++var errInvalidMulticast = os.NewError("invalid IPv4 multicast address")
++
++// JoinGroup joins the IPv4 multicast group named by addr.
++// The UDPConn must use the "udp4" network.
++func (c *UDPConn) JoinGroup(addr IP) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	ip := addr.To4()
++	if ip == nil {
++		return &OpError{"joingroup", "udp", &IPAddr{ip}, errInvalidMulticast}
++	}
++	mreq := &syscall.IPMreq{
++		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
++	}
++	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
++	if err != nil {
++		return &OpError{"joingroup", "udp", &IPAddr{ip}, err}
++	}
++	return nil
++}
++
++// LeaveGroup exits the IPv4 multicast group named by addr.
++func (c *UDPConn) LeaveGroup(addr IP) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	ip := addr.To4()
++	if ip == nil {
++		return &OpError{"leavegroup", "udp", &IPAddr{ip}, errInvalidMulticast}
++	}
++	mreq := &syscall.IPMreq{
++		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
++	}
++	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq))
++	if err != nil {
++		return &OpError{"leavegroup", "udp", &IPAddr{ip}, err}
++	}
++	return nil
++}
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index 0bea867b18..d5040f9a29 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -8,109 +8,14 @@ package net
+ 
+ import (
+ 	"os"
+-	"syscall"
+ )
+ 
+-func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err os.Error) {
+-	var proto int
+-	switch net {
+-	default:
+-		return nil, UnknownNetworkError(net)
+-	case "unix":
+-		proto = syscall.SOCK_STREAM
+-	case "unixgram":
+-		proto = syscall.SOCK_DGRAM
+-	case "unixpacket":
+-		proto = syscall.SOCK_SEQPACKET
+-	}
+-
+-	var la, ra syscall.Sockaddr
+-	switch mode {
+-	default:
+-		panic("unixSocket mode " + mode)
+-
+-	case "dial":
+-		if laddr != nil {
+-			la = &syscall.SockaddrUnix{Name: laddr.Name}
+-		}
+-		if raddr != nil {
+-			ra = &syscall.SockaddrUnix{Name: raddr.Name}
+-		} else if proto != syscall.SOCK_DGRAM || laddr == nil {
+-			return nil, &OpError{Op: mode, Net: net, Error: errMissingAddress}
+-		}
+-
+-	case "listen":
+-		if laddr == nil {
+-			return nil, &OpError{mode, net, nil, errMissingAddress}
+-		}
+-		la = &syscall.SockaddrUnix{Name: laddr.Name}
+-		if raddr != nil {
+-			return nil, &OpError{Op: mode, Net: net, Addr: raddr, Error: &AddrError{Error: "unexpected remote address", Addr: raddr.String()}}
+-		}
+-	}
+-
+-	f := sockaddrToUnix
+-	if proto == syscall.SOCK_DGRAM {
+-		f = sockaddrToUnixgram
+-	} else if proto == syscall.SOCK_SEQPACKET {
+-		f = sockaddrToUnixpacket
+-	}
+-
+-	fd, oserr := socket(net, syscall.AF_UNIX, proto, 0, la, ra, f)
+-	if oserr != nil {
+-		goto Error
+-	}
+-	return fd, nil
+-
+-Error:
+-	addr := raddr
+-	if mode == "listen" {
+-		addr = laddr
+-	}
+-	return nil, &OpError{Op: mode, Net: net, Addr: addr, Error: oserr}
+-}
+-
+ // UnixAddr represents the address of a Unix domain socket end point.
+ type UnixAddr struct {
+ 	Name string
+ 	Net  string
+ }
+ 
+-func sockaddrToUnix(sa syscall.Sockaddr) Addr {
+-	if s, ok := sa.(*syscall.SockaddrUnix); ok {
+-		return &UnixAddr{s.Name, "unix"}
+-	}
+-	return nil
+-}
+-
+-func sockaddrToUnixgram(sa syscall.Sockaddr) Addr {
+-	if s, ok := sa.(*syscall.SockaddrUnix); ok {
+-		return &UnixAddr{s.Name, "unixgram"}
+-	}
+-	return nil
+-}
+-
+-func sockaddrToUnixpacket(sa syscall.Sockaddr) Addr {
+-	if s, ok := sa.(*syscall.SockaddrUnix); ok {
+-		return &UnixAddr{s.Name, "unixpacket"}
+-	}
+-	return nil
+-}
+-
+-func protoToNet(proto int) string {
+-	switch proto {
+-	case syscall.SOCK_STREAM:
+-		return "unix"
+-	case syscall.SOCK_SEQPACKET:
+-		return "unixpacket"
+-	case syscall.SOCK_DGRAM:
+-		return "unixgram"
+-	default:
+-		panic("protoToNet unknown protocol")
+-	}
+-	return ""
+-}
+-
+ // Network returns the address's network name, "unix" or "unixgram".
+ func (a *UnixAddr) Network() string {
+ 	return a.Net
+@@ -143,315 +48,3 @@ func ResolveUnixAddr(net, addr string) (*UnixAddr, os.Error) {
+ 	}
+ 	return &UnixAddr{addr, net}, nil
+ }
+-
+-// UnixConn is an implementation of the Conn interface
+-// for connections to Unix domain sockets.
+-type UnixConn struct {
+-	fd *netFD
+-}
+-
+-func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{fd} }
+-
+-func (c *UnixConn) ok() bool { return c != nil && c.fd != nil }
+-
+-// Implementation of the Conn interface - see Conn for documentation.
+-
+-// Read implements the net.Conn Read method.
+-func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	return c.fd.Read(b)
+-}
+-
+-// Write implements the net.Conn Write method.
+-func (c *UnixConn) Write(b []byte) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	return c.fd.Write(b)
+-}
+-
+-// Close closes the Unix domain connection.
+-func (c *UnixConn) Close() os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	err := c.fd.Close()
+-	c.fd = nil
+-	return err
+-}
+-
+-// LocalAddr returns the local network address, a *UnixAddr.
+-// Unlike in other protocols, LocalAddr is usually nil for dialed connections.
+-func (c *UnixConn) LocalAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.laddr
+-}
+-
+-// RemoteAddr returns the remote network address, a *UnixAddr.
+-// Unlike in other protocols, RemoteAddr is usually nil for connections
+-// accepted by a listener.
+-func (c *UnixConn) RemoteAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.raddr
+-}
+-
+-// SetTimeout implements the net.Conn SetTimeout method.
+-func (c *UnixConn) SetTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setTimeout(c.fd, nsec)
+-}
+-
+-// SetReadTimeout implements the net.Conn SetReadTimeout method.
+-func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setReadTimeout(c.fd, nsec)
+-}
+-
+-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
+-func (c *UnixConn) SetWriteTimeout(nsec int64) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setWriteTimeout(c.fd, nsec)
+-}
+-
+-// SetReadBuffer sets the size of the operating system's
+-// receive buffer associated with the connection.
+-func (c *UnixConn) SetReadBuffer(bytes int) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setReadBuffer(c.fd, bytes)
+-}
+-
+-// SetWriteBuffer sets the size of the operating system's
+-// transmit buffer associated with the connection.
+-func (c *UnixConn) SetWriteBuffer(bytes int) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
+-	return setWriteBuffer(c.fd, bytes)
+-}
+-
+-// ReadFromUnix reads a packet from c, copying the payload into b.
+-// It returns the number of bytes copied into b and the return address
+-// that was on the packet.
+-//
+-// ReadFromUnix can be made to time out and return
+-// an error with Timeout() == true after a fixed time limit;
+-// see SetTimeout and SetReadTimeout.
+-func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) {
+-	if !c.ok() {
+-		return 0, nil, os.EINVAL
+-	}
+-	n, sa, err := c.fd.ReadFrom(b)
+-	switch sa := sa.(type) {
+-	case *syscall.SockaddrUnix:
+-		addr = &UnixAddr{sa.Name, protoToNet(c.fd.proto)}
+-	}
+-	return
+-}
+-
+-// ReadFrom implements the net.PacketConn ReadFrom method.
+-func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+-	if !c.ok() {
+-		return 0, nil, os.EINVAL
+-	}
+-	n, uaddr, err := c.ReadFromUnix(b)
+-	return n, uaddr.toAddr(), err
+-}
+-
+-// WriteToUnix writes a packet to addr via c, copying the payload from b.
+-//
+-// WriteToUnix can be made to time out and return
+-// an error with Timeout() == true after a fixed time limit;
+-// see SetTimeout and SetWriteTimeout.
+-// On packet-oriented connections, write timeouts are rare.
+-func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	if addr.Net != protoToNet(c.fd.proto) {
+-		return 0, os.EAFNOSUPPORT
+-	}
+-	sa := &syscall.SockaddrUnix{Name: addr.Name}
+-	return c.fd.WriteTo(b, sa)
+-}
+-
+-// WriteTo implements the net.PacketConn WriteTo method.
+-func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+-	if !c.ok() {
+-		return 0, os.EINVAL
+-	}
+-	a, ok := addr.(*UnixAddr)
+-	if !ok {
+-		return 0, &OpError{"writeto", "unix", addr, os.EINVAL}
+-	}
+-	return c.WriteToUnix(b, a)
+-}
+-
+-func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err os.Error) {
+-	if !c.ok() {
+-		return 0, 0, 0, nil, os.EINVAL
+-	}
+-	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
+-	switch sa := sa.(type) {
+-	case *syscall.SockaddrUnix:
+-		addr = &UnixAddr{sa.Name, protoToNet(c.fd.proto)}
+-	}
+-	return
+-}
+-
+-func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err os.Error) {
+-	if !c.ok() {
+-		return 0, 0, os.EINVAL
+-	}
+-	if addr != nil {
+-		if addr.Net != protoToNet(c.fd.proto) {
+-			return 0, 0, os.EAFNOSUPPORT
+-		}
+-		sa := &syscall.SockaddrUnix{Name: addr.Name}
+-		return c.fd.WriteMsg(b, oob, sa)
+-	}
+-	return c.fd.WriteMsg(b, oob, nil)
+-}
+-
+-// File returns a copy of the underlying os.File, set to blocking mode.
+-// It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (c *UnixConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+-
+-// DialUnix connects to the remote address raddr on the network net,
+-// which must be "unix" or "unixgram".  If laddr is not nil, it is used
+-// as the local address for the connection.
+-func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err os.Error) {
+-	fd, e := unixSocket(net, laddr, raddr, "dial")
+-	if e != nil {
+-		return nil, e
+-	}
+-	return newUnixConn(fd), nil
+-}
+-
+-// UnixListener is a Unix domain socket listener.
+-// Clients should typically use variables of type Listener
+-// instead of assuming Unix domain sockets.
+-type UnixListener struct {
+-	fd   *netFD
+-	path string
+-}
+-
+-// ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
+-// Net must be "unix" (stream sockets).
+-func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
+-	if net != "unix" && net != "unixgram" && net != "unixpacket" {
+-		return nil, UnknownNetworkError(net)
+-	}
+-	if laddr != nil {
+-		laddr = &UnixAddr{laddr.Name, net} // make our own copy
+-	}
+-	fd, err := unixSocket(net, laddr, nil, "listen")
+-	if err != nil {
+-		return nil, err
+-	}
+-	e1 := syscall.Listen(fd.sysfd, 8) // listenBacklog());
+-	if e1 != 0 {
+-		closesocket(fd.sysfd)
+-		return nil, &OpError{Op: "listen", Net: "unix", Addr: laddr, Error: os.Errno(e1)}
+-	}
+-	return &UnixListener{fd, laddr.Name}, nil
+-}
+-
+-// AcceptUnix accepts the next incoming call and returns the new connection
+-// and the remote address.
+-func (l *UnixListener) AcceptUnix() (c *UnixConn, err os.Error) {
+-	if l == nil || l.fd == nil {
+-		return nil, os.EINVAL
+-	}
+-	fd, e := l.fd.accept(sockaddrToUnix)
+-	if e != nil {
+-		return nil, e
+-	}
+-	c = newUnixConn(fd)
+-	return c, nil
+-}
+-
+-// Accept implements the Accept method in the Listener interface;
+-// it waits for the next call and returns a generic Conn.
+-func (l *UnixListener) Accept() (c Conn, err os.Error) {
+-	c1, err := l.AcceptUnix()
+-	if err != nil {
+-		return nil, err
+-	}
+-	return c1, nil
+-}
+-
+-// Close stops listening on the Unix address.
+-// Already accepted connections are not closed.
+-func (l *UnixListener) Close() os.Error {
+-	if l == nil || l.fd == nil {
+-		return os.EINVAL
+-	}
+-
+-	// The operating system doesn't clean up
+-	// the file that announcing created, so
+-	// we have to clean it up ourselves.
+-	// There's a race here--we can't know for
+-	// sure whether someone else has come along
+-	// and replaced our socket name already--
+-	// but this sequence (remove then close)
+-	// is at least compatible with the auto-remove
+-	// sequence in ListenUnix.  It's only non-Go
+-	// programs that can mess us up.
+-	if l.path[0] != '@' {
+-		syscall.Unlink(l.path)
+-	}
+-	err := l.fd.Close()
+-	l.fd = nil
+-	return err
+-}
+-
+-// Addr returns the listener's network address.
+-func (l *UnixListener) Addr() Addr { return l.fd.laddr }
+-
+-// SetTimeout sets the deadline associated wuth the listener
+-func (l *UnixListener) SetTimeout(nsec int64) (err os.Error) {
+-	if l == nil || l.fd == nil {
+-		return os.EINVAL
+-	}
+-	return setTimeout(l.fd, nsec)
+-}
+-
+-// File returns a copy of the underlying os.File, set to blocking mode.
+-// It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (l *UnixListener) File() (f *os.File, err os.Error) { return l.fd.dup() }
+-
+-// ListenUnixgram listens for incoming Unix datagram packets addressed to the
+-// local address laddr.  The returned connection c's ReadFrom
+-// and WriteTo methods can be used to receive and send UDP
+-// packets with per-packet addressing.  The network net must be "unixgram".
+-func ListenUnixgram(net string, laddr *UnixAddr) (c *UDPConn, err os.Error) {
+-	switch net {
+-	case "unixgram":
+-	default:
+-		return nil, UnknownNetworkError(net)
+-	}
+-	if laddr == nil {
+-		return nil, &OpError{"listen", "unixgram", nil, errMissingAddress}
+-	}
+-	fd, e := unixSocket(net, laddr, nil, "listen")
+-	if e != nil {
+-		return nil, e
+-	}
+-	return newUDPConn(fd), nil
+-}
+diff --git a/src/pkg/net/unixsock_plan9.go b/src/pkg/net/unixsock_plan9.go
+new file mode 100644
+index 0000000000..7e212df8a3
+--- /dev/null
++++ b/src/pkg/net/unixsock_plan9.go
+@@ -0,0 +1,105 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Unix domain sockets stubs for Plan 9
++
++package net
++
++import (
++	"os"
++)
++
++// UnixConn is an implementation of the Conn interface
++// for connections to Unix domain sockets.
++type UnixConn bool
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read implements the net.Conn Read method.
++func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
++	return 0, os.EPLAN9
++}
++
++// Write implements the net.Conn Write method.
++func (c *UnixConn) Write(b []byte) (n int, err os.Error) {
++	return 0, os.EPLAN9
++}
++
++// Close closes the Unix domain connection.
++func (c *UnixConn) Close() os.Error {
++	return os.EPLAN9
++}
++
++// LocalAddr returns the local network address, a *UnixAddr.
++// Unlike in other protocols, LocalAddr is usually nil for dialed connections.
++func (c *UnixConn) LocalAddr() Addr {
++	return nil
++}
++
++// RemoteAddr returns the remote network address, a *UnixAddr.
++// Unlike in other protocols, RemoteAddr is usually nil for connections
++// accepted by a listener.
++func (c *UnixConn) RemoteAddr() Addr {
++	return nil
++}
++
++// SetTimeout implements the net.Conn SetTimeout method.
++func (c *UnixConn) SetTimeout(nsec int64) os.Error {
++	return os.EPLAN9
++}
++
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
++func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
++	return os.EPLAN9
++}
++
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
++func (c *UnixConn) SetWriteTimeout(nsec int64) os.Error {
++	return os.EPLAN9
++}
++
++// ReadFrom implements the net.PacketConn ReadFrom method.
++func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
++	err = os.EPLAN9
++	return
++}
++
++// WriteTo implements the net.PacketConn WriteTo method.
++func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
++	err = os.EPLAN9
++	return
++}
++
++// DialUnix connects to the remote address raddr on the network net,
++// which must be "unix" or "unixgram".  If laddr is not nil, it is used
++// as the local address for the connection.
++func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err os.Error) {
++	return nil, os.EPLAN9
++}
++
++// UnixListener is a Unix domain socket listener.
++// Clients should typically use variables of type Listener
++// instead of assuming Unix domain sockets.
++type UnixListener bool
++
++// ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
++// Net must be "unix" (stream sockets).
++func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
++	return nil, os.EPLAN9
++}
++
++// Accept implements the Accept method in the Listener interface;
++// it waits for the next call and returns a generic Conn.
++func (l *UnixListener) Accept() (c Conn, err os.Error) {
++	return nil, os.EPLAN9
++}
++
++// Close stops listening on the Unix address.
++// Already accepted connections are not closed.
++func (l *UnixListener) Close() os.Error {
++	return os.EPLAN9
++}
++
++// Addr returns the listener's network address.
++func (l *UnixListener) Addr() Addr { return nil }
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+new file mode 100644
+index 0000000000..38c6fe9eb1
+--- /dev/null
++++ b/src/pkg/net/unixsock_posix.go
+@@ -0,0 +1,418 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Unix domain sockets
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err os.Error) {
++	var proto int
++	switch net {
++	default:
++		return nil, UnknownNetworkError(net)
++	case "unix":
++		proto = syscall.SOCK_STREAM
++	case "unixgram":
++		proto = syscall.SOCK_DGRAM
++	case "unixpacket":
++		proto = syscall.SOCK_SEQPACKET
++	}
++
++	var la, ra syscall.Sockaddr
++	switch mode {
++	default:
++		panic("unixSocket mode " + mode)
++
++	case "dial":
++		if laddr != nil {
++			la = &syscall.SockaddrUnix{Name: laddr.Name}
++		}
++		if raddr != nil {
++			ra = &syscall.SockaddrUnix{Name: raddr.Name}
++		} else if proto != syscall.SOCK_DGRAM || laddr == nil {
++			return nil, &OpError{Op: mode, Net: net, Error: errMissingAddress}
++		}
++
++	case "listen":
++		if laddr == nil {
++			return nil, &OpError{mode, net, nil, errMissingAddress}
++		}
++		la = &syscall.SockaddrUnix{Name: laddr.Name}
++		if raddr != nil {
++			return nil, &OpError{Op: mode, Net: net, Addr: raddr, Error: &AddrError{Error: "unexpected remote address", Addr: raddr.String()}}
++		}
++	}
++
++	f := sockaddrToUnix
++	if proto == syscall.SOCK_DGRAM {
++		f = sockaddrToUnixgram
++	} else if proto == syscall.SOCK_SEQPACKET {
++		f = sockaddrToUnixpacket
++	}
++
++	fd, oserr := socket(net, syscall.AF_UNIX, proto, 0, la, ra, f)
++	if oserr != nil {
++		goto Error
++	}
++	return fd, nil
++
++Error:
++	addr := raddr
++	if mode == "listen" {
++		addr = laddr
++	}
++	return nil, &OpError{Op: mode, Net: net, Addr: addr, Error: oserr}
++}
++
++func sockaddrToUnix(sa syscall.Sockaddr) Addr {
++	if s, ok := sa.(*syscall.SockaddrUnix); ok {
++		return &UnixAddr{s.Name, "unix"}
++	}
++	return nil
++}
++
++func sockaddrToUnixgram(sa syscall.Sockaddr) Addr {
++	if s, ok := sa.(*syscall.SockaddrUnix); ok {
++		return &UnixAddr{s.Name, "unixgram"}
++	}
++	return nil
++}
++
++func sockaddrToUnixpacket(sa syscall.Sockaddr) Addr {
++	if s, ok := sa.(*syscall.SockaddrUnix); ok {
++		return &UnixAddr{s.Name, "unixpacket"}
++	}
++	return nil
++}
++
++func protoToNet(proto int) string {
++	switch proto {
++	case syscall.SOCK_STREAM:
++		return "unix"
++	case syscall.SOCK_SEQPACKET:
++		return "unixpacket"
++	case syscall.SOCK_DGRAM:
++		return "unixgram"
++	default:
++		panic("protoToNet unknown protocol")
++	}
++	return ""
++}
++
++// UnixConn is an implementation of the Conn interface
++// for connections to Unix domain sockets.
++type UnixConn struct {
++	fd *netFD
++}
++
++func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{fd} }
++
++func (c *UnixConn) ok() bool { return c != nil && c.fd != nil }
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read implements the net.Conn Read method.
++func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Read(b)
++}
++
++// Write implements the net.Conn Write method.
++func (c *UnixConn) Write(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Write(b)
++}
++
++// Close closes the Unix domain connection.
++func (c *UnixConn) Close() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	err := c.fd.Close()
++	c.fd = nil
++	return err
++}
++
++// LocalAddr returns the local network address, a *UnixAddr.
++// Unlike in other protocols, LocalAddr is usually nil for dialed connections.
++func (c *UnixConn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.laddr
++}
++
++// RemoteAddr returns the remote network address, a *UnixAddr.
++// Unlike in other protocols, RemoteAddr is usually nil for connections
++// accepted by a listener.
++func (c *UnixConn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.raddr
++}
++
++// SetTimeout implements the net.Conn SetTimeout method.
++func (c *UnixConn) SetTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setTimeout(c.fd, nsec)
++}
++
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
++func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadTimeout(c.fd, nsec)
++}
++
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
++func (c *UnixConn) SetWriteTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteTimeout(c.fd, nsec)
++}
++
++// SetReadBuffer sets the size of the operating system's
++// receive buffer associated with the connection.
++func (c *UnixConn) SetReadBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadBuffer(c.fd, bytes)
++}
++
++// SetWriteBuffer sets the size of the operating system's
++// transmit buffer associated with the connection.
++func (c *UnixConn) SetWriteBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteBuffer(c.fd, bytes)
++}
++
++// ReadFromUnix reads a packet from c, copying the payload into b.
++// It returns the number of bytes copied into b and the return address
++// that was on the packet.
++//
++// ReadFromUnix can be made to time out and return
++// an error with Timeout() == true after a fixed time limit;
++// see SetTimeout and SetReadTimeout.
++func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	n, sa, err := c.fd.ReadFrom(b)
++	switch sa := sa.(type) {
++	case *syscall.SockaddrUnix:
++		addr = &UnixAddr{sa.Name, protoToNet(c.fd.proto)}
++	}
++	return
++}
++
++// ReadFrom implements the net.PacketConn ReadFrom method.
++func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	n, uaddr, err := c.ReadFromUnix(b)
++	return n, uaddr.toAddr(), err
++}
++
++// WriteToUnix writes a packet to addr via c, copying the payload from b.
++//
++// WriteToUnix can be made to time out and return
++// an error with Timeout() == true after a fixed time limit;
++// see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections, write timeouts are rare.
++func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	if addr.Net != protoToNet(c.fd.proto) {
++		return 0, os.EAFNOSUPPORT
++	}
++	sa := &syscall.SockaddrUnix{Name: addr.Name}
++	return c.fd.WriteTo(b, sa)
++}
++
++// WriteTo implements the net.PacketConn WriteTo method.
++func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	a, ok := addr.(*UnixAddr)
++	if !ok {
++		return 0, &OpError{"writeto", "unix", addr, os.EINVAL}
++	}
++	return c.WriteToUnix(b, a)
++}
++
++func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err os.Error) {
++	if !c.ok() {
++		return 0, 0, 0, nil, os.EINVAL
++	}
++	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
++	switch sa := sa.(type) {
++	case *syscall.SockaddrUnix:
++		addr = &UnixAddr{sa.Name, protoToNet(c.fd.proto)}
++	}
++	return
++}
++
++func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err os.Error) {
++	if !c.ok() {
++		return 0, 0, os.EINVAL
++	}
++	if addr != nil {
++		if addr.Net != protoToNet(c.fd.proto) {
++			return 0, 0, os.EAFNOSUPPORT
++		}
++		sa := &syscall.SockaddrUnix{Name: addr.Name}
++		return c.fd.WriteMsg(b, oob, sa)
++	}
++	return c.fd.WriteMsg(b, oob, nil)
++}
++
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *UnixConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
++
++// DialUnix connects to the remote address raddr on the network net,
++// which must be "unix" or "unixgram".  If laddr is not nil, it is used
++// as the local address for the connection.
++func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err os.Error) {
++	fd, e := unixSocket(net, laddr, raddr, "dial")
++	if e != nil {
++		return nil, e
++	}
++	return newUnixConn(fd), nil
++}
++
++// UnixListener is a Unix domain socket listener.
++// Clients should typically use variables of type Listener
++// instead of assuming Unix domain sockets.
++type UnixListener struct {
++	fd   *netFD
++	path string
++}
++
++// ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
++// Net must be "unix" (stream sockets).
++func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
++	if net != "unix" && net != "unixgram" && net != "unixpacket" {
++		return nil, UnknownNetworkError(net)
++	}
++	if laddr != nil {
++		laddr = &UnixAddr{laddr.Name, net} // make our own copy
++	}
++	fd, err := unixSocket(net, laddr, nil, "listen")
++	if err != nil {
++		return nil, err
++	}
++	e1 := syscall.Listen(fd.sysfd, 8) // listenBacklog());
++	if e1 != 0 {
++		closesocket(fd.sysfd)
++		return nil, &OpError{Op: "listen", Net: "unix", Addr: laddr, Error: os.Errno(e1)}
++	}
++	return &UnixListener{fd, laddr.Name}, nil
++}
++
++// AcceptUnix accepts the next incoming call and returns the new connection
++// and the remote address.
++func (l *UnixListener) AcceptUnix() (c *UnixConn, err os.Error) {
++	if l == nil || l.fd == nil {
++		return nil, os.EINVAL
++	}
++	fd, e := l.fd.accept(sockaddrToUnix)
++	if e != nil {
++		return nil, e
++	}
++	c = newUnixConn(fd)
++	return c, nil
++}
++
++// Accept implements the Accept method in the Listener interface;
++// it waits for the next call and returns a generic Conn.
++func (l *UnixListener) Accept() (c Conn, err os.Error) {
++	c1, err := l.AcceptUnix()
++	if err != nil {
++		return nil, err
++	}
++	return c1, nil
++}
++
++// Close stops listening on the Unix address.
++// Already accepted connections are not closed.
++func (l *UnixListener) Close() os.Error {
++	if l == nil || l.fd == nil {
++		return os.EINVAL
++	}
++
++	// The operating system doesn't clean up
++	// the file that announcing created, so
++	// we have to clean it up ourselves.
++	// There's a race here--we can't know for
++	// sure whether someone else has come along
++	// and replaced our socket name already--
++	// but this sequence (remove then close)
++	// is at least compatible with the auto-remove
++	// sequence in ListenUnix.  It's only non-Go
++	// programs that can mess us up.
++	if l.path[0] != '@' {
++		syscall.Unlink(l.path)
++	}
++	err := l.fd.Close()
++	l.fd = nil
++	return err
++}
++
++// Addr returns the listener's network address.
++func (l *UnixListener) Addr() Addr { return l.fd.laddr }
++
++// SetTimeout sets the deadline associated wuth the listener
++func (l *UnixListener) SetTimeout(nsec int64) (err os.Error) {
++	if l == nil || l.fd == nil {
++		return os.EINVAL
++	}
++	return setTimeout(l.fd, nsec)
++}
++
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (l *UnixListener) File() (f *os.File, err os.Error) { return l.fd.dup() }
++
++// ListenUnixgram listens for incoming Unix datagram packets addressed to the
++// local address laddr.  The returned connection c's ReadFrom
++// and WriteTo methods can be used to receive and send UDP
++// packets with per-packet addressing.  The network net must be "unixgram".
++func ListenUnixgram(net string, laddr *UnixAddr) (c *UDPConn, err os.Error) {
++	switch net {
++	case "unixgram":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if laddr == nil {
++		return nil, &OpError{"listen", "unixgram", nil, errMissingAddress}
++	}
++	fd, e := unixSocket(net, laddr, nil, "listen")
++	if e != nil {
++		return nil, e
++	}
++	return newUDPConn(fd), nil
++}
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index a158b9516a..eacdd93c9c 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -35,9 +35,14 @@ var (
+ 	Stdout = 1
+ 	Stderr = 2
+ 
+-	EISDIR = NewError("file is a directory")
++	EAFNOSUPPORT = NewError("address family not supported by protocol")
++	EISDIR       = NewError("file is a directory")
+ )
+ 
++// For testing: clients can set this flag to force
++// creation of IPv6 sockets to return EAFNOSUPPORT.
++var SocketDisableIPv6 bool
++
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err string)
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err string)
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)

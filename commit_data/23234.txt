@@ -64,7 +64,7 @@ Date:   Thu Mar 26 16:36:15 2015 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/esc.go    | 575 +++++++++++++++++++++++++++++++++---------
  src/cmd/internal/gc/gen.go    |  15 +-
  src/cmd/internal/gc/go.go     |  13 -
@@ -86,3 +86,2759 @@ Date:   Thu Mar 26 16:36:15 2015 -0400
  test/escape_struct_return.go  |  74 ++++++
  test/fixedbugs/issue10353.go  |   2 +-
  20 files changed, 1443 insertions(+), 297 deletions(-)
+
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index 4a44de7d78..044bb3d31d 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -205,64 +205,187 @@ const (
+ 	EscFuncTagged
+ )
+ 
+-type EscState struct {
+-	// Fake node that all
+-	//   - return values and output variables
+-	//   - parameters on imported functions not marked 'safe'
+-	//   - assignments to global variables
+-	// flow to.
+-	theSink Node
++// There appear to be some loops in the escape graph, causing
++// arbitrary recursion into deeper and deeper levels.
++// Cut this off safely by making minLevel sticky: once you
++// get that deep, you cannot go down any further but you also
++// cannot go up any further. This is a conservative fix.
++// Making minLevel smaller (more negative) would handle more
++// complex chains of indirections followed by address-of operations,
++// at the cost of repeating the traversal once for each additional
++// allowed level when a loop is encountered. Using -2 suffices to
++// pass all the tests we have written so far, which we assume matches
++// the level of complexity we want the escape analysis code to handle.
++const (
++	MinLevel = -2
++)
+ 
+-	// If an analyzed function is recorded to return
+-	// pieces obtained via indirection from a parameter,
+-	// and later there is a call f(x) to that function,
+-	// we create a link funcParam <- x to record that fact.
+-	// The funcParam node is handled specially in escflood.
+-	funcParam Node
++// A Level encodes the reference state and context applied to
++// (stack, heap) allocated memory.
++//
++// value is the overall sum of *(1) and &(-1) operations encountered
++// along a path from a destination (sink, return value) to a source
++// (allocation, parameter).
++//
++// suffixValue is the maximum-copy-started-suffix-level applied to a sink.
++// For example:
++// sink = x.left.left --> level=2, x is dereferenced twice and does not escape to sink.
++// sink = &Node{x} --> level=-1, x is accessible from sink via one "address of"
++// sink = &Node{&Node{x}} --> level=-2, x is accessible from sink via two "address of"
++// sink = &Node{&Node{x.left}} --> level=-1, but x is NOT accessible from sink because it was indirected and then copied.
++// (The copy operations are sometimes implicit in the source code; in this case,
++// value of x.left was copied into a field of a newly allocated Node)
++//
++// There's one of these for each Node, and the integer values
++// rarely exceed even what can be stored in 4 bits, never mind 8.
++type Level struct {
++	value, suffixValue int8
++}
+ 
+-	dsts      *NodeList // all dst nodes
+-	loopdepth int       // for detecting nested loop scopes
+-	pdepth    int       // for debug printing in recursions.
+-	dstcount  int       // diagnostic
+-	edgecount int       // diagnostic
+-	noesc     *NodeList // list of possible non-escaping nodes, for printing
+-	recursive bool      // recursive function or group of mutually recursive functions.
++func (l Level) int() int {
++	return int(l.value)
+ }
+ 
+-var tags [16]*string
++func levelFrom(i int) Level {
++	if i <= MinLevel {
++		return Level{value: MinLevel}
++	}
++	return Level{value: int8(i)}
++}
+ 
+-// mktag returns the string representation for an escape analysis tag.
+-func mktag(mask int) *string {
+-	switch mask & EscMask {
+-	case EscNone, EscReturn:
+-		break
++func satInc8(x int8) int8 {
++	if x == 127 {
++		return 127
++	}
++	return x + 1
++}
+ 
+-	default:
+-		Fatal("escape mktag")
++func satAdd8(x, y int8) int8 {
++	z := x + y
++	if x^y < 0 || x^z >= 0 {
++		return z
++	}
++	if x < 0 {
++		return -128
+ 	}
++	return 127
++}
+ 
+-	mask >>= EscBits
++func min8(a, b int8) int8 {
++	if a < b {
++		return a
++	}
++	return b
++}
+ 
+-	if mask < len(tags) && tags[mask] != nil {
+-		return tags[mask]
++func max8(a, b int8) int8 {
++	if a > b {
++		return a
+ 	}
++	return b
++}
+ 
+-	s := fmt.Sprintf("esc:0x%x", mask)
+-	if mask < len(tags) {
+-		tags[mask] = &s
++// inc returns the level l + 1, representing the effect of an indirect (*) operation.
++func (l Level) inc() Level {
++	if l.value <= MinLevel {
++		return Level{value: MinLevel}
+ 	}
+-	return &s
++	return Level{value: satInc8(l.value), suffixValue: satInc8(l.suffixValue)}
+ }
+ 
+-func parsetag(note *string) int {
+-	if note == nil || !strings.HasPrefix(*note, "esc:") {
+-		return EscUnknown
++// dec returns the level l - 1, representing the effect of an address-of (&) operation.
++func (l Level) dec() Level {
++	if l.value <= MinLevel {
++		return Level{value: MinLevel}
+ 	}
+-	em := atoi((*note)[4:])
+-	if em == 0 {
+-		return EscNone
++	return Level{value: l.value - 1, suffixValue: l.suffixValue - 1}
++}
++
++// copy returns the level for a copy of a value with level l.
++func (l Level) copy() Level {
++	return Level{value: l.value, suffixValue: max8(l.suffixValue, 0)}
++}
++
++func (l1 Level) min(l2 Level) Level {
++	return Level{
++		value:       min8(l1.value, l2.value),
++		suffixValue: min8(l1.suffixValue, l2.suffixValue)}
++}
++
++// guaranteedDereference returns the number of dereferences
++// applied to a pointer before addresses are taken/generated.
++// This is the maximum level computed from path suffixes starting
++// with copies where paths flow from destination to source.
++func (l Level) guaranteedDereference() int {
++	return int(l.suffixValue)
++}
++
++// Escape constants are numbered in order of increasing "escapiness"
++// to help make inferences be monotonic.  With the exception of
++// EscNever which is sticky, eX < eY means that eY is more exposed
++// than eX, and hence replaces it in a conservative analysis.
++const (
++	EscUnknown = iota
++	EscNone    // Does not escape to heap, result, or parameters.
++	EscReturn  // Is returned or reachable from returned.
++	EscScope   // Allocated in an inner loop scope, assigned to an outer loop scope,
++	// which allows the construction of non-escaping but arbitrarily large linked
++	// data structures (i.e., not eligible for allocation in a fixed-size stack frame).
++	EscHeap           // Reachable from the heap
++	EscNever          // By construction will not escape.
++	EscBits           = 3
++	EscMask           = (1 << EscBits) - 1
++	EscContentEscapes = 1 << EscBits // value obtained by indirect of parameter escapes to heap
++	EscReturnBits     = EscBits + 1
++	// Node.esc encoding = | escapeReturnEncoding:(width-4) | contentEscapes:1 | escEnum:3
++)
++
++// escMax returns the maximum of an existing escape value
++// (and its additional parameter flow flags) and a new escape type.
++func escMax(e, etype uint16) uint16 {
++	if e&EscMask == EscHeap {
++		// normalize
++		if e != EscHeap {
++			Fatal("Escape information had tag bits combined with 'EscHeap' ")
++		}
++		return EscHeap
+ 	}
+-	return EscReturn | em<<EscBits
++	if e&EscMask > etype {
++		return e
++	}
++	if etype == EscNone || etype == EscReturn {
++		return (e &^ EscMask) | etype
++	}
++	return etype
++}
++
++// For each input parameter to a function, the escapeReturnEncoding describes
++// how the parameter may leak to the function's outputs.  This is currently the
++// "level" of the leak where level is 0 or larger (negative level means stored into
++// something whose address is returned -- but that implies stored into the heap,
++// hence EscHeap, which means that the details are not currently relevant. )
++const (
++	bitsPerOutputInTag = 3                                         // For each output, the number of bits for a tag
++	bitsMaskForTag     = uint16(1<<bitsPerOutputInTag) - 1         // The bit mask to extract a single tag.
++	outputsPerTag      = (16 - EscReturnBits) / bitsPerOutputInTag // The number of outputs that can be tagged.
++	maxEncodedLevel    = int(bitsMaskForTag - 1)                   // The largest level that can be stored in a tag.
++)
++
++type EscState struct {
++	// Fake node that all
++	//   - return values and output variables
++	//   - parameters on imported functions not marked 'safe'
++	//   - assignments to global variables
++	// flow to.
++	theSink Node
++
++	dsts      *NodeList // all dst nodes
++	loopdepth int       // for detecting nested loop scopes
++	pdepth    int       // for debug printing in recursions.
++	dstcount  int       // diagnostic
++	edgecount int       // diagnostic
++	noesc     *NodeList // list of possible non-escaping nodes, for printing
++	recursive bool      // recursive function or group of mutually recursive functions.
+ }
+ 
+ func escAnalyze(all *NodeList, recursive bool) {
+@@ -275,12 +398,6 @@ func escAnalyze(all *NodeList, recursive bool) {
+ 	e.theSink.Escloopdepth = -1
+ 	e.recursive = recursive
+ 
+-	e.funcParam.Op = ONAME
+-	e.funcParam.Orig = &e.funcParam
+-	e.funcParam.Class = PAUTO
+-	e.funcParam.Sym = Lookup(".param")
+-	e.funcParam.Escloopdepth = 10000000
+-
+ 	for l := all; l != nil; l = l.Next {
+ 		if l.N.Op == ODCLFUNC {
+ 			l.N.Esc = EscFuncPlanned
+@@ -799,7 +916,10 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 		} else {
+ 			tmp = nil
+ 		}
+-		fmt.Printf("%v:[%d] %v escassign: %v(%v) = %v(%v)\n", Ctxt.Line(int(lineno)), e.loopdepth, tmp, Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort))
++		fmt.Printf("%v:[%d] %v escassign: %v(%v)[%v] = %v(%v)[%v]\n",
++			Ctxt.Line(int(lineno)), e.loopdepth, tmp,
++			Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Oconv(int(dst.Op), 0),
++			Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), Oconv(int(src.Op), 0))
+ 	}
+ 
+ 	setlineno(dst)
+@@ -887,7 +1007,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 		a.Type = Ptrto(src.Type)
+ 		escflows(e, dst, a)
+ 
+-		// Flowing multiple returns to a single dst happens when
++	// Flowing multiple returns to a single dst happens when
+ 	// analyzing "go f(g())": here g() flows to sink (issue 4529).
+ 	case OCALLMETH, OCALLFUNC, OCALLINTER:
+ 		for ll := src.Escretval; ll != nil; ll = ll.Next {
+@@ -953,9 +1073,110 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 	lineno = int32(lno)
+ }
+ 
+-func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int {
++// Common case for escapes is 16 bits 000000000xxxEEEE
++// where commonest cases for xxx encoding in-to-out pointer
++//  flow are 000, 001, 010, 011  and EEEE is computed Esc bits.
++// Note width of xxx depends on value of constant
++// bitsPerOutputInTag -- expect 2 or 3, so in practice the
++// tag cache array is 64 or 128 long.  Some entries will
++// never be populated.
++var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
++
++// mktag returns the string representation for an escape analysis tag.
++func mktag(mask int) *string {
++	switch mask & EscMask {
++	case EscNone, EscReturn:
++		break
++
++	default:
++		Fatal("escape mktag")
++	}
++
++	if mask < len(tags) && tags[mask] != "" {
++		return &tags[mask]
++	}
++
++	s := fmt.Sprintf("esc:0x%x", mask)
++	if mask < len(tags) {
++		tags[mask] = s
++	}
++	return &s
++}
++
++// parsetag decodes an escape analysis tag and returns the esc value.
++func parsetag(note *string) uint16 {
++	if note == nil || !strings.HasPrefix(*note, "esc:") {
++		return EscUnknown
++	}
++	em := uint16(atoi((*note)[4:]))
++	if em == 0 {
++		return EscNone
++	}
++	return em
++}
++
++// describeEscape returns a string describing the escape tag.
++// The result is either one of {EscUnknown, EscNone, EscHeap} which all have no further annotation
++// or a description of parameter flow, which takes the form of an optional "contentToHeap"
++// indicating that the content of this parameter is leaked to the heap, followed by a sequence
++// of level encodings separated by spaces, one for each parameter, where _ means no flow,
++// = means direct flow, and N asterisks (*) encodes content (obtained by indirection) flow.
++// e.g., "contentToHeap _ =" means that a parameter's content (one or more dereferences)
++// escapes to the heap, the parameter does not leak to the first output, but does leak directly
++// to the second output (and if there are more than two outputs, there is no flow to those.)
++func describeEscape(em uint16) string {
++	var s string
++	if em&EscMask == EscUnknown {
++		s = "EscUnknown"
++	}
++	if em&EscMask == EscNone {
++		s = "EscNone"
++	}
++	if em&EscMask == EscHeap {
++		s = "EscHeap"
++	}
++	if em&EscMask == EscReturn {
++		s = "EscReturn"
++	}
++	if em&EscMask == EscScope {
++		s = "EscScope"
++	}
++	if em&EscContentEscapes != 0 {
++		if s != "" {
++			s += " "
++		}
++		s += "contentToHeap"
++	}
++	for em >>= EscReturnBits; em != 0; em = em >> bitsPerOutputInTag {
++		// See encoding description above
++		if s != "" {
++			s += " "
++		}
++		switch embits := em & bitsMaskForTag; embits {
++		case 0:
++			s += "_"
++		case 1:
++			s += "="
++		default:
++			for i := uint16(0); i < embits-1; i++ {
++				s += "*"
++			}
++		}
++
++	}
++	return s
++}
++
++// escassignfromtag models the input-to-output assignment flow of one of a function
++// calls arguments, where the flow is encoded in "note".
++func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) uint16 {
+ 	em := parsetag(note)
+ 
++	if Debug['m'] > 2 {
++		fmt.Printf("%v::assignfromtag:: src=%v, em=%s\n",
++			Ctxt.Line(int(lineno)), Nconv(src, obj.FmtShort), describeEscape(em))
++	}
++
+ 	if em == EscUnknown {
+ 		escassign(e, &e.theSink, src)
+ 		return em
+@@ -966,17 +1187,30 @@ func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int
+ 	}
+ 
+ 	// If content inside parameter (reached via indirection)
+-	// escapes back to results, mark as such.
++	// escapes to heap, mark as such.
+ 	if em&EscContentEscapes != 0 {
+-		escassign(e, &e.funcParam, src)
++		escassign(e, &e.theSink, addDereference(src))
+ 	}
+ 
+ 	em0 := em
+-	for em >>= EscReturnBits; em != 0 && dsts != nil; em, dsts = em>>1, dsts.Next {
+-		if em&1 != 0 {
+-			escassign(e, dsts.N, src)
++	for em >>= EscReturnBits; em != 0 && dsts != nil; em, dsts = em>>bitsPerOutputInTag, dsts.Next {
++		// Prefer the lowest-level path to the reference (for escape purposes).
++		// Two-bit encoding (for example. 1, 3, and 4 bits are other options)
++		//  01 = 0-level
++		//  10 = 1-level, (content escapes),
++		//  11 = 2-level, (content of content escapes),
++		embits := em & bitsMaskForTag
++		if embits > 0 {
++			n := src
++			for i := uint16(0); i < embits-1; i++ {
++				n = addDereference(n) // encode level>0 as indirections
++			}
++			escassign(e, dsts.N, n)
+ 		}
+ 	}
++	// If there are too many outputs to fit in the tag,
++	// that is handled at the encoding end as EscHeap,
++	// so there is no need to check here.
+ 
+ 	if em != 0 && dsts == nil {
+ 		Fatal("corrupt esc tag %q or messed up escretval list\n", note)
+@@ -984,6 +1218,58 @@ func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int
+ 	return em0
+ }
+ 
++// addDereference constructs a suitable OIND note applied to src.
++// Because this is for purposes of escape accounting, not execution,
++// some semantically dubious node combinations are (currently) possible.
++func addDereference(n *Node) *Node {
++	ind := Nod(OIND, n, nil)
++	ind.Escloopdepth = n.Escloopdepth
++	ind.Lineno = n.Lineno
++	t := n.Type
++	if Istype(t, Tptr) {
++		// This should model our own sloppy use of OIND to encode
++		// decreasing levels of indirection; i.e., "indirecting" an array
++		// might yield the type of an element.  To be enhanced...
++		t = t.Type
++	}
++	ind.Type = t
++	return ind
++}
++
++// escNoteOutputParamFlow encodes maxEncodedLevel/.../1/0-level flow to the vargen'th parameter.
++// Levels greater than maxEncodedLevel are replaced with maxEncodedLevel.
++// If the encoding cannot describe the modified input level and output number, then EscHeap is returned.
++func escNoteOutputParamFlow(e uint16, vargen int32, level Level) uint16 {
++	// Flow+level is encoded in two bits.
++	// 00 = not flow, xx = level+1 for 0 <= level <= maxEncodedLevel
++	// 16 bits for Esc allows 6x2bits or 4x3bits or 3x4bits if additional information would be useful.
++	if level.int() <= 0 && level.guaranteedDereference() > 0 {
++		return escMax(e|EscContentEscapes, EscNone) // At least one deref, thus only content.
++	}
++	if level.int() < 0 {
++		return EscHeap
++	}
++	if level.int() > maxEncodedLevel {
++		// Cannot encode larger values than maxEncodedLevel.
++		level = levelFrom(maxEncodedLevel)
++	}
++	encoded := uint16(level.int() + 1)
++
++	shift := uint(bitsPerOutputInTag*(vargen-1) + EscReturnBits)
++	old := (e >> shift) & bitsMaskForTag
++	if old == 0 || encoded != 0 && encoded < old {
++		old = encoded
++	}
++
++	encodedFlow := old << shift
++	if (encodedFlow>>shift)&bitsMaskForTag != old {
++		// Encoding failure defaults to heap.
++		return EscHeap
++	}
++
++	return (e &^ (bitsMaskForTag << shift)) | encodedFlow
++}
++
+ // This is a bit messier than fortunate, pulled out of esc's big
+ // switch for clarity.	We either have the paramnodes, which may be
+ // connected to other things through flows or we have the parameter type
+@@ -1022,7 +1308,12 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		}
+ 	}
+ 
+-	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Defn != nil && fn.Defn.Nbody != nil && fn.Ntype != nil && fn.Defn.Esc < EscFuncTagged {
++	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
++		fn.Defn != nil && fn.Defn.Nbody != nil && fn.Ntype != nil && fn.Defn.Esc < EscFuncTagged {
++		if Debug['m'] > 2 {
++			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
++		}
++
+ 		// function in same mutually recursive group.  Incorporate into flow graph.
+ 		//		print("esc local fn: %N\n", fn->ntype);
+ 		if fn.Defn.Esc == EscFuncUnknown || n.Escretval != nil {
+@@ -1067,6 +1358,9 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 
+ 		// "..." arguments are untracked
+ 		for ; ll != nil; ll = ll.Next {
++			if Debug['m'] > 2 {
++				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
++			}
+ 			escassign(e, &e.theSink, ll.N)
+ 		}
+ 
+@@ -1078,6 +1372,10 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		Fatal("esc already decorated call %v\n", Nconv(n, obj.FmtSign))
+ 	}
+ 
++	if Debug['m'] > 2 {
++		fmt.Printf("%v::esccall:: %v not recursive\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
++	}
++
+ 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
+ 	i := 0
+ 
+@@ -1085,7 +1383,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	var buf string
+ 	for t := getoutargx(fntype).Type; t != nil; t = t.Down {
+ 		src = Nod(ONAME, nil, nil)
+-		buf = fmt.Sprintf(".dum%d", i)
++		buf = fmt.Sprintf(".out%d", i)
+ 		i++
+ 		src.Sym = Lookup(buf)
+ 		src.Type = t.Type
+@@ -1162,10 +1460,14 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	// "..." arguments are untracked
+ 	for ; ll != nil; ll = ll.Next {
+ 		escassign(e, &e.theSink, ll.N)
++		if Debug['m'] > 2 {
++			fmt.Printf("%v::esccall:: ... <- %v, untracked\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
++		}
+ 	}
+ }
+ 
+-// Store the link src->dst in dst, throwing out some quick wins.
++// escflows records the link src->dst in dst, throwing out some quick wins,
++// and also ensuring that dst is noted as a flow destination.
+ func escflows(e *EscState, dst *Node, src *Node) {
+ 	if dst == nil || src == nil || dst == src {
+ 		return
+@@ -1220,31 +1522,31 @@ func escflood(e *EscState, dst *Node) {
+ 
+ 	for l := dst.Escflowsrc; l != nil; l = l.Next {
+ 		walkgen++
+-		escwalk(e, 0, dst, l.N)
++		escwalk(e, levelFrom(0), dst, l.N)
+ 	}
+ }
+ 
+-// There appear to be some loops in the escape graph, causing
+-// arbitrary recursion into deeper and deeper levels.
+-// Cut this off safely by making minLevel sticky: once you
+-// get that deep, you cannot go down any further but you also
+-// cannot go up any further. This is a conservative fix.
+-// Making minLevel smaller (more negative) would handle more
+-// complex chains of indirections followed by address-of operations,
+-// at the cost of repeating the traversal once for each additional
+-// allowed level when a loop is encountered. Using -2 suffices to
+-// pass all the tests we have written so far, which we assume matches
+-// the level of complexity we want the escape analysis code to handle.
+-const (
+-	MinLevel = -2
+-)
++// funcOutputAndInput reports whether dst and src correspond to output and input parameters of the same function.
++func funcOutputAndInput(dst, src *Node) bool {
++	// Note if dst is marked as escaping, then "returned" is too weak.
++	return dst.Op == ONAME && dst.Class == PPARAMOUT &&
++		src.Op == ONAME && src.Class == PPARAM && src.Curfn == dst.Curfn
++}
+ 
+-func escwalk(e *EscState, level int, dst *Node, src *Node) {
+-	if src.Walkgen == walkgen && src.Esclevel <= int32(level) {
+-		return
++func escwalk(e *EscState, level Level, dst *Node, src *Node) {
++
++	if src.Walkgen == walkgen {
++		// Esclevels are vectors, do not compare as integers,
++		// and must use "min" of old and new to guarantee
++		// convergence.
++		level = level.min(src.Esclevel)
++		if level == src.Esclevel {
++			return
++		}
+ 	}
++
+ 	src.Walkgen = walkgen
+-	src.Esclevel = int32(level)
++	src.Esclevel = level
+ 
+ 	if Debug['m'] > 1 {
+ 		var tmp *Sym
+@@ -1253,48 +1555,70 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
+ 		} else {
+ 			tmp = nil
+ 		}
+-		fmt.Printf("escwalk: level:%d depth:%d %.*s %v(%v) scope:%v[%d]\n", level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), tmp, src.Escloopdepth)
++		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d]\n",
++			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), tmp, src.Escloopdepth)
+ 	}
+ 
+ 	e.pdepth++
+ 
+ 	// Input parameter flowing to output parameter?
+ 	var leaks bool
+-	if dst.Op == ONAME && dst.Class == PPARAMOUT && dst.Vargen <= 20 {
+-		if src.Op == ONAME && src.Class == PPARAM && src.Curfn == dst.Curfn && src.Esc != EscScope && src.Esc != EscHeap {
+-			if level == 0 {
+-				if Debug['m'] != 0 {
+-					Warnl(int(src.Lineno), "leaking param: %v to result %v", Nconv(src, obj.FmtShort), dst.Sym)
+-				}
+-				if src.Esc&EscMask != EscReturn {
+-					src.Esc = EscReturn
+-				}
+-				src.Esc |= 1 << uint((dst.Vargen-1)+EscReturnBits)
+-				goto recurse
+-			} else if level > 0 {
+-				if Debug['m'] != 0 {
+-					Warnl(int(src.Lineno), "%v leaking param %v content to result %v", src.Curfn.Nname, Nconv(src, obj.FmtShort), dst.Sym)
+-				}
+-				if src.Esc&EscMask != EscReturn {
+-					src.Esc = EscReturn
+-				}
+-				src.Esc |= EscContentEscapes
+-				goto recurse
++	if funcOutputAndInput(dst, src) && src.Esc&EscMask != EscScope && src.Esc != EscHeap && dst.Esc != EscHeap {
++		// This case handles:
++		// 1. return in
++		// 2. return &in
++		// 3. tmp := in; return &tmp
++		// 4. return *in
++		if Debug['m'] != 0 {
++			if Debug['m'] == 1 {
++				Warnl(int(src.Lineno), "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level.int())
++			} else {
++				Warnl(int(src.Lineno), "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level)
+ 			}
+ 		}
++		if src.Esc&EscMask != EscReturn {
++			src.Esc = EscReturn | src.Esc&EscContentEscapes
++		}
++		src.Esc = escNoteOutputParamFlow(src.Esc, dst.Vargen, level)
++		goto recurse
+ 	}
+ 
+-	// The second clause is for values pointed at by an object passed to a call
+-	// that returns something reached via indirect from the object.
+-	// We don't know which result it is or how many indirects, so we treat it as leaking.
+-	leaks = level <= 0 && dst.Escloopdepth < src.Escloopdepth || level < 0 && dst == &e.funcParam && haspointers(src.Type)
++	// If parameter content escapes to heap, set EscContentEscapes
++	// Note minor confusion around escape from pointer-to-struct vs escape from struct
++	if dst.Esc == EscHeap &&
++		src.Op == ONAME && src.Class == PPARAM && src.Esc != EscHeap &&
++		level.int() > 0 {
++		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
++		if Debug['m'] != 0 {
++			Warnl(int(src.Lineno), "mark escaped content: %v", Nconv(src, obj.FmtShort))
++		}
++	}
++
++	leaks = level.int() <= 0 && level.guaranteedDereference() <= 0 && dst.Escloopdepth < src.Escloopdepth
+ 
+ 	switch src.Op {
+ 	case ONAME:
+ 		if src.Class == PPARAM && (leaks || dst.Escloopdepth < 0) && src.Esc != EscHeap {
+-			src.Esc = EscScope
+-			if Debug['m'] != 0 {
+-				Warnl(int(src.Lineno), "leaking param: %v", Nconv(src, obj.FmtShort))
++			if level.guaranteedDereference() > 0 {
++				src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
++				if Debug['m'] != 0 {
++					if Debug['m'] == 1 {
++						Warnl(int(src.Lineno), "leaking param content: %v", Nconv(src, obj.FmtShort))
++					} else {
++						Warnl(int(src.Lineno), "leaking param content: %v level=%v dst.eld=%v src.eld=%v dst=%v",
++							Nconv(src, obj.FmtShort), level, dst.Escloopdepth, src.Escloopdepth, Nconv(dst, obj.FmtShort))
++					}
++				}
++			} else {
++				src.Esc = EscScope
++				if Debug['m'] != 0 {
++					if Debug['m'] == 1 {
++						Warnl(int(src.Lineno), "leaking param: %v", Nconv(src, obj.FmtShort))
++					} else {
++						Warnl(int(src.Lineno), "leaking param: %v level=%v dst.eld=%v src.eld=%v dst=%v",
++							Nconv(src, obj.FmtShort), level, dst.Escloopdepth, src.Escloopdepth, Nconv(dst, obj.FmtShort))
++					}
++				}
+ 			}
+ 		}
+ 
+@@ -1316,15 +1640,19 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
+ 				if p.Left.Op == OCLOSURE {
+ 					p = p.Left // merely to satisfy error messages in tests
+ 				}
+-				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(p, obj.FmtShort))
++				if Debug['m'] > 1 {
++					Warnl(int(src.Lineno), "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
++						Nconv(p, obj.FmtShort), level, dst.Escloopdepth, src.Escloopdepth)
++				} else {
++					Warnl(int(src.Lineno), "%v escapes to heap", Nconv(p, obj.FmtShort))
++				}
+ 			}
+ 		}
+ 
+-		newlevel := level
+-		if level > MinLevel {
+-			newlevel--
+-		}
+-		escwalk(e, newlevel, dst, src.Left)
++		escwalk(e, level.dec(), dst, src.Left)
++
++	case OAPPEND:
++		escwalk(e, level, dst, src.List.N)
+ 
+ 	case OARRAYLIT:
+ 		if Isfixedarray(src.Type) {
+@@ -1332,7 +1660,6 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
+ 		}
+ 		fallthrough
+ 
+-		// fall through
+ 	case ODDDARG,
+ 		OMAKECHAN,
+ 		OMAKEMAP,
+@@ -1370,17 +1697,27 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
+ 		}
+ 		fallthrough
+ 
+-		// fall through
+ 	case ODOTPTR, OINDEXMAP, OIND:
+-		newlevel := level
++		escwalk(e, level.inc(), dst, src.Left)
+ 
+-		if level > MinLevel {
+-			newlevel++
++	// In this case a link went directly to a call, but should really go
++	// to the dummy .outN outputs that were created for the call that
++	// themselves link to the inputs with levels adjusted.
++	// See e.g. #10466
++	// This can only happen with functions returning a single result.
++	case OCALLMETH, OCALLFUNC, OCALLINTER:
++		if src.Escretval != nil {
++			if Debug['m'] > 1 {
++				fmt.Printf("%v:[%d] dst %v escwalk replace src: %v with %v\n",
++					Ctxt.Line(int(lineno)), e.loopdepth,
++					Nconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort), Nconv(src.Escretval.N, obj.FmtShort))
++			}
++			src = src.Escretval.N
+ 		}
+-		escwalk(e, newlevel, dst, src.Left)
+ 	}
+ 
+ recurse:
++	level = level.copy()
+ 	for ll := src.Escflowsrc; ll != nil; ll = ll.Next {
+ 		escwalk(e, level, dst, ll.N)
+ 	}
+@@ -1409,7 +1746,7 @@ func esctag(e *EscState, func_ *Node) {
+ 	Curfn = func_
+ 
+ 	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
+-		if ll.N.Op != ONAME || ll.N.Class != PPARAM {
++		if ll.N.Op != ONAME {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index 4c03915c08..e6af897033 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -23,11 +23,10 @@ func Sysfunc(name string) *Node {
+ 	return n
+ }
+ 
+-/*
+- * the address of n has been taken and might be used after
+- * the current function returns.  mark any local vars
+- * as needing to move to the heap.
+- */
++// addrescapes tags node n as having had its address taken
++// by "increasing" the "value" of n.Esc to EscHeap.
++// Storage is allocated as necessary to allow the address
++// to be taken.
+ func addrescapes(n *Node) {
+ 	switch n.Op {
+ 	// probably a type error already.
+@@ -50,7 +49,7 @@ func addrescapes(n *Node) {
+ 		case PPARAMREF:
+ 			addrescapes(n.Defn)
+ 
+-			// if func param, need separate temporary
++		// if func param, need separate temporary
+ 		// to hold heap pointer.
+ 		// the function type has already been checked
+ 		// (we're in the function body)
+@@ -93,12 +92,12 @@ func addrescapes(n *Node) {
+ 	case OIND, ODOTPTR:
+ 		break
+ 
+-		// ODOTPTR has already been introduced,
++	// ODOTPTR has already been introduced,
+ 	// so these are the non-pointer ODOT and OINDEX.
+ 	// In &x[0], if x is a slice, then x does not
+ 	// escape--the pointer inside x does, but that
+ 	// is always a heap pointer anyway.
+-	case ODOT, OINDEX:
++	case ODOT, OINDEX, OPAREN, OCONVNOP:
+ 		if !Isslice(n.Left.Type) {
+ 			addrescapes(n.Left)
+ 		}
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 2d85f58580..71bce0bf2c 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -214,19 +214,6 @@ type InitPlan struct {
+ 	E    []InitEntry
+ }
+ 
+-const (
+-	EscUnknown = iota
+-	EscHeap
+-	EscScope
+-	EscNone
+-	EscReturn
+-	EscNever
+-	EscBits           = 3
+-	EscMask           = (1 << EscBits) - 1
+-	EscContentEscapes = 1 << EscBits // value obtained by indirect of parameter escapes to some returned result
+-	EscReturnBits     = EscBits + 1
+-)
+-
+ const (
+ 	SymExport   = 1 << 0 // to be exported
+ 	SymPackage  = 1 << 1
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index e9593fdcb9..7c9fb8d2b8 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -44,15 +44,15 @@ type Node struct {
+ 	Isddd       bool // is the argument variadic
+ 	Readonly    bool
+ 	Implicit    bool
+-	Addrtaken   bool  // address taken, even if not moved to heap
+-	Assigned    bool  // is the variable ever assigned to
+-	Captured    bool  // is the variable captured by a closure
+-	Byval       bool  // is the variable captured by value or by reference
+-	Reslice     bool  // this is a reslice x = x[0:y] or x = append(x, ...)
+-	Likely      int8  // likeliness of if statement
+-	Hasbreak    bool  // has break statement
+-	Needzero    bool  // if it contains pointers, needs to be zeroed on function entry
+-	Esc         uint8 // EscXXX
++	Addrtaken   bool   // address taken, even if not moved to heap
++	Assigned    bool   // is the variable ever assigned to
++	Captured    bool   // is the variable captured by a closure
++	Byval       bool   // is the variable captured by value or by reference
++	Reslice     bool   // this is a reslice x = x[0:y] or x = append(x, ...)
++	Likely      int8   // likeliness of if statement
++	Hasbreak    bool   // has break statement
++	Needzero    bool   // if it contains pointers, needs to be zeroed on function entry
++	Esc         uint16 // EscXXX
+ 	Funcdepth   int32
+ 
+ 	// most nodes
+@@ -103,14 +103,14 @@ type Node struct {
+ 	Escloopdepth int       // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+ 
+ 	Sym      *Sym  // various
+-	Vargen   int32 // unique name for OTYPE/ONAME
++	Vargen   int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
+ 	Lineno   int32
+ 	Xoffset  int64
+ 	Stkdelta int64 // offset added by stack frame compaction phase.
+ 	Ostk     int32 // 6g only
+ 	Iota     int32
+ 	Walkgen  uint32
+-	Esclevel int32
++	Esclevel Level
+ 	Opt      interface{} // for optimization passes
+ }
+ 
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index bc886d9eef..37e18edf12 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -1777,7 +1777,7 @@ func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeL
+ * package all the arguments that match a ... T parameter into a []T.
+  */
+ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList, ddd *Node) *NodeList {
+-	esc := uint8(EscUnknown)
++	esc := uint16(EscUnknown)
+ 	if ddd != nil {
+ 		esc = ddd.Esc
+ 	}
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index c5c1173a15..8b87f818d3 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -3531,9 +3531,13 @@ func testSchedLocalQueue() {
+ 	}
+ }
+ 
++var pSink *p
++
+ func testSchedLocalQueueSteal() {
+ 	p1 := new(p)
+ 	p2 := new(p)
++	pSink = p1 // Force to heap, too large to allocate on system stack ("G0 stack")
++	pSink = p2 // Force to heap, too large to allocate on system stack ("G0 stack")
+ 	gs := make([]g, len(p1.runq))
+ 	for i := 0; i < len(p1.runq); i++ {
+ 		for j := 0; j < i; j++ {
+diff --git a/src/runtime/string1.go b/src/runtime/string1.go
+index feeb341b62..4bfa3d95f9 100644
+--- a/src/runtime/string1.go
++++ b/src/runtime/string1.go
+@@ -35,10 +35,8 @@ var maxstring uintptr = 256 // a hint for print
+ 
+ //go:nosplit
+ func gostringnocopy(str *byte) string {
+-	var s string
+-	sp := (*stringStruct)(unsafe.Pointer(&s))
+-	sp.str = unsafe.Pointer(str)
+-	sp.len = findnull(str)
++	ss := stringStruct{str: unsafe.Pointer(str), len: findnull(str)}
++	s := *(*string)(unsafe.Pointer(&ss))
+ 	for {
+ 		ms := maxstring
+ 		if uintptr(len(s)) <= ms || casuintptr(&maxstring, ms, uintptr(len(s))) {
+diff --git a/test/escape2.go b/test/escape2.go
+index dbb2292943..cc714711cf 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -59,7 +59,7 @@ func foo8(xx, yy *int) int { // ERROR "foo8 xx does not escape$" "foo8 yy does n
+ 	return *xx
+ }
+ 
+-func foo9(xx, yy *int) *int { // ERROR "leaking param: xx to result ~r2$" "leaking param: yy to result ~r2$"
++func foo9(xx, yy *int) *int { // ERROR "leaking param: xx to result ~r2 level=0$" "leaking param: yy to result ~r2 level=0$"
+ 	xx = yy
+ 	return xx
+ }
+@@ -84,7 +84,7 @@ func foo12(yyy **int) { // ERROR "leaking param: yyy$"
+ 
+ // Must treat yyy as leaking because *yyy leaks, and the escape analysis
+ // summaries in exported metadata do not distinguish these two cases.
+-func foo13(yyy **int) { // ERROR "leaking param: yyy$"
++func foo13(yyy **int) { // ERROR "leaking param content: yyy$"
+ 	*xxx = *yyy
+ }
+ 
+@@ -121,7 +121,7 @@ func NewBar() *Bar {
+ 	return &Bar{42, nil} // ERROR "&Bar literal escapes to heap$"
+ }
+ 
+-func NewBarp(x *int) *Bar { // ERROR "leaking param: x$"
++func NewBarp(x *int) *Bar { // ERROR "leaking param: x to result ~r1 level=-1$"
+ 	return &Bar{42, x} // ERROR "&Bar literal escapes to heap$"
+ }
+ 
+@@ -133,25 +133,25 @@ func (b *Bar) NoLeak() int { // ERROR "\(\*Bar\).NoLeak b does not escape$"
+ 	return *(b.ii)
+ }
+ 
+-func (b *Bar) Leak() *int { // ERROR "leaking param: b to result ~r0$"
++func (b *Bar) Leak() *int { // ERROR "leaking param: b to result ~r0 level=0$"
+ 	return &b.i // ERROR "&b.i escapes to heap$"
+ }
+ 
+-func (b *Bar) AlsoNoLeak() *int { // ERROR "\(\*Bar\).AlsoNoLeak leaking param b content to result ~r0$"
++func (b *Bar) AlsoNoLeak() *int { // ERROR "leaking param: b to result ~r0 level=1$"
+ 	return b.ii
+ }
+ 
+-func (b Bar) AlsoLeak() *int { // ERROR "leaking param: b to result ~r0$"
++func (b Bar) AlsoLeak() *int { // ERROR "leaking param: b to result ~r0 level=0$"
+ 	return b.ii
+ }
+ 
+-func (b Bar) LeaksToo() *int { // ERROR "leaking param: b to result ~r0$"
++func (b Bar) LeaksToo() *int { // ERROR "leaking param: b to result ~r0 level=0$"
+ 	v := 0    // ERROR "moved to heap: v$"
+ 	b.ii = &v // ERROR "&v escapes to heap$"
+ 	return b.ii
+ }
+ 
+-func (b *Bar) LeaksABit() *int { // ERROR "\(\*Bar\).LeaksABit leaking param b content to result ~r0$"
++func (b *Bar) LeaksABit() *int { // ERROR "leaking param: b to result ~r0 level=1$"
+ 	v := 0    // ERROR "moved to heap: v$"
+ 	b.ii = &v // ERROR "&v escapes to heap$"
+ 	return b.ii
+@@ -180,11 +180,11 @@ func (b *Bar2) NoLeak() int { // ERROR "\(\*Bar2\).NoLeak b does not escape$"
+ 	return b.i[0]
+ }
+ 
+-func (b *Bar2) Leak() []int { // ERROR "leaking param: b to result ~r0$"
++func (b *Bar2) Leak() []int { // ERROR "leaking param: b to result ~r0 level=0$"
+ 	return b.i[:] // ERROR "b.i escapes to heap$"
+ }
+ 
+-func (b *Bar2) AlsoNoLeak() []int { // ERROR "\(\*Bar2\).AlsoNoLeak leaking param b content to result ~r0$"
++func (b *Bar2) AlsoNoLeak() []int { // ERROR "leaking param: b to result ~r0 level=1$"
+ 	return b.ii[0:1]
+ }
+ 
+@@ -319,7 +319,7 @@ func (f *Foo) foo45() { // ERROR "\(\*Foo\).foo45 f does not escape$"
+ }
+ 
+ // See foo13 above for explanation of why f leaks.
+-func (f *Foo) foo46() { // ERROR "leaking param: f$"
++func (f *Foo) foo46() { // ERROR "leaking param content: f$"
+ 	F.xx = f.xx
+ }
+ 
+@@ -343,11 +343,11 @@ func indaddr1(x int) *int { // ERROR "moved to heap: x$"
+ 	return &x // ERROR "&x escapes to heap$"
+ }
+ 
+-func indaddr2(x *int) *int { // ERROR "leaking param: x to result ~r1$"
++func indaddr2(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	return *&x // ERROR "indaddr2 &x does not escape$"
+ }
+ 
+-func indaddr3(x *int32) *int { // ERROR "leaking param: x to result ~r1$"
++func indaddr3(x *int32) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	return *(**int)(unsafe.Pointer(&x)) // ERROR "indaddr3 &x does not escape$"
+ }
+ 
+@@ -374,11 +374,11 @@ func float64bitsptr(f float64) *uint64 { // ERROR "moved to heap: f$"
+ 	return (*uint64)(unsafe.Pointer(&f)) // ERROR "&f escapes to heap$"
+ }
+ 
+-func float64ptrbitsptr(f *float64) *uint64 { // ERROR "leaking param: f to result ~r1$"
++func float64ptrbitsptr(f *float64) *uint64 { // ERROR "leaking param: f to result ~r1 level=0$"
+ 	return (*uint64)(unsafe.Pointer(f))
+ }
+ 
+-func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r1$"
++func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r1 level=0$"
+ 	switch val := i.(type) {
+ 	case *int:
+ 		return val
+@@ -389,7 +389,7 @@ func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r1$"
+ 	return nil
+ }
+ 
+-func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r1$"
++func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
+ 	switch j := i; *j + 110 {
+ 	case 12:
+ 		return j
+@@ -401,7 +401,7 @@ func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r1$"
+ }
+ 
+ // assigning to an array element is like assigning to the array
+-func foo60(i *int) *int { // ERROR "leaking param: i to result ~r1$"
++func foo60(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
+ 	var a [12]*int
+ 	a[0] = i
+ 	return a[1]
+@@ -414,7 +414,7 @@ func foo60a(i *int) *int { // ERROR "foo60a i does not escape$"
+ }
+ 
+ // assigning to a struct field  is like assigning to the struct
+-func foo61(i *int) *int { // ERROR "leaking param: i to result ~r1$"
++func foo61(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
+ 	type S struct {
+ 		a, b *int
+ 	}
+@@ -611,11 +611,11 @@ func foo74c() {
+ 	}
+ }
+ 
+-func myprint(y *int, x ...interface{}) *int { // ERROR "leaking param: y to result ~r2$" "myprint x does not escape$"
++func myprint(y *int, x ...interface{}) *int { // ERROR "leaking param: y to result ~r2 level=0$" "myprint x does not escape$"
+ 	return y
+ }
+ 
+-func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "leaking param: x to result ~r2$" "myprint1 y does not escape$"
++func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "leaking param: x to result ~r2 level=0$" "myprint1 y does not escape$"
+ 	return &x[0] // ERROR "&x\[0\] escapes to heap$"
+ }
+ 
+@@ -738,7 +738,7 @@ func foo81() *int {
+ 	return nil
+ }
+ 
+-func tee(p *int) (x, y *int) { return p, p } // ERROR "leaking param: p to result x$" "leaking param: p to result y$"
++func tee(p *int) (x, y *int) { return p, p } // ERROR "leaking param: p to result x level=0$" "leaking param: p to result y level=0$"
+ 
+ func noop(x, y *int) {} // ERROR "noop x does not escape$" "noop y does not escape$"
+ 
+@@ -762,7 +762,7 @@ type LimitedFooer struct {
+ 	N int64
+ }
+ 
+-func LimitFooer(r Fooer, n int64) Fooer { // ERROR "leaking param: r$"
++func LimitFooer(r Fooer, n int64) Fooer { // ERROR "leaking param: r to result ~r2 level=-1$"
+ 	return &LimitedFooer{r, n} // ERROR "&LimitedFooer literal escapes to heap$"
+ }
+ 
+@@ -774,7 +774,7 @@ func foo91(x *int) map[*int]*int { // ERROR "leaking param: x$"
+ 	return map[*int]*int{x: nil} // ERROR "map\[\*int\]\*int literal escapes to heap$"
+ }
+ 
+-func foo92(x *int) [2]*int { // ERROR "leaking param: x to result ~r1$"
++func foo92(x *int) [2]*int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	return [2]*int{x, nil}
+ }
+ 
+@@ -808,7 +808,7 @@ func foo96(m []*int) *int { // ERROR "foo96 m does not escape$"
+ }
+ 
+ // does leak m
+-func foo97(m [1]*int) *int { // ERROR "leaking param: m to result ~r1$"
++func foo97(m [1]*int) *int { // ERROR "leaking param: m to result ~r1 level=0$"
+ 	return m[0]
+ }
+ 
+@@ -818,7 +818,7 @@ func foo98(m map[int]*int) *int { // ERROR "foo98 m does not escape$"
+ }
+ 
+ // does leak m
+-func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r1$"
++func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r1 level=0$"
+ 	return m[:]
+ }
+ 
+@@ -831,7 +831,7 @@ func foo100(m []*int) *int { // ERROR "foo100 m does not escape$"
+ }
+ 
+ // does leak m
+-func foo101(m [1]*int) *int { // ERROR "leaking param: m to result ~r1$"
++func foo101(m [1]*int) *int { // ERROR "leaking param: m to result ~r1 level=0$"
+ 	for _, v := range m {
+ 		return v
+ 	}
+@@ -899,22 +899,22 @@ func foo111(x *int) *int { // ERROR "leaking param: x$"
+ 	return m[0]
+ }
+ 
+-func foo112(x *int) *int { // ERROR "leaking param: x to result ~r1$"
++func foo112(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	m := [1]*int{x}
+ 	return m[0]
+ }
+ 
+-func foo113(x *int) *int { // ERROR "leaking param: x to result ~r1$"
++func foo113(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	m := Bar{ii: x}
+ 	return m.ii
+ }
+ 
+-func foo114(x *int) *int { // ERROR "leaking param: x to result ~r1$"
++func foo114(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	m := &Bar{ii: x} // ERROR "foo114 &Bar literal does not escape$"
+ 	return m.ii
+ }
+ 
+-func foo115(x *int) *int { // ERROR "leaking param: x to result ~r1$"
++func foo115(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	return (*int)(unsafe.Pointer(uintptr(unsafe.Pointer(x)) + 1))
+ }
+ 
+@@ -1525,7 +1525,7 @@ type U struct {
+ 	s *string
+ }
+ 
+-func (u *U) String() *string { // ERROR "\(\*U\).String leaking param u content to result ~r0$"
++func (u *U) String() *string { // ERROR "leaking param: u to result ~r0 level=1$"
+ 	return u.s
+ }
+ 
+@@ -1533,8 +1533,9 @@ type V struct {
+ 	s *string
+ }
+ 
+-func NewV(u U) *V { // ERROR "leaking param: u$"
+-	return &V{u.String()} // ERROR "&V literal escapes to heap$" "NewV u does not escape$"
++// BAD -- level of leak ought to be 0
++func NewV(u U) *V { // ERROR "leaking param: u to result ~r1 level=-1"
++	return &V{u.String()} // ERROR "&V literal escapes to heap$" "NewV u does not escape"
+ }
+ 
+ func foo152() {
+@@ -1546,7 +1547,7 @@ func foo152() {
+ 
+ // issue 8176 - &x in type switch body not marked as escaping
+ 
+-func foo153(v interface{}) *int { // ERROR "leaking param: v$"
++func foo153(v interface{}) *int { // ERROR "leaking param: v to result ~r1 level=-1$"
+ 	switch x := v.(type) {
+ 	case int: // ERROR "moved to heap: x$"
+ 		return &x // ERROR "&x escapes to heap$"
+@@ -1619,7 +1620,7 @@ func (b *Buffer) baz() { // ERROR "\(\*Buffer\).baz b does not escape$"
+ 	b.str1 = b.str2[1:2] // ERROR "\(\*Buffer\).baz ignoring self-assignment to b.str1$"
+ }
+ 
+-func (b *Buffer) bat() { // ERROR "leaking param: b$"
++func (b *Buffer) bat() { // ERROR "leaking param content: b$"
+ 	o := new(Buffer) // ERROR "new\(Buffer\) escapes to heap$"
+ 	o.buf1 = b.buf1[1:2]
+ 	sink = o // ERROR "o escapes to heap$"
+@@ -1803,7 +1804,7 @@ func issue10353() {
+ 	issue10353a(x)()
+ }
+ 
+-func issue10353a(x *int) func() { // ERROR "leaking param: x$"
++func issue10353a(x *int) func() { // ERROR "leaking param: x to result ~r1 level=-1$"
+ 	return func() { // ERROR "func literal escapes to heap$"
+ 		println(*x)
+ 	}
+diff --git a/test/escape2n.go b/test/escape2n.go
+index a414addc73..bf8c534a91 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -59,7 +59,7 @@ func foo8(xx, yy *int) int { // ERROR "foo8 xx does not escape$" "foo8 yy does n
+ 	return *xx
+ }
+ 
+-func foo9(xx, yy *int) *int { // ERROR "leaking param: xx to result ~r2$" "leaking param: yy to result ~r2$"
++func foo9(xx, yy *int) *int { // ERROR "leaking param: xx to result ~r2 level=0$" "leaking param: yy to result ~r2 level=0$"
+ 	xx = yy
+ 	return xx
+ }
+@@ -84,7 +84,7 @@ func foo12(yyy **int) { // ERROR "leaking param: yyy$"
+ 
+ // Must treat yyy as leaking because *yyy leaks, and the escape analysis
+ // summaries in exported metadata do not distinguish these two cases.
+-func foo13(yyy **int) { // ERROR "leaking param: yyy$"
++func foo13(yyy **int) { // ERROR "leaking param content: yyy$"
+ 	*xxx = *yyy
+ }
+ 
+@@ -121,7 +121,7 @@ func NewBar() *Bar {
+ 	return &Bar{42, nil} // ERROR "&Bar literal escapes to heap$"
+ }
+ 
+-func NewBarp(x *int) *Bar { // ERROR "leaking param: x$"
++func NewBarp(x *int) *Bar { // ERROR "leaking param: x to result ~r1 level=-1$"
+ 	return &Bar{42, x} // ERROR "&Bar literal escapes to heap$"
+ }
+ 
+@@ -133,25 +133,25 @@ func (b *Bar) NoLeak() int { // ERROR "\(\*Bar\).NoLeak b does not escape$"
+ 	return *(b.ii)
+ }
+ 
+-func (b *Bar) Leak() *int { // ERROR "leaking param: b to result ~r0$"
++func (b *Bar) Leak() *int { // ERROR "leaking param: b to result ~r0 level=0$"
+ 	return &b.i // ERROR "&b.i escapes to heap$"
+ }
+ 
+-func (b *Bar) AlsoNoLeak() *int { // ERROR "\(\*Bar\).AlsoNoLeak leaking param b content to result ~r0$"
++func (b *Bar) AlsoNoLeak() *int { // ERROR "leaking param: b to result ~r0 level=1$"
+ 	return b.ii
+ }
+ 
+-func (b Bar) AlsoLeak() *int { // ERROR "leaking param: b to result ~r0$"
++func (b Bar) AlsoLeak() *int { // ERROR "leaking param: b to result ~r0 level=0$"
+ 	return b.ii
+ }
+ 
+-func (b Bar) LeaksToo() *int { // ERROR "leaking param: b to result ~r0$"
++func (b Bar) LeaksToo() *int { // ERROR "leaking param: b to result ~r0 level=0$"
+ 	v := 0    // ERROR "moved to heap: v$"
+ 	b.ii = &v // ERROR "&v escapes to heap$"
+ 	return b.ii
+ }
+ 
+-func (b *Bar) LeaksABit() *int { // ERROR "\(\*Bar\).LeaksABit leaking param b content to result ~r0$"
++func (b *Bar) LeaksABit() *int { // ERROR "leaking param: b to result ~r0 level=1$"
+ 	v := 0    // ERROR "moved to heap: v$"
+ 	b.ii = &v // ERROR "&v escapes to heap$"
+ 	return b.ii
+@@ -180,11 +180,11 @@ func (b *Bar2) NoLeak() int { // ERROR "\(\*Bar2\).NoLeak b does not escape$"
+ 	return b.i[0]
+ }
+ 
+-func (b *Bar2) Leak() []int { // ERROR "leaking param: b to result ~r0$"
++func (b *Bar2) Leak() []int { // ERROR "leaking param: b to result ~r0 level=0$"
+ 	return b.i[:] // ERROR "b.i escapes to heap$"
+ }
+ 
+-func (b *Bar2) AlsoNoLeak() []int { // ERROR "\(\*Bar2\).AlsoNoLeak leaking param b content to result ~r0$"
++func (b *Bar2) AlsoNoLeak() []int { // ERROR "leaking param: b to result ~r0 level=1$"
+ 	return b.ii[0:1]
+ }
+ 
+@@ -319,7 +319,7 @@ func (f *Foo) foo45() { // ERROR "\(\*Foo\).foo45 f does not escape$"
+ }
+ 
+ // See foo13 above for explanation of why f leaks.
+-func (f *Foo) foo46() { // ERROR "leaking param: f$"
++func (f *Foo) foo46() { // ERROR "leaking param content: f$"
+ 	F.xx = f.xx
+ }
+ 
+@@ -343,11 +343,11 @@ func indaddr1(x int) *int { // ERROR "moved to heap: x$"
+ 	return &x // ERROR "&x escapes to heap$"
+ }
+ 
+-func indaddr2(x *int) *int { // ERROR "leaking param: x to result ~r1$"
++func indaddr2(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	return *&x // ERROR "indaddr2 &x does not escape$"
+ }
+ 
+-func indaddr3(x *int32) *int { // ERROR "leaking param: x to result ~r1$"
++func indaddr3(x *int32) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	return *(**int)(unsafe.Pointer(&x)) // ERROR "indaddr3 &x does not escape$"
+ }
+ 
+@@ -374,11 +374,11 @@ func float64bitsptr(f float64) *uint64 { // ERROR "moved to heap: f$"
+ 	return (*uint64)(unsafe.Pointer(&f)) // ERROR "&f escapes to heap$"
+ }
+ 
+-func float64ptrbitsptr(f *float64) *uint64 { // ERROR "leaking param: f to result ~r1$"
++func float64ptrbitsptr(f *float64) *uint64 { // ERROR "leaking param: f to result ~r1 level=0$"
+ 	return (*uint64)(unsafe.Pointer(f))
+ }
+ 
+-func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r1$"
++func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r1 level=0$"
+ 	switch val := i.(type) {
+ 	case *int:
+ 		return val
+@@ -389,7 +389,7 @@ func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r1$"
+ 	return nil
+ }
+ 
+-func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r1$"
++func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
+ 	switch j := i; *j + 110 {
+ 	case 12:
+ 		return j
+@@ -401,7 +401,7 @@ func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r1$"
+ }
+ 
+ // assigning to an array element is like assigning to the array
+-func foo60(i *int) *int { // ERROR "leaking param: i to result ~r1$"
++func foo60(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
+ 	var a [12]*int
+ 	a[0] = i
+ 	return a[1]
+@@ -414,7 +414,7 @@ func foo60a(i *int) *int { // ERROR "foo60a i does not escape$"
+ }
+ 
+ // assigning to a struct field  is like assigning to the struct
+-func foo61(i *int) *int { // ERROR "leaking param: i to result ~r1$"
++func foo61(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
+ 	type S struct {
+ 		a, b *int
+ 	}
+@@ -611,11 +611,11 @@ func foo74c() {
+ 	}
+ }
+ 
+-func myprint(y *int, x ...interface{}) *int { // ERROR "leaking param: y to result ~r2$" "myprint x does not escape$"
++func myprint(y *int, x ...interface{}) *int { // ERROR "leaking param: y to result ~r2 level=0$" "myprint x does not escape$"
+ 	return y
+ }
+ 
+-func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "leaking param: x to result ~r2$" "myprint1 y does not escape$"
++func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "leaking param: x to result ~r2 level=0$" "myprint1 y does not escape$"
+ 	return &x[0] // ERROR "&x\[0\] escapes to heap$"
+ }
+ 
+@@ -738,7 +738,7 @@ func foo81() *int {
+ 	return nil
+ }
+ 
+-func tee(p *int) (x, y *int) { return p, p } // ERROR "leaking param: p to result x$" "leaking param: p to result y$"
++func tee(p *int) (x, y *int) { return p, p } // ERROR "leaking param: p to result x level=0$" "leaking param: p to result y level=0$"
+ 
+ func noop(x, y *int) {} // ERROR "noop x does not escape$" "noop y does not escape$"
+ 
+@@ -762,7 +762,7 @@ type LimitedFooer struct {
+ 	N int64
+ }
+ 
+-func LimitFooer(r Fooer, n int64) Fooer { // ERROR "leaking param: r$"
++func LimitFooer(r Fooer, n int64) Fooer { // ERROR "leaking param: r to result ~r2 level=-1$"
+ 	return &LimitedFooer{r, n} // ERROR "&LimitedFooer literal escapes to heap$"
+ }
+ 
+@@ -774,7 +774,7 @@ func foo91(x *int) map[*int]*int { // ERROR "leaking param: x$"
+ 	return map[*int]*int{x: nil} // ERROR "map\[\*int\]\*int literal escapes to heap$"
+ }
+ 
+-func foo92(x *int) [2]*int { // ERROR "leaking param: x to result ~r1$"
++func foo92(x *int) [2]*int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	return [2]*int{x, nil}
+ }
+ 
+@@ -808,7 +808,7 @@ func foo96(m []*int) *int { // ERROR "foo96 m does not escape$"
+ }
+ 
+ // does leak m
+-func foo97(m [1]*int) *int { // ERROR "leaking param: m to result ~r1$"
++func foo97(m [1]*int) *int { // ERROR "leaking param: m to result ~r1 level=0$"
+ 	return m[0]
+ }
+ 
+@@ -818,7 +818,7 @@ func foo98(m map[int]*int) *int { // ERROR "foo98 m does not escape$"
+ }
+ 
+ // does leak m
+-func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r1$"
++func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r1 level=0$"
+ 	return m[:]
+ }
+ 
+@@ -831,7 +831,7 @@ func foo100(m []*int) *int { // ERROR "foo100 m does not escape$"
+ }
+ 
+ // does leak m
+-func foo101(m [1]*int) *int { // ERROR "leaking param: m to result ~r1$"
++func foo101(m [1]*int) *int { // ERROR "leaking param: m to result ~r1 level=0$"
+ 	for _, v := range m {
+ 		return v
+ 	}
+@@ -899,22 +899,22 @@ func foo111(x *int) *int { // ERROR "leaking param: x$"
+ 	return m[0]
+ }
+ 
+-func foo112(x *int) *int { // ERROR "leaking param: x to result ~r1$"
++func foo112(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	m := [1]*int{x}
+ 	return m[0]
+ }
+ 
+-func foo113(x *int) *int { // ERROR "leaking param: x to result ~r1$"
++func foo113(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	m := Bar{ii: x}
+ 	return m.ii
+ }
+ 
+-func foo114(x *int) *int { // ERROR "leaking param: x to result ~r1$"
++func foo114(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	m := &Bar{ii: x} // ERROR "foo114 &Bar literal does not escape$"
+ 	return m.ii
+ }
+ 
+-func foo115(x *int) *int { // ERROR "leaking param: x to result ~r1$"
++func foo115(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
+ 	return (*int)(unsafe.Pointer(uintptr(unsafe.Pointer(x)) + 1))
+ }
+ 
+@@ -1525,7 +1525,7 @@ type U struct {
+ 	s *string
+ }
+ 
+-func (u *U) String() *string { // ERROR "\(\*U\).String leaking param u content to result ~r0$"
++func (u *U) String() *string { // ERROR "leaking param: u to result ~r0 level=1$"
+ 	return u.s
+ }
+ 
+@@ -1533,8 +1533,9 @@ type V struct {
+ 	s *string
+ }
+ 
+-func NewV(u U) *V { // ERROR "leaking param: u$"
+-	return &V{u.String()} // ERROR "&V literal escapes to heap$" "NewV u does not escape$"
++// BAD -- level of leak ought to be 0
++func NewV(u U) *V { // ERROR "leaking param: u to result ~r1 level=-1"
++	return &V{u.String()} // ERROR "&V literal escapes to heap$" "NewV u does not escape"
+ }
+ 
+ func foo152() {
+@@ -1546,7 +1547,7 @@ func foo152() {
+ 
+ // issue 8176 - &x in type switch body not marked as escaping
+ 
+-func foo153(v interface{}) *int { // ERROR "leaking param: v$"
++func foo153(v interface{}) *int { // ERROR "leaking param: v to result ~r1 level=-1$"
+ 	switch x := v.(type) {
+ 	case int: // ERROR "moved to heap: x$"
+ 		return &x // ERROR "&x escapes to heap$"
+@@ -1619,7 +1620,7 @@ func (b *Buffer) baz() { // ERROR "\(\*Buffer\).baz b does not escape$"
+ 	b.str1 = b.str2[1:2] // ERROR "\(\*Buffer\).baz ignoring self-assignment to b.str1$"
+ }
+ 
+-func (b *Buffer) bat() { // ERROR "leaking param: b$"
++func (b *Buffer) bat() { // ERROR "leaking param content: b$"
+ 	o := new(Buffer) // ERROR "new\(Buffer\) escapes to heap$"
+ 	o.buf1 = b.buf1[1:2]
+ 	sink = o // ERROR "o escapes to heap$"
+@@ -1803,7 +1804,7 @@ func issue10353() {
+ 	issue10353a(x)()
+ }
+ 
+-func issue10353a(x *int) func() { // ERROR "leaking param: x$"
++func issue10353a(x *int) func() { // ERROR "leaking param: x to result ~r1 level=-1$"
+ 	return func() { // ERROR "func literal escapes to heap$"
+ 		println(*x)
+ 	}
+diff --git a/test/escape_array.go b/test/escape_array.go
+new file mode 100644
+index 0000000000..ac51fe7ca6
+--- /dev/null
++++ b/test/escape_array.go
+@@ -0,0 +1,72 @@
++// errorcheck -0 -m -l
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis for function parameters.
++
++// In this test almost everything is BAD except the simplest cases
++// where input directly flows to output.
++
++package foo
++
++var Ssink *string
++
++type U [2]*string
++
++func bar(a, b *string) U { // ERROR "leaking param: a to result ~r2 level=0$" "leaking param: b to result ~r2 level=0$"
++	return U{a, b}
++}
++
++func foo(x U) U { // ERROR "leaking param: x to result ~r1 level=0$"
++	return U{x[1], x[0]}
++}
++
++func bff(a, b *string) U { // ERROR "leaking param: a to result ~r2 level=0$" "leaking param: b to result ~r2 level=0$"
++	return foo(foo(bar(a, b)))
++}
++
++func tbff1() *string {
++	a := "cat"
++	b := "dog"       // ERROR "moved to heap: b$"
++	u := bff(&a, &b) // ERROR "tbff1 &a does not escape$" "tbff1 &b does not escape$"
++	_ = u[0]
++	return &b // ERROR "&b escapes to heap$"
++}
++
++// BAD: need fine-grained analysis to track u[0] and u[1] differently.
++func tbff2() *string {
++	a := "cat"       // ERROR "moved to heap: a$"
++	b := "dog"       // ERROR "moved to heap: b$"
++	u := bff(&a, &b) // ERROR "&a escapes to heap$" "&b escapes to heap$"
++	_ = u[0]
++	return u[1]
++}
++
++func car(x U) *string { // ERROR "leaking param: x to result ~r1 level=0$"
++	return x[0]
++}
++
++// BAD: need fine-grained analysis to track x[0] and x[1] differently.
++func fun(x U, y *string) *string { // ERROR "leaking param: x to result ~r2 level=0$" "leaking param: y to result ~r2 level=0$"
++	x[0] = y
++	return x[1]
++}
++
++func fup(x *U, y *string) *string { // ERROR "leaking param: x to result ~r2 level=1$" "leaking param: y$"
++	x[0] = y // leaking y to heap is intended
++	return x[1]
++}
++
++// BAD: would be nice to record that *y (content) is what leaks, not y itself
++func fum(x *U, y **string) *string { // ERROR "leaking param: x to result ~r2 level=1$" "leaking param content: y$"
++	x[0] = *y
++	return x[1]
++}
++
++// BAD: would be nice to record that y[0] (content) is what leaks, not y itself
++func fuo(x *U, y *U) *string { // ERROR "leaking param: x to result ~r2 level=1$" "leaking param content: y$"
++	x[0] = y[0]
++	return x[1]
++}
+diff --git a/test/escape_calls.go b/test/escape_calls.go
+new file mode 100644
+index 0000000000..f289670091
+--- /dev/null
++++ b/test/escape_calls.go
+@@ -0,0 +1,44 @@
++// errorcheck -0 -m -l
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis for function parameters.
++
++// In this test almost everything is BAD except the simplest cases
++// where input directly flows to output.
++
++package foo
++
++func f(buf []byte) []byte { // ERROR "leaking param: buf to result ~r1 level=0$"
++	return buf
++}
++
++func g(*byte) string
++
++func h(e int) {
++	var x [32]byte // ERROR "moved to heap: x$"
++	g(&f(x[:])[0]) // ERROR "&f\(x\[:\]\)\[0\] escapes to heap$" "x escapes to heap$"
++}
++
++type Node struct {
++	s           string
++	left, right *Node
++}
++
++func walk(np **Node) int { // ERROR "leaking param content: np"
++	n := *np
++	w := len(n.s)
++	if n == nil {
++		return 0
++	}
++	wl := walk(&n.left)  // ERROR "walk &n.left does not escape"
++	wr := walk(&n.right) // ERROR "walk &n.right does not escape"
++	if wl < wr {
++		n.left, n.right = n.right, n.left
++		wl, wr = wr, wl
++	}
++	*np = n
++	return w + wl + wr
++}
+diff --git a/test/escape_closure.go b/test/escape_closure.go
+index 0a5f326dd3..4cdb06e4c5 100644
+--- a/test/escape_closure.go
++++ b/test/escape_closure.go
+@@ -131,7 +131,7 @@ func ClosureCallArgs14() {
+ 	x := 0 // ERROR "moved to heap: x"
+ 	// BAD: &x should not escape here
+ 	p := &x                  // ERROR "moved to heap: p" "&x escapes to heap"
+-	_ = func(p **int) *int { // ERROR "leaking param p content to result ~r1" "func literal does not escape"
++	_ = func(p **int) *int { // ERROR "leaking param: p to result ~r1 level=1" "func literal does not escape"
+ 		return *p
+ 		// BAD: p should not escape here
+ 	}(&p) // ERROR "&p escapes to heap"
+@@ -140,7 +140,7 @@ func ClosureCallArgs14() {
+ func ClosureCallArgs15() {
+ 	x := 0                      // ERROR "moved to heap: x"
+ 	p := &x                     // ERROR "moved to heap: p" "&x escapes to heap"
+-	sink = func(p **int) *int { // ERROR "leaking param p content to result ~r1" "func literal does not escape"
++	sink = func(p **int) *int { // ERROR "leaking param: p to result ~r1 level=1" "func literal does not escape"
+ 		return *p
+ 		// BAD: p should not escape here
+ 	}(&p) // ERROR "&p escapes to heap" "\(func literal\)\(&p\) escapes to heap"
+diff --git a/test/escape_field.go b/test/escape_field.go
+index dcf8a31d2b..16d1e741b8 100644
+--- a/test/escape_field.go
++++ b/test/escape_field.go
+@@ -23,7 +23,7 @@ type Y struct {
+ func field0() {
+ 	i := 0 // ERROR "moved to heap: i$"
+ 	var x X
+-	x.p1 = &i // ERROR "&i escapes to heap$"
++	x.p1 = &i   // ERROR "&i escapes to heap$"
+ 	sink = x.p1 // ERROR "x\.p1 escapes to heap"
+ }
+ 
+@@ -31,7 +31,7 @@ func field1() {
+ 	i := 0 // ERROR "moved to heap: i$"
+ 	var x X
+ 	// BAD: &i should not escape
+-	x.p1 = &i // ERROR "&i escapes to heap$"
++	x.p1 = &i   // ERROR "&i escapes to heap$"
+ 	sink = x.p2 // ERROR "x\.p2 escapes to heap"
+ }
+ 
+@@ -39,7 +39,7 @@ func field3() {
+ 	i := 0 // ERROR "moved to heap: i$"
+ 	var x X
+ 	x.p1 = &i // ERROR "&i escapes to heap$"
+-	sink = x // ERROR "x escapes to heap"
++	sink = x  // ERROR "x escapes to heap"
+ }
+ 
+ func field4() {
+@@ -54,22 +54,21 @@ func field5() {
+ 	i := 0 // ERROR "moved to heap: i$"
+ 	var x X
+ 	// BAD: &i should not escape here
+-	x.a[0] = &i // ERROR "&i escapes to heap$"
++	x.a[0] = &i   // ERROR "&i escapes to heap$"
+ 	sink = x.a[1] // ERROR "x\.a\[1\] escapes to heap"
+ }
+ 
+ // BAD: we are not leaking param x, only x.p2
+-func field6(x *X) { // ERROR "leaking param: x$"
++func field6(x *X) { // ERROR "leaking param content: x$"
+ 	sink = x.p2 // ERROR "x\.p2 escapes to heap"
+ }
+ 
+ func field6a() {
+-	i := 0  // ERROR "moved to heap: i$"
+-	var x X // ERROR "moved to heap: x$"
++	i := 0 // ERROR "moved to heap: i$"
++	var x X
+ 	// BAD: &i should not escape
+-	x.p1 = &i // ERROR "&i escapes to heap$"
+-	// BAD: &x should not escape
+-	field6(&x) // ERROR "&x escapes to heap$"
++	x.p1 = &i  // ERROR "&i escapes to heap$"
++	field6(&x) // ERROR "field6a &x does not escape"
+ }
+ 
+ func field7() {
+@@ -116,40 +115,40 @@ func field10() {
+ func field11() {
+ 	i := 0         // ERROR "moved to heap: i$"
+ 	x := X{p1: &i} // ERROR "&i escapes to heap$"
+-	sink = x.p1 // ERROR "x\.p1 escapes to heap"
++	sink = x.p1    // ERROR "x\.p1 escapes to heap"
+ }
+ 
+ func field12() {
+ 	i := 0 // ERROR "moved to heap: i$"
+ 	// BAD: &i should not escape
+ 	x := X{p1: &i} // ERROR "&i escapes to heap$"
+-	sink = x.p2 // ERROR "x\.p2 escapes to heap"
++	sink = x.p2    // ERROR "x\.p2 escapes to heap"
+ }
+ 
+ func field13() {
+ 	i := 0          // ERROR "moved to heap: i$"
+ 	x := &X{p1: &i} // ERROR "&i escapes to heap$" "field13 &X literal does not escape$"
+-	sink = x.p1 // ERROR "x\.p1 escapes to heap"
++	sink = x.p1     // ERROR "x\.p1 escapes to heap"
+ }
+ 
+ func field14() {
+ 	i := 0 // ERROR "moved to heap: i$"
+ 	// BAD: &i should not escape
+ 	x := &X{p1: &i} // ERROR "&i escapes to heap$" "field14 &X literal does not escape$"
+-	sink = x.p2 // ERROR "x\.p2 escapes to heap"
++	sink = x.p2     // ERROR "x\.p2 escapes to heap"
+ }
+ 
+ func field15() {
+ 	i := 0          // ERROR "moved to heap: i$"
+ 	x := &X{p1: &i} // ERROR "&X literal escapes to heap$" "&i escapes to heap$"
+-	sink = x // ERROR "x escapes to heap"
++	sink = x        // ERROR "x escapes to heap"
+ }
+ 
+ func field16() {
+ 	i := 0 // ERROR "moved to heap: i$"
+ 	var x X
+ 	// BAD: &i should not escape
+-	x.p1 = &i // ERROR "&i escapes to heap$"
++	x.p1 = &i                 // ERROR "&i escapes to heap$"
+ 	var iface interface{} = x // ERROR "x escapes to heap"
+ 	x1 := iface.(X)
+ 	sink = x1.p2 // ERROR "x1\.p2 escapes to heap"
+@@ -158,7 +157,7 @@ func field16() {
+ func field17() {
+ 	i := 0 // ERROR "moved to heap: i$"
+ 	var x X
+-	x.p1 = &i // ERROR "&i escapes to heap$"
++	x.p1 = &i                 // ERROR "&i escapes to heap$"
+ 	var iface interface{} = x // ERROR "x escapes to heap"
+ 	x1 := iface.(X)
+ 	sink = x1.p1 // ERROR "x1\.p1 escapes to heap"
+@@ -168,8 +167,8 @@ func field18() {
+ 	i := 0 // ERROR "moved to heap: i$"
+ 	var x X
+ 	// BAD: &i should not escape
+-	x.p1 = &i // ERROR "&i escapes to heap$"
++	x.p1 = &i                 // ERROR "&i escapes to heap$"
+ 	var iface interface{} = x // ERROR "x escapes to heap"
+-	y, _ := iface.(Y) // Put X, but extracted Y. The cast will fail, so y is zero initialized.
+-	sink = y // ERROR "y escapes to heap"
++	y, _ := iface.(Y)         // Put X, but extracted Y. The cast will fail, so y is zero initialized.
++	sink = y                  // ERROR "y escapes to heap"
+ }
+diff --git a/test/escape_indir.go b/test/escape_indir.go
+index 7c06ceb5f8..fe03c3fb1b 100644
+--- a/test/escape_indir.go
++++ b/test/escape_indir.go
+@@ -54,14 +54,14 @@ func constptr1() {
+ 	i := 0           // ERROR "moved to heap: i"
+ 	x := &ConstPtr{} // ERROR "&ConstPtr literal escapes to heap"
+ 	x.p = &i         // ERROR "&i escapes to heap"
+-	sink = x // ERROR "x escapes to heap"
++	sink = x         // ERROR "x escapes to heap"
+ }
+ 
+ func constptr2() {
+ 	i := 0           // ERROR "moved to heap: i"
+ 	x := &ConstPtr{} // ERROR "&ConstPtr literal does not escape"
+ 	x.p = &i         // ERROR "&i escapes to heap"
+-	sink = *x// ERROR "\*x escapes to heap"
++	sink = *x        // ERROR "\*x escapes to heap"
+ }
+ 
+ func constptr4() *ConstPtr {
+@@ -78,7 +78,7 @@ func constptr5() *ConstPtr {
+ }
+ 
+ // BAD: p should not escape here
+-func constptr6(p *ConstPtr) { // ERROR "leaking param: p"
++func constptr6(p *ConstPtr) { // ERROR "leaking param content: p"
+ 	p1 := &ConstPtr{} // ERROR "&ConstPtr literal does not escape"
+ 	*p1 = *p
+ 	_ = p1
+@@ -151,3 +151,10 @@ func foo2() {
+ 	i := 0  // ERROR "moved to heap: i"
+ 	*p = &i // ERROR "&i escapes to heap"
+ }
++
++var global *byte
++
++func f() {
++	var x byte    // ERROR "moved to heap: x"
++	global = &*&x // ERROR "&\(\*\(&x\)\) escapes to heap" "&x escapes to heap"
++}
+diff --git a/test/escape_level.go b/test/escape_level.go
+index 581e4a95cb..867c81ae52 100644
+--- a/test/escape_level.go
++++ b/test/escape_level.go
+@@ -27,18 +27,18 @@ func level1() {
+ }
+ 
+ func level2() {
+-	i := 0    // ERROR "moved to heap: i"
+-	p0 := &i  // ERROR "moved to heap: p0" "&i escapes to heap"
+-	p1 := &p0 // ERROR "&p0 escapes to heap"
+-	p2 := &p1 // ERROR "&p1 does not escape"
++	i := 0     // ERROR "moved to heap: i"
++	p0 := &i   // ERROR "moved to heap: p0" "&i escapes to heap"
++	p1 := &p0  // ERROR "&p0 escapes to heap"
++	p2 := &p1  // ERROR "&p1 does not escape"
+ 	sink = *p2 // ERROR "\*p2 escapes to heap"
+ }
+ 
+ func level3() {
+-	i := 0    // ERROR "moved to heap: i"
+-	p0 := &i  // ERROR "&i escapes to heap"
+-	p1 := &p0 // ERROR "&p0 does not escape"
+-	p2 := &p1 // ERROR "&p1 does not escape"
++	i := 0      // ERROR "moved to heap: i"
++	p0 := &i    // ERROR "&i escapes to heap"
++	p1 := &p0   // ERROR "&p0 does not escape"
++	p2 := &p1   // ERROR "&p1 does not escape"
+ 	sink = **p2 // ERROR "\* \(\*p2\) escapes to heap"
+ }
+ 
+@@ -67,10 +67,10 @@ func level6() {
+ }
+ 
+ func level7() {
+-	i := 0     // ERROR "moved to heap: i"
+-	p0 := &i   // ERROR "moved to heap: p0" "&i escapes to heap"
+-	// BAD: p0 should not escape here
+-	p1 := &p0  // ERROR "&p0 escapes to heap"
++	i := 0    // ERROR "moved to heap: i"
++	p0 := &i  // ERROR "&i escapes to heap"
++	p1 := &p0 // ERROR "&p0 does not escape"
++	// note *p1 == &i
+ 	p2 := *p1  // ERROR "moved to heap: p2"
+ 	sink = &p2 // ERROR "&p2 escapes to heap"
+ }
+@@ -95,7 +95,7 @@ func level10() {
+ 	i := 0
+ 	p0 := &i // ERROR "&i does not escape"
+ 	p1 := *p0
+-	p2 := &p1 // ERROR "&p1 does not escape"
++	p2 := &p1  // ERROR "&p1 does not escape"
+ 	sink = *p2 // ERROR "\*p2 escapes to heap"
+ }
+ 
+diff --git a/test/escape_param.go b/test/escape_param.go
+index 91ad437d86..cfbcd51ca7 100644
+--- a/test/escape_param.go
++++ b/test/escape_param.go
+@@ -14,7 +14,7 @@ package escape
+ var sink interface{}
+ 
+ // in -> out
+-func param0(p *int) *int { // ERROR "leaking param: p to result ~r1$"
++func param0(p *int) *int { // ERROR "leaking param: p to result ~r1"
+ 	return p
+ }
+ 
+@@ -29,7 +29,7 @@ func caller0b() {
+ }
+ 
+ // in, in -> out, out
+-func param1(p1, p2 *int) (*int, *int) { // ERROR "leaking param: p1 to result ~r2$" "leaking param: p2 to result ~r3$"
++func param1(p1, p2 *int) (*int, *int) { // ERROR "leaking param: p1 to result ~r2" "leaking param: p2 to result ~r3"
+ 	return p1, p2
+ }
+ 
+@@ -64,23 +64,23 @@ type Pair struct {
+ 	p2 *int
+ }
+ 
+-func param3(p *Pair) { // ERROR "leaking param: p$"
++func param3(p *Pair) { // ERROR "leaking param content: p$"
+ 	p.p1 = p.p2
+ }
+ 
+ func caller3a() {
+ 	i := 0            // ERROR "moved to heap: i$"
+ 	j := 0            // ERROR "moved to heap: j$"
+-	p := Pair{&i, &j} // ERROR "&i escapes to heap$" "&j escapes to heap$" "moved to heap: p$"
+-	param3(&p)        // ERROR "&p escapes to heap$"
++	p := Pair{&i, &j} // ERROR "&i escapes to heap$" "&j escapes to heap$"
++	param3(&p)        // ERROR "caller3a &p does not escape"
+ 	_ = p
+ }
+ 
+ func caller3b() {
+ 	i := 0            // ERROR "moved to heap: i$"
+ 	j := 0            // ERROR "moved to heap: j$"
+-	p := Pair{&i, &j} // ERROR "&i escapes to heap$" "&j escapes to heap$" "moved to heap: p$"
+-	param3(&p)        // ERROR "&p escapes to heap$"
++	p := Pair{&i, &j} // ERROR "&i escapes to heap$" "&j escapes to heap$"
++	param3(&p)        // ERROR "caller3b &p does not escape"
+ 	sink = p          // ERROR "p escapes to heap$"
+ }
+ 
+@@ -114,27 +114,27 @@ func caller5() {
+ }
+ 
+ // *in -> heap
+-func param6(i ***int) { // ERROR "leaking param: i$"
++func param6(i ***int) { // ERROR "leaking param content: i$"
+ 	sink = *i // ERROR "\*i escapes to heap$"
+ }
+ 
+ func caller6a() {
+ 	i := 0      // ERROR "moved to heap: i$"
+ 	p := &i     // ERROR "&i escapes to heap$" "moved to heap: p$"
+-	p2 := &p    // ERROR "&p escapes to heap$" "moved to heap: p2$"
+-	param6(&p2) // ERROR "&p2 escapes to heap$"
++	p2 := &p    // ERROR "&p escapes to heap$"
++	param6(&p2) // ERROR "caller6a &p2 does not escape"
+ }
+ 
+ // **in -> heap
+-func param7(i ***int) { // ERROR "leaking param: i$"
++func param7(i ***int) { // ERROR "leaking param content: i$"
+ 	sink = **i // ERROR "\* \(\*i\) escapes to heap"
+ }
+ 
+ func caller7() {
+ 	i := 0      // ERROR "moved to heap: i$"
+ 	p := &i     // ERROR "&i escapes to heap$" "moved to heap: p$"
+-	p2 := &p    // ERROR "&p escapes to heap$" "moved to heap: p2$"
+-	param7(&p2) // ERROR "&p2 escapes to heap$"
++	p2 := &p    // ERROR "&p escapes to heap$"
++	param7(&p2) // ERROR "caller7 &p2 does not escape"
+ }
+ 
+ // **in -> heap
+@@ -149,14 +149,14 @@ func caller8() {
+ }
+ 
+ // *in -> out
+-func param9(p ***int) **int { // ERROR "param9 leaking param p content to result ~r1$"
++func param9(p ***int) **int { // ERROR "leaking param: p to result ~r1 level=1"
+ 	return *p
+ }
+ 
+ func caller9a() {
+-	i := 0          // ERROR "moved to heap: i$"
+-	p := &i         // ERROR "&i escapes to heap$" "moved to heap: p$"
+-	p2 := &p        // ERROR "&p escapes to heap$"
++	i := 0
++	p := &i         // ERROR "caller9a &i does not escape"
++	p2 := &p        // ERROR "caller9a &p does not escape"
+ 	_ = param9(&p2) // ERROR "caller9a &p2 does not escape$"
+ }
+ 
+@@ -168,33 +168,33 @@ func caller9b() {
+ }
+ 
+ // **in -> out
+-func param10(p ***int) *int { // ERROR "param10 leaking param p content to result ~r1$"
++func param10(p ***int) *int { // ERROR "leaking param: p to result ~r1 level=2"
+ 	return **p
+ }
+ 
+ func caller10a() {
+-	i := 0           // ERROR "moved to heap: i$"
+-	p := &i          // ERROR "&i escapes to heap$" "moved to heap: p$"
+-	p2 := &p         // ERROR "&p escapes to heap$"
++	i := 0
++	p := &i          // ERROR "caller10a &i does not escape"
++	p2 := &p         // ERROR "caller10a &p does not escape"
+ 	_ = param10(&p2) // ERROR "caller10a &p2 does not escape$"
+ }
+ 
+ func caller10b() {
+ 	i := 0              // ERROR "moved to heap: i$"
+-	p := &i             // ERROR "&i escapes to heap$" "moved to heap: p$"
+-	p2 := &p            // ERROR "&p escapes to heap$"
++	p := &i             // ERROR "&i escapes to heap$"
++	p2 := &p            // ERROR "caller10b &p does not escape$"
+ 	sink = param10(&p2) // ERROR "caller10b &p2 does not escape$" "param10\(&p2\) escapes to heap"
+ }
+ 
+-// &in -> out
++// in escapes to heap (address of param taken and returned)
+ func param11(i **int) ***int { // ERROR "moved to heap: i$"
+ 	return &i // ERROR "&i escapes to heap$"
+ }
+ 
+ func caller11a() {
+-	i := 0          // ERROR "moved to heap: i$"
+-	p := &i         // ERROR "&i escapes to heap$" "moved to heap: p$"
+-	_ = param11(&p) // ERROR "&p escapes to heap$"
++	i := 0          // ERROR "moved to heap: i"
++	p := &i         // ERROR "moved to heap: p" "&i escapes to heap"
++	_ = param11(&p) // ERROR "&p escapes to heap"
+ }
+ 
+ func caller11b() {
+@@ -203,10 +203,17 @@ func caller11b() {
+ 	sink = param11(&p) // ERROR "&p escapes to heap$" "param11\(&p\) escapes to heap"
+ }
+ 
+-func caller11c() {
++func caller11c() { // GOOD
+ 	i := 0              // ERROR "moved to heap: i$"
+-	p := &i             // ERROR "&i escapes to heap$" "moved to heap: p$"
+-	sink = *param11(&p) // ERROR "&p escapes to heap$" "\*param11\(&p\) escapes to heap"
++	p := &i             // ERROR "moved to heap: p" "&i escapes to heap"
++	sink = *param11(&p) // ERROR "&p escapes to heap" "\*param11\(&p\) escapes to heap"
++}
++
++func caller11d() {
++	i := 0             // ERROR "moved to heap: i$"
++	p := &i            // ERROR "&i escapes to heap" "moved to heap: p"
++	p2 := &p           // ERROR "&p escapes to heap"
++	sink = param11(p2) // ERROR "param11\(p2\) escapes to heap"
+ }
+ 
+ // &in -> rcvr
+@@ -324,3 +331,23 @@ func caller13h() {
+ 	v.param13(&i) // ERROR "&i escapes to heap$"
+ 	sink = **v.p  // ERROR "\* \(\*v\.p\) escapes to heap"
+ }
++
++type Node struct {
++	p *Node
++}
++
++var Sink *Node
++
++func f(x *Node) { // ERROR "leaking param content: x"
++	Sink = &Node{x.p} // ERROR "&Node literal escapes to heap"
++}
++
++func g(x *Node) *Node { // ERROR "leaking param: x to result ~r1 level=0"
++	return &Node{x.p} // ERROR "&Node literal escapes to heap"
++}
++
++func h(x *Node) { // ERROR "leaking param: x"
++	y := &Node{x} // ERROR "h &Node literal does not escape"
++	Sink = g(y)
++	f(y)
++}
+diff --git a/test/escape_struct_param1.go b/test/escape_struct_param1.go
+new file mode 100644
+index 0000000000..e30e327acd
+--- /dev/null
++++ b/test/escape_struct_param1.go
+@@ -0,0 +1,298 @@
++// errorcheck -0 -m -l
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis for *struct function parameters.
++// Note companion strict_param2 checks struct function parameters with similar tests.
++
++package notmain
++
++var Ssink *string
++
++type U struct {
++	_sp  *string
++	_spp **string
++}
++
++type V struct {
++	_u   U
++	_up  *U
++	_upp **U
++}
++
++func (u *U) SP() *string { // ERROR "leaking param: u to result ~r0 level=1$"
++	return u._sp
++}
++
++func (u *U) SPP() **string { // ERROR "leaking param: u to result ~r0 level=1$"
++	return u._spp
++}
++
++func (u *U) SPPi() *string { // ERROR "leaking param: u to result ~r0 level=2$"
++	return *u._spp
++}
++
++func tSPPi() {
++	s := "cat"        // ERROR "moved to heap: s$"
++	ps := &s          // ERROR "&s escapes to heap$"
++	pps := &ps        // ERROR "tSPPi &ps does not escape$"
++	pu := &U{ps, pps} // ERROR "tSPPi &U literal does not escape$"
++	Ssink = pu.SPPi()
++}
++
++func tiSPP() {
++	s := "cat"        // ERROR "moved to heap: s$"
++	ps := &s          // ERROR "&s escapes to heap$"
++	pps := &ps        // ERROR "tiSPP &ps does not escape$"
++	pu := &U{ps, pps} // ERROR "tiSPP &U literal does not escape$"
++	Ssink = *pu.SPP()
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of ps
++func tSP() {
++	s := "cat"        // ERROR "moved to heap: s$"
++	ps := &s          // ERROR "&s escapes to heap$" "moved to heap: ps$"
++	pps := &ps        // ERROR "&ps escapes to heap$"
++	pu := &U{ps, pps} // ERROR "tSP &U literal does not escape$"
++	Ssink = pu.SP()
++}
++
++func (v *V) u() U { // ERROR "leaking param: v to result ~r0 level=1$"
++	return v._u
++}
++
++func (v *V) UP() *U { // ERROR "leaking param: v to result ~r0 level=1$"
++	return v._up
++}
++
++func (v *V) UPP() **U { // ERROR "leaking param: v to result ~r0 level=1$"
++	return v._upp
++}
++
++func (v *V) UPPia() *U { // ERROR "leaking param: v to result ~r0 level=2$"
++	return *v._upp
++}
++
++func (v *V) UPPib() *U { // ERROR "leaking param: v to result ~r0 level=2$"
++	return *v.UPP()
++}
++
++func (v *V) USPa() *string { // ERROR "leaking param: v to result ~r0 level=1$"
++	return v._u._sp
++}
++
++func (v *V) USPb() *string { // ERROR "leaking param: v to result ~r0 level=1$"
++	return v.u()._sp
++}
++
++func (v *V) USPPia() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return *v._u._spp
++}
++
++func (v *V) USPPib() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return v._u.SPPi() // ERROR "\(\*V\).USPPib v._u does not escape$"
++}
++
++func (v *V) UPiSPa() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return v._up._sp
++}
++
++func (v *V) UPiSPb() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return v._up.SP()
++}
++
++func (v *V) UPiSPc() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return v.UP()._sp
++}
++
++func (v *V) UPiSPd() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return v.UP().SP()
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
++func tUPiSPa() {
++	s1 := "ant"
++	s2 := "bat"          // ERROR "moved to heap: s2$"
++	s3 := "cat"          // ERROR "moved to heap: s3$"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "&s2 escapes to heap$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$" "moved to heap: ps4$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPa &ps2 does not escape$" "tUPiSPa &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "&ps4 escapes to heap$" "&s3 escapes to heap$" "tUPiSPa &U literal does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$" "&ps6 escapes to heap$" "&s5 escapes to heap$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPa &V literal does not escape$" "tUPiSPa &u3 does not escape$"
++	Ssink = v.UPiSPa()   // Ssink = &s3 (only &s3 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
++func tUPiSPb() {
++	s1 := "ant"
++	s2 := "bat"          // ERROR "moved to heap: s2$"
++	s3 := "cat"          // ERROR "moved to heap: s3$"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "&s2 escapes to heap$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$" "moved to heap: ps4$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPb &ps2 does not escape$" "tUPiSPb &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "&ps4 escapes to heap$" "&s3 escapes to heap$" "tUPiSPb &U literal does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$" "&ps6 escapes to heap$" "&s5 escapes to heap$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPb &V literal does not escape$" "tUPiSPb &u3 does not escape$"
++	Ssink = v.UPiSPb()   // Ssink = &s3 (only &s3 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
++func tUPiSPc() {
++	s1 := "ant"
++	s2 := "bat"          // ERROR "moved to heap: s2$"
++	s3 := "cat"          // ERROR "moved to heap: s3$"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "&s2 escapes to heap$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$" "moved to heap: ps4$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPc &ps2 does not escape$" "tUPiSPc &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "&ps4 escapes to heap$" "&s3 escapes to heap$" "tUPiSPc &U literal does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$" "&ps6 escapes to heap$" "&s5 escapes to heap$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPc &V literal does not escape$" "tUPiSPc &u3 does not escape$"
++	Ssink = v.UPiSPc()   // Ssink = &s3 (only &s3 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
++func tUPiSPd() {
++	s1 := "ant"
++	s2 := "bat"          // ERROR "moved to heap: s2$"
++	s3 := "cat"          // ERROR "moved to heap: s3$"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "&s2 escapes to heap$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$" "moved to heap: ps4$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPd &ps2 does not escape$" "tUPiSPd &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "&ps4 escapes to heap$" "&s3 escapes to heap$" "tUPiSPd &U literal does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$" "&ps6 escapes to heap$" "&s5 escapes to heap$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPd &V literal does not escape$" "tUPiSPd &u3 does not escape$"
++	Ssink = v.UPiSPd()   // Ssink = &s3 (only &s3 really escapes)
++}
++
++func (v V) UPiSPPia() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return *v._up._spp
++}
++
++func (v V) UPiSPPib() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return v._up.SPPi()
++}
++
++func (v V) UPiSPPic() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return *v.UP()._spp // ERROR "V.UPiSPPic v does not escape$"
++}
++
++func (v V) UPiSPPid() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return v.UP().SPPi() // ERROR "V.UPiSPPid v does not escape$"
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s4
++func tUPiSPPia() {
++	s1 := "ant"
++	s2 := "bat"
++	s3 := "cat"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "tUPiSPPia &s2 does not escape$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPPia &ps2 does not escape$" "tUPiSPPia &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPia &U literal does not escape$" "tUPiSPPia &ps4 does not escape$" "tUPiSPPia &s3 does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&ps6 escapes to heap$" "&s5 escapes to heap$" "tUPiSPPia &U literal does not escape$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPPia &V literal does not escape$" "tUPiSPPia &u3 does not escape$"
++	Ssink = v.UPiSPPia() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s4
++func tUPiSPPib() {
++	s1 := "ant"
++	s2 := "bat"
++	s3 := "cat"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "tUPiSPPib &s2 does not escape$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPPib &ps2 does not escape$" "tUPiSPPib &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPib &U literal does not escape$" "tUPiSPPib &ps4 does not escape$" "tUPiSPPib &s3 does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&ps6 escapes to heap$" "&s5 escapes to heap$" "tUPiSPPib &U literal does not escape$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPPib &V literal does not escape$" "tUPiSPPib &u3 does not escape$"
++	Ssink = v.UPiSPPib() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s4
++func tUPiSPPic() {
++	s1 := "ant"
++	s2 := "bat"
++	s3 := "cat"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "tUPiSPPic &s2 does not escape$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPPic &ps2 does not escape$" "tUPiSPPic &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPic &U literal does not escape$" "tUPiSPPic &ps4 does not escape$" "tUPiSPPic &s3 does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&ps6 escapes to heap$" "&s5 escapes to heap$" "tUPiSPPic &U literal does not escape$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPPic &V literal does not escape$" "tUPiSPPic &u3 does not escape$"
++	Ssink = v.UPiSPPic() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s4
++func tUPiSPPid() {
++	s1 := "ant"
++	s2 := "bat"
++	s3 := "cat"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "tUPiSPPid &s2 does not escape$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPPid &ps2 does not escape$" "tUPiSPPid &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPid &U literal does not escape$" "tUPiSPPid &ps4 does not escape$" "tUPiSPPid &s3 does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&ps6 escapes to heap$" "&s5 escapes to heap$" "tUPiSPPid &U literal does not escape$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPPid &V literal does not escape$" "tUPiSPPid &u3 does not escape$"
++	Ssink = v.UPiSPPid() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
++}
++
++func (v *V) UPPiSPPia() *string { // ERROR "leaking param: v to result ~r0 level=4$"
++	return *(*v._upp)._spp
++}
++
++// This test isolates the one value that needs to escape, not because
++// it distinguishes fields but because it knows that &s6 is the only
++// value reachable by two indirects from v.
++// The test depends on the level cap in the escape analysis tags
++// being able to encode that fact.
++func tUPPiSPPia() {
++	s1 := "ant"
++	s2 := "bat"
++	s3 := "cat"
++	s4 := "dog"
++	s5 := "emu"
++	s6 := "fox"           // ERROR "moved to heap: s6$"
++	ps2 := &s2            // ERROR "tUPPiSPPia &s2 does not escape$"
++	ps4 := &s4            // ERROR "tUPPiSPPia &s4 does not escape$"
++	ps6 := &s6            // ERROR "&s6 escapes to heap$"
++	u1 := U{&s1, &ps2}    // ERROR "tUPPiSPPia &ps2 does not escape$" "tUPPiSPPia &s1 does not escape$"
++	u2 := &U{&s3, &ps4}   // ERROR "tUPPiSPPia &U literal does not escape$" "tUPPiSPPia &ps4 does not escape$" "tUPPiSPPia &s3 does not escape$"
++	u3 := &U{&s5, &ps6}   // ERROR "tUPPiSPPia &U literal does not escape$" "tUPPiSPPia &ps6 does not escape$" "tUPPiSPPia &s5 does not escape$"
++	v := &V{u1, u2, &u3}  // ERROR "tUPPiSPPia &V literal does not escape$" "tUPPiSPPia &u3 does not escape$"
++	Ssink = v.UPPiSPPia() // Ssink = *&ps6 = &s6 (only &s6 really escapes)
++}
+diff --git a/test/escape_struct_param2.go b/test/escape_struct_param2.go
+new file mode 100644
+index 0000000000..c10c336495
+--- /dev/null
++++ b/test/escape_struct_param2.go
+@@ -0,0 +1,298 @@
++// errorcheck -0 -m -l
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis for struct function parameters.
++// Note companion strict_param1 checks *struct function parameters with similar tests.
++
++package notmain
++
++var Ssink *string
++
++type U struct {
++	_sp  *string
++	_spp **string
++}
++
++type V struct {
++	_u   U
++	_up  *U
++	_upp **U
++}
++
++func (u U) SP() *string { // ERROR "leaking param: u to result ~r0 level=0$"
++	return u._sp
++}
++
++func (u U) SPP() **string { // ERROR "leaking param: u to result ~r0 level=0$"
++	return u._spp
++}
++
++func (u U) SPPi() *string { // ERROR "leaking param: u to result ~r0 level=1$"
++	return *u._spp
++}
++
++func tSPPi() {
++	s := "cat"        // ERROR "moved to heap: s$"
++	ps := &s          // ERROR "&s escapes to heap$"
++	pps := &ps        // ERROR "tSPPi &ps does not escape$"
++	pu := &U{ps, pps} // ERROR "tSPPi &U literal does not escape$"
++	Ssink = pu.SPPi()
++}
++
++func tiSPP() {
++	s := "cat"        // ERROR "moved to heap: s$"
++	ps := &s          // ERROR "&s escapes to heap$"
++	pps := &ps        // ERROR "tiSPP &ps does not escape$"
++	pu := &U{ps, pps} // ERROR "tiSPP &U literal does not escape$"
++	Ssink = *pu.SPP()
++}
++
++// BAD: need fine-grained analysis to avoid spurious escape of ps
++func tSP() {
++	s := "cat"        // ERROR "moved to heap: s$"
++	ps := &s          // ERROR "&s escapes to heap$" "moved to heap: ps$"
++	pps := &ps        // ERROR "&ps escapes to heap$"
++	pu := &U{ps, pps} // ERROR "tSP &U literal does not escape$"
++	Ssink = pu.SP()
++}
++
++func (v V) u() U { // ERROR "leaking param: v to result ~r0 level=0$"
++	return v._u
++}
++
++func (v V) UP() *U { // ERROR "leaking param: v to result ~r0 level=0$"
++	return v._up
++}
++
++func (v V) UPP() **U { // ERROR "leaking param: v to result ~r0 level=0$"
++	return v._upp
++}
++
++func (v V) UPPia() *U { // ERROR "leaking param: v to result ~r0 level=1$"
++	return *v._upp
++}
++
++func (v V) UPPib() *U { // ERROR "leaking param: v to result ~r0 level=1$"
++	return *v.UPP()
++}
++
++func (v V) USPa() *string { // ERROR "leaking param: v to result ~r0 level=0$"
++	return v._u._sp
++}
++
++func (v V) USPb() *string { // ERROR "leaking param: v to result ~r0 level=0$"
++	return v.u()._sp
++}
++
++func (v V) USPPia() *string { // ERROR "leaking param: v to result ~r0 level=1$"
++	return *v._u._spp
++}
++
++func (v V) USPPib() *string { // ERROR "leaking param: v to result ~r0 level=1$"
++	return v._u.SPPi()
++}
++
++func (v V) UPiSPa() *string { // ERROR "leaking param: v to result ~r0 level=1$"
++	return v._up._sp
++}
++
++func (v V) UPiSPb() *string { // ERROR "leaking param: v to result ~r0 level=1$"
++	return v._up.SP()
++}
++
++func (v V) UPiSPc() *string { // ERROR "leaking param: v to result ~r0 level=1$"
++	return v.UP()._sp
++}
++
++func (v V) UPiSPd() *string { // ERROR "leaking param: v to result ~r0 level=1$"
++	return v.UP().SP()
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
++func tUPiSPa() {
++	s1 := "ant"
++	s2 := "bat"          // ERROR "moved to heap: s2$"
++	s3 := "cat"          // ERROR "moved to heap: s3$"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "&s2 escapes to heap$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$" "moved to heap: ps4$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPa &ps2 does not escape$" "tUPiSPa &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "&ps4 escapes to heap$" "&s3 escapes to heap$" "tUPiSPa &U literal does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$" "&ps6 escapes to heap$" "&s5 escapes to heap$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPa &V literal does not escape$" "tUPiSPa &u3 does not escape$"
++	Ssink = v.UPiSPa()   // Ssink = &s3 (only &s3 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
++func tUPiSPb() {
++	s1 := "ant"
++	s2 := "bat"          // ERROR "moved to heap: s2$"
++	s3 := "cat"          // ERROR "moved to heap: s3$"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "&s2 escapes to heap$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$" "moved to heap: ps4$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPb &ps2 does not escape$" "tUPiSPb &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "&ps4 escapes to heap$" "&s3 escapes to heap$" "tUPiSPb &U literal does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$" "&ps6 escapes to heap$" "&s5 escapes to heap$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPb &V literal does not escape$" "tUPiSPb &u3 does not escape$"
++	Ssink = v.UPiSPb()   // Ssink = &s3 (only &s3 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
++func tUPiSPc() {
++	s1 := "ant"
++	s2 := "bat"          // ERROR "moved to heap: s2$"
++	s3 := "cat"          // ERROR "moved to heap: s3$"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "&s2 escapes to heap$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$" "moved to heap: ps4$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPc &ps2 does not escape$" "tUPiSPc &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "&ps4 escapes to heap$" "&s3 escapes to heap$" "tUPiSPc &U literal does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$" "&ps6 escapes to heap$" "&s5 escapes to heap$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPc &V literal does not escape$" "tUPiSPc &u3 does not escape$"
++	Ssink = v.UPiSPc()   // Ssink = &s3 (only &s3 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s3
++func tUPiSPd() {
++	s1 := "ant"
++	s2 := "bat"          // ERROR "moved to heap: s2$"
++	s3 := "cat"          // ERROR "moved to heap: s3$"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "&s2 escapes to heap$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$" "moved to heap: ps4$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPd &ps2 does not escape$" "tUPiSPd &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "&ps4 escapes to heap$" "&s3 escapes to heap$" "tUPiSPd &U literal does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$" "&ps6 escapes to heap$" "&s5 escapes to heap$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPd &V literal does not escape$" "tUPiSPd &u3 does not escape$"
++	Ssink = v.UPiSPd()   // Ssink = &s3 (only &s3 really escapes)
++}
++
++func (v V) UPiSPPia() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return *v._up._spp
++}
++
++func (v V) UPiSPPib() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return v._up.SPPi()
++}
++
++func (v V) UPiSPPic() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return *v.UP()._spp
++}
++
++func (v V) UPiSPPid() *string { // ERROR "leaking param: v to result ~r0 level=2$"
++	return v.UP().SPPi()
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s4
++func tUPiSPPia() {
++	s1 := "ant"
++	s2 := "bat"
++	s3 := "cat"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "tUPiSPPia &s2 does not escape$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPPia &ps2 does not escape$" "tUPiSPPia &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPia &U literal does not escape$" "tUPiSPPia &ps4 does not escape$" "tUPiSPPia &s3 does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&ps6 escapes to heap$" "&s5 escapes to heap$" "tUPiSPPia &U literal does not escape$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPPia &V literal does not escape$" "tUPiSPPia &u3 does not escape$"
++	Ssink = v.UPiSPPia() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s4
++func tUPiSPPib() {
++	s1 := "ant"
++	s2 := "bat"
++	s3 := "cat"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "tUPiSPPib &s2 does not escape$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPPib &ps2 does not escape$" "tUPiSPPib &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPib &U literal does not escape$" "tUPiSPPib &ps4 does not escape$" "tUPiSPPib &s3 does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&ps6 escapes to heap$" "&s5 escapes to heap$" "tUPiSPPib &U literal does not escape$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPPib &V literal does not escape$" "tUPiSPPib &u3 does not escape$"
++	Ssink = v.UPiSPPib() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s4
++func tUPiSPPic() {
++	s1 := "ant"
++	s2 := "bat"
++	s3 := "cat"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "tUPiSPPic &s2 does not escape$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPPic &ps2 does not escape$" "tUPiSPPic &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPic &U literal does not escape$" "tUPiSPPic &ps4 does not escape$" "tUPiSPPic &s3 does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&ps6 escapes to heap$" "&s5 escapes to heap$" "tUPiSPPic &U literal does not escape$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPPic &V literal does not escape$" "tUPiSPPic &u3 does not escape$"
++	Ssink = v.UPiSPPic() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
++}
++
++// BAD: need fine-grained (field-sensitive) analysis to avoid spurious escape of all but &s4
++func tUPiSPPid() {
++	s1 := "ant"
++	s2 := "bat"
++	s3 := "cat"
++	s4 := "dog"          // ERROR "moved to heap: s4$"
++	s5 := "emu"          // ERROR "moved to heap: s5$"
++	s6 := "fox"          // ERROR "moved to heap: s6$"
++	ps2 := &s2           // ERROR "tUPiSPPid &s2 does not escape$"
++	ps4 := &s4           // ERROR "&s4 escapes to heap$"
++	ps6 := &s6           // ERROR "&s6 escapes to heap$" "moved to heap: ps6$"
++	u1 := U{&s1, &ps2}   // ERROR "tUPiSPPid &ps2 does not escape$" "tUPiSPPid &s1 does not escape$"
++	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPid &U literal does not escape$" "tUPiSPPid &ps4 does not escape$" "tUPiSPPid &s3 does not escape$"
++	u3 := &U{&s5, &ps6}  // ERROR "&ps6 escapes to heap$" "&s5 escapes to heap$" "tUPiSPPid &U literal does not escape$"
++	v := &V{u1, u2, &u3} // ERROR "tUPiSPPid &V literal does not escape$" "tUPiSPPid &u3 does not escape$"
++	Ssink = v.UPiSPPid() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
++}
++
++func (v V) UPPiSPPia() *string { // ERROR "leaking param: v to result ~r0 level=3$"
++	return *(*v._upp)._spp
++}
++
++// This test isolates the one value that needs to escape, not because
++// it distinguishes fields but because it knows that &s6 is the only
++// value reachable by two indirects from v.
++// The test depends on the level cap in the escape analysis tags
++// being able to encode that fact.
++func tUPPiSPPia() { // This test is sensitive to the level cap in function summary results.
++	s1 := "ant"
++	s2 := "bat"
++	s3 := "cat"
++	s4 := "dog"
++	s5 := "emu"
++	s6 := "fox"           // ERROR "moved to heap: s6$"
++	ps2 := &s2            // ERROR "tUPPiSPPia &s2 does not escape$"
++	ps4 := &s4            // ERROR "tUPPiSPPia &s4 does not escape$"
++	ps6 := &s6            // ERROR "&s6 escapes to heap$"
++	u1 := U{&s1, &ps2}    // ERROR "tUPPiSPPia &ps2 does not escape$" "tUPPiSPPia &s1 does not escape$"
++	u2 := &U{&s3, &ps4}   // ERROR "tUPPiSPPia &U literal does not escape$" "tUPPiSPPia &ps4 does not escape$" "tUPPiSPPia &s3 does not escape$"
++	u3 := &U{&s5, &ps6}   // ERROR "tUPPiSPPia &U literal does not escape$" "tUPPiSPPia &ps6 does not escape$" "tUPPiSPPia &s5 does not escape$"
++	v := &V{u1, u2, &u3}  // ERROR "tUPPiSPPia &V literal does not escape$" "tUPPiSPPia &u3 does not escape$"
++	Ssink = v.UPPiSPPia() // Ssink = *&ps6 = &s6 (only &s6 really escapes)
++}
+diff --git a/test/escape_struct_return.go b/test/escape_struct_return.go
+new file mode 100644
+index 0000000000..b423ebd92a
+--- /dev/null
++++ b/test/escape_struct_return.go
+@@ -0,0 +1,74 @@
++// errorcheck -0 -m -l
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis for function parameters.
++
++package foo
++
++var Ssink *string
++
++type U struct {
++	_sp  *string
++	_spp **string
++}
++
++func A(sp *string, spp **string) U { // ERROR "leaking param: sp to result ~r2 level=0$" "leaking param: spp to result ~r2 level=0$"
++	return U{sp, spp}
++}
++
++func B(spp **string) U { // ERROR "leaking param: spp to result ~r1 level=0$" "leaking param: spp to result ~r1 level=1$"
++	return U{*spp, spp}
++}
++
++func tA1() {
++	s := "cat"
++	sp := &s   // ERROR "tA1 &s does not escape$"
++	spp := &sp // ERROR "tA1 &sp does not escape$"
++	u := A(sp, spp)
++	_ = u
++	println(s)
++}
++
++func tA2() {
++	s := "cat"
++	sp := &s   // ERROR "tA2 &s does not escape$"
++	spp := &sp // ERROR "tA2 &sp does not escape$"
++	u := A(sp, spp)
++	println(*u._sp)
++}
++
++func tA3() {
++	s := "cat"
++	sp := &s   // ERROR "tA3 &s does not escape$"
++	spp := &sp // ERROR "tA3 &sp does not escape$"
++	u := A(sp, spp)
++	println(**u._spp)
++}
++
++func tB1() {
++	s := "cat"
++	sp := &s   // ERROR "tB1 &s does not escape$"
++	spp := &sp // ERROR "tB1 &sp does not escape$"
++	u := B(spp)
++	_ = u
++	println(s)
++}
++
++func tB2() {
++	s := "cat"
++	sp := &s   // ERROR "tB2 &s does not escape$"
++	spp := &sp // ERROR "tB2 &sp does not escape$"
++	u := B(spp)
++	println(*u._sp)
++}
++
++func tB3() {
++	s := "cat"
++	sp := &s   // ERROR "tB3 &s does not escape$"
++	spp := &sp // ERROR "tB3 &sp does not escape$"
++	u := B(spp)
++	println(**u._spp)
++}
+diff --git a/test/fixedbugs/issue10353.go b/test/fixedbugs/issue10353.go
+index 4886337db9..87771d400d 100644
+--- a/test/fixedbugs/issue10353.go
++++ b/test/fixedbugs/issue10353.go
+@@ -45,5 +45,5 @@ func growstack(x int) {
+ 	if x == 0 {
+ 		return
+ 	}
+-	growstack(x-1)
++	growstack(x - 1)
+ }

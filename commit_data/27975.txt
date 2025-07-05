@@ -18,8 +18,188 @@ Date:   Fri Apr 22 12:15:08 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/22347
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/dom.go      | 39 +++++++++++++++------------
  src/cmd/compile/internal/ssa/dom_test.go | 45 ++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/id.go       |  2 +-
  3 files changed, 68 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index fedaf602e4..86b170080a 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -5,11 +5,13 @@
+ package ssa
+ 
+ // mark values
++type markKind uint8
++
+ const (
+-	notFound    = 0 // block has not been discovered yet
+-	notExplored = 1 // discovered and in queue, outedges not processed yet
+-	explored    = 2 // discovered and in queue, outedges processed
+-	done        = 3 // all done, in output ordering
++	notFound    markKind = 0 // block has not been discovered yet
++	notExplored markKind = 1 // discovered and in queue, outedges not processed yet
++	explored    markKind = 2 // discovered and in queue, outedges processed
++	done        markKind = 3 // all done, in output ordering
+ )
+ 
+ // This file contains code to compute the dominator tree
+@@ -18,7 +20,7 @@ const (
+ // postorder computes a postorder traversal ordering for the
+ // basic blocks in f. Unreachable blocks will not appear.
+ func postorder(f *Func) []*Block {
+-	mark := make([]byte, f.NumBlocks())
++	mark := make([]markKind, f.NumBlocks())
+ 
+ 	// result ordering
+ 	var order []*Block
+@@ -96,7 +98,7 @@ func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g, h [
+ // dfs performs a depth first search over the blocks starting at the set of
+ // blocks in the entries list (in arbitrary order). dfnum contains a mapping
+ // from block id to an int indicating the order the block was reached or
+-// notFound if the block was not reached.  order contains a mapping from dfnum
++// 0 if the block was not reached.  order contains a mapping from dfnum
+ // to block.
+ func (f *Func) dfs(entries []*Block, succFn linkedBlocks, dfnum, order, parent []ID) (fromID []*Block) {
+ 	maxBlockID := entries[0].Func.NumBlocks()
+@@ -114,7 +116,7 @@ func (f *Func) dfs(entries []*Block, succFn linkedBlocks, dfnum, order, parent [
+ 	n := ID(0)
+ 	s := make([]*Block, 0, 256)
+ 	for _, entry := range entries {
+-		if dfnum[entry.ID] != notFound {
++		if dfnum[entry.ID] != 0 {
+ 			continue // already found from a previous entry
+ 		}
+ 		s = append(s, entry)
+@@ -122,18 +124,19 @@ func (f *Func) dfs(entries []*Block, succFn linkedBlocks, dfnum, order, parent [
+ 		for len(s) > 0 {
+ 			node := s[len(s)-1]
+ 			s = s[:len(s)-1]
+-
++			if dfnum[node.ID] != 0 {
++				continue // already found from a previous entry
++			}
+ 			n++
++			dfnum[node.ID] = n
++			order[n] = node.ID
+ 			for _, w := range succFn(node) {
+ 				// if it has a dfnum, we've already visited it
+-				if dfnum[w.ID] == notFound {
++				if dfnum[w.ID] == 0 {
+ 					s = append(s, w)
+-					parent[w.ID] = node.ID
+-					dfnum[w.ID] = notExplored
++					parent[w.ID] = node.ID // keep overwriting this till it is visited.
+ 				}
+ 			}
+-			dfnum[node.ID] = n
+-			order[n] = node.ID
+ 		}
+ 	}
+ 
+@@ -154,8 +157,6 @@ func dominators(f *Func) []*Block {
+ 
+ // postDominators computes the post-dominator tree for f.
+ func postDominators(f *Func) []*Block {
+-	preds := func(b *Block) []*Block { return b.Preds }
+-	succs := func(b *Block) []*Block { return b.Succs }
+ 
+ 	if len(f.Blocks) == 0 {
+ 		return nil
+@@ -170,6 +171,10 @@ func postDominators(f *Func) []*Block {
+ 		}
+ 	}
+ 
++	// TODO: postdominators is not really right, and it's not used yet
++	preds := func(b *Block) []*Block { return b.Preds }
++	succs := func(b *Block) []*Block { return b.Succs }
++
+ 	// infinite loop with no exit
+ 	if exits == nil {
+ 		return make([]*Block, f.NumBlocks())
+@@ -214,7 +219,7 @@ func (f *Func) dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linked
+ 			continue
+ 		}
+ 
+-		if dfnum[w] == notFound {
++		if dfnum[w] == 0 {
+ 			// skip unreachable node
+ 			continue
+ 		}
+@@ -236,7 +241,7 @@ func (f *Func) dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linked
+ 		var sp ID
+ 		// calculate the semidominator of w
+ 		for _, v := range predFn(fromID[w]) {
+-			if dfnum[v.ID] == notFound {
++			if dfnum[v.ID] == 0 {
+ 				// skip unreachable predecessor
+ 				continue
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index 9741edf331..19b898596c 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -420,3 +420,48 @@ func TestInfiniteLoop(t *testing.T) {
+ 	postDoms := map[string]string{}
+ 	verifyDominators(t, fun, postDominators, postDoms)
+ }
++
++func TestDomTricky(t *testing.T) {
++	doms := map[string]string{
++		"4":  "1",
++		"2":  "4",
++		"5":  "4",
++		"11": "4",
++		"15": "4", // the incorrect answer is "5"
++		"10": "15",
++		"19": "15",
++	}
++
++	if4 := [2]string{"2", "5"}
++	if5 := [2]string{"15", "11"}
++	if15 := [2]string{"19", "10"}
++
++	for i := 0; i < 8; i++ {
++		a := 1 & i
++		b := 1 & i >> 1
++		c := 1 & i >> 2
++
++		fun := Fun(testConfig(t), "1",
++			Bloc("1",
++				Valu("mem", OpInitMem, TypeMem, 0, nil),
++				Valu("p", OpConstBool, TypeBool, 1, nil),
++				Goto("4")),
++			Bloc("2",
++				Goto("11")),
++			Bloc("4",
++				If("p", if4[a], if4[1-a])), // 2, 5
++			Bloc("5",
++				If("p", if5[b], if5[1-b])), //15, 11
++			Bloc("10",
++				Exit("mem")),
++			Bloc("11",
++				Goto("15")),
++			Bloc("15",
++				If("p", if15[c], if15[1-c])), //19, 10
++			Bloc("19",
++				Goto("10")))
++		CheckFunc(fun.f)
++		verifyDominators(t, fun, dominators, doms)
++		verifyDominators(t, fun, dominatorsSimple, doms)
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/id.go b/src/cmd/compile/internal/ssa/id.go
+index 367e687abf..725279e9fd 100644
+--- a/src/cmd/compile/internal/ssa/id.go
++++ b/src/cmd/compile/internal/ssa/id.go
+@@ -11,7 +11,7 @@ type idAlloc struct {
+ 	last ID
+ }
+ 
+-// get allocates an ID and returns it.
++// get allocates an ID and returns it. IDs are always > 0.
+ func (a *idAlloc) get() ID {
+ 	x := a.last
+ 	x++

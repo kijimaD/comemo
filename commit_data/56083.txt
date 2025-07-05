@@ -18,9 +18,92 @@ Date:   Thu Apr 6 10:09:51 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go       | 4 ++--
  src/cmd/compile/internal/base/hashdebug.go  | 8 ++++++--
  src/cmd/compile/internal/loopvar/loopvar.go | 4 ++--
  src/cmd/compile/internal/ssa/func.go        | 3 +--
  4 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index d9ce42255b..9b6caf5626 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -208,8 +208,8 @@ func ParseFlags() {
+ 	//  GOCOMPILEDEBUG=loopvarhash=... -- search for failure cause
+ 	//
+ 	//  (*) For debugging purposes, providing loopvar flag >= 11 will expand the hash-eligible set of loops to all.
+-	// (**) Currently this applies to all code in the compilation of some_package, including
+-	//     inlines from other packages that may have been compiled w/o the change.
++	// (**) Loop semantics, changed or not, follow code from a package when it is inlined; that is, the behavior
++	//      of an application compiled with partially modified loop semantics does not depend on inlining.
+ 
+ 	if Debug.LoopVarHash != "" {
+ 		// This first little bit controls the inputs for debug-hash-matching.
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index 1322768b41..6276abe4fd 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -138,6 +138,10 @@ func DebugHashMatch(pkgAndName string) bool {
+ 	return hashDebug.DebugHashMatch(pkgAndName)
+ }
+ 
++func DebugHashMatchPos(pos src.XPos) bool {
++	return hashDebug.DebugHashMatchPos(pos)
++}
++
+ // HasDebugHash returns true if Flags.Gossahash is non-empty, which
+ // results in hashDebug being not-nil.  I.e., if !HasDebugHash(),
+ // there is no need to create the string for hashing and testing.
+@@ -317,7 +321,7 @@ func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
+ // locking is also more frequent and more granular.
+ // Note that the default answer for no environment variable (d == nil)
+ // is "yes", do the thing.
+-func (d *HashDebug) DebugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
++func (d *HashDebug) DebugHashMatchPos(pos src.XPos) bool {
+ 	if d == nil {
+ 		return true
+ 	}
+@@ -325,7 +329,7 @@ func (d *HashDebug) DebugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
+ 		return false
+ 	}
+ 	// Written this way to make inlining likely.
+-	return d.debugHashMatchPos(ctxt, pos)
++	return d.debugHashMatchPos(Ctxt, pos)
+ }
+ 
+ func (d *HashDebug) debugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
+diff --git a/src/cmd/compile/internal/loopvar/loopvar.go b/src/cmd/compile/internal/loopvar/loopvar.go
+index c92b9d61ea..ce0c41c585 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar.go
++++ b/src/cmd/compile/internal/loopvar/loopvar.go
+@@ -71,7 +71,7 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 		// subject to hash-variable debugging.
+ 		maybeReplaceVar := func(k ir.Node, x *ir.RangeStmt) ir.Node {
+ 			if n, ok := k.(*ir.Name); ok && possiblyLeaked[n] {
+-				if base.LoopVarHash.DebugHashMatchPos(base.Ctxt, n.Pos()) {
++				if base.LoopVarHash.DebugHashMatchPos(n.Pos()) {
+ 					// Rename the loop key, prefix body with assignment from loop key
+ 					transformed = append(transformed, n)
+ 					tk := typecheck.Temp(n.Type())
+@@ -167,7 +167,7 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 				forAllDefInInit(x, func(z ir.Node) {
+ 					if n, ok := z.(*ir.Name); ok && possiblyLeaked[n] {
+ 						// Hash on n.Pos() for most precise failure location.
+-						if base.LoopVarHash.DebugHashMatchPos(base.Ctxt, n.Pos()) {
++						if base.LoopVarHash.DebugHashMatchPos(n.Pos()) {
+ 							leaked = append(leaked, n)
+ 						}
+ 					}
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index ba3d1e589e..f106cdd0b9 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -808,6 +808,5 @@ func (f *Func) useFMA(v *Value) bool {
+ 	if base.FmaHash == nil {
+ 		return true
+ 	}
+-	ctxt := v.Block.Func.Config.Ctxt()
+-	return base.FmaHash.DebugHashMatchPos(ctxt, v.Pos)
++	return base.FmaHash.DebugHashMatchPos(v.Pos)
+ }

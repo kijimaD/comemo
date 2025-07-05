@@ -18,7 +18,7 @@ Date:   Sat Jun 12 07:33:18 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go        |  7 +------
  src/cmd/compile/internal/ir/func.go           | 17 ++++++++++++-----
  src/cmd/compile/internal/noder/expr.go        |  2 +-
@@ -27,3 +27,144 @@ Date:   Sat Jun 12 07:33:18 2021 -0700
  src/cmd/compile/internal/typecheck/iimport.go |  2 +-
  src/cmd/compile/internal/walk/order.go        |  6 ++----
  7 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 76a15dab8b..0620191bbf 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1153,13 +1153,8 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
+ 
+ 	//fmt.Printf("Inlining func %v with closure into %v\n", subst.fn, ir.FuncName(ir.CurFunc))
+ 
+-	outerfunc := subst.newclofn
+-	if outerfunc == nil {
+-		outerfunc = ir.CurFunc
+-	}
+-
+ 	oldfn := n.Func
+-	newfn := ir.NewClosureFunc(oldfn.Pos(), outerfunc)
++	newfn := ir.NewClosureFunc(oldfn.Pos(), true)
+ 
+ 	// Ntype can be nil for -G=3 mode.
+ 	if oldfn.Nname.Ntype != nil {
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 3d4f8c4486..6480becc93 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -343,11 +343,13 @@ func closureName(outerfn *Func) *types.Sym {
+ 	return pkg.Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
+ }
+ 
+-// NewClosureFunc creates a new Func to represent a function literal
+-// within outerfn.
+-func NewClosureFunc(pos src.XPos, outerfn *Func) *Func {
++// NewClosureFunc creates a new Func to represent a function literal.
++// If hidden is true, then the closure is marked hidden (i.e., as a
++// function literal contained within another function, rather than a
++// package-scope variable initialization expression).
++func NewClosureFunc(pos src.XPos, hidden bool) *Func {
+ 	fn := NewFunc(pos)
+-	fn.SetIsHiddenClosure(outerfn != nil)
++	fn.SetIsHiddenClosure(hidden)
+ 
+ 	fn.Nname = NewNameAt(pos, BlankNode.Sym())
+ 	fn.Nname.Func = fn
+@@ -361,7 +363,12 @@ func NewClosureFunc(pos src.XPos, outerfn *Func) *Func {
+ // NameClosure generates a unique for the given function literal,
+ // which must have appeared within outerfn.
+ func NameClosure(clo *ClosureExpr, outerfn *Func) {
+-	name := clo.Func.Nname
++	fn := clo.Func
++	if fn.IsHiddenClosure() != (outerfn != nil) {
++		base.FatalfAt(clo.Pos(), "closure naming inconsistency: hidden %v, but outer %v", fn.IsHiddenClosure(), outerfn)
++	}
++
++	name := fn.Nname
+ 	if !IsBlank(name) {
+ 		base.FatalfAt(clo.Pos(), "closure already named: %v", name)
+ 	}
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 86a61bc759..98dc504ee9 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -373,7 +373,7 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
+ }
+ 
+ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
+-	fn := ir.NewClosureFunc(g.pos(expr), ir.CurFunc)
++	fn := ir.NewClosureFunc(g.pos(expr), ir.CurFunc != nil)
+ 	ir.NameClosure(fn.OClosure, ir.CurFunc)
+ 
+ 	typ := g.typ(typ2)
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index ced3f32a53..63822d3089 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1803,7 +1803,7 @@ func fakeRecv() *ir.Field {
+ }
+ 
+ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+-	fn := ir.NewClosureFunc(p.pos(expr), ir.CurFunc)
++	fn := ir.NewClosureFunc(p.pos(expr), ir.CurFunc != nil)
+ 	fn.Nname.Ntype = p.typeExpr(expr.Type)
+ 
+ 	p.funcBody(fn, expr.Body)
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index a82274a240..8b53671dbe 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -280,7 +280,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 	//   }
+ 
+ 	// Make a new internal function.
+-	fn := ir.NewClosureFunc(pos, outer)
++	fn := ir.NewClosureFunc(pos, outer != nil)
+ 	ir.NameClosure(fn.OClosure, outer)
+ 
+ 	// This is the dictionary we want to use.
+@@ -857,7 +857,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			// Need to duplicate x.Func.Nname, x.Func.Dcl, x.Func.ClosureVars, and
+ 			// x.Func.Body.
+ 			oldfn := x.Func
+-			newfn := ir.NewClosureFunc(oldfn.Pos(), subst.newf)
++			newfn := ir.NewClosureFunc(oldfn.Pos(), subst.newf != nil)
+ 			ir.NameClosure(newfn.OClosure, subst.newf)
+ 
+ 			newfn.SetClosureCalled(oldfn.ClosureCalled())
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index b1b3c27898..81f8ea05d9 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1283,7 +1283,7 @@ func (r *importReader) node() ir.Node {
+ 
+ 		// All the remaining code below is similar to (*noder).funcLit(), but
+ 		// with Dcls and ClosureVars lists already set up
+-		fn := ir.NewClosureFunc(pos, r.curfn)
++		fn := ir.NewClosureFunc(pos, true)
+ 		fn.Nname.SetType(typ)
+ 
+ 		cvars := make([]*ir.Name, r.int64())
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 750cb6bfc5..845bf03657 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1704,9 +1704,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 	}
+ 
+ 	// Create a new no-argument function that we'll hand off to defer.
+-	outerfn := ir.CurFunc
+-
+-	fn := ir.NewClosureFunc(base.Pos, outerfn)
++	fn := ir.NewClosureFunc(base.Pos, true)
+ 	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
+ 	fn.SetWrapper(true)
+ 
+@@ -1752,7 +1750,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 
+ 	// Finalize body, register function on the main decls list.
+ 	fn.Body = []ir.Node{newcall}
+-	ir.FinishCaptureNames(n.Pos(), outerfn, fn)
++	ir.FinishCaptureNames(n.Pos(), ir.CurFunc, fn)
+ 
+ 	// Create closure expr
+ 	clo := typecheck.Expr(fn.OClosure).(*ir.ClosureExpr)

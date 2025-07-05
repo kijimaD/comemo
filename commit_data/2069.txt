@@ -8,6 +8,31 @@ Date:   Tue Apr 21 15:30:17 2009 -0700
     DELTA=5  (0 added, 0 deleted, 5 changed)
     OCL=27687
     CL=27689
-
+---
  src/lib/fmt/format.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index ce5050371f..1c78d80c5e 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -29,14 +29,14 @@ func init() {
+ 	Fmt is the raw formatter used by Printf etc.  Not meant for normal use.
+ 	See print.go for a more palatable interface.
+ 
+-	Model is to accumulate operands into an internal buffer and then
++	The model is to accumulate operands into an internal buffer and then
+ 	retrieve the buffer in one hit using Str(), Putnl(), etc.  The formatting
+ 	methods return ``self'' so the operations can be chained.
+ 
+-	f := fmt.New();
+-	print(f.Fmt_d(1234).Fmt_s("\n").Str());  // create string, print it
+-	f.Fmt_d(-1234).Fmt_s("\n").Put();  // print string
+-	f.Fmt_ud(1<<63).Putnl();  // print string with automatic newline
++		f := fmt.New();
++		print(f.Fmt_d(1234).Fmt_s("\n").Str());  // create string, print it
++		f.Fmt_d(-1234).Fmt_s("\n").Put();  // print string
++		f.Fmt_ud(1<<63).Putnl();  // print string with automatic newline
+ */
+ type Fmt struct {
+ 	buf string;

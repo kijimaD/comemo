@@ -13,7 +13,7 @@ Date:   Wed Sep 8 16:03:57 2021 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/import.go       | 10 +++++-----
  src/cmd/compile/internal/noder/irgen.go        |  7 ++++---
  src/cmd/compile/internal/noder/reader2.go      | 10 ++++------
@@ -31,3 +31,336 @@ Date:   Wed Sep 8 16:03:57 2021 -0700
  src/go/types/named.go                          |  2 +-
  src/go/types/subst.go                          |  2 +-
  16 files changed, 43 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index c26340c960..f13f8ca7f5 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -43,12 +43,12 @@ var haveLegacyImports = false
+ // for an imported package by overloading writeNewExportFunc, then
+ // that payload will be mapped into memory and passed to
+ // newReadImportFunc.
+-var newReadImportFunc = func(data string, pkg1 *types.Pkg, check *types2.Checker, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
++var newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Environment, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+ 	panic("unexpected new export data payload")
+ }
+ 
+ type gcimports struct {
+-	check    *types2.Checker
++	env      *types2.Environment
+ 	packages map[string]*types2.Package
+ }
+ 
+@@ -61,7 +61,7 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
+ 		panic("mode must be 0")
+ 	}
+ 
+-	_, pkg, err := readImportFile(path, typecheck.Target, m.check, m.packages)
++	_, pkg, err := readImportFile(path, typecheck.Target, m.env, m.packages)
+ 	return pkg, err
+ }
+ 
+@@ -224,7 +224,7 @@ func parseImportPath(pathLit *syntax.BasicLit) (string, error) {
+ // readImportFile reads the import file for the given package path and
+ // returns its types.Pkg representation. If packages is non-nil, the
+ // types2.Package representation is also returned.
+-func readImportFile(path string, target *ir.Package, check *types2.Checker, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
++func readImportFile(path string, target *ir.Package, env *types2.Environment, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
+ 	path, err = resolveImportPath(path)
+ 	if err != nil {
+ 		return
+@@ -279,7 +279,7 @@ func readImportFile(path string, target *ir.Package, check *types2.Checker, pack
+ 			return
+ 		}
+ 
+-		pkg2, err = newReadImportFunc(data, pkg1, check, packages)
++		pkg2, err = newReadImportFunc(data, pkg1, env, packages)
+ 	} else {
+ 		// We only have old data. Oh well, fall back to the legacy importers.
+ 		haveLegacyImports = true
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index a67b3994da..414875615f 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -34,10 +34,13 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 	}
+ 
+ 	// typechecking
++	env := types2.NewEnvironment()
+ 	importer := gcimports{
++		env:      env,
+ 		packages: map[string]*types2.Package{"unsafe": types2.Unsafe},
+ 	}
+ 	conf := types2.Config{
++		Environment:           env,
+ 		GoVersion:             base.Flag.Lang,
+ 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
+ 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
+@@ -60,9 +63,7 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 		// expand as needed
+ 	}
+ 
+-	pkg := types2.NewPackage(base.Ctxt.Pkgpath, "")
+-	importer.check = types2.NewChecker(&conf, pkg, info)
+-	err := importer.check.Files(files)
++	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+ 
+ 	base.ExitIfErrors()
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index 3886d571b5..6e2d1f2e76 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -18,7 +18,7 @@ import (
+ type pkgReader2 struct {
+ 	pkgDecoder
+ 
+-	check   *types2.Checker
++	env     *types2.Environment
+ 	imports map[string]*types2.Package
+ 
+ 	posBases []*syntax.PosBase
+@@ -26,11 +26,11 @@ type pkgReader2 struct {
+ 	typs     []types2.Type
+ }
+ 
+-func readPackage2(check *types2.Checker, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
++func readPackage2(env *types2.Environment, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
+ 	pr := pkgReader2{
+ 		pkgDecoder: input,
+ 
+-		check:   check,
++		env:     env,
+ 		imports: imports,
+ 
+ 		posBases: make([]*syntax.PosBase, input.numElems(relocPosBase)),
+@@ -233,9 +233,7 @@ func (r *reader2) doTyp() (res types2.Type) {
+ 		obj, targs := r.obj()
+ 		name := obj.(*types2.TypeName)
+ 		if len(targs) != 0 {
+-			// TODO(mdempsky) should use a single shared environment here
+-			//                (before, this used a shared checker)
+-			t, _ := types2.Instantiate(types2.NewEnvironment(), name.Type(), targs, false)
++			t, _ := types2.Instantiate(r.p.env, name.Type(), targs, false)
+ 			return t
+ 		}
+ 		return name.Type()
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index bf63608bf1..02f64d00ac 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -78,12 +78,12 @@ func unified(noders []*noder) {
+ 		base.Errorf("cannot use -G and -d=quirksmode together")
+ 	}
+ 
+-	newReadImportFunc = func(data string, pkg1 *types.Pkg, check *types2.Checker, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
++	newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Environment, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+ 		pr := newPkgDecoder(pkg1.Path, data)
+ 
+ 		// Read package descriptors for both types2 and compiler backend.
+ 		readPackage(newPkgReader(pr), pkg1)
+-		pkg2 = readPackage2(check, packages, pr)
++		pkg2 = readPackage2(env, packages, pr)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index b2938b84da..6914e6c89f 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -108,6 +108,11 @@ type ImporterFrom interface {
+ // A Config specifies the configuration for type checking.
+ // The zero value for Config is a ready-to-use default configuration.
+ type Config struct {
++	// Environment is the environment used for resolving global
++	// identifiers. If nil, the type checker will initialize this
++	// field with a newly created environment.
++	Environment *Environment
++
+ 	// GoVersion describes the accepted Go language version. The string
+ 	// must follow the format "go%d.%d" (e.g. "go1.12") or ist must be
+ 	// empty; an empty string indicates the latest language version.
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index c7b45d86d1..24a05e6b37 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -86,7 +86,6 @@ type Checker struct {
+ 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+-	env     *Environment           // for deduplicating identical instances
+ 
+ 	// pkgPathMap maps package names to the set of distinct import paths we've
+ 	// seen for that name, anywhere in the import graph. It is used for
+@@ -171,6 +170,11 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 		conf = new(Config)
+ 	}
+ 
++	// make sure we have an environment
++	if conf.Environment == nil {
++		conf.Environment = NewEnvironment()
++	}
++
+ 	// make sure we have an info struct
+ 	if info == nil {
+ 		info = new(Info)
+@@ -188,7 +192,6 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 		version: version,
+ 		objMap:  make(map[Object]*declInfo),
+ 		impMap:  make(map[importKey]*Package),
+-		env:     NewEnvironment(),
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 4181be9fa8..905c21426c 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -317,7 +317,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		}
+ 
+ 	case *Named:
+-		t.expand(check.env)
++		t.expand(check.conf.Environment)
+ 
+ 		// don't touch the type if it is from a different package or the Universe scope
+ 		// (doing so would lead to a race condition - was issue #35049)
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 3ea21f921b..469ceea5c4 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -71,7 +71,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
+ 		}()
+ 	}
+ 
+-	inst := check.instance(pos, typ, targs, check.env)
++	inst := check.instance(pos, typ, targs, check.conf.Environment)
+ 
+ 	assert(len(posList) <= len(targs))
+ 	check.later(func() {
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index eb1ecd9595..99410aedfb 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -254,7 +254,7 @@ func (n *Named) expand(env *Environment) *Named {
+ 			// in subst) feels overly complicated. Can we simplify?
+ 			if env == nil {
+ 				if n.check != nil {
+-					env = n.check.env
++					env = n.check.conf.Environment
+ 				} else {
+ 					// If we're instantiating lazily, we might be outside the scope of a
+ 					// type-checking pass. In that case we won't have a pre-existing
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 752e107e11..4627dd3c5b 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -59,7 +59,7 @@ func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, env *Enviro
+ 	if check != nil {
+ 		subst.check = check
+ 		if env == nil {
+-			env = check.env
++			env = check.conf.Environment
+ 		}
+ 	}
+ 	if env == nil {
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 5beeff530c..ebc3a01266 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -115,6 +115,11 @@ type ImporterFrom interface {
+ // A Config specifies the configuration for type checking.
+ // The zero value for Config is a ready-to-use default configuration.
+ type Config struct {
++	// Environment is the environment used for resolving global
++	// identifiers. If nil, the type checker will initialize this
++	// field with a newly created environment.
++	Environment *Environment
++
+ 	// GoVersion describes the accepted Go language version. The string
+ 	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
+ 	// empty; an empty string indicates the latest language version.
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 0383a58c64..63f4cbd4a0 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -89,7 +89,6 @@ type Checker struct {
+ 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+-	env     *Environment           // for deduplicating identical instances
+ 
+ 	// pkgPathMap maps package names to the set of distinct import paths we've
+ 	// seen for that name, anywhere in the import graph. It is used for
+@@ -174,6 +173,11 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		conf = new(Config)
+ 	}
+ 
++	// make sure we have an environment
++	if conf.Environment == nil {
++		conf.Environment = NewEnvironment()
++	}
++
+ 	// make sure we have an info struct
+ 	if info == nil {
+ 		info = new(Info)
+@@ -192,7 +196,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		version: version,
+ 		objMap:  make(map[Object]*declInfo),
+ 		impMap:  make(map[importKey]*Package),
+-		env:     NewEnvironment(),
+ 	}
+ }
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index d132d30b9d..f679c33a94 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -316,7 +316,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		}
+ 
+ 	case *Named:
+-		t.expand(check.env)
++		t.expand(check.conf.Environment)
+ 		// don't touch the type if it is from a different package or the Universe scope
+ 		// (doing so would lead to a race condition - was issue #35049)
+ 		if t.obj.pkg != check.pkg {
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 040877829c..50be07b8fd 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -71,7 +71,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
+ 		}()
+ 	}
+ 
+-	inst := check.instance(pos, typ, targs, check.env)
++	inst := check.instance(pos, typ, targs, check.conf.Environment)
+ 
+ 	assert(len(posList) <= len(targs))
+ 	check.later(func() {
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 51c4a236da..74681ab2d4 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -254,7 +254,7 @@ func (n *Named) expand(env *Environment) *Named {
+ 			// in subst) feels overly complicated. Can we simplify?
+ 			if env == nil {
+ 				if n.check != nil {
+-					env = n.check.env
++					env = n.check.conf.Environment
+ 				} else {
+ 					// If we're instantiating lazily, we might be outside the scope of a
+ 					// type-checking pass. In that case we won't have a pre-existing
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 4f9d76d598..07fe6a6b6e 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -62,7 +62,7 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environ
+ 	if check != nil {
+ 		subst.check = check
+ 		if env == nil {
+-			env = check.env
++			env = check.conf.Environment
+ 		}
+ 	}
+ 	if env == nil {

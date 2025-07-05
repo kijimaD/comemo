@@ -43,9 +43,223 @@ Date:   Fri Apr 24 14:00:55 2015 -0400
     Change-Id: I4ecc925805da1f5ee264377f1f7574f54ee575e7
     Reviewed-on: https://go-review.googlesource.com/9321
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbarrier.go | 20 +++++++-------------
  src/runtime/mgc.go      | 38 ++++++++++++++++++++++++++++++++------
  src/runtime/runtime2.go | 18 ------------------
  src/runtime/slice.go    |  2 +-
  4 files changed, 40 insertions(+), 38 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 9bf0e6b809..eb5881707b 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -76,13 +76,6 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+ 	}
+ }
+ 
+-// needwb reports whether a write barrier is needed now
+-// (otherwise the write can be made directly).
+-//go:nosplit
+-func needwb() bool {
+-	return gcphase == _GCmark || gcphase == _GCmarktermination || mheap_.shadow_enabled
+-}
+-
+ // Write barrier calls must not happen during critical GC and scheduler
+ // related operations. In particular there are times when the GC assumes
+ // that the world is stopped but scheduler related code is still being
+@@ -114,7 +107,7 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
+ // but if we do that, Go inserts a write barrier on *dst = src.
+ //go:nosplit
+ func writebarrierptr(dst *uintptr, src uintptr) {
+-	if !needwb() {
++	if !writeBarrierEnabled {
+ 		*dst = src
+ 		return
+ 	}
+@@ -155,7 +148,7 @@ func writebarrierptr_shadow(dst *uintptr, src uintptr) {
+ // Do not reapply.
+ //go:nosplit
+ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+-	if !needwb() {
++	if !writeBarrierEnabled {
+ 		return
+ 	}
+ 
+@@ -224,7 +217,7 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
+ // typedmemmove copies a value of type t to dst from src.
+ //go:nosplit
+ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+-	if !needwb() || (typ.kind&kindNoPointers) != 0 {
++	if !writeBarrierEnabled || (typ.kind&kindNoPointers) != 0 {
+ 		memmove(dst, src, typ.size)
+ 		return
+ 	}
+@@ -266,7 +259,7 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ // dst and src point off bytes into the value and only copies size bytes.
+ //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
+ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+-	if !needwb() || (typ.kind&kindNoPointers) != 0 || size < ptrSize {
++	if !writeBarrierEnabled || (typ.kind&kindNoPointers) != 0 || size < ptrSize {
+ 		memmove(dst, src, size)
+ 		return
+ 	}
+@@ -309,7 +302,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size
+ // not to be preempted before the write barriers have been run.
+ //go:nosplit
+ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
+-	if !needwb() || typ == nil || (typ.kind&kindNoPointers) != 0 || framesize-retoffset < ptrSize {
++	if !writeBarrierEnabled || typ == nil || (typ.kind&kindNoPointers) != 0 || framesize-retoffset < ptrSize {
+ 		return
+ 	}
+ 
+@@ -349,7 +342,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
+ 	}
+ 
+-	if !needwb() {
++	if !writeBarrierEnabled {
+ 		memmove(dstp, srcp, uintptr(n)*typ.size)
+ 		return n
+ 	}
+@@ -465,6 +458,7 @@ func wbshadowinit() {
+ 	}
+ 
+ 	mheap_.shadow_enabled = true
++	writeBarrierEnabled = true
+ }
+ 
+ // shadowptr returns a pointer to the shadow value for addr.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index bf1d89512f..e6f266c700 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -170,6 +170,32 @@ func setGCPercent(in int32) (out int32) {
+ 	return out
+ }
+ 
++// Garbage collector phase.
++// Indicates to write barrier and sychronization task to preform.
++var gcphase uint32
++var writeBarrierEnabled bool // compiler emits references to this in write barriers
++
++// gcBlackenEnabled is 1 if mutator assists and background mark
++// workers are allowed to blacken objects. This must only be set when
++// gcphase == _GCmark.
++var gcBlackenEnabled uint32
++
++const (
++	_GCoff             = iota // GC not running, write barrier disabled
++	_GCquiesce                // unused state
++	_GCstw                    // unused state
++	_GCscan                   // GC collecting roots into workbufs, write barrier disabled
++	_GCmark                   // GC marking from workbufs, write barrier ENABLED
++	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
++	_GCsweep                  // GC mark completed; sweeping in background, write barrier disabled
++)
++
++//go:nosplit
++func setGCPhase(x uint32) {
++	atomicstore(&gcphase, x)
++	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination || mheap_.shadow_enabled
++}
++
+ // gcMarkWorkerMode represents the mode that a concurrent mark worker
+ // should operate in.
+ //
+@@ -753,7 +779,7 @@ func gc(mode int) {
+ 		heapGoal = gcController.heapGoal
+ 
+ 		systemstack(func() {
+-			gcphase = _GCscan
++			setGCPhase(_GCscan)
+ 
+ 			// Concurrent scan.
+ 			starttheworld()
+@@ -769,7 +795,7 @@ func gc(mode int) {
+ 			if debug.gctrace > 0 {
+ 				tInstallWB = nanotime()
+ 			}
+-			atomicstore(&gcphase, _GCmark)
++			setGCPhase(_GCmark)
+ 			// Ensure all Ps have observed the phase
+ 			// change and have write barriers enabled
+ 			// before any blackening occurs.
+@@ -826,7 +852,7 @@ func gc(mode int) {
+ 	// World is stopped.
+ 	// Start marktermination which includes enabling the write barrier.
+ 	atomicstore(&gcBlackenEnabled, 0)
+-	gcphase = _GCmarktermination
++	setGCPhase(_GCmarktermination)
+ 
+ 	if debug.gctrace > 0 {
+ 		heap1 = memstats.heap_live
+@@ -862,7 +888,7 @@ func gc(mode int) {
+ 		}
+ 
+ 		// marking is complete so we can turn the write barrier off
+-		gcphase = _GCoff
++		setGCPhase(_GCoff)
+ 		gcSweep(mode)
+ 
+ 		if debug.gctrace > 1 {
+@@ -876,9 +902,9 @@ func gc(mode int) {
+ 			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
+ 			// At this point all objects will be found during the gcMark which
+ 			// does a complete STW mark and object scan.
+-			gcphase = _GCmarktermination
++			setGCPhase(_GCmarktermination)
+ 			gcMark(startTime)
+-			gcphase = _GCoff // marking is done, turn off wb.
++			setGCPhase(_GCoff) // marking is done, turn off wb.
+ 			gcSweep(mode)
+ 		}
+ 	})
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 04ed059e19..5e73214283 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -514,30 +514,12 @@ type lfnode struct {
+ 	pushcnt uintptr
+ }
+ 
+-// Indicates to write barrier and sychronization task to preform.
+-const (
+-	_GCoff             = iota // GC not running, write barrier disabled
+-	_GCquiesce                // unused state
+-	_GCstw                    // unused state
+-	_GCscan                   // GC collecting roots into workbufs, write barrier disabled
+-	_GCmark                   // GC marking from workbufs, write barrier ENABLED
+-	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
+-	_GCsweep                  // GC mark completed; sweeping in background, write barrier disabled
+-)
+-
+ type forcegcstate struct {
+ 	lock mutex
+ 	g    *g
+ 	idle uint32
+ }
+ 
+-var gcphase uint32
+-
+-// gcBlackenEnabled is 1 if mutator assists and background mark
+-// workers are allowed to blacken objects. This must only be set when
+-// gcphase == _GCmark.
+-var gcBlackenEnabled uint32
+-
+ /*
+  * known to compiler
+  */
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index cf2510aeb2..5ccc6592bf 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -84,7 +84,7 @@ func growslice(t *slicetype, old slice, n int) slice {
+ 		memclr(add(p, lenmem), capmem-lenmem)
+ 	} else {
+ 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan unitialized memory.
+-		// TODO(rsc): Use memmove when !needwb().
++		// TODO(rsc): Use memmove when !writeBarrierEnabled.
+ 		p = newarray(et, uintptr(newcap))
+ 		for i := 0; i < old.len; i++ {
+ 			typedmemmove(et, add(p, uintptr(i)*et.size), add(old.array, uintptr(i)*et.size))

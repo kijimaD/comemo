@@ -9,9 +9,154 @@ Date:   Fri Feb 17 14:45:29 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5674091
-
+---
  src/cmd/gc/go.h   |  1 +
  src/cmd/gc/subr.c | 25 ++++++++++++++++++++-----
  test/cmp.go       | 19 +++++++++++++++++++
  test/cmp6.go      |  5 +++++
  4 files changed, 45 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index bb909b953c..fcbea2cd90 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1172,6 +1172,7 @@ int	implements(Type *t, Type *iface, Type **missing, Type **have, int *ptr);
+ void	importdot(Pkg *opkg, Node *pack);
+ int	is64(Type *t);
+ int	isblank(Node *n);
++int	isblanksym(Sym *s);
+ int	isfixedarray(Type *t);
+ int	isideal(Type *t);
+ int	isinter(Type *t);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3fd5209310..5621ed9d34 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -571,6 +571,8 @@ algtype1(Type *t, Type **bad)
+ 		}
+ 		ret = AMEM;
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
++			if(isblanksym(t1->sym))
++				continue;
+ 			a = algtype1(t1->type, bad);
+ 			if(a == ANOEQ)
+ 				return ANOEQ;  // not comparable
+@@ -887,12 +889,20 @@ isslice(Type *t)
+ 
+ int
+ isblank(Node *n)
++{
++	if(n == N)
++		return 0;
++	return isblanksym(n->sym);
++}
++
++int
++isblanksym(Sym *s)
+ {
+ 	char *p;
+ 
+-	if(n == N || n->sym == S)
++	if(s == S)
+ 		return 0;
+-	p = n->sym->name;
++	p = s->name;
+ 	if(p == nil)
+ 		return 0;
+ 	return p[0] == '_' && p[1] == '\0';
+@@ -2652,12 +2662,14 @@ genhash(Sym *sym, Type *t)
+ 		// and calling specific hash functions for the others.
+ 		first = T;
+ 		for(t1=t->type;; t1=t1->down) {
+-			if(t1 != T && algtype1(t1->type, nil) == AMEM) {
++			if(t1 != T && (isblanksym(t1->sym) || algtype1(t1->type, nil) == AMEM)) {
+ 				if(first == T)
+ 					first = t1;
+ 				continue;
+ 			}
+ 			// Run memhash for fields up to this one.
++			while(first != T && isblanksym(first->sym))
++				first = first->down;
+ 			if(first != T) {
+ 				if(first->down == t1)
+ 					size = first->type->width;
+@@ -2867,7 +2879,7 @@ geneq(Sym *sym, Type *t)
+ 		// and calling specific equality tests for the others.
+ 		first = T;
+ 		for(t1=t->type;; t1=t1->down) {
+-			if(t1 != T && algtype1(t1->type, nil) == AMEM) {
++			if(t1 != T && (isblanksym(t1->sym) || algtype1(t1->type, nil) == AMEM)) {
+ 				if(first == T)
+ 					first = t1;
+ 				continue;
+@@ -2875,13 +2887,16 @@ geneq(Sym *sym, Type *t)
+ 			// Run memequal for fields up to this one.
+ 			// TODO(rsc): All the calls to newname are wrong for
+ 			// cross-package unexported fields.
++			while(first != T && isblanksym(first->sym))
++				first = first->down;
+ 			if(first != T) {
+ 				if(first->down == t1) {
+ 					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
+ 				} else if(first->down->down == t1) {
+ 					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
+ 					first = first->down;
+-					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
++					if(!isblanksym(first->sym))
++						fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
+ 				} else {
+ 					// More than two fields: use memequal.
+ 					if(t1 == T)
+diff --git a/test/cmp.go b/test/cmp.go
+index 795245f2f5..a9d0375b24 100644
+--- a/test/cmp.go
++++ b/test/cmp.go
+@@ -281,6 +281,25 @@ func main() {
+ 		isfalse(ix != z)
+ 		isfalse(iz != x)
+ 	}
++	
++	// structs with _ fields
++	{
++		var x = struct {
++			x int
++			_ []int
++			y float64
++			_ float64
++			z int
++		}{
++			x: 1, y: 2, z: 3,
++		}
++		var ix interface{} = x
++		
++		istrue(x == x)
++		istrue(x == ix)
++		istrue(ix == x)
++		istrue(ix == ix)
++	}
+ 
+ 	// arrays
+ 	{
+diff --git a/test/cmp6.go b/test/cmp6.go
+index 71f1284812..1e286750ab 100644
+--- a/test/cmp6.go
++++ b/test/cmp6.go
+@@ -15,6 +15,10 @@ type T3 struct{ z []int }
+ 
+ var t3 T3
+ 
++type T4 struct { _ []int; a float64 }
++
++var t4 T4
++
+ func main() {
+ 	// Arguments to comparison must be
+ 	// assignable one to the other (or vice versa)
+@@ -46,6 +50,7 @@ func main() {
+ 
+ 	// Comparison of structs should have a good message
+ 	use(t3 == t3) // ERROR "struct|expected"
++	use(t4 == t4) // ok; the []int is a blank field
+ 
+ 	// Slices, functions, and maps too.
+ 	var x []int

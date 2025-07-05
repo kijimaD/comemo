@@ -12,8 +12,74 @@ Date:   Mon Aug 19 14:15:04 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/pkgbits/decoder.go | 6 +++---
  src/internal/pkgbits/encoder.go | 4 ++--
  src/internal/pkgbits/support.go | 2 +-
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 4fe024d4f1..76eb255fc2 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -84,7 +84,7 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
+ 
+ 	switch pr.version {
+ 	default:
+-		panic(fmt.Errorf("unsupported version: %v", pr.version))
++		panicf("unsupported version: %v", pr.version)
+ 	case 0:
+ 		// no flags
+ 	case 1:
+@@ -136,7 +136,7 @@ func (pr *PkgDecoder) AbsIdx(k RelocKind, idx Index) int {
+ 		absIdx += int(pr.elemEndsEnds[k-1])
+ 	}
+ 	if absIdx >= int(pr.elemEndsEnds[k]) {
+-		errorf("%v:%v is out of bounds; %v", k, idx, pr.elemEndsEnds)
++		panicf("%v:%v is out of bounds; %v", k, idx, pr.elemEndsEnds)
+ 	}
+ 	return absIdx
+ }
+@@ -242,7 +242,7 @@ type Decoder struct {
+ 
+ func (r *Decoder) checkErr(err error) {
+ 	if err != nil {
+-		errorf("unexpected decoding error: %w", err)
++		panicf("unexpected decoding error: %w", err)
+ 	}
+ }
+ 
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index 70a2cbae51..e52bc85014 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -194,7 +194,7 @@ func (w *Encoder) Flush() Index {
+ 
+ func (w *Encoder) checkErr(err error) {
+ 	if err != nil {
+-		errorf("unexpected encoding error: %v", err)
++		panicf("unexpected encoding error: %v", err)
+ 	}
+ }
+ 
+@@ -359,7 +359,7 @@ func (w *Encoder) Value(val constant.Value) {
+ func (w *Encoder) scalar(val constant.Value) {
+ 	switch v := constant.Val(val).(type) {
+ 	default:
+-		errorf("unhandled %v (%v)", val, val.Kind())
++		panicf("unhandled %v (%v)", val, val.Kind())
+ 	case bool:
+ 		w.Code(ValBool)
+ 		w.Bool(v)
+diff --git a/src/internal/pkgbits/support.go b/src/internal/pkgbits/support.go
+index f7579dfdc4..50534a2955 100644
+--- a/src/internal/pkgbits/support.go
++++ b/src/internal/pkgbits/support.go
+@@ -12,6 +12,6 @@ func assert(b bool) {
+ 	}
+ }
+ 
+-func errorf(format string, args ...any) {
++func panicf(format string, args ...any) {
+ 	panic(fmt.Errorf(format, args...))
+ }

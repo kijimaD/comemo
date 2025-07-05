@@ -28,8 +28,137 @@ Date:   Sun Nov 19 20:21:22 2023 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/asm.s      |  2 ++
  src/runtime/asm_wasm.s | 45 +++++++++++++++++++++++++++++++++++++++------
  src/runtime/proc.go    |  2 +-
  3 files changed, 42 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 45ba467806..24cd0c95db 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -20,6 +20,7 @@ TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
+ #ifndef GOARCH_ppc64
+ #ifndef GOARCH_ppc64le
+ #ifndef GOARCH_riscv64
++#ifndef GOARCH_wasm
+ // stub to appease shared build mode.
+ TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
+ 	UNDEF
+@@ -30,3 +31,4 @@ TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
+ #endif
+ #endif
+ #endif
++#endif
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index a96115b02c..b44a4f7dd4 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -140,6 +140,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+ 	I64Ne
+ 	If
+ 		CALLNORESUME runtime·badsystemstack(SB)
++		CALLNORESUME runtime·abort(SB)
+ 	End
+ 
+ 	// switch:
+@@ -181,6 +182,9 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+ 	RET
+ 
++TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
++	UNDEF
++
+ // AES hashing not implemented for wasm
+ TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
+ 	JMP	runtime·memhashFallback(SB)
+@@ -208,6 +212,33 @@ TEXT runtime·procyield(SB), NOSPLIT, $0-0 // FIXME
+ TEXT runtime·breakpoint(SB), NOSPLIT, $0-0
+ 	UNDEF
+ 
++// func switchToCrashStack0(fn func())
++TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
++	MOVD fn+0(FP), CTXT	// context register
++	MOVD	g_m(g), R2	// curm
++
++	// set g to gcrash
++	MOVD	$runtime·gcrash(SB), g	// g = &gcrash
++	MOVD	R2, g_m(g)	// g.m = curm
++	MOVD	g, m_g0(R2)	// curm.g0 = g
++
++	// switch to crashstack
++	I64Load (g_stack+stack_hi)(g)
++	I64Const $(-4*8)
++	I64Add
++	I32WrapI64
++	Set SP
++
++	// call target function
++	Get CTXT
++	I32WrapI64
++	I64Load $0
++	CALL
++
++	// should never return
++	CALL	runtime·abort(SB)
++	UNDEF
++
+ // Called during function prolog when more stack is needed.
+ //
+ // The traceback routines see morestack on a g0 as being
+@@ -221,12 +252,19 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
+ 	// R2 = g0
+ 	MOVD m_g0(R1), R2
+ 
++	// Set g->sched to context in f.
++	NOP	SP	// tell vet SP changed - stop checking offsets
++	MOVD 0(SP), g_sched+gobuf_pc(g)
++	MOVD $8(SP), g_sched+gobuf_sp(g) // f's SP
++	MOVD CTXT, g_sched+gobuf_ctxt(g)
++
+ 	// Cannot grow scheduler stack (m->g0).
+ 	Get g
+ 	Get R2
+ 	I64Eq
+ 	If
+ 		CALLNORESUME runtime·badmorestackg0(SB)
++		CALLNORESUME runtime·abort(SB)
+ 	End
+ 
+ 	// Cannot grow signal stack (m->gsignal).
+@@ -235,20 +273,15 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
+ 	I64Eq
+ 	If
+ 		CALLNORESUME runtime·badmorestackgsignal(SB)
++		CALLNORESUME runtime·abort(SB)
+ 	End
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+-	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	MOVD 8(SP), m_morebuf+gobuf_pc(R1)
+ 	MOVD $16(SP), m_morebuf+gobuf_sp(R1) // f's caller's SP
+ 	MOVD g, m_morebuf+gobuf_g(R1)
+ 
+-	// Set g->sched to context in f.
+-	MOVD 0(SP), g_sched+gobuf_pc(g)
+-	MOVD $8(SP), g_sched+gobuf_sp(g) // f's SP
+-	MOVD CTXT, g_sched+gobuf_ctxt(g)
+-
+ 	// Call newstack on m->g0's stack.
+ 	MOVD R2, g
+ 	MOVD g_sched+gobuf_sp(R2), SP
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ea011e3192..18826abb06 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -576,7 +576,7 @@ func switchToCrashStack(fn func()) {
+ 	abort()
+ }
+ 
+-const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64"
++const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "wasm"
+ 
+ //go:noescape
+ func switchToCrashStack0(fn func()) // in assembly

@@ -22,9 +22,86 @@ Date:   Sat Mar 25 10:35:11 2023 -0700
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/rand/rand.go                      |  3 ++-
  src/crypto/rand/rand_wasip1.go               | 27 +++++++++++++++++++++++++++
  src/crypto/x509/root_unix.go                 |  2 +-
  src/crypto/x509/{root_js.go => root_wasm.go} |  2 +-
  4 files changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index ac2635d1b3..62738e2cb1 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -16,7 +16,8 @@ import "io"
+ // On OpenBSD and macOS, Reader uses getentropy(2).
+ // On other Unix-like systems, Reader reads from /dev/urandom.
+ // On Windows systems, Reader uses the RtlGenRandom API.
+-// On Wasm, Reader uses the Web Crypto API.
++// On JS/Wasm, Reader uses the Web Crypto API.
++// On WASIP1/Wasm, Reader uses random_get from wasi_snapshot_preview1.
+ var Reader io.Reader
+ 
+ // Read is a helper function that calls Reader.Read using io.ReadFull.
+diff --git a/src/crypto/rand/rand_wasip1.go b/src/crypto/rand/rand_wasip1.go
+new file mode 100644
+index 0000000000..984f99d4c3
+--- /dev/null
++++ b/src/crypto/rand/rand_wasip1.go
+@@ -0,0 +1,27 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1
++
++package rand
++
++import "syscall"
++
++func init() {
++	Reader = &reader{}
++}
++
++type reader struct{}
++
++func (r *reader) Read(b []byte) (int, error) {
++	// This uses the wasi_snapshot_preview1 random_get syscall defined in
++	// https://github.com/WebAssembly/WASI/blob/23a52736049f4327dd335434851d5dc40ab7cad1/legacy/preview1/docs.md#-random_getbuf-pointeru8-buf_len-size---result-errno.
++	// The definition does not explicitly guarantee that the entire buffer will
++	// be filled, but this appears to be the case in all runtimes tested.
++	err := syscall.RandomGet(b)
++	if err != nil {
++		return 0, err
++	}
++	return len(b), nil
++}
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index aa54f891ca..c513b20169 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
++//go:build aix || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || wasip1
+ 
+ package x509
+ 
+diff --git a/src/crypto/x509/root_js.go b/src/crypto/x509/root_wasm.go
+similarity index 94%
+rename from src/crypto/x509/root_js.go
+rename to src/crypto/x509/root_wasm.go
+index 7b3f1e486f..275c9213d9 100644
+--- a/src/crypto/x509/root_js.go
++++ b/src/crypto/x509/root_wasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build wasm
+ 
+ package x509
+ 

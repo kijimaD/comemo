@@ -21,7 +21,44 @@ Date:   Mon Jan 28 18:00:01 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go          |  3 +++
  src/cmd/compile/internal/ssa/numberlines.go | 10 ++++++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d6b2bd3137..ecc449114d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5236,7 +5236,10 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		br.P.To.Val = s.bstart[br.B.ID]
+ 		if br.P.Pos.IsStmt() != src.PosIsStmt {
+ 			br.P.Pos = br.P.Pos.WithNotStmt()
++		} else if v0 := br.B.FirstPossibleStmtValue(); v0 != nil && v0.Pos.Line() == br.P.Pos.Line() && v0.Pos.IsStmt() == src.PosIsStmt {
++			br.P.Pos = br.P.Pos.WithNotStmt()
+ 		}
++
+ 	}
+ 
+ 	if e.log { // spew to stdout
+diff --git a/src/cmd/compile/internal/ssa/numberlines.go b/src/cmd/compile/internal/ssa/numberlines.go
+index 3e14b9e3df..ef5e133206 100644
+--- a/src/cmd/compile/internal/ssa/numberlines.go
++++ b/src/cmd/compile/internal/ssa/numberlines.go
+@@ -73,6 +73,16 @@ func notStmtBoundary(op Op) bool {
+ 	return false
+ }
+ 
++func (b *Block) FirstPossibleStmtValue() *Value {
++	for _, v := range b.Values {
++		if notStmtBoundary(v.Op) {
++			continue
++		}
++		return v
++	}
++	return nil
++}
++
+ func numberLines(f *Func) {
+ 	po := f.Postorder()
+ 	endlines := make(map[ID]src.XPos)

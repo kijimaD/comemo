@@ -14,8 +14,84 @@ Date:   Sun Aug 4 14:08:13 2013 +0400
     R=alex.brainman
     CC=golang-dev
     https://golang.org/cl/12406043
-
+---
  src/pkg/net/timeout_test.go       |  2 --
  src/pkg/runtime/netpoll_windows.c |  3 +--
  src/pkg/runtime/os_windows.c      | 16 ++++++++++++++++
  3 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index ac552c0518..2e92147b8e 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -423,8 +423,6 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+-	case "windows":
+-		t.Skipf("skipping test on %q, see issue 5971", runtime.GOOS)
+ 	}
+ 
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
+diff --git a/src/pkg/runtime/netpoll_windows.c b/src/pkg/runtime/netpoll_windows.c
+index 972f1c30ef..e2153c540e 100644
+--- a/src/pkg/runtime/netpoll_windows.c
++++ b/src/pkg/runtime/netpoll_windows.c
+@@ -78,8 +78,7 @@ retry:
+ 	qty = 0;
+ 	wait = INFINITE;
+ 	if(!block)
+-		// TODO(brainman): should use 0 here instead, but scheduler hogs CPU
+-		wait = 1;
++		wait = 0;
+ 	// TODO(brainman): Need a loop here to fetch all pending notifications
+ 	// (or at least a batch). Scheduler will behave better if is given
+ 	// a batch of newly runnable goroutines.
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index d2ce9f8d11..ffd7e997e3 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -24,6 +24,7 @@
+ #pragma dynimport runtime·GetSystemTimeAsFileTime GetSystemTimeAsFileTime "kernel32.dll"
+ #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
+ #pragma dynimport runtime·LoadLibrary LoadLibraryW "kernel32.dll"
++#pragma dynimport runtime·LoadLibraryA LoadLibraryA "kernel32.dll"
+ #pragma dynimport runtime·ResumeThread ResumeThread "kernel32.dll"
+ #pragma dynimport runtime·SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
+ #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
+@@ -55,6 +56,7 @@ extern void *runtime·GetSystemInfo;
+ extern void *runtime·GetSystemTimeAsFileTime;
+ extern void *runtime·GetThreadContext;
+ extern void *runtime·LoadLibrary;
++extern void *runtime·LoadLibraryA;
+ extern void *runtime·ResumeThread;
+ extern void *runtime·SetConsoleCtrlHandler;
+ extern void *runtime·SetEvent;
+@@ -78,6 +80,9 @@ getproccount(void)
+ void
+ runtime·osinit(void)
+ {
++	void *kernel32;
++	void *SetProcessPriorityBoost;
++
+ 	// -1 = current process, -2 = current thread
+ 	runtime·stdcall(runtime·DuplicateHandle, 7,
+ 		(uintptr)-1, (uintptr)-2, (uintptr)-1, &m->thread,
+@@ -85,6 +90,17 @@ runtime·osinit(void)
+ 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
+ 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
+ 	runtime·ncpu = getproccount();
++
++	kernel32 = runtime·stdcall(runtime·LoadLibraryA, 1, "kernel32.dll");
++	if(kernel32 != nil) {
++		// Windows dynamic priority boosting assumes that a process has different types
++		// of dedicated threads -- GUI, IO, computational, etc. Go processes use
++		// equivalent threads that all do a mix of GUI, IO, computations, etc.
++		// In such context dynamic priority boosting does nothing but harm, so we turn it off.
++		SetProcessPriorityBoost = runtime·stdcall(runtime·GetProcAddress, 2, kernel32, "SetProcessPriorityBoost");
++		if(SetProcessPriorityBoost != nil)  // supported since Windows XP
++			runtime·stdcall(SetProcessPriorityBoost, 2, (uintptr)-1, (uintptr)1);
++	}
+ }
+ 
+ void

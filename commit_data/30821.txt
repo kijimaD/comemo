@@ -23,8 +23,178 @@ Date:   Thu Dec 8 01:07:10 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  doc/go1.8.html              |  3 +-
  src/net/http/client_test.go | 74 +++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/transport.go   | 14 ++++-----
  3 files changed, 83 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index dd5b8f1508..6a4316019d 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -1311,7 +1311,8 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+ 
+       <li><!-- CL 27117 -->
+         The <code>Transport</code> will now retry non-idempotent
+-        requests if no bytes were written before a network failure.
++        requests if no bytes were written before a network failure
++        and the request has no body.
+       </li>
+ 
+       <li><!-- CL 32481 -->
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index a5f58cb5cb..ca6e9180f1 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -26,6 +26,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ )
+@@ -1738,3 +1739,76 @@ func TestClientRedirectTypes(t *testing.T) {
+ 		res.Body.Close()
+ 	}
+ }
++
++// issue18239Body is an io.ReadCloser for TestTransportBodyReadError.
++// Its Read returns readErr and increments *readCalls atomically.
++// Its Close returns nil and increments *closeCalls atomically.
++type issue18239Body struct {
++	readCalls  *int32
++	closeCalls *int32
++	readErr    error
++}
++
++func (b issue18239Body) Read([]byte) (int, error) {
++	atomic.AddInt32(b.readCalls, 1)
++	return 0, b.readErr
++}
++
++func (b issue18239Body) Close() error {
++	atomic.AddInt32(b.closeCalls, 1)
++	return nil
++}
++
++// Issue 18239: make sure the Transport doesn't retry requests with bodies.
++// (Especially if Request.GetBody is not defined.)
++func TestTransportBodyReadError(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		if r.URL.Path == "/ping" {
++			return
++		}
++		buf := make([]byte, 1)
++		n, err := r.Body.Read(buf)
++		w.Header().Set("X-Body-Read", fmt.Sprintf("%v, %v", n, err))
++	}))
++	defer ts.Close()
++	tr := &Transport{}
++	defer tr.CloseIdleConnections()
++	c := &Client{Transport: tr}
++
++	// Do one initial successful request to create an idle TCP connection
++	// for the subsequent request to reuse. (The Transport only retries
++	// requests on reused connections.)
++	res, err := c.Get(ts.URL + "/ping")
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++
++	var readCallsAtomic int32
++	var closeCallsAtomic int32 // atomic
++	someErr := errors.New("some body read error")
++	body := issue18239Body{&readCallsAtomic, &closeCallsAtomic, someErr}
++
++	req, err := NewRequest("POST", ts.URL, body)
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, err = tr.RoundTrip(req)
++	if err != someErr {
++		t.Errorf("Got error: %v; want Request.Body read error: %v", err, someErr)
++	}
++
++	// And verify that our Body wasn't used multiple times, which
++	// would indicate retries. (as it buggily was during part of
++	// Go 1.8's dev cycle)
++	readCalls := atomic.LoadInt32(&readCallsAtomic)
++	closeCalls := atomic.LoadInt32(&closeCallsAtomic)
++	if readCalls != 1 {
++		t.Errorf("read calls = %d; want 1", readCalls)
++	}
++	if closeCalls != 1 {
++		t.Errorf("close calls = %d; want 1", closeCalls)
++	}
++}
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index e484548773..f2743efdd7 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1384,7 +1384,7 @@ func (pc *persistConn) closeConnIfStillIdle() {
+ //
+ // The startBytesWritten value should be the value of pc.nwrite before the roundTrip
+ // started writing the request.
+-func (pc *persistConn) mapRoundTripErrorFromReadLoop(startBytesWritten int64, err error) (out error) {
++func (pc *persistConn) mapRoundTripErrorFromReadLoop(req *Request, startBytesWritten int64, err error) (out error) {
+ 	if err == nil {
+ 		return nil
+ 	}
+@@ -1399,7 +1399,7 @@ func (pc *persistConn) mapRoundTripErrorFromReadLoop(startBytesWritten int64, er
+ 	}
+ 	if pc.isBroken() {
+ 		<-pc.writeLoopDone
+-		if pc.nwrite == startBytesWritten {
++		if pc.nwrite == startBytesWritten && req.outgoingLength() == 0 {
+ 			return nothingWrittenError{err}
+ 		}
+ 	}
+@@ -1410,7 +1410,7 @@ func (pc *persistConn) mapRoundTripErrorFromReadLoop(startBytesWritten int64, er
+ // up to Transport.RoundTrip method when persistConn.roundTrip sees
+ // its pc.closech channel close, indicating the persistConn is dead.
+ // (after closech is closed, pc.closed is valid).
+-func (pc *persistConn) mapRoundTripErrorAfterClosed(startBytesWritten int64) error {
++func (pc *persistConn) mapRoundTripErrorAfterClosed(req *Request, startBytesWritten int64) error {
+ 	if err := pc.canceled(); err != nil {
+ 		return err
+ 	}
+@@ -1428,7 +1428,7 @@ func (pc *persistConn) mapRoundTripErrorAfterClosed(startBytesWritten int64) err
+ 	// see if we actually managed to write anything. If not, we
+ 	// can retry the request.
+ 	<-pc.writeLoopDone
+-	if pc.nwrite == startBytesWritten {
++	if pc.nwrite == startBytesWritten && req.outgoingLength() == 0 {
+ 		return nothingWrittenError{err}
+ 	}
+ 
+@@ -1710,7 +1710,7 @@ func (pc *persistConn) writeLoop() {
+ 			}
+ 			if err != nil {
+ 				wr.req.Request.closeBody()
+-				if pc.nwrite == startBytesWritten {
++				if pc.nwrite == startBytesWritten && wr.req.outgoingLength() == 0 {
+ 					err = nothingWrittenError{err}
+ 				}
+ 			}
+@@ -1911,14 +1911,14 @@ WaitResponse:
+ 				respHeaderTimer = timer.C
+ 			}
+ 		case <-pc.closech:
+-			re = responseAndError{err: pc.mapRoundTripErrorAfterClosed(startBytesWritten)}
++			re = responseAndError{err: pc.mapRoundTripErrorAfterClosed(req.Request, startBytesWritten)}
+ 			break WaitResponse
+ 		case <-respHeaderTimer:
+ 			pc.close(errTimeout)
+ 			re = responseAndError{err: errTimeout}
+ 			break WaitResponse
+ 		case re = <-resc:
+-			re.err = pc.mapRoundTripErrorFromReadLoop(startBytesWritten, re.err)
++			re.err = pc.mapRoundTripErrorFromReadLoop(req.Request, startBytesWritten, re.err)
+ 			break WaitResponse
+ 		case <-cancelChan:
+ 			pc.t.CancelRequest(req.Request)

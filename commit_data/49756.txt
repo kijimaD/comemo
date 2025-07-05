@@ -21,10 +21,90 @@ Date:   Fri Sep 3 10:49:32 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go  | 7 ++++++-
  src/cmd/compile/internal/noder/unified.go | 1 +
  test/typeparam/issue48094b.dir/a.go       | 8 ++++++++
  test/typeparam/issue48094b.dir/b.go       | 9 +++++++++
  test/typeparam/issue48094b.go             | 7 +++++++
  5 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 57e8476099..48f4368113 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -927,6 +927,11 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
+ // constructed.
+ var todoBodies []*ir.Func
+ 
++// todoBodiesDone signals that we constructed all function in todoBodies.
++// This is necessary to prevent reader.addBody adds thing to todoBodies
++// when nested inlining happens.
++var todoBodiesDone = false
++
+ func (r *reader) addBody(fn *ir.Func) {
+ 	pri := pkgReaderIndex{r.p, r.reloc(relocBody), r.dict}
+ 	bodyReader[fn] = pri
+@@ -937,7 +942,7 @@ func (r *reader) addBody(fn *ir.Func) {
+ 		return
+ 	}
+ 
+-	if r.curfn == nil {
++	if r.curfn == nil && !todoBodiesDone {
+ 		todoBodies = append(todoBodies, fn)
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index eff2eeaeff..3d4650a01f 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -136,6 +136,7 @@ func unified(noders []*noder) {
+ 		}
+ 	}
+ 	todoBodies = nil
++	todoBodiesDone = true
+ 
+ 	// Check that nothing snuck past typechecking.
+ 	for _, n := range target.Decls {
+diff --git a/test/typeparam/issue48094b.dir/a.go b/test/typeparam/issue48094b.dir/a.go
+new file mode 100644
+index 0000000000..a113a224f7
+--- /dev/null
++++ b/test/typeparam/issue48094b.dir/a.go
+@@ -0,0 +1,8 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F() { G(0) }
++func G[T any](t T) {}
+diff --git a/test/typeparam/issue48094b.dir/b.go b/test/typeparam/issue48094b.dir/b.go
+new file mode 100644
+index 0000000000..242b34aa31
+--- /dev/null
++++ b/test/typeparam/issue48094b.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func H() { a.F() }
+diff --git a/test/typeparam/issue48094b.go b/test/typeparam/issue48094b.go
+new file mode 100644
+index 0000000000..b83fbd7af1
+--- /dev/null
++++ b/test/typeparam/issue48094b.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

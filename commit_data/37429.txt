@@ -17,7 +17,155 @@ Date:   Wed Jul 25 15:56:43 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go             | 34 ++++++++++++++++++---
  src/cmd/go/testdata/script/mod_internal.txt | 47 ++++++++++++++++++++++++++---
  2 files changed, 72 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index d1cd520245..c74ba5f63c 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -961,6 +961,8 @@ func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
+ 	if i > 0 {
+ 		i-- // rewind over slash in ".../internal"
+ 	}
++
++	var where string
+ 	if p.Module == nil {
+ 		parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
+ 
+@@ -978,19 +980,18 @@ func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
+ 		// p is in a module, so make it available based on the import path instead
+ 		// of the file path (https://golang.org/issue/23970).
+ 		parent := p.ImportPath[:i]
+-		// TODO(bcmills): In case of replacements, use the module path declared by
+-		// the replacement module, not the path seen by the user.
+-		importerPath := (*stk)[len(*stk)-2]
+-		if strings.HasPrefix(importerPath, parent) {
++		importer := (*stk)[len(*stk)-2]
++		if str.HasPathPrefix(importer, parent) {
+ 			return p
+ 		}
++		where = " in " + importer
+ 	}
+ 
+ 	// Internal is present, and srcDir is outside parent's tree. Not allowed.
+ 	perr := *p
+ 	perr.Error = &PackageError{
+ 		ImportStack: stk.Copy(),
+-		Err:         "use of internal package " + p.ImportPath + " not allowed",
++		Err:         "use of internal package " + p.ImportPath + " not allowed" + where,
+ 	}
+ 	perr.Incomplete = true
+ 	return &perr
+@@ -1027,6 +1028,29 @@ func disallowVendor(srcDir, path string, p *Package, stk *ImportStack) *Package
+ 		return p
+ 	}
+ 
++	if p.Standard && ModPackageModuleInfo != nil {
++		// Modules must not import vendor packages in the standard library,
++		// but the usual vendor visibility check will not catch them
++		// because the module loader presents them with an ImportPath starting
++		// with "golang_org/" instead of "vendor/".
++		importer := (*stk)[len(*stk)-2]
++		if mod := ModPackageModuleInfo(importer); mod != nil {
++			dir := p.Dir
++			if relDir, err := filepath.Rel(p.Root, p.Dir); err == nil {
++				dir = relDir
++			}
++			if _, ok := FindVendor(filepath.ToSlash(dir)); ok {
++				perr := *p
++				perr.Error = &PackageError{
++					ImportStack: stk.Copy(),
++					Err:         "use of vendored package " + path + " not allowed",
++				}
++				perr.Incomplete = true
++				return &perr
++			}
++		}
++	}
++
+ 	if perr := disallowVendorVisibility(srcDir, p, stk); perr != p {
+ 		return perr
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_internal.txt b/src/cmd/go/testdata/script/mod_internal.txt
+index 5ad392c088..bbc84b168c 100644
+--- a/src/cmd/go/testdata/script/mod_internal.txt
++++ b/src/cmd/go/testdata/script/mod_internal.txt
+@@ -1,16 +1,21 @@
+ env GO111MODULE=on
+ 
+ # golang.org/x/internal should be importable from other golang.org/x modules.
++rm go.mod
+ go mod -init -module golang.org/x/anything
+ go build .
+ 
+ # ...but that should not leak into other modules.
+ ! go build ./baddep
+-stderr 'use of internal package'
++stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+ 
+ # Internal packages in the standard library should not leak into modules.
+ ! go build ./fromstd
+-stderr 'use of internal package'
++stderr 'use of internal package internal/testenv not allowed$'
++
++# Packages found via standard-library vendoring should not leak.
++! go build ./fromstdvendor
++stderr 'use of vendored package golang_org/x/net/http/httpguts not allowed$'
+ 
+ 
+ # Dependencies should be able to use their own internal modules...
+@@ -20,11 +25,27 @@ go build ./throughdep
+ 
+ # ... but other modules should not, even if they have transitive dependencies.
+ ! go build .
+-stderr 'use of internal package'
++stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx$'
+ 
+ # And transitive dependencies still should not leak.
+ ! go build ./baddep
+-stderr 'use of internal package'
++stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
++
++
++# Replacing an internal module should keep it internal to the same paths.
++rm go.mod
++go mod -init -module golang.org/notx
++go mod -replace golang.org/x/internal=./replace/golang.org/notx/internal
++go build ./throughdep
++
++! go build ./baddep
++stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
++
++go mod -replace golang.org/x/internal=./vendor/golang.org/x/internal
++go build ./throughdep
++
++! go build ./baddep
++stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+ 
+ 
+ -- useinternal.go --
+@@ -42,3 +63,21 @@ import _ "golang.org/notx/useinternal"
+ -- fromstd/useinternal.go --
+ package fromstd
+ import _ "internal/testenv"
++
++-- fromstdvendor/useinternal.go --
++package fromstdvendor
++import _ "golang_org/x/net/http/httpguts"
++
++-- replace/golang.org/notx/internal/go.mod --
++module golang.org/x/internal
++
++-- replace/golang.org/notx/internal/subtle/subtle.go --
++package subtle
++// Ha ha! Nothing here!
++
++-- vendor/golang.org/x/internal/go.mod --
++module golang.org/x/internal
++
++-- vendor/golang.org/x/internal/subtle/subtle.go --
++package subtle
++// Ha ha! Nothing here!

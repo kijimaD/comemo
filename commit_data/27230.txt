@@ -10,7 +10,54 @@ Date:   Wed Mar 16 20:14:13 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/20765
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/http_test.go | 6 ++++--
  src/net/http/server.go    | 9 +++++++--
  2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index 3267d478ee..7fd3181f6f 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -84,8 +84,10 @@ func TestCmdGoNoHTTPServer(t *testing.T) {
+ 		"net/http.(*Transport).RoundTrip": true,
+ 
+ 		// Verify these don't exist:
+-		"net/http.http2Server":     false,
+-		"net/http.(*Server).Serve": false,
++		"net/http.http2Server":           false,
++		"net/http.(*Server).Serve":       false,
++		"net/http.(*ServeMux).ServeHTTP": false,
++		"net/http.DefaultServeMux":       false,
+ 	}
+ 	for sym, want := range wantSym {
+ 		got := bytes.Contains(out, []byte(sym))
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 3834630a59..17c2890aa7 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1800,10 +1800,12 @@ type muxEntry struct {
+ }
+ 
+ // NewServeMux allocates and returns a new ServeMux.
+-func NewServeMux() *ServeMux { return &ServeMux{m: make(map[string]muxEntry)} }
++func NewServeMux() *ServeMux { return new(ServeMux) }
+ 
+ // DefaultServeMux is the default ServeMux used by Serve.
+-var DefaultServeMux = NewServeMux()
++var DefaultServeMux = &defaultServeMux
++
++var defaultServeMux ServeMux
+ 
+ // Does path match pattern?
+ func pathMatch(pattern, path string) bool {
+@@ -1926,6 +1928,9 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 		panic("http: multiple registrations for " + pattern)
+ 	}
+ 
++	if mux.m == nil {
++		mux.m = make(map[string]muxEntry)
++	}
+ 	mux.m[pattern] = muxEntry{explicit: true, h: handler, pattern: pattern}
+ 
+ 	if pattern[0] != '/' {

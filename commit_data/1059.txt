@@ -10,8 +10,75 @@ Date:   Wed Nov 5 12:06:48 2008 -0800
     DELTA=24  (22 added, 0 deleted, 2 changed)
     OCL=18547
     CL=18554
-
+---
  test/bugs/bug117.go  | 21 +++++++++++++++++++++
  test/chan/powser1.go |  4 ++--
  test/golden.out      |  6 ++++++
  3 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/test/bugs/bug117.go b/test/bugs/bug117.go
+new file mode 100644
+index 0000000000..a18e68849a
+--- /dev/null
++++ b/test/bugs/bug117.go
+@@ -0,0 +1,21 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++type S struct { a int }
++type PS *S
++func (p *S) get() int {
++  return p.a
++}
++func fn(p PS) int {
++  return p.get()
++}
++func main() {
++  s := S{1};
++  if s.get() != 1 {
++    panic()
++  }
++}
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index 6c57894a9b..775cb63162 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -116,7 +116,7 @@ func put(dat item, out *dch){
+ 	out.dat <- dat;
+ }
+ 
+-func get(in *dch) item{
++func get(in *dch) *rat {
+ 	seqno++;
+ 	in.req <- seqno;
+ 	return <-in.dat;
+@@ -610,7 +610,7 @@ func Init() {
+ 	Twos = Rep(itor(2));
+ }
+ 
+-func check(U PS, c item, count int, str string) {
++func check(U PS, c *rat, count int, str string) {
+ 	for i := 0; i < count; i++ {
+ 		r := get(U);
+ 		if !r.eq(c) {
+diff --git a/test/golden.out b/test/golden.out
+index c1410a1ead..4bea55fb13 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -144,6 +144,12 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go
+ bugs/bug115.go:8: overflow converting constant to uint
+ BUG: bug115 should compile
+ 
++=========== bugs/bug117.go
++bugs/bug117.go:9: undefined DOT get on PS
++bugs/bug117.go:10: illegal types for operand: RETURN
++	int
++BUG: should compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

@@ -17,7 +17,78 @@ Date:   Thu Dec 14 14:20:12 2023 -0500
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/godebug/godebug_test.go | 31 +++++++++++++++++++++++++++++++
  src/runtime/runtime.go               | 10 +++++++++-
  2 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/godebug/godebug_test.go b/src/internal/godebug/godebug_test.go
+index ed8e93d453..1ed0a365ab 100644
+--- a/src/internal/godebug/godebug_test.go
++++ b/src/internal/godebug/godebug_test.go
+@@ -7,6 +7,7 @@ package godebug_test
+ import (
+ 	"fmt"
+ 	. "internal/godebug"
++	"internal/race"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -70,6 +71,36 @@ func TestMetrics(t *testing.T) {
+ 	}
+ }
+ 
++// TestPanicNilRace checks for a race in the runtime caused by use of runtime
++// atomics (not visible to usual race detection) to install the counter for
++// non-default panic(nil) semantics.  For #64649.
++func TestPanicNilRace(t *testing.T) {
++	if !race.Enabled {
++		t.Skip("Skipping test intended for use with -race.")
++	}
++	if os.Getenv("GODEBUG") != "panicnil=1" {
++		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestPanicNilRace$", "-test.v", "-test.parallel=2", "-test.count=1"))
++		cmd.Env = append(cmd.Env, "GODEBUG=panicnil=1")
++		out, err := cmd.CombinedOutput()
++		t.Logf("output:\n%s", out)
++
++		if err != nil {
++			t.Errorf("Was not expecting a crash")
++		}
++		return
++	}
++
++	test := func(t *testing.T) {
++		t.Parallel()
++		defer func() {
++			recover()
++		}()
++		panic(nil)
++	}
++	t.Run("One", test)
++	t.Run("Two", test)
++}
++
+ func TestCmdBisect(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	out, err := exec.Command("go", "run", "cmd/vendor/golang.org/x/tools/cmd/bisect", "GODEBUG=buggy=1#PATTERN", os.Args[0], "-test.run=^TestBisectTestCase$").CombinedOutput()
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 0829a84e43..92cdfc310e 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -172,7 +172,15 @@ func (g *godebugInc) IncNonDefault() {
+ 		// *godebug.Setting.
+ 		inc = new(func())
+ 		*inc = (*newInc)(g.name)
+-		g.inc.Store(inc)
++		if raceenabled {
++			racerelease(unsafe.Pointer(&g.inc))
++		}
++		if !g.inc.CompareAndSwap(nil, inc) {
++			inc = g.inc.Load()
++		}
++	}
++	if raceenabled {
++		raceacquire(unsafe.Pointer(&g.inc))
+ 	}
+ 	(*inc)()
+ }

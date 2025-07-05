@@ -12,10 +12,111 @@ Date:   Mon Apr 24 22:17:03 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/41673
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go  |  2 +-
  src/cmd/compile/internal/gc/dcl.go      | 25 ++++++++-----------------
  src/cmd/compile/internal/gc/noder.go    |  2 +-
  src/cmd/compile/internal/gc/universe.go |  2 +-
  src/cmd/compile/internal/types/type.go  | 10 ++++++++++
  5 files changed, 21 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 7766a5617a..734c03083f 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -631,7 +631,7 @@ func (p *importer) method() *types.Field {
+ 	f := types.NewField()
+ 	f.Sym = sym
+ 	f.Nname = asTypesNode(newname(sym))
+-	f.Type = functypefield(fakethisfield(), params, result)
++	f.Type = functypefield(fakeRecvField(), params, result)
+ 	return f
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 99e05e79b1..2820b72a42 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -783,30 +783,21 @@ func embedded(s *types.Sym, pkg *types.Pkg) *Node {
+ 	return n
+ }
+ 
+-// thisT is the singleton type used for interface method receivers.
+-var thisT *types.Type
+-
+-func fakethis() *Node {
+-	if thisT == nil {
+-		thisT = types.NewPtr(types.New(TSTRUCT))
+-	}
+-	return anonfield(thisT)
++func fakeRecv() *Node {
++	return anonfield(types.FakeRecvType())
+ }
+ 
+-func fakethisfield() *types.Field {
+-	if thisT == nil {
+-		thisT = types.NewPtr(types.New(TSTRUCT))
+-	}
++func fakeRecvField() *types.Field {
+ 	f := types.NewField()
+-	f.Type = thisT
++	f.Type = types.FakeRecvType()
+ 	return f
+ }
+ 
+-// Is this field a method on an interface?
+-// Those methods have thisT as the receiver.
+-// (See fakethis above.)
++// isifacemethod reports whether (field) m is
++// an interface method. Such methods have the
++// special receiver type types.FakeRecvType().
+ func isifacemethod(f *types.Type) bool {
+-	return f.Recv().Type == thisT
++	return f.Recv().Type == types.FakeRecvType()
+ }
+ 
+ // turn a parsed function declaration into a type
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 73b02ace38..ef7c72dfb6 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -594,7 +594,7 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
+ 		} else {
+ 			mname := p.newname(method.Name)
+ 			sig := p.typeExpr(method.Type)
+-			sig.Left = fakethis()
++			sig.Left = fakeRecv()
+ 			n = p.nod(method, ODCLFIELD, mname, sig)
+ 			ifacedcl(n)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 7a098c7800..47c1386944 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -369,7 +369,7 @@ func typeinit() {
+ func makeErrorInterface() *types.Type {
+ 	field := types.NewField()
+ 	field.Type = types.Types[TSTRING]
+-	f := functypefield(fakethisfield(), nil, []*types.Field{field})
++	f := functypefield(fakeRecvField(), nil, []*types.Field{field})
+ 
+ 	field = types.NewField()
+ 	field.Sym = lookup("Error")
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 11ea551b91..b0be122d0a 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1322,3 +1322,13 @@ func (t *Type) Tie() byte {
+ 	}
+ 	return 'T'
+ }
++
++var recvType *Type
++
++// FakeRecvType returns the singleton type used for interface method receivers.
++func FakeRecvType() *Type {
++	if recvType == nil {
++		recvType = NewPtr(New(TSTRUCT))
++	}
++	return recvType
++}

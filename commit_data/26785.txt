@@ -12,7 +12,7 @@ Date:   Wed Feb 17 13:03:21 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 10 ++--------
  src/reflect/all_test.go                | 21 ++++++++++++++++++++
  src/reflect/type.go                    | 36 +++++++++++++++++++++++++---------
@@ -20,3 +20,199 @@ Date:   Wed Feb 17 13:03:21 2016 -0500
  src/runtime/mfinal.go                  |  2 +-
  src/runtime/type.go                    | 31 ++++++++++++++++++++++++++++-
  6 files changed, 84 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 4fdbbd6967..b3f6b6ac55 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -492,16 +492,10 @@ func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
+ 
+ 	ot := off
+ 	s := sym
+-	if t.Sym != nil {
+-		ot = dgostringptr(s, ot, t.Sym.Name)
+-		if t != Types[t.Etype] && t != errortype {
+-			ot = dgopkgpath(s, ot, t.Sym.Pkg)
+-		} else {
+-			ot = dgostringptr(s, ot, "")
+-		}
++	if t.Sym != nil && t != Types[t.Etype] && t != errortype {
++		ot = dgopkgpath(s, ot, t.Sym.Pkg)
+ 	} else {
+ 		ot = dgostringptr(s, ot, "")
+-		ot = dgostringptr(s, ot, "")
+ 	}
+ 
+ 	// slice header
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 58090cde70..2eb4f343f9 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5007,3 +5007,24 @@ func TestChanAlloc(t *testing.T) {
+ 	// a limitation of escape analysis.  If that is ever fixed the
+ 	// allocs < 0.5 condition will trigger and this test should be fixed.
+ }
++
++type nameTest struct {
++	v    interface{}
++	want string
++}
++
++var nameTests = []nameTest{
++	{int32(0), "int32"},
++	{D1{}, "D1"},
++	{[]D1{}, ""},
++	{(chan D1)(nil), ""},
++	{(func() D1)(nil), ""},
++}
++
++func TestNames(t *testing.T) {
++	for _, test := range nameTests {
++		if got := TypeOf(test.v).Name(); got != test.want {
++			t.Errorf("%T Name()=%q, want %q", test.v, got, test.want)
++		}
++	}
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 2c7c1fb30b..1367ba34e7 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -283,7 +283,6 @@ type method struct {
+ // Using a pointer to this struct reduces the overall size required
+ // to describe an unnamed type with no methods.
+ type uncommonType struct {
+-	name    *string  // name of type
+ 	pkgPath *string  // import path; nil for built-in types like int, string
+ 	methods []method // methods associated with type
+ }
+@@ -452,13 +451,6 @@ func (t *uncommonType) PkgPath() string {
+ 	return *t.pkgPath
+ }
+ 
+-func (t *uncommonType) Name() string {
+-	if t == nil || t.name == nil {
+-		return ""
+-	}
+-	return *t.name
+-}
+-
+ func (t *rtype) String() string { return t.string }
+ 
+ func (t *rtype) Size() uintptr { return t.size }
+@@ -557,8 +549,34 @@ func (t *rtype) PkgPath() string {
+ 	return t.uncommonType.PkgPath()
+ }
+ 
++func hasPrefix(s, prefix string) bool {
++	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
++}
++
+ func (t *rtype) Name() string {
+-	return t.uncommonType.Name()
++	if hasPrefix(t.string, "map[") {
++		return ""
++	}
++	if hasPrefix(t.string, "struct {") {
++		return ""
++	}
++	if hasPrefix(t.string, "chan ") {
++		return ""
++	}
++	if hasPrefix(t.string, "func(") {
++		return ""
++	}
++	if t.string[0] == '[' || t.string[0] == '*' {
++		return ""
++	}
++	i := len(t.string) - 1
++	for i >= 0 {
++		if t.string[i] == '.' {
++			break
++		}
++		i--
++	}
++	return t.string[i+1:]
+ }
+ 
+ func (t *rtype) ChanDir() ChanDir {
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 1e1157d054..3bff36bd78 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -183,11 +183,12 @@ func dumptype(t *_type) {
+ 	dumpint(tagType)
+ 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
+ 	dumpint(uint64(t.size))
+-	if t.x == nil || t.x.pkgpath == nil || t.x.name == nil {
++	if t.x == nil || t.x.pkgpath == nil {
+ 		dumpstr(t._string)
+ 	} else {
+ 		pkgpath := stringStructOf(t.x.pkgpath)
+-		name := stringStructOf(t.x.name)
++		namestr := t.name()
++		name := stringStructOf(&namestr)
+ 		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
+ 		dwrite(pkgpath.str, uintptr(pkgpath.len))
+ 		dwritebyte('.')
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 778cbcb416..7d45862521 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -340,7 +340,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 		// ok - same type
+ 		goto okarg
+ 	case fint.kind&kindMask == kindPtr:
+-		if (fint.x == nil || fint.x.name == nil || etyp.x == nil || etyp.x.name == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
++		if (fint.x == nil || etyp.x == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
+ 			// ok - not same type, but both pointers,
+ 			// one or the other is unnamed, and same element type, so assignable.
+ 			goto okarg
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 8304ad7b77..18c6a32ecb 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -28,6 +28,36 @@ type _type struct {
+ 	x       *uncommontype
+ }
+ 
++func hasPrefix(s, prefix string) bool {
++	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
++}
++
++func (t *_type) name() string {
++	if hasPrefix(t._string, "map[") {
++		return ""
++	}
++	if hasPrefix(t._string, "struct {") {
++		return ""
++	}
++	if hasPrefix(t._string, "chan ") {
++		return ""
++	}
++	if hasPrefix(t._string, "func(") {
++		return ""
++	}
++	if t._string[0] == '[' || t._string[0] == '*' {
++		return ""
++	}
++	i := len(t._string) - 1
++	for i >= 0 {
++		if t._string[i] == '.' {
++			break
++		}
++		i--
++	}
++	return t._string[i+1:]
++}
++
+ type method struct {
+ 	name    *string
+ 	pkgpath *string
+@@ -38,7 +68,6 @@ type method struct {
+ }
+ 
+ type uncommontype struct {
+-	name    *string
+ 	pkgpath *string
+ 	mhdr    []method
+ }

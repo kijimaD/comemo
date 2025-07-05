@@ -7,7 +7,32 @@ Date:   Fri Oct 14 14:27:26 2011 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5274045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index b47afebfd6..8721d28d2e 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -100,6 +100,7 @@ Kevin Ballard <kevin@sb.org>
+ Kyle Consalus <consalus@gmail.com>
+ Kyle Lemons <kyle@kylelemons.net>
+ Lorenzo Stoakes <lstoakes@gmail.com>
++Luca Greco <luca.greco@alcacoop.it>
+ Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Markus Duft <markus.duft@salomon.at>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b18f57ea2a..06396d7a76 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -156,6 +156,7 @@ Kyle Lemons <kyle@kylelemons.net> <kevlar@google.com>
+ Larry Hosken <lahosken@golang.org>
+ Lorenzo Stoakes <lstoakes@gmail.com>
+ Louis Kruger <louisk@google.com>
++Luca Greco <luca.greco@alcacoop.it>
+ Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Luuk van Dijk <lvd@golang.org> <lvd@google.com>

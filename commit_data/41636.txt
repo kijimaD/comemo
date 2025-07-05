@@ -12,7 +12,48 @@ Date:   Wed Oct 16 12:31:33 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/goobj/read.go    | 9 ++++++---
  src/cmd/internal/goobj/readnew.go | 6 +++++-
  2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 2a3afffeb0..e61e95dcc8 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -502,12 +502,15 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 	}
+ 	// TODO: extract OS + build ID if/when we need it
+ 
+-	r.readFull(r.tmp[:8])
+-	if bytes.Equal(r.tmp[:8], []byte("\x00go114LD")) {
+-		r.offset -= 8
++	p, err := r.peek(8)
++	if err != nil {
++		return err
++	}
++	if bytes.Equal(p, []byte("\x00go114LD")) {
+ 		r.readNew()
+ 		return nil
+ 	}
++	r.readFull(r.tmp[:8])
+ 	if !bytes.Equal(r.tmp[:8], []byte("\x00go114ld")) {
+ 		return r.error(errCorruptObject)
+ 	}
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index e5dc652800..de05f37c3b 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -15,7 +15,11 @@ import (
+ // the data to the current goobj API.
+ func (r *objReader) readNew() {
+ 	start := uint32(r.offset)
+-	rr := goobj2.NewReader(r.f, start)
++
++	length := r.limit - r.offset
++	objbytes := make([]byte, length)
++	r.readFull(objbytes)
++	rr := goobj2.NewReaderFromBytes(objbytes, false)
+ 	if rr == nil {
+ 		panic("cannot read object file")
+ 	}

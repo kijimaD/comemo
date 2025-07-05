@@ -15,6 +15,20 @@ Date:   Fri Dec 11 02:49:16 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/17741
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/runtime2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 86ed846064..4a4d5f81ba 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -497,7 +497,7 @@ type _func struct {
+ 	nameoff int32   // function name
+ 
+ 	args int32 // in/out args size
+-	_    int32 // Previously: legacy frame size. TODO: Remove this.
++	_    int32 // previously legacy frame size; kept for layout compatibility
+ 
+ 	pcsp      int32
+ 	pcfile    int32

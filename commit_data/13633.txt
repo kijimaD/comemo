@@ -11,6 +11,23 @@ Date:   Thu Aug 16 02:06:21 2012 +1000
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6443129
-
+---
  src/pkg/os/exec/exec_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index aead57d799..2cc053e5bc 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -337,6 +337,11 @@ func TestHelperProcess(*testing.T) {
+ 			// TODO(bradfitz): broken? Sometimes.
+ 			// http://golang.org/issue/2603
+ 			// Skip this additional part of the test for now.
++		case "netbsd":
++			// TODO(jsing): This currently fails on NetBSD due to
++			// the cloned file descriptors that result from opening
++			// /dev/urandom.
++			// http://golang.org/issue/3955
+ 		default:
+ 			// Now verify that there are no other open fds.
+ 			var files []*os.File

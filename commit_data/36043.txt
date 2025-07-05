@@ -7,6 +7,20 @@ Date:   Sat Mar 31 04:19:06 2018 +0900
     Change-Id: I6f5a94cd8b6e8f7201202514ac0f9c78811c43bc
     Reviewed-on: https://go-review.googlesource.com/103695
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c04eb42fef..084af32a6b 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2152,7 +2152,7 @@ func pathMatch(pattern, path string) bool {
+ 	return len(path) >= n && path[0:n] == pattern
+ }
+ 
+-// Return the canonical path for p, eliminating . and .. elements.
++// cleanPath returns the canonical path for p, eliminating . and .. elements.
+ func cleanPath(p string) string {
+ 	if p == "" {
+ 		return "/"

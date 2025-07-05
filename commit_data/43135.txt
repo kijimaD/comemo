@@ -14,6 +14,22 @@ Date:   Wed Jan 15 10:45:05 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 5e5b32bc4a..fe73df9d57 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -673,10 +673,6 @@ func evconst(n *Node) {
+ 		}
+ 
+ 	case OCOMPLEX:
+-		if nl == nil || nr == nil {
+-			// TODO(mdempsky): Remove after early OAS2FUNC rewrite CL lands.
+-			break
+-		}
+ 		if nl.Op == OLITERAL && nr.Op == OLITERAL {
+ 			// make it a complex literal
+ 			c := newMpcmplx()

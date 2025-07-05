@@ -7,6 +7,20 @@ Date:   Sun Jun 24 12:23:51 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6341046
-
+---
  src/pkg/flag/flag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 5444ad141c..3116dafb5a 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -33,7 +33,7 @@
+ 
+ 	After parsing, the arguments after the flag are available as the
+ 	slice flag.Args() or individually as flag.Arg(i).
+-	The arguments are indexed from 0 up to flag.NArg().
++	The arguments are indexed from 0 through flag.NArg()-1.
+ 
+ 	Command line flag syntax:
+ 		-flag

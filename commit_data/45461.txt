@@ -16,7 +16,7 @@ Date:   Mon Aug 3 19:23:30 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/heapdump.go   |  5 ++++-
  src/runtime/malloc.go     |  6 +++---
  src/runtime/mcheckmark.go |  2 +-
@@ -25,3 +25,206 @@ Date:   Mon Aug 3 19:23:30 2020 +0000
  src/runtime/mspanset.go   |  4 ++--
  src/runtime/mstats.go     | 31 ++++++++++++++++++-------------
  7 files changed, 39 insertions(+), 27 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 495ecc5164..eed47930f0 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -540,6 +540,9 @@ func dumpms() {
+ }
+ 
+ func dumpmemstats() {
++	// These ints should be identical to the exported
++	// MemStats structure and should be ordered the same
++	// way too.
+ 	dumpint(tagMemStats)
+ 	dumpint(memstats.alloc)
+ 	dumpint(memstats.total_alloc)
+@@ -560,7 +563,7 @@ func dumpmemstats() {
+ 	dumpint(memstats.mcache_inuse)
+ 	dumpint(memstats.mcache_sys.load())
+ 	dumpint(memstats.buckhash_sys.load())
+-	dumpint(memstats.gc_sys.load())
++	dumpint(memstats.gcMiscSys.load() + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse)
+ 	dumpint(memstats.other_sys.load())
+ 	dumpint(memstats.next_gc)
+ 	dumpint(memstats.last_gc_unix)
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 27d678d917..ee22bad58c 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -743,9 +743,9 @@ mapped:
+ 			throw("arena already initialized")
+ 		}
+ 		var r *heapArena
+-		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gc_sys))
++		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
+ 		if r == nil {
+-			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gc_sys))
++			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
+ 			if r == nil {
+ 				throw("out of memory allocating heap arena metadata")
+ 			}
+@@ -757,7 +757,7 @@ mapped:
+ 			if size == 0 {
+ 				size = physPageSize
+ 			}
+-			newArray := (*notInHeap)(persistentalloc(size, sys.PtrSize, &memstats.gc_sys))
++			newArray := (*notInHeap)(persistentalloc(size, sys.PtrSize, &memstats.gcMiscSys))
+ 			if newArray == nil {
+ 				throw("out of memory allocating allArenas")
+ 			}
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index 1fd8e4e78f..c0b028d715 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -41,7 +41,7 @@ func startCheckmarks() {
+ 
+ 		if bitmap == nil {
+ 			// Allocate bitmap on first use.
+-			bitmap = (*checkmarksMap)(persistentalloc(unsafe.Sizeof(*bitmap), 0, &memstats.gc_sys))
++			bitmap = (*checkmarksMap)(persistentalloc(unsafe.Sizeof(*bitmap), 0, &memstats.gcMiscSys))
+ 			if bitmap == nil {
+ 				throw("out of memory allocating checkmarks bitmap")
+ 			}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 6676ae6736..6ec5133be0 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -88,7 +88,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
+ 	lock(&finlock)
+ 	if finq == nil || finq.cnt == uint32(len(finq.fin)) {
+ 		if finc == nil {
+-			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gc_sys))
++			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gcMiscSys))
+ 			finc.alllink = allfin
+ 			allfin = finc
+ 			if finptrmask[0] == 0 {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 27c1bfbcf1..1624a04b9d 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -713,7 +713,7 @@ func (h *mheap) init() {
+ 		h.central[i].mcentral.init(spanClass(i))
+ 	}
+ 
+-	h.pages.init(&h.lock, &memstats.gc_sys)
++	h.pages.init(&h.lock, &memstats.gcMiscSys)
+ }
+ 
+ // reclaim sweeps and reclaims at least npage pages into the heap.
+@@ -1230,8 +1230,10 @@ HaveSpan:
+ 		atomic.Xadd64(&memstats.heap_inuse, int64(nbytes))
+ 	case spanAllocStack:
+ 		atomic.Xadd64(&memstats.stacks_inuse, int64(nbytes))
+-	case spanAllocPtrScalarBits, spanAllocWorkBuf:
+-		memstats.gc_sys.add(int64(nbytes))
++	case spanAllocWorkBuf:
++		atomic.Xadd64(&memstats.gcWorkBufInUse, int64(nbytes))
++	case spanAllocPtrScalarBits:
++		atomic.Xadd64(&memstats.gcProgPtrScalarBitsInUse, int64(nbytes))
+ 	}
+ 	if typ.manual() {
+ 		// Manually managed memory doesn't count toward heap_sys.
+@@ -1406,8 +1408,10 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
+ 		atomic.Xadd64(&memstats.heap_inuse, -int64(nbytes))
+ 	case spanAllocStack:
+ 		atomic.Xadd64(&memstats.stacks_inuse, -int64(nbytes))
+-	case spanAllocPtrScalarBits, spanAllocWorkBuf:
+-		memstats.gc_sys.add(-int64(nbytes))
++	case spanAllocWorkBuf:
++		atomic.Xadd64(&memstats.gcWorkBufInUse, -int64(nbytes))
++	case spanAllocPtrScalarBits:
++		atomic.Xadd64(&memstats.gcProgPtrScalarBitsInUse, -int64(nbytes))
+ 	}
+ 	if typ.manual() {
+ 		// Manually managed memory doesn't count toward heap_sys, so add it back.
+@@ -1956,7 +1960,7 @@ func newArenaMayUnlock() *gcBitsArena {
+ 	var result *gcBitsArena
+ 	if gcBitsArenas.free == nil {
+ 		unlock(&gcBitsArenas.lock)
+-		result = (*gcBitsArena)(sysAlloc(gcBitsChunkBytes, &memstats.gc_sys))
++		result = (*gcBitsArena)(sysAlloc(gcBitsChunkBytes, &memstats.gcMiscSys))
+ 		if result == nil {
+ 			throw("runtime: cannot allocate memory")
+ 		}
+diff --git a/src/runtime/mspanset.go b/src/runtime/mspanset.go
+index 490eed4549..10d2596c38 100644
+--- a/src/runtime/mspanset.go
++++ b/src/runtime/mspanset.go
+@@ -102,7 +102,7 @@ retry:
+ 			if newCap == 0 {
+ 				newCap = spanSetInitSpineCap
+ 			}
+-			newSpine := persistentalloc(newCap*sys.PtrSize, cpu.CacheLineSize, &memstats.gc_sys)
++			newSpine := persistentalloc(newCap*sys.PtrSize, cpu.CacheLineSize, &memstats.gcMiscSys)
+ 			if b.spineCap != 0 {
+ 				// Blocks are allocated off-heap, so
+ 				// no write barriers.
+@@ -283,7 +283,7 @@ func (p *spanSetBlockAlloc) alloc() *spanSetBlock {
+ 	if s := (*spanSetBlock)(p.stack.pop()); s != nil {
+ 		return s
+ 	}
+-	return (*spanSetBlock)(persistentalloc(unsafe.Sizeof(spanSetBlock{}), cpu.CacheLineSize, &memstats.gc_sys))
++	return (*spanSetBlock)(persistentalloc(unsafe.Sizeof(spanSetBlock{}), cpu.CacheLineSize, &memstats.gcMiscSys))
+ }
+ 
+ // free returns a spanSetBlock back to the pool.
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 466f33836c..967fe6e2be 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -44,15 +44,17 @@ type mstats struct {
+ 
+ 	// Statistics about allocation of low-level fixed-size structures.
+ 	// Protected by FixAlloc locks.
+-	stacks_inuse uint64     // bytes in manually-managed stack spans; updated atomically or during STW
+-	stacks_sys   sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
+-	mspan_inuse  uint64     // mspan structures
+-	mspan_sys    sysMemStat
+-	mcache_inuse uint64 // mcache structures
+-	mcache_sys   sysMemStat
+-	buckhash_sys sysMemStat // profiling bucket hash table
+-	gc_sys       sysMemStat // updated atomically or during STW
+-	other_sys    sysMemStat // updated atomically or during STW
++	stacks_inuse             uint64     // bytes in manually-managed stack spans; updated atomically or during STW
++	stacks_sys               sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
++	mspan_inuse              uint64     // mspan structures
++	mspan_sys                sysMemStat
++	mcache_inuse             uint64 // mcache structures
++	mcache_sys               sysMemStat
++	buckhash_sys             sysMemStat // profiling bucket hash table
++	gcWorkBufInUse           uint64     // updated atomically or during STW
++	gcProgPtrScalarBitsInUse uint64     // updated atomically or during STW
++	gcMiscSys                sysMemStat // updated atomically or during STW
++	other_sys                sysMemStat // updated atomically or during STW
+ 
+ 	// Statistics about the garbage collector.
+ 
+@@ -472,7 +474,10 @@ func readmemstats_m(stats *MemStats) {
+ 	stats.MCacheInuse = memstats.mcache_inuse
+ 	stats.MCacheSys = memstats.mcache_sys.load()
+ 	stats.BuckHashSys = memstats.buckhash_sys.load()
+-	stats.GCSys = memstats.gc_sys.load()
++	// MemStats defines GCSys as an aggregate of all memory related
++	// to the memory management system, but we track this memory
++	// at a more granular level in the runtime.
++	stats.GCSys = memstats.gcMiscSys.load() + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
+ 	stats.OtherSys = memstats.other_sys.load()
+ 	stats.NextGC = memstats.next_gc
+ 	stats.LastGC = memstats.last_gc_unix
+@@ -557,11 +562,11 @@ func updatememstats() {
+ 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
+ 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
+ 	memstats.sys = memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
+-		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gc_sys.load() +
++		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gcMiscSys.load() +
+ 		memstats.other_sys.load()
+ 
+-	// We also count stacks_inuse as sys memory.
+-	memstats.sys += memstats.stacks_inuse
++	// We also count stacks_inuse, gcWorkBufInUse, and gcProgPtrScalarBitsInUse as sys memory.
++	memstats.sys += memstats.stacks_inuse + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
+ 
+ 	// Calculate memory allocator stats.
+ 	// During program execution we only count number of frees and amount of freed memory.

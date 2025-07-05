@@ -16,6 +16,23 @@ Date:   Wed Apr 11 12:38:04 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/net/http/serve_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index e40bbc5575..05e31ef1e4 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5629,6 +5629,11 @@ func runTimeSensitiveTest(t *testing.T, durations []time.Duration, test func(t *
+ // Issue 18535: test that the Server doesn't try to do a background
+ // read if it's already done one.
+ func TestServerDuplicateBackgroundRead(t *testing.T) {
++	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm" {
++		// http://gnats.netbsd.org/53173
++		t.Skip("skipping to avoid crash")
++	}
++
+ 	setParallel(t)
+ 	defer afterTest(t)
+ 

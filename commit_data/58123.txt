@@ -17,7 +17,7 @@ Date:   Mon Oct 2 15:47:08 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go        |  7 ++++
  src/cmd/compile/internal/types2/issues_test.go | 44 ++++++++++++++++++++++++++
  src/cmd/compile/internal/types2/predicates.go  |  6 ++++
@@ -25,3 +25,172 @@ Date:   Mon Oct 2 15:47:08 2023 -0700
  src/go/types/issues_test.go                    | 44 ++++++++++++++++++++++++++
  src/go/types/predicates.go                     |  6 ++++
  6 files changed, 114 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 7b0fa10f32..439f515265 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -569,6 +569,13 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 		for i, arg := range args {
+ 			// generic arguments cannot have a defined (*Named) type - no need for underlying type below
+ 			if asig, _ := arg.typ.(*Signature); asig != nil && asig.TypeParams().Len() > 0 {
++				// The argument type is a generic function signature. This type is
++				// pointer-identical with (it's copied from) the type of the generic
++				// function argument and thus the function object.
++				// Before we change the type (type parameter renaming, below), make
++				// a clone of it as otherwise we implicitly modify the object's type
++				// (go.dev/issues/63260).
++				asig = clone(asig)
+ 				// Rename type parameters for cases like f(g, g); this gives each
+ 				// generic function argument a unique type identity (go.dev/issues/59956).
+ 				// TODO(gri) Consider only doing this if a function argument appears
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index bcebc2f2c0..32671403c2 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -936,3 +936,47 @@ func _()        { f() }
+ 	conf.Error = func(error) {}
+ 	typecheck(src, &conf, nil) // must not panic
+ }
++
++func TestIssue63260(t *testing.T) {
++	const src = `
++package p
++
++func _() {
++        use(f[*string])
++}
++
++func use(func()) {}
++
++func f[I *T, T any]() {
++        var v T
++        _ = v
++}`
++
++	info := Info{
++		Defs: make(map[*syntax.Name]Object),
++	}
++	pkg := mustTypecheck(src, nil, &info)
++
++	// get type parameter T in signature of f
++	T := pkg.Scope().Lookup("f").Type().(*Signature).TypeParams().At(1)
++	if T.Obj().Name() != "T" {
++		t.Fatalf("got type parameter %s, want T", T)
++	}
++
++	// get type of variable v in body of f
++	var v Object
++	for name, obj := range info.Defs {
++		if name.Value == "v" {
++			v = obj
++			break
++		}
++	}
++	if v == nil {
++		t.Fatal("variable v not found")
++	}
++
++	// type of v and T must be pointer-identical
++	if v.Type() != T {
++		t.Fatalf("types of v and T are not pointer-identical: %p != %p", v.Type().(*TypeParam), T)
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index c48f926bf8..11f543f475 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -533,3 +533,9 @@ func maxType(x, y Type) Type {
+ 	}
+ 	return nil
+ }
++
++// clone makes a "flat copy" of *p and returns a pointer to the copy.
++func clone[P *T, T any](p P) P {
++	c := *p
++	return &c
++}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 18c40629a5..12f547ea38 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -571,6 +571,13 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 		for i, arg := range args {
+ 			// generic arguments cannot have a defined (*Named) type - no need for underlying type below
+ 			if asig, _ := arg.typ.(*Signature); asig != nil && asig.TypeParams().Len() > 0 {
++				// The argument type is a generic function signature. This type is
++				// pointer-identical with (it's copied from) the type of the generic
++				// function argument and thus the function object.
++				// Before we change the type (type parameter renaming, below), make
++				// a clone of it as otherwise we implicitly modify the object's type
++				// (go.dev/issues/63260).
++				asig = clone(asig)
+ 				// Rename type parameters for cases like f(g, g); this gives each
+ 				// generic function argument a unique type identity (go.dev/issues/59956).
+ 				// TODO(gri) Consider only doing this if a function argument appears
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index bdc1a388d8..5530fceef6 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -946,3 +946,47 @@ func _()        { f() }
+ 	conf.Error = func(error) {}
+ 	typecheck(src, &conf, nil) // must not panic
+ }
++
++func TestIssue63260(t *testing.T) {
++	const src = `
++package p
++
++func _() {
++        use(f[*string])
++}
++
++func use(func()) {}
++
++func f[I *T, T any]() {
++        var v T
++        _ = v
++}`
++
++	info := Info{
++		Defs: make(map[*ast.Ident]Object),
++	}
++	pkg := mustTypecheck(src, nil, &info)
++
++	// get type parameter T in signature of f
++	T := pkg.Scope().Lookup("f").Type().(*Signature).TypeParams().At(1)
++	if T.Obj().Name() != "T" {
++		t.Fatalf("got type parameter %s, want T", T)
++	}
++
++	// get type of variable v in body of f
++	var v Object
++	for name, obj := range info.Defs {
++		if name.Name == "v" {
++			v = obj
++			break
++		}
++	}
++	if v == nil {
++		t.Fatal("variable v not found")
++	}
++
++	// type of v and T must be pointer-identical
++	if v.Type() != T {
++		t.Fatalf("types of v and T are not pointer-identical: %p != %p", v.Type().(*TypeParam), T)
++	}
++}
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 331a8f69aa..01804c69c5 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -535,3 +535,9 @@ func maxType(x, y Type) Type {
+ 	}
+ 	return nil
+ }
++
++// clone makes a "flat copy" of *p and returns a pointer to the copy.
++func clone[P *T, T any](p P) P {
++	c := *p
++	return &c
++}

@@ -12,7 +12,34 @@ Date:   Wed Apr 27 13:10:49 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/22501
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go | 3 +++
  src/reflect/type.go     | 1 +
  2 files changed, 4 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 870ccbf521..f8ffaae8e1 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3902,6 +3902,9 @@ func TestSliceOf(t *testing.T) {
+ 	// check construction and use of type not in binary
+ 	type T int
+ 	st := SliceOf(TypeOf(T(1)))
++	if got, want := st.String(), "[]reflect_test.T"; got != want {
++		t.Errorf("SliceOf(T(1)).String()=%q, want %q", got, want)
++	}
+ 	v := MakeSlice(st, 10, 10)
+ 	runtime.GC()
+ 	for i := 0; i < v.Len(); i++ {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 0213d56e83..2ceb3d3f66 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2251,6 +2251,7 @@ func SliceOf(t Type) Type {
+ 	prototype := *(**sliceType)(unsafe.Pointer(&islice))
+ 	slice := new(sliceType)
+ 	*slice = *prototype
++	slice.tflag = 0
+ 	slice.str = resolveReflectName(newName(s, "", "", false))
+ 	slice.hash = fnv1(typ.hash, '[')
+ 	slice.elem = typ

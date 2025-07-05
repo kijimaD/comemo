@@ -12,7 +12,681 @@ Date:   Wed Apr 29 16:09:12 2020 -0700
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/S390X.rules |  42 ++--
  src/cmd/compile/internal/ssa/rewriteS390X.go | 343 ++++++++++++++++++++++-----
  2 files changed, 300 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 82b60895ff..d3234c1a00 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -22,7 +22,7 @@
+ (Div32F ...) => (FDIVS ...)
+ (Div64F ...) => (FDIV ...)
+ 
+-(Div64 ...) -> (DIVD ...)
++(Div64 x y) => (DIVD x y)
+ (Div64u ...) => (DIVDU ...)
+ // DIVW/DIVWU has a 64-bit dividend and a 32-bit divisor,
+ // so a sign/zero extension of the dividend is required.
+@@ -37,7 +37,7 @@
+ (Hmul32  x y) => (SRDconst [32] (MULLD (MOVWreg x) (MOVWreg y)))
+ (Hmul32u x y) => (SRDconst [32] (MULLD (MOVWZreg x) (MOVWZreg y)))
+ 
+-(Mod64 ...) -> (MODD ...)
++(Mod64 x y) => (MODD x y)
+ (Mod64u ...) => (MODDU ...)
+ // MODW/MODWU has a 64-bit dividend and a 32-bit divisor,
+ // so a sign/zero extension of the dividend is required.
+@@ -76,9 +76,9 @@
+ (Not x) => (XORWconst [1] x)
+ 
+ // Lowering pointer arithmetic
+-(OffPtr [off] ptr:(SP)) -> (MOVDaddr [off] ptr)
+-(OffPtr [off] ptr) && is32Bit(off) -> (ADDconst [off] ptr)
+-(OffPtr [off] ptr) -> (ADD (MOVDconst [off]) ptr)
++(OffPtr [off] ptr:(SP)) => (MOVDaddr [int32(off)] ptr)
++(OffPtr [off] ptr) && is32Bit(off) => (ADDconst [int32(off)] ptr)
++(OffPtr [off] ptr) => (ADD (MOVDconst [off]) ptr)
+ 
+ // TODO: optimize these cases?
+ (Ctz64NonZero ...) => (Ctz64 ...)
+@@ -146,11 +146,11 @@
+ // The SYNC instruction (fast-BCR-serialization) prevents store-load
+ // reordering. Other sequences of memory operations (load-load,
+ // store-store and load-store) are already guaranteed not to be reordered.
+-(AtomicLoad(8|32|Acq32|64|Ptr) ...) -> (MOV(BZ|WZ|WZ|D|D)atomicload ...)
++(AtomicLoad(8|32|Acq32|64|Ptr) ptr mem) => (MOV(BZ|WZ|WZ|D|D)atomicload ptr mem)
+ (AtomicStore(8|32|64|PtrNoWB) ptr val mem) => (SYNC (MOV(B|W|D|D)atomicstore ptr val mem))
+ 
+ // Store-release doesn't require store-load ordering.
+-(AtomicStoreRel32 ...) -> (MOVWatomicstore ...)
++(AtomicStoreRel32 ptr val mem) => (MOVWatomicstore ptr val mem)
+ 
+ // Atomic adds.
+ (AtomicAdd32 ptr val mem) => (AddTupleFirst32 val (LAA ptr val mem))
+@@ -161,12 +161,12 @@
+ (Select1     (AddTupleFirst64   _ tuple)) => (Select1 tuple)
+ 
+ // Atomic exchanges.
+-(AtomicExchange32 ...) -> (LoweredAtomicExchange32 ...)
+-(AtomicExchange64 ...) -> (LoweredAtomicExchange64 ...)
++(AtomicExchange32 ptr val mem) => (LoweredAtomicExchange32 ptr val mem)
++(AtomicExchange64 ptr val mem) => (LoweredAtomicExchange64 ptr val mem)
+ 
+ // Atomic compare and swap.
+-(AtomicCompareAndSwap32 ...) -> (LoweredAtomicCas32 ...)
+-(AtomicCompareAndSwap64 ...) -> (LoweredAtomicCas64 ...)
++(AtomicCompareAndSwap32 ptr old new_ mem) => (LoweredAtomicCas32 ptr old new_ mem)
++(AtomicCompareAndSwap64 ptr old new_ mem) => (LoweredAtomicCas64 ptr old new_ mem)
+ 
+ // Atomic and: *(*uint8)(ptr) &= val
+ //
+@@ -342,13 +342,13 @@
+ 
+ // Lowering stores
+ // These more-specific FP versions of Store pattern should come first.
+-(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVSstore ptr val mem)
+ 
+-(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 -> (MOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 -> (MOVWstore ptr val mem)
+-(Store {t} ptr val mem) && t.(*types.Type).Size() == 2 -> (MOVHstore ptr val mem)
+-(Store {t} ptr val mem) && t.(*types.Type).Size() == 1 -> (MOVBstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 => (MOVWstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ 
+ // Lowering moves
+ 
+@@ -420,10 +420,10 @@
+ 	(LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(int32(s)/256)*256]) mem)
+ 
+ // Lowering constants
+-(Const(64|32|16|8) ...) -> (MOVDconst ...)
++(Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
+ (Const(32|64)F ...) => (FMOV(S|D)const ...)
+ (ConstNil) => (MOVDconst [0])
+-(ConstBool ...) -> (MOVDconst ...)
++(ConstBool [b]) => (MOVDconst [b2i(b)])
+ 
+ // Lowering calls
+ (StaticCall ...) => (CALLstatic ...)
+@@ -439,8 +439,8 @@
+ (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
+ (GetCallerSP ...) => (LoweredGetCallerSP ...)
+ (GetCallerPC ...) => (LoweredGetCallerPC ...)
+-(Addr ...) -> (MOVDaddr ...)
+-(LocalAddr {sym} base _) -> (MOVDaddr {sym} base)
++(Addr {sym} base) => (MOVDaddr {sym} base)
++(LocalAddr {sym} base _) => (MOVDaddr {sym} base)
+ (ITab (Load ptr mem)) => (MOVDload ptr mem)
+ 
+ // block rewrites
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 072de24fe7..dc9b143562 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -28,8 +28,7 @@ func rewriteValueS390X(v *Value) bool {
+ 		v.Op = OpS390XADD
+ 		return true
+ 	case OpAddr:
+-		v.Op = OpS390XMOVDaddr
+-		return true
++		return rewriteValueS390X_OpAddr(v)
+ 	case OpAnd16:
+ 		v.Op = OpS390XANDW
+ 		return true
+@@ -52,32 +51,23 @@ func rewriteValueS390X(v *Value) bool {
+ 	case OpAtomicAnd8:
+ 		return rewriteValueS390X_OpAtomicAnd8(v)
+ 	case OpAtomicCompareAndSwap32:
+-		v.Op = OpS390XLoweredAtomicCas32
+-		return true
++		return rewriteValueS390X_OpAtomicCompareAndSwap32(v)
+ 	case OpAtomicCompareAndSwap64:
+-		v.Op = OpS390XLoweredAtomicCas64
+-		return true
++		return rewriteValueS390X_OpAtomicCompareAndSwap64(v)
+ 	case OpAtomicExchange32:
+-		v.Op = OpS390XLoweredAtomicExchange32
+-		return true
++		return rewriteValueS390X_OpAtomicExchange32(v)
+ 	case OpAtomicExchange64:
+-		v.Op = OpS390XLoweredAtomicExchange64
+-		return true
++		return rewriteValueS390X_OpAtomicExchange64(v)
+ 	case OpAtomicLoad32:
+-		v.Op = OpS390XMOVWZatomicload
+-		return true
++		return rewriteValueS390X_OpAtomicLoad32(v)
+ 	case OpAtomicLoad64:
+-		v.Op = OpS390XMOVDatomicload
+-		return true
++		return rewriteValueS390X_OpAtomicLoad64(v)
+ 	case OpAtomicLoad8:
+-		v.Op = OpS390XMOVBZatomicload
+-		return true
++		return rewriteValueS390X_OpAtomicLoad8(v)
+ 	case OpAtomicLoadAcq32:
+-		v.Op = OpS390XMOVWZatomicload
+-		return true
++		return rewriteValueS390X_OpAtomicLoadAcq32(v)
+ 	case OpAtomicLoadPtr:
+-		v.Op = OpS390XMOVDatomicload
+-		return true
++		return rewriteValueS390X_OpAtomicLoadPtr(v)
+ 	case OpAtomicOr8:
+ 		return rewriteValueS390X_OpAtomicOr8(v)
+ 	case OpAtomicStore32:
+@@ -89,8 +79,7 @@ func rewriteValueS390X(v *Value) bool {
+ 	case OpAtomicStorePtrNoWB:
+ 		return rewriteValueS390X_OpAtomicStorePtrNoWB(v)
+ 	case OpAtomicStoreRel32:
+-		v.Op = OpS390XMOVWatomicstore
+-		return true
++		return rewriteValueS390X_OpAtomicStoreRel32(v)
+ 	case OpAvg64u:
+ 		return rewriteValueS390X_OpAvg64u(v)
+ 	case OpBitLen64:
+@@ -119,26 +108,21 @@ func rewriteValueS390X(v *Value) bool {
+ 		v.Op = OpS390XNOTW
+ 		return true
+ 	case OpConst16:
+-		v.Op = OpS390XMOVDconst
+-		return true
++		return rewriteValueS390X_OpConst16(v)
+ 	case OpConst32:
+-		v.Op = OpS390XMOVDconst
+-		return true
++		return rewriteValueS390X_OpConst32(v)
+ 	case OpConst32F:
+ 		v.Op = OpS390XFMOVSconst
+ 		return true
+ 	case OpConst64:
+-		v.Op = OpS390XMOVDconst
+-		return true
++		return rewriteValueS390X_OpConst64(v)
+ 	case OpConst64F:
+ 		v.Op = OpS390XFMOVDconst
+ 		return true
+ 	case OpConst8:
+-		v.Op = OpS390XMOVDconst
+-		return true
++		return rewriteValueS390X_OpConst8(v)
+ 	case OpConstBool:
+-		v.Op = OpS390XMOVDconst
+-		return true
++		return rewriteValueS390X_OpConstBool(v)
+ 	case OpConstNil:
+ 		return rewriteValueS390X_OpConstNil(v)
+ 	case OpCtz32:
+@@ -220,8 +204,7 @@ func rewriteValueS390X(v *Value) bool {
+ 	case OpDiv32u:
+ 		return rewriteValueS390X_OpDiv32u(v)
+ 	case OpDiv64:
+-		v.Op = OpS390XDIVD
+-		return true
++		return rewriteValueS390X_OpDiv64(v)
+ 	case OpDiv64F:
+ 		v.Op = OpS390XFDIV
+ 		return true
+@@ -370,8 +353,7 @@ func rewriteValueS390X(v *Value) bool {
+ 	case OpMod32u:
+ 		return rewriteValueS390X_OpMod32u(v)
+ 	case OpMod64:
+-		v.Op = OpS390XMODD
+-		return true
++		return rewriteValueS390X_OpMod64(v)
+ 	case OpMod64u:
+ 		v.Op = OpS390XMODDU
+ 		return true
+@@ -945,6 +927,19 @@ func rewriteValueS390X_OpAdd64F(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpAddr(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Addr {sym} base)
++	// result: (MOVDaddr {sym} base)
++	for {
++		sym := auxToSym(v.Aux)
++		base := v_0
++		v.reset(OpS390XMOVDaddr)
++		v.Aux = symToAux(sym)
++		v.AddArg(base)
++		return true
++	}
++}
+ func rewriteValueS390X_OpAtomicAdd32(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+@@ -1010,6 +1005,135 @@ func rewriteValueS390X_OpAtomicAnd8(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpAtomicCompareAndSwap32(v *Value) bool {
++	v_3 := v.Args[3]
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
++	// result: (LoweredAtomicCas32 ptr old new_ mem)
++	for {
++		ptr := v_0
++		old := v_1
++		new_ := v_2
++		mem := v_3
++		v.reset(OpS390XLoweredAtomicCas32)
++		v.AddArg4(ptr, old, new_, mem)
++		return true
++	}
++}
++func rewriteValueS390X_OpAtomicCompareAndSwap64(v *Value) bool {
++	v_3 := v.Args[3]
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicCompareAndSwap64 ptr old new_ mem)
++	// result: (LoweredAtomicCas64 ptr old new_ mem)
++	for {
++		ptr := v_0
++		old := v_1
++		new_ := v_2
++		mem := v_3
++		v.reset(OpS390XLoweredAtomicCas64)
++		v.AddArg4(ptr, old, new_, mem)
++		return true
++	}
++}
++func rewriteValueS390X_OpAtomicExchange32(v *Value) bool {
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicExchange32 ptr val mem)
++	// result: (LoweredAtomicExchange32 ptr val mem)
++	for {
++		ptr := v_0
++		val := v_1
++		mem := v_2
++		v.reset(OpS390XLoweredAtomicExchange32)
++		v.AddArg3(ptr, val, mem)
++		return true
++	}
++}
++func rewriteValueS390X_OpAtomicExchange64(v *Value) bool {
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicExchange64 ptr val mem)
++	// result: (LoweredAtomicExchange64 ptr val mem)
++	for {
++		ptr := v_0
++		val := v_1
++		mem := v_2
++		v.reset(OpS390XLoweredAtomicExchange64)
++		v.AddArg3(ptr, val, mem)
++		return true
++	}
++}
++func rewriteValueS390X_OpAtomicLoad32(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicLoad32 ptr mem)
++	// result: (MOVWZatomicload ptr mem)
++	for {
++		ptr := v_0
++		mem := v_1
++		v.reset(OpS390XMOVWZatomicload)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++}
++func rewriteValueS390X_OpAtomicLoad64(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicLoad64 ptr mem)
++	// result: (MOVDatomicload ptr mem)
++	for {
++		ptr := v_0
++		mem := v_1
++		v.reset(OpS390XMOVDatomicload)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++}
++func rewriteValueS390X_OpAtomicLoad8(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicLoad8 ptr mem)
++	// result: (MOVBZatomicload ptr mem)
++	for {
++		ptr := v_0
++		mem := v_1
++		v.reset(OpS390XMOVBZatomicload)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++}
++func rewriteValueS390X_OpAtomicLoadAcq32(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicLoadAcq32 ptr mem)
++	// result: (MOVWZatomicload ptr mem)
++	for {
++		ptr := v_0
++		mem := v_1
++		v.reset(OpS390XMOVWZatomicload)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++}
++func rewriteValueS390X_OpAtomicLoadPtr(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicLoadPtr ptr mem)
++	// result: (MOVDatomicload ptr mem)
++	for {
++		ptr := v_0
++		mem := v_1
++		v.reset(OpS390XMOVDatomicload)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++}
+ func rewriteValueS390X_OpAtomicOr8(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+@@ -1108,6 +1232,21 @@ func rewriteValueS390X_OpAtomicStorePtrNoWB(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpAtomicStoreRel32(v *Value) bool {
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicStoreRel32 ptr val mem)
++	// result: (MOVWatomicstore ptr val mem)
++	for {
++		ptr := v_0
++		val := v_1
++		mem := v_2
++		v.reset(OpS390XMOVWatomicstore)
++		v.AddArg3(ptr, val, mem)
++		return true
++	}
++}
+ func rewriteValueS390X_OpAvg64u(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -1157,6 +1296,56 @@ func rewriteValueS390X_OpCeil(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpConst16(v *Value) bool {
++	// match: (Const16 [val])
++	// result: (MOVDconst [int64(val)])
++	for {
++		val := auxIntToInt16(v.AuxInt)
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64ToAuxInt(int64(val))
++		return true
++	}
++}
++func rewriteValueS390X_OpConst32(v *Value) bool {
++	// match: (Const32 [val])
++	// result: (MOVDconst [int64(val)])
++	for {
++		val := auxIntToInt32(v.AuxInt)
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64ToAuxInt(int64(val))
++		return true
++	}
++}
++func rewriteValueS390X_OpConst64(v *Value) bool {
++	// match: (Const64 [val])
++	// result: (MOVDconst [int64(val)])
++	for {
++		val := auxIntToInt64(v.AuxInt)
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64ToAuxInt(int64(val))
++		return true
++	}
++}
++func rewriteValueS390X_OpConst8(v *Value) bool {
++	// match: (Const8 [val])
++	// result: (MOVDconst [int64(val)])
++	for {
++		val := auxIntToInt8(v.AuxInt)
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64ToAuxInt(int64(val))
++		return true
++	}
++}
++func rewriteValueS390X_OpConstBool(v *Value) bool {
++	// match: (ConstBool [b])
++	// result: (MOVDconst [b2i(b)])
++	for {
++		b := auxIntToBool(v.AuxInt)
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64ToAuxInt(b2i(b))
++		return true
++	}
++}
+ func rewriteValueS390X_OpConstNil(v *Value) bool {
+ 	// match: (ConstNil)
+ 	// result: (MOVDconst [0])
+@@ -1290,6 +1479,19 @@ func rewriteValueS390X_OpDiv32u(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpDiv64(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (Div64 x y)
++	// result: (DIVD x y)
++	for {
++		x := v_0
++		y := v_1
++		v.reset(OpS390XDIVD)
++		v.AddArg2(x, y)
++		return true
++	}
++}
+ func rewriteValueS390X_OpDiv8(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -2276,10 +2478,10 @@ func rewriteValueS390X_OpLocalAddr(v *Value) bool {
+ 	// match: (LocalAddr {sym} base _)
+ 	// result: (MOVDaddr {sym} base)
+ 	for {
+-		sym := v.Aux
++		sym := auxToSym(v.Aux)
+ 		base := v_0
+ 		v.reset(OpS390XMOVDaddr)
+-		v.Aux = sym
++		v.Aux = symToAux(sym)
+ 		v.AddArg(base)
+ 		return true
+ 	}
+@@ -2980,6 +3182,19 @@ func rewriteValueS390X_OpMod32u(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpMod64(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (Mod64 x y)
++	// result: (MODD x y)
++	for {
++		x := v_0
++		y := v_1
++		v.reset(OpS390XMODD)
++		v.AddArg2(x, y)
++		return true
++	}
++}
+ func rewriteValueS390X_OpMod8(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -3541,40 +3756,40 @@ func rewriteValueS390X_OpOffPtr(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (OffPtr [off] ptr:(SP))
+-	// result: (MOVDaddr [off] ptr)
++	// result: (MOVDaddr [int32(off)] ptr)
+ 	for {
+-		off := v.AuxInt
++		off := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		if ptr.Op != OpSP {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVDaddr)
+-		v.AuxInt = off
++		v.AuxInt = int32ToAuxInt(int32(off))
+ 		v.AddArg(ptr)
+ 		return true
+ 	}
+ 	// match: (OffPtr [off] ptr)
+ 	// cond: is32Bit(off)
+-	// result: (ADDconst [off] ptr)
++	// result: (ADDconst [int32(off)] ptr)
+ 	for {
+-		off := v.AuxInt
++		off := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		if !(is32Bit(off)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XADDconst)
+-		v.AuxInt = off
++		v.AuxInt = int32ToAuxInt(int32(off))
+ 		v.AddArg(ptr)
+ 		return true
+ 	}
+ 	// match: (OffPtr [off] ptr)
+ 	// result: (ADD (MOVDconst [off]) ptr)
+ 	for {
+-		off := v.AuxInt
++		off := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		v.reset(OpS390XADD)
+ 		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
+-		v0.AuxInt = off
++		v0.AuxInt = int64ToAuxInt(off)
+ 		v.AddArg2(v0, ptr)
+ 		return true
+ 	}
+@@ -18708,14 +18923,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.(*types.Type).Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && is64BitFloat(val.Type)
+ 	// result: (FMOVDstore ptr val mem)
+ 	for {
+-		t := v.Aux
++		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.(*types.Type).Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XFMOVDstore)
+@@ -18723,14 +18938,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.(*types.Type).Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && is32BitFloat(val.Type)
+ 	// result: (FMOVSstore ptr val mem)
+ 	for {
+-		t := v.Aux
++		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.(*types.Type).Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XFMOVSstore)
+@@ -18738,14 +18953,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.(*types.Type).Size() == 8
++	// cond: t.Size() == 8
+ 	// result: (MOVDstore ptr val mem)
+ 	for {
+-		t := v.Aux
++		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.(*types.Type).Size() == 8) {
++		if !(t.Size() == 8) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVDstore)
+@@ -18753,14 +18968,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.(*types.Type).Size() == 4
++	// cond: t.Size() == 4
+ 	// result: (MOVWstore ptr val mem)
+ 	for {
+-		t := v.Aux
++		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.(*types.Type).Size() == 4) {
++		if !(t.Size() == 4) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVWstore)
+@@ -18768,14 +18983,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.(*types.Type).Size() == 2
++	// cond: t.Size() == 2
+ 	// result: (MOVHstore ptr val mem)
+ 	for {
+-		t := v.Aux
++		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.(*types.Type).Size() == 2) {
++		if !(t.Size() == 2) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVHstore)
+@@ -18783,14 +18998,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.(*types.Type).Size() == 1
++	// cond: t.Size() == 1
+ 	// result: (MOVBstore ptr val mem)
+ 	for {
+-		t := v.Aux
++		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.(*types.Type).Size() == 1) {
++		if !(t.Size() == 1) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVBstore)

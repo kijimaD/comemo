@@ -14,7 +14,7 @@ Date:   Wed Jun 24 15:58:47 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/248325
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go       |  4 ++--
  src/cmd/go/internal/modcmd/download.go |  2 +-
  src/cmd/go/internal/modcmd/graph.go    |  2 +-
@@ -24,3 +24,194 @@ Date:   Wed Jun 24 15:58:47 2020 -0400
  src/cmd/go/internal/modload/list.go    |  9 +++++----
  src/cmd/go/internal/modload/load.go    | 23 ++++++++++++++---------
  8 files changed, 29 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 7747e730ae..7303e6c866 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -413,9 +413,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 		}
+ 
+-		modload.LoadBuildList()
++		modload.LoadBuildList(ctx)
+ 
+-		mods := modload.ListModules(args, *listU, *listVersions)
++		mods := modload.ListModules(ctx, args, *listU, *listVersions)
+ 		if !*listE {
+ 			for _, m := range mods {
+ 				if m.Error != nil {
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index b43c32be5a..946e8ed3cf 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -106,7 +106,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	var work par.Work
+ 	listU := false
+ 	listVersions := false
+-	for _, info := range modload.ListModules(args, listU, listVersions) {
++	for _, info := range modload.ListModules(ctx, args, listU, listVersions) {
+ 		if info.Replace != nil {
+ 			info = info.Replace
+ 		}
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index fff5b02626..4853503fd4 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -49,7 +49,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+ 			base.Fatalf("go: cannot find main module; see 'go help modules'")
+ 		}
+ 	}
+-	modload.LoadBuildList()
++	modload.LoadBuildList(ctx)
+ 
+ 	reqs := modload.MinReqs()
+ 	format := func(m module.Version) string {
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 570e571049..73ab714d10 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -60,7 +60,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ 	sem := make(chan token, runtime.GOMAXPROCS(0))
+ 
+ 	// Use a slice of result channels, so that the output is deterministic.
+-	mods := modload.LoadBuildList()[1:]
++	mods := modload.LoadBuildList(ctx)[1:]
+ 	errsChans := make([]<-chan []error, len(mods))
+ 
+ 	for i, mod := range mods {
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index 3f9cf0f120..f400339b25 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -74,7 +74,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+ 				base.Fatalf("go mod why: module query not allowed")
+ 			}
+ 		}
+-		mods := modload.ListModules(args, listU, listVersions)
++		mods := modload.ListModules(ctx, args, listU, listVersions)
+ 		byModule := make(map[module.Version][]string)
+ 		for _, path := range loadALL() {
+ 			m := modload.PackageModule(path)
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index b217196931..93a6bb54d5 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -278,7 +278,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	modload.LoadTests = *getT
+ 
+-	buildList := modload.LoadBuildList()
++	buildList := modload.LoadBuildList(ctx)
+ 	buildList = buildList[:len(buildList):len(buildList)] // copy on append
+ 	versionByPath := make(map[string]string)
+ 	for _, m := range buildList {
+@@ -444,7 +444,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	// packages in unknown modules can't be expanded. This also avoids looking
+ 	// up new modules while loading packages, only to downgrade later.
+ 	queryCache := make(map[querySpec]*query)
+-	byPath := runQueries(queryCache, queries, nil)
++	byPath := runQueries(ctx, queryCache, queries, nil)
+ 
+ 	// Add missing modules to the build list.
+ 	// We call SetBuildList here and elsewhere, since newUpgrader,
+@@ -586,7 +586,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 		// Query target versions for modules providing packages matched by
+ 		// command line arguments.
+-		byPath = runQueries(queryCache, queries, modOnly)
++		byPath = runQueries(ctx, queryCache, queries, modOnly)
+ 
+ 		// Handle upgrades. This is needed for arguments that didn't match
+ 		// modules or matched different modules from a previous iteration. It
+@@ -724,7 +724,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ // versions (including earlier queries in the modOnly map), an error will be
+ // reported. A map from module paths to queries is returned, which includes
+ // queries and modOnly.
+-func runQueries(cache map[querySpec]*query, queries []*query, modOnly map[string]*query) map[string]*query {
++func runQueries(ctx context.Context, cache map[querySpec]*query, queries []*query, modOnly map[string]*query) map[string]*query {
+ 	var lookup par.Work
+ 	for _, q := range queries {
+ 		if cached := cache[q.querySpec]; cached != nil {
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 9400793bcb..4768516e90 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -5,6 +5,7 @@
+ package modload
+ 
+ import (
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"os"
+@@ -19,8 +20,8 @@ import (
+ 	"golang.org/x/mod/module"
+ )
+ 
+-func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePublic {
+-	mods := listModules(args, listVersions)
++func ListModules(ctx context.Context, args []string, listU, listVersions bool) []*modinfo.ModulePublic {
++	mods := listModules(ctx, args, listVersions)
+ 	if listU || listVersions {
+ 		var work par.Work
+ 		for _, m := range mods {
+@@ -42,8 +43,8 @@ func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePubli
+ 	return mods
+ }
+ 
+-func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
+-	LoadBuildList()
++func listModules(ctx context.Context, args []string, listVersions bool) []*modinfo.ModulePublic {
++	LoadBuildList(ctx)
+ 	if len(args) == 0 {
+ 		return []*modinfo.ModulePublic{moduleInfo(buildList[0], true)}
+ 	}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 30992e0cc2..8190009b23 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -6,14 +6,7 @@ package modload
+ 
+ import (
+ 	"bytes"
+-	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+-	"cmd/go/internal/imports"
+-	"cmd/go/internal/modfetch"
+-	"cmd/go/internal/mvs"
+-	"cmd/go/internal/par"
+-	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
+@@ -24,6 +17,16 @@ import (
+ 	"sort"
+ 	"strings"
+ 
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/imports"
++	"cmd/go/internal/modfetch"
++	"cmd/go/internal/mvs"
++	"cmd/go/internal/par"
++	"cmd/go/internal/search"
++	"cmd/go/internal/str"
++	"cmd/go/internal/trace"
++
+ 	"golang.org/x/mod/module"
+ )
+ 
+@@ -385,7 +388,9 @@ func DirImportPath(dir string) string {
+ // LoadBuildList need only be called if ImportPaths is not
+ // (typically in commands that care about the module but
+ // no particular package).
+-func LoadBuildList() []module.Version {
++func LoadBuildList(ctx context.Context) []module.Version {
++	ctx, span := trace.StartSpan(ctx, "LoadBuildList")
++	defer span.Done()
+ 	InitMod()
+ 	ReloadBuildList()
+ 	WriteGoMod()

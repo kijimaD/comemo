@@ -15,9 +15,123 @@ Date:   Fri Aug 23 21:05:49 2013 -0500
     R=golang-dev
     CC=bradfitz, golang-dev, r
     https://golang.org/cl/13203043
-
+---
  src/pkg/os/user/lookup_plan9.go | 46 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/os/user/lookup_stubs.go |  2 +-
  src/pkg/os/user/user.go         |  2 ++
  src/pkg/os/user/user_test.go    | 10 ++++++++-
  4 files changed, 58 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/user/lookup_plan9.go b/src/pkg/os/user/lookup_plan9.go
+new file mode 100644
+index 0000000000..f7ef3482b7
+--- /dev/null
++++ b/src/pkg/os/user/lookup_plan9.go
+@@ -0,0 +1,46 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package user
++
++import (
++	"fmt"
++	"io/ioutil"
++	"os"
++	"syscall"
++)
++
++// Partial os/user support on Plan 9.
++// Supports Current(), but not Lookup()/LookupId().
++// The latter two would require parsing /adm/users.
++const (
++	userFile = "/dev/user"
++)
++
++func current() (*User, error) {
++	ubytes, err := ioutil.ReadFile(userFile)
++	if err != nil {
++		return nil, fmt.Errorf("user: %s", err)
++	}
++
++	uname := string(ubytes)
++
++	u := &User{
++		Uid:      uname,
++		Gid:      uname,
++		Username: uname,
++		Name:     uname,
++		HomeDir:  os.Getenv("home"),
++	}
++
++	return u, nil
++}
++
++func lookup(username string) (*User, error) {
++	return nil, syscall.EPLAN9
++}
++
++func lookupId(uid string) (*User, error) {
++	return nil, syscall.EPLAN9
++}
+diff --git a/src/pkg/os/user/lookup_stubs.go b/src/pkg/os/user/lookup_stubs.go
+index ad06907b5d..86f0e6e645 100644
+--- a/src/pkg/os/user/lookup_stubs.go
++++ b/src/pkg/os/user/lookup_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !cgo,!windows
++// +build !cgo,!windows,!plan9
+ 
+ package user
+ 
+diff --git a/src/pkg/os/user/user.go b/src/pkg/os/user/user.go
+index 841f2263f9..e8680fe546 100644
+--- a/src/pkg/os/user/user.go
++++ b/src/pkg/os/user/user.go
+@@ -16,6 +16,8 @@ var implemented = true // set to false by lookup_stubs.go's init
+ // On posix systems Uid and Gid contain a decimal number
+ // representing uid and gid. On windows Uid and Gid
+ // contain security identifier (SID) in a string format.
++// On Plan 9, Uid, Gid, Username, and Name will be the
++// contents of /dev/user.
+ type User struct {
+ 	Uid      string // user id
+ 	Gid      string // primary group id
+diff --git a/src/pkg/os/user/user_test.go b/src/pkg/os/user/user_test.go
+index 444a9aacd4..0421894bac 100644
+--- a/src/pkg/os/user/user_test.go
++++ b/src/pkg/os/user/user_test.go
+@@ -14,7 +14,7 @@ func check(t *testing.T) {
+ 		t.Skip("user: not implemented; skipping tests")
+ 	}
+ 	switch runtime.GOOS {
+-	case "linux", "freebsd", "darwin", "windows":
++	case "linux", "freebsd", "darwin", "windows", "plan9":
+ 		// test supported
+ 	default:
+ 		t.Skipf("user: Lookup not implemented on %q; skipping test", runtime.GOOS)
+@@ -61,6 +61,10 @@ func compare(t *testing.T, want, got *User) {
+ func TestLookup(t *testing.T) {
+ 	check(t)
+ 
++	if runtime.GOOS == "plan9" {
++		t.Skipf("Lookup not implemented on %q", runtime.GOOS)
++	}
++
+ 	want, err := Current()
+ 	if err != nil {
+ 		t.Fatalf("Current: %v", err)
+@@ -75,6 +79,10 @@ func TestLookup(t *testing.T) {
+ func TestLookupId(t *testing.T) {
+ 	check(t)
+ 
++	if runtime.GOOS == "plan9" {
++		t.Skipf("LookupId not implemented on %q", runtime.GOOS)
++	}
++
+ 	want, err := Current()
+ 	if err != nil {
+ 		t.Fatalf("Current: %v", err)

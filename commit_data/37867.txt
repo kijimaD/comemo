@@ -9,6 +9,28 @@ Date:   Wed Aug 29 13:56:37 2018 +0200
     Change-Id: I1ac75087e2b811e6479990e12d71f2c1f4f47b64
     Reviewed-on: https://go-review.googlesource.com/132015
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/install-source.html | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index f6d9473d9b..2d12a28869 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -639,14 +639,10 @@ contains further details regarding Go's ARM support.
+ </p>
+ </li>
+ 
+-<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only)
++<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only) <br> <code>$GOMIPS64</code> (for <code>mips64</code> and <code>mips64le</code> only)
+ <p>
+-This sets whether to use floating point instructions.
++	These variables set whether to use floating point instructions. Set to "<code>hardfloat</code>" to use floating point instructions; this is the default.  Set to "<code>softfloat</code>" to use soft floating point.
+ </p>
+-<ul>
+-	<li><code>GOMIPS=hardfloat</code>: use floating point instructions (the default)</li>
+-	<li><code>GOMIPS=softfloat</code>: use soft floating point</li>
+-</ul>
+ </li>
+ 
+ </ul>

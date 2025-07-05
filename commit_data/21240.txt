@@ -7,6 +7,24 @@ Date:   Wed Dec 10 23:29:47 2014 -0800
     Change-Id: Ifa8b2d1d1cebe72f795db34974584a888d55cbd8
     Reviewed-on: https://go-review.googlesource.com/1362
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/os1_nacl.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index 7b4c99a3dd..0a446c452a 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -47,9 +47,9 @@ func crash() {
+ }
+ 
+ //go:nosplit
+-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
+-	*rnd = nil
+-	*rnd_len = 0
++func getRandomData(r []byte) {
++	// TODO: does nacl have a random source we can use?
++	extendRandom(r, 0)
+ }
+ 
+ func goenvs() {

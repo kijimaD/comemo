@@ -15,10 +15,212 @@ Date:   Thu Jan 16 17:05:02 2025 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/643235
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/load/search.go               | 13 ++++
  src/cmd/go/internal/modload/load.go              |  7 +++
  src/cmd/go/internal/search/search.go             |  4 +-
  src/cmd/go/testdata/script/build_perpkgflag.txt  | 35 +++++++++++
  src/cmd/go/testdata/script/list_pattern_work.txt | 79 ++++++++++++++++++++++++
  5 files changed, 136 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/search.go b/src/cmd/go/internal/load/search.go
+index 565996a21f..941cfb77a2 100644
+--- a/src/cmd/go/internal/load/search.go
++++ b/src/cmd/go/internal/load/search.go
+@@ -8,6 +8,7 @@ import (
+ 	"path/filepath"
+ 	"strings"
+ 
++	"cmd/go/internal/modload"
+ 	"cmd/go/internal/search"
+ 	"cmd/internal/pkgpattern"
+ )
+@@ -45,11 +46,23 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
+ 			return matchPath(rel)
+ 		}
+ 	case pattern == "all":
++		// This is slightly inaccurate: it matches every package, which isn't the same
++		// as matching the "all" package pattern.
++		// TODO(matloob): Should we make this more accurate? Does anyone depend on this behavior?
+ 		return func(p *Package) bool { return true }
+ 	case pattern == "std":
+ 		return func(p *Package) bool { return p.Standard }
+ 	case pattern == "cmd":
+ 		return func(p *Package) bool { return p.Standard && strings.HasPrefix(p.ImportPath, "cmd/") }
++	case pattern == "tool" && modload.Enabled():
++		return func(p *Package) bool {
++			return modload.MainModules.Tools()[p.ImportPath]
++		}
++	case pattern == "work" && modload.Enabled():
++		return func(p *Package) bool {
++			return p.Module != nil && modload.MainModules.Contains(p.Module.Path)
++		}
++
+ 	default:
+ 		matchPath := pkgpattern.MatchPattern(pattern)
+ 		return func(p *Package) bool { return matchPath(p.ImportPath) }
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 1a3a4b5a69..67a4125067 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -323,6 +323,13 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 				}
+ 				matchPackages(ctx, m, opts.Tags, includeStd, mg.BuildList())
+ 
++			case m.Pattern() == "work":
++				matchModules := MainModules.Versions()
++				if opts.MainModule != (module.Version{}) {
++					matchModules = []module.Version{opts.MainModule}
++				}
++				matchPackages(ctx, m, opts.Tags, omitStd, matchModules)
++
+ 			case m.Pattern() == "all":
+ 				if ld == nil {
+ 					// The initial roots are the packages and tools in the main module.
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index abc6b8b43c..0d83cbd47d 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -60,14 +60,14 @@ func (m *Match) IsLocal() bool {
+ }
+ 
+ // IsMeta reports whether the pattern is a “meta-package” keyword that represents
+-// multiple packages, such as "std", "cmd", "tool", or "all".
++// multiple packages, such as "std", "cmd", "tool", "work", or "all".
+ func (m *Match) IsMeta() bool {
+ 	return IsMetaPackage(m.pattern)
+ }
+ 
+ // IsMetaPackage checks if name is a reserved package name that expands to multiple packages.
+ func IsMetaPackage(name string) bool {
+-	return name == "std" || name == "cmd" || name == "tool" || name == "all"
++	return name == "std" || name == "cmd" || name == "tool" || name == "work" || name == "all"
+ }
+ 
+ // A MatchError indicates an error that occurred while attempting to match a
+diff --git a/src/cmd/go/testdata/script/build_perpkgflag.txt b/src/cmd/go/testdata/script/build_perpkgflag.txt
+new file mode 100644
+index 0000000000..9a607567a3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_perpkgflag.txt
+@@ -0,0 +1,35 @@
++# Test the work and tool patterns in a per-package flag
++
++go build -n '-gcflags=work=-fakeflag' example.com/foo/a
++stderr 'compile.*-p example.com/foo/a.*-fakeflag'
++! stderr 'compile.*-p example.com/dep.*-fakeflag'
++
++go build -n '-gcflags=tool=-fakeflag' example.com/foo/a example.com/dep/tooldep
++! stderr 'compile.*-p example.com/foo/a.*-fakeflag'
++! stderr 'compile.*-p example.com/dep.*-fakeflag'
++stderr 'compile.*-p main.*-fakeflag.*main.go'
++
++-- go.mod --
++module example.com/foo
++
++go 1.24
++
++tool example.com/dep/tooldep
++
++require example.com/dep v1.0.0
++
++replace example.com/dep => ./dep
++-- a/a.go --
++package a
++
++import _ "example.com/dep"
++-- dep/go.mod --
++module example.com/dep
++
++go 1.24
++-- dep/dep.go --
++package dep
++-- dep/tooldep/main.go --
++package main
++
++import _ "example.com/dep"
+diff --git a/src/cmd/go/testdata/script/list_pattern_work.txt b/src/cmd/go/testdata/script/list_pattern_work.txt
+new file mode 100644
+index 0000000000..bb2911abc1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_pattern_work.txt
+@@ -0,0 +1,79 @@
++cd m
++go list all
++stdout 'example.com/dep'
++stdout 'example.com/m/a'
++stdout 'example.com/m/b'
++go list work
++! stdout 'example.com/dep'
++stdout 'example.com/m/a'
++stdout 'example.com/m/b'
++
++cd ../n
++go list all
++stdout 'example.com/n/c'
++stdout 'example.com/n/d'
++stdout 'unsafe'
++go list work
++stdout 'example.com/n/c'
++stdout 'example.com/n/d'
++! stdout 'unsafe'
++
++cd ../w
++go list all
++stdout 'example.com/dep'
++stdout 'example.com/m/a'
++stdout 'example.com/m/b'
++stdout 'example.com/n/c'
++stdout 'example.com/n/d'
++stdout 'unsafe'
++go list work
++! stdout 'example.com/dep'
++stdout 'example.com/m/a'
++stdout 'example.com/m/b'
++stdout 'example.com/n/c'
++stdout 'example.com/n/d'
++! stdout 'unsafe'
++
++-- m/go.mod --
++module example.com/m
++
++go 1.24
++
++require example.com/dep v1.0.0
++replace example.com/dep v1.0.0 => ../dep
++-- m/a/a.go --
++package a
++-- m/b/b.go --
++package b
++
++import _ "example.com/dep"
++-- n/go.mod --
++module example.com/n
++
++go 1.24
++-- n/c/c.go --
++package c
++-- n/d/d.go --
++package d
++
++import _ "unsafe"
++-- w/go.work --
++go 1.24
++
++use (
++	../m
++	../n
++)
++-- dep/go.mod --
++module example.com/dep
++
++go 1.24
++-- dep/dep.go --
++package dep
++-- want_w_all.txt --
++example.com/dep
++example.com/work/a
++example.com/work/b
++-- want_w_all.txt --
++example.com/work/a
++example.com/work/b

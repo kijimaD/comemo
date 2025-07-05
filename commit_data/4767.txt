@@ -7,7 +7,94 @@ Date:   Tue Feb 2 18:38:04 2010 +1100
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/199052
-
+---
  src/pkg/image/color.go | 23 +++++++++++++++++++++++
  src/pkg/image/image.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+)
+
+diff --git a/src/pkg/image/color.go b/src/pkg/image/color.go
+index 8594ac538b..31ba59280f 100644
+--- a/src/pkg/image/color.go
++++ b/src/pkg/image/color.go
+@@ -100,6 +100,18 @@ func (c NRGBA64Color) RGBA() (r, g, b, a uint32) {
+ 	return
+ }
+ 
++// An AlphaColor represents an 8-bit alpha.
++type AlphaColor struct {
++	A uint8
++}
++
++func (c AlphaColor) RGBA() (r, g, b, a uint32) {
++	a = uint32(c.A)
++	a |= a << 8
++	a |= a << 16
++	return a, a, a, a
++}
++
+ // A ColorModel can convert foreign Colors, with a possible loss of precision, to a Color
+ // from its own color model.
+ type ColorModel interface {
+@@ -176,6 +188,14 @@ func toNRGBA64Color(c Color) Color {
+ 	return NRGBA64Color{uint16(r), uint16(g), uint16(b), uint16(a)}
+ }
+ 
++func toAlphaColor(c Color) Color {
++	if _, ok := c.(AlphaColor); ok { // no-op conversion
++		return c
++	}
++	_, _, _, a := c.RGBA()
++	return AlphaColor{uint8(a >> 24)}
++}
++
+ // The ColorModel associated with RGBAColor.
+ var RGBAColorModel ColorModel = ColorModelFunc(toRGBAColor)
+ 
+@@ -187,3 +207,6 @@ var NRGBAColorModel ColorModel = ColorModelFunc(toNRGBAColor)
+ 
+ // The ColorModel associated with NRGBA64Color.
+ var NRGBA64ColorModel ColorModel = ColorModelFunc(toNRGBA64Color)
++
++// The ColorModel associated with AlphaColor.
++var AlphaColorModel ColorModel = ColorModelFunc(toAlphaColor)
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index b350944187..5c98f64d76 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -135,6 +135,36 @@ func NewNRGBA64(w, h int) *NRGBA64 {
+ 	return &NRGBA64{pixel}
+ }
+ 
++// An Alpha is an in-memory image backed by a 2-D slice of AlphaColor values.
++type Alpha struct {
++	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
++	Pixel [][]AlphaColor
++}
++
++func (p *Alpha) ColorModel() ColorModel { return AlphaColorModel }
++
++func (p *Alpha) Width() int {
++	if len(p.Pixel) == 0 {
++		return 0
++	}
++	return len(p.Pixel[0])
++}
++
++func (p *Alpha) Height() int { return len(p.Pixel) }
++
++func (p *Alpha) At(x, y int) Color { return p.Pixel[y][x] }
++
++func (p *Alpha) Set(x, y int, c Color) { p.Pixel[y][x] = toAlphaColor(c).(AlphaColor) }
++
++// NewAlpha returns a new Alpha with the given width and height.
++func NewAlpha(w, h int) *Alpha {
++	pixel := make([][]AlphaColor, h)
++	for y := 0; y < h; y++ {
++		pixel[y] = make([]AlphaColor, w)
++	}
++	return &Alpha{pixel}
++}
++
+ // A PalettedColorModel represents a fixed palette of colors.
+ type PalettedColorModel []Color
+ 

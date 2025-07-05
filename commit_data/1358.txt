@@ -7,6 +7,20 @@ Date:   Tue Dec 16 18:08:16 2008 -0800
     R=r
     OCL=21385
     CL=21385
-
+---
  usr/gri/pretty/universe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/universe.go b/usr/gri/pretty/universe.go
+index fb199ec353..ed767c2f45 100755
+--- a/usr/gri/pretty/universe.go
++++ b/usr/gri/pretty/universe.go
+@@ -5,7 +5,7 @@
+ package Universe
+ 
+ import (
+-	"array"
++	"array";
+ 	Globals "globals";
+ 	Object "object";
+ 	Type "type";

@@ -20,7 +20,119 @@ Date:   Wed Dec 6 09:53:14 2017 -0700
     Change-Id: I024f6e514bbca8d634218983117db2afffe615fe
     Reviewed-on: https://go-review.googlesource.com/99615
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/int.go      | 37 +++++++++++++++++++++++++++++++++----
  src/math/big/int_test.go | 30 ++++++++++++++----------------
  2 files changed, 47 insertions(+), 20 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index b1d09cdad8..d46b5d8a86 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -819,6 +819,30 @@ func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
+ 	return z
+ }
+ 
++// modSqrt5Mod8 uses Atkin's observation that 2 is not a square mod p
++//   alpha ==  (2*a)^((p-5)/8)    mod p
++//   beta  ==  2*a*alpha^2        mod p  is a square root of -1
++//   b     ==  a*alpha*(beta-1)   mod p  is a square root of a
++// to calculate the square root of any quadratic residue mod p quickly for 5
++// mod 8 primes.
++func (z *Int) modSqrt5Mod8Prime(x, p *Int) *Int {
++	// p == 5 mod 8 implies p = e*8 + 5
++	// e is the quotient and 5 the remainder on division by 8
++	e := new(Int).Rsh(p, 3)  // e = (p - 5) / 8
++	tx := new(Int).Lsh(x, 1) // tx = 2*x
++	alpha := new(Int).Exp(tx, e, p)
++	beta := new(Int).Mul(alpha, alpha)
++	beta.Mod(beta, p)
++	beta.Mul(beta, tx)
++	beta.Mod(beta, p)
++	beta.Sub(beta, intOne)
++	beta.Mul(beta, x)
++	beta.Mod(beta, p)
++	beta.Mul(beta, alpha)
++	z.Mod(beta, p)
++	return z
++}
++
+ // modSqrtTonelliShanks uses the Tonelli-Shanks algorithm to find the square
+ // root of a quadratic residue modulo any prime.
+ func (z *Int) modSqrtTonelliShanks(x, p *Int) *Int {
+@@ -885,12 +909,17 @@ func (z *Int) ModSqrt(x, p *Int) *Int {
+ 		x = new(Int).Mod(x, p)
+ 	}
+ 
+-	// Check whether p is 3 mod 4, and if so, use the faster algorithm.
+-	if len(p.abs) > 0 && p.abs[0]%4 == 3 {
++	switch {
++	case p.abs[0]%4 == 3:
++		// Check whether p is 3 mod 4, and if so, use the faster algorithm.
+ 		return z.modSqrt3Mod4Prime(x, p)
++	case p.abs[0]%8 == 5:
++		// Check whether p is 5 mod 8, use Atkin's algorithm.
++		return z.modSqrt5Mod8Prime(x, p)
++	default:
++		// Otherwise, use Tonelli-Shanks.
++		return z.modSqrtTonelliShanks(x, p)
+ 	}
+-	// Otherwise, use Tonelli-Shanks.
+-	return z.modSqrtTonelliShanks(x, p)
+ }
+ 
+ // Lsh sets z = x << n and returns z.
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 1ef4d150b8..111e2de573 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1360,7 +1360,7 @@ func BenchmarkModSqrt225_Tonelli(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkModSqrt224_3Mod4(b *testing.B) {
++func BenchmarkModSqrt225_3Mod4(b *testing.B) {
+ 	p := tri(225)
+ 	x := new(Int).SetUint64(2)
+ 	for i := 0; i < b.N; i++ {
+@@ -1369,27 +1369,25 @@ func BenchmarkModSqrt224_3Mod4(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
+-	if isRaceBuilder {
+-		b.Skip("skipping on race builder")
+-	}
+-	p := tri(5430)
+-	x := new(Int).SetUint64(2)
++func BenchmarkModSqrt231_Tonelli(b *testing.B) {
++	p := tri(231)
++	p.Sub(p, intOne)
++	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
++	x := new(Int).SetUint64(7)
+ 	for i := 0; i < b.N; i++ {
+-		x.SetUint64(2)
++		x.SetUint64(7)
+ 		x.modSqrtTonelliShanks(x, p)
+ 	}
+ }
+ 
+-func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
+-	if isRaceBuilder {
+-		b.Skip("skipping on race builder")
+-	}
+-	p := tri(5430)
+-	x := new(Int).SetUint64(2)
++func BenchmarkModSqrt231_5Mod8(b *testing.B) {
++	p := tri(231)
++	p.Sub(p, intOne)
++	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
++	x := new(Int).SetUint64(7)
+ 	for i := 0; i < b.N; i++ {
+-		x.SetUint64(2)
+-		x.modSqrt3Mod4Prime(x, p)
++		x.SetUint64(7)
++		x.modSqrt5Mod8Prime(x, p)
+ 	}
+ }
+ 

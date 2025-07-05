@@ -15,9 +15,148 @@ Date:   Wed Jul 24 10:32:31 2024 +0000
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/x509/root_unix_test.go          |  4 ++--
  src/crypto/x509/verify_test.go             |  3 +--
  src/crypto/x509/x509_test.go               | 22 +++++++++++-----------
  src/embed/internal/embedtest/embed_test.go |  3 ++-
  4 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/crypto/x509/root_unix_test.go b/src/crypto/x509/root_unix_test.go
+index d5215b9ff2..2ea69e252a 100644
+--- a/src/crypto/x509/root_unix_test.go
++++ b/src/crypto/x509/root_unix_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+-	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -222,7 +222,7 @@ func TestReadUniqueDirectoryEntries(t *testing.T) {
+ 		gotNames = append(gotNames, fi.Name())
+ 	}
+ 	wantNames := []string{"file", "link-out"}
+-	if !reflect.DeepEqual(gotNames, wantNames) {
++	if !slices.Equal(gotNames, wantNames) {
+ 		t.Errorf("got %q; want %q", gotNames, wantNames)
+ 	}
+ }
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index ca1c744b62..7f6b74b7a0 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -17,7 +17,6 @@ import (
+ 	"internal/testenv"
+ 	"math/big"
+ 	"os/exec"
+-	"reflect"
+ 	"runtime"
+ 	"slices"
+ 	"strconv"
+@@ -2595,7 +2594,7 @@ func TestPathBuilding(t *testing.T) {
+ 				return
+ 			}
+ 			gotChains := chainsToStrings(chains)
+-			if !reflect.DeepEqual(gotChains, tc.expectedChains) {
++			if !slices.Equal(gotChains, tc.expectedChains) {
+ 				t.Errorf("unexpected chains returned:\ngot:\n\t%s\nwant:\n\t%s", strings.Join(gotChains, "\n\t"), strings.Join(tc.expectedChains, "\n\t"))
+ 			}
+ 		})
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index a9483b7091..351fe6ad18 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -783,27 +783,27 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			t.Errorf("%s: SignatureAlgorithm wasn't copied from template. Got %v, want %v", test.name, cert.SignatureAlgorithm, test.sigAlgo)
+ 		}
+ 
+-		if !reflect.DeepEqual(cert.ExtKeyUsage, testExtKeyUsage) {
++		if !slices.Equal(cert.ExtKeyUsage, testExtKeyUsage) {
+ 			t.Errorf("%s: extkeyusage wasn't correctly copied from the template. Got %v, want %v", test.name, cert.ExtKeyUsage, testExtKeyUsage)
+ 		}
+ 
+-		if !reflect.DeepEqual(cert.UnknownExtKeyUsage, testUnknownExtKeyUsage) {
++		if !slices.EqualFunc(cert.UnknownExtKeyUsage, testUnknownExtKeyUsage, asn1.ObjectIdentifier.Equal) {
+ 			t.Errorf("%s: unknown extkeyusage wasn't correctly copied from the template. Got %v, want %v", test.name, cert.UnknownExtKeyUsage, testUnknownExtKeyUsage)
+ 		}
+ 
+-		if !reflect.DeepEqual(cert.OCSPServer, template.OCSPServer) {
++		if !slices.Equal(cert.OCSPServer, template.OCSPServer) {
+ 			t.Errorf("%s: OCSP servers differ from template. Got %v, want %v", test.name, cert.OCSPServer, template.OCSPServer)
+ 		}
+ 
+-		if !reflect.DeepEqual(cert.IssuingCertificateURL, template.IssuingCertificateURL) {
++		if !slices.Equal(cert.IssuingCertificateURL, template.IssuingCertificateURL) {
+ 			t.Errorf("%s: Issuing certificate URLs differ from template. Got %v, want %v", test.name, cert.IssuingCertificateURL, template.IssuingCertificateURL)
+ 		}
+ 
+-		if !reflect.DeepEqual(cert.DNSNames, template.DNSNames) {
++		if !slices.Equal(cert.DNSNames, template.DNSNames) {
+ 			t.Errorf("%s: SAN DNS names differ from template. Got %v, want %v", test.name, cert.DNSNames, template.DNSNames)
+ 		}
+ 
+-		if !reflect.DeepEqual(cert.EmailAddresses, template.EmailAddresses) {
++		if !slices.Equal(cert.EmailAddresses, template.EmailAddresses) {
+ 			t.Errorf("%s: SAN emails differ from template. Got %v, want %v", test.name, cert.EmailAddresses, template.EmailAddresses)
+ 		}
+ 
+@@ -811,11 +811,11 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			t.Errorf("%s: URIs differ from template. Got %v, want %v", test.name, cert.URIs, template.URIs)
+ 		}
+ 
+-		if !reflect.DeepEqual(cert.IPAddresses, template.IPAddresses) {
++		if !slices.EqualFunc(cert.IPAddresses, template.IPAddresses, net.IP.Equal) {
+ 			t.Errorf("%s: SAN IPs differ from template. Got %v, want %v", test.name, cert.IPAddresses, template.IPAddresses)
+ 		}
+ 
+-		if !reflect.DeepEqual(cert.CRLDistributionPoints, template.CRLDistributionPoints) {
++		if !slices.Equal(cert.CRLDistributionPoints, template.CRLDistributionPoints) {
+ 			t.Errorf("%s: CRL distribution points differ from template. Got %v, want %v", test.name, cert.CRLDistributionPoints, template.CRLDistributionPoints)
+ 		}
+ 
+@@ -2405,7 +2405,7 @@ func TestMultipleURLsInCRLDP(t *testing.T) {
+ 		"http://epscd.catcert.net/crl/ec-acc.crl",
+ 		"http://epscd2.catcert.net/crl/ec-acc.crl",
+ 	}
+-	if got := cert.CRLDistributionPoints; !reflect.DeepEqual(got, want) {
++	if got := cert.CRLDistributionPoints; !slices.Equal(got, want) {
+ 		t.Errorf("CRL distribution points = %#v, want #%v", got, want)
+ 	}
+ }
+@@ -3231,10 +3231,10 @@ func TestCertificateRequestRoundtripFields(t *testing.T) {
+ 	}
+ 	out := marshalAndParseCSR(t, in)
+ 
+-	if !reflect.DeepEqual(in.DNSNames, out.DNSNames) {
++	if !slices.Equal(in.DNSNames, out.DNSNames) {
+ 		t.Fatalf("Unexpected DNSNames: got %v, want %v", out.DNSNames, in.DNSNames)
+ 	}
+-	if !reflect.DeepEqual(in.EmailAddresses, out.EmailAddresses) {
++	if !slices.Equal(in.EmailAddresses, out.EmailAddresses) {
+ 		t.Fatalf("Unexpected EmailAddresses: got %v, want %v", out.EmailAddresses, in.EmailAddresses)
+ 	}
+ 	if len(in.IPAddresses) != len(out.IPAddresses) ||
+diff --git a/src/embed/internal/embedtest/embed_test.go b/src/embed/internal/embedtest/embed_test.go
+index a6e673a7bc..875265556f 100644
+--- a/src/embed/internal/embedtest/embed_test.go
++++ b/src/embed/internal/embedtest/embed_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"embed"
+ 	"io"
+ 	"reflect"
++	"slices"
+ 	"testing"
+ 	"testing/fstest"
+ )
+@@ -56,7 +57,7 @@ func testDir(t *testing.T, f embed.FS, name string, expect ...string) {
+ 		}
+ 		names = append(names, name)
+ 	}
+-	if !reflect.DeepEqual(names, expect) {
++	if !slices.Equal(names, expect) {
+ 		t.Errorf("readdir %v = %v, want %v", name, names, expect)
+ 	}
+ }

@@ -19,7 +19,32 @@ Date:   Fri Feb 19 12:42:57 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/noder.go | 3 +++
  test/fixedbugs/bug050.go                | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index d692bf97aa..8c456e4561 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -68,6 +68,9 @@ func LoadPackage(filenames []string) {
+ 		for e := range p.err {
+ 			p.errorAt(e.Pos, "%s", e.Msg)
+ 		}
++		if p.file == nil {
++			base.ErrorExit()
++		}
+ 		lines += p.file.EOF.Line()
+ 	}
+ 	base.Timer.AddEvent(int64(lines), "lines")
+diff --git a/test/fixedbugs/bug050.go b/test/fixedbugs/bug050.go
+index aba68b1dcb..1e299ed99a 100644
+--- a/test/fixedbugs/bug050.go
++++ b/test/fixedbugs/bug050.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

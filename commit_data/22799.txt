@@ -7,8 +7,127 @@ Date:   Thu Apr 9 11:32:47 2015 +1000
     Change-Id: If3c8c9035e12d41647ae4982883f6a979313ea9d
     Reviewed-on: https://go-review.googlesource.com/8682
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/os1_windows.go     | 10 +++++++++-
  src/runtime/os2_windows.go     |  6 ------
  src/runtime/syscall_windows.go | 14 +++++++-------
  3 files changed, 16 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 9a077af88e..508c4951e8 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -94,6 +94,12 @@ var (
+ 	_GetQueuedCompletionStatusEx stdFunction
+ )
+ 
++// Call a Windows function with stdcall conventions,
++// and switch to os stack during the call.
++func asmstdcall(fn unsafe.Pointer)
++
++var asmstdcallAddr unsafe.Pointer
++
+ func loadOptionalSyscalls() {
+ 	var buf [50]byte // large enough for longest string
+ 	strtoptr := func(s string) uintptr {
+@@ -157,6 +163,8 @@ func getVersion() (major, minor byte) {
+ }
+ 
+ func osinit() {
++	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
++
+ 	setBadSignalMsg()
+ 
+ 	loadOptionalSyscalls()
+@@ -391,7 +399,7 @@ func stdcall(fn stdFunction) uintptr {
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
+ 	}
+-	asmcgocall(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&mp.libcall))
++	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
+ 	mp.libcallsp = 0
+ 	return mp.libcall.r1
+ }
+diff --git a/src/runtime/os2_windows.go b/src/runtime/os2_windows.go
+index d5b1f471fc..a867dfeb64 100644
+--- a/src/runtime/os2_windows.go
++++ b/src/runtime/os2_windows.go
+@@ -4,12 +4,6 @@
+ 
+ package runtime
+ 
+-import "unsafe"
+-
+-// Call a Windows function with stdcall conventions,
+-// and switch to os stack during the call.
+-func asmstdcall(fn unsafe.Pointer)
+-
+ func getlasterror() uint32
+ func setlasterror(err uint32)
+ 
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index cd8b8847bd..370b1724d5 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -95,7 +95,7 @@ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
+ 	c.fn = getLoadLibrary()
+ 	c.n = 1
+ 	c.args = uintptr(unsafe.Pointer(&filename))
+-	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+ 	handle = c.r1
+ 	if handle == 0 {
+ 		err = c.err
+@@ -110,7 +110,7 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
+ 	c.fn = getGetProcAddress()
+ 	c.n = 2
+ 	c.args = uintptr(unsafe.Pointer(&handle))
+-	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+ 	outhandle = c.r1
+ 	if outhandle == 0 {
+ 		err = c.err
+@@ -125,7 +125,7 @@ func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	c.fn = fn
+ 	c.n = nargs
+ 	c.args = uintptr(unsafe.Pointer(&a1))
+-	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+ 	return c.r1, c.r2, c.err
+ }
+ 
+@@ -136,7 +136,7 @@ func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
+ 	c.fn = fn
+ 	c.n = nargs
+ 	c.args = uintptr(unsafe.Pointer(&a1))
+-	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+ 	return c.r1, c.r2, c.err
+ }
+ 
+@@ -147,7 +147,7 @@ func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1
+ 	c.fn = fn
+ 	c.n = nargs
+ 	c.args = uintptr(unsafe.Pointer(&a1))
+-	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+ 	return c.r1, c.r2, c.err
+ }
+ 
+@@ -158,7 +158,7 @@ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
+ 	c.fn = fn
+ 	c.n = nargs
+ 	c.args = uintptr(unsafe.Pointer(&a1))
+-	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+ 	return c.r1, c.r2, c.err
+ }
+ 
+@@ -169,6 +169,6 @@ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
+ 	c.fn = fn
+ 	c.n = nargs
+ 	c.args = uintptr(unsafe.Pointer(&a1))
+-	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	cgocall_errno(asmstdcallAddr, unsafe.Pointer(&c))
+ 	return c.r1, c.r2, c.err
+ }

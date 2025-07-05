@@ -17,7 +17,46 @@ Date:   Wed Apr 2 01:37:30 2025 +0000
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/mcheckmark.go | 6 ++++++
  src/runtime/mgcmark.go    | 3 +++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index ebb19a0ceb..318f40f2eb 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -177,6 +177,9 @@ func checkFinalizersAndCleanups() {
+ 		}
+ 
+ 		// Run a checkmark GC using this cleanup and/or finalizer as a root.
++		if debug.checkfinalizers > 1 {
++			print("Scan trace for cleanup/finalizer on ", hex(p), ":\n")
++		}
+ 		runCheckmark(func(gcw *gcWork) {
+ 			switch sp.kind {
+ 			case _KindSpecialFinalizer:
+@@ -185,6 +188,9 @@ func checkFinalizersAndCleanups() {
+ 				gcScanCleanup((*specialCleanup)(unsafe.Pointer(sp)), gcw)
+ 			}
+ 		})
++		if debug.checkfinalizers > 1 {
++			println()
++		}
+ 
+ 		// Now check to see if the object the special is attached to was marked.
+ 		// The roots above do not directly mark p, so if it is marked, then p
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 41a4b1ab5a..b5318e56f8 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1665,6 +1665,9 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
+ 			// Already marked.
+ 			return
+ 		}
++		if debug.checkfinalizers > 1 {
++			print("  mark ", hex(obj), " found at *(", hex(base), "+", hex(off), ")\n")
++		}
+ 	} else {
+ 		if debug.gccheckmark > 0 && span.isFree(objIndex) {
+ 			print("runtime: marking free object ", hex(obj), " found at *(", hex(base), "+", hex(off), ")\n")

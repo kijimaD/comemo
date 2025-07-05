@@ -70,7 +70,7 @@ Date:   Fri Aug 10 00:01:48 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/129059
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/go_test.go                           | 31 ----------
  src/cmd/go/internal/get/get.go                  |  4 +-
  src/cmd/go/internal/load/flag.go                | 50 ----------------
@@ -78,3 +78,382 @@ Date:   Fri Aug 10 00:01:48 2018 -0400
  src/cmd/go/internal/load/search.go              |  9 +--
  src/cmd/go/testdata/script/gcflags_patterns.txt | 71 ++++++++++++++++++++++
  6 files changed, 128 insertions(+), 117 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a7be617af9..3ca50bb475 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5648,37 +5648,6 @@ func TestRelativePkgdir(t *testing.T) {
+ 	tg.run("build", "-i", "-pkgdir=.", "runtime")
+ }
+ 
+-func TestGcflagsPatterns(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no standard packages")
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", "")
+-	tg.setenv("GOCACHE", "off")
+-
+-	tg.run("build", "-n", "-v", "-gcflags= \t\r\n -e", "fmt")
+-	tg.grepStderr("^# fmt", "did not rebuild fmt")
+-	tg.grepStderrNot("^# reflect", "incorrectly rebuilt reflect")
+-
+-	tg.run("build", "-n", "-v", "-gcflags=-e", "fmt", "reflect")
+-	tg.grepStderr("^# fmt", "did not rebuild fmt")
+-	tg.grepStderr("^# reflect", "did not rebuild reflect")
+-	tg.grepStderrNot("^# runtime", "incorrectly rebuilt runtime")
+-
+-	tg.run("build", "-n", "-x", "-v", "-gcflags= \t\r\n reflect \t\r\n = \t\r\n -N", "fmt")
+-	tg.grepStderr("^# fmt", "did not rebuild fmt")
+-	tg.grepStderr("^# reflect", "did not rebuild reflect")
+-	tg.grepStderr("compile.* -N .*-p reflect", "did not build reflect with -N flag")
+-	tg.grepStderrNot("compile.* -N .*-p fmt", "incorrectly built fmt with -N flag")
+-
+-	tg.run("test", "-c", "-n", "-gcflags=-N", "-ldflags=-X=x.y=z", "strings")
+-	tg.grepStderr("compile.* -N .*compare_test.go", "did not compile strings_test package with -N flag")
+-	tg.grepStderr("link.* -X=x.y=z", "did not link strings.test binary with -X flag")
+-
+-	tg.run("test", "-c", "-n", "-gcflags=strings=-N", "-ldflags=strings=-X=x.y=z", "strings")
+-	tg.grepStderr("compile.* -N .*compare_test.go", "did not compile strings_test package with -N flag")
+-	tg.grepStderr("link.* -X=x.y=z", "did not link strings.test binary with -X flag")
+-}
+-
+ func TestGoTestMinusN(t *testing.T) {
+ 	// Intent here is to verify that 'go test -n' works without crashing.
+ 	// This reuses flag_test.go, but really any test would do.
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 47953f09a4..e4148bceb0 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -240,7 +240,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 	}
+ 	load1 := func(path string, mode int) *load.Package {
+ 		if parent == nil {
+-			return load.LoadPackage(path, stk)
++			return load.LoadPackageNoFlags(path, stk)
+ 		}
+ 		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+ 	}
+@@ -329,7 +329,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), files))
+ 
+ 			// The imports might have changed, so reload again.
+-			p = load.ReloadPackage(arg, stk)
++			p = load.ReloadPackageNoFlags(arg, stk)
+ 			if p.Error != nil {
+ 				base.Errorf("%s", p.Error)
+ 				return
+diff --git a/src/cmd/go/internal/load/flag.go b/src/cmd/go/internal/load/flag.go
+index d9177b0de3..7534e65f54 100644
+--- a/src/cmd/go/internal/load/flag.go
++++ b/src/cmd/go/internal/load/flag.go
+@@ -6,7 +6,6 @@ package load
+ 
+ import (
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
+ 	"fmt"
+ 	"strings"
+@@ -92,52 +91,3 @@ func (f *PerPackageFlag) For(p *Package) []string {
+ 	}
+ 	return flags
+ }
+-
+-var (
+-	cmdlineMatchers        []func(*Package) bool
+-	cmdlineMatcherLiterals []func(*Package) bool
+-)
+-
+-// SetCmdlinePatterns records the set of patterns given on the command line,
+-// for use by the PerPackageFlags.
+-func SetCmdlinePatterns(args []string) {
+-	setCmdlinePatterns(args, base.Cwd)
+-}
+-
+-func setCmdlinePatterns(args []string, cwd string) {
+-	if len(args) == 0 {
+-		args = []string{"."}
+-	}
+-	cmdlineMatchers = nil // allow reset for testing
+-	cmdlineMatcherLiterals = nil
+-	for _, arg := range args {
+-		cmdlineMatchers = append(cmdlineMatchers, MatchPackage(arg, cwd))
+-	}
+-	for _, arg := range args {
+-		if !strings.Contains(arg, "...") && !search.IsMetaPackage(arg) {
+-			cmdlineMatcherLiterals = append(cmdlineMatcherLiterals, MatchPackage(arg, cwd))
+-		}
+-	}
+-}
+-
+-// isCmdlinePkg reports whether p is a package listed on the command line.
+-func isCmdlinePkg(p *Package) bool {
+-	for _, m := range cmdlineMatchers {
+-		if m(p) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-// isCmdlinePkgLiteral reports whether p is a package listed as
+-// a literal package argument on the command line
+-// (as opposed to being the result of expanding a wildcard).
+-func isCmdlinePkgLiteral(p *Package) bool {
+-	for _, m := range cmdlineMatcherLiterals {
+-		if m(p) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 3a3a38651c..b7257e77e3 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -374,15 +374,17 @@ func ClearPackageCachePartial(args []string) {
+ 	}
+ }
+ 
+-// reloadPackage is like loadPackage but makes sure
++// ReloadPackageNoFlags is like LoadPackageNoFlags but makes sure
+ // not to use the package cache.
+-func ReloadPackage(arg string, stk *ImportStack) *Package {
++// It is only for use by GOPATH-based "go get".
++// TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
++func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
+ 	p := packageCache[arg]
+ 	if p != nil {
+ 		delete(packageCache, p.Dir)
+ 		delete(packageCache, p.ImportPath)
+ 	}
+-	return LoadPackage(arg, stk)
++	return LoadPackageNoFlags(arg, stk)
+ }
+ 
+ // dirToImportPath returns the pseudo-import path we use for a package
+@@ -431,6 +433,9 @@ const (
+ // but possibly a local import path (an absolute file system path or one beginning
+ // with ./ or ../). A local relative path is interpreted relative to srcDir.
+ // It returns a *Package describing the package found in that directory.
++// LoadImport does not set tool flags and should only be used by
++// this package, as part of a bigger load operation, and by GOPATH-based "go get".
++// TODO(rsc): When GOPATH-based "go get" is removed, unexport this function.
+ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+ 	stk.Push(path)
+ 	defer stk.Pop()
+@@ -1185,27 +1190,6 @@ var foldPath = make(map[string]string)
+ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	p.copyBuild(bp)
+ 
+-	// Decide whether p was listed on the command line.
+-	// Given that load is called while processing the command line,
+-	// you might think we could simply pass a flag down into load
+-	// saying whether we are loading something named on the command
+-	// line or something to satisfy an import. But the first load of a
+-	// package named on the command line may be as a dependency
+-	// of an earlier package named on the command line, not when we
+-	// get to that package during command line processing.
+-	// For example "go test fmt reflect" will load reflect as a dependency
+-	// of fmt before it attempts to load as a command-line argument.
+-	// Because loads are cached, the later load will be a no-op,
+-	// so it is important that the first load can fill in CmdlinePkg correctly.
+-	// Hence the call to a separate matching check here.
+-	p.Internal.CmdlinePkg = isCmdlinePkg(p)
+-	p.Internal.CmdlinePkgLiteral = isCmdlinePkgLiteral(p)
+-
+-	p.Internal.Asmflags = BuildAsmflags.For(p)
+-	p.Internal.Gcflags = BuildGcflags.For(p)
+-	p.Internal.Ldflags = BuildLdflags.For(p)
+-	p.Internal.Gccgoflags = BuildGccgoflags.For(p)
+-
+ 	// The localPrefix is the path we interpret ./ imports relative to.
+ 	// Synthesized main packages sometimes override this.
+ 	if p.Internal.Local {
+@@ -1740,11 +1724,31 @@ func ClearCmdCache() {
+ 	}
+ }
+ 
++// LoadPackage loads the package named by arg.
++func LoadPackage(arg string, stk *ImportStack) *Package {
++	p := loadPackage(arg, stk)
++	setToolFlags(p)
++	return p
++}
++
++// LoadPackageNoFlags is like LoadPackage
++// but does not guarantee that the build tool flags are set in the result.
++// It is only for use by GOPATH-based "go get"
++// and is only appropriate for preliminary loading of packages.
++// A real load using LoadPackage or (more likely)
++// Packages, PackageAndErrors, or PackagesForBuild
++// must be done before passing the package to any build
++// steps, so that the tool flags can be set properly.
++// TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
++func LoadPackageNoFlags(arg string, stk *ImportStack) *Package {
++	return loadPackage(arg, stk)
++}
++
+ // loadPackage is like loadImport but is used for command-line arguments,
+ // not for paths found in import statements. In addition to ordinary import paths,
+ // loadPackage accepts pseudo-paths beginning with cmd/ to denote commands
+ // in the Go command directory, as well as paths to those directories.
+-func LoadPackage(arg string, stk *ImportStack) *Package {
++func loadPackage(arg string, stk *ImportStack) *Package {
+ 	if build.IsLocalImport(arg) {
+ 		dir := arg
+ 		if !filepath.IsAbs(dir) {
+@@ -1843,7 +1847,14 @@ func PackagesAndErrors(patterns []string) []*Package {
+ 
+ 	for _, m := range matches {
+ 		for _, pkg := range m.Pkgs {
+-			p := LoadPackage(pkg, &stk)
++			p := loadPackage(pkg, &stk)
++			p.Internal.CmdlinePkg = true
++			if m.Literal {
++				// Note: do not set = m.Literal unconditionally
++				// because maybe we'll see p matching both
++				// a literal and also a non-literal pattern.
++				p.Internal.CmdlinePkgLiteral = true
++			}
+ 			if seenPkg[p] {
+ 				continue
+ 			}
+@@ -1852,9 +1863,24 @@ func PackagesAndErrors(patterns []string) []*Package {
+ 		}
+ 	}
+ 
++	// Now that CmdlinePkg is set correctly,
++	// compute the effective flags for all loaded packages
++	// (not just the ones matching the patterns but also
++	// their dependencies).
++	setToolFlags(pkgs...)
++
+ 	return pkgs
+ }
+ 
++func setToolFlags(pkgs ...*Package) {
++	for _, p := range PackageList(pkgs) {
++		p.Internal.Asmflags = BuildAsmflags.For(p)
++		p.Internal.Gcflags = BuildGcflags.For(p)
++		p.Internal.Ldflags = BuildLdflags.For(p)
++		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
++	}
++}
++
+ func ImportPaths(args []string) []*search.Match {
+ 	if ModInit(); cfg.ModulesEnabled {
+ 		return ModImportPaths(args)
+@@ -1986,5 +2012,7 @@ func GoFilesPackage(gofiles []string) *Package {
+ 		}
+ 	}
+ 
++	setToolFlags(pkg)
++
+ 	return pkg
+ }
+diff --git a/src/cmd/go/internal/load/search.go b/src/cmd/go/internal/load/search.go
+index d379c7b021..cf09c7b0a8 100644
+--- a/src/cmd/go/internal/load/search.go
++++ b/src/cmd/go/internal/load/search.go
+@@ -6,7 +6,6 @@ package load
+ 
+ import (
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+ 
+ 	"cmd/go/internal/search"
+@@ -28,13 +27,7 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
+ 		}
+ 		dir = filepath.Join(cwd, dir)
+ 		if pattern == "" {
+-			return func(p *Package) bool {
+-				// TODO(rsc): This is wrong. See golang.org/issue/25878.
+-				if runtime.GOOS != "windows" {
+-					return p.Dir == dir
+-				}
+-				return strings.EqualFold(p.Dir, dir)
+-			}
++			return func(p *Package) bool { return p.Dir == dir }
+ 		}
+ 		matchPath := search.MatchPattern(pattern)
+ 		return func(p *Package) bool {
+diff --git a/src/cmd/go/testdata/script/gcflags_patterns.txt b/src/cmd/go/testdata/script/gcflags_patterns.txt
+new file mode 100644
+index 0000000000..fe2cf6f0fb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gcflags_patterns.txt
+@@ -0,0 +1,71 @@
++[!gc] skip 'using -gcflags and -ldflags'
++
++# -gcflags=-e applies to named packages, not dependencies
++go build -n -v -gcflags=-e z1 z2
++stderr 'compile.* -e .*-p z1'
++stderr 'compile.* -e .*-p z2'
++stderr 'compile.* -p y'
++! stderr 'compile.* -e .*-p [^z]'
++
++# -gcflags can specify package=flags, and can be repeated; last match wins
++go build -n -v -gcflags=-e -gcflags=z1=-N z1 z2
++stderr 'compile.* -N .*-p z1'
++! stderr 'compile.* -e .*-p z1'
++! stderr 'compile.* -N .*-p z2'
++stderr 'compile.* -e .*-p z2'
++stderr 'compile.* -p y'
++! stderr 'compile.* -e .*-p [^z]'
++! stderr 'compile.* -N .*-p [^z]'
++
++# -gcflags can have arbitrary spaces around the flags
++go build -n -v -gcflags='  z1 =  	-e 	' z1
++stderr 'compile.* -e .*-p z1'
++
++# -ldflags for implicit test package applies to test binary
++go test -c -n -gcflags=-N -ldflags=-X=x.y=z z1
++stderr 'compile.* -N .*z_test.go'
++stderr 'link.* -X=x.y=z'
++
++# -ldflags for explicit test package applies to test binary
++go test -c -n -gcflags=z1=-N -ldflags=z1=-X=x.y=z z1
++stderr 'compile.* -N .*z_test.go'
++stderr 'link.* -X=x.y=z'
++
++# -ldflags applies to link of command
++go build -n -ldflags=-X=math.pi=3 my/cmd/prog
++stderr 'link.* -X=math.pi=3'
++
++# -ldflags applies to link of command even with strange directory name
++go build -n -ldflags=-X=math.pi=3 my/cmd/prog/
++stderr 'link.* -X=math.pi=3'
++
++# -ldflags applies to current directory
++cd my/cmd/prog
++go build -n -ldflags=-X=math.pi=3
++stderr 'link.* -X=math.pi=3'
++
++# -ldflags applies to current directory even if GOPATH is funny
++[windows] cd $WORK/GoPath/src/my/cmd/prog
++[darwin] cd $WORK/GoPath/src/my/cmd/prog
++go build -n -ldflags=-X=math.pi=3
++stderr 'link.* -X=math.pi=3'
++
++-- z1/z.go --
++package z1
++import _ "y"
++import _ "z2"
++
++-- z1/z_test.go --
++package z1_test
++import "testing"
++func Test(t *testing.T) {}
++
++-- z2/z.go --
++package z2
++
++-- y/y.go --
++package y
++
++-- my/cmd/prog/prog.go --
++package main
++func main() {}

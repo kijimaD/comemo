@@ -9,8 +9,94 @@ Date:   Thu Mar 1 11:48:17 2012 -0500
     R=golang-dev, r, minux.ma
     CC=golang-dev
     https://golang.org/cl/5714049
-
+---
  src/pkg/runtime/mheap.c               |  2 +-
  src/pkg/runtime/proc.c                | 12 ++++++------
  src/pkg/runtime/runtime_linux_test.go | 29 +++++++++++++++++++++++++++++
  3 files changed, 36 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 761246a47f..c877bfca91 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -326,7 +326,7 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ }
+ 
+ // Release (part of) unused memory to OS.
+-// Goroutine created in runtime·schedinit.
++// Goroutine created at startup.
+ // Loop forever.
+ void
+ runtime·MHeap_Scavenger(void)
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index ddac048a00..de7090c527 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -209,8 +209,6 @@ runtime·schedinit(void)
+ 
+ 	mstats.enablegc = 1;
+ 	m->nomemprof--;
+-
+-	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·schedinit);
+ }
+ 
+ extern void main·init(void);
+@@ -228,6 +226,7 @@ runtime·main(void)
+ 	// to preserve the lock.
+ 	runtime·LockOSThread();
+ 	runtime·sched.init = true;
++	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·main);
+ 	main·init();
+ 	runtime·sched.init = false;
+ 	if(!runtime·sched.lockmain)
+@@ -587,10 +586,11 @@ top:
+ 		mput(m);
+ 	}
+ 
+-	// Look for deadlock situation: one single active g which happens to be scvg.
+-	if(runtime·sched.grunning == 1 && runtime·sched.gwait == 0) {
+-		if(scvg->status == Grunning || scvg->status == Gsyscall)
+-			runtime·throw("all goroutines are asleep - deadlock!");
++	// Look for deadlock situation.
++	if((scvg == nil && runtime·sched.grunning == 0) ||
++	   (scvg != nil && runtime·sched.grunning == 1 && runtime·sched.gwait == 0 &&
++	    (scvg->status == Grunning || scvg->status == Gsyscall))) {
++		runtime·throw("all goroutines are asleep - deadlock!");
+ 	}
+ 
+ 	m->nextg = nil;
+diff --git a/src/pkg/runtime/runtime_linux_test.go b/src/pkg/runtime/runtime_linux_test.go
+new file mode 100644
+index 0000000000..5344ed2051
+--- /dev/null
++++ b/src/pkg/runtime/runtime_linux_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	. "runtime"
++	"syscall"
++	"testing"
++)
++
++var pid, tid int
++
++func init() {
++	// Record pid and tid of init thread for use during test.
++	// The call to LockOSThread is just to exercise it;
++	// we can't test that it does anything.
++	// Instead we're testing that the conditions are good
++	// for how it is used in init (must be on main thread).
++	pid, tid = syscall.Getpid(), syscall.Gettid()
++	LockOSThread()
++}
++
++func TestLockOSThread(t *testing.T) {
++	if pid != tid {
++		t.Fatalf("pid=%d but tid=%d", pid, tid)
++	}
++}

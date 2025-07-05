@@ -11,7 +11,7 @@ Date:   Thu Jul 14 17:36:59 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mgc.go            | 2 +-
  src/runtime/panic.go          | 7 +++----
  src/runtime/print.go          | 3 +--
@@ -20,3 +20,153 @@ Date:   Thu Jul 14 17:36:59 2022 -0400
  src/runtime/symtab.go         | 4 ++--
  src/runtime/traceback.go      | 4 ++--
  7 files changed, 13 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c3e91edb1f..1db0984906 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -546,7 +546,7 @@ const (
+ // that the exit condition for the _GCoff phase has been met. The exit
+ // condition should be tested when allocating.
+ func (t gcTrigger) test() bool {
+-	if !memstats.enablegc || panicking != 0 || gcphase != _GCoff {
++	if !memstats.enablegc || panicking.Load() != 0 || gcphase != _GCoff {
+ 		return false
+ 	}
+ 	switch t.kind {
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index a3e676fea4..4fadbfc2e0 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1071,8 +1071,7 @@ func fatal(s string) {
+ var runningPanicDefers atomic.Uint32
+ 
+ // panicking is non-zero when crashing the program for an unrecovered panic.
+-// panicking is incremented and decremented atomically.
+-var panicking uint32
++var panicking atomic.Uint32
+ 
+ // paniclk is held while printing the panic information and stack trace,
+ // so that two concurrent panics don't overlap their output.
+@@ -1209,7 +1208,7 @@ func startpanic_m() bool {
+ 	case 0:
+ 		// Setting dying >0 has the side-effect of disabling this G's writebuf.
+ 		gp.m.dying = 1
+-		atomic.Xadd(&panicking, 1)
++		panicking.Add(1)
+ 		lock(&paniclk)
+ 		if debug.schedtrace > 0 || debug.scheddetail > 0 {
+ 			schedtrace(true)
+@@ -1272,7 +1271,7 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
+ 	}
+ 	unlock(&paniclk)
+ 
+-	if atomic.Xadd(&panicking, -1) != 0 {
++	if panicking.Add(-1) != 0 {
+ 		// Some other m is panicking too.
+ 		// Let it print what it needs to print.
+ 		// Wait forever without chewing up cpu.
+diff --git a/src/runtime/print.go b/src/runtime/print.go
+index b2a642bb86..a1e0b8e134 100644
+--- a/src/runtime/print.go
++++ b/src/runtime/print.go
+@@ -6,7 +6,6 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -40,7 +39,7 @@ var (
+ func recordForPanic(b []byte) {
+ 	printlock()
+ 
+-	if atomic.Load(&panicking) == 0 {
++	if panicking.Load() == 0 {
+ 		// Not actively crashing: maintain circular buffer of print output.
+ 		for i := 0; i < len(b); {
+ 			n := copy(printBacklog[printBacklogIndex:], b[i:])
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 33219419f9..33d7d6f552 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -265,7 +265,7 @@ func main() {
+ 			Gosched()
+ 		}
+ 	}
+-	if atomic.Load(&panicking) != 0 {
++	if panicking.Load() != 0 {
+ 		gopark(nil, nil, waitReasonPanicWait, traceEvGoStop, 1)
+ 	}
+ 
+@@ -5016,7 +5016,7 @@ func checkdead() {
+ 	// freezetheworld will cause all running threads to block.
+ 	// And runtime will essentially enter into deadlock state,
+ 	// except that there is a thread that will call exit soon.
+-	if panicking > 0 {
++	if panicking.Load() > 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 4a0287dcfd..0cf8ba8cdf 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -204,10 +204,10 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ func winthrow(info *exceptionrecord, r *context, gp *g) {
+ 	g0 := getg()
+ 
+-	if panicking != 0 { // traceback already printed
++	if panicking.Load() != 0 { // traceback already printed
+ 		exit(2)
+ 	}
+-	panicking = 1
++	panicking.Store(1)
+ 
+ 	// In case we're handling a g0 stack overflow, blow away the
+ 	// g0 stack bounds so we have room to print the traceback. If
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 4a2d1d90ed..69190233a2 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -902,7 +902,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
+ 	}
+ 
+ 	if !f.valid() {
+-		if strict && panicking == 0 {
++		if strict && panicking.Load() == 0 {
+ 			println("runtime: no module data for", hex(f.entry()))
+ 			throw("no module data")
+ 		}
+@@ -945,7 +945,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
+ 
+ 	// If there was a table, it should have covered all program counters.
+ 	// If not, something is wrong.
+-	if panicking != 0 || !strict {
++	if panicking.Load() != 0 || !strict {
+ 		return -1, 0
+ 	}
+ 
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 6df0bbfabe..96cf82c23e 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1407,7 +1407,7 @@ func printOneCgoTraceback(pc uintptr, max int, arg *cgoSymbolizerArg) int {
+ // callCgoSymbolizer calls the cgoSymbolizer function.
+ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
+ 	call := cgocall
+-	if panicking > 0 || getg().m.curg != getg() {
++	if panicking.Load() > 0 || getg().m.curg != getg() {
+ 		// We do not want to call into the scheduler when panicking
+ 		// or when on the system stack.
+ 		call = asmcgocall
+@@ -1427,7 +1427,7 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
+ 		return
+ 	}
+ 	call := cgocall
+-	if panicking > 0 || getg().m.curg != getg() {
++	if panicking.Load() > 0 || getg().m.curg != getg() {
+ 		// We do not want to call into the scheduler when panicking
+ 		// or when on the system stack.
+ 		call = asmcgocall

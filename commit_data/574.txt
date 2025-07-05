@@ -7,6 +7,29 @@ Date:   Thu Sep 4 10:39:04 2008 -0700
     R=gri
     OCL=14806
     CL=14806
-
+---
  src/lib/fmt.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/fmt.go b/src/lib/fmt.go
+index d68d9dbf23..9099a16306 100644
+--- a/src/lib/fmt.go
++++ b/src/lib/fmt.go
+@@ -112,14 +112,14 @@ func (f *Fmt) pad(s string) {
+ 			if w > NByte {
+ 				w = NByte;
+ 			}
+-			var buf[NByte] byte;  // BUG: should be able to allocate variable size
++			buf := new([]byte, w);
+ 			for i := 0; i < w; i++ {
+ 				buf[i] = ' ';
+ 			}
+ 			if left {
+-				s = string(buf)[0:w] + s;
++				s = string(buf) + s;
+ 			} else {
+-				s = s + string(buf)[0:w];
++				s = s + string(buf);
+ 			}
+ 		}
+ 	}

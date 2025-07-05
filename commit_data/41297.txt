@@ -19,7 +19,93 @@ Date:   Mon Sep 16 14:38:12 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/race.go   | 44 ++++++++++++++++++++++++++++++++++++++++----
  src/runtime/symtab.go | 12 +++++++-----
  2 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index c41e1ba222..d2fc6a3c47 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -155,15 +155,51 @@ func racecallback(cmd uintptr, ctx unsafe.Pointer) {
+ 	}
+ }
+ 
++// raceSymbolizeCode reads ctx.pc and populates the rest of *ctx with
++// information about the code at that pc.
++//
++// The race detector has already subtracted 1 from pcs, so they point to the last
++// byte of call instructions (including calls to runtime.racewrite and friends).
++//
++// If the incoming pc is part of an inlined function, *ctx is populated
++// with information about the inlined function, and on return ctx.pc is set
++// to a pc in the logically containing function. (The race detector should call this
++// function again with that pc.)
++//
++// If the incoming pc is not part of an inlined function, the return pc is unchanged.
+ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
+-	f := findfunc(ctx.pc)._Func()
++	pc := ctx.pc
++	fi := findfunc(pc)
++	f := fi._Func()
+ 	if f != nil {
+-		file, line := f.FileLine(ctx.pc)
++		file, line := f.FileLine(pc)
+ 		if line != 0 {
+-			ctx.fn = cfuncname(f.funcInfo())
++			if inldata := funcdata(fi, _FUNCDATA_InlTree); inldata != nil {
++				inltree := (*[1 << 20]inlinedCall)(inldata)
++				for {
++					ix := pcdatavalue(fi, _PCDATA_InlTreeIndex, pc, nil)
++					if ix >= 0 {
++						if inltree[ix].funcID == funcID_wrapper {
++							// ignore wrappers
++							// Back up to an instruction in the "caller".
++							pc = f.Entry() + uintptr(inltree[ix].parentPc)
++							continue
++						}
++						ctx.pc = f.Entry() + uintptr(inltree[ix].parentPc) // "caller" pc
++						ctx.fn = cfuncnameFromNameoff(fi, inltree[ix].func_)
++						ctx.line = uintptr(line)
++						ctx.file = &bytes(file)[0] // assume NUL-terminated
++						ctx.off = pc - f.Entry()
++						ctx.res = 1
++						return
++					}
++					break
++				}
++			}
++			ctx.fn = cfuncname(fi)
+ 			ctx.line = uintptr(line)
+ 			ctx.file = &bytes(file)[0] // assume NUL-terminated
+-			ctx.off = ctx.pc - f.Entry()
++			ctx.off = pc - f.Entry()
+ 			ctx.res = 1
+ 			return
+ 		}
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index c2f32e0e5d..367e06003a 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -735,13 +735,15 @@ func funcname(f funcInfo) string {
+ 	return gostringnocopy(cfuncname(f))
+ }
+ 
+-func funcnameFromNameoff(f funcInfo, nameoff int32) string {
+-	datap := f.datap
++func cfuncnameFromNameoff(f funcInfo, nameoff int32) *byte {
+ 	if !f.valid() {
+-		return ""
++		return nil
+ 	}
+-	cstr := &datap.pclntable[nameoff]
+-	return gostringnocopy(cstr)
++	return &f.datap.pclntable[nameoff]
++}
++
++func funcnameFromNameoff(f funcInfo, nameoff int32) string {
++	return gostringnocopy(cfuncnameFromNameoff(f, nameoff))
+ }
+ 
+ func funcfile(f funcInfo, fileno int32) string {

@@ -13,6 +13,22 @@ Date:   Wed Sep 28 21:35:52 2022 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/cgo/out.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 8736455f4f..971b845530 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -627,9 +627,7 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
+ // writeOutput creates stubs for a specific source file to be compiled by gc
+ func (p *Package) writeOutput(f *File, srcfile string) {
+ 	base := srcfile
+-	if strings.HasSuffix(base, ".go") {
+-		base = base[0 : len(base)-3]
+-	}
++	base = strings.TrimSuffix(base, ".go")
+ 	base = filepath.Base(base)
+ 	fgo1 := creat(*objDir + base + ".cgo1.go")
+ 	fgcc := creat(*objDir + base + ".cgo2.c")

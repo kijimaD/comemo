@@ -9,8 +9,61 @@ Date:   Fri Jan 20 09:26:17 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5557060
-
+---
  src/cmd/gc/reflect.c        |  2 +-
  src/pkg/reflect/all_test.go | 15 +++++++++++++--
  src/pkg/reflect/type.go     |  2 +-
  3 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index f31053a1be..49aca0906c 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -357,7 +357,7 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
+ 	s = sym;
+ 	if(t->sym) {
+ 		ot = dgostringptr(s, ot, t->sym->name);
+-		if(t != types[t->etype])
++		if(t != types[t->etype] && t != errortype)
+ 			ot = dgopkgpath(s, ot, t->sym->pkg);
+ 		else
+ 			ot = dgostringptr(s, ot, nil);
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 2f9f83fbc6..63b127d102 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1364,8 +1364,19 @@ func TestFieldByName(t *testing.T) {
+ }
+ 
+ func TestImportPath(t *testing.T) {
+-	if path := TypeOf(&base64.Encoding{}).Elem().PkgPath(); path != "encoding/base64" {
+-		t.Errorf(`TypeOf(&base64.Encoding{}).Elem().PkgPath() = %q, want "encoding/base64"`, path)
++	tests := []struct {
++		t    Type
++		path string
++	}{
++		{TypeOf(&base64.Encoding{}).Elem(), "encoding/base64"},
++		{TypeOf(uint(0)), ""},
++		{TypeOf(map[string]int{}), ""},
++		{TypeOf((*error)(nil)).Elem(), ""},
++	}
++	for _, test := range tests {
++		if path := test.t.PkgPath(); path != test.path {
++			t.Errorf("%v.PkgPath() = %q, want %q", test.t, path, test.path)
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index d522a6a0b2..15b32efe37 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -69,7 +69,7 @@ type Type interface {
+ 
+ 	// PkgPath returns the type's package path.
+ 	// The package path is a full package import path like "encoding/base64".
+-	// PkgPath returns an empty string for unnamed types.
++	// PkgPath returns an empty string for unnamed or predeclared types.
+ 	PkgPath() string
+ 
+ 	// Size returns the number of bytes needed to store

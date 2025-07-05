@@ -7,9 +7,185 @@ Date:   Tue Jan 6 15:01:04 2009 -0800
     R=r
     OCL=22160
     CL=22160
-
+---
  usr/gri/pretty/ast.go         | 16 ++++++++--------
  usr/gri/pretty/compilation.go |  4 ++--
  usr/gri/pretty/globals.go     | 12 ++++++------
  usr/gri/pretty/scanner.go     |  6 +++---
  4 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 3c3c039ec1..5969c8fb16 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -56,14 +56,14 @@ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
+ 	if x != nil && x.tok == Scanner.TYPE || y != nil && y.tok == Scanner.TYPE {
+ 		panic("no type expression allowed");
+ 	}
+-	e := new(*Expr);
++	e := new(Expr);
+ 	e.pos, e.tok, e.x, e.y = pos, tok, x, y;
+ 	return e;
+ }
+ 
+ 
+ export func NewLit(pos, tok int, s string) *Expr {
+-	e := new(*Expr);
++	e := new(Expr);
+ 	e.pos, e.tok, e.s = pos, tok, s;
+ 	return e;
+ }
+@@ -112,7 +112,7 @@ func (t *Type) nfields() int {
+ 
+ 
+ export func NewType(pos, tok int) *Type {
+-	t := new(*Type);
++	t := new(Type);
+ 	t.pos, t.tok = pos, tok;
+ 	return t;
+ }
+@@ -120,7 +120,7 @@ export func NewType(pos, tok int) *Type {
+ 
+ // requires complete Type type
+ export func NewTypeExpr(t *Type) *Expr {
+-	e := new(*Expr);
++	e := new(Expr);
+ 	e.pos, e.tok, e.t = t.pos, Scanner.TYPE, t;
+ 	return e;
+ }
+@@ -142,7 +142,7 @@ export type Stat struct {
+ 
+ 
+ export func NewStat(pos, tok int) *Stat {
+-	s := new(*Stat);
++	s := new(Stat);
+ 	s.pos, s.tok = pos, tok;
+ 	return s;
+ }
+@@ -167,7 +167,7 @@ export type Decl struct {
+ 
+ 
+ export func NewDecl(pos, tok int, exported bool) *Decl {
+-	d := new(*Decl);
++	d := new(Decl);
+ 	d.pos, d.tok, d.exported = pos, tok, exported;
+ 	return d;
+ }
+@@ -186,7 +186,7 @@ export type Comment struct {
+ 
+ 
+ export func NewComment(pos int, text string) *Comment {
+-	c := new(*Comment);
++	c := new(Comment);
+ 	c.pos, c.text = pos, text;
+ 	return c;
+ }
+@@ -201,7 +201,7 @@ export type Program struct {
+ 
+ 
+ export func NewProgram(pos int) *Program {
+-	p := new(*Program);
++	p := new(Program);
+ 	p.pos = pos;
+ 	return p;
+ }
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index fb7f416001..ce1923aa0b 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -167,7 +167,7 @@ func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
+ 		if nimports > 0 {
+ 			print(src_file, ".6:\t");
+ 
+-			localset := new(map [string] bool);
++			localset := make(map [string] bool);
+ 			for i := 0; i < nimports; i++ {
+ 				decl := prog.decls.At(i).(*AST.Decl);
+ 				assert(decl.tok == Scanner.IMPORT && decl.val.tok == Scanner.STRING);
+@@ -198,7 +198,7 @@ func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
+ 
+ 
+ export func ComputeDeps(src_file string, flags *Flags) {
+-	globalset := new(map [string] bool);
++	globalset := make(map [string] bool);
+ 	wset := array.New(0);
+ 	wset.Push(src_file);
+ 	for wset.Len() > 0 {
+diff --git a/usr/gri/pretty/globals.go b/usr/gri/pretty/globals.go
+index e51bfb14d0..ffabfde1df 100644
+--- a/usr/gri/pretty/globals.go
++++ b/usr/gri/pretty/globals.go
+@@ -119,7 +119,7 @@ export type Elem struct {
+ export var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
+ 
+ export func NewObject(pos, kind int, ident string) *Object {
+-	obj := new(*Object);
++	obj := new(Object);
+ 	obj.exported = false;
+ 	obj.pos = pos;
+ 	obj.kind = kind;
+@@ -131,7 +131,7 @@ export func NewObject(pos, kind int, ident string) *Object {
+ 
+ 
+ export func NewType(form int) *Type {
+-	typ := new(*Type);
++	typ := new(Type);
+ 	typ.ref = -1;  // not yet exported
+ 	typ.form = form;
+ 	return typ;
+@@ -139,7 +139,7 @@ export func NewType(form int) *Type {
+ 
+ 
+ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+-	pkg := new(*Package);
++	pkg := new(Package);
+ 	pkg.ref = -1;  // not yet exported
+ 	pkg.file_name = file_name;
+ 	pkg.key = "<the package key>";  // empty key means package forward declaration
+@@ -150,9 +150,9 @@ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+ 
+ 
+ export func NewScope(parent *Scope) *Scope {
+-	scope := new(*Scope);
++	scope := new(Scope);
+ 	scope.parent = parent;
+-	scope.entries = new(map[string]*Object, 8);
++	scope.entries = make(map[string]*Object, 8);
+ 	return scope;
+ }
+ 
+@@ -161,7 +161,7 @@ export func NewScope(parent *Scope) *Scope {
+ // Object methods
+ 
+ func (obj *Object) Copy() *Object {
+-	copy := new(*Object);
++	copy := new(Object);
+ 	copy.exported = obj.exported;
+ 	copy.pos = obj.pos;
+ 	copy.kind = obj.kind;
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index e77ade39ee..87f67133a5 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -246,7 +246,7 @@ var Keywords map [string] int;
+ 
+ 
+ func init() {
+-	Keywords = new(map [string] int);
++	Keywords = make(map [string] int);
+ 	for i := KEYWORDS_BEG + 1; i < KEYWORDS_END; i++ {
+ 		Keywords[TokenString(i)] = i;
+ 	}
+@@ -759,10 +759,10 @@ export type Token struct {
+ 
+ 
+ func (S *Scanner) TokenStream() <-chan *Token {
+-	ch := new(chan *Token, 100);
++	ch := make(chan *Token, 100);
+ 	go func(S *Scanner, ch chan <- *Token) {
+ 		for {
+-			t := new(*Token);
++			t := new(Token);
+ 			t.pos, t.tok, t.val = S.Scan();
+ 			ch <- t;
+ 			if t.tok == EOF {

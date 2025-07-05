@@ -15,7 +15,7 @@ Date:   Mon Jan 31 15:12:53 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go        | 18 +++++++++-----
  .../types2/testdata/fixedbugs/issue50912.go2       | 19 ++++++++++++++
  src/go/types/builtins.go                           | 29 +++++++++++++++++-----
@@ -24,3 +24,279 @@ Date:   Mon Jan 31 15:12:53 2022 -0800
  test/typeparam/absdiff3.go                         | 20 +++++++++++++--
  test/typeparam/absdiffimp2.dir/a.go                | 20 +++++++++++++--
  7 files changed, 127 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index cea4fd3631..c2f955ce8c 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -309,7 +309,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			}
+ 			return nil
+ 		}
+-		resTyp := check.applyTypeFunc(f, x.typ)
++		resTyp := check.applyTypeFunc(f, x, id)
+ 		if resTyp == nil {
+ 			check.errorf(x, invalidArg+"arguments have type %s, expected floating-point", x.typ)
+ 			return
+@@ -437,7 +437,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			}
+ 			return nil
+ 		}
+-		resTyp := check.applyTypeFunc(f, x.typ)
++		resTyp := check.applyTypeFunc(f, x, id)
+ 		if resTyp == nil {
+ 			check.errorf(x, invalidArg+"argument has type %s, expected complex type", x.typ)
+ 			return
+@@ -800,8 +800,8 @@ func hasVarSize(t Type) bool {
+ // of x. If any of these applications of f return nil,
+ // applyTypeFunc returns nil.
+ // If x is not a type parameter, the result is f(x).
+-func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+-	if tp, _ := x.(*TypeParam); tp != nil {
++func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId) Type {
++	if tp, _ := x.typ.(*TypeParam); tp != nil {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
+ 		var terms []*Term
+@@ -818,17 +818,23 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 			return nil
+ 		}
+ 
++		// We can type-check this fine but we're introducing a synthetic
++		// type parameter for the result. It's not clear what the API
++		// implications are here. Report an error for 1.18 but continue
++		// type-checking.
++		check.softErrorf(x, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
++
+ 		// Construct a suitable new type parameter for the result type.
+ 		// The type parameter is placed in the current package so export/import
+ 		// works as expected.
+-		tpar := NewTypeName(nopos, check.pkg, "<type parameter>", nil)
++		tpar := NewTypeName(nopos, check.pkg, tp.obj.name, nil)
+ 		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
+ 		ptyp.index = tp.index
+ 
+ 		return ptyp
+ 	}
+ 
+-	return f(x)
++	return f(x.typ)
+ }
+ 
+ // makeSig makes a signature for the given argument and result types.
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50912.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50912.go2
+new file mode 100644
+index 0000000000..f161925049
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50912.go2
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func Real[P ~complex128](x P) {
++	_ = real(x /* ERROR not supported */ )
++}
++
++func Imag[P ~complex128](x P) {
++	_ = imag(x /* ERROR not supported */ )
++}
++
++func Complex[P ~float64](x P) {
++	_ = complex(x /* ERROR not supported */ , 0)
++	_ = complex(0 /* ERROR not supported */ , x)
++	_ = complex(x /* ERROR not supported */ , x)
++}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 35a2d1ae2e..f9aece225b 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -314,7 +314,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			}
+ 			return nil
+ 		}
+-		resTyp := check.applyTypeFunc(f, x.typ)
++		resTyp := check.applyTypeFunc(f, x, id)
+ 		if resTyp == nil {
+ 			check.invalidArg(x, _InvalidComplex, "arguments have type %s, expected floating-point", x.typ)
+ 			return
+@@ -442,7 +442,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			}
+ 			return nil
+ 		}
+-		resTyp := check.applyTypeFunc(f, x.typ)
++		resTyp := check.applyTypeFunc(f, x, id)
+ 		if resTyp == nil {
+ 			code := _InvalidImag
+ 			if id == _Real {
+@@ -809,8 +809,8 @@ func hasVarSize(t Type) bool {
+ // of x. If any of these applications of f return nil,
+ // applyTypeFunc returns nil.
+ // If x is not a type parameter, the result is f(x).
+-func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+-	if tp, _ := x.(*TypeParam); tp != nil {
++func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId) Type {
++	if tp, _ := x.typ.(*TypeParam); tp != nil {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
+ 		var terms []*Term
+@@ -827,17 +827,34 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 			return nil
+ 		}
+ 
++		// We can type-check this fine but we're introducing a synthetic
++		// type parameter for the result. It's not clear what the API
++		// implications are here. Report an error for 1.18 (see #50912),
++		// but continue type-checking.
++		var code errorCode
++		switch id {
++		case _Real:
++			code = _InvalidReal
++		case _Imag:
++			code = _InvalidImag
++		case _Complex:
++			code = _InvalidComplex
++		default:
++			unreachable()
++		}
++		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
++
+ 		// Construct a suitable new type parameter for the result type.
+ 		// The type parameter is placed in the current package so export/import
+ 		// works as expected.
+-		tpar := NewTypeName(token.NoPos, check.pkg, "<type parameter>", nil)
++		tpar := NewTypeName(token.NoPos, check.pkg, tp.obj.name, nil)
+ 		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
+ 		ptyp.index = tp.index
+ 
+ 		return ptyp
+ 	}
+ 
+-	return f(x)
++	return f(x.typ)
+ }
+ 
+ // makeSig makes a signature for the given argument and result types.
+diff --git a/src/go/types/testdata/fixedbugs/issue50912.go2 b/src/go/types/testdata/fixedbugs/issue50912.go2
+new file mode 100644
+index 0000000000..f161925049
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50912.go2
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func Real[P ~complex128](x P) {
++	_ = real(x /* ERROR not supported */ )
++}
++
++func Imag[P ~complex128](x P) {
++	_ = imag(x /* ERROR not supported */ )
++}
++
++func Complex[P ~float64](x P) {
++	_ = complex(x /* ERROR not supported */ , 0)
++	_ = complex(0 /* ERROR not supported */ , x)
++	_ = complex(x /* ERROR not supported */ , x)
++}
+diff --git a/test/typeparam/absdiff2.go b/test/typeparam/absdiff2.go
+index 2d82c4721c..36de8ff2c9 100644
+--- a/test/typeparam/absdiff2.go
++++ b/test/typeparam/absdiff2.go
+@@ -66,9 +66,25 @@ type complexAbs[T Complex] struct {
+ 	Value T
+ }
+ 
++func realimag(x any) (re, im float64) {
++	switch z := x.(type) {
++	case complex64:
++		re = float64(real(z))
++		im = float64(imag(z))
++	case complex128:
++		re = real(z)
++		im = imag(z)
++	default:
++		panic("unknown complex type")
++	}
++	return
++}
++
+ func (a complexAbs[T]) Abs() T {
+-	r := float64(real(a.Value))
+-	i := float64(imag(a.Value))
++	// TODO use direct conversion instead of realimag once #50937 is fixed
++	r, i := realimag(a.Value)
++	// r := float64(real(a.Value))
++	// i := float64(imag(a.Value))
+ 	d := math.Sqrt(r*r + i*i)
+ 	return T(complex(d, 0))
+ }
+diff --git a/test/typeparam/absdiff3.go b/test/typeparam/absdiff3.go
+index 3ca03fe26f..99fa6f11ab 100644
+--- a/test/typeparam/absdiff3.go
++++ b/test/typeparam/absdiff3.go
+@@ -43,9 +43,25 @@ type Complex interface {
+ 	~complex64 | ~complex128
+ }
+ 
++func realimag(x any) (re, im float64) {
++	switch z := x.(type) {
++	case complex64:
++		re = float64(real(z))
++		im = float64(imag(z))
++	case complex128:
++		re = real(z)
++		im = imag(z)
++	default:
++		panic("unknown complex type")
++	}
++	return
++}
++
+ func ComplexAbs[T Complex](a T) T {
+-	r := float64(real(a))
+-	i := float64(imag(a))
++	// TODO use direct conversion instead of realimag once #50937 is fixed
++	r, i := realimag(a)
++	// r := float64(real(a))
++	// i := float64(imag(a))
+ 	d := math.Sqrt(r*r + i*i)
+ 	return T(complex(d, 0))
+ }
+diff --git a/test/typeparam/absdiffimp2.dir/a.go b/test/typeparam/absdiffimp2.dir/a.go
+index 302b69b976..43493e1430 100644
+--- a/test/typeparam/absdiffimp2.dir/a.go
++++ b/test/typeparam/absdiffimp2.dir/a.go
+@@ -60,9 +60,25 @@ type complexAbs[T Complex] struct {
+ 	Value T
+ }
+ 
++func realimag(x any) (re, im float64) {
++	switch z := x.(type) {
++	case complex64:
++		re = float64(real(z))
++		im = float64(imag(z))
++	case complex128:
++		re = real(z)
++		im = imag(z)
++	default:
++		panic("unknown complex type")
++	}
++	return
++}
++
+ func (a complexAbs[T]) Abs() T {
+-	r := float64(real(a.Value))
+-	i := float64(imag(a.Value))
++	// TODO use direct conversion instead of realimag once #50937 is fixed
++	r, i := realimag(a.Value)
++	// r := float64(real(a.Value))
++	// i := float64(imag(a.Value))
+ 	d := math.Sqrt(r*r + i*i)
+ 	return T(complex(d, 0))
+ }

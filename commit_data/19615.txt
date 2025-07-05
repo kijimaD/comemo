@@ -10,7 +10,7 @@ Date:   Wed Jun 25 09:57:48 2014 -0400
     R=gri
     CC=golang-codereviews
     https://golang.org/cl/110160044
-
+---
  src/cmd/gc/fmt.c         |  4 ----
  src/cmd/gc/go.h          |  1 -
  src/cmd/gc/go.y          |  6 ++----
@@ -18,3 +18,279 @@ Date:   Wed Jun 25 09:57:48 2014 -0400
  src/cmd/gc/y.tab.c       | 40 +++++++++++++++++++---------------------
  test/fixedbugs/bug299.go | 10 ++++++----
  6 files changed, 27 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 8c2f8b98f1..4e3968588c 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -974,7 +974,6 @@ static int opprec[] = {
+ 	[OTFUNC] = 8,
+ 	[OTINTER] = 8,
+ 	[OTMAP] = 8,
+-	[OTPAREN] = 8,
+ 	[OTSTRUCT] = 8,
+ 
+ 	[OINDEXMAP] = 8,
+@@ -1140,9 +1139,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			return fmtprint(f, "[]%N", n->left);
+ 		return fmtprint(f, "[]%N", n->right);  // happens before typecheck
+ 
+-	case OTPAREN:
+-		return fmtprint(f, "(%N)", n->left);
+-
+ 	case OTMAP:
+ 		return fmtprint(f, "map[%N]%N", n->left, n->right);
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index a5a464e23d..8375dc49a1 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -574,7 +574,6 @@ enum
+ 	OTINTER,	// interface{}
+ 	OTFUNC,	// func()
+ 	OTARRAY,	// []int, [8]int, [N]int or [...]int
+-	OTPAREN,	// (T)
+ 
+ 	// misc
+ 	ODDD,	// func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index e351fa731c..5d5249ebc6 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1180,7 +1180,7 @@ ntype:
+ |	dotname
+ |	'(' ntype ')'
+ 	{
+-		$$ = nod(OTPAREN, $2, N);
++		$$ = $2;
+ 	}
+ 
+ non_expr_type:
+@@ -1199,7 +1199,7 @@ non_recvchantype:
+ |	dotname
+ |	'(' ntype ')'
+ 	{
+-		$$ = nod(OTPAREN, $2, N);
++		$$ = $2;
+ 	}
+ 
+ convtype:
+@@ -1366,8 +1366,6 @@ fndcl:
+ 			yyerror("bad receiver in method");
+ 			break;
+ 		}
+-		if(rcvr->right->op == OTPAREN || (rcvr->right->op == OIND && rcvr->right->left->op == OTPAREN))
+-			yyerror("cannot parenthesize receiver type");
+ 
+ 		t = nod(OTFUNC, rcvr, N);
+ 		t->list = $6;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index c50b2285b6..92e9ad5215 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -382,16 +382,6 @@ reswitch:
+ 		if(n->type == T)
+ 			goto error;
+ 		break;
+-
+-	case OTPAREN:
+-		ok |= Etype;
+-		l = typecheck(&n->left, Etype);
+-		if(l->type == T)
+-			goto error;
+-		n->op = OTYPE;
+-		n->type = l->type;
+-		n->left = N;
+-		break;
+ 	
+ 	case OTARRAY:
+ 		ok |= Etype;
+diff --git a/src/cmd/gc/y.tab.c b/src/cmd/gc/y.tab.c
+index c389f2324d..7f5721d536 100644
+--- a/src/cmd/gc/y.tab.c
++++ b/src/cmd/gc/y.tab.c
+@@ -678,8 +678,8 @@ static const yytype_uint16 yyrline[] =
+     1180,  1181,  1187,  1188,  1189,  1190,  1196,  1197,  1198,  1199,
+     1200,  1206,  1207,  1210,  1213,  1214,  1215,  1216,  1217,  1220,
+     1221,  1234,  1238,  1243,  1248,  1253,  1257,  1258,  1261,  1267,
+-    1274,  1280,  1287,  1293,  1304,  1318,  1347,  1387,  1412,  1430,
+-    1439,  1442,  1450,  1454,  1458,  1465,  1471,  1476,  1488,  1491,
++    1274,  1280,  1287,  1293,  1304,  1319,  1348,  1386,  1411,  1429,
++    1438,  1441,  1449,  1453,  1457,  1464,  1470,  1475,  1487,  1490,
+     1501,  1502,  1508,  1509,  1515,  1519,  1525,  1526,  1532,  1536,
+     1542,  1565,  1570,  1576,  1582,  1589,  1598,  1607,  1622,  1628,
+     1633,  1637,  1644,  1657,  1658,  1664,  1670,  1673,  1677,  1683,
+@@ -3698,7 +3698,7 @@ yyreduce:
+   case 171:
+ #line 1182 "go.y"
+     {
+-		(yyval.node) = nod(OTPAREN, (yyvsp[(2) - (3)].node), N);
++		(yyval.node) = (yyvsp[(2) - (3)].node);
+ 	}
+     break;
+ 
+@@ -3712,7 +3712,7 @@ yyreduce:
+   case 180:
+ #line 1201 "go.y"
+     {
+-		(yyval.node) = nod(OTPAREN, (yyvsp[(2) - (3)].node), N);
++		(yyval.node) = (yyvsp[(2) - (3)].node);
+ 	}
+     break;
+ 
+@@ -3834,7 +3834,7 @@ yyreduce:
+     break;
+ 
+   case 205:
+-#line 1319 "go.y"
++#line 1320 "go.y"
+     {
+ 		Node *t;
+ 
+@@ -3866,7 +3866,7 @@ yyreduce:
+     break;
+ 
+   case 206:
+-#line 1348 "go.y"
++#line 1349 "go.y"
+     {
+ 		Node *rcvr, *t;
+ 
+@@ -3887,8 +3887,6 @@ yyreduce:
+ 			yyerror("bad receiver in method");
+ 			break;
+ 		}
+-		if(rcvr->right->op == OTPAREN || (rcvr->right->op == OIND && rcvr->right->left->op == OTPAREN))
+-			yyerror("cannot parenthesize receiver type");
+ 
+ 		t = nod(OTFUNC, rcvr, N);
+ 		t->list = (yyvsp[(6) - (8)].list);
+@@ -3907,7 +3905,7 @@ yyreduce:
+     break;
+ 
+   case 207:
+-#line 1388 "go.y"
++#line 1387 "go.y"
+     {
+ 		Sym *s;
+ 		Type *t;
+@@ -3935,7 +3933,7 @@ yyreduce:
+     break;
+ 
+   case 208:
+-#line 1413 "go.y"
++#line 1412 "go.y"
+     {
+ 		(yyval.node) = methodname1(newname((yyvsp[(4) - (8)].sym)), (yyvsp[(2) - (8)].list)->n->right); 
+ 		(yyval.node)->type = functype((yyvsp[(2) - (8)].list)->n, (yyvsp[(6) - (8)].list), (yyvsp[(8) - (8)].list));
+@@ -3954,7 +3952,7 @@ yyreduce:
+     break;
+ 
+   case 209:
+-#line 1431 "go.y"
++#line 1430 "go.y"
+     {
+ 		(yyvsp[(3) - (5)].list) = checkarglist((yyvsp[(3) - (5)].list), 1);
+ 		(yyval.node) = nod(OTFUNC, N, N);
+@@ -3964,14 +3962,14 @@ yyreduce:
+     break;
+ 
+   case 210:
+-#line 1439 "go.y"
++#line 1438 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 211:
+-#line 1443 "go.y"
++#line 1442 "go.y"
+     {
+ 		(yyval.list) = (yyvsp[(2) - (3)].list);
+ 		if((yyval.list) == nil)
+@@ -3980,21 +3978,21 @@ yyreduce:
+     break;
+ 
+   case 212:
+-#line 1451 "go.y"
++#line 1450 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 213:
+-#line 1455 "go.y"
++#line 1454 "go.y"
+     {
+ 		(yyval.list) = list1(nod(ODCLFIELD, N, (yyvsp[(1) - (1)].node)));
+ 	}
+     break;
+ 
+   case 214:
+-#line 1459 "go.y"
++#line 1458 "go.y"
+     {
+ 		(yyvsp[(2) - (3)].list) = checkarglist((yyvsp[(2) - (3)].list), 0);
+ 		(yyval.list) = (yyvsp[(2) - (3)].list);
+@@ -4002,14 +4000,14 @@ yyreduce:
+     break;
+ 
+   case 215:
+-#line 1466 "go.y"
++#line 1465 "go.y"
+     {
+ 		closurehdr((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 216:
+-#line 1472 "go.y"
++#line 1471 "go.y"
+     {
+ 		(yyval.node) = closurebody((yyvsp[(3) - (4)].list));
+ 		fixlbrace((yyvsp[(2) - (4)].i));
+@@ -4017,21 +4015,21 @@ yyreduce:
+     break;
+ 
+   case 217:
+-#line 1477 "go.y"
++#line 1476 "go.y"
+     {
+ 		(yyval.node) = closurebody(nil);
+ 	}
+     break;
+ 
+   case 218:
+-#line 1488 "go.y"
++#line 1487 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 219:
+-#line 1492 "go.y"
++#line 1491 "go.y"
+     {
+ 		(yyval.list) = concat((yyvsp[(1) - (3)].list), (yyvsp[(2) - (3)].list));
+ 		if(nsyntaxerrors == 0)
+diff --git a/test/fixedbugs/bug299.go b/test/fixedbugs/bug299.go
+index 9646723bfd..1067fd1478 100644
+--- a/test/fixedbugs/bug299.go
++++ b/test/fixedbugs/bug299.go
+@@ -21,7 +21,9 @@ type T struct {
+ // legal according to spec
+ func (p T) m() {}
+ 
+-// not legal according to spec
+-func (p (T)) f() {}   // ERROR "parenthesize|expected"
+-func (p *(T)) g() {}  // ERROR "parenthesize|expected"
+-func (p (*T)) h() {}  // ERROR "parenthesize|expected"
++// now legal according to spec
++func (p (T)) f() {}
++func (p *(T)) g() {}
++func (p (*T)) h() {}
++func (p (*(T))) i() {}
++func ((T),) j() {}

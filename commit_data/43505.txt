@@ -18,7 +18,61 @@ Date:   Fri Oct 25 13:48:02 2019 +0200
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/xml/marshal.go      |  7 +++++--
  src/encoding/xml/marshal_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index e325f31374..2440a51e20 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -345,8 +345,11 @@ func (p *printer) createAttrPrefix(url string) string {
+ 	if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {
+ 		prefix = "_"
+ 	}
+-	if strings.HasPrefix(prefix, "xml") {
+-		// xmlanything is reserved.
++	// xmlanything is reserved and any variant of it regardless of
++	// case should be matched, so:
++	//    (('X'|'x') ('M'|'m') ('L'|'l'))
++	// See Section 2.3 of https://www.w3.org/TR/REC-xml/
++	if len(prefix) >= 3 && strings.EqualFold(prefix[:3], "xml") {
+ 		prefix = "_" + prefix
+ 	}
+ 	if p.attrNS[prefix] != "" {
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 8473158bcd..6085ddbba2 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -2266,6 +2266,30 @@ var encodeTokenTests = []struct {
+ 		}},
+ 	},
+ 	want: `<foo xmlns="space"><bar xmlns="space" xmlns:space="space" space:attr="value">`,
++}, {
++	desc: "reserved namespace prefix -- all lower case",
++	toks: []Token{
++		StartElement{Name{"", "foo"}, []Attr{
++			{Name{"http://www.w3.org/2001/xmlSchema-instance", "nil"}, "true"},
++		}},
++	},
++	want: `<foo xmlns:_xmlSchema-instance="http://www.w3.org/2001/xmlSchema-instance" _xmlSchema-instance:nil="true">`,
++}, {
++	desc: "reserved namespace prefix -- all upper case",
++	toks: []Token{
++		StartElement{Name{"", "foo"}, []Attr{
++			{Name{"http://www.w3.org/2001/XMLSchema-instance", "nil"}, "true"},
++		}},
++	},
++	want: `<foo xmlns:_XMLSchema-instance="http://www.w3.org/2001/XMLSchema-instance" _XMLSchema-instance:nil="true">`,
++}, {
++	desc: "reserved namespace prefix -- all mixed case",
++	toks: []Token{
++		StartElement{Name{"", "foo"}, []Attr{
++			{Name{"http://www.w3.org/2001/XmLSchema-instance", "nil"}, "true"},
++		}},
++	},
++	want: `<foo xmlns:_XmLSchema-instance="http://www.w3.org/2001/XmLSchema-instance" _XmLSchema-instance:nil="true">`,
+ }}
+ 
+ func TestEncodeToken(t *testing.T) {

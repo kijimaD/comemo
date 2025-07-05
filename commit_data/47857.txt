@@ -9,6 +9,29 @@ Date:   Fri Apr 9 23:56:44 2021 +0800
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     Trust: David Chase <drchase@google.com>
-
+---
  src/runtime/mgc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4750a74bc7..e68e9bb75b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1357,7 +1357,7 @@ func gcMarkWorkAvailable(p *p) bool {
+ // gcMark runs the mark (or, for concurrent GC, mark termination)
+ // All gcWork caches must be empty.
+ // STW is in effect at this point.
+-func gcMark(start_time int64) {
++func gcMark(startTime int64) {
+ 	if debug.allocfreetrace > 0 {
+ 		tracegc()
+ 	}
+@@ -1365,7 +1365,7 @@ func gcMark(start_time int64) {
+ 	if gcphase != _GCmarktermination {
+ 		throw("in gcMark expecting to see gcphase as _GCmarktermination")
+ 	}
+-	work.tstart = start_time
++	work.tstart = startTime
+ 
+ 	// Check that there's no marking work remaining.
+ 	if work.full != 0 || work.markrootNext < work.markrootJobs {

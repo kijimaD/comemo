@@ -8,6 +8,23 @@ Date:   Mon Dec 17 23:32:08 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6944053
-
+---
  src/pkg/net/http/pprof/pprof.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/pprof/pprof.go b/src/pkg/net/http/pprof/pprof.go
+index d70bf4ed9d..0c03e5b2b7 100644
+--- a/src/pkg/net/http/pprof/pprof.go
++++ b/src/pkg/net/http/pprof/pprof.go
+@@ -34,9 +34,8 @@
+ //
+ //	go tool pprof http://localhost:6060/debug/pprof/block
+ //
+-// Or to view all available profiles:
+-//
+-//	go tool pprof http://localhost:6060/debug/pprof/
++// To view all available profiles, open http://localhost:6060/debug/pprof/
++// in your browser.
+ //
+ // For a study of the facility in action, visit
+ //

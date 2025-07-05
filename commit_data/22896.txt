@@ -7,6 +7,28 @@ Date:   Mon Apr 13 15:50:56 2015 -0400
     Change-Id: Idfb20bfe130d9a54d9f5aae8eab8a34655d30610
     Reviewed-on: https://go-review.googlesource.com/8865
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/util_gccgo.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/util_gccgo.go b/src/cmd/dist/util_gccgo.go
+index f680e7b649..14ac70bca5 100644
+--- a/src/cmd/dist/util_gccgo.go
++++ b/src/cmd/dist/util_gccgo.go
+@@ -6,4 +6,15 @@
+ 
+ package main
+ 
+-func cansse2() bool { return false }
++/*
++int supports_sse2() {
++#if defined(__i386__) || defined(__x86_64__)
++	return __builtin_cpu_supports("sse2");
++#else
++	return 0;
++#endif
++}
++*/
++import "C"
++
++func cansse2() bool { return C.supports_sse2() != 0 }

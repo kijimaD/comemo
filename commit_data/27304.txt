@@ -23,6 +23,52 @@ Date:   Sun Mar 20 19:17:36 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport_test.go | 20 +++++++++++++-------
  1 file changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 9f17017651..63fa7ce6b1 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -968,6 +968,17 @@ func TestTransportGzipShort(t *testing.T) {
+ 	}
+ }
+ 
++// Wait until number of goroutines is no greater than nmax, or time out.
++func waitNumGoroutine(nmax int) int {
++	nfinal := runtime.NumGoroutine()
++	for ntries := 10; ntries > 0 && nfinal > nmax; ntries-- {
++		time.Sleep(50 * time.Millisecond)
++		runtime.GC()
++		nfinal = runtime.NumGoroutine()
++	}
++	return nfinal
++}
++
+ // tests that persistent goroutine connections shut down when no longer desired.
+ func TestTransportPersistConnLeak(t *testing.T) {
+ 	setParallel(t)
+@@ -1019,10 +1030,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ 	}
+ 
+ 	tr.CloseIdleConnections()
+-	time.Sleep(100 * time.Millisecond)
+-	runtime.GC()
+-	runtime.GC() // even more.
+-	nfinal := runtime.NumGoroutine()
++	nfinal := waitNumGoroutine(n0 + 5)
+ 
+ 	growth := nfinal - n0
+ 
+@@ -1061,9 +1069,7 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
+ 	}
+ 	nhigh := runtime.NumGoroutine()
+ 	tr.CloseIdleConnections()
+-	time.Sleep(400 * time.Millisecond)
+-	runtime.GC()
+-	nfinal := runtime.NumGoroutine()
++	nfinal := waitNumGoroutine(n0 + 5)
+ 
+ 	growth := nfinal - n0
+ 

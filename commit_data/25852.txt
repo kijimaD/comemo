@@ -30,6 +30,29 @@ Date:   Sun Nov 22 02:41:49 2015 -0800
     Change-Id: Ibafa5e3e2de0529853b5b3180e6fd6cb7090b76f
     Reviewed-on: https://go-review.googlesource.com/17171
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/compress/flate/token.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/compress/flate/token.go b/src/compress/flate/token.go
+index 4d49176871..c485939d34 100644
+--- a/src/compress/flate/token.go
++++ b/src/compress/flate/token.go
+@@ -90,13 +90,11 @@ func lengthCode(len uint32) uint32 { return lengthCodes[len] }
+ 
+ // Returns the offset code corresponding to a specific offset
+ func offsetCode(off uint32) uint32 {
+-	const n = uint32(len(offsetCodes))
+-	switch {
+-	case off < n:
++	if off < uint32(len(offsetCodes)) {
+ 		return offsetCodes[off]
+-	case off>>7 < n:
++	}
++	if off>>7 < uint32(len(offsetCodes)) {
+ 		return offsetCodes[off>>7] + 14
+-	default:
+-		return offsetCodes[off>>14] + 28
+ 	}
++	return offsetCodes[off>>14] + 28
+ }

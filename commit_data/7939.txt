@@ -12,8 +12,101 @@ Date:   Wed Mar 30 15:27:23 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4300053
-
+---
  src/cmd/gotype/gotype_test.go    | 34 +++++++++++++++++++++++++++-------
  src/cmd/gotype/testdata/test1.go |  6 ++++++
  src/pkg/go/parser/parser.go      |  5 +++--
  3 files changed, 36 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gotype/gotype_test.go b/src/cmd/gotype/gotype_test.go
+index 96f54ea419..f5eccab765 100644
+--- a/src/cmd/gotype/gotype_test.go
++++ b/src/cmd/gotype/gotype_test.go
+@@ -20,21 +20,41 @@ func testImporter(importPath string) (string, *ast.Scope, os.Error) {
+ }
+ 
+ 
+-func testDir(t *testing.T, dir, pkg string) {
++func runTest(t *testing.T, path, pkg string) {
+ 	exitCode = 0
+ 	*pkgName = pkg
+ 	*recursive = false
+ 	importer = testImporter
+-	processDirectory(dir)
++
++	if pkg == "" {
++		processFiles([]string{path}, true)
++	} else {
++		processDirectory(path)
++	}
++
+ 	if exitCode != 0 {
+-		t.Errorf("processing %s failed: exitCode = %d", dir, exitCode)
++		t.Errorf("processing %s failed: exitCode = %d", path, exitCode)
+ 	}
+ }
+ 
+ 
++var tests = []struct {
++	path string
++	pkg  string
++}{
++	// individual files
++	{"testdata/test1.go", ""},
++
++	// directories
++	{filepath.Join(runtime.GOROOT(), "src/pkg/go/ast"), "ast"},
++	{filepath.Join(runtime.GOROOT(), "src/pkg/go/token"), "scanner"},
++	{filepath.Join(runtime.GOROOT(), "src/pkg/go/scanner"), "scanner"},
++	{filepath.Join(runtime.GOROOT(), "src/pkg/go/parser"), "parser"},
++}
++
++
+ func Test(t *testing.T) {
+-	testDir(t, filepath.Join(runtime.GOROOT(), "src/pkg/go/ast"), "ast")
+-	testDir(t, filepath.Join(runtime.GOROOT(), "src/pkg/go/token"), "scanner")
+-	testDir(t, filepath.Join(runtime.GOROOT(), "src/pkg/go/scanner"), "scanner")
+-	testDir(t, filepath.Join(runtime.GOROOT(), "src/pkg/go/parser"), "parser")
++	for _, test := range tests {
++		runTest(t, test.path, test.pkg)
++	}
+ }
+diff --git a/src/cmd/gotype/testdata/test1.go b/src/cmd/gotype/testdata/test1.go
+new file mode 100644
+index 0000000000..0bd46568d6
+--- /dev/null
++++ b/src/cmd/gotype/testdata/test1.go
+@@ -0,0 +1,6 @@
++package p
++
++func _() {
++	// the scope of a local type declaration starts immediately after the type name
++	type T struct{ _ *T }
++}
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 5b1edace1b..fd9ad0f1b5 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -332,7 +332,7 @@ func (p *parser) next() {
+ 		var endline int
+ 
+ 		if p.file.Line(p.pos) == line {
+-			// The comment is on same line as previous token; it
++			// The comment is on same line as the previous token; it
+ 			// cannot be a lead comment but may be a line comment.
+ 			comment, endline = p.consumeCommentGroup()
+ 			if p.file.Line(p.pos) != endline {
+@@ -2021,11 +2021,12 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+ 	// at the identifier in the TypeSpec and ends at the end of the innermost
+ 	// containing block.
+ 	// (Global identifiers are resolved in a separate phase after parsing.)
+-	spec := &ast.TypeSpec{doc, ident, nil, p.lineComment}
++	spec := &ast.TypeSpec{doc, ident, nil, nil}
+ 	p.declare(spec, p.topScope, ast.Typ, ident)
+ 
+ 	spec.Type = p.parseType()
+ 	p.expectSemi() // call before accessing p.linecomment
++	spec.Comment = p.lineComment
+ 
+ 	return spec
+ }

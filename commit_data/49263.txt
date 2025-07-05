@@ -13,6 +13,20 @@ Date:   Wed Aug 4 16:21:15 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 6c0ceb7b7c..315f77f362 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -258,8 +258,6 @@ type Info struct {
+ 	InitOrder []*Initializer
+ }
+ 
+-// The Info struct is found in api_notypeparams.go and api_typeparams.go.
+-
+ // TypeOf returns the type of expression e, or nil if not found.
+ // Precondition: the Types, Uses and Defs maps are populated.
+ //

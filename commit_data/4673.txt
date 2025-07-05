@@ -10,7 +10,7 @@ Date:   Mon Jan 25 18:23:20 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/194053
-
+---
  src/cmd/gc/go.h                   |  16 +---
  src/cmd/gc/reflect.c              |  71 +++++++++--------
  src/cmd/gc/subr.c                 |  89 ++++++++++++---------
@@ -29,3 +29,1023 @@ Date:   Mon Jan 25 18:23:20 2010 -0800
  test/golden.out                   |   2 +-
  test/typeswitch2.go               |  28 +++++++
  17 files changed, 423 insertions(+), 167 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d7b716cd6c..e5715e895e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -34,15 +34,6 @@ enum
+ 	HISTSZ		= 10,
+ 
+ 	PRIME1		= 3,
+-	PRIME2		= 10007,
+-	PRIME3		= 10009,
+-	PRIME4		= 10037,
+-	PRIME5		= 10039,
+-	PRIME6		= 10061,
+-	PRIME7		= 10067,
+-	PRIME8		= 10079,
+-	PRIME9		= 10091,
+-	PRIME10		= 10093,
+ 
+ 	AUNK		= 100,
+ 
+@@ -549,8 +540,7 @@ struct	Sig
+ 	Sym*	isym;
+ 	Sym*	tsym;
+ 	Type*	type;
+-	uint32	hash;
+-	int32	perm;
++	Type*	mtype;
+ 	int32	offset;
+ 	Sig*	link;
+ };
+@@ -733,7 +723,7 @@ EXTERN	int	noargnames;
+ EXTERN	int	funcdepth;
+ EXTERN	int	typecheckok;
+ EXTERN	int	packagequotes;
+-
++EXTERN	int	longsymnames;
+ EXTERN	int	compiling_runtime;
+ 
+ /*
+@@ -951,7 +941,7 @@ int	structcount(Type*);
+ void	addmethod(Sym*, Type*, int);
+ Node*	methodname(Node*, Type*);
+ Node*	methodname1(Node*, Node*);
+-Type*	methodfunc(Type*);
++Type*	methodfunc(Type*, int);
+ Sym*	methodsym(Sym*, Type*);
+ Type*	functype(Node*, NodeList*, NodeList*);
+ char*	thistypenam(Node*);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 97217af7c4..e1dba06b8c 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -14,7 +14,18 @@ static	Sym*	dtypesym(Type*);
+ static int
+ sigcmp(Sig *a, Sig *b)
+ {
+-	return strcmp(a->name, b->name);
++	int i;
++	
++	i = strcmp(a->name, b->name);
++	if(i != 0)
++		return i;
++	if(a->pkg == b->pkg)
++		return 0;
++	if(a->pkg == nil)
++		return -1;
++	if(b->pkg == nil)
++		return +1;
++	return strcmp(a->pkg->path->s, b->pkg->path->s);
+ }
+ 
+ static Sig*
+@@ -86,17 +97,17 @@ lsort(Sig *l, int(*f)(Sig*, Sig*))
+ 
+ /*
+  * f is method type, with receiver.
+- * return function type, receiver as first argument.
++ * return function type, receiver as first argument (or not).
+  */
+ Type*
+-methodfunc(Type *f)
++methodfunc(Type *f, int use_receiver)
+ {
+ 	NodeList *in, *out;
+ 	Node *d;
+ 	Type *t;
+ 
+ 	in = nil;
+-	if(!isifacemethod(f)) {
++	if(use_receiver) {
+ 		d = nod(ODCLFIELD, N, N);
+ 		d->type = getthisx(f)->type->type;
+ 		in = list(in, d);
+@@ -118,8 +129,7 @@ methodfunc(Type *f)
+ }
+ 
+ /*
+- * return methods of non-interface type t,
+- * sorted by hash.
++ * return methods of non-interface type t, sorted by name.
+  * generates stub functions as needed.
+  */
+ static Sig*
+@@ -172,15 +182,10 @@ methods(Type *t)
+ 		a = b;
+ 
+ 		a->name = method->name;
+-		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type);
+-		if(!exportname(a->name)) {
+-			a->pkg = method->pkg;
+-			a->hash += PRIME10*stringhash(a->pkg->name);
+-		}
+-		a->perm = o++;
+ 		a->isym = methodsym(method, it);
+ 		a->tsym = methodsym(method, t);
+-		a->type = methodfunc(f->type);
++		a->type = methodfunc(f->type, 1);
++		a->mtype = methodfunc(f->type, 0);
+ 
+ 		if(!(a->isym->flags & SymSiggen)) {
+ 			a->isym->flags |= SymSiggen;
+@@ -227,38 +232,39 @@ methods(Type *t)
+ }
+ 
+ /*
+- * return methods of interface type t, sorted by hash.
++ * return methods of interface type t, sorted by name.
+  */
+ Sig*
+ imethods(Type *t)
+ {
+-	Sig *a, *b;
++	Sig *a, *all, *last;
+ 	int o;
+ 	Type *f;
+ 
+-	a = nil;
++	all = nil;
++	last = nil;
+ 	o = 0;
+ 	for(f=t->type; f; f=f->down) {
+ 		if(f->etype != TFIELD)
+ 			fatal("imethods: not field");
+ 		if(f->type->etype != TFUNC || f->sym == nil)
+ 			continue;
+-		b = mal(sizeof(*b));
+-		b->link = a;
+-		a = b;
+-
++		a = mal(sizeof(*a));
+ 		a->name = f->sym->name;
+-		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type);
+-		if(!exportname(a->name)) {
++		if(!exportname(f->sym->name))
+ 			a->pkg = f->sym->pkg;
+-			a->hash += PRIME10*stringhash(a->pkg->name);
+-		}
+-		a->perm = o++;
++		a->mtype = f->type;
+ 		a->offset = 0;
+-		a->type = methodfunc(f->type);
++		a->type = methodfunc(f->type, 0);
++		if(last && sigcmp(last, a) >= 0)
++			fatal("sigcmp vs sortinter %s %s", last->name, a->name);
++		if(last == nil)
++			all = a;
++		else
++			last->link = a;
++		last = a;
+ 	}
+-
+-	return lsort(a, sigcmp);
++	return all;
+ }
+ 
+ static int
+@@ -349,10 +355,9 @@ dextratype(Type *t)
+ 	for(a=m; a; a=a->link) {
+ 		// method
+ 		// ../../pkg/runtime/type.go:/method
+-		ot = duint32(s, ot, a->hash);
+-		ot = rnd(ot, widthptr);
+ 		ot = dgostringptr(s, ot, a->name);
+ 		ot = dgopkgpath(s, ot, a->pkg);
++		ot = dsymptr(s, ot, dtypesym(a->mtype), 0);
+ 		ot = dsymptr(s, ot, dtypesym(a->type), 0);
+ 		if(a->isym)
+ 			ot = dsymptr(s, ot, a->isym, 0);
+@@ -575,7 +580,9 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	if(!haspointers(t))
+ 		i |= KindNoPointers;
+ 	ot = duint8(s, ot, i);
+-	p = smprint("%#-T", t);
++	longsymnames = 1;
++	p = smprint("%-T", t);
++	longsymnames = 0;
+ 	ot = dgostringptr(s, ot, p);	// string
+ 	free(p);
+ 	if(s1)
+@@ -742,8 +749,6 @@ ok:
+ 		ot = duint32(s, ot, n);
+ 		for(a=m; a; a=a->link) {
+ 			// ../../pkg/runtime/type.go:/imethod
+-			ot = duint32(s, ot, a->hash);
+-			ot = duint32(s, ot, a->perm);
+ 			ot = dgostringptr(s, ot, a->name);
+ 			ot = dgopkgpath(s, ot, a->pkg);
+ 			ot = dsymptr(s, ot, dtypesym(a->type), 0);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index ad9c926865..e8aaabcc46 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -462,10 +462,48 @@ typ(int et)
+ 	return t;
+ }
+ 
++static int
++methcmp(const void *va, const void *vb)
++{
++	Type *a, *b;
++	int i;
++	
++	a = *(Type**)va;
++	b = *(Type**)vb;
++	i = strcmp(a->sym->name, b->sym->name);
++	if(i != 0)
++		return i;
++	if(!exportname(a->sym->name)) {
++		i = strcmp(a->sym->pkg->path->s, b->sym->pkg->path->s);
++		if(i != 0)
++			return i;
++	}
++	return 0;
++}
+ 
+ Type*
+ sortinter(Type *t)
+ {
++	Type *f;
++	int i;
++	Type **a;
++	
++	if(t->type == nil || t->type->down == nil)
++		return t;
++
++	i=0;
++	for(f=t->type; f; f=f->down)
++		i++;
++	a = mal(i*sizeof f);
++	i = 0;
++	for(f=t->type; f; f=f->down)
++		a[i++] = f;
++	qsort(a, i, sizeof a[0], methcmp);
++	while(i-- > 0) {
++		a[i]->down = f;
++		f = a[i];
++	}
++	t->type = f;
+ 	return t;
+ }
+ 
+@@ -974,22 +1012,20 @@ Sconv(Fmt *fp)
+ 		fmtstrcpy(fp, "<S>");
+ 		return 0;
+ 	}
+-	
++
+ 	if(fp->flags & FmtShort)
+ 		goto shrt;
+ 
+ 	if(exporting || (fp->flags & FmtSharp)) {
+ 		if(packagequotes)
+ 			fmtprint(fp, "\"%Z\"", s->pkg->path);
+-		else {
+-			// PGNS: Should be s->pkg->prefix
+-			fmtprint(fp, "%s", s->pkg->name);
+-		}
++		else
++			fmtprint(fp, "%s", s->pkg->prefix);
+ 		fmtprint(fp, ".%s", s->name);
+ 		return 0;
+ 	}
+ 
+-	if(s->pkg != localpkg || (fp->flags & FmtLong)) {
++	if(s->pkg != localpkg || longsymnames || (fp->flags & FmtLong)) {
+ 		fmtprint(fp, "%s.%s", s->pkg->name, s->name);
+ 		return 0;
+ 	}
+@@ -997,22 +1033,6 @@ Sconv(Fmt *fp)
+ shrt:
+ 	fmtstrcpy(fp, s->name);
+ 	return 0;
+-
+-	/*
+-
+-	if(!(fp->flags & FmtShort)) {
+-		if((fp->flags & FmtLong) && packagequotes) {
+-			fmtprint(fp, "\"%Z\".%s", s->pkg->path, nam);
+-			return 0;
+-		}
+-		if((fp->flags & FmtLong) || strcmp(s->package, package) != 0) {
+-			fmtprint(fp, "%s.%s", pkg, nam);
+-			return 0;
+-		}
+-	}
+-	fmtstrcpy(fp, nam);
+-	*/
+-	return 0;
+ }
+ 
+ static char*
+@@ -2008,7 +2028,7 @@ eqargs(Type *t1, Type *t2)
+  * compute a hash value for type t.
+  * if t is a method type, ignore the receiver
+  * so that the hash can be used in interface checks.
+- * %#-T (which calls Tpretty, above) already contains
++ * %-T (which calls Tpretty, above) already contains
+  * all the necessary logic to generate a representation
+  * of the type that completely describes it.
+  * using smprint here avoids duplicating that code.
+@@ -2022,13 +2042,15 @@ typehash(Type *t)
+ 	char *p;
+ 	MD5 d;
+ 
++	longsymnames = 1;
+ 	if(t->thistuple) {
+ 		// hide method receiver from Tpretty
+ 		t->thistuple = 0;
+-		p = smprint("%#-T", t);
++		p = smprint("%-T", t);
+ 		t->thistuple = 1;
+ 	}else
+-		p = smprint("%#-T", t);
++		p = smprint("%-T", t);
++	longsymnames = 0;
+ 	md5reset(&d);
+ 	md5write(&d, (uchar*)p, strlen(p));
+ 	free(p);
+@@ -2873,8 +2895,8 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
+ int
+ ifaceokT2I(Type *t0, Type *iface, Type **m, Type **samename)
+ {
+-	Type *t, *im, *tm, *rcvr;
+-	int imhash, followptr;
++	Type *t, *im, *tm, *rcvr, *imtype;
++	int followptr;
+ 
+ 	t = methtype(t0);
+ 
+@@ -2882,17 +2904,10 @@ ifaceokT2I(Type *t0, Type *iface, Type **m, Type **samename)
+ 	// could sort these first
+ 	// and then do one loop.
+ 
+-	// could also do full type compare
+-	// instead of using hash, but have to
+-	// avoid checking receivers, and
+-	// typehash already does that for us.
+-	// also, it's what the runtime will do,
+-	// so we can both be wrong together.
+-
+ 	for(im=iface->type; im; im=im->down) {
+-		imhash = typehash(im->type);
++		imtype = methodfunc(im->type, 0);
+ 		tm = ifacelookdot(im->sym, t, &followptr);
+-		if(tm == T || typehash(tm->type) != imhash) {
++		if(tm == T || !eqtype(methodfunc(tm->type, 0), imtype)) {
+ 			*m = im;
+ 			*samename = tm;
+ 			return 0;
+@@ -2923,7 +2938,7 @@ ifaceokI2I(Type *i1, Type *i2, Type **m)
+ 
+ 	for(m2=i2->type; m2; m2=m2->down) {
+ 		for(m1=i1->type; m1; m1=m1->down)
+-			if(m1->sym == m2->sym && typehash(m1) == typehash(m2))
++			if(m1->sym == m2->sym && eqtype(m1, m2))
+ 				goto found;
+ 		*m = m2;
+ 		return 0;
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 952c472462..23bb395bd5 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -163,6 +163,13 @@ typecmp(Case *c1, Case *c2)
+ 		return +1;
+ 	if(c1->hash < c2->hash)
+ 		return -1;
++
++	// sort by ordinal so duplicate error
++	// happens on later case.
++	if(c1->ordinal > c2->ordinal)
++		return +1;
++	if(c1->ordinal < c2->ordinal)
++		return -1;
+ 	return 0;
+ }
+ 
+@@ -336,7 +343,7 @@ Case*
+ mkcaselist(Node *sw, int arg)
+ {
+ 	Node *n;
+-	Case *c, *c1;
++	Case *c, *c1, *c2;
+ 	NodeList *l;
+ 	int ord;
+ 
+@@ -395,11 +402,16 @@ mkcaselist(Node *sw, int arg)
+ 	switch(arg) {
+ 	case Stype:
+ 		c = csort(c, typecmp);
+-		for(c1=c; c1->link!=C; c1=c1->link) {
+-			if(typecmp(c1, c1->link) != 0)
+-				continue;
+-			setlineno(c1->link->node);
+-			yyerror("duplicate case in switch\n\tprevious case at %L", c1->node->lineno);
++		for(c1=c; c1!=C; c1=c1->link) {
++			for(c2=c1->link; c2!=C && c2->hash==c1->hash; c2=c2->link) {
++				if(c1->type == Ttypenil || c1->type == Tdefault)
++					break;
++				if(c2->type == Ttypenil || c2->type == Tdefault)
++					break;
++				if(!eqtype(c1->node->left->type, c2->node->left->type))
++					continue;
++				yyerrorl(c2->node->lineno, "duplicate case in switch\n\tprevious case at %L", c1->node->lineno);
++			}
+ 		}
+ 		break;
+ 	case Snorm:
+@@ -604,38 +616,19 @@ typebsw(Case *c0, int ncase)
+ 	Node *a, *n;
+ 	Case *c;
+ 	int i, half;
+-	Val v;
+ 
+ 	cas = nil;
+ 
+ 	if(ncase < Ncase) {
+ 		for(i=0; i<ncase; i++) {
+ 			n = c0->node;
+-
+-			switch(c0->type) {
+-
+-			case Ttypenil:
+-				v.ctype = CTNIL;
+-				a = nod(OIF, N, N);
+-				a->ntest = nod(OEQ, facename, nodlit(v));
+-				typecheck(&a->ntest, Erv);
+-				a->nbody = list1(n->right);		// if i==nil { goto l }
+-				cas = list(cas, a);
+-				break;
+-
+-			case Ttypevar:
+-				a = typeone(n);
+-				cas = list(cas, a);
+-				break;
+-
+-			case Ttypeconst:
+-				a = nod(OIF, N, N);
+-				a->ntest = nod(OEQ, hashname, nodintconst(c0->hash));
+-				typecheck(&a->ntest, Erv);
+-				a->nbody = list1(typeone(n));
+-				cas = list(cas, a);
+-				break;
+-			}
++			if(c0->type != Ttypeconst)
++				fatal("typebsw");
++			a = nod(OIF, N, N);
++			a->ntest = nod(OEQ, hashname, nodintconst(c0->hash));
++			typecheck(&a->ntest, Erv);
++			a->nbody = list1(n->right);
++			cas = list(cas, a);
+ 			c0 = c0->link;
+ 		}
+ 		return liststmt(cas);
+@@ -663,11 +656,12 @@ void
+ typeswitch(Node *sw)
+ {
+ 	Node *def;
+-	NodeList *cas;
+-	Node *a;
++	NodeList *cas, *hash;
++	Node *a, *n;
+ 	Case *c, *c0, *c1;
+ 	int ncase;
+ 	Type *t;
++	Val v;
+ 
+ 	if(sw->ntest == nil)
+ 		return;
+@@ -722,43 +716,80 @@ typeswitch(Node *sw)
+ 	} else {
+ 		def = nod(OBREAK, N, N);
+ 	}
++	
++	/*
++	 * insert if statement into each case block
++	 */
++	for(c=c0; c!=C; c=c->link) {
++		n = c->node;
++		switch(c->type) {
+ 
+-loop:
+-	if(c0 == C) {
+-		cas = list(cas, def);
+-		sw->nbody = concat(cas, sw->nbody);
+-		sw->list = nil;
+-		walkstmtlist(sw->nbody);
+-		return;
+-	}
+-
+-	// deal with the variables one-at-a-time
+-	if(c0->type != Ttypeconst) {
+-		a = typebsw(c0, 1);
+-		cas = list(cas, a);
+-		c0 = c0->link;
+-		goto loop;
+-	}
+-
+-	// do binary search on run of constants
+-	ncase = 1;
+-	for(c=c0; c->link!=C; c=c->link) {
+-		if(c->link->type != Ttypeconst)
++		case Ttypenil:
++			v.ctype = CTNIL;
++			a = nod(OIF, N, N);
++			a->ntest = nod(OEQ, facename, nodlit(v));
++			typecheck(&a->ntest, Erv);
++			a->nbody = list1(n->right);		// if i==nil { goto l }
++			n->right = a;
+ 			break;
+-		ncase++;
++		
++		case Ttypevar:
++		case Ttypeconst:
++			n->right = typeone(n);
++			break;
++		}
+ 	}
+ 
+-	// break the chain at the count
+-	c1 = c->link;
+-	c->link = C;
+-
+-	// sort and compile constants
+-	c0 = csort(c0, typecmp);
+-	a = typebsw(c0, ncase);
+-	cas = list(cas, a);
++	/*
++	 * generate list of if statements, binary search for constant sequences
++	 */
++	while(c0 != C) {
++		if(c0->type != Ttypeconst) {
++			n = c0->node;
++			cas = list(cas, n->right);
++			c0=c0->link;
++			continue;
++		}
++		
++		// identify run of constants
++		c1 = c = c0;
++		while(c->link!=C && c->link->type==Ttypeconst)
++			c = c->link;
++		c0 = c->link;
++		c->link = nil;
++
++		// sort by hash
++		c1 = csort(c1, typecmp);
++		
++		// for debugging: linear search
++		if(0) {
++			for(c=c1; c!=C; c=c->link) {
++				n = c->node;
++				cas = list(cas, n->right);
++			}
++			continue;
++		}
+ 
+-	c0 = c1;
+-	goto loop;
++		// combine adjacent cases with the same hash
++		ncase = 0;
++		for(c=c1; c!=C; c=c->link) {
++			ncase++;
++			hash = list1(c->node->right);
++			while(c->link != C && c->link->hash == c->hash) {
++				hash = list(hash, c->link->node->right);
++				c->link = c->link->link;
++			}
++			c->node->right = liststmt(hash);
++		}
++		
++		// binary search among cases to narrow by hash
++		cas = list(cas, typebsw(c1, ncase));
++	}
++	
++	cas = list(cas, def);
++	sw->nbody = concat(cas, sw->nbody);
++	sw->list = nil;
++	walkstmtlist(sw->nbody);
+ }
+ 
+ void
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index abadbfa219..e8ed1dc941 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -483,7 +483,7 @@ reswitch:
+ 			}
+ 			n->op = ONAME;
+ 			n->sym = methodsym(sym, l->type);
+-			n->type = methodfunc(n->type);
++			n->type = methodfunc(n->type, 1);
+ 			getinargx(n->type)->type->type = l->type;	// fix up receiver
+ 			n->class = PFUNC;
+ 			ok = Erv;
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 2c059924bf..cd838d7289 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -45,9 +45,9 @@ type commonType struct {
+ }
+ 
+ type method struct {
+-	hash    uint32
+ 	name    *string
+ 	pkgPath *string
++	mtyp    *runtime.Type
+ 	typ     *runtime.Type
+ 	ifn     unsafe.Pointer
+ 	tfn     unsafe.Pointer
+@@ -182,8 +182,6 @@ type FuncType struct {
+ 
+ // Method on interface type
+ type imethod struct {
+-	hash    uint32
+-	perm    uint32
+ 	name    *string
+ 	pkgPath *string
+ 	typ     *runtime.Type
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 30314ddba5..14596ad315 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -952,7 +952,7 @@ func (v *InterfaceValue) Method(i int) *FuncValue {
+ 	data := &value{Typeof((*byte)(nil)), addr(uintptr(v.addr) + ptrSize), true}
+ 
+ 	// Function pointer is at p.perm in the table.
+-	fn := tab.Fn[p.perm]
++	fn := tab.Fn[i]
+ 	fv := &FuncValue{value: value{toType(*p.typ), addr(&fn), true}, first: data, isInterface: true}
+ 	return fv
+ }
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 4a961ceae0..bfe9c65993 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -41,10 +41,11 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
+ 	int32 ni;
+ 	Method *t, *et;
+ 	IMethod *i, *ei;
+-	uint32 ihash, h;
++	uint32 h;
+ 	String *iname;
+ 	Itab *m;
+ 	UncommonType *x;
++	Type *itype;
+ 
+ 	if(inter->mhdr.len == 0)
+ 		throw("internal error - misuse of itab");
+@@ -97,7 +98,8 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
+ 	m->type = type;
+ 
+ search:
+-	// both inter and type have method sorted by hash,
++	// both inter and type have method sorted by name,
++	// and interface names are unique,
+ 	// so can iterate over both in lock step;
+ 	// the loop is O(ni+nt) not O(ni*nt).
+ 	i = inter->m;
+@@ -105,7 +107,7 @@ search:
+ 	t = x->m;
+ 	et = t + x->mhdr.len;
+ 	for(; i < ei; i++) {
+-		ihash = i->hash;
++		itype = i->type;
+ 		iname = i->name;
+ 		for(;; t++) {
+ 			if(t >= et) {
+@@ -120,11 +122,11 @@ search:
+ 				m->bad = 1;
+ 				goto out;
+ 			}
+-			if(t->hash == ihash && t->name == iname)
++			if(t->mtyp == itype && t->name == iname)
+ 				break;
+ 		}
+ 		if(m)
+-			m->fun[i->perm] = t->ifn;
++			m->fun[i - inter->m] = t->ifn;
+ 	}
+ 
+ out:
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index d983b6f0c6..bf757c7631 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -70,10 +70,10 @@ const (
+ 
+ // Method on non-interface type
+ type method struct {
+-	hash    uint32         // hash of name + pkg + typ
+ 	name    *string        // name of method
+ 	pkgPath *string        // nil for exported Names; otherwise import path
+-	typ     *Type          // .(*FuncType) underneath
++	mtyp    *Type          // method type (without receiver)
++	typ     *Type          // .(*FuncType) underneath (with receiver)
+ 	ifn     unsafe.Pointer // fn used in interface call (one-word receiver)
+ 	tfn     unsafe.Pointer // fn used for normal method call
+ }
+@@ -181,8 +181,6 @@ type FuncType struct {
+ 
+ // Method on interface type
+ type imethod struct {
+-	hash    uint32  // hash of name + pkg + typ; same hash as method
+-	perm    uint32  // index of function pointer in interface map
+ 	name    *string // name of method
+ 	pkgPath *string // nil for exported Names; otherwise import path
+ 	typ     *Type   // .(*FuncType) underneath
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index f81c986352..9dc7881db5 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -60,9 +60,9 @@ enum {
+ 
+ struct Method
+ {
+-	uint32 hash;
+ 	String *name;
+ 	String *pkgPath;
++	Type	*mtyp;
+ 	Type *typ;
+ 	void (*ifn)(void);
+ 	void (*tfn)(void);
+@@ -85,8 +85,6 @@ struct Type
+ 
+ struct IMethod
+ {
+-	uint32 hash;
+-	uint32 perm;
+ 	String *name;
+ 	String *pkgPath;
+ 	Type *type;
+diff --git a/test/fixedbugs/bug248.dir/bug0.go b/test/fixedbugs/bug248.dir/bug0.go
+new file mode 100644
+index 0000000000..7fc7401c5a
+--- /dev/null
++++ b/test/fixedbugs/bug248.dir/bug0.go
+@@ -0,0 +1,9 @@
++package p
++
++type T struct {
++	X, Y int
++}
++
++type I interface {
++	M(T)
++}
+diff --git a/test/fixedbugs/bug248.dir/bug1.go b/test/fixedbugs/bug248.dir/bug1.go
+new file mode 100644
+index 0000000000..7fc7401c5a
+--- /dev/null
++++ b/test/fixedbugs/bug248.dir/bug1.go
+@@ -0,0 +1,9 @@
++package p
++
++type T struct {
++	X, Y int
++}
++
++type I interface {
++	M(T)
++}
+diff --git a/test/fixedbugs/bug248.dir/bug2.go b/test/fixedbugs/bug248.dir/bug2.go
+new file mode 100644
+index 0000000000..d562bf6041
+--- /dev/null
++++ b/test/fixedbugs/bug248.dir/bug2.go
+@@ -0,0 +1,92 @@
++package main
++
++import (
++	p0 "./bug0"
++	p1 "./bug1"
++
++	"reflect"
++	"strings"
++)
++
++var v0 p0.T
++var v1 p1.T
++
++type I0 interface {
++	M(p0.T)
++}
++
++type I1 interface {
++	M(p1.T)
++}
++
++type t0 int
++
++func (t0) M(p0.T) {}
++
++type t1 float
++
++func (t1) M(p1.T) {}
++
++var i0 I0 = t0(0) // ok
++var i1 I1 = t1(0) // ok
++
++var p0i p0.I = t0(0) // ok
++var p1i p1.I = t1(0) // ok
++
++func main() {
++	// check that reflect paths are correct,
++	// meaning that reflect data for v0, v1 didn't get confused.
++
++	// path is full (rooted) path name.  check suffix only.
++	if s := reflect.Typeof(v0).PkgPath(); !strings.HasSuffix(s, "/bug0") {
++		panicln("bad v0 path", len(s), s)
++	}
++	if s := reflect.Typeof(v1).PkgPath(); !strings.HasSuffix(s, "/bug1") {
++		panicln("bad v1 path", s)
++	}
++
++	// check that dynamic interface check doesn't get confused
++	var i interface{} = t0(0)
++	if _, ok := i.(I1); ok {
++		panicln("used t0 as i1")
++	}
++	if _, ok := i.(p1.I); ok {
++		panicln("used t0 as p1.I")
++	}
++
++	i = t1(1)
++	if _, ok := i.(I0); ok {
++		panicln("used t1 as i0")
++	}
++	if _, ok := i.(p0.I); ok {
++		panicln("used t1 as p0.I")
++	}
++
++	// check that type switch works.
++	// the worry is that if p0.T and p1.T have the same hash,
++	// the binary search will handle one of them incorrectly.
++	for j := 0; j < 3; j++ {
++		switch j {
++		case 0:
++			i = p0.T{}
++		case 1:
++			i = p1.T{}
++		case 2:
++			i = 3.14
++		}
++		switch k := i.(type) {
++		case p0.T:
++			if j != 0 {
++				panicln("type switch p0.T")
++			}
++		case p1.T:
++			if j != 1 {
++				panicln("type switch p1.T")
++			}
++		default:
++			if j != 2 {
++				panicln("type switch default", j)
++			}
++		}
++	}
++}
+diff --git a/test/fixedbugs/bug248.dir/bug3.go b/test/fixedbugs/bug248.dir/bug3.go
+new file mode 100644
+index 0000000000..e59982fd7d
+--- /dev/null
++++ b/test/fixedbugs/bug248.dir/bug3.go
+@@ -0,0 +1,69 @@
++package main
++
++import (
++	p0 "./bug0"
++	p1 "./bug1"
++)
++
++// both p0.T and p1.T are struct { X, Y int }.
++
++var v0 p0.T
++var v1 p1.T
++
++// interfaces involving the two
++
++type I0 interface {
++	M(p0.T)
++}
++
++type I1 interface {
++	M(p1.T)
++}
++
++// t0 satisfies I0 and p0.I
++type t0 int
++
++func (t0) M(p0.T) {}
++
++// t1 satisfies I1 and p1.I
++type t1 float
++
++func (t1) M(p1.T) {}
++
++// check static interface assignments
++var i0 I0 = t0(0) // ok
++var i1 I1 = t1(0) // ok
++
++var i2 I0 = t1(0) // ERROR "is not"
++var i3 I1 = t0(0) // ERROR "is not"
++
++var p0i p0.I = t0(0) // ok
++var p1i p1.I = t1(0) // ok
++
++var p0i1 p0.I = t1(0) // ERROR "is not"
++var p0i2 p1.I = t0(0) // ERROR "is not"
++
++func main() {
++	// check that cannot assign one to the other,
++	// but can convert.
++	v0 = v1 // ERROR "assign"
++	v1 = v0 // ERROR "assign"
++
++	v0 = p0.T(v1)
++	v1 = p1.T(v0)
++
++	i0 = i1   // ERROR "need type assertion"
++	i1 = i0   // ERROR "need type assertion"
++	p0i = i1  // ERROR "need type assertion"
++	p1i = i0  // ERROR "need type assertion"
++	i0 = p1i  // ERROR "need type assertion"
++	i1 = p0i  // ERROR "need type assertion"
++	p0i = p1i // ERROR "need type assertion"
++	p1i = p0i // ERROR "need type assertion"
++
++	i0 = p0i
++	p0i = i0
++
++	i1 = p1i
++	p1i = i1
++}
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+new file mode 100644
+index 0000000000..055bf1fd7e
+--- /dev/null
++++ b/test/fixedbugs/bug248.go
+@@ -0,0 +1,12 @@
++// $G $D/$F.dir/bug0.go &&
++// $G $D/$F.dir/bug1.go &&
++// $G $D/$F.dir/bug2.go &&
++// errchk $G -e $D/$F.dir/bug3.go &&
++// $L bug2.$A &&
++// ./$A.out || echo BUG: failed to compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++ignored
+diff --git a/test/golden.out b/test/golden.out
+index 906ecac2bb..d87842e4ff 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -138,7 +138,7 @@ panic PC=xxx
+ 
+ =========== fixedbugs/bug148.go
+ 2 3
+-interface is main.T, not main.T·1
++interface is main.T, not main.T
+ throw: interface conversion
+ 
+ panic PC=xxx
+diff --git a/test/typeswitch2.go b/test/typeswitch2.go
+new file mode 100644
+index 0000000000..f8fe396eae
+--- /dev/null
++++ b/test/typeswitch2.go
+@@ -0,0 +1,28 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "io"
++
++func whatis(x interface{}) string {
++	switch x.(type) {
++	case int:
++		return "int"
++	case int: // ERROR "duplicate"
++		return "int8"
++	case io.Reader:
++		return "Reader1"
++	case io.Reader: // ERROR "duplicate"
++		return "Reader2"
++	case interface { r(); w() }:
++		return "rw"
++	case interface { w(); r() }:	// ERROR "duplicate"
++		return "wr"
++	
++	}
++	return ""
++}

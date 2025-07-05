@@ -28,7 +28,35 @@ Date:   Tue Oct 20 15:15:23 2020 +0000
     Trust: Giovanni Bajo <rasky@develer.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/path/filepath/path_windows_test.go | 3 +++
  src/path/filepath/symlink_windows.go   | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 990f18614d..9309a7dc4d 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -413,6 +413,9 @@ func TestToNorm(t *testing.T) {
+ 		{`{{tmp}}\test`, `.\foo\bar`, `foo\bar`},
+ 		{`{{tmp}}\test`, `foo\..\foo\bar`, `foo\bar`},
+ 		{`{{tmp}}\test`, `FOO\BAR`, `foo\bar`},
++
++		// test UNC paths
++		{".", `\\localhost\c$`, `\\localhost\c$`},
+ 	}
+ 
+ 	tmp, err := ioutil.TempDir("", "testToNorm")
+diff --git a/src/path/filepath/symlink_windows.go b/src/path/filepath/symlink_windows.go
+index a799488c18..d72279e2bb 100644
+--- a/src/path/filepath/symlink_windows.go
++++ b/src/path/filepath/symlink_windows.go
+@@ -68,7 +68,7 @@ func toNorm(path string, normBase func(string) (string, error)) (string, error)
+ 	path = path[len(volume):]
+ 
+ 	// skip special cases
+-	if path == "." || path == `\` {
++	if path == "" || path == "." || path == `\` {
+ 		return volume + path, nil
+ 	}
+ 

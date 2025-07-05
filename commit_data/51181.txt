@@ -24,9 +24,173 @@ Date:   Fri Dec 10 14:13:52 2021 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/error_plan9_test.go   |  4 +++
  src/net/error_unix_test.go    |  5 +++
  src/net/error_windows_test.go | 12 ++++++-
  src/net/timeout_test.go       | 78 ++++++++++++++++++++++++-------------------
  4 files changed, 64 insertions(+), 35 deletions(-)
+
+diff --git a/src/net/error_plan9_test.go b/src/net/error_plan9_test.go
+index d7c7f1487f..1270af19e5 100644
+--- a/src/net/error_plan9_test.go
++++ b/src/net/error_plan9_test.go
+@@ -17,3 +17,7 @@ func isPlatformError(err error) bool {
+ 	_, ok := err.(syscall.ErrorString)
+ 	return ok
+ }
++
++func isENOBUFS(err error) bool {
++	return false // ENOBUFS is Unix-specific
++}
+diff --git a/src/net/error_unix_test.go b/src/net/error_unix_test.go
+index 1334aa86b6..291a7234f2 100644
+--- a/src/net/error_unix_test.go
++++ b/src/net/error_unix_test.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"errors"
+ 	"os"
+ 	"syscall"
+ )
+@@ -32,3 +33,7 @@ func samePlatformError(err, want error) bool {
+ 	}
+ 	return err == want
+ }
++
++func isENOBUFS(err error) bool {
++	return errors.Is(err, syscall.ENOBUFS)
++}
+diff --git a/src/net/error_windows_test.go b/src/net/error_windows_test.go
+index 834a9de441..25825f96f8 100644
+--- a/src/net/error_windows_test.go
++++ b/src/net/error_windows_test.go
+@@ -4,7 +4,10 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"errors"
++	"syscall"
++)
+ 
+ var (
+ 	errTimedout       = syscall.ETIMEDOUT
+@@ -17,3 +20,10 @@ func isPlatformError(err error) bool {
+ 	_, ok := err.(syscall.Errno)
+ 	return ok
+ }
++
++func isENOBUFS(err error) bool {
++	// syscall.ENOBUFS is a completely made-up value on Windows: we don't expect
++	// a real system call to ever actually return it. However, since it is already
++	// defined in the syscall package we may as well check for it.
++	return errors.Is(err, syscall.ENOBUFS)
++}
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index cd6b953747..032770dd83 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -557,17 +557,6 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
+ 	}
+ }
+ 
+-var writeToTimeoutTests = []struct {
+-	timeout time.Duration
+-	xerrs   [2]error // expected errors in transition
+-}{
+-	// Tests that write deadlines work, even if there's buffer
+-	// space available to write.
+-	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
+-
+-	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
+-}
+-
+ func TestWriteToTimeout(t *testing.T) {
+ 	t.Parallel()
+ 
+@@ -579,37 +568,58 @@ func TestWriteToTimeout(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	for i, tt := range writeToTimeoutTests {
+-		c2, err := ListenPacket(c1.LocalAddr().Network(), JoinHostPort(host, "0"))
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		defer c2.Close()
++	timeouts := []time.Duration{
++		-5 * time.Second,
++		10 * time.Millisecond,
++	}
+ 
+-		if err := c2.SetWriteDeadline(time.Now().Add(tt.timeout)); err != nil {
+-			t.Fatalf("#%d: %v", i, err)
+-		}
+-		for j, xerr := range tt.xerrs {
+-			for {
++	for _, timeout := range timeouts {
++		t.Run(fmt.Sprint(timeout), func(t *testing.T) {
++			c2, err := ListenPacket(c1.LocalAddr().Network(), JoinHostPort(host, "0"))
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer c2.Close()
++
++			if err := c2.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
++				t.Fatalf("SetWriteDeadline: %v", err)
++			}
++			backoff := 1 * time.Millisecond
++			nDeadlineExceeded := 0
++			for j := 0; nDeadlineExceeded < 2; j++ {
+ 				n, err := c2.WriteTo([]byte("WRITETO TIMEOUT TEST"), c1.LocalAddr())
+-				if xerr != nil {
+-					if perr := parseWriteError(err); perr != nil {
+-						t.Errorf("#%d/%d: %v", i, j, perr)
+-					}
+-					if !isDeadlineExceeded(err) {
+-						t.Fatalf("#%d/%d: %v", i, j, err)
+-					}
++				t.Logf("#%d: WriteTo: %d, %v", j, n, err)
++				if err == nil && timeout >= 0 && nDeadlineExceeded == 0 {
++					// If the timeout is nonnegative, some number of WriteTo calls may
++					// succeed before the timeout takes effect.
++					t.Logf("WriteTo succeeded; sleeping %v", timeout/3)
++					time.Sleep(timeout / 3)
++					continue
+ 				}
+-				if err == nil {
+-					time.Sleep(tt.timeout / 3)
++				if isENOBUFS(err) {
++					t.Logf("WriteTo: %v", err)
++					// We're looking for a deadline exceeded error, but if the kernel's
++					// network buffers are saturated we may see ENOBUFS instead (see
++					// https://go.dev/issue/49930). Give it some time to unsaturate.
++					time.Sleep(backoff)
++					backoff *= 2
+ 					continue
+ 				}
++				if perr := parseWriteError(err); perr != nil {
++					t.Errorf("failed to parse error: %v", perr)
++				}
++				if !isDeadlineExceeded(err) {
++					t.Errorf("error is not 'deadline exceeded'")
++				}
+ 				if n != 0 {
+-					t.Fatalf("#%d/%d: wrote %d; want 0", i, j, n)
++					t.Errorf("unexpectedly wrote %d bytes", n)
+ 				}
+-				break
++				if !t.Failed() {
++					t.Logf("WriteTo timed out as expected")
++				}
++				nDeadlineExceeded++
+ 			}
+-		}
++		})
+ 	}
+ }
+ 

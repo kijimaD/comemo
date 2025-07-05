@@ -12,6 +12,20 @@ Date:   Fri Aug 15 13:15:24 2014 +1000
     R=rsc, minux
     CC=golang-codereviews
     https://golang.org/cl/123520043
-
+---
  src/pkg/runtime/arch_power64le.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/arch_power64le.h b/src/pkg/runtime/arch_power64le.h
+index 3015e70aa6..684ac9953b 100644
+--- a/src/pkg/runtime/arch_power64le.h
++++ b/src/pkg/runtime/arch_power64le.h
+@@ -7,7 +7,7 @@ enum {
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+ 	RuntimeGogoBytes = 64,
+-	PhysPageSize = 4096,
++	PhysPageSize = 65536,
+ 	PCQuantum = 4,
+ 	Int64Align = 8
+ };

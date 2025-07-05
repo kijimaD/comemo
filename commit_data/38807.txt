@@ -14,10 +14,91 @@ Date:   Wed Nov 28 16:02:15 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  misc/cgo/test/issue28545.go |  2 +-
  misc/cgo/test/issue28772.go | 12 ++++++++++++
  src/cmd/cgo/ast.go          |  3 +--
  src/cmd/cgo/gcc.go          |  2 +-
  src/cmd/cgo/main.go         |  4 +++-
  5 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/test/issue28545.go b/misc/cgo/test/issue28545.go
+index 0410a16622..8419b89c0a 100644
+--- a/misc/cgo/test/issue28545.go
++++ b/misc/cgo/test/issue28545.go
+@@ -22,5 +22,5 @@ const issue28772Constant = C.issue28772Constant
+ func issue28545G(p **C.char) {
+ 	C.issue28545F(p, -1, (0))
+ 	C.issue28545F(p, 2+3, complex(1, 1))
+-	C.issue28545F(p, issue28772Constant, (0))
++	C.issue28545F(p, issue28772Constant, issue28772Constant2)
+ }
+diff --git a/misc/cgo/test/issue28772.go b/misc/cgo/test/issue28772.go
+new file mode 100644
+index 0000000000..bed786bf30
+--- /dev/null
++++ b/misc/cgo/test/issue28772.go
+@@ -0,0 +1,12 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// Constants didn't work if defined in different source file.
++
++// #define issue28772Constant2 2
++import "C"
++
++const issue28772Constant2 = C.issue28772Constant2
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index c342a01783..06058cb570 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -66,7 +66,6 @@ func (f *File) ParseGo(name string, src []byte) {
+ 	f.Package = ast1.Name.Name
+ 	f.Name = make(map[string]*Name)
+ 	f.NamePos = make(map[*Name]token.Pos)
+-	f.Consts = make(map[string]bool)
+ 
+ 	// In ast1, find the import "C" line and get any extra C preamble.
+ 	sawC := false
+@@ -198,7 +197,7 @@ func (f *File) saveExprs(x interface{}, context astContext) {
+ 				vs := spec.(*ast.ValueSpec)
+ 				if vs.Type == nil {
+ 					for _, name := range spec.(*ast.ValueSpec).Names {
+-						f.Consts[name.Name] = true
++						consts[name.Name] = true
+ 					}
+ 				}
+ 			}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index fdd34f560f..56a4775746 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1233,7 +1233,7 @@ func (p *Package) isConst(f *File, x ast.Expr) bool {
+ 			strings.HasPrefix(x.Name, "_Ciconst_") ||
+ 			strings.HasPrefix(x.Name, "_Cfconst_") ||
+ 			strings.HasPrefix(x.Name, "_Csconst_") ||
+-			f.Consts[x.Name]
++			consts[x.Name]
+ 	case *ast.UnaryExpr:
+ 		return p.isConst(f, x.X)
+ 	case *ast.BinaryExpr:
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index a317a1494d..e28a57b148 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -62,9 +62,11 @@ type File struct {
+ 	Name     map[string]*Name    // map from Go name to Name
+ 	NamePos  map[*Name]token.Pos // map from Name to position of the first reference
+ 	Edit     *edit.Buffer
+-	Consts   map[string]bool // untyped constants
+ }
+ 
++// Untyped constants in the current package.
++var consts = make(map[string]bool)
++
+ func (f *File) offset(p token.Pos) int {
+ 	return fset.Position(p).Offset
+ }

@@ -8,7 +8,7 @@ Date:   Fri Apr 4 09:07:44 2014 +0900
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/83910043
-
+---
  src/pkg/net/fd_plan9.go       | 4 ++--
  src/pkg/net/fd_unix.go        | 4 ++--
  src/pkg/net/fd_windows.go     | 4 ++--
@@ -16,3 +16,127 @@ Date:   Fri Apr 4 09:07:44 2014 +0900
  src/pkg/net/tcpsock_posix.go  | 4 ++--
  src/pkg/net/unixsock_posix.go | 4 ++--
  6 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/net/fd_plan9.go b/src/pkg/net/fd_plan9.go
+index 4309a87c3a..5fe8effc29 100644
+--- a/src/pkg/net/fd_plan9.go
++++ b/src/pkg/net/fd_plan9.go
+@@ -150,14 +150,14 @@ func (fd *netFD) Write(b []byte) (n int, err error) {
+ 	return fd.data.Write(b)
+ }
+ 
+-func (fd *netFD) CloseRead() error {
++func (fd *netFD) closeRead() error {
+ 	if !fd.ok() {
+ 		return syscall.EINVAL
+ 	}
+ 	return syscall.EPLAN9
+ }
+ 
+-func (fd *netFD) CloseWrite() error {
++func (fd *netFD) closeWrite() error {
+ 	if !fd.ok() {
+ 		return syscall.EINVAL
+ 	}
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 7a8d7d3da7..dbfbf2bd5c 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -208,11 +208,11 @@ func (fd *netFD) shutdown(how int) error {
+ 	return nil
+ }
+ 
+-func (fd *netFD) CloseRead() error {
++func (fd *netFD) closeRead() error {
+ 	return fd.shutdown(syscall.SHUT_RD)
+ }
+ 
+-func (fd *netFD) CloseWrite() error {
++func (fd *netFD) closeWrite() error {
+ 	return fd.shutdown(syscall.SHUT_WR)
+ }
+ 
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index b64410c477..a1f6bc5f81 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -431,11 +431,11 @@ func (fd *netFD) shutdown(how int) error {
+ 	return nil
+ }
+ 
+-func (fd *netFD) CloseRead() error {
++func (fd *netFD) closeRead() error {
+ 	return fd.shutdown(syscall.SHUT_RD)
+ }
+ 
+-func (fd *netFD) CloseWrite() error {
++func (fd *netFD) closeWrite() error {
+ 	return fd.shutdown(syscall.SHUT_WR)
+ }
+ 
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index 6e1a8b9a19..92e98be6f7 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -32,7 +32,7 @@ func (c *TCPConn) CloseRead() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.CloseRead()
++	return c.fd.closeRead()
+ }
+ 
+ // CloseWrite shuts down the writing side of the TCP connection.
+@@ -41,7 +41,7 @@ func (c *TCPConn) CloseWrite() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.CloseWrite()
++	return c.fd.closeWrite()
+ }
+ 
+ // SetLinger sets the behavior of Close() on a connection which still
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index cbae7f3c62..d72c96777d 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -78,7 +78,7 @@ func (c *TCPConn) CloseRead() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.CloseRead()
++	return c.fd.closeRead()
+ }
+ 
+ // CloseWrite shuts down the writing side of the TCP connection.
+@@ -87,7 +87,7 @@ func (c *TCPConn) CloseWrite() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.CloseWrite()
++	return c.fd.closeWrite()
+ }
+ 
+ // SetLinger sets the behavior of Close() on a connection which still
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index c75c0b01a2..2610779bfd 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -222,7 +222,7 @@ func (c *UnixConn) CloseRead() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.CloseRead()
++	return c.fd.closeRead()
+ }
+ 
+ // CloseWrite shuts down the writing side of the Unix domain connection.
+@@ -231,7 +231,7 @@ func (c *UnixConn) CloseWrite() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.CloseWrite()
++	return c.fd.closeWrite()
+ }
+ 
+ // DialUnix connects to the remote address raddr on the network net,

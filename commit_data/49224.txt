@@ -13,9 +13,115 @@ Date:   Fri Jul 30 09:06:38 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
  src/cmd/compile/internal/typecheck/subr.go      | 22 ++++++-----------
  test/typeparam/shape1.go                        | 33 +++++++++++++++++++++++++
  test/typeparam/shape1.out                       |  2 ++
  4 files changed, 44 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 3bf248a7ad..dca8de74f3 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1920,7 +1920,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 			// Target method uses shaped names.
+ 			targs2 := make([]*types.Type, len(targs))
+ 			for i, t := range targs {
+-				targs2[i] = typecheck.Shaped[t]
++				targs2[i] = typecheck.Shapify(t)
+ 			}
+ 			targs = targs2
+ 
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 53221bc1cd..e2f0a57e71 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1348,32 +1348,26 @@ func Shapify(t *types.Type) *types.Type {
+ 	if t.IsShape() {
+ 		return t // TODO: is this right?
+ 	}
+-	if s := Shaped[t]; s != nil {
++	// Map all types with the same underlying type to the same shape.
++	u := t.Underlying()
++
++	if s := shaped[u]; s != nil {
+ 		return s //TODO: keep?
+ 	}
+ 
+-	// For now, there is a 1-1 mapping between regular types and shape types.
+ 	sym := Lookup(fmt.Sprintf(".shape%d", snum))
+ 	snum++
+-	name := ir.NewDeclNameAt(t.Pos(), ir.OTYPE, sym)
++	name := ir.NewDeclNameAt(u.Pos(), ir.OTYPE, sym)
+ 	s := types.NewNamed(name)
+-	s.SetUnderlying(t.Underlying())
++	s.SetUnderlying(u)
+ 	s.SetIsShape(true)
+ 	name.SetType(s)
+ 	name.SetTypecheck(1)
+ 	// TODO: add methods to s that the bound has?
+-	Shaped[t] = s
++	shaped[u] = s
+ 	return s
+ }
+ 
+ var snum int
+ 
+-var Shaped = map[*types.Type]*types.Type{}
+-
+-func ShapifyList(targs []*types.Type) []*types.Type {
+-	r := make([]*types.Type, len(targs))
+-	for i, t := range targs {
+-		r[i] = Shapify(t)
+-	}
+-	return r
+-}
++var shaped = map[*types.Type]*types.Type{}
+diff --git a/test/typeparam/shape1.go b/test/typeparam/shape1.go
+new file mode 100644
+index 0000000000..3c9e71ea63
+--- /dev/null
++++ b/test/typeparam/shape1.go
+@@ -0,0 +1,33 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type I interface {
++	foo() int
++}
++
++// There should be a single instantiation of f in this program.
++func f[T I](x T) int {
++	return x.foo()
++}
++
++type squarer int
++
++func (x squarer) foo() int {
++	return int(x*x)
++}
++
++type doubler int
++
++func (x doubler) foo() int {
++	return int(2*x)
++}
++
++func main() {
++	println(f(squarer(5)))
++	println(f(doubler(5)))
++}
+diff --git a/test/typeparam/shape1.out b/test/typeparam/shape1.out
+new file mode 100644
+index 0000000000..28391fde66
+--- /dev/null
++++ b/test/typeparam/shape1.out
+@@ -0,0 +1,2 @@
++25
++10

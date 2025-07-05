@@ -11,9 +11,121 @@ Date:   Thu Apr 30 16:57:23 2015 -0700
     Change-Id: I26f41c546867f8f3f16d953dc043e784768f2aff
     Reviewed-on: https://go-review.googlesource.com/9552
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/buildruntime.go  | 23 +++++++++++++++++++++--
  src/cmd/internal/obj/stack.go |  2 +-
  src/runtime/proc1.go          |  4 ++--
  src/runtime/stack2.go         |  2 +-
  4 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 73f4d8eaf1..70aafe9183 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"fmt"
+ 	"os"
++	"strings"
+ )
+ 
+ /*
+@@ -18,6 +19,9 @@ import (
+ //	package runtime
+ //	const defaultGoroot = <goroot>
+ //	const theVersion = <version>
++//	const goexperiment = <goexperiment>
++//	const stackGuardMultiplier = <multiplier value>
++//	const buildVersion = <build version>
+ //
+ func mkzversion(dir, file string) {
+ 	out := fmt.Sprintf(
+@@ -28,7 +32,8 @@ func mkzversion(dir, file string) {
+ 			"const defaultGoroot = `%s`\n"+
+ 			"const theVersion = `%s`\n"+
+ 			"const goexperiment = `%s`\n"+
+-			"var buildVersion = theVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"))
++			"const stackGuardMultiplier = %d\n"+
++			"var buildVersion = theVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"), stackGuardMultiplier())
+ 
+ 	writefile(out, file, 0)
+ }
+@@ -44,6 +49,7 @@ func mkzversion(dir, file string) {
+ //	const defaultGOARCH = runtime.GOARCH
+ //	const defaultGO_EXTLINK_ENABLED = <goextlinkenabled>
+ //	const version = <version>
++//	const stackGuardMultiplier = <multiplier value>
+ //	const goexperiment = <goexperiment>
+ //
+ // The use of runtime.GOOS and runtime.GOARCH makes sure that
+@@ -70,8 +76,21 @@ func mkzbootstrap(file string) {
+ 			"const defaultGOARCH = runtime.GOARCH\n"+
+ 			"const defaultGO_EXTLINK_ENABLED = `%s`\n"+
+ 			"const version = `%s`\n"+
++			"const stackGuardMultiplier = %d\n"+
+ 			"const goexperiment = `%s`\n",
+-		goroot_final, go386, goarm, goextlinkenabled, findgoversion(), os.Getenv("GOEXPERIMENT"))
++		goroot_final, go386, goarm, goextlinkenabled, findgoversion(), stackGuardMultiplier(), os.Getenv("GOEXPERIMENT"))
+ 
+ 	writefile(out, file, 0)
+ }
++
++// stackGuardMultiplier returns a multiplier to apply to the default
++// stack guard size.  Larger multipliers are used for non-optimized
++// builds that have larger stack frames.
++func stackGuardMultiplier() int {
++	for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
++		if s == "-N" {
++			return 2
++		}
++	}
++	return 1
++}
+diff --git a/src/cmd/internal/obj/stack.go b/src/cmd/internal/obj/stack.go
+index 9324ef6d1b..87698b3eeb 100644
+--- a/src/cmd/internal/obj/stack.go
++++ b/src/cmd/internal/obj/stack.go
+@@ -41,7 +41,7 @@ const (
+ 	STACKSYSTEM = 0
+ 	StackSystem = STACKSYSTEM
+ 	StackBig    = 4096
+-	StackGuard  = 640 + StackSystem
++	StackGuard  = 640*stackGuardMultiplier + StackSystem
+ 	StackSmall  = 128
+ 	StackLimit  = StackGuard - StackSystem - StackSmall
+ )
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 8b87f818d3..1c81b1252a 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -691,7 +691,7 @@ func mstart() {
+ 		// Cgo may have left stack size in stack.hi.
+ 		size := _g_.stack.hi
+ 		if size == 0 {
+-			size = 8192
++			size = 8192 * stackGuardMultiplier
+ 		}
+ 		_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&size)))
+ 		_g_.stack.lo = _g_.stack.hi - size + 1024
+@@ -890,7 +890,7 @@ func allocm(_p_ *p, fn func()) *m {
+ 	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" {
+ 		mp.g0 = malg(-1)
+ 	} else {
+-		mp.g0 = malg(8192)
++		mp.g0 = malg(8192 * stackGuardMultiplier)
+ 	}
+ 	mp.g0.m = mp
+ 
+diff --git a/src/runtime/stack2.go b/src/runtime/stack2.go
+index 07a7d38f0c..5ec8d8d060 100644
+--- a/src/runtime/stack2.go
++++ b/src/runtime/stack2.go
+@@ -84,7 +84,7 @@ const (
+ 
+ 	// The stack guard is a pointer this many bytes above the
+ 	// bottom of the stack.
+-	_StackGuard = 640 + _StackSystem
++	_StackGuard = 640*stackGuardMultiplier + _StackSystem
+ 
+ 	// After a stack split check the SP is allowed to be this
+ 	// many bytes below the stack guard.  This saves an instruction

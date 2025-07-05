@@ -7,10 +7,152 @@ Date:   Thu Sep 15 16:21:56 2016 -0700
     Change-Id: I0131b0d7421ff1397f16a08eff758250abbdf8e2
     Reviewed-on: https://go-review.googlesource.com/29239
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/amd64/prog.go  | 12 ------------
  src/cmd/compile/internal/arm/gsubr.go   | 24 +-----------------------
  src/cmd/compile/internal/arm64/gsubr.go | 25 +------------------------
  src/cmd/compile/internal/gc/gsubr.go    | 20 --------------------
  src/cmd/compile/internal/gc/pgen.go     |  2 --
  5 files changed, 2 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index b8f6f0612d..42b3c4d82e 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -274,18 +274,6 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.AXORPS & obj.AMask:    {Flags: gc.LeftRead | RightRdwr},
+ }
+ 
+-func progflags(p *obj.Prog) uint32 {
+-	flags := progtable[p.As&obj.AMask].Flags
+-	if flags&gc.ImulAXDX != 0 && p.To.Type != obj.TYPE_NONE {
+-		flags |= RightRdwr
+-	}
+-	return flags
+-}
+-
+-func progcarryflags(p *obj.Prog) uint32 {
+-	return progtable[p.As&obj.AMask].Flags
+-}
+-
+ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+ 	*info = progtable[p.As&obj.AMask]
+diff --git a/src/cmd/compile/internal/arm/gsubr.go b/src/cmd/compile/internal/arm/gsubr.go
+index e6e2139d48..30c2b75598 100644
+--- a/src/cmd/compile/internal/arm/gsubr.go
++++ b/src/cmd/compile/internal/arm/gsubr.go
+@@ -30,31 +30,9 @@
+ 
+ package arm
+ 
+-import (
+-	"cmd/compile/internal/gc"
+-	"cmd/internal/obj"
+-	"cmd/internal/obj/arm"
+-)
++import "cmd/internal/obj/arm"
+ 
+ var resvd = []int{
+ 	arm.REG_R9,  // formerly reserved for m; might be okay to reuse now; not sure about NaCl
+ 	arm.REG_R10, // reserved for g
+ }
+-
+-/*
+- * insert n into reg slot of p
+- */
+-func raddr(n *gc.Node, p *obj.Prog) {
+-	var a obj.Addr
+-	gc.Naddr(&a, n)
+-	if a.Type != obj.TYPE_REG {
+-		if n != nil {
+-			gc.Fatalf("bad in raddr: %v", n.Op)
+-		} else {
+-			gc.Fatalf("bad in raddr: <null>")
+-		}
+-		p.Reg = 0
+-	} else {
+-		p.Reg = a.Reg
+-	}
+-}
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index b6b71f01be..f65ffe54b5 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -30,11 +30,7 @@
+ 
+ package arm64
+ 
+-import (
+-	"cmd/compile/internal/gc"
+-	"cmd/internal/obj"
+-	"cmd/internal/obj/arm64"
+-)
++import "cmd/internal/obj/arm64"
+ 
+ var resvd = []int{
+ 	arm64.REGTMP,
+@@ -43,22 +39,3 @@ var resvd = []int{
+ 	arm64.REGRT2,
+ 	arm64.REG_R31, // REGZERO and REGSP
+ }
+-
+-/*
+- * insert n into reg slot of p
+- */
+-func raddr(n *gc.Node, p *obj.Prog) {
+-	var a obj.Addr
+-
+-	gc.Naddr(&a, n)
+-	if a.Type != obj.TYPE_REG {
+-		if n != nil {
+-			gc.Fatalf("bad in raddr: %v", n.Op)
+-		} else {
+-			gc.Fatalf("bad in raddr: <null>")
+-		}
+-		p.Reg = 0
+-	} else {
+-		p.Reg = a.Reg
+-	}
+-}
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index c0150fd030..291fb5645c 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -601,23 +601,3 @@ func Gins(as obj.As, f, t *Node) *obj.Prog {
+ 	}
+ 	return p
+ }
+-
+-var reg [100]int       // count of references to reg
+-var regstk [100][]byte // allocation sites, when -v is given
+-
+-func ginit() {
+-	for r := range reg {
+-		reg[r] = 1
+-	}
+-
+-	for r := Thearch.REGMIN; r <= Thearch.REGMAX; r++ {
+-		reg[r-Thearch.REGMIN] = 0
+-	}
+-	for r := Thearch.FREGMIN; r <= Thearch.FREGMAX; r++ {
+-		reg[r-Thearch.REGMIN] = 0
+-	}
+-
+-	for _, r := range Thearch.ReservedRegs {
+-		reg[r-Thearch.REGMIN] = 1
+-	}
+-}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index bfe1cd21b0..95618175eb 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -420,8 +420,6 @@ func compile(fn *Node) {
+ 		}
+ 	}
+ 
+-	ginit()
+-
+ 	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
+ 	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
+ 

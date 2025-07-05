@@ -7,6 +7,23 @@ Date:   Thu Nov 6 17:29:07 2008 -0800
     R=r
     OCL=18738
     CL=18738
-
+---
  src/lib/bignum.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/lib/bignum.go b/src/lib/bignum.go
+index 0e086dc9d7..6c3da2638b 100755
+--- a/src/lib/bignum.go
++++ b/src/lib/bignum.go
+@@ -841,6 +841,11 @@ export func Fact(n uint) *Natural {
+ }
+ 
+ 
++export func Binomial(n, k uint) *Natural {
++	return MulRange(n-k+1, n).Div(MulRange(1, k));
++}
++
++
+ func (x *Natural) Gcd(y *Natural) *Natural {
+ 	// Euclidean algorithm.
+ 	for !y.IsZero() {

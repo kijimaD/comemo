@@ -11,6 +11,19 @@ Date:   Wed Aug 7 20:14:30 2024 +0300
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/fmt/fmt_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 0f4a35dd6f..b7f9ccd494 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1230,7 +1230,6 @@ func TestReorder(t *testing.T) {
+ 		s := Sprintf(tt.fmt, tt.val...)
+ 		if s != tt.out {
+ 			t.Errorf("Sprintf(%q, %v) = <%s> want <%s>", tt.fmt, tt.val, s, tt.out)
+-		} else {
+ 		}
+ 	}
+ }

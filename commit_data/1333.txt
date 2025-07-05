@@ -7,8 +7,218 @@ Date:   Thu Dec 11 17:45:45 2008 -0800
     R=r
     OCL=21030
     CL=21030
-
+---
  usr/gri/pretty/parser.go    | 54 +++++++++++++++++++++++++++++++++++++--------
  usr/gri/pretty/printer.go   |  3 +++
  usr/gri/pretty/selftest2.go | 47 +++++++++++++++++++++++++++++++++++++--
  3 files changed, 93 insertions(+), 11 deletions(-)
+
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index bb9b91e855..f9fcf0630d 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -971,12 +971,25 @@ func (P *Parser) ParseExpression(prec int) *AST.Expr {
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
+-func (P *Parser) ParseSimpleStat() *AST.Stat {
++func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
+ 	P.Trace("SimpleStat");
+ 	
+ 	s := AST.BadStat;
+ 	x := P.ParseExpressionList();
+ 	
++	is_range := false;
++	if range_ok && P.tok == Scanner.COLON {
++		pos := P.pos;
++		P.Next();
++		y := P.ParseExpression(1);
++		if x.Len() == 1 {
++			x = P.NewExpr(pos, Scanner.COLON, x, y);
++			is_range = true;
++		} else {
++			P.Error(pos, "expected initialization, found ':'");
++		}
++	}
++	
+ 	switch P.tok {
+ 	case Scanner.COLON:
+ 		// label declaration
+@@ -987,22 +1000,44 @@ func (P *Parser) ParseSimpleStat() *AST.Stat {
+ 		}
+ 		P.Next();  // consume ":"
+ 		P.opt_semi = true;
+-		
++
+ 	case
+ 		Scanner.DEFINE, Scanner.ASSIGN, Scanner.ADD_ASSIGN,
+ 		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
+ 		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
+ 		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
+-		// assignment
++		// declaration/assignment
+ 		pos, tok := P.pos, P.tok;
+ 		P.Next();
+-		y := P.ParseExpressionList();
+-		if xl, yl := x.Len(), y.Len(); xl > 1 && yl > 1 && xl != yl {
+-			P.Error(x.pos, "arity of lhs doesn't match rhs");
++		y := AST.BadExpr;
++		if P.tok == Scanner.RANGE {
++			range_pos := P.pos;
++			P.Next();
++			y = P.ParseExpression(1);
++			y = P.NewExpr(range_pos, Scanner.RANGE, nil, y);
++			if tok != Scanner.DEFINE && tok != Scanner.ASSIGN {
++				P.Error(pos, "expected '=' or ':=', found '" + Scanner.TokenString(tok) + "'");
++			}
++		} else {
++			y = P.ParseExpressionList();
++			if is_range {
++				P.Error(y.pos, "expected 'range', found expression");
++			}
++			if xl, yl := x.Len(), y.Len(); xl > 1 && yl > 1 && xl != yl {
++				P.Error(x.pos, "arity of lhs doesn't match rhs");
++			}
+ 		}
+ 		s = AST.NewStat(x.pos, Scanner.EXPRSTAT);
+ 		s.expr = AST.NewExpr(pos, tok, x, y);
+ 
++	case Scanner.RANGE:
++		pos := P.pos;
++		P.Next();
++		y := P.ParseExpression(1);
++		y = P.NewExpr(pos, Scanner.RANGE, nil, y);
++		s = AST.NewStat(x.pos, Scanner.EXPRSTAT);
++		s.expr = AST.NewExpr(pos, Scanner.DEFINE, x, y);
++
+ 	default:
+ 		var pos, tok int;
+ 		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
+@@ -1072,7 +1107,8 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
+ 		prev_lev := P.expr_lev;
+ 		P.expr_lev = -1;
+ 		if P.tok != Scanner.SEMICOLON {
+-			s.init = P.ParseSimpleStat();
++			s.init = P.ParseSimpleStat(keyword == Scanner.FOR);
++			// TODO check for range clause and exit if found
+ 		}
+ 		if P.tok == Scanner.SEMICOLON {
+ 			P.Next();
+@@ -1082,7 +1118,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
+ 			if keyword == Scanner.FOR {
+ 				P.Expect(Scanner.SEMICOLON);
+ 				if P.tok != Scanner.LBRACE {
+-					s.post = P.ParseSimpleStat();
++					s.post = P.ParseSimpleStat(false);
+ 				}
+ 			}
+ 		} else {
+@@ -1284,7 +1320,7 @@ func (P *Parser) ParseStatement() *AST.Stat {
+ 		Scanner.IDENT, Scanner.INT, Scanner.FLOAT, Scanner.STRING, Scanner.LPAREN,  // operand
+ 		Scanner.LBRACK, Scanner.STRUCT,  // composite type
+ 		Scanner.MUL, Scanner.AND, Scanner.ARROW:  // unary
+-		s = P.ParseSimpleStat();
++		s = P.ParseSimpleStat(false);
+ 	case Scanner.GO:
+ 		s = P.ParseGoStat();
+ 	case Scanner.RETURN:
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 187bd6284d..f799d0f882 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -582,6 +582,9 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
+ 		if x.x == nil {
+ 			// unary expression
+ 			P.Token(x.pos, x.tok);
++			if x.tok == Scanner.RANGE {
++				P.separator = blank;
++			}
+ 		} else {
+ 			// binary expression
+ 			P.Expr1(x.x, prec);
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index 368c0dc5b2..3e07ba799b 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ 
+-const /* enum */ (
++const /* enum1 */ (
+ 	EnumTag0 = iota;
+ 	EnumTag1;
+ 	EnumTag2;
+@@ -25,6 +25,13 @@ const /* enum */ (
+ )
+ 
+ 
++const /* enum2 */ (
++	a, b = iota*2 + 1, iota*2;
++	c, d;
++	e, f;
++)
++
++
+ type S struct {}
+ 
+ 
+@@ -37,7 +44,7 @@ type T struct {
+ 
+ var (
+ 	A = 5;
+-	a, b, c int = 0, 0, 0;
++	u, v, w int = 0, 0, 0;
+ 	foo = "foo";
+ )
+ 
+@@ -66,6 +73,41 @@ func f2(tag int) {
+ }
+ 
+ 
++func f3(a *[]int, m *map[string] int) {
++	println("A1");
++	for i := range a {
++		println(i);
++	}
++
++	println("A2");
++	for i, x := range a {
++		println(i, x);
++	}
++
++	println("A3");
++	for i : x := range a {
++		println(i, x);
++	}
++
++	println("M1");
++	for i range m {
++		println(i);
++	}
++
++	println("M2");
++	for i, x range m {
++		println(i, x);
++	}
++
++	println("M3");
++	var i string;
++	var x int;
++	for i : x = range m {
++		println(i, x);
++	}
++}
++
++
+ func main() {
+ // the prologue
+ 	for i := 0; i <= 10 /* limit */; i++ {
+@@ -74,6 +116,7 @@ func main() {
+ 		println(i + 1000);  // the index + 1000
+ 		println();
+ 	}
++	f3(&[]int{2, 3, 5, 7}, map[string]int{"two":2, "three":3, "five":5, "seven":7});
+ // the epilogue
+ 	println("foo");  // foo
+ 	println("foobar");  // foobar

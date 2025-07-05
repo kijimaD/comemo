@@ -19,9 +19,1293 @@ Date:   Fri Feb 13 17:01:43 2015 -0800
     Change-Id: I8c06aedcf61f8a3960a406c094e168182d21b972
     Reviewed-on: https://go-review.googlesource.com/4923
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go |  73 +++++++-
  src/cmd/asm/internal/arch/arm.go  | 190 ++++++++++++++++++++
  src/cmd/asm/internal/asm/asm.go   | 241 +++++++++++++++++++------
  src/cmd/asm/internal/asm/parse.go | 367 +++++++++++++++++++++++++++++++-------
  4 files changed, 752 insertions(+), 119 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 5276819c83..740bb1e2e7 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -6,8 +6,10 @@ package arch
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/obj/arm"
+ 	"cmd/internal/obj/i386" // == 386
+ 	"cmd/internal/obj/x86"  // == amd64
++	"fmt"
+ )
+ 
+ // Pseudo-registers whose names are the constant name without the leading R.
+@@ -27,6 +29,12 @@ type Arch struct {
+ 	Registers map[string]int16
+ 	// Instructions that take one operand whose result is a destination.
+ 	UnaryDestination map[int]bool
++	// Instruction is a jump.
++	IsJump func(word string) bool
++	// Aconv pretty-prints an instruction opcode for this architecture.
++	Aconv func(int) string
++	// Dconv pretty-prints an address for this architecture.
++	Dconv func(p *obj.Prog, flag int, a *obj.Addr) string
+ }
+ 
+ var Pseudos = map[string]int{
+@@ -46,12 +54,21 @@ func Set(GOARCH string) *Arch {
+ 		return arch386()
+ 	case "amd64":
+ 		return archAmd64()
++	case "amd64p32":
++		a := archAmd64()
++		a.LinkArch = &x86.Linkamd64p32
++		return a
++	case "arm":
++		return archArm()
+ 	}
+ 	return nil
+ }
+ 
+-func arch386() *Arch {
++func jump386(word string) bool {
++	return word[0] == 'J' || word == "CALL"
++}
+ 
++func arch386() *Arch {
+ 	registers := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+ 	// TODO: Should this be done in obj for us?
+@@ -147,11 +164,13 @@ func arch386() *Arch {
+ 		Instructions:     instructions,
+ 		Registers:        registers,
+ 		UnaryDestination: unaryDestination,
++		IsJump:           jump386,
++		Aconv:            i386.Aconv,
++		Dconv:            i386.Dconv,
+ 	}
+ }
+ 
+ func archAmd64() *Arch {
+-
+ 	registers := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+ 	// TODO: Should this be done in obj for us?
+@@ -254,5 +273,55 @@ func archAmd64() *Arch {
+ 		Instructions:     instructions,
+ 		Registers:        registers,
+ 		UnaryDestination: unaryDestination,
++		IsJump:           jump386,
++		Aconv:            x86.Aconv,
++		Dconv:            x86.Dconv,
++	}
++}
++
++func archArm() *Arch {
++	registers := make(map[string]int16)
++	// Create maps for easy lookup of instruction names etc.
++	// TODO: Should this be done in obj for us?
++	// Note that there is no list of names as there is for 386 and amd64.
++	// TODO: Are there aliases we need to add?
++	for i := arm.REG_R0; i < arm.REG_SPSR; i++ {
++		registers[arm.Rconv(i)] = int16(i)
++	}
++	// Avoid unintentionally clobbering g using R10.
++	delete(registers, "R10")
++	registers["g"] = arm.REG_R10
++	for i := 0; i < 16; i++ {
++		registers[fmt.Sprintf("C%d", i)] = int16(i)
++	}
++
++	// Pseudo-registers.
++	registers["SB"] = RSB
++	registers["FP"] = RFP
++	registers["PC"] = RPC
++	registers["SP"] = RSP
++
++	instructions := make(map[string]int)
++	for i, s := range arm.Anames {
++		instructions[s] = i
++	}
++	// Annoying aliases.
++	instructions["B"] = obj.AJMP
++	instructions["BL"] = obj.ACALL
++
++	unaryDestination := make(map[int]bool) // Instruction takes one operand and result is a destination.
++	// These instructions write to prog.To.
++	// TODO: These are silly. Fix once C assembler is gone.
++	unaryDestination[arm.ASWI] = true
++	unaryDestination[arm.AWORD] = true
++
++	return &Arch{
++		LinkArch:         &arm.Linkarm,
++		Instructions:     instructions,
++		Registers:        registers,
++		UnaryDestination: unaryDestination,
++		IsJump:           jumpArm,
++		Aconv:            arm.Aconv,
++		Dconv:            arm.Dconv,
+ 	}
+ }
+diff --git a/src/cmd/asm/internal/arch/arm.go b/src/cmd/asm/internal/arch/arm.go
+new file mode 100644
+index 0000000000..4ac13f0289
+--- /dev/null
++++ b/src/cmd/asm/internal/arch/arm.go
+@@ -0,0 +1,190 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file encapsulates some of the odd characteristics of the ARM
++// instruction set, to minimize its interaction with the core of the
++// assembler.
++
++package arch
++
++import (
++	"strings"
++
++	"cmd/internal/obj"
++	"cmd/internal/obj/arm"
++)
++
++var armLS = map[string]uint8{
++	"U":  arm.C_UBIT,
++	"S":  arm.C_SBIT,
++	"W":  arm.C_WBIT,
++	"P":  arm.C_PBIT,
++	"PW": arm.C_WBIT | arm.C_PBIT,
++	"WP": arm.C_WBIT | arm.C_PBIT,
++}
++
++var armSCOND = map[string]uint8{
++	"EQ":  arm.C_SCOND_EQ,
++	"NE":  arm.C_SCOND_NE,
++	"CS":  arm.C_SCOND_HS,
++	"HS":  arm.C_SCOND_HS,
++	"CC":  arm.C_SCOND_LO,
++	"LO":  arm.C_SCOND_LO,
++	"MI":  arm.C_SCOND_MI,
++	"PL":  arm.C_SCOND_PL,
++	"VS":  arm.C_SCOND_VS,
++	"VC":  arm.C_SCOND_VC,
++	"HI":  arm.C_SCOND_HI,
++	"LS":  arm.C_SCOND_LS,
++	"GE":  arm.C_SCOND_GE,
++	"LT":  arm.C_SCOND_LT,
++	"GT":  arm.C_SCOND_GT,
++	"LE":  arm.C_SCOND_LE,
++	"AL":  arm.C_SCOND_NONE,
++	"U":   arm.C_UBIT,
++	"S":   arm.C_SBIT,
++	"W":   arm.C_WBIT,
++	"P":   arm.C_PBIT,
++	"PW":  arm.C_WBIT | arm.C_PBIT,
++	"WP":  arm.C_WBIT | arm.C_PBIT,
++	"F":   arm.C_FBIT,
++	"IBW": arm.C_WBIT | arm.C_PBIT | arm.C_UBIT,
++	"IAW": arm.C_WBIT | arm.C_UBIT,
++	"DBW": arm.C_WBIT | arm.C_PBIT,
++	"DAW": arm.C_WBIT,
++	"IB":  arm.C_PBIT | arm.C_UBIT,
++	"IA":  arm.C_UBIT,
++	"DB":  arm.C_PBIT,
++	"DA":  0,
++}
++
++var armJump = map[string]bool{
++	"B":    true,
++	"BL":   true,
++	"BEQ":  true,
++	"BNE":  true,
++	"BCS":  true,
++	"BHS":  true,
++	"BCC":  true,
++	"BLO":  true,
++	"BMI":  true,
++	"BPL":  true,
++	"BVS":  true,
++	"BVC":  true,
++	"BHI":  true,
++	"BLS":  true,
++	"BGE":  true,
++	"BLT":  true,
++	"BGT":  true,
++	"BLE":  true,
++	"CALL": true,
++}
++
++func jumpArm(word string) bool {
++	return armJump[word]
++}
++
++// IsARMCMP reports whether the op (as defined by an arm.A* constant) is
++// one of the comparison instructions that require special handling.
++func IsARMCMP(op int) bool {
++	switch op {
++	case arm.ACMN, arm.ACMP, arm.ATEQ, arm.ATST:
++		return true
++	}
++	return false
++}
++
++// IsARMSTREX reports whether the op (as defined by an arm.A* constant) is
++// one of the STREX-like instructions that require special handling.
++func IsARMSTREX(op int) bool {
++	switch op {
++	case arm.ASTREX, arm.ASTREXD, arm.ASWPW, arm.ASWPBU:
++		return true
++	}
++	return false
++}
++
++// IsARMMRC reports whether the op (as defined by an arm.A* constant) is
++// MRC or MCR
++func IsARMMRC(op int) bool {
++	switch op {
++	case arm.AMRC /*, arm.AMCR*/ :
++		return true
++	}
++	return false
++}
++
++// IsARMMULA reports whether the op (as defined by an arm.A* constant) is
++// MULA, MULAWT or MULAWB, the 4-operand instructions.
++func IsARMMULA(op int) bool {
++	switch op {
++	case arm.AMULA, arm.AMULAWB, arm.AMULAWT:
++		return true
++	}
++	return false
++}
++
++var bcode = []int{
++	arm.ABEQ,
++	arm.ABNE,
++	arm.ABCS,
++	arm.ABCC,
++	arm.ABMI,
++	arm.ABPL,
++	arm.ABVS,
++	arm.ABVC,
++	arm.ABHI,
++	arm.ABLS,
++	arm.ABGE,
++	arm.ABLT,
++	arm.ABGT,
++	arm.ABLE,
++	arm.AB,
++	obj.ANOP,
++}
++
++// ARMConditionCodes handles the special condition code situation for the ARM.
++// It returns a boolean to indicate success; failure means cond was unrecognized.
++func ARMConditionCodes(prog *obj.Prog, cond string) bool {
++	if cond == "" {
++		return true
++	}
++	bits, ok := parseARMCondition(cond)
++	if !ok {
++		return false
++	}
++	/* hack to make B.NE etc. work: turn it into the corresponding conditional */
++	if prog.As == arm.AB {
++		prog.As = int16(bcode[(bits^arm.C_SCOND_XOR)&0xf])
++		bits = (bits &^ 0xf) | arm.C_SCOND_NONE
++	}
++	prog.Scond = bits
++	return true
++}
++
++// parseARMCondition parses the conditions attached to an ARM instruction.
++// The input is a single string consisting of period-separated condition
++// codes, such as ".P.W". An initial period is ignored.
++func parseARMCondition(cond string) (uint8, bool) {
++	if strings.HasPrefix(cond, ".") {
++		cond = cond[1:]
++	}
++	if cond == "" {
++		return arm.C_SCOND_NONE, true
++	}
++	names := strings.Split(cond, ".")
++	bits := uint8(0)
++	for _, name := range names {
++		if b, present := armLS[name]; present {
++			bits |= b
++			continue
++		}
++		if b, present := armSCOND[name]; present {
++			bits = (bits &^ arm.C_SCOND) | b
++			continue
++		}
++		return 0, false
++	}
++	return bits, true
++}
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 05ba70d594..e7bfc4fe89 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -12,13 +12,19 @@ import (
+ 	"cmd/asm/internal/flags"
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
++	"cmd/internal/obj/arm"
+ )
+ 
+ // TODO: configure the architecture
+ 
+ // append adds the Prog to the end of the program-thus-far.
+ // If doLabel is set, it also defines the labels collect for this Prog.
+-func (p *Parser) append(prog *obj.Prog, doLabel bool) {
++func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
++	if p.arch.Thechar == '5' {
++		if !arch.ARMConditionCodes(prog, cond) {
++			p.errorf("unrecognized condition code .%q", cond)
++		}
++	}
+ 	if p.firstProg == nil {
+ 		p.firstProg = prog
+ 	} else {
+@@ -41,7 +47,8 @@ func (p *Parser) append(prog *obj.Prog, doLabel bool) {
+ 	}
+ }
+ 
+-func (p *Parser) validatePseudoSymbol(pseudo string, addr *obj.Addr, offsetOk bool) {
++// validateSymbol checks that addr represents a valid name for a pseudo-op.
++func (p *Parser) validateSymbol(pseudo string, addr *obj.Addr, offsetOk bool) {
+ 	if addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
+ 		p.errorf("%s symbol %q must be a symbol(SB)", pseudo, addr.Sym.Name)
+ 	}
+@@ -50,12 +57,17 @@ func (p *Parser) validatePseudoSymbol(pseudo string, addr *obj.Addr, offsetOk bo
+ 	}
+ }
+ 
++// evalInteger evaluates an integer constant for a pseudo-op.
+ func (p *Parser) evalInteger(pseudo string, operands []lex.Token) int64 {
+ 	addr := p.address(operands)
+-	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
+-		p.errorf("%s: text flag must be an integer constant")
++	return p.getConstantPseudo(pseudo, &addr)
++}
++
++// validateImmediate checks that addr represents an immediate constant.
++func (p *Parser) validateImmediate(pseudo string, addr *obj.Addr) {
++	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
++		p.errorf("%s: expected immediate constant; found %s", pseudo, p.arch.Dconv(&emptyProg, 0, addr))
+ 	}
+-	return addr.Offset
+ }
+ 
+ // asmText assembles a TEXT pseudo-op.
+@@ -73,7 +85,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 	// Operand 0 is the symbol name in the form foo(SB).
+ 	// That means symbol plus indirect on SB and no offset.
+ 	nameAddr := p.address(operands[0])
+-	p.validatePseudoSymbol("TEXT", &nameAddr, false)
++	p.validateSymbol("TEXT", &nameAddr, false)
+ 	name := nameAddr.Sym.Name
+ 	next := 1
+ 
+@@ -93,6 +105,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 	op := operands[next]
+ 	if len(op) < 2 || op[0].ScanToken != '$' {
+ 		p.errorf("TEXT %s: frame size must be an immediate constant", name)
++		return
+ 	}
+ 	op = op[1:]
+ 	negative := false
+@@ -102,6 +115,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 	}
+ 	if len(op) == 0 || op[0].ScanToken != scanner.Int {
+ 		p.errorf("TEXT %s: frame size must be an immediate constant", name)
++		return
+ 	}
+ 	frameSize := p.positiveAtoi(op[0].String())
+ 	if negative {
+@@ -132,7 +146,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 	}
+ 	prog.To.U.Argsize = int32(argSize)
+ 
+-	p.append(prog, true)
++	p.append(prog, "", true)
+ }
+ 
+ // asmData assembles a DATA pseudo-op.
+@@ -151,7 +165,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
+ 	scale := p.parseScale(op[n-1].String())
+ 	op = op[:n-2]
+ 	nameAddr := p.address(op)
+-	p.validatePseudoSymbol("DATA", &nameAddr, true)
++	p.validateSymbol("DATA", &nameAddr, true)
+ 	name := nameAddr.Sym.Name
+ 
+ 	// Operand 1 is an immediate constant or address.
+@@ -180,7 +194,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
+ 		To: valueAddr,
+ 	}
+ 
+-	p.append(prog, false)
++	p.append(prog, "", false)
+ }
+ 
+ // asmGlobl assembles a GLOBL pseudo-op.
+@@ -193,8 +207,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
+ 
+ 	// Operand 0 has the general form foo<>+0x04(SB).
+ 	nameAddr := p.address(operands[0])
+-	p.validatePseudoSymbol("GLOBL", &nameAddr, false)
+-	name := nameAddr.Sym.Name
++	p.validateSymbol("GLOBL", &nameAddr, false)
+ 	next := 1
+ 
+ 	// Next operand is the optional flag, a literal integer.
+@@ -205,11 +218,8 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
+ 	}
+ 
+ 	// Final operand is an immediate constant.
+-	op := operands[next]
+-	if len(op) < 2 || op[0].ScanToken != '$' || op[1].ScanToken != scanner.Int {
+-		p.errorf("GLOBL %s: size must be an immediate constant", name)
+-	}
+-	size := p.positiveAtoi(op[1].String())
++	addr := p.address(operands[next])
++	p.validateImmediate("GLOBL", &addr)
+ 
+ 	// log.Printf("GLOBL %s %d, $%d", name, flag, size)
+ 	prog := &obj.Prog{
+@@ -220,13 +230,9 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
+ 		From3: obj.Addr{
+ 			Offset: flag,
+ 		},
+-		To: obj.Addr{
+-			Type:   obj.TYPE_CONST,
+-			Index:  0,
+-			Offset: size,
+-		},
++		To: addr,
+ 	}
+-	p.append(prog, false)
++	p.append(prog, "", false)
+ }
+ 
+ // asmPCData assembles a PCDATA pseudo-op.
+@@ -238,15 +244,11 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
+ 
+ 	// Operand 0 must be an immediate constant.
+ 	key := p.address(operands[0])
+-	if key.Type != obj.TYPE_CONST {
+-		p.errorf("PCDATA key must be an immediate constant")
+-	}
++	p.validateImmediate("PCDATA", &key)
+ 
+ 	// Operand 1 must be an immediate constant.
+ 	value := p.address(operands[1])
+-	if value.Type != obj.TYPE_CONST {
+-		p.errorf("PCDATA value must be an immediate constant")
+-	}
++	p.validateImmediate("PCDATA", &value)
+ 
+ 	// log.Printf("PCDATA $%d, $%d", key.Offset, value.Offset)
+ 	prog := &obj.Prog{
+@@ -256,7 +258,7 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
+ 		From:   key,
+ 		To:     value,
+ 	}
+-	p.append(prog, true)
++	p.append(prog, "", true)
+ }
+ 
+ // asmFuncData assembles a FUNCDATA pseudo-op.
+@@ -268,13 +270,11 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ 
+ 	// Operand 0 must be an immediate constant.
+ 	valueAddr := p.address(operands[0])
+-	if valueAddr.Type != obj.TYPE_CONST {
+-		p.errorf("FUNCDATA value0 must be an immediate constant")
+-	}
++	p.validateImmediate("FUNCDATA", &valueAddr)
+ 
+ 	// Operand 1 is a symbol name in the form foo(SB).
+ 	nameAddr := p.address(operands[1])
+-	p.validatePseudoSymbol("FUNCDATA", &nameAddr, true)
++	p.validateSymbol("FUNCDATA", &nameAddr, true)
+ 
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.linkCtxt,
+@@ -283,20 +283,20 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ 		From:   valueAddr,
+ 		To:     nameAddr,
+ 	}
+-	p.append(prog, true)
++	p.append(prog, "", true)
+ }
+ 
+ // asmJump assembles a jump instruction.
+ // JMP	R1
+ // JMP	exit
+ // JMP	3(PC)
+-func (p *Parser) asmJump(op int, a []obj.Addr) {
++func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 	var target *obj.Addr
+ 	switch len(a) {
+ 	case 1:
+ 		target = &a[0]
+ 	default:
+-		p.errorf("wrong number of arguments to jump instruction")
++		p.errorf("wrong number of arguments to %s instruction", p.arch.Aconv(op))
+ 	}
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.linkCtxt,
+@@ -335,7 +335,8 @@ func (p *Parser) asmJump(op int, a []obj.Addr) {
+ 	default:
+ 		p.errorf("cannot assemble jump %+v", target)
+ 	}
+-	p.append(prog, true)
++
++	p.append(prog, cond, true)
+ }
+ 
+ func (p *Parser) patch() {
+@@ -360,7 +361,8 @@ func (p *Parser) branch(jmp, target *obj.Prog) {
+ 
+ // asmInstruction assembles an instruction.
+ // MOVW R9, (R10)
+-func (p *Parser) asmInstruction(op int, a []obj.Addr) {
++func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
++	// fmt.Printf("%+v\n", a)
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.linkCtxt,
+ 		Lineno: p.histLineNum,
+@@ -378,6 +380,34 @@ func (p *Parser) asmInstruction(op int, a []obj.Addr) {
+ 			// prog.To is no address.
+ 		}
+ 	case 2:
++		if p.arch.Thechar == '5' {
++			if arch.IsARMCMP(op) {
++				prog.From = a[0]
++				prog.Reg = p.getRegister(prog, op, &a[1])
++				break
++			}
++			// Strange special cases.
++			if arch.IsARMSTREX(op) {
++				/*
++					STREX x, (y)
++						from=(y) reg=x to=x
++					STREX (x), y
++						from=(x) reg=y to=y
++				*/
++				if a[0].Type == obj.TYPE_REG && a[1].Type != obj.TYPE_REG {
++					prog.From = a[1]
++					prog.Reg = a[0].Reg
++					prog.To = a[0]
++					break
++				} else if a[0].Type != obj.TYPE_REG && a[1].Type == obj.TYPE_REG {
++					prog.From = a[0]
++					prog.Reg = a[1].Reg
++					prog.To = a[1]
++					break
++				}
++				p.errorf("unrecognized addressing for %s", p.arch.Aconv(op))
++			}
++		}
+ 		prog.From = a[0]
+ 		prog.To = a[1]
+ 		// DX:AX as a register pair can only appear on the RHS.
+@@ -391,26 +421,129 @@ func (p *Parser) asmInstruction(op int, a []obj.Addr) {
+ 			prog.To.Class = 0
+ 		}
+ 	case 3:
+-		// CMPSD etc.; third operand is imm8, stored in offset, or a register.
+-		prog.From = a[0]
+-		prog.To = a[1]
+-		switch a[2].Type {
+-		case obj.TYPE_MEM:
+-			prog.To.Offset = a[2].Offset
+-		case obj.TYPE_REG:
+-			// Strange reodering.
++		switch p.arch.Thechar {
++		case '5':
++			// Strange special case.
++			if arch.IsARMSTREX(op) {
++				/*
++					STREX x, (y), z
++						from=(y) reg=x to=z
++				*/
++				prog.From = a[1]
++				prog.Reg = p.getRegister(prog, op, &a[0])
++				prog.To = a[2]
++				break
++			}
++			// Otherwise the 2nd operand (a[1]) must be a register.
++			prog.From = a[0]
++			prog.Reg = p.getRegister(prog, op, &a[1])
+ 			prog.To = a[2]
+-			prog.From = a[1]
+-			if a[0].Type != obj.TYPE_CONST {
+-				p.errorf("expected immediate constant for 1st operand")
++		case '6', '8':
++			// CMPSD etc.; third operand is imm8, stored in offset, or a register.
++			prog.From = a[0]
++			prog.To = a[1]
++			switch a[2].Type {
++			case obj.TYPE_MEM:
++				prog.To.Offset = p.getConstant(prog, op, &a[2])
++			case obj.TYPE_REG:
++				// Strange reordering.
++				prog.To = a[2]
++				prog.From = a[1]
++				prog.To.Offset = p.getImmediate(prog, op, &a[0])
++			default:
++				p.errorf("expected offset or register for 3rd operand")
+ 			}
+-			prog.To.Offset = a[0].Offset
+ 		default:
+-			p.errorf("expected offset or register for 3rd operand")
++			p.errorf("TODO: implement three-operand instructions for this architecture")
+ 		}
+-
++	case 4:
++		if p.arch.Thechar == '5' && arch.IsARMMULA(op) {
++			// All must be registers.
++			p.getRegister(prog, op, &a[0])
++			r1 := p.getRegister(prog, op, &a[1])
++			p.getRegister(prog, op, &a[2])
++			r3 := p.getRegister(prog, op, &a[3])
++			prog.From = a[0]
++			prog.To = a[2]
++			prog.To.Type = obj.TYPE_REGREG2
++			prog.To.Offset = int64(r3)
++			prog.Reg = r1
++			break
++		}
++		p.errorf("can't handle %s instruction with 4 operands", p.arch.Aconv(op))
++	case 6:
++		// MCR and MRC on ARM
++		if p.arch.Thechar == '5' && arch.IsARMMRC(op) {
++			// Strange special case: MCR, MRC.
++			// TODO: Move this to arch? (It will be hard to disentangle.)
++			prog.To.Type = obj.TYPE_CONST
++			if cond != "" {
++				p.errorf("TODO: can't handle ARM condition code for instruction %s", p.arch.Aconv(op))
++			}
++			cond = ""
++			// First argument is a condition code as a constant.
++			x0 := p.getConstant(prog, op, &a[0])
++			x1 := p.getConstant(prog, op, &a[1])
++			x2 := int64(p.getRegister(prog, op, &a[2]))
++			x3 := int64(p.getRegister(prog, op, &a[3]))
++			x4 := int64(p.getRegister(prog, op, &a[4]))
++			x5 := p.getConstant(prog, op, &a[5])
++			// TODO only MCR is defined.
++			op1 := int64(0)
++			if op == arm.AMRC {
++				op1 = 1
++			}
++			prog.To.Offset =
++				(0xe << 24) | // opcode
++					(op1 << 20) | // MCR/MRC
++					((0 ^ arm.C_SCOND_XOR) << 28) | // scond TODO; should use cond.
++					((x0 & 15) << 8) | //coprocessor number
++					((x1 & 7) << 21) | // coprocessor operation
++					((x2 & 15) << 12) | // ARM register
++					((x3 & 15) << 16) | // Crn
++					((x4 & 15) << 0) | // Crm
++					((x5 & 7) << 5) | // coprocessor information
++					(1 << 4) /* must be set */
++			break
++		}
++		fallthrough
+ 	default:
+-		p.errorf("can't handle instruction with %d operands", len(a))
++		p.errorf("can't handle %s instruction with %d operands", p.arch.Aconv(op), len(a))
++	}
++
++	p.append(prog, cond, true)
++}
++
++var emptyProg obj.Prog
++
++// getConstantPseudo checks that addr represents a plain constant and returns its value.
++func (p *Parser) getConstantPseudo(pseudo string, addr *obj.Addr) int64 {
++	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
++		p.errorf("%s: expected integer constant; found %s", pseudo, p.arch.Dconv(&emptyProg, 0, addr))
++	}
++	return addr.Offset
++}
++
++// getConstant checks that addr represents a plain constant and returns its value.
++func (p *Parser) getConstant(prog *obj.Prog, op int, addr *obj.Addr) int64 {
++	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
++		p.errorf("%s: expected integer constant; found %s", p.arch.Aconv(op), p.arch.Dconv(prog, 0, addr))
++	}
++	return addr.Offset
++}
++
++// getImmediate checks that addr represents an immediate constant and returns its value.
++func (p *Parser) getImmediate(prog *obj.Prog, op int, addr *obj.Addr) int64 {
++	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
++		p.errorf("%s: expected immediate constant; found %s", p.arch.Aconv(op), p.arch.Dconv(prog, 0, addr))
++	}
++	return addr.Offset
++}
++
++// getRegister checks that addr represents a register and returns its value.
++func (p *Parser) getRegister(prog *obj.Prog, op int, addr *obj.Addr) int16 {
++	if addr.Type != obj.TYPE_REG || addr.Offset != 0 || addr.Name != 0 || addr.Index != 0 {
++		p.errorf("%s: expected register; found %s", p.arch.Aconv(op), p.arch.Dconv(prog, 0, addr))
+ 	}
+-	p.append(prog, true)
++	return addr.Reg
+ }
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index c09221e31e..92eefc767d 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"strconv"
+ 	"text/scanner"
++	"unicode/utf8"
+ 
+ 	"cmd/asm/internal/arch"
+ 	"cmd/asm/internal/lex"
+@@ -104,24 +105,45 @@ func (p *Parser) line() bool {
+ 		return false // Might as well stop now.
+ 	}
+ 	word := p.lex.Text()
++	var cond string
+ 	operands := make([][]lex.Token, 0, 3)
+ 	// Zero or more comma-separated operands, one per loop.
++	nesting := 0
+ 	for tok != '\n' && tok != ';' {
+ 		// Process one operand.
+ 		items := make([]lex.Token, 0, 3)
+ 		for {
+ 			tok = p.lex.Next()
+-			if tok == ':' && len(operands) == 0 && len(items) == 0 { // First token.
+-				p.pendingLabels = append(p.pendingLabels, word)
+-				return true
++			if len(operands) == 0 && len(items) == 0 {
++				if p.arch.Thechar == '5' && tok == '.' {
++					// ARM conditionals.
++					tok = p.lex.Next()
++					str := p.lex.Text()
++					if tok != scanner.Ident {
++						p.errorf("ARM condition expected identifier, found %s", str)
++					}
++					cond = cond + "." + str
++					continue
++				}
++				if tok == ':' {
++					// LABELS
++					p.pendingLabels = append(p.pendingLabels, word)
++					return true
++				}
+ 			}
+ 			if tok == scanner.EOF {
+ 				p.errorf("unexpected EOF")
+ 				return false
+ 			}
+-			if tok == '\n' || tok == ';' || tok == ',' {
++			if tok == '\n' || tok == ';' || (nesting == 0 && tok == ',') {
+ 				break
+ 			}
++			if tok == '(' || tok == '[' {
++				nesting++
++			}
++			if tok == ')' || tok == ']' {
++				nesting--
++			}
+ 			items = append(items, lex.Make(tok, p.lex.Text()))
+ 		}
+ 		if len(items) > 0 {
+@@ -131,35 +153,35 @@ func (p *Parser) line() bool {
+ 			p.errorf("missing operand")
+ 		}
+ 	}
+-	i := arch.Pseudos[word]
+-	if i != 0 {
++	i, present := arch.Pseudos[word]
++	if present {
+ 		p.pseudo(i, word, operands)
+ 		return true
+ 	}
+-	i = p.arch.Instructions[word]
+-	if i != 0 {
+-		p.instruction(i, word, operands)
++	i, present = p.arch.Instructions[word]
++	if present {
++		p.instruction(i, word, cond, operands)
+ 		return true
+ 	}
+-	p.errorf("unrecognized instruction %s", word)
++	p.errorf("unrecognized instruction %q", word)
+ 	return true
+ }
+ 
+-func (p *Parser) instruction(op int, word string, operands [][]lex.Token) {
++func (p *Parser) instruction(op int, word, cond string, operands [][]lex.Token) {
+ 	p.addr = p.addr[0:0]
+-	isJump := word[0] == 'J' || word == "CALL" // TODO: do this better
++	isJump := p.arch.IsJump(word)
+ 	for _, op := range operands {
+ 		addr := p.address(op)
+ 		if !isJump && addr.Reg < 0 { // Jumps refer to PC, a pseudo.
+-			p.errorf("illegal use of pseudo-register")
++			p.errorf("illegal use of pseudo-register in %s", word)
+ 		}
+ 		p.addr = append(p.addr, addr)
+ 	}
+ 	if isJump {
+-		p.asmJump(op, p.addr)
++		p.asmJump(op, cond, p.addr)
+ 		return
+ 	}
+-	p.asmInstruction(op, p.addr)
++	p.asmInstruction(op, cond, p.addr)
+ }
+ 
+ func (p *Parser) pseudo(op int, word string, operands [][]lex.Token) {
+@@ -209,19 +231,62 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 		return false
+ 	}
+ 	// General address (with a few exceptions) looks like
+-	//	$sym±offset(symkind)(reg)(index*scale)
++	//	$sym±offset(SB)(reg)(index*scale)
++	// Exceptions are:
++	//
++	//	R1
++	//	offset
++	//	$offset
+ 	// Every piece is optional, so we scan left to right and what
+ 	// we discover tells us where we are.
++
++	// Prefix: $.
+ 	var prefix rune
+ 	switch tok := p.peek(); tok {
+ 	case '$', '*':
+ 		prefix = rune(tok)
+ 		p.next()
+ 	}
+-	switch p.peek() {
+-	case scanner.Ident:
+-		tok := p.next()
+-		if r1, r2, scale, ok := p.register(tok.String(), prefix); ok {
++
++	// Symbol: sym±offset(SB)
++	tok := p.next()
++	if tok.ScanToken == scanner.Ident && !p.isRegister(tok.String()) {
++		// We have a symbol. Parse $sym±offset(symkind)
++		p.symbolReference(a, tok.String(), prefix)
++		// fmt.Printf("SYM %s\n", p.arch.Dconv(&emptyProg, 0, a))
++		if p.peek() == scanner.EOF {
++			return true
++		}
++	}
++
++	// Special register list syntax for arm: [R1,R3-R7]
++	if tok.ScanToken == '[' {
++		if prefix != 0 {
++			p.errorf("illegal use of register list")
++		}
++		p.registerList(a)
++		p.expect(scanner.EOF)
++		return true
++	}
++
++	// Register: R1
++	if tok.ScanToken == scanner.Ident && p.isRegister(tok.String()) {
++		if lex.IsRegisterShift(p.peek()) {
++			// ARM shifted register such as R1<<R2 or R1>>2.
++			a.Type = obj.TYPE_SHIFT
++			a.Offset = p.registerShift(tok.String(), prefix)
++			if p.peek() == '(' {
++				// Can only be a literal register here.
++				p.next()
++				tok := p.next()
++				name := tok.String()
++				if !p.isRegister(name) {
++					p.errorf("expected register; found %s", name)
++				}
++				a.Reg = p.arch.Registers[name]
++				p.get(')')
++			}
++		} else if r1, r2, scale, ok := p.register(tok.String(), prefix); ok {
+ 			if scale != 0 {
+ 				p.errorf("expected simple register reference")
+ 			}
+@@ -232,20 +297,34 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 				// needs to go into the LHS. This is a horrible hack. TODO.
+ 				a.Class = int8(r2)
+ 			}
+-			break // Nothing can follow.
+-		}
+-		p.symbolReference(a, tok.String(), prefix)
+-		if p.peek() == '(' {
+-			p.registerIndirect(a, prefix)
+ 		}
+-	case scanner.Int, scanner.Float, scanner.String, '+', '-', '~', '(':
++		// fmt.Printf("REG %s\n", p.arch.Dconv(&emptyProg, 0, a))
++		p.expect(scanner.EOF)
++		return true
++	}
++
++	// Constant.
++	haveConstant := false
++	switch tok.ScanToken {
++	case scanner.Int, scanner.Float, scanner.String, scanner.Char, '+', '-', '~':
++		haveConstant = true
++	case '(':
++		// Could be parenthesized expression or (R).
++		rname := p.next().String()
++		p.back()
++		haveConstant = !p.isRegister(rname)
++	}
++	if haveConstant {
++		p.back()
+ 		if p.have(scanner.Float) {
+ 			if prefix != '$' {
+ 				p.errorf("floating-point constant must be an immediate")
+ 			}
+ 			a.Type = obj.TYPE_FCONST
+ 			a.U.Dval = p.floatExpr()
+-			break
++			// fmt.Printf("FCONST %s\n", p.arch.Dconv(&emptyProg, 0, a))
++			p.expect(scanner.EOF)
++			return true
+ 		}
+ 		if p.have(scanner.String) {
+ 			if prefix != '$' {
+@@ -257,18 +336,12 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 			}
+ 			a.Type = obj.TYPE_SCONST
+ 			a.U.Sval = str
+-			break
+-		}
+-		// Might be parenthesized arithmetic expression or (possibly scaled) register indirect.
+-		// Peek into the input to discriminate.
+-		if p.peek() == '(' && len(p.input[p.inputPos:]) >= 3 && p.input[p.inputPos+1].ScanToken == scanner.Ident {
+-			// Register indirect (the identifier must be a register). The offset will be zero.
+-		} else {
+-			// Integer offset before register.
+-			a.Offset = int64(p.expr())
++			// fmt.Printf("SCONST %s\n", p.arch.Dconv(&emptyProg, 0, a))
++			p.expect(scanner.EOF)
++			return true
+ 		}
++		a.Offset = int64(p.expr())
+ 		if p.peek() != '(' {
+-			// Just an integer.
+ 			switch prefix {
+ 			case '$':
+ 				a.Type = obj.TYPE_CONST
+@@ -277,17 +350,31 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 			default:
+ 				a.Type = obj.TYPE_MEM
+ 			}
+-			break // Nothing can follow.
++			// fmt.Printf("CONST %d %s\n", a.Offset, p.arch.Dconv(&emptyProg, 0, a))
++			p.expect(scanner.EOF)
++			return true
+ 		}
+-		p.registerIndirect(a, prefix)
++		// fmt.Printf("offset %d \n", a.Offset)
++		p.get('(')
+ 	}
++
++	// Register indirection: (reg) or (index*scale). We have consumed the opening paren.
++	p.registerIndirect(a, prefix)
++	// fmt.Printf("DONE %s\n", p.arch.Dconv(&emptyProg, 0, a))
++
+ 	p.expect(scanner.EOF)
+ 	return true
+ }
+ 
++// isRegister reports whether the token is a register.
++func (p *Parser) isRegister(name string) bool {
++	_, present := p.arch.Registers[name]
++	return present
++}
++
+ // register parses a register reference where there is no symbol present (as in 4(R0) not sym(SB)).
+ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, ok bool) {
+-	// R1 or R1:R2 or R1*scale.
++	// R1 or R1:R2 R1,R2 or R1*scale.
+ 	var present bool
+ 	r1, present = p.arch.Registers[name]
+ 	if !present {
+@@ -296,9 +383,19 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
+ 	if prefix != 0 {
+ 		p.errorf("prefix %c not allowed for register: $%s", prefix, name)
+ 	}
+-	if p.peek() == ':' {
+-		// 2nd register.
+-		p.next()
++	if p.peek() == ':' || p.peek() == ',' {
++		// 2nd register; syntax (R1:R2). Check the architectures match.
++		char := p.arch.Thechar
++		switch p.next().ScanToken {
++		case ':':
++			if char != '6' && char != '8' {
++				p.errorf("illegal register pair syntax")
++			}
++		case ',':
++			if char != '5' {
++				p.errorf("illegal register pair syntax")
++			}
++		}
+ 		name := p.next().String()
+ 		r2, present = p.arch.Registers[name]
+ 		if !present {
+@@ -310,10 +407,59 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
+ 		p.next()
+ 		scale = p.parseScale(p.next().String())
+ 	}
+-	// TODO: Shifted register for ARM
+ 	return r1, r2, scale, true
+ }
+ 
++// registerShift parses an ARM shifted register reference and returns the encoded representation.
++// There is known to be a register (current token) and a shift operator (peeked token).
++func (p *Parser) registerShift(name string, prefix rune) int64 {
++	// R1 op R2 or r1 op constant.
++	// op is:
++	//	"<<" == 0
++	//	">>" == 1
++	//	"->" == 2
++	//	"@>" == 3
++	r1, present := p.arch.Registers[name]
++	if !present {
++		p.errorf("shift of non-register %s", name)
++	}
++	if prefix != 0 {
++		p.errorf("prefix %c not allowed for shifted register: $%s", prefix, name)
++	}
++	var op int16
++	switch p.next().ScanToken {
++	case lex.LSH:
++		op = 0
++	case lex.RSH:
++		op = 1
++	case lex.ARR:
++		op = 2
++	case lex.ROT:
++		op = 3
++	}
++	tok := p.next()
++	str := tok.String()
++	var count int16
++	switch tok.ScanToken {
++	case scanner.Ident:
++		r2, present := p.arch.Registers[str]
++		if !present {
++			p.errorf("rhs of shift must be register or integer: %s", str)
++		}
++		count = (r2&15)<<8 | 1<<4
++	case scanner.Int, '(':
++		p.back()
++		x := int64(p.expr())
++		if x >= 32 {
++			p.errorf("register shift count too large: %s", str)
++		}
++		count = int16((x & 31) << 7)
++	default:
++		p.errorf("unexpected %s in register shift", tok.String())
++	}
++	return int64((r1 & 15) | op<<5 | count)
++}
++
+ // symbolReference parses a symbol that is known not to be a register.
+ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
+ 	// Identifier is a name.
+@@ -345,51 +491,82 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
+ 	// Expect (SB) or (FP), (PC), (SB), or (SP)
+ 	p.get('(')
+ 	reg := p.get(scanner.Ident).String()
++	p.get(')')
++	p.setPseudoRegister(a, p.arch.Registers[reg], isStatic != 0, prefix)
++}
++
++// setPseudoRegister sets the NAME field of addr for a pseudo-register reference such as (SB).
++func (p *Parser) setPseudoRegister(addr *obj.Addr, reg int16, isStatic bool, prefix rune) {
++	if addr.Reg != 0 {
++		p.errorf("internal error: reg already set in psuedo")
++	}
+ 	switch reg {
+-	case "FP":
+-		a.Name = obj.NAME_PARAM
+-	case "PC":
++	case arch.RFP:
++		addr.Name = obj.NAME_PARAM
++	case arch.RPC:
+ 		// Fine as is.
+ 		if prefix != 0 {
+ 			p.errorf("illegal addressing mode for PC")
+ 		}
+-	case "SB":
+-		a.Name = obj.NAME_EXTERN
+-		if isStatic != 0 {
+-			a.Name = obj.NAME_STATIC
++		addr.Reg = arch.RPC // Tells asmJump how to interpret this address.
++	case arch.RSB:
++		addr.Name = obj.NAME_EXTERN
++		if isStatic {
++			addr.Name = obj.NAME_STATIC
+ 		}
+-	case "SP":
+-		a.Name = obj.NAME_AUTO // The pseudo-stack.
++	case arch.RSP:
++		addr.Name = obj.NAME_AUTO // The pseudo-stack.
+ 	default:
+-		p.errorf("expected SB, FP, or SP offset for %s", name)
++		p.errorf("expected pseudo-register; found %d", reg)
++	}
++	if prefix == '$' {
++		addr.Type = obj.TYPE_ADDR
+ 	}
+-	a.Reg = 0 // There is no register here; these are pseudo-registers.
+-	p.get(')')
+ }
+ 
+ // registerIndirect parses the general form of a register indirection.
+ // It is can be (R1), (R2*scale), or (R1)(R2*scale) where R1 may be a simple
+-// register or register pair R:R.
+-// The opening parenthesis is known to be present.
++// register or register pair R:R or (R, R).
++// Or it might be a pseudo-indirection like (FP).
++// The opening parenthesis has already been consumed.
+ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+-	p.next()
+ 	tok := p.next()
+ 	r1, r2, scale, ok := p.register(tok.String(), 0)
+ 	if !ok {
+ 		p.errorf("indirect through non-register %s", tok)
+ 	}
++	p.get(')')
++	a.Type = obj.TYPE_MEM
++	if r1 < 0 {
++		// Pseudo-register reference.
++		if r2 != 0 {
++			p.errorf("cannot use pseudo-register in pair")
++			return
++		}
++		p.setPseudoRegister(a, r1, false, prefix)
++		return
++	}
++	a.Reg = r1
++	if r2 != 0 && p.arch.Thechar == '5' {
++		// Special form for ARM: destination register pair (R1, R2).
++		if prefix != 0 || scale != 0 {
++			p.errorf("illegal address mode for register pair")
++			return
++		}
++		a.Type = obj.TYPE_REGREG
++		a.Offset = int64(r2)
++		// Nothing may follow; this is always a pure destination.
++		return
++	}
+ 	if r2 != 0 {
+ 		p.errorf("indirect through register pair")
+ 	}
+-	a.Type = obj.TYPE_MEM
+ 	if prefix == '$' {
+ 		a.Type = obj.TYPE_ADDR
+ 	}
+-	a.Reg = r1
+ 	if r1 == arch.RPC && prefix != 0 {
+ 		p.errorf("illegal addressing mode for PC")
+ 	}
+-	p.get(')')
+ 	if scale == 0 && p.peek() == '(' {
+ 		// General form (R)(R*scale).
+ 		p.next()
+@@ -412,6 +589,60 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+ 	}
+ }
+ 
++// registerList parses an ARM register list expression, a list of registers in [].
++// There may be comma-separated ranges or individual registers, as in
++// [R1,R3-R5,R7]. Only R0 through R15 may appear.
++// The opening bracket has been consumed.
++func (p *Parser) registerList(a *obj.Addr) {
++	// One range per loop.
++	var bits uint16
++	for {
++		tok := p.next()
++		if tok.ScanToken == ']' {
++			break
++		}
++		lo := p.registerNumber(tok.String())
++		hi := lo
++		if p.peek() == '-' {
++			p.next()
++			hi = p.registerNumber(p.next().String())
++		}
++		if hi < lo {
++			lo, hi = hi, lo
++		}
++		for lo <= hi {
++			if bits&(1<<lo) != 0 {
++				p.errorf("register R%d already in list", lo)
++			}
++			bits |= 1 << lo
++			lo++
++		}
++		if p.peek() != ']' {
++			p.get(',')
++		}
++	}
++	a.Type = obj.TYPE_CONST
++	a.Offset = int64(bits)
++}
++
++func (p *Parser) registerNumber(name string) uint16 {
++	if !p.isRegister(name) {
++		p.errorf("expected register; found %s", name)
++	}
++	// Register must be of the form R0 through R15.
++	if name[0] != 'R' && name != "g" {
++		p.errorf("expected g or R0 through R15; found %s", name)
++	}
++	num, err := strconv.ParseUint(name[1:], 10, 8)
++	if err != nil {
++		p.errorf("parsing register list: %s", err)
++	}
++	if num > 15 {
++		p.errorf("illegal register %s in register list", name)
++	}
++	return uint16(num)
++}
++
+ // Note: There are two changes in the expression handling here
+ // compared to the old yacc/C implemenatations. Neither has
+ // much practical consequence because the expressions we
+@@ -513,6 +744,16 @@ func (p *Parser) factor() uint64 {
+ 	switch tok.ScanToken {
+ 	case scanner.Int:
+ 		return p.atoi(tok.String())
++	case scanner.Char:
++		str, err := strconv.Unquote(tok.String())
++		if err != nil {
++			p.errorf("%s", err)
++		}
++		r, w := utf8.DecodeRuneInString(str)
++		if w == 1 && r == utf8.RuneError {
++			p.errorf("illegal UTF-8 encoding for character constant")
++		}
++		return uint64(r)
+ 	case '+':
+ 		return +p.factor()
+ 	case '-':
+@@ -606,7 +847,7 @@ func (p *Parser) expect(expected lex.ScanToken) {
+ 	}
+ }
+ 
+-// have reports whether the remaining tokens contain the specified token.
++// have reports whether the remaining tokens (including the current one) contain the specified token.
+ func (p *Parser) have(token lex.ScanToken) bool {
+ 	for i := p.inputPos; i < len(p.input); i++ {
+ 		if p.input[i].ScanToken == token {

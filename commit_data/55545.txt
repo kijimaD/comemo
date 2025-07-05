@@ -14,7 +14,7 @@ Date:   Wed Sep 28 14:44:56 2022 -0400
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/export_test.go    |  4 ++++
  src/runtime/proc.go           |  1 +
  src/runtime/proc_test.go      |  5 ++++-
@@ -23,3 +23,148 @@ Date:   Wed Sep 28 14:44:56 2022 -0400
  src/runtime/traceback.go      | 14 ++++++++++----
  src/runtime/traceback_test.go | 23 +++++++++++++++++++++++
  7 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index e7476e606b..25758972f1 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -540,6 +540,10 @@ func Getg() *G {
+ 	return getg()
+ }
+ 
++func Goid() uint64 {
++	return getg().goid
++}
++
+ func GIsWaitingOnMutex(gp *G) bool {
+ 	return readgstatus(gp) == _Gwaiting && gp.waitreason.isMutexWait()
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d57a31ce45..aba2e2b27b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4283,6 +4283,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 	newg.sched.pc = abi.FuncPCABI0(goexit) + sys.PCQuantum // +PCQuantum so that previous instruction is in same function
+ 	newg.sched.g = guintptr(unsafe.Pointer(newg))
+ 	gostartcallfn(&newg.sched, fn)
++	newg.parentGoid = callergp.goid
+ 	newg.gopc = callerpc
+ 	newg.ancestors = saveAncestors(callergp)
+ 	newg.startpc = fn.fn
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index f354facc49..d240dc4404 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -415,7 +415,10 @@ func TestNumGoroutine(t *testing.T) {
+ 		n := runtime.NumGoroutine()
+ 		buf = buf[:runtime.Stack(buf, true)]
+ 
+-		nstk := strings.Count(string(buf), "goroutine ")
++		// To avoid double-counting "goroutine" in "goroutine $m [running]:"
++		// and "created by $func in goroutine $n", remove the latter
++		output := strings.ReplaceAll(string(buf), "in goroutine", "")
++		nstk := strings.Count(output, "goroutine ")
+ 		if n == nstk {
+ 			break
+ 		}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 9381d1e3f7..044a9a715f 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -479,6 +479,7 @@ type g struct {
+ 	sigcode0       uintptr
+ 	sigcode1       uintptr
+ 	sigpc          uintptr
++	parentGoid     uint64          // goid of goroutine that created this goroutine
+ 	gopc           uintptr         // pc of go statement that created this goroutine
+ 	ancestors      *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
+ 	startpc        uintptr         // pc of goroutine function
+diff --git a/src/runtime/sizeof_test.go b/src/runtime/sizeof_test.go
+index 9ce0a3afcd..bfb5d6e33e 100644
+--- a/src/runtime/sizeof_test.go
++++ b/src/runtime/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr // size on 32bit platforms
+ 		_64bit uintptr // size on 64bit platforms
+ 	}{
+-		{runtime.G{}, 240, 392},   // g, but exported for testing
++		{runtime.G{}, 248, 400},   // g, but exported for testing
+ 		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
+ 	}
+ 
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 37f35d5637..6773509901 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -701,12 +701,16 @@ func printcreatedby(gp *g) {
+ 	pc := gp.gopc
+ 	f := findfunc(pc)
+ 	if f.valid() && showframe(f, gp, false, funcID_normal, funcID_normal) && gp.goid != 1 {
+-		printcreatedby1(f, pc)
++		printcreatedby1(f, pc, gp.parentGoid)
+ 	}
+ }
+ 
+-func printcreatedby1(f funcInfo, pc uintptr) {
+-	print("created by ", funcname(f), "\n")
++func printcreatedby1(f funcInfo, pc uintptr, goid uint64) {
++	print("created by ", funcname(f))
++	if goid != 0 {
++		print(" in goroutine ", goid)
++	}
++	print("\n")
+ 	tracepc := pc // back up to CALL instruction for funcline.
+ 	if pc > f.entry() {
+ 		tracepc -= sys.PCQuantum
+@@ -806,7 +810,9 @@ func printAncestorTraceback(ancestor ancestorInfo) {
+ 	// Show what created goroutine, except main goroutine (goid 1).
+ 	f := findfunc(ancestor.gopc)
+ 	if f.valid() && showfuncinfo(f, false, funcID_normal, funcID_normal) && ancestor.goid != 1 {
+-		printcreatedby1(f, ancestor.gopc)
++		// In ancestor mode, we'll already print the goroutine ancestor.
++		// Pass 0 for the goid parameter so we don't print it again.
++		printcreatedby1(f, ancestor.gopc, 0)
+ 	}
+ }
+ 
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index 97eb92103b..8b19087b93 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -6,9 +6,12 @@ package runtime_test
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"internal/abi"
+ 	"internal/testenv"
+ 	"runtime"
++	"strings"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -420,3 +423,23 @@ func testTracebackArgs11b(a, b, c, d int32) int {
+ func poisonStack() [20]int {
+ 	return [20]int{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
+ }
++
++func TestTracebackParentChildGoroutines(t *testing.T) {
++	parent := fmt.Sprintf("goroutine %d", runtime.Goid())
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		buf := make([]byte, 1<<10)
++		// We collect the stack only for this goroutine (by passing
++		// false to runtime.Stack). We expect to see the current
++		// goroutine ID, and the parent goroutine ID in a message like
++		// "created by ... in goroutine N".
++		stack := string(buf[:runtime.Stack(buf, false)])
++		child := fmt.Sprintf("goroutine %d", runtime.Goid())
++		if !strings.Contains(stack, parent) || !strings.Contains(stack, child) {
++			t.Errorf("did not see parent (%s) and child (%s) IDs in stack, got %s", parent, child, stack)
++		}
++	}()
++	wg.Wait()
++}

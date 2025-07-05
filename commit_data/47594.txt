@@ -10,6 +10,21 @@ Date:   Wed Mar 24 08:51:44 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/walk.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index f909c00b4b..a57ff25ac5 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -116,6 +116,9 @@ func Walk(v Visitor, node Node) {
+ 		Walk(v, n.X)
+ 		Walk(v, n.Index)
+ 
++	case *ListExpr:
++		walkExprList(v, n.ElemList)
++
+ 	case *SliceExpr:
+ 		Walk(v, n.X)
+ 		if n.Low != nil {

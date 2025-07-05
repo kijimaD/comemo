@@ -12,6 +12,20 @@ Date:   Tue Nov 24 14:03:58 2015 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgcmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 720fd72ada..52545afa29 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1036,7 +1036,7 @@ func shade(b uintptr) {
+ // obj is the start of an object with mark mbits.
+ // If it isn't already marked, mark it and enqueue into gcw.
+ // base and off are for debugging only and could be removed.
+-//go:nowritebarrier
++//go:nowritebarrierrec
+ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork) {
+ 	// obj should be start of allocation, and so must be at least pointer-aligned.
+ 	if obj&(sys.PtrSize-1) != 0 {

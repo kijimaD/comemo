@@ -10,6 +10,22 @@ Date:   Tue Jan 4 15:52:03 2011 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/3862041
-
+---
  doc/effective_go.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index ab21edfbba..b70d60a925 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2857,8 +2857,8 @@ func QR(w http.ResponseWriter, req *http.Request) {
+     templ.Execute(req.FormValue("s"), w)
+ }
+ 
+-func UrlHtmlFormatter(w io.Writer, v interface{}, fmt string) {
+-    template.HTMLEscape(w, []byte(http.URLEscape(v.(string))))
++func UrlHtmlFormatter(w io.Writer, fmt string, v ...interface{}) {
++    template.HTMLEscape(w, []byte(http.URLEscape(v[0].(string))))
+ }
+ 
+ 

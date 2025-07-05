@@ -9,9 +9,26 @@ Date:   Fri May 6 16:07:11 2016 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/{os1_freebsd.go => os_freebsd.go} | 0
  src/runtime/{os1_nacl.go => os_nacl.go}       | 0
  src/runtime/{os1_openbsd.go => os_openbsd.go} | 0
  src/runtime/{os1_plan9.go => os_plan9.go}     | 0
  4 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os_freebsd.go
+similarity index 100%
+rename from src/runtime/os1_freebsd.go
+rename to src/runtime/os_freebsd.go
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os_nacl.go
+similarity index 100%
+rename from src/runtime/os1_nacl.go
+rename to src/runtime/os_nacl.go
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os_openbsd.go
+similarity index 100%
+rename from src/runtime/os1_openbsd.go
+rename to src/runtime/os_openbsd.go
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os_plan9.go
+similarity index 100%
+rename from src/runtime/os1_plan9.go
+rename to src/runtime/os_plan9.go

@@ -16,7 +16,7 @@ Date:   Mon Feb 23 13:58:05 2015 -0800
     Change-Id: Ifffc6627a0296926e3f189a8a9b6e4bdb54c79eb
     Reviewed-on: https://go-review.googlesource.com/5660
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/arch1_386.go          |  1 +
  src/runtime/arch1_amd64.go        |  1 +
  src/runtime/arch1_amd64p32.go     |  1 +
@@ -30,3 +30,190 @@ Date:   Mon Feb 23 13:58:05 2015 -0800
  src/runtime/defs_linux_ppc64le.go |  4 +++-
  src/runtime/mem_linux.go          | 19 +++++++++++++++++++
  12 files changed, 50 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/arch1_386.go b/src/runtime/arch1_386.go
+index a73e207edd..b024d7a51f 100644
+--- a/src/runtime/arch1_386.go
++++ b/src/runtime/arch1_386.go
+@@ -12,4 +12,5 @@ const (
+ 	_PhysPageSize     = goos_nacl*65536 + (1-goos_nacl)*4096 // 4k normally; 64k on NaCl
+ 	_PCQuantum        = 1
+ 	_Int64Align       = 4
++	hugePageSize      = 1 << 21
+ )
+diff --git a/src/runtime/arch1_amd64.go b/src/runtime/arch1_amd64.go
+index 199686db6f..932b2b7c55 100644
+--- a/src/runtime/arch1_amd64.go
++++ b/src/runtime/arch1_amd64.go
+@@ -12,4 +12,5 @@ const (
+ 	_PhysPageSize     = 4096
+ 	_PCQuantum        = 1
+ 	_Int64Align       = 8
++	hugePageSize      = 1 << 21
+ )
+diff --git a/src/runtime/arch1_amd64p32.go b/src/runtime/arch1_amd64p32.go
+index 2cee21f0ca..79421e848a 100644
+--- a/src/runtime/arch1_amd64p32.go
++++ b/src/runtime/arch1_amd64p32.go
+@@ -12,4 +12,5 @@ const (
+ 	_PhysPageSize     = 65536*goos_nacl + 4096*(1-goos_nacl)
+ 	_PCQuantum        = 1
+ 	_Int64Align       = 8
++	hugePageSize      = 1 << 21
+ )
+diff --git a/src/runtime/arch1_arm.go b/src/runtime/arch1_arm.go
+index 6662eaeac3..c3fe4f0cb3 100644
+--- a/src/runtime/arch1_arm.go
++++ b/src/runtime/arch1_arm.go
+@@ -12,4 +12,5 @@ const (
+ 	_PhysPageSize     = 65536*goos_nacl + 4096*(1-goos_nacl)
+ 	_PCQuantum        = 4
+ 	_Int64Align       = 4
++	hugePageSize      = 0
+ )
+diff --git a/src/runtime/arch1_ppc64.go b/src/runtime/arch1_ppc64.go
+index 6996d0fac0..ee453c09f2 100644
+--- a/src/runtime/arch1_ppc64.go
++++ b/src/runtime/arch1_ppc64.go
+@@ -12,4 +12,5 @@ const (
+ 	_PhysPageSize     = 65536
+ 	_PCQuantum        = 4
+ 	_Int64Align       = 8
++	hugePageSize      = 0
+ )
+diff --git a/src/runtime/arch1_ppc64le.go b/src/runtime/arch1_ppc64le.go
+index 7d5dac46a0..aa028a10f3 100644
+--- a/src/runtime/arch1_ppc64le.go
++++ b/src/runtime/arch1_ppc64le.go
+@@ -12,4 +12,5 @@ const (
+ 	_PhysPageSize     = 65536
+ 	_PCQuantum        = 4
+ 	_Int64Align       = 8
++	hugePageSize      = 0
+ )
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index f55924b61c..7cf57c8452 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -17,7 +17,9 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_DONTNEED = 0x4
++	_MADV_DONTNEED   = 0x4
++	_MADV_HUGEPAGE   = 0xe
++	_MADV_NOHUGEPAGE = 0xf
+ 
+ 	_SA_RESTART  = 0x10000000
+ 	_SA_ONSTACK  = 0x8000000
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index a73f475148..48aeb80203 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -17,7 +17,9 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_DONTNEED = 0x4
++	_MADV_DONTNEED   = 0x4
++	_MADV_HUGEPAGE   = 0xe
++	_MADV_NOHUGEPAGE = 0xf
+ 
+ 	_SA_RESTART  = 0x10000000
+ 	_SA_ONSTACK  = 0x8000000
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index 3940240898..b68b9642a9 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -6,14 +6,19 @@ const (
+ 	_ENOMEM = 0xc
+ 	_EAGAIN = 0xb
+ 
+-	_PROT_NONE      = 0
+-	_PROT_READ      = 0x1
+-	_PROT_WRITE     = 0x2
+-	_PROT_EXEC      = 0x4
+-	_MAP_ANON       = 0x20
+-	_MAP_PRIVATE    = 0x2
+-	_MAP_FIXED      = 0x10
+-	_MADV_DONTNEED  = 0x4
++	_PROT_NONE  = 0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x20
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_DONTNEED   = 0x4
++	_MADV_HUGEPAGE   = 0xe
++	_MADV_NOHUGEPAGE = 0xf
++
+ 	_SA_RESTART     = 0x10000000
+ 	_SA_ONSTACK     = 0x8000000
+ 	_SA_RESTORER    = 0 // unused on ARM
+diff --git a/src/runtime/defs_linux_ppc64.go b/src/runtime/defs_linux_ppc64.go
+index f90b84874b..317a764a70 100644
+--- a/src/runtime/defs_linux_ppc64.go
++++ b/src/runtime/defs_linux_ppc64.go
+@@ -17,7 +17,9 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_DONTNEED = 0x4
++	_MADV_DONTNEED   = 0x4
++	_MADV_HUGEPAGE   = 0xe
++	_MADV_NOHUGEPAGE = 0xf
+ 
+ 	_SA_RESTART = 0x10000000
+ 	_SA_ONSTACK = 0x8000000
+diff --git a/src/runtime/defs_linux_ppc64le.go b/src/runtime/defs_linux_ppc64le.go
+index f90b84874b..317a764a70 100644
+--- a/src/runtime/defs_linux_ppc64le.go
++++ b/src/runtime/defs_linux_ppc64le.go
+@@ -17,7 +17,9 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_DONTNEED = 0x4
++	_MADV_DONTNEED   = 0x4
++	_MADV_HUGEPAGE   = 0xe
++	_MADV_NOHUGEPAGE = 0xf
+ 
+ 	_SA_RESTART = 0x10000000
+ 	_SA_ONSTACK = 0x8000000
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 920fbcf6d6..74de11caea 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -67,10 +67,29 @@ func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
+ }
+ 
+ func sysUnused(v unsafe.Pointer, n uintptr) {
++	if hugePageSize != 0 && (uintptr(v)%hugePageSize != 0 || n%hugePageSize != 0) {
++		// See issue 8832
++		// Linux kernel bug: https://bugzilla.kernel.org/show_bug.cgi?id=93111
++		// Mark the region as NOHUGEPAGE so the kernel's khugepaged
++		// doesn't undo our DONTNEED request.  khugepaged likes to migrate
++		// regions which are only partially mapped to huge pages, including
++		// regions with some DONTNEED marks.  That needlessly allocates physical
++		// memory for our DONTNEED regions.
++		madvise(v, n, _MADV_NOHUGEPAGE)
++	}
+ 	madvise(v, n, _MADV_DONTNEED)
+ }
+ 
+ func sysUsed(v unsafe.Pointer, n uintptr) {
++	if hugePageSize != 0 {
++		// Undo the NOHUGEPAGE marks from sysUnused.  There is no alignment check
++		// around this call as spans may have been merged in the interim.
++		// Note that this might enable huge pages for regions which were
++		// previously disabled.  Unfortunately there is no easy way to detect
++		// what the previous state was, and in any case we probably want huge
++		// pages to back our heap if the kernel can arrange that.
++		madvise(v, n, _MADV_HUGEPAGE)
++	}
+ }
+ 
+ func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {

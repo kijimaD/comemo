@@ -10,6 +10,90 @@ Date:   Fri Apr 8 17:56:36 2016 +0200
     Change-Id: I08d9dc5c7c71e23f34f2f0c16f8baeeb4f64fcd6
     Reviewed-on: https://go-review.googlesource.com/21735
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/pprof/profile/legacy_profile.go | 41 ++++++++----------------
  1 file changed, 13 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/internal/pprof/profile/legacy_profile.go b/src/cmd/internal/pprof/profile/legacy_profile.go
+index e1f24c4c6d..3d4da6b4d7 100644
+--- a/src/cmd/internal/pprof/profile/legacy_profile.go
++++ b/src/cmd/internal/pprof/profile/legacy_profile.go
+@@ -110,11 +110,8 @@ func parseGoCount(b []byte) (*Profile, error) {
+ 			if err != nil {
+ 				return nil, errMalformed
+ 			}
+-			// Adjust all frames by -1 (except the leaf) to land on top of
+-			// the call instruction.
+-			if len(locs) > 0 {
+-				addr--
+-			}
++			// Adjust all frames by -1 to land on the call instruction.
++			addr--
+ 			loc := locations[addr]
+ 			if loc == nil {
+ 				loc = &Location{
+@@ -291,11 +288,8 @@ func ParseTracebacks(b []byte) (*Profile, error) {
+ 		if s, addrs := extractHexAddresses(l); len(s) > 0 {
+ 			for _, addr := range addrs {
+ 				// Addresses from stack traces point to the next instruction after
+-				// each call. Adjust by -1 to land somewhere on the actual call
+-				// (except for the leaf, which is not a call).
+-				if len(sloc) > 0 {
+-					addr--
+-				}
++				// each call. Adjust by -1 to land somewhere on the actual call.
++				addr--
+ 				loc := locs[addr]
+ 				if locs[addr] == nil {
+ 					loc = &Location{
+@@ -568,13 +562,10 @@ func parseHeap(b []byte) (p *Profile, err error) {
+ 			return nil, err
+ 		}
+ 		var sloc []*Location
+-		for i, addr := range addrs {
++		for _, addr := range addrs {
+ 			// Addresses from stack traces point to the next instruction after
+-			// each call. Adjust by -1 to land somewhere on the actual call
+-			// (except for the leaf, which is not a call).
+-			if i > 0 {
+-				addr--
+-			}
++			// each call. Adjust by -1 to land somewhere on the actual call.
++			addr--
+ 			loc := locs[addr]
+ 			if locs[addr] == nil {
+ 				loc = &Location{
+@@ -776,13 +767,10 @@ func parseContention(b []byte) (p *Profile, err error) {
+ 			return nil, err
+ 		}
+ 		var sloc []*Location
+-		for i, addr := range addrs {
++		for _, addr := range addrs {
+ 			// Addresses from stack traces point to the next instruction after
+-			// each call. Adjust by -1 to land somewhere on the actual call
+-			// (except for the leaf, which is not a call).
+-			if i > 0 {
+-				addr--
+-			}
++			// each call. Adjust by -1 to land somewhere on the actual call.
++			addr--
+ 			loc := locs[addr]
+ 			if locs[addr] == nil {
+ 				loc = &Location{
+@@ -919,13 +907,10 @@ func parseThread(b []byte) (*Profile, error) {
+ 		}
+ 
+ 		var sloc []*Location
+-		for i, addr := range addrs {
++		for _, addr := range addrs {
+ 			// Addresses from stack traces point to the next instruction after
+-			// each call. Adjust by -1 to land somewhere on the actual call
+-			// (except for the leaf, which is not a call).
+-			if i > 0 {
+-				addr--
+-			}
++			// each call. Adjust by -1 to land somewhere on the actual call.
++			addr--
+ 			loc := locs[addr]
+ 			if locs[addr] == nil {
+ 				loc = &Location{

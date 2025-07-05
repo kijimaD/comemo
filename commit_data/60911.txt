@@ -10,6 +10,37 @@ Date:   Wed Sep 4 21:56:06 2024 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/testdir/testdir_test.go | 11 +++--------
  1 file changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 86ebf7ded6..31cca41a13 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -162,22 +162,17 @@ func shardMatch(name string) bool {
+ }
+ 
+ func goFiles(t *testing.T, dir string) []string {
+-	f, err := os.Open(filepath.Join(testenv.GOROOT(t), "test", dir))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	dirnames, err := f.Readdirnames(-1)
+-	f.Close()
++	files, err := os.ReadDir(filepath.Join(testenv.GOROOT(t), "test", dir))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	names := []string{}
+-	for _, name := range dirnames {
++	for _, file := range files {
++		name := file.Name()
+ 		if !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && shardMatch(name) {
+ 			names = append(names, name)
+ 		}
+ 	}
+-	sort.Strings(names)
+ 	return names
+ }
+ 

@@ -12,8 +12,161 @@ Date:   Fri Dec 21 16:06:54 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/errors/ptr_test.go | 33 ++++++++++++++++++++-------------
  src/runtime/cgocheck.go     |  7 +++++++
  src/runtime/malloc.go       | 40 ++++++++++++++++++++++++++++++++++++----
  3 files changed, 63 insertions(+), 17 deletions(-)
+
+diff --git a/misc/cgo/errors/ptr_test.go b/misc/cgo/errors/ptr_test.go
+index 165c2d407c..254671f179 100644
+--- a/misc/cgo/errors/ptr_test.go
++++ b/misc/cgo/errors/ptr_test.go
+@@ -406,6 +406,24 @@ var ptrTests = []ptrTest{
+ 		body:    `var b bytes.Buffer; b.WriteString("a"); C.f(unsafe.Pointer(&b.Bytes()[0]))`,
+ 		fail:    false,
+ 	},
++	{
++		// Test that bgsweep releasing a finalizer is OK.
++		name:    "finalizer",
++		c:       `// Nothing to declare.`,
++		imports: []string{"os"},
++		support: `func open() { os.Open(os.Args[0]) }; var G [][]byte`,
++		body:    `for i := 0; i < 10000; i++ { G = append(G, make([]byte, 4096)); if i % 100 == 0 { G = nil; open() } }`,
++		fail:    false,
++	},
++	{
++		// Test that converting generated struct to interface is OK.
++		name:    "structof",
++		c:       `// Nothing to declare.`,
++		imports: []string{"reflect"},
++		support: `type MyInt int; func (i MyInt) Get() int { return int(i) }; type Getter interface { Get() int }`,
++		body:    `t := reflect.StructOf([]reflect.StructField{{Name: "MyInt", Type: reflect.TypeOf(MyInt(0)), Anonymous: true}}); v := reflect.New(t).Elem(); v.Interface().(Getter).Get()`,
++		fail:    false,
++	},
+ }
+ 
+ func TestPointerChecks(t *testing.T) {
+@@ -478,7 +496,7 @@ func testOne(t *testing.T, pt ptrTest) {
+ 
+ 	cmd := exec.Command("go", "build")
+ 	cmd.Dir = src
+-	cmd.Env = addEnv("GOPATH", gopath)
++	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+ 	buf, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Logf("%#q:\n%s", args(cmd), buf)
+@@ -550,16 +568,5 @@ func testOne(t *testing.T, pt ptrTest) {
+ }
+ 
+ func cgocheckEnv(val string) []string {
+-	return addEnv("GODEBUG", "cgocheck="+val)
+-}
+-
+-func addEnv(key, val string) []string {
+-	env := []string{key + "=" + val}
+-	look := key + "="
+-	for _, e := range os.Environ() {
+-		if !strings.HasPrefix(e, look) {
+-			env = append(env, e)
+-		}
+-	}
+-	return env
++	return append(os.Environ(), "GODEBUG=cgocheck="+val)
+ }
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index ac57e0344e..7f3c4aa803 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -43,6 +43,13 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
+ 		return
+ 	}
+ 
++	// It's OK if writing to memory allocated by persistentalloc.
++	// Do this check last because it is more expensive and rarely true.
++	// If it is false the expense doesn't matter since we are crashing.
++	if inPersistentAlloc(uintptr(unsafe.Pointer(dst))) {
++		return
++	}
++
+ 	systemstack(func() {
+ 		println("write of Go pointer", hex(src), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
+ 		throw(cgoWriteBarrierFail)
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 678e689311..c1a89dc588 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1167,6 +1167,15 @@ var globalAlloc struct {
+ 	persistentAlloc
+ }
+ 
++// persistentChunkSize is the number of bytes we allocate when we grow
++// a persistentAlloc.
++const persistentChunkSize = 256 << 10
++
++// persistentChunks is a list of all the persistent chunks we have
++// allocated. The list is maintained through the first word in the
++// persistent chunk. This is updated atomically.
++var persistentChunks *notInHeap
++
+ // Wrapper around sysAlloc that can allocate small chunks.
+ // There is no associated free operation.
+ // Intended for things like function/type/debug-related persistent data.
+@@ -1187,7 +1196,6 @@ func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
+ //go:systemstack
+ func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
+ 	const (
+-		chunk    = 256 << 10
+ 		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows
+ 	)
+ 
+@@ -1218,15 +1226,24 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
+ 		persistent = &globalAlloc.persistentAlloc
+ 	}
+ 	persistent.off = round(persistent.off, align)
+-	if persistent.off+size > chunk || persistent.base == nil {
+-		persistent.base = (*notInHeap)(sysAlloc(chunk, &memstats.other_sys))
++	if persistent.off+size > persistentChunkSize || persistent.base == nil {
++		persistent.base = (*notInHeap)(sysAlloc(persistentChunkSize, &memstats.other_sys))
+ 		if persistent.base == nil {
+ 			if persistent == &globalAlloc.persistentAlloc {
+ 				unlock(&globalAlloc.mutex)
+ 			}
+ 			throw("runtime: cannot allocate memory")
+ 		}
+-		persistent.off = 0
++
++		// Add the new chunk to the persistentChunks list.
++		for {
++			chunks := uintptr(unsafe.Pointer(persistentChunks))
++			*(*uintptr)(unsafe.Pointer(persistent.base)) = chunks
++			if atomic.Casuintptr((*uintptr)(unsafe.Pointer(&persistentChunks)), chunks, uintptr(unsafe.Pointer(persistent.base))) {
++				break
++			}
++		}
++		persistent.off = sys.PtrSize
+ 	}
+ 	p := persistent.base.add(persistent.off)
+ 	persistent.off += size
+@@ -1242,6 +1259,21 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
+ 	return p
+ }
+ 
++// inPersistentAlloc reports whether p points to memory allocated by
++// persistentalloc. This must be nosplit because it is called by the
++// cgo checker code, which is called by the write barrier code.
++//go:nosplit
++func inPersistentAlloc(p uintptr) bool {
++	chunk := atomic.Loaduintptr((*uintptr)(unsafe.Pointer(&persistentChunks)))
++	for chunk != 0 {
++		if p >= chunk && p < chunk+persistentChunkSize {
++			return true
++		}
++		chunk = *(*uintptr)(unsafe.Pointer(chunk))
++	}
++	return false
++}
++
+ // linearAlloc is a simple linear allocator that pre-reserves a region
+ // of memory and then maps that region as needed. The caller is
+ // responsible for locking.

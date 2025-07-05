@@ -9,6 +9,29 @@ Date:   Fri Jun 26 18:09:23 2015 +0200
     Change-Id: Id98088c52e564208ce432e9717eddd672c42c66d
     Reviewed-on: https://go-review.googlesource.com/11551
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/race/testdata/mop_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/testdata/mop_test.go b/src/runtime/race/testdata/mop_test.go
+index b4b0ba04ce..7f95051a8c 100644
+--- a/src/runtime/race/testdata/mop_test.go
++++ b/src/runtime/race/testdata/mop_test.go
+@@ -1598,7 +1598,7 @@ func TestRaceSliceSlice(t *testing.T) {
+ 	<-c
+ }
+ 
+-func TestRaceSliceSlice2Failing(t *testing.T) {
++func TestRaceSliceSlice2(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	x := make([]int, 10)
+ 	i := 2
+@@ -1610,7 +1610,7 @@ func TestRaceSliceSlice2Failing(t *testing.T) {
+ 	<-c
+ }
+ 
+-func TestRaceSliceStringFailing(t *testing.T) {
++func TestRaceSliceString(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	x := "hello"
+ 	go func() {

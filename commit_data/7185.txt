@@ -7,7 +7,7 @@ Date:   Wed Jan 19 23:07:38 2011 -0500
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/3978042
-
+---
  doc/devel/roadmap.html          |  5 ++---
  doc/effective_go.html           |  9 +++++----
  doc/gccgo_install.html          |  4 ++--
@@ -18,3 +18,263 @@ Date:   Wed Jan 19 23:07:38 2011 -0500
  doc/install.html                |  7 +++----
  doc/progs/sort.go               | 12 ++++++------
  9 files changed, 54 insertions(+), 38 deletions(-)
+
+diff --git a/doc/devel/roadmap.html b/doc/devel/roadmap.html
+index 021ed6478a..9a3c4eaba5 100644
+--- a/doc/devel/roadmap.html
++++ b/doc/devel/roadmap.html
+@@ -58,8 +58,6 @@ Implement goto restrictions.
+ <li>
+ Improved optimization.
+ <li>
+-5g: Better floating point support.
+-<li>
+ Use escape analysis to keep more data on stack.
+ </ul>
+ 
+@@ -106,5 +104,6 @@ Public continuous build and benchmark infrastructure (gobuilder).
+ Package manager (goinstall).
+ <li>
+ A means of recovering from a panic (recover).
++<li>
++5g: Better floating point support.
+ </ul>
+-
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 26e317b5d2..6e3040fe3d 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1124,14 +1124,14 @@ you can pass a pointer to the array.
+ </p>
+ 
+ <pre>
+-func Sum(a *[3]float) (sum float) {
++func Sum(a *[3]float64) (sum float64) {
+     for _, v := range *a {
+         sum += v
+     }
+     return
+ }
+ 
+-array := [...]float{7.0, 8.5, 9.1}
++array := [...]float64{7.0, 8.5, 9.1}
+ x := Sum(&amp;array)  // Note the explicit address-of operator
+ </pre>
+ 
+@@ -1233,7 +1233,8 @@ Maps are a convenient and powerful built-in data structure to associate
+ values of different types.
+ The key can be of any type for which the equality operator is defined,
+ such as integers,
+-floats, strings, pointers, and interfaces (as long as the dynamic type
++floating point and complex numbers,
++strings, pointers, and interfaces (as long as the dynamic type
+ supports equality).  Structs, arrays and slices cannot be used as map keys,
+ because equality is not defined on those types.
+ Like slices, maps are a reference type. If you pass a map to a function
+@@ -1806,7 +1807,7 @@ Because the two types (<code>Sequence</code> and <code>[]int</code>)
+ are the same if we ignore the type name, it's legal to convert between them.
+ The conversion doesn't create a new value, it just temporarily acts
+ as though the existing value has a new type.
+-(There are other legal conversions, such as from integer to float, that
++(There are other legal conversions, such as from integer to floating point, that
+ do create a new value.)
+ </p>
+ <p>
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index 393e57963b..2ab6dcdae9 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -296,8 +296,8 @@ than one value, the C function returns a struct. For example, these
+ functions have equivalent types:
+ 
+ <pre>
+-func GoFunction(int) (int, float)
+-struct { int i; float f; } CFunction(int)
++func GoFunction(int) (int, float64)
++struct { int i; float64 f; } CFunction(int)
+ </pre>
+ 
+ <p>
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 1c7b85ef89..f923a6ae29 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -665,11 +665,16 @@ of Effective Go</a> for more details.
+ Why is <code>int</code> 32 bits on 64 bit machines?</h3>
+ 
+ <p>
+-The size of <code>int</code> and <code>float</code> is implementation-specific.
++The sizes of <code>int</code> and <code>uint</code> are implementation-specific
++but the same as each other on a given platform.
+ The 64 bit Go compilers (both 6g and gccgo) use a 32 bit representation for
+-both <code>int</code> and <code>float</code>.  Code that relies on a particular
+-size of value should use an explicitly sized type, like <code>int64</code> or
+-<code>float64</code>.
++<code>int</code>.  Code that relies on a particular
++size of value should use an explicitly sized type, like <code>int64</code>.
++On the other hand, floating-point scalars and complex
++numbers are always sized: <code>float32</code>, <code>complex64</code>,
++etc., because programmers should be aware of precision when using
++floating-point numbers.
++The default size of a floating-point constant is <code>float64</code>.
+ </p>
+ 
+ <h2 id="Concurrency">Concurrency</h2>
+diff --git a/doc/go_for_cpp_programmers.html b/doc/go_for_cpp_programmers.html
+index fae2ec44e6..608ab147b3 100644
+--- a/doc/go_for_cpp_programmers.html
++++ b/doc/go_for_cpp_programmers.html
+@@ -107,7 +107,7 @@ parentheses.
+ <pre>
+ var (
+     i int
+-    m float
++    m float64
+ )
+ </pre>
+ 
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index e3d966b874..ece22036ae 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -238,14 +238,19 @@ started; for instance, <code>os.Args</code> is a slice used by the
+ <p>
+ <h2>An Interlude about Types</h2>
+ <p>
+-Go has some familiar types such as <code>int</code> and <code>float</code>, which represent
++Go has some familiar types such as <code>int</code> and <code>uint</code> (unsigned <code>int</code>), which represent
+ values of the ''appropriate'' size for the machine. It also defines
+ explicitly-sized types such as <code>int8</code>, <code>float64</code>, and so on, plus
+-unsigned integer types such as <code>uint</code>, <code>uint32</code>, etc.  These are
+-distinct types; even if <code>int</code> and <code>int32</code> are both 32 bits in size,
++unsigned integer types such as <code>uint</code>, <code>uint32</code>, etc.
++These are distinct types; even if <code>int</code> and <code>int32</code> are both 32 bits in size,
+ they are not the same type.  There is also a <code>byte</code> synonym for
+ <code>uint8</code>, which is the element type for strings.
+ <p>
++Floating-point types are always sized: <code>float32</code> and <code>float64</code>,
++plus <code>complex64</code> (two <code>float32s</code>) and <code>complex128</code>
++(two <code>float64s</code>).  Complex numbers are outside the
++scope of this tutorial.
++<p>
+ Speaking of <code>string</code>, that's a built-in type as well.  Strings are
+ <i>immutable values</i>&mdash;they are not just arrays of <code>byte</code> values.
+ Once you've built a string <i>value</i>, you can't change it, although
+@@ -452,14 +457,15 @@ language specification but here are some illustrative examples:
+     a := uint64(0)    // equivalent; uses a "conversion"
+     i := 0x1234       // i gets default type: int
+     var j int = 1e6   // legal - 1000000 is representable in an int
+-    x := 1.5          // a float
++    x := 1.5          // a float64, the default type for floating constants
+     i3div2 := 3/2     // integer division - result is 1
+-    f3div2 := 3./2.   // floating point division - result is 1.5
++    f3div2 := 3./2.   // floating-point division - result is 1.5
+ </pre>
+ <p>
+ Conversions only work for simple cases such as converting <code>ints</code> of one
+-sign or size to another, and between <code>ints</code> and <code>floats</code>, plus a few other
+-simple cases.  There are no automatic numeric conversions of any kind in Go,
++sign or size to another and between integers and floating-point numbers,
++plus a couple of other instances outside the scope of a tutorial.
++There are no automatic numeric conversions of any kind in Go,
+ other than that of making constants have concrete size and type when
+ assigned to a variable.
+ <p>
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index bf07330a87..5eea3c980b 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -189,14 +189,19 @@ started; for instance, "os.Args" is a slice used by the
+ An Interlude about Types
+ ----
+ 
+-Go has some familiar types such as "int" and "float", which represent
++Go has some familiar types such as "int" and "uint" (unsigned "int"), which represent
+ values of the ''appropriate'' size for the machine. It also defines
+ explicitly-sized types such as "int8", "float64", and so on, plus
+-unsigned integer types such as "uint", "uint32", etc.  These are
+-distinct types; even if "int" and "int32" are both 32 bits in size,
++unsigned integer types such as "uint", "uint32", etc.
++These are distinct types; even if "int" and "int32" are both 32 bits in size,
+ they are not the same type.  There is also a "byte" synonym for
+ "uint8", which is the element type for strings.
+ 
++Floating-point types are always sized: "float32" and "float64",
++plus "complex64" (two "float32s") and "complex128"
++(two "float64s").  Complex numbers are outside the
++scope of this tutorial.
++
+ Speaking of "string", that's a built-in type as well.  Strings are
+ <i>immutable values</i>&mdash;they are not just arrays of "byte" values.
+ Once you've built a string <i>value</i>, you can't change it, although
+@@ -362,13 +367,14 @@ language specification but here are some illustrative examples:
+ 	a := uint64(0)    // equivalent; uses a "conversion"
+ 	i := 0x1234       // i gets default type: int
+ 	var j int = 1e6   // legal - 1000000 is representable in an int
+-	x := 1.5          // a float
++	x := 1.5          // a float64, the default type for floating constants
+ 	i3div2 := 3/2     // integer division - result is 1
+-	f3div2 := 3./2.   // floating point division - result is 1.5
++	f3div2 := 3./2.   // floating-point division - result is 1.5
+ 
+ Conversions only work for simple cases such as converting "ints" of one
+-sign or size to another, and between "ints" and "floats", plus a few other
+-simple cases.  There are no automatic numeric conversions of any kind in Go,
++sign or size to another and between integers and floating-point numbers,
++plus a couple of other instances outside the scope of a tutorial.
++There are no automatic numeric conversions of any kind in Go,
+ other than that of making constants have concrete size and type when
+ assigned to a variable.
+ 
+diff --git a/doc/install.html b/doc/install.html
+index 92b099fe8d..5917da964a 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -45,11 +45,10 @@ architectures.
+ </dt>
+ <dd>
+ 	Incomplete.
+-	It only supports Linux binaries, the optimizer is not enabled,
+-	and floating point is performed entirely in software.
++	It only supports Linux binaries, the optimizer is incomplete,
++	and floating point uses the VFP unit.
+ 	However, all tests pass.
+-	Work on the optimizer and use of the VFP hardware
+-	floating point unit is underway.
++	Work on the optimizer is continuing.
+ 	Tested against a Nexus One.
+ </dd>
+ </dl>
+diff --git a/doc/progs/sort.go b/doc/progs/sort.go
+index 6738860d98..79e7f563eb 100644
+--- a/doc/progs/sort.go
++++ b/doc/progs/sort.go
+@@ -37,11 +37,11 @@ func (p IntArray) Less(i, j int) bool  { return p[i] < p[j] }
+ func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+ 
+ 
+-type FloatArray []float
++type Float64Array []float64
+ 
+-func (p FloatArray) Len() int            { return len(p) }
+-func (p FloatArray) Less(i, j int) bool  { return p[i] < p[j] }
+-func (p FloatArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
++func (p Float64Array) Len() int            { return len(p) }
++func (p Float64Array) Less(i, j int) bool  { return p[i] < p[j] }
++func (p Float64Array) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+ 
+ 
+ type StringArray []string
+@@ -54,10 +54,10 @@ func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+ // Convenience wrappers for common cases
+ 
+ func SortInts(a []int)        { Sort(IntArray(a)) }
+-func SortFloats(a []float)    { Sort(FloatArray(a)) }
++func SortFloat64s(a []float64)    { Sort(Float64Array(a)) }
+ func SortStrings(a []string)  { Sort(StringArray(a)) }
+ 
+ 
+ func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)) }
+-func FloatsAreSorted(a []float) bool   { return IsSorted(FloatArray(a)) }
++func Float64sAreSorted(a []float64) bool   { return IsSorted(Float64Array(a)) }
+ func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)) }

@@ -14,6 +14,26 @@ Date:   Mon Aug 8 16:17:14 2016 +0200
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/trace.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 436f31dc2e..0b3741fa70 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -262,10 +262,12 @@ func StopTrace() {
+ 			p.tracebuf = 0
+ 		}
+ 	}
+-	if trace.buf != 0 && trace.buf.ptr().pos != 0 {
++	if trace.buf != 0 {
+ 		buf := trace.buf
+ 		trace.buf = 0
+-		traceFullQueue(buf)
++		if buf.ptr().pos != 0 {
++			traceFullQueue(buf)
++		}
+ 	}
+ 
+ 	for {

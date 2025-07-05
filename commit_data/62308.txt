@@ -15,8 +15,91 @@ Date:   Thu Feb 13 17:09:23 2025 -0400
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/cache/cache.go         |  2 +-
  src/cmd/go/internal/cache/prog.go          |  9 ---------
  src/cmd/go/internal/cacheprog/cacheprog.go | 13 +------------
  3 files changed, 2 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 1bef1db08c..26913dd959 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -59,7 +59,7 @@ type Cache interface {
+ 	// background cleanup work started earlier. Any cache trimming in one
+ 	// process should not cause the invariants of this interface to be
+ 	// violated in another process. Namely, a cache trim from one process should
+-	// not delete an ObjectID from disk that was recently Get or Put from
++	// not delete an OutputID from disk that was recently Get or Put from
+ 	// another process. As a rule of thumb, don't trim things used in the last
+ 	// day.
+ 	Close() error
+diff --git a/src/cmd/go/internal/cache/prog.go b/src/cmd/go/internal/cache/prog.go
+index bfddf5e4de..74e9dc9de5 100644
+--- a/src/cmd/go/internal/cache/prog.go
++++ b/src/cmd/go/internal/cache/prog.go
+@@ -15,7 +15,6 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+-	"internal/goexperiment"
+ 	"io"
+ 	"log"
+ 	"os"
+@@ -330,18 +329,10 @@ func (c *ProgCache) Put(a ActionID, file io.ReadSeeker) (_ OutputID, size int64,
+ 		return out, size, nil
+ 	}
+ 
+-	// For compatibility with Go 1.23/1.24 GOEXPERIMENT=gocacheprog users, also
+-	// populate the deprecated ObjectID field. This will be removed in Go 1.25.
+-	var deprecatedValue []byte
+-	if goexperiment.CacheProg {
+-		deprecatedValue = out[:]
+-	}
+-
+ 	res, err := c.send(c.ctx, &cacheprog.Request{
+ 		Command:  cacheprog.CmdPut,
+ 		ActionID: a[:],
+ 		OutputID: out[:],
+-		ObjectID: deprecatedValue, // TODO(bradfitz): remove in Go 1.25
+ 		Body:     file,
+ 		BodySize: size,
+ 	})
+diff --git a/src/cmd/go/internal/cacheprog/cacheprog.go b/src/cmd/go/internal/cacheprog/cacheprog.go
+index a2796592df..9379636e5a 100644
+--- a/src/cmd/go/internal/cacheprog/cacheprog.go
++++ b/src/cmd/go/internal/cacheprog/cacheprog.go
+@@ -76,9 +76,6 @@ type Request struct {
+ 	ActionID []byte `json:",omitempty"` // or nil if not used
+ 
+ 	// OutputID is stored with the body for "put" requests.
+-	//
+-	// Prior to Go 1.24, when GOCACHEPROG was still an experiment, this was
+-	// accidentally named ObjectID. It was renamed to OutputID in Go 1.24.
+ 	OutputID []byte `json:",omitempty"` // or nil if not used
+ 
+ 	// Body is the body for "put" requests. It's sent after the JSON object
+@@ -91,14 +88,6 @@ type Request struct {
+ 
+ 	// BodySize is the number of bytes of Body. If zero, the body isn't written.
+ 	BodySize int64 `json:",omitempty"`
+-
+-	// ObjectID is the accidental spelling of OutputID that was used prior to Go
+-	// 1.24.
+-	//
+-	// Deprecated: use OutputID. This field is only populated temporarily for
+-	// backwards compatibility with Go 1.23 and earlier when
+-	// GOEXPERIMENT=gocacheprog is set. It will be removed in Go 1.25.
+-	ObjectID []byte `json:",omitempty"`
+ }
+ 
+ // Response is the JSON response from the child process to the go command.
+@@ -125,7 +114,7 @@ type Response struct {
+ 	// For "get" requests.
+ 
+ 	Miss     bool       `json:",omitempty"` // cache miss
+-	OutputID []byte     `json:",omitempty"` // the ObjectID stored with the body
++	OutputID []byte     `json:",omitempty"` // the OutputID stored with the body
+ 	Size     int64      `json:",omitempty"` // body size in bytes
+ 	Time     *time.Time `json:",omitempty"` // when the object was put in the cache (optional; used for cache expiration)
+ 

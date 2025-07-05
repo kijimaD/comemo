@@ -7,6 +7,20 @@ Date:   Wed Dec 14 10:25:16 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5486060
-
+---
  src/pkg/hash/crc32/crc32_generic.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/hash/crc32/crc32_generic.go b/src/pkg/hash/crc32/crc32_generic.go
+index 27aabd903b..c3fdcd685c 100644
+--- a/src/pkg/hash/crc32/crc32_generic.go
++++ b/src/pkg/hash/crc32/crc32_generic.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build 386 arm
++
+ package crc32
+ 
+ // The file contains the generic version of updateCastagnoli which just calls

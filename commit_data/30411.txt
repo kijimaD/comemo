@@ -14,6 +14,41 @@ Date:   Thu Nov 3 10:47:44 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gcimporter/bimport.go | 16 ++++++++++------
  1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index a8e4a7e718..574b71dcb6 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -278,11 +278,13 @@ func (p *importer) obj(tag int) {
+ 		p.declare(types.NewFunc(pos, pkg, name, sig))
+ 
+ 	case aliasTag:
+-		aliasPos := p.pos()
+-		aliasName := p.string()
+-		pkg, name := p.qualifiedName()
+-		obj := pkg.Scope().Lookup(name)
+-		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, obj))
++		pos := p.pos()
++		name := p.string()
++		var orig types.Object
++		if pkg, name := p.qualifiedName(); pkg != nil {
++			orig = pkg.Scope().Lookup(name)
++		}
++		p.declare(types.NewAlias(pos, p.pkgList[0], name, orig))
+ 
+ 	default:
+ 		errorf("unexpected object tag %d", tag)
+@@ -343,7 +345,9 @@ var (
+ 
+ func (p *importer) qualifiedName() (pkg *types.Package, name string) {
+ 	name = p.string()
+-	pkg = p.pkg()
++	if name != "" {
++		pkg = p.pkg()
++	}
+ 	return
+ }
+ 

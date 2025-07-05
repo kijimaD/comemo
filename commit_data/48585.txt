@@ -13,7 +13,117 @@ Date:   Thu May 27 20:20:16 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/reflect/asm_arm64.s | 61 +++++++++++++++++++++++++++++++++++++++++--------
  src/runtime/stack.go    |  6 ++---
  2 files changed, 54 insertions(+), 13 deletions(-)
+
+diff --git a/src/reflect/asm_arm64.s b/src/reflect/asm_arm64.s
+index 5fe88e27e4..5b9b3573fa 100644
+--- a/src/reflect/asm_arm64.s
++++ b/src/reflect/asm_arm64.s
+@@ -5,34 +5,75 @@
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
++// The frames of each of the two functions below contain two locals, at offsets
++// that are known to the runtime.
++//
++// The first local is a bool called retValid with a whole pointer-word reserved
++// for it on the stack. The purpose of this word is so that the runtime knows
++// whether the stack-allocated return space contains valid values for stack
++// scanning.
++//
++// The second local is an abi.RegArgs value whose offset is also known to the
++// runtime, so that a stack map for it can be constructed, since it contains
++// pointers visible to the GC.
++#define LOCAL_RETVALID 40
++#define LOCAL_REGARGS 48
++
++// The frame size of the functions below is
++// 32 (args of callReflect) + 8 (bool + padding) + 392 (abi.RegArgs) = 432.
++
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$432
+ 	NO_LOCAL_POINTERS
++	// NO_LOCAL_POINTERS is a lie. The stack map for the two locals in this
++	// frame is specially handled in the runtime. See the comment above LOCAL_RETVALID.
++	ADD	$LOCAL_REGARGS, RSP, R20
++	CALL	runtime·spillArgs(SB)
++	MOVD	R26, 32(RSP) // outside of moveMakeFuncArgPtrs's arg area
++	MOVD	R26, 8(RSP)
++	MOVD	R20, 16(RSP)
++	CALL	·moveMakeFuncArgPtrs(SB)
++	MOVD	32(RSP), R26
+ 	MOVD	R26, 8(RSP)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(RSP)
+-	MOVB	$0, 40(RSP)
+-	ADD	$40, RSP, R3
++	MOVB	$0, LOCAL_RETVALID(RSP)
++	ADD	$LOCAL_RETVALID, RSP, R3
+ 	MOVD	R3, 24(RSP)
+-	MOVD	$0, 32(RSP)
+-	BL	·callReflect(SB)
++	ADD	$LOCAL_REGARGS, RSP, R3
++	MOVD	R3, 32(RSP)
++	CALL	·callReflect(SB)
++	ADD	$LOCAL_REGARGS, RSP, R20
++	CALL	runtime·unspillArgs(SB)
+ 	RET
+ 
+ // methodValueCall is the code half of the function returned by makeMethodValue.
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$432
+ 	NO_LOCAL_POINTERS
++	// NO_LOCAL_POINTERS is a lie. The stack map for the two locals in this
++	// frame is specially handled in the runtime. See the comment above LOCAL_RETVALID.
++	ADD	$LOCAL_REGARGS, RSP, R20
++	CALL	runtime·spillArgs(SB)
++	MOVD	R26, 32(RSP) // outside of moveMakeFuncArgPtrs's arg area
++	MOVD	R26, 8(RSP)
++	MOVD	R20, 16(RSP)
++	CALL	·moveMakeFuncArgPtrs(SB)
++	MOVD	32(RSP), R26
+ 	MOVD	R26, 8(RSP)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(RSP)
+-	MOVB	$0, 40(RSP)
+-	ADD	$40, RSP, R3
++	MOVB	$0, LOCAL_RETVALID(RSP)
++	ADD	$LOCAL_RETVALID, RSP, R3
+ 	MOVD	R3, 24(RSP)
+-	MOVD	$0, 32(RSP)
+-	BL	·callMethod(SB)
++	ADD	$LOCAL_REGARGS, RSP, R3
++	MOVD	R3, 32(RSP)
++	CALL	·callMethod(SB)
++	ADD	$LOCAL_REGARGS, RSP, R20
++	CALL	runtime·unspillArgs(SB)
+ 	RET
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 622de45f25..a1182b00bd 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1318,11 +1318,11 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 	}
+ 
+ 	// stack objects.
+-	if GOARCH == "amd64" && unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
++	if (GOARCH == "amd64" || GOARCH == "arm64") && unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
+ 		// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
+ 		// We don't actually use argmap in this case, but we need to fake the stack object
+-		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset
+-		// on amd64.
++		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset.
++		// This offset matches the assembly code on amd64 and arm64.
+ 		objs = methodValueCallFrameObjs
+ 	} else {
+ 		p := funcdata(f, _FUNCDATA_StackObjects)

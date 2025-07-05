@@ -9,6 +9,23 @@ Date:   Wed Oct 21 16:04:07 2020 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Trust: Alex Brainman <alex.brainman@gmail.com>
-
+---
  doc/go1.16.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 1e73355b69..9e7ae1da27 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -182,7 +182,10 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: update with final numbers later in the release.
+ </p>
+ 
+-<!-- CL 255259: https://golang.org/cl/255259: cmd/link: enable ASLR on windows binaries built with -buildmode=c-shared -->
++<p> <!-- CL 255259 -->
++  On Windows, <code>go build -buildmode=c-shared</code> now generates Windows
++  ASLR DLLs by default. ASLR can be disabled with <code>--ldflags=-aslr=false</code>.
++</p>
+ 
+ <h2 id="library">Core library</h2>
+ 

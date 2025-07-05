@@ -15,7 +15,7 @@ Date:   Fri Nov 30 14:21:33 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcshared/cshared_test.go         | 43 ++++++++++++++++++++++++++++
  misc/cgo/testcshared/src/go2c2go/go/shlib.go | 12 ++++++++
  misc/cgo/testcshared/src/go2c2go/m1/c.c      |  9 ++++++
@@ -23,3 +23,208 @@ Date:   Fri Nov 30 14:21:33 2018 -0800
  misc/cgo/testcshared/src/go2c2go/m2/main.go  | 22 ++++++++++++++
  src/cmd/cgo/out.go                           | 23 ++++++++++++++-
  6 files changed, 130 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index 89b19d653a..fa2af2842d 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -602,3 +602,46 @@ func copyFile(t *testing.T, dst, src string) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func TestGo2C2Go(t *testing.T) {
++	t.Parallel()
++
++	tmpdir, err := ioutil.TempDir("", "cshared-TestGo2C2Go")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	shlib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
++	run(t, gopathEnv, "go", "build", "-buildmode=c-shared", "-o", shlib, "go2c2go/go")
++
++	cgoCflags := os.Getenv("CGO_CFLAGS")
++	if cgoCflags != "" {
++		cgoCflags += " "
++	}
++	cgoCflags += "-I" + tmpdir
++
++	cgoLdflags := os.Getenv("CGO_LDFLAGS")
++	if cgoLdflags != "" {
++		cgoLdflags += " "
++	}
++	cgoLdflags += "-L" + tmpdir + " -ltestgo2c2go"
++
++	goenv := append(gopathEnv[:len(gopathEnv):len(gopathEnv)], "CGO_CFLAGS="+cgoCflags, "CGO_LDFLAGS="+cgoLdflags)
++
++	ldLibPath := os.Getenv("LD_LIBRARY_PATH")
++	if ldLibPath != "" {
++		ldLibPath += ":"
++	}
++	ldLibPath += tmpdir
++
++	runenv := append(gopathEnv[:len(gopathEnv):len(gopathEnv)], "LD_LIBRARY_PATH="+ldLibPath)
++
++	bin := filepath.Join(tmpdir, "m1") + exeSuffix
++	run(t, goenv, "go", "build", "-o", bin, "go2c2go/m1")
++	runExe(t, runenv, bin)
++
++	bin = filepath.Join(tmpdir, "m2") + exeSuffix
++	run(t, goenv, "go", "build", "-o", bin, "go2c2go/m2")
++	runExe(t, runenv, bin)
++}
+diff --git a/misc/cgo/testcshared/src/go2c2go/go/shlib.go b/misc/cgo/testcshared/src/go2c2go/go/shlib.go
+new file mode 100644
+index 0000000000..76a5323ad2
+--- /dev/null
++++ b/misc/cgo/testcshared/src/go2c2go/go/shlib.go
+@@ -0,0 +1,12 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++
++//export GoFunc
++func GoFunc() int { return 1 }
++
++func main() {}
+diff --git a/misc/cgo/testcshared/src/go2c2go/m1/c.c b/misc/cgo/testcshared/src/go2c2go/m1/c.c
+new file mode 100644
+index 0000000000..0e8fac4cf3
+--- /dev/null
++++ b/misc/cgo/testcshared/src/go2c2go/m1/c.c
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "libtestgo2c2go.h"
++
++int CFunc(void) {
++	return (GoFunc() << 8) + 2;
++}
+diff --git a/misc/cgo/testcshared/src/go2c2go/m1/main.go b/misc/cgo/testcshared/src/go2c2go/m1/main.go
+new file mode 100644
+index 0000000000..17ba1eb0a7
+--- /dev/null
++++ b/misc/cgo/testcshared/src/go2c2go/m1/main.go
+@@ -0,0 +1,22 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// extern int CFunc(void);
++import "C"
++
++import (
++	"fmt"
++	"os"
++)
++
++func main() {
++	got := C.CFunc()
++	const want = (1 << 8) | 2
++	if got != want {
++		fmt.Printf("got %#x, want %#x\n", got, want)
++		os.Exit(1)
++	}
++}
+diff --git a/misc/cgo/testcshared/src/go2c2go/m2/main.go b/misc/cgo/testcshared/src/go2c2go/m2/main.go
+new file mode 100644
+index 0000000000..91bf308057
+--- /dev/null
++++ b/misc/cgo/testcshared/src/go2c2go/m2/main.go
+@@ -0,0 +1,22 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// #include "libtestgo2c2go.h"
++import "C"
++
++import (
++	"fmt"
++	"os"
++)
++
++func main() {
++	got := C.GoFunc()
++	const want = 1
++	if got != want {
++		fmt.Printf("got %#x, want %#x\n", got, want)
++		os.Exit(1)
++	}
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index bc0b0b6387..c49b51c611 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1555,6 +1555,7 @@ const builtinProlog = `
+ /* Define intgo when compiling with GCC.  */
+ typedef ptrdiff_t intgo;
+ 
++#define GO_CGO_GOSTRING_TYPEDEF
+ typedef struct { const char *p; intgo n; } _GoString_;
+ typedef struct { char *p; intgo n; intgo c; } _GoBytes_;
+ _GoString_ GoString(char *p);
+@@ -1806,15 +1807,20 @@ void localCgoCheckResult(Eface val) {
+ // because _cgo_export.h defines GoString as a struct while builtinProlog
+ // defines it as a function. We don't change this to avoid unnecessarily
+ // breaking existing code.
++// The test of GO_CGO_GOSTRING_TYPEDEF avoids a duplicate definition
++// error if a Go file with a cgo comment #include's the export header
++// generated by a different package.
+ const builtinExportProlog = `
+-#line 1 "cgo-builtin-prolog"
++#line 1 "cgo-builtin-export-prolog"
+ 
+ #include <stddef.h> /* for ptrdiff_t below */
+ 
+ #ifndef GO_CGO_EXPORT_PROLOGUE_H
+ #define GO_CGO_EXPORT_PROLOGUE_H
+ 
++#ifndef GO_CGO_GOSTRING_TYPEDEF
+ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
++#endif
+ 
+ #endif
+ `
+@@ -1823,6 +1829,19 @@ func (p *Package) gccExportHeaderProlog() string {
+ 	return strings.Replace(gccExportHeaderProlog, "GOINTBITS", fmt.Sprint(8*p.IntSize), -1)
+ }
+ 
++// gccExportHeaderProlog is written to the exported header, after the
++// import "C" comment preamble but before the generated declarations
++// of exported functions. This permits the generated declarations to
++// use the type names that appear in goTypes, above.
++//
++// The test of GO_CGO_GOSTRING_TYPEDEF avoids a duplicate definition
++// error if a Go file with a cgo comment #include's the export header
++// generated by a different package. Unfortunately GoString means two
++// different things: in this prolog it means a C name for the Go type,
++// while in the prolog written into the start of the C code generated
++// from a cgo-using Go file it means the C.GoString function. There is
++// no way to resolve this conflict, but it also doesn't make much
++// difference, as Go code never wants to refer to the latter meaning.
+ const gccExportHeaderProlog = `
+ /* Start of boilerplate cgo prologue.  */
+ #line 1 "cgo-gcc-export-header-prolog"
+@@ -1852,7 +1871,9 @@ typedef double _Complex GoComplex128;
+ */
+ typedef char _check_for_GOINTBITS_bit_pointer_matching_GoInt[sizeof(void*)==GOINTBITS/8 ? 1:-1];
+ 
++#ifndef GO_CGO_GOSTRING_TYPEDEF
+ typedef _GoString_ GoString;
++#endif
+ typedef void *GoMap;
+ typedef void *GoChan;
+ typedef struct { void *t; void *v; } GoInterface;

@@ -7,6 +7,22 @@ Date:   Mon Jun 24 10:11:26 2019 -0400
     Change-Id: I8c19c6df6fec74dcc8c3bfdc667576ea00e86ec1
     Reviewed-on: https://go-review.googlesource.com/c/go/+/183617
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  doc/go1.13.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index d8ef6db073..2c2b0c1728 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -359,10 +359,6 @@ TODO
+ 
+ <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
+   <dd>
+-    <p><!-- CL 161760 -->
+-      TODO: <a href="https://golang.org/cl/161760">https://golang.org/cl/161760</a>: hoist error creation out of function
+-    </p>
+-
+     <p>
+       The new <a href="/pkg/bytes/#ToValidUTF8"><code>ToValidUTF8</code></a> function returns a
+       copy of a given byte slice with each run of invalid UTF-8 byte sequences replaced by a given slice.

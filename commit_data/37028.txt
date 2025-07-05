@@ -29,10 +29,130 @@ Date:   Tue Jun 19 16:14:00 2018 -0400
     Change-Id: I69fe4b85e83265b9d99f447e3cc5230dde094869
     Reviewed-on: https://go-review.googlesource.com/119855
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/debugging_with_gdb.html |  2 +-
  doc/go_faq.html             |  2 +-
  doc/install-source.html     |  4 ++--
  doc/install.html            | 12 ++++++------
  doc/root.html               |  2 +-
  5 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index ca9d9a7c46..f3b4e37a28 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -57,7 +57,7 @@ Besides this overview you might want to consult the
+ 
+ <p>
+ When you compile and link your Go programs with the <code>gc</code> toolchain
+-on Linux, Mac OS X, FreeBSD or NetBSD, the resulting binaries contain DWARFv4
++on Linux, macOS, FreeBSD or NetBSD, the resulting binaries contain DWARFv4
+ debugging information that recent versions (&ge;7.5) of the GDB debugger can
+ use to inspect a live process or a core dump.
+ </p>
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index e83408e6f1..e020ce12c1 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1396,7 +1396,7 @@ reservation does not deprive other processes of memory.
+ <p>
+ To find the amount of actual memory allocated to a Go process, use the Unix
+ <code>top</code> command and consult the <code>RES</code> (Linux) or
+-<code>RSIZE</code> (Mac OS X) columns.
++<code>RSIZE</code> (macOS) columns.
+ <!-- TODO(adg): find out how this works on Windows -->
+ </p>
+ 
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 844fb002f7..f6d9473d9b 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -98,7 +98,7 @@ goroutines, such as stacks that grow and shrink on demand.
+ 
+ <p>
+ The compilers can target the DragonFly BSD, FreeBSD, Linux, NetBSD, OpenBSD,
+-OS X (Darwin), Plan 9, Solaris and Windows operating systems.
++macOS (Darwin), Plan 9, Solaris and Windows operating systems.
+ The full set of supported combinations is listed in the discussion of
+ <a href="#environment">environment variables</a> below.
+ </p>
+@@ -468,7 +468,7 @@ These default to the values of <code>$GOHOSTOS</code> and
+ 
+ <p>
+ Choices for <code>$GOOS</code> are
+-<code>darwin</code> (Mac OS X 10.8 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
++<code>darwin</code> (macOS 10.10 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
+ <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
+ <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
+ Choices for <code>$GOARCH</code> are
+diff --git a/doc/install.html b/doc/install.html
+index cd51e7603a..3bb4a15b25 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -17,7 +17,7 @@
+ <p>
+ <a href="/dl/" target="_blank">Official binary
+ distributions</a> are available for the FreeBSD (release 10-STABLE and above),
+-Linux, Mac OS X (10.8 and above), and Windows operating systems and
++Linux, macOS (10.10 and above), and Windows operating systems and
+ the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
+ architectures.
+ </p>
+@@ -49,7 +49,7 @@ If your OS or architecture is not on the list, you may be able to
+ <tr><td colspan="3"><hr></td></tr>
+ <tr><td>FreeBSD 10.3 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
+ <tr valign='top'><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm, arm64,<br>s390x, ppc64le</td> <td>CentOS/RHEL 5.x not supported.<br>Install from source for other libc.</td></tr>
+-<tr><td>macOS 10.8 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
++<tr><td>macOS 10.10 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
+ <tr><td>Windows XP SP2 or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
+ </table>
+ 
+@@ -74,7 +74,7 @@ first <a href="#uninstall">remove the existing version</a>.
+ 
+ <div id="tarballInstructions">
+ 
+-<h3 id="tarball">Linux, Mac OS X, and FreeBSD tarballs</h3>
++<h3 id="tarball">Linux, macOS, and FreeBSD tarballs</h3>
+ 
+ <p>
+ <a href="/dl/">Download the archive</a>
+@@ -118,7 +118,7 @@ or execute them from the profile using a command such as
+ 
+ <div id="darwinPackageInstructions">
+ 
+-<h3 id="osx">Mac OS X package installer</h3>
++<h3 id="macos"><div id="osx"></div>macOS package installer</h3>
+ 
+ <p>
+ <a href="/dl/">Download the package file</a>,
+@@ -276,7 +276,7 @@ which describes some essential concepts about using the Go tools.
+ <p>
+ To remove an existing Go installation from your system delete the
+ <code>go</code> directory. This is usually <code>/usr/local/go</code>
+-under Linux, Mac OS X, and FreeBSD or <code>c:\Go</code>
++under Linux, macOS, and FreeBSD or <code>c:\Go</code>
+ under Windows.
+ </p>
+ 
+@@ -285,7 +285,7 @@ You should also remove the Go <code>bin</code> directory from your
+ <code>PATH</code> environment variable.
+ Under Linux and FreeBSD you should edit <code>/etc/profile</code> or
+ <code>$HOME/.profile</code>.
+-If you installed Go with the <a href="#osx">Mac OS X package</a> then you
++If you installed Go with the <a href="#macos">macOS package</a> then you
+ should remove the <code>/etc/paths.d/go</code> file.
+ Windows users should read the section about <a href="#windows_env">setting
+ environment variables under Windows</a>.
+diff --git a/doc/root.html b/doc/root.html
+index 545b28d2d5..b7422f2128 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -62,7 +62,7 @@ simple, reliable, and efficient software.
+ <span class="big">Download Go</span>
+ <span class="desc">
+ Binary distributions available for<br>
+-Linux, Mac OS X, Windows, and more.
++Linux, macOS, Windows, and more.
+ </span>
+ </a>
+ 

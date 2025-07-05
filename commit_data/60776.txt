@@ -22,6 +22,22 @@ Date:   Tue Aug 20 19:12:19 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 0b9e489200..d1094f49fd 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -119,8 +119,8 @@ var ignoreSuffixes = []string{
+ }
+ 
+ var tryDirs = []string{
+-	"sdk/go1.17",
+-	"go1.17",
++	"sdk/go1.22.6",
++	"go1.22.6",
+ }
+ 
+ func bootstrapBuildTools() {

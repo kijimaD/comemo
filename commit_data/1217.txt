@@ -10,6 +10,24 @@ Date:   Fri Nov 21 16:13:11 2008 -0800
     DELTA=4  (0 added, 2 deleted, 2 changed)
     OCL=19810
     CL=19849
-
+---
  src/cmd/6l/asm.c | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 901c988509..5bb6cc4149 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -409,10 +409,8 @@ asmb(void)
+ 				7, 5,			/* protects */
+ 				0, 0);			/* sections flags */
+ 
+-			v += rnd(datsize, INITRND);
+-			machsymseg(v,symsize);	/* fileoffset,filesize */
+-			v += symsize;
+-			machsymseg(v,lcsize);	/* fileoffset,filesize */
++			machsymseg(symo+8,symsize);	/* fileoffset,filesize */
++			machsymseg(symo+8+symsize,lcsize);	/* fileoffset,filesize */
+ 		}
+ 		break;
+ 	case 7:

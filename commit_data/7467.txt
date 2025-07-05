@@ -7,6 +7,20 @@ Date:   Tue Feb 15 16:38:45 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4178054
-
+---
  src/pkg/crypto/tls/handshake_client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 19d2bfa3ba..a325a9b953 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -57,7 +57,7 @@ func (c *Conn) clientHandshake() os.Error {
+ 
+ 	vers, ok := mutualVersion(serverHello.vers)
+ 	if !ok {
+-		c.sendAlert(alertProtocolVersion)
++		return c.sendAlert(alertProtocolVersion)
+ 	}
+ 	c.vers = vers
+ 	c.haveVers = true

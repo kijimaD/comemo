@@ -16,6 +16,20 @@ Date:   Sun Oct 13 20:33:47 2019 +0530
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 71eb5d9cd3..0f25a5d19f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1023,7 +1023,7 @@ func (b *Builder) vet(a *Action) error {
+ 	// dependency tree turn on *more* analysis, as here.
+ 	// (The unsafeptr check does not write any facts for use by
+ 	// later vet runs.)
+-	if a.Package.Goroot && !VetExplicit {
++	if a.Package.Goroot && !VetExplicit && VetTool == "" {
+ 		// Note that $GOROOT/src/buildall.bash
+ 		// does the same for the misc-compile trybots
+ 		// and should be updated if these flags are

@@ -21,7 +21,48 @@ Date:   Tue Apr 27 23:01:16 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go |  4 ++++
  test/fixedbugs/issue45804.go                    | 19 +++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index ab493e0caa..00dd44b96b 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -596,6 +596,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 	case ir.OANDAND, ir.OOROR:
+ 		n := n.(*ir.LogicalExpr)
+ 		n.X, n.Y = Expr(n.X), Expr(n.Y)
++		if n.X.Type() == nil || n.Y.Type() == nil {
++			n.SetType(nil)
++			return n
++		}
+ 		// For "x == x && len(s)", it's better to report that "len(s)" (type int)
+ 		// can't be used with "&&" than to report that "x == x" (type untyped bool)
+ 		// can't be converted to int (see issue #41500).
+diff --git a/test/fixedbugs/issue45804.go b/test/fixedbugs/issue45804.go
+new file mode 100644
+index 0000000000..28d42c8d81
+--- /dev/null
++++ b/test/fixedbugs/issue45804.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func g() int
++func h(int)
++
++var b bool
++
++func f() {
++	did := g()
++	if !did && b { // ERROR "invalid operation"
++		h(x) // ERROR "undefined"
++	}
++}

@@ -18,9 +18,345 @@ Date:   Fri Mar 19 12:46:43 2010 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/648041
-
+---
  lib/godoc/search.txt   | 52 ++++++++++++++++++++++++++++++++++
  src/cmd/godoc/doc.go   | 22 +++++++++++++--
  src/cmd/godoc/godoc.go | 38 ++++++++++++++++++++++---
  src/cmd/godoc/main.go  | 76 ++++++++++++++++++++++++++++++++++++++++++++------
  4 files changed, 173 insertions(+), 15 deletions(-)
+
+diff --git a/lib/godoc/search.txt b/lib/godoc/search.txt
+new file mode 100644
+index 0000000000..9ae98d5b44
+--- /dev/null
++++ b/lib/godoc/search.txt
+@@ -0,0 +1,52 @@
++QUERY = {Query}
++
++{.section Accurate}
++{.or}
++INDEXING IN PROGRESS - RESULT MAY BE INACCURATE
++
++{.end}
++{.section Alt}
++DID YOU MEAN
++{.repeated section Alts}
++	{@}
++{.end}
++
++{.end}
++{.section Hit}
++{.section Decls}
++PACKAGE-LEVEL DECLARATIONS
++
++{.repeated section @}
++package {Pak.Name}
++{.repeated section Files}
++{.repeated section Groups}
++{.repeated section Infos}
++	{File.Path|url-src}
++{.end}
++{.end}
++{.end}
++
++{.end}
++{.end}
++{.section Others}
++LOCAL DECLARATIONS AND USES
++
++{.repeated section @}
++package {Pak.Name}
++{.repeated section Files}
++{.repeated section Groups}
++{.repeated section Infos}
++	{File.Path|url-src}
++{.end}
++{.end}
++{.end}
++
++{.end}
++{.end}
++{.end}
++{.section Illegal}
++ILLEGAL QUERY SYNTAX
++
++A legal query is a single identifier (such as ToLower)
++or a qualified identifier (such as math.Sin).
++{.end}
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 866cff308f..d3333c9558 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -8,12 +8,22 @@ Godoc extracts and generates documentation for Go programs.
+ 
+ It has two modes.
+ 
+-Without the -http flag, it prints plain text documentation to standard output and exits.
++Without the -http flag, it runs in command-line mode and prints plain text
++documentation to standard output and exits.
+ 
+ 	godoc fmt
+ 	godoc fmt Printf
+ 
+-With the -http flag, it runs as a web server and presents the documentation as a web page.
++In command-line mode, the -q flag enables search queries against a godoc running
++as a webserver. If no explicit server address is specified with the -server flag,
++godoc first tries localhost:6060 and then http://golang.org.
++
++	godoc -q Reader Writer
++	godoc -q math.Sin
++	godoc -server=:6666 -q sin
++
++With the -http flag, it runs as a web server and presents the documentation as a
++web page.
+ 
+ 	godoc -http=:6060
+ 
+@@ -23,6 +33,10 @@ Usage:
+ The flags are:
+ 	-v
+ 		verbose mode
++	-q
++		arguments are considered search queries: a legal query is a
++		single identifier (such as ToLower) or a qualified identifier
++		(such as math.Sin).
+ 	-src
+ 		print exported source in command-line mode
+ 	-tabwidth=4
+@@ -33,8 +47,10 @@ The flags are:
+ 		print HTML in command-line mode
+ 	-goroot=$GOROOT
+ 		Go root directory
+-	-http=
++	-http=addr
+ 		HTTP service address (e.g., '127.0.0.1:6060' or just ':6060')
++	-server=addr
++		webserver address for command line searches
+ 	-sync="command"
+ 		if this and -sync_minutes are set, run the argument as a
+ 		command every sync_minutes; it is intended to update the
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 286ecc99ec..8a8cd420ab 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -744,6 +744,12 @@ func infoKindFmt(w io.Writer, x interface{}, format string) {
+ 
+ // Template formatter for "infoLine" format.
+ func infoLineFmt(w io.Writer, x interface{}, format string) {
++	// TODO(gri) The code below won't work when invoked
++	//           as part of a command-line search where
++	//           there is no index (and thus Snippets).
++	//           At the moment, the search.txt template
++	//           is not using this formatter and cannot
++	//           show line numbers.
+ 	info := x.(SpotInfo)
+ 	line := info.Lori()
+ 	if info.IsIndex() {
+@@ -851,6 +857,7 @@ var (
+ 	packageHTML,
+ 	packageText,
+ 	searchHTML,
++	searchText,
+ 	sourceHTML *template.Template
+ )
+ 
+@@ -862,6 +869,7 @@ func readTemplates() {
+ 	packageHTML = readTemplate("package.html")
+ 	packageText = readTemplate("package.txt")
+ 	searchHTML = readTemplate("search.html")
++	searchText = readTemplate("search.txt")
+ 	sourceHTML = readTemplate("source.html")
+ }
+ 
+@@ -1322,16 +1330,21 @@ type SearchResult struct {
+ 	Accurate bool
+ }
+ 
+-func search(c *http.Conn, r *http.Request) {
+-	query := strings.TrimSpace(r.FormValue("q"))
+-	var result SearchResult
+ 
++func lookup(query string) (result SearchResult) {
++	result.Query = query
+ 	if index, timestamp := searchIndex.get(); index != nil {
+-		result.Query = query
+ 		result.Hit, result.Alt, result.Illegal = index.(*Index).Lookup(query)
+ 		_, ts := fsTree.get()
+ 		result.Accurate = timestamp >= ts
+ 	}
++	return
++}
++
++
++func search(c *http.Conn, r *http.Request) {
++	query := strings.TrimSpace(r.FormValue("q"))
++	result := lookup(query)
+ 
+ 	var title string
+ 	if result.Hit != nil {
+@@ -1369,3 +1382,20 @@ func indexer() {
+ 		time.Sleep(1 * 60e9) // try once a minute
+ 	}
+ }
++
++
++// ----------------------------------------------------------------------------
++// IndexServer
++
++type Query struct {
++	Query string
++}
++
++
++type IndexServer struct{}
++
++
++func (s *IndexServer) Lookup(query *Query, result *SearchResult) os.Error {
++	*result = lookup(query.Query)
++	return nil
++}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index f640029b12..fbc5c0d396 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -34,21 +34,31 @@ import (
+ 	"log"
+ 	"os"
+ 	pathutil "path"
++	"rpc"
+ 	"time"
+ )
+ 
++const (
++	defaultAddr = ":6060" // default webserver address
++	golangAddr  = "golang.org:http"
++)
++
+ var (
+ 	// periodic sync
+ 	syncCmd   = flag.String("sync", "", "sync command; disabled if empty")
+ 	syncMin   = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
+ 	syncDelay delayTime // actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
+ 
+-	// server control
+-	httpaddr = flag.String("http", "", "HTTP service address (e.g., ':6060')")
++	// network
++	httpAddr   = flag.String("http", "", "HTTP service address (e.g., '"+defaultAddr+"')")
++	serverAddr = flag.String("server", "", "webserver address for command line searches")
+ 
+ 	// layout control
+ 	html   = flag.Bool("html", false, "print HTML in command-line mode")
+ 	genAST = flag.Bool("src", false, "print exported source in command-line mode")
++
++	// command-line searches
++	query = flag.Bool("q", false, "arguments are considered search queries")
+ )
+ 
+ 
+@@ -133,7 +143,7 @@ func dosync(c *http.Conn, r *http.Request) {
+ func usage() {
+ 	fmt.Fprintf(os.Stderr,
+ 		"usage: godoc package [name ...]\n"+
+-			"	godoc -http=:6060\n")
++			"	godoc -http="+defaultAddr+"\n")
+ 	flag.PrintDefaults()
+ 	os.Exit(2)
+ }
+@@ -147,12 +157,42 @@ func loggingHandler(h http.Handler) http.Handler {
+ }
+ 
+ 
++func remoteLookup(query string) (result *SearchResult, err os.Error) {
++	var client *rpc.Client
++	if *serverAddr != "" {
++		// try server only
++		client, err = rpc.DialHTTP("tcp", *serverAddr)
++		if err != nil {
++			return
++		}
++	} else {
++		// try local default client first, followed by golang.org
++		client, err = rpc.DialHTTP("tcp", defaultAddr)
++		if err != nil {
++			log.Stderrf("trying %s (no local webserver found at %s)", golangAddr, defaultAddr)
++			client, err = rpc.Dial("tcp", golangAddr)
++			if err != nil {
++				return
++			}
++		}
++	}
++
++	result = new(SearchResult)
++	err = client.Call("IndexServer.Lookup", &Query{query}, result)
++	if err != nil {
++		return nil, err
++	}
++
++	return
++}
++
++
+ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
+ 	// Check usage: either server and no args, or command line and args
+-	if (*httpaddr != "") != (flag.NArg() == 0) {
++	if (*httpAddr != "") != (flag.NArg() == 0) {
+ 		usage()
+ 	}
+ 
+@@ -163,12 +203,12 @@ func main() {
+ 	initHandlers()
+ 	readTemplates()
+ 
+-	if *httpaddr != "" {
++	if *httpAddr != "" {
+ 		// HTTP server mode.
+ 		var handler http.Handler = http.DefaultServeMux
+ 		if *verbose {
+ 			log.Stderrf("Go Documentation Server\n")
+-			log.Stderrf("address = %s\n", *httpaddr)
++			log.Stderrf("address = %s\n", *httpAddr)
+ 			log.Stderrf("goroot = %s\n", goroot)
+ 			log.Stderrf("tabwidth = %d\n", *tabwidth)
+ 			if !fsMap.IsEmpty() {
+@@ -214,16 +254,36 @@ func main() {
+ 		// TODO(gri): Do we still need this?
+ 		time.Sleep(1e9)
+ 
++		// Register index server.
++		rpc.Register(new(IndexServer))
++		rpc.HandleHTTP()
++
+ 		// Start http server.
+-		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
+-			log.Exitf("ListenAndServe %s: %v", *httpaddr, err)
++		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
++			log.Exitf("ListenAndServe %s: %v", *httpAddr, err)
+ 		}
++
+ 		return
+ 	}
+ 
+ 	// Command line mode.
+ 	if *html {
+ 		packageText = packageHTML
++		searchText = packageHTML
++	}
++
++	if *query {
++		// Command-line queries.
++		for i := 0; i < flag.NArg(); i++ {
++			result, err := remoteLookup(flag.Arg(i))
++			if err != nil {
++				log.Exitf("remoteLookup: %s", err)
++			}
++			if err := searchText.Execute(result, os.Stdout); err != nil {
++				log.Exitf("searchText.Execute: %s", err)
++			}
++		}
++		return
+ 	}
+ 
+ 	// determine paths

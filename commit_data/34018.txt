@@ -16,7 +16,35 @@ Date:   Tue Sep 26 06:55:49 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/config.go | 3 ++-
  src/cmd/nm/nm_cgo_test.go          | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index f91d9af5cd..ce4f9bece6 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -190,7 +190,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	// Internally linking cgo is incomplete on some architectures.
+ 	// https://golang.org/issue/10373
+ 	// https://golang.org/issue/14449
+-	if iscgo && SysArch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS) {
++	// https://golang.org/issue/21961
++	if iscgo && SysArch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS, sys.PPC64) {
+ 		return true, objabi.GOARCH + " does not support internal cgo"
+ 	}
+ 
+diff --git a/src/cmd/nm/nm_cgo_test.go b/src/cmd/nm/nm_cgo_test.go
+index 4e67560e2e..b32402069a 100644
+--- a/src/cmd/nm/nm_cgo_test.go
++++ b/src/cmd/nm/nm_cgo_test.go
+@@ -17,7 +17,7 @@ func canInternalLink() bool {
+ 		return false
+ 	case "linux":
+ 		switch runtime.GOARCH {
+-		case "arm64", "mips64", "mips64le", "mips", "mipsle":
++		case "arm64", "mips64", "mips64le", "mips", "mipsle", "ppc64", "ppc64le":
+ 			return false
+ 		}
+ 	}

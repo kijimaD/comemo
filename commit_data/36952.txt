@@ -7,7 +7,41 @@ Date:   Sat Jul 15 17:40:29 2017 -0600
     Change-Id: I0bbb53cad9a7c464ab1cfca381128f33496813ff
     Reviewed-on: https://go-review.googlesource.com/49130
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/regexp/example_test.go | 6 ++++++
  src/regexp/regexp.go       | 4 ++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/regexp/example_test.go b/src/regexp/example_test.go
+index 0bf1f6bee7..eb8cd4ea94 100644
+--- a/src/regexp/example_test.go
++++ b/src/regexp/example_test.go
+@@ -38,6 +38,12 @@ func ExampleMatchString() {
+ 	// false error parsing regexp: missing closing ): `a(b`
+ }
+ 
++func ExampleQuoteMeta() {
++	fmt.Println(regexp.QuoteMeta("Escaping symbols like: .+*?()|[]{}^$"))
++	// Output:
++	// Escaping symbols like: \.\+\*\?\(\)\|\[\]\{\}\^\$
++}
++
+ func ExampleRegexp_FindString() {
+ 	re := regexp.MustCompile("foo.?")
+ 	fmt.Printf("%q\n", re.FindString("seafood fool"))
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 09faced8f3..0d10aa1e22 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -616,9 +616,9 @@ func init() {
+ 	}
+ }
+ 
+-// QuoteMeta returns a string that quotes all regular expression metacharacters
++// QuoteMeta returns a string that escapes all regular expression metacharacters
+ // inside the argument text; the returned string is a regular expression matching
+-// the literal text. For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
++// the literal text.
+ func QuoteMeta(s string) string {
+ 	// A byte loop is correct because all metacharacters are ASCII.
+ 	var i int

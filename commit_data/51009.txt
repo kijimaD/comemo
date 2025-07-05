@@ -14,7 +14,66 @@ Date:   Mon Nov 22 19:02:56 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/366278
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../types2/testdata/fixedbugs/issue49739.go2       | 23 ++++++++++++++++++++++
  src/cmd/compile/internal/types2/typeset.go         | 16 +++++++++------
  2 files changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49739.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49739.go2
+new file mode 100644
+index 0000000000..46b1e71a3b
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49739.go2
+@@ -0,0 +1,23 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that we get an empty type set (not just an error)
++// when using an invalid ~A.
++
++package p
++
++type A int
++type C interface {
++	~ /* ERROR invalid use of ~ */ A
++}
++
++func f[_ C]()              {}
++func g[_ interface{ C }]() {}
++func h[_ C | int]()        {}
++
++func _() {
++	_ = f[int /* ERROR cannot implement C \(empty type set\) */]
++	_ = g[int /* ERROR cannot implement interface{C} \(empty type set\) */]
++	_ = h[int]
++}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 54a8266838..a55e9d1d63 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -367,14 +367,18 @@ func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *_TypeSet
+ 	var allTerms termlist
+ 	for _, t := range utyp.terms {
+ 		var terms termlist
+-		switch u := under(t.typ).(type) {
+-		case *Interface:
++		u := under(t.typ)
++		if ui, _ := u.(*Interface); ui != nil {
+ 			// For now we don't permit type parameters as constraints.
+ 			assert(!isTypeParam(t.typ))
+-			terms = computeInterfaceTypeSet(check, pos, u).terms
+-		default:
+-			if t.typ == Typ[Invalid] {
+-				continue
++			terms = computeInterfaceTypeSet(check, pos, ui).terms
++		} else if t.typ == Typ[Invalid] {
++			continue
++		} else {
++			if t.tilde && !Identical(t.typ, u) {
++				// There is no underlying type which is t.typ.
++				// The corresponding type set is empty.
++				t = nil // ∅ term
+ 			}
+ 			terms = termlist{(*term)(t)}
+ 		}

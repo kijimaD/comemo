@@ -7,6 +7,18 @@ Date:   Wed Feb 10 00:43:31 2010 -0800
     TBR=agl1
     CC=golang-dev
     https://golang.org/cl/207055
-
+---
  test/garbage/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/garbage/Makefile b/test/garbage/Makefile
+index 0a3ae8e550..1a5062b448 100644
+--- a/test/garbage/Makefile
++++ b/test/garbage/Makefile
+@@ -23,5 +23,5 @@ all: $(addsuffix .out, $(ALL))
+ bench: $(addsuffix .bench, $(ALL))
+ 
+ clean:
+-	rm -f *.[$(OS)] $(ALL)
++	rm -f *.[$(OS)] $(addsuffix .out, $(ALL))
+ 

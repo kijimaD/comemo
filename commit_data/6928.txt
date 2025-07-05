@@ -9,6 +9,25 @@ Date:   Mon Dec 13 10:04:53 2010 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/3469044
-
+---
  src/pkg/runtime/linux/386/rt0.s | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/runtime/linux/386/rt0.s b/src/pkg/runtime/linux/386/rt0.s
+index 223e6d2ea4..0f82d6a1c7 100644
+--- a/src/pkg/runtime/linux/386/rt0.s
++++ b/src/pkg/runtime/linux/386/rt0.s
+@@ -5,5 +5,13 @@
+ // Darwin and Linux use the same linkage to main
+ 
+ TEXT _rt0_386_linux(SB),7,$0
++	// Linux starts the FPU in extended double precision.
++	// Other operating systems use double precision.
++	// Change to double precision to match them,
++	// and to match other hardware that only has double.
++	PUSHL $0x27F
++	FLDCW	0(SP)
++	POPL AX
++
+ 	JMP	_rt0_386(SB)
+ 

@@ -12,7 +12,7 @@ Date:   Thu Oct 12 12:18:18 2023 +0800
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: shuang cui <imcusg@gmail.com>
-
+---
  src/archive/tar/common.go   |  2 +-
  src/archive/tar/format.go   |  2 +-
  src/archive/tar/reader.go   | 14 +++++++-------
@@ -22,3 +22,398 @@ Date:   Thu Oct 12 12:18:18 2023 +0800
  src/archive/zip/struct.go   | 18 +++++++++---------
  src/archive/zip/writer.go   | 36 ++++++++++++++++++------------------
  8 files changed, 57 insertions(+), 57 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 8af17efa51..e507d559cb 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -634,7 +634,7 @@ const (
+ 	c_ISSOCK = 0140000 // Socket
+ )
+ 
+-// FileInfoHeader creates a partially-populated Header from fi.
++// FileInfoHeader creates a partially-populated [Header] from fi.
+ // If fi describes a symlink, FileInfoHeader records link as the link target.
+ // If fi describes a directory, a slash is appended to the name.
+ //
+diff --git a/src/archive/tar/format.go b/src/archive/tar/format.go
+index e50124d99e..9954b4d9f5 100644
+--- a/src/archive/tar/format.go
++++ b/src/archive/tar/format.go
+@@ -33,7 +33,7 @@ import "strings"
+ //	sub-second times  |     no |       yes |        no
+ //	sparse files      |     no |       yes |       yes
+ //
+-// The table's upper portion shows the Header fields, where each format reports
++// The table's upper portion shows the [Header] fields, where each format reports
+ // the maximum number of bytes allowed for each string field and
+ // the integer type used to store each numeric field
+ // (where timestamps are stored as the number of seconds since the Unix epoch).
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index cfa50446ed..0811779add 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -35,7 +35,7 @@ type fileReader interface {
+ 	WriteTo(io.Writer) (int64, error)
+ }
+ 
+-// NewReader creates a new Reader reading from r.
++// NewReader creates a new [Reader] reading from r.
+ func NewReader(r io.Reader) *Reader {
+ 	return &Reader{r: r, curr: &regFileReader{r, 0}}
+ }
+@@ -47,10 +47,10 @@ func NewReader(r io.Reader) *Reader {
+ //
+ // If Next encounters a non-local name (as defined by [filepath.IsLocal])
+ // and the GODEBUG environment variable contains `tarinsecurepath=0`,
+-// Next returns the header with an ErrInsecurePath error.
++// Next returns the header with an [ErrInsecurePath] error.
+ // A future version of Go may introduce this behavior by default.
+ // Programs that want to accept non-local names can ignore
+-// the ErrInsecurePath error and use the returned header.
++// the [ErrInsecurePath] error and use the returned header.
+ func (tr *Reader) Next() (*Header, error) {
+ 	if tr.err != nil {
+ 		return nil, tr.err
+@@ -623,14 +623,14 @@ func readGNUSparseMap0x1(paxHdrs map[string]string) (sparseDatas, error) {
+ 
+ // Read reads from the current file in the tar archive.
+ // It returns (0, io.EOF) when it reaches the end of that file,
+-// until Next is called to advance to the next file.
++// until [Next] is called to advance to the next file.
+ //
+ // If the current file is sparse, then the regions marked as a hole
+ // are read back as NUL-bytes.
+ //
+-// Calling Read on special types like TypeLink, TypeSymlink, TypeChar,
+-// TypeBlock, TypeDir, and TypeFifo returns (0, io.EOF) regardless of what
+-// the Header.Size claims.
++// Calling Read on special types like [TypeLink], [TypeSymlink], [TypeChar],
++// [TypeBlock], [TypeDir], and [TypeFifo] returns (0, [io.EOF]) regardless of what
++// the [Header.Size] claims.
+ func (tr *Reader) Read(b []byte) (int, error) {
+ 	if tr.err != nil {
+ 		return 0, tr.err
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index d805e266d0..73bad3229a 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -16,7 +16,7 @@ import (
+ )
+ 
+ // Writer provides sequential writing of a tar archive.
+-// Write.WriteHeader begins a new file with the provided Header,
++// [Writer.WriteHeader] begins a new file with the provided [Header],
+ // and then Writer can be treated as an io.Writer to supply that file's data.
+ type Writer struct {
+ 	w    io.Writer
+@@ -46,7 +46,7 @@ type fileWriter interface {
+ // Flush finishes writing the current file's block padding.
+ // The current file must be fully written before Flush can be called.
+ //
+-// This is unnecessary as the next call to WriteHeader or Close
++// This is unnecessary as the next call to [Writer.WriteHeader] or [Writer.Close]
+ // will implicitly flush out the file's padding.
+ func (tw *Writer) Flush() error {
+ 	if tw.err != nil {
+@@ -464,12 +464,12 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
+ }
+ 
+ // Write writes to the current file in the tar archive.
+-// Write returns the error ErrWriteTooLong if more than
+-// Header.Size bytes are written after WriteHeader.
++// Write returns the error [ErrWriteTooLong] if more than
++// Header.Size bytes are written after [Writer.WriteHeader].
+ //
+-// Calling Write on special types like TypeLink, TypeSymlink, TypeChar,
+-// TypeBlock, TypeDir, and TypeFifo returns (0, ErrWriteTooLong) regardless
+-// of what the Header.Size claims.
++// Calling Write on special types like [TypeLink], [TypeSymlink], [TypeChar],
++// [TypeBlock], [TypeDir], and [TypeFifo] returns (0, [ErrWriteTooLong]) regardless
++// of what the [Header.Size] claims.
+ func (tw *Writer) Write(b []byte) (int, error) {
+ 	if tw.err != nil {
+ 		return 0, tw.err
+@@ -503,7 +503,7 @@ func (tw *Writer) readFrom(r io.Reader) (int64, error) {
+ }
+ 
+ // Close closes the tar archive by flushing the padding, and writing the footer.
+-// If the current file (from a prior call to WriteHeader) is not fully written,
++// If the current file (from a prior call to [Writer.WriteHeader]) is not fully written,
+ // then this returns an error.
+ func (tw *Writer) Close() error {
+ 	if tw.err == ErrWriteAfterClose {
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 71bf8c2adb..ff6fedf632 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -48,15 +48,15 @@ type Reader struct {
+ 	fileList     []fileListEntry
+ }
+ 
+-// A ReadCloser is a Reader that must be closed when no longer needed.
++// A ReadCloser is a [Reader] that must be closed when no longer needed.
+ type ReadCloser struct {
+ 	f *os.File
+ 	Reader
+ }
+ 
+ // A File is a single file in a ZIP archive.
+-// The file information is in the embedded FileHeader.
+-// The file content can be accessed by calling Open.
++// The file information is in the embedded [FileHeader].
++// The file content can be accessed by calling [File.Open].
+ type File struct {
+ 	FileHeader
+ 	zip          *Reader
+@@ -93,16 +93,16 @@ func OpenReader(name string) (*ReadCloser, error) {
+ 	return r, err
+ }
+ 
+-// NewReader returns a new Reader reading from r, which is assumed to
++// NewReader returns a new [Reader] reading from r, which is assumed to
+ // have the given size in bytes.
+ //
+ // If any file inside the archive uses a non-local name
+ // (as defined by [filepath.IsLocal]) or a name containing backslashes
+ // and the GODEBUG environment variable contains `zipinsecurepath=0`,
+-// NewReader returns the reader with an ErrInsecurePath error.
++// NewReader returns the reader with an [ErrInsecurePath] error.
+ // A future version of Go may introduce this behavior by default.
+ // Programs that want to accept non-local names can ignore
+-// the ErrInsecurePath error and use the returned reader.
++// the [ErrInsecurePath] error and use the returned reader.
+ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
+ 	if size < 0 {
+ 		return nil, errors.New("zip: size cannot be negative")
+@@ -178,7 +178,7 @@ func (r *Reader) init(rdr io.ReaderAt, size int64) error {
+ 
+ // RegisterDecompressor registers or overrides a custom decompressor for a
+ // specific method ID. If a decompressor for a given method is not found,
+-// Reader will default to looking up the decompressor at the package level.
++// [Reader] will default to looking up the decompressor at the package level.
+ func (r *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
+ 	if r.decompressors == nil {
+ 		r.decompressors = make(map[uint16]Decompressor)
+@@ -202,7 +202,7 @@ func (rc *ReadCloser) Close() error {
+ // DataOffset returns the offset of the file's possibly-compressed
+ // data, relative to the beginning of the zip file.
+ //
+-// Most callers should instead use Open, which transparently
++// Most callers should instead use [File.Open], which transparently
+ // decompresses data and verifies checksums.
+ func (f *File) DataOffset() (offset int64, err error) {
+ 	bodyOffset, err := f.findBodyOffset()
+@@ -212,7 +212,7 @@ func (f *File) DataOffset() (offset int64, err error) {
+ 	return f.headerOffset + bodyOffset, nil
+ }
+ 
+-// Open returns a ReadCloser that provides access to the File's contents.
++// Open returns a [ReadCloser] that provides access to the [File]'s contents.
+ // Multiple files may be read concurrently.
+ func (f *File) Open() (io.ReadCloser, error) {
+ 	bodyOffset, err := f.findBodyOffset()
+@@ -255,7 +255,7 @@ func (f *File) Open() (io.ReadCloser, error) {
+ 	return rc, nil
+ }
+ 
+-// OpenRaw returns a Reader that provides access to the File's contents without
++// OpenRaw returns a [Reader] that provides access to the [File]'s contents without
+ // decompression.
+ func (f *File) OpenRaw() (io.Reader, error) {
+ 	bodyOffset, err := f.findBodyOffset()
+diff --git a/src/archive/zip/register.go b/src/archive/zip/register.go
+index 4389246286..18e620dba3 100644
+--- a/src/archive/zip/register.go
++++ b/src/archive/zip/register.go
+@@ -19,7 +19,7 @@ import (
+ type Compressor func(w io.Writer) (io.WriteCloser, error)
+ 
+ // A Decompressor returns a new decompressing reader, reading from r.
+-// The ReadCloser's Close method must be used to release associated resources.
++// The [io.ReadCloser]'s Close method must be used to release associated resources.
+ // The Decompressor itself must be safe to invoke from multiple goroutines
+ // simultaneously, but each returned reader will be used only by
+ // one goroutine at a time.
+@@ -115,7 +115,7 @@ func init() {
+ }
+ 
+ // RegisterDecompressor allows custom decompressors for a specified method ID.
+-// The common methods Store and Deflate are built in.
++// The common methods [Store] and [Deflate] are built in.
+ func RegisterDecompressor(method uint16, dcomp Decompressor) {
+ 	if _, dup := decompressors.LoadOrStore(method, dcomp); dup {
+ 		panic("decompressor already registered")
+@@ -123,7 +123,7 @@ func RegisterDecompressor(method uint16, dcomp Decompressor) {
+ }
+ 
+ // RegisterCompressor registers custom compressors for a specified method ID.
+-// The common methods Store and Deflate are built in.
++// The common methods [Store] and [Deflate] are built in.
+ func RegisterCompressor(method uint16, comp Compressor) {
+ 	if _, dup := compressors.LoadOrStore(method, comp); dup {
+ 		panic("compressor already registered")
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 165ad44caf..867dd5cb7a 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -160,12 +160,12 @@ type FileHeader struct {
+ 	ExternalAttrs uint32 // Meaning depends on CreatorVersion
+ }
+ 
+-// FileInfo returns an fs.FileInfo for the FileHeader.
++// FileInfo returns an fs.FileInfo for the [FileHeader].
+ func (h *FileHeader) FileInfo() fs.FileInfo {
+ 	return headerFileInfo{h}
+ }
+ 
+-// headerFileInfo implements fs.FileInfo.
++// headerFileInfo implements [fs.FileInfo].
+ type headerFileInfo struct {
+ 	fh *FileHeader
+ }
+@@ -194,7 +194,7 @@ func (fi headerFileInfo) String() string {
+ 	return fs.FormatFileInfo(fi)
+ }
+ 
+-// FileInfoHeader creates a partially-populated FileHeader from an
++// FileInfoHeader creates a partially-populated [FileHeader] from an
+ // fs.FileInfo.
+ // Because fs.FileInfo's Name method returns only the base name of
+ // the file it describes, it may be necessary to modify the Name field
+@@ -273,17 +273,17 @@ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
+ }
+ 
+ // ModTime returns the modification time in UTC using the legacy
+-// ModifiedDate and ModifiedTime fields.
++// [ModifiedDate] and [ModifiedTime] fields.
+ //
+-// Deprecated: Use Modified instead.
++// Deprecated: Use [Modified] instead.
+ func (h *FileHeader) ModTime() time.Time {
+ 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+ }
+ 
+-// SetModTime sets the Modified, ModifiedTime, and ModifiedDate fields
++// SetModTime sets the [Modified], [ModifiedTime], and [ModifiedDate] fields
+ // to the given time in UTC.
+ //
+-// Deprecated: Use Modified instead.
++// Deprecated: Use [Modified] instead.
+ func (h *FileHeader) SetModTime(t time.Time) {
+ 	t = t.UTC() // Convert to UTC for compatibility
+ 	h.Modified = t
+@@ -309,7 +309,7 @@ const (
+ 	msdosReadOnly = 0x01
+ )
+ 
+-// Mode returns the permission and mode bits for the FileHeader.
++// Mode returns the permission and mode bits for the [FileHeader].
+ func (h *FileHeader) Mode() (mode fs.FileMode) {
+ 	switch h.CreatorVersion >> 8 {
+ 	case creatorUnix, creatorMacOSX:
+@@ -323,7 +323,7 @@ func (h *FileHeader) Mode() (mode fs.FileMode) {
+ 	return mode
+ }
+ 
+-// SetMode changes the permission and mode bits for the FileHeader.
++// SetMode changes the permission and mode bits for the [FileHeader].
+ func (h *FileHeader) SetMode(mode fs.FileMode) {
+ 	h.CreatorVersion = h.CreatorVersion&0xff | creatorUnix<<8
+ 	h.ExternalAttrs = fileModeToUnixMode(mode) << 16
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 5dd6096fc5..e33df2431c 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -41,7 +41,7 @@ type header struct {
+ 	raw    bool
+ }
+ 
+-// NewWriter returns a new Writer writing a zip file to w.
++// NewWriter returns a new [Writer] writing a zip file to w.
+ func NewWriter(w io.Writer) *Writer {
+ 	return &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
+ }
+@@ -64,7 +64,7 @@ func (w *Writer) Flush() error {
+ }
+ 
+ // SetComment sets the end-of-central-directory comment field.
+-// It can only be called before Close.
++// It can only be called before [Writer.Close].
+ func (w *Writer) SetComment(comment string) error {
+ 	if len(comment) > uint16max {
+ 		return errors.New("zip: Writer.Comment too long")
+@@ -208,14 +208,14 @@ func (w *Writer) Close() error {
+ }
+ 
+ // Create adds a file to the zip file using the provided name.
+-// It returns a Writer to which the file contents should be written.
+-// The file contents will be compressed using the Deflate method.
++// It returns a [Writer] to which the file contents should be written.
++// The file contents will be compressed using the [Deflate] method.
+ // The name must be a relative path: it must not start with a drive
+ // letter (e.g. C:) or leading slash, and only forward slashes are
+ // allowed. To create a directory instead of a file, add a trailing
+ // slash to the name.
+-// The file's contents must be written to the io.Writer before the next
+-// call to Create, CreateHeader, or Close.
++// The file's contents must be written to the [io.Writer] before the next
++// call to [Writer.Create], [Writer.CreateHeader], or [Writer.Close].
+ func (w *Writer) Create(name string) (io.Writer, error) {
+ 	header := &FileHeader{
+ 		Name:   name,
+@@ -262,13 +262,13 @@ func (w *Writer) prepare(fh *FileHeader) error {
+ 	return nil
+ }
+ 
+-// CreateHeader adds a file to the zip archive using the provided FileHeader
+-// for the file metadata. Writer takes ownership of fh and may mutate
+-// its fields. The caller must not modify fh after calling CreateHeader.
++// CreateHeader adds a file to the zip archive using the provided [FileHeader]
++// for the file metadata. [Writer] takes ownership of fh and may mutate
++// its fields. The caller must not modify fh after calling [Writer.CreateHeader].
+ //
+-// This returns a Writer to which the file contents should be written.
++// This returns a [Writer] to which the file contents should be written.
+ // The file's contents must be written to the io.Writer before the next
+-// call to Create, CreateHeader, CreateRaw, or Close.
++// call to [Writer.Create], [Writer.CreateHeader], [Writer.CreateRaw], or [Writer.Close].
+ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 	if err := w.prepare(fh); err != nil {
+ 		return nil, err
+@@ -427,12 +427,12 @@ func writeHeader(w io.Writer, h *header) error {
+ 	return err
+ }
+ 
+-// CreateRaw adds a file to the zip archive using the provided FileHeader and
+-// returns a Writer to which the file contents should be written. The file's
+-// contents must be written to the io.Writer before the next call to Create,
+-// CreateHeader, CreateRaw, or Close.
++// CreateRaw adds a file to the zip archive using the provided [FileHeader] and
++// returns a [Writer] to which the file contents should be written. The file's
++// contents must be written to the io.Writer before the next call to [Writer.Create],
++// [Writer.CreateHeader], [Writer.CreateRaw], or [Writer.Close].
+ //
+-// In contrast to CreateHeader, the bytes passed to Writer are not compressed.
++// In contrast to [Writer.CreateHeader], the bytes passed to Writer are not compressed.
+ func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
+ 	if err := w.prepare(fh); err != nil {
+ 		return nil, err
+@@ -464,7 +464,7 @@ func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
+ 	return fw, nil
+ }
+ 
+-// Copy copies the file f (obtained from a Reader) into w. It copies the raw
++// Copy copies the file f (obtained from a [Reader]) into w. It copies the raw
+ // form directly bypassing decompression, compression, and validation.
+ func (w *Writer) Copy(f *File) error {
+ 	r, err := f.OpenRaw()
+@@ -480,7 +480,7 @@ func (w *Writer) Copy(f *File) error {
+ }
+ 
+ // RegisterCompressor registers or overrides a custom compressor for a specific
+-// method ID. If a compressor for a given method is not found, Writer will
++// method ID. If a compressor for a given method is not found, [Writer] will
+ // default to looking up the compressor at the package level.
+ func (w *Writer) RegisterCompressor(method uint16, comp Compressor) {
+ 	if w.compressors == nil {

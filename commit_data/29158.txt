@@ -27,7 +27,7 @@ Date:   Fri Aug 12 13:45:50 2016 -0500
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
-
+---
  src/cmd/internal/obj/ppc64/a.out.go  |   4 +
  src/cmd/internal/obj/ppc64/anames.go |   4 +
  src/cmd/internal/obj/ppc64/asm9.go   |  16 ++++
@@ -36,3 +36,369 @@ Date:   Fri Aug 12 13:45:50 2016 -0500
  src/math/big/arith_ppc64le.s         |  50 ++++++++++
  src/math/big/arith_ppc64x.s          | 178 +++++++++++++++++++++++++++++++----
  7 files changed, 259 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index e79271042a..6b5bfde8f1 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -483,6 +483,10 @@ const (
+ 	ACMPWU
+ 	ADIVD
+ 	ADIVDCC
++	ADIVDE
++	ADIVDECC
++	ADIVDEU
++	ADIVDEUCC
+ 	ADIVDVCC
+ 	ADIVDV
+ 	ADIVDU
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index a2e5cf46d8..aeceb383bf 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -242,6 +242,10 @@ var Anames = []string{
+ 	"CMPWU",
+ 	"DIVD",
+ 	"DIVDCC",
++	"DIVDE",
++	"DIVDECC",
++	"DIVDEU",
++	"DIVDEUCC",
+ 	"DIVDVCC",
+ 	"DIVDV",
+ 	"DIVDU",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index ba053341ca..06156e0bee 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1009,6 +1009,10 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AMULLDV, r0)
+ 			opset(ADIVD, r0)
+ 			opset(ADIVDCC, r0)
++			opset(ADIVDE, r0)
++			opset(ADIVDEU, r0)
++			opset(ADIVDECC, r0)
++			opset(ADIVDEUCC, r0)
+ 			opset(ADIVDVCC, r0)
+ 			opset(ADIVDV, r0)
+ 			opset(ADIVDU, r0)
+@@ -2670,6 +2674,18 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
+ 	case AREMDCC, ADIVDCC:
+ 		return OPVCC(31, 489, 0, 1)
+ 
++	case ADIVDE:
++		return OPVCC(31, 425, 0, 0)
++
++	case ADIVDECC:
++		return OPVCC(31, 425, 0, 1)
++
++	case ADIVDEU:
++		return OPVCC(31, 393, 0, 0)
++
++	case ADIVDEUCC:
++		return OPVCC(31, 393, 0, 1)
++
+ 	case AREMDV, ADIVDV:
+ 		return OPVCC(31, 489, 1, 0)
+ 
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index fc25fd74a7..9546f67c68 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -54,6 +54,18 @@ func BenchmarkSignP256(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkSignP384(b *testing.B) {
++	b.ResetTimer()
++	p384 := elliptic.P384()
++	hashed := []byte("testing")
++	priv, _ := GenerateKey(p384, rand.Reader)
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_, _, _ = Sign(rand.Reader, priv, hashed)
++	}
++}
++
+ func BenchmarkVerifyP256(b *testing.B) {
+ 	b.ResetTimer()
+ 	p256 := elliptic.P256()
+diff --git a/src/math/big/arith_ppc64.s b/src/math/big/arith_ppc64.s
+new file mode 100644
+index 0000000000..47fe8f16fa
+--- /dev/null
++++ b/src/math/big/arith_ppc64.s
+@@ -0,0 +1,14 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !math_big_pure_go,ppc64
++
++#include "textflag.h"
++
++// This file provides fast assembly versions for the elementary
++// arithmetic operations on vectors implemented in arith.go.
++
++TEXT ·divWW(SB), NOSPLIT, $0
++	BR ·divWW_g(SB)
++
+diff --git a/src/math/big/arith_ppc64le.s b/src/math/big/arith_ppc64le.s
+new file mode 100644
+index 0000000000..b78cdfed9f
+--- /dev/null
++++ b/src/math/big/arith_ppc64le.s
+@@ -0,0 +1,50 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !math_big_pure_go,ppc64le
++
++#include "textflag.h"
++
++// This file provides fast assembly versions for the elementary
++// arithmetic operations on vectors implemented in arith.go.
++
++// func divWW(x1, x0, y Word) (q, r Word)
++TEXT ·divWW(SB), NOSPLIT, $0
++	MOVD x1+0(FP), R4
++	MOVD x0+8(FP), R5
++	MOVD y+16(FP), R6
++
++	CMPU R4, R6
++	BGE  divbigger
++
++	// from the programmer's note in ch. 3 of the ISA manual, p.74
++	DIVDEU R6, R4, R3
++	DIVDU  R6, R5, R7
++	MULLD  R6, R3, R8
++	MULLD  R6, R7, R20
++	SUB    R20, R5, R10
++	ADD    R7, R3, R3
++	SUB    R8, R10, R4
++	CMPU   R4, R10
++	BLT    adjust
++	CMPU   R4, R6
++	BLT    end
++
++adjust:
++	MOVD $1, R21
++	ADD  R21, R3, R3
++	SUB  R6, R4, R4
++
++end:
++	MOVD R3, q+24(FP)
++	MOVD R4, r+32(FP)
++
++	RET
++
++divbigger:
++	MOVD $-1, R7
++	MOVD R7, q+24(FP)
++	MOVD R7, r+32(FP)
++	RET
++
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index d4d4171f30..89d1cbfecd 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -9,38 +9,178 @@
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+-TEXT ·mulWW(SB),NOSPLIT,$0
+-	BR ·mulWW_g(SB)
++// func mulWW(x, y Word) (z1, z0 Word)
++TEXT ·mulWW(SB), NOSPLIT, $0
++	MOVD   x+0(FP), R4
++	MOVD   y+8(FP), R5
++	MULHDU R4, R5, R6
++	MULLD  R4, R5, R7
++	MOVD   R6, z1+16(FP)
++	MOVD   R7, z0+24(FP)
++	RET
+ 
+-TEXT ·divWW(SB),NOSPLIT,$0
+-	BR ·divWW_g(SB)
+-
+-TEXT ·addVV(SB),NOSPLIT,$0
++TEXT ·addVV(SB), NOSPLIT, $0
+ 	BR ·addVV_g(SB)
+ 
+-TEXT ·subVV(SB),NOSPLIT,$0
+-	BR ·subVV_g(SB)
++// func subVV(z, x, y []Word) (c Word)
++// z[i] = x[i] - y[i] for all i, carrying
++TEXT ·subVV(SB), NOSPLIT, $0
++	MOVD z_len+8(FP), R7
++	MOVD x+24(FP), R8
++	MOVD y+48(FP), R9
++	MOVD z+0(FP), R10
++
++	MOVD $0, R4  // c = 0
++	MOVD $0, R5  // i = 0
++	MOVD $1, R29 // work around lack of ADDI
++	MOVD $8, R28 // work around lack of scaled addressing
++
++	SUBC R0, R0  // clear CA
++	JMP  sublend
++
++// amd64 saves and restores CF, but I believe they only have to do that because all of
++// their math operations clobber it - we should just be able to recover it at the end.
++subloop:
++	MULLD R5, R28, R6
++	MOVD  (R8)(R6), R11 // x[i]
++	MOVD  (R9)(R6), R12 // y[i]
++
++	SUBE R12, R11, R15
++	MOVD R15, (R10)(R6)
+ 
+-TEXT ·addVW(SB),NOSPLIT,$0
++	ADD R29, R5 // i++
++
++sublend:
++	CMP R5, R7
++	BLT subloop
++
++	ADDZE R4
++	XOR   R29, R4
++	MOVD  R4, c+72(FP)
++	RET
++
++TEXT ·addVW(SB), NOSPLIT, $0
+ 	BR ·addVW_g(SB)
+ 
+-TEXT ·subVW(SB),NOSPLIT,$0
++TEXT ·subVW(SB), NOSPLIT, $0
+ 	BR ·subVW_g(SB)
+ 
+-TEXT ·shlVU(SB),NOSPLIT,$0
++TEXT ·shlVU(SB), NOSPLIT, $0
+ 	BR ·shlVU_g(SB)
+ 
+-TEXT ·shrVU(SB),NOSPLIT,$0
++TEXT ·shrVU(SB), NOSPLIT, $0
+ 	BR ·shrVU_g(SB)
+ 
+-TEXT ·mulAddVWW(SB),NOSPLIT,$0
+-	BR ·mulAddVWW_g(SB)
++// func mulAddVWW(z, x []Word, y, r Word) (c Word)
++TEXT ·mulAddVWW(SB), NOSPLIT, $0
++	MOVD z+0(FP), R10
++	MOVD x+24(FP), R8
++	MOVD y+48(FP), R9
++	MOVD r+56(FP), R4     // c = r
++	MOVD z_len+8(FP), R11
++	MOVD $0, R3           // i = 0
++	MOVD $8, R18
++	MOVD $1, R19
++
++	JMP e5
++
++l5:
++	MULLD  R18, R3, R5
++	MOVD   (R8)(R5), R20
++	MULLD  R9, R20, R6
++	MULHDU R9, R20, R7
++	ADDC   R4, R6
++	ADDZE  R7
++	MOVD   R6, (R10)(R5)
++	MOVD   R7, R4
++	ADD    R19, R3
++
++e5:
++	CMP R3, R11
++	BLT l5
++
++	MOVD R4, c+64(FP)
++	RET
++
++// func addMulVVW(z, x []Word, y Word) (c Word)
++TEXT ·addMulVVW(SB), NOSPLIT, $0
++	MOVD z+0(FP), R10
++	MOVD x+24(FP), R8
++	MOVD y+48(FP), R9
++	MOVD z_len+8(FP), R22
++
++	MOVD $0, R5   // i = 0
++	MOVD $0, R4   // c = 0
++	MOVD $8, R28
++	MOVD $-2, R23
++	AND  R22, R23 // mask the last bit of z.len
++	MOVD $2, R24
++	CMP  R23, R24
++	BGE  unrolled
++	JMP  end
++
++unrolled:
++	MOVD  $8, R19         // no (RA)(RB*8) on power
++	MULLD R5, R19
++	MOVD  (R10)(R19), R11 // R11 = z[i]
++	MOVD  (R8)(R19), R16  // R16 = x[i]
++	ADD   R28, R19, R25
++	MOVD  (R10)(R25), R17
++	MOVD  (R8)(R25), R18
++
++	MULLD  R9, R16, R12
++	MULHDU R9, R16, R14
++	MULLD  R9, R18, R6
++	MULHDU R9, R18, R7
++	ADDC   R4, R12
++	ADDZE  R14
++	ADDC   R11, R12        // z[i] = (x[i]*y) + z[i] + carry
++	ADDZE  R14             // carry = high order bits + add carry
++	MOVD   R12, (R10)(R19)
++	ADDC   R14, R6
++	ADDZE  R7
++	ADDC   R17, R6
++	ADDZE  R7
++	MOVD   R6, (R10)(R25)
++	MOVD   R7, R4
++
++	ADD R24, R5
++	CMP R5, R23
++	BLT unrolled
++	JMP end
++
++loop:
++	MOVD   $8, R19
++	MULLD  R5, R19
++	MOVD   (R10)(R19), R11
++	MOVD   (R8)(R19), R16
++	MULLD  R9, R16, R12
++	MULHDU R9, R16, R14
++	ADDC   R4, R12
++	ADDZE  R14
++	ADDC   R11, R12
++	ADDZE  R14
++	MOVD   R12, (R10)(R19)
++	MOVD   R14, R4
++
++	MOVD $1, R15
++	ADD  R15, R5
++
++end:
++	CMP R5, R22
++	BLT loop
+ 
+-TEXT ·addMulVVW(SB),NOSPLIT,$0
+-	BR ·addMulVVW_g(SB)
++	MOVD R4, c+56(FP)
++	RET
+ 
+-TEXT ·divWVW(SB),NOSPLIT,$0
++TEXT ·divWVW(SB), NOSPLIT, $0
+ 	BR ·divWVW_g(SB)
+ 
+-TEXT ·bitLen(SB),NOSPLIT,$0
+-	BR ·bitLen_g(SB)
++// func bitLen(x Word) int
++TEXT ·bitLen(SB), NOSPLIT, $0
++	MOVD   x+0(FP), R4
++	CNTLZD R4, R4
++	MOVD   $64, R5
++	SUB    R4, R5
++	MOVD   R5, n+8(FP)
++	RET

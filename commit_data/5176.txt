@@ -7,6 +7,28 @@ Date:   Tue Mar 30 10:42:13 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/849041
-
+---
  src/cmd/godefs/main.c | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godefs/main.c b/src/cmd/godefs/main.c
+index 3735167d24..6ff542f489 100644
+--- a/src/cmd/godefs/main.c
++++ b/src/cmd/godefs/main.c
+@@ -294,8 +294,14 @@ Continue:
+ 	Bprint(bout, "// Constants\n");
+ 	if(ncon > 0) {
+ 		Bprint(bout, lang->constbegin);
+-		for(i=0; i<ncon; i++)
+-			Bprint(bout, lang->constfmt, con[i].name, con[i].value & 0xFFFFFFFF);
++		for(i=0; i<ncon; i++) {
++			// Go can handle negative constants,
++			// but C enums may not be able to.
++			if(lang == &go)
++				Bprint(bout, lang->constfmt, con[i].name, con[i].value);
++			else
++				Bprint(bout, lang->constfmt, con[i].name, con[i].value & 0xFFFFFFFF);
++		}
+ 		Bprint(bout, lang->constend);
+ 	}
+ 	Bprint(bout, "\n");

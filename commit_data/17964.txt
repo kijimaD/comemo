@@ -11,8 +11,48 @@ Date:   Thu Dec 12 10:13:17 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/24820045
-
+---
  src/pkg/net/dnsconfig_unix.go            | 2 +-
  src/pkg/net/parse.go                     | 2 +-
  src/pkg/text/tabwriter/tabwriter_test.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/dnsconfig_unix.go b/src/pkg/net/dnsconfig_unix.go
+index 2f0f6c031f..d10f099b12 100644
+--- a/src/pkg/net/dnsconfig_unix.go
++++ b/src/pkg/net/dnsconfig_unix.go
+@@ -27,7 +27,7 @@ func dnsReadConfig() (*dnsConfig, error) {
+ 		return nil, &DNSConfigError{err}
+ 	}
+ 	conf := new(dnsConfig)
+-	conf.servers = make([]string, 3)[0:0] // small, but the standard limit
++	conf.servers = make([]string, 0, 3) // small, but the standard limit
+ 	conf.search = make([]string, 0)
+ 	conf.ndots = 1
+ 	conf.timeout = 5
+diff --git a/src/pkg/net/parse.go b/src/pkg/net/parse.go
+index 6056de248e..ee6e7e9952 100644
+--- a/src/pkg/net/parse.go
++++ b/src/pkg/net/parse.go
+@@ -67,7 +67,7 @@ func open(name string) (*file, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &file{fd, make([]byte, os.Getpagesize())[0:0], false}, nil
++	return &file{fd, make([]byte, 0, os.Getpagesize()), false}, nil
+ }
+ 
+ func byteIndex(s string, c byte) int {
+diff --git a/src/pkg/text/tabwriter/tabwriter_test.go b/src/pkg/text/tabwriter/tabwriter_test.go
+index ace5356473..b0526a03f7 100644
+--- a/src/pkg/text/tabwriter/tabwriter_test.go
++++ b/src/pkg/text/tabwriter/tabwriter_test.go
+@@ -14,7 +14,7 @@ type buffer struct {
+ 	a []byte
+ }
+ 
+-func (b *buffer) init(n int) { b.a = make([]byte, n)[0:0] }
++func (b *buffer) init(n int) { b.a = make([]byte, 0, n) }
+ 
+ func (b *buffer) clear() { b.a = b.a[0:0] }
+ 

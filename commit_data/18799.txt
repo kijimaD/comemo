@@ -11,6 +11,21 @@ Date:   Fri Mar 7 19:44:35 2014 +0100
     R=dave, rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/72360044
-
+---
  src/liblink/obj6.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 036e20c8d4..6cfa67f09e 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -862,7 +862,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 		p->to.type = D_BRANCH;
+ 		p->to.sym = ctxt->symmorestack[2*2+noctxt];
+ 	} else {
+-		p->as = mov;
++		// Pass framesize and argsize.
++		p->as = AMOVQ;
+ 		p->from.type = D_CONST;
+ 		p->from.offset = (uint64)moreconst2 << 32;
+ 		p->from.offset |= moreconst1;

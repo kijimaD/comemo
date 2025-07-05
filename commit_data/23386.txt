@@ -12,10 +12,897 @@ Date:   Fri Mar 20 10:22:55 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/7890
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/deps_test.go    |  77 +++++-----
  src/internal/mime/header.go  | 122 ----------------
  src/mime/encodedword.go      | 329 +++++++++++++++++++++++++++++++++++++++++++
  src/mime/encodedword_test.go | 241 +++++++++++++++++++++++++++++++
  src/net/mail/message.go      |  35 ++++-
  5 files changed, 638 insertions(+), 166 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 84c1e2ab31..52c5a7dd80 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -184,42 +184,43 @@ var pkgDeps = map[string][]string{
+ 	},
+ 
+ 	// One of a kind.
+-	"archive/tar":         {"L4", "OS", "syscall"},
+-	"archive/zip":         {"L4", "OS", "compress/flate"},
+-	"compress/bzip2":      {"L4"},
+-	"compress/flate":      {"L4"},
+-	"compress/gzip":       {"L4", "compress/flate"},
+-	"compress/lzw":        {"L4"},
+-	"compress/zlib":       {"L4", "compress/flate"},
+-	"database/sql":        {"L4", "container/list", "database/sql/driver"},
+-	"database/sql/driver": {"L4", "time"},
+-	"debug/dwarf":         {"L4"},
+-	"debug/elf":           {"L4", "OS", "debug/dwarf"},
+-	"debug/gosym":         {"L4"},
+-	"debug/macho":         {"L4", "OS", "debug/dwarf"},
+-	"debug/pe":            {"L4", "OS", "debug/dwarf"},
+-	"encoding":            {"L4"},
+-	"encoding/ascii85":    {"L4"},
+-	"encoding/asn1":       {"L4", "math/big"},
+-	"encoding/csv":        {"L4"},
+-	"encoding/gob":        {"L4", "OS", "encoding"},
+-	"encoding/hex":        {"L4"},
+-	"encoding/json":       {"L4", "encoding"},
+-	"encoding/pem":        {"L4"},
+-	"encoding/xml":        {"L4", "encoding"},
+-	"flag":                {"L4", "OS"},
+-	"go/build":            {"L4", "OS", "GOPARSER"},
+-	"html":                {"L4"},
+-	"image/draw":          {"L4", "image/internal/imageutil"},
+-	"image/gif":           {"L4", "compress/lzw", "image/color/palette", "image/draw"},
+-	"image/jpeg":          {"L4", "image/internal/imageutil"},
+-	"image/png":           {"L4", "compress/zlib"},
+-	"index/suffixarray":   {"L4", "regexp"},
+-	"math/big":            {"L4"},
+-	"mime":                {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+-	"net/url":             {"L4"},
+-	"text/scanner":        {"L4", "OS"},
+-	"text/template/parse": {"L4"},
++	"archive/tar":          {"L4", "OS", "syscall"},
++	"archive/zip":          {"L4", "OS", "compress/flate"},
++	"compress/bzip2":       {"L4"},
++	"compress/flate":       {"L4"},
++	"compress/gzip":        {"L4", "compress/flate"},
++	"compress/lzw":         {"L4"},
++	"compress/zlib":        {"L4", "compress/flate"},
++	"database/sql":         {"L4", "container/list", "database/sql/driver"},
++	"database/sql/driver":  {"L4", "time"},
++	"debug/dwarf":          {"L4"},
++	"debug/elf":            {"L4", "OS", "debug/dwarf"},
++	"debug/gosym":          {"L4"},
++	"debug/macho":          {"L4", "OS", "debug/dwarf"},
++	"debug/pe":             {"L4", "OS", "debug/dwarf"},
++	"encoding":             {"L4"},
++	"encoding/ascii85":     {"L4"},
++	"encoding/asn1":        {"L4", "math/big"},
++	"encoding/csv":         {"L4"},
++	"encoding/gob":         {"L4", "OS", "encoding"},
++	"encoding/hex":         {"L4"},
++	"encoding/json":        {"L4", "encoding"},
++	"encoding/pem":         {"L4"},
++	"encoding/xml":         {"L4", "encoding"},
++	"flag":                 {"L4", "OS"},
++	"go/build":             {"L4", "OS", "GOPARSER"},
++	"html":                 {"L4"},
++	"image/draw":           {"L4", "image/internal/imageutil"},
++	"image/gif":            {"L4", "compress/lzw", "image/color/palette", "image/draw"},
++	"image/jpeg":           {"L4", "image/internal/imageutil"},
++	"image/png":            {"L4", "compress/zlib"},
++	"index/suffixarray":    {"L4", "regexp"},
++	"math/big":             {"L4"},
++	"mime":                 {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
++	"mime/quotedprintable": {"L4"},
++	"net/url":              {"L4"},
++	"text/scanner":         {"L4", "OS"},
++	"text/template/parse":  {"L4"},
+ 
+ 	"html/template": {
+ 		"L4", "OS", "encoding/json", "html", "text/template",
+@@ -255,7 +256,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	// Uses of networking.
+ 	"log/syslog":    {"L4", "OS", "net"},
+-	"net/mail":      {"L4", "NET", "OS", "internal/mime"},
++	"net/mail":      {"L4", "NET", "OS", "mime"},
+ 	"net/textproto": {"L4", "OS", "net"},
+ 
+ 	// Core crypto.
+@@ -347,13 +348,11 @@ var pkgDeps = map[string][]string{
+ 	"go/types":                          {"bytes", "container/heap", "fmt", "go/ast", "go/constants", "go/parser", "go/token", "io", "math", "path", "sort", "strconv", "strings", "sync", "unicode"},
+ 	"image/internal/imageutil":          {"image"},
+ 	"internal/format":                   {"bytes", "go/ast", "go/parser", "go/printer", "go/token", "strings"},
+-	"internal/mime":                     {"bytes", "encoding/base64", "errors", "fmt", "io", "io/ioutil", "strconv", "strings", "unicode"},
+ 	"internal/singleflight":             {"sync"},
+ 	"internal/syscall/unix":             {"runtime", "sync/atomic", "syscall", "unsafe"},
+ 	"internal/syscall/windows":          {"syscall", "unsafe"},
+ 	"internal/syscall/windows/registry": {"errors", "io", "syscall", "unicode/utf16", "unsafe"},
+ 	"internal/trace":                    {"bufio", "bytes", "fmt", "io", "os", "os/exec", "sort", "strconv", "strings"},
+-	"mime/quotedprintable":              {"bufio", "bytes", "fmt", "io"},
+ 	"net/http/cookiejar":                {"errors", "fmt", "net", "net/http", "net/url", "sort", "strings", "sync", "time", "unicode/utf8"},
+ 	"net/http/internal":                 {"bufio", "bytes", "errors", "fmt", "io"},
+ 	"net/internal/socktest":             {"fmt", "sync", "syscall"},
+diff --git a/src/internal/mime/header.go b/src/internal/mime/header.go
+deleted file mode 100644
+index 9bc3e5e576..0000000000
+--- a/src/internal/mime/header.go
++++ /dev/null
+@@ -1,122 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package mime
+-
+-import (
+-	"bytes"
+-	"encoding/base64"
+-	"errors"
+-	"fmt"
+-	"io"
+-	"io/ioutil"
+-	"strconv"
+-	"strings"
+-	"unicode"
+-)
+-
+-// EncodeWord encodes a string into an RFC 2047 encoded-word.
+-func EncodeWord(s string) string {
+-	// UTF-8 "Q" encoding
+-	b := bytes.NewBufferString("=?utf-8?q?")
+-	for i := 0; i < len(s); i++ {
+-		switch c := s[i]; {
+-		case c == ' ':
+-			b.WriteByte('_')
+-		case isVchar(c) && c != '=' && c != '?' && c != '_':
+-			b.WriteByte(c)
+-		default:
+-			fmt.Fprintf(b, "=%02X", c)
+-		}
+-	}
+-	b.WriteString("?=")
+-	return b.String()
+-}
+-
+-// DecodeWord decodes an RFC 2047 encoded-word.
+-func DecodeWord(s string) (string, error) {
+-	fields := strings.Split(s, "?")
+-	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" {
+-		return "", errors.New("address not RFC 2047 encoded")
+-	}
+-	charset, enc := strings.ToLower(fields[1]), strings.ToLower(fields[2])
+-	if charset != "us-ascii" && charset != "iso-8859-1" && charset != "utf-8" {
+-		return "", fmt.Errorf("charset not supported: %q", charset)
+-	}
+-
+-	in := bytes.NewBufferString(fields[3])
+-	var r io.Reader
+-	switch enc {
+-	case "b":
+-		r = base64.NewDecoder(base64.StdEncoding, in)
+-	case "q":
+-		r = qDecoder{r: in}
+-	default:
+-		return "", fmt.Errorf("RFC 2047 encoding not supported: %q", enc)
+-	}
+-
+-	dec, err := ioutil.ReadAll(r)
+-	if err != nil {
+-		return "", err
+-	}
+-
+-	switch charset {
+-	case "us-ascii":
+-		b := new(bytes.Buffer)
+-		for _, c := range dec {
+-			if c >= 0x80 {
+-				b.WriteRune(unicode.ReplacementChar)
+-			} else {
+-				b.WriteRune(rune(c))
+-			}
+-		}
+-		return b.String(), nil
+-	case "iso-8859-1":
+-		b := new(bytes.Buffer)
+-		for _, c := range dec {
+-			b.WriteRune(rune(c))
+-		}
+-		return b.String(), nil
+-	case "utf-8":
+-		return string(dec), nil
+-	}
+-	panic("unreachable")
+-}
+-
+-type qDecoder struct {
+-	r       io.Reader
+-	scratch [2]byte
+-}
+-
+-func (qd qDecoder) Read(p []byte) (n int, err error) {
+-	// This method writes at most one byte into p.
+-	if len(p) == 0 {
+-		return 0, nil
+-	}
+-	if _, err := qd.r.Read(qd.scratch[:1]); err != nil {
+-		return 0, err
+-	}
+-	switch c := qd.scratch[0]; {
+-	case c == '=':
+-		if _, err := io.ReadFull(qd.r, qd.scratch[:2]); err != nil {
+-			return 0, err
+-		}
+-		x, err := strconv.ParseInt(string(qd.scratch[:2]), 16, 64)
+-		if err != nil {
+-			return 0, fmt.Errorf("mime: invalid RFC 2047 encoding: %q", qd.scratch[:2])
+-		}
+-		p[0] = byte(x)
+-	case c == '_':
+-		p[0] = ' '
+-	default:
+-		p[0] = c
+-	}
+-	return 1, nil
+-}
+-
+-// isVchar returns true if c is an RFC 5322 VCHAR character.
+-func isVchar(c byte) bool {
+-	// Visible (printing) characters.
+-	return '!' <= c && c <= '~'
+-}
+diff --git a/src/mime/encodedword.go b/src/mime/encodedword.go
+new file mode 100644
+index 0000000000..9796f506dc
+--- /dev/null
++++ b/src/mime/encodedword.go
+@@ -0,0 +1,329 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mime
++
++import (
++	"bytes"
++	"encoding/base64"
++	"errors"
++	"fmt"
++	"io"
++	"strings"
++	"sync"
++	"unicode"
++	"unicode/utf8"
++)
++
++// A WordEncoder is a RFC 2047 encoded-word encoder.
++type WordEncoder byte
++
++const (
++	// BEncoding represents Base64 encoding scheme as defined by RFC 2045.
++	BEncoding = WordEncoder('b')
++	// QEncoding represents the Q-encoding scheme as defined by RFC 2047.
++	QEncoding = WordEncoder('q')
++)
++
++var (
++	errInvalidWord = errors.New("mime: invalid RFC 2047 encoded-word")
++)
++
++// Encode returns the encoded-word form of s. If s is ASCII without special
++// characters, it is returned unchanged. The provided charset is the IANA
++// charset name of s. It is case insensitive.
++func (e WordEncoder) Encode(charset, s string) string {
++	if !needsEncoding(s) {
++		return s
++	}
++	return e.encodeWord(charset, s)
++}
++
++func needsEncoding(s string) bool {
++	for _, b := range s {
++		if (b < ' ' || b > '~') && b != '\t' {
++			return true
++		}
++	}
++	return false
++}
++
++// encodeWord encodes a string into an encoded-word.
++func (e WordEncoder) encodeWord(charset, s string) string {
++	buf := getBuffer()
++	defer putBuffer(buf)
++
++	buf.WriteString("=?")
++	buf.WriteString(charset)
++	buf.WriteByte('?')
++	buf.WriteByte(byte(e))
++	buf.WriteByte('?')
++
++	if e == BEncoding {
++		w := base64.NewEncoder(base64.StdEncoding, buf)
++		io.WriteString(w, s)
++		w.Close()
++	} else {
++		enc := make([]byte, 3)
++		for i := 0; i < len(s); i++ {
++			b := s[i]
++			switch {
++			case b == ' ':
++				buf.WriteByte('_')
++			case b <= '~' && b >= '!' && b != '=' && b != '?' && b != '_':
++				buf.WriteByte(b)
++			default:
++				enc[0] = '='
++				enc[1] = upperhex[b>>4]
++				enc[2] = upperhex[b&0x0f]
++				buf.Write(enc)
++			}
++		}
++	}
++	buf.WriteString("?=")
++	return buf.String()
++}
++
++const upperhex = "0123456789ABCDEF"
++
++// A WordDecoder decodes MIME headers containing RFC 2047 encoded-words.
++type WordDecoder struct {
++	// CharsetReader, if non-nil, defines a function to generate
++	// charset-conversion readers, converting from the provided
++	// charset into UTF-8.
++	// Charsets are always lower-case. utf-8, iso-8859-1 and us-ascii charsets
++	// are handled by default.
++	// One of the the CharsetReader's result values must be non-nil.
++	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
++}
++
++// Decode decodes an encoded-word. If word is not a valid RFC 2047 encoded-word,
++// word is returned unchanged.
++func (d *WordDecoder) Decode(word string) (string, error) {
++	fields := strings.Split(word, "?") // TODO: remove allocation?
++	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" || len(fields[2]) != 1 {
++		return "", errInvalidWord
++	}
++
++	content, err := decode(fields[2][0], fields[3])
++	if err != nil {
++		return "", err
++	}
++
++	buf := getBuffer()
++	defer putBuffer(buf)
++
++	if err := d.convert(buf, fields[1], content); err != nil {
++		return "", err
++	}
++
++	return buf.String(), nil
++}
++
++// DecodeHeader decodes all encoded-words of the given string. It returns an
++// error if and only if CharsetReader of d returns an error.
++func (d *WordDecoder) DecodeHeader(header string) (string, error) {
++	// If there is no encoded-word, returns before creating a buffer.
++	i := strings.Index(header, "=?")
++	if i == -1 {
++		return header, nil
++	}
++
++	buf := getBuffer()
++	defer putBuffer(buf)
++
++	buf.WriteString(header[:i])
++	header = header[i:]
++
++	betweenWords := false
++	for {
++		start := strings.Index(header, "=?")
++		if start == -1 {
++			break
++		}
++		cur := start + len("=?")
++
++		i := strings.Index(header[cur:], "?")
++		if i == -1 {
++			break
++		}
++		charset := header[cur : cur+i]
++		cur += i + len("?")
++
++		if len(header) < cur+len("Q??=") {
++			break
++		}
++		encoding := header[cur]
++		cur++
++
++		if header[cur] != '?' {
++			break
++		}
++		cur++
++
++		j := strings.Index(header[cur:], "?=")
++		if j == -1 {
++			break
++		}
++		text := header[cur : cur+j]
++		end := cur + j + len("?=")
++
++		content, err := decode(encoding, text)
++		if err != nil {
++			betweenWords = false
++			buf.WriteString(header[:start+2])
++			header = header[start+2:]
++			continue
++		}
++
++		// Write characters before the encoded-word. White-space and newline
++		// characters separating two encoded-words must be deleted.
++		if start > 0 && (!betweenWords || hasNonWhitespace(header[:start])) {
++			buf.WriteString(header[:start])
++		}
++
++		if err := d.convert(buf, charset, content); err != nil {
++			return "", err
++		}
++
++		header = header[end:]
++		betweenWords = true
++	}
++
++	if len(header) > 0 {
++		buf.WriteString(header)
++	}
++
++	return buf.String(), nil
++}
++
++func decode(encoding byte, text string) ([]byte, error) {
++	switch encoding {
++	case 'B', 'b':
++		return base64.StdEncoding.DecodeString(text)
++	case 'Q', 'q':
++		return qDecode(text)
++	default:
++		return nil, errInvalidWord
++	}
++}
++
++func (d *WordDecoder) convert(buf *bytes.Buffer, charset string, content []byte) error {
++	switch {
++	case strings.EqualFold("utf-8", charset):
++		buf.Write(content)
++	case strings.EqualFold("iso-8859-1", charset):
++		for _, c := range content {
++			buf.WriteRune(rune(c))
++		}
++	case strings.EqualFold("us-ascii", charset):
++		for _, c := range content {
++			if c >= utf8.RuneSelf {
++				buf.WriteRune(unicode.ReplacementChar)
++			} else {
++				buf.WriteByte(c)
++			}
++		}
++	default:
++		if d.CharsetReader == nil {
++			return fmt.Errorf("mime: unhandled charset %q", charset)
++		}
++		r, err := d.CharsetReader(strings.ToLower(charset), bytes.NewReader(content))
++		if err != nil {
++			return err
++		}
++		if _, err = buf.ReadFrom(r); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// hasNonWhitespace reports whether s (assumed to be ASCII) contains at least
++// one byte of non-whitespace.
++func hasNonWhitespace(s string) bool {
++	for _, b := range s {
++		switch b {
++		// Encoded-words can only be separated by linear white spaces which does
++		// not include vertical tabs (\v).
++		case ' ', '\t', '\n', '\r':
++		default:
++			return true
++		}
++	}
++	return false
++}
++
++// qDecode decodes a Q encoded string.
++func qDecode(s string) ([]byte, error) {
++	dec := make([]byte, len(s))
++	n := 0
++	for i := 0; i < len(s); i++ {
++		switch c := s[i]; {
++		case c == '_':
++			dec[n] = ' '
++		case c == '=':
++			if i+2 >= len(s) {
++				return nil, errInvalidWord
++			}
++			b, err := readHexByte(s[i+1], s[i+2])
++			if err != nil {
++				return nil, err
++			}
++			dec[n] = b
++			i += 2
++		case (c <= '~' && c >= ' ') || c == '\n' || c == '\r' || c == '\t':
++			dec[n] = c
++		default:
++			return nil, errInvalidWord
++		}
++		n++
++	}
++
++	return dec[:n], nil
++}
++
++// readHexByte returns the byte from its quoted-printable representation.
++func readHexByte(a, b byte) (byte, error) {
++	var hb, lb byte
++	var err error
++	if hb, err = fromHex(a); err != nil {
++		return 0, err
++	}
++	if lb, err = fromHex(b); err != nil {
++		return 0, err
++	}
++	return hb<<4 | lb, nil
++}
++
++func fromHex(b byte) (byte, error) {
++	switch {
++	case b >= '0' && b <= '9':
++		return b - '0', nil
++	case b >= 'A' && b <= 'F':
++		return b - 'A' + 10, nil
++	// Accept badly encoded bytes.
++	case b >= 'a' && b <= 'f':
++		return b - 'a' + 10, nil
++	}
++	return 0, fmt.Errorf("mime: invalid hex byte %#02x", b)
++}
++
++var bufPool = sync.Pool{
++	New: func() interface{} {
++		return new(bytes.Buffer)
++	},
++}
++
++func getBuffer() *bytes.Buffer {
++	return bufPool.Get().(*bytes.Buffer)
++}
++
++func putBuffer(buf *bytes.Buffer) {
++	if buf.Len() > 1024 {
++		return
++	}
++	buf.Reset()
++	bufPool.Put(buf)
++}
+diff --git a/src/mime/encodedword_test.go b/src/mime/encodedword_test.go
+new file mode 100644
+index 0000000000..02236ea521
+--- /dev/null
++++ b/src/mime/encodedword_test.go
+@@ -0,0 +1,241 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mime
++
++import (
++	"errors"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"strings"
++	"testing"
++)
++
++func ExampleEncodeWord() {
++	fmt.Println(QEncoding.Encode("utf-8", "¡Hola, señor!"))
++	fmt.Println(QEncoding.Encode("utf-8", "Hello!"))
++	fmt.Println(BEncoding.Encode("UTF-8", "¡Hola, señor!"))
++	fmt.Println(QEncoding.Encode("ISO-8859-1", "Caf\xE9"))
++	// Output:
++	// =?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=
++	// Hello!
++	// =?UTF-8?b?wqFIb2xhLCBzZcOxb3Ih?=
++	// =?ISO-8859-1?q?Caf=E9?=
++}
++
++func ExampleDecodeWord() {
++	dec := new(WordDecoder)
++	header, err := dec.DecodeHeader("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
++	if err != nil {
++		panic(err)
++	}
++	fmt.Println(header)
++	// Output: ¡Hola, señor!
++}
++
++func ExampleDecodeHeader() {
++	dec := new(WordDecoder)
++	header, err := dec.DecodeHeader("=?utf-8?q?=C3=89ric?= <eric@example.org>, =?utf-8?q?Ana=C3=AFs?= <anais@example.org>")
++	if err != nil {
++		panic(err)
++	}
++	fmt.Println(header)
++
++	header, err = dec.DecodeHeader("=?utf-8?q?=C2=A1Hola,?= =?utf-8?q?_se=C3=B1or!?=")
++	if err != nil {
++		panic(err)
++	}
++	fmt.Println(header)
++	// Output:
++	// Éric <eric@example.org>, Anaïs <anais@example.org>
++	// ¡Hola, señor!
++}
++
++func TestEncodeWord(t *testing.T) {
++	utf8, iso88591 := "utf-8", "iso-8859-1"
++	tests := []struct {
++		enc      WordEncoder
++		charset  string
++		src, exp string
++	}{
++		{QEncoding, utf8, "François-Jérôme", "=?utf-8?q?Fran=C3=A7ois-J=C3=A9r=C3=B4me?="},
++		{BEncoding, utf8, "Café", "=?utf-8?b?Q2Fmw6k=?="},
++		{QEncoding, iso88591, "La Seleção", "=?iso-8859-1?q?La_Sele=C3=A7=C3=A3o?="},
++		{QEncoding, utf8, "", ""},
++		{QEncoding, utf8, "A", "A"},
++		{QEncoding, iso88591, "a", "a"},
++		{QEncoding, utf8, "123 456", "123 456"},
++		{QEncoding, utf8, "\t !\"#$%&'()*+,-./ :;<>?@[\\]^_`{|}~", "\t !\"#$%&'()*+,-./ :;<>?@[\\]^_`{|}~"},
++	}
++
++	for _, test := range tests {
++		if s := test.enc.Encode(test.charset, test.src); s != test.exp {
++			t.Errorf("Encode(%q) = %q, want %q", test.src, s, test.exp)
++		}
++	}
++}
++
++func TestDecodeWord(t *testing.T) {
++	tests := []struct {
++		src, exp string
++		hasErr   bool
++	}{
++		{"=?UTF-8?Q?=C2=A1Hola,_se=C3=B1or!?=", "¡Hola, señor!", false},
++		{"=?UTF-8?Q?Fran=C3=A7ois-J=C3=A9r=C3=B4me?=", "François-Jérôme", false},
++		{"=?UTF-8?q?ascii?=", "ascii", false},
++		{"=?utf-8?B?QW5kcsOp?=", "André", false},
++		{"=?ISO-8859-1?Q?Rapha=EBl_Dupont?=", "Raphaël Dupont", false},
++		{"=?utf-8?b?IkFudG9uaW8gSm9zw6kiIDxqb3NlQGV4YW1wbGUub3JnPg==?=", `"Antonio José" <jose@example.org>`, false},
++		{"=?UTF-8?A?Test?=", "", true},
++		{"=?UTF-8?Q?A=B?=", "", true},
++		{"=?UTF-8?Q?=A?=", "", true},
++		{"=?UTF-8?A?A?=", "", true},
++	}
++
++	for _, test := range tests {
++		dec := new(WordDecoder)
++		s, err := dec.Decode(test.src)
++		if test.hasErr && err == nil {
++			t.Errorf("Decode(%q) should return an error", test.src)
++			continue
++		}
++		if !test.hasErr && err != nil {
++			t.Errorf("Decode(%q): %v", test.src, err)
++			continue
++		}
++		if s != test.exp {
++			t.Errorf("Decode(%q) = %q, want %q", test.src, s, test.exp)
++		}
++	}
++}
++
++func TestDecodeHeader(t *testing.T) {
++	tests := []struct {
++		src, exp string
++	}{
++		{"=?UTF-8?Q?=C2=A1Hola,_se=C3=B1or!?=", "¡Hola, señor!"},
++		{"=?UTF-8?Q?Fran=C3=A7ois-J=C3=A9r=C3=B4me?=", "François-Jérôme"},
++		{"=?UTF-8?q?ascii?=", "ascii"},
++		{"=?utf-8?B?QW5kcsOp?=", "André"},
++		{"=?ISO-8859-1?Q?Rapha=EBl_Dupont?=", "Raphaël Dupont"},
++		{"Jean", "Jean"},
++		{"=?utf-8?b?IkFudG9uaW8gSm9zw6kiIDxqb3NlQGV4YW1wbGUub3JnPg==?=", `"Antonio José" <jose@example.org>`},
++		{"=?UTF-8?A?Test?=", "=?UTF-8?A?Test?="},
++		{"=?UTF-8?Q?A=B?=", "=?UTF-8?Q?A=B?="},
++		{"=?UTF-8?Q?=A?=", "=?UTF-8?Q?=A?="},
++		{"=?UTF-8?A?A?=", "=?UTF-8?A?A?="},
++		// Incomplete words
++		{"=?", "=?"},
++		{"=?UTF-8?", "=?UTF-8?"},
++		{"=?UTF-8?=", "=?UTF-8?="},
++		{"=?UTF-8?Q", "=?UTF-8?Q"},
++		{"=?UTF-8?Q?", "=?UTF-8?Q?"},
++		{"=?UTF-8?Q?=", "=?UTF-8?Q?="},
++		{"=?UTF-8?Q?A", "=?UTF-8?Q?A"},
++		{"=?UTF-8?Q?A?", "=?UTF-8?Q?A?"},
++		// Tests from RFC 2047
++		{"=?ISO-8859-1?Q?a?=", "a"},
++		{"=?ISO-8859-1?Q?a?= b", "a b"},
++		{"=?ISO-8859-1?Q?a?= =?ISO-8859-1?Q?b?=", "ab"},
++		{"=?ISO-8859-1?Q?a?=  =?ISO-8859-1?Q?b?=", "ab"},
++		{"=?ISO-8859-1?Q?a?= \r\n\t =?ISO-8859-1?Q?b?=", "ab"},
++		{"=?ISO-8859-1?Q?a_b?=", "a b"},
++	}
++
++	for _, test := range tests {
++		dec := new(WordDecoder)
++		s, err := dec.DecodeHeader(test.src)
++		if err != nil {
++			t.Errorf("DecodeHeader(%q): %v", test.src, err)
++		}
++		if s != test.exp {
++			t.Errorf("DecodeHeader(%q) = %q, want %q", test.src, s, test.exp)
++		}
++	}
++}
++
++func TestCharsetDecoder(t *testing.T) {
++	tests := []struct {
++		src      string
++		want     string
++		charsets []string
++		content  []string
++	}{
++		{"=?utf-8?b?Q2Fmw6k=?=", "Café", nil, nil},
++		{"=?ISO-8859-1?Q?caf=E9?=", "café", nil, nil},
++		{"=?US-ASCII?Q?foo_bar?=", "foo bar", nil, nil},
++		{"=?utf-8?Q?=?=", "=?utf-8?Q?=?=", nil, nil},
++		{"=?utf-8?Q?=A?=", "=?utf-8?Q?=A?=", nil, nil},
++		{
++			"=?ISO-8859-15?Q?f=F5=F6?=  =?windows-1252?Q?b=E0r?=",
++			"f\xf5\xf6b\xe0r",
++			[]string{"iso-8859-15", "windows-1252"},
++			[]string{"f\xf5\xf6", "b\xe0r"},
++		},
++	}
++
++	for _, test := range tests {
++		i := 0
++		dec := &WordDecoder{
++			CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
++				if charset != test.charsets[i] {
++					t.Errorf("DecodeHeader(%q), got charset %q, want %q", test.src, charset, test.charsets[i])
++				}
++				content, err := ioutil.ReadAll(input)
++				if err != nil {
++					t.Errorf("DecodeHeader(%q), error in reader: %v", test.src, err)
++				}
++				got := string(content)
++				if got != test.content[i] {
++					t.Errorf("DecodeHeader(%q), got content %q, want %q", test.src, got, test.content[i])
++				}
++				i++
++
++				return strings.NewReader(got), nil
++			},
++		}
++		got, err := dec.DecodeHeader(test.src)
++		if err != nil {
++			t.Errorf("DecodeHeader(%q): %v", test.src, err)
++		}
++		if got != test.want {
++			t.Errorf("DecodeHeader(%q) = %q, want %q", test.src, got, test.want)
++		}
++	}
++}
++
++func TestCharsetDecoderError(t *testing.T) {
++	dec := &WordDecoder{
++		CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
++			return nil, errors.New("Test error")
++		},
++	}
++
++	if _, err := dec.DecodeHeader("=?charset?Q?foo?="); err == nil {
++		t.Error("DecodeHeader should return an error")
++	}
++}
++
++func BenchmarkQEncodeWord(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		QEncoding.Encode("UTF-8", "¡Hola, señor!")
++	}
++}
++
++func BenchmarkQDecodeWord(b *testing.B) {
++	dec := new(WordDecoder)
++
++	for i := 0; i < b.N; i++ {
++		dec.Decode("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
++	}
++}
++
++func BenchmarkQDecodeHeader(b *testing.B) {
++	dec := new(WordDecoder)
++
++	for i := 0; i < b.N; i++ {
++		dec.Decode("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
++	}
++}
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index f3f698cf23..77c9578196 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -20,9 +20,9 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
+-	"internal/mime"
+ 	"io"
+ 	"log"
++	"mime"
+ 	"net/textproto"
+ 	"strings"
+ 	"time"
+@@ -177,7 +177,7 @@ func (a *Address) String() string {
+ 		return b.String()
+ 	}
+ 
+-	return mime.EncodeWord(a.Name) + " " + s
++	return mime.QEncoding.Encode("utf-8", a.Name) + " " + s
+ }
+ 
+ type addrParser []byte
+@@ -333,9 +333,8 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 			word, err = p.consumeAtom(true)
+ 		}
+ 
+-		// RFC 2047 encoded-word starts with =?, ends with ?=, and has two other ?s.
+-		if err == nil && strings.HasPrefix(word, "=?") && strings.HasSuffix(word, "?=") && strings.Count(word, "?") == 4 {
+-			word, err = mime.DecodeWord(word)
++		if err == nil {
++			word, err = decodeRFC2047Word(word)
+ 		}
+ 
+ 		if err != nil {
+@@ -423,6 +422,32 @@ func (p *addrParser) len() int {
+ 	return len(*p)
+ }
+ 
++func decodeRFC2047Word(s string) (string, error) {
++	dec, err := rfc2047Decoder.Decode(s)
++	if err == nil {
++		return dec, nil
++	}
++
++	if _, ok := err.(charsetError); ok {
++		return s, err
++	}
++
++	// Ignore invalid RFC 2047 encoded-word errors.
++	return s, nil
++}
++
++var rfc2047Decoder = mime.WordDecoder{
++	CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
++		return nil, charsetError(charset)
++	},
++}
++
++type charsetError string
++
++func (e charsetError) Error() string {
++	return fmt.Sprintf("charset not supported: %q", string(e))
++}
++
+ var atextChars = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+ 	"abcdefghijklmnopqrstuvwxyz" +
+ 	"0123456789" +

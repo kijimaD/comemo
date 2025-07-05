@@ -28,7 +28,7 @@ Date:   Wed Oct 3 12:02:13 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6576058
-
+---
  src/pkg/html/template/escape.go           |   9 +-
  src/pkg/text/template/exec.go             | 117 ++++++++++++--------
  src/pkg/text/template/exec_test.go        |  26 +++++
@@ -38,3 +38,1316 @@ Date:   Wed Oct 3 12:02:13 2012 +1000
  src/pkg/text/template/parse/parse.go      |  89 +++++++++------
  src/pkg/text/template/parse/parse_test.go |   2 +-
  8 files changed, 287 insertions(+), 168 deletions(-)
+
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 5f0e28e8c1..ce11dedf6b 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -242,10 +242,11 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 	copy(newCmds, p.Cmds)
+ 	// Merge existing identifier commands with the sanitizers needed.
+ 	for _, id := range idents {
++		pos := id.Args[0].Position()
+ 		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s, escFnsEq)
+ 		if i != -1 {
+ 			for _, name := range s[:i] {
+-				newCmds = appendCmd(newCmds, newIdentCmd(name))
++				newCmds = appendCmd(newCmds, newIdentCmd(name, pos))
+ 			}
+ 			s = s[i+1:]
+ 		}
+@@ -253,7 +254,7 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 	}
+ 	// Create any remaining sanitizers.
+ 	for _, name := range s {
+-		newCmds = appendCmd(newCmds, newIdentCmd(name))
++		newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
+ 	}
+ 	p.Cmds = newCmds
+ }
+@@ -315,10 +316,10 @@ func escFnsEq(a, b string) bool {
+ }
+ 
+ // newIdentCmd produces a command containing a single identifier node.
+-func newIdentCmd(identifier string) *parse.CommandNode {
++func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
+ 	return &parse.CommandNode{
+ 		NodeType: parse.NodeCommand,
+-		Args:     []parse.Node{parse.NewIdentifier(identifier)},
++		Args:     []parse.Node{parse.NewIdentifier(identifier).SetPos(pos)},
+ 	}
+ }
+ 
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index 5e127d7db4..b9c03d8f0b 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -20,7 +20,7 @@ import (
+ type state struct {
+ 	tmpl *Template
+ 	wr   io.Writer
+-	line int        // line number for errors
++	node parse.Node // current node, for errors
+ 	vars []variable // push-down stack of variable values.
+ }
+ 
+@@ -63,17 +63,32 @@ func (s *state) varValue(name string) reflect.Value {
+ 
+ var zero reflect.Value
+ 
++// at marks the state to be on node n, for error reporting.
++func (s *state) at(node parse.Node) {
++	s.node = node
++}
++
++// doublePercent returns the string with %'s replaced by %%, if necessary,
++// so it can be used safely inside a Printf format string.
++func doublePercent(str string) string {
++	if strings.Contains(str, "%") {
++		str = strings.Replace(str, "%", "%%", -1)
++	}
++	return str
++}
++
+ // errorf formats the error and terminates processing.
+ func (s *state) errorf(format string, args ...interface{}) {
+-	format = fmt.Sprintf("template: %s:%d: %s", s.tmpl.Name(), s.line, format)
++	name := doublePercent(s.tmpl.Name())
++	if s.node == nil {
++		format = fmt.Sprintf("template: %s: %s", name, format)
++	} else {
++		location, context := s.tmpl.ErrorContext(s.node)
++		format = fmt.Sprintf("template: %s: executing %q at <%s>: %s", location, name, doublePercent(context), format)
++	}
+ 	panic(fmt.Errorf(format, args...))
+ }
+ 
+-// error terminates processing.
+-func (s *state) error(err error) {
+-	s.errorf("%s", err)
+-}
+-
+ // errRecover is the handler that turns panics into returns from the top
+ // level of Parse.
+ func errRecover(errp *error) {
+@@ -108,7 +123,6 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+ 	state := &state{
+ 		tmpl: t,
+ 		wr:   wr,
+-		line: 1,
+ 		vars: []variable{{"$", value}},
+ 	}
+ 	if t.Tree == nil || t.Root == nil {
+@@ -120,38 +134,34 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+ 
+ // Walk functions step through the major pieces of the template structure,
+ // generating output as they go.
+-func (s *state) walk(dot reflect.Value, n parse.Node) {
+-	switch n := n.(type) {
++func (s *state) walk(dot reflect.Value, node parse.Node) {
++	s.at(node)
++	switch node := node.(type) {
+ 	case *parse.ActionNode:
+-		s.line = n.Line
+ 		// Do not pop variables so they persist until next end.
+ 		// Also, if the action declares variables, don't print the result.
+-		val := s.evalPipeline(dot, n.Pipe)
+-		if len(n.Pipe.Decl) == 0 {
+-			s.printValue(n, val)
++		val := s.evalPipeline(dot, node.Pipe)
++		if len(node.Pipe.Decl) == 0 {
++			s.printValue(node, val)
+ 		}
+ 	case *parse.IfNode:
+-		s.line = n.Line
+-		s.walkIfOrWith(parse.NodeIf, dot, n.Pipe, n.List, n.ElseList)
++		s.walkIfOrWith(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
+ 	case *parse.ListNode:
+-		for _, node := range n.Nodes {
++		for _, node := range node.Nodes {
+ 			s.walk(dot, node)
+ 		}
+ 	case *parse.RangeNode:
+-		s.line = n.Line
+-		s.walkRange(dot, n)
++		s.walkRange(dot, node)
+ 	case *parse.TemplateNode:
+-		s.line = n.Line
+-		s.walkTemplate(dot, n)
++		s.walkTemplate(dot, node)
+ 	case *parse.TextNode:
+-		if _, err := s.wr.Write(n.Text); err != nil {
+-			s.error(err)
++		if _, err := s.wr.Write(node.Text); err != nil {
++			s.errorf("%s", err)
+ 		}
+ 	case *parse.WithNode:
+-		s.line = n.Line
+-		s.walkIfOrWith(parse.NodeWith, dot, n.Pipe, n.List, n.ElseList)
++		s.walkIfOrWith(parse.NodeWith, dot, node.Pipe, node.List, node.ElseList)
+ 	default:
+-		s.errorf("unknown node: %s", n)
++		s.errorf("unknown node: %s", node)
+ 	}
+ }
+ 
+@@ -206,6 +216,7 @@ func isTrue(val reflect.Value) (truth, ok bool) {
+ }
+ 
+ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
++	s.at(r)
+ 	defer s.pop(s.mark())
+ 	val, _ := indirect(s.evalPipeline(dot, r.Pipe))
+ 	// mark top of stack before any variables in the body are pushed.
+@@ -266,6 +277,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
+ }
+ 
+ func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
++	s.at(t)
+ 	tmpl := s.tmpl.tmpl[t.Name]
+ 	if tmpl == nil {
+ 		s.errorf("template %q not defined", t.Name)
+@@ -291,6 +303,7 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value ref
+ 	if pipe == nil {
+ 		return
+ 	}
++	s.at(pipe)
+ 	for _, cmd := range pipe.Cmds {
+ 		value = s.evalCommand(dot, cmd, value) // previous value is this one's final arg.
+ 		// If the object has type interface{}, dig down one level to the thing inside.
+@@ -319,14 +332,14 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
+ 		return s.evalChainNode(dot, n, cmd.Args, final)
+ 	case *parse.IdentifierNode:
+ 		// Must be a function.
+-		return s.evalFunction(dot, n.Ident, cmd.Args, final)
++		return s.evalFunction(dot, n, cmd, cmd.Args, final)
+ 	case *parse.PipeNode:
+ 		// Parenthesized pipeline. The arguments are all inside the pipeline; final is ignored.
+-		// TODO: is this right?
+ 		return s.evalPipeline(dot, n)
+ 	case *parse.VariableNode:
+ 		return s.evalVariableNode(dot, n, cmd.Args, final)
+ 	}
++	s.at(firstWord)
+ 	s.notAFunction(cmd.Args, final)
+ 	switch word := firstWord.(type) {
+ 	case *parse.BoolNode:
+@@ -352,6 +365,7 @@ func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
+ 	// These are ideal constants but we don't know the type
+ 	// and we have no context.  (If it was a method argument,
+ 	// we'd know what we need.) The syntax guides us to some extent.
++	s.at(constant)
+ 	switch {
+ 	case constant.IsComplex:
+ 		return reflect.ValueOf(constant.Complex128) // incontrovertible.
+@@ -370,52 +384,57 @@ func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
+ }
+ 
+ func (s *state) evalFieldNode(dot reflect.Value, field *parse.FieldNode, args []parse.Node, final reflect.Value) reflect.Value {
+-	return s.evalFieldChain(dot, dot, field.Ident, args, final)
++	s.at(field)
++	return s.evalFieldChain(dot, dot, field, field.Ident, args, final)
+ }
+ 
+ func (s *state) evalChainNode(dot reflect.Value, chain *parse.ChainNode, args []parse.Node, final reflect.Value) reflect.Value {
++	s.at(chain)
+ 	// (pipe).Field1.Field2 has pipe as .Node, fields as .Field. Eval the pipeline, then the fields.
+ 	pipe := s.evalArg(dot, nil, chain.Node)
+ 	if len(chain.Field) == 0 {
+ 		s.errorf("internal error: no fields in evalChainNode")
+ 	}
+-	return s.evalFieldChain(dot, pipe, chain.Field, args, final)
++	return s.evalFieldChain(dot, pipe, chain, chain.Field, args, final)
+ }
+ 
+-func (s *state) evalVariableNode(dot reflect.Value, v *parse.VariableNode, args []parse.Node, final reflect.Value) reflect.Value {
++func (s *state) evalVariableNode(dot reflect.Value, variable *parse.VariableNode, args []parse.Node, final reflect.Value) reflect.Value {
+ 	// $x.Field has $x as the first ident, Field as the second. Eval the var, then the fields.
+-	value := s.varValue(v.Ident[0])
+-	if len(v.Ident) == 1 {
++	s.at(variable)
++	value := s.varValue(variable.Ident[0])
++	if len(variable.Ident) == 1 {
+ 		s.notAFunction(args, final)
+ 		return value
+ 	}
+-	return s.evalFieldChain(dot, value, v.Ident[1:], args, final)
++	return s.evalFieldChain(dot, value, variable, variable.Ident[1:], args, final)
+ }
+ 
+ // evalFieldChain evaluates .X.Y.Z possibly followed by arguments.
+ // dot is the environment in which to evaluate arguments, while
+ // receiver is the value being walked along the chain.
+-func (s *state) evalFieldChain(dot, receiver reflect.Value, ident []string, args []parse.Node, final reflect.Value) reflect.Value {
++func (s *state) evalFieldChain(dot, receiver reflect.Value, node parse.Node, ident []string, args []parse.Node, final reflect.Value) reflect.Value {
+ 	n := len(ident)
+ 	for i := 0; i < n-1; i++ {
+-		receiver = s.evalField(dot, ident[i], nil, zero, receiver)
++		receiver = s.evalField(dot, ident[i], node, nil, zero, receiver)
+ 	}
+ 	// Now if it's a method, it gets the arguments.
+-	return s.evalField(dot, ident[n-1], args, final, receiver)
++	return s.evalField(dot, ident[n-1], node, args, final, receiver)
+ }
+ 
+-func (s *state) evalFunction(dot reflect.Value, name string, args []parse.Node, final reflect.Value) reflect.Value {
++func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd parse.Node, args []parse.Node, final reflect.Value) reflect.Value {
++	s.at(node)
++	name := node.Ident
+ 	function, ok := findFunction(name, s.tmpl)
+ 	if !ok {
+ 		s.errorf("%q is not a defined function", name)
+ 	}
+-	return s.evalCall(dot, function, name, args, final)
++	return s.evalCall(dot, function, cmd, name, args, final)
+ }
+ 
+ // evalField evaluates an expression like (.Field) or (.Field arg1 arg2).
+ // The 'final' argument represents the return value from the preceding
+ // value of the pipeline, if any.
+-func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node, final, receiver reflect.Value) reflect.Value {
++func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, args []parse.Node, final, receiver reflect.Value) reflect.Value {
+ 	if !receiver.IsValid() {
+ 		return zero
+ 	}
+@@ -428,7 +447,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
+ 		ptr = ptr.Addr()
+ 	}
+ 	if method := ptr.MethodByName(fieldName); method.IsValid() {
+-		return s.evalCall(dot, method, fieldName, args, final)
++		return s.evalCall(dot, method, node, fieldName, args, final)
+ 	}
+ 	hasArgs := len(args) > 1 || final.IsValid()
+ 	// It's not a method; must be a field of a struct or an element of a map. The receiver must not be nil.
+@@ -473,7 +492,7 @@ var (
+ // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
+ // it looks just like a function call.  The arg list, if non-nil, includes (in the manner of the shell), arg[0]
+ // as the function itself.
+-func (s *state) evalCall(dot, fun reflect.Value, name string, args []parse.Node, final reflect.Value) reflect.Value {
++func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, args []parse.Node, final reflect.Value) reflect.Value {
+ 	if args != nil {
+ 		args = args[1:] // Zeroth arg is function name/node; not passed to function.
+ 	}
+@@ -492,7 +511,8 @@ func (s *state) evalCall(dot, fun reflect.Value, name string, args []parse.Node,
+ 		s.errorf("wrong number of args for %s: want %d got %d", name, typ.NumIn(), len(args))
+ 	}
+ 	if !goodFunc(typ) {
+-		s.errorf("can't handle multiple results from method/function %q", name)
++		// TODO: This could still be a confusing error; maybe goodFunc should provide info.
++		s.errorf("can't call method/function %q with %d results", name, typ.NumOut())
+ 	}
+ 	// Build the arg list.
+ 	argv := make([]reflect.Value, numIn)
+@@ -519,6 +539,7 @@ func (s *state) evalCall(dot, fun reflect.Value, name string, args []parse.Node,
+ 	result := fun.Call(argv)
+ 	// If we have an error that is not nil, stop execution and return that error to the caller.
+ 	if len(result) == 2 && !result[1].IsNil() {
++		s.at(node)
+ 		s.errorf("error calling %s: %s", name, result[1].Interface().(error))
+ 	}
+ 	return result[0]
+@@ -567,6 +588,7 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
+ }
+ 
+ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) reflect.Value {
++	s.at(n)
+ 	switch arg := n.(type) {
+ 	case *parse.DotNode:
+ 		return s.validateType(dot, typ)
+@@ -605,6 +627,7 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
+ }
+ 
+ func (s *state) evalBool(typ reflect.Type, n parse.Node) reflect.Value {
++	s.at(n)
+ 	if n, ok := n.(*parse.BoolNode); ok {
+ 		value := reflect.New(typ).Elem()
+ 		value.SetBool(n.True)
+@@ -615,6 +638,7 @@ func (s *state) evalBool(typ reflect.Type, n parse.Node) reflect.Value {
+ }
+ 
+ func (s *state) evalString(typ reflect.Type, n parse.Node) reflect.Value {
++	s.at(n)
+ 	if n, ok := n.(*parse.StringNode); ok {
+ 		value := reflect.New(typ).Elem()
+ 		value.SetString(n.Text)
+@@ -625,6 +649,7 @@ func (s *state) evalString(typ reflect.Type, n parse.Node) reflect.Value {
+ }
+ 
+ func (s *state) evalInteger(typ reflect.Type, n parse.Node) reflect.Value {
++	s.at(n)
+ 	if n, ok := n.(*parse.NumberNode); ok && n.IsInt {
+ 		value := reflect.New(typ).Elem()
+ 		value.SetInt(n.Int64)
+@@ -635,6 +660,7 @@ func (s *state) evalInteger(typ reflect.Type, n parse.Node) reflect.Value {
+ }
+ 
+ func (s *state) evalUnsignedInteger(typ reflect.Type, n parse.Node) reflect.Value {
++	s.at(n)
+ 	if n, ok := n.(*parse.NumberNode); ok && n.IsUint {
+ 		value := reflect.New(typ).Elem()
+ 		value.SetUint(n.Uint64)
+@@ -645,6 +671,7 @@ func (s *state) evalUnsignedInteger(typ reflect.Type, n parse.Node) reflect.Valu
+ }
+ 
+ func (s *state) evalFloat(typ reflect.Type, n parse.Node) reflect.Value {
++	s.at(n)
+ 	if n, ok := n.(*parse.NumberNode); ok && n.IsFloat {
+ 		value := reflect.New(typ).Elem()
+ 		value.SetFloat(n.Float64)
+@@ -665,6 +692,7 @@ func (s *state) evalComplex(typ reflect.Type, n parse.Node) reflect.Value {
+ }
+ 
+ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Value {
++	s.at(n)
+ 	switch n := n.(type) {
+ 	case *parse.BoolNode:
+ 		return reflect.ValueOf(n.True)
+@@ -673,7 +701,7 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
+ 	case *parse.FieldNode:
+ 		return s.evalFieldNode(dot, n, nil, zero)
+ 	case *parse.IdentifierNode:
+-		return s.evalFunction(dot, n.Ident, nil, zero)
++		return s.evalFunction(dot, n, n, nil, zero)
+ 	case *parse.NilNode:
+ 		// NilNode is handled in evalArg, the only place that calls here.
+ 		s.errorf("evalEmptyInterface: nil (can't happen)")
+@@ -708,6 +736,7 @@ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
+ // printValue writes the textual representation of the value to the output of
+ // the template.
+ func (s *state) printValue(n parse.Node, v reflect.Value) {
++	s.at(n)
+ 	if v.Kind() == reflect.Ptr {
+ 		v, _ = indirect(v) // fmt.Fprint handles nil.
+ 	}
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 0835d31f79..d79365107d 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -675,6 +675,32 @@ func TestExecuteError(t *testing.T) {
+ 	}
+ }
+ 
++const execErrorText = `line 1
++line 2
++line 3
++{{template "one" .}}
++{{define "one"}}{{template "two" .}}{{end}}
++{{define "two"}}{{template "three" .}}{{end}}
++{{define "three"}}{{index "hi" $}}{{end}}`
++
++// Check that an error from a nested template contains all the relevant information.
++func TestExecError(t *testing.T) {
++	tmpl, err := New("top").Parse(execErrorText)
++	if err != nil {
++		t.Fatal("parse error:", err)
++	}
++	var b bytes.Buffer
++	err = tmpl.Execute(&b, 5) // 5 is out of range indexing "hi"
++	if err == nil {
++		t.Fatal("expected error")
++	}
++	const want = `template: top:7:20: executing "three" at <index "hi" $>: error calling index: index out of range: 5`
++	got := err.Error()
++	if got != want {
++		t.Errorf("expected\n%q\ngot\n%q", want, got)
++	}
++}
++
+ func TestJSEscaping(t *testing.T) {
+ 	testCases := []struct {
+ 		in, exp string
+diff --git a/src/pkg/text/template/funcs.go b/src/pkg/text/template/funcs.go
+index d3ecb51e37..31549dc45b 100644
+--- a/src/pkg/text/template/funcs.go
++++ b/src/pkg/text/template/funcs.go
+@@ -54,7 +54,7 @@ func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
+ 			panic("value for " + name + " not a function")
+ 		}
+ 		if !goodFunc(v.Type()) {
+-			panic(fmt.Errorf("can't handle multiple results from method/function %q", name))
++			panic(fmt.Errorf("can't install method/function %q with %d results", name, v.Type().NumOut()))
+ 		}
+ 		out[name] = v
+ 	}
+@@ -107,7 +107,7 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
+ 			return nil, fmt.Errorf("index of nil pointer")
+ 		}
+ 		switch v.Kind() {
+-		case reflect.Array, reflect.Slice:
++		case reflect.Array, reflect.Slice, reflect.String:
+ 			var x int64
+ 			switch index.Kind() {
+ 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+@@ -134,7 +134,7 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
+ 				v = reflect.Zero(v.Type().Elem())
+ 			}
+ 		default:
+-			return nil, fmt.Errorf("can't index item of type %s", index.Type())
++			return nil, fmt.Errorf("can't index item of type %s", v.Type())
+ 		}
+ 	}
+ 	return v.Interface(), nil
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index be7a4fb657..23c0cf0793 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -14,7 +14,7 @@ import (
+ // item represents a token or text string returned from the scanner.
+ type item struct {
+ 	typ itemType // The type of this item.
+-	pos int      // The starting position, in bytes, of this item in the input string.
++	pos Pos      // The starting position, in bytes, of this item in the input string.
+ 	val string   // The value of this item.
+ }
+ 
+@@ -38,7 +38,7 @@ type itemType int
+ const (
+ 	itemError        itemType = iota // error occurred; value is text of error
+ 	itemBool                         // boolean constant
+-	itemChar                         // printable ASCII character; grab bag for comma etc
++	itemChar                         // printable ASCII character; grab bag for comma etc.
+ 	itemCharConstant                 // character constant
+ 	itemComplex                      // complex constant (1+2i); imaginary is just a number
+ 	itemColonEquals                  // colon-equals (':=') introducing a declaration
+@@ -93,21 +93,22 @@ type lexer struct {
+ 	leftDelim  string    // start of action
+ 	rightDelim string    // end of action
+ 	state      stateFn   // the next lexing function to enter
+-	pos        int       // current position in the input
+-	start      int       // start position of this item
+-	width      int       // width of last rune read from input
+-	lastPos    int       // position of most recent item returned by nextItem
++	pos        Pos       // current position in the input
++	start      Pos       // start position of this item
++	width      Pos       // width of last rune read from input
++	lastPos    Pos       // position of most recent item returned by nextItem
+ 	items      chan item // channel of scanned items
+ 	parenDepth int       // nesting depth of ( ) exprs
+ }
+ 
+ // next returns the next rune in the input.
+-func (l *lexer) next() (r rune) {
+-	if l.pos >= len(l.input) {
++func (l *lexer) next() rune {
++	if int(l.pos) >= len(l.input) {
+ 		l.width = 0
+ 		return eof
+ 	}
+-	r, l.width = utf8.DecodeRuneInString(l.input[l.pos:])
++	r, w := utf8.DecodeRuneInString(l.input[l.pos:])
++	l.width = Pos(w)
+ 	l.pos += l.width
+ 	return r
+ }
+@@ -230,7 +231,7 @@ func lexText(l *lexer) stateFn {
+ 
+ // lexLeftDelim scans the left delimiter, which is known to be present.
+ func lexLeftDelim(l *lexer) stateFn {
+-	l.pos += len(l.leftDelim)
++	l.pos += Pos(len(l.leftDelim))
+ 	if strings.HasPrefix(l.input[l.pos:], leftComment) {
+ 		return lexComment
+ 	}
+@@ -241,19 +242,19 @@ func lexLeftDelim(l *lexer) stateFn {
+ 
+ // lexComment scans a comment. The left comment marker is known to be present.
+ func lexComment(l *lexer) stateFn {
+-	l.pos += len(leftComment)
++	l.pos += Pos(len(leftComment))
+ 	i := strings.Index(l.input[l.pos:], rightComment+l.rightDelim)
+ 	if i < 0 {
+ 		return l.errorf("unclosed comment")
+ 	}
+-	l.pos += i + len(rightComment) + len(l.rightDelim)
++	l.pos += Pos(i + len(rightComment) + len(l.rightDelim))
+ 	l.ignore()
+ 	return lexText
+ }
+ 
+ // lexRightDelim scans the right delimiter, which is known to be present.
+ func lexRightDelim(l *lexer) stateFn {
+-	l.pos += len(l.rightDelim)
++	l.pos += Pos(len(l.rightDelim))
+ 	l.emit(itemRightDelim)
+ 	return lexText
+ }
+@@ -291,7 +292,7 @@ func lexInsideAction(l *lexer) stateFn {
+ 		return lexChar
+ 	case r == '.':
+ 		// special look-ahead for ".field" so we don't break l.backup().
+-		if l.pos < len(l.input) {
++		if l.pos < Pos(len(l.input)) {
+ 			r := l.input[l.pos]
+ 			if r < '0' || '9' < r {
+ 				return lexField
+diff --git a/src/pkg/text/template/parse/node.go b/src/pkg/text/template/parse/node.go
+index 39e3b320bc..0cb7ceff4d 100644
+--- a/src/pkg/text/template/parse/node.go
++++ b/src/pkg/text/template/parse/node.go
+@@ -21,11 +21,20 @@ type Node interface {
+ 	// To avoid type assertions, some XxxNodes also have specialized
+ 	// CopyXxx methods that return *XxxNode.
+ 	Copy() Node
++	Position() Pos // byte position of start of node in full original input string
+ }
+ 
+ // NodeType identifies the type of a parse tree node.
+ type NodeType int
+ 
++// Pos represents a byte position in the original input text from which
++// this template was parsed.
++type Pos int
++
++func (p Pos) Position() Pos {
++	return p
++}
++
+ // Type returns itself and provides an easy default implementation
+ // for embedding in a Node. Embedded in all non-trivial Nodes.
+ func (t NodeType) Type() NodeType {
+@@ -60,11 +69,12 @@ const (
+ // ListNode holds a sequence of nodes.
+ type ListNode struct {
+ 	NodeType
++	Pos
+ 	Nodes []Node // The element nodes in lexical order.
+ }
+ 
+-func newList() *ListNode {
+-	return &ListNode{NodeType: NodeList}
++func newList(pos Pos) *ListNode {
++	return &ListNode{NodeType: NodeList, Pos: pos}
+ }
+ 
+ func (l *ListNode) append(n Node) {
+@@ -83,7 +93,7 @@ func (l *ListNode) CopyList() *ListNode {
+ 	if l == nil {
+ 		return l
+ 	}
+-	n := newList()
++	n := newList(l.Pos)
+ 	for _, elem := range l.Nodes {
+ 		n.append(elem.Copy())
+ 	}
+@@ -97,11 +107,12 @@ func (l *ListNode) Copy() Node {
+ // TextNode holds plain text.
+ type TextNode struct {
+ 	NodeType
++	Pos
+ 	Text []byte // The text; may span newlines.
+ }
+ 
+-func newText(text string) *TextNode {
+-	return &TextNode{NodeType: NodeText, Text: []byte(text)}
++func newText(pos Pos, text string) *TextNode {
++	return &TextNode{NodeType: NodeText, Pos: pos, Text: []byte(text)}
+ }
+ 
+ func (t *TextNode) String() string {
+@@ -115,13 +126,14 @@ func (t *TextNode) Copy() Node {
+ // PipeNode holds a pipeline with optional declaration
+ type PipeNode struct {
+ 	NodeType
+-	Line int             // The line number in the input.
++	Pos
++	Line int             // The line number in the input (deprecated; kept for compatibility)
+ 	Decl []*VariableNode // Variable declarations in lexical order.
+ 	Cmds []*CommandNode  // The commands in lexical order.
+ }
+ 
+-func newPipeline(line int, decl []*VariableNode) *PipeNode {
+-	return &PipeNode{NodeType: NodePipe, Line: line, Decl: decl}
++func newPipeline(pos Pos, line int, decl []*VariableNode) *PipeNode {
++	return &PipeNode{NodeType: NodePipe, Pos: pos, Line: line, Decl: decl}
+ }
+ 
+ func (p *PipeNode) append(command *CommandNode) {
+@@ -156,7 +168,7 @@ func (p *PipeNode) CopyPipe() *PipeNode {
+ 	for _, d := range p.Decl {
+ 		decl = append(decl, d.Copy().(*VariableNode))
+ 	}
+-	n := newPipeline(p.Line, decl)
++	n := newPipeline(p.Pos, p.Line, decl)
+ 	for _, c := range p.Cmds {
+ 		n.append(c.Copy().(*CommandNode))
+ 	}
+@@ -172,12 +184,13 @@ func (p *PipeNode) Copy() Node {
+ // ones such as field evaluations and parenthesized pipelines.
+ type ActionNode struct {
+ 	NodeType
+-	Line int       // The line number in the input.
++	Pos
++	Line int       // The line number in the input (deprecated; kept for compatibility)
+ 	Pipe *PipeNode // The pipeline in the action.
+ }
+ 
+-func newAction(line int, pipe *PipeNode) *ActionNode {
+-	return &ActionNode{NodeType: NodeAction, Line: line, Pipe: pipe}
++func newAction(pos Pos, line int, pipe *PipeNode) *ActionNode {
++	return &ActionNode{NodeType: NodeAction, Pos: pos, Line: line, Pipe: pipe}
+ }
+ 
+ func (a *ActionNode) String() string {
+@@ -186,18 +199,19 @@ func (a *ActionNode) String() string {
+ }
+ 
+ func (a *ActionNode) Copy() Node {
+-	return newAction(a.Line, a.Pipe.CopyPipe())
++	return newAction(a.Pos, a.Line, a.Pipe.CopyPipe())
+ 
+ }
+ 
+ // CommandNode holds a command (a pipeline inside an evaluating action).
+ type CommandNode struct {
+ 	NodeType
++	Pos
+ 	Args []Node // Arguments in lexical order: Identifier, field, or constant.
+ }
+ 
+-func newCommand() *CommandNode {
+-	return &CommandNode{NodeType: NodeCommand}
++func newCommand(pos Pos) *CommandNode {
++	return &CommandNode{NodeType: NodeCommand, Pos: pos}
+ }
+ 
+ func (c *CommandNode) append(arg Node) {
+@@ -223,7 +237,7 @@ func (c *CommandNode) Copy() Node {
+ 	if c == nil {
+ 		return c
+ 	}
+-	n := newCommand()
++	n := newCommand(c.Pos)
+ 	for _, c := range c.Args {
+ 		n.append(c.Copy())
+ 	}
+@@ -233,6 +247,7 @@ func (c *CommandNode) Copy() Node {
+ // IdentifierNode holds an identifier.
+ type IdentifierNode struct {
+ 	NodeType
++	Pos
+ 	Ident string // The identifier's name.
+ }
+ 
+@@ -241,23 +256,32 @@ func NewIdentifier(ident string) *IdentifierNode {
+ 	return &IdentifierNode{NodeType: NodeIdentifier, Ident: ident}
+ }
+ 
++// SetPos sets the position. NewIdentifier is a public method so we can't modify its signature.
++// Chained for convenience.
++// TODO: fix one day?
++func (i *IdentifierNode) SetPos(pos Pos) *IdentifierNode {
++	i.Pos = pos
++	return i
++}
++
+ func (i *IdentifierNode) String() string {
+ 	return i.Ident
+ }
+ 
+ func (i *IdentifierNode) Copy() Node {
+-	return NewIdentifier(i.Ident)
++	return NewIdentifier(i.Ident).SetPos(i.Pos)
+ }
+ 
+ // VariableNode holds a list of variable names, possibly with chained field
+ // accesses. The dollar sign is part of the (first) name.
+ type VariableNode struct {
+ 	NodeType
++	Pos
+ 	Ident []string // Variable name and fields in lexical order.
+ }
+ 
+-func newVariable(ident string) *VariableNode {
+-	return &VariableNode{NodeType: NodeVariable, Ident: strings.Split(ident, ".")}
++func newVariable(pos Pos, ident string) *VariableNode {
++	return &VariableNode{NodeType: NodeVariable, Pos: pos, Ident: strings.Split(ident, ".")}
+ }
+ 
+ func (v *VariableNode) String() string {
+@@ -272,14 +296,16 @@ func (v *VariableNode) String() string {
+ }
+ 
+ func (v *VariableNode) Copy() Node {
+-	return &VariableNode{NodeType: NodeVariable, Ident: append([]string{}, v.Ident...)}
++	return &VariableNode{NodeType: NodeVariable, Pos: v.Pos, Ident: append([]string{}, v.Ident...)}
+ }
+ 
+-// DotNode holds the special identifier '.'. It is represented by a nil pointer.
+-type DotNode bool
++// DotNode holds the special identifier '.'.
++type DotNode struct {
++	Pos
++}
+ 
+-func newDot() *DotNode {
+-	return nil
++func newDot(pos Pos) *DotNode {
++	return &DotNode{Pos: pos}
+ }
+ 
+ func (d *DotNode) Type() NodeType {
+@@ -291,27 +317,28 @@ func (d *DotNode) String() string {
+ }
+ 
+ func (d *DotNode) Copy() Node {
+-	return newDot()
++	return newDot(d.Pos)
+ }
+ 
+ // NilNode holds the special identifier 'nil' representing an untyped nil constant.
+-// It is represented by a nil pointer.
+-type NilNode bool
++type NilNode struct {
++	Pos
++}
+ 
+-func newNil() *NilNode {
+-	return nil
++func newNil(pos Pos) *NilNode {
++	return &NilNode{Pos: pos}
+ }
+ 
+-func (d *NilNode) Type() NodeType {
++func (n *NilNode) Type() NodeType {
+ 	return NodeNil
+ }
+ 
+-func (d *NilNode) String() string {
++func (n *NilNode) String() string {
+ 	return "nil"
+ }
+ 
+-func (d *NilNode) Copy() Node {
+-	return newNil()
++func (n *NilNode) Copy() Node {
++	return newNil(n.Pos)
+ }
+ 
+ // FieldNode holds a field (identifier starting with '.').
+@@ -319,11 +346,12 @@ func (d *NilNode) Copy() Node {
+ // The period is dropped from each ident.
+ type FieldNode struct {
+ 	NodeType
++	Pos
+ 	Ident []string // The identifiers in lexical order.
+ }
+ 
+-func newField(ident string) *FieldNode {
+-	return &FieldNode{NodeType: NodeField, Ident: strings.Split(ident[1:], ".")} // [1:] to drop leading period
++func newField(pos Pos, ident string) *FieldNode {
++	return &FieldNode{NodeType: NodeField, Pos: pos, Ident: strings.Split(ident[1:], ".")} // [1:] to drop leading period
+ }
+ 
+ func (f *FieldNode) String() string {
+@@ -335,7 +363,7 @@ func (f *FieldNode) String() string {
+ }
+ 
+ func (f *FieldNode) Copy() Node {
+-	return &FieldNode{NodeType: NodeField, Ident: append([]string{}, f.Ident...)}
++	return &FieldNode{NodeType: NodeField, Pos: f.Pos, Ident: append([]string{}, f.Ident...)}
+ }
+ 
+ // ChainNode holds a term followed by a chain of field accesses (identifier starting with '.').
+@@ -343,12 +371,13 @@ func (f *FieldNode) Copy() Node {
+ // The periods are dropped from each ident.
+ type ChainNode struct {
+ 	NodeType
++	Pos
+ 	Node  Node
+ 	Field []string // The identifiers in lexical order.
+ }
+ 
+-func newChain(node Node) *ChainNode {
+-	return &ChainNode{NodeType: NodeChain, Node: node}
++func newChain(pos Pos, node Node) *ChainNode {
++	return &ChainNode{NodeType: NodeChain, Pos: pos, Node: node}
+ }
+ 
+ // Add adds the named field (which should start with a period) to the end of the chain.
+@@ -375,17 +404,18 @@ func (c *ChainNode) String() string {
+ }
+ 
+ func (c *ChainNode) Copy() Node {
+-	return &ChainNode{NodeType: NodeChain, Node: c.Node, Field: append([]string{}, c.Field...)}
++	return &ChainNode{NodeType: NodeChain, Pos: c.Pos, Node: c.Node, Field: append([]string{}, c.Field...)}
+ }
+ 
+ // BoolNode holds a boolean constant.
+ type BoolNode struct {
+ 	NodeType
++	Pos
+ 	True bool // The value of the boolean constant.
+ }
+ 
+-func newBool(true bool) *BoolNode {
+-	return &BoolNode{NodeType: NodeBool, True: true}
++func newBool(pos Pos, true bool) *BoolNode {
++	return &BoolNode{NodeType: NodeBool, Pos: pos, True: true}
+ }
+ 
+ func (b *BoolNode) String() string {
+@@ -396,7 +426,7 @@ func (b *BoolNode) String() string {
+ }
+ 
+ func (b *BoolNode) Copy() Node {
+-	return newBool(b.True)
++	return newBool(b.Pos, b.True)
+ }
+ 
+ // NumberNode holds a number: signed or unsigned integer, float, or complex.
+@@ -404,6 +434,7 @@ func (b *BoolNode) Copy() Node {
+ // This simulates in a small amount of code the behavior of Go's ideal constants.
+ type NumberNode struct {
+ 	NodeType
++	Pos
+ 	IsInt      bool       // Number has an integral value.
+ 	IsUint     bool       // Number has an unsigned integral value.
+ 	IsFloat    bool       // Number has a floating-point value.
+@@ -415,8 +446,8 @@ type NumberNode struct {
+ 	Text       string     // The original textual representation from the input.
+ }
+ 
+-func newNumber(text string, typ itemType) (*NumberNode, error) {
+-	n := &NumberNode{NodeType: NodeNumber, Text: text}
++func newNumber(pos Pos, text string, typ itemType) (*NumberNode, error) {
++	n := &NumberNode{NodeType: NodeNumber, Pos: pos, Text: text}
+ 	switch typ {
+ 	case itemCharConstant:
+ 		rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
+@@ -526,12 +557,13 @@ func (n *NumberNode) Copy() Node {
+ // StringNode holds a string constant. The value has been "unquoted".
+ type StringNode struct {
+ 	NodeType
++	Pos
+ 	Quoted string // The original text of the string, with quotes.
+ 	Text   string // The string, after quote processing.
+ }
+ 
+-func newString(orig, text string) *StringNode {
+-	return &StringNode{NodeType: NodeString, Quoted: orig, Text: text}
++func newString(pos Pos, orig, text string) *StringNode {
++	return &StringNode{NodeType: NodeString, Pos: pos, Quoted: orig, Text: text}
+ }
+ 
+ func (s *StringNode) String() string {
+@@ -539,15 +571,17 @@ func (s *StringNode) String() string {
+ }
+ 
+ func (s *StringNode) Copy() Node {
+-	return newString(s.Quoted, s.Text)
++	return newString(s.Pos, s.Quoted, s.Text)
+ }
+ 
+-// endNode represents an {{end}} action. It is represented by a nil pointer.
++// endNode represents an {{end}} action.
+ // It does not appear in the final parse tree.
+-type endNode bool
++type endNode struct {
++	Pos
++}
+ 
+-func newEnd() *endNode {
+-	return nil
++func newEnd(pos Pos) *endNode {
++	return &endNode{Pos: pos}
+ }
+ 
+ func (e *endNode) Type() NodeType {
+@@ -559,17 +593,18 @@ func (e *endNode) String() string {
+ }
+ 
+ func (e *endNode) Copy() Node {
+-	return newEnd()
++	return newEnd(e.Pos)
+ }
+ 
+ // elseNode represents an {{else}} action. Does not appear in the final tree.
+ type elseNode struct {
+ 	NodeType
+-	Line int // The line number in the input.
++	Pos
++	Line int // The line number in the input (deprecated; kept for compatibility)
+ }
+ 
+-func newElse(line int) *elseNode {
+-	return &elseNode{NodeType: nodeElse, Line: line}
++func newElse(pos Pos, line int) *elseNode {
++	return &elseNode{NodeType: nodeElse, Pos: pos, Line: line}
+ }
+ 
+ func (e *elseNode) Type() NodeType {
+@@ -581,13 +616,14 @@ func (e *elseNode) String() string {
+ }
+ 
+ func (e *elseNode) Copy() Node {
+-	return newElse(e.Line)
++	return newElse(e.Pos, e.Line)
+ }
+ 
+ // BranchNode is the common representation of if, range, and with.
+ type BranchNode struct {
+ 	NodeType
+-	Line     int       // The line number in the input.
++	Pos
++	Line     int       // The line number in the input (deprecated; kept for compatibility)
+ 	Pipe     *PipeNode // The pipeline to be evaluated.
+ 	List     *ListNode // What to execute if the value is non-empty.
+ 	ElseList *ListNode // What to execute if the value is empty (nil if absent).
+@@ -616,12 +652,12 @@ type IfNode struct {
+ 	BranchNode
+ }
+ 
+-func newIf(line int, pipe *PipeNode, list, elseList *ListNode) *IfNode {
+-	return &IfNode{BranchNode{NodeType: NodeIf, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
++func newIf(pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) *IfNode {
++	return &IfNode{BranchNode{NodeType: NodeIf, Pos: pos, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
+ }
+ 
+ func (i *IfNode) Copy() Node {
+-	return newIf(i.Line, i.Pipe.CopyPipe(), i.List.CopyList(), i.ElseList.CopyList())
++	return newIf(i.Pos, i.Line, i.Pipe.CopyPipe(), i.List.CopyList(), i.ElseList.CopyList())
+ }
+ 
+ // RangeNode represents a {{range}} action and its commands.
+@@ -629,12 +665,12 @@ type RangeNode struct {
+ 	BranchNode
+ }
+ 
+-func newRange(line int, pipe *PipeNode, list, elseList *ListNode) *RangeNode {
+-	return &RangeNode{BranchNode{NodeType: NodeRange, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
++func newRange(pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) *RangeNode {
++	return &RangeNode{BranchNode{NodeType: NodeRange, Pos: pos, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
+ }
+ 
+ func (r *RangeNode) Copy() Node {
+-	return newRange(r.Line, r.Pipe.CopyPipe(), r.List.CopyList(), r.ElseList.CopyList())
++	return newRange(r.Pos, r.Line, r.Pipe.CopyPipe(), r.List.CopyList(), r.ElseList.CopyList())
+ }
+ 
+ // WithNode represents a {{with}} action and its commands.
+@@ -642,24 +678,25 @@ type WithNode struct {
+ 	BranchNode
+ }
+ 
+-func newWith(line int, pipe *PipeNode, list, elseList *ListNode) *WithNode {
+-	return &WithNode{BranchNode{NodeType: NodeWith, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
++func newWith(pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) *WithNode {
++	return &WithNode{BranchNode{NodeType: NodeWith, Pos: pos, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
+ }
+ 
+ func (w *WithNode) Copy() Node {
+-	return newWith(w.Line, w.Pipe.CopyPipe(), w.List.CopyList(), w.ElseList.CopyList())
++	return newWith(w.Pos, w.Line, w.Pipe.CopyPipe(), w.List.CopyList(), w.ElseList.CopyList())
+ }
+ 
+ // TemplateNode represents a {{template}} action.
+ type TemplateNode struct {
+ 	NodeType
+-	Line int       // The line number in the input.
++	Pos
++	Line int       // The line number in the input (deprecated; kept for compatibility)
+ 	Name string    // The name of the template (unquoted).
+ 	Pipe *PipeNode // The command to evaluate as dot for the template.
+ }
+ 
+-func newTemplate(line int, name string, pipe *PipeNode) *TemplateNode {
+-	return &TemplateNode{NodeType: NodeTemplate, Line: line, Name: name, Pipe: pipe}
++func newTemplate(pos Pos, line int, name string, pipe *PipeNode) *TemplateNode {
++	return &TemplateNode{NodeType: NodeTemplate, Line: line, Pos: pos, Name: name, Pipe: pipe}
+ }
+ 
+ func (t *TemplateNode) String() string {
+@@ -670,5 +707,5 @@ func (t *TemplateNode) String() string {
+ }
+ 
+ func (t *TemplateNode) Copy() Node {
+-	return newTemplate(t.Line, t.Name, t.Pipe.CopyPipe())
++	return newTemplate(t.Pos, t.Line, t.Name, t.Pipe.CopyPipe())
+ }
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index 9e2af12ad7..250cad5f35 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -13,6 +13,7 @@ import (
+ 	"fmt"
+ 	"runtime"
+ 	"strconv"
++	"strings"
+ 	"unicode"
+ )
+ 
+@@ -21,6 +22,7 @@ type Tree struct {
+ 	Name      string    // name of the template represented by the tree.
+ 	ParseName string    // name of the top-level template during parsing, for error messages.
+ 	Root      *ListNode // top-level root of the tree.
++	text      string    // text parsed to create the template (or its parent)
+ 	// Parsing only; cleared after parse.
+ 	funcs     []map[string]interface{}
+ 	lex       *lexer
+@@ -35,7 +37,9 @@ type Tree struct {
+ // empty map is returned with the error.
+ func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (treeSet map[string]*Tree, err error) {
+ 	treeSet = make(map[string]*Tree)
+-	_, err = New(name).Parse(text, leftDelim, rightDelim, treeSet, funcs...)
++	t := New(name)
++	t.text = text
++	_, err = t.Parse(text, leftDelim, rightDelim, treeSet, funcs...)
+ 	return
+ }
+ 
+@@ -112,6 +116,25 @@ func New(name string, funcs ...map[string]interface{}) *Tree {
+ 	}
+ }
+ 
++// ErrorContext returns a textual representation of the location of the node in the input text.
++func (t *Tree) ErrorContext(n Node) (location, context string) {
++	pos := int(n.Position())
++	text := t.text[:pos]
++	byteNum := strings.LastIndex(text, "\n")
++	if byteNum == -1 {
++		byteNum = pos // On first line.
++	} else {
++		byteNum++ // After the newline.
++		byteNum = pos - byteNum
++	}
++	lineNum := 1 + strings.Count(text, "\n")
++	context = n.String()
++	if len(context) > 20 {
++		context = fmt.Sprintf("%.20s...", context)
++	}
++	return fmt.Sprintf("%s:%d:%d", t.ParseName, lineNum, byteNum), context
++}
++
+ // errorf formats the error and terminates processing.
+ func (t *Tree) errorf(format string, args ...interface{}) {
+ 	t.Root = nil
+@@ -202,10 +225,11 @@ func (t *Tree) atEOF() bool {
+ // the template for execution. If either action delimiter string is empty, the
+ // default ("{{" or "}}") is used. Embedded template definitions are added to
+ // the treeSet map.
+-func (t *Tree) Parse(s, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
++func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
+ 	defer t.recover(&err)
+ 	t.ParseName = t.Name
+-	t.startParse(funcs, lex(t.Name, s, leftDelim, rightDelim))
++	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim))
++	t.text = text
+ 	t.parse(treeSet)
+ 	t.add(treeSet)
+ 	t.stopParse()
+@@ -253,12 +277,13 @@ func IsEmptyTree(n Node) bool {
+ // as itemList except it also parses {{define}} actions.
+ // It runs to EOF.
+ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
+-	t.Root = newList()
++	t.Root = newList(t.peek().pos)
+ 	for t.peek().typ != itemEOF {
+ 		if t.peek().typ == itemLeftDelim {
+ 			delim := t.next()
+ 			if t.nextNonSpace().typ == itemDefine {
+ 				newT := New("definition") // name will be updated once we know it.
++				newT.text = t.text
+ 				newT.ParseName = t.ParseName
+ 				newT.startParse(t.funcs, t.lex)
+ 				newT.parseDefinition(treeSet)
+@@ -300,7 +325,7 @@ func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
+ //	textOrAction*
+ // Terminates at {{end}} or {{else}}, returned separately.
+ func (t *Tree) itemList() (list *ListNode, next Node) {
+-	list = newList()
++	list = newList(t.peekNonSpace().pos)
+ 	for t.peekNonSpace().typ != itemEOF {
+ 		n := t.textOrAction()
+ 		switch n.Type() {
+@@ -318,7 +343,7 @@ func (t *Tree) itemList() (list *ListNode, next Node) {
+ func (t *Tree) textOrAction() Node {
+ 	switch token := t.nextNonSpace(); token.typ {
+ 	case itemText:
+-		return newText(token.val)
++		return newText(token.pos, token.val)
+ 	case itemLeftDelim:
+ 		return t.action()
+ 	default:
+@@ -349,13 +374,14 @@ func (t *Tree) action() (n Node) {
+ 	}
+ 	t.backup()
+ 	// Do not pop variables; they persist until "end".
+-	return newAction(t.lex.lineNumber(), t.pipeline("command"))
++	return newAction(t.peek().pos, t.lex.lineNumber(), t.pipeline("command"))
+ }
+ 
+ // Pipeline:
+ //	declarations? command ('|' command)*
+ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 	var decl []*VariableNode
++	pos := t.peekNonSpace().pos
+ 	// Are there declarations?
+ 	for {
+ 		if v := t.peekNonSpace(); v.typ == itemVariable {
+@@ -367,7 +393,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 			tokenAfterVariable := t.peek()
+ 			if next := t.peekNonSpace(); next.typ == itemColonEquals || (next.typ == itemChar && next.val == ",") {
+ 				t.nextNonSpace()
+-				variable := newVariable(v.val)
++				variable := newVariable(v.pos, v.val)
+ 				decl = append(decl, variable)
+ 				t.vars = append(t.vars, v.val)
+ 				if next.typ == itemChar && next.val == "," {
+@@ -384,7 +410,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 		}
+ 		break
+ 	}
+-	pipe = newPipeline(t.lex.lineNumber(), decl)
++	pipe = newPipeline(pos, t.lex.lineNumber(), decl)
+ 	for {
+ 		switch token := t.nextNonSpace(); token.typ {
+ 		case itemRightDelim, itemRightParen:
+@@ -406,9 +432,9 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 	return
+ }
+ 
+-func (t *Tree) parseControl(context string) (lineNum int, pipe *PipeNode, list, elseList *ListNode) {
+-	lineNum = t.lex.lineNumber()
++func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
+ 	defer t.popVars(len(t.vars))
++	line = t.lex.lineNumber()
+ 	pipe = t.pipeline(context)
+ 	var next Node
+ 	list, next = t.itemList()
+@@ -421,7 +447,7 @@ func (t *Tree) parseControl(context string) (lineNum int, pipe *PipeNode, list,
+ 		}
+ 		elseList = elseList
+ 	}
+-	return lineNum, pipe, list, elseList
++	return pipe.Position(), line, pipe, list, elseList
+ }
+ 
+ // If:
+@@ -452,16 +478,14 @@ func (t *Tree) withControl() Node {
+ //	{{end}}
+ // End keyword is past.
+ func (t *Tree) endControl() Node {
+-	t.expect(itemRightDelim, "end")
+-	return newEnd()
++	return newEnd(t.expect(itemRightDelim, "end").pos)
+ }
+ 
+ // Else:
+ //	{{else}}
+ // Else keyword is past.
+ func (t *Tree) elseControl() Node {
+-	t.expect(itemRightDelim, "else")
+-	return newElse(t.lex.lineNumber())
++	return newElse(t.expect(itemRightDelim, "else").pos, t.lex.lineNumber())
+ }
+ 
+ // Template:
+@@ -470,7 +494,8 @@ func (t *Tree) elseControl() Node {
+ // to a string.
+ func (t *Tree) templateControl() Node {
+ 	var name string
+-	switch token := t.nextNonSpace(); token.typ {
++	token := t.nextNonSpace()
++	switch token.typ {
+ 	case itemString, itemRawString:
+ 		s, err := strconv.Unquote(token.val)
+ 		if err != nil {
+@@ -486,7 +511,7 @@ func (t *Tree) templateControl() Node {
+ 		// Do not pop variables; they persist until "end".
+ 		pipe = t.pipeline("template")
+ 	}
+-	return newTemplate(t.lex.lineNumber(), name, pipe)
++	return newTemplate(token.pos, t.lex.lineNumber(), name, pipe)
+ }
+ 
+ // command:
+@@ -494,7 +519,7 @@ func (t *Tree) templateControl() Node {
+ // space-separated arguments up to a pipeline character or right delimiter.
+ // we consume the pipe character but leave the right delim to terminate the action.
+ func (t *Tree) command() *CommandNode {
+-	cmd := newCommand()
++	cmd := newCommand(t.peekNonSpace().pos)
+ 	for {
+ 		t.peekNonSpace() // skip leading spaces.
+ 		operand := t.operand()
+@@ -531,7 +556,7 @@ func (t *Tree) operand() Node {
+ 		return nil
+ 	}
+ 	if t.peek().typ == itemField {
+-		chain := newChain(node)
++		chain := newChain(t.peek().pos, node)
+ 		for t.peek().typ == itemField {
+ 			chain.Add(t.next().val)
+ 		}
+@@ -541,9 +566,9 @@ func (t *Tree) operand() Node {
+ 		// TODO: Switch to Chains always when we can.
+ 		switch node.Type() {
+ 		case NodeField:
+-			node = newField(chain.String())
++			node = newField(chain.Position(), chain.String())
+ 		case NodeVariable:
+-			node = newVariable(chain.String())
++			node = newVariable(chain.Position(), chain.String())
+ 		default:
+ 			node = chain
+ 		}
+@@ -568,19 +593,19 @@ func (t *Tree) term() Node {
+ 		if !t.hasFunction(token.val) {
+ 			t.errorf("function %q not defined", token.val)
+ 		}
+-		return NewIdentifier(token.val)
++		return NewIdentifier(token.val).SetPos(token.pos)
+ 	case itemDot:
+-		return newDot()
++		return newDot(token.pos)
+ 	case itemNil:
+-		return newNil()
++		return newNil(token.pos)
+ 	case itemVariable:
+-		return t.useVar(token.val)
++		return t.useVar(token.pos, token.val)
+ 	case itemField:
+-		return newField(token.val)
++		return newField(token.pos, token.val)
+ 	case itemBool:
+-		return newBool(token.val == "true")
++		return newBool(token.pos, token.val == "true")
+ 	case itemCharConstant, itemComplex, itemNumber:
+-		number, err := newNumber(token.val, token.typ)
++		number, err := newNumber(token.pos, token.val, token.typ)
+ 		if err != nil {
+ 			t.error(err)
+ 		}
+@@ -596,7 +621,7 @@ func (t *Tree) term() Node {
+ 		if err != nil {
+ 			t.error(err)
+ 		}
+-		return newString(token.val, s)
++		return newString(token.pos, token.val, s)
+ 	}
+ 	t.backup()
+ 	return nil
+@@ -622,8 +647,8 @@ func (t *Tree) popVars(n int) {
+ 
+ // useVar returns a node for a variable reference. It errors if the
+ // variable is not defined.
+-func (t *Tree) useVar(name string) Node {
+-	v := newVariable(name)
++func (t *Tree) useVar(pos Pos, name string) Node {
++	v := newVariable(pos, name)
+ 	for _, varName := range t.vars {
+ 		if varName == v.Ident[0] {
+ 			return v
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index 0f75c33e77..695c76ebfe 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -85,7 +85,7 @@ func TestNumberParse(t *testing.T) {
+ 				typ = itemComplex
+ 			}
+ 		}
+-		n, err := newNumber(test.text, typ)
++		n, err := newNumber(0, test.text, typ)
+ 		ok := test.isInt || test.isUint || test.isFloat || test.isComplex
+ 		if ok && err != nil {
+ 			t.Errorf("unexpected error for %q: %s", test.text, err)

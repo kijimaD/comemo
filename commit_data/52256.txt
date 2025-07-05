@@ -10,3 +10,21 @@ Date:   Thu Apr 21 17:30:08 2022 +0200
  src/crypto/rand/rand_batched_test.go |  2 +-
  src/crypto/rand/rand_unix.go         | 62 +++++++++++-------------------------
  2 files changed, 19 insertions(+), 45 deletions(-)
+
+diff --cc src/crypto/rand/rand_unix.go
+index 0b137e131f,07715bd5ee..87ba9e3af7
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@@ -94,11 -59,7 +65,8 @@@ func warnBlocked() 
+  }
+  
+  func (r *reader) Read(b []byte) (n int, err error) {
+ +	boring.Unreachable()
+- 	r.mu.Lock()
+- 	defer r.mu.Unlock()
+- 	if !r.used {
+- 		r.used = true
++ 	if atomic.CompareAndSwapUint32(&r.used, 0, 1) {
+  		// First use of randomness. Start timer to warn about
+  		// being blocked on entropy not being available.
+  		t := time.AfterFunc(time.Minute, warnBlocked)

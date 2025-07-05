@@ -7,6 +7,27 @@ Date:   Mon May 24 15:26:20 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1274042
-
+---
  test/golden.out | 12 ------------
  1 file changed, 12 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index b529d2d3f1..1bed6599a8 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -180,15 +180,3 @@ BUG: bug260 failed
+ 
+ =========== bugs/bug274.go
+ BUG: errchk: command succeeded unexpectedly
+-
+-=========== bugs/bug277.go
+-bugs/bug277.go:46: syntax error: unexpected (, expecting {
+-bugs/bug277.go:50: syntax error: unexpected interface
+-bugs/bug277.go:53: non-declaration statement outside function body
+-bugs/bug277.go:54: non-declaration statement outside function body
+-bugs/bug277.go:55: syntax error: unexpected LCHAN
+-bugs/bug277.go:56: syntax error: unexpected LCHAN
+-bugs/bug277.go:57: non-declaration statement outside function body
+-bugs/bug277.go:58: non-declaration statement outside function body
+-bugs/bug277.go:59: syntax error: unexpected }
+-BUG should compile

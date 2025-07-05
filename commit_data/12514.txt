@@ -7,9 +7,622 @@ Date:   Thu Mar 8 21:54:46 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5790045
-
+---
  misc/dashboard/builder/http.go      |  35 -----
  misc/dashboard/builder/main.go      | 121 +-----------------
  misc/dashboard/builder/package.go   | 121 ------------------
  misc/dashboard/googlecode_upload.py | 248 ------------------------------------
  4 files changed, 2 insertions(+), 523 deletions(-)
+
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index f5a1fcf9bd..e50ae57241 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -125,41 +125,6 @@ func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string, runT
+ 	return dash("POST", "result", args, req, nil)
+ }
+ 
+-// packages fetches a list of package paths from the dashboard
+-func packages() (pkgs []string, err error) {
+-	return nil, nil
+-	/* TODO(adg): un-stub this once the new package builder design is done
+-	var resp struct {
+-		Packages []struct {
+-			Path string
+-		}
+-	}
+-	err = dash("GET", "package", &resp, param{"fmt": "json"})
+-	if err != nil {
+-		return
+-	}
+-	for _, p := range resp.Packages {
+-		pkgs = append(pkgs, p.Path)
+-	}
+-	return
+-	*/
+-}
+-
+-// updatePackage sends package build results and info to the dashboard
+-func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) error {
+-	return nil
+-	/* TODO(adg): un-stub this once the new package builder design is done
+-	return dash("POST", "package", nil, param{
+-		"builder": b.name,
+-		"key":     b.key,
+-		"path":    pkg,
+-		"ok":      strconv.FormatBool(ok),
+-		"log":     buildLog,
+-		"info":    info,
+-	})
+-	*/
+-}
+-
+ func postCommit(key, pkg string, l *HgLog) error {
+ 	t, err := time.Parse(time.RFC3339, l.Date)
+ 	if err != nil {
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 534ff514ad..85bb7ad4b8 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"encoding/xml"
+-	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -43,8 +43,6 @@ type Builder struct {
+ 	name         string
+ 	goos, goarch string
+ 	key          string
+-	codeUsername string
+-	codePassword string
+ }
+ 
+ var (
+@@ -55,7 +53,6 @@ var (
+ 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
+ 	buildCmd      = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
+ 	failAll       = flag.Bool("fail", false, "fail all builds")
+-	external      = flag.Bool("external", false, "Build external packages")
+ 	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
+ 	verbose       = flag.Bool("v", false, "verbose")
+ )
+@@ -131,14 +128,6 @@ func main() {
+ 		return
+ 	}
+ 
+-	// external package build mode
+-	if *external {
+-		if len(builders) != 1 {
+-			log.Fatal("only one goos-goarch should be specified with -external")
+-		}
+-		builders[0].buildExternal()
+-	}
+-
+ 	// go continuous build mode (default)
+ 	// check for new commits and build them
+ 	for {
+@@ -212,53 +201,10 @@ func NewBuilder(builder string) (*Builder, error) {
+ 	if err != nil {
+ 		return nil, fmt.Errorf("readKeys %s (%s): %s", b.name, fn, err)
+ 	}
+-	v := strings.Split(string(c), "\n")
+-	b.key = v[0]
+-	if len(v) >= 3 {
+-		b.codeUsername, b.codePassword = v[1], v[2]
+-	}
+-
++	b.key = string(bytes.TrimSpace(bytes.SplitN(c, []byte("\n"), 2)[0]))
+ 	return b, nil
+ }
+ 
+-// buildExternal downloads and builds external packages, and
+-// reports their build status to the dashboard.
+-// It will re-build all packages after pkgBuildInterval nanoseconds or
+-// a new release tag is found.
+-func (b *Builder) buildExternal() {
+-	var prevTag string
+-	var nextBuild time.Time
+-	for {
+-		time.Sleep(waitInterval)
+-		err := run(nil, goroot, "hg", "pull", "-u")
+-		if err != nil {
+-			log.Println("hg pull failed:", err)
+-			continue
+-		}
+-		hash, tag, err := firstTag(releaseRe)
+-		if err != nil {
+-			log.Println(err)
+-			continue
+-		}
+-		if *verbose {
+-			log.Println("latest release:", tag)
+-		}
+-		// don't rebuild if there's no new release
+-		// and it's been less than pkgBuildInterval
+-		// nanoseconds since the last build.
+-		if tag == prevTag && time.Now().Before(nextBuild) {
+-			continue
+-		}
+-		// build will also build the packages
+-		if err := b.buildHash(hash); err != nil {
+-			log.Println(err)
+-			continue
+-		}
+-		prevTag = tag
+-		nextBuild = time.Now().Add(pkgBuildInterval)
+-	}
+-}
+-
+ // build checks for a new commit for this builder
+ // and builds it if one is found. 
+ // It returns true if a build was attempted.
+@@ -321,14 +267,6 @@ func (b *Builder) buildHash(hash string) error {
+ 		return fmt.Errorf("%s: %s", *buildCmd, err)
+ 	}
+ 
+-	// if we're in external mode, build all packages and return
+-	if *external {
+-		if status != 0 {
+-			return errors.New("go build failed")
+-		}
+-		return b.buildExternalPackages(workpath, hash)
+-	}
+-
+ 	if status != 0 {
+ 		// record failure
+ 		return b.recordResult(false, "", hash, "", buildLog, runTime)
+@@ -342,36 +280,6 @@ func (b *Builder) buildHash(hash string) error {
+ 	// build Go sub-repositories
+ 	b.buildSubrepos(filepath.Join(workpath, "go"), hash)
+ 
+-	// finish here if codeUsername and codePassword aren't set
+-	if b.codeUsername == "" || b.codePassword == "" || !*buildRelease {
+-		return nil
+-	}
+-
+-	// if this is a release, create tgz and upload to google code
+-	releaseHash, release, err := firstTag(binaryTagRe)
+-	if hash == releaseHash {
+-		// clean out build state
+-		cmd := filepath.Join(srcDir, cleanCmd)
+-		if err := run(b.envv(), srcDir, cmd, "--nopkg"); err != nil {
+-			return fmt.Errorf("%s: %s", cleanCmd, err)
+-		}
+-		// upload binary release
+-		fn := fmt.Sprintf("go.%s.%s-%s.tar.gz", release, b.goos, b.goarch)
+-		if err := run(nil, workpath, "tar", "czf", fn, "go"); err != nil {
+-			return fmt.Errorf("tar: %s", err)
+-		}
+-		err := run(nil, workpath, filepath.Join(goroot, codePyScript),
+-			"-s", release,
+-			"-p", codeProject,
+-			"-u", b.codeUsername,
+-			"-w", b.codePassword,
+-			"-l", fmt.Sprintf("%s,%s", b.goos, b.goarch),
+-			fn)
+-		if err != nil {
+-			return fmt.Errorf("%s: %s", codePyScript, err)
+-		}
+-	}
+-
+ 	return nil
+ }
+ 
+@@ -739,31 +647,6 @@ func fullHash(root, rev string) (string, error) {
+ 	return s, nil
+ }
+ 
+-var revisionRe = regexp.MustCompile(`^([^ ]+) +[0-9]+:([0-9a-f]+)$`)
+-
+-// firstTag returns the hash and tag of the most recent tag matching re.
+-func firstTag(re *regexp.Regexp) (hash string, tag string, err error) {
+-	o, _, err := runLog(nil, "", goroot, "hg", "tags")
+-	for _, l := range strings.Split(o, "\n") {
+-		if l == "" {
+-			continue
+-		}
+-		s := revisionRe.FindStringSubmatch(l)
+-		if s == nil {
+-			err = errors.New("couldn't find revision number")
+-			return
+-		}
+-		if !re.MatchString(s[1]) {
+-			continue
+-		}
+-		tag = s[1]
+-		hash, err = fullHash(goroot, s[2])
+-		return
+-	}
+-	err = errors.New("no matching tag found")
+-	return
+-}
+-
+ var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+(\.[a-z0-9\-]+)?)(/[a-z0-9A-Z_.\-/]+)?$`)
+ 
+ // repoURL returns the repository URL for the supplied import path.
+diff --git a/misc/dashboard/builder/package.go b/misc/dashboard/builder/package.go
+deleted file mode 100644
+index dcd449ab8f..0000000000
+--- a/misc/dashboard/builder/package.go
++++ /dev/null
+@@ -1,121 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"errors"
+-	"fmt"
+-	"go/doc"
+-	"go/parser"
+-	"go/token"
+-	"log"
+-	"os"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-const MaxCommentLength = 500 // App Engine won't store more in a StringProperty.
+-
+-func (b *Builder) buildExternalPackages(workpath string, hash string) error {
+-	logdir := filepath.Join(*buildroot, "log")
+-	if err := os.Mkdir(logdir, 0755); err != nil {
+-		return err
+-	}
+-	pkgs, err := packages()
+-	if err != nil {
+-		return err
+-	}
+-	for _, p := range pkgs {
+-		goroot := filepath.Join(workpath, "go")
+-		gobin := filepath.Join(goroot, "bin")
+-		goinstall := filepath.Join(gobin, "goinstall")
+-		envv := append(b.envv(), "GOROOT="+goroot)
+-
+-		// add GOBIN to path
+-		for i, v := range envv {
+-			if strings.HasPrefix(v, "PATH=") {
+-				p := filepath.SplitList(v[5:])
+-				p = append([]string{gobin}, p...)
+-				s := strings.Join(p, string(filepath.ListSeparator))
+-				envv[i] = "PATH=" + s
+-			}
+-		}
+-
+-		// goinstall
+-		buildLog, code, err := runLog(envv, "", goroot, goinstall, "-dashboard=false", p)
+-		if err != nil {
+-			log.Printf("goinstall %v: %v", p, err)
+-		}
+-
+-		// get doc comment from package source
+-		var info string
+-		pkgPath := filepath.Join(goroot, "src", "pkg", p)
+-		if _, err := os.Stat(pkgPath); err == nil {
+-			info, err = packageComment(p, pkgPath)
+-			if err != nil {
+-				log.Printf("packageComment %v: %v", p, err)
+-			}
+-		}
+-
+-		// update dashboard with build state + info
+-		err = b.updatePackage(p, code == 0, buildLog, info)
+-		if err != nil {
+-			log.Printf("updatePackage %v: %v", p, err)
+-		}
+-
+-		if code == 0 {
+-			log.Println("Build succeeded:", p)
+-		} else {
+-			log.Println("Build failed:", p)
+-			fn := filepath.Join(logdir, strings.Replace(p, "/", "_", -1))
+-			if f, err := os.Create(fn); err != nil {
+-				log.Printf("creating %s: %v", fn, err)
+-			} else {
+-				fmt.Fprint(f, buildLog)
+-				f.Close()
+-			}
+-		}
+-	}
+-	return nil
+-}
+-
+-func isGoFile(fi os.FileInfo) bool {
+-	return !fi.IsDir() && // exclude directories
+-		!strings.HasPrefix(fi.Name(), ".") && // ignore .files
+-		!strings.HasSuffix(fi.Name(), "_test.go") && // ignore tests
+-		filepath.Ext(fi.Name()) == ".go"
+-}
+-
+-func packageComment(pkg, pkgpath string) (info string, err error) {
+-	fset := token.NewFileSet()
+-	pkgs, err := parser.ParseDir(fset, pkgpath, isGoFile, parser.PackageClauseOnly|parser.ParseComments)
+-	if err != nil {
+-		return
+-	}
+-	for name := range pkgs {
+-		if name == "main" {
+-			continue
+-		}
+-		pdoc := doc.New(pkgs[name], pkg, doc.AllDecls)
+-		if pdoc.Doc == "" {
+-			continue
+-		}
+-		if info != "" {
+-			return "", errors.New("multiple packages with docs")
+-		}
+-		info = pdoc.Doc
+-	}
+-	// grab only first paragraph
+-	if parts := strings.SplitN(info, "\n\n", 2); len(parts) > 1 {
+-		info = parts[0]
+-	}
+-	// replace newlines with spaces
+-	info = strings.Replace(info, "\n", " ", -1)
+-	// truncate
+-	if len(info) > MaxCommentLength {
+-		info = info[:MaxCommentLength]
+-	}
+-	return
+-}
+diff --git a/misc/dashboard/googlecode_upload.py b/misc/dashboard/googlecode_upload.py
+deleted file mode 100755
+index e87db884ad..0000000000
+--- a/misc/dashboard/googlecode_upload.py
++++ /dev/null
+@@ -1,248 +0,0 @@
+-#!/usr/bin/env python2
+-#
+-# Copyright 2006, 2007 Google Inc. All Rights Reserved.
+-# Author: danderson@google.com (David Anderson)
+-#
+-# Script for uploading files to a Google Code project.
+-#
+-# This is intended to be both a useful script for people who want to
+-# streamline project uploads and a reference implementation for
+-# uploading files to Google Code projects.
+-#
+-# To upload a file to Google Code, you need to provide a path to the
+-# file on your local machine, a small summary of what the file is, a
+-# project name, and a valid account that is a member or owner of that
+-# project.  You can optionally provide a list of labels that apply to
+-# the file.  The file will be uploaded under the same name that it has
+-# in your local filesystem (that is, the "basename" or last path
+-# component).  Run the script with '--help' to get the exact syntax
+-# and available options.
+-#
+-# Note that the upload script requests that you enter your
+-# googlecode.com password.  This is NOT your Gmail account password!
+-# This is the password you use on googlecode.com for committing to
+-# Subversion and uploading files.  You can find your password by going
+-# to http://code.google.com/hosting/settings when logged in with your
+-# Gmail account. If you have already committed to your project's
+-# Subversion repository, the script will automatically retrieve your
+-# credentials from there (unless disabled, see the output of '--help'
+-# for details).
+-#
+-# If you are looking at this script as a reference for implementing
+-# your own Google Code file uploader, then you should take a look at
+-# the upload() function, which is the meat of the uploader.  You
+-# basically need to build a multipart/form-data POST request with the
+-# right fields and send it to https://PROJECT.googlecode.com/files .
+-# Authenticate the request using HTTP Basic authentication, as is
+-# shown below.
+-#
+-# Licensed under the terms of the Apache Software License 2.0:
+-#  http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Questions, comments, feature requests and patches are most welcome.
+-# Please direct all of these to the Google Code users group:
+-#  http://groups.google.com/group/google-code-hosting
+-
+-"""Google Code file uploader script.
+-"""
+-
+-__author__ = 'danderson@google.com (David Anderson)'
+-
+-import httplib
+-import os.path
+-import optparse
+-import getpass
+-import base64
+-import sys
+-
+-
+-def upload(file, project_name, user_name, password, summary, labels=None):
+-  """Upload a file to a Google Code project's file server.
+-
+-  Args:
+-    file: The local path to the file.
+-    project_name: The name of your project on Google Code.
+-    user_name: Your Google account name.
+-    password: The googlecode.com password for your account.
+-              Note that this is NOT your global Google Account password!
+-    summary: A small description for the file.
+-    labels: an optional list of label strings with which to tag the file.
+-
+-  Returns: a tuple:
+-    http_status: 201 if the upload succeeded, something else if an
+-                 error occurred.
+-    http_reason: The human-readable string associated with http_status
+-    file_url: If the upload succeeded, the URL of the file on Google
+-              Code, None otherwise.
+-  """
+-  # The login is the user part of user@gmail.com. If the login provided
+-  # is in the full user@domain form, strip it down.
+-  if user_name.endswith('@gmail.com'):
+-    user_name = user_name[:user_name.index('@gmail.com')]
+-
+-  form_fields = [('summary', summary)]
+-  if labels is not None:
+-    form_fields.extend([('label', l.strip()) for l in labels])
+-
+-  content_type, body = encode_upload_request(form_fields, file)
+-
+-  upload_host = '%s.googlecode.com' % project_name
+-  upload_uri = '/files'
+-  auth_token = base64.b64encode('%s:%s'% (user_name, password))
+-  headers = {
+-    'Authorization': 'Basic %s' % auth_token,
+-    'User-Agent': 'Googlecode.com uploader v0.9.4',
+-    'Content-Type': content_type,
+-    }
+-
+-  server = httplib.HTTPSConnection(upload_host)
+-  server.request('POST', upload_uri, body, headers)
+-  resp = server.getresponse()
+-  server.close()
+-
+-  if resp.status == 201:
+-    location = resp.getheader('Location', None)
+-  else:
+-    location = None
+-  return resp.status, resp.reason, location
+-
+-
+-def encode_upload_request(fields, file_path):
+-  """Encode the given fields and file into a multipart form body.
+-
+-  fields is a sequence of (name, value) pairs. file is the path of
+-  the file to upload. The file will be uploaded to Google Code with
+-  the same file name.
+-
+-  Returns: (content_type, body) ready for httplib.HTTP instance
+-  """
+-  BOUNDARY = '----------Googlecode_boundary_reindeer_flotilla'
+-  CRLF = '\r\n'
+-
+-  body = []
+-
+-  # Add the metadata about the upload first
+-  for key, value in fields:
+-    body.extend(
+-      ['--' + BOUNDARY,
+-       'Content-Disposition: form-data; name="%s"' % key,
+-       '',
+-       value,
+-       ])
+-
+-  # Now add the file itself
+-  file_name = os.path.basename(file_path)
+-  f = open(file_path, 'rb')
+-  file_content = f.read()
+-  f.close()
+-
+-  body.extend(
+-    ['--' + BOUNDARY,
+-     'Content-Disposition: form-data; name="filename"; filename="%s"'
+-     % file_name,
+-     # The upload server determines the mime-type, no need to set it.
+-     'Content-Type: application/octet-stream',
+-     '',
+-     file_content,
+-     ])
+-
+-  # Finalize the form body
+-  body.extend(['--' + BOUNDARY + '--', ''])
+-
+-  return 'multipart/form-data; boundary=%s' % BOUNDARY, CRLF.join(body)
+-
+-
+-def upload_find_auth(file_path, project_name, summary, labels=None,
+-                     user_name=None, password=None, tries=3):
+-  """Find credentials and upload a file to a Google Code project's file server.
+-
+-  file_path, project_name, summary, and labels are passed as-is to upload.
+-
+-  Args:
+-    file_path: The local path to the file.
+-    project_name: The name of your project on Google Code.
+-    summary: A small description for the file.
+-    labels: an optional list of label strings with which to tag the file.
+-    config_dir: Path to Subversion configuration directory, 'none', or None.
+-    user_name: Your Google account name.
+-    tries: How many attempts to make.
+-  """
+-
+-  while tries > 0:
+-    if user_name is None:
+-      # Read username if not specified or loaded from svn config, or on
+-      # subsequent tries.
+-      sys.stdout.write('Please enter your googlecode.com username: ')
+-      sys.stdout.flush()
+-      user_name = sys.stdin.readline().rstrip()
+-    if password is None:
+-      # Read password if not loaded from svn config, or on subsequent tries.
+-      print 'Please enter your googlecode.com password.'
+-      print '** Note that this is NOT your Gmail account password! **'
+-      print 'It is the password you use to access Subversion repositories,'
+-      print 'and can be found here: http://code.google.com/hosting/settings'
+-      password = getpass.getpass()
+-
+-    status, reason, url = upload(file_path, project_name, user_name, password,
+-                                 summary, labels)
+-    # Returns 403 Forbidden instead of 401 Unauthorized for bad
+-    # credentials as of 2007-07-17.
+-    if status in [httplib.FORBIDDEN, httplib.UNAUTHORIZED]:
+-      # Rest for another try.
+-      user_name = password = None
+-      tries = tries - 1
+-    else:
+-      # We're done.
+-      break
+-
+-  return status, reason, url
+-
+-
+-def main():
+-  parser = optparse.OptionParser(usage='googlecode-upload.py -s SUMMARY '
+-                                 '-p PROJECT [options] FILE')
+-  parser.add_option('-s', '--summary', dest='summary',
+-                    help='Short description of the file')
+-  parser.add_option('-p', '--project', dest='project',
+-                    help='Google Code project name')
+-  parser.add_option('-u', '--user', dest='user',
+-                    help='Your Google Code username')
+-  parser.add_option('-w', '--password', dest='password',
+-                    help='Your Google Code password')
+-  parser.add_option('-l', '--labels', dest='labels',
+-                    help='An optional list of comma-separated labels to attach '
+-                    'to the file')
+-
+-  options, args = parser.parse_args()
+-
+-  if not options.summary:
+-    parser.error('File summary is missing.')
+-  elif not options.project:
+-    parser.error('Project name is missing.')
+-  elif len(args) < 1:
+-    parser.error('File to upload not provided.')
+-  elif len(args) > 1:
+-    parser.error('Only one file may be specified.')
+-
+-  file_path = args[0]
+-
+-  if options.labels:
+-    labels = options.labels.split(',')
+-  else:
+-    labels = None
+-
+-  status, reason, url = upload_find_auth(file_path, options.project,
+-                                         options.summary, labels,
+-                                         options.user, options.password)
+-  if url:
+-    print 'The file was uploaded successfully.'
+-    print 'URL: %s' % url
+-    return 0
+-  else:
+-    print 'An error occurred. Your file was not uploaded.'
+-    print 'Google Code upload server said: %s (%s)' % (reason, status)
+-    return 1
+-
+-
+-if __name__ == '__main__':
+-  sys.exit(main())

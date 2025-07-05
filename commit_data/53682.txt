@@ -21,6 +21,23 @@ Date:   Sat Aug 27 02:42:52 2022 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 8fb0035f8c..138c00da19 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -607,7 +607,10 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 		return !isRetracted(v)
+ 	}
+ 	if pseudoBase == "" {
+-		tag, _ := r.code.RecentTag(info.Name, tagPrefix, tagAllowed)
++		tag, err := r.code.RecentTag(info.Name, tagPrefix, tagAllowed)
++		if err != nil {
++			return nil, err
++		}
+ 		if tag != "" {
+ 			pseudoBase, _ = tagToVersion(tag)
+ 		}

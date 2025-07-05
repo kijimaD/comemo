@@ -16,9 +16,118 @@ Date:   Thu Dec 22 17:45:55 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/34936
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/heapdump.go |  2 +-
  src/runtime/mgcwork.go  |  7 -------
  src/runtime/mstats.go   | 18 ++----------------
  src/runtime/runtime2.go | 11 -----------
  4 files changed, 3 insertions(+), 35 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 780aeb5b68..32e393db2b 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -653,7 +653,7 @@ func writeheapdump_m(fd uintptr) {
+ 	// Update stats so we can dump them.
+ 	// As a side effect, flushes all the MCaches so the MSpan.freelist
+ 	// lists contain all the free objects.
+-	updatememstats(nil)
++	updatememstats()
+ 
+ 	// Set dump file.
+ 	dumpfd = fd
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index ef2453039f..6b0c4dccaa 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -397,15 +397,11 @@ func getfull() *workbuf {
+ 		if work.nwait == work.nproc && work.markrootNext >= work.markrootJobs {
+ 			return nil
+ 		}
+-		_g_ := getg()
+ 		if i < 10 {
+-			_g_.m.gcstats.nprocyield++
+ 			procyield(20)
+ 		} else if i < 20 {
+-			_g_.m.gcstats.nosyield++
+ 			osyield()
+ 		} else {
+-			_g_.m.gcstats.nsleep++
+ 			usleep(100)
+ 		}
+ 	}
+@@ -419,9 +415,6 @@ func handoff(b *workbuf) *workbuf {
+ 	b.nobj -= n
+ 	b1.nobj = n
+ 	memmove(unsafe.Pointer(&b1.obj[0]), unsafe.Pointer(&b.obj[b.nobj]), uintptr(n)*unsafe.Sizeof(b1.obj[0]))
+-	_g_ := getg()
+-	_g_.m.gcstats.nhandoff++
+-	_g_.m.gcstats.nhandoffcnt += uint64(n)
+ 
+ 	// Put b on full list - let first half of b get stolen.
+ 	putfull(b)
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 8fb34f724f..b34bbf9a67 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -452,7 +452,7 @@ func ReadMemStats(m *MemStats) {
+ }
+ 
+ func readmemstats_m(stats *MemStats) {
+-	updatememstats(nil)
++	updatememstats()
+ 
+ 	// The size of the trailing by_size array differs between
+ 	// mstats and MemStats. NumSizeClasses was changed, but we
+@@ -506,21 +506,7 @@ func readGCStats_m(pauses *[]uint64) {
+ }
+ 
+ //go:nowritebarrier
+-func updatememstats(stats *gcstats) {
+-	if stats != nil {
+-		*stats = gcstats{}
+-	}
+-	for mp := allm; mp != nil; mp = mp.alllink {
+-		if stats != nil {
+-			src := (*[unsafe.Sizeof(gcstats{}) / 8]uint64)(unsafe.Pointer(&mp.gcstats))
+-			dst := (*[unsafe.Sizeof(gcstats{}) / 8]uint64)(unsafe.Pointer(stats))
+-			for i, v := range src {
+-				dst[i] += v
+-			}
+-			mp.gcstats = gcstats{}
+-		}
+-	}
+-
++func updatememstats() {
+ 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
+ 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
+ 	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 5c05c20d94..7c1591994e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -292,16 +292,6 @@ type sudog struct {
+ 	c           *hchan // channel
+ }
+ 
+-type gcstats struct {
+-	// the struct must consist of only uint64's,
+-	// because it is casted to uint64[].
+-	nhandoff    uint64
+-	nhandoffcnt uint64
+-	nprocyield  uint64
+-	nosyield    uint64
+-	nsleep      uint64
+-}
+-
+ type libcall struct {
+ 	fn   uintptr
+ 	n    uintptr // number of parameters
+@@ -436,7 +426,6 @@ type m struct {
+ 	fflag         uint32      // floating point compare flags
+ 	locked        uint32      // tracking for lockosthread
+ 	nextwaitm     uintptr     // next m waiting for lock
+-	gcstats       gcstats
+ 	needextram    bool
+ 	traceback     uint8
+ 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool

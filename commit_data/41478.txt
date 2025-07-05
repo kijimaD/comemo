@@ -17,7 +17,110 @@ Date:   Fri Sep 27 16:38:14 2019 +0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/reflectlite/set_test.go |  9 ++++++++
  src/internal/reflectlite/type.go     | 41 ++++++++++++++++++------------------
  2 files changed, 29 insertions(+), 21 deletions(-)
+
+diff --git a/src/internal/reflectlite/set_test.go b/src/internal/reflectlite/set_test.go
+index 817e4beae1..a610499d08 100644
+--- a/src/internal/reflectlite/set_test.go
++++ b/src/internal/reflectlite/set_test.go
+@@ -39,6 +39,8 @@ var implementsTests = []struct {
+ 	{new(notASTExpr), new(ast.Expr), false},
+ 	{new(ast.Expr), new(notASTExpr), false},
+ 	{new(*notAnExpr), new(notASTExpr), true},
++	{new(mapError), new(error), true},
++	{new(*mapError), new(error), true},
+ }
+ 
+ type notAnExpr struct{}
+@@ -53,6 +55,13 @@ type notASTExpr interface {
+ 	exprNode()
+ }
+ 
++type mapError map[string]string
++
++func (mapError) Error() string { return "mapError" }
++
++var _ error = mapError{}
++var _ error = new(mapError)
++
+ func TestImplements(t *testing.T) {
+ 	for _, tt := range implementsTests {
+ 		xv := TypeOf(tt.x).Elem()
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index c706319a8e..e90071c67c 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -137,6 +137,10 @@ const (
+ 
+ 	// tflagNamed means the type has a name.
+ 	tflagNamed tflag = 1 << 2
++
++	// tflagRegularMemory means that equal and hash functions can treat
++	// this type as a single region of t.size bytes.
++	tflagRegularMemory tflag = 1 << 3
+ )
+ 
+ // rtype is the common implementation of most values.
+@@ -145,26 +149,18 @@ const (
+ // rtype must be kept in sync with ../runtime/type.go:/^type._type.
+ type rtype struct {
+ 	size       uintptr
+-	ptrdata    uintptr  // number of bytes in the type that can contain pointers
+-	hash       uint32   // hash of type; avoids computation in hash tables
+-	tflag      tflag    // extra type information flags
+-	align      uint8    // alignment of variable with this type
+-	fieldAlign uint8    // alignment of struct field with this type
+-	kind       uint8    // enumeration for C
+-	alg        *typeAlg // algorithm table
+-	gcdata     *byte    // garbage collection data
+-	str        nameOff  // string form
+-	ptrToThis  typeOff  // type for pointer to this type, may be zero
+-}
+-
+-// a copy of runtime.typeAlg
+-type typeAlg struct {
+-	// function for hashing objects of this type
+-	// (ptr to object, seed) -> hash
+-	hash func(unsafe.Pointer, uintptr) uintptr
++	ptrdata    uintptr // number of bytes in the type that can contain pointers
++	hash       uint32  // hash of type; avoids computation in hash tables
++	tflag      tflag   // extra type information flags
++	align      uint8   // alignment of variable with this type
++	fieldAlign uint8   // alignment of struct field with this type
++	kind       uint8   // enumeration for C
+ 	// function for comparing objects of this type
+ 	// (ptr to object A, ptr to object B) -> ==?
+-	equal func(unsafe.Pointer, unsafe.Pointer) bool
++	equal     func(unsafe.Pointer, unsafe.Pointer) bool
++	gcdata    *byte   // garbage collection data
++	str       nameOff // string form
++	ptrToThis typeOff // type for pointer to this type, may be zero
+ }
+ 
+ // Method on non-interface type
+@@ -244,8 +240,11 @@ type interfaceType struct {
+ // mapType represents a map type.
+ type mapType struct {
+ 	rtype
+-	key        *rtype // map key type
+-	elem       *rtype // map element (value) type
++	key    *rtype // map key type
++	elem   *rtype // map element (value) type
++	bucket *rtype // internal bucket structure
++	// function for hashing keys (ptr to key, seed) -> hash
++	hasher     func(unsafe.Pointer, uintptr) uintptr
+ 	keysize    uint8  // size of key slot
+ 	valuesize  uint8  // size of value slot
+ 	bucketsize uint16 // size of bucket
+@@ -685,7 +684,7 @@ func (t *rtype) AssignableTo(u Type) bool {
+ }
+ 
+ func (t *rtype) Comparable() bool {
+-	return t.alg != nil && t.alg.equal != nil
++	return t.equal != nil
+ }
+ 
+ // implements reports whether the type V implements the interface type T.

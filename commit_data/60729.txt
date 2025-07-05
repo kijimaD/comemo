@@ -17,8 +17,150 @@ Date:   Mon Aug 19 15:17:04 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-
+---
  misc/wasm/wasm_exec.js            |  5 ++++
  src/cmd/link/internal/wasm/asm.go |  8 +++++-
  src/syscall/js/js_test.go         | 52 ++++++++++++++++++++++++++++++++++-----
  3 files changed, 58 insertions(+), 7 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 0f635d6d54..af7e28f5f4 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -216,10 +216,15 @@
+ 				return decoder.decode(new DataView(this._inst.exports.mem.buffer, saddr, len));
+ 			}
+ 
++			const testCallExport = (a, b) => {
++				return this._inst.exports.testExport(a, b);
++			}
++
+ 			const timeOrigin = Date.now() - performance.now();
+ 			this.importObject = {
+ 				_gotest: {
+ 					add: (a, b) => a + b,
++					callExport: testCallExport,
+ 				},
+ 				gojs: {
+ 					// Go's SP does not change as long as no Go code is running. Some operations (e.g. calls, getters and setters)
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 87a67754cc..2a4c1ee7ea 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -446,7 +446,7 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
+ 		ctxt.Out.WriteByte(0x02)      // mem export
+ 		writeUleb128(ctxt.Out, 0)     // memidx
+ 	case "js":
+-		writeUleb128(ctxt.Out, 4) // number of exports
++		writeUleb128(ctxt.Out, uint64(4+len(ldr.WasmExports))) // number of exports
+ 		for _, name := range []string{"run", "resume", "getsp"} {
+ 			s := ldr.Lookup("wasm_export_"+name, 0)
+ 			if s == 0 {
+@@ -457,6 +457,12 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
+ 			ctxt.Out.WriteByte(0x00)            // func export
+ 			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+ 		}
++		for _, s := range ldr.WasmExports {
++			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
++			writeName(ctxt.Out, ldr.SymName(s))
++			ctxt.Out.WriteByte(0x00)            // func export
++			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
++		}
+ 		writeName(ctxt.Out, "mem") // inst.exports.mem in wasm_exec.js
+ 		ctxt.Out.WriteByte(0x02)   // mem export
+ 		writeUleb128(ctxt.Out, 0)  // memidx
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index cec5f28a08..d6bcc6370d 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -56,6 +56,46 @@ func TestWasmImport(t *testing.T) {
+ 	}
+ }
+ 
++// testCallExport is imported from host (wasm_exec.js), which calls testExport.
++//
++//go:wasmimport _gotest callExport
++func testCallExport(a int32, b int64) int64
++
++//go:wasmexport testExport
++func testExport(a int32, b int64) int64 {
++	testExportCalled = true
++	// test stack growth
++	growStack(1000)
++	// force a goroutine switch
++	ch := make(chan int64)
++	go func() {
++		ch <- int64(a)
++		ch <- b
++	}()
++	return <-ch + <-ch
++}
++
++var testExportCalled bool
++
++func growStack(n int64) {
++	if n > 0 {
++		growStack(n - 1)
++	}
++}
++
++func TestWasmExport(t *testing.T) {
++	testExportCalled = false
++	a := int32(123)
++	b := int64(456)
++	want := int64(a) + b
++	if got := testCallExport(a, b); got != want {
++		t.Errorf("got %v, want %v", got, want)
++	}
++	if !testExportCalled {
++		t.Error("testExport not called")
++	}
++}
++
+ func TestBool(t *testing.T) {
+ 	want := true
+ 	o := dummys.Get("someBool")
+@@ -587,13 +627,13 @@ func TestGarbageCollection(t *testing.T) {
+ // Note: All JavaScript functions return a JavaScript array, which will cause
+ // one allocation to be created to track the Value.gcPtr for the Value finalizer.
+ var allocTests = []struct {
+-	argLen  int // The number of arguments to use for the syscall
++	argLen   int // The number of arguments to use for the syscall
+ 	expected int // The expected number of allocations
+ }{
+ 	// For less than or equal to 16 arguments, we expect 1 allocation:
+ 	// - makeValue new(ref)
+-	{0,  1},
+-	{2,  1},
++	{0, 1},
++	{2, 1},
+ 	{15, 1},
+ 	{16, 1},
+ 	// For greater than 16 arguments, we expect 3 allocation:
+@@ -613,7 +653,7 @@ func TestCallAllocations(t *testing.T) {
+ 		tmpArray := js.Global().Get("Array").New(0)
+ 		numAllocs := testing.AllocsPerRun(100, func() {
+ 			tmpArray.Call("concat", args...)
+-		});
++		})
+ 
+ 		if numAllocs != float64(test.expected) {
+ 			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
+@@ -630,7 +670,7 @@ func TestInvokeAllocations(t *testing.T) {
+ 		concatFunc := tmpArray.Get("concat").Call("bind", tmpArray)
+ 		numAllocs := testing.AllocsPerRun(100, func() {
+ 			concatFunc.Invoke(args...)
+-		});
++		})
+ 
+ 		if numAllocs != float64(test.expected) {
+ 			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
+@@ -647,7 +687,7 @@ func TestNewAllocations(t *testing.T) {
+ 
+ 		numAllocs := testing.AllocsPerRun(100, func() {
+ 			arrayConstructor.New(args...)
+-		});
++		})
+ 
+ 		if numAllocs != float64(test.expected) {
+ 			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)

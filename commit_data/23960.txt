@@ -9,6 +9,20 @@ Date:   Fri Jun 26 11:11:45 2015 +1000
     Change-Id: I10a31234ed985c59e5d9b5328664a36661cef31e
     Reviewed-on: https://go-review.googlesource.com/11531
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 396454dd54..cc01494ff5 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2600,7 +2600,7 @@ q.x          // (*(*q).T0).x        (*q).x is a valid field selector
+ 
+ p.M2()       // p.M2()              M2 expects *T2 receiver
+ p.M1()       // ((*p).T1).M1()      M1 expects T1 receiver
+-p.M0()       // ((&(*p).T0)).M0()   M0 expects *T0 receiver, see section on Calls
++p.M0()       // ((&amp;(*p).T0)).M0()   M0 expects *T0 receiver, see section on Calls
+ </pre>
+ 
+ <p>

@@ -7,7 +7,30 @@ Date:   Thu Oct 14 17:25:23 2010 +1100
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2494042
-
+---
  doc/ExpressivenessOfGo.pdf | Bin 0 -> 889867 bytes
  doc/docs.html              |   7 +++++++
  2 files changed, 7 insertions(+)
+
+diff --git a/doc/ExpressivenessOfGo.pdf b/doc/ExpressivenessOfGo.pdf
+new file mode 100644
+index 0000000000..34c5ea3cb0
+Binary files /dev/null and b/doc/ExpressivenessOfGo.pdf differ
+diff --git a/doc/docs.html b/doc/docs.html
+index c34062baae..6643b2095e 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -131,6 +131,13 @@ A YouTube channel that includes screencasts and other Go-related videos:
+ <li><a href="http://www.youtube.com/watch?v=3brH0zOqm0w">Screencast: Testing Go Packages</a> - writing unit tests and benchmarking Go packages.</li>
+ </ul>
+ 
++<h3 id="jaoo_go"><a href="/doc/ExpressivenessOfGo.pdf">The Expressiveness Of Go</a></h3>
++<p>
++A discussion of the qualities that make Go an expressive and comprehensible
++language.  The talk was presented by Rob Pike at JAOO 2010.
++The recording of the event was lost due to a hardware error.
++</p>
++
+ <h3 id="oscon_go"><a href="http://www.oscon.com/oscon2010/public/schedule/detail/14760">Another Go at Language Design</a></h3>
+ <p>
+ A tour, with some background, of the major features of Go, intended for

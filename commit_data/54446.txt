@@ -13,9 +13,86 @@ Date:   Wed Oct 12 19:09:43 2022 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/types/issues_test.go     | 2 ++
  src/go/types/self_test.go       | 5 +++++
  src/go/types/sizes_test.go      | 3 +++
  src/go/types/typestring_test.go | 1 +
  4 files changed, 11 insertions(+)
+
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 85362fb7b9..de8e0ad5f1 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -578,6 +578,8 @@ func TestIssue44515(t *testing.T) {
+ func TestIssue43124(t *testing.T) {
+ 	// TODO(rFindley) move this to testdata by enhancing support for importing.
+ 
++	testenv.MustHaveGoBuild(t) // The go command is needed for the importer to determine the locations of stdlib .a files.
++
+ 	// All involved packages have the same name (template). Error messages should
+ 	// disambiguate between text/template and html/template by printing the full
+ 	// path.
+diff --git a/src/go/types/self_test.go b/src/go/types/self_test.go
+index 7a1e770830..a63f2b74f5 100644
+--- a/src/go/types/self_test.go
++++ b/src/go/types/self_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"go/importer"
+ 	"go/parser"
+ 	"go/token"
++	"internal/testenv"
+ 	"path"
+ 	"path/filepath"
+ 	"testing"
+@@ -18,6 +19,8 @@ import (
+ )
+ 
+ func TestSelf(t *testing.T) {
++	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
++
+ 	fset := token.NewFileSet()
+ 	files, err := pkgFiles(fset, ".")
+ 	if err != nil {
+@@ -32,6 +35,8 @@ func TestSelf(t *testing.T) {
+ }
+ 
+ func BenchmarkCheck(b *testing.B) {
++	testenv.MustHaveGoBuild(b) // The Go command is needed for the importer to determine the locations of stdlib .a files.
++
+ 	for _, p := range []string{
+ 		"net/http",
+ 		"go/parser",
+diff --git a/src/go/types/sizes_test.go b/src/go/types/sizes_test.go
+index 740072f1dc..3ac124acf1 100644
+--- a/src/go/types/sizes_test.go
++++ b/src/go/types/sizes_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"go/types"
++	"internal/testenv"
+ 	"testing"
+ )
+ 
+@@ -116,6 +117,8 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
+ 
+ // Issue #53884.
+ func TestAtomicAlign(t *testing.T) {
++	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
++
+ 	const src = `
+ package main
+ 
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index d8f81ecf5a..dcbaa47709 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -125,6 +125,7 @@ var dependentTestTypes = []testEntry{
+ }
+ 
+ func TestTypeString(t *testing.T) {
++	// The Go command is needed for the importer to determine the locations of stdlib .a files.
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	var tests []testEntry

@@ -17,7 +17,50 @@ Date:   Sun Sep 22 13:30:45 2019 +0300
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/security.go      | 9 +++++++++
  src/cmd/go/internal/work/security_test.go | 4 ++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 0d8da21ae3..3a5deae451 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -280,6 +280,15 @@ Args:
+ 					continue Args
+ 				}
+ 
++				// Permit -I= /path, -I $SYSROOT.
++				if i+1 < len(list) && arg == "-I" {
++					if (strings.HasPrefix(list[i+1], "=") || strings.HasPrefix(list[i+1], "$SYSROOT")) &&
++						load.SafeArg(list[i+1][1:]) {
++						i++
++						continue Args
++					}
++				}
++
+ 				if i+1 < len(list) {
+ 					return fmt.Errorf("invalid flag in %s: %s %s (see https://golang.org/s/invalidflag)", source, arg, list[i+1])
+ 				}
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index a3a1d7d56c..8bf164bf08 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -56,6 +56,9 @@ var goodCompilerFlags = [][]string{
+ 	{"-I", "."},
+ 	{"-I", "/etc/passwd"},
+ 	{"-I", "世界"},
++	{"-I", "=/usr/include/libxml2"},
++	{"-I", "dir"},
++	{"-I", "$SYSROOT/dir"},
+ 	{"-framework", "Chocolate"},
+ 	{"-x", "c"},
+ 	{"-v"},
+@@ -83,6 +86,7 @@ var badCompilerFlags = [][]string{
+ 	{"-D", "-foo"},
+ 	{"-I", "@foo"},
+ 	{"-I", "-foo"},
++	{"-I", "=@obj"},
+ 	{"-framework", "-Caffeine"},
+ 	{"-framework", "@Home"},
+ 	{"-x", "--c"},

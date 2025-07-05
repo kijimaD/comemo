@@ -7,7 +7,79 @@ Date:   Tue Jul 27 15:06:08 2010 +1000
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/1669055
-
+---
  src/pkg/bytes/bytes.go     | 23 ++++++++++++++---------
  src/pkg/strings/strings.go | 22 ++++++++++++++--------
  2 files changed, 28 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index c0ee44ff96..6eb6772328 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -179,17 +179,22 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+ 	return a[0 : na+1]
+ }
+ 
+-// Split splits the array s around each instance of sep, returning an array of subarrays of s.
+-// If sep is empty, Split splits s after each UTF-8 sequence.
+-// If n >= 0, Split splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
+-// Thus if n == 0, the result will be nil.
++// Split slices s into subslices separated by sep and returns a slice of
++// the subslices between those separators.
++// If sep is empty, Split splits after each UTF-8 sequence.
++// The count determines the number of subslices to return:
++//   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
++//   n == 0: the result is nil (zero subslices)
++//   n < 0: all subslices
+ func Split(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
+ 
+-// SplitAfter splits the array s after each instance of sep, returning an array of subarrays of s.
+-// If sep is empty, SplitAfter splits s after each UTF-8 sequence.
+-// If n >= 0, SplitAfter splits s into at most n subarrays; the last subarray will contain an
+-// unsplit remainder.
+-// Thus if n == 0, the result will ne nil.
++// SplitAfter slices s into subslices after each instance of sep and
++// returns a slice of those subslices.
++// If sep is empty, Split splits after each UTF-8 sequence.
++// The count determines the number of subslices to return:
++//   n > 0: at most n subslices; the last subslice will be the unsplit remainder.
++//   n == 0: the result is nil (zero subslices)
++//   n < 0: all subslices
+ func SplitAfter(s, sep []byte, n int) [][]byte {
+ 	return genSplit(s, sep, len(sep), n)
+ }
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 925566c744..12be04c239 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -163,16 +163,22 @@ func genSplit(s, sep string, sepSave, n int) []string {
+ 	return a[0 : na+1]
+ }
+ 
+-// Split splits the string s around each instance of sep, returning an array of substrings of s.
+-// If sep is empty, Split splits s after each UTF-8 sequence.
+-// If n >= 0, Split splits s into at most n substrings; the last substring will be the unsplit remainder.
+-// Thus if n == 0, the result will be nil.
++// Split slices s into substrings separated by sep and returns a slice of
++// the substrings between those separators.
++// If sep is empty, Split splits after each UTF-8 sequence.
++// The count determines the number of substrings to return:
++//   n > 0: at most n substrings; the last substring will be the unsplit remainder.
++//   n == 0: the result is nil (zero substrings)
++//   n < 0: all substrings
+ func Split(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
+ 
+-// SplitAfter splits the string s after each instance of sep, returning an array of substrings of s.
+-// If sep is empty, SplitAfter splits s after each UTF-8 sequence.
+-// If n >= 0, SplitAfter splits s into at most n substrings; the last substring will be the unsplit remainder.
+-// Thus if n == 0, the result will be nil.
++// SplitAfter slices s into substrings after each instance of sep and
++// returns a slice of those substrings.
++// If sep is empty, Split splits after each UTF-8 sequence.
++// The count determines the number of substrings to return:
++//   n > 0: at most n substrings; the last substring will be the unsplit remainder.
++//   n == 0: the result is nil (zero substrings)
++//   n < 0: all substrings
+ func SplitAfter(s, sep string, n int) []string {
+ 	return genSplit(s, sep, len(sep), n)
+ }

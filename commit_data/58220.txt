@@ -17,8 +17,83 @@ Date:   Fri Oct 13 10:34:30 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/export_test.go |  3 +++
  src/runtime/map.go         |  4 ++--
  src/runtime/map_test.go    | 30 ++++++++++++++++++++++++++++++
  3 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 6335dab41b..fc681b140e 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -53,6 +53,9 @@ var CgoCheckPointer = cgoCheckPointer
+ const TracebackInnerFrames = tracebackInnerFrames
+ const TracebackOuterFrames = tracebackOuterFrames
+ 
++var MapKeys = keys
++var MapValues = values
++
+ var LockPartialOrder = lockPartialOrder
+ 
+ type LockRank lockRank
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 5b264b0713..68ba4e44b8 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -1651,7 +1651,7 @@ func copyKeys(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
+ 			if s.len >= s.cap {
+ 				fatal("concurrent map read and map write")
+ 			}
+-			typedmemmove(t.Key, add(s.array, uintptr(s.len)*uintptr(t.KeySize)), k)
++			typedmemmove(t.Key, add(s.array, uintptr(s.len)*uintptr(t.Key.Size())), k)
+ 			s.len++
+ 		}
+ 		b = b.overflow(t)
+@@ -1716,7 +1716,7 @@ func copyValues(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
+ 			if s.len >= s.cap {
+ 				fatal("concurrent map read and map write")
+ 			}
+-			typedmemmove(t.Elem, add(s.array, uintptr(s.len)*uintptr(t.ValueSize)), ele)
++			typedmemmove(t.Elem, add(s.array, uintptr(s.len)*uintptr(t.Elem.Size())), ele)
+ 			s.len++
+ 		}
+ 		b = b.overflow(t)
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 7e911b9fc9..2c51236f16 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -1434,3 +1434,33 @@ func TestLoadFactor(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestMapKeys(t *testing.T) {
++	type key struct {
++		s   string
++		pad [128]byte // sizeof(key) > abi.MapMaxKeyBytes
++	}
++	m := map[key]int{{s: "a"}: 1, {s: "b"}: 2}
++	keys := make([]key, 0, len(m))
++	runtime.MapKeys(m, unsafe.Pointer(&keys))
++	for _, k := range keys {
++		if len(k.s) != 1 {
++			t.Errorf("len(k.s) == %d, want 1", len(k.s))
++		}
++	}
++}
++
++func TestMapValues(t *testing.T) {
++	type val struct {
++		s   string
++		pad [128]byte // sizeof(val) > abi.MapMaxElemBytes
++	}
++	m := map[int]val{1: {s: "a"}, 2: {s: "b"}}
++	vals := make([]val, 0, len(m))
++	runtime.MapValues(m, unsafe.Pointer(&vals))
++	for _, v := range vals {
++		if len(v.s) != 1 {
++			t.Errorf("len(v.s) == %d, want 1", len(v.s))
++		}
++	}
++}

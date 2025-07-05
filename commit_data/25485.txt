@@ -18,7 +18,56 @@ Date:   Mon Oct 26 13:58:23 2015 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/testsanitizers/test.bash       |  5 +++++
  src/cmd/compile/internal/gc/racewalk.go | 16 ++++++++++++++--
  2 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 88c54e6173..19407b8cb2 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -37,6 +37,11 @@ fi
+ 
+ status=0
+ 
++if ! go build -msan std; then
++  echo "FAIL: build -msan std"
++  status=1
++fi
++
+ if ! go run -msan msan.go; then
+   echo "FAIL: msan"
+   status=1
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 7770f741df..acebb1ac9c 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -502,13 +502,25 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
+ 			if wr != 0 {
+ 				name = "msanwrite"
+ 			}
+-			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(t.Width))
++			// dowidth may not have been called for PEXTERN.
++			dowidth(t)
++			w := t.Width
++			if w == BADWIDTH {
++				Fatalf("instrument: %v badwidth", t)
++			}
++			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
+ 		} else if flag_race != 0 && (t.Etype == TSTRUCT || Isfixedarray(t)) {
+ 			name := "racereadrange"
+ 			if wr != 0 {
+ 				name = "racewriterange"
+ 			}
+-			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(t.Width))
++			// dowidth may not have been called for PEXTERN.
++			dowidth(t)
++			w := t.Width
++			if w == BADWIDTH {
++				Fatalf("instrument: %v badwidth", t)
++			}
++			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
+ 		} else if flag_race != 0 {
+ 			name := "raceread"
+ 			if wr != 0 {

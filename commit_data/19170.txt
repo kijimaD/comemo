@@ -85,7 +85,7 @@ Date:   Wed Apr 16 11:53:14 2014 -0400
     R=golang-codereviews, minux.ma, bradfitz, iant, dave
     CC=golang-codereviews, r
     https://golang.org/cl/87910047
-
+---
  include/link.h        |  1 +
  src/cmd/ld/data.c     |  3 +++
  src/cmd/ld/go.c       |  1 +
@@ -95,3 +95,179 @@ Date:   Wed Apr 16 11:53:14 2014 -0400
  src/liblink/objfile.c | 23 +++++++++++++++++------
  src/liblink/sym.c     |  2 +-
  8 files changed, 41 insertions(+), 7 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 200a503cce..c4a6c3dea6 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -132,6 +132,7 @@ struct	LSym
+ 	uchar	leaf;	// arm only
+ 	uchar	fnptr;	// arm only
+ 	uchar	seenglobl;
++	uchar	onlist;	// on the textp or datap lists
+ 	int16	symid;	// for writing .5/.6/.8 files
+ 	int32	dynid;
+ 	int32	sig;
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 27779acc63..e5739686ef 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -757,6 +757,9 @@ dodata(void)
+ 		if(!s->reachable || s->special)
+ 			continue;
+ 		if(STEXT < s->type && s->type < SXREF) {
++			if(s->onlist)
++				sysfatal("symbol %s listed multiple times", s->name);
++			s->onlist = 1;
+ 			if(last == nil)
+ 				datap = s;
+ 			else
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index a5a0fa5433..9c296b740f 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -618,6 +618,7 @@ deadcode(void)
+ 	for(s = ctxt->textp; s != nil; s = s->next) {
+ 		if(!s->reachable)
+ 			continue;
++		// NOTE: Removing s from old textp and adding to new, shorter textp.
+ 		if(last == nil)
+ 			ctxt->textp = s;
+ 		else
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index f1091d57c3..75899c769f 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -631,12 +631,18 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		if(s->sub)
+ 			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
+ 		if(s->type == STEXT) {
++			if(s->onlist)
++				sysfatal("symbol %s listed multiple times", s->name);
++			s->onlist = 1;
+ 			if(ctxt->etextp)
+ 				ctxt->etextp->next = s;
+ 			else
+ 				ctxt->textp = s;
+ 			ctxt->etextp = s;
+ 			for(s = s->sub; s != S; s = s->sub) {
++				if(s->onlist)
++					sysfatal("symbol %s listed multiple times", s->name);
++				s->onlist = 1;
+ 				ctxt->etextp->next = s;
+ 				ctxt->etextp = s;
+ 			}
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index 7fd366a258..00d0acd221 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -679,12 +679,18 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			}
+ 		}
+ 		if(s->type == STEXT) {
++			if(s->onlist)
++				sysfatal("symbol %s listed multiple times", s->name);
++			s->onlist = 1;
+ 			if(ctxt->etextp)
+ 				ctxt->etextp->next = s;
+ 			else
+ 				ctxt->textp = s;
+ 			ctxt->etextp = s;
+ 			for(s1 = s->sub; s1 != S; s1 = s1->sub) {
++				if(s1->onlist)
++					sysfatal("symbol %s listed multiple times", s1->name);
++				s1->onlist = 1;
+ 				ctxt->etextp->next = s1;
+ 				ctxt->etextp = s1;
+ 			}
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 1f1a51fad1..e4e3580b09 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -393,12 +393,18 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		if(s->sub)
+ 			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
+ 		if(s->type == STEXT) {
++			if(s->onlist)
++				sysfatal("symbol %s listed multiple times", s->name);
++			s->onlist = 1;
+ 			if(ctxt->etextp)
+ 				ctxt->etextp->next = s;
+ 			else
+ 				ctxt->textp = s;
+ 			ctxt->etextp = s;
+ 			for(s = s->sub; s != S; s = s->sub) {
++				if(s->onlist)
++					sysfatal("symbol %s listed multiple times", s->name);
++				s->onlist = 1;
+ 				ctxt->etextp->next = s;
+ 				ctxt->etextp = s;
+ 			}
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index c7700cc25c..b52b29ca59 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -167,6 +167,9 @@ linkwriteobj(Link *ctxt, Biobuf *b)
+ 				s = p->from.sym;
+ 				if(s->seenglobl++)
+ 					print("duplicate %P\n", p);
++				if(s->onlist)
++					sysfatal("symbol %s listed multiple times", s->name);
++				s->onlist = 1;
+ 				if(data == nil)
+ 					data = s;
+ 				else
+@@ -205,6 +208,9 @@ linkwriteobj(Link *ctxt, Biobuf *b)
+ 				}
+ 				if(s->text != nil)
+ 					sysfatal("duplicate TEXT for %s", s->name);
++				if(s->onlist)
++					sysfatal("symbol %s listed multiple times", s->name);
++				s->onlist = 1;
+ 				if(text == nil)
+ 					text = s;
+ 				else
+@@ -518,7 +524,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 			sysfatal("duplicate symbol %s (types %d and %d) in %s and %s", s->name, s->type, t, s->file, pn);
+ 		if(s->np > 0) {
+ 			dup = s;
+-			s = linklookup(ctxt, ".dup", ndup++); // scratch
++			s = linknewsym(ctxt, ".dup", ndup++); // scratch
+ 		}
+ 	}
+ 	s->file = pkg;
+@@ -595,11 +601,16 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 		for(i=0; i<n; i++)
+ 			pc->file[i] = rdsym(ctxt, f, pkg);
+ 
+-		if(ctxt->etextp)
+-			ctxt->etextp->next = s;
+-		else
+-			ctxt->textp = s;
+-		ctxt->etextp = s;
++		if(dup == nil) {
++			if(s->onlist)
++				sysfatal("symbol %s listed multiple times", s->name);
++			s->onlist = 1;
++			if(ctxt->etextp)
++				ctxt->etextp->next = s;
++			else
++				ctxt->textp = s;
++			ctxt->etextp = s;
++		}
+ 	}
+ 
+ 	if(ctxt->debugasm) {
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index ff51b3df89..cba50e9c7e 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -232,7 +232,7 @@ _lookup(Link *ctxt, char *symb, int v, int creat)
+ 	h &= 0xffffff;
+ 	h %= LINKHASH;
+ 	for(s = ctxt->hash[h]; s != nil; s = s->hash)
+-		if(strcmp(s->name, symb) == 0)
++		if(s->version == v && strcmp(s->name, symb) == 0)
+ 			return s;
+ 	if(!creat)
+ 		return nil;

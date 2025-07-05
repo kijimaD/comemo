@@ -9,6 +9,22 @@ Date:   Tue Dec 13 19:49:41 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/issue18146.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/misc/cgo/test/issue18146.go b/misc/cgo/test/issue18146.go
+index 37219980f0..19c52b6fd5 100644
+--- a/misc/cgo/test/issue18146.go
++++ b/misc/cgo/test/issue18146.go
+@@ -26,6 +26,10 @@ func test18146(t *testing.T) {
+ 		t.Skipf("skipping flaky test on %s; see golang.org/issue/18202", runtime.GOOS)
+ 	}
+ 
++	if runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" {
++		t.Skipf("skipping on %s", runtime.GOARCH)
++	}
++
+ 	attempts := 1000
+ 	threads := 4
+ 

@@ -38,8 +38,71 @@ Date:   Tue Mar 8 14:51:27 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/390578
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/resolver.go                 |  4 ++--
  .../internal/types2/testdata/fixedbugs/issue47818.go2       |  6 +++---
  test/fixedbugs/issue51531.go                                | 13 +++++++++++++
  3 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 05755f8cfd..61963cb043 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -413,7 +413,7 @@ func (check *Checker) collectObjects() {
+ 
+ 			case *syntax.TypeDecl:
+ 				if len(s.TParamList) != 0 && !check.allowVersion(pkg, 1, 18) {
+-					check.softErrorf(s.TParamList[0], "type parameters require go1.18 or later")
++					check.versionErrorf(s.TParamList[0], "go1.18", "type parameter")
+ 				}
+ 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
+ 				check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
+@@ -458,7 +458,7 @@ func (check *Checker) collectObjects() {
+ 					check.recordDef(s.Name, obj)
+ 				}
+ 				if len(s.TParamList) != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
+-					check.softErrorf(s.TParamList[0], "type parameters require go1.18 or later")
++					check.versionErrorf(s.TParamList[0], "go1.18", "type parameter")
+ 				}
+ 				info := &declInfo{file: fileScope, fdecl: s}
+ 				// Methods are not package-level objects but we still track them in the
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
+index 546de1ce31..6069f1f97b 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
+@@ -8,13 +8,13 @@
+ 
+ package go1_17
+ 
+-type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
++type T[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
+ 
+ // for init (and main, but we're not in package main) we should only get one error
+ func init[P /* ERROR func init must have no type parameters */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]()   {}
+-func main[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]() {}
++func main[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]() {}
+ 
+-func f[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ](x P) {
++func f[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ](x P) {
+ 	var _ T[ /* ERROR type instantiation requires go1\.18 or later */ int]
+ 	var _ (T[ /* ERROR type instantiation requires go1\.18 or later */ int])
+ 	_ = T[ /* ERROR type instantiation requires go1\.18 or later */ int]{}
+diff --git a/test/fixedbugs/issue51531.go b/test/fixedbugs/issue51531.go
+new file mode 100644
+index 0000000000..a296bbc776
+--- /dev/null
++++ b/test/fixedbugs/issue51531.go
+@@ -0,0 +1,13 @@
++// errorcheck -lang=go1.17
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type empty interface{}
++
++type Foo[T empty] int // ERROR "type parameter requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\)"
++
++func Bar[T empty]() {} // ERROR "type parameter requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\)"

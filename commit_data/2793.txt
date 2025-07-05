@@ -7,9 +7,79 @@ Date:   Mon Jul 27 16:59:10 2009 -0700
     R=ken
     OCL=32253
     CL=32253
-
+---
  src/cmd/gc/subr.c        |  9 +++++++++
  src/cmd/gc/walk.c        |  4 ++++
  test/fixedbugs/bug175.go | 14 ++++++++++++++
  test/golden.out          |  6 ++++++
  4 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index fbfded77cf..14a5fa7b5c 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1112,6 +1112,15 @@ Tpretty(Fmt *fp, Type *t)
+ 		return fmtprint(fp, " }");
+ 
+ 	case TSTRUCT:
++		if(t->funarg) {
++			fmtprint(fp, "(");
++			for(t1=t->type; t1!=T; t1=t1->down) {
++				fmtprint(fp, "%T", t1);
++				if(t1->down)
++					fmtprint(fp, ", ");
++			}
++			return fmtprint(fp, ")");
++		}
+ 		fmtprint(fp, "struct {");
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+ 			fmtprint(fp, " %T", t1);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 2402ef3b62..31b52434a3 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3673,6 +3673,10 @@ old2new(Node *n, Type *t, NodeList **init)
+ 		yyerror("left side of := must be a name");
+ 		return n;
+ 	}
++	if(t != T && t->funarg) {
++		yyerror("use of multi func value as single value in :=");
++		return n;
++	}
+ 	l = newname(n->sym);
+ 	dodclvar(l, t, init);
+ 	return l;
+diff --git a/test/fixedbugs/bug175.go b/test/fixedbugs/bug175.go
+new file mode 100644
+index 0000000000..a8f6e3ca40
+--- /dev/null
++++ b/test/fixedbugs/bug175.go
+@@ -0,0 +1,14 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f() (int, bool) { return 0, true }
++
++func main() {
++	x, y := f(), 2;	// ERROR "multi"
++}
++
+diff --git a/test/golden.out b/test/golden.out
+index 5c50da5a75..605a9b31ac 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -235,3 +235,9 @@ fixedbugs/bug131.go:7: illegal types for operand: AS
+ fixedbugs/bug133.dir/bug2.go:11: undefined: bug0.T field i
+ fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
+ 	int
++
++=========== fixedbugs/bug175.go
++fixedbugs/bug175.go:8: use of multi func value as single value in :=
++fixedbugs/bug175.go:8: undefined: x
++fixedbugs/bug175.go:8: illegal types for operand: AS
++	(int, bool)

@@ -15,10 +15,723 @@ Date:   Wed Jun 2 17:30:58 2021 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/bytealg/compare_arm64.s | 113 ++++++++++++++++----------
  src/internal/bytealg/equal_arm64.s   |  93 ++++++++++++++--------
  src/runtime/asm_arm64.s              | 150 +++++++++++++++++++++++------------
  src/runtime/memclr_arm64.s           |   4 +-
  src/runtime/memmove_arm64.s          |   4 +-
  5 files changed, 233 insertions(+), 131 deletions(-)
+
+diff --git a/src/internal/bytealg/compare_arm64.s b/src/internal/bytealg/compare_arm64.s
+index 56d56f241e..5a80207258 100644
+--- a/src/internal/bytealg/compare_arm64.s
++++ b/src/internal/bytealg/compare_arm64.s
+@@ -5,65 +5,88 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-56
+-	MOVD	a_base+0(FP), R2
+-	MOVD	a_len+8(FP), R0
+-	MOVD	b_base+24(FP), R3
+-	MOVD	b_len+32(FP), R1
++TEXT ·Compare<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
++#ifdef GOEXPERIMENT_regabiargs
++	// R0 = a_base (want in R0)
++	// R1 = a_len  (want in R1)
++	// R2 = a_cap  (unused)
++	// R3 = b_base (want in R2)
++	// R4 = b_len  (want in R3)
++	// R5 = b_cap  (unused)
++	MOVD	R3, R2
++	MOVD	R4, R3
++#else
++	MOVD	a_base+0(FP), R0
++	MOVD	a_len+8(FP), R1
++	MOVD	b_base+24(FP), R2
++	MOVD	b_len+32(FP), R3
+ 	MOVD	$ret+48(FP), R7
++#endif
+ 	B	cmpbody<>(SB)
+ 
+-TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
+-	MOVD	a_base+0(FP), R2
+-	MOVD	a_len+8(FP), R0
+-	MOVD	b_base+16(FP), R3
+-	MOVD	b_len+24(FP), R1
++TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
++#ifdef GOEXPERIMENT_regabiargs
++	// R0 = a_base
++	// R1 = a_len
++	// R2 = b_base
++	// R3 = b_len
++#else
++	MOVD	a_base+0(FP), R0
++	MOVD	a_len+8(FP), R1
++	MOVD	b_base+16(FP), R2
++	MOVD	b_len+24(FP), R3
+ 	MOVD	$ret+32(FP), R7
++#endif
+ 	B	cmpbody<>(SB)
+ 
+ // On entry:
+-// R0 is the length of a
+-// R1 is the length of b
+-// R2 points to the start of a
+-// R3 points to the start of b
++// R0 points to the start of a
++// R1 is the length of a
++// R2 points to the start of b
++// R3 is the length of b
++#ifndef GOEXPERIMENT_regabiargs
+ // R7 points to return value (-1/0/1 will be written here)
++#endif
+ //
+ // On exit:
++#ifdef GOEXPERIMENT_regabiargs
++// R0 is the result
++#endif
+ // R4, R5, R6, R8, R9 and R10 are clobbered
+ TEXT cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
+-	CMP	R2, R3
++	CMP	R0, R2
+ 	BEQ	samebytes         // same starting pointers; compare lengths
+-	CMP	R0, R1
+-	CSEL	LT, R1, R0, R6    // R6 is min(R0, R1)
++	CMP	R1, R3
++	CSEL	LT, R3, R1, R6    // R6 is min(R1, R3)
+ 
+ 	CBZ	R6, samebytes
+ 	BIC	$0xf, R6, R10
+ 	CBZ	R10, small        // length < 16
+-	ADD	R2, R10           // end of chunk16
++	ADD	R0, R10           // end of chunk16
+ 	// length >= 16
+ chunk16_loop:
+-	LDP.P	16(R2), (R4, R8)
+-	LDP.P	16(R3), (R5, R9)
++	LDP.P	16(R0), (R4, R8)
++	LDP.P	16(R2), (R5, R9)
+ 	CMP	R4, R5
+ 	BNE	cmp
+ 	CMP	R8, R9
+ 	BNE	cmpnext
+-	CMP	R10, R2
++	CMP	R10, R0
+ 	BNE	chunk16_loop
+ 	AND	$0xf, R6, R6
+ 	CBZ	R6, samebytes
+ 	SUBS	$8, R6
+ 	BLT	tail
+ 	// the length of tail > 8 bytes
+-	MOVD.P	8(R2), R4
+-	MOVD.P	8(R3), R5
++	MOVD.P	8(R0), R4
++	MOVD.P	8(R2), R5
+ 	CMP	R4, R5
+ 	BNE	cmp
+ 	SUB	$8, R6
+ 	// compare last 8 bytes
+ tail:
+-	MOVD	(R2)(R6), R4
+-	MOVD	(R3)(R6), R5
++	MOVD	(R0)(R6), R4
++	MOVD	(R2)(R6), R5
+ 	CMP	R4, R5
+ 	BEQ	samebytes
+ cmp:
+@@ -71,52 +94,56 @@ cmp:
+ 	REV	R5, R5
+ 	CMP	R4, R5
+ ret:
+-	MOVD	$1, R4
+-	CNEG	HI, R4, R4
+-	MOVD	R4, (R7)
++	MOVD	$1, R0
++	CNEG	HI, R0, R0
++#ifndef GOEXPERIMENT_regabiargs
++	MOVD	R0, (R7)
++#endif
+ 	RET
+ small:
+ 	TBZ	$3, R6, lt_8
+-	MOVD	(R2), R4
+-	MOVD	(R3), R5
++	MOVD	(R0), R4
++	MOVD	(R2), R5
+ 	CMP	R4, R5
+ 	BNE	cmp
+ 	SUBS	$8, R6
+ 	BEQ	samebytes
++	ADD	$8, R0
+ 	ADD	$8, R2
+-	ADD	$8, R3
+ 	SUB	$8, R6
+ 	B	tail
+ lt_8:
+ 	TBZ	$2, R6, lt_4
+-	MOVWU	(R2), R4
+-	MOVWU	(R3), R5
++	MOVWU	(R0), R4
++	MOVWU	(R2), R5
+ 	CMPW	R4, R5
+ 	BNE	cmp
+ 	SUBS	$4, R6
+ 	BEQ	samebytes
++	ADD	$4, R0
+ 	ADD	$4, R2
+-	ADD	$4, R3
+ lt_4:
+ 	TBZ	$1, R6, lt_2
+-	MOVHU	(R2), R4
+-	MOVHU	(R3), R5
++	MOVHU	(R0), R4
++	MOVHU	(R2), R5
+ 	CMPW	R4, R5
+ 	BNE	cmp
++	ADD	$2, R0
+ 	ADD	$2, R2
+-	ADD	$2, R3
+ lt_2:
+ 	TBZ	$0, R6, samebytes
+ one:
+-	MOVBU	(R2), R4
+-	MOVBU	(R3), R5
++	MOVBU	(R0), R4
++	MOVBU	(R2), R5
+ 	CMPW	R4, R5
+ 	BNE	ret
+ samebytes:
+-	CMP	R1, R0
+-	CSET	NE, R4
+-	CNEG	LO, R4, R4
+-	MOVD	R4, (R7)
++	CMP	R3, R1
++	CSET	NE, R0
++	CNEG	LO, R0, R0
++#ifndef GOEXPERIMENT_regabiargs
++	MOVD	R0, (R7)
++#endif
+ 	RET
+ cmpnext:
+ 	REV	R8, R4
+diff --git a/src/internal/bytealg/equal_arm64.s b/src/internal/bytealg/equal_arm64.s
+index 944edd8768..cf5cf54e59 100644
+--- a/src/internal/bytealg/equal_arm64.s
++++ b/src/internal/bytealg/equal_arm64.s
+@@ -6,53 +6,70 @@
+ #include "textflag.h"
+ 
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+-	MOVD	size+16(FP), R1
++TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
++#ifndef GOEXPERIMENT_regabiargs
++	MOVD	size+16(FP), R2
++#endif
+ 	// short path to handle 0-byte case
+-	CBZ	R1, equal
++	CBZ	R2, equal
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD	a+0(FP), R0
+-	MOVD	b+8(FP), R2
++	MOVD	b+8(FP), R1
+ 	MOVD	$ret+24(FP), R8
++#endif
+ 	B	memeqbody<>(SB)
+ equal:
+ 	MOVD	$1, R0
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVB	R0, ret+24(FP)
++#endif
+ 	RET
+ 
+ // memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
++TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT,$0-17
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD	a+0(FP), R0
+-	MOVD	b+8(FP), R2
+-	CMP	R0, R2
++	MOVD	b+8(FP), R1
++#endif
++	CMP	R0, R1
+ 	BEQ	eq
+-	MOVD	8(R26), R1    // compiler stores size at offset 8 in the closure
+-	CBZ	R1, eq
++	MOVD	8(R26), R2    // compiler stores size at offset 8 in the closure
++	CBZ	R2, eq
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD	$ret+16(FP), R8
++#endif
+ 	B	memeqbody<>(SB)
+ eq:
+-	MOVD	$1, R3
+-	MOVB	R3, ret+16(FP)
++	MOVD	$1, R0
++#ifndef GOEXPERIMENT_regabiargs
++	MOVB	R0, ret+16(FP)
++#endif
+ 	RET
+ 
+ // input:
+ // R0: pointer a
+-// R1: data len
+-// R2: pointer b
++// R1: pointer b
++// R2: data len
++#ifdef GOEXPERIMENT_regabiargs
++// at return: result in R0
++#else
+ // R8: address to put result
++#endif
++
+ TEXT memeqbody<>(SB),NOSPLIT,$0
+-	CMP	$1, R1
++	CMP	$1, R2
+ 	// handle 1-byte special case for better performance
+ 	BEQ	one
+-	CMP	$16, R1
++	CMP	$16, R2
+ 	// handle specially if length < 16
+ 	BLO	tail
+-	BIC	$0x3f, R1, R3
++	BIC	$0x3f, R2, R3
+ 	CBZ	R3, chunk16
+ 	// work with 64-byte chunks
+ 	ADD	R3, R0, R6	// end of chunks
+ chunk64_loop:
+ 	VLD1.P	(R0), [V0.D2, V1.D2, V2.D2, V3.D2]
+-	VLD1.P	(R2), [V4.D2, V5.D2, V6.D2, V7.D2]
++	VLD1.P	(R1), [V4.D2, V5.D2, V6.D2, V7.D2]
+ 	VCMEQ	V0.D2, V4.D2, V8.D2
+ 	VCMEQ	V1.D2, V5.D2, V9.D2
+ 	VCMEQ	V2.D2, V6.D2, V10.D2
+@@ -66,66 +83,72 @@ chunk64_loop:
+ 	CBZ	R4, not_equal
+ 	CBZ	R5, not_equal
+ 	BNE	chunk64_loop
+-	AND	$0x3f, R1, R1
+-	CBZ	R1, equal
++	AND	$0x3f, R2, R2
++	CBZ	R2, equal
+ chunk16:
+ 	// work with 16-byte chunks
+-	BIC	$0xf, R1, R3
++	BIC	$0xf, R2, R3
+ 	CBZ	R3, tail
+ 	ADD	R3, R0, R6	// end of chunks
+ chunk16_loop:
+ 	LDP.P	16(R0), (R4, R5)
+-	LDP.P	16(R2), (R7, R9)
++	LDP.P	16(R1), (R7, R9)
+ 	EOR	R4, R7
+ 	CBNZ	R7, not_equal
+ 	EOR	R5, R9
+ 	CBNZ	R9, not_equal
+ 	CMP	R0, R6
+ 	BNE	chunk16_loop
+-	AND	$0xf, R1, R1
+-	CBZ	R1, equal
++	AND	$0xf, R2, R2
++	CBZ	R2, equal
+ tail:
+ 	// special compare of tail with length < 16
+-	TBZ	$3, R1, lt_8
++	TBZ	$3, R2, lt_8
+ 	MOVD	(R0), R4
+-	MOVD	(R2), R5
++	MOVD	(R1), R5
+ 	EOR	R4, R5
+ 	CBNZ	R5, not_equal
+-	SUB	$8, R1, R6	// offset of the last 8 bytes
++	SUB	$8, R2, R6	// offset of the last 8 bytes
+ 	MOVD	(R0)(R6), R4
+-	MOVD	(R2)(R6), R5
++	MOVD	(R1)(R6), R5
+ 	EOR	R4, R5
+ 	CBNZ	R5, not_equal
+ 	B	equal
+ lt_8:
+-	TBZ	$2, R1, lt_4
++	TBZ	$2, R2, lt_4
+ 	MOVWU	(R0), R4
+-	MOVWU	(R2), R5
++	MOVWU	(R1), R5
+ 	EOR	R4, R5
+ 	CBNZ	R5, not_equal
+-	SUB	$4, R1, R6	// offset of the last 4 bytes
++	SUB	$4, R2, R6	// offset of the last 4 bytes
+ 	MOVWU	(R0)(R6), R4
+-	MOVWU	(R2)(R6), R5
++	MOVWU	(R1)(R6), R5
+ 	EOR	R4, R5
+ 	CBNZ	R5, not_equal
+ 	B	equal
+ lt_4:
+-	TBZ	$1, R1, lt_2
++	TBZ	$1, R2, lt_2
+ 	MOVHU.P	2(R0), R4
+-	MOVHU.P	2(R2), R5
++	MOVHU.P	2(R1), R5
+ 	CMP	R4, R5
+ 	BNE	not_equal
+ lt_2:
+-	TBZ	$0, R1, equal
++	TBZ	$0, R2, equal
+ one:
+ 	MOVBU	(R0), R4
+-	MOVBU	(R2), R5
++	MOVBU	(R1), R5
+ 	CMP	R4, R5
+ 	BNE	not_equal
+ equal:
+ 	MOVD	$1, R0
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVB	R0, (R8)
++#endif
+ 	RET
+ not_equal:
++#ifdef GOEXPERIMENT_regabiargs
++	MOVB	ZR, R0
++#else
+ 	MOVB	ZR, (R8)
++#endif
+ 	RET
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 170e4406fc..4babcc7fcb 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -536,12 +536,14 @@ CALLFN(·call536870912, 536870912)
+ CALLFN(·call1073741824, 1073741824)
+ 
+ // func memhash32(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+-	MOVB	runtime·useAeshash(SB), R0
+-	CBZ	R0, noaes
++TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
++	MOVB	runtime·useAeshash(SB), R10
++	CBZ	R10, noaes
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD	p+0(FP), R0
+ 	MOVD	h+8(FP), R1
+ 	MOVD	$ret+16(FP), R2
++#endif
+ 	MOVD	$runtime·aeskeysched+0(SB), R3
+ 
+ 	VEOR	V0.B16, V0.B16, V0.B16
+@@ -555,18 +557,24 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+ 	AESMC	V0.B16, V0.B16
+ 	AESE	V2.B16, V0.B16
+ 
++#ifdef GOEXPERIMENT_regabiargs
++	VMOV	V0.D[0], R0
++#else
+ 	VST1	[V0.D1], (R2)
++#endif
+ 	RET
+ noaes:
+-	B	runtime·memhash32Fallback(SB)
++	B	runtime·memhash32Fallback<ABIInternal>(SB)
+ 
+ // func memhash64(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+-	MOVB	runtime·useAeshash(SB), R0
+-	CBZ	R0, noaes
++TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
++	MOVB	runtime·useAeshash(SB), R10
++	CBZ	R10, noaes
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD	p+0(FP), R0
+ 	MOVD	h+8(FP), R1
+ 	MOVD	$ret+16(FP), R2
++#endif
+ 	MOVD	$runtime·aeskeysched+0(SB), R3
+ 
+ 	VEOR	V0.B16, V0.B16, V0.B16
+@@ -580,75 +588,89 @@ TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+ 	AESMC	V0.B16, V0.B16
+ 	AESE	V2.B16, V0.B16
+ 
++#ifdef GOEXPERIMENT_regabiargs
++	VMOV	V0.D[0], R0
++#else
+ 	VST1	[V0.D1], (R2)
++#endif
+ 	RET
+ noaes:
+-	B	runtime·memhash64Fallback(SB)
++	B	runtime·memhash64Fallback<ABIInternal>(SB)
+ 
+ // func memhash(p unsafe.Pointer, h, size uintptr) uintptr
+-TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
+-	MOVB	runtime·useAeshash(SB), R0
+-	CBZ	R0, noaes
++TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
++	MOVB	runtime·useAeshash(SB), R10
++	CBZ	R10, noaes
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD	p+0(FP), R0
+-	MOVD	s+16(FP), R1
+-	MOVD	h+8(FP), R3
+-	MOVD	$ret+24(FP), R2
++	MOVD	h+8(FP), R1
++	MOVD	s+16(FP), R2
++	MOVD	$ret+24(FP), R8
++#endif
+ 	B	aeshashbody<>(SB)
+ noaes:
+-	B	runtime·memhashFallback(SB)
++	B	runtime·memhashFallback<ABIInternal>(SB)
+ 
+ // func strhash(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
+-	MOVB	runtime·useAeshash(SB), R0
+-	CBZ	R0, noaes
+-	MOVD	p+0(FP), R10 // string pointer
+-	LDP	(R10), (R0, R1) //string data/ length
+-	MOVD	h+8(FP), R3
+-	MOVD	$ret+16(FP), R2 // return adddress
++TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
++	MOVB	runtime·useAeshash(SB), R10
++	CBZ	R10, noaes
++#ifdef GOEXPERIMENT_regabiargs
++	LDP	(R0), (R0, R2)	// string data / length
++#else
++	MOVD	p+0(FP), R10	// string pointer
++	LDP	(R10), (R0, R2)	// string data / length
++	MOVD	h+8(FP), R1
++	MOVD	$ret+16(FP), R8	// return adddress
++#endif
+ 	B	aeshashbody<>(SB)
+ noaes:
+-	B	runtime·strhashFallback(SB)
++	B	runtime·strhashFallback<ABIInternal>(SB)
+ 
+ // R0: data
+-// R1: length
+-// R2: address to put return value
+-// R3: seed data
++// R1: seed data
++// R2: length
++#ifdef GOEXPERIMENT_regabiargs
++// At return, R0 = return value
++#else
++// R8: address to put return value
++#endif
+ TEXT aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
+ 	VEOR	V30.B16, V30.B16, V30.B16
+-	VMOV	R3, V30.D[0]
+-	VMOV	R1, V30.D[1] // load length into seed
++	VMOV	R1, V30.D[0]
++	VMOV	R2, V30.D[1] // load length into seed
+ 
+ 	MOVD	$runtime·aeskeysched+0(SB), R4
+ 	VLD1.P	16(R4), [V0.B16]
+ 	AESE	V30.B16, V0.B16
+ 	AESMC	V0.B16, V0.B16
+-	CMP	$16, R1
++	CMP	$16, R2
+ 	BLO	aes0to15
+ 	BEQ	aes16
+-	CMP	$32, R1
++	CMP	$32, R2
+ 	BLS	aes17to32
+-	CMP	$64, R1
++	CMP	$64, R2
+ 	BLS	aes33to64
+-	CMP	$128, R1
++	CMP	$128, R2
+ 	BLS	aes65to128
+ 	B	aes129plus
+ 
+ aes0to15:
+-	CBZ	R1, aes0
++	CBZ	R2, aes0
+ 	VEOR	V2.B16, V2.B16, V2.B16
+-	TBZ	$3, R1, less_than_8
++	TBZ	$3, R2, less_than_8
+ 	VLD1.P	8(R0), V2.D[0]
+ 
+ less_than_8:
+-	TBZ	$2, R1, less_than_4
++	TBZ	$2, R2, less_than_4
+ 	VLD1.P	4(R0), V2.S[2]
+ 
+ less_than_4:
+-	TBZ	$1, R1, less_than_2
++	TBZ	$1, R2, less_than_2
+ 	VLD1.P	2(R0), V2.H[6]
+ 
+ less_than_2:
+-	TBZ	$0, R1, done
++	TBZ	$0, R2, done
+ 	VLD1	(R0), V2.B[14]
+ done:
+ 	AESE	V0.B16, V2.B16
+@@ -657,11 +679,21 @@ done:
+ 	AESMC	V2.B16, V2.B16
+ 	AESE	V0.B16, V2.B16
+ 
+-	VST1	[V2.D1], (R2)
++#ifdef GOEXPERIMENT_regabiargs
++	VMOV	V2.D[0], R0
++#else
++	VST1	[V2.D1], (R8)
++#endif
+ 	RET
++
+ aes0:
+-	VST1	[V0.D1], (R2)
++#ifdef GOEXPERIMENT_regabiargs
++	VMOV	V0.D[0], R0
++#else
++	VST1	[V0.D1], (R8)
++#endif
+ 	RET
++
+ aes16:
+ 	VLD1	(R0), [V2.B16]
+ 	B	done
+@@ -671,7 +703,7 @@ aes17to32:
+ 	VLD1	(R4), [V1.B16]
+ 	AESE	V30.B16, V1.B16
+ 	AESMC	V1.B16, V1.B16
+-	SUB	$16, R1, R10
++	SUB	$16, R2, R10
+ 	VLD1.P	(R0)(R10), [V2.B16]
+ 	VLD1	(R0), [V3.B16]
+ 
+@@ -689,7 +721,11 @@ aes17to32:
+ 	AESE	V1.B16, V3.B16
+ 
+ 	VEOR	V3.B16, V2.B16, V2.B16
+-	VST1	[V2.D1], (R2)
++#ifdef GOEXPERIMENT_regabiargs
++	VMOV	V2.D[0], R0
++#else
++	VST1	[V2.D1], (R8)
++#endif
+ 	RET
+ 
+ aes33to64:
+@@ -700,7 +736,7 @@ aes33to64:
+ 	AESMC	V2.B16, V2.B16
+ 	AESE	V30.B16, V3.B16
+ 	AESMC	V3.B16, V3.B16
+-	SUB	$32, R1, R10
++	SUB	$32, R2, R10
+ 
+ 	VLD1.P	(R0)(R10), [V4.B16, V5.B16]
+ 	VLD1	(R0), [V6.B16, V7.B16]
+@@ -732,7 +768,11 @@ aes33to64:
+ 	VEOR	V7.B16, V5.B16, V5.B16
+ 	VEOR	V5.B16, V4.B16, V4.B16
+ 
+-	VST1	[V4.D1], (R2)
++#ifdef GOEXPERIMENT_regabiargs
++	VMOV	V4.D[0], R0
++#else
++	VST1	[V4.D1], (R8)
++#endif
+ 	RET
+ 
+ aes65to128:
+@@ -753,7 +793,7 @@ aes65to128:
+ 	AESE	V30.B16, V7.B16
+ 	AESMC	V7.B16, V7.B16
+ 
+-	SUB	$64, R1, R10
++	SUB	$64, R2, R10
+ 	VLD1.P	(R0)(R10), [V8.B16, V9.B16, V10.B16, V11.B16]
+ 	VLD1	(R0), [V12.B16, V13.B16, V14.B16, V15.B16]
+ 	AESE	V0.B16,	 V8.B16
+@@ -807,7 +847,11 @@ aes65to128:
+ 	VEOR	V11.B16, V9.B16, V9.B16
+ 	VEOR	V9.B16, V8.B16, V8.B16
+ 
+-	VST1	[V8.D1], (R2)
++#ifdef GOEXPERIMENT_regabiargs
++	VMOV	V8.D[0], R0
++#else
++	VST1	[V8.D1], (R8)
++#endif
+ 	RET
+ 
+ aes129plus:
+@@ -828,12 +872,12 @@ aes129plus:
+ 	AESMC	V6.B16, V6.B16
+ 	AESE	V30.B16, V7.B16
+ 	AESMC	V7.B16, V7.B16
+-	ADD	R0, R1, R10
++	ADD	R0, R2, R10
+ 	SUB	$128, R10, R10
+ 	VLD1.P	64(R10), [V8.B16, V9.B16, V10.B16, V11.B16]
+ 	VLD1	(R10), [V12.B16, V13.B16, V14.B16, V15.B16]
+-	SUB	$1, R1, R1
+-	LSR	$7, R1, R1
++	SUB	$1, R2, R2
++	LSR	$7, R2, R2
+ 
+ aesloop:
+ 	AESE	V8.B16,	 V0.B16
+@@ -872,8 +916,8 @@ aesloop:
+ 	AESMC	V6.B16,  V6.B16
+ 	AESE	V15.B16, V7.B16
+ 	AESMC	V7.B16,  V7.B16
+-	SUB	$1, R1, R1
+-	CBNZ	R1, aesloop
++	SUB	$1, R2, R2
++	CBNZ	R2, aesloop
+ 
+ 	AESE	V8.B16,	 V0.B16
+ 	AESMC	V0.B16,  V0.B16
+@@ -926,7 +970,11 @@ aesloop:
+ 	VEOR	V4.B16, V6.B16, V4.B16
+ 	VEOR	V4.B16, V0.B16, V0.B16
+ 
+-	VST1	[V0.D1], (R2)
++#ifdef GOEXPERIMENT_regabiargs
++	VMOV	V0.D[0], R0
++#else
++	VST1	[V0.D1], (R8)
++#endif
+ 	RET
+ 
+ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+diff --git a/src/runtime/memclr_arm64.s b/src/runtime/memclr_arm64.s
+index c1a0dcef58..b80cca6a1c 100644
+--- a/src/runtime/memclr_arm64.s
++++ b/src/runtime/memclr_arm64.s
+@@ -8,9 +8,11 @@
+ 
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ // Also called from assembly in sys_windows_arm64.s without g (but using Go stack convention).
+-TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
++TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD	ptr+0(FP), R0
+ 	MOVD	n+8(FP), R1
++#endif
+ 
+ 	CMP	$16, R1
+ 	// If n is equal to 16 bytes, use zero_exact_16 to zero
+diff --git a/src/runtime/memmove_arm64.s b/src/runtime/memmove_arm64.s
+index 43d27629e5..bee3b00c47 100644
+--- a/src/runtime/memmove_arm64.s
++++ b/src/runtime/memmove_arm64.s
+@@ -26,10 +26,12 @@
+ // The loop tail is handled by always copying 64 bytes from the end.
+ 
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+-TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
++TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD	to+0(FP), R0
+ 	MOVD	from+8(FP), R1
+ 	MOVD	n+16(FP), R2
++#endif
+ 	CBZ	R2, copy0
+ 
+ 	// Small copies: 1..16 bytes

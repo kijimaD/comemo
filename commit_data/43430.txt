@@ -21,7 +21,7 @@ Date:   Thu Apr 2 12:00:50 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/race/README                  |  10 +++++-----
  src/runtime/race/race_darwin_amd64.syso  | Bin 432640 -> 448992 bytes
  src/runtime/race/race_freebsd_amd64.syso | Bin 555192 -> 577864 bytes
@@ -29,3 +29,39 @@ Date:   Thu Apr 2 12:00:50 2020 -0700
  src/runtime/race/race_linux_arm64.syso   | Bin 454752 -> 493992 bytes
  src/runtime/race/race_windows_amd64.syso | Bin 429378 -> 457408 bytes
  6 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index 7e948cb681..52cf3450c7 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -4,10 +4,10 @@ the LLVM project (https://github.com/llvm/llvm-project/tree/master/compiler-rt).
+ 
+ To update the .syso files use golang.org/x/build/cmd/racebuild.
+ 
+-race_darwin_amd64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
+-race_freebsd_amd64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
+-race_linux_amd64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
++race_darwin_amd64.syso built with LLVM 0fb8a5356214c47bbb832e89fbb3da1c755eeb73 and Go 95773ab9b053edc43ba07a182f3d5e0e29775a45.
++race_freebsd_amd64.syso built with LLVM 0fb8a5356214c47bbb832e89fbb3da1c755eeb73 and Go 95773ab9b053edc43ba07a182f3d5e0e29775a45.
++race_linux_amd64.syso built with LLVM 0fb8a5356214c47bbb832e89fbb3da1c755eeb73 and Go 95773ab9b053edc43ba07a182f3d5e0e29775a45.
+ race_linux_ppc64le.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
+ race_netbsd_amd64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
+-race_windows_amd64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
+-race_linux_arm64.syso built with LLVM 810ae8ddac890a6613d814c0b5415c7fcb7f5cca and Go 8c6876e9a481a2ea48070d3285a07163f564877b.
++race_windows_amd64.syso built with LLVM 0fb8a5356214c47bbb832e89fbb3da1c755eeb73 and Go 95773ab9b053edc43ba07a182f3d5e0e29775a45.
++race_linux_arm64.syso built with LLVM 0fb8a5356214c47bbb832e89fbb3da1c755eeb73 and Go 95773ab9b053edc43ba07a182f3d5e0e29775a45.
+diff --git a/src/runtime/race/race_darwin_amd64.syso b/src/runtime/race/race_darwin_amd64.syso
+index bd904b98a7..4339f40a41 100644
+Binary files a/src/runtime/race/race_darwin_amd64.syso and b/src/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/runtime/race/race_freebsd_amd64.syso b/src/runtime/race/race_freebsd_amd64.syso
+index 300684343b..01d34b993c 100644
+Binary files a/src/runtime/race/race_freebsd_amd64.syso and b/src/runtime/race/race_freebsd_amd64.syso differ
+diff --git a/src/runtime/race/race_linux_amd64.syso b/src/runtime/race/race_linux_amd64.syso
+index 10d335c37f..a00b62839a 100644
+Binary files a/src/runtime/race/race_linux_amd64.syso and b/src/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/runtime/race/race_linux_arm64.syso b/src/runtime/race/race_linux_arm64.syso
+index 5b26e9f4ce..4da7102f03 100644
+Binary files a/src/runtime/race/race_linux_arm64.syso and b/src/runtime/race/race_linux_arm64.syso differ
+diff --git a/src/runtime/race/race_windows_amd64.syso b/src/runtime/race/race_windows_amd64.syso
+index dc6a1931be..fc1c3a4d29 100644
+Binary files a/src/runtime/race/race_windows_amd64.syso and b/src/runtime/race/race_windows_amd64.syso differ

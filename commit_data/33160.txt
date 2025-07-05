@@ -17,8 +17,345 @@ Date:   Mon Jul 17 07:07:28 2017 -0400
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/S390X.rules | 26 +++++-----
  src/cmd/compile/internal/ssa/rewriteS390X.go | 56 ++++++++++++----------
  test/fixedbugs/issue21048.go                 | 72 ++++++++++++++++++++++++++++
  3 files changed, 118 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 4ae21cd55b..8a627e75f5 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -737,13 +737,15 @@
+ (MOVBstoreconst [sc] {s} (ADDconst [off] ptr) mem) && is20Bit(ValAndOff(sc).Off()+off) ->
+ 	(MOVBstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+ 
+-// We need to fold MOVDaddr into the MOVx ops so that the live variable analysis knows
+-// what variables are being read/written by the ops.
+-(MOVDload  [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++// Merge address calculations into loads and stores.
++// Offsets from SB must not be merged into unaligned memory accesses because
++// loads/stores using PC-relative addressing directly must be aligned to the
++// size of the target.
++(MOVDload   [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%8 == 0 && (off1+off2)%8 == 0)) ->
+ 	(MOVDload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+-(MOVWZload  [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVWZload  [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%4 == 0 && (off1+off2)%4 == 0)) ->
+ 	(MOVWZload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+-(MOVHZload  [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVHZload  [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%2 == 0 && (off1+off2)%2 == 0)) ->
+ 	(MOVHZload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ (MOVBZload  [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVBZload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+@@ -752,18 +754,18 @@
+ (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(FMOVDload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 
++(MOVWload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%4 == 0 && (off1+off2)%4 == 0)) ->
++	(MOVWload [off1+off2] {mergeSym(sym1,sym2)} base mem)
++(MOVHload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%2 == 0 && (off1+off2)%2 == 0)) ->
++	(MOVHload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVBload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+-(MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+-	(MOVHload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+-(MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+-	(MOVWload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 
+-(MOVDstore  [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVDstore  [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%8 == 0 && (off1+off2)%8 == 0)) ->
+ 	(MOVDstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+-(MOVWstore  [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVWstore  [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%4 == 0 && (off1+off2)%4 == 0)) ->
+ 	(MOVWstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+-(MOVHstore  [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVHstore  [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%2 == 0 && (off1+off2)%2 == 0)) ->
+ 	(MOVHstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ (MOVBstore  [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVBstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 2254674048..e84cb5b10c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -12377,8 +12377,8 @@ func rewriteValueS390X_OpS390XMOVDload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// match: (MOVDload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%8 == 0 && (off1+off2)%8 == 0))
+ 	// result: (MOVDload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -12388,11 +12388,12 @@ func rewriteValueS390X_OpS390XMOVDload_0(v *Value) bool {
+ 		if v_0.Op != OpS390XMOVDaddr {
+ 			break
+ 		}
++		t := v_0.Type
+ 		off2 := v_0.AuxInt
+ 		sym2 := v_0.Aux
+ 		base := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%8 == 0 && (off1+off2)%8 == 0))) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVDload)
+@@ -13300,8 +13301,8 @@ func rewriteValueS390X_OpS390XMOVDstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// match: (MOVDstore [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%8 == 0 && (off1+off2)%8 == 0))
+ 	// result: (MOVDstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -13311,12 +13312,13 @@ func rewriteValueS390X_OpS390XMOVDstore_0(v *Value) bool {
+ 		if v_0.Op != OpS390XMOVDaddr {
+ 			break
+ 		}
++		t := v_0.Type
+ 		off2 := v_0.AuxInt
+ 		sym2 := v_0.Aux
+ 		base := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%8 == 0 && (off1+off2)%8 == 0))) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVDstore)
+@@ -14747,8 +14749,8 @@ func rewriteValueS390X_OpS390XMOVHZload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVHZload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// match: (MOVHZload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%2 == 0 && (off1+off2)%2 == 0))
+ 	// result: (MOVHZload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -14758,11 +14760,12 @@ func rewriteValueS390X_OpS390XMOVHZload_0(v *Value) bool {
+ 		if v_0.Op != OpS390XMOVDaddr {
+ 			break
+ 		}
++		t := v_0.Type
+ 		off2 := v_0.AuxInt
+ 		sym2 := v_0.Aux
+ 		base := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%2 == 0 && (off1+off2)%2 == 0))) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVHZload)
+@@ -15086,8 +15089,8 @@ func rewriteValueS390X_OpS390XMOVHload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// match: (MOVHload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%2 == 0 && (off1+off2)%2 == 0))
+ 	// result: (MOVHload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -15097,11 +15100,12 @@ func rewriteValueS390X_OpS390XMOVHload_0(v *Value) bool {
+ 		if v_0.Op != OpS390XMOVDaddr {
+ 			break
+ 		}
++		t := v_0.Type
+ 		off2 := v_0.AuxInt
+ 		sym2 := v_0.Aux
+ 		base := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%2 == 0 && (off1+off2)%2 == 0))) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVHload)
+@@ -15343,8 +15347,8 @@ func rewriteValueS390X_OpS390XMOVHstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVHstore [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// match: (MOVHstore [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%2 == 0 && (off1+off2)%2 == 0))
+ 	// result: (MOVHstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -15354,12 +15358,13 @@ func rewriteValueS390X_OpS390XMOVHstore_0(v *Value) bool {
+ 		if v_0.Op != OpS390XMOVDaddr {
+ 			break
+ 		}
++		t := v_0.Type
+ 		off2 := v_0.AuxInt
+ 		sym2 := v_0.Aux
+ 		base := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%2 == 0 && (off1+off2)%2 == 0))) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVHstore)
+@@ -17229,8 +17234,8 @@ func rewriteValueS390X_OpS390XMOVWZload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVWZload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// match: (MOVWZload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%4 == 0 && (off1+off2)%4 == 0))
+ 	// result: (MOVWZload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -17240,11 +17245,12 @@ func rewriteValueS390X_OpS390XMOVWZload_0(v *Value) bool {
+ 		if v_0.Op != OpS390XMOVDaddr {
+ 			break
+ 		}
++		t := v_0.Type
+ 		off2 := v_0.AuxInt
+ 		sym2 := v_0.Aux
+ 		base := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%4 == 0 && (off1+off2)%4 == 0))) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVWZload)
+@@ -17593,8 +17599,8 @@ func rewriteValueS390X_OpS390XMOVWload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} base) mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// match: (MOVWload [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%4 == 0 && (off1+off2)%4 == 0))
+ 	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -17604,11 +17610,12 @@ func rewriteValueS390X_OpS390XMOVWload_0(v *Value) bool {
+ 		if v_0.Op != OpS390XMOVDaddr {
+ 			break
+ 		}
++		t := v_0.Type
+ 		off2 := v_0.AuxInt
+ 		sym2 := v_0.Aux
+ 		base := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%4 == 0 && (off1+off2)%4 == 0))) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVWload)
+@@ -17903,8 +17910,8 @@ func rewriteValueS390X_OpS390XMOVWstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVWstore [off1] {sym1} (MOVDaddr [off2] {sym2} base) val mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// match: (MOVWstore [off1] {sym1} (MOVDaddr <t> [off2] {sym2} base) val mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%4 == 0 && (off1+off2)%4 == 0))
+ 	// result: (MOVWstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -17914,12 +17921,13 @@ func rewriteValueS390X_OpS390XMOVWstore_0(v *Value) bool {
+ 		if v_0.Op != OpS390XMOVDaddr {
+ 			break
+ 		}
++		t := v_0.Type
+ 		off2 := v_0.AuxInt
+ 		sym2 := v_0.Aux
+ 		base := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || (t.IsPtr() && t.ElemType().Alignment()%4 == 0 && (off1+off2)%4 == 0))) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVWstore)
+diff --git a/test/fixedbugs/issue21048.go b/test/fixedbugs/issue21048.go
+new file mode 100644
+index 0000000000..e365a5e14f
+--- /dev/null
++++ b/test/fixedbugs/issue21048.go
+@@ -0,0 +1,72 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 21048: s390x merged address generation into stores
++// to unaligned global variables. This resulted in an illegal
++// instruction.
++
++package main
++
++type T struct {
++	_ [1]byte
++	a [2]byte // offset: 1
++	_ [3]byte
++	b [2]uint16 // offset: 6
++	_ [2]byte
++	c [2]uint32 // offset: 12
++	_ [2]byte
++	d [2]int16 // offset: 22
++	_ [2]byte
++	e [2]int32 // offset: 28
++}
++
++var Source, Sink T
++
++func newT() T {
++	return T{
++		a: [2]byte{1, 2},
++		b: [2]uint16{1, 2},
++		c: [2]uint32{1, 2},
++		d: [2]int16{1, 2},
++		e: [2]int32{1, 2},
++	}
++}
++
++//go:noinline
++func moves() {
++	Sink.a = Source.a
++	Sink.b = Source.b
++	Sink.c = Source.c
++	Sink.d = Source.d
++	Sink.e = Source.e
++}
++
++//go:noinline
++func loads() *T {
++	t := newT()
++	t.a = Source.a
++	t.b = Source.b
++	t.c = Source.c
++	t.d = Source.d
++	t.e = Source.e
++	return &t
++}
++
++//go:noinline
++func stores() {
++	t := newT()
++	Sink.a = t.a
++	Sink.b = t.b
++	Sink.c = t.c
++	Sink.d = t.d
++	Sink.e = t.e
++}
++
++func main() {
++	moves()
++	loads()
++	stores()
++}

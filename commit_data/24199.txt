@@ -9,7 +9,98 @@ Date:   Mon Jul 13 22:27:10 2015 -0400
     Change-Id: I105629b03fd3323c0a2ca5b6b0fd35ee92b7fd2e
     Reviewed-on: https://go-review.googlesource.com/12146
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/dist/build.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/go/build/build.go |  1 +
  2 files changed, 54 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index f557238e59..0616be804c 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -9,6 +9,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ )
+@@ -1022,6 +1023,7 @@ func cmdbootstrap() {
+ 
+ 	setup()
+ 
++	checkCC()
+ 	bootstrapBuildTools()
+ 
+ 	// For the main bootstrap, building for host os/arch.
+@@ -1067,6 +1069,57 @@ func cmdbootstrap() {
+ 	}
+ }
+ 
++// Copied from go/build/build.go.
++// Cannot use go/build directly because cmd/dist for a new release
++// builds against an old release's go/build, which may be out of sync.
++var cgoEnabled = map[string]bool{
++	"darwin/386":      true,
++	"darwin/amd64":    true,
++	"darwin/arm":      true,
++	"darwin/arm64":    true,
++	"dragonfly/amd64": true,
++	"freebsd/386":     true,
++	"freebsd/amd64":   true,
++	"linux/386":       true,
++	"linux/amd64":     true,
++	"linux/arm":       true,
++	"linux/arm64":     true,
++	"linux/ppc64le":   true,
++	"android/386":     true,
++	"android/amd64":   true,
++	"android/arm":     true,
++	"netbsd/386":      true,
++	"netbsd/amd64":    true,
++	"netbsd/arm":      true,
++	"openbsd/386":     true,
++	"openbsd/amd64":   true,
++	"solaris/amd64":   true,
++	"windows/386":     true,
++	"windows/amd64":   true,
++}
++
++func needCC() bool {
++	switch os.Getenv("CGO_ENABLED") {
++	case "1":
++		return true
++	case "0":
++		return false
++	}
++	return cgoEnabled[gohostos+"/"+gohostarch]
++}
++
++func checkCC() {
++	if !needCC() {
++		return
++	}
++	if _, err := exec.Command(defaultcc, "--help").Output(); err != nil {
++		fatal("cannot invoke C compiler %q: %v\n\n"+
++			"Go needs a system C compiler for use with cgo.\n"+
++			"To set a C compiler, export CC=the-compiler.\n"+
++			"To disable cgo, export CGO_ENABLED=0.\n", defaultcc, err)
++	}
++}
++
+ func defaulttarg() string {
+ 	// xgetwd might return a path with symlinks fully resolved, and if
+ 	// there happens to be symlinks in goroot, then the hasprefix test
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index bd84c57a4a..6496414f26 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -256,6 +256,7 @@ func (ctxt *Context) SrcDirs() []string {
+ // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
+ var Default Context = defaultContext()
+ 
++// Also known to cmd/dist/build.go.
+ var cgoEnabled = map[string]bool{
+ 	"darwin/386":      true,
+ 	"darwin/amd64":    true,

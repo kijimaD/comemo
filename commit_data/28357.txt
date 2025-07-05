@@ -18,7 +18,72 @@ Date:   Tue May 17 08:24:18 2016 -0500
     Change-Id: Ia64bdb1dafea33b1c3770803230d30ec1059df22
     Reviewed-on: https://go-review.googlesource.com/23135
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/vcs.go      |  9 +++++++++
  src/cmd/go/vcs_test.go | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 4ff71f2168..3b6e08f155 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -848,6 +848,15 @@ var vcsPaths = []*vcsPath{
+ 		repo:   "https://{root}",
+ 	},
+ 
++	// Git at OpenStack
++	{
++		prefix: "git.openstack.org",
++		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
++		vcs:    "git",
++		repo:   "https://{root}",
++		check:  noVCSSuffix,
++	},
++
+ 	// General syntax for any server.
+ 	// Must be last.
+ 	{
+diff --git a/src/cmd/go/vcs_test.go b/src/cmd/go/vcs_test.go
+index d951189459..06650608ba 100644
+--- a/src/cmd/go/vcs_test.go
++++ b/src/cmd/go/vcs_test.go
+@@ -86,6 +86,39 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 			"hub.jazz.net/git/USER/pkgname",
+ 			nil,
+ 		},
++		// OpenStack tests
++		{
++			"git.openstack.org/openstack/swift",
++			&repoRoot{
++				vcs:  vcsGit,
++				repo: "https://git.openstack.org/openstack/swift",
++			},
++		},
++		// Trailing .git is less preferred but included for
++		// compatibility purposes while the same source needs to
++		// be compilable on both old and new go
++		{
++			"git.openstack.org/openstack/swift.git",
++			&repoRoot{
++				vcs:  vcsGit,
++				repo: "https://git.openstack.org/openstack/swift",
++			},
++		},
++		{
++			"git.openstack.org/openstack/swift/go/hummingbird",
++			&repoRoot{
++				vcs:  vcsGit,
++				repo: "https://git.openstack.org/openstack/swift",
++			},
++		},
++		{
++			"git.openstack.org",
++			nil,
++		},
++		{
++			"git.openstack.org/openstack",
++			nil,
++		},
+ 		// Spaces are not valid in package name
+ 		{
+ 			"git.apache.org/package name/path/to/lib",

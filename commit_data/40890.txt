@@ -11,6 +11,20 @@ Date:   Wed Aug 7 23:42:03 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/path/path_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/path/path_test.go b/src/path/path_test.go
+index 85b2450a62..2a3635300e 100644
+--- a/src/path/path_test.go
++++ b/src/path/path_test.go
+@@ -138,7 +138,7 @@ var jointests = []JoinTest{
+ func TestJoin(t *testing.T) {
+ 	for _, test := range jointests {
+ 		if p := Join(test.elem...); p != test.path {
+-			t.Errorf("join(%q) = %q, want %q", test.elem, p, test.path)
++			t.Errorf("Join(%q) = %q, want %q", test.elem, p, test.path)
+ 		}
+ 	}
+ }

@@ -14,9 +14,66 @@ Date:   Tue Apr 10 16:01:23 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go    |  2 +-
  test/fixedbugs/issue24801.dir/a.go    |  9 +++++++++
  test/fixedbugs/issue24801.dir/main.go | 11 +++++++++++
  test/fixedbugs/issue24801.go          |  5 +++++
  4 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e2e21faf80..ab6dd8bc39 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -85,7 +85,7 @@ func declare(n *Node, ctxt Class) {
+ 		if s.Name == "init" {
+ 			yyerrorl(n.Pos, "cannot declare init - must be func")
+ 		}
+-		if s.Name == "main" && localpkg.Name == "main" {
++		if s.Name == "main" && s.Pkg.Name == "main" {
+ 			yyerrorl(n.Pos, "cannot declare main - must be func")
+ 		}
+ 		externdcl = append(externdcl, n)
+diff --git a/test/fixedbugs/issue24801.dir/a.go b/test/fixedbugs/issue24801.dir/a.go
+new file mode 100644
+index 0000000000..58e6240d8c
+--- /dev/null
++++ b/test/fixedbugs/issue24801.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type main int
++
++var X main
+diff --git a/test/fixedbugs/issue24801.dir/main.go b/test/fixedbugs/issue24801.dir/main.go
+new file mode 100644
+index 0000000000..5c7db7b4d1
+--- /dev/null
++++ b/test/fixedbugs/issue24801.dir/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() {
++	a.X = 1
++}
+diff --git a/test/fixedbugs/issue24801.go b/test/fixedbugs/issue24801.go
+new file mode 100644
+index 0000000000..9b05db8eae
+--- /dev/null
++++ b/test/fixedbugs/issue24801.go
+@@ -0,0 +1,5 @@
++// compiledir
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.

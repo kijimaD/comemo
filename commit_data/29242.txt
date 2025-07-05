@@ -9,7 +9,62 @@ Date:   Sat Sep 3 12:01:27 2016 -0700
     Change-Id: I902a02b157c2c7d1772f5122b850dc48b1d7a224
     Reviewed-on: https://go-review.googlesource.com/28474
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strconv/atoi.go         |  4 ++++
  src/strconv/strconv_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index a236de421c..66df149172 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -199,6 +199,10 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
+ 
+ // Atoi returns the result of ParseInt(s, 10, 0) converted to type int.
+ func Atoi(s string) (int, error) {
++	const fnAtoi = "Atoi"
+ 	i64, err := ParseInt(s, 10, 0)
++	if nerr, ok := err.(*NumError); ok {
++		nerr.Func = fnAtoi
++	}
+ 	return int(i64), err
+ }
+diff --git a/src/strconv/strconv_test.go b/src/strconv/strconv_test.go
+index 9a007dde4a..0c14236097 100644
+--- a/src/strconv/strconv_test.go
++++ b/src/strconv/strconv_test.go
+@@ -55,3 +55,34 @@ func TestCountMallocs(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestErrorPrefixes(t *testing.T) {
++	_, errInt := Atoi("INVALID")
++	_, errBool := ParseBool("INVALID")
++	_, errFloat := ParseFloat("INVALID", 64)
++	_, errInt64 := ParseInt("INVALID", 10, 64)
++	_, errUint64 := ParseUint("INVALID", 10, 64)
++
++	vectors := []struct {
++		err  error  // Input error
++		want string // Function name wanted
++	}{
++		{errInt, "Atoi"},
++		{errBool, "ParseBool"},
++		{errFloat, "ParseFloat"},
++		{errInt64, "ParseInt"},
++		{errUint64, "ParseUint"},
++	}
++
++	for _, v := range vectors {
++		nerr, ok := v.err.(*NumError)
++		if !ok {
++			t.Errorf("test %s, error was not a *NumError", v.want)
++			continue
++		}
++		if got := nerr.Func; got != v.want {
++			t.Errorf("mismatching Func: got %s, want %s", got, v.want)
++		}
++	}
++
++}

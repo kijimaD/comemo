@@ -9,6 +9,25 @@ Date:   Thu Dec 18 07:52:21 2014 +0100
     Change-Id: I74661fefab50455b912b8085d913fc45ba13c5c8
     Reviewed-on: https://go-review.googlesource.com/1780
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/gc/bits.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/bits.c b/src/cmd/gc/bits.c
+index fe9a168dcd..21e25dd1c9 100644
+--- a/src/cmd/gc/bits.c
++++ b/src/cmd/gc/bits.c
+@@ -97,9 +97,11 @@ bnum(Bits a)
+ 	int i;
+ 	uint64 b;
+ 
+-	for(i=0; i<BITS; i++)
+-		if(b = a.b[i])
++	for(i=0; i<BITS; i++){
++		b = a.b[i];
++		if(b)
+ 			return 64*i + bitno(b);
++	}
+ 	fatal("bad in bnum");
+ 	return 0;
+ }

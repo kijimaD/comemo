@@ -12,7 +12,60 @@ Date:   Tue Feb 27 13:31:12 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/97358
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_linux_386.s   | 6 ++----
  src/runtime/sys_linux_amd64.s | 6 ++----
  2 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 1e63dee4a1..c45ba69e6a 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -203,9 +203,8 @@ TEXT runtime·walltime(SB), NOSPLIT, $0-12
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+ 	MOVL	g_m(AX), CX
+-	MOVL	m_curg(CX), DX
+ 
+-	CMPL	AX, DX		// Only switch if on curg.
++	CMPL	AX, m_curg(CX)	// Only switch if on curg.
+ 	JNE	noswitch
+ 
+ 	MOVL	m_g0(CX), DX
+@@ -260,9 +259,8 @@ TEXT runtime·nanotime(SB), NOSPLIT, $0-8
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+ 	MOVL	g_m(AX), CX
+-	MOVL	m_curg(CX), DX
+ 
+-	CMPL	AX, DX		// Only switch if on curg.
++	CMPL	AX, m_curg(CX)	// Only switch if on curg.
+ 	JNE	noswitch
+ 
+ 	MOVL	m_g0(CX), DX
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index c49bd8841d..12f86266d3 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -189,9 +189,8 @@ TEXT runtime·walltime(SB),NOSPLIT,$0-12
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+ 	MOVQ	g_m(AX), CX
+-	MOVQ	m_curg(CX), DX
+ 
+-	CMPQ	AX, DX		// Only switch if on curg.
++	CMPQ	AX, m_curg(CX)	// Only switch if on curg.
+ 	JNE	noswitch
+ 
+ 	MOVQ	m_g0(CX), DX
+@@ -234,9 +233,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+ 	MOVQ	g_m(AX), CX
+-	MOVQ	m_curg(CX), DX
+ 
+-	CMPQ	AX, DX		// Only switch if on curg.
++	CMPQ	AX, m_curg(CX)	// Only switch if on curg.
+ 	JNE	noswitch
+ 
+ 	MOVQ	m_g0(CX), DX

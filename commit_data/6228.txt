@@ -12,7 +12,46 @@ Date:   Fri Sep 10 14:05:57 2010 -0400
     R=brainman, rsc
     CC=golang-dev
     https://golang.org/cl/2140046
-
+---
  src/cmd/5a/Makefile |  3 +--
  src/pkg/Makefile    | 13 +++++++++++++
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5a/Makefile b/src/cmd/5a/Makefile
+index 9485e5cf83..f4463c97b0 100644
+--- a/src/cmd/5a/Makefile
++++ b/src/cmd/5a/Makefile
+@@ -5,8 +5,7 @@
+ include ../../Make.inc
+ O:=$(HOST_O)
+ 
+-TARG=\
+-	5a\
++TARG=5a
+ 
+ HFILES=\
+ 	a.h\
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 67f8f8d812..b8e45da407 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -186,6 +186,19 @@ NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
+ NOTEST+=websocket    # no network
+ endif
+ 
++# Disable tests that windows cannot run yet.
++ifeq ($(GOOS),windows)
++NOTEST+=exec         # no pipe
++NOTEST+=log          # no runtime.Caller
++NOTEST+=net          # no network
++NOTEST+=os           # many things unimplemented
++NOTEST+=os/signal    # no signals
++NOTEST+=path         # tree walking does not work
++NOTEST+=syslog       # no network
++NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
++NOTEST+=websocket    # no network
++endif
++
+ TEST=\
+ 	$(filter-out $(NOTEST),$(DIRS))
+ 

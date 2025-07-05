@@ -8,6 +8,25 @@ Date:   Mon Nov 17 21:44:05 2008 -0800
     DELTA=8  (8 added, 0 deleted, 0 changed)
     OCL=19434
     CL=19436
-
+---
  test/bugs/bug124.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/test/bugs/bug124.go b/test/bugs/bug124.go
+new file mode 100644
+index 0000000000..62ea5172b7
+--- /dev/null
++++ b/test/bugs/bug124.go
+@@ -0,0 +1,12 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// ! errchk $G $D/$F.go
++package main
++func fn(i int) bool {
++  if i == nil {		// ERROR "type"
++    return true
++  }
++  return false 
++}

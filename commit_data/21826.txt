@@ -17,7 +17,7 @@ Date:   Fri Dec 26 00:15:07 2014 -0500
     Change-Id: Ic5454aeb87009aaf8f1453ec7fe33e6da55d5f06
     Reviewed-on: https://go-review.googlesource.com/3273
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/5l/asm.c   | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++---
  src/cmd/5l/obj.c   | 13 ++++++++
  src/cmd/ld/lib.c   |  8 +++++
@@ -25,3 +25,310 @@ Date:   Fri Dec 26 00:15:07 2014 -0500
  src/cmd/ld/macho.h |  6 ++++
  src/liblink/sym.c  |  9 ++++--
  6 files changed, 132 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 5993079126..3ed5b673d4 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -33,9 +33,9 @@
+ #include	"l.h"
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
++#include	"../ld/macho.h"
+ #include	"../ld/dwarf.h"
+ 
+-
+ char linuxdynld[] = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
+ char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+ char openbsddynld[] = "XXX";
+@@ -301,10 +301,58 @@ elfsetupplt(void)
+ int
+ machoreloc1(Reloc *r, vlong sectoff)
+ {
+-	USED(r);
+-	USED(sectoff);
++	uint32 v;
++	LSym *rs;
+ 
+-	return -1;
++	rs = r->xsym;
++
++	if(rs->type == SHOSTOBJ || r->type == R_CALLARM) {
++		if(rs->dynid < 0) {
++			diag("reloc %d to non-macho symbol %s type=%d", r->type, rs->name, rs->type);
++			return -1;
++		}
++		v = rs->dynid;
++		v |= 1<<27; // external relocation
++	} else {
++		v = rs->sect->extnum;
++		if(v == 0) {
++			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, rs->sect->name, rs->type);
++			return -1;
++		}
++	}
++
++	switch(r->type) {
++	default:
++		return -1;
++	case R_ADDR:
++		v |= MACHO_GENERIC_RELOC_VANILLA<<28;
++		break;
++	case R_CALLARM:
++		v |= 1<<24; // pc-relative bit
++		v |= MACHO_ARM_RELOC_BR24<<28;
++		break;
++	}
++
++	switch(r->siz) {
++	default:
++		return -1;
++	case 1:
++		v |= 0<<25;
++		break;
++	case 2:
++		v |= 1<<25;
++		break;
++	case 4:
++		v |= 2<<25;
++		break;
++	case 8:
++		v |= 3<<25;
++		break;
++	}
++
++	LPUT(sectoff);
++	LPUT(v);
++	return 0;
+ }
+ 
+ 
+@@ -333,6 +381,14 @@ archreloc(Reloc *r, LSym *s, vlong *val)
+ 				diag("missing section for %s", rs->name);
+ 			r->xsym = rs;
+ 
++			// ld64 for arm seems to want the symbol table to contain offset
++			// into the section rather than pseudo virtual address that contains
++			// the section load address.
++			// we need to compensate that by removing the instruction's address
++			// from addend.
++			if(HEADTYPE == Hdarwin)
++				r->xadd -= symaddr(s) + r->off;
++
+ 			*val = braddoff((0xff000000U & (uint32)r->add), 
+ 							(0xffffff & (uint32)(r->xadd / 4)));
+ 			return 0;
+@@ -539,6 +595,8 @@ adddynlib(char *lib)
+ 		if(s->size == 0)
+ 			addstring(s, "");
+ 		elfwritedynent(linklookup(ctxt, ".dynamic", 0), DT_NEEDED, addstring(s, lib));
++	} else if(HEADTYPE == Hdarwin) {
++		machoadddynlib(lib);
+ 	} else {
+ 		diag("adddynlib: unsupported binary format");
+ 	}
+@@ -547,7 +605,7 @@ adddynlib(char *lib)
+ void
+ asmb(void)
+ {
+-	uint32 symo;
++	uint32 symo, dwarfoff, machlink;
+ 	Section *sect;
+ 	LSym *sym;
+ 	int i;
+@@ -583,6 +641,22 @@ asmb(void)
+ 	cseek(segdata.fileoff);
+ 	datblk(segdata.vaddr, segdata.filelen);
+ 
++	machlink = 0;
++	if(HEADTYPE == Hdarwin) {
++		if(debug['v'])
++			Bprint(&bso, "%5.2f dwarf\n", cputime());
++
++		if(!debug['w']) { // TODO(minux): enable DWARF Support
++			dwarfoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
++			cseek(dwarfoff);
++
++			segdwarf.fileoff = cpos();
++			dwarfemitdebugsections();
++			segdwarf.filelen = cpos() - segdwarf.fileoff;
++		}
++		machlink = domacholink();
++	}
++
+ 	/* output symbol table */
+ 	symsize = 0;
+ 	lcsize = 0;
+@@ -599,6 +673,9 @@ asmb(void)
+ 		case Hplan9:
+ 			symo = segdata.fileoff+segdata.filelen;
+ 			break;
++		case Hdarwin:
++			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
++			break;
+ 		ElfSym:
+ 			symo = segdata.fileoff+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+@@ -635,6 +712,10 @@ asmb(void)
+ 				cflush();
+ 			}
+ 			break;
++		case Hdarwin:
++			if(linkmode == LinkExternal)
++				machoemitreloc();
++			break;
+ 		}
+ 	}
+ 
+@@ -662,6 +743,9 @@ asmb(void)
+ 	case Hnacl:
+ 		asmbelf(symo);
+ 		break;
++	case Hdarwin:
++		asmbmacho();
++		break;
+ 	}
+ 	cflush();
+ 	if(debug['c']){
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index c6f60ee7c8..73ff751487 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -33,6 +33,7 @@
+ #include	"l.h"
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
++#include	"../ld/macho.h"
+ #include	"../ld/dwarf.h"
+ #include	<ar.h>
+ 
+@@ -64,6 +65,7 @@ archinit(void)
+ 	case Hlinux:
+ 	case Hfreebsd:
+ 	case Hnacl:
++	case Hdarwin:
+ 		break;
+ 	}
+ 
+@@ -104,6 +106,17 @@ archinit(void)
+ 		if(INITRND == -1)
+ 			INITRND = 0x10000;
+ 		break;
++	case Hdarwin:   /* apple MACH */
++		debug['w'] = 1; // disable DWARF generataion
++		machoinit();
++		HEADR = INITIAL_MACHO_HEADR;
++		if(INITTEXT == -1)
++			INITTEXT = 4096+HEADR;
++		if(INITDAT == -1)
++			INITDAT = 0;
++		if(INITRND == -1)
++			INITRND = 4096;
++		break;
+ 	}
+ 	if(INITDAT != 0 && INITRND != 0)
+ 		print("warning: -D0x%ux is ignored because of -R0x%ux\n",
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 192e28398b..202841170b 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -212,6 +212,14 @@ loadlib(void)
+ 		// Force external linking for android.
+ 		if(strcmp(goos, "android") == 0)
+ 			linkmode = LinkExternal;
++
++		// cgo on Darwin must use external linking
++		// we can always use external linking, but then there will be circular
++		// dependency problems when compiling natively (external linking requires
++		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
++		// compiled using external linking.)
++		if(thechar == '5' && HEADTYPE == Hdarwin && iscgo)
++			linkmode = LinkExternal;
+ 	}
+ 
+ 	if(linkmode == LinkExternal && !iscgo) {
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index ffb20b3a55..ce0aa77b66 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -357,6 +357,10 @@ asmbmacho(void)
+ 	default:
+ 		diag("unknown mach architecture");
+ 		errorexit();
++	case '5':
++		mh->cpu = MACHO_CPU_ARM;
++		mh->subcpu = MACHO_SUBCPU_ARMV7;
++		break;
+ 	case '6':
+ 		mh->cpu = MACHO_CPU_AMD64;
+ 		mh->subcpu = MACHO_SUBCPU_X86;
+@@ -416,6 +420,12 @@ asmbmacho(void)
+ 		default:
+ 			diag("unknown macho architecture");
+ 			errorexit();
++		case '5':
++			ml = newMachoLoad(5, 17+2);	/* unix thread */
++			ml->data[0] = 1;	/* thread type */
++			ml->data[1] = 17;	/* word count */
++			ml->data[2+15] = entryvalue();	/* start pc */
++			break;
+ 		case '6':
+ 			ml = newMachoLoad(5, 42+2);	/* unix thread */
+ 			ml->data[0] = 4;	/* thread type */
+diff --git a/src/cmd/ld/macho.h b/src/cmd/ld/macho.h
+index d759f4b0f8..d21109b38f 100644
+--- a/src/cmd/ld/macho.h
++++ b/src/cmd/ld/macho.h
+@@ -66,6 +66,9 @@ enum {
+ 	MACHO_CPU_AMD64 = (1<<24)|7,
+ 	MACHO_CPU_386 = 7,
+ 	MACHO_SUBCPU_X86 = 3,
++	MACHO_CPU_ARM = 12,
++	MACHO_SUBCPU_ARM = 0,
++	MACHO_SUBCPU_ARMV7 = 9,
+ 
+ 	MACHO32SYMSIZE = 12,
+ 	MACHO64SYMSIZE = 16,
+@@ -80,6 +83,9 @@ enum {
+ 	MACHO_X86_64_RELOC_SIGNED_2 = 7,
+ 	MACHO_X86_64_RELOC_SIGNED_4 = 8,
+ 	
++	MACHO_ARM_RELOC_VANILLA = 0,
++	MACHO_ARM_RELOC_BR24 = 5,
++	
+ 	MACHO_GENERIC_RELOC_VANILLA = 0,
+ 	
+ 	MACHO_FAKE_GOTPCREL = 100,
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index 079f600aa9..cae7e4aafe 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -148,15 +148,15 @@ linknew(LinkArch *arch)
+ 		switch(ctxt->arch->thechar) {
+ 		default:
+ 			sysfatal("unknown thread-local storage offset for nacl/%s", ctxt->arch->name);
++		case '5':
++			ctxt->tlsoffset = 0;
++			break;
+ 		case '6':
+ 			ctxt->tlsoffset = 0;
+ 			break;
+ 		case '8':
+ 			ctxt->tlsoffset = -8;
+ 			break;
+-		case '5':
+-			ctxt->tlsoffset = 0;
+-			break;
+ 		}
+ 		break;
+ 
+@@ -174,6 +174,9 @@ linknew(LinkArch *arch)
+ 		case '8':
+ 			ctxt->tlsoffset = 0x468;
+ 			break;
++		case '5':
++			ctxt->tlsoffset = 0; // dummy value, not needed
++			break;
+ 		}
+ 		break;
+ 	}

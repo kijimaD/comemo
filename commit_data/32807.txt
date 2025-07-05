@@ -11,7 +11,95 @@ Date:   Thu Apr 13 16:15:26 2017 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go             | 14 ++++++++++++++
  src/cmd/go/internal/work/build.go | 21 ++++++++++++---------
  2 files changed, 26 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 4b9a4eece8..788b8daa0e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2214,6 +2214,20 @@ func TestCoverageImportMainLoop(t *testing.T) {
+ 	tg.grepStderr("not an importable package", "did not detect import main")
+ }
+ 
++func TestPluginNonMain(t *testing.T) {
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	pkg := filepath.Join(wd, "testdata", "testdep", "p2")
++
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	tg.runFail("build", "-buildmode=plugin", pkg)
++}
++
+ func TestTestEmpty(t *testing.T) {
+ 	if !canRace {
+ 		t.Skip("no race detector")
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 1cd2138087..c6dd6799a2 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -255,6 +255,13 @@ func pkgsNotMain(pkgs []*load.Package) (res []*load.Package) {
+ 	return res
+ }
+ 
++func oneMainPkg(pkgs []*load.Package) []*load.Package {
++	if len(pkgs) != 1 || pkgs[0].Name != "main" {
++		base.Fatalf("-buildmode=%s requires exactly one main package", cfg.BuildBuildmode)
++	}
++	return pkgs
++}
++
+ var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
+ 
+ func BuildModeInit() {
+@@ -265,12 +272,7 @@ func BuildModeInit() {
+ 	case "archive":
+ 		pkgsFilter = pkgsNotMain
+ 	case "c-archive":
+-		pkgsFilter = func(p []*load.Package) []*load.Package {
+-			if len(p) != 1 || p[0].Name != "main" {
+-				base.Fatalf("-buildmode=c-archive requires exactly one main package")
+-			}
+-			return p
+-		}
++		pkgsFilter = oneMainPkg
+ 		switch platform {
+ 		case "darwin/arm", "darwin/arm64":
+ 			codegenArg = "-shared"
+@@ -347,7 +349,7 @@ func BuildModeInit() {
+ 		}
+ 		ldBuildmode = "shared"
+ 	case "plugin":
+-		pkgsFilter = pkgsMain
++		pkgsFilter = oneMainPkg
+ 		if gccgo {
+ 			codegenArg = "-fPIC"
+ 		} else {
+@@ -454,9 +456,10 @@ func runBuild(cmd *base.Command, args []string) {
+ 		return
+ 	}
+ 
++	pkgs = pkgsFilter(load.Packages(args))
++
+ 	var a *Action
+ 	if cfg.BuildBuildmode == "shared" {
+-		pkgs := pkgsFilter(load.Packages(args))
+ 		if libName, err := libname(args, pkgs); err != nil {
+ 			base.Fatalf("%s", err.Error())
+ 		} else {
+@@ -464,7 +467,7 @@ func runBuild(cmd *base.Command, args []string) {
+ 		}
+ 	} else {
+ 		a = &Action{}
+-		for _, p := range pkgsFilter(load.Packages(args)) {
++		for _, p := range pkgs {
+ 			a.Deps = append(a.Deps, b.Action(ModeBuild, depMode, p))
+ 		}
+ 	}

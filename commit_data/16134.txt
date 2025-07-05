@@ -14,8 +14,76 @@ Date:   Mon Apr 8 15:38:06 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/8504044
-
+---
  src/pkg/archive/zip/reader.go                       |   7 ++++++-
  src/pkg/archive/zip/reader_test.go                  |  20 +++++++++++++++++++-
  src/pkg/archive/zip/testdata/test-trailing-junk.zip | Bin 0 -> 1184 bytes
  3 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index c10f29a836..f19cf2d1f1 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -353,6 +353,11 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
++	// Make sure directoryOffset points to somewhere in our file.
++	if o := int64(d.directoryOffset); o < 0 || o >= size {
++		return nil, ErrFormat
++	}
+ 	return d, nil
+ }
+ 
+@@ -407,7 +412,7 @@ func findSignatureInBlock(b []byte) int {
+ 		if b[i] == 'P' && b[i+1] == 'K' && b[i+2] == 0x05 && b[i+3] == 0x06 {
+ 			// n is length of comment
+ 			n := int(b[i+directoryEndLen-2]) | int(b[i+directoryEndLen-1])<<8
+-			if n+directoryEndLen+i == len(b) {
++			if n+directoryEndLen+i <= len(b) {
+ 				return i
+ 			}
+ 		}
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index cf9c59c4b9..833ba28ad5 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -63,6 +63,24 @@ var tests = []ZipTest{
+ 			},
+ 		},
+ 	},
++	{
++		Name:    "test-trailing-junk.zip",
++		Comment: "This is a zipfile comment.",
++		File: []ZipTestFile{
++			{
++				Name:    "test.txt",
++				Content: []byte("This is a test text file.\n"),
++				Mtime:   "09-05-10 12:12:02",
++				Mode:    0644,
++			},
++			{
++				Name:  "gophercolor16x16.png",
++				File:  "gophercolor16x16.png",
++				Mtime: "09-05-10 15:52:58",
++				Mode:  0644,
++			},
++		},
++	},
+ 	{
+ 		Name:   "r.zip",
+ 		Source: returnRecursiveZip,
+@@ -262,7 +280,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 		}
+ 	}
+ 	if err != zt.Error {
+-		t.Errorf("error=%v, want %v", err, zt.Error)
++		t.Errorf("%s: error=%v, want %v", zt.Name, err, zt.Error)
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/archive/zip/testdata/test-trailing-junk.zip b/src/pkg/archive/zip/testdata/test-trailing-junk.zip
+new file mode 100644
+index 0000000000..42281b4e30
+Binary files /dev/null and b/src/pkg/archive/zip/testdata/test-trailing-junk.zip differ

@@ -11,9 +11,123 @@ Date:   Wed Apr 29 17:54:24 2020 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/tls/common.go                |  4 +++
  src/crypto/tls/handshake_client.go      | 14 +++++++++-
  src/crypto/tls/handshake_client_test.go | 45 +++++++++++++++++++++++++++++++++
  src/crypto/tls/handshake_server.go      |  2 +-
  4 files changed, 63 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 9121148ee8..9bd7005fc1 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -207,6 +207,10 @@ const (
+ 	downgradeCanaryTLS11 = "DOWNGRD\x00"
+ )
+ 
++// testingOnlyForceDowngradeCanary is set in tests to force the server side to
++// include downgrade canaries even if it's using its highers supported version.
++var testingOnlyForceDowngradeCanary bool
++
+ // ConnectionState records basic TLS details about the connection.
+ type ConnectionState struct {
+ 	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 64be82e88c..210eece26d 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -54,7 +54,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
+ 		return nil, nil, errors.New("tls: no supported versions satisfy MinVersion and MaxVersion")
+ 	}
+ 
+-	clientHelloVersion := supportedVersions[0]
++	clientHelloVersion := config.maxSupportedVersion()
+ 	// The version at the beginning of the ClientHello was capped at TLS 1.2
+ 	// for compatibility reasons. The supported_versions extension is used
+ 	// to negotiate versions now. See RFC 8446, Section 4.2.1.
+@@ -181,6 +181,18 @@ func (c *Conn) clientHandshake() (err error) {
+ 		return err
+ 	}
+ 
++	// If we are negotiating a protocol version that's lower than what we
++	// support, check for the server downgrade canaries.
++	// See RFC 8446, Section 4.1.3.
++	maxVers := c.config.maxSupportedVersion()
++	tls12Downgrade := string(serverHello.random[24:]) == downgradeCanaryTLS12
++	tls11Downgrade := string(serverHello.random[24:]) == downgradeCanaryTLS11
++	if maxVers == VersionTLS13 && c.vers <= VersionTLS12 && (tls12Downgrade || tls11Downgrade) ||
++		maxVers == VersionTLS12 && c.vers <= VersionTLS11 && tls11Downgrade {
++		c.sendAlert(alertIllegalParameter)
++		return errors.New("tls: downgrade attempt detected, possibly due to a MitM attack or a broken middlebox")
++	}
++
+ 	if c.vers == VersionTLS13 {
+ 		hs := &clientHandshakeStateTLS13{
+ 			c:           c,
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 8632d98697..35d7136fc6 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -1984,3 +1984,48 @@ func TestCloseClientConnectionOnIdleServer(t *testing.T) {
+ 		t.Errorf("Error expected, but no error returned")
+ 	}
+ }
++
++func testDowngradeCanary(t *testing.T, clientVersion, serverVersion uint16) error {
++	defer func() { testingOnlyForceDowngradeCanary = false }()
++	testingOnlyForceDowngradeCanary = true
++
++	clientConfig := testConfig.Clone()
++	clientConfig.MaxVersion = clientVersion
++	serverConfig := testConfig.Clone()
++	serverConfig.MaxVersion = serverVersion
++	_, _, err := testHandshake(t, clientConfig, serverConfig)
++	return err
++}
++
++func TestDowngradeCanary(t *testing.T) {
++	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS12); err == nil {
++		t.Errorf("downgrade from TLS 1.3 to TLS 1.2 was not detected")
++	}
++	if testing.Short() {
++		t.Skip("skipping the rest of the checks in short mode")
++	}
++	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS11); err == nil {
++		t.Errorf("downgrade from TLS 1.3 to TLS 1.1 was not detected")
++	}
++	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS10); err == nil {
++		t.Errorf("downgrade from TLS 1.3 to TLS 1.0 was not detected")
++	}
++	if err := testDowngradeCanary(t, VersionTLS12, VersionTLS11); err == nil {
++		t.Errorf("downgrade from TLS 1.2 to TLS 1.1 was not detected")
++	}
++	if err := testDowngradeCanary(t, VersionTLS12, VersionTLS10); err == nil {
++		t.Errorf("downgrade from TLS 1.2 to TLS 1.0 was not detected")
++	}
++	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS13); err != nil {
++		t.Errorf("server unexpectedly sent downgrade canary for TLS 1.3")
++	}
++	if err := testDowngradeCanary(t, VersionTLS12, VersionTLS12); err != nil {
++		t.Errorf("client didn't ignore expected TLS 1.2 canary")
++	}
++	if err := testDowngradeCanary(t, VersionTLS11, VersionTLS11); err != nil {
++		t.Errorf("client unexpectedly reacted to a canary in TLS 1.1")
++	}
++	if err := testDowngradeCanary(t, VersionTLS10, VersionTLS10); err != nil {
++		t.Errorf("client unexpectedly reacted to a canary in TLS 1.0")
++	}
++}
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index b16415a03c..35ac7b852a 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -193,7 +193,7 @@ func (hs *serverHandshakeState) processClientHello() error {
+ 	serverRandom := hs.hello.random
+ 	// Downgrade protection canaries. See RFC 8446, Section 4.1.3.
+ 	maxVers := c.config.maxSupportedVersion()
+-	if maxVers >= VersionTLS12 && c.vers < maxVers {
++	if maxVers >= VersionTLS12 && c.vers < maxVers || testingOnlyForceDowngradeCanary {
+ 		if c.vers == VersionTLS12 {
+ 			copy(serverRandom[24:], downgradeCanaryTLS12)
+ 		} else {

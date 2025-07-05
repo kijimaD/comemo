@@ -20,9 +20,242 @@ Date:   Thu Oct 15 18:22:09 2020 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/init.go                | 87 +++++++++++++++-------
  .../mod/example.com_ambiguous_a_b_v0.0.0-empty.txt | 12 +++
  .../mod/example.com_ambiguous_a_v1.0.0.txt         | 18 +++++
  src/cmd/go/testdata/script/mod_sum_ambiguous.txt   | 48 ++++++++++++
  4 files changed, 138 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index f5aac4b220..8fe71a2448 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -18,6 +18,7 @@ import (
+ 	"path/filepath"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+@@ -911,7 +912,10 @@ func WriteGoMod() {
+ 		// The go.mod file has the same semantic content that it had before
+ 		// (but not necessarily the same exact bytes).
+ 		// Don't write go.mod, but write go.sum in case we added or trimmed sums.
+-		modfetch.WriteGoSum(keepSums(true))
++		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
++		if cfg.CmdName != "mod init" {
++			modfetch.WriteGoSum(keepSums(true))
++		}
+ 		return
+ 	}
+ 
+@@ -924,7 +928,10 @@ func WriteGoMod() {
+ 		index = indexModFile(new, modFile, false)
+ 
+ 		// Update go.sum after releasing the side lock and refreshing the index.
+-		modfetch.WriteGoSum(keepSums(true))
++		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
++		if cfg.CmdName != "mod init" {
++			modfetch.WriteGoSum(keepSums(true))
++		}
+ 	}()
+ 
+ 	// Make a best-effort attempt to acquire the side lock, only to exclude
+@@ -969,41 +976,55 @@ func WriteGoMod() {
+ // If addDirect is true, the set also includes sums for modules directly
+ // required by go.mod, as represented by the index, with replacements applied.
+ func keepSums(addDirect bool) map[module.Version]bool {
+-	// Walk the module graph and keep sums needed by MVS.
++	// Re-derive the build list using the current list of direct requirements.
++	// Keep the sum for the go.mod of each visited module version (or its
++	// replacement).
+ 	modkey := func(m module.Version) module.Version {
+ 		return module.Version{Path: m.Path, Version: m.Version + "/go.mod"}
+ 	}
+ 	keep := make(map[module.Version]bool)
+-	replaced := make(map[module.Version]bool)
+-	reqs := Reqs()
+-	var walk func(module.Version)
+-	walk = func(m module.Version) {
+-		// If we build using a replacement module, keep the sum for the replacement,
+-		// since that's the code we'll actually use during a build.
+-		r := Replacement(m)
+-		if r.Path == "" {
+-			keep[modkey(m)] = true
+-		} else {
+-			replaced[m] = true
+-			keep[modkey(r)] = true
+-		}
+-		list, _ := reqs.Required(m)
+-		for _, r := range list {
+-			if !keep[modkey(r)] && !replaced[r] {
+-				walk(r)
++	var mu sync.Mutex
++	reqs := &keepSumReqs{
++		Reqs: Reqs(),
++		visit: func(m module.Version) {
++			// If we build using a replacement module, keep the sum for the replacement,
++			// since that's the code we'll actually use during a build.
++			mu.Lock()
++			r := Replacement(m)
++			if r.Path == "" {
++				keep[modkey(m)] = true
++			} else {
++				keep[modkey(r)] = true
+ 			}
+-		}
++			mu.Unlock()
++		},
++	}
++	buildList, err := mvs.BuildList(Target, reqs)
++	if err != nil {
++		panic(fmt.Sprintf("unexpected error reloading build list: %v", err))
+ 	}
+-	walk(Target)
+ 
+-	// Add entries for modules from which packages were loaded.
++	// Add entries for modules in the build list with paths that are prefixes of
++	// paths of loaded packages. We need to retain sums for modules needed to
++	// report ambiguous import errors. We use our re-derived build list,
++	// since the global build list may have been tidied.
+ 	if loaded != nil {
+-		for _, pkg := range loaded.pkgs {
+-			m := pkg.mod
++		actualMods := make(map[string]module.Version)
++		for _, m := range buildList[1:] {
+ 			if r := Replacement(m); r.Path != "" {
+-				keep[r] = true
++				actualMods[m.Path] = r
+ 			} else {
+-				keep[m] = true
++				actualMods[m.Path] = m
++			}
++		}
++		for _, pkg := range loaded.pkgs {
++			if pkg.testOf != nil || pkg.inStd {
++				continue
++			}
++			for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {
++				if m, ok := actualMods[prefix]; ok {
++					keep[m] = true
++				}
+ 			}
+ 		}
+ 	}
+@@ -1025,6 +1046,18 @@ func keepSums(addDirect bool) map[module.Version]bool {
+ 	return keep
+ }
+ 
++// keepSumReqs embeds another Reqs implementation. The Required method
++// calls visit for each version in the module graph.
++type keepSumReqs struct {
++	mvs.Reqs
++	visit func(module.Version)
++}
++
++func (r *keepSumReqs) Required(m module.Version) ([]module.Version, error) {
++	r.visit(m)
++	return r.Reqs.Required(m)
++}
++
+ func TrimGoSum() {
+ 	// Don't retain sums for direct requirements in go.mod. When TrimGoSum is
+ 	// called, go.mod has not been updated, and it may contain requirements on
+diff --git a/src/cmd/go/testdata/mod/example.com_ambiguous_a_b_v0.0.0-empty.txt b/src/cmd/go/testdata/mod/example.com_ambiguous_a_b_v0.0.0-empty.txt
+new file mode 100644
+index 0000000000..a86951981e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_ambiguous_a_b_v0.0.0-empty.txt
+@@ -0,0 +1,12 @@
++Module example.com/ambiguous/a/b is a suffix of example.com/a.
++This version contains no package.
++-- .mod --
++module example.com/ambiguous/a/b
++
++go 1.16
++-- .info --
++{"Version":"v0.0.0-empty"}
++-- go.mod --
++module example.com/ambiguous/a/b
++
++go 1.16
+diff --git a/src/cmd/go/testdata/mod/example.com_ambiguous_a_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_ambiguous_a_v1.0.0.txt
+new file mode 100644
+index 0000000000..bb438262e1
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_ambiguous_a_v1.0.0.txt
+@@ -0,0 +1,18 @@
++Module example.com/ambiguous/a is a prefix of example.com/a/b.
++It contains package example.com/a/b.
++-- .mod --
++module example.com/ambiguous/a
++
++go 1.16
++
++require example.com/ambiguous/a/b v0.0.0-empty
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module example.com/ambiguous/a
++
++go 1.16
++
++require example.com/ambiguous/a/b v0.0.0-empty
++-- b/b.go --
++package b
+diff --git a/src/cmd/go/testdata/script/mod_sum_ambiguous.txt b/src/cmd/go/testdata/script/mod_sum_ambiguous.txt
+new file mode 100644
+index 0000000000..999257c419
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_sum_ambiguous.txt
+@@ -0,0 +1,48 @@
++# Confirm our build list.
++cp go.sum.buildlist-only go.sum
++go list -m all
++stdout '^example.com/ambiguous/a v1.0.0$'
++stdout '^example.com/ambiguous/a/b v0.0.0-empty$'
++
++# If two modules could provide a package, but only one does,
++# 'go mod tidy' should retain sums for both zips.
++go mod tidy
++grep '^example.com/ambiguous/a v1.0.0 h1:' go.sum
++grep '^example.com/ambiguous/a/b v0.0.0-empty h1:' go.sum
++
++# If two modules could provide a package, and we're missing a sum for one,
++# we should see a missing sum error, even if we have a sum for a module that
++# provides the package.
++cp go.sum.a-only go.sum
++! go list example.com/ambiguous/a/b
++stderr '^missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module$'
++! go list -deps .
++stderr '^use.go:3:8: missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module; try ''go mod tidy'' to add it$'
++
++cp go.sum.b-only go.sum
++! go list example.com/ambiguous/a/b
++stderr '^missing go.sum entry for module providing package example.com/ambiguous/a/b$'
++! go list -deps .
++stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b; try ''go mod tidy'' to add it$'
++
++-- go.mod --
++module m
++
++go 1.15
++
++require example.com/ambiguous/a v1.0.0
++-- go.sum.buildlist-only --
++example.com/ambiguous/a v1.0.0/go.mod h1:TrBl/3xTPFJ2gmMIYz53h2gkNtg0dokszEMuyS1QEb0=
++example.com/ambiguous/a/b v0.0.0-empty/go.mod h1:MajJq5jPEBnnXP+NTWIeXX7kwaPS1sbVEJdooTmsePQ=
++-- go.sum.a-only --
++example.com/ambiguous/a v1.0.0 h1:pGZhTXy6+titE2rNfwHwJykSjXDR4plO52PfZrBM0T8=
++example.com/ambiguous/a v1.0.0/go.mod h1:TrBl/3xTPFJ2gmMIYz53h2gkNtg0dokszEMuyS1QEb0=
++example.com/ambiguous/a/b v0.0.0-empty/go.mod h1:MajJq5jPEBnnXP+NTWIeXX7kwaPS1sbVEJdooTmsePQ=
++-- go.sum.b-only --
++example.com/ambiguous/a v1.0.0/go.mod h1:TrBl/3xTPFJ2gmMIYz53h2gkNtg0dokszEMuyS1QEb0=
++example.com/ambiguous/a/b v0.0.0-empty h1:xS29ReXXuhjT7jc79mo91h/PevaZ2oS9PciF1DucXtg=
++example.com/ambiguous/a/b v0.0.0-empty/go.mod h1:MajJq5jPEBnnXP+NTWIeXX7kwaPS1sbVEJdooTmsePQ=
++-- use.go --
++package use
++
++import _ "example.com/ambiguous/a/b"

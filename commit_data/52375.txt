@@ -21,7 +21,7 @@ Date:   Thu Jan 27 12:59:37 2022 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  api/next/43724.txt                      |   2 +
  src/cmd/dist/build.go                   |   7 +++
  src/cmd/dist/test.go                    |  27 ++++-----
@@ -36,3 +36,714 @@ Date:   Thu Jan 27 12:59:37 2022 -0500
  src/os/exec/lp_windows.go               |  35 ++++++++---
  src/os/exec/lp_windows_test.go          |   6 +-
  13 files changed, 248 insertions(+), 172 deletions(-)
+
+diff --git a/api/next/43724.txt b/api/next/43724.txt
+new file mode 100644
+index 0000000000..1030a80585
+--- /dev/null
++++ b/api/next/43724.txt
+@@ -0,0 +1,2 @@
++pkg os/exec, type Cmd struct, Err error #43724
++pkg os/exec, var ErrDot error #43724
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index bbaf595421..87e24216aa 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -27,6 +27,7 @@ import (
+ var (
+ 	goarch           string
+ 	gorootBin        string
++	gorootBinGo      string
+ 	gohostarch       string
+ 	gohostos         string
+ 	goos             string
+@@ -114,6 +115,12 @@ func xinit() {
+ 	goroot = filepath.Clean(b)
+ 	gorootBin = pathf("%s/bin", goroot)
+ 
++	// Don't run just 'go' because the build infrastructure
++	// runs cmd/dist inside go/bin often, and on Windows
++	// it will be found in the current directory and refuse to exec.
++	// All exec calls rewrite "go" into gorootBinGo.
++	gorootBinGo = pathf("%s/bin/go", goroot)
++
+ 	b = os.Getenv("GOROOT_FINAL")
+ 	if b == "" {
+ 		b = goroot
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 7c8f1ea46d..2b6b1e514e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -27,6 +27,7 @@ func cmdtest() {
+ 	gogcflags = os.Getenv("GO_GCFLAGS")
+ 
+ 	var t tester
++
+ 	var noRebuild bool
+ 	flag.BoolVar(&t.listMode, "list", false, "list available tests")
+ 	flag.BoolVar(&t.rebuild, "rebuild", false, "rebuild everything first")
+@@ -96,15 +97,9 @@ type distTest struct {
+ func (t *tester) run() {
+ 	timelog("start", "dist test")
+ 
+-	var exeSuffix string
+-	if goos == "windows" {
+-		exeSuffix = ".exe"
+-	}
+-	if _, err := os.Stat(filepath.Join(gorootBin, "go"+exeSuffix)); err == nil {
+-		os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
+-	}
++	os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
+ 
+-	cmd := exec.Command("go", "env", "CGO_ENABLED")
++	cmd := exec.Command(gorootBinGo, "env", "CGO_ENABLED")
+ 	cmd.Stderr = new(bytes.Buffer)
+ 	slurp, err := cmd.Output()
+ 	if err != nil {
+@@ -419,7 +414,7 @@ func (t *tester) registerStdTest(pkg string) {
+ 				args = append(args, "-run=^$")
+ 			}
+ 			args = append(args, stdMatches...)
+-			cmd := exec.Command("go", args...)
++			cmd := exec.Command(gorootBinGo, args...)
+ 			cmd.Stdout = os.Stdout
+ 			cmd.Stderr = os.Stderr
+ 			return cmd.Run()
+@@ -456,7 +451,7 @@ func (t *tester) registerRaceBenchTest(pkg string) {
+ 				args = append(args, "-bench=.*")
+ 			}
+ 			args = append(args, benchMatches...)
+-			cmd := exec.Command("go", args...)
++			cmd := exec.Command(gorootBinGo, args...)
+ 			cmd.Stdout = os.Stdout
+ 			cmd.Stderr = os.Stderr
+ 			return cmd.Run()
+@@ -484,7 +479,7 @@ func (t *tester) registerTests() {
+ 	} else {
+ 		// Use a format string to only list packages and commands that have tests.
+ 		const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
+-		cmd := exec.Command("go", "list", "-f", format)
++		cmd := exec.Command(gorootBinGo, "list", "-f", format)
+ 		if t.race {
+ 			cmd.Args = append(cmd.Args, "-tags=race")
+ 		}
+@@ -619,7 +614,7 @@ func (t *tester) registerTests() {
+ 					fmt.Println("skipping terminal test; stdout/stderr not terminals")
+ 					return nil
+ 				}
+-				cmd := exec.Command("go", "test")
++				cmd := exec.Command(gorootBinGo, "test")
+ 				setDir(cmd, filepath.Join(os.Getenv("GOROOT"), "src/cmd/go/testdata/testterminal18153"))
+ 				cmd.Stdout = os.Stdout
+ 				cmd.Stderr = os.Stderr
+@@ -1003,7 +998,11 @@ func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
+ 	}
+ 	list = out
+ 
+-	return list[0], list[1:]
++	bin = list[0]
++	if bin == "go" {
++		bin = gorootBinGo
++	}
++	return bin, list[1:]
+ }
+ 
+ func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.Cmd {
+@@ -1157,7 +1156,7 @@ func (t *tester) registerHostTest(name, heading, dir, pkg string) {
+ }
+ 
+ func (t *tester) runHostTest(dir, pkg string) error {
+-	out, err := exec.Command("go", "env", "GOEXE", "GOTMPDIR").Output()
++	out, err := exec.Command(gorootBinGo, "env", "GOEXE", "GOTMPDIR").Output()
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 8856f467d5..ee8ba910c7 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -71,7 +71,11 @@ func run(dir string, mode int, cmd ...string) string {
+ 		errprintf("run: %s\n", strings.Join(cmd, " "))
+ 	}
+ 
+-	xcmd := exec.Command(cmd[0], cmd[1:]...)
++	bin := cmd[0]
++	if bin == "go" {
++		bin = gorootBinGo
++	}
++	xcmd := exec.Command(bin, cmd[1:]...)
+ 	setDir(xcmd, dir)
+ 	var data []byte
+ 	var err error
+diff --git a/src/cmd/go/testdata/script/cgo_path.txt b/src/cmd/go/testdata/script/cgo_path.txt
+index be9609e86f..1f84dbc5b4 100644
+--- a/src/cmd/go/testdata/script/cgo_path.txt
++++ b/src/cmd/go/testdata/script/cgo_path.txt
+@@ -14,7 +14,7 @@ env GOCACHE=$WORK/gocache  # Looking for compile flags, so need a clean cache.
+ [windows] exists -exec p/gcc.bat p/clang.bat
+ ! exists p/bug.txt
+ ! go build -x
+-stderr '^cgo: exec (clang|gcc): (clang|gcc) resolves to executable relative to current directory \(.[/\\](clang|gcc)(.bat)?\)$'
++stderr '^cgo: C compiler "(clang|gcc)" not found: exec: "(clang|gcc)": cannot run executable found relative to current directory'
+ ! exists p/bug.txt
+ 
+ -- go.mod --
+diff --git a/src/internal/execabs/execabs.go b/src/internal/execabs/execabs.go
+index 9a05d971da..5f60fbb119 100644
+--- a/src/internal/execabs/execabs.go
++++ b/src/internal/execabs/execabs.go
+@@ -12,11 +12,7 @@ package execabs
+ 
+ import (
+ 	"context"
+-	"fmt"
+ 	"os/exec"
+-	"path/filepath"
+-	"reflect"
+-	"unsafe"
+ )
+ 
+ var ErrNotFound = exec.ErrNotFound
+@@ -27,44 +23,14 @@ type (
+ 	ExitError = exec.ExitError
+ )
+ 
+-func relError(file, path string) error {
+-	return fmt.Errorf("%s resolves to executable relative to current directory (.%c%s)", file, filepath.Separator, path)
+-}
+-
+ func LookPath(file string) (string, error) {
+-	path, err := exec.LookPath(file)
+-	if err != nil {
+-		return "", err
+-	}
+-	if filepath.Base(file) == file && !filepath.IsAbs(path) {
+-		return "", relError(file, path)
+-	}
+-	return path, nil
+-}
+-
+-func fixCmd(name string, cmd *exec.Cmd) {
+-	if filepath.Base(name) == name && !filepath.IsAbs(cmd.Path) {
+-		// exec.Command was called with a bare binary name and
+-		// exec.LookPath returned a path which is not absolute.
+-		// Set cmd.lookPathErr and clear cmd.Path so that it
+-		// cannot be run.
+-		lookPathErr := (*error)(unsafe.Pointer(reflect.ValueOf(cmd).Elem().FieldByName("lookPathErr").Addr().Pointer()))
+-		if *lookPathErr == nil {
+-			*lookPathErr = relError(name, cmd.Path)
+-		}
+-		cmd.Path = ""
+-	}
++	return exec.LookPath(file)
+ }
+ 
+ func CommandContext(ctx context.Context, name string, arg ...string) *exec.Cmd {
+-	cmd := exec.CommandContext(ctx, name, arg...)
+-	fixCmd(name, cmd)
+-	return cmd
+-
++	return exec.CommandContext(ctx, name, arg...)
+ }
+ 
+ func Command(name string, arg ...string) *exec.Cmd {
+-	cmd := exec.Command(name, arg...)
+-	fixCmd(name, cmd)
+-	return cmd
++	return exec.Command(name, arg...)
+ }
+diff --git a/src/internal/execabs/execabs_test.go b/src/internal/execabs/execabs_test.go
+deleted file mode 100644
+index 97a3f39b4a..0000000000
+--- a/src/internal/execabs/execabs_test.go
++++ /dev/null
+@@ -1,103 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package execabs
+-
+-import (
+-	"context"
+-	"fmt"
+-	"internal/testenv"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"runtime"
+-	"testing"
+-)
+-
+-func TestFixCmd(t *testing.T) {
+-	cmd := &exec.Cmd{Path: "hello"}
+-	fixCmd("hello", cmd)
+-	if cmd.Path != "" {
+-		t.Error("fixCmd didn't clear cmd.Path")
+-	}
+-	expectedErr := fmt.Sprintf("hello resolves to executable relative to current directory (.%chello)", filepath.Separator)
+-	if err := cmd.Run(); err == nil {
+-		t.Fatal("Command.Run didn't fail")
+-	} else if err.Error() != expectedErr {
+-		t.Fatalf("Command.Run returned unexpected error: want %q, got %q", expectedErr, err.Error())
+-	}
+-}
+-
+-func TestCommand(t *testing.T) {
+-	testenv.MustHaveExec(t)
+-
+-	for _, cmd := range []func(string) *Cmd{
+-		func(s string) *Cmd { return Command(s) },
+-		func(s string) *Cmd { return CommandContext(context.Background(), s) },
+-	} {
+-		tmpDir := t.TempDir()
+-		executable := "execabs-test"
+-		if runtime.GOOS == "windows" {
+-			executable += ".exe"
+-		}
+-		if err := os.WriteFile(filepath.Join(tmpDir, executable), []byte{1, 2, 3}, 0111); err != nil {
+-			t.Fatalf("os.WriteFile failed: %s", err)
+-		}
+-		cwd, err := os.Getwd()
+-		if err != nil {
+-			t.Fatalf("os.Getwd failed: %s", err)
+-		}
+-		defer os.Chdir(cwd)
+-		if err = os.Chdir(tmpDir); err != nil {
+-			t.Fatalf("os.Chdir failed: %s", err)
+-		}
+-		if runtime.GOOS != "windows" {
+-			// add "." to PATH so that exec.LookPath looks in the current directory on
+-			// non-windows platforms as well
+-			origPath := os.Getenv("PATH")
+-			defer os.Setenv("PATH", origPath)
+-			os.Setenv("PATH", fmt.Sprintf(".:%s", origPath))
+-		}
+-		expectedErr := fmt.Sprintf("execabs-test resolves to executable relative to current directory (.%c%s)", filepath.Separator, executable)
+-		if err = cmd("execabs-test").Run(); err == nil {
+-			t.Fatalf("Command.Run didn't fail when exec.LookPath returned a relative path")
+-		} else if err.Error() != expectedErr {
+-			t.Errorf("Command.Run returned unexpected error: want %q, got %q", expectedErr, err.Error())
+-		}
+-	}
+-}
+-
+-func TestLookPath(t *testing.T) {
+-	testenv.MustHaveExec(t)
+-
+-	tmpDir := t.TempDir()
+-	executable := "execabs-test"
+-	if runtime.GOOS == "windows" {
+-		executable += ".exe"
+-	}
+-	if err := os.WriteFile(filepath.Join(tmpDir, executable), []byte{1, 2, 3}, 0111); err != nil {
+-		t.Fatalf("os.WriteFile failed: %s", err)
+-	}
+-	cwd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatalf("os.Getwd failed: %s", err)
+-	}
+-	defer os.Chdir(cwd)
+-	if err = os.Chdir(tmpDir); err != nil {
+-		t.Fatalf("os.Chdir failed: %s", err)
+-	}
+-	if runtime.GOOS != "windows" {
+-		// add "." to PATH so that exec.LookPath looks in the current directory on
+-		// non-windows platforms as well
+-		origPath := os.Getenv("PATH")
+-		defer os.Setenv("PATH", origPath)
+-		os.Setenv("PATH", fmt.Sprintf(".:%s", origPath))
+-	}
+-	expectedErr := fmt.Sprintf("execabs-test resolves to executable relative to current directory (.%c%s)", filepath.Separator, executable)
+-	if _, err := LookPath("execabs-test"); err == nil {
+-		t.Fatalf("LookPath didn't fail when finding a non-relative path")
+-	} else if err.Error() != expectedErr {
+-		t.Errorf("LookPath returned unexpected error: want %q, got %q", expectedErr, err.Error())
+-	}
+-}
+diff --git a/src/os/exec/dot_test.go b/src/os/exec/dot_test.go
+new file mode 100644
+index 0000000000..ca6b0950da
+--- /dev/null
++++ b/src/os/exec/dot_test.go
+@@ -0,0 +1,88 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exec_test
++
++import (
++	"errors"
++	"internal/testenv"
++	"io/ioutil"
++	"os"
++	. "os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++func TestLookPath(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	tmpDir := filepath.Join(t.TempDir(), "testdir")
++	if err := os.Mkdir(tmpDir, 0777); err != nil {
++		t.Fatal(err)
++	}
++
++	executable := "execabs-test"
++	if runtime.GOOS == "windows" {
++		executable += ".exe"
++	}
++	if err := ioutil.WriteFile(filepath.Join(tmpDir, executable), []byte{1, 2, 3}, 0777); err != nil {
++		t.Fatal(err)
++	}
++	cwd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer func() {
++		if err := os.Chdir(cwd); err != nil {
++			panic(err)
++		}
++	}()
++	if err = os.Chdir(tmpDir); err != nil {
++		t.Fatal(err)
++	}
++	origPath := os.Getenv("PATH")
++	defer os.Setenv("PATH", origPath)
++
++	// Add "." to PATH so that exec.LookPath looks in the current directory on all systems.
++	// And try to trick it with "../testdir" too.
++	for _, dir := range []string{".", "../testdir"} {
++		os.Setenv("PATH", dir+string(filepath.ListSeparator)+origPath)
++		t.Run("PATH="+dir, func(t *testing.T) {
++			good := dir + "/execabs-test"
++			if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
++				t.Fatalf("LookPath(%q) = %q, %v, want \"%s...\", nil", good, found, err, good)
++			}
++			if runtime.GOOS == "windows" {
++				good = dir + `\execabs-test`
++				if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
++					t.Fatalf("LookPath(%q) = %q, %v, want \"%s...\", nil", good, found, err, good)
++				}
++			}
++
++			if _, err := LookPath("execabs-test"); err == nil {
++				t.Fatalf("LookPath didn't fail when finding a non-relative path")
++			} else if !errors.Is(err, ErrDot) {
++				t.Fatalf("LookPath returned unexpected error: want Is ErrDot, got %q", err)
++			}
++
++			cmd := Command("execabs-test")
++			if cmd.Err == nil {
++				t.Fatalf("Command didn't fail when finding a non-relative path")
++			} else if !errors.Is(cmd.Err, ErrDot) {
++				t.Fatalf("Command returned unexpected error: want Is ErrDot, got %q", cmd.Err)
++			}
++			cmd.Err = nil
++
++			// Clearing cmd.Err should let the execution proceed,
++			// and it should fail because it's not a valid binary.
++			if err := cmd.Run(); err == nil {
++				t.Fatalf("Run did not fail: expected exec error")
++			} else if errors.Is(err, ErrDot) {
++				t.Fatalf("Run returned unexpected error ErrDot: want error like ENOEXEC: %q", err)
++			}
++		})
++	}
++}
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 91c2e003d8..7b72ffece4 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -18,6 +18,71 @@
+ // Note that the examples in this package assume a Unix system.
+ // They may not run on Windows, and they do not run in the Go Playground
+ // used by golang.org and godoc.org.
++//
++// Executables in the current directory
++//
++// The functions Command and LookPath look for a program
++// in the directories listed in the current path, following the
++// conventions of the host operating system.
++// Operating systems have for decades included the current
++// directory in this search, sometimes implicitly and sometimes
++// configured explicitly that way by default.
++// Modern practice is that including the current directory
++// is usually unexpected and often leads to security problems.
++//
++// To avoid those security problems, as of Go 1.19, this package will not resolve a program
++// using an implicit or explicit path entry relative to the current directory.
++// That is, if you run exec.LookPath("go"), it will not successfully return
++// ./go on Unix nor .\go.exe on Windows, no matter how the path is configured.
++// Instead, if the usual path algorithms would result in that answer,
++// these functions return an error err satisfying errors.Is(err, ErrDot).
++//
++// For example, consider these two program snippets:
++//
++//	path, err := exec.LookPath("prog")
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//	use(path)
++//
++// and
++//
++//	cmd := exec.Command("prog")
++//	if err := cmd.Run(); err != nil {
++//		log.Fatal(err)
++//	}
++//
++// These will not find and run ./prog or .\prog.exe,
++// no matter how the current path is configured.
++//
++// Code that always wants to run a program from the current directory
++// can be rewritten to say "./prog" instead of "prog".
++//
++// Code that insists on including results from relative path entries
++// can instead override the error using an errors.Is check:
++//
++//	path, err := exec.LookPath("prog")
++//	if errors.Is(err, exec.ErrDot) {
++//		err = nil
++//	}
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//	use(path)
++//
++// and
++//
++//	cmd := exec.Command("prog")
++//	if errors.Is(cmd.Err, exec.ErrDot) {
++//		cmd.Err = nil
++//	}
++//	if err := cmd.Run(); err != nil {
++//		log.Fatal(err)
++//	}
++//
++// Before adding such overrides, make sure you understand the
++// security implications of doing so.
++// See https://go.dev/blog/path-security for more information.
+ package exec
+ 
+ import (
+@@ -134,7 +199,7 @@ type Cmd struct {
+ 	ProcessState *os.ProcessState
+ 
+ 	ctx             context.Context // nil means none
+-	lookPathErr     error           // LookPath error, if any.
++	Err             error           // LookPath error, if any.
+ 	finished        bool            // when Wait was called
+ 	childFiles      []*os.File
+ 	closeAfterStart []io.Closer
+@@ -173,7 +238,7 @@ func Command(name string, arg ...string) *Cmd {
+ 	}
+ 	if filepath.Base(name) == name {
+ 		if lp, err := LookPath(name); err != nil {
+-			cmd.lookPathErr = err
++			cmd.Err = err
+ 		} else {
+ 			cmd.Path = lp
+ 		}
+@@ -200,7 +265,7 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
+ // In particular, it is not suitable for use as input to a shell.
+ // The output of String may vary across Go releases.
+ func (c *Cmd) String() string {
+-	if c.lookPathErr != nil {
++	if c.Err != nil {
+ 		// failed to resolve path; report the original requested path (plus args)
+ 		return strings.Join(c.Args, " ")
+ 	}
+@@ -335,7 +400,7 @@ func (c *Cmd) Run() error {
+ // lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
+ func lookExtensions(path, dir string) (string, error) {
+ 	if filepath.Base(path) == path {
+-		path = filepath.Join(".", path)
++		path = "." + string(filepath.Separator) + path
+ 	}
+ 	if dir == "" {
+ 		return LookPath(path)
+@@ -363,10 +428,10 @@ func lookExtensions(path, dir string) (string, error) {
+ // The Wait method will return the exit code and release associated resources
+ // once the command exits.
+ func (c *Cmd) Start() error {
+-	if c.lookPathErr != nil {
++	if c.Err != nil {
+ 		c.closeDescriptors(c.closeAfterStart)
+ 		c.closeDescriptors(c.closeAfterWait)
+-		return c.lookPathErr
++		return c.Err
+ 	}
+ 	if runtime.GOOS == "windows" {
+ 		lp, err := lookExtensions(c.Path, c.Dir)
+@@ -845,3 +910,12 @@ func addCriticalEnv(env []string) []string {
+ 	}
+ 	return append(env, "SYSTEMROOT="+os.Getenv("SYSTEMROOT"))
+ }
++
++// ErrDot indicates that a path lookup resolved to an executable
++// in the current directory due to ‘.’ being in the path, either
++// implicitly or explicitly. See the package documentation for details.
++//
++// Note that functions in this package do not return ErrDot directly.
++// Code should use errors.Is(err, ErrDot), not err == ErrDot,
++// to test whether a returned error err is due to this condition.
++var ErrDot = errors.New("cannot run executable found relative to current directory")
+diff --git a/src/os/exec/lp_plan9.go b/src/os/exec/lp_plan9.go
+index e8826a5083..68224814d1 100644
+--- a/src/os/exec/lp_plan9.go
++++ b/src/os/exec/lp_plan9.go
+@@ -30,7 +30,11 @@ func findExecutable(file string) error {
+ // directories named by the path environment variable.
+ // If file begins with "/", "#", "./", or "../", it is tried
+ // directly and the path is not consulted.
+-// The result may be an absolute path or a path relative to the current directory.
++// On success, the result is an absolute path.
++//
++// In older versions of Go, LookPath could return a path relative to the current directory.
++// As of Go 1.19, LookPath will instead return that path along with an error satisfying
++// errors.Is(err, ErrDot). See the package documentation for more details.
+ func LookPath(file string) (string, error) {
+ 	// skip the path lookup for these prefixes
+ 	skip := []string{"/", "#", "./", "../"}
+@@ -49,6 +53,9 @@ func LookPath(file string) (string, error) {
+ 	for _, dir := range filepath.SplitList(path) {
+ 		path := filepath.Join(dir, file)
+ 		if err := findExecutable(path); err == nil {
++			if !filepath.IsAbs(path) {
++				return path, &Error{file, ErrDot}
++			}
+ 			return path, nil
+ 		}
+ 	}
+diff --git a/src/os/exec/lp_unix.go b/src/os/exec/lp_unix.go
+index 5db6c5e109..9833205663 100644
+--- a/src/os/exec/lp_unix.go
++++ b/src/os/exec/lp_unix.go
+@@ -31,7 +31,11 @@ func findExecutable(file string) error {
+ // LookPath searches for an executable named file in the
+ // directories named by the PATH environment variable.
+ // If file contains a slash, it is tried directly and the PATH is not consulted.
+-// The result may be an absolute path or a path relative to the current directory.
++// Otherwise, on success, the result is an absolute path.
++//
++// In older versions of Go, LookPath could return a path relative to the current directory.
++// As of Go 1.19, LookPath will instead return that path along with an error satisfying
++// errors.Is(err, ErrDot). See the package documentation for more details.
+ func LookPath(file string) (string, error) {
+ 	// NOTE(rsc): I wish we could use the Plan 9 behavior here
+ 	// (only bypass the path if file begins with / or ./ or ../)
+@@ -52,6 +56,9 @@ func LookPath(file string) (string, error) {
+ 		}
+ 		path := filepath.Join(dir, file)
+ 		if err := findExecutable(path); err == nil {
++			if !filepath.IsAbs(path) {
++				return path, &Error{file, ErrDot}
++			}
+ 			return path, nil
+ 		}
+ 	}
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index e7a2cdf142..dab5770298 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -10,6 +10,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
++	"syscall"
+ )
+ 
+ // ErrNotFound is the error resulting if a path search failed to find an executable file.
+@@ -53,10 +54,14 @@ func findExecutable(file string, exts []string) (string, error) {
+ 
+ // LookPath searches for an executable named file in the
+ // directories named by the PATH environment variable.
+-// If file contains a slash, it is tried directly and the PATH is not consulted.
+ // LookPath also uses PATHEXT environment variable to match
+ // a suitable candidate.
+-// The result may be an absolute path or a path relative to the current directory.
++// If file contains a slash, it is tried directly and the PATH is not consulted.
++// Otherwise, on success, the result is an absolute path.
++//
++// In older versions of Go, LookPath could return a path relative to the current directory.
++// As of Go 1.19, LookPath will instead return that path along with an error satisfying
++// errors.Is(err, ErrDot). See the package documentation for more details.
+ func LookPath(file string) (string, error) {
+ 	var exts []string
+ 	x := os.Getenv(`PATHEXT`)
+@@ -75,18 +80,34 @@ func LookPath(file string) (string, error) {
+ 	}
+ 
+ 	if strings.ContainsAny(file, `:\/`) {
+-		if f, err := findExecutable(file, exts); err == nil {
++		f, err := findExecutable(file, exts)
++		if err == nil {
+ 			return f, nil
+-		} else {
+-			return "", &Error{file, err}
+ 		}
++		return "", &Error{file, err}
+ 	}
+-	if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
+-		return f, nil
++
++	// On Windows, creating the NoDefaultCurrentDirectoryInExePath
++	// environment variable (with any value or no value!) signals that
++	// path lookups should skip the current directory.
++	// In theory we are supposed to call NeedCurrentDirectoryForExePathW
++	// "as the registry location of this environment variable can change"
++	// but that seems exceedingly unlikely: it would break all users who
++	// have configured their environment this way!
++	// https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw
++	// See also go.dev/issue/43947.
++	if _, found := syscall.Getenv("NoDefaultCurrentDirectoryInExePath"); !found {
++		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
++			return f, &Error{file, ErrDot}
++		}
+ 	}
++
+ 	path := os.Getenv("path")
+ 	for _, dir := range filepath.SplitList(path) {
+ 		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
++			if !filepath.IsAbs(f) {
++				return f, &Error{file, ErrDot}
++			}
+ 			return f, nil
+ 		}
+ 	}
+diff --git a/src/os/exec/lp_windows_test.go b/src/os/exec/lp_windows_test.go
+index 34abe09d04..1f609fffd0 100644
+--- a/src/os/exec/lp_windows_test.go
++++ b/src/os/exec/lp_windows_test.go
+@@ -8,6 +8,7 @@
+ package exec_test
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+@@ -36,6 +37,9 @@ func cmdLookPath(args ...string) {
+ func cmdExec(args ...string) {
+ 	cmd := exec.Command(args[1])
+ 	cmd.Dir = args[0]
++	if errors.Is(cmd.Err, exec.ErrDot) {
++		cmd.Err = nil
++	}
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "Child: %s %s", err, string(output))
+@@ -329,7 +333,7 @@ var lookPathTests = []lookPathTest{
+ 	},
+ }
+ 
+-func TestLookPath(t *testing.T) {
++func TestLookPathWindows(t *testing.T) {
+ 	tmp := t.TempDir()
+ 	printpathExe := buildPrintPathExe(t, tmp)
+ 

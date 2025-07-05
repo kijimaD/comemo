@@ -13,7 +13,60 @@ Date:   Tue Oct 16 15:31:07 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/c/142719
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/subr.go | 12 ++++++++++--
  test/notinheap.go                   |  8 ++++++++
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index df3bde86ea..97f7e4880d 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -696,14 +696,22 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
+ 	}
+ 
+ 	// Conversions from regular to go:notinheap are not allowed
+-	// (unless it's unsafe.Pointer). This is a runtime-specific
+-	// rule.
++	// (unless it's unsafe.Pointer). These are runtime-specific
++	// rules.
++	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
+ 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
+ 		if why != nil {
+ 			*why = fmt.Sprintf(":\n\t%v is go:notinheap, but %v is not", dst.Elem(), src.Elem())
+ 		}
+ 		return 0
+ 	}
++	// (b) Disallow string to []T where T is go:notinheap.
++	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Etype == types.Bytetype.Etype || dst.Elem().Etype == types.Runetype.Etype) {
++		if why != nil {
++			*why = fmt.Sprintf(":\n\t%v is go:notinheap", dst.Elem())
++		}
++		return 0
++	}
+ 
+ 	// 1. src can be assigned to dst.
+ 	op := assignop(src, dst, why)
+diff --git a/test/notinheap.go b/test/notinheap.go
+index 44b79646ef..16c3f8faf0 100644
+--- a/test/notinheap.go
++++ b/test/notinheap.go
+@@ -46,10 +46,18 @@ type t1 struct{ x int }
+ //go:notinheap
+ type t2 t1
+ 
++//go:notinheap
++type t3 byte
++
++//go:notinheap
++type t4 rune
++
+ var sink interface{}
+ 
+ func i() {
+ 	sink = new(t1)                     // no error
+ 	sink = (*t2)(new(t1))              // ERROR "cannot convert(.|\n)*t2 is go:notinheap"
+ 	sink = (*t2)(new(struct{ x int })) // ERROR "cannot convert(.|\n)*t2 is go:notinheap"
++	sink = []t3("foo")                 // ERROR "cannot convert(.|\n)*t3 is go:notinheap"
++	sink = []t4("bar")                 // ERROR "cannot convert(.|\n)*t4 is go:notinheap"
+ }

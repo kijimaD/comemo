@@ -35,9 +35,202 @@ Date:   Mon Jan 25 17:51:03 2021 -0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/runtime/crash_test.go                 | 12 ++++++
  src/runtime/defer_test.go                 | 28 ++++++++++++++
  src/runtime/panic.go                      | 63 +++++++++++++++++--------------
  src/runtime/testdata/testprog/deadlock.go | 39 +++++++++++++++++++
  4 files changed, 113 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 58ad4f3eba..e5bd7973b7 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -294,6 +294,18 @@ func TestRecursivePanic4(t *testing.T) {
+ 
+ }
+ 
++func TestRecursivePanic5(t *testing.T) {
++	output := runTestProg(t, "testprog", "RecursivePanic5")
++	want := `first panic
++second panic
++panic: third panic
++`
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++
++}
++
+ func TestGoexitCrash(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+ 	testenv.MustInternalLink(t)
+diff --git a/src/runtime/defer_test.go b/src/runtime/defer_test.go
+index 5ac0814564..9a40ea1984 100644
+--- a/src/runtime/defer_test.go
++++ b/src/runtime/defer_test.go
+@@ -410,3 +410,31 @@ func rec1(max int) {
+ 		rec1(max - 1)
+ 	}
+ }
++
++func TestIssue43921(t *testing.T) {
++	defer func() {
++		expect(t, 1, recover())
++	}()
++	func() {
++		// Prevent open-coded defers
++		for {
++			defer func() {}()
++			break
++		}
++
++		defer func() {
++			defer func() {
++				expect(t, 4, recover())
++			}()
++			panic(4)
++		}()
++		panic(1)
++
++	}()
++}
++
++func expect(t *testing.T, n int, err interface{}) {
++	if n != err {
++		t.Fatalf("have %v, want %v", err, n)
++	}
++}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index aed17d6fc6..5b2ccdd874 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1000,37 +1000,42 @@ func gopanic(e interface{}) {
+ 			}
+ 			atomic.Xadd(&runningPanicDefers, -1)
+ 
+-			if done {
+-				// Remove any remaining non-started, open-coded
+-				// defer entries after a recover, since the
+-				// corresponding defers will be executed normally
+-				// (inline). Any such entry will become stale once
+-				// we run the corresponding defers inline and exit
+-				// the associated stack frame.
+-				d := gp._defer
+-				var prev *_defer
+-				for d != nil {
+-					if d.openDefer {
+-						if d.started {
+-							// This defer is started but we
+-							// are in the middle of a
+-							// defer-panic-recover inside of
+-							// it, so don't remove it or any
+-							// further defer entries
+-							break
+-						}
+-						if prev == nil {
+-							gp._defer = d.link
+-						} else {
+-							prev.link = d.link
+-						}
+-						newd := d.link
+-						freedefer(d)
+-						d = newd
++			// Remove any remaining non-started, open-coded
++			// defer entries after a recover, since the
++			// corresponding defers will be executed normally
++			// (inline). Any such entry will become stale once
++			// we run the corresponding defers inline and exit
++			// the associated stack frame.
++			d := gp._defer
++			var prev *_defer
++			if !done {
++				// Skip our current frame, if not done. It is
++				// needed to complete any remaining defers in
++				// deferreturn()
++				prev = d
++				d = d.link
++			}
++			for d != nil {
++				if d.started {
++					// This defer is started but we
++					// are in the middle of a
++					// defer-panic-recover inside of
++					// it, so don't remove it or any
++					// further defer entries
++					break
++				}
++				if d.openDefer {
++					if prev == nil {
++						gp._defer = d.link
+ 					} else {
+-						prev = d
+-						d = d.link
++						prev.link = d.link
+ 					}
++					newd := d.link
++					freedefer(d)
++					d = newd
++				} else {
++					prev = d
++					d = d.link
+ 				}
+ 			}
+ 
+diff --git a/src/runtime/testdata/testprog/deadlock.go b/src/runtime/testdata/testprog/deadlock.go
+index 105d6a5faa..781acbd770 100644
+--- a/src/runtime/testdata/testprog/deadlock.go
++++ b/src/runtime/testdata/testprog/deadlock.go
+@@ -25,6 +25,7 @@ func init() {
+ 	register("RecursivePanic2", RecursivePanic2)
+ 	register("RecursivePanic3", RecursivePanic3)
+ 	register("RecursivePanic4", RecursivePanic4)
++	register("RecursivePanic5", RecursivePanic5)
+ 	register("GoexitExit", GoexitExit)
+ 	register("GoNil", GoNil)
+ 	register("MainGoroutineID", MainGoroutineID)
+@@ -160,6 +161,44 @@ func RecursivePanic4() {
+ 	panic("first panic")
+ }
+ 
++// Test case where we have an open-coded defer higher up the stack (in two), and
++// in the current function (three) we recover in a defer while we still have
++// another defer to be processed.
++func RecursivePanic5() {
++	one()
++	panic("third panic")
++}
++
++//go:noinline
++func one() {
++	two()
++}
++
++//go:noinline
++func two() {
++	defer func() {
++	}()
++
++	three()
++}
++
++//go:noinline
++func three() {
++	defer func() {
++	}()
++
++	defer func() {
++		fmt.Println(recover())
++	}()
++
++	defer func() {
++		fmt.Println(recover())
++		panic("second panic")
++	}()
++
++	panic("first panic")
++}
++
+ func GoexitExit() {
+ 	println("t1")
+ 	go func() {

@@ -7,7 +7,222 @@ Date:   Tue Feb 7 11:34:20 2017 -0800
     Change-Id: Ia5ed3919cb492009ac8f66d175b47a69f83ee4f1
     Reviewed-on: https://go-review.googlesource.com/36487
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/int.go      |  34 +++++++++----
  src/math/big/int_test.go | 123 +++++++++++++++++++++++++++++++++--------------
  2 files changed, 110 insertions(+), 47 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 1d8dabce12..bed8d60a5e 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -324,22 +324,22 @@ func (x *Int) Cmp(y *Int) (r int) {
+ 	return
+ }
+ 
+-// low32 returns the least significant 32 bits of z.
+-func low32(z nat) uint32 {
+-	if len(z) == 0 {
++// low32 returns the least significant 32 bits of x.
++func low32(x nat) uint32 {
++	if len(x) == 0 {
+ 		return 0
+ 	}
+-	return uint32(z[0])
++	return uint32(x[0])
+ }
+ 
+-// low64 returns the least significant 64 bits of z.
+-func low64(z nat) uint64 {
+-	if len(z) == 0 {
++// low64 returns the least significant 64 bits of x.
++func low64(x nat) uint64 {
++	if len(x) == 0 {
+ 		return 0
+ 	}
+-	v := uint64(z[0])
+-	if _W == 32 && len(z) > 1 {
+-		v |= uint64(z[1]) << 32
++	v := uint64(x[0])
++	if _W == 32 && len(x) > 1 {
++		return uint64(x[1])<<32 | v
+ 	}
+ 	return v
+ }
+@@ -360,6 +360,20 @@ func (x *Int) Uint64() uint64 {
+ 	return low64(x.abs)
+ }
+ 
++// IsInt64 reports whether x can be represented as an int64.
++func (x *Int) IsInt64() bool {
++	if len(x.abs) <= 64/_W {
++		w := int64(low64(x.abs))
++		return w >= 0 || x.neg && w == -w
++	}
++	return false
++}
++
++// IsUint64 reports whether x can be represented as a uint64.
++func (x *Int) IsUint64() bool {
++	return !x.neg && len(x.abs) <= 64/_W
++}
++
+ // SetString sets z to the value of s, interpreted in the given base,
+ // and returns z and a boolean indicating success. The entire string
+ // (not just a prefix) must be valid for success. If SetString fails,
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index b8e0778ca3..155ccee6af 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -7,8 +7,8 @@ package big
+ import (
+ 	"bytes"
+ 	"encoding/hex"
+-	"fmt"
+ 	"math/rand"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"testing/quick"
+@@ -903,56 +903,105 @@ func TestLshRsh(t *testing.T) {
+ 	}
+ }
+ 
+-var int64Tests = []int64{
+-	0,
+-	1,
+-	-1,
+-	4294967295,
+-	-4294967295,
+-	4294967296,
+-	-4294967296,
+-	9223372036854775807,
+-	-9223372036854775807,
+-	-9223372036854775808,
++var int64Tests = []string{
++	// int64
++	"0",
++	"1",
++	"-1",
++	"4294967295",
++	"-4294967295",
++	"4294967296",
++	"-4294967296",
++	"9223372036854775807",
++	"-9223372036854775807",
++	"-9223372036854775808",
++
++	// not int64
++	"0x8000000000000000",
++	"-0x8000000000000001",
++	"38579843757496759476987459679745",
++	"-38579843757496759476987459679745",
+ }
+ 
+ func TestInt64(t *testing.T) {
+-	for i, testVal := range int64Tests {
+-		in := NewInt(testVal)
+-		out := in.Int64()
++	for _, s := range int64Tests {
++		var x Int
++		_, ok := x.SetString(s, 0)
++		if !ok {
++			t.Errorf("SetString(%s, 0) failed", s)
++			continue
++		}
++
++		want, err := strconv.ParseInt(s, 0, 64)
++		if err != nil {
++			if err.(*strconv.NumError).Err == strconv.ErrRange {
++				if x.IsInt64() {
++					t.Errorf("IsInt64(%s) succeeded unexpectedly", s)
++				}
++			} else {
++				t.Errorf("ParseInt(%s) failed", s)
++			}
++			continue
++		}
++
++		if !x.IsInt64() {
++			t.Errorf("IsInt64(%s) failed unexpectedly", s)
++		}
+ 
+-		if out != testVal {
+-			t.Errorf("#%d got %d want %d", i, out, testVal)
++		got := x.Int64()
++		if got != want {
++			t.Errorf("Int64(%s) = %d; want %d", s, got, want)
+ 		}
+ 	}
+ }
+ 
+-var uint64Tests = []uint64{
+-	0,
+-	1,
+-	4294967295,
+-	4294967296,
+-	8589934591,
+-	8589934592,
+-	9223372036854775807,
+-	9223372036854775808,
+-	18446744073709551615, // 1<<64 - 1
++var uint64Tests = []string{
++	// uint64
++	"0",
++	"1",
++	"4294967295",
++	"4294967296",
++	"8589934591",
++	"8589934592",
++	"9223372036854775807",
++	"9223372036854775808",
++	"0x08000000000000000",
++
++	// not uint64
++	"0x10000000000000000",
++	"-0x08000000000000000",
++	"-1",
+ }
+ 
+ func TestUint64(t *testing.T) {
+-	in := new(Int)
+-	for i, testVal := range uint64Tests {
+-		in.SetUint64(testVal)
+-		out := in.Uint64()
++	for _, s := range uint64Tests {
++		var x Int
++		_, ok := x.SetString(s, 0)
++		if !ok {
++			t.Errorf("SetString(%s, 0) failed", s)
++			continue
++		}
++
++		want, err := strconv.ParseUint(s, 0, 64)
++		if err != nil {
++			// check for sign explicitly (ErrRange doesn't cover signed input)
++			if s[0] == '-' || err.(*strconv.NumError).Err == strconv.ErrRange {
++				if x.IsUint64() {
++					t.Errorf("IsUint64(%s) succeeded unexpectedly", s)
++				}
++			} else {
++				t.Errorf("ParseUint(%s) failed", s)
++			}
++			continue
++		}
+ 
+-		if out != testVal {
+-			t.Errorf("#%d got %d want %d", i, out, testVal)
++		if !x.IsUint64() {
++			t.Errorf("IsUint64(%s) failed unexpectedly", s)
+ 		}
+ 
+-		str := fmt.Sprint(testVal)
+-		strOut := in.String()
+-		if strOut != str {
+-			t.Errorf("#%d.String got %s want %s", i, strOut, str)
++		got := x.Uint64()
++		if got != want {
++			t.Errorf("Uint64(%s) = %d; want %d", s, got, want)
+ 		}
+ 	}
+ }

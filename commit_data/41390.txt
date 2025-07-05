@@ -20,8 +20,68 @@ Date:   Sat Aug 24 08:59:01 2019 +0900
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go | 4 ++++
  src/math/rand/rand.go                   | 7 +++++--
  src/math/rand/rand_test.go              | 8 ++++++++
  3 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index a0f56e776b..77c398af82 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -148,6 +148,10 @@ func TestIntendedInlining(t *testing.T) {
+ 			"addVW",
+ 			"subVW",
+ 		},
++		"math/rand": {
++			"(*rngSource).Int63",
++			"(*rngSource).Uint64",
++		},
+ 	}
+ 
+ 	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" {
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 04382e6208..6e5eb4ba6a 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -285,7 +285,10 @@ func read(p []byte, int63 func() int64, readVal *int64, readPos *int8) (n int, e
+  * Top-level convenience functions
+  */
+ 
+-var globalRand = New(&lockedSource{src: NewSource(1).(Source64)})
++var globalRand = New(&lockedSource{src: NewSource(1).(*rngSource)})
++
++// Type assert that globalRand's source is a lockedSource whose src is a *rngSource.
++var _ *rngSource = globalRand.src.(*lockedSource).src
+ 
+ // Seed uses the provided seed value to initialize the default Source to a
+ // deterministic state. If Seed is not called, the generator behaves as
+@@ -373,7 +376,7 @@ func ExpFloat64() float64 { return globalRand.ExpFloat64() }
+ 
+ type lockedSource struct {
+ 	lk  sync.Mutex
+-	src Source64
++	src *rngSource
+ }
+ 
+ func (r *lockedSource) Int63() (n int64) {
+diff --git a/src/math/rand/rand_test.go b/src/math/rand/rand_test.go
+index ee9c8f8e84..e037aaed0e 100644
+--- a/src/math/rand/rand_test.go
++++ b/src/math/rand/rand_test.go
+@@ -565,6 +565,14 @@ func BenchmarkInt63Threadsafe(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkInt63ThreadsafeParallel(b *testing.B) {
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Int63()
++		}
++	})
++}
++
+ func BenchmarkInt63Unthreadsafe(b *testing.B) {
+ 	r := New(NewSource(1))
+ 	for n := b.N; n > 0; n-- {

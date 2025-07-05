@@ -18,7 +18,7 @@ Date:   Mon Mar 17 15:56:12 2025 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go        |  4 +++
  src/cmd/asm/internal/asm/testdata/loong64enc1.s  | 26 +++++++++++++++++
  src/cmd/asm/internal/asm/testdata/loong64error.s |  7 +++++
@@ -26,3 +26,178 @@ Date:   Mon Mar 17 15:56:12 2025 +0800
  src/cmd/internal/obj/loong64/anames.go           |  8 +++++
  src/cmd/internal/obj/loong64/asm.go              | 37 ++++++++++++++++++++++++
  6 files changed, 91 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index f33b1e75bf..afaf02815f 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -470,6 +470,10 @@ func TestLOONG64Encoder(t *testing.T) {
+ 	testEndToEnd(t, "loong64", "loong64")
+ }
+ 
++func TestLOONG64Errors(t *testing.T) {
++	testErrors(t, "loong64", "loong64error")
++}
++
+ func TestPPC64EndToEnd(t *testing.T) {
+ 	defer func(old int) { buildcfg.GOPPC64 = old }(buildcfg.GOPPC64)
+ 	for _, goppc64 := range []int{8, 9, 10} {
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index d6a0762aa8..b557625ff3 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -911,3 +911,29 @@ lable2:
+ 	XVMULWODWHUH	X1, X2, X3	// 4384a274
+ 	XVMULWODVWUW	X1, X2, X3	// 4304a374
+ 	XVMULWODQVUV	X1, X2, X3	// 4384a374
++
++	// [X]VSHUF4I.{B/H/W/D} instructions
++	VSHUF4IB	$0, V2, V1	// 41009073
++	VSHUF4IB	$16, V2, V1	// 41409073
++	VSHUF4IB	$255, V2, V1	// 41fc9373
++	VSHUF4IH	$0, V2, V1	// 41009473
++	VSHUF4IH	$128, V2, V1	// 41009673
++	VSHUF4IH	$255, V2, V1	// 41fc9773
++	VSHUF4IW	$0, V2, V1	// 41009873
++	VSHUF4IW	$96, V2, V1	// 41809973
++	VSHUF4IW	$255, V2, V1	// 41fc9b73
++	VSHUF4IV	$0, V2, V1	// 41009c73
++	VSHUF4IV	$8, V2, V1	// 41209c73
++	VSHUF4IV	$15, V2, V1	// 413c9c73
++	XVSHUF4IB	$0, X1, X2	// 22009077
++	XVSHUF4IB	$16, X1, X2	// 22409077
++	XVSHUF4IB	$255, X1, X2	// 22fc9377
++	XVSHUF4IH	$0, X1, X2	// 22009477
++	XVSHUF4IH	$128, X1, X2	// 22009677
++	XVSHUF4IH	$255, X1, X2	// 22fc9777
++	XVSHUF4IW	$0, X1, X2	// 22009877
++	XVSHUF4IW	$96, X1, X2	// 22809977
++	XVSHUF4IW	$255, X1, X2	// 22fc9b77
++	XVSHUF4IV	$0, X1, X2	// 22009c77
++	XVSHUF4IV	$8, X1, X2	// 22209c77
++	XVSHUF4IV	$15, X1, X2	// 223c9c77
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64error.s b/src/cmd/asm/internal/asm/testdata/loong64error.s
+new file mode 100644
+index 0000000000..9272ce51c3
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/testdata/loong64error.s
+@@ -0,0 +1,7 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT errors(SB),$0
++	VSHUF4IV	$16, V1, V2	// ERROR "operand out of range 0 to 15"
++	XVSHUF4IV	$16, X1, X2	// ERROR "operand out of range 0 to 15"
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 782691754f..a3e81ba531 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -1010,6 +1010,15 @@ const (
+ 	AXVMULWODVWUW
+ 	AXVMULWODQVUV
+ 
++	AVSHUF4IB
++	AVSHUF4IH
++	AVSHUF4IW
++	AVSHUF4IV
++	AXVSHUF4IB
++	AXVSHUF4IH
++	AXVSHUF4IW
++	AXVSHUF4IV
++
+ 	ALAST
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 887ada8a17..8e656c844a 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -505,5 +505,13 @@ var Anames = []string{
+ 	"XVMULWODWHUH",
+ 	"XVMULWODVWUW",
+ 	"XVMULWODQVUV",
++	"VSHUF4IB",
++	"VSHUF4IH",
++	"VSHUF4IW",
++	"VSHUF4IV",
++	"XVSHUF4IB",
++	"XVSHUF4IH",
++	"XVSHUF4IW",
++	"XVSHUF4IV",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index f0e3cd77b7..401cab11cc 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1677,11 +1677,19 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVORB, r0)
+ 			opset(AVXORB, r0)
+ 			opset(AVNORB, r0)
++			opset(AVSHUF4IB, r0)
++			opset(AVSHUF4IH, r0)
++			opset(AVSHUF4IW, r0)
++			opset(AVSHUF4IV, r0)
+ 
+ 		case AXVANDB:
+ 			opset(AXVORB, r0)
+ 			opset(AXVXORB, r0)
+ 			opset(AXVNORB, r0)
++			opset(AXVSHUF4IB, r0)
++			opset(AXVSHUF4IH, r0)
++			opset(AXVSHUF4IW, r0)
++			opset(AXVSHUF4IV, r0)
+ 
+ 		case AVANDV:
+ 			opset(AVORV, r0)
+@@ -2155,6 +2163,12 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			r = int(p.To.Reg)
+ 		}
+ 
++		// the operand range available for instructions VSHUF4IV and XVSHUF4IV is [0, 15]
++		if p.As == AVSHUF4IV || p.As == AXVSHUF4IV {
++			operand := uint32(v)
++			c.checkoperand(p, operand, 15)
++		}
++
+ 		o1 = OP_8IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+ 
+ 	case 24: // add $lcon,r1,r2
+@@ -2695,6 +2709,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	out[4] = o5
+ }
+ 
++// checkoperand checks if operand >= 0 && operand <= maxoperand
++func (c *ctxt0) checkoperand(p *obj.Prog, operand uint32, mask uint32) {
++	if (operand & ^mask) != 0 {
++		c.ctxt.Diag("operand out of range 0 to %d: %v", mask, p)
++	}
++}
++
+ // checkindex checks if index >= 0 && index <= maxindex
+ func (c *ctxt0) checkindex(p *obj.Prog, index uint32, mask uint32) {
+ 	if (index & ^mask) != 0 {
+@@ -3813,6 +3834,22 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
+ 		return 0xed1a << 15 // xvsubi.wu
+ 	case AXVSUBVU:
+ 		return 0xed1b << 15 // xvsubi.du
++	case AVSHUF4IB:
++		return 0x1ce4 << 18 // vshuf4i.b
++	case AVSHUF4IH:
++		return 0x1ce5 << 18 // vshuf4i.h
++	case AVSHUF4IW:
++		return 0x1ce6 << 18 // vshuf4i.w
++	case AVSHUF4IV:
++		return 0x1ce7 << 18 // vshuf4i.d
++	case AXVSHUF4IB:
++		return 0x1de4 << 18 // xvshuf4i.b
++	case AXVSHUF4IH:
++		return 0x1de5 << 18 // xvshuf4i.h
++	case AXVSHUF4IW:
++		return 0x1de6 << 18 // xvshuf4i.w
++	case AXVSHUF4IV:
++		return 0x1de7 << 18 // xvshuf4i.d
+ 	}
+ 
+ 	if a < 0 {

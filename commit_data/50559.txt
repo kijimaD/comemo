@@ -10,8 +10,109 @@ Date:   Mon Nov 1 20:25:48 2021 -0700
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go            | 11 ++++++-----
  src/internal/cpu/cpu_test.go     |  3 ++-
  src/internal/cpu/cpu_x86_test.go |  4 ++--
  3 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c13d77a1af..d8bed1dac0 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/format"
++	"internal/godebug"
+ 	"internal/race"
+ 	"internal/testenv"
+ 	"io"
+@@ -2281,7 +2282,7 @@ func TestUpxCompression(t *testing.T) {
+ 
+ func TestCacheListStale(t *testing.T) {
+ 	tooSlow(t)
+-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
++	if godebug.Get("gocacheverify") == "1" {
+ 		t.Skip("GODEBUG gocacheverify")
+ 	}
+ 	tg := testgo(t)
+@@ -2304,7 +2305,7 @@ func TestCacheListStale(t *testing.T) {
+ func TestCacheCoverage(t *testing.T) {
+ 	tooSlow(t)
+ 
+-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
++	if godebug.Get("gocacheverify") == "1" {
+ 		t.Skip("GODEBUG gocacheverify")
+ 	}
+ 
+@@ -2336,7 +2337,7 @@ func TestIssue22588(t *testing.T) {
+ 
+ func TestIssue22531(t *testing.T) {
+ 	tooSlow(t)
+-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
++	if godebug.Get("gocacheverify") == "1" {
+ 		t.Skip("GODEBUG gocacheverify")
+ 	}
+ 	tg := testgo(t)
+@@ -2365,7 +2366,7 @@ func TestIssue22531(t *testing.T) {
+ 
+ func TestIssue22596(t *testing.T) {
+ 	tooSlow(t)
+-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
++	if godebug.Get("gocacheverify") == "1" {
+ 		t.Skip("GODEBUG gocacheverify")
+ 	}
+ 	tg := testgo(t)
+@@ -2395,7 +2396,7 @@ func TestIssue22596(t *testing.T) {
+ func TestTestCache(t *testing.T) {
+ 	tooSlow(t)
+ 
+-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
++	if godebug.Get("gocacheverify") == "1" {
+ 		t.Skip("GODEBUG gocacheverify")
+ 	}
+ 	tg := testgo(t)
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index 06ad20800f..8c21256b34 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -6,6 +6,7 @@ package cpu_test
+ 
+ import (
+ 	. "internal/cpu"
++	"internal/godebug"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -52,7 +53,7 @@ func TestDisableAllCapabilities(t *testing.T) {
+ func TestAllCapabilitiesDisabled(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if os.Getenv("GODEBUG") != "cpu.all=off" {
++	if godebug.Get("cpu.all") != "off" {
+ 		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
+ 	}
+ 
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index 0fef065f20..c8be210055 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -8,7 +8,7 @@ package cpu_test
+ 
+ import (
+ 	. "internal/cpu"
+-	"os"
++	"internal/godebug"
+ 	"testing"
+ )
+ 
+@@ -25,7 +25,7 @@ func TestDisableSSE3(t *testing.T) {
+ func TestSSE3DebugOption(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if os.Getenv("GODEBUG") != "cpu.sse3=off" {
++	if godebug.Get("cpu.sse3") != "off" {
+ 		t.Skipf("skipping test: GODEBUG=cpu.sse3=off not set")
+ 	}
+ 

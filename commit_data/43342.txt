@@ -218,3 +218,75 @@ Date:   Fri Mar 27 13:39:19 2020 -0400
  test/run.go                                        |  137 +-
  test/winbatch.go                                   |   30 +
  206 files changed, 11514 insertions(+), 4014 deletions(-)
+
+diff --cc src/cmd/asm/internal/flags/flags.go
+index 14d4b87fd2,618b08cc36..e8535ae9ac
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@@ -23,9 -23,9 +23,10 @@@ var 
+  	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
+  	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
+  	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+ -	Newobj     = flag.Bool("newobj", false, "use new object file format")
+ +	Importpath = flag.String("p", "", "set expected package import to path")
+++	Spectre    = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
+  
+ -	Spectre = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
+ +	Go115Newobj = flag.Bool("go115newobj", true, "use new object file format")
+  )
+  
+  var (
+diff --cc src/cmd/asm/main.go
+index 9a0e87f36b,21c8bd963a..a927de854b
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@@ -40,7 -40,20 +40,20 @@@ func main() 
+  	}
+  	ctxt.Flag_dynlink = *flags.Dynlink
+  	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+ -	ctxt.Flag_newobj = *flags.Newobj
+ +	ctxt.Flag_go115newobj = *flags.Go115Newobj
++ 	switch *flags.Spectre {
++ 	default:
++ 		log.Printf("unknown setting -spectre=%s", *flags.Spectre)
++ 		os.Exit(2)
++ 	case "":
++ 		// nothing
++ 	case "index":
++ 		// known to compiler; ignore here so people can use
++ 		// the same list with -gcflags=-spectre=LIST and -asmflags=-spectrre=LIST
++ 	case "all", "ret":
++ 		ctxt.Retpoline = true
++ 	}
++ 
+  	ctxt.Bso = bufio.NewWriter(os.Stdout)
+  	defer ctxt.Bso.Flush()
+  
+diff --cc src/cmd/compile/internal/gc/main.go
+index 27ed4ee3cc,81d31c2007..d04c09c93e
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@@ -285,7 -314,7 +314,7 @@@ func Main(archInit func(*Arch)) 
+  	// Record flags that affect the build result. (And don't
+  	// record flags that don't, since that would cause spurious
+  	// changes in the binary.)
+- 	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "go115newobj")
+ -	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre", "newobj")
+++	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre", "go115newobj")
+  
+  	if smallFrames {
+  		maxStackVarSize = 128 * 1024
+diff --cc src/cmd/internal/obj/link.go
+index 0070adaac3,d1cc536a8c..9dd821d532
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@@ -652,7 -652,8 +652,8 @@@ type Link struct 
+  	Flag_linkshared    bool
+  	Flag_optimize      bool
+  	Flag_locationlists bool
+ -	Flag_newobj        bool // use new object file format
+ +	Flag_go115newobj   bool // use new object file format
++ 	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
+  	Bso                *bufio.Writer
+  	Pathname           string
+  	hashmu             sync.Mutex       // protects hash, funchash

@@ -7,6 +7,19 @@ Date:   Wed May 5 15:17:26 2010 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/1121041
-
+---
  src/pkg/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6eee658a52..6458dcd992 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -94,6 +94,7 @@ DIRS=\
+ 	math\
+ 	mime\
+ 	net\
++	netchan\
+ 	nntp\
+ 	once\
+ 	os\

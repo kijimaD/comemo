@@ -11,9 +11,96 @@ Date:   Thu Nov 15 18:41:03 2018 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/issue28545.go |  6 ++++++
  src/cmd/cgo/ast.go          | 13 +++++++++++++
  src/cmd/cgo/gcc.go          |  3 ++-
  src/cmd/cgo/main.go         |  1 +
  4 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue28545.go b/misc/cgo/test/issue28545.go
+index 802a20b779..0410a16622 100644
+--- a/misc/cgo/test/issue28545.go
++++ b/misc/cgo/test/issue28545.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Failed to add type conversion for negative constant.
++// Issue 28772: Failed to add type conversion for Go constant set to C constant.
+ // No runtime test; just make sure it compiles.
+ 
+ package cgotest
+@@ -10,11 +11,16 @@ package cgotest
+ /*
+ #include <complex.h>
+ 
++#define issue28772Constant 1
++
+ static void issue28545F(char **p, int n, complex double a) {}
+ */
+ import "C"
+ 
++const issue28772Constant = C.issue28772Constant
++
+ func issue28545G(p **C.char) {
+ 	C.issue28545F(p, -1, (0))
+ 	C.issue28545F(p, 2+3, complex(1, 1))
++	C.issue28545F(p, issue28772Constant, (0))
+ }
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 4462136bf4..c342a01783 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -66,6 +66,7 @@ func (f *File) ParseGo(name string, src []byte) {
+ 	f.Package = ast1.Name.Name
+ 	f.Name = make(map[string]*Name)
+ 	f.NamePos = make(map[*Name]token.Pos)
++	f.Consts = make(map[string]bool)
+ 
+ 	// In ast1, find the import "C" line and get any extra C preamble.
+ 	sawC := false
+@@ -191,6 +192,18 @@ func (f *File) saveExprs(x interface{}, context astContext) {
+ 		}
+ 	case *ast.CallExpr:
+ 		f.saveCall(x, context)
++	case *ast.GenDecl:
++		if x.Tok == token.CONST {
++			for _, spec := range x.Specs {
++				vs := spec.(*ast.ValueSpec)
++				if vs.Type == nil {
++					for _, name := range spec.(*ast.ValueSpec).Names {
++						f.Consts[name.Name] = true
++					}
++				}
++			}
++		}
++
+ 	}
+ }
+ 
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 23b60a646a..fdd34f560f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1232,7 +1232,8 @@ func (p *Package) isConst(f *File, x ast.Expr) bool {
+ 		return x.Name == "nil" ||
+ 			strings.HasPrefix(x.Name, "_Ciconst_") ||
+ 			strings.HasPrefix(x.Name, "_Cfconst_") ||
+-			strings.HasPrefix(x.Name, "_Csconst_")
++			strings.HasPrefix(x.Name, "_Csconst_") ||
++			f.Consts[x.Name]
+ 	case *ast.UnaryExpr:
+ 		return p.isConst(f, x.X)
+ 	case *ast.BinaryExpr:
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 3098a4a63d..a317a1494d 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -62,6 +62,7 @@ type File struct {
+ 	Name     map[string]*Name    // map from Go name to Name
+ 	NamePos  map[*Name]token.Pos // map from Name to position of the first reference
+ 	Edit     *edit.Buffer
++	Consts   map[string]bool // untyped constants
+ }
+ 
+ func (f *File) offset(p token.Pos) int {

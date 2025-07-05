@@ -11,7 +11,7 @@ Date:   Wed Dec 17 12:13:47 2014 -0500
     Change-Id: Iaee74036e60643a56fab15b564718f359c5910eb
     Reviewed-on: https://go-review.googlesource.com/2004
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5l/asm.c  | 5 +++++
  src/cmd/6l/asm.c  | 5 +++++
  src/cmd/8l/asm.c  | 5 +++++
@@ -19,3 +19,92 @@ Date:   Wed Dec 17 12:13:47 2014 -0500
  src/cmd/ld/lib.h  | 1 +
  src/cmd/ld/pobj.c | 1 +
  6 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 9c1c04e2d4..017d3f4357 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -69,6 +69,11 @@ static void	addpltsym(Link*, LSym*);
+ static void	addgotsym(Link*, LSym*);
+ static void	addgotsyminternal(Link*, LSym*);
+ 
++void
++gentext(void)
++{
++}
++
+ // Preserve highest 8 bits of a, and do addition to lower 24-bit
+ // of a and b; used to adjust ARM branch intruction's target
+ static int32
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 18b5aa3119..41c9cc84c6 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -73,6 +73,11 @@ int nelfsym = 1;
+ static void addpltsym(LSym*);
+ static void addgotsym(LSym*);
+ 
++void
++gentext(void)
++{
++}
++
+ void
+ adddynrela(LSym *rela, LSym *s, Reloc *r)
+ {
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 98c0424037..8b91c0971a 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -69,6 +69,11 @@ int	nelfsym = 1;
+ static void	addpltsym(Link*, LSym*);
+ static void	addgotsym(Link*, LSym*);
+ 
++void
++gentext(void)
++{
++}
++
+ void
+ adddynrela(LSym *rela, LSym *s, Reloc *r)
+ {
+diff --git a/src/cmd/9l/asm.c b/src/cmd/9l/asm.c
+index f9e2810ade..7814edd525 100644
+--- a/src/cmd/9l/asm.c
++++ b/src/cmd/9l/asm.c
+@@ -65,6 +65,11 @@ needlib(char *name)
+ 
+ int	nelfsym = 1;
+ 
++void
++gentext(void)
++{
++}
++
+ void
+ adddynrela(LSym *rel, LSym *s, Reloc *r)
+ {
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 067ffa0bcc..17483e0b4c 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -227,6 +227,7 @@ vlong	entryvalue(void);
+ void	errorexit(void);
+ void	follow(void);
+ void	genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*));
++void	gentext(void);
+ void	growdatsize(vlong *datsizep, LSym *s);
+ char*	headstr(int v);
+ int	headtype(char *name);
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 63460df30a..b86ddfe0fe 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -184,6 +184,7 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == Hwindows)
+ 		dope();
+ 	addexport();
++	gentext();		// trampolines, call stubs, etc.
+ 	textaddress();
+ 	pclntab();
+ 	symtab();

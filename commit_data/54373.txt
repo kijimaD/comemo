@@ -19,10 +19,175 @@ Date:   Tue Oct 11 11:56:51 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  .../compile/internal/typecheck/_builtin/runtime.go | 20 +++++++++---------
  src/cmd/compile/internal/typecheck/builtin.go      | 10 ++++-----
  src/internal/fuzz/trace.go                         | 24 +++++++++++-----------
  src/runtime/libfuzzer.go                           | 16 +++++++--------
  test/fixedbugs/issue56141.go                       | 12 +++++++++++
  5 files changed, 47 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index 83695013c3..69c456a557 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -261,16 +261,16 @@ func asanwrite(addr, size uintptr)
+ func checkptrAlignment(unsafe.Pointer, *byte, uintptr)
+ func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)
+ 
+-func libfuzzerTraceCmp1(uint8, uint8, int)
+-func libfuzzerTraceCmp2(uint16, uint16, int)
+-func libfuzzerTraceCmp4(uint32, uint32, int)
+-func libfuzzerTraceCmp8(uint64, uint64, int)
+-func libfuzzerTraceConstCmp1(uint8, uint8, int)
+-func libfuzzerTraceConstCmp2(uint16, uint16, int)
+-func libfuzzerTraceConstCmp4(uint32, uint32, int)
+-func libfuzzerTraceConstCmp8(uint64, uint64, int)
+-func libfuzzerHookStrCmp(string, string, int)
+-func libfuzzerHookEqualFold(string, string, int)
++func libfuzzerTraceCmp1(uint8, uint8, uint)
++func libfuzzerTraceCmp2(uint16, uint16, uint)
++func libfuzzerTraceCmp4(uint32, uint32, uint)
++func libfuzzerTraceCmp8(uint64, uint64, uint)
++func libfuzzerTraceConstCmp1(uint8, uint8, uint)
++func libfuzzerTraceConstCmp2(uint16, uint16, uint)
++func libfuzzerTraceConstCmp4(uint32, uint32, uint)
++func libfuzzerTraceConstCmp8(uint64, uint64, uint)
++func libfuzzerHookStrCmp(string, string, uint)
++func libfuzzerHookEqualFold(string, string, uint)
+ 
+ func addCovMeta(p unsafe.Pointer, len uint32, hash [16]byte, pkpath string, pkgId int, cmode uint8, cgran uint8) uint32
+ 
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index fab7df7883..7de24ad2c8 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -381,11 +381,11 @@ func runtimeTypes() []*types.Type {
+ 	typs[143] = newSig(params(typs[7], typs[1], typs[5]), nil)
+ 	typs[144] = types.NewSlice(typs[7])
+ 	typs[145] = newSig(params(typs[7], typs[144]), nil)
+-	typs[146] = newSig(params(typs[66], typs[66], typs[15]), nil)
+-	typs[147] = newSig(params(typs[60], typs[60], typs[15]), nil)
+-	typs[148] = newSig(params(typs[62], typs[62], typs[15]), nil)
+-	typs[149] = newSig(params(typs[24], typs[24], typs[15]), nil)
+-	typs[150] = newSig(params(typs[28], typs[28], typs[15]), nil)
++	typs[146] = newSig(params(typs[66], typs[66], typs[17]), nil)
++	typs[147] = newSig(params(typs[60], typs[60], typs[17]), nil)
++	typs[148] = newSig(params(typs[62], typs[62], typs[17]), nil)
++	typs[149] = newSig(params(typs[24], typs[24], typs[17]), nil)
++	typs[150] = newSig(params(typs[28], typs[28], typs[17]), nil)
+ 	typs[151] = types.NewArray(typs[0], 16)
+ 	typs[152] = newSig(params(typs[7], typs[62], typs[151], typs[28], typs[15], typs[66], typs[66]), params(typs[62]))
+ 	return typs[:]
+diff --git a/src/internal/fuzz/trace.go b/src/internal/fuzz/trace.go
+index 5e3ccccfad..a15c370063 100644
+--- a/src/internal/fuzz/trace.go
++++ b/src/internal/fuzz/trace.go
+@@ -21,15 +21,15 @@ import _ "unsafe" // for go:linkname
+ //go:linkname libfuzzerHookStrCmp runtime.libfuzzerHookStrCmp
+ //go:linkname libfuzzerHookEqualFold runtime.libfuzzerHookEqualFold
+ 
+-func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC int)  {}
+-func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC int) {}
+-func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC int) {}
+-func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC int) {}
+-
+-func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC int)  {}
+-func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC int) {}
+-func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC int) {}
+-func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC int) {}
+-
+-func libfuzzerHookStrCmp(arg0, arg1 string, fakePC int)    {}
+-func libfuzzerHookEqualFold(arg0, arg1 string, fakePC int) {}
++func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC uint)  {}
++func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC uint) {}
++func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC uint) {}
++func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC uint) {}
++
++func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC uint)  {}
++func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC uint) {}
++func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC uint) {}
++func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC uint) {}
++
++func libfuzzerHookStrCmp(arg0, arg1 string, fakePC uint)    {}
++func libfuzzerHookEqualFold(arg0, arg1 string, fakePC uint) {}
+diff --git a/src/runtime/libfuzzer.go b/src/runtime/libfuzzer.go
+index 6bfaef823b..013e7165b2 100644
+--- a/src/runtime/libfuzzer.go
++++ b/src/runtime/libfuzzer.go
+@@ -20,49 +20,49 @@ const retSledSize = 512
+ // This may result in these functions having callers that are nosplit. That is why they must be nosplit.
+ //
+ //go:nosplit
+-func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC int) {
++func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC uint) {
+ 	fakePC = fakePC % retSledSize
+ 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+ //go:nosplit
+-func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC int) {
++func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC uint) {
+ 	fakePC = fakePC % retSledSize
+ 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp2, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+ //go:nosplit
+-func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC int) {
++func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC uint) {
+ 	fakePC = fakePC % retSledSize
+ 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp4, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+ //go:nosplit
+-func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC int) {
++func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC uint) {
+ 	fakePC = fakePC % retSledSize
+ 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp8, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+ //go:nosplit
+-func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC int) {
++func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC uint) {
+ 	fakePC = fakePC % retSledSize
+ 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+ //go:nosplit
+-func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC int) {
++func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC uint) {
+ 	fakePC = fakePC % retSledSize
+ 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp2, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+ //go:nosplit
+-func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC int) {
++func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC uint) {
+ 	fakePC = fakePC % retSledSize
+ 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp4, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+ //go:nosplit
+-func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC int) {
++func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC uint) {
+ 	fakePC = fakePC % retSledSize
+ 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp8, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+diff --git a/test/fixedbugs/issue56141.go b/test/fixedbugs/issue56141.go
+new file mode 100644
+index 0000000000..7430b85f44
+--- /dev/null
++++ b/test/fixedbugs/issue56141.go
+@@ -0,0 +1,12 @@
++// compile -d=libfuzzer
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(x, y int) {
++	_ = x > y
++	_ = y > x
++}

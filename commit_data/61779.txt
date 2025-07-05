@@ -18,7 +18,7 @@ Date:   Thu Nov 21 17:52:50 2024 -0500
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  api/next/70122.txt                                 |  32 +++++++
  doc/next/6-stdlib/4-mlkem.md                       |   3 +
  doc/next/6-stdlib/99-minor/crypto/mlkem/70122.md   |   1 +
@@ -27,3 +27,369 @@ Date:   Thu Nov 21 17:52:50 2024 -0500
  .../{internal/fips140test => mlkem}/mlkem_test.go  |  40 ++++++--
  src/go/build/deps_test.go                          |   2 +
  7 files changed, 272 insertions(+), 8 deletions(-)
+
+diff --git a/api/next/70122.txt b/api/next/70122.txt
+new file mode 100644
+index 0000000000..308fe9df21
+--- /dev/null
++++ b/api/next/70122.txt
+@@ -0,0 +1,32 @@
++pkg crypto/mlkem, const CiphertextSize1024 = 1568 #70122
++pkg crypto/mlkem, const CiphertextSize1024 ideal-int #70122
++pkg crypto/mlkem, const CiphertextSize768 = 1088 #70122
++pkg crypto/mlkem, const CiphertextSize768 ideal-int #70122
++pkg crypto/mlkem, const EncapsulationKeySize1024 = 1568 #70122
++pkg crypto/mlkem, const EncapsulationKeySize1024 ideal-int #70122
++pkg crypto/mlkem, const EncapsulationKeySize768 = 1184 #70122
++pkg crypto/mlkem, const EncapsulationKeySize768 ideal-int #70122
++pkg crypto/mlkem, const SeedSize = 64 #70122
++pkg crypto/mlkem, const SeedSize ideal-int #70122
++pkg crypto/mlkem, const SharedKeySize = 32 #70122
++pkg crypto/mlkem, const SharedKeySize ideal-int #70122
++pkg crypto/mlkem, func GenerateKey1024() (*DecapsulationKey1024, error) #70122
++pkg crypto/mlkem, func GenerateKey768() (*DecapsulationKey768, error) #70122
++pkg crypto/mlkem, func NewDecapsulationKey1024([]uint8) (*DecapsulationKey1024, error) #70122
++pkg crypto/mlkem, func NewDecapsulationKey768([]uint8) (*DecapsulationKey768, error) #70122
++pkg crypto/mlkem, func NewEncapsulationKey1024([]uint8) (*EncapsulationKey1024, error) #70122
++pkg crypto/mlkem, func NewEncapsulationKey768([]uint8) (*EncapsulationKey768, error) #70122
++pkg crypto/mlkem, method (*DecapsulationKey1024) Bytes() []uint8 #70122
++pkg crypto/mlkem, method (*DecapsulationKey1024) Decapsulate([]uint8) ([]uint8, error) #70122
++pkg crypto/mlkem, method (*DecapsulationKey1024) EncapsulationKey() *EncapsulationKey1024 #70122
++pkg crypto/mlkem, method (*DecapsulationKey768) Bytes() []uint8 #70122
++pkg crypto/mlkem, method (*DecapsulationKey768) Decapsulate([]uint8) ([]uint8, error) #70122
++pkg crypto/mlkem, method (*DecapsulationKey768) EncapsulationKey() *EncapsulationKey768 #70122
++pkg crypto/mlkem, method (*EncapsulationKey1024) Bytes() []uint8 #70122
++pkg crypto/mlkem, method (*EncapsulationKey1024) Encapsulate() ([]uint8, []uint8) #70122
++pkg crypto/mlkem, method (*EncapsulationKey768) Bytes() []uint8 #70122
++pkg crypto/mlkem, method (*EncapsulationKey768) Encapsulate() ([]uint8, []uint8) #70122
++pkg crypto/mlkem, type DecapsulationKey1024 struct #70122
++pkg crypto/mlkem, type DecapsulationKey768 struct #70122
++pkg crypto/mlkem, type EncapsulationKey1024 struct #70122
++pkg crypto/mlkem, type EncapsulationKey768 struct #70122
+diff --git a/doc/next/6-stdlib/4-mlkem.md b/doc/next/6-stdlib/4-mlkem.md
+new file mode 100644
+index 0000000000..fed114d70f
+--- /dev/null
++++ b/doc/next/6-stdlib/4-mlkem.md
+@@ -0,0 +1,3 @@
++A new `crypto/mlkem` package was added, implementing ML-KEM (formerly known as
++Kyber), as specified in [NIST FIPS 203](https://doi.org/10.6028/NIST.FIPS.203).
++<!-- go.dev/issue/70122 -->
+diff --git a/doc/next/6-stdlib/99-minor/crypto/mlkem/70122.md b/doc/next/6-stdlib/99-minor/crypto/mlkem/70122.md
+new file mode 100644
+index 0000000000..e14bce8f81
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/mlkem/70122.md
+@@ -0,0 +1 @@
++<!-- This is a new package; covered in 6-stdlib/4-mlkem.md. -->
+diff --git a/src/crypto/mlkem/mlkem1024.go b/src/crypto/mlkem/mlkem1024.go
+new file mode 100644
+index 0000000000..530aacf00f
+--- /dev/null
++++ b/src/crypto/mlkem/mlkem1024.go
+@@ -0,0 +1,96 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mlkem
++
++import "crypto/internal/fips140/mlkem"
++
++const (
++	// CiphertextSize1024 is the size of a ciphertext produced by the 1024-bit
++	// variant of ML-KEM.
++	CiphertextSize1024 = 1568
++
++	// EncapsulationKeySize1024 is the size of an encapsulation key for the
++	// 1024-bit variant of ML-KEM.
++	EncapsulationKeySize1024 = 1568
++)
++
++// DecapsulationKey1024 is the secret key used to decapsulate a shared key
++// from a ciphertext. It includes various precomputed values.
++type DecapsulationKey1024 struct {
++	key *mlkem.DecapsulationKey1024
++}
++
++// GenerateKey1024 generates a new decapsulation key, drawing random bytes from
++// crypto/rand. The decapsulation key must be kept secret.
++func GenerateKey1024() (*DecapsulationKey1024, error) {
++	key, err := mlkem.GenerateKey1024()
++	if err != nil {
++		return nil, err
++	}
++
++	return &DecapsulationKey1024{key}, nil
++}
++
++// NewDecapsulationKey1024 parses a decapsulation key from a 64-byte seed in the
++// "d || z" form. The seed must be uniformly random.
++func NewDecapsulationKey1024(seed []byte) (*DecapsulationKey1024, error) {
++	key, err := mlkem.NewDecapsulationKey1024(seed)
++	if err != nil {
++		return nil, err
++	}
++
++	return &DecapsulationKey1024{key}, nil
++}
++
++// Bytes returns the decapsulation key as a 64-byte seed in the "d || z" form.
++//
++// The decapsulation key must be kept secret.
++func (dk *DecapsulationKey1024) Bytes() []byte {
++	return dk.key.Bytes()
++}
++
++// Decapsulate generates a shared key from a ciphertext and a decapsulation
++// key. If the ciphertext is not valid, Decapsulate returns an error.
++//
++// The shared key must be kept secret.
++func (dk *DecapsulationKey1024) Decapsulate(ciphertext []byte) (sharedKey []byte, err error) {
++	return dk.key.Decapsulate(ciphertext)
++}
++
++// EncapsulationKey returns the public encapsulation key necessary to produce
++// ciphertexts.
++func (dk *DecapsulationKey1024) EncapsulationKey() *EncapsulationKey1024 {
++	return &EncapsulationKey1024{dk.key.EncapsulationKey()}
++}
++
++// An EncapsulationKey1024 is the public key used to produce ciphertexts to be
++// decapsulated by the corresponding DecapsulationKey1024.
++type EncapsulationKey1024 struct {
++	key *mlkem.EncapsulationKey1024
++}
++
++// NewEncapsulationKey1024 parses an encapsulation key from its encoded form. If
++// the encapsulation key is not valid, NewEncapsulationKey1024 returns an error.
++func NewEncapsulationKey1024(encapsulationKey []byte) (*EncapsulationKey1024, error) {
++	key, err := mlkem.NewEncapsulationKey1024(encapsulationKey)
++	if err != nil {
++		return nil, err
++	}
++
++	return &EncapsulationKey1024{key}, nil
++}
++
++// Bytes returns the encapsulation key as a byte slice.
++func (ek *EncapsulationKey1024) Bytes() []byte {
++	return ek.key.Bytes()
++}
++
++// Encapsulate generates a shared key and an associated ciphertext from an
++// encapsulation key, drawing random bytes from crypto/rand.
++//
++// The shared key must be kept secret.
++func (ek *EncapsulationKey1024) Encapsulate() (ciphertext, sharedKey []byte) {
++	return ek.key.Encapsulate()
++}
+diff --git a/src/crypto/mlkem/mlkem768.go b/src/crypto/mlkem/mlkem768.go
+new file mode 100644
+index 0000000000..d6f5c94171
+--- /dev/null
++++ b/src/crypto/mlkem/mlkem768.go
+@@ -0,0 +1,106 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package mlkem implements the quantum-resistant key encapsulation method
++// ML-KEM (formerly known as Kyber), as specified in [NIST FIPS 203].
++//
++// [NIST FIPS 203]: https://doi.org/10.6028/NIST.FIPS.203
++package mlkem
++
++import "crypto/internal/fips140/mlkem"
++
++const (
++	// SharedKeySize is the size of a shared key produced by ML-KEM.
++	SharedKeySize = 32
++
++	// SeedSize is the size of a seed used to generate a decapsulation key.
++	SeedSize = 64
++
++	// CiphertextSize768 is the size of a ciphertext produced by the 768-bit
++	// variant of ML-KEM.
++	CiphertextSize768 = 1088
++
++	// EncapsulationKeySize768 is the size of an encapsulation key for the
++	// 768-bit variant of ML-KEM.
++	EncapsulationKeySize768 = 1184
++)
++
++// DecapsulationKey768 is the secret key used to decapsulate a shared key
++// from a ciphertext. It includes various precomputed values.
++type DecapsulationKey768 struct {
++	key *mlkem.DecapsulationKey768
++}
++
++// GenerateKey768 generates a new decapsulation key, drawing random bytes from
++// crypto/rand. The decapsulation key must be kept secret.
++func GenerateKey768() (*DecapsulationKey768, error) {
++	key, err := mlkem.GenerateKey768()
++	if err != nil {
++		return nil, err
++	}
++
++	return &DecapsulationKey768{key}, nil
++}
++
++// NewDecapsulationKey768 parses a decapsulation key from a 64-byte seed in the
++// "d || z" form. The seed must be uniformly random.
++func NewDecapsulationKey768(seed []byte) (*DecapsulationKey768, error) {
++	key, err := mlkem.NewDecapsulationKey768(seed)
++	if err != nil {
++		return nil, err
++	}
++
++	return &DecapsulationKey768{key}, nil
++}
++
++// Bytes returns the decapsulation key as a 64-byte seed in the "d || z" form.
++//
++// The decapsulation key must be kept secret.
++func (dk *DecapsulationKey768) Bytes() []byte {
++	return dk.key.Bytes()
++}
++
++// Decapsulate generates a shared key from a ciphertext and a decapsulation
++// key. If the ciphertext is not valid, Decapsulate returns an error.
++//
++// The shared key must be kept secret.
++func (dk *DecapsulationKey768) Decapsulate(ciphertext []byte) (sharedKey []byte, err error) {
++	return dk.key.Decapsulate(ciphertext)
++}
++
++// EncapsulationKey returns the public encapsulation key necessary to produce
++// ciphertexts.
++func (dk *DecapsulationKey768) EncapsulationKey() *EncapsulationKey768 {
++	return &EncapsulationKey768{dk.key.EncapsulationKey()}
++}
++
++// An EncapsulationKey768 is the public key used to produce ciphertexts to be
++// decapsulated by the corresponding DecapsulationKey768.
++type EncapsulationKey768 struct {
++	key *mlkem.EncapsulationKey768
++}
++
++// NewEncapsulationKey768 parses an encapsulation key from its encoded form. If
++// the encapsulation key is not valid, NewEncapsulationKey768 returns an error.
++func NewEncapsulationKey768(encapsulationKey []byte) (*EncapsulationKey768, error) {
++	key, err := mlkem.NewEncapsulationKey768(encapsulationKey)
++	if err != nil {
++		return nil, err
++	}
++
++	return &EncapsulationKey768{key}, nil
++}
++
++// Bytes returns the encapsulation key as a byte slice.
++func (ek *EncapsulationKey768) Bytes() []byte {
++	return ek.key.Bytes()
++}
++
++// Encapsulate generates a shared key and an associated ciphertext from an
++// encapsulation key, drawing random bytes from crypto/rand.
++//
++// The shared key must be kept secret.
++func (ek *EncapsulationKey768) Encapsulate() (ciphertext, sharedKey []byte) {
++	return ek.key.Encapsulate()
++}
+diff --git a/src/crypto/internal/fips140test/mlkem_test.go b/src/crypto/mlkem/mlkem_test.go
+similarity index 83%
+rename from src/crypto/internal/fips140test/mlkem_test.go
+rename to src/crypto/mlkem/mlkem_test.go
+index 43467456f0..ddc52dab97 100644
+--- a/src/crypto/internal/fips140test/mlkem_test.go
++++ b/src/crypto/mlkem/mlkem_test.go
+@@ -2,16 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package fipstest_test
+-
+-// TODO(fips, #70122): move this to crypto/mlkem once it exists.
++package mlkem
+ 
+ import (
+ 	"bytes"
+-	. "crypto/internal/fips140/mlkem"
++	"crypto/internal/fips140/mlkem"
+ 	"crypto/internal/fips140/sha3"
+ 	"crypto/rand"
+-	_ "embed"
+ 	"encoding/hex"
+ 	"flag"
+ 	"testing"
+@@ -192,7 +189,7 @@ func TestAccumulated(t *testing.T) {
+ 		o.Write(ek.Bytes())
+ 
+ 		s.Read(msg[:])
+-		ct, k := ek.EncapsulateInternal(&msg)
++		ct, k := ek.key.EncapsulateInternal(&msg)
+ 		o.Write(ct)
+ 		o.Write(k)
+ 
+@@ -226,7 +223,7 @@ func BenchmarkKeyGen(b *testing.B) {
+ 	rand.Read(z[:])
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		dk := GenerateKeyInternal768(&d, &z)
++		dk := mlkem.GenerateKeyInternal768(&d, &z)
+ 		sink ^= dk.EncapsulationKey().Bytes()[0]
+ 	}
+ }
+@@ -247,7 +244,7 @@ func BenchmarkEncaps(b *testing.B) {
+ 		if err != nil {
+ 			b.Fatal(err)
+ 		}
+-		c, K := ek.EncapsulateInternal(&m)
++		c, K := ek.key.EncapsulateInternal(&m)
+ 		sink ^= c[0] ^ K[0]
+ 	}
+ }
+@@ -307,3 +304,30 @@ func BenchmarkRoundTrip(b *testing.B) {
+ 		}
+ 	})
+ }
++
++// Test that the constants from the public API match the corresponding values from the internal API.
++func TestConstantSizes(t *testing.T) {
++	if SharedKeySize != mlkem.SharedKeySize {
++		t.Errorf("SharedKeySize mismatch: got %d, want %d", SharedKeySize, mlkem.SharedKeySize)
++	}
++
++	if SeedSize != mlkem.SeedSize {
++		t.Errorf("SeedSize mismatch: got %d, want %d", SeedSize, mlkem.SeedSize)
++	}
++
++	if CiphertextSize768 != mlkem.CiphertextSize768 {
++		t.Errorf("CiphertextSize768 mismatch: got %d, want %d", CiphertextSize768, mlkem.CiphertextSize768)
++	}
++
++	if EncapsulationKeySize768 != mlkem.EncapsulationKeySize768 {
++		t.Errorf("EncapsulationKeySize768 mismatch: got %d, want %d", EncapsulationKeySize768, mlkem.EncapsulationKeySize768)
++	}
++
++	if CiphertextSize1024 != mlkem.CiphertextSize1024 {
++		t.Errorf("CiphertextSize1024 mismatch: got %d, want %d", CiphertextSize1024, mlkem.CiphertextSize1024)
++	}
++
++	if EncapsulationKeySize1024 != mlkem.EncapsulationKeySize1024 {
++		t.Errorf("EncapsulationKeySize1024 mismatch: got %d, want %d", EncapsulationKeySize1024, mlkem.EncapsulationKeySize1024)
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 66db9d1bc3..4eb7b5f078 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -522,6 +522,8 @@ var depsRules = `
+ 
+ 	crypto/hmac < crypto/pbkdf2;
+ 
++	crypto/internal/fips140/mlkem < crypto/mlkem;
++
+ 	crypto/aes,
+ 	crypto/des,
+ 	crypto/ecdh,

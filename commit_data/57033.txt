@@ -13,7 +13,7 @@ Date:   Fri Jun 9 11:41:39 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/asm_386.s     | 4 ++--
  src/runtime/asm_amd64.s   | 4 ++--
  src/runtime/asm_arm.s     | 4 ++--
@@ -25,3 +25,154 @@ Date:   Fri Jun 9 11:41:39 2023 +0000
  src/runtime/asm_riscv64.s | 4 ++--
  src/runtime/asm_s390x.s   | 4 ++--
  10 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 5fd0ab9817..71b01e7c75 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -802,8 +802,8 @@ havem:
+ 	// 2. or the duration of the C thread alive on pthread platforms.
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// 2. or it wasn't the first call from a C thread on pthread platforms,
++	//    since then we skip dropm to resue the m in the first call.
+ 	MOVL	savedm-4(SP), DX
+ 	CMPL	DX, $0
+ 	JNE	droppedm
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 4ba2333f55..9befd6fb38 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1065,8 +1065,8 @@ havem:
+ 	// 2. or the duration of the C thread alive on pthread platforms.
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// 2. or it wasn't the first call from a C thread on pthread platforms,
++	//    since then we skip dropm to resue the m in the first call.
+ 	MOVQ	savedm-8(SP), BX
+ 	CMPQ	BX, $0
+ 	JNE	done
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index cd692e51a3..f2be89586d 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -740,8 +740,8 @@ havem:
+ 	// 2. or the duration of the C thread alive on pthread platforms.
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// 2. or it wasn't the first call from a C thread on pthread platforms,
++	//    since then we skip dropm to resue the m in the first call.
+ 	MOVW	savedm-4(SP), R6
+ 	CMP	$0, R6
+ 	B.NE	done
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index bd736ca8d2..4822594cb3 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1127,8 +1127,8 @@ havem:
+ 	// 2. or the duration of the C thread alive on pthread platforms.
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// 2. or it wasn't the first call from a C thread on pthread platforms,
++	//    since then we skip dropm to resue the m in the first call.
+ 	MOVD	savedm-8(SP), R6
+ 	CBNZ	R6, droppedm
+ 
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index b93ad3316d..aa1603da1a 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -566,8 +566,8 @@ havem:
+ 	// 2. or the duration of the C thread alive on pthread platforms.
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// 2. or it wasn't the first call from a C thread on pthread platforms,
++	//    since then we skip dropm to resue the m in the first call.
+ 	MOVV	savedm-8(SP), R12
+ 	BNE	R12, droppedm
+ 
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 1da90f7777..582aec8c38 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -574,8 +574,8 @@ havem:
+ 	// 2. or the duration of the C thread alive on pthread platforms.
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// 2. or it wasn't the first call from a C thread on pthread platforms,
++	//    since then we skip dropm to resue the m in the first call.
+ 	MOVV	savedm-8(SP), R3
+ 	BNE	R3, droppedm
+ 
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 49f96044c4..5cfb7de64f 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -564,8 +564,8 @@ havem:
+ 	// 2. or the duration of the C thread alive on pthread platforms.
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// 2. or it wasn't the first call from a C thread on pthread platforms,
++	//    since then we skip dropm to resue the m in the first call.
+ 	MOVW	savedm-4(SP), R3
+ 	BNE	R3, droppedm
+ 
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index c7e32b7723..40f51c68f0 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -740,8 +740,8 @@ havem:
+ 	// 2. or the duration of the C thread alive on pthread platforms.
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// 2. or it wasn't the first call from a C thread on pthread platforms,
++	//    since then we skip dropm to resue the m in the first call.
+ 	MOVD	savedm-8(SP), R6
+ 	CMP	R6, $0
+ 	BNE	droppedm
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 0a34a591fd..805d09f67c 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -624,8 +624,8 @@ havem:
+ 	// 2. or the duration of the C thread alive on pthread platforms.
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// 2. or it wasn't the first call from a C thread on pthread platforms,
++	//    since then we skip dropm to resue the m in the first call.
+ 	MOV	savedm-8(SP), X5
+ 	BNE	ZERO, X5, droppedm
+ 
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 4c4a42e00a..17cfd439b2 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -669,8 +669,8 @@ havem:
+ 	// 2. or the duration of the C thread alive on pthread platforms.
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// 2. or it wasn't the first call from a C thread on pthread platforms,
++	//    since then we skip dropm to resue the m in the first call.
+ 	MOVD	savedm-8(SP), R6
+ 	CMPBNE	R6, $0, droppedm
+ 

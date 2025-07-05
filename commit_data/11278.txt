@@ -19,7 +19,7 @@ Date:   Thu Jan 19 17:28:38 2012 -0500
     R=golang-dev, agl
     CC=golang-dev, r, rsc
     https://golang.org/cl/5556058
-
+---
  src/cmd/gofix/Makefile              |   1 +
  src/cmd/gofix/hmacnew.go            |  61 ++++++++++++++++++++
  src/cmd/gofix/hmacnew_test.go       | 107 ++++++++++++++++++++++++++++++++++++
@@ -28,3 +28,287 @@ Date:   Thu Jan 19 17:28:38 2012 -0500
  src/pkg/exp/ssh/transport.go        |   3 +-
  src/pkg/net/smtp/auth.go            |   3 +-
  7 files changed, 175 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index a00ec34733..1aabd19f31 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -12,6 +12,7 @@ GOFILES=\
+ 	go1pkgrename.go\
+ 	googlecode.go\
+ 	hashsum.go\
++	hmacnew.go\
+ 	htmlerr.go\
+ 	httpfinalurl.go\
+ 	httpfs.go\
+diff --git a/src/cmd/gofix/hmacnew.go b/src/cmd/gofix/hmacnew.go
+new file mode 100644
+index 0000000000..c0c44ef3e6
+--- /dev/null
++++ b/src/cmd/gofix/hmacnew.go
+@@ -0,0 +1,61 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "go/ast"
++
++func init() {
++	register(hmacNewFix)
++}
++
++var hmacNewFix = fix{
++	"hmacnew",
++	"2012-01-19",
++	hmacnew,
++	`Deprecate hmac.NewMD5, hmac.NewSHA1 and hmac.NewSHA256.
++
++This fix rewrites code using hmac.NewMD5, hmac.NewSHA1 and hmac.NewSHA256 to
++use hmac.New:
++
++	hmac.NewMD5(key) -> hmac.New(md5.New, key)
++	hmac.NewSHA1(key) -> hmac.New(sha1.New, key)
++	hmac.NewSHA256(key) -> hmac.New(sha256.New, key)
++
++`,
++}
++
++func hmacnew(f *ast.File) (fixed bool) {
++	if !imports(f, "crypto/hmac") {
++		return
++	}
++
++	walk(f, func(n interface{}) {
++		ce, ok := n.(*ast.CallExpr)
++		if !ok {
++			return
++		}
++
++		var pkg string
++		switch {
++		case isPkgDot(ce.Fun, "hmac", "NewMD5"):
++			pkg = "md5"
++		case isPkgDot(ce.Fun, "hmac", "NewSHA1"):
++			pkg = "sha1"
++		case isPkgDot(ce.Fun, "hmac", "NewSHA256"):
++			pkg = "sha256"
++		default:
++			return
++		}
++
++		addImport(f, "crypto/"+pkg)
++
++		ce.Fun = ast.NewIdent("hmac.New")
++		ce.Args = append([]ast.Expr{ast.NewIdent(pkg + ".New")}, ce.Args...)
++
++		fixed = true
++	})
++
++	return
++}
+diff --git a/src/cmd/gofix/hmacnew_test.go b/src/cmd/gofix/hmacnew_test.go
+new file mode 100644
+index 0000000000..5aeee85738
+--- /dev/null
++++ b/src/cmd/gofix/hmacnew_test.go
+@@ -0,0 +1,107 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(hmacNewTests, hmacnew)
++}
++
++var hmacNewTests = []testCase{
++	{
++		Name: "hmacnew.0",
++		In: `package main
++
++import "crypto/hmac"
++
++var f = hmac.NewSHA1([]byte("some key"))
++`,
++		Out: `package main
++
++import (
++	"crypto/hmac"
++	"crypto/sha1"
++)
++
++var f = hmac.New(sha1.New, []byte("some key"))
++`,
++	},
++	{
++		Name: "hmacnew.1",
++		In: `package main
++
++import "crypto/hmac"
++
++var key = make([]byte, 8)
++var f = hmac.NewSHA1(key)
++`,
++		Out: `package main
++
++import (
++	"crypto/hmac"
++	"crypto/sha1"
++)
++
++var key = make([]byte, 8)
++var f = hmac.New(sha1.New, key)
++`,
++	},
++	{
++		Name: "hmacnew.2",
++		In: `package main
++
++import "crypto/hmac"
++
++var f = hmac.NewMD5([]byte("some key"))
++`,
++		Out: `package main
++
++import (
++	"crypto/hmac"
++	"crypto/md5"
++)
++
++var f = hmac.New(md5.New, []byte("some key"))
++`,
++	},
++	{
++		Name: "hmacnew.3",
++		In: `package main
++
++import "crypto/hmac"
++
++var f = hmac.NewSHA256([]byte("some key"))
++`,
++		Out: `package main
++
++import (
++	"crypto/hmac"
++	"crypto/sha256"
++)
++
++var f = hmac.New(sha256.New, []byte("some key"))
++`,
++	},
++	{
++		Name: "hmacnew.4",
++		In: `package main
++
++import (
++	"crypto/hmac"
++	"crypto/sha1"
++)
++
++var f = hmac.New(sha1.New, []byte("some key"))
++`,
++		Out: `package main
++
++import (
++	"crypto/hmac"
++	"crypto/sha1"
++)
++
++var f = hmac.New(sha1.New, []byte("some key"))
++`,
++	},
++}
+diff --git a/src/pkg/crypto/hmac/hmac.go b/src/pkg/crypto/hmac/hmac.go
+index 6bdbbb4030..a97ce09727 100644
+--- a/src/pkg/crypto/hmac/hmac.go
++++ b/src/pkg/crypto/hmac/hmac.go
+@@ -9,9 +9,6 @@
+ package hmac
+ 
+ import (
+-	"crypto/md5"
+-	"crypto/sha1"
+-	"crypto/sha256"
+ 	"hash"
+ )
+ 
+@@ -63,7 +60,7 @@ func (h *hmac) Reset() {
+ 	h.inner.Write(h.tmp[0:h.blocksize])
+ }
+ 
+-// New returns a new HMAC hash using the given crypto.Hash type and key.
++// New returns a new HMAC hash using the given hash.Hash type and key.
+ func New(h func() hash.Hash, key []byte) hash.Hash {
+ 	hm := new(hmac)
+ 	hm.outer = h()
+@@ -81,12 +78,3 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
+ 	hm.Reset()
+ 	return hm
+ }
+-
+-// NewMD5 returns a new HMAC-MD5 hash using the given key.
+-func NewMD5(key []byte) hash.Hash { return New(md5.New, key) }
+-
+-// NewSHA1 returns a new HMAC-SHA1 hash using the given key.
+-func NewSHA1(key []byte) hash.Hash { return New(sha1.New, key) }
+-
+-// NewSHA256 returns a new HMAC-SHA256 hash using the given key.
+-func NewSHA256(key []byte) hash.Hash { return New(sha256.New, key) }
+diff --git a/src/pkg/crypto/tls/cipher_suites.go b/src/pkg/crypto/tls/cipher_suites.go
+index 914491d6b4..00695e7d15 100644
+--- a/src/pkg/crypto/tls/cipher_suites.go
++++ b/src/pkg/crypto/tls/cipher_suites.go
+@@ -91,7 +91,7 @@ func macSHA1(version uint16, key []byte) macFunction {
+ 		copy(mac.key, key)
+ 		return mac
+ 	}
+-	return tls10MAC{hmac.NewSHA1(key)}
++	return tls10MAC{hmac.New(sha1.New, key)}
+ }
+ 
+ type macFunction interface {
+diff --git a/src/pkg/exp/ssh/transport.go b/src/pkg/exp/ssh/transport.go
+index 60a636f0a4..e21bc4ba20 100644
+--- a/src/pkg/exp/ssh/transport.go
++++ b/src/pkg/exp/ssh/transport.go
+@@ -9,6 +9,7 @@ import (
+ 	"crypto"
+ 	"crypto/cipher"
+ 	"crypto/hmac"
++	"crypto/sha1"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"hash"
+@@ -266,7 +267,7 @@ func (c *common) setupKeys(d direction, K, H, sessionId []byte, hashFunc crypto.
+ 	generateKeyMaterial(key, d.keyTag, K, H, sessionId, h)
+ 	generateKeyMaterial(macKey, d.macKeyTag, K, H, sessionId, h)
+ 
+-	c.mac = truncatingMAC{12, hmac.NewSHA1(macKey)}
++	c.mac = truncatingMAC{12, hmac.New(sha1.New, macKey)}
+ 
+ 	cipher, err := cipherMode.createCipher(key, iv)
+ 	if err != nil {
+diff --git a/src/pkg/net/smtp/auth.go b/src/pkg/net/smtp/auth.go
+index 6f0cde0d28..d401e3c21f 100644
+--- a/src/pkg/net/smtp/auth.go
++++ b/src/pkg/net/smtp/auth.go
+@@ -6,6 +6,7 @@ package smtp
+ 
+ import (
+ 	"crypto/hmac"
++	"crypto/md5"
+ 	"errors"
+ 	"fmt"
+ )
+@@ -88,7 +89,7 @@ func (a *cramMD5Auth) Start(server *ServerInfo) (string, []byte, error) {
+ 
+ func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
+ 	if more {
+-		d := hmac.NewMD5([]byte(a.secret))
++		d := hmac.New(md5.New, []byte(a.secret))
+ 		d.Write(fromServer)
+ 		s := make([]byte, 0, d.Size())
+ 		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil

@@ -7,6 +7,19 @@ Date:   Fri Jun 5 00:37:29 2015 -0400
     Change-Id: I5c991cad38c9e2c839314a56d3415a2aa09c1561
     Reviewed-on: https://go-review.googlesource.com/10762
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 450efa7912..eb70529d51 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -4,6 +4,7 @@ Overall:
+ - go tool asm, go tool compile, go tool link
+ - default output files changed: now file.o and a.out
+ - internal enforced even outside standard library (golang.org/s/go14internal; https://golang.org/cl/9156)
++- gomaxprocs=numcpu (golang.org/s/go15gomaxprocs)
+ 
+ Language:
+ - permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)

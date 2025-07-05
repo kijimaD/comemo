@@ -12,7 +12,37 @@ Date:   Fri May 29 10:33:39 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/10513
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/parse.go | 6 ++----
  src/cmd/internal/obj/link.go      | 1 -
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 6b67451d5f..7d03c5c180 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -311,10 +311,8 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 			a.Reg = r1
+ 			if r2 != 0 {
+ 				// Form is R1:R2. It is on RHS and the second register
+-				// needs to go into the LHS. This is a horrible hack. TODO.
+-				// TODO: If we never see this again, can delete Addr.Reg2.
+-				panic("cannot happen")
+-				a.Reg2 = r2
++				// needs to go into the LHS.
++				panic("cannot happen (Addr.Reg2)")
+ 			}
+ 		}
+ 		// fmt.Printf("REG %s\n", obj.Dconv(&emptyProg, 0, a))
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 542421b835..d984516ed7 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -146,7 +146,6 @@ import "encoding/binary"
+ type Addr struct {
+ 	Type   int16
+ 	Reg    int16
+-	Reg2   int16 // RHS of register pair. AX:DX (386)
+ 	Index  int16
+ 	Scale  int16 // Sometimes holds a register.
+ 	Name   int8

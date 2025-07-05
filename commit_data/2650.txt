@@ -11,7 +11,7 @@ Date:   Wed Jul 8 18:16:09 2009 -0700
     DELTA=241  (225 added, 5 deleted, 11 changed)
     OCL=31370
     CL=31375
-
+---
  src/pkg/reflect/all_test.go | 19 +++++++++
  src/pkg/reflect/type.go     |  5 +++
  src/pkg/reflect/value.go    | 97 ++++++++++++++++++++++++++++++++++++++++-----
@@ -21,3 +21,444 @@ Date:   Wed Jul 8 18:16:09 2009 -0700
  src/pkg/runtime/proc.c      |  9 +++--
  src/pkg/runtime/runtime.h   |  6 +++
  8 files changed, 235 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 6c216b78cf..df53cd84e4 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -725,3 +725,22 @@ func TestChan(t *testing.T) {
+ 	}
+ }
+ 
++// Difficult test for function call because of
++// implicit padding between arguments.
++func dummy(b byte, c int, d byte) (i byte, j int, k byte){
++	return b, c, d;
++}
++
++func TestFunc(t *testing.T) {
++	ret := NewValue(dummy).(*FuncValue).Call([]Value{NewValue(byte(10)), NewValue(20), NewValue(byte(30))});
++	if len(ret) != 3 {
++		t.Fatalf("Call returned %d values, want 3", len(ret));
++	}
++
++	i := ret[0].(*Uint8Value).Get();
++	j := ret[1].(*IntValue).Get();
++	k := ret[2].(*Uint8Value).Get();
++	if i != 10 || j != 20 || k != 30 {
++		t.Errorf("Call returned %d, %d, %d; want 10, 20, 30", i, j, k);
++	}
++}
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index ccbd472d88..4b5b379bad 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -548,4 +548,9 @@ type ArrayOrSliceType interface {
+ 	Elem() Type;
+ }
+ 
++// Typeof returns the reflection Type of the value in the interface{}.
++func Typeof(i interface{}) Type {
++	return toType(unsafe.Typeof(i));
++}
++
+ 
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index e98ff500df..3fc379dfff 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -14,9 +14,11 @@ const cannotSet = "cannot set value obtained via unexported struct field"
+ 
+ // TODO: This will have to go away when
+ // the new gc goes in.
+-func memmove(dst, src, n uintptr) {
++func memmove(adst, asrc addr, n uintptr) {
+ 	var p uintptr;	// dummy for sizeof
+ 	const ptrsize = uintptr(unsafe.Sizeof(p));
++	dst := uintptr(adst);
++	src := uintptr(asrc);
+ 	switch {
+ 	case src < dst && src+n > dst:
+ 		// byte copy backward
+@@ -424,7 +426,7 @@ func (v *UnsafePointerValue) Set(x unsafe.Pointer) {
+ 
+ func typesMustMatch(t1, t2 reflect.Type) {
+ 	if t1 != t2 {
+-		panicln("type mismatch:", t1, "!=", t2);
++		panicln("type mismatch:", t1.String(), "!=", t2.String());
+ 	}
+ }
+ 
+@@ -456,7 +458,7 @@ func ArrayCopy(dst, src ArrayOrSliceValue) int {
+ 	if xn := src.Len(); n > xn {
+ 		n = xn;
+ 	}
+-	memmove(uintptr(dst.addr()), uintptr(src.addr()), uintptr(n) * de.Size());
++	memmove(dst.addr(), src.addr(), uintptr(n) * de.Size());
+ 	return n;
+ }
+ 
+@@ -642,6 +644,7 @@ func (v *ChanValue) send(x Value, b *bool) {
+ 	if t.Dir() & SendDir == 0{
+ 		panic("send on recv-only channel");
+ 	}
++	typesMustMatch(t.Elem(), x.Type());
+ 	ch := *(**byte)(v.addr);
+ 	chansend(ch, (*byte)(x.getAddr()), b);
+ }
+@@ -731,12 +734,88 @@ func (v *FuncValue) Set(x *FuncValue) {
+ 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
+ }
+ 
++// implemented in ../pkg/runtime/*/asm.s
++func call(fn, arg *byte, n uint32)
++
++type tiny struct { b byte }
++
+ // Call calls the function v with input parameters in.
+ // It returns the function's output parameters as Values.
+ func (v *FuncValue) Call(in []Value) []Value {
+-	panic("unimplemented: function Call");
+-}
++	var structAlign = Typeof((*tiny)(nil)).(*PtrType).Elem().Size();
++
++	t := v.Type().(*FuncType);
++	if len(in) != t.NumIn() {
++		panic("FuncValue: wrong argument count");
++	}
++	nout := t.NumOut();
++
++	// Compute arg size & allocate.
++	// This computation is 6g/8g-dependent
++	// and probably wrong for gccgo, but so
++	// is most of this function.
++	size := uintptr(0);
++	for i, v := range in {
++		tv := v.Type();
++		typesMustMatch(t.In(i), tv);
++		a := uintptr(tv.Align());
++		size = (size + a - 1) &^ (a - 1);
++		size += tv.Size();
++	}
++	size = (size + structAlign - 1) &^ (structAlign - 1);
++	for i := 0; i < nout; i++ {
++		tv := t.Out(i);
++		a := uintptr(tv.Align());
++		size = (size + a - 1) &^ (a - 1);
++		size += tv.Size();
++	}
++	
++	// size must be > 0 in order for &args[0] to be valid.
++	// the argument copying is going to round it up to
++	// a multiple of 8 anyway, so make it 8 to begin with.
++	if size < 8 {
++		size = 8;
++	}
++	args := make([]byte, size);
++	ptr := uintptr(unsafe.Pointer(&args[0]));
++
++	// Copy into args.
++	//
++	// TODO(rsc): revisit when reference counting happens.
++	// This one may be fine.  The values are holding up the
++	// references for us, so maybe this can be treated
++	// like any stack-to-stack copy.
++	off := uintptr(0);
++	for i, v := range in {
++		tv := v.Type();
++		a := uintptr(tv.Align());
++		off = (off + a - 1) &^ (a - 1);
++		n := tv.Size();
++		memmove(addr(ptr+off), v.getAddr(), n);
++		off += n;
++	}
++	off = (off + structAlign - 1) &^ (structAlign - 1);
++
++	// Call
++	call(*(**byte)(v.addr), (*byte)(addr(ptr)), uint32(size));
++
++	// Copy return values out of args.
++	//
++	// TODO(rsc): revisit like above.
++	ret := make([]Value, nout);
++	for i := 0; i < nout; i++ {
++		tv := t.Out(i);
++		a := uintptr(tv.Align());
++		off = (off + a - 1) &^ (a - 1);
++		v := MakeZero(tv);
++		n := tv.Size();
++		memmove(v.getAddr(), addr(ptr+off), n);
++		ret[i] = v;
++		off += n;
++	}
+ 
++	return ret;
++}
+ 
+ /*
+  * interface
+@@ -953,7 +1032,7 @@ func (v *StructValue) Set(x *StructValue) {
+ 		panic(cannotSet);
+ 	}
+ 	typesMustMatch(v.typ, x.typ);
+-	memmove(uintptr(v.addr), uintptr(x.addr), v.typ.Size());
++	memmove(v.addr, x.addr, v.typ.Size());
+ }
+ 
+ // Field returns the i'th field of the struct.
+@@ -975,11 +1054,6 @@ func (v *StructValue) NumField() int {
+  * constructors
+  */
+ 
+-// Typeof returns the reflection Type of the value in the interface{}.
+-func Typeof(i interface{}) Type {
+-	return toType(unsafe.Typeof(i));
+-}
+-
+ // NewValue returns a new Value initialized to the concrete value
+ // stored in the interface i.  NewValue(nil) returns nil.
+ func NewValue(i interface{}) Value {
+@@ -1072,3 +1146,4 @@ func MakeZero(typ Type) Value {
+ 	data := make([]uint8, size);
+ 	return newValue(typ, addr(&data[0]), true);
+ }
++
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 7b59bc7e31..3574deed88 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -152,6 +152,7 @@ TEXT sys·morestack(SB),7,$0
+ 	MOVL	DI, (m_morebuf+gobuf_pc)(BX)
+ 	LEAL	8(SP), CX	// f's caller's SP
+ 	MOVL	CX, (m_morebuf+gobuf_sp)(BX)
++	MOVL	CX, (m_morefp)(BX)
+ 	MOVL	g, SI
+ 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
+ 
+@@ -167,6 +168,47 @@ TEXT sys·morestack(SB),7,$0
+ 	MOVL	$0, 0x1003	// crash if newstack returns
+ 	RET
+ 
++// Called from reflection library.  Mimics morestack,
++// reuses stack growth code to create a frame
++// with the desired args running the desired function.
++//
++// func call(fn *byte, arg *byte, argsize uint32).
++TEXT reflect·call(SB), 7, $0
++	MOVL	m, BX
++
++	// Save our caller's state as the PC and SP to
++	// restore when returning from f.
++	MOVL	0(SP), AX	// our caller's PC
++	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
++	LEAL	4(SP), AX	// our caller's SP
++	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
++	MOVL	g, AX
++	MOVL	AX, (m_morebuf+gobuf_g)(BX)
++
++	// Set up morestack arguments to call f on a new stack.
++	// We set f's frame size to zero, meaning
++	// allocate a standard sized stack segment.
++	// If it turns out that f needs a larger frame than this,
++	// f's usual stack growth prolog will allocate
++	// a new segment (and recopy the arguments).
++	MOVL	4(SP), AX	// fn
++	MOVL	8(SP), DX	// arg frame
++	MOVL	12(SP), CX	// arg size
++
++	MOVL	AX, m_morepc(BX)	// f's PC
++	MOVL	DX, m_morefp(BX)	// argument frame pointer
++	MOVL	CX, m_moreargs(BX)	// f's argument size
++	MOVL	$0, m_moreframe(BX)	// f's frame size
++
++	// Call newstack on m's scheduling stack.
++	MOVL	m_g0(BX), BP
++	MOVL	BP, g
++	MOVL	(m_sched+gobuf_sp)(BX), SP
++	CALL	newstack(SB)
++	MOVL	$0, 0x1103	// crash if newstack returns
++	RET
++
++
+ // Return point when leaving stack.
+ TEXT sys·lessstack(SB), 7, $0
+ 	// Save return value in m->cret
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 539b1ab2af..0674d518c5 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -115,6 +115,7 @@ TEXT sys·morestack(SB),7,$0
+ 	MOVQ	AX, (m_morebuf+gobuf_pc)(m)
+ 	LEAQ	16(SP), AX	// f's caller's SP
+ 	MOVQ	AX, (m_morebuf+gobuf_sp)(m)
++	MOVQ	AX, (m_morefp)(m)
+ 	MOVQ	g, (m_morebuf+gobuf_g)(m)
+ 
+ 	// Set m->morepc to f's PC.
+@@ -128,6 +129,42 @@ TEXT sys·morestack(SB),7,$0
+ 	MOVQ	$0, 0x1003	// crash if newstack returns
+ 	RET
+ 
++// Called from reflection library.  Mimics morestack,
++// reuses stack growth code to create a frame
++// with the desired args running the desired function.
++//
++// func call(fn *byte, arg *byte, argsize uint32).
++TEXT reflect·call(SB), 7, $0
++	// Save our caller's state as the PC and SP to
++	// restore when returning from f.
++	MOVQ	0(SP), AX	// our caller's PC
++	MOVQ	AX, (m_morebuf+gobuf_pc)(m)
++	LEAQ	8(SP), AX	// our caller's SP
++	MOVQ	AX, (m_morebuf+gobuf_sp)(m)
++	MOVQ	g, (m_morebuf+gobuf_g)(m)
++
++	// Set up morestack arguments to call f on a new stack.
++	// We set f's frame size to zero, meaning
++	// allocate a standard sized stack segment.
++	// If it turns out that f needs a larger frame than this,
++	// f's usual stack growth prolog will allocate
++	// a new segment (and recopy the arguments).
++	MOVQ	8(SP), AX	// fn
++	MOVQ	16(SP), BX	// arg frame
++	MOVL	24(SP), CX	// arg size
++
++	MOVQ	AX, m_morepc(m)	// f's PC
++	MOVQ	BX, m_morefp(m)	// argument frame pointer
++	MOVL	CX, m_moreargs(m)	// f's argument size
++	MOVL	$0, m_moreframe(m)	// f's frame size
++
++	// Call newstack on m's scheduling stack.
++	MOVQ	m_g0(m), g
++	MOVQ	(m_sched+gobuf_sp)(m), SP
++	CALL	newstack(SB)
++	MOVQ	$0, 0x1103	// crash if newstack returns
++	RET
++
+ // Return point when leaving stack.
+ TEXT sys·lessstack(SB), 7, $0
+ 	// Save return value in m->cret
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index f709ebbd88..eaddb0b293 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -145,6 +145,7 @@ TEXT sys·morestack(SB),7,$-4
+ 	// Set m->morebuf to f's caller.
+ 	MOVW	R3, (m_morebuf+gobuf_pc)(m) // f's caller's PC
+ 	MOVW	SP, (m_morebuf+gobuf_sp)(m) // f's caller's SP
++	MOVW	SP, m_morefp(m) // f's caller's SP
+ 	MOVW	g, (m_morebuf+gobuf_g)(m)
+ 	MOVW	R0, (m_morebuf+gobuf_r0)(m)
+ 
+@@ -156,6 +157,40 @@ TEXT sys·morestack(SB),7,$-4
+ 	MOVW	(m_sched+gobuf_sp)(m), SP
+ 	B	newstack(SB)
+ 
++// Called from reflection library.  Mimics morestack,
++// reuses stack growth code to create a frame
++// with the desired args running the desired function.
++//
++// func call(fn *byte, arg *byte, argsize uint32).
++TEXT reflect·call(SB), 7, $-4
++	// Save our caller's state as the PC and SP to
++	// restore when returning from f.
++	MOVW	LR, (m_morebuf+gobuf_pc)(m)	// our caller's PC
++	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// our caller's SP
++	MOVW	R0, (m_morebuf+gobuf_r0)(m)
++	MOVQ	g, (m_morebuf+gobuf_g)(m)
++
++	// Set up morestack arguments to call f on a new stack.
++	// We set f's frame size to zero, meaning
++	// allocate a standard sized stack segment.
++	// If it turns out that f needs a larger frame than this,
++	// f's usual stack growth prolog will allocate
++	// a new segment (and recopy the arguments).
++	MOVW	4(SP), R0	// fn
++	MOVW	8(SP), R1	// arg frame
++	MOVW	12(SP), R2	// arg size
++
++	MOVW	R0, m_morepc(m)	// f's PC
++	MOVW	R1, m_morefp(m)	// argument frame pointer
++	MOVW	R2, m_moreargs(m)	// f's argument size
++	MOVW	$0, R3
++	MOVW	R3, m_moreframe(m)	// f's frame size
++
++	// Call newstack on m's scheduling stack.
++	MOVW	m_g0(m), g
++	MOVW	(m_sched+gobuf_sp)(m), SP
++	B	newstack(SB)
++
+ // Return point when leaving stack.
+ // using frame size $-4 means do not save LR on stack.
+ TEXT sys·lessstack(SB), 7, $-4
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 87b89f6a1a..53dbeb3d32 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -619,7 +619,7 @@ oldstack(void)
+ 	args = old.args;
+ 	if(args > 0) {
+ 		sp -= args;
+-		mcpy(top->gobuf.sp, sp, args);
++		mcpy(top->fp, sp, args);
+ 	}
+ 
+ 	stackfree((byte*)g1->stackguard - StackGuard);
+@@ -640,7 +640,7 @@ newstack(void)
+ 
+ 	frame = m->moreframe;
+ 	args = m->moreargs;
+-	
++
+ 	// Round up to align things nicely.
+ 	// This is sufficient for both 32- and 64-bit machines.
+ 	args = (args+7) & ~7;
+@@ -650,13 +650,14 @@ newstack(void)
+ 	frame += 1024;	// for more functions, Stktop.
+ 	stk = stackalloc(frame);
+ 
+-//printf("newstack frame=%d args=%d morepc=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, g->sched.pc, g->sched.sp, stk);
++//printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
+ 
+ 	g1 = m->curg;
+ 	top = (Stktop*)(stk+frame-sizeof(*top));
+ 	top->stackbase = g1->stackbase;
+ 	top->stackguard = g1->stackguard;
+ 	top->gobuf = m->morebuf;
++	top->fp = m->morefp;
+ 	top->args = args;
+ 
+ 	g1->stackbase = (byte*)top;
+@@ -665,7 +666,7 @@ newstack(void)
+ 	sp = (byte*)top;
+ 	if(args > 0) {
+ 		sp -= args;
+-		mcpy(sp, top->gobuf.sp, args);
++		mcpy(sp, m->morefp, args);
+ 	}
+ 
+ 	// Continue as if lessstack had just called m->morepc
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 1902f003bc..02226ede03 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -171,6 +171,7 @@ struct	M
+ 	// The offsets of these fields are known to (hard-coded in) libmach.
+ 	G*	g0;		// goroutine with scheduling stack
+ 	void	(*morepc)(void);
++	void*	morefp;	// frame pointer for more stack
+ 	Gobuf	morebuf;	// gobuf arg to morestack
+ 
+ 	// Fields not known to debuggers.
+@@ -200,6 +201,11 @@ struct	Stktop
+ 	uint8*	stackbase;
+ 	Gobuf	gobuf;
+ 	uint32	args;
++
++	// Frame pointer: where args start in old frame.
++	// fp == gobuf.sp except in the case of a reflected
++	// function call, which uses an off-stack argument frame.
++	uint8*	fp;
+ };
+ struct	Alg
+ {

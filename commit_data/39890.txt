@@ -18,7 +18,7 @@ Date:   Tue Mar 19 16:36:21 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/imports/build.go               |  6 ++--
  src/cmd/go/internal/imports/scan_test.go           | 41 ++++++++++++++++++----
  .../internal/imports/testdata/android/a_android.go |  3 ++
@@ -37,3 +37,215 @@ Date:   Tue Mar 19 16:36:21 2019 -0400
  .../imports/testdata/{import1 => star}/x_darwin.go |  0
  .../testdata/{import1 => star}/x_windows.go        |  0
  17 files changed, 76 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index ddf425b020..3718dbba3c 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -184,13 +184,13 @@ func MatchFile(name string, tags map[string]bool) bool {
+ 	}
+ 	n := len(l)
+ 	if n >= 2 && KnownOS[l[n-2]] && KnownArch[l[n-1]] {
+-		return tags[l[n-2]] && tags[l[n-1]]
++		return matchTag(l[n-2], tags, true) && matchTag(l[n-1], tags, true)
+ 	}
+ 	if n >= 1 && KnownOS[l[n-1]] {
+-		return tags[l[n-1]]
++		return matchTag(l[n-1], tags, true)
+ 	}
+ 	if n >= 1 && KnownArch[l[n-1]] {
+-		return tags[l[n-1]]
++		return matchTag(l[n-1], tags, true)
+ 	}
+ 	return true
+ }
+diff --git a/src/cmd/go/internal/imports/scan_test.go b/src/cmd/go/internal/imports/scan_test.go
+index 6a2ff62ba7..e424656cae 100644
+--- a/src/cmd/go/internal/imports/scan_test.go
++++ b/src/cmd/go/internal/imports/scan_test.go
+@@ -5,10 +5,13 @@
+ package imports
+ 
+ import (
++	"bytes"
+ 	"internal/testenv"
++	"io/ioutil"
++	"path"
+ 	"path/filepath"
+-	"reflect"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -51,17 +54,41 @@ func TestScan(t *testing.T) {
+ 		t.Errorf("json missing test import net/http (%q)", testImports)
+ 	}
+ }
+-
+-func TestScanStar(t *testing.T) {
++func TestScanDir(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	imports, _, err := ScanDir("testdata/import1", map[string]bool{"*": true})
++	dirs, err := ioutil.ReadDir("testdata")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	for _, dir := range dirs {
++		if !dir.IsDir() || strings.HasPrefix(dir.Name(), ".") {
++			continue
++		}
++		t.Run(dir.Name(), func(t *testing.T) {
++			tagsData, err := ioutil.ReadFile(filepath.Join("testdata", dir.Name(), "tags.txt"))
++			if err != nil {
++				t.Fatalf("error reading tags: %v", err)
++			}
++			tags := make(map[string]bool)
++			for _, t := range strings.Fields(string(tagsData)) {
++				tags[t] = true
++			}
++
++			wantData, err := ioutil.ReadFile(filepath.Join("testdata", dir.Name(), "want.txt"))
++			if err != nil {
++				t.Fatalf("error reading want: %v", err)
++			}
++			want := string(bytes.TrimSpace(wantData))
+ 
+-	want := []string{"import1", "import2", "import3", "import4"}
+-	if !reflect.DeepEqual(imports, want) {
+-		t.Errorf("ScanDir testdata/import1:\nhave %v\nwant %v", imports, want)
++			imports, _, err := ScanDir(path.Join("testdata", dir.Name()), tags)
++			if err != nil {
++				t.Fatal(err)
++			}
++			got := strings.Join(imports, "\n")
++			if got != want {
++				t.Errorf("ScanDir: got imports:\n%s\n\nwant:\n%s", got, want)
++			}
++		})
+ 	}
+ }
+diff --git a/src/cmd/go/internal/imports/testdata/android/a_android.go b/src/cmd/go/internal/imports/testdata/android/a_android.go
+new file mode 100644
+index 0000000000..2ed972eca5
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/android/a_android.go
+@@ -0,0 +1,3 @@
++package android
++
++import _ "a"
+diff --git a/src/cmd/go/internal/imports/testdata/android/b_android_arm64.go b/src/cmd/go/internal/imports/testdata/android/b_android_arm64.go
+new file mode 100644
+index 0000000000..ee9c312b5d
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/android/b_android_arm64.go
+@@ -0,0 +1,3 @@
++package android
++
++import _ "b"
+diff --git a/src/cmd/go/internal/imports/testdata/android/c_linux.go b/src/cmd/go/internal/imports/testdata/android/c_linux.go
+new file mode 100644
+index 0000000000..91624ce637
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/android/c_linux.go
+@@ -0,0 +1,3 @@
++package android
++
++import _ "c"
+diff --git a/src/cmd/go/internal/imports/testdata/android/d_linux_arm64.go b/src/cmd/go/internal/imports/testdata/android/d_linux_arm64.go
+new file mode 100644
+index 0000000000..34e07df247
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/android/d_linux_arm64.go
+@@ -0,0 +1,3 @@
++package android
++
++import _ "d"
+diff --git a/src/cmd/go/internal/imports/testdata/android/e.go b/src/cmd/go/internal/imports/testdata/android/e.go
+new file mode 100644
+index 0000000000..d9b2db769b
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/android/e.go
+@@ -0,0 +1,5 @@
++// +build android
++
++package android
++
++import _ "e"
+diff --git a/src/cmd/go/internal/imports/testdata/android/f.go b/src/cmd/go/internal/imports/testdata/android/f.go
+new file mode 100644
+index 0000000000..281e4dd6b9
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/android/f.go
+@@ -0,0 +1,5 @@
++// +build linux
++
++package android
++
++import _ "f"
+diff --git a/src/cmd/go/internal/imports/testdata/android/g.go b/src/cmd/go/internal/imports/testdata/android/g.go
+new file mode 100644
+index 0000000000..66a789c0ad
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/android/g.go
+@@ -0,0 +1,5 @@
++// +build !android
++
++package android
++
++import _ "g"
+diff --git a/src/cmd/go/internal/imports/testdata/android/tags.txt b/src/cmd/go/internal/imports/testdata/android/tags.txt
+new file mode 100644
+index 0000000000..aaf5a6b91d
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/android/tags.txt
+@@ -0,0 +1 @@
++android arm64
+\ No newline at end of file
+diff --git a/src/cmd/go/internal/imports/testdata/android/want.txt b/src/cmd/go/internal/imports/testdata/android/want.txt
+new file mode 100644
+index 0000000000..0fdf397db0
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/android/want.txt
+@@ -0,0 +1,6 @@
++a
++b
++c
++d
++e
++f
+diff --git a/src/cmd/go/internal/imports/testdata/star/tags.txt b/src/cmd/go/internal/imports/testdata/star/tags.txt
+new file mode 100644
+index 0000000000..f59ec20aab
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/star/tags.txt
+@@ -0,0 +1 @@
++*
+\ No newline at end of file
+diff --git a/src/cmd/go/internal/imports/testdata/star/want.txt b/src/cmd/go/internal/imports/testdata/star/want.txt
+new file mode 100644
+index 0000000000..139f5f4975
+--- /dev/null
++++ b/src/cmd/go/internal/imports/testdata/star/want.txt
+@@ -0,0 +1,4 @@
++import1
++import2
++import3
++import4
+diff --git a/src/cmd/go/internal/imports/testdata/import1/x.go b/src/cmd/go/internal/imports/testdata/star/x.go
+similarity index 100%
+rename from src/cmd/go/internal/imports/testdata/import1/x.go
+rename to src/cmd/go/internal/imports/testdata/star/x.go
+diff --git a/src/cmd/go/internal/imports/testdata/import1/x1.go b/src/cmd/go/internal/imports/testdata/star/x1.go
+similarity index 100%
+rename from src/cmd/go/internal/imports/testdata/import1/x1.go
+rename to src/cmd/go/internal/imports/testdata/star/x1.go
+diff --git a/src/cmd/go/internal/imports/testdata/import1/x_darwin.go b/src/cmd/go/internal/imports/testdata/star/x_darwin.go
+similarity index 100%
+rename from src/cmd/go/internal/imports/testdata/import1/x_darwin.go
+rename to src/cmd/go/internal/imports/testdata/star/x_darwin.go
+diff --git a/src/cmd/go/internal/imports/testdata/import1/x_windows.go b/src/cmd/go/internal/imports/testdata/star/x_windows.go
+similarity index 100%
+rename from src/cmd/go/internal/imports/testdata/import1/x_windows.go
+rename to src/cmd/go/internal/imports/testdata/star/x_windows.go

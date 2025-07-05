@@ -14,6 +14,20 @@ Date:   Wed Feb 26 18:34:25 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/textproto/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index a505da985c..d26e981ae4 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -557,7 +557,7 @@ func noValidation(_ []byte) error { return nil }
+ // contain a colon.
+ func mustHaveFieldNameColon(line []byte) error {
+ 	if bytes.IndexByte(line, ':') < 0 {
+-		return ProtocolError(fmt.Sprintf("malformed MIME header: missing colon: %q" + string(line)))
++		return ProtocolError(fmt.Sprintf("malformed MIME header: missing colon: %q", line))
+ 	}
+ 	return nil
+ }

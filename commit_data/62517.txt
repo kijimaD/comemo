@@ -17,6 +17,19 @@ Date:   Tue Mar 11 09:16:05 2025 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/debug/dwarf/entry.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index ed0f213a3c..07b9259be5 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -919,6 +919,7 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
+ 		r.cu = nil
+ 		u := &r.d.unit[unit]
+ 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
++		r.collectDwarf5BaseOffsets(u)
+ 		e, err := r.Next()
+ 		if err != nil {
+ 			return nil, err

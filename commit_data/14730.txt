@@ -24,9 +24,385 @@ Date:   Sat Dec 22 14:54:39 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7001051
-
+---
  src/pkg/runtime/cgocall.c       |   8 +-
  src/pkg/runtime/panic.c         | 158 +++++++++++++++++++++++++++++++---------
  src/pkg/runtime/runtime.h       |  12 ++-
  src/pkg/runtime/runtime_test.go |  41 +++++++++++
  4 files changed, 180 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 2427883873..7b540951b3 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -121,7 +121,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	 * Lock g to m to ensure we stay on the same stack if we do a
+ 	 * cgo callback.
+ 	 */
+-	d.nofree = false;
++	d.special = false;
+ 	if(m->lockedg == nil) {
+ 		m->lockedg = g;
+ 		g->lockedm = m;
+@@ -131,7 +131,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 		d.siz = 0;
+ 		d.link = g->defer;
+ 		d.argp = (void*)-1;  // unused because unlockm never recovers
+-		d.nofree = true;
++		d.special = true;
+ 		g->defer = &d;
+ 	}
+ 
+@@ -160,7 +160,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 		m->cgomal = nil;
+ 	}
+ 
+-	if(d.nofree) {
++	if(d.special) {
+ 		if(g->defer != &d || d.fn != (byte*)unlockm)
+ 			runtime·throw("runtime: bad defer entry in cgocallback");
+ 		g->defer = d.link;
+@@ -236,7 +236,7 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ 	d.siz = 0;
+ 	d.link = g->defer;
+ 	d.argp = (void*)-1;  // unused because unwindm never recovers
+-	d.nofree = true;
++	d.special = true;
+ 	g->defer = &d;
+ 
+ 	if(raceenabled)
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index c2166cc0b4..f94f1443cc 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -11,6 +11,106 @@
+ uint32 runtime·panicking;
+ static Lock paniclk;
+ 
++enum
++{
++	DeferChunkSize = 2048
++};
++
++// Allocate a Defer, usually as part of the larger frame of deferred functions.
++// Each defer must be released with both popdefer and freedefer.
++static Defer*
++newdefer(int32 siz)
++{
++	int32 total;
++	DeferChunk *c;
++	Defer *d;
++	
++	c = g->dchunk;
++	total = sizeof(*d) + ROUND(siz, sizeof(uintptr)) - sizeof(d->args);
++	if(c == nil || total > DeferChunkSize - c->off) {
++		if(total > DeferChunkSize / 2) {
++			// Not worth putting in any chunk.
++			// Allocate a separate block.
++			d = runtime·malloc(total);
++			d->siz = siz;
++			d->special = 1;
++			d->free = 1;
++			d->link = g->defer;
++			g->defer = d;
++			return d;
++		}
++
++		// Cannot fit in current chunk.
++		// Switch to next chunk, allocating if necessary.
++		c = g->dchunknext;
++		if(c == nil)
++			c = runtime·malloc(DeferChunkSize);
++		c->prev = g->dchunk;
++		c->off = sizeof(*c);
++		g->dchunk = c;
++		g->dchunknext = nil;
++	}
++
++	d = (Defer*)((byte*)c + c->off);
++	c->off += total;
++	d->siz = siz;
++	d->special = 0;
++	d->free = 0;
++	d->link = g->defer;
++	g->defer = d;
++	return d;	
++}
++
++// Pop the current defer from the defer stack.
++// Its contents are still valid until the goroutine begins executing again.
++// In particular it is safe to call reflect.call(d->fn, d->argp, d->siz) after
++// popdefer returns.
++static void
++popdefer(void)
++{
++	Defer *d;
++	DeferChunk *c;
++	int32 total;
++	
++	d = g->defer;
++	if(d == nil)
++		runtime·throw("runtime: popdefer nil");
++	g->defer = d->link;
++	if(d->special) {
++		// Nothing else to do.
++		return;
++	}
++	total = sizeof(*d) + ROUND(d->siz, sizeof(uintptr)) - sizeof(d->args);
++	c = g->dchunk;
++	if(c == nil || (byte*)d+total != (byte*)c+c->off)
++		runtime·throw("runtime: popdefer phase error");
++	c->off -= total;
++	if(c->off == sizeof(*c)) {
++		// Chunk now empty, so pop from stack.
++		// Save in dchunknext both to help with pingponging between frames
++		// and to make sure d is still valid on return.
++		if(g->dchunknext != nil)
++			runtime·free(g->dchunknext);
++		g->dchunknext = c;
++		g->dchunk = c->prev;
++	}
++}
++
++// Free the given defer.
++// For defers in the per-goroutine chunk this just clears the saved arguments.
++// For large defers allocated on the heap, this frees them.
++// The defer cannot be used after this call.
++static void
++freedefer(Defer *d)
++{
++	if(d->special) {
++		if(d->free)
++			runtime·free(d);
++	} else {
++		runtime·memclr((byte*)d->args, d->siz);
++	}
++}
++
+ // Create a new deferred function fn with siz bytes of arguments.
+ // The compiler turns a defer statement into a call to this.
+ // Cannot split the stack because it assumes that the arguments
+@@ -22,14 +122,9 @@ uintptr
+ runtime·deferproc(int32 siz, byte* fn, ...)
+ {
+ 	Defer *d;
+-	int32 mallocsiz;
+ 
+-	mallocsiz = sizeof(*d);
+-	if(siz > sizeof(d->args))
+-		mallocsiz += siz - sizeof(d->args);
+-	d = runtime·malloc(mallocsiz);
++	d = newdefer(siz);
+ 	d->fn = fn;
+-	d->siz = siz;
+ 	d->pc = runtime·getcallerpc(&siz);
+ 	if(thechar == '5')
+ 		d->argp = (byte*)(&fn+2);  // skip caller's saved link register
+@@ -37,9 +132,6 @@ runtime·deferproc(int32 siz, byte* fn, ...)
+ 		d->argp = (byte*)(&fn+1);
+ 	runtime·memmove(d->args, d->argp, d->siz);
+ 
+-	d->link = g->defer;
+-	g->defer = d;
+-
+ 	// deferproc returns 0 normally.
+ 	// a deferred func that stops a panic
+ 	// makes the deferproc return 1.
+@@ -73,10 +165,9 @@ runtime·deferreturn(uintptr arg0)
+ 	if(d->argp != argp)
+ 		return;
+ 	runtime·memmove(argp, d->args, d->siz);
+-	g->defer = d->link;
+ 	fn = d->fn;
+-	if(!d->nofree)
+-		runtime·free(d);
++	popdefer();
++	freedefer(d);
+ 	runtime·jmpdefer(fn, argp);
+ }
+ 
+@@ -87,10 +178,9 @@ rundefer(void)
+ 	Defer *d;
+ 
+ 	while((d = g->defer) != nil) {
+-		g->defer = d->link;
++		popdefer();
+ 		reflect·call(d->fn, (byte*)d->args, d->siz);
+-		if(!d->nofree)
+-			runtime·free(d);
++		freedefer(d);
+ 	}
+ }
+ 
+@@ -117,7 +207,8 @@ runtime·panic(Eface e)
+ {
+ 	Defer *d;
+ 	Panic *p;
+-
++	void *pc, *argp;
++	
+ 	p = runtime·mal(sizeof *p);
+ 	p->arg = e;
+ 	p->link = g->panic;
+@@ -129,23 +220,23 @@ runtime·panic(Eface e)
+ 		if(d == nil)
+ 			break;
+ 		// take defer off list in case of recursive panic
+-		g->defer = d->link;
++		popdefer();
+ 		g->ispanic = true;	// rock for newstack, where reflect.call ends up
++		argp = d->argp;
++		pc = d->pc;
+ 		reflect·call(d->fn, (byte*)d->args, d->siz);
++		freedefer(d);
+ 		if(p->recovered) {
+ 			g->panic = p->link;
+ 			if(g->panic == nil)	// must be done with signal
+ 				g->sig = 0;
+ 			runtime·free(p);
+-			// put recovering defer back on list
+-			// for scheduler to find.
+-			d->link = g->defer;
+-			g->defer = d;
++			// Pass information about recovering frame to recovery.
++			g->sigcode0 = (uintptr)argp;
++			g->sigcode1 = (uintptr)pc;
+ 			runtime·mcall(recovery);
+ 			runtime·throw("recovery failed"); // mcall should not return
+ 		}
+-		if(!d->nofree)
+-			runtime·free(d);
+ 	}
+ 
+ 	// ran out of deferred calls - old-school panic now
+@@ -160,14 +251,15 @@ runtime·panic(Eface e)
+ static void
+ recovery(G *gp)
+ {
+-	Defer *d;
+-
+-	// Rewind gp's stack; we're running on m->g0's stack.
+-	d = gp->defer;
+-	gp->defer = d->link;
++	void *argp;
++	void *pc;
++	
++	// Info about defer passed in G struct.
++	argp = (void*)gp->sigcode0;
++	pc = (void*)gp->sigcode1;
+ 
+ 	// Unwind to the stack frame with d's arguments in it.
+-	runtime·unwindstack(gp, d->argp);
++	runtime·unwindstack(gp, argp);
+ 
+ 	// Make the deferproc for this d return again,
+ 	// this time returning 1.  The calling function will
+@@ -179,12 +271,10 @@ recovery(G *gp)
+ 	// before it tests the return value.)
+ 	// On the arm there are 2 saved LRs mixed in too.
+ 	if(thechar == '5')
+-		gp->sched.sp = (uintptr)d->argp - 4*sizeof(uintptr);
++		gp->sched.sp = (uintptr)argp - 4*sizeof(uintptr);
+ 	else
+-		gp->sched.sp = (uintptr)d->argp - 2*sizeof(uintptr);
+-	gp->sched.pc = d->pc;
+-	if(!d->nofree)
+-		runtime·free(d);
++		gp->sched.sp = (uintptr)argp - 2*sizeof(uintptr);
++	gp->sched.pc = pc;
+ 	runtime·gogo(&gp->sched, 1);
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 6c9d50eff4..0c941f819b 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -68,6 +68,7 @@ typedef	struct	Type		Type;
+ typedef	struct	ChanType		ChanType;
+ typedef	struct	MapType		MapType;
+ typedef	struct	Defer		Defer;
++typedef	struct	DeferChunk	DeferChunk;
+ typedef	struct	Panic		Panic;
+ typedef	struct	Hmap		Hmap;
+ typedef	struct	Hchan		Hchan;
+@@ -218,6 +219,8 @@ struct	G
+ 	int32	sig;
+ 	int32	writenbuf;
+ 	byte*	writebuf;
++	DeferChunk	*dchunk;
++	DeferChunk	*dchunknext;
+ 	uintptr	sigcode0;
+ 	uintptr	sigcode1;
+ 	uintptr	sigpc;
+@@ -518,7 +521,8 @@ void	runtime·nilintercopy(uintptr, void*, void*);
+ struct Defer
+ {
+ 	int32	siz;
+-	bool	nofree;
++	bool	special; // not part of defer frame
++	bool	free; // if special, free when done
+ 	byte*	argp;  // where args were copied from
+ 	byte*	pc;
+ 	byte*	fn;
+@@ -526,6 +530,12 @@ struct Defer
+ 	void*	args[1];	// padded to actual size
+ };
+ 
++struct DeferChunk
++{
++	DeferChunk	*prev;
++	uintptr	off;
++};
++
+ /*
+  * panics
+  */
+diff --git a/src/pkg/runtime/runtime_test.go b/src/pkg/runtime/runtime_test.go
+index d68b363e99..e458793491 100644
+--- a/src/pkg/runtime/runtime_test.go
++++ b/src/pkg/runtime/runtime_test.go
+@@ -38,3 +38,44 @@ func BenchmarkIfaceCmpNil100(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func BenchmarkDefer(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		defer1()
++	}
++}
++
++func defer1() {
++	defer func(x, y, z int) {
++		if recover() != nil || x != 1 || y != 2 || z != 3 {
++			panic("bad recover")
++		}
++	}(1, 2, 3)
++	return
++}
++
++func BenchmarkDefer10(b *testing.B) {
++	for i := 0; i < b.N/10; i++ {
++		defer2()
++	}
++}
++
++func defer2() {
++	for i := 0; i < 10; i++ {
++		defer func(x, y, z int) {
++			if recover() != nil || x != 1 || y != 2 || z != 3 {
++				panic("bad recover")
++			}
++		}(1, 2, 3)
++	}
++}
++
++func BenchmarkDeferMany(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		defer func(x, y, z int) {
++			if recover() != nil || x != 1 || y != 2 || z != 3 {
++				panic("bad recover")
++			}
++		}(1, 2, 3)
++	}
++}

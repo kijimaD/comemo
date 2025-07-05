@@ -12,8 +12,81 @@ Date:   Wed Jan 31 10:27:49 2018 +1300
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go         |  2 +-
  src/os/signal/internal/pty/pty.go | 21 ++++++++++++++++++---
  src/os/signal/signal_cgo_test.go  |  4 ++++
  3 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index d21eacc6fb..07a9cd3c82 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -301,7 +301,7 @@ var pkgDeps = map[string][]string{
+ 	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
+ 
+ 	// Internal package used only for testing.
+-	"os/signal/internal/pty": {"CGO", "fmt", "os"},
++	"os/signal/internal/pty": {"CGO", "fmt", "os", "syscall"},
+ 
+ 	// Basic networking.
+ 	// Because net must be used by any package that wants to
+diff --git a/src/os/signal/internal/pty/pty.go b/src/os/signal/internal/pty/pty.go
+index fe293a0126..c4c1567fce 100644
+--- a/src/os/signal/internal/pty/pty.go
++++ b/src/os/signal/internal/pty/pty.go
+@@ -21,21 +21,36 @@ import "C"
+ import (
+ 	"fmt"
+ 	"os"
++	"syscall"
+ )
+ 
++type PtyError struct {
++	FuncName    string
++	ErrorString string
++	Errno       syscall.Errno
++}
++
++func ptyError(name string, err error) *PtyError {
++	return &PtyError{name, err.Error(), err.(syscall.Errno)}
++}
++
++func (e *PtyError) Error() string {
++	return fmt.Sprintf("%s: %s", e.FuncName, e.ErrorString)
++}
++
+ // Open returns a master pty and the name of the linked slave tty.
+ func Open() (master *os.File, slave string, err error) {
+ 	m, err := C.posix_openpt(C.O_RDWR)
+ 	if err != nil {
+-		return nil, "", fmt.Errorf("posix_openpt: %v", err)
++		return nil, "", ptyError("posix_openpt", err)
+ 	}
+ 	if _, err := C.grantpt(m); err != nil {
+ 		C.close(m)
+-		return nil, "", fmt.Errorf("grantpt: %v", err)
++		return nil, "", ptyError("grantpt", err)
+ 	}
+ 	if _, err := C.unlockpt(m); err != nil {
+ 		C.close(m)
+-		return nil, "", fmt.Errorf("unlockpt: %v", err)
++		return nil, "", ptyError("unlockpt", err)
+ 	}
+ 	slave = C.GoString(C.ptsname(m))
+ 	return os.NewFile(uintptr(m), "pty-master"), slave, nil
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index 27707fadce..84a2a08ce9 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -72,6 +72,10 @@ func TestTerminalSignal(t *testing.T) {
+ 
+ 	master, sname, err := pty.Open()
+ 	if err != nil {
++		ptyErr := err.(*pty.PtyError)
++		if ptyErr.FuncName == "posix_openpt" && ptyErr.Errno == syscall.EACCES {
++			t.Skip("posix_openpt failed with EACCES, assuming chroot and skipping")
++		}
+ 		t.Fatal(err)
+ 	}
+ 	defer master.Close()

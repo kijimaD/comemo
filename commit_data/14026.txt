@@ -13,8 +13,102 @@ Date:   Fri Oct 5 08:48:23 2012 -0700
     R=r, bsiegert, 0xjnml
     CC=bradfitz, golang-dev
     https://golang.org/cl/6610051
-
+---
  src/pkg/go/printer/nodes.go                     |  2 +-
  src/pkg/go/printer/testdata/declarations.golden | 29 +++++++++++++++++++++++++
  src/pkg/go/printer/testdata/declarations.input  | 29 +++++++++++++++++++++++++
  3 files changed, 59 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 6eee9a9245..e99a2e36d4 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -203,7 +203,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ 			} else {
+ 				const r = 4 // threshold
+ 				ratio := float64(size) / float64(prevSize)
+-				useFF = ratio <= 1/r || r <= ratio
++				useFF = ratio <= 1.0/r || r <= ratio
+ 			}
+ 		}
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 71ed32ed14..21bbf2b2d4 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -654,6 +654,35 @@ var _ = map[int]int{
+ 	abcde:	a,	// align with previous line
+ }
+ 
++// alignment of map composite entries: test cases from issue 3965
++// aligned
++var _ = T1{
++	a:			x,
++	b:			y,
++	cccccccccccccccccccc:	z,
++}
++
++// not aligned
++var _ = T2{
++	a:	x,
++	b:	y,
++	ccccccccccccccccccccc:	z,
++}
++
++// aligned
++var _ = T3{
++	aaaaaaaaaaaaaaaaaaaa:	x,
++	b:			y,
++	c:			z,
++}
++
++// not aligned
++var _ = T4{
++	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:	x,
++	b:	y,
++	c:	z,
++}
++
+ func _() {
+ 	var _ = T{
+ 		a,	// must introduce trailing comma
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index d74cff25d1..6ac0036992 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -667,6 +667,35 @@ var _ = map[int]int{
+ 	abcde: a, // align with previous line
+ }
+ 
++// alignment of map composite entries: test cases from issue 3965
++// aligned
++var _ = T1{
++	a:                    x,
++	b:                    y,
++	cccccccccccccccccccc: z,
++}
++
++// not aligned
++var _ = T2{
++	a: x,
++	b: y,
++	ccccccccccccccccccccc: z,
++}
++
++// aligned
++var _ = T3{
++	aaaaaaaaaaaaaaaaaaaa: x,
++	b:                    y,
++	c:                    z,
++}
++
++// not aligned
++var _ = T4{
++	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: x,
++	b:                                       y,
++	c:                                       z,
++}
++
+ 
+ func _() {
+ 	var _ = T{

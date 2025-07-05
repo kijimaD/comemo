@@ -7,7 +7,43 @@ Date:   Thu Jun 23 10:11:33 2011 -0700
     R=golang-dev, bradfitz, arctanofyourface
     CC=golang-dev
     https://golang.org/cl/4635063
-
+---
  src/pkg/mime/multipart/writer.go      | 6 +++++-
  src/pkg/mime/multipart/writer_test.go | 7 +++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/mime/multipart/writer.go b/src/pkg/mime/multipart/writer.go
+index b436dd0124..97a8897b29 100644
+--- a/src/pkg/mime/multipart/writer.go
++++ b/src/pkg/mime/multipart/writer.go
+@@ -61,7 +61,11 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, os.Error) {
+ 		}
+ 	}
+ 	var b bytes.Buffer
+-	fmt.Fprintf(&b, "\r\n--%s\r\n", w.boundary)
++	if w.lastpart != nil {
++		fmt.Fprintf(&b, "\r\n--%s\r\n", w.boundary)
++	} else {
++		fmt.Fprintf(&b, "--%s\r\n", w.boundary)
++	}
+ 	// TODO(bradfitz): move this to textproto.MimeHeader.Write(w), have it sort
+ 	// and clean, like http.Header.Write(w) does.
+ 	for k, vv := range header {
+diff --git a/src/pkg/mime/multipart/writer_test.go b/src/pkg/mime/multipart/writer_test.go
+index e6a04c3887..494e936c4c 100644
+--- a/src/pkg/mime/multipart/writer_test.go
++++ b/src/pkg/mime/multipart/writer_test.go
+@@ -30,6 +30,13 @@ func TestWriter(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("Close: %v", err)
+ 		}
++		s := b.String()
++		if len(s) == 0 {
++			t.Fatal("String: unexpected empty result")
++		}
++		if s[0] == '\r' || s[0] == '\n' {
++			t.Fatal("String: unexpected newline")
++		}
+ 	}
+ 
+ 	r := NewReader(&b, w.Boundary())

@@ -15,9 +15,242 @@ Date:   Mon Apr 5 19:10:22 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/error_test.go      |  4 +-
  src/cmd/compile/internal/syntax/parser.go          | 92 ++++++++++++++++++----
  src/cmd/compile/internal/syntax/printer_test.go    |  9 +++
  .../compile/internal/syntax/testdata/interface.go2 | 36 +++++++++
  4 files changed, 125 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/error_test.go b/src/cmd/compile/internal/syntax/error_test.go
+index 919667f1d3..e4bedf54fd 100644
+--- a/src/cmd/compile/internal/syntax/error_test.go
++++ b/src/cmd/compile/internal/syntax/error_test.go
+@@ -164,7 +164,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
+ 			// we have a match - eliminate this error
+ 			delete(declared, pos)
+ 		} else {
+-			t.Errorf("%s: unexpected error: %s", orig, e.Msg)
++			t.Errorf("%s:%s: unexpected error: %s", filename, orig, e.Msg)
+ 		}
+ 	}, nil, mode)
+ 
+@@ -175,7 +175,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
+ 
+ 	// report expected but not reported errors
+ 	for pos, pattern := range declared {
+-		t.Errorf("%s: missing error: %s", pos, pattern)
++		t.Errorf("%s:%s: missing error: %s", filename, pos, pattern)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index c4ccbb82cb..026297432d 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -735,9 +735,9 @@ func (p *parser) binaryExpr(prec int) Expr {
+ 		t := new(Operation)
+ 		t.pos = p.pos()
+ 		t.Op = p.op
+-		t.X = x
+ 		tprec := p.prec
+ 		p.next()
++		t.X = x
+ 		t.Y = p.binaryExpr(tprec)
+ 		x = t
+ 	}
+@@ -1381,7 +1381,9 @@ func (p *parser) structType() *StructType {
+ 	return typ
+ }
+ 
+-// InterfaceType = "interface" "{" { MethodSpec ";" } "}" .
++// InterfaceType = "interface" "{" { ( MethodDecl | EmbeddedElem | TypeList ) ";" } "}" .
++// TypeList      = "type" Type { "," Type } .
++// TODO(gri) remove TypeList syntax if we accept #45346
+ func (p *parser) interfaceType() *InterfaceType {
+ 	if trace {
+ 		defer p.trace("interfaceType")()
+@@ -1395,9 +1397,15 @@ func (p *parser) interfaceType() *InterfaceType {
+ 	p.list(_Semi, _Rbrace, func() bool {
+ 		switch p.tok {
+ 		case _Name:
+-			typ.MethodList = append(typ.MethodList, p.methodDecl())
++			f := p.methodDecl()
++			if f.Name == nil && p.mode&AllowGenerics != 0 {
++				f = p.embeddedElem(f)
++			}
++			typ.MethodList = append(typ.MethodList, f)
++			return false
+ 
+ 		case _Lparen:
++			// TODO(gri) Need to decide how to adjust this restriction.
+ 			p.syntaxError("cannot parenthesize embedded type")
+ 			f := new(Field)
+ 			f.pos = p.pos()
+@@ -1405,10 +1413,17 @@ func (p *parser) interfaceType() *InterfaceType {
+ 			f.Type = p.qualifiedName(nil)
+ 			p.want(_Rparen)
+ 			typ.MethodList = append(typ.MethodList, f)
++			return false
++
++		case _Operator:
++			if p.op == Tilde && p.mode&AllowGenerics != 0 {
++				typ.MethodList = append(typ.MethodList, p.embeddedElem(nil))
++				return false
++			}
+ 
+ 		case _Type:
++			// TODO(gri) remove TypeList syntax if we accept #45346
+ 			if p.mode&AllowGenerics != 0 {
+-				// TODO(gri) factor this better
+ 				type_ := NewName(p.pos(), "type") // cannot have a method named "type"
+ 				p.next()
+ 				if p.tok != _Semi && p.tok != _Rbrace {
+@@ -1427,19 +1442,18 @@ func (p *parser) interfaceType() *InterfaceType {
+ 				} else {
+ 					p.syntaxError("expecting type")
+ 				}
+-				break
++				return false
+ 			}
+-			fallthrough
++		}
+ 
+-		default:
+-			if p.mode&AllowGenerics != 0 {
+-				p.syntaxError("expecting method, interface name, or type list")
+-				p.advance(_Semi, _Rbrace, _Type)
+-			} else {
+-				p.syntaxError("expecting method or interface name")
+-				p.advance(_Semi, _Rbrace)
+-			}
++		if p.mode&AllowGenerics != 0 {
++			p.syntaxError("expecting method, type list, or embedded element")
++			p.advance(_Semi, _Rbrace, _Type) // TODO(gri) remove _Type if we don't accept it anymore
++			return false
+ 		}
++
++		p.syntaxError("expecting method or interface name")
++		p.advance(_Semi, _Rbrace)
+ 		return false
+ 	})
+ 
+@@ -1732,6 +1746,56 @@ func (p *parser) methodDecl() *Field {
+ 	return f
+ }
+ 
++// EmbeddedElem = MethodSpec | EmbeddedTerm { "|" EmbeddedTerm } .
++func (p *parser) embeddedElem(f *Field) *Field {
++	if trace {
++		defer p.trace("embeddedElem")()
++	}
++
++	if f == nil {
++		f = new(Field)
++		f.pos = p.pos()
++		f.Type = p.embeddedTerm()
++	}
++
++	for p.tok == _Operator && p.op == Or {
++		t := new(Operation)
++		t.pos = p.pos()
++		t.Op = Or
++		p.next()
++		t.X = f.Type
++		t.Y = p.embeddedTerm()
++		f.Type = t
++	}
++
++	return f
++}
++
++// EmbeddedTerm = [ "~" ] Type .
++func (p *parser) embeddedTerm() Expr {
++	if trace {
++		defer p.trace("embeddedTerm")()
++	}
++
++	if p.tok == _Operator && p.op == Tilde {
++		t := new(Operation)
++		t.pos = p.pos()
++		t.Op = Tilde
++		p.next()
++		t.X = p.type_()
++		return t
++	}
++
++	t := p.typeOrNil()
++	if t == nil {
++		t = p.badExpr()
++		p.syntaxError("expecting ~ term or type")
++		p.advance(_Operator, _Semi, _Rparen, _Rbrack, _Rbrace)
++	}
++
++	return t
++}
++
+ // ParameterDecl = [ IdentifierList ] [ "..." ] Type .
+ func (p *parser) paramDeclOrNil(name *Name) *Field {
+ 	if trace {
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index 4890327595..ec4b1de573 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -149,6 +149,15 @@ var exprTests = [][2]string{
+ 	dup("<-chan E"),
+ 	dup("chan<- E"),
+ 
++	// new interfaces
++	dup("interface{int}"),
++	dup("interface{~int}"),
++	dup("interface{~int}"),
++	dup("interface{int | string}"),
++	dup("interface{~int | ~string; float64; m()}"),
++	dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
++	dup("interface{~T[int, string] | string}"),
++
+ 	// non-type expressions
+ 	dup("(x)"),
+ 	dup("x.f"),
+diff --git a/src/cmd/compile/internal/syntax/testdata/interface.go2 b/src/cmd/compile/internal/syntax/testdata/interface.go2
+new file mode 100644
+index 0000000000..a817327a43
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/interface.go2
+@@ -0,0 +1,36 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains test cases for interfaces containing
++// constraint elements.
++//
++// For now, we accept both ordinary type lists and the
++// more complex constraint elements.
++
++package p
++
++type _ interface {
++	m()
++	type int
++	type int, string
++	E
++}
++
++type _ interface {
++	m()
++	~int
++	int | string
++	int | ~string
++	~int | ~string
++}
++
++
++type _ interface {
++	m()
++	~int
++	T[int, string] | string
++	int | ~T[string, struct{}]
++	~int | ~string
++	type bool, int, float64
++}

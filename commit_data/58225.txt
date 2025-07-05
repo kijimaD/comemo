@@ -12,8 +12,103 @@ Date:   Wed Oct 11 12:31:55 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  src/cmd/go/internal/work/exec.go  |  8 ++++----
  src/cmd/go/internal/work/gc.go    | 10 +++++-----
  src/cmd/go/internal/work/gccgo.go |  8 ++++----
  3 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 42ecac6d03..89e67314df 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2550,9 +2550,9 @@ type toolchain interface {
+ 	// typically it is run in the object directory.
+ 	pack(b *Builder, a *Action, afile string, ofiles []string) error
+ 	// ld runs the linker to create an executable starting at mainpkg.
+-	ld(b *Builder, root *Action, out, importcfg, mainpkg string) error
++	ld(b *Builder, root *Action, targetPath, importcfg, mainpkg string) error
+ 	// ldShared runs the linker to create a shared library containing the pkgs built by toplevelactions
+-	ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error
++	ldShared(b *Builder, root *Action, toplevelactions []*Action, targetPath, importcfg string, allactions []*Action) error
+ 
+ 	compiler() string
+ 	linker() string
+@@ -2591,11 +2591,11 @@ func (noToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
+ 	return noCompiler()
+ }
+ 
+-func (noToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) error {
++func (noToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg string) error {
+ 	return noCompiler()
+ }
+ 
+-func (noToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
++func (noToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, targetPath, importcfg string, allactions []*Action) error {
+ 	return noCompiler()
+ }
+ 
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index c2fed647c9..3ea9f714d2 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -572,7 +572,7 @@ func pluginPath(a *Action) string {
+ 	return fmt.Sprintf("plugin/unnamed-%x", h.Sum(nil))
+ }
+ 
+-func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) error {
++func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg string) error {
+ 	cxx := len(root.Package.CXXFiles) > 0 || len(root.Package.SwigCXXFiles) > 0
+ 	for _, a := range root.Deps {
+ 		if a.Package != nil && (len(a.Package.CXXFiles) > 0 || len(a.Package.SwigCXXFiles) > 0) {
+@@ -641,17 +641,17 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 	// the output file path is recorded in the .gnu.version_d section.
+ 	dir := "."
+ 	if cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin" {
+-		dir, out = filepath.Split(out)
++		dir, targetPath = filepath.Split(targetPath)
+ 	}
+ 
+ 	env := []string{}
+ 	if cfg.BuildTrimpath {
+ 		env = append(env, "GOROOT_FINAL="+trimPathGoRootFinal)
+ 	}
+-	return b.run(root, dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
++	return b.run(root, dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags, mainpkg)
+ }
+ 
+-func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
++func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, targetPath, importcfg string, allactions []*Action) error {
+ 	ldflags := []string{"-installsuffix", cfg.BuildContext.InstallSuffix}
+ 	ldflags = append(ldflags, "-buildmode=shared")
+ 	ldflags = append(ldflags, forcedLdflags...)
+@@ -682,7 +682,7 @@ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action,
+ 		}
+ 		ldflags = append(ldflags, d.Package.ImportPath+"="+d.Target)
+ 	}
+-	return b.run(root, ".", out, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags)
++	return b.run(root, ".", targetPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags)
+ }
+ 
+ func (gcToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 0e9498988a..fa566bfd05 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -530,12 +530,12 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
+ 	return nil
+ }
+ 
+-func (tools gccgoToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) error {
+-	return tools.link(b, root, out, importcfg, root.Deps, ldBuildmode, root.Package.ImportPath)
++func (tools gccgoToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg string) error {
++	return tools.link(b, root, targetPath, importcfg, root.Deps, ldBuildmode, root.Package.ImportPath)
+ }
+ 
+-func (tools gccgoToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
+-	return tools.link(b, root, out, importcfg, allactions, "shared", out)
++func (tools gccgoToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, targetPath, importcfg string, allactions []*Action) error {
++	return tools.link(b, root, targetPath, importcfg, allactions, "shared", targetPath)
+ }
+ 
+ func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {

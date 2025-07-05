@@ -10,9 +10,155 @@ Date:   Tue May 6 09:12:15 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/93770044
-
+---
  src/cmd/go/build.go    | 13 +++++++++++--
  src/cmd/go/test.bash   | 40 ++++++++++++++++++++++++++++++++++++++++
  src/cmd/go/test.go     |  3 +--
  src/cmd/go/testflag.go |  2 +-
  4 files changed, 53 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 1e4571b2c7..530f5a3796 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -28,7 +28,7 @@ import (
+ )
+ 
+ var cmdBuild = &Command{
+-	UsageLine: "build [-o output] [build flags] [packages]",
++	UsageLine: "build [-o output] [-i] [build flags] [packages]",
+ 	Short:     "compile packages and dependencies",
+ 	Long: `
+ Build compiles the packages named by the import paths,
+@@ -50,6 +50,8 @@ derives from the first file name mentioned, such as f1 for 'go build
+ f1.go f2.go'; with no files provided ('go build'), the output file
+ name is the base name of the containing directory.
+ 
++The -i flag installs the packages that are dependencies of the target.
++
+ The build flags are shared by the build, install, run, and test commands:
+ 
+ 	-a
+@@ -107,6 +109,8 @@ func init() {
+ 	cmdBuild.Run = runBuild
+ 	cmdInstall.Run = runInstall
+ 
++	cmdBuild.Flag.BoolVar(&buildI, "i", false, "")
++
+ 	addBuildFlags(cmdBuild)
+ 	addBuildFlags(cmdInstall)
+ }
+@@ -117,6 +121,7 @@ var buildN bool               // -n flag
+ var buildP = runtime.NumCPU() // -p flag
+ var buildV bool               // -v flag
+ var buildX bool               // -x flag
++var buildI bool               // -i flag
+ var buildO = cmdBuild.Flag.String("o", "", "output file")
+ var buildWork bool           // -work flag
+ var buildGcflags []string    // -gcflags flag
+@@ -290,8 +295,12 @@ func runBuild(cmd *Command, args []string) {
+ 	}
+ 
+ 	a := &action{}
++	depMode := modeBuild
++	if buildI {
++		depMode = modeInstall
++	}
+ 	for _, p := range packages(args) {
+-		a.deps = append(a.deps, b.action(modeBuild, modeBuild, p))
++		a.deps = append(a.deps, b.action(modeBuild, depMode, p))
+ 	}
+ 	b.do(a)
+ }
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 4bde166110..b6da37bd3a 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -708,6 +708,46 @@ if ./testgo test notest >/dev/null 2>&1; then
+ fi
+ unset GOPATH
+ 
++TEST list template can use context function
++if ! ./testgo list -f "GOARCH: {{context.GOARCH}}"; then 
++	echo unable to use context in list template
++	ok=false
++fi
++
++TEST build -i installs dependencies
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++export GOPATH=$d
++mkdir -p $d/src/x/y/foo $d/src/x/y/bar
++echo '
++package foo
++func F() {}
++' >$d/src/x/y/foo/foo.go
++echo '
++package bar
++import "x/y/foo"
++func F() { foo.F() }
++' >$d/src/x/y/bar/bar.go
++if ! ./testgo build -v -i x/y/bar &> $d/err; then
++	echo build -i failed
++	cat $d/err
++	ok=false
++elif ! grep x/y/foo $d/err >/dev/null; then
++	echo first build -i did not build x/y/foo
++	cat $d/err
++	ok=false
++fi
++if ! ./testgo build -v -i x/y/bar &> $d/err; then
++	echo second build -i failed
++	cat $d/err
++	ok=false
++elif grep x/y/foo $d/err >/dev/null; then
++	echo second build -i built x/y/foo
++	cat $d/err
++	ok=false
++fi
++rm -rf $d
++unset GOPATH
++
+ # clean up
+ if $started; then stop; fi
+ rm -rf testdata/bin testdata/bin1
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index a5497e71a3..d206da8dcd 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -276,7 +276,6 @@ var (
+ 	testCoverPkgs    []*Package // -coverpkg flag
+ 	testProfile      bool       // some profiling flag
+ 	testNeedBinary   bool       // profile needs to keep binary around
+-	testI            bool       // -i flag
+ 	testV            bool       // -v flag
+ 	testFiles        []string   // -file flag(s)  TODO: not respected
+ 	testTimeout      string     // -timeout flag
+@@ -339,7 +338,7 @@ func runTest(cmd *Command, args []string) {
+ 	var b builder
+ 	b.init()
+ 
+-	if testI {
++	if buildI {
+ 		buildV = testV
+ 
+ 		deps := make(map[string]bool)
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 8c45e5c1b2..73f311e5f6 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -66,7 +66,6 @@ var testFlagDefn = []*testFlagSpec{
+ 	// local.
+ 	{name: "c", boolVar: &testC},
+ 	{name: "file", multiOK: true},
+-	{name: "i", boolVar: &testI},
+ 	{name: "cover", boolVar: &testCover},
+ 	{name: "coverpkg"},
+ 
+@@ -75,6 +74,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "n", boolVar: &buildN},
+ 	{name: "p"},
+ 	{name: "x", boolVar: &buildX},
++	{name: "i", boolVar: &buildI},
+ 	{name: "work", boolVar: &buildWork},
+ 	{name: "ccflags"},
+ 	{name: "gcflags"},

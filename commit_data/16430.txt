@@ -9,7 +9,32 @@ Date:   Wed May 29 11:18:05 2013 -0400
     R=gobot
     CC=golang-dev
     https://golang.org/cl/9798049
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index c4a4cbc753..fd6e471d14 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -158,6 +158,7 @@ Joe Poirier <jdpoirier@gmail.com>
+ John Asmuth <jasmuth@gmail.com>
+ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ John Howard Palevich <jack.palevich@gmail.com>
++John Shahid <jvshahid@gmail.com>
+ Jonathan Gold <jgold.bg@gmail.com>
+ Jonathan Mark <jhmark@xenops.com>
+ Jonathan Rudenberg <jonathan@titanous.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a9714b1bef..20ed3bf21d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -233,6 +233,7 @@ John Beisley <huin@google.com>
+ John DeNero <denero@google.com>
+ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ John Howard Palevich <jack.palevich@gmail.com>
++John Shahid <jvshahid@gmail.com>
+ Jonathan Allie <jonallie@google.com>
+ Jonathan Feinberg <feinberg@google.com>
+ Jonathan Gold <jgold.bg@gmail.com>

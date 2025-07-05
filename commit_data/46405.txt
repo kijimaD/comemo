@@ -23,7 +23,7 @@ Date:   Sat Dec 26 23:21:20 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/fmt.go            |  2 +-
  src/cmd/compile/internal/ir/mknode.go         | 16 +++++-----
  src/cmd/compile/internal/ir/node_gen.go       | 16 +++++-----
@@ -34,3 +34,393 @@ Date:   Sat Dec 26 23:21:20 2020 -0800
  src/cmd/compile/internal/typecheck/stmt.go    |  2 +-
  src/cmd/compile/internal/walk/select.go       |  8 ++---
  9 files changed, 54 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index f52c639c51..49f451a5d8 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -478,7 +478,7 @@ func stmtFmt(n Node, s fmt.State) {
+ 		fmt.Fprintf(s, " { %v }", n.Cases)
+ 
+ 	case OCASE:
+-		n := n.(*CaseStmt)
++		n := n.(*CaseClause)
+ 		if len(n.List) != 0 {
+ 			fmt.Fprintf(s, "case %.v", n.List)
+ 		} else {
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index 5c36b729c7..3b5da32d8c 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -37,8 +37,8 @@ func main() {
+ 	nodeType := lookup("Node")
+ 	ntypeType := lookup("Ntype")
+ 	nodesType := lookup("Nodes")
+-	slicePtrCaseStmtType := types.NewSlice(types.NewPointer(lookup("CaseStmt")))
+-	slicePtrCommStmtType := types.NewSlice(types.NewPointer(lookup("CommStmt")))
++	slicePtrCaseClauseType := types.NewSlice(types.NewPointer(lookup("CaseClause")))
++	slicePtrCommClauseType := types.NewSlice(types.NewPointer(lookup("CommClause")))
+ 	ptrFieldType := types.NewPointer(lookup("Field"))
+ 	slicePtrFieldType := types.NewSlice(ptrFieldType)
+ 	ptrIdentType := types.NewPointer(lookup("Ident"))
+@@ -78,9 +78,9 @@ func main() {
+ 				switch {
+ 				case is(nodesType):
+ 					fmt.Fprintf(&buf, "c.%s = c.%s.Copy()\n", name, name)
+-				case is(slicePtrCaseStmtType):
++				case is(slicePtrCaseClauseType):
+ 					fmt.Fprintf(&buf, "c.%s = copyCases(c.%s)\n", name, name)
+-				case is(slicePtrCommStmtType):
++				case is(slicePtrCommClauseType):
+ 					fmt.Fprintf(&buf, "c.%s = copyComms(c.%s)\n", name, name)
+ 				case is(ptrFieldType):
+ 					fmt.Fprintf(&buf, "if c.%s != nil { c.%s = c.%s.copy() }\n", name, name, name)
+@@ -100,9 +100,9 @@ func main() {
+ 				fmt.Fprintf(&buf, "err = maybeDo(n.%s, err, do)\n", name)
+ 			case is(nodesType):
+ 				fmt.Fprintf(&buf, "err = maybeDoList(n.%s, err, do)\n", name)
+-			case is(slicePtrCaseStmtType):
++			case is(slicePtrCaseClauseType):
+ 				fmt.Fprintf(&buf, "err = maybeDoCases(n.%s, err, do)\n", name)
+-			case is(slicePtrCommStmtType):
++			case is(slicePtrCommClauseType):
+ 				fmt.Fprintf(&buf, "err = maybeDoComms(n.%s, err, do)\n", name)
+ 			case is(ptrFieldType):
+ 				fmt.Fprintf(&buf, "err = maybeDoField(n.%s, err, do)\n", name)
+@@ -123,9 +123,9 @@ func main() {
+ 				fmt.Fprintf(&buf, "n.%s = toNtype(maybeEdit(n.%s, edit))\n", name, name)
+ 			case is(nodesType):
+ 				fmt.Fprintf(&buf, "editList(n.%s, edit)\n", name)
+-			case is(slicePtrCaseStmtType):
++			case is(slicePtrCaseClauseType):
+ 				fmt.Fprintf(&buf, "editCases(n.%s, edit)\n", name)
+-			case is(slicePtrCommStmtType):
++			case is(slicePtrCommClauseType):
+ 				fmt.Fprintf(&buf, "editComms(n.%s, edit)\n", name)
+ 			case is(ptrFieldType):
+ 				fmt.Fprintf(&buf, "editField(n.%s, edit)\n", name)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 7412969425..27a5311748 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -226,15 +226,15 @@ func (n *CallPartExpr) editChildren(edit func(Node) Node) {
+ 	n.X = maybeEdit(n.X, edit)
+ }
+ 
+-func (n *CaseStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *CaseStmt) copy() Node {
++func (n *CaseClause) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *CaseClause) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+ 	c.List = c.List.Copy()
+ 	c.Body = c.Body.Copy()
+ 	return &c
+ }
+-func (n *CaseStmt) doChildren(do func(Node) error) error {
++func (n *CaseClause) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.Var, err, do)
+@@ -242,7 +242,7 @@ func (n *CaseStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.Body, err, do)
+ 	return err
+ }
+-func (n *CaseStmt) editChildren(edit func(Node) Node) {
++func (n *CaseClause) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.Var = maybeEdit(n.Var, edit)
+ 	editList(n.List, edit)
+@@ -293,21 +293,21 @@ func (n *ClosureReadExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ }
+ 
+-func (n *CommStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *CommStmt) copy() Node {
++func (n *CommClause) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *CommClause) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+ 	c.Body = c.Body.Copy()
+ 	return &c
+ }
+-func (n *CommStmt) doChildren(do func(Node) error) error {
++func (n *CommClause) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.Comm, err, do)
+ 	err = maybeDoList(n.Body, err, do)
+ 	return err
+ }
+-func (n *CommStmt) editChildren(edit func(Node) Node) {
++func (n *CommClause) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.Comm = maybeEdit(n.Comm, edit)
+ 	editList(n.Body, edit)
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 0f44acd8b4..de152fec72 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -173,31 +173,31 @@ func NewBranchStmt(pos src.XPos, op Op, label *types.Sym) *BranchStmt {
+ 
+ func (n *BranchStmt) Sym() *types.Sym { return n.Label }
+ 
+-// A CaseStmt is a case statement in a switch or select: case List: Body.
+-type CaseStmt struct {
++// A CaseClause is a case statement in a switch or select: case List: Body.
++type CaseClause struct {
+ 	miniStmt
+ 	Var  Node  // declared variable for this case in type switch
+ 	List Nodes // list of expressions for switch, early select
+ 	Body Nodes
+ }
+ 
+-func NewCaseStmt(pos src.XPos, list, body []Node) *CaseStmt {
+-	n := &CaseStmt{List: list, Body: body}
++func NewCaseStmt(pos src.XPos, list, body []Node) *CaseClause {
++	n := &CaseClause{List: list, Body: body}
+ 	n.pos = pos
+ 	n.op = OCASE
+ 	return n
+ }
+ 
+ // TODO(mdempsky): Generate these with mknode.go.
+-func copyCases(list []*CaseStmt) []*CaseStmt {
++func copyCases(list []*CaseClause) []*CaseClause {
+ 	if list == nil {
+ 		return nil
+ 	}
+-	c := make([]*CaseStmt, len(list))
++	c := make([]*CaseClause, len(list))
+ 	copy(c, list)
+ 	return c
+ }
+-func maybeDoCases(list []*CaseStmt, err error, do func(Node) error) error {
++func maybeDoCases(list []*CaseClause, err error, do func(Node) error) error {
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -210,37 +210,37 @@ func maybeDoCases(list []*CaseStmt, err error, do func(Node) error) error {
+ 	}
+ 	return nil
+ }
+-func editCases(list []*CaseStmt, edit func(Node) Node) {
++func editCases(list []*CaseClause, edit func(Node) Node) {
+ 	for i, x := range list {
+ 		if x != nil {
+-			list[i] = edit(x).(*CaseStmt)
++			list[i] = edit(x).(*CaseClause)
+ 		}
+ 	}
+ }
+ 
+-type CommStmt struct {
++type CommClause struct {
+ 	miniStmt
+-	Comm Node  // communication case
++	Comm Node // communication case
+ 	Body Nodes
+ }
+ 
+-func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommStmt {
+-	n := &CommStmt{Comm: comm, Body: body}
++func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommClause {
++	n := &CommClause{Comm: comm, Body: body}
+ 	n.pos = pos
+ 	n.op = OCASE
+ 	return n
+ }
+ 
+ // TODO(mdempsky): Generate these with mknode.go.
+-func copyComms(list []*CommStmt) []*CommStmt {
++func copyComms(list []*CommClause) []*CommClause {
+ 	if list == nil {
+ 		return nil
+ 	}
+-	c := make([]*CommStmt, len(list))
++	c := make([]*CommClause, len(list))
+ 	copy(c, list)
+ 	return c
+ }
+-func maybeDoComms(list []*CommStmt, err error, do func(Node) error) error {
++func maybeDoComms(list []*CommClause, err error, do func(Node) error) error {
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -253,10 +253,10 @@ func maybeDoComms(list []*CommStmt, err error, do func(Node) error) error {
+ 	}
+ 	return nil
+ }
+-func editComms(list []*CommStmt, edit func(Node) Node) {
++func editComms(list []*CommClause, edit func(Node) Node) {
+ 	for i, x := range list {
+ 		if x != nil {
+-			list[i] = edit(x).(*CommStmt)
++			list[i] = edit(x).(*CommClause)
+ 		}
+ 	}
+ }
+@@ -406,14 +406,14 @@ func (n *ReturnStmt) SetOrig(x Node) { n.orig = x }
+ type SelectStmt struct {
+ 	miniStmt
+ 	Label    *types.Sym
+-	Cases    []*CommStmt
++	Cases    []*CommClause
+ 	HasBreak bool
+ 
+ 	// TODO(rsc): Instead of recording here, replace with a block?
+ 	Compiled Nodes // compiled form, after walkswitch
+ }
+ 
+-func NewSelectStmt(pos src.XPos, cases []*CommStmt) *SelectStmt {
++func NewSelectStmt(pos src.XPos, cases []*CommClause) *SelectStmt {
+ 	n := &SelectStmt{Cases: cases}
+ 	n.pos = pos
+ 	n.op = OSELECT
+@@ -438,7 +438,7 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
+ type SwitchStmt struct {
+ 	miniStmt
+ 	Tag      Node
+-	Cases    []*CaseStmt
++	Cases    []*CaseClause
+ 	Label    *types.Sym
+ 	HasBreak bool
+ 
+@@ -446,7 +446,7 @@ type SwitchStmt struct {
+ 	Compiled Nodes // compiled form, after walkswitch
+ }
+ 
+-func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseStmt) *SwitchStmt {
++func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
+ 	n := &SwitchStmt{Tag: tag, Cases: cases}
+ 	n.pos = pos
+ 	n.op = OSWITCH
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 19a88e21a2..7c1f7595b3 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1212,8 +1212,8 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
+ 	return n
+ }
+ 
+-func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitchGuard, rbrace syntax.Pos) []*ir.CaseStmt {
+-	nodes := make([]*ir.CaseStmt, 0, len(clauses))
++func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitchGuard, rbrace syntax.Pos) []*ir.CaseClause {
++	nodes := make([]*ir.CaseClause, 0, len(clauses))
+ 	for i, clause := range clauses {
+ 		p.setlineno(clause)
+ 		if i > 0 {
+@@ -1263,8 +1263,8 @@ func (p *noder) selectStmt(stmt *syntax.SelectStmt) ir.Node {
+ 	return ir.NewSelectStmt(p.pos(stmt), p.commClauses(stmt.Body, stmt.Rbrace))
+ }
+ 
+-func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*ir.CommStmt {
+-	nodes := make([]*ir.CommStmt, len(clauses))
++func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*ir.CommClause {
++	nodes := make([]*ir.CommClause, len(clauses))
+ 	for i, clause := range clauses {
+ 		p.setlineno(clause)
+ 		if i > 0 {
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index bf093c60c7..3b071a61ab 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1181,7 +1181,7 @@ func isNamedTypeSwitch(x ir.Node) bool {
+ 	return ok && guard.Tag != nil
+ }
+ 
+-func (w *exportWriter) caseList(cases []*ir.CaseStmt, namedTypeSwitch bool) {
++func (w *exportWriter) caseList(cases []*ir.CaseClause, namedTypeSwitch bool) {
+ 	w.uint64(uint64(len(cases)))
+ 	for _, cas := range cases {
+ 		w.pos(cas.Pos())
+@@ -1193,7 +1193,7 @@ func (w *exportWriter) caseList(cases []*ir.CaseStmt, namedTypeSwitch bool) {
+ 	}
+ }
+ 
+-func (w *exportWriter) commList(cases []*ir.CommStmt) {
++func (w *exportWriter) commList(cases []*ir.CommClause) {
+ 	w.uint64(uint64(len(cases)))
+ 	for _, cas := range cases {
+ 		w.pos(cas.Pos())
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index af2dd84a38..cf2cf87492 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -767,10 +767,10 @@ func (r *importReader) stmtList() []ir.Node {
+ 	return list
+ }
+ 
+-func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseStmt {
++func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
+ 	namedTypeSwitch := isNamedTypeSwitch(switchExpr)
+ 
+-	cases := make([]*ir.CaseStmt, r.uint64())
++	cases := make([]*ir.CaseClause, r.uint64())
+ 	for i := range cases {
+ 		cas := ir.NewCaseStmt(r.pos(), nil, nil)
+ 		cas.List.Set(r.stmtList())
+@@ -789,8 +789,8 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseStmt {
+ 	return cases
+ }
+ 
+-func (r *importReader) commList() []*ir.CommStmt {
+-	cases := make([]*ir.CommStmt, r.uint64())
++func (r *importReader) commList() []*ir.CommClause {
++	cases := make([]*ir.CommClause, r.uint64())
+ 	for i := range cases {
+ 		cases[i] = ir.NewCommStmt(r.pos(), r.node(), r.stmtList())
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index bfeea06e83..f5d36a663d 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -360,7 +360,7 @@ func tcReturn(n *ir.ReturnStmt) ir.Node {
+ 
+ // select
+ func tcSelect(sel *ir.SelectStmt) {
+-	var def *ir.CommStmt
++	var def *ir.CommClause
+ 	lno := ir.SetPos(sel)
+ 	Stmts(sel.Init())
+ 	for _, ncase := range sel.Cases {
+diff --git a/src/cmd/compile/internal/walk/select.go b/src/cmd/compile/internal/walk/select.go
+index f51684c9b6..1c5e1d7e64 100644
+--- a/src/cmd/compile/internal/walk/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -29,7 +29,7 @@ func walkSelect(sel *ir.SelectStmt) {
+ 	base.Pos = lno
+ }
+ 
+-func walkSelectCases(cases []*ir.CommStmt) []ir.Node {
++func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 	ncas := len(cases)
+ 	sellineno := base.Pos
+ 
+@@ -73,7 +73,7 @@ func walkSelectCases(cases []*ir.CommStmt) []ir.Node {
+ 
+ 	// convert case value arguments to addresses.
+ 	// this rewrite is used by both the general code and the next optimization.
+-	var dflt *ir.CommStmt
++	var dflt *ir.CommClause
+ 	for _, cas := range cases {
+ 		ir.SetPos(cas)
+ 		n := cas.Comm
+@@ -146,7 +146,7 @@ func walkSelectCases(cases []*ir.CommStmt) []ir.Node {
+ 	if dflt != nil {
+ 		ncas--
+ 	}
+-	casorder := make([]*ir.CommStmt, ncas)
++	casorder := make([]*ir.CommClause, ncas)
+ 	nsends, nrecvs := 0, 0
+ 
+ 	var init []ir.Node
+@@ -242,7 +242,7 @@ func walkSelectCases(cases []*ir.CommStmt) []ir.Node {
+ 	}
+ 
+ 	// dispatch cases
+-	dispatch := func(cond ir.Node, cas *ir.CommStmt) {
++	dispatch := func(cond ir.Node, cas *ir.CommClause) {
+ 		cond = typecheck.Expr(cond)
+ 		cond = typecheck.DefaultLit(cond, nil)
+ 

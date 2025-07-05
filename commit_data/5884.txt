@@ -7,7 +7,56 @@ Date:   Mon Jul 26 16:19:39 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1880047
-
+---
  src/pkg/net/sock.go    |  6 ++++++
  src/pkg/net/tcpsock.go | 13 ++++++++++++-
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index fbdb695839..d04d4dd7c2 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -129,6 +129,12 @@ func setKeepAlive(fd *netFD, keepalive bool) os.Error {
+ 	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive))
+ }
+ 
++func setNoDelay(fd *netFD, noDelay bool) os.Error {
++	fd.incref()
++	defer fd.decref()
++	return setsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay))
++}
++
+ func setLinger(fd *netFD, sec int) os.Error {
+ 	var l syscall.Linger
+ 	if sec >= 0 {
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index d40035291d..7a60cd2e7d 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -73,7 +73,7 @@ type TCPConn struct {
+ 
+ func newTCPConn(fd *netFD) *TCPConn {
+ 	c := &TCPConn{fd}
+-	setsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, 1)
++	c.SetNoDelay(true)
+ 	return c
+ }
+ 
+@@ -192,6 +192,17 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) os.Error {
+ 	return setKeepAlive(c.fd, keepalive)
+ }
+ 
++// SetNoDelay controls whether the operating system should delay
++// packet transmission in hopes of sending fewer packets
++// (Nagle's algorithm).  The default is true (no delay), meaning
++// that data is sent as soon as possible after a Write.
++func (c *TCPConn) SetNoDelay(noDelay bool) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setNoDelay(c.fd, noDelay)
++}
++
+ // DialTCP is like Dial but can only connect to TCP networks
+ // and returns a TCPConn structure.
+ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {

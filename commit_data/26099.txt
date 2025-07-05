@@ -10,6 +10,32 @@ Date:   Tue Dec 8 10:04:10 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/17550
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/x509.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 948565ce3e..d9288bb30e 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1048,7 +1048,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 				}
+ 
+ 			case 31:
+-				// RFC 5280, 4.2.1.14
++				// RFC 5280, 4.2.1.13
+ 
+ 				// CRLDistributionPoints ::= SEQUENCE SIZE (1..MAX) OF DistributionPoint
+ 				//
+@@ -1069,6 +1069,11 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 				}
+ 
+ 				for _, dp := range cdp {
++					// Per RFC 5280, 4.2.1.13, one of distributionPoint or cRLIssuer may be empty.
++					if len(dp.DistributionPoint.FullName.Bytes) == 0 {
++						continue
++					}
++
+ 					var n asn1.RawValue
+ 					if _, err := asn1.Unmarshal(dp.DistributionPoint.FullName.Bytes, &n); err != nil {
+ 						return nil, err

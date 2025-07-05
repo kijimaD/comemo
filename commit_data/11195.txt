@@ -8,6 +8,23 @@ Date:   Mon Jan 16 19:29:54 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5532048
-
+---
  src/cmd/5l/asm.c | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 8ec8935ffb..fe3a2f3f2a 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -325,11 +325,6 @@ asmb(void)
+ 	cseek(segdata.fileoff);
+ 	datblk(segdata.vaddr, segdata.filelen);
+ 
+-	/* output read-only data in text segment */
+-	sect = segtext.sect->next;
+-	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+-	datblk(sect->vaddr, sect->len);
+-
+ 	if(iself) {
+ 		/* index of elf text section; needed by asmelfsym, double-checked below */
+ 		/* !debug['d'] causes extra sections before the .text section */

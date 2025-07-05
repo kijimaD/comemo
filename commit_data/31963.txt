@@ -13,6 +13,41 @@ Date:   Sun Mar 26 12:47:20 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 8754b1bcb5..fff17e5b75 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2577,7 +2577,7 @@ type AsmBuf struct {
+ 	vexflag int
+ 	rep     int
+ 	repn    int
+-	lock    int
++	lock    bool
+ }
+ 
+ // Put1 appends one byte to the end of the buffer.
+@@ -4477,7 +4477,7 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 		}
+ 
+ 		if p.As == ALOCK {
+-			asmbuf.lock++
++			asmbuf.lock = true
+ 			return
+ 		}
+ 
+@@ -4539,9 +4539,9 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 			asmbuf.repn = 0
+ 		}
+ 
+-		if asmbuf.lock != 0 {
++		if asmbuf.lock {
+ 			asmbuf.Put1(0xf0)
+-			asmbuf.lock = 0
++			asmbuf.lock = false
+ 		}
+ 	}
+ 

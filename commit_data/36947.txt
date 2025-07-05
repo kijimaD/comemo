@@ -19,10 +19,204 @@ Date:   Mon Jun 11 13:41:23 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Wei Xiao <Wei.Xiao@arm.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        | 13 +++++------
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++--
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 12 +++++------
  src/cmd/compile/internal/ssa/opGen.go        | 28 +++++++++++++++---------
  src/cmd/compile/internal/ssa/rewriteARM64.go | 32 +++++++++++++++++++---------
  5 files changed, 56 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 4459596e24..501eafe03f 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -603,25 +603,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.Patch(p2, p5)
+ 	case ssa.OpARM64LoweredAtomicAnd8,
+ 		ssa.OpARM64LoweredAtomicOr8:
+-		// LDAXRB	(Rarg0), Rtmp
+-		// AND/OR	Rarg1, Rtmp
+-		// STLXRB	Rtmp, (Rarg0), Rtmp
++		// LDAXRB	(Rarg0), Rout
++		// AND/OR	Rarg1, Rout
++		// STLXRB	Rout, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -3(PC)
+ 		r0 := v.Args[0].Reg()
+ 		r1 := v.Args[1].Reg()
++		out := v.Reg0()
+ 		p := s.Prog(arm64.ALDAXRB)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = r0
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = arm64.REGTMP
++		p.To.Reg = out
+ 		p1 := s.Prog(v.Op.Asm())
+ 		p1.From.Type = obj.TYPE_REG
+ 		p1.From.Reg = r1
+ 		p1.To.Type = obj.TYPE_REG
+-		p1.To.Reg = arm64.REGTMP
++		p1.To.Reg = out
+ 		p2 := s.Prog(arm64.ASTLXRB)
+ 		p2.From.Type = obj.TYPE_REG
+-		p2.From.Reg = arm64.REGTMP
++		p2.From.Reg = out
+ 		p2.To.Type = obj.TYPE_MEM
+ 		p2.To.Reg = r0
+ 		p2.RegTo2 = arm64.REGTMP
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index b5eeb96468..a1a3cccf3c 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -540,8 +540,9 @@
+ (AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
+ (AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
+ 
+-(AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
+-(AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
++// Currently the updated value is not used, but we need a register to temporarily hold it.
++(AtomicAnd8 ptr val mem) -> (Select1 (LoweredAtomicAnd8 ptr val mem))
++(AtomicOr8  ptr val mem) -> (Select1 (LoweredAtomicOr8  ptr val mem))
+ 
+ // Write barrier.
+ (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index b54de53f59..9e8b07ec4b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -596,13 +596,13 @@ func init() {
+ 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+ 
+ 		// atomic and/or.
+-		// *arg0 &= (|=) arg1. arg2=mem. returns memory. auxint must be zero.
+-		// LDAXRB	(Rarg0), Rtmp
+-		// AND/OR	Rarg1, Rtmp
+-		// STLXRB	Rtmp, (Rarg0), Rtmp
++		// *arg0 &= (|=) arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
++		// LDAXRB	(Rarg0), Rout
++		// AND/OR	Rarg1, Rout
++		// STLXRB	Rout, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -3(PC)
+-		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true},
+-		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "ORR", faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicOr8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "ORR", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
+ 
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 		// It saves all GP registers if necessary,
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 4e12132aa5..eec5b02713 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -16759,29 +16759,37 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "LoweredAtomicAnd8",
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		hasSideEffects: true,
+-		asm:            arm64.AAND,
++		name:            "LoweredAtomicAnd8",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		asm:             arm64.AAND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+ 				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+ 			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
+ 		},
+ 	},
+ 	{
+-		name:           "LoweredAtomicOr8",
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		hasSideEffects: true,
+-		asm:            arm64.AORR,
++		name:            "LoweredAtomicOr8",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		asm:             arm64.AORR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+ 				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+ 			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
+ 		},
+ 	},
+ 	{
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index f538011198..60121038e4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -25925,18 +25925,24 @@ func rewriteValueARM64_OpAtomicAdd64_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueARM64_OpAtomicAnd8_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
+ 	// match: (AtomicAnd8 ptr val mem)
+ 	// cond:
+-	// result: (LoweredAtomicAnd8 ptr val mem)
++	// result: (Select1 (LoweredAtomicAnd8 ptr val mem))
+ 	for {
+ 		_ = v.Args[2]
+ 		ptr := v.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		v.reset(OpARM64LoweredAtomicAnd8)
+-		v.AddArg(ptr)
+-		v.AddArg(val)
+-		v.AddArg(mem)
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Pos, OpARM64LoweredAtomicAnd8, types.NewTuple(typ.UInt8, types.TypeMem))
++		v0.AddArg(ptr)
++		v0.AddArg(val)
++		v0.AddArg(mem)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -26051,18 +26057,24 @@ func rewriteValueARM64_OpAtomicLoadPtr_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueARM64_OpAtomicOr8_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
+ 	// match: (AtomicOr8 ptr val mem)
+ 	// cond:
+-	// result: (LoweredAtomicOr8 ptr val mem)
++	// result: (Select1 (LoweredAtomicOr8 ptr val mem))
+ 	for {
+ 		_ = v.Args[2]
+ 		ptr := v.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		v.reset(OpARM64LoweredAtomicOr8)
+-		v.AddArg(ptr)
+-		v.AddArg(val)
+-		v.AddArg(mem)
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Pos, OpARM64LoweredAtomicOr8, types.NewTuple(typ.UInt8, types.TypeMem))
++		v0.AddArg(ptr)
++		v0.AddArg(val)
++		v0.AddArg(mem)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }

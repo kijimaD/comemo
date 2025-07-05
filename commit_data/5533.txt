@@ -9,6 +9,54 @@ Date:   Mon May 24 14:58:26 2010 -0700
     R=rsc, r, iant, ken2
     CC=golang-dev
     https://golang.org/cl/1281041
-
+---
  doc/go_spec.html | 23 +++++++++++++++++------
  1 file changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 156ee6a45b..8c958b159d 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of May 14, 2010 -->
++<!-- subtitle Version of May 24, 2010 -->
+ 
+ <!--
+ Todo
+@@ -3254,7 +3254,18 @@ that can be converted to type <code>T</code>.
+ </p>
+ 
+ <pre class="ebnf">
+-Conversion = LiteralType "(" Expression ")" .
++Conversion = Type "(" Expression ")" .
++</pre>
++
++<p>
++If the type starts with an operator it must be parenthesized:
++</p>
++
++<pre>
++*Point(p)        // same as *(Point(p))
++(*Point)(p)      // p is converted to (*Point)
++&lt;-chan int(c)    // same as &lt;-(chan int(c))
++(&lt;-chan int)(c)  // c is converted to (&lt;-chan int)
+ </pre>
+ 
+ <p>
+@@ -3318,11 +3329,11 @@ string containing the UTF-8 representation of the integer.
+ Negative values are converted to <code>"\uFFFD"</code>.
+ 
+ <pre>
+-string('a')  // "a"
+-string(-1)  // "\ufffd" == "\xef\xbf\xbd "
+-string(0xf8)  // "\u00f8" == "ø" == "\xc3\xb8"
++string('a')           // "a"
++string(-1)            // "\ufffd" == "\xef\xbf\xbd "
++string(0xf8)          // "\u00f8" == "ø" == "\xc3\xb8"
+ type MyString string
+-MyString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
++MyString(0x65e5)      // "\u65e5" == "日" == "\xe6\x97\xa5"
+ </pre>
+ </li>
+ 

@@ -21,7 +21,104 @@ Date:   Wed Oct 5 18:32:21 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go     | 16 +++++++++-------
  src/runtime/mgcsweepbuf.go | 47 +++++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 55 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index eb96858043..e0f82d496b 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -77,7 +77,13 @@ func gcMarkRootPrepare() {
+ 		// above invariants for objects that get finalizers
+ 		// after concurrent mark. In STW GC, this will happen
+ 		// during mark termination.
+-		work.nSpanRoots = (len(work.spans) + rootBlockSpans - 1) / rootBlockSpans
++		//
++		// We're only interested in scanning the in-use spans,
++		// which will all be swept at this point. More spans
++		// may be added to this list during concurrent GC, but
++		// we only care about spans that were allocated before
++		// this mark phase.
++		work.nSpanRoots = mheap_.sweepSpans[mheap_.sweepgen/2%2].numBlocks()
+ 
+ 		// On the first markroot, we need to scan all Gs. Gs
+ 		// may be created after this point, but it's okay that
+@@ -332,18 +338,14 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 	}
+ 
+ 	sg := mheap_.sweepgen
+-	startSpan := shard * rootBlockSpans
+-	endSpan := (shard + 1) * rootBlockSpans
+-	if endSpan > len(work.spans) {
+-		endSpan = len(work.spans)
+-	}
++	spans := mheap_.sweepSpans[mheap_.sweepgen/2%2].block(shard)
+ 	// Note that work.spans may not include spans that were
+ 	// allocated between entering the scan phase and now. This is
+ 	// okay because any objects with finalizers in those spans
+ 	// must have been allocated and given finalizers after we
+ 	// entered the scan phase, so addfinalizer will have ensured
+ 	// the above invariants for them.
+-	for _, s := range work.spans[startSpan:endSpan] {
++	for _, s := range spans {
+ 		if s.state != mSpanInUse {
+ 			continue
+ 		}
+diff --git a/src/runtime/mgcsweepbuf.go b/src/runtime/mgcsweepbuf.go
+index 4a7b535e57..6c1118e385 100644
+--- a/src/runtime/mgcsweepbuf.go
++++ b/src/runtime/mgcsweepbuf.go
+@@ -129,5 +129,50 @@ func (b *gcSweepBuf) pop() *mspan {
+ 	top, bottom := cursor/gcSweepBlockEntries, cursor%gcSweepBlockEntries
+ 	blockp := (**gcSweepBlock)(add(b.spine, sys.PtrSize*uintptr(top)))
+ 	block := *blockp
+-	return block.spans[bottom]
++	s := block.spans[bottom]
++	// Clear the pointer for block(i).
++	block.spans[bottom] = nil
++	return s
++}
++
++// numBlocks returns the number of blocks in buffer b. numBlocks is
++// safe to call concurrently with any other operation. Spans that have
++// been pushed prior to the call to numBlocks are guaranteed to appear
++// in some block in the range [0, numBlocks()), assuming there are no
++// intervening pops. Spans that are pushed after the call may also
++// appear in these blocks.
++func (b *gcSweepBuf) numBlocks() int {
++	return int((atomic.Load(&b.index) + gcSweepBlockEntries - 1) / gcSweepBlockEntries)
++}
++
++// block returns the spans in the i'th block of buffer b. block is
++// safe to call concurrently with push.
++func (b *gcSweepBuf) block(i int) []*mspan {
++	// Perform bounds check before loading spine address since
++	// push ensures the allocated length is at least spineLen.
++	if i < 0 || uintptr(i) >= atomic.Loaduintptr(&b.spineLen) {
++		throw("block index out of range")
++	}
++
++	// Get block i.
++	spine := atomic.Loadp(unsafe.Pointer(&b.spine))
++	blockp := add(spine, sys.PtrSize*uintptr(i))
++	block := (*gcSweepBlock)(atomic.Loadp(blockp))
++
++	// Slice the block if necessary.
++	cursor := uintptr(atomic.Load(&b.index))
++	top, bottom := cursor/gcSweepBlockEntries, cursor%gcSweepBlockEntries
++	var spans []*mspan
++	if uintptr(i) < top {
++		spans = block.spans[:]
++	} else {
++		spans = block.spans[:bottom]
++	}
++
++	// push may have reserved a slot but not filled it yet, so
++	// trim away unused entries.
++	for len(spans) > 0 && spans[len(spans)-1] == nil {
++		spans = spans[:len(spans)-1]
++	}
++	return spans
+ }

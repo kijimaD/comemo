@@ -18,8 +18,109 @@ Date:   Thu Apr 8 17:16:13 2021 -0400
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/script_test.go     | 15 ++-------------
  src/cmd/go/stop_other_test.go | 33 +++++++++++++++++++++++++++++++++
  src/cmd/go/stop_unix_test.go  | 17 +++++++++++++++++
  3 files changed, 52 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index c353a9cb01..20d0f956a7 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -172,6 +172,7 @@ func (ts *testScript) setup() {
+ 		"GOPRIVATE=",
+ 		"GOROOT=" + testGOROOT,
+ 		"GOROOT_FINAL=" + os.Getenv("GOROOT_FINAL"), // causes spurious rebuilds and breaks the "stale" built-in if not propagated
++		"GOTRACEBACK=all",
+ 		"TESTGO_GOROOT=" + testGOROOT,
+ 		"GOSUMDB=" + testSumDBVerifierKey,
+ 		"GONOPROXY=",
+@@ -1120,24 +1121,12 @@ func (ts *testScript) startBackground(want simpleStatus, command string, args ..
+ 	}
+ 
+ 	go func() {
+-		bg.err = waitOrStop(ts.ctx, cmd, stopSignal(), ts.gracePeriod)
++		bg.err = waitOrStop(ts.ctx, cmd, quitSignal(), ts.gracePeriod)
+ 		close(done)
+ 	}()
+ 	return bg, nil
+ }
+ 
+-// stopSignal returns the appropriate signal to use to request that a process
+-// stop execution.
+-func stopSignal() os.Signal {
+-	if runtime.GOOS == "windows" {
+-		// Per https://golang.org/pkg/os/#Signal, “Interrupt is not implemented on
+-		// Windows; using it with os.Process.Signal will return an error.”
+-		// Fall back to Kill instead.
+-		return os.Kill
+-	}
+-	return os.Interrupt
+-}
+-
+ // waitOrStop waits for the already-started command cmd by calling its Wait method.
+ //
+ // If cmd does not return before ctx is done, waitOrStop sends it the given interrupt signal.
+diff --git a/src/cmd/go/stop_other_test.go b/src/cmd/go/stop_other_test.go
+new file mode 100644
+index 0000000000..e1cc6cf8ba
+--- /dev/null
++++ b/src/cmd/go/stop_other_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !(aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris)
++// +build !aix
++// +build !darwin
++// +build !dragonfly
++// +build !freebsd
++// +build !js !wasm
++// +build !linux
++// +build !netbsd
++// +build !openbsd
++// +build !solaris
++
++package main_test
++
++import (
++	"os"
++	"runtime"
++)
++
++// quitSignal returns the appropriate signal to use to request that a process
++// quit execution.
++func quitSignal() os.Signal {
++	if runtime.GOOS == "windows" {
++		// Per https://golang.org/pkg/os/#Signal, “Interrupt is not implemented on
++		// Windows; using it with os.Process.Signal will return an error.”
++		// Fall back to Kill instead.
++		return os.Kill
++	}
++	return os.Interrupt
++}
+diff --git a/src/cmd/go/stop_unix_test.go b/src/cmd/go/stop_unix_test.go
+new file mode 100644
+index 0000000000..ac35b240f0
+--- /dev/null
++++ b/src/cmd/go/stop_unix_test.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
++// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
++
++package main_test
++
++import (
++	"os"
++	"syscall"
++)
++
++func quitSignal() os.Signal {
++	return syscall.SIGQUIT
++}

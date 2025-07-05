@@ -11,7 +11,78 @@ Date:   Mon Apr 30 11:42:54 2018 -0500
     Run-TryBot: Sam Whited <sam@samwhited.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 19 ++++++++++++++-----
  src/net/http/server.go     | 12 ++++++++++--
  2 files changed, 24 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 529629f722..4be94a6709 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2589,20 +2589,29 @@ func TestRedirect(t *testing.T) {
+ 
+ // Test that Content-Type header is set for GET and HEAD requests.
+ func TestRedirectContentTypeAndBody(t *testing.T) {
++	var unsetCT = []string{"sentinalValNoCT"}
++
+ 	var tests = []struct {
++		initCT   []string
+ 		method   string
+ 		wantCT   string
+ 		wantBody string
+ 	}{
+-		{MethodGet, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
+-		{MethodHead, "text/html; charset=utf-8", ""},
+-		{MethodPost, "", ""},
+-		{MethodDelete, "", ""},
+-		{"foo", "", ""},
++		{unsetCT, MethodGet, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
++		{unsetCT, MethodHead, "text/html; charset=utf-8", ""},
++		{unsetCT, MethodPost, "", ""},
++		{unsetCT, MethodDelete, "", ""},
++		{unsetCT, "foo", "", ""},
++		{[]string{"application/test"}, MethodGet, "application/test", ""},
++		{[]string{}, MethodGet, "", ""},
++		{nil, MethodGet, "", ""},
+ 	}
+ 	for _, tt := range tests {
+ 		req := httptest.NewRequest(tt.method, "http://example.com/qux/", nil)
+ 		rec := httptest.NewRecorder()
++		if len(tt.initCT) != 1 || &tt.initCT[0] != &unsetCT[0] {
++			rec.Header()["Content-Type"] = tt.initCT
++		}
+ 		Redirect(rec, req, "/foo", 302)
+ 		if got, want := rec.Header().Get("Content-Type"), tt.wantCT; got != want {
+ 			t.Errorf("Redirect(%q) generated Content-Type header %q; want %q", tt.method, got, want)
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 1cc4ba6adb..fca46d3480 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2003,6 +2003,9 @@ func StripPrefix(prefix string, h Handler) Handler {
+ //
+ // The provided code should be in the 3xx range and is usually
+ // StatusMovedPermanently, StatusFound or StatusSeeOther.
++// If Content-Type has not been set Redirect sets the header to
++// "text/html; charset=utf-8" and writes a small HTML body.
++// Setting the Content-Type header to nil also prevents writing the body.
+ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+ 	// parseURL is just url.Parse (url is shadowed for godoc).
+ 	if u, err := parseURL(url); err == nil {
+@@ -2039,9 +2042,14 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+ 		}
+ 	}
+ 
+-	w.Header().Set("Location", hexEscapeNonASCII(url))
++	h := w.Header()
++	h.Set("Location", hexEscapeNonASCII(url))
++
++	if _, ok := h["Content-Type"]; ok {
++		return
++	}
+ 	if r.Method == "GET" || r.Method == "HEAD" {
+-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
++		h.Set("Content-Type", "text/html; charset=utf-8")
+ 	}
+ 	w.WriteHeader(code)
+ 

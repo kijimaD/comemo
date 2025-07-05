@@ -14,10 +14,141 @@ Date:   Sun Apr 26 10:40:38 2020 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.15.html                        |  6 ++++++
  src/cmd/go/go_test.go                  | 32 ++++++++++++++++++++++++++++----
  src/cmd/go/internal/work/init.go       |  2 ++
  src/cmd/link/internal/ld/dwarf_test.go |  9 +++++++--
  src/cmd/nm/nm_test.go                  |  2 +-
  5 files changed, 44 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 97479d1537..f5e72649fa 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -31,6 +31,12 @@ TODO
+ 
+ <h2 id="ports">Ports</h2>
+ 
++<p> <!-- CL 214397 and CL 230217 -->
++  Go 1.15 now generates Windows ASLR executables when -buildmode=pie
++  cmd/link flag is provided. Go command uses -buildmode=pie by default
++  on Windows.
++</p>
++
+ <p>
+ TODO
+ </p>
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e1cf1f8ff5..d7f6b47135 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2082,19 +2082,38 @@ func TestBuildmodePIE(t *testing.T) {
+ 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
+ 	}
+ 	t.Run("non-cgo", func(t *testing.T) {
+-		testBuildmodePIE(t, false)
++		testBuildmodePIE(t, false, true)
+ 	})
+ 	if canCgo {
+ 		switch runtime.GOOS {
+ 		case "darwin", "freebsd", "linux", "windows":
+ 			t.Run("cgo", func(t *testing.T) {
+-				testBuildmodePIE(t, true)
++				testBuildmodePIE(t, true, true)
+ 			})
+ 		}
+ 	}
+ }
+ 
+-func testBuildmodePIE(t *testing.T, useCgo bool) {
++func TestWindowsDefaultBuildmodIsPIE(t *testing.T) {
++	if testing.Short() && testenv.Builder() == "" {
++		t.Skipf("skipping in -short mode on non-builder")
++	}
++
++	if runtime.GOOS != "windows" {
++		t.Skip("skipping windows only test")
++	}
++
++	t.Run("non-cgo", func(t *testing.T) {
++		testBuildmodePIE(t, false, false)
++	})
++	if canCgo {
++		t.Run("cgo", func(t *testing.T) {
++			testBuildmodePIE(t, true, false)
++		})
++	}
++}
++
++func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+@@ -2106,7 +2125,12 @@ func testBuildmodePIE(t *testing.T, useCgo bool) {
+ 	tg.tempFile("main.go", fmt.Sprintf(`package main;%s func main() { print("hello") }`, s))
+ 	src := tg.path("main.go")
+ 	obj := tg.path("main.exe")
+-	tg.run("build", "-buildmode=pie", "-o", obj, src)
++	args := []string{"build"}
++	if setBuildmodeToPIE {
++		args = append(args, "-buildmode=pie")
++	}
++	args = append(args, "-o", obj, src)
++	tg.run(args...)
+ 
+ 	switch runtime.GOOS {
+ 	case "linux", "android", "freebsd":
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 921a54f6f0..dad3b10111 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -155,6 +155,8 @@ func buildModeInit() {
+ 		case "android":
+ 			codegenArg = "-shared"
+ 			ldBuildmode = "pie"
++		case "windows":
++			ldBuildmode = "pie"
+ 		case "darwin":
+ 			switch cfg.Goarch {
+ 			case "arm64":
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index cf6bec8053..a1c8496eea 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -924,8 +924,8 @@ func TestRuntimeTypeAttrInternal(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
+-		t.Skip("skipping on windows/arm; test is incompatible with relocatable binaries")
++	if runtime.GOOS == "windows" {
++		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
+ 	}
+ 
+ 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
+@@ -944,6 +944,11 @@ func TestRuntimeTypeAttrExternal(t *testing.T) {
+ 	if runtime.GOARCH == "ppc64" {
+ 		t.Skip("-linkmode=external not supported on ppc64")
+ 	}
++
++	if runtime.GOOS == "windows" {
++		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
++	}
++
+ 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
+ }
+ 
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 7dfb482b18..a49423b212 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -170,7 +170,7 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
+ 				return true
+ 			}
+ 		}
+-		if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
++		if runtime.GOOS == "windows" {
+ 			return true
+ 		}
+ 		return false

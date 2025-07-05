@@ -12,8 +12,62 @@ Date:   Mon Feb 26 04:41:20 2018 +0000
     GitHub-Pull-Request: golang/go#24123
     Reviewed-on: https://go-review.googlesource.com/96984
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/progs/error2.go  | 4 ++--
  doc/progs/error3.go  | 2 +-
  src/net/http/triv.go | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/progs/error2.go b/doc/progs/error2.go
+index 2b0e0c3563..086b6710d3 100644
+--- a/doc/progs/error2.go
++++ b/doc/progs/error2.go
+@@ -20,11 +20,11 @@ func viewRecord(w http.ResponseWriter, r *http.Request) {
+ 	key := datastore.NewKey(c, "Record", r.FormValue("id"), 0, nil)
+ 	record := new(Record)
+ 	if err := datastore.Get(c, key, record); err != nil {
+-		http.Error(w, err.Error(), 500)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	if err := viewTemplate.Execute(w, record); err != nil {
+-		http.Error(w, err.Error(), 500)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 	}
+ }
+ 
+diff --git a/doc/progs/error3.go b/doc/progs/error3.go
+index e4e57e077b..d9e56b5d64 100644
+--- a/doc/progs/error3.go
++++ b/doc/progs/error3.go
+@@ -33,7 +33,7 @@ type appHandler func(http.ResponseWriter, *http.Request) error
+ 
+ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 	if err := fn(w, r); err != nil {
+-		http.Error(w, err.Error(), 500)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 	}
+ }
+ 
+diff --git a/src/net/http/triv.go b/src/net/http/triv.go
+index cfbc5778c1..23e65d56e8 100644
+--- a/src/net/http/triv.go
++++ b/src/net/http/triv.go
+@@ -107,7 +107,7 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
+ 
+ 	date, err := exec.Command("/bin/date").Output()
+ 	if err != nil {
+-		http.Error(rw, err.Error(), 500)
++		http.Error(rw, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	rw.Write(date)
+@@ -115,7 +115,7 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
+ 
+ func Logger(w http.ResponseWriter, req *http.Request) {
+ 	log.Print(req.URL)
+-	http.Error(w, "oops", 404)
++	http.Error(w, "oops", http.StatusNotFound)
+ }
+ 
+ var webroot = flag.String("root", os.Getenv("HOME"), "web root directory")

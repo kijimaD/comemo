@@ -12,6 +12,20 @@ Date:   Thu Aug 6 09:54:54 2020 -0400
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/pcln.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 936cfe2868..606736e271 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -104,7 +104,7 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
+ 	ldr := ctxt.loader
+ 
+ 	state := &pclntab{
+-		funcNameOffset: make(map[loader.Sym]int32, ldr.NSym()),
++		funcNameOffset: make(map[loader.Sym]int32),
+ 	}
+ 
+ 	// Gather some basic stats and info.

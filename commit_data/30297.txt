@@ -15,8 +15,68 @@ Date:   Sun Oct 30 12:30:47 2016 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/testgodefs/test.bash | 2 +-
  src/cmd/cgo/doc.go            | 3 +++
  src/cmd/cgo/main.go           | 7 +++++++
  3 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testgodefs/test.bash b/misc/cgo/testgodefs/test.bash
+index 14235c05cb..a82ff9328f 100755
+--- a/misc/cgo/testgodefs/test.bash
++++ b/misc/cgo/testgodefs/test.bash
+@@ -12,7 +12,7 @@ FILE_PREFIXES="anonunion issue8478"
+ RM=
+ for FP in $FILE_PREFIXES
+ do
+-  go tool cgo -godefs ${FP}.go > ${FP}_defs.go
++  go tool cgo -godefs -srcdir . ${FP}.go > ${FP}_defs.go
+   RM="${RM} ${FP}_defs.go"
+ done
+ 
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index e5d288167e..85441e61c0 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -326,6 +326,9 @@ The following options are available when running cgo directly:
+ 		Write out input file in Go syntax replacing C package
+ 		names with real values. Used to generate files in the
+ 		syscall package when bootstrapping a new target.
++	-srcdir directory
++		Find the Go input files, listed on the command line,
++		in directory.
+ 	-objdir directory
+ 		Put all generated files in directory.
+ 	-importpath string
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 52cffd6520..77b45a5aed 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -178,6 +178,7 @@ var dynlinker = flag.Bool("dynlinker", false, "record dynamic linker information
+ // constant values used in the host's C libraries and system calls.
+ var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for C file to standard output")
+ 
++var srcDir = flag.String("srcdir", "", "source directory")
+ var objDir = flag.String("objdir", "", "object directory")
+ var importPath = flag.String("importpath", "", "import path of package being built (for comments in generated files)")
+ var exportHeader = flag.String("exportheader", "", "where to write export header if any exported functions")
+@@ -256,6 +257,9 @@ func main() {
+ 	// Use the beginning of the md5 of the input to disambiguate.
+ 	h := md5.New()
+ 	for _, input := range goFiles {
++		if *srcDir != "" {
++			input = filepath.Join(*srcDir, input)
++		}
+ 		f, err := os.Open(input)
+ 		if err != nil {
+ 			fatalf("%s", err)
+@@ -267,6 +271,9 @@ func main() {
+ 
+ 	fs := make([]*File, len(goFiles))
+ 	for i, input := range goFiles {
++		if *srcDir != "" {
++			input = filepath.Join(*srcDir, input)
++		}
+ 		f := new(File)
+ 		f.ReadGo(input)
+ 		f.DiscardCgoDirectives()

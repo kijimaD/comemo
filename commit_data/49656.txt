@@ -17,7 +17,78 @@ Date:   Thu Aug 26 15:59:36 2021 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/go/testdata/script/link_external_undef.txt | 48 ++++++++++++++++++++++
  src/cmd/link/internal/ld/data.go                   |  5 +++
  2 files changed, 53 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/link_external_undef.txt b/src/cmd/go/testdata/script/link_external_undef.txt
+new file mode 100644
+index 0000000000..d86b3a374e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/link_external_undef.txt
+@@ -0,0 +1,48 @@
++
++# Test case for issue 47993, in which the linker crashes
++# on a bad input instead of issuing an error and exiting.
++
++# This test requires external linking, so use cgo as a proxy 
++[!cgo] skip
++
++! go build -ldflags='-linkmode=external' .
++! stderr 'panic'
++stderr '^.*unreachable sym in relocation.*'
++
++-- go.mod --
++
++module issue47993
++
++go 1.16
++
++-- main.go --
++
++package main
++
++type M struct {
++	b bool
++}
++
++// Note the body-less func def here. This is what causes the problems.
++func (m *M) run(fp func())
++
++func doit(m *M) {
++        InAsm()
++	m.run(func() {
++	})
++}
++
++func main() {
++     m := &M{true}
++     doit(m)
++}
++
++func InAsm() 
++
++-- main.s --
++
++// Add an assembly function so as to leave open the possibility
++// that body-less functions in Go might be defined in assembly.
++
++// Currently we just need an empty file here.
++
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 70fbb9dc4e..e0591c3959 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -436,6 +436,11 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 			if weak && !ldr.AttrReachable(rs) {
+ 				continue
+ 			}
++			if ldr.SymSect(rs) == nil {
++				st.err.Errorf(s, "unreachable sym in relocation: %s", ldr.SymName(rs))
++				continue
++			}
++
+ 			// The method offset tables using this relocation expect the offset to be relative
+ 			// to the start of the first text section, even if there are multiple.
+ 			if ldr.SymSect(rs).Name == ".text" {

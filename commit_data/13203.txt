@@ -9,8 +9,134 @@ Date:   Wed May 30 00:08:58 2012 +0200
     R=golang-dev, r, rsc, dave
     CC=golang-dev, remy
     https://golang.org/cl/6214061
-
+---
  src/pkg/net/net_test.go       | 55 +++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/unixsock_plan9.go | 12 ++++++++++
  src/pkg/net/unixsock_posix.go | 18 ++++++++++++++
  3 files changed, 85 insertions(+)
+
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 9c8aed28a8..b627e27130 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -6,6 +6,8 @@ package net
+ 
+ import (
+ 	"io"
++	"io/ioutil"
++	"os"
+ 	"runtime"
+ 	"testing"
+ 	"time"
+@@ -58,6 +60,59 @@ func TestShutdown(t *testing.T) {
+ 	}
+ }
+ 
++func TestShutdownUnix(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Logf("skipping test on %q", runtime.GOOS)
++		return
++	}
++	f, err := ioutil.TempFile("", "go_net_unixtest")
++	if err != nil {
++		t.Fatalf("TempFile: %s", err)
++	}
++	f.Close()
++	tmpname := f.Name()
++	os.Remove(tmpname)
++	ln, err := Listen("unix", tmpname)
++	if err != nil {
++		t.Fatalf("ListenUnix on %s: %s", tmpname, err)
++	}
++	defer os.Remove(tmpname)
++
++	go func() {
++		c, err := ln.Accept()
++		if err != nil {
++			t.Fatalf("Accept: %v", err)
++		}
++		var buf [10]byte
++		n, err := c.Read(buf[:])
++		if n != 0 || err != io.EOF {
++			t.Fatalf("server Read = %d, %v; want 0, io.EOF", n, err)
++		}
++		c.Write([]byte("response"))
++		c.Close()
++	}()
++
++	c, err := Dial("unix", tmpname)
++	if err != nil {
++		t.Fatalf("Dial: %v", err)
++	}
++	defer c.Close()
++
++	err = c.(*UnixConn).CloseWrite()
++	if err != nil {
++		t.Fatalf("CloseWrite: %v", err)
++	}
++	var buf [10]byte
++	n, err := c.Read(buf[:])
++	if err != nil {
++		t.Fatalf("client Read: %d, %v", n, err)
++	}
++	got := string(buf[:n])
++	if got != "response" {
++		t.Errorf("read = %q, want \"response\"", got)
++	}
++}
++
+ func TestTCPListenClose(t *testing.T) {
+ 	ln, err := Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+diff --git a/src/pkg/net/unixsock_plan9.go b/src/pkg/net/unixsock_plan9.go
+index 7b4ae6bd11..2ad9b15bb8 100644
+--- a/src/pkg/net/unixsock_plan9.go
++++ b/src/pkg/net/unixsock_plan9.go
+@@ -72,6 +72,18 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+ 	return
+ }
+ 
++// CloseRead shuts down the reading side of the Unix domain connection.
++// Most callers should just use Close.
++func (c *UnixConn) CloseRead() error {
++	return syscall.EPLAN9
++}
++
++// CloseWrite shuts down the writing side of the Unix domain connection.
++// Most callers should just use Close.
++func (c *UnixConn) CloseWrite() error {
++	return syscall.EPLAN9
++}
++
+ // DialUnix connects to the remote address raddr on the network net,
+ // which must be "unix" or "unixgram".  If laddr is not nil, it is used
+ // as the local address for the connection.
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 1529201fa3..2bef5eaaf1 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -207,6 +207,24 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
+ 	return c.fd.WriteMsg(b, oob, nil)
+ }
+ 
++// CloseRead shuts down the reading side of the Unix domain connection.
++// Most callers should just use Close.
++func (c *UnixConn) CloseRead() error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return c.fd.CloseRead()
++}
++
++// CloseWrite shuts down the writing side of the Unix domain connection.
++// Most callers should just use Close.
++func (c *UnixConn) CloseWrite() error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return c.fd.CloseWrite()
++}
++
+ // DialUnix connects to the remote address raddr on the network net,
+ // which must be "unix" or "unixgram".  If laddr is not nil, it is used
+ // as the local address for the connection.

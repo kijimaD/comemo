@@ -16,7 +16,41 @@ Date:   Wed Feb 8 16:06:50 2023 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go             | 5 -----
  src/cmd/compile/internal/reflectdata/reflect.go | 6 ------
  2 files changed, 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index b2a37b9b02..3c2b9c48ec 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -293,11 +293,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	base.Timer.Start("fe", "escapes")
+ 	escape.Funcs(typecheck.Target.Decls)
+ 
+-	// TODO(mdempsky): This is a hack. We need a proper, global work
+-	// queue for scheduling function compilation so components don't
+-	// need to adjust their behavior depending on when they're called.
+-	reflectdata.AfterGlobalEscapeAnalysis = true
+-
+ 	// Collect information for go:nowritebarrierrec
+ 	// checking. This must happen before transforming closures during Walk
+ 	// We'll do the final check after write barriers are
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index afc3ee4fc9..cde8c68876 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1869,12 +1869,6 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 	return lsym
+ }
+ 
+-// AfterGlobalEscapeAnalysis tracks whether package gc has already
+-// performed the main, global escape analysis pass. If so,
+-// methodWrapper takes responsibility for escape analyzing any
+-// generated wrappers.
+-var AfterGlobalEscapeAnalysis bool
+-
+ var ZeroSize int64
+ 
+ // MarkTypeUsedInInterface marks that type t is converted to an interface.

@@ -10,6 +10,20 @@ Date:   Tue Nov 14 15:33:17 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/78124
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/mail/message.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 0a9847183a..4f3184f3e8 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -13,7 +13,7 @@ Notable divergences:
+ 	* The full range of spacing (the CFWS syntax element) is not supported,
+ 	  such as breaking addresses across lines.
+ 	* No unicode normalization is performed.
+-	* Address with some RFC 5322 3.2.3 specials without quotes are parsed.
++	* The special characters ()[]:;@\, are allowed to appear unquoted in names.
+ */
+ package mail
+ 

@@ -14,6 +14,20 @@ Date:   Fri Feb 6 14:33:44 2015 -0500
     Change-Id: I355697de51baf12162ba6cb82f389dad93f93dc5
     Reviewed-on: https://go-review.googlesource.com/4070
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 7540fbfabc..4911dc000d 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func checkGdbPython(t *testing.T) {
+-	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-ex", "python import sys; print('go gdb python support')")
++	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')")
+ 	out, err := cmd.CombinedOutput()
+ 
+ 	if err != nil {

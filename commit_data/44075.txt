@@ -15,7 +15,42 @@ Date:   Thu May 7 16:09:33 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/232859
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules | 2 +-
  src/cmd/compile/internal/ssa/rewritePPC64.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index d8041e810f..761ffa2f95 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -785,7 +785,7 @@
+ (FMOVDstore [off] {sym} ptr (MTVSRD x) mem) => (MOVDstore [off] {sym} ptr x mem)
+ (MOVDstore [off] {sym} ptr (MFVSRD x) mem) => (FMOVDstore [off] {sym} ptr x mem)
+ 
+-(MTVSRD (MOVDconst [c])) => (FMOVDconst [math.Float64frombits(uint64(c))])
++(MTVSRD (MOVDconst [c])) && !math.IsNaN(math.Float64frombits(uint64(c))) => (FMOVDconst [math.Float64frombits(uint64(c))])
+ (MFVSRD (FMOVDconst [c])) => (MOVDconst [int64(math.Float64bits(c))])
+ 
+ (MTVSRD x:(MOVDload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (FMOVDload [off] {sym} ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 0b798c6a72..6a2c164fe0 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -10314,12 +10314,16 @@ func rewriteValuePPC64_OpPPC64MTVSRD(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (MTVSRD (MOVDconst [c]))
++	// cond: !math.IsNaN(math.Float64frombits(uint64(c)))
+ 	// result: (FMOVDconst [math.Float64frombits(uint64(c))])
+ 	for {
+ 		if v_0.Op != OpPPC64MOVDconst {
+ 			break
+ 		}
+ 		c := auxIntToInt64(v_0.AuxInt)
++		if !(!math.IsNaN(math.Float64frombits(uint64(c)))) {
++			break
++		}
+ 		v.reset(OpPPC64FMOVDconst)
+ 		v.AuxInt = float64ToAuxInt(math.Float64frombits(uint64(c)))
+ 		return true

@@ -79,9 +79,346 @@ Date:   Sat Jun 22 13:07:57 2019 +0530
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  misc/wasm/wasm_exec.js    | 91 +++++++++++++++++++++++------------------------
  src/runtime/mem_js.go     |  5 +++
  src/runtime/sys_wasm.s    |  4 +++
  src/syscall/js/js_test.go | 23 ++++++++++++
  4 files changed, 77 insertions(+), 46 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index a54bb9a95d..7341e755e7 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -113,24 +113,19 @@
+ 			this._scheduledTimeouts = new Map();
+ 			this._nextCallbackTimeoutID = 1;
+ 
+-			const mem = () => {
+-				// The buffer may change when requesting more memory.
+-				return new DataView(this._inst.exports.mem.buffer);
+-			}
+-
+ 			const setInt64 = (addr, v) => {
+-				mem().setUint32(addr + 0, v, true);
+-				mem().setUint32(addr + 4, Math.floor(v / 4294967296), true);
++				this.mem.setUint32(addr + 0, v, true);
++				this.mem.setUint32(addr + 4, Math.floor(v / 4294967296), true);
+ 			}
+ 
+ 			const getInt64 = (addr) => {
+-				const low = mem().getUint32(addr + 0, true);
+-				const high = mem().getInt32(addr + 4, true);
++				const low = this.mem.getUint32(addr + 0, true);
++				const high = this.mem.getInt32(addr + 4, true);
+ 				return low + high * 4294967296;
+ 			}
+ 
+ 			const loadValue = (addr) => {
+-				const f = mem().getFloat64(addr, true);
++				const f = this.mem.getFloat64(addr, true);
+ 				if (f === 0) {
+ 					return undefined;
+ 				}
+@@ -138,7 +133,7 @@
+ 					return f;
+ 				}
+ 
+-				const id = mem().getUint32(addr, true);
++				const id = this.mem.getUint32(addr, true);
+ 				return this._values[id];
+ 			}
+ 
+@@ -147,34 +142,34 @@
+ 
+ 				if (typeof v === "number") {
+ 					if (isNaN(v)) {
+-						mem().setUint32(addr + 4, nanHead, true);
+-						mem().setUint32(addr, 0, true);
++						this.mem.setUint32(addr + 4, nanHead, true);
++						this.mem.setUint32(addr, 0, true);
+ 						return;
+ 					}
+ 					if (v === 0) {
+-						mem().setUint32(addr + 4, nanHead, true);
+-						mem().setUint32(addr, 1, true);
++						this.mem.setUint32(addr + 4, nanHead, true);
++						this.mem.setUint32(addr, 1, true);
+ 						return;
+ 					}
+-					mem().setFloat64(addr, v, true);
++					this.mem.setFloat64(addr, v, true);
+ 					return;
+ 				}
+ 
+ 				switch (v) {
+ 					case undefined:
+-						mem().setFloat64(addr, 0, true);
++						this.mem.setFloat64(addr, 0, true);
+ 						return;
+ 					case null:
+-						mem().setUint32(addr + 4, nanHead, true);
+-						mem().setUint32(addr, 2, true);
++						this.mem.setUint32(addr + 4, nanHead, true);
++						this.mem.setUint32(addr, 2, true);
+ 						return;
+ 					case true:
+-						mem().setUint32(addr + 4, nanHead, true);
+-						mem().setUint32(addr, 3, true);
++						this.mem.setUint32(addr + 4, nanHead, true);
++						this.mem.setUint32(addr, 3, true);
+ 						return;
+ 					case false:
+-						mem().setUint32(addr + 4, nanHead, true);
+-						mem().setUint32(addr, 4, true);
++						this.mem.setUint32(addr + 4, nanHead, true);
++						this.mem.setUint32(addr, 4, true);
+ 						return;
+ 				}
+ 
+@@ -196,8 +191,8 @@
+ 						typeFlag = 3;
+ 						break;
+ 				}
+-				mem().setUint32(addr + 4, nanHead | typeFlag, true);
+-				mem().setUint32(addr, ref, true);
++				this.mem.setUint32(addr + 4, nanHead | typeFlag, true);
++				this.mem.setUint32(addr, ref, true);
+ 			}
+ 
+ 			const loadSlice = (addr) => {
+@@ -232,7 +227,7 @@
+ 
+ 					// func wasmExit(code int32)
+ 					"runtime.wasmExit": (sp) => {
+-						const code = mem().getInt32(sp + 8, true);
++						const code = this.mem.getInt32(sp + 8, true);
+ 						this.exited = true;
+ 						delete this._inst;
+ 						delete this._values;
+@@ -244,10 +239,15 @@
+ 					"runtime.wasmWrite": (sp) => {
+ 						const fd = getInt64(sp + 8);
+ 						const p = getInt64(sp + 16);
+-						const n = mem().getInt32(sp + 24, true);
++						const n = this.mem.getInt32(sp + 24, true);
+ 						fs.writeSync(fd, new Uint8Array(this._inst.exports.mem.buffer, p, n));
+ 					},
+ 
++					// func resetMemoryDataView()
++					"runtime.resetMemoryDataView": (sp) => {
++						this.mem = new DataView(this._inst.exports.mem.buffer);
++					},
++
+ 					// func nanotime() int64
+ 					"runtime.nanotime": (sp) => {
+ 						setInt64(sp + 8, (timeOrigin + performance.now()) * 1000000);
+@@ -257,7 +257,7 @@
+ 					"runtime.walltime": (sp) => {
+ 						const msec = (new Date).getTime();
+ 						setInt64(sp + 8, msec / 1000);
+-						mem().setInt32(sp + 16, (msec % 1000) * 1000000, true);
++						this.mem.setInt32(sp + 16, (msec % 1000) * 1000000, true);
+ 					},
+ 
+ 					// func scheduleTimeoutEvent(delay int64) int32
+@@ -276,12 +276,12 @@
+ 							},
+ 							getInt64(sp + 8) + 1, // setTimeout has been seen to fire up to 1 millisecond early
+ 						));
+-						mem().setInt32(sp + 16, id, true);
++						this.mem.setInt32(sp + 16, id, true);
+ 					},
+ 
+ 					// func clearTimeoutEvent(id int32)
+ 					"runtime.clearTimeoutEvent": (sp) => {
+-						const id = mem().getInt32(sp + 8, true);
++						const id = this.mem.getInt32(sp + 8, true);
+ 						clearTimeout(this._scheduledTimeouts.get(id));
+ 						this._scheduledTimeouts.delete(id);
+ 					},
+@@ -327,10 +327,10 @@
+ 							const result = Reflect.apply(m, v, args);
+ 							sp = this._inst.exports.getsp(); // see comment above
+ 							storeValue(sp + 56, result);
+-							mem().setUint8(sp + 64, 1);
++							this.mem.setUint8(sp + 64, 1);
+ 						} catch (err) {
+ 							storeValue(sp + 56, err);
+-							mem().setUint8(sp + 64, 0);
++							this.mem.setUint8(sp + 64, 0);
+ 						}
+ 					},
+ 
+@@ -342,10 +342,10 @@
+ 							const result = Reflect.apply(v, undefined, args);
+ 							sp = this._inst.exports.getsp(); // see comment above
+ 							storeValue(sp + 40, result);
+-							mem().setUint8(sp + 48, 1);
++							this.mem.setUint8(sp + 48, 1);
+ 						} catch (err) {
+ 							storeValue(sp + 40, err);
+-							mem().setUint8(sp + 48, 0);
++							this.mem.setUint8(sp + 48, 0);
+ 						}
+ 					},
+ 
+@@ -357,10 +357,10 @@
+ 							const result = Reflect.construct(v, args);
+ 							sp = this._inst.exports.getsp(); // see comment above
+ 							storeValue(sp + 40, result);
+-							mem().setUint8(sp + 48, 1);
++							this.mem.setUint8(sp + 48, 1);
+ 						} catch (err) {
+ 							storeValue(sp + 40, err);
+-							mem().setUint8(sp + 48, 0);
++							this.mem.setUint8(sp + 48, 0);
+ 						}
+ 					},
+ 
+@@ -384,7 +384,7 @@
+ 
+ 					// func valueInstanceOf(v ref, t ref) bool
+ 					"syscall/js.valueInstanceOf": (sp) => {
+-						mem().setUint8(sp + 24, loadValue(sp + 8) instanceof loadValue(sp + 16));
++						this.mem.setUint8(sp + 24, loadValue(sp + 8) instanceof loadValue(sp + 16));
+ 					},
+ 
+ 					// func copyBytesToGo(dst []byte, src ref) (int, bool)
+@@ -392,13 +392,13 @@
+ 						const dst = loadSlice(sp + 8);
+ 						const src = loadValue(sp + 32);
+ 						if (!(src instanceof Uint8Array)) {
+-							mem().setUint8(sp + 48, 0);
++							this.mem.setUint8(sp + 48, 0);
+ 							return;
+ 						}
+ 						const toCopy = src.subarray(0, dst.length);
+ 						dst.set(toCopy);
+ 						setInt64(sp + 40, toCopy.length);
+-						mem().setUint8(sp + 48, 1);
++						this.mem.setUint8(sp + 48, 1);
+ 					},
+ 
+ 					// func copyBytesToJS(dst ref, src []byte) (int, bool)
+@@ -406,13 +406,13 @@
+ 						const dst = loadValue(sp + 8);
+ 						const src = loadSlice(sp + 16);
+ 						if (!(dst instanceof Uint8Array)) {
+-							mem().setUint8(sp + 48, 0);
++							this.mem.setUint8(sp + 48, 0);
+ 							return;
+ 						}
+ 						const toCopy = src.subarray(0, dst.length);
+ 						dst.set(toCopy);
+ 						setInt64(sp + 40, toCopy.length);
+-						mem().setUint8(sp + 48, 1);
++						this.mem.setUint8(sp + 48, 1);
+ 					},
+ 
+ 					"debug": (value) => {
+@@ -424,6 +424,7 @@
+ 
+ 		async run(instance) {
+ 			this._inst = instance;
++			this.mem = new DataView(this._inst.exports.mem.buffer);
+ 			this._values = [ // TODO: garbage collection
+ 				NaN,
+ 				0,
+@@ -436,15 +437,13 @@
+ 			this._refs = new Map();
+ 			this.exited = false;
+ 
+-			const mem = new DataView(this._inst.exports.mem.buffer)
+-
+ 			// Pass command line arguments and environment variables to WebAssembly by writing them to the linear memory.
+ 			let offset = 4096;
+ 
+ 			const strPtr = (str) => {
+ 				const ptr = offset;
+ 				const bytes = encoder.encode(str + "\0");
+-				new Uint8Array(mem.buffer, offset, bytes.length).set(bytes);
++				new Uint8Array(this.mem.buffer, offset, bytes.length).set(bytes);
+ 				offset += bytes.length;
+ 				if (offset % 8 !== 0) {
+ 					offset += 8 - (offset % 8);
+@@ -467,8 +466,8 @@
+ 
+ 			const argv = offset;
+ 			argvPtrs.forEach((ptr) => {
+-				mem.setUint32(offset, ptr, true);
+-				mem.setUint32(offset + 4, 0, true);
++				this.mem.setUint32(offset, ptr, true);
++				this.mem.setUint32(offset + 4, 0, true);
+ 				offset += 8;
+ 			});
+ 
+diff --git a/src/runtime/mem_js.go b/src/runtime/mem_js.go
+index de90f5305f..699a80db26 100644
+--- a/src/runtime/mem_js.go
++++ b/src/runtime/mem_js.go
+@@ -64,6 +64,7 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 		if growMemory(needed-current) == -1 {
+ 			return nil
+ 		}
++		resetMemoryDataView()
+ 	}
+ 
+ 	return v
+@@ -72,6 +73,10 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ func currentMemory() int32
+ func growMemory(pages int32) int32
+ 
++// resetMemoryDataView signals the JS front-end that WebAssembly's memory.grow instruction has been used.
++// This allows the front-end to replace the old DataView object with a new one.
++func resetMemoryDataView()
++
+ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ 	mSysStatInc(sysStat, n)
+ }
+diff --git a/src/runtime/sys_wasm.s b/src/runtime/sys_wasm.s
+index d7bab926dc..823757814c 100644
+--- a/src/runtime/sys_wasm.s
++++ b/src/runtime/sys_wasm.s
+@@ -171,6 +171,10 @@ TEXT runtime·growMemory(SB), NOSPLIT, $0
+ 	I32Store ret+8(FP)
+ 	RET
+ 
++TEXT ·resetMemoryDataView(SB), NOSPLIT, $0
++	CallImport
++	RET
++
+ TEXT ·wasmExit(SB), NOSPLIT, $0
+ 	CallImport
+ 	RET
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 7a1e346f55..753c2c3a0d 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -484,3 +484,26 @@ func TestCopyBytesToJS(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// BenchmarkDOM is a simple benchmark which emulates a webapp making DOM operations.
++// It creates a div, and sets its id. Then searches by that id and sets some data.
++// Finally it removes that div.
++func BenchmarkDOM(b *testing.B) {
++	document := js.Global().Get("document")
++	if document == js.Undefined() {
++		b.Skip("Not a browser environment. Skipping.")
++	}
++	const data = "someString"
++	for i := 0; i < b.N; i++ {
++		div := document.Call("createElement", "div")
++		div.Call("setAttribute", "id", "myDiv")
++		document.Get("body").Call("appendChild", div)
++		myDiv := document.Call("getElementById", "myDiv")
++		myDiv.Set("innerHTML", data)
++
++		if got, want := myDiv.Get("innerHTML").String(), data; got != want {
++			b.Errorf("got %s, want %s", got, want)
++		}
++		document.Get("body").Call("removeChild", div)
++	}
++}

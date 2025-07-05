@@ -16,7 +16,7 @@ Date:   Tue Mar 5 20:21:17 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/encode.go  | 12 ++++--------
  src/net/http/server.go       |  6 ++----
  src/runtime/chan.go          |  6 ++----
@@ -24,3 +24,171 @@ Date:   Tue Mar 5 20:21:17 2019 +0000
  src/runtime/signal_unix.go   | 18 ++++++++----------
  src/testing/testing.go       | 26 ++++++++++++--------------
  6 files changed, 41 insertions(+), 55 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index dea63f1850..de6d2632f4 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -392,19 +392,15 @@ func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
+ 	if t.Implements(marshalerType) {
+ 		return marshalerEncoder
+ 	}
+-	if t.Kind() != reflect.Ptr && allowAddr {
+-		if reflect.PtrTo(t).Implements(marshalerType) {
+-			return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, false))
+-		}
++	if t.Kind() != reflect.Ptr && allowAddr && reflect.PtrTo(t).Implements(marshalerType) {
++		return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, false))
+ 	}
+ 
+ 	if t.Implements(textMarshalerType) {
+ 		return textMarshalerEncoder
+ 	}
+-	if t.Kind() != reflect.Ptr && allowAddr {
+-		if reflect.PtrTo(t).Implements(textMarshalerType) {
+-			return newCondAddrEncoder(addrTextMarshalerEncoder, newTypeEncoder(t, false))
+-		}
++	if t.Kind() != reflect.Ptr && allowAddr && reflect.PtrTo(t).Implements(textMarshalerType) {
++		return newCondAddrEncoder(addrTextMarshalerEncoder, newTypeEncoder(t, false))
+ 	}
+ 
+ 	switch t.Kind() {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 9ae0bbff14..a19934e469 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -749,10 +749,8 @@ func (cr *connReader) handleReadError(_ error) {
+ // may be called from multiple goroutines.
+ func (cr *connReader) closeNotify() {
+ 	res, _ := cr.conn.curReq.Load().(*response)
+-	if res != nil {
+-		if atomic.CompareAndSwapInt32(&res.didCloseNotify, 0, 1) {
+-			res.closeNotifyCh <- true
+-		}
++	if res != nil && atomic.CompareAndSwapInt32(&res.didCloseNotify, 0, 1) {
++		res.closeNotifyCh <- true
+ 	}
+ }
+ 
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 8662f00e13..389bf799e2 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -729,10 +729,8 @@ func (q *waitq) dequeue() *sudog {
+ 		// We use a flag in the G struct to tell us when someone
+ 		// else has won the race to signal this goroutine but the goroutine
+ 		// hasn't removed itself from the queue yet.
+-		if sgp.isSelect {
+-			if !atomic.Cas(&sgp.g.selectDone, 0, 1) {
+-				continue
+-			}
++		if sgp.isSelect && !atomic.Cas(&sgp.g.selectDone, 0, 1) {
++			continue
+ 		}
+ 
+ 		return sgp
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index 823fd295ae..9d59e262de 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -46,21 +46,19 @@ func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
+ 
+ // preparePanic sets up the stack to look like a call to sigpanic.
+ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+-	if GOOS == "darwin" {
+-		// Work around Leopard bug that doesn't set FPE_INTDIV.
+-		// Look at instruction to see if it is a divide.
+-		// Not necessary in Snow Leopard (si_code will be != 0).
+-		if sig == _SIGFPE && gp.sigcode0 == 0 {
+-			pc := (*[4]byte)(unsafe.Pointer(gp.sigpc))
+-			i := 0
+-			if pc[i]&0xF0 == 0x40 { // 64-bit REX prefix
+-				i++
+-			} else if pc[i] == 0x66 { // 16-bit instruction prefix
+-				i++
+-			}
+-			if pc[i] == 0xF6 || pc[i] == 0xF7 {
+-				gp.sigcode0 = _FPE_INTDIV
+-			}
++	// Work around Leopard bug that doesn't set FPE_INTDIV.
++	// Look at instruction to see if it is a divide.
++	// Not necessary in Snow Leopard (si_code will be != 0).
++	if GOOS == "darwin" && sig == _SIGFPE && gp.sigcode0 == 0 {
++		pc := (*[4]byte)(unsafe.Pointer(gp.sigpc))
++		i := 0
++		if pc[i]&0xF0 == 0x40 { // 64-bit REX prefix
++			i++
++		} else if pc[i] == 0x66 { // 16-bit instruction prefix
++			i++
++		}
++		if pc[i] == 0xF6 || pc[i] == 0xF7 {
++			gp.sigcode0 = _FPE_INTDIV
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 15f1799801..8814f7836d 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -503,16 +503,14 @@ func raisebadsignal(sig uint32, c *sigctxt) {
+ 
+ //go:nosplit
+ func crash() {
+-	if GOOS == "darwin" {
+-		// OS X core dumps are linear dumps of the mapped memory,
+-		// from the first virtual byte to the last, with zeros in the gaps.
+-		// Because of the way we arrange the address space on 64-bit systems,
+-		// this means the OS X core file will be >128 GB and even on a zippy
+-		// workstation can take OS X well over an hour to write (uninterruptible).
+-		// Save users from making that mistake.
+-		if GOARCH == "amd64" {
+-			return
+-		}
++	// OS X core dumps are linear dumps of the mapped memory,
++	// from the first virtual byte to the last, with zeros in the gaps.
++	// Because of the way we arrange the address space on 64-bit systems,
++	// this means the OS X core file will be >128 GB and even on a zippy
++	// workstation can take OS X well over an hour to write (uninterruptible).
++	// Save users from making that mistake.
++	if GOOS == "darwin" && GOARCH == "amd64" {
++		return
+ 	}
+ 
+ 	dieFromSignal(_SIGABRT)
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 79dcf76908..8cbb4318fc 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1303,20 +1303,18 @@ func toOutputDir(path string) string {
+ 	if *outputDir == "" || path == "" {
+ 		return path
+ 	}
+-	if runtime.GOOS == "windows" {
+-		// On Windows, it's clumsy, but we can be almost always correct
+-		// by just looking for a drive letter and a colon.
+-		// Absolute paths always have a drive letter (ignoring UNC).
+-		// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
+-		// what to do, but even then path/filepath doesn't help.
+-		// TODO: Worth doing better? Probably not, because we're here only
+-		// under the management of go test.
+-		if len(path) >= 2 {
+-			letter, colon := path[0], path[1]
+-			if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
+-				// If path starts with a drive letter we're stuck with it regardless.
+-				return path
+-			}
++	// On Windows, it's clumsy, but we can be almost always correct
++	// by just looking for a drive letter and a colon.
++	// Absolute paths always have a drive letter (ignoring UNC).
++	// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
++	// what to do, but even then path/filepath doesn't help.
++	// TODO: Worth doing better? Probably not, because we're here only
++	// under the management of go test.
++	if runtime.GOOS == "windows" && len(path) >= 2 {
++		letter, colon := path[0], path[1]
++		if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
++			// If path starts with a drive letter we're stuck with it regardless.
++			return path
+ 		}
+ 	}
+ 	if os.IsPathSeparator(path[0]) {

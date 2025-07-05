@@ -19,6 +19,20 @@ Date:   Mon Oct 6 20:51:05 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/155030043
-
+---
  src/cmd/ld/ldelf.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 38e4147556..35f8b49856 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -582,6 +582,8 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			continue;
+ 		sect = obj->sect+sym.shndx;
+ 		if(sect->sym == nil) {
++			if(strncmp(sym.name, ".Linfo_string", 13) == 0) // clang does this
++				continue;
+ 			diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type);
+ 			continue;
+ 		}

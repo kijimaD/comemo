@@ -12,9 +12,88 @@ Date:   Sun Feb 21 02:28:37 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/test/complex.go             | 24 ++++++++++++++++++++++++
  src/cmd/cgo/gcc.go                   |  2 +-
  src/cmd/cgo/out.go                   |  4 ++--
  src/cmd/compile/internal/gc/align.go |  6 +++++-
  4 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/test/complex.go b/misc/cgo/test/complex.go
+new file mode 100644
+index 0000000000..ca0a97d9b3
+--- /dev/null
++++ b/misc/cgo/test/complex.go
+@@ -0,0 +1,24 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++struct {
++	float x;
++	_Complex float y;
++} cplxAlign = { 3.14, 2.17 };
++*/
++import "C"
++
++import "testing"
++
++func TestComplexAlign(t *testing.T) {
++	if C.cplxAlign.x != 3.14 {
++		t.Errorf("got %v, expected 3.14", C.cplxAlign.x)
++	}
++	if C.cplxAlign.y != 2.17 {
++		t.Errorf("got %v, expected 2.17", C.cplxAlign.y)
++	}
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index fc1d01100d..9c268ca494 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1641,7 +1641,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		case 16:
+ 			t.Go = c.complex128
+ 		}
+-		if t.Align = t.Size; t.Align >= c.ptrSize {
++		if t.Align = t.Size / 2; t.Align >= c.ptrSize {
+ 			t.Align = c.ptrSize
+ 		}
+ 
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 5dfb3a1cd8..50d6b728b7 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1232,8 +1232,8 @@ var goTypes = map[string]*Type{
+ 	"uint64":     {Size: 8, Align: 8, C: c("GoUint64")},
+ 	"float32":    {Size: 4, Align: 4, C: c("GoFloat32")},
+ 	"float64":    {Size: 8, Align: 8, C: c("GoFloat64")},
+-	"complex64":  {Size: 8, Align: 8, C: c("GoComplex64")},
+-	"complex128": {Size: 16, Align: 16, C: c("GoComplex128")},
++	"complex64":  {Size: 8, Align: 4, C: c("GoComplex64")},
++	"complex128": {Size: 16, Align: 8, C: c("GoComplex128")},
+ }
+ 
+ // Map an ast type to a Type.
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 2aae3425d4..375870ee80 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -169,10 +169,14 @@ func dowidth(t *Type) {
+ 	case TINT32, TUINT32, TFLOAT32:
+ 		w = 4
+ 
+-	case TINT64, TUINT64, TFLOAT64, TCOMPLEX64:
++	case TINT64, TUINT64, TFLOAT64:
+ 		w = 8
+ 		t.Align = uint8(Widthreg)
+ 
++	case TCOMPLEX64:
++		w = 8
++		t.Align = 4
++
+ 	case TCOMPLEX128:
+ 		w = 16
+ 		t.Align = uint8(Widthreg)

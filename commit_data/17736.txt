@@ -11,7 +11,7 @@ Date:   Thu Oct 3 13:48:47 2013 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/14246044
-
+---
  src/cmd/5l/obj.c       |  1 +
  src/cmd/6l/obj.c       |  1 +
  src/cmd/8l/obj.c       |  1 +
@@ -22,3 +22,180 @@ Date:   Thu Oct 3 13:48:47 2013 +1000
  src/cmd/ld/lib.c       | 16 +++++++++++-----
  src/cmd/ld/lib.h       |  1 +
  9 files changed, 36 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 0b687a2ee8..80f5787dc4 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -117,6 +117,7 @@ main(int argc, char *argv[])
+ 	flagstr("extldflags", "flags for external linker", &extldflags);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+ 	flagcount("g", "disable go package data checks", &debug['g']);
++	flagstr("installsuffix", "pkg directory suffix", &flag_installsuffix);
+ 	flagstr("k", "sym: set field tracking symbol", &tracksym);
+ 	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
+ 	flagcount("n", "dump symbol table", &debug['n']);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index a12b6e6f9b..ae649a74b6 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -112,6 +112,7 @@ main(int argc, char *argv[])
+ 	flagstr("extldflags", "flags for external linker", &extldflags);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+ 	flagcount("g", "disable go package data checks", &debug['g']);
++	flagstr("installsuffix", "pkg directory suffix", &flag_installsuffix);
+ 	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
+ 	flagstr("k", "sym: set field tracking symbol", &tracksym);
+ 	flagcount("n", "dump symbol table", &debug['n']);
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index e049de7b07..3fdc413810 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -118,6 +118,7 @@ main(int argc, char *argv[])
+ 	flagstr("extldflags", "flags for external linker", &extldflags);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+ 	flagcount("g", "disable go package data checks", &debug['g']);
++	flagstr("installsuffix", "pkg directory suffix", &flag_installsuffix);
+ 	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
+ 	flagstr("k", "sym: set field tracking symbol", &tracksym);
+ 	flagstr("o", "outfile: set output file", &outfile);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7ba1c7e882..562f16890c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -976,6 +976,7 @@ EXTERN	int	typecheckok;
+ EXTERN	int	compiling_runtime;
+ EXTERN	int	compiling_wrappers;
+ EXTERN	int	pure_go;
++EXTERN	char*	flag_installsuffix;
+ EXTERN	int	flag_race;
+ EXTERN	int	flag_largemodel;
+ EXTERN	int	noescape;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index a1473eb407..8c739391a7 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -257,6 +257,7 @@ main(int argc, char *argv[])
+ 	flagcount("g", "debug code generation", &debug['g']);
+ 	flagcount("h", "halt on error", &debug['h']);
+ 	flagcount("i", "debug line number stack", &debug['i']);
++	flagstr("installsuffix", "pkg directory suffix", &flag_installsuffix);
+ 	flagcount("j", "debug runtime-initialized variables", &debug['j']);
+ 	flagcount("l", "disable inlining", &debug['l']);
+ 	flagcount("m", "print optimization decisions", &debug['m']);
+@@ -577,7 +578,7 @@ static int
+ findpkg(Strlit *name)
+ {
+ 	Idir *p;
+-	char *q, *race;
++	char *q, *suffix, *suffixsep;
+ 
+ 	if(islocalname(name)) {
+ 		if(safemode)
+@@ -615,13 +616,19 @@ findpkg(Strlit *name)
+ 			return 1;
+ 	}
+ 	if(goroot != nil) {
+-		race = "";
+-		if(flag_race)
+-			race = "_race";
+-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s/%Z.a", goroot, goos, goarch, race, name);
++		suffix = "";
++		suffixsep = "";
++		if(flag_installsuffix != nil) {
++			suffixsep = "_";
++			suffix = flag_installsuffix;
++		} else if(flag_race) {
++			suffixsep = "_";
++			suffix = "race";
++		}
++		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.a", goroot, goos, goarch, suffixsep, suffix, name);
+ 		if(access(namebuf, 0) >= 0)
+ 			return 1;
+-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s/%Z.%c", goroot, goos, goarch, race, name, thechar);
++		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.%c", goroot, goos, goarch, suffixsep, suffix, name, thechar);
+ 		if(access(namebuf, 0) >= 0)
+ 			return 1;
+ 	}
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index b7edd49ce0..cfbf30d918 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1530,6 +1530,9 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
+ 	if extFiles == 0 {
+ 		gcargs = append(gcargs, "-complete")
+ 	}
++	if buildContext.InstallSuffix != "" {
++		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
++	}
+ 
+ 	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
+ 	for _, f := range gofiles {
+@@ -1579,6 +1582,9 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ 		}
+ 	}
+ 	ldflags := buildLdflags
++	if buildContext.InstallSuffix != "" {
++		ldflags = append(ldflags, "-installsuffix", buildContext.InstallSuffix)
++	}
+ 	if cxx {
+ 		// The program includes C++ code.  If the user has not
+ 		// specified the -extld option, then default to
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index d931d35b6a..aea81d8f83 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -82,6 +82,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "tags"},
+ 	{name: "compiler"},
+ 	{name: "race", boolVar: &buildRace},
++	{name: "installsuffix"},
+ 
+ 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+ 	{name: "bench", passToTest: true},
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index f9c2773280..da522dc0c7 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -91,7 +91,7 @@ Lflag(char *arg)
+ void
+ libinit(void)
+ {
+-	char *race;
++	char *suffix, *suffixsep;
+ 
+ 	fmtinstall('i', iconv);
+ 	fmtinstall('Y', Yconv);
+@@ -101,10 +101,16 @@ libinit(void)
+ 		print("goarch is not known: %s\n", goarch);
+ 
+ 	// add goroot to the end of the libdir list.
+-	race = "";
+-	if(flag_race)
+-		race = "_race";
+-	Lflag(smprint("%s/pkg/%s_%s%s", goroot, goos, goarch, race));
++	suffix = "";
++	suffixsep = "";
++	if(flag_installsuffix != nil) {
++		suffixsep = "_";
++		suffix = flag_installsuffix;
++	} else if(flag_race) {
++		suffixsep = "_";
++		suffix = "race";
++	}
++	Lflag(smprint("%s/pkg/%s_%s%s%s", goroot, goos, goarch, suffixsep, suffix));
+ 
+ 	// Unix doesn't like it when we write to a running (or, sometimes,
+ 	// recently run) binary, so remove the output file before writing it.
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index f268ea13ad..be95bb46e8 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -160,6 +160,7 @@ EXTERN	char**	ldflag;
+ EXTERN	int	havedynamic;
+ EXTERN	int	iscgo;
+ EXTERN	int	elfglobalsymndx;
++EXTERN	char*	flag_installsuffix;
+ EXTERN	int	flag_race;
+ EXTERN	int flag_shared;
+ EXTERN	char*	tracksym;

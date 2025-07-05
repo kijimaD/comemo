@@ -18,7 +18,79 @@ Date:   Tue May 1 11:39:17 2018 +0200
     Change-Id: Ib94d9b033321b41e975868943c7fcd9428c5111e
     Reviewed-on: https://go-review.googlesource.com/110478
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/deps_test.go |  2 +-
  src/strconv/itoa.go       | 25 +++++++++++++------------
  2 files changed, 14 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 817984c3e2..5fcfcb8b83 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -64,7 +64,7 @@ var pkgDeps = map[string][]string{
+ 	"math/bits":     {},
+ 	"math/cmplx":    {"math"},
+ 	"math/rand":     {"L0", "math"},
+-	"strconv":       {"L0", "unicode/utf8", "math"},
++	"strconv":       {"L0", "unicode/utf8", "math", "math/bits"},
+ 	"unicode/utf16": {},
+ 	"unicode/utf8":  {},
+ 
+diff --git a/src/strconv/itoa.go b/src/strconv/itoa.go
+index 78527c8ae6..394716ccd7 100644
+--- a/src/strconv/itoa.go
++++ b/src/strconv/itoa.go
+@@ -4,6 +4,8 @@
+ 
+ package strconv
+ 
++import "math/bits"
++
+ const fastSmalls = true // enable fast path for small integers
+ 
+ // FormatUint returns the string representation of i in the given base,
+@@ -79,14 +81,6 @@ const host32bit = ^uint(0)>>32 == 0
+ 
+ const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+ 
+-var shifts = [len(digits) + 1]uint{
+-	1 << 1: 1,
+-	1 << 2: 2,
+-	1 << 3: 3,
+-	1 << 4: 4,
+-	1 << 5: 5,
+-}
+-
+ // formatBits computes the string representation of u in the given base.
+ // If neg is set, u is treated as negative int64 value. If append_ is
+ // set, the string is appended to dst and the resulting byte slice is
+@@ -158,14 +152,17 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s
+ 			a[i] = smallsString[is]
+ 		}
+ 
+-	} else if s := shifts[base]; s > 0 {
+-		// base is power of 2: use shifts and masks instead of / and %
++	} else if isPowerOfTwo(base) {
++		// It is known that base is a power of two and
++		// 2 <= base <= len(digits).
++		// Use shifts and masks instead of / and %.
++		shift := uint(bits.TrailingZeros(uint(base))) & 31
+ 		b := uint64(base)
+-		m := uint(base) - 1 // == 1<<s - 1
++		m := uint(base) - 1 // == 1<<shift - 1
+ 		for u >= b {
+ 			i--
+ 			a[i] = digits[uint(u)&m]
+-			u >>= s
++			u >>= shift
+ 		}
+ 		// u < base
+ 		i--
+@@ -200,3 +197,7 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s
+ 	s = string(a[i:])
+ 	return
+ }
++
++func isPowerOfTwo(x int) bool {
++	return x&(x-1) == 0
++}

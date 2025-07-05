@@ -9,6 +9,37 @@ Date:   Wed Nov 28 17:01:22 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6850080
-
+---
  src/pkg/exp/winfsnotify/winfsnotify_test.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/winfsnotify/winfsnotify_test.go b/src/pkg/exp/winfsnotify/winfsnotify_test.go
+index 4a1929a839..a0bd4327fb 100644
+--- a/src/pkg/exp/winfsnotify/winfsnotify_test.go
++++ b/src/pkg/exp/winfsnotify/winfsnotify_test.go
+@@ -9,6 +9,7 @@ package winfsnotify
+ import (
+ 	"io/ioutil"
+ 	"os"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ )
+@@ -105,14 +106,14 @@ func TestNotifyClose(t *testing.T) {
+ 	watcher, _ := NewWatcher()
+ 	watcher.Close()
+ 
+-	done := false
++	var done int32
+ 	go func() {
+ 		watcher.Close()
+-		done = true
++		atomic.StoreInt32(&done, 1)
+ 	}()
+ 
+ 	time.Sleep(50 * time.Millisecond)
+-	if !done {
++	if atomic.LoadInt32(&done) == 0 {
+ 		t.Fatal("double Close() test failed: second Close() call didn't return")
+ 	}
+ 

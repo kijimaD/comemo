@@ -10,6 +10,20 @@ Date:   Fri Nov 5 04:57:59 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/361413
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/bufio_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index 66b3e70053..4dddfa9085 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -1520,7 +1520,7 @@ func TestReaderDiscard(t *testing.T) {
+ 			wantBuffered: 0,
+ 		},
+ 		// Any error from filling shouldn't show up until we
+-		// get past the valid bytes. Here we return we return 5 valid bytes at the same time
++		// get past the valid bytes. Here we return 5 valid bytes at the same time
+ 		// as an error, but test that we don't see the error from Discard.
+ 		{
+ 			name: "fill error, discard less",

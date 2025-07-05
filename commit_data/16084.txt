@@ -7,6 +7,32 @@ Date:   Thu Apr 4 08:56:11 2013 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8344043
-
+---
  doc/code.html | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 26f3e6d9b9..e3f53e6f27 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -22,7 +22,7 @@ A similar explanation is available as a
+ </p>
+ 
+ 
+-<h2 id="GOPATH">Code organization</h2>
++<h2 id="Organization">Code organization</h2>
+ 
+ <h3 id="Workspaces">Workspaces</h3>
+ 
+@@ -569,8 +569,9 @@ import "code.google.com/p/go.example/newmath"
+ <p>
+ This convention is the easiest way to make your Go packages available for
+ others to use.
+-The <a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Community Wiki</a>
+-has a list of external Go projects including programs and libraries.
++The <a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Wiki</a>
++and <a href="http://godoc.org/">godoc.org</a>
++provide lists of external Go projects.
+ </p>
+ 
+ <p>

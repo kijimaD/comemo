@@ -27,8 +27,165 @@ Date:   Mon Dec 6 16:30:19 2021 -0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 30 ++++++++----
  test/run.go                                     |  1 +
  test/typeparam/issue50002.go                    | 64 +++++++++++++++++++++++++
  3 files changed, 86 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 142b289dae..b1e2902385 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -846,14 +846,19 @@ func TypePtr(t *types.Type) *ir.AddrExpr {
+ 	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
+ }
+ 
+-// ITabLsym returns the LSym representing the itab for concreate type typ
+-// implementing interface iface.
++// ITabLsym returns the LSym representing the itab for concrete type typ implementing
++// interface iface. A dummy tab will be created in the unusual case where typ doesn't
++// implement iface. Normally, this wouldn't happen, because the typechecker would
++// have reported a compile-time error. This situation can only happen when the
++// destination type of a type assert or a type in a type switch is parameterized, so
++// it may sometimes, but not always, be a type that can't implement the specified
++// interface.
+ func ITabLsym(typ, iface *types.Type) *obj.LSym {
+ 	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
+ 	lsym := s.Linksym()
+ 
+ 	if !existed {
+-		writeITab(lsym, typ, iface)
++		writeITab(lsym, typ, iface, true)
+ 	}
+ 	return lsym
+ }
+@@ -865,7 +870,7 @@ func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
+ 	lsym := s.Linksym()
+ 
+ 	if !existed {
+-		writeITab(lsym, typ, iface)
++		writeITab(lsym, typ, iface, false)
+ 	}
+ 
+ 	n := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
+@@ -1277,9 +1282,10 @@ func WriteRuntimeTypes() {
+ 	}
+ }
+ 
+-// writeITab writes the itab for concrete type typ implementing
+-// interface iface.
+-func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
++// writeITab writes the itab for concrete type typ implementing interface iface. If
++// allowNonImplement is true, allow the case where typ does not implement iface, and just
++// create a dummy itab with zeroed-out method entries.
++func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
+ 	// TODO(mdempsky): Fix methodWrapper, geneq, and genhash (and maybe
+ 	// others) to stop clobbering these.
+ 	oldpos, oldfn := base.Pos, ir.CurFunc
+@@ -1306,7 +1312,8 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
+ 			}
+ 		}
+ 	}
+-	if len(sigs) != 0 {
++	completeItab := len(sigs) == 0
++	if !allowNonImplement && !completeItab {
+ 		base.Fatalf("incomplete itab")
+ 	}
+ 
+@@ -1323,7 +1330,12 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
+ 	o = objw.Uint32(lsym, o, types.TypeHash(typ)) // copy of type hash
+ 	o += 4                                        // skip unused field
+ 	for _, fn := range entries {
+-		o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
++		if !completeItab {
++			// If typ doesn't implement iface, make method entries be zero.
++			o = objw.Uintptr(lsym, o, 0)
++		} else {
++			o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
++		}
+ 	}
+ 	// Nothing writes static itabs, so they are read only.
+ 	objw.Global(lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+diff --git a/test/run.go b/test/run.go
+index e17d9729bc..2ff7117ea9 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2182,6 +2182,7 @@ var unifiedFailures = setOf(
+ 	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
+ 	"fixedbugs/issue49767.go",  // unified IR doesn't report channel element too large
+ 	"fixedbugs/issue49814.go",  // unified IR doesn't report array type too large
++	"typeparam/issue50002.go",  // pure stenciling leads to a static type assertion error
+ )
+ 
+ func setOf(keys ...string) map[string]bool {
+diff --git a/test/typeparam/issue50002.go b/test/typeparam/issue50002.go
+new file mode 100644
+index 0000000000..670fc2eae3
+--- /dev/null
++++ b/test/typeparam/issue50002.go
+@@ -0,0 +1,64 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test for cases where certain instantiations of a generic function (F in this
++// example) will always fail on a type assertion or mismatch on a type case.
++
++package main
++
++import "fmt"
++
++type S struct{}
++
++func (S) M() byte {
++	return 0
++}
++
++type I[T any] interface {
++	M() T
++}
++
++func F[T, A any](x I[T], shouldMatch bool) {
++	switch x.(type) {
++	case A:
++		if !shouldMatch {
++			fmt.Printf("wanted mis-match, got match")
++		}
++	default:
++		if shouldMatch {
++			fmt.Printf("wanted match, got mismatch")
++		}
++	}
++
++	_, ok := x.(A)
++	if ok != shouldMatch {
++		fmt.Printf("ok: got %v, wanted %v", ok, shouldMatch)
++	}
++
++	if !shouldMatch {
++		defer func() {
++			if shouldMatch {
++				fmt.Printf("Shouldn't have panicked")
++			}
++			recover()
++		}()
++	}
++	_ = x.(A)
++	if !shouldMatch {
++		fmt.Printf("Should have panicked")
++	}
++}
++
++func main() {
++	// Test instantiation where the type switch/type asserts can't possibly succeed
++	// (since string does not implement I[byte]).
++	F[byte, string](S{}, false)
++
++	// Test instantiation where the type switch/type asserts should succeed
++	// (since S does implement I[byte])
++	F[byte, S](S{}, true)
++	F[byte, S](I[byte](S{}), true)
++}

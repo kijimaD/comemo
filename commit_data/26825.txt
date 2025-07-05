@@ -9,7 +9,55 @@ Date:   Tue Feb 23 16:11:46 2016 -0800
     Change-Id: I0cddfe27fd8d00ba85659d0b618410e39ebf45cb
     Reviewed-on: https://go-review.googlesource.com/19860
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/errors/ptr.go | 10 ++++++++++
  src/cmd/cgo/gcc.go     | 11 +++++++----
  2 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/errors/ptr.go b/misc/cgo/errors/ptr.go
+index 834cde9199..bbcaaabecb 100644
+--- a/misc/cgo/errors/ptr.go
++++ b/misc/cgo/errors/ptr.go
+@@ -122,6 +122,16 @@ var ptrTests = []ptrTest{
+ 		body:    `i := 0; p := &S{p:&i}; s := p.a[:]; C.f(unsafe.Pointer(&s[0]))`,
+ 		fail:    false,
+ 	},
++	{
++		// Passing the address of a slice of an array that is
++		// an element in a struct, with a type conversion.
++		name:    "slice-ok-4",
++		c:       `typedef void* PV; void f(PV p) {}`,
++		imports: []string{"unsafe"},
++		support: `type S struct { p *int; a [4]byte }`,
++		body:    `i := 0; p := &S{p:&i}; C.f(C.PV(unsafe.Pointer(&p.a[0])))`,
++		fail:    false,
++	},
+ 	{
+ 		// Passing the address of a static variable with no
+ 		// pointers doesn't matter.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 5bfdef785c..fe9af1769d 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -819,14 +819,17 @@ func (p *Package) hasSideEffects(f *File, x ast.Expr) bool {
+ func (p *Package) isType(t ast.Expr) bool {
+ 	switch t := t.(type) {
+ 	case *ast.SelectorExpr:
+-		if t.Sel.Name != "Pointer" {
+-			return false
+-		}
+ 		id, ok := t.X.(*ast.Ident)
+ 		if !ok {
+ 			return false
+ 		}
+-		return id.Name == "unsafe"
++		if id.Name == "unsafe" && t.Sel.Name == "Pointer" {
++			return true
++		}
++		if id.Name == "C" && typedef["_Ctype_"+t.Sel.Name] != nil {
++			return true
++		}
++		return false
+ 	case *ast.Ident:
+ 		// TODO: This ignores shadowing.
+ 		switch t.Name {

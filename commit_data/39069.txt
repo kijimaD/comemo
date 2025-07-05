@@ -17,7 +17,35 @@ Date:   Fri Dec 21 12:23:18 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/c/155480
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/gc.go                       | 6 ++++++
  src/cmd/go/testdata/script/build_runtime_gcflags.txt | 4 ++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 0df6629f41..3d09f69fcc 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -316,6 +316,12 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
+ 
+ 		// Filter out just the symbol refs and append them to
+ 		// the symabis file.
++		if cfg.BuildN {
++			// -x will print the lines from symabis2 that are actually appended
++			// to symabis. With -n, we don't know what those lines will be.
++			b.Showcmd("", `grep '^ref' <%s | grep -v '^ref\s*""\.' >>%s`, symabis2, a.Objdir+"symabis")
++			continue
++		}
+ 		abis2, err := ioutil.ReadFile(symabis2)
+ 		if err != nil {
+ 			return "", err
+diff --git a/src/cmd/go/testdata/script/build_runtime_gcflags.txt b/src/cmd/go/testdata/script/build_runtime_gcflags.txt
+new file mode 100644
+index 0000000000..dc0767c569
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_runtime_gcflags.txt
+@@ -0,0 +1,4 @@
++# This test verifies the standard library (specifically runtime/internal/atomic)
++# can be built with -gcflags when -n is given. See golang.org/issue/26092.
++go build -n -gcflags=all='-l' std
++stderr 'compile.* -l .* runtime/internal/atomic'

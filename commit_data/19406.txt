@@ -10,6 +10,19 @@ Date:   Tue May 20 15:52:08 2014 +1000
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/94670044
-
+---
  misc/makerelease/makerelease.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/misc/makerelease/makerelease.go b/misc/makerelease/makerelease.go
+index 343fc4b5ec..fd30bedf01 100644
+--- a/misc/makerelease/makerelease.go
++++ b/misc/makerelease/makerelease.go
+@@ -91,7 +91,6 @@ var tourPackages = []string{
+ 
+ var tourContent = []string{
+ 	"content",
+-	"js",
+ 	"solutions",
+ 	"static",
+ 	"template",

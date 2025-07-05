@@ -12,6 +12,21 @@ Date:   Wed Mar 1 00:26:16 2017 +0000
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/vet/all/main.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 7011111659..87e5c51dfd 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -191,9 +191,6 @@ var ignorePathPrefixes = [...]string{
+ 	// TODO: If vet ever uses go/loader and starts working off source,
+ 	// this problem will likely go away.
+ 	"fmt/fmt_test.go",
+-	// Ignore pprof for the moment to get the builders happy.
+-	// TODO: Fix all the issues and reinstate.
+-	"cmd/vendor/github.com/google/pprof",
+ }
+ 
+ func vetPlatforms(pp []platform) {

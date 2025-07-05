@@ -5,6 +5,20 @@ Date:   Fri Jun 27 17:35:42 2008 -0700
     line numbers
     
     SVN=125228
-
+---
  src/cmd/gc/subr.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 9b20ee4f6f..6bae9833ac 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -700,6 +700,8 @@ Lconv(Fmt *fp)
+ 
+ 	n = 0;
+ 	for(h=hist; h!=H; h=h->link) {
++		if(h->offset < 0)
++			continue;
+ 		if(lno < h->line)
+ 			break;
+ 		if(h->name) {

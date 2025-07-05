@@ -15,7 +15,79 @@ Date:   Sat May 30 01:12:35 2015 +0800
     Change-Id: I3f8880f6717a4f079b840d1249174378d36bca1b
     Reviewed-on: https://go-review.googlesource.com/10475
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/get.go | 29 +++++++++++++++--------------
  src/cmd/go/vcs.go | 10 ++++++++--
  2 files changed, 23 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 940b2639a1..e76be651ae 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -300,22 +300,23 @@ func downloadPackage(p *Package) error {
+ 		// Double-check where it came from.
+ 		if *getU && vcs.remoteRepo != nil {
+ 			dir := filepath.Join(p.build.SrcRoot, rootPath)
+-			if remote, err := vcs.remoteRepo(vcs, dir); err == nil {
+-				repo = remote
+-
+-				if !*getF {
+-					if rr, err := repoRootForImportPath(p.ImportPath, security); err == nil {
+-						repo := rr.repo
+-						if rr.vcs.resolveRepo != nil {
+-							resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
+-							if err == nil {
+-								repo = resolved
+-							}
+-						}
+-						if remote != repo {
+-							return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
++			remote, err := vcs.remoteRepo(vcs, dir)
++			if err != nil {
++				return err
++			}
++			repo = remote
++			if !*getF {
++				if rr, err := repoRootForImportPath(p.ImportPath, security); err == nil {
++					repo := rr.repo
++					if rr.vcs.resolveRepo != nil {
++						resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
++						if err == nil {
++							repo = resolved
+ 						}
+ 					}
++					if remote != repo {
++						return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index b1db0deba7..d8f8873bbd 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -147,8 +147,14 @@ var vcsGit = &vcsCmd{
+ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
+ 	cmd := "config remote.origin.url"
+ 	errParse := errors.New("unable to parse output of git " + cmd)
+-	outb, err := vcsGit.runOutput(rootDir, cmd)
++	errRemoteOriginNotFound := errors.New("remote origin not found")
++	outb, err := vcsGit.run1(rootDir, cmd, nil, false)
+ 	if err != nil {
++		// if it doesn't output any message, it means the config argument is correct,
++		// but the config value itself doesn't exist
++		if outb != nil && len(outb) == 0 {
++			return "", errRemoteOriginNotFound
++		}
+ 		return "", err
+ 	}
+ 	repoURL, err := url.Parse(strings.TrimSpace(string(outb)))
+@@ -333,7 +339,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
+ 			fmt.Fprintf(os.Stderr, "# cd %s; %s %s\n", dir, v.cmd, strings.Join(args, " "))
+ 			os.Stderr.Write(out)
+ 		}
+-		return nil, err
++		return out, err
+ 	}
+ 	return out, nil
+ }

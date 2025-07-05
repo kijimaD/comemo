@@ -6,6 +6,20 @@ Date:   Mon Nov 16 21:56:38 2009 -0800
     
     R=rsc
     https://golang.org/cl/155058
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 694f05d101..3ab05fc1cf 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1441,7 +1441,7 @@ then make the receiver for the method a value of that type.
+ <pre>
+ type ByteSlice []byte
+ 
+-func (slice ByteSlice) Append(data []byte) []slice {
++func (slice ByteSlice) Append(data []byte) []byte {
+ 	// Body exactly the same as above
+ }
+ </pre>

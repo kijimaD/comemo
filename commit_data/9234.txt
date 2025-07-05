@@ -9,6 +9,39 @@ Date:   Thu Jul 28 08:41:06 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4798059
-
+---
  src/pkg/exp/template/helper.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/template/helper.go b/src/pkg/exp/template/helper.go
+index 5eb46ee1df..97917fddfc 100644
+--- a/src/pkg/exp/template/helper.go
++++ b/src/pkg/exp/template/helper.go
+@@ -192,11 +192,12 @@ func (s *Set) ParseTemplateFile(filenames ...string) os.Error {
+ 
+ // MustParseTemplateFile is like ParseTemplateFile but
+ // panics if there is an error.
+-func (s *Set) MustParseTemplateFile(filenames ...string) {
++func (s *Set) MustParseTemplateFile(filenames ...string) *Set {
+ 	err := s.ParseTemplateFile(filenames...)
+ 	if err != nil {
+ 		panic(err)
+ 	}
++	return s
+ }
+ 
+ // ParseTemplateFiles parses the template files matched by the
+@@ -228,11 +229,12 @@ func (s *Set) ParseTemplateFiles(pattern string) os.Error {
+ 
+ // MustParseTemplateFile is like ParseTemplateFiles but
+ // panics if there is an error.
+-func (s *Set) MustParseTemplateFiles(pattern string) {
++func (s *Set) MustParseTemplateFiles(pattern string) *Set {
+ 	err := s.ParseTemplateFiles(pattern)
+ 	if err != nil {
+ 		panic(err)
+ 	}
++	return s
+ }
+ 
+ // ParseTemplateFile creates a set by parsing the named files,

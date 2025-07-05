@@ -11,6 +11,33 @@ Date:   Sat Oct 26 09:24:29 2019 +0200
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  test/fixedbugs/issue35157.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/test/fixedbugs/issue35157.go b/test/fixedbugs/issue35157.go
+new file mode 100644
+index 0000000000..c9c4899e0c
+--- /dev/null
++++ b/test/fixedbugs/issue35157.go
+@@ -0,0 +1,20 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	var i int
++	var b *bool
++	var s0, s1, s2 string
++
++	if *b {
++		s2 = s2[:1]
++		i = 1
++	}
++	s1 = s1[i:-i+i] + s1[-i+i:i+2]
++	s1 = s0[i:-i]
++}

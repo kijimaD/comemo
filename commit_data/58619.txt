@@ -26,10 +26,351 @@ Date:   Sun Nov 12 23:10:04 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/trace/main.go                              |  15 ++-
  src/cmd/trace/v2/main.go                           |   6 ++
  src/internal/trace/gc.go                           |  28 ++----
  src/internal/trace/gc_test.go                      |  22 ++++-
  .../trace => internal/trace/traceviewer}/mmu.go    | 104 +++++++++++----------
  5 files changed, 100 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index b269050499..cb39c08aa7 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -139,8 +139,13 @@ func main() {
+ 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
+ 	browser.Open(addr)
+ 
+-	// Start http server.
++	// Install MMU handlers.
++	traceviewer.InstallMMUHandlers(http.DefaultServeMux, ranges, mutatorUtil)
++
++	// Install main handler.
+ 	http.Handle("/", traceviewer.MainHandler(ranges))
++
++	// Start http server.
+ 	err = http.Serve(ln, nil)
+ 	dief("failed to start http server: %v\n", err)
+ }
+@@ -228,3 +233,11 @@ func reportMemoryUsage(msg string) {
+ 	fmt.Printf("Enter to continue...")
+ 	fmt.Scanf("%s", &dummy)
+ }
++
++func mutatorUtil(flags trace.UtilFlags) ([][]trace.MutatorUtil, error) {
++	events, err := parseEvents()
++	if err != nil {
++		return nil, err
++	}
++	return trace.MutatorUtilization(events, flags), nil
++}
+diff --git a/src/cmd/trace/v2/main.go b/src/cmd/trace/v2/main.go
+index b355d81ce6..38be4d2fe2 100644
+--- a/src/cmd/trace/v2/main.go
++++ b/src/cmd/trace/v2/main.go
+@@ -70,6 +70,12 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
+ 	mux.HandleFunc("/goroutines", GoroutinesHandlerFunc(gSummaries))
+ 	mux.HandleFunc("/goroutine", GoroutineHandler(gSummaries))
+ 
++	// Install MMU handlers.
++	mutatorUtil := func(flags trace.UtilFlags) ([][]trace.MutatorUtil, error) {
++		return trace.MutatorUtilizationV2(parsed.events, flags), nil
++	}
++	traceviewer.InstallMMUHandlers(mux, ranges, mutatorUtil)
++
+ 	err = http.Serve(ln, mux)
+ 	return fmt.Errorf("failed to start http server: %w", err)
+ }
+diff --git a/src/internal/trace/gc.go b/src/internal/trace/gc.go
+index e6a23835d6..ca91969cfb 100644
+--- a/src/internal/trace/gc.go
++++ b/src/internal/trace/gc.go
+@@ -7,7 +7,6 @@ package trace
+ import (
+ 	"container/heap"
+ 	tracev2 "internal/trace/v2"
+-	"io"
+ 	"math"
+ 	"sort"
+ 	"strings"
+@@ -212,13 +211,7 @@ func MutatorUtilization(events []*Event, flags UtilFlags) [][]MutatorUtil {
+ //
+ // If the UtilPerProc flag is not given, this always returns a single
+ // utilization function. Otherwise, it returns one function per P.
+-func MutatorUtilizationV2(trace io.Reader, flags UtilFlags) ([][]MutatorUtil, error) {
+-	// Create a reader.
+-	r, err := tracev2.NewReader(trace)
+-	if err != nil {
+-		return nil, err
+-	}
+-
++func MutatorUtilizationV2(events []tracev2.Event, flags UtilFlags) [][]MutatorUtil {
+ 	// Set up a bunch of analysis state.
+ 	type perP struct {
+ 		// gc > 0 indicates that GC is active on this P.
+@@ -255,16 +248,9 @@ func MutatorUtilizationV2(trace io.Reader, flags UtilFlags) ([][]MutatorUtil, er
+ 	}
+ 
+ 	// Iterate through the trace, tracking mutator utilization.
+-	var lastEv tracev2.Event
+-	for {
+-		// Read a single event.
+-		ev, err := r.ReadEvent()
+-		if err == io.EOF {
+-			break
+-		}
+-		if err != nil {
+-			return nil, err
+-		}
++	var lastEv *tracev2.Event
++	for i := range events {
++		ev := &events[i]
+ 		lastEv = ev
+ 
+ 		// Process the event.
+@@ -451,8 +437,8 @@ func MutatorUtilizationV2(trace io.Reader, flags UtilFlags) ([][]MutatorUtil, er
+ 	}
+ 
+ 	// No events in the stream.
+-	if lastEv.Kind() == tracev2.EventBad {
+-		return nil, nil
++	if lastEv == nil {
++		return nil
+ 	}
+ 
+ 	// Add final 0 utilization event to any remaining series. This
+@@ -463,7 +449,7 @@ func MutatorUtilizationV2(trace io.Reader, flags UtilFlags) ([][]MutatorUtil, er
+ 	for i := range ps {
+ 		out[ps[i].series] = addUtil(out[ps[i].series], mu)
+ 	}
+-	return out, nil
++	return out
+ }
+ 
+ func addUtil(util []MutatorUtil, mu MutatorUtil) []MutatorUtil {
+diff --git a/src/internal/trace/gc_test.go b/src/internal/trace/gc_test.go
+index 2bdcfef006..4bbf1604f5 100644
+--- a/src/internal/trace/gc_test.go
++++ b/src/internal/trace/gc_test.go
+@@ -6,7 +6,10 @@ package trace
+ 
+ import (
+ 	"bytes"
++	"internal/trace/v2"
++	tracev2 "internal/trace/v2"
+ 	"internal/trace/v2/testtrace"
++	"io"
+ 	"math"
+ 	"os"
+ 	"testing"
+@@ -133,12 +136,23 @@ func TestMMUTrace(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
+ 		}
+-		// Pass the trace through MutatorUtilizationV2.
+-		mu, err := MutatorUtilizationV2(r, UtilSTW|UtilBackground|UtilAssist)
++		var events []tracev2.Event
++		tr, err := trace.NewReader(r)
+ 		if err != nil {
+-			t.Fatalf("failed to compute mutator utilization or parse trace: %v", err)
++			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
++		}
++		for {
++			ev, err := tr.ReadEvent()
++			if err == io.EOF {
++				break
++			}
++			if err != nil {
++				t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
++			}
++			events = append(events, ev)
+ 		}
+-		check(t, mu)
++		// Pass the trace through MutatorUtilizationV2 and check it.
++		check(t, MutatorUtilizationV2(events, UtilSTW|UtilBackground|UtilAssist))
+ 	})
+ }
+ 
+diff --git a/src/cmd/trace/mmu.go b/src/internal/trace/traceviewer/mmu.go
+similarity index 84%
+rename from src/cmd/trace/mmu.go
+rename to src/internal/trace/traceviewer/mmu.go
+index 43017c857e..42bf82774d 100644
+--- a/src/cmd/trace/mmu.go
++++ b/src/internal/trace/traceviewer/mmu.go
+@@ -1,4 +1,4 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
++// Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -23,13 +23,12 @@
+ // could potentially put confidence intervals on these estimates and
+ // render this progressively as we refine the distributions.
+ 
+-package main
++package traceviewer
+ 
+ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"internal/trace"
+-	"internal/trace/traceviewer"
+ 	"log"
+ 	"math"
+ 	"net/http"
+@@ -39,10 +38,21 @@ import (
+ 	"time"
+ )
+ 
+-func init() {
+-	http.HandleFunc("/mmu", httpMMU)
+-	http.HandleFunc("/mmuPlot", httpMMUPlot)
+-	http.HandleFunc("/mmuDetails", httpMMUDetails)
++type MutatorUtilFunc func(trace.UtilFlags) ([][]trace.MutatorUtil, error)
++
++func InstallMMUHandlers(mux *http.ServeMux, ranges []Range, f MutatorUtilFunc) {
++	mmu := &mmu{
++		cache:  make(map[trace.UtilFlags]*mmuCacheEntry),
++		f:      f,
++		ranges: ranges,
++	}
++	mux.HandleFunc("/mmu", func(w http.ResponseWriter, r *http.Request) {
++		// N.B. templMMU has Javascript that implicitly relies upon the existence
++		// of /mmuPlot and /mmuDetails on the same server.
++		http.ServeContent(w, r, "", time.Time{}, strings.NewReader(templMMU))
++	})
++	mux.HandleFunc("/mmuPlot", mmu.HandlePlot)
++	mux.HandleFunc("/mmuDetails", mmu.HandleDetails)
+ }
+ 
+ var utilFlagNames = map[string]trace.UtilFlags{
+@@ -53,6 +63,14 @@ var utilFlagNames = map[string]trace.UtilFlags{
+ 	"sweep":      trace.UtilSweep,
+ }
+ 
++func requestUtilFlags(r *http.Request) trace.UtilFlags {
++	var flags trace.UtilFlags
++	for _, flagStr := range strings.Split(r.FormValue("flags"), "|") {
++		flags |= utilFlagNames[flagStr]
++	}
++	return flags
++}
++
+ type mmuCacheEntry struct {
+ 	init     sync.Once
+ 	util     [][]trace.MutatorUtil
+@@ -60,51 +78,39 @@ type mmuCacheEntry struct {
+ 	err      error
+ }
+ 
+-var mmuCache struct {
+-	m    map[trace.UtilFlags]*mmuCacheEntry
+-	lock sync.Mutex
++type mmu struct {
++	mu     sync.Mutex
++	cache  map[trace.UtilFlags]*mmuCacheEntry
++	f      MutatorUtilFunc
++	ranges []Range
+ }
+ 
+-func init() {
+-	mmuCache.m = make(map[trace.UtilFlags]*mmuCacheEntry)
+-}
+-
+-func getMMUCurve(r *http.Request) ([][]trace.MutatorUtil, *trace.MMUCurve, error) {
+-	var flags trace.UtilFlags
+-	for _, flagStr := range strings.Split(r.FormValue("flags"), "|") {
+-		flags |= utilFlagNames[flagStr]
++func (m *mmu) get(flags trace.UtilFlags) ([][]trace.MutatorUtil, *trace.MMUCurve, error) {
++	m.mu.Lock()
++	entry := m.cache[flags]
++	if entry == nil {
++		entry = new(mmuCacheEntry)
++		m.cache[flags] = entry
+ 	}
++	m.mu.Unlock()
+ 
+-	mmuCache.lock.Lock()
+-	c := mmuCache.m[flags]
+-	if c == nil {
+-		c = new(mmuCacheEntry)
+-		mmuCache.m[flags] = c
+-	}
+-	mmuCache.lock.Unlock()
+-
+-	c.init.Do(func() {
+-		events, err := parseEvents()
++	entry.init.Do(func() {
++		util, err := m.f(flags)
+ 		if err != nil {
+-			c.err = err
++			entry.err = err
+ 		} else {
+-			c.util = trace.MutatorUtilization(events, flags)
+-			c.mmuCurve = trace.NewMMUCurve(c.util)
++			entry.util = util
++			entry.mmuCurve = trace.NewMMUCurve(util)
+ 		}
+ 	})
+-	return c.util, c.mmuCurve, c.err
+-}
+-
+-// httpMMU serves the MMU plot page.
+-func httpMMU(w http.ResponseWriter, r *http.Request) {
+-	http.ServeContent(w, r, "", time.Time{}, strings.NewReader(templMMU))
++	return entry.util, entry.mmuCurve, entry.err
+ }
+ 
+-// httpMMUPlot serves the JSON data for the MMU plot.
+-func httpMMUPlot(w http.ResponseWriter, r *http.Request) {
+-	mu, mmuCurve, err := getMMUCurve(r)
++// HandlePlot serves the JSON data for the MMU plot.
++func (m *mmu) HandlePlot(w http.ResponseWriter, r *http.Request) {
++	mu, mmuCurve, err := m.get(requestUtilFlags(r))
+ 	if err != nil {
+-		http.Error(w, fmt.Sprintf("failed to parse events: %v", err), http.StatusInternalServerError)
++		http.Error(w, fmt.Sprintf("failed to produce MMU data: %v", err), http.StatusInternalServerError)
+ 		return
+ 	}
+ 
+@@ -358,11 +364,11 @@ var templMMU = `<!doctype html>
+ </html>
+ `
+ 
+-// httpMMUDetails serves details of an MMU graph at a particular window.
+-func httpMMUDetails(w http.ResponseWriter, r *http.Request) {
+-	_, mmuCurve, err := getMMUCurve(r)
++// HandleDetails serves details of an MMU graph at a particular window.
++func (m *mmu) HandleDetails(w http.ResponseWriter, r *http.Request) {
++	_, mmuCurve, err := m.get(requestUtilFlags(r))
+ 	if err != nil {
+-		http.Error(w, fmt.Sprintf("failed to parse events: %v", err), http.StatusInternalServerError)
++		http.Error(w, fmt.Sprintf("failed to produce MMU data: %v", err), http.StatusInternalServerError)
+ 		return
+ 	}
+ 
+@@ -377,7 +383,7 @@ func httpMMUDetails(w http.ResponseWriter, r *http.Request) {
+ 	// Construct a link for each window.
+ 	var links []linkedUtilWindow
+ 	for _, ui := range worst {
+-		links = append(links, newLinkedUtilWindow(ui, time.Duration(window)))
++		links = append(links, m.newLinkedUtilWindow(ui, time.Duration(window)))
+ 	}
+ 
+ 	err = json.NewEncoder(w).Encode(links)
+@@ -392,10 +398,10 @@ type linkedUtilWindow struct {
+ 	URL string
+ }
+ 
+-func newLinkedUtilWindow(ui trace.UtilWindow, window time.Duration) linkedUtilWindow {
++func (m *mmu) newLinkedUtilWindow(ui trace.UtilWindow, window time.Duration) linkedUtilWindow {
+ 	// Find the range containing this window.
+-	var r traceviewer.Range
+-	for _, r = range ranges {
++	var r Range
++	for _, r = range m.ranges {
+ 		if r.EndTime > ui.Time {
+ 			break
+ 		}

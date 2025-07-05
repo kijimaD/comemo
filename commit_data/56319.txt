@@ -15,7 +15,7 @@ Date:   Fri Apr 28 10:54:57 2023 +0000
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Michael Stapelberg <stapelberg@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go        |   2 +-
  src/cmd/compile/internal/reflectdata/reflect.go |  13 +-
  src/cmd/compile/internal/ssa/_gen/generic.rules |  27 +-
@@ -23,3 +23,711 @@ Date:   Fri Apr 28 10:54:57 2023 +0000
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 357 ++----------------------
  src/cmd/internal/obj/link.go                    |  18 +-
  6 files changed, 55 insertions(+), 453 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 9a07ff7666..6098c92ac9 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3988,7 +3988,7 @@ func setBasePos(pos src.XPos) {
+ //
+ // N.B., this variable name is known to Delve:
+ // https://github.com/go-delve/delve/blob/cb91509630529e6055be845688fd21eb89ae8714/pkg/proc/eval.go#L28
+-const dictParamName = typecheck.LocalDictName
++const dictParamName = ".dict"
+ 
+ // shapeSig returns a copy of fn's signature, except adding a
+ // dictionary parameter and promoting the receiver parameter (if any)
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 73bbff94d8..cde8c68876 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -844,14 +844,7 @@ func TypeLinksymLookup(name string) *obj.LSym {
+ }
+ 
+ func TypeLinksym(t *types.Type) *obj.LSym {
+-	lsym := TypeSym(t).Linksym()
+-	signatmu.Lock()
+-	if lsym.Extra == nil {
+-		ti := lsym.NewTypeInfo()
+-		ti.Type = t
+-	}
+-	signatmu.Unlock()
+-	return lsym
++	return TypeSym(t).Linksym()
+ }
+ 
+ // Deprecated: Use TypePtrAt instead.
+@@ -1885,9 +1878,7 @@ func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
+ 		// Shape types shouldn't be put in interfaces, so we shouldn't ever get here.
+ 		base.Fatalf("shape types have no methods %+v", t)
+ 	}
+-	MarkTypeSymUsedInInterface(TypeLinksym(t), from)
+-}
+-func MarkTypeSymUsedInInterface(tsym *obj.LSym, from *obj.LSym) {
++	tsym := TypeLinksym(t)
+ 	// Emit a marker relocation. The linker will know the type is converted
+ 	// to an interface if "from" is reachable.
+ 	r := obj.Addrel(from)
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index bea743e94a..c7a525abb7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2061,10 +2061,6 @@
+ 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
+ 	=> (Invalid)
+ 
+-// Addresses of globals are always non-nil.
+-(NilCheck          (Addr {_} (SB))    _) => (Invalid)
+-(NilCheck (Convert (Addr {_} (SB)) _) _) => (Invalid)
+-
+ // for late-expanded calls, recognize memequal applied to a single constant byte
+ // Support is limited by 1, 2, 4, 8 byte sizes
+ (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
+@@ -2152,8 +2148,6 @@
+ (NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) => (ConstBool [o1 != o2])
+ (EqPtr  (Const(32|64) [c]) (Const(32|64) [d])) => (ConstBool [c == d])
+ (NeqPtr (Const(32|64) [c]) (Const(32|64) [d])) => (ConstBool [c != d])
+-(EqPtr  (Convert (Addr {x} _) _) (Addr {y} _)) => (ConstBool [x==y])
+-(NeqPtr (Convert (Addr {x} _) _) (Addr {y} _)) => (ConstBool [x!=y])
+ 
+ (EqPtr  (LocalAddr _ _) (Addr _)) => (ConstBool [false])
+ (EqPtr  (OffPtr (LocalAddr _ _)) (Addr _)) => (ConstBool [false])
+@@ -2175,8 +2169,7 @@
+ // Evaluate constant user nil checks.
+ (IsNonNil (ConstNil)) => (ConstBool [false])
+ (IsNonNil (Const(32|64) [c])) => (ConstBool [c != 0])
+-(IsNonNil          (Addr _)   ) => (ConstBool [true])
+-(IsNonNil (Convert (Addr _) _)) => (ConstBool [true])
++(IsNonNil (Addr _)) => (ConstBool [true])
+ (IsNonNil (LocalAddr _ _)) => (ConstBool [true])
+ 
+ // Inline small or disjoint runtime.memmove calls with constant length.
+@@ -2219,7 +2212,11 @@
+ 	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+ 
+ // De-virtualize late-expanded interface calls into late-expanded static calls.
+-(InterLECall [argsize] {auxCall} (Addr {fn} (SB)) ___) => devirtLECall(v, fn.(*obj.LSym))
++// Note that (ITab (IMake)) doesn't get rewritten until after the first opt pass,
++// so this rule should trigger reliably.
++// devirtLECall removes the first argument, adds the devirtualized symbol to the AuxCall, and changes the opcode
++(InterLECall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) ___) && devirtLESym(v, auxCall, itab, off) !=
++    nil => devirtLECall(v, devirtLESym(v, auxCall, itab, off))
+ 
+ // Move and Zero optimizations.
+ // Move source and destination may overlap.
+@@ -2733,15 +2730,3 @@
+ (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 4 && d.Type.Size() == 4 => (RotateLeft(64|32|16|8) x (Add32 <c.Type> c d))
+ (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 2 && d.Type.Size() == 2 => (RotateLeft(64|32|16|8) x (Add16 <c.Type> c d))
+ (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 1 && d.Type.Size() == 1 => (RotateLeft(64|32|16|8) x (Add8  <c.Type> c d))
+-
+-// Loading constant values from dictionaries and itabs.
+-(Load <t> (OffPtr [off]                       (Addr {s} sb)       ) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+-(Load <t> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+-(Load <t> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+-(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+-
+-// Loading constant values from runtime._type.hash.
+-(Load <t> (OffPtr [off]                       (Addr {sym} _)       ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+-(Load <t> (OffPtr [off]              (Convert (Addr {sym} _) _)    ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+-(Load <t> (OffPtr [off] (ITab (IMake          (Addr {sym} _)    _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+-(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {sym} _) _) _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index d16fee0ba2..58813d2fbe 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -7,7 +7,6 @@ package ssa
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/logopt"
+-	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/s390x"
+@@ -20,7 +19,6 @@ import (
+ 	"math/bits"
+ 	"os"
+ 	"path/filepath"
+-	"strings"
+ )
+ 
+ type deadValueChoice bool
+@@ -801,6 +799,25 @@ func loadLSymOffset(lsym *obj.LSym, offset int64) *obj.LSym {
+ 	return nil
+ }
+ 
++// de-virtualize an InterLECall
++// 'sym' is the symbol for the itab.
++func devirtLESym(v *Value, aux Aux, sym Sym, offset int64) *obj.LSym {
++	n, ok := sym.(*obj.LSym)
++	if !ok {
++		return nil
++	}
++
++	lsym := loadLSymOffset(n, offset)
++	if f := v.Block.Func; f.pass.debug > 0 {
++		if lsym != nil {
++			f.Warnl(v.Pos, "de-virtualizing call")
++		} else {
++			f.Warnl(v.Pos, "couldn't de-virtualize call")
++		}
++	}
++	return lsym
++}
++
+ func devirtLECall(v *Value, sym *obj.LSym) *Value {
+ 	v.Op = OpStaticLECall
+ 	auxcall := v.Aux.(*AuxCall)
+@@ -810,9 +827,6 @@ func devirtLECall(v *Value, sym *obj.LSym) *Value {
+ 	copy(v.Args[0:], v.Args[1:])
+ 	v.Args[len(v.Args)-1] = nil // aid GC
+ 	v.Args = v.Args[:len(v.Args)-1]
+-	if f := v.Block.Func; f.pass.debug > 0 {
+-		f.Warnl(v.Pos, "de-virtualizing call")
+-	}
+ 	return v
+ }
+ 
+@@ -1729,73 +1743,6 @@ func symIsROZero(sym Sym) bool {
+ 	return true
+ }
+ 
+-// isFixed32 returns true if the int32 at offset off in symbol sym
+-// is known and constant.
+-func isFixed32(c *Config, sym Sym, off int64) bool {
+-	return isFixed(c, sym, off, 4)
+-}
+-
+-// isFixed returns true if the range [off,off+size] of the symbol sym
+-// is known and constant.
+-func isFixed(c *Config, sym Sym, off, size int64) bool {
+-	lsym := sym.(*obj.LSym)
+-	if lsym.Extra == nil {
+-		return false
+-	}
+-	if _, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
+-		if off == 2*c.PtrSize && size == 4 {
+-			return true // type hash field
+-		}
+-	}
+-	return false
+-}
+-func fixed32(c *Config, sym Sym, off int64) int32 {
+-	lsym := sym.(*obj.LSym)
+-	if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
+-		if off == 2*c.PtrSize {
+-			return int32(types.TypeHash(ti.Type.(*types.Type)))
+-		}
+-	}
+-	base.Fatalf("fixed32 data not known for %s:%d", sym, off)
+-	return 0
+-}
+-
+-// isFixedSym returns true if the contents of sym at the given offset
+-// is known and is the constant address of another symbol.
+-func isFixedSym(sym Sym, off int64) bool {
+-	lsym := sym.(*obj.LSym)
+-	switch {
+-	case lsym.Type == objabi.SRODATA:
+-		// itabs, dictionaries
+-	default:
+-		return false
+-	}
+-	for _, r := range lsym.R {
+-		if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-func fixedSym(f *Func, sym Sym, off int64) Sym {
+-	lsym := sym.(*obj.LSym)
+-	for _, r := range lsym.R {
+-		if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off {
+-			if strings.HasPrefix(r.Sym.Name, "type:") {
+-				// In case we're loading a type out of a dictionary, we need to record
+-				// that the containing function might put that type in an interface.
+-				// That information is currently recorded in relocations in the dictionary,
+-				// but if we perform this load at compile time then the dictionary
+-				// might be dead.
+-				reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
+-			}
+-			return r.Sym
+-		}
+-	}
+-	base.Fatalf("fixedSym data not known for %s:%d", sym, off)
+-	return nil
+-}
+-
+ // read8 reads one byte from the read-only global sym at offset off.
+ func read8(sym interface{}, off int64) uint8 {
+ 	lsym := sym.(*obj.LSym)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index b9da2a6135..6026eac279 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -3,7 +3,6 @@
+ package ssa
+ 
+ import "math"
+-import "cmd/internal/obj"
+ import "cmd/compile/internal/types"
+ import "cmd/compile/internal/ir"
+ 
+@@ -10118,28 +10117,6 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (EqPtr (Convert (Addr {x} _) _) (Addr {y} _))
+-	// result: (ConstBool [x==y])
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			if v_0.Op != OpConvert {
+-				continue
+-			}
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAddr {
+-				continue
+-			}
+-			x := auxToSym(v_0_0.Aux)
+-			if v_1.Op != OpAddr {
+-				continue
+-			}
+-			y := auxToSym(v_1.Aux)
+-			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(x == y)
+-			return true
+-		}
+-		break
+-	}
+ 	// match: (EqPtr (LocalAddr _ _) (Addr _))
+ 	// result: (ConstBool [false])
+ 	for {
+@@ -10344,22 +10321,41 @@ func rewriteValuegeneric_OpIMake(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuegeneric_OpInterLECall(v *Value) bool {
+-	// match: (InterLECall [argsize] {auxCall} (Addr {fn} (SB)) ___)
+-	// result: devirtLECall(v, fn.(*obj.LSym))
++	// match: (InterLECall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) ___)
++	// cond: devirtLESym(v, auxCall, itab, off) != nil
++	// result: devirtLECall(v, devirtLESym(v, auxCall, itab, off))
+ 	for {
+ 		if len(v.Args) < 1 {
+ 			break
+ 		}
++		auxCall := auxToCall(v.Aux)
+ 		v_0 := v.Args[0]
+-		if v_0.Op != OpAddr {
++		if v_0.Op != OpLoad {
+ 			break
+ 		}
+-		fn := auxToSym(v_0.Aux)
+ 		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpSB {
++		if v_0_0.Op != OpOffPtr {
++			break
++		}
++		off := auxIntToInt64(v_0_0.AuxInt)
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpITab {
++			break
++		}
++		v_0_0_0_0 := v_0_0_0.Args[0]
++		if v_0_0_0_0.Op != OpIMake {
++			break
++		}
++		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
++		if v_0_0_0_0_0.Op != OpAddr {
+ 			break
+ 		}
+-		v.copyOf(devirtLECall(v, fn.(*obj.LSym)))
++		itab := auxToSym(v_0_0_0_0_0.Aux)
++		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
++		if v_0_0_0_0_0_0.Op != OpSB || !(devirtLESym(v, auxCall, itab, off) != nil) {
++			break
++		}
++		v.copyOf(devirtLECall(v, devirtLESym(v, auxCall, itab, off)))
+ 		return true
+ 	}
+ 	return false
+@@ -11090,7 +11086,7 @@ func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(c != 0)
+ 		return true
+ 	}
+-	// match: (IsNonNil (Addr _) )
++	// match: (IsNonNil (Addr _))
+ 	// result: (ConstBool [true])
+ 	for {
+ 		if v_0.Op != OpAddr {
+@@ -11100,30 +11096,6 @@ func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(true)
+ 		return true
+ 	}
+-	// match: (IsNonNil (Convert (Addr _) _))
+-	// result: (ConstBool [true])
+-	for {
+-		if v_0.Op != OpConvert {
+-			break
+-		}
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpAddr {
+-			break
+-		}
+-		v.reset(OpConstBool)
+-		v.AuxInt = boolToAuxInt(true)
+-		return true
+-	}
+-	// match: (IsNonNil (LocalAddr _ _))
+-	// result: (ConstBool [true])
+-	for {
+-		if v_0.Op != OpLocalAddr {
+-			break
+-		}
+-		v.reset(OpConstBool)
+-		v.AuxInt = boolToAuxInt(true)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
+@@ -12500,7 +12472,6 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	fe := b.Func.fe
+ 	// match: (Load <t1> p1 (Store {t2} p2 x _))
+ 	// cond: isSamePtr(p1, p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size()
+@@ -13192,230 +13163,6 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Load <t> (OffPtr [off] (Addr {s} sb) ) _)
+-	// cond: t.IsUintptr() && isFixedSym(s, off)
+-	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+-	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
+-			break
+-		}
+-		off := auxIntToInt64(v_0.AuxInt)
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpAddr {
+-			break
+-		}
+-		s := auxToSym(v_0_0.Aux)
+-		sb := v_0_0.Args[0]
+-		if !(t.IsUintptr() && isFixedSym(s, off)) {
+-			break
+-		}
+-		v.reset(OpAddr)
+-		v.Aux = symToAux(fixedSym(b.Func, s, off))
+-		v.AddArg(sb)
+-		return true
+-	}
+-	// match: (Load <t> (OffPtr [off] (Convert (Addr {s} sb) _) ) _)
+-	// cond: t.IsUintptr() && isFixedSym(s, off)
+-	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+-	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
+-			break
+-		}
+-		off := auxIntToInt64(v_0.AuxInt)
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpConvert {
+-			break
+-		}
+-		v_0_0_0 := v_0_0.Args[0]
+-		if v_0_0_0.Op != OpAddr {
+-			break
+-		}
+-		s := auxToSym(v_0_0_0.Aux)
+-		sb := v_0_0_0.Args[0]
+-		if !(t.IsUintptr() && isFixedSym(s, off)) {
+-			break
+-		}
+-		v.reset(OpAddr)
+-		v.Aux = symToAux(fixedSym(b.Func, s, off))
+-		v.AddArg(sb)
+-		return true
+-	}
+-	// match: (Load <t> (OffPtr [off] (ITab (IMake (Addr {s} sb) _))) _)
+-	// cond: t.IsUintptr() && isFixedSym(s, off)
+-	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+-	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
+-			break
+-		}
+-		off := auxIntToInt64(v_0.AuxInt)
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpITab {
+-			break
+-		}
+-		v_0_0_0 := v_0_0.Args[0]
+-		if v_0_0_0.Op != OpIMake {
+-			break
+-		}
+-		v_0_0_0_0 := v_0_0_0.Args[0]
+-		if v_0_0_0_0.Op != OpAddr {
+-			break
+-		}
+-		s := auxToSym(v_0_0_0_0.Aux)
+-		sb := v_0_0_0_0.Args[0]
+-		if !(t.IsUintptr() && isFixedSym(s, off)) {
+-			break
+-		}
+-		v.reset(OpAddr)
+-		v.Aux = symToAux(fixedSym(b.Func, s, off))
+-		v.AddArg(sb)
+-		return true
+-	}
+-	// match: (Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)
+-	// cond: t.IsUintptr() && isFixedSym(s, off)
+-	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+-	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
+-			break
+-		}
+-		off := auxIntToInt64(v_0.AuxInt)
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpITab {
+-			break
+-		}
+-		v_0_0_0 := v_0_0.Args[0]
+-		if v_0_0_0.Op != OpIMake {
+-			break
+-		}
+-		v_0_0_0_0 := v_0_0_0.Args[0]
+-		if v_0_0_0_0.Op != OpConvert {
+-			break
+-		}
+-		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+-		if v_0_0_0_0_0.Op != OpAddr {
+-			break
+-		}
+-		s := auxToSym(v_0_0_0_0_0.Aux)
+-		sb := v_0_0_0_0_0.Args[0]
+-		if !(t.IsUintptr() && isFixedSym(s, off)) {
+-			break
+-		}
+-		v.reset(OpAddr)
+-		v.Aux = symToAux(fixedSym(b.Func, s, off))
+-		v.AddArg(sb)
+-		return true
+-	}
+-	// match: (Load <t> (OffPtr [off] (Addr {sym} _) ) _)
+-	// cond: t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off)
+-	// result: (Const32 [fixed32(config, sym, off)])
+-	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
+-			break
+-		}
+-		off := auxIntToInt64(v_0.AuxInt)
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpAddr {
+-			break
+-		}
+-		sym := auxToSym(v_0_0.Aux)
+-		if !(t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off)) {
+-			break
+-		}
+-		v.reset(OpConst32)
+-		v.AuxInt = int32ToAuxInt(fixed32(config, sym, off))
+-		return true
+-	}
+-	// match: (Load <t> (OffPtr [off] (Convert (Addr {sym} _) _) ) _)
+-	// cond: t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off)
+-	// result: (Const32 [fixed32(config, sym, off)])
+-	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
+-			break
+-		}
+-		off := auxIntToInt64(v_0.AuxInt)
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpConvert {
+-			break
+-		}
+-		v_0_0_0 := v_0_0.Args[0]
+-		if v_0_0_0.Op != OpAddr {
+-			break
+-		}
+-		sym := auxToSym(v_0_0_0.Aux)
+-		if !(t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off)) {
+-			break
+-		}
+-		v.reset(OpConst32)
+-		v.AuxInt = int32ToAuxInt(fixed32(config, sym, off))
+-		return true
+-	}
+-	// match: (Load <t> (OffPtr [off] (ITab (IMake (Addr {sym} _) _))) _)
+-	// cond: t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off)
+-	// result: (Const32 [fixed32(config, sym, off)])
+-	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
+-			break
+-		}
+-		off := auxIntToInt64(v_0.AuxInt)
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpITab {
+-			break
+-		}
+-		v_0_0_0 := v_0_0.Args[0]
+-		if v_0_0_0.Op != OpIMake {
+-			break
+-		}
+-		v_0_0_0_0 := v_0_0_0.Args[0]
+-		if v_0_0_0_0.Op != OpAddr {
+-			break
+-		}
+-		sym := auxToSym(v_0_0_0_0.Aux)
+-		if !(t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off)) {
+-			break
+-		}
+-		v.reset(OpConst32)
+-		v.AuxInt = int32ToAuxInt(fixed32(config, sym, off))
+-		return true
+-	}
+-	// match: (Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {sym} _) _) _))) _)
+-	// cond: t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off)
+-	// result: (Const32 [fixed32(config, sym, off)])
+-	for {
+-		t := v.Type
+-		if v_0.Op != OpOffPtr {
+-			break
+-		}
+-		off := auxIntToInt64(v_0.AuxInt)
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpITab {
+-			break
+-		}
+-		v_0_0_0 := v_0_0.Args[0]
+-		if v_0_0_0.Op != OpIMake {
+-			break
+-		}
+-		v_0_0_0_0 := v_0_0_0.Args[0]
+-		if v_0_0_0_0.Op != OpConvert {
+-			break
+-		}
+-		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+-		if v_0_0_0_0_0.Op != OpAddr {
+-			break
+-		}
+-		sym := auxToSym(v_0_0_0_0_0.Aux)
+-		if !(t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off)) {
+-			break
+-		}
+-		v.reset(OpConst32)
+-		v.AuxInt = int32ToAuxInt(fixed32(config, sym, off))
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLsh16x16(v *Value) bool {
+@@ -18705,28 +18452,6 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (NeqPtr (Convert (Addr {x} _) _) (Addr {y} _))
+-	// result: (ConstBool [x!=y])
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			if v_0.Op != OpConvert {
+-				continue
+-			}
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpAddr {
+-				continue
+-			}
+-			x := auxToSym(v_0_0.Aux)
+-			if v_1.Op != OpAddr {
+-				continue
+-			}
+-			y := auxToSym(v_1.Aux)
+-			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(x != y)
+-			return true
+-		}
+-		break
+-	}
+ 	// match: (NeqPtr (LocalAddr _ _) (Addr _))
+ 	// result: (ConstBool [true])
+ 	for {
+@@ -18928,36 +18653,6 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+ 		v.reset(OpInvalid)
+ 		return true
+ 	}
+-	// match: (NilCheck (Addr {_} (SB)) _)
+-	// result: (Invalid)
+-	for {
+-		if v_0.Op != OpAddr {
+-			break
+-		}
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpSB {
+-			break
+-		}
+-		v.reset(OpInvalid)
+-		return true
+-	}
+-	// match: (NilCheck (Convert (Addr {_} (SB)) _) _)
+-	// result: (Invalid)
+-	for {
+-		if v_0.Op != OpConvert {
+-			break
+-		}
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpAddr {
+-			break
+-		}
+-		v_0_0_0 := v_0_0.Args[0]
+-		if v_0_0_0.Op != OpSB {
+-			break
+-		}
+-		v.reset(OpInvalid)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpNot(v *Value) bool {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 74eb98520a..b50305f85c 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -465,7 +465,7 @@ type LSym struct {
+ 	P      []byte
+ 	R      []Reloc
+ 
+-	Extra *interface{} // *FuncInfo, *FileInfo, or *TypeInfo, if present
++	Extra *interface{} // *FuncInfo or *FileInfo, if present
+ 
+ 	Pkg    string
+ 	PkgIdx int32
+@@ -564,22 +564,6 @@ func (s *LSym) File() *FileInfo {
+ 	return f
+ }
+ 
+-// A TypeInfo contains information for a symbol
+-// that contains a runtime._type.
+-type TypeInfo struct {
+-	Type interface{} // a *cmd/compile/internal/types.Type
+-}
+-
+-func (s *LSym) NewTypeInfo() *TypeInfo {
+-	if s.Extra != nil {
+-		panic(fmt.Sprintf("invalid use of LSym - NewTypeInfo with Extra of type %T", *s.Extra))
+-	}
+-	t := new(TypeInfo)
+-	s.Extra = new(interface{})
+-	*s.Extra = t
+-	return t
+-}
+-
+ // WasmImport represents a WebAssembly (WASM) imported function with
+ // parameters and results translated into WASM types based on the Go function
+ // declaration.

@@ -8,6 +8,20 @@ Date:   Fri Mar 7 23:18:07 2014 +0100
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/72260045
-
+---
  src/cmd/gc/obj.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index c7315e0f76..b5b8df510f 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -64,7 +64,7 @@ dumpobj(void)
+ 		memset(arhdr, 0, ArhdrSize);
+ 		Bwrite(bout, arhdr, ArhdrSize);
+ 		startobj = Boffset(bout);
+-		Bprint(bout, "go object %s %s %s %s\n", getgoos(), thestring, getgoversion(), expstring());
++		Bprint(bout, "go object %s %s %s %s\n", getgoos(), getgoarch(), getgoversion(), expstring());
+ 	}
+ 
+ 	Bprint(bout, "\n!\n");

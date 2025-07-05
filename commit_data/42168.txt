@@ -11,7 +11,209 @@ Date:   Mon May 6 19:03:01 2019 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go | 92 ++++++++++++++++++++++++++++++++++++++++-
  src/crypto/tls/tls_test.go      | 84 +++++++++++++++++++++++++++++++++++++
  2 files changed, 175 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 80e4023a7f..ea16ef95bf 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -14,10 +14,100 @@ import (
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+ 	"crypto/x509"
+-	"golang.org/x/crypto/chacha20poly1305"
++	"fmt"
+ 	"hash"
++
++	"golang.org/x/crypto/chacha20poly1305"
++)
++
++// CipherSuite is a TLS cipher suite. Note that most functions in this package
++// accept and expose cipher suite IDs instead of this type.
++type CipherSuite struct {
++	ID   uint16
++	Name string
++
++	// Supported versions is the list of TLS protocol versions that can
++	// negotiate this cipher suite.
++	SupportedVersions []uint16
++
++	// Insecure is true if the cipher suite has known security issues
++	// due to its primitives, design, or implementation.
++	Insecure bool
++}
++
++var (
++	supportedUpToTLS12 = []uint16{VersionTLS10, VersionTLS11, VersionTLS12}
++	supportedOnlyTLS12 = []uint16{VersionTLS12}
++	supportedOnlyTLS13 = []uint16{VersionTLS13}
+ )
+ 
++// CipherSuites returns a list of cipher suites currently implemented by this
++// package, excluding those with security issues, which are returned by
++// InsecureCipherSuites.
++//
++// The list is sorted by ID. Note that the default cipher suites selected by
++// this package might depend on logic that can't be captured by a static list.
++func CipherSuites() []*CipherSuite {
++	return []*CipherSuite{
++		{TLS_RSA_WITH_3DES_EDE_CBC_SHA, "TLS_RSA_WITH_3DES_EDE_CBC_SHA", supportedUpToTLS12, false},
++		{TLS_RSA_WITH_AES_128_CBC_SHA, "TLS_RSA_WITH_AES_128_CBC_SHA", supportedUpToTLS12, false},
++		{TLS_RSA_WITH_AES_256_CBC_SHA, "TLS_RSA_WITH_AES_256_CBC_SHA", supportedUpToTLS12, false},
++		{TLS_RSA_WITH_AES_128_GCM_SHA256, "TLS_RSA_WITH_AES_128_GCM_SHA256", supportedOnlyTLS12, false},
++		{TLS_RSA_WITH_AES_256_GCM_SHA384, "TLS_RSA_WITH_AES_256_GCM_SHA384", supportedOnlyTLS12, false},
++
++		{TLS_AES_128_GCM_SHA256, "TLS_AES_128_GCM_SHA256", supportedOnlyTLS13, false},
++		{TLS_AES_256_GCM_SHA384, "TLS_AES_256_GCM_SHA384", supportedOnlyTLS13, false},
++		{TLS_CHACHA20_POLY1305_SHA256, "TLS_CHACHA20_POLY1305_SHA256", supportedOnlyTLS13, false},
++
++		{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA", supportedUpToTLS12, false},
++		{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA", supportedUpToTLS12, false},
++		{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA", supportedUpToTLS12, false},
++		{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", supportedUpToTLS12, false},
++		{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA", supportedUpToTLS12, false},
++		{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", supportedOnlyTLS12, false},
++		{TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", supportedOnlyTLS12, false},
++		{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", supportedOnlyTLS12, false},
++		{TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", supportedOnlyTLS12, false},
++		{TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256", supportedOnlyTLS12, false},
++		{TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256", supportedOnlyTLS12, false},
++	}
++}
++
++// InsecureCipherSuites returns a list of cipher suites currently implemented by
++// this package and which have security issues.
++//
++// Most applications should not use the cipher suites in this list, and should
++// only use those returned by CipherSuites.
++func InsecureCipherSuites() []*CipherSuite {
++	// RC4 suites are broken because RC4 is.
++	// CBC-SHA256 suites have no Lucky13 countermeasures.
++	return []*CipherSuite{
++		{TLS_RSA_WITH_RC4_128_SHA, "TLS_RSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
++		{TLS_RSA_WITH_AES_128_CBC_SHA256, "TLS_RSA_WITH_AES_128_CBC_SHA256", supportedOnlyTLS12, true},
++		{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
++		{TLS_ECDHE_RSA_WITH_RC4_128_SHA, "TLS_ECDHE_RSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
++		{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256", supportedOnlyTLS12, true},
++		{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256", supportedOnlyTLS12, true},
++	}
++}
++
++// CipherSuiteName returns the standard name for the passed cipher suite ID
++// (e.g. "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"), or a fallback representation
++// of the ID value if the cipher suite is not implemented by this package.
++func CipherSuiteName(id uint16) string {
++	for _, c := range CipherSuites() {
++		if c.ID == id {
++			return c.Name
++		}
++	}
++	for _, c := range InsecureCipherSuites() {
++		if c.ID == id {
++			return c.Name
++		}
++	}
++	return fmt.Sprintf("0x%04X", id)
++}
++
+ // a keyAgreement implements the client and server side of a TLS key agreement
+ // protocol by generating and processing key exchange messages.
+ type keyAgreement interface {
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 084101a51f..178b519f1c 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -1215,6 +1215,90 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
+ 	}
+ }
+ 
++func TestCipherSuites(t *testing.T) {
++	var lastID uint16
++	for _, c := range CipherSuites() {
++		if lastID > c.ID {
++			t.Errorf("CipherSuites are not ordered by ID: got %#04x after %#04x", c.ID, lastID)
++		} else {
++			lastID = c.ID
++		}
++
++		if c.Insecure {
++			t.Errorf("%#04x: Insecure CipherSuite returned by CipherSuites()", c.ID)
++		}
++	}
++	lastID = 0
++	for _, c := range InsecureCipherSuites() {
++		if lastID > c.ID {
++			t.Errorf("InsecureCipherSuites are not ordered by ID: got %#04x after %#04x", c.ID, lastID)
++		} else {
++			lastID = c.ID
++		}
++
++		if !c.Insecure {
++			t.Errorf("%#04x: not Insecure CipherSuite returned by InsecureCipherSuites()", c.ID)
++		}
++	}
++
++	cipherSuiteByID := func(id uint16) *CipherSuite {
++		for _, c := range CipherSuites() {
++			if c.ID == id {
++				return c
++			}
++		}
++		for _, c := range InsecureCipherSuites() {
++			if c.ID == id {
++				return c
++			}
++		}
++		return nil
++	}
++
++	for _, c := range cipherSuites {
++		cc := cipherSuiteByID(c.id)
++		if cc == nil {
++			t.Errorf("%#04x: no CipherSuite entry", c.id)
++			continue
++		}
++
++		if defaultOff := c.flags&suiteDefaultOff != 0; defaultOff != cc.Insecure {
++			t.Errorf("%#04x: Insecure %v, expected %v", c.id, cc.Insecure, defaultOff)
++		}
++		if tls12Only := c.flags&suiteTLS12 != 0; tls12Only && len(cc.SupportedVersions) != 1 {
++			t.Errorf("%#04x: suite is TLS 1.2 only, but SupportedVersions is %v", c.id, cc.SupportedVersions)
++		} else if !tls12Only && len(cc.SupportedVersions) != 3 {
++			t.Errorf("%#04x: suite TLS 1.0-1.2, but SupportedVersions is %v", c.id, cc.SupportedVersions)
++		}
++
++		if got := CipherSuiteName(c.id); got != cc.Name {
++			t.Errorf("%#04x: unexpected CipherSuiteName: got %q, expected %q", c.id, got, cc.Name)
++		}
++	}
++	for _, c := range cipherSuitesTLS13 {
++		cc := cipherSuiteByID(c.id)
++		if cc == nil {
++			t.Errorf("%#04x: no CipherSuite entry", c.id)
++			continue
++		}
++
++		if cc.Insecure {
++			t.Errorf("%#04x: Insecure %v, expected false", c.id, cc.Insecure)
++		}
++		if len(cc.SupportedVersions) != 1 || cc.SupportedVersions[0] != VersionTLS13 {
++			t.Errorf("%#04x: suite is TLS 1.3 only, but SupportedVersions is %v", c.id, cc.SupportedVersions)
++		}
++
++		if got := CipherSuiteName(c.id); got != cc.Name {
++			t.Errorf("%#04x: unexpected CipherSuiteName: got %q, expected %q", c.id, got, cc.Name)
++		}
++	}
++
++	if got := CipherSuiteName(0xabc); got != "0x0ABC" {
++		t.Errorf("unexpected fallback CipherSuiteName: got %q, expected 0x0ABC", got)
++	}
++}
++
+ type brokenSigner struct{ crypto.Signer }
+ 
+ func (s brokenSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {

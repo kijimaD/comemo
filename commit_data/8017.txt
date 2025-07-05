@@ -7,6 +7,19 @@ Date:   Fri Apr 8 10:35:35 2011 +1000
     R=golang-dev, rsc1
     CC=golang-dev, vcc
     https://golang.org/cl/4374044
-
+---
  src/run.bash | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 90fa63276f..8ad11e2ae2 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -75,7 +75,6 @@ gomake clean
+ ) || exit $?
+ 
+ [ "$GOARCH" == arm ] ||
+-[ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/life
+ gomake clean
+ ./test.bash

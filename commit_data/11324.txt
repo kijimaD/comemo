@@ -7,7 +7,130 @@ Date:   Sun Jan 22 18:53:18 2012 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5571043
-
+---
  src/pkg/go/doc/testdata/c.go  | 62 +++++++++++++++++++++++++++++++++++++++++++
  src/pkg/go/doc/testdata/c.out | 48 +++++++++++++++++++++++++++++++++
  2 files changed, 110 insertions(+)
+
+diff --git a/src/pkg/go/doc/testdata/c.go b/src/pkg/go/doc/testdata/c.go
+new file mode 100644
+index 0000000000..e0f39196de
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/c.go
+@@ -0,0 +1,62 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import "a"
++
++// ----------------------------------------------------------------------------
++// Test that empty declarations don't cause problems
++
++const ()
++
++type ()
++
++var ()
++
++// ----------------------------------------------------------------------------
++// Test that types with documentation on both, the Decl and the Spec node
++// are handled correctly.
++
++// A (should see this)
++type A struct{}
++
++// B (should see this)
++type (
++	B struct{}
++)
++
++type (
++	// C (should see this)
++	C struct{}
++)
++
++// D (should not see this)
++type (
++	// D (should see this)
++	D struct{}
++)
++
++// E (should see this for E2 and E3)
++type (
++	// E1 (should see this)
++	E1 struct{}
++	E2 struct{}
++	E3 struct{}
++	// E4 (should see this)
++	E4 struct{}
++)
++
++// ----------------------------------------------------------------------------
++// Test that local and imported types are different when
++// handling anonymous fields.
++
++type T1 struct{}
++
++func (t1 *T1) M() {}
++
++// T2 must not show methods of local T1
++type T2 struct {
++	a.T1 // not the same as locally declared T1
++}
+diff --git a/src/pkg/go/doc/testdata/c.out b/src/pkg/go/doc/testdata/c.out
+new file mode 100644
+index 0000000000..e21959b195
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/c.out
+@@ -0,0 +1,48 @@
++// 
++PACKAGE c
++
++IMPORTPATH
++	testdata/c
++
++IMPORTS
++	a
++
++FILENAMES
++	testdata/c.go
++
++TYPES
++	// A (should see this) 
++	type A struct{}
++
++	// B (should see this) 
++	type B struct{}
++
++	// C (should see this) 
++	type C struct{}
++
++	// D (should see this) 
++	type D struct{}
++
++	// E1 (should see this) 
++	type E1 struct{}
++
++	// E (should see this for E2 and E3) 
++	type E2 struct{}
++
++	// E (should see this for E2 and E3) 
++	type E3 struct{}
++
++	// E4 (should see this) 
++	type E4 struct{}
++
++	// 
++	type T1 struct{}
++
++	// 
++	func (t1 *T1) M()
++
++	// T2 must not show methods of local T1 
++	type T2 struct {
++		a.T1	// not the same as locally declared T1
++	}
++

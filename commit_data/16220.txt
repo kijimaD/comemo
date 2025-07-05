@@ -7,6 +7,20 @@ Date:   Tue Apr 23 13:11:58 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8625044
-
+---
  doc/articles/race_detector.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/race_detector.html b/doc/articles/race_detector.html
+index 5c649f6691..2d36f616e1 100644
+--- a/doc/articles/race_detector.html
++++ b/doc/articles/race_detector.html
+@@ -34,7 +34,7 @@ func main() {
+ <h2 id="Usage">Usage</h2>
+ 
+ <p>
+-To help diangose such bugs, Go includes a built-in data race detector.
++To help diagnose such bugs, Go includes a built-in data race detector.
+ To use it, add the <code>-race</code> flag to the go command:
+ </p>
+ 

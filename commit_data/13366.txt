@@ -8,6 +8,20 @@ Date:   Wed Jun 20 01:22:03 2012 +0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6304097
-
+---
  doc/articles/slices_usage_and_internals.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/slices_usage_and_internals.html b/doc/articles/slices_usage_and_internals.html
+index 810b0a41f8..7eb751b455 100644
+--- a/doc/articles/slices_usage_and_internals.html
++++ b/doc/articles/slices_usage_and_internals.html
+@@ -243,7 +243,7 @@ slice itself) of a re-slice modifies the elements of the original slice:
+ d := []byte{'r', 'o', 'a', 'd'}
+ e := d[2:] 
+ // e == []byte{'a', 'd'}
+-e[1] == 'm'
++e[1] = 'm'
+ // e == []byte{'a', 'm'}
+ // d == []byte{'r', 'o', 'a', 'm'}
+ </pre>

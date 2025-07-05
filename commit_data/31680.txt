@@ -14,7 +14,49 @@ Date:   Tue Mar 7 10:57:55 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 4 ++++
  src/cmd/internal/dwarf/dwarf.go     | 8 +-------
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 33811b80c2..0b4a62fd6c 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -478,6 +478,10 @@ func debuginfo(fnsym *obj.LSym) []*dwarf.Var {
+ 			Gotype:  gotype,
+ 		})
+ 
++		if n.IsAutoTmp() {
++			continue
++		}
++
+ 		typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+ 		vars = append(vars, &dwarf.Var{
+ 			Name:   n.Sym.Name,
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 3644146725..99cb2d53ce 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -7,10 +7,7 @@
+ // this package contains the shared code.
+ package dwarf
+ 
+-import (
+-	"fmt"
+-	"strings"
+-)
++import "fmt"
+ 
+ // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
+ const InfoPrefix = "go.info."
+@@ -576,9 +573,6 @@ func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size
+ 	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
+ 	names := make(map[string]bool)
+ 	for _, v := range vars {
+-		if strings.Contains(v.Name, ".autotmp_") {
+-			continue
+-		}
+ 		var n string
+ 		if names[v.Name] {
+ 			n = fmt.Sprintf("%s#%d", v.Name, len(names))

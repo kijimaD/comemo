@@ -12,7 +12,60 @@ Date:   Sun Jul 3 12:56:29 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 -
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 22 ----------------------
  2 files changed, 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index c38d61c9e2..29abfbbc5e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -436,7 +436,6 @@
+ (GetG mem) -> (LoweredGetG mem)
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (Addr {sym} base) -> (LEAQ {sym} base)
+-(ITab (Load ptr mem)) -> (MOVQload ptr mem)
+ 
+ // block rewrites
+ (If (SETL  cmp) yes no) -> (LT  cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 8085f323fc..4a21f4574d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -232,8 +232,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpHmul8(v, config)
+ 	case OpHmul8u:
+ 		return rewriteValueAMD64_OpHmul8u(v, config)
+-	case OpITab:
+-		return rewriteValueAMD64_OpITab(v, config)
+ 	case OpInterCall:
+ 		return rewriteValueAMD64_OpInterCall(v, config)
+ 	case OpIsInBounds:
+@@ -4057,26 +4055,6 @@ func rewriteValueAMD64_OpHmul8u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueAMD64_OpITab(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (ITab (Load ptr mem))
+-	// cond:
+-	// result: (MOVQload ptr mem)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpLoad {
+-			break
+-		}
+-		ptr := v_0.Args[0]
+-		mem := v_0.Args[1]
+-		v.reset(OpAMD64MOVQload)
+-		v.AddArg(ptr)
+-		v.AddArg(mem)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueAMD64_OpInterCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

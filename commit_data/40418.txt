@@ -20,6 +20,23 @@ Date:   Fri May 10 15:08:17 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/nilptr2.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/test/nilptr2.go b/test/nilptr2.go
+index a5c036999a..8a85b6dbcb 100644
+--- a/test/nilptr2.go
++++ b/test/nilptr2.go
+@@ -35,7 +35,10 @@ var m *M
+ var m1 *M1
+ var m2 *M2
+ 
+-func use(interface{}) {
++var V interface{}
++
++func use(x interface{}) {
++	V = x
+ }
+ 
+ var tests = []struct{

@@ -13,9 +13,95 @@ Date:   Thu Jan 28 22:50:03 2016 -0500
     Change-Id: Ie4565a6bc5dbcf155181754d8d92bfbb23c75338
     Reviewed-on: https://go-review.googlesource.com/19614
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.txt                    | 13 +++++++++++++
  src/cmd/go/go_test.go            |  4 ++--
  src/cmd/link/internal/ld/pobj.go | 27 ---------------------------
  test/linkx_run.go                |  2 +-
  4 files changed, 16 insertions(+), 30 deletions(-)
+
+diff --git a/doc/go1.7.txt b/doc/go1.7.txt
+new file mode 100644
+index 0000000000..b2573bef83
+--- /dev/null
++++ b/doc/go1.7.txt
+@@ -0,0 +1,13 @@
++Tools:
++
++cmd/link: "-X name value" form gone (CL XXX)
++
++Ports:
++
++SOMETHING WILL HAPPEN
++
++API additions and behavior changes:
++
++SOMETHING WILL HAPPEN
++
++
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e55fc360de..7d38915176 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1657,8 +1657,8 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
+ 		func main() {
+ 			println(extern)
+ 		}`)
+-	tg.run("run", "-ldflags", `-X main.extern "hello world"`, tg.path("main.go"))
+-	tg.grepStderr("^hello world", `ldflags -X main.extern 'hello world' failed`)
++	tg.run("run", "-ldflags", `-X "main.extern=hello world"`, tg.path("main.go"))
++	tg.grepStderr("^hello world", `ldflags -X "main.extern=hello world"' failed`)
+ }
+ 
+ func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index 808d377f8a..9ec14c24ed 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -119,33 +119,6 @@ func Ldmain() {
+ 	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
+ 	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
+ 
+-	// Clumsy hack to preserve old two-argument -X name val syntax for old scripts.
+-	// Rewrite that syntax into new syntax -X name=val.
+-	// TODO(rsc): Delete this hack in Go 1.6 or later.
+-	var args []string
+-	for i := 0; i < len(os.Args); i++ {
+-		arg := os.Args[i]
+-		if (arg == "-X" || arg == "--X") && i+2 < len(os.Args) && !strings.Contains(os.Args[i+1], "=") {
+-			fmt.Fprintf(os.Stderr, "link: warning: option %s %s %s may not work in future releases; use %s %s=%s\n",
+-				arg, os.Args[i+1], os.Args[i+2],
+-				arg, os.Args[i+1], os.Args[i+2])
+-			args = append(args, arg)
+-			args = append(args, os.Args[i+1]+"="+os.Args[i+2])
+-			i += 2
+-			continue
+-		}
+-		if (strings.HasPrefix(arg, "-X=") || strings.HasPrefix(arg, "--X=")) && i+1 < len(os.Args) && strings.Count(arg, "=") == 1 {
+-			fmt.Fprintf(os.Stderr, "link: warning: option %s %s may not work in future releases; use %s=%s\n",
+-				arg, os.Args[i+1],
+-				arg, os.Args[i+1])
+-			args = append(args, arg+"="+os.Args[i+1])
+-			i++
+-			continue
+-		}
+-		args = append(args, arg)
+-	}
+-	os.Args = args
+-
+ 	obj.Flagparse(usage)
+ 
+ 	startProfile()
+diff --git a/test/linkx_run.go b/test/linkx_run.go
+index a6c7c67014..440271ac4a 100644
+--- a/test/linkx_run.go
++++ b/test/linkx_run.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ func main() {
+-	test(" ") // old deprecated syntax
++	// test(" ") // old deprecated & removed syntax
+ 	test("=") // new syntax
+ }
+ 

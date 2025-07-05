@@ -24,7 +24,7 @@ Date:   Wed Jul 14 16:57:24 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/cgo/gcc.go                                 | 46 +++++++++++++-----
  src/cmd/cgo/main.go                                |  8 ++--
  src/cmd/compile/internal/ssa/stmtlines_test.go     |  7 ++-
@@ -40,3 +40,699 @@ Date:   Wed Jul 14 16:57:24 2021 -0700
  src/cmd/link/internal/ld/lib.go                    | 39 +++++++++------
  src/cmd/link/internal/ld/main.go                   |  7 ++-
  14 files changed, 206 insertions(+), 103 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index a73e998877..92adb1ed9c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -23,10 +23,13 @@ import (
+ 	"internal/xcoff"
+ 	"math"
+ 	"os"
++	"os/exec"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
++
++	"cmd/internal/str"
+ )
+ 
+ var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
+@@ -382,7 +385,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		stderr = p.gccErrors(b.Bytes())
+ 	}
+ 	if stderr == "" {
+-		fatalf("%s produced no output\non input:\n%s", p.gccBaseCmd()[0], b.Bytes())
++		fatalf("%s produced no output\non input:\n%s", gccBaseCmd[0], b.Bytes())
+ 	}
+ 
+ 	completed := false
+@@ -457,7 +460,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	}
+ 
+ 	if !completed {
+-		fatalf("%s did not produce error at completed:1\non input:\n%s\nfull error output:\n%s", p.gccBaseCmd()[0], b.Bytes(), stderr)
++		fatalf("%s did not produce error at completed:1\non input:\n%s\nfull error output:\n%s", gccBaseCmd[0], b.Bytes(), stderr)
+ 	}
+ 
+ 	for i, n := range names {
+@@ -488,7 +491,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		// to users debugging preamble mistakes. See issue 8442.
+ 		preambleErrors := p.gccErrors([]byte(f.Preamble))
+ 		if len(preambleErrors) > 0 {
+-			error_(token.NoPos, "\n%s errors for preamble:\n%s", p.gccBaseCmd()[0], preambleErrors)
++			error_(token.NoPos, "\n%s errors for preamble:\n%s", gccBaseCmd[0], preambleErrors)
+ 		}
+ 
+ 		fatalf("unresolved names")
+@@ -1545,20 +1548,37 @@ func gofmtPos(n ast.Expr, pos token.Pos) string {
+ 	return fmt.Sprintf("/*line :%d:%d*/%s", p.Line, p.Column, s)
+ }
+ 
+-// gccBaseCmd returns the start of the compiler command line.
++// checkGCCBaseCmd returns the start of the compiler command line.
+ // It uses $CC if set, or else $GCC, or else the compiler recorded
+ // during the initial build as defaultCC.
+ // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
+-func (p *Package) gccBaseCmd() []string {
++//
++// The compiler command line is split into arguments on whitespace. Quotes
++// are understood, so arguments may contain whitespace.
++//
++// checkGCCBaseCmd confirms that the compiler exists in PATH, returning
++// an error if it does not.
++func checkGCCBaseCmd() ([]string, error) {
+ 	// Use $CC if set, since that's what the build uses.
+-	if ret := strings.Fields(os.Getenv("CC")); len(ret) > 0 {
+-		return ret
++	value := os.Getenv("CC")
++	if value == "" {
++		// Try $GCC if set, since that's what we used to use.
++		value = os.Getenv("GCC")
++	}
++	if value == "" {
++		value = defaultCC(goos, goarch)
++	}
++	args, err := str.SplitQuotedFields(value)
++	if err != nil {
++		return nil, err
++	}
++	if len(args) == 0 {
++		return nil, errors.New("CC not set and no default found")
+ 	}
+-	// Try $GCC if set, since that's what we used to use.
+-	if ret := strings.Fields(os.Getenv("GCC")); len(ret) > 0 {
+-		return ret
++	if _, err := exec.LookPath(args[0]); err != nil {
++		return nil, fmt.Errorf("C compiler %q not found: %v", args[0], err)
+ 	}
+-	return strings.Fields(defaultCC(goos, goarch))
++	return args[:len(args):len(args)], nil
+ }
+ 
+ // gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
+@@ -1604,7 +1624,7 @@ func gccTmp() string {
+ // gccCmd returns the gcc command line to use for compiling
+ // the input.
+ func (p *Package) gccCmd() []string {
+-	c := append(p.gccBaseCmd(),
++	c := append(gccBaseCmd,
+ 		"-w",          // no warnings
+ 		"-Wno-error",  // warnings are not errors
+ 		"-o"+gccTmp(), // write object to tmp
+@@ -2005,7 +2025,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
+ // #defines that gcc encountered while processing the input
+ // and its included files.
+ func (p *Package) gccDefines(stdin []byte) string {
+-	base := append(p.gccBaseCmd(), "-E", "-dM", "-xc")
++	base := append(gccBaseCmd, "-E", "-dM", "-xc")
+ 	base = append(base, p.gccMachine()...)
+ 	stdout, _ := runGcc(stdin, append(append(base, p.GccOptions...), "-"))
+ 	return stdout
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index c6a0c525e6..14642b7576 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -21,7 +21,6 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
+@@ -248,6 +247,7 @@ var importSyscall = flag.Bool("import_syscall", true, "import syscall in generat
+ var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
+ 
+ var goarch, goos, gomips, gomips64 string
++var gccBaseCmd []string
+ 
+ func main() {
+ 	objabi.AddVersionFlag() // -V
+@@ -305,10 +305,10 @@ func main() {
+ 	p := newPackage(args[:i])
+ 
+ 	// We need a C compiler to be available. Check this.
+-	gccName := p.gccBaseCmd()[0]
+-	_, err := exec.LookPath(gccName)
++	var err error
++	gccBaseCmd, err = checkGCCBaseCmd()
+ 	if err != nil {
+-		fatalf("C compiler %q not found: %v", gccName, err)
++		fatalf("%v", err)
+ 		os.Exit(2)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index a510d0b3d0..843db8c07e 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -2,6 +2,7 @@ package ssa_test
+ 
+ import (
+ 	cmddwarf "cmd/internal/dwarf"
++	"cmd/internal/str"
+ 	"debug/dwarf"
+ 	"debug/elf"
+ 	"debug/macho"
+@@ -57,7 +58,11 @@ func TestStmtLines(t *testing.T) {
+ 		if extld == "" {
+ 			extld = "gcc"
+ 		}
+-		enabled, err := cmddwarf.IsDWARFEnabledOnAIXLd(extld)
++		extldArgs, err := str.SplitQuotedFields(extld)
++		if err != nil {
++			t.Fatal(err)
++		}
++		enabled, err := cmddwarf.IsDWARFEnabledOnAIXLd(extldArgs)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 26b33e389f..320c62f850 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -47,6 +47,7 @@ var bootstrapDirs = []string{
+ 	"cmd/internal/objabi",
+ 	"cmd/internal/pkgpath",
+ 	"cmd/internal/src",
++	"cmd/internal/str",
+ 	"cmd/internal/sys",
+ 	"cmd/link",
+ 	"cmd/link/internal/...",
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index f68090f21f..5c45e34330 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -26,6 +26,7 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
++	"cmd/internal/str"
+ )
+ 
+ var CmdEnv = &base.Command{
+@@ -104,13 +105,13 @@ func MkEnv() []cfg.EnvVar {
+ 		env = append(env, cfg.EnvVar{Name: key, Value: val})
+ 	}
+ 
+-	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
+-	if env := strings.Fields(cfg.Getenv("CC")); len(env) > 0 {
+-		cc = env[0]
++	cc := cfg.Getenv("CC")
++	if cc == "" {
++		cc = cfg.DefaultCC(cfg.Goos, cfg.Goarch)
+ 	}
+-	cxx := cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
+-	if env := strings.Fields(cfg.Getenv("CXX")); len(env) > 0 {
+-		cxx = env[0]
++	cxx := cfg.Getenv("CXX")
++	if cxx == "" {
++		cxx = cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
+ 	}
+ 	env = append(env, cfg.EnvVar{Name: "AR", Value: envOr("AR", "ar")})
+ 	env = append(env, cfg.EnvVar{Name: "CC", Value: cc})
+@@ -458,10 +459,23 @@ func checkEnvWrite(key, val string) error {
+ 		if !filepath.IsAbs(val) && val != "" {
+ 			return fmt.Errorf("GOPATH entry is relative; must be absolute path: %q", val)
+ 		}
+-	// Make sure CC and CXX are absolute paths
+-	case "CC", "CXX", "GOMODCACHE":
+-		if !filepath.IsAbs(val) && val != "" && val != filepath.Base(val) {
+-			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, val)
++	case "GOMODCACHE":
++		if !filepath.IsAbs(val) && val != "" {
++			return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q", val)
++		}
++	case "CC", "CXX":
++		if val == "" {
++			break
++		}
++		args, err := str.SplitQuotedFields(val)
++		if err != nil {
++			return fmt.Errorf("invalid %s: %v", key, err)
++		}
++		if len(args) == 0 {
++			return fmt.Errorf("%s entry cannot contain only space", key)
++		}
++		if !filepath.IsAbs(args[0]) && args[0] != filepath.Base(args[0]) {
++			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, args[0])
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d51ec144f3..6c646ebf28 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1480,6 +1480,8 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string,
+ 			return nil, nil, errPrintedOutput
+ 		}
+ 		if len(out) > 0 {
++			// NOTE: we don't attempt to parse quotes and unescapes here. pkg-config
++			// is typically used within shell backticks, which treats quotes literally.
+ 			ldflags = strings.Fields(string(out))
+ 			if err := checkLinkerFlags("LDFLAGS", "pkg-config --libs", ldflags); err != nil {
+ 				return nil, nil, err
+@@ -2422,12 +2424,6 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
+ 	return err
+ }
+ 
+-// Grab these before main helpfully overwrites them.
+-var (
+-	origCC  = cfg.Getenv("CC")
+-	origCXX = cfg.Getenv("CXX")
+-)
+-
+ // gccCmd returns a gcc command line prefix
+ // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
+ func (b *Builder) GccCmd(incdir, workdir string) []string {
+@@ -2447,40 +2443,23 @@ func (b *Builder) gfortranCmd(incdir, workdir string) []string {
+ 
+ // ccExe returns the CC compiler setting without all the extra flags we add implicitly.
+ func (b *Builder) ccExe() []string {
+-	return b.compilerExe(origCC, cfg.DefaultCC(cfg.Goos, cfg.Goarch))
++	return envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch))
+ }
+ 
+ // cxxExe returns the CXX compiler setting without all the extra flags we add implicitly.
+ func (b *Builder) cxxExe() []string {
+-	return b.compilerExe(origCXX, cfg.DefaultCXX(cfg.Goos, cfg.Goarch))
++	return envList("CXX", cfg.DefaultCXX(cfg.Goos, cfg.Goarch))
+ }
+ 
+ // fcExe returns the FC compiler setting without all the extra flags we add implicitly.
+ func (b *Builder) fcExe() []string {
+-	return b.compilerExe(cfg.Getenv("FC"), "gfortran")
+-}
+-
+-// compilerExe returns the compiler to use given an
+-// environment variable setting (the value not the name)
+-// and a default. The resulting slice is usually just the name
+-// of the compiler but can have additional arguments if they
+-// were present in the environment value.
+-// For example if CC="gcc -DGOPHER" then the result is ["gcc", "-DGOPHER"].
+-func (b *Builder) compilerExe(envValue string, def string) []string {
+-	compiler := strings.Fields(envValue)
+-	if len(compiler) == 0 {
+-		compiler = strings.Fields(def)
+-	}
+-	return compiler
++	return envList("FC", "gfortran")
+ }
+ 
+ // compilerCmd returns a command line prefix for the given environment
+ // variable and using the default command when the variable is empty.
+ func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []string {
+-	// NOTE: env.go's mkEnv knows that the first three
+-	// strings returned are "gcc", "-I", incdir (and cuts them off).
+-	a := []string{compiler[0], "-I", incdir}
+-	a = append(a, compiler[1:]...)
++	a := append(compiler, "-I", incdir)
+ 
+ 	// Definitely want -fPIC but on Windows gcc complains
+ 	// "-fPIC ignored for target (all code is position independent)"
+@@ -2651,12 +2630,20 @@ func (b *Builder) gccArchArgs() []string {
+ 
+ // envList returns the value of the given environment variable broken
+ // into fields, using the default value when the variable is empty.
++//
++// The environment variable must be quoted correctly for
++// str.SplitQuotedFields. This should be done before building
++// anything, for example, in BuildInit.
+ func envList(key, def string) []string {
+ 	v := cfg.Getenv(key)
+ 	if v == "" {
+ 		v = def
+ 	}
+-	return strings.Fields(v)
++	args, err := str.SplitQuotedFields(v)
++	if err != nil {
++		panic(fmt.Sprintf("could not parse environment variable %s with value %q: %v", key, v, err))
++	}
++	return args
+ }
+ 
+ // CFlags returns the flags to use when invoking the C, C++ or Fortran compilers, or cgo.
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index c5f3fc264f..1fc825de47 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -536,33 +536,18 @@ func packInternal(afile string, ofiles []string) error {
+ }
+ 
+ // setextld sets the appropriate linker flags for the specified compiler.
+-func setextld(ldflags []string, compiler []string) []string {
++func setextld(ldflags []string, compiler []string) ([]string, error) {
+ 	for _, f := range ldflags {
+ 		if f == "-extld" || strings.HasPrefix(f, "-extld=") {
+ 			// don't override -extld if supplied
+-			return ldflags
++			return ldflags, nil
+ 		}
+ 	}
+-	ldflags = append(ldflags, "-extld="+compiler[0])
+-	if len(compiler) > 1 {
+-		extldflags := false
+-		add := strings.Join(compiler[1:], " ")
+-		for i, f := range ldflags {
+-			if f == "-extldflags" && i+1 < len(ldflags) {
+-				ldflags[i+1] = add + " " + ldflags[i+1]
+-				extldflags = true
+-				break
+-			} else if strings.HasPrefix(f, "-extldflags=") {
+-				ldflags[i] = "-extldflags=" + add + " " + ldflags[i][len("-extldflags="):]
+-				extldflags = true
+-				break
+-			}
+-		}
+-		if !extldflags {
+-			ldflags = append(ldflags, "-extldflags="+add)
+-		}
++	joined, err := str.JoinAndQuoteFields(compiler)
++	if err != nil {
++		return nil, err
+ 	}
+-	return ldflags
++	return append(ldflags, "-extld="+joined), nil
+ }
+ 
+ // pluginPath computes the package path for a plugin main package.
+@@ -649,7 +634,10 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 	}
+ 	ldflags = append(ldflags, forcedLdflags...)
+ 	ldflags = append(ldflags, root.Package.Internal.Ldflags...)
+-	ldflags = setextld(ldflags, compiler)
++	ldflags, err := setextld(ldflags, compiler)
++	if err != nil {
++		return err
++	}
+ 
+ 	// On OS X when using external linking to build a shared library,
+ 	// the argument passed here to -o ends up recorded in the final
+@@ -693,7 +681,10 @@ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action,
+ 	} else {
+ 		compiler = envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch))
+ 	}
+-	ldflags = setextld(ldflags, compiler)
++	ldflags, err := setextld(ldflags, compiler)
++	if err != nil {
++		return err
++	}
+ 	for _, d := range toplevelactions {
+ 		if !strings.HasSuffix(d.Target, ".a") { // omit unsafe etc and actions for other shared libraries
+ 			continue
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 37a3e2d0ff..022137390f 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/modload"
++	"cmd/internal/str"
+ 	"cmd/internal/sys"
+ 	"flag"
+ 	"fmt"
+@@ -39,9 +40,18 @@ func BuildInit() {
+ 		cfg.BuildPkgdir = p
+ 	}
+ 
+-	// Make sure CC and CXX are absolute paths
+-	for _, key := range []string{"CC", "CXX"} {
+-		if path := cfg.Getenv(key); !filepath.IsAbs(path) && path != "" && path != filepath.Base(path) {
++	// Make sure CC, CXX, and FC are absolute paths.
++	for _, key := range []string{"CC", "CXX", "FC"} {
++		value := cfg.Getenv(key)
++		args, err := str.SplitQuotedFields(value)
++		if err != nil {
++			base.Fatalf("go %s: %s environment variable could not be parsed: %v", flag.Args()[0], key, err)
++		}
++		if len(args) == 0 {
++			continue
++		}
++		path := args[0]
++		if !filepath.IsAbs(path) && path != filepath.Base(path) {
+ 			base.Fatalf("go %s: %s environment variable is relative; must be absolute path: %s\n", flag.Args()[0], key, path)
+ 		}
+ 	}
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 9ca297e89b..8a7c77a46f 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -184,6 +184,7 @@ func (ts *testScript) setup() {
+ 		"devnull=" + os.DevNull,
+ 		"goversion=" + goVersion(ts),
+ 		":=" + string(os.PathListSeparator),
++		"/=" + string(os.PathSeparator),
+ 	}
+ 	if !testenv.HasExternalNetwork() {
+ 		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
+diff --git a/src/cmd/go/testdata/script/cgo_path_space_quote.txt b/src/cmd/go/testdata/script/cgo_path_space_quote.txt
+new file mode 100644
+index 0000000000..3b89bfb800
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_path_space_quote.txt
+@@ -0,0 +1,56 @@
++# This test checks that the CC environment variable may contain quotes and
++# spaces. Arguments are normally split on spaces, tabs, newlines. If an
++# argument contains these characters, the entire argument may be quoted
++# with single or double quotes. This is the same as -gcflags and similar
++# options.
++
++[short] skip
++[!exec:clang] [!exec:gcc] skip
++
++env GOENV=$WORK/go.env
++mkdir 'program files'
++go build -o 'program files' './which cc/which cc.go'
++[exec:clang] env CC='"'$PWD${/}program' 'files${/}which' 'cc"' 'clang
++[!exec:clang] env CC='"'$PWD${/}program' 'files${/}which' 'cc"' 'gcc
++go env CC
++stdout 'program files[/\\]which cc" (clang|gcc)$'
++go env -w CC=$CC
++env CC=
++go env CC
++stdout 'program files[/\\]which cc" (clang|gcc)$'
++
++go run .
++
++-- go.mod --
++module test
++
++go 1.17
++-- which cc/which cc.go --
++package main
++
++import (
++	"fmt"
++	"os"
++	"os/exec"
++)
++
++func main() {
++	args := append([]string{"-DWRAPPER_WAS_USED=1"}, os.Args[2:]...)
++	cmd := exec.Command(os.Args[1], args...)
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++	if err := cmd.Run(); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++}
++-- hello.go --
++package main
++
++// int x = WRAPPER_WAS_USED;
++import "C"
++import "fmt"
++
++func main() {
++	fmt.Println(C.x)
++}
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index ec441c2bcb..54c4c4d56d 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -1620,8 +1620,10 @@ func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ // current extld.
+ // AIX ld doesn't support DWARF with -bnoobjreorder with version
+ // prior to 7.2.2.
+-func IsDWARFEnabledOnAIXLd(extld string) (bool, error) {
+-	out, err := exec.Command(extld, "-Wl,-V").CombinedOutput()
++func IsDWARFEnabledOnAIXLd(extld []string) (bool, error) {
++	name, args := extld[0], extld[1:]
++	args = append(args, "-Wl,-V")
++	out, err := exec.Command(name, args...).CombinedOutput()
+ 	if err != nil {
+ 		// The normal output should display ld version and
+ 		// then fails because ".main" is not defined:
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 3ca59bd47f..f7bbb014d9 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	cmddwarf "cmd/internal/dwarf"
+ 	"cmd/internal/objfile"
++	"cmd/internal/str"
+ 	"debug/dwarf"
+ 	"internal/testenv"
+ 	"os"
+@@ -67,8 +68,11 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 			if extld == "" {
+ 				extld = "gcc"
+ 			}
+-			var err error
+-			expectDWARF, err = cmddwarf.IsDWARFEnabledOnAIXLd(extld)
++			extldArgs, err := str.SplitQuotedFields(extld)
++			if err != nil {
++				t.Fatal(err)
++			}
++			expectDWARF, err = cmddwarf.IsDWARFEnabledOnAIXLd(extldArgs)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 644faeb2fb..4cfee4a1e7 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -464,23 +464,24 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
+ }
+ 
+ // extld returns the current external linker.
+-func (ctxt *Link) extld() string {
+-	if *flagExtld == "" {
+-		*flagExtld = "gcc"
++func (ctxt *Link) extld() []string {
++	if len(flagExtld) == 0 {
++		flagExtld = []string{"gcc"}
+ 	}
+-	return *flagExtld
++	return flagExtld
+ }
+ 
+ // findLibPathCmd uses cmd command to find gcc library libname.
+ // It returns library full path if found, or "none" if not found.
+ func (ctxt *Link) findLibPathCmd(cmd, libname string) string {
+ 	extld := ctxt.extld()
+-	args := hostlinkArchArgs(ctxt.Arch)
++	name, args := extld[0], extld[1:]
++	args = append(args, hostlinkArchArgs(ctxt.Arch)...)
+ 	args = append(args, cmd)
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%s %v\n", extld, args)
+ 	}
+-	out, err := exec.Command(extld, args...).Output()
++	out, err := exec.Command(name, args...).Output()
+ 	if err != nil {
+ 		if ctxt.Debugvlog != 0 {
+ 			ctxt.Logf("not using a %s file because compiler failed\n%v\n%s\n", libname, err, out)
+@@ -1240,7 +1241,7 @@ func (ctxt *Link) hostlink() {
+ 	}
+ 
+ 	var argv []string
+-	argv = append(argv, ctxt.extld())
++	argv = append(argv, ctxt.extld()...)
+ 	argv = append(argv, hostlinkArchArgs(ctxt.Arch)...)
+ 
+ 	if *FlagS || debug_s {
+@@ -1401,7 +1402,9 @@ func (ctxt *Link) hostlink() {
+ 			// If gold is not installed, gcc will silently switch
+ 			// back to ld.bfd. So we parse the version information
+ 			// and provide a useful error if gold is missing.
+-			cmd := exec.Command(*flagExtld, "-fuse-ld=gold", "-Wl,--version")
++			name, args := flagExtld[0], flagExtld[1:]
++			args = append(args, "-fuse-ld=gold", "-Wl,--version")
++			cmd := exec.Command(name, args...)
+ 			if out, err := cmd.CombinedOutput(); err == nil {
+ 				if !bytes.Contains(out, []byte("GNU gold")) {
+ 					log.Fatalf("ARM external linker must be gold (issue #15696), but is not: %s", out)
+@@ -1414,7 +1417,9 @@ func (ctxt *Link) hostlink() {
+ 		altLinker = "bfd"
+ 
+ 		// Provide a useful error if ld.bfd is missing.
+-		cmd := exec.Command(*flagExtld, "-fuse-ld=bfd", "-Wl,--version")
++		name, args := flagExtld[0], flagExtld[1:]
++		args = append(args, "-fuse-ld=bfd", "-Wl,--version")
++		cmd := exec.Command(name, args...)
+ 		if out, err := cmd.CombinedOutput(); err == nil {
+ 			if !bytes.Contains(out, []byte("GNU ld")) {
+ 				log.Fatalf("ARM64 external linker must be ld.bfd (issue #35197), please install devel/binutils")
+@@ -1482,10 +1487,11 @@ func (ctxt *Link) hostlink() {
+ 		argv = append(argv, "/lib/crt0_64.o")
+ 
+ 		extld := ctxt.extld()
++		name, args := extld[0], extld[1:]
+ 		// Get starting files.
+ 		getPathFile := func(file string) string {
+-			args := []string{"-maix64", "--print-file-name=" + file}
+-			out, err := exec.Command(extld, args...).CombinedOutput()
++			args := append(args, "-maix64", "--print-file-name="+file)
++			out, err := exec.Command(name, args...).CombinedOutput()
+ 			if err != nil {
+ 				log.Fatalf("running %s failed: %v\n%s", extld, err, out)
+ 			}
+@@ -1567,14 +1573,18 @@ func (ctxt *Link) hostlink() {
+ 		}
+ 	}
+ 
+-	for _, p := range strings.Fields(*flagExtldflags) {
++	for _, p := range flagExtldflags {
+ 		argv = append(argv, p)
+ 		checkStatic(p)
+ 	}
+ 	if ctxt.HeadType == objabi.Hwindows {
+ 		// Determine which linker we're using. Add in the extldflags in
+ 		// case used has specified "-fuse-ld=...".
+-		cmd := exec.Command(*flagExtld, *flagExtldflags, "-Wl,--version")
++		extld := ctxt.extld()
++		name, args := extld[0], extld[1:]
++		args = append(args, flagExtldflags...)
++		args = append(args, "-Wl,--version")
++		cmd := exec.Command(name, args...)
+ 		usingLLD := false
+ 		if out, err := cmd.CombinedOutput(); err == nil {
+ 			if bytes.Contains(out, []byte("LLD ")) {
+@@ -1718,8 +1728,7 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
+ 	flags := hostlinkArchArgs(arch)
+ 	keep := false
+ 	skip := false
+-	extldflags := strings.Fields(*flagExtldflags)
+-	for _, f := range append(extldflags, ldflag...) {
++	for _, f := range append(flagExtldflags, ldflag...) {
+ 		if keep {
+ 			flags = append(flags, f)
+ 			keep = false
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index cba0e3d81f..33b03b5024 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -34,6 +34,7 @@ import (
+ 	"bufio"
+ 	"cmd/internal/goobj"
+ 	"cmd/internal/objabi"
++	"cmd/internal/str"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/benchmark"
+ 	"flag"
+@@ -53,6 +54,8 @@ var (
+ 
+ func init() {
+ 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
++	flag.Var(&flagExtld, "extld", "use `linker` when linking in external mode")
++	flag.Var(&flagExtldflags, "extldflags", "pass `flags` to external linker")
+ }
+ 
+ // Flags used by the linker. The exported flags are used by the architecture-specific packages.
+@@ -72,8 +75,8 @@ var (
+ 	flagLibGCC     = flag.String("libgcc", "", "compiler support lib for internal linking; use \"none\" to disable")
+ 	flagTmpdir     = flag.String("tmpdir", "", "use `directory` for temporary files")
+ 
+-	flagExtld      = flag.String("extld", "", "use `linker` when linking in external mode")
+-	flagExtldflags = flag.String("extldflags", "", "pass `flags` to external linker")
++	flagExtld      str.QuotedStringListFlag
++	flagExtldflags str.QuotedStringListFlag
+ 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
+ 
+ 	flagA             = flag.Bool("a", false, "no-op (deprecated)")

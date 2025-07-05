@@ -8,7 +8,7 @@ Date:   Thu Dec 19 20:45:05 2013 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/44070046
-
+---
  src/pkg/runtime/os_darwin.c    | 6 ++++++
  src/pkg/runtime/os_darwin.h    | 2 +-
  src/pkg/runtime/os_dragonfly.c | 6 ++++++
@@ -23,3 +23,177 @@ Date:   Thu Dec 19 20:45:05 2013 -0500
  src/pkg/runtime/os_openbsd.h   | 1 +
  src/pkg/runtime/signal_unix.c  | 1 +
  13 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index 9eb1b4626f..5a38a77a32 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -517,3 +517,9 @@ runtime·signalstack(byte *p, int32 n)
+ 		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
++
++void
++runtime·unblocksignals(void)
++{
++	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
++}
+diff --git a/src/pkg/runtime/os_darwin.h b/src/pkg/runtime/os_darwin.h
+index b4f49e0235..91a405f214 100644
+--- a/src/pkg/runtime/os_darwin.h
++++ b/src/pkg/runtime/os_darwin.h
+@@ -23,6 +23,7 @@ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+ typedef uint32 Sigset;
+ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
++void	runtime·unblocksignals(void);
+ 
+ struct Sigaction;
+ void	runtime·sigaction(uintptr, struct Sigaction*, struct Sigaction*);
+@@ -39,4 +40,3 @@ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ #define	SIG_BLOCK 1
+ #define	SIG_UNBLOCK 2
+ #define	SIG_SETMASK 3
+-
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+index cf427b78c0..ade3adb26d 100644
+--- a/src/pkg/runtime/os_dragonfly.c
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -280,3 +280,9 @@ runtime·signalstack(byte *p, int32 n)
+ 		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
++
++void
++runtime·unblocksignals(void)
++{
++	runtime·sigprocmask(&sigset_none, nil);
++}
+diff --git a/src/pkg/runtime/os_dragonfly.h b/src/pkg/runtime/os_dragonfly.h
+index ebbd0eb15d..fddeede85d 100644
+--- a/src/pkg/runtime/os_dragonfly.h
++++ b/src/pkg/runtime/os_dragonfly.h
+@@ -12,6 +12,7 @@ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ struct	sigaction;
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigprocmask(Sigset *, Sigset *);
++void	runtime·unblocksignals(void);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 042097bdd9..442c6d7670 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -288,3 +288,9 @@ runtime·signalstack(byte *p, int32 n)
+ 		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
++
++void
++runtime·unblocksignals(void)
++{
++	runtime·sigprocmask(&sigset_none, nil);
++}
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index c1853e65d6..4b2c253308 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -12,6 +12,7 @@ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ struct	sigaction;
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigprocmask(Sigset *, Sigset *);
++void	runtime·unblocksignals(void);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index cb45fe8cee..130e1059ec 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -331,3 +331,9 @@ runtime·signalstack(byte *p, int32 n)
+ 		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
++
++void
++runtime·unblocksignals(void)
++{
++	runtime·rtsigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof sigset_none);
++}
+diff --git a/src/pkg/runtime/os_linux.h b/src/pkg/runtime/os_linux.h
+index b2d3f6f2aa..d4b1902c3a 100644
+--- a/src/pkg/runtime/os_linux.h
++++ b/src/pkg/runtime/os_linux.h
+@@ -28,6 +28,7 @@ struct Sigset
+ 	uint32 mask[2];
+ };
+ void	runtime·rtsigprocmask(int32, Sigset*, Sigset*, int32);
++void	runtime·unblocksignals(void);
+ #define SIG_SETMASK 2
+ 
+ #define RLIMIT_AS 9
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index a49dca295d..745818183f 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -326,3 +326,9 @@ runtime·signalstack(byte *p, int32 n)
+ 		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
++
++void
++runtime·unblocksignals(void)
++{
++	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
++}
+diff --git a/src/pkg/runtime/os_netbsd.h b/src/pkg/runtime/os_netbsd.h
+index 55743c8d54..16e9833af5 100644
+--- a/src/pkg/runtime/os_netbsd.h
++++ b/src/pkg/runtime/os_netbsd.h
+@@ -18,6 +18,7 @@ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
++void	runtime·unblocksignals(void);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ extern void runtime·lwp_tramp(void);
+ 
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 18377a0472..6de4b8a718 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -300,3 +300,9 @@ runtime·signalstack(byte *p, int32 n)
+ 		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
++
++void
++runtime·unblocksignals(void)
++{
++	runtime·sigprocmask(SIG_SETMASK, &sigset_none);
++}
+diff --git a/src/pkg/runtime/os_openbsd.h b/src/pkg/runtime/os_openbsd.h
+index 4746b314f2..bbfde39e26 100644
+--- a/src/pkg/runtime/os_openbsd.h
++++ b/src/pkg/runtime/os_openbsd.h
+@@ -18,6 +18,7 @@ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ Sigset	runtime·sigprocmask(int32, Sigset);
++void	runtime·unblocksignals(void);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+ #define	NSIG 33
+diff --git a/src/pkg/runtime/signal_unix.c b/src/pkg/runtime/signal_unix.c
+index 4d14b22086..edbf1d2751 100644
+--- a/src/pkg/runtime/signal_unix.c
++++ b/src/pkg/runtime/signal_unix.c
+@@ -113,6 +113,7 @@ runtime·crash(void)
+ 		return;
+ #endif
+ 
++	runtime·unblocksignals();
+ 	runtime·setsig(SIGABRT, SIG_DFL, false);
+ 	runtime·raise(SIGABRT);
+ }

@@ -9,7 +9,36 @@ Date:   Sun Feb 23 20:37:43 2014 -0500
     R=golang-codereviews, dave, jsing
     CC=golang-codereviews
     https://golang.org/cl/67710043
-
+---
  misc/cgo/testso/cgoso_c.c     | 4 ++++
  misc/cgo/testso/cgoso_unix.go | 2 +-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testso/cgoso_c.c b/misc/cgo/testso/cgoso_c.c
+index 9b77a76fcf..7a38022b54 100644
+--- a/misc/cgo/testso/cgoso_c.c
++++ b/misc/cgo/testso/cgoso_c.c
+@@ -17,6 +17,10 @@ __declspec(dllexport) void sofunc(void);
+ #else
+ extern void goCallback(void);
+ void setCallback(void *f) { (void)f; }
++#endif
++
++// OpenBSD and older Darwin lack TLS support
++#if !defined(__OpenBSD__) && !defined(__APPLE__)
+ __thread int tlsvar = 12345;
+ #endif
+ 
+diff --git a/misc/cgo/testso/cgoso_unix.go b/misc/cgo/testso/cgoso_unix.go
+index e86f992642..7d5444cd12 100644
+--- a/misc/cgo/testso/cgoso_unix.go
++++ b/misc/cgo/testso/cgoso_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd
++// +build dragonfly freebsd linux netbsd
+ 
+ package cgosotest
+ 

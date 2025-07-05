@@ -7,6 +7,26 @@ Date:   Mon Dec 13 17:08:01 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/3574044
-
+---
  src/pkg/index/suffixarray/suffixarray.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/index/suffixarray/suffixarray.go b/src/pkg/index/suffixarray/suffixarray.go
+index 2d728e2c3a..0a8d9e2cb8 100644
+--- a/src/pkg/index/suffixarray/suffixarray.go
++++ b/src/pkg/index/suffixarray/suffixarray.go
+@@ -49,6 +49,14 @@ func New(data []byte) *Index {
+ }
+ 
+ 
++// Data returns the data over which the index was created.
++// It must not be modified.
++//
++func (x *Index) Data() []byte {
++	return x.data
++}
++
++
+ func (x *Index) at(i int) []byte {
+ 	return x.data[x.sa[i]:]
+ }

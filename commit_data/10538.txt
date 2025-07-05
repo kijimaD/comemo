@@ -7,8 +7,105 @@ Date:   Tue Nov 29 13:34:08 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5447043
-
+---
  src/cmd/gc/dcl.c    | 35 -----------------------------------
  src/cmd/gc/export.c | 27 +++++++++++++++++++++++++--
  src/cmd/gc/go.h     |  1 -
  3 files changed, 25 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index da59e917fd..a84b27c9ba 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -673,41 +673,6 @@ typedcl1(Node *n, Node *t, int local)
+ 	return nod(ODCLTYPE, n, N);
+ }
+ 
+-/*
+- * typedcl1 but during imports
+- */
+-void
+-typedcl2(Type *pt, Type *t)
+-{
+-	Node *n;
+-
+-	// override declaration in unsafe.go for Pointer.
+-	// there is no way in Go code to define unsafe.Pointer
+-	// so we have to supply it.
+-	if(incannedimport &&
+-	   strcmp(importpkg->name, "unsafe") == 0 &&
+-	   strcmp(pt->nod->sym->name, "Pointer") == 0) {
+-		t = types[TUNSAFEPTR];
+-	}
+-
+-	if(pt->etype == TFORW)
+-		goto ok;
+-	if(!eqtype(pt->orig, t))
+-		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt->orig, t);
+-	return;
+-
+-ok:
+-	n = pt->nod;
+-	copytype(pt->nod, t);
+-	// unzero nod
+-	pt->nod = n;
+-
+-	pt->sym->lastlineno = parserline();
+-	declare(n, PEXTERN);
+-
+-	checkwidth(pt);
+-}
+-
+ /*
+  * structs, functions, and methods.
+  * they don't belong here, but where do they belong?
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index d0b28a25b3..6938f04889 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -349,8 +349,31 @@ importvar(Sym *s, Type *t, int ctxt)
+ void
+ importtype(Type *pt, Type *t)
+ {
+-	if(pt != T && t != T)
+-		typedcl2(pt, t);
++	Node *n;
++
++	if(pt != T && t != T) {
++		// override declaration in unsafe.go for Pointer.
++		// there is no way in Go code to define unsafe.Pointer
++		// so we have to supply it.
++		if(incannedimport &&
++		   strcmp(importpkg->name, "unsafe") == 0 &&
++		   strcmp(pt->nod->sym->name, "Pointer") == 0) {
++			t = types[TUNSAFEPTR];
++		}
++
++		if(pt->etype == TFORW) {
++			n = pt->nod;
++			copytype(pt->nod, t);
++			// unzero nod
++			pt->nod = n;
++			
++			pt->sym->lastlineno = parserline();
++			declare(n, PEXTERN);
++			
++			checkwidth(pt);
++		} else if(!eqtype(pt->orig, t))
++			yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt->orig, t);
++	}
+ 
+ 	if(debug['E'])
+ 		print("import type %T %lT\n", pt, t);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 217456c9a4..7b121e6005 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -964,7 +964,6 @@ Type*	tointerface(NodeList *l);
+ Type*	tostruct(NodeList *l);
+ Node*	typedcl0(Sym *s);
+ Node*	typedcl1(Node *n, Node *t, int local);
+-void	typedcl2(Type *pt, Type *t);
+ Node*	typenod(Type *t);
+ NodeList*	variter(NodeList *vl, Node *t, NodeList *el);
+ 

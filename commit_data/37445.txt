@@ -16,7 +16,7 @@ Date:   Wed Jul 25 00:24:13 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                         |  4 +-
  src/cmd/go/internal/imports/tags.go           |  1 -
  src/cmd/go/internal/modcmd/mod.go             |  2 +
@@ -28,3 +28,443 @@ Date:   Wed Jul 25 00:24:13 2018 -0400
  src/cmd/go/internal/work/exec.go              | 25 +++++++++++
  src/cmd/go/testdata/script/mod_go_version.txt | 61 +++++++++++++++++++++++++++
  10 files changed, 180 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index f7dcb10992..1178629afb 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -778,7 +778,7 @@
+ //         Main     bool         // is this the main module?
+ //         Indirect bool         // is this module only an indirect dependency of main module?
+ //         Dir      string       // directory holding files for this module, if any
+-//         GoMod    string       // go.mod file for this module, if any
++//         GoMod    string       // path to go.mod file for this module, if any
+ //         Error    *ModuleError // error loading module
+ //     }
+ //
+@@ -882,6 +882,8 @@
+ // The -module flag changes (or, with -init, sets) the module's path
+ // (the go.mod file's module line).
+ //
++// The -go flag changes the minimum required version of Go listed in go.mod.
++//
+ // The -require=path@version and -droprequire=path flags
+ // add and drop a requirement on the given module path and version.
+ // Note that -require overrides any existing requirements on path.
+diff --git a/src/cmd/go/internal/imports/tags.go b/src/cmd/go/internal/imports/tags.go
+index ba0ca94535..1c22a472b8 100644
+--- a/src/cmd/go/internal/imports/tags.go
++++ b/src/cmd/go/internal/imports/tags.go
+@@ -24,7 +24,6 @@ func loadTags() map[string]bool {
+ 	if cfg.BuildContext.CgoEnabled {
+ 		tags["cgo"] = true
+ 	}
+-	// TODO: Should read these out of GOROOT source code?
+ 	for _, tag := range cfg.BuildContext.BuildTags {
+ 		tags[tag] = true
+ 	}
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index 2c0dfb1458..fa6e17cd68 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -51,6 +51,8 @@ To override this guess, use the -module flag.
+ The -module flag changes (or, with -init, sets) the module's path
+ (the go.mod file's module line).
+ 
++The -go flag changes the minimum required version of Go listed in go.mod.
++
+ The -require=path@version and -droprequire=path flags
+ add and drop a requirement on the given module path and version.
+ Note that -require overrides any existing requirements on path.
+diff --git a/src/cmd/go/internal/modfile/rule.go b/src/cmd/go/internal/modfile/rule.go
+index 21fce58331..f669575c86 100644
+--- a/src/cmd/go/internal/modfile/rule.go
++++ b/src/cmd/go/internal/modfile/rule.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"path/filepath"
++	"regexp"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -21,6 +22,7 @@ import (
+ // A File is the parsed, interpreted form of a go.mod file.
+ type File struct {
+ 	Module  *Module
++	Go      *Go
+ 	Require []*Require
+ 	Exclude []*Exclude
+ 	Replace []*Replace
+@@ -34,6 +36,12 @@ type Module struct {
+ 	Syntax *Line
+ }
+ 
++// A Go is the go statement.
++type Go struct {
++	Version string // "1.23"
++	Syntax  *Line
++}
++
+ // A Require is a single require statement.
+ type Require struct {
+ 	Mod      module.Version
+@@ -146,20 +154,39 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
+ 	return f, nil
+ }
+ 
++var goVersionRE = regexp.MustCompile(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
++
+ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
+ 	// If strict is false, this module is a dependency.
+-	// We ignore all unknown directives and do not attempt to parse
+-	// replace and exclude either. They don't matter, and it will work better for
++	// We ignore all unknown directives as well as main-module-only
++	// directives like replace and exclude. It will work better for
+ 	// forward compatibility if we can depend on modules that have unknown
+-	// statements (presumed relevant only when acting as the main module).
+-	if !strict && verb != "module" && verb != "require" {
+-		return
++	// statements (presumed relevant only when acting as the main module)
++	// and simply ignore those statements.
++	if !strict {
++		switch verb {
++		case "module", "require", "go":
++			// want these even for dependency go.mods
++		default:
++			return
++		}
+ 	}
+ 
+ 	switch verb {
+ 	default:
+ 		fmt.Fprintf(errs, "%s:%d: unknown directive: %s\n", f.Syntax.Name, line.Start.Line, verb)
+ 
++	case "go":
++		if f.Go != nil {
++			fmt.Fprintf(errs, "%s:%d: repeated go statement\n", f.Syntax.Name, line.Start.Line)
++			return
++		}
++		if len(args) != 1 || !goVersionRE.MatchString(args[0]) {
++			fmt.Fprintf(errs, "%s:%d: usage: go 1.23\n", f.Syntax.Name, line.Start.Line)
++			return
++		}
++		f.Go = &Go{Syntax: line}
++		f.Go.Version = args[0]
+ 	case "module":
+ 		if f.Module != nil {
+ 			fmt.Fprintf(errs, "%s:%d: repeated module statement\n", f.Syntax.Name, line.Start.Line)
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 7cbd1f9406..610c9b2516 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -344,7 +344,7 @@ func runGet(cmd *base.Command, args []string) {
+ 	base.ExitIfErrors()
+ 
+ 	// Now we've reduced the upgrade/downgrade work to a list of path@vers pairs (tasks).
+-	// Resolve each one in parallell.
++	// Resolve each one in parallel.
+ 	reqs := modload.Reqs()
+ 	var lookup par.Work
+ 	for _, t := range tasks {
+diff --git a/src/cmd/go/internal/modinfo/info.go b/src/cmd/go/internal/modinfo/info.go
+index 761b526b93..7341ce44d2 100644
+--- a/src/cmd/go/internal/modinfo/info.go
++++ b/src/cmd/go/internal/modinfo/info.go
+@@ -10,17 +10,18 @@ import "time"
+ // and the fields are documented in the help text in ../list/list.go
+ 
+ type ModulePublic struct {
+-	Path     string        `json:",omitempty"` // module path
+-	Version  string        `json:",omitempty"` // module version
+-	Versions []string      `json:",omitempty"` // available module versions
+-	Replace  *ModulePublic `json:",omitempty"` // replaced by this module
+-	Time     *time.Time    `json:",omitempty"` // time version was created
+-	Update   *ModulePublic `json:",omitempty"` // available update (with -u)
+-	Main     bool          `json:",omitempty"` // is this the main module?
+-	Indirect bool          `json:",omitempty"` // module is only indirectly needed by main module
+-	Dir      string        `json:",omitempty"` // directory holding local copy of files, if any
+-	GoMod    string        `json:",omitempty"` // path to go.mod file describing module, if any
+-	Error    *ModuleError  `json:",omitempty"` // error loading module
++	Path      string        `json:",omitempty"` // module path
++	Version   string        `json:",omitempty"` // module version
++	Versions  []string      `json:",omitempty"` // available module versions
++	Replace   *ModulePublic `json:",omitempty"` // replaced by this module
++	Time      *time.Time    `json:",omitempty"` // time version was created
++	Update    *ModulePublic `json:",omitempty"` // available update (with -u)
++	Main      bool          `json:",omitempty"` // is this the main module?
++	Indirect  bool          `json:",omitempty"` // module is only indirectly needed by main module
++	Dir       string        `json:",omitempty"` // directory holding local copy of files, if any
++	GoMod     string        `json:",omitempty"` // path to go.mod file describing module, if any
++	Error     *ModuleError  `json:",omitempty"` // error loading module
++	GoVersion string        `json:",omitempty"` // go version used in module
+ }
+ 
+ type ModuleError struct {
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index a5ff4bcc99..f63555101a 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -86,13 +86,17 @@ func addVersions(m *modinfo.ModulePublic) {
+ 
+ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 	if m == Target {
+-		return &modinfo.ModulePublic{
++		info := &modinfo.ModulePublic{
+ 			Path:    m.Path,
+ 			Version: m.Version,
+ 			Main:    true,
+ 			Dir:     ModRoot,
+ 			GoMod:   filepath.Join(ModRoot, "go.mod"),
+ 		}
++		if modFile.Go != nil {
++			info.GoVersion = modFile.Go.Version
++		}
++		return info
+ 	}
+ 
+ 	info := &modinfo.ModulePublic{
+@@ -100,6 +104,9 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 		Version:  m.Version,
+ 		Indirect: fromBuildList && loaded != nil && !loaded.direct[m.Path],
+ 	}
++	if loaded != nil {
++		info.GoVersion = loaded.goVersion[m.Path]
++	}
+ 
+ 	if cfg.BuildGetmode == "vendor" {
+ 		info.Dir = filepath.Join(ModRoot, "vendor", m.Path)
+@@ -139,8 +146,9 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 
+ 	if r := Replacement(m); r.Path != "" {
+ 		info.Replace = &modinfo.ModulePublic{
+-			Path:    r.Path,
+-			Version: r.Version,
++			Path:      r.Path,
++			Version:   r.Version,
++			GoVersion: info.GoVersion,
+ 		}
+ 		if r.Version == "" {
+ 			if filepath.IsAbs(r.Path) {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index e8c984baa7..a668795a77 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -358,7 +358,8 @@ type loader struct {
+ 	pkgCache *par.Cache // map from string to *loadPkg
+ 
+ 	// computed at end of iterations
+-	direct map[string]bool // imported directly by main module
++	direct    map[string]bool   // imported directly by main module
++	goVersion map[string]string // go version recorded in each module
+ }
+ 
+ func newLoader() *loader {
+@@ -399,7 +400,8 @@ var errMissing = errors.New("cannot find package")
+ // which must call add(path) with the import path of each root package.
+ func (ld *loader) load(roots func() []string) {
+ 	var err error
+-	buildList, err = mvs.BuildList(Target, Reqs())
++	reqs := Reqs()
++	buildList, err = mvs.BuildList(Target, reqs)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+@@ -445,7 +447,8 @@ func (ld *loader) load(roots func() []string) {
+ 		}
+ 
+ 		// Recompute buildList with all our additions.
+-		buildList, err = mvs.BuildList(Target, Reqs())
++		reqs = Reqs()
++		buildList, err = mvs.BuildList(Target, reqs)
+ 		if err != nil {
+ 			base.Fatalf("go: %v", err)
+ 		}
+@@ -464,6 +467,13 @@ func (ld *loader) load(roots func() []string) {
+ 		}
+ 	}
+ 
++	// Add Go versions, computed during walk.
++	ld.goVersion = make(map[string]string)
++	for _, m := range buildList {
++		v, _ := reqs.(*mvsReqs).versions.Load(m)
++		ld.goVersion[m.Path], _ = v.(string)
++	}
++
+ 	// Mix in direct markings (really, lack of indirect markings)
+ 	// from go.mod, unless we scanned the whole module
+ 	// and can therefore be sure we know better than go.mod.
+@@ -670,6 +680,7 @@ func Replacement(mod module.Version) module.Version {
+ type mvsReqs struct {
+ 	buildList []module.Version
+ 	cache     par.Cache
++	versions  sync.Map
+ }
+ 
+ // Reqs returns the current module requirement graph.
+@@ -745,11 +756,21 @@ func readVendorList() {
+ 	})
+ }
+ 
++func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
++	var list []module.Version
++	for _, r := range f.Require {
++		list = append(list, r.Mod)
++	}
++	return list
++}
++
+ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 	if mod == Target {
++		if modFile.Go != nil {
++			r.versions.LoadOrStore(mod, modFile.Go.Version)
++		}
+ 		var list []module.Version
+-		list = append(list, r.buildList[1:]...)
+-		return list, nil
++		return append(list, r.buildList[1:]...), nil
+ 	}
+ 
+ 	if cfg.BuildGetmode == "vendor" {
+@@ -778,11 +799,10 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 				base.Errorf("go: parsing %s: %v", base.ShortPath(gomod), err)
+ 				return nil, ErrRequire
+ 			}
+-			var list []module.Version
+-			for _, r := range f.Require {
+-				list = append(list, r.Mod)
++			if f.Go != nil {
++				r.versions.LoadOrStore(mod, f.Go.Version)
+ 			}
+-			return list, nil
++			return r.modFileToList(f), nil
+ 		}
+ 		mod = repl
+ 	}
+@@ -815,12 +835,11 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 		base.Errorf("go: %s@%s: parsing go.mod: unexpected module path %q", mod.Path, mod.Version, mpath)
+ 		return nil, ErrRequire
+ 	}
+-
+-	var list []module.Version
+-	for _, req := range f.Require {
+-		list = append(list, req.Mod)
++	if f.Go != nil {
++		r.versions.LoadOrStore(mod, f.Go.Version)
+ 	}
+-	return list, nil
++
++	return r.modFileToList(f), nil
+ }
+ 
+ // ErrRequire is the sentinel error returned when Require encounters problems.
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 38ff22211c..bf8840c25c 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -320,6 +320,27 @@ func (b *Builder) needCgoHdr(a *Action) bool {
+ 	return false
+ }
+ 
++// allowedVersion reports whether the version v is an allowed version of go
++// (one that we can compile).
++// v is known to be of the form "1.23".
++func allowedVersion(v string) bool {
++	// Special case: no requirement.
++	if v == "" {
++		return true
++	}
++	// Special case "1.0" means "go1", which is OK.
++	if v == "1.0" {
++		return true
++	}
++	// Otherwise look through release tags of form "go1.23" for one that matches.
++	for _, tag := range cfg.BuildContext.ReleaseTags {
++		if strings.HasPrefix(tag, "go") && tag[2:] == v {
++			return true
++		}
++	}
++	return false
++}
++
+ const (
+ 	needBuild uint32 = 1 << iota
+ 	needCgoHdr
+@@ -414,6 +435,10 @@ func (b *Builder) build(a *Action) (err error) {
+ 		return fmt.Errorf("missing or invalid binary-only package; expected file %q", a.Package.Target)
+ 	}
+ 
++	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
++		return fmt.Errorf("module requires Go %s", p.Module.GoVersion)
++	}
++
+ 	if err := b.Mkdir(a.Objdir); err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_go_version.txt b/src/cmd/go/testdata/script/mod_go_version.txt
+new file mode 100644
+index 0000000000..f5706ee34e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_go_version.txt
+@@ -0,0 +1,61 @@
++# Test support for declaring needed Go version in module.
++
++env GO111MODULE=on
++
++go list
++! go build
++stderr 'module requires Go 1.999'
++go build sub.1
++! go build badsub.1
++stderr 'module requires Go 1.11111'
++
++go build versioned.1
++go mod -require versioned.1@v1.1.0
++! go build versioned.1
++stderr 'module requires Go 1.99999'
++
++-- go.mod --
++module m
++go 1.999
++require (
++	sub.1 v1.0.0
++	badsub.1 v1.0.0
++	versioned.1 v1.0.0
++)
++replace (
++	sub.1 => ./sub
++	badsub.1 => ./badsub
++	versioned.1 v1.0.0 => ./versioned1
++	versioned.1 v1.1.0 => ./versioned2
++)
++
++-- x.go --
++package x
++
++-- sub/go.mod --
++module m
++go 1.11
++
++-- sub/x.go --
++package x
++
++-- badsub/go.mod --
++module m
++go 1.11111
++
++-- badsub/x.go --
++package x
++
++-- versioned1/go.mod --
++module versioned
++go 1.0
++
++-- versioned1/x.go --
++package x
++
++-- versioned2/go.mod --
++module versioned
++go 1.99999
++
++-- versioned2/x.go --
++package x

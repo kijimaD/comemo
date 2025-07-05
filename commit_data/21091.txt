@@ -11,6 +11,20 @@ Date:   Fri Nov 14 04:29:03 2014 +1100
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/167700043
-
+---
  src/runtime/signal_freebsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal_freebsd.go b/src/runtime/signal_freebsd.go
+index d37e11a3ec..1dbdb1bd97 100644
+--- a/src/runtime/signal_freebsd.go
++++ b/src/runtime/signal_freebsd.go
+@@ -22,7 +22,7 @@ var sigtable = [...]sigTabT{
+ 	/* 9 */ {0, "SIGKILL: kill"},
+ 	/* 10 */ {_SigPanic, "SIGBUS: bus error"},
+ 	/* 11 */ {_SigPanic, "SIGSEGV: segmentation violation"},
+-	/* 12 */ {_SigThrow, "SIGSYS: bad system call"},
++	/* 12 */ {_SigNotify, "SIGSYS: bad system call"},
+ 	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
+ 	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
+ 	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},

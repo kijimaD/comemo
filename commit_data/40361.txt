@@ -14,6 +14,19 @@ Date:   Mon May 6 14:23:05 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/version/exe.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/version/exe.go b/src/cmd/go/internal/version/exe.go
+index 281a641964..55da960c02 100644
+--- a/src/cmd/go/internal/version/exe.go
++++ b/src/cmd/go/internal/version/exe.go
+@@ -86,7 +86,6 @@ func (x *elfExe) Close() error {
+ 
+ func (x *elfExe) ReadData(addr, size uint64) ([]byte, error) {
+ 	for _, prog := range x.f.Progs {
+-		fmt.Printf("%#x %#x %#x\n", addr, prog.Vaddr, prog.Vaddr+prog.Filesz)
+ 		if prog.Vaddr <= addr && addr <= prog.Vaddr+prog.Filesz-1 {
+ 			n := prog.Vaddr + prog.Filesz - addr
+ 			if n > size {

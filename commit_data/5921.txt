@@ -9,7 +9,7 @@ Date:   Fri Jul 30 10:37:51 2010 +0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1871055
-
+---
  src/cmd/5g/cgen.c   | 114 ++++++++++++++++++++++++++++++----------------------
  src/cmd/5g/gg.h     |   1 +
  src/cmd/5g/gsubr.c  |  14 ++++---
@@ -17,3 +17,422 @@ Date:   Fri Jul 30 10:37:51 2010 +0300
  test/golden-arm.out |  24 -----------
  test/zerodivide.go  |  12 ++++++
  6 files changed, 97 insertions(+), 86 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 8072c3ceb2..c3042b1822 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -4,33 +4,6 @@
+ 
+ #include "gg.h"
+ 
+-void
+-mgen(Node *n, Node *n1, Node *rg)
+-{
+-	n1->ostk = 0;
+-	n1->op = OEMPTY;
+-
+-	if(n->addable) {
+-		*n1 = *n;
+-		n1->ostk = 0;
+-		if(n1->op == OREGISTER || n1->op == OINDREG)
+-			reg[n->val.u.reg]++;
+-		return;
+-	}
+-	if(n->type->width > widthptr)
+-		tempname(n1, n->type);
+-	else
+-		regalloc(n1, n->type, rg);
+-	cgen(n, n1);
+-}
+-
+-void
+-mfree(Node *n)
+-{
+-	if(n->op == OREGISTER)
+-		regfree(n);
+-}
+-
+ /*
+  * generate:
+  *	res = n;
+@@ -269,10 +242,26 @@ cgen(Node *n, Node *res)
+ 			cgen(nl, res);
+ 			break;
+ 		}
+-
+-		mgen(nl, &n1, res);
+-		gmove(&n1, res);
+-		mfree(&n1);
++		if(nl->addable && !is64(nl->type)) {
++			regalloc(&n1, nl->type, res);
++			gmove(nl, &n1);
++		} else {
++			if(n->type->width > widthptr || is64(nl->type) || isfloat[nl->type->etype])
++				tempname(&n1, nl->type);
++			else
++				regalloc(&n1, nl->type, res);
++			cgen(nl, &n1);
++		}
++		if(n->type->width > widthptr || is64(n->type) || isfloat[n->type->etype])
++			tempname(&n2, n->type);
++		else
++			regalloc(&n2, n->type, N);
++		gmove(&n1, &n2);
++		gmove(&n2, res);
++		if(n1.op == OREGISTER)
++			regfree(&n1);
++		if(n2.op == OREGISTER)
++			regfree(&n2);
+ 		break;
+ 
+ 	case ODOT:
+@@ -460,6 +449,41 @@ ret:
+ 	;
+ }
+ 
++/*
++ * generate array index into res.
++ * n might be any size; res is 32-bit.
++ * returns Prog* to patch to panic call.
++ */
++Prog*
++cgenindex(Node *n, Node *res)
++{
++	Node tmp, lo, hi, zero, n1, n2;
++
++	if(!is64(n->type)) {
++		cgen(n, res);
++		return nil;
++	}
++
++	tempname(&tmp, types[TINT64]);
++	cgen(n, &tmp);
++	split64(&tmp, &lo, &hi);
++	gmove(&lo, res);
++	if(debug['B']) {
++		splitclean();
++		return nil;
++	}
++	regalloc(&n1, types[TINT32], N);
++	regalloc(&n2, types[TINT32], N);
++	nodconst(&zero, types[TINT32], 0);
++	gmove(&hi, &n1);
++	gmove(&zero, &n2);
++	gcmp(ACMP, &n1, &n2);
++	regfree(&n2);
++	regfree(&n1);
++	splitclean();
++	return gbranch(ABNE, T);
++}
++
+ /*
+  * generate:
+  *	res = &n;
+@@ -469,10 +493,9 @@ agen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr;
+ 	Node n1, n2, n3, n4, n5, tmp;
+-	Prog *p1;
++	Prog *p1, *p2;
+ 	uint32 w;
+ 	uint64 v;
+-	Type *t;
+ 
+ 	if(debug['g']) {
+ 		dump("\nagen-res", res);
+@@ -519,20 +542,20 @@ agen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OINDEX:
+-		// TODO(rsc): uint64 indices
++		p2 = nil;  // to be patched to panicindex.
+ 		w = n->type->width;
+ 		if(nr->addable) {
+ 			agenr(nl, &n3, res);
+ 			if(!isconst(nr, CTINT)) {
+ 				tempname(&tmp, types[TINT32]);
+-				cgen(nr, &tmp);
++				p2 = cgenindex(nr, &tmp);
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+ 			}
+ 		} else if(nl->addable) {
+ 			if(!isconst(nr, CTINT)) {
+ 				tempname(&tmp, types[TINT32]);
+-				cgen(nr, &tmp);
++				p2 = cgenindex(nr, &tmp);
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+ 			}
+@@ -540,7 +563,7 @@ agen(Node *n, Node *res)
+ 			agen(nl, &n3);
+ 		} else {
+ 			tempname(&tmp, types[TINT32]);
+-			cgen(nr, &tmp);
++			p2 = cgenindex(nr, &tmp);
+ 			nr = &tmp;
+ 			agenr(nl, &n3, res);
+ 			regalloc(&n1, tmp.type, N);
+@@ -602,12 +625,7 @@ agen(Node *n, Node *res)
+ 			break;
+ 		}
+ 
+-		// type of the index
+-		t = types[TUINT32];
+-		if(issigned[n1.type->etype])
+-			t = types[TINT32];
+-
+-		regalloc(&n2, t, &n1);			// i
++		regalloc(&n2, types[TINT32], &n1);			// i
+ 		gmove(&n1, &n2);
+ 		regfree(&n1);
+ 
+@@ -627,6 +645,8 @@ agen(Node *n, Node *res)
+ 			gcmp(optoas(OCMP, types[TUINT32]), &n2, &n4);
+ 			regfree(&n4);
+ 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
++			if(p2)
++				patch(p2, pc);
+ 			ginscall(panicindex, 0);
+ 			patch(p1, pc);
+ 		}
+@@ -653,10 +673,10 @@ agen(Node *n, Node *res)
+ 			else if(w == 8)
+ 				gshift(AADD, &n2, SHIFT_LL, 3, &n3);	
+ 		} else {
+-			regalloc(&n4, t, N);
+-			nodconst(&n1, t, w);
++			regalloc(&n4, types[TUINT32], N);
++			nodconst(&n1, types[TUINT32], w);
+ 			gmove(&n1, &n4);
+-			gins(optoas(OMUL, t), &n4, &n2);
++			gins(optoas(OMUL, types[TUINT32]), &n4, &n2);
+ 			gins(optoas(OADD, types[tptr]), &n2, &n3);
+ 			regfree(&n4);
+ 			gmove(&n3, res);
+@@ -1088,7 +1108,7 @@ stkof(Node *n)
+ 
+ 		t = structfirst(&flist, getoutarg(t));
+ 		if(t != T)
+-			return t->width;
++			return t->width + 4;	// correct for LR
+ 		break;
+ 	}
+ 
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index c62efeb6ce..4801e47217 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -90,6 +90,7 @@ void	ginscall(Node*, int);
+  * cgen
+  */
+ void	agen(Node*, Node*);
++Prog* cgenindex(Node *, Node *);
+ void	igen(Node*, Node*, Node*);
+ void agenr(Node *n, Node *a, Node *res);
+ vlong	fieldoffset(Type*, Node*);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 8c5ddbb099..741dbe5956 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -991,7 +991,7 @@ gshift(int as, Node *lhs, int32 stype, int32 sval, Node *rhs)
+ {
+ 	Prog *p;
+ 
+-	if (sval <= 0 || sval > 32)
++	if(sval <= 0 || sval > 32)
+ 		fatal("bad shift value: %d", sval);
+ 
+ 	sval = sval&0x1f;
+@@ -1054,7 +1054,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		break;
+ 
+ 	case OREGISTER:
+-		if (n->val.u.reg <= REGALLOC_RMAX) {
++		if(n->val.u.reg <= REGALLOC_RMAX) {
+ 			a->type = D_REG;
+ 			a->reg = n->val.u.reg;
+ 		} else {
+@@ -1594,7 +1594,7 @@ sudoaddable(int as, Node *n, Addr *a, int *w)
+ 	int64 v;
+ 	Node n1, n2, n3, n4, *nn, *l, *r;
+ 	Node *reg, *reg1;
+-	Prog *p1;
++	Prog *p1, *p2;
+ 	Type *t;
+ 
+ 	if(n->type == T)
+@@ -1732,8 +1732,8 @@ oindex:
+ 	if(issigned[r->type->etype])
+ 		t = types[TINT32];
+ 	regalloc(reg1, t, N);
+-	regalloc(&n3, r->type, reg1);
+-	cgen(r, &n3);
++	regalloc(&n3, types[TINT32], reg1);
++	p2 = cgenindex(r, &n3);
+ 	gmove(&n3, reg1);
+ 	regfree(&n3);
+ 
+@@ -1774,6 +1774,8 @@ oindex:
+ 		gcmp(optoas(OCMP, types[TUINT32]), reg1, &n3);
+ 		regfree(&n3);
+ 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
++		if(p2)
++			patch(p2, pc);
+ 		ginscall(panicindex, 0);
+ 		patch(p1, pc);
+ 	}
+@@ -1786,7 +1788,7 @@ oindex:
+ 		gmove(&n2, reg);
+ 	}
+ 
+-	if (*w == 1)
++	if(*w == 1)
+ 		gins(AADD, reg1, reg);
+ 	else if(*w == 2)
+ 		gshift(AADD, reg1, SHIFT_LL, 1, reg);
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 476c3bddc6..ffc4ee2ab5 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -1,5 +1,5 @@
+ ./235.go
+-# ./64bit.go	# flaky
++# ./64bit.go	# fail, flaky
+ ./args.go
+ ./assign.go
+ ./assign1.go
+@@ -65,7 +65,7 @@
+ ./indirect.go
+ ./indirect1.go
+ ./initcomma.go
+-# ./initialize.go	# fail, BUG
++./initialize.go
+ ./initializerr.go
+ ./initsyscall.go
+ ./int_lit.go
+@@ -116,7 +116,7 @@
+ ./varerr.go
+ ./varinit.go
+ ./vectors.go
+-./zerodivide.go
++# ./zerodivide.go	# fail, BUG
+ ken/array.go
+ ken/chan.go
+ ken/chan1.go
+@@ -179,7 +179,7 @@ interface/embed0.go
+ interface/embed1.go
+ interface/explicit.go
+ interface/fail.go
+-# interface/fake.go	# fail
++interface/fake.go
+ interface/pointer.go
+ interface/receiver.go
+ interface/receiver1.go
+@@ -408,7 +408,7 @@ fixedbugs/bug217.go
+ fixedbugs/bug218.go
+ fixedbugs/bug219.go
+ fixedbugs/bug220.go
+-# fixedbugs/bug221.go	# fail
++fixedbugs/bug221.go
+ fixedbugs/bug222.go
+ fixedbugs/bug223.go
+ fixedbugs/bug224.go
+@@ -423,14 +423,14 @@ fixedbugs/bug232.go
+ fixedbugs/bug233.go
+ fixedbugs/bug234.go
+ fixedbugs/bug235.go
+-# fixedbugs/bug236.go	# fail
++fixedbugs/bug236.go
+ fixedbugs/bug237.go
+ fixedbugs/bug238.go
+ fixedbugs/bug239.go
+ fixedbugs/bug240.go
+ fixedbugs/bug241.go
+ fixedbugs/bug242.go
+-# fixedbugs/bug243.go	# fail
++fixedbugs/bug243.go
+ fixedbugs/bug244.go
+ fixedbugs/bug245.go
+ fixedbugs/bug246.go
+@@ -458,7 +458,7 @@ fixedbugs/bug268.go
+ fixedbugs/bug269.go
+ fixedbugs/bug270.go
+ fixedbugs/bug271.go
+-# fixedbugs/bug272.go	# fail
++fixedbugs/bug272.go
+ fixedbugs/bug273.go
+ fixedbugs/bug274.go
+ fixedbugs/bug275.go
+@@ -467,7 +467,7 @@ fixedbugs/bug277.go
+ fixedbugs/bug278.go
+ fixedbugs/bug279.go
+ fixedbugs/bug280.go
+-# fixedbugs/bug281.go	# fail, BUG
++fixedbugs/bug281.go
+ fixedbugs/bug282.go
+ fixedbugs/bug283.go
+ fixedbugs/bug284.go
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index 83f199e941..41829fb036 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -51,30 +51,6 @@ FAIL
+ =========== ./turing.go
+ Hello World!
+ 
+-=========== ./zerodivide.go
+-int 0/0: expected "divide"; got no error
+-int8 0/0: expected "divide"; got no error
+-int16 0/0: expected "divide"; got no error
+-int32 0/0: expected "divide"; got no error
+-int64 0/0: expected "divide"; got no error
+-int 1/0: expected "divide"; got no error
+-int8 1/0: expected "divide"; got no error
+-int16 1/0: expected "divide"; got no error
+-int32 1/0: expected "divide"; got no error
+-int64 1/0: expected "divide"; got no error
+-uint 0/0: expected "divide"; got no error
+-uint8 0/0: expected "divide"; got no error
+-uint16 0/0: expected "divide"; got no error
+-uint32 0/0: expected "divide"; got no error
+-uint64 0/0: expected "divide"; got no error
+-uintptr 0/0: expected "divide"; got no error
+-uint 1/0: expected "divide"; got no error
+-uint8 1/0: expected "divide"; got no error
+-uint16 1/0: expected "divide"; got no error
+-uint32 1/0: expected "divide"; got no error
+-uint64 1/0: expected "divide"; got no error
+-uintptr 1/0: expected "divide"; got no error
+-
+ =========== ken/intervar.go
+  print 1 bio 2 file 3 -- abc
+ 
+diff --git a/test/zerodivide.go b/test/zerodivide.go
+index e0407df7c8..e016d0dfe9 100644
+--- a/test/zerodivide.go
++++ b/test/zerodivide.go
+@@ -147,10 +147,22 @@ func main() {
+ 		case t.err == "" && err == "":
+ 			// fine
+ 		case t.err != "" && err == "":
++			if !bad {
++				bad = true
++				fmt.Printf("BUG\n")
++			}
+ 			fmt.Printf("%s: expected %q; got no error\n", t.name, t.err)
+ 		case t.err == "" && err != "":
++			if !bad {
++				bad = true
++				fmt.Printf("BUG\n")
++			}
+ 			fmt.Printf("%s: expected no error; got %q\n", t.name, err)
+ 		case t.err != "" && err != "":
++			if !bad {
++				bad = true
++				fmt.Printf("BUG\n")
++			}
+ 			if strings.Index(err, t.err) < 0 {
+ 				fmt.Printf("%s: expected %q; got %q\n", t.name, t.err, err)
+ 				continue

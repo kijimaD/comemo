@@ -7,6 +7,19 @@ Date:   Fri Mar 22 17:52:55 2013 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/7577049
-
+---
  src/pkg/runtime/mcentral.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index ac8b5aa0d4..ec2a91ad5c 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -19,7 +19,6 @@
+ #include "malloc.h"
+ 
+ static bool MCentral_Grow(MCentral *c);
+-static void* MCentral_Alloc(MCentral *c);
+ static void MCentral_Free(MCentral *c, void *v);
+ 
+ // Initialize a single central free list.

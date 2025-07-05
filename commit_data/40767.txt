@@ -13,9 +13,140 @@ Date:   Fri Jun 21 15:43:23 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/sumdb.go              |  6 +++---
  src/cmd/go/testdata/script/mod_sumdb_cache.txt     |  2 +-
  src/cmd/go/testdata/script/mod_sumdb_file_path.txt | 14 +++++++++++++-
  src/cmd/go/testdata/script/mod_sumdb_proxy.txt     | 10 +++++-----
  4 files changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index 66a09d32c2..b0bb3d4d5e 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -232,10 +232,10 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
+ }
+ 
+ // ReadCache reads cached lookups or tiles from
+-// GOPATH/pkg/mod/download/cache/sumdb,
++// GOPATH/pkg/mod/cache/download/sumdb,
+ // which will be deleted by "go clean -modcache".
+ func (*dbClient) ReadCache(file string) ([]byte, error) {
+-	targ := filepath.Join(PkgMod, "download/cache/sumdb", file)
++	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
+ 	data, err := lockedfile.Read(targ)
+ 	// lockedfile.Write does not atomically create the file with contents.
+ 	// There is a moment between file creation and locking the file for writing,
+@@ -249,7 +249,7 @@ func (*dbClient) ReadCache(file string) ([]byte, error) {
+ 
+ // WriteCache updates cached lookups or tiles.
+ func (*dbClient) WriteCache(file string, data []byte) {
+-	targ := filepath.Join(PkgMod, "download/cache/sumdb", file)
++	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
+ 	os.MkdirAll(filepath.Dir(targ), 0777)
+ 	lockedfile.Write(targ, bytes.NewReader(data), 0666)
+ }
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_cache.txt b/src/cmd/go/testdata/script/mod_sumdb_cache.txt
+index a44a87499a..486bdf5ecf 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_cache.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_cache.txt
+@@ -28,7 +28,7 @@ cp go.mod.orig go.mod
+ rm go.sum
+ env GOPROXY=off
+ go get -d rsc.io/quote@v1.5.2 # using cache
+-rm $GOPATH/pkg/mod/download/cache/sumdb/localhost.localdev/sumdb/lookup/rsc.io/quote@v1.5.2
++rm $GOPATH/pkg/mod/cache/download/sumdb/localhost.localdev/sumdb/lookup/rsc.io/quote@v1.5.2
+ go get -d rsc.io/quote@v1.5.2 # using go.sum
+ 
+ # fetch fails once we lose access to both cache and go.sum
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+index 744632ec90..47c8a3a0f3 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+@@ -2,6 +2,7 @@
+ 
+ env GO111MODULE=on
+ env GOSUMDB=
++env GOPATH=$WORK/gopath1
+ 
+ # With a file-based proxy with an empty checksum directory,
+ # downloading a new module should fail, even if a subsequent
+@@ -18,11 +19,20 @@ stderr '^verifying golang.org/x/text.*: Not Found'
+ [!windows] env GOPROXY=file://$WORK/emptyproxy,https://proxy.golang.org
+ go get -d golang.org/x/text@v0.3.2
+ 
++# After a successful sumdb lookup, the lookup can be repeated
++# using the download cache as a proxy.
++cp supported $GOPATH/pkg/mod/cache/download/sumdb/sum.golang.org/supported
++[windows] env GOPROXY=file:///$WORK/gopath1/pkg/mod/cache/download,file:///$WORK/sumproxy
++[!windows] env GOPROXY=file://$WORK/gopath1/pkg/mod/cache/download,file://$WORK/sumproxy
++env GOPATH=$WORK/gopath2
++rm go.sum
++go get -d -x -v golang.org/x/text@v0.3.2
++
+ # Once the checksum is present in the go.sum file,
+ # an empty file-based sumdb can be used in conjunction with
+ # a fallback module mirror.
+ grep golang.org/x/text go.sum
+-go clean -modcache
++env GOPATH=$WORK/gopath3
+ [windows] env GOPROXY=file:///$WORK/sumproxy
+ [!windows] env GOPROXY=file://$WORK/sumproxy
+ ! go get -d golang.org/x/text@v0.3.2
+@@ -30,6 +40,8 @@ go clean -modcache
+ [!windows] env GOPROXY=file://$WORK/sumproxy,https://proxy.golang.org
+ go get -d golang.org/x/text@v0.3.2
+ 
++-- supported --
++
+ -- go.mod --
+ module example.com
+ go 1.13
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_proxy.txt b/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
+index 6fbf7aeb8a..28166913fd 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
+@@ -6,14 +6,14 @@ env GOPROXY GONOPROXY GOSUMDB GONOSUMDB
+ # basic fetch (through proxy) works
+ cp go.mod.orig go.mod
+ go get -d rsc.io/fortune@v1.0.0 # note: must use test proxy, does not exist in real world
+-rm $GOPATH/pkg/mod/download/cache/sumdb # rm sumdb cache but NOT package download cache
++rm $GOPATH/pkg/mod/cache/download/sumdb # rm sumdb cache but NOT package download cache
+ rm go.sum
+ 
+ # can fetch by explicit URL
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb' '$proxy/sumdb-direct
+ go get -d rsc.io/fortune@v1.0.0
+-rm $GOPATH/pkg/mod/download/cache/sumdb
++rm $GOPATH/pkg/mod/cache/download/sumdb
+ rm go.sum
+ 
+ # direct access fails (because localhost.localdev does not exist)
+@@ -25,7 +25,7 @@ env GOSUMDB=$sumdb
+ env GOPROXY=direct
+ ! go get -d rsc.io/fortune@v1.0.0
+ stderr 'verifying.*localhost.localdev'
+-rm $GOPATH/pkg/mod/download/cache/sumdb
++rm $GOPATH/pkg/mod/cache/download/sumdb
+ rm go.sum
+ 
+ # proxy 404 falls back to direct access (which fails)
+@@ -34,7 +34,7 @@ env GOSUMDB=$sumdb
+ env GOPROXY=$proxy/sumdb-404
+ ! go get -d rsc.io/fortune@v1.0.0
+ stderr 'verifying.*localhost.localdev'
+-rm $GOPATH/pkg/mod/download/cache/sumdb
++rm $GOPATH/pkg/mod/cache/download/sumdb
+ rm go.sum
+ 
+ # proxy non-200/404/410 stops direct access
+@@ -43,7 +43,7 @@ env GOSUMDB=$sumdb
+ env GOPROXY=$proxy/sumdb-503
+ ! go get -d rsc.io/fortune@v1.0.0
+ stderr '503 Service Unavailable'
+-rm $GOPATH/pkg/mod/download/cache/sumdb
++rm $GOPATH/pkg/mod/cache/download/sumdb
+ rm go.sum
+ 
+ -- go.mod.orig --

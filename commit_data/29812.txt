@@ -12,6 +12,25 @@ Date:   Tue Oct 11 13:50:44 2016 -0700
     Change-Id: I3078a09e0b9a76d12078352e15a3f26ba3f1bbee
     Reviewed-on: https://go-review.googlesource.com/30818
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/html.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 18c3e232e0..316fd2aa25 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -274,9 +274,10 @@ function toggle_visibility(id) {
+ <div id="help">
+ 
+ <p>
+-Click on a value or block to toggle highlighting of that value/block and its uses.
+-Values and blocks are highlighted by ID, which may vary across passes.
+-(TODO: Fix this.)
++Click on a value or block to toggle highlighting of that value/block
++and its uses.  (Values and blocks are highlighted by ID, and IDs of
++dead items may be reused, so not all highlights necessarily correspond
++to the clicked item.)
+ </p>
+ 
+ <p>

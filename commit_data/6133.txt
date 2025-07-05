@@ -7,7 +7,43 @@ Date:   Mon Aug 30 13:47:40 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2084041
-
+---
  src/pkg/debug/proc/regs_linux_amd64.go | 2 +-
  src/pkg/exp/eval/eval_test.go          | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/debug/proc/regs_linux_amd64.go b/src/pkg/debug/proc/regs_linux_amd64.go
+index a9f3569d3a..381be29b17 100644
+--- a/src/pkg/debug/proc/regs_linux_amd64.go
++++ b/src/pkg/debug/proc/regs_linux_amd64.go
+@@ -71,7 +71,7 @@ func (r *amd64Regs) SetSP(val Word) os.Error {
+ 	return r.setter(&r.PtraceRegs)
+ }
+ 
+-func (r *amd64Regs) Names() []string { return &names }
++func (r *amd64Regs) Names() []string { return names[0:] }
+ 
+ func (r *amd64Regs) Get(i int) Word {
+ 	switch i {
+diff --git a/src/pkg/exp/eval/eval_test.go b/src/pkg/exp/eval/eval_test.go
+index cd4bbbbb0a..fcdbeb85c0 100644
+--- a/src/pkg/exp/eval/eval_test.go
++++ b/src/pkg/exp/eval/eval_test.go
+@@ -205,7 +205,7 @@ func toValue(val interface{}) Value {
+ 
+ type testFunc struct{}
+ 
+-func (*testFunc) NewFrame() *Frame { return &Frame{nil, &[2]Value{}} }
++func (*testFunc) NewFrame() *Frame { return &Frame{nil, make([]Value, 2)} }
+ 
+ func (*testFunc) Call(t *Thread) {
+ 	n := t.f.Vars[0].(IntValue).Get(t)
+@@ -217,7 +217,7 @@ func (*testFunc) Call(t *Thread) {
+ 
+ type oneTwoFunc struct{}
+ 
+-func (*oneTwoFunc) NewFrame() *Frame { return &Frame{nil, &[2]Value{}} }
++func (*oneTwoFunc) NewFrame() *Frame { return &Frame{nil, make([]Value, 2)} }
+ 
+ func (*oneTwoFunc) Call(t *Thread) {
+ 	t.f.Vars[0].(IntValue).Set(t, 1)

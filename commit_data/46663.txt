@@ -12,6 +12,18 @@ Date:   Wed Jan 20 09:45:03 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_get_fallback.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_get_fallback.txt b/src/cmd/go/testdata/script/mod_get_fallback.txt
+index a9834a324e..9733fa366b 100644
+--- a/src/cmd/go/testdata/script/mod_get_fallback.txt
++++ b/src/cmd/go/testdata/script/mod_get_fallback.txt
+@@ -6,5 +6,5 @@ env GOPROXY=https://proxy.golang.org,direct
+ env GOSUMDB=off
+ 
+ go get -x -v -d golang.org/x/tools/cmd/goimports
+-stderr '# get https://proxy.golang.org/golang.org/x/tools/@latest'
++stderr '# get https://proxy.golang.org/golang.org/x/tools/@v/list'
+ ! stderr '# get https://golang.org'

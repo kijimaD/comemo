@@ -11,8 +11,135 @@ Date:   Wed Jan 28 14:51:49 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3393
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/parfor.go   | 41 +++++++++++++++++++++++++++++++++++++++++
  src/runtime/runtime.go  |  8 --------
  src/runtime/runtime2.go | 30 ------------------------------
  3 files changed, 41 insertions(+), 38 deletions(-)
+
+diff --git a/src/runtime/parfor.go b/src/runtime/parfor.go
+index 3a377474dc..1c28924096 100644
+--- a/src/runtime/parfor.go
++++ b/src/runtime/parfor.go
+@@ -8,6 +8,28 @@ package runtime
+ 
+ import "unsafe"
+ 
++// A parfor holds state for the parallel for operation.
++type parfor struct {
++	body    unsafe.Pointer // go func(*parfor, uint32), executed for each element
++	done    uint32         // number of idle threads
++	nthr    uint32         // total number of threads
++	nthrmax uint32         // maximum number of threads
++	thrseq  uint32         // thread id sequencer
++	cnt     uint32         // iteration space [0, cnt)
++	ctx     unsafe.Pointer // arbitrary user context
++	wait    bool           // if true, wait while all threads finish processing,
++	// otherwise parfor may return while other threads are still working
++	thr *parforthread // array of thread descriptors
++	pad uint32        // to align parforthread.pos for 64-bit atomic operations
++	// stats
++	nsteal     uint64
++	nstealcnt  uint64
++	nprocyield uint64
++	nosyield   uint64
++	nsleep     uint64
++}
++
++// A parforthread holds state for a single thread in the parallel for.
+ type parforthread struct {
+ 	// the thread's iteration space [32lsb, 32msb)
+ 	pos uint64
+@@ -24,6 +46,25 @@ func desc_thr_index(desc *parfor, i uint32) *parforthread {
+ 	return (*parforthread)(add(unsafe.Pointer(desc.thr), uintptr(i)*unsafe.Sizeof(*desc.thr)))
+ }
+ 
++func parforalloc(nthrmax uint32) *parfor {
++	return &parfor{
++		thr:     &make([]parforthread, nthrmax)[0],
++		nthrmax: nthrmax,
++	}
++}
++
++// Parforsetup initializes desc for a parallel for operation with nthr
++// threads executing n jobs.
++//
++// On return the nthr threads are each expected to call parfordo(desc)
++// to run the operation. During those calls, for each i in [0, n), one
++// thread will be used invoke body(desc, i).
++// If wait is true, no parfordo will return until all work has been completed.
++// If wait is false, parfordo may return when there is a small amount
++// of work left, under the assumption that another thread has that
++// work well in hand.
++// The opaque user context ctx is recorded as desc.ctx and can be used by body.
++// TODO(austin): Remove ctx in favor of using a closure for body.
+ func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, body func(*parfor, uint32)) {
+ 	if desc == nil || nthr == 0 || nthr > desc.nthrmax || body == nil {
+ 		print("desc=", desc, " nthr=", nthr, " count=", n, " body=", body, "\n")
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index ba9881fd91..0f660038fb 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -47,14 +47,6 @@ func makeStringSlice(n int) []string {
+ 	return make([]string, n)
+ }
+ 
+-// TODO: Move to parfor.go when parfor.c becomes parfor.go.
+-func parforalloc(nthrmax uint32) *parfor {
+-	return &parfor{
+-		thr:     &make([]parforthread, nthrmax)[0],
+-		nthrmax: nthrmax,
+-	}
+-}
+-
+ var envs []string
+ var argslice []string
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 6935fcd826..f6b7802de3 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -439,27 +439,6 @@ type lfnode struct {
+ 	pushcnt uintptr
+ }
+ 
+-// Parallel for descriptor.
+-type parfor struct {
+-	body    unsafe.Pointer // go func(*parfor, uint32), executed for each element
+-	done    uint32         // number of idle threads
+-	nthr    uint32         // total number of threads
+-	nthrmax uint32         // maximum number of threads
+-	thrseq  uint32         // thread id sequencer
+-	cnt     uint32         // iteration space [0, cnt)
+-	ctx     unsafe.Pointer // arbitrary user context
+-	wait    bool           // if true, wait while all threads finish processing,
+-	// otherwise parfor may return while other threads are still working
+-	thr *parforthread // array of thread descriptors
+-	pad uint32        // to align parforthread.pos for 64-bit atomic operations
+-	// stats
+-	nsteal     uint64
+-	nstealcnt  uint64
+-	nprocyield uint64
+-	nosyield   uint64
+-	nsleep     uint64
+-}
+-
+ // Track memory allocated by code not written in Go during a cgo call,
+ // so that the garbage collector can see them.
+ type cgomal struct {
+@@ -629,15 +608,6 @@ var (
+  * so they can be garbage collected if there are no other pointers to nodes.
+  */
+ 
+-/*
+- * Parallel for over [0, n).
+- * body() is executed for each iteration.
+- * nthr - total number of worker threads.
+- * ctx - arbitrary user context.
+- * if wait=true, threads return from parfor() when all work is done;
+- * otherwise, threads can return while other threads are still finishing processing.
+- */
+-
+ // for mmap, we only pass the lower 32 bits of file offset to the
+ // assembly routine; the higher bits (if required), should be provided
+ // by the assembly routine as 0.

@@ -9,7 +9,44 @@ Date:   Wed Apr 5 20:24:48 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/sizeof_test.go | 1 -
  src/cmd/compile/internal/gc/type.go        | 6 ------
  2 files changed, 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 06a3bf5bb8..2c6fecac67 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -35,7 +35,6 @@ func TestSizeof(t *testing.T) {
+ 		{InterType{}, 4, 8},
+ 		{ChanType{}, 8, 16},
+ 		{ArrayType{}, 12, 16},
+-		{InterMethType{}, 4, 8},
+ 		{DDDFieldType{}, 4, 8},
+ 		{FuncArgsType{}, 4, 8},
+ 		{ChanArgsType{}, 4, 8},
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 225a72e41e..b741112711 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -126,7 +126,6 @@ type Type struct {
+ 	// TMAP: *MapType
+ 	// TFORW: *ForwardType
+ 	// TFUNC: *FuncType
+-	// TINTERMETHOD: InterMethType
+ 	// TSTRUCT: *StructType
+ 	// TINTER: *InterType
+ 	// TDDDFIELD: DDDFieldType
+@@ -232,11 +231,6 @@ func (t *Type) FuncType() *FuncType {
+ 	return t.Extra.(*FuncType)
+ }
+ 
+-// InterMethType contains Type fields specific to interface method pseudo-types.
+-type InterMethType struct {
+-	Nname *Node
+-}
+-
+ // StructType contains Type fields specific to struct types.
+ type StructType struct {
+ 	fields Fields

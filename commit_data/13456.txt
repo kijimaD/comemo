@@ -9,10 +9,92 @@ Date:   Wed Jul 11 09:41:08 2012 -0700
     R=fullung, adg
     CC=golang-dev
     https://golang.org/cl/6343088
-
+---
  doc/docs.html          | 4 ++--
  doc/go_faq.html        | 2 +-
  doc/reference.html     | 4 ++--
  lib/godoc/godoc.html   | 2 +-
  lib/godoc/package.html | 4 ++--
  5 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index f88e930fba..8826868f9d 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -56,10 +56,10 @@ A must read for any new Go programmer. It augments the tour and
+ the language specification, both of which should be read first.
+ </p>
+ 
+-<h3 id="appengine"><a href="http://code.google.com/appengine/docs/go/gettingstarted/">Getting Started with Go on App Engine</a></h3>
++<h3 id="appengine"><a href="https://developers.google.com/appengine/docs/go/gettingstarted/">Getting Started with Go on App Engine</a></h3>
+ <p>
+ How to develop and deploy a simple Go project with
+-<a href="http://code.google.com/appengine/">Google App Engine</a>.
++<a href="https://developers.google.com/appengine/">Google App Engine</a>.
+ </p>
+ 
+ <h3 id="go_faq"><a href="go_faq.html">Frequently Asked Questions (FAQ)</a></h3>
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index b5b7cc656d..17dc54f7b4 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -180,7 +180,7 @@ production inside Google.  A public example is the server behind
+ <a href="http://golang.org">http://golang.org</a>.
+ It's just the <a href="/cmd/godoc"><code>godoc</code></a>
+ document server running in a production configuration on
+-<a href="http://code.google.com/appengine/">Google App Engine</a>.
++<a href="https://developers.google.com/appengine/">Google App Engine</a>.
+ </p>
+ 
+ <h3 id="Do_Go_programs_link_with_Cpp_programs">
+diff --git a/doc/reference.html b/doc/reference.html
+index beaac431d2..70df557f08 100644
+--- a/doc/reference.html
++++ b/doc/reference.html
+@@ -24,10 +24,10 @@ The documentation for the Go tools.
+ The official Go Language specification. 
+ </p>
+ 
+-<h3 id="appengine"><a href="http://code.google.com/appengine/docs/go/">App Engine Go Runtime Documentation</a></h3>
++<h3 id="appengine"><a href="https://developers.google.com/appengine/docs/go/">App Engine Go Runtime Documentation</a></h3>
+ <p>
+ The documentation for
+-<a href="http://code.google.com/appengine/">Google App Engine</a>'s Go runtime.
++<a href="https://developers.google.com/appengine/">Google App Engine</a>'s Go runtime.
+ </p>
+ 
+ <h3 id="go_mem"><a href="/ref/mem">The Go Memory Model</a></h3>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 5330b17d4b..d4bc4b84d8 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -57,7 +57,7 @@ the content of this page is licensed under the
+ Creative Commons Attribution 3.0 License,
+ and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
+ <a href="/doc/tos.html">Terms of Service</a> | 
+-<a href="http://www.google.com/intl/en/privacy/privacy-policy.html">Privacy Policy</a>
++<a href="http://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>
+ </div>
+ 
+ </body>
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 5b7fce8d70..e037072211 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -192,14 +192,14 @@
+ 		{{if $.DirFlat}}
+ 			{{if .HasPkg}}
+ 				<tr>
+-				<td class="name"><a href="{{html .Path}}">{{html .Path}}</a></td>
++				<td class="name"><a href="{{html .Path}}/">{{html .Path}}</a></td>
+ 				<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+ 				<td style="width: auto">{{html .Synopsis}}</td>
+ 				</tr>
+ 			{{end}}
+ 		{{else}}
+ 			<tr>
+-			<td class="name">{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a></td>
++			<td class="name">{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}/">{{html .Name}}</a></td>
+ 			<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+ 			<td style="width: auto">{{html .Synopsis}}</td>
+ 			</tr>

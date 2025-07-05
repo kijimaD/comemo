@@ -10,6 +10,20 @@ Date:   Thu Jan 30 13:36:00 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/modindex/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modindex/build.go b/src/cmd/go/internal/modindex/build.go
+index b4dacb0f52..542d6fbbbb 100644
+--- a/src/cmd/go/internal/modindex/build.go
++++ b/src/cmd/go/internal/modindex/build.go
+@@ -133,7 +133,7 @@ func (ctxt *Context) isAbsPath(path string) bool {
+ 	return filepath.IsAbs(path)
+ }
+ 
+-// isDir calls ctxt.IsDir (if not nil) or else uses fsys.Stat.
++// isDir reports whether path is a directory.
+ func isDir(path string) bool {
+ 	fi, err := fsys.Stat(path)
+ 	return err == nil && fi.IsDir()

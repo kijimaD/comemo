@@ -37,7 +37,75 @@ Date:   Wed Apr 25 09:15:25 2018 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go              | 33 +++++++++++++++++++++++++++++++++
  src/cmd/go/internal/load/search.go |  8 +++++++-
  2 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 967b2c67b3..fb8846c710 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6292,3 +6292,36 @@ func TestLinkerTmpDirIsDeleted(t *testing.T) {
+ 		t.Fatalf("Stat(%q) returns unexpected error: %v", tmpdir, err)
+ 	}
+ }
++
++func testCDAndGOPATHAreDifferent(tg *testgoData, cd, gopath string) {
++	tg.setenv("GOPATH", gopath)
++
++	tg.tempDir("dir")
++	exe := tg.path("dir/a.exe")
++
++	tg.cd(cd)
++
++	tg.run("build", "-o", exe, "-ldflags", "-X=my.pkg.Text=linkXworked")
++	out, err := exec.Command(exe).CombinedOutput()
++	if err != nil {
++		tg.t.Fatal(err)
++	}
++	if string(out) != "linkXworked\n" {
++		tg.t.Errorf(`incorrect output with GOPATH=%q and CD=%q: expected "linkXworked\n", but have %q`, gopath, cd, string(out))
++	}
++}
++
++func TestCDAndGOPATHAreDifferent(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	gopath := filepath.Join(tg.pwd(), "testdata")
++	cd := filepath.Join(gopath, "src/my.pkg/main")
++
++	testCDAndGOPATHAreDifferent(tg, cd, gopath)
++	if runtime.GOOS == "windows" {
++		testCDAndGOPATHAreDifferent(tg, cd, strings.Replace(gopath, `\`, `/`, -1))
++		testCDAndGOPATHAreDifferent(tg, cd, strings.ToUpper(gopath))
++		testCDAndGOPATHAreDifferent(tg, cd, strings.ToLower(gopath))
++	}
++}
+diff --git a/src/cmd/go/internal/load/search.go b/src/cmd/go/internal/load/search.go
+index 595de07904..6494f8e569 100644
+--- a/src/cmd/go/internal/load/search.go
++++ b/src/cmd/go/internal/load/search.go
+@@ -13,6 +13,7 @@ import (
+ 	"path"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"strings"
+ )
+ 
+@@ -282,7 +283,12 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
+ 		}
+ 		dir = filepath.Join(cwd, dir)
+ 		if pattern == "" {
+-			return func(p *Package) bool { return p.Dir == dir }
++			return func(p *Package) bool {
++				if runtime.GOOS != "windows" {
++					return p.Dir == dir
++				}
++				return strings.EqualFold(p.Dir, dir)
++			}
+ 		}
+ 		matchPath := matchPattern(pattern)
+ 		return func(p *Package) bool {

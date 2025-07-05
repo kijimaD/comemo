@@ -14,7 +14,66 @@ Date:   Thu Aug 1 15:20:01 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12288043
-
+---
  src/pkg/compress/flate/flate_test.go | 23 +++++++++++++++++++++++
  src/pkg/compress/flate/inflate.go    |  9 ++++++++-
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/flate/flate_test.go b/src/pkg/compress/flate/flate_test.go
+index aba820a1f9..60584ec58f 100644
+--- a/src/pkg/compress/flate/flate_test.go
++++ b/src/pkg/compress/flate/flate_test.go
+@@ -24,3 +24,26 @@ func TestUncompressedSource(t *testing.T) {
+ 		t.Errorf("output[0] = %x, want 0x11", output[0])
+ 	}
+ }
++
++// The following test should not panic.
++func TestIssue5915(t *testing.T) {
++	bits := []int{4, 0, 0, 6, 4, 3, 2, 3, 3, 4, 4, 5, 0, 0, 0, 0, 5, 5, 6,
++		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
++		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 8, 6, 0, 11, 0, 8, 0, 6, 6, 10, 8}
++	h := new(huffmanDecoder)
++	ok := h.init(bits)
++	if ok == true {
++		t.Fatalf("Given sequence of bits is bad, and should not succeed.")
++	}
++}
++
++// The following test should not panic.
++func TestIssue5962(t *testing.T) {
++	bits := []int{4, 0, 0, 6, 4, 3, 2, 3, 3, 4, 4, 5, 0, 0, 0, 0,
++		5, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11}
++	h := new(huffmanDecoder)
++	ok := h.init(bits)
++	if ok == true {
++		t.Fatalf("Given sequence of bits is bad, and should not succeed.")
++	}
++}
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index f529c9e7c2..0287867208 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -125,6 +125,9 @@ func (h *huffmanDecoder) init(bits []int) bool {
+ 		if i == huffmanChunkBits+1 {
+ 			// create link tables
+ 			link := code >> 1
++			if huffmanNumChunks < link {
++				return false
++			}
+ 			h.links = make([][]uint32, huffmanNumChunks-link)
+ 			for j := uint(link); j < huffmanNumChunks; j++ {
+ 				reverse := int(reverseByte[j>>8]) | int(reverseByte[j&0xff])<<8
+@@ -154,7 +157,11 @@ func (h *huffmanDecoder) init(bits []int) bool {
+ 				h.chunks[off] = chunk
+ 			}
+ 		} else {
+-			linktab := h.links[h.chunks[reverse&(huffmanNumChunks-1)]>>huffmanValueShift]
++			value := h.chunks[reverse&(huffmanNumChunks-1)] >> huffmanValueShift
++			if value >= uint32(len(h.links)) {
++				return false
++			}
++			linktab := h.links[value]
+ 			reverse >>= huffmanChunkBits
+ 			for off := reverse; off < numLinks; off += 1 << uint(n-huffmanChunkBits) {
+ 				linktab[off] = chunk

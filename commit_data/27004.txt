@@ -17,8 +17,63 @@ Date:   Tue Mar 1 22:55:06 2016 +0800
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/doc.go      |  2 --
  src/cmd/vet/main.go     | 10 +++-------
  src/cmd/vet/vet_test.go |  3 ++-
  3 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index bb3238fc9e..d295fb4345 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -198,7 +198,5 @@ These flags configure the behavior of vet:
+ 		For more information, see the discussion of the -printf flag.
+ 	-shadowstrict
+ 		Whether to be strict about shadowing; can be noisy.
+-	-test
+-		For testing only: sets -all and -shadow.
+ */
+ package main // import "golang.org/x/tools/cmd/vet"
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index c401fed0b4..12000867ae 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -24,10 +24,9 @@ import (
+ )
+ 
+ var (
+-	verbose  = flag.Bool("v", false, "verbose")
+-	testFlag = flag.Bool("test", false, "for testing only: sets -all and -shadow")
+-	tags     = flag.String("tags", "", "comma-separated list of build tags to apply when parsing")
+-	tagList  = []string{} // exploded version of tags flag; set in main
++	verbose = flag.Bool("v", false, "verbose")
++	tags    = flag.String("tags", "", "comma-separated list of build tags to apply when parsing")
++	tagList = []string{} // exploded version of tags flag; set in main
+ )
+ 
+ var exitCode = 0
+@@ -116,9 +115,6 @@ func (ts triState) IsBoolFlag() bool {
+ 
+ // vet tells whether to report errors for the named check, a flag name.
+ func vet(name string) bool {
+-	if *testFlag {
+-		return true
+-	}
+ 	return report[name].isTrue()
+ }
+ 
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 20d72de313..372ac2846b 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -65,7 +65,8 @@ func Vet(t *testing.T, files []string) {
+ 	flags := []string{
+ 		"./" + binary,
+ 		"-printfuncs=Warn:1,Warnf:1",
+-		"-test", // TODO: Delete once -shadow is part of -all.
++		"-all",
++		"-shadow",
+ 	}
+ 	cmd := exec.Command(errchk, append(flags, files...)...)
+ 	if !run(cmd, t) {

@@ -10,6 +10,42 @@ Date:   Tue Sep 6 22:07:08 2022 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/server.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index d96283ccc4..b22528dcdb 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2681,7 +2681,7 @@ type Server struct {
+ 
+ 	inShutdown atomic.Bool // true when server is in shutdown
+ 
+-	disableKeepAlives int32     // accessed atomically.
++	disableKeepAlives atomic.Bool
+ 	nextProtoOnce     sync.Once // guards setupHTTP2_* init
+ 	nextProtoErr      error     // result of http2.ConfigureServer if used
+ 
+@@ -3169,7 +3169,7 @@ func (s *Server) readHeaderTimeout() time.Duration {
+ }
+ 
+ func (s *Server) doKeepAlives() bool {
+-	return atomic.LoadInt32(&s.disableKeepAlives) == 0 && !s.shuttingDown()
++	return !s.disableKeepAlives.Load() && !s.shuttingDown()
+ }
+ 
+ func (s *Server) shuttingDown() bool {
+@@ -3182,10 +3182,10 @@ func (s *Server) shuttingDown() bool {
+ // shutting down should disable them.
+ func (srv *Server) SetKeepAlivesEnabled(v bool) {
+ 	if v {
+-		atomic.StoreInt32(&srv.disableKeepAlives, 0)
++		srv.disableKeepAlives.Store(false)
+ 		return
+ 	}
+-	atomic.StoreInt32(&srv.disableKeepAlives, 1)
++	srv.disableKeepAlives.Store(true)
+ 
+ 	// Close idle HTTP/1 conns:
+ 	srv.closeIdleConns()

@@ -8,6 +8,20 @@ Date:   Mon Dec 15 10:50:41 2008 -0800
     DELTA=2  (2 added, 0 deleted, 0 changed)
     OCL=21178
     CL=21187
-
+---
  src/runtime/symtab.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/symtab.c b/src/runtime/symtab.c
+index 9580cad712..578e16f9c4 100644
+--- a/src/runtime/symtab.c
++++ b/src/runtime/symtab.c
+@@ -195,6 +195,8 @@ dosrcline(Sym *sym)
+ 	switch(sym->symtype) {
+ 	case 't':
+ 	case 'T':
++		if(strcmp(sym->name, (byte*)"etext") == 0)
++			break;
+ 		f = &func[nf++];
+ 		f->src = srcstring;
+ 		f->ln0 += lno;

@@ -12,10 +12,555 @@ Date:   Thu Oct 16 23:30:42 2008 -0700
     R=r
     OCL=17333
     CL=17333
-
+---
  usr/gri/pretty/node.go    |  17 +++++++
  usr/gri/pretty/parser.go  | 120 ++++++++++++++++++++++++++++++++--------------
  usr/gri/pretty/pretty.go  |  32 ++++++-------
  usr/gri/pretty/printer.go |  38 ++++++++++++++-
  usr/gri/pretty/scanner.go |  32 ++++++++-----
  5 files changed, 173 insertions(+), 66 deletions(-)
+
+diff --git a/usr/gri/pretty/node.go b/usr/gri/pretty/node.go
+index 7c4bcefc07..55fbf1ce9b 100644
+--- a/usr/gri/pretty/node.go
++++ b/usr/gri/pretty/node.go
+@@ -92,6 +92,9 @@ func (x *Expr) len() int {
+ 
+ 
+ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
++	if x != nil && x.tok == Scanner.TYPE || y != nil && y.tok == Scanner.TYPE {
++		panic("no type expression allowed");
++	}
+ 	e := new(Expr);
+ 	e.pos, e.tok, e.x, e.y = pos, tok, x, y;
+ 	return e;
+@@ -200,10 +203,24 @@ export func NewDecl(pos, tok int, exported bool) *Decl {
+ // ----------------------------------------------------------------------------
+ // Program
+ 
++export type Comment struct {
++	pos int;
++	text string;
++}
++
++
++export func NewComment(pos int, text string) *Comment {
++	c := new(Comment);
++	c.pos, c.text = pos, text;
++	return c;
++}
++
++
+ export type Program struct {
+ 	pos int;  // tok is Scanner.PACKAGE
+ 	ident *Expr;
+ 	decls *List;
++	comments *List;
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 808852da5d..576e8fc39e 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -13,6 +13,7 @@ export type Parser struct {
+ 	indent uint;
+ 	scanner *Scanner.Scanner;
+ 	tokchan *<-chan *Scanner.Token;
++	comments *Node.List;
+ 	
+ 	// Scanner.Token
+ 	pos int;  // token source position
+@@ -56,7 +57,7 @@ func (P *Parser) Ecart() {
+ }
+ 
+ 
+-func (P *Parser) Next() {
++func (P *Parser) Next0() {
+ 	if P.tokchan == nil {
+ 		P.pos, P.tok, P.val = P.scanner.Scan();
+ 	} else {
+@@ -71,11 +72,19 @@ func (P *Parser) Next() {
+ }
+ 
+ 
++func (P *Parser) Next() {
++	for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
++		P.comments.Add(Node.NewComment(P.pos, P.val));
++	}
++}
++
++
+ func (P *Parser) Open(verbose bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
+ 	P.verbose = verbose;
+ 	P.indent = 0;
+ 	P.scanner = scanner;
+ 	P.tokchan = tokchan;
++	P.comments = Node.NewList();
+ 	P.Next();
+ 	P.expr_lev = 1;
+ 	P.scope_lev = 0;
+@@ -102,6 +111,20 @@ func (P *Parser) OptSemicolon() {
+ }
+ 
+ 
++func (P *Parser) NoType(x *Node.Expr) *Node.Expr {
++	if x != nil && x.tok == Scanner.TYPE {
++		P.Error(x.pos, "expected expression, found type");
++		x = Node.NewLit(x.pos, Scanner.INT, 0);
++	}
++	return x;
++}
++
++
++func (P *Parser) NewExpr(pos, tok int, x, y *Node.Expr) *Node.Expr {
++	return Node.NewExpr(pos, tok, P.NoType(x), P.NoType(y));
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Common productions
+ 
+@@ -139,7 +162,7 @@ func (P *Parser) ParseIdentList() *Node.Expr {
+ 		pos := P.pos;
+ 		P.Next();
+ 		y := P.ParseIdentList();
+-		x = Node.NewExpr(pos, Scanner.COMMA, x, y);
++		x = P.NewExpr(pos, Scanner.COMMA, x, y);
+ 	}
+ 
+ 	P.Ecart();
+@@ -181,7 +204,7 @@ func (P *Parser) ParseQualifiedIdent() *Node.Expr {
+ 		pos := P.pos;
+ 		P.Next();
+ 		y := P.ParseIdent();
+-		x = Node.NewExpr(pos, Scanner.PERIOD, x, y);
++		x = P.NewExpr(pos, Scanner.PERIOD, x, y);
+ 	}
+ 	
+ 	P.Ecart();
+@@ -442,12 +465,12 @@ func (P *Parser) ParseStructType() *Node.Type {
+ func (P *Parser) ParsePointerType() *Node.Type {
+ 	P.Trace("PointerType");
+ 	
+-	typ := Node.NewType(P.pos, Scanner.MUL);
++	t := Node.NewType(P.pos, Scanner.MUL);
+ 	P.Expect(Scanner.MUL);
+-	typ.elt = P.ParseType();
++	t.elt = P.ParseType();
+ 	
+ 	P.Ecart();
+-	return typ;
++	return t;
+ }
+ 
+ 
+@@ -490,6 +513,11 @@ func (P *Parser) ParseStatementList() *Node.List {
+ 		}
+ 	}
+ 	
++	// Try to provide a good error message
++	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
++		P.Error(P.pos, "expected end of statement list (semicolon missing?)");
++	}
++
+ 	P.Ecart();
+ 	return list;
+ }
+@@ -523,7 +551,7 @@ func (P *Parser) ParseExpressionList() *Node.Expr {
+ 		pos := P.pos;
+ 		P.Next();
+ 		y := P.ParseExpressionList();
+-		x = Node.NewExpr(pos, Scanner.COMMA, x, y);
++		x = P.NewExpr(pos, Scanner.COMMA, x, y);
+ 	}
+ 	
+ 	P.Ecart();
+@@ -591,7 +619,7 @@ func (P *Parser) ParseOperand() *Node.Expr {
+ func (P *Parser) ParseSelectorOrTypeGuard(x *Node.Expr) *Node.Expr {
+ 	P.Trace("SelectorOrTypeGuard");
+ 
+-	x = Node.NewExpr(P.pos, Scanner.PERIOD, x, nil);
++	x = P.NewExpr(P.pos, Scanner.PERIOD, x, nil);
+ 	P.Expect(Scanner.PERIOD);
+ 	
+ 	if P.tok == Scanner.IDENT {
+@@ -619,7 +647,7 @@ func (P *Parser) ParseExpressionPair(mode int) *Node.Expr {
+ 		pos := P.pos;
+ 		P.Expect(Scanner.COLON);
+ 		y := P.ParseExpression();
+-		x = Node.NewExpr(pos, Scanner.COLON, x, y);
++		x = P.NewExpr(pos, Scanner.COLON, x, y);
+ 	}
+ 
+ 	P.Ecart();
+@@ -636,17 +664,31 @@ func (P *Parser) ParseIndex(x *Node.Expr) *Node.Expr {
+ 	P.Expect(Scanner.RBRACK);
+ 	
+ 	P.Ecart();
+-	return Node.NewExpr(pos, Scanner.LBRACK, x, i);
++	return P.NewExpr(pos, Scanner.LBRACK, x, i);
+ }
+ 
+ 
++func (P *Parser) ParseBinaryExpr(prec1 int) *Node.Expr
++
+ func (P *Parser) ParseCall(x *Node.Expr) *Node.Expr {
+ 	P.Trace("Call");
+ 
+-	x = Node.NewExpr(P.pos, Scanner.LPAREN, x, nil);
++	x = P.NewExpr(P.pos, Scanner.LPAREN, x, nil);
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+-		x.y = P.ParseExpressionList();
++		// the very first argument may be a type if the function called is new()
++		// call ParseBinaryExpr() which allows type expressions
++		y := P.ParseBinaryExpr(1);
++		if P.tok == Scanner.COMMA {
++			pos := P.pos;
++			P.Next();
++			z := P.ParseExpressionList();
++			// create list manually because NewExpr checks for type expressions
++			z = P.NewExpr(pos, Scanner.COMMA, nil, z);
++			z.x = y;
++			y = z;
++		}
++		x.y = y;
+ 	}
+ 	P.Expect(Scanner.RPAREN);
+ 	
+@@ -672,7 +714,7 @@ func (P *Parser) ParseExpressionPairList(mode int) *Node.Expr {
+ 		P.Next();
+ 		if P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+ 			y := P.ParseExpressionPairList(mode);
+-			x = Node.NewExpr(pos, Scanner.COMMA, x, y);
++			x = P.NewExpr(pos, Scanner.COMMA, x, y);
+ 		}
+ 	}
+ 	
+@@ -683,14 +725,15 @@ func (P *Parser) ParseExpressionPairList(mode int) *Node.Expr {
+ 
+ func (P *Parser) ParseCompositeLit(t *Node.Type) *Node.Expr {
+ 	P.Trace("CompositeLit");
+-
++	
+ 	pos := P.pos;
+ 	P.Expect(Scanner.LBRACE);
+-	x := P.ParseExpressionPairList(0);
++	x := P.NewExpr(pos, Scanner.LBRACE, nil, P.ParseExpressionPairList(0));
++	x.t = t;
+ 	P.Expect(Scanner.RBRACE);
+ 	
+ 	P.Ecart();
+-	return Node.NewExpr(pos, Scanner.LBRACE, Node.NewTypeExpr(t), x);
++	return x;
+ }
+ 
+ 
+@@ -704,20 +747,22 @@ func (P *Parser) ParsePrimaryExpr() *Node.Expr {
+ 		case Scanner.LBRACK: x = P.ParseIndex(x);
+ 		case Scanner.LPAREN: x = P.ParseCall(x);
+ 		case Scanner.LBRACE:
++			// assume a composite literal only if x could be a type
++			// and if we are not inside control clause (expr_lev > 0)
++			// (composites inside control clauses must be parenthesized)
++			var t *Node.Type;
+ 			if P.expr_lev > 0 {
+-				var t *Node.Type;
+ 				if x.tok == Scanner.TYPE {
+ 					t = x.t;
+ 				} else if x.tok == Scanner.IDENT {
+ 					// assume a type name
+ 					t = Node.NewType(x.pos, Scanner.IDENT);
+ 					t.expr = x;
+-				} else {
+-					P.Error(x.pos, "type expected for composite literal");
+ 				}
++			}
++			if t != nil {
+ 				x = P.ParseCompositeLit(t);
+ 			} else {
+-				// composites inside control clauses must be parenthesized
+ 				goto exit;
+ 			}
+ 		default: goto exit;
+@@ -735,18 +780,21 @@ func (P *Parser) ParseUnaryExpr() *Node.Expr {
+ 	
+ 	var x *Node.Expr;
+ 	switch P.tok {
+-	case
+-		Scanner.ADD, Scanner.SUB,
+-		Scanner.NOT, Scanner.XOR,
+-		Scanner.MUL, Scanner.ARROW,
+-		Scanner.AND:
+-			pos, tok := P.pos, P.tok;
+-			P.Next();
+-			y := P.ParseUnaryExpr();
+-			x = Node.NewExpr(pos, tok, nil, y);
+-			
+-		default:
+-			x = P.ParsePrimaryExpr();
++	case Scanner.ADD, Scanner.SUB, Scanner.MUL, Scanner.NOT, Scanner.XOR, Scanner.ARROW, Scanner.AND:
++		pos, tok := P.pos, P.tok;
++		P.Next();
++		y := P.ParseUnaryExpr();
++		if tok == Scanner.MUL && y.tok == Scanner.TYPE {
++			// pointer type
++			t := Node.NewType(pos, Scanner.MUL);
++			t.elt = y.t;
++			x = Node.NewTypeExpr(t);
++		} else {
++			x = P.NewExpr(pos, tok, nil, y);
++		}
++	
++	default:
++		x = P.ParsePrimaryExpr();
+ 	}
+ 	
+ 	P.Ecart();
+@@ -763,7 +811,7 @@ func (P *Parser) ParseBinaryExpr(prec1 int) *Node.Expr {
+ 			pos, tok := P.pos, P.tok;
+ 			P.Next();
+ 			y := P.ParseBinaryExpr(prec + 1);
+-			x = Node.NewExpr(pos, tok, x, y);
++			x = P.NewExpr(pos, tok, x, y);
+ 		}
+ 	}
+ 	
+@@ -776,8 +824,8 @@ func (P *Parser) ParseExpression() *Node.Expr {
+ 	P.Trace("Expression");
+ 	indent := P.indent;
+ 	
+-	x := P.ParseBinaryExpr(1);
+-	
++	x := P.NoType(P.ParseBinaryExpr(1));
++
+ 	if indent != P.indent {
+ 		panic("imbalanced tracing code (Expression)");
+ 	}
+@@ -1380,6 +1428,8 @@ func (P *Parser) ParseProgram() *Node.Program {
+ 		P.OptSemicolon();
+ 	}
+ 	
++	p.comments = P.comments;
++	
+ 	P.Ecart();
+ 	return p;
+ }
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 1dde213079..94e99fca18 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -14,7 +14,7 @@ import Printer "printer"
+ var (
+     silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
+     verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
+-    sixg = Flag.Bool("6g", false, nil, "6g compatibility mode");
++    //sixg = Flag.Bool("6g", false, nil, "6g compatibility mode");
+     tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
+ )
+ 
+@@ -35,35 +35,31 @@ func main() {
+ 
+ 	// process files
+ 	for i := 0; i < Flag.NArg(); i++ {
+-	    src_file := Flag.Arg(i);
++		src_file := Flag.Arg(i);
+ 
+-	    src, ok := Platform.ReadSourceFile(src_file);
+-	    if !ok {
++		src, ok := Platform.ReadSourceFile(src_file);
++		if !ok {
+ 			print("cannot open ", src_file, "\n");
+ 			sys.exit(1);
+ 		}
+ 
+-		if silent.BVal() {
+-			print("- ", src_file, "\n");
+-		}
++		scanner := new(Scanner.Scanner);
++		scanner.Open(src_file, src);
+ 
+-	    scanner := new(Scanner.Scanner);
+-            scanner.Open(src_file, src);
++		var tstream *<-chan *Scanner.Token;
++		if tokenchan.BVal() {
++			tstream = scanner.TokenStream();
++		}
+ 
+-	    var tstream *<-chan *Scanner.Token;
+-            if tokenchan.BVal() {
+-                tstream = scanner.TokenStream();
+-	    }
++		parser := new(Parser.Parser);
++		parser.Open(verbose.BVal(), scanner, tstream);
+ 
+-	    parser := new(Parser.Parser);
+-	    parser.Open(verbose.BVal(), scanner, tstream);
++		prog := parser.ParseProgram();
+ 
+-	    prog := parser.ParseProgram();
+-		
+ 		if scanner.nerrors > 0 {
+ 			sys.exit(1);
+ 		}
+-		
++
+ 		if !silent.BVal() {
+ 			var P Printer.Printer;
+ 			(&P).Program(prog);
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 055226313d..53d906dd30 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -9,10 +9,16 @@ import Node "node"
+ 
+ 
+ export type Printer struct {
++	// formatting control
+ 	level int;  // true scope level
+ 	indent int;  // indentation level
+ 	semi bool;  // pending ";"
+ 	newl int;  // pending "\n"'s
++
++	// comments
++	clist *Node.List;
++	cindex int;
++	cpos int;
+ }
+ 
+ 
+@@ -21,6 +27,27 @@ func (P *Printer) String(pos int, s string) {
+ 		print(";");
+ 	}
+ 	
++	/*
++	for pos > P.cpos {
++		// we have a comment
++		c := P.clist.at(P.cindex).(*Node.Comment);
++		if c.text[1] == '/' {
++			print("  " + c.text);
++			if P.newl <= 0 {
++				P.newl = 1;  // line comments must have a newline
++			}
++		} else {
++			print(c.text);
++		}
++		P.cindex++;
++		if P.cindex < P.clist.len() {
++			P.cpos = P.clist.at(P.cindex).(*Node.Comment).pos;
++		} else {
++			P.cpos = 1000000000;  // infinite
++		}
++	}
++	*/
++	
+ 	if P.newl > 0 {
+ 		for i := P.newl; i > 0; i-- {
+ 			print("\n");
+@@ -221,7 +248,7 @@ func (P *Printer) Expr1(x *Node.Expr, prec1 int) {
+ 
+ 	case Scanner.LBRACE:
+ 		// composite
+-		P.Expr1(x.x, 8);
++		P.Type(x.t);
+ 		P.String(x.pos, "{");
+ 		P.Expr1(x.y, 0);
+ 		P.String(0, "}");
+@@ -488,6 +515,15 @@ func (P *Printer) Declaration(d *Node.Decl, parenthesized bool) {
+ // Program
+ 
+ func (P *Printer) Program(p *Node.Program) {
++	// TODO should initialize all fields?
++	P.clist = p.comments;
++	P.cindex = 0;
++	if p.comments.len() > 0 {
++		P.cpos = p.comments.at(0).(*Node.Comment).pos;
++	} else {
++		P.cpos = 1000000000;  // infinite
++	}
++
+ 	P.String(p.pos, "package ");
+ 	P.Expr(p.ident);
+ 	P.newl = 2;
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 01b3cd2045..a3dee2128f 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -15,6 +15,7 @@ export const (
+ 	INT;
+ 	FLOAT;
+ 	STRING;
++	COMMENT;
+ 	EOF;
+ 
+ 	ADD;
+@@ -114,6 +115,7 @@ export func TokenString(tok int) string {
+ 	case INT: return "INT";
+ 	case FLOAT: return "FLOAT";
+ 	case STRING: return "STRING";
++	case COMMENT: return "COMMENT";
+ 	case EOF: return "EOF";
+ 
+ 	case ADD: return "+";
+@@ -469,29 +471,37 @@ func (S *Scanner) SkipWhitespace() {
+ }
+ 
+ 
+-func (S *Scanner) SkipComment() {
+-	// '/' already consumed
++func (S *Scanner) ScanComment() string {
++	// first '/' already consumed
++	pos := S.chpos - 1;
++	
+ 	if S.ch == '/' {
+ 		// comment
+-		S.Next();
+-		for S.ch != '\n' && S.ch >= 0 {
++		for S.ch >= 0 {
+ 			S.Next();
++			if S.ch == '\n' {
++				S.Next();
++				goto exit;
++			}
+ 		}
+ 		
+ 	} else {
+ 		/* comment */
+-		pos := S.chpos - 1;
+ 		S.Expect('*');
+ 		for S.ch >= 0 {
+ 			ch := S.ch;
+ 			S.Next();
+ 			if ch == '*' && S.ch == '/' {
+ 				S.Next();
+-				return;
++				goto exit;
+ 			}
+ 		}
+-		S.Error(pos, "comment not terminated");
+ 	}
++	
++	S.Error(pos, "comment not terminated");
++
++exit:
++	return S.src[pos : S.chpos];
+ }
+ 
+ 
+@@ -762,12 +772,10 @@ func (S *Scanner) Scan() (pos, tok int, val string) {
+ 		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+-				S.SkipComment();
+-				// cannot simply return because of 6g bug
+-				tok, pos, val = S.Scan();
+-				return tok, pos, val;
++				tok, val = COMMENT, S.ScanComment();
++			} else {
++				tok = S.Select2(QUO, QUO_ASSIGN);
+ 			}
+-			tok = S.Select2(QUO, QUO_ASSIGN);
+ 		case '%': tok = S.Select2(REM, REM_ASSIGN);
+ 		case '^': tok = S.Select2(XOR, XOR_ASSIGN);
+ 		case '<':

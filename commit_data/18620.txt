@@ -8,9 +8,250 @@ Date:   Mon Feb 24 20:50:12 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/68020043
-
+---
  src/pkg/runtime/chan_test.go   | 52 ++++++++++-------------------------
  src/pkg/runtime/mfinal_test.go | 62 +++++++++++++-----------------------------
  src/pkg/runtime/norace_test.go | 36 ++++++++----------------
  src/pkg/runtime/proc_test.go   | 23 ++++------------
  4 files changed, 50 insertions(+), 123 deletions(-)
+
+diff --git a/src/pkg/runtime/chan_test.go b/src/pkg/runtime/chan_test.go
+index 782176c883..ce4b396271 100644
+--- a/src/pkg/runtime/chan_test.go
++++ b/src/pkg/runtime/chan_test.go
+@@ -431,27 +431,15 @@ func TestMultiConsumer(t *testing.T) {
+ }
+ 
+ func BenchmarkChanNonblocking(b *testing.B) {
+-	const CallsPerSched = 1000
+-	procs := runtime.GOMAXPROCS(-1)
+-	N := int32(b.N / CallsPerSched)
+-	c := make(chan bool, procs)
+ 	myc := make(chan int)
+-	for p := 0; p < procs; p++ {
+-		go func() {
+-			for atomic.AddInt32(&N, -1) >= 0 {
+-				for g := 0; g < CallsPerSched; g++ {
+-					select {
+-					case <-myc:
+-					default:
+-					}
+-				}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			select {
++			case <-myc:
++			default:
+ 			}
+-			c <- true
+-		}()
+-	}
+-	for p := 0; p < procs; p++ {
+-		<-c
+-	}
++		}
++	})
+ }
+ 
+ func BenchmarkSelectUncontended(b *testing.B) {
+@@ -713,23 +701,11 @@ func BenchmarkChanCreation(b *testing.B) {
+ 
+ func BenchmarkChanSem(b *testing.B) {
+ 	type Empty struct{}
+-	const CallsPerSched = 1000
+-	procs := runtime.GOMAXPROCS(0)
+-	N := int32(b.N / CallsPerSched)
+-	c := make(chan bool, procs)
+-	myc := make(chan Empty, procs)
+-	for p := 0; p < procs; p++ {
+-		go func() {
+-			for atomic.AddInt32(&N, -1) >= 0 {
+-				for g := 0; g < CallsPerSched; g++ {
+-					myc <- Empty{}
+-					<-myc
+-				}
+-			}
+-			c <- true
+-		}()
+-	}
+-	for p := 0; p < procs; p++ {
+-		<-c
+-	}
++	myc := make(chan Empty, runtime.GOMAXPROCS(0))
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			myc <- Empty{}
++			<-myc
++		}
++	})
+ }
+diff --git a/src/pkg/runtime/mfinal_test.go b/src/pkg/runtime/mfinal_test.go
+index ffcffbd4be..32f26a6b29 100644
+--- a/src/pkg/runtime/mfinal_test.go
++++ b/src/pkg/runtime/mfinal_test.go
+@@ -6,8 +6,6 @@ package runtime_test
+ 
+ import (
+ 	"runtime"
+-	"sync"
+-	"sync/atomic"
+ 	"testing"
+ 	"time"
+ )
+@@ -112,50 +110,28 @@ func TestFinalizerZeroSizedStruct(t *testing.T) {
+ }
+ 
+ func BenchmarkFinalizer(b *testing.B) {
+-	const CallsPerSched = 1000
+-	procs := runtime.GOMAXPROCS(-1)
+-	N := int32(b.N / CallsPerSched)
+-	var wg sync.WaitGroup
+-	wg.Add(procs)
+-	for p := 0; p < procs; p++ {
+-		go func() {
+-			var data [CallsPerSched]*int
+-			for i := 0; i < CallsPerSched; i++ {
+-				data[i] = new(int)
++	const Batch = 1000
++	b.RunParallel(func(pb *testing.PB) {
++		var data [Batch]*int
++		for i := 0; i < Batch; i++ {
++			data[i] = new(int)
++		}
++		for pb.Next() {
++			for i := 0; i < Batch; i++ {
++				runtime.SetFinalizer(data[i], fin)
+ 			}
+-			for atomic.AddInt32(&N, -1) >= 0 {
+-				runtime.Gosched()
+-				for i := 0; i < CallsPerSched; i++ {
+-					runtime.SetFinalizer(data[i], fin)
+-				}
+-				for i := 0; i < CallsPerSched; i++ {
+-					runtime.SetFinalizer(data[i], nil)
+-				}
++			for i := 0; i < Batch; i++ {
++				runtime.SetFinalizer(data[i], nil)
+ 			}
+-			wg.Done()
+-		}()
+-	}
+-	wg.Wait()
++		}
++	})
+ }
+ 
+ func BenchmarkFinalizerRun(b *testing.B) {
+-	const CallsPerSched = 1000
+-	procs := runtime.GOMAXPROCS(-1)
+-	N := int32(b.N / CallsPerSched)
+-	var wg sync.WaitGroup
+-	wg.Add(procs)
+-	for p := 0; p < procs; p++ {
+-		go func() {
+-			for atomic.AddInt32(&N, -1) >= 0 {
+-				runtime.Gosched()
+-				for i := 0; i < CallsPerSched; i++ {
+-					v := new(int)
+-					runtime.SetFinalizer(v, fin)
+-				}
+-				runtime.GC()
+-			}
+-			wg.Done()
+-		}()
+-	}
+-	wg.Wait()
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			v := new(int)
++			runtime.SetFinalizer(v, fin)
++		}
++	})
+ }
+diff --git a/src/pkg/runtime/norace_test.go b/src/pkg/runtime/norace_test.go
+index a3d5b00860..3b171877a6 100644
+--- a/src/pkg/runtime/norace_test.go
++++ b/src/pkg/runtime/norace_test.go
+@@ -9,7 +9,6 @@ package runtime_test
+ 
+ import (
+ 	"runtime"
+-	"sync/atomic"
+ 	"testing"
+ )
+ 
+@@ -31,28 +30,17 @@ func BenchmarkSyscallExcessWork(b *testing.B) {
+ }
+ 
+ func benchmarkSyscall(b *testing.B, work, excess int) {
+-	const CallsPerSched = 1000
+-	procs := runtime.GOMAXPROCS(-1) * excess
+-	N := int32(b.N / CallsPerSched)
+-	c := make(chan bool, procs)
+-	for p := 0; p < procs; p++ {
+-		go func() {
+-			foo := 42
+-			for atomic.AddInt32(&N, -1) >= 0 {
+-				runtime.Gosched()
+-				for g := 0; g < CallsPerSched; g++ {
+-					runtime.Entersyscall()
+-					for i := 0; i < work; i++ {
+-						foo *= 2
+-						foo /= 2
+-					}
+-					runtime.Exitsyscall()
+-				}
++	b.SetParallelism(excess)
++	b.RunParallel(func(pb *testing.PB) {
++		foo := 42
++		for pb.Next() {
++			runtime.Entersyscall()
++			for i := 0; i < work; i++ {
++				foo *= 2
++				foo /= 2
+ 			}
+-			c <- foo == 42
+-		}()
+-	}
+-	for p := 0; p < procs; p++ {
+-		<-c
+-	}
++			runtime.Exitsyscall()
++		}
++		_ = foo
++	})
+ }
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index fb9c76c3a7..5be3551950 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -370,24 +370,11 @@ func TestSchedLocalQueueSteal(t *testing.T) {
+ }
+ 
+ func benchmarkStackGrowth(b *testing.B, rec int) {
+-	const CallsPerSched = 1000
+-	procs := runtime.GOMAXPROCS(-1)
+-	N := int32(b.N / CallsPerSched)
+-	c := make(chan bool, procs)
+-	for p := 0; p < procs; p++ {
+-		go func() {
+-			for atomic.AddInt32(&N, -1) >= 0 {
+-				runtime.Gosched()
+-				for g := 0; g < CallsPerSched; g++ {
+-					stackGrowthRecursive(rec)
+-				}
+-			}
+-			c <- true
+-		}()
+-	}
+-	for p := 0; p < procs; p++ {
+-		<-c
+-	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			stackGrowthRecursive(rec)
++		}
++	})
+ }
+ 
+ func BenchmarkStackGrowth(b *testing.B) {

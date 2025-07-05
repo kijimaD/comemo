@@ -12,6 +12,37 @@ Date:   Sun Feb 3 01:25:47 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7277045
-
+---
  src/cmd/gc/subr.c | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 01e738bf9d..323d4f3922 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -151,14 +151,23 @@ yyerror(char *fmt, ...)
+ 		if(lastsyntax == lexlineno)
+ 			return;
+ 		lastsyntax = lexlineno;
+-		
+-		if(strstr(fmt, "{ or {")) {
++			
++		if(strstr(fmt, "{ or {") || strstr(fmt, " or ?") || strstr(fmt, " or @")) {
+ 			// The grammar has { and LBRACE but both show up as {.
+ 			// Rewrite syntax error referring to "{ or {" to say just "{".
+ 			strecpy(buf, buf+sizeof buf, fmt);
+ 			p = strstr(buf, "{ or {");
+ 			if(p)
+ 				memmove(p+1, p+6, strlen(p+6)+1);
++			
++			// The grammar has ? and @ but only for reading imports.
++			// Silence them in ordinary errors.
++			p = strstr(buf, " or ?");
++			if(p)
++				memmove(p, p+5, strlen(p+5)+1);
++			p = strstr(buf, " or @");
++			if(p)
++				memmove(p, p+5, strlen(p+5)+1);
+ 			fmt = buf;
+ 		}
+ 		

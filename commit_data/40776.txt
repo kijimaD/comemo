@@ -29,8 +29,164 @@ Date:   Wed Jun 26 20:07:14 2019 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/doc/doc_test.go                |  7 +++++--
  src/cmd/doc/main.go                    | 25 ++++++++++---------------
  src/cmd/go/testdata/script/mod_doc.txt | 27 +++++++++++++++++++++++++--
  3 files changed, 40 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index bc870aca58..11d0bdafd9 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -920,7 +920,10 @@ func TestDotSlashLookup(t *testing.T) {
+ 		t.Skip("scanning file system takes too long")
+ 	}
+ 	maybeSkip(t)
+-	where := pwd()
++	where, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	defer func() {
+ 		if err := os.Chdir(where); err != nil {
+ 			t.Fatal(err)
+@@ -931,7 +934,7 @@ func TestDotSlashLookup(t *testing.T) {
+ 	}
+ 	var b bytes.Buffer
+ 	var flagSet flag.FlagSet
+-	err := do(&b, &flagSet, []string{"./template"})
++	err = do(&b, &flagSet, []string{"./template"})
+ 	if err != nil {
+ 		t.Errorf("unexpected error %q from ./template", err)
+ 	}
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 9e3ad0c0e7..a739761afe 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -187,16 +187,20 @@ func failMessage(paths []string, symbol, method string) error {
+ // is rand.Float64, we must scan both crypto/rand and math/rand
+ // to find the symbol, and the first call will return crypto/rand, true.
+ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more bool) {
++	wd, err := os.Getwd()
++	if err != nil {
++		log.Fatal(err)
++	}
+ 	if len(args) == 0 {
+ 		// Easy: current directory.
+-		return importDir(pwd()), "", "", false
++		return importDir(wd), "", "", false
+ 	}
+ 	arg := args[0]
+ 	// We have an argument. If it is a directory name beginning with . or ..,
+ 	// use the absolute path name. This discriminates "./errors" from "errors"
+ 	// if the current directory contains a non-standard errors package.
+ 	if isDotSlash(arg) {
+-		arg = filepath.Join(pwd(), arg)
++		arg = filepath.Join(wd, arg)
+ 	}
+ 	switch len(args) {
+ 	default:
+@@ -205,7 +209,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 		// Done below.
+ 	case 2:
+ 		// Package must be findable and importable.
+-		pkg, err := build.Import(args[0], "", build.ImportComment)
++		pkg, err := build.Import(args[0], wd, build.ImportComment)
+ 		if err == nil {
+ 			return pkg, args[0], args[1], false
+ 		}
+@@ -225,7 +229,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 	// First, is it a complete package path as it is? If so, we are done.
+ 	// This avoids confusion over package paths that have other
+ 	// package paths as their prefix.
+-	pkg, err := build.Import(arg, "", build.ImportComment)
++	pkg, err = build.Import(arg, wd, build.ImportComment)
+ 	if err == nil {
+ 		return pkg, arg, "", false
+ 	}
+@@ -260,7 +264,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 			symbol = arg[period+1:]
+ 		}
+ 		// Have we identified a package already?
+-		pkg, err := build.Import(arg[0:period], "", build.ImportComment)
++		pkg, err := build.Import(arg[0:period], wd, build.ImportComment)
+ 		if err == nil {
+ 			return pkg, arg[0:period], symbol, false
+ 		}
+@@ -283,7 +287,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 		log.Fatalf("no such package %s", arg[0:period])
+ 	}
+ 	// Guess it's a symbol in the current directory.
+-	return importDir(pwd()), "", arg, false
++	return importDir(wd), "", arg, false
+ }
+ 
+ // dotPaths lists all the dotted paths legal on Unix-like and
+@@ -385,12 +389,3 @@ var buildCtx = build.Default
+ func splitGopath() []string {
+ 	return filepath.SplitList(buildCtx.GOPATH)
+ }
+-
+-// pwd returns the current directory.
+-func pwd() string {
+-	wd, err := os.Getwd()
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	return wd
+-}
+diff --git a/src/cmd/go/testdata/script/mod_doc.txt b/src/cmd/go/testdata/script/mod_doc.txt
+index 40acbc5ac0..d7aa553c1d 100644
+--- a/src/cmd/go/testdata/script/mod_doc.txt
++++ b/src/cmd/go/testdata/script/mod_doc.txt
+@@ -3,6 +3,7 @@
+ env GO111MODULE=on
+ [short] skip
+ 
++# Check when module x is inside GOPATH/src.
+ go doc y
+ stdout 'Package y is.*alphabet'
+ stdout 'import "x/y"'
+@@ -16,13 +17,25 @@ stdout 'Hello returns a greeting'
+ go doc quote
+ stdout 'Package quote collects pithy sayings.'
+ 
+-# Double-check go doc y when y is not in GOPATH/src.
+-env GOPATH=$WORK/altgopath
++# Double-check when module x is outside GOPATH/src.
++env GOPATH=$WORK/emptygopath
+ go doc x/y
+ stdout 'Package y is.*alphabet'
+ go doc y
+ stdout 'Package y is.*alphabet'
+ 
++# Triple-check when module x is outside GOPATH/src,
++# but other packages with same import paths are in GOPATH/src.
++# Since go doc is running in module mode here, packages in active module
++# should be preferred over packages in GOPATH. See golang.org/issue/28992.
++env GOPATH=$WORK/gopath2
++go doc x/y
++! stdout 'Package y is.*GOPATH'
++stdout 'Package y is.*alphabet'
++go doc rsc.io/quote
++! stdout 'Package quote is located in a GOPATH workspace.'
++stdout 'Package quote collects pithy sayings.'
++
+ -- go.mod --
+ module x
+ require rsc.io/quote v1.5.2
+@@ -33,3 +46,13 @@ package y
+ 
+ -- x.go --
+ package x
++
++-- $WORK/gopath2/src/x/y/y.go --
++// Package y is located in a GOPATH workspace.
++package y
++-- $WORK/gopath2/src/rsc.io/quote/quote.go --
++// Package quote is located in a GOPATH workspace.
++package quote
++
++// Hello is located in a GOPATH workspace.
++func Hello() string { return "" }

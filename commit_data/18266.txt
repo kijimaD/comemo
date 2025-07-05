@@ -9,6 +9,19 @@ Date:   Thu Jan 16 10:11:06 2014 -0500
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/53200043
-
+---
  src/cmd/gc/sinit.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index ece0b8fdfa..f2100d53b7 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -359,6 +359,7 @@ staticcopy(Node *l, Node *r, NodeList **out)
+ 					// copying someone else's computation.
+ 					rr = nod(OXXX, N, N);
+ 					*rr = *orig;
++					rr->orig = rr; // completely separate copy
+ 					rr->type = ll->type;
+ 					rr->xoffset += e->xoffset;
+ 					*out = list(*out, nod(OAS, ll, rr));

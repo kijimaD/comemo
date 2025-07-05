@@ -14,7 +14,98 @@ Date:   Tue Nov 20 10:15:14 2018 -0800
     Change-Id: I277784c8915cd748fec318d2936062440d5d1fde
     Reviewed-on: https://go-review.googlesource.com/c/150497
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/removeall_at.go   | 12 +++++-------
  src/os/removeall_test.go | 36 ++++++++++++++++++++++++------------
  2 files changed, 29 insertions(+), 19 deletions(-)
+
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index 5aa1b46117..5eea770a3e 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -19,7 +19,8 @@ func RemoveAll(path string) error {
+ 		return nil
+ 	}
+ 
+-	// Not allowed in unix
++	// The rmdir system call does not permit removing ".",
++	// so we don't permit it either.
+ 	if endsWithDot(path) {
+ 		return syscall.EINVAL
+ 	}
+@@ -130,16 +131,13 @@ func openFdAt(fd int, path string) (*File, error) {
+ 	return NewFile(uintptr(fd), path), nil
+ }
+ 
++// endsWithDot returns whether the final component of path is ".".
+ func endsWithDot(path string) bool {
+-	if path == "." || path == ".." {
++	if path == "." {
+ 		return true
+ 	}
+-	if len(path) >= 2 && path[len(path)-2:] == "/." {
++	if len(path) >= 2 && path[len(path)-1] == '.' && IsPathSeparator(path[len(path)-2]) {
+ 		return true
+ 	}
+-	if len(path) >= 3 && path[len(path)-3:] == "/.." {
+-		return true
+-	}
+-
+ 	return false
+ }
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index fd3b8d22f9..1c9f163225 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -215,13 +215,6 @@ func TestRemoveAllLongPath(t *testing.T) {
+ }
+ 
+ func TestRemoveAllDot(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+-		break
+-	default:
+-		t.Skip("skipping for not implemented platforms")
+-	}
+-
+ 	prevDir, err := Getwd()
+ 	if err != nil {
+ 		t.Fatalf("Could not get wd: %s", err)
+@@ -242,13 +235,32 @@ func TestRemoveAllDot(t *testing.T) {
+ 		t.Errorf("RemoveAll succeed to remove .")
+ 	}
+ 
+-	err = RemoveAll("..")
+-	if err == nil {
+-		t.Errorf("RemoveAll succeed to remove ..")
+-	}
+-
+ 	err = Chdir(prevDir)
+ 	if err != nil {
+ 		t.Fatalf("Could not chdir %s: %s", prevDir, err)
+ 	}
+ }
++
++func TestRemoveAllDotDot(t *testing.T) {
++	t.Parallel()
++
++	tempDir, err := ioutil.TempDir("", "TestRemoveAllDotDot-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer RemoveAll(tempDir)
++
++	subdir := filepath.Join(tempDir, "x")
++	subsubdir := filepath.Join(subdir, "y")
++	if err := MkdirAll(subsubdir, 0777); err != nil {
++		t.Fatal(err)
++	}
++	if err := RemoveAll(filepath.Join(subsubdir, "..")); err != nil {
++		t.Error(err)
++	}
++	for _, dir := range []string{subsubdir, subdir} {
++		if _, err := Stat(dir); err == nil {
++			t.Errorf("%s: exists after RemoveAll", dir)
++		}
++	}
++}

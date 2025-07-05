@@ -8,8 +8,81 @@ Date:   Wed Nov 12 11:51:34 2008 -0800
     DELTA=32  (32 added, 0 deleted, 0 changed)
     OCL=19084
     CL=19091
-
+---
  src/cmd/gc/sys.go      |  2 ++
  src/cmd/gc/sysimport.c |  2 ++
  src/runtime/runtime.c  | 28 ++++++++++++++++++++++++++++
  3 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 72e36a0c75..910bbd8c62 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -51,6 +51,8 @@ export func	Inf(int) float64;			// return signed Inf
+ export func	NaN() float64;				// return a NaN
+ export func	float32bits(float32) uint32;		// raw bits
+ export func	float64bits(float64) uint64;		// raw bits
++export func	float32frombits(uint32) float32;		// raw bits
++export func	float64frombits(uint64) float64;		// raw bits
+ 
+ export func	newmap(keysize int, valsize int,
+ 			keyalg int, valalg int,
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 9ee99a1892..64dd1a98d1 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -41,6 +41,8 @@ char *sysimport =
+ 	"export func sys.NaN () (? float64)\n"
+ 	"export func sys.float32bits (? float32) (? uint32)\n"
+ 	"export func sys.float64bits (? float64) (? uint64)\n"
++	"export func sys.float32frombits (? uint32) (? float32)\n"
++	"export func sys.float64frombits (? uint64) (? float64)\n"
+ 	"export func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap *map[any] any)\n"
+ 	"export func sys.mapaccess1 (hmap *map[any] any, key any) (val any)\n"
+ 	"export func sys.mapaccess2 (hmap *map[any] any, key any) (val any, pres bool)\n"
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index a75a7f8cc5..c84b21092e 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -204,6 +204,19 @@ float64frombits(uint64 i)
+ 	return u.f;
+ }
+ 
++static float32
++float32frombits(uint32 i)
++{
++	// The obvious cast-and-pointer code is technically
++	// not valid, and gcc miscompiles it.  Use a union instead.
++	union {
++		float32 f;
++		uint32 i;
++	} u;
++	u.i = i;
++	return u.f;
++}
++
+ bool
+ isInf(float64 f, int32 sign)
+ {
+@@ -387,6 +400,21 @@ sys·float64bits(float64 din, uint64 iou)
+ 	FLUSH(&iou);
+ }
+ 
++// func float32frombits(uint32) float32; // raw bits to float32
++void
++sys·float32frombits(uint32 uin, float32 dou)
++{
++	dou = float32frombits(uin);
++	FLUSH(&dou);
++}
++
++// func float64frombits(uint64) float64; // raw bits to float64
++void
++sys·float64frombits(uint64 uin, float64 dou)
++{
++	dou = float64frombits(uin);
++	FLUSH(&dou);
++}
+ 
+ static int32	argc;
+ static uint8**	argv;

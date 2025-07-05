@@ -14,6 +14,20 @@ Date:   Mon Feb 10 13:35:39 2014 +1100
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/58480045
-
+---
  src/cmd/go/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index d0926e2105..0e4af62754 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -608,7 +608,7 @@ export GOPATH=$d
+ mkdir -p $d/src/origin
+ echo '
+ package origin
+-// #cgo LDFLAGS: -Wl,-rpath -Wl,$ORIGIN
++// #cgo !darwin LDFLAGS: -Wl,-rpath -Wl,$ORIGIN
+ // void f(void) {}
+ import "C"
+ 

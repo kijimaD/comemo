@@ -23,9 +23,143 @@ Date:   Tue Sep 10 16:06:12 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                  |  9 ++++++
  src/cmd/go/internal/search/search.go               | 26 ++++++++++++------
  .../testdata/mod/example.com_dotgo.go_v1.0.0.txt   | 16 +++++++++++
  .../go/testdata/script/mod_get_trailing_slash.txt  | 32 ++++++++++++++++++++++
  4 files changed, 75 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 1cae311c4c..3fcd2d412a 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -678,6 +678,15 @@ func runGet(cmd *base.Command, args []string) {
+ 	if *getD || len(pkgPatterns) == 0 {
+ 		return
+ 	}
++	// TODO(golang.org/issue/32483): handle paths ending with ".go" consistently
++	// with 'go build'. When we load packages above, we interpret arguments as
++	// package patterns, not source files. To preserve that interpretation here,
++	// we add a trailing slash to any patterns ending with ".go".
++	for i := range pkgPatterns {
++		if strings.HasSuffix(pkgPatterns[i], ".go") {
++			pkgPatterns[i] += "/"
++		}
++	}
+ 	work.BuildInit()
+ 	pkgs := load.PackagesForBuild(pkgPatterns)
+ 	work.InstallPackages(pkgPatterns, pkgs)
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 0e420c99bd..33ab4ae36e 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -363,30 +363,40 @@ func ImportPathsQuiet(patterns []string) []*Match {
+ 
+ // CleanPatterns returns the patterns to use for the given
+ // command line. It canonicalizes the patterns but does not
+-// evaluate any matches.
++// evaluate any matches. It preserves text after '@' for commands
++// that accept versions.
+ func CleanPatterns(patterns []string) []string {
+ 	if len(patterns) == 0 {
+ 		return []string{"."}
+ 	}
+ 	var out []string
+ 	for _, a := range patterns {
++		var p, v string
++		if i := strings.IndexByte(a, '@'); i < 0 {
++			p = a
++		} else {
++			p = a[:i]
++			v = a[i:]
++		}
++
+ 		// Arguments are supposed to be import paths, but
+ 		// as a courtesy to Windows developers, rewrite \ to /
+ 		// in command-line arguments. Handles .\... and so on.
+ 		if filepath.Separator == '\\' {
+-			a = strings.ReplaceAll(a, `\`, `/`)
++			p = strings.ReplaceAll(p, `\`, `/`)
+ 		}
+ 
+ 		// Put argument in canonical form, but preserve leading ./.
+-		if strings.HasPrefix(a, "./") {
+-			a = "./" + path.Clean(a)
+-			if a == "./." {
+-				a = "."
++		if strings.HasPrefix(p, "./") {
++			p = "./" + path.Clean(p)
++			if p == "./." {
++				p = "."
+ 			}
+ 		} else {
+-			a = path.Clean(a)
++			p = path.Clean(p)
+ 		}
+-		out = append(out, a)
++
++		out = append(out, p+v)
+ 	}
+ 	return out
+ }
+diff --git a/src/cmd/go/testdata/mod/example.com_dotgo.go_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_dotgo.go_v1.0.0.txt
+new file mode 100644
+index 0000000000..4f7f4d7dd2
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_dotgo.go_v1.0.0.txt
+@@ -0,0 +1,16 @@
++This module's path ends with ".go".
++Based on github.com/nats-io/nats.go.
++Used in regression tests for golang.org/issue/32483.
++
++-- .mod --
++module example.com/dotgo.go
++
++go 1.13
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module example.com/dotgo.go
++
++go 1.13
++-- dotgo.go --
++package dotgo
+diff --git a/src/cmd/go/testdata/script/mod_get_trailing_slash.txt b/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
+new file mode 100644
+index 0000000000..8828738abb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
+@@ -0,0 +1,32 @@
++# go list should fail to load a package ending with ".go" since that denotes
++# a source file. However, ".go/" should work.
++# TODO(golang.org/issue/32483): perhaps we should treat non-existent paths
++# with .go suffixes as package paths instead.
++! go list example.com/dotgo.go
++go list example.com/dotgo.go/
++stdout ^example.com/dotgo.go$
++
++# go get -d should succeed in either case, with or without a version.
++# Arguments are interpreted as packages or package patterns with versions,
++# not source files.
++go get -d example.com/dotgo.go
++go get -d example.com/dotgo.go/
++go get -d example.com/dotgo.go@v1.0.0
++go get -d example.com/dotgo.go/@v1.0.0
++
++# go get (without -d) should also succeed in either case.
++# TODO(golang.org/issue/32483): we should be consistent with 'go build',
++# 'go list', and other commands. 'go list example.com/dotgo.go' (above) and
++# 'go get example.com/dotgo.go' should both succeed or both fail.
++[short] skip
++go get example.com/dotgo.go
++go get example.com/dotgo.go/
++go get example.com/dotgo.go@v1.0.0
++go get example.com/dotgo.go/@v1.0.0
++
++-- go.mod --
++module m
++
++go 1.13
++
++require example.com/dotgo.go v1.0.0

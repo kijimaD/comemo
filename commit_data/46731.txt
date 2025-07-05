@@ -11,6 +11,33 @@ Date:   Sat Jan 23 11:43:46 2021 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/run.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index edf9d654ed..0be106c54a 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -766,9 +766,10 @@ func (t *test) run() {
+ 		// eliminate the flag list.
+ 
+ 		// Excluded files.
+-		if excluded[t.goFileName()] {
++		filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
++		if excluded[filename] {
+ 			if *verbose {
+-				fmt.Printf("excl\t%s\n", t.goFileName())
++				fmt.Printf("excl\t%s\n", filename)
+ 			}
+ 			return // cannot handle file yet
+ 		}
+@@ -791,7 +792,7 @@ func (t *test) run() {
+ 			} {
+ 				if strings.Contains(flag, pattern) {
+ 					if *verbose {
+-						fmt.Printf("excl\t%s\t%s\n", t.goFileName(), flags)
++						fmt.Printf("excl\t%s\t%s\n", filename, flags)
+ 					}
+ 					return // cannot handle flag
+ 				}

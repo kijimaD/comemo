@@ -8,8 +8,497 @@ Date:   Thu Aug 21 08:07:42 2014 +0200
     R=golang-codereviews, bradfitz, khr
     CC=golang-codereviews
     https://golang.org/cl/123680043
-
+---
  src/pkg/runtime/debug.go  |  31 ---------
  src/pkg/runtime/mprof.go  | 166 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/mprof.goc | 156 ++++++-------------------------------------
  3 files changed, 188 insertions(+), 165 deletions(-)
+
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index d82afb08ec..393598c28a 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -75,20 +75,6 @@ func (r *MemProfileRecord) Stack() []uintptr {
+ 	return r.Stack0[0:]
+ }
+ 
+-// MemProfile returns n, the number of records in the current memory profile.
+-// If len(p) >= n, MemProfile copies the profile into p and returns n, true.
+-// If len(p) < n, MemProfile does not change p and returns n, false.
+-//
+-// If inuseZero is true, the profile includes allocation records
+-// where r.AllocBytes > 0 but r.AllocBytes == r.FreeBytes.
+-// These are sites where memory was allocated, but it has all
+-// been released back to the runtime.
+-//
+-// Most clients should use the runtime/pprof package or
+-// the testing package's -test.memprofile flag instead
+-// of calling MemProfile directly.
+-func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)
+-
+ // A StackRecord describes a single execution stack.
+ type StackRecord struct {
+ 	Stack0 [32]uintptr // stack trace for this record; ends at first 0 entry
+@@ -105,14 +91,6 @@ func (r *StackRecord) Stack() []uintptr {
+ 	return r.Stack0[0:]
+ }
+ 
+-// ThreadCreateProfile returns n, the number of records in the thread creation profile.
+-// If len(p) >= n, ThreadCreateProfile copies the profile into p and returns n, true.
+-// If len(p) < n, ThreadCreateProfile does not change p and returns n, false.
+-//
+-// Most clients should use the runtime/pprof package instead
+-// of calling ThreadCreateProfile directly.
+-func ThreadCreateProfile(p []StackRecord) (n int, ok bool)
+-
+ // GoroutineProfile returns n, the number of records in the active goroutine stack profile.
+ // If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
+ // If len(p) < n, GoroutineProfile does not change p and returns n, false.
+@@ -156,15 +134,6 @@ type BlockProfileRecord struct {
+ 	StackRecord
+ }
+ 
+-// BlockProfile returns n, the number of records in the current blocking profile.
+-// If len(p) >= n, BlockProfile copies the profile into p and returns n, true.
+-// If len(p) < n, BlockProfile does not change p and returns n, false.
+-//
+-// Most clients should use the runtime/pprof package or
+-// the testing package's -test.blockprofile flag instead
+-// of calling BlockProfile directly.
+-func BlockProfile(p []BlockProfileRecord) (n int, ok bool)
+-
+ // Stack formats a stack trace of the calling goroutine into buf
+ // and returns the number of bytes written to buf.
+ // If all is true, Stack formats stack traces of all other goroutines
+diff --git a/src/pkg/runtime/mprof.go b/src/pkg/runtime/mprof.go
+new file mode 100644
+index 0000000000..057e3dee1c
+--- /dev/null
++++ b/src/pkg/runtime/mprof.go
+@@ -0,0 +1,166 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++// Malloc profiling.
++// Patterned after tcmalloc's algorithms; shorter code.
++
++// NOTE(rsc): Everything here could use cas if contention became an issue.
++var proflock lock
++
++// All memory allocations are local and do not escape outside of the profiler.
++// The profiler is forbidden from referring to garbage-collected memory.
++
++var (
++	mbuckets *bucket // memory profile buckets
++	bbuckets *bucket // blocking profile buckets
++)
++
++// MemProfile returns n, the number of records in the current memory profile.
++// If len(p) >= n, MemProfile copies the profile into p and returns n, true.
++// If len(p) < n, MemProfile does not change p and returns n, false.
++//
++// If inuseZero is true, the profile includes allocation records
++// where r.AllocBytes > 0 but r.AllocBytes == r.FreeBytes.
++// These are sites where memory was allocated, but it has all
++// been released back to the runtime.
++//
++// Most clients should use the runtime/pprof package or
++// the testing package's -test.memprofile flag instead
++// of calling MemProfile directly.
++func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
++	golock(&proflock)
++	clear := true
++	for b := mbuckets; b != nil; b = b.allnext {
++		if inuseZero || b.data.mp.alloc_bytes != b.data.mp.free_bytes {
++			n++
++		}
++		if b.data.mp.allocs != 0 || b.data.mp.frees != 0 {
++			clear = false
++		}
++	}
++	if clear {
++		// Absolutely no data, suggesting that a garbage collection
++		// has not yet happened. In order to allow profiling when
++		// garbage collection is disabled from the beginning of execution,
++		// accumulate stats as if a GC just happened, and recount buckets.
++		mprof_GC()
++		mprof_GC()
++		n = 0
++		for b := mbuckets; b != nil; b = b.allnext {
++			if inuseZero || b.data.mp.alloc_bytes != b.data.mp.free_bytes {
++				n++
++			}
++		}
++	}
++	if n <= len(p) {
++		ok = true
++		idx := 0
++		for b := mbuckets; b != nil; b = b.allnext {
++			if inuseZero || b.data.mp.alloc_bytes != b.data.mp.free_bytes {
++				record(&p[idx], b)
++				idx++
++			}
++		}
++	}
++	gounlock(&proflock)
++	return
++}
++
++func mprof_GC() {
++	for b := mbuckets; b != nil; b = b.allnext {
++		b.data.mp.allocs += b.data.mp.prev_allocs
++		b.data.mp.frees += b.data.mp.prev_frees
++		b.data.mp.alloc_bytes += b.data.mp.prev_alloc_bytes
++		b.data.mp.free_bytes += b.data.mp.prev_free_bytes
++
++		b.data.mp.prev_allocs = b.data.mp.recent_allocs
++		b.data.mp.prev_frees = b.data.mp.recent_frees
++		b.data.mp.prev_alloc_bytes = b.data.mp.recent_alloc_bytes
++		b.data.mp.prev_free_bytes = b.data.mp.recent_free_bytes
++
++		b.data.mp.recent_allocs = 0
++		b.data.mp.recent_frees = 0
++		b.data.mp.recent_alloc_bytes = 0
++		b.data.mp.recent_free_bytes = 0
++	}
++}
++
++// Write b's data to r.
++func record(r *MemProfileRecord, b *bucket) {
++	r.AllocBytes = int64(b.data.mp.alloc_bytes)
++	r.FreeBytes = int64(b.data.mp.free_bytes)
++	r.AllocObjects = int64(b.data.mp.allocs)
++	r.FreeObjects = int64(b.data.mp.frees)
++	for i := 0; uint(i) < b.nstk && i < len(r.Stack0); i++ {
++		r.Stack0[i] = *(*uintptr)(add(unsafe.Pointer(&b.stk), uintptr(i)*ptrSize))
++	}
++	for i := b.nstk; i < uint(len(r.Stack0)); i++ {
++		r.Stack0[i] = 0
++	}
++}
++
++// BlockProfile returns n, the number of records in the current blocking profile.
++// If len(p) >= n, BlockProfile copies the profile into p and returns n, true.
++// If len(p) < n, BlockProfile does not change p and returns n, false.
++//
++// Most clients should use the runtime/pprof package or
++// the testing package's -test.blockprofile flag instead
++// of calling BlockProfile directly.
++func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
++	golock(&proflock)
++	for b := bbuckets; b != nil; b = b.allnext {
++		n++
++	}
++	if n <= len(p) {
++		ok = true
++		idx := 0
++		for b := bbuckets; b != nil; b = b.allnext {
++			bp := (*_4_)(unsafe.Pointer(&b.data))
++			p[idx].Count = int64(bp.count)
++			p[idx].Cycles = int64(bp.cycles)
++			i := 0
++			for uint(i) < b.nstk && i < len(p[idx].Stack0) {
++				p[idx].Stack0[i] = *(*uintptr)(add(unsafe.Pointer(&b.stk), uintptr(i)*ptrSize))
++				i++
++			}
++			for i < len(p[idx].Stack0) {
++				p[idx].Stack0[i] = 0
++				i++
++			}
++			idx++
++		}
++	}
++	gounlock(&proflock)
++	return
++}
++
++// ThreadCreateProfile returns n, the number of records in the thread creation profile.
++// If len(p) >= n, ThreadCreateProfile copies the profile into p and returns n, true.
++// If len(p) < n, ThreadCreateProfile does not change p and returns n, false.
++//
++// Most clients should use the runtime/pprof package instead
++// of calling ThreadCreateProfile directly.
++func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
++	first := (*m)(goatomicloadp(unsafe.Pointer(&allm)))
++	for mp := first; mp != nil; mp = mp.alllink {
++		n++
++	}
++	if n <= len(p) {
++		ok = true
++		i := 0
++		for mp := first; mp != nil; mp = mp.alllink {
++			for s := range mp.createstack {
++				p[i].Stack0[s] = uintptr(mp.createstack[s])
++			}
++			i++
++		}
++	}
++	return
++}
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 6a028c31f3..3d8d790cdd 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -14,7 +14,7 @@ package runtime
+ #include "type.h"
+ 
+ // NOTE(rsc): Everything here could use cas if contention became an issue.
+-static Lock proflock;
++extern Lock runtime·proflock;
+ 
+ // All memory allocations are local and do not escape outside of the profiler.
+ // The profiler is forbidden from referring to garbage-collected memory.
+@@ -25,8 +25,8 @@ enum {
+ 	BuckHashSize = 179999,
+ };
+ static Bucket **buckhash;
+-static Bucket *mbuckets;  // memory profile buckets
+-static Bucket *bbuckets;  // blocking profile buckets
++extern Bucket *runtime·mbuckets;  // memory profile buckets
++extern Bucket *runtime·bbuckets;  // blocking profile buckets
+ static uintptr bucketmem;
+ 
+ // Return the bucket for stk[0:nstk], allocating new bucket if needed.
+@@ -77,11 +77,11 @@ stkbucket(int32 typ, uintptr size, uintptr *stk, int32 nstk, bool alloc)
+ 	b->next = buckhash[i];
+ 	buckhash[i] = b;
+ 	if(typ == MProf) {
+-		b->allnext = mbuckets;
+-		mbuckets = b;
++		b->allnext = runtime·mbuckets;
++		runtime·mbuckets = b;
+ 	} else {
+-		b->allnext = bbuckets;
+-		bbuckets = b;
++		b->allnext = runtime·bbuckets;
++		runtime·bbuckets = b;
+ 	}
+ 	return b;
+ }
+@@ -91,7 +91,7 @@ MProf_GC(void)
+ {
+ 	Bucket *b;
+ 
+-	for(b=mbuckets; b; b=b->allnext) {
++	for(b=runtime·mbuckets; b; b=b->allnext) {
+ 		b->data.mp.allocs += b->data.mp.prev_allocs;
+ 		b->data.mp.frees += b->data.mp.prev_frees;
+ 		b->data.mp.alloc_bytes += b->data.mp.prev_alloc_bytes;
+@@ -113,9 +113,9 @@ MProf_GC(void)
+ void
+ runtime·MProf_GC(void)
+ {
+-	runtime·lock(&proflock);
++	runtime·lock(&runtime·proflock);
+ 	MProf_GC();
+-	runtime·unlock(&proflock);
++	runtime·unlock(&runtime·proflock);
+ }
+ 
+ // Called by malloc to record a profiled block.
+@@ -127,11 +127,11 @@ runtime·MProf_Malloc(void *p, uintptr size)
+ 	int32 nstk;
+ 
+ 	nstk = runtime·callers(1, stk, nelem(stk));
+-	runtime·lock(&proflock);
++	runtime·lock(&runtime·proflock);
+ 	b = stkbucket(MProf, size, stk, nstk, true);
+ 	b->data.mp.recent_allocs++;
+ 	b->data.mp.recent_alloc_bytes += size;
+-	runtime·unlock(&proflock);
++	runtime·unlock(&runtime·proflock);
+ 
+ 	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of proflock.
+ 	// This reduces potential contention and chances of deadlocks.
+@@ -158,11 +158,11 @@ runtime·mprofMalloc_m(void)
+ 		nstk = runtime·callers(1, stk, nelem(stk));
+ 	else
+ 		nstk = runtime·gcallers(g->m->curg, 1, stk, nelem(stk));
+-	runtime·lock(&proflock);
++	runtime·lock(&runtime·proflock);
+ 	b = stkbucket(MProf, size, stk, nstk, true);
+ 	b->data.mp.recent_allocs++;
+ 	b->data.mp.recent_alloc_bytes += size;
+-	runtime·unlock(&proflock);
++	runtime·unlock(&runtime·proflock);
+ 
+ 	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of proflock.
+ 	// This reduces potential contention and chances of deadlocks.
+@@ -175,7 +175,7 @@ runtime·mprofMalloc_m(void)
+ void
+ runtime·MProf_Free(Bucket *b, uintptr size, bool freed)
+ {
+-	runtime·lock(&proflock);
++	runtime·lock(&runtime·proflock);
+ 	if(freed) {
+ 		b->data.mp.recent_frees++;
+ 		b->data.mp.recent_free_bytes += size;
+@@ -183,7 +183,7 @@ runtime·MProf_Free(Bucket *b, uintptr size, bool freed)
+ 		b->data.mp.prev_frees++;
+ 		b->data.mp.prev_free_bytes += size;
+ 	}
+-	runtime·unlock(&proflock);
++	runtime·unlock(&runtime·proflock);
+ }
+ 
+ int64 runtime·blockprofilerate;  // in CPU ticks
+@@ -219,74 +219,11 @@ runtime·blockevent(int64 cycles, int32 skip)
+ 		return;
+ 
+ 	nstk = runtime·callers(skip, stk, nelem(stk));
+-	runtime·lock(&proflock);
++	runtime·lock(&runtime·proflock);
+ 	b = stkbucket(BProf, 0, stk, nstk, true);
+ 	b->data.bp.count++;
+ 	b->data.bp.cycles += cycles;
+-	runtime·unlock(&proflock);
+-}
+-
+-// Go interface to profile data.  (Declared in debug.go)
+-
+-// Must match MemProfileRecord in debug.go.
+-typedef struct Record Record;
+-struct Record {
+-	int64 alloc_bytes, free_bytes;
+-	int64 alloc_objects, free_objects;
+-	uintptr stk[32];
+-};
+-
+-// Write b's data to r.
+-static void
+-record(Record *r, Bucket *b)
+-{
+-	int32 i;
+-
+-	r->alloc_bytes = b->data.mp.alloc_bytes;
+-	r->free_bytes = b->data.mp.free_bytes;
+-	r->alloc_objects = b->data.mp.allocs;
+-	r->free_objects = b->data.mp.frees;
+-	for(i=0; i<b->nstk && i<nelem(r->stk); i++)
+-		r->stk[i] = b->stk[i];
+-	for(; i<nelem(r->stk); i++)
+-		r->stk[i] = 0;
+-}
+-
+-func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
+-	Bucket *b;
+-	Record *r;
+-	bool clear;
+-
+-	runtime·lock(&proflock);
+-	n = 0;
+-	clear = true;
+-	for(b=mbuckets; b; b=b->allnext) {
+-		if(include_inuse_zero || b->data.mp.alloc_bytes != b->data.mp.free_bytes)
+-			n++;
+-		if(b->data.mp.allocs != 0 || b->data.mp.frees != 0)
+-			clear = false;
+-	}
+-	if(clear) {
+-		// Absolutely no data, suggesting that a garbage collection
+-		// has not yet happened. In order to allow profiling when
+-		// garbage collection is disabled from the beginning of execution,
+-		// accumulate stats as if a GC just happened, and recount buckets.
+-		MProf_GC();
+-		MProf_GC();
+-		n = 0;
+-		for(b=mbuckets; b; b=b->allnext)
+-			if(include_inuse_zero || b->data.mp.alloc_bytes != b->data.mp.free_bytes)
+-				n++;
+-	}
+-	ok = false;
+-	if(n <= p.len) {
+-		ok = true;
+-		r = (Record*)p.array;
+-		for(b=mbuckets; b; b=b->allnext)
+-			if(include_inuse_zero || b->data.mp.alloc_bytes != b->data.mp.free_bytes)
+-				record(r++, b);
+-	}
+-	runtime·unlock(&proflock);
++	runtime·unlock(&runtime·proflock);
+ }
+ 
+ void
+@@ -294,45 +231,15 @@ runtime·iterate_memprof(void (*callback)(Bucket*, uintptr, uintptr*, uintptr, u
+ {
+ 	Bucket *b;
+ 
+-	runtime·lock(&proflock);
+-	for(b=mbuckets; b; b=b->allnext) {
++	runtime·lock(&runtime·proflock);
++	for(b=runtime·mbuckets; b; b=b->allnext) {
+ 		callback(b, b->nstk, b->stk, b->size, b->data.mp.allocs, b->data.mp.frees);
+ 	}
+-	runtime·unlock(&proflock);
++	runtime·unlock(&runtime·proflock);
+ }
+ 
+-// Must match BlockProfileRecord in debug.go.
+-typedef struct BRecord BRecord;
+-struct BRecord {
+-	int64 count;
+-	int64 cycles;
+-	uintptr stk[32];
+-};
+-
+-func BlockProfile(p Slice) (n int, ok bool) {
+-	Bucket *b;
+-	BRecord *r;
+-	int32 i;
++// Go interface to profile data.  (Declared in debug.go)
+ 
+-	runtime·lock(&proflock);
+-	n = 0;
+-	for(b=bbuckets; b; b=b->allnext)
+-		n++;
+-	ok = false;
+-	if(n <= p.len) {
+-		ok = true;
+-		r = (BRecord*)p.array;
+-		for(b=bbuckets; b; b=b->allnext, r++) {
+-			r->count = b->data.bp.count;
+-			r->cycles = b->data.bp.cycles;
+-			for(i=0; i<b->nstk && i<nelem(r->stk); i++)
+-				r->stk[i] = b->stk[i];
+-			for(; i<nelem(r->stk); i++)
+-				r->stk[i] = 0;			
+-		}
+-	}
+-	runtime·unlock(&proflock);
+-}
+ 
+ // Must match StackRecord in debug.go.
+ typedef struct TRecord TRecord;
+@@ -340,25 +247,6 @@ struct TRecord {
+ 	uintptr stk[32];
+ };
+ 
+-func ThreadCreateProfile(p Slice) (n int, ok bool) {
+-	TRecord *r;
+-	M *first, *mp;
+-	
+-	first = runtime·atomicloadp(&runtime·allm);
+-	n = 0;
+-	for(mp=first; mp; mp=mp->alllink)
+-		n++;
+-	ok = false;
+-	if(n <= p.len) {
+-		ok = true;
+-		r = (TRecord*)p.array;
+-		for(mp=first; mp; mp=mp->alllink) {
+-			runtime·memmove(r->stk, mp->createstack, sizeof r->stk);
+-			r++;
+-		}
+-	}
+-}
+-
+ func Stack(b Slice, all bool) (n int) {
+ 	uintptr pc, sp;
+ 	

@@ -12,6 +12,26 @@ Date:   Mon Jan 28 10:45:26 2019 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  doc/go1.12.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index c34b473a39..fd1f1a1f4c 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -357,6 +357,14 @@ for {
+   overcounting of large heap allocations.
+ </p>
+ 
++<p><!-- CL 159717 -->
++  Tracebacks, <code>runtime.Caller</code>,
++  and <code>runtime.Callers</code> no longer include
++  compiler-generated initialization functions.  Doing a traceback
++  during the initialization of a global variable will now show a
++  function named <code>PKG.init.ializers</code>.
++</p>
++
+ <h2 id="library">Core library</h2>
+ 
+ <h3 id="tls_1_3">TLS 1.3</h3>

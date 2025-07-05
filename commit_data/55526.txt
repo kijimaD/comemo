@@ -14,7 +14,7 @@ Date:   Fri Dec 16 20:19:33 2022 -0800
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os3_solaris.go  | 11 +++++++----
  src/runtime/os_dragonfly.go | 11 +++++++----
  src/runtime/os_freebsd.go   | 11 +++++++----
@@ -22,3 +22,219 @@ Date:   Fri Dec 16 20:19:33 2022 -0800
  src/runtime/os_netbsd.go    | 11 +++++++----
  src/runtime/runtime.go      |  9 +++++++++
  6 files changed, 49 insertions(+), 23 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index ffac4b6492..2a8677b48f 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -601,8 +601,9 @@ func sysargs(argc int32, argv **byte) {
+ 	n++
+ 
+ 	// now argv+n is auxv
+-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+-	sysauxv(auxv[:])
++	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
++	pairs := sysauxv(auxvp[:])
++	auxv = auxvp[: pairs*2 : pairs*2]
+ }
+ 
+ const (
+@@ -611,8 +612,9 @@ const (
+ 	_AT_SUN_EXECNAME = 2014 // exec() path name
+ )
+ 
+-func sysauxv(auxv []uintptr) {
+-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
++func sysauxv(auxv []uintptr) (pairs int) {
++	var i int
++	for i = 0; auxv[i] != _AT_NULL; i += 2 {
+ 		tag, val := auxv[i], auxv[i+1]
+ 		switch tag {
+ 		case _AT_PAGESZ:
+@@ -621,6 +623,7 @@ func sysauxv(auxv []uintptr) {
+ 			executablePath = gostringnocopy((*byte)(unsafe.Pointer(val)))
+ 		}
+ 	}
++	return i / 2
+ }
+ 
+ // sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index e467578c32..fa480be029 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -296,8 +296,9 @@ func sysargs(argc int32, argv **byte) {
+ 	// skip NULL separator
+ 	n++
+ 
+-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+-	sysauxv(auxv[:])
++	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
++	pairs := sysauxv(auxvp[:])
++	auxv = auxvp[: pairs*2 : pairs*2]
+ }
+ 
+ const (
+@@ -305,14 +306,16 @@ const (
+ 	_AT_PAGESZ = 6
+ )
+ 
+-func sysauxv(auxv []uintptr) {
+-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
++func sysauxv(auxv []uintptr) (pairs int) {
++	var i int
++	for i = 0; auxv[i] != _AT_NULL; i += 2 {
+ 		tag, val := auxv[i], auxv[i+1]
+ 		switch tag {
+ 		case _AT_PAGESZ:
+ 			physPageSize = val
+ 		}
+ 	}
++	return i / 2
+ }
+ 
+ // raise sends a signal to the calling thread.
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index f53cb115a1..d5f02d9da5 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -409,8 +409,9 @@ func sysargs(argc int32, argv **byte) {
+ 	n++
+ 
+ 	// now argv+n is auxv
+-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+-	sysauxv(auxv[:])
++	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
++	pairs := sysauxv(auxvp[:])
++	auxv = auxvp[: pairs*2 : pairs*2]
+ }
+ 
+ const (
+@@ -421,8 +422,9 @@ const (
+ 	_AT_HWCAP2   = 26 // CPU feature flags 2
+ )
+ 
+-func sysauxv(auxv []uintptr) {
+-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
++func sysauxv(auxv []uintptr) (pairs int) {
++	var i int
++	for i = 0; auxv[i] != _AT_NULL; i += 2 {
+ 		tag, val := auxv[i], auxv[i+1]
+ 		switch tag {
+ 		// _AT_NCPUS from auxv shouldn't be used due to golang.org/issue/15206
+@@ -434,6 +436,7 @@ func sysauxv(auxv []uintptr) {
+ 
+ 		archauxv(tag, val)
+ 	}
++	return i / 2
+ }
+ 
+ // sysSigaction calls the sigaction system call.
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 37cd8e6482..194d698798 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -226,6 +226,8 @@ var addrspace_vec [1]byte
+ 
+ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+ 
++var auxvreadbuf [128]uintptr
++
+ func sysargs(argc int32, argv **byte) {
+ 	n := argc + 1
+ 
+@@ -238,8 +240,10 @@ func sysargs(argc int32, argv **byte) {
+ 	n++
+ 
+ 	// now argv+n is auxv
+-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+-	if sysauxv(auxv[:]) != 0 {
++	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
++
++	if pairs := sysauxv(auxvp[:]); pairs != 0 {
++		auxv = auxvp[: pairs*2 : pairs*2]
+ 		return
+ 	}
+ 	// In some situations we don't get a loader-provided
+@@ -269,23 +273,24 @@ func sysargs(argc int32, argv **byte) {
+ 		munmap(p, size)
+ 		return
+ 	}
+-	var buf [128]uintptr
+-	n = read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
++
++	n = read(fd, noescape(unsafe.Pointer(&auxvreadbuf[0])), int32(unsafe.Sizeof(auxvreadbuf)))
+ 	closefd(fd)
+ 	if n < 0 {
+ 		return
+ 	}
+ 	// Make sure buf is terminated, even if we didn't read
+ 	// the whole file.
+-	buf[len(buf)-2] = _AT_NULL
+-	sysauxv(buf[:])
++	auxvreadbuf[len(auxvreadbuf)-2] = _AT_NULL
++	pairs := sysauxv(auxvreadbuf[:])
++	auxv = auxvreadbuf[: pairs*2 : pairs*2]
+ }
+ 
+ // startupRandomData holds random bytes initialized at startup. These come from
+ // the ELF AT_RANDOM auxiliary vector.
+ var startupRandomData []byte
+ 
+-func sysauxv(auxv []uintptr) int {
++func sysauxv(auxv []uintptr) (pairs int) {
+ 	var i int
+ 	for ; auxv[i] != _AT_NULL; i += 2 {
+ 		tag, val := auxv[i], auxv[i+1]
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index ce59618af4..7f8c6bc4e3 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -402,8 +402,9 @@ func sysargs(argc int32, argv **byte) {
+ 	n++
+ 
+ 	// now argv+n is auxv
+-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+-	sysauxv(auxv[:])
++	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
++	pairs := sysauxv(auxvp[:])
++	auxv = auxvp[: pairs*2 : pairs*2]
+ }
+ 
+ const (
+@@ -411,14 +412,16 @@ const (
+ 	_AT_PAGESZ = 6 // Page size in bytes
+ )
+ 
+-func sysauxv(auxv []uintptr) {
+-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
++func sysauxv(auxv []uintptr) (pairs int) {
++	var i int
++	for i = 0; auxv[i] != _AT_NULL; i += 2 {
+ 		tag, val := auxv[i], auxv[i+1]
+ 		switch tag {
+ 		case _AT_PAGESZ:
+ 			physPageSize = val
+ 		}
+ 	}
++	return i / 2
+ }
+ 
+ // raise sends signal to the calling thread.
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index f240d7ae70..0822d0e805 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -151,3 +151,12 @@ func syscall_runtimeUnsetenv(key string) {
+ func writeErrStr(s string) {
+ 	write(2, unsafe.Pointer(unsafe.StringData(s)), int32(len(s)))
+ }
++
++// auxv is populated on relevant platforms but defined here for all platforms
++// so x/sys/cpu can assume the getAuxv symbol exists without keeping its list
++// of auxv-using GOOS build tags in sync.
++//
++// It contains an even number of elements, (tag, value) pairs.
++var auxv []uintptr
++
++func getAuxv() []uintptr { return auxv } // accessed from x/sys/cpu; see issue 57336

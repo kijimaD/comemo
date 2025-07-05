@@ -8,6 +8,20 @@ Date:   Wed Aug 6 14:43:50 2014 -0700
     R=bradfitz, iant
     CC=golang-codereviews
     https://golang.org/cl/120700043
-
+---
  src/pkg/debug/dwarf/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index e59737b0a4..b64333ecc5 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -88,7 +88,7 @@ type AddrType struct {
+ 	BasicType
+ }
+ 
+-// A UnspecifiedType represents implicit, unknown, ambiguous or nonexistent type.
++// An UnspecifiedType represents an implicit, unknown, ambiguous or nonexistent type.
+ type UnspecifiedType struct {
+ 	BasicType
+ }

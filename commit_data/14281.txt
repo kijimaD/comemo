@@ -7,6 +7,26 @@ Date:   Thu Nov 1 22:02:52 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6612064
-
+---
  src/run.bash | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index 1859555fb1..7fdd637d99 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -46,6 +46,14 @@ echo
+ echo '# sync -cpu=10'
+ go test sync -short -timeout=120s -cpu=10
+ 
++case "$GOHOSTOS-$GOOS-$GOARCH" in
++linux-linux-amd64 | darwin-darwin-amd64)
++	echo
++	echo '# Testing race detector.'
++	go test -race -i flag
++	go test -race -short flag
++esac
++
+ xcd() {
+ 	echo
+ 	echo '#' $1

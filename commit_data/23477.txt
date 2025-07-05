@@ -7,7 +7,59 @@ Date:   Fri May 15 14:46:20 2015 -0400
     Change-Id: Ie67e295bf327126dfdc75b73979fe33fbcb79ad9
     Reviewed-on: https://go-review.googlesource.com/10150
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/reflect/all_test.go | 23 ++++++++++++++++++++++-
  src/reflect/type.go     |  2 +-
  2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 9214577c2e..9a99f742d6 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4618,7 +4618,7 @@ func TestGCBits(t *testing.T) {
+ 	verifyGCBits(t, ChanOf(BothDir, ArrayOf(100, Tscalar)), lit(1))
+ 
+ 	verifyGCBits(t, TypeOf((func([100]Xscalarptr))(nil)), lit(1))
+-	//verifyGCBits(t, FuncOf([]Type{ArrayOf(100, Tscalarptr)}, nil, false), lit(1))
++	verifyGCBits(t, FuncOf([]Type{ArrayOf(100, Tscalarptr)}, nil, false), lit(1))
+ 
+ 	verifyGCBits(t, TypeOf((map[[100]Xscalarptr]Xscalar)(nil)), lit(1))
+ 	verifyGCBits(t, MapOf(ArrayOf(100, Tscalarptr), Tscalar), lit(1))
+@@ -4643,3 +4643,24 @@ func TestGCBits(t *testing.T) {
+ func rep(n int, b []byte) []byte { return bytes.Repeat(b, n) }
+ func join(b ...[]byte) []byte    { return bytes.Join(b, nil) }
+ func lit(x ...byte) []byte       { return x }
++
++func TestTypeOfTypeOf(t *testing.T) {
++	// Check that all the type constructors return concrete *rtype implementations.
++	// It's difficult to test directly because the reflect package is only at arm's length.
++	// The easiest thing to do is just call a function that crashes if it doesn't get an *rtype.
++	check := func(name string, typ Type) {
++		if underlying := TypeOf(typ).String(); underlying != "*reflect.rtype" {
++			t.Errorf("%v returned %v, not *reflect.rtype", name, underlying)
++		}
++	}
++
++	type T struct{ int }
++	check("TypeOf", TypeOf(T{}))
++
++	check("ArrayOf", ArrayOf(10, TypeOf(T{})))
++	check("ChanOf", ChanOf(BothDir, TypeOf(T{})))
++	check("FuncOf", FuncOf([]Type{TypeOf(T{})}, nil, false))
++	check("MapOf", MapOf(TypeOf(T{}), TypeOf(T{})))
++	check("PtrTo", PtrTo(TypeOf(T{})))
++	check("SliceOf", SliceOf(TypeOf(T{})))
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index f39ba52a42..e55a0d146c 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1609,7 +1609,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 	ft.ptrToThis = nil
+ 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
+ 
+-	return ft
++	return &ft.rtype
+ }
+ 
+ // funcStr builds a string representation of a funcType.

@@ -8,6 +8,22 @@ Date:   Mon Aug 17 14:16:25 2009 -0700
     DELTA=6  (4 added, 2 deleted, 0 changed)
     OCL=33400
     CL=33400
-
+---
  test/run | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/test/run b/test/run
+index 2bbac60a0d..5dc98d75ba 100755
+--- a/test/run
++++ b/test/run
+@@ -1,9 +1,8 @@
++#!/bin/sh
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-#!/bin/sh
+-
+ case X"$GOARCH" in
+ Xamd64)
+ 	export A=6

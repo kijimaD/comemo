@@ -9,6 +9,20 @@ Date:   Fri Feb 3 16:57:59 2012 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/5608057
-
+---
  src/pkg/go/printer/printer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 52dfff6f4b..f1222d874b 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -1108,7 +1108,7 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
+ }
+ 
+ // A CommentedNode bundles an AST node and corresponding comments.
+-// It may be provided as argument to any of the FPrint functions.
++// It may be provided as argument to any of the Fprint functions.
+ //
+ type CommentedNode struct {
+ 	Node     interface{} // *ast.File, or ast.Expr, ast.Decl, ast.Spec, or ast.Stmt

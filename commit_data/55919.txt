@@ -19,9 +19,160 @@ Date:   Tue Mar 21 17:21:17 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 16 ++++++----------
  src/cmd/compile/internal/types2/check.go       | 19 ++++++++++++-------
  src/go/types/assignments.go                    | 16 ++++++----------
  src/go/types/check.go                          | 14 +++++++++-----
  4 files changed, 33 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 2eecce94c8..c774658a23 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -373,11 +373,9 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 	}
+ 
+ 	if commaOk {
+-		var a [2]Type
+-		for i := range a {
+-			a[i] = check.initVar(lhs[i], rhs[i], context)
+-		}
+-		check.recordCommaOkTypes(orig_rhs[0], a)
++		check.initVar(lhs[0], rhs[0], context)
++		check.initVar(lhs[1], rhs[1], context)
++		check.recordCommaOkTypes(orig_rhs[0], rhs)
+ 		return
+ 	}
+ 
+@@ -412,11 +410,9 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	}
+ 
+ 	if commaOk {
+-		var a [2]Type
+-		for i := range a {
+-			a[i] = check.assignVar(lhs[i], rhs[i])
+-		}
+-		check.recordCommaOkTypes(orig_rhs[0], a)
++		check.assignVar(lhs[0], rhs[0])
++		check.assignVar(lhs[1], rhs[1])
++		check.recordCommaOkTypes(orig_rhs[0], rhs)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 33b57c0c2c..0c9e80e014 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -504,22 +504,27 @@ func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
+ 	}
+ }
+ 
+-func (check *Checker) recordCommaOkTypes(x syntax.Expr, a [2]Type) {
++// recordCommaOkTypes updates recorded types to reflect that x is used in a commaOk context
++// (and therefore has tuple type).
++func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
+ 	assert(x != nil)
+-	if a[0] == nil || a[1] == nil {
++	assert(len(a) == 2)
++	if a[0].mode == invalid {
+ 		return
+ 	}
+-	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
++	t0, t1 := a[0].typ, a[1].typ
++	assert(isTyped(t0) && isTyped(t1) && (isBoolean(t1) || t1 == universeError))
+ 	if m := check.Types; m != nil {
+ 		for {
+ 			tv := m[x]
+ 			assert(tv.Type != nil) // should have been recorded already
+ 			pos := x.Pos()
+ 			tv.Type = NewTuple(
+-				NewVar(pos, check.pkg, "", a[0]),
+-				NewVar(pos, check.pkg, "", a[1]),
++				NewVar(pos, check.pkg, "", t0),
++				NewVar(pos, check.pkg, "", t1),
+ 			)
+ 			m[x] = tv
++			// if x is a parenthesized expression (p.X), update p.X
+ 			p, _ := x.(*syntax.ParenExpr)
+ 			if p == nil {
+ 				break
+@@ -535,8 +540,8 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a [2]Type) {
+ 			assert(tv.Type != nil) // should have been recorded already
+ 			pos := x.Pos()
+ 			tv.Type = NewTuple(
+-				NewVar(pos, check.pkg, "", a[0]),
+-				NewVar(pos, check.pkg, "", a[1]),
++				NewVar(pos, check.pkg, "", t0),
++				NewVar(pos, check.pkg, "", t1),
+ 			)
+ 			x.SetTypeInfo(tv)
+ 			p, _ := x.(*syntax.ParenExpr)
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 8d12df81a0..373b8ec231 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -365,11 +365,9 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
+ 	}
+ 
+ 	if commaOk {
+-		var a [2]Type
+-		for i := range a {
+-			a[i] = check.initVar(lhs[i], rhs[i], context)
+-		}
+-		check.recordCommaOkTypes(origRHS[0], a)
++		check.initVar(lhs[0], rhs[0], context)
++		check.initVar(lhs[1], rhs[1], context)
++		check.recordCommaOkTypes(origRHS[0], rhs)
+ 		return
+ 	}
+ 
+@@ -394,11 +392,9 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
+ 	}
+ 
+ 	if commaOk {
+-		var a [2]Type
+-		for i := range a {
+-			a[i] = check.assignVar(lhs[i], rhs[i])
+-		}
+-		check.recordCommaOkTypes(origRHS[0], a)
++		check.assignVar(lhs[0], rhs[0])
++		check.assignVar(lhs[1], rhs[1])
++		check.recordCommaOkTypes(origRHS[0], rhs)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index b862ba57b8..83e2995bbc 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -478,20 +478,24 @@ func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
+ 	}
+ }
+ 
+-func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
++// recordCommaOkTypes updates recorded types to reflect that x is used in a commaOk context
++// (and therefore has tuple type).
++func (check *Checker) recordCommaOkTypes(x ast.Expr, a []*operand) {
+ 	assert(x != nil)
+-	if a[0] == nil || a[1] == nil {
++	assert(len(a) == 2)
++	if a[0].mode == invalid {
+ 		return
+ 	}
+-	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
++	t0, t1 := a[0].typ, a[1].typ
++	assert(isTyped(t0) && isTyped(t1) && (isBoolean(t1) || t1 == universeError))
+ 	if m := check.Types; m != nil {
+ 		for {
+ 			tv := m[x]
+ 			assert(tv.Type != nil) // should have been recorded already
+ 			pos := x.Pos()
+ 			tv.Type = NewTuple(
+-				NewVar(pos, check.pkg, "", a[0]),
+-				NewVar(pos, check.pkg, "", a[1]),
++				NewVar(pos, check.pkg, "", t0),
++				NewVar(pos, check.pkg, "", t1),
+ 			)
+ 			m[x] = tv
+ 			// if x is a parenthesized expression (p.X), update p.X

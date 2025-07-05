@@ -7,7 +7,34 @@ Date:   Tue Apr 9 10:03:14 2013 -0700
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/8573043
-
+---
  src/lib9/run_plan9.c | 2 +-
  src/lib9/run_unix.c  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib9/run_plan9.c b/src/lib9/run_plan9.c
+index 2b043cc2c7..cd85652f79 100644
+--- a/src/lib9/run_plan9.c
++++ b/src/lib9/run_plan9.c
+@@ -16,7 +16,7 @@ runcmd(char **argv)
+ 		return -1;
+ 	case 0:
+ 		exec(argv[0], argv);
+-		fprint(2, "exec %s: %r", argv[0]);
++		fprint(2, "exec %s: %r\n", argv[0]);
+ 		exits("exec");
+ 	}
+ 	
+diff --git a/src/lib9/run_unix.c b/src/lib9/run_unix.c
+index 1b4c6de1b4..c26cf0afb7 100644
+--- a/src/lib9/run_unix.c
++++ b/src/lib9/run_unix.c
+@@ -20,7 +20,7 @@ runcmd(char **argv)
+ 		return -1;
+ 	case 0:
+ 		execvp(argv[0], argv);
+-		fprint(2, "exec %s: %r", argv[0]);
++		fprint(2, "exec %s: %r\n", argv[0]);
+ 		_exit(1);
+ 	}
+ 	

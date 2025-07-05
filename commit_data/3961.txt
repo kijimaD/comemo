@@ -14,7 +14,42 @@ Date:   Tue Nov 10 17:09:33 2009 -0800
     R=agl, agl1
     CC=golang-dev
     https://golang.org/cl/152048
-
+---
  src/pkg/net/dnsclient.go | 11 +++++++++++
  src/pkg/net/net_test.go  |  2 +-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index bea31c3ceb..064e1017bf 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -268,5 +268,16 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+ 			return;
+ 		}
+ 	}
++
++	// Last ditch effort: try unsuffixed.
++	rname := name;
++	if !rooted {
++		rname += "."
++	}
++	addrs, err = tryOneName(cfg, rname);
++	if err == nil {
++		cname = rname;
++		return;
++	}
+ 	return;
+ }
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 532a62b985..c06a05b3ef 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -35,7 +35,7 @@ var dialErrorTests = []DialErrorTest{
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "no-such-name:80",
+-		`dial tcp no-such-name:80: lookup no-such-name\..*\.( on .*)?: no (.*)`,
++		`dial tcp no-such-name:80: lookup no-such-name\.(.*\.)?( on .*)?: no (.*)`,
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "mh/astro/r70:http",

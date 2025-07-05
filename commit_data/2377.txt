@@ -8,9 +8,76 @@ Date:   Thu Jun 4 11:06:37 2009 -0700
     DELTA=25  (25 added, 0 deleted, 0 changed)
     OCL=29875
     CL=29875
-
+---
  src/cmd/gc/lex.c               |  3 +++
  test/fixedbugs/bug160.dir/x.go |  8 ++++++++
  test/fixedbugs/bug160.dir/y.go | 19 +++++++++++++++++++
  test/fixedbugs/bug160.go       |  7 +++++++
  4 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e67f8f572b..51e6534e12 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -807,6 +807,9 @@ tnum:
+ 		}
+ 	}
+ 
++	if(c == 'p')	// 0p begins floating point zero
++		goto casep;
++
+ 	c1 = 0;
+ 	for(;;) {
+ 		if(!isdigit(c))
+diff --git a/test/fixedbugs/bug160.dir/x.go b/test/fixedbugs/bug160.dir/x.go
+new file mode 100644
+index 0000000000..bd52c6cc3c
+--- /dev/null
++++ b/test/fixedbugs/bug160.dir/x.go
+@@ -0,0 +1,8 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x
++
++const Zero = 0.0
++const Ten = 10.0
+diff --git a/test/fixedbugs/bug160.dir/y.go b/test/fixedbugs/bug160.dir/y.go
+new file mode 100644
+index 0000000000..1c8d353d7e
+--- /dev/null
++++ b/test/fixedbugs/bug160.dir/y.go
+@@ -0,0 +1,19 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "os"
++import "x"
++
++func main() {
++	if x.Zero != 0 {
++		println("x.Zero = ", x.Zero);
++		os.Exit(1);
++	}
++	if x.Ten != 10 {
++		println("x.Ten = ", x.Ten);
++		os.Exit(1);
++	}
++}
+diff --git a/test/fixedbugs/bug160.go b/test/fixedbugs/bug160.go
+new file mode 100644
+index 0000000000..0ae9d4ec19
+--- /dev/null
++++ b/test/fixedbugs/bug160.go
+@@ -0,0 +1,7 @@
++// $G $D/bug160.dir/x.go && $G $D/bug160.dir/y.go && $L y.$A x.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++nothing to see here

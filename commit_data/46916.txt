@@ -20,8 +20,102 @@ Date:   Tue Feb 16 10:20:58 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/292490
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/arm/asm.go   | 16 +++++++++++-----
  src/cmd/link/internal/ld/data.go   | 12 +++++-------
  src/cmd/link/internal/ppc64/asm.go | 12 +++++++++---
  3 files changed, 25 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 755b472694..03caeae7be 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -370,10 +370,16 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 	r := relocs.At(ri)
+ 	switch r.Type() {
+ 	case objabi.R_CALLARM:
+-		// r.Add is the instruction
+-		// low 24-bit encodes the target address
+-		t := (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
+-		if t > 0x7fffff || t < -0x800000 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
++		var t int64
++		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
++		// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
++		// in dependency order.
++		if ldr.SymValue(rs) != 0 {
++			// r.Add is the instruction
++			// low 24-bit encodes the target address
++			t = (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
++		}
++		if t > 0x7fffff || t < -0x800000 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+ 			// direct call too far, need to insert trampoline.
+ 			// look up existing trampolines first. if we found one within the range
+ 			// of direct call, we can reuse it. otherwise create a new one.
+@@ -445,7 +451,7 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *l
+ 	arch.ByteOrder.PutUint32(P[8:], o3)
+ 	tramp.SetData(P)
+ 
+-	if linkmode == ld.LinkExternal {
++	if linkmode == ld.LinkExternal || ldr.SymValue(target) == 0 {
+ 		r, _ := tramp.AddRel(objabi.R_ADDR)
+ 		r.SetOff(8)
+ 		r.SetSiz(4)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 6013e0ab0a..52035e9630 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -106,14 +106,12 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ 		}
+ 		rs = ldr.ResolveABIAlias(rs)
+ 		if ldr.SymValue(rs) == 0 && (ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT) {
+-			if ldr.SymPkg(rs) != ldr.SymPkg(s) {
+-				if !isRuntimeDepPkg(ldr.SymPkg(s)) || !isRuntimeDepPkg(ldr.SymPkg(rs)) {
+-					ctxt.Errorf(s, "unresolved inter-package jump to %s(%s) from %s", ldr.SymName(rs), ldr.SymPkg(rs), ldr.SymPkg(s))
+-				}
+-				// runtime and its dependent packages may call to each other.
+-				// they are fine, as they will be laid down together.
++			if ldr.SymPkg(rs) == ldr.SymPkg(s) {
++				continue // symbols in the same package are laid out together
++			}
++			if isRuntimeDepPkg(ldr.SymPkg(s)) && isRuntimeDepPkg(ldr.SymPkg(rs)) {
++				continue // runtime packages are laid out together
+ 			}
+-			continue
+ 		}
+ 
+ 		thearch.Trampoline(ctxt, ldr, ri, rs, s)
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 5bf3898eb9..602f0b5299 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -656,13 +656,19 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 
+ 	relocs := ldr.Relocs(s)
+ 	r := relocs.At(ri)
+-	t := ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
++	var t int64
++	// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
++	// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
++	// in dependency order.
++	if ldr.SymValue(rs) != 0 {
++		t = ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
++	}
+ 	switch r.Type() {
+ 	case objabi.R_CALLPOWER:
+ 
+ 		// If branch offset is too far then create a trampoline.
+ 
+-		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
++		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+ 			var tramp loader.Sym
+ 			for i := 0; ; i++ {
+ 
+@@ -749,7 +755,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
+ 
+ 		// With external linking, the target address must be
+ 		// relocated using LO and HA
+-		if ctxt.IsExternal() {
++		if ctxt.IsExternal() || ldr.SymValue(target) == 0 {
+ 			r, _ := tramp.AddRel(objabi.R_ADDRPOWER)
+ 			r.SetOff(0)
+ 			r.SetSiz(8) // generates 2 relocations: HA + LO

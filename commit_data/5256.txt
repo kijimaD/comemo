@@ -10,7 +10,7 @@ Date:   Fri Apr 9 13:30:35 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/834045
-
+---
  src/libcgo/386.S          | 24 +++++++++++++++++++++++
  src/pkg/runtime/386/asm.s | 39 +++++++++++++++++++++++++++++++++++-
  src/pkg/runtime/cgocall.c | 50 +++++++++++++++++++++++++++++++++++++++++++++++
@@ -18,3 +18,251 @@ Date:   Fri Apr 9 13:30:35 2010 -0700
  src/pkg/runtime/proc.c    | 26 ++++++++++++++++++++++--
  src/pkg/runtime/runtime.h |  5 +++--
  6 files changed, 140 insertions(+), 5 deletions(-)
+
+diff --git a/src/libcgo/386.S b/src/libcgo/386.S
+index 278c5293ce..cca79cdd51 100755
+--- a/src/libcgo/386.S
++++ b/src/libcgo/386.S
+@@ -35,3 +35,27 @@ EXT(crosscall_386):
+ 	popl %ebp
+ 	ret
+ 
++/*
++ * void crosscall2(void (*fn)(void*, int32), void*, int32)
++ *
++ * Save registers and call fn with two arguments.
++ */
++.globl EXT(crosscall2)
++EXT(crosscall2):
++	pushl %ebp
++	movl %esp, %ebp
++	pushl %ebx
++	pushl %esi
++	pushl %edi
++
++	pushl 16(%ebp)
++	pushl 12(%ebp)
++	mov 8(%ebp), %eax
++	call *%eax
++	addl $8,%esp
++
++	popl %edi
++	popl %esi
++	popl %ebx
++	popl %ebp
++	ret
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 0002a3e104..614c026eaf 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -351,16 +351,53 @@ TEXT	runcgo(SB),7,$16
+ 	// Now on a scheduling stack (a pthread-created stack).
+ 	SUBL	$16, SP
+ 	ANDL	$~15, SP	// alignment for gcc ABI
++	MOVL	g(DI), BP
++	MOVL	BP, 8(SP)
++	MOVL	SI, g(DI)
+ 	MOVL	CX, 4(SP)
+ 	MOVL	BX, 0(SP)
+ 	CALL	AX
+ 	
+-	// Back; switch to original stack, re-establish
++	// Back; switch to original g and stack, re-establish
+ 	// "DF is clear" invariant.
+ 	CLD
++	get_tls(DI)
++	MOVL	8(SP), SI
++	MOVL	SI, g(DI)
+ 	MOVL	4(SP), SP
+ 	RET
+ 
++// runcgocallback(G *g1, void* sp, void (*fn)(void))
++// Switch to g1 and sp, call fn, switch back.  fn's arguments are on
++// the new stack.
++TEXT	runcgocallback(SB),7,$32
++	MOVL	g1+0(FP), DX
++	MOVL	sp+4(FP), AX
++	MOVL	fn+8(FP), BX
++
++	// We are running on m's scheduler stack.  Save current SP
++	// into m->sched.sp so that a recursive call to runcgo doesn't
++	// clobber our stack, and also so that we can restore
++	// the SP when the call finishes.  Reusing m->sched.sp
++	// for this purpose depends on the fact that there is only
++	// one possible gosave of m->sched.
++	get_tls(CX)
++	MOVL	DX, g(CX)
++	MOVL	m(CX), CX
++	MOVL	SP, (m_sched+gobuf_sp)(CX)
++
++	// Set new SP, call fn
++	MOVL	AX, SP
++	CALL	BX
++
++	// Restore old g and SP, return
++	get_tls(CX)
++	MOVL	m(CX), DX
++	MOVL	m_g0(DX), BX
++	MOVL	BX, g(CX)
++	MOVL	(m_sched+gobuf_sp)(DX), SP
++	RET
++
+ // check that SP is in range [g->stackbase, g->stackguard)
+ TEXT stackcheck(SB), 7, $0
+ 	get_tls(CX)
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 2f1f66c7e4..f673d1b6ec 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -13,11 +13,21 @@ void ·exitsyscall(void);
+ void
+ cgocall(void (*fn)(void*), void *arg)
+ {
++	G *oldlock;
++
+ 	if(initcgo == nil)
+ 		throw("cgocall unavailable");
+ 
+ 	ncgocall++;
+ 
++	/*
++	 * Lock g to m to ensure we stay on the same stack if we do a
++	 * cgo callback.
++	 */
++	oldlock = m->lockedg;
++	m->lockedg = g;
++	g->lockedm = m;
++
+ 	/*
+ 	 * Announce we are entering a system call
+ 	 * so that the scheduler knows to create another
+@@ -27,9 +37,49 @@ cgocall(void (*fn)(void*), void *arg)
+ 	·entersyscall();
+ 	runcgo(fn, arg);
+ 	·exitsyscall();
++
++	m->lockedg = oldlock;
++	if(oldlock == nil)
++		g->lockedm = nil;
++
+ 	return;
+ }
+ 
++// When a C function calls back into Go, the wrapper function will
++// call this.  This switches to a Go stack, copies the arguments
++// (arg/argsize) on to the stack, calls the function, copies the
++// arguments back where they came from, and finally returns to the old
++// stack.
++void
++cgocallback(void (*fn)(void), void *arg, int32 argsize)
++{
++	Gobuf oldsched;
++	G *g1;
++	void *sp;
++
++	if(g != m->g0)
++		throw("bad g in cgocallback");
++
++	oldsched = m->sched;
++
++	g1 = m->curg;
++
++	startcgocallback(g1);
++
++	sp = g1->sched.sp - argsize;
++	if(sp < g1->stackguard)
++		throw("g stack overflow in cgocallback");
++	mcpy(sp, arg, argsize);
++
++	runcgocallback(g1, sp, fn);
++
++	mcpy(arg, sp, argsize);
++
++	endcgocallback(g1);
++
++	m->sched = oldsched;
++}
++
+ void
+ ·Cgocalls(int64 ret)
+ {
+diff --git a/src/pkg/runtime/cgocall.h b/src/pkg/runtime/cgocall.h
+index 816c426d78..9cdb409a30 100644
+--- a/src/pkg/runtime/cgocall.h
++++ b/src/pkg/runtime/cgocall.h
+@@ -7,5 +7,6 @@
+  */
+ 
+ void cgocall(void (*fn)(void*), void*);
++void cgocallback(void (*fn)(void), void*, int32);
+ void *cmalloc(uintptr);
+ void cfree(void*);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 1a1895dcb4..169f90b733 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -544,8 +544,8 @@ gosched(void)
+ 
+ // The goroutine g is about to enter a system call.
+ // Record that it's not using the cpu anymore.
+-// This is called only from the go syscall library, not
+-// from the low-level system calls used by the runtime.
++// This is called only from the go syscall library and cgocall,
++// not from the low-level system calls used by the runtime.
+ void
+ ·entersyscall(void)
+ {
+@@ -604,6 +604,28 @@ void
+ 	gosched();
+ }
+ 
++// Start scheduling g1 again for a cgo callback.
++void
++startcgocallback(G* g1)
++{
++	lock(&sched);
++	g1->status = Grunning;
++	sched.msyscall--;
++	sched.mcpu++;
++	unlock(&sched);
++}
++
++// Stop scheduling g1 after a cgo callback.
++void
++endcgocallback(G* g1)
++{
++	lock(&sched);
++	g1->status = Gsyscall;
++	sched.mcpu--;
++	sched.msyscall++;
++	unlock(&sched);
++}
++
+ /*
+  * stack layout parameters.
+  * known to linkers.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f3297e7e05..7063a9fc6d 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -196,8 +196,6 @@ struct	G
+ 	bool	ispanic;
+ 	M*	m;		// for debuggers, but offset not hard-coded
+ 	M*	lockedm;
+-	void	(*cgofn)(void*);	// for cgo/ffi
+-	void	*cgoarg;
+ 	int32	sig;
+ 	uintptr	sigcode0;
+ 	uintptr	sigcode1;
+@@ -432,8 +430,11 @@ void	breakpoint(void);
+ void	gosched(void);
+ void	goexit(void);
+ void	runcgo(void (*fn)(void*), void*);
++void	runcgocallback(G*, void*, void (*fn)());
+ void	·entersyscall(void);
+ void	·exitsyscall(void);
++void	startcgocallback(G*);
++void	endcgocallback(G*);
+ G*	newproc1(byte*, byte*, int32, int32);
+ void	siginit(void);
+ bool	sigsend(int32 sig);

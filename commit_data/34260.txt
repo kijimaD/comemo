@@ -24,7 +24,197 @@ Date:   Wed Oct 11 11:05:58 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 52 -------------------------
  src/runtime/runtime-lldb_test.go  | 82 ---------------------------------------
  2 files changed, 134 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index dd6d983f56..02eea54435 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1308,9 +1308,6 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, funcs, consts []*sym.Symbol, abbr
+ 	infosec.Attr |= sym.AttrReachable
+ 	syms = append(syms, infosec)
+ 
+-	arangessec := ctxt.Syms.Lookup(".dwarfaranges", 0)
+-	arangessec.R = arangessec.R[:0]
+-
+ 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
+ 
+ 	for compunit := dwroot.Child; compunit != nil; compunit = compunit.Link {
+@@ -1406,52 +1403,6 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*s
+ 	return syms
+ }
+ 
+-/*
+- *  emit .debug_aranges.  _info must have been written before,
+- *  because we need die->offs of dwarf.DW_globals.
+- */
+-func writearanges(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+-	s := ctxt.Syms.Lookup(".debug_aranges", 0)
+-	s.Type = sym.SDWARFSECT
+-	// The first tuple is aligned to a multiple of the size of a single tuple
+-	// (twice the size of an address)
+-	headersize := int(Rnd(4+2+4+1+1, int64(ctxt.Arch.PtrSize*2))) // don't count unit_length field itself
+-
+-	for compunit := dwroot.Child; compunit != nil; compunit = compunit.Link {
+-		b := getattr(compunit, dwarf.DW_AT_low_pc)
+-		if b == nil {
+-			continue
+-		}
+-		e := getattr(compunit, dwarf.DW_AT_high_pc)
+-		if e == nil {
+-			continue
+-		}
+-
+-		// Write .debug_aranges	 Header + entry	 (sec 6.1.2)
+-		unitlength := uint32(headersize) + 4*uint32(ctxt.Arch.PtrSize) - 4
+-		s.AddUint32(ctxt.Arch, unitlength) // unit_length (*)
+-		s.AddUint16(ctxt.Arch, 2)          // dwarf version (appendix F)
+-
+-		adddwarfref(ctxt, s, dtolsym(compunit.Sym), 4)
+-
+-		s.AddUint8(uint8(ctxt.Arch.PtrSize)) // address_size
+-		s.AddUint8(0)                        // segment_size
+-		padding := headersize - (4 + 2 + 4 + 1 + 1)
+-		for i := 0; i < padding; i++ {
+-			s.AddUint8(0)
+-		}
+-
+-		s.AddAddrPlus(ctxt.Arch, b.Data.(*sym.Symbol), b.Value-(b.Data.(*sym.Symbol)).Value)
+-		s.AddUintXX(ctxt.Arch, uint64(e.Value-b.Value), ctxt.Arch.PtrSize)
+-		s.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize)
+-		s.AddUintXX(ctxt.Arch, 0, ctxt.Arch.PtrSize)
+-	}
+-	if s.Size > 0 {
+-		syms = append(syms, s)
+-	}
+-	return syms
+-}
+-
+ func writegdbscript(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 	if ctxt.LinkMode == LinkExternal && Headtype == objabi.Hwindows && ctxt.BuildMode == BuildModeCArchive {
+ 		// gcc on Windows places .debug_gdb_scripts in the wrong location, which
+@@ -1584,7 +1535,6 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 
+ 	syms = writepub(ctxt, ".debug_pubnames", ispubname, syms)
+ 	syms = writepub(ctxt, ".debug_pubtypes", ispubtype, syms)
+-	syms = writearanges(ctxt, syms)
+ 	syms = writegdbscript(ctxt, syms)
+ 	syms = append(syms, infosyms...)
+ 	syms = collectlocs(ctxt, syms, funcs)
+@@ -1625,7 +1575,6 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *sym.Symbol) {
+ 	}
+ 
+ 	Addstring(shstrtab, ".debug_abbrev")
+-	Addstring(shstrtab, ".debug_aranges")
+ 	Addstring(shstrtab, ".debug_frame")
+ 	Addstring(shstrtab, ".debug_info")
+ 	Addstring(shstrtab, ".debug_loc")
+@@ -1637,7 +1586,6 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *sym.Symbol) {
+ 	if ctxt.LinkMode == LinkExternal {
+ 		Addstring(shstrtab, elfRelType+".debug_info")
+ 		Addstring(shstrtab, elfRelType+".debug_loc")
+-		Addstring(shstrtab, elfRelType+".debug_aranges")
+ 		Addstring(shstrtab, elfRelType+".debug_line")
+ 		Addstring(shstrtab, elfRelType+".debug_frame")
+ 		Addstring(shstrtab, elfRelType+".debug_pubnames")
+diff --git a/src/runtime/runtime-lldb_test.go b/src/runtime/runtime-lldb_test.go
+index 98bc906666..6889e32601 100644
+--- a/src/runtime/runtime-lldb_test.go
++++ b/src/runtime/runtime-lldb_test.go
+@@ -5,11 +5,7 @@
+ package runtime_test
+ 
+ import (
+-	"debug/elf"
+-	"debug/macho"
+-	"encoding/binary"
+ 	"internal/testenv"
+-	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -182,81 +178,3 @@ func TestLldbPython(t *testing.T) {
+ 		t.Fatalf("Unexpected lldb output:\n%s", got)
+ 	}
+ }
+-
+-// Check that aranges are valid even when lldb isn't installed.
+-func TestDwarfAranges(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	src := filepath.Join(dir, "main.go")
+-	err = ioutil.WriteFile(src, []byte(lldbHelloSource), 0644)
+-	if err != nil {
+-		t.Fatalf("failed to create file: %v", err)
+-	}
+-
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+-	cmd.Dir = dir
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("building source %v\n%s", err, out)
+-	}
+-
+-	filename := filepath.Join(dir, "a.exe")
+-	if f, err := elf.Open(filename); err == nil {
+-		sect := f.Section(".debug_aranges")
+-		if sect == nil {
+-			t.Fatal("Missing aranges section")
+-		}
+-		verifyAranges(t, f.ByteOrder, sect.Open())
+-	} else if f, err := macho.Open(filename); err == nil {
+-		sect := f.Section("__debug_aranges")
+-		if sect == nil {
+-			t.Fatal("Missing aranges section")
+-		}
+-		verifyAranges(t, f.ByteOrder, sect.Open())
+-	} else {
+-		t.Skip("Not an elf or macho binary.")
+-	}
+-}
+-
+-func verifyAranges(t *testing.T, byteorder binary.ByteOrder, data io.ReadSeeker) {
+-	var header struct {
+-		UnitLength  uint32 // does not include the UnitLength field
+-		Version     uint16
+-		Offset      uint32
+-		AddressSize uint8
+-		SegmentSize uint8
+-	}
+-	for {
+-		offset, err := data.Seek(0, io.SeekCurrent)
+-		if err != nil {
+-			t.Fatalf("Seek error: %v", err)
+-		}
+-		if err = binary.Read(data, byteorder, &header); err == io.EOF {
+-			return
+-		} else if err != nil {
+-			t.Fatalf("Error reading arange header: %v", err)
+-		}
+-		tupleSize := int64(header.SegmentSize) + 2*int64(header.AddressSize)
+-		lastTupleOffset := offset + int64(header.UnitLength) + 4 - tupleSize
+-		if lastTupleOffset%tupleSize != 0 {
+-			t.Fatalf("Invalid arange length %d, (addr %d, seg %d)", header.UnitLength, header.AddressSize, header.SegmentSize)
+-		}
+-		if _, err = data.Seek(lastTupleOffset, io.SeekStart); err != nil {
+-			t.Fatalf("Seek error: %v", err)
+-		}
+-		buf := make([]byte, tupleSize)
+-		if n, err := data.Read(buf); err != nil || int64(n) < tupleSize {
+-			t.Fatalf("Read error: %v", err)
+-		}
+-		for _, val := range buf {
+-			if val != 0 {
+-				t.Fatalf("Invalid terminator")
+-			}
+-		}
+-	}
+-}

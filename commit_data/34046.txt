@@ -13,6 +13,24 @@ Date:   Wed Sep 27 20:37:02 2017 +0200
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/convert_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/database/sql/convert_test.go b/src/database/sql/convert_test.go
+index cfe52d7f54..169ecaed6f 100644
+--- a/src/database/sql/convert_test.go
++++ b/src/database/sql/convert_test.go
+@@ -222,6 +222,12 @@ func TestConversions(t *testing.T) {
+ 		if ct.wantstr != "" && ct.wantstr != scanstr {
+ 			errf("want string %q, got %q", ct.wantstr, scanstr)
+ 		}
++		if ct.wantbytes != nil && string(ct.wantbytes) != string(scanbytes) {
++			errf("want byte %q, got %q", ct.wantbytes, scanbytes)
++		}
++		if ct.wantraw != nil && string(ct.wantraw) != string(scanraw) {
++			errf("want RawBytes %q, got %q", ct.wantraw, scanraw)
++		}
+ 		if ct.wantint != 0 && ct.wantint != intValue(ct.d) {
+ 			errf("want int %d, got %d", ct.wantint, intValue(ct.d))
+ 		}

@@ -11,7 +11,7 @@ Date:   Thu Mar 12 17:24:03 2009 -0700
     R=r
     OCL=26213
     CL=26213
-
+---
  usr/gri/pretty/ast.go         |  30 +++--
  usr/gri/pretty/compilation.go |   2 +-
  usr/gri/pretty/gds.go         |   2 +-
@@ -20,3 +20,1068 @@ Date:   Thu Mar 12 17:24:03 2009 -0700
  usr/gri/pretty/printer.go     | 266 ++++++++++++++++++++++++++++--------------
  usr/gri/pretty/template.html  |  12 +-
  7 files changed, 345 insertions(+), 208 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index cf8f5b125e..dc86a03cc2 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -28,6 +28,21 @@ func assert(pred bool) {
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Comments
++
++type Comment struct {
++	Loc scanner.Location;
++	EndLine int;  // the line where the comment ends
++	Text []byte;
++}
++
++
++// A CommentGroup is a sequence of consequtive comments
++// with no other tokens and no empty lines inbetween.
++type CommentGroup []*Comment
++
++
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+@@ -132,6 +147,7 @@ type (
+ 		Idents []*Ident;
+ 		Typ Expr;
+ 		Tag Expr;  // nil = no tag
++		Comment CommentGroup;
+ 	};
+ 
+ 	StructType struct {
+@@ -445,12 +461,14 @@ type (
+ 		Idents []*Ident;
+ 		Typ Expr;
+ 		Vals Expr;
++		Comment CommentGroup;
+ 	};
+ 	
+ 	TypeDecl struct {
+ 		Loc scanner.Location;  // if > 0: position of "type"
+ 		Ident *Ident;
+ 		Typ Expr;
++		Comment CommentGroup;
+ 	};
+ 	
+ 	VarDecl struct {
+@@ -458,6 +476,7 @@ type (
+ 		Idents []*Ident;
+ 		Typ Expr;
+ 		Vals Expr;
++		Comment CommentGroup;
+ 	};
+ 
+ 	FuncDecl struct {
+@@ -466,6 +485,7 @@ type (
+ 		Ident *Ident;
+ 		Sig *Signature;
+ 		Body *Block;
++		Comment CommentGroup;
+ 	};
+ 	
+ 	DeclList struct {
+@@ -500,17 +520,13 @@ func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
+ // ----------------------------------------------------------------------------
+ // Program
+ 
+-type Comment struct {
+-	Loc scanner.Location;
+-	Text []byte;
+-}
+-
+-
++// TODO rename to Package
+ type Program struct {
+ 	Loc scanner.Location;  // tok is token.PACKAGE
+ 	Ident *Ident;
+ 	Decls []Decl;
+-	Comments []*Comment;
++	Comment CommentGroup;
++	Comments []CommentGroup;
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 9d650fb317..5f7f13336e 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -112,7 +112,7 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 	var parser Parser.Parser;
+ 	parser.Init(&scanner, &err, flags.Verbose);
+ 
+-	prog := parser.ParseProgram();
++	prog := parser.Parse(Parser.ParseEntirePackage);
+ 
+ 	if err.nerrors == 0 {
+ 		TypeChecker.CheckProgram(&err, prog);
+diff --git a/usr/gri/pretty/gds.go b/usr/gri/pretty/gds.go
+index 450ef56b27..919b6ea832 100644
+--- a/usr/gri/pretty/gds.go
++++ b/usr/gri/pretty/gds.go
+@@ -108,7 +108,7 @@ func serveFile(c *http.Conn, filename string) {
+ 	}
+ 
+ 	c.SetHeader("content-type", "text/html; charset=utf-8");
+-	Printer.Print(c, true, prog);
++	Printer.Print(c, prog, true);
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 21075beae5..2e9b34e571 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -33,7 +33,8 @@ type Parser struct {
+ 	trace bool;
+ 	indent uint;
+ 
+-	comments *vector.Vector;
++	comments vector.Vector;
++	last_comment ast.CommentGroup;
+ 
+ 	// The next token
+ 	loc scanner.Location;  // token location
+@@ -42,8 +43,6 @@ type Parser struct {
+ 
+ 	// Non-syntactic parser control
+ 	opt_semi bool;  // true if semicolon separator is optional in statement list
+-
+-	// Nesting levels
+ 	expr_lev int;  // < 0: in control clause, >= 0: in expression
+ };
+ 
+@@ -113,9 +112,63 @@ func (P *Parser) next0() {
+ }
+ 
+ 
++func (P *Parser) getComment() *ast.Comment {
++	defer P.next0();
++
++	// for /*-style comments, the comment may end on a different line
++	endline := P.loc.Line;
++	if P.val[1] == '*' {
++		for i, b := range P.val {
++			if b == '\n' {
++				endline++;
++			}
++		}
++	}
++	
++	return &ast.Comment{P.loc, endline, P.val};
++}
++
++
++func (P *Parser) getCommentGroup() ast.CommentGroup {
++	list := vector.New(0);
++	
++	// group adjacent comments
++	// (an empty line terminates a group)
++	endline := P.loc.Line;
++	for P.tok == token.COMMENT && endline+1 >= P.loc.Line {
++		c := P.getComment();
++		list.Push(c);
++		endline = c.EndLine;
++	}
++
++	// convert list
++	group := make(ast.CommentGroup, list.Len());
++	for i := 0; i < list.Len(); i++ {
++		group[i] = list.At(i).(*ast.Comment);
++	}
++	
++	return group;
++}
++
++
++func (P *Parser) getLastComment() ast.CommentGroup {
++	c := P.last_comment;
++	if c != nil && c[len(c) - 1].EndLine + 1 < P.loc.Line {
++		// empty line between last comment and current token,
++		// at least one line of space between last comment
++		// and current token; ignore this comment
++		return nil;
++	}
++	return c;
++}
++
++
+ func (P *Parser) next() {
+-	for P.next0(); P.tok == token.COMMENT; P.next0() {
+-		P.comments.Push(&ast.Comment{P.loc, P.val});
++	P.next0();
++	P.last_comment = nil;
++	for P.tok == token.COMMENT {
++		P.last_comment = P.getCommentGroup();
++		P.comments.Push(P.last_comment);
+ 	}
+ }
+ 
+@@ -123,14 +176,9 @@ func (P *Parser) next() {
+ func (P *Parser) Init(scanner *scanner.Scanner, err scanner.ErrorHandler, trace bool) {
+ 	P.scanner = scanner;
+ 	P.err = err;
+-
+ 	P.trace = trace;
+-	P.indent = 0;
+-
+-	P.comments = vector.New(0);
+-
++	P.comments.Init(0);
+ 	P.next();
+-	P.expr_lev = 0;
+ }
+ 
+ 
+@@ -382,20 +430,20 @@ func (P *Parser) parseParameterList(ellipsis_ok bool) []*ast.Field {
+ 			idents[i] = list.At(i).(*ast.Ident);
+ 		}
+ 		list.Init(0);
+-		list.Push(&ast.Field{idents, typ, nil});
++		list.Push(&ast.Field{idents, typ, nil, nil});
+ 
+ 		for P.tok == token.COMMA {
+ 			P.next();
+ 			idents := P.parseIdentList2(nil);
+ 			typ := P.parseParameterType();
+-			list.Push(&ast.Field{idents, typ, nil});
++			list.Push(&ast.Field{idents, typ, nil, nil});
+ 		}
+ 
+ 	} else {
+ 		// Type { "," Type }
+ 		// convert list of types into list of *Param
+ 		for i := 0; i < list.Len(); i++ {
+-			list.Set(i, &ast.Field{nil, list.At(i).(ast.Expr), nil});
++			list.Set(i, &ast.Field{nil, list.At(i).(ast.Expr), nil, nil});
+ 		}
+ 	}
+ 
+@@ -438,7 +486,7 @@ func (P *Parser) parseResult() []*ast.Field {
+ 		typ := P.tryType();
+ 		if typ != nil {
+ 			result = make([]*ast.Field, 1);
+-			result[0] = &ast.Field{nil, typ, nil};
++			result[0] = &ast.Field{nil, typ, nil, nil};
+ 		}
+ 	}
+ 
+@@ -495,7 +543,7 @@ func (P *Parser) parseMethodSpec() *ast.Field {
+ 		typ = x;
+ 	}
+ 
+-	return &ast.Field{idents, typ, nil};
++	return &ast.Field{idents, typ, nil, nil};
+ }
+ 
+ 
+@@ -558,6 +606,8 @@ func (P *Parser) parseFieldDecl() *ast.Field {
+ 		defer un(trace(P, "FieldDecl"));
+ 	}
+ 
++	comment := P.getLastComment();
++
+ 	// a list of identifiers looks like a list of type names
+ 	list := vector.New(0);
+ 	for {
+@@ -601,7 +651,7 @@ func (P *Parser) parseFieldDecl() *ast.Field {
+ 		}
+ 	}
+ 
+-	return &ast.Field{idents, typ, tag};
++	return &ast.Field{idents, typ, tag, comment};
+ }
+ 
+ 
+@@ -1377,24 +1427,25 @@ func (P *Parser) parseImportSpec(loc scanner.Location) *ast.ImportDecl {
+ }
+ 
+ 
+-func (P *Parser) parseConstSpec(loc scanner.Location) *ast.ConstDecl {
++func (P *Parser) parseConstSpec(loc scanner.Location, comment ast.CommentGroup) *ast.ConstDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "ConstSpec"));
+ 	}
+ 
+ 	idents := P.parseIdentList2(nil);
+ 	typ := P.tryType();
++
+ 	var vals ast.Expr;
+ 	if P.tok == token.ASSIGN {
+ 		P.next();
+ 		vals = P.parseExpressionList();
+ 	}
+ 
+-	return &ast.ConstDecl{loc, idents, typ, vals};
++	return &ast.ConstDecl{loc, idents, typ, vals, comment};
+ }
+ 
+ 
+-func (P *Parser) parseTypeSpec(loc scanner.Location) *ast.TypeDecl {
++func (P *Parser) parseTypeSpec(loc scanner.Location, comment ast.CommentGroup) *ast.TypeDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "TypeSpec"));
+ 	}
+@@ -1402,11 +1453,11 @@ func (P *Parser) parseTypeSpec(loc scanner.Location) *ast.TypeDecl {
+ 	ident := P.parseIdent();
+ 	typ := P.parseType();
+ 
+-	return &ast.TypeDecl{loc, ident, typ};
++	return &ast.TypeDecl{loc, ident, typ, comment};
+ }
+ 
+ 
+-func (P *Parser) parseVarSpec(loc scanner.Location) *ast.VarDecl {
++func (P *Parser) parseVarSpec(loc scanner.Location, comment ast.CommentGroup) *ast.VarDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "VarSpec"));
+ 	}
+@@ -1425,16 +1476,16 @@ func (P *Parser) parseVarSpec(loc scanner.Location) *ast.VarDecl {
+ 		}
+ 	}
+ 
+-	return &ast.VarDecl{loc, idents, typ, vals};
++	return &ast.VarDecl{loc, idents, typ, vals, comment};
+ }
+ 
+ 
+-func (P *Parser) parseSpec(loc scanner.Location, keyword int) ast.Decl {
++func (P *Parser) parseSpec(loc scanner.Location, comment ast.CommentGroup, keyword int) ast.Decl {
+ 	switch keyword {
+ 	case token.IMPORT: return P.parseImportSpec(loc);
+-	case token.CONST: return P.parseConstSpec(loc);
+-	case token.TYPE: return P.parseTypeSpec(loc);
+-	case token.VAR: return P.parseVarSpec(loc);
++	case token.CONST: return P.parseConstSpec(loc, comment);
++	case token.TYPE: return P.parseTypeSpec(loc, comment);
++	case token.VAR: return P.parseVarSpec(loc, comment);
+ 	}
+ 
+ 	unreachable();
+@@ -1447,13 +1498,14 @@ func (P *Parser) parseDecl(keyword int) ast.Decl {
+ 		defer un(trace(P, "Decl"));
+ 	}
+ 
++	comment := P.getLastComment();
+ 	loc := P.loc;
+ 	P.expect(keyword);
+ 	if P.tok == token.LPAREN {
+ 		P.next();
+ 		list := vector.New(0);
+ 		for P.tok != token.RPAREN && P.tok != token.EOF {
+-			list.Push(P.parseSpec(noloc, keyword));
++			list.Push(P.parseSpec(noloc, nil, keyword));
+ 			if P.tok == token.SEMICOLON {
+ 				P.next();
+ 			} else {
+@@ -1473,7 +1525,7 @@ func (P *Parser) parseDecl(keyword int) ast.Decl {
+ 		return &ast.DeclList{loc, keyword, decls, end};
+ 	}
+ 
+-	return P.parseSpec(loc, keyword);
++	return P.parseSpec(loc, comment, keyword);
+ }
+ 
+ 
+@@ -1491,6 +1543,7 @@ func (P *Parser) parseFunctionDecl() *ast.FuncDecl {
+ 		defer un(trace(P, "FunctionDecl"));
+ 	}
+ 
++	comment := P.getLastComment();
+ 	loc := P.loc;
+ 	P.expect(token.FUNC);
+ 
+@@ -1513,7 +1566,7 @@ func (P *Parser) parseFunctionDecl() *ast.FuncDecl {
+ 		body = P.parseBlock(token.LBRACE);
+ 	}
+ 
+-	return &ast.FuncDecl{loc, recv, ident, sig, body};
++	return &ast.FuncDecl{loc, recv, ident, sig, body, comment};
+ }
+ 
+ 
+@@ -1539,98 +1592,68 @@ func (P *Parser) parseDeclaration() ast.Decl {
+ // ----------------------------------------------------------------------------
+ // Program
+ 
+-// The top level parsing routines:
+-//
+-// ParsePackageClause
+-// - parses the package clause only and returns the package name
+-//
+-// ParseImportDecls
+-// - parses all import declarations and returns a list of them
+-// - the package clause must have been parsed before
+-// - useful to determine package dependencies
+-//
+-// ParseProgram
+-// - parses the entire program and returns the complete AST
+-
+-
+-func (P *Parser) ParsePackageClause() *ast.Ident {
+-	if P.trace {
+-		defer un(trace(P, "PackageClause"));
+-	}
+-
+-	P.expect(token.PACKAGE);
+-	return P.parseIdent();
+-}
+-
+-
+-func (P *Parser) parseImportDecls() *vector.Vector {
+-	if P.trace {
+-		defer un(trace(P, "ImportDecls"));
+-	}
+-
+-	list := vector.New(0);
+-	for P.tok == token.IMPORT {
+-		list.Push(P.parseDecl(token.IMPORT));
+-		if P.tok == token.SEMICOLON {
+-			P.next();
+-		}
+-	}
+-
+-	return list;
+-}
+-
+-
+-func (P *Parser) ParseImportDecls() []ast.Decl {
+-	list := P.parseImportDecls();
+-
+-	// convert list
+-	imports := make([]ast.Decl, list.Len());
+-	for i := 0; i < list.Len(); i++ {
+-		imports[i] = list.At(i).(ast.Decl);
+-	}
+-
+-	return imports;
+-}
+-
+-
+-// Returns the list of comments accumulated during parsing, if any.
+-// (The scanner must return token.COMMENT tokens for comments to be
+-// collected in the first place.)
+-
+-func (P *Parser) Comments() []*ast.Comment {
++func (P *Parser) getComments() []ast.CommentGroup {
+ 	// convert comments vector
+-	list := make([]*ast.Comment, P.comments.Len());
++	list := make([]ast.CommentGroup, P.comments.Len());
+ 	for i := 0; i < P.comments.Len(); i++ {
+-		list[i] = P.comments.At(i).(*ast.Comment);
++		list[i] = P.comments.At(i).(ast.CommentGroup);
+ 	}
+ 	return list;
+ }
+ 
+ 
+-func (P *Parser) ParseProgram() *ast.Program {
++// The Parse function is parametrized with one of the following
++// constants. They control how much of the source text is parsed.
++//
++const (
++	ParseEntirePackage = iota;
++	ParseImportDeclsOnly;
++	ParsePackageClauseOnly;
++)
++
++
++// Parse parses the source...
++//      
++// foo bar
++//
++func (P *Parser) Parse(mode int) *ast.Program {
+ 	if P.trace {
+ 		defer un(trace(P, "Program"));
+ 	}
+ 
+-	p := ast.NewProgram(P.loc);
+-	p.Ident = P.ParsePackageClause();
++	// package clause
++	comment := P.getLastComment();
++	loc := P.loc;
++	P.expect(token.PACKAGE);
++	name := P.parseIdent();
++	var decls []ast.Decl;
+ 
+-	// package body
+-	list := P.parseImportDecls();
+-	for P.tok != token.EOF {
+-		list.Push(P.parseDeclaration());
+-		if P.tok == token.SEMICOLON {
+-			P.next();
++	if mode <= ParseImportDeclsOnly {
++		// import decls
++		list := vector.New(0);
++		for P.tok == token.IMPORT {
++			list.Push(P.parseDecl(token.IMPORT));
++			if P.tok == token.SEMICOLON {
++				P.next();
++			}
+ 		}
+-	}
+ 
+-	// convert list
+-	p.Decls = make([]ast.Decl, list.Len());
+-	for i := 0; i < list.Len(); i++ {
+-		p.Decls[i] = list.At(i).(ast.Decl);
+-	}
++		if mode <= ParseEntirePackage {
++			// rest of package body
++			for P.tok != token.EOF {
++				list.Push(P.parseDeclaration());
++				if P.tok == token.SEMICOLON {
++					P.next();
++				}
++			}
++		}
+ 
+-	p.Comments = P.Comments();
++		// convert list
++		decls = make([]ast.Decl, list.Len());
++		for i := 0; i < list.Len(); i++ {
++			decls[i] = list.At(i).(ast.Decl);
++		}
++	}
+ 
+-	return p;
++	return &ast.Program{loc, name, decls, comment, P.getComments()};
+ }
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 4e9593039c..c87617b714 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -53,7 +53,7 @@ func main() {
+ 				sys.Exit(1);
+ 			}
+ 			if !*silent {
+-				Printer.Print(os.Stdout, *html, prog);
++				Printer.Print(os.Stdout, prog, *html);
+ 			}
+ 		}
+ 	}
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 57d7809f98..c975a35eff 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -24,12 +24,11 @@ import (
+ 
+ var (
+ 	debug = flag.Bool("debug", false, "print debugging information");
+-	def = flag.Bool("def", false, "print 'def' instead of 'const', 'type', 'func' - experimental");
+ 
+ 	// layout control
+ 	tabwidth = flag.Int("tabwidth", 8, "tab width");
+ 	usetabs = flag.Bool("usetabs", true, "align with tabs instead of blanks");
+-	newlines = flag.Bool("newlines", true, "respect newlines in source");
++	newlines = flag.Bool("newlines", false, "respect newlines in source");
+ 	maxnewlines = flag.Int("maxnewlines", 3, "max. number of consecutive newlines");
+ 
+ 	// formatting control
+@@ -63,6 +62,23 @@ func assert(pred bool) {
+ }
+ 
+ 
++// TODO this should be an AST method
++func isExported(name *ast.Ident) bool {
++	ch, len := utf8.DecodeRuneInString(name.Str, 0);
++	return unicode.IsUpper(ch);
++}
++
++
++func hasExportedNames(names []*ast.Ident) bool {
++	for i, name := range names {
++		if isExported(name) {
++			return true;
++		}
++	}
++	return false;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Printer
+ 
+@@ -91,14 +107,15 @@ type Printer struct {
+ 	
+ 	// formatting control
+ 	html bool;
++	full bool;  // if false, print interface only; print all otherwise
+ 
+ 	// comments
+-	comments []*ast.Comment;  // the list of all comments
+-	cindex int;  // the current comments index
+-	cpos int;  // the position of the next comment
++	comments []ast.CommentGroup;  // the list of all comments groups
++	cindex int;  // the current comment group index
++	cloc scanner.Location;  // the position of the next comment group
+ 
+ 	// current state
+-	lastpos int;  // pos after last string
++	lastloc scanner.Location;  // location after last string
+ 	level int;  // scope level
+ 	indentation int;  // indentation level (may be different from scope level)
+ 
+@@ -116,22 +133,22 @@ type Printer struct {
+ }
+ 
+ 
+-func (P *Printer) HasComment(pos int) bool {
+-	return *comments && P.cpos < pos;
++func (P *Printer) hasComment(loc scanner.Location) bool {
++	return *comments && P.cloc.Pos < loc.Pos;
+ }
+ 
+ 
+-func (P *Printer) NextComment() {
++func (P *Printer) nextCommentGroup() {
+ 	P.cindex++;
+ 	if P.comments != nil && P.cindex < len(P.comments) {
+-		P.cpos = P.comments[P.cindex].Loc.Pos;
++		P.cloc = P.comments[P.cindex][0].Loc;
+ 	} else {
+-		P.cpos = 1<<30;  // infinite
++		P.cloc = scanner.Location{1<<30, 1<<30, 1};  // infinite
+ 	}
+ }
+ 
+ 
+-func (P *Printer) Init(text io.Write, html bool, comments []*ast.Comment) {
++func (P *Printer) Init(text io.Write, comments []ast.CommentGroup, html bool) {
+ 	// writers
+ 	P.text = text;
+ 	
+@@ -141,7 +158,7 @@ func (P *Printer) Init(text io.Write, html bool, comments []*ast.Comment) {
+ 	// comments
+ 	P.comments = comments;
+ 	P.cindex = -1;
+-	P.NextComment();
++	P.nextCommentGroup();
+ 
+ 	// formatting parameters & semantic state initialized correctly by default
+ 	
+@@ -194,14 +211,15 @@ func (P *Printer) Printf(format string, s ...) {
+ }
+ 
+ 
+-func (P *Printer) Newline(n int) {
++func (P *Printer) newline(n int) {
+ 	if n > 0 {
+ 		m := int(*maxnewlines);
+ 		if n > m {
+ 			n = m;
+ 		}
+-		for ; n > 0; n-- {
++		for n > 0 {
+ 			P.Printf("\n");
++			n--;
+ 		}
+ 		for i := P.indentation; i > 0; i-- {
+ 			P.Printf("\t");
+@@ -214,7 +232,7 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
+ 	// use estimate for pos if we don't have one
+ 	pos := loc.Pos;
+ 	if pos == 0 {
+-		pos = P.lastpos;
++		pos = P.lastloc.Pos;
+ 	}
+ 
+ 	// --------------------------------
+@@ -252,26 +270,22 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
+ 	// --------------------------------
+ 	// interleave comments, if any
+ 	nlcount := 0;
+-	for ; P.HasComment(pos); P.NextComment() {
+-		// we have a comment/newline that comes before the string
+-		comment := P.comments[P.cindex];
+-		ctext := string(comment.Text);  // TODO get rid of string conversion here
+-
+-		if ctext == "\n" {
+-			// found a newline in src - count it
+-			nlcount++;
++	if P.full {
++		for ; P.hasComment(loc); P.nextCommentGroup() {
++			// we have a comment group that comes before the string
++			comment := P.comments[P.cindex][0];  // TODO broken
++			ctext := string(comment.Text);  // TODO get rid of string conversion here
+ 
+-		} else {
+ 			// classify comment (len(ctext) >= 2)
+ 			//-style comment
+-			if nlcount > 0 || P.cpos == 0 {
++			if nlcount > 0 || P.cloc.Pos == 0 {
+ 				// only white space before comment on this line
+ 				// or file starts with comment
+ 				// - indent
+-				if !*newlines && P.cpos != 0 {
++				if !*newlines && P.cloc.Pos != 0 {
+ 					nlcount = 1;
+ 				}
+-				P.Newline(nlcount);
++				P.newline(nlcount);
+ 				nlcount = 0;
+ 
+ 			} else {
+@@ -304,23 +318,16 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
+ 
+ 			// print comment
+ 			if *debug {
+-				P.Printf("[%d]", P.cpos);
++				P.Printf("[%d]", P.cloc.Pos);
+ 			}
+ 			// calling untabify increases the change for idempotent output
+ 			// since tabs in comments are also interpreted by tabwriter
+ 			P.Printf("%s", P.htmlEscape(untabify(ctext)));
+-
+-			if ctext[1] == '/' {
+-				//-style comments must end in newline
+-				if P.newlines == 0 {  // don't add newlines if not needed
+-					P.newlines = 1;
+-				}
+-			}
+ 		}
++		// At this point we may have nlcount > 0: In this case we found newlines
++		// that were not followed by a comment. They are recognized (or not) when
++		// printing newlines below.
+ 	}
+-	// At this point we may have nlcount > 0: In this case we found newlines
+-	// that were not followed by a comment. They are recognized (or not) when
+-	// printing newlines below.
+ 
+ 	// --------------------------------
+ 	// interpret state
+@@ -346,7 +353,7 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
+ 		P.newlines = nlcount;
+ 	}
+ 	nlcount = 0;
+-	P.Newline(P.newlines);
++	P.newline(P.newlines);
+ 	P.newlines = 0;
+ 
+ 	// --------------------------------
+@@ -375,7 +382,9 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
+ 	// --------------------------------
+ 	// done
+ 	P.opt_semi = false;
+-	P.lastpos = pos + len(s);  // rough estimate
++	loc.Pos += len(s);  // rough estimate
++	loc.Col += len(s);  // rough estimate
++	P.lastloc = loc;
+ }
+ 
+ 
+@@ -437,15 +446,20 @@ func (P *Printer) HtmlPackageName(loc scanner.Location, name string) {
+ 
+ func (P *Printer) Expr(x ast.Expr)
+ 
+-func (P *Printer) Idents(list []*ast.Ident) {
++func (P *Printer) Idents(list []*ast.Ident, full bool) int {
++	n := 0;
+ 	for i, x := range list {
+-		if i > 0 {
++		if n > 0 {
+ 			P.Token(noloc, token.COMMA);
+ 			P.separator = blank;
+ 			P.state = inside_list;
+ 		}
+-		P.Expr(x);
++		if full || isExported(x) {
++			P.Expr(x);
++			n++;
++		}
+ 	}
++	return n;
+ }
+ 
+ 
+@@ -456,8 +470,8 @@ func (P *Printer) Parameters(list []*ast.Field) {
+ 			if i > 0 {
+ 				P.separator = comma;
+ 			}
+-			if len(par.Idents) > 0 {
+-				P.Idents(par.Idents);
++			n := P.Idents(par.Idents, true);
++			if n > 0 {
+ 				P.separator = blank
+ 			};
+ 			P.Expr(par.Typ);
+@@ -501,21 +515,25 @@ func (P *Printer) Fields(list []*ast.Field, end scanner.Location, is_interface b
+ 				P.separator = semicolon;
+ 				P.newlines = 1;
+ 			}
+-			if len(fld.Idents) > 0 {
+-				P.Idents(fld.Idents);
++			n := P.Idents(fld.Idents, P.full);
++			if n > 0 {
++				// at least one identifier
+ 				P.separator = tab
+ 			};
+-			if is_interface {
+-				if ftyp, is_ftyp := fld.Typ.(*ast.FunctionType); is_ftyp {
+-					P.Signature(ftyp.Sig);
++			if n > 0 || len(fld.Idents) == 0 {
++				// at least one identifier or anonymous field
++				if is_interface {
++					if ftyp, is_ftyp := fld.Typ.(*ast.FunctionType); is_ftyp {
++						P.Signature(ftyp.Sig);
++					} else {
++						P.Expr(fld.Typ);
++					}
+ 				} else {
+ 					P.Expr(fld.Typ);
+-				}
+-			} else {
+-				P.Expr(fld.Typ);
+-				if fld.Tag != nil {
+-					P.separator = tab;
+-					P.Expr(fld.Tag);
++					if fld.Tag != nil {
++						P.separator = tab;
++						P.Expr(fld.Tag);
++					}
+ 				}
+ 			}
+ 		}
+@@ -977,7 +995,7 @@ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
+ 		P.Token(d.Loc, token.CONST);
+ 		P.separator = blank;
+ 	}
+-	P.Idents(d.Idents);
++	P.Idents(d.Idents, P.full);
+ 	if d.Typ != nil {
+ 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
+ 		P.Expr(d.Typ);
+@@ -1009,7 +1027,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
+ 		P.Token(d.Loc, token.VAR);
+ 		P.separator = blank;
+ 	}
+-	P.Idents(d.Idents);
++	P.Idents(d.Idents, P.full);
+ 	if d.Typ != nil {
+ 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
+ 		P.Expr(d.Typ);
+@@ -1025,7 +1043,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
+ }
+ 
+ 
+-func (P *Printer) funcDecl(d *ast.FuncDecl, with_body bool) {
++func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
+ 	P.Token(d.Loc, token.FUNC);
+ 	P.separator = blank;
+ 	if recv := d.Recv; recv != nil {
+@@ -1041,7 +1059,7 @@ func (P *Printer) funcDecl(d *ast.FuncDecl, with_body bool) {
+ 	}
+ 	P.Expr(d.Ident);
+ 	P.Signature(d.Sig);
+-	if with_body && d.Body != nil {
++	if P.full && d.Body != nil {
+ 		P.separator = blank;
+ 		P.Block(d.Body, true);
+ 	}
+@@ -1049,17 +1067,8 @@ func (P *Printer) funcDecl(d *ast.FuncDecl, with_body bool) {
+ }
+ 
+ 
+-func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
+-	P.funcDecl(d, true);
+-}
+-
+-
+ func (P *Printer) DoDeclList(d *ast.DeclList) {
+-	if !*def || d.Tok == token.IMPORT || d.Tok == token.VAR {
+-		P.Token(d.Loc, d.Tok);
+-	} else {
+-		P.String(d.Loc, "def");
+-	}
++	P.Token(d.Loc, d.Tok);
+ 	P.separator = blank;
+ 
+ 	// group of parenthesized declarations
+@@ -1090,26 +1099,111 @@ func (P *Printer) Decl(d ast.Decl) {
+ // ----------------------------------------------------------------------------
+ // Package interface
+ 
+-// TODO this should be an AST method
+-func isExported(name *ast.Ident) bool {
+-	ch, len := utf8.DecodeRuneInString(name.Str, 0);
+-	return unicode.IsUpper(ch);
++func stripWhiteSpace(s []byte) []byte {
++	i, j := 0, len(s);
++	for i < len(s) && s[i] <= ' ' {
++		i++;
++	}
++	for j > i && s[j-1] <= ' ' {
++		j--
++	}
++	return s[i : j];
++}
++
++
++func cleanComment(s []byte) []byte {
++	switch s[1] {
++	case '/': s = s[2 : len(s)-1];
++	case '*': s = s[2 : len(s)-2];
++	default : panic("illegal comment");
++	}
++	return stripWhiteSpace(s);
++}
++
++
++func (P *Printer) printComment(comment ast.CommentGroup) {
++	in_paragraph := false;
++	for i, c := range comment {
++		s := cleanComment(c.Text);
++		if len(s) > 0 {
++			if !in_paragraph {
++				P.Printf("<p>\n");
++				in_paragraph = true;
++			}
++			P.Printf("%s\n", P.htmlEscape(untabify(string(s))));
++		} else {
++			if in_paragraph {
++				P.Printf("</p>\n");
++				in_paragraph = false;
++			}
++		}
++	}
++	if in_paragraph {
++		P.Printf("</p>\n");
++	}
+ }
+ 
+ 
+ func (P *Printer) Interface(p *ast.Program) {
++	P.full = false;
+ 	for i := 0; i < len(p.Decls); i++ {
+ 		switch d := p.Decls[i].(type) {
++		case *ast.ConstDecl:
++			if hasExportedNames(d.Idents) {
++				P.Printf("<h2>Constants</h2>\n");
++				P.Printf("<p><pre>");
++				P.DoConstDecl(d);
++				P.String(noloc, "");
++				P.Printf("</pre></p>\n");
++				if d.Comment != nil {
++					P.printComment(d.Comment);
++				}
++			}
++
++		case *ast.TypeDecl:
++			if isExported(d.Ident) {
++				P.Printf("<h2>type %s</h2>\n", d.Ident.Str);
++				P.Printf("<p><pre>");
++				P.DoTypeDecl(d);
++				P.String(noloc, "");
++				P.Printf("</pre></p>\n");
++				if d.Comment != nil {
++					P.printComment(d.Comment);
++				}
++			}
++
++		case *ast.VarDecl:
++			if hasExportedNames(d.Idents) {
++				P.Printf("<h2>Variables</h2>\n");
++				P.Printf("<p><pre>");
++				P.DoVarDecl(d);
++				P.String(noloc, "");
++				P.Printf("</pre></p>\n");
++				if d.Comment != nil {
++					P.printComment(d.Comment);
++				}
++			}
++
+ 		case *ast.FuncDecl:
+ 			if isExported(d.Ident) {
+-				P.Printf("<h2>%s</h2>\n", d.Ident.Str);
+-				/*
++				if d.Recv != nil {
++					P.Printf("<h3>func (");
++					P.Expr(d.Recv.Typ);
++					P.Printf(") %s</h3>\n", d.Ident.Str);
++				} else {
++					P.Printf("<h2>func %s</h2>\n", d.Ident.Str);
++				}
+ 				P.Printf("<p><code>");
+-				P.funcDecl(d, false);
++				P.DoFuncDecl(d);
+ 				P.String(noloc, "");
+-				P.Printf("</code></p>");
+-				*/
++				P.Printf("</code></p>\n");
++				if d.Comment != nil {
++					P.printComment(d.Comment);
++				}
+ 			}
++			
++		case *ast.DeclList:
++			
+ 		}
+ 	}
+ }
+@@ -1119,6 +1213,7 @@ func (P *Printer) Interface(p *ast.Program) {
+ // Program
+ 
+ func (P *Printer) Program(p *ast.Program) {
++	P.full = true;
+ 	P.Token(p.Loc, token.PACKAGE);
+ 	P.separator = blank;
+ 	P.Expr(p.Ident);
+@@ -1140,7 +1235,7 @@ func init() {
+ }
+ 
+ 
+-func Print(writer io.Write, html bool, prog *ast.Program) {
++func Print(writer io.Write, prog *ast.Program, html bool) {
+ 	// setup
+ 	var P Printer;
+ 	padchar := byte(' ');
+@@ -1152,13 +1247,14 @@ func Print(writer io.Write, html bool, prog *ast.Program) {
+ 		flags |= tabwriter.FilterHTML;
+ 	}
+ 	text := tabwriter.NewWriter(writer, *tabwidth, 1, padchar, flags);
+-	P.Init(text, html, prog.Comments);
++	P.Init(text, nil /* prog.Comments */, html);
+ 
+ 	if P.html {
+ 		err := templ.Apply(text, "<!--", template.Substitution {
+-			"PACKAGE-->" : func() { P.Printf("%s", prog.Ident.Str); },
+-			"INTERFACE-->" : func() { P.Interface(prog); },
+-			"BODY-->" : func() { P.Program(prog); },
++			"PACKAGE_NAME-->" : func() { P.Printf("%s", prog.Ident.Str); },
++			"PACKAGE_COMMENT-->": func() { P.printComment(prog.Comment); },
++			"PACKAGE_INTERFACE-->" : func() { P.Interface(prog); },
++			"PACKAGE_BODY-->" : func() { P.Program(prog); },
+ 		});
+ 		if err != nil {
+ 			panic("print error - exiting");
+diff --git a/usr/gri/pretty/template.html b/usr/gri/pretty/template.html
+index 05adcd1e2f..617b4562be 100644
+--- a/usr/gri/pretty/template.html
++++ b/usr/gri/pretty/template.html
+@@ -1,14 +1,16 @@
+ 
+-<h1>package <!--PACKAGE--></h1>
++<font color=red>THIS SECTION IS CURRENTLY UNDER CONSTRUCTION</font>
+ 
+-<!--INTERFACE-->
++<h1>package <!--PACKAGE_NAME--></h1>
++<!--PACKAGE_COMMENT-->
++<!--PACKAGE_INTERFACE-->
+ 
+ <hr />
+-
+-<h1>package <!--PACKAGE--></h1>
++<h1>Implementation</h1>
++<font color=grey>Comments are currently not shown in the source.</font>
+ 
+ <pre>
+-<!--BODY-->
++<!--PACKAGE_BODY-->
+ </pre>
+ 
+ </div>  <!-- content -->

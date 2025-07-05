@@ -14,7 +14,43 @@ Date:   Sun Oct 9 21:06:03 2016 +0200
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/fmt/fmt_test.go | 5 ++++-
  src/fmt/print.go    | 8 ++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 8c1c02158e..6f8c1550a0 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -605,7 +605,10 @@ var fmtTests = []struct {
+ 	{"%x", I(23), `3c32333e`},
+ 	{"%#x", I(23), `0x3c32333e`},
+ 	{"%# x", I(23), `0x3c 0x32 0x33 0x3e`},
+-	{"%d", I(23), `23`}, // Stringer applies only to string formats.
++	// Stringer applies only to string formats.
++	{"%d", I(23), `23`},
++	// Stringer applies to the extracted value.
++	{"%s", reflect.ValueOf(I(23)), `<23>`},
+ 
+ 	// go syntax
+ 	{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index f8c731656e..75301a238e 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -659,6 +659,14 @@ func (p *pp) printArg(arg interface{}, verb rune) {
+ 	case []byte:
+ 		p.fmtBytes(f, verb, "[]byte")
+ 	case reflect.Value:
++		// Handle extractable values with special methods
++		// since printValue does not handle them at depth 0.
++		if f.IsValid() && f.CanInterface() {
++			p.arg = f.Interface()
++			if p.handleMethods(verb) {
++				return
++			}
++		}
+ 		p.printValue(f, verb, 0)
+ 	default:
+ 		// If the type is not simple, it might have methods.

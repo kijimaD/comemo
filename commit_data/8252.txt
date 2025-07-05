@@ -9,7 +9,7 @@ Date:   Wed Apr 27 23:21:03 2011 -0400
     R=iant
     CC=golang-dev
     https://golang.org/cl/4444064
-
+---
  src/cmd/5l/l.h            |   1 +
  src/cmd/6l/asm.c          |  39 +++++++++++-
  src/cmd/6l/l.h            |   1 +
@@ -25,3 +25,1007 @@ Date:   Wed Apr 27 23:21:03 2011 -0400
  src/pkg/debug/elf/elf.go  |  65 ++++++++++++--------
  src/pkg/debug/elf/file.go | 149 ++++++++++++++++++++++++++++++++++++++--------
  14 files changed, 451 insertions(+), 116 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index cf5a9990b9..f3c9d839de 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -156,6 +156,7 @@ struct	Sym
+ 	char*	file;
+ 	char*	dynimpname;
+ 	char*	dynimplib;
++	char*	dynimpvers;
+ 	
+ 	// STEXT
+ 	Auto*	autom;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index bc76ce3442..dda19e48d0 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -95,6 +95,8 @@ enum {
+ 	ElfStrStrtab,
+ 	ElfStrRelaPlt,
+ 	ElfStrPlt,
++	ElfStrGnuVersion,
++	ElfStrGnuVersionR,
+ 	NElfStr
+ };
+ 
+@@ -436,6 +438,7 @@ adddynsym(Sym *s)
+ 		s->dynid = nelfsym++;
+ 
+ 		d = lookup(".dynsym", 0);
++
+ 		name = s->dynimpname;
+ 		if(name == nil)
+ 			name = s->name;
+@@ -586,6 +589,8 @@ doelf(void)
+ 		elfstr[ElfStrRela] = addstring(shstrtab, ".rela");
+ 		elfstr[ElfStrRelaPlt] = addstring(shstrtab, ".rela.plt");
+ 		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
++		elfstr[ElfStrGnuVersion] = addstring(shstrtab, ".gnu.version");
++		elfstr[ElfStrGnuVersionR] = addstring(shstrtab, ".gnu.version_r");
+ 
+ 		/* dynamic symbol table - first entry all zeros */
+ 		s = lookup(".dynsym", 0);
+@@ -629,6 +634,14 @@ doelf(void)
+ 		s = lookup(".rela.plt", 0);
+ 		s->reachable = 1;
+ 		s->type = SELFDATA;
++		
++		s = lookup(".gnu.version", 0);
++		s->reachable = 1;
++		s->type = SELFDATA;
++		
++		s = lookup(".gnu.version_r", 0);
++		s->reachable = 1;
++		s->type = SELFDATA;
+ 
+ 		/* define dynamic elf table */
+ 		s = lookup(".dynamic", 0);
+@@ -653,7 +666,8 @@ doelf(void)
+ 		elfwritedynent(s, DT_PLTREL, DT_RELA);
+ 		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rela.plt", 0));
+ 		elfwritedynentsym(s, DT_JMPREL, lookup(".rela.plt", 0));
+-		elfwritedynent(s, DT_NULL, 0);
++		
++		// Do not write DT_NULL.  elfdynhash will finish it.
+ 	}
+ }
+ 
+@@ -735,8 +749,11 @@ asmb(void)
+ 		/* index of elf text section; needed by asmelfsym, double-checked below */
+ 		/* !debug['d'] causes extra sections before the .text section */
+ 		elftextsh = 1;
+-		if(!debug['d'])
++		if(!debug['d']) {
+ 			elftextsh += 10;
++			if(elfverneed)
++				elftextsh += 2;
++		}
+ 		break;
+ 	case Hwindows:
+ 		break;
+@@ -920,6 +937,24 @@ asmb(void)
+ 			sh->addralign = 1;
+ 			shsym(sh, lookup(".dynstr", 0));
+ 
++			if(elfverneed) {
++				sh = newElfShdr(elfstr[ElfStrGnuVersion]);
++				sh->type = SHT_GNU_VERSYM;
++				sh->flags = SHF_ALLOC;
++				sh->addralign = 2;
++				sh->link = dynsym;
++				sh->entsize = 2;
++				shsym(sh, lookup(".gnu.version", 0));
++				
++				sh = newElfShdr(elfstr[ElfStrGnuVersionR]);
++				sh->type = SHT_GNU_VERNEED;
++				sh->flags = SHF_ALLOC;
++				sh->addralign = 8;
++				sh->info = elfverneed;
++				sh->link = dynsym+1;  // dynstr
++				shsym(sh, lookup(".gnu.version_r", 0));
++			}
++
+ 			sh = newElfShdr(elfstr[ElfStrRelaPlt]);
+ 			sh->type = SHT_RELA;
+ 			sh->flags = SHF_ALLOC;
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 4fc13b94ae..33ca51b2c8 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -148,6 +148,7 @@ struct	Sym
+ 	char*	file;
+ 	char*	dynimpname;
+ 	char*	dynimplib;
++	char*	dynimpvers;
+ 	
+ 	// STEXT
+ 	Auto*	autom;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index b9bd0dae99..f28b8d9049 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -91,6 +91,8 @@ enum {
+ 	ElfStrStrtab,
+ 	ElfStrRelPlt,
+ 	ElfStrPlt,
++	ElfStrGnuVersion,
++	ElfStrGnuVersionR,
+ 	NElfStr
+ };
+ 
+@@ -420,7 +422,7 @@ adddynsym(Sym *s)
+ 		s->dynid = nelfsym++;
+ 		
+ 		d = lookup(".dynsym", 0);
+-		
++
+ 		/* name */
+ 		name = s->dynimpname;
+ 		if(name == nil)
+@@ -545,6 +547,8 @@ doelf(void)
+ 		elfstr[ElfStrRel] = addstring(shstrtab, ".rel");
+ 		elfstr[ElfStrRelPlt] = addstring(shstrtab, ".rel.plt");
+ 		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
++		elfstr[ElfStrGnuVersion] = addstring(shstrtab, ".gnu.version");
++		elfstr[ElfStrGnuVersionR] = addstring(shstrtab, ".gnu.version_r");
+ 
+ 		/* interpreter string */
+ 		s = lookup(".interp", 0);
+@@ -592,6 +596,14 @@ doelf(void)
+ 		s = lookup(".rel.plt", 0);
+ 		s->reachable = 1;
+ 		s->type = SELFDATA;
++		
++		s = lookup(".gnu.version", 0);
++		s->reachable = 1;
++		s->type = SELFDATA;
++		
++		s = lookup(".gnu.version_r", 0);
++		s->reachable = 1;
++		s->type = SELFDATA;
+ 
+ 		elfsetupplt();
+ 
+@@ -617,7 +629,8 @@ doelf(void)
+ 		elfwritedynent(s, DT_PLTREL, DT_REL);
+ 		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rel.plt", 0));
+ 		elfwritedynentsym(s, DT_JMPREL, lookup(".rel.plt", 0));
+-		elfwritedynent(s, DT_NULL, 0);
++
++		// Do not write DT_NULL.  elfdynhash will finish it.
+ 	}
+ }
+ 
+@@ -681,8 +694,11 @@ asmb(void)
+ 		/* index of elf text section; needed by asmelfsym, double-checked below */
+ 		/* !debug['d'] causes extra sections before the .text section */
+ 		elftextsh = 1;
+-		if(!debug['d'])
++		if(!debug['d']) {
+ 			elftextsh += 10;
++			if(elfverneed)
++				elftextsh += 2;
++		}
+ 	}
+ 
+ 	symsize = 0;
+@@ -966,6 +982,24 @@ asmb(void)
+ 			sh->addralign = 1;
+ 			shsym(sh, lookup(".dynstr", 0));
+ 			
++			if(elfverneed) {
++				sh = newElfShdr(elfstr[ElfStrGnuVersion]);
++				sh->type = SHT_GNU_VERSYM;
++				sh->flags = SHF_ALLOC;
++				sh->addralign = 2;
++				sh->link = dynsym;
++				sh->entsize = 2;
++				shsym(sh, lookup(".gnu.version", 0));
++
++				sh = newElfShdr(elfstr[ElfStrGnuVersionR]);
++				sh->type = SHT_GNU_VERNEED;
++				sh->flags = SHF_ALLOC;
++				sh->addralign = 4;
++				sh->info = elfverneed;
++				sh->link = dynsym+1;  // dynstr
++				shsym(sh, lookup(".gnu.version_r", 0));
++			}
++
+ 			sh = newElfShdr(elfstr[ElfStrRelPlt]);
+ 			sh->type = SHT_REL;
+ 			sh->flags = SHF_ALLOC;
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index ac0f3953f0..8f39ef519d 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -147,6 +147,7 @@ struct	Sym
+ 	char*	file;
+ 	char*	dynimpname;
+ 	char*	dynimplib;
++	char*	dynimpvers;
+ 	
+ 	// STEXT
+ 	Auto*	autom;
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index d78a72a2b7..0e51101f12 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -534,6 +534,32 @@ out:
+ 		print("%s incomplete\n", s->name);
+ }
+ 
++Sym*
++getimpsym(void)
++{
++	int c;
++	char *cp;
++
++	c = getnsc();
++	if(isspace(c) || c == '"') {
++		unget(c);
++		return S;
++	}
++	for(cp = symb;;) {
++		if(cp <= symb+NSYMB-4)
++			*cp++ = c;
++		c = getc();
++		if(c > 0 && !isspace(c) && c != '"')
++			continue;
++		unget(c);
++		break;
++	}
++	*cp = 0;
++	if(cp > symb+NSYMB-4)
++		yyerror("symbol too large: %s", symb);
++	return lookup();
++}
++
+ void
+ pragdynimport(void)
+ {
+@@ -541,11 +567,11 @@ pragdynimport(void)
+ 	char *path;
+ 	Dynimp *f;
+ 
+-	local = getsym();
++	local = getimpsym();
+ 	if(local == nil)
+ 		goto err;
+ 
+-	remote = getsym();
++	remote = getimpsym();
+ 	if(remote == nil)
+ 		goto err;
+ 
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index 35740e9852..ca8a54c0bc 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -63,7 +63,7 @@ getsym(void)
+ 		if(cp <= symb+NSYMB-4)
+ 			*cp++ = c;
+ 		c = getc();
+-		if(isalnum(c) || c == '_' || c >= 0x80 || c == '$')
++		if(isalnum(c) || c == '_' || c >= 0x80)
+ 			continue;
+ 		unget(c);
+ 		break;
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 00ffc45063..84aeccc217 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -20,7 +20,6 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"strings"
+-	"runtime"
+ )
+ 
+ // A Package collects information about the package we're going to write.
+@@ -135,20 +134,7 @@ func main() {
+ 		// instead of needing to make the linkers duplicate all the
+ 		// specialized knowledge gcc has about where to look for imported
+ 		// symbols and which ones to use.
+-		syms, imports := dynimport(*dynobj)
+-		if runtime.GOOS == "windows" {
+-			for _, sym := range syms {
+-				ss := strings.Split(sym, ":", -1)
+-				fmt.Printf("#pragma dynimport %s %s %q\n", ss[0], ss[0], strings.ToLower(ss[1]))
+-			}
+-			return
+-		}
+-		for _, sym := range syms {
+-			fmt.Printf("#pragma dynimport %s %s %q\n", sym, sym, "")
+-		}
+-		for _, p := range imports {
+-			fmt.Printf("#pragma dynimport %s %s %q\n", "_", "_", p)
+-		}
++		dynimport(*dynobj)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index bbc319f103..bc031cc58c 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -95,42 +95,63 @@ func (p *Package) writeDefs() {
+ 	fc.Close()
+ }
+ 
+-func dynimport(obj string) (syms, imports []string) {
+-	var f interface {
+-		ImportedLibraries() ([]string, os.Error)
+-		ImportedSymbols() ([]string, os.Error)
+-	}
+-	var isMacho bool
+-	var err1, err2, err3 os.Error
+-	if f, err1 = elf.Open(obj); err1 != nil {
+-		if f, err2 = pe.Open(obj); err2 != nil {
+-			if f, err3 = macho.Open(obj); err3 != nil {
+-				fatalf("cannot parse %s as ELF (%v) or PE (%v) or Mach-O (%v)", obj, err1, err2, err3)
++func dynimport(obj string) {
++	if f, err := elf.Open(obj); err == nil {
++		sym, err := f.ImportedSymbols()
++		if err != nil {
++			fatalf("cannot load imported symbols from ELF file %s: %v", obj, err)
++		}
++		for _, s := range sym {
++			targ := s.Name
++			if s.Version != "" {
++				targ += "@" + s.Version
+ 			}
+-			isMacho = true
++			fmt.Printf("#pragma dynimport %s %s %q\n", s.Name, targ, s.Library)
++		}
++		lib, err := f.ImportedLibraries()
++		if err != nil {
++			fatalf("cannot load imported libraries from ELF file %s: %v", obj, err)
++		}
++		for _, l := range lib {
++			fmt.Printf("#pragma dynimport _ _ %q\n", l)
+ 		}
++		return
+ 	}
+ 
+-	var err os.Error
+-	syms, err = f.ImportedSymbols()
+-	if err != nil {
+-		fatalf("cannot load dynamic symbols: %v", err)
+-	}
+-	if isMacho {
+-		// remove leading _ that OS X insists on
+-		for i, s := range syms {
+-			if len(s) >= 2 && s[0] == '_' {
+-				syms[i] = s[1:]
++	if f, err := macho.Open(obj); err == nil {
++		sym, err := f.ImportedSymbols()
++		if err != nil {
++			fatalf("cannot load imported symbols from Mach-O file %s: %v", obj, err)
++		}
++		for _, s := range sym {
++			if len(s) > 0 && s[0] == '_' {
++				s = s[1:]
+ 			}
++			fmt.Printf("#pragma dynimport %s %s %q\n", s, s, "")
+ 		}
++		lib, err := f.ImportedLibraries()
++		if err != nil {
++			fatalf("cannot load imported libraries from Mach-O file %s: %v", obj, err)
++		}
++		for _, l := range lib {
++			fmt.Printf("#pragma dynimport _ _ %q\n", l)
++		}
++		return
+ 	}
+ 
+-	imports, err = f.ImportedLibraries()
+-	if err != nil {
+-		fatalf("cannot load dynamic imports: %v", err)
++	if f, err := pe.Open(obj); err == nil {
++		sym, err := f.ImportedSymbols()
++		if err != nil {
++			fatalf("cannot load imported symbols from PE file %s: v", obj, err)
++		}
++		for _, s := range sym {
++			ss := strings.Split(s, ":", -1)
++			fmt.Printf("#pragma dynimport %s %s %q\n", ss[0], ss[0], strings.ToLower(ss[1]))
++		}
++		return
+ 	}
+ 
+-	return
++	fatalf("cannot parse %s as ELF, Mach-O or PE", obj)
+ }
+ 
+ // Construct a gcc struct matching the 6c argument frame.
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index b0cce4985d..fc917b203b 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -331,17 +331,62 @@ elfinterp(ElfShdr *sh, uint64 startva, char *p)
+ }
+ 
+ extern int nelfsym;
++int elfverneed;
++
++typedef struct Elfaux Elfaux;
++typedef struct Elflib Elflib;
++
++struct Elflib
++{
++	Elflib *next;
++	Elfaux *aux;
++	char *file;
++};
++
++struct Elfaux
++{
++	Elfaux *next;
++	int num;
++	char *vers;
++};
++
++Elfaux*
++addelflib(Elflib **list, char *file, char *vers)
++{
++	Elflib *lib;
++	Elfaux *aux;
++	
++	for(lib=*list; lib; lib=lib->next)
++		if(strcmp(lib->file, file) == 0)
++			goto havelib;
++	lib = mal(sizeof *lib);
++	lib->next = *list;
++	lib->file = file;
++	*list = lib;
++havelib:
++	for(aux=lib->aux; aux; aux=aux->next)
++		if(strcmp(aux->vers, vers) == 0)
++			goto haveaux;
++	aux = mal(sizeof *aux);
++	aux->next = lib->aux;
++	aux->vers = vers;
++	lib->aux = aux;
++haveaux:
++	return aux;
++}
+ 
+ void
+ elfdynhash(void)
+ {
+-	Sym *s, *sy;
+-	int i, nbucket, b;
+-	uchar *pc;
+-	uint32 hc, g;
+-	uint32 *chain, *buckets;
++	Sym *s, *sy, *dynstr;
++	int i, j, nbucket, b, nfile;
++	uint32 hc, *chain, *buckets;
+ 	int nsym;
+ 	char *name;
++	Elfaux **need;
++	Elflib *needlib;
++	Elflib *l;
++	Elfaux *x;
+ 	
+ 	if(!iself)
+ 		return;
+@@ -358,29 +403,29 @@ elfdynhash(void)
+ 		i >>= 1;
+ 	}
+ 
+-	chain = malloc(nsym * sizeof(uint32));
+-	buckets = malloc(nbucket * sizeof(uint32));
+-	if(chain == nil || buckets == nil) {
++	needlib = nil;
++	need = malloc(nsym * sizeof need[0]);
++	chain = malloc(nsym * sizeof chain[0]);
++	buckets = malloc(nbucket * sizeof buckets[0]);
++	if(need == nil || chain == nil || buckets == nil) {
+ 		cursym = nil;
+ 		diag("out of memory");
+ 		errorexit();
+ 	}
+-	memset(chain, 0, nsym * sizeof(uint32));
+-	memset(buckets, 0, nbucket * sizeof(uint32));
++	memset(need, 0, nsym * sizeof need[0]);
++	memset(chain, 0, nsym * sizeof chain[0]);
++	memset(buckets, 0, nbucket * sizeof buckets[0]);
+ 	for(sy=allsym; sy!=S; sy=sy->allsym) {
+ 		if (sy->dynid <= 0)
+ 			continue;
+ 
+-		hc = 0;
++		if(sy->dynimpvers)
++			need[sy->dynid] = addelflib(&needlib, sy->dynimplib, sy->dynimpvers);
++
+ 		name = sy->dynimpname;
+ 		if(name == nil)
+ 			name = sy->name;
+-		for(pc = (uchar*)name; *pc; pc++) {
+-			hc = (hc<<4) + *pc;
+-			g = hc & 0xf0000000;
+-			hc ^= g >> 24;
+-			hc &= ~g;
+-		}
++		hc = elfhash((uchar*)name);
+ 
+ 		b = hc % nbucket;
+ 		chain[sy->dynid] = buckets[b];
+@@ -396,8 +441,62 @@ elfdynhash(void)
+ 
+ 	free(chain);
+ 	free(buckets);
++	
++	// version symbols
++	dynstr = lookup(".dynstr", 0);
++	s = lookup(".gnu.version_r", 0);
++	i = 2;
++	nfile = 0;
++	for(l=needlib; l; l=l->next) {
++		nfile++;
++		// header
++		adduint16(s, 1);  // table version
++		j = 0;
++		for(x=l->aux; x; x=x->next)
++			j++;
++		adduint16(s, j);	// aux count
++		adduint32(s, addstring(dynstr, l->file));  // file string offset
++		adduint32(s, 16);  // offset from header to first aux
++		if(l->next)
++			adduint32(s, 16+j*16);  // offset from this header to next
++		else
++			adduint32(s, 0);
++		
++		for(x=l->aux; x; x=x->next) {
++			x->num = i++;
++			// aux struct
++			adduint32(s, elfhash((uchar*)x->vers));  // hash
++			adduint16(s, 0);  // flags
++			adduint16(s, x->num);  // other - index we refer to this by
++			adduint32(s, addstring(dynstr, x->vers));  // version string offset
++			if(x->next)
++				adduint32(s, 16);  // offset from this aux to next
++			else
++				adduint32(s, 0);
++		}
++	}
++
++	// version references
++	s = lookup(".gnu.version", 0);
++	for(i=0; i<nsym; i++) {
++		if(i == 0)
++			adduint16(s, 0); // first entry - no symbol
++		else if(need[i] == nil)
++			adduint16(s, 1); // global
++		else
++			adduint16(s, need[i]->num);
++	}
+ 
+-	elfwritedynent(lookup(".dynamic", 0), DT_NULL, 0);
++	free(need);
++
++	s = lookup(".dynamic", 0);
++	elfverneed = nfile;
++	if(elfverneed) {
++		elfwritedynentsym(s, DT_VERNEED, lookup(".gnu.version_r", 0));
++		elfwritedynent(s, DT_VERNEEDNUM, nfile);
++		elfwritedynentsym(s, DT_VERSYM, lookup(".gnu.version", 0));
++	}
++	elfwritedynent(s, DT_NULL, 0);
+ }
+ 
+ ElfPhdr*
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index b27ae679b6..08583cc8f0 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -216,6 +216,9 @@ typedef struct {
+ #define SHT_SYMTAB_SHNDX	18	/* Section indexes (see SHN_XINDEX). */
+ #define SHT_LOOS	0x60000000	/* First of OS specific semantics */
+ #define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
++#define SHT_GNU_VERDEF	0x6ffffffd
++#define SHT_GNU_VERNEED	0x6ffffffe
++#define SHT_GNU_VERSYM	0x6fffffff
+ #define SHT_LOPROC	0x70000000	/* reserved range for processor */
+ #define SHT_HIPROC	0x7fffffff	/* specific section header types */
+ #define SHT_LOUSER	0x80000000	/* reserved range for application */
+@@ -311,6 +314,10 @@ typedef struct {
+ #define	DT_LOPROC	0x70000000	/* First processor-specific type. */
+ #define	DT_HIPROC	0x7fffffff	/* Last processor-specific type. */
+ 
++#define	DT_VERNEED	0x6ffffffe
++#define	DT_VERNEEDNUM	0x6fffffff
++#define	DT_VERSYM	0x6ffffff0
++
+ /* Values for DT_FLAGS */
+ #define	DF_ORIGIN	0x0001	/* Indicates that the object being loaded may
+ 				   make reference to the $ORIGIN substitution
+@@ -962,12 +969,14 @@ uint64	endelf(void);
+ extern	int	numelfphdr;
+ extern	int	numelfshdr;
+ extern	int	iself;
++extern	int	elfverneed;
+ int	elfwriteinterp(void);
+ void	elfinterp(ElfShdr*, uint64, char*);
+ void	elfdynhash(void);
+ ElfPhdr* elfphload(Segment*);
+ ElfShdr* elfshbits(Section*);
+ void	elfsetstring(char*, int);
++void	elfaddverneed(Sym*);
+ 
+ /*
+  * Total amount of space to reserve at the start of the file
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index b50b1a7a57..e52c5cb34d 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -412,7 +412,7 @@ parsemethod(char **pp, char *ep, char **methp)
+ static void
+ loaddynimport(char *file, char *pkg, char *p, int n)
+ {
+-	char *pend, *next, *name, *def, *p0, *lib;
++	char *pend, *next, *name, *def, *p0, *lib, *q;
+ 	Sym *s;
+ 
+ 	pend = p + n;
+@@ -459,10 +459,14 @@ loaddynimport(char *file, char *pkg, char *p, int n)
+ 		}
+ 
+ 		name = expandpkg(name, pkg);
++		q = strchr(def, '@');
++		if(q)
++			*q++ = '\0';
+ 		s = lookup(name, 0);
+ 		if(s->type == 0 || s->type == SXREF) {
+ 			s->dynimplib = lib;
+ 			s->dynimpname = def;
++			s->dynimpvers = q;
+ 			s->type = SDYNIMPORT;
+ 		}
+ 	}
+diff --git a/src/pkg/debug/elf/elf.go b/src/pkg/debug/elf/elf.go
+index 74e9799863..5d45b24863 100644
+--- a/src/pkg/debug/elf/elf.go
++++ b/src/pkg/debug/elf/elf.go
+@@ -330,29 +330,35 @@ func (i SectionIndex) GoString() string { return stringName(uint32(i), shnString
+ type SectionType uint32
+ 
+ const (
+-	SHT_NULL          SectionType = 0          /* inactive */
+-	SHT_PROGBITS      SectionType = 1          /* program defined information */
+-	SHT_SYMTAB        SectionType = 2          /* symbol table section */
+-	SHT_STRTAB        SectionType = 3          /* string table section */
+-	SHT_RELA          SectionType = 4          /* relocation section with addends */
+-	SHT_HASH          SectionType = 5          /* symbol hash table section */
+-	SHT_DYNAMIC       SectionType = 6          /* dynamic section */
+-	SHT_NOTE          SectionType = 7          /* note section */
+-	SHT_NOBITS        SectionType = 8          /* no space section */
+-	SHT_REL           SectionType = 9          /* relocation section - no addends */
+-	SHT_SHLIB         SectionType = 10         /* reserved - purpose unknown */
+-	SHT_DYNSYM        SectionType = 11         /* dynamic symbol table section */
+-	SHT_INIT_ARRAY    SectionType = 14         /* Initialization function pointers. */
+-	SHT_FINI_ARRAY    SectionType = 15         /* Termination function pointers. */
+-	SHT_PREINIT_ARRAY SectionType = 16         /* Pre-initialization function ptrs. */
+-	SHT_GROUP         SectionType = 17         /* Section group. */
+-	SHT_SYMTAB_SHNDX  SectionType = 18         /* Section indexes (see SHN_XINDEX). */
+-	SHT_LOOS          SectionType = 0x60000000 /* First of OS specific semantics */
+-	SHT_HIOS          SectionType = 0x6fffffff /* Last of OS specific semantics */
+-	SHT_LOPROC        SectionType = 0x70000000 /* reserved range for processor */
+-	SHT_HIPROC        SectionType = 0x7fffffff /* specific section header types */
+-	SHT_LOUSER        SectionType = 0x80000000 /* reserved range for application */
+-	SHT_HIUSER        SectionType = 0xffffffff /* specific indexes */
++	SHT_NULL           SectionType = 0          /* inactive */
++	SHT_PROGBITS       SectionType = 1          /* program defined information */
++	SHT_SYMTAB         SectionType = 2          /* symbol table section */
++	SHT_STRTAB         SectionType = 3          /* string table section */
++	SHT_RELA           SectionType = 4          /* relocation section with addends */
++	SHT_HASH           SectionType = 5          /* symbol hash table section */
++	SHT_DYNAMIC        SectionType = 6          /* dynamic section */
++	SHT_NOTE           SectionType = 7          /* note section */
++	SHT_NOBITS         SectionType = 8          /* no space section */
++	SHT_REL            SectionType = 9          /* relocation section - no addends */
++	SHT_SHLIB          SectionType = 10         /* reserved - purpose unknown */
++	SHT_DYNSYM         SectionType = 11         /* dynamic symbol table section */
++	SHT_INIT_ARRAY     SectionType = 14         /* Initialization function pointers. */
++	SHT_FINI_ARRAY     SectionType = 15         /* Termination function pointers. */
++	SHT_PREINIT_ARRAY  SectionType = 16         /* Pre-initialization function ptrs. */
++	SHT_GROUP          SectionType = 17         /* Section group. */
++	SHT_SYMTAB_SHNDX   SectionType = 18         /* Section indexes (see SHN_XINDEX). */
++	SHT_LOOS           SectionType = 0x60000000 /* First of OS specific semantics */
++	SHT_GNU_ATTRIBUTES SectionType = 0x6ffffff5 /* GNU object attributes */
++	SHT_GNU_HASH       SectionType = 0x6ffffff6 /* GNU hash table */
++	SHT_GNU_LIBLIST    SectionType = 0x6ffffff7 /* GNU prelink library list */
++	SHT_GNU_VERDEF     SectionType = 0x6ffffffd /* GNU version definition section */
++	SHT_GNU_VERNEED    SectionType = 0x6ffffffe /* GNU version needs section */
++	SHT_GNU_VERSYM     SectionType = 0x6fffffff /* GNU version symbol table */
++	SHT_HIOS           SectionType = 0x6fffffff /* Last of OS specific semantics */
++	SHT_LOPROC         SectionType = 0x70000000 /* reserved range for processor */
++	SHT_HIPROC         SectionType = 0x7fffffff /* specific section header types */
++	SHT_LOUSER         SectionType = 0x80000000 /* reserved range for application */
++	SHT_HIUSER         SectionType = 0xffffffff /* specific indexes */
+ )
+ 
+ var shtStrings = []intName{
+@@ -374,7 +380,12 @@ var shtStrings = []intName{
+ 	{17, "SHT_GROUP"},
+ 	{18, "SHT_SYMTAB_SHNDX"},
+ 	{0x60000000, "SHT_LOOS"},
+-	{0x6fffffff, "SHT_HIOS"},
++	{0x6ffffff5, "SHT_GNU_ATTRIBUTES"},
++	{0x6ffffff6, "SHT_GNU_HASH"},
++	{0x6ffffff7, "SHT_GNU_LIBLIST"},
++	{0x6ffffffd, "SHT_GNU_VERDEF"},
++	{0x6ffffffe, "SHT_GNU_VERNEED"},
++	{0x6fffffff, "SHT_GNU_VERSYM"},
+ 	{0x70000000, "SHT_LOPROC"},
+ 	{0x7fffffff, "SHT_HIPROC"},
+ 	{0x80000000, "SHT_LOUSER"},
+@@ -518,6 +529,9 @@ const (
+ 	DT_PREINIT_ARRAYSZ DynTag = 33         /* Size in bytes of the array of pre-initialization functions. */
+ 	DT_LOOS            DynTag = 0x6000000d /* First OS-specific */
+ 	DT_HIOS            DynTag = 0x6ffff000 /* Last OS-specific */
++	DT_VERSYM          DynTag = 0x6ffffff0
++	DT_VERNEED         DynTag = 0x6ffffffe
++	DT_VERNEEDNUM      DynTag = 0x6fffffff
+ 	DT_LOPROC          DynTag = 0x70000000 /* First processor-specific type. */
+ 	DT_HIPROC          DynTag = 0x7fffffff /* Last processor-specific type. */
+ )
+@@ -559,6 +573,9 @@ var dtStrings = []intName{
+ 	{33, "DT_PREINIT_ARRAYSZ"},
+ 	{0x6000000d, "DT_LOOS"},
+ 	{0x6ffff000, "DT_HIOS"},
++	{0x6ffffff0, "DT_VERSYM"},
++	{0x6ffffffe, "DT_VERNEED"},
++	{0x6fffffff, "DT_VERNEEDNUM"},
+ 	{0x70000000, "DT_LOPROC"},
+ 	{0x7fffffff, "DT_HIPROC"},
+ }
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 6fdcda6d48..9ae8b413d9 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -35,9 +35,11 @@ type FileHeader struct {
+ // A File represents an open ELF file.
+ type File struct {
+ 	FileHeader
+-	Sections []*Section
+-	Progs    []*Prog
+-	closer   io.Closer
++	Sections  []*Section
++	Progs     []*Prog
++	closer    io.Closer
++	gnuNeed   []verneed
++	gnuVersym []byte
+ }
+ 
+ // A SectionHeader represents a single ELF section header.
+@@ -329,8 +331,8 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ }
+ 
+ // getSymbols returns a slice of Symbols from parsing the symbol table
+-// with the given type.
+-func (f *File) getSymbols(typ SectionType) ([]Symbol, os.Error) {
++// with the given type, along with the associated string table.
++func (f *File) getSymbols(typ SectionType) ([]Symbol, []byte, os.Error) {
+ 	switch f.Class {
+ 	case ELFCLASS64:
+ 		return f.getSymbols64(typ)
+@@ -339,27 +341,27 @@ func (f *File) getSymbols(typ SectionType) ([]Symbol, os.Error) {
+ 		return f.getSymbols32(typ)
+ 	}
+ 
+-	return nil, os.ErrorString("not implemented")
++	return nil, nil, os.ErrorString("not implemented")
+ }
+ 
+-func (f *File) getSymbols32(typ SectionType) ([]Symbol, os.Error) {
++func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, os.Error) {
+ 	symtabSection := f.SectionByType(typ)
+ 	if symtabSection == nil {
+-		return nil, os.ErrorString("no symbol section")
++		return nil, nil, os.ErrorString("no symbol section")
+ 	}
+ 
+ 	data, err := symtabSection.Data()
+ 	if err != nil {
+-		return nil, os.ErrorString("cannot load symbol section")
++		return nil, nil, os.ErrorString("cannot load symbol section")
+ 	}
+ 	symtab := bytes.NewBuffer(data)
+ 	if symtab.Len()%Sym32Size != 0 {
+-		return nil, os.ErrorString("length of symbol section is not a multiple of SymSize")
++		return nil, nil, os.ErrorString("length of symbol section is not a multiple of SymSize")
+ 	}
+ 
+ 	strdata, err := f.stringTable(symtabSection.Link)
+ 	if err != nil {
+-		return nil, os.ErrorString("cannot load string table section")
++		return nil, nil, os.ErrorString("cannot load string table section")
+ 	}
+ 
+ 	// The first entry is all zeros.
+@@ -382,27 +384,27 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, os.Error) {
+ 		i++
+ 	}
+ 
+-	return symbols, nil
++	return symbols, strdata, nil
+ }
+ 
+-func (f *File) getSymbols64(typ SectionType) ([]Symbol, os.Error) {
++func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, os.Error) {
+ 	symtabSection := f.SectionByType(typ)
+ 	if symtabSection == nil {
+-		return nil, os.ErrorString("no symbol section")
++		return nil, nil, os.ErrorString("no symbol section")
+ 	}
+ 
+ 	data, err := symtabSection.Data()
+ 	if err != nil {
+-		return nil, os.ErrorString("cannot load symbol section")
++		return nil, nil, os.ErrorString("cannot load symbol section")
+ 	}
+ 	symtab := bytes.NewBuffer(data)
+ 	if symtab.Len()%Sym64Size != 0 {
+-		return nil, os.ErrorString("length of symbol section is not a multiple of Sym64Size")
++		return nil, nil, os.ErrorString("length of symbol section is not a multiple of Sym64Size")
+ 	}
+ 
+ 	strdata, err := f.stringTable(symtabSection.Link)
+ 	if err != nil {
+-		return nil, os.ErrorString("cannot load string table section")
++		return nil, nil, os.ErrorString("cannot load string table section")
+ 	}
+ 
+ 	// The first entry is all zeros.
+@@ -425,7 +427,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, os.Error) {
+ 		i++
+ 	}
+ 
+-	return symbols, nil
++	return symbols, strdata, nil
+ }
+ 
+ // getString extracts a string from an ELF string table.
+@@ -468,7 +470,7 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
+ 		return os.ErrorString("length of relocation section is not a multiple of Sym64Size")
+ 	}
+ 
+-	symbols, err := f.getSymbols(SHT_SYMTAB)
++	symbols, _, err := f.getSymbols(SHT_SYMTAB)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -544,24 +546,123 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
+ 	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
+ }
+ 
++type ImportedSymbol struct {
++	Name    string
++	Version string
++	Library string
++}
++
+ // ImportedSymbols returns the names of all symbols
+ // referred to by the binary f that are expected to be
+ // satisfied by other libraries at dynamic load time.
+ // It does not return weak symbols.
+-func (f *File) ImportedSymbols() ([]string, os.Error) {
+-	sym, err := f.getSymbols(SHT_DYNSYM)
++func (f *File) ImportedSymbols() ([]ImportedSymbol, os.Error) {
++	sym, str, err := f.getSymbols(SHT_DYNSYM)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	var all []string
+-	for _, s := range sym {
++	f.gnuVersionInit(str)
++	var all []ImportedSymbol
++	for i, s := range sym {
+ 		if ST_BIND(s.Info) == STB_GLOBAL && s.Section == SHN_UNDEF {
+-			all = append(all, s.Name)
++			all = append(all, ImportedSymbol{Name: s.Name})
++			f.gnuVersion(i, &all[len(all)-1])
+ 		}
+ 	}
+ 	return all, nil
+ }
+ 
++type verneed struct {
++	File string
++	Name string
++}
++
++// gnuVersionInit parses the GNU version tables
++// for use by calls to gnuVersion.
++func (f *File) gnuVersionInit(str []byte) {
++	// Accumulate verneed information.
++	vn := f.SectionByType(SHT_GNU_VERNEED)
++	if vn == nil {
++		return
++	}
++	d, _ := vn.Data()
++
++	var need []verneed
++	i := 0
++	for {
++		if i+16 > len(d) {
++			break
++		}
++		vers := f.ByteOrder.Uint16(d[i : i+2])
++		if vers != 1 {
++			break
++		}
++		cnt := f.ByteOrder.Uint16(d[i+2 : i+4])
++		fileoff := f.ByteOrder.Uint32(d[i+4 : i+8])
++		aux := f.ByteOrder.Uint32(d[i+8 : i+12])
++		next := f.ByteOrder.Uint32(d[i+12 : i+16])
++		file, _ := getString(str, int(fileoff))
++
++		var name string
++		j := i + int(aux)
++		for c := 0; c < int(cnt); c++ {
++			if j+16 > len(d) {
++				break
++			}
++			// hash := f.ByteOrder.Uint32(d[j:j+4])
++			// flags := f.ByteOrder.Uint16(d[j+4:j+6])
++			other := f.ByteOrder.Uint16(d[j+6 : j+8])
++			nameoff := f.ByteOrder.Uint32(d[j+8 : j+12])
++			next := f.ByteOrder.Uint32(d[j+12 : j+16])
++			name, _ = getString(str, int(nameoff))
++			ndx := int(other)
++			if ndx >= len(need) {
++				a := make([]verneed, 2*(ndx+1))
++				copy(a, need)
++				need = a
++			}
++
++			need[ndx] = verneed{file, name}
++			if next == 0 {
++				break
++			}
++			j += int(next)
++		}
++
++		if next == 0 {
++			break
++		}
++		i += int(next)
++	}
++
++	// Versym parallels symbol table, indexing into verneed.
++	vs := f.SectionByType(SHT_GNU_VERSYM)
++	if vs == nil {
++		return
++	}
++	d, _ = vs.Data()
++
++	f.gnuNeed = need
++	f.gnuVersym = d
++}
++
++// gnuVersion adds Library and Version information to sym,
++// which came from offset i of the symbol table.
++func (f *File) gnuVersion(i int, sym *ImportedSymbol) {
++	// Each entry is two bytes; skip undef entry at beginning.
++	i = (i + 1) * 2
++	if i >= len(f.gnuVersym) {
++		return
++	}
++	j := int(f.ByteOrder.Uint16(f.gnuVersym[i:]))
++	if j < 2 || j >= len(f.gnuNeed) {
++		return
++	}
++	n := &f.gnuNeed[j]
++	sym.Library = n.File
++	sym.Version = n.Name
++}
++
+ // ImportedLibraries returns the names of all libraries
+ // referred to by the binary f that are expected to be
+ // linked with the binary at dynamic link time.

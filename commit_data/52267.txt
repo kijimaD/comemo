@@ -27,7 +27,7 @@ Date:   Fri Feb 25 14:21:25 2022 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/doc.go                    | 12 +++++----
  src/cmd/compile/internal/escape/escape.go |  2 --
  src/cmd/compile/internal/inline/inl.go    | 11 +++++++++
@@ -40,3 +40,309 @@ Date:   Fri Feb 25 14:21:25 2022 -0500
  test/live_uintptrkeepalive.go             | 41 ++++++++++++++++++++++++-------
  test/uintptrkeepalive.go                  | 11 +++++++++
  11 files changed, 127 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index ef7fa86749..b8862f62cf 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -219,11 +219,13 @@ calling the function.
+ 	//go:uintptrescapes
+ 
+ The //go:uintptrescapes directive must be followed by a function declaration.
+-It specifies that the function's uintptr arguments may be pointer values
+-that have been converted to uintptr and must be treated as such by the
+-garbage collector. The conversion from pointer to uintptr must appear in
+-the argument list of any call to this function. This directive is necessary
+-for some low-level system call implementations and should be avoided otherwise.
++It specifies that the function's uintptr arguments may be pointer values that
++have been converted to uintptr and must be on the heap and kept alive for the
++duration of the call, even though from the types alone it would appear that the
++object is no longer needed during the call. The conversion from pointer to
++uintptr must appear in the argument list of any call to this function. This
++directive is necessary for some low-level system call implementations and
++should be avoided otherwise.
+ 
+ 	//go:noinline
+ 
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 4408a531ec..05fbe58bbc 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -422,8 +422,6 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+ 	}
+ 
+ 	if fn.Pragma&ir.UintptrEscapes != 0 {
+-		fn.Pragma |= ir.UintptrKeepAlive
+-
+ 		if f.Type.IsUintptr() {
+ 			if diagnose {
+ 				base.WarnfAt(f.Pos, "marking %v as escaping uintptr", name())
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 8c2ea49c8f..486a6ad319 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -120,6 +120,17 @@ func CanInline(fn *ir.Func) {
+ 		return
+ 	}
+ 
++	// If marked as "go:uintptrkeepalive", don't inline, since the
++	// keep alive information is lost during inlining.
++	//
++	// TODO(prattmic): This is handled on calls during escape analysis,
++	// which is after inlining. Move prior to inlining so the keep-alive is
++	// maintained after inlining.
++	if fn.Pragma&ir.UintptrKeepAlive != 0 {
++		reason = "marked as having a keep-alive uintptr argument"
++		return
++	}
++
+ 	// If marked as "go:uintptrescapes", don't inline, since the
+ 	// escape information is lost during inlining.
+ 	if fn.Pragma&ir.UintptrEscapes != 0 {
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 9ccb8e3c30..0d91d17344 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -459,7 +459,7 @@ const (
+ 	Noinline                    // func should not be inlined
+ 	NoCheckPtr                  // func should not be instrumented by checkptr
+ 	CgoUnsafeArgs               // treat a pointer to one arg as a pointer to them all
+-	UintptrKeepAlive            // pointers converted to uintptr must be kept alive (compiler internal only)
++	UintptrKeepAlive            // pointers converted to uintptr must be kept alive
+ 	UintptrEscapes              // pointers converted to uintptr escape
+ 
+ 	// Runtime-only func pragmas.
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index f985648c66..91a90d9e09 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -125,8 +125,26 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ 		}
+ 	}
+ 
+-	if decl.Body != nil && fn.Pragma&ir.Noescape != 0 {
+-		base.ErrorfAt(fn.Pos(), "can only use //go:noescape with external func implementations")
++	if decl.Body != nil {
++		if fn.Pragma&ir.Noescape != 0 {
++			base.ErrorfAt(fn.Pos(), "can only use //go:noescape with external func implementations")
++		}
++		if (fn.Pragma&ir.UintptrKeepAlive != 0 && fn.Pragma&ir.UintptrEscapes == 0) && fn.Pragma&ir.Nosplit == 0 {
++			// Stack growth can't handle uintptr arguments that may
++			// be pointers (as we don't know which are pointers
++			// when creating the stack map). Thus uintptrkeepalive
++			// functions (and all transitive callees) must be
++			// nosplit.
++			//
++			// N.B. uintptrescapes implies uintptrkeepalive but it
++			// is OK since the arguments must escape to the heap.
++			//
++			// TODO(prattmic): Add recursive nosplit check of callees.
++			// TODO(prattmic): Functions with no body (i.e.,
++			// assembly) must also be nosplit, but we can't check
++			// that here.
++			base.ErrorfAt(fn.Pos(), "go:uintptrkeepalive requires go:nosplit")
++		}
+ 	}
+ 
+ 	if decl.Name.Value == "init" && decl.Recv == nil {
+diff --git a/src/cmd/compile/internal/noder/lex.go b/src/cmd/compile/internal/noder/lex.go
+index 66a56a50ec..cef0f082ca 100644
+--- a/src/cmd/compile/internal/noder/lex.go
++++ b/src/cmd/compile/internal/noder/lex.go
+@@ -30,6 +30,7 @@ const (
+ 		ir.NoCheckPtr |
+ 		ir.RegisterParams | // TODO(register args) remove after register abi is working
+ 		ir.CgoUnsafeArgs |
++		ir.UintptrKeepAlive |
+ 		ir.UintptrEscapes |
+ 		ir.Systemstack |
+ 		ir.Nowritebarrier |
+@@ -67,19 +68,13 @@ func pragmaFlag(verb string) ir.PragmaFlag {
+ 		return ir.Yeswritebarrierrec
+ 	case "go:cgo_unsafe_args":
+ 		return ir.CgoUnsafeArgs | ir.NoCheckPtr // implies NoCheckPtr (see #34968)
++	case "go:uintptrkeepalive":
++		return ir.UintptrKeepAlive
+ 	case "go:uintptrescapes":
+-		// For the next function declared in the file
+-		// any uintptr arguments may be pointer values
+-		// converted to uintptr. This directive
+-		// ensures that the referenced allocated
+-		// object, if any, is retained and not moved
+-		// until the call completes, even though from
+-		// the types alone it would appear that the
+-		// object is no longer needed during the
+-		// call. The conversion to uintptr must appear
+-		// in the argument list.
+-		// Used in syscall/dll_windows.go.
+-		return ir.UintptrEscapes
++		// This directive extends //go:uintptrkeepalive by forcing
++		// uintptr arguments to escape to the heap, which makes stack
++		// growth safe.
++		return ir.UintptrEscapes | ir.UintptrKeepAlive // implies UintptrKeepAlive
+ 	case "go:registerparams": // TODO(register args) remove after register abi is working
+ 		return ir.RegisterParams
+ 	case "go:notinheap":
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index cc5610acda..9a42b5afd1 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -340,6 +340,9 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ 		if !base.Flag.CompilingRuntime && flag&runtimePragmas != 0 {
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in runtime", verb)})
+ 		}
++		if flag == ir.UintptrKeepAlive && !base.Flag.Std {
++			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is only allowed in the standard library", verb)})
++		}
+ 		if flag == 0 && !allowedStdPragmas[verb] && base.Flag.Std {
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
+ 		}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index c5c346b784..0fb162d381 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -742,6 +742,22 @@ func (w *writer) funcExt(obj *types2.Func) {
+ 		if pragma&ir.Noescape != 0 {
+ 			w.p.errorf(decl, "can only use //go:noescape with external func implementations")
+ 		}
++		if (pragma&ir.UintptrKeepAlive != 0 && pragma&ir.UintptrEscapes == 0) && pragma&ir.Nosplit == 0 {
++			// Stack growth can't handle uintptr arguments that may
++			// be pointers (as we don't know which are pointers
++			// when creating the stack map). Thus uintptrkeepalive
++			// functions (and all transitive callees) must be
++			// nosplit.
++			//
++			// N.B. uintptrescapes implies uintptrkeepalive but it
++			// is OK since the arguments must escape to the heap.
++			//
++			// TODO(prattmic): Add recursive nosplit check of callees.
++			// TODO(prattmic): Functions with no body (i.e.,
++			// assembly) must also be nosplit, but we can't check
++			// that here.
++			w.p.errorf(decl, "go:uintptrkeepalive requires go:nosplit")
++		}
+ 	} else {
+ 		if base.Flag.Complete || decl.Name.Value == "init" {
+ 			// Linknamed functions are allowed to have no body. Hopefully
+diff --git a/src/runtime/HACKING.md b/src/runtime/HACKING.md
+index fbf22eeb44..61755241c5 100644
+--- a/src/runtime/HACKING.md
++++ b/src/runtime/HACKING.md
+@@ -277,6 +277,25 @@ functions that release the P or may run without a P and
+ Since these are function-level annotations, code that releases or
+ acquires a P may need to be split across two functions.
+ 
++go:uintptrkeepalive
++-------------------
++
++The //go:uintptrkeepalive directive must be followed by a function declaration.
++
++It specifies that the function's uintptr arguments may be pointer values that
++have been converted to uintptr and must be kept alive for the duration of the
++call, even though from the types alone it would appear that the object is no
++longer needed during the call.
++
++This directive is similar to //go:uintptrescapes, but it does not force
++arguments to escape. Since stack growth does not understand these arguments,
++this directive must be used with //go:nosplit (in the marked function and all
++transitive calls) to prevent stack growth.
++
++The conversion from pointer to uintptr must appear in the argument list of any
++call to this function. This directive is used for some low-level system call
++implementations.
++
+ go:notinheap
+ ------------
+ 
+diff --git a/test/live_uintptrkeepalive.go b/test/live_uintptrkeepalive.go
+index b920ff68aa..10c4c7505b 100644
+--- a/test/live_uintptrkeepalive.go
++++ b/test/live_uintptrkeepalive.go
+@@ -1,4 +1,4 @@
+-// errorcheck -0 -m -live
++// errorcheck -0 -m -live -std
+ 
+ // +build !windows,!js
+ 
+@@ -6,7 +6,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test escape analysis and liveness inferred for syscall.Syscall-like functions.
++// Test escape analysis and liveness inferred for uintptrkeepalive functions.
++//
++// This behavior is enabled automatically for function declarations with no
++// bodies (assembly, linkname), as well as explicitly on complete functions
++// with //go:uintptrkeepalive.
++//
++// This is most important for syscall.Syscall (and similiar functions), so we
++// test it explicitly.
+ 
+ package p
+ 
+@@ -15,25 +22,41 @@ import (
+ 	"unsafe"
+ )
+ 
+-func f(uintptr) // ERROR "assuming arg#1 is unsafe uintptr"
++func implicit(uintptr) // ERROR "assuming arg#1 is unsafe uintptr"
+ 
+-func g() { // ERROR "can inline g"
++//go:uintptrkeepalive
++//go:nosplit
++func explicit(uintptr) {
++}
++
++func autotmpImplicit() { // ERROR "can inline autotmpImplicit"
++	var t int
++	implicit(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to implicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++}
++
++func autotmpExplicit() { // ERROR "can inline autotmpExplicit"
+ 	var t int
+-	f(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to f: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++	explicit(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to explicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ }
+ 
+-func h() { // ERROR "can inline h"
++func autotmpSyscall() { // ERROR "can inline autotmpSyscall"
+ 	var v int
+ 	syscall.Syscall(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to Syscall: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ }
+ 
+-func i() { // ERROR "can inline i"
++func localImplicit() { // ERROR "can inline localImplicit"
++	var t int
++	p := unsafe.Pointer(&t)
++	implicit(uintptr(p))           // ERROR "live at call to implicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++}
++
++func localExplicit() { // ERROR "can inline localExplicit"
+ 	var t int
+ 	p := unsafe.Pointer(&t)
+-	f(uintptr(p))           // ERROR "live at call to f: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++	explicit(uintptr(p))           // ERROR "live at call to explicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ }
+ 
+-func j() { // ERROR "can inline j"
++func localSyscall() { // ERROR "can inline localSyscall"
+ 	var v int
+ 	p := unsafe.Pointer(&v)
+ 	syscall.Syscall(0, 1, uintptr(p), 2) // ERROR "live at call to Syscall: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+diff --git a/test/uintptrkeepalive.go b/test/uintptrkeepalive.go
+new file mode 100644
+index 0000000000..97834dcd1a
+--- /dev/null
++++ b/test/uintptrkeepalive.go
+@@ -0,0 +1,11 @@
++// errorcheck -std
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++//go:uintptrkeepalive
++func missingNosplit(uintptr) { // ERROR "go:uintptrkeepalive requires go:nosplit"
++}

@@ -16,7 +16,56 @@ Date:   Sat Apr 18 18:00:40 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/fuse.go         |  4 ++++
  src/cmd/compile/internal/ssa/shortcircuit.go | 15 +--------------
  2 files changed, 5 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index f80ec0dc5d..c51461cbff 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -20,6 +20,7 @@ const (
+ 	fuseTypePlain fuseType = 1 << iota
+ 	fuseTypeIf
+ 	fuseTypeIntInRange
++	fuseTypeShortCircuit
+ )
+ 
+ // fuse simplifies control flow by joining basic blocks.
+@@ -38,6 +39,9 @@ func fuse(f *Func, typ fuseType) {
+ 			if typ&fuseTypePlain != 0 {
+ 				changed = fuseBlockPlain(b) || changed
+ 			}
++			if typ&fuseTypeShortCircuit != 0 {
++				changed = shortcircuitBlock(b) || changed
++			}
+ 		}
+ 		if changed {
+ 			f.invalidateCFG()
+diff --git a/src/cmd/compile/internal/ssa/shortcircuit.go b/src/cmd/compile/internal/ssa/shortcircuit.go
+index 9f18117066..c5df457c4e 100644
+--- a/src/cmd/compile/internal/ssa/shortcircuit.go
++++ b/src/cmd/compile/internal/ssa/shortcircuit.go
+@@ -58,20 +58,7 @@ func shortcircuit(f *Func) {
+ 	//   if v goto t else u
+ 	// We can redirect p to go directly to t instead of b.
+ 	// (If v is not live after b).
+-	for changed := true; changed; {
+-		changed = false
+-		for i := len(f.Blocks) - 1; i >= 0; i-- {
+-			b := f.Blocks[i]
+-			if fuseBlockPlain(b) {
+-				changed = true
+-				continue
+-			}
+-			changed = shortcircuitBlock(b) || changed
+-		}
+-		if changed {
+-			f.invalidateCFG()
+-		}
+-	}
++	fuse(f, fuseTypePlain|fuseTypeShortCircuit)
+ }
+ 
+ // shortcircuitBlock checks for a CFG in which an If block

@@ -13,6 +13,20 @@ Date:   Tue Jan 26 23:29:47 2021 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/math/sqrt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/sqrt.go b/src/math/sqrt.go
+index 7e95f2365b..1077a62897 100644
+--- a/src/math/sqrt.go
++++ b/src/math/sqrt.go
+@@ -67,7 +67,7 @@ package math
+ //
+ //      One may easily use induction to prove (4) and (5).
+ //      Note. Since the left hand side of (3) contain only i+2 bits,
+-//            it does not necessary to do a full (53-bit) comparison
++//            it is not necessary to do a full (53-bit) comparison
+ //            in (3).
+ //   3. Final rounding
+ //      After generating the 53 bits result, we compute one more bit.

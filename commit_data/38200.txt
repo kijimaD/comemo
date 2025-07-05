@@ -18,8 +18,97 @@ Date:   Wed Sep 26 10:43:15 2018 -0400
     Change-Id: Ief7dddcb057bfb602f78215f6947664e8c841464
     Reviewed-on: https://go-review.googlesource.com/c/139420
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64enc.s |  3 +++
  src/cmd/internal/obj/ppc64/asm9.go           | 22 ++++++++++++++++++++++
  src/cmd/internal/obj/ppc64/obj9.go           | 11 +++++++----
  3 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64enc.s b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+index 7ab1a578f8..0133a85b98 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+@@ -98,4 +98,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	LDAR (R4),$0,R5                 // 7ca020a8
+ 	LDAR (R3),R5                    // 7ca018a8
+ 
++	// float constants
++	FMOVD $(0.0), F1                // f0210cd0
++	FMOVD $(-0.0), F1               // f0210cd0fc200850
+ 	RET
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 756170bc55..66a77b308c 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -35,6 +35,7 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"log"
++	"math"
+ 	"sort"
+ )
+ 
+@@ -342,6 +343,8 @@ var optab = []Optab{
+ 	{AFMOVD, C_LEXT, C_NONE, C_NONE, C_FREG, 36, 8, REGSB},
+ 	{AFMOVD, C_LAUTO, C_NONE, C_NONE, C_FREG, 36, 8, REGSP},
+ 	{AFMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, 36, 8, REGZERO},
++	{AFMOVD, C_ZCON, C_NONE, C_NONE, C_FREG, 24, 4, 0},
++	{AFMOVD, C_ADDCON, C_NONE, C_NONE, C_FREG, 24, 8, 0},
+ 	{AFMOVD, C_ADDR, C_NONE, C_NONE, C_FREG, 75, 8, 0},
+ 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_SEXT, 7, 4, REGSB},
+ 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_SAUTO, 7, 4, REGSP},
+@@ -829,6 +832,18 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 	case obj.TYPE_TEXTSIZE:
+ 		return C_TEXTSIZE
+ 
++	case obj.TYPE_FCONST:
++		// The only cases where FCONST will occur are with float64 +/- 0.
++		// All other float constants are generated in memory.
++		f64 := a.Val.(float64)
++		if f64 == 0 {
++			if math.Signbit(f64) {
++				return C_ADDCON
++			}
++			return C_ZCON
++		}
++		log.Fatalf("Unexpected nonzero FCONST operand %v", a)
++
+ 	case obj.TYPE_CONST,
+ 		obj.TYPE_ADDR:
+ 		switch a.Name {
+@@ -2763,6 +2778,13 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			c.ctxt.Diag("%v is not supported", p)
+ 		}
+ 
++	case 24: /* lfd fA,float64(0) -> xxlxor xsA,xsaA,xsaA + fneg for -0 */
++		o1 = AOP_XX3I(c.oprrr(AXXLXOR), uint32(p.To.Reg), uint32(p.To.Reg), uint32(p.To.Reg), uint32(0))
++		// This is needed for -0.
++		if o.size == 8 {
++			o2 = AOP_RRR(c.oprrr(AFNEG), uint32(p.To.Reg), 0, uint32(p.To.Reg))
++		}
++
+ 	case 25:
+ 		/* sld[.] $sh,rS,rA -> rldicr[.] $sh,rS,mask(0,63-sh),rA; srd[.] -> rldicl */
+ 		v := c.regoff(&p.From)
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index f42d675805..7a07b5058c 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -67,10 +67,13 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	case AFMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			f64 := p.From.Val.(float64)
+-			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = ctxt.Float64Sym(f64)
+-			p.From.Name = obj.NAME_EXTERN
+-			p.From.Offset = 0
++			// Constant not needed in memory for float +/- 0
++			if f64 != 0 {
++				p.From.Type = obj.TYPE_MEM
++				p.From.Sym = ctxt.Float64Sym(f64)
++				p.From.Name = obj.NAME_EXTERN
++				p.From.Offset = 0
++			}
+ 		}
+ 
+ 		// Put >32-bit constants in memory and load them

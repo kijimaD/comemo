@@ -12,7 +12,16 @@ Date:   Tue Apr 25 10:47:13 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .../internal/gcimporter/testdata/versions/test_go1.8_4.a | Bin 0 -> 1658 bytes
  .../internal/gcimporter/testdata/versions/test_go1.8_5.a | Bin 0 -> 1658 bytes
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/testdata/versions/test_go1.8_4.a b/src/go/internal/gcimporter/testdata/versions/test_go1.8_4.a
+new file mode 100644
+index 0000000000..26b8531650
+Binary files /dev/null and b/src/go/internal/gcimporter/testdata/versions/test_go1.8_4.a differ
+diff --git a/src/go/internal/gcimporter/testdata/versions/test_go1.8_5.a b/src/go/internal/gcimporter/testdata/versions/test_go1.8_5.a
+new file mode 100644
+index 0000000000..60e52efeab
+Binary files /dev/null and b/src/go/internal/gcimporter/testdata/versions/test_go1.8_5.a differ

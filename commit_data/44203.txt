@@ -10,8 +10,84 @@ Date:   Thu May 21 20:42:17 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/234892
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/asmb.go   |  9 ++++++++-
  src/cmd/link/internal/ppc64/asm.go | 28 ----------------------------
  src/cmd/link/internal/ppc64/obj.go |  1 -
  3 files changed, 8 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index b6237d35c3..1668dd11f6 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -75,7 +75,7 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
+ //  - writing out the architecture specific pieces.
+ // This function handles the second part.
+ func asmb2(ctxt *Link) bool {
+-	if ctxt.IsAIX() || ctxt.IsWasm() {
++	if ctxt.IsWasm() {
+ 		return false
+ 	}
+ 
+@@ -125,6 +125,13 @@ func asmb2(ctxt *Link) bool {
+ 		WritePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
+ 	}
+ 
++	if ctxt.IsAIX() {
++		ctxt.Out.SeekSet(0)
++		fileoff := uint32(Segdwarf.Fileoff + Segdwarf.Filelen)
++		fileoff = uint32(Rnd(int64(fileoff), int64(*FlagRound)))
++		Asmbxcoff(ctxt, int64(fileoff))
++	}
++
+ 	if *FlagC {
+ 		fmt.Printf("textsize=%d\n", Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", Segdata.Filelen)
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 317c3dd0fe..d26a501d4f 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1079,31 +1079,3 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
+ 
+ 	return glink
+ }
+-
+-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsElf() {
+-		panic("elf should be generic")
+-	}
+-
+-	/* output symbol table */
+-	ld.Symsize = 0
+-	ld.Lcsize = 0
+-	ctxt.Out.SeekSet(0)
+-	switch ctxt.HeadType {
+-	default:
+-
+-	case objabi.Haix:
+-		fileoff := uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-		fileoff = uint32(ld.Rnd(int64(fileoff), int64(*ld.FlagRound)))
+-		ld.Asmbxcoff(ctxt, int64(fileoff))
+-	}
+-
+-	if *ld.FlagC {
+-		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+-		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+-		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+-		fmt.Printf("symsize=%d\n", ld.Symsize)
+-		fmt.Printf("lcsize=%d\n", ld.Lcsize)
+-		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
+-	}
+-}
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index ae291f87fc..2b04f25951 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -54,7 +54,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,

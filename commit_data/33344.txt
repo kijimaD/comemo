@@ -15,10 +15,159 @@ Date:   Sat Aug 5 18:25:26 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go              | 58 ++++++++++++++++++++++++++++++++++++++
  src/cmd/go/internal/work/build.go  |  2 ++
  src/cmd/link/internal/ld/config.go |  6 ++++
  src/cmd/link/internal/ld/lib.go    | 11 +++++---
  src/cmd/link/internal/ld/macho.go  |  4 +--
  5 files changed, 75 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 7d80d965ae..2006283ea1 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6,6 +6,8 @@ package main_test
+ 
+ import (
+ 	"bytes"
++	"debug/elf"
++	"debug/macho"
+ 	"fmt"
+ 	"go/format"
+ 	"internal/race"
+@@ -4331,3 +4333,59 @@ func TestListTests(t *testing.T) {
+ 	t.Run("Example1", testWith("Example", "ExampleSimple"))
+ 	t.Run("Example2", testWith("Example", "ExampleWithEmptyOutput"))
+ }
++
++func TestBuildmodePIE(t *testing.T) {
++	if runtime.Compiler == "gccgo" {
++		t.Skipf("skipping test because buildmode=pie is not supported on gccgo")
++	}
++
++	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
++	switch platform {
++	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
++		"android/amd64", "android/arm", "android/arm64", "android/386":
++	case "darwin/amd64":
++	default:
++		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	tg.tempFile("main.go", `package main; func main() { print("hello") }`)
++	src := tg.path("main.go")
++	obj := tg.path("main")
++	tg.run("build", "-buildmode=pie", "-o", obj, src)
++
++	switch runtime.GOOS {
++	case "linux", "android":
++		f, err := elf.Open(obj)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if f.Type != elf.ET_DYN {
++			t.Errorf("PIE type must be ET_DYN, but %s", f.Type)
++		}
++	case "darwin":
++		f, err := macho.Open(obj)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if f.Flags&macho.FlagDyldLink == 0 {
++			t.Error("PIE must have DyldLink flag, but not")
++		}
++		if f.Flags&macho.FlagPIE == 0 {
++			t.Error("PIE must have PIE flag, but not")
++		}
++	default:
++		panic("unreachable")
++	}
++
++	out, err := exec.Command(obj).CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if string(out) != "hello" {
++		t.Errorf("got %q; want %q", out, "hello")
++	}
++}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 8ac4f75985..53afebe8cc 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -327,6 +327,8 @@ func BuildModeInit() {
+ 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 				codegenArg = "-shared"
++			case "darwin/amd64":
++				codegenArg = "-shared"
+ 			default:
+ 				base.Fatalf("-buildmode=pie not supported on %s\n", platform)
+ 			}
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index aae2a43723..f6e7ccf576 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -44,6 +44,12 @@ func (mode *BuildMode) Set(s string) error {
+ 	case "pie":
+ 		switch objabi.GOOS {
+ 		case "android", "linux":
++		case "darwin":
++			switch objabi.GOARCH {
++			case "amd64":
++			default:
++				return badmode()
++			}
+ 		default:
+ 			return badmode()
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9955628038..d906893218 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1095,7 +1095,7 @@ func (l *Link) hostlink() {
+ 		argv = append(argv, "-Wl,-headerpad,1144")
+ 		if l.DynlinkingGo() {
+ 			argv = append(argv, "-Wl,-flat_namespace")
+-		} else if !SysArch.InFamily(sys.ARM64) {
++		} else if !SysArch.InFamily(sys.ARM64) && Buildmode != BuildmodePIE {
+ 			argv = append(argv, "-Wl,-no_pie")
+ 		}
+ 	case objabi.Hopenbsd:
+@@ -1114,10 +1114,13 @@ func (l *Link) hostlink() {
+ 			argv = append(argv, "-Wl,-pagezero_size,4000000")
+ 		}
+ 	case BuildmodePIE:
+-		if UseRelro() {
+-			argv = append(argv, "-Wl,-z,relro")
++		// ELF.
++		if Headtype != objabi.Hdarwin {
++			if UseRelro() {
++				argv = append(argv, "-Wl,-z,relro")
++			}
++			argv = append(argv, "-pie")
+ 		}
+-		argv = append(argv, "-pie")
+ 	case BuildmodeCShared:
+ 		if Headtype == objabi.Hdarwin {
+ 			argv = append(argv, "-dynamiclib")
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 2a5227bbb1..ef4d1552f6 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -401,8 +401,8 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
+ 
+ 	var msect *MachoSect
+ 	if sect.Rwx&1 == 0 && segname != "__DWARF" && (SysArch.Family == sys.ARM64 ||
+-		(SysArch.Family == sys.AMD64 && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive || Buildmode == BuildmodePlugin)) ||
+-		(SysArch.Family == sys.ARM && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive || Buildmode == BuildmodePlugin))) {
++		(SysArch.Family == sys.AMD64 && Buildmode != BuildmodeExe) ||
++		(SysArch.Family == sys.ARM && Buildmode != BuildmodeExe)) {
+ 		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
+ 		// complains about absolute relocs in __TEXT, so if the section is not
+ 		// executable, put it in __DATA segment.

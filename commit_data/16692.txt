@@ -7,6 +7,21 @@ Date:   Mon Jul 1 21:20:42 2013 -0400
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/10458045
-
+---
  src/pkg/net/rpc/jsonrpc/server.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/rpc/jsonrpc/server.go b/src/pkg/net/rpc/jsonrpc/server.go
+index 5bc05fd0a7..16ec0fe9ad 100644
+--- a/src/pkg/net/rpc/jsonrpc/server.go
++++ b/src/pkg/net/rpc/jsonrpc/server.go
+@@ -20,8 +20,7 @@ type serverCodec struct {
+ 	c   io.Closer
+ 
+ 	// temporary work space
+-	req  serverRequest
+-	resp serverResponse
++	req serverRequest
+ 
+ 	// JSON-RPC clients can use arbitrary json values as request IDs.
+ 	// Package rpc expects uint64 request IDs.

@@ -17,9 +17,81 @@ Date:   Mon Dec 17 14:42:29 2018 -0800
     Change-Id: Idd529f6682d478e0dcd2d469cb802192190602f6
     Reviewed-on: https://go-review.googlesource.com/c/154583
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go     |  6 +++++-
  src/cmd/compile/internal/gc/iexport.go |  2 +-
  src/cmd/compile/internal/gc/iimport.go |  2 +-
  test/fixedbugs/issue29264.go           | 22 ++++++++++++++++++++++
  4 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index f128872dbb..baea4cc716 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1749,7 +1749,11 @@ func tconv(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+ 		return t.FieldType(0).String() + "," + t.FieldType(1).String()
+ 	}
+ 
+-	if depth > 100 {
++	// Avoid endless recursion by setting an upper limit. This also
++	// limits the depths of valid composite types, but they are likely
++	// artificially created.
++	// TODO(gri) should have proper cycle detection here, eventually (issue #29312)
++	if depth > 250 {
+ 		return "<...>"
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index cc43c2e287..2a34e2ea77 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1325,7 +1325,7 @@ func (w *exportWriter) expr(n *Node) {
+ 
+ 	default:
+ 		Fatalf("cannot export %v (%d) node\n"+
+-			"==> please file an issue and assign to gri@\n", n.Op, int(n.Op))
++			"\t==> please file an issue and assign to gri@", n.Op, int(n.Op))
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index ff98b79835..addf829b04 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -1053,7 +1053,7 @@ func (r *importReader) node() *Node {
+ 
+ 	default:
+ 		Fatalf("cannot import %v (%d) node\n"+
+-			"==> please file an issue and assign to gri@\n", op, int(op))
++			"\t==> please file an issue and assign to gri@", op, int(op))
+ 		panic("unreachable") // satisfy compiler
+ 	}
+ }
+diff --git a/test/fixedbugs/issue29264.go b/test/fixedbugs/issue29264.go
+new file mode 100644
+index 0000000000..3781559ada
+--- /dev/null
++++ b/test/fixedbugs/issue29264.go
+@@ -0,0 +1,22 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that we emit a valid type descriptor for
++// a fairly deeply nested type.
++
++package main
++
++import "fmt"
++import "strings"
++
++func main() {
++	a := [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]int{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{42}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
++	got := fmt.Sprint(a)
++	want := strings.Repeat("[", 100) + "42" + strings.Repeat("]", 100)
++	if got != want {
++		fmt.Printf("got  %q\nwant %q\n", got, want)
++	}
++}

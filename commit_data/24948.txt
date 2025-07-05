@@ -20,7 +20,84 @@ Date:   Thu Sep 10 13:41:03 2015 -0700
     Change-Id: I79cf0c4fadd876265aa39d3cb62867247b36ab65
     Reviewed-on: https://go-review.googlesource.com/14491
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/fmt/fmt_test.go | 13 ++++++++++---
  src/fmt/print.go    | 23 +++++++++++++++++++++--
  2 files changed, 31 insertions(+), 5 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 90a4031d5b..26383f6d1e 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1188,6 +1188,11 @@ var startests = []struct {
+ 	{"%.*d", args(4, 42), "0042"},
+ 	{"%*.*d", args(8, 4, 42), "    0042"},
+ 	{"%0*d", args(4, 42), "0042"},
++	// Some non-int types for width. (Issue 10732).
++	{"%0*d", args(uint(4), 42), "0042"},
++	{"%0*d", args(uint64(4), 42), "0042"},
++	{"%0*d", args('\x04', 42), "0042"},
++	{"%0*d", args(uintptr(4), 42), "0042"},
+ 
+ 	// erroneous
+ 	{"%*d", args(nil, 42), "%!(BADWIDTH)42"},
+@@ -1196,17 +1201,19 @@ var startests = []struct {
+ 	{"%.*d", args(nil, 42), "%!(BADPREC)42"},
+ 	{"%.*d", args(-1, 42), "%!(BADPREC)42"},
+ 	{"%.*d", args(int(1e7), 42), "%!(BADPREC)42"},
++	{"%.*d", args(uint(1e7), 42), "%!(BADPREC)42"},
++	{"%.*d", args(uint64(1<<63), 42), "%!(BADPREC)42"},   // Huge negative (-inf).
++	{"%.*d", args(uint64(1<<64-1), 42), "%!(BADPREC)42"}, // Small negative (-1).
+ 	{"%*d", args(5, "foo"), "%!d(string=  foo)"},
+ 	{"%*% %d", args(20, 5), "% 5"},
+ 	{"%*", args(4), "%!(NOVERB)"},
+-	{"%*d", args(int32(4), 42), "%!(BADWIDTH)42"},
+ }
+ 
+ func TestWidthAndPrecision(t *testing.T) {
+-	for _, tt := range startests {
++	for i, tt := range startests {
+ 		s := Sprintf(tt.fmt, tt.in...)
+ 		if s != tt.out {
+-			t.Errorf("%q: got %q expected %q", tt.fmt, s, tt.out)
++			t.Errorf("#%d: %q: got %q expected %q", i, tt.fmt, s, tt.out)
+ 		}
+ 	}
+ }
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 8d3e97c3ab..ebfa13e4d3 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -1024,11 +1024,30 @@ BigSwitch:
+ 	return wasString
+ }
+ 
+-// intFromArg gets the argNumth element of a. On return, isInt reports whether the argument has type int.
++// intFromArg gets the argNumth element of a. On return, isInt reports whether the argument has integer type.
+ func intFromArg(a []interface{}, argNum int) (num int, isInt bool, newArgNum int) {
+ 	newArgNum = argNum
+ 	if argNum < len(a) {
+-		num, isInt = a[argNum].(int)
++		num, isInt = a[argNum].(int) // Almost always OK.
++		if !isInt {
++			// Work harder.
++			switch v := reflect.ValueOf(a[argNum]); v.Kind() {
++			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++				n := v.Int()
++				if int64(int(n)) == n {
++					num = int(n)
++					isInt = true
++				}
++			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++				n := v.Uint()
++				if int64(n) >= 0 && uint64(int(n)) == n {
++					num = int(n)
++					isInt = true
++				}
++			default:
++				// Already 0, false.
++			}
++		}
+ 		newArgNum = argNum + 1
+ 		if tooLarge(num) {
+ 			num = 0

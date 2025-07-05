@@ -16,7 +16,68 @@ Date:   Mon May 11 16:12:01 2015 -0400
     Change-Id: I7e33e2ea15743406e15c6f3fdf73e1edecda69bd
     Reviewed-on: https://go-review.googlesource.com/9921
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/gc/typecheck.go | 23 +++++++++++++++--------
  test/fixedbugs/issue9521.go      |  6 ++++--
  2 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index fdd393d0cf..185cfecc68 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -1636,11 +1636,10 @@ OpSwitch:
+ 		}
+ 
+ 		// Unpack multiple-return result before type-checking.
++		var funarg *Type
+ 		if Istype(t, TSTRUCT) && t.Funarg != 0 {
+-			t = t.Type
+-			if Istype(t, TFIELD) {
+-				t = t.Type
+-			}
++			funarg = t
++			t = t.Type.Type
+ 		}
+ 
+ 		n.Type = t
+@@ -1678,11 +1677,19 @@ OpSwitch:
+ 			break OpSwitch
+ 		}
+ 
+-		for args = args.Next; args != nil; args = args.Next {
+-			if args.N.Type == nil {
+-				continue
++		if funarg != nil {
++			for t := funarg.Type.Down; t != nil; t = t.Down {
++				if assignop(t.Type, n.Type.Type, nil) == 0 {
++					Yyerror("cannot append %v value to []%v", t.Type, n.Type.Type)
++				}
++			}
++		} else {
++			for args = args.Next; args != nil; args = args.Next {
++				if args.N.Type == nil {
++					continue
++				}
++				args.N = assignconv(args.N, t.Type, "append")
+ 			}
+-			args.N = assignconv(args.N, t.Type, "append")
+ 		}
+ 
+ 		break OpSwitch
+diff --git a/test/fixedbugs/issue9521.go b/test/fixedbugs/issue9521.go
+index 51b5204e7a..ef0a5a6547 100644
+--- a/test/fixedbugs/issue9521.go
++++ b/test/fixedbugs/issue9521.go
+@@ -9,8 +9,10 @@
+ 
+ package main
+ 
+-func f() (_, _ []int) { return }
++func f() (_, _ []int)         { return }
++func g() (x []int, y float64) { return }
+ 
+ func main() {
+-	_ = append(f()) // ERROR "cannot use _"
++	_ = append(f()) // ERROR "cannot append \[\]int value to \[\]int"
++	_ = append(g()) // ERROR "cannot append float64 value to \[\]int"
+ }

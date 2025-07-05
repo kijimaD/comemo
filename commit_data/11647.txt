@@ -14,6 +14,23 @@ Date:   Mon Feb 6 11:24:14 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5633050
-
+---
  src/pkg/runtime/symtab.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 0346a420b5..df4c9ad76c 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -507,6 +507,9 @@ contains(String s, int8 *p)
+ bool
+ runtime·showframe(Func *f)
+ {
+-	// return 1;  // for debugging - show all frames
+-	return contains(f->name, ".") && !hasprefix(f->name, "runtime.");
++	static int32 traceback = -1;
++	
++	if(traceback < 0)
++		traceback = runtime·gotraceback();
++	return traceback > 1 || contains(f->name, ".") && !hasprefix(f->name, "runtime.");
+ }

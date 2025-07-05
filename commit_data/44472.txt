@@ -12,6 +12,23 @@ Date:   Fri Jul 10 18:53:12 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/main.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index d9ff359b35..c40e932d8b 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -136,6 +136,11 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	objabi.Flagparse(usage)
+ 
++	if ctxt.Debugvlog > 0 {
++		// dump symbol info on crash
++		defer func() { ctxt.loader.Dump() }()
++	}
++
+ 	switch *flagHeadType {
+ 	case "":
+ 	case "windowsgui":

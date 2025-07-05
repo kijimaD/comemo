@@ -15,7 +15,139 @@ Date:   Wed Apr 28 16:14:12 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go | 63 ++++++++++++++++++++++++++
  src/cmd/compile/internal/types2/subst.go       | 31 ++++++++-----
  2 files changed, 83 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+new file mode 100644
+index 0000000000..0df52e851c
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -0,0 +1,63 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types2
++
++import (
++	"cmd/compile/internal/syntax"
++	"fmt"
++)
++
++// Instantiate instantiates the type typ with the given type arguments.
++// typ must be a *Named or a *Signature type, it must be generic, and
++// its number of type parameters must match the number of provided type
++// arguments. The result is a new, instantiated (not generic) type of
++// the same kind (either a *Named or a *Signature). The type arguments
++// are not checked against the constraints of the type parameters.
++// Any methods attached to a *Named are simply copied; they are not
++// instantiated.
++func Instantiate(pos syntax.Pos, typ Type, targs []Type) (res Type) {
++	// TODO(gri) This code is basically identical to the prolog
++	//           in Checker.instantiate. Factor.
++	var tparams []*TypeName
++	switch t := typ.(type) {
++	case *Named:
++		tparams = t.tparams
++	case *Signature:
++		tparams = t.tparams
++		defer func() {
++			// If we had an unexpected failure somewhere don't panic below when
++			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
++			// is returned.
++			if _, ok := res.(*Signature); !ok {
++				return
++			}
++			// If the signature doesn't use its type parameters, subst
++			// will not make a copy. In that case, make a copy now (so
++			// we can set tparams to nil w/o causing side-effects).
++			if t == res {
++				copy := *t
++				res = &copy
++			}
++			// After instantiating a generic signature, it is not generic
++			// anymore; we need to set tparams to nil.
++			res.(*Signature).tparams = nil
++		}()
++
++	default:
++		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
++	}
++
++	// the number of supplied types must match the number of type parameters
++	if len(targs) != len(tparams) {
++		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), len(tparams)))
++	}
++
++	if len(tparams) == 0 {
++		return typ // nothing to do (minor optimization)
++	}
++
++	smap := makeSubstMap(tparams, targs)
++	return (*Checker)(nil).subst(pos, typ, smap)
++}
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index d089317f7d..c8e428c183 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -308,6 +308,9 @@ func (subst *subster) typ(typ Type) Type {
+ 		embeddeds, ecopied := subst.typeList(t.embeddeds)
+ 		if mcopied || types != t.types || ecopied {
+ 			iface := &Interface{methods: methods, types: types, embeddeds: embeddeds}
++			if subst.check == nil {
++				panic("internal error: cannot instantiate interfaces yet")
++			}
+ 			subst.check.posMap[iface] = subst.check.posMap[t] // satisfy completeInterface requirement
+ 			subst.check.completeInterface(nopos, iface)
+ 			return iface
+@@ -327,12 +330,14 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 	case *Named:
+-		subst.check.indent++
+-		defer func() {
+-			subst.check.indent--
+-		}()
+-		dump := func(format string, args ...interface{}) {
+-			if subst.check.conf.Trace {
++		// dump is for debugging
++		dump := func(string, ...interface{}) {}
++		if subst.check != nil && subst.check.conf.Trace {
++			subst.check.indent++
++			defer func() {
++				subst.check.indent--
++			}()
++			dump = func(format string, args ...interface{}) {
+ 				subst.check.trace(subst.pos, format, args...)
+ 			}
+ 		}
+@@ -377,17 +382,21 @@ func (subst *subster) typ(typ Type) Type {
+ 		// before creating a new named type, check if we have this one already
+ 		h := instantiatedHash(t, new_targs)
+ 		dump(">>> new type hash: %s", h)
+-		if named, found := subst.check.typMap[h]; found {
+-			dump(">>> found %s", named)
+-			subst.cache[t] = named
+-			return named
++		if subst.check != nil {
++			if named, found := subst.check.typMap[h]; found {
++				dump(">>> found %s", named)
++				subst.cache[t] = named
++				return named
++			}
+ 		}
+ 
+ 		// create a new named type and populate caches to avoid endless recursion
+ 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
+ 		named := subst.check.newNamed(tname, t, t.underlying, t.tparams, t.methods) // method signatures are updated lazily
+ 		named.targs = new_targs
+-		subst.check.typMap[h] = named
++		if subst.check != nil {
++			subst.check.typMap[h] = named
++		}
+ 		subst.cache[t] = named
+ 
+ 		// do the substitution

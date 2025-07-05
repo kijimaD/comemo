@@ -7,7 +7,35 @@ Date:   Tue Oct 23 02:33:51 2012 +0800
     R=dvyukov
     CC=golang-dev
     https://golang.org/cl/6733058
-
+---
  src/pkg/runtime/malloc.goc   | 3 ++-
  src/pkg/runtime/race/race.go | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index eaae52a641..f8aa1c949e 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -715,7 +715,8 @@ runtime·cnew(Type *typ)
+ 	uint32 flag;
+ 	void *ret;
+ 
+-	m->racepc = runtime·getcallerpc(&typ);
++	if(raceenabled)
++		m->racepc = runtime·getcallerpc(&typ);
+ 	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+ 	ret = runtime·mallocgc(typ->size, flag, 1, 1);
+ 
+diff --git a/src/pkg/runtime/race/race.go b/src/pkg/runtime/race/race.go
+index ddeff5de76..f3a7be50c6 100644
+--- a/src/pkg/runtime/race/race.go
++++ b/src/pkg/runtime/race/race.go
+@@ -4,7 +4,7 @@
+ 
+ // +build race,linux,amd64 race,darwin,amd64
+ 
+-// Data race detection.
++// Package race provides low-level facilities for data race detection.
+ package race
+ 
+ /*

@@ -36,7 +36,7 @@ Date:   Sun Oct 22 21:37:05 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_386.s      | 16 +---------------
  src/runtime/asm_amd64.s    | 16 +---------------
  src/runtime/asm_amd64p32.s | 16 +---------------
@@ -50,3 +50,465 @@ Date:   Sun Oct 22 21:37:05 2017 -0400
  src/runtime/runtime2.go    | 18 ++++++++++--------
  src/runtime/stack.go       | 12 ++++++------
  12 files changed, 41 insertions(+), 150 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index ef82756397..15d9ce9fdf 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -362,18 +362,6 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-4
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $8-4
+ 	MOVL	buf+0(FP), BX		// gobuf
+-
+-	// If ctxt is not nil, invoke deletion barrier before overwriting.
+-	MOVL	gobuf_ctxt(BX), DX
+-	TESTL	DX, DX
+-	JZ	nilctxt
+-	LEAL	gobuf_ctxt(BX), AX
+-	MOVL	AX, 0(SP)
+-	MOVL	$0, 4(SP)
+-	CALL	runtime·writebarrierptr_prewrite(SB)
+-	MOVL	buf+0(FP), BX
+-
+-nilctxt:
+ 	MOVL	gobuf_g(BX), DX
+ 	MOVL	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+@@ -536,7 +524,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVL	SI, (g_sched+gobuf_g)(SI)
+ 	LEAL	4(SP), AX	// f's SP
+ 	MOVL	AX, (g_sched+gobuf_sp)(SI)
+-	// newstack will fill gobuf.ctxt.
++	MOVL	DX, (g_sched+gobuf_ctxt)(SI)
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVL	m_g0(BX), BP
+@@ -544,10 +532,8 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVL	(g_sched+gobuf_sp)(BP), AX
+ 	MOVL	-4(AX), BX	// fault if CALL would, before smashing SP
+ 	MOVL	AX, SP
+-	PUSHL	DX	// ctxt argument
+ 	CALL	runtime·newstack(SB)
+ 	MOVL	$0, 0x1003	// crash if newstack returns
+-	POPL	DX	// keep balance check happy
+ 	RET
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 7c5e8e9ada..2ac879c31d 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -304,18 +304,6 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ 	MOVQ	buf+0(FP), BX		// gobuf
+-
+-	// If ctxt is not nil, invoke deletion barrier before overwriting.
+-	MOVQ	gobuf_ctxt(BX), AX
+-	TESTQ	AX, AX
+-	JZ	nilctxt
+-	LEAQ	gobuf_ctxt(BX), AX
+-	MOVQ	AX, 0(SP)
+-	MOVQ	$0, 8(SP)
+-	CALL	runtime·writebarrierptr_prewrite(SB)
+-	MOVQ	buf+0(FP), BX
+-
+-nilctxt:
+ 	MOVQ	gobuf_g(BX), DX
+ 	MOVQ	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+@@ -482,16 +470,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	LEAQ	8(SP), AX // f's SP
+ 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
+ 	MOVQ	BP, (g_sched+gobuf_bp)(SI)
+-	// newstack will fill gobuf.ctxt.
++	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVQ	m_g0(BX), BX
+ 	MOVQ	BX, g(CX)
+ 	MOVQ	(g_sched+gobuf_sp)(BX), SP
+-	PUSHQ	DX	// ctxt argument
+ 	CALL	runtime·newstack(SB)
+ 	MOVQ	$0, 0x1003	// crash if newstack returns
+-	POPQ	DX	// keep balance check happy
+ 	RET
+ 
+ // morestack but not preserving ctxt.
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index c80a563bda..b7fcf2376e 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -198,18 +198,6 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-4
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $8-4
+ 	MOVL	buf+0(FP), BX		// gobuf
+-
+-	// If ctxt is not nil, invoke deletion barrier before overwriting.
+-	MOVL	gobuf_ctxt(BX), DX
+-	TESTL	DX, DX
+-	JZ	nilctxt
+-	LEAL	gobuf_ctxt(BX), AX
+-	MOVL	AX, 0(SP)
+-	MOVL	$0, 4(SP)
+-	CALL	runtime·writebarrierptr_prewrite(SB)
+-	MOVL	buf+0(FP), BX
+-
+-nilctxt:
+ 	MOVL	gobuf_g(BX), DX
+ 	MOVL	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+@@ -368,16 +356,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVL	SI, (g_sched+gobuf_g)(SI)
+ 	LEAL	8(SP), AX // f's SP
+ 	MOVL	AX, (g_sched+gobuf_sp)(SI)
+-	// newstack will fill gobuf.ctxt.
++	MOVL	DX, (g_sched+gobuf_ctxt)(SI)
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVL	m_g0(BX), BX
+ 	MOVL	BX, g(CX)
+ 	MOVL	(g_sched+gobuf_sp)(BX), SP
+-	PUSHQ	DX	// ctxt argument
+ 	CALL	runtime·newstack(SB)
+ 	MOVL	$0, 0x1003	// crash if newstack returns
+-	POPQ	DX	// keep balance check happy
+ 	RET
+ 
+ // morestack trampolines
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 47fa565c52..caa96cc4b3 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -227,19 +227,6 @@ TEXT runtime·gosave(SB),NOSPLIT,$-4-4
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB),NOSPLIT,$8-4
+ 	MOVW	buf+0(FP), R1
+-
+-	// If ctxt is not nil, invoke deletion barrier before overwriting.
+-	MOVW	gobuf_ctxt(R1), R0
+-	CMP	$0, R0
+-	B.EQ	nilctxt
+-	MOVW	$gobuf_ctxt(R1), R0
+-	MOVW	R0, 4(R13)
+-	MOVW	$0, R0
+-	MOVW	R0, 8(R13)
+-	BL	runtime·writebarrierptr_prewrite(SB)
+-	MOVW	buf+0(FP), R1
+-
+-nilctxt:
+ 	MOVW	gobuf_g(R1), R0
+ 	BL	setg<>(SB)
+ 
+@@ -412,7 +399,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 	MOVW	R13, (g_sched+gobuf_sp)(g)
+ 	MOVW	LR, (g_sched+gobuf_pc)(g)
+ 	MOVW	R3, (g_sched+gobuf_lr)(g)
+-	// newstack will fill gobuf.ctxt.
++	MOVW	R7, (g_sched+gobuf_ctxt)(g)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -426,8 +413,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 	BL	setg<>(SB)
+ 	MOVW	(g_sched+gobuf_sp)(g), R13
+ 	MOVW	$0, R0
+-	MOVW.W	R0, -8(R13)	// create a call frame on g0
+-	MOVW	R7, 4(R13)	// ctxt argument
++	MOVW.W  R0, -4(R13)	// create a call frame on g0 (saved LR)
+ 	BL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index e4b2c37038..b2aff1aab7 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -122,18 +122,6 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $24-8
+ 	MOVD	buf+0(FP), R5
+-
+-	// If ctxt is not nil, invoke deletion barrier before overwriting.
+-	MOVD	gobuf_ctxt(R5), R0
+-	CMP	$0, R0
+-	BEQ	nilctxt
+-	MOVD	$gobuf_ctxt(R5), R0
+-	MOVD	R0, 8(RSP)
+-	MOVD	ZR, 16(RSP)
+-	BL	runtime·writebarrierptr_prewrite(SB)
+-	MOVD	buf+0(FP), R5
+-
+-nilctxt:
+ 	MOVD	gobuf_g(R5), g
+ 	BL	runtime·save_g(SB)
+ 
+@@ -289,7 +277,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+ 	MOVD	R0, (g_sched+gobuf_sp)(g)
+ 	MOVD	LR, (g_sched+gobuf_pc)(g)
+ 	MOVD	R3, (g_sched+gobuf_lr)(g)
+-	// newstack will fill gobuf.ctxt.
++	MOVD	R26, (g_sched+gobuf_ctxt)(g)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's callers.
+@@ -303,8 +291,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R0
+ 	MOVD	R0, RSP
+-	MOVD.W	$0, -16(RSP)	// create a call frame on g0
+-	MOVD	R26, 8(RSP)	// ctxt argument
++	MOVD.W	$0, -16(RSP)	// create a call frame on g0 (saved LR; keep 16-aligned)
+ 	BL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 4902d04640..3510853804 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -108,17 +108,6 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ 	MOVV	buf+0(FP), R3
+-
+-	// If ctxt is not nil, invoke deletion barrier before overwriting.
+-	MOVV	gobuf_ctxt(R3), R1
+-	BEQ	R1, nilctxt
+-	MOVV	$gobuf_ctxt(R3), R1
+-	MOVV	R1, 8(R29)
+-	MOVV	R0, 16(R29)
+-	JAL	runtime·writebarrierptr_prewrite(SB)
+-	MOVV	buf+0(FP), R3
+-
+-nilctxt:
+ 	MOVV	gobuf_g(R3), g	// make sure g is not nil
+ 	JAL	runtime·save_g(SB)
+ 
+@@ -260,7 +249,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+ 	MOVV	R29, (g_sched+gobuf_sp)(g)
+ 	MOVV	R31, (g_sched+gobuf_pc)(g)
+ 	MOVV	R3, (g_sched+gobuf_lr)(g)
+-	// newstack will fill gobuf.ctxt.
++	MOVV	REGCTXT, (g_sched+gobuf_ctxt)(g)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -273,9 +262,8 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+ 	JAL	runtime·save_g(SB)
+ 	MOVV	(g_sched+gobuf_sp)(g), R29
+ 	// Create a stack frame on g0 to call newstack.
+-	MOVV	R0, -16(R29)	// Zero saved LR in frame
+-	ADDV	$-16, R29
+-	MOVV	REGCTXT, 8(R29)	// ctxt argument
++	MOVV	R0, -8(R29)	// Zero saved LR in frame
++	ADDV	$-8, R29
+ 	JAL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 82e01b0bac..334f259186 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -109,17 +109,6 @@ TEXT runtime·gosave(SB),NOSPLIT,$-4-4
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB),NOSPLIT,$8-4
+ 	MOVW	buf+0(FP), R3
+-
+-	// If ctxt is not nil, invoke deletion barrier before overwriting.
+-	MOVW	gobuf_ctxt(R3), R1
+-	BEQ	R1, nilctxt
+-	MOVW	$gobuf_ctxt(R3), R1
+-	MOVW	R1, 4(R29)
+-	MOVW	R0, 8(R29)
+-	JAL	runtime·writebarrierptr_prewrite(SB)
+-	MOVW	buf+0(FP), R3
+-
+-nilctxt:
+ 	MOVW	gobuf_g(R3), g	// make sure g is not nil
+ 	JAL	runtime·save_g(SB)
+ 
+@@ -261,7 +250,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 	MOVW	R29, (g_sched+gobuf_sp)(g)
+ 	MOVW	R31, (g_sched+gobuf_pc)(g)
+ 	MOVW	R3, (g_sched+gobuf_lr)(g)
+-	// newstack will fill gobuf.ctxt.
++	MOVW	REGCTXT, (g_sched+gobuf_ctxt)(g)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -274,9 +263,8 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 	JAL	runtime·save_g(SB)
+ 	MOVW	(g_sched+gobuf_sp)(g), R29
+ 	// Create a stack frame on g0 to call newstack.
+-	MOVW	R0, -8(R29)	// Zero saved LR in frame
+-	ADDU	$-8, R29
+-	MOVW	REGCTXT, 4(R29)	// ctxt argument
++	MOVW	R0, -4(R29)	// Zero saved LR in frame
++	ADDU	$-4, R29
+ 	JAL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 40ad1010a9..2f2a4a7b04 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -133,18 +133,6 @@ TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ 	MOVD	buf+0(FP), R5
+-
+-	// If ctxt is not nil, invoke deletion barrier before overwriting.
+-	MOVD	gobuf_ctxt(R5), R3
+-	CMP	R0, R3
+-	BEQ	nilctxt
+-	MOVD	$gobuf_ctxt(R5), R3
+-	MOVD	R3, FIXED_FRAME+0(R1)
+-	MOVD	R0, FIXED_FRAME+8(R1)
+-	BL	runtime·writebarrierptr_prewrite(SB)
+-	MOVD	buf+0(FP), R5
+-
+-nilctxt:
+ 	MOVD	gobuf_g(R5), g	// make sure g is not nil
+ 	BL	runtime·save_g(SB)
+ 
+@@ -317,7 +305,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	LR, R8
+ 	MOVD	R8, (g_sched+gobuf_pc)(g)
+ 	MOVD	R5, (g_sched+gobuf_lr)(g)
+-	// newstack will fill gobuf.ctxt.
++	MOVD	R11, (g_sched+gobuf_ctxt)(g)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -329,8 +317,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	m_g0(R7), g
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R1
+-	MOVDU   R0, -(FIXED_FRAME+8)(R1)	// create a call frame on g0
+-	MOVD	R11, FIXED_FRAME+0(R1)	// ctxt argument
++	MOVDU   R0, -(FIXED_FRAME+0)(R1)	// create a call frame on g0
+ 	BL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 241be17842..524b866b21 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -116,17 +116,6 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ 	MOVD	buf+0(FP), R5
+-
+-	// If ctxt is not nil, invoke deletion barrier before overwriting.
+-	MOVD	gobuf_ctxt(R5), R1
+-	CMPBEQ	R1, $0, nilctxt
+-	MOVD	$gobuf_ctxt(R5), R1
+-	MOVD	R1, 8(R15)
+-	MOVD	R0, 16(R15)
+-	BL	runtime·writebarrierptr_prewrite(SB)
+-	MOVD	buf+0(FP), R5
+-
+-nilctxt:
+ 	MOVD	gobuf_g(R5), g	// make sure g is not nil
+ 	BL	runtime·save_g(SB)
+ 
+@@ -272,7 +261,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	LR, R8
+ 	MOVD	R8, (g_sched+gobuf_pc)(g)
+ 	MOVD	R5, (g_sched+gobuf_lr)(g)
+-	// newstack will fill gobuf.ctxt.
++	MOVD	R12, (g_sched+gobuf_ctxt)(g)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -285,9 +274,8 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R15
+ 	// Create a stack frame on g0 to call newstack.
+-	MOVD	$0, -16(R15)	// Zero saved LR in frame
+-	SUB	$16, R15
+-	MOVD	R12, 8(R15)	// ctxt argument
++	MOVD	$0, -8(R15)	// Zero saved LR in frame
++	SUB	$8, R15
+ 	BL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index ed256efc80..ce697e5809 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -770,6 +770,13 @@ func scanstack(gp *g, gcw *gcWork) {
+ 		shrinkstack(gp)
+ 	}
+ 
++	// Scan the saved context register. This is effectively a live
++	// register that gets moved back and forth between the
++	// register and sched.ctxt without a write barrier.
++	if gp.sched.ctxt != nil {
++		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), sys.PtrSize, &oneptrmask[0], gcw)
++	}
++
+ 	// Scan the stack.
+ 	var cache pcvalueCache
+ 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index ca796169fe..a79faba8ce 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -254,17 +254,19 @@ type gobuf struct {
+ 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
+ 	//
+ 	// ctxt is unusual with respect to GC: it may be a
+-	// heap-allocated funcval so write require a write barrier,
+-	// but gobuf needs to be cleared from assembly. We take
+-	// advantage of the fact that the only path that uses a
+-	// non-nil ctxt is morestack. As a result, gogo is the only
+-	// place where it may not already be nil, so gogo uses an
+-	// explicit write barrier. Everywhere else that resets the
+-	// gobuf asserts that ctxt is already nil.
++	// heap-allocated funcval, so GC needs to track it, but it
++	// needs to be set and cleared from assembly, where it's
++	// difficult to have write barriers. However, ctxt is really a
++	// saved, live register, and we only ever exchange it between
++	// the real register and the gobuf. Hence, we treat it as a
++	// root during stack scanning, which means assembly that saves
++	// and restores it doesn't need write barriers. It's still
++	// typed as a pointer so that any other writes from Go get
++	// write barriers.
+ 	sp   uintptr
+ 	pc   uintptr
+ 	g    guintptr
+-	ctxt unsafe.Pointer // this has to be a pointer so that gc scans it
++	ctxt unsafe.Pointer
+ 	ret  sys.Uintreg
+ 	lr   uintptr
+ 	bp   uintptr // for GOEXPERIMENT=framepointer
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 4e60e80863..89458b7ff6 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -913,9 +913,12 @@ func round2(x int32) int32 {
+ // g->atomicstatus will be Grunning or Gscanrunning upon entry.
+ // If the GC is trying to stop this g then it will set preemptscan to true.
+ //
+-// ctxt is the value of the context register on morestack. newstack
+-// will write it to g.sched.ctxt.
+-func newstack(ctxt unsafe.Pointer) {
++// This must be nowritebarrierrec because it can be called as part of
++// stack growth from other nowritebarrierrec functions, but the
++// compiler doesn't check this.
++//
++//go:nowritebarrierrec
++func newstack() {
+ 	thisg := getg()
+ 	// TODO: double check all gp. shouldn't be getg().
+ 	if thisg.m.morebuf.g.ptr().stackguard0 == stackFork {
+@@ -929,9 +932,6 @@ func newstack(ctxt unsafe.Pointer) {
+ 	}
+ 
+ 	gp := thisg.m.curg
+-	// Write ctxt to gp.sched. We do this here instead of in
+-	// morestack so it has the necessary write barrier.
+-	gp.sched.ctxt = ctxt
+ 
+ 	if thisg.m.curg.throwsplit {
+ 		// Update syscallsp, syscallpc in case traceback uses them.

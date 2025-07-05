@@ -7,9 +7,178 @@ Date:   Mon Jan 23 10:31:51 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5555071
-
+---
  src/pkg/compress/flate/Makefile              |  1 -
  src/pkg/compress/flate/huffman_bit_writer.go | 26 +++++++---
  src/pkg/compress/flate/huffman_code.go       |  4 +-
  src/pkg/compress/flate/util.go               | 72 ----------------------------
  4 files changed, 22 insertions(+), 81 deletions(-)
+
+diff --git a/src/pkg/compress/flate/Makefile b/src/pkg/compress/flate/Makefile
+index 197828a926..04fcb6b26e 100644
+--- a/src/pkg/compress/flate/Makefile
++++ b/src/pkg/compress/flate/Makefile
+@@ -12,6 +12,5 @@ GOFILES=\
+ 	inflate.go\
+ 	reverse_bits.go\
+ 	token.go\
+-	util.go\
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/compress/flate/huffman_bit_writer.go b/src/pkg/compress/flate/huffman_bit_writer.go
+index 8d0b4f9c1e..57b56b5c96 100644
+--- a/src/pkg/compress/flate/huffman_bit_writer.go
++++ b/src/pkg/compress/flate/huffman_bit_writer.go
+@@ -193,15 +193,17 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
+ //  numLiterals      The number of literals in literalEncoding
+ //  numOffsets       The number of offsets in offsetEncoding
+ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
+-	fillInt32s(w.codegenFreq, 0)
++	for i := range w.codegenFreq {
++		w.codegenFreq[i] = 0
++	}
+ 	// Note that we are using codegen both as a temporary variable for holding
+ 	// a copy of the frequencies, and as the place where we put the result.
+ 	// This is fine because the output is always shorter than the input used
+ 	// so far.
+ 	codegen := w.codegen // cache
+ 	// Copy the concatenated code sizes to codegen.  Put a marker at the end.
+-	copyUint8s(codegen[0:numLiterals], w.literalEncoding.codeBits)
+-	copyUint8s(codegen[numLiterals:numLiterals+numOffsets], w.offsetEncoding.codeBits)
++	copy(codegen[0:numLiterals], w.literalEncoding.codeBits)
++	copy(codegen[numLiterals:numLiterals+numOffsets], w.offsetEncoding.codeBits)
+ 	codegen[numLiterals+numOffsets] = badCode
+ 
+ 	size := codegen[0]
+@@ -222,7 +224,10 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
+ 			w.codegenFreq[size]++
+ 			count--
+ 			for count >= 3 {
+-				n := min(count, 6)
++				n := 6
++				if n > count {
++					n = count
++				}
+ 				codegen[outIndex] = 16
+ 				outIndex++
+ 				codegen[outIndex] = uint8(n - 3)
+@@ -232,7 +237,10 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
+ 			}
+ 		} else {
+ 			for count >= 11 {
+-				n := min(count, 138)
++				n := 138
++				if n > count {
++					n = count
++				}
+ 				codegen[outIndex] = 18
+ 				outIndex++
+ 				codegen[outIndex] = uint8(n - 11)
+@@ -351,8 +359,12 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
+ 	if w.err != nil {
+ 		return
+ 	}
+-	fillInt32s(w.literalFreq, 0)
+-	fillInt32s(w.offsetFreq, 0)
++	for i := range w.literalFreq {
++		w.literalFreq[i] = 0
++	}
++	for i := range w.offsetFreq {
++		w.offsetFreq[i] = 0
++	}
+ 
+ 	n := len(tokens)
+ 	tokens = tokens[0 : n+1]
+diff --git a/src/pkg/compress/flate/huffman_code.go b/src/pkg/compress/flate/huffman_code.go
+index 7ed603a4f4..4873b0fce3 100644
+--- a/src/pkg/compress/flate/huffman_code.go
++++ b/src/pkg/compress/flate/huffman_code.go
+@@ -195,7 +195,9 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
+ 
+ 	// The tree can't have greater depth than n - 1, no matter what.  This
+ 	// saves a little bit of work in some small cases
+-	maxBits = minInt32(maxBits, n-1)
++	if maxBits > n-1 {
++		maxBits = n - 1
++	}
+ 
+ 	// Create information about each of the levels.
+ 	// A bogus "Level 0" whose sole purpose is so that
+diff --git a/src/pkg/compress/flate/util.go b/src/pkg/compress/flate/util.go
+deleted file mode 100644
+index aca5c78b2d..0000000000
+--- a/src/pkg/compress/flate/util.go
++++ /dev/null
+@@ -1,72 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package flate
+-
+-func min(left int, right int) int {
+-	if left < right {
+-		return left
+-	}
+-	return right
+-}
+-
+-func minInt32(left int32, right int32) int32 {
+-	if left < right {
+-		return left
+-	}
+-	return right
+-}
+-
+-func max(left int, right int) int {
+-	if left > right {
+-		return left
+-	}
+-	return right
+-}
+-
+-func fillInts(a []int, value int) {
+-	for i := range a {
+-		a[i] = value
+-	}
+-}
+-
+-func fillInt32s(a []int32, value int32) {
+-	for i := range a {
+-		a[i] = value
+-	}
+-}
+-
+-func fillBytes(a []byte, value byte) {
+-	for i := range a {
+-		a[i] = value
+-	}
+-}
+-
+-func fillInt8s(a []int8, value int8) {
+-	for i := range a {
+-		a[i] = value
+-	}
+-}
+-
+-func fillUint8s(a []uint8, value uint8) {
+-	for i := range a {
+-		a[i] = value
+-	}
+-}
+-
+-func copyInt8s(dst []int8, src []int8) int {
+-	cnt := min(len(dst), len(src))
+-	for i := 0; i < cnt; i++ {
+-		dst[i] = src[i]
+-	}
+-	return cnt
+-}
+-
+-func copyUint8s(dst []uint8, src []uint8) int {
+-	cnt := min(len(dst), len(src))
+-	for i := 0; i < cnt; i++ {
+-		dst[i] = src[i]
+-	}
+-	return cnt
+-}

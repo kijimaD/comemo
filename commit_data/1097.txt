@@ -8,8 +8,130 @@ Date:   Mon Nov 10 14:54:10 2008 -0800
     DELTA=48  (23 added, 14 deleted, 11 changed)
     OCL=18707
     CL=18922
-
+---
  src/runtime/print.c   | 53 +++++++++++++++++++++++++++++----------------------
  src/runtime/runtime.c |  4 ++--
  src/runtime/runtime.h |  2 ++
  3 files changed, 34 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/print.c b/src/runtime/print.c
+index f50d308957..de9cabfbb1 100644
+--- a/src/runtime/print.c
++++ b/src/runtime/print.c
+@@ -52,6 +52,20 @@ sys·printfloat(float64 v)
+ 	int32 e, s, i, n;
+ 	float64 h;
+ 
++	if(isNaN(v)) {
++		sys·write(1, "NaN", 3);
++		return;
++	}
++	if(isInf(v, 0)) {
++		sys·write(1, "+Inf", 4);
++		return;
++	}
++	if(isInf(v, -1)) {
++		sys·write(1, "+Inf", 4);
++		return;
++	}
++
++
+ 	n = 7;	// digits printed
+ 	e = 0;	// exp
+ 	s = 0;	// sign
+@@ -103,27 +117,17 @@ sys·printfloat(float64 v)
+ 		buf[n+3] = '-';
+ 	}
+ 
+-	buf[n+4] = (e/10) + '0';
+-	buf[n+5] = (e%10) + '0';
+-	sys·write(1, buf, n+6);
++	buf[n+4] = (e/100) + '0';
++	buf[n+5] = (e/10)%10 + '0';
++	buf[n+6] = (e%10) + '0';
++	sys·write(1, buf, n+7);
+ }
+ 
+ void
+-sys·printint(int64 v)
++sys·printuint(uint64 v)
+ {
+ 	byte buf[100];
+-	int32 i, s, big;
+-
+-	big = 0;
+-	s = 0;
+-	if(v < 0) {
+-		v = -v;
+-		s = 1;
+-		if(v < 0) {
+-			big = 1;
+-			v--;
+-		}
+-	}
++	int32 i;
+ 
+ 	for(i=nelem(buf)-1; i>0; i--) {
+ 		buf[i] = v%10 + '0';
+@@ -131,16 +135,19 @@ sys·printint(int64 v)
+ 			break;
+ 		v = v/10;
+ 	}
+-	if(s){
+-		i--;
+-		buf[i] = '-';
+-	}
+-	if(big){
+-		buf[nelem(buf)-1]++;
+-	}
+ 	sys·write(1, buf+i, nelem(buf)-i);
+ }
+ 
++void
++sys·printint(int64 v)
++{
++	if(v < 0) {
++		sys·write(1, "-", 1);
++		v = -v;
++	}
++	sys·printuint(v);
++}
++
+ void
+ sys·printpointer(void *p)
+ {
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index a0d97dcda9..a8b2367950 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -172,7 +172,7 @@ static	uint64	uvnan		= 0x7FF0000000000001ULL;
+ static	uint64	uvinf		= 0x7FF0000000000000ULL;
+ static	uint64	uvneginf	= 0xFFF0000000000000ULL;
+ 
+-static int32
++bool
+ isInf(float64 d, int32 sign)
+ {
+ 	uint64 x;
+@@ -199,7 +199,7 @@ NaN(void)
+ 	return *(float64*)&uvnan;
+ }
+ 
+-static int32
++bool
+ isNaN(float64 d)
+ {
+ 	uint64 x;
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 30fa915b48..74afa3aef1 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -288,6 +288,8 @@ void	sys·cmpstring(string, string, int32);
+ void	sys·slicestring(string, int32, int32, string);
+ void	sys·indexstring(string, int32, byte);
+ void	sys·intstring(int64, string);
++bool	isInf(float64, int32);
++bool	isNaN(float64);
+ 
+ /*
+  * User go-called

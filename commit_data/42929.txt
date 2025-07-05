@@ -23,7 +23,7 @@ Date:   Fri Nov 15 18:30:19 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go    |  4 +++-
  src/cmd/internal/sys/supported.go  |  4 +++-
  src/cmd/link/internal/arm64/obj.go |  3 ++-
@@ -31,3 +31,123 @@ Date:   Fri Nov 15 18:30:19 2019 -0500
  src/cmd/link/internal/ld/elf.go    |  9 ++++++++-
  src/cmd/link/internal/ld/lib.go    |  1 +
  6 files changed, 30 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 369a79b716..3e5d1f4023 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1871,7 +1871,9 @@ func externalLinkingForced(p *Package) bool {
+ 	// Some targets must use external linking even inside GOROOT.
+ 	switch cfg.BuildContext.GOOS {
+ 	case "android":
+-		return true
++		if cfg.BuildContext.GOARCH != "arm64" {
++			return true
++		}
+ 	case "darwin":
+ 		switch cfg.BuildContext.GOARCH {
+ 		case "arm", "arm64":
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index 02f833e945..c8ab2181b5 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -35,7 +35,9 @@ func MSanSupported(goos, goarch string) bool {
+ func MustLinkExternal(goos, goarch string) bool {
+ 	switch goos {
+ 	case "android":
+-		return true
++		if goarch != "arm64" {
++			return true
++		}
+ 	case "darwin":
+ 		if goarch == "arm" || goarch == "arm64" {
+ 			return true
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 13157be432..4ed05c087a 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -57,7 +57,8 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Gentext:          gentext,
+ 		Machoreloc1:      machoreloc1,
+ 
+-		Linuxdynld: "/lib/ld-linux-aarch64.so.1",
++		Androiddynld: "/system/bin/linker64",
++		Linuxdynld:   "/lib/ld-linux-aarch64.so.1",
+ 
+ 		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+ 		Openbsddynld:   "/usr/libexec/ld.so",
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 86d8779512..1420a86fd1 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -189,6 +189,9 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64) {
+ 		return true, objabi.GOARCH + " does not support internal cgo"
+ 	}
++	if iscgo && objabi.GOOS == "android" {
++		return true, objabi.GOOS + " does not support internal cgo"
++	}
+ 
+ 	// When the race flag is set, the LLVM tsan relocatable file is linked
+ 	// into the final binary, which means external linking is required because
+@@ -205,7 +208,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 		return true, "buildmode=c-shared"
+ 	case BuildModePIE:
+ 		switch objabi.GOOS + "/" + objabi.GOARCH {
+-		case "linux/amd64", "linux/arm64":
++		case "linux/amd64", "linux/arm64", "android/arm64":
+ 		default:
+ 			// Internal linking does not support TLS_IE.
+ 			return true, "buildmode=pie"
+@@ -244,10 +247,16 @@ func determineLinkMode(ctxt *Link) {
+ 			ctxt.LinkMode = LinkExternal
+ 			via = "via GO_EXTLINK_ENABLED "
+ 		default:
+-			if extNeeded || (iscgo && externalobj) {
++			ctxt.LinkMode = LinkInternal
++			switch {
++			case extNeeded, iscgo && externalobj:
+ 				ctxt.LinkMode = LinkExternal
+-			} else {
+-				ctxt.LinkMode = LinkInternal
++			case ctxt.BuildMode == BuildModePIE:
++				// Android always use BuildModePIE, and needs internal linking for
++				// bootstrapping.
++				if objabi.GOOS != "android" || objabi.GOARCH != "arm64" {
++					ctxt.LinkMode = LinkExternal
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 69cad383d0..3ede5df170 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1851,7 +1851,14 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		if interpreter == "" {
+ 			switch ctxt.HeadType {
+ 			case objabi.Hlinux:
+-				interpreter = thearch.Linuxdynld
++				if objabi.GOOS == "android" {
++					interpreter = thearch.Androiddynld
++					if interpreter == "" {
++						Exitf("ELF interpreter not set")
++					}
++				} else {
++					interpreter = thearch.Linuxdynld
++				}
+ 
+ 			case objabi.Hfreebsd:
+ 				interpreter = thearch.Freebsddynld
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c2c0838900..7c5877bfbd 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -101,6 +101,7 @@ type Arch struct {
+ 	Minalign       int
+ 	Dwarfregsp     int
+ 	Dwarfreglr     int
++	Androiddynld   string
+ 	Linuxdynld     string
+ 	Freebsddynld   string
+ 	Netbsddynld    string

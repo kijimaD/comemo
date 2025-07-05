@@ -8,7 +8,33 @@ Date:   Tue Apr 12 11:03:05 2011 -0700
     R=rsc, jnml
     CC=golang-dev
     https://golang.org/cl/4376054
-
+---
  src/pkg/fmt/fmt_test.go | 1 +
  src/pkg/fmt/print.go    | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 3766c838a9..b3c0c5abed 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -170,6 +170,7 @@ var fmttests = []struct {
+ 
+ 	// unicode format
+ 	{"%U", 0x1, "U+0001"},
++	{"%U", uint(0x1), "U+0001"},
+ 	{"%.8U", 0x2, "U+00000002"},
+ 	{"%U", 0x1234, "U+1234"},
+ 	{"%U", 0x12345, "U+12345"},
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index e3dc775cf2..7fca6afe49 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -389,6 +389,8 @@ func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {
+ 		p.fmt.integer(int64(v), 16, unsigned, ldigits)
+ 	case 'X':
+ 		p.fmt.integer(int64(v), 16, unsigned, udigits)
++	case 'U':
++		p.fmtUnicode(int64(v))
+ 	default:
+ 		p.badVerb(verb, value)
+ 	}

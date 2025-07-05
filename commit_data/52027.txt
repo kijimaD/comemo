@@ -17,6 +17,20 @@ Date:   Tue Feb 8 11:56:10 2022 -0500
     Trust: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index fa0d44dae6..426228a831 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1567,7 +1567,7 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.parallel()
+ 	tg.tempFile("src/origin/origin.go", `package origin
+-		// #cgo !darwin LDFLAGS: -Wl,-rpath,$ORIGIN
++		// #cgo !darwin,!windows LDFLAGS: -Wl,-rpath,$ORIGIN
+ 		// void f(void) {}
+ 		import "C"
+ 		func f() { C.f() }`)

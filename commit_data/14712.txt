@@ -11,8 +11,70 @@ Date:   Fri Dec 21 23:46:16 2012 +0100
     R=daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/6999043
-
+---
  src/cmd/8g/cgen.c | 10 +++++++++-
  src/cmd/8g/ggen.c |  8 +++++---
  test/torture.go   |  4 ++++
  3 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 935831d751..d2935d3992 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -395,7 +395,15 @@ sbop:	// symmetric binary
+ 	}
+ 
+ abop:	// asymmetric binary
+-	if(nl->ullman >= nr->ullman) {
++	if(smallintconst(nr)) {
++		mgen(nl, &n1, res);
++		regalloc(&n2, nl->type, &n1);
++		gmove(&n1, &n2);
++		gins(a, nr, &n2);
++		gmove(&n2, res);
++		regfree(&n2);
++		mfree(&n1);
++	} else if(nl->ullman >= nr->ullman) {
+ 		tempname(&nt, nl->type);
+ 		cgen(nl, &nt);
+ 		mgen(nr, &n2, N);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index d72c2259bd..641b4389e9 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -748,7 +748,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ void
+ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
+ {
+-	Node n1, n2, *tmp;
++	Node n1, n2, nt, *tmp;
+ 	Type *t;
+ 	int a;
+ 
+@@ -764,10 +764,12 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
+ 		nr = tmp;
+ 	}
+ 
++	tempname(&nt, nl->type);
++	cgen(nl, &nt);
+ 	regalloc(&n1, t, res);
+-	cgen(nl, &n1);
++	cgen(nr, &n1);
+ 	regalloc(&n2, t, N);
+-	cgen(nr, &n2);
++	gmove(&nt, &n2);
+ 	a = optoas(op, t);
+ 	gins(a, &n2, &n1);
+ 	regfree(&n2);
+diff --git a/test/torture.go b/test/torture.go
+index d14d78fd14..bbf6d347d9 100644
+--- a/test/torture.go
++++ b/test/torture.go
+@@ -333,3 +333,7 @@ func ChainDivConst(a int) int {
+ 		17 / 17 / 17 / 17 /
+ 		17 / 17 / 17 / 17
+ }
++
++func ChainMulBytes(a, b, c byte) byte {
++	return a*(a*(a*(a*(a*(a*(a*(a*(a*b+c)+c)+c)+c)+c)+c)+c)+c) + c
++}

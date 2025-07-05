@@ -17,8 +17,551 @@ Date:   Tue Oct 25 12:51:39 2016 -0700
     Change-Id: I35039dea6811480ccf2889f8ed9c6a39ce34bfff
     Reviewed-on: https://go-review.googlesource.com/32014
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/export_test.go |   1 +
  src/net/http/fs.go          | 308 +++++++++++++++++++++++++++++++++-----------
  src/net/http/fs_test.go     | 119 ++++++++++++++++-
  3 files changed, 348 insertions(+), 80 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 40f87dc8e9..b61f58b2db 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -24,6 +24,7 @@ var (
+ 	ExportErrRequestCanceled     = errRequestCanceled
+ 	ExportErrRequestCanceledConn = errRequestCanceledConn
+ 	ExportServeFile              = serveFile
++	ExportScanETag               = scanETag
+ 	ExportHttp2ConfigureServer   = http2ConfigureServer
+ )
+ 
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 4ab74ff640..1ff36d2d99 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -98,7 +98,8 @@ func dirList(w ResponseWriter, f File) {
+ // ServeContent replies to the request using the content in the
+ // provided ReadSeeker. The main benefit of ServeContent over io.Copy
+ // is that it handles Range requests properly, sets the MIME type, and
+-// handles If-Modified-Since requests.
++// handles If-Match, If-Unmodified-Since, If-None-Match, If-Modified-Since,
++// and If-Range requests.
+ //
+ // If the response's Content-Type header is not set, ServeContent
+ // first tries to deduce the type from name's file extension and,
+@@ -116,7 +117,7 @@ func dirList(w ResponseWriter, f File) {
+ // a seek to the end of the content to determine its size.
+ //
+ // If the caller has set w's ETag header, ServeContent uses it to
+-// handle requests using If-Range and If-None-Match.
++// handle requests using If-Match, If-None-Match, or If-Range.
+ //
+ // Note that *os.File implements the io.ReadSeeker interface.
+ func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
+@@ -149,10 +150,8 @@ var errNoOverlap = errors.New("invalid range: failed to overlap")
+ // content must be seeked to the beginning of the file.
+ // The sizeFunc is called at most once. Its error, if any, is sent in the HTTP response.
+ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, sizeFunc func() (int64, error), content io.ReadSeeker) {
+-	if checkLastModified(w, r, modtime) {
+-		return
+-	}
+-	rangeReq, done := checkETag(w, r, modtime)
++	setLastModified(w, modtime)
++	done, rangeReq := checkPreconditions(w, r, modtime)
+ 	if done {
+ 		return
+ 	}
+@@ -270,90 +269,245 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 	}
+ }
+ 
+-var unixEpochTime = time.Unix(0, 0)
+-
+-// modtime is the modification time of the resource to be served, or IsZero().
+-// return value is whether this request is now complete.
+-func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
+-	if modtime.IsZero() || modtime.Equal(unixEpochTime) {
+-		// If the file doesn't have a modtime (IsZero), or the modtime
+-		// is obviously garbage (Unix time == 0), then ignore modtimes
+-		// and don't process the If-Modified-Since header.
+-		return false
++// scanETag determines if a syntactically valid ETag is present at s. If so,
++// the ETag and remaining text after consuming ETag is returned. Otherwise,
++// it returns "", "".
++func scanETag(s string) (etag string, remain string) {
++	s = textproto.TrimString(s)
++	start := 0
++	if strings.HasPrefix(s, "W/") {
++		start = 2
++	}
++	if len(s[start:]) < 2 || s[start] != '"' {
++		return "", ""
++	}
++	// ETag is either W/"text" or "text".
++	// See RFC 7232 2.3.
++	for i := start + 1; i < len(s); i++ {
++		c := s[i]
++		switch {
++		// Character values allowed in ETags.
++		case c == 0x21 || c >= 0x23 && c <= 0x7E || c >= 0x80:
++		case c == '"':
++			return string(s[:i+1]), s[i+1:]
++		default:
++			break
++		}
+ 	}
++	return "", ""
++}
+ 
+-	// The Date-Modified header truncates sub-second precision, so
+-	// use mtime < t+1s instead of mtime <= t to check for unmodified.
+-	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && modtime.Before(t.Add(1*time.Second)) {
+-		h := w.Header()
+-		delete(h, "Content-Type")
+-		delete(h, "Content-Length")
+-		w.WriteHeader(StatusNotModified)
+-		return true
+-	}
+-	w.Header().Set("Last-Modified", modtime.UTC().Format(TimeFormat))
+-	return false
++// etagStrongMatch reports whether a and b match using strong ETag comparison.
++// Assumes a and b are valid ETags.
++func etagStrongMatch(a, b string) bool {
++	return a == b && a != "" && a[0] == '"'
+ }
+ 
+-// checkETag implements If-None-Match and If-Range checks.
+-//
+-// The ETag or modtime must have been previously set in the
+-// ResponseWriter's headers. The modtime is only compared at second
+-// granularity and may be the zero value to mean unknown.
+-//
+-// The return value is the effective request "Range" header to use and
+-// whether this request is now considered done.
+-func checkETag(w ResponseWriter, r *Request, modtime time.Time) (rangeReq string, done bool) {
+-	etag := w.Header().get("Etag")
+-	rangeReq = r.Header.get("Range")
+-
+-	// Invalidate the range request if the entity doesn't match the one
+-	// the client was expecting.
+-	// "If-Range: version" means "ignore the Range: header unless version matches the
+-	// current file."
+-	// We only support ETag versions.
+-	// The caller must have set the ETag on the response already.
+-	if ir := r.Header.get("If-Range"); ir != "" && ir != etag {
+-		// The If-Range value is typically the ETag value, but it may also be
+-		// the modtime date. See golang.org/issue/8367.
+-		timeMatches := false
+-		if !modtime.IsZero() {
+-			if t, err := ParseTime(ir); err == nil && t.Unix() == modtime.Unix() {
+-				timeMatches = true
+-			}
++// etagWeakMatch reports whether a and b match using weak ETag comparison.
++// Assumes a and b are valid ETags.
++func etagWeakMatch(a, b string) bool {
++	return strings.TrimPrefix(a, "W/") == strings.TrimPrefix(b, "W/")
++}
++
++// condResult is the result of an HTTP request precondition check.
++// See https://tools.ietf.org/html/rfc7232 section 3.
++type condResult int
++
++const (
++	condNone condResult = iota
++	condTrue
++	condFalse
++)
++
++func checkIfMatch(w ResponseWriter, r *Request) condResult {
++	im := r.Header.Get("If-Match")
++	if im == "" {
++		return condNone
++	}
++	for {
++		im = textproto.TrimString(im)
++		if len(im) == 0 {
++			break
++		}
++		if im[0] == ',' {
++			im = im[1:]
++			continue
++		}
++		if im[0] == '*' {
++			return condTrue
+ 		}
+-		if !timeMatches {
+-			rangeReq = ""
++		etag, remain := scanETag(im)
++		if etag == "" {
++			break
++		}
++		if etagStrongMatch(etag, w.Header().get("Etag")) {
++			return condTrue
++		}
++		im = remain
++	}
++
++	return condFalse
++}
++
++func checkIfUnmodifiedSince(w ResponseWriter, r *Request, modtime time.Time) condResult {
++	ius := r.Header.Get("If-Unmodified-Since")
++	if ius == "" || isZeroTime(modtime) {
++		return condNone
++	}
++	if t, err := ParseTime(ius); err == nil {
++		// The Date-Modified header truncates sub-second precision, so
++		// use mtime < t+1s instead of mtime <= t to check for unmodified.
++		if modtime.Before(t.Add(1 * time.Second)) {
++			return condTrue
+ 		}
++		return condFalse
+ 	}
++	return condNone
++}
+ 
+-	if inm := r.Header.get("If-None-Match"); inm != "" {
+-		// Must know ETag.
++func checkIfNoneMatch(w ResponseWriter, r *Request) condResult {
++	inm := r.Header.get("If-None-Match")
++	if inm == "" {
++		return condNone
++	}
++	buf := inm
++	for {
++		buf = textproto.TrimString(buf)
++		if len(buf) == 0 {
++			break
++		}
++		if buf[0] == ',' {
++			buf = buf[1:]
++		}
++		if buf[0] == '*' {
++			return condFalse
++		}
++		etag, remain := scanETag(buf)
+ 		if etag == "" {
+-			return rangeReq, false
++			break
+ 		}
++		if etagWeakMatch(etag, w.Header().get("Etag")) {
++			return condFalse
++		}
++		buf = remain
++	}
++	return condTrue
++}
++
++func checkIfModifiedSince(w ResponseWriter, r *Request, modtime time.Time) condResult {
++	if r.Method != "GET" && r.Method != "HEAD" {
++		return condNone
++	}
++	ims := r.Header.Get("If-Modified-Since")
++	if ims == "" || isZeroTime(modtime) {
++		return condNone
++	}
++	t, err := ParseTime(ims)
++	if err != nil {
++		return condNone
++	}
++	// The Date-Modified header truncates sub-second precision, so
++	// use mtime < t+1s instead of mtime <= t to check for unmodified.
++	if modtime.Before(t.Add(1 * time.Second)) {
++		return condFalse
++	}
++	return condTrue
++}
+ 
+-		// TODO(bradfitz): non-GET/HEAD requests require more work:
+-		// sending a different status code on matches, and
+-		// also can't use weak cache validators (those with a "W/
+-		// prefix).  But most users of ServeContent will be using
+-		// it on GET or HEAD, so only support those for now.
+-		if r.Method != "GET" && r.Method != "HEAD" {
+-			return rangeReq, false
++func checkIfRange(w ResponseWriter, r *Request, modtime time.Time) condResult {
++	if r.Method != "GET" {
++		return condNone
++	}
++	ir := r.Header.get("If-Range")
++	if ir == "" {
++		return condNone
++	}
++	etag, _ := scanETag(ir)
++	if etag != "" {
++		if etagStrongMatch(etag, w.Header().Get("Etag")) {
++			return condTrue
++		} else {
++			return condFalse
+ 		}
++	}
++	// The If-Range value is typically the ETag value, but it may also be
++	// the modtime date. See golang.org/issue/8367.
++	if modtime.IsZero() {
++		return condFalse
++	}
++	t, err := ParseTime(ir)
++	if err != nil {
++		return condFalse
++	}
++	if t.Unix() == modtime.Unix() {
++		return condTrue
++	}
++	return condFalse
++}
++
++var unixEpochTime = time.Unix(0, 0)
++
++// isZeroTime reports whether t is obviously unspecified (either zero or Unix()=0).
++func isZeroTime(t time.Time) bool {
++	return t.IsZero() || t.Equal(unixEpochTime)
++}
++
++func setLastModified(w ResponseWriter, modtime time.Time) {
++	if !isZeroTime(modtime) {
++		w.Header().Set("Last-Modified", modtime.UTC().Format(TimeFormat))
++	}
++}
++
++func writeNotModified(w ResponseWriter) {
++	// RFC 7232 section 4.1:
++	// a sender SHOULD NOT generate representation metadata other than the
++	// above listed fields unless said metadata exists for the purpose of
++	// guiding cache updates (e.g., Last-Modified might be useful if the
++	// response does not have an ETag field).
++	h := w.Header()
++	delete(h, "Content-Type")
++	delete(h, "Content-Length")
++	if h.Get("Etag") != "" {
++		delete(h, "Last-Modified")
++	}
++	w.WriteHeader(StatusNotModified)
++}
++
++// checkPreconditions evaluates request preconditions and reports whether a precondition
++// resulted in sending StatusNotModified or StatusPreconditionFailed.
++func checkPreconditions(w ResponseWriter, r *Request, modtime time.Time) (done bool, rangeHeader string) {
++	// This function carefully follows RFC 7232 section 6.
++	ch := checkIfMatch(w, r)
++	if ch == condNone {
++		ch = checkIfUnmodifiedSince(w, r, modtime)
++	}
++	if ch == condFalse {
++		w.WriteHeader(StatusPreconditionFailed)
++		return true, ""
++	}
++	switch checkIfNoneMatch(w, r) {
++	case condFalse:
++		if r.Method == "GET" || r.Method == "HEAD" {
++			writeNotModified(w)
++			return true, ""
++		} else {
++			w.WriteHeader(StatusPreconditionFailed)
++			return true, ""
++		}
++	case condNone:
++		if checkIfModifiedSince(w, r, modtime) == condFalse {
++			writeNotModified(w)
++			return true, ""
++		}
++	}
+ 
+-		// TODO(bradfitz): deal with comma-separated or multiple-valued
+-		// list of If-None-match values. For now just handle the common
+-		// case of a single item.
+-		if inm == etag || inm == "*" {
+-			h := w.Header()
+-			delete(h, "Content-Type")
+-			delete(h, "Content-Length")
+-			w.WriteHeader(StatusNotModified)
+-			return "", true
++	rangeHeader = r.Header.get("Range")
++	if rangeHeader != "" {
++		if checkIfRange(w, r, modtime) == condFalse {
++			rangeHeader = ""
+ 		}
+ 	}
+-	return rangeReq, false
++	return false, rangeHeader
+ }
+ 
+ // name is '/'-separated, not filepath.Separator.
+@@ -426,9 +580,11 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 
+ 	// Still a directory? (we didn't find an index.html file)
+ 	if d.IsDir() {
+-		if checkLastModified(w, r, d.ModTime()) {
++		if checkIfModifiedSince(w, r, d.ModTime()) == condFalse {
++			writeNotModified(w)
+ 			return
+ 		}
++		w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
+ 		dirList(w, f)
+ 		return
+ 	}
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index bc40cc7a52..3344390cca 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -784,8 +784,9 @@ func TestServeContent(t *testing.T) {
+ 			wantStatus:      200,
+ 		},
+ 		"not_modified_modtime": {
+-			file:    "testdata/style.css",
+-			modtime: htmlModTime,
++			file:      "testdata/style.css",
++			serveETag: `"foo"`, // Last-Modified sent only when no ETag
++			modtime:   htmlModTime,
+ 			reqHeader: map[string]string{
+ 				"If-Modified-Since": htmlModTime.UTC().Format(TimeFormat),
+ 			},
+@@ -794,6 +795,7 @@ func TestServeContent(t *testing.T) {
+ 		"not_modified_modtime_with_contenttype": {
+ 			file:             "testdata/style.css",
+ 			serveContentType: "text/css", // explicit content type
++			serveETag:        `"foo"`,    // Last-Modified sent only when no ETag
+ 			modtime:          htmlModTime,
+ 			reqHeader: map[string]string{
+ 				"If-Modified-Since": htmlModTime.UTC().Format(TimeFormat),
+@@ -810,12 +812,21 @@ func TestServeContent(t *testing.T) {
+ 		},
+ 		"not_modified_etag_no_seek": {
+ 			content:   panicOnSeek{nil}, // should never be called
+-			serveETag: `"foo"`,
++			serveETag: `W/"foo"`,        // If-None-Match uses weak ETag comparison
+ 			reqHeader: map[string]string{
+-				"If-None-Match": `"foo"`,
++				"If-None-Match": `"baz", W/"foo"`,
+ 			},
+ 			wantStatus: 304,
+ 		},
++		"if_none_match_mismatch": {
++			file:      "testdata/style.css",
++			serveETag: `"foo"`,
++			reqHeader: map[string]string{
++				"If-None-Match": `"Foo"`,
++			},
++			wantStatus:      200,
++			wantContentType: "text/css; charset=utf-8",
++		},
+ 		"range_good": {
+ 			file:      "testdata/style.css",
+ 			serveETag: `"A"`,
+@@ -826,6 +837,27 @@ func TestServeContent(t *testing.T) {
+ 			wantContentType:  "text/css; charset=utf-8",
+ 			wantContentRange: "bytes 0-4/8",
+ 		},
++		"range_match": {
++			file:      "testdata/style.css",
++			serveETag: `"A"`,
++			reqHeader: map[string]string{
++				"Range":    "bytes=0-4",
++				"If-Range": `"A"`,
++			},
++			wantStatus:       StatusPartialContent,
++			wantContentType:  "text/css; charset=utf-8",
++			wantContentRange: "bytes 0-4/8",
++		},
++		"range_match_weak_etag": {
++			file:      "testdata/style.css",
++			serveETag: `W/"A"`,
++			reqHeader: map[string]string{
++				"Range":    "bytes=0-4",
++				"If-Range": `W/"A"`,
++			},
++			wantStatus:      200,
++			wantContentType: "text/css; charset=utf-8",
++		},
+ 		"range_no_overlap": {
+ 			file:      "testdata/style.css",
+ 			serveETag: `"A"`,
+@@ -878,6 +910,62 @@ func TestServeContent(t *testing.T) {
+ 			wantStatus:      StatusOK,
+ 			wantContentType: "text/html; charset=utf-8",
+ 		},
++		"ifmatch_matches": {
++			file:      "testdata/style.css",
++			serveETag: `"A"`,
++			reqHeader: map[string]string{
++				"If-Match": `"Z", "A"`,
++			},
++			wantStatus:      200,
++			wantContentType: "text/css; charset=utf-8",
++		},
++		"ifmatch_star": {
++			file:      "testdata/style.css",
++			serveETag: `"A"`,
++			reqHeader: map[string]string{
++				"If-Match": `*`,
++			},
++			wantStatus:      200,
++			wantContentType: "text/css; charset=utf-8",
++		},
++		"ifmatch_failed": {
++			file:      "testdata/style.css",
++			serveETag: `"A"`,
++			reqHeader: map[string]string{
++				"If-Match": `"B"`,
++			},
++			wantStatus:      412,
++			wantContentType: "text/plain; charset=utf-8",
++		},
++		"ifmatch_fails_on_weak_etag": {
++			file:      "testdata/style.css",
++			serveETag: `W/"A"`,
++			reqHeader: map[string]string{
++				"If-Match": `W/"A"`,
++			},
++			wantStatus:      412,
++			wantContentType: "text/plain; charset=utf-8",
++		},
++		"if_unmodified_since_true": {
++			file:    "testdata/style.css",
++			modtime: htmlModTime,
++			reqHeader: map[string]string{
++				"If-Unmodified-Since": htmlModTime.UTC().Format(TimeFormat),
++			},
++			wantStatus:      200,
++			wantContentType: "text/css; charset=utf-8",
++			wantLastMod:     htmlModTime.UTC().Format(TimeFormat),
++		},
++		"if_unmodified_since_false": {
++			file:    "testdata/style.css",
++			modtime: htmlModTime,
++			reqHeader: map[string]string{
++				"If-Unmodified-Since": htmlModTime.Add(-2 * time.Second).UTC().Format(TimeFormat),
++			},
++			wantStatus:      412,
++			wantContentType: "text/plain; charset=utf-8",
++			wantLastMod:     htmlModTime.UTC().Format(TimeFormat),
++		},
+ 	}
+ 	for testName, tt := range tests {
+ 		var content io.ReadSeeker
+@@ -1108,3 +1196,26 @@ func (d fileServerCleanPathDir) Open(path string) (File, error) {
+ }
+ 
+ type panicOnSeek struct{ io.ReadSeeker }
++
++func Test_scanETag(t *testing.T) {
++	tests := []struct {
++		in         string
++		wantETag   string
++		wantRemain string
++	}{
++		{`W/"etag-1"`, `W/"etag-1"`, ""},
++		{`"etag-2"`, `"etag-2"`, ""},
++		{`"etag-1", "etag-2"`, `"etag-1"`, `, "etag-2"`},
++		{"", "", ""},
++		{"", "", ""},
++		{"W/", "", ""},
++		{`W/"truc`, "", ""},
++		{`w/"case-sensitive"`, "", ""},
++	}
++	for _, test := range tests {
++		etag, remain := ExportScanETag(test.in)
++		if etag != test.wantETag || remain != test.wantRemain {
++			t.Errorf("scanETag(%q)=%q %q, want %q %q", test.in, etag, remain, test.wantETag, test.wantRemain)
++		}
++	}
++}

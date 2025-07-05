@@ -10,6 +10,20 @@ Date:   Fri Feb 4 11:27:17 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Kevin Burke <kevin@burke.dev>
-
+---
  src/internal/nettrace/nettrace.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/nettrace/nettrace.go b/src/internal/nettrace/nettrace.go
+index 94f38a71ee..6e0dbe73bb 100644
+--- a/src/internal/nettrace/nettrace.go
++++ b/src/internal/nettrace/nettrace.go
+@@ -27,7 +27,7 @@ type Trace struct {
+ 	DNSStart func(name string)
+ 
+ 	// DNSDone is called after a DNS lookup completes (or fails).
+-	// The coalesced parameter is whether singleflight de-dupped
++	// The coalesced parameter is whether singleflight de-duped
+ 	// the call. The addrs are of type net.IPAddr but can't
+ 	// actually be for circular dependency reasons.
+ 	DNSDone func(netIPs []any, coalesced bool, err error)

@@ -18,8 +18,71 @@ Date:   Wed May 20 13:51:53 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modget/get.go      | 9 +++++++++
  src/cmd/go/internal/modget/query.go    | 6 +++++-
  src/cmd/go/testdata/script/mod_dot.txt | 6 +++++-
  3 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 5b8eebf7cb..0b7f6bf1d5 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -505,6 +505,12 @@ func parseArgs(ctx context.Context, rawArgs []string) []*query {
+ 			continue
+ 		}
+ 
++		// If there were no arguments, CleanPatterns returns ".". Set the raw
++		// string back to "" for better errors.
++		if len(rawArgs) == 0 {
++			q.raw = ""
++		}
++
+ 		// Guard against 'go get x.go', a common mistake.
+ 		// Note that package and module paths may end with '.go', so only print an error
+ 		// if the argument has no version and either has no slash or refers to an existing file.
+@@ -820,6 +826,9 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
+ 			}
+ 
+ 			if len(match.Pkgs) == 0 {
++				if q.raw == "" || q.raw == "." {
++					return errSet(fmt.Errorf("no package in current directory"))
++				}
+ 				if !q.isWildcard() {
+ 					return errSet(fmt.Errorf("%s%s is not a package in module rooted at %s", q.pattern, absDetail, modload.ModRoot()))
+ 				}
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index 53b60cc71a..20eb0b6364 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -295,7 +295,11 @@ func reportError(q *query, err error) {
+ 		}
+ 	}
+ 
+-	base.Errorf("go get %s: %s", q, errStr)
++	if qs := q.String(); qs != "" {
++		base.Errorf("go get %s: %s", qs, errStr)
++	} else {
++		base.Errorf("go get: %s", errStr)
++	}
+ }
+ 
+ func reportConflict(pq *query, m module.Version, conflict versionReason) {
+diff --git a/src/cmd/go/testdata/script/mod_dot.txt b/src/cmd/go/testdata/script/mod_dot.txt
+index 72be612799..ca8d5c6cc2 100644
+--- a/src/cmd/go/testdata/script/mod_dot.txt
++++ b/src/cmd/go/testdata/script/mod_dot.txt
+@@ -4,8 +4,12 @@ env GO111MODULE=on
+ # in an empty directory should refer to the path '.' and should not attempt
+ # to resolve an external module.
+ cd dir
++! go get
++stderr '^go get: no package in current directory$'
+ ! go get .
+-stderr 'go get: \. \(.*[/\\]dir\) is not a package in module rooted at .*[/\\]dir$'
++stderr '^go get \.: no package in current directory$'
++! go get ./subdir
++stderr '^go get: \.[/\\]subdir \('$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir\) is not a package in module rooted at '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
+ ! go list
+ ! stderr 'cannot find module providing package'
+ stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir$'

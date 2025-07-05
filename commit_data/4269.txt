@@ -6,6 +6,17 @@ Date:   Tue Dec 1 19:30:17 2009 -0800
     
     R=gri
     https://golang.org/cl/163067
-
+---
  src/cmd/gofmt/test.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index e6e7cea68c..dcfcbbf8b8 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.

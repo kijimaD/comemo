@@ -20,6 +20,30 @@ Date:   Tue Nov 15 13:37:42 2022 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/pgo/graph.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/pgo/graph.go b/src/cmd/compile/internal/pgo/graph.go
+index 203cc618ca..a2cf18f936 100644
+--- a/src/cmd/compile/internal/pgo/graph.go
++++ b/src/cmd/compile/internal/pgo/graph.go
+@@ -270,7 +270,17 @@ func newGraph(prof *profile.Profile, o *Options) *Graph {
+ 		residual := false
+ 
+ 		// Group the sample frames, based on a global map.
+-		for i := len(sample.Location) - 1; i >= 0; i-- {
++		// Count only the last two frames as a call edge. Frames higher up
++		// the stack are unlikely to be repeated calls (e.g. runtime.main
++		// calling main.main). So adding weights to call edges higher up
++		// the stack may be not reflecting the actual call edge weights
++		// in the program. Without a branch profile this is just an
++		// approximation.
++		i := 1
++		if last := len(sample.Location) - 1; last < i {
++			i = last
++		}
++		for ; i >= 0; i-- {
+ 			l := sample.Location[i]
+ 			locNodes := locationMap.get(l.ID)
+ 			for ni := len(locNodes) - 1; ni >= 0; ni-- {

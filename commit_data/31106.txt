@@ -14,6 +14,25 @@ Date:   Wed Feb 1 14:40:58 2017 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 2a5deaab1a..99f8d0a984 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1009,11 +1009,11 @@
+ 	&& mem.Op == OpStaticCall
+ 	&& isSameSym(mem.Aux, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+-	&& warnRule(config.Debug_checknil() && int(v.Pos) > 1, v, "removed nil check")
++	&& warnRule(config.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+ 	-> (Invalid)
+ (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
+ 	&& mem.Op == OpStaticCall
+ 	&& isSameSym(mem.Aux, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+-	&& warnRule(config.Debug_checknil() && int(v.Pos) > 1, v, "removed nil check")
++	&& warnRule(config.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+ 	-> (Invalid)

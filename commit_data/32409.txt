@@ -23,7 +23,86 @@ Date:   Sun Apr 23 17:35:12 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go     |  9 ++++++---
  src/cmd/compile/internal/gc/reflect.go | 14 ++++++++++----
  2 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 5067330e52..e9d94607ec 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -136,8 +136,11 @@ func dumpobj1(outfile string, mode int) {
+ 	externs := len(externdcl)
+ 
+ 	dumpglobls()
+-	dumpptabs()
+-	dumptypestructs()
++	addptabs()
++	dumptypestructs(externdcl)
++	dumptabs()
++	dumpimportstrings()
++	dumpbasictypes()
+ 
+ 	// Dump extra globals.
+ 	tmp := externdcl
+@@ -171,7 +174,7 @@ func dumpobj1(outfile string, mode int) {
+ 	bout.Close()
+ }
+ 
+-func dumpptabs() {
++func addptabs() {
+ 	if !Ctxt.Flag_dynlink || localpkg.Name != "main" {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 08ca0f13e6..5bbeb954c6 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1394,9 +1394,9 @@ func addsignat(t *types.Type) {
+ 	signatlist[formalType(t)] = true
+ }
+ 
+-func dumptypestructs() {
+-	// copy types from externdcl list to signatlist
+-	for _, n := range externdcl {
++func dumptypestructs(dcls []*Node) {
++	// copy types from dcl list to signatlist
++	for _, n := range dcls {
+ 		if n.Op == OTYPE {
+ 			addsignat(n.Type)
+ 		}
+@@ -1421,7 +1421,9 @@ func dumptypestructs() {
+ 			}
+ 		}
+ 	}
++}
+ 
++func dumptabs() {
+ 	// process itabs
+ 	for _, i := range itabs {
+ 		// dump empty itab symbol into i.sym
+@@ -1474,18 +1476,22 @@ func dumptypestructs() {
+ 		}
+ 		ggloblsym(s, int32(ot), int16(obj.RODATA))
+ 	}
++}
+ 
++func dumpimportstrings() {
+ 	// generate import strings for imported packages
+ 	for _, p := range types.ImportedPkgList() {
+ 		dimportpath(p)
+ 	}
++}
+ 
++func dumpbasictypes() {
+ 	// do basic types if compiling package runtime.
+ 	// they have to be in at least one package,
+ 	// and runtime is always loaded implicitly,
+ 	// so this is as good as any.
+ 	// another possible choice would be package main,
+-	// but using runtime means fewer copies in .6 files.
++	// but using runtime means fewer copies in object files.
+ 	if myimportpath == "runtime" {
+ 		for i := types.EType(1); i <= TBOOL; i++ {
+ 			dtypesym(types.NewPtr(types.Types[i]))

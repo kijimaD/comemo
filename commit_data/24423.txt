@@ -13,7 +13,7 @@ Date:   Mon Jul 27 13:17:45 2015 -0700
     Change-Id: I60a71da46a36202e9bd62ed370ab7d7f2e2800e7
     Reviewed-on: https://go-review.googlesource.com/12715
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  52 ++++++++-----
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 +
  src/cmd/compile/internal/ssa/gen/generic.rules |   9 +++
@@ -22,3 +22,356 @@ Date:   Mon Jul 27 13:17:45 2015 -0700
  src/cmd/compile/internal/ssa/rewriteAMD64.go   |  42 ++++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 104 +++++++++++++++++++++++++
  7 files changed, 214 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 970799cf56..0a45be0078 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -726,25 +726,39 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{ORSH, TINT64}:  ssa.OpRsh64,
+ 	opAndType{ORSH, TUINT64}: ssa.OpRsh64U,
+ 
+-	opAndType{OEQ, TINT8}:   ssa.OpEq8,
+-	opAndType{OEQ, TUINT8}:  ssa.OpEq8,
+-	opAndType{OEQ, TINT16}:  ssa.OpEq16,
+-	opAndType{OEQ, TUINT16}: ssa.OpEq16,
+-	opAndType{OEQ, TINT32}:  ssa.OpEq32,
+-	opAndType{OEQ, TUINT32}: ssa.OpEq32,
+-	opAndType{OEQ, TINT64}:  ssa.OpEq64,
+-	opAndType{OEQ, TUINT64}: ssa.OpEq64,
+-	opAndType{OEQ, TPTR64}:  ssa.OpEq64,
+-
+-	opAndType{ONE, TINT8}:   ssa.OpNeq8,
+-	opAndType{ONE, TUINT8}:  ssa.OpNeq8,
+-	opAndType{ONE, TINT16}:  ssa.OpNeq16,
+-	opAndType{ONE, TUINT16}: ssa.OpNeq16,
+-	opAndType{ONE, TINT32}:  ssa.OpNeq32,
+-	opAndType{ONE, TUINT32}: ssa.OpNeq32,
+-	opAndType{ONE, TINT64}:  ssa.OpNeq64,
+-	opAndType{ONE, TUINT64}: ssa.OpNeq64,
+-	opAndType{ONE, TPTR64}:  ssa.OpNeq64,
++	opAndType{OEQ, TBOOL}:    ssa.OpEq8,
++	opAndType{OEQ, TINT8}:    ssa.OpEq8,
++	opAndType{OEQ, TUINT8}:   ssa.OpEq8,
++	opAndType{OEQ, TINT16}:   ssa.OpEq16,
++	opAndType{OEQ, TUINT16}:  ssa.OpEq16,
++	opAndType{OEQ, TINT32}:   ssa.OpEq32,
++	opAndType{OEQ, TUINT32}:  ssa.OpEq32,
++	opAndType{OEQ, TINT64}:   ssa.OpEq64,
++	opAndType{OEQ, TUINT64}:  ssa.OpEq64,
++	opAndType{OEQ, TPTR64}:   ssa.OpEq64,
++	opAndType{OEQ, TINTER}:   ssa.OpEqFat, // e == nil only
++	opAndType{OEQ, TARRAY}:   ssa.OpEqFat, // slice only; a == nil only
++	opAndType{OEQ, TFUNC}:    ssa.OpEqPtr,
++	opAndType{OEQ, TMAP}:     ssa.OpEqPtr,
++	opAndType{OEQ, TCHAN}:    ssa.OpEqPtr,
++	opAndType{OEQ, TUINTPTR}: ssa.OpEqPtr,
++
++	opAndType{ONE, TBOOL}:    ssa.OpNeq8,
++	opAndType{ONE, TINT8}:    ssa.OpNeq8,
++	opAndType{ONE, TUINT8}:   ssa.OpNeq8,
++	opAndType{ONE, TINT16}:   ssa.OpNeq16,
++	opAndType{ONE, TUINT16}:  ssa.OpNeq16,
++	opAndType{ONE, TINT32}:   ssa.OpNeq32,
++	opAndType{ONE, TUINT32}:  ssa.OpNeq32,
++	opAndType{ONE, TINT64}:   ssa.OpNeq64,
++	opAndType{ONE, TUINT64}:  ssa.OpNeq64,
++	opAndType{ONE, TPTR64}:   ssa.OpNeq64,
++	opAndType{ONE, TINTER}:   ssa.OpNeqFat, // e != nil only
++	opAndType{ONE, TARRAY}:   ssa.OpNeqFat, // slice only; a != nil only
++	opAndType{ONE, TFUNC}:    ssa.OpNeqPtr,
++	opAndType{ONE, TMAP}:     ssa.OpNeqPtr,
++	opAndType{ONE, TCHAN}:    ssa.OpNeqPtr,
++	opAndType{ONE, TUINTPTR}: ssa.OpNeqPtr,
+ 
+ 	opAndType{OLT, TINT8}:   ssa.OpLess8,
+ 	opAndType{OLT, TUINT8}:  ssa.OpLess8U,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 5f4a5b5a69..ea3974935f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -100,11 +100,13 @@
+ (Eq32 x y) -> (SETEQ (CMPL <TypeFlags> x y))
+ (Eq16 x y) -> (SETEQ (CMPW <TypeFlags> x y))
+ (Eq8 x y) -> (SETEQ (CMPB <TypeFlags> x y))
++(EqPtr x y) -> (SETEQ (CMPQ <TypeFlags> x y))
+ 
+ (Neq64 x y) -> (SETNE (CMPQ <TypeFlags> x y))
+ (Neq32 x y) -> (SETNE (CMPL <TypeFlags> x y))
+ (Neq16 x y) -> (SETNE (CMPW <TypeFlags> x y))
+ (Neq8 x y) -> (SETNE (CMPB <TypeFlags> x y))
++(NeqPtr x y) -> (SETNE (CMPQ <TypeFlags> x y))
+ 
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
+ (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index fc5ffb9610..dd48706e63 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -34,6 +34,15 @@
+ (SliceLen (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (Const <config.Uintptr> [config.PtrSize])) mem)
+ (SliceCap (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (Const <config.Uintptr> [config.PtrSize*2])) mem)
+ 
++// slice and interface comparisons
++// the frontend ensures that we can only compare against nil
++// start by putting nil on the right to simplify the other rules
++(EqFat x y) && x.Op == OpConst && y.Op != OpConst -> (EqFat y x)
++(NeqFat x y) && x.Op == OpConst && y.Op != OpConst -> (NeqFat y x)
++// it suffices to check the first word (backing array for slices, dynamic type for interfaces)
++(EqFat (Load ptr mem) y) && y.Op == OpConst -> (EqPtr (Load <config.Uintptr> ptr mem) (Const <config.Uintptr> [0]))
++(NeqFat (Load ptr mem) y) && y.Op == OpConst -> (NeqPtr (Load <config.Uintptr> ptr mem) (Const <config.Uintptr> [0]))
++
+ // indexing operations
+ // Note: bounds check has already been done
+ (ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 0dc3ac42ba..c67643d94e 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -67,11 +67,15 @@ var genericOps = []opData{
+ 	{name: "Eq16"},
+ 	{name: "Eq32"},
+ 	{name: "Eq64"},
++	{name: "EqPtr"},
++	{name: "EqFat"}, // slice/interface; arg0 or arg1 is nil; other cases handled by frontend
+ 
+ 	{name: "Neq8"}, // arg0 != arg1
+ 	{name: "Neq16"},
+ 	{name: "Neq32"},
+ 	{name: "Neq64"},
++	{name: "NeqPtr"},
++	{name: "NeqFat"}, // slice/interface; arg0 or arg1 is nil; other cases handled by frontend
+ 
+ 	{name: "Less8"}, // arg0 < arg1
+ 	{name: "Less8U"},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d916ad0da2..d83f87305d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -183,10 +183,14 @@ const (
+ 	OpEq16
+ 	OpEq32
+ 	OpEq64
++	OpEqPtr
++	OpEqFat
+ 	OpNeq8
+ 	OpNeq16
+ 	OpNeq32
+ 	OpNeq64
++	OpNeqPtr
++	OpNeqFat
+ 	OpLess8
+ 	OpLess8U
+ 	OpLess16
+@@ -1417,6 +1421,14 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Eq64",
+ 		generic: true,
+ 	},
++	{
++		name:    "EqPtr",
++		generic: true,
++	},
++	{
++		name:    "EqFat",
++		generic: true,
++	},
+ 	{
+ 		name:    "Neq8",
+ 		generic: true,
+@@ -1433,6 +1445,14 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Neq64",
+ 		generic: true,
+ 	},
++	{
++		name:    "NeqPtr",
++		generic: true,
++	},
++	{
++		name:    "NeqFat",
++		generic: true,
++	},
+ 	{
+ 		name:    "Less8",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 1c1638bf18..41bb6213f1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -852,6 +852,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end84a692e769900e3adbfe00718d2169e0
+ 	end84a692e769900e3adbfe00718d2169e0:
+ 		;
++	case OpEqPtr:
++		// match: (EqPtr x y)
++		// cond:
++		// result: (SETEQ (CMPQ <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETEQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end6de1d39c9d151e5e503d643bd835356e
++	end6de1d39c9d151e5e503d643bd835356e:
++		;
+ 	case OpGeq64:
+ 		// match: (Geq64 x y)
+ 		// cond:
+@@ -2041,6 +2062,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end4aaff28af59a65b3684f4f1897299932
+ 	end4aaff28af59a65b3684f4f1897299932:
+ 		;
++	case OpNeqPtr:
++		// match: (NeqPtr x y)
++		// cond:
++		// result: (SETNE (CMPQ <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETNE
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end6e180ffd9583cd55361ed3e465158a4c
++	end6e180ffd9583cd55361ed3e465158a4c:
++		;
+ 	case OpNot:
+ 		// match: (Not x)
+ 		// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 54358129e0..976fbc94a0 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -129,6 +129,58 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto enda6f250a3c775ae5a239ece8074b46cea
+ 	enda6f250a3c775ae5a239ece8074b46cea:
+ 		;
++	case OpEqFat:
++		// match: (EqFat x y)
++		// cond: x.Op == OpConst && y.Op != OpConst
++		// result: (EqFat y x)
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(x.Op == OpConst && y.Op != OpConst) {
++				goto end4540bddcf0fc8e4b71fac6e9edbb8eec
++			}
++			v.Op = OpEqFat
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(y)
++			v.AddArg(x)
++			return true
++		}
++		goto end4540bddcf0fc8e4b71fac6e9edbb8eec
++	end4540bddcf0fc8e4b71fac6e9edbb8eec:
++		;
++		// match: (EqFat (Load ptr mem) y)
++		// cond: y.Op == OpConst
++		// result: (EqPtr (Load <config.Uintptr> ptr mem) (Const <config.Uintptr> [0]))
++		{
++			if v.Args[0].Op != OpLoad {
++				goto end779b0e24e33d8eff668c368b90387caa
++			}
++			ptr := v.Args[0].Args[0]
++			mem := v.Args[0].Args[1]
++			y := v.Args[1]
++			if !(y.Op == OpConst) {
++				goto end779b0e24e33d8eff668c368b90387caa
++			}
++			v.Op = OpEqPtr
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpLoad, TypeInvalid)
++			v0.Type = config.Uintptr
++			v0.AddArg(ptr)
++			v0.AddArg(mem)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v1.Type = config.Uintptr
++			v1.AuxInt = 0
++			v.AddArg(v1)
++			return true
++		}
++		goto end779b0e24e33d8eff668c368b90387caa
++	end779b0e24e33d8eff668c368b90387caa:
++		;
+ 	case OpIsInBounds:
+ 		// match: (IsInBounds (Const [c]) (Const [d]))
+ 		// cond:
+@@ -255,6 +307,58 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto end10541de7ea2bce703c1e372ac9a271e7
+ 	end10541de7ea2bce703c1e372ac9a271e7:
+ 		;
++	case OpNeqFat:
++		// match: (NeqFat x y)
++		// cond: x.Op == OpConst && y.Op != OpConst
++		// result: (NeqFat y x)
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(x.Op == OpConst && y.Op != OpConst) {
++				goto end5d2a9d3aa52fb6866825f35ac65c7cfd
++			}
++			v.Op = OpNeqFat
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(y)
++			v.AddArg(x)
++			return true
++		}
++		goto end5d2a9d3aa52fb6866825f35ac65c7cfd
++	end5d2a9d3aa52fb6866825f35ac65c7cfd:
++		;
++		// match: (NeqFat (Load ptr mem) y)
++		// cond: y.Op == OpConst
++		// result: (NeqPtr (Load <config.Uintptr> ptr mem) (Const <config.Uintptr> [0]))
++		{
++			if v.Args[0].Op != OpLoad {
++				goto endf2f18052c2d999a7ac883c441c3b7ade
++			}
++			ptr := v.Args[0].Args[0]
++			mem := v.Args[0].Args[1]
++			y := v.Args[1]
++			if !(y.Op == OpConst) {
++				goto endf2f18052c2d999a7ac883c441c3b7ade
++			}
++			v.Op = OpNeqPtr
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpLoad, TypeInvalid)
++			v0.Type = config.Uintptr
++			v0.AddArg(ptr)
++			v0.AddArg(mem)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v1.Type = config.Uintptr
++			v1.AuxInt = 0
++			v.AddArg(v1)
++			return true
++		}
++		goto endf2f18052c2d999a7ac883c441c3b7ade
++	endf2f18052c2d999a7ac883c441c3b7ade:
++		;
+ 	case OpPtrIndex:
+ 		// match: (PtrIndex <t> ptr idx)
+ 		// cond:

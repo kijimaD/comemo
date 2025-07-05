@@ -11,6 +11,23 @@ Date:   Mon May 18 18:51:38 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 26b17ce007..b9e063288a 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1981,11 +1981,6 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
+ 				l.builtinSyms[bi] = gi
+ 			}
+ 		}
+-		if strings.HasPrefix(name, "go.string.") ||
+-			strings.HasPrefix(name, "gclocals·") ||
+-			strings.HasPrefix(name, "runtime.gcbits.") {
+-			l.SetAttrNotInSymbolTable(gi, true)
+-		}
+ 		if a := osym.Align(); a != 0 {
+ 			l.SetSymAlign(gi, int32(a))
+ 		}

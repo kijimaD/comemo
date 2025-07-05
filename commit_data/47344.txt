@@ -17,7 +17,46 @@ Date:   Fri Mar 12 09:51:50 2021 -0800
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go               |  5 +++++
  src/cmd/go/testdata/script/list_err_cycle.txt | 15 +++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 8b12faf4cd..61fde895f8 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1323,6 +1323,11 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
+ 				Err:           errors.New("import cycle not allowed"),
+ 				IsImportCycle: true,
+ 			}
++		} else if !p.Error.IsImportCycle {
++			// If the error is already set, but it does not indicate that
++			// we are in an import cycle, set IsImportCycle so that we don't
++			// end up stuck in a loop down the road.
++			p.Error.IsImportCycle = true
+ 		}
+ 		p.Incomplete = true
+ 	}
+diff --git a/src/cmd/go/testdata/script/list_err_cycle.txt b/src/cmd/go/testdata/script/list_err_cycle.txt
+new file mode 100644
+index 0000000000..44b82a62b0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_err_cycle.txt
+@@ -0,0 +1,15 @@
++# Check that we don't get infinite recursion when loading a package with
++# an import cycle and another error. Verifies #25830.
++! go list
++stderr 'found packages a \(a.go\) and b \(b.go\)'
++
++-- go.mod --
++module errcycle
++
++go 1.16
++-- a.go --
++package a
++
++import _ "errcycle"
++-- b.go --
++package b
+\ No newline at end of file

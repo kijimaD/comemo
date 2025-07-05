@@ -11,7 +11,54 @@ Date:   Wed Mar 28 14:12:36 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go              | 23 +++++++++++++++++++++++
  src/cmd/go/internal/work/action.go |  4 ++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f8975edda5..6bf826ad5b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5991,3 +5991,26 @@ func TestDontReportRemoveOfEmptyDir(t *testing.T) {
+ 		t.Error("unnecessary output when installing installed package")
+ 	}
+ }
++
++// Issue 23264.
++func TestNoRelativeTmpdir(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	tg.tempFile("src/a/a.go", `package a`)
++	tg.cd(tg.path("."))
++	tg.must(os.Mkdir("tmp", 0777))
++
++	tg.setenv("GOCACHE", "off")
++	tg.setenv("GOPATH", tg.path("."))
++	tg.setenv("GOTMPDIR", "tmp")
++	tg.runFail("build", "a")
++	tg.grepStderr("relative tmpdir", "wrong error")
++
++	if runtime.GOOS != "windows" && runtime.GOOS != "plan9" {
++		tg.unsetenv("GOTMPDIR")
++		tg.setenv("TMPDIR", "tmp")
++		tg.runFail("build", "a")
++		tg.grepStderr("relative tmpdir", "wrong error")
++	}
++}
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 9f1f8f8a50..21744de9a3 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -223,6 +223,10 @@ func (b *Builder) Init() {
+ 		if err != nil {
+ 			base.Fatalf("%s", err)
+ 		}
++		if !filepath.IsAbs(b.WorkDir) {
++			os.RemoveAll(b.WorkDir)
++			base.Fatalf("cmd/go: relative tmpdir not supported")
++		}
+ 		if cfg.BuildX || cfg.BuildWork {
+ 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
+ 		}

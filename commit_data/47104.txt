@@ -18,7 +18,73 @@ Date:   Sat Jan 2 16:28:11 2021 +0200
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Elias Naur <mail@eliasnaur.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 16 ++++++++++++++++
  test/inline.go                         | 23 +++++++++++++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 7d70fca6c9..0e57c17667 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -384,6 +384,22 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 	case ir.OAPPEND:
+ 		v.budget -= inlineExtraAppendCost
+ 
++	case ir.ODEREF:
++		// *(*X)(unsafe.Pointer(&x)) is low-cost
++		n := n.(*ir.StarExpr)
++
++		ptr := n.X
++		for ptr.Op() == ir.OCONVNOP {
++			ptr = ptr.(*ir.ConvExpr).X
++		}
++		if ptr.Op() == ir.OADDR {
++			v.budget += 1 // undo half of default cost of ir.ODEREF+ir.OADDR
++		}
++
++	case ir.OCONVNOP:
++		// This doesn't produce code, but the children might.
++		v.budget++ // undo default cost
++
+ 	case ir.ODCLCONST, ir.OFALL:
+ 		// These nodes don't produce code; omit from inlining budget.
+ 		return false
+diff --git a/test/inline.go b/test/inline.go
+index 37965c0d9d..a79f5589fb 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -10,6 +10,7 @@
+ package foo
+ 
+ import (
++	"math"
+ 	"runtime"
+ 	"unsafe"
+ )
+@@ -262,3 +263,25 @@ func gd2() int { // ERROR "can inline gd2"
+ func gd3() func() { // ERROR "can inline gd3"
+ 	return ii
+ }
++
++// Issue #42788 - ensure ODEREF OCONVNOP* OADDR is low cost.
++func EncodeQuad(d []uint32, x [6]float32) { // ERROR "can inline EncodeQuad" "d does not escape"
++	_ = d[:6]
++	d[0] = math.Float32bits(x[0]) // ERROR "inlining call to math.Float32bits"
++	d[1] = math.Float32bits(x[1]) // ERROR "inlining call to math.Float32bits"
++	d[2] = math.Float32bits(x[2]) // ERROR "inlining call to math.Float32bits"
++	d[3] = math.Float32bits(x[3]) // ERROR "inlining call to math.Float32bits"
++	d[4] = math.Float32bits(x[4]) // ERROR "inlining call to math.Float32bits"
++	d[5] = math.Float32bits(x[5]) // ERROR "inlining call to math.Float32bits"
++}
++
++// Ensure OCONVNOP is zero cost.
++func Conv(v uint64) uint64 { // ERROR "can inline Conv"
++	return conv2(conv2(conv2(v))) // ERROR "inlining call to (conv1|conv2)"
++}
++func conv2(v uint64) uint64 { // ERROR "can inline conv2"
++	return conv1(conv1(conv1(conv1(v)))) // ERROR "inlining call to conv1"
++}
++func conv1(v uint64) uint64 { // ERROR "can inline conv1"
++	return uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(v)))))))))))
++}

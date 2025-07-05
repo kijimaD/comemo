@@ -7,7 +7,7 @@ Date:   Tue Mar 23 06:46:30 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/661043
-
+---
  src/cmd/5c/swt.c   |  7 ++--
  src/cmd/5l/asm.c   | 96 +++++++++++++++++++++++++++++++++++-------------------
  src/cmd/5l/l.h     |  1 +
@@ -25,3 +25,757 @@ Date:   Tue Mar 23 06:46:30 2010 -0700
  src/cmd/ld/elf.h   |  1 +
  src/cmd/ld/go.c    | 87 ++++++++++++++++++++++++++++++++++++++++++++++---
  16 files changed, 362 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 3aaf748a45..75f768ddae 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -374,7 +374,7 @@ outcode(void)
+ 	}
+ 
+ 	Bprint(&outbuf, "%s\n", thestring);
+-	if(ndynimp > 0) {
++	if(ndynimp > 0 || ndynexp > 0) {
+ 		int i;
+ 
+ 		Bprint(&outbuf, "\n");
+@@ -383,7 +383,10 @@ outcode(void)
+ 		Bprint(&outbuf, "$$  // dynimport\n", thestring);
+ 		for(i=0; i<ndynimp; i++)
+ 			Bprint(&outbuf, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+-		Bprint(&outbuf, "$$\n\n");
++		Bprint(&outbuf, "\n$$  // dynexport\n", thestring);
++		for(i=0; i<ndynexp; i++)
++			Bprint(&outbuf, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
++		Bprint(&outbuf, "\n$$\n\n");
+ 	}
+ 	Bprint(&outbuf, "!\n");
+ 
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 306d828b24..f7cbccec57 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -192,11 +192,27 @@ enum {
+ 
+ vlong elfstr[NElfStr];
+ 
++static int
++needlib(char *name)
++{
++	char *p;
++	Sym *s;
++
++	/* reuse hash code in symbol table */
++	p = smprint(".dynlib.%s", name);
++	s = lookup(p, 0);
++	if(s->type == 0) {
++		s->type = 100;	// avoid SDATA, etc.
++		return 1;
++	}
++	return 0;
++}
++
+ void
+ doelf(void)
+ {
+-	Sym *s, *shstrtab, *dynamic, *dynstr;
+-	int h, nsym;
++	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
++	int h, nsym, t;
+ 
+ 	if(!iself)
+ 		return;
+@@ -267,48 +283,62 @@ doelf(void)
+ 			for(s=hash[h]; s!=S; s=s->link) {
+ 				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
+ 					continue;
+-			#if 0
+-				d = lookup(".rel", 0);
+-				addaddr(d, s);
+-				adduint32(d, ELF32_R_INFO(nsym, R_386_32));
++
++				if(!s->dynexport) {
++					d = lookup(".rel", 0);
++					addaddr(d, s);
++					adduint32(d, ELF32_R_INFO(nsym, R_ARM_ABS32));
++				}
++
+ 				nsym++;
+ 
+ 				d = lookup(".dynsym", 0);
+ 				adduint32(d, addstring(lookup(".dynstr", 0), s->dynimpname));
+-				adduint32(d, 0);	/* value */
+-				adduint32(d, 0);	/* size of object */
++				/* value */
++				if(!s->dynexport)
++					adduint32(d, 0);
++				else
++					addaddr(d, s);
++
++				/* size of object */
++				adduint32(d, 0);
++
++				/* type */
+ 				t = STB_GLOBAL << 4;
+-				t |= STT_OBJECT;	// works for func too, empirically
++				if(s->dynexport && s->type == STEXT)
++					t |= STT_FUNC;
++				else
++					t |= STT_OBJECT;
+ 				adduint8(d, t);
+-				adduint8(d, 0);	/* reserved */
+-				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
+ 
+-				if(needlib(s->dynimplib))
++				/* reserved */
++				adduint8(d, 0);
++
++				/* section where symbol is defined */
++				if(!s->dynexport)
++					adduint16(d, SHN_UNDEF);
++				else {
++					switch(s->type) {
++					default:
++					case STEXT:
++						t = 9;
++						break;
++					case SDATA:
++						t = 10;
++						break;
++					case SBSS:
++						t = 11;
++						break;
++					}
++					adduint16(d, t);
++				}
++
++				if(!s->dynexport && needlib(s->dynimplib))
+ 					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynimplib));
+-			#endif
+ 			}
+ 		}
+ 
+-		/*
+-		 * hash table.
+-		 * only entries that other objects need to find when
+-		 * linking us need to be in the table.  right now that is
+-		 * no entries.
+-		 *
+-		 * freebsd insists on having chains enough for all
+-		 * the local symbols, though.  for now, we just lay
+-		 * down a trivial hash table with 1 bucket and a long chain,
+-		 * because no one is actually looking for our symbols.
+-		 */
+-		s = lookup(".hash", 0);
+-		s->type = SDATA;	// TODO: rodata
+-		s->reachable = 1;
+-		adduint32(s, 1);	// nbucket
+-		adduint32(s, nsym);	// nchain
+-		adduint32(s, nsym-1);	// bucket 0
+-		adduint32(s, 0);	// chain 0
+-		for(h=1; h<nsym; h++)	// chain nsym-1 -> nsym-2 -> ... -> 2 -> 1 -> 0
+-			adduint32(s, h-1);
++		elfdynhash(nsym);
+ 
+ 		/*
+ 		 * .dynamic table
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 45ddd616f1..44bd923a9c 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -125,6 +125,7 @@ struct	Sym
+ 	uchar	subtype;
+ 	uchar	dupok;
+ 	uchar	reachable;
++	uchar	dynexport;
+ 	int32	value;
+ 	int32	sig;
+ 	int32	size;
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index cdb948f890..0c83704688 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -232,7 +232,7 @@ outcode(void)
+ 	Binit(&b, f, OWRITE);
+ 
+ 	Bprint(&b, "%s\n", thestring);
+-	if(ndynimp > 0) {
++	if(ndynimp > 0 || ndynexp > 0) {
+ 		int i;
+ 
+ 		Bprint(&b, "\n");
+@@ -241,7 +241,10 @@ outcode(void)
+ 		Bprint(&b, "$$  // dynimport\n", thestring);
+ 		for(i=0; i<ndynimp; i++)
+ 			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+-		Bprint(&b, "$$\n\n");
++		Bprint(&b, "\n$$  // dynexport\n", thestring);
++		for(i=0; i<ndynexp; i++)
++			Bprint(&b, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
++		Bprint(&b, "\n$$\n\n");
+ 	}
+ 	Bprint(&b, "!\n");
+ 
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 1fc3db98de..af00f55944 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -351,50 +351,65 @@ doelf(void)
+ 		nsym = 1;	// sym 0 is reserved
+ 		for(h=0; h<NHASH; h++) {
+ 			for(s=hash[h]; s!=S; s=s->link) {
+-				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
++				if(!s->reachable || (s->type != STEXT && s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
+ 					continue;
+ 
+-				d = lookup(".rela", 0);
+-				addaddr(d, s);
+-				adduint64(d, ELF64_R_INFO(nsym, R_X86_64_64));
+-				adduint64(d, 0);
++				if(!s->dynexport) {
++					d = lookup(".rela", 0);
++					addaddr(d, s);
++					adduint64(d, ELF64_R_INFO(nsym, R_X86_64_64));
++					adduint64(d, 0);
++				}
++
+ 				nsym++;
+ 
+ 				d = lookup(".dynsym", 0);
+ 				adduint32(d, addstring(lookup(".dynstr", 0), s->dynimpname));
++				/* type */
+ 				t = STB_GLOBAL << 4;
+-				t |= STT_OBJECT;	// works for func too, empirically
++				if(s->dynexport && s->type == STEXT)
++					t |= STT_FUNC;
++				else
++					t |= STT_OBJECT;
+ 				adduint8(d, t);
+-				adduint8(d, 0);	/* reserved */
+-				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
+-				adduint64(d, 0);	/* value */
+-				adduint64(d, 0);	/* size of object */
+ 
+-				if(needlib(s->dynimplib))
++				/* reserved */
++				adduint8(d, 0);
++
++				/* section where symbol is defined */
++				if(!s->dynexport)
++					adduint16(d, SHN_UNDEF);
++				else {
++					switch(s->type) {
++					default:
++					case STEXT:
++						t = 9;
++						break;
++					case SDATA:
++						t = 10;
++						break;
++					case SBSS:
++						t = 11;
++						break;
++					}
++					adduint16(d, t);
++				}
++
++				/* value */
++				if(!s->dynexport)
++					adduint64(d, 0);
++				else
++					addaddr(d, s);
++
++				/* size of object */
++				adduint64(d, 0);
++
++				if(!s->dynexport && needlib(s->dynimplib))
+ 					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynimplib));
+ 			}
+ 		}
+ 
+-		/*
+-		 * hash table.
+-		 * only entries that other objects need to find when
+-		 * linking us need to be in the table.  right now that is
+-		 * no entries.
+-		 *
+-		 * freebsd insists on having chains enough for all
+-		 * the local symbols, though.  for now, we just lay
+-		 * down a trivial hash table with 1 bucket and a long chain,
+-		 * because no one is actually looking for our symbols.
+-		 */
+-		s = lookup(".hash", 0);
+-		s->type = SDATA;	// TODO: rodata
+-		s->reachable = 1;
+-		adduint32(s, 1);	// nbucket
+-		adduint32(s, nsym);	// nchain
+-		adduint32(s, nsym-1);	// bucket 0
+-		adduint32(s, 0);	// chain 0
+-		for(h=1; h<nsym; h++)	// chain nsym-1 -> nsym-2 -> ... -> 2 -> 1 -> 0
+-			adduint32(s, h-1);
++		elfdynhash(nsym);
+ 
+ 		/*
+ 		 * .dynamic table
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 4b911ff698..5f99e9a512 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -123,6 +123,7 @@ struct	Sym
+ 	uchar	subtype;
+ 	uchar	dupok;
+ 	uchar	reachable;
++	uchar	dynexport;
+ 	vlong	value;
+ 	vlong	size;
+ 	int32	sig;
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index 035b8e9c3e..72cebc00c8 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -231,7 +231,7 @@ outcode(void)
+ 	Binit(&b, f, OWRITE);
+ 
+ 	Bprint(&b, "%s\n", thestring);
+-	if(ndynimp > 0) {
++	if(ndynimp > 0 || ndynexp > 0) {
+ 		int i;
+ 
+ 		Bprint(&b, "\n");
+@@ -240,7 +240,10 @@ outcode(void)
+ 		Bprint(&b, "$$  // dynimport\n", thestring);
+ 		for(i=0; i<ndynimp; i++)
+ 			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+-		Bprint(&b, "$$\n\n");
++		Bprint(&b, "\n$$  // dynexport\n", thestring);
++		for(i=0; i<ndynexp; i++)
++			Bprint(&b, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
++		Bprint(&b, "\n$$\n\n");
+ 	}
+ 	Bprint(&b, "!\n");
+ 
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index a4d8adc312..eddf6617b1 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -342,49 +342,64 @@ doelf(void)
+ 		nsym = 1;	// sym 0 is reserved
+ 		for(h=0; h<NHASH; h++) {
+ 			for(s=hash[h]; s!=S; s=s->link) {
+-				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
++				if(!s->reachable || (s->type != STEXT && s->type != SDATA && s->type != SBSS) || s->dynimpname == nil)
+ 					continue;
+ 
+-				d = lookup(".rel", 0);
+-				addaddr(d, s);
+-				adduint32(d, ELF32_R_INFO(nsym, R_386_32));
++				if(!s->dynexport) {
++					d = lookup(".rel", 0);
++					addaddr(d, s);
++					adduint32(d, ELF32_R_INFO(nsym, R_386_32));
++				}
++
+ 				nsym++;
+ 
+ 				d = lookup(".dynsym", 0);
+ 				adduint32(d, addstring(lookup(".dynstr", 0), s->dynimpname));
+-				adduint32(d, 0);	/* value */
+-				adduint32(d, 0);	/* size of object */
++				/* value */
++				if(!s->dynexport)
++					adduint32(d, 0);
++				else
++					addaddr(d, s);
++
++				/* size of object */
++				adduint32(d, 0);
++
++				/* type */
+ 				t = STB_GLOBAL << 4;
+-				t |= STT_OBJECT;	// works for func too, empirically
++				if(s->dynexport && s->type == STEXT)
++					t |= STT_FUNC;
++				else
++					t |= STT_OBJECT;
+ 				adduint8(d, t);
+-				adduint8(d, 0);	/* reserved */
+-				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
+ 
+-				if(needlib(s->dynimplib))
++				/* reserved */
++				adduint8(d, 0);
++
++				/* section where symbol is defined */
++				if(!s->dynexport)
++					adduint16(d, SHN_UNDEF);
++				else {
++					switch(s->type) {
++					default:
++					case STEXT:
++						t = 9;
++						break;
++					case SDATA:
++						t = 10;
++						break;
++					case SBSS:
++						t = 11;
++						break;
++					}
++					adduint16(d, t);
++				}
++
++				if(!s->dynexport && needlib(s->dynimplib))
+ 					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynimplib));
+ 			}
+ 		}
+ 
+-		/*
+-		 * hash table.
+-		 * only entries that other objects need to find when
+-		 * linking us need to be in the table.  right now that is
+-		 * no entries.
+-		 *
+-		 * freebsd insists on having chains enough for all
+-		 * the local symbols, though.  for now, we just lay
+-		 * down a trivial hash table with 1 bucket and a long chain,
+-		 * because no one is actually looking for our symbols.
+-		 */
+-		s = lookup(".hash", 0);
+-		s->type = SDATA;	// TODO: rodata
+-		s->reachable = 1;
+-		adduint32(s, 1);	// nbucket
+-		adduint32(s, nsym);	// nchain
+-		adduint32(s, nsym-1);	// bucket 0
+-		adduint32(s, 0);	// chain 0
+-		for(h=1; h<nsym; h++)	// chain nsym-1 -> nsym-2 -> ... -> 2 -> 1 -> 0
+-			adduint32(s, h-1);
++		elfdynhash(nsym);
+ 
+ 		/*
+ 		 * .dynamic table
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 04f6c0e270..8f02bdefda 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -123,6 +123,7 @@ struct	Sym
+ 	uchar	subtype;
+ 	uchar	dupok;
+ 	uchar	reachable;
++	uchar	dynexport;
+ 	int32	value;
+ 	int32	size;
+ 	int32	sig;
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 4241c18f73..725a3cb089 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -57,6 +57,7 @@ typedef	struct	Term	Term;
+ typedef	struct	Init	Init;
+ typedef	struct	Bits	Bits;
+ typedef	struct	Dynimp	Dynimp;
++typedef	struct	Dynexp	Dynexp;
+ 
+ #define	NHUNK		50000L
+ #define	BUFSIZ		8192
+@@ -454,6 +455,15 @@ struct	Dynimp
+ EXTERN	Dynimp	*dynimp;
+ EXTERN	int	ndynimp;
+ 
++struct	Dynexp
++{
++	char*	local;
++	char*	remote;
++};
++
++EXTERN	Dynexp	*dynexp;
++EXTERN	int	ndynexp;
++
+ EXTERN struct
+ {
+ 	Type*	tenum;		/* type of entire enum */
+@@ -761,6 +771,7 @@ void	pragfpround(void);
+ void	pragtextflag(void);
+ void	pragincomplete(void);
+ void	pragdynimport(void);
++void	pragdynexporg(void);
+ 
+ /*
+  * calls to machine depend part
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index 99d8c05f15..046c0e4da9 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -566,3 +566,32 @@ out:
+ 	while(getnsc() != '\n')
+ 		;
+ }
++
++void
++pragdynexport(void)
++{
++	Sym *local, *remote;
++	Dynexp *f;
++
++	local = getsym();
++	if(local == nil)
++		goto err;
++
++	remote = getsym();
++	if(remote == nil)
++		goto err;
++
++	if(ndynexp%32 == 0)
++		dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
++	f = &dynexp[ndynexp++];
++	f->local = local->name;
++	f->remote = remote->name;
++	goto out;
++
++err:
++	yyerror("usage: #pragma dynexport local remote");
++
++out:
++	while(getnsc() != '\n')
++		;
++}
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 743e6e52dc..0bccc17335 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -53,6 +53,13 @@ pragdynimport(void)
+ 		;
+ }
+ 
++void
++pragdynexport(void)
++{
++	while(getnsc() != '\n')
++		;
++}
++
+ void
+ pragfpround(void)
+ {
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index 37ddc81c93..ca8a54c0bc 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -743,6 +743,10 @@ macprag(void)
+ 		pragdynimport();
+ 		return;
+ 	}
++	if(s && strcmp(s->name, "dynexport") == 0) {
++		pragdynexport();
++		return;
++	}
+ 	while(getnsc() != '\n')
+ 		;
+ 	return;
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index d2adca16ce..a0bcba35a6 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -309,3 +309,59 @@ elfinterp(ElfShdr *sh, uint64 startva, char *p)
+ 	sh->off = ELFRESERVE - n;
+ 	sh->size = n;
+ }
++
++void
++elfdynhash(int nsym)
++{
++	Sym *s, *sy;
++	int i, h, nbucket, b;
++	uchar *pc;
++	uint32 hc, g;
++	uint32 *chain, *buckets;
++
++	s = lookup(".hash", 0);
++	s->type = SDATA;	// TODO: rodata
++	s->reachable = 1;
++
++	i = nsym;
++	nbucket = 1;
++	while(i > 0) {
++		++nbucket;
++		i >>= 1;
++	}
++
++	chain = malloc(nsym * sizeof(uint32));
++	memset(chain, 0, nsym * sizeof(uint32));
++	buckets = malloc(nbucket * sizeof(uint32));
++	memset(buckets, 0, nbucket * sizeof(uint32));
++	i = 1;
++	for(h = 0; h<NHASH; h++) {
++		for(sy=hash[h]; sy!=S; sy=sy->link) {
++			if (!sy->reachable || (sy->type != STEXT && sy->type != SDATA && sy->type != SBSS) || sy->dynimpname == nil)
++				continue;
++
++			hc = 0;
++			for(pc = (uchar*)sy->dynimpname; *pc; pc++) {
++				hc = (hc<<4) + *pc;
++				g = hc & 0xf0000000;
++				hc ^= g >> 24;
++				hc &= ~g;
++			}
++
++			b = hc % nbucket;
++			chain[i] = buckets[b];
++			buckets[b] = i;
++			i++;
++		}
++	}
++
++	adduint32(s, nbucket);
++	adduint32(s, nsym);
++	for(i = 0; i<nbucket; i++)
++		adduint32(s, buckets[i]);
++	for(i = 0; i<nsym; i++)
++		adduint32(s, chain[i]);
++
++	free(chain);
++	free(buckets);
++}
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index cd78f2d9cc..9b5fdb17e9 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -964,6 +964,7 @@ extern	int	numelfshdr;
+ extern	int	iself;
+ int	elfwriteinterp(void);
+ void	elfinterp(ElfShdr*, uint64, char*);
++void	elfdynhash(int);
+ 
+ /*
+  * Total amount of space to reserve at the start of the file
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 4a3b4725be..b5e0def7be 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -67,9 +67,13 @@ ilookup(char *name)
+ 
+ static void loadpkgdata(char*, char*, char*, int);
+ static void loaddynimport(char*, char*, int);
++static void loaddynexport(char*, char*, char*, int);
+ static int parsemethod(char**, char*, char**);
+ static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
+ 
++static int ndynexp;
++static Sym **dynexp;
++
+ void
+ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ {
+@@ -156,7 +160,25 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ 			fprint(2, "%s: cannot find end of // dynimport section in %s\n", argv0, filename);
+ 			return;
+ 		}
+-		loaddynimport(filename, p0 + 1, p1 - p0);
++		loaddynimport(filename, p0 + 1, p1 - (p0+1));
++	}
++
++	// look for dynexp section
++	p0 = strstr(p1, "\n$$  // dynexport");
++	if(p0 != nil) {
++		p0 = strchr(p0+1, '\n');
++		if(p0 == nil) {
++			fprint(2, "%s: found $$ // dynexporg but no newline in %s\n", argv0, filename);
++			return;
++		}
++		p1 = strstr(p0, "\n$$");
++		if(p1 == nil)
++			p1 = strstr(p0, "\n!\n");
++		if(p1 == nil) {
++			fprint(2, "%s: cannot find end of // dynexporg section in %s\n", argv0, filename);
++			return;
++		}
++		loaddynexport(filename, pkg, p0 + 1, p1 - (p0+1));
+ 	}
+ }
+ 
+@@ -339,13 +361,12 @@ parsemethod(char **pp, char *ep, char **methp)
+ static void
+ loaddynimport(char *file, char *p, int n)
+ {
+-	char *next, *name, *def, *p0, *lib;
++	char *pend, *next, *name, *def, *p0, *lib;
+ 	Sym *s;
+ 
+-	p[n] = '\0';
+-
++	pend = p + n;
+ 	p0 = p;
+-	for(; *p; p=next) {
++	for(; p<pend; p=next) {
+ 		next = strchr(p, '\n');
+ 		if(next == nil)
+ 			next = "";
+@@ -384,6 +405,59 @@ err:
+ 	nerrors++;
+ }
+ 
++static void
++loaddynexport(char *file, char *pkg, char *p, int n)
++{
++	char *pend, *next, *local, *elocal, *remote, *p0;
++	Sym *s;
++
++	pend = p + n;
++	p0 = p;
++	for(; p<pend; p=next) {
++		next = strchr(p, '\n');
++		if(next == nil)
++			next = "";
++		else
++			*next++ = '\0';
++		p0 = p;
++		if(strncmp(p, "dynexport ", 10) != 0)
++			goto err;
++		p += 10;
++		local = p;
++		p = strchr(local, ' ');
++		if(p == nil)
++			goto err;
++		while(*p == ' ')
++			p++;
++		remote = p;
++
++		// successful parse: now can edit the line
++		*strchr(local, ' ') = 0;
++
++		elocal = expandpkg(local, pkg);
++
++		s = lookup(elocal, 0);
++		if(s->dynimplib != nil) {
++			fprint(2, "%s: symbol is both dynimport and dynexport %s\n", argv0, local);
++			nerrors++;
++		}
++		s->dynimpname = remote;
++		s->dynexport = 1;
++
++		if(ndynexp%32 == 0)
++			dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
++		dynexp[ndynexp++] = s;
++
++		if (elocal != local)
++			free(elocal);
++	}
++	return;
++
++err:
++	fprint(2, "%s: invalid dynexport line: %s\n", argv0, p0);
++	nerrors++;
++}
++
+ static int markdepth;
+ 
+ static void
+@@ -502,6 +576,9 @@ deadcode(void)
+ 	for(i=0; i<nelem(morename); i++)
+ 		mark(lookup(morename[i], 0));
+ 
++	for(i=0; i<ndynexp; i++)
++		mark(dynexp[i]);
++
+ 	// remove dead data
+ 	sweeplist(&datap, &edatap);
+ }

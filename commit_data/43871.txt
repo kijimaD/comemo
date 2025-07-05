@@ -14,7 +14,66 @@ Date:   Mon Apr 27 15:23:37 2020 -0400
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/hash/crc32/crc32_s390x.go |  8 ++++----
  src/hash/crc32/crc32_s390x.s  | 22 ----------------------
  2 files changed, 4 insertions(+), 26 deletions(-)
+
+diff --git a/src/hash/crc32/crc32_s390x.go b/src/hash/crc32/crc32_s390x.go
+index d13000d058..3a98bd8799 100644
+--- a/src/hash/crc32/crc32_s390x.go
++++ b/src/hash/crc32/crc32_s390x.go
+@@ -4,16 +4,16 @@
+ 
+ package crc32
+ 
++import "internal/cpu"
++
+ const (
+ 	vxMinLen    = 64
+ 	vxAlignMask = 15 // align to 16 bytes
+ )
+ 
+-// hasVectorFacility reports whether the machine has the z/Architecture
++// hasVX reports whether the machine has the z/Architecture
+ // vector facility installed and enabled.
+-func hasVectorFacility() bool
+-
+-var hasVX = hasVectorFacility()
++var hasVX = cpu.S390X.HasVX
+ 
+ // vectorizedCastagnoli implements CRC32 using vector instructions.
+ // It is defined in crc32_s390x.s.
+diff --git a/src/hash/crc32/crc32_s390x.s b/src/hash/crc32/crc32_s390x.s
+index 63aa609db2..a168fad277 100644
+--- a/src/hash/crc32/crc32_s390x.s
++++ b/src/hash/crc32/crc32_s390x.s
+@@ -61,28 +61,6 @@ DATA    ·crcclecons+88(SB)/8, $0x0000000105ec76f0      // P'(x) << 1
+ 
+ GLOBL   ·crcclecons(SB),RODATA, $144
+ 
+-// func hasVectorFacility() bool
+-TEXT ·hasVectorFacility(SB),NOSPLIT,$24-1
+-	MOVD    $x-24(SP), R1
+-	XC      $24, 0(R1), 0(R1) // clear the storage
+-	MOVD    $2, R0            // R0 is the number of double words stored -1
+-	WORD    $0xB2B01000       // STFLE 0(R1)
+-	XOR     R0, R0            // reset the value of R0
+-	MOVBZ   z-8(SP), R1
+-	AND     $0x40, R1
+-	BEQ     novector
+-vectorinstalled:
+-	// check if the vector instruction has been enabled
+-	VLEIB   $0, $0xF, V16
+-	VLGVB   $0, V16, R1
+-	CMPBNE  R1, $0xF, novector
+-	MOVB    $1, ret+0(FP) // have vx
+-	RET
+-novector:
+-	MOVB    $0, ret+0(FP) // no vx
+-	RET
+-
+-
+ // The CRC-32 function(s) use these calling conventions:
+ //
+ // Parameters:

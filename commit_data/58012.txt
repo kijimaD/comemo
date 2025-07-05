@@ -12,6 +12,20 @@ Date:   Sat Sep 16 17:15:09 2023 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.22.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 7fee6a09ee..8652951274 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -109,7 +109,7 @@ Do not send CLs removing the interior tags from such phrases.
+       blank field (a field named <code>_</code>) somehow has a
+       non-zero value.
+       These changes make <code>IsZero</code> consistent with comparing
+-      a value to zero using the languague <code>==</code> operator.
++      a value to zero using the language <code>==</code> operator.
+     </p>
+   </dd>
+ </dl>

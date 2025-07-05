@@ -19,6 +19,20 @@ Date:   Mon May 15 09:33:40 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/lookup_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 0ea681f834..0689c19c3c 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -1425,7 +1425,7 @@ func testLookupNoData(t *testing.T, prefix string) {
+ 	for {
+ 		// Domain that doesn't have any A/AAAA RRs, but has different one (in this case a TXT),
+ 		// so that it returns an empty response without any error codes (NXDOMAIN).
+-		_, err := LookupHost("golang.rsc.io")
++		_, err := LookupHost("golang.rsc.io.")
+ 		if err == nil {
+ 			t.Errorf("%v: unexpected success", prefix)
+ 			return

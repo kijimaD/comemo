@@ -7,6 +7,21 @@ Date:   Fri Nov 9 12:09:22 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6819117
-
+---
  src/pkg/net/fd_unix.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 7f82f203e1..f2f5ffa2f1 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -263,9 +263,6 @@ var startServersOnce []func()
+ var canCancelIO = true // used for testing current package
+ 
+ func sysInit() {
+-}
+-
+-func init() {
+ 	pollMaxN = runtime.NumCPU()
+ 	if pollMaxN > 8 {
+ 		pollMaxN = 8 // No improvement then.

@@ -9,6 +9,22 @@ Date:   Thu May 12 15:03:22 2016 +0300
     Change-Id: I32a381854e6a4fd791db380150efab57e6dfc38c
     Reviewed-on: https://go-review.googlesource.com/23081
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/match_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/match_test.go b/src/testing/match_test.go
+index d19036c72d..8c1c5f4452 100644
+--- a/src/testing/match_test.go
++++ b/src/testing/match_test.go
+@@ -135,8 +135,8 @@ func TestMatcher(t *T) {
+ 			parent.level = 1
+ 		}
+ 		if n, ok := m.fullName(parent, tc.sub); ok != tc.ok {
+-			t.Errorf("pattern: %q, parent: %q, sub %q: got %v; want %v",
+-				tc.pattern, tc.parent, tc.sub, ok, tc.ok, n)
++			t.Errorf("for pattern %q, fullName(parent=%q, sub=%q) = %q, ok %v; want ok %v",
++				tc.pattern, tc.parent, tc.sub, n, ok, tc.ok)
+ 		}
+ 	}
+ }

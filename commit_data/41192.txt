@@ -11,9 +11,165 @@ Date:   Wed Sep 11 13:25:29 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go   |  6 +++
  src/cmd/compile/internal/gc/syntax.go    |  1 +
  src/cmd/compile/internal/gc/typecheck.go | 22 +++++++--
  test/fixedbugs/issue22344.go             | 83 ++++++++++++++++++++++++++++++++
  4 files changed, 108 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index fb04924121..21b3461b47 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -73,6 +73,12 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+ 
+ func typecheckclosure(clo *Node, top int) {
+ 	xfunc := clo.Func.Closure
++	// Set current associated iota value, so iota can be used inside
++	// function in ConstSpec, see issue #22344
++	if x := getIotaValue(); x >= 0 {
++		xfunc.SetIota(x)
++	}
++
+ 	clo.Func.Ntype = typecheck(clo.Func.Ntype, ctxType)
+ 	clo.Type = clo.Func.Ntype.Type
+ 	clo.Func.Top = top
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 7bd88eec17..e8a527a8fc 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -48,6 +48,7 @@ type Node struct {
+ 	// - OSTRUCTKEY uses it to store the named field's offset.
+ 	// - Named OLITERALs use it to store their ambient iota value.
+ 	// - OINLMARK stores an index into the inlTree data structure.
++	// - OCLOSURE uses it to store ambient iota value, if any.
+ 	// Possibly still more uses. If you find any, document them.
+ 	Xoffset int64
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8518efe73a..e725c6f363 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -100,10 +100,8 @@ func resolve(n *Node) (res *Node) {
+ 	}
+ 
+ 	if r.Op == OIOTA {
+-		if i := len(typecheckdefstack); i > 0 {
+-			if x := typecheckdefstack[i-1]; x.Op == OLITERAL {
+-				return nodintconst(x.Iota())
+-			}
++		if x := getIotaValue(); x >= 0 {
++			return nodintconst(x)
+ 		}
+ 		return n
+ 	}
+@@ -3935,3 +3933,19 @@ func setTypeNode(n *Node, t *types.Type) {
+ 	n.Type = t
+ 	n.Type.Nod = asTypesNode(n)
+ }
++
++// getIotaValue returns the current value for "iota",
++// or -1 if not within a ConstSpec.
++func getIotaValue() int64 {
++	if i := len(typecheckdefstack); i > 0 {
++		if x := typecheckdefstack[i-1]; x.Op == OLITERAL {
++			return x.Iota()
++		}
++	}
++
++	if Curfn != nil && Curfn.Iota() >= 0 {
++		return Curfn.Iota()
++	}
++
++	return -1
++}
+diff --git a/test/fixedbugs/issue22344.go b/test/fixedbugs/issue22344.go
+new file mode 100644
+index 0000000000..9f2a6e8642
+--- /dev/null
++++ b/test/fixedbugs/issue22344.go
+@@ -0,0 +1,83 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test iota inside a function in a ConstSpec is accepted
++package main
++
++import (
++	"unsafe"
++)
++
++// iotas are usable inside closures in constant declarations (#22345)
++const (
++	_ = iota
++	_ = len([iota]byte{})
++	_ = unsafe.Sizeof(iota)
++	_ = unsafe.Sizeof(func() { _ = iota })
++	_ = unsafe.Sizeof(func() { var _ = iota })
++	_ = unsafe.Sizeof(func() { const _ = iota })
++	_ = unsafe.Sizeof(func() { type _ [iota]byte })
++	_ = unsafe.Sizeof(func() { func() int { return iota }() })
++)
++
++// verify inner and outer const declarations have distinct iotas
++const (
++	zero = iota
++	one  = iota
++	_    = unsafe.Sizeof(func() {
++		var x [iota]int // [2]int
++		var y [iota]int // [2]int
++		const (
++			Zero = iota
++			One
++			Two
++			_ = unsafe.Sizeof([iota - 1]int{} == x) // assert types are equal
++			_ = unsafe.Sizeof([iota - 2]int{} == y) // assert types are equal
++			_ = unsafe.Sizeof([Two]int{} == x)      // assert types are equal
++		)
++		var z [iota]int                  // [2]int
++		_ = unsafe.Sizeof([2]int{} == z) // assert types are equal
++	})
++	three = iota // the sequence continues
++)
++
++var _ [three]int = [3]int{} // assert 'three' has correct value
++
++func main() {
++
++	const (
++		_ = iota
++		_ = len([iota]byte{})
++		_ = unsafe.Sizeof(iota)
++		_ = unsafe.Sizeof(func() { _ = iota })
++		_ = unsafe.Sizeof(func() { var _ = iota })
++		_ = unsafe.Sizeof(func() { const _ = iota })
++		_ = unsafe.Sizeof(func() { type _ [iota]byte })
++		_ = unsafe.Sizeof(func() { func() int { return iota }() })
++	)
++
++	const (
++		zero = iota
++		one  = iota
++		_    = unsafe.Sizeof(func() {
++			var x [iota]int // [2]int
++			var y [iota]int // [2]int
++			const (
++				Zero = iota
++				One
++				Two
++				_ = unsafe.Sizeof([iota - 1]int{} == x) // assert types are equal
++				_ = unsafe.Sizeof([iota - 2]int{} == y) // assert types are equal
++				_ = unsafe.Sizeof([Two]int{} == x)      // assert types are equal
++			)
++			var z [iota]int                  // [2]int
++			_ = unsafe.Sizeof([2]int{} == z) // assert types are equal
++		})
++		three = iota // the sequence continues
++	)
++
++	var _ [three]int = [3]int{} // assert 'three' has correct value
++}

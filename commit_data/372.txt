@@ -6,7 +6,111 @@ Date:   Wed Jul 16 13:50:23 2008 -0700
     newproc will reuse dead procs
     
     SVN=127565
-
+---
  src/runtime/proc.c    | 47 ++++++++++++++++++++++++++++++++++-------------
  src/runtime/runtime.h |  5 +++--
  2 files changed, 37 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index fee6255a1b..d6aed85f1c 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -35,8 +35,24 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 		sys·panicl(123);
+ 	}
+ 
+-	newg = mal(sizeof(G));
+-	stk = mal(4096);
++	// try to rip off an old goroutine
++	for(newg=allg; newg!=nil; newg=newg->alllink)
++		if(newg->status == Gdead)
++			break;
++
++	if(newg == nil) {
++		newg = mal(sizeof(G));
++		stk = mal(4096);
++		newg->stack0 = stk;
++
++		newg->status = Gwaiting;
++		newg->alllink = allg;
++		allg = newg;
++	} else {
++		stk = newg->stack0;
++		newg->status = Gwaiting;
++	}
++
+ 	newg->stackguard = stk+160;
+ 
+ 	sp = stk + 4096 - 4*8;
+@@ -56,8 +72,6 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 	newg->goid = goidgen;
+ 
+ 	newg->status = Grunnable;
+-	newg->alllink = allg;
+-	allg = newg;
+ 
+ //prints(" goid=");
+ //sys·printint(newg->goid);
+@@ -67,18 +81,25 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ G*
+ select(void)
+ {
+-	G *gp, *bestg;
++	G *gp;
+ 
+-	bestg = nil;
++	gp = m->lastg;
++	if(gp == nil)
++		gp = allg;
++
++	for(gp=gp->alllink; gp!=nil; gp=gp->alllink) {
++		if(gp->status == Grunnable) {
++			m->lastg = gp;
++			return gp;
++		}
++	}
+ 	for(gp=allg; gp!=nil; gp=gp->alllink) {
+-		if(gp->status != Grunnable)
+-			continue;
+-		if(bestg == nil || gp->pri < bestg->pri)
+-			bestg = gp;
++		if(gp->status == Grunnable) {
++			m->lastg = gp;
++			return gp;
++		}
+ 	}
+-	if(bestg != nil)
+-		bestg->pri++;
+-	return bestg;
++	return nil;
+ }
+ 
+ void
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index dec63eaa76..b1e8b69b25 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -105,11 +105,11 @@ struct	G
+ {
+ 	byte*	stackguard;	// must not move
+ 	byte*	stackbase;	// must not move
++	byte*	stack0;		// first stack segment
+ 	Gobuf	sched;
+ 	G*	alllink;	// on allq
+ 	G*	qlink;		// on wait q
+ 	int32	status;
+-	int32	pri;
+ 	int32	goid;
+ 	byte	elem[8];	// transfer element for chan
+ };
+@@ -117,8 +117,9 @@ struct	M
+ {
+ 	G*	g0;		// g0 w interrupt stack - must not move
+ 	uint64	morearg;	// arg to morestack - must not move
+-	uint64	cret;	// return value from C - must not move
++	uint64	cret;		// return value from C - must not move
+ 	G*	curg;		// current running goroutine
++	G*	lastg;		// last running goroutine - to emulate fifo
+ 	Gobuf	sched;
+ 	Gobuf	morestack;
+ 	byte*	moresp;

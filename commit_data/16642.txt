@@ -21,6 +21,20 @@ Date:   Tue Jun 25 17:23:33 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10495044
-
+---
  src/cmd/ld/lib.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 87af5a28ea..50e41ff776 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1355,7 +1355,7 @@ pclntab(void)
+ 	oldlc = 0;
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		for(p = cursym->text; p != P; p = p->link) {
+-			if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
++			if(p->line == oldlc || p->as == ATEXT || p->as == ANOP || p->as == AUSEFIELD) {
+ 				if(debug['O'])
+ 					Bprint(&bso, "%6llux %P\n",
+ 						(vlong)p->pc, p);

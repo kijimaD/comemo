@@ -8,6 +8,20 @@ Date:   Tue Jul 14 10:45:57 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=31574
     CL=31604
-
+---
  src/pkg/go/printer/printer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index e09387cf7f..4196eb8d8c 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -55,7 +55,7 @@ func (p *printer) nextComment() {
+ 	if p.comments != nil && p.cindex < len(p.comments) && p.comments[p.cindex] != nil {
+ 		p.cpos = p.comments[p.cindex].List[0].Pos();
+ 	} else {
+-		p.cpos = token.Position{1<<30, 1<<30, 1};  // infinite
++		p.cpos = token.Position{"", 1<<30, 1<<30, 1};  // infinite
+ 	}
+ }
+ 

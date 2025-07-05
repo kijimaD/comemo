@@ -7,6 +7,69 @@ Date:   Tue Mar 15 14:20:30 2011 -0700
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/4290047
-
+---
  src/pkg/rpc/server_test.go | 17 ++++++++++++++++-
  1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 9e32b740f1..71c283ed84 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -5,12 +5,14 @@
+ package rpc
+ 
+ import (
++	"flag"
+ 	"fmt"
+ 	"http/httptest"
+ 	"log"
+ 	"net"
+ 	"os"
+ 	"runtime"
++	"runtime/pprof"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -23,6 +25,8 @@ var (
+ 	once, newOnce, httpOnce   sync.Once
+ )
+ 
++var memprofile = flag.String("memprofile", "", "write the memory profile in TestCountMallocs to the named file")
++
+ const (
+ 	second      = 1e9
+ 	newHttpPath = "/foo"
+@@ -352,6 +356,7 @@ func testSendDeadlock(client *Client) {
+ }
+ 
+ func TestCountMallocs(t *testing.T) {
++	runtime.MemProfileRate = 1
+ 	once.Do(startServer)
+ 	client, err := Dial("tcp", serverAddr)
+ 	if err != nil {
+@@ -360,7 +365,7 @@ func TestCountMallocs(t *testing.T) {
+ 	args := &Args{7, 8}
+ 	reply := new(Reply)
+ 	mallocs := 0 - runtime.MemStats.Mallocs
+-	const count = 100
++	const count = 10000
+ 	for i := 0; i < count; i++ {
+ 		err = client.Call("Arith.Add", args, reply)
+ 		if err != nil {
+@@ -371,6 +376,16 @@ func TestCountMallocs(t *testing.T) {
+ 		}
+ 	}
+ 	mallocs += runtime.MemStats.Mallocs
++	if *memprofile != "" {
++		if fd, err := os.Open(*memprofile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666); err != nil {
++			t.Errorf("can't open %s: %s", *memprofile, err)
++		} else {
++			if err = pprof.WriteHeapProfile(fd); err != nil {
++				t.Errorf("can't write %s: %s", *memprofile, err)
++			}
++			fd.Close()
++		}
++	}
+ 	fmt.Printf("mallocs per rpc round trip: %d\n", mallocs/count)
+ }
+ 

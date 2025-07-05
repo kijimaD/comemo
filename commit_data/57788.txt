@@ -16,9 +16,102 @@ Date:   Wed Aug 30 14:06:45 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/doc.go  |  2 +-
  src/cmd/cgo/gcc.go  |  7 ++++---
  src/cmd/cgo/main.go |  3 +--
  src/cmd/cgo/out.go  | 19 +++++++++----------
  4 files changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 894df2d836..1f635d7c09 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -710,7 +710,7 @@ files:
+ 	_cgo_export.c   # for gcc
+ 	_cgo_export.h   # for gcc
+ 	_cgo_main.c     # for gcc
+-	_cgo_flags      # for alternative build tools
++	_cgo_flags      # for build tool (if -gccgo)
+ 
+ The file x.cgo1.go is a copy of x.go with the import "C" removed and
+ references to C.xxx replaced with names like _Cfunc_xxx or _Ctype_xxx.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 28dc2a9bf8..d30056ec84 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -104,10 +104,8 @@ func (f *File) ProcessCgoDirectives() {
+ 	f.Preamble = strings.Join(linesOut, "\n")
+ }
+ 
+-// addToFlag appends args to flag. All flags are later written out onto the
+-// _cgo_flags file for the build system to use.
++// addToFlag appends args to flag.
+ func (p *Package) addToFlag(flag string, args []string) {
+-	p.CgoFlags[flag] = append(p.CgoFlags[flag], args...)
+ 	if flag == "CFLAGS" {
+ 		// We'll also need these when preprocessing for dwarf information.
+ 		// However, discard any -g options: we need to be able
+@@ -118,6 +116,9 @@ func (p *Package) addToFlag(flag string, args []string) {
+ 			}
+ 		}
+ 	}
++	if flag == "LDFLAGS" {
++		p.LdFlags = append(p.LdFlags, args...)
++	}
+ }
+ 
+ // splitQuoted splits the string s around each instance of one or more consecutive
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 55f9cdc318..fce2671c2c 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -38,7 +38,7 @@ type Package struct {
+ 	IntSize     int64
+ 	GccOptions  []string
+ 	GccIsClang  bool
+-	CgoFlags    map[string][]string // #cgo flags (CFLAGS, LDFLAGS)
++	LdFlags     []string // #cgo LDFLAGS
+ 	Written     map[string]bool
+ 	Name        map[string]*Name // accumulated Name from Files
+ 	ExpFunc     []*ExpFunc       // accumulated ExpFunc from Files
+@@ -475,7 +475,6 @@ func newPackage(args []string) *Package {
+ 	p := &Package{
+ 		PtrSize:     ptrSize,
+ 		IntSize:     intSize,
+-		CgoFlags:    make(map[string][]string),
+ 		Written:     make(map[string]bool),
+ 		noCallbacks: make(map[string]bool),
+ 		noEscapes:   make(map[string]bool),
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 947c61b5c5..8e1b5d62fd 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -45,18 +45,17 @@ func (p *Package) writeDefs() {
+ 
+ 	var gccgoInit strings.Builder
+ 
+-	fflg := creat(*objDir + "_cgo_flags")
+-	for k, v := range p.CgoFlags {
+-		for _, arg := range v {
+-			fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, arg)
+-		}
+-		if k == "LDFLAGS" && !*gccgo {
+-			for _, arg := range v {
+-				fmt.Fprintf(fgo2, "//go:cgo_ldflag %q\n", arg)
+-			}
++	if !*gccgo {
++		for _, arg := range p.LdFlags {
++			fmt.Fprintf(fgo2, "//go:cgo_ldflag %q\n", arg)
++		}
++	} else {
++		fflg := creat(*objDir + "_cgo_flags")
++		for _, arg := range p.LdFlags {
++			fmt.Fprintf(fflg, "_CGO_LDFLAGS=%s\n", arg)
+ 		}
++		fflg.Close()
+ 	}
+-	fflg.Close()
+ 
+ 	// Write C main file for using gcc to resolve imports.
+ 	fmt.Fprintf(fm, "#include <stddef.h>\n") // For size_t below.

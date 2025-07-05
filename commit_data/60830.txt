@@ -17,8 +17,43 @@ Date:   Tue Sep 3 11:28:42 2024 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/error_errno.go | 1 +
  src/os/error_plan9.go | 1 +
  src/os/getwd.go       | 5 ++++-
  3 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/error_errno.go b/src/os/error_errno.go
+index 01204131be..c4d540cdff 100644
+--- a/src/os/error_errno.go
++++ b/src/os/error_errno.go
+@@ -11,3 +11,4 @@ import "syscall"
+ type syscallErrorType = syscall.Errno
+ 
+ const errENOSYS = syscall.ENOSYS
++const errERANGE = syscall.ERANGE
+diff --git a/src/os/error_plan9.go b/src/os/error_plan9.go
+index 39e96607e1..61b56211b4 100644
+--- a/src/os/error_plan9.go
++++ b/src/os/error_plan9.go
+@@ -9,3 +9,4 @@ import "syscall"
+ type syscallErrorType = syscall.ErrorString
+ 
+ var errENOSYS = syscall.NewError("function not implemented")
++var errERANGE = syscall.NewError("out of range")
+diff --git a/src/os/getwd.go b/src/os/getwd.go
+index 833381c2d2..8dca70fc2e 100644
+--- a/src/os/getwd.go
++++ b/src/os/getwd.go
+@@ -59,7 +59,10 @@ func Getwd() (dir string, err error) {
+ 				break
+ 			}
+ 		}
+-		if err != syscall.ENAMETOOLONG {
++		// Linux returns ENAMETOOLONG if the result is too long.
++		// BSD systems appear to return EINVAL.
++		// Solaris appears to use ERANGE.
++		if err != syscall.ENAMETOOLONG && err != syscall.EINVAL && err != errERANGE {
+ 			return dir, NewSyscallError("getwd", err)
+ 		}
+ 	}

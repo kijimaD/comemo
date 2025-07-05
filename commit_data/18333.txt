@@ -10,7 +10,46 @@ Date:   Wed Jan 22 16:04:50 2014 -0500
     R=r, dave, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/55780043
-
+---
  doc/go1.3.txt              | 1 +
  src/pkg/testing/testing.go | 8 +++++++-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index dfb21f4fd9..4c25375d09 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -3,3 +3,4 @@ liblink: pull linker i/o into separate liblink C library (CL 35790044)
+ misc/dist: renamed misc/makerelease (CL 39920043)
+ runtime: output how long goroutines are blocked (CL 50420043)
+ syscall: add NewCallbackCDecl to use for windows callbacks (CL 36180044)
++testing: diagnose buggy tests that panic(nil) (CL 55780043)
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 52dc166dd9..a0b55f4a57 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -376,10 +376,15 @@ func tRunner(t *T, test *InternalTest) {
+ 	// returned normally or because a test failure triggered
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
++	var finished bool
+ 	defer func() {
+ 		t.duration = time.Now().Sub(t.start)
+ 		// If the test panicked, print any test output before dying.
+-		if err := recover(); err != nil {
++		err := recover()
++		if !finished && err == nil {
++			err = fmt.Errorf("test executed panic(nil)")
++		}
++		if err != nil {
+ 			t.Fail()
+ 			t.report()
+ 			panic(err)
+@@ -389,6 +394,7 @@ func tRunner(t *T, test *InternalTest) {
+ 
+ 	t.start = time.Now()
+ 	test.F(t)
++	finished = true
+ }
+ 
+ // An internal function but exported because it is cross-package; part of the implementation

@@ -9,7 +9,7 @@ Date:   Tue Aug 16 16:33:05 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go  |  2 +-
  src/cmd/compile/internal/gc/noder.go |  1 +
  src/go/types/stdlib_test.go          |  4 +---
@@ -19,3 +19,168 @@ Date:   Tue Aug 16 16:33:05 2016 -0700
  test/syntax/chan1.go                 | 10 +++-------
  test/syntax/semi4.go                 |  4 ++--
  8 files changed, 15 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 3803417cea..db7c76231a 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -181,7 +181,7 @@ func Main() {
+ 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
+ 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
+ 	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
+-	flag.BoolVar(&flag_newparser, "newparser", false, "use new parser")
++	flag.BoolVar(&flag_newparser, "newparser", true, "use new parser")
+ 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
+ 	flag.StringVar(&outfile, "o", "", "write output to `file`")
+ 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 6dc082410f..3cfd1cad20 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -578,6 +578,7 @@ func (p *noder) structType(expr *syntax.StructType) *Node {
+ 		l = append(l, n)
+ 	}
+ 
++	p.lineno(expr)
+ 	n := p.nod(expr, OTSTRUCT, nil, nil)
+ 	n.List.Set(l)
+ 	return n
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 0fdd495735..4192a3608e 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -100,9 +100,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 			switch cmd {
+ 			case "skip", "compiledir":
+ 				continue // ignore this file
+-			// TODO(mdempsky): Remove -newparser=0 case once
+-			// test/fixedbugs/issue11610.go is updated.
+-			case "errorcheck", "errorcheck -newparser=0":
++			case "errorcheck":
+ 				expectErrors = true
+ 			}
+ 		}
+diff --git a/test/alias2.go b/test/alias2.go
+index b73f81c014..a09f524611 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -1,4 +1,4 @@
+-// errorcheck -newparser=1
++// errorcheck
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue11610.go b/test/fixedbugs/issue11610.go
+index cb5ced6d7c..5e77932362 100644
+--- a/test/fixedbugs/issue11610.go
++++ b/test/fixedbugs/issue11610.go
+@@ -1,4 +1,4 @@
+-// errorcheck -newparser=0
++// errorcheck
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,15 +7,11 @@
+ // Test an internal compiler error on ? symbol in declaration
+ // following an empty import.
+ 
+-// TODO(mdempsky): Update for new parser. New parser recovers more
+-// gracefully and doesn't trigger the "cannot declare name" error.
+-// Also remove "errorcheck -newparser=0" case in go/types.TestStdFixed.
+-
+ package a
+ import""  // ERROR "import path is empty"
+ var?      // ERROR "illegal character U\+003F '\?'"
+ 
+-var x int // ERROR "unexpected var" "cannot declare name"
++var x int // ERROR "unexpected var"
+ 
+ func main() {
+ }
+diff --git a/test/nul1.go b/test/nul1.go
+index 624101b621..fbba19857b 100644
+--- a/test/nul1.go
++++ b/test/nul1.go
+@@ -1,4 +1,4 @@
+-// errorcheckoutput -newparser=0
++// errorcheckoutput
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -6,10 +6,6 @@
+ 
+ // Test source files and strings containing NUL and invalid UTF-8.
+ 
+-// TODO(mdempsky): Update error expectations for -newparser=1. The new
+-// lexer skips over NUL and invalid UTF-8 sequences, so they don't emit
+-// "illegal character" or "invalid identifier character" errors.
+-
+ package main
+ 
+ import (
+@@ -40,7 +36,7 @@ var y = ` + "`in raw string \x00 foo`" + `  // ERROR "NUL"
+ 
+ /* in other comment ` + "\x00" + ` */ // ERROR "NUL"
+ 
+-/* in source code */ ` + "\x00" + `// ERROR "NUL" "illegal character"
++/* in source code */ ` + "\x00" + `// ERROR "NUL"
+ 
+ var xx = "in string ` + "\xc2\xff" + `" // ERROR "UTF-8"
+ 
+@@ -51,9 +47,9 @@ var yy = ` + "`in raw string \xff foo`" + `  // ERROR "UTF-8"
+ /* in other comment ` + "\xe0\x00\x00" + ` */ // ERROR "UTF-8|NUL"
+ 
+ /* in variable name */
+-var z` + "\xc1\x81" + ` int // ERROR "UTF-8" "invalid identifier character"
++var z` + "\xc1\x81" + ` int // ERROR "UTF-8"
+ 
+-/* in source code */ ` + "var \xc2A int" + `// ERROR "UTF-8" "invalid identifier character"
++/* in source code */ ` + "var \xc2A int" + `// ERROR "UTF-8"
+ 
+ `)
+ }
+diff --git a/test/syntax/chan1.go b/test/syntax/chan1.go
+index 22724fd297..a33a0d4cea 100644
+--- a/test/syntax/chan1.go
++++ b/test/syntax/chan1.go
+@@ -1,21 +1,17 @@
+-// errorcheck -newparser=0
++// errorcheck
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(mdempsky): Update for new parser or delete.
+-// Like go/parser, the new parser doesn't specially recognize
+-// send statements misused in an expression context.
+-
+ package main
+ 
+ var c chan int
+ var v int
+ 
+ func main() {
+-	if c <- v { // ERROR "used as value"
++	if c <- v { // ERROR "used as value|missing condition|invalid condition"
+ 	}
+ }
+ 
+-var _ = c <- v // ERROR "used as value"
++var _ = c <- v // ERROR "used as value|unexpected <-"
+diff --git a/test/syntax/semi4.go b/test/syntax/semi4.go
+index 262926a01e..6f5592ef0e 100644
+--- a/test/syntax/semi4.go
++++ b/test/syntax/semi4.go
+@@ -1,4 +1,4 @@
+-// errorcheck -newparser=0
++// errorcheck
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -14,4 +14,4 @@ package main
+ func main() {
+ 	for x		// GCCGO_ERROR "undefined"
+ 	{		// ERROR "missing .*{.* after for clause|missing operand"
+-		z	// GCCGO_ERROR "undefined"
++		z	// ERROR "undefined|missing { after for clause"

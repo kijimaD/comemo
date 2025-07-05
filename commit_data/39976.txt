@@ -15,6 +15,19 @@ Date:   Sun Apr 7 15:11:39 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bootstrap.bash | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/bootstrap.bash b/src/bootstrap.bash
+index 32b736ad78..673fb61c67 100755
+--- a/src/bootstrap.bash
++++ b/src/bootstrap.bash
+@@ -72,6 +72,7 @@ if [ "$goos" = "$gohostos" -a "$goarch" = "$gohostarch" ]; then
+ 	# prepare a clean toolchain for others.
+ 	true
+ else
++	rm bin/go_${goos}_${goarch}_exec
+ 	mv bin/*_*/* bin
+ 	rmdir bin/*_*
+ 	rm -rf "pkg/${gohostos}_${gohostarch}" "pkg/tool/${gohostos}_${gohostarch}"

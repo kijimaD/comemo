@@ -15,6 +15,20 @@ Date:   Tue Feb 7 17:30:05 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/vendor.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 2bb2eb8090..78f0e59b8b 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -211,7 +211,7 @@ func moduleLine(m, r module.Version) string {
+ 		b.WriteString(m.Version)
+ 	}
+ 	if r.Path != "" {
+-		if strings.HasPrefix(r.Path, "./vendor") || strings.HasPrefix(r.Path, ".\vendor") {
++		if str.HasFilePathPrefix(filepath.Clean(r.Path), "vendor") {
+ 			base.Fatalf("go: replacement path %s inside vendor directory", r.Path)
+ 		}
+ 		b.WriteString(" => ")

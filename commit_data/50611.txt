@@ -13,7 +13,54 @@ Date:   Wed Nov 3 10:58:59 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt |  5 +++--
  src/internal/fuzz/fuzz.go                | 10 +++++++---
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index 020012d73e..150491be04 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -152,6 +152,7 @@ stdout FAIL
+ # Test that the wrong type given with f.Add will fail.
+ ! go test -run FuzzWrongType fuzz_add_test.go
+ ! stdout ^ok
++stdout '\[string int\], want \[\[\]uint8 int8\]'
+ stdout FAIL
+ 
+ # Test fatal with testdata seed corpus
+@@ -435,8 +436,8 @@ func FuzzAddDifferentType(f *testing.F) {
+ }
+ 
+ func FuzzWrongType(f *testing.F) {
+-    f.Add("hello")
+-    f.Fuzz(func(*testing.T, []byte) {})
++    f.Add("hello", 50)
++    f.Fuzz(func(*testing.T, []byte, int8) {})
+ }
+ 
+ -- corpustesting/fuzz_testdata_corpus_test.go --
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 2ebe2a64db..aef1dee978 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -997,11 +997,15 @@ func readCorpusData(data []byte, types []reflect.Type) ([]interface{}, error) {
+ // provided.
+ func CheckCorpus(vals []interface{}, types []reflect.Type) error {
+ 	if len(vals) != len(types) {
+-		return fmt.Errorf("wrong number of values in corpus entry %v: want %v", vals, types)
++		return fmt.Errorf("wrong number of values in corpus entry: %d, want %d", len(vals), len(types))
++	}
++	valsT := make([]reflect.Type, len(vals))
++	for valsI, v := range vals {
++		valsT[valsI] = reflect.TypeOf(v)
+ 	}
+ 	for i := range types {
+-		if reflect.TypeOf(vals[i]) != types[i] {
+-			return fmt.Errorf("mismatched types in corpus entry: %v, want %v", vals, types)
++		if valsT[i] != types[i] {
++			return fmt.Errorf("mismatched types in corpus entry: %v, want %v", valsT, types)
+ 		}
+ 	}
+ 	return nil

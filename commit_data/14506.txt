@@ -36,7 +36,411 @@ Date:   Tue Nov 27 10:21:43 2012 -0500
     R=rsc, jgc, 0xjnml, mikioh.mikioh, bradfitz
     CC=golang-dev
     https://golang.org/cl/6782118
-
+---
  src/pkg/log/syslog/syslog.go      | 155 ++++++++++++++++++++++++++------------
  src/pkg/log/syslog/syslog_test.go |  77 +++++++++++++------
  2 files changed, 158 insertions(+), 74 deletions(-)
+
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index e5620e1aa2..c4ad12ffcd 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -4,9 +4,9 @@
+ 
+ // +build !windows,!plan9
+ 
+-// Package syslog provides a simple interface to the system log service. It
+-// can send messages to the syslog daemon using UNIX domain sockets, UDP, or
+-// TCP connections.
++// Package syslog provides a simple interface to the system log
++// service. It can send messages to the syslog daemon using UNIX
++// domain sockets, UDP, or TCP connections.
+ package syslog
+ 
+ import (
+@@ -15,11 +15,21 @@ import (
+ 	"log"
+ 	"net"
+ 	"os"
++	"time"
+ )
+ 
++// The Priority is a combination of the syslog facility and
++// severity. For example, LOG_ALERT | LOG_FTP sends an alert severity
++// message from the FTP facility. The default severity is LOG_EMERG;
++// the default facility is LOG_KERN.
+ type Priority int
+ 
++const severityMask = 0x07
++const facilityMask = 0xf8
++
+ const (
++	// Severity.
++
+ 	// From /usr/include/sys/syslog.h.
+ 	// These are the same on Linux, BSD, and OS X.
+ 	LOG_EMERG Priority = iota
+@@ -32,16 +42,47 @@ const (
+ 	LOG_DEBUG
+ )
+ 
++const (
++	// Facility.
++
++	// From /usr/include/sys/syslog.h.
++	// These are the same up to LOG_FTP on Linux, BSD, and OS X.
++	LOG_KERN Priority = iota << 3
++	LOG_USER
++	LOG_MAIL
++	LOG_DAEMON
++	LOG_AUTH
++	LOG_SYSLOG
++	LOG_LPR
++	LOG_NEWS
++	LOG_UUCP
++	LOG_CRON
++	LOG_AUTHPRIV
++	LOG_FTP
++	_ // unused
++	_ // unused
++	_ // unused
++	_ // unused
++	LOG_LOCAL0
++	LOG_LOCAL1
++	LOG_LOCAL2
++	LOG_LOCAL3
++	LOG_LOCAL4
++	LOG_LOCAL5
++	LOG_LOCAL6
++	LOG_LOCAL7
++)
++
+ // A Writer is a connection to a syslog server.
+ type Writer struct {
+ 	priority Priority
+-	prefix   string
++	tag      string
++	hostname string
+ 	conn     serverConn
+ }
+ 
+ type serverConn interface {
+-	writeBytes(p Priority, prefix string, b []byte) (int, error)
+-	writeString(p Priority, prefix string, s string) (int, error)
++	writeString(p Priority, hostname, tag, s string) (int, error)
+ 	close() error
+ }
+ 
+@@ -49,116 +90,130 @@ type netConn struct {
+ 	conn net.Conn
+ }
+ 
+-// New establishes a new connection to the system log daemon.
+-// Each write to the returned writer sends a log message with
+-// the given priority and prefix.
+-func New(priority Priority, prefix string) (w *Writer, err error) {
+-	return Dial("", "", priority, prefix)
++// New establishes a new connection to the system log daemon.  Each
++// write to the returned writer sends a log message with the given
++// priority and prefix.
++func New(priority Priority, tag string) (w *Writer, err error) {
++	return Dial("", "", priority, tag)
+ }
+ 
+-// Dial establishes a connection to a log daemon by connecting
+-// to address raddr on the network net.
+-// Each write to the returned writer sends a log message with
+-// the given priority and prefix.
+-func Dial(network, raddr string, priority Priority, prefix string) (w *Writer, err error) {
+-	if prefix == "" {
+-		prefix = os.Args[0]
++// Dial establishes a connection to a log daemon by connecting to
++// address raddr on the network net.  Each write to the returned
++// writer sends a log message with the given facility, severity and
++// tag.
++func Dial(network, raddr string, priority Priority, tag string) (w *Writer, err error) {
++	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
++		return nil, errors.New("log/syslog: invalid priority")
+ 	}
++
++	if tag == "" {
++		tag = os.Args[0]
++	}
++
++	hostname, _ := os.Hostname()
++
+ 	var conn serverConn
+ 	if network == "" {
+ 		conn, err = unixSyslog()
++		if hostname == "" {
++			hostname = "localhost"
++		}
+ 	} else {
+ 		var c net.Conn
+ 		c, err = net.Dial(network, raddr)
+ 		conn = netConn{c}
++		if hostname == "" {
++			hostname = c.LocalAddr().String()
++		}
++	}
++	if err != nil {
++		return nil, err
+ 	}
+-	return &Writer{priority, prefix, conn}, err
++
++	return &Writer{priority: priority, tag: tag, hostname: hostname, conn: conn}, nil
+ }
+ 
+ // Write sends a log message to the syslog daemon.
+ func (w *Writer) Write(b []byte) (int, error) {
+-	if w.priority > LOG_DEBUG || w.priority < LOG_EMERG {
+-		return 0, errors.New("log/syslog: invalid priority")
+-	}
+-	return w.conn.writeBytes(w.priority, w.prefix, b)
+-}
+-
+-func (w *Writer) writeString(p Priority, s string) (int, error) {
+-	return w.conn.writeString(p, w.prefix, s)
++	return w.writeString(w.priority, string(b))
+ }
+ 
+ func (w *Writer) Close() error { return w.conn.close() }
+ 
+-// Emerg logs a message using the LOG_EMERG priority.
++// Emerg logs a message with severity LOG_EMERG, ignoring the severity
++// passed to New.
+ func (w *Writer) Emerg(m string) (err error) {
+ 	_, err = w.writeString(LOG_EMERG, m)
+ 	return err
+ }
+ 
+-// Alert logs a message using the LOG_ALERT priority.
++// Alert logs a message with severity LOG_ALERT, ignoring the severity
++// passed to New.
+ func (w *Writer) Alert(m string) (err error) {
+ 	_, err = w.writeString(LOG_ALERT, m)
+ 	return err
+ }
+ 
+-// Crit logs a message using the LOG_CRIT priority.
++// Crit logs a message with severity LOG_CRIT, ignoring the severity
++// passed to New.
+ func (w *Writer) Crit(m string) (err error) {
+ 	_, err = w.writeString(LOG_CRIT, m)
+ 	return err
+ }
+ 
+-// Err logs a message using the LOG_ERR priority.
++// Err logs a message with severity LOG_ERR, ignoring the severity
++// passed to New.
+ func (w *Writer) Err(m string) (err error) {
+ 	_, err = w.writeString(LOG_ERR, m)
+ 	return err
+ }
+ 
+-// Warning logs a message using the LOG_WARNING priority.
++// Wanring logs a message with severity LOG_WARNING, ignoring the
++// severity passed to New.
+ func (w *Writer) Warning(m string) (err error) {
+ 	_, err = w.writeString(LOG_WARNING, m)
+ 	return err
+ }
+ 
+-// Notice logs a message using the LOG_NOTICE priority.
++// Notice logs a message with severity LOG_NOTICE, ignoring the
++// severity passed to New.
+ func (w *Writer) Notice(m string) (err error) {
+ 	_, err = w.writeString(LOG_NOTICE, m)
+ 	return err
+ }
+ 
+-// Info logs a message using the LOG_INFO priority.
++// Info logs a message with severity LOG_INFO, ignoring the severity
++// passed to New.
+ func (w *Writer) Info(m string) (err error) {
+ 	_, err = w.writeString(LOG_INFO, m)
+ 	return err
+ }
+ 
+-// Debug logs a message using the LOG_DEBUG priority.
++// Debug logs a message with severity LOG_DEBUG, ignoring the severity
++// passed to New.
+ func (w *Writer) Debug(m string) (err error) {
+ 	_, err = w.writeString(LOG_DEBUG, m)
+ 	return err
+ }
+ 
+-func (n netConn) writeBytes(p Priority, prefix string, b []byte) (int, error) {
+-	nl := ""
+-	if len(b) == 0 || b[len(b)-1] != '\n' {
+-		nl = "\n"
+-	}
+-	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s%s", p, prefix, b, nl)
+-	if err != nil {
+-		return 0, err
+-	}
+-	return len(b), nil
++func (w *Writer) writeString(p Priority, s string) (int, error) {
++	return w.conn.writeString((w.priority&facilityMask)|(p&severityMask),
++		w.hostname, w.tag, s)
+ }
+ 
+-func (n netConn) writeString(p Priority, prefix string, s string) (int, error) {
++// writeString: generates and writes a syslog formatted string. The
++// format is as follows: <PRI>1 TIMESTAMP HOSTNAME TAG[PID]: MSG
++func (n netConn) writeString(p Priority, hostname, tag, msg string) (int, error) {
+ 	nl := ""
+-	if len(s) == 0 || s[len(s)-1] != '\n' {
++	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
+ 		nl = "\n"
+ 	}
+-	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s%s", p, prefix, s, nl)
+-	if err != nil {
++	timestamp := time.Now().Format(time.RFC3339)
++	if _, err := fmt.Fprintf(n.conn, "<%d>1 %s %s %s[%d]: %s%s", p, timestamp, hostname,
++		tag, os.Getpid(), msg, nl); err != nil {
+ 		return 0, err
+ 	}
+-	return len(s), nil
++	return len(msg), nil
+ }
+ 
+ func (n netConn) close() error {
+diff --git a/src/pkg/log/syslog/syslog_test.go b/src/pkg/log/syslog/syslog_test.go
+index b7579c363d..4c0bf1f4e7 100644
+--- a/src/pkg/log/syslog/syslog_test.go
++++ b/src/pkg/log/syslog/syslog_test.go
+@@ -7,9 +7,11 @@
+ package syslog
+ 
+ import (
++	"fmt"
+ 	"io"
+ 	"log"
+ 	"net"
++	"os"
+ 	"testing"
+ 	"time"
+ )
+@@ -49,10 +51,14 @@ func skipNetTest(t *testing.T) bool {
+ }
+ 
+ func TestNew(t *testing.T) {
++	if LOG_LOCAL7 != 23<<3 {
++		t.Fatalf("LOG_LOCAL7 has wrong value")
++	}
+ 	if skipNetTest(t) {
+ 		return
+ 	}
+-	s, err := New(LOG_INFO, "")
++
++	s, err := New(LOG_INFO|LOG_USER, "")
+ 	if err != nil {
+ 		t.Fatalf("New() failed: %s", err)
+ 	}
+@@ -64,7 +70,7 @@ func TestNewLogger(t *testing.T) {
+ 	if skipNetTest(t) {
+ 		return
+ 	}
+-	f, err := NewLogger(LOG_INFO, 0)
++	f, err := NewLogger(LOG_USER|LOG_INFO, 0)
+ 	if f == nil {
+ 		t.Error(err)
+ 	}
+@@ -74,7 +80,15 @@ func TestDial(t *testing.T) {
+ 	if skipNetTest(t) {
+ 		return
+ 	}
+-	l, err := Dial("", "", LOG_ERR, "syslog_test")
++	f, err := Dial("", "", (LOG_LOCAL7|LOG_DEBUG)+1, "syslog_test")
++	if f != nil {
++		t.Fatalf("Should have trapped bad priority")
++	}
++	f, err = Dial("", "", -1, "syslog_test")
++	if f != nil {
++		t.Fatalf("Should have trapped bad priority")
++	}
++	l, err := Dial("", "", LOG_USER|LOG_ERR, "syslog_test")
+ 	if err != nil {
+ 		t.Fatalf("Dial() failed: %s", err)
+ 	}
+@@ -84,16 +98,23 @@ func TestDial(t *testing.T) {
+ func TestUDPDial(t *testing.T) {
+ 	done := make(chan string)
+ 	startServer(done)
+-	l, err := Dial("udp", serverAddr, LOG_INFO, "syslog_test")
++	l, err := Dial("udp", serverAddr, LOG_USER|LOG_INFO, "syslog_test")
+ 	if err != nil {
+ 		t.Fatalf("syslog.Dial() failed: %s", err)
+ 	}
+ 	msg := "udp test"
+ 	l.Info(msg)
+-	expected := "<6>syslog_test: udp test\n"
++	expected := fmt.Sprintf("<%d>1 ", LOG_USER+LOG_INFO) + "%s %s syslog_test[%d]: udp test\n"
+ 	rcvd := <-done
+-	if rcvd != expected {
+-		t.Fatalf("s.Info() = '%q', but wanted '%q'", rcvd, expected)
++	var parsedHostname, timestamp string
++	var pid int
++	if hostname, err := os.Hostname(); err != nil {
++		t.Fatalf("Error retrieving hostname")
++	} else {
++		if n, err := fmt.Sscanf(rcvd, expected, &timestamp, &parsedHostname, &pid); n != 3 ||
++			err != nil || hostname != parsedHostname {
++			t.Fatalf("s.Info() = '%q', didn't match '%q'", rcvd, expected)
++		}
+ 	}
+ }
+ 
+@@ -104,26 +125,34 @@ func TestWrite(t *testing.T) {
+ 		msg string
+ 		exp string
+ 	}{
+-		{LOG_ERR, "syslog_test", "", "<3>syslog_test: \n"},
+-		{LOG_ERR, "syslog_test", "write test", "<3>syslog_test: write test\n"},
++		{LOG_USER | LOG_ERR, "syslog_test", "", "%s %s syslog_test[%d]: \n"},
++		{LOG_USER | LOG_ERR, "syslog_test", "write test", "%s %s syslog_test[%d]: write test\n"},
+ 		// Write should not add \n if there already is one
+-		{LOG_ERR, "syslog_test", "write test 2\n", "<3>syslog_test: write test 2\n"},
++		{LOG_USER | LOG_ERR, "syslog_test", "write test 2\n", "%s %s syslog_test[%d]: write test 2\n"},
+ 	}
+ 
+-	for _, test := range tests {
+-		done := make(chan string)
+-		startServer(done)
+-		l, err := Dial("udp", serverAddr, test.pri, test.pre)
+-		if err != nil {
+-			t.Fatalf("syslog.Dial() failed: %s", err)
+-		}
+-		_, err = io.WriteString(l, test.msg)
+-		if err != nil {
+-			t.Fatalf("WriteString() failed: %s", err)
+-		}
+-		rcvd := <-done
+-		if rcvd != test.exp {
+-			t.Fatalf("s.Info() = '%q', but wanted '%q'", rcvd, test.exp)
++	if hostname, err := os.Hostname(); err != nil {
++		t.Fatalf("Error retrieving hostname")
++	} else {
++		for _, test := range tests {
++			done := make(chan string)
++			startServer(done)
++			l, err := Dial("udp", serverAddr, test.pri, test.pre)
++			if err != nil {
++				t.Fatalf("syslog.Dial() failed: %s", err)
++			}
++			_, err = io.WriteString(l, test.msg)
++			if err != nil {
++				t.Fatalf("WriteString() failed: %s", err)
++			}
++			rcvd := <-done
++			test.exp = fmt.Sprintf("<%d>1 ", test.pri) + test.exp
++			var parsedHostname, timestamp string
++			var pid int
++			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname, &pid); n != 3 ||
++				err != nil || hostname != parsedHostname {
++				t.Fatalf("s.Info() = '%q', didn't match '%q'", rcvd, test.exp)
++			}
+ 		}
+ 	}
+ }

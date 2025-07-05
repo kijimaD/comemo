@@ -19,6 +19,22 @@ Date:   Wed Sep 11 09:51:17 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/import.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index bb5e05e9e3..f0777089d4 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -48,6 +48,10 @@ func (e *ImportMissingError) Error() string {
+ 	return fmt.Sprintf("missing module for import: %s@%s provides %s", e.Module.Path, e.Module.Version, e.ImportPath)
+ }
+ 
++func (e *ImportMissingError) Unwrap() error {
++	return e.QueryErr
++}
++
+ // Import finds the module and directory in the build list
+ // containing the package with the given import path.
+ // The answer must be unique: Import returns an error

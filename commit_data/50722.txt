@@ -20,7 +20,7 @@ Date:   Fri Oct 1 10:14:32 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/353589
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Trust: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/x509/cert_pool.go         |  27 +++++-----
  src/crypto/x509/hybrid_pool_test.go  |  95 ++++++++++++++++++++++++++++++++
  src/crypto/x509/root_darwin.go       |   2 +-
@@ -28,3 +28,381 @@ Date:   Fri Oct 1 10:14:32 2021 -0700
  src/crypto/x509/root_windows_test.go | 102 +++++++++++++++++++++++++++++++++++
  src/crypto/x509/verify.go            |  17 ++++--
  6 files changed, 229 insertions(+), 62 deletions(-)
+
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index d760dc11c6..873ffeee1d 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -8,8 +8,6 @@ import (
+ 	"bytes"
+ 	"crypto/sha256"
+ 	"encoding/pem"
+-	"errors"
+-	"runtime"
+ 	"sync"
+ )
+ 
+@@ -29,6 +27,12 @@ type CertPool struct {
+ 	// call getCert and otherwise negate savings from lazy getCert
+ 	// funcs).
+ 	haveSum map[sum224]bool
++
++	// systemPool indicates whether this is a special pool derived from the
++	// system roots. If it includes additional roots, it requires doing two
++	// verifications, one using the roots provided by the caller, and one using
++	// the system platform verifier.
++	systemPool bool
+ }
+ 
+ // lazyCert is minimal metadata about a Cert and a func to retrieve it
+@@ -75,9 +79,10 @@ func (s *CertPool) cert(n int) (*Certificate, error) {
+ 
+ func (s *CertPool) copy() *CertPool {
+ 	p := &CertPool{
+-		byName:    make(map[string][]int, len(s.byName)),
+-		lazyCerts: make([]lazyCert, len(s.lazyCerts)),
+-		haveSum:   make(map[sum224]bool, len(s.haveSum)),
++		byName:     make(map[string][]int, len(s.byName)),
++		lazyCerts:  make([]lazyCert, len(s.lazyCerts)),
++		haveSum:    make(map[sum224]bool, len(s.haveSum)),
++		systemPool: s.systemPool,
+ 	}
+ 	for k, v := range s.byName {
+ 		indexes := make([]int, len(v))
+@@ -103,15 +108,6 @@ func (s *CertPool) copy() *CertPool {
+ //
+ // New changes in the system cert pool might not be reflected in subsequent calls.
+ func SystemCertPool() (*CertPool, error) {
+-	if runtime.GOOS == "windows" {
+-		// Issue 16736, 18609:
+-		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
+-	} else if runtime.GOOS == "darwin" {
+-		return nil, errors.New("crypto/x509: system root pool is not available on macOS")
+-	} else if runtime.GOOS == "ios" {
+-		return nil, errors.New("crypto/x509: system root pool is not available on iOS")
+-	}
+-
+ 	if sysRoots := systemRootsPool(); sysRoots != nil {
+ 		return sysRoots.copy(), nil
+ 	}
+@@ -243,6 +239,9 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
+ 
+ // Subjects returns a list of the DER-encoded subjects of
+ // all of the certificates in the pool.
++//
++// Deprecated: if s was returned by SystemCertPool, Subjects
++// will not include the system roots.
+ func (s *CertPool) Subjects() [][]byte {
+ 	res := make([][]byte, s.len())
+ 	for i, lc := range s.lazyCerts {
+diff --git a/src/crypto/x509/hybrid_pool_test.go b/src/crypto/x509/hybrid_pool_test.go
+new file mode 100644
+index 0000000000..d4dd9d5c22
+--- /dev/null
++++ b/src/crypto/x509/hybrid_pool_test.go
+@@ -0,0 +1,95 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509_test
++
++import (
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
++	"crypto/tls"
++	"crypto/x509"
++	"crypto/x509/pkix"
++	"internal/testenv"
++	"math/big"
++	"runtime"
++	"testing"
++	"time"
++)
++
++func TestHybridPool(t *testing.T) {
++	if !(runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios") {
++		t.Skipf("platform verifier not available on %s", runtime.GOOS)
++	}
++	if !testenv.HasExternalNetwork() {
++		t.Skip()
++	}
++
++	// Get the google.com chain, which should be valid on all platforms we
++	// are testing
++	c, err := tls.Dial("tcp", "google.com:443", &tls.Config{InsecureSkipVerify: true})
++	if err != nil {
++		t.Fatalf("tls connection failed: %s", err)
++	}
++	googChain := c.ConnectionState().PeerCertificates
++
++	rootTmpl := &x509.Certificate{
++		SerialNumber:          big.NewInt(1),
++		Subject:               pkix.Name{CommonName: "Go test root"},
++		IsCA:                  true,
++		BasicConstraintsValid: true,
++		NotBefore:             time.Now().Add(-time.Hour),
++		NotAfter:              time.Now().Add(time.Hour * 10),
++	}
++	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatalf("failed to generate test key: %s", err)
++	}
++	rootDER, err := x509.CreateCertificate(rand.Reader, rootTmpl, rootTmpl, k.Public(), k)
++	if err != nil {
++		t.Fatalf("failed to create test cert: %s", err)
++	}
++	root, err := x509.ParseCertificate(rootDER)
++	if err != nil {
++		t.Fatalf("failed to parse test cert: %s", err)
++	}
++
++	pool, err := x509.SystemCertPool()
++	if err != nil {
++		t.Fatalf("SystemCertPool failed: %s", err)
++	}
++	opts := x509.VerifyOptions{Roots: pool}
++
++	_, err = googChain[0].Verify(opts)
++	if err != nil {
++		t.Fatalf("verification failed for google.com chain (empty pool): %s", err)
++	}
++
++	pool.AddCert(root)
++
++	_, err = googChain[0].Verify(opts)
++	if err != nil {
++		t.Fatalf("verification failed for google.com chain (hybrid pool): %s", err)
++	}
++
++	certTmpl := &x509.Certificate{
++		SerialNumber: big.NewInt(1),
++		NotBefore:    time.Now().Add(-time.Hour),
++		NotAfter:     time.Now().Add(time.Hour * 10),
++		DNSNames:     []string{"example.com"},
++	}
++	certDER, err := x509.CreateCertificate(rand.Reader, certTmpl, rootTmpl, k.Public(), k)
++	if err != nil {
++		t.Fatalf("failed to create test cert: %s", err)
++	}
++	cert, err := x509.ParseCertificate(certDER)
++	if err != nil {
++		t.Fatalf("failed to parse test cert: %s", err)
++	}
++
++	_, err = cert.Verify(opts)
++	if err != nil {
++		t.Fatalf("verification failed for custom chain (hybrid pool): %s", err)
++	}
++}
+diff --git a/src/crypto/x509/root_darwin.go b/src/crypto/x509/root_darwin.go
+index 7bc6ce09fa..a7ff1e78bb 100644
+--- a/src/crypto/x509/root_darwin.go
++++ b/src/crypto/x509/root_darwin.go
+@@ -107,5 +107,5 @@ func exportCertificate(cert macOS.CFRef) (*Certificate, error) {
+ }
+ 
+ func loadSystemRoots() (*CertPool, error) {
+-	return nil, nil
++	return &CertPool{systemPool: true}, nil
+ }
+diff --git a/src/crypto/x509/root_windows.go b/src/crypto/x509/root_windows.go
+index f77ea3a698..d65d8768d9 100644
+--- a/src/crypto/x509/root_windows.go
++++ b/src/crypto/x509/root_windows.go
+@@ -10,6 +10,10 @@ import (
+ 	"unsafe"
+ )
+ 
++func loadSystemRoots() (*CertPool, error) {
++	return &CertPool{systemPool: true}, nil
++}
++
+ // Creates a new *syscall.CertContext representing the leaf certificate in an in-memory
+ // certificate store containing itself and all of the intermediate certificates specified
+ // in the opts.Intermediates CertPool.
+@@ -271,47 +275,3 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ 
+ 	return chains, nil
+ }
+-
+-func loadSystemRoots() (*CertPool, error) {
+-	// TODO: restore this functionality on Windows. We tried to do
+-	// it in Go 1.8 but had to revert it. See Issue 18609.
+-	// Returning (nil, nil) was the old behavior, prior to CL 30578.
+-	// The if statement here avoids vet complaining about
+-	// unreachable code below.
+-	if true {
+-		return nil, nil
+-	}
+-
+-	const CRYPT_E_NOT_FOUND = 0x80092004
+-
+-	store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("ROOT"))
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer syscall.CertCloseStore(store, 0)
+-
+-	roots := NewCertPool()
+-	var cert *syscall.CertContext
+-	for {
+-		cert, err = syscall.CertEnumCertificatesInStore(store, cert)
+-		if err != nil {
+-			if errno, ok := err.(syscall.Errno); ok {
+-				if errno == CRYPT_E_NOT_FOUND {
+-					break
+-				}
+-			}
+-			return nil, err
+-		}
+-		if cert == nil {
+-			break
+-		}
+-		// Copy the buf, since ParseCertificate does not create its own copy.
+-		buf := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:cert.Length:cert.Length]
+-		buf2 := make([]byte, cert.Length)
+-		copy(buf2, buf)
+-		if c, err := ParseCertificate(buf2); err == nil {
+-			roots.AddCert(c)
+-		}
+-	}
+-	return roots, nil
+-}
+diff --git a/src/crypto/x509/root_windows_test.go b/src/crypto/x509/root_windows_test.go
+new file mode 100644
+index 0000000000..ce6d9273d9
+--- /dev/null
++++ b/src/crypto/x509/root_windows_test.go
+@@ -0,0 +1,102 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509_test
++
++import (
++	"crypto/tls"
++	"crypto/x509"
++	"internal/testenv"
++	"testing"
++	"time"
++)
++
++func TestPlatformVerifier(t *testing.T) {
++	if !testenv.HasExternalNetwork() {
++		t.Skip()
++	}
++
++	getChain := func(host string) []*x509.Certificate {
++		t.Helper()
++		c, err := tls.Dial("tcp", host+":443", &tls.Config{InsecureSkipVerify: true})
++		if err != nil {
++			t.Fatalf("tls connection failed: %s", err)
++		}
++		return c.ConnectionState().PeerCertificates
++	}
++
++	tests := []struct {
++		name        string
++		host        string
++		verifyName  string
++		verifyTime  time.Time
++		expectedErr string
++	}{
++		{
++			// whatever google.com serves should, hopefully, be trusted
++			name: "valid chain",
++			host: "google.com",
++		},
++		{
++			name:        "expired leaf",
++			host:        "expired.badssl.com",
++			expectedErr: "x509: certificate has expired or is not yet valid: ",
++		},
++		{
++			name:        "wrong host for leaf",
++			host:        "wrong.host.badssl.com",
++			verifyName:  "wrong.host.badssl.com",
++			expectedErr: "x509: certificate is valid for *.badssl.com, badssl.com, not wrong.host.badssl.com",
++		},
++		{
++			name:        "self-signed leaf",
++			host:        "self-signed.badssl.com",
++			expectedErr: "x509: certificate signed by unknown authority",
++		},
++		{
++			name:        "untrusted root",
++			host:        "untrusted-root.badssl.com",
++			expectedErr: "x509: certificate signed by unknown authority",
++		},
++		{
++			name:        "expired leaf (custom time)",
++			host:        "google.com",
++			verifyTime:  time.Time{}.Add(time.Hour),
++			expectedErr: "x509: certificate has expired or is not yet valid: ",
++		},
++		{
++			name:       "valid chain (custom time)",
++			host:       "google.com",
++			verifyTime: time.Now(),
++		},
++	}
++
++	for _, tc := range tests {
++		t.Run(tc.name, func(t *testing.T) {
++			chain := getChain(tc.host)
++			var opts x509.VerifyOptions
++			if len(chain) > 1 {
++				opts.Intermediates = x509.NewCertPool()
++				for _, c := range chain[1:] {
++					opts.Intermediates.AddCert(c)
++				}
++			}
++			if tc.verifyName != "" {
++				opts.DNSName = tc.verifyName
++			}
++			if !tc.verifyTime.IsZero() {
++				opts.CurrentTime = tc.verifyTime
++			}
++
++			_, err := chain[0].Verify(opts)
++			if err != nil && tc.expectedErr == "" {
++				t.Errorf("unexpected verification error: %s", err)
++			} else if err != nil && err.Error() != tc.expectedErr {
++				t.Errorf("unexpected verification error: got %q, want %q", err.Error(), tc.expectedErr)
++			} else if err == nil && tc.expectedErr != "" {
++				t.Errorf("unexpected verification success: want %q", tc.expectedErr)
++			}
++		})
++	}
++}
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 59852d9d68..1562ee57af 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -741,9 +741,20 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
+ 		}
+ 	}
+ 
+-	// Use platform verifiers, where available
+-	if opts.Roots == nil && (runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios") {
+-		return c.systemVerify(&opts)
++	// Use platform verifiers, where available, if Roots is from SystemCertPool.
++	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
++		if opts.Roots == nil {
++			return c.systemVerify(&opts)
++		}
++		if opts.Roots != nil && opts.Roots.systemPool {
++			platformChains, err := c.systemVerify(&opts)
++			// If the platform verifier succeeded, or there are no additional
++			// roots, return the platform verifier result. Otherwise, continue
++			// with the Go verifier.
++			if err == nil || opts.Roots.len() == 0 {
++				return platformChains, err
++			}
++		}
+ 	}
+ 
+ 	if opts.Roots == nil {

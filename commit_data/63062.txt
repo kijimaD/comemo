@@ -18,7 +18,7 @@ Date:   Tue May 13 13:12:47 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/debug.go            |  2 +-
  src/runtime/heapdump.go         |  2 +-
  src/runtime/lock_spinbit.go     |  2 +-
@@ -43,3 +43,423 @@ Date:   Tue May 13 13:12:47 2025 -0400
  src/runtime/runtime2.go         | 12 ++++++------
  src/runtime/vgetrandom_linux.go |  2 +-
  23 files changed, 54 insertions(+), 43 deletions(-)
+
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index c477e2b9f6..57e9ba8d7d 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -40,7 +40,7 @@ func GOMAXPROCS(n int) int {
+ // at process startup. Changes to operating system CPU allocation after
+ // process startup are not reflected.
+ func NumCPU() int {
+-	return int(ncpu)
++	return int(numCPUStartup)
+ }
+ 
+ // NumCgoCall returns the number of cgo calls made by the current process.
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 6e6b58edd5..5476035b2e 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -536,7 +536,7 @@ func dumpparams() {
+ 	dumpint(uint64(arenaEnd))
+ 	dumpstr(goarch.GOARCH)
+ 	dumpstr(buildVersion)
+-	dumpint(uint64(ncpu))
++	dumpint(uint64(numCPUStartup))
+ }
+ 
+ func itab_callback(tab *itab) {
+diff --git a/src/runtime/lock_spinbit.go b/src/runtime/lock_spinbit.go
+index f90698a4c9..039ea6f565 100644
+--- a/src/runtime/lock_spinbit.go
++++ b/src/runtime/lock_spinbit.go
+@@ -175,7 +175,7 @@ func lock2(l *mutex) {
+ 	// On uniprocessors, no point spinning.
+ 	// On multiprocessors, spin for mutexActiveSpinCount attempts.
+ 	spin := 0
+-	if ncpu > 1 {
++	if numCPUStartup > 1 {
+ 		spin = mutexActiveSpinCount
+ 	}
+ 
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f96dbadd01..84aa1105d8 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -727,10 +727,10 @@ func gcStart(trigger gcTrigger) {
+ 	systemstack(gcResetMarkState)
+ 
+ 	work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
+-	if work.stwprocs > ncpu {
+-		// This is used to compute CPU time of the STW phases,
+-		// so it can't be more than ncpu, even if GOMAXPROCS is.
+-		work.stwprocs = ncpu
++	if work.stwprocs > numCPUStartup {
++		// This is used to compute CPU time of the STW phases, so it
++		// can't be more than the CPU count, even if GOMAXPROCS is.
++		work.stwprocs = numCPUStartup
+ 	}
+ 	work.heap0 = gcController.heapLive.Load()
+ 	work.pauseNS = 0
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index ded821b2e6..116995e5f6 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -137,7 +137,7 @@ func osinit() {
+ 	// before calling minit on m0.
+ 	asmcgocall(unsafe.Pointer(abi.FuncPCABI0(miniterrno)), unsafe.Pointer(&libc____errno))
+ 
+-	ncpu = getncpu()
++	numCPUStartup = getCPUCount()
+ 	if physPageSize == 0 {
+ 		physPageSize = getPageSize()
+ 	}
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 1b483c2a7e..3847b7671a 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -97,10 +97,14 @@ func osinit() {
+ 	// before calling minit on m0.
+ 	miniterrno()
+ 
+-	ncpu = int32(sysconf(__SC_NPROCESSORS_ONLN))
++	numCPUStartup = getCPUCount()
+ 	physPageSize = sysconf(__SC_PAGE_SIZE)
+ }
+ 
++func getCPUCount() int32 {
++	return int32(sysconf(__SC_NPROCESSORS_ONLN))
++}
++
+ // newosproc0 is a version of newosproc that can be called before the runtime
+ // is initialized.
+ //
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 6eab3b5c3d..5aef34ff8f 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -144,7 +144,7 @@ func osinit() {
+ 	// pthread_create delayed until end of goenvs so that we
+ 	// can look at the environment first.
+ 
+-	ncpu = getncpu()
++	numCPUStartup = getCPUCount()
+ 	physPageSize = getPageSize()
+ 
+ 	osinit_hack()
+@@ -168,7 +168,7 @@ const (
+ 	_HW_PAGESIZE = 7
+ )
+ 
+-func getncpu() int32 {
++func getCPUCount() int32 {
+ 	// Use sysctl to fetch hw.ncpu.
+ 	mib := [2]uint32{_CTL_HW, _HW_NCPU}
+ 	out := uint32(0)
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 9b3235084d..e22fd9b42f 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -78,7 +78,7 @@ const (
+ 
+ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
+ 
+-func getncpu() int32 {
++func getCPUCount() int32 {
+ 	mib := [2]uint32{_CTL_HW, _HW_NCPU}
+ 	out := uint32(0)
+ 	nout := unsafe.Sizeof(out)
+@@ -174,7 +174,7 @@ func newosproc(mp *m) {
+ }
+ 
+ func osinit() {
+-	ncpu = getncpu()
++	numCPUStartup = getCPUCount()
+ 	if physPageSize == 0 {
+ 		physPageSize = getPageSize()
+ 	}
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 1002185f99..ab859cfb47 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -91,7 +91,7 @@ const (
+ func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
+ 
+ //go:systemstack
+-func getncpu() int32 {
++func getCPUCount() int32 {
+ 	// Use a large buffer for the CPU mask. We're on the system
+ 	// stack, so this is fine, and we can't allocate memory for a
+ 	// dynamically-sized buffer at this point.
+@@ -276,7 +276,7 @@ func libpreinit() {
+ }
+ 
+ func osinit() {
+-	ncpu = getncpu()
++	numCPUStartup = getCPUCount()
+ 	if physPageSize == 0 {
+ 		physPageSize = getPageSize()
+ 	}
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index 5f6bf46798..5a6c60210a 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -28,8 +28,9 @@ func checkgoarm() {
+ 		exit(1)
+ 	}
+ 
+-	// osinit not called yet, so ncpu not set: must use getncpu directly.
+-	if getncpu() > 1 && goarm < 7 {
++	// osinit not called yet, so numCPUStartup not set: must use
++	// getCPUCount directly.
++	if getCPUCount() > 1 && goarm < 7 {
+ 		print("runtime: this system has multiple CPUs and must use\n")
+ 		print("atomic synchronization instructions. Recompile using GOARM=7.\n")
+ 		exit(1)
+diff --git a/src/runtime/os_illumos.go b/src/runtime/os_illumos.go
+index c3c3e4e6d5..c4bc9fe9c0 100644
+--- a/src/runtime/os_illumos.go
++++ b/src/runtime/os_illumos.go
+@@ -87,7 +87,7 @@ func getcpucap() uint64 {
+ 	return capval
+ }
+ 
+-func getncpu() int32 {
++func getCPUCount() int32 {
+ 	n := int32(sysconf(__SC_NPROCESSORS_ONLN))
+ 	if n < 1 {
+ 		return 1
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 3071e32202..54f98ef4f8 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -101,7 +101,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
+ 	*(*int32)(unsafe.Pointer(uintptr(0x1006))) = 0x1006
+ }
+ 
+-func getproccount() int32 {
++func getCPUCount() int32 {
+ 	// This buffer is huge (8 kB) but we are on the system stack
+ 	// and there should be plenty of space (64 kB).
+ 	// Also this is a leaf, so we're not holding up the memory for long.
+@@ -354,7 +354,7 @@ func getHugePageSize() uintptr {
+ }
+ 
+ func osinit() {
+-	ncpu = getproccount()
++	numCPUStartup = getCPUCount()
+ 	physHugePageSize = getHugePageSize()
+ 	osArchInit()
+ 	vgetrandomInit()
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index a06e5febbd..342ede9c53 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -120,7 +120,7 @@ func sysctlInt(mib []uint32) (int32, bool) {
+ 	return out, true
+ }
+ 
+-func getncpu() int32 {
++func getCPUCount() int32 {
+ 	if n, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPUONLINE}); ok {
+ 		return int32(n)
+ 	}
+@@ -264,7 +264,7 @@ func netbsdMstart0() {
+ }
+ 
+ func osinit() {
+-	ncpu = getncpu()
++	numCPUStartup = getCPUCount()
+ 	if physPageSize == 0 {
+ 		physPageSize = getPageSize()
+ 	}
+diff --git a/src/runtime/os_netbsd_arm.go b/src/runtime/os_netbsd_arm.go
+index 7494a387e3..884b18bdd4 100644
+--- a/src/runtime/os_netbsd_arm.go
++++ b/src/runtime/os_netbsd_arm.go
+@@ -21,8 +21,9 @@ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintp
+ func checkgoarm() {
+ 	// TODO(minux): FP checks like in os_linux_arm.go.
+ 
+-	// osinit not called yet, so ncpu not set: must use getncpu directly.
+-	if getncpu() > 1 && goarm < 7 {
++	// osinit not called yet, so numCPUStartup not set: must use
++	// getCPUCount directly.
++	if getCPUCount() > 1 && goarm < 7 {
+ 		print("runtime: this system has multiple CPUs and must use\n")
+ 		print("atomic synchronization instructions. Recompile using GOARM=7.\n")
+ 		exit(1)
+diff --git a/src/runtime/os_only_solaris.go b/src/runtime/os_only_solaris.go
+index 0c72500674..aa7b8faf00 100644
+--- a/src/runtime/os_only_solaris.go
++++ b/src/runtime/os_only_solaris.go
+@@ -8,7 +8,7 @@
+ 
+ package runtime
+ 
+-func getncpu() int32 {
++func getCPUCount() int32 {
+ 	n := int32(sysconf(__SC_NPROCESSORS_ONLN))
+ 	if n < 1 {
+ 		return 1
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 4ce4c3c58d..02846851d6 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -63,7 +63,7 @@ func internal_cpu_sysctlUint64(mib []uint32) (uint64, bool) {
+ 	return sysctlUint64(mib)
+ }
+ 
+-func getncpu() int32 {
++func getCPUCount() int32 {
+ 	// Try hw.ncpuonline first because hw.ncpu would report a number twice as
+ 	// high as the actual CPUs running on OpenBSD 6.4 with hyperthreading
+ 	// disabled (hw.smt=0). See https://golang.org/issue/30127
+@@ -135,7 +135,7 @@ func semawakeup(mp *m) {
+ }
+ 
+ func osinit() {
+-	ncpu = getncpu()
++	numCPUStartup = getCPUCount()
+ 	physPageSize = getPageSize()
+ }
+ 
+diff --git a/src/runtime/os_openbsd_arm.go b/src/runtime/os_openbsd_arm.go
+index d5dc8cb479..ba33d4d5bb 100644
+--- a/src/runtime/os_openbsd_arm.go
++++ b/src/runtime/os_openbsd_arm.go
+@@ -7,8 +7,9 @@ package runtime
+ func checkgoarm() {
+ 	// TODO(minux): FP checks like in os_linux_arm.go.
+ 
+-	// osinit not called yet, so ncpu not set: must use getncpu directly.
+-	if getncpu() > 1 && goarm < 7 {
++	// osinit not called yet, so numCPUStartup not set: must use
++	// getCPUCount directly.
++	if getCPUCount() > 1 && goarm < 7 {
+ 		print("runtime: this system has multiple CPUs and must use\n")
+ 		print("atomic synchronization instructions. Recompile using GOARM=7.\n")
+ 		exit(1)
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index a0ad9060c5..72a8657985 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -230,7 +230,7 @@ func mdestroy(mp *m) {
+ 
+ var sysstat = []byte("/dev/sysstat\x00")
+ 
+-func getproccount() int32 {
++func getCPUCount() int32 {
+ 	var buf [2048]byte
+ 	fd := open(&sysstat[0], _OREAD|_OCEXEC, 0)
+ 	if fd < 0 {
+@@ -330,7 +330,7 @@ var (
+ func osinit() {
+ 	physPageSize = getPageSize()
+ 	initBloc()
+-	ncpu = getproccount()
++	numCPUStartup = getCPUCount()
+ 	getg().m.procid = getpid()
+ 
+ 	fd := open(&bintimeDev[0], _OREAD|_OCEXEC, 0)
+diff --git a/src/runtime/os_wasm.go b/src/runtime/os_wasm.go
+index 8046caf45e..15137cc13f 100644
+--- a/src/runtime/os_wasm.go
++++ b/src/runtime/os_wasm.go
+@@ -14,10 +14,14 @@ func osinit() {
+ 	physPageSize = 64 * 1024
+ 	initBloc()
+ 	blocMax = uintptr(currentMemory()) * physPageSize // record the initial linear memory size
+-	ncpu = 1
++	numCPUStartup = getCPUCount()
+ 	getg().m.procid = 2
+ }
+ 
++func getCPUCount() int32 {
++	return 1
++}
++
+ const _SIGSEGV = 0xb
+ 
+ func sigpanic() {
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index a84832e0ce..8f77cd50f8 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -322,7 +322,7 @@ func monitorSuspendResume() {
+ 		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
+ }
+ 
+-func getproccount() int32 {
++func getCPUCount() int32 {
+ 	var mask, sysmask uintptr
+ 	ret := stdcall3(_GetProcessAffinityMask, currentProcess, uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))
+ 	if ret != 0 {
+@@ -486,7 +486,7 @@ func osinit() {
+ 	initSysDirectory()
+ 	initLongPathSupport()
+ 
+-	ncpu = getproccount()
++	numCPUStartup = getCPUCount()
+ 
+ 	physPageSize = getPageSize()
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5d3e4e4953..f48373fe7c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -900,7 +900,7 @@ func schedinit() {
+ 
+ 	lock(&sched.lock)
+ 	sched.lastpoll.Store(nanotime())
+-	procs := ncpu
++	procs := numCPUStartup
+ 	if n, ok := strconv.Atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
+ 		procs = n
+ 	}
+@@ -7230,7 +7230,7 @@ func internal_sync_runtime_canSpin(i int) bool {
+ 	// GOMAXPROCS>1 and there is at least one other running P and local runq is empty.
+ 	// As opposed to runtime mutex we don't do passive spinning here,
+ 	// because there can be work on global runq or on other Ps.
+-	if i >= active_spin || ncpu <= 1 || gomaxprocs <= sched.npidle.Load()+sched.nmspinning.Load()+1 {
++	if i >= active_spin || numCPUStartup <= 1 || gomaxprocs <= sched.npidle.Load()+sched.nmspinning.Load()+1 {
+ 		return false
+ 	}
+ 	if p := getg().m.p.ptr(); !runqempty(p) {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 920437882d..2c213d0de4 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1196,12 +1196,12 @@ var isIdleInSynctest = [len(waitReasonStrings)]bool{
+ }
+ 
+ var (
+-	allm       *m
+-	gomaxprocs int32
+-	ncpu       int32
+-	forcegc    forcegcstate
+-	sched      schedt
+-	newprocs   int32
++	allm          *m
++	gomaxprocs    int32
++	numCPUStartup int32
++	forcegc       forcegcstate
++	sched         schedt
++	newprocs      int32
+ )
+ 
+ var (
+diff --git a/src/runtime/vgetrandom_linux.go b/src/runtime/vgetrandom_linux.go
+index 6ab12e3c67..8f39f6d3a6 100644
+--- a/src/runtime/vgetrandom_linux.go
++++ b/src/runtime/vgetrandom_linux.go
+@@ -46,7 +46,7 @@ func vgetrandomInit() {
+ func vgetrandomGetState() uintptr {
+ 	lock(&vgetrandomAlloc.statesLock)
+ 	if len(vgetrandomAlloc.states) == 0 {
+-		num := uintptr(ncpu) // Just a reasonable size hint to start.
++		num := uintptr(numCPUStartup) // Just a reasonable size hint to start.
+ 		stateSizeCacheAligned := (vgetrandomAlloc.stateSize + cpu.CacheLineSize - 1) &^ (cpu.CacheLineSize - 1)
+ 		allocSize := (num*stateSizeCacheAligned + physPageSize - 1) &^ (physPageSize - 1)
+ 		num = (physPageSize / stateSizeCacheAligned) * (allocSize / physPageSize)

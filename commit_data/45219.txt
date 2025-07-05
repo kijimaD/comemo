@@ -14,6 +14,37 @@ Date:   Tue Oct 13 08:26:36 2020 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
     Trust: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/runtime/alg.go | 19 -------------------
  1 file changed, 19 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 4a98b84e4a..2ec3fc3658 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -15,25 +15,6 @@ const (
+ 	c1 = uintptr((8-sys.PtrSize)/4*3267000013 + (sys.PtrSize-4)/4*23344194077549503)
+ )
+ 
+-// type algorithms - known to compiler
+-const (
+-	alg_NOEQ = iota
+-	alg_MEM0
+-	alg_MEM8
+-	alg_MEM16
+-	alg_MEM32
+-	alg_MEM64
+-	alg_MEM128
+-	alg_STRING
+-	alg_INTER
+-	alg_NILINTER
+-	alg_FLOAT32
+-	alg_FLOAT64
+-	alg_CPLX64
+-	alg_CPLX128
+-	alg_max
+-)
+-
+ func memhash0(p unsafe.Pointer, h uintptr) uintptr {
+ 	return h
+ }

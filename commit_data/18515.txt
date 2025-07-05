@@ -12,7 +12,7 @@ Date:   Thu Feb 13 22:17:22 2014 -0500
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/63650043
-
+---
  src/cmd/5g/ggen.c  |  2 +-
  src/cmd/5g/peep.c  |  2 +-
  src/cmd/5g/prog.c  |  2 +-
@@ -30,3 +30,265 @@ Date:   Thu Feb 13 22:17:22 2014 -0500
  src/liblink/asm6.c |  2 +-
  src/liblink/asm8.c |  2 +-
  16 files changed, 24 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 9073841b41..16aef3d1a5 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -772,7 +772,7 @@ clearfat(Node *nl)
+ 	if(componentgen(N, nl))
+ 		return;
+ 
+-	gfatvardef(nl);
++	gvardef(nl);
+ 
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 0c95abe302..8bf97c963c 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1164,7 +1164,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case APCDATA:
+ 	case AFUNCDATA:
+-	case AFATVARDEF:
++	case AVARDEF:
+ 		return 0;
+ 	}
+ }
+diff --git a/src/cmd/5g/prog.c b/src/cmd/5g/prog.c
+index 3e42721365..ffef5a5b2a 100644
+--- a/src/cmd/5g/prog.c
++++ b/src/cmd/5g/prog.c
+@@ -29,7 +29,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[AUNDEF]=	{Break},
+ 	[AUSEFIELD]=	{OK},
+ 	[ACHECKNIL]=	{LeftRead},
+-	[AFATVARDEF]=	{Pseudo | RightWrite},
++	[AVARDEF]=	{Pseudo | RightWrite},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 16348a457e..adeb29a05b 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -198,7 +198,7 @@ enum	as
+ 	AFUNCDATA,
+ 	APCDATA,
+ 	ACHECKNIL,
+-	AFATVARDEF,
++	AVARDEF,
+ 
+ 	AMRC, // MRC/MCR
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 62c58d4ea0..7d01900225 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1023,7 +1023,7 @@ clearfat(Node *nl)
+ 	if(debug['g'])
+ 		dump("\nclearfat", nl);
+ 
+-	gfatvardef(nl);
++	gvardef(nl);
+ 
+ 	w = nl->type->width;
+ 	// Avoid taking the address for simple enough types.
+diff --git a/src/cmd/6g/prog.c b/src/cmd/6g/prog.c
+index 71f44a3e20..76c9be14fc 100644
+--- a/src/cmd/6g/prog.c
++++ b/src/cmd/6g/prog.c
+@@ -41,7 +41,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[AUNDEF]=	{Break},
+ 	[AUSEFIELD]=	{OK},
+ 	[ACHECKNIL]=	{LeftRead},
+-	[AFATVARDEF]=	{Pseudo | RightWrite},
++	[AVARDEF]=	{Pseudo | RightWrite},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index f5ade5a34a..f84fef7220 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -762,7 +762,7 @@ enum	as
+ 	AFUNCDATA,
+ 	APCDATA,
+ 	ACHECKNIL,
+-	AFATVARDEF,
++	AVARDEF,
+ 	
+ 	ALAST
+ };
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index c6dbe16f03..c0d25013fe 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -78,7 +78,7 @@ clearfat(Node *nl)
+ 	if(componentgen(N, nl))
+ 		return;
+ 
+-	gfatvardef(nl);
++	gvardef(nl);
+ 
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads
+diff --git a/src/cmd/8g/prog.c b/src/cmd/8g/prog.c
+index 0162b02881..a39c37f8e1 100644
+--- a/src/cmd/8g/prog.c
++++ b/src/cmd/8g/prog.c
+@@ -41,7 +41,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[AUNDEF]=	{Break},
+ 	[AUSEFIELD]=	{OK},
+ 	[ACHECKNIL]=	{LeftRead},
+-	[AFATVARDEF]=	{Pseudo | RightWrite},
++	[AVARDEF]=	{Pseudo | RightWrite},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 748096db10..d2598660ad 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -579,7 +579,7 @@ enum	as
+ 	AFUNCDATA,
+ 	APCDATA,
+ 	ACHECKNIL,
+-	AFATVARDEF,
++	AVARDEF,
+ 	
+ 	ALAST
+ };
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 21a1849444..e6b22a3c5e 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -768,7 +768,7 @@ cgen_eface(Node *n, Node *res)
+ 	 */
+ 	Node dst;
+ 
+-	gfatvardef(res);
++	gvardef(res);
+ 	dst = *res;
+ 	dst.type = types[tptr];
+ 	dst.xoffset += widthptr;
+@@ -797,7 +797,7 @@ cgen_slice(Node *n, Node *res)
+ 	if(n->list->next->next)
+ 		offs = n->list->next->next->n;
+ 
+-	gfatvardef(res);
++	gvardef(res);
+ 
+ 	// dst.len = hi [ - lo ]
+ 	dst = *res;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b95173a5d0..049809e61a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1494,7 +1494,7 @@ void	gdatacomplex(Node*, Mpcplx*);
+ void	gdatastring(Node*, Strlit*);
+ void	ggloblnod(Node *nam);
+ void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
+-void	gfatvardef(Node*);
++void	gvardef(Node*);
+ Prog*	gjmp(Prog*);
+ void	gused(Node*);
+ void	movelarge(NodeList*);
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index eb689eb344..8190fc36ff 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -32,28 +32,28 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
+ }
+ 
+ void
+-gfatvardef(Node *n)
++gvardef(Node *n)
+ {
+ 	if(n == N || !isfat(n->type))
+-		fatal("gfatvardef: node is not fat");
++		fatal("gvardef: node is not fat");
+ 	switch(n->class) {
+ 	case PAUTO:
+ 	case PPARAM:
+ 	case PPARAMOUT:
+-		gins(AFATVARDEF, N, n);
++		gins(AVARDEF, N, n);
+ 	}
+ }
+ 
+ static void
+-removefatvardef(Prog *firstp)
++removevardef(Prog *firstp)
+ {
+ 	Prog *p;
+ 
+ 	for(p = firstp; p != P; p = p->link) {
+-		while(p->link != P && p->link->as == AFATVARDEF)
++		while(p->link != P && p->link->as == AVARDEF)
+ 			p->link = p->link->link;
+ 		if(p->to.type == D_BRANCH)
+-			while(p->to.u.branch != P && p->to.u.branch->as == AFATVARDEF)
++			while(p->to.u.branch != P && p->to.u.branch->as == AVARDEF)
+ 				p->to.u.branch = p->to.u.branch->link;
+ 	}
+ }
+@@ -249,7 +249,7 @@ compile(Node *fn)
+ 		frame(0);
+ 
+ 	// Remove leftover instrumentation from the instruction stream.
+-	removefatvardef(ptxt);
++	removevardef(ptxt);
+ ret:
+ 	lineno = lno;
+ }
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index bd14610864..108f89399f 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -710,7 +710,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 					if(info.flags & (LeftRead | LeftAddr))
+ 						bvset(uevar, pos);
+ 					if(info.flags & LeftWrite)
+-						if(from->node != nil && (!isfat(from->node->type) || prog->as == AFATVARDEF))
++						if(from->node != nil && (!isfat(from->node->type) || prog->as == AVARDEF))
+ 							bvset(varkill, pos);
+ 				}
+ 			}
+@@ -736,7 +736,7 @@ Next:
+ 					if(info.flags & (RightRead | RightAddr))
+ 						bvset(uevar, pos);
+ 					if(info.flags & RightWrite)
+-						if(to->node != nil && (!isfat(to->node->type) || prog->as == AFATVARDEF))
++						if(to->node != nil && (!isfat(to->node->type) || prog->as == AVARDEF))
+ 							bvset(varkill, pos);
+ 				}
+ 			}
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 25f9edfa9f..0d56307af4 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -1518,7 +1518,7 @@ Optab optab[] =
+ 	{ AFUNCDATA,	yfuncdata,	Px, 0,0 },
+ 	{ APCDATA,	ypcdata,	Px, 0,0 },
+ 	{ ACHECKNIL },
+-	{ AFATVARDEF },
++	{ AVARDEF },
+ 
+ 	{ AEND },
+ 	0
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index d2e50c11c1..f16faa0480 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -1146,7 +1146,7 @@ static Optab optab[] =
+ 	{ AFUNCDATA,	yfuncdata,	Px, 0,0 },
+ 	{ APCDATA,	ypcdata,	Px, 0,0 },
+ 	{ ACHECKNIL },
+-	{ AFATVARDEF },
++	{ AVARDEF },
+ 
+ 	0
+ };

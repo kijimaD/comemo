@@ -8,6 +8,22 @@ Date:   Mon Dec 6 15:34:23 2010 -0800
     R=rsc, r, iant
     CC=golang-dev
     https://golang.org/cl/3488041
-
+---
  src/cmd/godoc/spec.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+index df36caaa72..b1c1a883f7 100644
+--- a/src/cmd/godoc/spec.go
++++ b/src/cmd/godoc/spec.go
+@@ -39,7 +39,9 @@ func (p *ebnfParser) flush() {
+ 
+ 
+ func (p *ebnfParser) next() {
+-	p.flush()
++	if p.pos.IsValid() {
++		p.flush()
++	}
+ 	p.pos, p.tok, p.lit = p.scanner.Scan()
+ 	if p.tok.IsKeyword() {
+ 		// TODO Should keyword mapping always happen outside scanner?

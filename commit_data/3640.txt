@@ -12,8 +12,135 @@ Date:   Fri Oct 23 10:59:31 2009 -0700
     DELTA=33  (13 added, 14 deleted, 6 changed)
     OCL=36009
     CL=36022
-
+---
  src/cmd/5l/noop.c         | 23 +++++++++++++++++------
  src/pkg/runtime/arm/asm.s | 15 ++-------------
  src/pkg/runtime/runtime.h |  1 -
  3 files changed, 19 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 61cd36550b..e932750b54 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -128,7 +128,7 @@ noops(void)
+ 	Bflush(&bso);
+ 
+ 	pmorestack = P;
+-	symmorestack = lookup("runtime·morestackx", 0);
++	symmorestack = lookup("runtime·morestack", 0);
+ 
+ 	if(symmorestack->type == STEXT)
+ 	for(p = firstp; p != P; p = p->link) {
+@@ -358,9 +358,10 @@ noops(void)
+ 				// split stack check for small functions
+ 				// MOVW			g_stackguard(g), R1
+ 				// CMP			R1, $-autosize(SP)
++				// MOVW.LO		$autosize, R1
+ 				// MOVW.LO		$args, R2
+-				// MOVW.W.LO	R14, R3
+-				// BL.LO		runtime·morestackx(SB) // modifies LR
++				// MOVW.W.LO		R14, R3
++				// BL.LO			runtime·morestack(SB) // modifies LR
+ 				// MOVW.W		R14,$-autosize(SP)
+ 
+ 				// TODO(kaib): add more trampolines
+@@ -383,12 +384,22 @@ noops(void)
+ 				p->from.offset = -autosize;
+ 				p->reg = REGSP;
+ 
+-				// MOVW.LO		$args, R2
++				// MOVW.LO		$autosize, R1
++				p = appendp(p);
++				p->as = AMOVW;
++				p->scond = C_SCOND_LO;
++				p->from.type = D_CONST;
++				p->from.offset = 0;
++				p->to.type = D_REG;
++				p->to.reg = 1;
++
++				// MOVW.LO		$args +4, R2
++				// also need to store the extra 4 bytes.
+ 				p = appendp(p);
+ 				p->as = AMOVW;
+ 				p->scond = C_SCOND_LO;
+ 				p->from.type = D_CONST;
+-				p->from.offset = curtext->to.offset2 & ~7;
++				p->from.offset = (curtext->to.offset2 & ~7) + 4;
+ 				p->to.type = D_REG;
+ 				p->to.reg = 2;
+ 
+@@ -401,7 +412,7 @@ noops(void)
+ 				p->to.type = D_REG;
+ 				p->to.reg = 3;
+ 
+-				// BL.LO		runtime·morestackx(SB) // modifies LR
++				// BL.LO		runtime·morestack(SB) // modifies LR
+ 				p = appendp(p);
+ 				p->as = ABL;
+ 				p->scond = C_SCOND_LO;
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index aa21ab8506..98c9e06bf5 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -120,7 +120,6 @@ TEXT gogocall(SB), 7, $-4
+ 	MOVW	0(g), R2		// make sure g != nil
+ 	MOVW	gobuf_sp(R0), SP	// restore SP
+ 	MOVW	gobuf_pc(R0), LR
+-	MOVW	gobuf_r0(R0), R0
+ 	MOVW	R1, PC
+ 
+ /*
+@@ -131,6 +130,8 @@ TEXT gogocall(SB), 7, $-4
+ // R1 frame size
+ // R2 arg size
+ // R3 prolog's LR
++// NB. we do not save R0 because the we've forced 5c to pass all arguments
++// on the stack.
+ // using frame size $-4 means do not save LR on stack.
+ TEXT runtime·morestack(SB),7,$-4
+ 	// Cannot grow scheduler stack (m->g0).
+@@ -149,7 +150,6 @@ TEXT runtime·morestack(SB),7,$-4
+ 	MOVW	SP, (m_morebuf+gobuf_sp)(m) // f's caller's SP
+ 	MOVW	SP, m_morefp(m) // f's caller's SP
+ 	MOVW	g, (m_morebuf+gobuf_g)(m)
+-	MOVW	R0, (m_morebuf+gobuf_r0)(m)
+ 
+ 	// Set m->morepc to f's PC.
+ 	MOVW	LR, m_morepc(m)
+@@ -169,7 +169,6 @@ TEXT reflect·call(SB), 7, $-4
+ 	// restore when returning from f.
+ 	MOVW	LR, (m_morebuf+gobuf_pc)(m)	// our caller's PC
+ 	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// our caller's SP
+-	MOVW	R0, (m_morebuf+gobuf_r0)(m)
+ 	MOVW	g,  (m_morebuf+gobuf_g)(m)
+ 
+ 	// Set up morestack arguments to call f on a new stack.
+@@ -204,16 +203,6 @@ TEXT runtime·lessstack(SB), 7, $-4
+ 	MOVW	(m_sched+gobuf_sp)(m), SP
+ 	B	oldstack(SB)
+ 
+-// Optimization to make inline stack splitting code smaller
+-// R0 is original first argument
+-// R2 is argsize
+-// R3 is LR for f (f's caller's PC)
+-// using frame size $-4 means do not save LR on stack.
+-TEXT runtime·morestackx(SB), 7, $-4
+-	MOVW	$0, R1		// set frame size
+-	B	runtime·morestack(SB)
+-
+-
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. grab stored LR for caller
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index fac0008ee1..068e2bea14 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -152,7 +152,6 @@ struct	Gobuf
+ 	byte*	sp;
+ 	byte*	pc;
+ 	G*	g;
+-	uintptr	r0;		// used on arm
+ };
+ struct	G
+ {

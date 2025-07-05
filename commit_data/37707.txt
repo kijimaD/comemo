@@ -13,6 +13,24 @@ Date:   Wed Jul 11 23:34:18 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/trace.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 61f7513ee0..22d8d026dc 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -584,10 +584,10 @@ func traceStackID(mp *m, buf []uintptr, skip int) uint64 {
+ 	gp := mp.curg
+ 	var nstk int
+ 	if gp == _g_ {
+-		nstk = callers(skip+1, buf[:])
++		nstk = callers(skip+1, buf)
+ 	} else if gp != nil {
+ 		gp = mp.curg
+-		nstk = gcallers(gp, skip, buf[:])
++		nstk = gcallers(gp, skip, buf)
+ 	}
+ 	if nstk > 0 {
+ 		nstk-- // skip runtime.goexit

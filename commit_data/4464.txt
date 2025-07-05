@@ -8,6 +8,24 @@ Date:   Fri Dec 18 11:21:11 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/179105
-
+---
  src/pkg/exp/eval/stmt_test.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/pkg/exp/eval/stmt_test.go b/src/pkg/exp/eval/stmt_test.go
+index 57c3dd7e97..1600a75078 100644
+--- a/src/pkg/exp/eval/stmt_test.go
++++ b/src/pkg/exp/eval/stmt_test.go
+@@ -19,11 +19,7 @@ var stmtTests = []test{
+ 	Val2("a, b := 1, 2", "a", 1, "b", 2),
+ 	Val2("a, i := 1, 2", "a", 1, "i", 2),
+ 	CErr("a, i := 1, f", opTypes),
+-	// TODO(austin) The parser produces an error message for this
+-	// one that's inconsistent with the errors I give for other
+-	// things
+-	//CErr("a, b := 1, 2, 3", "too many"),
+-	CErr("a, b := 1, 2, 3", "arity"),
++	CErr("a, b := 1, 2, 3", "too many"),
+ 	CErr("a := 1, 2", "too many"),
+ 	CErr("a, b := 1", "not enough"),
+ 	// Mixed declarations

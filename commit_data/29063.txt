@@ -13,7 +13,33 @@ Date:   Tue Aug 23 08:31:26 2016 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/format.go      | 1 +
  src/time/format_test.go | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index c2ae793020..18a73c45ba 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -844,6 +844,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			sec, value, err = getnum(value, std == stdZeroSecond)
+ 			if sec < 0 || 60 <= sec {
+ 				rangeErrString = "second"
++				break
+ 			}
+ 			// Special case: do we have a fractional second but no
+ 			// fractional second in the format?
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 8c47dbcdd1..640e8180e3 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -440,6 +440,8 @@ var parseErrorTests = []ParseErrorTest{
+ 	{RFC3339, "2006-01-02T15:04_abc", `parsing time "2006-01-02T15:04_abc" as "2006-01-02T15:04:05Z07:00": cannot parse "_abc" as ":"`},
+ 	{RFC3339, "2006-01-02T15:04:05_abc", `parsing time "2006-01-02T15:04:05_abc" as "2006-01-02T15:04:05Z07:00": cannot parse "_abc" as "Z07:00"`},
+ 	{RFC3339, "2006-01-02T15:04:05Z_abc", `parsing time "2006-01-02T15:04:05Z_abc": extra text: _abc`},
++	// invalid second followed by optional fractional seconds
++	{RFC3339, "2010-02-04T21:00:67.012345678-08:00", "second out of range"},
+ }
+ 
+ func TestParseErrors(t *testing.T) {

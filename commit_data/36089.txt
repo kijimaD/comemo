@@ -21,7 +21,121 @@ Date:   Tue Apr 3 18:58:01 2018 +0200
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 59 ++++++++++++++++-------------------
  test/prove.go                         | 15 +++++++++
  2 files changed, 42 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index a1255ab44c..e93b1465c1 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -491,11 +491,11 @@ var (
+ 		OpGreater64:  {signed, gt},
+ 		OpGreater64U: {unsigned, gt},
+ 
+-		// TODO: OpIsInBounds actually test 0 <= a < b. This means
+-		// that the positive branch learns signed/LT and unsigned/LT
+-		// but the negative branch only learns unsigned/GE.
+-		OpIsInBounds:      {unsigned, lt},      // 0 <= arg0 < arg1
+-		OpIsSliceInBounds: {unsigned, lt | eq}, // 0 <= arg0 <= arg1
++		// For these ops, the negative branch is different: we can only
++		// prove signed/GE (signed/GT) if we can prove that arg0 is non-negative.
++		// See the special case in addBranchRestrictions.
++		OpIsInBounds:      {signed | unsigned, lt},      // 0 <= arg0 < arg1
++		OpIsSliceInBounds: {signed | unsigned, lt | eq}, // 0 <= arg0 <= arg1
+ 	}
+ )
+ 
+@@ -664,11 +664,31 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
+ 	if tr, has := domainRelationTable[b.Control.Op]; has {
+ 		// When we branched from parent we learned a new set of
+ 		// restrictions. Update the factsTable accordingly.
++		d := tr.d
+ 		switch br {
+ 		case negative:
+-			addRestrictions(b, ft, tr.d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
++			switch b.Control.Op { // Special cases
++			case OpIsInBounds, OpIsSliceInBounds:
++				// 0 <= a0 < a1 (or 0 <= a0 <= a1)
++				//
++				// On the positive branch, we learn a0 < a1,
++				// both signed and unsigned.
++				//
++				// On the negative branch, we learn (0 > a0 ||
++				// a0 >= a1). In the unsigned domain, this is
++				// simply a0 >= a1 (which is the reverse of the
++				// positive branch, so nothing surprising).
++				// But in the signed domain, we can't express the ||
++				// condition, so check if a0 is non-negative instead,
++				// to be able to learn something.
++				d = unsigned
++				if ft.isNonNegative(c.Args[0]) {
++					d |= signed
++				}
++			}
++			addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
+ 		case positive:
+-			addRestrictions(b, ft, tr.d, c.Args[0], c.Args[1], tr.r)
++			addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
+ 		}
+ 	}
+ }
+@@ -687,31 +707,6 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
+ 		}
+ 		ft.update(parent, v, w, i, r)
+ 
+-		if i == boolean && v == nil && w != nil && (w.Op == OpIsInBounds || w.Op == OpIsSliceInBounds) {
+-			// 0 <= a0 < a1 (or 0 <= a0 <= a1)
+-			//
+-			// domainRelationTable handles the a0 / a1
+-			// relation, but not the 0 / a0 relation.
+-			//
+-			// On the positive branch we learn 0 <= a0,
+-			// but this turns out never to be useful.
+-			//
+-			// On the negative branch we learn (0 > a0 ||
+-			// a0 >= a1) (or (0 > a0 || a0 > a1)). We
+-			// can't express an || condition, but we learn
+-			// something if we can disprove the LHS.
+-			if r == eq && ft.isNonNegative(w.Args[0]) {
+-				// false == w, so we're on the
+-				// negative branch. a0 >= 0, so the
+-				// LHS is false. Thus, the RHS holds.
+-				opr := eq | gt
+-				if w.Op == OpIsSliceInBounds {
+-					opr = gt
+-				}
+-				ft.update(parent, w.Args[0], w.Args[1], signed, opr)
+-			}
+-		}
+-
+ 		// Additional facts we know given the relationship between len and cap.
+ 		if i != signed && i != unsigned {
+ 			continue
+diff --git a/test/prove.go b/test/prove.go
+index 97614939ac..197bdb0aef 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -475,6 +475,21 @@ func f17(b []int) {
+ 	}
+ }
+ 
++func f18(b []int, x int, y uint) {
++	_ = b[x]
++	_ = b[y]
++
++	if x > len(b) { // ERROR "Disproved Greater64$"
++		return
++	}
++	if y > uint(len(b)) { // ERROR "Disproved Greater64U$"
++		return
++	}
++	if int(y) > len(b) { // ERROR "Disproved Greater64$"
++		return
++	}
++}
++
+ func sm1(b []int, x int) {
+ 	// Test constant argument to slicemask.
+ 	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"

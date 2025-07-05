@@ -12,7 +12,7 @@ Date:   Fri Nov 3 19:08:59 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/dir.go             | 14 ++++++-------
  src/os/env.go             |  4 ++--
  src/os/error.go           | 20 +++++++++----------
@@ -40,3 +40,932 @@ Date:   Fri Nov 3 19:08:59 2023 +0800
  src/os/user/lookup.go     |  8 ++++----
  src/os/user/user.go       |  8 ++++----
  26 files changed, 119 insertions(+), 118 deletions(-)
+
+diff --git a/src/os/dir.go b/src/os/dir.go
+index cab16a7a42..9124de29e8 100644
+--- a/src/os/dir.go
++++ b/src/os/dir.go
+@@ -20,13 +20,13 @@ const (
+ )
+ 
+ // Readdir reads the contents of the directory associated with file and
+-// returns a slice of up to n FileInfo values, as would be returned
+-// by Lstat, in directory order. Subsequent calls on the same file will yield
++// returns a slice of up to n [FileInfo] values, as would be returned
++// by [Lstat], in directory order. Subsequent calls on the same file will yield
+ // further FileInfos.
+ //
+ // If n > 0, Readdir returns at most n FileInfo structures. In this case, if
+ // Readdir returns an empty slice, it will return a non-nil error
+-// explaining why. At the end of a directory, the error is io.EOF.
++// explaining why. At the end of a directory, the error is [io.EOF].
+ //
+ // If n <= 0, Readdir returns all the FileInfo from the directory in
+ // a single slice. In this case, if Readdir succeeds (reads all
+@@ -57,7 +57,7 @@ func (f *File) Readdir(n int) ([]FileInfo, error) {
+ //
+ // If n > 0, Readdirnames returns at most n names. In this case, if
+ // Readdirnames returns an empty slice, it will return a non-nil error
+-// explaining why. At the end of a directory, the error is io.EOF.
++// explaining why. At the end of a directory, the error is [io.EOF].
+ //
+ // If n <= 0, Readdirnames returns all the names from the directory in
+ // a single slice. In this case, if Readdirnames succeeds (reads all
+@@ -80,16 +80,16 @@ func (f *File) Readdirnames(n int) (names []string, err error) {
+ }
+ 
+ // A DirEntry is an entry read from a directory
+-// (using the ReadDir function or a File's ReadDir method).
++// (using the [ReadDir] function or a [File.ReadDir] method).
+ type DirEntry = fs.DirEntry
+ 
+ // ReadDir reads the contents of the directory associated with the file f
+-// and returns a slice of DirEntry values in directory order.
++// and returns a slice of [DirEntry] values in directory order.
+ // Subsequent calls on the same file will yield later DirEntry records in the directory.
+ //
+ // If n > 0, ReadDir returns at most n DirEntry records.
+ // In this case, if ReadDir returns an empty slice, it will return an error explaining why.
+-// At the end of a directory, the error is io.EOF.
++// At the end of a directory, the error is [io.EOF].
+ //
+ // If n <= 0, ReadDir returns all the DirEntry records remaining in the directory.
+ // When it succeeds, it returns a nil error (not io.EOF).
+diff --git a/src/os/env.go b/src/os/env.go
+index 63ad5ab4bd..9ac62451ae 100644
+--- a/src/os/env.go
++++ b/src/os/env.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ // Expand replaces ${var} or $var in the string based on the mapping function.
+-// For example, os.ExpandEnv(s) is equivalent to os.Expand(s, os.Getenv).
++// For example, [os.ExpandEnv](s) is equivalent to [os.Expand](s, [os.Getenv]).
+ func Expand(s string, mapping func(string) string) string {
+ 	var buf []byte
+ 	// ${} is all ASCII, so bytes are fine for this operation.
+@@ -97,7 +97,7 @@ func getShellName(s string) (string, int) {
+ 
+ // Getenv retrieves the value of the environment variable named by the key.
+ // It returns the value, which will be empty if the variable is not present.
+-// To distinguish between an empty value and an unset value, use LookupEnv.
++// To distinguish between an empty value and an unset value, use [LookupEnv].
+ func Getenv(key string) string {
+ 	testlog.Getenv(key)
+ 	v, _ := syscall.Getenv(key)
+diff --git a/src/os/error.go b/src/os/error.go
+index 62ede9ded3..5a824a9e0e 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -12,7 +12,7 @@ import (
+ // Portable analogs of some common system call errors.
+ //
+ // Errors returned from this package may be tested against these errors
+-// with errors.Is.
++// with [errors.Is].
+ var (
+ 	// ErrInvalid indicates an invalid argument.
+ 	// Methods on File will return this error when the receiver is nil.
+@@ -61,7 +61,7 @@ func (e *SyscallError) Timeout() bool {
+ 	return ok && t.Timeout()
+ }
+ 
+-// NewSyscallError returns, as an error, a new SyscallError
++// NewSyscallError returns, as an error, a new [SyscallError]
+ // with the given system call name and error details.
+ // As a convenience, if err is nil, NewSyscallError returns nil.
+ func NewSyscallError(syscall string, err error) error {
+@@ -72,10 +72,10 @@ func NewSyscallError(syscall string, err error) error {
+ }
+ 
+ // IsExist returns a boolean indicating whether the error is known to report
+-// that a file or directory already exists. It is satisfied by ErrExist as
++// that a file or directory already exists. It is satisfied by [ErrExist] as
+ // well as some syscall errors.
+ //
+-// This function predates errors.Is. It only supports errors returned by
++// This function predates [errors.Is]. It only supports errors returned by
+ // the os package. New code should use errors.Is(err, fs.ErrExist).
+ func IsExist(err error) bool {
+ 	return underlyingErrorIs(err, ErrExist)
+@@ -83,19 +83,19 @@ func IsExist(err error) bool {
+ 
+ // IsNotExist returns a boolean indicating whether the error is known to
+ // report that a file or directory does not exist. It is satisfied by
+-// ErrNotExist as well as some syscall errors.
++// [ErrNotExist] as well as some syscall errors.
+ //
+-// This function predates errors.Is. It only supports errors returned by
++// This function predates [errors.Is]. It only supports errors returned by
+ // the os package. New code should use errors.Is(err, fs.ErrNotExist).
+ func IsNotExist(err error) bool {
+ 	return underlyingErrorIs(err, ErrNotExist)
+ }
+ 
+ // IsPermission returns a boolean indicating whether the error is known to
+-// report that permission is denied. It is satisfied by ErrPermission as well
++// report that permission is denied. It is satisfied by [ErrPermission] as well
+ // as some syscall errors.
+ //
+-// This function predates errors.Is. It only supports errors returned by
++// This function predates [errors.Is]. It only supports errors returned by
+ // the os package. New code should use errors.Is(err, fs.ErrPermission).
+ func IsPermission(err error) bool {
+ 	return underlyingErrorIs(err, ErrPermission)
+@@ -104,11 +104,11 @@ func IsPermission(err error) bool {
+ // IsTimeout returns a boolean indicating whether the error is known
+ // to report that a timeout occurred.
+ //
+-// This function predates errors.Is, and the notion of whether an
++// This function predates [errors.Is], and the notion of whether an
+ // error indicates a timeout can be ambiguous. For example, the Unix
+ // error EWOULDBLOCK sometimes indicates a timeout and sometimes does not.
+ // New code should use errors.Is with a value appropriate to the call
+-// returning the error, such as os.ErrDeadlineExceeded.
++// returning the error, such as [os.ErrDeadlineExceeded].
+ func IsTimeout(err error) bool {
+ 	terr, ok := underlyingError(err).(timeout)
+ 	return ok && terr.Timeout()
+diff --git a/src/os/exec.go b/src/os/exec.go
+index 42e8a399a9..12ba293a8d 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -14,10 +14,10 @@ import (
+ 	"time"
+ )
+ 
+-// ErrProcessDone indicates a Process has finished.
++// ErrProcessDone indicates a [Process] has finished.
+ var ErrProcessDone = errors.New("os: process already finished")
+ 
+-// Process stores the information about a process created by StartProcess.
++// Process stores the information about a process created by [StartProcess].
+ type Process struct {
+ 	Pid    int
+ 	handle atomic.Uintptr
+@@ -83,7 +83,7 @@ func Getppid() int { return syscall.Getppid() }
+ 
+ // FindProcess looks for a running process by its pid.
+ //
+-// The Process it returns can be used to obtain information
++// The [Process] it returns can be used to obtain information
+ // about the underlying operating system process.
+ //
+ // On Unix systems, FindProcess always succeeds and returns a Process
+@@ -95,38 +95,38 @@ func FindProcess(pid int) (*Process, error) {
+ }
+ 
+ // StartProcess starts a new process with the program, arguments and attributes
+-// specified by name, argv and attr. The argv slice will become os.Args in the
++// specified by name, argv and attr. The argv slice will become [os.Args] in the
+ // new process, so it normally starts with the program name.
+ //
+ // If the calling goroutine has locked the operating system thread
+-// with runtime.LockOSThread and modified any inheritable OS-level
++// with [runtime.LockOSThread] and modified any inheritable OS-level
+ // thread state (for example, Linux or Plan 9 name spaces), the new
+ // process will inherit the caller's thread state.
+ //
+-// StartProcess is a low-level interface. The os/exec package provides
++// StartProcess is a low-level interface. The [os/exec] package provides
+ // higher-level interfaces.
+ //
+-// If there is an error, it will be of type *PathError.
++// If there is an error, it will be of type [*PathError].
+ func StartProcess(name string, argv []string, attr *ProcAttr) (*Process, error) {
+ 	testlog.Open(name)
+ 	return startProcess(name, argv, attr)
+ }
+ 
+-// Release releases any resources associated with the Process p,
++// Release releases any resources associated with the [Process] p,
+ // rendering it unusable in the future.
+-// Release only needs to be called if Wait is not.
++// Release only needs to be called if [Process.Wait] is not.
+ func (p *Process) Release() error {
+ 	return p.release()
+ }
+ 
+-// Kill causes the Process to exit immediately. Kill does not wait until
++// Kill causes the [Process] to exit immediately. Kill does not wait until
+ // the Process has actually exited. This only kills the Process itself,
+ // not any other processes it may have started.
+ func (p *Process) Kill() error {
+ 	return p.kill()
+ }
+ 
+-// Wait waits for the Process to exit, and then returns a
++// Wait waits for the [Process] to exit, and then returns a
+ // ProcessState describing its status and an error, if any.
+ // Wait releases any resources associated with the Process.
+ // On most operating systems, the Process must be a child
+@@ -135,8 +135,8 @@ func (p *Process) Wait() (*ProcessState, error) {
+ 	return p.wait()
+ }
+ 
+-// Signal sends a signal to the Process.
+-// Sending Interrupt on Windows is not implemented.
++// Signal sends a signal to the [Process].
++// Sending [Interrupt] on Windows is not implemented.
+ func (p *Process) Signal(sig Signal) error {
+ 	return p.signal(sig)
+ }
+@@ -166,14 +166,14 @@ func (p *ProcessState) Success() bool {
+ 
+ // Sys returns system-dependent exit information about
+ // the process. Convert it to the appropriate underlying
+-// type, such as syscall.WaitStatus on Unix, to access its contents.
++// type, such as [syscall.WaitStatus] on Unix, to access its contents.
+ func (p *ProcessState) Sys() any {
+ 	return p.sys()
+ }
+ 
+ // SysUsage returns system-dependent resource usage information about
+ // the exited process. Convert it to the appropriate underlying
+-// type, such as *syscall.Rusage on Unix, to access its contents.
++// type, such as [*syscall.Rusage] on Unix, to access its contents.
+ // (On Unix, *syscall.Rusage matches struct rusage as defined in the
+ // getrusage(2) manual page.)
+ func (p *ProcessState) SysUsage() any {
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index c88ee7f52c..ee57ac4771 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -12,7 +12,7 @@
+ // pipelines, or redirections typically done by shells. The package
+ // behaves more like C's "exec" family of functions. To expand glob
+ // patterns, either call the shell directly, taking care to escape any
+-// dangerous input, or use the path/filepath package's Glob function.
++// dangerous input, or use the [path/filepath] package's Glob function.
+ // To expand environment variables, use package os's ExpandEnv.
+ //
+ // Note that the examples in this package assume a Unix system.
+@@ -21,7 +21,7 @@
+ //
+ // # Executables in the current directory
+ //
+-// The functions Command and LookPath look for a program
++// The functions [Command] and [LookPath] look for a program
+ // in the directories listed in the current path, following the
+ // conventions of the host operating system.
+ // Operating systems have for decades included the current
+@@ -32,10 +32,10 @@
+ //
+ // To avoid those security problems, as of Go 1.19, this package will not resolve a program
+ // using an implicit or explicit path entry relative to the current directory.
+-// That is, if you run exec.LookPath("go"), it will not successfully return
++// That is, if you run [LookPath]("go"), it will not successfully return
+ // ./go on Unix nor .\go.exe on Windows, no matter how the path is configured.
+ // Instead, if the usual path algorithms would result in that answer,
+-// these functions return an error err satisfying errors.Is(err, ErrDot).
++// these functions return an error err satisfying [errors.Is](err, [ErrDot]).
+ //
+ // For example, consider these two program snippets:
+ //
+@@ -106,7 +106,7 @@ import (
+ 	"time"
+ )
+ 
+-// Error is returned by LookPath when it fails to classify a file as an
++// Error is returned by [LookPath] when it fails to classify a file as an
+ // executable.
+ type Error struct {
+ 	// Name is the file name for which the error occurred.
+@@ -121,7 +121,7 @@ func (e *Error) Error() string {
+ 
+ func (e *Error) Unwrap() error { return e.Err }
+ 
+-// ErrWaitDelay is returned by (*Cmd).Wait if the process exits with a
++// ErrWaitDelay is returned by [Cmd.Wait] if the process exits with a
+ // successful status code but its output pipes are not closed before the
+ // command's WaitDelay expires.
+ var ErrWaitDelay = errors.New("exec: WaitDelay expired before I/O complete")
+@@ -142,7 +142,7 @@ func (w wrappedError) Unwrap() error {
+ 
+ // Cmd represents an external command being prepared or run.
+ //
+-// A Cmd cannot be reused after calling its Run, Output or CombinedOutput
++// A Cmd cannot be reused after calling its [Cmd.Run], [Cmd.Output] or [Cmd.CombinedOutput]
+ // methods.
+ type Cmd struct {
+ 	// Path is the path of the command to run.
+@@ -351,12 +351,12 @@ type ctxResult struct {
+ var execwait = godebug.New("#execwait")
+ var execerrdot = godebug.New("execerrdot")
+ 
+-// Command returns the Cmd struct to execute the named program with
++// Command returns the [Cmd] struct to execute the named program with
+ // the given arguments.
+ //
+ // It sets only the Path and Args in the returned structure.
+ //
+-// If name contains no path separators, Command uses LookPath to
++// If name contains no path separators, Command uses [LookPath] to
+ // resolve name to a complete path if possible. Otherwise it uses name
+ // directly as Path.
+ //
+@@ -447,10 +447,10 @@ func Command(name string, arg ...string) *Cmd {
+ 	return cmd
+ }
+ 
+-// CommandContext is like Command but includes a context.
++// CommandContext is like [Command] but includes a context.
+ //
+ // The provided context is used to interrupt the process
+-// (by calling cmd.Cancel or os.Process.Kill)
++// (by calling cmd.Cancel or [os.Process.Kill])
+ // if the context becomes done before the command completes on its own.
+ //
+ // CommandContext sets the command's Cancel function to invoke the Kill method
+@@ -594,10 +594,10 @@ func closeDescriptors(closers []io.Closer) {
+ // status.
+ //
+ // If the command starts but does not complete successfully, the error is of
+-// type *ExitError. Other error types may be returned for other situations.
++// type [*ExitError]. Other error types may be returned for other situations.
+ //
+ // If the calling goroutine has locked the operating system thread
+-// with runtime.LockOSThread and modified any inheritable OS-level
++// with [runtime.LockOSThread] and modified any inheritable OS-level
+ // thread state (for example, Linux or Plan 9 name spaces), the new
+ // process will inherit the caller's thread state.
+ func (c *Cmd) Run() error {
+@@ -611,7 +611,7 @@ func (c *Cmd) Run() error {
+ //
+ // If Start returns successfully, the c.Process field will be set.
+ //
+-// After a successful call to Start the Wait method must be called in
++// After a successful call to Start the [Cmd.Wait] method must be called in
+ // order to release associated system resources.
+ func (c *Cmd) Start() error {
+ 	// Check for doubled Start calls before we defer failure cleanup. If the prior
+@@ -872,20 +872,20 @@ func (e *ExitError) Error() string {
+ // Wait waits for the command to exit and waits for any copying to
+ // stdin or copying from stdout or stderr to complete.
+ //
+-// The command must have been started by Start.
++// The command must have been started by [Cmd.Start].
+ //
+ // The returned error is nil if the command runs, has no problems
+ // copying stdin, stdout, and stderr, and exits with a zero exit
+ // status.
+ //
+ // If the command fails to run or doesn't complete successfully, the
+-// error is of type *ExitError. Other error types may be
++// error is of type [*ExitError]. Other error types may be
+ // returned for I/O problems.
+ //
+-// If any of c.Stdin, c.Stdout or c.Stderr are not an *os.File, Wait also waits
++// If any of c.Stdin, c.Stdout or c.Stderr are not an [*os.File], Wait also waits
+ // for the respective I/O loop copying to or from the process to complete.
+ //
+-// Wait releases any resources associated with the Cmd.
++// Wait releases any resources associated with the [Cmd].
+ func (c *Cmd) Wait() error {
+ 	if c.Process == nil {
+ 		return errors.New("exec: not started")
+@@ -974,8 +974,8 @@ func (c *Cmd) awaitGoroutines(timer *time.Timer) error {
+ }
+ 
+ // Output runs the command and returns its standard output.
+-// Any returned error will usually be of type *ExitError.
+-// If c.Stderr was nil, Output populates ExitError.Stderr.
++// Any returned error will usually be of type [*ExitError].
++// If c.Stderr was nil, Output populates [ExitError.Stderr].
+ func (c *Cmd) Output() ([]byte, error) {
+ 	if c.Stdout != nil {
+ 		return nil, errors.New("exec: Stdout already set")
+@@ -1015,7 +1015,7 @@ func (c *Cmd) CombinedOutput() ([]byte, error) {
+ 
+ // StdinPipe returns a pipe that will be connected to the command's
+ // standard input when the command starts.
+-// The pipe will be closed automatically after Wait sees the command exit.
++// The pipe will be closed automatically after [Cmd.Wait] sees the command exit.
+ // A caller need only call Close to force the pipe to close sooner.
+ // For example, if the command being run will not exit until standard input
+ // is closed, the caller must close the pipe.
+@@ -1039,10 +1039,10 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
+ // StdoutPipe returns a pipe that will be connected to the command's
+ // standard output when the command starts.
+ //
+-// Wait will close the pipe after seeing the command exit, so most callers
++// [Cmd.Wait] will close the pipe after seeing the command exit, so most callers
+ // need not close the pipe themselves. It is thus incorrect to call Wait
+ // before all reads from the pipe have completed.
+-// For the same reason, it is incorrect to call Run when using StdoutPipe.
++// For the same reason, it is incorrect to call [Cmd.Run] when using StdoutPipe.
+ // See the example for idiomatic usage.
+ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
+ 	if c.Stdout != nil {
+@@ -1064,10 +1064,10 @@ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
+ // StderrPipe returns a pipe that will be connected to the command's
+ // standard error when the command starts.
+ //
+-// Wait will close the pipe after seeing the command exit, so most callers
++// [Cmd.Wait] will close the pipe after seeing the command exit, so most callers
+ // need not close the pipe themselves. It is thus incorrect to call Wait
+ // before all reads from the pipe have completed.
+-// For the same reason, it is incorrect to use Run when using StderrPipe.
++// For the same reason, it is incorrect to use [Cmd.Run] when using StderrPipe.
+ // See the StdoutPipe example for idiomatic usage.
+ func (c *Cmd) StderrPipe() (io.ReadCloser, error) {
+ 	if c.Stderr != nil {
+diff --git a/src/os/exec/lp_plan9.go b/src/os/exec/lp_plan9.go
+index dffdbac35f..87359b3551 100644
+--- a/src/os/exec/lp_plan9.go
++++ b/src/os/exec/lp_plan9.go
+@@ -34,7 +34,7 @@ func findExecutable(file string) error {
+ //
+ // In older versions of Go, LookPath could return a path relative to the current directory.
+ // As of Go 1.19, LookPath will instead return that path along with an error satisfying
+-// errors.Is(err, ErrDot). See the package documentation for more details.
++// [errors.Is](err, [ErrDot]). See the package documentation for more details.
+ func LookPath(file string) (string, error) {
+ 	// skip the path lookup for these prefixes
+ 	skip := []string{"/", "#", "./", "../"}
+diff --git a/src/os/exec/lp_unix.go b/src/os/exec/lp_unix.go
+index 3787132078..8617d45e98 100644
+--- a/src/os/exec/lp_unix.go
++++ b/src/os/exec/lp_unix.go
+@@ -48,7 +48,7 @@ func findExecutable(file string) error {
+ //
+ // In older versions of Go, LookPath could return a path relative to the current directory.
+ // As of Go 1.19, LookPath will instead return that path along with an error satisfying
+-// errors.Is(err, ErrDot). See the package documentation for more details.
++// [errors.Is](err, [ErrDot]). See the package documentation for more details.
+ func LookPath(file string) (string, error) {
+ 	// NOTE(rsc): I wish we could use the Plan 9 behavior here
+ 	// (only bypass the path if file begins with / or ./ or ../)
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index 698a97c40f..0e058d41b0 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -66,7 +66,7 @@ func findExecutable(file string, exts []string) (string, error) {
+ //
+ // In older versions of Go, LookPath could return a path relative to the current directory.
+ // As of Go 1.19, LookPath will instead return that path along with an error satisfying
+-// errors.Is(err, ErrDot). See the package documentation for more details.
++// [errors.Is](err, [ErrDot]). See the package documentation for more details.
+ func LookPath(file string) (string, error) {
+ 	return lookPath(file, pathExt())
+ }
+diff --git a/src/os/exec_plan9.go b/src/os/exec_plan9.go
+index 69714ff798..a1e74df8a5 100644
+--- a/src/os/exec_plan9.go
++++ b/src/os/exec_plan9.go
+@@ -14,7 +14,7 @@ import (
+ // The only signal values guaranteed to be present in the os package
+ // on all systems are Interrupt (send the process an interrupt) and
+ // Kill (force the process to exit). Interrupt is not implemented on
+-// Windows; using it with os.Process.Signal will return an error.
++// Windows; using it with [os.Process.Signal] will return an error.
+ var (
+ 	Interrupt Signal = syscall.Note("interrupt")
+ 	Kill      Signal = syscall.Note("kill")
+diff --git a/src/os/executable.go b/src/os/executable.go
+index cc3134af1c..ae7ec139c3 100644
+--- a/src/os/executable.go
++++ b/src/os/executable.go
+@@ -9,7 +9,7 @@ package os
+ // pointing to the correct executable. If a symlink was used to start
+ // the process, depending on the operating system, the result might
+ // be the symlink or the path it pointed to. If a stable result is
+-// needed, path/filepath.EvalSymlinks might help.
++// needed, [path/filepath.EvalSymlinks] might help.
+ //
+ // Executable returns an absolute path unless an error occurred.
+ //
+diff --git a/src/os/file.go b/src/os/file.go
+index 228f2f01b6..c0c972bbd7 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -6,9 +6,9 @@
+ // functionality. The design is Unix-like, although the error handling is
+ // Go-like; failing calls return values of type error rather than error numbers.
+ // Often, more information is available within the error. For example,
+-// if a call that takes a file name fails, such as Open or Stat, the error
++// if a call that takes a file name fails, such as [Open] or [Stat], the error
+ // will include the failing file name when printed and will be of type
+-// *PathError, which may be unpacked for more information.
++// [*PathError], which may be unpacked for more information.
+ //
+ // The os interface is intended to be uniform across all operating systems.
+ // Features not generally available appear in the system-specific package syscall.
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index c0ee6b33f9..69a24316e6 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -33,8 +33,8 @@ type file struct {
+ // Fd returns the integer Plan 9 file descriptor referencing the open file.
+ // If f is closed, the file descriptor becomes invalid.
+ // If f is garbage collected, a finalizer may close the file descriptor,
+-// making it invalid; see runtime.SetFinalizer for more information on when
+-// a finalizer might be run. On Unix systems this will cause the SetDeadline
++// making it invalid; see [runtime.SetFinalizer] for more information on when
++// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
+ // methods to stop working.
+ //
+ // As an alternative, see the f.SyscallConn method.
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 5692657753..8ff0ada462 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -12,9 +12,9 @@ import (
+ 	"time"
+ )
+ 
+-// Close closes the File, rendering it unusable for I/O.
+-// On files that support SetDeadline, any pending I/O operations will
+-// be canceled and return immediately with an ErrClosed error.
++// Close closes the [File], rendering it unusable for I/O.
++// On files that support [File.SetDeadline], any pending I/O operations will
++// be canceled and return immediately with an [ErrClosed] error.
+ // Close will return an error if it has already been called.
+ func (f *File) Close() error {
+ 	if f == nil {
+@@ -98,9 +98,9 @@ func (f *File) chmod(mode FileMode) error {
+ // Chown changes the numeric uid and gid of the named file.
+ // If the file is a symbolic link, it changes the uid and gid of the link's target.
+ // A uid or gid of -1 means to not change that value.
+-// If there is an error, it will be of type *PathError.
++// If there is an error, it will be of type [*PathError].
+ //
+-// On Windows or Plan 9, Chown always returns the syscall.EWINDOWS or
++// On Windows or Plan 9, Chown always returns the [syscall.EWINDOWS] or
+ // EPLAN9 error, wrapped in *PathError.
+ func Chown(name string, uid, gid int) error {
+ 	e := ignoringEINTR(func() error {
+@@ -114,9 +114,9 @@ func Chown(name string, uid, gid int) error {
+ 
+ // Lchown changes the numeric uid and gid of the named file.
+ // If the file is a symbolic link, it changes the uid and gid of the link itself.
+-// If there is an error, it will be of type *PathError.
++// If there is an error, it will be of type [*PathError].
+ //
+-// On Windows, it always returns the syscall.EWINDOWS error, wrapped
++// On Windows, it always returns the [syscall.EWINDOWS] error, wrapped
+ // in *PathError.
+ func Lchown(name string, uid, gid int) error {
+ 	e := ignoringEINTR(func() error {
+@@ -129,9 +129,9 @@ func Lchown(name string, uid, gid int) error {
+ }
+ 
+ // Chown changes the numeric uid and gid of the named file.
+-// If there is an error, it will be of type *PathError.
++// If there is an error, it will be of type [*PathError].
+ //
+-// On Windows, it always returns the syscall.EWINDOWS error, wrapped
++// On Windows, it always returns the [syscall.EWINDOWS] error, wrapped
+ // in *PathError.
+ func (f *File) Chown(uid, gid int) error {
+ 	if err := f.checkValid("chown"); err != nil {
+@@ -145,7 +145,7 @@ func (f *File) Chown(uid, gid int) error {
+ 
+ // Truncate changes the size of the file.
+ // It does not change the I/O offset.
+-// If there is an error, it will be of type *PathError.
++// If there is an error, it will be of type [*PathError].
+ func (f *File) Truncate(size int64) error {
+ 	if err := f.checkValid("truncate"); err != nil {
+ 		return err
+@@ -171,11 +171,11 @@ func (f *File) Sync() error {
+ 
+ // Chtimes changes the access and modification times of the named
+ // file, similar to the Unix utime() or utimes() functions.
+-// A zero time.Time value will leave the corresponding file time unchanged.
++// A zero [time.Time] value will leave the corresponding file time unchanged.
+ //
+ // The underlying filesystem may truncate or round the values to a
+ // less precise time unit.
+-// If there is an error, it will be of type *PathError.
++// If there is an error, it will be of type [*PathError].
+ func Chtimes(name string, atime time.Time, mtime time.Time) error {
+ 	var utimes [2]syscall.Timespec
+ 	set := func(i int, t time.Time) {
+@@ -195,7 +195,7 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
+ 
+ // Chdir changes the current working directory to the file,
+ // which must be a directory.
+-// If there is an error, it will be of type *PathError.
++// If there is an error, it will be of type [*PathError].
+ func (f *File) Chdir() error {
+ 	if err := f.checkValid("chdir"); err != nil {
+ 		return err
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index a527b23e4f..6597186486 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -67,11 +67,11 @@ type file struct {
+ // Fd returns the integer Unix file descriptor referencing the open file.
+ // If f is closed, the file descriptor becomes invalid.
+ // If f is garbage collected, a finalizer may close the file descriptor,
+-// making it invalid; see runtime.SetFinalizer for more information on when
+-// a finalizer might be run. On Unix systems this will cause the SetDeadline
++// making it invalid; see [runtime.SetFinalizer] for more information on when
++// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
+ // methods to stop working.
+ // Because file descriptors can be reused, the returned file descriptor may
+-// only be closed through the Close method of f, or by its finalizer during
++// only be closed through the [File.Close] method of f, or by its finalizer during
+ // garbage collection. Otherwise, during garbage collection the finalizer
+ // may close an unrelated file descriptor with the same (reused) number.
+ //
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 8b04ed6e47..51dbc355f8 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -31,8 +31,8 @@ type file struct {
+ // Fd returns the Windows handle referencing the open file.
+ // If f is closed, the file descriptor becomes invalid.
+ // If f is garbage collected, a finalizer may close the file descriptor,
+-// making it invalid; see runtime.SetFinalizer for more information on when
+-// a finalizer might be run. On Unix systems this will cause the SetDeadline
++// making it invalid; see [runtime.SetFinalizer] for more information on when
++// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
+ // methods to stop working.
+ func (file *File) Fd() uintptr {
+ 	if file == nil {
+diff --git a/src/os/path.go b/src/os/path.go
+index 6ac4cbe20f..a46c20bfd2 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -68,7 +68,7 @@ func MkdirAll(path string, perm FileMode) error {
+ // It removes everything it can but returns the first error
+ // it encounters. If the path does not exist, RemoveAll
+ // returns nil (no error).
+-// If there is an error, it will be of type *PathError.
++// If there is an error, it will be of type [*PathError].
+ func RemoveAll(path string) error {
+ 	return removeAll(path)
+ }
+diff --git a/src/os/proc.go b/src/os/proc.go
+index 3aae5680ee..ea029158ee 100644
+--- a/src/os/proc.go
++++ b/src/os/proc.go
+@@ -47,7 +47,7 @@ func Getegid() int { return syscall.Getegid() }
+ 
+ // Getgroups returns a list of the numeric ids of groups that the caller belongs to.
+ //
+-// On Windows, it returns syscall.EWINDOWS. See the os/user package
++// On Windows, it returns [syscall.EWINDOWS]. See the [os/user] package
+ // for a possible alternative.
+ func Getgroups() ([]int, error) {
+ 	gids, e := syscall.Getgroups()
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index a2a7525ef0..07ed9ce524 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -73,10 +73,10 @@ SIGTHAW, SIGLOST, SIGXRES, SIGJVM1, SIGJVM2, and any real time signals
+ used on the system. Note that not all of these signals are available
+ on all systems.
+ 
+-If the program was started with SIGHUP or SIGINT ignored, and Notify
++If the program was started with SIGHUP or SIGINT ignored, and [Notify]
+ is called for either signal, a signal handler will be installed for
+-that signal and it will no longer be ignored. If, later, Reset or
+-Ignore is called for that signal, or Stop is called on all channels
++that signal and it will no longer be ignored. If, later, [Reset] or
++[Ignore] is called for that signal, or [Stop] is called on all channels
+ passed to Notify for that signal, the signal will once again be
+ ignored. Reset will restore the system default behavior for the
+ signal, while Ignore will cause the system to ignore the signal
+diff --git a/src/os/signal/signal.go b/src/os/signal/signal.go
+index 4250a7e0de..9a4cd64fb7 100644
+--- a/src/os/signal/signal.go
++++ b/src/os/signal/signal.go
+@@ -81,7 +81,7 @@ func cancel(sigs []os.Signal, action func(int)) {
+ 
+ // Ignore causes the provided signals to be ignored. If they are received by
+ // the program, nothing will happen. Ignore undoes the effect of any prior
+-// calls to Notify for the provided signals.
++// calls to [Notify] for the provided signals.
+ // If no signals are provided, all incoming signals will be ignored.
+ func Ignore(sig ...os.Signal) {
+ 	cancel(sig, ignoreSignal)
+@@ -113,7 +113,7 @@ var (
+ //
+ // It is allowed to call Notify multiple times with the same channel:
+ // each call expands the set of signals sent to that channel.
+-// The only way to remove signals from the set is to call Stop.
++// The only way to remove signals from the set is to call [Stop].
+ //
+ // It is allowed to call Notify multiple times with different channels
+ // and the same signals: each channel receives copies of incoming
+@@ -167,7 +167,7 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
+ 	}
+ }
+ 
+-// Reset undoes the effect of any prior calls to Notify for the provided
++// Reset undoes the effect of any prior calls to [Notify] for the provided
+ // signals.
+ // If no signals are provided, all signal handlers will be reset.
+ func Reset(sig ...os.Signal) {
+@@ -175,7 +175,7 @@ func Reset(sig ...os.Signal) {
+ }
+ 
+ // Stop causes package signal to stop relaying incoming signals to c.
+-// It undoes the effect of all prior calls to Notify using c.
++// It undoes the effect of all prior calls to [Notify] using c.
+ // When Stop returns, it is guaranteed that c will receive no more signals.
+ func Stop(c chan<- os.Signal) {
+ 	handlers.Lock()
+@@ -264,9 +264,9 @@ func process(sig os.Signal) {
+ // when the returned stop function is called, or when the parent context's
+ // Done channel is closed, whichever happens first.
+ //
+-// The stop function unregisters the signal behavior, which, like signal.Reset,
++// The stop function unregisters the signal behavior, which, like [signal.Reset],
+ // may restore the default behavior for a given signal. For example, the default
+-// behavior of a Go program receiving os.Interrupt is to exit. Calling
++// behavior of a Go program receiving [os.Interrupt] is to exit. Calling
+ // NotifyContext(parent, os.Interrupt) will change the behavior to cancel
+ // the returned context. Future interrupts received will not trigger the default
+ // (exit) behavior until the returned stop function is called.
+diff --git a/src/os/stat.go b/src/os/stat.go
+index 11d9efa457..50acb6dbdd 100644
+--- a/src/os/stat.go
++++ b/src/os/stat.go
+@@ -6,17 +6,17 @@ package os
+ 
+ import "internal/testlog"
+ 
+-// Stat returns a FileInfo describing the named file.
+-// If there is an error, it will be of type *PathError.
++// Stat returns a [FileInfo] describing the named file.
++// If there is an error, it will be of type [*PathError].
+ func Stat(name string) (FileInfo, error) {
+ 	testlog.Stat(name)
+ 	return statNolog(name)
+ }
+ 
+-// Lstat returns a FileInfo describing the named file.
++// Lstat returns a [FileInfo] describing the named file.
+ // If the file is a symbolic link, the returned FileInfo
+ // describes the symbolic link. Lstat makes no attempt to follow the link.
+-// If there is an error, it will be of type *PathError.
++// If there is an error, it will be of type [*PathError].
+ //
+ // On Windows, if the file is a reparse point that is a surrogate for another
+ // named entity (such as a symbolic link or mounted folder), the returned
+diff --git a/src/os/stat_unix.go b/src/os/stat_unix.go
+index 431df33fae..486a16413e 100644
+--- a/src/os/stat_unix.go
++++ b/src/os/stat_unix.go
+@@ -10,8 +10,8 @@ import (
+ 	"syscall"
+ )
+ 
+-// Stat returns the FileInfo structure describing file.
+-// If there is an error, it will be of type *PathError.
++// Stat returns the [FileInfo] structure describing file.
++// If there is an error, it will be of type [*PathError].
+ func (f *File) Stat() (FileInfo, error) {
+ 	if f == nil {
+ 		return nil, ErrInvalid
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index f7cf5275a5..7d0b6abfa4 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -10,8 +10,8 @@ import (
+ 	"unsafe"
+ )
+ 
+-// Stat returns the FileInfo structure describing file.
+-// If there is an error, it will be of type *PathError.
++// Stat returns the [FileInfo] structure describing file.
++// If there is an error, it will be of type [*PathError].
+ func (file *File) Stat() (FileInfo, error) {
+ 	if file == nil {
+ 		return nil, ErrInvalid
+diff --git a/src/os/tempfile.go b/src/os/tempfile.go
+index 66c65e6c78..5ccc006296 100644
+--- a/src/os/tempfile.go
++++ b/src/os/tempfile.go
+@@ -15,6 +15,7 @@ import (
+ // We generate random temporary file names so that there's a good
+ // chance the file doesn't exist yet - keeps the number of tries in
+ // TempFile to a minimum.
++//
+ //go:linkname runtime_rand runtime.rand
+ func runtime_rand() uint64
+ 
+@@ -26,7 +27,7 @@ func nextRandom() string {
+ // opens the file for reading and writing, and returns the resulting file.
+ // The filename is generated by taking pattern and adding a random string to the end.
+ // If pattern includes a "*", the random string replaces the last "*".
+-// If dir is the empty string, CreateTemp uses the default directory for temporary files, as returned by TempDir.
++// If dir is the empty string, CreateTemp uses the default directory for temporary files, as returned by [TempDir].
+ // Multiple programs or goroutines calling CreateTemp simultaneously will not choose the same file.
+ // The caller can use the file's Name method to find the pathname of the file.
+ // It is the caller's responsibility to remove the file when it is no longer needed.
+diff --git a/src/os/types.go b/src/os/types.go
+index d8edd98b68..66eb8bc8cb 100644
+--- a/src/os/types.go
++++ b/src/os/types.go
+@@ -17,17 +17,17 @@ type File struct {
+ 	*file // os specific
+ }
+ 
+-// A FileInfo describes a file and is returned by Stat and Lstat.
++// A FileInfo describes a file and is returned by [Stat] and [Lstat].
+ type FileInfo = fs.FileInfo
+ 
+ // A FileMode represents a file's mode and permission bits.
+ // The bits have the same definition on all systems, so that
+ // information about files can be moved from one system
+ // to another portably. Not all bits apply to all systems.
+-// The only required bit is ModeDir for directories.
++// The only required bit is [ModeDir] for directories.
+ type FileMode = fs.FileMode
+ 
+-// The defined file mode bits are the most significant bits of the FileMode.
++// The defined file mode bits are the most significant bits of the [FileMode].
+ // The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
+ // The values of these bits should be considered part of the public API and
+ // may be used in wire protocols or disk representations: they must not be
+@@ -62,7 +62,7 @@ func (fs *fileStat) IsDir() bool  { return fs.Mode().IsDir() }
+ // For example, on Unix this means that the device and inode fields
+ // of the two underlying structures are identical; on other systems
+ // the decision may be based on the path names.
+-// SameFile only applies to results returned by this package's Stat.
++// SameFile only applies to results returned by this package's [Stat].
+ // It returns false in other cases.
+ func SameFile(fi1, fi2 FileInfo) bool {
+ 	fs1, ok1 := fi1.(*fileStat)
+diff --git a/src/os/user/lookup.go b/src/os/user/lookup.go
+index ed33d0c7cd..fb10b53938 100644
+--- a/src/os/user/lookup.go
++++ b/src/os/user/lookup.go
+@@ -35,7 +35,7 @@ var cache struct {
+ }
+ 
+ // Lookup looks up a user by username. If the user cannot be found, the
+-// returned error is of type UnknownUserError.
++// returned error is of type [UnknownUserError].
+ func Lookup(username string) (*User, error) {
+ 	if u, err := Current(); err == nil && u.Username == username {
+ 		return u, err
+@@ -44,7 +44,7 @@ func Lookup(username string) (*User, error) {
+ }
+ 
+ // LookupId looks up a user by userid. If the user cannot be found, the
+-// returned error is of type UnknownUserIdError.
++// returned error is of type [UnknownUserIdError].
+ func LookupId(uid string) (*User, error) {
+ 	if u, err := Current(); err == nil && u.Uid == uid {
+ 		return u, err
+@@ -53,13 +53,13 @@ func LookupId(uid string) (*User, error) {
+ }
+ 
+ // LookupGroup looks up a group by name. If the group cannot be found, the
+-// returned error is of type UnknownGroupError.
++// returned error is of type [UnknownGroupError].
+ func LookupGroup(name string) (*Group, error) {
+ 	return lookupGroup(name)
+ }
+ 
+ // LookupGroupId looks up a group by groupid. If the group cannot be found, the
+-// returned error is of type UnknownGroupIdError.
++// returned error is of type [UnknownGroupIdError].
+ func LookupGroupId(gid string) (*Group, error) {
+ 	return lookupGroupId(gid)
+ }
+diff --git a/src/os/user/user.go b/src/os/user/user.go
+index 0307d2ad6a..952da3d8bd 100644
+--- a/src/os/user/user.go
++++ b/src/os/user/user.go
+@@ -63,14 +63,14 @@ type Group struct {
+ 	Name string // group name
+ }
+ 
+-// UnknownUserIdError is returned by LookupId when a user cannot be found.
++// UnknownUserIdError is returned by [LookupId] when a user cannot be found.
+ type UnknownUserIdError int
+ 
+ func (e UnknownUserIdError) Error() string {
+ 	return "user: unknown userid " + strconv.Itoa(int(e))
+ }
+ 
+-// UnknownUserError is returned by Lookup when
++// UnknownUserError is returned by [Lookup] when
+ // a user cannot be found.
+ type UnknownUserError string
+ 
+@@ -78,7 +78,7 @@ func (e UnknownUserError) Error() string {
+ 	return "user: unknown user " + string(e)
+ }
+ 
+-// UnknownGroupIdError is returned by LookupGroupId when
++// UnknownGroupIdError is returned by [LookupGroupId] when
+ // a group cannot be found.
+ type UnknownGroupIdError string
+ 
+@@ -86,7 +86,7 @@ func (e UnknownGroupIdError) Error() string {
+ 	return "group: unknown groupid " + string(e)
+ }
+ 
+-// UnknownGroupError is returned by LookupGroup when
++// UnknownGroupError is returned by [LookupGroup] when
+ // a group cannot be found.
+ type UnknownGroupError string
+ 

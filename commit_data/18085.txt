@@ -11,8 +11,61 @@ Date:   Thu Dec 19 11:43:34 2013 -0800
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/44100043
-
+---
  src/cmd/go/build.go     | 4 ++--
  src/cmd/go/doc.go       | 4 ++--
  src/pkg/go/build/doc.go | 8 ++++++--
  3 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 3ef4d8c9ce..c78f228105 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -87,8 +87,8 @@ The build flags are shared by the build, install, run, and test commands:
+ 		arguments to pass on each 5l, 6l, or 8l linker invocation.
+ 	-tags 'tag list'
+ 		a list of build tags to consider satisfied during the build.
+-		See the documentation for the go/build package for
+-		more information about build tags.
++		For more information about build tags, see the description of
++		build constraints in the documentation for the go/build package.
+ 
+ The list flags accept a space-separated list of strings. To embed spaces
+ in an element in the list, surround it with either single or double quotes.
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index ebb2f37fd1..9a8a194fe7 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -104,8 +104,8 @@ The build flags are shared by the build, install, run, and test commands:
+ 		arguments to pass on each 5l, 6l, or 8l linker invocation.
+ 	-tags 'tag list'
+ 		a list of build tags to consider satisfied during the build.
+-		See the documentation for the go/build package for
+-		more information about build tags.
++		For more information about build tags, see the description of
++		build constraints in the documentation for the go/build package.
+ 
+ The list flags accept a space-separated list of strings. To embed spaces
+ in an element in the list, surround it with either single or double quotes.
+diff --git a/src/pkg/go/build/doc.go b/src/pkg/go/build/doc.go
+index b2f04ea45c..83292f29f8 100644
+--- a/src/pkg/go/build/doc.go
++++ b/src/pkg/go/build/doc.go
+@@ -57,11 +57,15 @@
+ //
+ // Build Constraints
+ //
+-// A build constraint is a line comment beginning with the directive +build
++// A build constraint, also known as a build tag, is a line comment that begins
++//
++//	// +build
++//
+ // that lists the conditions under which a file should be included in the package.
+ // Constraints may appear in any kind of source file (not just Go), but
+ // they must appear near the top of the file, preceded
+-// only by blank lines and other line comments.
++// only by blank lines and other line comments. These rules mean that in Go
++// files a build constraint must appear before the package clause.
+ //
+ // To distinguish build constraints from package documentation, a series of
+ // build constraints must be followed by a blank line.

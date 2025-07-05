@@ -8,6 +8,35 @@ Date:   Wed Aug 25 13:07:08 2010 +1000
     R=gri, rsc1
     CC=golang-dev
     https://golang.org/cl/1998045
-
+---
  src/pkg/scanner/scanner.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/scanner/scanner.go b/src/pkg/scanner/scanner.go
+index a1aa109cb2..0f864f8ff3 100644
+--- a/src/pkg/scanner/scanner.go
++++ b/src/pkg/scanner/scanner.go
+@@ -2,15 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A general-purpose scanner for UTF-8 encoded text. Takes an io.Reader
+-// providing the source which then can be tokenized through repeated
+-// calls to the Scan function. For compatibility with existing tools,
+-// the NUL character is not allowed (implementation restriction).
++// A scanner and tokenizer for UTF-8-encoded text.  Takes an io.Reader
++// providing the source, which then can be tokenized through repeated calls
++// to the Scan function.  For compatibility with existing tools, the NUL
++// character is not allowed (implementation restriction).
+ //
+-// By default, a Scanner skips white space and comments and
+-// recognizes literals as defined by the Go language spec.
+-// It may be customized to recognize only a subset of those
+-// literals and to recognize different white space characters.
++// By default, a Scanner skips white space and Go comments and recognizes all
++// literals as defined by the Go language specification.  It may be
++// customized to recognize only a subset of those literals and to recognize
++// different white space characters.
+ //
+ // Basic usage pattern:
+ //

@@ -45,7 +45,7 @@ Date:   Thu Aug 26 12:11:14 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/abi/abiutils.go        | 20 +++----
  src/cmd/compile/internal/escape/utils.go        |  6 +-
  src/cmd/compile/internal/gc/export.go           |  2 +-
@@ -77,3 +77,1486 @@ Date:   Thu Aug 26 12:11:14 2021 -0700
  src/cmd/compile/internal/walk/range.go          |  6 +-
  src/cmd/compile/internal/walk/walk.go           |  2 +-
  30 files changed, 191 insertions(+), 191 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 24f34b8263..4da4e9ca3a 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -144,7 +144,7 @@ func (pa *ABIParamAssignment) RegisterTypesAndOffsets() ([]*types.Type, []int64)
+ }
+ 
+ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
+-	w := t.Width
++	w := t.Size()
+ 	if w == 0 {
+ 		return rts
+ 	}
+@@ -193,12 +193,12 @@ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
+ // to input offsets, and returns the longer slice and the next unused offset.
+ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int64) {
+ 	at = align(at, t)
+-	w := t.Width
++	w := t.Size()
+ 	if w == 0 {
+ 		return offsets, at
+ 	}
+ 	if t.IsScalar() || t.IsPtrShaped() {
+-		if t.IsComplex() || int(t.Width) > types.RegSize { // complex and *int64 on 32-bit
++		if t.IsComplex() || int(t.Size()) > types.RegSize { // complex and *int64 on 32-bit
+ 			s := w / 2
+ 			return append(offsets, at, at+s), at + w
+ 		} else {
+@@ -214,7 +214,7 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int6
+ 		case types.TSTRUCT:
+ 			for i, f := range t.FieldSlice() {
+ 				offsets, at = appendParamOffsets(offsets, at, f.Type)
+-				if f.Type.Width == 0 && i == t.NumFields()-1 {
++				if f.Type.Size() == 0 && i == t.NumFields()-1 {
+ 					at++ // last field has zero width
+ 				}
+ 			}
+@@ -531,7 +531,7 @@ type assignState struct {
+ 
+ // align returns a rounded up to t's alignment
+ func align(a int64, t *types.Type) int64 {
+-	return alignTo(a, int(t.Align))
++	return alignTo(a, int(uint8(t.Alignment())))
+ }
+ 
+ // alignTo returns a rounded up to t, where t must be 0 or a power of 2.
+@@ -546,7 +546,7 @@ func alignTo(a int64, t int) int64 {
+ // specified type.
+ func (state *assignState) stackSlot(t *types.Type) int64 {
+ 	rv := align(state.stackOffset, t)
+-	state.stackOffset = rv + t.Width
++	state.stackOffset = rv + t.Size()
+ 	return rv
+ }
+ 
+@@ -554,7 +554,7 @@ func (state *assignState) stackSlot(t *types.Type) int64 {
+ // that we've just determined to be register-assignable. The number of registers
+ // needed is assumed to be stored in state.pUsed.
+ func (state *assignState) allocateRegs(regs []RegIndex, t *types.Type) []RegIndex {
+-	if t.Width == 0 {
++	if t.Size() == 0 {
+ 		return regs
+ 	}
+ 	ri := state.rUsed.intRegs
+@@ -647,7 +647,7 @@ func (state *assignState) floatUsed() int {
+ // can register allocate, FALSE otherwise (and updates state
+ // accordingly).
+ func (state *assignState) regassignIntegral(t *types.Type) bool {
+-	regsNeeded := int(types.Rnd(t.Width, int64(types.PtrSize)) / int64(types.PtrSize))
++	regsNeeded := int(types.Rnd(t.Size(), int64(types.PtrSize)) / int64(types.PtrSize))
+ 	if t.IsComplex() {
+ 		regsNeeded = 2
+ 	}
+@@ -767,10 +767,10 @@ func (state *assignState) regassign(pt *types.Type) bool {
+ // ABIParamResultInfo held in 'state'.
+ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, isReturn bool) ABIParamAssignment {
+ 	state.pUsed = RegAmounts{}
+-	if pt.Width == types.BADWIDTH {
++	if pt.Size() == types.BADWIDTH {
+ 		base.Fatalf("should never happen")
+ 		panic("unreachable")
+-	} else if pt.Width == 0 {
++	} else if pt.Size() == 0 {
+ 		return state.stackAllocate(pt, n)
+ 	} else if state.regassign(pt) {
+ 		return state.regAllocate(pt, n, isReturn)
+diff --git a/src/cmd/compile/internal/escape/utils.go b/src/cmd/compile/internal/escape/utils.go
+index 5f462ef570..2c6e9bcbeb 100644
+--- a/src/cmd/compile/internal/escape/utils.go
++++ b/src/cmd/compile/internal/escape/utils.go
+@@ -182,11 +182,11 @@ func HeapAllocReason(n ir.Node) string {
+ 		}
+ 	}
+ 
+-	if n.Type().Width > ir.MaxStackVarSize {
++	if n.Type().Size() > ir.MaxStackVarSize {
+ 		return "too large for stack"
+ 	}
+ 
+-	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Width > ir.MaxImplicitStackVarSize {
++	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Size() > ir.MaxImplicitStackVarSize {
+ 		return "too large for stack"
+ 	}
+ 
+@@ -206,7 +206,7 @@ func HeapAllocReason(n ir.Node) string {
+ 		if !ir.IsSmallIntConst(r) {
+ 			return "non-constant size"
+ 		}
+-		if t := n.Type(); t.Elem().Width != 0 && ir.Int64Val(r) > ir.MaxImplicitStackVarSize/t.Elem().Width {
++		if t := n.Type(); t.Elem().Size() != 0 && ir.Int64Val(r) > ir.MaxImplicitStackVarSize/t.Elem().Size() {
+ 			return "too large for stack"
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 9bf3c7240a..2eac7d03c2 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -38,7 +38,7 @@ func dumpasmhdr() {
+ 			if !t.IsStruct() || t.StructType().Map != nil || t.IsFuncArgStruct() {
+ 				break
+ 			}
+-			fmt.Fprintf(b, "#define %s__size %d\n", n.Sym().Name, int(t.Width))
++			fmt.Fprintf(b, "#define %s__size %d\n", n.Sym().Name, int(t.Size()))
+ 			for _, f := range t.Fields().Slice() {
+ 				if !f.Sym.IsBlank() {
+ 					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym().Name, f.Sym.Name, int(f.Offset))
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index c86bf5f084..aae7d03ebe 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -274,7 +274,7 @@ func ggloblnod(nam *ir.Name) {
+ 	if nam.Type() != nil && !nam.Type().HasPointers() {
+ 		flags |= obj.NOPTR
+ 	}
+-	base.Ctxt.Globl(s, nam.Type().Width, flags)
++	base.Ctxt.Globl(s, nam.Type().Size(), flags)
+ 	if nam.LibfuzzerExtraCounter() {
+ 		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
+ 	}
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 2705eac4f7..1e9d5748cc 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -274,7 +274,7 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
+ 		}
+ 	}
+ 
+-	if n.Class == ir.PPARAM && !n.Addrtaken() && n.Type().Width > int64(types.PtrSize) {
++	if n.Class == ir.PPARAM && !n.Addrtaken() && n.Type().Size() > int64(types.PtrSize) {
+ 		// Only aggregate-typed arguments that are not address-taken can be
+ 		// partially live.
+ 		lv.partLiveArgs[n] = true
+@@ -1444,7 +1444,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
+ 		off = objw.Uint32(x, off, uint32(frameOffset))
+ 
+ 		t := v.Type()
+-		sz := t.Width
++		sz := t.Size()
+ 		if sz != int64(int32(sz)) {
+ 			base.Fatalf("stack object too big: %v of type %v, size %d", v, t, sz)
+ 		}
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index be8651d47b..a27f511769 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -195,7 +195,7 @@ func transformCompare(n *ir.BinaryExpr) {
+ 			aop, _ := typecheck.Assignop(lt, rt)
+ 			if aop != ir.OXXX {
+ 				types.CalcSize(lt)
+-				if lt.HasTParam() || rt.IsInterface() == lt.IsInterface() || lt.Width >= 1<<16 {
++				if lt.HasTParam() || rt.IsInterface() == lt.IsInterface() || lt.Size() >= 1<<16 {
+ 					l = ir.NewConvExpr(base.Pos, aop, rt, l)
+ 					l.SetTypecheck(1)
+ 				}
+@@ -208,7 +208,7 @@ func transformCompare(n *ir.BinaryExpr) {
+ 			aop, _ := typecheck.Assignop(rt, lt)
+ 			if aop != ir.OXXX {
+ 				types.CalcSize(rt)
+-				if rt.HasTParam() || rt.IsInterface() == lt.IsInterface() || rt.Width >= 1<<16 {
++				if rt.HasTParam() || rt.IsInterface() == lt.IsInterface() || rt.Size() >= 1<<16 {
+ 					r = ir.NewConvExpr(base.Pos, aop, lt, r)
+ 					r.SetTypecheck(1)
+ 				}
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 36ad389647..d000618bd6 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -48,12 +48,12 @@ func eqCanPanic(t *types.Type) bool {
+ func AlgType(t *types.Type) types.AlgKind {
+ 	a, _ := types.AlgType(t)
+ 	if a == types.AMEM {
+-		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Width {
++		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Size() {
+ 			// For example, we can't treat [2]int16 as an int32 if int32s require
+ 			// 4-byte alignment. See issue 46283.
+ 			return a
+ 		}
+-		switch t.Width {
++		switch t.Size() {
+ 		case 0:
+ 			return types.AMEM0
+ 		case 1:
+@@ -110,7 +110,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 		// For other sizes of plain memory, we build a closure
+ 		// that calls memhash_varlen. The size of the memory is
+ 		// encoded in the first slot of the closure.
+-		closure := TypeLinksymLookup(fmt.Sprintf(".hashfunc%d", t.Width))
++		closure := TypeLinksymLookup(fmt.Sprintf(".hashfunc%d", t.Size()))
+ 		if len(closure.P) > 0 { // already generated
+ 			return closure
+ 		}
+@@ -119,7 +119,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 		}
+ 		ot := 0
+ 		ot = objw.SymPtr(closure, ot, memhashvarlen, 0)
+-		ot = objw.Uintptr(closure, ot, uint64(t.Width)) // size encoded in closure
++		ot = objw.Uintptr(closure, ot, uint64(t.Size())) // size encoded in closure
+ 		objw.Global(closure, int32(ot), obj.DUPOK|obj.RODATA)
+ 		return closure
+ 	case types.ASPECIAL:
+@@ -354,7 +354,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 	case types.AMEM:
+ 		// make equality closure. The size of the type
+ 		// is encoded in the closure.
+-		closure := TypeLinksymLookup(fmt.Sprintf(".eqfunc%d", t.Width))
++		closure := TypeLinksymLookup(fmt.Sprintf(".eqfunc%d", t.Size()))
+ 		if len(closure.P) != 0 {
+ 			return closure
+ 		}
+@@ -363,7 +363,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 		}
+ 		ot := 0
+ 		ot = objw.SymPtr(closure, ot, memequalvarlen, 0)
+-		ot = objw.Uintptr(closure, ot, uint64(t.Width))
++		ot = objw.Uintptr(closure, ot, uint64(t.Size()))
+ 		objw.Global(closure, int32(ot), obj.DUPOK|obj.RODATA)
+ 		return closure
+ 	case types.ASPECIAL:
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index ca48db03f5..183ede789e 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -97,10 +97,10 @@ func MapBucketType(t *types.Type) *types.Type {
+ 	elemtype := t.Elem()
+ 	types.CalcSize(keytype)
+ 	types.CalcSize(elemtype)
+-	if keytype.Width > MAXKEYSIZE {
++	if keytype.Size() > MAXKEYSIZE {
+ 		keytype = types.NewPtr(keytype)
+ 	}
+-	if elemtype.Width > MAXELEMSIZE {
++	if elemtype.Size() > MAXELEMSIZE {
+ 		elemtype = types.NewPtr(elemtype)
+ 	}
+ 
+@@ -145,46 +145,46 @@ func MapBucketType(t *types.Type) *types.Type {
+ 	if BUCKETSIZE < 8 {
+ 		base.Fatalf("bucket size too small for proper alignment")
+ 	}
+-	if keytype.Align > BUCKETSIZE {
++	if uint8(keytype.Alignment()) > BUCKETSIZE {
+ 		base.Fatalf("key align too big for %v", t)
+ 	}
+-	if elemtype.Align > BUCKETSIZE {
++	if uint8(elemtype.Alignment()) > BUCKETSIZE {
+ 		base.Fatalf("elem align too big for %v", t)
+ 	}
+-	if keytype.Width > MAXKEYSIZE {
++	if keytype.Size() > MAXKEYSIZE {
+ 		base.Fatalf("key size to large for %v", t)
+ 	}
+-	if elemtype.Width > MAXELEMSIZE {
++	if elemtype.Size() > MAXELEMSIZE {
+ 		base.Fatalf("elem size to large for %v", t)
+ 	}
+-	if t.Key().Width > MAXKEYSIZE && !keytype.IsPtr() {
++	if t.Key().Size() > MAXKEYSIZE && !keytype.IsPtr() {
+ 		base.Fatalf("key indirect incorrect for %v", t)
+ 	}
+-	if t.Elem().Width > MAXELEMSIZE && !elemtype.IsPtr() {
++	if t.Elem().Size() > MAXELEMSIZE && !elemtype.IsPtr() {
+ 		base.Fatalf("elem indirect incorrect for %v", t)
+ 	}
+-	if keytype.Width%int64(keytype.Align) != 0 {
++	if keytype.Size()%keytype.Alignment() != 0 {
+ 		base.Fatalf("key size not a multiple of key align for %v", t)
+ 	}
+-	if elemtype.Width%int64(elemtype.Align) != 0 {
++	if elemtype.Size()%elemtype.Alignment() != 0 {
+ 		base.Fatalf("elem size not a multiple of elem align for %v", t)
+ 	}
+-	if bucket.Align%keytype.Align != 0 {
++	if uint8(bucket.Alignment())%uint8(keytype.Alignment()) != 0 {
+ 		base.Fatalf("bucket align not multiple of key align %v", t)
+ 	}
+-	if bucket.Align%elemtype.Align != 0 {
++	if uint8(bucket.Alignment())%uint8(elemtype.Alignment()) != 0 {
+ 		base.Fatalf("bucket align not multiple of elem align %v", t)
+ 	}
+-	if keys.Offset%int64(keytype.Align) != 0 {
++	if keys.Offset%keytype.Alignment() != 0 {
+ 		base.Fatalf("bad alignment of keys in bmap for %v", t)
+ 	}
+-	if elems.Offset%int64(elemtype.Align) != 0 {
++	if elems.Offset%elemtype.Alignment() != 0 {
+ 		base.Fatalf("bad alignment of elems in bmap for %v", t)
+ 	}
+ 
+ 	// Double-check that overflow field is final memory in struct,
+ 	// with no padding at end.
+-	if overflow.Offset != bucket.Width-int64(types.PtrSize) {
++	if overflow.Offset != bucket.Size()-int64(types.PtrSize) {
+ 		base.Fatalf("bad offset of overflow in bmap for %v", t)
+ 	}
+ 
+@@ -234,8 +234,8 @@ func MapType(t *types.Type) *types.Type {
+ 
+ 	// The size of hmap should be 48 bytes on 64 bit
+ 	// and 28 bytes on 32 bit platforms.
+-	if size := int64(8 + 5*types.PtrSize); hmap.Width != size {
+-		base.Fatalf("hmap size not correct: got %d, want %d", hmap.Width, size)
++	if size := int64(8 + 5*types.PtrSize); hmap.Size() != size {
++		base.Fatalf("hmap size not correct: got %d, want %d", hmap.Size(), size)
+ 	}
+ 
+ 	t.MapType().Hmap = hmap
+@@ -294,8 +294,8 @@ func MapIterType(t *types.Type) *types.Type {
+ 	hiter := types.NewStruct(types.NoPkg, fields)
+ 	hiter.SetNoalg(true)
+ 	types.CalcSize(hiter)
+-	if hiter.Width != int64(12*types.PtrSize) {
+-		base.Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*types.PtrSize)
++	if hiter.Size() != int64(12*types.PtrSize) {
++		base.Fatalf("hash_iter size not correct %d %d", hiter.Size(), 12*types.PtrSize)
+ 	}
+ 	t.MapType().Hiter = hiter
+ 	hiter.StructType().Map = t
+@@ -708,7 +708,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	//		ptrToThis     typeOff
+ 	//	}
+ 	ot := 0
+-	ot = objw.Uintptr(lsym, ot, uint64(t.Width))
++	ot = objw.Uintptr(lsym, ot, uint64(t.Size()))
+ 	ot = objw.Uintptr(lsym, ot, uint64(ptrdata))
+ 	ot = objw.Uint32(lsym, ot, types.TypeHash(t))
+ 
+@@ -745,16 +745,16 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	ot = objw.Uint8(lsym, ot, tflag)
+ 
+ 	// runtime (and common sense) expects alignment to be a power of two.
+-	i := int(t.Align)
++	i := int(uint8(t.Alignment()))
+ 
+ 	if i == 0 {
+ 		i = 1
+ 	}
+ 	if i&(i-1) != 0 {
+-		base.Fatalf("invalid alignment %d for %v", t.Align, t)
++		base.Fatalf("invalid alignment %d for %v", uint8(t.Alignment()), t)
+ 	}
+-	ot = objw.Uint8(lsym, ot, t.Align) // align
+-	ot = objw.Uint8(lsym, ot, t.Align) // fieldAlign
++	ot = objw.Uint8(lsym, ot, uint8(t.Alignment())) // align
++	ot = objw.Uint8(lsym, ot, uint8(t.Alignment())) // fieldAlign
+ 
+ 	i = kinds[t.Kind()]
+ 	if types.IsDirectIface(t) {
+@@ -1090,20 +1090,20 @@ func writeType(t *types.Type) *obj.LSym {
+ 		var flags uint32
+ 		// Note: flags must match maptype accessors in ../../../../runtime/type.go
+ 		// and maptype builder in ../../../../reflect/type.go:MapOf.
+-		if t.Key().Width > MAXKEYSIZE {
++		if t.Key().Size() > MAXKEYSIZE {
+ 			ot = objw.Uint8(lsym, ot, uint8(types.PtrSize))
+ 			flags |= 1 // indirect key
+ 		} else {
+-			ot = objw.Uint8(lsym, ot, uint8(t.Key().Width))
++			ot = objw.Uint8(lsym, ot, uint8(t.Key().Size()))
+ 		}
+ 
+-		if t.Elem().Width > MAXELEMSIZE {
++		if t.Elem().Size() > MAXELEMSIZE {
+ 			ot = objw.Uint8(lsym, ot, uint8(types.PtrSize))
+ 			flags |= 2 // indirect value
+ 		} else {
+-			ot = objw.Uint8(lsym, ot, uint8(t.Elem().Width))
++			ot = objw.Uint8(lsym, ot, uint8(t.Elem().Size()))
+ 		}
+-		ot = objw.Uint16(lsym, ot, uint16(MapBucketType(t).Width))
++		ot = objw.Uint16(lsym, ot, uint16(MapBucketType(t).Size()))
+ 		if types.IsReflexive(t.Key()) {
+ 			flags |= 4 // reflexive key
+ 		}
+@@ -1557,7 +1557,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
+ // For non-trivial arrays, the program describes the full t.Width size.
+ func dgcprog(t *types.Type, write bool) (*obj.LSym, int64) {
+ 	types.CalcSize(t)
+-	if t.Width == types.BADWIDTH {
++	if t.Size() == types.BADWIDTH {
+ 		base.Fatalf("dgcprog: %v badwidth", t)
+ 	}
+ 	lsym := TypeLinksymPrefix(".gcprog", t)
+@@ -1566,8 +1566,8 @@ func dgcprog(t *types.Type, write bool) (*obj.LSym, int64) {
+ 	p.emit(t, 0)
+ 	offset := p.w.BitIndex() * int64(types.PtrSize)
+ 	p.end()
+-	if ptrdata := types.PtrDataSize(t); offset < ptrdata || offset > t.Width {
+-		base.Fatalf("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Width)
++	if ptrdata := types.PtrDataSize(t); offset < ptrdata || offset > t.Size() {
++		base.Fatalf("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Size())
+ 	}
+ 	return lsym, offset
+ }
+@@ -1616,7 +1616,7 @@ func (p *gcProg) emit(t *types.Type, offset int64) {
+ 	if !t.HasPointers() {
+ 		return
+ 	}
+-	if t.Width == int64(types.PtrSize) {
++	if t.Size() == int64(types.PtrSize) {
+ 		p.w.Ptr(offset / int64(types.PtrSize))
+ 		return
+ 	}
+@@ -1648,16 +1648,16 @@ func (p *gcProg) emit(t *types.Type, offset int64) {
+ 			elem = elem.Elem()
+ 		}
+ 
+-		if !p.w.ShouldRepeat(elem.Width/int64(types.PtrSize), count) {
++		if !p.w.ShouldRepeat(elem.Size()/int64(types.PtrSize), count) {
+ 			// Cheaper to just emit the bits.
+ 			for i := int64(0); i < count; i++ {
+-				p.emit(elem, offset+i*elem.Width)
++				p.emit(elem, offset+i*elem.Size())
+ 			}
+ 			return
+ 		}
+ 		p.emit(elem, offset)
+-		p.w.ZeroUntil((offset + elem.Width) / int64(types.PtrSize))
+-		p.w.Repeat(elem.Width/int64(types.PtrSize), count-1)
++		p.w.ZeroUntil((offset + elem.Size()) / int64(types.PtrSize))
++		p.w.Repeat(elem.Size()/int64(types.PtrSize), count-1)
+ 
+ 	case types.TSTRUCT:
+ 		for _, t1 := range t.Fields().Slice() {
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 8e2872363b..e78eb5c0e4 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -378,7 +378,7 @@ func (sc *slotCanonicalizer) lookup(ls LocalSlot) (SlKeyIdx, bool) {
+ 		split, _ = sc.lookup(*ls.SplitOf)
+ 	}
+ 	k := slotKey{
+-		name: ls.N, offset: ls.Off, width: ls.Type.Width,
++		name: ls.N, offset: ls.Off, width: ls.Type.Size(),
+ 		splitOf: split, splitOffset: ls.SplitOffset,
+ 	}
+ 	if idx, ok := sc.slmap[k]; ok {
+@@ -1649,7 +1649,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
+ 			}
+ 			if len(inp.Registers) > 1 {
+ 				list = append(list, dwarf.DW_OP_piece)
+-				ts := rtypes[k].Width
++				ts := rtypes[k].Size()
+ 				list = dwarf.AppendUleb128(list, uint64(ts))
+ 				if padding[k] > 0 {
+ 					if loggingEnabled {
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index a8c6c26dad..eba36ce33b 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -534,8 +534,8 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 		locs = x.splitSlots(ls, ".real", 0, selector.Type)
+ 
+ 	case OpComplexImag:
+-		ls := x.rewriteSelect(leaf, selector.Args[0], offset+selector.Type.Width, regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
+-		locs = x.splitSlots(ls, ".imag", selector.Type.Width, selector.Type)
++		ls := x.rewriteSelect(leaf, selector.Args[0], offset+selector.Type.Size(), regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
++		locs = x.splitSlots(ls, ".imag", selector.Type.Size(), selector.Type)
+ 
+ 	case OpStringLen, OpSliceLen:
+ 		ls := x.rewriteSelect(leaf, selector.Args[0], offset+x.ptrSize, regOffset+RO_slice_len)
+@@ -616,7 +616,7 @@ outer:
+ 			}
+ 			return path
+ 		case types.TINT64, types.TUINT64:
+-			if container.Width == x.regSize {
++			if container.Size() == x.regSize {
+ 				return path
+ 			}
+ 			if offset == x.hiOffset {
+@@ -682,7 +682,7 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
+ 			for i := 0; i < len(rts); i++ {
+ 				rt := rts[i]
+ 				off := offs[i]
+-				fmt.Printf("rt=%s, off=%d, rt.Width=%d, rt.Align=%d\n", rt.String(), off, rt.Width, rt.Align)
++				fmt.Printf("rt=%s, off=%d, rt.Width=%d, rt.Align=%d\n", rt.String(), off, rt.Size(), uint8(rt.Alignment()))
+ 			}
+ 			panic(fmt.Errorf("offset %d of requested register %d should be zero, source=%s", offs[loadRegOffset], loadRegOffset, source.LongString()))
+ 		}
+@@ -694,7 +694,7 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
+ 		for i := loadRegOffset; i < last; i++ {
+ 			rt := rts[i]
+ 			off := offs[i]
+-			w := x.commonArgs[selKey{source, off, rt.Width, rt}]
++			w := x.commonArgs[selKey{source, off, rt.Size(), rt}]
+ 			if w == nil {
+ 				w = x.newArgToMemOrRegs(source, w, off, i, rt, pos)
+ 				suffix := x.pathTo(source.Type, rt, off)
+@@ -705,7 +705,7 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
+ 			if t.IsPtrShaped() {
+ 				// Preserve the original store type. This ensures pointer type
+ 				// properties aren't discarded (e.g, notinheap).
+-				if rt.Width != t.Width || len(pa.Registers) != 1 || i != loadRegOffset {
++				if rt.Size() != t.Size() || len(pa.Registers) != 1 || i != loadRegOffset {
+ 					b.Func.Fatalf("incompatible store type %v and %v, i=%d", t, rt, i)
+ 				}
+ 				rt = t
+@@ -736,7 +736,7 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
+ 		}
+ 		return mem
+ 	case types.TINT64, types.TUINT64:
+-		if t.Width == x.regSize {
++		if t.Size() == x.regSize {
+ 			break
+ 		}
+ 		tHi, tLo := x.intPairTypes(t.Kind())
+@@ -810,7 +810,7 @@ func (x *expandState) decomposeLoad(pos src.XPos, b *Block, source, mem *Value,
+ 		}
+ 		return mem
+ 	case types.TINT64, types.TUINT64:
+-		if t.Width == x.regSize {
++		if t.Size() == x.regSize {
+ 			break
+ 		}
+ 		tHi, tLo := x.intPairTypes(t.Kind())
+@@ -842,7 +842,7 @@ func storeOneArg(x *expandState, pos src.XPos, b *Block, locs []*LocalSlot, suff
+ 		x.Printf("storeOneArg(%s;  %s;  %s; aO=%d; sO=%d; lrO=%d; %s)\n", source.LongString(), mem.String(), t.String(), argOffset, storeOffset, loadRegOffset, storeRc.String())
+ 	}
+ 
+-	w := x.commonArgs[selKey{source, argOffset, t.Width, t}]
++	w := x.commonArgs[selKey{source, argOffset, t.Size(), t}]
+ 	if w == nil {
+ 		w = x.newArgToMemOrRegs(source, w, argOffset, loadRegOffset, t, pos)
+ 		x.splitSlotsIntoNames(locs, suffix, argOffset, t, w)
+@@ -923,7 +923,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
+ 
+ 	case OpComplexMake:
+ 		tPart := x.typs.Float32
+-		wPart := t.Width / 2
++		wPart := t.Size() / 2
+ 		if wPart == 8 {
+ 			tPart = x.typs.Float64
+ 		}
+@@ -952,7 +952,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
+ 	switch t.Kind() {
+ 	case types.TARRAY:
+ 		elt := t.Elem()
+-		if source.Type != t && t.NumElem() == 1 && elt.Width == t.Width && t.Width == x.regSize {
++		if source.Type != t && t.NumElem() == 1 && elt.Size() == t.Size() && t.Size() == x.regSize {
+ 			t = removeTrivialWrapperTypes(t)
+ 			// it could be a leaf type, but the "leaf" could be complex64 (for example)
+ 			return x.storeArgOrLoad(pos, b, source, mem, t, storeOffset, loadRegOffset, storeRc)
+@@ -960,14 +960,14 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
+ 		eltRO := x.regWidth(elt)
+ 		for i := int64(0); i < t.NumElem(); i++ {
+ 			sel := source.Block.NewValue1I(pos, OpArraySelect, elt, i, source)
+-			mem = x.storeArgOrLoad(pos, b, sel, mem, elt, storeOffset+i*elt.Width, loadRegOffset, storeRc.at(t, 0))
++			mem = x.storeArgOrLoad(pos, b, sel, mem, elt, storeOffset+i*elt.Size(), loadRegOffset, storeRc.at(t, 0))
+ 			loadRegOffset += eltRO
+ 			pos = pos.WithNotStmt()
+ 		}
+ 		return mem
+ 
+ 	case types.TSTRUCT:
+-		if source.Type != t && t.NumFields() == 1 && t.Field(0).Type.Width == t.Width && t.Width == x.regSize {
++		if source.Type != t && t.NumFields() == 1 && t.Field(0).Type.Size() == t.Size() && t.Size() == x.regSize {
+ 			// This peculiar test deals with accesses to immediate interface data.
+ 			// It works okay because everything is the same size.
+ 			// Example code that triggers this can be found in go/constant/value.go, function ToComplex
+@@ -1001,7 +1001,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
+ 		return mem
+ 
+ 	case types.TINT64, types.TUINT64:
+-		if t.Width == x.regSize {
++		if t.Size() == x.regSize {
+ 			break
+ 		}
+ 		tHi, tLo := x.intPairTypes(t.Kind())
+@@ -1422,7 +1422,7 @@ func expandCalls(f *Func) {
+ 		if typ.IsMemory() {
+ 			continue // handled elsewhere, not an indexable result
+ 		}
+-		size := typ.Width
++		size := typ.Size()
+ 		offset := int64(0)
+ 		switch v.Op {
+ 		case OpStructSelect:
+@@ -1534,7 +1534,7 @@ func expandCalls(f *Func) {
+ 		case OpArgIntReg:
+ 			i := v.AuxInt
+ 			if w := IArg[i]; w != nil {
+-				if w.Type.Width != v.Type.Width {
++				if w.Type.Size() != v.Type.Size() {
+ 					f.Fatalf("incompatible OpArgIntReg [%d]: %s and %s", i, v.LongString(), w.LongString())
+ 				}
+ 				if w.Type.IsUnsafePtr() && !v.Type.IsUnsafePtr() {
+@@ -1549,7 +1549,7 @@ func expandCalls(f *Func) {
+ 		case OpArgFloatReg:
+ 			i := v.AuxInt
+ 			if w := FArg[i]; w != nil {
+-				if w.Type.Width != v.Type.Width {
++				if w.Type.Size() != v.Type.Size() {
+ 					f.Fatalf("incompatible OpArgFloatReg [%d]: %v and %v", i, v, w)
+ 				}
+ 				v.copyOf(w)
+@@ -1634,7 +1634,7 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
+ 		}
+ 	case 1:
+ 		t := v.Type
+-		key := selKey{v, 0, t.Width, t}
++		key := selKey{v, 0, t.Size(), t}
+ 		w := x.commonArgs[key]
+ 		if w != nil {
+ 			v.copyOf(w)
+@@ -1665,7 +1665,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 		defer x.indent(-3)
+ 		x.Printf("newArgToMemOrRegs(base=%s; toReplace=%s; t=%s; memOff=%d; regOff=%d)\n", baseArg.String(), toReplace.LongString(), t.String(), offset, regOffset)
+ 	}
+-	key := selKey{baseArg, offset, t.Width, t}
++	key := selKey{baseArg, offset, t.Size(), t}
+ 	w := x.commonArgs[key]
+ 	if w != nil {
+ 		if toReplace != nil {
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index f09a08abcf..6f7b9fa8e9 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -254,13 +254,13 @@ func (a *AuxCall) TypeOfArg(which int64) *types.Type {
+ 
+ // SizeOfResult returns the size of result which (indexed 0, 1, etc).
+ func (a *AuxCall) SizeOfResult(which int64) int64 {
+-	return a.TypeOfResult(which).Width
++	return a.TypeOfResult(which).Size()
+ }
+ 
+ // SizeOfArg returns the size of argument which (indexed 0, 1, etc).
+ // If the call is to a method, the receiver is the first argument (i.e., index 0)
+ func (a *AuxCall) SizeOfArg(which int64) int64 {
+-	return a.TypeOfArg(which).Width
++	return a.TypeOfArg(which).Size()
+ }
+ 
+ // NResults returns the number of results
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 115d563933..5d468768b6 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1253,7 +1253,7 @@ func zeroUpper32Bits(x *Value, depth int) bool {
+ 		OpAMD64SHLL, OpAMD64SHLLconst:
+ 		return true
+ 	case OpArg:
+-		return x.Type.Width == 4
++		return x.Type.Size() == 4
+ 	case OpPhi, OpSelect0, OpSelect1:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+ 		// just limit recursion depth.
+@@ -1277,7 +1277,7 @@ func zeroUpper48Bits(x *Value, depth int) bool {
+ 	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
+ 		return true
+ 	case OpArg:
+-		return x.Type.Width == 2
++		return x.Type.Size() == 2
+ 	case OpPhi, OpSelect0, OpSelect1:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+ 		// just limit recursion depth.
+@@ -1301,7 +1301,7 @@ func zeroUpper56Bits(x *Value, depth int) bool {
+ 	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
+ 		return true
+ 	case OpArg:
+-		return x.Type.Width == 1
++		return x.Type.Size() == 1
+ 	case OpPhi, OpSelect0, OpSelect1:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+ 		// just limit recursion depth.
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 0ddf11b426..86d40e239d 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -57,8 +57,8 @@ func cmpstackvarlt(a, b *ir.Name) bool {
+ 		return ap
+ 	}
+ 
+-	if a.Type().Width != b.Type().Width {
+-		return a.Type().Width > b.Type().Width
++	if a.Type().Size() != b.Type().Size() {
++		return a.Type().Size() > b.Type().Size()
+ 	}
+ 
+ 	return a.Sym().Name < b.Sym().Name
+@@ -147,7 +147,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		}
+ 
+ 		types.CalcSize(n.Type())
+-		w := n.Type().Width
++		w := n.Type().Size()
+ 		if w >= types.MaxWidth || w < 0 {
+ 			base.Fatalf("bad width")
+ 		}
+@@ -159,7 +159,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 			w = 1
+ 		}
+ 		s.stksize += w
+-		s.stksize = types.Rnd(s.stksize, int64(n.Type().Align))
++		s.stksize = types.Rnd(s.stksize, n.Type().Alignment())
+ 		if n.Type().HasPointers() {
+ 			s.stkptrsize = s.stksize
+ 			lastHasPtr = true
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 0a48f6b704..77a350720f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2483,8 +2483,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 
+ 		types.CalcSize(from)
+ 		types.CalcSize(to)
+-		if from.Width != to.Width {
+-			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Width, to, to.Width)
++		if from.Size() != to.Size() {
++			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Size(), to, to.Size())
+ 			return nil
+ 		}
+ 		if etypesign(from.Kind()) != etypesign(to.Kind()) {
+@@ -5262,7 +5262,7 @@ func (s *state) canSSAName(name *ir.Name) bool {
+ // TypeOK reports whether variables of type t are SSA-able.
+ func TypeOK(t *types.Type) bool {
+ 	types.CalcSize(t)
+-	if t.Width > int64(4*types.PtrSize) {
++	if t.Size() > int64(4*types.PtrSize) {
+ 		// 4*Widthptr is an arbitrary constant. We want it
+ 		// to be at least 3*Widthptr so slices can be registerized.
+ 		// Too big and we'll introduce too much register pressure.
+@@ -5752,7 +5752,7 @@ func (s *state) slice(v, i, j, k *ssa.Value, bounded bool) (p, l, c *ssa.Value)
+ 	//
+ 	// Where mask(x) is 0 if x==0 and -1 if x>0 and stride is the width
+ 	// of the element type.
+-	stride := s.constInt(types.Types[types.TINT], ptr.Type.Elem().Width)
++	stride := s.constInt(types.Types[types.TINT], ptr.Type.Elem().Size())
+ 
+ 	// The delta is the number of bytes to offset ptr by.
+ 	delta := s.newValue2(mulOp, types.Types[types.TINT], i, stride)
+@@ -5960,7 +5960,7 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
+ 		s.vars[n] = s.load(lenType, x)
+ 	case ir.OCAP:
+ 		// capacity is stored in the second word for chan
+-		sw := s.newValue1I(ssa.OpOffPtr, lenType.PtrTo(), lenType.Width, x)
++		sw := s.newValue1I(ssa.OpOffPtr, lenType.PtrTo(), lenType.Size(), x)
+ 		s.vars[n] = s.load(lenType, sw)
+ 	default:
+ 		s.Fatalf("op must be OLEN or OCAP")
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 9329a46989..636199de47 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -133,7 +133,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
+ 		if ir.IsZero(r) {
+ 			return true
+ 		}
+-		staticdata.InitConst(l, loff, r, int(typ.Width))
++		staticdata.InitConst(l, loff, r, int(typ.Size()))
+ 		return true
+ 
+ 	case ir.OADDR:
+@@ -165,7 +165,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
+ 			e := &p.E[i]
+ 			typ := e.Expr.Type()
+ 			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
+-				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(typ.Width))
++				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(typ.Size()))
+ 				continue
+ 			}
+ 			x := e.Expr
+@@ -229,7 +229,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		if ir.IsZero(r) {
+ 			return true
+ 		}
+-		staticdata.InitConst(l, loff, r, int(typ.Width))
++		staticdata.InitConst(l, loff, r, int(typ.Size()))
+ 		return true
+ 
+ 	case ir.OADDR:
+@@ -286,7 +286,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		for i := range p.E {
+ 			e := &p.E[i]
+ 			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
+-				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Width))
++				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Size()))
+ 				continue
+ 			}
+ 			ir.SetPos(e.Expr)
+@@ -392,7 +392,7 @@ func (s *Schedule) initplan(n ir.Node) {
+ 				}
+ 				a = kv.Value
+ 			}
+-			s.addvalue(p, k*n.Type().Elem().Width, a)
++			s.addvalue(p, k*n.Type().Elem().Size(), a)
+ 			k++
+ 		}
+ 
+@@ -499,10 +499,10 @@ func StaticLoc(n ir.Node) (name *ir.Name, offset int64, ok bool) {
+ 		}
+ 
+ 		// Check for overflow.
+-		if n.Type().Width != 0 && types.MaxWidth/n.Type().Width <= int64(l) {
++		if n.Type().Size() != 0 && types.MaxWidth/n.Type().Size() <= int64(l) {
+ 			break
+ 		}
+-		offset += int64(l) * n.Type().Width
++		offset += int64(l) * n.Type().Size()
+ 		return name, offset, true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/typebits/typebits.go b/src/cmd/compile/internal/typebits/typebits.go
+index 1c1b077423..fddad6e7e8 100644
+--- a/src/cmd/compile/internal/typebits/typebits.go
++++ b/src/cmd/compile/internal/typebits/typebits.go
+@@ -14,8 +14,8 @@ import (
+ // the first run and then simply copied into bv at the correct offset
+ // on future calls with the same type t.
+ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
+-	if t.Align > 0 && off&int64(t.Align-1) != 0 {
+-		base.Fatalf("typebits.Set: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
++	if uint8(t.Alignment()) > 0 && off&int64(uint8(t.Alignment())-1) != 0 {
++		base.Fatalf("typebits.Set: invalid initial alignment: type %v has alignment %d, but offset is %v", t, uint8(t.Alignment()), off)
+ 	}
+ 	if !t.HasPointers() {
+ 		// Note: this case ensures that pointers to go:notinheap types
+@@ -67,13 +67,13 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
+ 
+ 	case types.TARRAY:
+ 		elt := t.Elem()
+-		if elt.Width == 0 {
++		if elt.Size() == 0 {
+ 			// Short-circuit for #20739.
+ 			break
+ 		}
+ 		for i := int64(0); i < t.NumElem(); i++ {
+ 			Set(elt, off, bv)
+-			off += elt.Width
++			off += elt.Size()
+ 		}
+ 
+ 	case types.TSTRUCT:
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index c27cf0e646..fbe7c02c49 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -874,9 +874,9 @@ func evalunsafe(n ir.Node) int64 {
+ 		}
+ 		types.CalcSize(tr)
+ 		if n.Op() == ir.OALIGNOF {
+-			return int64(tr.Align)
++			return tr.Alignment()
+ 		}
+-		return tr.Width
++		return tr.Size()
+ 
+ 	case ir.OOFFSETOF:
+ 		// must be a selector.
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index d83bc65bed..9b74bf7a9d 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -110,7 +110,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type)
+ 				}
+ 
+ 				types.CalcSize(l.Type())
+-				if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Width >= 1<<16 {
++				if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Size() >= 1<<16 {
+ 					l = ir.NewConvExpr(base.Pos, aop, r.Type(), l)
+ 					l.SetTypecheck(1)
+ 				}
+@@ -129,7 +129,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type)
+ 				}
+ 
+ 				types.CalcSize(r.Type())
+-				if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Width >= 1<<16 {
++				if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Size() >= 1<<16 {
+ 					r = ir.NewConvExpr(base.Pos, aop, l.Type(), r)
+ 					r.SetTypecheck(1)
+ 				}
+diff --git a/src/cmd/compile/internal/types/alg.go b/src/cmd/compile/internal/types/alg.go
+index 2c2700f345..f5675c66b4 100644
+--- a/src/cmd/compile/internal/types/alg.go
++++ b/src/cmd/compile/internal/types/alg.go
+@@ -165,7 +165,7 @@ func IsPaddedField(t *Type, i int) bool {
+ 	if !t.IsStruct() {
+ 		base.Fatalf("IsPaddedField called non-struct %v", t)
+ 	}
+-	end := t.Width
++	end := t.width
+ 	if i+1 < t.NumFields() {
+ 		end = t.Field(i + 1).Offset
+ 	}
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 2546f0e2d1..aeeca90746 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -189,19 +189,19 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		}
+ 
+ 		CalcSize(f.Type)
+-		if int32(f.Type.Align) > maxalign {
+-			maxalign = int32(f.Type.Align)
++		if int32(f.Type.align) > maxalign {
++			maxalign = int32(f.Type.align)
+ 		}
+-		if f.Type.Align > 0 {
+-			o = Rnd(o, int64(f.Type.Align))
++		if f.Type.align > 0 {
++			o = Rnd(o, int64(f.Type.align))
+ 		}
+ 		if isStruct { // For receiver/args/results, do not set, it depends on ABI
+ 			f.Offset = o
+ 		}
+ 
+-		w := f.Type.Width
++		w := f.Type.width
+ 		if w < 0 {
+-			base.Fatalf("invalid width %d", f.Type.Width)
++			base.Fatalf("invalid width %d", f.Type.width)
+ 		}
+ 		if w == 0 {
+ 			lastzero = o
+@@ -231,10 +231,10 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 	if flag != 0 {
+ 		o = Rnd(o, int64(maxalign))
+ 	}
+-	t.Align = uint8(maxalign)
++	t.align = uint8(maxalign)
+ 
+ 	// type width only includes back to first field's offset
+-	t.Width = o - starto
++	t.width = o - starto
+ 
+ 	return o
+ }
+@@ -350,10 +350,10 @@ func CalcSize(t *Type) {
+ 		return
+ 	}
+ 
+-	if t.Width == -2 {
++	if t.width == -2 {
+ 		reportTypeLoop(t)
+-		t.Width = 0
+-		t.Align = 1
++		t.width = 0
++		t.align = 1
+ 		return
+ 	}
+ 
+@@ -372,7 +372,7 @@ func CalcSize(t *Type) {
+ 
+ 	// break infinite recursion if the broken recursive type
+ 	// is referenced again
+-	if t.Broke() && t.Width == 0 {
++	if t.Broke() && t.width == 0 {
+ 		return
+ 	}
+ 
+@@ -384,8 +384,8 @@ func CalcSize(t *Type) {
+ 		base.Pos = pos
+ 	}
+ 
+-	t.Width = -2
+-	t.Align = 0 // 0 means use t.Width, below
++	t.width = -2
++	t.align = 0 // 0 means use t.Width, below
+ 
+ 	et := t.Kind()
+ 	switch et {
+@@ -417,15 +417,15 @@ func CalcSize(t *Type) {
+ 
+ 	case TINT64, TUINT64, TFLOAT64:
+ 		w = 8
+-		t.Align = uint8(RegSize)
++		t.align = uint8(RegSize)
+ 
+ 	case TCOMPLEX64:
+ 		w = 8
+-		t.Align = 4
++		t.align = 4
+ 
+ 	case TCOMPLEX128:
+ 		w = 16
+-		t.Align = uint8(RegSize)
++		t.align = uint8(RegSize)
+ 
+ 	case TPTR:
+ 		w = int64(PtrSize)
+@@ -436,14 +436,14 @@ func CalcSize(t *Type) {
+ 
+ 	case TINTER: // implemented as 2 pointers
+ 		w = 2 * int64(PtrSize)
+-		t.Align = uint8(PtrSize)
++		t.align = uint8(PtrSize)
+ 		expandiface(t)
+ 
+ 	case TUNION:
+ 		// Always part of an interface for now, so size/align don't matter.
+ 		// Pretend a union is represented like an interface.
+ 		w = 2 * int64(PtrSize)
+-		t.Align = uint8(PtrSize)
++		t.align = uint8(PtrSize)
+ 
+ 	case TCHAN: // implemented as pointer
+ 		w = int64(PtrSize)
+@@ -458,7 +458,7 @@ func CalcSize(t *Type) {
+ 	case TCHANARGS:
+ 		t1 := t.ChanArgs()
+ 		CalcSize(t1) // just in case
+-		if t1.Elem().Width >= 1<<16 {
++		if t1.Elem().width >= 1<<16 {
+ 			base.ErrorfAt(typePos(t1), "channel element type too large (>64kB)")
+ 		}
+ 		w = 1 // anything will do
+@@ -481,7 +481,7 @@ func CalcSize(t *Type) {
+ 			base.Fatalf("early CalcSize string")
+ 		}
+ 		w = StringSize
+-		t.Align = uint8(PtrSize)
++		t.align = uint8(PtrSize)
+ 
+ 	case TARRAY:
+ 		if t.Elem() == nil {
+@@ -489,14 +489,14 @@ func CalcSize(t *Type) {
+ 		}
+ 
+ 		CalcSize(t.Elem())
+-		if t.Elem().Width != 0 {
+-			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().Width)
++		if t.Elem().width != 0 {
++			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().width)
+ 			if uint64(t.NumElem()) > cap {
+ 				base.ErrorfAt(typePos(t), "type %L larger than address space", t)
+ 			}
+ 		}
+-		w = t.NumElem() * t.Elem().Width
+-		t.Align = t.Elem().Align
++		w = t.NumElem() * t.Elem().width
++		t.align = t.Elem().align
+ 
+ 	case TSLICE:
+ 		if t.Elem() == nil {
+@@ -504,7 +504,7 @@ func CalcSize(t *Type) {
+ 		}
+ 		w = SliceSize
+ 		CheckSize(t.Elem())
+-		t.Align = uint8(PtrSize)
++		t.align = uint8(PtrSize)
+ 
+ 	case TSTRUCT:
+ 		if t.IsFuncArgStruct() {
+@@ -530,7 +530,7 @@ func CalcSize(t *Type) {
+ 		if w%int64(RegSize) != 0 {
+ 			base.Warn("bad type %v %d\n", t1, w)
+ 		}
+-		t.Align = 1
++		t.align = 1
+ 
+ 	case TTYPEPARAM:
+ 		// TODO(danscales) - remove when we eliminate the need
+@@ -542,12 +542,12 @@ func CalcSize(t *Type) {
+ 		base.ErrorfAt(typePos(t), "type %v too large", t)
+ 	}
+ 
+-	t.Width = w
+-	if t.Align == 0 {
++	t.width = w
++	if t.align == 0 {
+ 		if w == 0 || w > 8 || w&(w-1) != 0 {
+ 			base.Fatalf("invalid alignment for %v", t)
+ 		}
+-		t.Align = uint8(w)
++		t.align = uint8(w)
+ 	}
+ 
+ 	base.Pos = lno
+@@ -559,14 +559,14 @@ func CalcSize(t *Type) {
+ // filling in s.Width and s.Align,
+ // even if size calculation is otherwise disabled.
+ func CalcStructSize(s *Type) {
+-	s.Width = calcStructOffset(s, s, 0, 1) // sets align
++	s.width = calcStructOffset(s, s, 0, 1) // sets align
+ }
+ 
+ // RecalcSize is like CalcSize, but recalculates t's size even if it
+ // has already been calculated before. It does not recalculate other
+ // types.
+ func RecalcSize(t *Type) {
+-	t.Align = 0
++	t.align = 0
+ 	CalcSize(t)
+ }
+ 
+@@ -659,7 +659,7 @@ func PtrDataSize(t *Type) int64 {
+ 
+ 	case TARRAY:
+ 		// haspointers already eliminated t.NumElem() == 0.
+-		return (t.NumElem()-1)*t.Elem().Width + PtrDataSize(t.Elem())
++		return (t.NumElem()-1)*t.Elem().width + PtrDataSize(t.Elem())
+ 
+ 	case TSTRUCT:
+ 		// Find the last field that has pointers.
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index e84e89fd15..7861effcb2 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -158,8 +158,8 @@ type Type struct {
+ 	// TTYPEPARAM:  *Typeparam
+ 	extra interface{}
+ 
+-	// Width is the width of this Type in bytes.
+-	Width int64 // valid if Align > 0
++	// width is the width of this Type in bytes.
++	width int64 // valid if Align > 0
+ 
+ 	// list of base methods (excluding embedding)
+ 	methods Fields
+@@ -181,7 +181,7 @@ type Type struct {
+ 	vargen int32 // unique name for OTYPE/ONAME
+ 
+ 	kind  Kind  // kind of type
+-	Align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
++	align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
+ 
+ 	flags bitset8
+ 
+@@ -521,7 +521,7 @@ func (f *Field) SetNointerface(b bool) { f.flags.set(fieldNointerface, b) }
+ 
+ // End returns the offset of the first byte immediately after this field.
+ func (f *Field) End() int64 {
+-	return f.Offset + f.Type.Width
++	return f.Offset + f.Type.width
+ }
+ 
+ // IsMethod reports whether f represents a method rather than a struct field.
+@@ -584,7 +584,7 @@ func (f *Fields) Append(s ...*Field) {
+ func New(et Kind) *Type {
+ 	t := &Type{
+ 		kind:  et,
+-		Width: BADWIDTH,
++		width: BADWIDTH,
+ 	}
+ 	t.underlying = t
+ 	// TODO(josharian): lazily initialize some of these?
+@@ -748,8 +748,8 @@ func NewPtr(elem *Type) *Type {
+ 
+ 	t := New(TPTR)
+ 	t.extra = Ptr{Elem: elem}
+-	t.Width = int64(PtrSize)
+-	t.Align = uint8(PtrSize)
++	t.width = int64(PtrSize)
++	t.align = uint8(PtrSize)
+ 	if NewPtrCacheEnabled {
+ 		elem.cache.ptr = t
+ 	}
+@@ -1084,7 +1084,7 @@ func (t *Type) SetInterface(methods []*Field) {
+ }
+ 
+ func (t *Type) WidthCalculated() bool {
+-	return t.Align > 0
++	return t.align > 0
+ }
+ 
+ // ArgWidth returns the total aligned argument size for a function.
+@@ -1102,12 +1102,12 @@ func (t *Type) Size() int64 {
+ 		return 0
+ 	}
+ 	CalcSize(t)
+-	return t.Width
++	return t.width
+ }
+ 
+ func (t *Type) Alignment() int64 {
+ 	CalcSize(t)
+-	return int64(t.Align)
++	return int64(t.align)
+ }
+ 
+ func (t *Type) SimpleString() string {
+@@ -1805,8 +1805,8 @@ func (t *Type) SetUnderlying(underlying *Type) {
+ 	// TODO(mdempsky): Fix Type rekinding.
+ 	t.kind = underlying.kind
+ 	t.extra = underlying.extra
+-	t.Width = underlying.Width
+-	t.Align = underlying.Align
++	t.width = underlying.width
++	t.align = underlying.align
+ 	t.underlying = underlying.underlying
+ 
+ 	if underlying.NotInHeap() {
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index d4c1aafdc1..9350c389c1 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -167,7 +167,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
+ 	a := n.Lhs[0]
+ 
+ 	var call *ir.CallExpr
+-	if w := t.Elem().Width; w <= zeroValSize {
++	if w := t.Elem().Size(); w <= zeroValSize {
+ 		fn := mapfn(mapaccess2[fast], t, false)
+ 		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.TypePtr(t), r.X, key)
+ 	} else {
+@@ -533,7 +533,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 
+ 		fn := typecheck.LookupRuntime("slicecopy")
+ 		fn = typecheck.SubstArgTypes(fn, ptr1.Type().Elem(), ptr2.Type().Elem())
+-		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, ptr1, len1, ptr2, len2, ir.NewInt(elemtype.Width))
++		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, ptr1, len1, ptr2, len2, ir.NewInt(elemtype.Size()))
+ 	} else {
+ 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
+ 		ix := ir.NewIndexExpr(base.Pos, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1))
+@@ -543,7 +543,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, l2)
+ 
+ 		nwid := cheapExpr(typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, l2), types.Types[types.TUINTPTR]), &nodes)
+-		nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(elemtype.Width))
++		nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(elemtype.Size()))
+ 
+ 		// instantiate func memmove(to *any, frm *any, length uintptr)
+ 		fn := typecheck.LookupRuntime("memmove")
+@@ -690,7 +690,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	hp := typecheck.ConvNop(typecheck.NodAddr(ix), types.Types[types.TUNSAFEPTR])
+ 
+ 	// hn := l2 * sizeof(elem(s))
+-	hn := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, l2, ir.NewInt(elemtype.Width)), types.Types[types.TUINTPTR])
++	hn := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, l2, ir.NewInt(elemtype.Size())), types.Types[types.TUINTPTR])
+ 
+ 	clrname := "memclrNoHeapPointers"
+ 	hasPointers := elemtype.HasPointers()
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index af4f8f4822..3c9ef636f8 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -158,7 +158,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
+ 		fn := typecheck.LookupRuntime("slicecopy")
+ 		fn = typecheck.SubstArgTypes(fn, ptrL.Type().Elem(), ptrR.Type().Elem())
+ 
+-		return mkcall1(fn, n.Type(), init, ptrL, lenL, ptrR, lenR, ir.NewInt(n.X.Type().Elem().Width))
++		return mkcall1(fn, n.Type(), init, ptrL, lenL, ptrR, lenR, ir.NewInt(n.X.Type().Elem().Size()))
+ 	}
+ 
+ 	n.X = walkExpr(n.X, init)
+@@ -194,7 +194,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
+ 	nwid := ir.Node(typecheck.Temp(types.Types[types.TUINTPTR]))
+ 	setwid := ir.NewAssignStmt(base.Pos, nwid, typecheck.Conv(nlen, types.Types[types.TUINTPTR]))
+ 	ne.Body.Append(setwid)
+-	nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(nl.Type().Elem().Width))
++	nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(nl.Type().Elem().Size()))
+ 	call := mkcall1(fn, nil, init, nto, nfrm, nwid)
+ 	ne.Body.Append(call)
+ 
+@@ -452,7 +452,7 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		// We do not check for overflow of len(to)*elem.Width here
+ 		// since len(from) is an existing checked slice capacity
+ 		// with same elem.Width for the from slice.
+-		size := ir.NewBinaryExpr(base.Pos, ir.OMUL, typecheck.Conv(length, types.Types[types.TUINTPTR]), typecheck.Conv(ir.NewInt(t.Elem().Width), types.Types[types.TUINTPTR]))
++		size := ir.NewBinaryExpr(base.Pos, ir.OMUL, typecheck.Conv(length, types.Types[types.TUINTPTR]), typecheck.Conv(ir.NewInt(t.Elem().Size()), types.Types[types.TUINTPTR]))
+ 
+ 		// instantiate mallocgc(size uintptr, typ *byte, needszero bool) unsafe.Pointer
+ 		fn := typecheck.LookupRuntime("mallocgc")
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index b18615f61a..daebc47965 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -138,7 +138,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		return n
+ 	case types.TARRAY:
+ 		// We can compare several elements at once with 2/4/8 byte integer compares
+-		inline = t.NumElem() <= 1 || (types.IsSimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
++		inline = t.NumElem() <= 1 || (types.IsSimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Size()*t.NumElem() <= maxcmpsize))
+ 	case types.TSTRUCT:
+ 		inline = t.NumComponents(types.IgnoreBlankFields) <= 4
+ 	}
+@@ -164,7 +164,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		call.Args.Append(typecheck.NodAddr(cmpl))
+ 		call.Args.Append(typecheck.NodAddr(cmpr))
+ 		if needsize {
+-			call.Args.Append(ir.NewInt(t.Width))
++			call.Args.Append(ir.NewInt(t.Size()))
+ 		}
+ 		res := ir.Node(call)
+ 		if n.Op() != ir.OEQ {
+@@ -202,22 +202,22 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		}
+ 	} else {
+ 		step := int64(1)
+-		remains := t.NumElem() * t.Elem().Width
+-		combine64bit := unalignedLoad && types.RegSize == 8 && t.Elem().Width <= 4 && t.Elem().IsInteger()
+-		combine32bit := unalignedLoad && t.Elem().Width <= 2 && t.Elem().IsInteger()
+-		combine16bit := unalignedLoad && t.Elem().Width == 1 && t.Elem().IsInteger()
++		remains := t.NumElem() * t.Elem().Size()
++		combine64bit := unalignedLoad && types.RegSize == 8 && t.Elem().Size() <= 4 && t.Elem().IsInteger()
++		combine32bit := unalignedLoad && t.Elem().Size() <= 2 && t.Elem().IsInteger()
++		combine16bit := unalignedLoad && t.Elem().Size() == 1 && t.Elem().IsInteger()
+ 		for i := int64(0); remains > 0; {
+ 			var convType *types.Type
+ 			switch {
+ 			case remains >= 8 && combine64bit:
+ 				convType = types.Types[types.TINT64]
+-				step = 8 / t.Elem().Width
++				step = 8 / t.Elem().Size()
+ 			case remains >= 4 && combine32bit:
+ 				convType = types.Types[types.TUINT32]
+-				step = 4 / t.Elem().Width
++				step = 4 / t.Elem().Size()
+ 			case remains >= 2 && combine16bit:
+ 				convType = types.Types[types.TUINT16]
+-				step = 2 / t.Elem().Width
++				step = 2 / t.Elem().Size()
+ 			default:
+ 				step = 1
+ 			}
+@@ -227,7 +227,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 					ir.NewIndexExpr(base.Pos, cmpr, ir.NewInt(i)),
+ 				)
+ 				i++
+-				remains -= t.Elem().Width
++				remains -= t.Elem().Size()
+ 			} else {
+ 				elemType := t.Elem().ToUnsigned()
+ 				cmplw := ir.Node(ir.NewIndexExpr(base.Pos, cmpl, ir.NewInt(i)))
+@@ -242,17 +242,17 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 					lb := ir.Node(ir.NewIndexExpr(base.Pos, cmpl, ir.NewInt(i+offset)))
+ 					lb = typecheck.Conv(lb, elemType)
+ 					lb = typecheck.Conv(lb, convType)
+-					lb = ir.NewBinaryExpr(base.Pos, ir.OLSH, lb, ir.NewInt(8*t.Elem().Width*offset))
++					lb = ir.NewBinaryExpr(base.Pos, ir.OLSH, lb, ir.NewInt(8*t.Elem().Size()*offset))
+ 					cmplw = ir.NewBinaryExpr(base.Pos, ir.OOR, cmplw, lb)
+ 					rb := ir.Node(ir.NewIndexExpr(base.Pos, cmpr, ir.NewInt(i+offset)))
+ 					rb = typecheck.Conv(rb, elemType)
+ 					rb = typecheck.Conv(rb, convType)
+-					rb = ir.NewBinaryExpr(base.Pos, ir.OLSH, rb, ir.NewInt(8*t.Elem().Width*offset))
++					rb = ir.NewBinaryExpr(base.Pos, ir.OLSH, rb, ir.NewInt(8*t.Elem().Size()*offset))
+ 					cmprw = ir.NewBinaryExpr(base.Pos, ir.OOR, cmprw, rb)
+ 				}
+ 				compare(cmplw, cmprw)
+ 				i += step
+-				remains -= step * t.Elem().Width
++				remains -= step * t.Elem().Size()
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index e8e941dd91..ad54fa7b96 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -277,7 +277,7 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
+ 		return false
+ 	}
+ 
+-	return n.Type().Elem().Width == 0 || n.Len <= ir.MaxSmallArraySize/n.Type().Elem().Width
++	return n.Type().Elem().Size() == 0 || n.Len <= ir.MaxSmallArraySize/n.Type().Elem().Size()
+ }
+ 
+ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
+@@ -650,7 +650,7 @@ func genAsStatic(as *ir.AssignStmt) {
+ 
+ 	switch r := as.Y; r.Op() {
+ 	case ir.OLITERAL:
+-		staticdata.InitConst(name, offset, r, int(r.Type().Width))
++		staticdata.InitConst(name, offset, r, int(r.Type().Size()))
+ 		return
+ 	case ir.OMETHEXPR:
+ 		r := r.(*ir.SelectorExpr)
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index f724ca7cae..80a30d9455 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -145,7 +145,7 @@ func dataWord(n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
+ 	case n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PEXTERN && n.(*ir.Name).Readonly():
+ 		// n is a readonly global; use it directly.
+ 		value = n
+-	case !escapes && fromType.Width <= 1024:
++	case !escapes && fromType.Size() <= 1024:
+ 		// n does not escape. Use a stack temporary initialized to n.
+ 		value = typecheck.Temp(fromType)
+ 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n)))
+@@ -326,11 +326,11 @@ func dataWordFuncName(from *types.Type) (fnname string, argType *types.Type, nee
+ 		base.Fatalf("can only handle non-interfaces")
+ 	}
+ 	switch {
+-	case from.Size() == 2 && from.Align == 2:
++	case from.Size() == 2 && uint8(from.Alignment()) == 2:
+ 		return "convT16", types.Types[types.TUINT16], false
+-	case from.Size() == 4 && from.Align == 4 && !from.HasPointers():
++	case from.Size() == 4 && uint8(from.Alignment()) == 4 && !from.HasPointers():
+ 		return "convT32", types.Types[types.TUINT32], false
+-	case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers():
++	case from.Size() == 8 && uint8(from.Alignment()) == uint8(types.Types[types.TUINT64].Alignment()) && !from.HasPointers():
+ 		return "convT64", types.Types[types.TUINT64], false
+ 	}
+ 	if sc := from.SoleComponent(); sc != nil {
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index c04998137b..ed2d68539d 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -767,7 +767,7 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
+ 		// m[k] is not the target of an assignment.
+ 		fast := mapfast(t)
+ 		key = mapKeyArg(fast, n, key)
+-		if w := t.Elem().Width; w <= zeroValSize {
++		if w := t.Elem().Size(); w <= zeroValSize {
+ 			call = mkcall1(mapfn(mapaccess1[fast], t, false), types.NewPtr(t.Elem()), init, reflectdata.TypePtr(t), map_, key)
+ 		} else {
+ 			z := reflectdata.ZeroAddr(w)
+@@ -873,7 +873,7 @@ func bounded(n ir.Node, max int64) bool {
+ 	}
+ 
+ 	sign := n.Type().IsSigned()
+-	bits := int32(8 * n.Type().Width)
++	bits := int32(8 * n.Type().Size())
+ 
+ 	if ir.IsSmallIntConst(n) {
+ 		v := ir.Int64Val(n)
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 6e336f565c..4de8858f26 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -297,7 +297,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
+ 		// Unsafe cast through memory.
+ 		// We'll need to do a load with type kt. Create a temporary of type kt to
+ 		// ensure sufficient alignment. nt may be under-aligned.
+-		if kt.Align < nt.Align {
++		if uint8(kt.Alignment()) < uint8(nt.Alignment()) {
+ 			base.Fatalf("mapKeyTemp: key type is not sufficiently aligned, kt=%v nt=%v", kt, nt)
+ 		}
+ 		tmp := o.newTemp(kt, true)
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index b1169fdae8..aa8c548963 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -112,7 +112,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		}
+ 
+ 		// for v1, v2 := range ha { body }
+-		if cheapComputableIndex(t.Elem().Width) {
++		if cheapComputableIndex(t.Elem().Size()) {
+ 			// v1, v2 = hv1, ha[hv1]
+ 			tmp := ir.NewIndexExpr(base.Pos, ha, hv1)
+ 			tmp.SetBounded(true)
+@@ -154,7 +154,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		// This runs *after* the condition check, so we know
+ 		// advancing the pointer is safe and won't go past the
+ 		// end of the allocation.
+-		as := ir.NewAssignStmt(base.Pos, hp, addptr(hp, t.Elem().Width))
++		as := ir.NewAssignStmt(base.Pos, hp, addptr(hp, t.Elem().Size()))
+ 		nfor.Late = []ir.Node{typecheck.Stmt(as)}
+ 
+ 	case types.TMAP:
+@@ -408,7 +408,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
+ 		return nil
+ 	}
+ 
+-	elemsize := typecheck.RangeExprType(loop.X.Type()).Elem().Width
++	elemsize := typecheck.RangeExprType(loop.X.Type()).Elem().Size()
+ 	if elemsize <= 0 || !ir.IsZero(stmt.Y) {
+ 		return nil
+ 	}
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index a9bbc9a54f..78cc2e69da 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -205,7 +205,7 @@ var mapdelete = mkmapnames("mapdelete", "")
+ 
+ func mapfast(t *types.Type) int {
+ 	// Check runtime/map.go:maxElemSize before changing.
+-	if t.Elem().Width > 128 {
++	if t.Elem().Size() > 128 {
+ 		return mapslow
+ 	}
+ 	switch reflectdata.AlgType(t.Key()) {

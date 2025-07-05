@@ -15,7 +15,7 @@ Date:   Wed Apr 16 17:11:44 2014 -0400
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/88550043
-
+---
  src/cmd/ld/pcln.c                   |   7 +++++--
  src/cmd/link/testdata/autosection.6 | Bin 888 -> 889 bytes
  src/cmd/link/testdata/autoweak.6    | Bin 425 -> 426 bytes
@@ -26,3 +26,108 @@ Date:   Wed Apr 16 17:11:44 2014 -0400
  src/liblink/objfile.c               |   8 +++++++-
  src/pkg/debug/goobj/read.go         |   2 ++
  9 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/ld/pcln.c b/src/cmd/ld/pcln.c
+index bdb139f7a4..b2370f2a91 100644
+--- a/src/cmd/ld/pcln.c
++++ b/src/cmd/ld/pcln.c
+@@ -112,7 +112,7 @@ pclntab(void)
+ {
+ 	int32 i, nfunc, start, funcstart;
+ 	LSym *ftab, *s;
+-	int32 off, end;
++	int32 off, end, frameptrsize;
+ 	int64 funcdata_bytes;
+ 	Pcln *pcln;
+ 	Pciter it;
+@@ -173,7 +173,10 @@ pclntab(void)
+ 		// when a called function doesn't have argument information.
+ 		// We need to make sure everything has argument information
+ 		// and then remove this.
+-		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + PtrSize);
++		frameptrsize = PtrSize;
++		if(ctxt->cursym->leaf)
++			frameptrsize = 0;
++		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + frameptrsize);
+ 		
+ 		if(pcln != &zpcln) {
+ 			renumberfiles(pcln->file, pcln->nfile, &pcln->pcfile);
+diff --git a/src/cmd/link/testdata/autosection.6 b/src/cmd/link/testdata/autosection.6
+index 3a2e35a5b2..f392e41680 100644
+Binary files a/src/cmd/link/testdata/autosection.6 and b/src/cmd/link/testdata/autosection.6 differ
+diff --git a/src/cmd/link/testdata/autoweak.6 b/src/cmd/link/testdata/autoweak.6
+index 1fd54ed7e6..a694e47291 100644
+Binary files a/src/cmd/link/testdata/autoweak.6 and b/src/cmd/link/testdata/autoweak.6 differ
+diff --git a/src/cmd/link/testdata/dead.6 b/src/cmd/link/testdata/dead.6
+index e0cdecea96..270416f0b6 100644
+Binary files a/src/cmd/link/testdata/dead.6 and b/src/cmd/link/testdata/dead.6 differ
+diff --git a/src/cmd/link/testdata/hello.6 b/src/cmd/link/testdata/hello.6
+index 9ec799b4f3..448d40f76b 100644
+Binary files a/src/cmd/link/testdata/hello.6 and b/src/cmd/link/testdata/hello.6 differ
+diff --git a/src/cmd/link/testdata/layout.6 b/src/cmd/link/testdata/layout.6
+index c5121ff154..56d416a1a0 100644
+Binary files a/src/cmd/link/testdata/layout.6 and b/src/cmd/link/testdata/layout.6 differ
+diff --git a/src/cmd/link/testdata/pclntab.6 b/src/cmd/link/testdata/pclntab.6
+index 0f7ab6dd78..91583a3fd4 100644
+Binary files a/src/cmd/link/testdata/pclntab.6 and b/src/cmd/link/testdata/pclntab.6 differ
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index b52b29ca59..0c51e795f5 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -49,6 +49,7 @@
+ //
+ //	- args [int]
+ //	- locals [int]
++//	- leaf [int]
+ //	- nlocal [int]
+ //	- local [nlocal automatics]
+ //	- pcln [pcln table]
+@@ -291,8 +292,11 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
+ 		if(s->dupok)
+ 			Bprint(ctxt->bso, "dupok ");
+ 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
+-		if(s->type == STEXT)
++		if(s->type == STEXT) {
+ 			Bprint(ctxt->bso, " args=%#llux locals=%#llux", (uvlong)s->args, (uvlong)s->locals);
++			if(s->leaf)
++				Bprint(ctxt->bso, " leaf");
++		}
+ 		Bprint(ctxt->bso, "\n");
+ 		for(p=s->text; p != nil; p = p->link)
+ 			Bprint(ctxt->bso, "\t%#06ux %P\n", (int)p->pc, p);
+@@ -346,6 +350,7 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
+ 	if(s->type == STEXT) {
+ 		wrint(b, s->args);
+ 		wrint(b, s->locals);
++		wrint(b, s->leaf);
+ 		n = 0;
+ 		for(a = s->autom; a != nil; a = a->link)
+ 			n++;
+@@ -566,6 +571,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 	if(s->type == STEXT) {
+ 		s->args = rdint(f);
+ 		s->locals = rdint(f);
++		s->leaf = rdint(f);
+ 		n = rdint(f);
+ 		for(i=0; i<n; i++) {
+ 			a = emallocz(sizeof *a);
+diff --git a/src/pkg/debug/goobj/read.go b/src/pkg/debug/goobj/read.go
+index 8882eae534..c2e6fa0927 100644
+--- a/src/pkg/debug/goobj/read.go
++++ b/src/pkg/debug/goobj/read.go
+@@ -190,6 +190,7 @@ type Var struct {
+ type Func struct {
+ 	Args     int        // size in bytes of of argument frame: inputs and outputs
+ 	Frame    int        // size in bytes of local variable frame
++	Leaf     bool       // function omits save of link register (ARM)
+ 	Var      []Var      // detail about local variables
+ 	PCSP     Data       // PC → SP offset map
+ 	PCFile   Data       // PC → file number map (index into File)
+@@ -621,6 +622,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 			s.Func = f
+ 			f.Args = r.readInt()
+ 			f.Frame = r.readInt()
++			f.Leaf = r.readInt() != 0
+ 			f.Var = make([]Var, r.readInt())
+ 			for i := range f.Var {
+ 				v := &f.Var[i]

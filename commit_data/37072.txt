@@ -15,7 +15,58 @@ Date:   Sat Jun 23 22:32:26 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 22 ++++++++++++++++++++++
  src/net/http/server.go     |  6 +++---
  2 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 4e5741ed90..de76f5eab0 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5924,6 +5924,28 @@ func TestServerCloseListenerOnce(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 23351: document and test behavior of ServeMux with ports
++func TestStripPortFromHost(t *testing.T) {
++	mux := NewServeMux()
++
++	mux.HandleFunc("example.com/", func(w ResponseWriter, r *Request) {
++		fmt.Fprintf(w, "OK")
++	})
++	mux.HandleFunc("example.com:9000/", func(w ResponseWriter, r *Request) {
++		fmt.Fprintf(w, "uh-oh!")
++	})
++
++	req := httptest.NewRequest("GET", "http://example.com:9000/", nil)
++	rw := httptest.NewRecorder()
++
++	mux.ServeHTTP(rw, req)
++
++	response := rw.Body.String()
++	if response != "OK" {
++		t.Errorf("Response gotten was %q", response)
++	}
++}
++
+ func BenchmarkResponseStatusLine(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.RunParallel(func(pb *testing.PB) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c244b372fc..edc19c3a4c 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2137,9 +2137,9 @@ func RedirectHandler(url string, code int) Handler {
+ // "/codesearch" and "codesearch.google.com/" without also taking over
+ // requests for "http://www.google.com/".
+ //
+-// ServeMux also takes care of sanitizing the URL request path,
+-// redirecting any request containing . or .. elements or repeated slashes
+-// to an equivalent, cleaner URL.
++// ServeMux also takes care of sanitizing the URL request path and the Host
++// header, stripping the port number and redirecting any request containing . or
++// .. elements or repeated slashes to an equivalent, cleaner URL.
+ type ServeMux struct {
+ 	mu    sync.RWMutex
+ 	m     map[string]muxEntry

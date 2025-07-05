@@ -46,7 +46,7 @@ Date:   Wed May 25 10:15:26 2011 -0700
     R=iant, gary.burd, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/4543071
-
+---
  src/pkg/http/server.go        | 21 +++++++++++
  src/pkg/io/io.go              | 26 ++++++++------
  src/pkg/net/Makefile          | 29 +++++++++------
@@ -55,3 +55,314 @@ Date:   Wed May 25 10:15:26 2011 -0700
  src/pkg/net/sock.go           | 12 +++++++
  src/pkg/net/tcpsock.go        |  9 +++++
  7 files changed, 173 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index eb5a3a365e..ffeac034ef 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -119,6 +119,27 @@ type response struct {
+ 	closeAfterReply bool
+ }
+ 
++type writerOnly struct {
++	io.Writer
++}
++
++func (r *response) ReadFrom(src io.Reader) (n int64, err os.Error) {
++	// Flush before checking r.chunking, as Flush will call
++	// WriteHeader if it hasn't been called yet, and WriteHeader
++	// is what sets r.chunking.
++	r.Flush()
++	if !r.chunking {
++		if rf, ok := r.conn.rwc.(io.ReaderFrom); ok {
++			n, err = rf.ReadFrom(src)
++			r.written += n
++			return
++		}
++	}
++	// Fall back to default io.Copy implementation.
++	// Use wrapper to hide r.ReadFrom from io.Copy.
++	return io.Copy(writerOnly{r}, src)
++}
++
+ // Create new connection from rwc.
+ func newConn(rwc net.Conn, handler Handler) (c *conn, err os.Error) {
+ 	c = new(conn)
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 0bc73d67dd..1ad1129923 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -303,22 +303,26 @@ func Copy(dst Writer, src Reader) (written int64, err os.Error) {
+ 
+ // LimitReader returns a Reader that reads from r
+ // but stops with os.EOF after n bytes.
+-func LimitReader(r Reader, n int64) Reader { return &limitedReader{r, n} }
+-
+-type limitedReader struct {
+-	r Reader
+-	n int64
++// The underlying implementation is a *LimitedReader.
++func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
++
++// A LimitedReader reads from R but limits the amount of
++// data returned to just N bytes. Each call to Read
++// updates N to reflect the new amount remaining.
++type LimitedReader struct {
++	R Reader // underlying reader
++	N int64  // max bytes remaining
+ }
+ 
+-func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
+-	if l.n <= 0 {
++func (l *LimitedReader) Read(p []byte) (n int, err os.Error) {
++	if l.N <= 0 {
+ 		return 0, os.EOF
+ 	}
+-	if int64(len(p)) > l.n {
+-		p = p[0:l.n]
++	if int64(len(p)) > l.N {
++		p = p[0:l.N]
+ 	}
+-	n, err = l.r.Read(p)
+-	l.n -= int64(n)
++	n, err = l.R.Read(p)
++	l.N -= int64(n)
+ 	return
+ }
+ 
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 376e9c6dc9..d4adbffc0c 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -23,12 +23,13 @@ GOFILES=\
+ 	unixsock.go\
+ 
+ GOFILES_freebsd=\
+-	newpollserver.go\
++	dnsclient.go\
++	dnsconfig.go\
+ 	fd.go\
+ 	file.go\
+-	dnsconfig.go\
+-	dnsclient.go\
++	newpollserver.go\
+ 	port.go\
++	sendfile_stub.go\
+ 	sock_bsd.go\
+ 
+ CGOFILES_freebsd=\
+@@ -36,27 +37,32 @@ CGOFILES_freebsd=\
+ 	cgo_unix.go\
+ 
+ GOFILES_darwin=\
+-	newpollserver.go\
++	dnsclient.go\
++	dnsconfig.go\
+ 	fd.go\
+ 	file.go\
+-	dnsconfig.go\
+-	dnsclient.go\
++	newpollserver.go\
+ 	port.go\
++	sendfile_stub.go\
+ 	sock_bsd.go\
+ 
+ CGOFILES_darwin=\
+ 	cgo_bsd.go\
+ 	cgo_unix.go\
+-	
++
+ GOFILES_linux=\
+-	newpollserver.go\
++	dnsclient.go\
++	dnsconfig.go\
+ 	fd.go\
+ 	file.go\
+-	dnsconfig.go\
+-	dnsclient.go\
++	newpollserver.go\
+ 	port.go\
++	sendfile_linux.go\
+ 	sock_linux.go\
+ 
++GOFILES_plan9=\
++	sendfile_stub.go\
++
+ ifeq ($(GOARCH),arm)
+ # ARM has no cgo, so use the stubs.
+ GOFILES_linux+=cgo_stub.go
+@@ -68,8 +74,9 @@ endif
+ 
+ GOFILES_windows=\
+ 	cgo_stub.go\
+-	resolv_windows.go\
+ 	file_windows.go\
++	resolv_windows.go\
++	sendfile_stub.go\
+ 	sock_windows.go\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+diff --git a/src/pkg/net/sendfile_linux.go b/src/pkg/net/sendfile_linux.go
+new file mode 100644
+index 0000000000..6a5a06c8c5
+--- /dev/null
++++ b/src/pkg/net/sendfile_linux.go
+@@ -0,0 +1,84 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"io"
++	"os"
++	"syscall"
++)
++
++// maxSendfileSize is the largest chunk size we ask the kernel to copy
++// at a time.
++const maxSendfileSize int = 4 << 20
++
++// sendFile copies the contents of r to c using the sendfile
++// system call to minimize copies.
++//
++// if handled == true, sendFile returns the number of bytes copied and any
++// non-EOF error.
++//
++// if handled == false, sendFile performed no work.
++func sendFile(c *netFD, r io.Reader) (written int64, err os.Error, handled bool) {
++	var remain int64 = 1 << 62 // by default, copy until EOF
++
++	lr, ok := r.(*io.LimitedReader)
++	if ok {
++		remain, r = lr.N, lr.R
++		if remain <= 0 {
++			return 0, nil, true
++		}
++	}
++	f, ok := r.(*os.File)
++	if !ok {
++		return 0, nil, false
++	}
++
++	c.wio.Lock()
++	defer c.wio.Unlock()
++	c.incref()
++	defer c.decref()
++	if c.wdeadline_delta > 0 {
++		// This is a little odd that we're setting the timeout
++		// for the entire file but Write has the same issue
++		// (if one slurps the whole file into memory and
++		// do one large Write). At least they're consistent.
++		c.wdeadline = pollserver.Now() + c.wdeadline_delta
++	} else {
++		c.wdeadline = 0
++	}
++
++	dst := c.sysfd
++	src := f.Fd()
++	for remain > 0 {
++		n := maxSendfileSize
++		if int64(n) > remain {
++			n = int(remain)
++		}
++		n, errno := syscall.Sendfile(dst, src, nil, n)
++		if n > 0 {
++			written += int64(n)
++			remain -= int64(n)
++		}
++		if n == 0 && errno == 0 {
++			break
++		}
++		if errno == syscall.EAGAIN && c.wdeadline >= 0 {
++			pollserver.WaitWrite(c)
++			continue
++		}
++		if errno != 0 {
++			// This includes syscall.ENOSYS (no kernel
++			// support) and syscall.EINVAL (fd types which
++			// don't implement sendfile together)
++			err = &OpError{"sendfile", c.net, c.raddr, os.Errno(errno)}
++			break
++		}
++	}
++	if lr != nil {
++		lr.N = remain
++	}
++	return written, err, written > 0
++}
+diff --git a/src/pkg/net/sendfile_stub.go b/src/pkg/net/sendfile_stub.go
+new file mode 100644
+index 0000000000..43e8104e94
+--- /dev/null
++++ b/src/pkg/net/sendfile_stub.go
+@@ -0,0 +1,14 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"io"
++	"os"
++)
++
++func sendFile(c *netFD, r io.Reader) (n int64, err os.Error, handled bool) {
++	return 0, nil, false
++}
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 5c47e4f77b..eae7f3711d 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"io"
+ 	"os"
+ 	"reflect"
+ 	"syscall"
+@@ -153,3 +154,14 @@ type UnknownSocketError struct {
+ func (e *UnknownSocketError) String() string {
+ 	return "unknown socket address type " + reflect.TypeOf(e.sa).String()
+ }
++
++type writerOnly struct {
++	io.Writer
++}
++
++// Fallback implementation of io.ReaderFrom's ReadFrom, when sendfile isn't
++// applicable.
++func genericReadFrom(w io.Writer, r io.Reader) (n int64, err os.Error) {
++	// Use wrapper to hide existing r.ReadFrom from io.Copy.
++	return io.Copy(writerOnly{w}, r)
++}
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index 8aeed48958..9ee6c14f7a 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"io"
+ 	"os"
+ 	"syscall"
+ )
+@@ -95,6 +96,14 @@ func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
+ 	return c.fd.Read(b)
+ }
+ 
++// ReadFrom implements the io.ReaderFrom ReadFrom method.
++func (c *TCPConn) ReadFrom(r io.Reader) (int64, os.Error) {
++	if n, err, handled := sendFile(c.fd, r); handled {
++		return n, err
++	}
++	return genericReadFrom(c, r)
++}
++
+ // Write implements the net.Conn Write method.
+ func (c *TCPConn) Write(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {

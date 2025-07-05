@@ -19,7 +19,82 @@ Date:   Tue Oct 28 11:14:25 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/164120043
-
+---
  src/cmd/go/get.go    | 14 ++++++++++++--
  src/cmd/go/test.bash | 10 ++++++++++
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index b8eac5c1ef..86e1697618 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -16,7 +16,7 @@ import (
+ )
+ 
+ var cmdGet = &Command{
+-	UsageLine: "get [-d] [-fix] [-t] [-u] [build flags] [packages]",
++	UsageLine: "get [-d] [-f] [-fix] [-t] [-u] [build flags] [packages]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+ Get downloads and installs the packages named by the import paths,
+@@ -25,6 +25,11 @@ along with their dependencies.
+ The -d flag instructs get to stop after downloading the packages; that is,
+ it instructs get not to install the packages.
+ 
++The -f flag, valid only when -u is set, forces get -u not to verify that
++each package has been checked out from the source control repository
++implied by its import path. This can be useful if the source is a local fork
++of the original.
++
+ The -fix flag instructs get to run the fix tool on the downloaded packages
+ before resolving dependencies or building the code.
+ 
+@@ -53,6 +58,7 @@ See also: go build, go install, go clean.
+ }
+ 
+ var getD = cmdGet.Flag.Bool("d", false, "")
++var getF = cmdGet.Flag.Bool("f", false, "")
+ var getT = cmdGet.Flag.Bool("t", false, "")
+ var getU = cmdGet.Flag.Bool("u", false, "")
+ var getFix = cmdGet.Flag.Bool("fix", false, "")
+@@ -63,6 +69,10 @@ func init() {
+ }
+ 
+ func runGet(cmd *Command, args []string) {
++	if *getF && !*getU {
++		fatalf("go get: cannot use -f flag without -u")
++	}
++
+ 	// Phase 1.  Download/update.
+ 	var stk importStack
+ 	for _, arg := range downloadPaths(args) {
+@@ -268,7 +278,7 @@ func downloadPackage(p *Package) error {
+ 		repo = "<local>" // should be unused; make distinctive
+ 
+ 		// Double-check where it came from.
+-		if *getU && vcs.remoteRepo != nil {
++		if *getU && vcs.remoteRepo != nil && !*getF {
+ 			dir := filepath.Join(p.build.SrcRoot, rootPath)
+ 			if remote, err := vcs.remoteRepo(vcs, dir); err == nil {
+ 				if rr, err := repoRootForImportPath(p.ImportPath); err == nil {
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 652ef3b5b6..2b5230b1aa 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -219,6 +219,16 @@ q' | ed $d/src/$config >/dev/null 2>&1
+ 			cat $d/err
+ 			ok=false
+ 		fi
++		
++		if GOPATH=$d ./testgo get -d -f -u $url 2>$d/err; then
++			echo "go get -d -u $url succeeded with wrong remote repo"
++			cat $d/err
++			ok=false
++		elif ! egrep -i 'validating server certificate|not found' $d/err >/dev/null; then
++			echo "go get -d -f -u $url failed for wrong reason"
++			cat $d/err
++			ok=false
++		fi
+ 	fi
+ 	rm -rf $d
+ }

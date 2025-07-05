@@ -16,9 +16,143 @@ Date:   Mon Jan 1 21:51:47 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/chan.go   |  2 +-
  src/runtime/malloc.go |  8 +++++++-
  src/runtime/slice.go  | 24 ++++++++++++------------
  src/runtime/string.go |  8 ++++----
  4 files changed, 24 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 678128b4ce..10ee97d924 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -78,7 +78,7 @@ func makechan(t *chantype, size int) *hchan {
+ 		throw("makechan: bad alignment")
+ 	}
+ 
+-	if size < 0 || uintptr(size) > maxSliceCap(elem.size) || uintptr(size)*elem.size > _MaxMem-hchanSize {
++	if size < 0 || uintptr(size) > maxSliceCap(elem.size) || uintptr(size)*elem.size > maxAlloc-hchanSize {
+ 		panic(plainError("makechan: size out of range"))
+ 	}
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index f3e738116c..299add4b35 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -196,7 +196,13 @@ const (
+ 	//
+ 	// This is also the maximum heap pointer value.
+ 	memLimit = 1 << memLimitBits
+-	_MaxMem  = memLimit - 1
++
++	// maxAlloc is the maximum size of an allocation. On 64-bit,
++	// it's theoretically possible to allocate memLimit bytes. On
++	// 32-bit, however, this is one less than memLimit because the
++	// number of bytes in the address space doesn't actually fit
++	// in a uintptr.
++	maxAlloc = memLimit - (1-_64bit)*1
+ 
+ 	// heapArenaBytes is the size of a heap arena. The heap
+ 	// consists of mappings of size heapArenaBytes, aligned to
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 351fec067d..9f35a89400 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -25,14 +25,14 @@ type notInHeapSlice struct {
+ // The index is the size of the slice element.
+ var maxElems = [...]uintptr{
+ 	^uintptr(0),
+-	_MaxMem / 1, _MaxMem / 2, _MaxMem / 3, _MaxMem / 4,
+-	_MaxMem / 5, _MaxMem / 6, _MaxMem / 7, _MaxMem / 8,
+-	_MaxMem / 9, _MaxMem / 10, _MaxMem / 11, _MaxMem / 12,
+-	_MaxMem / 13, _MaxMem / 14, _MaxMem / 15, _MaxMem / 16,
+-	_MaxMem / 17, _MaxMem / 18, _MaxMem / 19, _MaxMem / 20,
+-	_MaxMem / 21, _MaxMem / 22, _MaxMem / 23, _MaxMem / 24,
+-	_MaxMem / 25, _MaxMem / 26, _MaxMem / 27, _MaxMem / 28,
+-	_MaxMem / 29, _MaxMem / 30, _MaxMem / 31, _MaxMem / 32,
++	maxAlloc / 1, maxAlloc / 2, maxAlloc / 3, maxAlloc / 4,
++	maxAlloc / 5, maxAlloc / 6, maxAlloc / 7, maxAlloc / 8,
++	maxAlloc / 9, maxAlloc / 10, maxAlloc / 11, maxAlloc / 12,
++	maxAlloc / 13, maxAlloc / 14, maxAlloc / 15, maxAlloc / 16,
++	maxAlloc / 17, maxAlloc / 18, maxAlloc / 19, maxAlloc / 20,
++	maxAlloc / 21, maxAlloc / 22, maxAlloc / 23, maxAlloc / 24,
++	maxAlloc / 25, maxAlloc / 26, maxAlloc / 27, maxAlloc / 28,
++	maxAlloc / 29, maxAlloc / 30, maxAlloc / 31, maxAlloc / 32,
+ }
+ 
+ // maxSliceCap returns the maximum capacity for a slice.
+@@ -40,7 +40,7 @@ func maxSliceCap(elemsize uintptr) uintptr {
+ 	if elemsize < uintptr(len(maxElems)) {
+ 		return maxElems[elemsize]
+ 	}
+-	return _MaxMem / elemsize
++	return maxAlloc / elemsize
+ }
+ 
+ func makeslice(et *_type, len, cap int) slice {
+@@ -133,13 +133,13 @@ func growslice(et *_type, old slice, cap int) slice {
+ 		lenmem = uintptr(old.len)
+ 		newlenmem = uintptr(cap)
+ 		capmem = roundupsize(uintptr(newcap))
+-		overflow = uintptr(newcap) > _MaxMem
++		overflow = uintptr(newcap) > maxAlloc
+ 		newcap = int(capmem)
+ 	case ptrSize:
+ 		lenmem = uintptr(old.len) * ptrSize
+ 		newlenmem = uintptr(cap) * ptrSize
+ 		capmem = roundupsize(uintptr(newcap) * ptrSize)
+-		overflow = uintptr(newcap) > _MaxMem/ptrSize
++		overflow = uintptr(newcap) > maxAlloc/ptrSize
+ 		newcap = int(capmem / ptrSize)
+ 	default:
+ 		lenmem = uintptr(old.len) * et.size
+@@ -163,7 +163,7 @@ func growslice(et *_type, old slice, cap int) slice {
+ 	//   s = append(s, d, d, d, d)
+ 	//   print(len(s), "\n")
+ 	// }
+-	if cap < old.cap || overflow || capmem > _MaxMem {
++	if cap < old.cap || overflow || capmem > maxAlloc {
+ 		panic(errorString("growslice: cap out of range"))
+ 	}
+ 
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 22be091375..97909196e9 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -266,7 +266,7 @@ func rawbyteslice(size int) (b []byte) {
+ 
+ // rawruneslice allocates a new rune slice. The rune slice is not zeroed.
+ func rawruneslice(size int) (b []rune) {
+-	if uintptr(size) > _MaxMem/4 {
++	if uintptr(size) > maxAlloc/4 {
+ 		throw("out of memory")
+ 	}
+ 	mem := roundupsize(uintptr(size) * 4)
+@@ -395,7 +395,7 @@ func findnull(s *byte) int {
+ 	if s == nil {
+ 		return 0
+ 	}
+-	p := (*[_MaxMem/2 - 1]byte)(unsafe.Pointer(s))
++	p := (*[maxAlloc/2 - 1]byte)(unsafe.Pointer(s))
+ 	l := 0
+ 	for p[l] != 0 {
+ 		l++
+@@ -407,7 +407,7 @@ func findnullw(s *uint16) int {
+ 	if s == nil {
+ 		return 0
+ 	}
+-	p := (*[_MaxMem/2/2 - 1]uint16)(unsafe.Pointer(s))
++	p := (*[maxAlloc/2/2 - 1]uint16)(unsafe.Pointer(s))
+ 	l := 0
+ 	for p[l] != 0 {
+ 		l++
+@@ -424,7 +424,7 @@ func gostringnocopy(str *byte) string {
+ 
+ func gostringw(strw *uint16) string {
+ 	var buf [8]byte
+-	str := (*[_MaxMem/2/2 - 1]uint16)(unsafe.Pointer(strw))
++	str := (*[maxAlloc/2/2 - 1]uint16)(unsafe.Pointer(strw))
+ 	n1 := 0
+ 	for i := 0; str[i] != 0; i++ {
+ 		n1 += encoderune(buf[:], rune(str[i]))

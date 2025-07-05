@@ -7,6 +7,20 @@ Date:   Fri Dec 21 11:52:21 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6996046
-
+---
  src/pkg/go/ast/ast.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index e1582c3006..bf533d1d24 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -555,7 +555,7 @@ type (
+ 
+ 	// A DeclStmt node represents a declaration in a statement list.
+ 	DeclStmt struct {
+-		Decl Decl
++		Decl Decl // *GenDecl with CONST, TYPE, or VAR token
+ 	}
+ 
+ 	// An EmptyStmt node represents an empty statement.

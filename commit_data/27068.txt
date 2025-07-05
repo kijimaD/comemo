@@ -14,10 +14,196 @@ Date:   Wed Mar 9 15:32:57 2016 -0800
     Change-Id: If4b551fdea4ae045b10b1a3de2ee98f5cf32a517
     Reviewed-on: https://go-review.googlesource.com/20494
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go   |  1 +
  src/cmd/compile/internal/gc/sinit.go     |  3 +--
  src/cmd/compile/internal/gc/subr.go      | 39 +++++++-------------------------
  src/cmd/compile/internal/gc/type.go      | 25 ++++++++++++++++++++
  src/cmd/compile/internal/gc/typecheck.go |  6 +++--
  5 files changed, 39 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 6eb15b57b9..6da60efceb 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -454,6 +454,7 @@ func (p *importer) param(named bool) *Node {
+ 	isddd := false
+ 	if typ.Etype == T_old_DARRAY {
+ 		// T_old_DARRAY indicates ... type
++		// TODO(mdempsky): Fix Type rekinding.
+ 		typ.Etype = TARRAY
+ 		isddd = true
+ 	}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 4b730015d9..aa809ecf2a 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -697,8 +697,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 
+ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 	// make an array type
+-	t := shallow(n.Type)
+-
++	t := n.Type.Copy()
+ 	t.Bound = Mpgetfix(n.Right.Val().U.(*Mpint))
+ 	t.Width = 0
+ 	t.Sym = nil
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 5b697bcd9c..6ed757cbc6 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -387,15 +387,6 @@ func maptype(key *Type, val *Type) *Type {
+ 	return t
+ }
+ 
+-func typ(et EType) *Type {
+-	t := new(Type)
+-	t.Etype = et
+-	t.Width = BADWIDTH
+-	t.Lineno = lineno
+-	t.Orig = t
+-	return t
+-}
+-
+ // methcmp sorts by symbol, then by package path for unexported symbols.
+ type methcmp []*Type
+ 
+@@ -1194,18 +1185,6 @@ func Noconv(t1 *Type, t2 *Type) bool {
+ 	return false
+ }
+ 
+-func shallow(t *Type) *Type {
+-	if t == nil {
+-		return nil
+-	}
+-	nt := typ(0)
+-	*nt = *t
+-	if t.Orig == t {
+-		nt.Orig = nt
+-	}
+-	return nt
+-}
+-
+ func deep(t *Type) *Type {
+ 	if t == nil {
+ 		return nil
+@@ -1217,32 +1196,32 @@ func deep(t *Type) *Type {
+ 		nt = t // share from here down
+ 
+ 	case TANY:
+-		nt = shallow(t)
++		nt = t.Copy()
+ 		nt.Copyany = true
+ 
+ 	case TPTR32, TPTR64, TCHAN, TARRAY:
+-		nt = shallow(t)
++		nt = t.Copy()
+ 		nt.Type = deep(t.Type)
+ 
+ 	case TMAP:
+-		nt = shallow(t)
++		nt = t.Copy()
+ 		nt.Down = deep(t.Down)
+ 		nt.Type = deep(t.Type)
+ 
+ 	case TFUNC:
+-		nt = shallow(t)
++		nt = t.Copy()
+ 		*nt.RecvP() = deep(t.Recv())
+ 		*nt.ResultsP() = deep(t.Results())
+ 		*nt.ParamsP() = deep(t.Params())
+ 
+ 	case TSTRUCT:
+-		nt = shallow(t)
+-		nt.Type = shallow(t.Type)
++		nt = t.Copy()
++		nt.Type = t.Type.Copy()
+ 		xt := nt.Type
+ 
+ 		for t = t.Type; t != nil; t = t.Down {
+ 			xt.Type = deep(t.Type)
+-			xt.Down = shallow(t.Down)
++			xt.Down = t.Down.Copy()
+ 			xt = xt.Down
+ 		}
+ 	}
+@@ -1863,9 +1842,7 @@ func expandmeth(t *Type) {
+ 	for sl := slist; sl != nil; sl = sl.link {
+ 		if sl.good {
+ 			// add it to the base type method list
+-			f = typ(TFIELD)
+-
+-			*f = *sl.field
++			f := sl.field.Copy()
+ 			f.Embedded = 1 // needs a trampoline
+ 			if sl.followptr {
+ 				f.Embedded = 2
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index c9415620a9..29cc73ad1f 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -164,6 +164,31 @@ type Type struct {
+ 	Lastfn *Node // for usefield
+ }
+ 
++// typ returns a new Type of the specified kind.
++func typ(et EType) *Type {
++	t := &Type{
++		Etype:  et,
++		Width:  BADWIDTH,
++		Lineno: lineno,
++	}
++	t.Orig = t
++	return t
++}
++
++// Copy returns a shallow copy of the Type.
++func (t *Type) Copy() *Type {
++	if t == nil {
++		return nil
++	}
++	nt := new(Type)
++	*nt = *t
++	// TODO(mdempsky): Find out why this is necessary and explain.
++	if t.Orig == t {
++		nt.Orig = nt
++	}
++	return nt
++}
++
+ // Iter provides an abstraction for iterating across struct fields and
+ // interface methods.
+ type Iter struct {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0878214f3e..1f0a83c803 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3485,8 +3485,8 @@ func domethod(n *Node) {
+ 	typecheck(&nt, Etype)
+ 	if nt.Type == nil {
+ 		// type check failed; leave empty func
++		// TODO(mdempsky): Fix Type rekinding.
+ 		n.Type.Etype = TFUNC
+-
+ 		n.Type.Nod = nil
+ 		return
+ 	}
+@@ -3505,6 +3505,7 @@ func domethod(n *Node) {
+ 		}
+ 	}
+ 
++	// TODO(mdempsky): Fix Type rekinding.
+ 	*n.Type = *nt.Type
+ 	n.Type.Nod = nil
+ 	checkwidth(n.Type)
+@@ -3522,8 +3523,9 @@ func copytype(n *Node, t *Type) {
+ 
+ 	maplineno := int(n.Type.Maplineno)
+ 	embedlineno := int(n.Type.Embedlineno)
+-
+ 	l := n.Type.Copyto
++
++	// TODO(mdempsky): Fix Type rekinding.
+ 	*n.Type = *t
+ 
+ 	t = n.Type

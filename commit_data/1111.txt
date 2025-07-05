@@ -7,7 +7,72 @@ Date:   Wed Nov 12 14:19:39 2008 -0800
     R=rsc
     OCL=19101
     CL=19101
-
+---
  src/lib/reflect/test.go  | 11 +++++++++++
  src/lib/reflect/value.go | 10 ++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/lib/reflect/test.go b/src/lib/reflect/test.go
+index fa55c92082..7088094383 100644
+--- a/src/lib/reflect/test.go
++++ b/src/lib/reflect/test.go
+@@ -91,6 +91,17 @@ func main() {
+ 	var s string;
+ 	var t reflect.Type;
+ 
++{
++	var ip *int32;
++	var i int32 = 1234;
++	vip := reflect.NewValue(&ip);
++	vi := reflect.NewValue(i);
++	vip.(reflect.PtrValue).Sub().(reflect.PtrValue).SetSub(vi);
++	if *ip != 1234 {
++		panicln("SetSub failure", *ip);
++	}
++}
++
+ 	// Types
+ 	typedump("missing", "$missing$");
+ 	typedump("int", "int");
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index fe41e3f926..bace93b6d1 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -39,6 +39,7 @@ export type Empty interface {}	// TODO(r): Delete when no longer needed?
+ export type Value interface {
+ 	Kind()	int;
+ 	Type()	Type;
++	Addr()	Addr;
+ 	Interface()	Empty;
+ }
+ 
+@@ -58,6 +59,10 @@ func (c *Common) Type() Type {
+ 	return c.typ
+ }
+ 
++func (c *Common) Addr() Addr {
++	return c.addr
++}
++
+ func (c *Common) Interface() Empty {
+ 	return sys.unreflect(*AddrToPtrAddr(c.addr), c.typ.String());
+ }
+@@ -493,6 +498,7 @@ export type PtrValue interface {
+ 	Type()	Type;
+ 	Sub()	Value;
+ 	Get()	Addr;
++	SetSub(Value);
+ }
+ 
+ type PtrValueStruct struct {
+@@ -507,6 +513,10 @@ func (v *PtrValueStruct) Sub() Value {
+ 	return NewValueAddr(v.typ.(PtrType).Sub(), v.Get());
+ }
+ 
++func (v *PtrValueStruct) SetSub(subv Value)  {
++	*AddrToPtrAddr(v.addr) = subv.Addr();
++}
++
+ func PtrCreator(typ Type, addr Addr) Value {
+ 	return &PtrValueStruct{ Common{PtrKind, typ, addr} };
+ }

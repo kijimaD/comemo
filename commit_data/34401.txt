@@ -9,6 +9,22 @@ Date:   Mon Oct 23 16:49:38 2017 +0400
     Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/log/syslog/syslog_unix.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/log/syslog/syslog_unix.go b/src/log/syslog/syslog_unix.go
+index 1cdabec692..6c17e1f260 100644
+--- a/src/log/syslog/syslog_unix.go
++++ b/src/log/syslog/syslog_unix.go
+@@ -20,9 +20,7 @@ func unixSyslog() (conn serverConn, err error) {
+ 	for _, network := range logTypes {
+ 		for _, path := range logPaths {
+ 			conn, err := net.Dial(network, path)
+-			if err != nil {
+-				continue
+-			} else {
++			if err == nil {
+ 				return &netConn{conn: conn, local: true}, nil
+ 			}
+ 		}

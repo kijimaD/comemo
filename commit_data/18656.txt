@@ -8,8 +8,58 @@ Date:   Tue Feb 25 17:49:32 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/68820043
-
+---
  src/lib9/utf/Makefile                                       | 4 ++--
  src/lib9/utf/runetype.c                                     | 2 +-
  src/lib9/utf/{runetypebody-6.2.0.h => runetypebody-6.3.0.h} | 3 +--
  3 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/lib9/utf/Makefile b/src/lib9/utf/Makefile
+index 5c9cdf0513..fe6f6351a9 100644
+--- a/src/lib9/utf/Makefile
++++ b/src/lib9/utf/Makefile
+@@ -21,10 +21,10 @@ runetypebody-%.h: mkrunetype UnicodeData-%.txt
+ 
+ CLEANFILES+=UnicodeData.txt
+ 
+-UNICODE_VERSION=6.2.0
++UNICODE_VERSION=6.3.0
+ 
+ test: mkrunetype UnicodeData-$(UNICODE_VERSION).txt
+ 	mkrunetype -c UnicodeData-$(UNICODE_VERSION).txt
+ 
+ clean:
+-	rm -f UnicodeData.txt mkrunetype
+\ No newline at end of file
++	rm -f UnicodeData.txt mkrunetype
+diff --git a/src/lib9/utf/runetype.c b/src/lib9/utf/runetype.c
+index b3634965ff..ed775af08f 100644
+--- a/src/lib9/utf/runetype.c
++++ b/src/lib9/utf/runetype.c
+@@ -35,4 +35,4 @@ rbsearch(Rune c, Rune *t, int n, int ne)
+ 	return 0;
+ }
+ 
+-#include "runetypebody-6.2.0.h"
++#include "runetypebody-6.3.0.h"
+diff --git a/src/lib9/utf/runetypebody-6.2.0.h b/src/lib9/utf/runetypebody-6.3.0.h
+similarity index 99%
+rename from src/lib9/utf/runetypebody-6.2.0.h
+rename to src/lib9/utf/runetypebody-6.3.0.h
+index a603af0dfd..5554dca36d 100644
+--- a/src/lib9/utf/runetypebody-6.2.0.h
++++ b/src/lib9/utf/runetypebody-6.3.0.h
+@@ -1,4 +1,4 @@
+-/* generated automatically by mkrunetype.c from UnicodeData-6.2.0.txt */
++/* generated automatically by mkrunetype.c from UnicodeData-6.3.0.txt */
+ 
+ static Rune __isspacer[] = {
+ 	0x0009, 0x000d,
+@@ -6,7 +6,6 @@ static Rune __isspacer[] = {
+ 	0x0085, 0x0085,
+ 	0x00a0, 0x00a0,
+ 	0x1680, 0x1680,
+-	0x180e, 0x180e,
+ 	0x2000, 0x200a,
+ 	0x2028, 0x2029,
+ 	0x202f, 0x202f,

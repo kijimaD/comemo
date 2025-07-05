@@ -14,6 +14,32 @@ Date:   Thu Mar 19 12:55:43 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 13c4e5843c..0eaf401f30 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1688,6 +1688,9 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
+ 		if osym.TopFrame() {
+ 			l.SetAttrTopFrame(gi, true)
+ 		}
++		if osym.Local() {
++			l.SetAttrLocal(gi, true)
++		}
+ 		if strings.HasPrefix(name, "go.itablink.") {
+ 			l.itablink[gi] = struct{}{}
+ 		}
+@@ -1724,6 +1727,10 @@ func loadObjRefs(l *Loader, r *oReader, syms *sym.Symbols) {
+ 		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+ 		v := abiToVer(osym.ABI, r.version)
+ 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
++		if osym.Local() {
++			gi := r.syms[ndef+i]
++			l.SetAttrLocal(gi, true)
++		}
+ 	}
+ }
+ 

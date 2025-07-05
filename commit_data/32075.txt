@@ -13,6 +13,20 @@ Date:   Fri Mar 31 18:06:19 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 06b7e5a691..d835d949de 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -327,7 +327,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
+ 		switch n.Class {
+ 		case PAUTO:
+ 			if !n.Used() {
+-				continue
++				Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
+ 			}
+ 			name = obj.NAME_AUTO
+ 

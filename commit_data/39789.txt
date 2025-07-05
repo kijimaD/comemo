@@ -17,7 +17,7 @@ Date:   Fri Feb 8 16:18:12 2019 -0200
     Change-Id: I365e6ff79f3ce4d8ebe089a6a86b1771853eb596
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167517
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        |  2 +-
  src/cmd/compile/internal/ssa/gen/PPC64.rules | 10 ++++++----
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  3 +++
@@ -28,3 +28,317 @@ Date:   Fri Feb 8 16:18:12 2019 -0200
  src/cmd/internal/obj/ppc64/asm9.go           | 23 +++++++++++++++++----
  test/codegen/mathbits.go                     | 24 ++++++++++++++--------
  9 files changed, 109 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 4cccbecbb3..a32f80fb29 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -620,7 +620,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
+ 
+-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS, ssa.OpPPC64FROUND:
++	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS, ssa.OpPPC64FROUND, ssa.OpPPC64CNTTZW, ssa.OpPPC64CNTTZD:
+ 		r := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index b0a249a558..e21dd9be7b 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -303,10 +303,12 @@
+ (Ctz32NonZero x) -> (Ctz32 x)
+ (Ctz64NonZero x) -> (Ctz64 x)
+ 
+-(Ctz64 x) -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+-(Ctz32 x) -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
++(Ctz64 x) && objabi.GOPPC64<=8 -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
++(Ctz64 x) -> (CNTTZD x)
++(Ctz32 x) && objabi.GOPPC64<=8 -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
++(Ctz32 x) -> (CNTTZW (MOVWZreg x))
+ (Ctz16 x) -> (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
+-(Ctz8 x) -> (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
++(Ctz8 x)  -> (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
+ 
+ (BitLen64 x) -> (SUB (MOVDconst [64]) (CNTLZD <typ.Int> x))
+ (BitLen32 x) -> (SUB (MOVDconst [32]) (CNTLZW <typ.Int> x))
+@@ -339,7 +341,7 @@
+ // Sign extension dependence on operand sign sets up for sign/zero-extension elision later
+ (Eq8 x y) && isSigned(x.Type) && isSigned(y.Type) -> (Equal (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+ (Eq16 x y) && isSigned(x.Type) && isSigned(y.Type) -> (Equal (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+-(Eq8 x y)  -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
++(Eq8 x y) -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Eq16 x y) -> (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+ (Eq32 x y) -> (Equal (CMPW x y))
+ (Eq64 x y) -> (Equal (CMP x y))
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 2404d1afd6..90585100f8 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -215,6 +215,9 @@ func init() {
+ 		{name: "CNTLZD", argLength: 1, reg: gp11, asm: "CNTLZD", clobberFlags: true}, // count leading zeros
+ 		{name: "CNTLZW", argLength: 1, reg: gp11, asm: "CNTLZW", clobberFlags: true}, // count leading zeros (32 bit)
+ 
++		{name: "CNTTZD", argLength: 1, reg: gp11, asm: "CNTTZD"}, // count trailing zeros
++		{name: "CNTTZW", argLength: 1, reg: gp11, asm: "CNTTZW"}, // count trailing zeros (32 bit)
++
+ 		{name: "POPCNTD", argLength: 1, reg: gp11, asm: "POPCNTD"}, // number of set bits in arg0
+ 		{name: "POPCNTW", argLength: 1, reg: gp11, asm: "POPCNTW"}, // number of set bits in each word of arg0 placed in corresponding word
+ 		{name: "POPCNTB", argLength: 1, reg: gp11, asm: "POPCNTB"}, // number of set bits in each byte of arg0 placed in corresonding byte
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 92d161480a..fec35b7c40 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1693,6 +1693,8 @@ const (
+ 	OpPPC64ROTLWconst
+ 	OpPPC64CNTLZD
+ 	OpPPC64CNTLZW
++	OpPPC64CNTTZD
++	OpPPC64CNTTZW
+ 	OpPPC64POPCNTD
+ 	OpPPC64POPCNTW
+ 	OpPPC64POPCNTB
+@@ -22525,6 +22527,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "CNTTZD",
++		argLen: 1,
++		asm:    ppc64.ACNTTZD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "CNTTZW",
++		argLen: 1,
++		asm:    ppc64.ACNTTZW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "POPCNTD",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index d1e4482137..012e5c7680 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -1392,10 +1392,13 @@ func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz32 x)
+-	// cond:
++	// cond: objabi.GOPPC64<=8
+ 	// result: (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+ 	for {
+ 		x := v.Args[0]
++		if !(objabi.GOPPC64 <= 8) {
++			break
++		}
+ 		v.reset(OpPPC64POPCNTW)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
+ 		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.Int)
+@@ -1408,6 +1411,17 @@ func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Ctz32 x)
++	// cond:
++	// result: (CNTTZW (MOVWZreg x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64CNTTZW)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ }
+ func rewriteValuePPC64_OpCtz32NonZero_0(v *Value) bool {
+ 	// match: (Ctz32NonZero x)
+@@ -1424,10 +1438,13 @@ func rewriteValuePPC64_OpCtz64_0(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz64 x)
+-	// cond:
++	// cond: objabi.GOPPC64<=8
+ 	// result: (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+ 	for {
+ 		x := v.Args[0]
++		if !(objabi.GOPPC64 <= 8) {
++			break
++		}
+ 		v.reset(OpPPC64POPCNTD)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.Int64)
+ 		v1 := b.NewValue0(v.Pos, OpPPC64ADDconst, typ.Int64)
+@@ -1438,6 +1455,15 @@ func rewriteValuePPC64_OpCtz64_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Ctz64 x)
++	// cond:
++	// result: (CNTTZD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64CNTTZD)
++		v.AddArg(x)
++		return true
++	}
+ }
+ func rewriteValuePPC64_OpCtz64NonZero_0(v *Value) bool {
+ 	// match: (Ctz64NonZero x)
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 6b248d5c36..c637d54a50 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -749,6 +749,10 @@ const (
+ 	APOPCNTD
+ 	APOPCNTW
+ 	APOPCNTB
++	ACNTTZW
++	ACNTTZWCC
++	ACNTTZD
++	ACNTTZDCC
+ 	ACOPY
+ 	APASTECC
+ 	ADARN
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index fb934e96f9..5a459ee1ce 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -341,6 +341,10 @@ var Anames = []string{
+ 	"POPCNTD",
+ 	"POPCNTW",
+ 	"POPCNTB",
++	"CNTTZW",
++	"CNTTZWCC",
++	"CNTTZD",
++	"CNTTZDCC",
+ 	"COPY",
+ 	"PASTECC",
+ 	"DARN",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index f9935d2686..a7ac0ff0c0 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -389,9 +389,10 @@ var optab = []Optab{
+ 	{AMOVWZ, C_REG, C_NONE, C_NONE, C_MSR, 54, 4, 0}, /* mtmsr */
+ 
+ 	/* Other ISA 2.05+ instructions */
+-	{APOPCNTD, C_REG, C_NONE, C_NONE, C_REG, 93, 4, 0},  /* population count, x-form */
+-	{ACMPB, C_REG, C_REG, C_NONE, C_REG, 92, 4, 0},      /* compare byte, x-form */
+-	{ACMPEQB, C_REG, C_REG, C_NONE, C_CREG, 92, 4, 0},   /* compare equal byte, x-form */
++	{APOPCNTD, C_REG, C_NONE, C_NONE, C_REG, 93, 4, 0}, /* population count, x-form */
++	{ACMPB, C_REG, C_REG, C_NONE, C_REG, 92, 4, 0},     /* compare byte, x-form */
++	{ACMPEQB, C_REG, C_REG, C_NONE, C_CREG, 92, 4, 0},  /* compare equal byte, x-form, ISA 3.0 */
++	{ACMPEQB, C_REG, C_NONE, C_NONE, C_REG, 70, 4, 0},
+ 	{AFTDIV, C_FREG, C_FREG, C_NONE, C_SCON, 92, 4, 0},  /* floating test for sw divide, x-form */
+ 	{AFTSQRT, C_FREG, C_NONE, C_NONE, C_SCON, 93, 4, 0}, /* floating test for sw square root, x-form */
+ 	{ACOPY, C_REG, C_NONE, C_NONE, C_REG, 92, 4, 0},     /* copy/paste facility, x-form */
+@@ -1304,9 +1305,13 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ADIVDUVCC, r0)
+ 			opset(ADIVDUCC, r0)
+ 
+-		case APOPCNTD:
++		case APOPCNTD: /* popcntd, popcntw, popcntb, cnttzw, cnttzd */
+ 			opset(APOPCNTW, r0)
+ 			opset(APOPCNTB, r0)
++			opset(ACNTTZW, r0)
++			opset(ACNTTZWCC, r0)
++			opset(ACNTTZD, r0)
++			opset(ACNTTZDCC, r0)
+ 
+ 		case ACOPY: /* copy, paste. */
+ 			opset(APASTECC, r0)
+@@ -3760,6 +3765,8 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 		return OPVCC(31, 32, 0, 0)
+ 	case ACMPB:
+ 		return OPVCC(31, 508, 0, 0) /* cmpb - v2.05 */
++	case ACMPEQB:
++		return OPVCC(31, 224, 0, 0) /* cmpeqb - v3.00 */
+ 
+ 	case ACNTLZW:
+ 		return OPVCC(31, 26, 0, 0)
+@@ -4118,6 +4125,14 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 		return OPVCC(31, 378, 0, 0) /* popcntw - v2.06 */
+ 	case APOPCNTB:
+ 		return OPVCC(31, 122, 0, 0) /* popcntb - v2.02 */
++	case ACNTTZW:
++		return OPVCC(31, 538, 0, 0) /* cnttzw - v3.00 */
++	case ACNTTZWCC:
++		return OPVCC(31, 538, 0, 1) /* cnttzw. - v3.00 */
++	case ACNTTZD:
++		return OPVCC(31, 570, 0, 0) /* cnttzd - v3.00 */
++	case ACNTTZDCC:
++		return OPVCC(31, 570, 0, 1) /* cnttzd. - v3.00 */
+ 
+ 	case ARFI:
+ 		return OPVCC(19, 50, 0, 0)
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 9a3b00cab7..5c541bfd29 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -261,8 +261,10 @@ func TrailingZeros(n uint) int {
+ 	// arm:"CLZ"
+ 	// arm64:"RBIT","CLZ"
+ 	// s390x:"FLOGR"
+-	// ppc64:"ANDN","POPCNTD"
+-	// ppc64le:"ANDN","POPCNTD"
++	// ppc64/power8:"ANDN","POPCNTD"
++	// ppc64le/power8:"ANDN","POPCNTD"
++	// ppc64/power9: "CNTTZD"
++	// ppc64le/power9: "CNTTZD"
+ 	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros(n)
+ }
+@@ -271,8 +273,10 @@ func TrailingZeros64(n uint64) int {
+ 	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+ 	// arm64:"RBIT","CLZ"
+ 	// s390x:"FLOGR"
+-	// ppc64:"ANDN","POPCNTD"
+-	// ppc64le:"ANDN","POPCNTD"
++	// ppc64/power8:"ANDN","POPCNTD"
++	// ppc64le/power8:"ANDN","POPCNTD"
++	// ppc64/power9: "CNTTZD"
++	// ppc64le/power9: "CNTTZD"
+ 	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros64(n)
+ }
+@@ -282,8 +286,10 @@ func TrailingZeros32(n uint32) int {
+ 	// arm:"CLZ"
+ 	// arm64:"RBITW","CLZW"
+ 	// s390x:"FLOGR","MOVWZ"
+-	// ppc64:"ANDN","POPCNTW"
+-	// ppc64le:"ANDN","POPCNTW"
++	// ppc64/power8:"ANDN","POPCNTW"
++	// ppc64le/power8:"ANDN","POPCNTW"
++	// ppc64/power9: "CNTTZW"
++	// ppc64le/power9: "CNTTZW"
+ 	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros32(n)
+ }
+@@ -293,8 +299,10 @@ func TrailingZeros16(n uint16) int {
+ 	// arm:"ORR\t\\$65536","CLZ",-"MOVHU\tR"
+ 	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
+ 	// s390x:"FLOGR","OR\t\\$65536"
+-	// ppc64:"POPCNTD","OR\\t\\$65536"
+-	// ppc64le:"POPCNTD","OR\\t\\$65536"
++	// ppc64/power8:"POPCNTD","OR\\t\\$65536"
++	// ppc64le/power8:"POPCNTD","OR\\t\\$65536"
++	// ppc64/power9:"CNTTZD","OR\\t\\$65536"
++	// ppc64le/power9:"CNTTZD","OR\\t\\$65536"
+ 	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros16(n)
+ }

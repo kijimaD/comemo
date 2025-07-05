@@ -25,8 +25,161 @@ Date:   Fri May 19 09:32:22 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/dist/test.go          | 35 ++++++++++++++++++++++++-----------
  src/cmd/dist/testjson.go      |  8 ++++++++
  src/cmd/dist/testjson_test.go |  5 +++--
  3 files changed, 35 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 65e4515e9a..046d279c98 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -86,6 +86,7 @@ type tester struct {
+ type work struct {
+ 	dt    *distTest
+ 	cmd   *exec.Cmd // Must write stdout/stderr to work.out
++	flush func()    // If non-nil, called after cmd.Run
+ 	start chan bool
+ 	out   bytes.Buffer
+ 	err   error
+@@ -326,9 +327,10 @@ type goTest struct {
+ 	testFlags []string // Additional flags accepted by this test
+ }
+ 
+-// bgCommand returns a go test Cmd. The result will write its output to stdout
+-// and stderr. If stdout==stderr, bgCommand ensures Writes are serialized.
+-func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
++// bgCommand returns a go test Cmd and a post-Run flush function. The result
++// will write its output to stdout and stderr. If stdout==stderr, bgCommand
++// ensures Writes are serialized. The caller should call flush() after Cmd exits.
++func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) (cmd *exec.Cmd, flush func()) {
+ 	goCmd, build, run, pkgs, testFlags, setupCmd := opts.buildArgs(t)
+ 
+ 	// Combine the flags.
+@@ -343,7 +345,7 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
+ 		args = append(args, testFlags...)
+ 	}
+ 
+-	cmd := exec.Command(goCmd, args...)
++	cmd = exec.Command(goCmd, args...)
+ 	setupCmd(cmd)
+ 	if t.json && opts.variant != "" && !opts.sharded {
+ 		// Rewrite Package in the JSON output to be pkg:variant. For sharded
+@@ -364,22 +366,29 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
+ 			stdout = &lockedWriter{w: stdout}
+ 			stderr = stdout
+ 		}
+-		cmd.Stdout = &testJSONFilter{w: stdout, variant: opts.variant}
++		f := &testJSONFilter{w: stdout, variant: opts.variant}
++		cmd.Stdout = f
++		flush = f.Flush
+ 	} else {
+ 		cmd.Stdout = stdout
++		flush = func() {}
+ 	}
+ 	cmd.Stderr = stderr
+ 
+-	return cmd
++	return cmd, flush
+ }
+ 
+-// command returns a go test Cmd intended to be run immediately.
+-func (opts *goTest) command(t *tester) *exec.Cmd {
++// command returns a go test Cmd intended to be run immediately and a flush
++// function to call after it has run.
++func (opts *goTest) command(t *tester) (*exec.Cmd, func()) {
+ 	return opts.bgCommand(t, os.Stdout, os.Stderr)
+ }
+ 
+ func (opts *goTest) run(t *tester) error {
+-	return opts.command(t).Run()
++	cmd, flush := opts.command(t)
++	err := cmd.Run()
++	flush()
++	return err
+ }
+ 
+ // buildArgs is in internal helper for goTest that constructs the elements of
+@@ -742,13 +751,14 @@ func (t *tester) registerTests() {
+ 
+ 			// Run `go test fmt` in the moved GOROOT, without explicitly setting
+ 			// GOROOT in the environment. The 'go' command should find itself.
+-			cmd := (&goTest{
++			cmd, flush := (&goTest{
+ 				variant: "moved_goroot",
+ 				goroot:  moved,
+ 				pkg:     "fmt",
+ 			}).command(t)
+ 			unsetEnv(cmd, "GOROOT")
+ 			err := cmd.Run()
++			flush()
+ 
+ 			if rerr := os.Rename(moved, goroot); rerr != nil {
+ 				fatalf("failed to restore GOROOT: %v", rerr)
+@@ -936,7 +946,7 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
+ 			}
+ 		}
+ 		w := &work{dt: dt}
+-		w.cmd = test.bgCommand(t, &w.out, &w.out)
++		w.cmd, w.flush = test.bgCommand(t, &w.out, &w.out)
+ 		t.worklist = append(t.worklist, w)
+ 		return nil
+ 	})
+@@ -1255,6 +1265,9 @@ func (t *tester) runPending(nextTest *distTest) {
+ 			} else {
+ 				timelog("start", w.dt.name)
+ 				w.err = w.cmd.Run()
++				if w.flush != nil {
++					w.flush()
++				}
+ 				if w.err != nil {
+ 					if isUnsupportedVMASize(w) {
+ 						timelog("skip", w.dt.name)
+diff --git a/src/cmd/dist/testjson.go b/src/cmd/dist/testjson.go
+index 542dc8493e..0f7e5be289 100644
+--- a/src/cmd/dist/testjson.go
++++ b/src/cmd/dist/testjson.go
+@@ -62,6 +62,14 @@ func (f *testJSONFilter) Write(b []byte) (int, error) {
+ 	return bn, nil
+ }
+ 
++func (f *testJSONFilter) Flush() {
++	// Write any remaining partial line to the underlying writer.
++	if f.lineBuf.Len() > 0 {
++		f.w.Write(f.lineBuf.Bytes())
++		f.lineBuf.Reset()
++	}
++}
++
+ func (f *testJSONFilter) process(line []byte) {
+ 	if len(line) > 0 && line[0] == '{' {
+ 		// Plausible test2json output. Parse it generically.
+diff --git a/src/cmd/dist/testjson_test.go b/src/cmd/dist/testjson_test.go
+index dbd1f27ea1..0a52aec273 100644
+--- a/src/cmd/dist/testjson_test.go
++++ b/src/cmd/dist/testjson_test.go
+@@ -27,13 +27,13 @@ func TestJSONFilterMalformed(t *testing.T) {
+ more text
+ {"Package":"abc"}trailing text
+ {not json}
+-`
++no newline`
+ 	const want = `unexpected text
+ {"Package":"abc:variant"}
+ more text
+ {"Package":"abc:variant"}trailing text
+ {not json}
+-`
++no newline`
+ 	checkJSONFilter(t, in, want)
+ }
+ 
+@@ -77,6 +77,7 @@ func checkJSONFilterWith(t *testing.T, want string, write func(*testJSONFilter))
+ 	out := new(strings.Builder)
+ 	f := &testJSONFilter{w: out, variant: "variant"}
+ 	write(f)
++	f.Flush()
+ 	got := out.String()
+ 	if want != got {
+ 		t.Errorf("want:\n%s\ngot:\n%s", want, got)

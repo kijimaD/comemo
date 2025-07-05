@@ -7,7 +7,29 @@ Date:   Wed Dec 14 16:26:48 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5472043
-
+---
  misc/osx/etc/{profile.go => profile_go} | 0
  misc/osx/scripts/postinstall            | 6 +++---
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/osx/etc/profile.go b/misc/osx/etc/profile_go
+similarity index 100%
+rename from misc/osx/etc/profile.go
+rename to misc/osx/etc/profile_go
+diff --git a/misc/osx/scripts/postinstall b/misc/osx/scripts/postinstall
+index 2f2c53c783..f8545b8b02 100644
+--- a/misc/osx/scripts/postinstall
++++ b/misc/osx/scripts/postinstall
+@@ -10,9 +10,9 @@ find . -type d -exec chmod ugo+rx \{\} \;
+ chmod o-w .
+ 
+ echo "Setting GOROOT system-wide"
+-echo "eval \`/etc/profile.go\`" >> /etc/csh.login
+-echo "eval \`/etc/profile.go\`" >> /etc/zshenv
+-echo "eval \`/etc/profile.go\`" >> /etc/profile
++echo "eval \`/etc/profile_go\`" >> /etc/csh.login
++echo "eval \`/etc/profile_go\`" >> /etc/zshenv
++echo "eval \`/etc/profile_go\`" >> /etc/profile
+ 
+ echo "Fixing debuggers via sudo.bash"
+ # setgrp procmod the debuggers (sudo.bash)

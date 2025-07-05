@@ -7,8 +7,119 @@ Date:   Tue Aug 3 01:07:57 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1871057
-
+---
  src/cmd/gc/select.c    |  4 +---
  src/pkg/runtime/chan.c |  8 ++++---
  test/chan/select3.go   | 57 +++++++++++++++++++++++---------------------------
  3 files changed, 32 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 9cba01fa51..2fa4353165 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -68,8 +68,6 @@ typecheckselect(Node *sel)
+ 		typechecklist(ncase->nbody, Etop);
+ 	}
+ 	sel->xoffset = count;
+-	if(count == 0)
+-		yyerror("empty select");
+ 	lineno = lno;
+ }
+ 
+@@ -91,7 +89,7 @@ walkselect(Node *sel)
+ 	typecheck(&r, Etop);
+ 	init = list(init, r);
+ 
+-	if(sel->list == nil)
++	if(sel->list == nil && sel->xoffset != 0)
+ 		fatal("double walkselect");	// already rewrote
+ 
+ 	// register cases
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 9e88e824a4..16c02e8e78 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -631,9 +631,11 @@ void
+ 		printf("select: sel=%p\n", sel);
+ 
+ 	if(sel->ncase < 2) {
+-		if(sel->ncase < 1)
+-			throw("select: no cases");
+-		// make special case of one.
++		if(sel->ncase < 1) {
++			g->status = Gwaiting;	// forever
++			gosched();
++		}
++		// TODO: make special case of one.
+ 	}
+ 
+ 	// select a (relative) prime
+diff --git a/test/chan/select3.go b/test/chan/select3.go
+index d4f7ebcec0..a1a2ef50b5 100644
+--- a/test/chan/select3.go
++++ b/test/chan/select3.go
+@@ -112,38 +112,33 @@ func main() {
+ 		<-ch
+ 	})
+ 
+-	// TODO(gri) remove this if once 6g accepts empty selects
+-	enabled := false
+-	if enabled {
+-		// empty selects always block
+-		testBlock(always, func() {
+-			select {
+-			case <-make(chan int): // remove this once 6g accepts empty selects
+-			}
+-		})
++	// empty selects always block
++	testBlock(always, func() {
++		select {
++		}
++	})
+ 
+-		// selects with only nil channels always block
+-		testBlock(always, func() {
+-			select {
+-			case <-nilch:
+-				unreachable()
+-			}
+-		})
+-		testBlock(always, func() {
+-			select {
+-			case nilch <- 7:
+-				unreachable()
+-			}
+-		})
+-		testBlock(always, func() {
+-			select {
+-			case <-nilch:
+-				unreachable()
+-			case nilch <- 7:
+-				unreachable()
+-			}
+-		})
+-	}
++	// selects with only nil channels always block
++	testBlock(always, func() {
++		select {
++		case <-nilch:
++			unreachable()
++		}
++	})
++	testBlock(always, func() {
++		select {
++		case nilch <- 7:
++			unreachable()
++		}
++	})
++	testBlock(always, func() {
++		select {
++		case <-nilch:
++			unreachable()
++		case nilch <- 7:
++			unreachable()
++		}
++	})
+ 
+ 	// selects with non-ready non-nil channels always block
+ 	testBlock(always, func() {

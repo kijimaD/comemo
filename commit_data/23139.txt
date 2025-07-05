@@ -15,9 +15,133 @@ Date:   Wed Apr 22 17:53:32 2015 -0700
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/lex.go  |  1 +
  src/cmd/internal/gc/util.go | 20 ++++++++++----------
  src/cmd/internal/ld/pobj.go |  1 +
  src/cmd/internal/ld/util.go | 12 ++++++++++--
  4 files changed, 22 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 5600d90df2..e055894f79 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -233,6 +233,7 @@ func Main() {
+ 	}
+ 	obj.Flagstr("cpuprofile", "file: write cpu profile to file", &cpuprofile)
+ 	obj.Flagstr("memprofile", "file: write memory profile to file", &memprofile)
++	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate", &memprofilerate)
+ 	obj.Flagparse(usage)
+ 
+ 	if flag_dynlink {
+diff --git a/src/cmd/internal/gc/util.go b/src/cmd/internal/gc/util.go
+index 7b593dc42c..5dc6561b48 100644
+--- a/src/cmd/internal/gc/util.go
++++ b/src/cmd/internal/gc/util.go
+@@ -3,6 +3,7 @@ package gc
+ import (
+ 	"cmd/internal/obj"
+ 	"os"
++	"runtime"
+ 	"runtime/pprof"
+ 	"strconv"
+ 	"strings"
+@@ -42,14 +43,6 @@ func plan9quote(s string) string {
+ 	return s
+ }
+ 
+-// simulation of int(*s++) in C
+-func intstarstringplusplus(s string) (int, string) {
+-	if s == "" {
+-		return 0, ""
+-	}
+-	return int(s[0]), s[1:]
+-}
+-
+ // strings.Compare, introduced in Go 1.5.
+ func stringsCompare(a, b string) int {
+ 	if a == b {
+@@ -76,8 +69,11 @@ func Exit(code int) {
+ 	os.Exit(code)
+ }
+ 
+-var cpuprofile string
+-var memprofile string
++var (
++	cpuprofile     string
++	memprofile     string
++	memprofilerate int64
++)
+ 
+ func startProfile() {
+ 	if cpuprofile != "" {
+@@ -91,11 +87,15 @@ func startProfile() {
+ 		AtExit(pprof.StopCPUProfile)
+ 	}
+ 	if memprofile != "" {
++		if memprofilerate != 0 {
++			runtime.MemProfileRate = int(memprofilerate)
++		}
+ 		f, err := os.Create(memprofile)
+ 		if err != nil {
+ 			Fatal("%v", err)
+ 		}
+ 		AtExit(func() {
++			runtime.GC() // profile all outstanding allocations
+ 			if err := pprof.WriteHeapProfile(f); err != nil {
+ 				Fatal("%v", err)
+ 			}
+diff --git a/src/cmd/internal/ld/pobj.go b/src/cmd/internal/ld/pobj.go
+index c56e20eadc..dbfe8a044a 100644
+--- a/src/cmd/internal/ld/pobj.go
++++ b/src/cmd/internal/ld/pobj.go
+@@ -140,6 +140,7 @@ func Ldmain() {
+ 	}
+ 	obj.Flagstr("cpuprofile", "file: write cpu profile to file", &cpuprofile)
+ 	obj.Flagstr("memprofile", "file: write memory profile to file", &memprofile)
++	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate", &memprofilerate)
+ 	obj.Flagparse(usage)
+ 	startProfile()
+ 	Ctxt.Bso = &Bso
+diff --git a/src/cmd/internal/ld/util.go b/src/cmd/internal/ld/util.go
+index 3461ae862c..ea6ca1589c 100644
+--- a/src/cmd/internal/ld/util.go
++++ b/src/cmd/internal/ld/util.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"log"
+ 	"os"
++	"runtime"
+ 	"runtime/pprof"
+ 	"strings"
+ 	"time"
+@@ -300,8 +301,11 @@ func Exit(code int) {
+ 	os.Exit(code)
+ }
+ 
+-var cpuprofile string
+-var memprofile string
++var (
++	cpuprofile     string
++	memprofile     string
++	memprofilerate int64
++)
+ 
+ func startProfile() {
+ 	if cpuprofile != "" {
+@@ -315,11 +319,15 @@ func startProfile() {
+ 		AtExit(pprof.StopCPUProfile)
+ 	}
+ 	if memprofile != "" {
++		if memprofilerate != 0 {
++			runtime.MemProfileRate = int(memprofilerate)
++		}
+ 		f, err := os.Create(memprofile)
+ 		if err != nil {
+ 			log.Fatalf("%v", err)
+ 		}
+ 		AtExit(func() {
++			runtime.GC() // profile all outstanding allocations
+ 			if err := pprof.WriteHeapProfile(f); err != nil {
+ 				log.Fatalf("%v", err)
+ 			}

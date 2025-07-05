@@ -18,10 +18,113 @@ Date:   Wed Apr 26 14:49:58 2017 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/tar_test.go            |  4 ----
  src/os/os_windows_test.go              | 14 ++++++++++++++
  src/os/types_windows.go                |  8 ++++----
  src/path/filepath/path_test.go         |  3 ---
  src/path/filepath/path_windows_test.go |  2 --
  5 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index 10a16dd5d0..1cb7ec2525 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"path"
+ 	"path/filepath"
+ 	"reflect"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -72,9 +71,6 @@ func TestFileInfoHeaderDir(t *testing.T) {
+ func TestFileInfoHeaderSymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
+-	if runtime.GOOS == "windows" {
+-		t.Skip("skipping broken test: see issue 17541")
+-	}
+ 	tmpdir, err := ioutil.TempDir("", "TestFileInfoHeaderSymlink")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 3e82f6993b..84066dee00 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -153,6 +153,20 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
+ 			t.Errorf("%q should point to %q", link, dir)
+ 			continue
+ 		}
++
++		fi2, err := os.Lstat(link)
++		if err != nil {
++			t.Errorf("failed to lstat link %v: %v", link, err)
++			continue
++		}
++		if m := fi2.Mode(); m&os.ModeSymlink == 0 {
++			t.Errorf("%q should be a link, but is not (mode=0x%x)", link, uint32(m))
++			continue
++		}
++		if m := fi2.Mode(); m&os.ModeDir != 0 {
++			t.Errorf("%q should be a link, not a directory (mode=0x%x)", link, uint32(m))
++			continue
++		}
+ 	}
+ }
+ 
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index 772b9e5d24..a0d6fa4e76 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -32,16 +32,16 @@ func (fs *fileStat) Mode() (m FileMode) {
+ 	if fs == &devNullStat {
+ 		return ModeDevice | ModeCharDevice | 0666
+ 	}
+-	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+-		m |= ModeDir | 0111
+-	}
+ 	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+ 		m |= 0444
+ 	} else {
+ 		m |= 0666
+ 	}
+ 	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+-		m |= ModeSymlink
++		return m | ModeSymlink
++	}
++	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
++		m |= ModeDir | 0111
+ 	}
+ 	switch fs.filetype {
+ 	case syscall.FILE_TYPE_PIPE:
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index d2a78f5bee..315f61e3ad 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1377,8 +1377,5 @@ func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
+ 
+ func TestWalkSymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+-	if runtime.GOOS == "windows" {
+-		t.Skip("skipping broken test: see issue 17540")
+-	}
+ 	testWalkSymlink(t, os.Symlink)
+ }
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 0663778744..d759a83f38 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -451,12 +451,10 @@ func testWalkMklink(t *testing.T, linktype string) {
+ 
+ func TestWalkDirectoryJunction(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+-	t.Skip("skipping broken test: see issue 10424")
+ 	testWalkMklink(t, "J")
+ }
+ 
+ func TestWalkDirectorySymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+-	t.Skip("skipping broken test: see issue 17540")
+ 	testWalkMklink(t, "D")
+ }

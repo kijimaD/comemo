@@ -7,6 +7,22 @@ Date:   Fri Feb 13 14:43:08 2015 -0500
     Change-Id: I2853535ab6c79d14f430c780161e4c35c52d9fb3
     Reviewed-on: https://go-review.googlesource.com/4839
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/pkg.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index ecb39d900a..6d8929b0a9 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -401,6 +401,10 @@ var goTools = map[string]targetDir{
+ 	"cmd/new6a":                            toTool,
+ 	"cmd/new8a":                            toTool,
+ 	"cmd/new9a":                            toTool,
++	"cmd/new5g":                            toTool,
++	"cmd/new6g":                            toTool,
++	"cmd/new8g":                            toTool,
++	"cmd/new9g":                            toTool,
+ 	"cmd/nm":                               toTool,
+ 	"cmd/objdump":                          toTool,
+ 	"cmd/objwriter":                        toTool,

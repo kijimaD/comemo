@@ -7,7 +7,7 @@ Date:   Sun Jun 20 12:45:39 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1736042
-
+---
  src/cmd/prof/gopprof            |  6 ++++--
  src/pkg/image/png/reader.go     |  3 +--
  src/pkg/rpc/client.go           |  6 ------
@@ -16,3 +16,212 @@ Date:   Sun Jun 20 12:45:39 2010 -0700
  src/pkg/rpc/server.go           | 32 +++++++++++---------------------
  test/arm-pass.txt               |  2 ++
  7 files changed, 22 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/prof/gopprof b/src/cmd/prof/gopprof
+index 4e9212957d..dffeeffa13 100755
+--- a/src/cmd/prof/gopprof
++++ b/src/cmd/prof/gopprof
+@@ -724,8 +724,10 @@ sub RunWeb {
+     "firefox",
+   );
+   foreach my $b (@alt) {
+-    if (system($b, $fname) == 0) {
+-      return;
++    if (-f $b) {
++      if (system($b, $fname) == 0) {
++        return;
++      }
+     }
+   }
+ 
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index 33f00eb776..fddb70423a 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -14,7 +14,6 @@ import (
+ 	"image"
+ 	"io"
+ 	"os"
+-	"strconv"
+ )
+ 
+ // Color type, as per the PNG spec.
+@@ -109,7 +108,7 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	}
+ 	crc.Write(d.tmp[0:13])
+ 	if d.tmp[8] != 8 {
+-		return UnsupportedError("bit depth " + strconv.Itoa(int(d.tmp[8])))
++		return UnsupportedError("bit depth")
+ 	}
+ 	if d.tmp[10] != 0 || d.tmp[11] != 0 || d.tmp[12] != 0 {
+ 		return UnsupportedError("compression, filter or interlace method")
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index e6a861a1e7..d742d099fb 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -93,13 +93,7 @@ func (client *Client) input() {
+ 		c := client.pending[seq]
+ 		client.pending[seq] = c, false
+ 		client.mutex.Unlock()
+-		if c == nil {
+-			err = os.NewError("invalid response sequence number")
+-			break
+-		}
+ 		err = client.codec.ReadResponseBody(c.Reply)
+-		// TODO(rsc): Should look at err, but breaks tests.
+-
+ 		// Empty strings should turn into nil os.Errors
+ 		if response.Error != "" {
+ 			c.Error = os.ErrorString(response.Error)
+diff --git a/src/pkg/rpc/jsonrpc/all_test.go b/src/pkg/rpc/jsonrpc/all_test.go
+index 5422cc7287..e94c594da0 100644
+--- a/src/pkg/rpc/jsonrpc/all_test.go
++++ b/src/pkg/rpc/jsonrpc/all_test.go
+@@ -58,8 +58,7 @@ func TestServer(t *testing.T) {
+ 
+ 	cli, srv := net.Pipe()
+ 	defer cli.Close()
+-	var ci rpc.ClientInfo
+-	go ServeConn(srv, &ci)
++	go ServeConn(srv)
+ 	dec := json.NewDecoder(cli)
+ 
+ 	// Send hand-coded requests to server, parse responses.
+@@ -85,9 +84,8 @@ func TestServer(t *testing.T) {
+ func TestClient(t *testing.T) {
+ 	// Assume server is okay (TestServer is above).
+ 	// Test client against server.
+-	var ci rpc.ClientInfo
+ 	cli, srv := net.Pipe()
+-	go ServeConn(srv, &ci)
++	go ServeConn(srv)
+ 
+ 	client := NewClient(cli)
+ 	defer client.Close()
+diff --git a/src/pkg/rpc/jsonrpc/server.go b/src/pkg/rpc/jsonrpc/server.go
+index 40b5018774..9f3472a39c 100644
+--- a/src/pkg/rpc/jsonrpc/server.go
++++ b/src/pkg/rpc/jsonrpc/server.go
+@@ -118,6 +118,6 @@ func (c *serverCodec) Close() os.Error {
+ // ServeConn runs the JSON-RPC server on a single connection.
+ // ServeConn blocks, serving the connection until the client hangs up.
+ // The caller typically invokes ServeConn in a go statement.
+-func ServeConn(conn io.ReadWriteCloser, ci *rpc.ClientInfo) {
+-	rpc.ServeCodec(NewServerCodec(conn), ci)
++func ServeConn(conn io.ReadWriteCloser) {
++	rpc.ServeCodec(NewServerCodec(conn))
+ }
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 7df89a8d7a..f7fce45a14 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -214,7 +214,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
+ 		}
+ 		// Method needs three ins: receiver, *args, *reply.
+ 		// The args and reply must be structs until gobs are more general.
+-		if mtype.NumIn() != 3 && mtype.NumIn() != 4 {
++		if mtype.NumIn() != 3 {
+ 			log.Stderr("method", mname, "has wrong number of ins:", mtype.NumIn())
+ 			continue
+ 		}
+@@ -301,19 +301,13 @@ func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, codec Se
+ 	sending.Unlock()
+ }
+ 
+-func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec, ci *ClientInfo) {
++func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec) {
+ 	mtype.Lock()
+ 	mtype.numCalls++
+ 	mtype.Unlock()
+ 	function := mtype.method.Func
+ 	// Invoke the method, providing a new value for the reply.
+-	var args []reflect.Value
+-	if mtype.method.Type.NumIn() == 3 {
+-		args = []reflect.Value{s.rcvr, argv, replyv}
+-	} else {
+-		args = []reflect.Value{s.rcvr, argv, replyv, reflect.NewValue(ci)}
+-	}
+-	returnValues := function.Call(args)
++	returnValues := function.Call([]reflect.Value{s.rcvr, argv, replyv})
+ 	// The return value for the method is an os.Error.
+ 	errInter := returnValues[0].Interface()
+ 	errmsg := ""
+@@ -348,7 +342,7 @@ func (c *gobServerCodec) Close() os.Error {
+ 	return c.rwc.Close()
+ }
+ 
+-func (server *serverType) input(codec ServerCodec, ci *ClientInfo) {
++func (server *serverType) input(codec ServerCodec) {
+ 	sending := new(sync.Mutex)
+ 	for {
+ 		// Grab the request header.
+@@ -395,7 +389,7 @@ func (server *serverType) input(codec ServerCodec, ci *ClientInfo) {
+ 			sendResponse(sending, req, replyv.Interface(), codec, err.String())
+ 			break
+ 		}
+-		go service.call(sending, mtype, req, argv, replyv, codec, ci)
++		go service.call(sending, mtype, req, argv, replyv, codec)
+ 	}
+ 	codec.Close()
+ }
+@@ -406,7 +400,7 @@ func (server *serverType) accept(lis net.Listener) {
+ 		if err != nil {
+ 			log.Exit("rpc.Serve: accept:", err.String()) // TODO(r): exit?
+ 		}
+-		go ServeConn(conn, &ClientInfo{conn.LocalAddr().String(), conn.RemoteAddr().String()})
++		go ServeConn(conn)
+ 	}
+ }
+ 
+@@ -438,14 +432,14 @@ type ServerCodec interface {
+ // The caller typically invokes ServeConn in a go statement.
+ // ServeConn uses the gob wire format (see package gob) on the
+ // connection.  To use an alternate codec, use ServeCodec.
+-func ServeConn(conn io.ReadWriteCloser, ci *ClientInfo) {
+-	ServeCodec(&gobServerCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(conn)}, ci)
++func ServeConn(conn io.ReadWriteCloser) {
++	ServeCodec(&gobServerCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(conn)})
+ }
+ 
+ // ServeCodec is like ServeConn but uses the specified codec to
+ // decode requests and encode responses.
+-func ServeCodec(codec ServerCodec, ci *ClientInfo) {
+-	server.input(codec, ci)
++func ServeCodec(codec ServerCodec) {
++	server.input(codec)
+ }
+ 
+ // Accept accepts connections on the listener and serves requests
+@@ -471,11 +465,7 @@ func serveHTTP(c *http.Conn, req *http.Request) {
+ 		return
+ 	}
+ 	io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n")
+-	ci := &ClientInfo{
+-		LocalAddr:  conn.(net.Conn).LocalAddr().String(),
+-		RemoteAddr: c.RemoteAddr,
+-	}
+-	ServeConn(conn, ci)
++	ServeConn(conn)
+ }
+ 
+ // HandleHTTP registers an HTTP handler for RPC messages.
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index d96b15c8e0..8878f6dc8d 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -48,6 +48,7 @@
+ # ./gc.go
+ # ./gc1.go
+ ./hashmap.go
++./hilbert.go
+ ./helloworld.go
+ ./if.go
+ ./if1.go
+@@ -331,6 +332,7 @@ fixedbugs/bug149.go
+ fixedbugs/bug150.go
+ fixedbugs/bug151.go
+ fixedbugs/bug152.go
++fixedbugs/bug153.go
+ # fixedbugs/bug154.go  # needs floating point
+ fixedbugs/bug155.go
+ fixedbugs/bug156.go

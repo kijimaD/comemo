@@ -7,6 +7,40 @@ Date:   Tue Mar 9 14:17:14 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/357043
-
+---
  src/pkg/fmt/fmt_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 3f8674639a..b601b6ef57 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -119,7 +119,6 @@ var fmttests = []fmtTest{
+ 	fmtTest{"% .3g", -1.0, "-1"},
+ 	fmtTest{"% .3g", 1.0, " 1"},
+ 
+-	/* TODO: Enable when complex support is in all compilers
+ 	// complex values
+ 	fmtTest{"%+.3e", 0i, "(+0.000e+00+0.000e+00i)"},
+ 	fmtTest{"%+.3f", 0i, "(+0.000+0.000i)"},
+@@ -139,7 +138,6 @@ var fmttests = []fmtTest{
+ 	fmtTest{"% .3E", -1 - 2i, "(-1.000E+00-2.000E+00i)"},
+ 	fmtTest{"%+.3g", complex64(1 + 2i), "(+1+2i)"},
+ 	fmtTest{"%+.3g", complex128(1 + 2i), "(+1+2i)"},
+-	*/
+ 
+ 	// erroneous formats
+ 	fmtTest{"", 2, "?(extra int=2)"},
+@@ -232,12 +230,10 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%v", &array, "&[1 2 3 4 5]"},
+ 	fmtTest{"%v", &iarray, "&[1 hello 2.5 <nil>]"},
+ 
+-	/* TODO: Enable when complex support is in all compilers
+ 	// complexes with %v
+ 	fmtTest{"%v", 1 + 2i, "(1+2i)"},
+ 	fmtTest{"%v", complex64(1 + 2i), "(1+2i)"},
+ 	fmtTest{"%v", complex128(1 + 2i), "(1+2i)"},
+-	*/
+ 
+ 	// structs
+ 	fmtTest{"%v", A{1, 2, "a", []int{1, 2}}, `{1 2 a [1 2]}`},

@@ -21,9 +21,929 @@ Date:   Wed Apr 20 16:24:45 2011 -0400
     R=r, dsymonds
     CC=golang-dev
     https://golang.org/cl/4439058
-
+---
  src/pkg/reflect/all_test.go |  18 ++++
  src/pkg/reflect/set_test.go | 211 ++++++++++++++++++++++++++++++++++++++
  src/pkg/reflect/type.go     | 171 +++++++++++++++++++++++++++++++
  src/pkg/reflect/value.go    | 242 ++++++++++++++++++++++++++++++++------------
  4 files changed, 575 insertions(+), 67 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 79fef902a0..726713fcc0 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -5,6 +5,7 @@
+ package reflect_test
+ 
+ import (
++	"bytes"
+ 	"container/vector"
+ 	"fmt"
+ 	"io"
+@@ -1449,3 +1450,20 @@ func TestSlice(t *testing.T) {
+ 		t.Errorf("xa.Slice(2, 5) = %v", v)
+ 	}
+ }
++
++func TestVariadic(t *testing.T) {
++	var b bytes.Buffer
++	V := NewValue
++
++	b.Reset()
++	V(fmt.Fprintf).Call([]Value{V(&b), V("%s, %d world"), V("hello"), V(42)})
++	if b.String() != "hello, 42 world" {
++		t.Errorf("after Fprintf Call: %q != %q", b.String(), "hello 42 world")
++	}
++
++	b.Reset()
++	V(fmt.Fprintf).CallSlice([]Value{V(&b), V("%s, %d world"), V([]interface{}{"hello", 42})})
++	if b.String() != "hello, 42 world" {
++		t.Errorf("after Fprintf CallSlice: %q != %q", b.String(), "hello 42 world")
++	}
++}
+diff --git a/src/pkg/reflect/set_test.go b/src/pkg/reflect/set_test.go
+new file mode 100644
+index 0000000000..862d4c5dd3
+--- /dev/null
++++ b/src/pkg/reflect/set_test.go
+@@ -0,0 +1,211 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reflect_test
++
++import (
++	"bytes"
++	"go/ast"
++	"io"
++	. "reflect"
++	"testing"
++	"unsafe"
++)
++
++type MyBuffer bytes.Buffer
++
++func TestImplicitMapConversion(t *testing.T) {
++	// Test implicit conversions in MapIndex and SetMapIndex.
++	{
++		// direct
++		m := make(map[int]int)
++		mv := NewValue(m)
++		mv.SetMapIndex(NewValue(1), NewValue(2))
++		x, ok := m[1]
++		if x != 2 {
++			t.Errorf("#1 after SetMapIndex(1,2): %d, %t (map=%v)", x, ok, m)
++		}
++		if n := mv.MapIndex(NewValue(1)).Interface().(int); n != 2 {
++			t.Errorf("#1 MapIndex(1) = %d", n)
++		}
++	}
++	{
++		// convert interface key
++		m := make(map[interface{}]int)
++		mv := NewValue(m)
++		mv.SetMapIndex(NewValue(1), NewValue(2))
++		x, ok := m[1]
++		if x != 2 {
++			t.Errorf("#2 after SetMapIndex(1,2): %d, %t (map=%v)", x, ok, m)
++		}
++		if n := mv.MapIndex(NewValue(1)).Interface().(int); n != 2 {
++			t.Errorf("#2 MapIndex(1) = %d", n)
++		}
++	}
++	{
++		// convert interface value
++		m := make(map[int]interface{})
++		mv := NewValue(m)
++		mv.SetMapIndex(NewValue(1), NewValue(2))
++		x, ok := m[1]
++		if x != 2 {
++			t.Errorf("#3 after SetMapIndex(1,2): %d, %t (map=%v)", x, ok, m)
++		}
++		if n := mv.MapIndex(NewValue(1)).Interface().(int); n != 2 {
++			t.Errorf("#3 MapIndex(1) = %d", n)
++		}
++	}
++	{
++		// convert both interface key and interface value
++		m := make(map[interface{}]interface{})
++		mv := NewValue(m)
++		mv.SetMapIndex(NewValue(1), NewValue(2))
++		x, ok := m[1]
++		if x != 2 {
++			t.Errorf("#4 after SetMapIndex(1,2): %d, %t (map=%v)", x, ok, m)
++		}
++		if n := mv.MapIndex(NewValue(1)).Interface().(int); n != 2 {
++			t.Errorf("#4 MapIndex(1) = %d", n)
++		}
++	}
++	{
++		// convert both, with non-empty interfaces
++		m := make(map[io.Reader]io.Writer)
++		mv := NewValue(m)
++		b1 := new(bytes.Buffer)
++		b2 := new(bytes.Buffer)
++		mv.SetMapIndex(NewValue(b1), NewValue(b2))
++		x, ok := m[b1]
++		if x != b2 {
++			t.Errorf("#5 after SetMapIndex(b1, b2): %p (!= %p), %t (map=%v)", x, b2, ok, m)
++		}
++		if p := mv.MapIndex(NewValue(b1)).Elem().Pointer(); p != uintptr(unsafe.Pointer(b2)) {
++			t.Errorf("#5 MapIndex(b1) = %p want %p", p, b2)
++		}
++	}
++	{
++		// convert channel direction	
++		m := make(map[<-chan int]chan int)
++		mv := NewValue(m)
++		c1 := make(chan int)
++		c2 := make(chan int)
++		mv.SetMapIndex(NewValue(c1), NewValue(c2))
++		x, ok := m[c1]
++		if x != c2 {
++			t.Errorf("#6 after SetMapIndex(c1, c2): %p (!= %p), %t (map=%v)", x, c2, ok, m)
++		}
++		if p := mv.MapIndex(NewValue(c1)).Pointer(); p != NewValue(c2).Pointer() {
++			t.Errorf("#6 MapIndex(c1) = %p want %p", p, c2)
++		}
++	}
++	{
++		// convert identical underlying types
++		// TODO(rsc): Should be able to define MyBuffer here.
++		// 6l prints very strange messages about .this.Bytes etc
++		// when we do that though, so MyBuffer is defined
++		// at top level.
++		m := make(map[*MyBuffer]*bytes.Buffer)
++		mv := NewValue(m)
++		b1 := new(MyBuffer)
++		b2 := new(bytes.Buffer)
++		mv.SetMapIndex(NewValue(b1), NewValue(b2))
++		x, ok := m[b1]
++		if x != b2 {
++			t.Errorf("#7 after SetMapIndex(b1, b2): %p (!= %p), %t (map=%v)", x, b2, ok, m)
++		}
++		if p := mv.MapIndex(NewValue(b1)).Pointer(); p != uintptr(unsafe.Pointer(b2)) {
++			t.Errorf("#7 MapIndex(b1) = %p want %p", p, b2)
++		}
++	}
++
++}
++
++func TestImplicitSetConversion(t *testing.T) {
++	// Assume TestImplicitMapConversion covered the basics.
++	// Just make sure conversions are being applied at all.
++	var r io.Reader
++	b := new(bytes.Buffer)
++	rv := NewValue(&r).Elem()
++	rv.Set(NewValue(b))
++	if r != b {
++		t.Errorf("after Set: r=%T(%v)", r, r)
++	}
++}
++
++func TestImplicitSendConversion(t *testing.T) {
++	c := make(chan io.Reader, 10)
++	b := new(bytes.Buffer)
++	NewValue(c).Send(NewValue(b))
++	if bb := <-c; bb != b {
++		t.Errorf("Received %p != %p", bb, b)
++	}
++}
++
++func TestImplicitCallConversion(t *testing.T) {
++	// Arguments must be assignable to parameter types.
++	fv := NewValue(io.WriteString)
++	b := new(bytes.Buffer)
++	fv.Call([]Value{NewValue(b), NewValue("hello world")})
++	if b.String() != "hello world" {
++		t.Errorf("After call: string=%q want %q", b.String(), "hello world")
++	}
++}
++
++func TestImplicitAppendConversion(t *testing.T) {
++	// Arguments must be assignable to the slice's element type.
++	s := []io.Reader{}
++	sv := NewValue(&s).Elem()
++	b := new(bytes.Buffer)
++	sv.Set(Append(sv, NewValue(b)))
++	if len(s) != 1 || s[0] != b {
++		t.Errorf("after append: s=%v want [%p]", s, b)
++	}
++}
++
++var implementsTests = []struct {
++	x interface{}
++	t interface{}
++	b bool
++}{
++	{new(*bytes.Buffer), new(io.Reader), true},
++	{new(bytes.Buffer), new(io.Reader), false},
++	{new(*bytes.Buffer), new(io.ReaderAt), false},
++	{new(*ast.Ident), new(ast.Expr), true},
++}
++
++func TestImplements(t *testing.T) {
++	for _, tt := range implementsTests {
++		xv := Typeof(tt.x).Elem()
++		xt := Typeof(tt.t).Elem()
++		if b := xv.Implements(xt); b != tt.b {
++			t.Errorf("(%s).Implements(%s) = %v, want %v", xv.String(), xt.String(), b, tt.b)
++		}
++	}
++}
++
++var assignableTests = []struct {
++	x interface{}
++	t interface{}
++	b bool
++}{
++	{new(chan int), new(<-chan int), true},
++	{new(<-chan int), new(chan int), false},
++	{new(*int), new(IntPtr), true},
++	{new(IntPtr), new(*int), true},
++	{new(IntPtr), new(IntPtr1), false},
++	// test runs implementsTests too
++}
++
++type IntPtr *int
++type IntPtr1 *int
++
++func TestAssignableTo(t *testing.T) {
++	for _, tt := range append(assignableTests, implementsTests...) {
++		xv := Typeof(tt.x).Elem()
++		xt := Typeof(tt.t).Elem()
++		if b := xv.AssignableTo(xt); b != tt.b {
++			t.Errorf("(%s).AssignableTo(%s) = %v, want %v", xv.String(), xt.String(), b, tt.b)
++		}
++	}
++}
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index a400810560..805569e2d3 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -73,6 +73,12 @@ type Type interface {
+ 	// Kind returns the specific kind of this type.
+ 	Kind() Kind
+ 
++	// Implements returns true if the type implements the interface type u.
++	Implements(u Type) bool
++
++	// AssignableTo returns true if a value of the type is assignable to type u.
++	AssignableTo(u Type) bool
++
+ 	// Methods applicable only to some types, depending on Kind.
+ 	// The methods allowed for each kind are:
+ 	//
+@@ -888,3 +894,168 @@ func PtrTo(t Type) Type {
+ 	ptrMap.Unlock()
+ 	return p.commonType.toType()
+ }
++
++func (t *commonType) Implements(u Type) bool {
++	if u == nil {
++		panic("reflect: nil type passed to Type.Implements")
++	}
++	if u.Kind() != Interface {
++		panic("reflect: non-interface type passed to Type.Implements")
++	}
++	return implements(u.(*commonType), t)
++}
++
++func (t *commonType) AssignableTo(u Type) bool {
++	if u == nil {
++		panic("reflect: nil type passed to Type.AssignableTo")
++	}
++	uu := u.(*commonType)
++	return directlyAssignable(uu, t) || implements(uu, t)
++}
++
++// implements returns true if the type V implements the interface type T.
++func implements(T, V *commonType) bool {
++	if T.Kind() != Interface {
++		return false
++	}
++	t := (*interfaceType)(unsafe.Pointer(T))
++	if len(t.methods) == 0 {
++		return true
++	}
++
++	// The same algorithm applies in both cases, but the
++	// method tables for an interface type and a concrete type
++	// are different, so the code is duplicated.
++	// In both cases the algorithm is a linear scan over the two
++	// lists - T's methods and V's methods - simultaneously.
++	// Since method tables are stored in a unique sorted order
++	// (alphabetical, with no duplicate method names), the scan
++	// through V's methods must hit a match for each of T's
++	// methods along the way, or else V does not implement T.
++	// This lets us run the scan in overall linear time instead of
++	// the quadratic time  a naive search would require.
++	// See also ../runtime/iface.c.
++	if V.Kind() == Interface {
++		v := (*interfaceType)(unsafe.Pointer(V))
++		i := 0
++		for j := 0; j < len(v.methods); j++ {
++			tm := &t.methods[i]
++			vm := &v.methods[j]
++			// TODO(rsc):  && vm.pkgPath == tm.pkgPath should be here
++			// but it breaks the *ast.Ident vs ast.Expr test.
++			if vm.name == tm.name && vm.typ == tm.typ {
++				if i++; i >= len(t.methods) {
++					return true
++				}
++			}
++		}
++		return false
++	}
++
++	v := V.uncommon()
++	if v == nil {
++		return false
++	}
++	i := 0
++	for j := 0; j < len(v.methods); j++ {
++		tm := &t.methods[i]
++		vm := &v.methods[j]
++		// TODO(rsc):  && vm.pkgPath == tm.pkgPath should be here
++		// but it breaks the *ast.Ident vs ast.Expr test.
++		if vm.name == tm.name && vm.mtyp == tm.typ {
++			if i++; i >= len(t.methods) {
++				return true
++			}
++		}
++	}
++	return false
++}
++
++// directlyAssignable returns true if a value x of type V can be directly
++// assigned (using memmove) to a value of type T.
++// http://golang.org/doc/go_spec.html#Assignability
++// Ignoring the interface rules (implemented elsewhere)
++// and the ideal constant rules (no ideal constants at run time).
++func directlyAssignable(T, V *commonType) bool {
++	// x's type V is identical to T?
++	if T == V {
++		return true
++	}
++
++	// Otherwise at least one of T and V must be unnamed
++	// and they must have the same kind.
++	if T.Name() != "" && V.Name() != "" || T.Kind() != V.Kind() {
++		return false
++	}
++
++	// x's type T and V have identical underlying types.
++	// Since at least one is unnamed, only the composite types
++	// need to be considered.
++	switch T.Kind() {
++	case Array:
++		return T.Elem() == V.Elem() && T.Len() == V.Len()
++
++	case Chan:
++		// Special case:
++		// x is a bidirectional channel value, T is a channel type,
++		// and x's type V and T have identical element types.
++		if V.ChanDir() == BothDir && T.Elem() == V.Elem() {
++			return true
++		}
++
++		// Otherwise continue test for identical underlying type.
++		return V.ChanDir() == T.ChanDir() && T.Elem() == V.Elem()
++
++	case Func:
++		t := (*funcType)(unsafe.Pointer(T))
++		v := (*funcType)(unsafe.Pointer(V))
++		if t.dotdotdot != v.dotdotdot || len(t.in) != len(v.in) || len(t.out) != len(v.out) {
++			return false
++		}
++		for i, typ := range t.in {
++			if typ != v.in[i] {
++				return false
++			}
++		}
++		for i, typ := range t.out {
++			if typ != v.out[i] {
++				return false
++			}
++		}
++		return true
++
++	case Interface:
++		t := (*interfaceType)(unsafe.Pointer(T))
++		v := (*interfaceType)(unsafe.Pointer(V))
++		if len(t.methods) == 0 && len(v.methods) == 0 {
++			return true
++		}
++		// Might have the same methods but still
++		// need a run time conversion.
++		return false
++
++	case Map:
++		return T.Key() == V.Key() && T.Elem() == V.Elem()
++
++	case Ptr, Slice:
++		return T.Elem() == V.Elem()
++
++	case Struct:
++		t := (*structType)(unsafe.Pointer(T))
++		v := (*structType)(unsafe.Pointer(V))
++		if len(t.fields) != len(v.fields) {
++			return false
++		}
++		for i := range t.fields {
++			tf := &t.fields[i]
++			vf := &v.fields[i]
++			if tf.name != vf.name || tf.pkgPath != vf.pkgPath ||
++				tf.typ != vf.typ || tf.tag != vf.tag || tf.offset != vf.offset {
++				return false
++			}
++		}
++		return true
++	}
++
++	return false
++}
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 3e1ff1ee2b..b0415ac739 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -252,7 +252,7 @@ func (v Value) internal() internalValue {
+ 	iv.word = eface.word
+ 	if iv.flag&flagAddr != 0 {
+ 		iv.addr = unsafe.Pointer(iv.word)
+-		iv.typ = iv.typ.toType().Elem().common()
++		iv.typ = iv.typ.Elem().common()
+ 		if iv.typ.size <= ptrSize {
+ 			iv.word = loadIword(iv.addr, iv.typ.size)
+ 		}
+@@ -356,18 +356,24 @@ func (iv internalValue) mustBe(want Kind) {
+ }
+ 
+ func (iv internalValue) mustBeExported() {
++	if iv.kind == 0 {
++		panic(&ValueError{methodName(), iv.kind})
++	}
+ 	if iv.flag&flagRO != 0 {
+-		panic(methodName() + " of value obtained using unexported field")
++		panic(methodName() + " using value obtained using unexported field")
+ 	}
+ }
+ 
+ func (iv internalValue) mustBeAssignable() {
++	if iv.kind == 0 {
++		panic(&ValueError{methodName(), iv.kind})
++	}
+ 	// Assignable if addressable and not read-only.
+ 	if iv.flag&flagRO != 0 {
+-		panic(methodName() + " of value obtained using unexported field")
++		panic(methodName() + " using value obtained using unexported field")
+ 	}
+ 	if iv.flag&flagAddr == 0 {
+-		panic(methodName() + " of unaddressable value")
++		panic(methodName() + " using unaddressable value")
+ 	}
+ }
+ 
+@@ -412,14 +418,36 @@ func (v Value) CanSet() bool {
+ 	return iv.flag&(flagAddr|flagRO) == flagAddr
+ }
+ 
+-// Call calls the function v with the input parameters in.
+-// It panics if v's Kind is not Func.
+-// It returns the output parameters as Values.
++// Call calls the function v with the input arguments in.
++// For example, if len(in) == 3, v.Call(in) represents the Go call v(in[0], in[1], in[2]).
++// Call panics if v's Kind is not Func.
++// It returns the output results as Values.
++// As in Go, each input argument must be assignable to the
++// type of the function's corresponding input parameter.
++// If v is a variadic function, Call creates the variadic slice parameter
++// itself, copying in the corresponding values.
+ func (v Value) Call(in []Value) []Value {
+ 	iv := v.internal()
+ 	iv.mustBe(Func)
+ 	iv.mustBeExported()
++	return iv.call("Call", in)
++}
++
++// CallSlice calls the variadic function v with the input arguments in,
++// assigning the slice in[len(in)-1] to v's final variadic argument.  
++// For example, if len(in) == 3, v.Call(in) represents the Go call v(in[0], in[1], in[2]...).
++// Call panics if v's Kind is not Func or if v is not variadic.
++// It returns the output results as Values.
++// As in Go, each input argument must be assignable to the
++// type of the function's corresponding input parameter.
++func (v Value) CallSlice(in []Value) []Value {
++	iv := v.internal()
++	iv.mustBe(Func)
++	iv.mustBeExported()
++	return iv.call("CallSlice", in)
++}
+ 
++func (iv internalValue) call(method string, in []Value) []Value {
+ 	if iv.word == 0 {
+ 		if iv.nilmethod {
+ 			panic("reflect.Value.Call: call of method on nil interface value")
+@@ -427,7 +455,58 @@ func (v Value) Call(in []Value) []Value {
+ 		panic("reflect.Value.Call: call of nil function")
+ 	}
+ 
+-	t := iv.typ.toType()
++	isSlice := method == "CallSlice"
++	t := iv.typ
++	n := t.NumIn()
++	if isSlice {
++		if !t.IsVariadic() {
++			panic("reflect: CallSlice of non-variadic function")
++		}
++		if len(in) < n {
++			panic("reflect: CallSlice with too few input arguments")
++		}
++		if len(in) > n {
++			panic("reflect: CallSlice with too many input arguments")
++		}
++	} else {
++		if t.IsVariadic() {
++			n--
++		}
++		if len(in) < n {
++			panic("reflect: Call with too few input arguments")
++		}
++		if !t.IsVariadic() && len(in) > n {
++			panic("reflect: Call with too many input arguments")
++		}
++	}
++	for _, x := range in {
++		if x.Kind() == Invalid {
++			panic("reflect: " + method + " using zero Value argument")
++		}
++	}
++	for i := 0; i < n; i++ {
++		if xt, targ := in[i].Type(), t.In(i); !xt.AssignableTo(targ) {
++			panic("reflect: " + method + " using " + xt.String() + " as type " + targ.String())
++		}
++	}
++	if !isSlice && t.IsVariadic() {
++		// prepare slice for remaining values
++		m := len(in) - n
++		slice := MakeSlice(t.In(n), m, m)
++		elem := t.In(n).Elem()
++		for i := 0; i < m; i++ {
++			x := in[n+i]
++			if xt := x.Type(); !xt.AssignableTo(elem) {
++				panic("reflect: cannot use " + xt.String() + " as type " + elem.String() + " in " + method)
++			}
++			slice.Index(i).Set(x)
++		}
++		origIn := in
++		in = make([]Value, n+1)
++		copy(in[:n], origIn)
++		in[n] = slice
++	}
++
+ 	nin := len(in)
+ 	if nin != t.NumIn() {
+ 		panic("reflect.Value.Call: wrong argument count")
+@@ -484,14 +563,17 @@ func (v Value) Call(in []Value) []Value {
+ 	}
+ 	for i, v := range in {
+ 		iv := v.internal()
+-		typesMustMatch("reflect.Value.Call", t.In(i), iv.typ.toType())
+-		a := uintptr(iv.typ.align)
++		iv.mustBeExported()
++		targ := t.In(i).(*commonType)
++		a := uintptr(targ.align)
+ 		off = (off + a - 1) &^ (a - 1)
+-		n := iv.typ.size
++		n := targ.size
++		addr := unsafe.Pointer(ptr + off)
++		iv = convertForAssignment("reflect.Value.Call", addr, targ, iv)
+ 		if iv.addr == nil {
+-			storeIword(unsafe.Pointer(ptr+off), iv.word, n)
++			storeIword(addr, iv.word, n)
+ 		} else {
+-			memmove(unsafe.Pointer(ptr+off), iv.addr, n)
++			memmove(addr, iv.addr, n)
+ 		}
+ 		off += n
+ 	}
+@@ -521,7 +603,7 @@ func (v Value) Cap() int {
+ 	iv := v.internal()
+ 	switch iv.kind {
+ 	case Array:
+-		return iv.typ.toType().Len()
++		return iv.typ.Len()
+ 	case Chan:
+ 		return int(chancap(iv.word))
+ 	case Slice:
+@@ -562,12 +644,16 @@ func (v Value) Complex() complex128 {
+ // It returns the zero Value if v is nil.
+ func (v Value) Elem() Value {
+ 	iv := v.internal()
++	return iv.Elem()
++}
++
++func (iv internalValue) Elem() Value {
+ 	switch iv.kind {
+ 	case Interface:
+ 		// Empty interface and non-empty interface have different layouts.
+ 		// Convert to empty interface.
+ 		var eface emptyInterface
+-		if iv.typ.toType().NumMethod() == 0 {
++		if iv.typ.NumMethod() == 0 {
+ 			eface = *(*emptyInterface)(iv.addr)
+ 		} else {
+ 			iface := (*nonEmptyInterface)(iv.addr)
+@@ -586,7 +672,7 @@ func (v Value) Elem() Value {
+ 		if iv.word == 0 {
+ 			return Value{}
+ 		}
+-		return valueFromAddr(iv.flag&flagRO|flagAddr, iv.typ.toType().Elem(), unsafe.Pointer(iv.word))
++		return valueFromAddr(iv.flag&flagRO|flagAddr, iv.typ.Elem(), unsafe.Pointer(iv.word))
+ 	}
+ 	panic(&ValueError{"reflect.Value.Elem", iv.kind})
+ }
+@@ -658,7 +744,7 @@ func (v Value) FieldByIndex(index []int) Value {
+ func (v Value) FieldByName(name string) Value {
+ 	iv := v.internal()
+ 	iv.mustBe(Struct)
+-	if f, ok := iv.typ.toType().FieldByName(name); ok {
++	if f, ok := iv.typ.FieldByName(name); ok {
+ 		return v.FieldByIndex(f.Index)
+ 	}
+ 	return Value{}
+@@ -719,7 +805,7 @@ func (v Value) Index(i int) Value {
+ 		if i < 0 || i >= s.Len {
+ 			panic("reflect: slice index out of range")
+ 		}
+-		typ := iv.typ.toType().Elem()
++		typ := iv.typ.Elem()
+ 		addr := unsafe.Pointer(s.Data + uintptr(i)*typ.Size())
+ 		return valueFromAddr(flag, typ, addr)
+ 	}
+@@ -770,7 +856,11 @@ func (v Value) CanInterface() bool {
+ // (as opposed to Type.Method), Interface cannot return an
+ // interface value, so it panics.
+ func (v Value) Interface() interface{} {
+-	if v.InternalMethod != 0 {
++	return v.internal().Interface()
++}
++
++func (iv internalValue) Interface() interface{} {
++	if iv.method {
+ 		panic("reflect.Value.Interface: cannot create interface value for method with bound receiver")
+ 	}
+ 	/*
+@@ -779,14 +869,13 @@ func (v Value) Interface() interface{} {
+ 		}
+ 	*/
+ 
+-	iv := v.internal()
+ 	if iv.kind == Interface {
+ 		// Special case: return the element inside the interface.
+ 		// Won't recurse further because an interface cannot contain an interface.
+-		if v.IsNil() {
++		if iv.IsNil() {
+ 			return nil
+ 		}
+-		return v.Elem().Interface()
++		return iv.Elem().Interface()
+ 	}
+ 
+ 	// Non-interface value.
+@@ -811,10 +900,13 @@ func (v Value) InterfaceData() [2]uintptr {
+ // IsNil returns true if v is a nil value.
+ // It panics if v's Kind is not Chan, Func, Interface, Map, Ptr, or Slice.
+ func (v Value) IsNil() bool {
+-	iv := v.internal()
++	return v.internal().IsNil()
++}
++
++func (iv internalValue) IsNil() bool {
+ 	switch iv.kind {
+ 	case Chan, Func, Map, Ptr:
+-		if iv.kind == Func && v.InternalMethod != 0 {
++		if iv.method {
+ 			panic("reflect: IsNil of method Value")
+ 		}
+ 		return iv.word == 0
+@@ -846,7 +938,7 @@ func (v Value) Len() int {
+ 	iv := v.internal()
+ 	switch iv.kind {
+ 	case Array:
+-		return iv.typ.toType().Len()
++		return iv.typ.Len()
+ 	case Chan:
+ 		return int(chanlen(iv.word))
+ 	case Map:
+@@ -860,13 +952,15 @@ func (v Value) Len() int {
+ // MapIndex returns the value associated with key in the map v.
+ // It panics if v's Kind is not Map.
+ // It returns the zero Value if key is not found in the map or if v represents a nil map.
++// As in Go, the key's value must be assignable to the map's key type.
+ func (v Value) MapIndex(key Value) Value {
+ 	iv := v.internal()
+ 	iv.mustBe(Map)
+ 	typ := iv.typ.toType()
++
+ 	ikey := key.internal()
+ 	ikey.mustBeExported()
+-	typesMustMatch("reflect.Value.MapIndex", typ.Key(), ikey.typ.toType())
++	ikey = convertForAssignment("reflect.Value.MapIndex", nil, typ.Key(), ikey)
+ 	if iv.word == 0 {
+ 		return Value{}
+ 	}
+@@ -887,7 +981,7 @@ func (v Value) MapIndex(key Value) Value {
+ func (v Value) MapKeys() []Value {
+ 	iv := v.internal()
+ 	iv.mustBe(Map)
+-	keyType := iv.typ.toType().Key()
++	keyType := iv.typ.Key()
+ 
+ 	flag := iv.flag & flagRO
+ 	m := iv.word
+@@ -918,7 +1012,7 @@ func (v Value) Method(i int) Value {
+ 	if iv.kind == Invalid {
+ 		panic(&ValueError{"reflect.Value.Method", Invalid})
+ 	}
+-	if i < 0 || i >= iv.typ.toType().NumMethod() {
++	if i < 0 || i >= iv.typ.NumMethod() {
+ 		panic("reflect: Method index out of range")
+ 	}
+ 	return Value{v.Internal, i + 1}
+@@ -929,7 +1023,7 @@ func (v Value) Method(i int) Value {
+ func (v Value) NumField() int {
+ 	iv := v.internal()
+ 	iv.mustBe(Struct)
+-	return iv.typ.toType().NumField()
++	return iv.typ.NumField()
+ }
+ 
+ // OverflowComplex returns true if the complex128 x cannot be represented by v's type.
+@@ -1041,6 +1135,7 @@ func (iv internalValue) recv(nb bool) (val Value, ok bool) {
+ 
+ // Send sends x on the channel v.
+ // It panics if v's kind is not Chan or if x's type is not the same type as v's element type.
++// As in Go, x's value must be assignable to the channel's element type.
+ func (v Value) Send(x Value) {
+ 	iv := v.internal()
+ 	iv.mustBe(Chan)
+@@ -1056,7 +1151,7 @@ func (iv internalValue) send(x Value, nb bool) (selected bool) {
+ 	}
+ 	ix := x.internal()
+ 	ix.mustBeExported() // do not let unexported x leak
+-	typesMustMatch("reflect.Value.Send", t.Elem(), ix.typ.toType())
++	ix = convertForAssignment("reflect.Value.Send", nil, t.Elem(), ix)
+ 	ch := iv.word
+ 	if ch == 0 {
+ 		panic("send on nil channel")
+@@ -1064,8 +1159,9 @@ func (iv internalValue) send(x Value, nb bool) (selected bool) {
+ 	return chansend(ch, ix.word, nb)
+ }
+ 
+-// Set assigns x to the value v; x must have the same type as v.
+-// It panics if CanSet() returns false or if x is the zero Value.
++// Set assigns x to the value v.
++// It panics if CanSet returns false.
++// As in Go, x's value must be assignable to v's type.
+ func (v Value) Set(x Value) {
+ 	iv := v.internal()
+ 	ix := x.internal()
+@@ -1073,33 +1169,8 @@ func (v Value) Set(x Value) {
+ 	iv.mustBeAssignable()
+ 	ix.mustBeExported() // do not let unexported x leak
+ 
+-	if iv.kind == Interface {
+-		// Special case: since v is an interface, the types don't have to match.
+-		// x can be any type that implements the interface.
+-
+-		// In fact, x might itself be an interface.
+-		if ix.kind == Interface {
+-			if x.IsNil() {
+-				// Go would only allow this in an implicit conversion
+-				// from one interface type to another that was a subset.
+-				// TODO(rsc): Figure out whether reflect should be more picky.
+-				*(*interface{})(iv.addr) = nil
+-				return
+-			}
+-		}
+-
+-		// Empty interface is easy.
+-		if iv.typ.toType().NumMethod() == 0 {
+-			*(*interface{})(iv.addr) = x.Interface()
+-			return
+-		}
+-
+-		// Non-empty interface requires runtime help.
+-		ifaceE2I(iv.typ.runtimeType(), x.Interface(), iv.addr)
+-		return
+-	}
++	ix = convertForAssignment("reflect.Set", iv.addr, iv.typ, ix)
+ 
+-	typesMustMatch("reflect.Set", iv.typ.toType(), ix.typ.toType())
+ 	n := ix.typ.size
+ 	if n <= ptrSize {
+ 		storeIword(iv.addr, ix.word, n)
+@@ -1181,13 +1252,11 @@ func (v Value) SetLen(n int) {
+ 	s.Len = n
+ }
+ 
+-// BUG(rsc): For a map keyed on an interface type, MapIndex and SetMapIndex
+-// require the key to have the same interface type.  They should allow the use of
+-// any key that implements the interface.
+-
+ // SetMapIndex sets the value associated with key in the map v to val.
+ // It panics if v's Kind is not Map.
+ // If val is the zero Value, SetMapIndex deletes the key from the map.
++// As in Go, key's value must be assignable to the map's key type,
++// and val's value must be assignable to the map's value type.
+ func (v Value) SetMapIndex(key, val Value) {
+ 	iv := v.internal()
+ 	ikey := key.internal()
+@@ -1195,10 +1264,15 @@ func (v Value) SetMapIndex(key, val Value) {
+ 
+ 	iv.mustBe(Map)
+ 	iv.mustBeExported()
++
+ 	ikey.mustBeExported()
+-	ival.mustBeExported()
++	ikey = convertForAssignment("reflect.Value.SetMapIndex", nil, iv.typ.Key(), ikey)
++
++	if ival.kind != Invalid {
++		ival.mustBeExported()
++		ival = convertForAssignment("reflect.Value.SetMapIndex", nil, iv.typ.Elem(), ival)
++	}
+ 
+-	typesMustMatch("reflect.Value.SetMapIndex", iv.typ.toType().Key(), ikey.typ.toType())
+ 	mapassign(iv.word, ikey.word, ival.word, ival.kind != Invalid)
+ }
+ 
+@@ -1304,6 +1378,7 @@ func (v Value) TryRecv() (x Value, ok bool) {
+ // TrySend attempts to send x on the channel v but will not block.
+ // It panics if v's Kind is not Chan.
+ // It returns true if the value was sent, false otherwise.
++// As in Go, x's value must be assignable to the channel's element type.
+ func (v Value) TrySend(x Value) bool {
+ 	iv := v.internal()
+ 	iv.mustBe(Chan)
+@@ -1408,7 +1483,7 @@ func grow(s Value, extra int) (Value, int, int) {
+ }
+ 
+ // Append appends the values x to a slice s and returns the resulting slice.
+-// Each x must have the same type as s' element type.
++// As in Go, each x's value must be assignable to the slice's element type.
+ func Append(s Value, x ...Value) Value {
+ 	s.internal().mustBe(Slice)
+ 	s, i0, i1 := grow(s, len(x))
+@@ -1450,8 +1525,8 @@ func Copy(dst, src Value) int {
+ 	}
+ 	isrc.mustBeExported()
+ 
+-	de := idst.typ.toType().Elem()
+-	se := isrc.typ.toType().Elem()
++	de := idst.typ.Elem()
++	se := isrc.typ.Elem()
+ 	typesMustMatch("reflect.Copy", de, se)
+ 
+ 	n := dst.Len()
+@@ -1572,6 +1647,39 @@ func New(typ Type) Value {
+ 	return valueFromIword(0, PtrTo(typ), iword(ptr))
+ }
+ 
++// convertForAssignment 
++func convertForAssignment(what string, addr unsafe.Pointer, dst Type, iv internalValue) internalValue {
++	if iv.method {
++		panic(what + ": cannot assign method value to type " + dst.String())
++	}
++
++	dst1 := dst.(*commonType)
++	if directlyAssignable(dst1, iv.typ) {
++		// Overwrite type so that they match.
++		// Same memory layout, so no harm done.
++		iv.typ = dst1
++		return iv
++	}
++	if implements(dst1, iv.typ) {
++		if addr == nil {
++			addr = unsafe.Pointer(new(interface{}))
++		}
++		x := iv.Interface()
++		if dst.NumMethod() == 0 {
++			*(*interface{})(addr) = x
++		} else {
++			ifaceE2I(dst1.runtimeType(), x, addr)
++		}
++		iv.addr = addr
++		iv.word = iword(addr)
++		iv.typ = dst1
++		return iv
++	}
++
++	// Failed.
++	panic(what + ": value of type " + iv.typ.String() + " is not assignable to type " + dst.String())
++}
++
+ // implemented in ../pkg/runtime
+ func chancap(ch iword) int32
+ func chanclose(ch iword)

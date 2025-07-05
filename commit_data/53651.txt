@@ -18,7 +18,57 @@ Date:   Thu Aug 25 04:17:00 2022 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/imports/tags.go          |  3 +++
  src/cmd/go/testdata/script/test_race_tag.txt | 29 ++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/go/internal/imports/tags.go b/src/cmd/go/internal/imports/tags.go
+index 01b448b914..d1467b81b0 100644
+--- a/src/cmd/go/internal/imports/tags.go
++++ b/src/cmd/go/internal/imports/tags.go
+@@ -36,6 +36,9 @@ func loadTags() map[string]bool {
+ 	for _, tag := range cfg.BuildContext.BuildTags {
+ 		tags[tag] = true
+ 	}
++	for _, tag := range cfg.BuildContext.ToolTags {
++		tags[tag] = true
++	}
+ 	for _, tag := range cfg.BuildContext.ReleaseTags {
+ 		tags[tag] = true
+ 	}
+diff --git a/src/cmd/go/testdata/script/test_race_tag.txt b/src/cmd/go/testdata/script/test_race_tag.txt
+new file mode 100644
+index 0000000000..4b18ebc454
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_race_tag.txt
+@@ -0,0 +1,29 @@
++# Tests Issue #54468
++
++[short] skip 'links a test binary'
++[!race] skip
++
++go mod tidy
++go test -c -o=$devnull -race .
++
++! stderr 'cannot find package'
++
++-- go.mod --
++module testrace
++
++go 1.18
++
++require rsc.io/sampler v1.0.0
++-- race_test.go --
++//go:build race
++
++package testrace
++
++import (
++        "testing"
++
++        _ "rsc.io/sampler"
++)
++
++func TestRaceTag(t *testing.T) {
++}

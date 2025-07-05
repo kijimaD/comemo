@@ -16,6 +16,22 @@ Date:   Wed Sep 6 11:19:25 2017 -0400
     Change-Id: Ib8969bf12cecad878e89ff66b5864bbf3caaf219
     Reviewed-on: https://go-review.googlesource.com/61930
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/code.html | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/code.html b/doc/code.html
+index f22e6b4919..92616a5a5a 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -110,6 +110,10 @@ packages and commands. Most Go programmers keep <i>all</i> their Go source code
+ and dependencies in a single workspace.
+ </p>
+ 
++<p>
++Note that symbolic links should <b>not</b> be used to link files or directories into your workspace.
++</p>
++
+ <p>
+ Commands and libraries are built from different kinds of source packages.
+ We will discuss the distinction <a href="#PackageNames">later</a>.

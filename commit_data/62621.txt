@@ -22,8 +22,109 @@ Date:   Tue Mar 18 10:22:04 2025 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/runtime/race/race_test.go               | 16 ++++++++++------
  src/runtime/race/testdata/main_test.go      | 15 +++++++++++++++
  src/runtime/race/testdata/rangefunc_test.go |  2 ++
  3 files changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index cbc90ea0bb..98936e3d3e 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -14,6 +14,7 @@ package race_test
+ import (
+ 	"bufio"
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+@@ -112,13 +113,13 @@ func processLog(testName string, tsanLog []string) string {
+ 			gotRace = true
+ 			break
+ 		}
++		if strings.Contains(s, "--- SKIP:") {
++			return fmt.Sprintf("%-*s SKIPPED", visibleLen, testName)
++		}
+ 	}
+ 
+ 	failing := strings.Contains(testName, "Failing")
+ 	expRace := !strings.HasPrefix(testName, "No")
+-	for len(testName) < visibleLen {
+-		testName += " "
+-	}
+ 	if expRace == gotRace {
+ 		passedTests++
+ 		totalTests++
+@@ -126,7 +127,7 @@ func processLog(testName string, tsanLog []string) string {
+ 			failed = true
+ 			failingNeg++
+ 		}
+-		return fmt.Sprintf("%s .", testName)
++		return fmt.Sprintf("%-*s .", visibleLen, testName)
+ 	}
+ 	pos := ""
+ 	if expRace {
+@@ -141,7 +142,7 @@ func processLog(testName string, tsanLog []string) string {
+ 		failed = true
+ 	}
+ 	totalTests++
+-	return fmt.Sprintf("%s %s%s", testName, "FAILED", pos)
++	return fmt.Sprintf("%-*s %s%s", visibleLen, testName, "FAILED", pos)
+ }
+ 
+ // runTests assures that the package and its dependencies is
+@@ -187,7 +188,10 @@ func runTests(t *testing.T) ([]byte, error) {
+ 	if fatals > mapFatals {
+ 		// But don't expect runtime to crash (other than
+ 		// in the map concurrent access detector).
+-		return out, fmt.Errorf("runtime fatal error")
++		return out, errors.New("runtime fatal error")
++	}
++	if !bytes.Contains(out, []byte("ALL TESTS COMPLETE")) {
++		return out, errors.New("not all tests ran")
+ 	}
+ 	return out, nil
+ }
+diff --git a/src/runtime/race/testdata/main_test.go b/src/runtime/race/testdata/main_test.go
+new file mode 100644
+index 0000000000..286589672b
+--- /dev/null
++++ b/src/runtime/race/testdata/main_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"fmt"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	m.Run()
++	fmt.Println("ALL TESTS COMPLETE")
++}
+diff --git a/src/runtime/race/testdata/rangefunc_test.go b/src/runtime/race/testdata/rangefunc_test.go
+index f2ff793df7..453c0733ed 100644
+--- a/src/runtime/race/testdata/rangefunc_test.go
++++ b/src/runtime/race/testdata/rangefunc_test.go
+@@ -65,6 +65,7 @@ func foo(v int) int64 {
+ // TestRaceRangeFuncIterator races because x%5 can be equal to 4,
+ // therefore foo can early exit.
+ func TestRaceRangeFuncIterator(t *testing.T) {
++	t.Skip("#72925: uncaught panic ends tests")
+ 	x := foo(4)
+ 	t.Logf("foo(4)=%d", x)
+ }
+@@ -72,6 +73,7 @@ func TestRaceRangeFuncIterator(t *testing.T) {
+ // TestNoRaceRangeFuncIterator does not race because x%5 is never 5,
+ // therefore foo's loop will not exit early, and this it will not race.
+ func TestNoRaceRangeFuncIterator(t *testing.T) {
++	t.Skip("#72925: unexpected data race")
+ 	x := foo(5)
+ 	t.Logf("foo(5)=%d", x)
+ }

@@ -16,8 +16,48 @@ Date:   Wed Jan 13 14:43:30 2021 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/fuzz/fuzz.go             | 1 +
  src/internal/fuzz/worker.go           | 2 +-
  src/testing/internal/testdeps/deps.go | 3 +--
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 2a60e73c7f..e05b5566ae 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -119,6 +119,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed [][]byte, corpusD
+ 					// Return the first error found, replacing ctx.Err() if a more
+ 					// interesting error is found.
+ 					err = werr
++					break
+ 				}
+ 			}
+ 		}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 8947641996..ee31ff43c6 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -135,7 +135,7 @@ func (w *worker) runFuzzing() error {
+ 					w.coordinator.crasherC <- crasher
+ 				} else {
+ 					// Inform the coordinator that fuzzing found something
+-					// interesting (ie. a crash or new coverage).
++					// interesting (i.e. new coverage).
+ 					if resp.Interesting {
+ 						w.coordinator.interestingC <- corpusEntry{b: value}
+ 					}
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 12da4f3863..dbc30ddc0f 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -136,8 +136,7 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed [][]
+ 	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
+ 	// In either case, we'll stop worker processes gracefully and save
+ 	// crashers and interesting values.
+-	ctx := context.Background()
+-	cancel := func() {}
++	ctx, cancel := context.WithCancel(context.Background())
+ 	if timeout > 0 {
+ 		ctx, cancel = context.WithTimeout(ctx, timeout)
+ 	}

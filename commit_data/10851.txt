@@ -12,7 +12,96 @@ Date:   Fri Dec 16 17:58:53 2011 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5496058
-
+---
  src/pkg/runtime/Makefile      |  6 ++++--
  src/pkg/runtime/Makefile.auto | 26 +++++++++++++++++++++++++-
  2 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 75443324da..4d81def5a8 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -4,6 +4,8 @@
+ 
+ include ../../Make.inc
+ 
++x:=$(shell gomake -f Makefile.auto)
++
+ TARG=runtime
+ 
+ GOFILES=\
+@@ -106,7 +108,6 @@ AUTOHFILES=\
+ 	os_GOOS.h\
+ 	signals_GOOS.h\
+ 	defs_GOOS_GOARCH.h\
+-	zasm_GOOS_GOARCH.h\
+ 
+ HFILES=\
+ 	cgocall.h\
+@@ -114,7 +115,6 @@ HFILES=\
+ 	hashmap.h\
+ 	malloc.h\
+ 	stack.h\
+-	asm_$(GOARCH).h\
+ 	$(AUTOHFILES)\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+@@ -155,3 +155,5 @@ signals_GOOS.h: signals_$(GOOS).h
+ 
+ zasm_GOOS_GOARCH.h: zasm_$(GOOS)_$(GOARCH).h
+ 	cp $^ $@
++
++%.$O: zasm_GOOS_GOARCH.h
+diff --git a/src/pkg/runtime/Makefile.auto b/src/pkg/runtime/Makefile.auto
+index b3b31c8cca..7c9ceb0fa7 100644
+--- a/src/pkg/runtime/Makefile.auto
++++ b/src/pkg/runtime/Makefile.auto
+@@ -2,6 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++include ../../Make.inc
++
+ GOARCHES=\
+ 	386\
+ 	amd64\
+@@ -48,6 +50,13 @@ AUTO=\
+ 	zsyscall_windows_amd64.c\
+ 	zversion.go\
+ 
++HFILES=\
++	arch_GOARCH.h\
++	os_GOOS.h\
++	signals_GOOS.h\
++	defs_GOOS_GOARCH.h\
++	zasm_GOOS_GOARCH.h\
++
+ all: auto
+ auto: $(AUTO)
+ 
+@@ -86,9 +95,24 @@ zruntime_defs_%.go: proc.c iface.c hashmap.c chan.c $(HFILES) mkgodefs.sh
+ 	mv -f $@.tmp $@
+ 
+ # struct field offsets #defined for assembly
+-zasm_%.h: mkasmh.sh proc.c defs.h
++zasm_%.h: mkasmh.sh proc.c $(HFILES)
+ 	./mkasmh.sh $* >$@.tmp
+ 	mv -f $@.tmp $@
+ 
+ clean:
+ 	rm -f goc2c mkversion $(AUTO)
++
++arch_GOARCH.h: arch_$(GOARCH).h
++	cp $^ $@
++
++defs_GOOS_GOARCH.h: defs_$(GOOS)_$(GOARCH).h
++	cp $^ $@
++
++os_GOOS.h: os_$(GOOS).h
++	cp $^ $@
++
++signals_GOOS.h: signals_$(GOOS).h
++	cp $^ $@
++
++zasm_GOOS_GOARCH.h: zasm_$(GOOS)_$(GOARCH).h
++	cp $^ $@

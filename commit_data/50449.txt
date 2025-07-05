@@ -12,6 +12,21 @@ Date:   Mon Oct 25 13:26:54 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/typestring.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 2feaf627d6..9154ebc406 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -275,9 +275,6 @@ func (w *typeWriter) typ(typ Type) {
+ 			break
+ 		}
+ 		// Optionally write out package for typeparams (like Named).
+-		// TODO(danscales): this is required for import/export, so
+-		// we maybe need a separate function that won't be changed
+-		// for debugging purposes.
+ 		if t.obj.pkg != nil {
+ 			writePackage(w.buf, t.obj.pkg, w.qf)
+ 		}

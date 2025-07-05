@@ -16,7 +16,62 @@ Date:   Wed Sep 26 14:20:58 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go | 21 +++++++++++++++++++++
  src/runtime/mheap.go  | 11 ++++++++++-
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 12fa744052..e827dbae93 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -641,6 +641,27 @@ mapped:
+ 			}
+ 		}
+ 
++		// Add the arena to the arenas list.
++		if len(h.allArenas) == cap(h.allArenas) {
++			size := 2 * uintptr(cap(h.allArenas)) * sys.PtrSize
++			if size == 0 {
++				size = physPageSize
++			}
++			newArray := (*notInHeap)(persistentalloc(size, sys.PtrSize, &memstats.gc_sys))
++			if newArray == nil {
++				throw("out of memory allocating allArenas")
++			}
++			oldSlice := h.allArenas
++			*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / sys.PtrSize)}
++			copy(h.allArenas, oldSlice)
++			// Do not free the old backing array because
++			// there may be concurrent readers. Since we
++			// double the array each time, this can lead
++			// to at most 2x waste.
++		}
++		h.allArenas = h.allArenas[:len(h.allArenas)+1]
++		h.allArenas[len(h.allArenas)-1] = ri
++
+ 		// Store atomically just in case an object from the
+ 		// new heap arena becomes visible before the heap lock
+ 		// is released (which shouldn't happen, but there's
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 97a0448ad3..c8b2b6524f 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -133,7 +133,16 @@ type mheap struct {
+ 	// (the actual arenas). This is only used on 32-bit.
+ 	arena linearAlloc
+ 
+-	// _ uint32 // ensure 64-bit alignment of central
++	// allArenas is the arenaIndex of every mapped arena. This can
++	// be used to iterate through the address space.
++	//
++	// Access is protected by mheap_.lock. However, since this is
++	// append-only and old backing arrays are never freed, it is
++	// safe to acquire mheap_.lock, copy the slice header, and
++	// then release mheap_.lock.
++	allArenas []arenaIdx
++
++	_ uint32 // ensure 64-bit alignment of central
+ 
+ 	// central free lists for small size classes.
+ 	// the padding makes sure that the mcentrals are

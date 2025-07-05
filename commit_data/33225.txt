@@ -9,6 +9,20 @@ Date:   Fri Aug 4 17:03:33 2017 -0700
     Change-Id: Ie877e43f213253e45d31f64931c4a15915849586
     Reviewed-on: https://go-review.googlesource.com/53410
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  src/math/bits/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/bits/example_test.go b/src/math/bits/example_test.go
+index 9836245cfb..a43d1f365f 100644
+--- a/src/math/bits/example_test.go
++++ b/src/math/bits/example_test.go
+@@ -71,7 +71,7 @@ func ExampleOnesCount32() {
+ 
+ func ExampleOnesCount64() {
+ 	fmt.Printf("%b\n", 14)
+-	fmt.Println(bits.OnesCount(14))
++	fmt.Println(bits.OnesCount64(14))
+ 	// Output:
+ 	// 1110
+ 	// 3

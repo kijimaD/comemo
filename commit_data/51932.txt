@@ -15,8 +15,97 @@ Date:   Tue Nov 3 17:31:04 2020 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 ++++-
  src/cmd/compile/internal/ssa/rewriteARM64.go | 36 ++++++++++++++++++++++++++++
  test/codegen/bitfield.go                     |  6 +++++
  3 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index be8be4ebe3..1163ae837b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1918,7 +1918,11 @@
+ // (x & ac) >> sc
+ (SRLconst [sc] (ANDconst [ac] x)) && isARM64BFMask(sc, ac, sc)
+ 	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
+-
++// merge ANDconst and ubfx into ubfx
++(ANDconst [c] (UBFX [bfc] x)) && isARM64BFMask(0, c, 0) =>
++	(UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), arm64BFWidth(c, 0)))] x)
++(UBFX [bfc] (ANDconst [c] x)) && isARM64BFMask(0, c, 0) && bfc.getARM64BFlsb() + bfc.getARM64BFwidth() <= arm64BFWidth(c, 0) =>
++	(UBFX [bfc] x)
+ // merge ubfx and zerso-extension into ubfx
+ (MOVWUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (UBFX [bfc] x)
+ (MOVHUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (UBFX [bfc] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index c5f53e5507..2ed1c0a04a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -2283,6 +2283,24 @@ func rewriteValueARM64_OpARM64ANDconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ANDconst [c] (UBFX [bfc] x))
++	// cond: isARM64BFMask(0, c, 0)
++	// result: (UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), arm64BFWidth(c, 0)))] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpARM64UBFX {
++			break
++		}
++		bfc := auxIntToArm64BitField(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(isARM64BFMask(0, c, 0)) {
++			break
++		}
++		v.reset(OpARM64UBFX)
++		v.AuxInt = arm64BitFieldToAuxInt(armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), arm64BFWidth(c, 0))))
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64ANDshiftLL(v *Value) bool {
+@@ -21802,6 +21820,24 @@ func rewriteValueARM64_OpARM64UBFIZ(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64UBFX(v *Value) bool {
+ 	v_0 := v.Args[0]
++	// match: (UBFX [bfc] (ANDconst [c] x))
++	// cond: isARM64BFMask(0, c, 0) && bfc.getARM64BFlsb() + bfc.getARM64BFwidth() <= arm64BFWidth(c, 0)
++	// result: (UBFX [bfc] x)
++	for {
++		bfc := auxIntToArm64BitField(v.AuxInt)
++		if v_0.Op != OpARM64ANDconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(isARM64BFMask(0, c, 0) && bfc.getARM64BFlsb()+bfc.getARM64BFwidth() <= arm64BFWidth(c, 0)) {
++			break
++		}
++		v.reset(OpARM64UBFX)
++		v.AuxInt = arm64BitFieldToAuxInt(bfc)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (UBFX [bfc] (SRLconst [sc] x))
+ 	// cond: sc+bfc.getARM64BFwidth()+bfc.getARM64BFlsb() < 64
+ 	// result: (UBFX [armBFAuxInt(bfc.getARM64BFlsb()+sc, bfc.getARM64BFwidth())] x)
+diff --git a/test/codegen/bitfield.go b/test/codegen/bitfield.go
+index 8327da6cf8..11f31ecf25 100644
+--- a/test/codegen/bitfield.go
++++ b/test/codegen/bitfield.go
+@@ -321,6 +321,12 @@ func ubfx15(x uint64) bool {
+ 	return false
+ }
+ 
++// merge ANDconst and ubfx into ubfx
++func ubfx16(x uint64) uint64 {
++	// arm64:"UBFX\t[$]4, R[0-9]+, [$]6",-"AND\t[$]63"
++	return ((x >> 3) & 0xfff) >> 1 & 0x3f
++}
++
+ // Check that we don't emit comparisons for constant shifts.
+ //go:nosplit
+ func shift_no_cmp(x int) int {

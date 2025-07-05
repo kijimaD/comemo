@@ -14,7 +14,7 @@ Date:   Tue Oct 1 15:48:17 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.14.html                                    |  30 ++-
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go/internal/modcmd/vendor.go               |  63 +++++-
@@ -33,3 +33,1037 @@ Date:   Tue Oct 1 15:48:17 2019 -0400
  src/go.mod                                         |   2 +-
  src/vendor/modules.txt                             |   4 +
  17 files changed, 632 insertions(+), 86 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 7afda4c07e..361684358b 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -51,20 +51,38 @@ TODO
+ 
+ <h3 id="go-command">Go command</h3>
+ 
+-<p><!-- golang.org/issue/30748 -->
+-  The <code>go</code> command now includes snippets of plain-text error messages
+-  from module proxies and other HTTP servers.
+-  An error message will only be shown if it is valid UTF-8 and consists of only
+-  graphic characters and spaces.
++<!-- golang.org/issue/33848 -->
++<p>
++  When the main module contains a top-level <code>vendor</code> directory and
++  its <code>go.mod<code> file specifies <code>go</code> <code>1.14</code> or
++  higher, the <code>go</code> command now defaults to <code>-mod=vendor</code>
++  for operations that accept that flag. A new value for that flag,
++  <code>-mod=mod</code>, causes the <code>go</code> command to instead load
++  modules from the module cache (as when no <code>vendor<code> directory is
++  present).
++</p>
++
++<p>
++  When <code>-mod=vendor</code> is set (explicitly or by default), the
++  <code>go</code> command now verifies that the main module's
++  <code>vendor/modules.txt</code> file is consistent with its
++  <code>go.mod</code> file.
+ </p>
+ 
+ <p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
+-  The <code>go</code> <code>get</code> subcommand no longer accepts
++  The <code>go</code> <code>get</code> command no longer accepts
+   the <code>-mod</code> flag. Previously, the flag's setting either
+   <a href="https://golang.org/issue/30345">was ignored</a> or
+   <a href="https://golang.org/issue/32502">caused the build to fail</a>.
+ </p>
+ 
++<p><!-- golang.org/issue/30748 -->
++  The <code>go</code> command now includes snippets of plain-text error messages
++  from module proxies and other HTTP servers.
++  An error message will only be shown if it is valid UTF-8 and consists of only
++  graphic characters and spaces.
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p>
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index d8172ad2f5..e4a2eaa908 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -1,6 +1,6 @@
+ module cmd
+ 
+-go 1.12
++go 1.14
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 75513f1d9c..8509b8b190 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -59,19 +59,24 @@ func runVendor(cmd *base.Command, args []string) {
+ 		modpkgs[m] = append(modpkgs[m], pkg)
+ 	}
+ 
++	isExplicit := map[module.Version]bool{}
++	for _, r := range modload.ModFile().Require {
++		isExplicit[r.Mod] = true
++	}
++
+ 	var buf bytes.Buffer
+ 	for _, m := range modload.BuildList()[1:] {
+-		if pkgs := modpkgs[m]; len(pkgs) > 0 {
+-			repl := ""
+-			if r := modload.Replacement(m); r.Path != "" {
+-				repl = " => " + r.Path
+-				if r.Version != "" {
+-					repl += " " + r.Version
+-				}
+-			}
+-			fmt.Fprintf(&buf, "# %s %s%s\n", m.Path, m.Version, repl)
++		if pkgs := modpkgs[m]; len(pkgs) > 0 || isExplicit[m] {
++			line := moduleLine(m, modload.Replacement(m))
++			buf.WriteString(line)
+ 			if cfg.BuildV {
+-				fmt.Fprintf(os.Stderr, "# %s %s%s\n", m.Path, m.Version, repl)
++				os.Stderr.WriteString(line)
++			}
++			if isExplicit[m] {
++				buf.WriteString("## explicit\n")
++				if cfg.BuildV {
++					os.Stderr.WriteString("## explicit\n")
++				}
+ 			}
+ 			sort.Strings(pkgs)
+ 			for _, pkg := range pkgs {
+@@ -83,6 +88,24 @@ func runVendor(cmd *base.Command, args []string) {
+ 			}
+ 		}
+ 	}
++
++	// Record unused and wildcard replacements at the end of the modules.txt file:
++	// without access to the complete build list, the consumer of the vendor
++	// directory can't otherwise determine that those replacements had no effect.
++	for _, r := range modload.ModFile().Replace {
++		if len(modpkgs[r.Old]) > 0 {
++			// We we already recorded this replacement in the entry for the replaced
++			// module with the packages it provides.
++			continue
++		}
++
++		line := moduleLine(r.Old, r.New)
++		buf.WriteString(line)
++		if cfg.BuildV {
++			os.Stderr.WriteString(line)
++		}
++	}
++
+ 	if buf.Len() == 0 {
+ 		fmt.Fprintf(os.Stderr, "go: no dependencies to vendor\n")
+ 		return
+@@ -92,6 +115,26 @@ func runVendor(cmd *base.Command, args []string) {
+ 	}
+ }
+ 
++func moduleLine(m, r module.Version) string {
++	b := new(strings.Builder)
++	b.WriteString("# ")
++	b.WriteString(m.Path)
++	if m.Version != "" {
++		b.WriteString(" ")
++		b.WriteString(m.Version)
++	}
++	if r.Path != "" {
++		b.WriteString(" => ")
++		b.WriteString(r.Path)
++		if r.Version != "" {
++			b.WriteString(" ")
++			b.WriteString(r.Version)
++		}
++	}
++	b.WriteString("\n")
++	return b.String()
++}
++
+ func vendorPkg(vdir, pkg string) {
+ 	realPath := modload.ImportMap(pkg)
+ 	if realPath != pkg && modload.ImportMap(realPath) != "" {
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 68e0b6504b..8d6f789c2e 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -139,7 +139,7 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 			return Target, mainDir, nil
+ 		}
+ 		readVendorList()
+-		return vendorMap[path], vendorDir, nil
++		return vendorPkgModule[path], vendorDir, nil
+ 	}
+ 
+ 	// Check each module on the build list.
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index cd57d99de7..8bc41d258d 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -30,6 +30,7 @@ import (
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/renameio"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/semver"
+ )
+ 
+ var (
+@@ -349,8 +350,14 @@ func InitMod() {
+ 		excluded[x.Mod] = true
+ 	}
+ 	modFileToBuildList()
+-	stdVendorMode()
+-	WriteGoMod()
++	setDefaultBuildMod()
++	if cfg.BuildMod == "vendor" {
++		readVendorList()
++		checkVendorConsistency()
++	} else {
++		// TODO(golang.org/issue/33326): if cfg.BuildMod != "readonly"?
++		WriteGoMod()
++	}
+ }
+ 
+ // modFileToBuildList initializes buildList from the modFile.
+@@ -371,40 +378,133 @@ func modFileToBuildList() {
+ 	buildList = list
+ }
+ 
+-// stdVendorMode applies inside $GOROOT/src.
+-// It checks that the go.mod matches vendor/modules.txt
+-// and then sets -mod=vendor unless this is a command
+-// that has to do explicitly with modules.
+-func stdVendorMode() {
+-	if !targetInGorootSrc {
++// setDefaultBuildMod sets a default value for cfg.BuildMod
++// if it is currently empty.
++func setDefaultBuildMod() {
++	if cfg.BuildMod != "" {
++		// Don't override an explicit '-mod=' argument.
+ 		return
+ 	}
++	cfg.BuildMod = "mod"
+ 	if cfg.CmdName == "get" || strings.HasPrefix(cfg.CmdName, "mod ") {
++		// Don't set -mod implicitly for commands whose purpose is to
++		// manipulate the build list.
+ 		return
+ 	}
++	if modRoot != "" {
++		if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
++			modGo := "unspecified"
++			if modFile.Go != nil {
++				if semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0 {
++					// The Go version is at least 1.14, and a vendor directory exists.
++					// Set -mod=vendor by default.
++					cfg.BuildMod = "vendor"
++					return
++				} else {
++					modGo = modFile.Go.Version
++				}
++			}
++			fmt.Fprintf(os.Stderr, "go: not defaulting to -mod=vendor because go.mod 'go' version is %s\n", modGo)
++		}
++	}
+ 
++	// TODO(golang.org/issue/33326): set -mod=readonly implicitly if the go.mod
++	// file is itself read-only?
++}
++
++// checkVendorConsistency verifies that the vendor/modules.txt file matches (if
++// go 1.14) or at least does not contradict (go 1.13 or earlier) the
++// requirements and replacements listed in the main module's go.mod file.
++func checkVendorConsistency() {
+ 	readVendorList()
+-BuildList:
+-	for _, m := range buildList {
+-		if m.Path == "cmd" || m.Path == "std" {
+-			continue
++
++	pre114 := false
++	if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, "v1.14") < 0 {
++		// Go versions before 1.14 did not include enough information in
++		// vendor/modules.txt to check for consistency.
++		// If we know that we're on an earlier version, relax the consistency check.
++		pre114 = true
++	}
++
++	vendErrors := new(strings.Builder)
++	vendErrorf := func(mod module.Version, format string, args ...interface{}) {
++		detail := fmt.Sprintf(format, args...)
++		if mod.Version == "" {
++			fmt.Fprintf(vendErrors, "\n\t%s: %s", mod.Path, detail)
++		} else {
++			fmt.Fprintf(vendErrors, "\n\t%s@%s: %s", mod.Path, mod.Version, detail)
+ 		}
+-		for _, v := range vendorList {
+-			if m.Path == v.Path {
+-				if m.Version != v.Version {
+-					base.Fatalf("go: inconsistent vendoring in %s:\n"+
+-						"\tgo.mod requires %s %s but vendor/modules.txt has %s.\n"+
+-						"\trun 'go mod tidy; go mod vendor' to sync",
+-						modRoot, m.Path, m.Version, v.Version)
++	}
++
++	explicitInGoMod := make(map[module.Version]bool, len(modFile.Require))
++	for _, r := range modFile.Require {
++		explicitInGoMod[r.Mod] = true
++		if !vendorMeta[r.Mod].Explicit {
++			if pre114 {
++				// Before 1.14, modules.txt did not indicate whether modules were listed
++				// explicitly in the main module's go.mod file.
++				// However, we can at least detect a version mismatch if packages were
++				// vendored from a non-matching version.
++				if vv, ok := vendorVersion[r.Mod.Path]; ok && vv != r.Mod.Version {
++					vendErrorf(r.Mod, fmt.Sprintf("is explicitly required in go.mod, but vendor/modules.txt indicates %s@%s", r.Mod.Path, vv))
+ 				}
+-				continue BuildList
++			} else {
++				vendErrorf(r.Mod, "is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt")
++			}
++		}
++	}
++
++	describe := func(m module.Version) string {
++		if m.Version == "" {
++			return m.Path
++		}
++		return m.Path + "@" + m.Version
++	}
++
++	// We need to verify *all* replacements that occur in modfile: even if they
++	// don't directly apply to any module in the vendor list, the replacement
++	// go.mod file can affect the selected versions of other (transitive)
++	// dependencies
++	goModReplacement := make(map[module.Version]module.Version, len(modFile.Replace))
++	for _, r := range modFile.Replace {
++		goModReplacement[r.Old] = r.New
++		vr := vendorMeta[r.Old].Replacement
++		if vr == (module.Version{}) {
++			if pre114 && (r.Old.Version == "" || vendorVersion[r.Old.Path] != r.Old.Version) {
++				// Before 1.14, modules.txt omitted wildcard replacements and
++				// replacements for modules that did not have any packages to vendor.
++			} else {
++				vendErrorf(r.Old, "is replaced in go.mod, but not marked as replaced in vendor/modules.txt")
+ 			}
++		} else if vr != r.New {
++			vendErrorf(r.Old, "is replaced by %s in go.mod, but marked as replaced by %s in vendor/modules.txt", describe(r.New), describe(vr))
+ 		}
+-		base.Fatalf("go: inconsistent vendoring in %s:\n"+
+-			"\tgo.mod requires %s %s but vendor/modules.txt does not include it.\n"+
+-			"\trun 'go mod tidy; go mod vendor' to sync", modRoot, m.Path, m.Version)
+ 	}
+-	cfg.BuildMod = "vendor"
++
++	for _, mod := range vendorList {
++		meta := vendorMeta[mod]
++		if meta.Explicit && !explicitInGoMod[mod] {
++			vendErrorf(mod, "is marked as explicit in vendor/modules.txt, but not explicitly required in go.mod")
++		}
++	}
++
++	for _, mod := range vendorReplaced {
++		r, ok := goModReplacement[mod]
++		if !ok {
++			r, ok = goModReplacement[module.Version{Path: mod.Path}]
++		}
++		if !ok {
++			vendErrorf(mod, "is marked as replaced in vendor/modules.txt, but not replaced in go.mod")
++			continue
++		}
++		if meta := vendorMeta[mod]; r != meta.Replacement {
++			vendErrorf(mod, "is marked as replaced by %s in vendor/modules.txt, but replaced by %s in go.mod", describe(meta.Replacement), describe(r))
++		}
++	}
++
++	if vendErrors.Len() > 0 {
++		base.Fatalf("go: inconsistent vendoring in %s:%s\n\nrun 'go mod vendor' to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory", modRoot, vendErrors)
++	}
+ }
+ 
+ // Allowed reports whether module m is allowed (not excluded) by the main module's go.mod.
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 92e76a9246..5f6fd672ba 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1024,30 +1024,106 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
+ 
+ var vendorOnce sync.Once
+ 
++type vendorMetadata struct {
++	Explicit    bool
++	Replacement module.Version
++}
++
+ var (
+-	vendorList []module.Version
+-	vendorMap  map[string]module.Version
++	vendorList      []module.Version          // modules that contribute packages to the build, in order of appearance
++	vendorReplaced  []module.Version          // all replaced modules; may or may not also contribute packages
++	vendorVersion   map[string]string         // module path → selected version (if known)
++	vendorPkgModule map[string]module.Version // package → containing module
++	vendorMeta      map[module.Version]vendorMetadata
+ )
+ 
+ // readVendorList reads the list of vendored modules from vendor/modules.txt.
+ func readVendorList() {
+ 	vendorOnce.Do(func() {
+ 		vendorList = nil
+-		vendorMap = make(map[string]module.Version)
+-		data, _ := ioutil.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
+-		var m module.Version
++		vendorPkgModule = make(map[string]module.Version)
++		vendorVersion = make(map[string]string)
++		vendorMeta = make(map[module.Version]vendorMetadata)
++		data, err := ioutil.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
++		if err != nil {
++			if !errors.Is(err, os.ErrNotExist) {
++				base.Fatalf("go: %s", err)
++			}
++			return
++		}
++
++		var mod module.Version
+ 		for _, line := range strings.Split(string(data), "\n") {
+ 			if strings.HasPrefix(line, "# ") {
+ 				f := strings.Fields(line)
+-				m = module.Version{}
+-				if len(f) == 3 && semver.IsValid(f[2]) {
+-					m = module.Version{Path: f[1], Version: f[2]}
+-					vendorList = append(vendorList, m)
++
++				if len(f) < 3 {
++					continue
+ 				}
+-			} else if m.Path != "" {
+-				f := strings.Fields(line)
+-				if len(f) == 1 {
+-					vendorMap[f[0]] = m
++				if semver.IsValid(f[2]) {
++					// A module, but we don't yet know whether it is in the build list or
++					// only included to indicate a replacement.
++					mod = module.Version{Path: f[1], Version: f[2]}
++					f = f[3:]
++				} else if f[2] == "=>" {
++					// A wildcard replacement found in the main module's go.mod file.
++					mod = module.Version{Path: f[1]}
++					f = f[2:]
++				} else {
++					// Not a version or a wildcard replacement.
++					// We don't know how to interpret this module line, so ignore it.
++					mod = module.Version{}
++					continue
++				}
++
++				if len(f) >= 2 && f[0] == "=>" {
++					meta := vendorMeta[mod]
++					if len(f) == 2 {
++						// File replacement.
++						meta.Replacement = module.Version{Path: f[1]}
++						vendorReplaced = append(vendorReplaced, mod)
++					} else if len(f) == 3 && semver.IsValid(f[2]) {
++						// Path and version replacement.
++						meta.Replacement = module.Version{Path: f[1], Version: f[2]}
++						vendorReplaced = append(vendorReplaced, mod)
++					} else {
++						// We don't understand this replacement. Ignore it.
++					}
++					vendorMeta[mod] = meta
++				}
++				continue
++			}
++
++			// Not a module line. Must be a package within a module or a metadata
++			// directive, either of which requires a preceding module line.
++			if mod.Path == "" {
++				continue
++			}
++
++			if strings.HasPrefix(line, "## ") {
++				// Metadata. Take the union of annotations across multiple lines, if present.
++				meta := vendorMeta[mod]
++				for _, entry := range strings.Split(strings.TrimPrefix(line, "## "), ";") {
++					entry = strings.TrimSpace(entry)
++					if entry == "explicit" {
++						meta.Explicit = true
++					}
++					// All other tokens are reserved for future use.
++				}
++				vendorMeta[mod] = meta
++				continue
++			}
++
++			if f := strings.Fields(line); len(f) == 1 && module.CheckImportPath(f[0]) == nil {
++				// A package within the current module.
++				vendorPkgModule[f[0]] = mod
++
++				// Since this module provides a package for the build, we know that it
++				// is in the build list and is the selected version of its path.
++				// If this information is new, record it.
++				if v, ok := vendorVersion[mod.Path]; !ok || semver.Compare(v, mod.Version) < 0 {
++					vendorList = append(vendorList, mod)
++					vendorVersion[mod.Path] = mod.Version
+ 				}
+ 			}
+ 		}
+@@ -1078,19 +1154,6 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 		return append([]module.Version(nil), vendorList...), nil
+ 	}
+ 
+-	if targetInGorootSrc {
+-		// When inside "std" or "cmd", only fetch and read go.mod files if we're
+-		// explicitly running a command that can change the module graph. If we have
+-		// to resolve a new dependency, we might pick the wrong version, but 'go mod
+-		// tidy' will fix it — and new standard-library dependencies should be rare
+-		// anyway.
+-		//
+-		// TODO(golang.org/issue/30240): Drop this special-case.
+-		if cfg.CmdName != "get" && !strings.HasPrefix(cfg.CmdName, "mod ") {
+-			return nil, nil
+-		}
+-	}
+-
+ 	origPath := mod.Path
+ 	if repl := Replacement(mod); repl.Path != "" {
+ 		if repl.Version == "" {
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 548e73515f..f3055b6293 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -247,12 +247,12 @@ func buildModeInit() {
+ 	switch cfg.BuildMod {
+ 	case "":
+ 		// ok
+-	case "readonly", "vendor":
++	case "readonly", "vendor", "mod":
+ 		if load.ModLookup == nil && !inGOFLAGS("-mod") {
+ 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
+ 		}
+ 	default:
+-		base.Fatalf("-mod=%s not supported (can be '', 'readonly', or 'vendor')", cfg.BuildMod)
++		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_ambiguous_import.txt b/src/cmd/go/testdata/script/mod_ambiguous_import.txt
+index 9f9669c762..61e632a29c 100644
+--- a/src/cmd/go/testdata/script/mod_ambiguous_import.txt
++++ b/src/cmd/go/testdata/script/mod_ambiguous_import.txt
+@@ -20,7 +20,7 @@ stderr '^can.t load package: package example.com/m/importy: ambiguous import: fo
+ 
+ -- $WORK/go.mod --
+ module example.com/m
+-go 1.14
++go 1.13
+ require (
+ 	example.com/a v0.1.0
+ 	example.com/a/x v0.1.0
+diff --git a/src/cmd/go/testdata/script/mod_internal.txt b/src/cmd/go/testdata/script/mod_internal.txt
+index 5a361a4f42..1193d528ec 100644
+--- a/src/cmd/go/testdata/script/mod_internal.txt
++++ b/src/cmd/go/testdata/script/mod_internal.txt
+@@ -2,8 +2,7 @@ env GO111MODULE=on
+ [short] skip
+ 
+ # golang.org/x/internal should be importable from other golang.org/x modules.
+-rm go.mod
+-go mod init golang.org/x/anything
++go mod edit -module=golang.org/x/anything
+ go build .
+ 
+ # ...and their tests...
+@@ -20,8 +19,7 @@ stderr 'use of internal package golang.org/x/.* not allowed'
+ stderr 'use of internal package internal/testenv not allowed'
+ 
+ # Dependencies should be able to use their own internal modules...
+-rm go.mod
+-go mod init golang.org/notx
++go mod edit -module=golang.org/notx
+ go build ./throughdep
+ 
+ # ... but other modules should not, even if they have transitive dependencies.
+@@ -34,8 +32,7 @@ stderr golang.org[/\\]notx[/\\]useinternal
+ stderr 'use of internal package golang.org/x/.* not allowed'
+ 
+ # Replacing an internal module should keep it internal to the same paths.
+-rm go.mod
+-go mod init golang.org/notx
++go mod edit -module=golang.org/notx
+ go mod edit -replace golang.org/x/internal=./replace/golang.org/notx/internal
+ go build ./throughdep
+ 
+@@ -50,6 +47,9 @@ go build ./throughdep
+ stderr golang.org[/\\]notx[/\\]useinternal
+ stderr 'use of internal package golang.org/x/.* not allowed'
+ 
++-- go.mod --
++module TBD
++go 1.12
+ -- useinternal.go --
+ package useinternal
+ import _ "golang.org/x/internal/subtle"
+diff --git a/src/cmd/go/testdata/script/mod_test_files.txt b/src/cmd/go/testdata/script/mod_test_files.txt
+index 87aecb44f6..6f520c7720 100644
+--- a/src/cmd/go/testdata/script/mod_test_files.txt
++++ b/src/cmd/go/testdata/script/mod_test_files.txt
+@@ -20,6 +20,7 @@ stderr 'use of internal package'
+ 
+ -- foo/go.mod --
+ module example.com/foo
++go 1.12
+ require example.com/internal v0.0.0
+ replace example.com/internal => ../internal
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 74ef2d827e..991a6d1926 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -1,9 +1,5 @@
+ env GO111MODULE=on
+ 
+-go list -m all
+-stdout '^x v1.0.0 => ./x'
+-stdout '^w'
+-
+ [!short] go build
+ [!short] ! go build -mod=vendor
+ 
+@@ -20,10 +16,10 @@ stderr '^z'
+ ! stderr '^w'
+ grep 'a/foo/bar/b\na/foo/bar/c' vendor/modules.txt # must be sorted
+ 
+-go list -f {{.Dir}} x
++go list -mod=mod -f {{.Dir}} x
+ stdout 'src[\\/]x'
+ 
+-go list -f {{.Dir}} -m x
++go list -mod=mod -f {{.Dir}} -m x
+ stdout 'src[\\/]x'
+ 
+ go list -mod=vendor -f {{.Dir}} x
+@@ -32,7 +28,7 @@ stdout 'src[\\/]vendor[\\/]x'
+ go list -mod=vendor -f {{.Dir}} -m x
+ stdout 'src[\\/]vendor[\\/]x'
+ 
+-go list -f {{.Dir}} -m w
++go list -mod=mod -f {{.Dir}} -m w
+ stdout 'src[\\/]w'
+ 
+ ! go list -mod=vendor -f {{.Dir}} w
+diff --git a/src/cmd/go/testdata/script/mod_vendor_auto.txt b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+new file mode 100644
+index 0000000000..44f9fd4d38
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+@@ -0,0 +1,248 @@
++# Integration test for golang.org/issue/33848: automatically check and use vendored packages.
++
++env GO111MODULE=on
++
++[short] skip
++
++cd $WORK/auto
++cp go.mod go.mod.orig
++
++# An explicit -mod=vendor should force use of the vendor directory.
++env GOFLAGS=-mod=vendor
++
++go list -f {{.Dir}} -tags tools all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
++
++go list -m all
++stdout '^example.com/auto$'
++stdout 'example.com/printversion v1.0.0'
++stdout 'example.com/version v1.0.0'
++
++go list -m -f '{{.Dir}}' all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
++
++# An explicit -mod=mod should force the vendor directory to be ignored.
++env GOFLAGS=-mod=mod
++
++go list -f {{.Dir}} -tags tools all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
++stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
++
++go list -m all
++stdout '^example.com/auto$'
++stdout 'example.com/printversion v1.0.0'
++stdout 'example.com/version v1.0.0'
++
++go list -m -f '{{.Dir}}' all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
++stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
++
++# If the main module's "go" directive says 1.13, we should default to -mod=mod.
++env GOFLAGS=
++go mod edit -go=1.13
++
++go list -f {{.Dir}} -tags tools all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
++stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
++stderr '^go: not defaulting to -mod=vendor because go.mod .go. version is 1.13$'
++
++go list -m -f '{{.Dir}}' all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
++stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
++
++# A 'go 1.14' directive in the main module's go.mod file should enable
++# -mod=vendor by default, along with stronger checks for consistency
++# between the go.mod file and vendor/modules.txt.
++# A 'go 1.13' vendor/modules.txt file is not usually sufficient
++# to pass those checks.
++go mod edit -go=1.14
++
++! go list -f {{.Dir}} -tags tools all
++stderr '^go: inconsistent vendoring in '$WORK/auto':$'
++stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
++stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
++stderr '^\texample.com/version@v1.2.0: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
++stderr '\n\nrun .go mod vendor. to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory$'
++
++# Module-specific subcommands should continue to load the full module graph.
++go mod graph
++stdout '^example.com/printversion@v1.0.0 example.com/version@v1.0.0$'
++
++# An explicit -mod=mod should still force the vendor directory to be ignored.
++env GOFLAGS=-mod=mod
++
++go list -f {{.Dir}} -tags tools all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
++stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
++
++go list -m all
++stdout '^example.com/auto$'
++stdout 'example.com/printversion v1.0.0'
++stdout 'example.com/version v1.0.0'
++
++go list -m -f '{{.Dir}}' all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
++stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
++
++# 'go mod vendor' should repair vendor/modules.txt so that the implicit
++# -mod=vendor works again.
++env GOFLAGS=
++
++go mod edit -go=1.14
++go mod vendor
++
++go list -f {{.Dir}} -tags tools all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
++
++# 'go mod init' should work if there is already a GOPATH-mode vendor directory
++# present. If there are no module dependencies, -mod=vendor should be used by
++# default and should not fail the consistency check even though no module
++# information is present.
++
++rm go.mod
++rm vendor/modules.txt
++
++go mod init example.com/auto
++go list -f {{.Dir}} -tags tools all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
++
++# If information about dependencies is added to a 1.14 go.mod file, subsequent
++# list commands should error out if vendor/modules.txt is missing or incomplete.
++
++cp go.mod.orig go.mod
++go mod edit -go=1.14
++! go list -f {{.Dir}} -tags tools all
++stderr '^go: inconsistent vendoring in '$WORK/auto':$'
++stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
++stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
++stderr '^\texample.com/version@v1.2.0: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
++stderr '\n\nrun .go mod vendor. to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory$'
++
++# If -mod=vendor is set, limited consistency checks should apply even when
++# the go version is 1.13 or earlier.
++# An incomplete or missing vendor/modules.txt should resolve the vendored packages...
++go mod edit -go=1.13
++go list -mod=vendor -f {{.Dir}} -tags tools all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
++! stderr 'not defaulting to -mod=vendor'
++
++# ...but a version mismatch for an explicit dependency should be noticed.
++cp $WORK/modules-bad-1.13.txt vendor/modules.txt
++! go list -mod=vendor -f {{.Dir}} -tags tools all
++stderr '^go: inconsistent vendoring in '$WORK/auto':$'
++stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but vendor/modules.txt indicates example.com/printversion@v1.1.0$'
++stderr '\n\nrun .go mod vendor. to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory$'
++
++# 'go mod vendor' should write a 1.14 vendor/modules.txt even if
++# the go version is still 1.13.
++go mod vendor
++cmp $WORK/modules-1.14.txt vendor/modules.txt
++
++go list -mod=vendor -f {{.Dir}} -tags tools all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
++
++# When the version is upgraded to 1.14, -mod=vendor should kick in
++# automatically and succeed.
++go mod edit -go=1.14
++go list -f {{.Dir}} -tags tools all
++stdout '^'$WORK'[/\\]auto$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
++stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
++
++# 'go get' should update from the network or module cache,
++# even if a vendor directory is present.
++go get -u example.com/printversion
++! go list -f {{.Dir}} -tags tools all
++stderr '^go: inconsistent vendoring'
++
++-- $WORK/auto/go.mod --
++module example.com/auto
++
++go 1.13
++
++require example.com/printversion v1.0.0
++
++replace (
++	example.com/unused => nonexistent.example.com/unused v1.0.0-whatever
++	example.com/version v1.0.0 => ./replacement-version
++	example.com/version v1.2.0 => nonexistent.example.com/version v1.2.0
++)
++-- $WORK/auto/tools.go --
++// +build tools
++
++package auto
++
++import _ "example.com/printversion"
++-- $WORK/auto/auto.go --
++package auto
++-- $WORK/auto/replacement-version/go.mod --
++module example.com/version
++-- $WORK/auto/replacement-version/version.go --
++package version
++
++const V = "v1.0.0-replaced"
++-- $WORK/modules-1.14.txt --
++# example.com/printversion v1.0.0
++## explicit
++example.com/printversion
++# example.com/version v1.0.0 => ./replacement-version
++example.com/version
++# example.com/unused => nonexistent.example.com/unused v1.0.0-whatever
++# example.com/version v1.2.0 => nonexistent.example.com/version v1.2.0
++-- $WORK/auto/vendor/modules.txt --
++# example.com/printversion v1.0.0
++example.com/printversion
++# example.com/version v1.0.0 => ./replacement-version
++example.com/version
++-- $WORK/modules-bad-1.13.txt --
++# example.com/printversion v1.1.0
++example.com/printversion
++# example.com/version v1.1.0
++example.com/version
++-- $WORK/auto/vendor/example.com/printversion/go.mod --
++module example.com/printversion
++
++require example.com/version v1.0.0
++replace example.com/version v1.0.0 => ../oops v0.0.0
++exclude example.com/version v1.0.1
++-- $WORK/auto/vendor/example.com/printversion/printversion.go --
++package main
++
++import (
++	"fmt"
++	"os"
++	"runtime/debug"
++
++	_ "example.com/version"
++)
++
++func main() {
++	info, _ := debug.ReadBuildInfo()
++	fmt.Fprintf(os.Stdout, "path is %s\n", info.Path)
++	fmt.Fprintf(os.Stdout, "main is %s %s\n", info.Main.Path, info.Main.Version)
++	for _, m := range info.Deps {
++		fmt.Fprintf(os.Stdout, "using %s %s\n", m.Path, m.Version)
++	}
++}
++-- $WORK/auto/vendor/example.com/version/version.go --
++package version
++
++const V = "v1.0.0-replaced"
+diff --git a/src/cmd/go/testdata/script/mod_vendor_build.txt b/src/cmd/go/testdata/script/mod_vendor_build.txt
+index 24920a36b6..0c359cea6e 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_build.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_build.txt
+@@ -32,7 +32,7 @@ stdout m
+ 
+ -- go.mod --
+ module m
+-
++go 1.12
+ -- x.go --
+ package x
+ import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_vendor_unused.txt b/src/cmd/go/testdata/script/mod_vendor_unused.txt
+new file mode 100644
+index 0000000000..96251bb25a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_unused.txt
+@@ -0,0 +1,67 @@
++# Auxiliary test for inclusion of otherwise-unused replacements in
++# vendor/modules.txt for golang.org/issue/33848.
++# We need metadata about replacements in order to verify that modules.txt
++# remains in sync with the main module's go.mod file.
++
++env GO111MODULE=on
++
++go mod vendor
++cmp go1.14-modules.txt vendor/modules.txt
++
++-- go.mod --
++module example.com/foo
++go 1.14
++
++require (
++	example.com/a v0.1.0
++)
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b1
++	example.com/b v0.2.0-unused => ./b2
++	example.com/c => ./c
++	example.com/d v0.1.0 => ./d1
++	example.com/d v0.2.0 => ./d2
++	example.com/e => example.com/e v0.1.0-unused
++)
++-- foo.go --
++package foo
++import _ "example.com/a"
++-- a/go.mod --
++module example.com/a
++require (
++	example.com/b v0.1.0 // indirect
++	example.com/c v0.1.0 // indirect
++)
++-- a/a.go --
++package a
++import _ "example.com/d"
++-- b1/go.mod --
++module example.com/b
++require example.com/d v0.1.0
++-- b2/go.mod --
++module example.com/b
++require example.com/c v0.2.0
++-- c/go.mod --
++module example.com/c
++require example.com/d v0.2.0
++-- d1/go.mod --
++module example.com/d
++-- d1/d1.go --
++package d
++-- d2/go.mod --
++module example.com/d
++-- d2/d2.go --
++package d
++-- go1.14-modules.txt --
++# example.com/a v0.1.0 => ./a
++## explicit
++example.com/a
++# example.com/d v0.2.0 => ./d2
++example.com/d
++# example.com/b v0.1.0 => ./b1
++# example.com/b v0.2.0-unused => ./b2
++# example.com/c => ./c
++# example.com/d v0.1.0 => ./d1
++# example.com/e => example.com/e v0.1.0-unused
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 43f539fd81..6ed3e16e2a 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,5 @@
+ # github.com/google/pprof v0.0.0-20190515194954-54271f7e092f
++## explicit
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils
+ github.com/google/pprof/internal/driver
+@@ -15,18 +16,23 @@ github.com/google/pprof/third_party/d3
+ github.com/google/pprof/third_party/d3flamegraph
+ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44
++## explicit
+ github.com/ianlancetaylor/demangle
+ # golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
++## explicit
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+ # golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
++## explicit
+ golang.org/x/crypto/ssh/terminal
+ # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
++## explicit
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+ # golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b
++## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+ golang.org/x/tools/go/analysis/internal/facts
+diff --git a/src/go.mod b/src/go.mod
+index 90af2a7ea0..8d8c89b5fb 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -1,6 +1,6 @@
+ module std
+ 
+-go 1.12
++go 1.14
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 453a312661..c0f37845b0 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,5 @@
+ # golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
++## explicit
+ golang.org/x/crypto/chacha20poly1305
+ golang.org/x/crypto/cryptobyte
+ golang.org/x/crypto/cryptobyte/asn1
+@@ -8,6 +9,7 @@ golang.org/x/crypto/internal/chacha20
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+ # golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
++## explicit
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+ golang.org/x/net/http/httpproxy
+@@ -17,8 +19,10 @@ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+ # golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8
++## explicit
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.3.2
++## explicit
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/bidi

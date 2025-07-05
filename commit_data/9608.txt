@@ -7,7 +7,7 @@ Date:   Tue Sep 6 16:04:55 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4984052
-
+---
  src/pkg/crypto/x509/verify_test.go | 10 +++++-----
  src/pkg/http/cgi/host.go           | 14 +++++++-------
  src/pkg/http/fcgi/fcgi_test.go     |  6 +++---
@@ -15,3 +15,149 @@ Date:   Tue Sep 6 16:04:55 2011 -0700
  src/pkg/json/decode_test.go        |  2 +-
  src/pkg/path/filepath/path_test.go |  2 +-
  6 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index 111f60eb11..ecff7ffd81 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -31,7 +31,7 @@ var verifyTests = []verifyTest{
+ 		dnsName:       "www.google.com",
+ 
+ 		expectedChains: [][]string{
+-			[]string{"Google", "Thawte", "VeriSign"},
++			{"Google", "Thawte", "VeriSign"},
+ 		},
+ 	},
+ 	{
+@@ -68,7 +68,7 @@ var verifyTests = []verifyTest{
+ 		dnsName:       "www.google.com",
+ 
+ 		expectedChains: [][]string{
+-			[]string{"Google", "Thawte", "VeriSign"},
++			{"Google", "Thawte", "VeriSign"},
+ 		},
+ 	},
+ 	{
+@@ -78,7 +78,7 @@ var verifyTests = []verifyTest{
+ 		currentTime:   1302726541,
+ 
+ 		expectedChains: [][]string{
+-			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
++			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
+ 		},
+ 	},
+ 	{
+@@ -88,8 +88,8 @@ var verifyTests = []verifyTest{
+ 		currentTime:   1302726541,
+ 
+ 		expectedChains: [][]string{
+-			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
+-			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority", "StartCom Certification Authority"},
++			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
++			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority", "StartCom Certification Authority"},
+ 		},
+ 	},
+ }
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index f7de89f997..d36eaa19b4 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -32,13 +32,13 @@ import (
+ var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
+ 
+ var osDefaultInheritEnv = map[string][]string{
+-	"darwin":  []string{"DYLD_LIBRARY_PATH"},
+-	"freebsd": []string{"LD_LIBRARY_PATH"},
+-	"hpux":    []string{"LD_LIBRARY_PATH", "SHLIB_PATH"},
+-	"irix":    []string{"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"},
+-	"linux":   []string{"LD_LIBRARY_PATH"},
+-	"solaris": []string{"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"},
+-	"windows": []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
++	"darwin":  {"DYLD_LIBRARY_PATH"},
++	"freebsd": {"LD_LIBRARY_PATH"},
++	"hpux":    {"LD_LIBRARY_PATH", "SHLIB_PATH"},
++	"irix":    {"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"},
++	"linux":   {"LD_LIBRARY_PATH"},
++	"solaris": {"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"},
++	"windows": {"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
+ }
+ 
+ // Handler runs an executable in a subprocess with a CGI environment.
+diff --git a/src/pkg/http/fcgi/fcgi_test.go b/src/pkg/http/fcgi/fcgi_test.go
+index 16a6243295..5c8e46bd75 100644
+--- a/src/pkg/http/fcgi/fcgi_test.go
++++ b/src/pkg/http/fcgi/fcgi_test.go
+@@ -53,13 +53,13 @@ var streamTests = []struct {
+ 	{"two records", typeStdin, 300, make([]byte, 66000),
+ 		bytes.Join([][]byte{
+ 			// header for the first record
+-			[]byte{1, typeStdin, 0x01, 0x2C, 0xFF, 0xFF, 1, 0},
++			{1, typeStdin, 0x01, 0x2C, 0xFF, 0xFF, 1, 0},
+ 			make([]byte, 65536),
+ 			// header for the second
+-			[]byte{1, typeStdin, 0x01, 0x2C, 0x01, 0xD1, 7, 0},
++			{1, typeStdin, 0x01, 0x2C, 0x01, 0xD1, 7, 0},
+ 			make([]byte, 472),
+ 			// header for the empty record
+-			[]byte{1, typeStdin, 0x01, 0x2C, 0, 0, 0, 0},
++			{1, typeStdin, 0x01, 0x2C, 0, 0, 0, 0},
+ 		},
+ 			nil),
+ 	},
+diff --git a/src/pkg/http/spdy/read.go b/src/pkg/http/spdy/read.go
+index c6b6ab3af8..2b1fd3d0d4 100644
+--- a/src/pkg/http/spdy/read.go
++++ b/src/pkg/http/spdy/read.go
+@@ -214,7 +214,7 @@ func (f *Framer) readSynStreamFrame(h ControlFrameHeader, frame *SynStreamFrame)
+ 	}
+ 	// Remove this condition when we bump Version to 3.
+ 	if Version >= 3 {
+-		for h, _ := range frame.Headers {
++		for h := range frame.Headers {
+ 			if invalidReqHeaders[h] {
+ 				return &Error{InvalidHeaderPresent, frame.StreamId}
+ 			}
+@@ -247,7 +247,7 @@ func (f *Framer) readSynReplyFrame(h ControlFrameHeader, frame *SynReplyFrame) o
+ 	}
+ 	// Remove this condition when we bump Version to 3.
+ 	if Version >= 3 {
+-		for h, _ := range frame.Headers {
++		for h := range frame.Headers {
+ 			if invalidRespHeaders[h] {
+ 				return &Error{InvalidHeaderPresent, frame.StreamId}
+ 			}
+@@ -287,7 +287,7 @@ func (f *Framer) readHeadersFrame(h ControlFrameHeader, frame *HeadersFrame) os.
+ 		} else {
+ 			invalidHeaders = invalidRespHeaders
+ 		}
+-		for h, _ := range frame.Headers {
++		for h := range frame.Headers {
+ 			if invalidHeaders[h] {
+ 				return &Error{InvalidHeaderPresent, frame.StreamId}
+ 			}
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 5f6c3f5b8d..c6d4fa0591 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -42,7 +42,7 @@ var (
+ 	um0, um1 unmarshaler // target2 of unmarshaling
+ 	ump      = &um1
+ 	umtrue   = unmarshaler{true}
+-	umslice  = []unmarshaler{unmarshaler{true}}
++	umslice  = []unmarshaler{{true}}
+ 	umslicep = new([]unmarshaler)
+ 	umstruct = ustruct{unmarshaler{true}}
+ )
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index d2a10698e1..395b12775a 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -81,7 +81,7 @@ var wincleantests = []PathTest{
+ func TestClean(t *testing.T) {
+ 	tests := cleantests
+ 	if runtime.GOOS == "windows" {
+-		for i, _ := range tests {
++		for i := range tests {
+ 			tests[i].result = filepath.FromSlash(tests[i].result)
+ 		}
+ 		tests = append(tests, wincleantests...)

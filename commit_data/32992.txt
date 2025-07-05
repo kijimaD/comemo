@@ -10,6 +10,30 @@ Date:   Sun Jan 8 17:29:26 2017 +0900
     Change-Id: I611b9a79f4033ef035acd7098aea5965905d9a4c
     Reviewed-on: https://go-review.googlesource.com/34880
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/ipsock.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index 201c3f58bc..7dafcaf630 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -127,6 +127,9 @@ func ipv6only(addr IPAddr) bool {
+ //
+ // A literal IPv6 address in hostport must be enclosed in square
+ // brackets, as in "[::1]:80", "[::1%lo0]:80".
++//
++// See func Dial for a description of the hostport parameter, and host
++// and port results.
+ func SplitHostPort(hostport string) (host, port string, err error) {
+ 	const (
+ 		missingPort   = "missing port in address"
+@@ -196,6 +199,8 @@ func splitHostZone(s string) (host, zone string) {
+ // JoinHostPort combines host and port into a network address of the
+ // form "host:port". If host contains a colon, as found in literal
+ // IPv6 addresses, then JoinHostPort returns "[host]:port".
++//
++// See func Dial for a description of the host and port parameters.
+ func JoinHostPort(host, port string) string {
+ 	// We assume that host is a literal IPv6 address if host has
+ 	// colons.

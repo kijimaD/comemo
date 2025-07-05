@@ -15,8 +15,75 @@ Date:   Thu Feb 5 12:31:13 2015 -0500
     Change-Id: I8ea95503bd469ea933c6bcbd675b7122a5d454f3
     Reviewed-on: https://go-review.googlesource.com/4643
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/gc/go.h        |  1 +
  src/cmd/gc/subr.c      | 13 +++++++++++++
  src/cmd/gc/typecheck.c |  8 ++++++--
  3 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 38edaea747..0efd40d2bf 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1448,6 +1448,7 @@ void	warn(char *fmt, ...);
+ void	warnl(int line, char *fmt, ...);
+ void	yyerror(char *fmt, ...);
+ void	yyerrorl(int line, char *fmt, ...);
++void	adderrorname(Node*);
+ 
+ /*
+  *	swt.c
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 486e1d8dc9..c91b14d151 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -38,6 +38,19 @@ parserline(void)
+ 	return lineno;
+ }
+ 
++void
++adderrorname(Node *n)
++{
++	char *old;
++	
++	if(n->op != ODOT)
++		return;
++	old = smprint("%L: undefined: %N\n", n->lineno, n->left);
++	if(nerr > 0 && err[nerr-1].lineno == n->lineno && strcmp(err[nerr-1].msg, old) == 0)
++		err[nerr-1].msg = smprint("%L: undefined: %N in %N\n", n->lineno, n->left, n);
++	free(old);
++}
++
+ static void
+ adderr(int line, char *fmt, va_list arg)
+ {
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 64b80a88cd..c73c34804f 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -786,12 +786,14 @@ reswitch:
+ 	case ODOT:
+ 		typecheck(&n->left, Erv|Etype);
+ 		defaultlit(&n->left, T);
+-		if((t = n->left->type) == T)
+-			goto error;
+ 		if(n->right->op != ONAME) {
+ 			yyerror("rhs of . must be a name");	// impossible
+ 			goto error;
+ 		}
++		if((t = n->left->type) == T) {
++			adderrorname(n);
++			goto error;
++		}
+ 		r = n->right;
+ 
+ 		if(n->left->op == OTYPE) {
+@@ -3303,6 +3305,8 @@ typecheckdef(Node *n)
+ 			n->diag = 1;
+ 			if(n->lineno != 0)
+ 				lineno = n->lineno;
++			// Note: adderrorname looks for this string and
++			// adds context about the outer expression
+ 			yyerror("undefined: %S", n->sym);
+ 		}
+ 		return n;

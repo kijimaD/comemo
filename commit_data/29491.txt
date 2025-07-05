@@ -15,7 +15,7 @@ Date:   Fri Sep 16 15:31:04 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go      | 12 +-----
  src/cmd/compile/internal/gc/dcl.go   |  1 -
  src/cmd/compile/internal/gc/gsubr.go | 79 ++++++------------------------------
@@ -26,3 +26,306 @@ Date:   Fri Sep 16 15:31:04 2016 -0700
  src/cmd/internal/obj/util.go         |  3 +-
  src/cmd/internal/obj/x86/asm6.go     |  1 -
  9 files changed, 42 insertions(+), 112 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 6167810f1b..3cb69c7997 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -269,17 +269,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
+ 	}
+ 
+ 	// log.Printf("GLOBL %s %d, $%d", name, flag, size)
+-	prog := &obj.Prog{
+-		Ctxt:   p.ctxt,
+-		As:     obj.AGLOBL,
+-		Lineno: p.histLineNum,
+-		From:   nameAddr,
+-		From3: &obj.Addr{
+-			Offset: flag,
+-		},
+-		To: addr,
+-	}
+-	p.append(prog, "", false)
++	p.ctxt.Globl(nameAddr.Sym, addr.Offset, int(flag))
+ }
+ 
+ // asmPCData assembles a PCDATA pseudo-op.
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index b3e2a78c41..0a1d63ae3d 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1268,7 +1268,6 @@ func funccompile(n *Node) {
+ 		// If we have compile errors, ignore any assembler/linker errors.
+ 		Ctxt.DiagFunc = func(string, ...interface{}) {}
+ 	}
+-	flushdata()
+ 	obj.Flushplist(Ctxt) // convert from Prog list to machine code
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 1be8788dfc..cd9c7e974e 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -35,33 +35,13 @@ import (
+ 	"fmt"
+ )
+ 
+-var (
+-	ddumped bool
+-	dfirst  *obj.Prog
+-	dpc     *obj.Prog
+-)
+-
+ func Prog(as obj.As) *obj.Prog {
+ 	var p *obj.Prog
+ 
+-	if as == obj.AGLOBL {
+-		if ddumped {
+-			Fatalf("already dumped data")
+-		}
+-		if dpc == nil {
+-			dpc = Ctxt.NewProg()
+-			dfirst = dpc
+-		}
+-
+-		p = dpc
+-		dpc = Ctxt.NewProg()
+-		p.Link = dpc
+-	} else {
+-		p = Pc
+-		Pc = Ctxt.NewProg()
+-		Clearp(Pc)
+-		p.Link = Pc
+-	}
++	p = Pc
++	Pc = Ctxt.NewProg()
++	Clearp(Pc)
++	p.Link = Pc
+ 
+ 	if lineno == 0 && Debug['K'] != 0 {
+ 		Warn("prog: line 0")
+@@ -102,29 +82,6 @@ func Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset in
+ 	return q
+ }
+ 
+-func dumpdata() {
+-	ddumped = true
+-	if dfirst == nil {
+-		return
+-	}
+-	newplist()
+-	*Pc = *dfirst
+-	Pc = dpc
+-	Clearp(Pc)
+-}
+-
+-func flushdata() {
+-	if dfirst == nil {
+-		return
+-	}
+-	newplist()
+-	*Pc = *dfirst
+-	Pc = dpc
+-	Clearp(Pc)
+-	dfirst = nil
+-	dpc = nil
+-}
+-
+ // Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
+ func fixautoused(p *obj.Prog) {
+ 	for lp := &p; ; {
+@@ -160,19 +117,16 @@ func fixautoused(p *obj.Prog) {
+ }
+ 
+ func ggloblnod(nam *Node) {
+-	p := Gins(obj.AGLOBL, nam, nil)
+-	p.Lineno = nam.Lineno
+-	p.From.Sym.Gotype = Linksym(ngotype(nam))
+-	p.To.Sym = nil
+-	p.To.Type = obj.TYPE_CONST
+-	p.To.Offset = nam.Type.Width
+-	p.From3 = new(obj.Addr)
++	s := Linksym(nam.Sym)
++	s.Gotype = Linksym(ngotype(nam))
++	flags := 0
+ 	if nam.Name.Readonly {
+-		p.From3.Offset = obj.RODATA
++		flags = obj.RODATA
+ 	}
+ 	if nam.Type != nil && !haspointers(nam.Type) {
+-		p.From3.Offset |= obj.NOPTR
++		flags |= obj.NOPTR
+ 	}
++	Ctxt.Globl(s, nam.Type.Width, flags)
+ }
+ 
+ func ggloblsym(s *Sym, width int32, flags int16) {
+@@ -180,18 +134,11 @@ func ggloblsym(s *Sym, width int32, flags int16) {
+ }
+ 
+ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
+-	p := Gins(obj.AGLOBL, nil, nil)
+-	p.From.Type = obj.TYPE_MEM
+-	p.From.Name = obj.NAME_EXTERN
+-	p.From.Sym = s
+ 	if flags&obj.LOCAL != 0 {
+-		p.From.Sym.Local = true
++		s.Local = true
+ 		flags &^= obj.LOCAL
+ 	}
+-	p.To.Type = obj.TYPE_CONST
+-	p.To.Offset = int64(width)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Offset = int64(flags)
++	Ctxt.Globl(s, int64(width), int(flags))
+ }
+ 
+ func gtrack(s *Sym) {
+@@ -450,7 +397,7 @@ func Patch(p *obj.Prog, to *obj.Prog) {
+ func Gins(as obj.As, f, t *Node) *obj.Prog {
+ 	switch as {
+ 	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF, obj.ATYPE,
+-		obj.ATEXT, obj.AFUNCDATA, obj.AUSEFIELD, obj.AGLOBL:
++		obj.ATEXT, obj.AFUNCDATA, obj.AUSEFIELD:
+ 	default:
+ 		Fatalf("unhandled gins op %v", as)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 93ca2f8563..a51e8999ea 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -147,7 +147,6 @@ func dumpobj1(outfile string, mode int) {
+ 		ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
+ 	}
+ 
+-	dumpdata()
+ 	obj.Writeobjdirect(Ctxt, bout.Writer)
+ 
+ 	if writearchive {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index de59583d8a..7eee6d5393 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -855,7 +855,7 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
+ 		if false {
+ 			fmt.Printf("analyzing '%v'\n", p)
+ 		}
+-		if p.As != obj.AGLOBL && p.As != obj.ATYPE {
++		if p.As != obj.ATYPE {
+ 			checkprog(fn, p)
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 5d77d69df3..a9af709be6 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -276,7 +276,6 @@ const (
+ 	ADUFFZERO
+ 	AEND
+ 	AFUNCDATA
+-	AGLOBL
+ 	AJMP
+ 	ANOP
+ 	APCDATA
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 3c046d1621..9d76ea9ee8 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -82,34 +82,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				curtext.Autom = a
+ 				continue
+ 
+-			case AGLOBL:
+-				s := p.From.Sym
+-				if s.Seenglobl {
+-					fmt.Printf("duplicate %v\n", p)
+-				}
+-				s.Seenglobl = true
+-				if s.Onlist {
+-					log.Fatalf("symbol %s listed multiple times", s.Name)
+-				}
+-				s.Onlist = true
+-				ctxt.Data = append(ctxt.Data, s)
+-				s.Size = p.To.Offset
+-				if s.Type == 0 || s.Type == SXREF {
+-					s.Type = SBSS
+-				}
+-				flag := int(p.From3.Offset)
+-				if flag&DUPOK != 0 {
+-					s.Dupok = true
+-				}
+-				if flag&RODATA != 0 {
+-					s.Type = SRODATA
+-				} else if flag&NOPTR != 0 {
+-					s.Type = SNOPTRBSS
+-				} else if flag&TLSBSS != 0 {
+-					s.Type = STLSBSS
+-				}
+-				continue
+-
+ 			case ATEXT:
+ 				s := p.From.Sym
+ 				if s == nil {
+@@ -217,3 +189,29 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 		ctxt.freeProgs()
+ 	}
+ }
++
++func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
++	if s.Seenglobl {
++		fmt.Printf("duplicate %v\n", s)
++	}
++	s.Seenglobl = true
++	if s.Onlist {
++		log.Fatalf("symbol %s listed multiple times", s.Name)
++	}
++	s.Onlist = true
++	ctxt.Data = append(ctxt.Data, s)
++	s.Size = size
++	if s.Type == 0 || s.Type == SXREF {
++		s.Type = SBSS
++	}
++	if flag&DUPOK != 0 {
++		s.Dupok = true
++	}
++	if flag&RODATA != 0 {
++		s.Type = SRODATA
++	} else if flag&NOPTR != 0 {
++		s.Type = SNOPTRBSS
++	} else if flag&TLSBSS != 0 {
++		s.Type = STLSBSS
++	}
++}
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 6270a8b8bb..9a12e88ed6 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -143,7 +143,7 @@ func (p *Prog) String() string {
+ 		sep = ", "
+ 	}
+ 	if p.From3Type() != TYPE_NONE {
+-		if p.From3.Type == TYPE_CONST && (p.As == ATEXT || p.As == AGLOBL) {
++		if p.From3.Type == TYPE_CONST && p.As == ATEXT {
+ 			// Special case - omit $.
+ 			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
+ 		} else if quadOpAmd64 {
+@@ -477,7 +477,6 @@ var Anames = []string{
+ 	"DUFFZERO",
+ 	"END",
+ 	"FUNCDATA",
+-	"GLOBL",
+ 	"JMP",
+ 	"NOP",
+ 	"PCDATA",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index a602179be4..a8e3303813 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1148,7 +1148,6 @@ var optab =
+ 	{AFXSAVE, ysvrs, Pm, [23]uint8{0xae, 00, 0xae, 00}},
+ 	{AFXRSTOR64, ysvrs, Pw, [23]uint8{0x0f, 0xae, 01, 0x0f, 0xae, 01}},
+ 	{AFXSAVE64, ysvrs, Pw, [23]uint8{0x0f, 0xae, 00, 0x0f, 0xae, 00}},
+-	{obj.AGLOBL, nil, 0, [23]uint8{}},
+ 	{AHLT, ynone, Px, [23]uint8{0xf4}},
+ 	{AIDIVB, ydivb, Pb, [23]uint8{0xf6, 07}},
+ 	{AIDIVL, ydivl, Px, [23]uint8{0xf7, 07}},

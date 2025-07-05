@@ -8,6 +8,18 @@ Date:   Fri Jul 3 13:33:00 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=31146
     CL=31148
-
+---
  test/fixedbugs/bug163.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug163.go b/test/fixedbugs/bug163.go
+index c1eec4cdbd..ac47267fa8 100644
+--- a/test/fixedbugs/bug163.go
++++ b/test/fixedbugs/bug163.go
+@@ -9,5 +9,5 @@ package main
+ import "fmt"
+ 
+ func main() {
+-	日本語 := 1;	// ERROR "identifier"
++	x⊛y := 1;	// ERROR "identifier"
+ }

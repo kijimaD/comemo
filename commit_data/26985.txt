@@ -29,7 +29,69 @@ Date:   Sat Mar 5 17:36:56 2016 -0300
     Change-Id: I6e81330703765bef0d6eb6c57098c1336af7c799
     Reviewed-on: https://go-review.googlesource.com/20245
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 11 +++++------
  test/fixedbugs/issue12525.go             | 26 ++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 50b5698b74..ea613220e2 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -521,6 +521,11 @@ OpSwitch:
+ 				n.Type = nil
+ 				return
+ 			}
++			if n.Implicit && !okforarith[l.Type.Etype] {
++				Yyerror("invalid operation: %v (non-numeric type %v)", n, l.Type)
++				n.Type = nil
++				return
++			}
+ 			// TODO(marvin): Fix Node.EType type union.
+ 			op = Op(n.Etype)
+ 		} else {
+@@ -632,12 +637,6 @@ OpSwitch:
+ 
+ 		if t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
+ 			defaultlit2(&l, &r, true)
+-			if n.Op == OASOP && n.Implicit {
+-				Yyerror("invalid operation: %v (non-numeric type %v)", n, l.Type)
+-				n.Type = nil
+-				return
+-			}
+-
+ 			if Isinter(r.Type) == Isinter(l.Type) || aop == 0 {
+ 				Yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
+ 				n.Type = nil
+diff --git a/test/fixedbugs/issue12525.go b/test/fixedbugs/issue12525.go
+new file mode 100644
+index 0000000000..4a54eabad5
+--- /dev/null
++++ b/test/fixedbugs/issue12525.go
+@@ -0,0 +1,26 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 12525: confusing error trying to increment boolean value
++
++package main
++
++func main() {
++	var i int
++	i++
++
++	var f float64
++	f++
++
++	var c complex128
++	c++
++
++	var b bool
++	b++ // ERROR "invalid operation: b\+\+ \(non-numeric type bool\)"
++
++	var s string
++	s-- // ERROR "invalid operation: s-- \(non-numeric type string\)"
++}

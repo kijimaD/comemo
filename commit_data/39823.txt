@@ -16,7 +16,30 @@ Date:   Sun Mar 24 15:49:45 2019 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/script_test.go                        | 1 +
  src/cmd/go/testdata/script/build_acl_windows.txt | 1 -
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 9cb5b49d29..7c5dd48340 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -84,6 +84,7 @@ type backgroundCmd struct {
+ 
+ var extraEnvKeys = []string{
+ 	"SYSTEMROOT",         // must be preserved on Windows to find DLLs; golang.org/issue/25210
++	"WINDIR",             // must be preserved on Windows to be able to run PowerShell command; golang.org/issue/30711
+ 	"LD_LIBRARY_PATH",    // must be preserved on Unix systems to find shared libraries
+ 	"CC",                 // don't lose user settings when invoking cgo
+ 	"GO_TESTING_GOTOOLS", // for gccgo testing
+diff --git a/src/cmd/go/testdata/script/build_acl_windows.txt b/src/cmd/go/testdata/script/build_acl_windows.txt
+index 21b8879a11..13a3ba226a 100644
+--- a/src/cmd/go/testdata/script/build_acl_windows.txt
++++ b/src/cmd/go/testdata/script/build_acl_windows.txt
+@@ -1,5 +1,4 @@
+ [!windows] stop
+-[arm] skip # TODO(golang.org/issue/30711): Skip broken test.
+ [!exec:icacls] skip
+ [!exec:powershell] skip
+ 

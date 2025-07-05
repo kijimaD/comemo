@@ -13,10 +13,100 @@ Date:   Mon Mar 11 12:17:12 2024 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/image/draw/draw.go    | 4 +---
  src/image/gif/reader.go   | 6 ++----
  src/image/gif/writer.go   | 5 +----
  src/image/jpeg/huffman.go | 4 +---
  src/image/png/writer.go   | 8 +-------
  5 files changed, 6 insertions(+), 21 deletions(-)
+
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 1b7e90f249..50c0b918f4 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -1078,9 +1078,7 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
+ 		// Recycle the quantization error buffers.
+ 		if floydSteinberg {
+ 			quantErrorCurr, quantErrorNext = quantErrorNext, quantErrorCurr
+-			for i := range quantErrorNext {
+-				quantErrorNext[i] = [4]int32{}
+-			}
++			clear(quantErrorNext)
+ 		}
+ 	}
+ }
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index b4ea4fdea1..8d6faf87a3 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -406,10 +406,8 @@ func (d *decoder) readImageDescriptor(keepAllFrames bool) error {
+ 			// seem OK with this, so we enlarge the palette with
+ 			// transparent colors. See golang.org/issue/15059.
+ 			p := make(color.Palette, ti+1)
+-			copy(p, m.Palette)
+-			for i := len(m.Palette); i < len(p); i++ {
+-				p[i] = color.RGBA{}
+-			}
++			i := copy(p, m.Palette)
++			clear(p[i:])
+ 			m.Palette = p
+ 		}
+ 	}
+diff --git a/src/image/gif/writer.go b/src/image/gif/writer.go
+index 7220446de5..0da47f3e35 100644
+--- a/src/image/gif/writer.go
++++ b/src/image/gif/writer.go
+@@ -220,10 +220,7 @@ func encodeColorTable(dst []byte, p color.Palette, size int) (int, error) {
+ 	n := log2Lookup[size]
+ 	if n > len(p) {
+ 		// Pad with black.
+-		fill := dst[3*len(p) : 3*n]
+-		for i := range fill {
+-			fill[i] = 0
+-		}
++		clear(dst[3*len(p) : 3*n])
+ 	}
+ 	return 3 * n, nil
+ }
+diff --git a/src/image/jpeg/huffman.go b/src/image/jpeg/huffman.go
+index 72444369ab..0b81fbae96 100644
+--- a/src/image/jpeg/huffman.go
++++ b/src/image/jpeg/huffman.go
+@@ -131,9 +131,7 @@ func (d *decoder) processDHT(n int) error {
+ 		}
+ 
+ 		// Derive the look-up table.
+-		for i := range h.lut {
+-			h.lut[i] = 0
+-		}
++		clear(h.lut[:])
+ 		var x, code uint32
+ 		for i := uint32(0); i < lutSize; i++ {
+ 			code <<= 1
+diff --git a/src/image/png/writer.go b/src/image/png/writer.go
+index 9f92ad3d71..101d908889 100644
+--- a/src/image/png/writer.go
++++ b/src/image/png/writer.go
+@@ -295,12 +295,6 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
+ 	return filter
+ }
+ 
+-func zeroMemory(v []uint8) {
+-	for i := range v {
+-		v[i] = 0
+-	}
+-}
+-
+ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) error {
+ 	if e.zw == nil || e.zwLevel != level {
+ 		zw, err := zlib.NewWriterLevel(w, level)
+@@ -359,7 +353,7 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
+ 		e.pr = make([]uint8, sz)
+ 	} else {
+ 		e.pr = e.pr[:sz]
+-		zeroMemory(e.pr)
++		clear(e.pr)
+ 	}
+ 	pr := e.pr
+ 

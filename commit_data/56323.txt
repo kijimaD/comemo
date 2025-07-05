@@ -17,7 +17,47 @@ Date:   Thu Apr 27 16:07:11 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go | 8 +++++++-
  src/go/types/api_test.go                    | 9 ++++++++-
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index e824f56fae..dcd4d72328 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -49,7 +49,13 @@ func typecheck(path, src string, conf *Config, info *Info) (*Package, error) {
+ }
+ 
+ func mustTypecheck(path, src string, conf *Config, info *Info) *Package {
+-	pkg, err := typecheck(path, src, conf, info)
++	f := mustParse(path, src)
++	if conf == nil {
++		conf = &Config{
++			Importer: defaultImporter(),
++		}
++	}
++	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
+ 	if err != nil {
+ 		panic(err) // so we don't need to pass *testing.T
+ 	}
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 7a8c63a43b..2d0df43263 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -52,7 +52,14 @@ func typecheck(path, src string, conf *Config, info *Info) (*Package, error) {
+ }
+ 
+ func mustTypecheck(path, src string, conf *Config, info *Info) *Package {
+-	pkg, err := typecheck(path, src, conf, info)
++	fset := token.NewFileSet()
++	f := mustParse(fset, path, src)
++	if conf == nil {
++		conf = &Config{
++			Importer: importer.Default(),
++		}
++	}
++	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
+ 	if err != nil {
+ 		panic(err) // so we don't need to pass *testing.T
+ 	}

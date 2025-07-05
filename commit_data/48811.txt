@@ -17,6 +17,27 @@ Date:   Thu Jun 17 14:12:34 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_get_lazy_indirect.txt | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt b/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt
+index 13640cbc23..1cef9d1c0c 100644
+--- a/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt
++++ b/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt
+@@ -10,10 +10,12 @@ stderr '^m.go:3:8: no required module provides package rsc\.io/quote; to add it:
+ 
+ 
+ # When we run the suggested 'go get' command, the new dependency can be used
+-# immediately, even though 'go get' marks it as 'indirect'.
++# immediately.
+ #
+-# TODO(#45979): Should we swap this default state, so that new dependencies
+-# are added as direct unless otherwise noted?
++# 'go get' marks the new dependency as 'indirect', because it doesn't scan
++# enough source code to know whether it is direct, and it is easier and less
++# invasive to remove an incorrect indirect mark (e.g. using 'go get') than to
++# add one that is missing ('go mod tidy' or 'go mod vendor').
+ 
+ go get rsc.io/quote
+ grep 'rsc.io/quote v\d+\.\d+\.\d+ // indirect$' go.mod

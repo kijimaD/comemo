@@ -13,6 +13,22 @@ Date:   Wed Nov 13 15:04:37 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/fmt/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index d8ff646543..b90db7bedc 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -280,8 +280,8 @@ like
+ 	%!s(PANIC=bad)
+ 
+ The %!s just shows the print verb in use when the failure
+-occurred. If the panic is caused by a nil receiver to an Error
+-or String method, however, the output is the undecorated
++occurred. If the panic is caused by a nil receiver to an Error,
++String, or GoString method, however, the output is the undecorated
+ string, "<nil>".
+ 
+ # Scanning

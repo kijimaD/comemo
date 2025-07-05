@@ -19,7 +19,7 @@ Date:   Wed Nov 20 13:57:23 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/issues_test.go     |  2 +-
  src/cmd/compile/internal/types2/signature.go       | 22 ++++++++++++----------
  src/cmd/compile/internal/types2/typexpr.go         |  4 ++++
@@ -29,3 +29,252 @@ Date:   Wed Nov 20 13:57:23 2024 -0800
  .../types/testdata/check/decls2/decls2a.go         |  8 ++++----
  src/internal/types/testdata/spec/receivers.go      | 14 ++++++++++++++
  8 files changed, 52 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index a856fcc790..aea1cbb163 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -852,7 +852,7 @@ import "C"
+ 
+ type Layout = C.struct_layout
+ 
+-func (l /* ERROR "cannot define new methods on non-local type Layout" */ *Layout) Binding() {}
++func (l *Layout /* ERROR "cannot define new methods on non-local type Layout" */ ) Binding() {}
+ 
+ func _() {
+ 	_ = (*Layout).Binding
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 7199e9c0e4..d3169630ea 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -177,10 +177,7 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (*V
+ 		// parameters (wich may have the same name, see below).
+ 		var baseType *Named // nil if not valid
+ 		var cause string
+-		if t := check.genericType(rbase, &cause); cause != "" {
+-			check.errorf(rbase, InvalidRecv, "%s", cause)
+-			// ok to continue
+-		} else {
++		if t := check.genericType(rbase, &cause); isValid(t) {
+ 			switch t := t.(type) {
+ 			case *Named:
+ 				baseType = t
+@@ -195,6 +192,11 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (*V
+ 			default:
+ 				panic("unreachable")
+ 			}
++		} else {
++			if cause != "" {
++				check.errorf(rbase, InvalidRecv, "%s", cause)
++			}
++			// Ok to continue but do not set baseType (see comment above).
+ 		}
+ 
+ 		// Collect the type parameters declared by the receiver (see also
+@@ -269,7 +271,7 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (*V
+ 	// Delay validation of receiver type as it may cause premature expansion of types
+ 	// the receiver type is dependent on (see go.dev/issue/51232, go.dev/issue/51233).
+ 	check.later(func() {
+-		check.validRecv(recv)
++		check.validRecv(rbase, recv)
+ 	}).describef(recv, "validRecv(%s)", recv)
+ 
+ 	return recv, recvTParamsList
+@@ -400,7 +402,7 @@ func (check *Checker) declareParams(names []*syntax.Name, params []*Var, scopePo
+ 
+ // validRecv verifies that the receiver satisfies its respective spec requirements
+ // and reports an error otherwise.
+-func (check *Checker) validRecv(recv *Var) {
++func (check *Checker) validRecv(pos poser, recv *Var) {
+ 	// spec: "The receiver type must be of the form T or *T where T is a type name."
+ 	rtyp, _ := deref(recv.typ)
+ 	atyp := Unalias(rtyp)
+@@ -413,7 +415,7 @@ func (check *Checker) validRecv(recv *Var) {
+ 	switch T := atyp.(type) {
+ 	case *Named:
+ 		if T.obj.pkg != check.pkg || isCGoTypeObj(T.obj) {
+-			check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
++			check.errorf(pos, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+ 			break
+ 		}
+ 		var cause string
+@@ -431,12 +433,12 @@ func (check *Checker) validRecv(recv *Var) {
+ 			panic("unreachable")
+ 		}
+ 		if cause != "" {
+-			check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
++			check.errorf(pos, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
+ 		}
+ 	case *Basic:
+-		check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
++		check.errorf(pos, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+ 	default:
+-		check.errorf(recv, InvalidRecv, "invalid receiver type %s", recv.typ)
++		check.errorf(pos, InvalidRecv, "invalid receiver type %s", recv.typ)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 10af5e79aa..d955654fc9 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -205,6 +205,10 @@ func (check *Checker) definedType(e syntax.Expr, def *TypeName) Type {
+ // genericType is like typ but the type must be an (uninstantiated) generic
+ // type. If cause is non-nil and the type expression was a valid type but not
+ // generic, cause will be populated with a message describing the error.
++//
++// Note: If the type expression was invalid and an error was reported before,
++// cause will not be populated; thus cause alone cannot be used to determine
++// if an error occurred.
+ func (check *Checker) genericType(e syntax.Expr, cause *string) Type {
+ 	typ := check.typInternal(e, nil)
+ 	assert(isTyped(typ))
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 925ca0ebfa..1c4c450b40 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -861,7 +861,7 @@ import "C"
+ 
+ type Layout = C.struct_layout
+ 
+-func (l /* ERROR "cannot define new methods on non-local type Layout" */ *Layout) Binding() {}
++func (l *Layout /* ERROR "cannot define new methods on non-local type Layout" */ ) Binding() {}
+ 
+ func _() {
+ 	_ = (*Layout).Binding
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index c0f2e61120..681eb85fd7 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -198,10 +198,7 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var,
+ 		// parameters (wich may have the same name, see below).
+ 		var baseType *Named // nil if not valid
+ 		var cause string
+-		if t := check.genericType(rbase, &cause); cause != "" {
+-			check.errorf(rbase, InvalidRecv, "%s", cause)
+-			// ok to continue
+-		} else {
++		if t := check.genericType(rbase, &cause); isValid(t) {
+ 			switch t := t.(type) {
+ 			case *Named:
+ 				baseType = t
+@@ -216,6 +213,11 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var,
+ 			default:
+ 				panic("unreachable")
+ 			}
++		} else {
++			if cause != "" {
++				check.errorf(rbase, InvalidRecv, "%s", cause)
++			}
++			// Ok to continue but do not set baseType (see comment above).
+ 		}
+ 
+ 		// Collect the type parameters declared by the receiver (see also
+@@ -299,7 +301,7 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var,
+ 	// Delay validation of receiver type as it may cause premature expansion of types
+ 	// the receiver type is dependent on (see go.dev/issue/51232, go.dev/issue/51233).
+ 	check.later(func() {
+-		check.validRecv(recv)
++		check.validRecv(rbase, recv)
+ 	}).describef(recv, "validRecv(%s)", recv)
+ 
+ 	return recv, recvTParamsList
+@@ -420,7 +422,7 @@ func (check *Checker) declareParams(names []*ast.Ident, params []*Var, scopePos
+ 
+ // validRecv verifies that the receiver satisfies its respective spec requirements
+ // and reports an error otherwise.
+-func (check *Checker) validRecv(recv *Var) {
++func (check *Checker) validRecv(pos positioner, recv *Var) {
+ 	// spec: "The receiver type must be of the form T or *T where T is a type name."
+ 	rtyp, _ := deref(recv.typ)
+ 	atyp := Unalias(rtyp)
+@@ -433,7 +435,7 @@ func (check *Checker) validRecv(recv *Var) {
+ 	switch T := atyp.(type) {
+ 	case *Named:
+ 		if T.obj.pkg != check.pkg || isCGoTypeObj(check.fset, T.obj) {
+-			check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
++			check.errorf(pos, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+ 			break
+ 		}
+ 		var cause string
+@@ -451,12 +453,12 @@ func (check *Checker) validRecv(recv *Var) {
+ 			panic("unreachable")
+ 		}
+ 		if cause != "" {
+-			check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
++			check.errorf(pos, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
+ 		}
+ 	case *Basic:
+-		check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
++		check.errorf(pos, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+ 	default:
+-		check.errorf(recv, InvalidRecv, "invalid receiver type %s", recv.typ)
++		check.errorf(pos, InvalidRecv, "invalid receiver type %s", recv.typ)
+ 	}
+ }
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 0b88f31d73..5bcbc2d1d3 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -203,6 +203,10 @@ func (check *Checker) definedType(e ast.Expr, def *TypeName) Type {
+ // genericType is like typ but the type must be an (uninstantiated) generic
+ // type. If cause is non-nil and the type expression was a valid type but not
+ // generic, cause will be populated with a message describing the error.
++//
++// Note: If the type expression was invalid and an error was reported before,
++// cause will not be populated; thus cause alone cannot be used to determine
++// if an error occurred.
+ func (check *Checker) genericType(e ast.Expr, cause *string) Type {
+ 	typ := check.typInternal(e, nil)
+ 	assert(isTyped(typ))
+diff --git a/src/internal/types/testdata/check/decls2/decls2a.go b/src/internal/types/testdata/check/decls2/decls2a.go
+index 2362bb96ff..58fdbfe132 100644
+--- a/src/internal/types/testdata/check/decls2/decls2a.go
++++ b/src/internal/types/testdata/check/decls2/decls2a.go
+@@ -83,7 +83,7 @@ func (T5 /* ERROR "invalid receiver" */ ) m2() {}
+ // Methods associated with a named pointer type.
+ type ptr *int
+ func (ptr /* ERROR "invalid receiver" */ ) _() {}
+-func (* /* ERROR "invalid receiver" */ ptr) _() {}
++func (*ptr /* ERROR "invalid receiver" */ ) _() {}
+ 
+ // Methods with zero or multiple receivers.
+ func ( /* ERROR "method has no receiver" */ ) _() {}
+@@ -96,13 +96,13 @@ func (a, b, c /* ERROR "method has multiple receivers" */ T3) _() {}
+ func (int /* ERROR "cannot define new methods on non-local type int" */ ) m() {}
+ func ([ /* ERROR "invalid receiver" */ ]int) m() {}
+ func (time /* ERROR "cannot define new methods on non-local type time.Time" */ .Time) m() {}
+-func (* /* ERROR "cannot define new methods on non-local type time.Time" */ time.Time) m() {}
+-func (x /* ERROR "invalid receiver" */ interface{}) m() {}
++func (*time /* ERROR "cannot define new methods on non-local type time.Time" */ .Time) m() {}
++func (x any /* ERROR "invalid receiver" */ ) m() {}
+ 
+ // Unsafe.Pointer is treated like a pointer when used as receiver type.
+ type UP unsafe.Pointer
+ func (UP /* ERROR "invalid" */ ) m1() {}
+-func (* /* ERROR "invalid" */ UP) m2() {}
++func (*UP /* ERROR "invalid" */ ) m2() {}
+ 
+ // Double declarations across package files
+ const c_double = 0
+diff --git a/src/internal/types/testdata/spec/receivers.go b/src/internal/types/testdata/spec/receivers.go
+new file mode 100644
+index 0000000000..010c5511c1
+--- /dev/null
++++ b/src/internal/types/testdata/spec/receivers.go
+@@ -0,0 +1,14 @@
++// -gotypesalias=1
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package receivers
++
++// TODO(gri) add more tests checking the various restrictions on receivers
++
++type G[P any] struct{}
++type A[P any] = G[P]
++
++func (a A /* ERROR "cannot define new methods on generic alias type A[P any]" */ [P]) m() {}

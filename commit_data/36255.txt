@@ -12,6 +12,37 @@ Date:   Sun Apr 15 19:08:56 2018 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/xml/xml.go | 12 ++++--------
  1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 5a51d4c979..fb52eec5f4 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -1932,10 +1932,8 @@ func escapeText(w io.Writer, s []byte, escapeNewline bool) error {
+ 		}
+ 		last = i
+ 	}
+-	if _, err := w.Write(s[last:]); err != nil {
+-		return err
+-	}
+-	return nil
++	_, err := w.Write(s[last:])
++	return err
+ }
+ 
+ // EscapeString writes to p the properly escaped XML equivalent
+@@ -2018,10 +2016,8 @@ func emitCDATA(w io.Writer, s []byte) error {
+ 		}
+ 		s = s[i:]
+ 	}
+-	if _, err := w.Write(cdataEnd); err != nil {
+-		return err
+-	}
+-	return nil
++	_, err := w.Write(cdataEnd)
++	return err
+ }
+ 
+ // procInst parses the `param="..."` or `param='...'`

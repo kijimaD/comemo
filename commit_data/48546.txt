@@ -12,6 +12,33 @@ Date:   Thu May 27 16:12:12 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/323273
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  doc/go1.17.html | 15 ++++++++++-----
  1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index d0a0c0f33f..b3485a0ca6 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -331,11 +331,16 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="compress/lzw"><dt><a href="/pkg/compress/lzw/">compress/lzw</a></dt>
+   <dd>
+     <p><!-- CL 273667 -->
+-      The new
+-      <a href="/pkg/compress/lzw/#Reader.Reset"><code>Reader.Reset</code></a>
+-      and
+-      <a href="/pkg/compress/lzw/#Writer.Reset"><code>Writer.Reset</code></a>
+-      methods allow reuse of a <code>Reader</code> or <code>Writer</code>.
++      The <a href="/pkg/compress/lzw/#NewReader"><code>NewReader</code></a>
++      function is guaranteed to return a value of the new
++      type <a href="/pkg/compress/lzw/#Reader"><code>Reader</code></a>,
++      and similarly <a href="/pkg/compress/lzw/#NewWriter"><code>NewWriter</code></a>
++      is guaranteed to return a value of the new
++      type <a href="/pkg/compress/lzw/#Writer"><code>Writer</code></a>.
++      These new types both implement a <code>Reset</code> method
++      (<a href="/pkg/compress/lzw/#Reader.Reset"><code>Reader.Reset</code></a>,
++      <a href="/pkg/compress/lzw/#Writer.Reset"><code>Writer.Reset</code></a>)
++      that allows reuse of the <code>Reader</code> or <code>Writer</code>.
+     </p>
+   </dd>
+ </dl><!-- compress/lzw -->

@@ -13,7 +13,56 @@ Date:   Mon Jan 3 11:35:34 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3795044
-
+---
  src/pkg/regexp/find_test.go |  1 +
  src/pkg/regexp/regexp.go    | 11 ++---------
  2 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/regexp/find_test.go b/src/pkg/regexp/find_test.go
+index 34a7986731..1690711dd7 100644
+--- a/src/pkg/regexp/find_test.go
++++ b/src/pkg/regexp/find_test.go
+@@ -78,6 +78,7 @@ var findTests = []FindTest{
+ 	{`axxb$`, "axxcb", nil},
+ 	{`data`, "daXY data", build(1, 5, 9)},
+ 	{`da(.)a$`, "daXY data", build(1, 5, 9, 7, 8)},
++	{`zx+`, "zzx", build(1, 1, 3)},
+ 
+ 	// can backslash-escape any punctuation
+ 	{`\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~`,
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 4d13fad8b3..be3ce2028e 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -758,7 +758,6 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
+ 		return nil
+ 	}
+ 	// fast check for initial plain substring
+-	prefixed := false // has this iteration begun by skipping a prefix?
+ 	if re.prefix != "" {
+ 		advance := 0
+ 		if anchored {
+@@ -781,8 +780,7 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
+ 		if advance == -1 {
+ 			return nil
+ 		}
+-		pos += advance + len(re.prefix)
+-		prefixed = true
++		pos += advance
+ 	}
+ 	arena := &matchArena{nil, 2 * (re.nbra + 1)}
+ 	for pos <= end {
+@@ -790,12 +788,7 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
+ 			// prime the pump if we haven't seen a match yet
+ 			match := arena.noMatch()
+ 			match.m[0] = pos
+-			if prefixed {
+-				s[out] = arena.addState(s[out], re.prefixStart, true, match, pos, end)
+-				prefixed = false // next iteration should start at beginning of machine.
+-			} else {
+-				s[out] = arena.addState(s[out], re.start.next, false, match, pos, end)
+-			}
++			s[out] = arena.addState(s[out], re.start.next, false, match, pos, end)
+ 			arena.free(match) // if addState saved it, ref was incremented
+ 		}
+ 		in, out = out, in // old out state is new in state

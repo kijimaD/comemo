@@ -16,7 +16,50 @@ Date:   Thu Jan 14 18:22:41 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/mem.go    | 14 ++++++++++++++
  src/internal/fuzz/worker.go |  6 ++----
  2 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/fuzz/mem.go b/src/internal/fuzz/mem.go
+index 663598bb48..bb30241a45 100644
+--- a/src/internal/fuzz/mem.go
++++ b/src/internal/fuzz/mem.go
+@@ -106,6 +106,20 @@ func (m *sharedMem) setValue(b []byte) {
+ 	copy(v[:cap(v)], b)
+ }
+ 
++// setValueLen sets the length of the shared memory buffer returned by valueRef
++// to n, which may be at most the cap of that slice.
++//
++// Note that we can only store the length in the shared memory header. The full
++// slice header contains a pointer, which is likely only valid for one process,
++// since each process can map shared memory at a different virtual address.
++func (m *sharedMem) setValueLen(n int) {
++	v := m.valueRef()
++	if n > cap(v) {
++		panic(fmt.Sprintf("length %d larger than shared memory capacity %d", n, cap(v)))
++	}
++	m.header().length = n
++}
++
+ // TODO(jayconrod): add method to resize the buffer. We'll need that when the
+ // mutator can increase input length. Only the coordinator will be able to
+ // do it, since we'll need to send a message to the worker telling it to
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index ee31ff43c6..583e8f25c1 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -444,10 +444,8 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
+ 		default:
+ 			b := ws.mem.valueRef()
+ 			ws.m.mutate(&b)
+-			// TODO(jayconrod): consider making ws.m.header() contain the whole
+-			// slice header, so the length can be updated when the slice changes
+-			ws.mem.header().length = len(b)
+-			if err := ws.fuzzFn(ws.mem.valueRef()); err != nil {
++			ws.mem.setValueLen(len(b))
++			if err := ws.fuzzFn(b); err != nil {
+ 				return fuzzResponse{Err: err.Error()}
+ 			}
+ 			// TODO(jayconrod,katiehockman): return early if we find an

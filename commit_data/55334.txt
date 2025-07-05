@@ -14,10 +14,156 @@ Date:   Thu Dec 15 18:14:13 2022 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/55002.txt      |  1 +
  src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
  src/reflect/value.go    | 24 ++++++++++++++++++++++++
  src/runtime/map.go      |  5 +++++
  src/runtime/mbarrier.go |  9 +++++++++
  5 files changed, 84 insertions(+)
+
+diff --git a/api/next/55002.txt b/api/next/55002.txt
+new file mode 100644
+index 0000000000..cfc40582b1
+--- /dev/null
++++ b/api/next/55002.txt
+@@ -0,0 +1 @@
++pkg reflect, method (Value) Clear() #55002
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index e9c0935b9e..c257bec1e5 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -8363,3 +8363,48 @@ func TestInitFuncTypes(t *testing.T) {
+ 	}
+ 	wg.Wait()
+ }
++
++func TestClear(t *testing.T) {
++	m := make(map[string]any, len(valueTests))
++	for _, tt := range valueTests {
++		m[tt.s] = tt.i
++	}
++	mapTestFn := func(v Value) bool { v.Clear(); return v.Len() == 0 }
++
++	s := make([]*pair, len(valueTests))
++	for i := range s {
++		s[i] = &valueTests[i]
++	}
++	sliceTestFn := func(v Value) bool {
++		v.Clear()
++		for i := 0; i < v.Len(); i++ {
++			if !v.Index(i).IsZero() {
++				return false
++			}
++		}
++		return true
++	}
++
++	panicTestFn := func(v Value) bool { shouldPanic("reflect.Value.Clear", func() { v.Clear() }); return true }
++
++	tests := []struct {
++		name     string
++		value    Value
++		testFunc func(v Value) bool
++	}{
++		{"map", ValueOf(m), mapTestFn},
++		{"slice no pointer", ValueOf([]int{1, 2, 3, 4, 5}), sliceTestFn},
++		{"slice has pointer", ValueOf(s), sliceTestFn},
++		{"non-map/slice", ValueOf(1), panicTestFn},
++	}
++
++	for _, tc := range tests {
++		tc := tc
++		t.Run(tc.name, func(t *testing.T) {
++			t.Parallel()
++			if !tc.testFunc(tc.value) {
++				t.Errorf("unexpected result for value.Clear(): %value", tc.value)
++			}
++		})
++	}
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 42bb5ea527..5feca61434 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2827,6 +2827,22 @@ func (v Value) extendSlice(n int) Value {
+ 	return v
+ }
+ 
++// Clear clears the contents of a map or zeros the contents of a slice.
++//
++// It panics if v's Kind is not Map or Slice.
++func (v Value) Clear() {
++	switch v.Kind() {
++	case Slice:
++		sh := *(*unsafeheader.Slice)(v.ptr)
++		st := (*sliceType)(unsafe.Pointer(v.typ))
++		typedarrayclear(st.elem, sh.Data, sh.Len)
++	case Map:
++		mapclear(v.typ, v.pointer())
++	default:
++		panic(&ValueError{"reflect.Value.Clear", v.Kind()})
++	}
++}
++
+ // Append appends the values x to a slice s and returns the resulting slice.
+ // As in Go, each x's value must be assignable to the slice's element type.
+ func Append(s Value, x ...Value) Value {
+@@ -3774,6 +3790,8 @@ func mapiternext(it *hiter)
+ //go:noescape
+ func maplen(m unsafe.Pointer) int
+ 
++func mapclear(t *rtype, m unsafe.Pointer)
++
+ // call calls fn with "stackArgsSize" bytes of stack arguments laid out
+ // at stackArgs and register arguments laid out in regArgs. frameSize is
+ // the total amount of stack space that will be reserved by call, so this
+@@ -3837,6 +3855,12 @@ func typedmemclrpartial(t *rtype, ptr unsafe.Pointer, off, size uintptr)
+ //go:noescape
+ func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
+ 
++// typedarrayclear zeroes the value at ptr of an array of elemType,
++// only clears len elem.
++//
++//go:noescape
++func typedarrayclear(elemType *rtype, ptr unsafe.Pointer, len int)
++
+ //go:noescape
+ func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr
+ 
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 6179c1e371..3f5817a577 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -1403,6 +1403,11 @@ func reflect_maplen(h *hmap) int {
+ 	return h.count
+ }
+ 
++//go:linkname reflect_mapclear reflect.mapclear
++func reflect_mapclear(t *maptype, h *hmap) {
++	mapclear(t, h)
++}
++
+ //go:linkname reflectlite_maplen internal/reflectlite.maplen
+ func reflectlite_maplen(h *hmap) int {
+ 	if h == nil {
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 46ef42f74d..dbcd4db868 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -334,6 +334,15 @@ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintpt
+ 	memclrNoHeapPointers(ptr, size)
+ }
+ 
++//go:linkname reflect_typedarrayclear reflect.typedarrayclear
++func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
++	size := typ.size * uintptr(len)
++	if writeBarrier.needed && typ.ptrdata != 0 {
++		bulkBarrierPreWrite(uintptr(ptr), 0, size)
++	}
++	memclrNoHeapPointers(ptr, size)
++}
++
+ // memclrHasPointers clears n bytes of typed memory starting at ptr.
+ // The caller must ensure that the type of the object at ptr has
+ // pointers, usually by checking typ.ptrdata. However, ptr

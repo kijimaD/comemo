@@ -12,6 +12,19 @@ Date:   Mon Dec 9 15:13:24 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210578
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/elf_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index 39fb9df0be..88048ed2c5 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"sync"
+ 	"testing"

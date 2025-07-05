@@ -7,6 +7,22 @@ Date:   Thu Feb 26 17:55:11 2015 -0500
     Change-Id: I44c1911beceaedaa35dad71d8be8a814528dce67
     Reviewed-on: https://go-review.googlesource.com/6192
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/syscall/syscall_unix_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index a0afb91fcf..ae8e8d9d11 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -92,6 +92,10 @@ func TestPassFD(t *testing.T) {
+ 	case "solaris":
+ 		// TODO(aram): Figure out why ReadMsgUnix is returning empty message.
+ 		t.Skip("skipping test on solaris, see issue 7402")
++	case "darwin":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("skipping test on %d/%s, no fork", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+ 		passFDChild()

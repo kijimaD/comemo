@@ -16,7 +16,34 @@ Date:   Wed Dec 21 10:16:15 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/pprof/internal/report/report.go | 2 +-
  src/cmd/pprof/internal/report/source.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/pprof/internal/report/report.go b/src/cmd/pprof/internal/report/report.go
+index 14875c16db..f897c9086f 100644
+--- a/src/cmd/pprof/internal/report/report.go
++++ b/src/cmd/pprof/internal/report/report.go
+@@ -123,7 +123,7 @@ func symbolsFromBinaries(prof *profile.Profile, g graph, rx *regexp.Regexp, addr
+ 	// Walk all mappings looking for matching functions with samples.
+ 	var objSyms []*objSymbol
+ 	for _, m := range prof.Mapping {
+-		if !hasSamples[filepath.Base(m.File)] {
++		if !hasSamples[m.File] {
+ 			if address == nil || !(m.Start <= *address && *address <= m.Limit) {
+ 				continue
+ 			}
+diff --git a/src/cmd/pprof/internal/report/source.go b/src/cmd/pprof/internal/report/source.go
+index 7ab7e3861f..458985d1fa 100644
+--- a/src/cmd/pprof/internal/report/source.go
++++ b/src/cmd/pprof/internal/report/source.go
+@@ -229,7 +229,7 @@ func assemblyPerSourceLine(objSyms []*objSymbol, rs nodes, src string, obj plugi
+ func findMatchingSymbol(objSyms []*objSymbol, ns nodes) *objSymbol {
+ 	for _, n := range ns {
+ 		for _, o := range objSyms {
+-			if filepath.Base(o.sym.File) == n.info.objfile &&
++			if o.sym.File == n.info.objfile &&
+ 				o.sym.Start <= n.info.address-o.base &&
+ 				n.info.address-o.base <= o.sym.End {
+ 				return o

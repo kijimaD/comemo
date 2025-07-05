@@ -13,7 +13,41 @@ Date:   Thu Feb 28 13:58:11 2019 +0100
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go | 4 ++--
  src/cmd/vendor/vendor.json                            | 6 +++---
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+index 5f9ae233a7..26e8b36cfc 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+@@ -25,8 +25,8 @@ func cmsgAlignOf(salen int) int {
+ 		if SizeofPtr == 8 {
+ 			salign = 4
+ 		}
+-	case "openbsd":
+-		// OpenBSD armv7 requires 64-bit alignment.
++	case "netbsd", "openbsd":
++		// NetBSD and OpenBSD armv7 require 64-bit alignment.
+ 		if runtime.GOARCH == "arm" {
+ 			salign = 8
+ 		}
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index 053e2afc4f..93b94aef12 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -135,10 +135,10 @@
+ 			"revisionTime": "2018-05-24T11:38:20Z"
+ 		},
+ 		{
+-			"checksumSHA1": "v0kuTLSywKZmIwuyR3JyT18CgZk=",
++			"checksumSHA1": "/4HmlX92To16u5s2bryHkTS4+CM=",
+ 			"path": "golang.org/x/sys/unix",
+-			"revision": "cc5685c2db1239775905f3911f0067c0fa74762f",
+-			"revisionTime": "2019-02-24T20:24:49Z"
++			"revision": "a34e9553db1e492c9a76e60db2296ae7e5fbb772",
++			"revisionTime": "2019-02-28T12:11:59Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "/G/UvW6DnpLWoplv0wkB3JunvXk=",

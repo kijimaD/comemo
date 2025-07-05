@@ -8,6 +8,20 @@ Date:   Sun Nov 15 12:56:39 2009 -0800
     
     R=r
     https://golang.org/cl/154142
-
+---
  src/cmd/gotest/gotest | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 87bb7fafb0..584578e91f 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -70,7 +70,7 @@ esac
+ 
+ case "x$gofiles" in
+ x)
+-	echo 'no test files found' 1>&2
++	echo 'no test files found (*_test.go)' 1>&2
+ 	exit 2
+ esac
+ 

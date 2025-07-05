@@ -24,8 +24,120 @@ Date:   Mon Mar 12 19:28:21 2018 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s      |  7 ++++
  src/cmd/asm/internal/asm/testdata/arm64error.s |  3 ++
  src/cmd/internal/obj/arm64/asm7.go             | 46 ++++++++++++--------------
  3 files changed, 32 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index cf80f876b3..c97b64ddc8 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -101,6 +101,13 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	EOR	$(1<<63), R1   // EOR	$-9223372036854775808, R1 // 210041d2
+ 	EOR	$(1<<63-1), R1 // EOR	$9223372036854775807, R1  // 21f840d2
+ 
++	AND	$8, R0, RSP // 1f007d92
++	ORR	$8, R0, RSP // 1f007db2
++	EOR	$8, R0, RSP // 1f007dd2
++	BIC	$8, R0, RSP // 1ff87c92
++	ORN	$8, R0, RSP // 1ff87cb2
++	EON	$8, R0, RSP // 1ff87cd2
++
+ //
+ // CLS
+ //
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index b77dabd4e1..93c3acdc3b 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -50,4 +50,7 @@ TEXT errors(SB),$0
+ 	VFMLS	V1.H4, V12.H4, V3.H4        // ERROR "invalid arrangement"
+ 	VFMLS	V1.H8, V12.H8, V3.H8        // ERROR "invalid arrangement"
+ 	VFMLS	V1.H4, V12.H4, V3.H4        // ERROR "invalid arrangement"
++
++	AND	$1, RSP                     // ERROR "illegal combination"
++	ANDS	$1, R0, RSP                 // ERROR "illegal combination"
+ 	RET
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index b9290f1297..7ba56429d3 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -211,28 +211,28 @@ var optab = []Optab{
+ 	/* logical operations */
+ 	{AAND, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
+ 	{AAND, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+-	{ABIC, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
+-	{ABIC, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+-	{AAND, C_MBCON, C_REG, C_REG, 53, 4, 0, 0, 0},
++	{AANDS, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
++	{AANDS, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
++	{AAND, C_MBCON, C_REG, C_RSP, 53, 4, 0, 0, 0},
+ 	{AAND, C_MBCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
+-	{ABIC, C_MBCON, C_REG, C_REG, 53, 4, 0, 0, 0},
+-	{ABIC, C_MBCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
+-	{AAND, C_BITCON, C_REG, C_REG, 53, 4, 0, 0, 0},
++	{AANDS, C_MBCON, C_REG, C_REG, 53, 4, 0, 0, 0},
++	{AANDS, C_MBCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
++	{AAND, C_BITCON, C_REG, C_RSP, 53, 4, 0, 0, 0},
+ 	{AAND, C_BITCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
+-	{ABIC, C_BITCON, C_REG, C_REG, 53, 4, 0, 0, 0},
+-	{ABIC, C_BITCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
+-	{AAND, C_MOVCON, C_REG, C_REG, 62, 8, 0, 0, 0},
++	{AANDS, C_BITCON, C_REG, C_REG, 53, 4, 0, 0, 0},
++	{AANDS, C_BITCON, C_NONE, C_REG, 53, 4, 0, 0, 0},
++	{AAND, C_MOVCON, C_REG, C_RSP, 62, 8, 0, 0, 0},
+ 	{AAND, C_MOVCON, C_NONE, C_REG, 62, 8, 0, 0, 0},
+-	{ABIC, C_MOVCON, C_REG, C_REG, 62, 8, 0, 0, 0},
+-	{ABIC, C_MOVCON, C_NONE, C_REG, 62, 8, 0, 0, 0},
+-	{AAND, C_VCON, C_REG, C_REG, 28, 8, 0, LFROM, 0},
++	{AANDS, C_MOVCON, C_REG, C_REG, 62, 8, 0, 0, 0},
++	{AANDS, C_MOVCON, C_NONE, C_REG, 62, 8, 0, 0, 0},
++	{AAND, C_VCON, C_REG, C_RSP, 28, 8, 0, LFROM, 0},
+ 	{AAND, C_VCON, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
+-	{ABIC, C_VCON, C_REG, C_REG, 28, 8, 0, LFROM, 0},
+-	{ABIC, C_VCON, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
++	{AANDS, C_VCON, C_REG, C_REG, 28, 8, 0, LFROM, 0},
++	{AANDS, C_VCON, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
+ 	{AAND, C_SHIFT, C_REG, C_REG, 3, 4, 0, 0, 0},
+ 	{AAND, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
+-	{ABIC, C_SHIFT, C_REG, C_REG, 3, 4, 0, 0, 0},
+-	{ABIC, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
++	{AANDS, C_SHIFT, C_REG, C_REG, 3, 4, 0, 0, 0},
++	{AANDS, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
+ 	{AMOVD, C_RSP, C_NONE, C_RSP, 24, 4, 0, 0, 0},
+ 	{AMVN, C_REG, C_NONE, C_REG, 24, 4, 0, 0, 0},
+ 	{AMOVB, C_REG, C_NONE, C_REG, 45, 4, 0, 0, 0},
+@@ -1729,25 +1729,23 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(ASUBSW, t)
+ 
+ 		case AAND: /* logical immediate, logical shifted register */
+-			oprangeset(AANDS, t)
+-
+-			oprangeset(AANDSW, t)
+ 			oprangeset(AANDW, t)
+ 			oprangeset(AEOR, t)
+ 			oprangeset(AEORW, t)
+ 			oprangeset(AORR, t)
+ 			oprangeset(AORRW, t)
+-
+-		case ABIC: /* only logical shifted register */
+-			oprangeset(ABICS, t)
+-
+-			oprangeset(ABICSW, t)
++			oprangeset(ABIC, t)
+ 			oprangeset(ABICW, t)
+ 			oprangeset(AEON, t)
+ 			oprangeset(AEONW, t)
+ 			oprangeset(AORN, t)
+ 			oprangeset(AORNW, t)
+ 
++		case AANDS: /* logical immediate, logical shifted register, set flags, cannot target RSP */
++			oprangeset(AANDSW, t)
++			oprangeset(ABICS, t)
++			oprangeset(ABICSW, t)
++
+ 		case ANEG:
+ 			oprangeset(ANEGS, t)
+ 			oprangeset(ANEGSW, t)

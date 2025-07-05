@@ -31,9 +31,89 @@ Date:   Tue May 14 21:40:51 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/link.go    | 4 ++++
  src/cmd/internal/obj/objfile.go | 6 +++++-
  src/cmd/internal/obj/sym.go     | 7 +++++++
  src/cmd/internal/obj/x86/seh.go | 5 ++---
  4 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index dac6e209f1..3ebaa2aa5c 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -1058,6 +1058,10 @@ type Link struct {
+ 	// to Data.
+ 	constSyms []*LSym
+ 
++	// Windows SEH symbols are also data symbols that can be created
++	// concurrently.
++	SEHSyms []*LSym
++
+ 	// pkgIdx maps package path to index. The index is used for
+ 	// symbol reference in the object file.
+ 	pkgIdx map[string]int32
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 3da8c30640..648aae4fa2 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -788,14 +788,18 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		fn.FuncInfoSym = isym
+ 		b.Reset()
+ 
+-		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym, fn.sehUnwindInfoSym}
++		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym}
+ 		for _, s := range auxsyms {
+ 			if s == nil || s.Size == 0 {
+ 				continue
+ 			}
++			if s.OnList() {
++				panic("a symbol is added to defs multiple times")
++			}
+ 			s.PkgIdx = goobj.PkgIdxSelf
+ 			s.SymIdx = symidx
+ 			s.Set(AttrIndexed, true)
++			s.Set(AttrOnList, true)
+ 			symidx++
+ 			infosyms = append(infosyms, s)
+ 		}
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index f27d4ef4fc..22153050f2 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -245,6 +245,13 @@ func (ctxt *Link) NumberSyms() {
+ 	ctxt.Data = append(ctxt.Data, ctxt.constSyms...)
+ 	ctxt.constSyms = nil
+ 
++	// So are SEH symbols.
++	sort.Slice(ctxt.SEHSyms, func(i, j int) bool {
++		return ctxt.SEHSyms[i].Name < ctxt.SEHSyms[j].Name
++	})
++	ctxt.Data = append(ctxt.Data, ctxt.SEHSyms...)
++	ctxt.SEHSyms = nil
++
+ 	ctxt.pkgIdx = make(map[string]int32)
+ 	ctxt.defs = []*LSym{}
+ 	ctxt.hashed64defs = []*LSym{}
+diff --git a/src/cmd/internal/obj/x86/seh.go b/src/cmd/internal/obj/x86/seh.go
+index 71cdd36642..11963e53f9 100644
+--- a/src/cmd/internal/obj/x86/seh.go
++++ b/src/cmd/internal/obj/x86/seh.go
+@@ -151,6 +151,7 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
+ 		s.Type = objabi.SSEHUNWINDINFO
+ 		s.Set(obj.AttrDuplicateOK, true)
+ 		s.Set(obj.AttrLocal, true)
++		s.Set(obj.AttrContentAddressable, true)
+ 		if exceptionHandler != nil {
+ 			r := obj.Addrel(s)
+ 			r.Off = int32(len(buf.data) - 4)
+@@ -158,8 +159,6 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
+ 			r.Sym = exceptionHandler
+ 			r.Type = objabi.R_PEIMAGEOFF
+ 		}
+-		// Note: AttrContentAddressable cannot be set here,
+-		// because the content-addressable-handling code
+-		// does not know about aux symbols.
++		ctxt.SEHSyms = append(ctxt.SEHSyms, s)
+ 	})
+ }

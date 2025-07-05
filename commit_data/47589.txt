@@ -16,9 +16,95 @@ Date:   Tue Mar 30 14:45:00 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/panic.go           | 11 +++++++++++
  src/runtime/proc.go            |  6 ++++++
  src/runtime/regabidefer_off.go | 10 ++++++++++
  src/runtime/regabidefer_on.go  | 10 ++++++++++
  4 files changed, 37 insertions(+)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index b5133fa5b4..c265a5af79 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -228,6 +228,11 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ 		throw("defer on system stack")
+ 	}
+ 
++	if experimentRegabiDefer && siz != 0 {
++		// TODO: Make deferproc just take a func().
++		throw("defer with non-empty frame")
++	}
++
+ 	// the arguments of fn are in a perilous state. The stack map
+ 	// for deferproc does not describe them. So we can't let garbage
+ 	// collection or stack copying trigger until we've copied them out
+@@ -280,6 +285,9 @@ func deferprocStack(d *_defer) {
+ 		// go code on the system stack can't defer
+ 		throw("defer on system stack")
+ 	}
++	if experimentRegabiDefer && d.siz != 0 {
++		throw("defer with non-empty frame")
++	}
+ 	// siz and fn are already set.
+ 	// The other fields are junk on entry to deferprocStack and
+ 	// are initialized here.
+@@ -824,6 +832,9 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
+ 		argWidth, fd = readvarintUnsafe(fd)
+ 		closureOffset, fd = readvarintUnsafe(fd)
+ 		nArgs, fd = readvarintUnsafe(fd)
++		if experimentRegabiDefer && argWidth != 0 {
++			throw("defer with non-empty frame")
++		}
+ 		if deferBits&(1<<i) == 0 {
+ 			for j := uint32(0); j < nArgs; j++ {
+ 				_, fd = readvarintUnsafe(fd)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c2edb40948..d868c596bf 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4019,6 +4019,12 @@ func malg(stacksize int32) *g {
+ //
+ //go:nosplit
+ func newproc(siz int32, fn *funcval) {
++	if experimentRegabiDefer && siz != 0 {
++		// TODO: When we commit to experimentRegabiDefer,
++		// rewrite newproc's comment, since it will no longer
++		// have a funny stack layout or need to be nosplit.
++		throw("go with non-empty frame")
++	}
+ 	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
+ 	gp := getg()
+ 	pc := getcallerpc()
+diff --git a/src/runtime/regabidefer_off.go b/src/runtime/regabidefer_off.go
+new file mode 100644
+index 0000000000..72e3cf9c50
+--- /dev/null
++++ b/src/runtime/regabidefer_off.go
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !goexperiment.regabidefer
++// +build !goexperiment.regabidefer
++
++package runtime
++
++const experimentRegabiDefer = false
+diff --git a/src/runtime/regabidefer_on.go b/src/runtime/regabidefer_on.go
+new file mode 100644
+index 0000000000..281694b061
+--- /dev/null
++++ b/src/runtime/regabidefer_on.go
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.regabidefer
++// +build goexperiment.regabidefer
++
++package runtime
++
++const experimentRegabiDefer = true

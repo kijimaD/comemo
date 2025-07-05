@@ -15,9 +15,76 @@ Date:   Mon Jun 6 10:56:42 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go   |  2 ++
  src/cmd/compile/internal/gc/main.go |  2 ++
  src/cmd/compile/internal/gc/ssa.go  |  2 +-
  test/fixedbugs/issue15961.go        | 21 +++++++++++++++++++++
  4 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index b6b858c0d9..2e4caca155 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -156,6 +156,8 @@ var Debug_typeassert int
+ 
+ var localpkg *Pkg // package being compiled
+ 
++var autopkg *Pkg // fake package for allocating auto variables
++
+ var importpkg *Pkg // package being imported
+ 
+ var itabpkg *Pkg // fake pkg for itab entries
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 8ad3300dbe..b4df7ed20f 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -108,6 +108,8 @@ func Main() {
+ 
+ 	localpkg = mkpkg("")
+ 	localpkg.Prefix = "\"\""
++	autopkg = mkpkg("")
++	autopkg.Prefix = "\"\""
+ 
+ 	// pseudo-package, for scoping
+ 	builtinpkg = mkpkg("go.builtin")
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b604044cb7..d27ac4392f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4378,7 +4378,7 @@ func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
+ // namedAuto returns a new AUTO variable with the given name and type.
+ func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
+ 	t := typ.(*Type)
+-	s := Lookup(name)
++	s := &Sym{Name: name, Pkg: autopkg}
+ 	n := Nod(ONAME, nil, nil)
+ 	s.Def = n
+ 	s.Def.Used = true
+diff --git a/test/fixedbugs/issue15961.go b/test/fixedbugs/issue15961.go
+new file mode 100644
+index 0000000000..db3d662378
+--- /dev/null
++++ b/test/fixedbugs/issue15961.go
+@@ -0,0 +1,21 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package y
++
++type symSet []int
++
++//go:noinline
++func (s symSet) len() (r int) {
++	return 0
++}
++
++func f(m map[int]symSet) {
++	var symSet []int
++	for _, x := range symSet {
++		m[x] = nil
++	}
++}

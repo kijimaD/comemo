@@ -10,7 +10,7 @@ Date:   Fri May 10 11:21:51 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176580
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                     |  5 ----
  src/cmd/go/internal/get/get.go                     |  5 ----
  src/cmd/go/internal/modload/init.go                | 33 ++--------------------
@@ -21,3 +21,233 @@ Date:   Fri May 10 11:21:51 2019 -0400
  src/cmd/go/testdata/script/mod_gobuild_import.txt  |  2 +-
  src/cmd/go/testdata/script/mod_off_init.txt        |  6 ++--
  9 files changed, 25 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index ecb0db78ac..2d17d104a6 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -128,11 +128,6 @@ var (
+ 	// in module-aware mode (as opposed to GOPATH mode).
+ 	// It is equal to modload.Enabled, but not all packages can import modload.
+ 	ModulesEnabled bool
+-
+-	// GoModInGOPATH records whether we've found a go.mod in GOPATH/src
+-	// in GO111MODULE=auto mode. In that case, we don't use modules
+-	// but people might expect us to, so 'go get' warns.
+-	GoModInGOPATH string
+ )
+ 
+ func exeSuffix() string {
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index c70013c3f5..e4945fe144 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -118,11 +118,6 @@ func runGet(cmd *base.Command, args []string) {
+ 		// Should not happen: main.go should install the separate module-enabled get code.
+ 		base.Fatalf("go get: modules not implemented")
+ 	}
+-	if cfg.GoModInGOPATH != "" {
+-		// Warn about not using modules with GO111MODULE=auto when go.mod exists.
+-		// To silence the warning, users can set GO111MODULE=off.
+-		fmt.Fprintf(os.Stderr, "go get: warning: modules disabled by GO111MODULE=auto in GOPATH/src;\n\tignoring %s;\n\tsee 'go help modules'\n", base.ShortPath(cfg.GoModInGOPATH))
+-	}
+ 
+ 	work.BuildInit()
+ 
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index ba90756346..c55f8e3760 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -34,7 +34,7 @@ import (
+ 
+ var (
+ 	cwd            string // TODO(bcmills): Is this redundant with base.Cwd?
+-	mustUseModules = true
++	mustUseModules = false
+ 	initialized    bool
+ 
+ 	modRoot     string
+@@ -79,8 +79,6 @@ func BinDir() string {
+ 	return filepath.Join(gopath, "bin")
+ }
+ 
+-var inGOPATH bool // running in GOPATH/src
+-
+ // Init determines whether module mode is enabled, locates the root of the
+ // current module (if any), sets environment variables for Git subprocesses, and
+ // configures the cfg, codehost, load, modfetch, and search packages for use
+@@ -95,9 +93,9 @@ func Init() {
+ 	switch env {
+ 	default:
+ 		base.Fatalf("go: unknown environment setting GO111MODULE=%s", env)
+-	case "auto":
++	case "auto", "":
+ 		mustUseModules = false
+-	case "on", "":
++	case "on":
+ 		mustUseModules = true
+ 	case "off":
+ 		mustUseModules = false
+@@ -137,28 +135,6 @@ func Init() {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+-	inGOPATH = false
+-	for _, gopath := range filepath.SplitList(cfg.BuildContext.GOPATH) {
+-		if gopath == "" {
+-			continue
+-		}
+-		if search.InDir(cwd, filepath.Join(gopath, "src")) != "" {
+-			inGOPATH = true
+-			break
+-		}
+-	}
+-
+-	if inGOPATH && !mustUseModules {
+-		if CmdModInit {
+-			die() // Don't init a module that we're just going to ignore.
+-		}
+-		// No automatic enabling in GOPATH.
+-		if root := findModuleRoot(cwd); root != "" {
+-			cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
+-		}
+-		return
+-	}
+-
+ 	if CmdModInit {
+ 		// Running 'go mod init': go.mod will be created in current directory.
+ 		modRoot = cwd
+@@ -300,9 +276,6 @@ func die() {
+ 	if cfg.Getenv("GO111MODULE") == "off" {
+ 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
+ 	}
+-	if inGOPATH && !mustUseModules {
+-		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
+-	}
+ 	if cwd != "" {
+ 		if dir, name := findAltConfig(cwd); dir != "" {
+ 			rel, err := filepath.Rel(cwd, dir)
+diff --git a/src/cmd/go/testdata/script/get_insecure_redirect.txt b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+index e05ced67a3..6d20418fb2 100644
+--- a/src/cmd/go/testdata/script/get_insecure_redirect.txt
++++ b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+@@ -2,6 +2,7 @@
+ 
+ [!net] skip
+ 
++env GO111MODULE=on
+ env GOPROXY=
+ 
+ ! go get -d vcs-test.golang.org/insecure/go/insecure
+diff --git a/src/cmd/go/testdata/script/mod_enabled.txt b/src/cmd/go/testdata/script/mod_enabled.txt
+index ab5ee3d6df..10fa103fad 100644
+--- a/src/cmd/go/testdata/script/mod_enabled.txt
++++ b/src/cmd/go/testdata/script/mod_enabled.txt
+@@ -1,15 +1,15 @@
+-# GO111MODULE=auto should only trigger outside GOPATH/src
++# GO111MODULE=auto should trigger any time a go.mod exists in a parent directory.
+ env GO111MODULE=auto
+ 
+ cd $GOPATH/src/x/y/z
+ go env GOMOD
+-! stdout . # no non-empty lines
+-! go list -m -f {{.GoMod}}
+-stderr 'not using modules'
++stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
++go list -m -f {{.GoMod}}
++stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
+ 
+ cd $GOPATH/src/x/y/z/w
+ go env GOMOD
+-! stdout .
++stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
+ 
+ cd $GOPATH/src/x/y
+ go env GOMOD
+@@ -25,6 +25,17 @@ cd $GOPATH/foo/bar/baz
+ go env GOMOD
+ stdout foo[/\\]go.mod
+ 
++# GO111MODULE unset should be equivalent to auto.
++env GO111MODULE=
++
++cd $GOPATH/src/x/y/z
++go env GOMOD
++stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
++
++cd $GOPATH/src/x/y
++go env GOMOD
++! stdout .
++
+ # GO111MODULE=on should trigger everywhere
+ env GO111MODULE=on
+ 
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+index e82001a24a..7fbe9fb7fe 100644
+--- a/src/cmd/go/testdata/script/mod_find.txt
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -1,4 +1,4 @@
+-env GO111MODULE=auto
++env GO111MODULE=on
+ 
+ # Derive module path from import comment.
+ cd $WORK/x
+@@ -12,14 +12,8 @@ addcrlf x.go
+ go mod init
+ stderr 'module x'
+ 
+-# go mod should die in GOPATH if modules are not enabled for GOPATH
+-cd $GOPATH/src/example.com/x/y
+-! go mod init
+-stderr 'go: modules disabled inside GOPATH/src by GO111MODULE=auto; see ''go help modules'''
+-
+-env GO111MODULE=
+-
+ # Derive module path from location inside GOPATH.
++# 'go mod init' should succeed if modules are not explicitly disabled.
+ cd $GOPATH/src/example.com/x/y
+ go mod init
+ stderr 'module example.com/x/y$'
+diff --git a/src/cmd/go/testdata/script/mod_get_warning.txt b/src/cmd/go/testdata/script/mod_get_warning.txt
+deleted file mode 100644
+index 36b5434c3b..0000000000
+--- a/src/cmd/go/testdata/script/mod_get_warning.txt
++++ /dev/null
+@@ -1,10 +0,0 @@
+-# go get in GO111MODULE=auto should warn when not using modules and go.mod exists
+-
+-env GO111MODULE=auto
+-mkdir z
+-cd z
+-! go get # fails because no code in directory, not the warning
+-stderr 'go get: warning: modules disabled by GO111MODULE=auto in GOPATH/src;\n\tignoring ..[/\\]go.mod;\n\tsee ''go help modules'''
+-
+--- go.mod --
+-module x
+diff --git a/src/cmd/go/testdata/script/mod_gobuild_import.txt b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+index 6c87d59649..25764b797e 100644
+--- a/src/cmd/go/testdata/script/mod_gobuild_import.txt
++++ b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+@@ -8,7 +8,7 @@ env GO111MODULE=off
+ 
+ # GO111MODULE=auto in GOPATH/src
+ env GO111MODULE=auto
+-! exec $WORK/testimport.exe x/y/z/w .
++exec $WORK/testimport.exe x/y/z/w .
+ 
+ # GO111MODULE=auto outside GOPATH/src
+ cd $GOPATH/other
+diff --git a/src/cmd/go/testdata/script/mod_off_init.txt b/src/cmd/go/testdata/script/mod_off_init.txt
+index f9a4e10bd4..1339c8aef9 100644
+--- a/src/cmd/go/testdata/script/mod_off_init.txt
++++ b/src/cmd/go/testdata/script/mod_off_init.txt
+@@ -1,7 +1,5 @@
++# 'go mod init' should refuse to initialize a module if it will be
++# ignored anyway due to GO111MODULE=off.
+ env GO111MODULE=off
+-
+-# This script tests that running go mod init with
+-# GO111MODULE=off when outside of GOPATH will fatal
+-# with an error message.
+ ! go mod init
+ stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'''

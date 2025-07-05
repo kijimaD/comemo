@@ -11,6 +11,23 @@ Date:   Thu Mar 18 10:45:04 2021 +0800
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/base/path.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/path.go b/src/cmd/go/internal/base/path.go
+index 7a51181c97..cb4adbde42 100644
+--- a/src/cmd/go/internal/base/path.go
++++ b/src/cmd/go/internal/base/path.go
+@@ -32,10 +32,8 @@ func ShortPath(path string) string {
+ // made relative to the current directory if they would be shorter.
+ func RelPaths(paths []string) []string {
+ 	var out []string
+-	// TODO(rsc): Can this use Cwd from above?
+-	pwd, _ := os.Getwd()
+ 	for _, p := range paths {
+-		rel, err := filepath.Rel(pwd, p)
++		rel, err := filepath.Rel(Cwd, p)
+ 		if err == nil && len(rel) < len(p) {
+ 			p = rel
+ 		}

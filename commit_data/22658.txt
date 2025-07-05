@@ -7,6 +7,20 @@ Date:   Tue Mar 31 15:37:25 2015 -0700
     Change-Id: I2209da94f1fd76267847d8d599e17f9d9a296ed3
     Reviewed-on: https://go-review.googlesource.com/8320
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/internal/ssa/cse.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/ssa/cse.go b/src/cmd/internal/ssa/cse.go
+index 71f23013cf..c44b08f61c 100644
+--- a/src/cmd/internal/ssa/cse.go
++++ b/src/cmd/internal/ssa/cse.go
+@@ -56,7 +56,7 @@ func cse(f *Func) {
+ 	}
+ 
+ 	// Find an equivalence class where some members of the class have
+-	// non-equvalent arguments.  Split the equivalence class appropriately.
++	// non-equivalent arguments.  Split the equivalence class appropriately.
+ 	// Repeat until we can't find any more splits.
+ 	for {
+ 		changed := false

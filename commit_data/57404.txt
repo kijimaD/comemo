@@ -19,8 +19,60 @@ Date:   Fri Aug 4 16:30:40 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/pprof/defs_darwin_amd64.go | 2 +-
  src/runtime/pprof/defs_darwin_arm64.go | 2 +-
  src/runtime/pprof/vminfo_darwin.go     | 7 ++++++-
  3 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/pprof/defs_darwin_amd64.go b/src/runtime/pprof/defs_darwin_amd64.go
+index 14226495d8..fa428b9386 100644
+--- a/src/runtime/pprof/defs_darwin_amd64.go
++++ b/src/runtime/pprof/defs_darwin_amd64.go
+@@ -9,7 +9,7 @@ type machVMRegionBasicInfoData struct {
+ 	Inheritance      uint32
+ 	Shared           uint32
+ 	Reserved         uint32
+-	Offset           uint64 // This is hand-edited since godefs generates: Pad_cgo_0 [8]byte
++	Offset           [8]byte // This is hand-edited since godefs generates: Pad_cgo_0 [8]byte. Cannot use uint64 due to alignment.
+ 	Behavior         int32
+ 	User_wired_count uint16
+ 	Pad_cgo_1        [2]byte
+diff --git a/src/runtime/pprof/defs_darwin_arm64.go b/src/runtime/pprof/defs_darwin_arm64.go
+index 2d34a80d80..16c68a2b73 100644
+--- a/src/runtime/pprof/defs_darwin_arm64.go
++++ b/src/runtime/pprof/defs_darwin_arm64.go
+@@ -9,7 +9,7 @@ type machVMRegionBasicInfoData struct {
+ 	Inheritance      uint32
+ 	Shared           int32
+ 	Reserved         int32
+-	Offset           uint64 // This is hand-edited since godefs generates: Pad_cgo_0 [8]byte
++	Offset           [8]byte // This is hand-edited since godefs generates: Pad_cgo_0 [8]byte. Cannot use uint64 due to alignment.
+ 	Behavior         int32
+ 	User_wired_count uint16
+ 	Pad_cgo_1        [2]byte
+diff --git a/src/runtime/pprof/vminfo_darwin.go b/src/runtime/pprof/vminfo_darwin.go
+index 7ddb0d1c68..35b9e6d487 100644
+--- a/src/runtime/pprof/vminfo_darwin.go
++++ b/src/runtime/pprof/vminfo_darwin.go
+@@ -39,7 +39,7 @@ func machVMInfo(addMapping func(lo, hi, offset uint64, file, buildID string)) bo
+ 			// offset is usually 0.
+ 			addMapping(addr,
+ 				addr+memRegionSize,
+-				uint64(info.Offset),
++				read64(&info.Offset),
+ 				regionFilename(addr),
+ 				"")
+ 			added = true
+@@ -48,6 +48,11 @@ func machVMInfo(addMapping func(lo, hi, offset uint64, file, buildID string)) bo
+ 	}
+ }
+ 
++func read64(p *[8]byte) uint64 {
++	// all supported darwin platforms are little endian
++	return uint64(p[0]) | uint64(p[1])<<8 | uint64(p[2])<<16 | uint64(p[3])<<24 | uint64(p[4])<<32 | uint64(p[5])<<40 | uint64(p[6])<<48 | uint64(p[7])<<56
++}
++
+ func regionFilename(address uint64) string {
+ 	buf := make([]byte, _MAXPATHLEN)
+ 	r := proc_regionfilename(

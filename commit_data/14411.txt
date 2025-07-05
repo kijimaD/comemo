@@ -9,6 +9,21 @@ Date:   Thu Nov 15 13:59:46 2012 +1100
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6848054
-
+---
  src/run.bash | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index a8ab189474..83859781c1 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -115,7 +115,8 @@ echo '#' ../test/bench/go1
+ go test ../test/bench/go1
+ 
+ (xcd ../test
+-GOMAXPROCS= time go run run.go
++unset GOMAXPROCS
++time go run run.go
+ ) || exit $?
+ 
+ echo

@@ -14,6 +14,35 @@ Date:   Tue Dec 14 12:17:53 2021 -0500
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Trust: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Alex Rakoczy <alex@golang.org>
-
+---
  doc/go1.18.html | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 67af3e6a90..5ab40280b5 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -411,12 +411,6 @@ Do not send CLs removing the interior tags from such phrases.
+   types and <code>netip.AddrPort</code>.
+ </p>
+ 
+-<h3>TODO</h3>
+-
+-<p>
+-  TODO: complete this section
+-</p>
+-
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+ 
+ <p>
+@@ -425,10 +419,6 @@ Do not send CLs removing the interior tags from such phrases.
+   in mind.
+ </p>
+ 
+-<p>
+-  TODO: complete this section
+-</p>
+-
+ <dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+   <dd>
+     <p><!-- CL 345569 -->

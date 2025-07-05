@@ -8,10 +8,117 @@ Date:   Wed Aug 26 12:42:22 2009 -0700
     DELTA=45  (45 added, 0 deleted, 0 changed)
     OCL=33873
     CL=33881
-
+---
  src/pkg/reflect/all_test.go | 11 +++++++++++
  src/pkg/reflect/value.go    | 12 ++++++++++++
  src/pkg/runtime/chan.c      | 12 ++++++++++++
  src/pkg/runtime/reflect.cgo |  8 ++++++++
  src/pkg/runtime/runtime.h   |  2 ++
  5 files changed, 45 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 3a1c220daf..2a30ddd875 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -757,6 +757,17 @@ func TestChan(t *testing.T) {
+ 	if cv.TryRecv() != nil {
+ 		t.Errorf("TryRecv on sync chan succeeded");
+ 	}
++
++	// len/cap
++	cv = MakeChan(Typeof(c).(*ChanType), 10);
++	c = cv.Interface().(chan int);
++	for i := 0; i < 3; i++ {
++		c <- i;
++	}
++	if l, m := cv.Len(), cv.Cap(); l != len(c) || m != cap(c) {
++		t.Errorf("Len/Cap = %d/%d want %d/%d", l, m, len(c), cap(c));
++	}
++
+ }
+ 
+ // Difficult test for function call because of
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index daa3f11baa..014ea933c6 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -636,6 +636,8 @@ func chansend(ch, val *byte, pres *bool)
+ func chanrecv(ch, val *byte, pres *bool)
+ func chanclosed(ch *byte) bool
+ func chanclose(ch *byte)
++func chanlen(ch *byte) int32
++func chancap(ch *byte) int32
+ 
+ // Closed returns the result of closed(c) on the underlying channel.
+ func (v *ChanValue) Closed() bool {
+@@ -649,6 +651,16 @@ func (v *ChanValue) Close() {
+ 	chanclose(ch);
+ }
+ 
++func (v *ChanValue) Len() int {
++	ch := *(**byte)(v.addr);
++	return int(chanlen(ch));
++}
++
++func (v *ChanValue) Cap() int {
++	ch := *(**byte)(v.addr);
++	return int(chancap(ch));
++}
++
+ // internal send; non-blocking if b != nil
+ func (v *ChanValue) send(x Value, b *bool) {
+ 	t := v.Type().(*ChanType);
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 00d0207493..46cf18a187 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -917,6 +917,18 @@ chanclosed(Hchan *c)
+ 	return (c->closed & Rclosed) != 0;
+ }
+ 
++int32
++chanlen(Hchan *c)
++{
++	return c->qcount;
++}
++
++int32
++chancap(Hchan *c)
++{
++	return c->dataqsiz;
++}
++
+ 
+ // closedchan(sel *byte) bool;
+ void
+diff --git a/src/pkg/runtime/reflect.cgo b/src/pkg/runtime/reflect.cgo
+index 81c1d4a123..7406e9bc39 100644
+--- a/src/pkg/runtime/reflect.cgo
++++ b/src/pkg/runtime/reflect.cgo
+@@ -86,6 +86,14 @@ func chanclosed(ch *byte) (r bool) {
+ 	r = chanclosed((Hchan*)ch);
+ }
+ 
++func chanlen(ch *byte) (r int32) {
++	r = chanlen((Hchan*)ch);
++}
++
++func chancap(ch *byte) (r int32) {
++	r = chancap((Hchan*)ch);
++}
++
+ 
+ /*
+  * Go wrappers around the functions in iface.c
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 1e89a45780..d4936afa30 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -493,5 +493,7 @@ void	chansend(Hchan*, void*, bool*);
+ void	chanrecv(Hchan*, void*, bool*);
+ void	chanclose(Hchan*);
+ bool	chanclosed(Hchan*);
++int32	chanlen(Hchan*);
++int32	chancap(Hchan*);
+ 
+ void	ifaceE2I(struct InterfaceType*, Eface, Iface*);

@@ -10,6 +10,20 @@ Date:   Tue Jan 18 01:59:20 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/378935
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/regexp/regexp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index af7259c9bf..f975bb3894 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -42,7 +42,7 @@
+ // successive submatches of the expression. Submatches are matches of
+ // parenthesized subexpressions (also known as capturing groups) within the
+ // regular expression, numbered from left to right in order of opening
+-// parenthesis. Submatch 0 is the match of the entire expression, submatch 1
++// parenthesis. Submatch 0 is the match of the entire expression, submatch 1 is
+ // the match of the first parenthesized subexpression, and so on.
+ //
+ // If 'Index' is present, matches and submatches are identified by byte index

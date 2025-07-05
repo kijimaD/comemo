@@ -17,7 +17,86 @@ Date:   Thu Aug 25 13:48:42 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/check_test.go           | 24 +++++-------------------
  src/go/types/testdata/check/stmt0.go |  4 ++--
  2 files changed, 7 insertions(+), 21 deletions(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index f73133b867..8f7bbe4d0e 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -88,10 +88,8 @@ func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode parser.Mod
+ 
+ // ERROR comments must start with text `ERROR "rx"` or `ERROR rx` where
+ // rx is a regular expression that matches the expected error message.
+-// Space around "rx" or rx is ignored. Use the form `ERROR HERE "rx"`
+-// for error messages that are located immediately after rather than
+-// at a token's position.
+-var errRx = regexp.MustCompile(`^ *ERROR *(HERE)? *"?([^"]*)"?`)
++// Space around "rx" or rx is ignored.
++var errRx = regexp.MustCompile(`^ *ERROR *"?([^"]*)"?`)
+ 
+ // errMap collects the regular expressions of ERROR comments found
+ // in files and returns them as a map of error positions to error messages.
+@@ -108,7 +106,6 @@ func errMap(t *testing.T, files []*ast.File, srcs [][]byte) map[string][]string
+ 		var s scanner.Scanner
+ 		s.Init(tok, src, nil, scanner.ScanComments)
+ 		var prev token.Pos // position of last non-comment, non-semicolon token
+-		var here token.Pos // position immediately after the token at position prev
+ 
+ 	scanFile:
+ 		for {
+@@ -120,13 +117,9 @@ func errMap(t *testing.T, files []*ast.File, srcs [][]byte) map[string][]string
+ 				if lit[1] == '*' {
+ 					lit = lit[:len(lit)-2] // strip trailing */
+ 				}
+-				if s := errRx.FindStringSubmatch(lit[2:]); len(s) == 3 {
+-					pos := prev
+-					if s[1] == "HERE" {
+-						pos = here
+-					}
+-					p := fset.Position(pos).String()
+-					errmap[p] = append(errmap[p], strings.TrimSpace(s[2]))
++				if s := errRx.FindStringSubmatch(lit[2:]); len(s) == 2 {
++					p := fset.Position(prev).String()
++					errmap[p] = append(errmap[p], strings.TrimSpace(s[1]))
+ 				}
+ 			case token.SEMICOLON:
+ 				// ignore automatically inserted semicolon
+@@ -136,13 +129,6 @@ func errMap(t *testing.T, files []*ast.File, srcs [][]byte) map[string][]string
+ 				fallthrough
+ 			default:
+ 				prev = pos
+-				var l int // token length
+-				if tok.IsLiteral() {
+-					l = len(lit)
+-				} else {
+-					l = len(tok.String())
+-				}
+-				here = prev + token.Pos(l)
+ 			}
+ 		}
+ 	}
+diff --git a/src/go/types/testdata/check/stmt0.go b/src/go/types/testdata/check/stmt0.go
+index b466ec8c60..d8790b9616 100644
+--- a/src/go/types/testdata/check/stmt0.go
++++ b/src/go/types/testdata/check/stmt0.go
+@@ -229,7 +229,7 @@ func selects() {
+ }
+ 
+ func gos() {
+-	go 1 /* ERROR HERE "must be function call" */
++	go 1; /* ERROR "must be function call" */
+ 	go int /* ERROR "go requires function call, not conversion" */ (0)
+ 	go gos()
+ 	var c chan int
+@@ -238,7 +238,7 @@ func gos() {
+ }
+ 
+ func defers() {
+-	defer 1 /* ERROR HERE "must be function call" */
++	defer 1; /* ERROR "must be function call" */
+ 	defer int /* ERROR "defer requires function call, not conversion" */ (0)
+ 	defer defers()
+ 	var c chan int

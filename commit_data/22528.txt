@@ -16,6 +16,20 @@ Date:   Thu Mar 19 17:46:18 2015 -0400
     Change-Id: Icf095b0945c7cad326a87ff2f1dc49b7699df373
     Reviewed-on: https://go-review.googlesource.com/7840
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcwork.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 970020ece4..ecf603a739 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -419,7 +419,7 @@ func getfull(entry int) *workbuf {
+ 
+ 	xadd(&work.nwait, +1)
+ 	for i := 0; ; i++ {
+-		if work.full != 0 {
++		if work.full != 0 || work.partial != 0 {
+ 			xadd(&work.nwait, -1)
+ 			b = (*workbuf)(lfstackpop(&work.full))
+ 			if b == nil {

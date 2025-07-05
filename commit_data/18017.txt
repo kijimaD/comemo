@@ -7,6 +7,20 @@ Date:   Tue Dec 17 08:46:07 2013 -0800
     R=golang-dev, jas, bradfitz
     CC=golang-dev
     https://golang.org/cl/43420043
-
+---
  src/cmd/ld/pobj.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 08d44f6376..0ce23eb993 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -138,7 +138,7 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == -1)
+ 		HEADTYPE = headtype(goos);
+ 	ctxt->headtype = HEADTYPE;
+-	if (headstring == NULL)
++	if (headstring == nil)
+ 		headstring = headstr(HEADTYPE);
+ 
+ 	archinit();

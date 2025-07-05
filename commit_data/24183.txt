@@ -9,7 +9,54 @@ Date:   Tue Jul 14 02:17:39 2015 -0400
     Change-Id: I1518df7a48346b175ec80079a07225901fdd51fb
     Reviewed-on: https://go-review.googlesource.com/12177
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/get.go     |  3 ++-
  src/cmd/go/go_test.go | 16 ++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index f4780e18aa..12fe77a382 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -96,12 +96,13 @@ func runGet(cmd *Command, args []string) {
+ 	}
+ 
+ 	args = importPaths(args)
++	packagesForBuild(args)
+ 
+ 	// Phase 3.  Install.
+ 	if *getD {
+ 		// Download only.
+ 		// Check delayed until now so that importPaths
+-		// has a chance to print errors.
++		// and packagesForBuild have a chance to print errors.
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c8741ca2ff..98486c5294 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1184,6 +1184,22 @@ func TestGodocInstalls(t *testing.T) {
+ 	tg.wantExecutable(filepath.Join(goroot, "bin", "godoc"), "did not install godoc to $GOROOT/bin")
+ }
+ 
++func TestGoGetNonPkg(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempDir("gobin")
++	tg.setenv("GOPATH", tg.path("."))
++	tg.setenv("GOBIN", tg.path("gobin"))
++	tg.runFail("get", "-d", "golang.org/x/tools")
++	tg.grepStderr("golang.org/x/tools: no buildable Go source files", "missing error")
++	tg.runFail("get", "-d", "-u", "golang.org/x/tools")
++	tg.grepStderr("golang.org/x/tools: no buildable Go source files", "missing error")
++	tg.runFail("get", "-d", "golang.org/x/tools")
++	tg.grepStderr("golang.org/x/tools: no buildable Go source files", "missing error")
++}
++
+ func TestInstalls(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()

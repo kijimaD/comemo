@@ -12,6 +12,20 @@ Date:   Thu Nov 14 09:24:52 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/embed/embed.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index f6c0ef9b97..210ea258c6 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -170,7 +170,7 @@ type FS struct {
+ 	//
+ 	//	p       # dir=.    elem=p
+ 	//	q/      # dir=.    elem=q
+-	//	w/      # dir=.    elem=w
++	//	w       # dir=.    elem=w
+ 	//	q/r     # dir=q    elem=r
+ 	//	q/s/    # dir=q    elem=s
+ 	//	q/v     # dir=q    elem=v

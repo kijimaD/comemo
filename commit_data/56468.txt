@@ -14,7 +14,73 @@ Date:   Wed May 10 17:08:59 2023 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/html/fuzz.go      | 31 -------------------------------
  src/html/fuzz_test.go | 22 ++++++++++++++++++++++
  2 files changed, 22 insertions(+), 31 deletions(-)
+
+diff --git a/src/html/fuzz.go b/src/html/fuzz.go
+deleted file mode 100644
+index cd70f97106..0000000000
+--- a/src/html/fuzz.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build gofuzz
+-
+-package html
+-
+-import (
+-	"fmt"
+-)
+-
+-func Fuzz(data []byte) int {
+-	v := string(data)
+-
+-	e := EscapeString(v)
+-	u := UnescapeString(e)
+-	if v != u {
+-		fmt.Printf("v = %q\n", v)
+-		fmt.Printf("e = %q\n", e)
+-		fmt.Printf("u = %q\n", u)
+-		panic("not equal")
+-	}
+-
+-	// As per the documentation, this isn't always equal to v, so it makes
+-	// no sense to check for equality. It can still be interesting to find
+-	// panics in it though.
+-	EscapeString(UnescapeString(v))
+-
+-	return 0
+-}
+diff --git a/src/html/fuzz_test.go b/src/html/fuzz_test.go
+new file mode 100644
+index 0000000000..ed15d8f270
+--- /dev/null
++++ b/src/html/fuzz_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import "testing"
++
++func FuzzEscapeUnescape(f *testing.F) {
++	f.Fuzz(func(t *testing.T, v string) {
++		e := EscapeString(v)
++		u := UnescapeString(e)
++		if u != v {
++			t.Errorf("EscapeString(%q) = %q, UnescapeString(%q) = %q, want %q", v, e, e, u, v)
++		}
++
++		// As per the documentation, this isn't always equal to v, so it makes
++		// no sense to check for equality. It can still be interesting to find
++		// panics in it though.
++		EscapeString(UnescapeString(v))
++	})
++}

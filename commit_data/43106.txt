@@ -13,6 +13,21 @@ Date:   Thu Mar 5 10:58:02 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 65b5872a6f..0d8c2acb95 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -2068,6 +2068,9 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ // through dwarf DIE objects and rewrites loader.Sym refs to
+ // sym.Symbol there as well. This is obviously a temporary function.
+ func dwarfConvertSymbols(ctxt *Link) {
++	if !dwarfEnabled(ctxt) {
++		return
++	}
+ 	if *FlagNewDw2 {
+ 		// don't convert since we're running phase 2 with loader
+ 		return

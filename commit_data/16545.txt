@@ -8,8 +8,50 @@ Date:   Wed Jun 12 06:56:50 2013 +0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/9239045
-
+---
  src/cmd/ld/elf.c | 1 +
  src/cmd/ld/lib.c | 5 ++++-
  src/cmd/ld/lib.h | 1 +
  3 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 46d7056665..e0a522ad7f 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -909,6 +909,7 @@ doelf(void)
+ 	addstring(shstrtab, ".gopclntab");
+ 	
+ 	if(linkmode == LinkExternal) {
++		debug_s = debug['s'];
+ 		debug['s'] = 0;
+ 		debug['d'] = 1;
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 7084debcc0..87af5a28ea 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -666,8 +666,11 @@ hostlink(void)
+ 		argv[argc++] = "-m64";
+ 		break;
+ 	}
+-	if(!debug['s'])
++	if(!debug['s'] && !debug_s) {
+ 		argv[argc++] = "-gdwarf-2"; 
++	} else {
++		argv[argc++] = "-s";
++	}
+ 	if(HEADTYPE == Hdarwin)
+ 		argv[argc++] = "-Wl,-no_pie,-pagezero_size,4000000";
+ 	argv[argc++] = "-o";
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index e552deb02f..63775b5ff5 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -159,6 +159,7 @@ EXTERN	char*	interpreter;
+ EXTERN	char*	tmpdir;
+ EXTERN	char*	extld;
+ EXTERN	char*	extldflags;
++EXTERN	int	debug_s; // backup old value of debug['s']
+ 
+ enum
+ {

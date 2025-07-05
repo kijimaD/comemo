@@ -7,6 +7,23 @@ Date:   Mon Jan 31 15:58:44 2011 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4119047
-
+---
  src/run.bash | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 9d7b02f9f9..731e07e495 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -104,7 +104,10 @@ fi
+ ) || exit $?
+ 
+ (xcd ../doc/codelab/wiki
+-gomake test) || exit $?
++if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
++	gomake test
++fi
++) || exit $?
+ 
+ for i in ../misc/dashboard/builder ../misc/goplay
+ do

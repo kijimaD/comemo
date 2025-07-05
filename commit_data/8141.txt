@@ -7,7 +7,7 @@ Date:   Mon Apr 18 10:51:40 2011 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/4446053
-
+---
  doc/go_tutorial.html     | 115 +++++++++++++++++++++++++++++------------------
  doc/go_tutorial.txt      |  24 +++++++---
  doc/progs/cat.go         |   3 +-
@@ -15,3 +15,316 @@ Date:   Mon Apr 18 10:51:40 2011 -0700
  doc/progs/file.go        |  17 ++++++-
  doc/progs/helloworld3.go |   2 +-
  6 files changed, 112 insertions(+), 52 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index e3d946f8d0..4d9c63e158 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -474,8 +474,8 @@ assigned to a variable.
+ <p>
+ <h2>An I/O Package</h2>
+ <p>
+-Next we'll look at a simple package for doing file I/O with the usual
+-sort of open/close/read/write interface.  Here's the start of <code>file.go</code>:
++Next we'll look at a simple package for doing file I/O with an
++open/close/read/write interface.  Here's the start of <code>file.go</code>:
+ <p>
+ <pre> <!-- progs/file.go /package/ /^}/ -->
+ 05    package file
+@@ -554,10 +554,10 @@ We can use the factory to construct some familiar, exported variables of type <c
+ </pre>
+ <p>
+ The <code>newFile</code> function was not exported because it's internal. The proper,
+-exported factory to use is <code>Open</code>:
++exported factory to use is <code>OpenFile</code> (we'll explain that name in a moment):
+ <p>
+-<pre> <!-- progs/file.go /func.Open/ /^}/ -->
+-30    func Open(name string, mode int, perm uint32) (file *File, err os.Error) {
++<pre> <!-- progs/file.go /func.OpenFile/ /^}/ -->
++30    func OpenFile(name string, mode int, perm uint32) (file *File, err os.Error) {
+ 31        r, e := syscall.Open(name, mode, perm)
+ 32        if e != 0 {
+ 33            err = os.Errno(e)
+@@ -566,7 +566,7 @@ exported factory to use is <code>Open</code>:
+ 36    }
+ </pre>
+ <p>
+-There are a number of new things in these few lines.  First, <code>Open</code> returns
++There are a number of new things in these few lines.  First, <code>OpenFile</code> returns
+ multiple values, a <code>File</code> and an error (more about errors in a moment).
+ We declare the
+ multi-value return as a parenthesized list of declarations; syntactically
+@@ -585,6 +585,35 @@ consistent error handling throughout Go code.   In <code>Open</code> we use a
+ conversion to translate Unix's integer <code>errno</code> value into the integer type
+ <code>os.Errno</code>, which implements <code>os.Error</code>.
+ <p>
++Why <code>OpenFile</code> and not <code>Open</code>? To mimic Go's <code>os</code> package, which
++our exercise is emulating. The <code>os</code> package takes the opportunity
++to make the two commonest cases - open for read and create for
++write - the simplest, just <code>Open</code> and <code>Create</code>.  <code>OpenFile</code> is the
++general case, analogous to the Unix system call <code>Open</code>.  Here is
++the implementation of our <code>Open</code> and <code>Create</code>; they're trivial
++wrappers that eliminate common errors by capturing
++the tricky standard arguments to open and, especially, to create a file:
++<p>
++<pre> <!-- progs/file.go /^const/ /^}/ -->
++38    const (
++39        O_RDONLY = syscall.O_RDONLY
++40        O_RDWR   = syscall.O_RDWR
++41        O_CREATE = syscall.O_CREAT
++42        O_TRUNC  = syscall.O_TRUNC
++43    )
++<p>
++45    func Open(name string) (file *File, err os.Error) {
++46        return OpenFile(name, O_RDONLY, 0)
++47    }
++</pre>
++<p>
++<pre> <!-- progs/file.go /func.Create/ /^}/ -->
++49    func Create(name string) (file *File, err os.Error) {
++50        return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
++51    }
++</pre>
++<p>
++Back to our main story.
+ Now that we can build <code>Files</code>, we can write methods for them. To declare
+ a method of a type, we define a function to have an explicit receiver
+ of that type, placed
+@@ -592,43 +621,43 @@ in parentheses before the function name. Here are some methods for <code>*File</
+ each of which declares a receiver variable <code>file</code>.
+ <p>
+ <pre> <!-- progs/file.go /Close/ END -->
+-38    func (file *File) Close() os.Error {
+-39        if file == nil {
+-40            return os.EINVAL
+-41        }
+-42        e := syscall.Close(file.fd)
+-43        file.fd = -1 // so it can't be closed again
+-44        if e != 0 {
+-45            return os.Errno(e)
+-46        }
+-47        return nil
+-48    }
+-<p>
+-50    func (file *File) Read(b []byte) (ret int, err os.Error) {
+-51        if file == nil {
+-52            return -1, os.EINVAL
+-53        }
+-54        r, e := syscall.Read(file.fd, b)
+-55        if e != 0 {
+-56            err = os.Errno(e)
+-57        }
+-58        return int(r), err
+-59    }
+-<p>
+-61    func (file *File) Write(b []byte) (ret int, err os.Error) {
+-62        if file == nil {
+-63            return -1, os.EINVAL
+-64        }
+-65        r, e := syscall.Write(file.fd, b)
+-66        if e != 0 {
+-67            err = os.Errno(e)
++53    func (file *File) Close() os.Error {
++54        if file == nil {
++55            return os.EINVAL
++56        }
++57        e := syscall.Close(file.fd)
++58        file.fd = -1 // so it can't be closed again
++59        if e != 0 {
++60            return os.Errno(e)
++61        }
++62        return nil
++63    }
++<p>
++65    func (file *File) Read(b []byte) (ret int, err os.Error) {
++66        if file == nil {
++67            return -1, os.EINVAL
+ 68        }
+-69        return int(r), err
+-70    }
+-<p>
+-72    func (file *File) String() string {
+-73        return file.name
++69        r, e := syscall.Read(file.fd, b)
++70        if e != 0 {
++71            err = os.Errno(e)
++72        }
++73        return int(r), err
+ 74    }
++<p>
++76    func (file *File) Write(b []byte) (ret int, err os.Error) {
++77        if file == nil {
++78            return -1, os.EINVAL
++79        }
++80        r, e := syscall.Write(file.fd, b)
++81        if e != 0 {
++82            err = os.Errno(e)
++83        }
++84        return int(r), err
++85    }
++<p>
++87    func (file *File) String() string {
++88        return file.name
++89    }
+ </pre>
+ <p>
+ There is no implicit <code>this</code> and the receiver variable must be used to access
+@@ -658,7 +687,7 @@ We can now use our new package:
+ 13    func main() {
+ 14        hello := []byte(&quot;hello, world\n&quot;)
+ 15        file.Stdout.Write(hello)
+-16        f, err := file.Open(&quot;/does/not/exist&quot;,  0,  0)
++16        f, err := file.Open(&quot;/does/not/exist&quot;)
+ 17        if f == nil {
+ 18            fmt.Printf(&quot;can't open file; err=%s\n&quot;,  err.String())
+ 19            os.Exit(1)
+@@ -723,7 +752,7 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
+ 35            cat(file.Stdin)
+ 36        }
+ 37        for i := 0; i &lt; flag.NArg(); i++ {
+-38            f, err := file.Open(flag.Arg(i), 0, 0)
++38            f, err := file.Open(flag.Arg(i))
+ 39            if f == nil {
+ 40                fmt.Fprintf(os.Stderr, &quot;cat: can't open %s: error %s\n&quot;, flag.Arg(i), err)
+ 41                os.Exit(1)
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index 2b2a0cda1e..ab02baf2cd 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -384,8 +384,8 @@ assigned to a variable.
+ An I/O Package
+ ----
+ 
+-Next we'll look at a simple package for doing file I/O with the usual
+-sort of open/close/read/write interface.  Here's the start of "file.go":
++Next we'll look at a simple package for doing file I/O with an
++open/close/read/write interface.  Here's the start of "file.go":
+ 
+ --PROG progs/file.go /package/ /^}/
+ 
+@@ -437,11 +437,11 @@ We can use the factory to construct some familiar, exported variables of type "*
+ --PROG progs/file.go /var/ /^.$/
+ 
+ The "newFile" function was not exported because it's internal. The proper,
+-exported factory to use is "Open":
++exported factory to use is "OpenFile" (we'll explain that name in a moment):
+ 
+---PROG progs/file.go /func.Open/ /^}/
++--PROG progs/file.go /func.OpenFile/ /^}/
+ 
+-There are a number of new things in these few lines.  First, "Open" returns
++There are a number of new things in these few lines.  First, "OpenFile" returns
+ multiple values, a "File" and an error (more about errors in a moment).
+ We declare the
+ multi-value return as a parenthesized list of declarations; syntactically
+@@ -460,6 +460,20 @@ consistent error handling throughout Go code.   In "Open" we use a
+ conversion to translate Unix's integer "errno" value into the integer type
+ "os.Errno", which implements "os.Error".
+ 
++Why "OpenFile" and not "Open"? To mimic Go's "os" package, which
++our exercise is emulating. The "os" package takes the opportunity
++to make the two commonest cases - open for read and create for
++write - the simplest, just "Open" and "Create".  "OpenFile" is the
++general case, analogous to the Unix system call "Open".  Here is
++the implementation of our "Open" and "Create"; they're trivial
++wrappers that eliminate common errors by capturing
++the tricky standard arguments to open and, especially, to create a file:
++
++--PROG progs/file.go /^const/ /^}/
++
++--PROG progs/file.go /func.Create/ /^}/
++
++Back to our main story.
+ Now that we can build "Files", we can write methods for them. To declare
+ a method of a type, we define a function to have an explicit receiver
+ of that type, placed
+diff --git a/doc/progs/cat.go b/doc/progs/cat.go
+index 697e5f7865..9f0b8d4a3e 100644
+--- a/doc/progs/cat.go
++++ b/doc/progs/cat.go
+@@ -24,6 +24,7 @@ func cat(f *file.File) {
+ 		case nr > 0:
+ 			if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
+ 				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", f.String(), ew.String())
++				os.Exit(1)
+ 			}
+ 		}
+ 	}
+@@ -35,7 +36,7 @@ func main() {
+ 		cat(file.Stdin)
+ 	}
+ 	for i := 0; i < flag.NArg(); i++ {
+-		f, err := file.Open(flag.Arg(i), 0, 0)
++		f, err := file.Open(flag.Arg(i))
+ 		if f == nil {
+ 			fmt.Fprintf(os.Stderr, "cat: can't open %s: error %s\n", flag.Arg(i), err)
+ 			os.Exit(1)
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index 03fc02259a..0eefe7cfc7 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -67,6 +67,7 @@ func cat(r reader) {
+ 			nw, ew := file.Stdout.Write(buf[0:nr])
+ 			if nw != nr {
+ 				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", r.String(), ew.String())
++				os.Exit(1)
+ 			}
+ 		}
+ 	}
+@@ -78,7 +79,7 @@ func main() {
+ 		cat(file.Stdin)
+ 	}
+ 	for i := 0; i < flag.NArg(); i++ {
+-		f, err := file.Open(flag.Arg(i), 0, 0)
++		f, err := file.Open(flag.Arg(i))
+ 		if f == nil {
+ 			fmt.Fprintf(os.Stderr, "cat: can't open %s: error %s\n", flag.Arg(i), err)
+ 			os.Exit(1)
+diff --git a/doc/progs/file.go b/doc/progs/file.go
+index df3a3cf71c..2875ce73a6 100644
+--- a/doc/progs/file.go
++++ b/doc/progs/file.go
+@@ -27,7 +27,7 @@ var (
+ 	Stderr = newFile(syscall.Stderr, "/dev/stderr")
+ )
+ 
+-func Open(name string, mode int, perm uint32) (file *File, err os.Error) {
++func OpenFile(name string, mode int, perm uint32) (file *File, err os.Error) {
+ 	r, e := syscall.Open(name, mode, perm)
+ 	if e != 0 {
+ 		err = os.Errno(e)
+@@ -35,6 +35,21 @@ func Open(name string, mode int, perm uint32) (file *File, err os.Error) {
+ 	return newFile(r, name), err
+ }
+ 
++const (
++	O_RDONLY = syscall.O_RDONLY
++	O_RDWR   = syscall.O_RDWR
++	O_CREATE = syscall.O_CREAT
++	O_TRUNC  = syscall.O_TRUNC
++)
++
++func Open(name string) (file *File, err os.Error) {
++	return OpenFile(name, O_RDONLY, 0)
++}
++
++func Create(name string) (file *File, err os.Error) {
++	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
++}
++
+ func (file *File) Close() os.Error {
+ 	if file == nil {
+ 		return os.EINVAL
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index adbcea3247..5bb0be2184 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -13,7 +13,7 @@ import (
+ func main() {
+ 	hello := []byte("hello, world\n")
+ 	file.Stdout.Write(hello)
+-	f, err := file.Open("/does/not/exist",  0,  0)
++	f, err := file.Open("/does/not/exist")
+ 	if f == nil {
+ 		fmt.Printf("can't open file; err=%s\n",  err.String())
+ 		os.Exit(1)

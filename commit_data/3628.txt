@@ -6,6 +6,28 @@ Date:   Thu Oct 22 11:52:35 2009 -0700
     
     R=rsc
     http://go/go-review/1014005
-
+---
  src/pkg/runtime/Makefile | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index cfc65e88ad..1708b86b2a 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -84,7 +84,7 @@ clean: clean-local
+ clean-local:
+ 	rm -f cgo2c */asm.h
+ 
+-$(GOARCH)/asm.h: mkasmh.sh
++$(GOARCH)/asm.h: mkasmh.sh runtime.acid
+ 	./mkasmh.sh >$@.x
+ 	mv -f $@.x $@
+ 
+@@ -110,4 +110,6 @@ cgo2c: cgo2c.c
+ %.$O:	$(GOOS)/$(GOARCH)/%.s $(GOARCH)/asm.h
+ 	$(AS) $<
+ 
+-
++# for discovering offsets inside structs when debugging
++runtime.acid: runtime.h proc.c
++	$(CC) -a proc.c >runtime.acid

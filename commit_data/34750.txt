@@ -12,6 +12,42 @@ Date:   Fri Nov 10 20:35:45 2017 +0100
     Change-Id: Ib65b130995ae5fcf07e25ee0fcc41fad520c5662
     Reviewed-on: https://go-review.googlesource.com/77050
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go | 19 ++++++++++++-------
  1 file changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 509cec3ba0..92c9c27d70 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -163,18 +163,23 @@ func shouldEscape(c byte, mode encoding) bool {
+ 	return true
+ }
+ 
+-// QueryUnescape does the inverse transformation of QueryEscape, converting
+-// %AB into the byte 0xAB and '+' into ' ' (space). It returns an error if
+-// any % is not followed by two hexadecimal digits.
++// QueryUnescape does the inverse transformation of QueryEscape,
++// converting 3-byte encoded substrings of the form "%AB" into the
++// hex-decoded byte 0xAB. It also converts '+' into ' ' (space).
++// It returns an error if any % is not followed by two hexadecimal
++// digits.
+ func QueryUnescape(s string) (string, error) {
+ 	return unescape(s, encodeQueryComponent)
+ }
+ 
+-// PathUnescape does the inverse transformation of PathEscape, converting
+-// %AB into the byte 0xAB. It returns an error if any % is not followed by
+-// two hexadecimal digits.
++// PathUnescape does the inverse transformation of PathEscape,
++// converting 3-byte encoded substrings of the form "%AB" into the
++// hex-decoded byte 0xAB. It also converts '+' into ' ' (space).
++// It returns an error if any % is not followed by two hexadecimal
++// digits.
+ //
+-// PathUnescape is identical to QueryUnescape except that it does not unescape '+' to ' ' (space).
++// PathUnescape is identical to QueryUnescape except that it does not
++// unescape '+' to ' ' (space).
+ func PathUnescape(s string) (string, error) {
+ 	return unescape(s, encodePathSegment)
+ }

@@ -110,7 +110,7 @@ Date:   Thu Mar 22 12:04:51 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go       |  4 +++
  src/cmd/compile/internal/gc/range.go     | 38 +++++++++++++++-------------
  src/cmd/compile/internal/gc/ssa.go       | 43 ++++++++++++++++----------------
@@ -119,3 +119,262 @@ Date:   Thu Mar 22 12:04:51 2018 -0400
  src/cmd/compile/internal/gc/walk.go      |  3 +++
  test/prove.go                            | 28 +++++++++++++++++++++
  7 files changed, 100 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 7df2242226..4e92f5421b 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -994,6 +994,10 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+ 			fmt.Fprint(s, ";")
+ 		}
+ 
++		if n.Op == OFORUNTIL && n.List.Len() != 0 {
++			mode.Fprintf(s, "; %v", n.List)
++		}
++
+ 		mode.Fprintf(s, " { %v }", n.Nbody)
+ 
+ 	case ORANGE:
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index af818f6f4c..591bd06368 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -6,7 +6,6 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"unicode/utf8"
+ )
+@@ -254,13 +253,21 @@ func walkrange(n *Node) *Node {
+ 			break
+ 		}
+ 
+-		if objabi.Preemptibleloops_enabled != 0 {
+-			// Doing this transformation makes a bounds check removal less trivial; see #20711
+-			// TODO enhance the preemption check insertion so that this transformation is not necessary.
+-			ifGuard = nod(OIF, nil, nil)
+-			ifGuard.Left = nod(OLT, hv1, hn)
+-			translatedLoopOp = OFORUNTIL
+-		}
++		// TODO(austin): OFORUNTIL is a strange beast, but is
++		// necessary for expressing the control flow we need
++		// while also making "break" and "continue" work. It
++		// would be nice to just lower ORANGE during SSA, but
++		// racewalk needs to see many of the operations
++		// involved in ORANGE's implementation. If racewalk
++		// moves into SSA, consider moving ORANGE into SSA and
++		// eliminating OFORUNTIL.
++
++		// TODO(austin): OFORUNTIL inhibits bounds-check
++		// elimination on the index variable (see #20711).
++		// Enhance the prove pass to understand this.
++		ifGuard = nod(OIF, nil, nil)
++		ifGuard.Left = nod(OLT, hv1, hn)
++		translatedLoopOp = OFORUNTIL
+ 
+ 		hp := temp(types.NewPtr(n.Type.Elem()))
+ 		tmp := nod(OINDEX, ha, nodintconst(0))
+@@ -274,14 +281,11 @@ func walkrange(n *Node) *Node {
+ 		a.Rlist.Set2(hv1, nod(OIND, hp, nil))
+ 		body = append(body, a)
+ 
+-		// Advance pointer as part of increment.
+-		// We used to advance the pointer before executing the loop body,
+-		// but doing so would make the pointer point past the end of the
+-		// array during the final iteration, possibly causing another unrelated
+-		// piece of memory not to be garbage collected until the loop finished.
+-		// Advancing during the increment ensures that the pointer p only points
+-		// pass the end of the array during the final "p++; i++; if(i >= len(x)) break;",
+-		// after which p is dead, so it cannot confuse the collector.
++		// Advance pointer as part of the late increment.
++		//
++		// This runs *after* the condition check, so we know
++		// advancing the pointer is safe and won't go past the
++		// end of the allocation.
+ 		tmp = nod(OADD, hp, nodintconst(t.Elem().Width))
+ 
+ 		tmp.Type = hp.Type
+@@ -290,7 +294,7 @@ func walkrange(n *Node) *Node {
+ 		tmp.Right.SetTypecheck(1)
+ 		a = nod(OAS, hp, tmp)
+ 		a = typecheck(a, Etop)
+-		n.Right.Ninit.Set1(a)
++		n.List.Set1(a)
+ 
+ 	case TMAP:
+ 		// orderstmt allocated the iterator for us.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7d879395a6..761066ee54 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -971,8 +971,10 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case OFOR, OFORUNTIL:
+ 		// OFOR: for Ninit; Left; Right { Nbody }
+-		// For      = cond; body; incr
+-		// Foruntil = body; incr; cond
++		// cond (Left); body (Nbody); incr (Right)
++		//
++		// OFORUNTIL: for Ninit; Left; Right; List { Nbody }
++		// => body: { Nbody }; incr: Right; if Left { lateincr: List; goto body }; end:
+ 		bCond := s.f.NewBlock(ssa.BlockPlain)
+ 		bBody := s.f.NewBlock(ssa.BlockPlain)
+ 		bIncr := s.f.NewBlock(ssa.BlockPlain)
+@@ -1025,30 +1027,29 @@ func (s *state) stmt(n *Node) {
+ 			b.AddEdgeTo(bIncr)
+ 		}
+ 
+-		// generate incr
++		// generate incr (and, for OFORUNTIL, condition)
+ 		s.startBlock(bIncr)
+ 		if n.Right != nil {
+ 			s.stmt(n.Right)
+ 		}
+-		if b := s.endBlock(); b != nil {
+-			b.AddEdgeTo(bCond)
+-			// It can happen that bIncr ends in a block containing only VARKILL,
+-			// and that muddles the debugging experience.
+-			if n.Op != OFORUNTIL && b.Pos == src.NoXPos {
+-				b.Pos = bCond.Pos
+-			}
+-		}
+-
+-		if n.Op == OFORUNTIL {
+-			// generate code to test condition
+-			s.startBlock(bCond)
+-			if n.Left != nil {
+-				s.condBranch(n.Left, bBody, bEnd, 1)
+-			} else {
+-				b := s.endBlock()
+-				b.Kind = ssa.BlockPlain
+-				b.AddEdgeTo(bBody)
++		if n.Op == OFOR {
++			if b := s.endBlock(); b != nil {
++				b.AddEdgeTo(bCond)
++				// It can happen that bIncr ends in a block containing only VARKILL,
++				// and that muddles the debugging experience.
++				if n.Op != OFORUNTIL && b.Pos == src.NoXPos {
++					b.Pos = bCond.Pos
++				}
+ 			}
++		} else {
++			// bCond is unused in OFORUNTIL, so repurpose it.
++			bLateIncr := bCond
++			// test condition
++			s.condBranch(n.Left, bLateIncr, bEnd, 1)
++			// generate late increment
++			s.startBlock(bLateIncr)
++			s.stmtList(n.List)
++			s.endBlock().AddEdgeTo(bBody)
+ 		}
+ 
+ 		s.startBlock(bEnd)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 25f421883a..df23b83f29 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -700,16 +700,25 @@ const (
+ 	OEMPTY    // no-op (empty statement)
+ 	OFALL     // fallthrough
+ 	OFOR      // for Ninit; Left; Right { Nbody }
+-	OFORUNTIL // for Ninit; Left; Right { Nbody } ; test applied after executing body, not before
+-	OGOTO     // goto Left
+-	OIF       // if Ninit; Left { Nbody } else { Rlist }
+-	OLABEL    // Left:
+-	OPROC     // go Left (Left must be call)
+-	ORANGE    // for List = range Right { Nbody }
+-	ORETURN   // return List
+-	OSELECT   // select { List } (List is list of OXCASE or OCASE)
+-	OSWITCH   // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
+-	OTYPESW   // Left = Right.(type) (appears as .Left of OSWITCH)
++	// OFORUNTIL is like OFOR, but the test (Left) is applied after the body:
++	// 	Ninit
++	// 	top: { Nbody }   // Execute the body at least once
++	// 	cont: Right
++	// 	if Left {        // And then test the loop condition
++	// 		List     // Before looping to top, execute List
++	// 		goto top
++	// 	}
++	// OFORUNTIL is created by walk. There's no way to write this in Go code.
++	OFORUNTIL
++	OGOTO   // goto Left
++	OIF     // if Ninit; Left { Nbody } else { Rlist }
++	OLABEL  // Left:
++	OPROC   // go Left (Left must be call)
++	ORANGE  // for List = range Right { Nbody }
++	ORETURN // return List
++	OSELECT // select { List } (List is list of OXCASE or OCASE)
++	OSWITCH // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
++	OTYPESW // Left = Right.(type) (appears as .Left of OSWITCH)
+ 
+ 	// types
+ 	OTCHAN   // chan int
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 6bb41639ee..483be32d6e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2010,6 +2010,9 @@ func typecheck1(n *Node, top int) *Node {
+ 			}
+ 		}
+ 		n.Right = typecheck(n.Right, Etop)
++		if n.Op == OFORUNTIL {
++			typecheckslice(n.List.Slice(), Etop)
++		}
+ 		typecheckslice(n.Nbody.Slice(), Etop)
+ 		decldepth--
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 257e84cc95..331aefb5de 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -276,6 +276,9 @@ func walkstmt(n *Node) *Node {
+ 		}
+ 
+ 		n.Right = walkstmt(n.Right)
++		if n.Op == OFORUNTIL {
++			walkstmtlist(n.List.Slice())
++		}
+ 		walkstmtlist(n.Nbody.Slice())
+ 
+ 	case OIF:
+diff --git a/test/prove.go b/test/prove.go
+index 1838bdfd86..9de7d1b3fc 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -662,6 +662,34 @@ func oforuntil(b []int) {
+ 	}
+ }
+ 
++// The range tests below test the index variable of range loops.
++
++// range1 compiles to the "efficiently indexable" form of a range loop.
++func range1(b []int) {
++	for i, v := range b { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
++		b[i] = v + 1    // ERROR "Proved IsInBounds$"
++		if i < len(b) { // ERROR "Proved Less64$"
++			println("x")
++		}
++		if i >= 0 { // ERROR "Proved Geq64$"
++			println("x")
++		}
++	}
++}
++
++// range2 elements are larger, so they use the general form of a range loop.
++func range2(b [][32]int) {
++	for i, v := range b {
++		b[i][0] = v[0] + 1 // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
++		if i < len(b) {    // ERROR "Proved Less64$"
++			println("x")
++		}
++		if i >= 0 { // ERROR "Proved Geq64"
++			println("x")
++		}
++	}
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

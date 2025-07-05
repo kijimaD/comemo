@@ -60,10 +60,183 @@ Date:   Sat Jan 16 18:03:31 2021 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/go_test.go                 |  3 +--
  src/cmd/go/internal/fmtcmd/fmt.go     | 36 +++++++++++++++++------------------
  src/cmd/go/internal/work/exec.go      |  9 ++-------
  src/cmd/go/internal/work/exec_test.go |  5 +++--
  src/cmd/internal/sys/args.go          | 13 +++++++++++++
  5 files changed, 37 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b13191f678..07e9962896 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -31,7 +31,6 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/robustio"
+-	"cmd/go/internal/work"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -1378,7 +1377,7 @@ func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
+ 		}`)
+ 	testStr := "test test test test test \n\\ "
+ 	var buf bytes.Buffer
+-	for buf.Len() < work.ArgLengthForResponseFile+1 {
++	for buf.Len() < sys.ExecArgLengthLimit+1 {
+ 		buf.WriteString(testStr)
+ 	}
+ 	tg.run("run", "-ldflags", fmt.Sprintf(`-X "main.extern=%s"`, buf.String()), tg.path("main.go"))
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 2b89a078ac..19656eab7f 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -11,14 +11,12 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+-	"sync"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/internal/str"
++	"cmd/internal/sys"
+ )
+ 
+ func init() {
+@@ -53,18 +51,13 @@ See also: go fix, go vet.
+ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
+ 	printed := false
+ 	gofmt := gofmtPath()
+-	procs := runtime.GOMAXPROCS(0)
+-	var wg sync.WaitGroup
+-	wg.Add(procs)
+-	fileC := make(chan string, 2*procs)
+-	for i := 0; i < procs; i++ {
+-		go func() {
+-			defer wg.Done()
+-			for file := range fileC {
+-				base.Run(str.StringList(gofmt, "-l", "-w", file))
+-			}
+-		}()
+-	}
++
++	gofmtArgs := []string{gofmt, "-l", "-w"}
++	gofmtArgLen := len(gofmt) + len(" -l -w")
++
++	baseGofmtArgs := len(gofmtArgs)
++	baseGofmtArgLen := gofmtArgLen
++
+ 	for _, pkg := range load.PackagesAndErrors(ctx, load.PackageOpts{}, args) {
+ 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+ 			if !printed {
+@@ -89,11 +82,18 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
+ 		// not to packages in subdirectories.
+ 		files := base.RelPaths(pkg.InternalAllGoFiles())
+ 		for _, file := range files {
+-			fileC <- file
++			gofmtArgs = append(gofmtArgs, file)
++			gofmtArgLen += 1 + len(file) // plus separator
++			if gofmtArgLen >= sys.ExecArgLengthLimit {
++				base.Run(gofmtArgs)
++				gofmtArgs = gofmtArgs[:baseGofmtArgs]
++				gofmtArgLen = baseGofmtArgLen
++			}
+ 		}
+ 	}
+-	close(fileC)
+-	wg.Wait()
++	if len(gofmtArgs) > baseGofmtArgs {
++		base.Run(gofmtArgs)
++	}
+ }
+ 
+ func gofmtPath() string {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 692d394520..99e92947ee 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -36,6 +36,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/trace"
+ 	"cmd/internal/str"
++	"cmd/internal/sys"
+ )
+ 
+ // actionList returns the list of actions in the dag rooted at root
+@@ -3307,12 +3308,6 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
+ 	return cleanup
+ }
+ 
+-// Windows has a limit of 32 KB arguments. To be conservative and not worry
+-// about whether that includes spaces or not, just use 30 KB. Darwin's limit is
+-// less clear. The OS claims 256KB, but we've seen failures with arglen as
+-// small as 50KB.
+-const ArgLengthForResponseFile = (30 << 10)
+-
+ func useResponseFile(path string, argLen int) bool {
+ 	// Unless the program uses objabi.Flagparse, which understands
+ 	// response files, don't use response files.
+@@ -3324,7 +3319,7 @@ func useResponseFile(path string, argLen int) bool {
+ 		return false
+ 	}
+ 
+-	if argLen > ArgLengthForResponseFile {
++	if argLen > sys.ExecArgLengthLimit {
+ 		return true
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/exec_test.go b/src/cmd/go/internal/work/exec_test.go
+index 4eb762cb28..8bbf25bb33 100644
+--- a/src/cmd/go/internal/work/exec_test.go
++++ b/src/cmd/go/internal/work/exec_test.go
+@@ -7,6 +7,7 @@ package work
+ import (
+ 	"bytes"
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"fmt"
+ 	"math/rand"
+ 	"testing"
+@@ -56,7 +57,7 @@ func TestEncodeDecodeFuzz(t *testing.T) {
+ 	}
+ 	t.Parallel()
+ 
+-	nRunes := ArgLengthForResponseFile + 100
++	nRunes := sys.ExecArgLengthLimit + 100
+ 	rBuffer := make([]rune, nRunes)
+ 	buf := bytes.NewBuffer([]byte(string(rBuffer)))
+ 
+@@ -67,7 +68,7 @@ func TestEncodeDecodeFuzz(t *testing.T) {
+ 	for i := 0; i < 50; i++ {
+ 		// Generate a random string of runes.
+ 		buf.Reset()
+-		for buf.Len() < ArgLengthForResponseFile+1 {
++		for buf.Len() < sys.ExecArgLengthLimit+1 {
+ 			var r rune
+ 			for {
+ 				r = rune(rng.Intn(utf8.MaxRune + 1))
+diff --git a/src/cmd/internal/sys/args.go b/src/cmd/internal/sys/args.go
+new file mode 100644
+index 0000000000..cc9fb64af2
+--- /dev/null
++++ b/src/cmd/internal/sys/args.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sys
++
++// ExecArgLengthLimit is the number of bytes we can safely
++// pass as arguments to an exec.Command.
++//
++// Windows has a limit of 32 KB. To be conservative and not worry about whether
++// that includes spaces or not, just use 30 KB. Darwin's limit is less clear.
++// The OS claims 256KB, but we've seen failures with arglen as small as 50KB.
++const ExecArgLengthLimit = (30 << 10)

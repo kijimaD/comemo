@@ -10,7 +10,36 @@ Date:   Sun Jun 20 12:22:16 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
-
+---
  src/cmd/go/alldocs.go               | 3 +++
  src/cmd/go/internal/help/helpdoc.go | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 3febe880cd..27f993aeb3 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1887,6 +1887,9 @@
+ // 	GOMIPS64
+ // 		For GOARCH=mips64{,le}, whether to use floating point instructions.
+ // 		Valid values are hardfloat (default), softfloat.
++// 	GOPPC64
++// 		For GOARCH=ppc64{,le}, the target ISA (Instruction Set Architecture).
++// 		Valid values are power8 (default), power9.
+ // 	GOWASM
+ // 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+ // 		Valid values are satconv, signext.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 9ec6501892..b552777e3e 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -598,6 +598,9 @@ Architecture-specific environment variables:
+ 	GOMIPS64
+ 		For GOARCH=mips64{,le}, whether to use floating point instructions.
+ 		Valid values are hardfloat (default), softfloat.
++	GOPPC64
++		For GOARCH=ppc64{,le}, the target ISA (Instruction Set Architecture).
++		Valid values are power8 (default), power9.
+ 	GOWASM
+ 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+ 		Valid values are satconv, signext.

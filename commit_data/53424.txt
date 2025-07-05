@@ -23,7 +23,50 @@ Date:   Fri Aug 5 14:30:20 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/testing/benchmark.go | 9 ++++++++-
  src/testing/sub_test.go  | 4 ++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index d8ec217f66..4fee421d39 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -615,6 +615,11 @@ func (ctx *benchContext) processBench(b *B) {
+ 	}
+ }
+ 
++// If hideStdoutForTesting is true, Run does not print the benchName.
++// This avoids a spurious print during 'go test' on package testing itself,
++// which invokes b.Run in its own tests (see sub_test.go).
++var hideStdoutForTesting = false
++
+ // Run benchmarks f as a subbenchmark with the given name. It reports
+ // whether there were any failures.
+ //
+@@ -670,7 +675,9 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 			}
+ 		})
+ 
+-		fmt.Println(benchName)
++		if !hideStdoutForTesting {
++			fmt.Println(benchName)
++		}
+ 	}
+ 
+ 	if sub.run1() {
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 6324d463cf..bb1715b23f 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -657,6 +657,10 @@ func TestBRun(t *T) {
+ 			}
+ 		},
+ 	}}
++	hideStdoutForTesting = true
++	defer func() {
++		hideStdoutForTesting = false
++	}()
+ 	for _, tc := range testCases {
+ 		t.Run(tc.desc, func(t *T) {
+ 			var ok bool

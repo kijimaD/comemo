@@ -8,6 +8,20 @@ Date:   Sun Jun 27 11:50:17 2021 +0900
     Reviewed-on: https://go-review.googlesource.com/c/go/+/330839
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/cgo/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 03a662e689..c6a0c525e6 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Cgo; see gmp.go for an overview.
++// Cgo; see doc.go for an overview.
+ 
+ // TODO(rsc):
+ //	Emit correct line number annotations.

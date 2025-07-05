@@ -7,6 +7,23 @@ Date:   Thu Dec 12 14:32:31 2013 -0500
     R=golang-dev, agl
     CC=golang-dev
     https://golang.org/cl/40540049
-
+---
  src/pkg/crypto/rc4/rc4_ref.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/rc4/rc4_ref.go b/src/pkg/crypto/rc4/rc4_ref.go
+index 44d3804368..bca4d28e1d 100644
+--- a/src/pkg/crypto/rc4/rc4_ref.go
++++ b/src/pkg/crypto/rc4/rc4_ref.go
+@@ -12,9 +12,9 @@ func (c *Cipher) XORKeyStream(dst, src []byte) {
+ 	i, j := c.i, c.j
+ 	for k, v := range src {
+ 		i += 1
+-		j += c.s[i]
++		j += uint8(c.s[i])
+ 		c.s[i], c.s[j] = c.s[j], c.s[i]
+-		dst[k] = v ^ c.s[c.s[i]+c.s[j]]
++		dst[k] = v ^ uint8(c.s[uint8(c.s[i]+c.s[j])])
+ 	}
+ 	c.i, c.j = i, j
+ }

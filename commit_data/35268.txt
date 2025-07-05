@@ -9,7 +9,40 @@ Date:   Fri Jan 26 13:44:28 2018 -0500
     Change-Id: I462ada2960d710c2c94dc22a59d292703d83f612
     Reviewed-on: https://go-review.googlesource.com/90255
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/exec.go      | 5 +++++
  src/os/exec/exec.go | 5 +++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index b3f60b62d0..a7f8710b95 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -88,6 +88,11 @@ func FindProcess(pid int) (*Process, error) {
+ // specified by name, argv and attr. The argv slice will become os.Args in the
+ // new process, so it normally starts with the program name.
+ //
++// If the calling goroutine has locked the operating system thread
++// with runtime.LockOSThread and modified any inheritable OS-level
++// thread state (for example, Linux or Plan 9 name spaces), the new
++// process will inherit the caller's thread state.
++//
+ // StartProcess is a low-level interface. The os/exec package provides
+ // higher-level interfaces.
+ //
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 8a49fe3b58..5ef9540141 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -293,6 +293,11 @@ func (c *Cmd) closeDescriptors(closers []io.Closer) {
+ //
+ // If the command starts but does not complete successfully, the error is of
+ // type *ExitError. Other error types may be returned for other situations.
++//
++// If the calling goroutine has locked the operating system thread
++// with runtime.LockOSThread and modified any inheritable OS-level
++// thread state (for example, Linux or Plan 9 name spaces), the new
++// process will inherit the caller's thread state.
+ func (c *Cmd) Run() error {
+ 	if err := c.Start(); err != nil {
+ 		return err

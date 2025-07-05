@@ -9,7 +9,58 @@ Date:   Tue Aug 18 07:14:25 2009 -0700
     DELTA=6  (0 added, 0 deleted, 6 changed)
     OCL=33434
     CL=33452
-
+---
  src/cmd/5g/ggen.c | 4 ++--
  src/cmd/5g/gobj.c | 8 ++++----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 337f5f8a0e..13083c3d86 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -167,7 +167,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ //		i = &tmpi;
+ //	}
+ 
+-//	gen(n->right);			// args
++//	genlist(n->list);			// args
+ 
+ //	regalloc(&nodr, types[tptr], res);
+ //	regalloc(&nodo, types[tptr], &nodr);
+@@ -217,7 +217,7 @@ cgen_call(Node *n, int proc)
+ 		cgen(n->left, &afun);
+ 	}
+ 
+-	gen(n->right);		// assign the args
++	genlist(n->list);		// assign the args
+ 	t = n->left->type;
+ 
+ 	setmaxarg(t);
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 47de270d0c..7c22780d34 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -353,9 +353,9 @@ datastring(char *s, int len, Addr *a)
+ 	*a = ao;
+ 
+ 	// only generate data the first time.
+-	if(ao.sym->uniq)
++	if(ao.sym->flags & SymUniq)
+ 		return;
+-	ao.sym->uniq = 1;
++	ao.sym->flags |= SymUniq;
+ 
+ 	data();
+ 	for(w=0; w<len; w+=8) {
+@@ -434,9 +434,9 @@ datagostring(Strlit *sval, Addr *a)
+ 	}
+ 
+ 	*a = ao;
+-	if(ao.sym->uniq)
++	if(ao.sym->flags & SymUniq)
+ 		return;
+-	ao.sym->uniq = 1;
++	ao.sym->flags |= SymUniq;
+ 
+ 	data();
+ 	// DATA gostring, wp, $cstring

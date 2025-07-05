@@ -9,6 +9,19 @@ Date:   Tue Mar 12 15:42:45 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/cfg/cfg.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 325e7d50af..31c1fb84ef 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -73,7 +73,6 @@ var (
+ 	Goarch    = BuildContext.GOARCH
+ 	Goos      = BuildContext.GOOS
+ 	ExeSuffix string
+-	Gopath    = filepath.SplitList(BuildContext.GOPATH)
+ 
+ 	// ModulesEnabled specifies whether the go command is running
+ 	// in module-aware mode (as opposed to GOPATH mode).

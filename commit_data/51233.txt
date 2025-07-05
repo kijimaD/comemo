@@ -18,6 +18,43 @@ Date:   Thu Dec 16 10:25:07 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ed98f5375f..c0b224f977 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2604,7 +2604,8 @@ has a corresponding (meta-)type which is called its
+ <p>
+ A parsing ambiguity arises when the type parameter list for a parameterized type
+ declares a single type parameter with a type constraint of the form <code>*C</code>
+-or <code>(C)</code>:
++or <code>(C)</code> where <code>C</code> is not a (possibly parenthesized)
++<a href="#Types">type literal</a>:
+ </p>
+ 
+ <pre>
+@@ -2616,17 +2617,19 @@ type T[P (C)] …
+ In these rare cases, the type parameter declaration is indistinguishable from
+ the expressions <code>P*C</code> or <code>P(C)</code> and the type declaration
+ is parsed as an array type declaration.
+-To resolve the ambiguity, embed the constraint in an interface:
++To resolve the ambiguity, embed the constraint in an interface or use a trailing
++comma:
+ </p>
+ 
+ <pre>
+ type T[P interface{*C}] …
++type T[P *C,] …
+ </pre>
+ 
+ <h4 id="Type_constraints">Type constraints</h4>
+ 
+ <p>
+-A type constraint is an <a href="#Interface_types">interface</a> that determines the
++A type constraint is an <a href="#Interface_types">interface</a> that defines the
+ set of permissible type arguments for the respective type parameter and controls the
+ operations supported by values of that type parameter.
+ </p>

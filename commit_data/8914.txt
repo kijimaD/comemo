@@ -7,6 +7,14 @@ Date:   Thu Jun 30 17:07:44 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4650062
-
+---
  misc/vim/ftdetect/gofiletype.vim | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/vim/ftdetect/gofiletype.vim b/misc/vim/ftdetect/gofiletype.vim
+index e50c29270c..f03a1d8dc3 100644
+--- a/misc/vim/ftdetect/gofiletype.vim
++++ b/misc/vim/ftdetect/gofiletype.vim
+@@ -1 +1 @@
+-au BufRead,BufNewFile *.go set fileencoding=utf-8 filetype=go
++au BufReadPre,BufNewFile *.go set filetype=go fileencoding=utf-8 fileencodings=utf-8

@@ -23,7 +23,7 @@ Date:   Fri Oct 18 17:39:39 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/gsubr.go        |  3 +++
  src/cmd/compile/internal/gc/main.go         |  7 +++++-
  src/cmd/compile/internal/gc/order.go        | 38 ++++++++++++++++++++++++++++
@@ -35,3 +35,305 @@ Date:   Fri Oct 18 17:39:39 2019 -0700
  src/cmd/link/internal/sym/symkind.go        |  2 ++
  src/cmd/link/internal/sym/symkind_string.go | 39 +++++++++++++++--------------
  10 files changed, 94 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 2894d8d014..e0c4355178 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -297,6 +297,9 @@ func ggloblnod(nam *Node) {
+ 		flags |= obj.NOPTR
+ 	}
+ 	Ctxt.Globl(s, nam.Type.Width, flags)
++	if nam.Name.LibfuzzerExtraCounter() {
++		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
++	}
+ }
+ 
+ func ggloblsym(s *obj.LSym, width int32, flags int16) {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index ab616d4c9b..2d427be539 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -44,6 +44,7 @@ var (
+ 	Debug_closure      int
+ 	Debug_compilelater int
+ 	debug_dclstack     int
++	Debug_libfuzzer    int
+ 	Debug_panic        int
+ 	Debug_slice        int
+ 	Debug_vlog         bool
+@@ -73,6 +74,7 @@ var debugtab = []struct {
+ 	{"disablenil", "disable nil checks", &disable_checknil},
+ 	{"dclstack", "run internal dclstack check", &debug_dclstack},
+ 	{"gcprog", "print dump of GC programs", &Debug_gcprog},
++	{"libfuzzer", "coverage instrumentation for libfuzzer", &Debug_libfuzzer},
+ 	{"nil", "print information about nil checks", &Debug_checknil},
+ 	{"panic", "do not hide any compiler panic", &Debug_panic},
+ 	{"slice", "print information about slice compilation", &Debug_slice},
+@@ -447,9 +449,12 @@ func Main(archInit func(*Arch)) {
+ 		}
+ 	}
+ 
+-	// Runtime can't use -d=checkptr, at least not yet.
+ 	if compiling_runtime {
++		// Runtime can't use -d=checkptr, at least not yet.
+ 		Debug_checkptr = 0
++
++		// Fuzzing the runtime isn't interesting either.
++		Debug_libfuzzer = 0
+ 	}
+ 
+ 	// set via a -d flag
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 6822be4137..90d7baa602 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -324,6 +324,25 @@ func (o *Order) stmtList(l Nodes) {
+ 	}
+ }
+ 
++// edge inserts coverage instrumentation for libfuzzer.
++func (o *Order) edge() {
++	if Debug_libfuzzer == 0 {
++		return
++	}
++
++	// Create a new uint8 counter to be allocated in section
++	// __libfuzzer_extra_counters.
++	counter := staticname(types.Types[TUINT8])
++	counter.Name.SetLibfuzzerExtraCounter(true)
++
++	// counter += 1
++	incr := nod(OASOP, counter, nodintconst(1))
++	incr.SetSubOp(OADD)
++	incr = typecheck(incr, ctxStmt)
++
++	o.out = append(o.out, incr)
++}
++
+ // orderBlock orders the block of statements in n into a new slice,
+ // and then replaces the old slice in n with the new slice.
+ // free is a map that can be used to obtain temporary variables by type.
+@@ -331,6 +350,7 @@ func orderBlock(n *Nodes, free map[string][]*Node) {
+ 	var order Order
+ 	order.free = free
+ 	mark := order.markTemp()
++	order.edge()
+ 	order.stmtList(*n)
+ 	order.cleanTemp(mark)
+ 	n.Set(order.out)
+@@ -917,6 +937,11 @@ func (o *Order) stmt(n *Node) {
+ 	// For now just clean all the temporaries at the end.
+ 	// In practice that's fine.
+ 	case OSWITCH:
++		if Debug_libfuzzer != 0 && !hasDefaultCase(n) {
++			// Add empty "default:" case for instrumentation.
++			n.List.Append(nod(OCASE, nil, nil))
++		}
++
+ 		t := o.markTemp()
+ 		n.Left = o.expr(n.Left, nil)
+ 		for _, ncas := range n.List.Slice() {
+@@ -934,6 +959,18 @@ func (o *Order) stmt(n *Node) {
+ 	lineno = lno
+ }
+ 
++func hasDefaultCase(n *Node) bool {
++	for _, ncas := range n.List.Slice() {
++		if ncas.Op != OCASE {
++			Fatalf("expected case, found %v", ncas.Op)
++		}
++		if ncas.List.Len() == 0 {
++			return true
++		}
++	}
++	return false
++}
++
+ // exprList orders the expression list l into o.
+ func (o *Order) exprList(l Nodes) {
+ 	s := l.Slice()
+@@ -1083,6 +1120,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		saveout := o.out
+ 		o.out = nil
+ 		t := o.markTemp()
++		o.edge()
+ 		rhs := o.expr(n.Right, nil)
+ 		o.out = append(o.out, typecheck(nod(OAS, r, rhs), ctxStmt))
+ 		o.cleanTemp(t)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 3f270addd6..57820f3810 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -293,9 +293,10 @@ const (
+ 	nameIsOutputParamHeapAddr // pointer to a result parameter's heap copy
+ 	nameAssigned              // is the variable ever assigned to
+ 	nameAddrtaken             // address taken, even if not moved to heap
+-	nameInlFormal             // OPAUTO created by inliner, derived from callee formal
+-	nameInlLocal              // OPAUTO created by inliner, derived from callee local
++	nameInlFormal             // PAUTO created by inliner, derived from callee formal
++	nameInlLocal              // PAUTO created by inliner, derived from callee local
+ 	nameOpenDeferSlot         // if temporary var storing info for open-coded defers
++	nameLibfuzzerExtraCounter // if PEXTERN should be assigned to __libfuzzer_extra_counters section
+ )
+ 
+ func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
+@@ -312,6 +313,7 @@ func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken != 0
+ func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
+ func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
+ func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
++func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraCounter != 0 }
+ 
+ func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
+ func (n *Name) SetReadonly(b bool)              { n.flags.set(nameReadonly, b) }
+@@ -327,6 +329,7 @@ func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b)
+ func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
+ func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
+ func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
++func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
+ 
+ type Param struct {
+ 	Ntype    *Node
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index f709c367ca..69f15286cd 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -67,6 +67,8 @@ const (
+ 	// TODO(austin): Remove this and all uses once the compiler
+ 	// generates real ABI wrappers rather than symbol aliases.
+ 	SABIALIAS
++	// Coverage instrumentation counter for libfuzzer.
++	SLIBFUZZER_EXTRA_COUNTER
+ 	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
+ 
+ )
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 89485b8be4..f4aa78f45c 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1467,11 +1467,26 @@ func (ctxt *Link) dodata() {
+ 		s.Value = int64(uint64(datsize) - sect.Vaddr)
+ 		datsize += s.Size
+ 	}
+-
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 	ctxt.Syms.Lookup("runtime.end", 0).Sect = sect
+ 	checkdatsize(ctxt, datsize, sym.SNOPTRBSS)
+ 
++	// Coverage instrumentation counters for libfuzzer.
++	if len(data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
++		sect := addsection(ctxt.Arch, &Segdata, "__libfuzzer_extra_counters", 06)
++		sect.Align = dataMaxAlign[sym.SLIBFUZZER_EXTRA_COUNTER]
++		datsize = Rnd(datsize, int64(sect.Align))
++		sect.Vaddr = uint64(datsize)
++		for _, s := range data[sym.SLIBFUZZER_EXTRA_COUNTER] {
++			datsize = aligndatsize(datsize, s)
++			s.Sect = sect
++			s.Value = int64(uint64(datsize) - sect.Vaddr)
++			datsize += s.Size
++		}
++		sect.Length = uint64(datsize) - sect.Vaddr
++		checkdatsize(ctxt, datsize, sym.SLIBFUZZER_EXTRA_COUNTER)
++	}
++
+ 	if len(data[sym.STLSBSS]) > 0 {
+ 		var sect *sym.Section
+ 		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && (ctxt.LinkMode == LinkExternal || !*FlagD) {
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 5fc20f37a3..91198efd27 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1439,6 +1439,7 @@ func (ctxt *Link) doelf() {
+ 	Addstring(shstrtab, ".data")
+ 	Addstring(shstrtab, ".bss")
+ 	Addstring(shstrtab, ".noptrbss")
++	Addstring(shstrtab, "__libfuzzer_extra_counters")
+ 	Addstring(shstrtab, ".go.buildinfo")
+ 
+ 	// generate .tbss section for dynamic internal linker or external
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7f4d6412c7..63987bb14a 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2375,7 +2375,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 			}
+ 			put(ctxt, s, s.Name, DataSym, Symaddr(s), s.Gotype)
+ 
+-		case sym.SBSS, sym.SNOPTRBSS:
++		case sym.SBSS, sym.SNOPTRBSS, sym.SLIBFUZZER_EXTRA_COUNTER:
+ 			if !s.Attr.Reachable() {
+ 				continue
+ 			}
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 5309e07ecf..95311be0cc 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -94,6 +94,7 @@ const (
+ 	SXCOFFTOC
+ 	SBSS
+ 	SNOPTRBSS
++	SLIBFUZZER_EXTRA_COUNTER
+ 	STLSBSS
+ 	SXREF
+ 	SMACHOSYMSTR
+@@ -133,6 +134,7 @@ var AbiSymKindToSymKind = [...]SymKind{
+ 	SDWARFLOC,
+ 	SDWARFLINES,
+ 	SABIALIAS,
++	SLIBFUZZER_EXTRA_COUNTER,
+ }
+ 
+ // ReadOnly are the symbol kinds that form read-only sections. In some
+diff --git a/src/cmd/link/internal/sym/symkind_string.go b/src/cmd/link/internal/sym/symkind_string.go
+index e48d90c511..97af9925d5 100644
+--- a/src/cmd/link/internal/sym/symkind_string.go
++++ b/src/cmd/link/internal/sym/symkind_string.go
+@@ -44,28 +44,29 @@ func _() {
+ 	_ = x[SXCOFFTOC-33]
+ 	_ = x[SBSS-34]
+ 	_ = x[SNOPTRBSS-35]
+-	_ = x[STLSBSS-36]
+-	_ = x[SXREF-37]
+-	_ = x[SMACHOSYMSTR-38]
+-	_ = x[SMACHOSYMTAB-39]
+-	_ = x[SMACHOINDIRECTPLT-40]
+-	_ = x[SMACHOINDIRECTGOT-41]
+-	_ = x[SFILEPATH-42]
+-	_ = x[SCONST-43]
+-	_ = x[SDYNIMPORT-44]
+-	_ = x[SHOSTOBJ-45]
+-	_ = x[SUNDEFEXT-46]
+-	_ = x[SDWARFSECT-47]
+-	_ = x[SDWARFINFO-48]
+-	_ = x[SDWARFRANGE-49]
+-	_ = x[SDWARFLOC-50]
+-	_ = x[SDWARFLINES-51]
+-	_ = x[SABIALIAS-52]
++	_ = x[SLIBFUZZER_EXTRA_COUNTER-36]
++	_ = x[STLSBSS-37]
++	_ = x[SXREF-38]
++	_ = x[SMACHOSYMSTR-39]
++	_ = x[SMACHOSYMTAB-40]
++	_ = x[SMACHOINDIRECTPLT-41]
++	_ = x[SMACHOINDIRECTGOT-42]
++	_ = x[SFILEPATH-43]
++	_ = x[SCONST-44]
++	_ = x[SDYNIMPORT-45]
++	_ = x[SHOSTOBJ-46]
++	_ = x[SUNDEFEXT-47]
++	_ = x[SDWARFSECT-48]
++	_ = x[SDWARFINFO-49]
++	_ = x[SDWARFRANGE-50]
++	_ = x[SDWARFLOC-51]
++	_ = x[SDWARFLINES-52]
++	_ = x[SABIALIAS-53]
+ }
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSCONSTSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOCSDWARFLINESSABIALIAS"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_EXTRA_COUNTERSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSCONSTSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOCSDWARFLINESSABIALIAS"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 320, 325, 337, 349, 366, 383, 392, 398, 408, 416, 425, 435, 445, 456, 465, 476, 485}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 337, 344, 349, 361, 373, 390, 407, 416, 422, 432, 440, 449, 459, 469, 480, 489, 500, 509}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {

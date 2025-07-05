@@ -12,9 +12,114 @@ Date:   Fri Feb 18 11:35:36 2011 -0500
     R=iant
     CC=golang-dev
     https://golang.org/cl/4168056
-
+---
  src/cmd/5l/obj.c   | 4 +---
  src/cmd/6l/obj.c   | 4 +---
  src/cmd/8l/obj.c   | 3 ---
  src/cmd/ld/macho.c | 7 -------
  4 files changed, 2 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 5b778d7772..b976e300bc 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -41,7 +41,6 @@
+ #endif
+ 
+ char	*noname		= "<none>";
+-char	thechar		= '5';
+ char	*thestring 	= "arm";
+ 
+ /*
+@@ -133,8 +132,6 @@ main(int argc, char *argv[])
+ 		usage();
+ 
+ 	libinit();
+-	if(rpath == nil)
+-		rpath = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
+ 
+ 	if(!debug['9'] && !debug['U'] && !debug['B'])
+ 		debug[DEFAULT] = 1;
+@@ -265,6 +262,7 @@ main(int argc, char *argv[])
+ 	follow();
+ 	softfloat();
+ 	noops();
++	dostkcheck();
+ 	span();
+ 	pclntab();
+ 	symtab();
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index f9e2578427..3dabb4c178 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -40,7 +40,6 @@
+ #include	<ar.h>
+ 
+ char	*noname		= "<none>";
+-char	thechar		= '6';
+ char*	thestring 	= "amd64";
+ char*	paramspace	= "FP";
+ 
+@@ -123,8 +122,6 @@ main(int argc, char *argv[])
+ 		usage();
+ 
+ 	libinit();
+-	if(rpath == nil)
+-		rpath = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
+ 
+ 	if(HEADTYPE == -1) {
+ 		HEADTYPE = 2;
+@@ -255,6 +252,7 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == 6)
+ 		domacho();
+ 	dostkoff();
++	dostkcheck();
+ 	paramspace = "SP";	/* (FP) now (SP) on output */
+ 	if(debug['p'])
+ 		if(debug['1'])
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 9c687f2fc2..fb97e84266 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -44,7 +44,6 @@
+ #endif
+ 
+ char	*noname		= "<none>";
+-char	thechar		= '8';
+ char	*thestring 	= "386";
+ 
+ /*
+@@ -161,8 +160,6 @@ main(int argc, char *argv[])
+ 	}
+ 
+ 	libinit();
+-	if(rpath == nil)
+-		rpath = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
+ 
+ 	switch(HEADTYPE) {
+ 	default:
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 402e0ec63d..c8d7c4a6d9 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -276,7 +276,6 @@ asmbmacho(void)
+ 	vlong v, w;
+ 	vlong va;
+ 	int a, i;
+-	char *pkgroot;
+ 	MachoHdr *mh;
+ 	MachoSect *msect;
+ 	MachoSeg *ms;
+@@ -428,12 +427,6 @@ asmbmacho(void)
+ 		ml->data[0] = 12;	/* offset to string */
+ 		strcpy((char*)&ml->data[1], "/usr/lib/dyld");
+ 
+-		if(ndylib > 0) {	/* add reference to where .so files are installed */
+-			pkgroot = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
+-			ml = newMachoLoad(0x80000000 | 0x1c, 1+(strlen(pkgroot)+1+7)/8*2);	/* LC_RPATH */
+-			ml->data[0] = 12;	/* offset of string from beginning of load */
+-			strcpy((char*)&ml->data[1], pkgroot);
+-		}
+ 		for(i=0; i<ndylib; i++) {
+ 			ml = newMachoLoad(12, 4+(strlen(dylib[i])+1+7)/8*2);	/* LC_LOAD_DYLIB */
+ 			ml->data[0] = 24;	/* offset of string from beginning of load */

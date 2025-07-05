@@ -11,6 +11,26 @@ Date:   Mon Jun 29 14:10:24 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/240556
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/fix/gotypes.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/fix/gotypes.go b/src/cmd/fix/gotypes.go
+index 8a4019cc8c..031f85c9cc 100644
+--- a/src/cmd/fix/gotypes.go
++++ b/src/cmd/fix/gotypes.go
+@@ -21,11 +21,11 @@ var gotypesFix = fix{
+ }
+ 
+ func gotypes(f *ast.File) bool {
+-	truth := fixGoTypes(f)
++	fixed := fixGoTypes(f)
+ 	if fixGoExact(f) {
+-		truth = true
++		fixed = true
+ 	}
+-	return truth
++	return fixed
+ }
+ 
+ func fixGoTypes(f *ast.File) bool {

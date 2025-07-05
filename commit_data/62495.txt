@@ -16,6 +16,20 @@ Date:   Sat Mar 8 17:30:06 2025 +0000
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Sean Liao <sean@liao.dev>
     Auto-Submit: Sean Liao <sean@liao.dev>
-
+---
  src/crypto/pbkdf2/pbkdf2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/pbkdf2/pbkdf2.go b/src/crypto/pbkdf2/pbkdf2.go
+index dd5fc33f21..dff2e6cb35 100644
+--- a/src/crypto/pbkdf2/pbkdf2.go
++++ b/src/crypto/pbkdf2/pbkdf2.go
+@@ -27,7 +27,7 @@ import (
+ // can get a derived key for e.g. AES-256 (which needs a 32-byte key) by
+ // doing:
+ //
+-//	dk := pbkdf2.Key(sha1.New, []byte("some password"), salt, 4096, 32)
++//	dk := pbkdf2.Key(sha1.New, "some password", salt, 4096, 32)
+ //
+ // Remember to get a good random salt. At least 8 bytes is recommended by the
+ // RFC.

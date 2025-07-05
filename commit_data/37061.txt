@@ -11,7 +11,44 @@ Date:   Fri Jun 22 17:45:30 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/poll/fd_unix.go | 7 ++++---
  src/syscall/net_js.go        | 7 +++++++
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 5639a9dab6..c10ac89496 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -455,9 +455,10 @@ func DupCloseOnExec(fd int) (int, string, error) {
+ 		switch e1 {
+ 		case 0:
+ 			return int(r0), "", nil
+-		case syscall.EINVAL:
+-			// Old kernel. Fall back to the portable way
+-			// from now on.
++		case syscall.EINVAL, syscall.ENOSYS:
++			// Old kernel, or js/wasm (which returns
++			// ENOSYS). Fall back to the portable way from
++			// now on.
+ 			atomic.StoreInt32(&tryDupCloexec, 0)
+ 		default:
+ 			return -1, "fcntl", e1
+diff --git a/src/syscall/net_js.go b/src/syscall/net_js.go
+index 0149e2bfc5..d5bf1f4f99 100644
+--- a/src/syscall/net_js.go
++++ b/src/syscall/net_js.go
+@@ -38,6 +38,13 @@ const (
+ 	SO_ERROR
+ )
+ 
++// Misc constants expected by package net but not supported.
++const (
++	_ = iota
++	F_DUPFD_CLOEXEC
++	SYS_FCNTL = 500 // unsupported; same value as net_nacl.go
++)
++
+ type Sockaddr interface {
+ }
+ 

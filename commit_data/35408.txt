@@ -13,7 +13,33 @@ Date:   Wed Feb 14 07:20:26 2018 +0900
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/build.go | 2 +-
  src/go/build/doc.go   | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 68fb423983..6991e585c3 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -292,7 +292,7 @@ func defaultContext() Context {
+ 	// say "+build go1.x", and code that should only be built before Go 1.x
+ 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
+ 	// NOTE: If you add to this list, also update the doc comment in doc.go.
+-	const version = 10 // go1.10
++	const version = 11 // go1.11
+ 	for i := 1; i <= version; i++ {
+ 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
+ 	}
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index daa9a75671..69613e359c 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -107,6 +107,7 @@
+ //	- "go1.8", from Go version 1.8 onward
+ //	- "go1.9", from Go version 1.9 onward
+ //	- "go1.10", from Go version 1.10 onward
++//	- "go1.11", from Go version 1.11 onward
+ //	- any additional words listed in ctxt.BuildTags
+ //
+ // If a file's name, after stripping the extension and a possible _test suffix,

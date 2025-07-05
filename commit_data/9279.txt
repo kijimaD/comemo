@@ -7,6 +7,45 @@ Date:   Tue Aug 2 15:19:44 2011 -0400
     R=lvd
     CC=golang-dev
     https://golang.org/cl/4837049
-
+---
  test/errchk | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/test/errchk b/test/errchk
+index e89d759508..8fdf77a30a 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -17,6 +17,13 @@
+ 
+ use POSIX;
+ 
++my $exitcode = 1;
++
++if(@ARGV >= 1 && $ARGV[0] eq "-0") {
++	$exitcode = 0;
++	shift;
++}
++
+ if(@ARGV < 1) {
+ 	print STDERR "Usage: errchk COMPILER [OPTS] SOURCEFILES\n";
+ 	exit 1;
+@@ -47,12 +54,18 @@ $out = join('', <CMD>);
+ 
+ close CMD;
+ 
+-if($? == 0) {
++if($exitcode != 0 && $? == 0) {
+ 	print STDERR "BUG: errchk: command succeeded unexpectedly\n";
+ 	print STDERR @out;
+ 	exit 0;
+ }
+ 
++if($exitcode == 0 && $? != 0) {
++	print STDERR "BUG: errchk: command failed unexpectedly\n";
++	print STDERR @out;
++	exit 0;
++}
++
+ if(!WIFEXITED($?)) {
+ 	print STDERR "BUG: errchk: compiler crashed\n";
+ 	print STDERR @out, "\n";

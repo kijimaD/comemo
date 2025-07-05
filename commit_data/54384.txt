@@ -14,9 +14,161 @@ Date:   Mon Sep 19 20:24:14 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/testsanitizers/asan_test.go           |  4 +++-
  misc/cgo/testsanitizers/cc_test.go             | 25 +++++++++++++++++++++++-
  misc/cgo/testsanitizers/msan_test.go           | 12 +++++++++---
  misc/cgo/testsanitizers/testdata/arena_fail.go | 27 ++++++++++++++++++++++++++
  4 files changed, 63 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/asan_test.go b/misc/cgo/testsanitizers/asan_test.go
+index 1c423add16..67d097cf16 100644
+--- a/misc/cgo/testsanitizers/asan_test.go
++++ b/misc/cgo/testsanitizers/asan_test.go
+@@ -42,6 +42,7 @@ func TestASAN(t *testing.T) {
+ 		src               string
+ 		memoryAccessError string
+ 		errorLocation     string
++		experiments       []string
+ 	}{
+ 		{src: "asan1_fail.go", memoryAccessError: "heap-use-after-free", errorLocation: "asan1_fail.go:25"},
+ 		{src: "asan2_fail.go", memoryAccessError: "heap-buffer-overflow", errorLocation: "asan2_fail.go:31"},
+@@ -57,6 +58,7 @@ func TestASAN(t *testing.T) {
+ 		{src: "asan_global3_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global3_fail.go:13"},
+ 		{src: "asan_global4_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global4_fail.go:21"},
+ 		{src: "asan_global5.go"},
++		{src: "arena_fail.go", memoryAccessError: "use-after-poison", errorLocation: "arena_fail.go:26", experiments: []string{"arenas"}},
+ 	}
+ 	for _, tc := range cases {
+ 		tc := tc
+@@ -68,7 +70,7 @@ func TestASAN(t *testing.T) {
+ 			defer dir.RemoveAll(t)
+ 
+ 			outPath := dir.Join(name)
+-			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
++			mustRun(t, config.goCmdWithExperiments("build", []string{"-o", outPath, srcPath(tc.src)}, tc.experiments))
+ 
+ 			cmd := hangProneCmd(outPath)
+ 			if tc.memoryAccessError != "" {
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index 72af42660d..3c67448dcd 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -83,11 +83,26 @@ func goEnv(key string) (string, error) {
+ // replaceEnv sets the key environment variable to value in cmd.
+ func replaceEnv(cmd *exec.Cmd, key, value string) {
+ 	if cmd.Env == nil {
+-		cmd.Env = os.Environ()
++		cmd.Env = cmd.Environ()
+ 	}
+ 	cmd.Env = append(cmd.Env, key+"="+value)
+ }
+ 
++// appendExperimentEnv appends comma-separated experiments to GOEXPERIMENT.
++func appendExperimentEnv(cmd *exec.Cmd, experiments []string) {
++	if cmd.Env == nil {
++		cmd.Env = cmd.Environ()
++	}
++	exps := strings.Join(experiments, ",")
++	for _, evar := range cmd.Env {
++		c := strings.SplitN(evar, "=", 2)
++		if c[0] == "GOEXPERIMENT" {
++			exps = c[1] + "," + exps
++		}
++	}
++	cmd.Env = append(cmd.Env, "GOEXPERIMENT="+exps)
++}
++
+ // mustRun executes t and fails cmd with a well-formatted message if it fails.
+ func mustRun(t *testing.T, cmd *exec.Cmd) {
+ 	t.Helper()
+@@ -352,11 +367,19 @@ func configure(sanitizer string) *config {
+ // goCmd returns a Cmd that executes "go $subcommand $args" with appropriate
+ // additional flags and environment.
+ func (c *config) goCmd(subcommand string, args ...string) *exec.Cmd {
++	return c.goCmdWithExperiments(subcommand, args, nil)
++}
++
++// goCmdWithExperiments returns a Cmd that executes
++// "GOEXPERIMENT=$experiments go $subcommand $args" with appropriate
++// additional flags and CGO-related environment variables.
++func (c *config) goCmdWithExperiments(subcommand string, args []string, experiments []string) *exec.Cmd {
+ 	cmd := exec.Command("go", subcommand)
+ 	cmd.Args = append(cmd.Args, c.goFlags...)
+ 	cmd.Args = append(cmd.Args, args...)
+ 	replaceEnv(cmd, "CGO_CFLAGS", strings.Join(c.cFlags, " "))
+ 	replaceEnv(cmd, "CGO_LDFLAGS", strings.Join(c.ldFlags, " "))
++	appendExperimentEnv(cmd, experiments)
+ 	return cmd
+ }
+ 
+diff --git a/misc/cgo/testsanitizers/msan_test.go b/misc/cgo/testsanitizers/msan_test.go
+index 5ee9947a58..4043e3ecf9 100644
+--- a/misc/cgo/testsanitizers/msan_test.go
++++ b/misc/cgo/testsanitizers/msan_test.go
+@@ -31,8 +31,9 @@ func TestMSAN(t *testing.T) {
+ 	mustRun(t, config.goCmd("build", "std"))
+ 
+ 	cases := []struct {
+-		src     string
+-		wantErr bool
++		src         string
++		wantErr     bool
++		experiments []string
+ 	}{
+ 		{src: "msan.go"},
+ 		{src: "msan2.go"},
+@@ -44,6 +45,11 @@ func TestMSAN(t *testing.T) {
+ 		{src: "msan7.go"},
+ 		{src: "msan8.go"},
+ 		{src: "msan_fail.go", wantErr: true},
++		// This may not always fail specifically due to MSAN. It may sometimes
++		// fail because of a fault. However, we don't care what kind of error we
++		// get here, just that we get an error. This is an MSAN test because without
++		// MSAN it would not fail deterministically.
++		{src: "arena_fail.go", wantErr: true, experiments: []string{"arenas"}},
+ 	}
+ 	for _, tc := range cases {
+ 		tc := tc
+@@ -55,7 +61,7 @@ func TestMSAN(t *testing.T) {
+ 			defer dir.RemoveAll(t)
+ 
+ 			outPath := dir.Join(name)
+-			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
++			mustRun(t, config.goCmdWithExperiments("build", []string{"-o", outPath, srcPath(tc.src)}, tc.experiments))
+ 
+ 			cmd := hangProneCmd(outPath)
+ 			if tc.wantErr {
+diff --git a/misc/cgo/testsanitizers/testdata/arena_fail.go b/misc/cgo/testsanitizers/testdata/arena_fail.go
+new file mode 100644
+index 0000000000..5b6c52e435
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/arena_fail.go
+@@ -0,0 +1,27 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.arenas
++
++package main
++
++import "arena"
++
++func main() {
++	a := arena.NewArena()
++	x := arena.New[[200]byte](a)
++	x[0] = 9
++	a.Free()
++	// Use after free.
++	//
++	// ASAN should detect this deterministically as Free
++	// should poison the arena memory.
++	//
++	// MSAN should detect that this access is to freed
++	// memory. This may crash with an "accessed freed arena
++	// memory" error before MSAN gets a chance, but if MSAN
++	// was not enabled there would be a chance that this
++	// could fail to crash on its own.
++	println(x[0])
++}

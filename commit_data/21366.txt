@@ -10,6 +10,19 @@ Date:   Sun Dec 14 03:57:14 2014 +0100
     Change-Id: Id1302e8d9afb3a67be61b5e738fe07ef81d20fe0
     Reviewed-on: https://go-review.googlesource.com/1550
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 6e6f246aee..8db9c78571 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -644,7 +644,6 @@ func (db *DB) conn() (*driverConn, error) {
+ 		// connectionOpener doesn't block while waiting for the req to be read.
+ 		req := make(chan connRequest, 1)
+ 		db.connRequests = append(db.connRequests, req)
+-		db.maybeOpenNewConnections()
+ 		db.mu.Unlock()
+ 		ret := <-req
+ 		return ret.conn, ret.err

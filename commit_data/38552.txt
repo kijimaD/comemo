@@ -10,6 +10,28 @@ Date:   Mon Nov 5 10:33:28 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/147537
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue28601.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/test/fixedbugs/issue28601.go b/test/fixedbugs/issue28601.go
+new file mode 100644
+index 0000000000..ec367e9282
+--- /dev/null
++++ b/test/fixedbugs/issue28601.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Failed to compile with gccgo.
++
++package p
++
++import "unsafe"
++
++const w int = int(unsafe.Sizeof(0))
++
++var a [w]byte

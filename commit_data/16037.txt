@@ -14,7 +14,7 @@ Date:   Mon Apr 1 12:56:18 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8225043
-
+---
  src/cmd/5l/obj.c  |  2 ++
  src/cmd/6l/obj.c  |  2 ++
  src/cmd/8l/obj.c  |  2 ++
@@ -22,3 +22,141 @@ Date:   Mon Apr 1 12:56:18 2013 -0700
  src/cmd/ld/lib.c  | 32 +++++++++++++++++++++++++++-----
  src/cmd/ld/lib.h  |  2 ++
  6 files changed, 52 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 72bb1fb784..24e6294a84 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -114,6 +114,8 @@ main(int argc, char *argv[])
+ 	flagcount("a", "disassemble output", &debug['a']);
+ 	flagcount("c", "dump call graph", &debug['c']);
+ 	flagcount("d", "disable dynamic executable", &debug['d']);
++	flagstr("extld", "linker to run in external mode", &extld);
++	flagstr("extldflags", "flags for external linker", &extldflags);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+ 	flagcount("g", "disable go package data checks", &debug['g']);
+ 	flagstr("k", "sym: set field tracking symbol", &tracksym);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 4e69a8df0c..e98f91eeb7 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -107,6 +107,8 @@ main(int argc, char *argv[])
+ 	flagcount("a", "disassemble output", &debug['a']);
+ 	flagcount("c", "dump call graph", &debug['c']);
+ 	flagcount("d", "disable dynamic executable", &debug['d']);
++	flagstr("extld", "linker to run in external mode", &extld);
++	flagstr("extldflags", "flags for external linker", &extldflags);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+ 	flagcount("g", "disable go package data checks", &debug['g']);
+ 	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index d624a999ba..c819b99368 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -113,6 +113,8 @@ main(int argc, char *argv[])
+ 	flagcount("a", "disassemble output", &debug['a']);
+ 	flagcount("c", "dump call graph", &debug['c']);
+ 	flagcount("d", "disable dynamic executable", &debug['d']);
++	flagstr("extld", "linker to run in external mode", &extld);
++	flagstr("extldflags", "flags for external linker", &extldflags);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+ 	flagcount("g", "disable go package data checks", &debug['g']);
+ 	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index bad4e540f2..874db41c9c 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -71,5 +71,22 @@ Options new in this version:
+ 		NOTE: it only eliminates false positives caused by other function
+ 		calls, not false positives caused by dead temporaries stored in
+ 		the current function call.
++	-linkmode argument
++		Set the linkmode.  The argument must be one of
++		internal, external, or auto.  The default is auto.
++		This sets the linking mode as described in
++		../cgo/doc.go.
++	-tmpdir dir
++		Set the location to use for any temporary files.  The
++		default is a newly created directory that is removed
++		after the linker completes.  Temporary files are only
++		used in external linking mode.
++	-extld name
++		Set the name of the external linker to use in external
++		linking mode.  The default is "gcc".
++	-extldflags flags
++		Set space-separated trailing flags to pass to the
++		external linker in external linking mode.  The default
++		is to not pass any additional trailing flags.
+ */
+ package main
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 541b03c736..84777b1a92 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -609,7 +609,7 @@ void
+ hostlink(void)
+ {
+ 	char *p, **argv;
+-	int i, w, n, argc, len;
++	int c, i, w, n, argc, len;
+ 	Hostobj *h;
+ 	Biobuf *f;
+ 	static char buf[64<<10];
+@@ -617,11 +617,22 @@ hostlink(void)
+ 	if(linkmode != LinkExternal || nerrors > 0)
+ 		return;
+ 
+-	argv = malloc((10+nhostobj+nldflag)*sizeof argv[0]);
++	c = 0;
++	p = extldflags;
++	while(p != nil) {
++		while(*p == ' ')
++			p++;
++		if(*p == '\0')
++			break;
++		c++;
++		p = strchr(p + 1, ' ');
++	}
++
++	argv = malloc((10+nhostobj+nldflag+c)*sizeof argv[0]);
+ 	argc = 0;
+-	// TODO: Add command-line flag to override gcc path and specify additional leading options.
+-	// TODO: Add command-line flag to specify additional trailing options.
+-	argv[argc++] = "gcc";
++	if(extld == nil)
++		extld = "gcc";
++	argv[argc++] = extld;
+ 	switch(thechar){
+ 	case '8':
+ 		argv[argc++] = "-m32";
+@@ -679,6 +690,17 @@ hostlink(void)
+ 	argv[argc++] = smprint("%s/go.o", tmpdir);
+ 	for(i=0; i<nldflag; i++)
+ 		argv[argc++] = ldflag[i];
++
++	p = extldflags;
++	while(p != nil) {
++		while(*p == ' ')
++			*p++ = '\0';
++		if(*p == '\0')
++			break;
++		argv[argc++] = p;
++		p = strchr(p + 1, ' ');
++	}
++
+ 	argv[argc] = nil;
+ 
+ 	quotefmtinstall();
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 614a35c529..9bdfe95c41 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -157,6 +157,8 @@ EXTERN	int flag_shared;
+ EXTERN	char*	tracksym;
+ EXTERN	char*	interpreter;
+ EXTERN	char*	tmpdir;
++EXTERN	char*	extld;
++EXTERN	char*	extldflags;
+ 
+ enum
+ {

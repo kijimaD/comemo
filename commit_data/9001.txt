@@ -8,10 +8,264 @@ Date:   Mon Jul 11 11:46:22 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4662089
-
+---
  src/pkg/exp/template/doc.go        |  7 +++----
  src/pkg/exp/template/lex.go        | 25 +++++++++++++++++++++++++
  src/pkg/exp/template/lex_test.go   | 16 ++++++++++++++++
  src/pkg/exp/template/parse.go      | 29 ++++++++++++++++++++++++-----
  src/pkg/exp/template/parse_test.go | 35 ++++++++++++++++++++++++++++++-----
  5 files changed, 98 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/exp/template/doc.go
+index 11d45504ef..ae0b97ceda 100644
+--- a/src/pkg/exp/template/doc.go
++++ b/src/pkg/exp/template/doc.go
+@@ -78,10 +78,9 @@ Arguments
+ 
+ An argument is a simple value, denoted by one of the following:
+ 
+-	- A boolean, string, integer, floating-point, imaginary or complex
+-	  constant in Go syntax. These behave like Go's untyped constants,
+-	  although raw strings may not span newlines. (Character constants are
+-	  not supported; this may change.)
++	- A boolean, string, character, integer, floating-point, imaginary
++	  or complex constant in Go syntax. These behave like Go's untyped
++	  constants, although raw strings may not span newlines.
+ 	- The character '.' (period):
+ 		.
+ 	  The result is the value of dot.
+diff --git a/src/pkg/exp/template/lex.go b/src/pkg/exp/template/lex.go
+index e8763c55c6..7aebe02a31 100644
+--- a/src/pkg/exp/template/lex.go
++++ b/src/pkg/exp/template/lex.go
+@@ -37,6 +37,7 @@ type itemType int
+ const (
+ 	itemError       itemType = iota // error occurred; value is text of error
+ 	itemBool                        // boolean constant
++	itemChar                        // character constant
+ 	itemComplex                     // complex constant (1+2i); imaginary is just a number
+ 	itemColonEquals                 // colon-equals (':=') introducing a declaration
+ 	itemEOF
+@@ -66,6 +67,7 @@ const (
+ var itemName = map[itemType]string{
+ 	itemError:       "error",
+ 	itemBool:        "bool",
++	itemChar:        "char",
+ 	itemComplex:     "complex",
+ 	itemColonEquals: ":=",
+ 	itemEOF:         "EOF",
+@@ -296,6 +298,8 @@ func lexInsideAction(l *lexer) stateFn {
+ 			return lexRawQuote
+ 		case r == '$':
+ 			return lexIdentifier
++		case r == '\'':
++			return lexChar
+ 		case r == '.':
+ 			// special look-ahead for ".field" so we don't break l.backup().
+ 			if l.pos < len(l.input) {
+@@ -348,6 +352,27 @@ Loop:
+ 	return lexInsideAction
+ }
+ 
++// lexChar scans a character constant. The initial quote is already
++// scanned.  Syntax checking is done by the parse.
++func lexChar(l *lexer) stateFn {
++Loop:
++	for {
++		switch l.next() {
++		case '\\':
++			if r := l.next(); r != eof && r != '\n' {
++				break
++			}
++			fallthrough
++		case eof, '\n':
++			return l.errorf("unterminated character constant")
++		case '\'':
++			break Loop
++		}
++	}
++	l.emit(itemChar)
++	return lexInsideAction
++}
++
+ // lexNumber scans a number: decimal, octal, hex, float, or imaginary.  This
+ // isn't a perfect number scanner - for instance it accepts "." and "0x0.2"
+ // and "089" - but when it's wrong the input is invalid and the parser (via
+diff --git a/src/pkg/exp/template/lex_test.go b/src/pkg/exp/template/lex_test.go
+index d2156fa712..e88fd363fd 100644
+--- a/src/pkg/exp/template/lex_test.go
++++ b/src/pkg/exp/template/lex_test.go
+@@ -53,6 +53,18 @@ var lexTests = []lexTest{
+ 		tRight,
+ 		tEOF,
+ 	}},
++	{"characters", `{{'a' '\n' '\'' '\\' '\u00FF' '\xFF' '本'}}`, []item{
++		tLeft,
++		{itemChar, `'a'`},
++		{itemChar, `'\n'`},
++		{itemChar, `'\''`},
++		{itemChar, `'\\'`},
++		{itemChar, `'\u00FF'`},
++		{itemChar, `'\xFF'`},
++		{itemChar, `'本'`},
++		tRight,
++		tEOF,
++	}},
+ 	{"bools", "{{true false}}", []item{
+ 		tLeft,
+ 		{itemBool, "true"},
+@@ -137,6 +149,10 @@ var lexTests = []lexTest{
+ 		tLeft,
+ 		{itemError, "unterminated raw quoted string"},
+ 	}},
++	{"unclosed char constant", "{{'\n}}", []item{
++		tLeft,
++		{itemError, "unterminated character constant"},
++	}},
+ 	{"bad number", "{{3k}}", []item{
+ 		tLeft,
+ 		{itemError, `bad number syntax: "3k"`},
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index b7fea497e2..77d554d3b5 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -289,9 +289,28 @@ type numberNode struct {
+ 	text       string
+ }
+ 
+-func newNumber(text string, isComplex bool) (*numberNode, os.Error) {
++func newNumber(text string, typ itemType) (*numberNode, os.Error) {
+ 	n := &numberNode{nodeType: nodeNumber, text: text}
+-	if isComplex {
++	switch typ {
++	case itemChar:
++		if len(text) < 3 {
++			return nil, fmt.Errorf("illegal character constant: %s", text)
++		}
++		rune, _, tail, err := strconv.UnquoteChar(text[1:len(text)-1], text[0])
++		if err != nil {
++			return nil, err
++		}
++		if len(tail) > 0 {
++			return nil, fmt.Errorf("extra bytes in character constant: %s", text)
++		}
++		n.int64 = int64(rune)
++		n.isInt = true
++		n.uint64 = uint64(rune)
++		n.isUint = true
++		n.float64 = float64(rune) // odd but those are the rules.
++		n.isFloat = true
++		return n, nil
++	case itemComplex:
+ 		// fmt.Sscan can parse the pair, so let it do the work.
+ 		if _, err := fmt.Sscan(text, &n.complex128); err != nil {
+ 			return nil, err
+@@ -713,7 +732,7 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
+ 				t.errorf("missing value for %s", context)
+ 			}
+ 			return
+-		case itemBool, itemComplex, itemDot, itemField, itemIdentifier, itemVariable, itemNumber, itemRawString, itemString:
++		case itemBool, itemChar, itemComplex, itemDot, itemField, itemIdentifier, itemVariable, itemNumber, itemRawString, itemString:
+ 			t.backup()
+ 			pipe.append(t.command())
+ 		default:
+@@ -853,8 +872,8 @@ Loop:
+ 			cmd.append(newField(token.val))
+ 		case itemBool:
+ 			cmd.append(newBool(token.val == "true"))
+-		case itemComplex, itemNumber:
+-			number, err := newNumber(token.val, token.typ == itemComplex)
++		case itemChar, itemComplex, itemNumber:
++			number, err := newNumber(token.val, token.typ)
+ 			if err != nil {
+ 				t.error(err)
+ 			}
+diff --git a/src/pkg/exp/template/parse_test.go b/src/pkg/exp/template/parse_test.go
+index 7524ac8b25..7439ec8092 100644
+--- a/src/pkg/exp/template/parse_test.go
++++ b/src/pkg/exp/template/parse_test.go
+@@ -29,6 +29,8 @@ var numberTests = []numberTest{
+ 	{"0", true, true, true, false, 0, 0, 0, 0},
+ 	{"-0", true, true, true, false, 0, 0, 0, 0}, // check that -0 is a uint.
+ 	{"73", true, true, true, false, 73, 73, 73, 0},
++	{"073", true, true, true, false, 073, 073, 073, 0},
++	{"0x73", true, true, true, false, 0x73, 0x73, 0x73, 0},
+ 	{"-73", true, false, true, false, -73, 0, -73, 0},
+ 	{"+73", true, false, true, false, 73, 0, 73, 0},
+ 	{"100", true, true, true, false, 100, 100, 100, 0},
+@@ -39,6 +41,7 @@ var numberTests = []numberTest{
+ 	{"-1e19", false, false, true, false, 0, 0, -1e19, 0},
+ 	{"4i", false, false, false, true, 0, 0, 0, 4i},
+ 	{"-1.2+4.2i", false, false, false, true, 0, 0, 0, -1.2 + 4.2i},
++	{"073i", false, false, false, true, 0, 0, 0, 73i}, // not octal!
+ 	// complex with 0 imaginary are float (and maybe integer)
+ 	{"0i", true, true, true, true, 0, 0, 0, 0},
+ 	{"-1.2+0i", false, false, true, true, 0, 0, -1.2, -1.2},
+@@ -48,12 +51,23 @@ var numberTests = []numberTest{
+ 	{"0123", true, true, true, false, 0123, 0123, 0123, 0},
+ 	{"-0x0", true, true, true, false, 0, 0, 0, 0},
+ 	{"0xdeadbeef", true, true, true, false, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0},
++	// character constants
++	{`'a'`, true, true, true, false, 'a', 'a', 'a', 0},
++	{`'\n'`, true, true, true, false, '\n', '\n', '\n', 0},
++	{`'\\'`, true, true, true, false, '\\', '\\', '\\', 0},
++	{`'\''`, true, true, true, false, '\'', '\'', '\'', 0},
++	{`'\xFF'`, true, true, true, false, 0xFF, 0xFF, 0xFF, 0},
++	{`'パ'`, true, true, true, false, 0x30d1, 0x30d1, 0x30d1, 0},
++	{`'\u30d1'`, true, true, true, false, 0x30d1, 0x30d1, 0x30d1, 0},
++	{`'\U000030d1'`, true, true, true, false, 0x30d1, 0x30d1, 0x30d1, 0},
+ 	// some broken syntax
+ 	{text: "+-2"},
+ 	{text: "0x123."},
+ 	{text: "1e."},
+ 	{text: "0xi."},
+ 	{text: "1+2."},
++	{text: "'x"},
++	{text: "'xx'"},
+ }
+ 
+ func TestNumberParse(t *testing.T) {
+@@ -61,11 +75,19 @@ func TestNumberParse(t *testing.T) {
+ 		// If fmt.Sscan thinks it's complex, it's complex.  We can't trust the output
+ 		// because imaginary comes out as a number.
+ 		var c complex128
+-		_, err := fmt.Sscan(test.text, &c)
+-		n, err := newNumber(test.text, err == nil)
++		typ := itemNumber
++		if test.text[0] == '\'' {
++			typ = itemChar
++		} else {
++			_, err := fmt.Sscan(test.text, &c)
++			if err == nil {
++				typ = itemComplex
++			}
++		}
++		n, err := newNumber(test.text, typ)
+ 		ok := test.isInt || test.isUint || test.isFloat || test.isComplex
+ 		if ok && err != nil {
+-			t.Errorf("unexpected error for %q", test.text)
++			t.Errorf("unexpected error for %q: %s", test.text, err)
+ 			continue
+ 		}
+ 		if !ok && err == nil {
+@@ -73,6 +95,9 @@ func TestNumberParse(t *testing.T) {
+ 			continue
+ 		}
+ 		if !ok {
++			if *debug {
++				fmt.Printf("%s\n\t%s\n", test.text, err)
++			}
+ 			continue
+ 		}
+ 		if n.isComplex != test.isComplex {
+@@ -174,8 +199,8 @@ var parseTests = []parseTest{
+ 		`[({{range [(command: [F=[X]]) (command: [F=[M]])]}} [(text: "true")] {{else}} [(text: "false")])]`},
+ 	{"range []int", "{{range .SI}}{{.}}{{end}}", noError,
+ 		`[({{range [(command: [F=[SI]])]}} [(action: [(command: [{{<.>}}])])])]`},
+-	{"constants", "{{range .SI 1 -3.2i true false }}{{end}}", noError,
+-		`[({{range [(command: [F=[SI] N=1 N=-3.2i B=true B=false])]}} [])]`},
++	{"constants", "{{range .SI 1 -3.2i true false 'a'}}{{end}}", noError,
++		`[({{range [(command: [F=[SI] N=1 N=-3.2i B=true B=false N='a'])]}} [])]`},
+ 	{"template", "{{template `x`}}", noError,
+ 		"[{{template S=`x`}}]"},
+ 	{"template", "{{template `x` .Y}}", noError,

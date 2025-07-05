@@ -21,9 +21,91 @@ Date:   Sat Sep 5 15:01:19 2020 +0300
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go.mod                |  2 +-
  src/go.sum                |  4 ++--
  src/net/http/h2_bundle.go | 15 +++++++++------
  src/vendor/modules.txt    |  2 +-
  4 files changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index c75f74b916..0d5892f178 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.15
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+-	golang.org/x/net v0.0.0-20200822124328-c89045814202
++	golang.org/x/net v0.0.0-20200904194848-62affa334b73
+ 	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
+ 	golang.org/x/text v0.3.3-0.20200430171850-afb9336c4530 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index dc9641be1a..52907d313f 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,8 +2,8 @@ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACk
+ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 h1:psW17arqaxU48Z5kZ0CQnkZWQJsqcURM6tKiBApRjXI=
+ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+-golang.org/x/net v0.0.0-20200822124328-c89045814202 h1:VvcQYSHwXgi7W+TpUR6A9g6Up98WAHf3f/ulnJ62IyA=
+-golang.org/x/net v0.0.0-20200822124328-c89045814202/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
++golang.org/x/net v0.0.0-20200904194848-62affa334b73 h1:MXfv8rhZWmFeqX3GNZRsd6vOLoaCHjYEX3qkRo3YBUA=
++golang.org/x/net v0.0.0-20200904194848-62affa334b73/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 463e7e8ce9..458e0b7646 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -5591,7 +5591,11 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
+ 	}
+ 	if bodyOpen {
+ 		if vv, ok := rp.header["Content-Length"]; ok {
+-			req.ContentLength, _ = strconv.ParseInt(vv[0], 10, 64)
++			if cl, err := strconv.ParseUint(vv[0], 10, 63); err == nil {
++				req.ContentLength = int64(cl)
++			} else {
++				req.ContentLength = 0
++			}
+ 		} else {
+ 			req.ContentLength = -1
+ 		}
+@@ -5974,9 +5978,8 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
+ 		var ctype, clen string
+ 		if clen = rws.snapHeader.Get("Content-Length"); clen != "" {
+ 			rws.snapHeader.Del("Content-Length")
+-			clen64, err := strconv.ParseInt(clen, 10, 64)
+-			if err == nil && clen64 >= 0 {
+-				rws.sentContentLen = clen64
++			if cl, err := strconv.ParseUint(clen, 10, 63); err == nil {
++				rws.sentContentLen = int64(cl)
+ 			} else {
+ 				clen = ""
+ 			}
+@@ -8505,8 +8508,8 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
+ 	if !streamEnded || isHead {
+ 		res.ContentLength = -1
+ 		if clens := res.Header["Content-Length"]; len(clens) == 1 {
+-			if clen64, err := strconv.ParseInt(clens[0], 10, 64); err == nil {
+-				res.ContentLength = clen64
++			if cl, err := strconv.ParseUint(clens[0], 10, 63); err == nil {
++				res.ContentLength = int64(cl)
+ 			} else {
+ 				// TODO: care? unlike http/1, it won't mess up our framing, so it's
+ 				// more safe smuggling-wise to ignore.
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index d1e4f28e21..faf95b871e 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20200822124328-c89045814202
++# golang.org/x/net v0.0.0-20200904194848-62affa334b73
+ ## explicit
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

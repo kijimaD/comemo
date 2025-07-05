@@ -8,7 +8,66 @@ Date:   Mon Mar 23 17:46:59 2009 -0700
     DELTA=35  (35 added, 0 deleted, 0 changed)
     OCL=26662
     CL=26662
-
+---
  src/lib/container/vector.go      | 16 ++++++++++++++++
  src/lib/container/vector_test.go | 19 +++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector.go
+index 9e738ebef4..673b47d021 100644
+--- a/src/lib/container/vector.go
++++ b/src/lib/container/vector.go
+@@ -210,3 +210,19 @@ func (p *Vector) Swap(i, j int) {
+ 	a := p.a;
+ 	a[i], a[j] = a[j], a[i]
+ }
++
++
++// Iterate over all elements; driver for range
++func (p *Vector) iterate(c chan Element) {
++	for i := 0; i < len(p.a); i++ {
++		c <- p.a[i]
++	}
++	close(c);
++}
++
++// Channel iterator for range.
++func (p *Vector) Iter() chan Element {
++	c := make(chan Element);
++	go p.iterate(c);
++	return c;
++}
+diff --git a/src/lib/container/vector_test.go b/src/lib/container/vector_test.go
+index ac16709a0e..7a56f3664f 100644
+--- a/src/lib/container/vector_test.go
++++ b/src/lib/container/vector_test.go
+@@ -139,6 +139,7 @@ func TestInsertVector(t *testing.T) {
+ 	verify_pattern(t, a, 8, 1000, 2);
+ }
+ 
++
+ func TestSorting(t *testing.T) {
+ 	const n = 100;
+ 	a := vector.NewIntVector(n);
+@@ -170,3 +171,21 @@ func TestDo(t *testing.T) {
+ 		t.Error("should visit", n, "values; did visit", count)
+ 	}
+ }
++
++func TestIter(t *testing.T) {
++	const Len = 100;
++	x := vector.New(Len);
++	for i := 0; i < Len; i++ {
++		x.Set(i, i*i);
++	}
++	i := 0;
++	for v := range x.Iter() {
++		if v.(int) != i*i {
++			t.Error("Iter expected", i*i, "got", v.(int))
++		}
++		i++;
++	}
++	if i != Len {
++		t.Error("Iter stopped at", i, "not", Len)
++	}
++}

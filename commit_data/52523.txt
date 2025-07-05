@@ -17,6 +17,22 @@ Date:   Mon Nov 1 23:27:45 2021 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/sync/pool.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index d1abb6a8b7..ea142bb181 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -102,9 +102,7 @@ func (p *Pool) Put(x any) {
+ 	l, _ := p.pin()
+ 	if l.private == nil {
+ 		l.private = x
+-		x = nil
+-	}
+-	if x != nil {
++	} else {
+ 		l.shared.pushHead(x)
+ 	}
+ 	runtime_procUnpin()

@@ -13,6 +13,57 @@ Date:   Sun Sep 3 08:52:34 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 0445caba66..ff048173b2 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -832,18 +832,18 @@ var linuxAMD64Tests = []*asmTest{
+ 		pos: []string{"\tADDQ\t[$]19", "\tIMULQ"}, // (a+19)*n
+ 	},
+ 	{
+-		`
++		fn: `
+ 		func mul4(n int) int {
+ 			return 23*n - 9*n
+ 		}`,
+-		[]string{"\tIMULQ\t[$]14"}, // 14*n
++		pos: []string{"\tIMULQ\t[$]14"}, // 14*n
+ 	},
+ 	{
+-		`
++		fn: `
+ 		func mul5(a, n int) int {
+ 			return a*n - 19*n
+ 		}`,
+-		[]string{"\tADDQ\t[$]-19", "\tIMULQ"}, // (a-19)*n
++		pos: []string{"\tADDQ\t[$]-19", "\tIMULQ"}, // (a-19)*n
+ 	},
+ 
+ 	// see issue 19595.
+@@ -1165,18 +1165,18 @@ var linux386Tests = []*asmTest{
+ 		pos: []string{"TEXT\t.*, [$]0-4"},
+ 	},
+ 	{
+-		`
++		fn: `
+ 		func mul3(n int) int {
+ 			return 23*n - 9*n
+ 		}`,
+-		[]string{"\tIMULL\t[$]14"}, // 14*n
++		pos: []string{"\tIMULL\t[$]14"}, // 14*n
+ 	},
+ 	{
+-		`
++		fn: `
+ 		func mul4(a, n int) int {
+ 			return n*a - a*19
+ 		}`,
+-		[]string{"\tADDL\t[$]-19", "\tIMULL"}, // (n-19)*a
++		pos: []string{"\tADDL\t[$]-19", "\tIMULL"}, // (n-19)*a
+ 	},
+ }
+ 

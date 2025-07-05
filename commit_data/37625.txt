@@ -27,7 +27,63 @@ Date:   Tue Jun 5 21:05:11 2018 -0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/hex/hex.go      | 13 +++++++++++--
  src/encoding/hex/hex_test.go | 13 +++++++++++++
  2 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index aee5aecb1a..2bb2b57df9 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -6,10 +6,10 @@
+ package hex
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"strings"
+ )
+ 
+ const hextable = "0123456789abcdef"
+@@ -116,7 +116,16 @@ func DecodeString(s string) ([]byte, error) {
+ // Dump returns a string that contains a hex dump of the given data. The format
+ // of the hex dump matches the output of `hexdump -C` on the command line.
+ func Dump(data []byte) string {
+-	var buf bytes.Buffer
++	if len(data) == 0 {
++		return ""
++	}
++
++	var buf strings.Builder
++	// Dumper will write 79 bytes per complete 16 byte chunk, and at least
++	// 64 bytes for whatever remains. Round the allocation up, since only a
++	// maximum of 15 bytes will be wasted.
++	buf.Grow((1 + ((len(data) - 1) / 16)) * 79)
++
+ 	dumper := Dumper(&buf)
+ 	dumper.Write(data)
+ 	dumper.Close()
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index 6ba054ef9a..e9f4b3a53a 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -248,3 +248,16 @@ func BenchmarkEncode(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func BenchmarkDump(b *testing.B) {
++	for _, size := range []int{256, 1024, 4096, 16384} {
++		src := bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8)
++		sink = make([]byte, 2*size)
++
++		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				Dump(src)
++			}
++		})
++	}
++}

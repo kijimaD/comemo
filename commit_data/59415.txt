@@ -20,7 +20,53 @@ Date:   Mon Mar 11 13:53:40 2024 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modload/init.go                    | 10 ++++++++--
  .../testdata/script/work_implicit_go_requirement.txt   | 18 ++++++++++++++++++
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 23db438da1..0c73b00022 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1001,8 +1001,14 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error)
+ }
+ 
+ func errWorkTooOld(gomod string, wf *modfile.WorkFile, goVers string) error {
+-	return fmt.Errorf("module %s listed in go.work file requires go >= %s, but go.work lists go %s; to update it:\n\tgo work use",
+-		base.ShortPath(filepath.Dir(gomod)), goVers, gover.FromGoWork(wf))
++	verb := "lists"
++	if wf == nil || wf.Go == nil {
++		// A go.work file implicitly requires go1.18
++		// even when it doesn't list any version.
++		verb = "implicitly requires"
++	}
++	return fmt.Errorf("module %s listed in go.work file requires go >= %s, but go.work %s go %s; to update it:\n\tgo work use",
++		base.ShortPath(filepath.Dir(gomod)), goVers, verb, gover.FromGoWork(wf))
+ }
+ 
+ // CreateModFile initializes a new module by creating a go.mod file.
+diff --git a/src/cmd/go/testdata/script/work_implicit_go_requirement.txt b/src/cmd/go/testdata/script/work_implicit_go_requirement.txt
+new file mode 100644
+index 0000000000..e123a7b01a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_implicit_go_requirement.txt
+@@ -0,0 +1,18 @@
++# Issue 66207: provide a better error message when there's no
++# go directive in a go.work file so 1.18 is implicitly required.
++
++! go list
++stderr 'go: module . listed in go.work file requires go >= 1.21, but go.work implicitly requires go 1.18; to update it:\s+go work use'
++
++go work use
++go list
++stdout foo
++
++-- go.work --
++use .
++-- go.mod --
++module foo
++
++go 1.21
++-- foo.go --
++package foo

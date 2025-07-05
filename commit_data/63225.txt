@@ -29,9 +29,173 @@ Date:   Fri May 23 13:19:44 2025 -0400
     Reviewed-by: Michael Matloob <matloob@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                  | 35 ++++++++++++++++
  src/cmd/go/testdata/script/mod_get_nopkgs.txt      |  8 ++++
  src/cmd/go/testdata/script/mod_get_work.txt        | 46 ++++++++++++++++++++++
  ...mplete.txt => mod_get_workspace_incomplete.txt} |  7 ++++
  4 files changed, 96 insertions(+)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 6867bdaa36..31e9244e2d 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -337,6 +337,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	r.performLocalQueries(ctx)
+ 	r.performPathQueries(ctx)
+ 	r.performToolQueries(ctx)
++	r.performWorkQueries(ctx)
+ 
+ 	for {
+ 		r.performWildcardQueries(ctx)
+@@ -513,6 +514,7 @@ type resolver struct {
+ 	pathQueries       []*query // package path literal queries in original order
+ 	wildcardQueries   []*query // path wildcard queries in original order
+ 	patternAllQueries []*query // queries with the pattern "all"
++	workQueries       []*query // queries with the pattern "work"
+ 	toolQueries       []*query // queries with the pattern "tool"
+ 
+ 	// Indexed "none" queries. These are also included in the slices above;
+@@ -578,6 +580,8 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
+ 	for _, q := range queries {
+ 		if q.pattern == "all" {
+ 			r.patternAllQueries = append(r.patternAllQueries, q)
++		} else if q.pattern == "work" {
++			r.workQueries = append(r.workQueries, q)
+ 		} else if q.pattern == "tool" {
+ 			r.toolQueries = append(r.toolQueries, q)
+ 		} else if q.patternIsLocal {
+@@ -1070,6 +1074,37 @@ func (r *resolver) performToolQueries(ctx context.Context) {
+ 	}
+ }
+ 
++// performWorkQueries populates the candidates for each query whose pattern is "work".
++// The candidate module to resolve the work pattern is exactly the single main module.
++func (r *resolver) performWorkQueries(ctx context.Context) {
++	for _, q := range r.workQueries {
++		q.pathOnce(q.pattern, func() pathSet {
++			// TODO(matloob): Maybe export MainModules.mustGetSingleMainModule and call that.
++			// There are a few other places outside the modload package where we expect
++			// a single main module.
++			if len(modload.MainModules.Versions()) != 1 {
++				panic("internal error: number of main modules is not exactly one in resolution phase of go get")
++			}
++			mainModule := modload.MainModules.Versions()[0]
++
++			// We know what the result is going to be, assuming the main module is not
++			// empty, (it's the main module itself) but first check to see that there
++			// are packages in the main module, so that if there aren't any, we can
++			// return the expected warning that the pattern matched no packages.
++			match := modload.MatchInModule(ctx, q.pattern, mainModule, imports.AnyTags())
++			if len(match.Errs) > 0 {
++				return pathSet{err: match.Errs[0]}
++			}
++			if len(match.Pkgs) == 0 {
++				search.WarnUnmatched([]*search.Match{match})
++				return pathSet{} // There are no packages in the main module, so the main module isn't needed to resolve them.
++			}
++
++			return pathSet{pkgMods: []module.Version{mainModule}}
++		})
++	}
++}
++
+ // performPatternAllQueries populates the candidates for each query whose
+ // pattern is "all".
+ //
+diff --git a/src/cmd/go/testdata/script/mod_get_nopkgs.txt b/src/cmd/go/testdata/script/mod_get_nopkgs.txt
+index 14176a7dc8..e2bfdf30a8 100644
+--- a/src/cmd/go/testdata/script/mod_get_nopkgs.txt
++++ b/src/cmd/go/testdata/script/mod_get_nopkgs.txt
+@@ -29,6 +29,10 @@ stderr '^go: example\.net/emptysubdir/subdir/\.\.\.: module example\.net/emptysu
+ ! go get builtin/...  # in GOROOT/src, but contains no packages
+ stderr '^go: builtin/...: malformed module path "builtin": missing dot in first path element$'
+ 
++cd ../subdirmod
++go get work
++stderr -count=1 'matched no packages'
++
+ -- go.mod --
+ module example.net/emptysubdir
+ 
+@@ -38,3 +42,7 @@ go 1.16
+ package emptysubdir
+ -- subdir/README.txt --
+ This module intentionally does not contain any p
++-- subdirmod/go.mod --
++module example.net/emptysubdir/subdirmod
++
++go 1.16
+diff --git a/src/cmd/go/testdata/script/mod_get_work.txt b/src/cmd/go/testdata/script/mod_get_work.txt
+new file mode 100644
+index 0000000000..39c7ea6beb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_work.txt
+@@ -0,0 +1,46 @@
++# Test go get with the work pattern.
++
++# go get work gets dependencies to satisfy missing imports in the
++# main modules' package graph. Before the 'work' pattern existed, users
++# would have to run './...' in the root of the work (main) module.
++cp go.mod go.mod.orig
++go get work
++cmp go.mod go.mod.want
++
++# 'go get work' and 'go get all' behave very differently. Because
++# 'all' evaluates to work packages but also to their dependencies,
++# 'go get all' will run the 'get' logic on all the dependency module
++# packages, bumping all their modules to the latest versions.
++cp go.mod.orig go.mod
++go get all
++cmp go.mod go.mod.all.want
++-- go.mod --
++module example.com/a
++
++go 1.25
++-- go.mod.want --
++module example.com/a
++
++go 1.25
++
++require rsc.io/quote v1.5.2
++
++require (
++	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
++	rsc.io/sampler v1.3.0 // indirect
++)
++-- go.mod.all.want --
++module example.com/a
++
++go 1.25
++
++require rsc.io/quote v1.5.2
++
++require (
++	golang.org/x/text v0.3.0 // indirect
++	rsc.io/sampler v1.99.99 // indirect
++)
++-- a.go --
++package a
++
++import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_get_work_incomplete.txt b/src/cmd/go/testdata/script/mod_get_workspace_incomplete.txt
+similarity index 98%
+rename from src/cmd/go/testdata/script/mod_get_work_incomplete.txt
+rename to src/cmd/go/testdata/script/mod_get_workspace_incomplete.txt
+index ada2ae50f1..89340ffb57 100644
+--- a/src/cmd/go/testdata/script/mod_get_work_incomplete.txt
++++ b/src/cmd/go/testdata/script/mod_get_workspace_incomplete.txt
+@@ -20,6 +20,13 @@ go get ./...
+ cmp go.mod go.mod.want
+ cmp go.sum go.sum.want
+ 
++# Test go get with an incomplete module using a "work" query.
++cp go.mod.orig go.mod
++rm go.sum
++go get work
++cmp go.mod go.mod.want
++cmp go.sum go.sum.want
++
+ # Test go get with an incomplete module using a path query that can be resolved.
+ cp go.mod.orig go.mod
+ rm go.sum

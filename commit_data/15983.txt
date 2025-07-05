@@ -9,6 +9,41 @@ Date:   Thu Mar 28 08:46:17 2013 -0700
     R=golang-dev, kamil.kisiel, dave
     CC=golang-dev
     https://golang.org/cl/8069044
-
+---
  src/cmd/godoc/main.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index ab792c8af0..81e739d20c 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -388,12 +388,12 @@ func main() {
+ 	}
+ 
+ 	// determine what to use
+-	if info.IsEmpty() {
+-		if !cinfo.IsEmpty() {
++	if info == nil || info.IsEmpty() {
++		if cinfo != nil && !cinfo.IsEmpty() {
+ 			// only cinfo exists - switch to cinfo
+ 			info = cinfo
+ 		}
+-	} else if !cinfo.IsEmpty() {
++	} else if cinfo != nil && !cinfo.IsEmpty() {
+ 		// both info and cinfo exist - use cinfo if info
+ 		// contains only subdirectory information
+ 		if info.PAst == nil && info.PDoc == nil {
+@@ -403,9 +403,13 @@ func main() {
+ 		}
+ 	}
+ 
++	if info == nil {
++		log.Fatalf("%s: no such directory or package", flag.Arg(0))
++	}
+ 	if info.Err != nil {
+ 		log.Fatalf("%v", info.Err)
+ 	}
++
+ 	if info.PDoc != nil && info.PDoc.ImportPath == target {
+ 		// Replace virtual /target with actual argument from command line.
+ 		info.PDoc.ImportPath = flag.Arg(0)

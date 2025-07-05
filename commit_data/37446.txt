@@ -58,7 +58,7 @@ Date:   Sat Jul 28 20:25:06 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                              | 193 ++++---
  src/cmd/go/internal/base/base.go                   |  34 +-
  src/cmd/go/internal/bug/bug.go                     |   5 +-
@@ -112,3 +112,3216 @@ Date:   Sat Jul 28 20:25:06 2018 -0400
  src/cmd/go/testdata/script/mod_verify.txt          |  26 +-
  src/cmd/go/testdata/script/mod_version_nomod.txt   |   4 -
  52 files changed, 1225 insertions(+), 850 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 1178629afb..5d7dea81fb 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -9,7 +9,7 @@
+ //
+ // Usage:
+ //
+-// 	go command [arguments]
++// 	go <command> [arguments]
+ //
+ // The commands are:
+ //
+@@ -31,7 +31,7 @@
+ // 	version     print Go version
+ // 	vet         report likely mistakes in packages
+ //
+-// Use "go help [command]" for more information about a command.
++// Use "go help <command>" for more information about a command.
+ //
+ // Additional help topics:
+ //
+@@ -50,7 +50,7 @@
+ // 	testflag    testing flags
+ // 	testfunc    testing functions
+ //
+-// Use "go help [topic]" for more information about that topic.
++// Use "go help <topic>" for more information about that topic.
+ //
+ //
+ // Start a bug report
+@@ -852,35 +852,49 @@
+ //
+ // Module maintenance
+ //
+-// Usage:
+-//
+-// 	go mod [-v] [maintenance flags]
+-//
+-// Mod performs module maintenance operations as specified by the
+-// following flags, which may be combined.
++// Go mod provides access to operations on modules.
+ //
+ // Note that support for modules is built into all the go commands,
+ // not just 'go mod'. For example, day-to-day adding, removing, upgrading,
+ // and downgrading of dependencies should be done using 'go get'.
+ // See 'go help modules' for an overview of module functionality.
+ //
+-// The -v flag enables additional output about operations performed.
++// Usage:
+ //
+-// The first group of operations provide low-level editing operations
+-// for manipulating go.mod from the command line or in scripts or
+-// other tools. They read only go.mod itself; they do not look up any
+-// information about the modules involved.
++// 	go mod <command> [arguments]
+ //
+-// The -init flag initializes and writes a new go.mod to the current directory,
+-// in effect creating a new module rooted at the current directory.
+-// The file go.mod must not already exist.
+-// If possible, mod will guess the module path from import comments
+-// (see 'go help importpath') or from version control configuration.
+-// To override this guess, use the -module flag.
+-// (Without -init, mod applies to the current module.)
++// The commands are:
++//
++// 	edit        edit go.mod from tools or scripts
++// 	fix         make go.mod semantically consistent
++// 	graph       print module requirement graph
++// 	init        initialize new module in current directory
++// 	tidy        add missing and remove unused modules
++// 	vendor      make vendored copy of dependencies
++// 	verify      verify dependencies have expected content
+ //
+-// The -module flag changes (or, with -init, sets) the module's path
+-// (the go.mod file's module line).
++// Use "go help mod <command>" for more information about a command.
++//
++// Edit go.mod from tools or scripts
++//
++// Usage:
++//
++// 	go mod edit [editing flags] [go.mod]
++//
++// Edit provides a command-line interface for editing go.mod,
++// for use primarily by tools or scripts. It reads only go.mod;
++// it does not look up information about the modules involved.
++// By default, edit reads and writes the go.mod file of the main module,
++// but a different target file can be specified after the editing flags.
++//
++// The editing flags specify a sequence of editing operations.
++//
++// The -fmt flag reformats the go.mod file without making other changes.
++// This reformatting is also implied by any other modifications that use or
++// rewrite the go.mod file. The only time this flag is needed is if no other
++// flags are specified, as in 'go mod edit -fmt'.
++//
++// The -module flag changes the module's path (the go.mod file's module line).
+ //
+ // The -go flag changes the minimum required version of Go listed in go.mod.
+ //
+@@ -903,21 +917,15 @@
+ // new path should be a directory on the local system, not a module path.
+ // Note that -replace overrides any existing replacements for old@v.
+ //
+-// These editing flags (-require, -droprequire, -exclude, -dropexclude,
+-// -replace, and -dropreplace) may be repeated.
+-//
+-// The -fmt flag reformats the go.mod file without making other changes.
+-// This reformatting is also implied by any other modifications that use or
+-// rewrite the go.mod file. The only time this flag is needed is if no other
+-// flags are specified, as in 'go mod -fmt'.
++// The -require, -droprequire, -exclude, -dropexclude, -replace,
++// and -dropreplace editing flags may be repeated, and the changes
++// are applied in the order given.
+ //
+-// The -graph flag prints the module requirement graph (with replacements applied)
+-// in text form. Each line in the output has two space-separated fields: a module
+-// and one of its requirements. Each module is identified as a string of the form
+-// path@version, except for the main module, which has no @version suffix.
++// The -print flag prints the final go.mod in its text format instead of
++// writing it back to go.mod.
+ //
+-// The -json flag prints the go.mod file in JSON format corresponding to these
+-// Go types:
++// The -json flag prints the final go.mod file in JSON format instead of
++// writing it back to go.mod. The JSON output corresponds to these Go types:
+ //
+ // 	type Module struct {
+ // 		Path string
+@@ -946,14 +954,18 @@
+ // referred to indirectly. For the full set of modules available to a build,
+ // use 'go list -m -json all'.
+ //
+-// The next group of operations provide higher-level editing and maintenance
+-// of a module, beyond the go.mod file.
++// For example, a tool can obtain the go.mod as a data structure by
++// parsing the output of 'go mod edit -json' and can then make changes
++// by invoking 'go mod edit' with -require, -exclude, and so on.
++//
++//
++// Make go.mod semantically consistent
+ //
+-// The -packages flag prints a list of packages in the module.
+-// It only identifies directories containing Go source code;
+-// it does not check that those directories contain code that builds.
++// Usage:
++//
++// 	go mod fix
+ //
+-// The -fix flag updates go.mod to use canonical version identifiers and
++// Fix updates go.mod to use canonical version identifiers and
+ // to be semantically consistent. For example, consider this go.mod file:
+ //
+ // 	module M
+@@ -968,42 +980,95 @@
+ //
+ // 	exclude D v1.2.3
+ //
+-// First, -fix rewrites non-canonical version identifiers to semver form, so
++// First, fix rewrites non-canonical version identifiers to semver form, so
+ // A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the latest
+ // commit on the dev branch, perhaps v0.0.0-20180523231146-b3f5c0f6e5f1.
+ //
+-// Next, -fix updates requirements to respect exclusions, so the requirement
++// Next, fix updates requirements to respect exclusions, so the requirement
+ // on the excluded D v1.2.3 is updated to use the next available version of D,
+ // perhaps D v1.2.4 or D v1.3.0.
+ //
+-// Finally, -fix removes redundant or misleading requirements.
++// Finally, fix removes redundant or misleading requirements.
+ // For example, if A v1.0.0 itself requires B v1.2.0 and C v1.0.0,
+ // then go.mod's requirement of B v1.0.0 is misleading (superseded
+ // by B's need for v1.2.0), and its requirement of C v1.0.0 is redundant
+ // (implied by B's need for the same version), so both will be removed.
+ //
+-// Although -fix runs the fix-up operation in isolation, the fix-up also
++// Although fix runs the fix-up operation in isolation, the fix-up also
+ // runs automatically any time a go command uses the module graph,
+-// to update go.mod to reflect reality. For example, the -sync, -vendor,
+-// and -verify flags all effectively imply -fix. And because the module
+-// graph defines the meaning of import statements, any commands
+-// that load packages—'go build', 'go test', 'go list', and so on—also
+-// effectively imply 'go mod -fix'.
++// to update go.mod to reflect reality. Because the module graph defines
++// the meaning of import statements, any commands that load packages
++// also use and therefore fix the module graph. For example,
++// go build, go get, go install, go list, go test, go mod graph, go mod tidy,
++// and other commands all effectively imply go mod fix.
++//
++//
++// Print module requirement graph
+ //
+-// The -sync flag synchronizes go.mod with the source code in the module.
++// Usage:
++//
++// 	go mod graph
++//
++// Graph prints the module requirement graph (with replacements applied)
++// in text form. Each line in the output has two space-separated fields: a module
++// and one of its requirements. Each module is identified as a string of the form
++// path@version, except for the main module, which has no @version suffix.
++//
++//
++// Initialize new module in current directory
++//
++// Usage:
++//
++// 	go mod init [module]
++//
++// Init initializes and writes a new go.mod to the current directory,
++// in effect creating a new module rooted at the current directory.
++// The file go.mod must not already exist.
++// If possible, init will guess the module path from import comments
++// (see 'go help importpath') or from version control configuration.
++// To override this guess, supply the module path as an argument.
++//
++//
++// Add missing and remove unused modules
++//
++// Usage:
++//
++// 	go mod tidy [-v]
++//
++// Tidy makes sure go.mod matches the source code in the module.
+ // It adds any missing modules necessary to build the current module's
+ // packages and dependencies, and it removes unused modules that
+ // don't provide any relevant packages. It also adds any missing entries
+ // to go.sum and removes any unnecessary ones.
+ //
+-// The -vendor flag resets the module's vendor directory to include all
+-// packages needed to build and test all the module's packages.
+-// It does not include any test code for the vendored packages.
++// The -v flag causes tidy to print information about removed modules
++// to standard error.
++//
++//
++// Make vendored copy of dependencies
++//
++// Usage:
++//
++// 	go mod vendor [-v]
++//
++// Vendor resets the main module's vendor directory to include all packages
++// needed to build and test all the main module's packages.
++// It does not include test code for vendored packages.
++//
++// The -v flag causes vendor to print the names of vendored
++// modules and packages to standard error.
++//
++//
++// Verify dependencies have expected content
++//
++// Usage:
++//
++// 	go mod verify
+ //
+-// The -verify flag checks that the dependencies of the current module,
++// Verify checks that the dependencies of the current module,
+ // which are stored in a local downloaded source cache, have not been
+ // modified since being downloaded. If all the modules are unmodified,
+-// -verify prints "all modules verified." Otherwise it reports which
++// verify prints "all modules verified." Otherwise it reports which
+ // modules have been changed and causes 'go mod' to exit with a
+ // non-zero status.
+ //
+@@ -1949,12 +2014,12 @@
+ //
+ // To start a new module, simply create a go.mod file in the root of the
+ // module's directory tree, containing only a module statement.
+-// The 'go mod' command can be used to do this:
++// The 'go mod init' command can be used to do this:
+ //
+-// 	go mod -init -module example.com/m
++// 	go mod init example.com/m
+ //
+ // In a project already using an existing dependency management tool like
+-// godep, glide, or dep, 'go mod -init' will also add require statements
++// godep, glide, or dep, 'go mod init' will also add require statements
+ // matching the existing configuration.
+ //
+ // Once the go.mod file exists, no additional steps are required:
+@@ -2011,7 +2076,7 @@
+ // is no longer necessary and can be deleted requires a full view of
+ // all packages in the module, across all possible build configurations
+ // (architectures, operating systems, build tags, and so on).
+-// The 'go mod -sync' command builds that view and then
++// The 'go mod tidy' command builds that view and then
+ // adds any missing module requirements and removes unnecessary ones.
+ //
+ // As part of maintaining the require statements in go.mod, the go command
+@@ -2201,7 +2266,7 @@
+ // and records the cryptographic checksum of each package at download time.
+ // In normal operation, the go command checks these pre-computed checksums
+ // against the main module's go.sum file, instead of recomputing them on
+-// each command invocation. The 'go mod -verify' command checks that
++// each command invocation. The 'go mod verify' command checks that
+ // the cached copies of module downloads still match both their recorded
+ // checksums and the entries in go.sum.
+ //
+@@ -2220,7 +2285,7 @@
+ // from their sources and using those downloaded copies (after verification,
+ // as described in the previous section). To allow interoperation with older
+ // versions of Go, or to ensure that all files used for a build are stored
+-// together in a single file tree, 'go mod -vendor' creates a directory named
++// together in a single file tree, 'go mod vendor' creates a directory named
+ // vendor in the root directory of the main module and stores there all the
+ // packages from dependency modules that are needed to support builds and
+ // tests of packages in the main module.
+@@ -2239,7 +2304,7 @@
+ // This help text, accessible as 'go help module-get' even in legacy GOPATH mode,
+ // describes 'go get' as it operates in module-aware mode.
+ //
+-// Usage: get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]
++// Usage: go get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]
+ //
+ // Get resolves and adds dependencies to the current development module
+ // and then builds and installs them.
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index 286efbc041..e7f54c9a36 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -45,25 +45,43 @@ type Command struct {
+ 	// CustomFlags indicates that the command will do its own
+ 	// flag parsing.
+ 	CustomFlags bool
++
++	// Commands lists the available commands and help topics.
++	// The order here is the order in which they are printed by 'go help'.
++	// Note that subcommands are in general best avoided.
++	Commands []*Command
+ }
+ 
+-// Commands lists the available commands and help topics.
+-// The order here is the order in which they are printed by 'go help'.
+-var Commands []*Command
++var Go = &Command{
++	UsageLine: "go",
++	Long:      `Go is a tool for managing Go source code.`,
++	// Commands initialized in package main
++}
+ 
+-// Name returns the command's name: the first word in the usage line.
+-func (c *Command) Name() string {
++// LongName returns the command's long name: all the words in the usage line between "go" and a flag or argument,
++func (c *Command) LongName() string {
+ 	name := c.UsageLine
+-	i := strings.Index(name, " ")
+-	if i >= 0 {
++	if i := strings.Index(name, " ["); i >= 0 {
+ 		name = name[:i]
+ 	}
++	if name == "go" {
++		return ""
++	}
++	return strings.TrimPrefix(name, "go ")
++}
++
++// Name returns the command's short name: the last word in the usage line before a flag or argument.
++func (c *Command) Name() string {
++	name := c.LongName()
++	if i := strings.LastIndex(name, " "); i >= 0 {
++		name = name[i+1:]
++	}
+ 	return name
+ }
+ 
+ func (c *Command) Usage() {
+ 	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
+-	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", c.Name())
++	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", c.LongName())
+ 	os.Exit(2)
+ }
+ 
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index 963da94c49..e701f6eac9 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -25,7 +25,7 @@ import (
+ 
+ var CmdBug = &base.Command{
+ 	Run:       runBug,
+-	UsageLine: "bug",
++	UsageLine: "go bug",
+ 	Short:     "start a bug report",
+ 	Long: `
+ Bug opens the default browser and starts a new bug report.
+@@ -38,6 +38,9 @@ func init() {
+ }
+ 
+ func runBug(cmd *base.Command, args []string) {
++	if len(args) > 0 {
++		base.Fatalf("go bug: bug takes no arguments")
++	}
+ 	var buf bytes.Buffer
+ 	buf.WriteString(bugHeader)
+ 	inspectGoVersion(&buf)
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 40cb324ac2..d431385e9d 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -18,11 +18,12 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modfetch"
++	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
+ )
+ 
+ var CmdClean = &base.Command{
+-	UsageLine: "clean [clean flags] [build flags] [packages]",
++	UsageLine: "go clean [clean flags] [build flags] [packages]",
+ 	Short:     "remove object files and cached files",
+ 	Long: `
+ Clean removes object files from package source directories.
+@@ -102,8 +103,13 @@ func init() {
+ }
+ 
+ func runClean(cmd *base.Command, args []string) {
+-	for _, pkg := range load.PackagesAndErrors(args) {
+-		clean(pkg)
++	if len(args) == 0 && modload.Failed() {
++		// Don't try to clean current directory,
++		// which will cause modload to base.Fatalf.
++	} else {
++		for _, pkg := range load.PackagesAndErrors(args) {
++			clean(pkg)
++		}
+ 	}
+ 
+ 	if cleanCache {
+diff --git a/src/cmd/go/internal/doc/doc.go b/src/cmd/go/internal/doc/doc.go
+index d73dd9ad91..4e7dca082d 100644
+--- a/src/cmd/go/internal/doc/doc.go
++++ b/src/cmd/go/internal/doc/doc.go
+@@ -12,7 +12,7 @@ import (
+ 
+ var CmdDoc = &base.Command{
+ 	Run:         runDoc,
+-	UsageLine:   "doc [-u] [-c] [package|[package.]symbol[.methodOrField]]",
++	UsageLine:   "go doc [-u] [-c] [package|[package.]symbol[.methodOrField]]",
+ 	CustomFlags: true,
+ 	Short:       "show documentation for package or symbol",
+ 	Long: `
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 44fd18a015..1f458483b1 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -22,7 +22,7 @@ import (
+ )
+ 
+ var CmdEnv = &base.Command{
+-	UsageLine: "env [-json] [var ...]",
++	UsageLine: "go env [-json] [var ...]",
+ 	Short:     "print Go environment information",
+ 	Long: `
+ Env prints Go environment information.
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index 1f51d775b2..aab164148f 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -17,7 +17,7 @@ import (
+ 
+ var CmdFix = &base.Command{
+ 	Run:       runFix,
+-	UsageLine: "fix [packages]",
++	UsageLine: "go fix [packages]",
+ 	Short:     "update packages to use new APIs",
+ 	Long: `
+ Fix runs the Go fix command on the packages named by the import paths.
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index ae158a742e..0e5509edfa 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -26,7 +26,7 @@ func init() {
+ 
+ var CmdFmt = &base.Command{
+ 	Run:       runFmt,
+-	UsageLine: "fmt [-n] [-x] [packages]",
++	UsageLine: "go fmt [-n] [-x] [packages]",
+ 	Short:     "gofmt (reformat) package sources",
+ 	Long: `
+ Fmt runs the command 'gofmt -l -w' on the packages named
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 2afd84fa5e..9482be98ae 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -27,7 +27,7 @@ import (
+ 
+ var CmdGenerate = &base.Command{
+ 	Run:       runGenerate,
+-	UsageLine: "generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
++	UsageLine: "go generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
+ 	Short:     "generate Go files by processing source",
+ 	Long: `
+ Generate runs commands described by directives within existing
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 0789d5bb3c..fd97c6dcb6 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -23,7 +23,7 @@ import (
+ )
+ 
+ var CmdGet = &base.Command{
+-	UsageLine: "get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]",
++	UsageLine: "go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+ Get downloads the packages named by the import paths, along with their
+diff --git a/src/cmd/go/internal/help/help.go b/src/cmd/go/internal/help/help.go
+index 14cfb6d747..a80afe36c4 100644
+--- a/src/cmd/go/internal/help/help.go
++++ b/src/cmd/go/internal/help/help.go
+@@ -21,20 +21,8 @@ import (
+ 
+ // Help implements the 'help' command.
+ func Help(args []string) {
+-	if len(args) == 0 {
+-		PrintUsage(os.Stdout)
+-		// not exit 2: succeeded at 'go help'.
+-		return
+-	}
+-	if len(args) != 1 {
+-		fmt.Fprintf(os.Stderr, "usage: go help command\n\nToo many arguments given.\n")
+-		os.Exit(2) // failed at 'go help'
+-	}
+-
+-	arg := args[0]
+-
+ 	// 'go help documentation' generates doc.go.
+-	if arg == "documentation" {
++	if len(args) == 1 && args[0] == "documentation" {
+ 		fmt.Println("// Copyright 2011 The Go Authors. All rights reserved.")
+ 		fmt.Println("// Use of this source code is governed by a BSD-style")
+ 		fmt.Println("// license that can be found in the LICENSE file.")
+@@ -43,68 +31,85 @@ func Help(args []string) {
+ 		fmt.Println("// Edit the documentation in other files and rerun mkalldocs.sh to generate this one.")
+ 		fmt.Println()
+ 		buf := new(bytes.Buffer)
+-		PrintUsage(buf)
++		PrintUsage(buf, base.Go)
+ 		usage := &base.Command{Long: buf.String()}
+ 		cmds := []*base.Command{usage}
+-		for _, cmd := range base.Commands {
++		for _, cmd := range base.Go.Commands {
+ 			if cmd.UsageLine == "gopath-get" {
+ 				// Avoid duplication of the "get" documentation.
+ 				continue
+ 			}
+ 			cmds = append(cmds, cmd)
++			cmds = append(cmds, cmd.Commands...)
+ 		}
+ 		tmpl(&commentWriter{W: os.Stdout}, documentationTemplate, cmds)
+ 		fmt.Println("package main")
+ 		return
+ 	}
+ 
+-	for _, cmd := range base.Commands {
+-		if cmd.Name() == arg {
+-			tmpl(os.Stdout, helpTemplate, cmd)
+-			// not exit 2: succeeded at 'go help cmd'.
+-			return
++	cmd := base.Go
++Args:
++	for i, arg := range args {
++		for _, sub := range cmd.Commands {
++			if sub.Name() == arg {
++				cmd = sub
++				continue Args
++			}
+ 		}
++
++		// helpSuccess is the help command using as many args as possible that would succeed.
++		helpSuccess := "go help"
++		if i > 0 {
++			helpSuccess = " " + strings.Join(args[:i], " ")
++		}
++		fmt.Fprintf(os.Stderr, "go help %s: unknown help topic. Run '%s'.\n", strings.Join(args, " "), helpSuccess)
++		os.Exit(2) // failed at 'go help cmd'
+ 	}
+ 
+-	fmt.Fprintf(os.Stderr, "Unknown help topic %#q. Run 'go help'.\n", arg)
+-	os.Exit(2) // failed at 'go help cmd'
++	if len(cmd.Commands) > 0 {
++		PrintUsage(os.Stdout, cmd)
++	} else {
++		tmpl(os.Stdout, helpTemplate, cmd)
++	}
++	// not exit 2: succeeded at 'go help cmd'.
++	return
+ }
+ 
+-var usageTemplate = `Go is a tool for managing Go source code.
++var usageTemplate = `{{.Long | trim}}
+ 
+ Usage:
+ 
+-	go command [arguments]
++	{{.UsageLine}} <command> [arguments]
+ 
+ The commands are:
+-{{range .}}{{if .Runnable}}
++{{range .Commands}}{{if or (.Runnable) .Commands}}
+ 	{{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
+ 
+-Use "go help [command]" for more information about a command.
+-
++Use "go help{{with .LongName}} {{.}}{{end}} <command>" for more information about a command.
++{{if eq (.UsageLine) "go"}}
+ Additional help topics:
+-{{range .}}{{if not .Runnable}}
++{{range .Commands}}{{if and (not .Runnable) (not .Commands)}}
+ 	{{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
+ 
+-Use "go help [topic]" for more information about that topic.
+-
++Use "go help{{with .LongName}} {{.}}{{end}} <topic>" for more information about that topic.
++{{end}}
+ `
+ 
+-var helpTemplate = `{{if .Runnable}}usage: go {{.UsageLine}}
++var helpTemplate = `{{if .Runnable}}usage: {{.UsageLine}}
+ 
+ {{end}}{{.Long | trim}}
+ `
+ 
+ var documentationTemplate = `{{range .}}{{if .Short}}{{.Short | capitalize}}
+ 
+-{{end}}{{if .Runnable}}Usage:
++{{end}}{{if .Commands}}` + usageTemplate + `{{else}}{{if .Runnable}}Usage:
+ 
+-	go {{.UsageLine}}
++	{{.UsageLine}}
+ 
+ {{end}}{{.Long | trim}}
+ 
+ 
+-{{end}}`
++{{end}}{{end}}`
+ 
+ // commentWriter writes a Go comment to the underlying io.Writer,
+ // using line comment form (//).
+@@ -179,8 +184,8 @@ func capitalize(s string) string {
+ 	return string(unicode.ToTitle(r)) + s[n:]
+ }
+ 
+-func PrintUsage(w io.Writer) {
++func PrintUsage(w io.Writer, cmd *base.Command) {
+ 	bw := bufio.NewWriter(w)
+-	tmpl(bw, usageTemplate, base.Commands)
++	tmpl(bw, usageTemplate, cmd)
+ 	bw.Flush()
+ }
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 5cb61b0d67..17e67d1799 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -26,7 +26,7 @@ import (
+ var CmdList = &base.Command{
+ 	// Note: -f -json -m are listed explicitly because they are the most common list flags.
+ 	// Do not send CLs removing them because they're covered by [list flags].
+-	UsageLine: "list [-f format] [-json] [-m] [list flags] [build flags] [packages]",
++	UsageLine: "go list [-f format] [-json] [-m] [list flags] [build flags] [packages]",
+ 	Short:     "list packages or modules",
+ 	Long: `
+ List lists the named packages, one per line.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index c74ba5f63c..f209d8eb08 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -28,6 +28,9 @@ import (
+ )
+ 
+ var (
++	// module initialization hook; never nil, no-op if module use is disabled
++	ModInit func()
++
+ 	// module hooks; nil if module use is disabled
+ 	ModBinDir            func() string                                                   // return effective bin directory
+ 	ModLookup            func(parentPath, path string) (dir, realPath string, err error) // lookup effective meaning of import
+@@ -1817,7 +1820,7 @@ func ImportPaths(args []string) []string {
+ 	if cmdlineMatchers == nil {
+ 		SetCmdlinePatterns(search.CleanImportPaths(args))
+ 	}
+-	if cfg.ModulesEnabled {
++	if ModInit(); cfg.ModulesEnabled {
+ 		return ModImportPaths(args)
+ 	}
+ 	return search.ImportPaths(args)
+@@ -1877,6 +1880,8 @@ func PackagesForBuild(args []string) []*Package {
+ // (typically named on the command line). The target is named p.a for
+ // package p or named after the first Go file for package main.
+ func GoFilesPackage(gofiles []string) *Package {
++	ModInit()
++
+ 	// TODO: Remove this restriction.
+ 	for _, f := range gofiles {
+ 		if !strings.HasSuffix(f, ".go") {
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+new file mode 100644
+index 0000000000..5fea3e48e0
+--- /dev/null
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -0,0 +1,382 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// go mod edit
++
++package modcmd
++
++import (
++	"encoding/json"
++	"fmt"
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"strings"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/modfile"
++	"cmd/go/internal/modload"
++	"cmd/go/internal/module"
++)
++
++var cmdEdit = &base.Command{
++	UsageLine: "go mod edit [editing flags] [go.mod]",
++	Short:     "edit go.mod from tools or scripts",
++	Long: `
++Edit provides a command-line interface for editing go.mod,
++for use primarily by tools or scripts. It reads only go.mod;
++it does not look up information about the modules involved.
++By default, edit reads and writes the go.mod file of the main module,
++but a different target file can be specified after the editing flags.
++
++The editing flags specify a sequence of editing operations.
++
++The -fmt flag reformats the go.mod file without making other changes.
++This reformatting is also implied by any other modifications that use or
++rewrite the go.mod file. The only time this flag is needed is if no other
++flags are specified, as in 'go mod edit -fmt'.
++
++The -module flag changes the module's path (the go.mod file's module line).
++
++The -require=path@version and -droprequire=path flags
++add and drop a requirement on the given module path and version.
++Note that -require overrides any existing requirements on path.
++These flags are mainly for tools that understand the module graph.
++Users should prefer 'go get path@version' or 'go get path@none',
++which make other go.mod adjustments as needed to satisfy
++constraints imposed by other modules.
++
++The -exclude=path@version and -dropexclude=path@version flags
++add and drop an exclusion for the given module path and version.
++Note that -exclude=path@version is a no-op if that exclusion already exists.
++
++The -replace=old[@v]=new[@v] and -dropreplace=old[@v] flags
++add and drop a replacement of the given module path and version pair.
++If the @v in old@v is omitted, the replacement applies to all versions
++with the old module path. If the @v in new@v is omitted, the new path
++should be a local module root directory, not a module path.
++Note that -replace overrides any existing replacements for old[@v].
++
++The -require, -droprequire, -exclude, -dropexclude, -replace,
++and -dropreplace editing flags may be repeated, and the changes
++are applied in the order given.
++
++The -print flag prints the final go.mod in its text format instead of
++writing it back to go.mod.
++
++The -json flag prints the final go.mod file in JSON format instead of
++writing it back to go.mod. The JSON output corresponds to these Go types:
++
++	type Module struct {
++		Path string
++		Version string
++	}
++
++	type GoMod struct {
++		Module Module
++		Require []Require
++		Exclude []Module
++		Replace []Replace
++	}
++
++	type Require struct {
++		Path string
++		Version string
++		Indirect bool
++	}
++
++	type Replace struct {
++		Old Module
++		New Module
++	}
++
++Note that this only describes the go.mod file itself, not other modules
++referred to indirectly. For the full set of modules available to a build,
++use 'go list -m -json all'.
++
++For example, a tool can obtain the go.mod as a data structure by
++parsing the output of 'go mod edit -json' and can then make changes
++by invoking 'go mod edit' with -require, -exclude, and so on.
++	`,
++}
++
++var (
++	editFmt = cmdEdit.Flag.Bool("fmt", false, "")
++	// editGo     = cmdEdit.Flag.String("go", "", "")
++	editJSON   = cmdEdit.Flag.Bool("json", false, "")
++	editPrint  = cmdEdit.Flag.Bool("print", false, "")
++	editModule = cmdEdit.Flag.String("module", "", "")
++	edits      []func(*modfile.File) // edits specified in flags
++)
++
++type flagFunc func(string)
++
++func (f flagFunc) String() string     { return "" }
++func (f flagFunc) Set(s string) error { f(s); return nil }
++
++func init() {
++	cmdEdit.Run = runEdit // break init cycle
++
++	cmdEdit.Flag.Var(flagFunc(flagRequire), "require", "")
++	cmdEdit.Flag.Var(flagFunc(flagDropRequire), "droprequire", "")
++	cmdEdit.Flag.Var(flagFunc(flagExclude), "exclude", "")
++	cmdEdit.Flag.Var(flagFunc(flagDropReplace), "dropreplace", "")
++	cmdEdit.Flag.Var(flagFunc(flagReplace), "replace", "")
++	cmdEdit.Flag.Var(flagFunc(flagDropExclude), "dropexclude", "")
++
++	base.AddBuildFlagsNX(&cmdEdit.Flag)
++}
++
++func runEdit(cmd *base.Command, args []string) {
++	anyFlags :=
++		*editModule != "" ||
++			*editJSON ||
++			*editPrint ||
++			*editFmt ||
++			len(edits) > 0
++
++	if !anyFlags {
++		base.Fatalf("go mod edit: no flags specified (see 'go help mod edit').")
++	}
++
++	if *editJSON && *editPrint {
++		base.Fatalf("go mod edit: cannot use both -json and -print")
++	}
++
++	if len(args) > 1 {
++		base.Fatalf("go mod edit: too many arguments")
++	}
++	var gomod string
++	if len(args) == 1 {
++		gomod = args[0]
++	} else {
++		modload.MustInit()
++		gomod = filepath.Join(modload.ModRoot, "go.mod")
++	}
++
++	if *editModule != "" {
++		if err := module.CheckPath(*editModule); err != nil {
++			base.Fatalf("go mod: invalid -module: %v", err)
++		}
++	}
++
++	// TODO(rsc): Implement -go= once we start advertising it.
++
++	data, err := ioutil.ReadFile(gomod)
++	if err != nil {
++		base.Fatalf("go: %v", err)
++	}
++
++	modFile, err := modfile.Parse(gomod, data, nil)
++	if err != nil {
++		base.Fatalf("go: errors parsing %s:\n%s", base.ShortPath(gomod), err)
++	}
++
++	if *editModule != "" {
++		modFile.AddModuleStmt(modload.CmdModModule)
++	}
++
++	if len(edits) > 0 {
++		for _, edit := range edits {
++			edit(modFile)
++		}
++	}
++	modFile.SortBlocks()
++	modFile.Cleanup() // clean file after edits
++
++	if *editJSON {
++		editPrintJSON(modFile)
++		return
++	}
++
++	data, err = modFile.Format()
++	if err != nil {
++		base.Fatalf("go: %v", err)
++	}
++
++	if *editPrint {
++		os.Stdout.Write(data)
++		return
++	}
++
++	if err := ioutil.WriteFile(gomod, data, 0666); err != nil {
++		base.Fatalf("go: %v", err)
++	}
++}
++
++// parsePathVersion parses -flag=arg expecting arg to be path@version.
++func parsePathVersion(flag, arg string) (path, version string) {
++	i := strings.Index(arg, "@")
++	if i < 0 {
++		base.Fatalf("go mod: -%s=%s: need path@version", flag, arg)
++	}
++	path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
++	if err := module.CheckPath(path); err != nil {
++		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
++	}
++
++	// We don't call modfile.CheckPathVersion, because that insists
++	// on versions being in semver form, but here we want to allow
++	// versions like "master" or "1234abcdef", which the go command will resolve
++	// the next time it runs (or during -fix).
++	// Even so, we need to make sure the version is a valid token.
++	if modfile.MustQuote(version) {
++		base.Fatalf("go mod: -%s=%s: invalid version %q", flag, arg, version)
++	}
++
++	return path, version
++}
++
++// parsePath parses -flag=arg expecting arg to be path (not path@version).
++func parsePath(flag, arg string) (path string) {
++	if strings.Contains(arg, "@") {
++		base.Fatalf("go mod: -%s=%s: need just path, not path@version", flag, arg)
++	}
++	path = arg
++	if err := module.CheckPath(path); err != nil {
++		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
++	}
++	return path
++}
++
++// parsePathVersionOptional parses path[@version], using adj to
++// describe any errors.
++func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version string, err error) {
++	if i := strings.Index(arg, "@"); i < 0 {
++		path = arg
++	} else {
++		path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
++	}
++	if err := module.CheckPath(path); err != nil {
++		if !allowDirPath || !modfile.IsDirectoryPath(path) {
++			return path, version, fmt.Errorf("invalid %s path: %v", adj, err)
++		}
++	}
++	if path != arg && modfile.MustQuote(version) {
++		return path, version, fmt.Errorf("invalid %s version: %q", adj, version)
++	}
++	return path, version, nil
++}
++
++// flagRequire implements the -require flag.
++func flagRequire(arg string) {
++	path, version := parsePathVersion("require", arg)
++	edits = append(edits, func(f *modfile.File) {
++		if err := f.AddRequire(path, version); err != nil {
++			base.Fatalf("go mod: -require=%s: %v", arg, err)
++		}
++	})
++}
++
++// flagDropRequire implements the -droprequire flag.
++func flagDropRequire(arg string) {
++	path := parsePath("droprequire", arg)
++	edits = append(edits, func(f *modfile.File) {
++		if err := f.DropRequire(path); err != nil {
++			base.Fatalf("go mod: -droprequire=%s: %v", arg, err)
++		}
++	})
++}
++
++// flagExclude implements the -exclude flag.
++func flagExclude(arg string) {
++	path, version := parsePathVersion("exclude", arg)
++	edits = append(edits, func(f *modfile.File) {
++		if err := f.AddExclude(path, version); err != nil {
++			base.Fatalf("go mod: -exclude=%s: %v", arg, err)
++		}
++	})
++}
++
++// flagDropExclude implements the -dropexclude flag.
++func flagDropExclude(arg string) {
++	path, version := parsePathVersion("dropexclude", arg)
++	edits = append(edits, func(f *modfile.File) {
++		if err := f.DropExclude(path, version); err != nil {
++			base.Fatalf("go mod: -dropexclude=%s: %v", arg, err)
++		}
++	})
++}
++
++// flagReplace implements the -replace flag.
++func flagReplace(arg string) {
++	var i int
++	if i = strings.Index(arg, "="); i < 0 {
++		base.Fatalf("go mod: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
++	}
++	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
++	if strings.HasPrefix(new, ">") {
++		base.Fatalf("go mod: -replace=%s: separator between old and new is =, not =>", arg)
++	}
++	oldPath, oldVersion, err := parsePathVersionOptional("old", old, false)
++	if err != nil {
++		base.Fatalf("go mod: -replace=%s: %v", arg, err)
++	}
++	newPath, newVersion, err := parsePathVersionOptional("new", new, true)
++	if err != nil {
++		base.Fatalf("go mod: -replace=%s: %v", arg, err)
++	}
++	if newPath == new && !modfile.IsDirectoryPath(new) {
++		base.Fatalf("go mod: -replace=%s: unversioned new path must be local directory", arg)
++	}
++
++	edits = append(edits, func(f *modfile.File) {
++		if err := f.AddReplace(oldPath, oldVersion, newPath, newVersion); err != nil {
++			base.Fatalf("go mod: -replace=%s: %v", arg, err)
++		}
++	})
++}
++
++// flagDropReplace implements the -dropreplace flag.
++func flagDropReplace(arg string) {
++	path, version, err := parsePathVersionOptional("old", arg, true)
++	if err != nil {
++		base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
++	}
++	edits = append(edits, func(f *modfile.File) {
++		if err := f.DropReplace(path, version); err != nil {
++			base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
++		}
++	})
++}
++
++// fileJSON is the -json output data structure.
++type fileJSON struct {
++	Module  module.Version
++	Require []requireJSON
++	Exclude []module.Version
++	Replace []replaceJSON
++}
++
++type requireJSON struct {
++	Path     string
++	Version  string `json:",omitempty"`
++	Indirect bool   `json:",omitempty"`
++}
++
++type replaceJSON struct {
++	Old module.Version
++	New module.Version
++}
++
++// editPrintJSON prints the -json output.
++func editPrintJSON(modFile *modfile.File) {
++	var f fileJSON
++	f.Module = modFile.Module.Mod
++	for _, r := range modFile.Require {
++		f.Require = append(f.Require, requireJSON{Path: r.Mod.Path, Version: r.Mod.Version, Indirect: r.Indirect})
++	}
++	for _, x := range modFile.Exclude {
++		f.Exclude = append(f.Exclude, x.Mod)
++	}
++	for _, r := range modFile.Replace {
++		f.Replace = append(f.Replace, replaceJSON{r.Old, r.New})
++	}
++	data, err := json.MarshalIndent(&f, "", "\t")
++	if err != nil {
++		base.Fatalf("go: internal error: %v", err)
++	}
++	data = append(data, '\n')
++	os.Stdout.Write(data)
++}
+diff --git a/src/cmd/go/internal/modcmd/fix.go b/src/cmd/go/internal/modcmd/fix.go
+new file mode 100644
+index 0000000000..bfb51456a6
+--- /dev/null
++++ b/src/cmd/go/internal/modcmd/fix.go
+@@ -0,0 +1,65 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// go mod fix
++
++package modcmd
++
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/modload"
++)
++
++var cmdFix = &base.Command{
++	UsageLine: "go mod fix",
++	Short:     "make go.mod semantically consistent",
++	Long: `
++Fix updates go.mod to use canonical version identifiers and
++to be semantically consistent. For example, consider this go.mod file:
++
++	module M
++
++	require (
++		A v1
++		B v1.0.0
++		C v1.0.0
++		D v1.2.3
++		E dev
++	)
++
++	exclude D v1.2.3
++
++First, fix rewrites non-canonical version identifiers to semver form, so
++A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the latest
++commit on the dev branch, perhaps v0.0.0-20180523231146-b3f5c0f6e5f1.
++
++Next, fix updates requirements to respect exclusions, so the requirement
++on the excluded D v1.2.3 is updated to use the next available version of D,
++perhaps D v1.2.4 or D v1.3.0.
++
++Finally, fix removes redundant or misleading requirements.
++For example, if A v1.0.0 itself requires B v1.2.0 and C v1.0.0, then go.mod's
++requirement of B v1.0.0 is misleading (superseded by A's need for v1.2.0),
++and its requirement of C v1.0.0 is redundant (implied by A's need for the
++same version), so both will be removed. If module M contains packages
++that directly import packages from B or C, then the requirements will be
++kept but updated to the actual versions being used.
++
++Although fix runs the fix-up operation in isolation, the fix-up also
++runs automatically any time a go command uses the module graph,
++to update go.mod to reflect reality. Because the module graph defines
++the meaning of import statements, any commands that load packages
++also use and therefore fix the module graph. For example,
++go build, go get, go install, go list, go test, go mod graph, go mod tidy,
++and other commands all effectively imply go mod fix.
++	`,
++	Run: runFix,
++}
++
++func runFix(cmd *base.Command, args []string) {
++	if len(args) != 0 {
++		base.Fatalf("go mod fix: fix takes no arguments")
++	}
++	modload.LoadBuildList() // writes go.mod
++}
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+new file mode 100644
+index 0000000000..5825c6d8ca
+--- /dev/null
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -0,0 +1,73 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// go mod graph
++
++package modcmd
++
++import (
++	"bufio"
++	"os"
++	"sort"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/modload"
++	"cmd/go/internal/module"
++	"cmd/go/internal/par"
++)
++
++var cmdGraph = &base.Command{
++	UsageLine: "go mod graph",
++	Short:     "print module requirement graph",
++	Long: `
++Graph prints the module requirement graph (with replacements applied)
++in text form. Each line in the output has two space-separated fields: a module
++and one of its requirements. Each module is identified as a string of the form
++path@version, except for the main module, which has no @version suffix.
++	`,
++	Run: runGraph,
++}
++
++func runGraph(cmd *base.Command, args []string) {
++	if len(args) > 0 {
++		base.Fatalf("go mod graph: graph takes no arguments")
++	}
++	modload.LoadBuildList()
++
++	reqs := modload.MinReqs()
++	format := func(m module.Version) string {
++		if m.Version == "" {
++			return m.Path
++		}
++		return m.Path + "@" + m.Version
++	}
++
++	// Note: using par.Work only to manage work queue.
++	// No parallelism here, so no locking.
++	var out []string
++	var deps int // index in out where deps start
++	var work par.Work
++	work.Add(modload.Target)
++	work.Do(1, func(item interface{}) {
++		m := item.(module.Version)
++		list, _ := reqs.Required(m)
++		for _, r := range list {
++			work.Add(r)
++			out = append(out, format(m)+" "+format(r)+"\n")
++		}
++		if m == modload.Target {
++			deps = len(out)
++		}
++	})
++
++	sort.Slice(out[deps:], func(i, j int) bool {
++		return out[deps+i][0] < out[deps+j][0]
++	})
++
++	w := bufio.NewWriter(os.Stdout)
++	for _, line := range out {
++		w.WriteString(line)
++	}
++	w.Flush()
++}
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+new file mode 100644
+index 0000000000..f510a46262
+--- /dev/null
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -0,0 +1,41 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// go mod init
++
++package modcmd
++
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/modload"
++	"os"
++)
++
++var cmdInit = &base.Command{
++	UsageLine: "go mod init [module]",
++	Short:     "initialize new module in current directory",
++	Long: `
++Init initializes and writes a new go.mod to the current directory,
++in effect creating a new module rooted at the current directory.
++The file go.mod must not already exist.
++If possible, init will guess the module path from import comments
++(see 'go help importpath') or from version control configuration.
++To override this guess, supply the module path as an argument.
++	`,
++	Run: runInit,
++}
++
++func runInit(cmd *base.Command, args []string) {
++	modload.CmdModInit = true
++	if len(args) > 1 {
++		base.Fatalf("go mod init: too many arguments")
++	}
++	if len(args) == 1 {
++		modload.CmdModModule = args[0]
++	}
++	if _, err := os.Stat("go.mod"); err == nil {
++		base.Fatalf("go mod init: go.mod already exists")
++	}
++	modload.InitMod() // does all the hard work
++}
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index fa6e17cd68..c1a0ddc7e1 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -5,566 +5,26 @@
+ // Package modcmd implements the ``go mod'' command.
+ package modcmd
+ 
+-import (
+-	"bufio"
+-	"encoding/json"
+-	"fmt"
+-	"os"
+-	"sort"
+-	"strings"
+-
+-	"cmd/go/internal/base"
+-	"cmd/go/internal/modfetch"
+-	"cmd/go/internal/modfile"
+-	"cmd/go/internal/modload"
+-	"cmd/go/internal/module"
+-	"cmd/go/internal/par"
+-)
++import "cmd/go/internal/base"
+ 
+ var CmdMod = &base.Command{
+-	UsageLine: "mod [-v] [maintenance flags]",
++	UsageLine: "go mod",
+ 	Short:     "module maintenance",
+-	Long: `
+-Mod performs module maintenance operations as specified by the
+-following flags, which may be combined.
++	Long: `Go mod provides access to operations on modules.
+ 
+ Note that support for modules is built into all the go commands,
+ not just 'go mod'. For example, day-to-day adding, removing, upgrading,
+ and downgrading of dependencies should be done using 'go get'.
+ See 'go help modules' for an overview of module functionality.
+-
+-The -v flag enables additional output about operations performed.
+-
+-The first group of operations provide low-level editing operations
+-for manipulating go.mod from the command line or in scripts or
+-other tools. They read only go.mod itself; they do not look up any
+-information about the modules involved.
+-
+-The -init flag initializes and writes a new go.mod to the current directory,
+-in effect creating a new module rooted at the current directory.
+-The file go.mod must not already exist.
+-If possible, mod will guess the module path from import comments
+-(see 'go help importpath') or from version control configuration.
+-To override this guess, use the -module flag.
+-(Without -init, mod applies to the current module.)
+-
+-The -module flag changes (or, with -init, sets) the module's path
+-(the go.mod file's module line).
+-
+-The -go flag changes the minimum required version of Go listed in go.mod.
+-
+-The -require=path@version and -droprequire=path flags
+-add and drop a requirement on the given module path and version.
+-Note that -require overrides any existing requirements on path.
+-These flags are mainly for tools that understand the module graph.
+-Users should prefer 'go get path@version' or 'go get path@none',
+-which make other go.mod adjustments as needed to satisfy
+-constraints imposed by other modules.
+-
+-The -exclude=path@version and -dropexclude=path@version flags
+-add and drop an exclusion for the given module path and version.
+-Note that -exclude=path@version is a no-op if that exclusion already exists.
+-
+-The -replace=old[@v]=new[@w] and -dropreplace=old[@v] flags
+-add and drop a replacement of the given module path and version pair.
+-If the @v in old@v is omitted, the replacement applies to all versions
+-with the old module path. If the @w in new@w is omitted, the
+-new path should be a directory on the local system containing
+-source for a module, not a module path.
+-Note that -replace overrides any existing replacements for old[@v].
+-
+-These editing flags (-require, -droprequire, -exclude, -dropexclude,
+--replace, and -dropreplace) may be repeated.
+-
+-The -fmt flag reformats the go.mod file without making other changes.
+-This reformatting is also implied by any other modifications that use or
+-rewrite the go.mod file. The only time this flag is needed is if no other
+-flags are specified, as in 'go mod -fmt'.
+-
+-The -graph flag prints the module requirement graph (with replacements applied)
+-in text form. Each line in the output has two space-separated fields: a module
+-and one of its requirements. Each module is identified as a string of the form
+-path@version, except for the main module, which has no @version suffix.
+-
+-The -json flag prints the go.mod file in JSON format corresponding to these
+-Go types:
+-
+-	type Module struct {
+-		Path string
+-		Version string
+-	}
+-
+-	type GoMod struct {
+-		Module Module
+-		Require []Require
+-		Exclude []Module
+-		Replace []Replace
+-	}
+-	
+-	type Require struct {
+-		Path string
+-		Version string
+-		Indirect bool
+-	}
+-	
+-	type Replace struct {
+-		Old Module
+-		New Module
+-	}
+-
+-Note that this only describes the go.mod file itself, not other modules
+-referred to indirectly. For the full set of modules available to a build,
+-use 'go list -m -json all'.
+-
+-The next group of operations provide higher-level editing and maintenance
+-of a module, beyond the go.mod file.
+-
+-The -packages flag prints a list of packages in the module.
+-It only identifies directories containing Go source code;
+-it does not check that those directories contain code that builds.
+-
+-The -fix flag updates go.mod to use canonical version identifiers and
+-to be semantically consistent. For example, consider this go.mod file:
+-
+-	module M
+-
+-	require (
+-		A v1
+-		B v1.0.0
+-		C v1.0.0
+-		D v1.2.3
+-		E dev
+-	)
+-
+-	exclude D v1.2.3
+-
+-First, -fix rewrites non-canonical version identifiers to semver form, so
+-A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the latest
+-commit on the dev branch, perhaps v0.0.0-20180523231146-b3f5c0f6e5f1.
+-
+-Next, -fix updates requirements to respect exclusions, so the requirement
+-on the excluded D v1.2.3 is updated to use the next available version of D,
+-perhaps D v1.2.4 or D v1.3.0.
+-
+-Finally, -fix removes redundant or misleading requirements.
+-For example, if A v1.0.0 itself requires B v1.2.0 and C v1.0.0,
+-then go.mod's requirement of B v1.0.0 is misleading (superseded
+-by B's need for v1.2.0), and its requirement of C v1.0.0 is redundant
+-(implied by B's need for the same version), so both will be removed.
+-
+-Although -fix runs the fix-up operation in isolation, the fix-up also
+-runs automatically any time a go command uses the module graph,
+-to update go.mod to reflect reality. For example, the -sync, -vendor,
+-and -verify flags all effectively imply -fix. And because the module
+-graph defines the meaning of import statements, any commands
+-that load packages—'go build', 'go test', 'go list', and so on—also
+-effectively imply 'go mod -fix'.
+-
+-The -sync flag synchronizes go.mod with the source code in the module.
+-It adds any missing modules necessary to build the current module's
+-packages and dependencies, and it removes unused modules that
+-don't provide any relevant packages. It also adds any missing entries
+-to go.sum and removes any unnecessary ones.
+-
+-The -vendor flag resets the module's vendor directory to include all
+-packages needed to build and test all the module's packages.
+-It does not include any test code for the vendored packages.
+-
+-The -verify flag checks that the dependencies of the current module,
+-which are stored in a local downloaded source cache, have not been
+-modified since being downloaded. If all the modules are unmodified,
+--verify prints "all modules verified." Otherwise it reports which
+-modules have been changed and causes 'go mod' to exit with a
+-non-zero status.
+ 	`,
+-}
+-
+-var (
+-	modV = CmdMod.Flag.Bool("v", false, "")
+-
+-	modFmt      = CmdMod.Flag.Bool("fmt", false, "")
+-	modFix      = CmdMod.Flag.Bool("fix", false, "")
+-	modGraph    = CmdMod.Flag.Bool("graph", false, "")
+-	modJSON     = CmdMod.Flag.Bool("json", false, "")
+-	modPackages = CmdMod.Flag.Bool("packages", false, "")
+-	modSync     = CmdMod.Flag.Bool("sync", false, "")
+-	modVendor   = CmdMod.Flag.Bool("vendor", false, "")
+-	modVerify   = CmdMod.Flag.Bool("verify", false, "")
+-
+-	modEdits []func(*modfile.File) // edits specified in flags
+-)
+-
+-type flagFunc func(string)
+-
+-func (f flagFunc) String() string     { return "" }
+-func (f flagFunc) Set(s string) error { f(s); return nil }
+-
+-func init() {
+-	CmdMod.Run = runMod // break init cycle
+-
+-	CmdMod.Flag.BoolVar(&modload.CmdModInit, "init", modload.CmdModInit, "")
+-	CmdMod.Flag.StringVar(&modload.CmdModModule, "module", modload.CmdModModule, "")
+-
+-	CmdMod.Flag.Var(flagFunc(flagRequire), "require", "")
+-	CmdMod.Flag.Var(flagFunc(flagDropRequire), "droprequire", "")
+-	CmdMod.Flag.Var(flagFunc(flagExclude), "exclude", "")
+-	CmdMod.Flag.Var(flagFunc(flagDropReplace), "dropreplace", "")
+-	CmdMod.Flag.Var(flagFunc(flagReplace), "replace", "")
+-	CmdMod.Flag.Var(flagFunc(flagDropExclude), "dropexclude", "")
+-
+-	base.AddBuildFlagsNX(&CmdMod.Flag)
+-}
+-
+-func runMod(cmd *base.Command, args []string) {
+-	if modload.Init(); !modload.Enabled() {
+-		base.Fatalf("go mod: cannot use outside module; see 'go help modules'")
+-	}
+-	if len(args) != 0 {
+-		base.Fatalf("go mod: mod takes no arguments")
+-	}
+-
+-	anyFlags :=
+-		modload.CmdModInit ||
+-			modload.CmdModModule != "" ||
+-			*modVendor ||
+-			*modVerify ||
+-			*modJSON ||
+-			*modFmt ||
+-			*modFix ||
+-			*modGraph ||
+-			*modPackages ||
+-			*modSync ||
+-			len(modEdits) > 0
+-
+-	if !anyFlags {
+-		base.Fatalf("go mod: no flags specified (see 'go help mod').")
+-	}
+-
+-	if modload.CmdModModule != "" {
+-		if err := module.CheckPath(modload.CmdModModule); err != nil {
+-			base.Fatalf("go mod: invalid -module: %v", err)
+-		}
+-	}
+-
+-	if modload.CmdModInit {
+-		if _, err := os.Stat("go.mod"); err == nil {
+-			base.Fatalf("go mod -init: go.mod already exists")
+-		}
+-	}
+-	modload.InitMod()
+-
+-	// Syntactic edits.
+-
+-	modFile := modload.ModFile()
+-	if modload.CmdModModule != "" {
+-		modFile.AddModuleStmt(modload.CmdModModule)
+-	}
+-
+-	if len(modEdits) > 0 {
+-		for _, edit := range modEdits {
+-			edit(modFile)
+-		}
+-	}
+-	modFile.SortBlocks()
+-	modload.WriteGoMod() // write back syntactic changes
+-
+-	// Semantic edits.
+-
+-	needBuildList := *modFix || *modGraph
+-
+-	if *modSync || *modVendor || needBuildList {
+-		var pkgs []string
+-		if *modSync || *modVendor {
+-			pkgs = modload.LoadALL()
+-		} else {
+-			modload.LoadBuildList()
+-		}
+-		if *modSync {
+-			// LoadALL already added missing modules.
+-			// Remove unused modules.
+-			used := map[module.Version]bool{modload.Target: true}
+-			for _, pkg := range pkgs {
+-				used[modload.PackageModule(pkg)] = true
+-			}
+-
+-			inGoMod := make(map[string]bool)
+-			for _, r := range modload.ModFile().Require {
+-				inGoMod[r.Mod.Path] = true
+-			}
+-
+-			var keep []module.Version
+-			for _, m := range modload.BuildList() {
+-				if used[m] {
+-					keep = append(keep, m)
+-				} else if *modV && inGoMod[m.Path] {
+-					fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
+-				}
+-			}
+-			modload.SetBuildList(keep)
+-			modSyncGoSum() // updates memory copy; WriteGoMod on next line flushes it out
+-		}
+-		modload.WriteGoMod()
+-		if *modVendor {
+-			runVendor()
+-		}
+-	}
+-
+-	// Read-only queries, processed only after updating go.mod.
+-
+-	if *modJSON {
+-		modPrintJSON()
+-	}
+-
+-	if *modGraph {
+-		modPrintGraph()
+-	}
+-
+-	if *modPackages {
+-		for _, pkg := range modload.TargetPackages() {
+-			fmt.Printf("%s\n", pkg)
+-		}
+-	}
+-
+-	if *modVerify {
+-		runVerify()
+-	}
+-}
+-
+-// parsePathVersion parses -flag=arg expecting arg to be path@version.
+-func parsePathVersion(flag, arg string) (path, version string) {
+-	i := strings.Index(arg, "@")
+-	if i < 0 {
+-		base.Fatalf("go mod: -%s=%s: need path@version", flag, arg)
+-	}
+-	path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+-	if err := module.CheckPath(path); err != nil {
+-		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
+-	}
+-
+-	// We don't call modfile.CheckPathVersion, because that insists
+-	// on versions being in semver form, but here we want to allow
+-	// versions like "master" or "1234abcdef", which the go command will resolve
+-	// the next time it runs (or during -fix).
+-	// Even so, we need to make sure the version is a valid token.
+-	if modfile.MustQuote(version) {
+-		base.Fatalf("go mod: -%s=%s: invalid version %q", flag, arg, version)
+-	}
+-
+-	return path, version
+-}
+-
+-// parsePath parses -flag=arg expecting arg to be path (not path@version).
+-func parsePath(flag, arg string) (path string) {
+-	if strings.Contains(arg, "@") {
+-		base.Fatalf("go mod: -%s=%s: need just path, not path@version", flag, arg)
+-	}
+-	path = arg
+-	if err := module.CheckPath(path); err != nil {
+-		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
+-	}
+-	return path
+-}
+-
+-// parsePathVersionOptional parses path[@version], using adj to
+-// describe any errors.
+-func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version string, err error) {
+-	if i := strings.Index(arg, "@"); i < 0 {
+-		path = arg
+-	} else {
+-		path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+-	}
+-	if err := module.CheckPath(path); err != nil {
+-		if !allowDirPath || !modfile.IsDirectoryPath(path) {
+-			return path, version, fmt.Errorf("invalid %s path: %v", adj, err)
+-		}
+-	}
+-	if path != arg && modfile.MustQuote(version) {
+-		return path, version, fmt.Errorf("invalid %s version: %q", adj, version)
+-	}
+-	return path, version, nil
+-}
+-
+-// flagRequire implements the -require flag.
+-func flagRequire(arg string) {
+-	path, version := parsePathVersion("require", arg)
+-	modEdits = append(modEdits, func(f *modfile.File) {
+-		if err := f.AddRequire(path, version); err != nil {
+-			base.Fatalf("go mod: -require=%s: %v", arg, err)
+-		}
+-	})
+-}
+-
+-// flagDropRequire implements the -droprequire flag.
+-func flagDropRequire(arg string) {
+-	path := parsePath("droprequire", arg)
+-	modEdits = append(modEdits, func(f *modfile.File) {
+-		if err := f.DropRequire(path); err != nil {
+-			base.Fatalf("go mod: -droprequire=%s: %v", arg, err)
+-		}
+-	})
+-}
+-
+-// flagExclude implements the -exclude flag.
+-func flagExclude(arg string) {
+-	path, version := parsePathVersion("exclude", arg)
+-	modEdits = append(modEdits, func(f *modfile.File) {
+-		if err := f.AddExclude(path, version); err != nil {
+-			base.Fatalf("go mod: -exclude=%s: %v", arg, err)
+-		}
+-	})
+-}
+-
+-// flagDropExclude implements the -dropexclude flag.
+-func flagDropExclude(arg string) {
+-	path, version := parsePathVersion("dropexclude", arg)
+-	modEdits = append(modEdits, func(f *modfile.File) {
+-		if err := f.DropExclude(path, version); err != nil {
+-			base.Fatalf("go mod: -dropexclude=%s: %v", arg, err)
+-		}
+-	})
+-}
+-
+-// flagReplace implements the -replace flag.
+-func flagReplace(arg string) {
+-	var i int
+-	if i = strings.Index(arg, "="); i < 0 {
+-		base.Fatalf("go mod: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
+-	}
+-	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+-	if strings.HasPrefix(new, ">") {
+-		base.Fatalf("go mod: -replace=%s: separator between old and new is =, not =>", arg)
+-	}
+-	oldPath, oldVersion, err := parsePathVersionOptional("old", old, false)
+-	if err != nil {
+-		base.Fatalf("go mod: -replace=%s: %v", arg, err)
+-	}
+-	newPath, newVersion, err := parsePathVersionOptional("new", new, true)
+-	if err != nil {
+-		base.Fatalf("go mod: -replace=%s: %v", arg, err)
+-	}
+-	if newPath == new && !modfile.IsDirectoryPath(new) {
+-		base.Fatalf("go mod: -replace=%s: unversioned new path must be local directory", arg)
+-	}
+-
+-	modEdits = append(modEdits, func(f *modfile.File) {
+-		if err := f.AddReplace(oldPath, oldVersion, newPath, newVersion); err != nil {
+-			base.Fatalf("go mod: -replace=%s: %v", arg, err)
+-		}
+-	})
+-}
+-
+-// flagDropReplace implements the -dropreplace flag.
+-func flagDropReplace(arg string) {
+-	path, version, err := parsePathVersionOptional("old", arg, true)
+-	if err != nil {
+-		base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
+-	}
+-	modEdits = append(modEdits, func(f *modfile.File) {
+-		if err := f.DropReplace(path, version); err != nil {
+-			base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
+-		}
+-	})
+-}
+-
+-// fileJSON is the -json output data structure.
+-type fileJSON struct {
+-	Module  module.Version
+-	Require []requireJSON
+-	Exclude []module.Version
+-	Replace []replaceJSON
+-}
+-
+-type requireJSON struct {
+-	Path     string
+-	Version  string `json:",omitempty"`
+-	Indirect bool   `json:",omitempty"`
+-}
+-
+-type replaceJSON struct {
+-	Old module.Version
+-	New module.Version
+-}
+-
+-// modPrintJSON prints the -json output.
+-func modPrintJSON() {
+-	modFile := modload.ModFile()
+-
+-	var f fileJSON
+-	f.Module = modFile.Module.Mod
+-	for _, r := range modFile.Require {
+-		f.Require = append(f.Require, requireJSON{Path: r.Mod.Path, Version: r.Mod.Version, Indirect: r.Indirect})
+-	}
+-	for _, x := range modFile.Exclude {
+-		f.Exclude = append(f.Exclude, x.Mod)
+-	}
+-	for _, r := range modFile.Replace {
+-		f.Replace = append(f.Replace, replaceJSON{r.Old, r.New})
+-	}
+-	data, err := json.MarshalIndent(&f, "", "\t")
+-	if err != nil {
+-		base.Fatalf("go mod -json: internal error: %v", err)
+-	}
+-	data = append(data, '\n')
+-	os.Stdout.Write(data)
+-}
+-
+-// modPrintGraph prints the -graph output.
+-func modPrintGraph() {
+-	reqs := modload.MinReqs()
+-
+-	format := func(m module.Version) string {
+-		if m.Version == "" {
+-			return m.Path
+-		}
+-		return m.Path + "@" + m.Version
+-	}
+-
+-	// Note: using par.Work only to manage work queue.
+-	// No parallelism here, so no locking.
+-	var out []string
+-	var deps int // index in out where deps start
+-	var work par.Work
+-	work.Add(modload.Target)
+-	work.Do(1, func(item interface{}) {
+-		m := item.(module.Version)
+-		list, _ := reqs.Required(m)
+-		for _, r := range list {
+-			work.Add(r)
+-			out = append(out, format(m)+" "+format(r)+"\n")
+-		}
+-		if m == modload.Target {
+-			deps = len(out)
+-		}
+-	})
+-
+-	sort.Slice(out[deps:], func(i, j int) bool {
+-		return out[deps+i][0] < out[deps+j][0]
+-	})
+-
+-	w := bufio.NewWriter(os.Stdout)
+-	for _, line := range out {
+-		w.WriteString(line)
+-	}
+-	w.Flush()
+-}
+ 
+-// modSyncGoSum resets the go.sum file content
+-// to be exactly what's needed for the current go.mod.
+-func modSyncGoSum() {
+-	// Assuming go.sum already has at least enough from the successful load,
+-	// we only have to tell modfetch what needs keeping.
+-	reqs := modload.Reqs()
+-	keep := make(map[module.Version]bool)
+-	var walk func(module.Version)
+-	walk = func(m module.Version) {
+-		keep[m] = true
+-		list, _ := reqs.Required(m)
+-		for _, r := range list {
+-			if !keep[r] {
+-				walk(r)
+-			}
+-		}
+-	}
+-	walk(modload.Target)
+-	modfetch.TrimGoSum(keep)
++	Commands: []*base.Command{
++		cmdEdit,
++		cmdFix,
++		cmdGraph,
++		cmdInit,
++		cmdTidy,
++		cmdVendor,
++		cmdVerify,
++	},
+ }
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+new file mode 100644
+index 0000000000..54f47e764f
+--- /dev/null
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -0,0 +1,89 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// go mod tidy
++
++package modcmd
++
++import (
++	"fmt"
++	"os"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/modfetch"
++	"cmd/go/internal/modload"
++	"cmd/go/internal/module"
++)
++
++var cmdTidy = &base.Command{
++	UsageLine: "go mod tidy [-v]",
++	Short:     "add missing and remove unused modules",
++	Long: `
++Tidy makes sure go.mod matches the source code in the module.
++It adds any missing modules necessary to build the current module's
++packages and dependencies, and it removes unused modules that
++don't provide any relevant packages. It also adds any missing entries
++to go.sum and removes any unnecessary ones.
++
++The -v flag causes tidy to print information about removed modules
++to standard error.
++	`,
++}
++
++func init() {
++	cmdTidy.Run = runTidy // break init cycle
++	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
++}
++
++func runTidy(cmd *base.Command, args []string) {
++	if len(args) > 0 {
++		base.Fatalf("go mod tidy: no arguments allowed")
++	}
++
++	// LoadALL adds missing modules.
++	// Remove unused modules.
++	used := map[module.Version]bool{modload.Target: true}
++	for _, pkg := range modload.LoadALL() {
++		used[modload.PackageModule(pkg)] = true
++	}
++
++	inGoMod := make(map[string]bool)
++	for _, r := range modload.ModFile().Require {
++		inGoMod[r.Mod.Path] = true
++	}
++
++	var keep []module.Version
++	for _, m := range modload.BuildList() {
++		if used[m] {
++			keep = append(keep, m)
++		} else if cfg.BuildV && inGoMod[m.Path] {
++			fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
++		}
++	}
++	modload.SetBuildList(keep)
++	modTidyGoSum() // updates memory copy; WriteGoMod on next line flushes it out
++	modload.WriteGoMod()
++}
++
++// modTidyGoSum resets the go.sum file content
++// to be exactly what's needed for the current go.mod.
++func modTidyGoSum() {
++	// Assuming go.sum already has at least enough from the successful load,
++	// we only have to tell modfetch what needs keeping.
++	reqs := modload.Reqs()
++	keep := make(map[module.Version]bool)
++	var walk func(module.Version)
++	walk = func(m module.Version) {
++		keep[m] = true
++		list, _ := reqs.Required(m)
++		for _, r := range list {
++			if !keep[r] {
++				walk(r)
++			}
++		}
++	}
++	walk(modload.Target)
++	modfetch.TrimGoSum(keep)
++}
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 078c44fd2c..62e7458535 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -14,11 +14,33 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
+ )
+ 
+-func runVendor() {
++var cmdVendor = &base.Command{
++	UsageLine: "go mod vendor [-v]",
++	Short:     "make vendored copy of dependencies",
++	Long: `
++Vendor resets the main module's vendor directory to include all packages
++needed to build and test all the main module's packages.
++It does not include test code for vendored packages.
++
++The -v flag causes vendor to print the names of vendored
++modules and packages to standard error.
++	`,
++	Run: runVendor,
++}
++
++func init() {
++	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
++}
++
++func runVendor(cmd *base.Command, args []string) {
++	if len(args) != 0 {
++		base.Fatalf("go mod vendor: vendor takes no arguments")
++	}
+ 	pkgs := modload.LoadVendor()
+ 
+ 	vdir := filepath.Join(modload.ModRoot, "vendor")
+@@ -46,12 +68,12 @@ func runVendor() {
+ 				}
+ 			}
+ 			fmt.Fprintf(&buf, "# %s %s%s\n", m.Path, m.Version, repl)
+-			if *modV {
++			if cfg.BuildV {
+ 				fmt.Fprintf(os.Stderr, "# %s %s%s\n", m.Path, m.Version, repl)
+ 			}
+ 			for _, pkg := range pkgs {
+ 				fmt.Fprintf(&buf, "%s\n", pkg)
+-				if *modV {
++				if cfg.BuildV {
+ 					fmt.Fprintf(os.Stderr, "%s\n", pkg)
+ 				}
+ 				vendorPkg(vdir, pkg)
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 9b8d73f83c..381c18d58f 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -17,7 +17,25 @@ import (
+ 	"cmd/go/internal/module"
+ )
+ 
+-func runVerify() {
++var cmdVerify = &base.Command{
++	UsageLine: "go mod verify",
++	Short:     "verify dependencies have expected content",
++	Long: `
++Verify checks that the dependencies of the current module,
++which are stored in a local downloaded source cache, have not been
++modified since being downloaded. If all the modules are unmodified,
++verify prints "all modules verified." Otherwise it reports which
++modules have been changed and causes 'go mod' to exit with a
++non-zero status.
++	`,
++	Run: runVerify,
++}
++
++func runVerify(cmd *base.Command, args []string) {
++	if len(args) != 0 {
++		// NOTE(rsc): Could take a module pattern.
++		base.Fatalf("go mod verify: verify takes no arguments")
++	}
+ 	ok := true
+ 	for _, mod := range modload.LoadBuildList()[1:] {
+ 		ok = verifyMod(mod) && ok
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 610c9b2516..ae383b693f 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -29,7 +29,7 @@ import (
+ var CmdGet = &base.Command{
+ 	// Note: -d -m -u are listed explicitly because they are the most common get flags.
+ 	// Do not send CLs removing them because they're covered by [get flags].
+-	UsageLine: "get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]",
++	UsageLine: "go get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]",
+ 	Short:     "add dependencies to current module and install them",
+ 	Long: `
+ Get resolves and adds dependencies to the current development module
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index 3efa708f0b..fbc7374c7c 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -85,12 +85,12 @@ For more about the go.mod file, see https://research.swtch.com/vgo-module.
+ 
+ To start a new module, simply create a go.mod file in the root of the
+ module's directory tree, containing only a module statement.
+-The 'go mod' command can be used to do this:
++The 'go mod init' command can be used to do this:
+ 
+-	go mod -init -module example.com/m
++	go mod init example.com/m
+ 
+ In a project already using an existing dependency management tool like
+-godep, glide, or dep, 'go mod -init' will also add require statements
++godep, glide, or dep, 'go mod init' will also add require statements
+ matching the existing configuration.
+ 
+ Once the go.mod file exists, no additional steps are required:
+@@ -147,7 +147,7 @@ package from the module. On the other hand, determining that a module requiremen
+ is no longer necessary and can be deleted requires a full view of
+ all packages in the module, across all possible build configurations
+ (architectures, operating systems, build tags, and so on).
+-The 'go mod -sync' command builds that view and then
++The 'go mod tidy' command builds that view and then
+ adds any missing module requirements and removes unnecessary ones.
+ 
+ As part of maintaining the require statements in go.mod, the go command
+@@ -337,7 +337,7 @@ The go command maintains a cache of downloaded packages and computes
+ and records the cryptographic checksum of each package at download time.
+ In normal operation, the go command checks these pre-computed checksums
+ against the main module's go.sum file, instead of recomputing them on
+-each command invocation. The 'go mod -verify' command checks that
++each command invocation. The 'go mod verify' command checks that
+ the cached copies of module downloads still match both their recorded
+ checksums and the entries in go.sum.
+ 
+@@ -356,7 +356,7 @@ By default, the go command satisfies dependencies by downloading modules
+ from their sources and using those downloaded copies (after verification,
+ as described in the previous section). To allow interoperation with older
+ versions of Go, or to ensure that all files used for a build are stored
+-together in a single file tree, 'go mod -vendor' creates a directory named
++together in a single file tree, 'go mod vendor' creates a directory named
+ vendor in the root directory of the main module and stores there all the
+ packages from dependency modules that are needed to support builds and
+ tests of packages in the main module.
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 676038d24d..c69b698a53 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -30,7 +30,6 @@ import (
+ 
+ var (
+ 	cwd            string
+-	enabled        = MustUseModules
+ 	MustUseModules = mustUseModules()
+ 	initialized    bool
+ 
+@@ -41,8 +40,8 @@ var (
+ 
+ 	gopath string
+ 
+-	CmdModInit   bool   // go mod -init flag
+-	CmdModModule string // go mod -module flag
++	CmdModInit   bool   // running 'go mod init'
++	CmdModModule string // module argument for 'go mod init'
+ )
+ 
+ // ModFile returns the parsed go.mod file.
+@@ -58,9 +57,7 @@ func ModFile() *modfile.File {
+ }
+ 
+ func BinDir() string {
+-	if !Enabled() {
+-		panic("modload.BinDir")
+-	}
++	MustInit()
+ 	return filepath.Join(gopath, "bin")
+ }
+ 
+@@ -74,6 +71,8 @@ func mustUseModules() bool {
+ 	return strings.HasPrefix(name, "vgo")
+ }
+ 
++var inGOPATH bool // running in GOPATH/src
++
+ func Init() {
+ 	if initialized {
+ 		return
+@@ -127,7 +126,7 @@ func Init() {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+-	inGOPATH := false
++	inGOPATH = false
+ 	for _, gopath := range filepath.SplitList(cfg.BuildContext.GOPATH) {
+ 		if gopath == "" {
+ 			continue
+@@ -137,41 +136,26 @@ func Init() {
+ 			break
+ 		}
+ 	}
+-	if inGOPATH && !MustUseModules && cfg.CmdName == "mod" {
+-		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
++
++	if inGOPATH && !MustUseModules {
++		// No automatic enabling in GOPATH.
++		if root, _ := FindModuleRoot(cwd, "", false); root != "" {
++			cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
++		}
++		return
+ 	}
+ 
+ 	if CmdModInit {
+-		// Running 'go mod -init': go.mod will be created in current directory.
++		// Running 'go mod init': go.mod will be created in current directory.
+ 		ModRoot = cwd
+ 	} else {
+-		if inGOPATH && !MustUseModules {
+-			// No automatic enabling in GOPATH.
+-			if root, _ := FindModuleRoot(cwd, "", false); root != "" {
+-				cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
+-			}
+-			return
+-		}
+-		root, _ := FindModuleRoot(cwd, "", MustUseModules)
+-		if root == "" {
+-			// If invoked as vgo, insist on a mod file.
+-			if MustUseModules {
+-				base.Fatalf("go: cannot find main module root; see 'go help modules'")
+-			}
++		ModRoot, _ = FindModuleRoot(cwd, "", MustUseModules)
++		if ModRoot == "" && !MustUseModules {
+ 			return
+ 		}
+-
+-		ModRoot = root
+-	}
+-
+-	if c := cache.Default(); c == nil {
+-		// With modules, there are no install locations for packages
+-		// other than the build cache.
+-		base.Fatalf("go: cannot use modules with build cache disabled")
+ 	}
+ 
+ 	cfg.ModulesEnabled = true
+-	enabled = true
+ 	load.ModBinDir = BinDir
+ 	load.ModLookup = Lookup
+ 	load.ModPackageModuleInfo = PackageModuleInfo
+@@ -183,15 +167,60 @@ func Init() {
+ 	search.SetModRoot(ModRoot)
+ }
+ 
++func init() {
++	load.ModInit = Init
++
++	// Set modfetch.SrcMod unconditionally, so that go clean -modcache can run even without modules enabled.
++	if list := filepath.SplitList(cfg.BuildContext.GOPATH); len(list) > 0 && list[0] != "" {
++		modfetch.SrcMod = filepath.Join(list[0], "src/mod")
++	}
++}
++
++// Enabled reports whether modules are (or must be) enabled.
++// If modules must be enabled but are not, Enabled returns true
++// and then the first use of module information will call die
++// (usually through InitMod and MustInit).
+ func Enabled() bool {
+ 	if !initialized {
+ 		panic("go: Enabled called before Init")
+ 	}
+-	return enabled
++	return ModRoot != "" || MustUseModules
++}
++
++// MustInit calls Init if needed and checks that
++// modules are enabled and the main module has been found.
++// If not, MustInit calls base.Fatalf with an appropriate message.
++func MustInit() {
++	if Init(); ModRoot == "" {
++		die()
++	}
++	if c := cache.Default(); c == nil {
++		// With modules, there are no install locations for packages
++		// other than the build cache.
++		base.Fatalf("go: cannot use modules with build cache disabled")
++	}
++}
++
++// Failed reports whether module loading failed.
++// If Failed returns true, then any use of module information will call die.
++func Failed() bool {
++	Init()
++	return cfg.ModulesEnabled && ModRoot == ""
++}
++
++func die() {
++	if os.Getenv("GO111MODULE") == "off" {
++		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
++	}
++	if inGOPATH && !MustUseModules {
++		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
++	}
++	base.Fatalf("go: cannot find main module; see 'go help modules'")
+ }
+ 
+ func InitMod() {
+-	if Init(); !Enabled() || modFile != nil {
++	MustInit()
++	if modFile != nil {
+ 		return
+ 	}
+ 
+@@ -217,10 +246,10 @@ func InitMod() {
+ 	codehost.WorkRoot = filepath.Join(srcMod, "cache/vcs")
+ 
+ 	if CmdModInit {
+-		// Running go mod -init: do legacy module conversion
+-		// (go.mod does not exist yet, and it's not our job to write it).
++		// Running go mod init: do legacy module conversion
+ 		legacyModInit()
+ 		modFileToBuildList()
++		WriteGoMod()
+ 		return
+ 	}
+ 
+@@ -376,7 +405,7 @@ func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string)
+ // Exported only for testing.
+ func FindModulePath(dir string) (string, error) {
+ 	if CmdModModule != "" {
+-		// Running go mod -init -module=x/y/z; return x/y/z.
++		// Running go mod init x/y/z; return x/y/z.
+ 		return CmdModModule, nil
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index a668795a77..7e07922c36 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -50,9 +50,6 @@ var loaded *loader
+ // ImportPaths returns the set of packages matching the args (patterns),
+ // adding modules to the build list as needed to satisfy new imports.
+ func ImportPaths(args []string) []string {
+-	if Init(); !Enabled() {
+-		return search.ImportPaths(args)
+-	}
+ 	InitMod()
+ 
+ 	cleaned := search.CleanImportPaths(args)
+@@ -172,9 +169,6 @@ func warnPattern(pattern string, list []string) []string {
+ // ImportFromFiles adds modules to the build list as needed
+ // to satisfy the imports in the named Go source files.
+ func ImportFromFiles(gofiles []string) {
+-	if Init(); !Enabled() {
+-		return
+-	}
+ 	InitMod()
+ 
+ 	imports, testImports, err := imports.ScanFiles(gofiles, imports.Tags())
+@@ -198,9 +192,6 @@ func ImportFromFiles(gofiles []string) {
+ // (typically in commands that care about the module but
+ // no particular package).
+ func LoadBuildList() []module.Version {
+-	if Init(); !Enabled() {
+-		base.Fatalf("go: LoadBuildList called but modules not enabled")
+-	}
+ 	InitMod()
+ 	ReloadBuildList()
+ 	WriteGoMod()
+@@ -232,9 +223,6 @@ func LoadVendor() []string {
+ }
+ 
+ func loadAll(testAll bool) []string {
+-	if Init(); !Enabled() {
+-		panic("go: misuse of LoadALL/LoadVendor")
+-	}
+ 	InitMod()
+ 
+ 	loaded = newLoader()
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 8460d1fac6..303e6842e7 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ var CmdRun = &base.Command{
+-	UsageLine: "run [build flags] [-exec xprog] package [arguments...]",
++	UsageLine: "go run [build flags] [-exec xprog] package [arguments...]",
+ 	Short:     "compile and run Go program",
+ 	Long: `
+ Run compiles and runs the named main Go package.
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 052c81e28c..d6fcc2a474 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -37,7 +37,7 @@ func init() {
+ 	CmdTest.Run = runTest
+ }
+ 
+-const testUsage = "test [build/test flags] [packages] [build/test flags & test binary flags]"
++const testUsage = "go test [build/test flags] [packages] [build/test flags & test binary flags]"
+ 
+ var CmdTest = &base.Command{
+ 	CustomFlags: true,
+@@ -168,7 +168,7 @@ flags are also accessible by 'go test'.
+ 
+ // Usage prints the usage message for 'go test -h' and exits.
+ func Usage() {
+-	os.Stderr.WriteString(testUsage + "\n\n" +
++	os.Stderr.WriteString("usage: " + testUsage + "\n\n" +
+ 		strings.TrimSpace(testFlag1) + "\n\n\t" +
+ 		strings.TrimSpace(testFlag2) + "\n")
+ 	os.Exit(2)
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 4c7d0897e0..edcf93513d 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -18,7 +18,7 @@ import (
+ 
+ var CmdTool = &base.Command{
+ 	Run:       runTool,
+-	UsageLine: "tool [-n] command [args...]",
++	UsageLine: "go tool [-n] command [args...]",
+ 	Short:     "run specified go tool",
+ 	Long: `
+ Tool runs the go tool command identified by the arguments.
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index c3f7d73ff1..9344a28dc3 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -14,7 +14,7 @@ import (
+ 
+ var CmdVersion = &base.Command{
+ 	Run:       runVersion,
+-	UsageLine: "version",
++	UsageLine: "go version",
+ 	Short:     "print Go version",
+ 	Long:      `Version prints the Go version, as reported by runtime.Version.`,
+ }
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 9cb2aaa656..11abb62bbe 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -15,7 +15,7 @@ import (
+ var CmdVet = &base.Command{
+ 	Run:         runVet,
+ 	CustomFlags: true,
+-	UsageLine:   "vet [-n] [-x] [build flags] [vet flags] [packages]",
++	UsageLine:   "go vet [-n] [-x] [build flags] [vet flags] [packages]",
+ 	Short:       "report likely mistakes in packages",
+ 	Long: `
+ Vet runs the Go vet command on the packages named by the import paths.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 5ba2d9146d..2e69277f51 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -22,7 +22,7 @@ import (
+ )
+ 
+ var CmdBuild = &base.Command{
+-	UsageLine: "build [-o output] [-i] [build flags] [packages]",
++	UsageLine: "go build [-o output] [-i] [build flags] [packages]",
+ 	Short:     "compile packages and dependencies",
+ 	Long: `
+ Build compiles the packages named by the import paths,
+@@ -341,7 +341,7 @@ func runBuild(cmd *base.Command, args []string) {
+ }
+ 
+ var CmdInstall = &base.Command{
+-	UsageLine: "install [-i] [build flags] [packages]",
++	UsageLine: "go install [-i] [build flags] [packages]",
+ 	Short:     "compile and install packages and dependencies",
+ 	Long: `
+ Install compiles and installs the packages named by the import paths.
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 53081392e6..4b8c95c125 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -17,6 +17,7 @@ import (
+ )
+ 
+ func BuildInit() {
++	load.ModInit()
+ 	instrumentInit()
+ 	buildModeInit()
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 607db57d8a..0743b996a7 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -40,7 +40,7 @@ import (
+ )
+ 
+ func init() {
+-	base.Commands = []*base.Command{
++	base.Go.Commands = []*base.Command{
+ 		bug.CmdBug,
+ 		work.CmdBuild,
+ 		clean.CmdClean,
+@@ -129,26 +129,42 @@ func main() {
+ 		os.Exit(2)
+ 	}
+ 
++	// TODO(rsc): Remove all these helper prints in Go 1.12.
+ 	switch args[0] {
+ 	case "mod":
+-		// Skip modload.Init (which may insist on go.mod existing)
+-		// so that go mod -init has a chance to write the file.
+-	case "version":
+-		// Skip modload.Init so that users can report bugs against
+-		// go mod -init.
++		if len(args) >= 2 {
++			flag := args[1]
++			if strings.HasPrefix(flag, "--") {
++				flag = flag[1:]
++			}
++			if i := strings.Index(flag, "="); i >= 0 {
++				flag = flag[:i]
++			}
++			switch flag {
++			case "-sync":
++				fmt.Fprintf(os.Stderr, "go: go mod -sync is now go mod tidy\n")
++				os.Exit(2)
++			case "-init", "-fix", "-graph", "-vendor", "-verify":
++				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod %s\n", flag, flag[1:])
++				os.Exit(2)
++			case "-fmt", "-json", "-module", "-require", "-droprequire", "-replace", "-dropreplace", "-exclude", "-dropexclude":
++				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod edit %s\n", flag, flag)
++				os.Exit(2)
++			}
++		}
+ 	case "vendor":
+-		fmt.Fprintf(os.Stderr, "go vendor is now go mod -vendor\n")
++		fmt.Fprintf(os.Stderr, "go: vgo vendor is now go mod vendor\n")
+ 		os.Exit(2)
+ 	case "verify":
+-		fmt.Fprintf(os.Stderr, "go verify is now go mod -verify\n")
++		fmt.Fprintf(os.Stderr, "go: vgo verify is now go mod verify\n")
+ 		os.Exit(2)
+-	default:
+-		// Run modload.Init so that each subcommand doesn't have to worry about it.
+-		// Also install the module get command instead of the GOPATH go get command
+-		// if modules are enabled.
+-		modload.Init()
+-		if modload.Enabled() {
+-			// Might not have done this above, so do it now.
++	}
++
++	if args[0] == "get" {
++		// Replace get with module-aware get if appropriate.
++		// Note that if MustUseModules is true, this happened already above,
++		// but no harm in doing it again.
++		if modload.Init(); modload.Enabled() {
+ 			*get.CmdGet = *modget.CmdGet
+ 		}
+ 	}
+@@ -166,8 +182,29 @@ func main() {
+ 		}
+ 	}
+ 
+-	for _, cmd := range base.Commands {
+-		if cmd.Name() == args[0] && cmd.Runnable() {
++BigCmdLoop:
++	for bigCmd := base.Go; ; {
++		for _, cmd := range bigCmd.Commands {
++			if cmd.Name() != args[0] {
++				continue
++			}
++			if len(cmd.Commands) > 0 {
++				bigCmd = cmd
++				args = args[1:]
++				if len(args) == 0 {
++					help.PrintUsage(os.Stderr, bigCmd)
++				}
++				if args[0] == "help" {
++					// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
++					help.Help(append(strings.Split(cfg.CmdName, " "), args[1:]...))
++					return
++				}
++				cfg.CmdName += " " + args[0]
++				continue BigCmdLoop
++			}
++			if !cmd.Runnable() {
++				continue
++			}
+ 			cmd.Flag.Usage = func() { cmd.Usage() }
+ 			if cmd.CustomFlags {
+ 				args = args[1:]
+@@ -179,11 +216,14 @@ func main() {
+ 			base.Exit()
+ 			return
+ 		}
++		helpArg := ""
++		if i := strings.LastIndex(cfg.CmdName, " "); i >= 0 {
++			helpArg = " " + cfg.CmdName[:i]
++		}
++		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)
++		base.SetExitStatus(2)
++		base.Exit()
+ 	}
+-
+-	fmt.Fprintf(os.Stderr, "go: unknown subcommand %q\nRun 'go help' for usage.\n", args[0])
+-	base.SetExitStatus(2)
+-	base.Exit()
+ }
+ 
+ func init() {
+@@ -195,6 +235,6 @@ func mainUsage() {
+ 	if len(os.Args) > 1 && os.Args[1] == "test" {
+ 		test.Usage()
+ 	}
+-	help.PrintUsage(os.Stderr)
++	help.PrintUsage(os.Stderr, base.Go)
+ 	os.Exit(2)
+ }
+diff --git a/src/cmd/go/testdata/mod/mod_sync.txt b/src/cmd/go/testdata/mod/mod_tidy.txt
+similarity index 90%
+rename from src/cmd/go/testdata/mod/mod_sync.txt
+rename to src/cmd/go/testdata/mod/mod_tidy.txt
+index 868aa2cb15..764797c254 100644
+--- a/src/cmd/go/testdata/mod/mod_sync.txt
++++ b/src/cmd/go/testdata/mod/mod_tidy.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=on
+ 
+-# sync removes unused y, but everything else is used
+-go mod -sync -v
++# tidy removes unused y, but everything else is used
++go mod tidy -v
+ stderr '^unused y.1'
+ ! stderr '^unused [^y]'
+ 
+diff --git a/src/cmd/go/testdata/script/help.txt b/src/cmd/go/testdata/script/help.txt
+new file mode 100644
+index 0000000000..cbbd15404b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/help.txt
+@@ -0,0 +1,30 @@
++# go help shows overview.
++go help
++stdout 'Go is a tool'
++stdout 'bug.*start a bug report'
++
++# go help bug shows usage for bug
++go help bug
++stdout 'usage: go bug'
++stdout 'bug report'
++
++# go bug help is an error (bug takes no arguments)
++! go bug help
++stderr 'bug takes no arguments'
++
++# go help mod shows mod subcommands
++go help mod
++stdout 'go mod <command>'
++stdout tidy
++
++# go help mod tidy explains tidy
++go help mod tidy
++stdout 'usage: go mod tidy'
++
++# go mod help tidy does too
++go mod help tidy
++stdout 'usage: go mod tidy'
++
++# go mod --help doesn't print help but at least suggests it.
++! go mod --help
++stderr 'Run ''go help mod'' for usage.'
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index 056508299f..60a6f74536 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -3,43 +3,43 @@ env GO111MODULE=on
+ # Test that go mod edits and related mod flags work.
+ # Also test that they can use a dummy name that isn't resolvable. golang.org/issue/24100
+ 
+-# go mod -init
+-! go mod -init
++# go mod init
++! go mod init
+ stderr 'cannot determine module path'
+ ! exists go.mod
+ 
+-go mod -init -module x.x/y/z
++go mod init x.x/y/z
+ stderr 'creating new go.mod: module x.x/y/z'
+ cmp go.mod $WORK/go.mod.init
+ 
+-! go mod -init
++! go mod init
+ cmp go.mod $WORK/go.mod.init
+ 
+ # go mod edits
+-go mod -droprequire=x.1 -require=x.1@v1.0.0 -require=x.2@v1.1.0 -droprequire=x.2 -exclude='x.1 @ v1.2.0' -exclude=x.1@v1.2.1 -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
++go mod edit -droprequire=x.1 -require=x.1@v1.0.0 -require=x.2@v1.1.0 -droprequire=x.2 -exclude='x.1 @ v1.2.0' -exclude=x.1@v1.2.1 -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
+ cmp go.mod $WORK/go.mod.edit1
+-go mod -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0
++go mod edit -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0
+ cmp go.mod $WORK/go.mod.edit2
+ 
+-# go mod -json
+-go mod -json
++# go mod edit -json
++go mod edit -json
+ cmp stdout $WORK/go.mod.json
+ 
+-# go mod -replace
+-go mod -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
++# go mod edit -replace
++go mod edit -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
+ cmp go.mod $WORK/go.mod.edit3
+-go mod -replace=x.1=y.1/v2@v2.3.6
++go mod edit -replace=x.1=y.1/v2@v2.3.6
+ cmp go.mod $WORK/go.mod.edit4
+-go mod -dropreplace=x.1
++go mod edit -dropreplace=x.1
+ cmp go.mod $WORK/go.mod.edit5
+ 
+-# go mod -packages
+-go mod -packages
+-cmp stdout $WORK/go.mod.packages
+-
+-# go mod -fmt
++# go mod edit -fmt
+ cp $WORK/go.mod.badfmt go.mod
+-go mod -fmt
++go mod edit -fmt -print # -print should avoid writing file
++cmp stdout $WORK/go.mod.edit4
++cmp go.mod $WORK/go.mod.badfmt
++go mod edit -fmt # without -print, should write file (and nothing to stdout)
++! stdout .
+ cmp go.mod $WORK/go.mod.edit4
+ 
+ -- x.go --
+@@ -126,9 +126,6 @@ module x.x/y/z
+ exclude x.1 v1.2.0
+ 
+ require x.3 v1.99.0
+--- $WORK/go.mod.packages --
+-x.x/y/z
+-x.x/y/z/w
+ -- $WORK/go.mod.badfmt --
+ module     x.x/y/z
+ 
+diff --git a/src/cmd/go/testdata/script/mod_enabled.txt b/src/cmd/go/testdata/script/mod_enabled.txt
+index 828194da4a..4901b9c5e6 100644
+--- a/src/cmd/go/testdata/script/mod_enabled.txt
++++ b/src/cmd/go/testdata/script/mod_enabled.txt
+@@ -37,8 +37,10 @@ go env GOMOD
+ stdout z[/\\]go.mod
+ 
+ cd $GOPATH/src/x/y
+-! go env GOMOD
+-stderr 'cannot find main module root'
++go env GOMOD
++! stdout .
++! go list -m
++stderr 'cannot find main module'
+ 
+ cd $GOPATH/foo
+ go env GOMOD
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+index 9f4393d0de..f4ac8d01f5 100644
+--- a/src/cmd/go/testdata/script/mod_find.txt
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -1,45 +1,45 @@
+ # Derive module path from import comment.
+ cd $WORK/x
+ exists x.go
+-go mod -init
++go mod init
+ stderr 'module x'
+ 
+ # Import comment works even with CRLF line endings.
+ rm go.mod
+ addcrlf x.go
+-go mod -init
++go mod init
+ stderr 'module x'
+ 
+ # go mod should die in GOPATH if modules are not enabled for GOPATH
+ cd $GOPATH/src/example.com/x/y
+-! go mod -init
++! go mod init
+ stderr 'go: modules disabled inside GOPATH/src by GO111MODULE=auto; see ''go help modules'''
+ 
+ env GO111MODULE=on
+ 
+ # Derive module path from location inside GOPATH.
+ cd $GOPATH/src/example.com/x/y
+-go mod -init
++go mod init
+ stderr 'module example.com/x/y$'
+ rm go.mod
+ 
+ # Module path from Godeps/Godeps.json overrides GOPATH.
+ cd $GOPATH/src/example.com/x/y/z
+-go mod -init
++go mod init
+ stderr 'unexpected.com/z'
+ rm go.mod
+ 
+ # Empty directory outside GOPATH fails.
+ mkdir $WORK/empty
+ cd $WORK/empty
+-! go mod -init
++! go mod init
+ stderr 'cannot determine module path for source directory'
+ rm go.mod
+ 
+ # Empty directory inside GOPATH/src uses location inside GOPATH.
+ mkdir $GOPATH/src/empty
+ cd $GOPATH/src/empty
+-go mod -init
++go mod init
+ stderr 'empty'
+ rm go.mod
+ 
+@@ -48,37 +48,37 @@ rm go.mod
+ # gplink1/src/empty where gopathlink -> GOPATH
+ symlink $WORK/gopathlink -> gopath
+ cd $WORK/gopathlink/src/empty
+-go mod -init
++go mod init
+ rm go.mod
+ 
+ # GOPATH/src/link where link -> out of GOPATH
+ symlink $GOPATH/src/link -> $WORK/empty
+ cd $WORK/empty
+-! go mod -init
++! go mod init
+ cd $GOPATH/src/link
+-go mod -init
++go mod init
+ stderr link
+ rm go.mod
+ 
+ # GOPATH/src/empty where GOPATH itself is a symlink
+ env GOPATH=$WORK/gopathlink
+ cd $GOPATH/src/empty
+-go mod -init
++go mod init
+ rm go.mod
+ cd $WORK/gopath/src/empty
+-go mod -init
++go mod init
+ rm go.mod
+ 
+ # GOPATH/src/link where GOPATH and link are both symlinks
+ cd $GOPATH/src/link
+-go mod -init
++go mod init
+ stderr link
+ rm go.mod
+ 
+ # Too hard: doesn't match unevaluated nor completely evaluated. (Only partially evaluated.)
+ # Whether this works depends on which OS we are running on.
+ # cd $WORK/gopath/src/link
+-# ! go mod -init
++# ! go mod init
+ 
+ -- $WORK/x/x.go --
+ package x // import "x"
+diff --git a/src/cmd/go/testdata/script/mod_get_commit.txt b/src/cmd/go/testdata/script/mod_get_commit.txt
+index 465767135c..97a10789cf 100644
+--- a/src/cmd/go/testdata/script/mod_get_commit.txt
++++ b/src/cmd/go/testdata/script/mod_get_commit.txt
+@@ -32,12 +32,12 @@ grep 'rsc.io/quote v0.0.0-20180214005840-23179ee8a569' go.mod
+ go get rsc.io/quote@23179ee8
+ grep 'rsc.io/quote v1.5.1' go.mod
+ 
+-# go mod -require does not interpret commits
+-go mod -require rsc.io/quote@23179ee
++# go mod edit -require does not interpret commits
++go mod edit -require rsc.io/quote@23179ee
+ grep 'rsc.io/quote 23179ee' go.mod
+ 
+-# but go mod -fix fixes them
+-go mod -fix
++# but go mod fix fixes them
++go mod fix
+ grep 'rsc.io/quote v1.5.1' go.mod
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_get_indirect.txt b/src/cmd/go/testdata/script/mod_get_indirect.txt
+index f4ee5bf590..8388ed1899 100644
+--- a/src/cmd/go/testdata/script/mod_get_indirect.txt
++++ b/src/cmd/go/testdata/script/mod_get_indirect.txt
+@@ -17,15 +17,15 @@ go list
+ grep 'rsc.io/quote v1.5.2$' go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
+ 
+-# indirect tag should be added by go mod -sync
++# indirect tag should be added by go mod tidy
+ cp $WORK/tmp/usequote.go x.go
+-go mod -sync
++go mod tidy
+ grep 'rsc.io/quote v1.5.2$' go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+ 
+ # requirement should be dropped entirely if not needed
+ cp $WORK/tmp/usetext.go x.go
+-go mod -sync
++go mod tidy
+ ! grep rsc.io/quote go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
+ 
+diff --git a/src/cmd/go/testdata/script/mod_getmode_vendor.txt b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+index 861e91c4e2..352e469a7e 100644
+--- a/src/cmd/go/testdata/script/mod_getmode_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=on
+ 
+ go get -m rsc.io/quote@v1.5.1
+-go mod -vendor
++go mod vendor
+ env GOPATH=$WORK/empty
+ env GOPROXY=file:///nonexist
+ 
+diff --git a/src/cmd/go/testdata/script/mod_go_version.txt b/src/cmd/go/testdata/script/mod_go_version.txt
+index f5706ee34e..f2de74cee8 100644
+--- a/src/cmd/go/testdata/script/mod_go_version.txt
++++ b/src/cmd/go/testdata/script/mod_go_version.txt
+@@ -10,7 +10,7 @@ go build sub.1
+ stderr 'module requires Go 1.11111'
+ 
+ go build versioned.1
+-go mod -require versioned.1@v1.1.0
++go mod edit -require versioned.1@v1.1.0
+ ! go build versioned.1
+ stderr 'module requires Go 1.99999'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_graph.txt b/src/cmd/go/testdata/script/mod_graph.txt
+index a97fb8eb24..07968f531d 100644
+--- a/src/cmd/go/testdata/script/mod_graph.txt
++++ b/src/cmd/go/testdata/script/mod_graph.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=on
+ 
+-go mod -graph
++go mod graph
+ stdout '^m rsc.io/quote@v1.5.2$'
+ stdout '^rsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0$'
+ ! stdout '^m rsc.io/sampler@v1.3.0$'
+diff --git a/src/cmd/go/testdata/script/mod_internal.txt b/src/cmd/go/testdata/script/mod_internal.txt
+index bbc84b168c..dfe8282130 100644
+--- a/src/cmd/go/testdata/script/mod_internal.txt
++++ b/src/cmd/go/testdata/script/mod_internal.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=on
+ 
+ # golang.org/x/internal should be importable from other golang.org/x modules.
+ rm go.mod
+-go mod -init -module golang.org/x/anything
++go mod init golang.org/x/anything
+ go build .
+ 
+ # ...but that should not leak into other modules.
+@@ -20,7 +20,7 @@ stderr 'use of vendored package golang_org/x/net/http/httpguts not allowed$'
+ 
+ # Dependencies should be able to use their own internal modules...
+ rm go.mod
+-go mod -init -module golang.org/notx
++go mod init golang.org/notx
+ go build ./throughdep
+ 
+ # ... but other modules should not, even if they have transitive dependencies.
+@@ -34,20 +34,19 @@ stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/u
+ 
+ # Replacing an internal module should keep it internal to the same paths.
+ rm go.mod
+-go mod -init -module golang.org/notx
+-go mod -replace golang.org/x/internal=./replace/golang.org/notx/internal
++go mod init golang.org/notx
++go mod edit -replace golang.org/x/internal=./replace/golang.org/notx/internal
+ go build ./throughdep
+ 
+ ! go build ./baddep
+ stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+ 
+-go mod -replace golang.org/x/internal=./vendor/golang.org/x/internal
++go mod edit -replace golang.org/x/internal=./vendor/golang.org/x/internal
+ go build ./throughdep
+ 
+ ! go build ./baddep
+ stderr 'use of internal package golang.org/x/.* not allowed in golang.org/notx/useinternal$'
+ 
+-
+ -- useinternal.go --
+ package useinternal
+ import _ "golang.org/x/internal/subtle"
+diff --git a/src/cmd/go/testdata/script/mod_nomod.txt b/src/cmd/go/testdata/script/mod_nomod.txt
+new file mode 100644
+index 0000000000..640d5a3631
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_nomod.txt
+@@ -0,0 +1,43 @@
++# Test go commands with no module.
++env GO111MODULE=on
++
++# go mod edit fails unless given explicit mod file argument
++! go mod edit -json
++go mod edit -json x.mod
++
++# bug succeeds
++[exec:echo] env BROWSER=echo
++[exec:echo] go bug
++
++# commands that load the package in the current directory fail
++! go build
++! go fmt
++! go generate
++! go get
++! go install
++! go list
++! go run x.go
++! go test
++! go vet
++
++# clean succeeds, even with -modcache
++go clean -modcache
++
++# doc succeeds for standard library
++go doc unsafe
++
++# env succeeds
++go env
++
++# tool succeeds
++go tool -n test2json
++
++# version succeeds
++go version
++
++-- x.mod --
++module m
++
++-- x.go --
++package main
++func main() {}
+diff --git a/src/cmd/go/testdata/script/mod_replace.txt b/src/cmd/go/testdata/script/mod_replace.txt
+index 3e7f0bc313..799a7e82e9 100644
+--- a/src/cmd/go/testdata/script/mod_replace.txt
++++ b/src/cmd/go/testdata/script/mod_replace.txt
+@@ -5,22 +5,20 @@ exec ./a1.exe
+ stdout 'Don''t communicate by sharing memory'
+ 
+ # Modules can be replaced by local packages.
+-go mod -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
++go mod edit -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
+ go build -o a2.exe .
+ exec ./a2.exe
+ stdout 'Concurrency is not parallelism.'
+ 
+ # The module path of the replacement doesn't need to match.
+ # (For example, it could be a long-running fork with its own import path.)
+-go mod -replace=rsc.io/quote/v3=./local/not-rsc.io/quote/v3
++go mod edit -replace=rsc.io/quote/v3=./local/not-rsc.io/quote/v3
+ go build -o a3.exe .
+ exec ./a3.exe
+ stdout 'Clear is better than clever.'
+ 
+ # However, the same module can't be used as two different paths.
+-go mod -dropreplace=rsc.io/quote/v3
+-go mod -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0
+-go mod -require=not-rsc.io/quote/v3@v3.0.0
++go mod edit -dropreplace=rsc.io/quote/v3 -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0 -require=not-rsc.io/quote/v3@v3.0.0
+ ! go build -o a4.exe .
+ 
+ 
+diff --git a/src/cmd/go/testdata/script/mod_sync_quote.txt b/src/cmd/go/testdata/script/mod_tidy_quote.txt
+similarity index 62%
+rename from src/cmd/go/testdata/script/mod_sync_quote.txt
+rename to src/cmd/go/testdata/script/mod_tidy_quote.txt
+index 77f7b2543b..423c7c246f 100644
+--- a/src/cmd/go/testdata/script/mod_sync_quote.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_quote.txt
+@@ -1,13 +1,13 @@
+-# Check that mod -sync does not introduce repeated
++# Check that mod tidy does not introduce repeated
+ # require statements when input go.mod has quoted requirements.
+ env GO111MODULE=on
+ 
+-go mod -sync -json
+-stdout -count=1 '"Path": "rsc.io/quote"'
++go mod tidy
++grep -count=1 rsc.io/quote go.mod
+ 
+ cp go.mod2 go.mod
+-go mod -sync -json
+-stdout -count=1 '"Path": "rsc.io/quote"'
++go mod tidy
++grep -count=1 rsc.io/quote go.mod
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_sync_sum.txt b/src/cmd/go/testdata/script/mod_tidy_sum.txt
+similarity index 87%
+rename from src/cmd/go/testdata/script/mod_sync_sum.txt
+rename to src/cmd/go/testdata/script/mod_tidy_sum.txt
+index 1ecb6db145..5a15818543 100644
+--- a/src/cmd/go/testdata/script/mod_sync_sum.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_sum.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=on
+ 
+ # go.sum should list directly used modules and dependencies
+ go get rsc.io/quote@v1.5.2
+-go mod -sync
++go mod tidy
+ grep rsc.io/sampler go.sum
+ 
+ # go.sum should not normally lose old entries
+@@ -11,8 +11,8 @@ grep 'rsc.io/quote v1.0.0' go.sum
+ grep 'rsc.io/quote v1.5.2' go.sum
+ grep rsc.io/sampler go.sum
+ 
+-# go mod -sync should clear dead entries from go.sum
+-go mod -sync
++# go mod tidy should clear dead entries from go.sum
++go mod tidy
+ grep 'rsc.io/quote v1.0.0' go.sum
+ ! grep 'rsc.io/quote v1.5.2' go.sum
+ ! grep rsc.io/sampler go.sum
+@@ -20,7 +20,7 @@ grep 'rsc.io/quote v1.0.0' go.sum
+ # go.sum with no entries is OK to keep
+ # (better for version control not to delete and recreate.)
+ cp x.go.noimports x.go
+-go mod -sync
++go mod tidy
+ exists go.sum
+ ! grep . go.sum
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 31f422cc3d..9d9dbf37d2 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -10,7 +10,7 @@ stdout '^w'
+ go list -f {{.Dir}} x
+ stdout 'src[\\/]x'
+ 
+-go mod -vendor -v
++go mod vendor -v
+ stderr '^# x v1.0.0 => ./x'
+ stderr '^x'
+ stderr '^# y v1.0.0 => ./y'
+diff --git a/src/cmd/go/testdata/script/mod_vendor_nodeps.txt b/src/cmd/go/testdata/script/mod_vendor_nodeps.txt
+index 207bf24b1e..e9a84ca986 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_nodeps.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_nodeps.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=on
+ 
+-go mod -vendor
++go mod vendor
+ stderr '^go: no dependencies to vendor'
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_verify.txt b/src/cmd/go/testdata/script/mod_verify.txt
+index 249cee6d98..18bd94c422 100644
+--- a/src/cmd/go/testdata/script/mod_verify.txt
++++ b/src/cmd/go/testdata/script/mod_verify.txt
+@@ -2,26 +2,26 @@ env GO111MODULE=on
+ 
+ # With good go.sum, verify succeeds by avoiding download.
+ cp go.sum.good go.sum
+-go mod -verify
++go mod verify
+ ! exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+ 
+ # With bad go.sum, verify succeeds by avoiding download.
+ cp go.sum.bad go.sum
+-go mod -verify
++go mod verify
+ ! exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+ 
+ # With bad go.sum, sync (which must download) fails.
+ # Even if the bad sum is in the old legacy go.modverify file.
+ rm go.sum
+ cp go.sum.bad go.modverify
+-! go mod -sync
++! go mod tidy
+ stderr 'checksum mismatch'
+ ! exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+ 
+ # With good go.sum, sync works (and moves go.modverify to go.sum).
+ rm go.sum
+ cp go.sum.good go.modverify
+-go mod -sync
++go mod tidy
+ exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
+ exists $GOPATH/src/mod/rsc.io/quote@v1.1.0/quote.go
+ ! exists go.modverify
+@@ -30,39 +30,39 @@ exists $GOPATH/src/mod/rsc.io/quote@v1.1.0/quote.go
+ grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
+ 
+ # verify should work
+-go mod -verify
++go mod verify
+ 
+ # basic loading of module graph should detect incorrect go.mod files.
+-go mod -graph
++go mod graph
+ cp go.sum.bad2 go.sum
+-! go mod -graph
++! go mod graph
+ stderr 'go.mod: checksum mismatch'
+ 
+ # go.sum should be created and updated automatically.
+ rm go.sum
+-go mod -graph
++go mod graph
+ exists go.sum
+ grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
+ ! grep '^rsc.io/quote v1.1.0 ' go.sum
+ 
+-go mod -sync
++go mod tidy
+ grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
+ grep '^rsc.io/quote v1.1.0 ' go.sum
+ 
+ # sync should ignore missing ziphash; verify should not
+ rm $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.ziphash
+-go mod -sync
+-! go mod -verify
++go mod tidy
++! go mod verify
+ 
+ # Packages below module root should not be mentioned in go.sum.
+ rm go.sum
+-go mod -droprequire rsc.io/quote
++go mod edit -droprequire rsc.io/quote
+ go list rsc.io/quote/buggy # re-resolves import path and updates go.mod
+ grep '^rsc.io/quote v1.5.2/go.mod ' go.sum
+ ! grep buggy go.sum
+ 
+ # non-existent packages below module root should not be mentioned in go.sum
+-go mod -droprequire rsc.io/quote
++go mod edit -droprequire rsc.io/quote
+ ! go list rsc.io/quote/morebuggy
+ grep '^rsc.io/quote v1.5.2/go.mod ' go.sum
+ ! grep buggy go.sum
+diff --git a/src/cmd/go/testdata/script/mod_version_nomod.txt b/src/cmd/go/testdata/script/mod_version_nomod.txt
+deleted file mode 100644
+index 4cd542444a..0000000000
+--- a/src/cmd/go/testdata/script/mod_version_nomod.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-# Test go version with no module.
+-env GO111MODULE=on
+-! go mod -json
+-go version

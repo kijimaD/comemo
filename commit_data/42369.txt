@@ -11,6 +11,20 @@ Date:   Sat Dec 7 04:44:39 2019 +0900
     Change-Id: I21dbfbd270c654d5cd7fa88d114a356862612d90
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210298
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/strings.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 869cdcdcef..69f51b6e2d 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1094,7 +1094,7 @@ func Index(s, substr string) int {
+ 		i++
+ 		fails++
+ 		if fails >= 4+i>>4 && i < t {
+-			// See comment in ../bytes/bytes_generic.go.
++			// See comment in ../bytes/bytes.go.
+ 			j := indexRabinKarp(s[i:], substr)
+ 			if j < 0 {
+ 				return -1

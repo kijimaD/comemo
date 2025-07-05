@@ -13,6 +13,40 @@ Date:   Mon Dec 4 16:45:33 2023 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  doc/go1.22.html | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 2950a5b085..331c790d21 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -638,6 +638,13 @@ defer func() {
+ 
+ <dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
+   <dd>
++    <p><!-- https://go.dev/issue/57071 -->
++      <code>/sync/mutex/wait/total:seconds</code> now includes contention on
++      runtime-internal locks in addition to
++      <a href="/pkg/sync#Mutex"><code>sync.Mutex</code></a> and
++      <a href="/pkg/sync#RWMutex"><code>sync.RWMutex</code></a>.
++    </p>
++
+     <p><!-- https://go.dev/issue/63340 -->
+       TODO: <a href="https://go.dev/issue/63340">https://go.dev/issue/63340</a>: provide histogram of all STW events
+     </p>
+@@ -654,6 +661,14 @@ defer func() {
+       now record 1 second of delay instead of 10 milliseconds of delay.
+     </p>
+ 
++    <p><!-- https://go.dev/issue/57071 -->
++      Mutex profiles also now include contention on runtime-internal locks in addition to
++      <a href="/pkg/sync#Mutex"><code>sync.Mutex</code></a> and
++      <a href="/pkg/sync#RWMutex"><code>sync.RWMutex</code></a>.
++      Contention on runtime-internal locks is always reported at <code>runtime._LostContendedRuntimeLock</code>.
++      A future release will add complete stack traces in these cases.
++    </p>
++
+     <p><!-- https://go.dev/issue/50891 -->
+       CPU profiles on Darwin platforms now contain the process's memory map, enabling the disassembly
+       view in the pprof tool.

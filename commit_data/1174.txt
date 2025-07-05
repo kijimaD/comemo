@@ -7,6 +7,17 @@ Date:   Tue Nov 18 19:27:15 2008 -0800
     R=r
     OCL=19566
     CL=19566
-
+---
  src/cmd/6g/align.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 163bd800cc..209c0765b1 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -257,5 +257,4 @@ belexinit(int lextype)
+ 	symstringo = lookup(".stringo");	// strings
+ 
+ 	listinit();
+-	buildtxt();
+ }

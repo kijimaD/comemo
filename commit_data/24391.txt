@@ -21,6 +21,27 @@ Date:   Wed Jul 22 15:14:54 2015 -0400
     Change-Id: I7bf0e6c73e659fe6b52f27437abf39d76b245c79
     Reviewed-on: https://go-review.googlesource.com/12649
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgcmark.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 9212b2edc6..62f0881439 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -160,6 +160,15 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 		return
+ 	}
+ 
++	// Don't assist in non-preemptible contexts. These are
++	// generally fragile and won't allow the assist to block.
++	if getg() == gp.m.g0 {
++		return
++	}
++	if mp := getg().m; mp.locks > 0 || mp.preemptoff != "" {
++		return
++	}
++
+ 	// Compute the amount of assist scan work we need to do.
+ 	scanWork := int64(gcController.assistRatio*float64(gp.gcalloc)) - gp.gcscanwork
+ 	// scanWork can be negative if the last assist scanned a large

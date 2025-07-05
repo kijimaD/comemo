@@ -10,7 +10,61 @@ Date:   Fri Apr 11 15:57:30 2014 +0200
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/86470044
-
+---
  src/cmd/gc/typecheck.c      |  8 ++++++--
  test/fixedbugs/issue7129.go | 21 +++++++++++++++++++++
  2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2b44cd8202..7eda63bad1 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -310,7 +310,7 @@ typecheck1(Node **np, int top)
+ 	int ok, ntop;
+ 	Type *t, *tp, *missing, *have, *badtype;
+ 	Val v;
+-	char *why;
++	char *why, *desc, descbuf[64];
+ 	
+ 	n = *np;
+ 
+@@ -1139,7 +1139,11 @@ reswitch:
+ 			}
+ 			break;
+ 		}
+-		typecheckaste(OCALL, n->left, n->isddd, getinargx(t), n->list, "function argument");
++		if(snprint(descbuf, sizeof descbuf, "argument to %N", n->left) < sizeof descbuf)
++			desc = descbuf;
++		else
++			desc = "function argument";
++		typecheckaste(OCALL, n->left, n->isddd, getinargx(t), n->list, desc);
+ 		ok |= Etop;
+ 		if(t->outtuple == 0)
+ 			goto ret;
+diff --git a/test/fixedbugs/issue7129.go b/test/fixedbugs/issue7129.go
+new file mode 100644
+index 0000000000..2425cbd343
+--- /dev/null
++++ b/test/fixedbugs/issue7129.go
+@@ -0,0 +1,21 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7129: inconsistent "wrong arg type" error for multivalued g in f(g())
++
++package main
++
++func f(int) {}
++
++func g() bool { return true }
++
++func h(int, int) {}
++
++func main() {
++	f(g())        // ERROR "in argument to f"
++	f(true)       // ERROR "in argument to f"
++	h(true, true) // ERROR "in argument to h"
++}

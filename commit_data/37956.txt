@@ -10,6 +10,31 @@ Date:   Thu Aug 9 17:56:59 2018 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_test.txt | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_test.txt b/src/cmd/go/testdata/script/mod_test.txt
+index caeb25ada8..af4fd76d70 100644
+--- a/src/cmd/go/testdata/script/mod_test.txt
++++ b/src/cmd/go/testdata/script/mod_test.txt
+@@ -1,5 +1,8 @@
+ env GO111MODULE=on
+ 
++# TODO(bcmills): Convert the 'go test' calls below to 'go list -test' once 'go
++# list' is more sensitive to package loading errors.
++
+ # A test in the module's root package should work.
+ cd a/
+ cp go.mod.empty go.mod
+@@ -48,6 +51,10 @@ cd ../d_test
+ go test
+ stdout PASS
+ 
++cd ../e
++go test
++stdout PASS
++
+ -- a/go.mod.empty --
+ module example.com/user/a
+ 

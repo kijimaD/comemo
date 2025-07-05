@@ -13,7 +13,7 @@ Date:   Sat Feb 11 11:50:51 2012 +0900
     R=rsc, jsing
     CC=golang-dev
     https://golang.org/cl/5648044
-
+---
  src/pkg/net/sock_bsd.go        |  5 +++++
  src/pkg/net/sock_linux.go      |  5 +++++
  src/pkg/net/sock_windows.go    |  5 +++++
@@ -21,3 +21,166 @@ Date:   Sat Feb 11 11:50:51 2012 +0900
  src/pkg/net/sockopt_linux.go   | 19 ++++++++-----------
  src/pkg/net/sockopt_windows.go |  8 +++++---
  6 files changed, 44 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/net/sock_bsd.go b/src/pkg/net/sock_bsd.go
+index 7c693a271f..2607b04c7b 100644
+--- a/src/pkg/net/sock_bsd.go
++++ b/src/pkg/net/sock_bsd.go
+@@ -38,6 +38,11 @@ func listenerSockaddr(s, f int, la syscall.Sockaddr, toAddr func(syscall.Sockadd
+ 		return la, nil
+ 	}
+ 	switch v := a.(type) {
++	case *TCPAddr, *UnixAddr:
++		err := setDefaultListenerSockopts(s)
++		if err != nil {
++			return nil, err
++		}
+ 	case *UDPAddr:
+ 		if v.IP.IsMulticast() {
+ 			err := setDefaultMulticastSockopts(s)
+diff --git a/src/pkg/net/sock_linux.go b/src/pkg/net/sock_linux.go
+index 0743843bf2..e509d93978 100644
+--- a/src/pkg/net/sock_linux.go
++++ b/src/pkg/net/sock_linux.go
+@@ -32,6 +32,11 @@ func listenerSockaddr(s, f int, la syscall.Sockaddr, toAddr func(syscall.Sockadd
+ 		return la, nil
+ 	}
+ 	switch v := a.(type) {
++	case *TCPAddr, *UnixAddr:
++		err := setDefaultListenerSockopts(s)
++		if err != nil {
++			return nil, err
++		}
+ 	case *UDPAddr:
+ 		if v.IP.IsMulticast() {
+ 			err := setDefaultMulticastSockopts(s)
+diff --git a/src/pkg/net/sock_windows.go b/src/pkg/net/sock_windows.go
+index 434122c9e4..cce6181c9e 100644
+--- a/src/pkg/net/sock_windows.go
++++ b/src/pkg/net/sock_windows.go
+@@ -19,6 +19,11 @@ func listenerSockaddr(s syscall.Handle, f int, la syscall.Sockaddr, toAddr func(
+ 		return la, nil
+ 	}
+ 	switch v := a.(type) {
++	case *TCPAddr, *UnixAddr:
++		err := setDefaultListenerSockopts(s)
++		if err != nil {
++			return nil, err
++		}
+ 	case *UDPAddr:
+ 		if v.IP.IsMulticast() {
+ 			err := setDefaultMulticastSockopts(s)
+diff --git a/src/pkg/net/sockopt_bsd.go b/src/pkg/net/sockopt_bsd.go
+index bc76465062..519d2fb05a 100644
+--- a/src/pkg/net/sockopt_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -20,31 +20,28 @@ func setDefaultSockopts(s, f, t int) error {
+ 		// Note that some operating systems never admit this option.
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+ 	}
+-
+-	if f == syscall.AF_UNIX ||
+-		(f == syscall.AF_INET || f == syscall.AF_INET6) && t == syscall.SOCK_STREAM {
+-		// Allow reuse of recently-used addresses.
+-		err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+-		if err != nil {
+-			return os.NewSyscallError("setsockopt", err)
+-		}
+-
+-		// Allow reuse of recently-used ports.
+-		// This option is supported only in descendants of 4.4BSD,
+-		// to make an effective multicast application and an application
+-		// that requires quick draw possible.
+-		err = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
+-		if err != nil {
+-			return os.NewSyscallError("setsockopt", err)
+-		}
+-	}
+-
+ 	// Allow broadcast.
+ 	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+ 	if err != nil {
+ 		return os.NewSyscallError("setsockopt", err)
+ 	}
++	return nil
++}
+ 
++func setDefaultListenerSockopts(s int) error {
++	// Allow reuse of recently-used addresses.
++	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	// Allow reuse of recently-used ports.
++	// This option is supported only in descendants of 4.4BSD,
++	// to make an effective multicast application and an application
++	// that requires quick draw possible.
++	err = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/net/sockopt_linux.go b/src/pkg/net/sockopt_linux.go
+index 67c1dc87a7..7509c29eec 100644
+--- a/src/pkg/net/sockopt_linux.go
++++ b/src/pkg/net/sockopt_linux.go
+@@ -18,23 +18,20 @@ func setDefaultSockopts(s, f, t int) error {
+ 		// Note that some operating systems never admit this option.
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+ 	}
+-
+-	if f == syscall.AF_UNIX ||
+-		(f == syscall.AF_INET || f == syscall.AF_INET6) && t == syscall.SOCK_STREAM {
+-		// Allow reuse of recently-used addresses.
+-		err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+-		if err != nil {
+-			return os.NewSyscallError("setsockopt", err)
+-		}
+-
+-	}
+-
+ 	// Allow broadcast.
+ 	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+ 	if err != nil {
+ 		return os.NewSyscallError("setsockopt", err)
+ 	}
++	return nil
++}
+ 
++func setDefaultListenerSockopts(s int) error {
++	// Allow reuse of recently-used addresses.
++	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/net/sockopt_windows.go b/src/pkg/net/sockopt_windows.go
+index 842bccc8f4..46661e2f25 100644
+--- a/src/pkg/net/sockopt_windows.go
++++ b/src/pkg/net/sockopt_windows.go
+@@ -18,16 +18,18 @@ func setDefaultSockopts(s syscall.Handle, f, t int) error {
+ 		// Note that some operating systems never admit this option.
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+ 	}
++	// Allow broadcast.
++	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
++	return nil
++}
+ 
++func setDefaultListenerSockopts(s syscall.Handle, f, t int) error {
+ 	// Windows will reuse recently-used addresses by default.
+ 	// SO_REUSEADDR should not be used here, as it allows
+ 	// a socket to forcibly bind to a port in use by another socket.
+ 	// This could lead to a non-deterministic behavior, where
+ 	// connection requests over the port cannot be guaranteed
+ 	// to be handled by the correct socket.
+-
+-	// Allow broadcast.
+-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+ 	return nil
+ }
+ 

@@ -13,9 +13,106 @@ Date:   Tue Mar 5 15:52:28 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/572055
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/coverage/cover.go |  2 +-
  src/cmd/compile/internal/gc/obj.go         | 12 +++++++++---
  src/cmd/compile/internal/inline/inl.go     |  5 ++++-
  src/cmd/compile/internal/ir/name.go        |  5 +----
  4 files changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/coverage/cover.go b/src/cmd/compile/internal/coverage/cover.go
+index 5320f004da..51f934f060 100644
+--- a/src/cmd/compile/internal/coverage/cover.go
++++ b/src/cmd/compile/internal/coverage/cover.go
+@@ -75,7 +75,7 @@ func Fixup() {
+ 		}
+ 		if strings.HasPrefix(s.Name, counterPrefix) {
+ 			ckTypSanity(nm, "countervar")
+-			nm.SetCoverageCounter(true)
++			nm.SetCoverageAuxVar(true)
+ 			s := nm.Linksym()
+ 			s.Type = objabi.SCOVERAGE_COUNTER
+ 		}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index e090cafb61..4b42c81ef8 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -154,7 +154,7 @@ func dumpGlobal(n *ir.Name) {
+ 	}
+ 	types.CalcSize(n.Type())
+ 	ggloblnod(n)
+-	if n.CoverageCounter() || n.CoverageAuxVar() || n.Linksym().Static() {
++	if n.CoverageAuxVar() || n.Linksym().Static() {
+ 		return
+ 	}
+ 	base.Ctxt.DwarfGlobal(types.TypeSymName(n.Type()), n.Linksym())
+@@ -253,6 +253,11 @@ func ggloblnod(nam *ir.Name) {
+ 	linkname := nam.Sym().Linkname
+ 	name := nam.Sym().Name
+ 
++	var saveType objabi.SymKind
++	if nam.CoverageAuxVar() {
++		saveType = s.Type
++	}
++
+ 	// We've skipped linkname'd globals's instrument, so we can skip them here as well.
+ 	if base.Flag.ASan && linkname == "" && pkginit.InstrumentGlobalsMap[name] != nil {
+ 		// Write the new size of instrumented global variables that have
+@@ -266,8 +271,9 @@ func ggloblnod(nam *ir.Name) {
+ 	if nam.Libfuzzer8BitCounter() {
+ 		s.Type = objabi.SLIBFUZZER_8BIT_COUNTER
+ 	}
+-	if nam.CoverageCounter() {
+-		s.Type = objabi.SCOVERAGE_COUNTER
++	if nam.CoverageAuxVar() && saveType == objabi.SCOVERAGE_COUNTER {
++		// restore specialized counter type (which Globl call above overwrote)
++		s.Type = saveType
+ 	}
+ 	if nam.Sym().Linkname != "" {
+ 		// Make sure linkname'd symbol is non-package. When a symbol is
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index a17562596f..3f65b2bbc9 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1162,7 +1162,10 @@ func isIndexingCoverageCounter(n ir.Node) bool {
+ 		return false
+ 	}
+ 	nn := ixn.X.(*ir.Name)
+-	return nn.CoverageCounter()
++	// CoverageAuxVar implies either a coverage counter or a package
++	// ID; since the cover tool never emits code to index into ID vars
++	// this is effectively testing whether nn is a coverage counter.
++	return nn.CoverageAuxVar()
+ }
+ 
+ // isAtomicCoverageCounterUpdate examines the specified node to
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 2844c0b869..758158651e 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -192,8 +192,7 @@ const (
+ 	nameInlLocal                 // PAUTO created by inliner, derived from callee local
+ 	nameOpenDeferSlot            // if temporary var storing info for open-coded defers
+ 	nameLibfuzzer8BitCounter     // if PEXTERN should be assigned to __sancov_cntrs section
+-	nameCoverageCounter          // instrumentation counter var for cmd/cover
+-	nameCoverageAuxVar           // instrumentation pkg ID variable cmd/cover
++	nameCoverageAuxVar           // instrumentation counter var or pkg ID for cmd/cover
+ 	nameAlias                    // is type name an alias
+ )
+ 
+@@ -209,7 +208,6 @@ func (n *Name) InlFormal() bool                { return n.flags&nameInlFormal !=
+ func (n *Name) InlLocal() bool                 { return n.flags&nameInlLocal != 0 }
+ func (n *Name) OpenDeferSlot() bool            { return n.flags&nameOpenDeferSlot != 0 }
+ func (n *Name) Libfuzzer8BitCounter() bool     { return n.flags&nameLibfuzzer8BitCounter != 0 }
+-func (n *Name) CoverageCounter() bool          { return n.flags&nameCoverageCounter != 0 }
+ func (n *Name) CoverageAuxVar() bool           { return n.flags&nameCoverageAuxVar != 0 }
+ 
+ func (n *Name) setReadonly(b bool)                 { n.flags.set(nameReadonly, b) }
+@@ -224,7 +222,6 @@ func (n *Name) SetInlFormal(b bool)                { n.flags.set(nameInlFormal,
+ func (n *Name) SetInlLocal(b bool)                 { n.flags.set(nameInlLocal, b) }
+ func (n *Name) SetOpenDeferSlot(b bool)            { n.flags.set(nameOpenDeferSlot, b) }
+ func (n *Name) SetLibfuzzer8BitCounter(b bool)     { n.flags.set(nameLibfuzzer8BitCounter, b) }
+-func (n *Name) SetCoverageCounter(b bool)          { n.flags.set(nameCoverageCounter, b) }
+ func (n *Name) SetCoverageAuxVar(b bool)           { n.flags.set(nameCoverageAuxVar, b) }
+ 
+ // OnStack reports whether variable n may reside on the stack.

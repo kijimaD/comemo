@@ -13,6 +13,32 @@ Date:   Tue Apr 18 08:39:00 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/testdata/copylock_func.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/vet/testdata/copylock_func.go b/src/cmd/vet/testdata/copylock_func.go
+index d51ff27cda..0f7ffcbccb 100644
+--- a/src/cmd/vet/testdata/copylock_func.go
++++ b/src/cmd/vet/testdata/copylock_func.go
+@@ -87,9 +87,9 @@ func FuncCallInterfaceArg(f func(a int, b interface{})) {
+ 	f(2, &t)
+ 	f(3, &sync.Mutex{})
+ 	f(4, m) // ERROR "call of f copies lock value: sync.Mutex"
+-	f(5, t) // ERROR "call of f copies lock value: struct{lock sync.Mutex} contains sync.Mutex"
++	f(5, t) // ERROR "call of f copies lock value: struct.lock sync.Mutex. contains sync.Mutex"
+ 	var fntab []func(t)
+-	fntab[0](t) // ERROR "call of fntab.0. copies lock value: struct{lock sync.Mutex} contains sync.Mutex"
++	fntab[0](t) // ERROR "call of fntab.0. copies lock value: struct.lock sync.Mutex. contains sync.Mutex"
+ }
+ 
+ // Returning lock via interface value
+@@ -105,7 +105,7 @@ func ReturnViaInterface(x int) (int, interface{}) {
+ 	case 2:
+ 		return 2, m // ERROR "return copies lock value: sync.Mutex"
+ 	default:
+-		return 3, t // ERROR "return copies lock value: struct{lock sync.Mutex} contains sync.Mutex"
++		return 3, t // ERROR "return copies lock value: struct.lock sync.Mutex. contains sync.Mutex"
+ 	}
+ }
+ 

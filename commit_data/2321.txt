@@ -7,7 +7,16 @@ Date:   Tue May 26 21:11:43 2009 -0700
     R=ken
     OCL=29425
     CL=29427
-
+---
  test/{bugs => fixedbugs}/bug151.go | 0
  test/{bugs => fixedbugs}/bug152.go | 0
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/test/bugs/bug151.go b/test/fixedbugs/bug151.go
+similarity index 100%
+rename from test/bugs/bug151.go
+rename to test/fixedbugs/bug151.go
+diff --git a/test/bugs/bug152.go b/test/fixedbugs/bug152.go
+similarity index 100%
+rename from test/bugs/bug152.go
+rename to test/fixedbugs/bug152.go

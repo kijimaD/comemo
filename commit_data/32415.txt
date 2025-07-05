@@ -7,6 +7,20 @@ Date:   Mon Apr 24 14:30:31 2017 +0900
     Change-Id: I7a18798180405504dc064424d63dac49634168fb
     Reviewed-on: https://go-review.googlesource.com/41530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index e258d58ae5..8826bc3f92 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -319,7 +319,7 @@ func transformclosure(xfunc *Node) {
+ 		//		byref++
+ 		//	}(42)
+ 		// becomes:
+-		//	func(a int, byval int, &byref *int) {
++		//	func(byval int, &byref *int, a int) {
+ 		//		println(byval)
+ 		//		(*&byref)++
+ 		//	}(byval, &byref, 42)

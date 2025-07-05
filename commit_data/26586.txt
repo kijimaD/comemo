@@ -24,7 +24,7 @@ Date:   Wed Feb 10 21:46:51 2016 -0800
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/export_linux_test.go |  1 +
  src/runtime/export_mmap_test.go  | 15 +++++++++++++++
  src/runtime/export_test.go       |  2 --
@@ -36,3 +36,187 @@ Date:   Wed Feb 10 21:46:51 2016 -0800
  src/runtime/sys_linux_ppc64x.s   |  1 +
  src/runtime/sys_nacl_386.s       |  3 +++
  10 files changed, 69 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/export_linux_test.go b/src/runtime/export_linux_test.go
+index c8b9746676..61d6ae4bf2 100644
+--- a/src/runtime/export_linux_test.go
++++ b/src/runtime/export_linux_test.go
+@@ -7,3 +7,4 @@
+ package runtime
+ 
+ var NewOSProc0 = newosproc0
++var Mincore = mincore
+diff --git a/src/runtime/export_mmap_test.go b/src/runtime/export_mmap_test.go
+new file mode 100644
+index 0000000000..11ea076f0b
+--- /dev/null
++++ b/src/runtime/export_mmap_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++
++// Export guts for testing.
++
++package runtime
++
++var Mmap = mmap
++
++const ENOMEM = _ENOMEM
++const MAP_ANON = _MAP_ANON
++const MAP_PRIVATE = _MAP_PRIVATE
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index b09022b53c..5400c1d14e 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -28,8 +28,6 @@ var Exitsyscall = exitsyscall
+ var LockedOSThread = lockedOSThread
+ var Xadduintptr = atomic.Xadduintptr
+ 
+-var Mincore = mincore
+-
+ var FuncPC = funcPC
+ 
+ var Fastlog2 = fastlog2
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index 1e388ec728..c3fe6106d7 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -59,9 +59,9 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 	return p
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+-	const _ENOMEM = 12
++const _ENOMEM = 12
+ 
++func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+ 	mSysStatInc(sysStat, n)
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+diff --git a/src/runtime/os2_nacl.go b/src/runtime/os2_nacl.go
+index 0c91e0f737..d8c88db0ad 100644
+--- a/src/runtime/os2_nacl.go
++++ b/src/runtime/os2_nacl.go
+@@ -10,18 +10,19 @@ const (
+ 
+ 	// native_client/src/trusted/service_runtime/include/sys/errno.h
+ 	// The errors are mainly copied from Linux.
+-	_EPERM           = 1        /* Operation not permitted */
+-	_ENOENT          = 2        /* No such file or directory */
+-	_ESRCH           = 3        /* No such process */
+-	_EINTR           = 4        /* Interrupted system call */
+-	_EIO             = 5        /* I/O error */
+-	_ENXIO           = 6        /* No such device or address */
+-	_E2BIG           = 7        /* Argument list too long */
+-	_ENOEXEC         = 8        /* Exec format error */
+-	_EBADF           = 9        /* Bad file number */
+-	_ECHILD          = 10       /* No child processes */
+-	_EAGAIN          = 11       /* Try again */
+-	_ENOMEM          = 12       /* Out of memory */
++	_EPERM   = 1  /* Operation not permitted */
++	_ENOENT  = 2  /* No such file or directory */
++	_ESRCH   = 3  /* No such process */
++	_EINTR   = 4  /* Interrupted system call */
++	_EIO     = 5  /* I/O error */
++	_ENXIO   = 6  /* No such device or address */
++	_E2BIG   = 7  /* Argument list too long */
++	_ENOEXEC = 8  /* Exec format error */
++	_EBADF   = 9  /* Bad file number */
++	_ECHILD  = 10 /* No child processes */
++	_EAGAIN  = 11 /* Try again */
++	// _ENOMEM is defined in mem_bsd.go for nacl.
++	// _ENOMEM          = 12       /* Out of memory */
+ 	_EACCES          = 13       /* Permission denied */
+ 	_EFAULT          = 14       /* Bad address */
+ 	_EBUSY           = 16       /* Device or resource busy */
+diff --git a/src/runtime/runtime_mmap_test.go b/src/runtime/runtime_mmap_test.go
+new file mode 100644
+index 0000000000..ff5e733cb0
+--- /dev/null
++++ b/src/runtime/runtime_mmap_test.go
+@@ -0,0 +1,30 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++
++package runtime_test
++
++import (
++	"runtime"
++	"runtime/internal/sys"
++	"testing"
++)
++
++// Test that the error value returned by mmap is positive, as that is
++// what the code in mem_bsd.go, mem_darwin.go, and mem_linux.go expects.
++// See the uses of ENOMEM in sysMap in those files.
++func TestMmapErrorSign(t *testing.T) {
++	p := runtime.Mmap(nil, ^uintptr(0)&^(sys.PhysPageSize-1), 0, runtime.MAP_ANON|runtime.MAP_PRIVATE, -1, 0)
++
++	// The runtime.mmap function is nosplit, but t.Errorf is not.
++	// Reset the pointer so that we don't get an "invalid stack
++	// pointer" error from t.Errorf if we call it.
++	v := uintptr(p)
++	p = nil
++
++	if v != runtime.ENOMEM {
++		t.Errorf("mmap = %v, want %v", v, runtime.ENOMEM)
++	}
++}
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index ca0e07aaa4..94c101a3d4 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -269,6 +269,9 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
+ 
+ 	MOVD	$SYS_mmap, R8
+ 	SVC
++	CMN	$4095, R0
++	BCC	2(PC)
++	NEG	R0,R0
+ 	MOVD	R0, ret+32(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 6ccb38f90b..26437ddde4 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -168,6 +168,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$-8-28
+ 	MOVV	dst+16(FP), R6
+ 	MOVV	$SYS_mincore, R2
+ 	SYSCALL
++	SUBVU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index ba410c51b6..d063e025a6 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -153,6 +153,7 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVD	n+8(FP), R4
+ 	MOVD	dst+16(FP), R5
+ 	SYSCALL	$SYS_mincore
++	NEG	R3		// caller expects negative errno
+ 	MOVW	R3, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index bf2d36ec85..e69a0b7bfe 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -227,6 +227,9 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
+ 	LEAL	24(SP), AX
+ 	MOVL	AX, 20(SP)
+ 	NACL_SYSCALL(SYS_mmap)
++	CMPL	AX, $-4095
++	JNA	2(PC)
++	NEGL	AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 

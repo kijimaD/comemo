@@ -10,6 +10,32 @@ Date:   Fri Jun 12 15:40:56 2020 -0700
     Change-Id: I206f360ff4957bc7edc3c35dfc814b7bd5ec440c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237739
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 33598a262d..b6cf5bb8f6 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -375,6 +375,20 @@ Do not send CLs removing the interior tags from such phrases.
+   in mind.
+ </p>
+ 
++<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
++  <dd>
++    <p><!-- CL 225357, CL 225557 -->
++      When a <a href="/pkg/bufio/#Scanner"><code>Scanner</code></a> is
++      used with an invalid
++      <a href="/pkg/io/#Reader"><code>io.Reader</code></a> that
++      incorrectly returns a negative number from <code>Read</code>,
++      the <code>Scanner</code> will no longer panic, but will instead
++      return the new error
++      <a href="/pkg/bufio/#ErrBadReadCount"><code>ErrBadReadCount</code></a>.
++    </p>
++  </dd>
++</dl><!-- bufio -->
++
+ <dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
+   <dd>
+     <p><!-- CL 231417, CL 225460 -->

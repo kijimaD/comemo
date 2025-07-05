@@ -18,7 +18,7 @@ Date:   Fri Jun 7 19:51:10 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/sync/atomic/doc.go | 4 +++-
  src/sync/cond.go       | 3 ++-
  src/sync/map.go        | 4 +++-
@@ -28,3 +28,160 @@ Date:   Fri Jun 7 19:51:10 2024 +0000
  src/sync/rwmutex.go    | 4 +++-
  src/sync/waitgroup.go  | 4 +++-
  8 files changed, 23 insertions(+), 8 deletions(-)
+
+diff --git a/src/sync/atomic/doc.go b/src/sync/atomic/doc.go
+index 1f7f9b277e..7f9d64b74e 100644
+--- a/src/sync/atomic/doc.go
++++ b/src/sync/atomic/doc.go
+@@ -37,13 +37,15 @@
+ // functions, are the atomic equivalents of "return *addr" and
+ // "*addr = val".
+ //
+-// In the terminology of the Go memory model, if the effect of
++// In the terminology of [the Go memory model], if the effect of
+ // an atomic operation A is observed by atomic operation B,
+ // then A “synchronizes before” B.
+ // Additionally, all the atomic operations executed in a program
+ // behave as though executed in some sequentially consistent order.
+ // This definition provides the same semantics as
+ // C++'s sequentially consistent atomics and Java's volatile variables.
++//
++// [the Go memory model]: https://go.dev/ref/mem
+ package atomic
+ 
+ import (
+diff --git a/src/sync/cond.go b/src/sync/cond.go
+index 614c5fe5ea..2c53b6801a 100644
+--- a/src/sync/cond.go
++++ b/src/sync/cond.go
+@@ -19,7 +19,7 @@ import (
+ //
+ // A Cond must not be copied after first use.
+ //
+-// In the terminology of the Go memory model, Cond arranges that
++// In the terminology of [the Go memory model], Cond arranges that
+ // a call to [Cond.Broadcast] or [Cond.Signal] “synchronizes before” any Wait call
+ // that it unblocks.
+ //
+@@ -31,6 +31,7 @@ import (
+ // advanced concurrency patterns], as well as [Bryan Mills's talk on concurrency
+ // patterns].
+ //
++// [the Go memory model]: https://go.dev/ref/mem
+ // [Roberto Clapis's series on advanced concurrency patterns]: https://blogtitle.github.io/categories/concurrency/
+ // [Bryan Mills's talk on concurrency patterns]: https://drive.google.com/file/d/1nPdvhB0PutEJzdCq5ms6UI58dp50fcAN/view
+ type Cond struct {
+diff --git a/src/sync/map.go b/src/sync/map.go
+index 504410bc4b..33bc8141ab 100644
+--- a/src/sync/map.go
++++ b/src/sync/map.go
+@@ -24,7 +24,7 @@ import (
+ //
+ // The zero Map is empty and ready for use. A Map must not be copied after first use.
+ //
+-// In the terminology of the Go memory model, Map arranges that a write operation
++// In the terminology of [the Go memory model], Map arranges that a write operation
+ // “synchronizes before” any read operation that observes the effect of the write, where
+ // read and write operations are defined as follows.
+ // [Map.Load], [Map.LoadAndDelete], [Map.LoadOrStore], [Map.Swap], [Map.CompareAndSwap],
+@@ -33,6 +33,8 @@ import (
+ // [Map.LoadOrStore] is a write operation when it returns loaded set to false;
+ // [Map.CompareAndSwap] is a write operation when it returns swapped set to true;
+ // and [Map.CompareAndDelete] is a write operation when it returns deleted set to true.
++//
++// [the Go memory model]: https://go.dev/ref/mem
+ type Map struct {
+ 	mu Mutex
+ 
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index 654804882f..e4ed47c75c 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -25,12 +25,14 @@ func fatal(string)
+ //
+ // A Mutex must not be copied after first use.
+ //
+-// In the terminology of the Go memory model,
++// In the terminology of [the Go memory model],
+ // the n'th call to [Mutex.Unlock] “synchronizes before” the m'th call to [Mutex.Lock]
+ // for any n < m.
+ // A successful call to [Mutex.TryLock] is equivalent to a call to Lock.
+ // A failed call to TryLock does not establish any “synchronizes before”
+ // relation at all.
++//
++// [the Go memory model]: https://go.dev/ref/mem
+ type Mutex struct {
+ 	state int32
+ 	sema  uint32
+diff --git a/src/sync/once.go b/src/sync/once.go
+index de69d70187..168c7bbdd3 100644
+--- a/src/sync/once.go
++++ b/src/sync/once.go
+@@ -12,9 +12,11 @@ import (
+ //
+ // A Once must not be copied after first use.
+ //
+-// In the terminology of the Go memory model,
++// In the terminology of [the Go memory model],
+ // the return from f “synchronizes before”
+ // the return from any call of once.Do(f).
++//
++// [the Go memory model]: https://go.dev/ref/mem
+ type Once struct {
+ 	// done indicates whether the action has been performed.
+ 	// It is first in the struct because it is used in the hot path.
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index 4b586d6fb9..0fa8f8cdaa 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -42,10 +42,12 @@ import (
+ //
+ // A Pool must not be copied after first use.
+ //
+-// In the terminology of the Go memory model, a call to Put(x) “synchronizes before”
++// In the terminology of [the Go memory model], a call to Put(x) “synchronizes before”
+ // a call to [Pool.Get] returning that same value x.
+ // Similarly, a call to New returning x “synchronizes before”
+ // a call to Get returning that same value x.
++//
++// [the Go memory model]: https://go.dev/ref/mem
+ type Pool struct {
+ 	noCopy noCopy
+ 
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 1215c377a1..66cb93c44e 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -25,13 +25,15 @@ import (
+ // the lock eventually becomes available to the writer.
+ // Note that this prohibits recursive read-locking.
+ //
+-// In the terminology of the Go memory model,
++// In the terminology of [the Go memory model],
+ // the n'th call to [RWMutex.Unlock] “synchronizes before” the m'th call to Lock
+ // for any n < m, just as for [Mutex].
+ // For any call to RLock, there exists an n such that
+ // the n'th call to Unlock “synchronizes before” that call to RLock,
+ // and the corresponding call to [RWMutex.RUnlock] “synchronizes before”
+ // the n+1'th call to Lock.
++//
++// [the Go memory model]: https://go.dev/ref/mem
+ type RWMutex struct {
+ 	w           Mutex        // held if there are pending writers
+ 	writerSem   uint32       // semaphore for writers to wait for completing readers
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index 7320705b0e..872d6d87c0 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -18,8 +18,10 @@ import (
+ //
+ // A WaitGroup must not be copied after first use.
+ //
+-// In the terminology of the Go memory model, a call to [WaitGroup.Done]
++// In the terminology of [the Go memory model], a call to [WaitGroup.Done]
+ // “synchronizes before” the return of any Wait call that it unblocks.
++//
++// [the Go memory model]: https://go.dev/ref/mem
+ type WaitGroup struct {
+ 	noCopy noCopy
+ 

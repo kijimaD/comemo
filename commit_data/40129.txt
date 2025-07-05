@@ -16,8 +16,83 @@ Date:   Wed Apr 3 23:35:44 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/data.go   |  2 +-
  src/cmd/link/internal/ld/main.go   |  7 ++++++-
  src/cmd/link/internal/ld/outbuf.go | 15 +++++++++++++++
  3 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 7f4fe71cb4..5d31de99ee 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -765,7 +765,7 @@ func blk(out *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
+ 			out.WriteStringPad("", int(s.Value-addr), pad)
+ 			addr = s.Value
+ 		}
+-		out.Write(s.P)
++		out.WriteSym(s)
+ 		addr += int64(len(s.P))
+ 		if addr < s.Value+s.Size {
+ 			out.WriteStringPad("", int(s.Value+s.Size-addr), pad)
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index aac37883e1..e0725a1384 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -240,7 +240,6 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	ctxt.dodata()
+ 	order := ctxt.address()
+ 	dwarfcompress(ctxt)
+-	ctxt.reloc()
+ 	filesize := ctxt.layout(order)
+ 
+ 	// Write out the output file.
+@@ -257,9 +256,15 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		outputMmapped = err == nil
+ 	}
+ 	if outputMmapped {
++		// Asmb will redirect symbols to the output file mmap, and relocations
++		// will be applied directly there.
+ 		thearch.Asmb(ctxt)
++		ctxt.reloc()
+ 		ctxt.Out.Munmap()
+ 	} else {
++		// If we don't mmap, we need to apply relocations before
++		// writing out.
++		ctxt.reloc()
+ 		thearch.Asmb(ctxt)
+ 	}
+ 	thearch.Asmb2(ctxt)
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index f1b5d7495c..3efd43d6ae 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -7,6 +7,7 @@ package ld
+ import (
+ 	"bufio"
+ 	"cmd/internal/sys"
++	"cmd/link/internal/sym"
+ 	"encoding/binary"
+ 	"log"
+ 	"os"
+@@ -148,6 +149,20 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
+ 	}
+ }
+ 
++// WriteSym writes the content of a Symbol, then changes the Symbol's content
++// to point to the output buffer that we just wrote, so we can apply further
++// edit to the symbol content.
++// If the output file is not Mmap'd, just writes the content.
++func (out *OutBuf) WriteSym(s *sym.Symbol) {
++	if out.buf != nil {
++		start := out.off
++		out.Write(s.P)
++		s.P = out.buf[start:out.off]
++	} else {
++		out.Write(s.P)
++	}
++}
++
+ func (out *OutBuf) Flush() {
+ 	var err error
+ 	if out.buf != nil {

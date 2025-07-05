@@ -21,7 +21,54 @@ Date:   Mon Sep 20 15:34:09 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  7 +++++++
  src/cmd/compile/internal/typecheck/iimport.go   | 10 ++++++++--
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 6dbe3cb455..44919c2a4b 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -356,6 +356,13 @@ func methods(t *types.Type) []*typeSig {
+ 
+ // imethods returns the methods of the interface type t, sorted by name.
+ func imethods(t *types.Type) []*typeSig {
++	if t.HasShape() && !t.IsInterface() {
++		// Non-interface shape types have no methods. (There are
++		// corresponding functions (created by getInstantiation) that take
++		// the dictionary and the receiver of shape type as the first two
++		// arguments.)
++		return nil
++	}
+ 	var methods []*typeSig
+ 	for _, f := range t.AllMethods().Slice() {
+ 		if f.Type.Kind() != types.TFUNC || f.Sym == nil {
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index ec4057a8d0..57f0dd8566 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1867,6 +1867,11 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
+ 	}
+ 	t.SetUnderlying(subst.Typ(baseType.Underlying()))
+ 
++	if t.HasShape() && !t.IsInterface() {
++		// Concrete shape types have no methods.
++		return
++	}
++
+ 	newfields := make([]*types.Field, baseType.Methods().Len())
+ 	for i, f := range baseType.Methods().Slice() {
+ 		if !f.IsMethod() || types.IsInterfaceMethod(f.Type) {
+@@ -1903,8 +1908,9 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
+ 		newfields[i].Nname = nname
+ 	}
+ 	t.Methods().Set(newfields)
+-	if !t.HasTParam() && t.Kind() != types.TINTER && t.Methods().Len() > 0 {
+-		// Generate all the methods for a new fully-instantiated type.
++	if !t.HasTParam() && !t.HasShape() && t.Kind() != types.TINTER && t.Methods().Len() > 0 {
++		// Generate all the methods for a new fully-instantiated,
++		// non-interface, non-shape type.
+ 		NeedInstType(t)
+ 	}
+ }

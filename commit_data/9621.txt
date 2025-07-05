@@ -22,7 +22,7 @@ Date:   Wed Sep 7 15:50:21 2011 -0400
     R=ken
     CC=bradfitz, dsymonds, golang-dev
     https://golang.org/cl/4972057
-
+---
  src/Make.pkg      |  4 ++--
  src/cmd/gc/doc.go |  3 +++
  src/cmd/gc/go.h   |  1 +
@@ -30,3 +30,170 @@ Date:   Wed Sep 7 15:50:21 2011 -0400
  src/cmd/gc/lex.c  | 20 +++++++++++++++-----
  src/cmd/gc/subr.c |  2 +-
  6 files changed, 29 insertions(+), 11 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index fc80cf6e6c..ad7d10bebf 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -83,10 +83,10 @@ $(TARGDIR)/$(TARG).a: _obj/$(TARG).a
+ 	cp _obj/$(TARG).a "$@"
+ 
+ _go_.$O: $(GOFILES) $(PREREQ)
+-	$(GC) $(GCIMPORTS) -o $@ $(GOFILES)
++	$(GC) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES)
+ 
+ _gotest_.$O: $(GOFILES) $(GOTESTFILES) $(PREREQ)
+-	$(GC) $(GCIMPORTS) -o $@ $(GOFILES) $(GOTESTFILES)
++	$(GC) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES) $(GOTESTFILES)
+ 
+ _obj/$(TARG).a: _go_.$O $(OFILES)
+ 	@mkdir -p _obj/$(dir)
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index 83be8b7c09..5bb5e0e146 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -35,6 +35,9 @@ Flags:
+ 		output file, default file.6 for 6g, etc.
+ 	-e
+ 		normally the compiler quits after 10 errors; -e prints all errors
++	-p path
++		assume that path is the eventual import path for this code,
++		and diagnose any attempt to import a package that depends on it.
+ 	-L
+ 		show entire file path when printing line numbers in errors
+ 	-I dir1 -I dir2
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4c543fc395..f72799420b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -773,6 +773,7 @@ EXTERN	Pkg*	phash[128];
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	runtimeimport;
+ extern	char*	unsafeimport;
++EXTERN	char*	myimportpath;
+ EXTERN	Idir*	idirs;
+ 
+ EXTERN	Type*	types[NTYPE];
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 2ec8d888b5..a5e92bd4d4 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -243,11 +243,11 @@ import_package:
+ 			importpkg->name = $2->name;
+ 			pkglookup($2->name, nil)->npkg++;
+ 		} else if(strcmp(importpkg->name, $2->name) != 0)
+-			yyerror("conflicting names %s and %s for package %Z", importpkg->name, $2->name, importpkg->path);
++			yyerror("conflicting names %s and %s for package \"%Z\"", importpkg->name, $2->name, importpkg->path);
+ 		importpkg->direct = 1;
+ 		
+ 		if(safemode && !curio.importsafe)
+-			yyerror("cannot import unsafe package %Z", importpkg->path);
++			yyerror("cannot import unsafe package \"%Z\"", importpkg->path);
+ 	}
+ 
+ import_safety:
+@@ -1686,7 +1686,11 @@ hidden_import:
+ 			p->name = $2->name;
+ 			pkglookup($2->name, nil)->npkg++;
+ 		} else if(strcmp(p->name, $2->name) != 0)
+-			yyerror("conflicting names %s and %s for package %Z", p->name, $2->name, p->path);
++			yyerror("conflicting names %s and %s for package \"%Z\"", p->name, $2->name, p->path);
++		if(!incannedimport && myimportpath != nil && strcmp($3.u.sval->s, myimportpath) == 0) {
++			yyerror("import \"%Z\": package depends on \"%Z\" (import cycle)", importpkg->path, $3.u.sval);
++			errorexit();
++		}
+ 	}
+ |	LVAR hidden_pkg_importsym hidden_type ';'
+ 	{
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index c0aea9095a..0290fb1314 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -88,6 +88,7 @@ usage(void)
+ 	print("  -h panic on an error\n");
+ 	print("  -m print about moves to heap\n");
+ 	print("  -o file specify output file\n");
++	print("  -p assumed import path for this code\n");
+ 	print("  -s disable escape analysis\n");
+ 	print("  -u disable package unsafe\n");
+ 	print("  -w print the parse tree after typing\n");
+@@ -154,6 +155,10 @@ main(int argc, char *argv[])
+ 	case 'o':
+ 		outfile = EARGF(usage());
+ 		break;
++	
++	case 'p':
++		myimportpath = EARGF(usage());
++		break;
+ 
+ 	case 'I':
+ 		addidir(EARGF(usage()));
+@@ -479,6 +484,11 @@ importfile(Val *f, int line)
+ 		errorexit();
+ 	}
+ 
++	if(myimportpath != nil && strcmp(f->u.sval->s, myimportpath) == 0) {
++		yyerror("import \"%Z\" while compiling that package (import cycle)", f->u.sval);
++		errorexit();
++	}
++
+ 	if(strcmp(f->u.sval->s, "unsafe") == 0) {
+ 		if(safemode) {
+ 			yyerror("cannot import package unsafe");
+@@ -500,14 +510,14 @@ importfile(Val *f, int line)
+ 	}
+ 
+ 	if(!findpkg(path)) {
+-		yyerror("can't find import: %Z", f->u.sval);
++		yyerror("can't find import: \"%Z\"", f->u.sval);
+ 		errorexit();
+ 	}
+ 	importpkg = mkpkg(path);
+ 
+ 	imp = Bopen(namebuf, OREAD);
+ 	if(imp == nil) {
+-		yyerror("can't open import: %Z: %r", f->u.sval);
++		yyerror("can't open import: \"%Z\": %r", f->u.sval);
+ 		errorexit();
+ 	}
+ 	file = strdup(namebuf);
+@@ -564,7 +574,7 @@ importfile(Val *f, int line)
+ 			continue;
+ 		return;
+ 	}
+-	yyerror("no import in: %Z", f->u.sval);
++	yyerror("no import in \"%Z\"", f->u.sval);
+ 	unimportfile();
+ }
+ 
+@@ -1938,7 +1948,7 @@ mkpackage(char* pkgname)
+ 					// errors if a conflicting top-level name is
+ 					// introduced by a different file.
+ 					if(!s->def->used && !nsyntaxerrors)
+-						yyerrorl(s->def->lineno, "imported and not used: %Z", s->def->pkg->path);
++						yyerrorl(s->def->lineno, "imported and not used: \"%Z\"", s->def->pkg->path);
+ 					s->def = N;
+ 					continue;
+ 				}
+@@ -1946,7 +1956,7 @@ mkpackage(char* pkgname)
+ 					// throw away top-level name left over
+ 					// from previous import . "x"
+ 					if(s->def->pack != N && !s->def->pack->used && !nsyntaxerrors) {
+-						yyerrorl(s->def->pack->lineno, "imported and not used: %Z", s->def->pack->pkg->path);
++						yyerrorl(s->def->pack->lineno, "imported and not used: \"%Z\"", s->def->pack->pkg->path);
+ 						s->def->pack->used = 1;
+ 					}
+ 					s->def = N;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index ae163b29a6..9448c3ffe8 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -405,7 +405,7 @@ importdot(Pkg *opkg, Node *pack)
+ 	}
+ 	if(n == 0) {
+ 		// can't possibly be used - there were no symbols
+-		yyerrorl(pack->lineno, "imported and not used: %Z", opkg->path);
++		yyerrorl(pack->lineno, "imported and not used: \"%Z\"", opkg->path);
+ 	}
+ }
+ 

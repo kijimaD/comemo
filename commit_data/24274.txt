@@ -7,6 +7,20 @@ Date:   Mon Jul 20 19:46:12 2015 -0700
     Change-Id: I2f855b9ad1676b3c4efedd764ce99e21c104a4ec
     Reviewed-on: https://go-review.googlesource.com/12446
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 79f5b8c1d2..3526979c99 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -778,7 +778,7 @@ Also in the <a href="/pkg/bytes/"><code>bytes</code></a> package,
+ the <a href="/pkg/bytes/#Buffer"><code>Buffer</code></a> type
+ now has a <a href="/pkg/bytes/#Buffer.Cap"><code>Cap</code></a> method
+ that reports the number of bytes allocated within the buffer.
+-Similarly, both the <a href="/pkg/bytes/"><code>bytes</code></a>
++Similarly, in both the <a href="/pkg/bytes/"><code>bytes</code></a>
+ and <a href="/pkg/strings/"><code>strings</code></a> packages,
+ the <a href="/pkg/bytes/#Reader"><code>Reader</code></a>
+ type now has a <a href="/pkg/bytes/#Reader.Size"><code>Size</code></a>

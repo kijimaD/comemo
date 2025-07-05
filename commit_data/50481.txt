@@ -12,7 +12,7 @@ Date:   Wed Oct 27 11:23:06 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go       | 39 +++++++++++++++++++++++++++++++++++----
  src/go/types/decl.go        |  2 +-
  src/go/types/instantiate.go |  2 +-
@@ -20,3 +20,140 @@ Date:   Wed Oct 27 11:23:06 2021 -0400
  src/go/types/struct.go      |  2 +-
  src/go/types/typexpr.go     |  2 --
  6 files changed, 39 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 3fc9c03917..2b8ef9f061 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -76,6 +76,28 @@ type dotImportKey struct {
+ 	name  string
+ }
+ 
++// An action describes a (delayed) action.
++type action struct {
++	f    func()      // action to be executed
++	desc *actionDesc // action description; may be nil, requires debug to be set
++}
++
++// If debug is set, describef sets a printf-formatted description for action a.
++// Otherwise, it is a no-op.
++func (a *action) describef(pos positioner, format string, args ...interface{}) {
++	if debug {
++		a.desc = &actionDesc{pos, format, args}
++	}
++}
++
++// An actionDesc provides information on an action.
++// For debugging only.
++type actionDesc struct {
++	pos    positioner
++	format string
++	args   []interface{}
++}
++
+ // A Checker maintains the state of the type checker.
+ // It must be created with NewChecker.
+ type Checker struct {
+@@ -111,7 +133,7 @@ type Checker struct {
+ 	firstErr error                 // first error encountered
+ 	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
+ 	untyped  map[ast.Expr]exprInfo // map of expressions without final type
+-	delayed  []func()              // stack of delayed action segments; segments are processed in FIFO order
++	delayed  []action              // stack of delayed action segments; segments are processed in FIFO order
+ 	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
+ 	defTypes []*Named              // defined types created during type checking, for final validation.
+ 
+@@ -148,8 +170,12 @@ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, ty
+ // either at the end of the current statement, or in case of a local constant
+ // or variable declaration, before the constant or variable is in scope
+ // (so that f still sees the scope before any new declarations).
+-func (check *Checker) later(f func()) {
+-	check.delayed = append(check.delayed, f)
++// later returns the pushed action so one can provide a description
++// via action.describef for debugging, if desired.
++func (check *Checker) later(f func()) *action {
++	i := len(check.delayed)
++	check.delayed = append(check.delayed, action{f: f})
++	return &check.delayed[i]
+ }
+ 
+ // push pushes obj onto the object path and returns its index in the path.
+@@ -304,7 +330,12 @@ func (check *Checker) processDelayed(top int) {
+ 	// add more actions (such as nested functions), so
+ 	// this is a sufficiently bounded process.
+ 	for i := top; i < len(check.delayed); i++ {
+-		check.delayed[i]() // may append to check.delayed
++		a := &check.delayed[i]
++		if trace && a.desc != nil {
++			fmt.Println()
++			check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
++		}
++		a.f() // may append to check.delayed
+ 	}
+ 	assert(top <= len(check.delayed)) // stack must not have shrunk
+ 	check.delayed = check.delayed[:top]
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 3e97fbbccd..6982fed0b8 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -610,7 +610,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
+ 			check.errorf(tdecl.Type, _Todo, "using type constraint %s requires go1.18 or later", rhs)
+ 		}
+-	})
++	}).describef(obj, "validType(%s)", obj.Name())
+ 
+ 	alias := tdecl.Assign.IsValid()
+ 	if alias && tdecl.TypeParams.NumFields() != 0 {
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 2bb31b17ee..3720cb725a 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -65,7 +65,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, ctxt *Cont
+ 			}
+ 		}
+ 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
+-		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is resolved
++		named := check.newNamed(tname, t, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
+ 		named.targs = NewTypeList(targs)
+ 		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
+ 			return expandNamed(ctxt, n, pos)
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index c170ed4a60..78813e665b 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -221,7 +221,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	check.later(func() {
+ 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
+ 		ityp.check = nil
+-	})
++	}).describef(iface, "compute type set for %s", ityp)
+ }
+ 
+ func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
+diff --git a/src/go/types/struct.go b/src/go/types/struct.go
+index 24a2435ff7..442c7a66e3 100644
+--- a/src/go/types/struct.go
++++ b/src/go/types/struct.go
+@@ -155,7 +155,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
+ 					}
+ 				}
+-			})
++			}).describef(embeddedPos, "check embedded type %s", embeddedTyp)
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index e812c3d5d5..092e355b38 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -210,8 +210,6 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 			if T != nil {
+ 				// Calling under() here may lead to endless instantiations.
+ 				// Test case: type T[P any] *T[P]
+-				// TODO(gri) investigate if that's a bug or to be expected
+-				// (see also analogous comment in Checker.instantiate).
+ 				under = safeUnderlying(T)
+ 			}
+ 			if T == under {

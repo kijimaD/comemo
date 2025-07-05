@@ -15,6 +15,22 @@ Date:   Wed Mar 5 14:56:50 2014 -0800
     R=rsc, adg
     CC=golang-codereviews
     https://golang.org/cl/71770043
-
+---
  src/pkg/net/http/client_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index bf5c776e3c..1f8a8b12cf 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -599,8 +599,8 @@ func TestClientInsecureTransport(t *testing.T) {
+ 
+ 	select {
+ 	case v := <-errc:
+-		if !strings.Contains(v, "bad certificate") {
+-			t.Errorf("expected an error log message containing 'bad certificate'; got %q", v)
++		if !strings.Contains(v, "TLS handshake error") {
++			t.Errorf("expected an error log message containing 'TLS handshake error'; got %q", v)
+ 		}
+ 	case <-time.After(5 * time.Second):
+ 		t.Errorf("timeout waiting for logged error")

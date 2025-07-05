@@ -49,10 +49,425 @@ Date:   Thu Jul 18 10:17:42 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-
+---
  src/cmd/compile/internal/loong64/ssa.go         |  39 +++++--
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  71 +++++++------
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  18 ++--
  src/cmd/compile/internal/ssa/opGen.go           |  28 +++--
  src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 134 ++++++++++++++++++++----
  5 files changed, 216 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index a60da7ba58..9a4d7aab13 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -874,14 +874,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ var blockJump = map[ssa.BlockKind]struct {
+ 	asm, invasm obj.As
+ }{
+-	ssa.BlockLOONG64EQ:  {loong64.ABEQ, loong64.ABNE},
+-	ssa.BlockLOONG64NE:  {loong64.ABNE, loong64.ABEQ},
+-	ssa.BlockLOONG64LTZ: {loong64.ABLTZ, loong64.ABGEZ},
+-	ssa.BlockLOONG64GEZ: {loong64.ABGEZ, loong64.ABLTZ},
+-	ssa.BlockLOONG64LEZ: {loong64.ABLEZ, loong64.ABGTZ},
+-	ssa.BlockLOONG64GTZ: {loong64.ABGTZ, loong64.ABLEZ},
+-	ssa.BlockLOONG64FPT: {loong64.ABFPT, loong64.ABFPF},
+-	ssa.BlockLOONG64FPF: {loong64.ABFPF, loong64.ABFPT},
++	ssa.BlockLOONG64EQ:   {loong64.ABEQ, loong64.ABNE},
++	ssa.BlockLOONG64NE:   {loong64.ABNE, loong64.ABEQ},
++	ssa.BlockLOONG64LTZ:  {loong64.ABLTZ, loong64.ABGEZ},
++	ssa.BlockLOONG64GEZ:  {loong64.ABGEZ, loong64.ABLTZ},
++	ssa.BlockLOONG64LEZ:  {loong64.ABLEZ, loong64.ABGTZ},
++	ssa.BlockLOONG64GTZ:  {loong64.ABGTZ, loong64.ABLEZ},
++	ssa.BlockLOONG64FPT:  {loong64.ABFPT, loong64.ABFPF},
++	ssa.BlockLOONG64FPF:  {loong64.ABFPF, loong64.ABFPT},
++	ssa.BlockLOONG64BEQ:  {loong64.ABEQ, loong64.ABNE},
++	ssa.BlockLOONG64BNE:  {loong64.ABNE, loong64.ABEQ},
++	ssa.BlockLOONG64BGE:  {loong64.ABGE, loong64.ABLT},
++	ssa.BlockLOONG64BLT:  {loong64.ABLT, loong64.ABGE},
++	ssa.BlockLOONG64BLTU: {loong64.ABLTU, loong64.ABGEU},
++	ssa.BlockLOONG64BGEU: {loong64.ABGEU, loong64.ABLTU},
+ }
+ 
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+@@ -913,6 +919,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	case ssa.BlockLOONG64EQ, ssa.BlockLOONG64NE,
+ 		ssa.BlockLOONG64LTZ, ssa.BlockLOONG64GEZ,
+ 		ssa.BlockLOONG64LEZ, ssa.BlockLOONG64GTZ,
++		ssa.BlockLOONG64BEQ, ssa.BlockLOONG64BNE,
++		ssa.BlockLOONG64BLT, ssa.BlockLOONG64BGE,
++		ssa.BlockLOONG64BLTU, ssa.BlockLOONG64BGEU,
+ 		ssa.BlockLOONG64FPT, ssa.BlockLOONG64FPF:
+ 		jmp := blockJump[b.Kind]
+ 		var p *obj.Prog
+@@ -930,9 +939,21 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 				s.Br(obj.AJMP, b.Succs[0].Block())
+ 			}
+ 		}
+-		if !b.Controls[0].Type.IsFlags() {
++		switch b.Kind {
++		case ssa.BlockLOONG64BEQ, ssa.BlockLOONG64BNE,
++			ssa.BlockLOONG64BGE, ssa.BlockLOONG64BLT,
++			ssa.BlockLOONG64BGEU, ssa.BlockLOONG64BLTU:
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = b.Controls[0].Reg()
++			p.Reg = b.Controls[1].Reg()
++		case ssa.BlockLOONG64EQ, ssa.BlockLOONG64NE,
++			ssa.BlockLOONG64LTZ, ssa.BlockLOONG64GEZ,
++			ssa.BlockLOONG64LEZ, ssa.BlockLOONG64GTZ,
++			ssa.BlockLOONG64FPT, ssa.BlockLOONG64FPF:
++			if !b.Controls[0].Type.IsFlags() {
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = b.Controls[0].Reg()
++			}
+ 		}
+ 	default:
+ 		b.Fatalf("branch not implemented: %s", b.LongString())
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 923e8ef0e4..d2c9d72278 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -453,6 +453,7 @@
+ (GetCallerPC ...) => (LoweredGetCallerPC ...)
+ 
+ (If cond yes no) => (NE (MOVBUreg <typ.UInt64> cond) yes no)
++(MOVBUreg x:((SGT|SGTU) _ _)) => x
+ (MOVBUreg x:(XOR (MOVVconst [1]) ((SGT|SGTU) _ _))) => x
+ 
+ // Write barrier.
+@@ -464,30 +465,8 @@
+ 
+ (CondSelect <t> x y cond) => (OR (MASKEQZ <t> x cond) (MASKNEZ <t> y cond))
+ 
+-// Optimizations
+-
+-// Absorb boolean tests into block
+-(NE (FPFlagTrue cmp) yes no) => (FPT cmp yes no)
+-(NE (FPFlagFalse cmp) yes no) => (FPF cmp yes no)
+-(EQ (FPFlagTrue cmp) yes no) => (FPF cmp yes no)
+-(EQ (FPFlagFalse cmp) yes no) => (FPT cmp yes no)
+-(NE (XORconst [1] cmp:(SGT _ _)) yes no) => (EQ cmp yes no)
+-(NE (XORconst [1] cmp:(SGTU _ _)) yes no) => (EQ cmp yes no)
+-(NE (XORconst [1] cmp:(SGTconst _)) yes no) => (EQ cmp yes no)
+-(NE (XORconst [1] cmp:(SGTUconst _)) yes no) => (EQ cmp yes no)
+-(EQ (XORconst [1] cmp:(SGT _ _)) yes no) => (NE cmp yes no)
+-(EQ (XORconst [1] cmp:(SGTU _ _)) yes no) => (NE cmp yes no)
+-(EQ (XORconst [1] cmp:(SGTconst _)) yes no) => (NE cmp yes no)
+-(EQ (XORconst [1] cmp:(SGTUconst _)) yes no) => (NE cmp yes no)
+-(NE (SGTUconst [1] x) yes no) => (EQ x yes no)
+-(EQ (SGTUconst [1] x) yes no) => (NE x yes no)
+-(NE (SGTU x (MOVVconst [0])) yes no) => (NE x yes no)
+-(EQ (SGTU x (MOVVconst [0])) yes no) => (EQ x yes no)
+-(NE (SGTconst [0] x) yes no) => (LTZ x yes no)
+-(EQ (SGTconst [0] x) yes no) => (GEZ x yes no)
+-(NE (SGT x (MOVVconst [0])) yes no) => (GTZ x yes no)
+-(EQ (SGT x (MOVVconst [0])) yes no) => (LEZ x yes no)
+-(MOVBUreg x:((SGT|SGTU) _ _)) => x
++(SGT  (MOVVconst [c]) x) && is32Bit(c) => (SGTconst  [c] x)
++(SGTU (MOVVconst [c]) x) && is32Bit(c) => (SGTUconst [c] x)
+ 
+ // fold offset into address
+ (ADDVconst [off1] (MOVVaddr [off2] {sym} ptr)) && is32Bit(off1+int64(off2)) => (MOVVaddr [int32(off1)+int32(off2)] {sym} ptr)
+@@ -663,9 +642,6 @@
+ (ROTR x (MOVVconst [c]))  => (ROTRconst x [c&31])
+ (ROTRV x (MOVVconst [c])) => (ROTRVconst x [c&63])
+ 
+-(SGT  (MOVVconst [c]) x) && is32Bit(c) => (SGTconst  [c] x)
+-(SGTU (MOVVconst [c]) x) && is32Bit(c) => (SGTUconst [c] x)
+-
+ // mul by constant
+ (MULV x (MOVVconst [-1])) => (NEGV x)
+ (MULV _ (MOVVconst [0])) => (MOVVconst [0])
+@@ -756,6 +732,43 @@
+ (SGTconst [c] (SRLVconst _ [d])) && 0 <= c && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c) => (MOVVconst [1])
+ (SGTUconst [c] (SRLVconst _ [d])) && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c) => (MOVVconst [1])
+ 
++// SGT/SGTU with known outcomes.
++(SGT  x x) => (MOVVconst [0])
++(SGTU x x) => (MOVVconst [0])
++
++// Optimizations
++
++// Absorb boolean tests into block
++(NE (FPFlagTrue cmp) yes no) => (FPT cmp yes no)
++(NE (FPFlagFalse cmp) yes no) => (FPF cmp yes no)
++(EQ (FPFlagTrue cmp) yes no) => (FPF cmp yes no)
++(EQ (FPFlagFalse cmp) yes no) => (FPT cmp yes no)
++(NE (XORconst [1] cmp:(SGT _ _)) yes no) => (EQ cmp yes no)
++(NE (XORconst [1] cmp:(SGTU _ _)) yes no) => (EQ cmp yes no)
++(NE (XORconst [1] cmp:(SGTconst _)) yes no) => (EQ cmp yes no)
++(NE (XORconst [1] cmp:(SGTUconst _)) yes no) => (EQ cmp yes no)
++(EQ (XORconst [1] cmp:(SGT _ _)) yes no) => (NE cmp yes no)
++(EQ (XORconst [1] cmp:(SGTU _ _)) yes no) => (NE cmp yes no)
++(EQ (XORconst [1] cmp:(SGTconst _)) yes no) => (NE cmp yes no)
++(EQ (XORconst [1] cmp:(SGTUconst _)) yes no) => (NE cmp yes no)
++(NE (SGTUconst [1] x) yes no) => (EQ x yes no)
++(EQ (SGTUconst [1] x) yes no) => (NE x yes no)
++(NE (SGTU x (MOVVconst [0])) yes no) => (NE x yes no)
++(EQ (SGTU x (MOVVconst [0])) yes no) => (EQ x yes no)
++(NE (SGTconst [0] x) yes no) => (LTZ x yes no)
++(EQ (SGTconst [0] x) yes no) => (GEZ x yes no)
++(NE (SGT x (MOVVconst [0])) yes no) => (GTZ x yes no)
++(EQ (SGT x (MOVVconst [0])) yes no) => (LEZ x yes no)
++
++(EQ (SGTU (MOVVconst [c]) y) yes no) && c >= -2048 && c <= 2047 => (EQ (SGTUconst [c] y) yes no)
++(NE (SGTU (MOVVconst [c]) y) yes no) && c >= -2048 && c <= 2047 => (NE (SGTUconst [c] y) yes no)
++(EQ (SUBV x y) yes no) => (BEQ x y yes no)
++(NE (SUBV x y) yes no) => (BNE x y yes no)
++(EQ (SGT x y) yes no) => (BGE y x yes no)
++(NE (SGT x y) yes no) => (BLT y x yes no)
++(EQ (SGTU x y) yes no) => (BGEU y x yes no)
++(NE (SGTU x y) yes no) => (BLTU y x yes no)
++
+ // absorb constants into branches
+ (EQ  (MOVVconst [0]) yes no) => (First yes no)
+ (EQ  (MOVVconst [c]) yes no) && c != 0 => (First no yes)
+@@ -769,7 +782,3 @@
+ (GTZ (MOVVconst [c]) yes no) && c <= 0 => (First no yes)
+ (GEZ (MOVVconst [c]) yes no) && c >= 0 => (First yes no)
+ (GEZ (MOVVconst [c]) yes no) && c <  0 => (First no yes)
+-
+-// SGT/SGTU with known outcomes.
+-(SGT  x x) => (MOVVconst [0])
+-(SGTU x x) => (MOVVconst [0])
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index e159d48328..e3695e87f8 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -511,12 +511,18 @@ func init() {
+ 	blocks := []blockData{
+ 		{name: "EQ", controls: 1},
+ 		{name: "NE", controls: 1},
+-		{name: "LTZ", controls: 1}, // < 0
+-		{name: "LEZ", controls: 1}, // <= 0
+-		{name: "GTZ", controls: 1}, // > 0
+-		{name: "GEZ", controls: 1}, // >= 0
+-		{name: "FPT", controls: 1}, // FP flag is true
+-		{name: "FPF", controls: 1}, // FP flag is false
++		{name: "LTZ", controls: 1},  // < 0
++		{name: "LEZ", controls: 1},  // <= 0
++		{name: "GTZ", controls: 1},  // > 0
++		{name: "GEZ", controls: 1},  // >= 0
++		{name: "FPT", controls: 1},  // FP flag is true
++		{name: "FPF", controls: 1},  // FP flag is false
++		{name: "BEQ", controls: 2},  // controls[0] == controls[1]
++		{name: "BNE", controls: 2},  // controls[0] == controls[1]
++		{name: "BGE", controls: 2},  // controls[0] >= controls[1]
++		{name: "BLT", controls: 2},  // controls[0] < controls[1]
++		{name: "BGEU", controls: 2}, // controls[0] >= controls[1], unsigned
++		{name: "BLTU", controls: 2}, // controls[0] < controls[1], unsigned
+ 	}
+ 
+ 	archs = append(archs, arch{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index c4e76548f3..06528a9076 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -102,6 +102,12 @@ const (
+ 	BlockLOONG64GEZ
+ 	BlockLOONG64FPT
+ 	BlockLOONG64FPF
++	BlockLOONG64BEQ
++	BlockLOONG64BNE
++	BlockLOONG64BGE
++	BlockLOONG64BLT
++	BlockLOONG64BGEU
++	BlockLOONG64BLTU
+ 
+ 	BlockMIPSEQ
+ 	BlockMIPSNE
+@@ -244,14 +250,20 @@ var blockString = [...]string{
+ 	BlockARM64GEnoov:    "GEnoov",
+ 	BlockARM64JUMPTABLE: "JUMPTABLE",
+ 
+-	BlockLOONG64EQ:  "EQ",
+-	BlockLOONG64NE:  "NE",
+-	BlockLOONG64LTZ: "LTZ",
+-	BlockLOONG64LEZ: "LEZ",
+-	BlockLOONG64GTZ: "GTZ",
+-	BlockLOONG64GEZ: "GEZ",
+-	BlockLOONG64FPT: "FPT",
+-	BlockLOONG64FPF: "FPF",
++	BlockLOONG64EQ:   "EQ",
++	BlockLOONG64NE:   "NE",
++	BlockLOONG64LTZ:  "LTZ",
++	BlockLOONG64LEZ:  "LEZ",
++	BlockLOONG64GTZ:  "GTZ",
++	BlockLOONG64GEZ:  "GEZ",
++	BlockLOONG64FPT:  "FPT",
++	BlockLOONG64FPF:  "FPF",
++	BlockLOONG64BEQ:  "BEQ",
++	BlockLOONG64BNE:  "BNE",
++	BlockLOONG64BGE:  "BGE",
++	BlockLOONG64BLT:  "BLT",
++	BlockLOONG64BGEU: "BGEU",
++	BlockLOONG64BLTU: "BLTU",
+ 
+ 	BlockMIPSEQ:  "EQ",
+ 	BlockMIPSNE:  "NE",
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index abc92b1893..f07c54c0fc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -1907,6 +1907,26 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBUreg x:(SGT _ _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpLOONG64SGT {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(SGTU _ _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpLOONG64SGTU {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	// match: (MOVBUreg x:(XOR (MOVVconst [1]) (SGT _ _)))
+ 	// result: x
+ 	for {
+@@ -1945,26 +1965,6 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (MOVBUreg x:(SGT _ _))
+-	// result: x
+-	for {
+-		x := v_0
+-		if x.Op != OpLOONG64SGT {
+-			break
+-		}
+-		v.copyOf(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(SGTU _ _))
+-	// result: x
+-	for {
+-		x := v_0
+-		if x.Op != OpLOONG64SGTU {
+-			break
+-		}
+-		v.copyOf(x)
+-		return true
+-	}
+ 	// match: (MOVBUreg x:(MOVBUload _ _))
+ 	// result: (MOVVreg x)
+ 	for {
+@@ -9393,6 +9393,53 @@ func rewriteBlockLOONG64(b *Block) bool {
+ 			b.resetWithControl(BlockLOONG64LEZ, x)
+ 			return true
+ 		}
++		// match: (EQ (SGTU (MOVVconst [c]) y) yes no)
++		// cond: c >= -2048 && c <= 2047
++		// result: (EQ (SGTUconst [c] y) yes no)
++		for b.Controls[0].Op == OpLOONG64SGTU {
++			v_0 := b.Controls[0]
++			y := v_0.Args[1]
++			v_0_0 := v_0.Args[0]
++			if v_0_0.Op != OpLOONG64MOVVconst {
++				break
++			}
++			c := auxIntToInt64(v_0_0.AuxInt)
++			if !(c >= -2048 && c <= 2047) {
++				break
++			}
++			v0 := b.NewValue0(v_0.Pos, OpLOONG64SGTUconst, typ.Bool)
++			v0.AuxInt = int64ToAuxInt(c)
++			v0.AddArg(y)
++			b.resetWithControl(BlockLOONG64EQ, v0)
++			return true
++		}
++		// match: (EQ (SUBV x y) yes no)
++		// result: (BEQ x y yes no)
++		for b.Controls[0].Op == OpLOONG64SUBV {
++			v_0 := b.Controls[0]
++			y := v_0.Args[1]
++			x := v_0.Args[0]
++			b.resetWithControl2(BlockLOONG64BEQ, x, y)
++			return true
++		}
++		// match: (EQ (SGT x y) yes no)
++		// result: (BGE y x yes no)
++		for b.Controls[0].Op == OpLOONG64SGT {
++			v_0 := b.Controls[0]
++			y := v_0.Args[1]
++			x := v_0.Args[0]
++			b.resetWithControl2(BlockLOONG64BGE, y, x)
++			return true
++		}
++		// match: (EQ (SGTU x y) yes no)
++		// result: (BGEU y x yes no)
++		for b.Controls[0].Op == OpLOONG64SGTU {
++			v_0 := b.Controls[0]
++			y := v_0.Args[1]
++			x := v_0.Args[0]
++			b.resetWithControl2(BlockLOONG64BGEU, y, x)
++			return true
++		}
+ 		// match: (EQ (MOVVconst [0]) yes no)
+ 		// result: (First yes no)
+ 		for b.Controls[0].Op == OpLOONG64MOVVconst {
+@@ -9651,6 +9698,53 @@ func rewriteBlockLOONG64(b *Block) bool {
+ 			b.resetWithControl(BlockLOONG64GTZ, x)
+ 			return true
+ 		}
++		// match: (NE (SGTU (MOVVconst [c]) y) yes no)
++		// cond: c >= -2048 && c <= 2047
++		// result: (NE (SGTUconst [c] y) yes no)
++		for b.Controls[0].Op == OpLOONG64SGTU {
++			v_0 := b.Controls[0]
++			y := v_0.Args[1]
++			v_0_0 := v_0.Args[0]
++			if v_0_0.Op != OpLOONG64MOVVconst {
++				break
++			}
++			c := auxIntToInt64(v_0_0.AuxInt)
++			if !(c >= -2048 && c <= 2047) {
++				break
++			}
++			v0 := b.NewValue0(v_0.Pos, OpLOONG64SGTUconst, typ.Bool)
++			v0.AuxInt = int64ToAuxInt(c)
++			v0.AddArg(y)
++			b.resetWithControl(BlockLOONG64NE, v0)
++			return true
++		}
++		// match: (NE (SUBV x y) yes no)
++		// result: (BNE x y yes no)
++		for b.Controls[0].Op == OpLOONG64SUBV {
++			v_0 := b.Controls[0]
++			y := v_0.Args[1]
++			x := v_0.Args[0]
++			b.resetWithControl2(BlockLOONG64BNE, x, y)
++			return true
++		}
++		// match: (NE (SGT x y) yes no)
++		// result: (BLT y x yes no)
++		for b.Controls[0].Op == OpLOONG64SGT {
++			v_0 := b.Controls[0]
++			y := v_0.Args[1]
++			x := v_0.Args[0]
++			b.resetWithControl2(BlockLOONG64BLT, y, x)
++			return true
++		}
++		// match: (NE (SGTU x y) yes no)
++		// result: (BLTU y x yes no)
++		for b.Controls[0].Op == OpLOONG64SGTU {
++			v_0 := b.Controls[0]
++			y := v_0.Args[1]
++			x := v_0.Args[0]
++			b.resetWithControl2(BlockLOONG64BLTU, y, x)
++			return true
++		}
+ 		// match: (NE (MOVVconst [0]) yes no)
+ 		// result: (First no yes)
+ 		for b.Controls[0].Op == OpLOONG64MOVVconst {

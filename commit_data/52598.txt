@@ -14,9 +14,79 @@ Date:   Fri May 13 00:22:11 2022 +0900
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/all.bat   | 4 ++--
  src/clean.bat | 2 +-
  src/race.bat  | 6 +++---
  src/run.bat   | 2 +-
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/all.bat b/src/all.bat
+index ae835d992f..dfc83c8b26 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -13,9 +13,9 @@ goto end
+ :ok
+ 
+ set OLDPATH=%PATH%
+-call make.bat --no-banner --no-local
++call .\make.bat --no-banner --no-local
+ if %GOBUILDFAIL%==1 goto end
+-call run.bat --no-rebuild --no-local
++call .\run.bat --no-rebuild --no-local
+ if %GOBUILDFAIL%==1 goto end
+ :: we must restore %PATH% before running "dist banner" so that the latter
+ :: can get the original %PATH% and give suggestion to add %GOROOT%/bin
+diff --git a/src/clean.bat b/src/clean.bat
+index c957353d0f..6688b41e5e 100644
+--- a/src/clean.bat
++++ b/src/clean.bat
+@@ -10,7 +10,7 @@ set GOBUILDFAIL=0
+ 
+ go tool dist env -w -p >env.bat
+ if errorlevel 1 goto fail
+-call env.bat
++call .\env.bat
+ del env.bat
+ echo.
+ 
+diff --git a/src/race.bat b/src/race.bat
+index 8f0355612c..d395e19f97 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -16,11 +16,11 @@ goto end
+ :ok
+ 
+ set GOROOT=%CD%\..
+-call make.bat --dist-tool >NUL
++call .\make.bat --dist-tool >NUL
+ if errorlevel 1 goto fail
+ .\cmd\dist\dist.exe env -w -p >env.bat
+ if errorlevel 1 goto fail
+-call env.bat
++call .\env.bat
+ del env.bat
+ 
+ if %GOHOSTARCH% == amd64 goto continue
+@@ -28,7 +28,7 @@ echo Race detector is only supported on windows/amd64.
+ goto fail
+ 
+ :continue
+-call make.bat --no-banner --no-local
++call .\make.bat --no-banner --no-local
+ if %GOBUILDFAIL%==1 goto end
+ echo # go install -race std
+ go install -race std
+diff --git a/src/run.bat b/src/run.bat
+index b4bab85a93..74bf8a4d8d 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -20,7 +20,7 @@ set GOBUILDFAIL=0
+ 
+ ..\bin\go tool dist env > env.bat
+ if errorlevel 1 goto fail
+-call env.bat
++call .\env.bat
+ del env.bat
+ 
+ set GOPATH=c:\nonexist-gopath

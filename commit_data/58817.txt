@@ -14,7 +14,7 @@ Date:   Fri Dec 15 04:33:18 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/cgo/internal/test/issue9400/asm_mips64x.s        | 2 +-
  src/cmd/cgo/internal/test/issue9400/asm_riscv64.s        | 2 +-
  src/cmd/cgo/internal/testgodefs/testdata/fieldtypedef.go | 2 +-
@@ -28,3 +28,128 @@ Date:   Fri Dec 15 04:33:18 2023 +0000
  src/runtime/profbuf.go                                   | 2 +-
  src/runtime/signal_aix_ppc64.go                          | 2 +-
  12 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/test/issue9400/asm_mips64x.s b/src/cmd/cgo/internal/test/issue9400/asm_mips64x.s
+index 1f492eafe9..3edba3dd82 100644
+--- a/src/cmd/cgo/internal/test/issue9400/asm_mips64x.s
++++ b/src/cmd/cgo/internal/test/issue9400/asm_mips64x.s
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/cmd/cgo/internal/test/issue9400/asm_riscv64.s b/src/cmd/cgo/internal/test/issue9400/asm_riscv64.s
+index fa34f6bd37..0f10e3a326 100644
+--- a/src/cmd/cgo/internal/test/issue9400/asm_riscv64.s
++++ b/src/cmd/cgo/internal/test/issue9400/asm_riscv64.s
+@@ -1,4 +1,4 @@
+-// Copyright 2020 The Go Authors.  All rights reserved.
++// Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/cmd/cgo/internal/testgodefs/testdata/fieldtypedef.go b/src/cmd/cgo/internal/testgodefs/testdata/fieldtypedef.go
+index b0c507477f..d3ab1902c1 100644
+--- a/src/cmd/cgo/internal/testgodefs/testdata/fieldtypedef.go
++++ b/src/cmd/cgo/internal/testgodefs/testdata/fieldtypedef.go
+@@ -1,4 +1,4 @@
+-// Copyright 2018 The Go Authors. All rights reserve d.
++// Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/cmd/compile/internal/types2/errorcalls_test.go b/src/cmd/compile/internal/types2/errorcalls_test.go
+index 6153b42a34..ba4dc87b6a 100644
+--- a/src/cmd/compile/internal/types2/errorcalls_test.go
++++ b/src/cmd/compile/internal/types2/errorcalls_test.go
+@@ -1,6 +1,6 @@
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE ast.
++// license that can be found in the LICENSE file.
+ 
+ package types2_test
+ 
+diff --git a/src/cmd/go/internal/mmap/mmap.go b/src/cmd/go/internal/mmap/mmap.go
+index 0cad9caf27..fcbd3e08c1 100644
+--- a/src/cmd/go/internal/mmap/mmap.go
++++ b/src/cmd/go/internal/mmap/mmap.go
+@@ -1,4 +1,4 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
++// Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/cmd/go/internal/mmap/mmap_other.go b/src/cmd/go/internal/mmap/mmap_other.go
+index 22e9395b21..4d2844fc37 100644
+--- a/src/cmd/go/internal/mmap/mmap_other.go
++++ b/src/cmd/go/internal/mmap/mmap_other.go
+@@ -1,4 +1,4 @@
+-// Copyright 2022 The Go Authors.  All rights reserved.
++// Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/cmd/go/internal/mmap/mmap_unix.go b/src/cmd/go/internal/mmap/mmap_unix.go
+index 53bcbb92a8..5dce872368 100644
+--- a/src/cmd/go/internal/mmap/mmap_unix.go
++++ b/src/cmd/go/internal/mmap/mmap_unix.go
+@@ -1,4 +1,4 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
++// Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/cmd/go/internal/mmap/mmap_windows.go b/src/cmd/go/internal/mmap/mmap_windows.go
+index 1cf62feca3..d00bef71e5 100644
+--- a/src/cmd/go/internal/mmap/mmap_windows.go
++++ b/src/cmd/go/internal/mmap/mmap_windows.go
+@@ -1,4 +1,4 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
++// Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/go/types/errorcalls_test.go b/src/go/types/errorcalls_test.go
+index d76c06da30..0238909282 100644
+--- a/src/go/types/errorcalls_test.go
++++ b/src/go/types/errorcalls_test.go
+@@ -1,6 +1,6 @@
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE ast.
++// license that can be found in the LICENSE file.
+ 
+ package types_test
+ 
+diff --git a/src/runtime/asan0.go b/src/runtime/asan0.go
+index 0948786200..bcfd96f1ab 100644
+--- a/src/runtime/asan0.go
++++ b/src/runtime/asan0.go
+@@ -1,4 +1,4 @@
+-// Copyright 2021 The Go Authors.  All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/runtime/profbuf.go b/src/runtime/profbuf.go
+index 5772a8020c..d3afbcd8c7 100644
+--- a/src/runtime/profbuf.go
++++ b/src/runtime/profbuf.go
+@@ -1,4 +1,4 @@
+-// Copyright 2017 The Go Authors.  All rights reserved.
++// Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/runtime/signal_aix_ppc64.go b/src/runtime/signal_aix_ppc64.go
+index c6cb91a0a2..8ae0f749ed 100644
+--- a/src/runtime/signal_aix_ppc64.go
++++ b/src/runtime/signal_aix_ppc64.go
+@@ -1,4 +1,4 @@
+-/// Copyright 2018 The Go Authors. All rights reserved.
++// Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 

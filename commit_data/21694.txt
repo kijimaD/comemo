@@ -10,7 +10,7 @@ Date:   Wed Jan 28 08:42:20 2015 +0300
     Change-Id: If31ce9447982929d5b3b963fd0830efae4247c37
     Reviewed-on: https://go-review.googlesource.com/3411
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/builtin.c       |  2 +-
  src/cmd/gc/esc.c           |  3 +++
  src/cmd/gc/runtime.go      |  2 +-
@@ -20,3 +20,203 @@ Date:   Wed Jan 28 08:42:20 2015 +0300
  test/escape2.go            | 21 +++++++++++++++++++++
  test/escape2n.go           | 21 +++++++++++++++++++++
  8 files changed, 99 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 6682bfb66d..fcd5685cdc 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -33,7 +33,7 @@ char *runtimeimport =
+ 	"func @\"\".concatstrings (? *[32]byte, ? []string) (? string)\n"
+ 	"func @\"\".cmpstring (? string, ? string) (? int)\n"
+ 	"func @\"\".eqstring (? string, ? string) (? bool)\n"
+-	"func @\"\".intstring (? int64) (? string)\n"
++	"func @\"\".intstring (? *[4]byte, ? int64) (? string)\n"
+ 	"func @\"\".slicebytetostring (? *[32]byte, ? []byte) (? string)\n"
+ 	"func @\"\".slicebytetostringtmp (? []byte) (? string)\n"
+ 	"func @\"\".slicerunetostring (? []rune) (? string)\n"
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index b636059749..c4bf961c97 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -695,6 +695,7 @@ esc(EscState *e, Node *n, Node *up)
+ 		break;
+ 
+ 	case OARRAYBYTESTR:
++	case ORUNESTR:
+ 		n->escloopdepth = e->loopdepth;
+ 		n->esc = EscNone;  // until proven otherwise
+ 		e->noesc = list(e->noesc, n);
+@@ -824,6 +825,7 @@ escassign(EscState *e, Node *dst, Node *src)
+ 	case ONEW:
+ 	case OCLOSURE:
+ 	case OCALLPART:
++	case ORUNESTR:
+ 		escflows(e, dst, src);
+ 		break;
+ 
+@@ -1249,6 +1251,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 	case ONEW:
+ 	case OCLOSURE:
+ 	case OCALLPART:
++	case ORUNESTR:
+ 		if(leaks) {
+ 			src->esc = EscHeap;
+ 			if(debug['m'])
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 13b19ca5e2..1b16ebb9c6 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -47,7 +47,7 @@ func concatstrings(*[32]byte, []string) string
+ 
+ func cmpstring(string, string) int
+ func eqstring(string, string) bool
+-func intstring(int64) string
++func intstring(*[4]byte, int64) string
+ func slicebytetostring(*[32]byte, []byte) string
+ func slicebytetostringtmp([]byte) string
+ func slicerunetostring([]rune) string
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 513aadf4ba..5625d6b5dd 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1370,9 +1370,14 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case ORUNESTR:
+-		// sys_intstring(v)
+-		n = mkcall("intstring", n->type, init,
+-			conv(n->left, types[TINT64]));
++		a = nodnil();
++		if(n->esc == EscNone) {
++			t = aindex(nodintconst(4), types[TUINT8]);
++			var = temp(t);
++			a = nod(OADDR, var, N);
++		}
++		// intstring(*[4]byte, rune)
++		n = mkcall("intstring", n->type, init, a, conv(n->left, types[TINT64]));
+ 		goto ret;
+ 
+ 	case OARRAYBYTESTR:
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 9ec6f320eb..58198d0e1b 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -185,8 +185,15 @@ type stringStruct struct {
+ 	len int
+ }
+ 
+-func intstring(v int64) string {
+-	s, b := rawstring(4)
++func intstring(buf *[4]byte, v int64) string {
++	var s string
++	var b []byte
++	if buf != nil {
++		b = buf[:]
++		s = slicebytetostringtmp(b)
++	} else {
++		s, b = rawstring(4)
++	}
+ 	n := runetochar(b, rune(v))
+ 	return s[:n]
+ }
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 249f431e18..27a44ad645 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -186,3 +186,38 @@ func TestStringOnStack(t *testing.T) {
+ 		t.Fatalf("want: '%v', got '%v'", want, s)
+ 	}
+ }
++
++func TestIntString(t *testing.T) {
++	// Non-escaping result of intstring.
++	s := ""
++	for i := 0; i < 4; i++ {
++		s += string(i+'0') + string(i+'0'+1)
++	}
++	if want := "01122334"; s != want {
++		t.Fatalf("want '%v', got '%v'", want, s)
++	}
++
++	// Escaping result of intstring.
++	var a [4]string
++	for i := 0; i < 4; i++ {
++		a[i] = string(i + '0')
++	}
++	s = a[0] + a[1] + a[2] + a[3]
++	if want := "0123"; s != want {
++		t.Fatalf("want '%v', got '%v'", want, s)
++	}
++}
++
++func TestIntStringAllocs(t *testing.T) {
++	unknown := '0'
++	n := testing.AllocsPerRun(1000, func() {
++		s1 := string(unknown)
++		s2 := string(unknown + 1)
++		if s1 == s2 {
++			t.Fatalf("bad")
++		}
++	})
++	if n != 0 {
++		t.Fatalf("want 0 allocs, got %v", n)
++	}
++}
+diff --git a/test/escape2.go b/test/escape2.go
+index 57352a152c..1523d9f1ff 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1630,3 +1630,24 @@ func addstr3() {
+ 	s2 := s[0:1]
+ 	sink = s2
+ }
++
++func intstring0() bool {
++	// string does not escape
++	x := '0'
++	s := string(x) // ERROR "string\(x\) does not escape"
++	return s == "0"
++}
++
++func intstring1() string {
++	// string does not escape, but the buffer does
++	x := '0'
++	s := string(x) // ERROR "string\(x\) escapes to heap"
++	return s
++}
++
++func intstring2() {
++	// string escapes to heap
++	x := '0'
++	s := string(x) // ERROR "string\(x\) escapes to heap" "moved to heap: s"
++	sink = &s      // ERROR "&s escapes to heap"
++}
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 6769906e30..03c0f4b75d 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -1630,3 +1630,24 @@ func addstr3() {
+ 	s2 := s[0:1]
+ 	sink = s2
+ }
++
++func intstring0() bool {
++	// string does not escape
++	x := '0'
++	s := string(x) // ERROR "string\(x\) does not escape"
++	return s == "0"
++}
++
++func intstring1() string {
++	// string does not escape, but the buffer does
++	x := '0'
++	s := string(x) // ERROR "string\(x\) escapes to heap"
++	return s
++}
++
++func intstring2() {
++	// string escapes to heap
++	x := '0'
++	s := string(x) // ERROR "string\(x\) escapes to heap" "moved to heap: s"
++	sink = &s      // ERROR "&s escapes to heap"
++}

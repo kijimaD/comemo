@@ -20,7 +20,37 @@ Date:   Sat Oct 8 12:32:06 2022 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/walk/complit.go |  1 +
  test/fixedbugs/issue56105.go             | 11 +++++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index ce7b731ca6..0c5ba97e4a 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -243,6 +243,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node,
+ 					// confuses about variables lifetime. So making sure those expressions
+ 					// are ordered correctly here. See issue #52673.
+ 					orderBlock(&sinit, map[string][]*ir.Name{})
++					walkStmtList(sinit)
+ 				}
+ 				init.Append(sinit...)
+ 				continue
+diff --git a/test/fixedbugs/issue56105.go b/test/fixedbugs/issue56105.go
+new file mode 100644
+index 0000000000..ecbe265807
+--- /dev/null
++++ b/test/fixedbugs/issue56105.go
+@@ -0,0 +1,11 @@
++// compile -d=libfuzzer
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	_ = [...][]int{{}, {}, {}, {}, {}}
++}

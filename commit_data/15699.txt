@@ -10,7 +10,72 @@ Date:   Mon Mar 11 22:55:14 2013 +0100
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/7671045
-
+---
  src/cmd/gc/typecheck.c |  4 ++--
  test/cmplx.go          | 26 ++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 47e555f945..fd19c49bf6 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1182,9 +1182,9 @@ reswitch:
+ 		defaultlit2(&l, &r, 0);
+ 		n->left = l;
+ 		n->right = r;
+-		if(l->type->etype != r->type->etype) {
++		if(!eqtype(l->type, r->type)) {
+ 		badcmplx:
+-			yyerror("invalid operation: %N (complex of types %T, %T)", n, l->type, r->type);
++			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
+ 			goto error;
+ 		}
+ 		switch(l->type->etype) {
+diff --git a/test/cmplx.go b/test/cmplx.go
+index 248672e7dd..2d8a6229d6 100644
+--- a/test/cmplx.go
++++ b/test/cmplx.go
+@@ -9,12 +9,23 @@
+ 
+ package main
+ 
++type (
++	Float32    float32
++	Float64    float64
++	Complex64  complex64
++	Complex128 complex128
++)
++
+ var (
+ 	f32 float32
+ 	f64 float64
++	F32 Float32
++	F64 Float64
+ 
+ 	c64  complex64
+ 	c128 complex128
++	C64  Complex64
++	C128 Complex128
+ )
+ 
+ func main() {
+@@ -25,4 +36,19 @@ func main() {
+ 	_ = complex128(0)     // ok
+ 	_ = complex(f32, f64) // ERROR "complex"
+ 	_ = complex(f64, f32) // ERROR "complex"
++	_ = complex(f32, F32) // ERROR "complex"
++	_ = complex(F32, f32) // ERROR "complex"
++	_ = complex(f64, F64) // ERROR "complex"
++	_ = complex(F64, f64) // ERROR "complex"
++
++	c128 = complex(f32, f32) // ERROR "cannot use"
++	c64 = complex(f64, f64)  // ERROR "cannot use"
++
++	c64 = complex(1.0, 2.0) // ok, constant is untyped
++	c128 = complex(1.0, 2.0)
++	C64 = complex(1.0, 2.0)
++	C128 = complex(1.0, 2.0)
++
++	C64 = complex(f32, f32)  // ERROR "cannot use"
++	C128 = complex(f64, f64) // ERROR "cannot use"
+ }

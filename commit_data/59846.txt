@@ -13,6 +13,28 @@ Date:   Fri Nov 3 15:03:12 2023 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Run-TryBot: shuang cui <imcusg@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/pprof/pprof.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index d4db9df285..24d6ee04a0 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -45,6 +45,16 @@ type fetcher struct {
+ }
+ 
+ func (f *fetcher) Fetch(src string, duration, timeout time.Duration) (*profile.Profile, string, error) {
++	// Firstly, determine if the src is an existing file on the disk.
++	// If it is a file, let regular pprof open it.
++	// If it is not a file, when the src contains `:`
++	// (e.g. mem_2023-11-02_03:55:24 or abc:123/mem_2023-11-02_03:55:24),
++	// url.Parse will recognize it as a link and ultimately report an error,
++	// similar to `abc:123/mem_2023-11-02_03:55:24:
++	// Get "http://abc:123/mem_2023-11-02_03:55:24": dial tcp: lookup abc: no such host`
++	if _, openErr := os.Stat(src); openErr == nil {
++		return nil, "", nil
++	}
+ 	sourceURL, timeout := adjustURL(src, duration, timeout)
+ 	if sourceURL == "" {
+ 		// Could not recognize URL, let regular pprof attempt to fetch the profile (eg. from a file)

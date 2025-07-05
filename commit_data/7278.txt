@@ -7,7 +7,34 @@ Date:   Sat Jan 29 14:56:15 2011 -0800
     R=golang-dev, agl1
     CC=golang-dev
     https://golang.org/cl/4079051
-
+---
  src/pkg/sync/mutex.go | 2 +-
  src/pkg/sync/once.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index 9a2bb2bb4f..c4d82af00c 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -5,7 +5,7 @@
+ // The sync package provides basic synchronization primitives
+ // such as mutual exclusion locks.  Other than the Once type,
+ // most are intended for use by low-level library routines.
+-// Higher-level synchronization  is better done via channels
++// Higher-level synchronization is better done via channels
+ // and communication.
+ package sync
+ 
+diff --git a/src/pkg/sync/once.go b/src/pkg/sync/once.go
+index 8c877cdec2..b6f5f5a872 100644
+--- a/src/pkg/sync/once.go
++++ b/src/pkg/sync/once.go
+@@ -13,7 +13,7 @@ type Once struct {
+ // Do calls the function f if and only if the method is being called for the
+ // first time with this receiver.  In other words, given
+ // 	var once Once
+-// if Do(f) is called multiple times, only the first call will invoke f,
++// if once.Do(f) is called multiple times, only the first call will invoke f,
+ // even if f has a different value in each invocation.  A new instance of
+ // Once is required for each function to execute.
+ //

@@ -7,6 +7,21 @@ Date:   Sat Mar 14 23:53:31 2015 +1100
     Change-Id: Ibb7e4f6b95b7a9782a47221cafbe4f20dd77fd38
     Reviewed-on: https://go-review.googlesource.com/7583
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  doc/go1.5.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 3f22496696..995ee8be93 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -5,6 +5,9 @@ build: Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/
+ New Ports:
+ Darwin/ARM, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
+ 
++Removed Ports:
++dragonfly/386 (https://golang.org/cl/7543)
++
+ API additions and behavior changes:
+ 
+ archive/zip: add WriterAt function (https://golang.org/cl/7445)

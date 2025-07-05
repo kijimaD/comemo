@@ -15,10 +15,88 @@ Date:   Thu Aug 22 09:53:54 2019 -0400
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s | 3 +++
  src/cmd/compile/internal/s390x/ggen.go    | 5 +----
  src/cmd/internal/obj/s390x/a.out.go       | 2 ++
  src/cmd/internal/obj/s390x/anames.go      | 1 +
  src/cmd/internal/obj/s390x/asmz.go        | 6 ++++++
  5 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index c9f4d69736..4c1ca2361c 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -329,6 +329,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	TCEB	F5, $8                 // ed5000080010
+ 	TCDB	F15, $4095             // edf00fff0011
+ 
++	UNDEF                          // 00000000
++	NOPH                           // 0700
++
+ 	VL	(R15), V1               // e710f0000006
+ 	VST	V1, (R15)               // e710f000000e
+ 	VL	(R15), V31              // e7f0f0000806
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index 6a72b27ac5..ae9965c378 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -105,8 +105,5 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ }
+ 
+ func ginsnop(pp *gc.Progs) *obj.Prog {
+-	p := pp.Prog(s390x.AWORD)
+-	p.From.Type = obj.TYPE_CONST
+-	p.From.Offset = 0x47000000 // nop 0
+-	return p
++	return pp.Prog(s390x.ANOPH)
+ }
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index d11a3834b0..08ead40f53 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -966,6 +966,8 @@ const (
+ 	AVMSLOG
+ 	AVMSLEOG
+ 
++	ANOPH // NOP
++
+ 	// binary
+ 	ABYTE
+ 	AWORD
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index a9bdfcafe9..2deae18b3c 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -696,6 +696,7 @@ var Anames = []string{
+ 	"VMSLEG",
+ 	"VMSLOG",
+ 	"VMSLEOG",
++	"NOPH",
+ 	"BYTE",
+ 	"WORD",
+ 	"DWORD",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 2b187edca5..d76eb25829 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -314,6 +314,9 @@ var optab = []Optab{
+ 	// undefined (deliberate illegal instruction)
+ 	{i: 78, as: obj.AUNDEF},
+ 
++	// 2 byte no-operation
++	{i: 66, as: ANOPH},
++
+ 	// vector instructions
+ 
+ 	// VRX store
+@@ -3394,6 +3397,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		d2 := c.regoff(&p.To)
+ 		zRXE(opcode, uint32(p.From.Reg), 0, 0, uint32(d2), 0, asm)
+ 
++	case 66:
++		zRR(op_BCR, 0, 0, asm)
++
+ 	case 67: // fmov $0 freg
+ 		var opcode uint32
+ 		switch p.As {

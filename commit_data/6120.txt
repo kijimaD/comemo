@@ -7,7 +7,7 @@ Date:   Fri Aug 27 14:49:49 2010 -0700
     R=rsc
     CC=golang-dev, r
     https://golang.org/cl/2053041
-
+---
  src/pkg/go/ast/ast.go                          | 2 +-
  src/pkg/go/parser/parser.go                    | 5 ++++-
  src/pkg/go/printer/nodes.go                    | 6 ++++--
@@ -15,3 +15,117 @@ Date:   Fri Aug 27 14:49:49 2010 -0700
  src/pkg/go/printer/testdata/expressions.input  | 4 ++++
  src/pkg/go/printer/testdata/expressions.raw    | 4 ++++
  6 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 93e962cefb..6cdc8850c3 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -196,7 +196,7 @@ type (
+ 	// An SliceExpr node represents an expression followed by slice indices.
+ 	SliceExpr struct {
+ 		X     Expr // expression
+-		Index Expr // beginning of slice range
++		Index Expr // beginning of slice range; or nil
+ 		End   Expr // end of slice range; or nil
+ 	}
+ 
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 55e0dadf8f..c5edfdf25a 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -913,7 +913,10 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
+ 
+ 	p.expect(token.LBRACK)
+ 	p.exprLev++
+-	index := p.parseExpr()
++	var index ast.Expr
++	if p.tok != token.COLON {
++		index = p.parseExpr()
++	}
+ 	if p.tok == token.COLON {
+ 		p.next()
+ 		var end ast.Expr
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 9e5665089e..404c7b0adc 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -826,9 +826,11 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		// TODO(gri): should treat[] like parentheses and undo one level of depth
+ 		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine)
+ 		p.print(token.LBRACK)
+-		p.expr0(x.Index, depth+1, multiLine)
++		if x.Index != nil {
++			p.expr0(x.Index, depth+1, multiLine)
++		}
+ 		// blanks around ":" if both sides exist and either side is a binary expression
+-		if depth <= 1 && x.End != nil && (isBinary(x.Index) || isBinary(x.End)) {
++		if depth <= 1 && x.Index != nil && x.End != nil && (isBinary(x.Index) || isBinary(x.End)) {
+ 			p.print(blank, token.COLON, blank)
+ 		} else {
+ 			p.print(token.COLON)
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 44f3a63ff4..39c4c34164 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -31,6 +31,9 @@ func _() {
+ 	_ = 1 + a
+ 	_ = a + 1
+ 	_ = a + b + 1
++	_ = s[a]
++	_ = s[a:]
++	_ = s[:b]
+ 	_ = s[1:2]
+ 	_ = s[a:b]
+ 	_ = s[0:len(s)]
+@@ -56,6 +59,7 @@ func _() {
+ 	_ = s[a : b-c]
+ 	_ = s[0:]
+ 	_ = s[a+b]
++	_ = s[:b-c]
+ 	_ = s[a+b:]
+ 	_ = a[a<<b+1]
+ 	_ = a[a<<b+1:]
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 5aec976e13..0c0b813a63 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -31,6 +31,9 @@ func _() {
+ 	_ = 1+a
+ 	_ = a+1
+ 	_ = a+b+1
++	_ = s[a]
++	_ = s[a:]
++	_ = s[:b]
+ 	_ = s[1:2]
+ 	_ = s[a:b]
+ 	_ = s[0:len(s)]
+@@ -56,6 +59,7 @@ func _() {
+ 	_ = s[a : b-c]
+ 	_ = s[0:]
+ 	_ = s[a+b]
++	_ = s[: b-c]
+ 	_ = s[a+b :]
+ 	_ = a[a<<b+1]
+ 	_ = a[a<<b+1 :]
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 7580701b68..cba8636c48 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -31,6 +31,9 @@ func _() {
+ 	_ = 1 + a
+ 	_ = a + 1
+ 	_ = a + b + 1
++	_ = s[a]
++	_ = s[a:]
++	_ = s[:b]
+ 	_ = s[1:2]
+ 	_ = s[a:b]
+ 	_ = s[0:len(s)]
+@@ -56,6 +59,7 @@ func _() {
+ 	_ = s[a : b-c]
+ 	_ = s[0:]
+ 	_ = s[a+b]
++	_ = s[:b-c]
+ 	_ = s[a+b:]
+ 	_ = a[a<<b+1]
+ 	_ = a[a<<b+1:]

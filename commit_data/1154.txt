@@ -7,6 +7,39 @@ Date:   Tue Nov 18 09:35:42 2008 -0800
     R=r
     OCL=19455
     CL=19455
-
+---
  test/golden.out | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index 7fc34185fe..3e113a375b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -125,7 +125,7 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
+ 
+ =========== bugs/bug105.go
+ bugs/bug105.go:8: P: undefined
+-bugs/bug105.go:9: illegal types for operand: RETURN
++bugs/bug105.go:8: illegal types for operand: RETURN
+ 	int
+ BUG: should compile
+ 
+@@ -139,7 +139,7 @@ BUG: bug115 should compile
+ 
+ =========== bugs/bug117.go
+ bugs/bug117.go:9: undefined DOT get on PS
+-bugs/bug117.go:10: illegal types for operand: RETURN
++bugs/bug117.go:9: illegal types for operand: RETURN
+ 	int
+ BUG: should compile
+ 
+@@ -166,6 +166,9 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug123.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug123.go
+ 
++=========== bugs/bug124.go
++BUG: errchk: command succeeded unexpectedly:  6g bugs/bug124.go
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

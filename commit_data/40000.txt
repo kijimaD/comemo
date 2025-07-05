@@ -35,7 +35,148 @@ Date:   Mon Apr 8 15:53:35 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/bytes/bytes.go      | 63 +++++++++++++++++++++++++++++++++++++++++++++----
  src/bytes/bytes_test.go | 35 +++++++++++++++++++++++++++
  2 files changed, 94 insertions(+), 4 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index bdd55fca4a..22aeded5e1 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -521,11 +521,66 @@ func Repeat(b []byte, count int) []byte {
+ 	return nb
+ }
+ 
+-// ToUpper treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters within it mapped to their upper case.
+-func ToUpper(s []byte) []byte { return Map(unicode.ToUpper, s) }
++// ToUpper returns a copy of the byte slice s with all Unicode letters mapped to
++// their upper case.
++func ToUpper(s []byte) []byte {
++	isASCII, hasLower := true, false
++	for i := 0; i < len(s); i++ {
++		c := s[i]
++		if c >= utf8.RuneSelf {
++			isASCII = false
++			break
++		}
++		hasLower = hasLower || ('a' <= c && c <= 'z')
++	}
++
++	if isASCII { // optimize for ASCII-only byte slices.
++		if !hasLower {
++			// Just return a copy.
++			return append([]byte(""), s...)
++		}
++		b := make([]byte, len(s))
++		for i := 0; i < len(s); i++ {
++			c := s[i]
++			if 'a' <= c && c <= 'z' {
++				c -= 'a' - 'A'
++			}
++			b[i] = c
++		}
++		return b
++	}
++	return Map(unicode.ToUpper, s)
++}
+ 
+-// ToLower treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their lower case.
+-func ToLower(s []byte) []byte { return Map(unicode.ToLower, s) }
++// ToLower returns a copy of the byte slice s with all Unicode letters mapped to
++// their lower case.
++func ToLower(s []byte) []byte {
++	isASCII, hasUpper := true, false
++	for i := 0; i < len(s); i++ {
++		c := s[i]
++		if c >= utf8.RuneSelf {
++			isASCII = false
++			break
++		}
++		hasUpper = hasUpper || ('A' <= c && c <= 'Z')
++	}
++
++	if isASCII { // optimize for ASCII-only byte slices.
++		if !hasUpper {
++			return append([]byte(""), s...)
++		}
++		b := make([]byte, len(s))
++		for i := 0; i < len(s); i++ {
++			c := s[i]
++			if 'A' <= c && c <= 'Z' {
++				c += 'a' - 'A'
++			}
++			b[i] = c
++		}
++		return b
++	}
++	return Map(unicode.ToLower, s)
++}
+ 
+ // ToTitle treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their title case.
+ func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index d760d4b52a..340810facf 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -891,10 +891,14 @@ type StringTest struct {
+ 
+ var upperTests = []StringTest{
+ 	{"", []byte("")},
++	{"ONLYUPPER", []byte("ONLYUPPER")},
+ 	{"abc", []byte("ABC")},
+ 	{"AbC123", []byte("ABC123")},
+ 	{"azAZ09_", []byte("AZAZ09_")},
++	{"longStrinGwitHmixofsmaLLandcAps", []byte("LONGSTRINGWITHMIXOFSMALLANDCAPS")},
++	{"long\u0250string\u0250with\u0250nonascii\u2C6Fchars", []byte("LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS")},
+ 	{"\u0250\u0250\u0250\u0250\u0250", []byte("\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F")}, // grows one byte per char
++	{"a\u0080\U0010FFFF", []byte("A\u0080\U0010FFFF")},                           // test utf8.RuneSelf and utf8.MaxRune
+ }
+ 
+ var lowerTests = []StringTest{
+@@ -902,7 +906,10 @@ var lowerTests = []StringTest{
+ 	{"abc", []byte("abc")},
+ 	{"AbC123", []byte("abc123")},
+ 	{"azAZ09_", []byte("azaz09_")},
++	{"longStrinGwitHmixofsmaLLandcAps", []byte("longstringwithmixofsmallandcaps")},
++	{"LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS", []byte("long\u0250string\u0250with\u0250nonascii\u0250chars")},
+ 	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", []byte("\u0251\u0251\u0251\u0251\u0251")}, // shrinks one byte per char
++	{"A\u0080\U0010FFFF", []byte("a\u0080\U0010FFFF")},                           // test utf8.RuneSelf and utf8.MaxRune
+ }
+ 
+ const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
+@@ -1029,6 +1036,34 @@ func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTest
+ 
+ func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+ 
++func BenchmarkToUpper(b *testing.B) {
++	for _, tc := range upperTests {
++		tin := []byte(tc.in)
++		b.Run(tc.in, func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				actual := ToUpper(tin)
++				if !Equal(actual, tc.out) {
++					b.Errorf("ToUpper(%q) = %q; want %q", tc.in, actual, tc.out)
++				}
++			}
++		})
++	}
++}
++
++func BenchmarkToLower(b *testing.B) {
++	for _, tc := range lowerTests {
++		tin := []byte(tc.in)
++		b.Run(tc.in, func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				actual := ToLower(tin)
++				if !Equal(actual, tc.out) {
++					b.Errorf("ToLower(%q) = %q; want %q", tc.in, actual, tc.out)
++				}
++			}
++		})
++	}
++}
++
+ func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
+ 
+ type RepeatTest struct {

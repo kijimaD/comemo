@@ -7,7 +7,7 @@ Date:   Tue Nov 1 21:50:21 2011 -0400
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/5316068
-
+---
  doc/effective_go.html  | 66 +++++++++++++++++++++++++-------------------------
  doc/effective_go.tmpl  | 66 +++++++++++++++++++++++++-------------------------
  doc/go_tutorial.html   | 35 +++++++++++++++++++-------
@@ -15,3 +15,676 @@ Date:   Tue Nov 1 21:50:21 2011 -0400
  doc/progs/cat.go       |  4 +--
  doc/progs/cat_rot13.go |  4 +--
  6 files changed, 118 insertions(+), 84 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 60e569b138..8267564740 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -221,7 +221,7 @@ starts with the name being declared.
+ <pre>
+ // Compile parses a regular expression and returns, if successful, a Regexp
+ // object that can be used to match against text.
+-func Compile(str string) (regexp *Regexp, error os.Error) {
++func Compile(str string) (regexp *Regexp, err error) {
+ </pre>
+ 
+ <p>
+@@ -233,9 +233,9 @@ Since the whole declaration is presented, such a comment can often be perfunctor
+ <pre>
+ // Error codes returned by failures to parse an expression.
+ var (
+-    ErrInternal      = os.NewError("regexp: internal error")
+-    ErrUnmatchedLpar = os.NewError("regexp: unmatched '('")
+-    ErrUnmatchedRpar = os.NewError("regexp: unmatched ')'")
++    ErrInternal      = errors.New("regexp: internal error")
++    ErrUnmatchedLpar = errors.New("regexp: unmatched '('")
++    ErrUnmatchedRpar = errors.New("regexp: unmatched ')'")
+     ...
+ )
+ </pre>
+@@ -717,12 +717,12 @@ The signature of <code>*File.Write</code> in package <code>os</code> is:
+ </p>
+ 
+ <pre>
+-func (file *File) Write(b []byte) (n int, err Error)
++func (file *File) Write(b []byte) (n int, err error)
+ </pre>
+ 
+ <p>
+ and as the documentation says, it returns the number of bytes
+-written and a non-nil <code>Error</code> when <code>n</code>
++written and a non-nil <code>error</code> when <code>n</code>
+ <code>!=</code> <code>len(b)</code>.
+ This is a common style; see the section on error handling for more examples.
+ </p>
+@@ -788,7 +788,7 @@ of <code>io.ReadFull</code> that uses them well:
+ </p>
+ 
+ <pre>
+-func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
++func ReadFull(r Reader, buf []byte) (n int, err error) {
+     for len(buf) &gt; 0 &amp;&amp; err == nil {
+         var nr int
+         nr, err = r.Read(buf)
+@@ -812,7 +812,7 @@ canonical examples are unlocking a mutex or closing a file.
+ 
+ <pre>
+ // Contents returns the file's contents as a string.
+-func Contents(filename string) (string, os.Error) {
++func Contents(filename string) (string, error) {
+     f, err := os.Open(filename)
+     if err != nil {
+         return "", err
+@@ -1195,7 +1195,7 @@ limit of how much data to read.  Here is the signature of the
+ <code>os</code>:
+ </p>
+ <pre>
+-func (file *File) Read(buf []byte) (n int, err os.Error)
++func (file *File) Read(buf []byte) (n int, err error)
+ </pre>
+ <p>
+ The method returns the number of bytes read and an error value, if
+@@ -1211,7 +1211,7 @@ the moment, this snippet would also read the first 32 bytes of the buffer.
+ </p>
+ <pre>
+     var n int
+-    var err os.Error
++    var err error
+     for i := 0; i &lt; 32; i++ {
+         nbytes, e := f.Read(buf[i:i+1])  // Read one byte.
+         if nbytes == 0 || e != nil {
+@@ -1509,7 +1509,7 @@ for its final argument to specify that an arbitrary number of parameters (of arb
+ can appear after the format.
+ </p>
+ <pre>
+-func Printf(format string, v ...interface{}) (n int, errno os.Error) {
++func Printf(format string, v ...interface{}) (n int, err error) {
+ </pre>
+ <p>
+ Within the function <code>Printf</code>, <code>v</code> acts like a variable of type
+@@ -1760,7 +1760,7 @@ In fact, we can do even better.  If we modify our function so it looks
+ like a standard <code>Write</code> method, like this,
+ </p>
+ <pre>
+-func (p *ByteSlice) Write(data []byte) (n int, err os.Error) {
++func (p *ByteSlice) Write(data []byte) (n int, err error) {
+     slice := *p
+     // Again as above.
+     *p = slice
+@@ -2119,11 +2119,11 @@ here are their definitions.
+ </p>
+ <pre>
+ type Reader interface {
+-    Read(p []byte) (n int, err os.Error)
++    Read(p []byte) (n int, err error)
+ }
+ 
+ type Writer interface {
+-    Write(p []byte) (n int, err os.Error)
++    Write(p []byte) (n int, err error)
+ }
+ </pre>
+ <p>
+@@ -2185,7 +2185,7 @@ satisfy the <code>io</code> interfaces, we would also need
+ to provide forwarding methods, like this:
+ </p>
+ <pre>
+-func (rw *ReadWriter) Read(p []byte) (n int, err os.Error) {
++func (rw *ReadWriter) Read(p []byte) (n int, err error) {
+     return rw.reader.Read(p)
+ }
+ </pre>
+@@ -2637,12 +2637,12 @@ the garbage collector for bookkeeping.
+ Library routines must often return some sort of error indication to
+ the caller.  As mentioned earlier, Go's multivalue return makes it
+ easy to return a detailed error description alongside the normal
+-return value.  By convention, errors have type <code>os.Error</code>,
+-a simple interface.
++return value.  By convention, errors have type <code>error</code>,
++a simple built-in interface.
+ </p>
+ <pre>
+-type Error interface {
+-    String() string
++type error interface {
++    Error() string
+ }
+ </pre>
+ <p>
+@@ -2657,15 +2657,15 @@ For example, <code>os.Open</code> returns an <code>os.PathError</code>.
+ type PathError struct {
+     Op string    // "open", "unlink", etc.
+     Path string  // The associated file.
+-    Error Error  // Returned by the system call.
++    Err error    // Returned by the system call.
+ }
+ 
+-func (e *PathError) String() string {
+-    return e.Op + " " + e.Path + ": " + e.Error.String()
++func (e *PathError) Error() string {
++    return e.Op + " " + e.Path + ": " + e.Err.Error()
+ }
+ </pre>
+ <p>
+-<code>PathError</code>'s <code>String</code> generates
++<code>PathError</code>'s <code>Error</code> generates
+ a string like this:
+ </p>
+ <pre>
+@@ -2690,7 +2690,7 @@ is "image: unknown format".
+ Callers that care about the precise error details can
+ use a type switch or a type assertion to look for specific
+ errors and extract details.  For <code>PathErrors</code>
+-this might include examining the internal <code>Error</code>
++this might include examining the internal <code>Err</code>
+ field for recoverable failures.
+ </p>
+ 
+@@ -2700,7 +2700,7 @@ for try := 0; try &lt; 2; try++ {
+     if err == nil {
+         return
+     }
+-    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Error == os.ENOSPC {
++    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Err == os.ENOSPC {
+         deleteTempFiles()  // Recover some space.
+         continue
+     }
+@@ -2712,9 +2712,9 @@ for try := 0; try &lt; 2; try++ {
+ 
+ <p>
+ The usual way to report an error to a caller is to return an
+-<code>os.Error</code> as an extra return value.  The canonical
++<code>error</code> as an extra return value.  The canonical
+ <code>Read</code> method is a well-known instance; it returns a byte
+-count and an <code>os.Error</code>.  But what if the error is
++count and an <code>error</code>.  But what if the error is
+ unrecoverable?  Sometimes the program simply cannot continue.
+ </p>
+ 
+@@ -2830,14 +2830,14 @@ cleanly by calling <code>panic</code>.  We can use that idea to
+ simplify error handling in complex software.  Let's look at an
+ idealized excerpt from the <code>regexp</code> package, which reports
+ parsing errors by calling <code>panic</code> with a local
+-<code>Error</code> type.  Here's the definition of <code>Error</code>,
++error type.  Here's the definition of <code>Error</code>,
+ an <code>error</code> method, and the <code>Compile</code> function.
+ </p>
+ 
+ <pre>
+-// Error is the type of a parse error; it satisfies os.Error.
++// Error is the type of a parse error; it satisfies the error interface.
+ type Error string
+-func (e Error) String() string {
++func (e Error) Error() string {
+     return string(e)
+ }
+ 
+@@ -2848,7 +2848,7 @@ func (regexp *Regexp) error(err string) {
+ }
+ 
+ // Compile returns a parsed representation of the regular expression.
+-func Compile(str string) (regexp *Regexp, err os.Error) {
++func Compile(str string) (regexp *Regexp, err error) {
+     regexp = new(Regexp)
+     // doParse will panic if there is a parse error.
+     defer func() {
+@@ -2866,7 +2866,7 @@ If <code>doParse</code> panics, the recovery block will set the
+ return value to <code>nil</code>&mdash;deferred functions can modify
+ named return values.  It then will then check, in the assignment
+ to <code>err</code>, that the problem was a parse error by asserting
+-that it has type <code>Error</code>.
++that it has the local type <code>Error</code>.
+ If it does not, the type assertion will fail, causing a run-time error
+ that continues the stack unwinding as though nothing had interrupted
+ it.  This check means that if something unexpected happens, such
+@@ -2884,7 +2884,7 @@ the parse stack by hand.
+ <p>
+ Useful though this pattern is, it should be used only within a package.
+ <code>Parse</code> turns its internal <code>panic</code> calls into
+-<code>os.Error</code> values; it does not expose <code>panics</code>
++<code>error</code> values; it does not expose <code>panics</code>
+ to its client.  That is a good rule to follow.
+ </p>
+ 
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index da827368b1..aa011f2a01 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -221,7 +221,7 @@ starts with the name being declared.
+ <pre>
+ // Compile parses a regular expression and returns, if successful, a Regexp
+ // object that can be used to match against text.
+-func Compile(str string) (regexp *Regexp, error os.Error) {
++func Compile(str string) (regexp *Regexp, err error) {
+ </pre>
+ 
+ <p>
+@@ -233,9 +233,9 @@ Since the whole declaration is presented, such a comment can often be perfunctor
+ <pre>
+ // Error codes returned by failures to parse an expression.
+ var (
+-    ErrInternal      = os.NewError("regexp: internal error")
+-    ErrUnmatchedLpar = os.NewError("regexp: unmatched '('")
+-    ErrUnmatchedRpar = os.NewError("regexp: unmatched ')'")
++    ErrInternal      = errors.New("regexp: internal error")
++    ErrUnmatchedLpar = errors.New("regexp: unmatched '('")
++    ErrUnmatchedRpar = errors.New("regexp: unmatched ')'")
+     ...
+ )
+ </pre>
+@@ -717,12 +717,12 @@ The signature of <code>*File.Write</code> in package <code>os</code> is:
+ </p>
+ 
+ <pre>
+-func (file *File) Write(b []byte) (n int, err Error)
++func (file *File) Write(b []byte) (n int, err error)
+ </pre>
+ 
+ <p>
+ and as the documentation says, it returns the number of bytes
+-written and a non-nil <code>Error</code> when <code>n</code>
++written and a non-nil <code>error</code> when <code>n</code>
+ <code>!=</code> <code>len(b)</code>.
+ This is a common style; see the section on error handling for more examples.
+ </p>
+@@ -788,7 +788,7 @@ of <code>io.ReadFull</code> that uses them well:
+ </p>
+ 
+ <pre>
+-func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
++func ReadFull(r Reader, buf []byte) (n int, err error) {
+     for len(buf) &gt; 0 &amp;&amp; err == nil {
+         var nr int
+         nr, err = r.Read(buf)
+@@ -812,7 +812,7 @@ canonical examples are unlocking a mutex or closing a file.
+ 
+ <pre>
+ // Contents returns the file's contents as a string.
+-func Contents(filename string) (string, os.Error) {
++func Contents(filename string) (string, error) {
+     f, err := os.Open(filename)
+     if err != nil {
+         return "", err
+@@ -1195,7 +1195,7 @@ limit of how much data to read.  Here is the signature of the
+ <code>os</code>:
+ </p>
+ <pre>
+-func (file *File) Read(buf []byte) (n int, err os.Error)
++func (file *File) Read(buf []byte) (n int, err error)
+ </pre>
+ <p>
+ The method returns the number of bytes read and an error value, if
+@@ -1211,7 +1211,7 @@ the moment, this snippet would also read the first 32 bytes of the buffer.
+ </p>
+ <pre>
+     var n int
+-    var err os.Error
++    var err error
+     for i := 0; i &lt; 32; i++ {
+         nbytes, e := f.Read(buf[i:i+1])  // Read one byte.
+         if nbytes == 0 || e != nil {
+@@ -1509,7 +1509,7 @@ for its final argument to specify that an arbitrary number of parameters (of arb
+ can appear after the format.
+ </p>
+ <pre>
+-func Printf(format string, v ...interface{}) (n int, errno os.Error) {
++func Printf(format string, v ...interface{}) (n int, err error) {
+ </pre>
+ <p>
+ Within the function <code>Printf</code>, <code>v</code> acts like a variable of type
+@@ -1724,7 +1724,7 @@ In fact, we can do even better.  If we modify our function so it looks
+ like a standard <code>Write</code> method, like this,
+ </p>
+ <pre>
+-func (p *ByteSlice) Write(data []byte) (n int, err os.Error) {
++func (p *ByteSlice) Write(data []byte) (n int, err error) {
+     slice := *p
+     // Again as above.
+     *p = slice
+@@ -2057,11 +2057,11 @@ here are their definitions.
+ </p>
+ <pre>
+ type Reader interface {
+-    Read(p []byte) (n int, err os.Error)
++    Read(p []byte) (n int, err error)
+ }
+ 
+ type Writer interface {
+-    Write(p []byte) (n int, err os.Error)
++    Write(p []byte) (n int, err error)
+ }
+ </pre>
+ <p>
+@@ -2123,7 +2123,7 @@ satisfy the <code>io</code> interfaces, we would also need
+ to provide forwarding methods, like this:
+ </p>
+ <pre>
+-func (rw *ReadWriter) Read(p []byte) (n int, err os.Error) {
++func (rw *ReadWriter) Read(p []byte) (n int, err error) {
+     return rw.reader.Read(p)
+ }
+ </pre>
+@@ -2575,12 +2575,12 @@ the garbage collector for bookkeeping.
+ Library routines must often return some sort of error indication to
+ the caller.  As mentioned earlier, Go's multivalue return makes it
+ easy to return a detailed error description alongside the normal
+-return value.  By convention, errors have type <code>os.Error</code>,
+-a simple interface.
++return value.  By convention, errors have type <code>error</code>,
++a simple built-in interface.
+ </p>
+ <pre>
+-type Error interface {
+-    String() string
++type error interface {
++    Error() string
+ }
+ </pre>
+ <p>
+@@ -2595,15 +2595,15 @@ For example, <code>os.Open</code> returns an <code>os.PathError</code>.
+ type PathError struct {
+     Op string    // "open", "unlink", etc.
+     Path string  // The associated file.
+-    Error Error  // Returned by the system call.
++    Err error    // Returned by the system call.
+ }
+ 
+-func (e *PathError) String() string {
+-    return e.Op + " " + e.Path + ": " + e.Error.String()
++func (e *PathError) Error() string {
++    return e.Op + " " + e.Path + ": " + e.Err.Error()
+ }
+ </pre>
+ <p>
+-<code>PathError</code>'s <code>String</code> generates
++<code>PathError</code>'s <code>Error</code> generates
+ a string like this:
+ </p>
+ <pre>
+@@ -2628,7 +2628,7 @@ is "image: unknown format".
+ Callers that care about the precise error details can
+ use a type switch or a type assertion to look for specific
+ errors and extract details.  For <code>PathErrors</code>
+-this might include examining the internal <code>Error</code>
++this might include examining the internal <code>Err</code>
+ field for recoverable failures.
+ </p>
+ 
+@@ -2638,7 +2638,7 @@ for try := 0; try &lt; 2; try++ {
+     if err == nil {
+         return
+     }
+-    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Error == os.ENOSPC {
++    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Err == os.ENOSPC {
+         deleteTempFiles()  // Recover some space.
+         continue
+     }
+@@ -2650,9 +2650,9 @@ for try := 0; try &lt; 2; try++ {
+ 
+ <p>
+ The usual way to report an error to a caller is to return an
+-<code>os.Error</code> as an extra return value.  The canonical
++<code>error</code> as an extra return value.  The canonical
+ <code>Read</code> method is a well-known instance; it returns a byte
+-count and an <code>os.Error</code>.  But what if the error is
++count and an <code>error</code>.  But what if the error is
+ unrecoverable?  Sometimes the program simply cannot continue.
+ </p>
+ 
+@@ -2768,14 +2768,14 @@ cleanly by calling <code>panic</code>.  We can use that idea to
+ simplify error handling in complex software.  Let's look at an
+ idealized excerpt from the <code>regexp</code> package, which reports
+ parsing errors by calling <code>panic</code> with a local
+-<code>Error</code> type.  Here's the definition of <code>Error</code>,
++error type.  Here's the definition of <code>Error</code>,
+ an <code>error</code> method, and the <code>Compile</code> function.
+ </p>
+ 
+ <pre>
+-// Error is the type of a parse error; it satisfies os.Error.
++// Error is the type of a parse error; it satisfies the error interface.
+ type Error string
+-func (e Error) String() string {
++func (e Error) Error() string {
+     return string(e)
+ }
+ 
+@@ -2786,7 +2786,7 @@ func (regexp *Regexp) error(err string) {
+ }
+ 
+ // Compile returns a parsed representation of the regular expression.
+-func Compile(str string) (regexp *Regexp, err os.Error) {
++func Compile(str string) (regexp *Regexp, err error) {
+     regexp = new(Regexp)
+     // doParse will panic if there is a parse error.
+     defer func() {
+@@ -2804,7 +2804,7 @@ If <code>doParse</code> panics, the recovery block will set the
+ return value to <code>nil</code>&mdash;deferred functions can modify
+ named return values.  It then will then check, in the assignment
+ to <code>err</code>, that the problem was a parse error by asserting
+-that it has type <code>Error</code>.
++that it has the local type <code>Error</code>.
+ If it does not, the type assertion will fail, causing a run-time error
+ that continues the stack unwinding as though nothing had interrupted
+ it.  This check means that if something unexpected happens, such
+@@ -2822,7 +2822,7 @@ the parse stack by hand.
+ <p>
+ Useful though this pattern is, it should be used only within a package.
+ <code>Parse</code> turns its internal <code>panic</code> calls into
+-<code>os.Error</code> values; it does not expose <code>panics</code>
++<code>error</code> values; it does not expose <code>panics</code>
+ to its client.  That is a good rule to follow.
+ </p>
+ 
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 40c793057f..aa8db870d3 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -578,11 +578,13 @@ to see that).  Finally, <code>OpenFile</code> returns two values: a pointer to t
+ and the error.  If <code>syscall.Open</code> fails, the file descriptor <code>r</code> will
+ be negative and <code>newFile</code> will return <code>nil</code>.
+ <p>
+-About those errors:  The <code>os</code> library includes a general notion of an error.
++About those errors:  The Go language includes a general notion of an error:
++a pre-defined type <code>error</code> with properties (described below)
++that make it a good basis for representing and handling errors.
+ It's a good idea to use its facility in your own interfaces, as we do here, for
+ consistent error handling throughout Go code.   In <code>Open</code> we use a
+ conversion to translate Unix's integer <code>errno</code> value into the integer type
+-<code>os.Errno</code>, which implements <code>os.Error</code>.
++<code>os.Errno</code>, which is an implementation of <code>error</code>
+ <p>
+ Why <code>OpenFile</code> and not <code>Open</code>? To mimic Go's <code>os</code> package, which
+ our exercise is emulating. The <code>os</code> package takes the opportunity
+@@ -668,7 +670,7 @@ array, not just for <code>structs</code>.   We'll see an example with arrays lat
+ The <code>String</code> method is so called because of a printing convention we'll
+ describe later.
+ <p>
+-The methods use the public variable <code>os.EINVAL</code> to return the (<code>os.Error</code>
++The methods use the public variable <code>os.EINVAL</code> to return the (<code>error</code>
+ version of the) Unix error code <code>EINVAL</code>.  The <code>os</code> library defines a standard
+ set of such error values.
+ <p>
+@@ -733,13 +735,13 @@ func cat(f *file.File) {
+     for {
+         switch nr, er := f.Read(buf[:]); true {
+         case nr &lt; 0:
+-            fmt.Fprintf(os.Stderr, &#34;cat: error reading from %s: %s\n&#34;, f.String(), er.String())
++            fmt.Fprintf(os.Stderr, &#34;cat: error reading from %s: %s\n&#34;, f, er)
+             os.Exit(1)
+         case nr == 0: // EOF
+             return
+         case nr &gt; 0:
+             if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
+-                fmt.Fprintf(os.Stderr, &#34;cat: error writing from %s: %s\n&#34;, f.String(), ew.String())
++                fmt.Fprintf(os.Stderr, &#34;cat: error writing from %s: %s\n&#34;, f, ew)
+                 os.Exit(1)
+             }
+         }
+@@ -850,14 +852,14 @@ and use it from within a mostly unchanged <code>cat</code> function:
+     for {
+         switch nr, er := r.Read(buf[:]); {
+         case nr &lt; 0:
+-            fmt.Fprintf(os.Stderr, &#34;cat: error reading from %s: %s\n&#34;, r.String(), er.String())
++            fmt.Fprintf(os.Stderr, &#34;cat: error reading from %s: %s\n&#34;, r, er)
+             os.Exit(1)
+         case nr == 0: // EOF
+             return
+         case nr &gt; 0:
+             nw, ew := file.Stdout.Write(buf[0:nr])
+             if nw != nr {
+-                fmt.Fprintf(os.Stderr, &#34;cat: error writing from %s: %s\n&#34;, r.String(), ew.String())
++                fmt.Fprintf(os.Stderr, &#34;cat: error writing from %s: %s\n&#34;, r, ew)
+                 os.Exit(1)
+             }
+         }
+@@ -990,7 +992,7 @@ implements <code>Printf</code>, <code>Fprintf</code>, and so on.
+ Within the <code>fmt</code> package, <code>Printf</code> is declared with this signature:
+ <p>
+ <pre>
+-Printf(format string, v ...interface{}) (n int, errno os.Error)
++Printf(format string, v ...interface{}) (n int, errno error)
+ </pre>
+ <p>
+ The token <code>...</code> introduces a variable-length argument list that in C would
+@@ -1127,6 +1129,21 @@ If the value does not satisfy the interface, <code>ok</code> will be false.
+ In this snippet the name <code>Stringer</code> follows the convention that we add ''[e]r''
+ to interfaces describing simple method sets like this.
+ <p>
++A related interface is that defined by the <code>error</code> builtin type, which is just
++<p>
++<pre>
++type error interface {
++    Error() string
++}
++</pre>
++<p>
++Other than the method name (<code>Error</code> vs. <code>String</code>), this looks like
++a <code>Stringer</code>; the different name guarantees that types that implement <code>Stringer</code>
++don't accidentally satisfy the <code>error</code> interface.
++Naturally, <code>Printf</code> and its relatives recognize the <code>error</code> interface,
++just as they do <code>Stringer</code>,
++so it's trivial to print an error as a string.
++<p>
+ One last wrinkle.  To complete the suite, besides <code>Printf</code> etc. and <code>Sprintf</code>
+ etc., there are also <code>Fprintf</code> etc.  Unlike in C, <code>Fprintf</code>'s first argument is
+ not a file.  Instead, it is a variable of type <code>io.Writer</code>, which is an
+@@ -1134,7 +1151,7 @@ interface type defined in the <code>io</code> library:
+ <p>
+ <pre>
+ type Writer interface {
+-    Write(p []byte) (n int, err os.Error)
++    Write(p []byte) (n int, err error)
+ }
+ </pre>
+ <p>
+diff --git a/doc/go_tutorial.tmpl b/doc/go_tutorial.tmpl
+index 4377dabde0..21496ddd98 100644
+--- a/doc/go_tutorial.tmpl
++++ b/doc/go_tutorial.tmpl
+@@ -490,11 +490,13 @@ to see that).  Finally, <code>OpenFile</code> returns two values: a pointer to t
+ and the error.  If <code>syscall.Open</code> fails, the file descriptor <code>r</code> will
+ be negative and <code>newFile</code> will return <code>nil</code>.
+ <p>
+-About those errors:  The <code>os</code> library includes a general notion of an error.
++About those errors:  The Go language includes a general notion of an error:
++a pre-defined type <code>error</code> with properties (described below)
++that make it a good basis for representing and handling errors.
+ It's a good idea to use its facility in your own interfaces, as we do here, for
+ consistent error handling throughout Go code.   In <code>Open</code> we use a
+ conversion to translate Unix's integer <code>errno</code> value into the integer type
+-<code>os.Errno</code>, which implements <code>os.Error</code>.
++<code>os.Errno</code>, which is an implementation of <code>error</code>
+ <p>
+ Why <code>OpenFile</code> and not <code>Open</code>? To mimic Go's <code>os</code> package, which
+ our exercise is emulating. The <code>os</code> package takes the opportunity
+@@ -527,7 +529,7 @@ array, not just for <code>structs</code>.   We'll see an example with arrays lat
+ The <code>String</code> method is so called because of a printing convention we'll
+ describe later.
+ <p>
+-The methods use the public variable <code>os.EINVAL</code> to return the (<code>os.Error</code>
++The methods use the public variable <code>os.EINVAL</code> to return the (<code>error</code>
+ version of the) Unix error code <code>EINVAL</code>.  The <code>os</code> library defines a standard
+ set of such error values.
+ <p>
+@@ -692,7 +694,7 @@ implements <code>Printf</code>, <code>Fprintf</code>, and so on.
+ Within the <code>fmt</code> package, <code>Printf</code> is declared with this signature:
+ <p>
+ <pre>
+-Printf(format string, v ...interface{}) (n int, errno os.Error)
++Printf(format string, v ...interface{}) (n int, errno error)
+ </pre>
+ <p>
+ The token <code>...</code> introduces a variable-length argument list that in C would
+@@ -801,6 +803,21 @@ If the value does not satisfy the interface, <code>ok</code> will be false.
+ In this snippet the name <code>Stringer</code> follows the convention that we add ''[e]r''
+ to interfaces describing simple method sets like this.
+ <p>
++A related interface is that defined by the <code>error</code> builtin type, which is just
++<p>
++<pre>
++type error interface {
++    Error() string
++}
++</pre>
++<p>
++Other than the method name (<code>Error</code> vs. <code>String</code>), this looks like
++a <code>Stringer</code>; the different name guarantees that types that implement <code>Stringer</code>
++don't accidentally satisfy the <code>error</code> interface.
++Naturally, <code>Printf</code> and its relatives recognize the <code>error</code> interface,
++just as they do <code>Stringer</code>,
++so it's trivial to print an error as a string.
++<p>
+ One last wrinkle.  To complete the suite, besides <code>Printf</code> etc. and <code>Sprintf</code>
+ etc., there are also <code>Fprintf</code> etc.  Unlike in C, <code>Fprintf</code>'s first argument is
+ not a file.  Instead, it is a variable of type <code>io.Writer</code>, which is an
+@@ -808,7 +825,7 @@ interface type defined in the <code>io</code> library:
+ <p>
+ <pre>
+ type Writer interface {
+-    Write(p []byte) (n int, err os.Error)
++    Write(p []byte) (n int, err error)
+ }
+ </pre>
+ <p>
+diff --git a/doc/progs/cat.go b/doc/progs/cat.go
+index 9f0b8d4a3e..79ad015039 100644
+--- a/doc/progs/cat.go
++++ b/doc/progs/cat.go
+@@ -17,13 +17,13 @@ func cat(f *file.File) {
+ 	for {
+ 		switch nr, er := f.Read(buf[:]); true {
+ 		case nr < 0:
+-			fmt.Fprintf(os.Stderr, "cat: error reading from %s: %s\n", f.String(), er.String())
++			fmt.Fprintf(os.Stderr, "cat: error reading from %s: %s\n", f, er)
+ 			os.Exit(1)
+ 		case nr == 0: // EOF
+ 			return
+ 		case nr > 0:
+ 			if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
+-				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", f.String(), ew.String())
++				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", f, ew)
+ 				os.Exit(1)
+ 			}
+ 		}
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index 0eefe7cfc7..5df5972020 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -59,14 +59,14 @@ func cat(r reader) {
+ 	for {
+ 		switch nr, er := r.Read(buf[:]); {
+ 		case nr < 0:
+-			fmt.Fprintf(os.Stderr, "cat: error reading from %s: %s\n", r.String(), er.String())
++			fmt.Fprintf(os.Stderr, "cat: error reading from %s: %s\n", r, er)
+ 			os.Exit(1)
+ 		case nr == 0: // EOF
+ 			return
+ 		case nr > 0:
+ 			nw, ew := file.Stdout.Write(buf[0:nr])
+ 			if nw != nr {
+-				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", r.String(), ew.String())
++				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", r, ew)
+ 				os.Exit(1)
+ 			}
+ 		}

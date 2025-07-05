@@ -18,6 +18,20 @@ Date:   Wed Dec 7 15:20:25 2022 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: David du Colombier <0intro@gmail.com>
-
+---
  src/internal/safefilepath/path_other.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/safefilepath/path_other.go b/src/internal/safefilepath/path_other.go
+index f93da18680..974e7751a2 100644
+--- a/src/internal/safefilepath/path_other.go
++++ b/src/internal/safefilepath/path_other.go
+@@ -11,7 +11,7 @@ import "runtime"
+ func fromFS(path string) (string, error) {
+ 	if runtime.GOOS == "plan9" {
+ 		if len(path) > 0 && path[0] == '#' {
+-			return path, errInvalidPath
++			return "", errInvalidPath
+ 		}
+ 	}
+ 	for i := range path {

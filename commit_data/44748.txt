@@ -18,7 +18,50 @@ Date:   Thu Jul 16 21:30:12 2020 -0600
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/omithttp2.go | 4 ----
  src/net/http/transport.go | 8 ++++++--
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/omithttp2.go b/src/net/http/omithttp2.go
+index 7e2f492579..c8f5c28a59 100644
+--- a/src/net/http/omithttp2.go
++++ b/src/net/http/omithttp2.go
+@@ -32,10 +32,6 @@ type http2Transport struct {
+ func (*http2Transport) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
+ func (*http2Transport) CloseIdleConnections()                 {}
+ 
+-type http2erringRoundTripper struct{ err error }
+-
+-func (http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
+-
+ type http2noDialH2RoundTripper struct{}
+ 
+ func (http2noDialH2RoundTripper) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index d37b52b13d..c23042b1e3 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1528,6 +1528,10 @@ func (pconn *persistConn) addTLS(name string, trace *httptrace.ClientTrace) erro
+ 	return nil
+ }
+ 
++type erringRoundTripper interface {
++	RoundTripErr() error
++}
++
+ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *persistConn, err error) {
+ 	pconn = &persistConn{
+ 		t:             t,
+@@ -1694,9 +1698,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
+ 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
+ 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
+ 			alt := next(cm.targetAddr, pconn.conn.(*tls.Conn))
+-			if e, ok := alt.(http2erringRoundTripper); ok {
++			if e, ok := alt.(erringRoundTripper); ok {
+ 				// pconn.conn was closed by next (http2configureTransport.upgradeFn).
+-				return nil, e.err
++				return nil, e.RoundTripErr()
+ 			}
+ 			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
+ 		}

@@ -36,7 +36,7 @@ Date:   Fri Jan 31 21:01:55 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 32 ++++++------
  src/cmd/compile/internal/gc/builtin/runtime.go | 10 ++--
  src/cmd/compile/internal/gc/ssa.go             |  5 +-
@@ -48,3 +48,594 @@ Date:   Fri Jan 31 21:01:55 2020 -0800
  src/runtime/slice.go                           | 36 +++++++-------
  src/runtime/string.go                          | 47 ++++++++++--------
  10 files changed, 153 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index deefed7f19..c2525395b0 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -57,9 +57,9 @@ var runtimeDecls = [...]struct {
+ 	{"concatstrings", funcTag, 35},
+ 	{"cmpstring", funcTag, 36},
+ 	{"intstring", funcTag, 39},
+-	{"slicebytetostring", funcTag, 41},
+-	{"slicebytetostringtmp", funcTag, 42},
+-	{"slicerunetostring", funcTag, 45},
++	{"slicebytetostring", funcTag, 40},
++	{"slicebytetostringtmp", funcTag, 41},
++	{"slicerunetostring", funcTag, 44},
+ 	{"stringtoslicebyte", funcTag, 46},
+ 	{"stringtoslicerune", funcTag, 49},
+ 	{"slicecopy", funcTag, 51},
+@@ -241,20 +241,20 @@ func runtimeTypes() []*types.Type {
+ 	typs[37] = types.NewArray(typs[0], 4)
+ 	typs[38] = types.NewPtr(typs[37])
+ 	typs[39] = functype(nil, []*Node{anonfield(typs[38]), anonfield(typs[19])}, []*Node{anonfield(typs[25])})
+-	typs[40] = types.NewSlice(typs[0])
+-	typs[41] = functype(nil, []*Node{anonfield(typs[29]), anonfield(typs[40])}, []*Node{anonfield(typs[25])})
+-	typs[42] = functype(nil, []*Node{anonfield(typs[40])}, []*Node{anonfield(typs[25])})
+-	typs[43] = types.Runetype
+-	typs[44] = types.NewSlice(typs[43])
+-	typs[45] = functype(nil, []*Node{anonfield(typs[29]), anonfield(typs[44])}, []*Node{anonfield(typs[25])})
+-	typs[46] = functype(nil, []*Node{anonfield(typs[29]), anonfield(typs[25])}, []*Node{anonfield(typs[40])})
+-	typs[47] = types.NewArray(typs[43], 32)
++	typs[40] = functype(nil, []*Node{anonfield(typs[29]), anonfield(typs[1]), anonfield(typs[11])}, []*Node{anonfield(typs[25])})
++	typs[41] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[11])}, []*Node{anonfield(typs[25])})
++	typs[42] = types.Runetype
++	typs[43] = types.NewSlice(typs[42])
++	typs[44] = functype(nil, []*Node{anonfield(typs[29]), anonfield(typs[43])}, []*Node{anonfield(typs[25])})
++	typs[45] = types.NewSlice(typs[0])
++	typs[46] = functype(nil, []*Node{anonfield(typs[29]), anonfield(typs[25])}, []*Node{anonfield(typs[45])})
++	typs[47] = types.NewArray(typs[42], 32)
+ 	typs[48] = types.NewPtr(typs[47])
+-	typs[49] = functype(nil, []*Node{anonfield(typs[48]), anonfield(typs[25])}, []*Node{anonfield(typs[44])})
++	typs[49] = functype(nil, []*Node{anonfield(typs[48]), anonfield(typs[25])}, []*Node{anonfield(typs[43])})
+ 	typs[50] = types.Types[TUINTPTR]
+-	typs[51] = functype(nil, []*Node{anonfield(typs[2]), anonfield(typs[2]), anonfield(typs[50])}, []*Node{anonfield(typs[11])})
+-	typs[52] = functype(nil, []*Node{anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[11])})
+-	typs[53] = functype(nil, []*Node{anonfield(typs[25]), anonfield(typs[11])}, []*Node{anonfield(typs[43]), anonfield(typs[11])})
++	typs[51] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[11]), anonfield(typs[3]), anonfield(typs[11]), anonfield(typs[50])}, []*Node{anonfield(typs[11])})
++	typs[52] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[11]), anonfield(typs[25])}, []*Node{anonfield(typs[11])})
++	typs[53] = functype(nil, []*Node{anonfield(typs[25]), anonfield(typs[11])}, []*Node{anonfield(typs[42]), anonfield(typs[11])})
+ 	typs[54] = functype(nil, []*Node{anonfield(typs[25])}, []*Node{anonfield(typs[11])})
+ 	typs[55] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2])}, []*Node{anonfield(typs[2])})
+ 	typs[56] = types.Types[TUNSAFEPTR]
+@@ -293,7 +293,7 @@ func runtimeTypes() []*types.Type {
+ 	typs[89] = tostruct([]*Node{namedfield("enabled", typs[15]), namedfield("pad", typs[88]), namedfield("needed", typs[15]), namedfield("cgo", typs[15]), namedfield("alignme", typs[21])})
+ 	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
+ 	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, nil)
+-	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[11])})
++	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[11]), anonfield(typs[3]), anonfield(typs[11])}, []*Node{anonfield(typs[11])})
+ 	typs[93] = functype(nil, []*Node{anonfield(typs[86]), anonfield(typs[3])}, []*Node{anonfield(typs[15])})
+ 	typs[94] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[83])}, []*Node{anonfield(typs[15])})
+ 	typs[95] = types.NewPtr(typs[15])
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 9bcb3688b4..3475d4c375 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -69,13 +69,13 @@ func concatstrings(*[32]byte, []string) string
+ 
+ func cmpstring(string, string) int
+ func intstring(*[4]byte, int64) string
+-func slicebytetostring(*[32]byte, []byte) string
+-func slicebytetostringtmp([]byte) string
++func slicebytetostring(buf *[32]byte, ptr *byte, n int) string
++func slicebytetostringtmp(ptr *byte, n int) string
+ func slicerunetostring(*[32]byte, []rune) string
+ func stringtoslicebyte(*[32]byte, string) []byte
+ func stringtoslicerune(*[32]rune, string) []rune
+-func slicecopy(to any, fr any, wid uintptr) int
+-func slicestringcopy(to any, fr any) int
++func slicecopy(toPtr *any, toLen int, frPtr *any, frLen int, wid uintptr) int
++func slicestringcopy(toPtr *byte, toLen int, fr string) int
+ 
+ func decoderune(string, int) (retv rune, retk int)
+ func countrunes(string) int
+@@ -162,7 +162,7 @@ var writeBarrier struct {
+ // *byte is really *runtime.Type
+ func typedmemmove(typ *byte, dst *any, src *any)
+ func typedmemclr(typ *byte, dst *any)
+-func typedslicecopy(typ *byte, dst any, src any) int
++func typedslicecopy(typ *byte, dstPtr *any, dstLen int, srcPtr *any, srcLen int) int
+ 
+ func selectnbsend(hchan chan<- any, elem *any) bool
+ func selectnbrecv(elem *any, hchan <-chan any) bool
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f400644f70..03d541f807 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3277,10 +3277,7 @@ func init() {
+ 				// Compiler frontend optimizations emit OBYTES2STRTMP nodes
+ 				// for the backend instead of slicebytetostringtmp calls
+ 				// when not instrumenting.
+-				slice := args[0]
+-				ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, slice)
+-				len := s.newValue1(ssa.OpSliceLen, types.Types[TINT], slice)
+-				return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
++				return s.newValue2(ssa.OpStringMake, n.Type, args[0], args[1])
+ 			},
+ 			all...)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7c1ab89b78..1accfbc825 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -923,6 +923,21 @@ func (o Op) IsSlice3() bool {
+ 	return false
+ }
+ 
++// slicePtrLen extracts the pointer and length from a slice.
++// This constructs two nodes referring to n, so n must be a cheapexpr.
++func (n *Node) slicePtrLen() (ptr, len *Node) {
++	var init Nodes
++	c := cheapexpr(n, &init)
++	if c != n || init.Len() != 0 {
++		Fatalf("slicePtrLen not cheap: %v", n)
++	}
++	ptr = nod(OSPTR, n, nil)
++	ptr.Type = n.Type.Elem().PtrTo()
++	len = nod(OLEN, n, nil)
++	len.Type = types.Types[TINT]
++	return ptr, len
++}
++
+ // labeledControl returns the control flow Node (for, switch, select)
+ // associated with the label n, if any.
+ func (n *Node) labeledControl() *Node {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 14d088c7fd..21658db21d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1414,13 +1414,15 @@ opswitch:
+ 			t := types.NewArray(types.Types[TUINT8], tmpstringbufsize)
+ 			a = nod(OADDR, temp(t), nil)
+ 		}
+-		fn := "slicebytetostring"
+ 		if n.Op == ORUNES2STR {
+-			fn = "slicerunetostring"
++			// slicerunetostring(*[32]byte, []rune) string
++			n = mkcall("slicerunetostring", n.Type, init, a, n.Left)
++		} else {
++			// slicebytetostring(*[32]byte, ptr *byte, n int) string
++			n.Left = cheapexpr(n.Left, init)
++			ptr, len := n.Left.slicePtrLen()
++			n = mkcall("slicebytetostring", n.Type, init, a, ptr, len)
+ 		}
+-		// slicebytetostring(*[32]byte, []byte) string
+-		// slicerunetostring(*[32]byte, []rune) string
+-		n = mkcall(fn, n.Type, init, a, n.Left)
+ 
+ 	case OBYTES2STRTMP:
+ 		n.Left = walkexpr(n.Left, init)
+@@ -1429,8 +1431,10 @@ opswitch:
+ 			// to avoid a function call to slicebytetostringtmp.
+ 			break
+ 		}
+-		// slicebytetostringtmp([]byte) string
+-		n = mkcall("slicebytetostringtmp", n.Type, init, n.Left)
++		// slicebytetostringtmp(ptr *byte, n int) string
++		n.Left = cheapexpr(n.Left, init)
++		ptr, len := n.Left.slicePtrLen()
++		n = mkcall("slicebytetostringtmp", n.Type, init, ptr, len)
+ 
+ 	case OSTR2BYTES:
+ 		s := n.Left
+@@ -2645,6 +2649,8 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 
+ 	l1 := n.List.First()
+ 	l2 := n.List.Second()
++	l2 = cheapexpr(l2, init)
++	n.List.SetSecond(l2)
+ 
+ 	var nodes Nodes
+ 
+@@ -2682,35 +2688,45 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 	if elemtype.HasHeapPointer() {
+ 		// copy(s[len(l1):], l2)
+ 		nptr1 := nod(OSLICE, s, nil)
++		nptr1.Type = s.Type
+ 		nptr1.SetSliceBounds(nod(OLEN, l1, nil), nil, nil)
++		nptr1 = cheapexpr(nptr1, &nodes)
+ 
+ 		nptr2 := l2
+ 
+ 		Curfn.Func.setWBPos(n.Pos)
+ 
+-		// instantiate typedslicecopy(typ *type, dst any, src any) int
++		// instantiate typedslicecopy(typ *type, dstPtr *any, dstLen int, srcPtr *any, srcLen int) int
+ 		fn := syslook("typedslicecopy")
+-		fn = substArgTypes(fn, l1.Type, l2.Type)
+-		ncopy = mkcall1(fn, types.Types[TINT], &nodes, typename(elemtype), nptr1, nptr2)
++		fn = substArgTypes(fn, l1.Type.Elem(), l2.Type.Elem())
++		ptr1, len1 := nptr1.slicePtrLen()
++		ptr2, len2 := nptr2.slicePtrLen()
++		ncopy = mkcall1(fn, types.Types[TINT], &nodes, typename(elemtype), ptr1, len1, ptr2, len2)
+ 
+ 	} else if instrumenting && !compiling_runtime {
+ 		// rely on runtime to instrument copy.
+ 		// copy(s[len(l1):], l2)
+ 		nptr1 := nod(OSLICE, s, nil)
++		nptr1.Type = s.Type
+ 		nptr1.SetSliceBounds(nod(OLEN, l1, nil), nil, nil)
++		nptr1 = cheapexpr(nptr1, &nodes)
+ 
+ 		nptr2 := l2
+ 
+ 		if l2.Type.IsString() {
+-			// instantiate func slicestringcopy(to any, fr any) int
++			// instantiate func slicestringcopy(toPtr *byte, toLen int, fr string) int
+ 			fn := syslook("slicestringcopy")
+-			fn = substArgTypes(fn, l1.Type, l2.Type)
+-			ncopy = mkcall1(fn, types.Types[TINT], &nodes, nptr1, nptr2)
++			ptr, len := nptr1.slicePtrLen()
++			str := nod(OCONVNOP, nptr2, nil)
++			str.Type = types.Types[TSTRING]
++			ncopy = mkcall1(fn, types.Types[TINT], &nodes, ptr, len, str)
+ 		} else {
+ 			// instantiate func slicecopy(to any, fr any, wid uintptr) int
+ 			fn := syslook("slicecopy")
+-			fn = substArgTypes(fn, l1.Type, l2.Type)
+-			ncopy = mkcall1(fn, types.Types[TINT], &nodes, nptr1, nptr2, nodintconst(elemtype.Width))
++			fn = substArgTypes(fn, l1.Type.Elem(), l2.Type.Elem())
++			ptr1, len1 := nptr1.slicePtrLen()
++			ptr2, len2 := nptr2.slicePtrLen()
++			ncopy = mkcall1(fn, types.Types[TINT], &nodes, ptr1, len1, ptr2, len2, nodintconst(elemtype.Width))
+ 		}
+ 
+ 	} else {
+@@ -3009,20 +3025,31 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+ 	if n.Left.Type.Elem().HasHeapPointer() {
+ 		Curfn.Func.setWBPos(n.Pos)
+-		fn := writebarrierfn("typedslicecopy", n.Left.Type, n.Right.Type)
+-		return mkcall1(fn, n.Type, init, typename(n.Left.Type.Elem()), n.Left, n.Right)
++		fn := writebarrierfn("typedslicecopy", n.Left.Type.Elem(), n.Right.Type.Elem())
++		n.Left = cheapexpr(n.Left, init)
++		ptrL, lenL := n.Left.slicePtrLen()
++		n.Right = cheapexpr(n.Right, init)
++		ptrR, lenR := n.Right.slicePtrLen()
++		return mkcall1(fn, n.Type, init, typename(n.Left.Type.Elem()), ptrL, lenL, ptrR, lenR)
+ 	}
+ 
+ 	if runtimecall {
+ 		if n.Right.Type.IsString() {
+ 			fn := syslook("slicestringcopy")
+-			fn = substArgTypes(fn, n.Left.Type, n.Right.Type)
+-			return mkcall1(fn, n.Type, init, n.Left, n.Right)
++			n.Left = cheapexpr(n.Left, init)
++			ptr, len := n.Left.slicePtrLen()
++			str := nod(OCONVNOP, n.Right, nil)
++			str.Type = types.Types[TSTRING]
++			return mkcall1(fn, n.Type, init, ptr, len, str)
+ 		}
+ 
+ 		fn := syslook("slicecopy")
+-		fn = substArgTypes(fn, n.Left.Type, n.Right.Type)
+-		return mkcall1(fn, n.Type, init, n.Left, n.Right, nodintconst(n.Left.Type.Elem().Width))
++		fn = substArgTypes(fn, n.Left.Type.Elem(), n.Right.Type.Elem())
++		n.Left = cheapexpr(n.Left, init)
++		ptrL, lenL := n.Left.slicePtrLen()
++		n.Right = cheapexpr(n.Right, init)
++		ptrR, lenR := n.Right.slicePtrLen()
++		return mkcall1(fn, n.Type, init, ptrL, lenL, ptrR, lenR, nodintconst(n.Left.Type.Elem().Width))
+ 	}
+ 
+ 	n.Left = walkexpr(n.Left, init)
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 9c5b26e4f3..516045c163 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -76,23 +76,24 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+ 	cgoCheckTypedBlock(typ, src, off, size)
+ }
+ 
+-// cgoCheckSliceCopy is called when copying n elements of a slice from
+-// src to dst.  typ is the element type of the slice.
++// cgoCheckSliceCopy is called when copying n elements of a slice.
++// src and dst are pointers to the first element of the slice.
++// typ is the element type of the slice.
+ // It throws if the program is copying slice elements that contain Go pointers
+ // into non-Go memory.
+ //go:nosplit
+ //go:nowritebarrier
+-func cgoCheckSliceCopy(typ *_type, dst, src slice, n int) {
++func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
+ 	if typ.ptrdata == 0 {
+ 		return
+ 	}
+-	if !cgoIsGoPointer(src.array) {
++	if !cgoIsGoPointer(src) {
+ 		return
+ 	}
+-	if cgoIsGoPointer(dst.array) {
++	if cgoIsGoPointer(dst) {
+ 		return
+ 	}
+-	p := src.array
++	p := src
+ 	for i := 0; i < n; i++ {
+ 		cgoCheckTypedBlock(typ, p, 0, typ.size)
+ 		p = add(p, typ.size)
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 0199053183..f7875d327a 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -231,16 +231,14 @@ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
+ }
+ 
+ //go:nosplit
+-func typedslicecopy(typ *_type, dst, src slice) int {
+-	n := dst.len
+-	if n > src.len {
+-		n = src.len
++func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe.Pointer, srcLen int) int {
++	n := dstLen
++	if n > srcLen {
++		n = srcLen
+ 	}
+ 	if n == 0 {
+ 		return 0
+ 	}
+-	dstp := dst.array
+-	srcp := src.array
+ 
+ 	// The compiler emits calls to typedslicecopy before
+ 	// instrumentation runs, so unlike the other copying and
+@@ -249,19 +247,19 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+ 		pc := funcPC(slicecopy)
+-		racewriterangepc(dstp, uintptr(n)*typ.size, callerpc, pc)
+-		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
++		racewriterangepc(dstPtr, uintptr(n)*typ.size, callerpc, pc)
++		racereadrangepc(srcPtr, uintptr(n)*typ.size, callerpc, pc)
+ 	}
+ 	if msanenabled {
+-		msanwrite(dstp, uintptr(n)*typ.size)
+-		msanread(srcp, uintptr(n)*typ.size)
++		msanwrite(dstPtr, uintptr(n)*typ.size)
++		msanread(srcPtr, uintptr(n)*typ.size)
+ 	}
+ 
+ 	if writeBarrier.cgo {
+-		cgoCheckSliceCopy(typ, dst, src, n)
++		cgoCheckSliceCopy(typ, dstPtr, srcPtr, n)
+ 	}
+ 
+-	if dstp == srcp {
++	if dstPtr == srcPtr {
+ 		return n
+ 	}
+ 
+@@ -272,11 +270,11 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 	size := uintptr(n) * typ.size
+ 	if writeBarrier.needed {
+ 		pwsize := size - typ.size + typ.ptrdata
+-		bulkBarrierPreWrite(uintptr(dstp), uintptr(srcp), pwsize)
++		bulkBarrierPreWrite(uintptr(dstPtr), uintptr(srcPtr), pwsize)
+ 	}
+ 	// See typedmemmove for a discussion of the race between the
+ 	// barrier and memmove.
+-	memmove(dstp, srcp, size)
++	memmove(dstPtr, srcPtr, size)
+ 	return n
+ }
+ 
+@@ -306,7 +304,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+ 		memmove(dst.array, src.array, size)
+ 		return n
+ 	}
+-	return typedslicecopy(elemType, dst, src)
++	return typedslicecopy(elemType, dst.array, dst.len, src.array, src.len)
+ }
+ 
+ // typedmemclr clears the typed memory at ptr with type typ. The
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index d8c1827852..7b95ff2428 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -277,13 +277,14 @@ func getHugePageSize() uintptr {
+ 	if fd < 0 {
+ 		return 0
+ 	}
+-	n := read(fd, noescape(unsafe.Pointer(&numbuf[0])), int32(len(numbuf)))
++	ptr := noescape(unsafe.Pointer(&numbuf[0]))
++	n := read(fd, ptr, int32(len(numbuf)))
+ 	closefd(fd)
+ 	if n <= 0 {
+ 		return 0
+ 	}
+-	l := n - 1 // remove trailing newline
+-	v, ok := atoi(slicebytetostringtmp(numbuf[:l]))
++	n-- // remove trailing newline
++	v, ok := atoi(slicebytetostringtmp((*byte)(ptr), int(n)))
+ 	if !ok || v < 0 {
+ 		v = 0
+ 	}
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 52353ea151..4ea4478601 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -194,14 +194,14 @@ func isPowerOfTwo(x uintptr) bool {
+ 	return x&(x-1) == 0
+ }
+ 
+-func slicecopy(to, fm slice, width uintptr) int {
+-	if fm.len == 0 || to.len == 0 {
++func slicecopy(toPtr unsafe.Pointer, toLen int, fmPtr unsafe.Pointer, fmLen int, width uintptr) int {
++	if fmLen == 0 || toLen == 0 {
+ 		return 0
+ 	}
+ 
+-	n := fm.len
+-	if to.len < n {
+-		n = to.len
++	n := fmLen
++	if toLen < n {
++		n = toLen
+ 	}
+ 
+ 	if width == 0 {
+@@ -211,43 +211,43 @@ func slicecopy(to, fm slice, width uintptr) int {
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+ 		pc := funcPC(slicecopy)
+-		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
+-		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
++		racereadrangepc(fmPtr, uintptr(n*int(width)), callerpc, pc)
++		racewriterangepc(toPtr, uintptr(n*int(width)), callerpc, pc)
+ 	}
+ 	if msanenabled {
+-		msanread(fm.array, uintptr(n*int(width)))
+-		msanwrite(to.array, uintptr(n*int(width)))
++		msanread(fmPtr, uintptr(n*int(width)))
++		msanwrite(toPtr, uintptr(n*int(width)))
+ 	}
+ 
+ 	size := uintptr(n) * width
+ 	if size == 1 { // common case worth about 2x to do here
+ 		// TODO: is this still worth it with new memmove impl?
+-		*(*byte)(to.array) = *(*byte)(fm.array) // known to be a byte pointer
++		*(*byte)(toPtr) = *(*byte)(fmPtr) // known to be a byte pointer
+ 	} else {
+-		memmove(to.array, fm.array, size)
++		memmove(toPtr, fmPtr, size)
+ 	}
+ 	return n
+ }
+ 
+-func slicestringcopy(to []byte, fm string) int {
+-	if len(fm) == 0 || len(to) == 0 {
++func slicestringcopy(toPtr *byte, toLen int, fm string) int {
++	if len(fm) == 0 || toLen == 0 {
+ 		return 0
+ 	}
+ 
+ 	n := len(fm)
+-	if len(to) < n {
+-		n = len(to)
++	if toLen < n {
++		n = toLen
+ 	}
+ 
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+ 		pc := funcPC(slicestringcopy)
+-		racewriterangepc(unsafe.Pointer(&to[0]), uintptr(n), callerpc, pc)
++		racewriterangepc(unsafe.Pointer(toPtr), uintptr(n), callerpc, pc)
+ 	}
+ 	if msanenabled {
+-		msanwrite(unsafe.Pointer(&to[0]), uintptr(n))
++		msanwrite(unsafe.Pointer(toPtr), uintptr(n))
+ 	}
+ 
+-	memmove(unsafe.Pointer(&to[0]), stringStructOf(&fm).str, uintptr(n))
++	memmove(unsafe.Pointer(toPtr), stringStructOf(&fm).str, uintptr(n))
+ 	return n
+ }
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 7dc0bd789f..0515b56573 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -71,27 +71,30 @@ func concatstring5(buf *tmpBuf, a [5]string) string {
+ 	return concatstrings(buf, a[:])
+ }
+ 
++// slicebytetostring converts a byte slice to a string.
++// It is inserted by the compiler into generated code.
++// ptr is a pointer to the first element of the slice;
++// n is the length of the slice.
+ // Buf is a fixed-size buffer for the result,
+ // it is not nil if the result does not escape.
+-func slicebytetostring(buf *tmpBuf, b []byte) (str string) {
+-	l := len(b)
+-	if l == 0 {
++func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
++	if n == 0 {
+ 		// Turns out to be a relatively common case.
+ 		// Consider that you want to parse out data between parens in "foo()bar",
+ 		// you find the indices and convert the subslice to string.
+ 		return ""
+ 	}
+ 	if raceenabled {
+-		racereadrangepc(unsafe.Pointer(&b[0]),
+-			uintptr(l),
++		racereadrangepc(unsafe.Pointer(ptr),
++			uintptr(n),
+ 			getcallerpc(),
+ 			funcPC(slicebytetostring))
+ 	}
+ 	if msanenabled {
+-		msanread(unsafe.Pointer(&b[0]), uintptr(l))
++		msanread(unsafe.Pointer(ptr), uintptr(n))
+ 	}
+-	if l == 1 {
+-		p := unsafe.Pointer(&staticuint64s[b[0]])
++	if n == 1 {
++		p := unsafe.Pointer(&staticuint64s[*ptr])
+ 		if sys.BigEndian {
+ 			p = add(p, 7)
+ 		}
+@@ -101,14 +104,14 @@ func slicebytetostring(buf *tmpBuf, b []byte) (str string) {
+ 	}
+ 
+ 	var p unsafe.Pointer
+-	if buf != nil && len(b) <= len(buf) {
++	if buf != nil && n <= len(buf) {
+ 		p = unsafe.Pointer(buf)
+ 	} else {
+-		p = mallocgc(uintptr(len(b)), nil, false)
++		p = mallocgc(uintptr(n), nil, false)
+ 	}
+ 	stringStructOf(&str).str = p
+-	stringStructOf(&str).len = len(b)
+-	memmove(p, (*(*slice)(unsafe.Pointer(&b))).array, uintptr(len(b)))
++	stringStructOf(&str).len = n
++	memmove(p, unsafe.Pointer(ptr), uintptr(n))
+ 	return
+ }
+ 
+@@ -123,7 +126,7 @@ func stringDataOnStack(s string) bool {
+ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
+ 	if buf != nil && l <= len(buf) {
+ 		b = buf[:l]
+-		s = slicebytetostringtmp(b)
++		s = slicebytetostringtmp(&b[0], len(b))
+ 	} else {
+ 		s, b = rawstring(l)
+ 	}
+@@ -144,17 +147,19 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
+ //   where k is []byte, T1 to Tn is a nesting of struct and array literals.
+ // - Used for "<"+string(b)+">" concatenation where b is []byte.
+ // - Used for string(b)=="foo" comparison where b is []byte.
+-func slicebytetostringtmp(b []byte) string {
+-	if raceenabled && len(b) > 0 {
+-		racereadrangepc(unsafe.Pointer(&b[0]),
+-			uintptr(len(b)),
++func slicebytetostringtmp(ptr *byte, n int) (str string) {
++	if raceenabled && n > 0 {
++		racereadrangepc(unsafe.Pointer(ptr),
++			uintptr(n),
+ 			getcallerpc(),
+ 			funcPC(slicebytetostringtmp))
+ 	}
+-	if msanenabled && len(b) > 0 {
+-		msanread(unsafe.Pointer(&b[0]), uintptr(len(b)))
++	if msanenabled && n > 0 {
++		msanread(unsafe.Pointer(ptr), uintptr(n))
+ 	}
+-	return *(*string)(unsafe.Pointer(&b))
++	stringStructOf(&str).str = unsafe.Pointer(ptr)
++	stringStructOf(&str).len = n
++	return
+ }
+ 
+ func stringtoslicebyte(buf *tmpBuf, s string) []byte {
+@@ -239,7 +244,7 @@ func intstring(buf *[4]byte, v int64) (s string) {
+ 	var b []byte
+ 	if buf != nil {
+ 		b = buf[:]
+-		s = slicebytetostringtmp(b)
++		s = slicebytetostringtmp(&b[0], len(b))
+ 	} else {
+ 		s, b = rawstring(4)
+ 	}

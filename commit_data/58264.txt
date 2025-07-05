@@ -20,7 +20,69 @@ Date:   Wed Oct 11 12:15:57 2023 -0400
     Auto-Submit: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go                   | 26 ++++++++++++----------
  .../go/testdata/script/list_pkgconfig_error.txt    |  2 +-
  2 files changed, 15 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d66ffb7b86..3c5b9842f2 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2321,7 +2321,11 @@ func (b *Builder) reportCmd(a *Action, desc, dir string, cmdOut []byte, cmdErr e
+ 		out = cgoTypeSigRe.ReplaceAllString(out, "C.")
+ 	}
+ 
+-	err := &cmdError{desc, out, importPath}
++	// Usually desc is already p.Desc(), but if not, signal cmdError.Error to
++	// add a line explicitly metioning the import path.
++	needsPath := importPath != "" && p != nil && desc != p.Desc()
++
++	err := &cmdError{desc, out, importPath, needsPath}
+ 	if cmdErr != nil {
+ 		// The command failed. Report the output up as an error.
+ 		return err
+@@ -2360,21 +2364,19 @@ type cmdError struct {
+ 	desc       string
+ 	text       string
+ 	importPath string
++	needsPath  bool // Set if desc does not already include the import path
+ }
+ 
+ func (e *cmdError) Error() string {
+-	msg := "# " + e.desc + "\n" + e.text
+-	if e.importPath != "" && !strings.HasPrefix(e.desc, e.importPath) {
+-		// Ensure the import path is part of the message. We checked the prefix
+-		// because desc can be a package ID, which may have text in addition to
+-		// the import path.
+-		//
+-		// TODO(austin): Checking the prefix seems flimsy. reportCmd could
+-		// instead check if desc != p.Desc() and leave a flag in cmdError to
+-		// signal this code path.
+-		msg = fmt.Sprintf("go build %s:\n%s", e.importPath, msg)
++	var msg string
++	if e.needsPath {
++		// Ensure the import path is part of the message.
++		// Clearly distinguish the description from the import path.
++		msg = fmt.Sprintf("# %s\n# [%s]\n", e.importPath, e.desc)
++	} else {
++		msg = "# " + e.desc + "\n"
+ 	}
+-	return msg
++	return msg + e.text
+ }
+ 
+ func (e *cmdError) ImportPath() string {
+diff --git a/src/cmd/go/testdata/script/list_pkgconfig_error.txt b/src/cmd/go/testdata/script/list_pkgconfig_error.txt
+index de6eafd2c2..f554d2a4ed 100644
+--- a/src/cmd/go/testdata/script/list_pkgconfig_error.txt
++++ b/src/cmd/go/testdata/script/list_pkgconfig_error.txt
+@@ -2,7 +2,7 @@
+ [!exec:pkg-config] skip 'test requires pkg-config tool'
+ 
+ ! go list -export .
+-stderr '^go build example:\n# pkg-config (.*\n)+Package .* not found'
++stderr '^# example\n# \[pkg-config .*\]\n(.*\n)*Package .* not found'
+ 
+ -- go.mod --
+ module example

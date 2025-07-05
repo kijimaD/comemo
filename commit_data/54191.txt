@@ -16,7 +16,7 @@ Date:   Wed Sep 28 14:59:16 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go        |  2 +-
  src/cmd/compile/internal/types2/instantiate.go | 42 +++++++++++++-------------
  src/cmd/compile/internal/types2/lookup.go      |  6 ++--
@@ -28,3 +28,512 @@ Date:   Wed Sep 28 14:59:16 2022 -0700
  src/go/types/operand.go                        | 22 +++++++-------
  src/go/types/typexpr.go                        | 18 +++++------
  10 files changed, 90 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 5b40b94681..7543431f8d 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1764,7 +1764,7 @@ func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitc
+ 		return // success
+ 	}
+ 
+-	cause := check.missingMethodReason(T, x.typ, method, alt)
++	cause := check.missingMethodCause(T, x.typ, method, alt)
+ 
+ 	if typeSwitch {
+ 		check.errorf(e, _ImpossibleAssert, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 19efc4c51e..38863e85e4 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -174,9 +174,9 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		// need to instantiate it with the type arguments with which we instantiated
+ 		// the parameterized type.
+ 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
+-		var reason string
+-		if !check.implements(targs[i], bound, &reason) {
+-			return i, errors.New(reason)
++		var cause string
++		if !check.implements(targs[i], bound, &cause) {
++			return i, errors.New(cause)
+ 		}
+ 	}
+ 	return -1, nil
+@@ -185,9 +185,9 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ // implements checks if V implements T. The receiver may be nil if implements
+ // is called through an exported API call such as AssignableTo.
+ //
+-// If the provided reason is non-nil, it may be set to an error string
++// If the provided cause is non-nil, it may be set to an error string
+ // explaining why V does not implement T.
+-func (check *Checker) implements(V, T Type, reason *string) bool {
++func (check *Checker) implements(V, T Type, cause *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
+@@ -199,14 +199,14 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
+ 
+ 	Ti, _ := Tu.(*Interface)
+ 	if Ti == nil {
+-		var cause string
++		var detail string
+ 		if isInterfacePtr(Tu) {
+-			cause = check.sprintf("type %s is pointer to interface, not interface", T)
++			detail = check.sprintf("type %s is pointer to interface, not interface", T)
+ 		} else {
+-			cause = check.sprintf("%s is not an interface", T)
++			detail = check.sprintf("%s is not an interface", T)
+ 		}
+-		if reason != nil {
+-			*reason = check.sprintf("%s does not implement %s (%s)", V, T, cause)
++		if cause != nil {
++			*cause = check.sprintf("%s does not implement %s (%s)", V, T, detail)
+ 		}
+ 		return false
+ 	}
+@@ -227,16 +227,16 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
+ 
+ 	// No type with non-empty type set satisfies the empty type set.
+ 	if Ti.typeSet().IsEmpty() {
+-		if reason != nil {
+-			*reason = check.sprintf("cannot implement %s (empty type set)", T)
++		if cause != nil {
++			*cause = check.sprintf("cannot implement %s (empty type set)", T)
+ 		}
+ 		return false
+ 	}
+ 
+ 	// V must implement T's methods, if any.
+ 	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+-		if reason != nil {
+-			*reason = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
++		if cause != nil {
++			*cause = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodCause(V, T, m, wrong))
+ 		}
+ 		return false
+ 	}
+@@ -245,8 +245,8 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
+ 	checkComparability := func() bool {
+ 		// If T is comparable, V must be comparable.
+ 		if Ti.IsComparable() && !comparable(V, false, nil, nil) {
+-			if reason != nil {
+-				*reason = check.sprintf("%s does not implement comparable", V)
++			if cause != nil {
++				*cause = check.sprintf("%s does not implement comparable", V)
+ 			}
+ 			return false
+ 		}
+@@ -265,8 +265,8 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
+ 	if Vi != nil {
+ 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
+ 			// TODO(gri) report which type is missing
+-			if reason != nil {
+-				*reason = check.sprintf("%s does not implement %s", V, T)
++			if cause != nil {
++				*cause = check.sprintf("%s does not implement %s", V, T)
+ 			}
+ 			return false
+ 		}
+@@ -291,11 +291,11 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
+ 		}
+ 		return false
+ 	}) {
+-		if reason != nil {
++		if cause != nil {
+ 			if alt != nil {
+-				*reason = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
++				*cause = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
+ 			} else {
+-				*reason = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
++				*cause = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
+ 			}
+ 		}
+ 		return false
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 3a158f7333..860535cf49 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -364,13 +364,13 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 	return
+ }
+ 
+-// missingMethodReason returns a string giving the detailed reason for a missing method m,
+-// where m is missing from V, but required by T. It puts the reason in parentheses,
++// missingMethodCause returns a string giving the detailed cause for a missing method m,
++// where m is missing from V, but required by T. It puts the cause in parentheses,
+ // and may include more have/want info after that. If non-nil, alt is a relevant
+ // method that matches in some way. It may have the correct name, but wrong type, or
+ // it may have a pointer receiver, or it may have the correct name except wrong case.
+ // check may be nil.
+-func (check *Checker) missingMethodReason(V, T Type, m, alt *Func) string {
++func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
+ 	mname := "method " + m.Name()
+ 
+ 	if alt != nil {
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 1c58c2d7af..aadcc3a8db 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -234,12 +234,12 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
+ func (x *operand) isNil() bool { return x.mode == nilvalue }
+ 
+ // assignableTo reports whether x is assignable to a variable of type T. If the
+-// result is false and a non-nil reason is provided, it may be set to a more
++// result is false and a non-nil cause is provided, it may be set to a more
+ // detailed explanation of the failure (result != ""). The returned error code
+ // is only valid if the (first) result is false. The check parameter may be nil
+ // if assignableTo is invoked through an exported API call, i.e., when all
+ // methods have been type-checked.
+-func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, errorCode) {
++func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, errorCode) {
+ 	if x.mode == invalid || T == Typ[Invalid] {
+ 		return true, 0 // avoid spurious errors
+ 	}
+@@ -288,7 +288,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	// T is an interface type and x implements T and T is not a type parameter.
+ 	// Also handle the case where T is a pointer to an interface.
+ 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+-		if !check.implements(V, T, reason) {
++		if !check.implements(V, T, cause) {
+ 			return false, _InvalidIfaceAssign
+ 		}
+ 		return true, 0
+@@ -298,8 +298,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+ 		if check.implements(T, V, nil) {
+ 			// T implements V, so give hint about type assertion.
+-			if reason != nil {
+-				*reason = "need type assertion"
++			if cause != nil {
++				*cause = "need type assertion"
+ 			}
+ 			return false, _IncompatibleAssign
+ 		}
+@@ -320,12 +320,12 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	}
+ 
+ 	errorf := func(format string, args ...interface{}) {
+-		if check != nil && reason != nil {
++		if check != nil && cause != nil {
+ 			msg := check.sprintf(format, args...)
+-			if *reason != "" {
+-				msg += "\n\t" + *reason
++			if *cause != "" {
++				msg += "\n\t" + *cause
+ 			}
+-			*reason = msg
++			*cause = msg
+ 		}
+ 	}
+ 
+@@ -338,7 +338,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 			if T == nil {
+ 				return false // no specific types
+ 			}
+-			ok, code = x.assignableTo(check, T.typ, reason)
++			ok, code = x.assignableTo(check, T.typ, cause)
+ 			if !ok {
+ 				errorf("cannot assign %s to %s (in %s)", x.typ, T.typ, Tp)
+ 				return false
+@@ -360,7 +360,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 				return false // no specific types
+ 			}
+ 			x.typ = V.typ
+-			ok, code = x.assignableTo(check, T, reason)
++			ok, code = x.assignableTo(check, T, cause)
+ 			if !ok {
+ 				errorf("cannot assign %s (in %s) to %s", V.typ, Vp, T)
+ 				return false
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 900a730916..7375eed5c5 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -188,14 +188,14 @@ func (check *Checker) definedType(e syntax.Expr, def *Named) Type {
+ }
+ 
+ // genericType is like typ but the type must be an (uninstantiated) generic
+-// type. If reason is non-nil and the type expression was a valid type but not
+-// generic, reason will be populated with a message describing the error.
+-func (check *Checker) genericType(e syntax.Expr, reason *string) Type {
++// type. If cause is non-nil and the type expression was a valid type but not
++// generic, cause will be populated with a message describing the error.
++func (check *Checker) genericType(e syntax.Expr, cause *string) Type {
+ 	typ := check.typInternal(e, nil)
+ 	assert(isTyped(typ))
+ 	if typ != Typ[Invalid] && !isGeneric(typ) {
+-		if reason != nil {
+-			*reason = check.sprintf("%s is not a generic type", typ)
++		if cause != nil {
++			*cause = check.sprintf("%s is not a generic type", typ)
+ 		}
+ 		typ = Typ[Invalid]
+ 	}
+@@ -413,10 +413,10 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 		}()
+ 	}
+ 
+-	var reason string
+-	gtyp := check.genericType(x, &reason)
+-	if reason != "" {
+-		check.errorf(x, _NotAGenericType, invalidOp+"%s%s (%s)", x, xlist, reason)
++	var cause string
++	gtyp := check.genericType(x, &cause)
++	if cause != "" {
++		check.errorf(x, _NotAGenericType, invalidOp+"%s%s (%s)", x, xlist, cause)
+ 	}
+ 	if gtyp == Typ[Invalid] {
+ 		return gtyp // error already reported
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 7f95892718..958082a962 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1711,7 +1711,7 @@ func (check *Checker) typeAssertion(e ast.Expr, x *operand, T Type, typeSwitch b
+ 		return // success
+ 	}
+ 
+-	cause := check.missingMethodReason(T, x.typ, method, alt)
++	cause := check.missingMethodCause(T, x.typ, method, alt)
+ 
+ 	if typeSwitch {
+ 		check.errorf(e, _ImpossibleAssert, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 35130cfe31..390a31a64f 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -174,9 +174,9 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type,
+ 		// need to instantiate it with the type arguments with which we instantiated
+ 		// the parameterized type.
+ 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
+-		var reason string
+-		if !check.implements(targs[i], bound, &reason) {
+-			return i, errors.New(reason)
++		var cause string
++		if !check.implements(targs[i], bound, &cause) {
++			return i, errors.New(cause)
+ 		}
+ 	}
+ 	return -1, nil
+@@ -185,9 +185,9 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type,
+ // implements checks if V implements T. The receiver may be nil if implements
+ // is called through an exported API call such as AssignableTo.
+ //
+-// If the provided reason is non-nil, it may be set to an error string
++// If the provided cause is non-nil, it may be set to an error string
+ // explaining why V does not implement T.
+-func (check *Checker) implements(V, T Type, reason *string) bool {
++func (check *Checker) implements(V, T Type, cause *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
+@@ -199,14 +199,14 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
+ 
+ 	Ti, _ := Tu.(*Interface)
+ 	if Ti == nil {
+-		var cause string
++		var detail string
+ 		if isInterfacePtr(Tu) {
+-			cause = check.sprintf("type %s is pointer to interface, not interface", T)
++			detail = check.sprintf("type %s is pointer to interface, not interface", T)
+ 		} else {
+-			cause = check.sprintf("%s is not an interface", T)
++			detail = check.sprintf("%s is not an interface", T)
+ 		}
+-		if reason != nil {
+-			*reason = check.sprintf("%s does not implement %s (%s)", V, T, cause)
++		if cause != nil {
++			*cause = check.sprintf("%s does not implement %s (%s)", V, T, detail)
+ 		}
+ 		return false
+ 	}
+@@ -227,16 +227,16 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
+ 
+ 	// No type with non-empty type set satisfies the empty type set.
+ 	if Ti.typeSet().IsEmpty() {
+-		if reason != nil {
+-			*reason = check.sprintf("cannot implement %s (empty type set)", T)
++		if cause != nil {
++			*cause = check.sprintf("cannot implement %s (empty type set)", T)
+ 		}
+ 		return false
+ 	}
+ 
+ 	// V must implement T's methods, if any.
+ 	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+-		if reason != nil {
+-			*reason = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
++		if cause != nil {
++			*cause = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodCause(V, T, m, wrong))
+ 		}
+ 		return false
+ 	}
+@@ -245,8 +245,8 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
+ 	checkComparability := func() bool {
+ 		// If T is comparable, V must be comparable.
+ 		if Ti.IsComparable() && !comparable(V, false, nil, nil) {
+-			if reason != nil {
+-				*reason = check.sprintf("%s does not implement comparable", V)
++			if cause != nil {
++				*cause = check.sprintf("%s does not implement comparable", V)
+ 			}
+ 			return false
+ 		}
+@@ -265,8 +265,8 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
+ 	if Vi != nil {
+ 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
+ 			// TODO(gri) report which type is missing
+-			if reason != nil {
+-				*reason = check.sprintf("%s does not implement %s", V, T)
++			if cause != nil {
++				*cause = check.sprintf("%s does not implement %s", V, T)
+ 			}
+ 			return false
+ 		}
+@@ -291,11 +291,11 @@ func (check *Checker) implements(V, T Type, reason *string) bool {
+ 		}
+ 		return false
+ 	}) {
+-		if reason != nil {
++		if cause != nil {
+ 			if alt != nil {
+-				*reason = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
++				*cause = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
+ 			} else {
+-				*reason = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
++				*cause = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
+ 			}
+ 		}
+ 		return false
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index cb75c87820..43fd8d9947 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -364,13 +364,13 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 	return
+ }
+ 
+-// missingMethodReason returns a string giving the detailed reason for a missing method m,
+-// where m is missing from V, but required by T. It puts the reason in parentheses,
++// missingMethodCause returns a string giving the detailed cause for a missing method m,
++// where m is missing from V, but required by T. It puts the cause in parentheses,
+ // and may include more have/want info after that. If non-nil, alt is a relevant
+ // method that matches in some way. It may have the correct name, but wrong type, or
+ // it may have a pointer receiver, or it may have the correct name except wrong case.
+ // check may be nil.
+-func (check *Checker) missingMethodReason(V, T Type, m, alt *Func) string {
++func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
+ 	mname := "method " + m.Name()
+ 
+ 	if alt != nil {
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 7779f442ee..4cb7a36460 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -223,12 +223,12 @@ func (x *operand) isNil() bool {
+ }
+ 
+ // assignableTo reports whether x is assignable to a variable of type T. If the
+-// result is false and a non-nil reason is provided, it may be set to a more
++// result is false and a non-nil cause is provided, it may be set to a more
+ // detailed explanation of the failure (result != ""). The returned error code
+ // is only valid if the (first) result is false. The check parameter may be nil
+ // if assignableTo is invoked through an exported API call, i.e., when all
+ // methods have been type-checked.
+-func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, errorCode) {
++func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, errorCode) {
+ 	if x.mode == invalid || T == Typ[Invalid] {
+ 		return true, 0 // avoid spurious errors
+ 	}
+@@ -277,7 +277,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	// T is an interface type and x implements T and T is not a type parameter.
+ 	// Also handle the case where T is a pointer to an interface.
+ 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+-		if !check.implements(V, T, reason) {
++		if !check.implements(V, T, cause) {
+ 			return false, _InvalidIfaceAssign
+ 		}
+ 		return true, 0
+@@ -287,8 +287,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+ 		if check.implements(T, V, nil) {
+ 			// T implements V, so give hint about type assertion.
+-			if reason != nil {
+-				*reason = "need type assertion"
++			if cause != nil {
++				*cause = "need type assertion"
+ 			}
+ 			return false, _IncompatibleAssign
+ 		}
+@@ -309,12 +309,12 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	}
+ 
+ 	errorf := func(format string, args ...any) {
+-		if check != nil && reason != nil {
++		if check != nil && cause != nil {
+ 			msg := check.sprintf(format, args...)
+-			if *reason != "" {
+-				msg += "\n\t" + *reason
++			if *cause != "" {
++				msg += "\n\t" + *cause
+ 			}
+-			*reason = msg
++			*cause = msg
+ 		}
+ 	}
+ 
+@@ -327,7 +327,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 			if T == nil {
+ 				return false // no specific types
+ 			}
+-			ok, code = x.assignableTo(check, T.typ, reason)
++			ok, code = x.assignableTo(check, T.typ, cause)
+ 			if !ok {
+ 				errorf("cannot assign %s to %s (in %s)", x.typ, T.typ, Tp)
+ 				return false
+@@ -349,7 +349,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 				return false // no specific types
+ 			}
+ 			x.typ = V.typ
+-			ok, code = x.assignableTo(check, T, reason)
++			ok, code = x.assignableTo(check, T, cause)
+ 			if !ok {
+ 				errorf("cannot assign %s (in %s) to %s", V.typ, Vp, T)
+ 				return false
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 3323e455d7..dcf6302d6f 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -188,14 +188,14 @@ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
+ }
+ 
+ // genericType is like typ but the type must be an (uninstantiated) generic
+-// type. If reason is non-nil and the type expression was a valid type but not
+-// generic, reason will be populated with a message describing the error.
+-func (check *Checker) genericType(e ast.Expr, reason *string) Type {
++// type. If cause is non-nil and the type expression was a valid type but not
++// generic, cause will be populated with a message describing the error.
++func (check *Checker) genericType(e ast.Expr, cause *string) Type {
+ 	typ := check.typInternal(e, nil)
+ 	assert(isTyped(typ))
+ 	if typ != Typ[Invalid] && !isGeneric(typ) {
+-		if reason != nil {
+-			*reason = check.sprintf("%s is not a generic type", typ)
++		if cause != nil {
++			*cause = check.sprintf("%s is not a generic type", typ)
+ 		}
+ 		typ = Typ[Invalid]
+ 	}
+@@ -404,10 +404,10 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ 		}()
+ 	}
+ 
+-	var reason string
+-	gtyp := check.genericType(ix.X, &reason)
+-	if reason != "" {
+-		check.invalidOp(ix.Orig, _NotAGenericType, "%s (%s)", ix.Orig, reason)
++	var cause string
++	gtyp := check.genericType(ix.X, &cause)
++	if cause != "" {
++		check.invalidOp(ix.Orig, _NotAGenericType, "%s (%s)", ix.Orig, cause)
+ 	}
+ 	if gtyp == Typ[Invalid] {
+ 		return gtyp // error already reported

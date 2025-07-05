@@ -19,6 +19,30 @@ Date:   Thu Sep 29 09:09:14 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup_windows.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 9435fef839..5abfc844f7 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -43,7 +43,7 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
+ 	select {
+ 	case r := <-ch:
+ 		if r.err != nil {
+-			if proto, ok := protocols[name]; ok {
++			if proto, err := lookupProtocolMap(name); err == nil {
+ 				return proto, nil
+ 			}
+ 			r.err = &DNSError{Err: r.err.Error(), Name: name}
+@@ -150,6 +150,9 @@ func lookupPort(ctx context.Context, network, service string) (int, error) {
+ 	var result *syscall.AddrinfoW
+ 	e := syscall.GetAddrInfoW(nil, syscall.StringToUTF16Ptr(service), &hints, &result)
+ 	if e != nil {
++		if port, err := lookupPortMap(network, service); err == nil {
++			return port, nil
++		}
+ 		return 0, &DNSError{Err: os.NewSyscallError("getaddrinfow", e).Error(), Name: network + "/" + service}
+ 	}
+ 	defer syscall.FreeAddrInfoW(result)

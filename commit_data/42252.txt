@@ -14,6 +14,45 @@ Date:   Tue Nov 19 07:00:45 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/tick_test.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/tick_test.go b/src/time/tick_test.go
+index 92fb2f91fb..71ea3672b8 100644
+--- a/src/time/tick_test.go
++++ b/src/time/tick_test.go
+@@ -6,6 +6,7 @@ package time_test
+ 
+ import (
+ 	"fmt"
++	"runtime"
+ 	"testing"
+ 	. "time"
+ )
+@@ -16,9 +17,15 @@ func TestTicker(t *testing.T) {
+ 	// want to use lengthy times. This makes the test inherently flaky.
+ 	// So only report an error if it fails five times in a row.
+ 
+-	const count = 10
++	count := 10
+ 	delta := 20 * Millisecond
+ 
++	// On Darwin ARM64 the tick frequency seems limited. Issue 35692.
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++		count = 5
++		delta = 100 * Millisecond
++	}
++
+ 	var errs []string
+ 	logErrs := func() {
+ 		for _, e := range errs {
+@@ -35,7 +42,7 @@ func TestTicker(t *testing.T) {
+ 		ticker.Stop()
+ 		t1 := Now()
+ 		dt := t1.Sub(t0)
+-		target := delta * count
++		target := delta * Duration(count)
+ 		slop := target * 2 / 10
+ 		if dt < target-slop || dt > target+slop {
+ 			errs = append(errs, fmt.Sprintf("%d %s ticks took %s, expected [%s,%s]", count, delta, dt, target-slop, target+slop))

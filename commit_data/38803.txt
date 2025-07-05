@@ -9,6 +9,20 @@ Date:   Wed Nov 28 18:53:16 2018 +0000
     GitHub-Pull-Request: golang/go#28991
     Reviewed-on: https://go-review.googlesource.com/c/151324
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go_faq.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index c61dd0fc5f..305878f237 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1769,7 +1769,7 @@ while that of the corresponding pointer
+ type <code>*T</code> consists of all methods with receiver <code>*T</code> or
+ <code>T</code>.
+ That means the method set of <code>*T</code>
+-includes that of <code>T</code>),
++includes that of <code>T</code>,
+ but not the reverse.
+ </p>
+ 

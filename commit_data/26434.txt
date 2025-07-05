@@ -12,8 +12,52 @@ Date:   Fri Jan 22 12:18:19 2016 -0500
     Change-Id: I1186850d32ad6d5777475c7808e6fc9d9133e118
     Reviewed-on: https://go-review.googlesource.com/18848
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/x86/a.out.go  | 4 +++-
  src/cmd/internal/obj/x86/anames.go | 4 +++-
  src/cmd/internal/obj/x86/asm6.go   | 2 +-
  3 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index b02c7495b8..d2bc73ea8f 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -181,7 +181,9 @@ const (
+ 	APAUSE
+ 	APOPAL
+ 	APOPAW
+-	APOPCNT
++	APOPCNTW
++	APOPCNTL
++	APOPCNTQ
+ 	APOPFL
+ 	APOPFW
+ 	APOPL
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index 392899cf5f..15e7202006 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -149,7 +149,9 @@ var Anames = []string{
+ 	"PAUSE",
+ 	"POPAL",
+ 	"POPAW",
+-	"POPCNT",
++	"POPCNTW",
++	"POPCNTL",
++	"POPCNTQ",
+ 	"POPFL",
+ 	"POPFW",
+ 	"POPL",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index d5d52bb055..41386ef6e0 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1208,7 +1208,7 @@ var optab =
+ 	{APMULULQ, ymm, Py1, [23]uint8{0xf4, Pe, 0xf4}},
+ 	{APOPAL, ynone, P32, [23]uint8{0x61}},
+ 	{APOPAW, ynone, Pe, [23]uint8{0x61}},
+-	{APOPCNT, yml_rl, Pfw, [23]uint8{0xb8}},
++	{APOPCNTQ, yml_rl, Pfw, [23]uint8{0xb8}},
+ 	{APOPFL, ynone, P32, [23]uint8{0x9d}},
+ 	{APOPFQ, ynone, Py, [23]uint8{0x9d}},
+ 	{APOPFW, ynone, Pe, [23]uint8{0x9d}},

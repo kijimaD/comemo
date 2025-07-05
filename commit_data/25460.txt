@@ -13,7 +13,42 @@ Date:   Wed Oct 28 18:55:30 2015 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/typestring.go      | 4 ++--
  src/go/types/typestring_test.go | 1 +
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index bd62f4dc22..47378e744c 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -71,7 +71,7 @@ func TypeString(typ Type, qf Qualifier) string {
+ // The Qualifier controls the printing of
+ // package-level objects, and may be nil.
+ func WriteType(buf *bytes.Buffer, typ Type, qf Qualifier) {
+-	writeType(buf, typ, qf, make([]Type, 8))
++	writeType(buf, typ, qf, make([]Type, 0, 8))
+ }
+ 
+ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+@@ -272,7 +272,7 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visi
+ // The Qualifier controls the printing of
+ // package-level objects, and may be nil.
+ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
+-	writeSignature(buf, sig, qf, make([]Type, 8))
++	writeSignature(buf, sig, qf, make([]Type, 0, 8))
+ }
+ 
+ func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []Type) {
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 913e6c735c..6365df5fe2 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -148,6 +148,7 @@ func TestQualifiedTypeString(t *testing.T) {
+ 		this *Package
+ 		want string
+ 	}{
++		{nil, nil, "<nil>"},
+ 		{pT, nil, "p.T"},
+ 		{pT, p, "T"},
+ 		{pT, q, "p.T"},

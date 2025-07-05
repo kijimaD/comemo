@@ -12,7 +12,7 @@ Date:   Mon Apr 25 11:54:24 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/22433
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go        |  8 ++++++
  src/cmd/go/go_test.go      | 68 ++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/go/help.go         | 10 ++++++-
@@ -22,3 +22,410 @@ Date:   Mon Apr 25 11:54:24 2016 -0400
  src/go/build/build_test.go |  6 ++--
  src/go/build/doc.go        | 22 +++++++++++++++
  8 files changed, 177 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index b8c12db196..0102b5e08a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1323,6 +1323,13 @@ func (b *builder) do(root *action) {
+ 
+ // build is the action for building a single package or command.
+ func (b *builder) build(a *action) (err error) {
++	// Return an error for binary-only package.
++	// We only reach this if isStale believes the binary form is
++	// either not present or not usable.
++	if a.p.BinaryOnly {
++		return fmt.Errorf("missing or invalid package binary for binary-only package %s", a.p.ImportPath)
++	}
++
+ 	// Return an error if the package has CXX files but it's not using
+ 	// cgo nor SWIG, since the CXX files can only be processed by cgo
+ 	// and SWIG.
+@@ -1340,6 +1347,7 @@ func (b *builder) build(a *action) (err error) {
+ 		return fmt.Errorf("can't build package %s because it contains Fortran files (%s) but it's not using cgo nor SWIG",
+ 			a.p.ImportPath, strings.Join(a.p.FFiles, ","))
+ 	}
++
+ 	defer func() {
+ 		if err != nil && err != errPrintedOutput {
+ 			err = fmt.Errorf("go build %s: %v", a.p.ImportPath, err)
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index fe3d47752c..ac82b2ffeb 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2808,3 +2808,71 @@ func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
+ 	tg.grepBothNot("^ok", "test passed unexpectedly")
+ 	tg.grepBoth("FAIL.*benchfatal", "test did not run everything")
+ }
++
++func TestBinaryOnlyPackages(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++
++	tg.tempFile("src/p1/p1.go", `//go:binary-only-package
++
++		package p1
++	`)
++	tg.wantStale("p1", "cannot access install target", "p1 is binary-only but has no binary, should be stale")
++	tg.runFail("install", "p1")
++	tg.grepStderr("missing or invalid package binary", "did not report attempt to compile binary-only package")
++
++	tg.tempFile("src/p1/p1.go", `
++		package p1
++		import "fmt"
++		func F(b bool) { fmt.Printf("hello from p1\n"); if b { F(false) } }
++	`)
++	tg.run("install", "p1")
++	os.Remove(tg.path("src/p1/p1.go"))
++	tg.mustNotExist(tg.path("src/p1/p1.go"))
++
++	tg.tempFile("src/p2/p2.go", `
++		package p2
++		import "p1"
++		func F() { p1.F(true) }
++	`)
++	tg.runFail("install", "p2")
++	tg.grepStderr("no buildable Go source files", "did not complain about missing sources")
++
++	tg.tempFile("src/p1/missing.go", `//go:binary-only-package
++	
++		package p1
++		func G()
++	`)
++	tg.wantNotStale("p1", "no source code", "should NOT want to rebuild p1 (first)")
++	tg.run("install", "-x", "p1") // no-op, up to date
++	tg.grepBothNot("/compile", "should not have run compiler")
++	tg.run("install", "p2") // does not rebuild p1 (or else p2 will fail)
++	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
++
++	// changes to the non-source-code do not matter,
++	// and only one file needs the special comment.
++	tg.tempFile("src/p1/missing2.go", `
++		package p1
++		func H()
++	`)
++	tg.wantNotStale("p1", "no source code", "should NOT want to rebuild p1 (second)")
++	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
++
++	tg.tempFile("src/p3/p3.go", `
++		package main
++		import (
++			"p1"
++			"p2"
++		)
++		func main() {
++			p1.F(false)
++			p2.F()
++		}
++	`)
++	tg.run("install", "p3")
++
++	tg.run("run", tg.path("src/p3/p3.go"))
++	tg.grepStdout("hello from p1", "did not see message from p1")
++}
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 394e171594..34bd80dc92 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -524,7 +524,15 @@ the extension of the file name. These extensions are:
+ Files of each of these types except .syso may contain build
+ constraints, but the go command stops scanning for build constraints
+ at the first item in the file that is not a blank line or //-style
+-line comment.
++line comment. See the go/build package documentation for
++more details.
++
++Non-test Go source files can also include a //go:binary-only-package
++comment, indicating that the package sources are included
++for documentation only and must not be used to build the
++package binary. This enables distribution of Go packages in
++their compiled form alone. See the go/build package documentation
++for more details.
+ 	`,
+ }
+ 
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 49a63425bf..48678e7395 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -43,6 +43,8 @@ syntax of package template.  The default output is equivalent to -f
+         Stale         bool   // would 'go install' do anything for this package?
+         StaleReason   string // explanation for Stale==true
+         Root          string // Go root or Go path dir containing this package
++        ConflictDir   string // this directory shadows Dir in $GOPATH
++        BinaryOnly    bool   // binary-only package: cannot be recompiled from sources
+ 
+         // Source files
+         GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 00e0d73153..ee3f403dd6 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -42,6 +42,7 @@ type Package struct {
+ 	StaleReason   string `json:",omitempty"` // why is Stale true?
+ 	Root          string `json:",omitempty"` // Go root or Go path dir containing this package
+ 	ConflictDir   string `json:",omitempty"` // Dir is hidden by this other directory
++	BinaryOnly    bool   `json:",omitempty"` // package cannot be recompiled
+ 
+ 	// Source files
+ 	GoFiles        []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+@@ -153,6 +154,8 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.Doc = pp.Doc
+ 	p.Root = pp.Root
+ 	p.ConflictDir = pp.ConflictDir
++	p.BinaryOnly = pp.BinaryOnly
++
+ 	// TODO? Target
+ 	p.Goroot = pp.Goroot
+ 	p.Standard = p.Goroot && p.ImportPath != "" && isStandardImportPath(p.ImportPath)
+@@ -1046,7 +1049,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		}
+ 	}
+ 
+-	computeBuildID(p)
++	if p.BinaryOnly {
++		// For binary-only package, use build ID from supplied package binary.
++		buildID, err := readBuildID(p)
++		if err == nil {
++			p.buildID = buildID
++		}
++	} else {
++		computeBuildID(p)
++	}
+ 	return p
+ }
+ 
+@@ -1367,15 +1378,24 @@ func isStale(p *Package) (bool, string) {
+ 	if p.Error != nil {
+ 		return true, "errors loading package"
+ 	}
++	if p.Stale {
++		return true, p.StaleReason
++	}
+ 
+-	// A package without Go sources means we only found
+-	// the installed .a file. Since we don't know how to rebuild
+-	// it, it can't be stale, even if -a is set. This enables binary-only
+-	// distributions of Go packages, although such binaries are
+-	// only useful with the specific version of the toolchain that
+-	// created them.
+-	if len(p.gofiles) == 0 && !p.usesSwig() {
+-		return false, "no source files"
++	// If this is a package with no source code, it cannot be rebuilt.
++	// If the binary is missing, we mark the package stale so that
++	// if a rebuild is needed, that rebuild attempt will produce a useful error.
++	// (Some commands, such as 'go list', do not attempt to rebuild.)
++	if p.BinaryOnly {
++		if p.target == "" {
++			// Fail if a build is attempted.
++			return true, "no source code for package, but no install target"
++		}
++		if _, err := os.Stat(p.target); err != nil {
++			// Fail if a build is attempted.
++			return true, "no source code for package, but cannot access install target: " + err.Error()
++		}
++		return false, "no source code for package"
+ 	}
+ 
+ 	// If the -a flag is given, rebuild everything.
+@@ -1383,13 +1403,10 @@ func isStale(p *Package) (bool, string) {
+ 		return true, "build -a flag in use"
+ 	}
+ 
+-	// If there's no install target or it's already marked stale, we have to rebuild.
++	// If there's no install target, we have to rebuild.
+ 	if p.target == "" {
+ 		return true, "no install target"
+ 	}
+-	if p.Stale {
+-		return true, p.StaleReason
+-	}
+ 
+ 	// Package is stale if completely unbuilt.
+ 	fi, err := os.Stat(p.target)
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 04a41a6c2e..fa258d3dc6 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -308,6 +308,13 @@ const (
+ 
+ 	// If AllowBinary is set, Import can be satisfied by a compiled
+ 	// package object without corresponding sources.
++	//
++	// Deprecated:
++	// The supported way to create a compiled-only package is to
++	// write source code containing a //go:binary-only-package comment at
++	// the top of the file. Such a package will be recognized
++	// regardless of this flag setting (because it has source code)
++	// and will have BinaryOnly set to true in the returned Package.
+ 	AllowBinary
+ 
+ 	// If ImportComment is set, parse import comments on package statements.
+@@ -348,6 +355,7 @@ type Package struct {
+ 	PkgObj        string   // installed .a file
+ 	AllTags       []string // tags that can influence file selection in this directory
+ 	ConflictDir   string   // this directory shadows Dir in $GOPATH
++	BinaryOnly    bool     // cannot be rebuilt from source (has //go:binary-only-package comment)
+ 
+ 	// Source files
+ 	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+@@ -679,7 +687,7 @@ Found:
+ 			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
+ 		}
+ 
+-		match, data, filename, err := ctxt.matchFile(p.Dir, name, true, allTags)
++		match, data, filename, err := ctxt.matchFile(p.Dir, name, true, allTags, &p.BinaryOnly)
+ 		if err != nil {
+ 			badFile(err)
+ 			continue
+@@ -993,7 +1001,7 @@ func parseWord(data []byte) (word, rest []byte) {
+ // MatchFile considers the name of the file and may use ctxt.OpenFile to
+ // read some or all of the file's content.
+ func (ctxt *Context) MatchFile(dir, name string) (match bool, err error) {
+-	match, _, _, err = ctxt.matchFile(dir, name, false, nil)
++	match, _, _, err = ctxt.matchFile(dir, name, false, nil, nil)
+ 	return
+ }
+ 
+@@ -1005,7 +1013,7 @@ func (ctxt *Context) MatchFile(dir, name string) (match bool, err error) {
+ // considers text until the first non-comment.
+ // If allTags is non-nil, matchFile records any encountered build tag
+ // by setting allTags[tag] = true.
+-func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map[string]bool) (match bool, data []byte, filename string, err error) {
++func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map[string]bool, binaryOnly *bool) (match bool, data []byte, filename string, err error) {
+ 	if strings.HasPrefix(name, "_") ||
+ 		strings.HasPrefix(name, ".") {
+ 		return
+@@ -1041,7 +1049,11 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
+ 
+ 	if strings.HasSuffix(filename, ".go") {
+ 		data, err = readImports(f, false, nil)
++		if strings.HasSuffix(filename, "_test.go") {
++			binaryOnly = nil // ignore //go:binary-only-package comments in _test.go files
++		}
+ 	} else {
++		binaryOnly = nil // ignore //go:binary-only-package comments in non-Go sources
+ 		data, err = readComments(f)
+ 	}
+ 	f.Close()
+@@ -1051,7 +1063,7 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
+ 	}
+ 
+ 	// Look for +build comments to accept or reject the file.
+-	if !ctxt.shouldBuild(data, allTags) && !ctxt.UseAllFiles {
++	if !ctxt.shouldBuild(data, allTags, binaryOnly) && !ctxt.UseAllFiles {
+ 		return
+ 	}
+ 
+@@ -1080,6 +1092,11 @@ func ImportDir(dir string, mode ImportMode) (*Package, error) {
+ 
+ var slashslash = []byte("//")
+ 
++// Special comment denoting a binary-only package.
++// See https://golang.org/design/2775-binary-only-packages
++// for more about the design of binary-only packages.
++var binaryOnlyComment = []byte("//go:binary-only-package")
++
+ // shouldBuild reports whether it is okay to use this file,
+ // The rule is that in the file's leading run of // comments
+ // and blank lines, which must be followed by a blank line
+@@ -1093,7 +1110,13 @@ var slashslash = []byte("//")
+ //
+ // marks the file as applicable only on Windows and Linux.
+ //
+-func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) bool {
++// If shouldBuild finds a //go:binary-only-package comment in a file that
++// should be built, it sets *binaryOnly to true. Otherwise it does
++// not change *binaryOnly.
++//
++func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binaryOnly *bool) bool {
++	sawBinaryOnly := false
++
+ 	// Pass 1. Identify leading run of // comments and blank lines,
+ 	// which must be followed by a blank line.
+ 	end := 0
+@@ -1128,6 +1151,9 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) bool {
+ 		}
+ 		line = bytes.TrimSpace(line)
+ 		if bytes.HasPrefix(line, slashslash) {
++			if bytes.HasPrefix(line, binaryOnlyComment) {
++				sawBinaryOnly = true
++			}
+ 			line = bytes.TrimSpace(line[len(slashslash):])
+ 			if len(line) > 0 && line[0] == '+' {
+ 				// Looks like a comment +line.
+@@ -1147,6 +1173,10 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) bool {
+ 		}
+ 	}
+ 
++	if binaryOnly != nil && sawBinaryOnly {
++		*binaryOnly = true
++	}
++
+ 	return allok
+ }
+ 
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 537d8d1e2d..c9f906a7da 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -151,7 +151,7 @@ func TestShouldBuild(t *testing.T) {
+ 
+ 	ctx := &Context{BuildTags: []string{"tag1"}}
+ 	m := map[string]bool{}
+-	if !ctx.shouldBuild([]byte(file1), m) {
++	if !ctx.shouldBuild([]byte(file1), m, nil) {
+ 		t.Errorf("shouldBuild(file1) = false, want true")
+ 	}
+ 	if !reflect.DeepEqual(m, want1) {
+@@ -159,7 +159,7 @@ func TestShouldBuild(t *testing.T) {
+ 	}
+ 
+ 	m = map[string]bool{}
+-	if ctx.shouldBuild([]byte(file2), m) {
++	if ctx.shouldBuild([]byte(file2), m, nil) {
+ 		t.Errorf("shouldBuild(file2) = true, want false")
+ 	}
+ 	if !reflect.DeepEqual(m, want2) {
+@@ -168,7 +168,7 @@ func TestShouldBuild(t *testing.T) {
+ 
+ 	m = map[string]bool{}
+ 	ctx = &Context{BuildTags: nil}
+-	if !ctx.shouldBuild([]byte(file3), m) {
++	if !ctx.shouldBuild([]byte(file3), m, nil) {
+ 		t.Errorf("shouldBuild(file3) = false, want true")
+ 	}
+ 	if !reflect.DeepEqual(m, want3) {
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index 502ec3bcc3..9f7ac8f8ac 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -139,4 +139,26 @@
+ // Using GOOS=android matches build tags and files as for GOOS=linux
+ // in addition to android tags and files.
+ //
++// Binary-Only Packages
++//
++// It is possible to distribute packages in binary form without including the
++// source code used for compiling the package. To do this, the package must
++// be distributed with a source file not excluded by build constraints and
++// containing a "//go:binary-only-package" comment.
++// Like a build constraint, this comment must appear near the top of the file,
++// preceded only by blank lines and other line comments and with a blank line
++// following the comment, to separate it from the package documentation.
++// Unlike build constraints, this comment is only recognized in non-test
++// Go source files.
++//
++// The minimal source code for a binary-only package is therefore:
++//
++//	//go:binary-only-package
++//
++//	package mypkg
++//
++// The source code may include additional Go code. That code is never compiled
++// but will be processed by tools like godoc and might be useful as end-user
++// documentation.
++//
+ package build

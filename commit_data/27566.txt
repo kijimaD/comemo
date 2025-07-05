@@ -15,7 +15,170 @@ Date:   Sat Apr 2 15:24:32 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21465
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/gzip/gunzip.go      | 25 +++++++---------
  src/compress/gzip/gunzip_test.go | 63 +++++++++++++++++++++-------------------
  2 files changed, 43 insertions(+), 45 deletions(-)
+
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index 1bd8769867..5d072878ee 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -26,13 +26,6 @@ const (
+ 	flagComment = 1 << 4
+ )
+ 
+-func makeReader(r io.Reader) flate.Reader {
+-	if rr, ok := r.(flate.Reader); ok {
+-		return rr
+-	}
+-	return bufio.NewReader(r)
+-}
+-
+ var (
+ 	// ErrChecksum is returned when reading GZIP data that has an invalid checksum.
+ 	ErrChecksum = errors.New("gzip: invalid checksum")
+@@ -87,9 +80,7 @@ type Reader struct {
+ // The Reader.Header fields will be valid in the Reader returned.
+ func NewReader(r io.Reader) (*Reader, error) {
+ 	z := new(Reader)
+-	z.r = makeReader(r)
+-	z.multistream = true
+-	if err := z.readHeader(true); err != nil {
++	if err := z.Reset(r); err != nil {
+ 		return nil, err
+ 	}
+ 	return z, nil
+@@ -99,11 +90,15 @@ func NewReader(r io.Reader) (*Reader, error) {
+ // result of its original state from NewReader, but reading from r instead.
+ // This permits reusing a Reader rather than allocating a new one.
+ func (z *Reader) Reset(r io.Reader) error {
+-	z.r = makeReader(r)
+-	z.digest = 0
+-	z.size = 0
+-	z.err = nil
+-	z.multistream = true
++	*z = Reader{
++		decompressor: z.decompressor,
++		multistream:  true,
++	}
++	if rr, ok := r.(flate.Reader); ok {
++		z.r = rr
++	} else {
++		z.r = bufio.NewReader(r)
++	}
+ 	return z.readHeader(true)
+ }
+ 
+diff --git a/src/compress/gzip/gunzip_test.go b/src/compress/gzip/gunzip_test.go
+index 593644ac1b..e1f79e3db3 100644
+--- a/src/compress/gzip/gunzip_test.go
++++ b/src/compress/gzip/gunzip_test.go
+@@ -36,6 +36,17 @@ var gunzipTests = []gunzipTest{
+ 		},
+ 		nil,
+ 	},
++	{
++		"",
++		"empty - with no file name",
++		"",
++		[]byte{
++			0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88,
++			0x00, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0x00,
++			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		},
++		nil,
++	},
+ 	{ // has 1 non-empty fixed huffman block
+ 		"hello.txt",
+ 		"hello.txt",
+@@ -284,46 +295,52 @@ var gunzipTests = []gunzipTest{
+ }
+ 
+ func TestDecompressor(t *testing.T) {
++	// Keep resetting this reader.
++	// It is intended behavior that Reader.Reset can be called on a zero-value
++	// Reader and be the equivalent as if NewReader was used instead.
++	r1 := new(Reader)
++
+ 	b := new(bytes.Buffer)
+ 	for _, tt := range gunzipTests {
++		// Test NewReader.
+ 		in := bytes.NewReader(tt.gzip)
+-		gzip, err := NewReader(in)
++		r2, err := NewReader(in)
+ 		if err != nil {
+-			t.Errorf("%s: NewReader: %s", tt.name, err)
++			t.Errorf("%s: NewReader: %s", tt.desc, err)
+ 			continue
+ 		}
+-		defer gzip.Close()
+-		if tt.name != gzip.Name {
+-			t.Errorf("%s: got name %s", tt.name, gzip.Name)
++		defer r2.Close()
++		if tt.name != r2.Name {
++			t.Errorf("%s: got name %s", tt.desc, r2.Name)
+ 		}
+ 		b.Reset()
+-		n, err := io.Copy(b, gzip)
++		n, err := io.Copy(b, r2)
+ 		if err != tt.err {
+-			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err)
++			t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
+ 		}
+ 		s := b.String()
+ 		if s != tt.raw {
+-			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
++			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw)
+ 		}
+ 
+-		// Test Reader Reset.
++		// Test Reader.Reset.
+ 		in = bytes.NewReader(tt.gzip)
+-		err = gzip.Reset(in)
++		err = r1.Reset(in)
+ 		if err != nil {
+-			t.Errorf("%s: Reset: %s", tt.name, err)
++			t.Errorf("%s: Reset: %s", tt.desc, err)
+ 			continue
+ 		}
+-		if tt.name != gzip.Name {
+-			t.Errorf("%s: got name %s", tt.name, gzip.Name)
++		if tt.name != r1.Name {
++			t.Errorf("%s: got name %s", tt.desc, r1.Name)
+ 		}
+ 		b.Reset()
+-		n, err = io.Copy(b, gzip)
++		n, err = io.Copy(b, r1)
+ 		if err != tt.err {
+-			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err)
++			t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
+ 		}
+ 		s = b.String()
+ 		if s != tt.raw {
+-			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
++			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw)
+ 		}
+ 	}
+ }
+@@ -356,20 +373,6 @@ func TestIssue6550(t *testing.T) {
+ 	}
+ }
+ 
+-func TestInitialReset(t *testing.T) {
+-	var r Reader
+-	if err := r.Reset(bytes.NewReader(gunzipTests[1].gzip)); err != nil {
+-		t.Error(err)
+-	}
+-	var buf bytes.Buffer
+-	if _, err := io.Copy(&buf, &r); err != nil {
+-		t.Error(err)
+-	}
+-	if s := buf.String(); s != gunzipTests[1].raw {
+-		t.Errorf("got %q want %q", s, gunzipTests[1].raw)
+-	}
+-}
+-
+ func TestMultistreamFalse(t *testing.T) {
+ 	// Find concatenation test.
+ 	var tt gunzipTest

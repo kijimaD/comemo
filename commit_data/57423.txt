@@ -22,8 +22,132 @@ Date:   Sat Jul 29 08:27:21 2023 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/syscall/windows/syscall_windows.go  | 19 ++++++++++++++++
  src/internal/syscall/windows/zsyscall_windows.go | 29 ++++++++++++++++++++++++
  src/os/os_windows_test.go                        | 23 +++++++++++++++++++
  3 files changed, 71 insertions(+)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 9e3c3dc873..924dd1e121 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -401,3 +401,22 @@ type FILE_ID_BOTH_DIR_INFO struct {
+ 
+ //sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) = kernel32.RtlLookupFunctionEntry
+ //sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) = kernel32.RtlVirtualUnwind
++
++type SERVICE_STATUS struct {
++	ServiceType             uint32
++	CurrentState            uint32
++	ControlsAccepted        uint32
++	Win32ExitCode           uint32
++	ServiceSpecificExitCode uint32
++	CheckPoint              uint32
++	WaitHint                uint32
++}
++
++const (
++	SERVICE_RUNNING      = 4
++	SERVICE_QUERY_STATUS = 4
++)
++
++//sys    OpenService(mgr syscall.Handle, serviceName *uint16, access uint32) (handle syscall.Handle, err error) = advapi32.OpenServiceW
++//sys	QueryServiceStatus(hService syscall.Handle, lpServiceStatus *SERVICE_STATUS) (err error)  = advapi32.QueryServiceStatus
++//sys    OpenSCManager(machineName *uint16, databaseName *uint16, access uint32) (handle syscall.Handle, err error)  [failretval==0] = advapi32.OpenSCManagerW
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 32744b00fc..fb87bd03a2 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -49,7 +49,10 @@ var (
+ 	procDuplicateTokenEx              = modadvapi32.NewProc("DuplicateTokenEx")
+ 	procImpersonateSelf               = modadvapi32.NewProc("ImpersonateSelf")
+ 	procLookupPrivilegeValueW         = modadvapi32.NewProc("LookupPrivilegeValueW")
++	procOpenSCManagerW                = modadvapi32.NewProc("OpenSCManagerW")
++	procOpenServiceW                  = modadvapi32.NewProc("OpenServiceW")
+ 	procOpenThreadToken               = modadvapi32.NewProc("OpenThreadToken")
++	procQueryServiceStatus            = modadvapi32.NewProc("QueryServiceStatus")
+ 	procRevertToSelf                  = modadvapi32.NewProc("RevertToSelf")
+ 	procSetTokenInformation           = modadvapi32.NewProc("SetTokenInformation")
+ 	procSystemFunction036             = modadvapi32.NewProc("SystemFunction036")
+@@ -121,6 +124,24 @@ func LookupPrivilegeValue(systemname *uint16, name *uint16, luid *LUID) (err err
+ 	return
+ }
+ 
++func OpenSCManager(machineName *uint16, databaseName *uint16, access uint32) (handle syscall.Handle, err error) {
++	r0, _, e1 := syscall.Syscall(procOpenSCManagerW.Addr(), 3, uintptr(unsafe.Pointer(machineName)), uintptr(unsafe.Pointer(databaseName)), uintptr(access))
++	handle = syscall.Handle(r0)
++	if handle == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func OpenService(mgr syscall.Handle, serviceName *uint16, access uint32) (handle syscall.Handle, err error) {
++	r0, _, e1 := syscall.Syscall(procOpenServiceW.Addr(), 3, uintptr(mgr), uintptr(unsafe.Pointer(serviceName)), uintptr(access))
++	handle = syscall.Handle(r0)
++	if handle == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func OpenThreadToken(h syscall.Handle, access uint32, openasself bool, token *syscall.Token) (err error) {
+ 	var _p0 uint32
+ 	if openasself {
+@@ -133,6 +154,14 @@ func OpenThreadToken(h syscall.Handle, access uint32, openasself bool, token *sy
+ 	return
+ }
+ 
++func QueryServiceStatus(hService syscall.Handle, lpServiceStatus *SERVICE_STATUS) (err error) {
++	r1, _, e1 := syscall.Syscall(procQueryServiceStatus.Addr(), 2, uintptr(hService), uintptr(unsafe.Pointer(lpServiceStatus)), 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func RevertToSelf() (err error) {
+ 	r1, _, e1 := syscall.Syscall(procRevertToSelf.Addr(), 0, 0, 0, 0)
+ 	if r1 == 0 {
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index fee539a227..75ac61bb96 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -427,6 +427,28 @@ func TestDirectorySymbolicLink(t *testing.T) {
+ 	testDirLinks(t, tests)
+ }
+ 
++func mustHaveWorkstation(t *testing.T) {
++	mar, err := windows.OpenSCManager(nil, nil, windows.SERVICE_QUERY_STATUS)
++	if err != nil {
++		return
++	}
++	defer syscall.CloseHandle(mar)
++	//LanmanWorkstation is the service name, and Workstation is the display name.
++	srv, err := windows.OpenService(mar, syscall.StringToUTF16Ptr("LanmanWorkstation"), windows.SERVICE_QUERY_STATUS)
++	if err != nil {
++		return
++	}
++	defer syscall.CloseHandle(srv)
++	var state windows.SERVICE_STATUS
++	err = windows.QueryServiceStatus(srv, &state)
++	if err != nil {
++		return
++	}
++	if state.CurrentState != windows.SERVICE_RUNNING {
++		t.Skip("Requires the Windows service Workstation, but it is detected that it is not enabled.")
++	}
++}
++
+ func TestNetworkSymbolicLink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
+@@ -498,6 +520,7 @@ func TestNetworkSymbolicLink(t *testing.T) {
+ 	}
+ 	fi2, err := os.Stat(UNCPath)
+ 	if err != nil {
++		mustHaveWorkstation(t)
+ 		t.Fatal(err)
+ 	}
+ 	if !os.SameFile(fi1, fi2) {

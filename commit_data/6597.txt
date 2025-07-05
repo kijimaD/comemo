@@ -7,6 +7,20 @@ Date:   Fri Oct 22 10:49:29 2010 +1100
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2663041
-
+---
  doc/root.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index c4e43b7721..1fbf61d909 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -51,7 +51,7 @@ google.setOnLoadCallback(loadFeed);
+       </p>
+       <h2>Check it out!</h2>
+       <p>
+-      <div class="how">[<a href="/doc/playground.html">How does it work?</a>]</div>
++      <div class="how">[<a href="/doc/playground.html">How does this work?</a>]</div>
+       <a href="/doc/install.html">Install Go now</a>, or try it right here in your browser:</p>
+       <div id="playground" class="small"></div>
+       <script src="/doc/play/playground.js"></script>

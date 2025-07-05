@@ -12,7 +12,7 @@ Date:   Sat Jul 2 14:02:42 2011 +1000
     R=rsc, mattn.jp
     CC=golang-dev
     https://golang.org/cl/4627081
-
+---
  misc/dashboard/builder/http.go              |  7 +++---
  misc/dashboard/builder/main.go              | 13 +++++-----
  misc/dashboard/builder/package.go           | 35 ++++++++++++++++++++------
@@ -23,3 +23,397 @@ Date:   Sat Jul 2 14:02:42 2011 +1000
  misc/dashboard/godashboard/package.py       | 38 ++++++++++++++++++++---------
  misc/dashboard/godashboard/static/style.css | 13 ++++++++--
  9 files changed, 108 insertions(+), 49 deletions(-)
+
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index 5e1da0c878..98400c51a8 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -112,16 +112,15 @@ func packages() (pkgs []string, err os.Error) {
+ 	return
+ }
+ 
+-// updatePackage sends package build results and info to the dashboard
+-func (b *Builder) updatePackage(pkg string, state bool, buildLog, info string, hash string) os.Error {
++// updatePackage sends package build results and info dashboard
++func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) os.Error {
+ 	return dash("POST", "package", nil, param{
+ 		"builder": b.name,
+ 		"key":     b.key,
+ 		"path":    pkg,
+-		"state":   strconv.Btoa(state),
++		"ok":      strconv.Btoa(ok),
+ 		"log":     buildLog,
+ 		"info":    info,
+-		"go_rev":  hash[:12],
+ 	})
+ }
+ 
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index bee663d6cf..989965bc41 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -60,8 +60,9 @@ var (
+ )
+ 
+ var (
+-	goroot        string
+-	releaseRegexp = regexp.MustCompile(`^(release|weekly)\.[0-9\-.]+`)
++	goroot      string
++	binaryTagRe = regexp.MustCompile(`^(release\.r|weekly\.)[0-9\-.]+`)
++	releaseRe   = regexp.MustCompile(`^release\.r[0-9\-.]+`)
+ )
+ 
+ func main() {
+@@ -200,7 +201,7 @@ func (b *Builder) buildExternal() {
+ 			log.Println("hg pull failed:", err)
+ 			continue
+ 		}
+-		hash, tag, err := firstTag(releaseRegexp)
++		hash, tag, err := firstTag(releaseRe)
+ 		if err != nil {
+ 			log.Println(err)
+ 			continue
+@@ -321,7 +322,7 @@ func (b *Builder) buildHash(hash string) (err os.Error) {
+ 	}
+ 
+ 	// if this is a release, create tgz and upload to google code
+-	releaseHash, release, err := firstTag(releaseRegexp)
++	releaseHash, release, err := firstTag(binaryTagRe)
+ 	if hash == releaseHash {
+ 		// clean out build state
+ 		err = run(b.envv(), srcDir, "./clean.bash", "--nopkg")
+@@ -591,7 +592,7 @@ func fullHash(rev string) (hash string, err os.Error) {
+ 	if s == "" {
+ 		return "", fmt.Errorf("cannot find revision")
+ 	}
+-	if len(s) != 20 {
++	if len(s) != 40 {
+ 		return "", fmt.Errorf("hg returned invalid hash " + s)
+ 	}
+ 	return s, nil
+@@ -615,7 +616,7 @@ func firstTag(re *regexp.Regexp) (hash string, tag string, err os.Error) {
+ 			continue
+ 		}
+ 		tag = s[1]
+-		hash, err = fullHash(s[3])
++		hash, err = fullHash(s[2])
+ 		return
+ 	}
+ 	err = os.NewError("no matching tag found")
+diff --git a/misc/dashboard/builder/package.go b/misc/dashboard/builder/package.go
+index dd18e3af5f..b6674428da 100644
+--- a/misc/dashboard/builder/package.go
++++ b/misc/dashboard/builder/package.go
+@@ -14,6 +14,8 @@ import (
+ 	"strings"
+ )
+ 
++const MaxCommentLength = 500 // App Engine won't store more in a StringProperty.
++
+ func (b *Builder) buildPackages(workpath string, hash string) os.Error {
+ 	pkgs, err := packages()
+ 	if err != nil {
+@@ -21,25 +23,34 @@ func (b *Builder) buildPackages(workpath string, hash string) os.Error {
+ 	}
+ 	for _, p := range pkgs {
+ 		goroot := filepath.Join(workpath, "go")
+-		goinstall := filepath.Join(goroot, "bin", "goinstall")
++		gobin := filepath.Join(goroot, "bin")
++		goinstall := filepath.Join(gobin, "goinstall")
+ 		envv := append(b.envv(), "GOROOT="+goroot)
+ 
++		// add GOBIN to path
++		for i, v := range envv {
++			if strings.HasPrefix(v, "PATH=") {
++				p := filepath.SplitList(v[5:])
++				p = append([]string{gobin}, p...)
++				s := strings.Join(p, string(filepath.ListSeparator))
++				envv[i] = "PATH=" + s
++			}
++		}
++
+ 		// goinstall
+-		buildLog, code, err := runLog(envv, "", goroot, goinstall, p)
++		buildLog, code, err := runLog(envv, "", goroot, goinstall, "-log=false", p)
+ 		if err != nil {
+ 			log.Printf("goinstall %v: %v", p, err)
+-			continue
+ 		}
+-		built := code == 0
+ 
+ 		// get doc comment from package source
+-		info, err := packageComment(p, filepath.Join(goroot, "pkg", p))
++		info, err := packageComment(p, filepath.Join(goroot, "src", "pkg", p))
+ 		if err != nil {
+-			log.Printf("goinstall %v: %v", p, err)
++			log.Printf("packageComment %v: %v", p, err)
+ 		}
+ 
+ 		// update dashboard with build state + info
+-		err = b.updatePackage(p, built, buildLog, info, hash)
++		err = b.updatePackage(p, code == 0, buildLog, info)
+ 		if err != nil {
+ 			log.Printf("updatePackage %v: %v", p, err)
+ 		}
+@@ -69,5 +80,15 @@ func packageComment(pkg, pkgpath string) (info string, err os.Error) {
+ 		pdoc := doc.NewPackageDoc(pkgs[name], pkg)
+ 		info = pdoc.Doc
+ 	}
++	// grab only first paragraph
++	if parts := strings.SplitN(info, "\n\n", 2); len(parts) > 1 {
++		info = parts[0]
++	}
++	// replace newlines with spaces
++	info = strings.Replace(info, "\n", " ", -1)
++	// truncate
++	if len(info) > MaxCommentLength {
++		info = info[:MaxCommentLength]
++	}
+ 	return
+ }
+diff --git a/misc/dashboard/godashboard/auth.py b/misc/dashboard/godashboard/auth.py
+new file mode 100644
+index 0000000000..73a54c0d45
+--- /dev/null
++++ b/misc/dashboard/godashboard/auth.py
+@@ -0,0 +1,13 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++import hmac
++
++# local imports
++import key
++
++def auth(req):
++    k = req.get('key')
++    return k == hmac.new(key.accessKey, req.get('builder')).hexdigest() or k == key.accessKey
++
+diff --git a/misc/dashboard/godashboard/gobuild.py b/misc/dashboard/godashboard/gobuild.py
+index 5678f2e1b0..685dc83a9b 100644
+--- a/misc/dashboard/godashboard/gobuild.py
++++ b/misc/dashboard/godashboard/gobuild.py
+@@ -14,14 +14,13 @@ from google.appengine.ext.webapp import template
+ from google.appengine.ext.webapp.util import run_wsgi_app
+ import datetime
+ import hashlib
+-import hmac
+ import logging
+ import os
+ import re
+ import bz2
+ 
+ # local imports
+-import key
++from auth import auth
+ import const
+ 
+ # The majority of our state are commit objects. One of these exists for each of
+@@ -142,10 +141,6 @@ class DashboardHandler(webapp.RequestHandler):
+         simplejson.dump(obj, self.response.out)
+         return
+ 
+-def auth(req):
+-    k = req.get('key')
+-    return k == hmac.new(key.accessKey, req.get('builder')).hexdigest() or k == key.accessKey
+-
+ # Todo serves /todo.  It tells the builder which commits need to be built.
+ class Todo(DashboardHandler):
+     def get(self):
+diff --git a/misc/dashboard/godashboard/index.yaml b/misc/dashboard/godashboard/index.yaml
+index 4a00c4a6fe..f39299d5dc 100644
+--- a/misc/dashboard/godashboard/index.yaml
++++ b/misc/dashboard/godashboard/index.yaml
+@@ -49,4 +49,3 @@ indexes:
+ # manually, move them above the marker line.  The index.yaml file is
+ # automatically uploaded to the admin console when you next deploy
+ # your application using appcfg.py.
+-
+diff --git a/misc/dashboard/godashboard/package.html b/misc/dashboard/godashboard/package.html
+index 9332b5a792..043080b5bf 100644
+--- a/misc/dashboard/godashboard/package.html
++++ b/misc/dashboard/godashboard/package.html
+@@ -19,37 +19,43 @@
+     Packages listed on this page are written by third parties and 
+     may or may not build or be safe to use.
+     </p>
++
++    <p>
++    An "ok" in the <b>build</b> column indicates that the package is
++    <a href="http://golang.org/cmd/goinstall/">goinstallable</a>
++    with the latest
++    <a href="http://golang.org/doc/devel/release.html">release</a> of Go.
++    </p>
++
++    <p>
++    The <b>info</b> column shows the first paragraph from the
++    <a href="http://blog.golang.org/2011/03/godoc-documenting-go-code.html">package doc comment</a>.
++    </p>
+     
+     <h2>Recently Installed Packages</h2>
+     <table class="alternate" cellpadding="0" cellspacing="0">
+-      <tr><th>last install</th><th>count</th><th>path</th><th>project</th></tr>
++      <tr><th>last install</th><th>count</th><th>build</th><th>path</th><th>info</th></tr>
+       {% for r in by_time %}
+         <tr>
+           <td class="time">{{r.last_install|date:"Y-M-d H:i"}}</td>
+           <td class="count">{{r.count}}</td>
++          <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td>
+           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
+-	  <td class="project">
+-	  {% for p in r.project_set %}
+-		<a href="{{p.web_url}}">{{p.name}}</a> - {{p.descr}}
+-	  {% endfor %}
+-	  </td>
++	      <td class="info">{% if r.info %}{{r.info|escape}}{% endif %}</td>
+         </tr>
+       {% endfor %}
+     </table>
+ 
+     <h2>Most Installed Packages</h2>
+     <table class="alternate" cellpadding="0" cellspacing="0">
+-      <tr><th>last install</th><th>count</th><th>path</th><th>project</th></tr>
++      <tr><th>last install</th><th>count</th><th>build</th><th>path</th><th>info</th></tr>
+       {% for r in by_count %}
+         <tr>
+           <td class="time">{{r.last_install|date:"Y-M-d H:i"}}</td>
+           <td class="count">{{r.count}}</td>
++          <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td>
+           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
+-	  <td class="project">
+-	  {% for p in r.project_set %}
+-		<a href="{{p.web_url}}">{{p.name}}</a> - {{p.descr}}
+-	  {% endfor %}
+-	  </td>
++	      <td class="info">{% if r.info %}{{r.info|escape}}{% endif %}</td>
+         </tr>
+       {% endfor %}
+     </table>
+diff --git a/misc/dashboard/godashboard/package.py b/misc/dashboard/godashboard/package.py
+index dd09593ac1..316f3867f0 100644
+--- a/misc/dashboard/godashboard/package.py
++++ b/misc/dashboard/godashboard/package.py
+@@ -23,6 +23,7 @@ import sets
+ # local imports
+ import toutf8
+ import const
++from auth import auth
+ 
+ template.register_template_library('toutf8')
+ 
+@@ -34,6 +35,11 @@ class Package(db.Model):
+     count = db.IntegerProperty()
+     last_install = db.DateTimeProperty()
+ 
++    # data contributed by gobuilder
++    info = db.StringProperty()  
++    ok = db.BooleanProperty()
++    last_ok = db.DateTimeProperty()
++
+ class Project(db.Model):
+     name = db.StringProperty(indexed=True)
+     descr = db.StringProperty()
+@@ -43,22 +49,25 @@ class Project(db.Model):
+     tags = db.ListProperty(str)
+     approved = db.BooleanProperty(indexed=True)
+ 
+-re_bitbucket = re.compile(r'^bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+$')
+-re_googlecode = re.compile(r'^[a-z0-9\-]+\.googlecode\.com/(svn|hg)$')
++re_bitbucket = re.compile(r'^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-zA-Z0-9_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$')
++re_googlecode = re.compile(r'^[a-z0-9\-]+\.googlecode\.com/(svn|hg)(/[a-z0-9A-Z_.\-/]+)?$')
+ re_github = re.compile(r'^github\.com/[a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)+$')
+ re_launchpad = re.compile(r'^launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$')
+ 
+-
+ def vc_to_web(path):
+     if re_bitbucket.match(path):
+-        check_url = 'http://' + path + '/?cmd=heads'
+-        web = 'http://' + path + '/'
++        m = re_bitbucket.match(path)
++        check_url = 'http://' + m.group(1) + '/?cmd=heads'
++        web = 'http://' + m.group(1) + '/'
+     elif re_github.match(path):
+         m = re_github_web.match(path)
+         check_url = 'https://raw.github.com/' + m.group(1) + '/' + m.group(2) + '/master/'
+-        web = 'http://github.com/' + m.group(1) + '/' + m.group(2)
++        web = 'http://github.com/' + m.group(1) + '/' + m.group(2) + '/'
+     elif re_googlecode.match(path):
++        m = re_googlecode.match(path)
+         check_url = 'http://'+path
++        if not m.group(2):  # append / after bare '/hg'
++            check_url += '/'
+         web = 'http://code.google.com/p/' + path[:path.index('.')]
+     elif re_launchpad.match(path):
+         check_url = web = 'https://'+path
+@@ -142,8 +151,7 @@ class PackagePage(webapp.RequestHandler):
+ 
+     def can_get_url(self, url):
+         try:
+-            req = urllib2.Request(url)
+-            response = urllib2.urlopen(req)
++            urllib2.urlopen(urllib2.Request(url))
+             return True
+         except:
+             return False
+@@ -173,15 +181,23 @@ class PackagePage(webapp.RequestHandler):
+                 return False
+             p = Package(key_name = key, path = path, count = 0, web_url = web)
+ 
++        # is this the builder updating package metadata?
++        if auth(self.request):
++            p.info = self.request.get('info')
++            p.ok = self.request.get('ok') == "true"
++            if p.ok:
++                p.last_ok = datetime.datetime.utcnow()
++        else:
++            p.count += 1
++            p.last_install = datetime.datetime.utcnow()
++
+         # update package object
+-        p.count += 1
+-        p.last_install = datetime.datetime.utcnow()
+         p.put()
+         return True
+ 
+     def post(self):
+         path = self.request.get('path')
+-        ok = self.record_pkg(path)
++        ok = db.run_in_transaction(self.record_pkg,  path)
+         if ok:
+             self.response.set_status(200)
+             self.response.out.write('ok')
+diff --git a/misc/dashboard/godashboard/static/style.css b/misc/dashboard/godashboard/static/style.css
+index 481af36d7d..a7e61dda50 100644
+--- a/misc/dashboard/godashboard/static/style.css
++++ b/misc/dashboard/godashboard/static/style.css
+@@ -52,7 +52,7 @@ table.alternate tr td:last-child {
+ 	padding-right: 0;
+ }
+ table.alternate tr:nth-child(2n) {
+-	background-color: #f8f8f8;
++	background-color: #f0f0f0;
+ }
+ span.hash {
+ 	font-family: monospace;
+@@ -62,10 +62,19 @@ span.hash {
+ td.date {
+ 	color: #aaa;
+ }
+-td.result {
++td.ok { 
+ 	text-align: center;
++	color: #060; 
++	font-weight: bold;
++}
++td.ok a {
++	cursor: help;
++}
++th {
++	text-align: left;
+ }
+ th.builder {
++	text-align: center;
+ 	font-weight: bold;
+ }
+ a.fail {

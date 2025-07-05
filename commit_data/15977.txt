@@ -9,6 +9,20 @@ Date:   Wed Mar 27 16:00:58 2013 -0700
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7867046
-
+---
  src/cmd/ld/symtab.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 1bf5c58eb7..d8a4645e0d 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -153,7 +153,7 @@ asmelfsym(void)
+ 	elfbind = STB_LOCAL;
+ 	genasmsym(putelfsym);
+ 	
+-	if(linkmode == LinkExternal) {
++	if(linkmode == LinkExternal && HEADTYPE != Hopenbsd) {
+ 		s = lookup("runtime.m", 0);
+ 		if(s->sect == nil) {
+ 			cursym = nil;

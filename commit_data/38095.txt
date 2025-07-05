@@ -22,7 +22,226 @@ Date:   Thu Aug 16 12:32:46 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     |  26 +++----------
  src/runtime/mgcmark.go | 102 +++++++++++++++++--------------------------------
  2 files changed, 41 insertions(+), 87 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 83980e6020..253b2df9e4 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -948,14 +948,6 @@ var work struct {
+ 	nFlushCacheRoots                               int
+ 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
+ 
+-	// markrootDone indicates that roots have been marked at least
+-	// once during the current GC cycle. This is checked by root
+-	// marking operations that have to happen only during the
+-	// first root marking pass, whether that's during the
+-	// concurrent mark phase in current GC or mark termination in
+-	// STW GC.
+-	markrootDone bool
+-
+ 	// Each type of GC state transition is protected by a lock.
+ 	// Since multiple threads can simultaneously detect the state
+ 	// transition condition, any thread that detects a transition
+@@ -1456,9 +1448,6 @@ top:
+ 	// below. The important thing is that the wb remains active until
+ 	// all marking is complete. This includes writes made by the GC.
+ 
+-	// Record that one root marking pass has completed.
+-	work.markrootDone = true
+-
+ 	// Disable assists and background workers. We must do
+ 	// this before waking blocked assists.
+ 	atomic.Store(&gcBlackenEnabled, 0)
+@@ -1909,19 +1898,20 @@ func gcMark(start_time int64) {
+ 	}
+ 	work.tstart = start_time
+ 
+-	// Queue root marking jobs.
+-	gcMarkRootPrepare()
+-
+ 	work.nwait = 0
+ 	work.ndone = 0
+ 	work.nproc = uint32(gcprocs())
+ 
+ 	// Check that there's no marking work remaining.
+-	if work.full != 0 || work.nDataRoots+work.nBSSRoots+work.nSpanRoots+work.nStackRoots != 0 {
+-		print("runtime: full=", hex(work.full), " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
++	if work.full != 0 || work.markrootNext < work.markrootJobs {
++		print("runtime: full=", hex(work.full), " next=", work.markrootNext, " jobs=", work.markrootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
+ 		panic("non-empty mark queue after concurrent mark")
+ 	}
+ 
++	// Clear root marking queue.
++	work.markrootNext = 0
++	work.markrootJobs = 0
++
+ 	if work.nproc > 1 {
+ 		noteclear(&work.alldone)
+ 		helpgc(int32(work.nproc))
+@@ -1945,9 +1935,6 @@ func gcMark(start_time int64) {
+ 		notesleep(&work.alldone)
+ 	}
+ 
+-	// Record that at least one root marking pass has completed.
+-	work.markrootDone = true
+-
+ 	// Clear out buffers and double-check that all gcWork caches
+ 	// are empty. This should be ensured by gcMarkDone before we
+ 	// enter mark termination.
+@@ -2061,7 +2048,6 @@ func gcResetMarkState() {
+ 
+ 	work.bytesMarked = 0
+ 	work.initialHeapLive = atomic.Load64(&memstats.heap_live)
+-	work.markrootDone = false
+ }
+ 
+ // Hooks for other packages
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 78a597f007..0f220dd1b9 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -62,57 +62,41 @@ func gcMarkRootPrepare() {
+ 	work.nDataRoots = 0
+ 	work.nBSSRoots = 0
+ 
+-	// Only scan globals once per cycle; preferably concurrently.
+-	if !work.markrootDone {
+-		for _, datap := range activeModules() {
+-			nDataRoots := nBlocks(datap.edata - datap.data)
+-			if nDataRoots > work.nDataRoots {
+-				work.nDataRoots = nDataRoots
+-			}
++	// Scan globals.
++	for _, datap := range activeModules() {
++		nDataRoots := nBlocks(datap.edata - datap.data)
++		if nDataRoots > work.nDataRoots {
++			work.nDataRoots = nDataRoots
+ 		}
++	}
+ 
+-		for _, datap := range activeModules() {
+-			nBSSRoots := nBlocks(datap.ebss - datap.bss)
+-			if nBSSRoots > work.nBSSRoots {
+-				work.nBSSRoots = nBSSRoots
+-			}
++	for _, datap := range activeModules() {
++		nBSSRoots := nBlocks(datap.ebss - datap.bss)
++		if nBSSRoots > work.nBSSRoots {
++			work.nBSSRoots = nBSSRoots
+ 		}
+ 	}
+ 
+-	if !work.markrootDone {
+-		// On the first markroot, we need to scan span roots.
+-		// In concurrent GC, this happens during concurrent
+-		// mark and we depend on addfinalizer to ensure the
+-		// above invariants for objects that get finalizers
+-		// after concurrent mark. In STW GC, this will happen
+-		// during mark termination.
+-		//
+-		// We're only interested in scanning the in-use spans,
+-		// which will all be swept at this point. More spans
+-		// may be added to this list during concurrent GC, but
+-		// we only care about spans that were allocated before
+-		// this mark phase.
+-		work.nSpanRoots = mheap_.sweepSpans[mheap_.sweepgen/2%2].numBlocks()
+-
+-		// On the first markroot, we need to scan all Gs. Gs
+-		// may be created after this point, but it's okay that
+-		// we ignore them because they begin life without any
+-		// roots, so there's nothing to scan, and any roots
+-		// they create during the concurrent phase will be
+-		// scanned during mark termination. During mark
+-		// termination, allglen isn't changing, so we'll scan
+-		// all Gs.
+-		work.nStackRoots = int(atomic.Loaduintptr(&allglen))
+-	} else {
+-		// We've already scanned span roots and kept the scan
+-		// up-to-date during concurrent mark.
+-		work.nSpanRoots = 0
+-
+-		// The hybrid barrier ensures that stacks can't
+-		// contain pointers to unmarked objects, so on the
+-		// second markroot, there's no need to scan stacks.
+-		work.nStackRoots = 0
+-	}
++	// Scan span roots for finalizer specials.
++	//
++	// We depend on addfinalizer to mark objects that get
++	// finalizers after root marking.
++	//
++	// We're only interested in scanning the in-use spans,
++	// which will all be swept at this point. More spans
++	// may be added to this list during concurrent GC, but
++	// we only care about spans that were allocated before
++	// this mark phase.
++	work.nSpanRoots = mheap_.sweepSpans[mheap_.sweepgen/2%2].numBlocks()
++
++	// Scan stacks.
++	//
++	// Gs may be created after this point, but it's okay that we
++	// ignore them because they begin life without any roots, so
++	// there's nothing to scan, and any roots they create during
++	// the concurrent phase will be scanned during mark
++	// termination.
++	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
+ 
+ 	work.markrootNext = 0
+ 	work.markrootJobs = uint32(fixedRootCount + work.nFlushCacheRoots + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
+@@ -183,24 +167,15 @@ func markroot(gcw *gcWork, i uint32) {
+ 		}
+ 
+ 	case i == fixedRootFinalizers:
+-		// Only do this once per GC cycle since we don't call
+-		// queuefinalizer during marking.
+-		if work.markrootDone {
+-			break
+-		}
+ 		for fb := allfin; fb != nil; fb = fb.alllink {
+ 			cnt := uintptr(atomic.Load(&fb.cnt))
+ 			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw)
+ 		}
+ 
+ 	case i == fixedRootFreeGStacks:
+-		// Only do this once per GC cycle; preferably
+-		// concurrently.
+-		if !work.markrootDone {
+-			// Switch to the system stack so we can call
+-			// stackfree.
+-			systemstack(markrootFreeGStacks)
+-		}
++		// Switch to the system stack so we can call
++		// stackfree.
++		systemstack(markrootFreeGStacks)
+ 
+ 	case baseSpans <= i && i < baseStacks:
+ 		// mark MSpan.specials
+@@ -324,10 +299,6 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 	// TODO(austin): There are several ideas for making this more
+ 	// efficient in issue #11485.
+ 
+-	if work.markrootDone {
+-		throw("markrootSpans during second markroot")
+-	}
+-
+ 	sg := mheap_.sweepgen
+ 	spans := mheap_.sweepSpans[mheap_.sweepgen/2%2].block(shard)
+ 	// Note that work.spans may not include spans that were
+@@ -719,11 +690,8 @@ func scanstack(gp *g, gcw *gcWork) {
+ 		throw("can't scan gchelper stack")
+ 	}
+ 
+-	// Shrink the stack if not much of it is being used. During
+-	// concurrent GC, we can do this during concurrent mark.
+-	if !work.markrootDone {
+-		shrinkstack(gp)
+-	}
++	// Shrink the stack if not much of it is being used.
++	shrinkstack(gp)
+ 
+ 	// Scan the saved context register. This is effectively a live
+ 	// register that gets moved back and forth between the

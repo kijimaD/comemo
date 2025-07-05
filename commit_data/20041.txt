@@ -8,6 +8,19 @@ Date:   Tue Aug 12 20:57:54 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/124270043
-
+---
  src/cmd/9l/l.h | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/9l/l.h b/src/cmd/9l/l.h
+index d787f13844..dda741c56b 100644
+--- a/src/cmd/9l/l.h
++++ b/src/cmd/9l/l.h
+@@ -54,7 +54,6 @@ enum
+ {
+ 	FPCHIP		= 1,
+ 	STRINGSZ	= 200,
+-	MAXIO		= 8192,
+ 	MAXHIST		= 20,				/* limit of path elements for history symbols */
+ 	DATBLK		= 1024,
+ 	NHASH		= 10007,

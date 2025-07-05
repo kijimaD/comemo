@@ -12,6 +12,20 @@ Date:   Wed Dec 5 16:23:52 2018 -0500
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/objfile/disasm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index fce63bfeea..50fc51be87 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -357,7 +357,7 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
+ 	inst, err := ppc64asm.Decode(code, byteOrder)
+ 	var text string
+ 	size := inst.Len
+-	if err != nil || size == 0 || inst.Op == 0 {
++	if err != nil || size == 0 {
+ 		size = 4
+ 		text = "?"
+ 	} else {

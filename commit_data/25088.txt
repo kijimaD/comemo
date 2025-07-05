@@ -8,8 +8,59 @@ Date:   Thu Jul 23 11:42:51 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/12546
     Run-TryBot: Minux Ma <minux@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/export_windows_test.go  | 5 ++++-
  src/runtime/os1_windows.go          | 4 +++-
  src/runtime/syscall_windows_test.go | 7 +++++++
  3 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/export_windows_test.go b/src/runtime/export_windows_test.go
+index 61fcef9c0f..6322ee2804 100644
+--- a/src/runtime/export_windows_test.go
++++ b/src/runtime/export_windows_test.go
+@@ -6,4 +6,7 @@
+ 
+ package runtime
+ 
+-var TestingWER = &testingWER
++var (
++	TestingWER              = &testingWER
++	TimeBeginPeriodRetValue = &timeBeginPeriodRetValue
++)
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index f608b4ad80..b6da4df7c7 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -139,6 +139,8 @@ const (
+ // in sys_windows_386.s and sys_windows_amd64.s
+ func externalthreadhandler()
+ 
++var timeBeginPeriodRetValue uint32
++
+ func osinit() {
+ 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+ 
+@@ -154,7 +156,7 @@ func osinit() {
+ 
+ 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
+ 
+-	stdcall1(_timeBeginPeriod, 1)
++	timeBeginPeriodRetValue = uint32(stdcall1(_timeBeginPeriod, 1))
+ 
+ 	ncpu = getproccount()
+ 
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 677eb5f82d..4bedd4add4 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -640,3 +640,10 @@ uintptr_t cfunc(callback f, uintptr_t n) {
+ 		t.Errorf("got %d want %d", got, want)
+ 	}
+ }
++
++func TestTimeBeginPeriod(t *testing.T) {
++	const TIMERR_NOERROR = 0
++	if *runtime.TimeBeginPeriodRetValue != TIMERR_NOERROR {
++		t.Fatalf("timeBeginPeriod failed: it returned %d", *runtime.TimeBeginPeriodRetValue)
++	}
++}

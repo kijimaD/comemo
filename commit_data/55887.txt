@@ -17,9 +17,82 @@ Date:   Tue Mar 7 17:19:04 2023 -0600
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Paul Murphy <murp@ibm.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64.s | 2 ++
  src/cmd/internal/obj/ppc64/a.out.go       | 2 ++
  src/cmd/internal/obj/ppc64/anames.go      | 2 ++
  src/cmd/internal/obj/ppc64/asm9.go        | 9 +++++++++
  4 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 7a83fb952b..a0f1276aa1 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -1088,5 +1088,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	PNOP                            // 0700000000000000
+ 
+ 	SETB CR1,R3                     // 7c640100
++	VCLZLSBB V1, R2			// 10400e02
++	VCTZLSBB V1, R2			// 10410e02
+ 
+ 	RET
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 09b0a87a07..efc10ea0f2 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -997,6 +997,8 @@ const (
+ 	AVSHASIGMAD
+ 	AVMRGEW
+ 	AVMRGOW
++	AVCLZLSBB
++	AVCTZLSBB
+ 
+ 	/* VSX */
+ 	ALXV
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index 81e1fd1ea4..f4680cc368 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -523,6 +523,8 @@ var Anames = []string{
+ 	"VSHASIGMAD",
+ 	"VMRGEW",
+ 	"VMRGOW",
++	"VCLZLSBB",
++	"VCTZLSBB",
+ 	"LXV",
+ 	"LXVL",
+ 	"LXVLL",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 799def6ef7..dbc1a5b819 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -327,6 +327,7 @@ var optab = []Optab{
+ 
+ 	/* Misc ISA 3.0 instructions */
+ 	{as: ASETB, a1: C_CREG, a6: C_REG, type_: 110, size: 4},
++	{as: AVCLZLSBB, a1: C_VREG, a6: C_REG, type_: 85, size: 4},
+ 
+ 	/* Vector instructions */
+ 
+@@ -2089,6 +2090,9 @@ func buildop(ctxt *obj.Link) {
+ 		case AMOVW: /* load/store/move word with sign extension; move 32-bit literals  */
+ 			opset(AMOVWZ, r0) /* Same as above, but zero extended */
+ 
++		case AVCLZLSBB:
++			opset(AVCTZLSBB, r0)
++
+ 		case AADD,
+ 			AADDIS,
+ 			AANDCC, /* and. Rb,Rs,Ra; andi. $uimm,Rs,Ra */
+@@ -4784,6 +4788,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 	case AVCLZD:
+ 		return OPVX(4, 1986, 0, 0) /* vclzd - v2.07 */
+ 
++	case AVCLZLSBB:
++		return OPVX(4, 1538, 0, 0) /* vclzlsbb - v3.0 */
++	case AVCTZLSBB:
++		return OPVX(4, 1538, 0, 0) | 1<<16 /* vctzlsbb - v3.0 */
++
+ 	case AVPOPCNTB:
+ 		return OPVX(4, 1795, 0, 0) /* vpopcntb - v2.07 */
+ 	case AVPOPCNTH:

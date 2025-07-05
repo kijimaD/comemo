@@ -15,7 +15,88 @@ Date:   Fri Aug 14 13:29:07 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Jeremy Fishman <jfishman@cloudflare.com>
-
+---
  src/net/mail/message.go      | 13 +++++++++----
  src/net/mail/message_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 6833cfaec1..09fb794005 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -279,9 +279,6 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
+ 		if p.consume(',') {
+ 			continue
+ 		}
+-		if p.empty() {
+-			break
+-		}
+ 
+ 		addrs, err := p.parseAddress(true)
+ 		if err != nil {
+@@ -295,9 +292,17 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
+ 		if p.empty() {
+ 			break
+ 		}
+-		if !p.consume(',') {
++		if p.peek() != ',' {
+ 			return nil, errors.New("mail: expected comma")
+ 		}
++
++		// Skip empty entries for obs-addr-list.
++		for p.consume(',') {
++			p.skipSpace()
++		}
++		if p.empty() {
++			break
++		}
+ 	}
+ 	return list, nil
+ }
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 75db767547..67e3643aeb 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -445,6 +445,19 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		{
++			` , joe@where.test,,John <jdoe@one.test>,,`,
++			[]*Address{
++				{
++					Name:    "",
++					Address: "joe@where.test",
++				},
++				{
++					Name:    "John",
++					Address: "jdoe@one.test",
++				},
++			},
++		},
+ 		{
+ 			`Group1: <addr1@example.com>;, Group 2: addr2@example.com;, John <addr3@example.com>`,
+ 			[]*Address{
+@@ -1067,3 +1080,22 @@ func TestAddressFormattingAndParsing(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestEmptyAddress(t *testing.T) {
++	parsed, err := ParseAddress("")
++	if parsed != nil || err == nil {
++		t.Errorf(`ParseAddress("") = %v, %v, want nil, error`, parsed, err)
++	}
++	list, err := ParseAddressList("")
++	if len(list) > 0 || err == nil {
++		t.Errorf(`ParseAddressList("") = %v, %v, want nil, error`, list, err)
++	}
++	list, err = ParseAddressList(",")
++	if len(list) > 0 || err == nil {
++		t.Errorf(`ParseAddressList("") = %v, %v, want nil, error`, list, err)
++	}
++	list, err = ParseAddressList("a@b c@d")
++	if len(list) > 0 || err == nil {
++		t.Errorf(`ParseAddressList("") = %v, %v, want nil, error`, list, err)
++	}
++}

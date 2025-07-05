@@ -13,7 +13,241 @@ Date:   Thu Apr 21 14:37:26 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4437061
-
+---
  src/pkg/xml/xml.go      | 73 ++++++++++++++++++++++++++++++++------
  src/pkg/xml/xml_test.go | 94 +++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 156 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index f92abe8256..42d8b986ec 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -163,6 +163,13 @@ type Parser struct {
+ 	//	"quot": `"`,
+ 	Entity map[string]string
+ 
++	// CharsetReader, if non-nil, defines a function to generate
++	// charset-conversion readers, converting from the provided
++	// non-UTF-8 charset into UTF-8. If CharsetReader is nil or
++	// returns an error, parsing stops with an error. One of the
++	// the CharsetReader's result values must be non-nil.
++	CharsetReader func(charset string, input io.Reader) (io.Reader, os.Error)
++
+ 	r         io.ByteReader
+ 	buf       bytes.Buffer
+ 	saved     *bytes.Buffer
+@@ -186,17 +193,7 @@ func NewParser(r io.Reader) *Parser {
+ 		line:     1,
+ 		Strict:   true,
+ 	}
+-
+-	// Get efficient byte at a time reader.
+-	// Assume that if reader has its own
+-	// ReadByte, it's efficient enough.
+-	// Otherwise, use bufio.
+-	if rb, ok := r.(io.ByteReader); ok {
+-		p.r = rb
+-	} else {
+-		p.r = bufio.NewReader(r)
+-	}
+-
++	p.switchToReader(r)
+ 	return p
+ }
+ 
+@@ -290,6 +287,18 @@ func (p *Parser) translate(n *Name, isElementName bool) {
+ 	}
+ }
+ 
++func (p *Parser) switchToReader(r io.Reader) {
++	// Get efficient byte at a time reader.
++	// Assume that if reader has its own
++	// ReadByte, it's efficient enough.
++	// Otherwise, use bufio.
++	if rb, ok := r.(io.ByteReader); ok {
++		p.r = rb
++	} else {
++		p.r = bufio.NewReader(r)
++	}
++}
++
+ // Parsing state - stack holds old name space translations
+ // and the current set of open elements.  The translations to pop when
+ // ending a given tag are *below* it on the stack, which is
+@@ -487,6 +496,25 @@ func (p *Parser) RawToken() (Token, os.Error) {
+ 		}
+ 		data := p.buf.Bytes()
+ 		data = data[0 : len(data)-2] // chop ?>
++
++		if target == "xml" {
++			enc := procInstEncoding(string(data))
++			if enc != "" && enc != "utf-8" && enc != "UTF-8" {
++				if p.CharsetReader == nil {
++					p.err = fmt.Errorf("xml: encoding %q declared but Parser.CharsetReader is nil", enc)
++					return nil, p.err
++				}
++				newr, err := p.CharsetReader(enc, p.r.(io.Reader))
++				if err != nil {
++					p.err = fmt.Errorf("xml: opening charset %q: %v", enc, err)
++					return nil, p.err
++				}
++				if newr == nil {
++					panic("CharsetReader returned a nil Reader for charset " + enc)
++				}
++				p.switchToReader(newr)
++			}
++		}
+ 		return ProcInst{target, data}, nil
+ 
+ 	case '!':
+@@ -1633,3 +1661,26 @@ func Escape(w io.Writer, s []byte) {
+ 	}
+ 	w.Write(s[last:])
+ }
++
++// procInstEncoding parses the `encoding="..."` or `encoding='...'`
++// value out of the provided string, returning "" if not found.
++func procInstEncoding(s string) string {
++	// TODO: this parsing is somewhat lame and not exact.
++	// It works for all actual cases, though.
++	idx := strings.Index(s, "encoding=")
++	if idx == -1 {
++		return ""
++	}
++	v := s[idx+len("encoding="):]
++	if v == "" {
++		return ""
++	}
++	if v[0] != '\'' && v[0] != '"' {
++		return ""
++	}
++	idx = strings.IndexRune(v[1:], int(v[0]))
++	if idx == -1 {
++		return ""
++	}
++	return v[1 : idx+1]
++}
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index 887bc3d140..a99c1919ef 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -96,6 +97,19 @@ var cookedTokens = []Token{
+ 	Comment([]byte(" missing final newline ")),
+ }
+ 
++const testInputAltEncoding = `
++<?xml version="1.0" encoding="x-testing-uppercase"?>
++<TAG>VALUE</TAG>`
++
++var rawTokensAltEncoding = []Token{
++	CharData([]byte("\n")),
++	ProcInst{"xml", []byte(`version="1.0" encoding="x-testing-uppercase"`)},
++	CharData([]byte("\n")),
++	StartElement{Name{"", "tag"}, nil},
++	CharData([]byte("value")),
++	EndElement{Name{"", "tag"}},
++}
++
+ var xmlInput = []string{
+ 	// unexpected EOF cases
+ 	"<",
+@@ -173,7 +187,64 @@ func StringReader(s string) io.Reader { return &stringReader{s, 0} }
+ 
+ func TestRawToken(t *testing.T) {
+ 	p := NewParser(StringReader(testInput))
++	testRawToken(t, p, rawTokens)
++}
++
++type downCaser struct {
++	t *testing.T
++	r io.ByteReader
++}
++
++func (d *downCaser) ReadByte() (c byte, err os.Error) {
++	c, err = d.r.ReadByte()
++	if c >= 'A' && c <= 'Z' {
++		c += 'a' - 'A'
++	}
++	return
++}
++
++func (d *downCaser) Read(p []byte) (int, os.Error) {
++	d.t.Fatalf("unexpected Read call on downCaser reader")
++	return 0, os.EINVAL
++}
++
++func TestRawTokenAltEncoding(t *testing.T) {
++	sawEncoding := ""
++	p := NewParser(StringReader(testInputAltEncoding))
++	p.CharsetReader = func(charset string, input io.Reader) (io.Reader, os.Error) {
++		sawEncoding = charset
++		if charset != "x-testing-uppercase" {
++			t.Fatalf("unexpected charset %q", charset)
++		}
++		return &downCaser{t, input.(io.ByteReader)}, nil
++	}
++	testRawToken(t, p, rawTokensAltEncoding)
++}
+ 
++func TestRawTokenAltEncodingNoConverter(t *testing.T) {
++	p := NewParser(StringReader(testInputAltEncoding))
++	token, err := p.RawToken()
++	if token == nil {
++		t.Fatalf("expected a token on first RawToken call")
++	}
++	if err != nil {
++		t.Fatal(err)
++	}
++	token, err = p.RawToken()
++	if token != nil {
++		t.Errorf("expected a nil token; got %#v", token)
++	}
++	if err == nil {
++		t.Fatalf("expected an error on second RawToken call")
++	}
++	const encoding = "x-testing-uppercase"
++	if !strings.Contains(err.String(), encoding) {
++		t.Errorf("expected error to contain %q; got error: %v",
++			encoding, err)
++	}
++}
++
++func testRawToken(t *testing.T, p *Parser, rawTokens []Token) {
+ 	for i, want := range rawTokens {
+ 		have, err := p.RawToken()
+ 		if err != nil {
+@@ -483,3 +554,26 @@ func TestDisallowedCharacters(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type procInstEncodingTest struct {
++	expect, got string
++}
++
++var procInstTests = []struct {
++	input, expect string
++}{
++	{`version="1.0" encoding="utf-8"`, "utf-8"},
++	{`version="1.0" encoding='utf-8'`, "utf-8"},
++	{`version="1.0" encoding='utf-8' `, "utf-8"},
++	{`version="1.0" encoding=utf-8`, ""},
++	{`encoding="FOO" `, "FOO"},
++}
++
++func TestProcInstEncoding(t *testing.T) {
++	for _, test := range procInstTests {
++		got := procInstEncoding(test.input)
++		if got != test.expect {
++			t.Errorf("procInstEncoding(%q) = %q; want %q", test.input, got, test.expect)
++		}
++	}
++}

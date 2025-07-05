@@ -5,9 +5,291 @@ Date:   Thu Jul 10 14:42:33 2008 -0700
     - improved error handling
     
     SVN=126718
-
+---
  usr/gri/src/parser.go       | 19 ++++++-------
  usr/gri/src/scanner.go      | 67 ++++++++++++++++++++++++++-------------------
  usr/gri/src/test_parser.go  | 10 +++----
  usr/gri/src/test_scanner.go | 11 +++-----
  4 files changed, 56 insertions(+), 51 deletions(-)
+
+diff --git a/usr/gri/src/parser.go b/usr/gri/src/parser.go
+index b14c778056..49b0f6ab25 100644
+--- a/usr/gri/src/parser.go
++++ b/usr/gri/src/parser.go
+@@ -4,7 +4,6 @@
+ 
+ package Parser
+ 
+-//import . "scanner"
+ import Scanner "scanner"
+ 
+ 
+@@ -63,8 +62,8 @@ func (P *Parser) Open(S *Scanner.Scanner, verbose int) {
+ }
+ 
+ 
+-func (P *Parser) Error(msg string) {
+-	P.S.Error(P.S.pos, msg);
++func (P *Parser) Error(pos int, msg string) {
++	P.S.Error(pos, msg);
+ 	P.Next();  // make progress
+ }
+ 
+@@ -73,7 +72,7 @@ func (P *Parser) Expect(tok int) {
+ 	if P.tok == tok {
+ 		P.Next()
+ 	} else {
+-		P.Error("expected `" + Scanner.TokenName(tok) + "`, found `" + Scanner.TokenName(P.tok) + "`");
++		P.Error(P.beg, "expected '" + Scanner.TokenName(tok) + "', found '" + Scanner.TokenName(P.tok) + "'");
+ 	}
+ }
+ 
+@@ -130,7 +129,7 @@ func (P *Parser) ParseTypeName() {
+ func (P *Parser) ParseType() {
+ 	P.Trace("Type");
+ 	if !P.TryType() {
+-		P.Error("type expected");
++		P.Error(P.beg, "type expected");
+ 	}
+ 	P.Ecart();
+ }
+@@ -583,7 +582,7 @@ func (P *Parser) ParseControlFlowStat(tok int) {
+ func (P *Parser) ParseStatement() {
+ 	P.Trace("Statement");
+ 	if !P.TryStatement() {
+-		P.Error("statement expected");
++		P.Error(P.beg, "statement expected");
+ 	}
+ 	P.Ecart();
+ }
+@@ -874,7 +873,7 @@ func (P *Parser) ParseDeclaration() {
+ 	case Scanner.EXPORT:
+ 		P.ParseExportDecl();
+ 	default:
+-		P.Error("declaration expected");
++		P.Error(P.beg, "declaration expected");
+ 	}
+ 	if indent != P.indent {
+ 		panic "imbalanced tracing code"
+@@ -916,7 +915,7 @@ func (P *Parser) ParseOperand() {
+ 	case Scanner.NEW:
+ 		P.ParseNew();
+ 	default:
+-		P.Error("operand expected");
++		P.Error(P.beg, "operand expected");
+ 	}
+ 	P.Ecart();
+ }
+@@ -1004,9 +1003,9 @@ func (P *Parser) ParseUnaryExpr() {
+ func Precedence(tok int) int {
+ 	// TODO should use a map or array here for lookup
+ 	switch tok {
+-	case Scanner.COR:
++	case Scanner.LOR:
+ 		return 1;
+-	case Scanner.CAND:
++	case Scanner.LAND:
+ 		return 2;
+ 	case Scanner.EQL, Scanner.NEQ, Scanner.LSS, Scanner.LEQ, Scanner.GTR, Scanner.GEQ:
+ 		return 3;
+diff --git a/usr/gri/src/scanner.go b/usr/gri/src/scanner.go
+index 7389cdac3f..94d8f19151 100644
+--- a/usr/gri/src/scanner.go
++++ b/usr/gri/src/scanner.go
+@@ -16,7 +16,7 @@ export
+ 	SHL, SHR,
+ 	ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN,
+ 	AND_ASSIGN, OR_ASSIGN, XOR_ASSIGN, SHL_ASSIGN, SHR_ASSIGN,
+-	CAND, COR,
++	LAND, LOR,
+ 	BREAK, CASE, CHAN, CONST, CONTINUE, DEFAULT, ELSE, EXPORT, FALLTHROUGH, FALSE,
+ 	FOR, FUNC, GO, GOTO, IF, IMPORT, INTERFACE, IOTA, MAP, NEW, NIL, PACKAGE, RANGE,
+ 	RETURN, SELECT, STRUCT, SWITCH, TRUE, TYPE, VAR
+@@ -81,8 +81,8 @@ const (
+ 	SHL_ASSIGN;
+ 	SHR_ASSIGN;
+ 
+-	CAND;
+-	COR;
++	LAND;
++	LOR;
+ 	
+ 	// keywords
+ 	KEYWORDS_BEG;
+@@ -184,8 +184,8 @@ func TokenName(tok int) string {
+ 	case SHL_ASSIGN: return "<<=";
+ 	case SHR_ASSIGN: return ">>=";
+ 
+-	case CAND: return "&&";
+-	case COR: return "||";
++	case LAND: return "&&";
++	case LOR: return "||";
+ 
+ 	case BREAK: return "break";
+ 	case CASE: return "case";
+@@ -249,6 +249,10 @@ func digit_val (ch int) int {
+ 
+ export Scanner
+ type Scanner struct {
++	filename string;  // error reporting only
++	nerrors int;  // number of errors
++	errpos int;  // last error position
++	
+ 	src string;
+ 	pos int;  // current reading position
+ 	ch int;  // one char look-ahead
+@@ -389,17 +393,25 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
+ 
+ 
+ func (S *Scanner) Error(pos int, msg string) {
+-	line, col := S.LineCol(pos);
+-	print "error ", line, ":", col, ": ", msg, "\n";
++	const errdist = 10;
++	if pos > S.errpos + errdist || S.nerrors == 0 {
++		line, col := S.LineCol(pos);
++		print S.filename, ":", line, ":", col, ": ", msg, "\n";
++		S.nerrors++;
++		S.errpos = pos;
++	}
+ }
+ 
+ 
+-func (S *Scanner) Open (src string) {
++func (S *Scanner) Open (filename, src string) {
+ 	if Keywords == nil {
+ 		Init();
+ 	}
+ 
+-	//S.nerrors = 0;
++	S.filename = filename;
++	S.nerrors = 0;
++	S.errpos = 0;
++	
+ 	S.src = src;
+ 	S.pos = 0;
+ 	S.Next();
+@@ -438,19 +450,18 @@ func IntString(x, base int) string {
+ }
+ 
+ 
+-
+ func CharString(ch int) string {
+ 	s := string(ch);
+ 	switch ch {
+-	case '\a': s = "\\a";
+-	case '\b': s = "\\b";
+-	case '\f': s = "\\f";
+-	case '\n': s = "\\n";
+-	case '\r': s = "\\r";
+-	case '\t': s = "\\t";
+-	case '\v': s = "\\v";
+-	case '\\': s = "\\";
+-	case '\'': s = "\\'";
++	case '\a': s = `\a`;
++	case '\b': s = `\b`;
++	case '\f': s = `\f`;
++	case '\n': s = `\n`;
++	case '\r': s = `\r`;
++	case '\t': s = `\t`;
++	case '\v': s = `\v`;
++	case '\\': s = `\\`;
++	case '\'': s = `\'`;
+ 	}
+ 	return "'" + s + "' (U+" + IntString(ch, 16) + ")";
+ }
+@@ -708,11 +719,10 @@ func (S *Scanner) Select4 (tok0, tok1, ch2, tok2, tok3 int) int {
+ func (S *Scanner) Scan () (tok, beg, end int) {
+ 	S.SkipWhitespace();
+ 	
+-	tok = ILLEGAL;
+-	beg = S.pos - 1;
+-	end = beg;
+-	
+ 	ch := S.ch;
++	tok = ILLEGAL;
++	beg = S.chpos;
++
+ 	switch {
+ 	case is_letter(ch): tok = S.ScanIdentifier();
+ 	case digit_val(ch) < 10: tok = S.ScanNumber(false);
+@@ -755,12 +765,13 @@ func (S *Scanner) Scan () (tok, beg, end int) {
+ 		case '>': tok = S.Select4(GTR, GEQ, '>', SHR, SHR_ASSIGN);
+ 		case '=': tok = S.Select2(ASSIGN, EQL);
+ 		case '!': tok = S.Select2(NOT, NEQ);
+-		case '&': tok = S.Select3(AND, AND_ASSIGN, '&', CAND);
+-		case '|': tok = S.Select3(OR, OR_ASSIGN, '|', COR);
++		case '&': tok = S.Select3(AND, AND_ASSIGN, '&', LAND);
++		case '|': tok = S.Select3(OR, OR_ASSIGN, '|', LOR);
++		default:
++			S.Error(beg, "illegal character " + CharString(ch));
++			tok = ILLEGAL;
+ 		}
+ 	}
+ 	
+-	end = S.pos - 1;  // TODO correct? (Unicode)
+-	
+-	return tok, beg, end;
++	return tok, beg, S.chpos;
+ }
+diff --git a/usr/gri/src/test_parser.go b/usr/gri/src/test_parser.go
+index 35d51b57aa..78d8d87119 100644
+--- a/usr/gri/src/test_parser.go
++++ b/usr/gri/src/test_parser.go
+@@ -8,9 +8,9 @@ import Scanner "scanner"
+ import Parser "parser"
+ 
+ 
+-func Parse(src string, verbose int) {
++func Parse(filename, src string, verbose int) {
+ 	S := new(Scanner.Scanner);
+-	S.Open(src);
++	S.Open(filename, src);
+ 	
+ 	P := new(Parser.Parser);
+ 	P.Open(S, verbose);
+@@ -31,12 +31,10 @@ func main() {
+ 			continue;
+ 		}
+ 		
+-		var src string;
+-		var ok bool;
+-		src, ok = sys.readfile(sys.argv(i));
++		src, ok := sys.readfile(sys.argv(i));
+ 		if ok {
+ 			print "parsing " + sys.argv(i) + "\n";
+-			Parse(src, verbose);
++			Parse(sys.argv(i), src, verbose);
+ 		} else {
+ 			print "error: cannot read " + sys.argv(i) + "\n";
+ 		}
+diff --git a/usr/gri/src/test_scanner.go b/usr/gri/src/test_scanner.go
+index f43d126419..5ebff817bd 100644
+--- a/usr/gri/src/test_scanner.go
++++ b/usr/gri/src/test_scanner.go
+@@ -7,14 +7,11 @@ package main
+ import Scanner "scanner"
+ 
+ 
+-func Scan(src string) {
++func Scan(filename, src string) {
+ 	S := new(Scanner.Scanner);
+-	S.Open(src);
++	S.Open(filename, src);
+ 	for {
+-		//var t Scanner.Token;
+-		var tok, beg, end int;
+-		tok, beg, end = S.Scan(/*&t*/);
+-		//t.Print();  // TODO  this doesn't compile?
++		tok, beg, end := S.Scan();
+ 		print Scanner.TokenName(tok), "\t ", src[beg : end], "\n";
+ 		if tok == Scanner.EOF {
+ 			return;
+@@ -30,7 +27,7 @@ func main() {
+ 		src, ok = sys.readfile(sys.argv(i));
+ 		if ok {
+ 			print "scanning " + sys.argv(i) + "\n";
+-			Scan(src);
++			Scan(sys.argv(i), src);
+ 		} else {
+ 			print "error: cannot read " + sys.argv(i) + "\n";
+ 		}

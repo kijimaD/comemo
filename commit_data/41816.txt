@@ -10,7 +10,7 @@ Date:   Mon Oct 14 15:49:27 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201403
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/os2_aix.go         | 19 ++++++++++++++++++-
  src/runtime/os3_solaris.go     | 16 ++++++++++++++++
  src/runtime/os_aix.go          |  1 +
@@ -21,3 +21,278 @@ Date:   Mon Oct 14 15:49:27 2019 -0400
  src/runtime/sys_darwin_arm.s   | 12 ++++++++++++
  src/runtime/sys_darwin_arm64.s | 12 ++++++++++++
  9 files changed, 117 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index 7f69d6d1e3..7c3cb27223 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -64,6 +64,8 @@ var (
+ //go:cgo_import_dynamic libpthread_attr_setstackaddr pthread_attr_setstackaddr "libpthread.a/shr_xpg5_64.o"
+ //go:cgo_import_dynamic libpthread_create pthread_create "libpthread.a/shr_xpg5_64.o"
+ //go:cgo_import_dynamic libpthread_sigthreadmask sigthreadmask "libpthread.a/shr_xpg5_64.o"
++//go:cgo_import_dynamic libpthread_self pthread_self "libpthread.a/shr_xpg5_64.o"
++//go:cgo_import_dynamic libpthread_kill pthread_kill "libpthread.a/shr_xpg5_64.o"
+ 
+ //go:linkname libc__Errno libc__Errno
+ //go:linkname libc_clock_gettime libc_clock_gettime
+@@ -101,6 +103,8 @@ var (
+ //go:linkname libpthread_attr_setstackaddr libpthread_attr_setstackaddr
+ //go:linkname libpthread_create libpthread_create
+ //go:linkname libpthread_sigthreadmask libpthread_sigthreadmask
++//go:linkname libpthread_self libpthread_self
++//go:linkname libpthread_kill libpthread_kill
+ 
+ var (
+ 	//libc
+@@ -139,7 +143,9 @@ var (
+ 	libpthread_attr_setdetachstate,
+ 	libpthread_attr_setstackaddr,
+ 	libpthread_create,
+-	libpthread_sigthreadmask libFunc
++	libpthread_sigthreadmask,
++	libpthread_self,
++	libpthread_kill libFunc
+ )
+ 
+ type libFunc uintptr
+@@ -724,3 +730,14 @@ func sigprocmask(how int32, new, old *sigset) {
+ 	sigprocmask1(uintptr(how), uintptr(unsafe.Pointer(new)), uintptr(unsafe.Pointer(old)))
+ 
+ }
++
++//go:nosplit
++func pthread_self() pthread {
++	r, _ := syscall0(&libpthread_self)
++	return pthread(r)
++}
++
++//go:nosplit
++func signalM(mp *m, sig int) {
++	syscall2(&libpthread_kill, uintptr(pthread(mp.procid)), uintptr(sig))
++}
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 4ac191fab8..563e981d0f 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -29,6 +29,8 @@ import (
+ //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "libc.so"
+ //go:cgo_import_dynamic libc_pthread_attr_setstack pthread_attr_setstack "libc.so"
+ //go:cgo_import_dynamic libc_pthread_create pthread_create "libc.so"
++//go:cgo_import_dynamic libc_pthread_self pthread_self "libc.so"
++//go:cgo_import_dynamic libc_pthread_kill pthread_kill "libc.so"
+ //go:cgo_import_dynamic libc_raise raise "libc.so"
+ //go:cgo_import_dynamic libc_read read "libc.so"
+ //go:cgo_import_dynamic libc_select select "libc.so"
+@@ -61,6 +63,8 @@ import (
+ //go:linkname libc_pthread_attr_setdetachstate libc_pthread_attr_setdetachstate
+ //go:linkname libc_pthread_attr_setstack libc_pthread_attr_setstack
+ //go:linkname libc_pthread_create libc_pthread_create
++//go:linkname libc_pthread_self libc_pthread_self
++//go:linkname libc_pthread_kill libc_pthread_kill
+ //go:linkname libc_raise libc_raise
+ //go:linkname libc_read libc_read
+ //go:linkname libc_select libc_select
+@@ -94,6 +98,8 @@ var (
+ 	libc_pthread_attr_setdetachstate,
+ 	libc_pthread_attr_setstack,
+ 	libc_pthread_create,
++	libc_pthread_self,
++	libc_pthread_kill,
+ 	libc_raise,
+ 	libc_read,
+ 	libc_sched_yield,
+@@ -214,6 +220,8 @@ func minit() {
+ 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
+ 
+ 	minitSignals()
++
++	getg().m.procid = uint64(pthread_self())
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -434,6 +442,14 @@ func pthread_create(thread *pthread, attr *pthreadattr, fn uintptr, arg unsafe.P
+ 	return int32(sysvicall4(&libc_pthread_create, uintptr(unsafe.Pointer(thread)), uintptr(unsafe.Pointer(attr)), uintptr(fn), uintptr(arg)))
+ }
+ 
++func pthread_self() pthread {
++	return pthread(sysvicall0(&libc_pthread_self))
++}
++
++func signalM(mp *m, sig int) {
++	sysvicall2(&libc_pthread_kill, uintptr(pthread(mp.procid)), uintptr(sig))
++}
++
+ //go:nosplit
+ //go:nowritebarrierrec
+ func raise(sig uint32) /* int32 */ {
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 855ae6ff46..ff2588f42f 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -175,6 +175,7 @@ func miniterrno() {
+ func minit() {
+ 	miniterrno()
+ 	minitSignals()
++	getg().m.procid = uint64(pthread_self())
+ }
+ 
+ func unminit() {
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 1614b66c8a..c11fbec0a5 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -295,6 +295,7 @@ func minit() {
+ 		minitSignalStack()
+ 	}
+ 	minitSignalMask()
++	getg().m.procid = uint64(pthread_self())
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -406,3 +407,7 @@ func sysargs(argc int32, argv **byte) {
+ 		executablePath = executablePath[len(prefix):]
+ 	}
+ }
++
++func signalM(mp *m, sig int) {
++	pthread_kill(pthread(mp.procid), uint32(sig))
++}
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 46825d5937..31304ce737 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -162,6 +162,14 @@ func pthread_self() (t pthread) {
+ }
+ func pthread_self_trampoline()
+ 
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_kill(t pthread, sig uint32) {
++	libcCall(unsafe.Pointer(funcPC(pthread_kill_trampoline)), unsafe.Pointer(&t))
++	return
++}
++func pthread_kill_trampoline()
++
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	args := struct {
+ 		addr            unsafe.Pointer
+@@ -415,6 +423,8 @@ func setNonblock(fd int32) {
+ //go:cgo_import_dynamic libc_pthread_attr_getstacksize pthread_attr_getstacksize "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_raise raise "/usr/lib/libSystem.B.dylib"
+ 
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index bea804b8dd..15b7cfb213 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -653,6 +653,31 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+ 	POPL	BP
+ 	RET
+ 
++TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	NOP	SP	// hide SP from vet
++	CALL	libc_pthread_self(SB)
++	MOVL	8(SP), CX
++	MOVL	AX, 0(CX)		// return value
++	MOVL	BP, SP
++	POPL	BP
++	RET
++
++TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$8, SP
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX	// arg 1 thread
++	MOVL	AX, 0(SP)
++	MOVL	4(CX), AX	// arg 2 sig
++	MOVL	AX, 4(SP)
++	CALL	libc_pthread_kill(SB)
++	MOVL	BP, SP
++	POPL	BP
++	RET
++
+ // syscall calls a function in libc on behalf of the syscall package.
+ // syscall takes a pointer to a struct like:
+ // struct {
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index ea8cf1abb1..a45ea42e5d 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -566,6 +566,24 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
++TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	DI, BX		// BX is caller-save
++	CALL	libc_pthread_self(SB)
++	MOVQ	AX, 0(BX)	// return value
++	POPQ	BP
++	RET
++
++TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI	// arg 2 sig
++	MOVQ	0(DI), DI	// arg 1 thread
++	CALL	libc_pthread_kill(SB)
++	POPQ	BP
++	RET
++
+ // syscall calls a function in libc on behalf of the syscall package.
+ // syscall takes a pointer to a struct like:
+ // struct {
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 84b0b0f5f4..4e201fca09 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -405,6 +405,18 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_pthread_cond_signal(SB)
+ 	RET
+ 
++TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
++	MOVW	R0, R4		// R4 is callee-save
++	BL	libc_pthread_self(SB)
++	MOVW	R0, 0(R4)	// return value
++	RET
++
++TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
++	MOVW	4(R0), R1	// arg 2 sig
++	MOVW	0(R0), R0	// arg 1 thread
++	BL	libc_pthread_kill(SB)
++	RET
++
+ // syscall calls a function in libc on behalf of the syscall package.
+ // syscall takes a pointer to a struct like:
+ // struct {
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 8d39a0727f..585d4f2c64 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -471,6 +471,18 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_pthread_cond_signal(SB)
+ 	RET
+ 
++TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
++	MOVD	R0, R19		// R19 is callee-save
++	BL	libc_pthread_self(SB)
++	MOVD	R0, 0(R19)	// return value
++	RET
++
++TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 sig
++	MOVD	0(R0), R0	// arg 1 thread
++	BL	libc_pthread_kill(SB)
++	RET
++
+ // syscall calls a function in libc on behalf of the syscall package.
+ // syscall takes a pointer to a struct like:
+ // struct {

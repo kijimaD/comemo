@@ -8,6 +8,20 @@ Date:   Wed May 21 14:34:20 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/98460045
-
+---
  doc/codewalk/sharemem.xml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/codewalk/sharemem.xml b/doc/codewalk/sharemem.xml
+index d443e176e7..8b47f12b7a 100644
+--- a/doc/codewalk/sharemem.xml
++++ b/doc/codewalk/sharemem.xml
+@@ -171,7 +171,7 @@ and/or writes to a shared map.
+ 
+ <step title="Conclusion" src="doc/codewalk/urlpoll.go">
+ In this codewalk we have explored a simple example of using Go's concurrency
+-primitives to share memory through commmunication.
++primitives to share memory through communication.
+ <br/><br/>
+ This should provide a starting point from which to explore the ways in which
+ goroutines and channels can be used to write expressive and concise concurrent

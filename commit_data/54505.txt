@@ -21,6 +21,53 @@ Date:   Mon Oct 24 23:37:05 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/debug/elf/file.go | 14 +++++++++-----
  1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 708980bc1c..7c5ac86c0a 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -467,8 +467,12 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	}
+ 
+ 	// Read section headers
+-	f.Sections = make([]*Section, shnum)
+-	names := make([]uint32, shnum)
++	c := saferio.SliceCap((*Section)(nil), uint64(shnum))
++	if c < 0 {
++		return nil, &FormatError{0, "too many sections", shnum}
++	}
++	f.Sections = make([]*Section, 0, c)
++	names := make([]uint32, 0, c)
+ 	for i := 0; i < shnum; i++ {
+ 		off := shoff + int64(i)*int64(shentsize)
+ 		sr.Seek(off, seekStart)
+@@ -479,7 +483,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 			if err := binary.Read(sr, f.ByteOrder, sh); err != nil {
+ 				return nil, err
+ 			}
+-			names[i] = sh.Name
++			names = append(names, sh.Name)
+ 			s.SectionHeader = SectionHeader{
+ 				Type:      SectionType(sh.Type),
+ 				Flags:     SectionFlag(sh.Flags),
+@@ -496,7 +500,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 			if err := binary.Read(sr, f.ByteOrder, sh); err != nil {
+ 				return nil, err
+ 			}
+-			names[i] = sh.Name
++			names = append(names, sh.Name)
+ 			s.SectionHeader = SectionHeader{
+ 				Type:      SectionType(sh.Type),
+ 				Flags:     SectionFlag(sh.Flags),
+@@ -544,7 +548,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 			}
+ 		}
+ 
+-		f.Sections[i] = s
++		f.Sections = append(f.Sections, s)
+ 	}
+ 
+ 	if len(f.Sections) == 0 {

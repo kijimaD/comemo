@@ -54,10 +54,274 @@ Date:   Tue Oct 10 22:50:01 2017 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_linux_noauxv.go |  2 +-
  src/runtime/sys_linux_386.s    | 43 +++++++++++++++++--
  src/runtime/vdso_linux.go      |  2 +-
  src/runtime/vdso_linux_386.go  | 93 ++++++++++++++++++++++++++++++++++++++++++
  src/runtime/vdso_linux_test.go | 63 ++++++++++++++++++++++++++++
  5 files changed, 197 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/os_linux_noauxv.go b/src/runtime/os_linux_noauxv.go
+index 5e9f03120d..db6e5a0530 100644
+--- a/src/runtime/os_linux_noauxv.go
++++ b/src/runtime/os_linux_noauxv.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!arm,!arm64,!mips,!mipsle,!mips64,!mips64le,!s390x,!ppc64,!ppc64le
++// +build !386,!amd64,!arm,!arm64,!mips,!mipsle,!mips64,!mips64le,!s390x,!ppc64,!ppc64le
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 79985070f1..722d2ab2d3 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -203,12 +203,34 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
+ 	RET
+ 
+ // func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB), NOSPLIT, $32
++TEXT runtime·walltime(SB), NOSPLIT, $16
++	// Stack layout, depending on call path:
++	//  x(SP)   vDSO            INVOKE_SYSCALL
++	//    12    ts.tv_nsec      ts.tv_nsec
++	//     8    ts.tv_sec       ts.tv_sec
++	//     4    &ts             -
++	//     0    CLOCK_<id>      -
++	//
++	// If we take the vDSO path, we're calling a function with gcc calling convention.
++	// We're guaranteed 128 bytes on entry. We've taken 16, and the call uses another 4,
++	// leaving 108 for __vdso_clock_gettime to use.
++	MOVL	runtime·__vdso_clock_gettime_sym(SB), AX
++	CMPL	AX, $0
++	JEQ	fallback
++
++	LEAL	8(SP), BX	// &ts (struct timespec)
++	MOVL	BX, 4(SP)
++	MOVL	$0, 0(SP)	// CLOCK_REALTIME
++	CALL	AX
++	JMP finish
++
++fallback:
+ 	MOVL	$SYS_clock_gettime, AX
+ 	MOVL	$0, BX		// CLOCK_REALTIME
+ 	LEAL	8(SP), CX
+-	MOVL	$0, DX
+ 	INVOKE_SYSCALL
++
++finish:
+ 	MOVL	8(SP), AX	// sec
+ 	MOVL	12(SP), BX	// nsec
+ 
+@@ -220,12 +242,25 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB), NOSPLIT, $32
++TEXT runtime·nanotime(SB), NOSPLIT, $16
++	// See comments above in walltime() about stack space usage and layout.
++	MOVL	runtime·__vdso_clock_gettime_sym(SB), AX
++	CMPL	AX, $0
++	JEQ	fallback
++
++	LEAL	8(SP), BX	// &ts (struct timespec)
++	MOVL	BX, 4(SP)
++	MOVL	$1, 0(SP)	// CLOCK_MONOTONIC
++	CALL	AX
++	JMP finish
++
++fallback:
+ 	MOVL	$SYS_clock_gettime, AX
+ 	MOVL	$1, BX		// CLOCK_MONOTONIC
+ 	LEAL	8(SP), CX
+-	MOVL	$0, DX
+ 	INVOKE_SYSCALL
++
++finish:
+ 	MOVL	8(SP), AX	// sec
+ 	MOVL	12(SP), BX	// nsec
+ 
+diff --git a/src/runtime/vdso_linux.go b/src/runtime/vdso_linux.go
+index 1f22caa37c..5a4e8e578d 100644
+--- a/src/runtime/vdso_linux.go
++++ b/src/runtime/vdso_linux.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build linux
+-// +build amd64
++// +build 386 amd64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/vdso_linux_386.go b/src/runtime/vdso_linux_386.go
+new file mode 100644
+index 0000000000..74ad953469
+--- /dev/null
++++ b/src/runtime/vdso_linux_386.go
+@@ -0,0 +1,93 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// ELF32 structure definitions for use by the Linux vDSO loader
++
++type elfSym struct {
++	st_name  uint32
++	st_value uint32
++	st_size  uint32
++	st_info  byte
++	st_other byte
++	st_shndx uint16
++}
++
++type elfVerdef struct {
++	vd_version uint16 /* Version revision */
++	vd_flags   uint16 /* Version information */
++	vd_ndx     uint16 /* Version Index */
++	vd_cnt     uint16 /* Number of associated aux entries */
++	vd_hash    uint32 /* Version name hash value */
++	vd_aux     uint32 /* Offset in bytes to verdaux array */
++	vd_next    uint32 /* Offset in bytes to next verdef entry */
++}
++
++type elfEhdr struct {
++	e_ident     [_EI_NIDENT]byte /* Magic number and other info */
++	e_type      uint16           /* Object file type */
++	e_machine   uint16           /* Architecture */
++	e_version   uint32           /* Object file version */
++	e_entry     uint32           /* Entry point virtual address */
++	e_phoff     uint32           /* Program header table file offset */
++	e_shoff     uint32           /* Section header table file offset */
++	e_flags     uint32           /* Processor-specific flags */
++	e_ehsize    uint16           /* ELF header size in bytes */
++	e_phentsize uint16           /* Program header table entry size */
++	e_phnum     uint16           /* Program header table entry count */
++	e_shentsize uint16           /* Section header table entry size */
++	e_shnum     uint16           /* Section header table entry count */
++	e_shstrndx  uint16           /* Section header string table index */
++}
++
++type elfPhdr struct {
++	p_type   uint32 /* Segment type */
++	p_offset uint32 /* Segment file offset */
++	p_vaddr  uint32 /* Segment virtual address */
++	p_paddr  uint32 /* Segment physical address */
++	p_filesz uint32 /* Segment size in file */
++	p_memsz  uint32 /* Segment size in memory */
++	p_flags  uint32 /* Segment flags */
++	p_align  uint32 /* Segment alignment */
++}
++
++type elfShdr struct {
++	sh_name      uint32 /* Section name (string tbl index) */
++	sh_type      uint32 /* Section type */
++	sh_flags     uint32 /* Section flags */
++	sh_addr      uint32 /* Section virtual addr at execution */
++	sh_offset    uint32 /* Section file offset */
++	sh_size      uint32 /* Section size in bytes */
++	sh_link      uint32 /* Link to another section */
++	sh_info      uint32 /* Additional section information */
++	sh_addralign uint32 /* Section alignment */
++	sh_entsize   uint32 /* Entry size if section holds table */
++}
++
++type elfDyn struct {
++	d_tag int32  /* Dynamic entry type */
++	d_val uint32 /* Integer value */
++}
++
++type elfVerdaux struct {
++	vda_name uint32 /* Version or dependency names */
++	vda_next uint32 /* Offset in bytes to next verdaux entry */
++}
++
++const (
++	// vdsoArrayMax is the byte-size of a maximally sized array on this architecture.
++	// See cmd/compile/internal/x86/galign.go arch.MAXWIDTH initialization, but must also
++	// be constrained to max +ve int.
++	vdsoArrayMax = 1<<31 - 1
++)
++
++var sym_keys = []symbol_key{
++	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &__vdso_clock_gettime_sym},
++}
++
++// initialize to fall back to syscall
++var (
++	__vdso_clock_gettime_sym uintptr = 0
++)
+diff --git a/src/runtime/vdso_linux_test.go b/src/runtime/vdso_linux_test.go
+new file mode 100644
+index 0000000000..f507ee98ee
+--- /dev/null
++++ b/src/runtime/vdso_linux_test.go
+@@ -0,0 +1,63 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++// +build 386 amd64
++
++package runtime_test
++
++import (
++	"testing"
++	"time"
++	_ "unsafe"
++)
++
++// These tests are a little risky because they overwrite the __vdso_clock_gettime_sym value.
++// It's normally initialized at startup and remains unchanged after that.
++
++//go:linkname __vdso_clock_gettime_sym runtime.__vdso_clock_gettime_sym
++var __vdso_clock_gettime_sym uintptr
++
++func TestClockVDSOAndFallbackPaths(t *testing.T) {
++	// Check that we can call walltime() and nanotime() with and without their (1st) fast-paths.
++	// This just checks that fast and fallback paths can be called, rather than testing their
++	// results.
++	//
++	// Call them indirectly via time.Now(), so we don't need auxiliary .s files to allow us to
++	// use go:linkname to refer to the functions directly.
++
++	save := __vdso_clock_gettime_sym
++	if save == 0 {
++		t.Log("__vdso_clock_gettime symbol not found; fallback path will be used by default")
++	}
++
++	// Call with fast-path enabled (if vDSO symbol found at startup)
++	time.Now()
++
++	// Call with fast-path disabled
++	__vdso_clock_gettime_sym = 0
++	time.Now()
++	__vdso_clock_gettime_sym = save
++}
++
++func BenchmarkClockVDSOAndFallbackPaths(b *testing.B) {
++	run := func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			// Call via time.Now() - see comment in test above.
++			time.Now()
++		}
++	}
++
++	save := __vdso_clock_gettime_sym
++	b.Run("vDSO", run)
++	__vdso_clock_gettime_sym = 0
++	b.Run("Fallback", run)
++	__vdso_clock_gettime_sym = save
++}
++
++func BenchmarkTimeNow(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		time.Now()
++	}
++}

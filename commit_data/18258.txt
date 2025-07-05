@@ -9,7 +9,42 @@ Date:   Tue Jan 14 19:08:40 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/52420043
-
+---
  src/pkg/net/http/response.go      | 3 +++
  src/pkg/net/http/response_test.go | 9 +++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/pkg/net/http/response.go b/src/pkg/net/http/response.go
+index 2ec1d40872..0b991c72ef 100644
+--- a/src/pkg/net/http/response.go
++++ b/src/pkg/net/http/response.go
+@@ -141,6 +141,9 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
+ 	// Parse the response headers.
+ 	mimeHeader, err := tp.ReadMIMEHeader()
+ 	if err != nil {
++		if err == io.EOF {
++			err = io.ErrUnexpectedEOF
++		}
+ 		return nil, err
+ 	}
+ 	resp.Header = Header(mimeHeader)
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index f73172189e..d6e77b19c1 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -618,6 +618,15 @@ func TestResponseContentLengthShortBody(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadResponseUnexpectedEOF(t *testing.T) {
++	br := bufio.NewReader(strings.NewReader("HTTP/1.1 301 Moved Permanently\r\n" +
++		"Location: http://example.com"))
++	_, err := ReadResponse(br, nil)
++	if err != io.ErrUnexpectedEOF {
++		t.Errorf("ReadResponse = %v; want io.ErrUnexpectedEOF", err)
++	}
++}
++
+ func TestNeedsSniff(t *testing.T) {
+ 	// needsSniff returns true with an empty response.
+ 	r := &response{}

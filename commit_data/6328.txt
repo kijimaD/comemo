@@ -13,7 +13,7 @@ Date:   Tue Sep 21 06:49:56 2010 -0700
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/2190044
-
+---
  src/pkg/syscall/asm_linux_amd64.s       |  23 +++++++
  src/pkg/syscall/syscall_linux.go        |   2 -
  src/pkg/syscall/syscall_linux_386.go    |   4 ++
@@ -23,3 +23,772 @@ Date:   Tue Sep 21 06:49:56 2010 -0700
  src/pkg/syscall/zsyscall_linux_amd64.go |  91 ++++++++++++----------------
  src/pkg/syscall/zsyscall_linux_arm.go   | 104 ++++++++++++++++----------------
  8 files changed, 172 insertions(+), 152 deletions(-)
+
+diff --git a/src/pkg/syscall/asm_linux_amd64.s b/src/pkg/syscall/asm_linux_amd64.s
+index cfb44434a5..20a5a4fb7d 100644
+--- a/src/pkg/syscall/asm_linux_amd64.s
++++ b/src/pkg/syscall/asm_linux_amd64.s
+@@ -82,3 +82,26 @@ ok1:
+ 	MOVQ	DX, 48(SP)	// r2
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
++
++TEXT ·Gettimeofday(SB),7,$0
++	MOVQ	8(SP), DI
++	MOVQ	$0, SI
++	MOVQ	$0xffffffffff600000, AX
++	CALL	AX
++
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	ok7
++	NEGQ	AX
++	MOVQ	AX, 16(SP)  // errno
++	RET
++ok7:
++	MOVQ	$0, 16(SP)  // errno
++	RET
++
++TEXT ·Time(SB),7,$0
++	MOVQ	8(SP), DI
++	MOVQ	$0xffffffffff600400, AX
++	CALL	AX
++	MOVQ	AX, 16(SP)  // tt
++	MOVQ	$0, 24(SP)  // errno
++	RET
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index b03bbb1d0c..8ee9bebae8 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -593,7 +593,6 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
+ //sys	Getrlimit(resource int, rlim *Rlimit) (errno int)
+ //sys	Getrusage(who int, rusage *Rusage) (errno int)
+ //sys	Gettid() (tid int)
+-//sys	Gettimeofday(tv *Timeval) (errno int)
+ //sys	Kill(pid int, sig int) (errno int)
+ //sys	Klogctl(typ int, buf []byte) (n int, errno int) = SYS_SYSLOG
+ //sys	Link(oldpath string, newpath string) (errno int)
+@@ -624,7 +623,6 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
+ //sys	Sysinfo(info *Sysinfo_t) (errno int)
+ //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, errno int)
+ //sys	Tgkill(tgid int, tid int, sig int) (errno int)
+-//sys	Time(t *Time_t) (tt Time_t, errno int)
+ //sys	Times(tms *Tms) (ticks uintptr, errno int)
+ //sys	Truncate(path string, length int64) (errno int)
+ //sys	Umask(mask int) (oldmask int)
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 2997785418..3709b317a1 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -55,6 +55,10 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ // Implemented in assembly to avoid allocation.
+ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ 
++// Vsyscalls on amd64.
++//sys	Gettimeofday(tv *Timeval) (errno int)
++//sys	Time(t *Time_t) (tt Time_t, errno int)
++
+ // On x86 Linux, all the socket calls go through an extra indirection,
+ // I think because the 5-register system call interface can't handle
+ // the 6-argument calls like sendto and recvfrom.  Instead the
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index 8e5471af72..72678ee71d 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -37,6 +37,7 @@ package syscall
+ //sys	setgroups(n int, list *_Gid_t) (errno int)
+ //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+ //sys	socket(domain int, typ int, proto int) (fd int, errno int)
++//sys	socketpair(domain int, typ int, proto int, fd *[2]int) (errno int)
+ //sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
+@@ -44,6 +45,9 @@ package syscall
+ 
+ func Getpagesize() int { return 4096 }
+ 
++func Gettimeofday(tv *Timeval) (errno int)
++func Time(t *Time_t) (tt Time_t, errno int)
++
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 3b4573e415..e3c1c03635 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -58,6 +58,10 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
+ //sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
+ 
++// Vsyscalls on amd64.
++//sys	Gettimeofday(tv *Timeval) (errno int)
++//sys	Time(t *Time_t) (tt Time_t, errno int)
++
+ // TODO(kaib): add support for tracing
+ func (r *PtraceRegs) PC() uint64 { return 0 }
+ 
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index e595305041..1d4c4224b3 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -38,11 +38,11 @@ func futimesat(dirfd int, path *byte, times *[2]Timeval) (errno int) {
+ }
+ 
+ func Getcwd(buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), 0)
++	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -139,11 +139,11 @@ func EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int) {
+ }
+ 
+ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int) {
+-	var _p0 *EpollEvent
++	var _p0 unsafe.Pointer
+ 	if len(events) > 0 {
+-		_p0 = &events[0]
++		_p0 = unsafe.Pointer(&events[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(unsafe.Pointer(_p0)), uintptr(len(events)), uintptr(msec), 0, 0)
++	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -216,11 +216,11 @@ func Ftruncate(fd int, length int64) (errno int) {
+ }
+ 
+ func Getdents(fd int, buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -269,12 +269,6 @@ func Gettid() (tid int) {
+ 	return
+ }
+ 
+-func Gettimeofday(tv *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+-	errno = int(e1)
+-	return
+-}
+-
+ func Kill(pid int, sig int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
+ 	errno = int(e1)
+@@ -282,11 +276,11 @@ func Kill(pid int, sig int) (errno int) {
+ }
+ 
+ func Klogctl(typ int, buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -341,44 +335,44 @@ func PivotRoot(newroot string, putold string) (errno int) {
+ }
+ 
+ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
++	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
++	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Read(fd int, p []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)))
++	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Readlink(path string, buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -403,21 +397,21 @@ func Rmdir(path string) (errno int) {
+ }
+ 
+ func Setdomainname(p []byte) (errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0)
++	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Sethostname(p []byte) (errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0)
++	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -490,13 +484,6 @@ func Tgkill(tgid int, tid int, sig int) (errno int) {
+ 	return
+ }
+ 
+-func Time(t *Time_t) (tt Time_t, errno int) {
+-	r0, _, e1 := Syscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
+-	tt = Time_t(r0)
+-	errno = int(e1)
+-	return
+-}
+-
+ func Times(tms *Tms) (ticks uintptr, errno int) {
+ 	r0, _, e1 := Syscall(SYS_TIMES, uintptr(unsafe.Pointer(tms)), 0, 0)
+ 	ticks = uintptr(r0)
+@@ -553,11 +540,11 @@ func Utime(path string, buf *Utimbuf) (errno int) {
+ }
+ 
+ func Write(fd int, p []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)))
++	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -722,3 +709,16 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 	errno = int(e1)
+ 	return
+ }
++
++func Gettimeofday(tv *Timeval) (errno int) {
++	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
++	errno = int(e1)
++	return
++}
++
++func Time(t *Time_t) (tt Time_t, errno int) {
++	r0, _, e1 := Syscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
++	tt = Time_t(r0)
++	errno = int(e1)
++	return
++}
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index e1508025b6..8390aa6f78 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -38,11 +38,11 @@ func futimesat(dirfd int, path *byte, times *[2]Timeval) (errno int) {
+ }
+ 
+ func Getcwd(buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), 0)
++	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -139,11 +139,11 @@ func EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int) {
+ }
+ 
+ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int) {
+-	var _p0 *EpollEvent
++	var _p0 unsafe.Pointer
+ 	if len(events) > 0 {
+-		_p0 = &events[0]
++		_p0 = unsafe.Pointer(&events[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(unsafe.Pointer(_p0)), uintptr(len(events)), uintptr(msec), 0, 0)
++	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -216,11 +216,11 @@ func Ftruncate(fd int, length int64) (errno int) {
+ }
+ 
+ func Getdents(fd int, buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -269,12 +269,6 @@ func Gettid() (tid int) {
+ 	return
+ }
+ 
+-func Gettimeofday(tv *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+-	errno = int(e1)
+-	return
+-}
+-
+ func Kill(pid int, sig int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
+ 	errno = int(e1)
+@@ -282,11 +276,11 @@ func Kill(pid int, sig int) (errno int) {
+ }
+ 
+ func Klogctl(typ int, buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -341,44 +335,44 @@ func PivotRoot(newroot string, putold string) (errno int) {
+ }
+ 
+ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
++	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
++	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Read(fd int, p []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)))
++	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Readlink(path string, buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -403,21 +397,21 @@ func Rmdir(path string) (errno int) {
+ }
+ 
+ func Setdomainname(p []byte) (errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0)
++	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Sethostname(p []byte) (errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0)
++	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -490,13 +484,6 @@ func Tgkill(tgid int, tid int, sig int) (errno int) {
+ 	return
+ }
+ 
+-func Time(t *Time_t) (tt Time_t, errno int) {
+-	r0, _, e1 := Syscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
+-	tt = Time_t(r0)
+-	errno = int(e1)
+-	return
+-}
+-
+ func Times(tms *Tms) (ticks uintptr, errno int) {
+ 	r0, _, e1 := Syscall(SYS_TIMES, uintptr(unsafe.Pointer(tms)), 0, 0)
+ 	ticks = uintptr(r0)
+@@ -553,11 +540,11 @@ func Utime(path string, buf *Utimbuf) (errno int) {
+ }
+ 
+ func Write(fd int, p []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)))
++	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -805,22 +792,22 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ }
+ 
+ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
++	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
++	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(_p0), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+ 	errno = int(e1)
+ 	return
+ }
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 1d0eb6bce3..dc23c4468a 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -38,11 +38,11 @@ func futimesat(dirfd int, path *byte, times *[2]Timeval) (errno int) {
+ }
+ 
+ func Getcwd(buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), 0)
++	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -139,11 +139,11 @@ func EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int) {
+ }
+ 
+ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int) {
+-	var _p0 *EpollEvent
++	var _p0 unsafe.Pointer
+ 	if len(events) > 0 {
+-		_p0 = &events[0]
++		_p0 = unsafe.Pointer(&events[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(unsafe.Pointer(_p0)), uintptr(len(events)), uintptr(msec), 0, 0)
++	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -216,11 +216,11 @@ func Ftruncate(fd int, length int64) (errno int) {
+ }
+ 
+ func Getdents(fd int, buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -269,12 +269,6 @@ func Gettid() (tid int) {
+ 	return
+ }
+ 
+-func Gettimeofday(tv *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+-	errno = int(e1)
+-	return
+-}
+-
+ func Kill(pid int, sig int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
+ 	errno = int(e1)
+@@ -282,11 +276,11 @@ func Kill(pid int, sig int) (errno int) {
+ }
+ 
+ func Klogctl(typ int, buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -341,44 +335,44 @@ func PivotRoot(newroot string, putold string) (errno int) {
+ }
+ 
+ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
++	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
++	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Read(fd int, p []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)))
++	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Readlink(path string, buf []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -403,21 +397,21 @@ func Rmdir(path string) (errno int) {
+ }
+ 
+ func Setdomainname(p []byte) (errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0)
++	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Sethostname(p []byte) (errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), 0)
++	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -490,13 +484,6 @@ func Tgkill(tgid int, tid int, sig int) (errno int) {
+ 	return
+ }
+ 
+-func Time(t *Time_t) (tt Time_t, errno int) {
+-	r0, _, e1 := Syscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
+-	tt = Time_t(r0)
+-	errno = int(e1)
+-	return
+-}
+-
+ func Times(tms *Tms) (ticks uintptr, errno int) {
+ 	r0, _, e1 := Syscall(SYS_TIMES, uintptr(unsafe.Pointer(tms)), 0, 0)
+ 	ticks = uintptr(r0)
+@@ -553,11 +540,11 @@ func Utime(path string, buf *Utimbuf) (errno int) {
+ }
+ 
+ func Write(fd int, p []byte) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)))
++	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -641,22 +628,22 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ }
+ 
+ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+-		_p0 = &p[0]
++		_p0 = unsafe.Pointer(&p[0])
+ 	}
+-	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
++	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
+-	var _p0 *byte
++	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+-		_p0 = &buf[0]
++		_p0 = unsafe.Pointer(&buf[0])
+ 	}
+-	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
++	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(_p0), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -806,3 +793,16 @@ func Statfs(path string, buf *Statfs_t) (errno int) {
+ 	errno = int(e1)
+ 	return
+ }
++
++func Gettimeofday(tv *Timeval) (errno int) {
++	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
++	errno = int(e1)
++	return
++}
++
++func Time(t *Time_t) (tt Time_t, errno int) {
++	r0, _, e1 := Syscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
++	tt = Time_t(r0)
++	errno = int(e1)
++	return
++}

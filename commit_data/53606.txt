@@ -20,7 +20,49 @@ Date:   Tue Aug 16 12:35:36 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/internal/profile/legacy_profile.go | 8 --------
  src/runtime/pprof/proto.go             | 9 ++++-----
  2 files changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/internal/profile/legacy_profile.go b/src/internal/profile/legacy_profile.go
+index fee420986e..0ac350a888 100644
+--- a/src/internal/profile/legacy_profile.go
++++ b/src/internal/profile/legacy_profile.go
+@@ -192,14 +192,6 @@ func (p *Profile) remapMappingIDs() {
+ 		}
+ 	}
+ 
+-	// Subtract the offset from the start of the main mapping if it
+-	// ends up at a recognizable start address.
+-	const expectedStart = 0x400000
+-	if m := p.Mapping[0]; m.Start-m.Offset == expectedStart {
+-		m.Start = expectedStart
+-		m.Offset = 0
+-	}
+-
+ 	for _, l := range p.Location {
+ 		if a := l.Address; a != 0 {
+ 			for _, m := range p.Mapping {
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 9c82925165..7e3c5f1c18 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -721,13 +721,12 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
+ 			continue
+ 		}
+ 
+-		// TODO: pprof's remapMappingIDs makes two adjustments:
++		// TODO: pprof's remapMappingIDs makes one adjustment:
+ 		// 1. If there is an /anon_hugepage mapping first and it is
+ 		// consecutive to a next mapping, drop the /anon_hugepage.
+-		// 2. If start-offset = 0x400000, change start to 0x400000 and offset to 0.
+-		// There's no indication why either of these is needed.
+-		// Let's try not doing these and see what breaks.
+-		// If we do need them, they would go here, before we
++		// There's no indication why this is needed.
++		// Let's try not doing this and see what breaks.
++		// If we do need it, it would go here, before we
+ 		// enter the mappings into b.mem in the first place.
+ 
+ 		buildID, _ := elfBuildID(file)

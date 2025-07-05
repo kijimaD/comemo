@@ -8,6 +8,20 @@ Date:   Fri Aug 22 22:22:16 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/126540043
-
+---
  src/pkg/runtime/lock_futex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 2f4de03104..27a866a731 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -220,7 +220,7 @@ runtime·notetsleepg_m(void)
+ 	g->m->ptrarg[0] = nil;
+ 	ns = g->m->scalararg[0] + ((int64)g->m->scalararg[1] << 32);
+ 
+-	runtime·entersyscallblock_m(pc, sp);
++	runtime·entersyscallblock_m();
+ 	notetsleep(n, ns, 0, 0);
+ 	// caller will call exitsyscall on g stack
+ 	runtime·gogo(&g->m->curg->sched);

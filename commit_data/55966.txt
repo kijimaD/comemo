@@ -18,9 +18,68 @@ Date:   Sat Mar 25 23:21:01 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/alldocs.go                 | 4 ++--
  src/cmd/go/internal/list/context.go   | 2 +-
  src/cmd/go/internal/list/list.go      | 4 ++--
  src/cmd/go/internal/modindex/build.go | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d6701dcfff..99a4f75ab5 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -883,9 +883,9 @@
+ //	    GOROOT        string   // Go root
+ //	    GOPATH        string   // Go path
+ //	    CgoEnabled    bool     // whether cgo can be used
+-//	    UseAllFiles   bool     // use files regardless of +build lines, file names
++//	    UseAllFiles   bool     // use files regardless of //go:build lines, file names
+ //	    Compiler      string   // compiler to assume when computing target paths
+-//	    BuildTags     []string // build constraints to match in +build lines
++//	    BuildTags     []string // build constraints to match in //go:build lines
+ //	    ToolTags      []string // toolchain-specific build constraints
+ //	    ReleaseTags   []string // releases the current release is compatible with
+ //	    InstallSuffix string   // suffix to use in the name of the install dir
+diff --git a/src/cmd/go/internal/list/context.go b/src/cmd/go/internal/list/context.go
+index 2dc63766b7..9d6494cfba 100644
+--- a/src/cmd/go/internal/list/context.go
++++ b/src/cmd/go/internal/list/context.go
+@@ -14,7 +14,7 @@ type Context struct {
+ 	GOROOT        string   `json:",omitempty"` // Go root
+ 	GOPATH        string   `json:",omitempty"` // Go path
+ 	CgoEnabled    bool     `json:",omitempty"` // whether cgo can be used
+-	UseAllFiles   bool     `json:",omitempty"` // use files regardless of +build lines, file names
++	UseAllFiles   bool     `json:",omitempty"` // use files regardless of //go:build lines, file names
+ 	Compiler      string   `json:",omitempty"` // compiler to assume when computing target paths
+ 	BuildTags     []string `json:",omitempty"` // build constraints to match in +build lines
+ 	ToolTags      []string `json:",omitempty"` // toolchain-specific build constraints
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 6d6deda884..31c14c86c6 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -148,9 +148,9 @@ The template function "context" returns the build context, defined as:
+         GOROOT        string   // Go root
+         GOPATH        string   // Go path
+         CgoEnabled    bool     // whether cgo can be used
+-        UseAllFiles   bool     // use files regardless of +build lines, file names
++        UseAllFiles   bool     // use files regardless of //go:build lines, file names
+         Compiler      string   // compiler to assume when computing target paths
+-        BuildTags     []string // build constraints to match in +build lines
++        BuildTags     []string // build constraints to match in //go:build lines
+         ToolTags      []string // toolchain-specific build constraints
+         ReleaseTags   []string // releases the current release is compatible with
+         InstallSuffix string   // suffix to use in the name of the install dir
+diff --git a/src/cmd/go/internal/modindex/build.go b/src/cmd/go/internal/modindex/build.go
+index ae03d4a779..b57f2f6368 100644
+--- a/src/cmd/go/internal/modindex/build.go
++++ b/src/cmd/go/internal/modindex/build.go
+@@ -42,7 +42,7 @@ type Context struct {
+ 	Dir string
+ 
+ 	CgoEnabled  bool   // whether cgo files are included
+-	UseAllFiles bool   // use files regardless of +build lines, file names
++	UseAllFiles bool   // use files regardless of //go:build lines, file names
+ 	Compiler    string // compiler to assume when computing target paths
+ 
+ 	// The build, tool, and release tags specify build constraints

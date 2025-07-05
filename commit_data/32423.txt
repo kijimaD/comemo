@@ -20,9 +20,166 @@ Date:   Tue Mar 7 14:00:54 2017 -0800
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/x509.go        | 30 +++++++++---------------------
  src/encoding/asn1/asn1.go      |  8 ++++++++
  src/encoding/asn1/asn1_test.go | 26 ++++++++++++++++++++++++++
  src/encoding/asn1/common.go    |  1 +
  4 files changed, 44 insertions(+), 21 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index f572e7f2e9..6979c685a4 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -69,9 +69,7 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
+ 		publicKeyAlgorithm.Algorithm = oidPublicKeyRSA
+ 		// This is a NULL parameters value which is required by
+ 		// https://tools.ietf.org/html/rfc3279#section-2.3.1.
+-		publicKeyAlgorithm.Parameters = asn1.RawValue{
+-			Tag: 5,
+-		}
++		publicKeyAlgorithm.Parameters = asn1.NullRawValue
+ 	case *ecdsa.PublicKey:
+ 		publicKeyBytes = elliptic.Marshal(pub.Curve, pub.X, pub.Y)
+ 		oid, ok := oidFromNamedCurve(pub.Curve)
+@@ -355,10 +353,8 @@ func rsaPSSParameters(hashFunc crypto.Hash) asn1.RawValue {
+ 
+ 	params := pssParameters{
+ 		Hash: pkix.AlgorithmIdentifier{
+-			Algorithm: hashOID,
+-			Parameters: asn1.RawValue{
+-				Tag: 5, /* ASN.1 NULL */
+-			},
++			Algorithm:  hashOID,
++			Parameters: asn1.NullRawValue,
+ 		},
+ 		MGF: pkix.AlgorithmIdentifier{
+ 			Algorithm: oidMGF1,
+@@ -368,10 +364,8 @@ func rsaPSSParameters(hashFunc crypto.Hash) asn1.RawValue {
+ 	}
+ 
+ 	mgf1Params := pkix.AlgorithmIdentifier{
+-		Algorithm: hashOID,
+-		Parameters: asn1.RawValue{
+-			Tag: 5, /* ASN.1 NULL */
+-		},
++		Algorithm:  hashOID,
++		Parameters: asn1.NullRawValue,
+ 	}
+ 
+ 	var err error
+@@ -418,11 +412,10 @@ func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm
+ 	// https://tools.ietf.org/html/rfc3447#section-8.1), that the
+ 	// salt length matches the hash length, and that the trailer
+ 	// field has the default value.
+-	asn1NULL := []byte{0x05, 0x00}
+-	if !bytes.Equal(params.Hash.Parameters.FullBytes, asn1NULL) ||
++	if !bytes.Equal(params.Hash.Parameters.FullBytes, asn1.NullBytes) ||
+ 		!params.MGF.Algorithm.Equal(oidMGF1) ||
+ 		!mgf1HashFunc.Algorithm.Equal(params.Hash.Algorithm) ||
+-		!bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1NULL) ||
++		!bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1.NullBytes) ||
+ 		params.TrailerField != 1 {
+ 		return UnknownSignatureAlgorithm
+ 	}
+@@ -928,16 +921,13 @@ type distributionPointName struct {
+ 	RelativeName pkix.RDNSequence `asn1:"optional,tag:1"`
+ }
+ 
+-// asn1Null is the ASN.1 encoding of a NULL value.
+-var asn1Null = []byte{5, 0}
+-
+ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, error) {
+ 	asn1Data := keyData.PublicKey.RightAlign()
+ 	switch algo {
+ 	case RSA:
+ 		// RSA public keys must have a NULL in the parameters
+ 		// (https://tools.ietf.org/html/rfc3279#section-2.3.1).
+-		if !bytes.Equal(keyData.Algorithm.Parameters.FullBytes, asn1Null) {
++		if !bytes.Equal(keyData.Algorithm.Parameters.FullBytes, asn1.NullBytes) {
+ 			return nil, errors.New("x509: RSA key missing NULL parameters")
+ 		}
+ 
+@@ -1650,9 +1640,7 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
+ 		pubType = RSA
+ 		hashFunc = crypto.SHA256
+ 		sigAlgo.Algorithm = oidSignatureSHA256WithRSA
+-		sigAlgo.Parameters = asn1.RawValue{
+-			Tag: 5,
+-		}
++		sigAlgo.Parameters = asn1.NullRawValue
+ 
+ 	case *ecdsa.PublicKey:
+ 		pubType = ECDSA
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 65f018d014..b8e2770596 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -207,6 +207,14 @@ func parseBitString(bytes []byte) (ret BitString, err error) {
+ 	return
+ }
+ 
++// NULL
++
++// NullRawValue is a RawValue with its Tag set to the ASN.1 NULL type tag (5).
++var NullRawValue = RawValue{Tag: TagNull}
++
++// NullBytes contains bytes representing the DER-encoded ASN.1 NULL type.
++var NullBytes = []byte{TagNull, 0}
++
+ // OBJECT IDENTIFIER
+ 
+ // An ObjectIdentifier represents an ASN.1 OBJECT IDENTIFIER.
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 2dd799f236..c9eda4069d 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -479,6 +479,7 @@ var unmarshalTestData = []struct {
+ 	out interface{}
+ }{
+ 	{[]byte{0x02, 0x01, 0x42}, newInt(0x42)},
++	{[]byte{0x05, 0x00}, &RawValue{0, 5, false, []byte{}, []byte{0x05, 0x00}}},
+ 	{[]byte{0x30, 0x08, 0x06, 0x06, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d}, &TestObjectIdentifierStruct{[]int{1, 2, 840, 113549}}},
+ 	{[]byte{0x03, 0x04, 0x06, 0x6e, 0x5d, 0xc0}, &BitString{[]byte{110, 93, 192}, 18}},
+ 	{[]byte{0x30, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &[]int{1, 2, 3}},
+@@ -1007,3 +1008,28 @@ func TestUnexportedStructField(t *testing.T) {
+ 		t.Errorf("got %v, want %v", err, want)
+ 	}
+ }
++
++func TestNull(t *testing.T) {
++	marshaled, err := Marshal(NullRawValue)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(NullBytes, marshaled) {
++		t.Errorf("Expected Marshal of NullRawValue to yeild %x, got %x", NullBytes, marshaled)
++	}
++
++	unmarshaled := RawValue{}
++	if _, err := Unmarshal(NullBytes, &unmarshaled); err != nil {
++		t.Fatal(err)
++	}
++
++	unmarshaled.FullBytes = NullRawValue.FullBytes
++	if len(unmarshaled.Bytes) == 0 {
++		// DeepEqual considers a nil slice and an empty slice to be different.
++		unmarshaled.Bytes = NullRawValue.Bytes
++	}
++
++	if !reflect.DeepEqual(NullRawValue, unmarshaled) {
++		t.Errorf("Expected Unmarshal of NullBytes to yield %v, got %v", NullRawValue, unmarshaled)
++	}
++}
+diff --git a/src/encoding/asn1/common.go b/src/encoding/asn1/common.go
+index 0695180827..cd93b27ecb 100644
+--- a/src/encoding/asn1/common.go
++++ b/src/encoding/asn1/common.go
+@@ -24,6 +24,7 @@ const (
+ 	TagInteger         = 2
+ 	TagBitString       = 3
+ 	TagOctetString     = 4
++	TagNull            = 5
+ 	TagOID             = 6
+ 	TagEnum            = 10
+ 	TagUTF8String      = 12

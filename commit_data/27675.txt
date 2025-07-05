@@ -107,8 +107,131 @@ Date:   Mon Apr 4 19:28:15 2016 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/big/gcd_test.go | 16 +++++++++++++++-
  src/math/big/int.go      |  4 ++--
  src/math/big/nat.go      | 29 ++++++++++++++++++++++++++---
  3 files changed, 43 insertions(+), 6 deletions(-)
+
+diff --git a/src/math/big/gcd_test.go b/src/math/big/gcd_test.go
+index c0b9f58300..a929bf597f 100644
+--- a/src/math/big/gcd_test.go
++++ b/src/math/big/gcd_test.go
+@@ -20,13 +20,27 @@ func randInt(r *rand.Rand, size uint) *Int {
+ }
+ 
+ func runGCD(b *testing.B, aSize, bSize uint) {
++	b.Run("WithoutXY", func(b *testing.B) {
++		runGCDExt(b, aSize, bSize, false)
++	})
++	b.Run("WithXY", func(b *testing.B) {
++		runGCDExt(b, aSize, bSize, true)
++	})
++}
++
++func runGCDExt(b *testing.B, aSize, bSize uint, calcXY bool) {
+ 	b.StopTimer()
+ 	var r = rand.New(rand.NewSource(1234))
+ 	aa := randInt(r, aSize)
+ 	bb := randInt(r, bSize)
++	var x, y *Int
++	if calcXY {
++		x = new(Int)
++		y = new(Int)
++	}
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+-		new(Int).GCD(nil, nil, aa, bb)
++		new(Int).GCD(x, y, aa, bb)
+ 	}
+ }
+ 
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 67ab7042ff..f2a75d1cd5 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -459,11 +459,11 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
+ 	q := new(Int)
+ 	temp := new(Int)
+ 
++	r := new(Int)
+ 	for len(B.abs) > 0 {
+-		r := new(Int)
+ 		q, r = q.QuoRem(A, B, r)
+ 
+-		A, B = B, r
++		A, B, r = B, r, A
+ 
+ 		temp.Set(X)
+ 		X.Mul(X, q)
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 7668b6481b..2e65d2a7ef 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -8,7 +8,10 @@
+ 
+ package big
+ 
+-import "math/rand"
++import (
++	"math/rand"
++	"sync"
++)
+ 
+ // An unsigned integer x of the form
+ //
+@@ -539,6 +542,21 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
+ 	return
+ }
+ 
++// getNat returns a nat of len n. The contents may not be zero.
++func getNat(n int) nat {
++	var z nat
++	if v := natPool.Get(); v != nil {
++		z = v.(nat)
++	}
++	return z.make(n)
++}
++
++func putNat(x nat) {
++	natPool.Put(x)
++}
++
++var natPool sync.Pool
++
+ // q = (uIn-r)/v, with 0 <= r < y
+ // Uses z as storage for q, and u as storage for r if possible.
+ // See Knuth, Volume 2, section 4.3.1, Algorithm D.
+@@ -557,7 +575,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	}
+ 	q = z.make(m + 1)
+ 
+-	qhatv := make(nat, n+1)
++	qhatv := getNat(n + 1)
+ 	if alias(u, uIn) || alias(u, v) {
+ 		u = nil // u is an alias for uIn or v - cannot reuse
+ 	}
+@@ -565,10 +583,11 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	u.clear() // TODO(gri) no need to clear if we allocated a new u
+ 
+ 	// D1.
++	var v1 nat
+ 	shift := nlz(v[n-1])
+ 	if shift > 0 {
+ 		// do not modify v, it may be used by another goroutine simultaneously
+-		v1 := make(nat, n)
++		v1 = getNat(n)
+ 		shlVU(v1, v, shift)
+ 		v = v1
+ 	}
+@@ -609,6 +628,10 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 
+ 		q[j] = qhat
+ 	}
++	if v1 != nil {
++		putNat(v1)
++	}
++	putNat(qhatv)
+ 
+ 	q = q.norm()
+ 	shrVU(u, u, shift)

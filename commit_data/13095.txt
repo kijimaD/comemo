@@ -7,7 +7,32 @@ Date:   Fri May 18 10:32:54 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6213055
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 0a028d5b70..10c5562482 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -97,6 +97,7 @@ Icarus Sparry <golang@icarus.freeuk.com>
+ Ingo Oeser <nightlyone@googlemail.com>
+ Isaac Wagner <ibw@isaacwagner.me>
+ James Fysh <james.fysh@gmail.com>
++James Gray <james@james4k.com>
+ James Meneghello <rawrz0r@gmail.com>
+ James P. Cooper <jamespcooper@gmail.com>
+ James Toy <nil@opensesame.st>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ac3e570a19..54dbd4abf8 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -147,6 +147,7 @@ Ivan Krasin <krasin@golang.org>
+ Jacob Baskin <jbaskin@google.com>
+ James Aguilar <jaguilar@google.com>
+ James Fysh <james.fysh@gmail.com>
++James Gray <james@james4k.com>
+ James Meneghello <rawrz0r@gmail.com>
+ James P. Cooper <jamespcooper@gmail.com>
+ James Toy <nil@opensesame.st>

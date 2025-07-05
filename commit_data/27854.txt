@@ -113,8 +113,238 @@ Date:   Mon Mar 21 14:36:21 2016 +0100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 58 ++++++++++++++---------------------------------------
  src/fmt/format.go   | 42 ++++++++++++++++++--------------------
  src/fmt/print.go    | 19 ++++++++++++------
  3 files changed, 47 insertions(+), 72 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 3c5142c0f8..e89fb2f54f 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -335,6 +335,7 @@ var fmtTests = []struct {
+ 	{"%b", -6, "-110"},
+ 	{"%b", ^uint32(0), "11111111111111111111111111111111"},
+ 	{"%b", ^uint64(0), "1111111111111111111111111111111111111111111111111111111111111111"},
++	{"%b", int64(-1 << 63), zeroFill("-1", 63, "")},
+ 	{"%o", 01234, "1234"},
+ 	{"%#o", 01234, "01234"},
+ 	{"%o", ^uint32(0), "37777777777"},
+@@ -359,6 +360,15 @@ var fmtTests = []struct {
+ 	{"%-#20.8X", 0x1234abc, "0X01234ABC          "},
+ 	{"%-#20.8o", 01234, "00001234            "},
+ 
++	// Test correct f.intbuf overflow checks.
++	{"%068d", 1, zeroFill("", 68, "1")},
++	{"%068d", -1, zeroFill("-", 67, "1")},
++	{"%#.68x", 42, zeroFill("0x", 68, "2a")},
++	{"%.68d", -42, zeroFill("-", 68, "42")},
++	{"%+.68d", 42, zeroFill("+", 68, "42")},
++	{"% .68d", 42, zeroFill(" ", 68, "42")},
++	{"% +.68d", 42, zeroFill("+", 68, "42")},
++
+ 	// unicode format
+ 	{"%U", 0, "U+0000"},
+ 	{"%U", -1, "U+FFFFFFFFFFFFFFFF"},
+@@ -375,8 +385,8 @@ var fmtTests = []struct {
+ 	{"%#-14.6U", '⌘', "U+002318 '⌘'  "},
+ 	{"%#014.6U", '⌘', "  U+002318 '⌘'"},
+ 	{"%#-014.6U", '⌘', "U+002318 '⌘'  "},
+-	{"%.80U", uint(42), zeroFill("U+", 80, "2A")},
+-	{"%#.80U", '日', zeroFill("U+", 80, "65E5") + " '日'"},
++	{"%.68U", uint(42), zeroFill("U+", 68, "2A")},
++	{"%#.68U", '日', zeroFill("U+", 68, "65E5") + " '日'"},
+ 
+ 	// floats
+ 	{"%+.3e", 0.0, "+0.000e+00"},
+@@ -406,6 +416,9 @@ var fmtTests = []struct {
+ 	// Precision has no effect for binary float format.
+ 	{"%.4b", float32(1.0), "8388608p-23"},
+ 	{"%.4b", -1.0, "-4503599627370496p-52"},
++	// Test correct f.intbuf boundary checks.
++	{"%.68f", 1.0, zeroFill("1.", 68, "")},
++	{"%.68f", -1.0, zeroFill("-1.", 68, "")},
+ 	// float infinites and NaNs
+ 	{"%f", posInf, "+Inf"},
+ 	{"%.1f", negInf, "-Inf"},
+@@ -795,22 +808,6 @@ var fmtTests = []struct {
+ 	// This test is just to check that it shows the two NaNs at all.
+ 	{"%v", map[float64]int{NaN: 1, NaN: 2}, "map[NaN:<nil> NaN:<nil>]"},
+ 
+-	// Used to crash because nByte didn't allow for a sign.
+-	{"%b", int64(-1 << 63), zeroFill("-1", 63, "")},
+-
+-	// Used to panic.
+-	{"%0100d", 1, zeroFill("", 100, "1")},
+-	{"%0100d", -1, zeroFill("-", 99, "1")},
+-	{"%0.100f", 1.0, zeroFill("1.", 100, "")},
+-	{"%0.100f", -1.0, zeroFill("-1.", 100, "")},
+-
+-	// Used to panic: integer function didn't look at f.prec, f.unicode, f.width or sign.
+-	{"%#.65x", 42, zeroFill("0x", 65, "2a")},
+-	{"%.65d", -42, zeroFill("-", 65, "42")},
+-	{"%+.65d", 42, zeroFill("+", 65, "42")},
+-	{"% .65d", 42, zeroFill(" ", 65, "42")},
+-	{"% +.65d", 42, zeroFill("+", 65, "42")},
+-
+ 	// Comparison of padding rules with C printf.
+ 	/*
+ 		C program:
+@@ -882,10 +879,6 @@ var fmtTests = []struct {
+ 	{"%7.2f", 1 + 2i, "(   1.00  +2.00i)"},
+ 	{"%+07.2f", -1 - 2i, "(-001.00-002.00i)"},
+ 
+-	{"%20f", -1.0, "           -1.000000"},
+-	// Make sure we can handle very large widths.
+-	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
+-
+ 	// Use spaces instead of zero if padding to the right.
+ 	{"%0-5s", "abc", "abc  "},
+ 	{"%-05.1f", 1.0, "1.0  "},
+@@ -908,27 +901,6 @@ var fmtTests = []struct {
+ 	// Incomplete format specification caused crash.
+ 	{"%.", 3, "%!.(int=3)"},
+ 
+-	// Used to panic with out-of-bounds for very large numeric representations.
+-	// nByte is set to handle one bit per uint64 in %b format, with a negative number.
+-	// See issue 6777.
+-	{"%#064x", 1, zeroFill("0x", 64, "1")},
+-	{"%#064x", -1, zeroFill("-0x", 63, "1")},
+-	{"%#064b", 1, zeroFill("", 64, "1")},
+-	{"%#064b", -1, zeroFill("-", 63, "1")},
+-	{"%#064o", 1, zeroFill("", 64, "1")},
+-	{"%#064o", -1, zeroFill("-", 63, "1")},
+-	{"%#064d", 1, zeroFill("", 64, "1")},
+-	{"%#064d", -1, zeroFill("-", 63, "1")},
+-	// Test that we handle the crossover above the size of uint64
+-	{"%#072x", 1, zeroFill("0x", 72, "1")},
+-	{"%#072x", -1, zeroFill("-0x", 71, "1")},
+-	{"%#072b", 1, zeroFill("", 72, "1")},
+-	{"%#072b", -1, zeroFill("-", 71, "1")},
+-	{"%#072o", 1, zeroFill("", 72, "1")},
+-	{"%#072o", -1, zeroFill("-", 71, "1")},
+-	{"%#072d", 1, zeroFill("", 72, "1")},
+-	{"%#072d", -1, zeroFill("-", 71, "1")},
+-
+ 	// Padding for complex numbers. Has been bad, then fixed, then bad again.
+ 	{"%+10.2f", +104.66 + 440.51i, "(   +104.66   +440.51i)"},
+ 	{"%+10.2f", -104.66 + 440.51i, "(   -104.66   +440.51i)"},
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index b7e4f51639..68d9323a6c 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -10,10 +10,6 @@ import (
+ )
+ 
+ const (
+-	// %b of an int64, plus a sign.
+-	// Hex can add 0x and we handle it specially.
+-	nByte = 65
+-
+ 	ldigits = "0123456789abcdefx"
+ 	udigits = "0123456789ABCDEFX"
+ )
+@@ -43,12 +39,16 @@ type fmtFlags struct {
+ // A fmt is the raw formatter used by Printf etc.
+ // It prints into a buffer that must be set up separately.
+ type fmt struct {
+-	intbuf [nByte]byte
+-	buf    *buffer
+-	// width, precision
+-	wid  int
+-	prec int
++	buf *buffer
++
+ 	fmtFlags
++
++	wid  int // width
++	prec int // precision
++
++	// intbuf is large enought to store %b of an int64 with a sign and
++	// avoids padding at the end of the struct on 32 bit architectures.
++	intbuf [68]byte
+ }
+ 
+ func (f *fmt) clearflags() {
+@@ -136,14 +136,14 @@ func (f *fmt) fmt_unicode(u uint64) {
+ 	buf := f.intbuf[0:]
+ 
+ 	// With default precision set the maximum needed buf length is 18
+-	// for formatting -1 with %#U ("U+FFFFFFFFFFFFFFFF")
+-	// which fits into the already allocated intbuf with a capacity of 65 bytes.
++	// for formatting -1 with %#U ("U+FFFFFFFFFFFFFFFF") which fits
++	// into the already allocated intbuf with a capacity of 68 bytes.
+ 	prec := 4
+ 	if f.precPresent && f.prec > 4 {
+ 		prec = f.prec
+ 		// Compute space needed for "U+" , number, " '", character, "'".
+ 		width := 2 + prec + 2 + utf8.UTFMax + 1
+-		if width > cap(buf) {
++		if width > len(buf) {
+ 			buf = make([]byte, width)
+ 		}
+ 	}
+@@ -205,17 +205,13 @@ func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
+ 		u = -u
+ 	}
+ 
+-	var buf []byte = f.intbuf[0:]
+-	if f.widPresent || f.precPresent || f.plus || f.space {
+-		width := f.wid + f.prec // Only one will be set, both are positive; this provides the maximum.
+-		if base == 16 && f.sharp {
+-			// Also adds "0x".
+-			width += 2
+-		}
+-		if negative || f.plus || f.space {
+-			width++
+-		}
+-		if width > nByte {
++	buf := f.intbuf[0:]
++	// The already allocated f.intbuf with a capacity of 68 bytes
++	// is large enough for integer formatting when no precision or width is set.
++	if f.widPresent || f.precPresent {
++		// Account 3 extra bytes for possible addition of a sign and "0x".
++		width := 3 + f.wid + f.prec // wid and prec are always positive.
++		if width > len(buf) {
+ 			// We're going to need a bigger boat.
+ 			buf = make([]byte, width)
+ 		}
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index d071dcfb31..f8c731656e 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -101,20 +101,27 @@ func (bp *buffer) WriteRune(r rune) {
+ 	*bp = b[:n+w]
+ }
+ 
++// pp is used to store a printer's state and is reused with sync.Pool to avoid allocations.
+ type pp struct {
+-	panicking bool
+-	erroring  bool // printing an error condition
+-	buf       buffer
++	buf buffer
++
+ 	// arg holds the current item, as an interface{}.
+ 	arg interface{}
+-	// value holds the current item, as a reflect.Value, and will be
+-	// the zero Value if the item has not been reflected.
++
++	// value is used instead of arg for reflect values.
+ 	value reflect.Value
++
++	// fmt is used to format basic items such as integers or strings.
++	fmt fmt
++
+ 	// reordered records whether the format string used argument reordering.
+ 	reordered bool
+ 	// goodArgNum records whether the most recent reordering directive was valid.
+ 	goodArgNum bool
+-	fmt        fmt
++	// panicking is set by catchPanic to avoid infinite panic, recover, panic, ... recursion.
++	panicking bool
++	// erroring is set when printing an error string to guard against calling handleMethods.
++	erroring bool
+ }
+ 
+ var ppFree = sync.Pool{

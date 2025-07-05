@@ -7,9 +7,116 @@ Date:   Fri Mar 1 00:21:08 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev, minux.ma
     https://golang.org/cl/7424047
-
+---
  src/pkg/runtime/malloc.goc | 4 ++++
  src/pkg/runtime/mgc0.c     | 8 ++++++++
  src/pkg/runtime/mheap.c    | 2 ++
  src/pkg/runtime/mprof.goc  | 6 ++++++
  4 files changed, 20 insertions(+)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index b5849766c2..ac131b3af4 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -519,6 +519,8 @@ runtime·settype_flush(M *mp, bool sysalloc)
+ 				data3 = runtime·mallocgc(nbytes3, FlagNoPointers, 0, 1);
+ 			} else {
+ 				data3 = runtime·SysAlloc(nbytes3);
++				if(data3 == nil)
++					runtime·throw("runtime: cannot allocate memory");
+ 				if(0) runtime·printf("settype(0->3): SysAlloc(%x) --> %p\n", (uint32)nbytes3, data3);
+ 			}
+ 
+@@ -555,6 +557,8 @@ runtime·settype_flush(M *mp, bool sysalloc)
+ 					data2 = runtime·mallocgc(nbytes2, FlagNoPointers, 0, 1);
+ 				} else {
+ 					data2 = runtime·SysAlloc(nbytes2);
++					if(data2 == nil)
++						runtime·throw("runtime: cannot allocate memory");
+ 					if(0) runtime·printf("settype.(3->2): SysAlloc(%x) --> %p\n", (uint32)nbytes2, data2);
+ 				}
+ 
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 38ba84df40..8e92d45bfa 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -585,6 +585,8 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
+ 
+ 		if(bufferList == nil) {
+ 			bufferList = runtime·SysAlloc(sizeof(*bufferList));
++			if(bufferList == nil)
++				runtime·throw("runtime: cannot allocate memory");
+ 			bufferList->next = nil;
+ 		}
+ 		scanbuffers = bufferList;
+@@ -1147,6 +1149,8 @@ getempty(Workbuf *b)
+ 		if(work.nchunk < sizeof *b) {
+ 			work.nchunk = 1<<20;
+ 			work.chunk = runtime·SysAlloc(work.nchunk);
++			if(work.chunk == nil)
++				runtime·throw("runtime: cannot allocate memory");
+ 		}
+ 		b = (Workbuf*)work.chunk;
+ 		work.chunk += sizeof *b;
+@@ -1230,6 +1234,8 @@ addroot(Obj obj)
+ 		if(cap < 2*work.rootcap)
+ 			cap = 2*work.rootcap;
+ 		new = (Obj*)runtime·SysAlloc(cap*sizeof(Obj));
++		if(new == nil)
++			runtime·throw("runtime: cannot allocate memory");
+ 		if(work.roots != nil) {
+ 			runtime·memmove(new, work.roots, work.rootcap*sizeof(Obj));
+ 			runtime·SysFree(work.roots, work.rootcap*sizeof(Obj));
+@@ -1381,6 +1387,8 @@ handlespecial(byte *p, uintptr size)
+ 	if(finq == nil || finq->cnt == finq->cap) {
+ 		if(finc == nil) {
+ 			finc = runtime·SysAlloc(PageSize);
++			if(finc == nil)
++				runtime·throw("runtime: cannot allocate memory");
+ 			finc->cap = (PageSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
+ 			finc->alllink = allfin;
+ 			allfin = finc;
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 76cd2011c7..f45149d63f 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -37,6 +37,8 @@ RecordSpan(void *vh, byte *p)
+ 		if(cap < h->nspancap*3/2)
+ 			cap = h->nspancap*3/2;
+ 		all = (MSpan**)runtime·SysAlloc(cap*sizeof(all[0]));
++		if(all == nil)
++			runtime·throw("runtime: cannot allocate memory");
+ 		if(h->allspans) {
+ 			runtime·memmove(all, h->allspans, h->nspancap*sizeof(all[0]));
+ 			runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]));
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index a99afe8bb4..ebc1e3e661 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -40,6 +40,8 @@ allocate(uintptr size)
+ 	runtime·lock(&alloclock);
+ 	if(size > poolfree) {
+ 		pool = runtime·SysAlloc(Chunk);
++		if(pool == nil)
++			runtime·throw("runtime: cannot allocate memory");
+ 		poolfree = Chunk;
+ 	}
+ 	v = pool;
+@@ -100,6 +102,8 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
+ 
+ 	if(buckhash == nil) {
+ 		buckhash = runtime·SysAlloc(BuckHashSize*sizeof buckhash[0]);
++		if(buckhash == nil)
++			runtime·throw("runtime: cannot allocate memory");
+ 		mstats.buckhash_sys += BuckHashSize*sizeof buckhash[0];
+ 	}
+ 
+@@ -123,6 +127,8 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
+ 		return nil;
+ 
+ 	b = allocate(sizeof *b + nstk*sizeof stk[0]);
++	if(b == nil)
++		runtime·throw("runtime: cannot allocate memory");
+ 	bucketmem += sizeof *b + nstk*sizeof stk[0];
+ 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
+ 	b->typ = typ;

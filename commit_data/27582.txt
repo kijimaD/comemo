@@ -19,7 +19,45 @@ Date:   Sat Apr 2 11:27:02 2016 -0300
     Change-Id: I90c10b445f907834fc1735aa66e44a0f447aa74f
     Reviewed-on: https://go-review.googlesource.com/21462
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  5 +++++
  test/fixedbugs/issue13779.go             | 15 +++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0b8eb8c75b..688936e926 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3207,6 +3207,11 @@ func checkassign(stmt *Node, n *Node) {
+ 		return
+ 	}
+ 
++	if n.Op == ODOT && n.Left.Op == OINDEXMAP {
++		Yyerror("cannot directly assign to struct field %v in map", n)
++		return
++	}
++
+ 	Yyerror("cannot assign to %v", n)
+ }
+ 
+diff --git a/test/fixedbugs/issue13779.go b/test/fixedbugs/issue13779.go
+new file mode 100644
+index 0000000000..94cf9c68de
+--- /dev/null
++++ b/test/fixedbugs/issue13779.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 13779: provide better error message when directly assigning to struct field in map
++
++package main
++
++func main() {
++	type person struct{ age, weight, height int }
++	students := map[string]person{"sally": person{12, 50, 32}}
++	students["sally"].age = 3 // ERROR "cannot directly assign to struct field .* in map"
++}

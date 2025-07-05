@@ -11,8 +11,60 @@ Date:   Tue Mar 5 10:54:22 2024 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/os/dir_unix.go      | 3 ++-
  src/os/endian_big.go    | 9 ---------
  src/os/endian_little.go | 9 ---------
  3 files changed, 2 insertions(+), 19 deletions(-)
+
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index 266a78acaf..1e8d1d0a30 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -7,6 +7,7 @@
+ package os
+ 
+ import (
++	"internal/goarch"
+ 	"io"
+ 	"runtime"
+ 	"sync"
+@@ -153,7 +154,7 @@ func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
+ 	if len(b) < int(off+size) {
+ 		return 0, false
+ 	}
+-	if isBigEndian {
++	if goarch.BigEndian {
+ 		return readIntBE(b[off:], size), true
+ 	}
+ 	return readIntLE(b[off:], size), true
+diff --git a/src/os/endian_big.go b/src/os/endian_big.go
+deleted file mode 100644
+index 0375e53372..0000000000
+--- a/src/os/endian_big.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-//
+-//go:build ppc64 || s390x || mips || mips64
+-
+-package os
+-
+-const isBigEndian = true
+diff --git a/src/os/endian_little.go b/src/os/endian_little.go
+deleted file mode 100644
+index a7cf1cdda8..0000000000
+--- a/src/os/endian_little.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-//
+-//go:build 386 || amd64 || arm || arm64 || loong64 || ppc64le || mips64le || mipsle || riscv64 || wasm
+-
+-package os
+-
+-const isBigEndian = false

@@ -13,8 +13,113 @@ Date:   Fri Oct 21 07:54:46 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/checkconst.go | 33 +++++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go          | 13 +++++--------
  3 files changed, 39 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 8746f90994..7bfb38d10e 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -73,5 +73,6 @@ func Test14838(t *testing.T)                 { test14838(t) }
+ func Test8756(t *testing.T)                  { test8756(t) }
+ func Test17065(t *testing.T)                 { test17065(t) }
+ func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
++func TestCheckConst(t *testing.T)            { testCheckConst(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/checkconst.go b/misc/cgo/test/checkconst.go
+new file mode 100644
+index 0000000000..0160c1e0ce
+--- /dev/null
++++ b/misc/cgo/test/checkconst.go
+@@ -0,0 +1,33 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test a constant in conjunction with pointer checking.
++
++package cgotest
++
++/*
++#include <stdlib.h>
++
++#define CheckConstVal 0
++
++typedef struct {
++	int *p;
++} CheckConstStruct;
++
++static void CheckConstFunc(CheckConstStruct *p, int e) {
++}
++*/
++import "C"
++
++import (
++	"testing"
++	"unsafe"
++)
++
++func testCheckConst(t *testing.T) {
++	// The test is that this compiles successfully.
++	p := C.malloc(C.size_t(unsafe.Sizeof(C.int(0))))
++	defer C.free(p)
++	C.CheckConstFunc(&C.CheckConstStruct{(*C.int)(p)}, C.CheckConstVal)
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 408d9eea9e..450120f83c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -651,19 +651,19 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 	// deferred.
+ 	needsUnsafe := false
+ 	params := make([]*ast.Field, len(name.FuncType.Params))
+-	args := make([]ast.Expr, len(name.FuncType.Params))
++	nargs := make([]ast.Expr, len(name.FuncType.Params))
+ 	var stmts []ast.Stmt
+ 	for i, param := range name.FuncType.Params {
+ 		// params is going to become the parameters of the
+ 		// function literal.
+-		// args is going to become the list of arguments to the
+-		// function literal.
++		// nargs is going to become the list of arguments made
++		// by the call within the function literal.
+ 		// nparam is the parameter of the function literal that
+ 		// corresponds to param.
+ 
+ 		origArg := call.Call.Args[i]
+-		args[i] = origArg
+ 		nparam := ast.NewIdent(fmt.Sprintf("_cgo%d", i))
++		nargs[i] = nparam
+ 
+ 		// The Go version of the C type might use unsafe.Pointer,
+ 		// but the file might not import unsafe.
+@@ -678,8 +678,6 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 			Type:  ptype,
+ 		}
+ 
+-		call.Call.Args[i] = nparam
+-
+ 		if !p.needsPointerCheck(f, param.Go, origArg) {
+ 			continue
+ 		}
+@@ -707,7 +705,7 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 
+ 	fcall := &ast.CallExpr{
+ 		Fun:  call.Call.Fun,
+-		Args: call.Call.Args,
++		Args: nargs,
+ 	}
+ 	ftype := &ast.FuncType{
+ 		Params: &ast.FieldList{
+@@ -741,7 +739,6 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 			List: append(stmts, fbody),
+ 		},
+ 	}
+-	call.Call.Args = args
+ 	call.Call.Lparen = token.NoPos
+ 	call.Call.Rparen = token.NoPos
+ 

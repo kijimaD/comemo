@@ -15,6 +15,58 @@ Date:   Fri Sep 26 11:44:20 2008 -0700
     DELTA=21  (19 added, 0 deleted, 2 changed)
     OCL=15901
     CL=15968
-
+---
  src/cmd/gc/go.y | 23 +++++++++++++++++++++--
  1 file changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 049b977192..f84a57afe9 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -56,6 +56,8 @@
+ %type	<type>		structtype interfacetype convtype
+ %type	<type>		Achantype Bchantype
+ 
++%type	<val>		hidden_constant
++
+ %left			LOROR
+ %left			LANDAND
+ %left			LCOMM
+@@ -1555,11 +1557,11 @@ hidden_import:
+ 	}
+ 
+ 	/* constants */
+-|	LCONST hidden_importsym LLITERAL
++|	LCONST hidden_importsym hidden_constant
+ 	{
+ 		doimportc1($2, &$3);
+ 	}
+-|	LCONST hidden_importsym hidden_importsym LLITERAL
++|	LCONST hidden_importsym hidden_importsym hidden_constant
+ 	{
+ 		doimportc2($2, $3, &$4);
+ 	}
+@@ -1616,6 +1618,23 @@ hidden_import:
+ 		doimport9($2, $3);
+ 	}
+ 
++hidden_constant:
++	LLITERAL
++|	'-' LLITERAL
++	{
++		$$ = $2;
++		switch($$.ctype){
++		case CTINT:
++			mpnegfix($$.u.xval);
++			break;
++		case CTFLT:
++			mpnegflt($$.u.fval);
++			break;
++		default:
++			yyerror("bad negated constant");
++		}
++	}
++
+ isym:
+ 	sym1 '.' sym2
+ 	{

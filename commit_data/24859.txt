@@ -9,7 +9,33 @@ Date:   Fri Sep 4 16:56:45 2015 -0700
     Change-Id: I049708db93455f0030ba5afc6f218fde6220958d
     Reviewed-on: https://go-review.googlesource.com/14331
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/cmd/compile/internal/gc/go.y | 2 +-
  src/cmd/compile/internal/gc/y.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index c6d1607e6b..ea8ac4fd9c 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -275,7 +275,7 @@ import_stmt:
+ 		// no package statement. This allows us to test more
+ 		// than one invalid import statement in a single file.
+ 		if nerrors == 0 {
+-			Fatal("phase error in import");
++			Fatalf("phase error in import");
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 530006ed03..709471a789 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -1057,6 +1057,7 @@ func (yyrcvr *yyParserImpl) Parse(yylex yyLexer) int {
+ 	var yylval yySymType
+ 	var yyVAL yySymType
+ 	var yyDollar []yySymType
++	_ = yyDollar // silence set and not used
+ 	yyS := make([]yySymType, yyMaxDepth)
+ 
+ 	Nerrs := 0   /* number of errors */

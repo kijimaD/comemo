@@ -11,10 +11,110 @@ Date:   Wed Sep 9 12:09:26 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go     | 6 +++---
  src/cmd/compile/internal/gc/escape.go  | 2 +-
  src/cmd/compile/internal/gc/subr.go    | 4 ++--
  src/cmd/compile/internal/gc/walk.go    | 4 ++--
  src/cmd/compile/internal/types/type.go | 5 +++++
  5 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 4b843aba35..375331d1f5 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -377,7 +377,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+ 		// This really doesn't have much to do with escape analysis per se,
+ 		// but we are reusing the ability to annotate an individual function
+ 		// argument and pass those annotations along to importing code.
+-		if f.Type.Etype == TUINTPTR {
++		if f.Type.IsUintptr() {
+ 			if Debug['m'] != 0 {
+ 				Warnl(f.Pos, "assuming %v is unsafe uintptr", name())
+ 			}
+@@ -407,13 +407,13 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+ 	}
+ 
+ 	if fn.Func.Pragma&UintptrEscapes != 0 {
+-		if f.Type.Etype == TUINTPTR {
++		if f.Type.IsUintptr() {
+ 			if Debug['m'] != 0 {
+ 				Warnl(f.Pos, "marking %v as escaping uintptr", name())
+ 			}
+ 			return uintptrEscapesTag
+ 		}
+-		if f.IsDDD() && f.Type.Elem().Etype == TUINTPTR {
++		if f.IsDDD() && f.Type.Elem().IsUintptr() {
+ 			// final argument is ...uintptr.
+ 			if Debug['m'] != 0 {
+ 				Warnl(f.Pos, "marking %v as escaping ...uintptr", name())
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index dc469e276c..75da439bb7 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -493,7 +493,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 			// easily detect object boundaries on the heap
+ 			// than the stack.
+ 			e.assignHeap(n.Left, "conversion to unsafe.Pointer", n)
+-		} else if n.Type.IsUnsafePtr() && n.Left.Type.Etype == TUINTPTR {
++		} else if n.Type.IsUnsafePtr() && n.Left.Type.IsUintptr() {
+ 			e.unsafeValue(k, n.Left)
+ 		} else {
+ 			e.expr(k, n.Left)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6d0a40c287..d3ba53ff0c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -781,12 +781,12 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
+ 	}
+ 
+ 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
+-	if (src.IsPtr() || src.Etype == TUINTPTR) && dst.IsUnsafePtr() {
++	if (src.IsPtr() || src.IsUintptr()) && dst.IsUnsafePtr() {
+ 		return OCONVNOP
+ 	}
+ 
+ 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
+-	if src.IsUnsafePtr() && (dst.IsPtr() || dst.Etype == TUINTPTR) {
++	if src.IsUnsafePtr() && (dst.IsPtr() || dst.IsUintptr()) {
+ 		return OCONVNOP
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a9fefb3ddd..361de7e0f3 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -962,7 +962,7 @@ opswitch:
+ 				n = walkCheckPtrAlignment(n, init, nil)
+ 				break
+ 			}
+-			if n.Type.IsUnsafePtr() && n.Left.Type.Etype == TUINTPTR { // uintptr to unsafe.Pointer
++			if n.Type.IsUnsafePtr() && n.Left.Type.IsUintptr() { // uintptr to unsafe.Pointer
+ 				n = walkCheckPtrArithmetic(n, init)
+ 				break
+ 			}
+@@ -3886,7 +3886,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
+ 	t := nod(OTFUNC, nil, nil)
+ 	for i, arg := range n.List.Slice() {
+ 		s := lookupN("a", i)
+-		if !isBuiltinCall && arg.Op == OCONVNOP && arg.Type.Etype == TUINTPTR && arg.Left.Type.IsUnsafePtr() {
++		if !isBuiltinCall && arg.Op == OCONVNOP && arg.Type.IsUintptr() && arg.Left.Type.IsUnsafePtr() {
+ 			origArgs[i] = arg
+ 			arg = arg.Left
+ 			n.List.SetIndex(i, arg)
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index e4b3d885d9..a777a5fd90 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1230,6 +1230,11 @@ func (t *Type) IsUnsafePtr() bool {
+ 	return t.Etype == TUNSAFEPTR
+ }
+ 
++// IsUintptr reports whether t is an uintptr.
++func (t *Type) IsUintptr() bool {
++	return t.Etype == TUINTPTR
++}
++
+ // IsPtrShaped reports whether t is represented by a single machine pointer.
+ // In addition to regular Go pointer types, this includes map, channel, and
+ // function types and unsafe.Pointer. It does not include array or struct types

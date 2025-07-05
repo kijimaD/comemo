@@ -11,7 +11,7 @@ Date:   Tue Feb 9 13:33:12 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/204069
-
+---
  src/pkg/math/Makefile     |   2 +
  src/pkg/math/all_test.go  | 133 +++++++++++++++++++++++++++++++++++++++++++++-
  src/pkg/math/expm1.go     |   4 +-
@@ -22,3 +22,376 @@ Date:   Tue Feb 9 13:33:12 2010 -0800
  src/pkg/math/log_decl.go  |   1 +
  src/pkg/math/nextafter.go |  27 ++++++++++
  9 files changed, 206 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index 7892371ac0..97c5af1b8a 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -41,12 +41,14 @@ ALLGOFILES=\
+ 	exp.go\
+ 	expm1.go\
+ 	fabs.go\
++	fdim.go\
+ 	floor.go\
+ 	fmod.go\
+ 	hypot.go\
+ 	log.go\
+ 	log1p.go\
+ 	modf.go\
++	nextafter.go\
+ 	pow.go\
+ 	pow10.go\
+ 	sin.go\
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 184d045c99..8c47fd1cf3 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -208,6 +208,18 @@ var expm1 = []float64{
+ 	1.842068661871398836913874273e-02,
+ 	-8.3193870863553801814961137573e-02,
+ }
++var fdim = []float64{
++	4.9790119248836735e+00,
++	7.7388724745781045e+00,
++	0.0000000000000000e+00,
++	0.0000000000000000e+00,
++	9.6362937071984173e+00,
++	2.9263772392439646e+00,
++	5.2290834314593066e+00,
++	2.7279399104360102e+00,
++	1.8253080916808550e+00,
++	0.0000000000000000e+00,
++}
+ var floor = []float64{
+ 	4.0000000000000000e+00,
+ 	7.0000000000000000e+00,
+@@ -287,6 +299,18 @@ var log1p = []float64{
+ 	1.8088493239630770262045333e-02,
+ 	-9.0865245631588989681559268e-02,
+ }
++var log2 = []float64{
++	2.3158594707062190618898251e+00,
++	2.9521233862883917703341018e+00,
++	-1.8526669502700329984917062e+00,
++	2.3249844127278861543568029e+00,
++	3.268478366538305087466309e+00,
++	1.5491157592596970278166492e+00,
++	2.3865580889631732407886495e+00,
++	1.447811865817085365540347e+00,
++	8.6813999540425116282815557e-01,
++	3.118679457227342224364709e+00,
++}
+ var modf = [][2]float64{
+ 	[2]float64{4.0000000000000000e+00, 9.7901192488367350108546816e-01},
+ 	[2]float64{7.0000000000000000e+00, 7.3887247457810456552351752e-01},
+@@ -299,6 +323,18 @@ var modf = [][2]float64{
+ 	[2]float64{1.0000000000000000e+00, 8.2530809168085506044576505e-01},
+ 	[2]float64{-8.0000000000000000e+00, -6.8592476857560136238589621e-01},
+ }
++var nextafter = []float64{
++	4.97901192488367438926388786e+00,
++	7.73887247457810545370193722e+00,
++	-2.7688005719200153853520874e-01,
++	-5.01060361827107403343006808e+00,
++	9.63629370719841915615688777e+00,
++	2.92637723924396508934364647e+00,
++	5.22908343145930754047867595e+00,
++	2.72793991043601069534929593e+00,
++	1.82530809168085528249036997e+00,
++	-8.68592476857559958602905681e+00,
++}
+ var pow = []float64{
+ 	9.5282232631648411840742957e+04,
+ 	5.4811599352999901232411871e+07,
+@@ -706,6 +742,17 @@ var modfSC = [][2]float64{
+ 	[2]float64{NaN(), NaN()},
+ }
+ 
++var vfnextafterSC = [][2]float64{
++	[2]float64{0, NaN()},
++	[2]float64{NaN(), 0},
++	[2]float64{NaN(), NaN()},
++}
++var nextafterSC = []float64{
++	NaN(),
++	NaN(),
++	NaN(),
++}
++
+ var vfpowSC = [][2]float64{
+ 	[2]float64{-Pi, Pi},
+ 	[2]float64{-Pi, -Pi},
+@@ -1031,6 +1078,14 @@ func TestExpm1(t *testing.T) {
+ 	}
+ }
+ 
++func TestFdim(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := Fdim(vf[i], 0); fdim[i] != f {
++			t.Errorf("Fdim(%g, %g) = %g, want %g\n", vf[i], 0.0, f, fdim[i])
++		}
++	}
++}
++
+ func TestFloor(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Floor(vf[i]); floor[i] != f {
+@@ -1044,6 +1099,22 @@ func TestFloor(t *testing.T) {
+ 	}
+ }
+ 
++func TestFmax(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := Fmax(vf[i], ceil[i]); ceil[i] != f {
++			t.Errorf("Fmax(%g, %g) = %g, want %g\n", vf[i], ceil[i], f, ceil[i])
++		}
++	}
++}
++
++func TestFmin(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := Fmin(vf[i], floor[i]); floor[i] != f {
++			t.Errorf("Fmin(%g, %g) = %g, want %g\n", vf[i], floor[i], f, floor[i])
++		}
++	}
++}
++
+ func TestFmod(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Fmod(10, vf[i]); fmod[i] != f { /*!close(fmod[i], f)*/
+@@ -1149,6 +1220,23 @@ func TestLog1p(t *testing.T) {
+ 	}
+ }
+ 
++func TestLog2(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		a := Fabs(vf[i])
++		if f := Log2(a); !veryclose(log2[i], f) {
++			t.Errorf("Log2(%g) = %g, want %g\n", a, f, log2[i])
++		}
++	}
++	if f := Log2(E); f != Log2E {
++		t.Errorf("Log2(%g) = %g, want %g\n", E, f, Log2E)
++	}
++	for i := 0; i < len(vflogSC); i++ {
++		if f := Log2(vflogSC[i]); !alike(logSC[i], f) {
++			t.Errorf("Log2(%g) = %g, want %g\n", vflogSC[i], f, logSC[i])
++		}
++	}
++}
++
+ func TestModf(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f, g := Modf(vf[i]); !veryclose(modf[i][0], f) || !veryclose(modf[i][1], g) {
+@@ -1162,6 +1250,19 @@ func TestModf(t *testing.T) {
+ 	}
+ }
+ 
++func TestNextafter(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := Nextafter(vf[i], 10); nextafter[i] != f {
++			t.Errorf("Nextafter(%g, %g) = %g want %g\n", vf[i], 10.0, f, nextafter[i])
++		}
++	}
++	for i := 0; i < len(vfmodfSC); i++ {
++		if f := Nextafter(vfnextafterSC[i][0], vfnextafterSC[i][1]); !alike(nextafterSC[i], f) {
++			t.Errorf("Nextafter(%g, %g) = %g want %g\n", vfnextafterSC[i][0], vfnextafterSC[i][1], f, nextafterSC[i])
++		}
++	}
++}
++
+ func TestPow(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Pow(10, vf[i]); !close(pow[i], f) {
+@@ -1309,7 +1410,7 @@ func BenchmarkAcos(b *testing.B) {
+ 
+ func BenchmarkAcosh(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Acosh(.5)
++		Acosh(1.5)
+ 	}
+ }
+ 
+@@ -1397,6 +1498,24 @@ func BenchmarkFloor(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkFdim(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Fdim(10, 3)
++	}
++}
++
++func BenchmarkFmax(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Fmax(10, 3)
++	}
++}
++
++func BenchmarkFmin(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Fmin(10, 3)
++	}
++}
++
+ func BenchmarkFmod(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Fmod(10, 3)
+@@ -1439,12 +1558,24 @@ func BenchmarkLog1p(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkLog2(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Log2(.5)
++	}
++}
++
+ func BenchmarkModf(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Modf(1.5)
+ 	}
+ }
+ 
++func BenchmarkNextafter(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Nextafter(.5, 1)
++	}
++}
++
+ func BenchmarkPowInt(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Pow(2, 2)
+diff --git a/src/pkg/math/expm1.go b/src/pkg/math/expm1.go
+index 9c516fb4ff..9e8ae3fef3 100644
+--- a/src/pkg/math/expm1.go
++++ b/src/pkg/math/expm1.go
+@@ -118,8 +118,8 @@ package math
+ // It is more accurate than Exp(x) - 1 when x is near zero.
+ //
+ // Special cases are:
+-//      Expm1(+Inf) = +Inf
+-//      Expm1(-Inf) = -1
++//	Expm1(+Inf) = +Inf
++//	Expm1(-Inf) = -1
+ //	Expm1(NaN) = NaN
+ // Very large values overflow to -1 or +Inf.
+ func Expm1(x float64) float64 {
+diff --git a/src/pkg/math/fdim.go b/src/pkg/math/fdim.go
+new file mode 100644
+index 0000000000..18993137a2
+--- /dev/null
++++ b/src/pkg/math/fdim.go
+@@ -0,0 +1,29 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// Fdim returns the maximum of x-y or 0.
++func Fdim(x, y float64) float64 {
++	if x > y {
++		return x - y
++	}
++	return 0
++}
++
++// Fmax returns the larger of x or y.
++func Fmax(x, y float64) float64 {
++	if x > y {
++		return x
++	}
++	return y
++}
++
++// Fmin returns the smaller of x or y.
++func Fmin(x, y float64) float64 {
++	if x < y {
++		return x
++	}
++	return y
++}
+diff --git a/src/pkg/math/hypot_386.s b/src/pkg/math/hypot_386.s
+index 212bb74753..70ff19a176 100644
+--- a/src/pkg/math/hypot_386.s
++++ b/src/pkg/math/hypot_386.s
+@@ -18,7 +18,7 @@ TEXT ·Hypot(SB),7,$0
+ 	FMOVD   y+8(FP), F0  // F0=y, F1=|x|
+ 	FABS                 // F0=|y|, F1=|x|
+ 	FUCOMI  F0, F1       // compare F0 to F1
+-	JCC     2(PC)        // jump if F0 < F1
++	JCC     2(PC)        // jump if F0 >= F1
+ 	FXCHD   F0, F1       // F0=|x| (larger), F1=|y| (smaller)
+ 	FTST                 // compare F0 to 0
+ 	FSTSW	AX
+diff --git a/src/pkg/math/log.go b/src/pkg/math/log.go
+index f188c8ce7d..1727c772e4 100644
+--- a/src/pkg/math/log.go
++++ b/src/pkg/math/log.go
+@@ -125,3 +125,7 @@ func Log(x float64) float64 {
+ // Log10 returns the decimal logarithm of x.
+ // The special cases are the same as for Log.
+ func Log10(x float64) float64 { return Log(x) * (1 / Ln10) }
++
++// Log2 returns the binary logarithm of x.
++// The special cases are the same as for Log.
++func Log2(x float64) float64 { return Log(x) * (1 / Ln2) }
+diff --git a/src/pkg/math/log_386.s b/src/pkg/math/log_386.s
+index d670a38ddd..ae5211e228 100644
+--- a/src/pkg/math/log_386.s
++++ b/src/pkg/math/log_386.s
+@@ -17,3 +17,11 @@ TEXT ·Log10(SB),7,$0
+ 	FYL2X                // F0=log10(x)=log2(x)*log10(2)
+ 	FMOVDP  F0, r+8(FP)
+ 	RET
++	
++// func Log2(x float64) float64
++TEXT ·Log2(SB),7,$0
++	FLD1                 // F0=1
++	FMOVD   x+0(FP), F0  // F0=x, F1=1
++	FYL2X                // F0=log2(x)
++	FMOVDP  F0, r+8(FP)
++	RET
+diff --git a/src/pkg/math/log_decl.go b/src/pkg/math/log_decl.go
+index ddae43642e..074b0cdb69 100644
+--- a/src/pkg/math/log_decl.go
++++ b/src/pkg/math/log_decl.go
+@@ -6,3 +6,4 @@ package math
+ 
+ func Log(x float64) float64
+ func Log10(x float64) float64
++func Log2(x float64) float64
+diff --git a/src/pkg/math/nextafter.go b/src/pkg/math/nextafter.go
+new file mode 100644
+index 0000000000..b57d3e7159
+--- /dev/null
++++ b/src/pkg/math/nextafter.go
+@@ -0,0 +1,27 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// Nextafter returns the next representable value after x towards y.
++// If x == y, then x is returned.
++//
++// Special cases are:
++//	Nextafter(NaN, y) = NaN
++//	Nextafter(x, NaN) = NaN
++func Nextafter(x, y float64) (r float64) {
++	switch {
++	case IsNaN(x) || IsNaN(y): // special case
++		r = NaN()
++	case x == y:
++		r = x
++	case x == 0:
++		r = Copysign(Float64frombits(1), y)
++	case (y > x) == (x > 0):
++		r = Float64frombits(Float64bits(x) + 1)
++	default:
++		r = Float64frombits(Float64bits(x) - 1)
++	}
++	return r
++}

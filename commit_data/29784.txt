@@ -7,6 +7,20 @@ Date:   Sun Oct 9 21:03:00 2016 -0700
     Change-Id: I5b04ba7e12eff933fc67eb7a1cbdfde536e4db88
     Reviewed-on: https://go-review.googlesource.com/30722
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ef69fbab54..2677468aa3 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -633,7 +633,7 @@ func newBufioReader(r io.Reader) *bufio.Reader {
+ 		br.Reset(r)
+ 		return br
+ 	}
+-	// Note: if this reader size is every changed, update
++	// Note: if this reader size is ever changed, update
+ 	// TestHandlerBodyClose's assumptions.
+ 	return bufio.NewReader(r)
+ }

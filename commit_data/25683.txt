@@ -14,6 +14,19 @@ Date:   Sat Nov 14 15:31:32 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/runtime1.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 4c0242350c..f8ae5df53f 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -453,7 +453,6 @@ func gomcache() *mcache {
+ }
+ 
+ //go:linkname reflect_typelinks reflect.typelinks
+-//go:nosplit
+ func reflect_typelinks() [][]*_type {
+ 	ret := [][]*_type{firstmoduledata.typelinks}
+ 	for datap := firstmoduledata.next; datap != nil; datap = datap.next {

@@ -6,6 +6,24 @@ Date:   Fri Nov 6 13:50:58 2009 -0800
     
     R=rsc
     http://go/go-review/1024011
-
+---
  src/cmd/cc/pgen.c | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 9a7a3e7e18..d430ec91b9 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -52,7 +52,11 @@ argsize(void)
+ 		}
+ //print("	%d %T\n", s, t);
+ 	}
+-	return (s+7) & ~7;
++	if(thechar == '6')
++		s = (s+7) & ~7;
++	else
++		s = (s+3) & ~3;
++	return s;
+ }
+ 
+ void

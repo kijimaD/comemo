@@ -11,10 +11,128 @@ Date:   Tue Nov 30 17:17:45 2010 -0800
     R=r, rsc, PeterGo, r2, brainman
     CC=golang-dev
     https://golang.org/cl/3008041
-
+---
  src/pkg/path/Makefile        | 17 +++++++++++++++++
  src/pkg/path/path.go         | 12 ++++--------
  src/pkg/path/path_test.go    | 12 ++++++++++++
  src/pkg/path/path_unix.go    | 11 +++++++++++
  src/pkg/path/path_windows.go | 11 +++++++++++
  5 files changed, 55 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/path/Makefile b/src/pkg/path/Makefile
+index a7e05714a9..a36d86eb57 100644
+--- a/src/pkg/path/Makefile
++++ b/src/pkg/path/Makefile
+@@ -9,4 +9,21 @@ GOFILES=\
+ 	match.go\
+ 	path.go\
+ 
++GOFILES_freebsd=\
++	path_unix.go
++
++GOFILES_darwin=\
++	path_unix.go
++
++GOFILES_linux=\
++	path_unix.go
++
++GOFILES_nacl=\
++	path_unix.go
++
++GOFILES_windows=\
++	path_windows.go
++
++GOFILES+=$(GOFILES_$(GOOS))
++
+ include ../../Make.pkg
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 79b3000930..61eea88588 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -102,17 +102,13 @@ func Clean(path string) string {
+ 	return string(buf[0:w])
+ }
+ 
+-// Split splits path immediately following the final slash,
++// Split splits path immediately following the final path separator,
+ // separating it into a directory and file name component.
+-// If there is no slash in path, Split returns an empty dir and
++// If there is no separator in path, Split returns an empty dir and
+ // file set to path.
+ func Split(path string) (dir, file string) {
+-	for i := len(path) - 1; i >= 0; i-- {
+-		if path[i] == '/' {
+-			return path[0 : i+1], path[i+1:]
+-		}
+-	}
+-	return "", path
++	i := strings.LastIndexAny(path, PathSeps)
++	return path[:i+1], path[i+1:]
+ }
+ 
+ // Join joins any number of path elements into a single path, adding a
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 2bbb9244aa..e00ac09729 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -6,6 +6,7 @@ package path
+ 
+ import (
+ 	"os"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -83,7 +84,18 @@ var splittests = []SplitTest{
+ 	{"/", "/", ""},
+ }
+ 
++var winsplittests = []SplitTest{
++	{`C:\Windows\System32`, `C:\Windows\`, `System32`},
++	{`C:\Windows\`, `C:\Windows\`, ``},
++	{`C:\Windows`, `C:\`, `Windows`},
++	{`C:Windows`, `C:`, `Windows`},
++	{`\\?\c:\`, `\\?\c:\`, ``},
++}
++
+ func TestSplit(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		splittests = append(splittests, winsplittests...)
++	}
+ 	for _, test := range splittests {
+ 		if d, f := Split(test.path); d != test.dir || f != test.file {
+ 			t.Errorf("Split(%q) = %q, %q, want %q, %q", test.path, d, f, test.dir, test.file)
+diff --git a/src/pkg/path/path_unix.go b/src/pkg/path/path_unix.go
+new file mode 100644
+index 0000000000..7e8c5eb8b9
+--- /dev/null
++++ b/src/pkg/path/path_unix.go
+@@ -0,0 +1,11 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package path
++
++const (
++	DirSeps    = `/`                  // directory separators
++	VolumeSeps = ``                   // volume separators
++	PathSeps   = DirSeps + VolumeSeps // all path separators
++)
+diff --git a/src/pkg/path/path_windows.go b/src/pkg/path/path_windows.go
+new file mode 100644
+index 0000000000..966eb49fb5
+--- /dev/null
++++ b/src/pkg/path/path_windows.go
+@@ -0,0 +1,11 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package path
++
++const (
++	DirSeps    = `\/`                 // directory separators
++	VolumeSeps = `:`                  // volume separators
++	PathSeps   = DirSeps + VolumeSeps // all path separators
++)

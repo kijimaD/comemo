@@ -20,6 +20,40 @@ Date:   Thu Jan 14 19:40:07 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/name.go | 21 ++++++++++-----------
  1 file changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index d19b0440e6..64de42382e 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -286,18 +286,17 @@ func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtra
+ 
+ // OnStack reports whether variable n may reside on the stack.
+ func (n *Name) OnStack() bool {
+-	if n.Op() != ONAME || n.Class == PFUNC {
+-		base.Fatalf("%v is not a variable", n)
+-	}
+-	switch n.Class {
+-	case PPARAM, PPARAMOUT, PAUTO:
+-		return n.Esc() != EscHeap
+-	case PEXTERN, PAUTOHEAP:
+-		return false
+-	default:
+-		base.FatalfAt(n.Pos(), "%v has unknown class %v", n, n.Class)
+-		panic("unreachable")
++	if n.Op() == ONAME {
++		switch n.Class {
++		case PPARAM, PPARAMOUT, PAUTO:
++			return n.Esc() != EscHeap
++		case PEXTERN, PAUTOHEAP:
++			return false
++		}
+ 	}
++	// Note: fmt.go:dumpNodeHeader calls all "func() bool"-typed
++	// methods, but it can only recover from panics, not Fatalf.
++	panic(fmt.Sprintf("%v: not a variable: %v", base.FmtPos(n.Pos()), n))
+ }
+ 
+ // MarkReadonly indicates that n is an ONAME with readonly contents.

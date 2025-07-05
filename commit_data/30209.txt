@@ -16,6 +16,25 @@ Date:   Wed Oct 26 23:40:14 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index dc2b09eee7..0936ee6248 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -114,8 +114,11 @@ func newblock(prog *obj.Prog) *BasicBlock {
+ 	result.mark = UNVISITED
+ 	result.first = prog
+ 	result.last = prog
+-	result.pred = make([]*BasicBlock, 0, 2)
+-	result.succ = make([]*BasicBlock, 0, 2)
++	// We want two 0-len slices with capacity 2.
++	// Carve them out of a single allocation.
++	blocks := make([]*BasicBlock, 4)
++	result.pred = blocks[0:][:0:2]
++	result.succ = blocks[2:][:0:2]
+ 	return result
+ }
+ 

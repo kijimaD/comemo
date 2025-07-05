@@ -7,6 +7,20 @@ Date:   Thu Mar 1 14:54:35 2012 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5717046
-
+---
  doc/go_faq.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 443bfd6108..eff7534263 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -756,7 +756,7 @@ Similar situations to those described here can arise whenever interfaces are use
+ Just keep in mind that if any concrete value
+ has been stored in the interface, the interface will not be <code>nil</code>.
+ For more information, see
+-<a href="http://blog.golang.org/2011/09/laws-of-reflection.html">this blog post</a>.
++<a href="/doc/articles/laws_of_reflection.html">The Laws of Reflection</a>.
+ </p>
+ 
+ 

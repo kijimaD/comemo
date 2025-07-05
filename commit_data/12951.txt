@@ -7,7 +7,43 @@ Date:   Wed Apr 25 11:33:27 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6125044
-
+---
  src/pkg/exp/norm/maketables.go     | 4 ++--
  src/pkg/text/template/parse/lex.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index eb981f0f7e..35d42c1ab5 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -607,7 +607,7 @@ func printCharInfoTables() int {
+ 		tccc := ccc(d[len(d)-1])
+ 		cc := ccc(r)
+ 		if cc != 0 && lccc == 0 && tccc == 0 {
+-			logger.Fatalf("%U: trailing and leading ccc are 0 for non-zero ccc %d", cc)
++			logger.Fatalf("%U: trailing and leading ccc are 0 for non-zero ccc %d", r, cc)
+ 		}
+ 		if tccc < lccc && lccc != 0 {
+ 			const msg = "%U: lccc (%d) must be <= tcc (%d)"
+@@ -623,7 +623,7 @@ func printCharInfoTables() int {
+ 			}
+ 			if cc != lccc {
+ 				if cc != 0 {
+-					logger.Fatalf("%U: for lccc != ccc, expected ccc to be 0; was %d", cc)
++					logger.Fatalf("%U: for lccc != ccc, expected ccc to be 0; was %d", r, cc)
+ 				}
+ 				index = 3
+ 			}
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index 5674a940b1..1cf4d739c4 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -348,7 +348,7 @@ Loop:
+ 			l.backup()
+ 			word := l.input[l.start:l.pos]
+ 			if !l.atTerminator() {
+-				return l.errorf("bad character %+U", r)
++				return l.errorf("bad character %#U", r)
+ 			}
+ 			switch {
+ 			case key[word] > itemKeyword:

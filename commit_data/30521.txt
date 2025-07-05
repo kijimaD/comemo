@@ -19,6 +19,20 @@ Date:   Thu Nov 10 12:49:06 2016 -0800
     Change-Id: I5052ca3bfaf0759e920f9a24a16fd97543b24486
     Reviewed-on: https://go-review.googlesource.com/33091
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/debug/elf/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 0c547669a9..8eeab65df8 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -1021,7 +1021,7 @@ func (f *File) applyRelocationsSPARC64(dst []byte, rels []byte) error {
+ 	for b.Len() > 0 {
+ 		binary.Read(b, f.ByteOrder, &rela)
+ 		symNo := rela.Info >> 32
+-		t := R_SPARC(rela.Info & 0xffff)
++		t := R_SPARC(rela.Info & 0xff)
+ 
+ 		if symNo == 0 || symNo > uint64(len(symbols)) {
+ 			continue

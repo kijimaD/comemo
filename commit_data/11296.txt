@@ -9,7 +9,41 @@ Date:   Fri Jan 20 13:34:38 2012 -0500
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5533043
-
+---
  src/cmd/gc/typecheck.c   |  3 ++-
  test/fixedbugs/bug397.go | 13 +++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index f4294ae7af..1092608dc9 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2130,7 +2130,8 @@ typecheckcomplit(Node **np)
+ 			typecheck(&l->left, Erv);
+ 			defaultlit(&l->left, t->down);
+ 			l->left = assignconv(l->left, t->down, "map key");
+-			keydup(l->left, hash, nhash);
++			if (l->left->op != OCONV)
++				keydup(l->left, hash, nhash);
+ 
+ 			r = l->right;
+ 			pushtype(r, t->type);
+diff --git a/test/fixedbugs/bug397.go b/test/fixedbugs/bug397.go
+new file mode 100644
+index 0000000000..cc8bfc017e
+--- /dev/null
++++ b/test/fixedbugs/bug397.go
+@@ -0,0 +1,13 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Issue 2623
++var m = map[string]int {
++	"abc":1,
++	1:2, // ERROR "cannot use 1.*as type string in map key"
++}

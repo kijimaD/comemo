@@ -7,6 +7,20 @@ Date:   Mon Mar 14 14:12:37 2011 -0700
     R=golang-dev, r, dsymonds, rsc1
     CC=golang-dev
     https://golang.org/cl/4277046
-
+---
  src/libmach/darwin.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/libmach/darwin.c b/src/libmach/darwin.c
+index 7ee6f7acec..d44fd5612c 100644
+--- a/src/libmach/darwin.c
++++ b/src/libmach/darwin.c
+@@ -579,7 +579,7 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ 		if(!isr)
+ 			thread_resume(thread);
+ 		rerrstr(buf, sizeof buf);
+-		if(strcmp(buf, "send invalid dest") == 0)
++		if(strstr(buf, "send invalid dest") != nil) 
+ 			werrstr("process exited");
+ 		else
+ 			werrstr("thread_get_state: %r");

@@ -50,7 +50,7 @@ Date:   Wed Apr 12 13:23:07 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go            |  4 +--
  src/cmd/compile/internal/gc/gsubr.go       | 39 ++++++++++++++++++------------
  src/cmd/compile/internal/gc/pgen.go        |  3 +++
@@ -58,3 +58,178 @@ Date:   Wed Apr 12 13:23:07 2017 -0700
  src/cmd/compile/internal/gc/syntax.go      |  2 ++
  src/cmd/internal/obj/plist.go              |  7 +-----
  6 files changed, 33 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 7e3a8418dd..bf232fbe7f 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -160,6 +160,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 		}
+ 		argSize = p.positiveAtoi(op[1].String())
+ 	}
++	p.ctxt.InitTextSym(nameAddr.Sym, int(flag))
+ 	prog := &obj.Prog{
+ 		Ctxt: p.ctxt,
+ 		As:   obj.ATEXT,
+@@ -171,9 +172,8 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 			// Argsize set below.
+ 		},
+ 	}
++	nameAddr.Sym.Text = prog
+ 	prog.To.Val = int32(argSize)
+-	p.ctxt.InitTextSym(prog, int(flag))
+-
+ 	p.append(prog, "", true)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index f3aef208d6..bf70cebb75 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -144,34 +144,45 @@ func (pp *Progs) settext(fn *Node) {
+ 	if pp.Text != nil {
+ 		Fatalf("Progs.settext called twice")
+ 	}
+-
+ 	ptxt := pp.Prog(obj.ATEXT)
+-	if nam := fn.Func.Nname; !isblank(nam) {
++	if fn.Func.lsym != nil {
++		fn.Func.lsym.Text = ptxt
+ 		ptxt.From.Type = obj.TYPE_MEM
+ 		ptxt.From.Name = obj.NAME_EXTERN
+-		ptxt.From.Sym = Linksym(nam.Sym)
+-		if fn.Func.Pragma&Systemstack != 0 {
+-			ptxt.From.Sym.Set(obj.AttrCFunc, true)
++		ptxt.From.Sym = fn.Func.lsym
++	}
++	pp.Text = ptxt
++}
++
++func (f *Func) initLSym() {
++	if f.lsym != nil {
++		Fatalf("Func.initLSym called twice")
++	}
++
++	if nam := f.Nname; !isblank(nam) {
++		f.lsym = Linksym(nam.Sym)
++		if f.Pragma&Systemstack != 0 {
++			f.lsym.Set(obj.AttrCFunc, true)
+ 		}
+ 	}
+ 
+ 	var flag int
+-	if fn.Func.Dupok() {
++	if f.Dupok() {
+ 		flag |= obj.DUPOK
+ 	}
+-	if fn.Func.Wrapper() {
++	if f.Wrapper() {
+ 		flag |= obj.WRAPPER
+ 	}
+-	if fn.Func.NoFramePointer() {
++	if f.NoFramePointer() {
+ 		flag |= obj.NOFRAME
+ 	}
+-	if fn.Func.Needctxt() {
++	if f.Needctxt() {
+ 		flag |= obj.NEEDCTXT
+ 	}
+-	if fn.Func.Pragma&Nosplit != 0 {
++	if f.Pragma&Nosplit != 0 {
+ 		flag |= obj.NOSPLIT
+ 	}
+-	if fn.Func.ReflectMethod() {
++	if f.ReflectMethod() {
+ 		flag |= obj.REFLECTMETHOD
+ 	}
+ 
+@@ -179,15 +190,13 @@ func (pp *Progs) settext(fn *Node) {
+ 	// See test/recover.go for test cases and src/reflect/value.go
+ 	// for the actual functions being considered.
+ 	if myimportpath == "reflect" {
+-		switch fn.Func.Nname.Sym.Name {
++		switch f.Nname.Sym.Name {
+ 		case "callReflect", "callMethod":
+ 			flag |= obj.WRAPPER
+ 		}
+ 	}
+ 
+-	Ctxt.InitTextSym(ptxt, flag)
+-
+-	pp.Text = ptxt
++	Ctxt.InitTextSym(f.lsym, flag)
+ }
+ 
+ func ggloblnod(nam *Node) {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index ec6483fe8e..3a993e55d5 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -297,6 +297,9 @@ func compile(fn *Node) {
+ 	// From this point, there should be no uses of Curfn. Enforce that.
+ 	Curfn = nil
+ 
++	// Set up the function's LSym early to avoid data races with the assemblers.
++	fn.Func.initLSym()
++
+ 	// Build an SSA backend function.
+ 	ssafn := buildssa(fn)
+ 	pp := newProgs(fn)
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index bea25dde2b..ca5d0cd9ae 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 96, 160},
++		{Func{}, 100, 168},
+ 		{Name{}, 36, 56},
+ 		{Param{}, 28, 56},
+ 		{Node{}, 84, 136},
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index ef70e4b1f7..8ccebded2a 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -9,6 +9,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -331,6 +332,7 @@ type Func struct {
+ 	Top        int   // top context (Ecall, Eproc, etc)
+ 	Closure    *Node // OCLOSURE <-> ODCLFUNC
+ 	Nname      *Node
++	lsym       *obj.LSym
+ 
+ 	Inl     Nodes // copy of the body for use in inlining
+ 	InlCost int32
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index b2acd0f29d..069e954130 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -112,11 +112,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+ 	ctxt.Text = append(ctxt.Text, text...)
+ }
+ 
+-func (ctxt *Link) InitTextSym(p *Prog, flag int) {
+-	if p.As != ATEXT {
+-		ctxt.Diag("InitTextSym non-ATEXT: %v", p)
+-	}
+-	s := p.From.Sym
++func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	if s == nil {
+ 		// func _() { }
+ 		return
+@@ -139,7 +135,6 @@ func (ctxt *Link) InitTextSym(p *Prog, flag int) {
+ 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
+ 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+ 	s.Type = STEXT
+-	s.Text = p
+ }
+ 
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

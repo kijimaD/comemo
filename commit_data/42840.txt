@@ -16,6 +16,19 @@ Date:   Sat Feb 8 19:43:58 2020 -0500
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  test/run.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/run.go b/test/run.go
+index a7bee65275..7129ca3228 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -203,6 +203,7 @@ func goFiles(dir string) []string {
+ 	f, err := os.Open(dir)
+ 	check(err)
+ 	dirnames, err := f.Readdirnames(-1)
++	f.Close()
+ 	check(err)
+ 	names := []string{}
+ 	for _, name := range dirnames {

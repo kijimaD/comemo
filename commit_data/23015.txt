@@ -19,6 +19,61 @@ Date:   Fri Apr 17 15:20:27 2015 -0400
     Change-Id: I0c0d52c22830d79b3715f51a6329a3d33de52a72
     Reviewed-on: https://go-review.googlesource.com/9157
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/dist/test.go | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 4a6688b8f6..f4fef5655d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -200,7 +200,7 @@ func (t *tester) registerTests() {
+ 			name:    testName,
+ 			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4",
+ 			fn: func() error {
+-				cmd := t.dirCmd(".", "go", "test", "-short", t.timeout(300), "runtime", "-cpu="+cpu)
++				cmd := t.dirCmd("src", "go", "test", "-short", t.timeout(300), "runtime", "-cpu="+cpu)
+ 				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+ 				// creation of first goroutines and first garbage collections in the parallel setting.
+ 				cmd.Env = mergeEnvLists([]string{"GOMAXPROCS=2"}, os.Environ())
+@@ -214,7 +214,7 @@ func (t *tester) registerTests() {
+ 		name:    "sync_cpu",
+ 		heading: "sync -cpu=10",
+ 		fn: func() error {
+-			return t.dirCmd(".", "go", "test", "sync", "-short", t.timeout(120), "-cpu=10").Run()
++			return t.dirCmd("src", "go", "test", "sync", "-short", t.timeout(120), "-cpu=10").Run()
+ 		},
+ 	})
+ 
+@@ -309,7 +309,7 @@ func (t *tester) registerTests() {
+ 			name:    "api",
+ 			heading: "API check",
+ 			fn: func() error {
+-				return t.dirCmd(".", "go", "run", filepath.Join(t.goroot, "src/cmd/api/run.go")).Run()
++				return t.dirCmd("src", "go", "run", filepath.Join(t.goroot, "src/cmd/api/run.go")).Run()
+ 			},
+ 		})
+ 	}
+@@ -573,18 +573,18 @@ func (t *tester) raceDetectorSupported() bool {
+ }
+ 
+ func (t *tester) raceTest() error {
+-	if err := t.dirCmd(".", "go", "test", "-race", "-i", "runtime/race", "flag", "os/exec").Run(); err != nil {
++	if err := t.dirCmd("src", "go", "test", "-race", "-i", "runtime/race", "flag", "os/exec").Run(); err != nil {
+ 		return err
+ 	}
+-	if err := t.dirCmd(".", "go", "test", "-race", "-run=Output", "runtime/race").Run(); err != nil {
++	if err := t.dirCmd("src", "go", "test", "-race", "-run=Output", "runtime/race").Run(); err != nil {
+ 		return err
+ 	}
+-	if err := t.dirCmd(".", "go", "test", "-race", "-short", "flag", "os/exec").Run(); err != nil {
++	if err := t.dirCmd("src", "go", "test", "-race", "-short", "flag", "os/exec").Run(); err != nil {
+ 		return err
+ 	}
+ 	if t.extLink() {
+ 		// Test with external linking; see issue 9133.
+-		if err := t.dirCmd(".", "go", "test", "-race", "-short", "-ldflags=-linkmode=external", "flag", "os/exec").Run(); err != nil {
++		if err := t.dirCmd("src", "go", "test", "-race", "-short", "-ldflags=-linkmode=external", "flag", "os/exec").Run(); err != nil {
+ 			return err
+ 		}
+ 	}

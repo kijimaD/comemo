@@ -28,7 +28,34 @@ Date:   Fri Apr 21 18:48:38 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/os2_aix.go     | 2 +-
  src/runtime/os3_solaris.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index 2efc56554c..e55dd9833e 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -31,7 +31,7 @@ var (
+ //go:cgo_import_dynamic libc__Errno _Errno "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_clock_gettime clock_gettime "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_close close "libc.a/shr_64.o"
+-//go:cgo_import_dynamic libc_exit exit "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_exit _exit "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_getpid getpid "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_getsystemcfg getsystemcfg "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_kill kill "libc.a/shr_64.o"
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 2a8677b48f..42fe3790e3 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -17,7 +17,7 @@ import (
+ 
+ //go:cgo_import_dynamic libc____errno ___errno "libc.so"
+ //go:cgo_import_dynamic libc_clock_gettime clock_gettime "libc.so"
+-//go:cgo_import_dynamic libc_exit exit "libc.so"
++//go:cgo_import_dynamic libc_exit _exit "libc.so"
+ //go:cgo_import_dynamic libc_getcontext getcontext "libc.so"
+ //go:cgo_import_dynamic libc_kill kill "libc.so"
+ //go:cgo_import_dynamic libc_madvise madvise "libc.so"

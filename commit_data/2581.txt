@@ -7,8 +7,55 @@ Date:   Thu Jul 2 21:25:46 2009 -0700
     R=ken
     OCL=31125
     CL=31125
-
+---
  src/pkg/runtime/chan.c    | 4 ----
  src/pkg/runtime/hashmap.c | 4 ----
  src/pkg/runtime/runtime.h | 5 +++++
  3 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index de58c40e49..82167ffff2 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -88,10 +88,6 @@ static	uint32	gcd(uint32, uint32);
+ static	uint32	fastrand1(void);
+ static	uint32	fastrand2(void);
+ 
+-enum {
+-	Structrnd = sizeof(uintptr)
+-};
+-
+ // newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+ void
+ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 49448ba780..1c8dd09cce 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -665,10 +665,6 @@ donothing(uint32 s, void *a, void *b)
+ typedef	struct	hash	Hmap;
+ static	int32	debug	= 0;
+ 
+-enum {
+-	Structrnd = sizeof(uintptr)
+-};
+-
+ // newmap(keysize uint32, valsize uint32,
+ //	keyalg uint32, valalg uint32,
+ //	hint uint32) (hmap *map[any]any);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index b02844dc96..8f1cfa73b8 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -258,6 +258,11 @@ enum
+ 	Amax
+ };
+ 
++
++enum {
++	Structrnd = sizeof(uintptr)
++};
++
+ /*
+  * deferred subroutine calls
+  */

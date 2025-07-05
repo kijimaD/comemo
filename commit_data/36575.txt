@@ -18,7 +18,16 @@ Date:   Mon May 7 18:10:39 2018 -0400
     Reviewed-by: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/{WASM.rules => Wasm.rules} | 0
  src/cmd/compile/internal/ssa/gen/{WASMOps.go => WasmOps.go} | 0
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/WASM.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/WASM.rules
+rename to src/cmd/compile/internal/ssa/gen/Wasm.rules
+diff --git a/src/cmd/compile/internal/ssa/gen/WASMOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/gen/WASMOps.go
+rename to src/cmd/compile/internal/ssa/gen/WasmOps.go

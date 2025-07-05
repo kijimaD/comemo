@@ -8,7 +8,7 @@ Date:   Wed Dec 2 22:02:14 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/163085
-
+---
  src/cmd/cgo/util.go                                 |  6 +++---
  src/cmd/ebnflint/ebnflint.go                        |  4 ++--
  src/cmd/godoc/godoc.go                              | 11 ++++++-----
@@ -40,3 +40,778 @@ Date:   Wed Dec 2 22:02:14 2009 -0800
  test/bench/k-nucleotide.go                          |  4 ++--
  test/bench/regex-dna.go                             |  4 ++--
  30 files changed, 87 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 53b3ef6a30..176e9528e8 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -8,7 +8,7 @@ import (
+ 	"exec";
+ 	"fmt";
+ 	"go/token";
+-	"io";
++	"io/ioutil";
+ 	"os";
+ )
+ 
+@@ -57,11 +57,11 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 	}();
+ 	var xstdout []byte;	// TODO(rsc): delete after 6g can take address of out parameter
+ 	go func() {
+-		xstdout, _ = io.ReadAll(r1);
++		xstdout, _ = ioutil.ReadAll(r1);
+ 		r1.Close();
+ 		c <- true;
+ 	}();
+-	stderr, _ = io.ReadAll(r2);
++	stderr, _ = ioutil.ReadAll(r2);
+ 	r2.Close();
+ 	<-c;
+ 	<-c;
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+index bd0ea34b5c..4904780a33 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -10,7 +10,7 @@ import (
+ 	"flag";
+ 	"fmt";
+ 	"go/scanner";
+-	"io";
++	"io/ioutil";
+ 	"os";
+ 	"path";
+ 	"strings";
+@@ -84,7 +84,7 @@ func main() {
+ 		usage()
+ 	}
+ 
+-	src, err := io.ReadFile(filename);
++	src, err := ioutil.ReadFile(filename);
+ 	if err != nil {
+ 		scanner.PrintError(os.Stderr, err)
+ 	}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 5f86100cbb..ec89d69a8a 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -15,6 +15,7 @@ import (
+ 	"go/token";
+ 	"http";
+ 	"io";
++	"io/ioutil";
+ 	"log";
+ 	"os";
+ 	pathutil "path";
+@@ -192,7 +193,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
+ 		return &Directory{depth, path, name, "", nil}
+ 	}
+ 
+-	list, _ := io.ReadDir(path);	// ignore errors
++	list, _ := ioutil.ReadDir(path);	// ignore errors
+ 
+ 	// determine number of subdirectories and package files
+ 	ndirs := 0;
+@@ -633,7 +634,7 @@ var fmap = template.FormatterMap{
+ 
+ func readTemplate(name string) *template.Template {
+ 	path := pathutil.Join(*tmplroot, name);
+-	data, err := io.ReadFile(path);
++	data, err := ioutil.ReadFile(path);
+ 	if err != nil {
+ 		log.Exitf("ReadFile %s: %v", path, err)
+ 	}
+@@ -718,7 +719,7 @@ func commentText(src []byte) (text string) {
+ 
+ func serveHTMLDoc(c *http.Conn, r *http.Request, path string) {
+ 	// get HTML body contents
+-	src, err := io.ReadFile(path);
++	src, err := ioutil.ReadFile(path);
+ 	if err != nil {
+ 		log.Stderrf("%v", err);
+ 		http.NotFound(c, r);
+@@ -815,7 +816,7 @@ func isTextFile(path string) bool {
+ 
+ 
+ func serveTextFile(c *http.Conn, r *http.Request, path string) {
+-	src, err := io.ReadFile(path);
++	src, err := ioutil.ReadFile(path);
+ 	if err != nil {
+ 		log.Stderrf("serveTextFile: %s", err)
+ 	}
+@@ -834,7 +835,7 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
+ 		return
+ 	}
+ 
+-	list, err := io.ReadDir(path);
++	list, err := ioutil.ReadDir(path);
+ 	if err != nil {
+ 		http.NotFound(c, r);
+ 		return;
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index cea8d4d34e..b3a96857d5 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -12,7 +12,7 @@ import (
+ 	"go/parser";
+ 	"go/printer";
+ 	"go/scanner";
+-	"io";
++	"io/ioutil";
+ 	"os";
+ 	pathutil "path";
+ 	"strings";
+@@ -86,7 +86,7 @@ func isGoFile(d *os.Dir) bool {
+ 
+ 
+ func processFile(f *os.File) os.Error {
+-	src, err := io.ReadAll(f);
++	src, err := ioutil.ReadAll(f);
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -112,7 +112,7 @@ func processFile(f *os.File) os.Error {
+ 			fmt.Fprintln(os.Stdout, f.Name())
+ 		}
+ 		if *write {
+-			err = io.WriteFile(f.Name(), res.Bytes(), 0);
++			err = ioutil.WriteFile(f.Name(), res.Bytes(), 0);
+ 			if err != nil {
+ 				return err
+ 			}
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index 96b5ef4961..3d2b0817e2 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -11,6 +11,7 @@ import (
+ 	"flag";
+ 	"fmt";
+ 	"io";
++	"io/ioutil";
+ 	"os";
+ 	"patch";
+ 	"path";
+@@ -35,9 +36,9 @@ func main() {
+ 	var err os.Error;
+ 	switch len(args) {
+ 	case 0:
+-		data, err = io.ReadAll(os.Stdin)
++		data, err = ioutil.ReadAll(os.Stdin)
+ 	case 1:
+-		data, err = io.ReadFile(args[0])
++		data, err = ioutil.ReadFile(args[0])
+ 	default:
+ 		usage()
+ 	}
+@@ -87,7 +88,7 @@ func main() {
+ 	}
+ 
+ 	// Apply changes in memory.
+-	op, err := pset.Apply(io.ReadFile);
++	op, err := pset.Apply(ioutil.ReadFile);
+ 	chk(err);
+ 
+ 	// Write changes to disk copy: order of commands matters.
+@@ -143,7 +144,7 @@ func main() {
+ 			changed[o.Dst] = 1;
+ 		}
+ 		if o.Data != nil {
+-			chk(io.WriteFile(o.Dst, o.Data, 0644));
++			chk(ioutil.WriteFile(o.Dst, o.Data, 0644));
+ 			if o.Verb == patch.Add {
+ 				undoRm(o.Dst)
+ 			} else {
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 62173d53a6..dd2a8584e8 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -70,6 +70,7 @@ DIRS=\
+ 	image\
+ 	image/png\
+ 	io\
++	io/ioutil\
+ 	json\
+ 	log\
+ 	malloc\
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 4a6c486f8d..0df0144b1c 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes";
+ 	"fmt";
+ 	"io";
++	"io/ioutil";
+ 	"testing";
+ 	"testing/iotest";
+ )
+@@ -121,7 +122,7 @@ func bytediff(a []byte, b []byte) string {
+ func TestWriter(t *testing.T) {
+ testLoop:
+ 	for i, test := range writerTests {
+-		expected, err := io.ReadFile(test.file);
++		expected, err := ioutil.ReadFile(test.file);
+ 		if err != nil {
+ 			t.Errorf("test %d: Unexpected error: %v", i, err);
+ 			continue;
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index 01e97f34dc..9d5ada9945 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -7,7 +7,7 @@ package flate
+ import (
+ 	"bytes";
+ 	"fmt";
+-	"io";
++	"io/ioutil";
+ 	"os";
+ 	"testing";
+ )
+@@ -96,7 +96,7 @@ func testToFromWithLevel(t *testing.T, level int, input []byte, name string) os.
+ 	w.Write(input);
+ 	w.Close();
+ 	inflater := NewInflater(buffer);
+-	decompressed, err := io.ReadAll(inflater);
++	decompressed, err := ioutil.ReadAll(inflater);
+ 	if err != nil {
+ 		t.Errorf("reading inflater: %s", err);
+ 		return err;
+diff --git a/src/pkg/compress/zlib/writer_test.go b/src/pkg/compress/zlib/writer_test.go
+index 13c20d9d1c..963a072e9d 100644
+--- a/src/pkg/compress/zlib/writer_test.go
++++ b/src/pkg/compress/zlib/writer_test.go
+@@ -6,6 +6,7 @@ package zlib
+ 
+ import (
+ 	"io";
++	"io/ioutil";
+ 	"os";
+ 	"testing";
+ )
+@@ -72,8 +73,8 @@ func testFileLevel(t *testing.T, fn string, level int) {
+ 	defer zlibr.Close();
+ 
+ 	// Compare the two.
+-	b0, err0 := io.ReadAll(golden);
+-	b1, err1 := io.ReadAll(zlibr);
++	b0, err0 := ioutil.ReadAll(golden);
++	b1, err1 := ioutil.ReadAll(zlibr);
+ 	if err0 != nil {
+ 		t.Errorf("%s (level=%d): %v", fn, level, err0);
+ 		return;
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index c17e6855b8..b7192580d7 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -9,7 +9,7 @@ package proc
+ import (
+ 	"container/vector";
+ 	"fmt";
+-	"io";
++	"io/ioutil";
+ 	"os";
+ 	"runtime";
+ 	"strconv";
+@@ -1215,7 +1215,7 @@ func (p *process) attachAllThreads() os.Error {
+ 			if err != nil {
+ 				// There could have been a race, or
+ 				// this process could be a zobmie.
+-				statFile, err2 := io.ReadFile(taskPath + "/" + tidStr + "/stat");
++				statFile, err2 := ioutil.ReadFile(taskPath + "/" + tidStr + "/stat");
+ 				if err2 != nil {
+ 					switch err2 := err2.(type) {
+ 					case *os.PathError:
+diff --git a/src/pkg/ebnf/ebnf_test.go b/src/pkg/ebnf/ebnf_test.go
+index 3eda8d9a3c..a487bdc2cf 100644
+--- a/src/pkg/ebnf/ebnf_test.go
++++ b/src/pkg/ebnf/ebnf_test.go
+@@ -5,7 +5,7 @@
+ package ebnf
+ 
+ import (
+-	"io";
++	"io/ioutil";
+ 	"strings";
+ 	"testing";
+ )
+@@ -65,7 +65,7 @@ var files = []string{
+ 
+ func TestFiles(t *testing.T) {
+ 	for _, filename := range files {
+-		src, err := io.ReadFile(filename);
++		src, err := ioutil.ReadFile(filename);
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index 40bb1a25e8..294f638255 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -6,7 +6,7 @@ package ascii85
+ 
+ import (
+ 	"bytes";
+-	"io";
++	"io/ioutil";
+ 	"os";
+ 	"reflect";
+ 	"strings";
+@@ -111,7 +111,7 @@ func TestDecode(t *testing.T) {
+ func TestDecoder(t *testing.T) {
+ 	for _, p := range pairs {
+ 		decoder := NewDecoder(bytes.NewBufferString(p.encoded));
+-		dbuf, err := io.ReadAll(decoder);
++		dbuf, err := ioutil.ReadAll(decoder);
+ 		if err != nil {
+ 			t.Fatal("Read failed", err)
+ 		}
+@@ -176,7 +176,7 @@ func TestBig(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Encoder.Close() = %v want nil", err)
+ 	}
+-	decoded, err := io.ReadAll(NewDecoder(encoded));
++	decoded, err := ioutil.ReadAll(NewDecoder(encoded));
+ 	if err != nil {
+ 		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
+ 	}
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+index 51e40ed7e5..3153a73470 100644
+--- a/src/pkg/encoding/base64/base64_test.go
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -6,7 +6,7 @@ package base64
+ 
+ import (
+ 	"bytes";
+-	"io";
++	"io/ioutil";
+ 	"os";
+ 	"reflect";
+ 	"strings";
+@@ -184,9 +184,9 @@ func TestBig(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Encoder.Close() = %v want nil", err)
+ 	}
+-	decoded, err := io.ReadAll(NewDecoder(StdEncoding, encoded));
++	decoded, err := ioutil.ReadAll(NewDecoder(StdEncoding, encoded));
+ 	if err != nil {
+-		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
++		t.Fatalf("ioutil.ReadAll(NewDecoder(...)): %v", err)
+ 	}
+ 
+ 	if !bytes.Equal(raw, decoded) {
+diff --git a/src/pkg/encoding/git85/git_test.go b/src/pkg/encoding/git85/git_test.go
+index 713524af28..07367ddec6 100644
+--- a/src/pkg/encoding/git85/git_test.go
++++ b/src/pkg/encoding/git85/git_test.go
+@@ -6,7 +6,7 @@ package git85
+ 
+ import (
+ 	"bytes";
+-	"io";
++	"io/ioutil";
+ 	"os";
+ 	"reflect";
+ 	"strings";
+@@ -117,7 +117,7 @@ func TestDecode(t *testing.T) {
+ func TestDecoder(t *testing.T) {
+ 	for _, p := range gitPairs {
+ 		decoder := NewDecoder(bytes.NewBufferString(p.encoded));
+-		dbuf, err := io.ReadAll(decoder);
++		dbuf, err := ioutil.ReadAll(decoder);
+ 		if err != nil {
+ 			t.Fatal("Read failed", err)
+ 		}
+@@ -182,9 +182,9 @@ func TestGitBig(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Encoder.Close() = %v want nil", err)
+ 	}
+-	decoded, err := io.ReadAll(NewDecoder(encoded));
++	decoded, err := ioutil.ReadAll(NewDecoder(encoded));
+ 	if err != nil {
+-		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
++		t.Fatalf("ioutil.ReadAll(NewDecoder(...)): %v", err)
+ 	}
+ 
+ 	if !bytes.Equal(raw, decoded) {
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index af86b55a02..5a997fd199 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -6,6 +6,7 @@ package exec
+ 
+ import (
+ 	"io";
++	"io/ioutil";
+ 	"testing";
+ )
+ 
+@@ -17,7 +18,7 @@ func TestRunCat(t *testing.T) {
+ 	}
+ 	io.WriteString(cmd.Stdin, "hello, world\n");
+ 	cmd.Stdin.Close();
+-	buf, err := io.ReadAll(cmd.Stdout);
++	buf, err := ioutil.ReadAll(cmd.Stdout);
+ 	if err != nil {
+ 		t.Fatalf("reading from /bin/cat: %v", err)
+ 	}
+@@ -35,7 +36,7 @@ func TestRunEcho(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("opencmd /bin/echo: %v", err)
+ 	}
+-	buf, err := io.ReadAll(cmd.Stdout);
++	buf, err := ioutil.ReadAll(cmd.Stdout);
+ 	if err != nil {
+ 		t.Fatalf("reading from /bin/echo: %v", err)
+ 	}
+diff --git a/src/pkg/exp/eval/main.go b/src/pkg/exp/eval/main.go
+index 769fc07763..376af6b86d 100644
+--- a/src/pkg/exp/eval/main.go
++++ b/src/pkg/exp/eval/main.go
+@@ -20,7 +20,7 @@ func main() {
+ 	flag.Parse();
+ 	w := eval.NewWorld();
+ 	if *filename != "" {
+-		data, err := io.ReadFile(*filename);
++		data, err := ioutil.ReadFile(*filename);
+ 		if err != nil {
+ 			println(err.String());
+ 			os.Exit(1);
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 6704894629..7e8f5d25ef 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/ast";
+ 	"go/scanner";
+ 	"io";
++	"io/ioutil";
+ 	"os";
+ 	pathutil "path";
+ 	"strings";
+@@ -46,7 +47,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
+ 		}
+ 	}
+ 
+-	return io.ReadFile(filename);
++	return ioutil.ReadFile(filename);
+ }
+ 
+ 
+@@ -138,7 +139,7 @@ func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error
+ // flags that control the amount of source text parsed are ignored.
+ //
+ func ParsePkgFile(pkgname, filename string, mode uint) (*ast.File, os.Error) {
+-	src, err := io.ReadFile(filename);
++	src, err := ioutil.ReadFile(filename);
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 5c10d4a85d..c85ddb00f8 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -7,7 +7,7 @@ package printer
+ import (
+ 	"bytes";
+ 	"flag";
+-	"io";
++	"io/ioutil";
+ 	"go/ast";
+ 	"go/parser";
+ 	"path";
+@@ -70,14 +70,14 @@ func check(t *testing.T, source, golden string, mode checkMode) {
+ 
+ 	// update golden files if necessary
+ 	if *update {
+-		if err := io.WriteFile(golden, res, 0644); err != nil {
++		if err := ioutil.WriteFile(golden, res, 0644); err != nil {
+ 			t.Error(err)
+ 		}
+ 		return;
+ 	}
+ 
+ 	// get golden
+-	gld, err := io.ReadFile(golden);
++	gld, err := ioutil.ReadFile(golden);
+ 	if err != nil {
+ 		t.Error(err);
+ 		return;
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 8f52130677..76aad7e815 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -7,7 +7,7 @@
+ package http
+ 
+ import (
+-	"io";
++	"io/ioutil";
+ 	"strings";
+ 	"testing";
+ )
+@@ -19,7 +19,7 @@ func TestClient(t *testing.T) {
+ 	r, _, err := Get("http://www.google.com/robots.txt");
+ 	var b []byte;
+ 	if err == nil {
+-		b, err = io.ReadAll(r.Body);
++		b, err = ioutil.ReadAll(r.Body);
+ 		r.Body.Close();
+ 	}
+ 	if err != nil {
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index ce49f7cf85..83374a5494 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -15,6 +15,7 @@ import (
+ 	"container/vector";
+ 	"fmt";
+ 	"io";
++	"io/ioutil";
+ 	"os";
+ 	"strconv";
+ 	"strings";
+@@ -626,7 +627,7 @@ func (r *Request) ParseForm() (err os.Error) {
+ 		switch strings.Split(ct, ";", 2)[0] {
+ 		case "text/plain", "application/x-www-form-urlencoded", "":
+ 			var b []byte;
+-			if b, err = io.ReadAll(r.Body); err != nil {
++			if b, err = ioutil.ReadAll(r.Body); err != nil {
+ 				return err
+ 			}
+ 			query = string(b);
+diff --git a/src/pkg/io/Makefile b/src/pkg/io/Makefile
+index cbe691644e..8c27ce551d 100644
+--- a/src/pkg/io/Makefile
++++ b/src/pkg/io/Makefile
+@@ -8,6 +8,5 @@ TARG=io
+ GOFILES=\
+ 	io.go\
+ 	pipe.go\
+-	utils.go\
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index b389af45a4..c4850da912 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -5,8 +5,7 @@
+ // This package provides basic interfaces to I/O primitives.
+ // Its primary job is to wrap existing implementations of such primitives,
+ // such as those in package os, into shared public interfaces that
+-// abstract the functionality.
+-// It also provides buffering primitives and some other basic operations.
++// abstract the functionality, plus some other related primitives.
+ package io
+ 
+ import (
+diff --git a/src/pkg/io/ioutil/Makefile b/src/pkg/io/ioutil/Makefile
+new file mode 100644
+index 0000000000..3abf7143a6
+--- /dev/null
++++ b/src/pkg/io/ioutil/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.$(GOARCH)
++
++TARG=io/ioutil
++GOFILES=\
++	ioutil.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/io/utils.go b/src/pkg/io/ioutil/ioutil.go
+similarity index 94%
+rename from src/pkg/io/utils.go
+rename to src/pkg/io/ioutil/ioutil.go
+index 0e0b84ae49..a38e488111 100644
+--- a/src/pkg/io/utils.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -4,18 +4,19 @@
+ 
+ // Utility functions.
+ 
+-package io
++package ioutil
+ 
+ import (
+ 	"bytes";
++	"io";
+ 	"os";
+ 	"sort";
+ )
+ 
+ // ReadAll reads from r until an error or EOF and returns the data it read.
+-func ReadAll(r Reader) ([]byte, os.Error) {
++func ReadAll(r io.Reader) ([]byte, os.Error) {
+ 	var buf bytes.Buffer;
+-	_, err := Copy(&buf, r);
++	_, err := io.Copy(&buf, r);
+ 	return buf.Bytes(), err;
+ }
+ 
+@@ -41,7 +42,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
+ 	// we'll either waste some space off the end or reallocate as needed, but
+ 	// in the overwhelmingly common case we'll get it just right.
+ 	buf := bytes.NewBuffer(make([]byte, n)[0:0]);
+-	_, err = Copy(buf, f);
++	_, err = io.Copy(buf, f);
+ 	return buf.Bytes(), err;
+ }
+ 
+@@ -56,7 +57,7 @@ func WriteFile(filename string, data []byte, perm int) os.Error {
+ 	n, err := f.Write(data);
+ 	f.Close();
+ 	if err == nil && n < len(data) {
+-		err = ErrShortWrite
++		err = io.ErrShortWrite
+ 	}
+ 	return err;
+ }
+diff --git a/src/pkg/io/utils_test.go b/src/pkg/io/ioutil/ioutil_test.go
+similarity index 94%
+rename from src/pkg/io/utils_test.go
+rename to src/pkg/io/ioutil/ioutil_test.go
+index b7f6e80f41..d0720f2233 100644
+--- a/src/pkg/io/utils_test.go
++++ b/src/pkg/io/ioutil/ioutil_test.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package io_test
++package ioutil_test
+ 
+ import (
+-	. "io";
++	. "io/ioutil";
+ 	"os";
+ 	"strings";
+ 	"testing";
+@@ -28,7 +28,7 @@ func TestReadFile(t *testing.T) {
+ 		t.Fatalf("ReadFile %s: error expected, none found", filename)
+ 	}
+ 
+-	filename = "utils_test.go";
++	filename = "ioutil_test.go";
+ 	contents, err = ReadFile(filename);
+ 	if err != nil {
+ 		t.Fatalf("ReadFile %s: %v", filename, err)
+@@ -78,7 +78,7 @@ func TestReadDir(t *testing.T) {
+ 	foundObj := false;
+ 	for _, dir := range list {
+ 		switch {
+-		case dir.IsRegular() && dir.Name == "utils_test.go":
++		case dir.IsRegular() && dir.Name == "ioutil_test.go":
+ 			foundTest = true
+ 		case dir.IsDirectory() && dir.Name == "_obj":
+ 			foundObj = true
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 8c39019810..ed3d955cb3 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes";
+ 	"fmt";
+ 	"io";
++	"io/ioutil";
+ 	. "os";
+ 	"strings";
+ 	"testing";
+@@ -666,7 +667,7 @@ func TestWriteAt(t *testing.T) {
+ 		t.Fatalf("WriteAt 7: %d, %v", n, err)
+ 	}
+ 
+-	b, err := io.ReadFile("_obj/writetest");
++	b, err := ioutil.ReadFile("_obj/writetest");
+ 	if err != nil {
+ 		t.Fatalf("ReadFile _obj/writetest: %v", err)
+ 	}
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index e5b9e989d2..59deb5ce91 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -7,7 +7,7 @@
+ package path
+ 
+ import (
+-	"io";
++	"io/ioutil";
+ 	"os";
+ 	"strings";
+ )
+@@ -155,7 +155,7 @@ func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
+ 		return	// skip directory entries
+ 	}
+ 
+-	list, err := io.ReadDir(path);
++	list, err := ioutil.ReadDir(path);
+ 	if err != nil {
+ 		if errors != nil {
+ 			errors <- err
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index 40f8f0feb6..8d8048aa05 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -10,7 +10,7 @@
+ package time
+ 
+ import (
+-	"io";
++	"io/ioutil";
+ 	"once";
+ 	"os";
+ )
+@@ -195,7 +195,7 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
+ }
+ 
+ func readinfofile(name string) ([]zonetime, bool) {
+-	buf, err := io.ReadFile(name);
++	buf, err := ioutil.ReadFile(name);
+ 	if err != nil {
+ 		return nil, false
+ 	}
+diff --git a/test/bench/k-nucleotide.go b/test/bench/k-nucleotide.go
+index d256b372f5..47debecb3d 100644
+--- a/test/bench/k-nucleotide.go
++++ b/test/bench/k-nucleotide.go
+@@ -39,7 +39,7 @@ import (
+ 	"bufio";
+ 	"bytes";
+ 	"fmt";
+-	"io";
++	"io/ioutil";
+ 	"os";
+ 	"sort";
+ 	"strings";
+@@ -122,7 +122,7 @@ func main() {
+ 			break
+ 		}
+ 	}
+-	data, err := io.ReadAll(in);
++	data, err := ioutil.ReadAll(in);
+ 	if err != nil {
+ 		fmt.Fprintln(os.Stderr, "ReadAll err:", err);
+ 		os.Exit(2);
+diff --git a/test/bench/regex-dna.go b/test/bench/regex-dna.go
+index 75133dc85e..2e1ab8edb2 100644
+--- a/test/bench/regex-dna.go
++++ b/test/bench/regex-dna.go
+@@ -37,7 +37,7 @@ package main
+ 
+ import (
+ 	"fmt";
+-	"io";
++	"io/ioutil";
+ 	"os";
+ 	"regexp";
+ 	"strings";
+@@ -88,7 +88,7 @@ func countMatches(pat string, bytes []byte) int {
+ }
+ 
+ func main() {
+-	bytes, err := io.ReadFile("/dev/stdin");
++	bytes, err := ioutil.ReadFile("/dev/stdin");
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "can't read input: %s\n", err);
+ 		os.Exit(2);

@@ -58,7 +58,69 @@ Date:   Fri Oct 11 11:08:43 2024 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 2 +-
  test/codegen/slices.go                  | 7 ++++++-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 71b8f09daf..45eb48ad63 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1371,7 +1371,7 @@ func isInlinableMemclr(c *Config, sz int64) bool {
+ 	switch c.arch {
+ 	case "amd64", "arm64":
+ 		return true
+-	case "ppc64le", "ppc64":
++	case "ppc64le", "ppc64", "loong64":
+ 		return sz < 512
+ 	}
+ 	return false
+diff --git a/test/codegen/slices.go b/test/codegen/slices.go
+index a38fe77e3f..9e8990c586 100644
+--- a/test/codegen/slices.go
++++ b/test/codegen/slices.go
+@@ -47,6 +47,7 @@ func SliceExtensionConst(s []int) []int {
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
+ 	// amd64:"MOVUPS\tX15"
++	// loong64:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+@@ -58,6 +59,7 @@ func SliceExtensionConstInt64(s []int) []int {
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
+ 	// amd64:"MOVUPS\tX15"
++	// loong64:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+@@ -69,6 +71,7 @@ func SliceExtensionConstUint64(s []int) []int {
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
+ 	// amd64:"MOVUPS\tX15"
++	// loong64:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+@@ -80,16 +83,18 @@ func SliceExtensionConstUint(s []int) []int {
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
+ 	// amd64:"MOVUPS\tX15"
++	// loong64:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+ 	return append(s, make([]int, uint(1<<2))...)
+ }
+ 
+-// On ppc64x continue to use memclrNoHeapPointers
++// On ppc64x and loong64 continue to use memclrNoHeapPointers
+ // for sizes >= 512.
+ func SliceExtensionConst512(s []int) []int {
+ 	// amd64:-`.*runtime\.memclrNoHeapPointers`
++	// loong64:`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:`.*runtime\.memclrNoHeapPointers`
+ 	return append(s, make([]int, 1<<9)...)
+ }

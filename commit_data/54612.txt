@@ -13,8 +13,91 @@ Date:   Thu Nov 3 13:18:13 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go               | 12 ++++++++----
  src/cmd/go/internal/work/gc.go                 |  3 ++-
  src/cmd/go/testdata/script/build_cgo_error.txt | 17 +++++++++++++++++
  3 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 30f8f9540b..746649f5d9 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -848,7 +848,8 @@ OverlayLoop:
+ 		}
+ 
+ 		if err != nil {
+-			return errors.New(fmt.Sprint(formatOutput(b.WorkDir, p.Dir, p.Desc(), output)))
++			prefix, suffix := formatOutput(b.WorkDir, p.Dir, p.Desc(), output)
++			return errors.New(prefix + suffix)
+ 		} else {
+ 			b.showOutput(a, p.Dir, p.Desc(), output)
+ 		}
+@@ -2153,7 +2154,8 @@ func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs
+ 			desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
+ 		}
+ 		if err != nil {
+-			err = errors.New(fmt.Sprint(formatOutput(b.WorkDir, dir, desc, b.processOutput(out))))
++			prefix, suffix := formatOutput(b.WorkDir, dir, desc, b.processOutput(out))
++			err = errors.New(prefix + suffix)
+ 		} else {
+ 			b.showOutput(a, dir, desc, b.processOutput(out))
+ 		}
+@@ -2500,7 +2502,8 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ 		}
+ 
+ 		if err != nil || os.Getenv("GO_BUILDER_NAME") != "" {
+-			err = errors.New(fmt.Sprintf(formatOutput(b.WorkDir, p.Dir, desc, b.processOutput(output))))
++			prefix, suffix := formatOutput(b.WorkDir, p.Dir, desc, b.processOutput(output))
++			err = errors.New(prefix + suffix)
+ 		} else {
+ 			b.showOutput(a, p.Dir, desc, b.processOutput(output))
+ 		}
+@@ -3424,7 +3427,8 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
+ 				return "", "", errors.New("must have SWIG version >= 3.0.6")
+ 			}
+ 			// swig error
+-			return "", "", errors.New(fmt.Sprint(formatOutput(b.WorkDir, p.Dir, p.Desc(), b.processOutput(out))))
++			prefix, suffix := formatOutput(b.WorkDir, p.Dir, p.Desc(), b.processOutput(out))
++			return "", "", errors.New(prefix + suffix)
+ 		}
+ 		return "", "", err
+ 	}
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index e87f048a07..de32ad9158 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -507,7 +507,8 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
+ 		return nil
+ 	}
+ 	if err := packInternal(absAfile, absOfiles); err != nil {
+-		return errors.New(fmt.Sprint(formatOutput(b.WorkDir, p.Dir, p.Desc(), err.Error()+"\n")))
++		prefix, suffix := formatOutput(b.WorkDir, p.Dir, p.Desc(), err.Error()+"\n")
++		return errors.New(prefix + suffix)
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/go/testdata/script/build_cgo_error.txt b/src/cmd/go/testdata/script/build_cgo_error.txt
+new file mode 100644
+index 0000000000..c11ab46ecc
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_cgo_error.txt
+@@ -0,0 +1,17 @@
++[short] skip
++[!cgo] skip
++
++! go build .
++stderr '# foo\nfoo.c:'
++! stderr 'EXTRA string'
++
++-- go.mod --
++module foo
++
++go 1.20
++-- foo.go --
++package foo
++
++import "C"
++-- foo.c --
++#include "doesnotexist.h"
+\ No newline at end of file

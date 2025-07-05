@@ -21,7 +21,49 @@ Date:   Wed Feb 2 16:44:35 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/regexpdepth.txt   | 3 +++
  src/regexp/syntax/parse.go | 7 ++++---
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/api/next/regexpdepth.txt b/api/next/regexpdepth.txt
+new file mode 100644
+index 0000000000..9810218560
+--- /dev/null
++++ b/api/next/regexpdepth.txt
+@@ -0,0 +1,3 @@
++pkg regexp/syntax, const ErrInvalidDepth = "invalid nesting depth" #0
++pkg regexp/syntax, const ErrInvalidDepth ErrorCode #0
++
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index fa45def9b7..ebf8e11915 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -43,6 +43,7 @@ const (
+ 	ErrMissingRepeatArgument ErrorCode = "missing argument to repetition operator"
+ 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
+ 	ErrUnexpectedParen       ErrorCode = "unexpected )"
++	ErrInvalidDepth          ErrorCode = "invalid nesting depth"
+ )
+ 
+ func (e ErrorCode) String() string {
+@@ -133,7 +134,7 @@ func (p *parser) checkHeight(re *Regexp) {
+ 		}
+ 	}
+ 	if p.calcHeight(re, true) > maxHeight {
+-		panic(ErrInternalError)
++		panic(ErrInvalidDepth)
+ 	}
+ }
+ 
+@@ -756,8 +757,8 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
+ 			panic(r)
+ 		case nil:
+ 			// ok
+-		case ErrInternalError:
+-			err = &Error{Code: ErrInternalError, Expr: s}
++		case ErrInvalidDepth:
++			err = &Error{Code: ErrInvalidDepth, Expr: s}
+ 		}
+ 	}()
+ 

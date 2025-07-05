@@ -10,7 +10,7 @@ Date:   Thu Sep 18 19:17:55 2014 +0900
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/143830044
-
+---
  src/net/dial_test.go                      |  5 ++++
  src/net/dnsclient_unix.go                 |  2 +-
  src/net/dnsconfig_unix.go                 |  2 +-
@@ -35,3 +35,488 @@ Date:   Thu Sep 18 19:17:55 2014 +0900
  src/net/tcpsockopt_stub.go                |  8 +++--
  src/os/exec/exec_test.go                  |  5 ++--
  23 files changed, 185 insertions(+), 24 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 19e289f2e5..abeb500098 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -465,6 +465,11 @@ func TestDialer(t *testing.T) {
+ }
+ 
+ func TestDialDualStackLocalhost(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl":
++		t.Skipf("skipping test on %q", runtime.GOOS)
++	}
++
+ 	if ips, err := LookupIP("localhost"); err != nil {
+ 		t.Fatalf("LookupIP failed: %v", err)
+ 	} else if len(ips) < 2 || !supportsIPv4 || !supportsIPv6 {
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index abe7da05cb..7511083f79 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // DNS client: see RFC 1035.
+ // Has to be linked into package net for Dial.
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index ebb6e673f1..66ab7c4dd3 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Read system DNS config from /etc/resolv.conf
+ 
+diff --git a/src/net/file_stub.go b/src/net/file_stub.go
+new file mode 100644
+index 0000000000..4281072ef9
+--- /dev/null
++++ b/src/net/file_stub.go
+@@ -0,0 +1,38 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build nacl
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++// FileConn returns a copy of the network connection corresponding to
++// the open file f.  It is the caller's responsibility to close f when
++// finished.  Closing c does not affect f, and closing f does not
++// affect c.
++func FileConn(f *os.File) (c Conn, err error) {
++	return nil, syscall.ENOPROTOOPT
++
++}
++
++// FileListener returns a copy of the network listener corresponding
++// to the open file f.  It is the caller's responsibility to close l
++// when finished.  Closing l does not affect f, and closing f does not
++// affect l.
++func FileListener(f *os.File) (l Listener, err error) {
++	return nil, syscall.ENOPROTOOPT
++
++}
++
++// FilePacketConn returns a copy of the packet network connection
++// corresponding to the open file f.  It is the caller's
++// responsibility to close f when finished.  Closing c does not affect
++// f, and closing f does not affect c.
++func FilePacketConn(f *os.File) (c PacketConn, err error) {
++	return nil, syscall.ENOPROTOOPT
++}
+diff --git a/src/net/file_test.go b/src/net/file_test.go
+index d81bca7824..6fab06a9c6 100644
+--- a/src/net/file_test.go
++++ b/src/net/file_test.go
+@@ -89,7 +89,7 @@ var fileListenerTests = []struct {
+ 
+ func TestFileListener(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "windows":
++	case "nacl", "windows":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+diff --git a/src/net/file_unix.go b/src/net/file_unix.go
+index 07b3ecf626..214a4196c8 100644
+--- a/src/net/file_unix.go
++++ b/src/net/file_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/ipraw_test.go b/src/net/ipraw_test.go
+index 0632dafc65..92dc8dc569 100644
+--- a/src/net/ipraw_test.go
++++ b/src/net/ipraw_test.go
+@@ -68,6 +68,11 @@ func skipRawSocketTest(t *testing.T) (skip bool, skipmsg string) {
+ }
+ 
+ func TestResolveIPAddr(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl":
++		t.Skipf("skipping test on %q", runtime.GOOS)
++	}
++
+ 	for _, tt := range resolveIPAddrTests {
+ 		addr, err := ResolveIPAddr(tt.net, tt.litAddrOrName)
+ 		if err != tt.err {
+diff --git a/src/net/lookup_stub.go b/src/net/lookup_stub.go
+new file mode 100644
+index 0000000000..502aafb270
+--- /dev/null
++++ b/src/net/lookup_stub.go
+@@ -0,0 +1,49 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build nacl
++
++package net
++
++import "syscall"
++
++func lookupProtocol(name string) (proto int, err error) {
++	return 0, syscall.ENOPROTOOPT
++}
++
++func lookupHost(host string) (addrs []string, err error) {
++	return nil, syscall.ENOPROTOOPT
++}
++
++func lookupIP(host string) (ips []IP, err error) {
++	return nil, syscall.ENOPROTOOPT
++}
++
++func lookupPort(network, service string) (port int, err error) {
++	return 0, syscall.ENOPROTOOPT
++}
++
++func lookupCNAME(name string) (cname string, err error) {
++	return "", syscall.ENOPROTOOPT
++}
++
++func lookupSRV(service, proto, name string) (cname string, srvs []*SRV, err error) {
++	return "", nil, syscall.ENOPROTOOPT
++}
++
++func lookupMX(name string) (mxs []*MX, err error) {
++	return nil, syscall.ENOPROTOOPT
++}
++
++func lookupNS(name string) (nss []*NS, err error) {
++	return nil, syscall.ENOPROTOOPT
++}
++
++func lookupTXT(name string) (txts []string, err error) {
++	return nil, syscall.ENOPROTOOPT
++}
++
++func lookupAddr(addr string) (ptrs []string, err error) {
++	return nil, syscall.ENOPROTOOPT
++}
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index b1d2f8f31a..a54578456d 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/port_test.go b/src/net/port_test.go
+index 9e8968f359..4811ade69e 100644
+--- a/src/net/port_test.go
++++ b/src/net/port_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -43,6 +44,11 @@ var porttests = []portTest{
+ }
+ 
+ func TestLookupPort(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl":
++		t.Skipf("skipping test on %q", runtime.GOOS)
++	}
++
+ 	for i := 0; i < len(porttests); i++ {
+ 		tt := porttests[i]
+ 		if port, err := LookupPort(tt.netw, tt.name); port != tt.port || (err == nil) != tt.ok {
+diff --git a/src/net/port_unix.go b/src/net/port_unix.go
+index 89558c1f02..348c771c35 100644
+--- a/src/net/port_unix.go
++++ b/src/net/port_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Read system port mappings from /etc/services
+ 
+diff --git a/src/net/sock_bsd.go b/src/net/sock_bsd.go
+index 48fb785275..6c37109f5e 100644
+--- a/src/net/sock_bsd.go
++++ b/src/net/sock_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd nacl netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/net/sock_solaris.go b/src/net/sock_stub.go
+similarity index 93%
+rename from src/net/sock_solaris.go
+rename to src/net/sock_stub.go
+index 90fe9de894..ed6b089489 100644
+--- a/src/net/sock_solaris.go
++++ b/src/net/sock_stub.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build nacl solaris
++
+ package net
+ 
+ import "syscall"
+diff --git a/src/net/sockopt_bsd.go b/src/net/sockopt_bsd.go
+index 2d36a55953..00e4dbf376 100644
+--- a/src/net/sockopt_bsd.go
++++ b/src/net/sockopt_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd nacl netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/net/sockopt_posix.go b/src/net/sockopt_posix.go
+index 921918c37f..1654d1b85e 100644
+--- a/src/net/sockopt_posix.go
++++ b/src/net/sockopt_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/sockopt_stub.go b/src/net/sockopt_stub.go
+new file mode 100644
+index 0000000000..de5ee0bb63
+--- /dev/null
++++ b/src/net/sockopt_stub.go
+@@ -0,0 +1,37 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build nacl
++
++package net
++
++import "syscall"
++
++func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
++	return nil
++}
++
++func setDefaultListenerSockopts(s int) error {
++	return nil
++}
++
++func setDefaultMulticastSockopts(s int) error {
++	return nil
++}
++
++func setReadBuffer(fd *netFD, bytes int) error {
++	return syscall.ENOPROTOOPT
++}
++
++func setWriteBuffer(fd *netFD, bytes int) error {
++	return syscall.ENOPROTOOPT
++}
++
++func setKeepAlive(fd *netFD, keepalive bool) error {
++	return syscall.ENOPROTOOPT
++}
++
++func setLinger(fd *netFD, sec int) error {
++	return syscall.ENOPROTOOPT
++}
+diff --git a/src/net/sockoptip_bsd.go b/src/net/sockoptip_bsd.go
+index 87132f0f46..2199e480d4 100644
+--- a/src/net/sockoptip_bsd.go
++++ b/src/net/sockoptip_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd nacl netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/net/sockoptip_posix.go b/src/net/sockoptip_posix.go
+index b5c80e4490..c2579be911 100644
+--- a/src/net/sockoptip_posix.go
++++ b/src/net/sockoptip_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/net/sockoptip_stub.go b/src/net/sockoptip_stub.go
+index dcd3a22b57..32ec5ddb85 100644
+--- a/src/net/sockoptip_stub.go
++++ b/src/net/sockoptip_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build solaris
++// +build nacl solaris
+ 
+ package net
+ 
+@@ -10,30 +10,30 @@ import "syscall"
+ 
+ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
+ 	// See golang.org/issue/7399.
+-	return syscall.EINVAL
++	return syscall.ENOPROTOOPT
+ }
+ 
+ func setIPv4MulticastLoopback(fd *netFD, v bool) error {
+ 	// See golang.org/issue/7399.
+-	return syscall.EINVAL
++	return syscall.ENOPROTOOPT
+ }
+ 
+ func joinIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
+ 	// See golang.org/issue/7399.
+-	return syscall.EINVAL
++	return syscall.ENOPROTOOPT
+ }
+ 
+ func setIPv6MulticastInterface(fd *netFD, ifi *Interface) error {
+ 	// See golang.org/issue/7399.
+-	return syscall.EINVAL
++	return syscall.ENOPROTOOPT
+ }
+ 
+ func setIPv6MulticastLoopback(fd *netFD, v bool) error {
+ 	// See golang.org/issue/7399.
+-	return syscall.EINVAL
++	return syscall.ENOPROTOOPT
+ }
+ 
+ func joinIPv6Group(fd *netFD, ifi *Interface, ip IP) error {
+ 	// See golang.org/issue/7399.
+-	return syscall.EINVAL
++	return syscall.ENOPROTOOPT
+ }
+diff --git a/src/net/tcpsockopt_openbsd.go b/src/net/tcpsockopt_openbsd.go
+new file mode 100644
+index 0000000000..041e1786a9
+--- /dev/null
++++ b/src/net/tcpsockopt_openbsd.go
+@@ -0,0 +1,16 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"syscall"
++	"time"
++)
++
++func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
++	// OpenBSD has no user-settable per-socket TCP keepalive
++	// options.
++	return syscall.ENOPROTOOPT
++}
+diff --git a/src/net/tcpsockopt_posix.go b/src/net/tcpsockopt_posix.go
+index 6484bad4b4..0abf3f97f6 100644
+--- a/src/net/tcpsockopt_posix.go
++++ b/src/net/tcpsockopt_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/tcpsockopt_stub.go b/src/net/tcpsockopt_stub.go
+index 346293ca46..b413a764d8 100644
+--- a/src/net/tcpsockopt_stub.go
++++ b/src/net/tcpsockopt_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl openbsd
++// +build nacl
+ 
+ package net
+ 
+@@ -11,8 +11,10 @@ import (
+ 	"time"
+ )
+ 
++func setNoDelay(fd *netFD, noDelay bool) error {
++	return syscall.ENOPROTOOPT
++}
++
+ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+-	// NaCl and OpenBSD have no user-settable per-socket TCP
+-	// keepalive options.
+ 	return syscall.ENOPROTOOPT
+ }
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 6f77ac38ae..5fd439b8bb 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -383,8 +383,9 @@ func TestExtraFilesFDShuffle(t *testing.T) {
+ }
+ 
+ func TestExtraFiles(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Skip("no operating system support; skipping")
++	switch runtime.GOOS {
++	case "nacl", "windows":
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	// Ensure that file descriptors have not already been leaked into

@@ -11,6 +11,23 @@ Date:   Mon Jan 26 00:39:49 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/3305
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/image.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/image/image.go b/src/image/image.go
+index e0ecd92baa..951cc8ae05 100644
+--- a/src/image/image.go
++++ b/src/image/image.go
+@@ -46,9 +46,9 @@ type Image interface {
+ }
+ 
+ // PalettedImage is an image whose colors may come from a limited palette.
+-// If m is a PalettedImage and m.ColorModel() returns a PalettedColorModel p,
++// If m is a PalettedImage and m.ColorModel() returns a color.Palette p,
+ // then m.At(x, y) should be equivalent to p[m.ColorIndexAt(x, y)]. If m's
+-// color model is not a PalettedColorModel, then ColorIndexAt's behavior is
++// color model is not a color.Palette, then ColorIndexAt's behavior is
+ // undefined.
+ type PalettedImage interface {
+ 	// ColorIndexAt returns the palette index of the pixel at (x, y).

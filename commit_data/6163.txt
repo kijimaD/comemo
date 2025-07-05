@@ -9,6 +9,20 @@ Date:   Thu Sep 2 11:31:00 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2143041
-
+---
  src/pkg/exp/iterable/iterable.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/iterable/iterable.go b/src/pkg/exp/iterable/iterable.go
+index 85e5f38b0e..ef6b9c4769 100644
+--- a/src/pkg/exp/iterable/iterable.go
++++ b/src/pkg/exp/iterable/iterable.go
+@@ -204,7 +204,7 @@ func Cycle(iter Iterable) Iterable {
+ 	})
+ }
+ 
+-// Chain returns an Iterable that concatentates all values from the specified Iterables.
++// Chain returns an Iterable that concatenates all values from the specified Iterables.
+ func Chain(args []Iterable) Iterable {
+ 	return Func(func(ch chan<- interface{}) {
+ 		for _, e := range args {

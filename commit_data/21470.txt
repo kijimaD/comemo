@@ -11,7 +11,7 @@ Date:   Tue Dec 16 18:34:55 2014 -0500
     Change-Id: I68da6df50d5638cb1a3d3fef773fb412d7bf631a
     Reviewed-on: https://go-review.googlesource.com/2009
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/cgo/out.go                 |   1 +
  src/go/build/build.go              |   1 +
  src/run.bash                       |   1 +
@@ -27,3 +27,829 @@ Date:   Tue Dec 16 18:34:55 2014 -0500
  src/runtime/sys_linux_ppc64x.s     |   7 ++
  src/runtime/tls_ppc64x.s           |   4 +
  14 files changed, 622 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index d887c9df29..a4bd5579d3 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -60,6 +60,7 @@ func (p *Package) writeDefs() {
+ 	}
+ 	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
+ 	fmt.Fprintf(fm, "void _cgo_panic(void *a, int c) { }\n")
++	fmt.Fprintf(fm, "void _cgo_reginit(void) { }\n")
+ 
+ 	// Write second Go output: definitions of _C_xxx.
+ 	// In a separate file so that the import of "unsafe" does not
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 7cf2f1f774..62935ee0cf 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -267,6 +267,7 @@ var cgoEnabled = map[string]bool{
+ 	"linux/386":       true,
+ 	"linux/amd64":     true,
+ 	"linux/arm":       true,
++	"linux/ppc64le":   true,
+ 	"android/386":     true,
+ 	"android/amd64":   true,
+ 	"android/arm":     true,
+diff --git a/src/run.bash b/src/run.bash
+index dbd3ddb6af..6eafc5f0c4 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -118,6 +118,7 @@ export GOTRACEBACK=2
+ go test -ldflags '-linkmode=auto' || exit 1
+ # linkmode=internal fails on dragonfly since errno is a TLS relocation.
+ [ "$GOHOSTOS" == dragonfly ] || go test -ldflags '-linkmode=internal' || exit 1
++# TODO(austin): Add linux-ppc64(le) once external linking works (issue #8912)
+ case "$GOHOSTOS-$GOARCH" in
+ openbsd-386 | openbsd-amd64)
+ 	# test linkmode=external, but __thread not supported, so skip testtls.
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index a2aba632e9..a708aa9377 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -29,8 +29,29 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	MOVD	R3, (g_stack+stack_lo)(g)
+ 	MOVD	R1, (g_stack+stack_hi)(g)
+ 
+-	// TODO: if there is a _cgo_init, call it.
+-	// TODO: add TLS
++	// if there is a _cgo_init, call it using the gcc ABI.
++	MOVD	_cgo_init(SB), R12
++	CMP	R0, R12
++	BEQ	nocgo
++	MOVD	R12, CTR		// r12 = "global function entry point"
++	MOVD	R13, R5			// arg 2: TLS base pointer
++	MOVD	$setg_gcc<>(SB), R4 	// arg 1: setg
++	MOVD	g, R3			// arg 0: G
++	// C functions expect 32 bytes of space on caller stack frame
++	// and a 16-byte aligned R1
++	MOVD	R1, R14			// save current stack
++	SUB	$32, R1			// reserve 32 bytes
++	RLDCR	$0, R1, $~15, R1	// 16-byte align
++	BL	(CTR)			// may clobber R0, R3-R12
++	MOVD	R14, R1			// restore stack
++	XOR	R0, R0			// fix R0
++
++nocgo:
++	// update stackguard after _cgo_init
++	MOVD	(g_stack+stack_lo)(g), R3
++	ADD	$const__StackGuard, R3
++	MOVD	R3, g_stackguard0(g)
++	MOVD	R3, g_stackguard1(g)
+ 
+ 	// set the per-goroutine and per-mach "registers"
+ 	MOVD	$runtime·m0(SB), R3
+@@ -71,6 +92,11 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
+ TEXT runtime·asminit(SB),NOSPLIT,$-8-0
+ 	RETURN
+ 
++TEXT _cgo_reginit(SB),NOSPLIT,$-8-0
++	// crosscall_ppc64 and crosscall2 need to reginit, but can't
++	// get at the 'runtime.reginit' symbol.
++	BR	runtime·reginit(SB)
++
+ TEXT runtime·reginit(SB),NOSPLIT,$-8-0
+ 	// set R0 to zero, it's expected by the toolchain
+ 	XOR R0, R0
+@@ -625,26 +651,207 @@ TEXT gosave<>(SB),NOSPLIT,$-8
+ // aligned appropriately for the gcc ABI.
+ // See cgocall.c for more details.
+ TEXT ·asmcgocall(SB),NOSPLIT,$0-16
+-	MOVD	R0, 21(R0)
++	MOVD	fn+0(FP), R3
++	MOVD	arg+8(FP), R4
++	BL	asmcgocall<>(SB)
++	RET
++
++TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-24
++	MOVD	fn+0(FP), R3
++	MOVD	arg+8(FP), R4
++	BL	asmcgocall<>(SB)
++	MOVD	R3, ret+16(FP)
++	RET
++
++// asmcgocall common code. fn in R3, arg in R4. returns errno in R3.
++TEXT asmcgocall<>(SB),NOSPLIT,$0-0
++	MOVD	R1, R2		// save original stack pointer
++	MOVD	g, R5
++
++	// Figure out if we need to switch to m->g0 stack.
++	// We get called to create new OS threads too, and those
++	// come in on the m->g0 stack already.
++	MOVD	g_m(g), R6
++	MOVD	m_g0(R6), R6
++	CMP	R6, g
++	BEQ	g0
++	BL	gosave<>(SB)
++	MOVD	R6, g
++	BL	runtime·save_g(SB)
++	MOVD	(g_sched+gobuf_sp)(g), R1
++
++	// Now on a scheduling stack (a pthread-created stack).
++g0:
++	// Save room for two of our pointers, plus 32 bytes of callee
++	// save area that lives on the caller stack.
++	SUB	$48, R1
++	RLDCR	$0, R1, $~15, R1	// 16-byte alignment for gcc ABI
++	MOVD	R5, 40(R1)	// save old g on stack
++	MOVD	(g_stack+stack_hi)(R5), R5
++	SUB	R2, R5
++	MOVD	R5, 32(R1)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
++	MOVD	R0, 0(R1)	// clear back chain pointer (TODO can we give it real back trace information?)
++	// This is a "global call", so put the global entry point in r12
++	MOVD	R3, R12
++	MOVD	R12, CTR
++	MOVD	R4, R3		// arg in r3
++	BL	(CTR)
++
++	// C code can clobber R0, so set it back to 0.  F27-F31 are
++	// callee save, so we don't need to recover those.
++	XOR	R0, R0
++	// Restore g, stack pointer.  R3 is errno, so don't touch it
++	MOVD	40(R1), g
++	BL	runtime·save_g(SB)
++	MOVD	(g_stack+stack_hi)(g), R5
++	MOVD	32(R1), R6
++	SUB	R6, R5
++	MOVD	R5, R1
++	RET
+ 
+ // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+ // Turn the fn into a Go func (by taking its address) and call
+ // cgocallback_gofunc.
+ TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
+-	MOVD	R0, 22(R0)
++	MOVD	$fn+0(FP), R3
++	MOVD	R3, 8(R1)
++	MOVD	frame+8(FP), R3
++	MOVD	R3, 16(R1)
++	MOVD	framesize+16(FP), R3
++	MOVD	R3, 24(R1)
++	MOVD	$runtime·cgocallback_gofunc(SB), R3
++	MOVD	R3, CTR
++	BL	(CTR)
++	RET
+ 
+ // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+ // See cgocall.c for more details.
+-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$8-24
+-	MOVD	R0, 23(R0)
++TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
++	NO_LOCAL_POINTERS
++
++	// Load m and g from thread-local storage.
++	MOVB	runtime·iscgo(SB), R3
++	CMP	R3, $0
++	BEQ	nocgo
++	BL	runtime·load_g(SB)
++nocgo:
++
++	// If g is nil, Go did not create the current thread.
++	// Call needm to obtain one for temporary use.
++	// In this case, we're running on the thread stack, so there's
++	// lots of space, but the linker doesn't know. Hide the call from
++	// the linker analysis by using an indirect call.
++	CMP	g, $0
++	BNE	havem
++	MOVD	g, savedm-8(SP) // g is zero, so is m.
++	MOVD	$runtime·needm(SB), R3
++	MOVD	R3, CTR
++	BL	(CTR)
++
++	// Set m->sched.sp = SP, so that if a panic happens
++	// during the function we are about to execute, it will
++	// have a valid SP to run on the g0 stack.
++	// The next few lines (after the havem label)
++	// will save this SP onto the stack and then write
++	// the same SP back to m->sched.sp. That seems redundant,
++	// but if an unrecovered panic happens, unwindm will
++	// restore the g->sched.sp from the stack location
++	// and then systemstack will try to use it. If we don't set it here,
++	// that restored SP will be uninitialized (typically 0) and
++	// will not be usable.
++	MOVD	g_m(g), R3
++	MOVD	m_g0(R3), R3
++	MOVD	R1, (g_sched+gobuf_sp)(R3)
++
++havem:
++	MOVD	g_m(g), R8
++	MOVD	R8, savedm-8(SP)
++	// Now there's a valid m, and we're running on its m->g0.
++	// Save current m->g0->sched.sp on stack and then set it to SP.
++	// Save current sp in m->g0->sched.sp in preparation for
++	// switch back to m->curg stack.
++	// NOTE: unwindm knows that the saved g->sched.sp is at 8(R1) aka savedsp-16(SP).
++	MOVD	m_g0(R8), R3
++	MOVD	(g_sched+gobuf_sp)(R3), R4
++	MOVD	R4, savedsp-16(SP)
++	MOVD	R1, (g_sched+gobuf_sp)(R3)
++
++	// Switch to m->curg stack and call runtime.cgocallbackg.
++	// Because we are taking over the execution of m->curg
++	// but *not* resuming what had been running, we need to
++	// save that information (m->curg->sched) so we can restore it.
++	// We can restore m->curg->sched.sp easily, because calling
++	// runtime.cgocallbackg leaves SP unchanged upon return.
++	// To save m->curg->sched.pc, we push it onto the stack.
++	// This has the added benefit that it looks to the traceback
++	// routine like cgocallbackg is going to return to that
++	// PC (because the frame we allocate below has the same
++	// size as cgocallback_gofunc's frame declared above)
++	// so that the traceback will seamlessly trace back into
++	// the earlier calls.
++	//
++	// In the new goroutine, -16(SP) and -8(SP) are unused.
++	MOVD	m_curg(R8), g
++	BL	runtime·save_g(SB)
++	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
++	MOVD	(g_sched+gobuf_pc)(g), R5
++	MOVD	R5, -24(R4)
++	MOVD	$-24(R4), R1
++	BL	runtime·cgocallbackg(SB)
++
++	// Restore g->sched (== m->curg->sched) from saved values.
++	MOVD	0(R1), R5
++	MOVD	R5, (g_sched+gobuf_pc)(g)
++	MOVD	$24(R1), R4
++	MOVD	R4, (g_sched+gobuf_sp)(g)
++
++	// Switch back to m->g0's stack and restore m->g0->sched.sp.
++	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
++	// so we do not have to restore it.)
++	MOVD	g_m(g), R8
++	MOVD	m_g0(R8), g
++	BL	runtime·save_g(SB)
++	MOVD	(g_sched+gobuf_sp)(g), R1
++	MOVD	savedsp-16(SP), R4
++	MOVD	R4, (g_sched+gobuf_sp)(g)
++
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
++	MOVD	savedm-8(SP), R6
++	CMP	R6, $0
++	BNE	droppedm
++	MOVD	$runtime·dropm(SB), R3
++	MOVD	R3, CTR
++	BL	(CTR)
++droppedm:
++
++	// Done!
++	RET
+ 
+ // void setg(G*); set g. for use by needm.
+ TEXT runtime·setg(SB), NOSPLIT, $0-8
+-	MOVD	R0, 24(R0)
++	MOVD	gg+0(FP), g
++	// This only happens if iscgo, so jump straight to save_g
++	BL	runtime·save_g(SB)
++	RET
++
++// void setg_gcc(G*); set g in C TLS.
++// Must obey the gcc calling convention.
++TEXT setg_gcc<>(SB),NOSPLIT,$-8-0
++	// The standard prologue clobbers R31, which is callee-save in
++	// the C ABI, so we have to use $-8-0 and save LR ourselves.
++	MOVD	LR, R4
++	// Also save g and R31, since they're callee-save in C ABI
++	MOVD	R31, R5
++	MOVD	g, R6
++
++	MOVD	R3, g
++	BL	runtime·save_g(SB)
+ 
+-// void setg_gcc(G*); set g called from gcc.
+-TEXT setg_gcc<>(SB),NOSPLIT,$0
+-	MOVD	R0, 25(R0)
++	MOVD	R6, g
++	MOVD	R5, R31
++	MOVD	R4, LR
++	RET
+ 
+ TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-16
+ 	MOVD	0(R1), R3
+@@ -989,8 +1196,21 @@ TEXT runtime·return0(SB), NOSPLIT, $0
+ 
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+-TEXT _cgo_topofstack(SB),NOSPLIT,$0
+-	MOVD	R0, 26(R0)
++TEXT _cgo_topofstack(SB),NOSPLIT,$-8
++	// g (R30) and R31 are callee-save in the C ABI, so save them
++	MOVD	g, R4
++	MOVD	R31, R5
++	MOVD	LR, R6
++
++	BL	runtime·load_g(SB)	// clobbers g (R30), R31
++	MOVD	g_m(g), R3
++	MOVD	m_curg(R3), R3
++	MOVD	(g_stack+stack_hi)(R3), R3
++
++	MOVD	R4, g
++	MOVD	R5, R31
++	MOVD	R6, LR
++	RET
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+diff --git a/src/runtime/cgo/asm_ppc64x.s b/src/runtime/cgo/asm_ppc64x.s
+new file mode 100644
+index 0000000000..0c08a1d6b5
+--- /dev/null
++++ b/src/runtime/cgo/asm_ppc64x.s
+@@ -0,0 +1,124 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++#include "textflag.h"
++
++/*
++ * void crosscall2(void (*fn)(void*, int32), void*, int32)
++ * Save registers and call fn with two arguments.
++ * crosscall2 obeys the C ABI; fn obeys the Go ABI.
++ */
++TEXT crosscall2(SB),NOSPLIT,$-8
++	// TODO(austin): ABI v1 (fn is probably a function descriptor)
++
++	// Start with standard C stack frame layout and linkage
++	MOVD	LR, R0
++	MOVD	R0, 16(R1)	// Save LR in caller's frame
++	MOVD	R2, 24(R1)	// Save TOC in caller's frame
++
++	BL	saveregs2<>(SB)
++
++	MOVDU	R1, (-288-3*8)(R1)
++
++	// Initialize Go ABI environment
++	BL	runtime·reginit(SB)
++	BL	runtime·load_g(SB)
++
++	MOVD	R3, CTR
++	MOVD	R4, 8(R1)
++	MOVD	R5, 16(R1)
++	BL	(CTR)
++
++	ADD	$(288+3*8), R1
++
++	BL	restoreregs2<>(SB)
++
++	MOVD	24(R1), R2
++	MOVD	16(R1), R0
++	MOVD	R0, LR
++	RET
++
++TEXT saveregs2<>(SB),NOSPLIT,$-8
++	// O=-288; for R in R{14..31}; do echo "\tMOVD\t$R, $O(R1)"|sed s/R30/g/; ((O+=8)); done; for F in F{14..31}; do echo "\tFMOVD\t$F, $O(R1)"; ((O+=8)); done
++	MOVD	R14, -288(R1)
++	MOVD	R15, -280(R1)
++	MOVD	R16, -272(R1)
++	MOVD	R17, -264(R1)
++	MOVD	R18, -256(R1)
++	MOVD	R19, -248(R1)
++	MOVD	R20, -240(R1)
++	MOVD	R21, -232(R1)
++	MOVD	R22, -224(R1)
++	MOVD	R23, -216(R1)
++	MOVD	R24, -208(R1)
++	MOVD	R25, -200(R1)
++	MOVD	R26, -192(R1)
++	MOVD	R27, -184(R1)
++	MOVD	R28, -176(R1)
++	MOVD	R29, -168(R1)
++	MOVD	g, -160(R1)
++	MOVD	R31, -152(R1)
++	FMOVD	F14, -144(R1)
++	FMOVD	F15, -136(R1)
++	FMOVD	F16, -128(R1)
++	FMOVD	F17, -120(R1)
++	FMOVD	F18, -112(R1)
++	FMOVD	F19, -104(R1)
++	FMOVD	F20, -96(R1)
++	FMOVD	F21, -88(R1)
++	FMOVD	F22, -80(R1)
++	FMOVD	F23, -72(R1)
++	FMOVD	F24, -64(R1)
++	FMOVD	F25, -56(R1)
++	FMOVD	F26, -48(R1)
++	FMOVD	F27, -40(R1)
++	FMOVD	F28, -32(R1)
++	FMOVD	F29, -24(R1)
++	FMOVD	F30, -16(R1)
++	FMOVD	F31, -8(R1)
++
++	RET
++
++TEXT restoreregs2<>(SB),NOSPLIT,$-8
++	// O=-288; for R in R{14..31}; do echo "\tMOVD\t$O(R1), $R"|sed s/R30/g/; ((O+=8)); done; for F in F{14..31}; do echo "\tFMOVD\t$O(R1), $F"; ((O+=8)); done
++	MOVD	-288(R1), R14
++	MOVD	-280(R1), R15
++	MOVD	-272(R1), R16
++	MOVD	-264(R1), R17
++	MOVD	-256(R1), R18
++	MOVD	-248(R1), R19
++	MOVD	-240(R1), R20
++	MOVD	-232(R1), R21
++	MOVD	-224(R1), R22
++	MOVD	-216(R1), R23
++	MOVD	-208(R1), R24
++	MOVD	-200(R1), R25
++	MOVD	-192(R1), R26
++	MOVD	-184(R1), R27
++	MOVD	-176(R1), R28
++	MOVD	-168(R1), R29
++	MOVD	-160(R1), g
++	MOVD	-152(R1), R31
++	FMOVD	-144(R1), F14
++	FMOVD	-136(R1), F15
++	FMOVD	-128(R1), F16
++	FMOVD	-120(R1), F17
++	FMOVD	-112(R1), F18
++	FMOVD	-104(R1), F19
++	FMOVD	-96(R1), F20
++	FMOVD	-88(R1), F21
++	FMOVD	-80(R1), F22
++	FMOVD	-72(R1), F23
++	FMOVD	-64(R1), F24
++	FMOVD	-56(R1), F25
++	FMOVD	-48(R1), F26
++	FMOVD	-40(R1), F27
++	FMOVD	-32(R1), F28
++	FMOVD	-24(R1), F29
++	FMOVD	-16(R1), F30
++	FMOVD	-8(R1), F31
++
++	RET
+diff --git a/src/runtime/cgo/gcc_linux_ppc64x.c b/src/runtime/cgo/gcc_linux_ppc64x.c
+new file mode 100644
+index 0000000000..b1762957a2
+--- /dev/null
++++ b/src/runtime/cgo/gcc_linux_ppc64x.c
+@@ -0,0 +1,70 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++#include <pthread.h>
++#include <string.h>
++#include <signal.h>
++#include "libcgo.h"
++
++static void *threadentry(void*);
++
++void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
++static void (*setg_gcc)(void*);
++
++void
++x_cgo_init(G *g, void (*setg)(void*), void **tlsbase)
++{
++	pthread_attr_t attr;
++	size_t size;
++
++	setg_gcc = setg;
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stacklo = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++}
++
++void
++_cgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	sigset_t ign, oset;
++	pthread_t p;
++	size_t size;
++	int err;
++
++	sigfillset(&ign);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	ts->g->stackhi = size;
++	err = pthread_create(&p, &attr, threadentry, ts);
++
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
++
++	if (err != 0) {
++		fatalf("pthread_create failed: %s", strerror(err));
++	}
++}
++
++extern void crosscall_ppc64(void (*fn)(void), void *g);
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	// Save g for this thread in C TLS
++	setg_gcc((void*)ts.g);
++
++	crosscall_ppc64(ts.fn, (void*)ts.g);
++	return nil;
++}
+diff --git a/src/runtime/cgo/gcc_ppc64x.S b/src/runtime/cgo/gcc_ppc64x.S
+new file mode 100644
+index 0000000000..fc202778c7
+--- /dev/null
++++ b/src/runtime/cgo/gcc_ppc64x.S
+@@ -0,0 +1,140 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++/*
++ * Apple still insists on underscore prefixes for C function names.
++ */
++#if defined(__APPLE__)
++#define EXT(s) _##s
++#else
++#define EXT(s) s
++#endif
++
++/*
++ * void crosscall_ppc64(void (*fn)(void), void *g)
++ *
++ * Calling into the 9g tool chain, where all registers are caller save.
++ * Called from standard ppc64 C ABI, where r2, r14-r31, f14-f31 are
++ * callee-save, so they must be saved explicitly.
++ */
++.globl EXT(crosscall_ppc64)
++EXT(crosscall_ppc64):
++	// Start with standard C stack frame layout and linkage
++	mflr	%r0
++	std	%r0, 16(%r1)	// Save LR in caller's frame
++	std	%r2, 24(%r1)	// Save TOC in caller's frame
++	bl	saveregs
++	stdu	%r1, -296(%r1)
++
++	// Set up Go ABI constant registers
++	bl	_cgo_reginit
++
++	// Restore g pointer (r30 in Go ABI, which may have been clobbered by C)
++	mr	%r30, %r4
++
++	// Call fn
++	mtctr	%r3
++	bctrl
++
++	addi	%r1, %r1, 296
++	bl	restoreregs
++	ld	%r2, 24(%r1)
++	ld	%r0, 16(%r1)
++	mtlr	%r0
++	blr
++
++saveregs:
++	// Save callee-save registers
++	// O=-288; for R in %r{14..31}; do echo "\tstd\t$R, $O(%r1)"; ((O+=8)); done; for F in f{14..31}; do echo "\tstfd\t$F, $O(%r1)"; ((O+=8)); done
++	std	%r14, -288(%r1)
++	std	%r15, -280(%r1)
++	std	%r16, -272(%r1)
++	std	%r17, -264(%r1)
++	std	%r18, -256(%r1)
++	std	%r19, -248(%r1)
++	std	%r20, -240(%r1)
++	std	%r21, -232(%r1)
++	std	%r22, -224(%r1)
++	std	%r23, -216(%r1)
++	std	%r24, -208(%r1)
++	std	%r25, -200(%r1)
++	std	%r26, -192(%r1)
++	std	%r27, -184(%r1)
++	std	%r28, -176(%r1)
++	std	%r29, -168(%r1)
++	std	%r30, -160(%r1)
++	std	%r31, -152(%r1)
++	stfd	%f14, -144(%r1)
++	stfd	%f15, -136(%r1)
++	stfd	%f16, -128(%r1)
++	stfd	%f17, -120(%r1)
++	stfd	%f18, -112(%r1)
++	stfd	%f19, -104(%r1)
++	stfd	%f20, -96(%r1)
++	stfd	%f21, -88(%r1)
++	stfd	%f22, -80(%r1)
++	stfd	%f23, -72(%r1)
++	stfd	%f24, -64(%r1)
++	stfd	%f25, -56(%r1)
++	stfd	%f26, -48(%r1)
++	stfd	%f27, -40(%r1)
++	stfd	%f28, -32(%r1)
++	stfd	%f29, -24(%r1)
++	stfd	%f30, -16(%r1)
++	stfd	%f31, -8(%r1)
++
++	blr
++
++restoreregs:
++	// O=-288; for R in %r{14..31}; do echo "\tld\t$R, $O(%r1)"; ((O+=8)); done; for F in %f{14..31}; do echo "\tlfd\t$F, $O(%r1)"; ((O+=8)); done
++	ld	%r14, -288(%r1)
++	ld	%r15, -280(%r1)
++	ld	%r16, -272(%r1)
++	ld	%r17, -264(%r1)
++	ld	%r18, -256(%r1)
++	ld	%r19, -248(%r1)
++	ld	%r20, -240(%r1)
++	ld	%r21, -232(%r1)
++	ld	%r22, -224(%r1)
++	ld	%r23, -216(%r1)
++	ld	%r24, -208(%r1)
++	ld	%r25, -200(%r1)
++	ld	%r26, -192(%r1)
++	ld	%r27, -184(%r1)
++	ld	%r28, -176(%r1)
++	ld	%r29, -168(%r1)
++	ld	%r30, -160(%r1)
++	ld	%r31, -152(%r1)
++	lfd	%f14, -144(%r1)
++	lfd	%f15, -136(%r1)
++	lfd	%f16, -128(%r1)
++	lfd	%f17, -120(%r1)
++	lfd	%f18, -112(%r1)
++	lfd	%f19, -104(%r1)
++	lfd	%f20, -96(%r1)
++	lfd	%f21, -88(%r1)
++	lfd	%f22, -80(%r1)
++	lfd	%f23, -72(%r1)
++	lfd	%f24, -64(%r1)
++	lfd	%f25, -56(%r1)
++	lfd	%f26, -48(%r1)
++	lfd	%f27, -40(%r1)
++	lfd	%f28, -32(%r1)
++	lfd	%f29, -24(%r1)
++	lfd	%f30, -16(%r1)
++	lfd	%f31, -8(%r1)
++
++	blr
++
++.globl EXT(__stack_chk_fail_local)
++EXT(__stack_chk_fail_local):
++1:
++	// TODO(austin)
++	b 1b
++
++#ifdef __ELF__
++.section .note.GNU-stack,"",%progbits
++#endif
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index dbeea200d4..96873cc2da 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -229,6 +229,11 @@ func cgocallbackg1() {
+ 	case "386":
+ 		// On 386, stack frame is three words, plus caller PC.
+ 		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
++	case "ppc64", "ppc64le":
++		// On ppc64, stack frame is two words and there's a
++		// saved LR between SP and the stack frame and between
++		// the stack frame and the arguments.
++		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+ 	}
+ 
+ 	// Invoke callback.
+@@ -263,6 +268,8 @@ func unwindm(restore *bool) {
+ 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp))
+ 	case "arm":
+ 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 4))
++	case "ppc64", "ppc64le":
++		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 8))
+ 	}
+ 	releasem(mp)
+ }
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 29f90fa36d..7152b93195 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -68,6 +68,11 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 			t.Skipf("no external linking on OS X 10.6")
+ 		}
+ 	}
++	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
++		// TODO(austin) External linking not implemented on
++		// ppc64 (issue #8912)
++		t.Skipf("no external linking on ppc64")
++	}
+ 	got := executeTest(t, cgoExternalThreadSIGPROFSource, nil)
+ 	want := "OK\n"
+ 	if got != want {
+diff --git a/src/runtime/rt0_linux_ppc64.s b/src/runtime/rt0_linux_ppc64.s
+index 33bbbbd1bf..33e973db96 100644
+--- a/src/runtime/rt0_linux_ppc64.s
++++ b/src/runtime/rt0_linux_ppc64.s
+@@ -7,6 +7,12 @@ TEXT _rt0_ppc64_linux(SB),NOSPLIT,$0
+ 	DWORD $0
+ 
+ TEXT _main<>(SB),NOSPLIT,$-8
++	// In a statically linked binary, the stack contains argc,
++	// argv as argc string pointers followed by a NULL, envv as a
++	// sequence of string pointers followed by a NULL, and auxv.
++	// There is no TLS base pointer.
++	//
++	// TODO(austin): Support ABI v1 dynamic linking entry point
+ 	MOVD 0(R1), R3 // argc
+ 	ADD $8, R1, R4 // argv
+ 	BR main(SB)
+diff --git a/src/runtime/rt0_linux_ppc64le.s b/src/runtime/rt0_linux_ppc64le.s
+index dda29ab3a0..f5c0af5c71 100644
+--- a/src/runtime/rt0_linux_ppc64le.s
++++ b/src/runtime/rt0_linux_ppc64le.s
+@@ -4,11 +4,29 @@ TEXT _rt0_ppc64le_linux(SB),NOSPLIT,$0
+ 	BR _main<>(SB)
+ 
+ TEXT _main<>(SB),NOSPLIT,$-8
+-	MOVD 0(R1), R3 // argc
+-	ADD $8, R1, R4 // argv
++	// In a statically linked binary, the stack contains argc,
++	// argv as argc string pointers followed by a NULL, envv as a
++	// sequence of string pointers followed by a NULL, and auxv.
++	// There is no TLS base pointer.
++	//
++	// In a dynamically linked binary, r3 contains argc, r4
++	// contains argv, r5 contains envp, r6 contains auxv, and r13
++	// contains the TLS pointer.
++	//
++	// Figure out which case this is by looking at r4: if it's 0,
++	// we're statically linked; otherwise we're dynamically
++	// linked.
++	CMP	R0, R4
++	BNE	dlink
++
++	// Statically linked
++	MOVD	0(R1), R3 // argc
++	ADD	$8, R1, R4 // argv
+ 	MOVD	$runtime·tls0(SB), R13 // TLS
+ 	ADD	$0x7000, R13
+-	BR main(SB)
++
++dlink:
++	BR	main(SB)
+ 
+ TEXT main(SB),NOSPLIT,$-8
+ 	MOVD	$runtime·rt0_go(SB), R31
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 495b5f915a..e6510a8aa3 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -77,6 +77,9 @@ func goargs() {
+ }
+ 
+ func goenvs_unix() {
++	// TODO(austin): ppc64 in dynamic linking mode doesn't
++	// guarantee env[] will immediately follow argv.  Might cause
++	// problems.
+ 	n := int32(0)
+ 	for argv_index(argv, argc+1+n) != nil {
+ 		n++
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 4a4f440c53..b9d8be11c5 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -193,6 +193,13 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
+ 	// initialize essential registers (just in case)
+ 	BL	runtime·reginit(SB)
+ 
++	// this might be called in external code context,
++	// where g is not set.
++	MOVB	runtime·iscgo(SB), R6
++	CMP 	R6, $0
++	BEQ	2(PC)
++	BL	runtime·load_g(SB)
++
+ 	// check that g exists
+ 	CMP	g, $0
+ 	BNE	6(PC)
+diff --git a/src/runtime/tls_ppc64x.s b/src/runtime/tls_ppc64x.s
+index fa1f9ac6f0..fc1718f508 100644
+--- a/src/runtime/tls_ppc64x.s
++++ b/src/runtime/tls_ppc64x.s
+@@ -20,6 +20,8 @@
+ // ppc64 code that will overwrite this register.
+ //
+ // If !iscgo, this is a no-op.
++//
++// NOTE: setg_gcc<> assume this clobbers only R31.
+ TEXT runtime·save_g(SB),NOSPLIT,$-8-0
+ 	MOVB	runtime·iscgo(SB), R31
+ 	CMP	R31, $0
+@@ -46,6 +48,8 @@ nocgo:
+ // This is never called directly from C code (it doesn't have to
+ // follow the C ABI), but it may be called from a C context, where the
+ // usual Go registers aren't set up.
++//
++// NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
+ TEXT runtime·load_g(SB),NOSPLIT,$-8-0
+ 	MOVD	$runtime·tlsg(SB), R31
+ 	// R13 is the C ABI TLS base pointer + 0x7000

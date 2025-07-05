@@ -18,9 +18,95 @@ Date:   Wed May 25 22:51:21 2022 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/export_test.go | 2 +-
  src/runtime/mgcmark.go     | 4 +++-
  src/runtime/mgcscavenge.go | 7 +++++--
  src/runtime/mheap.go       | 6 ++++--
  4 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 7196627f81..f3a29fbe03 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -811,7 +811,7 @@ func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
+ func (p *PageAlloc) Scavenge(nbytes uintptr) (r uintptr) {
+ 	pp := (*pageAlloc)(p)
+ 	systemstack(func() {
+-		r = pp.scavenge(nbytes)
++		r = pp.scavenge(nbytes, nil)
+ 	})
+ 	return
+ }
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 45d779054c..7fc748875a 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1150,8 +1150,10 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+ 	// want to claim was done by this call.
+ 	workFlushed := -gcw.heapScanWork
+ 
++	// In addition to backing out because of a preemption, back out
++	// if the GC CPU limiter is enabled.
+ 	gp := getg().m.curg
+-	for !gp.preempt && workFlushed+gcw.heapScanWork < scanWork {
++	for !gp.preempt && !gcCPULimiter.limiting() && workFlushed+gcw.heapScanWork < scanWork {
+ 		// See gcDrain comment.
+ 		if work.full == 0 {
+ 			gcw.balance()
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index d22e6635f8..bf38f87c77 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -356,7 +356,7 @@ func (s *scavengerState) init() {
+ 	if s.scavenge == nil {
+ 		s.scavenge = func(n uintptr) (uintptr, int64) {
+ 			start := nanotime()
+-			r := mheap_.pages.scavenge(n)
++			r := mheap_.pages.scavenge(n, nil)
+ 			end := nanotime()
+ 			if start >= end {
+ 				return r, 0
+@@ -636,7 +636,7 @@ func bgscavenge(c chan int) {
+ //
+ // scavenge always tries to scavenge nbytes worth of memory, and will
+ // only fail to do so if the heap is exhausted for now.
+-func (p *pageAlloc) scavenge(nbytes uintptr) uintptr {
++func (p *pageAlloc) scavenge(nbytes uintptr, shouldStop func() bool) uintptr {
+ 	released := uintptr(0)
+ 	for released < nbytes {
+ 		ci, pageIdx := p.scav.index.find()
+@@ -646,6 +646,9 @@ func (p *pageAlloc) scavenge(nbytes uintptr) uintptr {
+ 		systemstack(func() {
+ 			released += p.scavengeOne(ci, pageIdx, nbytes-released)
+ 		})
++		if shouldStop != nil && shouldStop() {
++			break
++		}
+ 	}
+ 	return released
+ }
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 0910aed673..eb1f985f5c 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1305,7 +1305,9 @@ HaveSpan:
+ 		// Measure how long we spent scavenging and add that measurement to the assist
+ 		// time so we can track it for the GC CPU limiter.
+ 		start := nanotime()
+-		h.pages.scavenge(bytesToScavenge)
++		h.pages.scavenge(bytesToScavenge, func() bool {
++			return gcCPULimiter.limiting()
++		})
+ 		now := nanotime()
+ 		h.pages.scav.assistTime.Add(now - start)
+ 		gcCPULimiter.addAssistTime(now - start)
+@@ -1558,7 +1560,7 @@ func (h *mheap) scavengeAll() {
+ 	gp := getg()
+ 	gp.m.mallocing++
+ 
+-	released := h.pages.scavenge(^uintptr(0))
++	released := h.pages.scavenge(^uintptr(0), nil)
+ 
+ 	gp.m.mallocing--
+ 

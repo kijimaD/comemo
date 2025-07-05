@@ -12,7 +12,7 @@ Date:   Mon Aug 16 10:49:10 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/builtins.go   |  2 +-
  src/go/types/expr.go       |  1 -
  src/go/types/named.go      |  9 ---------
@@ -23,3 +23,179 @@ Date:   Mon Aug 16 10:49:10 2021 -0400
  src/go/types/unify.go      |  6 ++----
  src/go/types/union.go      | 11 +++++------
  9 files changed, 16 insertions(+), 29 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index a11f395947..9c772d3844 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -47,7 +47,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	default:
+ 		// make argument getter
+ 		xlist, _ := check.exprList(call.Args, false)
+-		arg = func(x *operand, i int) { *x = *xlist[i]; x.typ = expand(x.typ) }
++		arg = func(x *operand, i int) { *x = *xlist[i] }
+ 		nargs = len(xlist)
+ 		// evaluate first argument, if present
+ 		if nargs > 0 {
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index c9a55aa871..5bb9b7c280 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -621,7 +621,6 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ // If x is a constant operand, the returned constant.Value will be the
+ // representation of x in this context.
+ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, errorCode) {
+-	target = expand(target)
+ 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
+ 		return x.typ, nil, 0
+ 	}
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 020b9827e8..791ab78778 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -285,12 +285,3 @@ func (n *Named) expand() {
+ 		n.instance = nil
+ 	}
+ }
+-
+-// expand expands uninstantiated named types and leaves all other types alone.
+-// expand does not recurse.
+-func expand(typ Type) Type {
+-	if t, _ := typ.(*Named); t != nil {
+-		t.expand()
+-	}
+-	return typ
+-}
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 5a2c08322f..d7adca1d33 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -140,10 +140,6 @@ func (p *ifacePair) identical(q *ifacePair) bool {
+ 
+ // For changes to this code the corresponding changes should be made to unifier.nify.
+ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+-	// types must be expanded for comparison
+-	x = expand(x)
+-	y = expand(y)
+-
+ 	if x == y {
+ 		return true
+ 	}
+@@ -306,6 +302,8 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		// Two named types are identical if their type names originate
+ 		// in the same type declaration.
+ 		if y, ok := y.(*Named); ok {
++			x.expand()
++			y.expand()
+ 			// TODO(gri) Why is x == y not sufficient? And if it is,
+ 			//           we can just return false here because x == y
+ 			//           is caught in the very beginning of this function.
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 4624b54acb..f0a9f011ea 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -198,7 +198,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		// TODO(gri) We should delay rtyp expansion to when we actually need the
+ 		//           receiver; thus all checks here should be delayed to later.
+ 		rtyp, _ := deref(recv.typ)
+-		rtyp = expand(rtyp)
+ 
+ 		// spec: "The receiver type must be of the form T or *T where T is a type name."
+ 		// (ignore invalid types - error was reported before)
+@@ -206,6 +205,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 			var err string
+ 			switch T := rtyp.(type) {
+ 			case *Named:
++				T.expand()
+ 				// spec: "The type denoted by T is called the receiver base type; it must not
+ 				// be a pointer or interface type and it must be declared in the same package
+ 				// as the method."
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index c042a819b8..87242ccf62 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -113,7 +113,10 @@ func asInterface(t Type) *Interface {
+ }
+ 
+ func asNamed(t Type) *Named {
+-	e, _ := expand(t).(*Named)
++	e, _ := t.(*Named)
++	if e != nil {
++		e.expand()
++	}
+ 	return e
+ }
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 03dd7c26c4..f14fbe1877 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -435,8 +435,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
+ 	// make sure we check instantiation works at least once
+ 	// and that the resulting type is valid
+ 	check.later(func() {
+-		t := expand(typ)
+-		check.validType(t, nil)
++		check.validType(typ, nil)
+ 	})
+ 
+ 	return typ
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index a94a5f35c6..0be4d3a62a 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -226,10 +226,6 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
+ // code the corresponding changes should be made here.
+ // Must not be called directly from outside the unifier.
+ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+-	// types must be expanded for comparison
+-	x = expand(x)
+-	y = expand(y)
+-
+ 	if !u.exact {
+ 		// If exact unification is known to fail because we attempt to
+ 		// match a type name against an unnamed type literal, consider
+@@ -433,6 +429,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// 	return x.obj == y.obj
+ 		// }
+ 		if y, ok := y.(*Named); ok {
++			x.expand()
++			y.expand()
+ 			// TODO(gri) This is not always correct: two types may have the same names
+ 			//           in the same package if one of them is nested in a function.
+ 			//           Extremely unlikely but we need an always correct solution.
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index a0cf33c938..1ba99adaca 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -71,8 +71,7 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 	// Note: This is a quadratic algorithm, but unions tend to be short.
+ 	check.later(func() {
+ 		for i, t := range terms {
+-			typ := expand(t.typ)
+-			if typ == Typ[Invalid] {
++			if t.typ == Typ[Invalid] {
+ 				continue
+ 			}
+ 
+@@ -88,16 +87,16 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 				}
+ 			}
+ 
+-			u := under(typ)
++			u := under(t.typ)
+ 			f, _ := u.(*Interface)
+ 			if t.tilde {
+ 				if f != nil {
+-					check.errorf(x, _Todo, "invalid use of ~ (%s is an interface)", typ)
++					check.errorf(x, _Todo, "invalid use of ~ (%s is an interface)", t.typ)
+ 					continue // don't report another error for t
+ 				}
+ 
+-				if !Identical(u, typ) {
+-					check.errorf(x, _Todo, "invalid use of ~ (underlying type of %s is %s)", typ, u)
++				if !Identical(u, t.typ) {
++					check.errorf(x, _Todo, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
+ 					continue // don't report another error for t
+ 				}
+ 			}

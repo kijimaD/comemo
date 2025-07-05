@@ -16,6 +16,23 @@ Date:   Fri Mar 26 11:00:40 2021 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c80c29a6a8..85d0eedecf 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1475,8 +1475,9 @@ func (ctxt *Link) hostlink() {
+ 		argv = append(argv, "-Wl,-bE:"+fileName)
+ 	}
+ 
+-	if strings.Contains(argv[0], "clang") {
+-		argv = append(argv, "-Qunused-arguments")
++	const unusedArguments = "-Qunused-arguments"
++	if linkerFlagSupported(ctxt.Arch, argv[0], altLinker, unusedArguments) {
++		argv = append(argv, unusedArguments)
+ 	}
+ 
+ 	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"

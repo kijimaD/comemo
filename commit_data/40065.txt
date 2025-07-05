@@ -12,6 +12,35 @@ Date:   Tue Apr 16 14:19:18 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/syscall_unix_test.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index 3462fb2446..62109ac3e7 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -132,6 +132,11 @@ func TestFcntlFlock(t *testing.T) {
+ func TestPassFD(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		passFDChild()
++		return
++	}
++
+ 	if runtime.GOOS == "aix" {
+ 		// Unix network isn't properly working on AIX 7.2 with Technical Level < 2
+ 		out, err := exec.Command("oslevel", "-s").Output()
+@@ -152,11 +157,6 @@ func TestPassFD(t *testing.T) {
+ 
+ 	}
+ 
+-	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+-		passFDChild()
+-		return
+-	}
+-
+ 	tempDir, err := ioutil.TempDir("", "TestPassFD")
+ 	if err != nil {
+ 		t.Fatal(err)

@@ -64,7 +64,7 @@ Date:   Mon Oct 4 12:17:46 2021 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  10 +++
  src/cmd/compile/internal/gc/obj.go             |   3 +
  src/cmd/compile/internal/ir/node.go            |   1 +
@@ -89,3 +89,822 @@ Date:   Mon Oct 4 12:17:46 2021 -0700
  src/cmd/internal/obj/x86/asm6.go               |  10 +++
  src/cmd/internal/sys/arch.go                   |   5 ++
  23 files changed, 428 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 98f90748d6..7049d4e163 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1400,6 +1400,16 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 			}
+ 		}
+ 
++	case ssa.BlockAMD64JUMPTABLE:
++		// JMP      *(TABLE)(INDEX*8)
++		p := s.Prog(obj.AJMP)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = b.Controls[1].Reg()
++		p.To.Index = b.Controls[0].Reg()
++		p.To.Scale = 8
++		// Save jump tables for later resolution of the target blocks.
++		s.JumpTables = append(s.JumpTables, b)
++
+ 	default:
+ 		b.Fatalf("branch not implemented: %s", b.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 74e4c0a890..fe8b6e9d45 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -271,6 +271,9 @@ func addGCLocals() {
+ 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+ 			x.Set(obj.AttrStatic, true)
+ 		}
++		for _, jt := range fn.JumpTables {
++			objw.Global(jt.Sym, int32(len(jt.Targets)*base.Ctxt.Arch.PtrSize), obj.RODATA)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 24908f3a13..9ccb8e3c30 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -310,6 +310,7 @@ const (
+ 	ORESULT        // result of a function call; Xoffset is stack offset
+ 	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+ 	OLINKSYMOFFSET // offset within a name
++	OJUMPTABLE     // A jump table structure for implementing dense expression switches
+ 
+ 	// opcodes for generics
+ 	ODYNAMICDOTTYPE  // x = i.(T) where T is a type parameter (or derived from a type parameter)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 22ff885d68..8d6fc8c607 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -712,6 +712,28 @@ func (n *InstExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.Targs, edit)
+ }
+ 
++func (n *JumpTableStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
++func (n *JumpTableStmt) copy() Node {
++	c := *n
++	c.init = copyNodes(c.init)
++	return &c
++}
++func (n *JumpTableStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Idx != nil && do(n.Idx) {
++		return true
++	}
++	return false
++}
++func (n *JumpTableStmt) editChildren(edit func(Node) Node) {
++	editNodes(n.init, edit)
++	if n.Idx != nil {
++		n.Idx = edit(n.Idx).(Node)
++	}
++}
++
+ func (n *KeyExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *KeyExpr) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 14eb84083a..8927f18cea 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -154,19 +154,20 @@ func _() {
+ 	_ = x[ORESULT-143]
+ 	_ = x[OINLMARK-144]
+ 	_ = x[OLINKSYMOFFSET-145]
+-	_ = x[ODYNAMICDOTTYPE-146]
+-	_ = x[ODYNAMICDOTTYPE2-147]
+-	_ = x[ODYNAMICTYPE-148]
+-	_ = x[OTAILCALL-149]
+-	_ = x[OGETG-150]
+-	_ = x[OGETCALLERPC-151]
+-	_ = x[OGETCALLERSP-152]
+-	_ = x[OEND-153]
++	_ = x[OJUMPTABLE-146]
++	_ = x[ODYNAMICDOTTYPE-147]
++	_ = x[ODYNAMICDOTTYPE2-148]
++	_ = x[ODYNAMICTYPE-149]
++	_ = x[OTAILCALL-150]
++	_ = x[OGETG-151]
++	_ = x[OGETCALLERPC-152]
++	_ = x[OGETCALLERSP-153]
++	_ = x[OEND-154]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2REALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTFUNCINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
++const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2REALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTFUNCINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETJUMPTABLEDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 132, 134, 137, 147, 154, 161, 168, 172, 176, 184, 192, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 282, 289, 293, 296, 303, 311, 318, 324, 327, 333, 340, 348, 352, 359, 367, 369, 371, 373, 375, 377, 379, 384, 389, 397, 400, 409, 412, 416, 424, 431, 440, 453, 456, 459, 462, 465, 468, 471, 477, 480, 483, 489, 493, 496, 500, 505, 510, 516, 521, 525, 530, 538, 546, 552, 561, 572, 579, 588, 592, 599, 607, 611, 615, 622, 629, 637, 643, 652, 663, 671, 680, 685, 690, 694, 702, 707, 711, 714, 722, 726, 728, 733, 735, 740, 746, 752, 758, 764, 772, 777, 784, 789, 793, 798, 802, 807, 815, 821, 828, 835, 841, 848, 861, 875, 890, 901, 909, 913, 924, 935, 938}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 132, 134, 137, 147, 154, 161, 168, 172, 176, 184, 192, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 282, 289, 293, 296, 303, 311, 318, 324, 327, 333, 340, 348, 352, 359, 367, 369, 371, 373, 375, 377, 379, 384, 389, 397, 400, 409, 412, 416, 424, 431, 440, 453, 456, 459, 462, 465, 468, 471, 477, 480, 483, 489, 493, 496, 500, 505, 510, 516, 521, 525, 530, 538, 546, 552, 561, 572, 579, 588, 592, 599, 607, 611, 615, 622, 629, 637, 643, 652, 663, 671, 680, 685, 690, 694, 702, 707, 711, 714, 722, 726, 728, 733, 735, 740, 746, 752, 758, 764, 772, 777, 784, 789, 793, 798, 802, 807, 815, 821, 828, 835, 841, 848, 861, 870, 884, 899, 910, 918, 922, 933, 944, 947}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 80bd205436..0e76f17440 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
++	"go/constant"
+ )
+ 
+ // A Decl is a declaration of a const, type, or var. (A declared func is a Func.)
+@@ -262,6 +263,37 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
+ 	return n
+ }
+ 
++// A JumpTableStmt is used to implement switches. Its semantics are:
++//   tmp := jt.Idx
++//   if tmp == Cases[0] goto Targets[0]
++//   if tmp == Cases[1] goto Targets[1]
++//   ...
++//   if tmp == Cases[n] goto Targets[n]
++// Note that a JumpTableStmt is more like a multiway-goto than
++// a multiway-if. In particular, the case bodies are just
++// labels to jump to, not not full Nodes lists.
++type JumpTableStmt struct {
++	miniStmt
++
++	// Value used to index the jump table.
++	// We support only integer types that
++	// are at most the size of a uintptr.
++	Idx Node
++
++	// If Idx is equal to Cases[i], jump to Targets[i].
++	// Cases entries must be distinct and in increasing order.
++	// The length of Cases and Targets must be equal.
++	Cases   []constant.Value
++	Targets []*types.Sym
++}
++
++func NewJumpTableStmt(pos src.XPos, idx Node) *JumpTableStmt {
++	n := &JumpTableStmt{Idx: idx}
++	n.pos = pos
++	n.op = OJUMPTABLE
++	return n
++}
++
+ // An InlineMarkStmt is a marker placed just before an inlined body.
+ type InlineMarkStmt struct {
+ 	miniStmt
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 28edfd2237..df677e674a 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -100,6 +100,10 @@ func checkFunc(f *Func) {
+ 			if b.NumControls() != 0 {
+ 				f.Fatalf("plain/dead block %s has a control value", b)
+ 			}
++		case BlockJumpTable:
++			if b.NumControls() != 1 {
++				f.Fatalf("jumpTable block %s has no control value", b)
++			}
+ 		}
+ 		if len(b.Succs) != 2 && b.Likely != BranchUnknown {
+ 			f.Fatalf("likeliness prediction %d for block %s with %d successors", b.Likely, b, len(b.Succs))
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index f112881153..ddf2190e52 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -168,6 +168,9 @@ type Frontend interface {
+ 
+ 	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
+ 	MyImportPath() string
++
++	// LSym returns the linker symbol of the function being compiled.
++	LSym() string
+ }
+ 
+ // NewConfig returns a new configuration object for the given architecture.
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index c4e87ec7d0..87d1b41419 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -102,6 +102,9 @@ func (d TestFrontend) Debug_checknil() bool                               { retu
+ func (d TestFrontend) MyImportPath() string {
+ 	return "my/import/path"
+ }
++func (d TestFrontend) LSym() string {
++	return "my/import/path.function"
++}
+ 
+ var testTypes Types
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 1fd36bfc88..81fdebaf49 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -517,6 +517,8 @@
+ 
+ (If cond yes no) => (NE (TESTB cond cond) yes no)
+ 
++(JumpTable idx) => (JUMPTABLE {makeJumpTableSym(b)} idx (LEAQ <typ.Uintptr> {makeJumpTableSym(b)} (SB)))
++
+ // Atomic loads.  Other than preserving their ordering with respect to other loads, nothing special here.
+ (AtomicLoad8 ptr mem) => (MOVBatomicload ptr mem)
+ (AtomicLoad32 ptr mem) => (MOVLatomicload ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index becee876df..fc42fa5e28 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -1001,6 +1001,12 @@ func init() {
+ 		{name: "NEF", controls: 1},
+ 		{name: "ORD", controls: 1}, // FP, ordered comparison (parity zero)
+ 		{name: "NAN", controls: 1}, // FP, unordered comparison (parity one)
++
++		// JUMPTABLE implements jump tables.
++		// Aux is the symbol (an *obj.LSym) for the jump table.
++		// control[0] is the index into the jump table.
++		// control[1] is the address of the jump table (the address of the symbol stored in Aux).
++		{name: "JUMPTABLE", controls: 2, aux: "Sym"},
+ 	}
+ 
+ 	archs = append(archs, arch{
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 4f133b1ff6..e04b7db6e7 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -639,12 +639,13 @@ var genericOps = []opData{
+ //    First                []   [always, never]
+ 
+ var genericBlocks = []blockData{
+-	{name: "Plain"},               // a single successor
+-	{name: "If", controls: 1},     // if Controls[0] goto Succs[0] else goto Succs[1]
+-	{name: "Defer", controls: 1},  // Succs[0]=defer queued, Succs[1]=defer recovered. Controls[0] is call op (of memory type)
+-	{name: "Ret", controls: 1},    // no successors, Controls[0] value is memory result
+-	{name: "RetJmp", controls: 1}, // no successors, Controls[0] value is a tail call
+-	{name: "Exit", controls: 1},   // no successors, Controls[0] value generates a panic
++	{name: "Plain"},                  // a single successor
++	{name: "If", controls: 1},        // if Controls[0] goto Succs[0] else goto Succs[1]
++	{name: "Defer", controls: 1},     // Succs[0]=defer queued, Succs[1]=defer recovered. Controls[0] is call op (of memory type)
++	{name: "Ret", controls: 1},       // no successors, Controls[0] value is memory result
++	{name: "RetJmp", controls: 1},    // no successors, Controls[0] value is a tail call
++	{name: "Exit", controls: 1},      // no successors, Controls[0] value generates a panic
++	{name: "JumpTable", controls: 1}, // multiple successors, the integer Controls[0] selects which one
+ 
+ 	// transient block state used for dead code removal
+ 	{name: "First"}, // 2 successors, always takes the first one (second is dead)
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index fe8db4ed1f..0f7e970372 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -1838,6 +1838,8 @@ func (op opData) auxIntType() string {
+ // auxType returns the Go type that this block should store in its aux field.
+ func (b blockData) auxType() string {
+ 	switch b.aux {
++	case "Sym":
++		return "Sym"
+ 	case "S390XCCMask", "S390XCCMaskInt8", "S390XCCMaskUint8":
+ 		return "s390x.CCMask"
+ 	case "S390XRotateParams":
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index db52b53a28..0357fdb12a 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -50,6 +50,7 @@ const (
+ 	BlockAMD64NEF
+ 	BlockAMD64ORD
+ 	BlockAMD64NAN
++	BlockAMD64JUMPTABLE
+ 
+ 	BlockARMEQ
+ 	BlockARMNE
+@@ -149,6 +150,7 @@ const (
+ 	BlockRet
+ 	BlockRetJmp
+ 	BlockExit
++	BlockJumpTable
+ 	BlockFirst
+ )
+ 
+@@ -172,22 +174,23 @@ var blockString = [...]string{
+ 	Block386ORD: "ORD",
+ 	Block386NAN: "NAN",
+ 
+-	BlockAMD64EQ:  "EQ",
+-	BlockAMD64NE:  "NE",
+-	BlockAMD64LT:  "LT",
+-	BlockAMD64LE:  "LE",
+-	BlockAMD64GT:  "GT",
+-	BlockAMD64GE:  "GE",
+-	BlockAMD64OS:  "OS",
+-	BlockAMD64OC:  "OC",
+-	BlockAMD64ULT: "ULT",
+-	BlockAMD64ULE: "ULE",
+-	BlockAMD64UGT: "UGT",
+-	BlockAMD64UGE: "UGE",
+-	BlockAMD64EQF: "EQF",
+-	BlockAMD64NEF: "NEF",
+-	BlockAMD64ORD: "ORD",
+-	BlockAMD64NAN: "NAN",
++	BlockAMD64EQ:        "EQ",
++	BlockAMD64NE:        "NE",
++	BlockAMD64LT:        "LT",
++	BlockAMD64LE:        "LE",
++	BlockAMD64GT:        "GT",
++	BlockAMD64GE:        "GE",
++	BlockAMD64OS:        "OS",
++	BlockAMD64OC:        "OC",
++	BlockAMD64ULT:       "ULT",
++	BlockAMD64ULE:       "ULE",
++	BlockAMD64UGT:       "UGT",
++	BlockAMD64UGE:       "UGE",
++	BlockAMD64EQF:       "EQF",
++	BlockAMD64NEF:       "NEF",
++	BlockAMD64ORD:       "ORD",
++	BlockAMD64NAN:       "NAN",
++	BlockAMD64JUMPTABLE: "JUMPTABLE",
+ 
+ 	BlockARMEQ:     "EQ",
+ 	BlockARMNE:     "NE",
+@@ -281,13 +284,14 @@ var blockString = [...]string{
+ 	BlockS390XCLIJ:  "CLIJ",
+ 	BlockS390XCLGIJ: "CLGIJ",
+ 
+-	BlockPlain:  "Plain",
+-	BlockIf:     "If",
+-	BlockDefer:  "Defer",
+-	BlockRet:    "Ret",
+-	BlockRetJmp: "RetJmp",
+-	BlockExit:   "Exit",
+-	BlockFirst:  "First",
++	BlockPlain:     "Plain",
++	BlockIf:        "If",
++	BlockDefer:     "Defer",
++	BlockRet:       "Ret",
++	BlockRetJmp:    "RetJmp",
++	BlockExit:      "Exit",
++	BlockJumpTable: "JumpTable",
++	BlockFirst:     "First",
+ }
+ 
+ func (k BlockKind) String() string { return blockString[k] }
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 248060d27d..4d615a064d 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -1954,3 +1955,9 @@ func logicFlags32(x int32) flagConstant {
+ 	fcb.N = x < 0
+ 	return fcb.encode()
+ }
++
++func makeJumpTableSym(b *Block) *obj.LSym {
++	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.fe.LSym(), b.ID))
++	s.Set(obj.AttrDuplicateOK, true)
++	return s
++}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 67ccc99679..36e69781a5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -36873,6 +36873,7 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 	return false
+ }
+ func rewriteBlockAMD64(b *Block) bool {
++	typ := &b.Func.Config.Types
+ 	switch b.Kind {
+ 	case BlockAMD64EQ:
+ 		// match: (EQ (TESTL (SHLL (MOVLconst [1]) x) y))
+@@ -37455,6 +37456,19 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.resetWithControl(BlockAMD64NE, v0)
+ 			return true
+ 		}
++	case BlockJumpTable:
++		// match: (JumpTable idx)
++		// result: (JUMPTABLE {makeJumpTableSym(b)} idx (LEAQ <typ.Uintptr> {makeJumpTableSym(b)} (SB)))
++		for {
++			idx := b.Controls[0]
++			v0 := b.NewValue0(b.Pos, OpAMD64LEAQ, typ.Uintptr)
++			v0.Aux = symToAux(makeJumpTableSym(b))
++			v1 := b.NewValue0(b.Pos, OpSB, typ.Uintptr)
++			v0.AddArg(v1)
++			b.resetWithControl2(BlockAMD64JUMPTABLE, idx, v0)
++			b.Aux = symToAux(makeJumpTableSym(b))
++			return true
++		}
+ 	case BlockAMD64LE:
+ 		// match: (LE (InvertFlags cmp) yes no)
+ 		// result: (GE cmp yes no)
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 7da145e08d..7b6b69ffc5 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1861,6 +1861,84 @@ func (s *state) stmt(n ir.Node) {
+ 		}
+ 		s.startBlock(bEnd)
+ 
++	case ir.OJUMPTABLE:
++		n := n.(*ir.JumpTableStmt)
++
++		// Make blocks we'll need.
++		jt := s.f.NewBlock(ssa.BlockJumpTable)
++		bEnd := s.f.NewBlock(ssa.BlockPlain)
++
++		// The only thing that needs evaluating is the index we're looking up.
++		idx := s.expr(n.Idx)
++		unsigned := idx.Type.IsUnsigned()
++
++		// Extend so we can do everything in uintptr arithmetic.
++		t := types.Types[types.TUINTPTR]
++		idx = s.conv(nil, idx, idx.Type, t)
++
++		// The ending condition for the current block decides whether we'll use
++		// the jump table at all.
++		// We check that min <= idx <= max and jump around the jump table
++		// if that test fails.
++		// We implement min <= idx <= max with 0 <= idx-min <= max-min, because
++		// we'll need idx-min anyway as the control value for the jump table.
++		var min, max uint64
++		if unsigned {
++			min, _ = constant.Uint64Val(n.Cases[0])
++			max, _ = constant.Uint64Val(n.Cases[len(n.Cases)-1])
++		} else {
++			mn, _ := constant.Int64Val(n.Cases[0])
++			mx, _ := constant.Int64Val(n.Cases[len(n.Cases)-1])
++			min = uint64(mn)
++			max = uint64(mx)
++		}
++		// Compare idx-min with max-min, to see if we can use the jump table.
++		idx = s.newValue2(s.ssaOp(ir.OSUB, t), t, idx, s.uintptrConstant(min))
++		width := s.uintptrConstant(max - min)
++		cmp := s.newValue2(s.ssaOp(ir.OLE, t), types.Types[types.TBOOL], idx, width)
++		b := s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.SetControl(cmp)
++		b.AddEdgeTo(jt)             // in range - use jump table
++		b.AddEdgeTo(bEnd)           // out of range - no case in the jump table will trigger
++		b.Likely = ssa.BranchLikely // TODO: assumes missing the table entirely is unlikely. True?
++
++		// Build jump table block.
++		s.startBlock(jt)
++		jt.Pos = n.Pos()
++		if base.Flag.Cfg.SpectreIndex {
++			idx = s.newValue2(ssa.OpSpectreSliceIndex, t, idx, width)
++		}
++		jt.SetControl(idx)
++
++		// Figure out where we should go for each index in the table.
++		table := make([]*ssa.Block, max-min+1)
++		for i := range table {
++			table[i] = bEnd // default target
++		}
++		for i := range n.Targets {
++			c := n.Cases[i]
++			lab := s.label(n.Targets[i])
++			if lab.target == nil {
++				lab.target = s.f.NewBlock(ssa.BlockPlain)
++			}
++			var val uint64
++			if unsigned {
++				val, _ = constant.Uint64Val(c)
++			} else {
++				vl, _ := constant.Int64Val(c)
++				val = uint64(vl)
++			}
++			// Overwrite the default target.
++			table[val-min] = lab.target
++		}
++		for _, t := range table {
++			jt.AddEdgeTo(t)
++		}
++		s.endBlock()
++
++		s.startBlock(bEnd)
++
+ 	case ir.OVARDEF:
+ 		n := n.(*ir.UnaryExpr)
+ 		if !s.canSSA(n.X) {
+@@ -2351,6 +2429,13 @@ func (s *state) ssaShiftOp(op ir.Op, t *types.Type, u *types.Type) ssa.Op {
+ 	return x
+ }
+ 
++func (s *state) uintptrConstant(v uint64) *ssa.Value {
++	if s.config.PtrSize == 4 {
++		return s.newValue0I(ssa.OpConst32, types.Types[types.TUINTPTR], int64(v))
++	}
++	return s.newValue0I(ssa.OpConst64, types.Types[types.TUINTPTR], int64(v))
++}
++
+ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
+ 	if ft.IsBoolean() && tt.IsKind(types.TUINT8) {
+ 		// Bool -> uint8 is generated internally when indexing into runtime.staticbyte.
+@@ -6440,6 +6525,9 @@ type State struct {
+ 	// and where they would like to go.
+ 	Branches []Branch
+ 
++	// JumpTables remembers all the jump tables we've seen.
++	JumpTables []*ssa.Block
++
+ 	// bstart remembers where each block starts (indexed by block ID)
+ 	bstart []*obj.Prog
+ 
+@@ -7052,6 +7140,20 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 
+ 	}
+ 
++	// Resolve jump table destinations.
++	for _, jt := range s.JumpTables {
++		// Convert from *Block targets to *Prog targets.
++		targets := make([]*obj.Prog, len(jt.Succs))
++		for i, e := range jt.Succs {
++			targets[i] = s.bstart[e.Block().ID]
++		}
++		// Add to list of jump tables to be resolved at assembly time.
++		// The assembler converts from *Prog entries to absolute addresses
++		// once it knows instruction byte offsets.
++		fi := pp.CurFunc.LSym.Func()
++		fi.JumpTables = append(fi.JumpTables, obj.JumpTable{Sym: jt.Aux.(*obj.LSym), Targets: targets})
++	}
++
+ 	if e.log { // spew to stdout
+ 		filename := ""
+ 		for p := pp.Text; p != nil; p = p.Link {
+@@ -7705,6 +7807,10 @@ func (e *ssafn) MyImportPath() string {
+ 	return base.Ctxt.Pkgpath
+ }
+ 
++func (e *ssafn) LSym() string {
++	return e.curfn.LSym.Name
++}
++
+ func clobberBase(n ir.Node) ir.Node {
+ 	if n.Op() == ir.ODOT {
+ 		n := n.(*ir.SelectorExpr)
+diff --git a/src/cmd/compile/internal/test/switch_test.go b/src/cmd/compile/internal/test/switch_test.go
+new file mode 100644
+index 0000000000..6f7bfcf3d8
+--- /dev/null
++++ b/src/cmd/compile/internal/test/switch_test.go
+@@ -0,0 +1,94 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test
++
++import (
++	"math/bits"
++	"testing"
++)
++
++func BenchmarkSwitch8Predictable(b *testing.B) {
++	benchmarkSwitch8(b, true)
++}
++func BenchmarkSwitch8Unpredictable(b *testing.B) {
++	benchmarkSwitch8(b, false)
++}
++func benchmarkSwitch8(b *testing.B, predictable bool) {
++	n := 0
++	rng := newRNG()
++	for i := 0; i < b.N; i++ {
++		rng = rng.next(predictable)
++		switch rng.value() & 7 {
++		case 0:
++			n += 1
++		case 1:
++			n += 2
++		case 2:
++			n += 3
++		case 3:
++			n += 4
++		case 4:
++			n += 5
++		case 5:
++			n += 6
++		case 6:
++			n += 7
++		case 7:
++			n += 8
++		}
++	}
++	sink = n
++}
++
++func BenchmarkSwitch32Predictable(b *testing.B) {
++	benchmarkSwitch32(b, true)
++}
++func BenchmarkSwitch32Unpredictable(b *testing.B) {
++	benchmarkSwitch32(b, false)
++}
++func benchmarkSwitch32(b *testing.B, predictable bool) {
++	n := 0
++	rng := newRNG()
++	for i := 0; i < b.N; i++ {
++		rng = rng.next(predictable)
++		switch rng.value() & 31 {
++		case 0, 1, 2:
++			n += 1
++		case 4, 5, 6:
++			n += 2
++		case 8, 9, 10:
++			n += 3
++		case 12, 13, 14:
++			n += 4
++		case 16, 17, 18:
++			n += 5
++		case 20, 21, 22:
++			n += 6
++		case 24, 25, 26:
++			n += 7
++		case 28, 29, 30:
++			n += 8
++		default:
++			n += 9
++		}
++	}
++	sink = n
++}
++
++// A simple random number generator used to make switches conditionally predictable.
++type rng uint64
++
++func newRNG() rng {
++	return 1
++}
++func (r rng) next(predictable bool) rng {
++	if predictable {
++		return r + 1
++	}
++	return rng(bits.RotateLeft64(uint64(r), 13) * 0x3c374d)
++}
++func (r rng) value() uint64 {
++	return uint64(r)
++}
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 4f38cb2c81..8a42dbf777 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -85,6 +85,7 @@ func walkStmt(n ir.Node) ir.Node {
+ 		ir.OFALL,
+ 		ir.OGOTO,
+ 		ir.OLABEL,
++		ir.OJUMPTABLE,
+ 		ir.ODCL,
+ 		ir.ODCLCONST,
+ 		ir.ODCLTYPE,
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 3705c5b192..a4003ecea4 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -11,6 +11,7 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+@@ -223,6 +224,9 @@ func (s *exprSwitch) flush() {
+ }
+ 
+ func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
++	if s.tryJumpTable(cc, out) {
++		return
++	}
+ 	binarySearch(len(cc), out,
+ 		func(i int) ir.Node {
+ 			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.exprname, cc[i-1].hi)
+@@ -235,6 +239,49 @@ func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
+ 	)
+ }
+ 
++// Try to implement the clauses with a jump table. Returns true if successful.
++func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
++	const go119UseJumpTables = true
++	const minCases = 8   // have at least minCases cases in the switch
++	const minDensity = 4 // use at least 1 out of every minDensity entries
++
++	if !go119UseJumpTables || !ssagen.Arch.LinkArch.CanJumpTable {
++		return false
++	}
++	if len(cc) < minCases {
++		return false // not enough cases for it to be worth it
++	}
++	if cc[0].lo.Val().Kind() != constant.Int {
++		return false // e.g. float
++	}
++	if s.exprname.Type().Size() > int64(types.PtrSize) {
++		return false // 64-bit switches on 32-bit archs
++	}
++	min := cc[0].lo.Val()
++	max := cc[len(cc)-1].hi.Val()
++	width := constant.BinaryOp(constant.BinaryOp(max, token.SUB, min), token.ADD, constant.MakeInt64(1))
++	limit := constant.MakeInt64(int64(len(cc)) * minDensity)
++	if constant.Compare(width, token.GTR, limit) {
++		// We disable jump tables if we use less than a minimum fraction of the entries.
++		// i.e. for switch x {case 0: case 1000: case 2000:} we don't want to use a jump table.
++		return false
++	}
++	jt := ir.NewJumpTableStmt(base.Pos, s.exprname)
++	for _, c := range cc {
++		jmp := c.jmp.(*ir.BranchStmt)
++		if jmp.Op() != ir.OGOTO || jmp.Label == nil {
++			panic("bad switch case body")
++		}
++		for i := c.lo.Val(); constant.Compare(i, token.LEQ, c.hi.Val()); i = constant.BinaryOp(i, token.ADD, constant.MakeInt64(1)) {
++			jt.Cases = append(jt.Cases, i)
++			jt.Targets = append(jt.Targets, jmp.Label)
++		}
++	}
++	out.Append(jt)
++	// TODO: handle the size portion of string switches using a jump table.
++	return true
++}
++
+ func (c *exprClause) test(exprname ir.Node) ir.Node {
+ 	// Integer range.
+ 	if c.hi != c.lo {
+@@ -562,7 +609,7 @@ func (s *typeSwitch) flush() {
+ // then cases before i will be tested; otherwise, cases i and later.
+ //
+ // leaf(i, nif) should setup nif (an OIF node) to test case i. In
+-// particular, it should set nif.Left and nif.Nbody.
++// particular, it should set nif.Cond and nif.Body.
+ func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i int, nif *ir.IfStmt)) {
+ 	const binarySearchMin = 4 // minimum number of cases for binary search
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index a3eba73906..dc06a3aa11 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -495,10 +495,20 @@ type FuncInfo struct {
+ 	ArgInfo            *LSym // argument info for traceback
+ 	ArgLiveInfo        *LSym // argument liveness info for traceback
+ 	WrapInfo           *LSym // for wrapper, info of wrapped function
++	JumpTables         []JumpTable
+ 
+ 	FuncInfoSym *LSym
+ }
+ 
++// JumpTable represents a table used for implementing multi-way
++// computed branching, used typically for implementing switches.
++// Sym is the table itself, and Targets is a list of target
++// instructions to go to for the computed branch index.
++type JumpTable struct {
++	Sym     *LSym
++	Targets []*Prog
++}
++
+ // NewFuncInfo allocates and returns a FuncInfo for LSym.
+ func (s *LSym) NewFuncInfo() *FuncInfo {
+ 	if s.Extra != nil {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 0e4c87ddcf..b625845c09 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2230,6 +2230,16 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 		obj.MarkUnsafePoints(ctxt, s.Func().Text, newprog, useTLS, nil)
+ 	}
++
++	// Now that we know byte offsets, we can generate jump table entries.
++	// TODO: could this live in obj instead of obj/$ARCH?
++	for _, jt := range s.Func().JumpTables {
++		for i, p := range jt.Targets {
++			// The ith jumptable entry points to the p.Pc'th
++			// byte in the function symbol s.
++			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, s, p.Pc)
++		}
++	}
+ }
+ 
+ func instinit(ctxt *obj.Link) {
+diff --git a/src/cmd/internal/sys/arch.go b/src/cmd/internal/sys/arch.go
+index ea76b596c1..84ed35ba8d 100644
+--- a/src/cmd/internal/sys/arch.go
++++ b/src/cmd/internal/sys/arch.go
+@@ -52,6 +52,10 @@ type Arch struct {
+ 	// can combine adjacent loads into a single larger, possibly unaligned, load.
+ 	// Note that currently the optimizations must be able to handle little endian byte order.
+ 	CanMergeLoads bool
++
++	// CanJumpTable reports whether the backend can handle
++	// compiling a jump table.
++	CanJumpTable bool
+ }
+ 
+ // InFamily reports whether a is a member of any of the specified
+@@ -85,6 +89,7 @@ var ArchAMD64 = &Arch{
+ 	MinLC:         1,
+ 	Alignment:     1,
+ 	CanMergeLoads: true,
++	CanJumpTable:  true,
+ }
+ 
+ var ArchARM = &Arch{

@@ -34,7 +34,7 @@ Date:   Tue Oct 3 12:14:53 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go       | 11 ++++++--
  src/cmd/compile/internal/ssa/config.go         |  4 +--
  src/cmd/compile/internal/ssa/func.go           | 16 ++++++++++++
@@ -42,3 +42,190 @@ Date:   Tue Oct 3 12:14:53 2023 -0400
  src/cmd/compile/internal/ssagen/ssa.go         | 35 +++++++++++++++++++-------
  src/cmd/compile/internal/test/abiutils_test.go |  2 +-
  6 files changed, 56 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 04b17fbcc5..607d462493 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
+@@ -261,12 +262,13 @@ type ABIConfig struct {
+ 	// Do we need anything more than this?
+ 	offsetForLocals int64 // e.g., obj.(*Link).Arch.FixedFrameSize -- extra linkage information on some architectures.
+ 	regAmounts      RegAmounts
++	which           obj.ABI
+ }
+ 
+ // NewABIConfig returns a new ABI configuration for an architecture with
+ // iRegsCount integer/pointer registers and fRegsCount floating point registers.
+-func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64) *ABIConfig {
+-	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}}
++func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64, which uint8) *ABIConfig {
++	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}, which: obj.ABI(which)}
+ }
+ 
+ // Copy returns config.
+@@ -276,6 +278,11 @@ func (config *ABIConfig) Copy() *ABIConfig {
+ 	return config
+ }
+ 
++// Which returns the ABI number
++func (config *ABIConfig) Which() obj.ABI {
++	return config.which
++}
++
+ // LocalsOffset returns the architecture-dependent offset from SP for args and results.
+ // In theory this is only used for debugging; it ought to already be incorporated into
+ // results from the ABI-related methods
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 5bbc88aaae..da4294d871 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -361,8 +361,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 		c.floatParamRegs = nil // no FP registers in softfloat mode
+ 	}
+ 
+-	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.Arch.FixedFrameSize)
+-	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.Arch.FixedFrameSize)
++	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.Arch.FixedFrameSize, 0)
++	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.Arch.FixedFrameSize, 1)
+ 
+ 	// On Plan 9, floating point operations are not allowed in note handler.
+ 	if buildcfg.GOOS == "plan9" {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 2aaf6e769e..e94cb77f92 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
+@@ -109,6 +110,21 @@ func (f *Func) NumValues() int {
+ 	return f.vid.num()
+ }
+ 
++// NameABI returns the function name followed by comma and the ABI number.
++// This is intended for use with GOSSAFUNC and HTML dumps, and differs from
++// the linker's "<1>" convention because "<" and ">" require shell quoting
++// and are not legal file names (for use with GOSSADIR) on Windows.
++func (f *Func) NameABI() string {
++	return FuncNameABI(f.Name, f.ABISelf.Which())
++}
++
++// FuncNameABI returns n followed by a comma and the value of a.
++// This is a separate function to allow a single point encoding
++// of the format, which is used in places where there's not a Func yet.
++func FuncNameABI(n string, a obj.ABI) string {
++	return fmt.Sprintf("%s,%d", n, a)
++}
++
+ // newSparseSet returns a sparse set that can store at least up to n integers.
+ func (f *Func) newSparseSet(n int) *sparseSet {
+ 	return f.Cache.allocSparseSet(n)
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 7e5a097d7d..ea170fbcdb 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -741,7 +741,7 @@ function toggleDarkMode() {
+ </head>`)
+ 	w.WriteString("<body>")
+ 	w.WriteString("<h1>")
+-	w.WriteString(html.EscapeString(w.Func.Name))
++	w.WriteString(html.EscapeString(w.Func.NameABI()))
+ 	w.WriteString("</h1>")
+ 	w.WriteString(`
+ <a href="#" onclick="toggle_visibility('help');return false;" id="helplink">help</a>
+@@ -784,7 +784,7 @@ func (w *HTMLWriter) Close() {
+ 	io.WriteString(w.w, "</body>")
+ 	io.WriteString(w.w, "</html>")
+ 	w.w.Close()
+-	fmt.Printf("dumped SSA to %v\n", w.path)
++	fmt.Printf("dumped SSA for %s to %v\n", w.Func.NameABI(), w.path)
+ }
+ 
+ // WritePhase writes f in a column headed by title.
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index af3776c38f..366a9b3caa 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -314,12 +314,29 @@ func (s *state) emitOpenDeferInfo() {
+ // worker indicates which of the backend workers is doing the processing.
+ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	name := ir.FuncName(fn)
++
++	abiSelf := abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1)
++
+ 	printssa := false
+-	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", package.name e.g. "compress/gzip.(*Reader).Reset", or subpackage name "gzip.(*Reader).Reset"
+-		pkgDotName := base.Ctxt.Pkgpath + "." + name
+-		printssa = name == ssaDump ||
+-			strings.HasSuffix(pkgDotName, ssaDump) && (pkgDotName == ssaDump || strings.HasSuffix(pkgDotName, "/"+ssaDump))
++	// match either a simple name e.g. "(*Reader).Reset", package.name e.g. "compress/gzip.(*Reader).Reset", or subpackage name "gzip.(*Reader).Reset"
++	// optionally allows an ABI suffix specification in the GOSSAHASH, e.g. "(*Reader).Reset<0>" etc
++	if strings.Contains(ssaDump, name) { // in all the cases the function name is entirely contained within the GOSSAFUNC string.
++		nameOptABI := name
++		if strings.Contains(ssaDump, ",") { // ABI specification
++			nameOptABI = ssa.FuncNameABI(name, abiSelf.Which())
++		} else if strings.HasSuffix(ssaDump, ">") { // if they use the linker syntax instead....
++			l := len(ssaDump)
++			if l >= 3 && ssaDump[l-3] == '<' {
++				nameOptABI = ssa.FuncNameABI(name, abiSelf.Which())
++				ssaDump = ssaDump[:l-3] + "," + ssaDump[l-2:l-1]
++			}
++		}
++		pkgDotName := base.Ctxt.Pkgpath + "." + nameOptABI
++		printssa = nameOptABI == ssaDump || // "(*Reader).Reset"
++			pkgDotName == ssaDump || // "compress/gzip.(*Reader).Reset"
++			strings.HasSuffix(pkgDotName, ssaDump) && strings.HasSuffix(pkgDotName, "/"+ssaDump) // "gzip.(*Reader).Reset"
+ 	}
++
+ 	var astBuf *bytes.Buffer
+ 	if printssa {
+ 		astBuf = &bytes.Buffer{}
+@@ -366,10 +383,10 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	if fn.Pragma&ir.Nosplit != 0 {
+ 		s.f.NoSplit = true
+ 	}
+-	s.f.ABI0 = ssaConfig.ABI0.Copy() // Make a copy to avoid racy map operations in type-register-width cache.
+-	s.f.ABI1 = ssaConfig.ABI1.Copy()
+-	s.f.ABIDefault = abiForFunc(nil, s.f.ABI0, s.f.ABI1)
+-	s.f.ABISelf = abiForFunc(fn, s.f.ABI0, s.f.ABI1)
++	s.f.ABI0 = ssaConfig.ABI0
++	s.f.ABI1 = ssaConfig.ABI1
++	s.f.ABIDefault = abiForFunc(nil, ssaConfig.ABI0, ssaConfig.ABI1)
++	s.f.ABISelf = abiSelf
+ 
+ 	s.panics = map[funcLine]*ssa.Block{}
+ 	s.softFloat = s.config.SoftFloat
+@@ -381,7 +398,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	if printssa {
+ 		ssaDF := ssaDumpFile
+ 		if ssaDir != "" {
+-			ssaDF = filepath.Join(ssaDir, base.Ctxt.Pkgpath+"."+name+".html")
++			ssaDF = filepath.Join(ssaDir, base.Ctxt.Pkgpath+"."+s.f.NameABI()+".html")
+ 			ssaD := filepath.Dir(ssaDF)
+ 			os.MkdirAll(ssaD, 0755)
+ 		}
+diff --git a/src/cmd/compile/internal/test/abiutils_test.go b/src/cmd/compile/internal/test/abiutils_test.go
+index dad7991b5d..b500de9f18 100644
+--- a/src/cmd/compile/internal/test/abiutils_test.go
++++ b/src/cmd/compile/internal/test/abiutils_test.go
+@@ -22,7 +22,7 @@ import (
+ // AMD64 registers available:
+ // - integer: RAX, RBX, RCX, RDI, RSI, R8, R9, r10, R11
+ // - floating point: X0 - X14
+-var configAMD64 = abi.NewABIConfig(9, 15, 0)
++var configAMD64 = abi.NewABIConfig(9, 15, 0, 1)
+ 
+ func TestMain(m *testing.M) {
+ 	ssagen.Arch.LinkArch = &x86.Linkamd64

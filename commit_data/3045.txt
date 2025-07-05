@@ -8,7 +8,42 @@ Date:   Fri Aug 21 14:14:25 2009 -0700
     DELTA=20  (20 added, 0 deleted, 0 changed)
     OCL=33646
     CL=33667
-
+---
  test/bugs/bug193.go | 15 +++++++++++++++
  test/golden.out     |  5 +++++
  2 files changed, 20 insertions(+)
+
+diff --git a/test/bugs/bug193.go b/test/bugs/bug193.go
+new file mode 100644
+index 0000000000..df768b930f
+--- /dev/null
++++ b/test/bugs/bug193.go
+@@ -0,0 +1,15 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	s := uint(10);
++	ss := 1<<s;
++	y1 := float(ss);
++	y2 := float(1<<s);  // ERROR "shift"
++	y3 := string(1<<s);  // ERROR "shift"
++}
+diff --git a/test/golden.out b/test/golden.out
+index 1c4981b352..6dc5cc66a6 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -168,3 +168,8 @@ bugs/bug190.go:13: invalid recursive type chan S
+ bugs/bug190.go:16: invalid recursive type S
+ bugs/bug190.go:15: invalid recursive type func(S) (S)
+ BUG: should compile
++
++=========== bugs/bug193.go
++BUG: errchk: bugs/bug193.go:13: error message does not match 'shift'
++bugs/bug193.go:13: fatal error: optoas: no entry LSH-float
++errchk: bugs/bug193.go:14: missing expected error: 'shift'

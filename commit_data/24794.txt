@@ -9,6 +9,43 @@ Date:   Mon Aug 31 09:40:25 2015 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 18 ------------------
  1 file changed, 18 deletions(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index bbfd6d03df..e4ed6adff9 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -10,8 +10,6 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+-	"regexp"
+-	"strconv"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+@@ -72,22 +70,6 @@ func TestCloneNEWUSERAndRemapRootEnableSetgroups(t *testing.T) {
+ 	testNEWUSERRemap(t, 0, 0, false)
+ }
+ 
+-// kernelVersion returns the major and minor versions of the Linux
+-// kernel version.  It calls t.Skip if it can't figure it out.
+-func kernelVersion(t *testing.T) (int, int) {
+-	bytes, err := ioutil.ReadFile("/proc/version")
+-	if err != nil {
+-		t.Skipf("can't get kernel version: %v", err)
+-	}
+-	matches := regexp.MustCompile("([0-9]+).([0-9]+)").FindSubmatch(bytes)
+-	if len(matches) < 3 {
+-		t.Skipf("can't get kernel version from %s", bytes)
+-	}
+-	major, _ := strconv.Atoi(string(matches[1]))
+-	minor, _ := strconv.Atoi(string(matches[2]))
+-	return major, minor
+-}
+-
+ func TestCloneNEWUSERAndRemapNoRootDisableSetgroups(t *testing.T) {
+ 	if os.Getuid() == 0 {
+ 		t.Skip("skipping unprivileged user only test")

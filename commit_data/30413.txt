@@ -95,7 +95,7 @@ Date:   Wed Nov 2 21:40:47 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                         | 20 +++++++++++++++++
  src/cmd/go/testdata/src/testrace/race_test.go | 29 ++++++++++++++++++++++++
  src/go/build/deps_test.go                     |  2 +-
@@ -107,3 +107,269 @@ Date:   Wed Nov 2 21:40:47 2016 -0400
  src/testing/benchmark.go                      |  6 +++++
  src/testing/testing.go                        | 32 ++++++++++++++++++---------
  10 files changed, 95 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e6eec09082..aad9c052b5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2828,6 +2828,26 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
+ 	}
+ }
+ 
++func TestGoTestRaceFailures(t *testing.T) {
++	if !canRace {
++		t.Skip("skipping because race detector not supported")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++
++	tg.run("test", "testrace")
++
++	tg.runFail("test", "-race", "testrace")
++	tg.grepStdout("FAIL: TestRace", "TestRace did not fail")
++	tg.grepBothNot("PASS", "something passed")
++
++	tg.runFail("test", "-race", "testrace", "-run", "XXX", "-bench", ".")
++	tg.grepStdout("FAIL: BenchmarkRace", "BenchmarkRace did not fail")
++	tg.grepBothNot("PASS", "something passed")
++}
++
+ func TestGoTestImportErrorStack(t *testing.T) {
+ 	const out = `package testdep/p1 (test)
+ 	imports testdep/p2
+diff --git a/src/cmd/go/testdata/src/testrace/race_test.go b/src/cmd/go/testdata/src/testrace/race_test.go
+new file mode 100644
+index 0000000000..264dcf0d8a
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testrace/race_test.go
+@@ -0,0 +1,29 @@
++package testrace
++
++import "testing"
++
++func TestRace(t *testing.T) {
++	for i := 0; i < 10; i++ {
++		c := make(chan int)
++		x := 1
++		go func() {
++			x = 2
++			c <- 1
++		}()
++		x = 3
++		<-c
++	}
++}
++
++func BenchmarkRace(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		c := make(chan int)
++		x := 1
++		go func() {
++			x = 2
++			c <- 1
++		}()
++		x = 3
++		<-c
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 723189140a..17ddf13c90 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -178,7 +178,7 @@ var pkgDeps = map[string][]string{
+ 	"runtime/trace":                {"L0"},
+ 	"text/tabwriter":               {"L2"},
+ 
+-	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
++	"testing":          {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":   {"L2", "log"},
+ 	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
+ 	"internal/testenv": {"L2", "OS", "flag", "testing", "syscall"},
+diff --git a/src/internal/race/norace.go b/src/internal/race/norace.go
+index 7ef5912901..d83c0165b2 100644
+--- a/src/internal/race/norace.go
++++ b/src/internal/race/norace.go
+@@ -38,3 +38,5 @@ func ReadRange(addr unsafe.Pointer, len int) {
+ 
+ func WriteRange(addr unsafe.Pointer, len int) {
+ }
++
++func Errors() int { return 0 }
+diff --git a/src/internal/race/race.go b/src/internal/race/race.go
+index 6c721f6f1d..2e7d97beaa 100644
+--- a/src/internal/race/race.go
++++ b/src/internal/race/race.go
+@@ -48,3 +48,7 @@ func ReadRange(addr unsafe.Pointer, len int) {
+ func WriteRange(addr unsafe.Pointer, len int) {
+ 	runtime.RaceWriteRange(addr, len)
+ }
++
++func Errors() int {
++	return runtime.RaceErrors()
++}
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index c8af8f6f50..d8483c04c2 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -20,6 +20,12 @@ func RaceWriteRange(addr unsafe.Pointer, len int)
+ func RaceSemacquire(s *uint32)
+ func RaceSemrelease(s *uint32)
+ 
++func RaceErrors() int {
++	var n uint64
++	racecall(&__tsan_report_count, uintptr(unsafe.Pointer(&n)), 0, 0, 0)
++	return int(n)
++}
++
+ // private interface for the runtime
+ const raceenabled = true
+ 
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index 9158f0453c..2a2e3b79e5 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -184,8 +184,8 @@ func TestFail(t *testing.T) {
+ }
+ `, `
+ ==================
+-PASS
+-Found 1 data race\(s\)
++--- FAIL: TestFail \(0.00s\)
++.*testing.go:.*: race detected during execution of test
+ FAIL`},
+ 
+ 	{"slicebytetostring_pc", "run", "", "atexit_sleep_ms=0", `
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index 8f910bf008..8cdf52d102 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -173,9 +173,11 @@ func runTests(t *testing.T) ([]byte, error) {
+ 	// (that's what is done for C++ ThreadSanitizer tests). This is issue #14119.
+ 	cmd.Env = append(cmd.Env,
+ 		"GOMAXPROCS=1",
+-		"GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0",
++		"GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0",
+ 	)
+-	return cmd.CombinedOutput()
++	// There are races: we expect tests to fail and the exit code to be non-zero.
++	out, _ := cmd.CombinedOutput()
++	return out, nil
+ }
+ 
+ func TestIssue8102(t *testing.T) {
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 53d43a39d5..c033ce5fec 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -7,6 +7,7 @@ package testing
+ import (
+ 	"flag"
+ 	"fmt"
++	"internal/race"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -131,6 +132,7 @@ func (b *B) runN(n int) {
+ 	// Try to get a comparable environment for each run
+ 	// by clearing garbage from previous runs.
+ 	runtime.GC()
++	b.raceErrors = -race.Errors()
+ 	b.N = n
+ 	b.parallelism = 1
+ 	b.ResetTimer()
+@@ -139,6 +141,10 @@ func (b *B) runN(n int) {
+ 	b.StopTimer()
+ 	b.previousN = n
+ 	b.previousDuration = b.duration
++	b.raceErrors += race.Errors()
++	if b.raceErrors > 0 {
++		b.Errorf("race detected during execution of benchmark")
++	}
+ }
+ 
+ func min(x, y int) int {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 1dae90873a..31290aaec0 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -207,6 +207,7 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
++	"internal/race"
+ 	"io"
+ 	"os"
+ 	"runtime"
+@@ -257,16 +258,17 @@ var (
+ // common holds the elements common between T and B and
+ // captures common methods such as Errorf.
+ type common struct {
+-	mu       sync.RWMutex // guards output, failed, and done.
+-	output   []byte       // Output generated by test or benchmark.
+-	w        io.Writer    // For flushToParent.
+-	chatty   bool         // A copy of the chatty flag.
+-	ran      bool         // Test or benchmark (or one of its subtests) was executed.
+-	failed   bool         // Test or benchmark has failed.
+-	skipped  bool         // Test of benchmark has been skipped.
+-	finished bool         // Test function has completed.
+-	done     bool         // Test is finished and all subtests have completed.
+-	hasSub   bool
++	mu         sync.RWMutex // guards output, failed, and done.
++	output     []byte       // Output generated by test or benchmark.
++	w          io.Writer    // For flushToParent.
++	chatty     bool         // A copy of the chatty flag.
++	ran        bool         // Test or benchmark (or one of its subtests) was executed.
++	failed     bool         // Test or benchmark has failed.
++	skipped    bool         // Test of benchmark has been skipped.
++	finished   bool         // Test function has completed.
++	done       bool         // Test is finished and all subtests have completed.
++	hasSub     bool
++	raceErrors int // number of races detected during test
+ 
+ 	parent   *common
+ 	level    int       // Nesting depth of test or benchmark.
+@@ -580,11 +582,13 @@ func (t *T) Parallel() {
+ 
+ 	// Add to the list of tests to be released by the parent.
+ 	t.parent.sub = append(t.parent.sub, t)
++	t.raceErrors += race.Errors()
+ 
+ 	t.signal <- true   // Release calling test.
+ 	<-t.parent.barrier // Wait for the parent test to complete.
+ 	t.context.waitParallel()
+ 	t.start = time.Now()
++	t.raceErrors += -race.Errors()
+ }
+ 
+ // An internal type but exported because it is cross-package; part of the implementation
+@@ -600,6 +604,11 @@ func tRunner(t *T, fn func(t *T)) {
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
+ 	defer func() {
++		t.raceErrors += race.Errors()
++		if t.raceErrors > 0 {
++			t.Errorf("race detected during execution of test")
++		}
++
+ 		t.duration += time.Now().Sub(t.start)
+ 		// If the test panicked, print any test output before dying.
+ 		err := recover()
+@@ -643,6 +652,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 	}()
+ 
+ 	t.start = time.Now()
++	t.raceErrors = -race.Errors()
+ 	fn(t)
+ 	t.finished = true
+ }
+@@ -810,7 +820,7 @@ func (m *M) Run() int {
+ 	if !testRan && !exampleRan && *matchBenchmarks == "" {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+ 	}
+-	if !testOk || !exampleOk || !runBenchmarks(m.deps.MatchString, m.benchmarks) {
++	if !testOk || !exampleOk || !runBenchmarks(m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
+ 		fmt.Println("FAIL")
+ 		m.after()
+ 		return 1

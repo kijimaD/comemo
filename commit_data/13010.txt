@@ -7,8 +7,169 @@ Date:   Wed May 2 17:05:52 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6136054
-
+---
  src/pkg/os/signal/signal_windows_test.go | 77 +++++++++++++++++++++++++-------
  src/pkg/syscall/exec_windows.go          |  8 ++--
  src/pkg/syscall/ztypes_windows.go        |  4 ++
  3 files changed, 70 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/os/signal/signal_windows_test.go b/src/pkg/os/signal/signal_windows_test.go
+index 8d807ff7b1..26712f35b0 100644
+--- a/src/pkg/os/signal/signal_windows_test.go
++++ b/src/pkg/os/signal/signal_windows_test.go
+@@ -5,16 +5,16 @@
+ package signal
+ 
+ import (
+-	"flag"
++	"bytes"
+ 	"os"
++	"os/exec"
++	"path/filepath"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+ )
+ 
+-var runCtrlBreakTest = flag.Bool("run_ctlbrk_test", false, "force to run Ctrl+Break test")
+-
+-func sendCtrlBreak(t *testing.T) {
++func sendCtrlBreak(t *testing.T, pid int) {
+ 	d, e := syscall.LoadDLL("kernel32.dll")
+ 	if e != nil {
+ 		t.Fatalf("LoadDLL: %v\n", e)
+@@ -23,29 +23,74 @@ func sendCtrlBreak(t *testing.T) {
+ 	if e != nil {
+ 		t.Fatalf("FindProc: %v\n", e)
+ 	}
+-	r, _, e := p.Call(0, 0)
++	r, _, e := p.Call(syscall.CTRL_BREAK_EVENT, uintptr(pid))
+ 	if r == 0 {
+ 		t.Fatalf("GenerateConsoleCtrlEvent: %v\n", e)
+ 	}
+ }
+ 
+ func TestCtrlBreak(t *testing.T) {
+-	if !*runCtrlBreakTest {
+-		t.Logf("test disabled; use -run_ctlbrk_test to enable")
+-		return
+-	}
+-	go func() {
+-		time.Sleep(1 * time.Second)
+-		sendCtrlBreak(t)
+-	}()
++	// create source file
++	const source = `
++package main
++
++import (
++	"log"
++	"os"
++	"os/signal"
++	"time"
++)
++
++
++func main() {
+ 	c := make(chan os.Signal, 10)
+-	Notify(c)
++	signal.Notify(c)
+ 	select {
+ 	case s := <-c:
+ 		if s != os.Interrupt {
+-			t.Fatalf("Wrong signal received: got %q, want %q\n", s, os.Interrupt)
++			log.Fatalf("Wrong signal received: got %q, want %q\n", s, os.Interrupt)
+ 		}
+ 	case <-time.After(3 * time.Second):
+-		t.Fatalf("Timeout waiting for Ctrl+Break\n")
++		log.Fatalf("Timeout waiting for Ctrl+Break\n")
++	}
++}
++`
++	name := filepath.Join(os.TempDir(), "ctlbreak")
++	src := name + ".go"
++	defer os.Remove(src)
++	f, err := os.Create(src)
++	if err != nil {
++		t.Fatalf("Failed to create %v: %v", src, err)
++	}
++	defer f.Close()
++	f.Write([]byte(source))
++
++	// compile it
++	exe := name + ".exe"
++	defer os.Remove(exe)
++	o, err := exec.Command("go", "build", "-o", exe, src).CombinedOutput()
++	if err != nil {
++		t.Fatalf("Failed to compile: %v\n%v", err, string(o))
++	}
++
++	// run it
++	cmd := exec.Command(exe)
++	var b bytes.Buffer
++	cmd.Stdout = &b
++	cmd.Stderr = &b
++	cmd.SysProcAttr = &syscall.SysProcAttr{
++		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
++	}
++	err = cmd.Start()
++	if err != nil {
++		t.Fatalf("Start failed: %v", err)
++	}
++	go func() {
++		time.Sleep(1 * time.Second)
++		sendCtrlBreak(t, cmd.Process.Pid)
++	}()
++	err = cmd.Wait()
++	if err != nil {
++		t.Fatalf("Program exited with error: %v\n%v", err, string(b.Bytes()))
+ 	}
+ }
+diff --git a/src/pkg/syscall/exec_windows.go b/src/pkg/syscall/exec_windows.go
+index 4dc4d059d7..9f1f174034 100644
+--- a/src/pkg/syscall/exec_windows.go
++++ b/src/pkg/syscall/exec_windows.go
+@@ -225,8 +225,9 @@ type ProcAttr struct {
+ }
+ 
+ type SysProcAttr struct {
+-	HideWindow bool
+-	CmdLine    string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
++	HideWindow    bool
++	CmdLine       string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
++	CreationFlags uint32
+ }
+ 
+ var zeroProcAttr ProcAttr
+@@ -313,7 +314,8 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 
+ 	pi := new(ProcessInformation)
+ 
+-	err = CreateProcess(argv0p, argvp, nil, nil, true, CREATE_UNICODE_ENVIRONMENT, createEnvBlock(attr.Env), dirp, si, pi)
++	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT
++	err = CreateProcess(argv0p, argvp, nil, nil, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+ 	if err != nil {
+ 		return 0, 0, err
+ 	}
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 54168bb98a..125d9b16f5 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -146,6 +146,7 @@ const (
+ 	WAIT_OBJECT_0  = 0x00000000
+ 	WAIT_FAILED    = 0xFFFFFFFF
+ 
++	CREATE_NEW_PROCESS_GROUP   = 0x00000200
+ 	CREATE_UNICODE_ENVIRONMENT = 0x00000400
+ 
+ 	PROCESS_QUERY_INFORMATION = 0x00000400
+@@ -162,6 +163,9 @@ const (
+ 	FILE_MAP_WRITE   = 0x02
+ 	FILE_MAP_READ    = 0x04
+ 	FILE_MAP_EXECUTE = 0x20
++
++	CTRL_C_EVENT     = 0
++	CTRL_BREAK_EVENT = 1
+ )
+ 
+ const (

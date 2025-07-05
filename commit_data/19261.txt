@@ -11,7 +11,35 @@ Date:   Wed Apr 30 11:30:36 2014 -0400
     R=golang-codereviews, robert.hencke, bradfitz, r
     CC=golang-codereviews
     https://golang.org/cl/99910043
-
+---
  src/pkg/time/format.go      | 4 ++--
  src/pkg/time/format_test.go | 1 +
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 555edd5cef..9f210ea27d 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -1037,8 +1037,8 @@ func parseTimeZone(value string) (length int, ok bool) {
+ 	if len(value) < 3 {
+ 		return 0, false
+ 	}
+-	// Special case 1: This is the only zone with a lower-case letter.
+-	if len(value) >= 4 && value[:4] == "ChST" {
++	// Special case 1: ChST and MeST are the only zones with a lower-case letter.
++	if len(value) >= 4 && (value[:4] == "ChST" || value[:4] == "MeST") {
+ 		return 4, true
+ 	}
+ 	// Special case 2: GMT may have an hour offset; treat it specially.
+diff --git a/src/pkg/time/format_test.go b/src/pkg/time/format_test.go
+index dd3f48ddc4..3bc8f42946 100644
+--- a/src/pkg/time/format_test.go
++++ b/src/pkg/time/format_test.go
+@@ -331,6 +331,7 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
+ 	{"GMT-5 hi there", 5, true},
+ 	{"GMT-51 hi there", 3, true},
+ 	{"ChST hi there", 4, true},
++	{"MeST hi there", 4, true},
+ 	{"MSDx", 3, true},
+ 	{"MSDY", 0, false}, // four letters must end in T.
+ 	{"ESAST hi", 5, true},

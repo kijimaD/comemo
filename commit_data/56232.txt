@@ -13,7 +13,34 @@ Date:   Wed Apr 19 20:55:47 2023 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/net/cgo_unix_cgo.go     | 1 -
  src/net/cgo_unix_syscall.go | 3 +--
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/net/cgo_unix_cgo.go b/src/net/cgo_unix_cgo.go
+index 7520c5d95c..d11f3e301a 100644
+--- a/src/net/cgo_unix_cgo.go
++++ b/src/net/cgo_unix_cgo.go
+@@ -56,7 +56,6 @@ type (
+ )
+ 
+ func _C_GoString(p *_C_char) string      { return C.GoString(p) }
+-func _C_FreeCString(p *_C_char)          { C.free(unsafe.Pointer(p)) }
+ func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
+ func _C_free(p unsafe.Pointer)           { C.free(p) }
+ 
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+index 332ca6bc2f..2eb8df1da6 100644
+--- a/src/net/cgo_unix_syscall.go
++++ b/src/net/cgo_unix_syscall.go
+@@ -43,8 +43,7 @@ func _C_GoString(p *_C_char) string {
+ 	return unix.GoString(p)
+ }
+ 
+-func _C_FreeCString(p *_C_char) { _C_free(unsafe.Pointer(p)) }
+-func _C_free(p unsafe.Pointer)  { runtime.KeepAlive(p) }
++func _C_free(p unsafe.Pointer) { runtime.KeepAlive(p) }
+ 
+ func _C_malloc(n uintptr) unsafe.Pointer {
+ 	if n <= 0 {

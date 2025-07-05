@@ -13,7 +13,40 @@ Date:   Mon Nov 18 14:39:20 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/wait_wait6.go  | 5 ++++-
  src/os/wait_waitid.go | 5 ++++-
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index 00848bfdc2..113535e5bd 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -17,7 +17,10 @@ import (
+ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	err := ignoringEINTR(func() error {
+ 		_, errno := wait6(_P_PID, p.Pid, syscall.WEXITED|syscall.WNOWAIT)
+-		return errno
++		if errno != 0 {
++			return errno
++		}
++		return nil
+ 	})
+ 	runtime.KeepAlive(p)
+ 	if err == syscall.ENOSYS {
+diff --git a/src/os/wait_waitid.go b/src/os/wait_waitid.go
+index 73012404eb..f2447a0e4c 100644
+--- a/src/os/wait_waitid.go
++++ b/src/os/wait_waitid.go
+@@ -29,7 +29,10 @@ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	psig := &siginfo[0]
+ 	err := ignoringEINTR(func() error {
+ 		_, _, errno := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+-		return errno
++		if errno != 0 {
++			return errno
++		}
++		return nil
+ 	})
+ 	runtime.KeepAlive(p)
+ 	if err != nil {

@@ -15,6 +15,28 @@ Date:   Mon Jun 20 11:42:07 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.19.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 50bc973c13..4495c1d3e0 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -741,7 +741,7 @@ as well as support for rendering them to HTML, Markdown, and text.
+   </dd>
+ </dl><!-- regexp -->
+ 
+-<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
++<dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/51461 -->
+       The <a href="/pkg/runtime/#GOROOT"><code>GOROOT</code></a> function now returns the empty string
+@@ -847,7 +847,6 @@ as well as support for rendering them to HTML, Markdown, and text.
+       but often easier to use: it returns an additional boolean reporting whether an equal value was found.
+     </p>
+   </dd>
+-  </dd>
+ </dl><!-- sort -->
+ 
+ <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>

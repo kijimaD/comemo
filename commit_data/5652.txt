@@ -9,7 +9,7 @@ Date:   Sat Jun 12 11:17:24 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1592045
-
+---
  src/cmd/gc/dcl.c       | 24 ++++--------------------
  src/cmd/gc/export.c    |  2 +-
  src/cmd/gc/go.h        |  8 ++++----
@@ -20,3 +20,562 @@ Date:   Sat Jun 12 11:17:24 2010 -0700
  src/cmd/gc/walk.c      | 34 ++++++++++++++++++++++++++++------
  test/undef.go          | 44 ++++++++++++++++++++++++++++++++++++++++++++
  9 files changed, 155 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 48391d510a..fadd4a039f 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -430,24 +430,13 @@ newname(Sym *s)
+ 
+ /*
+  * this generates a new name node for a name
+- * being declared.  if at the top level, it might return
+- * an ONONAME node created by an earlier reference.
++ * being declared.
+  */
+ Node*
+ dclname(Sym *s)
+ {
+ 	Node *n;
+ 
+-	// top-level name: might already have been
+-	// referred to, in which case s->def is already
+-	// set to an ONONAME.
+-	if(dclcontext == PEXTERN && s->block <= 1) {
+-		if(s->def == N)
+-			oldname(s);
+-		if(s->def->op == ONONAME)
+-			return s->def;
+-	}
+-
+ 	n = newname(s);
+ 	n->op = ONONAME;	// caller will correct it
+ 	return n;
+@@ -484,12 +473,12 @@ oldname(Sym *s)
+ 	if(n == N) {
+ 		// maybe a top-level name will come along
+ 		// to give this a definition later.
++		// walkdef will check s->def again once
++		// all the input source has been processed.
+ 		n = newname(s);
+ 		n->op = ONONAME;
+-		s->def = n;
++		n->iota = iota;	// save current iota value in const declarations
+ 	}
+-	if(n->oldref < 100)
+-		n->oldref++;
+ 	if(curfn != nil && n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
+ 		// inner func is referring to var in outer func.
+ 		//
+@@ -587,11 +576,6 @@ colasdefn(NodeList *left, Node *defn)
+ 		if(n->sym->block == block)
+ 			continue;
+ 
+-		// If we created an ONONAME just for this :=,
+-		// delete it, to avoid confusion with top-level imports.
+-		if(n->op == ONONAME && n->oldref < 100 && --n->oldref == 0)
+-			n->sym->def = N;
+-
+ 		nnew++;
+ 		n = newname(n->sym);
+ 		declare(n, dclcontext);
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index c73c476b6e..aa9d2f149e 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -120,7 +120,7 @@ dumpexportconst(Sym *s)
+ 
+ 	switch(n->val.ctype) {
+ 	default:
+-		fatal("dumpexportconst: unknown ctype: %S", s);
++		fatal("dumpexportconst: unknown ctype: %S %d", s, n->val.ctype);
+ 	case CTINT:
+ 		Bprint(bout, "%B\n", n->val.u.xval);
+ 		break;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2f63ba40f0..3f65502474 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -201,7 +201,6 @@ struct	Node
+ 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
+ 	uchar	class;		// PPARAM, PAUTO, PEXTERN, etc
+ 	uchar	method;		// OCALLMETH name
+-	uchar	iota;		// OLITERAL made from iota
+ 	uchar	embedded;	// ODCLFIELD embedded type
+ 	uchar	colas;		// OAS resulting from :=
+ 	uchar	diag;		// already printed error about this
+@@ -214,7 +213,6 @@ struct	Node
+ 	uchar	initorder;
+ 	uchar	dodata;		// compile literal assignment as data statement
+ 	uchar	used;
+-	uchar	oldref;
+ 	uchar	isddd;
+ 	uchar	pun;		// dont registerize variable ONAME
+ 
+@@ -270,6 +268,7 @@ struct	Node
+ 	int32	lineno;
+ 	vlong	xoffset;
+ 	int32	ostk;
++	int32	iota;
+ };
+ #define	N	((Node*)0)
+ 
+@@ -721,7 +720,7 @@ EXTERN	int	incannedimport;
+ EXTERN	int	statuniqgen;		// name generator for static temps
+ EXTERN	int	loophack;
+ 
+-EXTERN	uint32	iota;
++EXTERN	int32	iota;
+ EXTERN	NodeList*	lastconst;
+ EXTERN	Node*	lasttype;
+ EXTERN	int32	maxarg;
+@@ -1079,7 +1078,7 @@ void	anylit(Node*, Node*, NodeList**);
+ int	oaslit(Node*, NodeList**);
+ void	heapmoves(void);
+ void	walkdeflist(NodeList*);
+-void	walkdef(Node*);
++Node*	walkdef(Node*);
+ void	typechecklist(NodeList*, int);
+ void	typecheckswitch(Node*);
+ void	typecheckselect(Node*);
+@@ -1089,6 +1088,7 @@ Node*	typecheck(Node**, int);
+ int	islvalue(Node*);
+ void	queuemethod(Node*);
+ int	exportassignok(Type*, char*);
++Node*	resolve(Node*);
+ 
+ /*
+  *	const.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 2c4623f15c..5e6d14b543 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -194,12 +194,7 @@ import_stmt:
+ 		}
+ 		if(my->name[0] == '_' && my->name[1] == '\0')
+ 			break;
+-
+-		// Can end up with my->def->op set to ONONAME
+-		// if one package refers to p without importing it.
+-		// Don't want to give an error on a good import
+-		// in another file.
+-		if(my->def && my->def->op != ONONAME) {
++		if(my->def) {
+ 			lineno = $1;
+ 			redeclare(my, "as imported package name");
+ 		}
+@@ -307,27 +302,28 @@ common_dcl:
+ 	{
+ 		$$ = nil;
+ 	}
+-|	LCONST constdcl
++|	lconst constdcl
+ 	{
+ 		$$ = $2;
+-		iota = 0;
++		iota = -100000;
+ 		lastconst = nil;
+ 	}
+-|	LCONST '(' constdcl osemi ')'
++|	lconst '(' constdcl osemi ')'
+ 	{
+ 		$$ = $3;
+-		iota = 0;
++		iota = -100000;
+ 		lastconst = nil;
+ 	}
+-|	LCONST '(' constdcl ';' constdcl_list osemi ')'
++|	lconst '(' constdcl ';' constdcl_list osemi ')'
+ 	{
+ 		$$ = concat($3, $5);
+-		iota = 0;
++		iota = -100000;
+ 		lastconst = nil;
+ 	}
+-|	LCONST '(' ')'
++|	lconst '(' ')'
+ 	{
+ 		$$ = nil;
++		iota = -100000;
+ 	}
+ |	LTYPE typedcl
+ 	{
+@@ -342,6 +338,12 @@ common_dcl:
+ 		$$ = nil;
+ 	}
+ 
++lconst:
++	LCONST
++	{
++		iota = 0;
++	}
++
+ vardcl:
+ 	dcl_name_list ntype
+ 	{
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index b08100993c..791686caf8 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1444,11 +1444,6 @@ lexinit(void)
+ 		}
+ 	}
+ 
+-	s = lookup("iota");
+-	s->def = nod(ONONAME, N, N);
+-	s->def->iota = 1;
+-	s->def->sym = s;
+-
+ 	// logically, the type of a string literal.
+ 	// types[TSTRING] is the named type string
+ 	// (the type of x in var x string or var x = "hello").
+@@ -1491,13 +1486,12 @@ lexfini(void)
+ 		s->lexical = lex;
+ 
+ 		etype = syms[i].etype;
+-		if(etype != Txxx && (etype != TANY || debug['A']))
+-		if(s->def != N && s->def->op == ONONAME)
+-			*s->def = *typenod(types[etype]);
++		if(etype != Txxx && (etype != TANY || debug['A']) && s->def == N)
++			s->def = typenod(types[etype]);
+ 
+ 		etype = syms[i].op;
+-		if(etype != OXXX && s->def != N && s->def->op == ONONAME) {
+-			s->def->op = ONAME;
++		if(etype != OXXX && s->def == N) {
++			s->def = nod(ONAME, N, N);
+ 			s->def->sym = s;
+ 			s->def->etype = etype;
+ 			s->def->builtin = 1;
+@@ -1506,29 +1500,35 @@ lexfini(void)
+ 
+ 	for(i=0; typedefs[i].name; i++) {
+ 		s = lookup(typedefs[i].name);
+-		if(s->def != N && s->def->op == ONONAME)
+-			*s->def = *typenod(types[typedefs[i].etype]);
++		if(s->def == N)
++			s->def = typenod(types[typedefs[i].etype]);
+ 	}
+ 
+ 	// there's only so much table-driven we can handle.
+ 	// these are special cases.
+ 	types[TNIL] = typ(TNIL);
+ 	s = lookup("nil");
+-	if(s->def != N && s->def->op == ONONAME) {
++	if(s->def == N) {
+ 		v.ctype = CTNIL;
+-		*s->def = *nodlit(v);
++		s->def = nodlit(v);
++		s->def->sym = s;
++	}
++	
++	s = lookup("iota");
++	if(s->def == N) {
++		s->def = nod(OIOTA, N, N);
+ 		s->def->sym = s;
+ 	}
+ 
+ 	s = lookup("true");
+-	if(s->def != N && s->def->op == ONONAME) {
+-		*s->def = *nodbool(1);
++	if(s->def == N) {
++		s->def = nodbool(1);
+ 		s->def->sym = s;
+ 	}
+ 
+ 	s = lookup("false");
+-	if(s->def != N && s->def->op == ONONAME) {
+-		*s->def = *nodbool(0);
++	if(s->def == N) {
++		s->def = nodbool(0);
+ 		s->def->sym = s;
+ 	}
+ 	
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 649b8f5428..c836b60f28 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1529,13 +1529,19 @@ treecopy(Node *n)
+ 		break;
+ 
+ 	case ONONAME:
+-		if(n->iota) {
+-			m = nod(OIOTA, n, nodintconst(iota));
++		if(n->sym == lookup("iota")) {
++			// Not sure yet whether this is the real iota,
++			// but make a copy of the Node* just in case,
++			// so that all the copies of this const definition
++			// don't have the same iota value.
++			m = nod(OXXX, N, N);
++			*m = *n;
++			m->iota = iota;
+ 			break;
+ 		}
+ 		// fall through
+-	case OLITERAL:
+ 	case ONAME:
++	case OLITERAL:
+ 	case OTYPE:
+ 		m = n;
+ 		break;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 70aa3cb9d1..8a2fcd735b 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -33,6 +33,23 @@ static void	checkassign(Node*);
+ static void	checkassignlist(NodeList*);
+ static void stringtoarraylit(Node**);
+ 
++/*
++ * resolve ONONAME to definition, if any.
++ */
++Node*
++resolve(Node *n)
++{
++	Node *r;
++
++	if(n != N && n->op == ONONAME && (r = n->sym->def) != N) {
++		if(r->op != OIOTA)
++			n = r;
++		else if(n->iota >= 0)
++			n = nodintconst(n->iota);
++	}
++	return n;
++}
++
+ void
+ typechecklist(NodeList *l, int top)
+ {
+@@ -64,6 +81,10 @@ typecheck(Node **np, int top)
+ 	n = *np;
+ 	if(n == N)
+ 		return N;
++	
++	// Resolve definition of name and value of iota lazily.
++	n = resolve(n);
++	*np = n;
+ 
+ 	// Skip typecheck if already done.
+ 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
+@@ -85,10 +106,9 @@ typecheck(Node **np, int top)
+ 	}
+ 	n->typecheck = 2;
+ 
+-redo:
+ 	lno = setlineno(n);
+ 	if(n->sym) {
+-		if(n->op == ONAME && n->etype != 0) {
++		if(n->op == ONAME && n->etype != 0 && !(top & Ecall)) {
+ 			yyerror("use of builtin %S not in function call", n->sym);
+ 			goto error;
+ 		}
+@@ -96,6 +116,7 @@ redo:
+ 		if(n->op == ONONAME)
+ 			goto error;
+ 	}
++	*np = n;
+ 
+ reswitch:
+ 	ok = 0;
+@@ -138,15 +159,6 @@ reswitch:
+ 		yyerror("use of package %S not in selector", n->sym);
+ 		goto error;
+ 
+-	case OIOTA:
+-		// looked like iota during parsing but might
+-		// have been redefined.  decide.
+-		if(n->left->op != ONONAME)
+-			n = n->left;
+-		else
+-			n = n->right;
+-		goto redo;
+-
+ 	case ODDD:
+ 		break;
+ 
+@@ -679,6 +691,12 @@ reswitch:
+ 	 * call and call like
+ 	 */
+ 	case OCALL:
++		l = n->left;
++		if(l->op == ONAME && (r = unsafenmagic(l, n->list)) != N) {
++			n = r;
++			goto reswitch;
++		}
++		typecheck(&n->left, Erv | Etype | Ecall);
+ 		l = n->left;
+ 		if(l->op == ONAME && l->etype != 0) {
+ 			// builtin: OLEN, OCAP, etc.
+@@ -687,11 +705,6 @@ reswitch:
+ 			n->right = N;
+ 			goto reswitch;
+ 		}
+-		if(l->op == ONAME && (r = unsafenmagic(l, n->list)) != N) {
+-			n = r;
+-			goto reswitch;
+-		}
+-		typecheck(&n->left, Erv | Etype | Ecall);
+ 		defaultlit(&n->left, T);
+ 		l = n->left;
+ 		if(l->op == OTYPE) {
+@@ -895,7 +908,7 @@ reswitch:
+ 	case OCONV:
+ 	doconv:
+ 		ok |= Erv;
+-		typecheck(&n->left, Erv | (top & Eindir));
++		typecheck(&n->left, Erv | (top & (Eindir | Eiota)));
+ 		convlit1(&n->left, n->type, 1);
+ 		if((t = n->left->type) == T || n->type == T)
+ 			goto error;
+@@ -1929,6 +1942,7 @@ typecheckas(Node *n)
+ 	// if the variable has a type (ntype) then typechecking
+ 	// will not look at defn, so it is okay (and desirable,
+ 	// so that the conversion below happens).
++	n->left = resolve(n->left);
+ 	if(n->left->defn != n || n->left->ntype)
+ 		typecheck(&n->left, Erv | Easgn);
+ 
+@@ -1976,6 +1990,7 @@ typecheckas2(Node *n)
+ 
+ 	for(ll=n->list; ll; ll=ll->next) {
+ 		// delicate little dance.
++		ll->n = resolve(ll->n);
+ 		if(ll->n->defn != n || ll->n->ntype)
+ 			typecheck(&ll->n, Erv | Easgn);
+ 	}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a4e5096507..3974e1e293 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -9,6 +9,8 @@ static	Node*	conv(Node*, Type*);
+ static	Node*	mapfn(char*, Type*);
+ static	Node*	makenewvar(Type*, NodeList**, Node**);
+ 
++static	NodeList*	walkdefstack;
++
+ // can this code branch reach the end
+ // without an undcontitional RETURN
+ // this is hard, so it is conservative
+@@ -186,13 +188,14 @@ queuemethod(Node *n)
+ 	methodqueue = list(methodqueue, n);
+ }
+ 
+-void
++Node*
+ walkdef(Node *n)
+ {
+ 	int lno;
+ 	NodeList *init;
+ 	Node *e;
+ 	Type *t;
++	NodeList *l;
+ 
+ 	lno = lineno;
+ 	setlineno(n);
+@@ -204,14 +207,24 @@ walkdef(Node *n)
+ 				lineno = n->lineno;
+ 			yyerror("undefined: %S", n->sym);
+ 		}
+-		return;
++		return n;
+ 	}
+ 
+ 	if(n->walkdef == 1)
+-		return;
++		return n;
++
++	l = mal(sizeof *l);
++	l->n = n;
++	l->next = walkdefstack;
++	walkdefstack = l;
++
+ 	if(n->walkdef == 2) {
+-		// TODO(rsc): better loop message
+-		fatal("loop");
++		flusherrors();
++		print("walkdef loop:");
++		for(l=walkdefstack; l; l=l->next)
++			print(" %S", l->n->sym);
++		print("\n");
++		fatal("walkdef loop");
+ 	}
+ 	n->walkdef = 2;
+ 
+@@ -266,8 +279,11 @@ walkdef(Node *n)
+ 		}
+ 		if(n->type != T)
+ 			break;
+-		if(n->defn == N)
++		if(n->defn == N) {
++			if(n->etype != 0)	// like OPRINTN
++				break;
+ 			fatal("var without type, init: %S", n->sym);
++		}
+ 		if(n->defn->op == ONAME) {
+ 			typecheck(&n->defn, Erv);
+ 			n->type = n->defn->type;
+@@ -289,8 +305,14 @@ walkdef(Node *n)
+ 	}
+ 
+ ret:
++	if(walkdefstack->n != n)
++		fatal("walkdefstack mismatch");
++	l = walkdefstack;
++	walkdefstack = l->next;
++
+ 	lineno = lno;
+ 	n->walkdef = 1;
++	return n;
+ }
+ 
+ void
+diff --git a/test/undef.go b/test/undef.go
+new file mode 100644
+index 0000000000..70785675ab
+--- /dev/null
++++ b/test/undef.go
+@@ -0,0 +1,44 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check line numbers in error messages.
++
++package main
++
++var (
++	_ = x	// ERROR "undefined: x"
++	_ = x	// ERROR "undefined: x"
++	_ = x	// ERROR "undefined: x"
++)
++
++type T struct {
++	y int
++}
++
++func foo() *T { return &T{y: 99} }
++func bar() int { return y }	// ERROR "undefined: y"
++
++type T1 struct {
++	y1 int
++}
++
++func foo1() *T1 { return &T1{y1: 99} }
++var y1 = 2
++func bar1() int { return y1 }
++
++func f1(val interface{}) {
++	switch v := val.(type) {
++	default:
++		println(v)
++	}
++}
++
++func f2(val interface{}) {
++	switch val.(type) {
++	default:
++		println(v)	// ERROR "undefined: v"
++	}
++}

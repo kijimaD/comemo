@@ -8,6 +8,20 @@ Date:   Fri Aug 13 14:30:18 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1998041
-
+---
  src/cmd/goyacc/goyacc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index b364d5189b..45dced1b3e 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -3244,7 +3244,7 @@ yydefault:
+ 			Errflag = 3
+ 
+ 			/* find a state where "error" is a legal shift action */
+-			for yyp >= len(YYS) {
++			for yyp >= 0 {
+ 				yyn = yyPact[YYS[yyp].yys] + yyErrCode
+ 				if yyn >= 0 && yyn < yyLast {
+ 					yystate = yyAct[yyn] /* simulate a shift of "error" */

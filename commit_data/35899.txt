@@ -70,7 +70,7 @@ Date:   Fri Mar 16 15:15:50 2018 -0400
     Change-Id: Id53b8d57bd00440142ccbd39b95710e14e083fb5
     Reviewed-on: https://go-review.googlesource.com/101217
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go                |  2 +-
  src/cmd/compile/internal/ssa/debug_test.go         | 15 ++++--
  .../internal/ssa/testdata/hist.dlv-opt.nexts       |  5 --
@@ -85,3 +85,495 @@ Date:   Fri Mar 16 15:15:50 2018 -0400
  .../internal/ssa/testdata/scopes.gdb-opt.nexts     | 41 ++++++++++++++++
  src/cmd/compile/internal/ssa/testdata/scopes.go    | 28 +++++++++++
  13 files changed, 201 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2fa7ef84f5..d0e85c9d9e 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -405,7 +405,7 @@ func Main(archInit func(*Arch)) {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+ 
+-	trackScopes = flagDWARF && (Debug['l'] == 0 && Debug['N'] != 0)
++	trackScopes = flagDWARF
+ 
+ 	Widthptr = thearch.LinkArch.PtrSize
+ 	Widthreg = thearch.LinkArch.RegSize
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index b066816dc9..ff9f17525b 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -136,22 +136,27 @@ func TestNexting(t *testing.T) {
+ 	}
+ 
+ 	optFlags := "" // Whatever flags are needed to test debugging of optimized code.
++	dbgFlags := "-N -l"
+ 	if !*useDelve && !*inlines {
+ 		// For gdb (default), disable inlining so that a compiler test does not depend on library code.
+ 		// TODO: Technically not necessary in 1.10, but it causes a largish regression that needs investigation.
+ 		optFlags += " -l"
+ 	}
+ 
+-	subTest(t, debugger+"-dbg", "hist", "-N -l")
+-	subTest(t, debugger+"-dbg-race", "i22600", "-N -l", "-race")
+-	subTest(t, debugger+"-dbg-22558", "i22558", "-N -l")
++	subTest(t, debugger+"-dbg", "hist", dbgFlags)
++	subTest(t, debugger+"-dbg", "scopes", dbgFlags)
++	subTest(t, debugger+"-dbg", "i22558", dbgFlags)
++
++	subTest(t, debugger+"-dbg-race", "i22600", dbgFlags, "-race")
++
+ 	optSubTest(t, debugger+"-opt", "hist", optFlags)
++	optSubTest(t, debugger+"-opt", "scopes", optFlags)
+ }
+ 
+ // subTest creates a subtest that compiles basename.go with the specified gcflags and additional compiler arguments,
+ // then runs the debugger on the resulting binary, with any comment-specified actions matching tag triggered.
+ func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
+-	t.Run(tag, func(t *testing.T) {
++	t.Run(tag+"-"+basename, func(t *testing.T) {
+ 		testNexting(t, basename, tag, gcflags, moreargs...)
+ 	})
+ }
+@@ -161,7 +166,7 @@ func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs
+ func optSubTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
+ 	// If optimized test is run with unoptimized libraries (compiled with -N -l), it is very likely to fail.
+ 	// This occurs in the noopt builders (for example).
+-	t.Run(tag, func(t *testing.T) {
++	t.Run(tag+"-"+basename, func(t *testing.T) {
+ 		if *force || optimizedLibs {
+ 			testNexting(t, basename, tag, gcflags, moreargs...)
+ 		} else {
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts b/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts
+index b98e3c6e65..a7bcbb1ade 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts
+@@ -57,8 +57,6 @@
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 86:		for i, a := range hist {
+ 87:			if a == 0 { //gdb-opt=(a,n,t)
+-88:				continue
+-87:			if a == 0 { //gdb-opt=(a,n,t)
+ 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+ 91:			n += a
+ 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+@@ -79,8 +77,6 @@
+ 86:		for i, a := range hist {
+ 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+ 87:			if a == 0 { //gdb-opt=(a,n,t)
+-88:				continue
+-87:			if a == 0 { //gdb-opt=(a,n,t)
+ 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+ 91:			n += a
+ 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+@@ -101,5 +97,4 @@
+ 86:		for i, a := range hist {
+ 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+ 87:			if a == 0 { //gdb-opt=(a,n,t)
+-88:				continue
+ 98:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts
+index 91b4f2d23f..fe000147bd 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts
+@@ -14,64 +14,64 @@ hist =  []int = {0, 0, 0, 0, 0, 0, 0}
+ 73:		scanner := bufio.NewScanner(reader)
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+ i = 4
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+ i = 4
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+ i = 5
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts b/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts
+index d943eb1d58..79c65a9288 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts
+@@ -22,9 +22,9 @@ dy = <Optimized out, as expected>
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+-err2 = {tab = 0x0, data = 0x0}
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++err = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 0, 0, 0, 0, 0, 0}
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+@@ -32,9 +32,9 @@ i = 1
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+-err2 = {tab = 0x0, data = 0x0}
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++err = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 1, 0, 0, 0, 0, 0}
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+@@ -42,9 +42,9 @@ i = 1
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+-err2 = {tab = 0x0, data = 0x0}
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++err = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 2, 0, 0, 0, 0, 0}
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+@@ -52,9 +52,9 @@ i = 1
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+-err2 = {tab = 0x0, data = 0x0}
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++err = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 0, 0, 0, 0, 0}
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+@@ -62,9 +62,9 @@ i = 2
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+-err2 = {tab = 0x0, data = 0x0}
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++err = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 1, 0, 0, 0, 0}
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+@@ -72,9 +72,9 @@ i = 2
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+-err2 = {tab = 0x0, data = 0x0}
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++err = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 2, 0, 0, 0, 0}
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+@@ -82,9 +82,9 @@ i = 2
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+-err2 = {tab = 0x0, data = 0x0}
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++err = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 3, 0, 0, 0, 0}
+ i = 4
+ 81:			hist = ensure(int(i), hist)
+@@ -92,9 +92,9 @@ i = 4
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+-err2 = {tab = 0x0, data = 0x0}
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++err = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 3, 0, 1, 0, 0}
+ i = 4
+ 81:			hist = ensure(int(i), hist)
+@@ -102,9 +102,9 @@ i = 4
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err2 := strconv.ParseInt(s, 10, 64)
+-77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+-err2 = {tab = 0x0, data = 0x0}
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++err = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 3, 0, 2, 0, 0}
+ i = 5
+ 81:			hist = ensure(int(i), hist)
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.go b/src/cmd/compile/internal/ssa/testdata/hist.go
+index 1462ff64de..8a0cc27280 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.go
++++ b/src/cmd/compile/internal/ssa/testdata/hist.go
+@@ -73,9 +73,9 @@ func test() {
+ 	scanner := bufio.NewScanner(reader)
+ 	for scanner.Scan() { //gdb-opt=(scanner/A)
+ 		s := scanner.Text()
+-		i, err2 := strconv.ParseInt(s, 10, 64)
+-		if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+-			fmt.Fprintf(os.Stderr, "There was an error: %v\n", err2)
++		i, err := strconv.ParseInt(s, 10, 64)
++		if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++			fmt.Fprintf(os.Stderr, "There was an error: %v\n", err)
+ 			return
+ 		}
+ 		hist = ensure(int(i), hist)
+diff --git a/src/cmd/compile/internal/ssa/testdata/i22558.dlv-dbg-22558.nexts b/src/cmd/compile/internal/ssa/testdata/i22558.dlv-dbg.nexts
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/testdata/i22558.dlv-dbg-22558.nexts
+rename to src/cmd/compile/internal/ssa/testdata/i22558.dlv-dbg.nexts
+diff --git a/src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg-22558.nexts b/src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg.nexts
+similarity index 100%
+rename from src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg-22558.nexts
+rename to src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg.nexts
+diff --git a/src/cmd/compile/internal/ssa/testdata/scopes.dlv-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/scopes.dlv-dbg.nexts
+new file mode 100644
+index 0000000000..3a49afc1d2
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/scopes.dlv-dbg.nexts
+@@ -0,0 +1,19 @@
++  ./testdata/scopes.go
++18:	func test() {
++19:		x := id(0)
++20:		y := id(0)
++21:		fmt.Println(x)
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++22:		for i := x; i < 3; i++ {
++26:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++27:		fmt.Println(x, y)
++28:	}
++11:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/scopes.dlv-opt.nexts b/src/cmd/compile/internal/ssa/testdata/scopes.dlv-opt.nexts
+new file mode 100644
+index 0000000000..749f1d33fd
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/scopes.dlv-opt.nexts
+@@ -0,0 +1,27 @@
++  ./testdata/scopes.go
++18:	func test() {
++19:		x := id(0)
++20:		y := id(0)
++21:		fmt.Println(x)
++18:	func test() {
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++22:		for i := x; i < 3; i++ {
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++22:		for i := x; i < 3; i++ {
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++22:		for i := x; i < 3; i++ {
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++22:		for i := x; i < 3; i++ {
++27:		fmt.Println(x, y)
++26:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++27:		fmt.Println(x, y)
++28:	}
++11:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/scopes.gdb-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/scopes.gdb-dbg.nexts
+new file mode 100644
+index 0000000000..03041282ec
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/scopes.gdb-dbg.nexts
+@@ -0,0 +1,27 @@
++  src/cmd/compile/internal/ssa/testdata/scopes.go
++18:	func test() {
++19:		x := id(0)
++20:		y := id(0)
++21:		fmt.Println(x)
++0:
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = 0
++y = 0
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = 1
++y = 0
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = 4
++y = 1
++22:		for i := x; i < 3; i++ {
++26:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = 0
++y = 5
++27:		fmt.Println(x, y)
++0: 5
++11:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/scopes.gdb-opt.nexts b/src/cmd/compile/internal/ssa/testdata/scopes.gdb-opt.nexts
+new file mode 100644
+index 0000000000..290f02fd92
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/scopes.gdb-opt.nexts
+@@ -0,0 +1,41 @@
++  src/cmd/compile/internal/ssa/testdata/scopes.go
++18:	func test() {
++19:		x := id(0)
++20:		y := id(0)
++21:		fmt.Println(x)
++0:
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = 0
++y = 0
++22:		for i := x; i < 3; i++ {
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = <optimized out>
++y = 0
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = 1
++y = 0
++22:		for i := x; i < 3; i++ {
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = <optimized out>
++y = 0
++22:		for i := x; i < 3; i++ {
++23:			x := i * i
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = 4
++y = 1
++22:		for i := x; i < 3; i++ {
++24:			y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = <optimized out>
++y = 1
++22:		for i := x; i < 3; i++ {
++27:		fmt.Println(x, y)
++26:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++x = 0
++y = 1
++27:		fmt.Println(x, y)
++0: 5
++11:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/scopes.go b/src/cmd/compile/internal/ssa/testdata/scopes.go
+new file mode 100644
+index 0000000000..9434aba6bf
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/scopes.go
+@@ -0,0 +1,28 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func main() {
++	test()
++}
++
++//go:noinline
++func id(x int) int {
++	return x
++}
++
++func test() {
++	x := id(0)
++	y := id(0)
++	fmt.Println(x)
++	for i := x; i < 3; i++ {
++		x := i * i
++		y += id(x) //gdb-dbg=(x,y)//gdb-opt=(x,y)
++	}
++	y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
++	fmt.Println(x, y)
++}

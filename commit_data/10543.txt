@@ -18,9 +18,73 @@ Date:   Wed Nov 30 15:37:41 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5440062
-
+---
  src/pkg/html/parse.go      | 5 +++++
  src/pkg/html/parse_test.go | 2 +-
  src/pkg/html/render.go     | 2 +-
  src/pkg/html/token.go      | 8 ++++----
  4 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 3011064e74..45dc19150c 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -770,6 +770,11 @@ func inBodyIM(p *parser) bool {
+ 			p.oe.pop()
+ 			p.oe.pop()
+ 			p.form = nil
++		case "xmp":
++			p.popUntil(buttonScopeStopTags, "p")
++			p.reconstructActiveFormattingElements()
++			p.framesetOK = false
++			p.addElement(p.tok.Data, p.tok.Attr)
+ 		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
+ 			// Ignore the token.
+ 		default:
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 1e39f3ed70..ea72557a0b 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -154,7 +154,7 @@ func TestParser(t *testing.T) {
+ 		{"tests2.dat", -1},
+ 		{"tests3.dat", -1},
+ 		// tests4.dat is fragment cases.
+-		{"tests5.dat", 10},
++		{"tests5.dat", -1},
+ 	}
+ 	for _, tf := range testFiles {
+ 		f, err := os.Open("testdata/webkit/" + tf.filename)
+diff --git a/src/pkg/html/render.go b/src/pkg/html/render.go
+index 2a57566fd4..7e1a466965 100644
+--- a/src/pkg/html/render.go
++++ b/src/pkg/html/render.go
+@@ -185,7 +185,7 @@ func render1(w writer, n *Node) error {
+ 
+ 	// Render any child nodes.
+ 	switch n.Data {
+-	case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style":
++	case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "xmp":
+ 		for _, c := range n.Child {
+ 			if c.Type != TextNode {
+ 				return fmt.Errorf("html: raw text element <%s> has non-text child node", n.Data)
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index 2a2f96bbab..57e70ffeed 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -406,12 +406,12 @@ func (z *Tokenizer) readStartTag() TokenType {
+ 		}
+ 	}
+ 	// Several tags flag the tokenizer's next token as raw.
+-	// The tag name lengths of these special cases ranges in [5, 9].
+-	if x := z.data.end - z.data.start; 5 <= x && x <= 9 {
++	// The tag name lengths of these special cases ranges in [3, 9].
++	if x := z.data.end - z.data.start; 3 <= x && x <= 9 {
+ 		switch z.buf[z.data.start] {
+-		case 'i', 'n', 'p', 's', 't', 'I', 'N', 'P', 'S', 'T':
++		case 'i', 'n', 'p', 's', 't', 'x', 'I', 'N', 'P', 'S', 'T', 'X':
+ 			switch s := strings.ToLower(string(z.buf[z.data.start:z.data.end])); s {
+-			case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "textarea", "title":
++			case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "textarea", "title", "xmp":
+ 				z.rawTag = s
+ 			}
+ 		}

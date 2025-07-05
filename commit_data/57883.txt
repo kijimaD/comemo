@@ -12,7 +12,7 @@ Date:   Wed Sep 6 22:03:07 2023 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go         |  2 +-
  src/cmd/compile/internal/liveness/arg.go           |  2 +-
  src/cmd/compile/internal/ssa/_gen/generic.rules    | 26 ++++-----
@@ -25,3 +25,706 @@ Date:   Wed Sep 6 22:03:07 2023 -0700
  src/cmd/compile/internal/ssagen/ssa.go             | 67 +++++-----------------
  src/cmd/compile/internal/walk/complit.go           |  4 +-
  11 files changed, 94 insertions(+), 113 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index d81fd7fd00..4bb40bea8e 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -204,7 +204,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 		if c == '.' || n.Type().IsUntyped() {
+ 			continue
+ 		}
+-		if n.Class == ir.PPARAM && !ssagen.TypeOK(n.Type()) {
++		if n.Class == ir.PPARAM && !ssa.CanSSA(n.Type()) {
+ 			// SSA-able args get location lists, and may move in and
+ 			// out of registers, so those are handled elsewhere.
+ 			// Autos and named output params seem to get handled
+diff --git a/src/cmd/compile/internal/liveness/arg.go b/src/cmd/compile/internal/liveness/arg.go
+index 6375e43ff3..16a4c71f62 100644
+--- a/src/cmd/compile/internal/liveness/arg.go
++++ b/src/cmd/compile/internal/liveness/arg.go
+@@ -116,7 +116,7 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
+ 	}
+ 
+ 	// We spill address-taken or non-SSA-able value upfront, so they are always live.
+-	alwaysLive := func(n *ir.Name) bool { return n.Addrtaken() || !f.Frontend().CanSSA(n.Type()) }
++	alwaysLive := func(n *ir.Name) bool { return n.Addrtaken() || !ssa.CanSSA(n.Type()) }
+ 
+ 	// We'll emit the smallest offset for the slots that need liveness info.
+ 	// No need to include a slot with a lower offset if it is always live.
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 7047f6588f..0ae05ec641 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -704,7 +704,7 @@
+ 	(Store {t2} p2 _
+ 		mem:(Zero [n] p3 _)))
+ 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3)
+-	&& fe.CanSSA(t1)
++	&& CanSSA(t1)
+ 	&& disjoint(op, t1.Size(), p2, t2.Size())
+ 	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p3) mem)
+ (Load <t1> op:(OffPtr [o1] p1)
+@@ -712,7 +712,7 @@
+ 		(Store {t3} p3 _
+ 			mem:(Zero [n] p4 _))))
+ 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4)
+-	&& fe.CanSSA(t1)
++	&& CanSSA(t1)
+ 	&& disjoint(op, t1.Size(), p2, t2.Size())
+ 	&& disjoint(op, t1.Size(), p3, t3.Size())
+ 	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p4) mem)
+@@ -722,7 +722,7 @@
+ 			(Store {t4} p4 _
+ 				mem:(Zero [n] p5 _)))))
+ 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5)
+-	&& fe.CanSSA(t1)
++	&& CanSSA(t1)
+ 	&& disjoint(op, t1.Size(), p2, t2.Size())
+ 	&& disjoint(op, t1.Size(), p3, t3.Size())
+ 	&& disjoint(op, t1.Size(), p4, t4.Size())
+@@ -734,7 +734,7 @@
+ 				(Store {t5} p5 _
+ 					mem:(Zero [n] p6 _))))))
+ 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6)
+-	&& fe.CanSSA(t1)
++	&& CanSSA(t1)
+ 	&& disjoint(op, t1.Size(), p2, t2.Size())
+ 	&& disjoint(op, t1.Size(), p3, t3.Size())
+ 	&& disjoint(op, t1.Size(), p4, t4.Size())
+@@ -848,28 +848,28 @@
+ (StructSelect [2] (StructMake4 _ _ x _)) => x
+ (StructSelect [3] (StructMake4 _ _ _ x)) => x
+ 
+-(Load <t> _ _) && t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t) =>
++(Load <t> _ _) && t.IsStruct() && t.NumFields() == 0 && CanSSA(t) =>
+   (StructMake0)
+-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t) =>
++(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 1 && CanSSA(t) =>
+   (StructMake1
+     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem))
+-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t) =>
++(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 2 && CanSSA(t) =>
+   (StructMake2
+     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
+     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
+-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t) =>
++(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 3 && CanSSA(t) =>
+   (StructMake3
+     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
+     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)
+     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
+-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t) =>
++(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 4 && CanSSA(t) =>
+   (StructMake4
+     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
+     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)
+     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)
+     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
+ 
+-(StructSelect [i] x:(Load <t> ptr mem)) && !fe.CanSSA(t) =>
++(StructSelect [i] x:(Load <t> ptr mem)) && !CanSSA(t) =>
+   @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
+ 
+ (Store _ (StructMake0) mem) => mem
+@@ -911,9 +911,9 @@
+ (StructSelect [0] (IData x)) => (IData x)
+ 
+ // un-SSAable values use mem->mem copies
+-(Store {t} dst (Load src mem) mem) && !fe.CanSSA(t) =>
++(Store {t} dst (Load src mem) mem) && !CanSSA(t) =>
+ 	(Move {t} [t.Size()] dst src mem)
+-(Store {t} dst (Load src mem) (VarDef {x} mem)) && !fe.CanSSA(t) =>
++(Store {t} dst (Load src mem) (VarDef {x} mem)) && !CanSSA(t) =>
+ 	(Move {t} [t.Size()] dst src (VarDef {x} mem))
+ 
+ // array ops
+@@ -922,7 +922,7 @@
+ (Load <t> _ _) && t.IsArray() && t.NumElem() == 0 =>
+   (ArrayMake0)
+ 
+-(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) =>
++(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && CanSSA(t) =>
+   (ArrayMake1 (Load <t.Elem()> ptr mem))
+ 
+ (Store _ (ArrayMake0) mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 8d431085a8..f50c96228e 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -143,9 +143,6 @@ type Logger interface {
+ type Frontend interface {
+ 	Logger
+ 
+-	// CanSSA reports whether variables of type t are SSA-able.
+-	CanSSA(t *types.Type) bool
+-
+ 	// StringData returns a symbol pointing to the given string's contents.
+ 	StringData(string) *obj.LSym
+ 
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 79822c17db..e6f7306fa8 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -177,7 +177,6 @@ type expandState struct {
+ 	f                  *Func
+ 	abi1               *abi.ABIConfig
+ 	debug              int // odd values log lost statement markers, so likely settings are 1 (stmts), 2 (expansion), and 3 (both)
+-	canSSAType         func(*types.Type) bool
+ 	regSize            int64
+ 	sp                 *Value
+ 	typs               *Types
+@@ -211,7 +210,7 @@ func (x *expandState) intPairTypes(et types.Kind) (tHi, tLo *types.Type) {
+ // so this is all aggregate types -- small struct and array, complex, interface, string, slice, and 64-bit
+ // integer on 32-bit).
+ func (x *expandState) isAlreadyExpandedAggregateType(t *types.Type) bool {
+-	if !x.canSSAType(t) {
++	if !CanSSA(t) {
+ 		return false
+ 	}
+ 	return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice() ||
+@@ -426,7 +425,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 
+ 		} else {
+ 			leafType := removeTrivialWrapperTypes(leaf.Type)
+-			if x.canSSAType(leafType) {
++			if CanSSA(leafType) {
+ 				pt := types.NewPtr(leafType)
+ 				// Any selection right out of the arg area/registers has to be same Block as call, use call as mem input.
+ 				// Create a "mem" for any loads that need to occur.
+@@ -1195,7 +1194,6 @@ func expandCalls(f *Func) {
+ 		f:                  f,
+ 		abi1:               f.ABI1,
+ 		debug:              f.pass.debug,
+-		canSSAType:         f.fe.CanSSA,
+ 		regSize:            f.Config.RegSize,
+ 		sp:                 sp,
+ 		typs:               &f.Config.Types,
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index bc74826c3e..45a8f8b9e2 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -120,10 +120,3 @@ func init() {
+ 	typecheck.InitUniverse()
+ 	testTypes.SetTypPtrs()
+ }
+-
+-func (d TestFrontend) DerefItab(sym *obj.LSym, off int64) *obj.LSym { return nil }
+-
+-func (d TestFrontend) CanSSA(t *types.Type) bool {
+-	// There are no un-SSAable types in test land.
+-	return true
+-}
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+index 28e124d9e1..d17e695e5a 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+@@ -152,7 +152,7 @@ func rewriteValuePPC64latelower_OpPPC64ISEL(v *Value) bool {
+ func rewriteValuePPC64latelower_OpPPC64RLDICL(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (RLDICL [em] x:(SRDconst [s] a))
+-	// cond: (em&0xFF0000)==0
++	// cond: (em&0xFF0000) == 0
+ 	// result: (RLDICL [mergePPC64RLDICLandSRDconst(em, s)] a)
+ 	for {
+ 		em := auxIntToInt64(v.AuxInt)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 781965f7b0..6dc87f411a 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -12587,7 +12587,6 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
+-	fe := b.Func.fe
+ 	// match: (Load <t1> p1 (Store {t2} p2 x _))
+ 	// cond: isSamePtr(p1, p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size()
+ 	// result: x
+@@ -12799,7 +12798,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ mem:(Zero [n] p3 _)))
+-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size())
++	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size())
+ 	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p3) mem)
+ 	for {
+ 		t1 := v.Type
+@@ -12821,7 +12820,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		}
+ 		n := auxIntToInt64(mem.AuxInt)
+ 		p3 := mem.Args[0]
+-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size())) {
++		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size())) {
+ 			break
+ 		}
+ 		b = mem.Block
+@@ -12834,7 +12833,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ mem:(Zero [n] p4 _))))
+-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size())
++	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size())
+ 	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p4) mem)
+ 	for {
+ 		t1 := v.Type
+@@ -12863,7 +12862,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		}
+ 		n := auxIntToInt64(mem.AuxInt)
+ 		p4 := mem.Args[0]
+-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size())) {
++		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size())) {
+ 			break
+ 		}
+ 		b = mem.Block
+@@ -12876,7 +12875,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ mem:(Zero [n] p5 _)))))
+-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size())
++	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size())
+ 	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p5) mem)
+ 	for {
+ 		t1 := v.Type
+@@ -12912,7 +12911,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		}
+ 		n := auxIntToInt64(mem.AuxInt)
+ 		p5 := mem.Args[0]
+-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size())) {
++		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size())) {
+ 			break
+ 		}
+ 		b = mem.Block
+@@ -12925,7 +12924,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 _ mem:(Zero [n] p6 _))))))
+-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size()) && disjoint(op, t1.Size(), p5, t5.Size())
++	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size()) && disjoint(op, t1.Size(), p5, t5.Size())
+ 	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p6) mem)
+ 	for {
+ 		t1 := v.Type
+@@ -12968,7 +12967,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		}
+ 		n := auxIntToInt64(mem.AuxInt)
+ 		p6 := mem.Args[0]
+-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && fe.CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size()) && disjoint(op, t1.Size(), p5, t5.Size())) {
++		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size()) && disjoint(op, t1.Size(), p5, t5.Size())) {
+ 			break
+ 		}
+ 		b = mem.Block
+@@ -13135,24 +13134,24 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> _ _)
+-	// cond: t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)
++	// cond: t.IsStruct() && t.NumFields() == 0 && CanSSA(t)
+ 	// result: (StructMake0)
+ 	for {
+ 		t := v.Type
+-		if !(t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)) {
++		if !(t.IsStruct() && t.NumFields() == 0 && CanSSA(t)) {
+ 			break
+ 		}
+ 		v.reset(OpStructMake0)
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)
++	// cond: t.IsStruct() && t.NumFields() == 1 && CanSSA(t)
+ 	// result: (StructMake1 (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem))
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)) {
++		if !(t.IsStruct() && t.NumFields() == 1 && CanSSA(t)) {
+ 			break
+ 		}
+ 		v.reset(OpStructMake1)
+@@ -13165,13 +13164,13 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)
++	// cond: t.IsStruct() && t.NumFields() == 2 && CanSSA(t)
+ 	// result: (StructMake2 (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem) (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)) {
++		if !(t.IsStruct() && t.NumFields() == 2 && CanSSA(t)) {
+ 			break
+ 		}
+ 		v.reset(OpStructMake2)
+@@ -13189,13 +13188,13 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)
++	// cond: t.IsStruct() && t.NumFields() == 3 && CanSSA(t)
+ 	// result: (StructMake3 (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem) (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem) (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)) {
++		if !(t.IsStruct() && t.NumFields() == 3 && CanSSA(t)) {
+ 			break
+ 		}
+ 		v.reset(OpStructMake3)
+@@ -13218,13 +13217,13 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)
++	// cond: t.IsStruct() && t.NumFields() == 4 && CanSSA(t)
+ 	// result: (StructMake4 (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem) (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem) (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem) (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)) {
++		if !(t.IsStruct() && t.NumFields() == 4 && CanSSA(t)) {
+ 			break
+ 		}
+ 		v.reset(OpStructMake4)
+@@ -13263,13 +13262,13 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)
++	// cond: t.IsArray() && t.NumElem() == 1 && CanSSA(t)
+ 	// result: (ArrayMake1 (Load <t.Elem()> ptr mem))
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)) {
++		if !(t.IsArray() && t.NumElem() == 1 && CanSSA(t)) {
+ 			break
+ 		}
+ 		v.reset(OpArrayMake1)
+@@ -28610,7 +28609,6 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	fe := b.Func.fe
+ 	// match: (Store {t1} p1 (Load <t2> p2 mem) mem)
+ 	// cond: isSamePtr(p1, p2) && t2.Size() == t1.Size()
+ 	// result: mem
+@@ -28987,7 +28985,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} dst (Load src mem) mem)
+-	// cond: !fe.CanSSA(t)
++	// cond: !CanSSA(t)
+ 	// result: (Move {t} [t.Size()] dst src mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+@@ -28997,7 +28995,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
+ 		}
+ 		mem := v_1.Args[1]
+ 		src := v_1.Args[0]
+-		if mem != v_2 || !(!fe.CanSSA(t)) {
++		if mem != v_2 || !(!CanSSA(t)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+@@ -29007,7 +29005,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} dst (Load src mem) (VarDef {x} mem))
+-	// cond: !fe.CanSSA(t)
++	// cond: !CanSSA(t)
+ 	// result: (Move {t} [t.Size()] dst src (VarDef {x} mem))
+ 	for {
+ 		t := auxToType(v.Aux)
+@@ -29021,7 +29019,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
+ 			break
+ 		}
+ 		x := auxToSym(v_2.Aux)
+-		if mem != v_2.Args[0] || !(!fe.CanSSA(t)) {
++		if mem != v_2.Args[0] || !(!CanSSA(t)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+@@ -29497,7 +29495,6 @@ func rewriteValuegeneric_OpStringPtr(v *Value) bool {
+ func rewriteValuegeneric_OpStructSelect(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	fe := b.Func.fe
+ 	// match: (StructSelect (StructMake1 x))
+ 	// result: x
+ 	for {
+@@ -29599,7 +29596,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (StructSelect [i] x:(Load <t> ptr mem))
+-	// cond: !fe.CanSSA(t)
++	// cond: !CanSSA(t)
+ 	// result: @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
+ 	for {
+ 		i := auxIntToInt64(v.AuxInt)
+@@ -29610,7 +29607,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value) bool {
+ 		t := x.Type
+ 		mem := x.Args[1]
+ 		ptr := x.Args[0]
+-		if !(!fe.CanSSA(t)) {
++		if !(!CanSSA(t)) {
+ 			break
+ 		}
+ 		b = x.Block
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index e89024b3c6..1b33b1a1bb 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -581,3 +581,36 @@ func AutoVar(v *Value) (*ir.Name, int64) {
+ 	nameOff := v.Aux.(*AuxNameOffset)
+ 	return nameOff.Name, nameOff.Offset
+ }
++
++// CanSSA reports whether values of type t can be represented as a Value.
++func CanSSA(t *types.Type) bool {
++	types.CalcSize(t)
++	if t.Size() > int64(4*types.PtrSize) {
++		// 4*Widthptr is an arbitrary constant. We want it
++		// to be at least 3*Widthptr so slices can be registerized.
++		// Too big and we'll introduce too much register pressure.
++		return false
++	}
++	switch t.Kind() {
++	case types.TARRAY:
++		// We can't do larger arrays because dynamic indexing is
++		// not supported on SSA variables.
++		// TODO: allow if all indexes are constant.
++		if t.NumElem() <= 1 {
++			return CanSSA(t.Elem())
++		}
++		return false
++	case types.TSTRUCT:
++		if t.NumFields() > MaxStruct {
++			return false
++		}
++		for _, t1 := range t.Fields() {
++			if !CanSSA(t1.Type) {
++				return false
++			}
++		}
++		return true
++	default:
++		return true
++	}
++}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index fa8db71255..d1f0fe5331 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -491,7 +491,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 			} else { // address was taken AND/OR too large for SSA
+ 				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
+ 				if len(paramAssignment.Registers) > 0 {
+-					if TypeOK(n.Type()) { // SSA-able type, so address was taken -- receive value in OpArg, DO NOT bind to var, store immediately to memory.
++					if ssa.CanSSA(n.Type()) { // SSA-able type, so address was taken -- receive value in OpArg, DO NOT bind to var, store immediately to memory.
+ 						v := s.newValue0A(ssa.OpArg, n.Type(), n)
+ 						s.store(n.Type(), s.decladdrs[n], v)
+ 					} else { // Too big for SSA.
+@@ -526,7 +526,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 			// runtime calls that did (#43701). Since we don't
+ 			// convert Addrtaken variables to SSA anyway, no point
+ 			// in promoting them either.
+-			if n.Byval() && !n.Addrtaken() && TypeOK(n.Type()) {
++			if n.Byval() && !n.Addrtaken() && ssa.CanSSA(n.Type()) {
+ 				n.Class = ir.PAUTO
+ 				fn.Dcl = append(fn.Dcl, n)
+ 				s.assign(n, s.load(n.Type(), ptr), false, 0)
+@@ -621,7 +621,7 @@ func (s *state) zeroResults() {
+ 			continue
+ 		}
+ 		// Zero the stack location containing f.
+-		if typ := n.Type(); TypeOK(typ) {
++		if typ := n.Type(); ssa.CanSSA(typ) {
+ 			s.assign(n, s.zeroVal(typ), false, 0)
+ 		} else {
+ 			if typ.HasPointers() {
+@@ -1493,7 +1493,7 @@ func (s *state) stmt(n ir.Node) {
+ 			res, resok = s.dynamicDottype(n.Rhs[0].(*ir.DynamicTypeAssertExpr), true)
+ 		}
+ 		deref := false
+-		if !TypeOK(n.Rhs[0].Type()) {
++		if !ssa.CanSSA(n.Rhs[0].Type()) {
+ 			if res.Op != ssa.OpLoad {
+ 				s.Fatalf("dottype of non-load")
+ 			}
+@@ -1652,7 +1652,7 @@ func (s *state) stmt(n ir.Node) {
+ 		}
+ 
+ 		var r *ssa.Value
+-		deref := !TypeOK(t)
++		deref := !ssa.CanSSA(t)
+ 		if deref {
+ 			if rhs == nil {
+ 				r = nil // Signal assign to use OpZero.
+@@ -3156,7 +3156,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
+ 			p := s.addr(n)
+ 			return s.load(n.X.Type().Elem(), p)
+ 		case n.X.Type().IsArray():
+-			if TypeOK(n.X.Type()) {
++			if ssa.CanSSA(n.X.Type()) {
+ 				// SSA can handle arrays of length at most 1.
+ 				bound := n.X.Type().NumElem()
+ 				a := s.expr(n.X)
+@@ -3359,7 +3359,7 @@ func (s *state) resultOfCall(c *ssa.Value, which int64, t *types.Type) *ssa.Valu
+ 	pa := aux.ParamAssignmentForResult(which)
+ 	// TODO(register args) determine if in-memory TypeOK is better loaded early from SelectNAddr or later when SelectN is expanded.
+ 	// SelectN is better for pattern-matching and possible call-aware analysis we might want to do in the future.
+-	if len(pa.Registers) == 0 && !TypeOK(t) {
++	if len(pa.Registers) == 0 && !ssa.CanSSA(t) {
+ 		addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), which, c)
+ 		return s.rawLoad(t, addr)
+ 	}
+@@ -3515,7 +3515,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 	}
+ 	args := make([]argRec, 0, len(n.Args[1:]))
+ 	for _, n := range n.Args[1:] {
+-		if TypeOK(n.Type()) {
++		if ssa.CanSSA(n.Type()) {
+ 			args = append(args, argRec{v: s.expr(n), store: true})
+ 		} else {
+ 			v := s.addr(n)
+@@ -5047,7 +5047,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
+ // (therefore SSAable). val is the value to be stored. The function returns an SSA
+ // value representing a pointer to the autotmp location.
+ func (s *state) openDeferSave(t *types.Type, val *ssa.Value) *ssa.Value {
+-	if !TypeOK(t) {
++	if !ssa.CanSSA(t) {
+ 		s.Fatalf("openDeferSave of non-SSA-able type %v val=%v", t, val)
+ 	}
+ 	if !t.HasPointers() {
+@@ -5558,7 +5558,7 @@ func (s *state) canSSA(n ir.Node) bool {
+ 	if n.Op() != ir.ONAME {
+ 		return false
+ 	}
+-	return s.canSSAName(n.(*ir.Name)) && TypeOK(n.Type())
++	return s.canSSAName(n.(*ir.Name)) && ssa.CanSSA(n.Type())
+ }
+ 
+ func (s *state) canSSAName(name *ir.Name) bool {
+@@ -5585,39 +5585,6 @@ func (s *state) canSSAName(name *ir.Name) bool {
+ 	// TODO: try to make more variables SSAable?
+ }
+ 
+-// TypeOK reports whether variables of type t are SSA-able.
+-func TypeOK(t *types.Type) bool {
+-	types.CalcSize(t)
+-	if t.Size() > int64(4*types.PtrSize) {
+-		// 4*Widthptr is an arbitrary constant. We want it
+-		// to be at least 3*Widthptr so slices can be registerized.
+-		// Too big and we'll introduce too much register pressure.
+-		return false
+-	}
+-	switch t.Kind() {
+-	case types.TARRAY:
+-		// We can't do larger arrays because dynamic indexing is
+-		// not supported on SSA variables.
+-		// TODO: allow if all indexes are constant.
+-		if t.NumElem() <= 1 {
+-			return TypeOK(t.Elem())
+-		}
+-		return false
+-	case types.TSTRUCT:
+-		if t.NumFields() > ssa.MaxStruct {
+-			return false
+-		}
+-		for _, t1 := range t.Fields() {
+-			if !TypeOK(t1.Type) {
+-				return false
+-			}
+-		}
+-		return true
+-	default:
+-		return true
+-	}
+-}
+-
+ // exprPtr evaluates n to a pointer and nil-checks it.
+ func (s *state) exprPtr(n ir.Node, bounded bool, lineno src.XPos) *ssa.Value {
+ 	p := s.expr(n)
+@@ -5943,7 +5910,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
+ // putArg evaluates n for the purpose of passing it as an argument to a function and returns the value for the call.
+ func (s *state) putArg(n ir.Node, t *types.Type) *ssa.Value {
+ 	var a *ssa.Value
+-	if !TypeOK(t) {
++	if !ssa.CanSSA(t) {
+ 		a = s.newValue2(ssa.OpDereference, t, s.addr(n), s.mem())
+ 	} else {
+ 		a = s.expr(n)
+@@ -5961,7 +5928,7 @@ func (s *state) storeArgWithBase(n ir.Node, t *types.Type, base *ssa.Value, off
+ 		addr = s.newValue1I(ssa.OpOffPtr, pt, off, base)
+ 	}
+ 
+-	if !TypeOK(t) {
++	if !ssa.CanSSA(t) {
+ 		a := s.addr(n)
+ 		s.move(t, addr, a)
+ 		return
+@@ -6546,7 +6513,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
+ 
+ 	var tmp ir.Node     // temporary for use with large types
+ 	var addr *ssa.Value // address of tmp
+-	if commaok && !TypeOK(dst) {
++	if commaok && !ssa.CanSSA(dst) {
+ 		// unSSAable type, use temporary.
+ 		// TODO: get rid of some of these temporaries.
+ 		tmp, addr = s.temp(pos, dst)
+@@ -7530,7 +7497,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
+ 				continue
+ 			}
+ 			n, off := ssa.AutoVar(v)
+-			if n.Class != ir.PPARAM || n.Addrtaken() || !TypeOK(n.Type()) || !s.partLiveArgs[n] {
++			if n.Class != ir.PPARAM || n.Addrtaken() || !ssa.CanSSA(n.Type()) || !s.partLiveArgs[n] {
+ 				continue
+ 			}
+ 			partLiveArgsSpilled[nameOff{n, off}] = true
+@@ -7539,7 +7506,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
+ 		// Then, insert code to spill registers if not already.
+ 		for _, a := range f.OwnAux.ABIInfo().InParams() {
+ 			n, ok := a.Name.(*ir.Name)
+-			if !ok || n.Addrtaken() || !TypeOK(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
++			if !ok || n.Addrtaken() || !ssa.CanSSA(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
+ 				continue
+ 			}
+ 			rts, offs := a.RegisterTypesAndOffsets()
+@@ -7970,10 +7937,6 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t
+ 	return ssa.LocalSlot{N: n, Type: t, Off: 0, SplitOf: parent, SplitOffset: offset}
+ }
+ 
+-func (e *ssafn) CanSSA(t *types.Type) bool {
+-	return TypeOK(t)
+-}
+-
+ // Logf logs a message from the compiler.
+ func (e *ssafn) Logf(msg string, args ...interface{}) {
+ 	if e.log {
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 0a3d4bd90f..adc44ca49d 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -7,7 +7,7 @@ package walk
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/ssagen"
++	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/typecheck"
+@@ -18,7 +18,7 @@ import (
+ // walkCompLit walks a composite literal node:
+ // OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT (all CompLitExpr), or OPTRLIT (AddrExpr).
+ func walkCompLit(n ir.Node, init *ir.Nodes) ir.Node {
+-	if isStaticCompositeLiteral(n) && !ssagen.TypeOK(n.Type()) {
++	if isStaticCompositeLiteral(n) && !ssa.CanSSA(n.Type()) {
+ 		n := n.(*ir.CompLitExpr) // not OPTRLIT
+ 		// n can be directly represented in the read-only data section.
+ 		// Make direct reference to the static data. See issue 12841.

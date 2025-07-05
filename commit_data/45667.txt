@@ -27,7 +27,7 @@ Date:   Tue Nov 3 17:54:24 2020 -0500
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/assignments.go        | 19 +++++++++++++------
  src/go/types/errorcodes.go         |  5 ++++-
  src/go/types/testdata/builtins.src |  4 ++--
@@ -37,3 +37,241 @@ Date:   Tue Nov 3 17:54:24 2020 -0500
  src/go/types/testdata/issues.src   |  4 ++--
  src/go/types/testdata/stmt0.src    | 12 ++++++------
  8 files changed, 40 insertions(+), 28 deletions(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index c099d11c25..d895c6f099 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -45,14 +45,21 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 			target = Default(x.typ)
+ 		}
+ 		if err := check.canConvertUntyped(x, target); err != nil {
+-			var internalErr Error
+-			msg := err.Error()
++			msg := check.sprintf("cannot use %s as %s value in %s", x, target, context)
+ 			code := _IncompatibleAssign
+-			if errors.As(err, &internalErr) {
+-				msg = internalErr.Msg
+-				code = internalErr.go116code
++			var ierr Error
++			if errors.As(err, &ierr) {
++				// Preserve these inner errors, as they are informative.
++				switch ierr.go116code {
++				case _TruncatedFloat:
++					msg += " (truncated)"
++					code = ierr.go116code
++				case _NumericOverflow:
++					msg += " (overflows)"
++					code = ierr.go116code
++				}
+ 			}
+-			check.errorf(x.pos(), code, "cannot use %s as %s value in %s: %v", x, target, context, msg)
++			check.error(x.pos(), code, msg)
+ 			x.mode = invalid
+ 			return
+ 		}
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index ba6e2f908b..e4c8311d62 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -135,8 +135,11 @@ const (
+ 	// _InvalidConstVal occurs when a const value cannot be converted to its
+ 	// target type.
+ 	//
++	// TODO(findleyr): this error code and example are not very clear. Consider
++	// removing it.
++	//
+ 	// Example:
+-	//  var x string = 1
++	//  const _ = 1 << "hello"
+ 	_InvalidConstVal
+ 
+ 	// _InvalidConstType occurs when the underlying type in a const declaration
+diff --git a/src/go/types/testdata/builtins.src b/src/go/types/testdata/builtins.src
+index ecdba51553..98830eb08c 100644
+--- a/src/go/types/testdata/builtins.src
++++ b/src/go/types/testdata/builtins.src
+@@ -35,9 +35,9 @@ func append1() {
+ 	type S []byte
+ 	type T string
+ 	var t T
+-	_ = append(s, "foo" /* ERROR cannot convert */ )
++	_ = append(s, "foo" /* ERROR cannot use .* in argument to append */ )
+ 	_ = append(s, "foo"...)
+-	_ = append(S(s), "foo" /* ERROR cannot convert */ )
++	_ = append(S(s), "foo" /* ERROR cannot use .* in argument to append */ )
+ 	_ = append(S(s), "foo"...)
+ 	_ = append(s, t /* ERROR cannot use t */ )
+ 	_ = append(s, t...)
+diff --git a/src/go/types/testdata/decls1.src b/src/go/types/testdata/decls1.src
+index e6beb78358..f4d2eaba91 100644
+--- a/src/go/types/testdata/decls1.src
++++ b/src/go/types/testdata/decls1.src
+@@ -96,6 +96,8 @@ var (
+ 	v11 = xx/yy*yy - xx
+ 	v12 = true && false
+ 	v13 = nil /* ERROR "use of untyped nil" */
++	v14 string = 257 // ERROR cannot use 257 .* as string value in variable declaration$
++	v15 int8 = 257 // ERROR cannot use 257 .* as int8 value in variable declaration .*overflows
+ )
+ 
+ // Multiple assignment expressions
+diff --git a/src/go/types/testdata/decls2b.src b/src/go/types/testdata/decls2b.src
+index 8e82c6dcde..5c55750a10 100644
+--- a/src/go/types/testdata/decls2b.src
++++ b/src/go/types/testdata/decls2b.src
+@@ -40,17 +40,17 @@ func f_double /* ERROR "redeclared" */ () {}
+ // Verify by checking that errors are reported.
+ func (T /* ERROR "undeclared" */ ) _() {}
+ func (T1) _(undeclared /* ERROR "undeclared" */ ) {}
+-func (T1) _() int { return "foo" /* ERROR "cannot convert" */ }
++func (T1) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+ 
+ // Methods with undeclared receiver type can still be checked.
+ // Verify by checking that errors are reported.
+ func (Foo /* ERROR "undeclared" */ ) m() {}
+ func (Foo /* ERROR "undeclared" */ ) m(undeclared /* ERROR "undeclared" */ ) {}
+-func (Foo /* ERROR "undeclared" */ ) m() int { return "foo" /* ERROR "cannot convert" */ }
++func (Foo /* ERROR "undeclared" */ ) m() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+ 
+ func (Foo /* ERROR "undeclared" */ ) _() {}
+ func (Foo /* ERROR "undeclared" */ ) _(undeclared /* ERROR "undeclared" */ ) {}
+-func (Foo /* ERROR "undeclared" */ ) _() int { return "foo" /* ERROR "cannot convert" */ }
++func (Foo /* ERROR "undeclared" */ ) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+ 
+ // Receiver declarations are regular parameter lists;
+ // receiver types may use parentheses, and the list
+@@ -72,4 +72,4 @@ var (
+ 	_ = (*T7).m4
+ 	_ = (*T7).m5
+ 	_ = (*T7).m6
+-)
+\ No newline at end of file
++)
+diff --git a/src/go/types/testdata/expr3.src b/src/go/types/testdata/expr3.src
+index 4ecb1987bb..6f2201c365 100644
+--- a/src/go/types/testdata/expr3.src
++++ b/src/go/types/testdata/expr3.src
+@@ -94,7 +94,7 @@ func indexes() {
+ 	_ = &s /* ERROR "cannot take address" */ [:10]
+ 
+ 	var m map[string]int
+-	_ = m[0 /* ERROR "cannot convert" */ ]
++	_ = m[0 /* ERROR "cannot use .* in map index" */ ]
+ 	_ = m /* ERROR "cannot slice" */ ["foo" : "bar"]
+ 	_ = m["foo"]
+ 	// ok is of type bool
+@@ -184,7 +184,7 @@ func struct_literals() {
+ 	_ = T1{aa /* ERROR "unknown field" */ : 0}
+ 	_ = T1{1 /* ERROR "invalid field name" */ : 0}
+ 	_ = T1{a: 0, s: "foo", u: 0, a /* ERROR "duplicate field" */: 10}
+-	_ = T1{a: "foo" /* ERROR "cannot convert" */ }
++	_ = T1{a: "foo" /* ERROR "cannot use .* in struct literal" */ }
+ 	_ = T1{c /* ERROR "unknown field" */ : 0}
+ 	_ = T1{T0: { /* ERROR "missing type" */ }} // struct literal element type may not be elided
+ 	_ = T1{T0: T0{}}
+@@ -195,7 +195,7 @@ func struct_literals() {
+ 	_ = T0{1, b /* ERROR "mixture" */ : 2, 3}
+ 	_ = T0{1, 2} /* ERROR "too few values" */
+ 	_ = T0{1, 2, 3, 4  /* ERROR "too many values" */ }
+-	_ = T0{1, "foo" /* ERROR "cannot convert" */, 3.4  /* ERROR "truncated" */}
++	_ = T0{1, "foo" /* ERROR "cannot use .* in struct literal" */, 3.4  /* ERROR "cannot use .*\(truncated\)" */}
+ 
+ 	// invalid type
+ 	type P *struct{
+@@ -235,7 +235,7 @@ func array_literals() {
+ 	_ = A1{5: 5, 6, 7, 4: 4, 1 /* ERROR "overflows" */ <<100: 4}
+ 	_ = A1{2.0}
+ 	_ = A1{2.1 /* ERROR "truncated" */ }
+-	_ = A1{"foo" /* ERROR "cannot convert" */ }
++	_ = A1{"foo" /* ERROR "cannot use .* in array or slice literal" */ }
+ 
+ 	// indices must be integer constants
+ 	i := 1
+@@ -301,7 +301,7 @@ func slice_literals() {
+ 	_ = S0{5: 5, 6, 7, 4: 4, 1 /* ERROR "overflows" */ <<100: 4}
+ 	_ = S0{2.0}
+ 	_ = S0{2.1 /* ERROR "truncated" */ }
+-	_ = S0{"foo" /* ERROR "cannot convert" */ }
++	_ = S0{"foo" /* ERROR "cannot use .* in array or slice literal" */ }
+ 
+ 	// indices must be resolved correctly
+ 	const index1 = 1
+@@ -354,8 +354,8 @@ func map_literals() {
+ 
+ 	_ = M0{}
+ 	_ = M0{1 /* ERROR "missing key" */ }
+-	_ = M0{1 /* ERROR "cannot convert" */ : 2}
+-	_ = M0{"foo": "bar" /* ERROR "cannot convert" */ }
++	_ = M0{1 /* ERROR "cannot use .* in map literal" */ : 2}
++	_ = M0{"foo": "bar" /* ERROR "cannot use .* in map literal" */ }
+ 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
+ 
+ 	_ = map[interface{}]int{2: 1, 2 /* ERROR "duplicate key" */ : 1}
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 4944f6f618..e0c5d7a37c 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -354,10 +354,10 @@ func issue26234c() {
+ 
+ func issue35895() {
+ 	// T is defined in this package, don't qualify its name with the package name.
+-	var _ T = 0 // ERROR cannot convert 0 \(untyped int constant\) to T
++	var _ T = 0 // ERROR cannot use 0 \(untyped int constant\) as T
+ 
+ 	// There is only one package with name syntax imported, only use the (global) package name in error messages.
+-	var _ *syn.File = 0 // ERROR cannot convert 0 \(untyped int constant\) to \*syntax.File
++	var _ *syn.File = 0 // ERROR cannot use 0 \(untyped int constant\) as \*syntax.File
+ 
+ 	// Because both t1 and t2 have the same global package name (template),
+ 	// qualify packages with full path name in this case.
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/stmt0.src
+index 446997ac09..13777292a9 100644
+--- a/src/go/types/testdata/stmt0.src
++++ b/src/go/types/testdata/stmt0.src
+@@ -182,7 +182,7 @@ func sends() {
+ 	var x int
+ 	x <- /* ERROR "cannot send" */ x
+ 	rch <- /* ERROR "cannot send" */ x
+-	ch <- "foo" /* ERROR "cannot convert" */
++	ch <- "foo" /* ERROR "cannot use .* in send" */
+ 	ch <- x
+ }
+ 
+@@ -381,13 +381,13 @@ func returns0() {
+ func returns1(x float64) (int, *float64) {
+ 	return 0, &x
+ 	return /* ERROR wrong number of return values */
+-	return "foo" /* ERROR "cannot convert" */, x /* ERROR "cannot use .* in return statement" */
++	return "foo" /* ERROR "cannot .* in return statement" */, x /* ERROR "cannot use .* in return statement" */
+ 	return /* ERROR wrong number of return values */ 0, &x, 1
+ }
+ 
+ func returns2() (a, b int) {
+ 	return
+-	return 1, "foo" /* ERROR cannot convert */
++	return 1, "foo" /* ERROR cannot use .* in return statement */
+ 	return /* ERROR wrong number of return values */ 1, 2, 3
+ 	{
+ 		type a int
+@@ -609,7 +609,7 @@ func switches2() {
+ 	// untyped constants are converted to default types
+ 	switch 1<<63-1 {
+ 	}
+-	switch 1 /* ERROR "overflows int" */ << 63 {
++	switch 1 /* ERROR "cannot use .* as int value.*\(overflows\)" */ << 63 {
+ 	}
+ 	var x int
+ 	switch 1.0 {
+@@ -631,9 +631,9 @@ func switches2() {
+ }
+ 
+ func issue11667() {
+-	switch 9223372036854775808 /* ERROR "overflows int" */ {
++	switch 9223372036854775808 /* ERROR "cannot use .* as int value.*\(overflows\)" */ {
+ 	}
+-	switch 9223372036854775808 /* ERROR "overflows int" */ {
++	switch 9223372036854775808 /* ERROR "cannot use .* as int value.*\(overflows\)" */ {
+ 	case 9223372036854775808:
+ 	}
+ 	var x int

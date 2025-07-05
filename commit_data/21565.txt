@@ -7,6 +7,41 @@ Date:   Fri Jan 16 13:49:06 2015 +1100
     Change-Id: Iec19d6152b95ba67daac366b32d42f69e1dba9a4
     Reviewed-on: https://go-review.googlesource.com/2951
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/makerelease/makerelease.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/misc/makerelease/makerelease.go b/misc/makerelease/makerelease.go
+index b49b941f1c..0af0ebf2c9 100644
+--- a/misc/makerelease/makerelease.go
++++ b/misc/makerelease/makerelease.go
+@@ -141,10 +141,6 @@ func main() {
+ 		os.Exit(2)
+ 	}
+ 	flag.Parse()
+-	if *tag == "" {
+-		fmt.Fprintln(os.Stderr, "you must specify a -tag")
+-		os.Exit(2)
+-	}
+ 	if flag.NArg() == 0 {
+ 		flag.Usage()
+ 	}
+@@ -210,6 +206,10 @@ func main() {
+ 				}
+ 			}
+ 		}
++		if *tag == "" {
++			fmt.Fprintln(os.Stderr, "you must specify a -tag")
++			os.Exit(2)
++		}
+ 		if err := b.Do(); err != nil {
+ 			log.Printf("%s: %v", targ, err)
+ 			ok = false
+@@ -755,6 +755,7 @@ func setupOAuthClient() error {
+ 		ClientSecret: "8YLFgOhXIELWbO-NtF3iqIQz",
+ 		Endpoint:     google.Endpoint,
+ 		Scopes:       []string{storage.DevstorageRead_writeScope},
++		RedirectURL:  "oob",
+ 	}
+ 	url := config.AuthCodeURL("junk")
+ 	fmt.Println("Visit the following URL, obtain an authentication" +

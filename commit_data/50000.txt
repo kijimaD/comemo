@@ -12,6 +12,48 @@ Date:   Wed Sep 22 22:32:55 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: David Chase <drchase@google.com>
-
+---
  src/encoding/base32/example_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/encoding/base32/example_test.go b/src/encoding/base32/example_test.go
+index 2a302d88da..251624f0bd 100644
+--- a/src/encoding/base32/example_test.go
++++ b/src/encoding/base32/example_test.go
+@@ -20,6 +20,15 @@ func ExampleEncoding_EncodeToString() {
+ 	// MFXHSIBLEBXWYZBAEYQGIYLUME======
+ }
+ 
++func ExampleEncoding_Encode() {
++	data := []byte("Hello, world!")
++	dst := make([]byte, base32.StdEncoding.EncodedLen(len(data)))
++	base32.StdEncoding.Encode(dst, data)
++	fmt.Println(string(dst))
++	// Output:
++	// JBSWY3DPFQQHO33SNRSCC===
++}
++
+ func ExampleEncoding_DecodeString() {
+ 	str := "ONXW2ZJAMRQXIYJAO5UXI2BAAAQGC3TEEDX3XPY="
+ 	data, err := base32.StdEncoding.DecodeString(str)
+@@ -32,6 +41,20 @@ func ExampleEncoding_DecodeString() {
+ 	// "some data with \x00 and \ufeff"
+ }
+ 
++func ExampleEncoding_Decode() {
++	str := "JBSWY3DPFQQHO33SNRSCC==="
++	dst := make([]byte, base32.StdEncoding.DecodedLen(len(str)))
++	n, err := base32.StdEncoding.Decode(dst, []byte(str))
++	if err != nil {
++		fmt.Println("decode error:", err)
++		return
++	}
++	dst = dst[:n]
++	fmt.Printf("%q\n", dst)
++	// Output:
++	// "Hello, world!"
++}
++
+ func ExampleNewEncoder() {
+ 	input := []byte("foo\x00bar")
+ 	encoder := base32.NewEncoder(base32.StdEncoding, os.Stdout)

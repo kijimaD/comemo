@@ -8,7 +8,7 @@ Date:   Wed Jun 25 21:19:05 2008 -0700
     add fakeobj.c, missing from prior change
     
     SVN=124762
-
+---
  src/cmd/6l/obj.c            |  6 +-----
  src/cmd/ar/Makefile         |  2 +-
  src/libmach_amd64/fakeobj.c | 33 +++++++++++++++++++++++++++++++++
@@ -16,3 +16,168 @@ Date:   Wed Jun 25 21:19:05 2008 -0700
  src/runtime/clean.bash      |  8 +++++++-
  src/runtime/make.bash       | 20 ++++----------------
  6 files changed, 86 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index dd7ede6b56..ac8999d69b 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -364,15 +364,11 @@ main(int argc, char *argv[])
+ 
+ 	if(!debug['l']) {
+ 		loadlib();
+-		/* BUG: these should be an archive or pulled via pragmas in rt0_*.6 */
+ 		a = mal(strlen(goroot)+strlen(goarch)+20);
+ 		sprint(a, "%s/lib/rt_%s.6", goroot, goarch);
+ 		objfile(a);
+ 		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
+-		sprint(a, "%s/lib/rt1_%s_%s.6", goroot, goarch, goos);
+-		objfile(a);
+-		a = mal(strlen(goroot)+strlen(goarch)+20);
+-		sprint(a, "%s/lib/rt2_%s.6", goroot, goarch);
++		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
+ 		objfile(a);
+ 	}
+ 
+diff --git a/src/cmd/ar/Makefile b/src/cmd/ar/Makefile
+index 11f573e107..62d47d4a28 100644
+--- a/src/cmd/ar/Makefile
++++ b/src/cmd/ar/Makefile
+@@ -10,7 +10,7 @@ O=o
+ # We call the binary 6ar to avoid confusion and because this binary
+ # is linked only with amd64 and x86 support.
+ 
+-TARG=6ar
++TARG=$(O)ar
+ OFILES=\
+ 	ar.$O\
+ 
+diff --git a/src/libmach_amd64/fakeobj.c b/src/libmach_amd64/fakeobj.c
+new file mode 100644
+index 0000000000..6e5e38aa1c
+--- /dev/null
++++ b/src/libmach_amd64/fakeobj.c
+@@ -0,0 +1,33 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * obj.c
++ * routines universal to all object files
++ */
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <ar.h>
++#include <mach_amd64.h>
++#include "obj.h"
++
++int _is2(char* x) { return 0; }
++int _is5(char* x) { return 0; }
++int _is7(char* x) { return 0; }
++int _is8(char* x) { return 0; }
++int _is9(char* x) { return 0; }
++int _isk(char* x) { return 0; }
++int _isq(char* x) { return 0; }
++int _isv(char* x) { return 0; }
++int _isu(char* x) { return 0; }
++int _read2(Biobuf* b, Prog* p) { return 0; }
++int _read5(Biobuf* b, Prog* p) { return 0; }
++int _read7(Biobuf* b, Prog* p) { return 0; }
++int _read8(Biobuf* b, Prog* p) { return 0; }
++int _read9(Biobuf* b, Prog* p) { return 0; }
++int _readk(Biobuf* b, Prog* p) { return 0; }
++int _readq(Biobuf* b, Prog* p) { return 0; }
++int _readv(Biobuf* b, Prog* p) { return 0; }
++int _readu(Biobuf* b, Prog* p) { return 0; }
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+new file mode 100644
+index 0000000000..52741c1257
+--- /dev/null
++++ b/src/runtime/Makefile
+@@ -0,0 +1,40 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++CFLAGS=
++O=6
++CC=$(O)c
++AS=$(O)a
++
++LIB=lib_$(GOARCH)_$(GOOS).a
++
++RT0OFILES=\
++	rt0_$(GOARCH)_$(GOOS).$O\
++
++LIBOFILES=\
++	rt1_$(GOARCH)_$(GOOS).$O\
++	rt2_$(GOARCH).$O\
++
++OFILES=$(RT0OFILES) $(LIBOFILES)
++HFILES=
++
++install: rt0 $(LIB)
++	cp $(RT0OFILES) $(GOROOT)/lib
++	cp $(LIB) $(GOROOT)/lib
++
++rt0:	$(RT0OFILES)
++
++$(LIB): $(LIBOFILES)
++	$(O)ar rc $(LIB) $(LIBOFILES)
++
++$(OFILES): $(HFILES)
++
++clean:
++	rm -f *.$(O) *.a
++
++%.$O:	%.c
++	$(CC) $<
++
++%.$O:	%.s
++	$(AS) $<
+diff --git a/src/runtime/clean.bash b/src/runtime/clean.bash
+index df203183e0..8d6bed7d10 100644
+--- a/src/runtime/clean.bash
++++ b/src/runtime/clean.bash
+@@ -2,4 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-echo nothing to clean here
++set -ex
++
++for GOOS in linux darwin
++do
++	make clean
++done
++
+diff --git a/src/runtime/make.bash b/src/runtime/make.bash
+index 9a6d42e26a..cfeed307c0 100644
+--- a/src/runtime/make.bash
++++ b/src/runtime/make.bash
+@@ -4,20 +4,8 @@
+ 
+ set -ex
+ 
+-$HOME/bin/6a rt0_amd64_darwin.s
+-mv rt0_amd64_darwin.6 ../../lib/rt0_amd64_darwin.6
++for GOOS in linux darwin
++do
++	make install
++done
+ 
+-$HOME/bin/6a rt0_amd64_linux.s
+-mv rt0_amd64_linux.6 ../../lib/rt0_amd64_linux.6
+-
+-$HOME/bin/6c rt1_amd64_linux.c
+-mv rt1_amd64_linux.6 ../../lib/rt1_amd64_linux.6
+-
+-$HOME/bin/6c rt1_amd64_darwin.c
+-mv rt1_amd64_darwin.6 ../../lib/rt1_amd64_darwin.6
+-
+-$HOME/bin/6c rt2_amd64.c
+-mv rt2_amd64.6 ../../lib/rt2_amd64.6
+-
+-$HOME/bin/6c runtime.c
+-mv runtime.6 ../../lib/rt_amd64.6

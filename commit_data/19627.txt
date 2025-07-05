@@ -21,6 +21,68 @@ Date:   Fri Jun 27 18:19:02 2014 -0700
     R=golang-codereviews, khr, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/105380043
-
+---
  src/pkg/runtime/mgc0.c | 29 ++---------------------------
  1 file changed, 2 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 51c765eaac..3eda4f4b9e 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -270,7 +270,7 @@ static bool
+ markonly(void *obj)
+ {
+ 	byte *p;
+-	uintptr *bitp, bits, shift, x, xbits, off, j;
++	uintptr *bitp, bits, shift, x, xbits, off;
+ 	MSpan *s;
+ 	PageID k;
+ 
+@@ -298,18 +298,6 @@ markonly(void *obj)
+ 		goto found;
+ 	}
+ 
+-	// Pointing just past the beginning?
+-	// Scan backward a little to find a block boundary.
+-	for(j=shift; j-->0; ) {
+-		if(((xbits>>j) & (bitAllocated|bitBlockBoundary)) != 0) {
+-			shift = j;
+-			bits = xbits>>shift;
+-			if(CollectStats)
+-				runtime·xadd64(&gcstats.markonly.foundword, 1);
+-			goto found;
+-		}
+-	}
+-
+ 	// Otherwise consult span table to find beginning.
+ 	// (Manually inlined copy of MHeap_LookupMaybe.)
+ 	k = (uintptr)obj>>PageShift;
+@@ -424,7 +412,7 @@ static void
+ flushptrbuf(Scanbuf *sbuf)
+ {
+ 	byte *p, *arena_start, *obj;
+-	uintptr size, *bitp, bits, shift, j, x, xbits, off, nobj, ti, n;
++	uintptr size, *bitp, bits, shift, x, xbits, off, nobj, ti, n;
+ 	MSpan *s;
+ 	PageID k;
+ 	Obj *wp;
+@@ -496,19 +484,6 @@ flushptrbuf(Scanbuf *sbuf)
+ 
+ 		ti = 0;
+ 
+-		// Pointing just past the beginning?
+-		// Scan backward a little to find a block boundary.
+-		for(j=shift; j-->0; ) {
+-			if(((xbits>>j) & (bitAllocated|bitBlockBoundary)) != 0) {
+-				obj = (byte*)obj - (shift-j)*PtrSize;
+-				shift = j;
+-				bits = xbits>>shift;
+-				if(CollectStats)
+-					runtime·xadd64(&gcstats.flushptrbuf.foundword, 1);
+-				goto found;
+-			}
+-		}
+-
+ 		// Otherwise consult span table to find beginning.
+ 		// (Manually inlined copy of MHeap_LookupMaybe.)
+ 		k = (uintptr)obj>>PageShift;

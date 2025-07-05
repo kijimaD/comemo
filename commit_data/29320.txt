@@ -21,7 +21,126 @@ Date:   Thu Sep 1 13:13:37 2016 +1000
     Run-TryBot: Dave Day <djd@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go      | 42 ++++++++++++++++++++++++++++++++----------
  src/net/url/url_test.go | 17 +++++++++++++----
  2 files changed, 45 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 30e9277937..4a6253bdcc 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -492,16 +492,13 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
+ 			goto Error
+ 		}
+ 	}
+-	if url.Path, err = unescape(rest, encodePath); err != nil {
++	// Set Path and, optionally, RawPath.
++	// RawPath is a hint of the encoding of Path. We don't want to set it if
++	// the default escaping of Path is equivalent, to help make sure that people
++	// don't rely on it in general.
++	if err := url.setPath(rest); err != nil {
+ 		goto Error
+ 	}
+-	// RawPath is a hint as to the encoding of Path to use
+-	// in url.EscapedPath. If that method already gets the
+-	// right answer without RawPath, leave it empty.
+-	// This will help make sure that people don't rely on it in general.
+-	if url.EscapedPath() != rest && validEncodedPath(rest) {
+-		url.RawPath = rest
+-	}
+ 	return url, nil
+ 
+ Error:
+@@ -586,6 +583,29 @@ func parseHost(host string) (string, error) {
+ 	return host, nil
+ }
+ 
++// setPath sets the Path and RawPath fields of the URL based on the provided
++// escaped path p. It maintains the invariant that RawPath is only specified
++// when it differs from the default encoding of the path.
++// For example:
++// - setPath("/foo/bar")   will set Path="/foo/bar" and RawPath=""
++// - setPath("/foo%2fbar") will set Path="/foo/bar" and RawPath="/foo%2fbar"
++// setPath will return an error only if the provided path contains an invalid
++// escaping.
++func (u *URL) setPath(p string) error {
++	path, err := unescape(p, encodePath)
++	if err != nil {
++		return err
++	}
++	u.Path = path
++	if escp := escape(path, encodePath); p == escp {
++		// Default encoding is fine.
++		u.RawPath = ""
++	} else {
++		u.RawPath = p
++	}
++	return nil
++}
++
+ // EscapedPath returns the escaped form of u.Path.
+ // In general there are multiple possible escaped forms of any path.
+ // EscapedPath returns u.RawPath when it is a valid escaping of u.Path.
+@@ -880,7 +900,9 @@ func (u *URL) ResolveReference(ref *URL) *URL {
+ 	}
+ 	if ref.Scheme != "" || ref.Host != "" || ref.User != nil {
+ 		// The "absoluteURI" or "net_path" cases.
+-		url.Path = resolvePath(ref.Path, "")
++		// We can ignore the error from setPath since we know we provided a
++		// validly-escaped path.
++		url.setPath(resolvePath(ref.EscapedPath(), ""))
+ 		return &url
+ 	}
+ 	if ref.Opaque != "" {
+@@ -900,7 +922,7 @@ func (u *URL) ResolveReference(ref *URL) *URL {
+ 	// The "abs_path" or "rel_path" cases.
+ 	url.Host = u.Host
+ 	url.User = u.User
+-	url.Path = resolvePath(u.Path, ref.Path)
++	url.setPath(resolvePath(u.EscapedPath(), ref.EscapedPath()))
+ 	return &url
+ }
+ 
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 7560f22c4a..76e16812a5 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -945,6 +945,15 @@ var resolveReferenceTests = []struct {
+ 	// Fragment
+ 	{"http://foo.com/bar", ".#frag", "http://foo.com/#frag"},
+ 
++	// Paths with escaping (issue 16947).
++	{"http://foo.com/foo%2fbar/", "../baz", "http://foo.com/baz"},
++	{"http://foo.com/1/2%2f/3%2f4/5", "../../a/b/c", "http://foo.com/1/a/b/c"},
++	{"http://foo.com/1/2/3", "./a%2f../../b/..%2fc", "http://foo.com/1/2/b/..%2fc"},
++	{"http://foo.com/1/2%2f/3%2f4/5", "./a%2f../b/../c", "http://foo.com/1/2%2f/3%2f4/a%2f../c"},
++	{"http://foo.com/foo%20bar/", "../baz", "http://foo.com/baz"},
++	{"http://foo.com/foo", "../bar%2fbaz", "http://foo.com/bar%2fbaz"},
++	{"http://foo.com/foo%2dbar/", "./baz-quux", "http://foo.com/foo%2dbar/baz-quux"},
++
+ 	// RFC 3986: Normal Examples
+ 	// http://tools.ietf.org/html/rfc3986#section-5.4.1
+ 	{"http://a/b/c/d;p?q", "g:h", "g:h"},
+@@ -1013,8 +1022,8 @@ func TestResolveReference(t *testing.T) {
+ 		base := mustParse(test.base)
+ 		rel := mustParse(test.rel)
+ 		url := base.ResolveReference(rel)
+-		if url.String() != test.expected {
+-			t.Errorf("URL(%q).ResolveReference(%q) == %q, got %q", test.base, test.rel, test.expected, url.String())
++		if got := url.String(); got != test.expected {
++			t.Errorf("URL(%q).ResolveReference(%q)\ngot  %q\nwant %q", test.base, test.rel, got, test.expected)
+ 		}
+ 		// Ensure that new instances are returned.
+ 		if base == url {
+@@ -1024,8 +1033,8 @@ func TestResolveReference(t *testing.T) {
+ 		url, err := base.Parse(test.rel)
+ 		if err != nil {
+ 			t.Errorf("URL(%q).Parse(%q) failed: %v", test.base, test.rel, err)
+-		} else if url.String() != test.expected {
+-			t.Errorf("URL(%q).Parse(%q) == %q, got %q", test.base, test.rel, test.expected, url.String())
++		} else if got := url.String(); got != test.expected {
++			t.Errorf("URL(%q).Parse(%q)\ngot  %q\nwant %q", test.base, test.rel, got, test.expected)
+ 		} else if base == url {
+ 			// Ensure that new instances are returned for the wrapper too.
+ 			t.Errorf("Expected URL.Parse to return new URL instance.")

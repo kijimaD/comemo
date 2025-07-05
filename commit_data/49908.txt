@@ -15,9 +15,89 @@ Date:   Mon Sep 20 13:53:19 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        |  3 +++
  src/cmd/compile/internal/ssa/config.go       |  2 ++
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 22 ++++++++++++----------
  src/cmd/compile/internal/ssa/opGen.go        |  6 +++---
  4 files changed, 20 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index e366e06949..d4b85bffe3 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -502,6 +502,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		ssagen.AddrAuto(&p.To, v)
+ 
++	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
++		ssagen.CheckArgReg(v)
++
+ 	case ssa.OpPPC64DIVD:
+ 		// For now,
+ 		//
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 32e3a0860e..61d1dea642 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -239,6 +239,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 		c.registers = registersPPC64[:]
+ 		c.gpRegMask = gpRegMaskPPC64
+ 		c.fpRegMask = fpRegMaskPPC64
++		//c.intParamRegs = paramIntRegPPC64
++		//c.floatParamRegs = paramFloatRegPPC64
+ 		c.FPReg = framepointerRegPPC64
+ 		c.LinkReg = linkRegPPC64
+ 		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index a14d9cd490..9d9122e148 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -705,15 +705,17 @@ func init() {
+ 	}
+ 
+ 	archs = append(archs, arch{
+-		name:            "PPC64",
+-		pkg:             "cmd/internal/obj/ppc64",
+-		genfile:         "../../ppc64/ssa.go",
+-		ops:             ops,
+-		blocks:          blocks,
+-		regnames:        regNamesPPC64,
+-		gpregmask:       gp,
+-		fpregmask:       fp,
+-		framepointerreg: int8(num["SP"]),
+-		linkreg:         -1, // not used
++		name:               "PPC64",
++		pkg:                "cmd/internal/obj/ppc64",
++		genfile:            "../../ppc64/ssa.go",
++		ops:                ops,
++		blocks:             blocks,
++		regnames:           regNamesPPC64,
++		ParamIntRegNames:   "R3 R4 R5 R6 R7 R8 R9 R10 R14 R15 R16 R17",
++		ParamFloatRegNames: "F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12",
++		gpregmask:          gp,
++		fpregmask:          fp,
++		framepointerreg:    -1,
++		linkreg:            -1, // not used
+ 	})
+ }
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index eb7e4b91bb..ceb0a24285 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -37030,12 +37030,12 @@ var registersPPC64 = [...]Register{
+ 	{62, ppc64.REG_F30, -1, "F30"},
+ 	{63, ppc64.REG_F31, -1, "F31"},
+ }
+-var paramIntRegPPC64 = []int8(nil)
+-var paramFloatRegPPC64 = []int8(nil)
++var paramIntRegPPC64 = []int8{3, 4, 5, 6, 7, 8, 9, 10, 14, 15, 16, 17}
++var paramFloatRegPPC64 = []int8{33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44}
+ var gpRegMaskPPC64 = regMask(1073733624)
+ var fpRegMaskPPC64 = regMask(576460743713488896)
+ var specialRegMaskPPC64 = regMask(0)
+-var framepointerRegPPC64 = int8(1)
++var framepointerRegPPC64 = int8(-1)
+ var linkRegPPC64 = int8(-1)
+ var registersRISCV64 = [...]Register{
+ 	{0, riscv.REG_X0, -1, "X0"},

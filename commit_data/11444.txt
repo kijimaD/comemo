@@ -11,7 +11,7 @@ Date:   Fri Jan 27 14:47:02 2012 -0800
     R=golang-dev, mikioh.mikioh, r, n13m3y3r, rsc
     CC=golang-dev
     https://golang.org/cl/5574078
-
+---
  src/buildscript/darwin_386.sh       |  2 +-
  src/buildscript/darwin_amd64.sh     |  2 +-
  src/buildscript/freebsd_386.sh      |  2 +-
@@ -45,3 +45,1016 @@ Date:   Fri Jan 27 14:47:02 2012 -0800
  src/pkg/os/zsignal_windows_386.go   | 29 ---------------------
  src/pkg/os/zsignal_windows_amd64.go | 29 ---------------------
  32 files changed, 19 insertions(+), 678 deletions(-)
+
+diff --git a/src/buildscript/darwin_386.sh b/src/buildscript/darwin_386.sh
+index baa3fd6b78..73897ba418 100755
+--- a/src/buildscript/darwin_386.sh
++++ b/src/buildscript/darwin_386.sh
+@@ -253,7 +253,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/darwin_386/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_darwin.go ./sys_bsd.go ./time.go ./types.go ./zsignal_darwin_386.go
++8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_darwin.go ./sys_bsd.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/darwin_386/os.a
+ 
+diff --git a/src/buildscript/darwin_amd64.sh b/src/buildscript/darwin_amd64.sh
+index e31d6f9e8b..b0cab57404 100755
+--- a/src/buildscript/darwin_amd64.sh
++++ b/src/buildscript/darwin_amd64.sh
+@@ -252,7 +252,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/darwin_amd64/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_darwin.go ./sys_bsd.go ./time.go ./types.go ./zsignal_darwin_amd64.go
++6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_darwin.go ./sys_bsd.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/darwin_amd64/os.a
+ 
+diff --git a/src/buildscript/freebsd_386.sh b/src/buildscript/freebsd_386.sh
+index f17f9da188..0c24e12c5a 100755
+--- a/src/buildscript/freebsd_386.sh
++++ b/src/buildscript/freebsd_386.sh
+@@ -253,7 +253,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/freebsd_386/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_freebsd.go ./sys_bsd.go ./time.go ./types.go ./zsignal_freebsd_386.go
++8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_freebsd.go ./sys_bsd.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/freebsd_386/os.a
+ 
+diff --git a/src/buildscript/freebsd_amd64.sh b/src/buildscript/freebsd_amd64.sh
+index be0070ac16..0a645cca20 100755
+--- a/src/buildscript/freebsd_amd64.sh
++++ b/src/buildscript/freebsd_amd64.sh
+@@ -252,7 +252,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/freebsd_amd64/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_freebsd.go ./sys_bsd.go ./time.go ./types.go ./zsignal_freebsd_amd64.go
++6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_freebsd.go ./sys_bsd.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/freebsd_amd64/os.a
+ 
+diff --git a/src/buildscript/linux_386.sh b/src/buildscript/linux_386.sh
+index 8ae424d395..246f17b061 100755
+--- a/src/buildscript/linux_386.sh
++++ b/src/buildscript/linux_386.sh
+@@ -253,7 +253,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/linux_386/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_linux.go ./sys_linux.go ./time.go ./types.go ./zsignal_linux_386.go
++8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_linux.go ./sys_linux.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/linux_386/os.a
+ 
+diff --git a/src/buildscript/linux_amd64.sh b/src/buildscript/linux_amd64.sh
+index 4786f61748..1c1ff21a90 100755
+--- a/src/buildscript/linux_amd64.sh
++++ b/src/buildscript/linux_amd64.sh
+@@ -252,7 +252,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/linux_amd64/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_linux.go ./sys_linux.go ./time.go ./types.go ./zsignal_linux_amd64.go
++6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_linux.go ./sys_linux.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/linux_amd64/os.a
+ 
+diff --git a/src/buildscript/linux_arm.sh b/src/buildscript/linux_arm.sh
+index bfa814343f..d2e1a7a100 100755
+--- a/src/buildscript/linux_arm.sh
++++ b/src/buildscript/linux_arm.sh
+@@ -256,7 +256,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/linux_arm/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-5g -o "$WORK"/os/_obj/_go_.5 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_linux.go ./sys_linux.go ./time.go ./types.go ./zsignal_linux_arm.go
++5g -o "$WORK"/os/_obj/_go_.5 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_linux.go ./sys_linux.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.5
+ cp "$WORK"/os.a "$GOROOT"/pkg/linux_arm/os.a
+ 
+diff --git a/src/buildscript/netbsd_386.sh b/src/buildscript/netbsd_386.sh
+index 6235a2f6dd..fcf847571b 100755
+--- a/src/buildscript/netbsd_386.sh
++++ b/src/buildscript/netbsd_386.sh
+@@ -253,7 +253,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/netbsd_386/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_netbsd.go ./sys_bsd.go ./time.go ./types.go ./zsignal_netbsd_386.go
++8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_netbsd.go ./sys_bsd.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/netbsd_386/os.a
+ 
+diff --git a/src/buildscript/netbsd_amd64.sh b/src/buildscript/netbsd_amd64.sh
+index cf4c91a36c..8ad1a15436 100755
+--- a/src/buildscript/netbsd_amd64.sh
++++ b/src/buildscript/netbsd_amd64.sh
+@@ -252,7 +252,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/netbsd_amd64/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_netbsd.go ./sys_bsd.go ./time.go ./types.go ./zsignal_netbsd_amd64.go
++6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_netbsd.go ./sys_bsd.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/netbsd_amd64/os.a
+ 
+diff --git a/src/buildscript/openbsd_386.sh b/src/buildscript/openbsd_386.sh
+index 5907822df2..f80e1e0acb 100755
+--- a/src/buildscript/openbsd_386.sh
++++ b/src/buildscript/openbsd_386.sh
+@@ -253,7 +253,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/openbsd_386/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_openbsd.go ./sys_bsd.go ./time.go ./types.go ./zsignal_openbsd_386.go
++8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_openbsd.go ./sys_bsd.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/openbsd_386/os.a
+ 
+diff --git a/src/buildscript/openbsd_amd64.sh b/src/buildscript/openbsd_amd64.sh
+index 7db8d8e423..257eecc96e 100755
+--- a/src/buildscript/openbsd_amd64.sh
++++ b/src/buildscript/openbsd_amd64.sh
+@@ -252,7 +252,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/openbsd_amd64/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_openbsd.go ./sys_bsd.go ./time.go ./types.go ./zsignal_openbsd_amd64.go
++6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_openbsd.go ./sys_bsd.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/openbsd_amd64/os.a
+ 
+diff --git a/src/buildscript/windows_386.sh b/src/buildscript/windows_386.sh
+index 3a3ec03da3..789d5b67ff 100755
+--- a/src/buildscript/windows_386.sh
++++ b/src/buildscript/windows_386.sh
+@@ -265,7 +265,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/windows_386/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_windows.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_windows.go ./file.go ./file_posix.go ./file_windows.go ./getwd.go ./path.go ./path_windows.go ./proc.go ./stat_windows.go ./sys_windows.go ./time.go ./types.go ./zsignal_windows_386.go
++8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_windows.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_windows.go ./file.go ./file_posix.go ./file_windows.go ./getwd.go ./path.go ./path_windows.go ./proc.go ./stat_windows.go ./sys_windows.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/windows_386/os.a
+ 
+diff --git a/src/buildscript/windows_amd64.sh b/src/buildscript/windows_amd64.sh
+index 1858b22063..0026c1e086 100755
+--- a/src/buildscript/windows_amd64.sh
++++ b/src/buildscript/windows_amd64.sh
+@@ -264,7 +264,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/windows_amd64/time.a
+ 
+ mkdir -p "$WORK"/os/_obj/
+ cd "$GOROOT"/src/pkg/os
+-6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_windows.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_windows.go ./file.go ./file_posix.go ./file_windows.go ./getwd.go ./path.go ./path_windows.go ./proc.go ./stat_windows.go ./sys_windows.go ./time.go ./types.go ./zsignal_windows_amd64.go
++6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_windows.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_windows.go ./file.go ./file_posix.go ./file_windows.go ./getwd.go ./path.go ./path_windows.go ./proc.go ./stat_windows.go ./sys_windows.go ./time.go ./types.go
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/windows_amd64/os.a
+ 
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index 9f8d527ba3..ca83ff1a99 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -27,7 +27,6 @@ GOFILES_freebsd=\
+ 	sys_bsd.go\
+ 	exec_posix.go\
+ 	exec_unix.go\
+-	zsignal_$(GOOS)_$(GOARCH).go\
+ 
+ GOFILES_darwin=\
+ 	dir_unix.go\
+@@ -38,7 +37,6 @@ GOFILES_darwin=\
+ 	sys_bsd.go\
+ 	exec_posix.go\
+ 	exec_unix.go\
+-	zsignal_$(GOOS)_$(GOARCH).go\
+ 
+ GOFILES_linux=\
+ 	dir_unix.go\
+@@ -49,7 +47,6 @@ GOFILES_linux=\
+ 	sys_linux.go\
+ 	exec_posix.go\
+ 	exec_unix.go\
+-	zsignal_$(GOOS)_$(GOARCH).go\
+ 
+ GOFILES_netbsd=\
+ 	dir_unix.go\
+@@ -60,7 +57,6 @@ GOFILES_netbsd=\
+ 	sys_bsd.go\
+ 	exec_posix.go\
+ 	exec_unix.go\
+-	zsignal_$(GOOS)_$(GOARCH).go\
+ 
+ GOFILES_openbsd=\
+ 	dir_unix.go\
+@@ -71,7 +67,6 @@ GOFILES_openbsd=\
+ 	sys_bsd.go\
+ 	exec_posix.go\
+ 	exec_unix.go\
+-	zsignal_$(GOOS)_$(GOARCH).go\
+ 
+ GOFILES_windows=\
+ 	dir_windows.go\
+@@ -82,7 +77,6 @@ GOFILES_windows=\
+ 	sys_windows.go\
+ 	exec_posix.go\
+ 	exec_windows.go\
+-	zsignal_$(GOOS)_$(GOARCH).go\
+ 
+ GOFILES_plan9=\
+ 	dir_plan9.go\
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index 218b8cdc1d..6465bfbb65 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -48,7 +48,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 
+ // Kill causes the Process to exit immediately.
+ func (p *Process) Kill() error {
+-	return p.Signal(SIGKILL)
++	return p.Signal(UnixSignal(syscall.SIGKILL))
+ }
+ 
+ // Exec replaces the current process with an execution of the
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index 7eb7d194d6..c7e25f9853 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -37,8 +37,7 @@ func (p *Process) Signal(sig Signal) error {
+ 	if p.done {
+ 		return errors.New("os: process already finished")
+ 	}
+-	switch sig.(UnixSignal) {
+-	case SIGKILL:
++	if us, ok := sig.(UnixSignal); ok && us == syscall.SIGKILL {
+ 		e := syscall.TerminateProcess(syscall.Handle(p.handle), 1)
+ 		return NewSyscallError("TerminateProcess", e)
+ 	}
+diff --git a/src/pkg/os/mksignals.sh b/src/pkg/os/mksignals.sh
+deleted file mode 100755
+index 401e39f143..0000000000
+--- a/src/pkg/os/mksignals.sh
++++ /dev/null
+@@ -1,24 +0,0 @@
+-#!/bin/sh
+-
+-for targ in \
+-	darwin_386 \
+-	darwin_amd64 \
+-	freebsd_386 \
+-	freebsd_amd64 \
+-	linux_386 \
+-	linux_amd64 \
+-	linux_arm \
+-	netbsd_386 \
+-	netbsd_amd64 \
+-	openbsd_386 \
+-	openbsd_amd64 \
+-; do
+-	./mkunixsignals.sh ../syscall/zerrors_$targ.go |gofmt >zsignal_$targ.go
+-done
+-
+-for targ in \
+-	windows_386 \
+-	windows_amd64 \
+-; do
+-	./mkunixsignals.sh ../syscall/ztypes_windows.go |gofmt >zsignal_$targ.go
+-done
+diff --git a/src/pkg/os/mkunixsignals.sh b/src/pkg/os/mkunixsignals.sh
+deleted file mode 100755
+index ec62f1d708..0000000000
+--- a/src/pkg/os/mkunixsignals.sh
++++ /dev/null
+@@ -1,27 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-echo '// MACHINE GENERATED; DO NOT EDIT'
+-echo '// To regenerate, run'
+-echo '//	./mksignals.sh'
+-echo '// which, for this file, will run'
+-echo '//	./mkunixsignals.sh' "$1"
+-echo
+-
+-cat <<EOH
+-package os
+-
+-import (
+-  "syscall"
+-)
+-
+-var _ = syscall.Open  // in case there are zero signals
+-
+-const (
+-EOH
+-
+-sed -n 's/^[ 	]*\(SIG[A-Z0-9][A-Z0-9]*\)[ 	].*/  \1 = UnixSignal(syscall.\1)/p' "$1"
+-
+-echo ")"
+diff --git a/src/pkg/os/signal/signal_test.go b/src/pkg/os/signal/signal_test.go
+index 4568aa9518..a7cecb3825 100644
+--- a/src/pkg/os/signal/signal_test.go
++++ b/src/pkg/os/signal/signal_test.go
+@@ -12,11 +12,13 @@ import (
+ 	"testing"
+ )
+ 
++const sighup = os.UnixSignal(syscall.SIGHUP)
++
+ func TestSignal(t *testing.T) {
+ 	// Send this process a SIGHUP.
+ 	syscall.Syscall(syscall.SYS_KILL, uintptr(syscall.Getpid()), syscall.SIGHUP, 0)
+ 
+-	if sig := (<-Incoming).(os.UnixSignal); sig != os.SIGHUP {
+-		t.Errorf("signal was %v, want %v", sig, os.SIGHUP)
++	if sig := (<-Incoming).(os.UnixSignal); sig != sighup {
++		t.Errorf("signal was %v, want %v", sig, sighup)
+ 	}
+ }
+diff --git a/src/pkg/os/zsignal_darwin_386.go b/src/pkg/os/zsignal_darwin_386.go
+deleted file mode 100644
+index 8251113b16..0000000000
+--- a/src/pkg/os/zsignal_darwin_386.go
++++ /dev/null
+@@ -1,48 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_darwin_386.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGEMT    = UnixSignal(syscall.SIGEMT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINFO   = UnixSignal(syscall.SIGINFO)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_darwin_amd64.go b/src/pkg/os/zsignal_darwin_amd64.go
+deleted file mode 100644
+index 7c64af86ec..0000000000
+--- a/src/pkg/os/zsignal_darwin_amd64.go
++++ /dev/null
+@@ -1,48 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_darwin_amd64.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGEMT    = UnixSignal(syscall.SIGEMT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINFO   = UnixSignal(syscall.SIGINFO)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_freebsd_386.go b/src/pkg/os/zsignal_freebsd_386.go
+deleted file mode 100644
+index 029e63fab3..0000000000
+--- a/src/pkg/os/zsignal_freebsd_386.go
++++ /dev/null
+@@ -1,50 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_freebsd_386.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGEMT    = UnixSignal(syscall.SIGEMT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINFO   = UnixSignal(syscall.SIGINFO)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGLWP    = UnixSignal(syscall.SIGLWP)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTHR    = UnixSignal(syscall.SIGTHR)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_freebsd_amd64.go b/src/pkg/os/zsignal_freebsd_amd64.go
+deleted file mode 100644
+index ba2e2e44f1..0000000000
+--- a/src/pkg/os/zsignal_freebsd_amd64.go
++++ /dev/null
+@@ -1,50 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_freebsd_amd64.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGEMT    = UnixSignal(syscall.SIGEMT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINFO   = UnixSignal(syscall.SIGINFO)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGLWP    = UnixSignal(syscall.SIGLWP)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTHR    = UnixSignal(syscall.SIGTHR)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_linux_386.go b/src/pkg/os/zsignal_linux_386.go
+deleted file mode 100644
+index 74cd029a4a..0000000000
+--- a/src/pkg/os/zsignal_linux_386.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_linux_386.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCLD    = UnixSignal(syscall.SIGCLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPOLL   = UnixSignal(syscall.SIGPOLL)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGPWR    = UnixSignal(syscall.SIGPWR)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTKFLT = UnixSignal(syscall.SIGSTKFLT)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGUNUSED = UnixSignal(syscall.SIGUNUSED)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_linux_amd64.go b/src/pkg/os/zsignal_linux_amd64.go
+deleted file mode 100644
+index 0416e0c57f..0000000000
+--- a/src/pkg/os/zsignal_linux_amd64.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_linux_amd64.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCLD    = UnixSignal(syscall.SIGCLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPOLL   = UnixSignal(syscall.SIGPOLL)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGPWR    = UnixSignal(syscall.SIGPWR)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTKFLT = UnixSignal(syscall.SIGSTKFLT)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGUNUSED = UnixSignal(syscall.SIGUNUSED)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_linux_arm.go b/src/pkg/os/zsignal_linux_arm.go
+deleted file mode 100644
+index 40cb6863b4..0000000000
+--- a/src/pkg/os/zsignal_linux_arm.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_linux_arm.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCLD    = UnixSignal(syscall.SIGCLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPOLL   = UnixSignal(syscall.SIGPOLL)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGPWR    = UnixSignal(syscall.SIGPWR)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTKFLT = UnixSignal(syscall.SIGSTKFLT)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGUNUSED = UnixSignal(syscall.SIGUNUSED)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_netbsd_386.go b/src/pkg/os/zsignal_netbsd_386.go
+deleted file mode 100644
+index 07d4692e40..0000000000
+--- a/src/pkg/os/zsignal_netbsd_386.go
++++ /dev/null
+@@ -1,49 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_netbsd_386.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGEMT    = UnixSignal(syscall.SIGEMT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINFO   = UnixSignal(syscall.SIGINFO)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTHR    = UnixSignal(syscall.SIGTHR)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_netbsd_amd64.go b/src/pkg/os/zsignal_netbsd_amd64.go
+deleted file mode 100644
+index 6c0d996afa..0000000000
+--- a/src/pkg/os/zsignal_netbsd_amd64.go
++++ /dev/null
+@@ -1,49 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_netbsd_amd64.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGEMT    = UnixSignal(syscall.SIGEMT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINFO   = UnixSignal(syscall.SIGINFO)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTHR    = UnixSignal(syscall.SIGTHR)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_openbsd_386.go b/src/pkg/os/zsignal_openbsd_386.go
+deleted file mode 100644
+index 90e11375cc..0000000000
+--- a/src/pkg/os/zsignal_openbsd_386.go
++++ /dev/null
+@@ -1,49 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_openbsd_386.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGEMT    = UnixSignal(syscall.SIGEMT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINFO   = UnixSignal(syscall.SIGINFO)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTHR    = UnixSignal(syscall.SIGTHR)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_openbsd_amd64.go b/src/pkg/os/zsignal_openbsd_amd64.go
+deleted file mode 100644
+index 7f4dc6d175..0000000000
+--- a/src/pkg/os/zsignal_openbsd_amd64.go
++++ /dev/null
+@@ -1,49 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/zerrors_openbsd_amd64.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGABRT   = UnixSignal(syscall.SIGABRT)
+-	SIGALRM   = UnixSignal(syscall.SIGALRM)
+-	SIGBUS    = UnixSignal(syscall.SIGBUS)
+-	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
+-	SIGCONT   = UnixSignal(syscall.SIGCONT)
+-	SIGEMT    = UnixSignal(syscall.SIGEMT)
+-	SIGFPE    = UnixSignal(syscall.SIGFPE)
+-	SIGHUP    = UnixSignal(syscall.SIGHUP)
+-	SIGILL    = UnixSignal(syscall.SIGILL)
+-	SIGINFO   = UnixSignal(syscall.SIGINFO)
+-	SIGINT    = UnixSignal(syscall.SIGINT)
+-	SIGIO     = UnixSignal(syscall.SIGIO)
+-	SIGIOT    = UnixSignal(syscall.SIGIOT)
+-	SIGKILL   = UnixSignal(syscall.SIGKILL)
+-	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
+-	SIGPROF   = UnixSignal(syscall.SIGPROF)
+-	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
+-	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
+-	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
+-	SIGSYS    = UnixSignal(syscall.SIGSYS)
+-	SIGTERM   = UnixSignal(syscall.SIGTERM)
+-	SIGTHR    = UnixSignal(syscall.SIGTHR)
+-	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
+-	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
+-	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
+-	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
+-	SIGURG    = UnixSignal(syscall.SIGURG)
+-	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
+-	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
+-	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
+-	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
+-	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
+-	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
+-)
+diff --git a/src/pkg/os/zsignal_windows_386.go b/src/pkg/os/zsignal_windows_386.go
+deleted file mode 100644
+index b4b88dccfb..0000000000
+--- a/src/pkg/os/zsignal_windows_386.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/ztypes_windows.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGHUP  = UnixSignal(syscall.SIGHUP)
+-	SIGINT  = UnixSignal(syscall.SIGINT)
+-	SIGQUIT = UnixSignal(syscall.SIGQUIT)
+-	SIGILL  = UnixSignal(syscall.SIGILL)
+-	SIGTRAP = UnixSignal(syscall.SIGTRAP)
+-	SIGABRT = UnixSignal(syscall.SIGABRT)
+-	SIGBUS  = UnixSignal(syscall.SIGBUS)
+-	SIGFPE  = UnixSignal(syscall.SIGFPE)
+-	SIGKILL = UnixSignal(syscall.SIGKILL)
+-	SIGSEGV = UnixSignal(syscall.SIGSEGV)
+-	SIGPIPE = UnixSignal(syscall.SIGPIPE)
+-	SIGALRM = UnixSignal(syscall.SIGALRM)
+-	SIGTERM = UnixSignal(syscall.SIGTERM)
+-)
+diff --git a/src/pkg/os/zsignal_windows_amd64.go b/src/pkg/os/zsignal_windows_amd64.go
+deleted file mode 100644
+index b4b88dccfb..0000000000
+--- a/src/pkg/os/zsignal_windows_amd64.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// MACHINE GENERATED; DO NOT EDIT
+-// To regenerate, run
+-//	./mksignals.sh
+-// which, for this file, will run
+-//	./mkunixsignals.sh ../syscall/ztypes_windows.go
+-
+-package os
+-
+-import (
+-	"syscall"
+-)
+-
+-var _ = syscall.Open // in case there are zero signals
+-
+-const (
+-	SIGHUP  = UnixSignal(syscall.SIGHUP)
+-	SIGINT  = UnixSignal(syscall.SIGINT)
+-	SIGQUIT = UnixSignal(syscall.SIGQUIT)
+-	SIGILL  = UnixSignal(syscall.SIGILL)
+-	SIGTRAP = UnixSignal(syscall.SIGTRAP)
+-	SIGABRT = UnixSignal(syscall.SIGABRT)
+-	SIGBUS  = UnixSignal(syscall.SIGBUS)
+-	SIGFPE  = UnixSignal(syscall.SIGFPE)
+-	SIGKILL = UnixSignal(syscall.SIGKILL)
+-	SIGSEGV = UnixSignal(syscall.SIGSEGV)
+-	SIGPIPE = UnixSignal(syscall.SIGPIPE)
+-	SIGALRM = UnixSignal(syscall.SIGALRM)
+-	SIGTERM = UnixSignal(syscall.SIGTERM)
+-)

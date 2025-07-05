@@ -20,6 +20,20 @@ Date:   Mon Apr 10 23:14:56 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 8aea636c6b..9f685d1f1f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -690,7 +690,7 @@ constant is implicitly converted in contexts where a typed value is required,
+ for instance, in a <a href="#Short_variable_declarations">short variable declaration</a>
+ such as <code>i := 0</code> where there is no explicit type.
+ The default type of an untyped constant is <code>bool</code>, <code>rune</code>,
+-<code>int</code>, <code>float64</code>, <code>complex128</code> or <code>string</code>
++<code>int</code>, <code>float64</code>, <code>complex128</code>, or <code>string</code>
+ respectively, depending on whether it is a boolean, rune, integer, floating-point,
+ complex, or string constant.
+ </p>

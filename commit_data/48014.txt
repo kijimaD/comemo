@@ -10,8 +10,52 @@ Date:   Tue Apr 20 10:55:59 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/311889
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go              | 2 +-
  src/cmd/compile/internal/types2/fixedbugs/issue42987.src | 8 ++++++++
  src/cmd/compile/internal/types2/typexpr.go               | 5 ++++-
  3 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 68048f28d3..c90f2e7510 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -326,7 +326,7 @@ func TestTypesInfo(t *testing.T) {
+ 		{brokenPkg + `x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a, f: b,}}`, `b`, `string`},
+ 		{brokenPkg + `x3; var x = panic("");`, `panic`, `func(interface{})`},
+ 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
+-		{brokenPkg + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
++		{brokenPkg + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},
+ 
+ 		// parameterized functions
+ 		{genericPkg + `p0; func f[T any](T); var _ = f[int]`, `f`, `func[T₁ interface{}](T₁)`},
+diff --git a/src/cmd/compile/internal/types2/fixedbugs/issue42987.src b/src/cmd/compile/internal/types2/fixedbugs/issue42987.src
+new file mode 100644
+index 0000000000..8aa3544272
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/fixedbugs/issue42987.src
+@@ -0,0 +1,8 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that there is only one error (no follow-on errors).
++
++package p
++var _ = [ /* ERROR invalid use of .* array */ ...]byte("foo")
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 61b290c075..e64d804c30 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -518,7 +518,10 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 			typ.len = -1
+ 		}
+ 		typ.elem = check.varType(e.Elem)
+-		return typ
++		if typ.len >= 0 {
++			return typ
++		}
++		// report error if we encountered [...]
+ 
+ 	case *syntax.SliceType:
+ 		typ := new(Slice)

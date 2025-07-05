@@ -7,7 +7,58 @@ Date:   Wed Jan 5 14:34:59 2011 -0500
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/3821042
-
+---
  src/cmd/goinstall/main.go |  1 +
  src/cmd/goinstall/make.go | 21 +++++++++++++++------
  2 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 9301f27b5a..1736ffc030 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -41,6 +41,7 @@ var (
+ 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
+ 	logPkgs           = flag.Bool("log", true, "log installed packages to $GOROOT/goinstall.log for use by -a")
+ 	update            = flag.Bool("u", false, "update already-downloaded packages")
++	clean             = flag.Bool("clean", false, "clean the package directory before installing")
+ 	verbose           = flag.Bool("v", false, "verbose")
+ )
+ 
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 4e001b49bd..58ba5be0a6 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -17,18 +17,27 @@ import (
+ // For non-local packages or packages without Makefiles,
+ // domake generates a standard Makefile and passes it
+ // to make on standard input.
+-func domake(dir, pkg string, local bool) os.Error {
++func domake(dir, pkg string, local bool) (err os.Error) {
++	needMakefile := true
+ 	if local {
+ 		_, err := os.Stat(dir + "/Makefile")
+ 		if err == nil {
+-			return run(dir, nil, "gomake", "install")
++			needMakefile = false
+ 		}
+ 	}
+-	makefile, err := makeMakefile(dir, pkg)
+-	if err != nil {
+-		return err
++	cmd := []string{"gomake"}
++	var makefile []byte
++	if needMakefile {
++		if makefile, err = makeMakefile(dir, pkg); err != nil {
++			return err
++		}
++		cmd = append(cmd, "-f-")
++	}
++	if *clean {
++		cmd = append(cmd, "clean")
+ 	}
+-	return run(dir, makefile, "gomake", "-f-", "install")
++	cmd = append(cmd, "install")
++	return run(dir, makefile, cmd...)
+ }
+ 
+ // makeMakefile computes the standard Makefile for the directory dir

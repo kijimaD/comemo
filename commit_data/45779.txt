@@ -1343,3 +1343,41 @@ Date:   Tue Nov 17 18:32:51 2020 -0500
  test/prove.go                                      |    6 +-
  test/runtime.go                                    |    2 +-
  1335 files changed, 63169 insertions(+), 77637 deletions(-)
+
+diff --cc src/crypto/x509/verify.go
+index d47f8382ae,cb8d8f872d..50f4d4ac80
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@@ -193,13 -193,8 +193,13 @@@ var errNotParsed = errors.New("x509: mi
+  
+  // VerifyOptions contains parameters for Certificate.Verify.
+  type VerifyOptions struct {
+ +	// IsBoring is a validity check for BoringCrypto.
+ +	// If not nil, it will be called to check whether a given certificate
+ +	// can be used for constructing verification chains.
+ +	IsBoring func(*Certificate) bool
+ +
+  	// DNSName, if set, is checked against the leaf certificate with
+- 	// Certificate.VerifyHostname.
++ 	// Certificate.VerifyHostname or the platform verifier.
+  	DNSName string
+  
+  	// Intermediates is an optional pool of certificates that are not trust
+diff --cc src/go/build/build.go
+index 0a606161ca,5c3d876130..d58319583a
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@@ -1749,10 -1754,9 +1755,13 @@@ func (ctxt *Context) match(name string
+  	if ctxt.GOOS == "illumos" && name == "solaris" {
+  		return true
+  	}
++ 	if ctxt.GOOS == "ios" && name == "darwin" {
++ 		return true
++ 	}
+ +	// Let applications know that the Go+BoringCrypto toolchain is in use.
+ +	if name == "boringcrypto" {
+ +		return true
+ +	}
+  
+  	// other tags
+  	for _, tag := range ctxt.BuildTags {

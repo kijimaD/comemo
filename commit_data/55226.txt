@@ -17,6 +17,30 @@ Date:   Tue Jan 17 08:02:17 2023 +0000
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/cmd/link/internal/ld/pe.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 0e291311a0..10c1dc4ab3 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -152,6 +152,7 @@ const (
+ 
+ // DOS stub that prints out
+ // "This program cannot be run in DOS mode."
++// See IMAGE_DOS_HEADER in the Windows SDK for the format of the header used here.
+ var dosstub = []uint8{
+ 	0x4d,
+ 	0x5a,
+@@ -159,9 +160,9 @@ var dosstub = []uint8{
+ 	0x00,
+ 	0x03,
+ 	0x00,
+-	0x04,
+ 	0x00,
+ 	0x00,
++	0x04,
+ 	0x00,
+ 	0x00,
+ 	0x00,

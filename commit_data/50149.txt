@@ -65,9 +65,317 @@ Date:   Fri Sep 24 10:57:37 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/pcln.go | 92 +++++++++-------------------------------
  src/debug/gosym/pclntab.go       | 16 +++++--
  src/runtime/plugin.go            |  2 +-
  src/runtime/symtab.go            | 34 +++++++++------
  4 files changed, 52 insertions(+), 92 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index b5a66b8517..8f025f91e2 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -539,79 +539,23 @@ func numPCData(ldr *loader.Loader, s loader.Sym, fi loader.FuncInfo) uint32 {
+ 	return numPCData
+ }
+ 
+-// Helper types for iterating pclntab.
+-type pclnSetAddr func(*loader.SymbolBuilder, *sys.Arch, int64, loader.Sym, int64) int64
+-type pclnSetUint func(*loader.SymbolBuilder, *sys.Arch, int64, uint64) int64
+-
+ // generateFunctab creates the runtime.functab
+ //
+ // runtime.functab contains two things:
+ //
+ //   - pc->func look up table.
+ //   - array of func objects, interleaved with pcdata and funcdata
+-//
+-// Because of timing in the linker, generating this table takes two passes.
+-// The first pass is executed early in the link, and it creates any needed
+-// relocations to lay out the data. The piece that needs relocations is
+-// the PC->func table, handled in writePCToFunc.
+-// After relocations, once we know where to write things in the output buffer,
+-// we execute the second pass, which is actually writing the data.
+ func (state *pclntab) generateFunctab(ctxt *Link, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
+ 	// Calculate the size of the table.
+ 	size, startLocations := state.calculateFunctabSize(ctxt, funcs)
+-
+-	// If we are internally linking a static executable, the function addresses
+-	// are known, so we can just use them instead of emitting relocations. For
+-	// other cases we still need to emit relocations.
+-	//
+-	// This boolean just helps us figure out which callback to use.
+-	useSymValue := ctxt.IsExe() && ctxt.IsInternal()
+-
+ 	writePcln := func(ctxt *Link, s loader.Sym) {
+ 		ldr := ctxt.loader
+ 		sb := ldr.MakeSymbolUpdater(s)
+-
+-		// Create our callbacks.
+-		var setAddr pclnSetAddr
+-		if useSymValue {
+-			// We need to write the offset.
+-			setAddr = func(s *loader.SymbolBuilder, arch *sys.Arch, off int64, tgt loader.Sym, add int64) int64 {
+-				if v := ldr.SymValue(tgt); v != 0 {
+-					s.SetUint(arch, off, uint64(v+add))
+-				}
+-				return 0
+-			}
+-		} else {
+-			// We already wrote relocations.
+-			setAddr = func(s *loader.SymbolBuilder, arch *sys.Arch, off int64, tgt loader.Sym, add int64) int64 { return 0 }
+-		}
+-
+ 		// Write the data.
+-		writePCToFunc(ctxt, sb, funcs, startLocations, setAddr, (*loader.SymbolBuilder).SetUint)
++		writePCToFunc(ctxt, sb, funcs, startLocations)
+ 		writeFuncs(ctxt, sb, funcs, inlSyms, startLocations, cuOffsets, nameOffsets)
+ 	}
+-
+ 	state.pclntab = state.addGeneratedSym(ctxt, "runtime.functab", size, writePcln)
+-
+-	// Create the relocations we need.
+-	ldr := ctxt.loader
+-	sb := ldr.MakeSymbolUpdater(state.pclntab)
+-
+-	var setAddr pclnSetAddr
+-	if useSymValue {
+-		// If we should use the symbol value, and we don't have one, write a relocation.
+-		setAddr = func(sb *loader.SymbolBuilder, arch *sys.Arch, off int64, tgt loader.Sym, add int64) int64 {
+-			if v := ldr.SymValue(tgt); v == 0 {
+-				sb.SetAddrPlus(arch, off, tgt, add)
+-			}
+-			return 0
+-		}
+-	} else {
+-		// If we're externally linking, write a relocation.
+-		setAddr = (*loader.SymbolBuilder).SetAddrPlus
+-	}
+-	setUintNOP := func(*loader.SymbolBuilder, *sys.Arch, int64, uint64) int64 { return 0 }
+-	writePCToFunc(ctxt, sb, funcs, startLocations, setAddr, setUintNOP)
+ }
+ 
+ // funcData returns the funcdata and offsets for the FuncInfo.
+@@ -641,10 +585,10 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
+ 	ldr := ctxt.loader
+ 	startLocations := make([]uint32, len(funcs))
+ 
+-	// Allocate space for the pc->func table. This structure consists of a pc
++	// Allocate space for the pc->func table. This structure consists of a pc offset
+ 	// and an offset to the func structure. After that, we have a single pc
+ 	// value that marks the end of the last function in the binary.
+-	size := int64(int(state.nfunc)*2*ctxt.Arch.PtrSize + ctxt.Arch.PtrSize)
++	size := int64(int(state.nfunc)*2*4 + 4)
+ 
+ 	// Now find the space for the func objects. We do this in a running manner,
+ 	// so that we can find individual starting locations, and because funcdata
+@@ -674,10 +618,16 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
+ }
+ 
+ // writePCToFunc writes the PC->func lookup table.
+-// This function walks the pc->func lookup table, executing callbacks
+-// to generate relocations and writing the values for the table.
+-func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, startLocations []uint32, setAddr pclnSetAddr, setUint pclnSetUint) {
++func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, startLocations []uint32) {
+ 	ldr := ctxt.loader
++	textStart := ldr.SymValue(ldr.Lookup("runtime.text", 0))
++	pcOff := func(s loader.Sym) uint32 {
++		off := ldr.SymValue(s) - textStart
++		if off < 0 {
++			panic(fmt.Sprintf("expected func %s(%x) to be placed at or after textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
++		}
++		return uint32(off)
++	}
+ 	var prevFunc loader.Sym
+ 	prevSect := ldr.SymSect(funcs[0])
+ 	funcIndex := 0
+@@ -686,24 +636,20 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
+ 			// With multiple text sections, there may be a hole here in the
+ 			// address space. We use an invalid funcoff value to mark the hole.
+ 			// See also runtime/symtab.go:findfunc
+-			prevFuncSize := int64(ldr.SymSize(prevFunc))
+-			setAddr(sb, ctxt.Arch, int64(funcIndex*2*ctxt.Arch.PtrSize), prevFunc, prevFuncSize)
+-			setUint(sb, ctxt.Arch, int64((funcIndex*2+1)*ctxt.Arch.PtrSize), ^uint64(0))
++			prevFuncSize := uint32(ldr.SymSize(prevFunc))
++			sb.SetUint32(ctxt.Arch, int64(funcIndex*2*4), pcOff(prevFunc)+prevFuncSize)
++			sb.SetUint32(ctxt.Arch, int64((funcIndex*2+1)*4), ^uint32(0))
+ 			funcIndex++
+ 			prevSect = thisSect
+ 		}
+ 		prevFunc = s
+-		// TODO: We don't actually need these relocations, provided we go to a
+-		// module->func look-up-table like we do for filenames. We could have a
+-		// single relocation for the module, and have them all laid out as
+-		// offsets from the beginning of that module.
+-		setAddr(sb, ctxt.Arch, int64(funcIndex*2*ctxt.Arch.PtrSize), s, 0)
+-		setUint(sb, ctxt.Arch, int64((funcIndex*2+1)*ctxt.Arch.PtrSize), uint64(startLocations[i]))
++		sb.SetUint32(ctxt.Arch, int64(funcIndex*2*4), pcOff(s))
++		sb.SetUint32(ctxt.Arch, int64((funcIndex*2+1)*4), startLocations[i])
+ 		funcIndex++
+ 	}
+ 
+-	// Final entry of table is just end pc.
+-	setAddr(sb, ctxt.Arch, int64(funcIndex)*2*int64(ctxt.Arch.PtrSize), prevFunc, ldr.SymSize(prevFunc))
++	// Final entry of table is just end pc offset.
++	sb.SetUint32(ctxt.Arch, int64(funcIndex)*2*4, pcOff(prevFunc)+uint32(ldr.SymSize(prevFunc)))
+ }
+ 
+ // writeFuncs writes the func structures and pcdata to runtime.functab.
+diff --git a/src/debug/gosym/pclntab.go b/src/debug/gosym/pclntab.go
+index 8fe45decd6..134cb3d194 100644
+--- a/src/debug/gosym/pclntab.go
++++ b/src/debug/gosym/pclntab.go
+@@ -373,18 +373,22 @@ func (t *LineTable) string(off uint32) string {
+ 
+ // functabFieldSize returns the size in bytes of a single functab field.
+ func (t *LineTable) functabFieldSize() int {
++	if t.version >= ver118 {
++		return 4
++	}
+ 	return int(t.ptrsize)
+ }
+ 
+ // funcTab returns t's funcTab.
+ func (t *LineTable) funcTab() funcTab {
+-	return funcTab{t}
++	return funcTab{LineTable: t, sz: t.functabFieldSize()}
+ }
+ 
+ // funcTab is memory corresponding to a slice of functab structs, followed by an invalid PC.
+ // A functab struct is a PC and a func offset.
+ type funcTab struct {
+ 	*LineTable
++	sz int // cached result of t.functabFieldSize
+ }
+ 
+ // Count returns the number of func entries in f.
+@@ -394,17 +398,21 @@ func (f funcTab) Count() int {
+ 
+ // pc returns the PC of the i'th func in f.
+ func (f funcTab) pc(i int) uint64 {
+-	return f.uint(f.functab[2*i*f.functabFieldSize():])
++	u := f.uint(f.functab[2*i*f.sz:])
++	if f.version >= ver118 {
++		u += uint64(f.textStart)
++	}
++	return u
+ }
+ 
+ // funcOff returns the funcdata offset of the i'th func in f.
+ func (f funcTab) funcOff(i int) uint64 {
+-	return f.uint(f.functab[(2*i+1)*f.functabFieldSize():])
++	return f.uint(f.functab[(2*i+1)*f.sz:])
+ }
+ 
+ // uint returns the uint stored at b.
+ func (f funcTab) uint(b []byte) uint64 {
+-	if f.functabFieldSize() == 4 {
++	if f.sz == 4 {
+ 		return uint64(f.binary.Uint32(b))
+ 	}
+ 	return f.binary.Uint64(b)
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 500663bfe2..ab3d802389 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -96,7 +96,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, errstr s
+ func pluginftabverify(md *moduledata) {
+ 	badtable := false
+ 	for i := 0; i < len(md.ftab); i++ {
+-		entry := md.ftab[i].entry
++		entry := md.textAddr(uintptr(md.ftab[i].entryoff))
+ 		if md.minpc <= entry && entry <= md.maxpc {
+ 			continue
+ 		}
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index f423957f88..647300b0c4 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -553,8 +553,8 @@ func modulesinit() {
+ }
+ 
+ type functab struct {
+-	entry   uintptr
+-	funcoff uintptr
++	entryoff uint32 // relative to runtime.text
++	funcoff  uint32
+ }
+ 
+ // Mapping information for secondary text sections
+@@ -604,16 +604,16 @@ func moduledataverify1(datap *moduledata) {
+ 	nftab := len(datap.ftab) - 1
+ 	for i := 0; i < nftab; i++ {
+ 		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
+-		if datap.ftab[i].entry > datap.ftab[i+1].entry {
++		if datap.ftab[i].entryoff > datap.ftab[i+1].entryoff {
+ 			f1 := funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff])), datap}
+ 			f2 := funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i+1].funcoff])), datap}
+ 			f2name := "end"
+ 			if i+1 < nftab {
+ 				f2name = funcname(f2)
+ 			}
+-			println("function symbol table not sorted by PC:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name, ", plugin:", datap.pluginpath)
++			println("function symbol table not sorted by PC offset:", hex(datap.ftab[i].entryoff), funcname(f1), ">", hex(datap.ftab[i+1].entryoff), f2name, ", plugin:", datap.pluginpath)
+ 			for j := 0; j <= i; j++ {
+-				println("\t", hex(datap.ftab[j].entry), funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}))
++				println("\t", hex(datap.ftab[j].entryoff), funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}))
+ 			}
+ 			if GOOS == "aix" && isarchive {
+ 				println("-Wl,-bnoobjreorder is mandatory on aix/ppc64 with c-archive")
+@@ -622,8 +622,12 @@ func moduledataverify1(datap *moduledata) {
+ 		}
+ 	}
+ 
+-	if datap.minpc != datap.ftab[0].entry ||
+-		datap.maxpc != datap.ftab[nftab].entry {
++	min := datap.textAddr(uintptr(datap.ftab[0].entryoff))
++	// The max PC is outside of the text section.
++	// Subtract 1 to get a PC inside the text section, look it up, then add 1 back in.
++	max := datap.textAddr(uintptr(datap.ftab[nftab].entryoff-1)) + 1
++	if datap.minpc != min || datap.maxpc != max {
++		println("minpc=", hex(datap.minpc), "min=", hex(min), "maxpc=", hex(datap.maxpc), "max=", hex(max))
+ 		throw("minpc or maxpc invalid")
+ 	}
+ 
+@@ -649,6 +653,9 @@ func moduledataverify1(datap *moduledata) {
+ // Each function's offset is compared against the section vaddrs and sizes to determine the containing section.
+ // Then the section relative offset is added to the section's
+ // relocated baseaddr to compute the function addess.
++//
++// It is nosplit because it is part of the findfunc implementation.
++//go:nosplit
+ func (md *moduledata) textAddr(off uintptr) uintptr {
+ 	var res uintptr
+ 	if len(md.textsectmap) > 1 {
+@@ -808,24 +815,23 @@ func findfunc(pc uintptr) funcInfo {
+ 	if idx >= uint32(len(datap.ftab)) {
+ 		idx = uint32(len(datap.ftab) - 1)
+ 	}
+-	if pc < datap.ftab[idx].entry {
++	if pc < datap.textAddr(uintptr(datap.ftab[idx].entryoff)) {
+ 		// With multiple text sections, the idx might reference a function address that
+-		// is higher than the pc being searched, so search backward until the matching address is found.
+-
+-		for datap.ftab[idx].entry > pc && idx > 0 {
++		// is higher than the pcOff being searched, so search backward until the matching address is found.
++		for datap.textAddr(uintptr(datap.ftab[idx].entryoff)) > pc && idx > 0 {
+ 			idx--
+ 		}
+ 		if idx == 0 {
+ 			throw("findfunc: bad findfunctab entry idx")
+ 		}
+ 	} else {
+-		// linear search to find func with pc >= entry.
+-		for datap.ftab[idx+1].entry <= pc {
++		// linear search to find func with pcOff >= entry.
++		for datap.textAddr(uintptr(datap.ftab[idx+1].entryoff)) <= pc {
+ 			idx++
+ 		}
+ 	}
+ 	funcoff := datap.ftab[idx].funcoff
+-	if funcoff == ^uintptr(0) {
++	if funcoff == ^uint32(0) {
+ 		// With multiple text sections, there may be functions inserted by the external
+ 		// linker that are not known by Go. This means there may be holes in the PC
+ 		// range covered by the func table. The invalid funcoff value indicates a hole.

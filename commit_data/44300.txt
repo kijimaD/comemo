@@ -40,7 +40,7 @@ Date:   Thu Jun 4 00:35:09 2020 -0400
     Change-Id: I6e202216322872f0307ac96f1b8d3f57cb901e6b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236437
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  .gitattributes   |  20 ++--
  src/all.bat      |  54 +++++-----
  src/clean.bat    |  64 ++++++------
@@ -49,3 +49,781 @@ Date:   Thu Jun 4 00:35:09 2020 -0400
  src/run.bat      | 118 ++++++++++-----------
  test/winbatch.go |  54 ++++++++--
  7 files changed, 377 insertions(+), 340 deletions(-)
+
+diff --git a/.gitattributes b/.gitattributes
+index bcea0290f4..cabbb1732c 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,16 +1,16 @@
+ # Treat all files in the Go repo as binary, with no git magic updating
+-# line endings. Windows users contributing to Go will need to use a
+-# modern version of git and editors capable of LF line endings.
++# line endings. This produces predictable results in different environments.
++#
++# Windows users contributing to Go will need to use a modern version
++# of git and editors capable of LF line endings.
++#
++# Windows .bat files are known to have multiple bugs when run with LF
++# endings, and so they are checked in with CRLF endings, with a test
++# in test/winbatch.go to catch problems. (See golang.org/issue/37791.)
+ #
+ # We'll prevent accidental CRLF line endings from entering the repo
+-# via the git-review gofmt checks.
++# via the git-codereview gofmt checks and tests.
+ #
+-# See golang.org/issue/9281
++# See golang.org/issue/9281.
+ 
+ * -text
+-
+-# The only exception is Windows files that must absolutely be CRLF or
+-# might not work. Batch files are known to have multiple bugs when run
+-# with LF endings. See golang.org/issue/37791 for more information.
+-
+-*.bat text eol=crlf
+diff --git a/src/all.bat b/src/all.bat
+index 8bbd6b1b5d..ae835d992f 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -1,27 +1,27 @@
+-:: Copyright 2012 The Go Authors. All rights reserved.
+-:: Use of this source code is governed by a BSD-style
+-:: license that can be found in the LICENSE file.
+-
+-@echo off
+-
+-setlocal
+-
+-if exist make.bat goto ok
+-echo all.bat must be run from go\src
+-:: cannot exit: would kill parent command interpreter
+-goto end
+-:ok
+-
+-set OLDPATH=%PATH%
+-call make.bat --no-banner --no-local
+-if %GOBUILDFAIL%==1 goto end
+-call run.bat --no-rebuild --no-local
+-if %GOBUILDFAIL%==1 goto end
+-:: we must restore %PATH% before running "dist banner" so that the latter
+-:: can get the original %PATH% and give suggestion to add %GOROOT%/bin
+-:: to %PATH% if necessary.
+-set PATH=%OLDPATH%
+-"%GOTOOLDIR%/dist" banner
+-
+-:end
+-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
++:: Copyright 2012 The Go Authors. All rights reserved.
++:: Use of this source code is governed by a BSD-style
++:: license that can be found in the LICENSE file.
++
++@echo off
++
++setlocal
++
++if exist make.bat goto ok
++echo all.bat must be run from go\src
++:: cannot exit: would kill parent command interpreter
++goto end
++:ok
++
++set OLDPATH=%PATH%
++call make.bat --no-banner --no-local
++if %GOBUILDFAIL%==1 goto end
++call run.bat --no-rebuild --no-local
++if %GOBUILDFAIL%==1 goto end
++:: we must restore %PATH% before running "dist banner" so that the latter
++:: can get the original %PATH% and give suggestion to add %GOROOT%/bin
++:: to %PATH% if necessary.
++set PATH=%OLDPATH%
++"%GOTOOLDIR%/dist" banner
++
++:end
++if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
+diff --git a/src/clean.bat b/src/clean.bat
+index 0954dcd67f..c957353d0f 100644
+--- a/src/clean.bat
++++ b/src/clean.bat
+@@ -1,32 +1,32 @@
+-:: Copyright 2012 The Go Authors. All rights reserved.
+-:: Use of this source code is governed by a BSD-style
+-:: license that can be found in the LICENSE file.
+-
+-@echo off
+-
+-setlocal
+-
+-set GOBUILDFAIL=0
+-
+-go tool dist env -w -p >env.bat
+-if errorlevel 1 goto fail
+-call env.bat
+-del env.bat
+-echo.
+-
+-if exist %GOTOOLDIR%\dist.exe goto distok
+-echo cannot find %GOTOOLDIR%\dist; nothing to clean
+-goto fail
+-:distok
+-
+-"%GOBIN%\go" clean -i std
+-"%GOBIN%\go" tool dist clean
+-"%GOBIN%\go" clean -i cmd
+-
+-goto end
+-
+-:fail
+-set GOBUILDFAIL=1
+-
+-:end
+-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
++:: Copyright 2012 The Go Authors. All rights reserved.
++:: Use of this source code is governed by a BSD-style
++:: license that can be found in the LICENSE file.
++
++@echo off
++
++setlocal
++
++set GOBUILDFAIL=0
++
++go tool dist env -w -p >env.bat
++if errorlevel 1 goto fail
++call env.bat
++del env.bat
++echo.
++
++if exist %GOTOOLDIR%\dist.exe goto distok
++echo cannot find %GOTOOLDIR%\dist; nothing to clean
++goto fail
++:distok
++
++"%GOBIN%\go" clean -i std
++"%GOBIN%\go" tool dist clean
++"%GOBIN%\go" clean -i cmd
++
++goto end
++
++:fail
++set GOBUILDFAIL=1
++
++:end
++if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
+diff --git a/src/make.bat b/src/make.bat
+index f7955ec88a..277a34d5d7 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -1,153 +1,152 @@
+-:: Copyright 2012 The Go Authors. All rights reserved.
+-:: Use of this source code is governed by a BSD-style
+-:: license that can be found in the LICENSE file.
+-
+-:: Environment variables that control make.bat:
+-::
+-:: GOROOT_FINAL: The expected final Go root, baked into binaries.
+-:: The default is the location of the Go tree during the build.
+-::
+-:: GOHOSTARCH: The architecture for host tools (compilers and
+-:: binaries).  Binaries of this type must be executable on the current
+-:: system, so the only common reason to set this is to set
+-:: GOHOSTARCH=386 on an amd64 machine.
+-::
+-:: GOARCH: The target architecture for installed packages and tools.
+-::
+-:: GOOS: The target operating system for installed packages and tools.
+-::
+-:: GO_GCFLAGS: Additional go tool compile arguments to use when
+-:: building the packages and commands.
+-::
+-:: GO_LDFLAGS: Additional go tool link arguments to use when
+-:: building the commands.
+-::
+-:: CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+-:: to include all cgo related files, .c and .go file with "cgo"
+-:: build directive, in the build. Set it to 0 to ignore them.
+-::
+-:: CC: Command line to run to compile C code for GOHOSTARCH.
+-:: Default is "gcc".
+-::
+-:: CC_FOR_TARGET: Command line to run compile C code for GOARCH.
+-:: This is used by cgo. Default is CC.
+-::
+-:: FC: Command line to run to compile Fortran code.
+-:: This is used by cgo. Default is "gfortran".
+-
+-@echo off
+-
+-:: Keep environment variables within this script
+-:: unless invoked with --no-local.
+-if x%1==x--no-local goto nolocal
+-if x%2==x--no-local goto nolocal
+-if x%3==x--no-local goto nolocal
+-if x%4==x--no-local goto nolocal
+-setlocal
+-:nolocal
+-
+-set GOENV=off
+-set GOBUILDFAIL=0
+-set GOFLAGS=
+-set GO111MODULE=
+-
+-if exist make.bat goto ok
+-echo Must run make.bat from Go src directory.
+-goto fail
+-:ok
+-
+-:: Clean old generated file that will cause problems in the build.
+-del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
+-
+-:: Set GOROOT for build.
+-cd ..
+-set GOROOT_TEMP=%CD%
+-set GOROOT=
+-cd src
+-set vflag=
+-if x%1==x-v set vflag=-v
+-if x%2==x-v set vflag=-v
+-if x%3==x-v set vflag=-v
+-if x%4==x-v set vflag=-v
+-
+-if not exist ..\bin\tool mkdir ..\bin\tool
+-
+-:: Calculating GOROOT_BOOTSTRAP
+-if not "x%GOROOT_BOOTSTRAP%"=="x" goto bootstrapset
+-for /f "tokens=*" %%g in ('where go 2^>nul') do (
+-	if "x%GOROOT_BOOTSTRAP%"=="x" (
+-		for /f "tokens=*" %%i in ('%%g env GOROOT 2^>nul') do (
+-			if /I not %%i==%GOROOT_TEMP% (
+-				set GOROOT_BOOTSTRAP=%%i
+-			)
+-		)
+-	)
+-)
+-if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
+-
+-:bootstrapset
+-if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
+-set GOROOT=%GOROOT_TEMP%
+-set GOROOT_TEMP=
+-
+-echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%
+-if x%vflag==x-v echo cmd/dist
+-setlocal
+-set GOROOT=%GOROOT_BOOTSTRAP%
+-set GOOS=
+-set GOARCH=
+-set GOBIN=
+-set GO111MODULE=off
+-"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
+-endlocal
+-if errorlevel 1 goto fail
+-.\cmd\dist\dist.exe env -w -p >env.bat
+-if errorlevel 1 goto fail
+-call env.bat
+-del env.bat
+-if x%vflag==x-v echo.
+-
+-if x%1==x--dist-tool goto copydist
+-if x%2==x--dist-tool goto copydist
+-if x%3==x--dist-tool goto copydist
+-if x%4==x--dist-tool goto copydist
+-
+-set buildall=-a
+-if x%1==x--no-clean set buildall=
+-if x%2==x--no-clean set buildall=
+-if x%3==x--no-clean set buildall=
+-if x%4==x--no-clean set buildall=
+-if x%1==x--no-banner set buildall=%buildall% --no-banner
+-if x%2==x--no-banner set buildall=%buildall% --no-banner
+-if x%3==x--no-banner set buildall=%buildall% --no-banner
+-if x%4==x--no-banner set buildall=%buildall% --no-banner
+-
+-:: Run dist bootstrap to complete make.bash.
+-:: Bootstrap installs a proper cmd/dist, built with the new toolchain.
+-:: Throw ours, built with Go 1.4, away after bootstrap.
+-.\cmd\dist\dist.exe bootstrap %vflag% %buildall%
+-if errorlevel 1 goto fail
+-del .\cmd\dist\dist.exe
+-goto end
+-
+-:: DO NOT ADD ANY NEW CODE HERE.
+-:: The bootstrap+del above are the final step of make.bat.
+-:: If something must be added, add it to cmd/dist's cmdbootstrap,
+-:: to avoid needing three copies in three different shell languages
+-:: (make.bash, make.bat, make.rc).
+-
+-:copydist
+-mkdir "%GOTOOLDIR%" 2>NUL
+-copy cmd\dist\dist.exe "%GOTOOLDIR%\"
+-goto end
+-
+-:bootstrapfail
+-echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
+-echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go 1.4.
+-
+-:fail
+-set GOBUILDFAIL=1
+-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
+-
+-:end
+-
++:: Copyright 2012 The Go Authors. All rights reserved.
++:: Use of this source code is governed by a BSD-style
++:: license that can be found in the LICENSE file.
++
++:: Environment variables that control make.bat:
++::
++:: GOROOT_FINAL: The expected final Go root, baked into binaries.
++:: The default is the location of the Go tree during the build.
++::
++:: GOHOSTARCH: The architecture for host tools (compilers and
++:: binaries).  Binaries of this type must be executable on the current
++:: system, so the only common reason to set this is to set
++:: GOHOSTARCH=386 on an amd64 machine.
++::
++:: GOARCH: The target architecture for installed packages and tools.
++::
++:: GOOS: The target operating system for installed packages and tools.
++::
++:: GO_GCFLAGS: Additional go tool compile arguments to use when
++:: building the packages and commands.
++::
++:: GO_LDFLAGS: Additional go tool link arguments to use when
++:: building the commands.
++::
++:: CGO_ENABLED: Controls cgo usage during the build. Set it to 1
++:: to include all cgo related files, .c and .go file with "cgo"
++:: build directive, in the build. Set it to 0 to ignore them.
++::
++:: CC: Command line to run to compile C code for GOHOSTARCH.
++:: Default is "gcc".
++::
++:: CC_FOR_TARGET: Command line to run compile C code for GOARCH.
++:: This is used by cgo. Default is CC.
++::
++:: FC: Command line to run to compile Fortran code.
++:: This is used by cgo. Default is "gfortran".
++
++@echo off
++
++:: Keep environment variables within this script
++:: unless invoked with --no-local.
++if x%1==x--no-local goto nolocal
++if x%2==x--no-local goto nolocal
++if x%3==x--no-local goto nolocal
++if x%4==x--no-local goto nolocal
++setlocal
++:nolocal
++
++set GOENV=off
++set GOBUILDFAIL=0
++set GOFLAGS=
++set GO111MODULE=
++
++if exist make.bat goto ok
++echo Must run make.bat from Go src directory.
++goto fail
++:ok
++
++:: Clean old generated file that will cause problems in the build.
++del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
++
++:: Set GOROOT for build.
++cd ..
++set GOROOT_TEMP=%CD%
++set GOROOT=
++cd src
++set vflag=
++if x%1==x-v set vflag=-v
++if x%2==x-v set vflag=-v
++if x%3==x-v set vflag=-v
++if x%4==x-v set vflag=-v
++
++if not exist ..\bin\tool mkdir ..\bin\tool
++
++:: Calculating GOROOT_BOOTSTRAP
++if not "x%GOROOT_BOOTSTRAP%"=="x" goto bootstrapset
++for /f "tokens=*" %%g in ('where go 2^>nul') do (
++	if "x%GOROOT_BOOTSTRAP%"=="x" (
++		for /f "tokens=*" %%i in ('%%g env GOROOT 2^>nul') do (
++			if /I not %%i==%GOROOT_TEMP% (
++				set GOROOT_BOOTSTRAP=%%i
++			)
++		)
++	)
++)
++if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
++
++:bootstrapset
++if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
++set GOROOT=%GOROOT_TEMP%
++set GOROOT_TEMP=
++
++echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%
++if x%vflag==x-v echo cmd/dist
++setlocal
++set GOROOT=%GOROOT_BOOTSTRAP%
++set GOOS=
++set GOARCH=
++set GOBIN=
++set GO111MODULE=off
++"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
++endlocal
++if errorlevel 1 goto fail
++.\cmd\dist\dist.exe env -w -p >env.bat
++if errorlevel 1 goto fail
++call env.bat
++del env.bat
++if x%vflag==x-v echo.
++
++if x%1==x--dist-tool goto copydist
++if x%2==x--dist-tool goto copydist
++if x%3==x--dist-tool goto copydist
++if x%4==x--dist-tool goto copydist
++
++set buildall=-a
++if x%1==x--no-clean set buildall=
++if x%2==x--no-clean set buildall=
++if x%3==x--no-clean set buildall=
++if x%4==x--no-clean set buildall=
++if x%1==x--no-banner set buildall=%buildall% --no-banner
++if x%2==x--no-banner set buildall=%buildall% --no-banner
++if x%3==x--no-banner set buildall=%buildall% --no-banner
++if x%4==x--no-banner set buildall=%buildall% --no-banner
++
++:: Run dist bootstrap to complete make.bash.
++:: Bootstrap installs a proper cmd/dist, built with the new toolchain.
++:: Throw ours, built with Go 1.4, away after bootstrap.
++.\cmd\dist\dist.exe bootstrap %vflag% %buildall%
++if errorlevel 1 goto fail
++del .\cmd\dist\dist.exe
++goto end
++
++:: DO NOT ADD ANY NEW CODE HERE.
++:: The bootstrap+del above are the final step of make.bat.
++:: If something must be added, add it to cmd/dist's cmdbootstrap,
++:: to avoid needing three copies in three different shell languages
++:: (make.bash, make.bat, make.rc).
++
++:copydist
++mkdir "%GOTOOLDIR%" 2>NUL
++copy cmd\dist\dist.exe "%GOTOOLDIR%\"
++goto end
++
++:bootstrapfail
++echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
++echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go 1.4.
++
++:fail
++set GOBUILDFAIL=1
++if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
++
++:end
+diff --git a/src/race.bat b/src/race.bat
+index d26f3180a3..8f0355612c 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -1,51 +1,51 @@
+-:: Copyright 2013 The Go Authors. All rights reserved.
+-:: Use of this source code is governed by a BSD-style
+-:: license that can be found in the LICENSE file.
+-
+-:: race.bash tests the standard library under the race detector.
+-:: https://golang.org/doc/articles/race_detector.html
+-
+-@echo off
+-
+-setlocal
+-
+-if exist make.bat goto ok
+-echo race.bat must be run from go\src
+-:: cannot exit: would kill parent command interpreter
+-goto end
+-:ok
+-
+-set GOROOT=%CD%\..
+-call make.bat --dist-tool >NUL
+-if errorlevel 1 goto fail
+-.\cmd\dist\dist.exe env -w -p >env.bat
+-if errorlevel 1 goto fail
+-call env.bat
+-del env.bat
+-
+-if %GOHOSTARCH% == amd64 goto continue
+-echo Race detector is only supported on windows/amd64.
+-goto fail
+-
+-:continue
+-call make.bat --no-banner --no-local
+-if %GOBUILDFAIL%==1 goto end
+-echo # go install -race std
+-go install -race std
+-if errorlevel 1 goto fail
+-
+-go tool dist test -race
+-
+-if errorlevel 1 goto fail
+-goto succ
+-
+-:fail
+-set GOBUILDFAIL=1
+-echo Fail.
+-goto end
+-
+-:succ
+-echo All tests passed.
+-
+-:end
+-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
++:: Copyright 2013 The Go Authors. All rights reserved.
++:: Use of this source code is governed by a BSD-style
++:: license that can be found in the LICENSE file.
++
++:: race.bash tests the standard library under the race detector.
++:: https://golang.org/doc/articles/race_detector.html
++
++@echo off
++
++setlocal
++
++if exist make.bat goto ok
++echo race.bat must be run from go\src
++:: cannot exit: would kill parent command interpreter
++goto end
++:ok
++
++set GOROOT=%CD%\..
++call make.bat --dist-tool >NUL
++if errorlevel 1 goto fail
++.\cmd\dist\dist.exe env -w -p >env.bat
++if errorlevel 1 goto fail
++call env.bat
++del env.bat
++
++if %GOHOSTARCH% == amd64 goto continue
++echo Race detector is only supported on windows/amd64.
++goto fail
++
++:continue
++call make.bat --no-banner --no-local
++if %GOBUILDFAIL%==1 goto end
++echo # go install -race std
++go install -race std
++if errorlevel 1 goto fail
++
++go tool dist test -race
++
++if errorlevel 1 goto fail
++goto succ
++
++:fail
++set GOBUILDFAIL=1
++echo Fail.
++goto end
++
++:succ
++echo All tests passed.
++
++:end
++if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
+diff --git a/src/run.bat b/src/run.bat
+index 69c181854b..90602b68cb 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -1,59 +1,59 @@
+-:: Copyright 2012 The Go Authors. All rights reserved.
+-:: Use of this source code is governed by a BSD-style
+-:: license that can be found in the LICENSE file.
+-
+-@echo off
+-
+-if exist ..\bin\go.exe goto ok
+-echo Must run run.bat from Go src directory after installing cmd/go.
+-goto fail
+-:ok
+-
+-:: Keep environment variables within this script
+-:: unless invoked with --no-local.
+-if x%1==x--no-local goto nolocal
+-if x%2==x--no-local goto nolocal
+-setlocal
+-:nolocal
+-
+-set GOBUILDFAIL=0
+-
+-:: we disallow local import for non-local packages, if %GOROOT% happens
+-:: to be under %GOPATH%, then some tests below will fail
+-set GOPATH=
+-:: Issue 14340: ignore GOBIN during all.bat.
+-set GOBIN=
+-set GOFLAGS=
+-set GO111MODULE=
+-
+-rem TODO avoid rebuild if possible
+-
+-if x%1==x--no-rebuild goto norebuild
+-echo ##### Building packages and commands.
+-..\bin\go install -a -v std cmd
+-if errorlevel 1 goto fail
+-echo.
+-:norebuild
+-
+-:: we must unset GOROOT_FINAL before tests, because runtime/debug requires
+-:: correct access to source code, so if we have GOROOT_FINAL in effect,
+-:: at least runtime/debug test will fail.
+-set GOROOT_FINAL=
+-
+-:: get CGO_ENABLED
+-..\bin\go env > env.bat
+-if errorlevel 1 goto fail
+-call env.bat
+-del env.bat
+-echo.
+-
+-..\bin\go tool dist test
+-if errorlevel 1 goto fail
+-echo.
+-
+-goto end
+-
+-:fail
+-set GOBUILDFAIL=1
+-
+-:end
++:: Copyright 2012 The Go Authors. All rights reserved.
++:: Use of this source code is governed by a BSD-style
++:: license that can be found in the LICENSE file.
++
++@echo off
++
++if exist ..\bin\go.exe goto ok
++echo Must run run.bat from Go src directory after installing cmd/go.
++goto fail
++:ok
++
++:: Keep environment variables within this script
++:: unless invoked with --no-local.
++if x%1==x--no-local goto nolocal
++if x%2==x--no-local goto nolocal
++setlocal
++:nolocal
++
++set GOBUILDFAIL=0
++
++:: we disallow local import for non-local packages, if %GOROOT% happens
++:: to be under %GOPATH%, then some tests below will fail
++set GOPATH=
++:: Issue 14340: ignore GOBIN during all.bat.
++set GOBIN=
++set GOFLAGS=
++set GO111MODULE=
++
++rem TODO avoid rebuild if possible
++
++if x%1==x--no-rebuild goto norebuild
++echo ##### Building packages and commands.
++..\bin\go install -a -v std cmd
++if errorlevel 1 goto fail
++echo.
++:norebuild
++
++:: we must unset GOROOT_FINAL before tests, because runtime/debug requires
++:: correct access to source code, so if we have GOROOT_FINAL in effect,
++:: at least runtime/debug test will fail.
++set GOROOT_FINAL=
++
++:: get CGO_ENABLED
++..\bin\go env > env.bat
++if errorlevel 1 goto fail
++call env.bat
++del env.bat
++echo.
++
++..\bin\go tool dist test
++if errorlevel 1 goto fail
++echo.
++
++goto end
++
++:fail
++set GOBUILDFAIL=1
++
++:end
+diff --git a/test/winbatch.go b/test/winbatch.go
+index 30e0e3c982..c3b48d385c 100644
+--- a/test/winbatch.go
++++ b/test/winbatch.go
+@@ -4,8 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check that batch files are maintained as CRLF files (consistent behaviour
+-// on all operating systems). See https://github.com/golang/go/issues/37791
++// Check that batch files are maintained as CRLF files (consistent
++// behavior on all operating systems). See golang.org/issue/37791.
+ 
+ package main
+ 
+@@ -13,18 +13,56 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io/ioutil"
++	"log"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ )
+ 
+ func main() {
+-	batches, _ := filepath.Glob(runtime.GOROOT() + "/src/*.bat")
+-	for _, bat := range batches {
+-		body, _ := ioutil.ReadFile(bat)
+-		if !bytes.Contains(body, []byte("\r\n")) {
+-			fmt.Printf("Windows batch file %s does not contain CRLF line termination.\nTry running git checkout src/*.bat to fix this.\n", bat)
+-			os.Exit(1)
++	// Ensure that the GOROOT/src/all.bat file exists and has strict CRLF line endings.
++	enforceBatchStrictCRLF(filepath.Join(runtime.GOROOT(), "src", "all.bat"))
++
++	// Walk the entire Go repository source tree (without GOROOT/pkg),
++	// skipping directories that start with "." and named "testdata",
++	// and ensure all .bat files found have exact CRLF line endings.
++	err := filepath.Walk(runtime.GOROOT(), func(path string, fi os.FileInfo, err error) error {
++		if err != nil {
++			return err
++		}
++		if fi.IsDir() && (strings.HasPrefix(fi.Name(), ".") || fi.Name() == "testdata") {
++			return filepath.SkipDir
++		}
++		if path == filepath.Join(runtime.GOROOT(), "pkg") {
++			// GOROOT/pkg is known to contain generated artifacts, not source code.
++			// Skip it to avoid false positives. (Also see golang.org/issue/37929.)
++			return filepath.SkipDir
++		}
++		if filepath.Ext(fi.Name()) == ".bat" {
++			enforceBatchStrictCRLF(path)
++		}
++		return nil
++	})
++	if err != nil {
++		log.Fatalln(err)
++	}
++}
++
++func enforceBatchStrictCRLF(path string) {
++	b, err := ioutil.ReadFile(path)
++	if err != nil {
++		log.Fatalln(err)
++	}
++	cr, lf := bytes.Count(b, []byte{13}), bytes.Count(b, []byte{10})
++	crlf := bytes.Count(b, []byte{13, 10})
++	if cr != crlf || lf != crlf {
++		if rel, err := filepath.Rel(runtime.GOROOT(), path); err == nil {
++			// Make the test failure more readable by showing a path relative to GOROOT.
++			path = rel
+ 		}
++		fmt.Printf("Windows batch file %s does not use strict CRLF line termination.\n", path)
++		fmt.Printf("Please convert it to CRLF before checking it in due to golang.org/issue/37791.\n")
++		os.Exit(1)
+ 	}
+ }

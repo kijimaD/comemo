@@ -13,7 +13,140 @@ Date:   Tue Sep 12 16:45:26 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/63275
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/issue7978.go |  9 ++------
  src/cmd/dist/test.go       | 54 ++++++++++++----------------------------------
  2 files changed, 16 insertions(+), 47 deletions(-)
+
+diff --git a/misc/cgo/test/issue7978.go b/misc/cgo/test/issue7978.go
+index 7fb62e807b..b057e3eacb 100644
+--- a/misc/cgo/test/issue7978.go
++++ b/misc/cgo/test/issue7978.go
+@@ -44,8 +44,8 @@ static void issue7978c(uint32_t *sync) {
+ import "C"
+ 
+ import (
+-	"os"
+ 	"runtime"
++	"runtime/debug"
+ 	"strings"
+ 	"sync/atomic"
+ 	"testing"
+@@ -114,12 +114,7 @@ func test7978(t *testing.T) {
+ 	if C.HAS_SYNC_FETCH_AND_ADD == 0 {
+ 		t.Skip("clang required for __sync_fetch_and_add support on darwin/arm")
+ 	}
+-	if runtime.GOOS == "android" || runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+-		t.Skip("GOTRACEBACK is not passed on to the exec wrapper")
+-	}
+-	if os.Getenv("GOTRACEBACK") != "2" {
+-		t.Fatalf("GOTRACEBACK must be 2")
+-	}
++	debug.SetTraceback("2")
+ 	issue7978sync = 0
+ 	go issue7978go()
+ 	// test in c code, before callback
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 4b46f7f1a3..89cec9ae54 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -874,14 +874,10 @@ func (t *tester) runHostTest(dir, pkg string) error {
+ }
+ 
+ func (t *tester) cgoTest(dt *distTest) error {
+-	env := append(os.Environ(), "GOTRACEBACK=2")
+-
+-	cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
+-	cmd.Env = env
++	t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
+ 
+ 	if t.internalLink() {
+-		cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=internal", t.runFlag(""))
+-		cmd.Env = env
++		t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=internal", t.runFlag(""))
+ 	}
+ 
+ 	pair := t.gohostos + "-" + t.goarch
+@@ -893,24 +889,17 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 		if !t.extLink() {
+ 			break
+ 		}
+-		cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
+-		cmd.Env = env
+-		cmd = t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external -s")
+-		cmd.Env = env
++		t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
++		t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external -s")
+ 	case "android-arm",
+ 		"dragonfly-386", "dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+ 		"linux-386", "linux-amd64", "linux-arm", "linux-ppc64le", "linux-s390x",
+ 		"netbsd-386", "netbsd-amd64":
+ 
+-		cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
+-		cmd.Env = env
+-
+-		cmd = t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", "-linkmode=auto")
+-		cmd.Env = env
+-
+-		cmd = t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", "-linkmode=external")
+-		cmd.Env = env
++		t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
++		t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", "-linkmode=auto")
++		t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", "-linkmode=external")
+ 
+ 		switch pair {
+ 		case "netbsd-386", "netbsd-amd64":
+@@ -925,45 +914,30 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 			cc := mustEnv("CC")
+ 			cmd := t.dirCmd("misc/cgo/test",
+ 				cc, "-xc", "-o", "/dev/null", "-static", "-")
+-			cmd.Env = env
+ 			cmd.Stdin = strings.NewReader("int main() {}")
+ 			if err := cmd.Run(); err != nil {
+ 				fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
+ 			} else {
+ 				if t.goos != "android" {
+-					cmd = t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+-					cmd.Env = env
++					t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+ 				}
+-
+-				cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test")
+-				cmd.Env = env
+-
+-				cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external`)
+-				cmd.Env = env
+-
++				t.addCmd(dt, "misc/cgo/nocgo", "go", "test")
++				t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external`)
+ 				if t.goos != "android" {
+-					cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+-					cmd.Env = env
++					t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+ 				}
+ 			}
+ 
+ 			if pair != "freebsd-amd64" { // clang -pie fails to link misc/cgo/test
+ 				cmd := t.dirCmd("misc/cgo/test",
+ 					cc, "-xc", "-o", "/dev/null", "-pie", "-")
+-				cmd.Env = env
+ 				cmd.Stdin = strings.NewReader("int main() {}")
+ 				if err := cmd.Run(); err != nil {
+ 					fmt.Println("No support for -pie found, skip cgo PIE test.")
+ 				} else {
+-					cmd = t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", `-linkmode=external -extldflags "-pie"`)
+-					cmd.Env = env
+-
+-					cmd = t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-pie"`)
+-					cmd.Env = env
+-
+-					cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-pie"`)
+-					cmd.Env = env
+-
++					t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", `-linkmode=external -extldflags "-pie"`)
++					t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-pie"`)
++					t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-pie"`)
+ 				}
+ 			}
+ 		}

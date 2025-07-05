@@ -16,8 +16,93 @@ Date:   Tue Jun 8 15:53:08 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/list/list.go                   | 14 ++++++--
  src/cmd/go/internal/load/pkg.go                    |  4 +--
  .../script/list_cgo_compiled_importmap.txt         | 38 ++++++++++++++++++++++
  3 files changed, 52 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 53aaf311ec..7cb9ec6d94 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -724,8 +724,18 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	// Record non-identity import mappings in p.ImportMap.
+ 	for _, p := range pkgs {
+-		for i, srcPath := range p.Internal.RawImports {
+-			path := p.Imports[i]
++		nRaw := len(p.Internal.RawImports)
++		for i, path := range p.Imports {
++			var srcPath string
++			if i < nRaw {
++				srcPath = p.Internal.RawImports[i]
++			} else {
++				// This path is not within the raw imports, so it must be an import
++				// found only within CompiledGoFiles. Those paths are found in
++				// CompiledImports.
++				srcPath = p.Internal.CompiledImports[i-nRaw]
++			}
++
+ 			if path != srcPath {
+ 				if p.ImportMap == nil {
+ 					p.ImportMap = make(map[string]string)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 738904865e..a83cc9a812 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -194,8 +194,8 @@ type PackageInternal struct {
+ 	// Unexported fields are not part of the public API.
+ 	Build             *build.Package
+ 	Imports           []*Package           // this package's direct imports
+-	CompiledImports   []string             // additional Imports necessary when using CompiledGoFiles (all from standard library)
+-	RawImports        []string             // this package's original imports as they appear in the text of the program
++	CompiledImports   []string             // additional Imports necessary when using CompiledGoFiles (all from standard library); 1:1 with the end of PackagePublic.Imports
++	RawImports        []string             // this package's original imports as they appear in the text of the program; 1:1 with the end of PackagePublic.Imports
+ 	ForceLibrary      bool                 // this package is a library (even if named "main")
+ 	CmdlineFiles      bool                 // package built from files listed on command line
+ 	CmdlinePkg        bool                 // package listed on command line
+diff --git a/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt b/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt
+new file mode 100644
+index 0000000000..3d68ef3055
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt
+@@ -0,0 +1,38 @@
++# Regression test for https://golang.org/issue/46462.
++#
++# The "runtime/cgo" import found in synthesized .go files (reported in
++# the CompiledGoFiles field) should have a corresponding entry in the
++# ImportMap field when a runtime/cgo variant (such as a test variant)
++# will be used.
++
++[short] skip  # -compiled can be slow (because it compiles things)
++[!cgo] skip
++
++env CGO_ENABLED=1
++env GOFLAGS=-tags=netcgo  # Force net to use cgo even on Windows.
++
++
++# "runtime/cgo [runtime.test]" appears in the the test dependencies of "runtime",
++# because "runtime/cgo" itself depends on "runtime"
++
++go list -deps -test -compiled -f '{{if eq .ImportPath "net [runtime.test]"}}{{printf "%q" .Imports}}{{end}}' runtime
++
++	# Control case: the explicitly-imported package "sync" is a test variant,
++	# because "sync" depends on "runtime".
++stdout '"sync \[runtime\.test\]"'
++! stdout '"sync"'
++
++	# Experiment: the implicitly-imported package "runtime/cgo" is also a test variant,
++	# because "runtime/cgo" also depends on "runtime".
++stdout '"runtime/cgo \[runtime\.test\]"'
++! stdout '"runtime/cgo"'
++
++
++# Because the import of "runtime/cgo" in the cgo-generated file actually refers
++# to "runtime/cgo [runtime.test]", the latter should be listed in the ImportMap.
++# BUG(#46462): Today, it is not.
++
++go list -deps -test -compiled -f '{{if eq .ImportPath "net [runtime.test]"}}{{printf "%q" .ImportMap}}{{end}}' runtime
++
++stdout '"sync":"sync \[runtime\.test\]"'                # control
++stdout '"runtime/cgo":"runtime/cgo \[runtime\.test\]"'  # experiment

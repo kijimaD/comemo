@@ -7,6 +7,22 @@ Date:   Fri Jan 13 11:47:55 2012 -0800
     R=golang-dev, bradfitz, r, rsc
     CC=golang-dev
     https://golang.org/cl/5539056
-
+---
  src/pkg/time/format.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index cbcde5b637..bd02b48672 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -335,10 +335,6 @@ func (b *buffer) WriteString(s string) {
+ 	*b = append(*b, s...)
+ }
+ 
+-func (b *buffer) WriteByte(c byte) {
+-	*b = append(*b, c)
+-}
+-
+ func (b *buffer) String() string {
+ 	return string([]byte(*b))
+ }

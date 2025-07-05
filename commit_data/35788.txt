@@ -12,7 +12,45 @@ Date:   Fri Mar 9 01:31:50 2018 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 12 ++++++++++++
  src/net/http/server.go     |  3 +++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 2fa3bc664f..be465dd35e 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -379,6 +379,18 @@ func TestServeMuxHandler(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 24297
++func TestServeMuxHandleFuncWithNilHandler(t *testing.T) {
++	setParallel(t)
++	defer func() {
++		if err := recover(); err == nil {
++			t.Error("expected call to mux.HandleFunc to panic")
++		}
++	}()
++	mux := NewServeMux()
++	mux.HandleFunc("/", nil)
++}
++
+ var serveMuxTests2 = []struct {
+ 	method  string
+ 	host    string
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index a7ba753bf5..c04eb42fef 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2358,6 +2358,9 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 
+ // HandleFunc registers the handler function for the given pattern.
+ func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
++	if handler == nil {
++		panic("http: nil handler")
++	}
+ 	mux.Handle(pattern, HandlerFunc(handler))
+ }
+ 

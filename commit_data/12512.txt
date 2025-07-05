@@ -7,6 +7,29 @@ Date:   Wed Mar 7 22:17:40 2012 -0800
     R=r, rsc, iant, ken
     CC=golang-dev
     https://golang.org/cl/5781048
-
+---
  doc/go_spec.html | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ebd79bb809..04b9b244ce 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of March 1, 2012",
++	"Subtitle": "Version of March 7, 2012",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -5499,9 +5499,3 @@ The following minimal alignment properties are guaranteed:
+ <p>
+ A struct or array type has size zero if it contains no fields (or elements, respectively) that have a size greater than zero. Two distinct zero-size variables may have the same address in memory.
+ </p>
+-
+-
+-<h2 id="Implementation_differences">Implementation differences - TODO</h2>
+-<ul>
+-	<li><span class="alert"><code>len(x)</code> is only a constant if <code>x</code> is a (qualified) identifier denoting an array or pointer to an array.</span></li>
+-</ul>

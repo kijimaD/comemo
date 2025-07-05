@@ -19,7 +19,119 @@ Date:   Fri Jun 14 08:59:43 2013 -0700
     R=golang-dev, iant, cespare, rsc, dave, rogpeppe, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/10079043
-
+---
  src/pkg/net/lookup.go       | 27 ++++++++++++++++++++---
  src/pkg/net/singleflight.go | 53 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 77 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/lookup.go b/src/pkg/net/lookup.go
+index bec93ec08c..28d439d643 100644
+--- a/src/pkg/net/lookup.go
++++ b/src/pkg/net/lookup.go
+@@ -8,15 +8,36 @@ import (
+ 	"time"
+ )
+ 
++var lookupGroup singleflight
++
++// lookupHostMerge wraps lookupHost, but makes sure that for any given
++// host, only one lookup is in-flight at a time. The returned memory
++// is always owned by the caller.
++func lookupHostMerge(host string) (addrs []string, err error) {
++	addrsi, err, shared := lookupGroup.Do(host, func() (interface{}, error) {
++		return lookupHost(host)
++	})
++	if err != nil {
++		return nil, err
++	}
++	addrs = addrsi.([]string)
++	if shared {
++		clone := make([]string, len(addrs))
++		copy(clone, addrs)
++		addrs = clone
++	}
++	return addrs, nil
++}
++
+ // LookupHost looks up the given host using the local resolver.
+ // It returns an array of that host's addresses.
+ func LookupHost(host string) (addrs []string, err error) {
+-	return lookupHost(host)
++	return lookupHostMerge(host)
+ }
+ 
+ func lookupHostDeadline(host string, deadline time.Time) (addrs []string, err error) {
+ 	if deadline.IsZero() {
+-		return lookupHost(host)
++		return lookupHostMerge(host)
+ 	}
+ 
+ 	// TODO(bradfitz): consider pushing the deadline down into the
+@@ -39,7 +60,7 @@ func lookupHostDeadline(host string, deadline time.Time) (addrs []string, err er
+ 	}
+ 	resc := make(chan res, 1)
+ 	go func() {
+-		a, err := lookupHost(host)
++		a, err := lookupHostMerge(host)
+ 		resc <- res{a, err}
+ 	}()
+ 	select {
+diff --git a/src/pkg/net/singleflight.go b/src/pkg/net/singleflight.go
+new file mode 100644
+index 0000000000..dc58affdaa
+--- /dev/null
++++ b/src/pkg/net/singleflight.go
+@@ -0,0 +1,53 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "sync"
++
++// call is an in-flight or completed singleflight.Do call
++type call struct {
++	wg   sync.WaitGroup
++	val  interface{}
++	err  error
++	dups int
++}
++
++// singleflight represents a class of work and forms a namespace in
++// which units of work can be executed with duplicate suppression.
++type singleflight struct {
++	mu sync.Mutex       // protects m
++	m  map[string]*call // lazily initialized
++}
++
++// Do executes and returns the results of the given function, making
++// sure that only one execution is in-flight for a given key at a
++// time. If a duplicate comes in, the duplicate caller waits for the
++// original to complete and receives the same results.
++// The return value shared indicates whether v was given to multiple callers.
++func (g *singleflight) Do(key string, fn func() (interface{}, error)) (v interface{}, err error, shared bool) {
++	g.mu.Lock()
++	if g.m == nil {
++		g.m = make(map[string]*call)
++	}
++	if c, ok := g.m[key]; ok {
++		c.dups++
++		g.mu.Unlock()
++		c.wg.Wait()
++		return c.val, c.err, true
++	}
++	c := new(call)
++	c.wg.Add(1)
++	g.m[key] = c
++	g.mu.Unlock()
++
++	c.val, c.err = fn()
++	c.wg.Done()
++
++	g.mu.Lock()
++	delete(g.m, key)
++	g.mu.Unlock()
++
++	return c.val, c.err, c.dups > 0
++}

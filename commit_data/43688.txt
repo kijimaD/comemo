@@ -9,6 +9,19 @@ Date:   Sun Apr 19 17:56:27 2020 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/types/check.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index b599df1c50..71d49ad83d 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -316,7 +316,6 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
+ 	if mode == invalid {
+ 		return // omit
+ 	}
+-	assert(typ != nil)
+ 	if mode == constant_ {
+ 		assert(val != nil)
+ 		assert(typ == Typ[Invalid] || isConstType(typ))

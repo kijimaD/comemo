@@ -13,6 +13,22 @@ Date:   Wed Nov 16 17:33:03 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/path/filepath/path_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 771416770e..89fd6cb5a2 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -167,10 +167,8 @@ var winislocaltests = []IsLocalTest{
+ 	{"NUL", false},
+ 	{"nul", false},
+ 	{"nul.", false},
+-	{"nul.txt", false},
+ 	{"com1", false},
+ 	{"./nul", false},
+-	{"a/nul.txt/b", false},
+ 	{`\`, false},
+ 	{`\a`, false},
+ 	{`C:`, false},

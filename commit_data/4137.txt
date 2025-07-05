@@ -8,8 +8,77 @@ Date:   Wed Nov 18 15:00:02 2009 -0800
     
     R=ken2, rsc
     https://golang.org/cl/156086
-
+---
  src/pkg/runtime/386/memmove.s   | 5 +++--
  src/pkg/runtime/amd64/memmove.s | 5 +++--
  src/pkg/runtime/arm/memmove.s   | 3 +--
  3 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/386/memmove.s b/src/pkg/runtime/386/memmove.s
+index 4862456218..8adb687c52 100644
+--- a/src/pkg/runtime/386/memmove.s
++++ b/src/pkg/runtime/386/memmove.s
+@@ -23,11 +23,12 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-	TEXT	memmove(SB), $0
++	TEXT	memmove(SB), 7, $0
+ 
+ 	MOVL	to+0(FP), DI
+ 	MOVL	fr+4(FP), SI
+ 	MOVL	n+8(FP), BX
++	CMPL	BX, $0
+ 	JLT	fault
+ 
+ /*
+@@ -38,7 +39,7 @@
+ 	JLS	back
+ 
+ /*
+- * foreward copy loop
++ * forward copy loop
+  */
+ 	MOVL	BX, CX
+ 	SHRL	$2, CX
+diff --git a/src/pkg/runtime/amd64/memmove.s b/src/pkg/runtime/amd64/memmove.s
+index e0a03d6def..d755580dc5 100644
+--- a/src/pkg/runtime/amd64/memmove.s
++++ b/src/pkg/runtime/amd64/memmove.s
+@@ -23,11 +23,12 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-	TEXT	memmove(SB), $0
++	TEXT	memmove(SB), 7, $0
+ 
+ 	MOVQ	to+0(FP), DI
+ 	MOVQ	fr+8(FP), SI
+ 	MOVLQSX	n+16(FP), BX
++	CMPQ	BX, $0
+ 	JLT	fault
+ 
+ /*
+@@ -38,7 +39,7 @@
+ 	JLS	back
+ 
+ /*
+- * foreward copy loop
++ * forward copy loop
+  */
+ 	MOVQ	BX, CX
+ 	SHRQ	$3, CX
+diff --git a/src/pkg/runtime/arm/memmove.s b/src/pkg/runtime/arm/memmove.s
+index 38cccc769a..bf172680c1 100644
+--- a/src/pkg/runtime/arm/memmove.s
++++ b/src/pkg/runtime/arm/memmove.s
+@@ -30,8 +30,7 @@ N = 3
+ TMP = 3					/* N and TMP don't overlap */
+ TMP1 = 4
+ 
+-TEXT	memcpy(SB), $0
+-TEXT memmove(SB), $-4
++TEXT memmove(SB), 7, $-4
+ _memmove:
+ 	MOVW	R(TS), to+0(FP)		/* need to save for return value */
+ 	MOVW	from+4(FP), R(FROM)

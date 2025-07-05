@@ -7,9 +7,88 @@ Date:   Mon Apr 20 09:33:25 2015 -0400
     Change-Id: I0d3f9841500e0a41f1c427244869bf3736a31e18
     Reviewed-on: https://go-review.googlesource.com/9075
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  misc/cgo/testcarchive/main.c             |  1 +
  misc/cgo/testcarchive/src/libgo/libgo.go |  6 ++----
  misc/cgo/testcarchive/test.bash          |  2 +-
  src/cmd/dist/test.go                     | 12 +++++++++---
  4 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main.c b/misc/cgo/testcarchive/main.c
+index 6e39d84924..b553a3ae50 100644
+--- a/misc/cgo/testcarchive/main.c
++++ b/misc/cgo/testcarchive/main.c
+@@ -31,5 +31,6 @@ int main(void) {
+ 
+ 	CheckArgs();
+ 
++	fprintf(stderr, "PASS\n");
+ 	return 0;
+ }
+diff --git a/misc/cgo/testcarchive/src/libgo/libgo.go b/misc/cgo/testcarchive/src/libgo/libgo.go
+index 8116b31282..45958a546c 100644
+--- a/misc/cgo/testcarchive/src/libgo/libgo.go
++++ b/misc/cgo/testcarchive/src/libgo/libgo.go
+@@ -7,7 +7,6 @@ package main
+ import (
+ 	"fmt"
+ 	"os"
+-	"reflect"
+ 	"syscall"
+ 	"time"
+ 
+@@ -47,9 +46,8 @@ func DidMainRun() bool { return ranMain }
+ 
+ //export CheckArgs
+ func CheckArgs() {
+-	want := []string{"./testp", "arg1", "arg2"}
+-	if !reflect.DeepEqual(want, os.Args) {
+-		fmt.Printf("CheckArgs: want %v, got: %v\n", want, os.Args)
++	if len(os.Args) != 3 || os.Args[1] != "arg1" || os.Args[2] != "arg2" {
++		fmt.Printf("CheckArgs: want [_, arg1, arg2], got: %v\n", os.Args)
+ 		os.Exit(2)
+ 	}
+ }
+diff --git a/misc/cgo/testcarchive/test.bash b/misc/cgo/testcarchive/test.bash
+index 5705725818..adcd88e39b 100755
+--- a/misc/cgo/testcarchive/test.bash
++++ b/misc/cgo/testcarchive/test.bash
+@@ -10,7 +10,7 @@ if [ "$(go env GOOS)" == "darwin" ]; then
+ 	ccargs="-Wl,-no_pie"
+ 	# For darwin/arm.
+ 	# TODO(crawshaw): Can we do better?
+-	ccargs="$ccargs -framework CoreFoundation"
++	ccargs="$ccargs -framework CoreFoundation -framework Foundation"
+ fi
+ 
+ # TODO(crawshaw): Consider a go env for exec script name.
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index efdebce3b5..8a0c692f1a 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -352,6 +352,7 @@ func (t *tester) extLink() bool {
+ 	pair := t.gohostos + "-" + t.goarch
+ 	switch pair {
+ 	case "android-arm",
++		"darwin-arm", "darwin-arm64",
+ 		"dragonfly-386", "dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+ 		"linux-386", "linux-amd64", "linux-arm",
+@@ -378,9 +379,14 @@ func (t *tester) buildmode(mode string) bool {
+ 		switch {
+ 		case !t.extLink():
+ 			return false
+-		case t.goos == "darwin" && t.goarch == "amd64":
+-			// TODO(crawshaw): add darwin/arm{,64}
+-			return true
++		case t.goos == "darwin":
++			switch t.goarch {
++			case "amd64", "arm":
++				// TODO(crawshaw): add darwin/arm64
++				return true
++			default:
++				return false
++			}
+ 		case t.goos == "linux" && (t.goarch == "amd64" || t.goarch == "386"):
+ 			return true
+ 		default:

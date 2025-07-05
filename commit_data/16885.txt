@@ -9,7 +9,108 @@ Date:   Fri Jul 26 13:54:44 2013 -0400
     R=golang-dev, dsymonds, dvyukov
     CC=golang-dev
     https://golang.org/cl/11879045
-
+---
  src/pkg/runtime/proc.c      | 18 ++++++++++++++++
  test/fixedbugs/issue5963.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 68 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 135a112f52..6e3c274560 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -160,10 +160,14 @@ extern void main·main(void);
+ 
+ static FuncVal scavenger = {runtime·MHeap_Scavenger};
+ 
++static FuncVal initDone = { runtime·unlockOSThread };
++
+ // The main goroutine.
+ void
+ runtime·main(void)
+ {
++	Defer d;
++
+ 	newm(sysmon, nil);
+ 
+ 	// Lock the main goroutine onto this, the main OS thread,
+@@ -173,10 +177,24 @@ runtime·main(void)
+ 	// by calling runtime.LockOSThread during initialization
+ 	// to preserve the lock.
+ 	runtime·lockOSThread();
++	
++	// Defer unlock so that runtime.Goexit during init does the unlock too.
++	d.fn = &initDone;
++	d.siz = 0;
++	d.link = g->defer;
++	d.argp = (void*)-1;
++	d.special = true;
++	d.free = false;
++	g->defer = &d;
++
+ 	if(m != &runtime·m0)
+ 		runtime·throw("runtime·main not on m0");
+ 	runtime·newproc1(&scavenger, nil, 0, 0, runtime·main);
+ 	main·init();
++
++	if(g->defer != &d || d.fn != &initDone)
++		runtime·throw("runtime: bad defer entry after init");
++	g->defer = d.link;
+ 	runtime·unlockOSThread();
+ 
+ 	main·main();
+diff --git a/test/fixedbugs/issue5963.go b/test/fixedbugs/issue5963.go
+new file mode 100644
+index 0000000000..190e8f4564
+--- /dev/null
++++ b/test/fixedbugs/issue5963.go
+@@ -0,0 +1,50 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to die in runtime due to init goroutine exiting while
++// locked to main thread.
++
++package main
++
++import (
++	"os"
++	"runtime"
++)
++
++func init() {
++	c := make(chan int, 1)
++	defer func() {
++		c <- 0
++	}()
++	go func() {
++		os.Exit(<-c)
++	}()
++	runtime.Goexit()
++}
++
++func main() {
++}
++
++/* Before fix:
++
++invalid m->locked = 2
++fatal error: internal lockOSThread error
++
++goroutine 2 [runnable]:
++runtime.MHeap_Scavenger()
++	/Users/rsc/g/go/src/pkg/runtime/mheap.c:438
++runtime.goexit()
++	/Users/rsc/g/go/src/pkg/runtime/proc.c:1313
++created by runtime.main
++	/Users/rsc/g/go/src/pkg/runtime/proc.c:165
++
++goroutine 3 [runnable]:
++main.func·002()
++	/Users/rsc/g/go/test/fixedbugs/issue5963.go:22
++created by main.init·1
++	/Users/rsc/g/go/test/fixedbugs/issue5963.go:24 +0xb9
++exit status 2
++*/

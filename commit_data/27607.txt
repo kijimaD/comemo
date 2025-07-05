@@ -9,6 +9,25 @@ Date:   Tue Feb 23 18:40:42 2016 -0800
     Change-Id: I6907958186f6a2427da1ad2f6c20bd5d7bf7a3f9
     Reviewed-on: https://go-review.googlesource.com/19862
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/io/io.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index f7f059ff45..6e33192052 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -16,6 +16,13 @@ import (
+ 	"errors"
+ )
+ 
++// Seek whence values.
++const (
++	SeekStart   = 0 // seek relative to the origin of the file
++	SeekCurrent = 1 // seek relative to the current offset
++	SeekEnd     = 2 // seek relative to the end
++)
++
+ // ErrShortWrite means that a write accepted fewer bytes than requested
+ // but failed to return an explicit error.
+ var ErrShortWrite = errors.New("short write")

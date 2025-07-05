@@ -18,7 +18,43 @@ Date:   Tue Feb 25 21:56:29 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/link/internal/ld/macho.go      | 4 ++--
  src/cmd/link/internal/ld/macho_test.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 93b54d81c5..45f395358a 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -461,7 +461,7 @@ func (ctxt *Link) domacho() {
+ 		sb.SetType(sym.SMACHOPLT)
+ 		sb.SetReachable(true)
+ 
+-		s = ctxt.loader.LookupOrCreateSym(".got", 0) // will be __nl_symbol_ptr
++		s = ctxt.loader.LookupOrCreateSym(".got", 0) // will be __got
+ 		sb = ctxt.loader.MakeSymbolUpdater(s)
+ 		if ctxt.UseRelro() {
+ 			sb.SetType(sym.SMACHORELROSECT)
+@@ -587,7 +587,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string)
+ 	}
+ 
+ 	if sect.Name == ".got" {
+-		msect.name = "__nl_symbol_ptr"
++		msect.name = "__got"
+ 		msect.flag = S_NON_LAZY_SYMBOL_POINTERS
+ 		msect.res1 = uint32(ctxt.loader.SymSize(ctxt.ArchSyms.LinkEditPLT) / 4) /* offset into indirect symbol table */
+ 	}
+diff --git a/src/cmd/link/internal/ld/macho_test.go b/src/cmd/link/internal/ld/macho_test.go
+index 253abd30a4..ad02731d3a 100644
+--- a/src/cmd/link/internal/ld/macho_test.go
++++ b/src/cmd/link/internal/ld/macho_test.go
+@@ -37,7 +37,7 @@ func TestMachoSectionsReadOnly(t *testing.T) {
+ 			args:             []string{"-ldflags", "-linkmode=internal"},
+ 			prog:             prog,
+ 			mustInternalLink: true,
+-			wantSecsRO:       []string{"__nl_symbol_ptr", "__rodata", "__itablink", "__typelink", "__gosymtab", "__gopclntab"},
++			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink", "__gosymtab", "__gopclntab"},
+ 		},
+ 		{
+ 			name:        "linkmode-external",

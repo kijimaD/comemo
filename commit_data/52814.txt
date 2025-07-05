@@ -84,7 +84,52 @@ Date:   Wed Oct 13 22:40:22 2021 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/regexp/backtrack.go | 2 +-
  src/regexp/exec.go      | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/regexp/backtrack.go b/src/regexp/backtrack.go
+index 41ae59bcaa..0739f5ff58 100644
+--- a/src/regexp/backtrack.go
++++ b/src/regexp/backtrack.go
+@@ -163,7 +163,7 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+ 		}
+ 	Skip:
+ 
+-		inst := re.prog.Inst[pc]
++		inst := &re.prog.Inst[pc]
+ 
+ 		switch inst.Op {
+ 		default:
+diff --git a/src/regexp/exec.go b/src/regexp/exec.go
+index 4411e4c3e6..3fc4b684fe 100644
+--- a/src/regexp/exec.go
++++ b/src/regexp/exec.go
+@@ -427,7 +427,7 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
+ 		flag = i.context(pos)
+ 	}
+ 	pc := re.onepass.Start
+-	inst := re.onepass.Inst[pc]
++	inst := &re.onepass.Inst[pc]
+ 	// If there is a simple literal prefix, skip over it.
+ 	if pos == 0 && flag.match(syntax.EmptyOp(inst.Arg)) &&
+ 		len(re.prefix) > 0 && i.canCheckPrefix() {
+@@ -442,7 +442,7 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
+ 		pc = int(re.prefixEnd)
+ 	}
+ 	for {
+-		inst = re.onepass.Inst[pc]
++		inst = &re.onepass.Inst[pc]
+ 		pc = int(inst.Out)
+ 		switch inst.Op {
+ 		default:
+@@ -470,7 +470,7 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
+ 			}
+ 		// peek at the input rune to see which branch of the Alt to take
+ 		case syntax.InstAlt, syntax.InstAltMatch:
+-			pc = int(onePassNext(&inst, r))
++			pc = int(onePassNext(inst, r))
+ 			continue
+ 		case syntax.InstFail:
+ 			goto Return

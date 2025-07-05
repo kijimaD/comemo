@@ -10,8 +10,351 @@ Date:   Thu Sep 17 10:31:16 2015 -0700
     Change-Id: If5d4f732843cc3e99bd5edda54458f0a8be73e91
     Reviewed-on: https://go-review.googlesource.com/14690
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 | 143 +++++++++++++++++++-
  src/cmd/compile/internal/gc/ssa_test.go            |   3 +
  src/cmd/compile/internal/gc/testdata/assert_ssa.go | 147 +++++++++++++++++++++
  3 files changed, 287 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c053eabcba..7268a34a12 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -259,12 +259,17 @@ func (s *state) Logf(msg string, args ...interface{})           { s.config.Logf(
+ func (s *state) Fatalf(msg string, args ...interface{})         { s.config.Fatalf(msg, args...) }
+ func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimplementedf(msg, args...) }
+ 
+-// dummy node for the memory variable
+-var memvar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
+-
+-// dummy nodes for temporary variables
+-var ptrvar = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
+-var capvar = Node{Op: ONAME, Sym: &Sym{Name: "cap"}}
++var (
++	// dummy node for the memory variable
++	memvar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
++
++	// dummy nodes for temporary variables
++	ptrvar   = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
++	capvar   = Node{Op: ONAME, Sym: &Sym{Name: "cap"}}
++	typVar   = Node{Op: ONAME, Sym: &Sym{Name: "typ"}}
++	idataVar = Node{Op: ONAME, Sym: &Sym{Name: "idata"}}
++	okVar    = Node{Op: ONAME, Sym: &Sym{Name: "ok"}}
++)
+ 
+ // startBlock sets the current block we're generating code in to b.
+ func (s *state) startBlock(b *ssa.Block) {
+@@ -474,6 +479,12 @@ func (s *state) stmt(n *Node) {
+ 	case OPROC:
+ 		s.call(n.Left, callGo)
+ 
++	case OAS2DOTTYPE:
++		res, resok := s.dottype(n.Rlist.N, true)
++		s.assign(n.List.N, res, false)
++		s.assign(n.List.Next.N, resok, false)
++		return
++
+ 	case ODCL:
+ 		if n.Left.Class&PHEAP == 0 {
+ 			return
+@@ -1471,6 +1482,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
+ 		return nil
+ 
++	case ODOTTYPE:
++		res, _ := s.dottype(n, false)
++		return res
++
+ 	// binary ops
+ 	case OLT, OEQ, ONE, OLE, OGE, OGT:
+ 		a := s.expr(n.Left)
+@@ -2723,6 +2738,122 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ 	return s.variable(n, n.Type)
+ }
+ 
++// ifaceType returns the value for the word containing the type.
++// n is the node for the interface expression.
++// v is the corresponding value.
++func (s *state) ifaceType(n *Node, v *ssa.Value) *ssa.Value {
++	byteptr := Ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
++
++	if isnilinter(n.Type) {
++		// Have *eface. The type is the first word in the struct.
++		return s.newValue1(ssa.OpITab, byteptr, v)
++	}
++
++	// Have *iface.
++	// The first word in the struct is the *itab.
++	// If the *itab is nil, return 0.
++	// Otherwise, the second word in the *itab is the type.
++
++	tab := s.newValue1(ssa.OpITab, byteptr, v)
++	s.vars[&typVar] = tab
++	isnonnil := s.newValue2(ssa.OpNeqPtr, Types[TBOOL], tab, s.entryNewValue0(ssa.OpConstNil, byteptr))
++	b := s.endBlock()
++	b.Kind = ssa.BlockIf
++	b.Control = isnonnil
++	b.Likely = ssa.BranchLikely
++
++	bLoad := s.f.NewBlock(ssa.BlockPlain)
++	bEnd := s.f.NewBlock(ssa.BlockPlain)
++
++	b.AddEdgeTo(bLoad)
++	b.AddEdgeTo(bEnd)
++	bLoad.AddEdgeTo(bEnd)
++
++	s.startBlock(bLoad)
++	off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), tab)
++	s.vars[&typVar] = s.newValue2(ssa.OpLoad, byteptr, off, s.mem())
++	s.endBlock()
++
++	s.startBlock(bEnd)
++	typ := s.variable(&typVar, byteptr)
++	delete(s.vars, &typVar)
++	return typ
++}
++
++// dottype generates SSA for a type assertion node.
++// commaok indicates whether to panic or return a bool.
++// If commaok is false, resok will be nil.
++func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
++	iface := s.expr(n.Left)
++	typ := s.ifaceType(n.Left, iface)  // actual concrete type
++	target := s.expr(typename(n.Type)) // target type
++	if !isdirectiface(n.Type) {
++		// walk rewrites ODOTTYPE/OAS2DOTTYPE into runtime calls except for this case.
++		Fatalf("dottype needs a direct iface type %s", n.Type)
++	}
++
++	// TODO:  If we have a nonempty interface and its itab field is nil,
++	// then this test is redundant and ifaceType should just branch directly to bFail.
++	cond := s.newValue2(ssa.OpEqPtr, Types[TBOOL], typ, target)
++	b := s.endBlock()
++	b.Kind = ssa.BlockIf
++	b.Control = cond
++	b.Likely = ssa.BranchLikely
++
++	byteptr := Ptrto(Types[TUINT8])
++
++	bOk := s.f.NewBlock(ssa.BlockPlain)
++	bFail := s.f.NewBlock(ssa.BlockPlain)
++	b.AddEdgeTo(bOk)
++	b.AddEdgeTo(bFail)
++
++	if !commaok {
++		// on failure, panic by calling panicdottype
++		s.startBlock(bFail)
++
++		spplus1 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
++		spplus2 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(2*Widthptr), s.sp)
++		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{byteptr, typenamesym(n.Left.Type)}, s.sb)
++		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, typ, s.mem())       // actual dynamic type
++		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus1, target, s.mem()) // type we're casting to
++		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus2, taddr, s.mem())  // static source type
++		call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("panicdottype", 0).Sym, s.mem())
++		s.endBlock()
++		bFail.Kind = ssa.BlockExit
++		bFail.Control = call
++
++		// on success, return idata field
++		s.startBlock(bOk)
++		return s.newValue1(ssa.OpIData, n.Type, iface), nil
++	}
++
++	// commaok is the more complicated case because we have
++	// a control flow merge point.
++	bEnd := s.f.NewBlock(ssa.BlockPlain)
++
++	// type assertion succeeded
++	s.startBlock(bOk)
++	s.vars[&idataVar] = s.newValue1(ssa.OpIData, n.Type, iface)
++	s.vars[&okVar] = s.constBool(true)
++	s.endBlock()
++	bOk.AddEdgeTo(bEnd)
++
++	// type assertion failed
++	s.startBlock(bFail)
++	s.vars[&idataVar] = s.entryNewValue0(ssa.OpConstNil, byteptr)
++	s.vars[&okVar] = s.constBool(false)
++	s.endBlock()
++	bFail.AddEdgeTo(bEnd)
++
++	// merge point
++	s.startBlock(bEnd)
++	res = s.variable(&idataVar, byteptr)
++	resok = s.variable(&okVar, Types[TBOOL])
++	delete(s.vars, &idataVar)
++	delete(s.vars, &okVar)
++	return res, resok
++}
++
+ // checkgoto checks that a goto from from to to does not
+ // jump into a block or jump over variable declarations.
+ // It is a copy of checkgoto in the pre-SSA backend,
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index bbd06748b1..b63749fcc6 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -48,6 +48,9 @@ func TestShortCircuit(t *testing.T) { runTest(t, "short_ssa.go") }
+ // TestBreakContinue tests that continue and break statements do what they say.
+ func TestBreakContinue(t *testing.T) { runTest(t, "break_ssa.go") }
+ 
++// TestTypeAssertion tests type assertions.
++func TestTypeAssertion(t *testing.T) { runTest(t, "assert_ssa.go") }
++
+ // TestArithmetic tests that both backends have the same result for arithmetic expressions.
+ func TestArithmetic(t *testing.T) { runTest(t, "arith_ssa.go") }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/assert_ssa.go b/src/cmd/compile/internal/gc/testdata/assert_ssa.go
+new file mode 100644
+index 0000000000..d64d4fc35a
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/assert_ssa.go
+@@ -0,0 +1,147 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests type assertion expressions and statements
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++)
++
++type (
++	S struct{}
++	T struct{}
++
++	I interface {
++		F()
++	}
++)
++
++var (
++	s *S
++	t *T
++)
++
++func (s *S) F() {}
++func (t *T) F() {}
++
++func e2t_ssa(e interface{}) *T {
++	return e.(*T)
++}
++
++func i2t_ssa(i I) *T {
++	return i.(*T)
++}
++
++func testAssertE2TOk() {
++	if got := e2t_ssa(t); got != t {
++		fmt.Printf("e2t_ssa(t)=%v want %v", got, t)
++		failed = true
++	}
++}
++
++func testAssertE2TPanic() {
++	var got *T
++	defer func() {
++		if got != nil {
++			fmt.Printf("e2t_ssa(s)=%v want nil", got)
++			failed = true
++		}
++		e := recover()
++		err, ok := e.(*runtime.TypeAssertionError)
++		if !ok {
++			fmt.Printf("e2t_ssa(s) panic type %T", e)
++			failed = true
++		}
++		want := "interface conversion: interface {} is *main.S, not *main.T"
++		if err.Error() != want {
++			fmt.Printf("e2t_ssa(s) wrong error, want '%s', got '%s'\n", want, err.Error())
++			failed = true
++		}
++	}()
++	got = e2t_ssa(s)
++	fmt.Printf("e2t_ssa(s) should panic")
++	failed = true
++}
++
++func testAssertI2TOk() {
++	if got := i2t_ssa(t); got != t {
++		fmt.Printf("i2t_ssa(t)=%v want %v", got, t)
++		failed = true
++	}
++}
++
++func testAssertI2TPanic() {
++	var got *T
++	defer func() {
++		if got != nil {
++			fmt.Printf("i2t_ssa(s)=%v want nil", got)
++			failed = true
++		}
++		e := recover()
++		err, ok := e.(*runtime.TypeAssertionError)
++		if !ok {
++			fmt.Printf("i2t_ssa(s) panic type %T", e)
++			failed = true
++		}
++		want := "interface conversion: main.I is *main.S, not *main.T"
++		if err.Error() != want {
++			fmt.Printf("i2t_ssa(s) wrong error, want '%s', got '%s'\n", want, err.Error())
++			failed = true
++		}
++	}()
++	got = i2t_ssa(s)
++	fmt.Printf("i2t_ssa(s) should panic")
++	failed = true
++}
++
++func e2t2_ssa(e interface{}) (*T, bool) {
++	t, ok := e.(*T)
++	return t, ok
++}
++
++func i2t2_ssa(i I) (*T, bool) {
++	t, ok := i.(*T)
++	return t, ok
++}
++
++func testAssertE2T2() {
++	if got, ok := e2t2_ssa(t); !ok || got != t {
++		fmt.Printf("e2t2_ssa(t)=(%v, %v) want (%v, %v)", got, ok, t, true)
++		failed = true
++	}
++	if got, ok := e2t2_ssa(s); ok || got != nil {
++		fmt.Printf("e2t2_ssa(s)=(%v, %v) want (%v, %v)", got, ok, nil, false)
++		failed = true
++	}
++}
++
++func testAssertI2T2() {
++	if got, ok := i2t2_ssa(t); !ok || got != t {
++		fmt.Printf("i2t2_ssa(t)=(%v, %v) want (%v, %v)", got, ok, t, true)
++		failed = true
++	}
++	if got, ok := i2t2_ssa(s); ok || got != nil {
++		fmt.Printf("i2t2_ssa(s)=(%v, %v) want (%v, %v)", got, ok, nil, false)
++		failed = true
++	}
++}
++
++var failed = false
++
++func main() {
++	testAssertE2TOk()
++	testAssertE2TPanic()
++	testAssertI2TOk()
++	testAssertI2TPanic()
++	testAssertE2T2()
++	testAssertI2T2()
++	if failed {
++		panic("failed")
++	}
++}

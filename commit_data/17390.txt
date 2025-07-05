@@ -11,7 +11,41 @@ Date:   Mon Aug 26 07:41:37 2013 -0500
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/13111043
-
+---
  src/pkg/net/http/cookie.go      | 9 +++++++--
  src/pkg/net/http/cookie_test.go | 2 +-
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/cookie.go b/src/pkg/net/http/cookie.go
+index 2074c149c2..8b01c508eb 100644
+--- a/src/pkg/net/http/cookie.go
++++ b/src/pkg/net/http/cookie.go
+@@ -149,8 +149,13 @@ func (c *Cookie) String() string {
+ 		if validCookieDomain(c.Domain) {
+ 			// A c.Domain containing illegal characters is not
+ 			// sanitized but simply dropped which turns the cookie
+-			// into a host-only cookie.
+-			fmt.Fprintf(&b, "; Domain=%s", c.Domain)
++			// into a host-only cookie. A leading dot is okay
++			// but won't be sent.
++			d := c.Domain
++			if d[0] == '.' {
++				d = d[1:]
++			}
++			fmt.Fprintf(&b, "; Domain=%s", d)
+ 		} else {
+ 			log.Printf("net/http: invalid Cookie.Domain %q; dropping domain attribute",
+ 				c.Domain)
+diff --git a/src/pkg/net/http/cookie_test.go b/src/pkg/net/http/cookie_test.go
+index 7a4827cb6b..11b01cc571 100644
+--- a/src/pkg/net/http/cookie_test.go
++++ b/src/pkg/net/http/cookie_test.go
+@@ -26,7 +26,7 @@ var writeSetCookiesTests = []struct {
+ 	},
+ 	{
+ 		&Cookie{Name: "cookie-3", Value: "three", Domain: ".example.com"},
+-		"cookie-3=three; Domain=.example.com",
++		"cookie-3=three; Domain=example.com",
+ 	},
+ 	{
+ 		&Cookie{Name: "cookie-4", Value: "four", Path: "/restricted/"},

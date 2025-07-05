@@ -14,10 +14,127 @@ Date:   Fri Nov 27 12:06:11 2015 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/net/cgo_socknew.go |  4 ++--
  src/net/cgo_sockold.go |  4 ++--
  src/net/cgo_unix.go    | 12 ++++++++----
  src/net/lookup_test.go | 24 ++++++++++++++++++++++++
  src/net/testdata/hosts |  3 +--
  5 files changed, 37 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/cgo_socknew.go b/src/net/cgo_socknew.go
+index b5082840fb..3b13926107 100644
+--- a/src/net/cgo_socknew.go
++++ b/src/net/cgo_socknew.go
+@@ -26,8 +26,8 @@ func cgoSockaddrInet4(ip IP) *C.struct_sockaddr {
+ 	return (*C.struct_sockaddr)(unsafe.Pointer(&sa))
+ }
+ 
+-func cgoSockaddrInet6(ip IP) *C.struct_sockaddr {
+-	sa := syscall.RawSockaddrInet6{Family: syscall.AF_INET6}
++func cgoSockaddrInet6(ip IP, zone int) *C.struct_sockaddr {
++	sa := syscall.RawSockaddrInet6{Family: syscall.AF_INET6, Scope_id: uint32(zone)}
+ 	copy(sa.Addr[:], ip)
+ 	return (*C.struct_sockaddr)(unsafe.Pointer(&sa))
+ }
+diff --git a/src/net/cgo_sockold.go b/src/net/cgo_sockold.go
+index 522e8e5880..e629a09f9c 100644
+--- a/src/net/cgo_sockold.go
++++ b/src/net/cgo_sockold.go
+@@ -26,8 +26,8 @@ func cgoSockaddrInet4(ip IP) *C.struct_sockaddr {
+ 	return (*C.struct_sockaddr)(unsafe.Pointer(&sa))
+ }
+ 
+-func cgoSockaddrInet6(ip IP) *C.struct_sockaddr {
+-	sa := syscall.RawSockaddrInet6{Len: syscall.SizeofSockaddrInet6, Family: syscall.AF_INET6}
++func cgoSockaddrInet6(ip IP, zone int) *C.struct_sockaddr {
++	sa := syscall.RawSockaddrInet6{Len: syscall.SizeofSockaddrInet6, Family: syscall.AF_INET6, Scope_id: uint32(zone)}
+ 	copy(sa.Addr[:], ip)
+ 	return (*C.struct_sockaddr)(unsafe.Pointer(&sa))
+ }
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index d53c00308e..c14f08547a 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -186,11 +186,15 @@ func cgoLookupPTR(addr string) ([]string, error, bool) {
+ 	acquireThread()
+ 	defer releaseThread()
+ 
+-	ip := ParseIP(addr)
++	var zone string
++	ip := parseIPv4(addr)
++	if ip == nil {
++		ip, zone = parseIPv6(addr, true)
++	}
+ 	if ip == nil {
+ 		return nil, &DNSError{Err: "invalid address", Name: addr}, true
+ 	}
+-	sa, salen := cgoSockaddr(ip)
++	sa, salen := cgoSockaddr(ip, zone)
+ 	if sa == nil {
+ 		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}, true
+ 	}
+@@ -225,12 +229,12 @@ func cgoLookupPTR(addr string) ([]string, error, bool) {
+ 	return []string{absDomainName(b)}, nil, true
+ }
+ 
+-func cgoSockaddr(ip IP) (*C.struct_sockaddr, C.socklen_t) {
++func cgoSockaddr(ip IP, zone string) (*C.struct_sockaddr, C.socklen_t) {
+ 	if ip4 := ip.To4(); ip4 != nil {
+ 		return cgoSockaddrInet4(ip4), C.socklen_t(syscall.SizeofSockaddrInet4)
+ 	}
+ 	if ip6 := ip.To16(); ip6 != nil {
+-		return cgoSockaddrInet6(ip6), C.socklen_t(syscall.SizeofSockaddrInet6)
++		return cgoSockaddrInet6(ip6, zoneToInt(zone)), C.socklen_t(syscall.SizeofSockaddrInet6)
+ 	}
+ 	return nil, 0
+ }
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 630c8a417f..4a8e631027 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -209,6 +209,30 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
+ 	}
+ }
+ 
++func TestLookupIPv6LinkLocalAddr(t *testing.T) {
++	if !supportsIPv6 {
++		t.Skip("IPv6 is required")
++	}
++
++	addrs, err := LookupHost("localhost")
++	if err != nil {
++		t.Fatal(err)
++	}
++	found := false
++	for _, addr := range addrs {
++		if addr == "fe80::1%lo0" {
++			found = true
++			break
++		}
++	}
++	if !found {
++		t.Skipf("not supported on %s", runtime.GOOS)
++	}
++	if _, err := LookupAddr("fe80::1%lo0"); err != nil {
++		t.Error(err)
++	}
++}
++
+ var lookupIANACNAMETests = []struct {
+ 	name, cname string
+ }{
+diff --git a/src/net/testdata/hosts b/src/net/testdata/hosts
+index b601763898..3ed83ff8a8 100644
+--- a/src/net/testdata/hosts
++++ b/src/net/testdata/hosts
+@@ -5,8 +5,7 @@
+ 127.1.1.1	thor
+ # aliases
+ 127.1.1.2	ullr ullrhost
++fe80::1%lo0	localhost
+ # Bogus entries that must be ignored.
+ 123.123.123	loki
+ 321.321.321.321
+-# TODO(yvesj): Should we be able to parse this? From a Darwin system.
+-fe80::1%lo0	localhost

@@ -9,6 +9,23 @@ Date:   Wed Nov 19 11:50:58 2008 -0800
     DELTA=5  (5 added, 0 deleted, 0 changed)
     OCL=19590
     CL=19590
-
+---
  src/lib/testing.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index a5d960fe80..53a2c19d13 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -21,6 +21,11 @@ export type Test struct {
+ export func Main(tests *[]Test) {
+ 	flag.Parse();
+ 	ok := true;
++	if len(tests) == 0 {
++		println("warning: no tests available");
++	} else if chatty {
++		println(len(tests), "tests to run");
++	}
+ 	for i := 0; i < len(tests); i++ {
+ 		if chatty {
+ 			println("=== RUN ", tests[i].name);

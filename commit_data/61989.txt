@@ -30,6 +30,29 @@ Date:   Sat Jan 4 03:44:40 2025 +1100
     Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/internal/disasm/disasm.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/disasm/disasm.go b/src/cmd/internal/disasm/disasm.go
+index c317effa90..3ae8989b38 100644
+--- a/src/cmd/internal/disasm/disasm.go
++++ b/src/cmd/internal/disasm/disasm.go
+@@ -410,14 +410,16 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
+ func disasm_riscv64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder, gnuAsm bool) (string, int) {
+ 	inst, err := riscv64asm.Decode(code)
+ 	var text string
++	size := inst.Len
+ 	if err != nil || inst.Op == 0 {
++		size = 2
+ 		text = "?"
+ 	} else if gnuAsm {
+ 		text = fmt.Sprintf("%-36s // %s", riscv64asm.GoSyntax(inst, pc, lookup, textReader{code, pc}), riscv64asm.GNUSyntax(inst))
+ 	} else {
+ 		text = riscv64asm.GoSyntax(inst, pc, lookup, textReader{code, pc})
+ 	}
+-	return text, 4
++	return text, size
+ }
+ 
+ func disasm_s390x(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {

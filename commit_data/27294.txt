@@ -13,7 +13,7 @@ Date:   Sat Mar 19 17:02:01 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  4 ++--
  src/cmd/compile/internal/gc/closure.go   |  2 +-
  src/cmd/compile/internal/gc/inl.go       |  4 ++--
@@ -25,3 +25,342 @@ Date:   Sat Mar 19 17:02:01 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go | 36 +++++++++++++-------------------
  src/cmd/compile/internal/gc/walk.go      | 10 ++++-----
  10 files changed, 35 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 4ee9de5c9c..460c538977 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -282,7 +282,7 @@ func genhash(sym *Sym, t *Type) {
+ 	Curfn = fn
+ 	fn.Func.Dupok = true
+ 	typecheck(&fn, Etop)
+-	typechecklist(fn.Nbody.Slice(), Etop)
++	typecheckslice(fn.Nbody.Slice(), Etop)
+ 	Curfn = nil
+ 	popdcl()
+ 	testdclstack()
+@@ -475,7 +475,7 @@ func geneq(sym *Sym, t *Type) {
+ 	Curfn = fn
+ 	fn.Func.Dupok = true
+ 	typecheck(&fn, Etop)
+-	typechecklist(fn.Nbody.Slice(), Etop)
++	typecheckslice(fn.Nbody.Slice(), Etop)
+ 	Curfn = nil
+ 	popdcl()
+ 	testdclstack()
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 4c97cad4bc..0677c3030b 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -109,7 +109,7 @@ func typecheckclosure(func_ *Node, top int) {
+ 		Curfn = func_
+ 		olddd := decldepth
+ 		decldepth = 1
+-		typechecklist(func_.Nbody.Slice(), Etop)
++		typecheckslice(func_.Nbody.Slice(), Etop)
+ 		decldepth = olddd
+ 		Curfn = oldfn
+ 	}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 0ef92534c9..cc311c4445 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -75,7 +75,7 @@ func typecheckinl(fn *Node) {
+ 
+ 	savefn := Curfn
+ 	Curfn = fn
+-	typechecklist(fn.Func.Inl.Slice(), Etop)
++	typecheckslice(fn.Func.Inl.Slice(), Etop)
+ 	Curfn = savefn
+ 
+ 	safemode = save_safemode
+@@ -955,7 +955,7 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 			m.Ninit.Append(as)
+ 		}
+ 
+-		typechecklist(m.Ninit.Slice(), Etop)
++		typecheckslice(m.Ninit.Slice(), Etop)
+ 		typecheck(&m, Etop)
+ 
+ 		//		dump("Return after substitution", m);
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 63a0ab8ca9..b29f7d10ae 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -392,7 +392,7 @@ func Main() {
+ 			Curfn = xtop[i]
+ 			decldepth = 1
+ 			saveerrors()
+-			typechecklist(Curfn.Nbody.Slice(), Etop)
++			typecheckslice(Curfn.Nbody.Slice(), Etop)
+ 			checkreturn(Curfn)
+ 			if nerrors != 0 {
+ 				Curfn.Nbody.Set(nil) // type errors; do not compile
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index bf7938a30c..a702010f18 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -127,7 +127,7 @@ out:
+ 	}
+ 
+ 	decldepth++
+-	typechecklist(n.Nbody.Slice(), Etop)
++	typecheckslice(n.Nbody.Slice(), Etop)
+ 	decldepth--
+ }
+ 
+@@ -313,9 +313,9 @@ func walkrange(n *Node) {
+ 	}
+ 
+ 	n.Op = OFOR
+-	typechecklist(init, Etop)
++	typecheckslice(init, Etop)
+ 	n.Ninit.Append(init...)
+-	typechecklist(n.Left.Ninit.Slice(), Etop)
++	typecheckslice(n.Left.Ninit.Slice(), Etop)
+ 	typecheck(&n.Left, Erv)
+ 	typecheck(&n.Right, Etop)
+ 	typecheckslice(body, Etop)
+@@ -399,7 +399,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
+ 	n.Nbody.Append(v1)
+ 
+ 	typecheck(&n.Left, Erv)
+-	typechecklist(n.Nbody.Slice(), Etop)
++	typecheckslice(n.Nbody.Slice(), Etop)
+ 	walkstmt(&n)
+ 	return true
+ }
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 17039014d6..9b88c38a4e 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -12,7 +12,7 @@ func typecheckselect(sel *Node) {
+ 	var def *Node
+ 	lno := setlineno(sel)
+ 	count := 0
+-	typechecklist(sel.Ninit.Slice(), Etop)
++	typecheckslice(sel.Ninit.Slice(), Etop)
+ 	for _, n1 := range sel.List.Slice() {
+ 		count++
+ 		ncase = n1
+@@ -79,7 +79,7 @@ func typecheckselect(sel *Node) {
+ 			}
+ 		}
+ 
+-		typechecklist(ncase.Nbody.Slice(), Etop)
++		typecheckslice(ncase.Nbody.Slice(), Etop)
+ 	}
+ 
+ 	sel.Xoffset = int64(count)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 411f7e0475..153e6210cc 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2009,7 +2009,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 		fn.Func.Dupok = true
+ 	}
+ 	typecheck(&fn, Etop)
+-	typechecklist(fn.Nbody.Slice(), Etop)
++	typecheckslice(fn.Nbody.Slice(), Etop)
+ 
+ 	inlcalls(fn)
+ 	escAnalyze([]*Node{fn}, false)
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 2a4e741297..6eca91d3fb 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -58,7 +58,7 @@ type caseClause struct {
+ // typecheckswitch typechecks a switch statement.
+ func typecheckswitch(n *Node) {
+ 	lno := lineno
+-	typechecklist(n.Ninit.Slice(), Etop)
++	typecheckslice(n.Ninit.Slice(), Etop)
+ 
+ 	var nilonly string
+ 	var top int
+@@ -182,7 +182,7 @@ func typecheckswitch(n *Node) {
+ 			}
+ 		}
+ 
+-		typechecklist(ncase.Nbody.Slice(), Etop)
++		typecheckslice(ncase.Nbody.Slice(), Etop)
+ 	}
+ 
+ 	lineno = lno
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7e09912054..2de8947dfc 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -34,12 +34,6 @@ func resolve(n *Node) *Node {
+ 	return n
+ }
+ 
+-func typechecklist(l []*Node, top int) {
+-	for i := range l {
+-		typecheck(&l[i], top)
+-	}
+-}
+-
+ func typecheckslice(l []*Node, top int) {
+ 	for i := range l {
+ 		typecheck(&l[i], top)
+@@ -1290,7 +1284,7 @@ OpSwitch:
+ 		if n.List.Len() == 1 && !n.Isddd {
+ 			typecheck(n.List.Addr(0), Erv|Efnstruct)
+ 		} else {
+-			typechecklist(n.List.Slice(), Erv)
++			typecheckslice(n.List.Slice(), Erv)
+ 		}
+ 		t := l.Type
+ 		if t == nil {
+@@ -1437,7 +1431,7 @@ OpSwitch:
+ 		var r *Node
+ 		var l *Node
+ 		if n.List.Len() == 1 {
+-			typechecklist(n.List.Slice(), Efnstruct)
++			typecheckslice(n.List.Slice(), Efnstruct)
+ 			if n.List.First().Op != OCALLFUNC && n.List.First().Op != OCALLMETH {
+ 				Yyerror("invalid operation: complex expects two arguments")
+ 				n.Type = nil
+@@ -1557,7 +1551,7 @@ OpSwitch:
+ 		}
+ 
+ 		ok |= Etop
+-		typechecklist(args.Slice(), Erv)
++		typecheckslice(args.Slice(), Erv)
+ 		l := args.First()
+ 		r := args.Second()
+ 		if l.Type != nil && l.Type.Etype != TMAP {
+@@ -1581,7 +1575,7 @@ OpSwitch:
+ 		if args.Len() == 1 && !n.Isddd {
+ 			typecheck(args.Addr(0), Erv|Efnstruct)
+ 		} else {
+-			typechecklist(args.Slice(), Erv)
++			typecheckslice(args.Slice(), Erv)
+ 		}
+ 
+ 		t := args.First().Type
+@@ -1904,7 +1898,7 @@ OpSwitch:
+ 
+ 	case OPRINT, OPRINTN:
+ 		ok |= Etop
+-		typechecklist(n.List.Slice(), Erv|Eindir) // Eindir: address does not escape
++		typecheckslice(n.List.Slice(), Erv|Eindir) // Eindir: address does not escape
+ 		ls := n.List.Slice()
+ 		for i1, n1 := range ls {
+ 			// Special case for print: int constant is int64, not int.
+@@ -2047,7 +2041,7 @@ OpSwitch:
+ 
+ 	case OFOR:
+ 		ok |= Etop
+-		typechecklist(n.Ninit.Slice(), Etop)
++		typecheckslice(n.Ninit.Slice(), Etop)
+ 		decldepth++
+ 		typecheck(&n.Left, Erv)
+ 		if n.Left != nil {
+@@ -2057,13 +2051,13 @@ OpSwitch:
+ 			}
+ 		}
+ 		typecheck(&n.Right, Etop)
+-		typechecklist(n.Nbody.Slice(), Etop)
++		typecheckslice(n.Nbody.Slice(), Etop)
+ 		decldepth--
+ 		break OpSwitch
+ 
+ 	case OIF:
+ 		ok |= Etop
+-		typechecklist(n.Ninit.Slice(), Etop)
++		typecheckslice(n.Ninit.Slice(), Etop)
+ 		typecheck(&n.Left, Erv)
+ 		if n.Left != nil {
+ 			t := n.Left.Type
+@@ -2071,16 +2065,16 @@ OpSwitch:
+ 				Yyerror("non-bool %v used as if condition", Nconv(n.Left, FmtLong))
+ 			}
+ 		}
+-		typechecklist(n.Nbody.Slice(), Etop)
+-		typechecklist(n.Rlist.Slice(), Etop)
++		typecheckslice(n.Nbody.Slice(), Etop)
++		typecheckslice(n.Rlist.Slice(), Etop)
+ 		break OpSwitch
+ 
+ 	case ORETURN:
+ 		ok |= Etop
+ 		if n.List.Len() == 1 {
+-			typechecklist(n.List.Slice(), Erv|Efnstruct)
++			typecheckslice(n.List.Slice(), Erv|Efnstruct)
+ 		} else {
+-			typechecklist(n.List.Slice(), Erv)
++			typecheckslice(n.List.Slice(), Erv)
+ 		}
+ 		if Curfn == nil {
+ 			Yyerror("return outside function")
+@@ -2120,8 +2114,8 @@ OpSwitch:
+ 
+ 	case OXCASE:
+ 		ok |= Etop
+-		typechecklist(n.List.Slice(), Erv)
+-		typechecklist(n.Nbody.Slice(), Etop)
++		typecheckslice(n.List.Slice(), Erv)
++		typecheckslice(n.Nbody.Slice(), Etop)
+ 		break OpSwitch
+ 
+ 	case ODCLFUNC:
+@@ -3310,7 +3304,7 @@ func typecheckas2(n *Node) {
+ 	if cl > 1 && cr == 1 {
+ 		typecheck(n.Rlist.Addr(0), Erv|Efnstruct)
+ 	} else {
+-		typechecklist(n.Rlist.Slice(), Erv)
++		typecheckslice(n.Rlist.Slice(), Erv)
+ 	}
+ 	checkassignlist(n, n.List)
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 587914bcd1..a4fa607c8f 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2022,7 +2022,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 
+ 	calls = append(calls, mkcall("printunlock", nil, init))
+ 
+-	typechecklist(calls, Etop)
++	typecheckslice(calls, Etop)
+ 	walkexprlist(calls, init)
+ 
+ 	r = Nod(OEMPTY, nil, nil)
+@@ -2890,7 +2890,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		l = append(ln.Slice(), nt)
+ 	}
+ 
+-	typechecklist(l, Etop)
++	typecheckslice(l, Etop)
+ 	walkstmtlist(l)
+ 	init.Append(l...)
+ 	return s
+@@ -2987,7 +2987,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 		}
+ 	}
+ 
+-	typechecklist(l, Etop)
++	typecheckslice(l, Etop)
+ 	walkstmtlist(l)
+ 	init.Append(l...)
+ 	return ns
+@@ -3053,7 +3053,7 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+ 	nwid = Nod(OMUL, nwid, Nodintconst(nl.Type.Type.Width))
+ 	l = append(l, mkcall1(fn, nil, init, nto, nfrm, nwid))
+ 
+-	typechecklist(l, Etop)
++	typecheckslice(l, Etop)
+ 	walkstmtlist(l)
+ 	init.Append(l...)
+ 	return nlen
+@@ -4009,7 +4009,7 @@ func walkprintfunc(np **Node, init *Nodes) {
+ 	funcbody(fn)
+ 
+ 	typecheck(&fn, Etop)
+-	typechecklist(fn.Nbody.Slice(), Etop)
++	typecheckslice(fn.Nbody.Slice(), Etop)
+ 	xtop = append(xtop, fn)
+ 	Curfn = oldfn
+ 

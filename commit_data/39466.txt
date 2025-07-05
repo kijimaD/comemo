@@ -12,6 +12,27 @@ Date:   Thu Jan 10 00:52:39 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/157339
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/status.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/status.go b/src/net/http/status.go
+index 086f3d1a71..286315f639 100644
+--- a/src/net/http/status.go
++++ b/src/net/http/status.go
+@@ -10,6 +10,7 @@ const (
+ 	StatusContinue           = 100 // RFC 7231, 6.2.1
+ 	StatusSwitchingProtocols = 101 // RFC 7231, 6.2.2
+ 	StatusProcessing         = 102 // RFC 2518, 10.1
++	StatusEarlyHints         = 103 // RFC 8297
+ 
+ 	StatusOK                   = 200 // RFC 7231, 6.3.1
+ 	StatusCreated              = 201 // RFC 7231, 6.3.2
+@@ -79,6 +80,7 @@ var statusText = map[int]string{
+ 	StatusContinue:           "Continue",
+ 	StatusSwitchingProtocols: "Switching Protocols",
+ 	StatusProcessing:         "Processing",
++	StatusEarlyHints:         "Early Hints",
+ 
+ 	StatusOK:                   "OK",
+ 	StatusCreated:              "Created",

@@ -49,9 +49,142 @@ Date:   Tue Apr 20 13:30:50 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/test/issue8148.c  | 11 +++++++++++
  misc/cgo/test/issue8148.go | 11 ++---------
  misc/cgo/test/testx.c      | 24 ++++++++++++++++++++++++
  misc/cgo/test/testx.go     | 24 ++----------------------
  4 files changed, 39 insertions(+), 31 deletions(-)
+
+diff --git a/misc/cgo/test/issue8148.c b/misc/cgo/test/issue8148.c
+new file mode 100644
+index 0000000000..927b4346cb
+--- /dev/null
++++ b/misc/cgo/test/issue8148.c
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "_cgo_export.h"
++
++int get8148(void) {
++	T t;
++	t.i = 42;
++	return issue8148Callback(&t);
++}
+diff --git a/misc/cgo/test/issue8148.go b/misc/cgo/test/issue8148.go
+index f704788aef..aee9003d50 100644
+--- a/misc/cgo/test/issue8148.go
++++ b/misc/cgo/test/issue8148.go
+@@ -10,14 +10,7 @@ package cgotest
+ 
+ /*
+ typedef struct { int i; } T;
+-
+-int issue8148Callback(T*);
+-
+-static int get() {
+-	T t;
+-	t.i = 42;
+-	return issue8148Callback(&t);
+-}
++int get8148(void);
+ */
+ import "C"
+ 
+@@ -27,5 +20,5 @@ func issue8148Callback(t *C.T) C.int {
+ }
+ 
+ func Issue8148() int {
+-	return int(C.get())
++	return int(C.get8148())
+ }
+diff --git a/misc/cgo/test/testx.c b/misc/cgo/test/testx.c
+new file mode 100644
+index 0000000000..1258e326a4
+--- /dev/null
++++ b/misc/cgo/test/testx.c
+@@ -0,0 +1,24 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "_cgo_export.h"
++
++void lockOSThreadC(void) {
++	lockOSThreadCallback();
++}
++
++void issue7978c(uint32_t *sync) {
++	while(__atomic_load_n(sync, __ATOMIC_SEQ_CST) != 0)
++		;
++	__atomic_add_fetch(sync, 1, __ATOMIC_SEQ_CST);
++	while(__atomic_load_n(sync, __ATOMIC_SEQ_CST) != 2)
++		;
++	issue7978cb();
++	__atomic_add_fetch(sync, 1, __ATOMIC_SEQ_CST);
++	while(__atomic_load_n(sync, __ATOMIC_SEQ_CST) != 6)
++		;
++}
++
++void f7665(void) {
++}
+diff --git a/misc/cgo/test/testx.go b/misc/cgo/test/testx.go
+index 044c5bceff..823c3e13d2 100644
+--- a/misc/cgo/test/testx.go
++++ b/misc/cgo/test/testx.go
+@@ -27,7 +27,6 @@ import (
+ extern void doAdd(int, int);
+ 
+ // issue 1328
+-extern void BackIntoGo(void);
+ void IntoC(void);
+ 
+ // issue 1560
+@@ -39,11 +38,7 @@ long long mysleep(int seconds);
+ long long twoSleep(int);
+ 
+ // issue 3775
+-void lockOSThreadCallback(void);
+-inline static void lockOSThreadC(void)
+-{
+-        lockOSThreadCallback();
+-}
++void lockOSThreadC(void);
+ int usleep(unsigned usec);
+ 
+ // issue 4054 part 2 - part 1 in test.go
+@@ -82,21 +77,9 @@ extern void f7665(void);
+ 
+ #include <stdint.h>
+ 
+-void issue7978cb(void);
+-
+ // use ugly atomic variable sync since that doesn't require calling back into
+ // Go code or OS dependencies
+-static void issue7978c(uint32_t *sync) {
+-	while(__atomic_load_n(sync, __ATOMIC_SEQ_CST) != 0)
+-		;
+-	__atomic_add_fetch(sync, 1, __ATOMIC_SEQ_CST);
+-	while(__atomic_load_n(sync, __ATOMIC_SEQ_CST) != 2)
+-		;
+-	issue7978cb();
+-	__atomic_add_fetch(sync, 1, __ATOMIC_SEQ_CST);
+-	while(__atomic_load_n(sync, __ATOMIC_SEQ_CST) != 6)
+-		;
+-}
++void issue7978c(uint32_t *sync);
+ 
+ // issue 8331 part 2 - part 1 in test.go
+ // A typedef of an unnamed struct is the same struct when
+@@ -429,9 +412,6 @@ func test6907Go(t *testing.T) {
+ 
+ // issue 7665
+ 
+-//export f7665
+-func f7665() {}
+-
+ var bad7665 unsafe.Pointer = C.f7665
+ var good7665 uintptr = uintptr(C.f7665)
+ 

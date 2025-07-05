@@ -13,8 +13,48 @@ Date:   Mon Jul 3 13:41:45 2023 +0800
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/coverage/decodemeta/decodefile.go | 2 +-
  src/net/conf.go                                | 2 +-
  src/time/zoneinfo_read.go                      | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/coverage/decodemeta/decodefile.go b/src/internal/coverage/decodemeta/decodefile.go
+index 6580dd5402..96e076596f 100644
+--- a/src/internal/coverage/decodemeta/decodefile.go
++++ b/src/internal/coverage/decodemeta/decodefile.go
+@@ -147,7 +147,7 @@ func (r *CoverageMetaFileReader) CounterMode() coverage.CounterMode {
+ 	return r.hdr.CMode
+ }
+ 
+-// CounterMode returns the counter granularity (single counter per
++// CounterGranularity returns the counter granularity (single counter per
+ // function, or counter per block) selected when building for coverage
+ // for the program that produce this meta-data file.
+ func (r *CoverageMetaFileReader) CounterGranularity() coverage.CounterGranularity {
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 99717dbf8c..649ebcfb18 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -151,7 +151,7 @@ func initConfVal() {
+ 	}
+ }
+ 
+-// goosPreferCgo reports whether the GOOS value passed in prefers
++// goosPrefersCgo reports whether the GOOS value passed in prefers
+ // the cgo resolver.
+ func goosPrefersCgo() bool {
+ 	switch runtime.GOOS {
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index 4d0e47d890..707dd1189d 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -90,7 +90,7 @@ func (d *dataIO) byte() (n byte, ok bool) {
+ 	return p[0], true
+ }
+ 
+-// read returns the read of the data in the buffer.
++// rest returns the rest of the data in the buffer.
+ func (d *dataIO) rest() []byte {
+ 	r := d.p
+ 	d.p = nil

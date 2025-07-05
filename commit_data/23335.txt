@@ -11,6 +11,21 @@ Date:   Wed May 6 19:25:04 2015 -0700
     Change-Id: Icac19f48c9e035dce192c97943b77b60411a3ea2
     Reviewed-on: https://go-review.googlesource.com/9797
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/file_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/file_test.go b/src/net/file_test.go
+index 607715c58b..f358f709ac 100644
+--- a/src/net/file_test.go
++++ b/src/net/file_test.go
+@@ -156,7 +156,8 @@ var filePacketConnTests = []struct {
+ 
+ 	{net: "udp6", addr: "[::1]:0"},
+ 
+-	{net: "ip4:icmp", addr: "127.0.0.1"},
++	// TODO(mikioh,bradfitz): renable once 10730 is fixed
++	// {net: "ip4:icmp", addr: "127.0.0.1"},
+ 
+ 	{net: "unixgram", addr: "@gotest3/net"},
+ }

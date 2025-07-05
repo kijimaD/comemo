@@ -7,6 +7,30 @@ Date:   Mon Oct 16 21:24:27 2017 -0700
     Change-Id: I2c2571b33603f0fd0ba5a79400da7b845d246b8c
     Reviewed-on: https://go-review.googlesource.com/71290
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 11 ++++-------
  1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index e2d5817dc8..312ccec64e 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -2063,14 +2063,11 @@ func (p *parser) stmtList() (l []Stmt) {
+ 			break
+ 		}
+ 		l = append(l, s)
+-		// customized version of osemi:
+-		// ';' is optional before a closing ')' or '}'
+-		if p.tok == _Rparen || p.tok == _Rbrace {
+-			continue
+-		}
+-		if !p.got(_Semi) {
++		// ";" is optional before "}"
++		if !p.got(_Semi) && p.tok != _Rbrace {
+ 			p.syntax_error("at end of statement")
+-			p.advance(_Semi, _Rbrace)
++			p.advance(_Semi, _Rbrace, _Case, _Default)
++			p.got(_Semi) // avoid spurious empty statement
+ 		}
+ 	}
+ 	return

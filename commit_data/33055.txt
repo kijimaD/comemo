@@ -9,6 +9,20 @@ Date:   Wed Jun 28 22:07:06 2017 +0000
     Change-Id: I85e725dbc85843afd0f4d82f5127fecacc1cb524
     Reviewed-on: https://go-review.googlesource.com/47090
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/format.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 37e759f890..852138977b 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -61,6 +61,8 @@ import "errors"
+ // RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
+ // when used with time.Parse they do not accept all the time formats
+ // permitted by the RFCs.
++// The RFC3339Nano format removes trailing zeros from the seconds field
++// and thus may not sort correctly once formatted.
+ const (
+ 	ANSIC       = "Mon Jan _2 15:04:05 2006"
+ 	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"

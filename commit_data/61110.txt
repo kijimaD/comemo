@@ -15,7 +15,32 @@ Date:   Tue Oct 1 15:29:36 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/617136
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/work/security.go      | 1 +
  src/cmd/go/internal/work/security_test.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 543ab225ab..957fad1b40 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -91,6 +91,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
+ 	re(`-f(no-)?visibility-inlines-hidden`),
+ 	re(`-fsanitize=(.+)`),
+ 	re(`-ftemplate-depth-(.+)`),
++	re(`-ftls-model=(global-dynamic|local-dynamic|initial-exec|local-exec)`),
+ 	re(`-fvisibility=(.+)`),
+ 	re(`-g([^@\-].*)?`),
+ 	re(`-m32`),
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 68d287ec2b..2ce7806c42 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -47,6 +47,7 @@ var goodCompilerFlags = [][]string{
+ 	{"-fstack-xxx"},
+ 	{"-fno-stack-xxx"},
+ 	{"-fsanitize=hands"},
++	{"-ftls-model=local-dynamic"},
+ 	{"-g"},
+ 	{"-ggdb"},
+ 	{"-march=souza"},

@@ -9,6 +9,23 @@ Date:   Fri Sep 6 15:48:21 2013 -0400
     R=golang-dev, bradfitz, remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/13112043
-
+---
  lib/codereview/codereview.py | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 39cdc0f273..01d14c4a23 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -712,7 +712,10 @@ Examples:
+ '''
+ 
+ def promptyesno(ui, msg):
+-	return ui.promptchoice(msg, ["&yes", "&no"], 0) == 0
++	if hgversion >= "2.7":
++		return ui.promptchoice(msg + " $$ &yes $$ &no", 0) == 0
++	else:
++		return ui.promptchoice(msg, ["&yes", "&no"], 0) == 0
+ 
+ def promptremove(ui, repo, f):
+ 	if promptyesno(ui, "hg remove %s (y/n)?" % (f,)):

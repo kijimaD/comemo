@@ -11,6 +11,50 @@ Date:   Tue Aug 9 01:24:22 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/quotedprintable/example_test.go | 37 ++++++++++++++++++++++++++++++++
  1 file changed, 37 insertions(+)
+
+diff --git a/src/mime/quotedprintable/example_test.go b/src/mime/quotedprintable/example_test.go
+new file mode 100644
+index 0000000000..1ef841ed5c
+--- /dev/null
++++ b/src/mime/quotedprintable/example_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package quotedprintable_test
++
++import (
++	"fmt"
++	"io/ioutil"
++	"mime/quotedprintable"
++	"os"
++	"strings"
++)
++
++func ExampleNewReader() {
++	for _, s := range []string{
++		`=48=65=6C=6C=6F=2C=20=47=6F=70=68=65=72=73=21`,
++		`invalid escape: =B`,
++		"Hello, Gophers! This symbol will be unescaped: =3D and this will be written in =\r\none line.",
++	} {
++		b, err := ioutil.ReadAll(quotedprintable.NewReader(strings.NewReader(s)))
++		fmt.Printf("%s %v\n", b, err)
++	}
++	// Output:
++	// Hello, Gophers! <nil>
++	// invalid escape:  unexpected EOF
++	// Hello, Gophers! This symbol will be unescaped: = and this will be written in one line. <nil>
++}
++
++func ExampleNewWriter() {
++	w := quotedprintable.NewWriter(os.Stdout)
++	w.Write([]byte("These symbols will be escaped: = \t"))
++	w.Close()
++
++	// Output:
++	// These symbols will be escaped: =3D =09
++}

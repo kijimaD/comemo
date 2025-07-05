@@ -10,6 +10,20 @@ Date:   Fri Oct 22 00:34:33 2021 +0900
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b80f09f993..990637e21a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6123,7 +6123,7 @@ func (q *gQueue) pushBack(gp *g) {
+ 	q.tail.set(gp)
+ }
+ 
+-// pushBackAll adds all Gs in l2 to the tail of q. After this q2 must
++// pushBackAll adds all Gs in q2 to the tail of q. After this q2 must
+ // not be used.
+ func (q *gQueue) pushBackAll(q2 gQueue) {
+ 	if q2.tail == 0 {

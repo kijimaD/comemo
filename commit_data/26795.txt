@@ -9,6 +9,20 @@ Date:   Sun Aug 16 14:59:23 2015 +0200
     Change-Id: I4a0622c0aebfc1c3f9d299f93f7a8253893b5858
     Reviewed-on: https://go-review.googlesource.com/13661
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcshared/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index 23c97675bb..c5c49a10e1 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -10,7 +10,7 @@ set -e
+ 
+ if [ ! -f src/libgo/libgo.go ]; then
+ 	cwd=$(pwd)
+-	echo 'misc/cgo/testcshared/test.bash is running in $cwd' 1>&2
++	echo "misc/cgo/testcshared/test.bash is running in $cwd" 1>&2
+ 	exit 1
+ fi
+ 

@@ -11,7 +11,80 @@ Date:   Mon Sep 29 13:53:42 2014 -0700
     R=golang-codereviews, bradfitz, tommi.virtanen
     CC=golang-codereviews
     https://golang.org/cl/100000044
-
+---
  src/net/http/serve_test.go | 29 +++++++++++++++++++++++++++++
  src/net/http/server.go     | 21 ++++++++++++++-------
  2 files changed, 43 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index a690ae4699..702bffdc13 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -778,6 +778,35 @@ func TestChunkedResponseHeaders(t *testing.T) {
+ 	}
+ }
+ 
++func TestIdentityResponseHeaders(t *testing.T) {
++	defer afterTest(t)
++	log.SetOutput(ioutil.Discard) // is noisy otherwise
++	defer log.SetOutput(os.Stderr)
++
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Transfer-Encoding", "identity")
++		w.(Flusher).Flush()
++		fmt.Fprintf(w, "I am an identity response.")
++	}))
++	defer ts.Close()
++
++	res, err := Get(ts.URL)
++	if err != nil {
++		t.Fatalf("Get error: %v", err)
++	}
++	defer res.Body.Close()
++
++	if g, e := res.TransferEncoding, []string(nil); !reflect.DeepEqual(g, e) {
++		t.Errorf("expected TransferEncoding of %v; got %v", e, g)
++	}
++	if _, haveCL := res.Header["Content-Length"]; haveCL {
++		t.Errorf("Unexpected Content-Length")
++	}
++	if !res.Close {
++		t.Errorf("expected Connection: close; got %v", res.Close)
++	}
++}
++
+ // Test304Responses verifies that 304s don't declare that they're
+ // chunking in their response headers and aren't allowed to produce
+ // output.
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 7ad0bcbc20..b5959f7321 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -839,13 +839,20 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	} else if hasCL {
+ 		delHeader("Transfer-Encoding")
+ 	} else if w.req.ProtoAtLeast(1, 1) {
+-		// HTTP/1.1 or greater: use chunked transfer encoding
+-		// to avoid closing the connection at EOF.
+-		// TODO: this blows away any custom or stacked Transfer-Encoding they
+-		// might have set.  Deal with that as need arises once we have a valid
+-		// use case.
+-		cw.chunking = true
+-		setHeader.transferEncoding = "chunked"
++		// HTTP/1.1 or greater: Transfer-Encoding has been set to identity,  and no
++		// content-length has been provided. The connection must be closed after the
++		// reply is written, and no chunking is to be done. This is the setup
++		// recommended in the Server-Sent Events candidate recommendation 11,
++		// section 8.
++		if hasTE && te == "identity" {
++			cw.chunking = false
++			w.closeAfterReply = true
++		} else {
++			// HTTP/1.1 or greater: use chunked transfer encoding
++			// to avoid closing the connection at EOF.
++			cw.chunking = true
++			setHeader.transferEncoding = "chunked"
++		}
+ 	} else {
+ 		// HTTP version < 1.1: cannot do chunked transfer
+ 		// encoding and we don't know the Content-Length so

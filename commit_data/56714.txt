@@ -16,7 +16,119 @@ Date:   Fri May 12 08:20:08 2023 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/coverage/testsupport.go | 47 +++++++++++++++++++++++++++++++++++++
  src/runtime/coverage/ts_test.go     | 40 +++++++++++++++++++++++++++++++
  2 files changed, 87 insertions(+)
+
+diff --git a/src/runtime/coverage/testsupport.go b/src/runtime/coverage/testsupport.go
+index 2b9e58b5f6..332b39b76e 100644
+--- a/src/runtime/coverage/testsupport.go
++++ b/src/runtime/coverage/testsupport.go
+@@ -15,7 +15,9 @@ import (
+ 	"internal/coverage/pods"
+ 	"io"
+ 	"os"
++	"runtime/internal/atomic"
+ 	"strings"
++	"unsafe"
+ )
+ 
+ // processCoverTestDir is called (via a linknamed reference) from
+@@ -232,3 +234,48 @@ func (ts *tstate) processPod(p pods.Pod) error {
+ type pkfunc struct {
+ 	pk, fcn uint32
+ }
++
++// snapshot returns a snapshot of coverage percentage at a moment of
++// time within a running test, so as to support the testing.Coverage()
++// function. This version doesn't examine coverage meta-data, so the
++// result it returns will be less accurate (more "slop") due to the
++// fact that we don't look at the meta data to see how many statements
++// are associated with each counter.
++func snapshot() float64 {
++	cl := getCovCounterList()
++	if len(cl) == 0 {
++		// no work to do here.
++		return 0.0
++	}
++
++	tot := uint64(0)
++	totExec := uint64(0)
++	for _, c := range cl {
++		sd := unsafe.Slice((*atomic.Uint32)(unsafe.Pointer(c.Counters)), c.Len)
++		tot += uint64(len(sd))
++		for i := 0; i < len(sd); i++ {
++			// Skip ahead until the next non-zero value.
++			if sd[i].Load() == 0 {
++				continue
++			}
++			// We found a function that was executed.
++			nCtrs := sd[i+coverage.NumCtrsOffset].Load()
++			cst := i + coverage.FirstCtrOffset
++
++			if cst+int(nCtrs) > len(sd) {
++				break
++			}
++			counters := sd[cst : cst+int(nCtrs)]
++			for i := range counters {
++				if counters[i].Load() != 0 {
++					totExec++
++				}
++			}
++			i += coverage.FirstCtrOffset + int(nCtrs) - 1
++		}
++	}
++	if tot == 0 {
++		return 0.0
++	}
++	return float64(totExec) / float64(tot)
++}
+diff --git a/src/runtime/coverage/ts_test.go b/src/runtime/coverage/ts_test.go
+index a95d405a3e..19b307fd26 100644
+--- a/src/runtime/coverage/ts_test.go
++++ b/src/runtime/coverage/ts_test.go
+@@ -53,3 +53,43 @@ func TestTestSupport(t *testing.T) {
+ 		t.Fatalf("percent output missing token: %q", want)
+ 	}
+ }
++
++var funcInvoked bool
++
++//go:noinline
++func thisFunctionOnlyCalledFromSnapshotTest(n int) int {
++	if funcInvoked {
++		panic("bad")
++	}
++	funcInvoked = true
++
++	// Contents here not especially important, just so long as we
++	// have some statements.
++	t := 0
++	for i := 0; i < n; i++ {
++		for j := 0; j < i; j++ {
++			t += i ^ j
++		}
++	}
++	return t
++}
++
++// Tests runtime/coverage.snapshot() directly. Note that if
++// coverage is not enabled, the hook is designed to just return
++// zero.
++func TestCoverageSnapshot(t *testing.T) {
++	C1 := snapshot()
++	thisFunctionOnlyCalledFromSnapshotTest(15)
++	C2 := snapshot()
++	cond := "C1 > C2"
++	val := C1 > C2
++	if testing.CoverMode() != "" {
++		cond = "C1 >= C2"
++		val = C1 >= C2
++	}
++	t.Logf("%f %f\n", C1, C2)
++	if val {
++		t.Errorf("erroneous snapshots, %s = true C1=%f C2=%f",
++			cond, C1, C2)
++	}
++}

@@ -7,8 +7,78 @@ Date:   Thu Dec 1 14:46:32 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5451050
-
+---
  src/cmd/5g/cgen.c | 4 ++++
  src/cmd/6g/cgen.c | 4 ++++
  src/cmd/8g/cgen.c | 4 ++++
  3 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 15defaf111..0616cd3668 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -850,6 +850,7 @@ bgen(Node *n, int true, Prog *to)
+ 	int et, a;
+ 	Node *nl, *nr, *r;
+ 	Node n1, n2, n3, n4, tmp;
++	NodeList *ll;
+ 	Prog *p1, *p2;
+ 
+ 	USED(n4);			// in unreachable code below
+@@ -950,7 +951,10 @@ bgen(Node *n, int true, Prog *to)
+ 				p1 = gbranch(AB, T);
+ 				p2 = gbranch(AB, T);
+ 				patch(p1, pc);
++				ll = n->ninit;
++				n->ninit = nil;
+ 				bgen(n, 1, p2);
++				n->ninit = ll;
+ 				patch(gbranch(AB, T), to);
+ 				patch(p2, pc);
+ 				goto ret;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 43bec00594..308915f64d 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -717,6 +717,7 @@ bgen(Node *n, int true, Prog *to)
+ 	int et, a;
+ 	Node *nl, *nr, *l, *r;
+ 	Node n1, n2, tmp;
++	NodeList *ll;
+ 	Prog *p1, *p2;
+ 
+ 	if(debug['g']) {
+@@ -834,7 +835,10 @@ bgen(Node *n, int true, Prog *to)
+ 				p1 = gbranch(AJMP, T);
+ 				p2 = gbranch(AJMP, T);
+ 				patch(p1, pc);
++				ll = n->ninit;   // avoid re-genning ninit
++				n->ninit = nil;
+ 				bgen(n, 1, p2);
++				n->ninit = ll;
+ 				patch(gbranch(AJMP, T), to);
+ 				patch(p2, pc);
+ 				goto ret;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 21b7815fd4..cf1eacde57 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -787,6 +787,7 @@ bgen(Node *n, int true, Prog *to)
+ 	int et, a;
+ 	Node *nl, *nr, *r;
+ 	Node n1, n2, tmp, t1, t2, ax;
++	NodeList *ll;
+ 	Prog *p1, *p2;
+ 
+ 	if(debug['g']) {
+@@ -902,7 +903,10 @@ bgen(Node *n, int true, Prog *to)
+ 				p1 = gbranch(AJMP, T);
+ 				p2 = gbranch(AJMP, T);
+ 				patch(p1, pc);
++				ll = n->ninit;  // avoid re-genning ninit
++				n->ninit = nil;
+ 				bgen(n, 1, p2);
++				n->ninit = ll;
+ 				patch(gbranch(AJMP, T), to);
+ 				patch(p2, pc);
+ 				break;

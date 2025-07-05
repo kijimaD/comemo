@@ -7,8 +7,70 @@ Date:   Sun Apr 3 09:11:41 2011 -0700
     R=paulzhol, ality, r, fhs
     CC=golang-dev
     https://golang.org/cl/4316054
-
+---
  src/pkg/path/filepath/Makefile      |  3 +++
  src/pkg/path/filepath/path_plan9.go | 28 ++++++++++++++++++++++++++++
  src/pkg/path/filepath/path_unix.go  |  2 +-
  3 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/filepath/Makefile b/src/pkg/path/filepath/Makefile
+index f860fac185..bc26a7d6a0 100644
+--- a/src/pkg/path/filepath/Makefile
++++ b/src/pkg/path/filepath/Makefile
+@@ -18,6 +18,9 @@ GOFILES_darwin=\
+ GOFILES_linux=\
+ 	path_unix.go
+ 
++GOFILES_plan9=\
++	path_plan9.go
++
+ GOFILES_windows=\
+ 	path_windows.go
+ 
+diff --git a/src/pkg/path/filepath/path_plan9.go b/src/pkg/path/filepath/path_plan9.go
+new file mode 100644
+index 0000000000..e40008364c
+--- /dev/null
++++ b/src/pkg/path/filepath/path_plan9.go
+@@ -0,0 +1,28 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package filepath
++
++import "strings"
++
++const (
++	Separator     = '/' // OS-specific path separator
++	ListSeparator = 0   // OS-specific path list separator
++)
++
++// isSeparator returns true if c is a directory separator character.
++func isSeparator(c uint8) bool {
++	return Separator == c
++}
++
++// IsAbs returns true if the path is absolute.
++func IsAbs(path string) bool {
++	return strings.HasPrefix(path, "/") || strings.HasPrefix(path, "#")
++}
++
++// volumeName returns the leading volume name on Windows.
++// It returns "" elsewhere
++func volumeName(path string) string {
++	return ""
++}
+diff --git a/src/pkg/path/filepath/path_unix.go b/src/pkg/path/filepath/path_unix.go
+index 1bb21ec7d9..f8ac248fbb 100644
+--- a/src/pkg/path/filepath/path_unix.go
++++ b/src/pkg/path/filepath/path_unix.go
+@@ -22,7 +22,7 @@ func IsAbs(path string) bool {
+ }
+ 
+ // volumeName returns the leading volume name on Windows.
+-// It returns "" on Unix.
++// It returns "" elsewhere.
+ func volumeName(path string) string {
+ 	return ""
+ }

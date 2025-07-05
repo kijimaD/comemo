@@ -12,7 +12,85 @@ Date:   Thu Apr 16 16:24:45 2015 +0900
     Reviewed-on: https://go-review.googlesource.com/8990
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/fd_plan9.go     | 10 +++++-----
  src/net/ipsock_plan9.go | 12 ++++++------
  2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index 38355e2458..29ec801278 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -17,7 +17,7 @@ type netFD struct {
+ 	fdmu fdMutex
+ 
+ 	// immutable until Close
+-	proto        string
++	net          string
+ 	n            string
+ 	dir          string
+ 	ctl, data    *os.File
+@@ -38,8 +38,8 @@ func dial(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline ti
+ 	return dialChannel(net, ra, dialer, deadline)
+ }
+ 
+-func newFD(proto, name string, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
+-	return &netFD{proto: proto, n: name, dir: netdir + "/" + proto + "/" + name, ctl: ctl, data: data, laddr: laddr, raddr: raddr}, nil
++func newFD(net, name string, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
++	return &netFD{net: net, n: name, dir: netdir + "/" + net + "/" + name, ctl: ctl, data: data, laddr: laddr, raddr: raddr}, nil
+ }
+ 
+ func (fd *netFD) init() error {
+@@ -55,7 +55,7 @@ func (fd *netFD) name() string {
+ 	if fd.raddr != nil {
+ 		rs = fd.raddr.String()
+ 	}
+-	return fd.proto + ":" + ls + "->" + rs
++	return fd.net + ":" + ls + "->" + rs
+ }
+ 
+ func (fd *netFD) ok() bool { return fd != nil && fd.ctl != nil }
+@@ -132,7 +132,7 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
+ 	}
+ 	defer fd.readUnlock()
+ 	n, err = fd.data.Read(b)
+-	if fd.proto == "udp" && err == io.EOF {
++	if fd.net == "udp" && err == io.EOF {
+ 		n = 0
+ 		err = nil
+ 	}
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 94ceea31b0..1c2932d1c1 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -193,7 +193,7 @@ func listenPlan9(net string, laddr Addr) (fd *netFD, err error) {
+ }
+ 
+ func (l *netFD) netFD() (*netFD, error) {
+-	return newFD(l.proto, l.n, l.ctl, l.data, l.laddr, l.raddr)
++	return newFD(l.net, l.n, l.ctl, l.data, l.laddr, l.raddr)
+ }
+ 
+ func (l *netFD) acceptPlan9() (fd *netFD, err error) {
+@@ -213,16 +213,16 @@ func (l *netFD) acceptPlan9() (fd *netFD, err error) {
+ 		return nil, &OpError{"accept", l.dir + "/listen", l.laddr, err}
+ 	}
+ 	name := string(buf[:n])
+-	data, err := os.OpenFile(netdir+"/"+l.proto+"/"+name+"/data", os.O_RDWR, 0)
++	data, err := os.OpenFile(netdir+"/"+l.net+"/"+name+"/data", os.O_RDWR, 0)
+ 	if err != nil {
+ 		f.Close()
+-		return nil, &OpError{"accept", l.proto, l.laddr, err}
++		return nil, &OpError{"accept", l.net, l.laddr, err}
+ 	}
+-	raddr, err := readPlan9Addr(l.proto, netdir+"/"+l.proto+"/"+name+"/remote")
++	raddr, err := readPlan9Addr(l.net, netdir+"/"+l.net+"/"+name+"/remote")
+ 	if err != nil {
+ 		data.Close()
+ 		f.Close()
+-		return nil, &OpError{"accept", l.proto, l.laddr, err}
++		return nil, &OpError{"accept", l.net, l.laddr, err}
+ 	}
+-	return newFD(l.proto, name, f, data, l.laddr, raddr)
++	return newFD(l.net, name, f, data, l.laddr, raddr)
+ }

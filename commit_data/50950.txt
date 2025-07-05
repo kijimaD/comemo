@@ -21,7 +21,7 @@ Date:   Thu Nov 18 10:52:35 2021 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ir/node.go        |  2 +-
  src/cmd/compile/internal/noder/stencil.go  |  7 +++++++
  src/cmd/compile/internal/typecheck/func.go |  7 ++++++-
@@ -30,3 +30,140 @@ Date:   Thu Nov 18 10:52:35 2021 -0800
  test/typeparam/issue49659.go               |  7 +++++++
  test/typeparam/issue49659b.go              | 28 ++++++++++++++++++++++++++++
  7 files changed, 77 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 8784f9ef99..4fdee5010b 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -584,7 +584,7 @@ func OuterValue(n Node) Node {
+ 	for {
+ 		switch nn := n; nn.Op() {
+ 		case OXDOT:
+-			base.FatalfAt(n.Pos(), "OXDOT in walk: %v", n)
++			base.FatalfAt(n.Pos(), "OXDOT in OuterValue: %v", n)
+ 		case ODOT:
+ 			nn := nn.(*SelectorExpr)
+ 			n = nn.X
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 174006ab5e..004db54c3b 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -109,6 +109,13 @@ func (g *genInst) buildInstantiations(preinliningMainScan bool) {
+ 		// main round of inlining)
+ 		for _, fun := range g.newInsts {
+ 			inline.InlineCalls(fun.(*ir.Func))
++			// New instantiations created during inlining should run
++			// ComputeAddrTaken directly, since we are past the main pass
++			// that did ComputeAddrTaken(). We could instead do this
++			// incrementally during stenciling (for all instantiations,
++			// including main ones before inlining), since we have the
++			// type information.
++			typecheck.ComputeAddrtaken(fun.(*ir.Func).Body)
+ 		}
+ 	}
+ 	assert(l == len(g.newInsts))
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 7dec65c1d6..57b15b7a2b 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -160,7 +160,12 @@ func ImportedBody(fn *ir.Func) {
+ 	IncrementalAddrtaken = false
+ 	defer func() {
+ 		if DirtyAddrtaken {
+-			ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
++			// We do ComputeAddrTaken on function instantiations, but not
++			// generic functions (since we may not yet know if x in &x[i]
++			// is an array or a slice).
++			if !fn.Type().HasTParam() {
++				ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
++			}
+ 			DirtyAddrtaken = false
+ 		}
+ 		IncrementalAddrtaken = true
+diff --git a/test/typeparam/issue49659.dir/a.go b/test/typeparam/issue49659.dir/a.go
+new file mode 100644
+index 0000000000..718bc0c5fc
+--- /dev/null
++++ b/test/typeparam/issue49659.dir/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type A[T any] struct {
++	a int
++}
++
++func (a A[T]) F() {
++	_ = &a.a
++}
+diff --git a/test/typeparam/issue49659.dir/b.go b/test/typeparam/issue49659.dir/b.go
+new file mode 100644
+index 0000000000..1f37153769
+--- /dev/null
++++ b/test/typeparam/issue49659.dir/b.go
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++type B[T any] struct {
++	v a.A[T]
++}
++
++func (b B[T]) F() {
++	b.v.F()
++}
+diff --git a/test/typeparam/issue49659.go b/test/typeparam/issue49659.go
+new file mode 100644
+index 0000000000..87b4ff46c1
+--- /dev/null
++++ b/test/typeparam/issue49659.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/issue49659b.go b/test/typeparam/issue49659b.go
+new file mode 100644
+index 0000000000..a9a14af77d
+--- /dev/null
++++ b/test/typeparam/issue49659b.go
+@@ -0,0 +1,28 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Testing that AddrTaken logic doesn't cause problems for function instantiations
++
++package main
++
++type A[T interface{ []int | [5]int }] struct {
++	val T
++}
++
++//go:noinline
++func (a A[T]) F() {
++	_ = &a.val[2]
++}
++
++func main() {
++	var x A[[]int]
++	x.val = make([]int, 4)
++	_ = &x.val[3]
++	x.F()
++	var y A[[5]int]
++	_ = &y.val[3]
++	y.F()
++}

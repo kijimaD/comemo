@@ -13,6 +13,20 @@ Date:   Sun Sep 4 20:16:04 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/vet/vet_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 714ee320ae..cfe58a07c8 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -269,7 +269,7 @@ func errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
+ 	if len(errs) == 1 {
+ 		return errs[0]
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	fmt.Fprintf(&buf, "\n")
+ 	for _, err := range errs {
+ 		fmt.Fprintf(&buf, "%s\n", err.Error())

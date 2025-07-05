@@ -12,6 +12,23 @@ Date:   Mon Feb 22 12:56:33 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/295109
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/sys_windows_arm.s | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index cd230ccffd..4be5ce7da0 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -160,6 +160,11 @@ g0:
+ 	BL	(R7)		// Call the go routine
+ 	MOVW	16(R13), R4	// Fetch return value from stack
+ 
++	// Save system stack pointer for sigresume setup below.
++	// The exact value does not matter - nothing is read or written
++	// from this address. It just needs to be on the system stack.
++	MOVW	R13, R12
++
+ 	// switch back to original stack and g
+ 	MOVW	24(R13), R13
+ 	MOVW	20(R13), g

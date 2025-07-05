@@ -7,7 +7,74 @@ Date:   Tue Aug 31 15:18:46 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2095041
-
+---
  src/pkg/big/rat.go      | 29 +++++++++++++++++------------
  src/pkg/big/rat_test.go |  4 ++--
  2 files changed, 19 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index d8d6dc4bee..22ae8d2d8b 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -269,29 +269,34 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ }
+ 
+ 
+-// String returns a string representation of z in the form "a/b".
++// String returns a string representation of z in the form "a/b" (even if b == 1).
+ func (z *Rat) String() string {
+-	s := z.a.String()
+-	if len(z.b) == 1 && z.b[0] == 1 {
+-		return s
++	return z.a.String() + "/" + z.b.string(10)
++}
++
++
++// RatString returns a string representation of z in the form "a/b" if b != 1,
++// and in the form "a" if b == 1.
++func (z *Rat) RatString() string {
++	if z.IsInt() {
++		return z.a.String()
+ 	}
+-	return s + "/" + z.b.string(10)
++	return z.String()
+ }
+ 
+ 
+ // FloatString returns a string representation of z in decimal form with prec
+ // digits of precision after the decimal point and the last digit rounded.
+ func (z *Rat) FloatString(prec int) string {
++	if z.IsInt() {
++		return z.a.String()
++	}
++
+ 	q, r := nat{}.div(nat{}, z.a.abs, z.b)
+ 
+-	s := ""
++	s := q.string(10)
+ 	if z.a.neg {
+-		s = "-"
+-	}
+-	s += q.string(10)
+-
+-	if len(z.b) == 1 && z.b[0] == 1 {
+-		return s
++		s = "-" + s
+ 	}
+ 
+ 	p := nat{}.expNN(natTen, nat{Word(prec)}, nil)
+diff --git a/src/pkg/big/rat_test.go b/src/pkg/big/rat_test.go
+index a3793b2e81..ccc9cf6056 100644
+--- a/src/pkg/big/rat_test.go
++++ b/src/pkg/big/rat_test.go
+@@ -48,8 +48,8 @@ func TestRatSetString(t *testing.T) {
+ 	for i, test := range setStringTests {
+ 		x, ok := new(Rat).SetString(test.in)
+ 
+-		if ok != test.ok || ok && x.String() != test.out {
+-			t.Errorf("#%d got %s want %s", i, x.String(), test.out)
++		if ok != test.ok || ok && x.RatString() != test.out {
++			t.Errorf("#%d got %s want %s", i, x.RatString(), test.out)
+ 		}
+ 	}
+ }

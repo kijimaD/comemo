@@ -9,6 +9,60 @@ Date:   Wed Sep 16 11:05:14 2009 -0700
     DELTA=13  (11 added, 1 deleted, 1 changed)
     OCL=34668
     CL=34688
-
+---
  doc/go_spec.html | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 6a21c6cabf..7509c0dd0d 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1809,7 +1809,6 @@ ElementList   = Element { "," Element } [ "," ] .
+ Element       = [ Key ":" ] Value .
+ Key           = FieldName | Index .
+ FieldName     = identifier .
+-Index         = Expression .
+ Value         = Expression .
+ </pre>
+ 
+@@ -1996,6 +1995,7 @@ as they are accessible.
+ <pre class="ebnf">
+ PrimaryExpr =
+ 	Operand |
++	Conversion |
+ 	PrimaryExpr Selector |
+ 	PrimaryExpr Index |
+ 	PrimaryExpr Slice |
+@@ -3906,7 +3906,7 @@ space allocated in the underlying array (for a slice) or map. For a slice
+ Conversions look like function calls of the form
+ </p>
+ 
+-<pre class="grammar">
++<pre>
+ T(value)
+ </pre>
+ 
+@@ -3915,6 +3915,12 @@ where <code>T</code> is a type
+ and <code>value</code> is an expression
+ that can be converted to a value
+ of result type <code>T</code>.
++</p>
++
++<pre class="ebnf">
++Conversion = ( TypeName | "(" Type ")" ) Expression .
++</pre>
++
+ <p>
+ The following conversion rules apply:
+ </p>
+@@ -4058,6 +4064,10 @@ c := make(chan int, 10);          # channel with a buffer size of 10
+ m := make(map[string] int, 100);  # map with initial space for 100 elements
+ </pre>
+ 
++<p>
++<font color=red>TODO: Need syntax that permits a type as first argument for built-ins.</font>
++</p>
++
+ <hr/>
+ 
+ <h2 id="Packages">Packages</h2>

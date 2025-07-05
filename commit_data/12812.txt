@@ -9,6 +9,20 @@ Date:   Mon Apr 2 12:55:23 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5981047
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 61e2fd772b..f3cb485953 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1309,7 +1309,7 @@ def change(ui, repo, *pats, **opts):
+ 		name = "new"
+ 		cl = CL("new")
+ 		if repo[None].branch() != "default":
+-			return "cannot create CL outside default branch"
++			return "cannot create CL outside default branch; switch with 'hg update default'"
+ 		dirty[cl] = True
+ 		files = ChangedFiles(ui, repo, pats, taken=Taken(ui, repo))
+ 

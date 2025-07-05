@@ -9,7 +9,56 @@ Date:   Tue Nov 14 11:27:03 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/structtag.go          |  2 +-
  src/cmd/vet/testdata/structtag.go | 22 +++++++++++-----------
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/vet/structtag.go b/src/cmd/vet/structtag.go
+index cfa816694e..3bc30c4740 100644
+--- a/src/cmd/vet/structtag.go
++++ b/src/cmd/vet/structtag.go
+@@ -115,7 +115,7 @@ var (
+ 	errTagSyntax      = errors.New("bad syntax for struct tag pair")
+ 	errTagKeySyntax   = errors.New("bad syntax for struct tag key")
+ 	errTagValueSyntax = errors.New("bad syntax for struct tag value")
+-	errTagValueSpace  = errors.New("suspicious space found in struct tag value")
++	errTagValueSpace  = errors.New("suspicious space in struct tag value")
+ 	errTagSpace       = errors.New("key:\"value\" pairs not separated by spaces")
+ )
+ 
+diff --git a/src/cmd/vet/testdata/structtag.go b/src/cmd/vet/testdata/structtag.go
+index 6eec2e3fec..c87e42f5d0 100644
+--- a/src/cmd/vet/testdata/structtag.go
++++ b/src/cmd/vet/testdata/structtag.go
+@@ -83,19 +83,19 @@ type DuplicateJSONFields struct {
+ 
+ type UnexpectedSpacetest struct {
+ 	A int `json:"a,omitempty"`
+-	B int `json:"b, omitempty"` // ERROR "suspicious space found in struct tag value"
++	B int `json:"b, omitempty"` // ERROR "suspicious space in struct tag value"
+ 	C int `json:"c ,omitempty"`
+-	D int `json:"d,omitempty, string"` // ERROR "suspicious space found in struct tag value"
++	D int `json:"d,omitempty, string"` // ERROR "suspicious space in struct tag value"
+ 	E int `xml:"e local"`
+-	F int `xml:"f "`                 // ERROR "suspicious space found in struct tag value"
+-	G int `xml:" g"`                 // ERROR "suspicious space found in struct tag value"
+-	H int `xml:"h ,omitempty"`       // ERROR "suspicious space found in struct tag value"
+-	I int `xml:"i, omitempty"`       // ERROR "suspicious space found in struct tag value"
+-	J int `xml:"j local ,omitempty"` // ERROR "suspicious space found in struct tag value"
+-	K int `xml:"k local, omitempty"` // ERROR "suspicious space found in struct tag value"
+-	L int `xml:" l local,omitempty"` // ERROR "suspicious space found in struct tag value"
+-	M int `xml:"m  local,omitempty"` // ERROR "suspicious space found in struct tag value"
+-	N int `xml:" "`                  // ERROR "suspicious space found in struct tag value"
++	F int `xml:"f "`                 // ERROR "suspicious space in struct tag value"
++	G int `xml:" g"`                 // ERROR "suspicious space in struct tag value"
++	H int `xml:"h ,omitempty"`       // ERROR "suspicious space in struct tag value"
++	I int `xml:"i, omitempty"`       // ERROR "suspicious space in struct tag value"
++	J int `xml:"j local ,omitempty"` // ERROR "suspicious space in struct tag value"
++	K int `xml:"k local, omitempty"` // ERROR "suspicious space in struct tag value"
++	L int `xml:" l local,omitempty"` // ERROR "suspicious space in struct tag value"
++	M int `xml:"m  local,omitempty"` // ERROR "suspicious space in struct tag value"
++	N int `xml:" "`                  // ERROR "suspicious space in struct tag value"
+ 	O int `xml:""`
+ 	P int `xml:","`
+ 	Q int `foo:" doesn't care "`

@@ -15,7 +15,7 @@ Date:   Mon Apr 13 09:59:20 2020 -0700
     Change-Id: I57891bfaf0f7dfc5d143bb9f7ebafc7079d2614f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228098
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go           |  28 +-
  src/cmd/compile/internal/gc/bench_test.go       |  19 +
  src/cmd/compile/internal/ssa/addressingmodes.go |  67 +++
@@ -23,3 +23,1049 @@ Date:   Mon Apr 13 09:59:20 2020 -0700
  src/cmd/compile/internal/ssa/opGen.go           | 745 ++++++++++++++++++++++++
  test/codegen/memops.go                          |  33 +-
  6 files changed, 936 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index e348e24a95..b58696d650 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -752,7 +752,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux(&p.To, v)
+ 	case ssa.OpAMD64MOVBstoreidx1, ssa.OpAMD64MOVWstoreidx1, ssa.OpAMD64MOVLstoreidx1, ssa.OpAMD64MOVQstoreidx1, ssa.OpAMD64MOVSSstoreidx1, ssa.OpAMD64MOVSDstoreidx1,
+-		ssa.OpAMD64MOVQstoreidx8, ssa.OpAMD64MOVSDstoreidx8, ssa.OpAMD64MOVLstoreidx8, ssa.OpAMD64MOVSSstoreidx4, ssa.OpAMD64MOVLstoreidx4, ssa.OpAMD64MOVWstoreidx2:
++		ssa.OpAMD64MOVQstoreidx8, ssa.OpAMD64MOVSDstoreidx8, ssa.OpAMD64MOVLstoreidx8, ssa.OpAMD64MOVSSstoreidx4, ssa.OpAMD64MOVLstoreidx4, ssa.OpAMD64MOVWstoreidx2,
++		ssa.OpAMD64ADDLmodifyidx1, ssa.OpAMD64ADDLmodifyidx4, ssa.OpAMD64ADDLmodifyidx8, ssa.OpAMD64ADDQmodifyidx1, ssa.OpAMD64ADDQmodifyidx8,
++		ssa.OpAMD64SUBLmodifyidx1, ssa.OpAMD64SUBLmodifyidx4, ssa.OpAMD64SUBLmodifyidx8, ssa.OpAMD64SUBQmodifyidx1, ssa.OpAMD64SUBQmodifyidx8,
++		ssa.OpAMD64ANDLmodifyidx1, ssa.OpAMD64ANDLmodifyidx4, ssa.OpAMD64ANDLmodifyidx8, ssa.OpAMD64ANDQmodifyidx1, ssa.OpAMD64ANDQmodifyidx8,
++		ssa.OpAMD64ORLmodifyidx1, ssa.OpAMD64ORLmodifyidx4, ssa.OpAMD64ORLmodifyidx8, ssa.OpAMD64ORQmodifyidx1, ssa.OpAMD64ORQmodifyidx8,
++		ssa.OpAMD64XORLmodifyidx1, ssa.OpAMD64XORLmodifyidx4, ssa.OpAMD64XORLmodifyidx8, ssa.OpAMD64XORQmodifyidx1, ssa.OpAMD64XORQmodifyidx8:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[2].Reg()
+@@ -796,6 +801,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux2(&p.To, v, off)
++
+ 	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+@@ -804,11 +810,29 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux2(&p.To, v, sc.Off())
+-	case ssa.OpAMD64MOVQstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx1, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1:
++	case ssa.OpAMD64MOVQstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx1, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1,
++		ssa.OpAMD64ADDLconstmodifyidx1, ssa.OpAMD64ADDLconstmodifyidx4, ssa.OpAMD64ADDLconstmodifyidx8, ssa.OpAMD64ADDQconstmodifyidx1, ssa.OpAMD64ADDQconstmodifyidx8,
++		ssa.OpAMD64ANDLconstmodifyidx1, ssa.OpAMD64ANDLconstmodifyidx4, ssa.OpAMD64ANDLconstmodifyidx8, ssa.OpAMD64ANDQconstmodifyidx1, ssa.OpAMD64ANDQconstmodifyidx8,
++		ssa.OpAMD64ORLconstmodifyidx1, ssa.OpAMD64ORLconstmodifyidx4, ssa.OpAMD64ORLconstmodifyidx8, ssa.OpAMD64ORQconstmodifyidx1, ssa.OpAMD64ORQconstmodifyidx8,
++		ssa.OpAMD64XORLconstmodifyidx1, ssa.OpAMD64XORLconstmodifyidx4, ssa.OpAMD64XORLconstmodifyidx8, ssa.OpAMD64XORQconstmodifyidx1, ssa.OpAMD64XORQconstmodifyidx8:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		sc := v.AuxValAndOff()
+ 		p.From.Offset = sc.Val()
++		switch {
++		case p.As == x86.AADDQ && p.From.Offset == 1:
++			p.As = x86.AINCQ
++			p.From.Type = obj.TYPE_NONE
++		case p.As == x86.AADDQ && p.From.Offset == -1:
++			p.As = x86.ADECQ
++			p.From.Type = obj.TYPE_NONE
++		case p.As == x86.AADDL && p.From.Offset == 1:
++			p.As = x86.AINCL
++			p.From.Type = obj.TYPE_NONE
++		case p.As == x86.AADDL && p.From.Offset == -1:
++			p.As = x86.ADECL
++			p.From.Type = obj.TYPE_NONE
++		}
+ 		memIdx(&p.To, v)
+ 		gc.AddAux2(&p.To, v, sc.Off())
+ 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
+diff --git a/src/cmd/compile/internal/gc/bench_test.go b/src/cmd/compile/internal/gc/bench_test.go
+index b20adefa43..09aaf428c3 100644
+--- a/src/cmd/compile/internal/gc/bench_test.go
++++ b/src/cmd/compile/internal/gc/bench_test.go
+@@ -19,3 +19,22 @@ func BenchmarkLoadAdd(b *testing.B) {
+ 		globl = s
+ 	}
+ }
++
++func BenchmarkModify(b *testing.B) {
++	a := make([]int64, 1024)
++	v := globl
++	for i := 0; i < b.N; i++ {
++		for j := range a {
++			a[j] += v
++		}
++	}
++}
++
++func BenchmarkConstModify(b *testing.B) {
++	a := make([]int64, 1024)
++	for i := 0; i < b.N; i++ {
++		for j := range a {
++			a[j] += 3
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/addressingmodes.go b/src/cmd/compile/internal/ssa/addressingmodes.go
+index 0f68923e1f..78c979b7cb 100644
+--- a/src/cmd/compile/internal/ssa/addressingmodes.go
++++ b/src/cmd/compile/internal/ssa/addressingmodes.go
+@@ -254,6 +254,73 @@ var combine = map[[2]Op]Op{
+ 	[2]Op{OpAMD64XORQload, OpAMD64LEAQ1}: OpAMD64XORQloadidx1,
+ 	[2]Op{OpAMD64XORQload, OpAMD64LEAQ8}: OpAMD64XORQloadidx8,
+ 
++	[2]Op{OpAMD64ADDLmodify, OpAMD64ADDQ}: OpAMD64ADDLmodifyidx1,
++	[2]Op{OpAMD64ADDQmodify, OpAMD64ADDQ}: OpAMD64ADDQmodifyidx1,
++	[2]Op{OpAMD64SUBLmodify, OpAMD64ADDQ}: OpAMD64SUBLmodifyidx1,
++	[2]Op{OpAMD64SUBQmodify, OpAMD64ADDQ}: OpAMD64SUBQmodifyidx1,
++	[2]Op{OpAMD64ANDLmodify, OpAMD64ADDQ}: OpAMD64ANDLmodifyidx1,
++	[2]Op{OpAMD64ANDQmodify, OpAMD64ADDQ}: OpAMD64ANDQmodifyidx1,
++	[2]Op{OpAMD64ORLmodify, OpAMD64ADDQ}:  OpAMD64ORLmodifyidx1,
++	[2]Op{OpAMD64ORQmodify, OpAMD64ADDQ}:  OpAMD64ORQmodifyidx1,
++	[2]Op{OpAMD64XORLmodify, OpAMD64ADDQ}: OpAMD64XORLmodifyidx1,
++	[2]Op{OpAMD64XORQmodify, OpAMD64ADDQ}: OpAMD64XORQmodifyidx1,
++
++	[2]Op{OpAMD64ADDLmodify, OpAMD64LEAQ1}: OpAMD64ADDLmodifyidx1,
++	[2]Op{OpAMD64ADDLmodify, OpAMD64LEAQ4}: OpAMD64ADDLmodifyidx4,
++	[2]Op{OpAMD64ADDLmodify, OpAMD64LEAQ8}: OpAMD64ADDLmodifyidx8,
++	[2]Op{OpAMD64ADDQmodify, OpAMD64LEAQ1}: OpAMD64ADDQmodifyidx1,
++	[2]Op{OpAMD64ADDQmodify, OpAMD64LEAQ8}: OpAMD64ADDQmodifyidx8,
++	[2]Op{OpAMD64SUBLmodify, OpAMD64LEAQ1}: OpAMD64SUBLmodifyidx1,
++	[2]Op{OpAMD64SUBLmodify, OpAMD64LEAQ4}: OpAMD64SUBLmodifyidx4,
++	[2]Op{OpAMD64SUBLmodify, OpAMD64LEAQ8}: OpAMD64SUBLmodifyidx8,
++	[2]Op{OpAMD64SUBQmodify, OpAMD64LEAQ1}: OpAMD64SUBQmodifyidx1,
++	[2]Op{OpAMD64SUBQmodify, OpAMD64LEAQ8}: OpAMD64SUBQmodifyidx8,
++	[2]Op{OpAMD64ANDLmodify, OpAMD64LEAQ1}: OpAMD64ANDLmodifyidx1,
++	[2]Op{OpAMD64ANDLmodify, OpAMD64LEAQ4}: OpAMD64ANDLmodifyidx4,
++	[2]Op{OpAMD64ANDLmodify, OpAMD64LEAQ8}: OpAMD64ANDLmodifyidx8,
++	[2]Op{OpAMD64ANDQmodify, OpAMD64LEAQ1}: OpAMD64ANDQmodifyidx1,
++	[2]Op{OpAMD64ANDQmodify, OpAMD64LEAQ8}: OpAMD64ANDQmodifyidx8,
++	[2]Op{OpAMD64ORLmodify, OpAMD64LEAQ1}:  OpAMD64ORLmodifyidx1,
++	[2]Op{OpAMD64ORLmodify, OpAMD64LEAQ4}:  OpAMD64ORLmodifyidx4,
++	[2]Op{OpAMD64ORLmodify, OpAMD64LEAQ8}:  OpAMD64ORLmodifyidx8,
++	[2]Op{OpAMD64ORQmodify, OpAMD64LEAQ1}:  OpAMD64ORQmodifyidx1,
++	[2]Op{OpAMD64ORQmodify, OpAMD64LEAQ8}:  OpAMD64ORQmodifyidx8,
++	[2]Op{OpAMD64XORLmodify, OpAMD64LEAQ1}: OpAMD64XORLmodifyidx1,
++	[2]Op{OpAMD64XORLmodify, OpAMD64LEAQ4}: OpAMD64XORLmodifyidx4,
++	[2]Op{OpAMD64XORLmodify, OpAMD64LEAQ8}: OpAMD64XORLmodifyidx8,
++	[2]Op{OpAMD64XORQmodify, OpAMD64LEAQ1}: OpAMD64XORQmodifyidx1,
++	[2]Op{OpAMD64XORQmodify, OpAMD64LEAQ8}: OpAMD64XORQmodifyidx8,
++
++	[2]Op{OpAMD64ADDLconstmodify, OpAMD64ADDQ}: OpAMD64ADDLconstmodifyidx1,
++	[2]Op{OpAMD64ADDQconstmodify, OpAMD64ADDQ}: OpAMD64ADDQconstmodifyidx1,
++	[2]Op{OpAMD64ANDLconstmodify, OpAMD64ADDQ}: OpAMD64ANDLconstmodifyidx1,
++	[2]Op{OpAMD64ANDQconstmodify, OpAMD64ADDQ}: OpAMD64ANDQconstmodifyidx1,
++	[2]Op{OpAMD64ORLconstmodify, OpAMD64ADDQ}:  OpAMD64ORLconstmodifyidx1,
++	[2]Op{OpAMD64ORQconstmodify, OpAMD64ADDQ}:  OpAMD64ORQconstmodifyidx1,
++	[2]Op{OpAMD64XORLconstmodify, OpAMD64ADDQ}: OpAMD64XORLconstmodifyidx1,
++	[2]Op{OpAMD64XORQconstmodify, OpAMD64ADDQ}: OpAMD64XORQconstmodifyidx1,
++
++	[2]Op{OpAMD64ADDLconstmodify, OpAMD64LEAQ1}: OpAMD64ADDLconstmodifyidx1,
++	[2]Op{OpAMD64ADDLconstmodify, OpAMD64LEAQ4}: OpAMD64ADDLconstmodifyidx4,
++	[2]Op{OpAMD64ADDLconstmodify, OpAMD64LEAQ8}: OpAMD64ADDLconstmodifyidx8,
++	[2]Op{OpAMD64ADDQconstmodify, OpAMD64LEAQ1}: OpAMD64ADDQconstmodifyidx1,
++	[2]Op{OpAMD64ADDQconstmodify, OpAMD64LEAQ8}: OpAMD64ADDQconstmodifyidx8,
++	[2]Op{OpAMD64ANDLconstmodify, OpAMD64LEAQ1}: OpAMD64ANDLconstmodifyidx1,
++	[2]Op{OpAMD64ANDLconstmodify, OpAMD64LEAQ4}: OpAMD64ANDLconstmodifyidx4,
++	[2]Op{OpAMD64ANDLconstmodify, OpAMD64LEAQ8}: OpAMD64ANDLconstmodifyidx8,
++	[2]Op{OpAMD64ANDQconstmodify, OpAMD64LEAQ1}: OpAMD64ANDQconstmodifyidx1,
++	[2]Op{OpAMD64ANDQconstmodify, OpAMD64LEAQ8}: OpAMD64ANDQconstmodifyidx8,
++	[2]Op{OpAMD64ORLconstmodify, OpAMD64LEAQ1}:  OpAMD64ORLconstmodifyidx1,
++	[2]Op{OpAMD64ORLconstmodify, OpAMD64LEAQ4}:  OpAMD64ORLconstmodifyidx4,
++	[2]Op{OpAMD64ORLconstmodify, OpAMD64LEAQ8}:  OpAMD64ORLconstmodifyidx8,
++	[2]Op{OpAMD64ORQconstmodify, OpAMD64LEAQ1}:  OpAMD64ORQconstmodifyidx1,
++	[2]Op{OpAMD64ORQconstmodify, OpAMD64LEAQ8}:  OpAMD64ORQconstmodifyidx8,
++	[2]Op{OpAMD64XORLconstmodify, OpAMD64LEAQ1}: OpAMD64XORLconstmodifyidx1,
++	[2]Op{OpAMD64XORLconstmodify, OpAMD64LEAQ4}: OpAMD64XORLconstmodifyidx4,
++	[2]Op{OpAMD64XORLconstmodify, OpAMD64LEAQ8}: OpAMD64XORLconstmodifyidx8,
++	[2]Op{OpAMD64XORQconstmodify, OpAMD64LEAQ1}: OpAMD64XORQconstmodifyidx1,
++	[2]Op{OpAMD64XORQconstmodify, OpAMD64LEAQ8}: OpAMD64XORQconstmodifyidx8,
++
+ 	// 386
+ 	[2]Op{Op386MOVBload, Op386ADDL}:  Op386MOVBloadidx1,
+ 	[2]Op{Op386MOVWload, Op386ADDL}:  Op386MOVWloadidx1,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 0ecbc940e5..cd9cb515c0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -448,6 +448,53 @@ func init() {
+ 		{name: "ORLmodify", argLength: 3, reg: gpstore, asm: "ORL", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},   // *(arg0+auxint+aux) |= arg1, arg2=mem
+ 		{name: "XORLmodify", argLength: 3, reg: gpstore, asm: "XORL", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) ^= arg1, arg2=mem
+ 
++		{name: "ADDQmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ADDQ", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) += arg2, arg3=mem
++		{name: "ADDQmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ADDQ", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) += arg2, arg3=mem
++		{name: "SUBQmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "SUBQ", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) -= arg2, arg3=mem
++		{name: "SUBQmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "SUBQ", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) -= arg2, arg3=mem
++		{name: "ANDQmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ANDQ", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) &= arg2, arg3=mem
++		{name: "ANDQmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ANDQ", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) &= arg2, arg3=mem
++		{name: "ORQmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ORQ", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+1*arg1+auxint+aux) |= arg2, arg3=mem
++		{name: "ORQmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ORQ", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+8*arg1+auxint+aux) |= arg2, arg3=mem
++		{name: "XORQmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "XORQ", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) ^= arg2, arg3=mem
++		{name: "XORQmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "XORQ", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) ^= arg2, arg3=mem
++		{name: "ADDLmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ADDL", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) += arg2, arg3=mem
++		{name: "ADDLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ADDL", scale: 4, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+auxint+aux) += arg2, arg3=mem
++		{name: "ADDLmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ADDL", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) += arg2, arg3=mem
++		{name: "SUBLmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "SUBL", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) -= arg2, arg3=mem
++		{name: "SUBLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "SUBL", scale: 4, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+auxint+aux) -= arg2, arg3=mem
++		{name: "SUBLmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "SUBL", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) -= arg2, arg3=mem
++		{name: "ANDLmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ANDL", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) &= arg2, arg3=mem
++		{name: "ANDLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ANDL", scale: 4, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+auxint+aux) &= arg2, arg3=mem
++		{name: "ANDLmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ANDL", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) &= arg2, arg3=mem
++		{name: "ORLmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ORL", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+1*arg1+auxint+aux) |= arg2, arg3=mem
++		{name: "ORLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ORL", scale: 4, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+4*arg1+auxint+aux) |= arg2, arg3=mem
++		{name: "ORLmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ORL", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+8*arg1+auxint+aux) |= arg2, arg3=mem
++		{name: "XORLmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "XORL", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) ^= arg2, arg3=mem
++		{name: "XORLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "XORL", scale: 4, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+auxint+aux) ^= arg2, arg3=mem
++		{name: "XORLmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "XORL", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) ^= arg2, arg3=mem
++
++		{name: "ADDQconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ADDQ", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) += ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ADDQconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ADDQ", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) += ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ANDQconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ANDQ", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) &= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ANDQconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ANDQ", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) &= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ORQconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ORQ", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) |= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ORQconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ORQ", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) |= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "XORQconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "XORQ", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) ^= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "XORQconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "XORQ", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) ^= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ADDLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) += ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ADDLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+ValAndOff(AuxInt).Off()+aux) += ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ADDLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) += ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ANDLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) &= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ANDLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+ValAndOff(AuxInt).Off()+aux) &= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ANDLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) &= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ORLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ORL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) |= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ORLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ORL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+4*arg1+ValAndOff(AuxInt).Off()+aux) |= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "ORLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ORL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) |= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "XORLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "XORL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) ^= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "XORLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "XORL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+ValAndOff(AuxInt).Off()+aux) ^= ValAndOff(AuxInt).Val(), arg2=mem
++		{name: "XORLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "XORL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) ^= ValAndOff(AuxInt).Val(), arg2=mem
++
+ 		// unary ops
+ 		{name: "NEGQ", argLength: 1, reg: gp11, asm: "NEGQ", resultInArg0: true, clobberFlags: true}, // -arg0
+ 		{name: "NEGL", argLength: 1, reg: gp11, asm: "NEGL", resultInArg0: true, clobberFlags: true}, // -arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 2bc3a5bc1d..3185f34fa5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -753,6 +753,51 @@ const (
+ 	OpAMD64ANDLmodify
+ 	OpAMD64ORLmodify
+ 	OpAMD64XORLmodify
++	OpAMD64ADDQmodifyidx1
++	OpAMD64ADDQmodifyidx8
++	OpAMD64SUBQmodifyidx1
++	OpAMD64SUBQmodifyidx8
++	OpAMD64ANDQmodifyidx1
++	OpAMD64ANDQmodifyidx8
++	OpAMD64ORQmodifyidx1
++	OpAMD64ORQmodifyidx8
++	OpAMD64XORQmodifyidx1
++	OpAMD64XORQmodifyidx8
++	OpAMD64ADDLmodifyidx1
++	OpAMD64ADDLmodifyidx4
++	OpAMD64ADDLmodifyidx8
++	OpAMD64SUBLmodifyidx1
++	OpAMD64SUBLmodifyidx4
++	OpAMD64SUBLmodifyidx8
++	OpAMD64ANDLmodifyidx1
++	OpAMD64ANDLmodifyidx4
++	OpAMD64ANDLmodifyidx8
++	OpAMD64ORLmodifyidx1
++	OpAMD64ORLmodifyidx4
++	OpAMD64ORLmodifyidx8
++	OpAMD64XORLmodifyidx1
++	OpAMD64XORLmodifyidx4
++	OpAMD64XORLmodifyidx8
++	OpAMD64ADDQconstmodifyidx1
++	OpAMD64ADDQconstmodifyidx8
++	OpAMD64ANDQconstmodifyidx1
++	OpAMD64ANDQconstmodifyidx8
++	OpAMD64ORQconstmodifyidx1
++	OpAMD64ORQconstmodifyidx8
++	OpAMD64XORQconstmodifyidx1
++	OpAMD64XORQconstmodifyidx8
++	OpAMD64ADDLconstmodifyidx1
++	OpAMD64ADDLconstmodifyidx4
++	OpAMD64ADDLconstmodifyidx8
++	OpAMD64ANDLconstmodifyidx1
++	OpAMD64ANDLconstmodifyidx4
++	OpAMD64ANDLconstmodifyidx8
++	OpAMD64ORLconstmodifyidx1
++	OpAMD64ORLconstmodifyidx4
++	OpAMD64ORLconstmodifyidx8
++	OpAMD64XORLconstmodifyidx1
++	OpAMD64XORLconstmodifyidx4
++	OpAMD64XORLconstmodifyidx8
+ 	OpAMD64NEGQ
+ 	OpAMD64NEGL
+ 	OpAMD64NOTQ
+@@ -9696,6 +9741,706 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "ADDQmodifyidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ADDQmodifyidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "SUBQmodifyidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.ASUBQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "SUBQmodifyidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.ASUBQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ANDQmodifyidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ANDQmodifyidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ORQmodifyidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ORQmodifyidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "XORQmodifyidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "XORQmodifyidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ADDLmodifyidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ADDLmodifyidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ADDLmodifyidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "SUBLmodifyidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.ASUBL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "SUBLmodifyidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.ASUBL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "SUBLmodifyidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.ASUBL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ANDLmodifyidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ANDLmodifyidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ANDLmodifyidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ORLmodifyidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ORLmodifyidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ORLmodifyidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "XORLmodifyidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "XORLmodifyidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "XORLmodifyidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ADDQconstmodifyidx1",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ADDQconstmodifyidx8",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ANDQconstmodifyidx1",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ANDQconstmodifyidx8",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ORQconstmodifyidx1",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ORQconstmodifyidx8",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "XORQconstmodifyidx1",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "XORQconstmodifyidx8",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ADDLconstmodifyidx1",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ADDLconstmodifyidx4",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ADDLconstmodifyidx8",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ANDLconstmodifyidx1",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ANDLconstmodifyidx4",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ANDLconstmodifyidx8",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ORLconstmodifyidx1",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ORLconstmodifyidx4",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "ORLconstmodifyidx8",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "XORLconstmodifyidx1",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "XORLconstmodifyidx4",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:         "XORLconstmodifyidx8",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
+ 	{
+ 		name:         "NEGQ",
+ 		argLen:       1,
+diff --git a/test/codegen/memops.go b/test/codegen/memops.go
+index 701735f875..cd35910c12 100644
+--- a/test/codegen/memops.go
++++ b/test/codegen/memops.go
+@@ -242,25 +242,56 @@ func idxLoadPlusOp64(x []int64, i int) int64 {
+ 	return s
+ }
+ 
+-func idxStorePlusOp(x []int32, i int, v int32) {
++func idxStorePlusOp32(x []int32, i int, v int32) {
+ 	// 386: `ADDL\t[A-Z]+, 4\([A-Z]+\)\([A-Z]+\*4\)`
++	// amd64: `ADDL\t[A-Z]+[0-9]*, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+ 	x[i+1] += v
+ 	// 386: `SUBL\t[A-Z]+, 8\([A-Z]+\)\([A-Z]+\*4\)`
++	// amd64: `SUBL\t[A-Z]+[0-9]*, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+ 	x[i+2] -= v
+ 	// 386: `ANDL\t[A-Z]+, 12\([A-Z]+\)\([A-Z]+\*4\)`
++	// amd64: `ANDL\t[A-Z]+[0-9]*, 12\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+ 	x[i+3] &= v
+ 	// 386: `ORL\t[A-Z]+, 16\([A-Z]+\)\([A-Z]+\*4\)`
++	// amd64: `ORL\t[A-Z]+[0-9]*, 16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+ 	x[i+4] |= v
+ 	// 386: `XORL\t[A-Z]+, 20\([A-Z]+\)\([A-Z]+\*4\)`
++	// amd64: `XORL\t[A-Z]+[0-9]*, 20\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+ 	x[i+5] ^= v
+ 
+ 	// 386: `ADDL\t[$]77, 24\([A-Z]+\)\([A-Z]+\*4\)`
++	// amd64: `ADDL\t[$]77, 24\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+ 	x[i+6] += 77
+ 	// 386: `ANDL\t[$]77, 28\([A-Z]+\)\([A-Z]+\*4\)`
++	// amd64: `ANDL\t[$]77, 28\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+ 	x[i+7] &= 77
+ 	// 386: `ORL\t[$]77, 32\([A-Z]+\)\([A-Z]+\*4\)`
++	// amd64: `ORL\t[$]77, 32\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+ 	x[i+8] |= 77
+ 	// 386: `XORL\t[$]77, 36\([A-Z]+\)\([A-Z]+\*4\)`
++	// amd64: `XORL\t[$]77, 36\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
++	x[i+9] ^= 77
++}
++
++func idxStorePlusOp64(x []int64, i int, v int64) {
++	// amd64: `ADDQ\t[A-Z]+[0-9]*, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	x[i+1] += v
++	// amd64: `SUBQ\t[A-Z]+[0-9]*, 16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	x[i+2] -= v
++	// amd64: `ANDQ\t[A-Z]+[0-9]*, 24\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	x[i+3] &= v
++	// amd64: `ORQ\t[A-Z]+[0-9]*, 32\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	x[i+4] |= v
++	// amd64: `XORQ\t[A-Z]+[0-9]*, 40\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	x[i+5] ^= v
++
++	// amd64: `ADDQ\t[$]77, 48\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	x[i+6] += 77
++	// amd64: `ANDQ\t[$]77, 56\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	x[i+7] &= 77
++	// amd64: `ORQ\t[$]77, 64\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	x[i+8] |= 77
++	// amd64: `XORQ\t[$]77, 72\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
+ 	x[i+9] ^= 77
+ }
+ 

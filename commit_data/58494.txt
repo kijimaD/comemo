@@ -26,7 +26,7 @@ Date:   Thu Nov 9 15:37:34 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go     |  36 +++++-
  src/cmd/compile/internal/types2/check.go        | 100 ++++++++--------
  src/cmd/compile/internal/types2/errors.go       |   2 +-
@@ -39,3 +39,911 @@ Date:   Thu Nov 9 15:37:34 2023 -0800
  src/go/types/version.go                         | 149 ++++++++++--------------
  src/go/types/version_test.go                    |  26 -----
  11 files changed, 269 insertions(+), 326 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index a2621854bc..56cddf6b29 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"errors"
+ 	"fmt"
++	"internal/goversion"
+ 	"internal/testenv"
+ 	"reflect"
+ 	"regexp"
+@@ -2839,11 +2840,28 @@ var _ = f(1, 2)
+ 	}
+ }
+ 
++func TestModuleVersion(t *testing.T) {
++	// version go1.dd must be able to typecheck go1.dd.0, go1.dd.1, etc.
++	goversion := fmt.Sprintf("go1.%d", goversion.Version)
++	for _, v := range []string{
++		goversion,
++		goversion + ".0",
++		goversion + ".1",
++		goversion + ".rc",
++	} {
++		conf := Config{GoVersion: v}
++		pkg := mustTypecheck("package p", &conf, nil)
++		if pkg.GoVersion() != conf.GoVersion {
++			t.Errorf("got %s; want %s", pkg.GoVersion(), conf.GoVersion)
++		}
++	}
++}
++
+ func TestFileVersions(t *testing.T) {
+ 	for _, test := range []struct {
+-		moduleVersion string
+-		fileVersion   string
+-		wantVersion   string
++		goVersion   string
++		fileVersion string
++		wantVersion string
+ 	}{
+ 		{"", "", ""},                   // no versions specified
+ 		{"go1.19", "", "go1.19"},       // module version specified
+@@ -2851,6 +2869,16 @@ func TestFileVersions(t *testing.T) {
+ 		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
+ 		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
+ 		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
++
++		// versions containing release numbers
++		// (file versions containing release numbers are considered invalid)
++		{"go1.19.0", "", "go1.19.0"},         // no file version specified
++		{"go1.20", "go1.20.1", "go1.20"},     // file upgrade ignored
++		{"go1.20.1", "go1.20", "go1.20.1"},   // file upgrade ignored
++		{"go1.20.1", "go1.21", "go1.21"},     // file upgrade permitted
++		{"go1.20.1", "go1.19", "go1.20.1"},   // file downgrade not permitted
++		{"go1.21.1", "go1.19.1", "go1.21.1"}, // file downgrade not permitted (invalid file version)
++		{"go1.21.1", "go1.19", "go1.19"},     // file downgrade permitted (module version is >= go1.21)
+ 	} {
+ 		var src string
+ 		if test.fileVersion != "" {
+@@ -2858,7 +2886,7 @@ func TestFileVersions(t *testing.T) {
+ 		}
+ 		src += "package p"
+ 
+-		conf := Config{GoVersion: test.moduleVersion}
++		conf := Config{GoVersion: test.goVersion}
+ 		versions := make(map[*syntax.PosBase]string)
+ 		var info Info
+ 		info.FileVersions = versions
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 381ccd8dcf..0582367083 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -12,7 +12,6 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"internal/godebug"
+-	"internal/goversion"
+ 	. "internal/types/errors"
+ )
+ 
+@@ -107,12 +106,11 @@ type Checker struct {
+ 	ctxt *Context // context for de-duplicating instances
+ 	pkg  *Package
+ 	*Info
+-	version version                     // accepted language version
+-	posVers map[*syntax.PosBase]version // maps file PosBases to versions (may be nil)
+-	nextID  uint64                      // unique Id for type parameters (first valid Id is 1)
+-	objMap  map[Object]*declInfo        // maps package-level objects and (non-interface) methods to declaration info
+-	impMap  map[importKey]*Package      // maps (import path, source directory) to (complete or fake) package
+-	valids  instanceLookup              // valid *Named (incl. instantiated) types per the validType check
++	version goVersion              // accepted language version
++	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
++	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
++	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
++	valids  instanceLookup         // valid *Named (incl. instantiated) types per the validType check
+ 
+ 	// pkgPathMap maps package names to the set of distinct import paths we've
+ 	// seen for that name, anywhere in the import graph. It is used for
+@@ -128,6 +126,7 @@ type Checker struct {
+ 	// (initialized by Files, valid only for the duration of check.Files;
+ 	// maps and lists are allocated on demand)
+ 	files         []*syntax.File              // list of package files
++	versions      map[*syntax.PosBase]string  // maps file bases to version strings (each file has an entry)
+ 	imports       []*PkgName                  // list of imported packages
+ 	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
+ 	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
+@@ -261,6 +260,7 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 		ctxt:        conf.Context,
+ 		pkg:         pkg,
+ 		Info:        info,
++		version:     asGoVersion(conf.GoVersion),
+ 		objMap:      make(map[Object]*declInfo),
+ 		impMap:      make(map[importKey]*Package),
+ 	}
+@@ -302,36 +302,51 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 		}
+ 	}
+ 
++	// reuse Info.FileVersions if provided
++	versions := check.Info.FileVersions
++	if versions == nil {
++		versions = make(map[*syntax.PosBase]string)
++	}
++	check.versions = versions
++
++	pkgVersionOk := check.version.isValid()
++	downgradeOk := check.version.cmp(go1_21) >= 0
++
++	// determine Go version for each file
+ 	for _, file := range check.files {
+-		fbase := base(file.Pos())                            // fbase may be nil for tests
+-		check.recordFileVersion(fbase, check.conf.GoVersion) // record package version (possibly zero version)
+-		v, _ := parseGoVersion(file.GoVersion)
+-		if v.major > 0 {
+-			if v.equal(check.version) {
+-				continue
+-			}
+-			// Go 1.21 introduced the feature of setting the go.mod
+-			// go line to an early version of Go and allowing //go:build lines
+-			// to “upgrade” the Go version in a given file.
+-			// We can do that backwards compatibly.
+-			// Go 1.21 also introduced the feature of allowing //go:build lines
+-			// to “downgrade” the Go version in a given file.
+-			// That can't be done compatibly in general, since before the
+-			// build lines were ignored and code got the module's Go version.
+-			// To work around this, downgrades are only allowed when the
+-			// module's Go version is Go 1.21 or later.
+-			// If there is no check.version, then we don't really know what Go version to apply.
+-			// Legacy tools may do this, and they historically have accepted everything.
+-			// Preserve that behavior by ignoring //go:build constraints entirely in that case.
+-			if (v.before(check.version) && check.version.before(go1_21)) || check.version.equal(go0_0) {
+-				continue
+-			}
+-			if check.posVers == nil {
+-				check.posVers = make(map[*syntax.PosBase]version)
++		// use unaltered Config.GoVersion by default
++		// (This version string may contain dot-release numbers as in go1.20.1,
++		// unlike file versions which are Go language versions only, if valid.)
++		v := check.conf.GoVersion
++		// use the file version, if applicable
++		// (file versions are either the empty string or of the form go1.dd)
++		if pkgVersionOk {
++			fileVersion := asGoVersion(file.GoVersion)
++			if fileVersion.isValid() {
++				cmp := fileVersion.cmp(check.version)
++				// Go 1.21 introduced the feature of setting the go.mod
++				// go line to an early version of Go and allowing //go:build lines
++				// to “upgrade” (cmp > 0) the Go version in a given file.
++				// We can do that backwards compatibly.
++				//
++				// Go 1.21 also introduced the feature of allowing //go:build lines
++				// to “downgrade” (cmp < 0) the Go version in a given file.
++				// That can't be done compatibly in general, since before the
++				// build lines were ignored and code got the module's Go version.
++				// To work around this, downgrades are only allowed when the
++				// module's Go version is Go 1.21 or later.
++				//
++				// If there is no valid check.version, then we don't really know what
++				// Go version to apply.
++				// Legacy tools may do this, and they historically have accepted everything.
++				// Preserve that behavior by ignoring //go:build constraints entirely in that
++				// case (!pkgVersionOk).
++				if cmp > 0 || cmp < 0 && downgradeOk {
++					v = file.GoVersion
++				}
+ 			}
+-			check.posVers[fbase] = v
+-			check.recordFileVersion(fbase, file.GoVersion) // overwrite package version
+ 		}
++		versions[base(file.Pos())] = v // base(file.Pos()) may be nil for tests
+ 	}
+ }
+ 
+@@ -362,15 +377,8 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+ 		return nil
+ 	}
+ 
+-	// Note: parseGoVersion and the subsequent checks should happen once,
+-	//       when we create a new Checker, not for each batch of files.
+-	//       We can't change it at this point because NewChecker doesn't
+-	//       return an error.
+-	check.version, err = parseGoVersion(check.conf.GoVersion)
+-	if err != nil {
+-		return err
+-	}
+-	if check.version.after(version{1, goversion.Version}) {
++	// Note: NewChecker doesn't return an error, so we need to check the version here.
++	if check.version.cmp(go_current) > 0 {
+ 		return fmt.Errorf("package requires newer Go version %v", check.version)
+ 	}
+ 	if check.conf.FakeImportC && check.conf.go115UsesCgo {
+@@ -694,9 +702,3 @@ func (check *Checker) recordScope(node syntax.Node, scope *Scope) {
+ 		m[node] = scope
+ 	}
+ }
+-
+-func (check *Checker) recordFileVersion(fbase *syntax.PosBase, version string) {
+-	if m := check.FileVersions; m != nil {
+-		m[fbase] = version
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 90c54d172e..b8414b4849 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -297,7 +297,7 @@ func (check *Checker) softErrorf(at poser, code Code, format string, args ...int
+ 	check.err(at, code, check.sprintf(format, args...), true)
+ }
+ 
+-func (check *Checker) versionErrorf(at poser, v version, format string, args ...interface{}) {
++func (check *Checker) versionErrorf(at poser, v goVersion, format string, args ...interface{}) {
+ 	msg := check.sprintf(format, args...)
+ 	msg = fmt.Sprintf("%s requires %s or later", msg, v)
+ 	check.err(at, UnsupportedFeature, msg, true)
+diff --git a/src/cmd/compile/internal/types2/version.go b/src/cmd/compile/internal/types2/version.go
+index e525f16470..12c86ef9fe 100644
+--- a/src/cmd/compile/internal/types2/version.go
++++ b/src/cmd/compile/internal/types2/version.go
+@@ -7,90 +7,46 @@ package types2
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
++	"go/version"
++	"internal/goversion"
+ 	"strings"
+ )
+ 
+-// A version represents a released Go version.
+-type version struct {
+-	major, minor int
+-}
+-
+-func (v version) String() string {
+-	return fmt.Sprintf("go%d.%d", v.major, v.minor)
+-}
++// A goVersion is a Go language version string of the form "go1.%d"
++// where d is the minor version number. goVersion strings don't
++// contain release numbers ("go1.20.1" is not a valid goVersion).
++type goVersion string
+ 
+-func (v version) equal(u version) bool {
+-	return v.major == u.major && v.minor == u.minor
++// asGoVersion returns v as a goVersion (e.g., "go1.20.1" becomes "go1.20").
++// If v is not a valid Go version, the result is the empty string.
++func asGoVersion(v string) goVersion {
++	return goVersion(version.Lang(v))
+ }
+ 
+-func (v version) before(u version) bool {
+-	return v.major < u.major || v.major == u.major && v.minor < u.minor
++// isValid reports whether v is a valid Go version.
++func (v goVersion) isValid() bool {
++	return v != ""
+ }
+ 
+-func (v version) after(u version) bool {
+-	return v.major > u.major || v.major == u.major && v.minor > u.minor
++// cmp returns -1, 0, or +1 depending on whether x < y, x == y, or x > y,
++// interpreted as Go versions.
++func (x goVersion) cmp(y goVersion) int {
++	return version.Compare(string(x), string(y))
+ }
+ 
+-// Go versions that introduced language changes.
+ var (
+-	go0_0  = version{0, 0} // no version specified
+-	go1_9  = version{1, 9}
+-	go1_13 = version{1, 13}
+-	go1_14 = version{1, 14}
+-	go1_17 = version{1, 17}
+-	go1_18 = version{1, 18}
+-	go1_20 = version{1, 20}
+-	go1_21 = version{1, 21}
+-)
++	// Go versions that introduced language changes
++	go1_9  = asGoVersion("go1.9")
++	go1_13 = asGoVersion("go1.13")
++	go1_14 = asGoVersion("go1.14")
++	go1_17 = asGoVersion("go1.17")
++	go1_18 = asGoVersion("go1.18")
++	go1_20 = asGoVersion("go1.20")
++	go1_21 = asGoVersion("go1.21")
+ 
+-// parseGoVersion parses a Go version string (such as "go1.12")
+-// and returns the version, or an error. If s is the empty
+-// string, the version is 0.0.
+-func parseGoVersion(s string) (v version, err error) {
+-	bad := func() (version, error) {
+-		return version{}, fmt.Errorf("invalid Go version syntax %q", s)
+-	}
+-	if s == "" {
+-		return
+-	}
+-	if !strings.HasPrefix(s, "go") {
+-		return bad()
+-	}
+-	s = s[len("go"):]
+-	i := 0
+-	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+-		if i >= 10 || i == 0 && s[i] == '0' {
+-			return bad()
+-		}
+-		v.major = 10*v.major + int(s[i]) - '0'
+-	}
+-	if i > 0 && i == len(s) {
+-		return
+-	}
+-	if i == 0 || s[i] != '.' {
+-		return bad()
+-	}
+-	s = s[i+1:]
+-	if s == "0" {
+-		// We really should not accept "go1.0",
+-		// but we didn't reject it from the start
+-		// and there are now programs that use it.
+-		// So accept it.
+-		return
+-	}
+-	i = 0
+-	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+-		if i >= 10 || i == 0 && s[i] == '0' {
+-			return bad()
+-		}
+-		v.minor = 10*v.minor + int(s[i]) - '0'
+-	}
+-	// Accept any suffix after the minor number.
+-	// We are only looking for the language version (major.minor)
+-	// but want to accept any valid Go version, like go1.21.0
+-	// and go1.21rc2.
+-	return
+-}
++	// current (deployed) Go version
++	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
++)
+ 
+ // langCompat reports an error if the representation of a numeric
+ // literal is not compatible with the current language version.
+@@ -121,30 +77,30 @@ func (check *Checker) langCompat(lit *syntax.BasicLit) {
+ 	}
+ }
+ 
+-// allowVersion reports whether the given package
+-// is allowed to use version major.minor.
+-func (check *Checker) allowVersion(pkg *Package, at poser, v version) bool {
++// allowVersion reports whether the given package is allowed to use version v.
++func (check *Checker) allowVersion(pkg *Package, at poser, v goVersion) bool {
+ 	// We assume that imported packages have all been checked,
+ 	// so we only have to check for the local package.
+ 	if pkg != check.pkg {
+ 		return true
+ 	}
+ 
+-	// If the source file declares its Go version, use that to decide.
+-	if check.posVers != nil {
+-		if src, ok := check.posVers[base(at.Pos())]; ok && src.major >= 1 {
+-			return !src.before(v)
+-		}
+-	}
+-
+-	// Otherwise fall back to the version in the checker.
+-	return check.version.equal(go0_0) || !check.version.before(v)
++	// If no explicit file version is specified,
++	// fileVersion corresponds to the module version.
++	var fileVersion goVersion
++	if pos := at.Pos(); pos.IsKnown() {
++		// We need version.Lang below because file versions
++		// can be (unaltered) Config.GoVersion strings that
++		// may contain dot-release information.
++		fileVersion = asGoVersion(check.versions[base(pos)])
++	}
++	return !fileVersion.isValid() || fileVersion.cmp(v) >= 0
+ }
+ 
+ // verifyVersionf is like allowVersion but also accepts a format string and arguments
+ // which are used to report a version error if allowVersion returns false. It uses the
+ // current package.
+-func (check *Checker) verifyVersionf(at poser, v version, format string, args ...interface{}) bool {
++func (check *Checker) verifyVersionf(at poser, v goVersion, format string, args ...interface{}) bool {
+ 	if !check.allowVersion(check.pkg, at, v) {
+ 		check.versionErrorf(at, v, format, args...)
+ 		return false
+@@ -154,7 +110,9 @@ func (check *Checker) verifyVersionf(at poser, v version, format string, args ..
+ 
+ // base finds the underlying PosBase of the source file containing pos,
+ // skipping over intermediate PosBase layers created by //line directives.
++// The positions must be known.
+ func base(pos syntax.Pos) *syntax.PosBase {
++	assert(pos.IsKnown())
+ 	b := pos.Base()
+ 	for {
+ 		bb := b.Pos().Base()
+diff --git a/src/cmd/compile/internal/types2/version_test.go b/src/cmd/compile/internal/types2/version_test.go
+deleted file mode 100644
+index 651758e1b0..0000000000
+--- a/src/cmd/compile/internal/types2/version_test.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types2
+-
+-import "testing"
+-
+-var parseGoVersionTests = []struct {
+-	in  string
+-	out version
+-}{
+-	{"go1.21", version{1, 21}},
+-	{"go1.21.0", version{1, 21}},
+-	{"go1.21rc2", version{1, 21}},
+-}
+-
+-func TestParseGoVersion(t *testing.T) {
+-	for _, tt := range parseGoVersionTests {
+-		if out, err := parseGoVersion(tt.in); out != tt.out || err != nil {
+-			t.Errorf("parseGoVersion(%q) = %v, %v, want %v, nil", tt.in, out, err, tt.out)
+-		}
+-	}
+-}
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 3050b930b5..594b92bb23 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"go/importer"
+ 	"go/parser"
+ 	"go/token"
++	"internal/goversion"
+ 	"internal/testenv"
+ 	"reflect"
+ 	"regexp"
+@@ -2849,11 +2850,28 @@ var _ = f(1, 2)
+ 	}
+ }
+ 
++func TestModuleVersion(t *testing.T) {
++	// version go1.dd must be able to typecheck go1.dd.0, go1.dd.1, etc.
++	goversion := fmt.Sprintf("go1.%d", goversion.Version)
++	for _, v := range []string{
++		goversion,
++		goversion + ".0",
++		goversion + ".1",
++		goversion + ".rc",
++	} {
++		conf := Config{GoVersion: v}
++		pkg := mustTypecheck("package p", &conf, nil)
++		if pkg.GoVersion() != conf.GoVersion {
++			t.Errorf("got %s; want %s", pkg.GoVersion(), conf.GoVersion)
++		}
++	}
++}
++
+ func TestFileVersions(t *testing.T) {
+ 	for _, test := range []struct {
+-		moduleVersion string
+-		fileVersion   string
+-		wantVersion   string
++		goVersion   string
++		fileVersion string
++		wantVersion string
+ 	}{
+ 		{"", "", ""},                   // no versions specified
+ 		{"go1.19", "", "go1.19"},       // module version specified
+@@ -2861,6 +2879,16 @@ func TestFileVersions(t *testing.T) {
+ 		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
+ 		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
+ 		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
++
++		// versions containing release numbers
++		// (file versions containing release numbers are considered invalid)
++		{"go1.19.0", "", "go1.19.0"},         // no file version specified
++		{"go1.20", "go1.20.1", "go1.20"},     // file upgrade ignored
++		{"go1.20.1", "go1.20", "go1.20.1"},   // file upgrade ignored
++		{"go1.20.1", "go1.21", "go1.21"},     // file upgrade permitted
++		{"go1.20.1", "go1.19", "go1.20.1"},   // file downgrade not permitted
++		{"go1.21.1", "go1.19.1", "go1.21.1"}, // file downgrade not permitted (invalid file version)
++		{"go1.21.1", "go1.19", "go1.19"},     // file downgrade permitted (module version is >= go1.21)
+ 	} {
+ 		var src string
+ 		if test.fileVersion != "" {
+@@ -2868,7 +2896,7 @@ func TestFileVersions(t *testing.T) {
+ 		}
+ 		src += "package p"
+ 
+-		conf := Config{GoVersion: test.moduleVersion}
++		conf := Config{GoVersion: test.goVersion}
+ 		versions := make(map[*ast.File]string)
+ 		var info Info
+ 		info.FileVersions = versions
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 0feea6dfeb..4a5f0731df 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -13,7 +13,6 @@ import (
+ 	"go/constant"
+ 	"go/token"
+ 	"internal/godebug"
+-	"internal/goversion"
+ 	. "internal/types/errors"
+ )
+ 
+@@ -109,8 +108,7 @@ type Checker struct {
+ 	fset *token.FileSet
+ 	pkg  *Package
+ 	*Info
+-	version version                // accepted language version
+-	posVers map[token.Pos]version  // maps file start positions to versions (may be nil)
++	version goVersion              // accepted language version
+ 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+@@ -130,6 +128,7 @@ type Checker struct {
+ 	// (initialized by Files, valid only for the duration of check.Files;
+ 	// maps and lists are allocated on demand)
+ 	files         []*ast.File               // package files
++	versions      map[*ast.File]string      // maps files to version strings (each file has an entry)
+ 	imports       []*PkgName                // list of imported packages
+ 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+ 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
+@@ -264,6 +263,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		fset:        fset,
+ 		pkg:         pkg,
+ 		Info:        info,
++		version:     asGoVersion(conf.GoVersion),
+ 		objMap:      make(map[Object]*declInfo),
+ 		impMap:      make(map[importKey]*Package),
+ 	}
+@@ -305,35 +305,51 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 		}
+ 	}
+ 
+-	// collect file versions
++	// reuse Info.FileVersions if provided
++	versions := check.Info.FileVersions
++	if versions == nil {
++		versions = make(map[*ast.File]string)
++	}
++	check.versions = versions
++
++	pkgVersionOk := check.version.isValid()
++	downgradeOk := check.version.cmp(go1_21) >= 0
++
++	// determine Go version for each file
+ 	for _, file := range check.files {
+-		check.recordFileVersion(file, check.conf.GoVersion) // record package version (possibly zero version)
+-		if v, _ := parseGoVersion(file.GoVersion); v.major > 0 {
+-			if v.equal(check.version) {
+-				continue
+-			}
+-			// Go 1.21 introduced the feature of setting the go.mod
+-			// go line to an early version of Go and allowing //go:build lines
+-			// to “upgrade” the Go version in a given file.
+-			// We can do that backwards compatibly.
+-			// Go 1.21 also introduced the feature of allowing //go:build lines
+-			// to “downgrade” the Go version in a given file.
+-			// That can't be done compatibly in general, since before the
+-			// build lines were ignored and code got the module's Go version.
+-			// To work around this, downgrades are only allowed when the
+-			// module's Go version is Go 1.21 or later.
+-			// If there is no check.version, then we don't really know what Go version to apply.
+-			// Legacy tools may do this, and they historically have accepted everything.
+-			// Preserve that behavior by ignoring //go:build constraints entirely in that case.
+-			if (v.before(check.version) && check.version.before(go1_21)) || check.version.equal(go0_0) {
+-				continue
+-			}
+-			if check.posVers == nil {
+-				check.posVers = make(map[token.Pos]version)
++		// use unaltered Config.GoVersion by default
++		// (This version string may contain dot-release numbers as in go1.20.1,
++		// unlike file versions which are Go language versions only, if valid.)
++		v := check.conf.GoVersion
++		// use the file version, if applicable
++		// (file versions are either the empty string or of the form go1.dd)
++		if pkgVersionOk {
++			fileVersion := asGoVersion(file.GoVersion)
++			if fileVersion.isValid() {
++				cmp := fileVersion.cmp(check.version)
++				// Go 1.21 introduced the feature of setting the go.mod
++				// go line to an early version of Go and allowing //go:build lines
++				// to “upgrade” (cmp > 0) the Go version in a given file.
++				// We can do that backwards compatibly.
++				//
++				// Go 1.21 also introduced the feature of allowing //go:build lines
++				// to “downgrade” (cmp < 0) the Go version in a given file.
++				// That can't be done compatibly in general, since before the
++				// build lines were ignored and code got the module's Go version.
++				// To work around this, downgrades are only allowed when the
++				// module's Go version is Go 1.21 or later.
++				//
++				// If there is no valid check.version, then we don't really know what
++				// Go version to apply.
++				// Legacy tools may do this, and they historically have accepted everything.
++				// Preserve that behavior by ignoring //go:build constraints entirely in that
++				// case (!pkgVersionOk).
++				if cmp > 0 || cmp < 0 && downgradeOk {
++					v = file.GoVersion
++				}
+ 			}
+-			check.posVers[file.FileStart] = v
+-			check.recordFileVersion(file, file.GoVersion) // overwrite package version
+ 		}
++		versions[file] = v
+ 	}
+ }
+ 
+@@ -364,15 +380,8 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 		return nil
+ 	}
+ 
+-	// Note: parseGoVersion and the subsequent checks should happen once,
+-	//       when we create a new Checker, not for each batch of files.
+-	//       We can't change it at this point because NewChecker doesn't
+-	//       return an error.
+-	check.version, err = parseGoVersion(check.conf.GoVersion)
+-	if err != nil {
+-		return err
+-	}
+-	if check.version.after(version{1, goversion.Version}) {
++	// Note: NewChecker doesn't return an error, so we need to check the version here.
++	if check.version.cmp(go_current) > 0 {
+ 		return fmt.Errorf("package requires newer Go version %v", check.version)
+ 	}
+ 	if check.conf.FakeImportC && check.conf.go115UsesCgo {
+@@ -650,9 +659,3 @@ func (check *Checker) recordScope(node ast.Node, scope *Scope) {
+ 		m[node] = scope
+ 	}
+ }
+-
+-func (check *Checker) recordFileVersion(file *ast.File, version string) {
+-	if m := check.FileVersions; m != nil {
+-		m[file] = version
+-	}
+-}
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 2653f9c6c0..63b0d9db8f 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -316,7 +316,7 @@ func (check *Checker) softErrorf(at positioner, code Code, format string, args .
+ 	check.report(err)
+ }
+ 
+-func (check *Checker) versionErrorf(at positioner, v version, format string, args ...interface{}) {
++func (check *Checker) versionErrorf(at positioner, v goVersion, format string, args ...interface{}) {
+ 	msg := check.sprintf(format, args...)
+ 	var err *error_
+ 	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, v)
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index 6af3715f87..e74a1e6f25 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -143,7 +143,6 @@ var filemap = map[string]action{
+ 	"universe.go":      fixGlobalTypVarDecl,
+ 	"util_test.go":     fixTokenPos,
+ 	"validtype.go":     nil,
+-	"version_test.go":  nil,
+ }
+ 
+ // TODO(gri) We should be able to make these rewriters more configurable/composable.
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index 0f4d064b74..cfbab0f2a8 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -8,90 +8,46 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
++	"go/version"
++	"internal/goversion"
+ 	"strings"
+ )
+ 
+-// A version represents a released Go version.
+-type version struct {
+-	major, minor int
+-}
+-
+-func (v version) String() string {
+-	return fmt.Sprintf("go%d.%d", v.major, v.minor)
+-}
++// A goVersion is a Go language version string of the form "go1.%d"
++// where d is the minor version number. goVersion strings don't
++// contain release numbers ("go1.20.1" is not a valid goVersion).
++type goVersion string
+ 
+-func (v version) equal(u version) bool {
+-	return v.major == u.major && v.minor == u.minor
++// asGoVersion returns v as a goVersion (e.g., "go1.20.1" becomes "go1.20").
++// If v is not a valid Go version, the result is the empty string.
++func asGoVersion(v string) goVersion {
++	return goVersion(version.Lang(v))
+ }
+ 
+-func (v version) before(u version) bool {
+-	return v.major < u.major || v.major == u.major && v.minor < u.minor
++// isValid reports whether v is a valid Go version.
++func (v goVersion) isValid() bool {
++	return v != ""
+ }
+ 
+-func (v version) after(u version) bool {
+-	return v.major > u.major || v.major == u.major && v.minor > u.minor
++// cmp returns -1, 0, or +1 depending on whether x < y, x == y, or x > y,
++// interpreted as Go versions.
++func (x goVersion) cmp(y goVersion) int {
++	return version.Compare(string(x), string(y))
+ }
+ 
+-// Go versions that introduced language changes.
+ var (
+-	go0_0  = version{0, 0} // no version specified
+-	go1_9  = version{1, 9}
+-	go1_13 = version{1, 13}
+-	go1_14 = version{1, 14}
+-	go1_17 = version{1, 17}
+-	go1_18 = version{1, 18}
+-	go1_20 = version{1, 20}
+-	go1_21 = version{1, 21}
+-)
++	// Go versions that introduced language changes
++	go1_9  = asGoVersion("go1.9")
++	go1_13 = asGoVersion("go1.13")
++	go1_14 = asGoVersion("go1.14")
++	go1_17 = asGoVersion("go1.17")
++	go1_18 = asGoVersion("go1.18")
++	go1_20 = asGoVersion("go1.20")
++	go1_21 = asGoVersion("go1.21")
+ 
+-// parseGoVersion parses a Go version string (such as "go1.12")
+-// and returns the version, or an error. If s is the empty
+-// string, the version is 0.0.
+-func parseGoVersion(s string) (v version, err error) {
+-	bad := func() (version, error) {
+-		return version{}, fmt.Errorf("invalid Go version syntax %q", s)
+-	}
+-	if s == "" {
+-		return
+-	}
+-	if !strings.HasPrefix(s, "go") {
+-		return bad()
+-	}
+-	s = s[len("go"):]
+-	i := 0
+-	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+-		if i >= 10 || i == 0 && s[i] == '0' {
+-			return bad()
+-		}
+-		v.major = 10*v.major + int(s[i]) - '0'
+-	}
+-	if i > 0 && i == len(s) {
+-		return
+-	}
+-	if i == 0 || s[i] != '.' {
+-		return bad()
+-	}
+-	s = s[i+1:]
+-	if s == "0" {
+-		// We really should not accept "go1.0",
+-		// but we didn't reject it from the start
+-		// and there are now programs that use it.
+-		// So accept it.
+-		return
+-	}
+-	i = 0
+-	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+-		if i >= 10 || i == 0 && s[i] == '0' {
+-			return bad()
+-		}
+-		v.minor = 10*v.minor + int(s[i]) - '0'
+-	}
+-	// Accept any suffix after the minor number.
+-	// We are only looking for the language version (major.minor)
+-	// but want to accept any valid Go version, like go1.21.0
+-	// and go1.21rc2.
+-	return
+-}
++	// current (deployed) Go version
++	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
++)
+ 
+ // langCompat reports an error if the representation of a numeric
+ // literal is not compatible with the current language version.
+@@ -122,35 +78,54 @@ func (check *Checker) langCompat(lit *ast.BasicLit) {
+ 	}
+ }
+ 
+-// allowVersion reports whether the given package
+-// is allowed to use version major.minor.
+-func (check *Checker) allowVersion(pkg *Package, at positioner, v version) bool {
++// allowVersion reports whether the given package is allowed to use version v.
++func (check *Checker) allowVersion(pkg *Package, at positioner, v goVersion) bool {
+ 	// We assume that imported packages have all been checked,
+ 	// so we only have to check for the local package.
+ 	if pkg != check.pkg {
+ 		return true
+ 	}
+ 
+-	// If the source file declares its Go version and at references a valid
+-	// position, use that to decide.
+-	if pos := at.Pos(); pos.IsValid() && check.posVers != nil {
+-		fileStart := check.fset.File(pos).Pos(0)
+-		if src, ok := check.posVers[fileStart]; ok && src.major >= 1 {
+-			return !src.before(v)
+-		}
+-	}
+-
+-	// Otherwise fall back to the version in the checker.
+-	return check.version.equal(go0_0) || !check.version.before(v)
++	// If no explicit file version is specified,
++	// fileVersion corresponds to the module version.
++	var fileVersion goVersion
++	if pos := at.Pos(); pos.IsValid() {
++		// We need version.Lang below because file versions
++		// can be (unaltered) Config.GoVersion strings that
++		// may contain dot-release information.
++		fileVersion = asGoVersion(check.versions[check.fileFor(pos)])
++	}
++	return !fileVersion.isValid() || fileVersion.cmp(v) >= 0
+ }
+ 
+ // verifyVersionf is like allowVersion but also accepts a format string and arguments
+ // which are used to report a version error if allowVersion returns false. It uses the
+ // current package.
+-func (check *Checker) verifyVersionf(at positioner, v version, format string, args ...interface{}) bool {
++func (check *Checker) verifyVersionf(at positioner, v goVersion, format string, args ...interface{}) bool {
+ 	if !check.allowVersion(check.pkg, at, v) {
+ 		check.versionErrorf(at, v, format, args...)
+ 		return false
+ 	}
+ 	return true
+ }
++
++// TODO(gri) Consider a more direct (position-independent) mechanism
++//           to identify which file we're in so that version checks
++//           work correctly in the absence of correct position info.
++
++// fileFor returns the *ast.File which contains the position pos.
++// If there are no files, the result is nil.
++// The position must be valid.
++func (check *Checker) fileFor(pos token.Pos) *ast.File {
++	assert(pos.IsValid())
++	// Eval and CheckExpr tests may not have any source files.
++	if len(check.files) == 0 {
++		return nil
++	}
++	for _, file := range check.files {
++		if file.FileStart <= pos && pos < file.FileEnd {
++			return file
++		}
++	}
++	panic(check.sprintf("file not found for pos = %d (%s)", int(pos), check.fset.Position(pos)))
++}
+diff --git a/src/go/types/version_test.go b/src/go/types/version_test.go
+deleted file mode 100644
+index d25f7f5e67..0000000000
+--- a/src/go/types/version_test.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Code generated by "go test -run=Generate -write=all"; DO NOT EDIT.
+-
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types
+-
+-import "testing"
+-
+-var parseGoVersionTests = []struct {
+-	in  string
+-	out version
+-}{
+-	{"go1.21", version{1, 21}},
+-	{"go1.21.0", version{1, 21}},
+-	{"go1.21rc2", version{1, 21}},
+-}
+-
+-func TestParseGoVersion(t *testing.T) {
+-	for _, tt := range parseGoVersionTests {
+-		if out, err := parseGoVersion(tt.in); out != tt.out || err != nil {
+-			t.Errorf("parseGoVersion(%q) = %v, %v, want %v, nil", tt.in, out, err, tt.out)
+-		}
+-	}
+-}

@@ -7,7 +7,7 @@ Date:   Tue Nov 27 15:04:48 2012 +0400
     R=golang-dev, remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/6525052
-
+---
  src/pkg/runtime/race/race_test.go                |  152 +++
  src/pkg/runtime/race/testdata/atomic_test.go     |  271 +++++
  src/pkg/runtime/race/testdata/cgo_test.go        |   20 +
@@ -26,3 +26,4383 @@ Date:   Tue Nov 27 15:04:48 2012 +0400
  src/pkg/runtime/race/testdata/sync_test.go       |  197 ++++
  src/pkg/runtime/race/testdata/waitgroup_test.go  |  232 ++++
  17 files changed, 4277 insertions(+)
+
+diff --git a/src/pkg/runtime/race/race_test.go b/src/pkg/runtime/race/race_test.go
+new file mode 100644
+index 0000000000..b97eb43870
+--- /dev/null
++++ b/src/pkg/runtime/race/race_test.go
+@@ -0,0 +1,152 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++// This program is used to verify the race detector
++// by running the tests and parsing their output.
++// It does not check stack correctness, completeness or anything else:
++// it merely verifies that if a test is expected to be racy
++// then the race is detected.
++package race_test
++
++import (
++	"bufio"
++	"bytes"
++	"fmt"
++	"io"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++var (
++	passedTests = 0
++	totalTests  = 0
++	falsePos    = 0
++	falseNeg    = 0
++	failingPos  = 0
++	failingNeg  = 0
++	failed      = false
++)
++
++const (
++	visibleLen = 40
++	testPrefix = "=== RUN Test"
++)
++
++func TestRace(t *testing.T) {
++	testOutput, err := runTests()
++	if err != nil {
++		t.Fatalf("Failed to run tests: %v", err)
++	}
++	reader := bufio.NewReader(bytes.NewBuffer(testOutput))
++
++	funcName := ""
++	var tsanLog []string
++	for {
++		s, err := nextLine(reader)
++		if err != nil {
++			fmt.Printf("%s\n", processLog(funcName, tsanLog))
++			break
++		}
++		if strings.HasPrefix(s, testPrefix) {
++			fmt.Printf("%s\n", processLog(funcName, tsanLog))
++			tsanLog = make([]string, 0, 100)
++			funcName = s[len(testPrefix):]
++		} else {
++			tsanLog = append(tsanLog, s)
++		}
++	}
++
++	fmt.Printf("\nPassed %d of %d tests (%.02f%%, %d+, %d-)\n",
++		passedTests, totalTests, 100*float64(passedTests)/float64(totalTests), falsePos, falseNeg)
++	fmt.Printf("%d expected failures (%d has not fail)\n", failingPos+failingNeg, failingNeg)
++	if failed {
++		t.Fail()
++	}
++}
++
++// nextLine is a wrapper around bufio.Reader.ReadString.
++// It reads a line up to the next '\n' character. Error
++// is non-nil if there are no lines left, and nil
++// otherwise.
++func nextLine(r *bufio.Reader) (string, error) {
++	s, err := r.ReadString('\n')
++	if err != nil {
++		if err != io.EOF {
++			log.Fatalf("nextLine: expected EOF, received %v", err)
++		}
++		return s, err
++	}
++	return s[:len(s)-1], nil
++}
++
++// processLog verifies whether the given ThreadSanitizer's log
++// contains a race report, checks this information against
++// the name of the testcase and returns the result of this
++// comparison.
++func processLog(testName string, tsanLog []string) string {
++	if !strings.HasPrefix(testName, "Race") && !strings.HasPrefix(testName, "NoRace") {
++		return ""
++	}
++	gotRace := false
++	for _, s := range tsanLog {
++		if strings.Contains(s, "DATA RACE") {
++			gotRace = true
++			break
++		}
++	}
++
++	failing := strings.Contains(testName, "Failing")
++	expRace := !strings.HasPrefix(testName, "No")
++	for len(testName) < visibleLen {
++		testName += " "
++	}
++	if expRace == gotRace {
++		passedTests++
++		totalTests++
++		if failing {
++			failed = true
++			failingNeg++
++		}
++		return fmt.Sprintf("%s .", testName)
++	}
++	pos := ""
++	if expRace {
++		falseNeg++
++	} else {
++		falsePos++
++		pos = "+"
++	}
++	if failing {
++		failingPos++
++	} else {
++		failed = true
++	}
++	totalTests++
++	return fmt.Sprintf("%s %s%s", testName, "FAILED", pos)
++}
++
++// runTests assures that the package and its dependencies is
++// built with instrumentation enabled and returns the output of 'go test'
++// which includes possible data race reports from ThreadSanitizer.
++func runTests() ([]byte, error) {
++	tests, err := filepath.Glob("./testdata/*_test.go")
++	if err != nil {
++		return nil, err
++	}
++	args := []string{"test", "-race", "-v"}
++	args = append(args, tests...)
++	cmd := exec.Command("go", args...)
++	// The following flags turn off heuristics that suppress seemingly identical reports.
++	// It is required because the tests contain a lot of data races on the same addresses
++	// (the tests are simple and the memory is constantly reused).
++	cmd.Env = append(os.Environ(), `GORACE="suppress_equal_stacks=0 suppress_equal_addresses=0"`)
++	ret, _ := cmd.CombinedOutput()
++	return ret, nil
++}
+diff --git a/src/pkg/runtime/race/testdata/atomic_test.go b/src/pkg/runtime/race/testdata/atomic_test.go
+new file mode 100644
+index 0000000000..0c5c2c0084
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/atomic_test.go
+@@ -0,0 +1,271 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"runtime"
++	"sync/atomic"
++	"testing"
++	"unsafe"
++)
++
++func TestNoRaceAtomicAddInt64(t *testing.T) {
++	var x1, x2 int8
++	var s int64
++	ch := make(chan bool, 2)
++	go func() {
++		x1 = 1
++		if atomic.AddInt64(&s, 1) == 2 {
++			x2 = 1
++		}
++		ch <- true
++	}()
++	go func() {
++		x2 = 1
++		if atomic.AddInt64(&s, 1) == 2 {
++			x1 = 1
++		}
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceAtomicAddInt64(t *testing.T) {
++	var x1, x2 int8
++	var s int64
++	ch := make(chan bool, 2)
++	go func() {
++		x1 = 1
++		if atomic.AddInt64(&s, 1) == 1 {
++			x2 = 1
++		}
++		ch <- true
++	}()
++	go func() {
++		x2 = 1
++		if atomic.AddInt64(&s, 1) == 1 {
++			x1 = 1
++		}
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestNoRaceAtomicAddInt32(t *testing.T) {
++	var x1, x2 int8
++	var s int32
++	ch := make(chan bool, 2)
++	go func() {
++		x1 = 1
++		if atomic.AddInt32(&s, 1) == 2 {
++			x2 = 1
++		}
++		ch <- true
++	}()
++	go func() {
++		x2 = 1
++		if atomic.AddInt32(&s, 1) == 2 {
++			x1 = 1
++		}
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestNoRaceAtomicLoadAddInt32(t *testing.T) {
++	var x int64
++	var s int32
++	go func() {
++		x = 2
++		atomic.AddInt32(&s, 1)
++	}()
++	for atomic.LoadInt32(&s) != 1 {
++		runtime.Gosched()
++	}
++	x = 1
++}
++
++func TestNoRaceAtomicLoadStoreInt32(t *testing.T) {
++	var x int64
++	var s int32
++	go func() {
++		x = 2
++		atomic.StoreInt32(&s, 1)
++	}()
++	for atomic.LoadInt32(&s) != 1 {
++		runtime.Gosched()
++	}
++	x = 1
++}
++
++func TestNoRaceAtomicStoreCASInt32(t *testing.T) {
++	var x int64
++	var s int32
++	go func() {
++		x = 2
++		atomic.StoreInt32(&s, 1)
++	}()
++	for !atomic.CompareAndSwapInt32(&s, 1, 0) {
++		runtime.Gosched()
++	}
++	x = 1
++}
++
++func TestNoRaceAtomicCASLoadInt32(t *testing.T) {
++	var x int64
++	var s int32
++	go func() {
++		x = 2
++		if !atomic.CompareAndSwapInt32(&s, 0, 1) {
++			panic("")
++		}
++	}()
++	for atomic.LoadInt32(&s) != 1 {
++		runtime.Gosched()
++	}
++	x = 1
++}
++
++func TestNoRaceAtomicCASCASInt32(t *testing.T) {
++	var x int64
++	var s int32
++	go func() {
++		x = 2
++		if !atomic.CompareAndSwapInt32(&s, 0, 1) {
++			panic("")
++		}
++	}()
++	for !atomic.CompareAndSwapInt32(&s, 1, 0) {
++		runtime.Gosched()
++	}
++	x = 1
++}
++
++func TestNoRaceAtomicCASCASInt32_2(t *testing.T) {
++	var x1, x2 int8
++	var s int32
++	ch := make(chan bool, 2)
++	go func() {
++		x1 = 1
++		if !atomic.CompareAndSwapInt32(&s, 0, 1) {
++			x2 = 1
++		}
++		ch <- true
++	}()
++	go func() {
++		x2 = 1
++		if !atomic.CompareAndSwapInt32(&s, 0, 1) {
++			x1 = 1
++		}
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestNoRaceAtomicLoadInt64(t *testing.T) {
++	var x int32
++	var s int64
++	go func() {
++		x = 2
++		atomic.AddInt64(&s, 1)
++	}()
++	for atomic.LoadInt64(&s) != 1 {
++		runtime.Gosched()
++	}
++	x = 1
++}
++
++func TestNoRaceAtomicCASCASUInt64(t *testing.T) {
++	var x int64
++	var s uint64
++	go func() {
++		x = 2
++		if !atomic.CompareAndSwapUint64(&s, 0, 1) {
++			panic("")
++		}
++	}()
++	for !atomic.CompareAndSwapUint64(&s, 1, 0) {
++		runtime.Gosched()
++	}
++	x = 1
++}
++
++func TestNoRaceAtomicLoadStorePointer(t *testing.T) {
++	var x int64
++	var s unsafe.Pointer
++	var y int = 2
++	var p unsafe.Pointer = unsafe.Pointer(&y)
++	go func() {
++		x = 2
++		atomic.StorePointer(&s, p)
++	}()
++	for atomic.LoadPointer(&s) != p {
++		runtime.Gosched()
++	}
++	x = 1
++}
++
++func TestNoRaceAtomicStoreCASUint64(t *testing.T) {
++	var x int64
++	var s uint64
++	go func() {
++		x = 2
++		atomic.StoreUint64(&s, 1)
++	}()
++	for !atomic.CompareAndSwapUint64(&s, 1, 0) {
++		runtime.Gosched()
++	}
++	x = 1
++}
++
++// Races with non-atomic loads are not detected.
++func TestRaceFailingAtomicStoreLoad(t *testing.T) {
++	c := make(chan bool)
++	var a uint64
++	go func() {
++		atomic.StoreUint64(&a, 1)
++		c <- true
++	}()
++	_ = a
++	<-c
++}
++
++func TestRaceAtomicLoadStore(t *testing.T) {
++	c := make(chan bool)
++	var a uint64
++	go func() {
++		_ = atomic.LoadUint64(&a)
++		c <- true
++	}()
++	a = 1
++	<-c
++}
++
++// Races with non-atomic loads are not detected.
++func TestRaceFailingAtomicAddLoad(t *testing.T) {
++	c := make(chan bool)
++	var a uint64
++	go func() {
++		atomic.AddUint64(&a, 1)
++		c <- true
++	}()
++	_ = a
++	<-c
++}
++
++func TestRaceAtomicAddStore(t *testing.T) {
++	c := make(chan bool)
++	var a uint64
++	go func() {
++		atomic.AddUint64(&a, 1)
++		c <- true
++	}()
++	a = 42
++	<-c
++}
+diff --git a/src/pkg/runtime/race/testdata/cgo_test.go b/src/pkg/runtime/race/testdata/cgo_test.go
+new file mode 100644
+index 0000000000..ba7e7b5624
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/cgo_test.go
+@@ -0,0 +1,20 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"os"
++	"os/exec"
++	"testing"
++)
++
++func TestNoRaceCgoSync(t *testing.T) {
++	cmd := exec.Command("go", "run", "-race", "cgo_test_main.go")
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++	if err := cmd.Run(); err != nil {
++		t.Fatalf("program exited with error: %v\n", err)
++	}
++}
+diff --git a/src/pkg/runtime/race/testdata/cgo_test_main.go b/src/pkg/runtime/race/testdata/cgo_test_main.go
+new file mode 100644
+index 0000000000..789ea0adc3
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/cgo_test_main.go
+@@ -0,0 +1,40 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <pthread.h>
++
++pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
++pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
++int sync;
++
++void Notify(void)
++{
++	pthread_mutex_lock(&mtx);
++	sync = 1;
++	pthread_cond_broadcast(&cv);
++	pthread_mutex_unlock(&mtx);
++}
++
++void Wait(void)
++{
++	pthread_mutex_lock(&mtx);
++	while(sync == 0)
++		pthread_cond_wait(&cv, &mtx);
++	pthread_mutex_unlock(&mtx);
++}
++*/
++import "C"
++
++func main() {
++	data := 0
++	go func() {
++		data = 1
++		C.Notify()
++	}()
++	C.Wait()
++	_ = data
++}
+diff --git a/src/pkg/runtime/race/testdata/chan_test.go b/src/pkg/runtime/race/testdata/chan_test.go
+new file mode 100644
+index 0000000000..2332f097eb
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/chan_test.go
+@@ -0,0 +1,457 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"runtime"
++	"testing"
++	"time"
++)
++
++func TestNoRaceChanSync(t *testing.T) {
++	v := 0
++	c := make(chan int)
++	go func() {
++		v = 1
++		c <- 0
++	}()
++	<-c
++	v = 2
++}
++
++func TestNoRaceChanSyncRev(t *testing.T) {
++	v := 0
++	c := make(chan int)
++	go func() {
++		c <- 0
++		v = 2
++	}()
++	v = 1
++	<-c
++}
++
++func TestNoRaceChanAsync(t *testing.T) {
++	v := 0
++	c := make(chan int, 10)
++	go func() {
++		v = 1
++		c <- 0
++	}()
++	<-c
++	v = 2
++}
++
++func TestRaceChanAsyncRev(t *testing.T) {
++	v := 0
++	c := make(chan int, 10)
++	go func() {
++		c <- 0
++		v = 1
++	}()
++	v = 2
++	<-c
++}
++
++func TestNoRaceChanAsyncCloseRecv(t *testing.T) {
++	v := 0
++	c := make(chan int, 10)
++	go func() {
++		v = 1
++		close(c)
++	}()
++	func() {
++		defer func() {
++			recover()
++			v = 2
++		}()
++		<-c
++	}()
++}
++
++func TestNoRaceChanAsyncCloseRecv2(t *testing.T) {
++	v := 0
++	c := make(chan int, 10)
++	go func() {
++		v = 1
++		close(c)
++	}()
++	_, _ = <-c
++	v = 2
++}
++
++func TestNoRaceChanAsyncCloseRecv3(t *testing.T) {
++	v := 0
++	c := make(chan int, 10)
++	go func() {
++		v = 1
++		close(c)
++	}()
++	for _ = range c {
++	}
++	v = 2
++}
++
++func TestNoRaceChanSyncCloseRecv(t *testing.T) {
++	v := 0
++	c := make(chan int)
++	go func() {
++		v = 1
++		close(c)
++	}()
++	func() {
++		defer func() {
++			recover()
++			v = 2
++		}()
++		<-c
++	}()
++}
++
++func TestNoRaceChanSyncCloseRecv2(t *testing.T) {
++	v := 0
++	c := make(chan int)
++	go func() {
++		v = 1
++		close(c)
++	}()
++	_, _ = <-c
++	v = 2
++}
++
++func TestNoRaceChanSyncCloseRecv3(t *testing.T) {
++	v := 0
++	c := make(chan int)
++	go func() {
++		v = 1
++		close(c)
++	}()
++	for _ = range c {
++	}
++	v = 2
++}
++
++func TestRaceChanSyncCloseSend(t *testing.T) {
++	v := 0
++	c := make(chan int)
++	go func() {
++		v = 1
++		close(c)
++	}()
++	func() {
++		defer func() {
++			recover()
++		}()
++		c <- 0
++	}()
++	v = 2
++}
++
++func TestRaceChanAsyncCloseSend(t *testing.T) {
++	v := 0
++	c := make(chan int, 10)
++	go func() {
++		v = 1
++		close(c)
++	}()
++	func() {
++		defer func() {
++			recover()
++		}()
++		for {
++			c <- 0
++		}
++	}()
++	v = 2
++}
++
++func TestRaceChanCloseClose(t *testing.T) {
++	compl := make(chan bool, 2)
++	v1 := 0
++	v2 := 0
++	c := make(chan int)
++	go func() {
++		defer func() {
++			if recover() != nil {
++				v2 = 2
++			}
++			compl <- true
++		}()
++		v1 = 1
++		close(c)
++	}()
++	go func() {
++		defer func() {
++			if recover() != nil {
++				v1 = 2
++			}
++			compl <- true
++		}()
++		v2 = 1
++		close(c)
++	}()
++	<-compl
++	<-compl
++}
++
++func TestRaceChanSendLen(t *testing.T) {
++	v := 0
++	c := make(chan int, 10)
++	go func() {
++		v = 1
++		c <- 1
++	}()
++	for len(c) == 0 {
++		runtime.Gosched()
++	}
++	v = 2
++}
++
++func TestRaceChanRecvLen(t *testing.T) {
++	v := 0
++	c := make(chan int, 10)
++	c <- 1
++	go func() {
++		v = 1
++		<-c
++	}()
++	for len(c) != 0 {
++		runtime.Gosched()
++	}
++	v = 2
++}
++
++func TestRaceChanSendSend(t *testing.T) {
++	compl := make(chan bool, 2)
++	v1 := 0
++	v2 := 0
++	c := make(chan int, 1)
++	go func() {
++		v1 = 1
++		select {
++		case c <- 1:
++		default:
++			v2 = 2
++		}
++		compl <- true
++	}()
++	go func() {
++		v2 = 1
++		select {
++		case c <- 1:
++		default:
++			v1 = 2
++		}
++		compl <- true
++	}()
++	<-compl
++	<-compl
++}
++
++func TestNoRaceChanPtr(t *testing.T) {
++	type msg struct {
++		x int
++	}
++	c := make(chan *msg)
++	go func() {
++		c <- &msg{1}
++	}()
++	m := <-c
++	m.x = 2
++}
++
++func TestRaceChanWrongSend(t *testing.T) {
++	v1 := 0
++	v2 := 0
++	c := make(chan int, 2)
++	go func() {
++		v1 = 1
++		c <- 1
++	}()
++	go func() {
++		v2 = 2
++		c <- 2
++	}()
++	time.Sleep(1e7)
++	if <-c == 1 {
++		v2 = 3
++	} else {
++		v1 = 3
++	}
++}
++
++func TestRaceChanWrongClose(t *testing.T) {
++	v1 := 0
++	v2 := 0
++	c := make(chan int, 1)
++	go func() {
++		defer func() {
++			recover()
++		}()
++		v1 = 1
++		c <- 1
++	}()
++	go func() {
++		time.Sleep(1e7)
++		v2 = 2
++		close(c)
++	}()
++	time.Sleep(2e7)
++	if _, who := <-c; who {
++		v2 = 2
++	} else {
++		v1 = 2
++	}
++}
++
++func TestRaceChanSendClose(t *testing.T) {
++	compl := make(chan bool, 2)
++	c := make(chan int, 1)
++	go func() {
++		defer func() {
++			recover()
++		}()
++		c <- 1
++		compl <- true
++	}()
++	go func() {
++		time.Sleep(1e7)
++		close(c)
++		compl <- true
++	}()
++	<-compl
++	<-compl
++}
++
++func TestNoRaceProducerConsumerUnbuffered(t *testing.T) {
++	type Task struct {
++		f    func()
++		done chan bool
++	}
++
++	queue := make(chan Task)
++
++	go func() {
++		t := <-queue
++		t.f()
++		t.done <- true
++	}()
++
++	doit := func(f func()) {
++		done := make(chan bool, 1)
++		queue <- Task{f, done}
++		<-done
++	}
++
++	x := 0
++	doit(func() {
++		x = 1
++	})
++	_ = x
++}
++
++func TestRaceChanItselfSend(t *testing.T) {
++	compl := make(chan bool, 1)
++	c := make(chan int, 10)
++	go func() {
++		c <- 0
++		compl <- true
++	}()
++	c = make(chan int, 20)
++	<-compl
++}
++
++func TestRaceChanItselfRecv(t *testing.T) {
++	compl := make(chan bool, 1)
++	c := make(chan int, 10)
++	c <- 1
++	go func() {
++		<-c
++		compl <- true
++	}()
++	time.Sleep(1e7)
++	c = make(chan int, 20)
++	<-compl
++}
++
++func TestRaceChanItselfNil(t *testing.T) {
++	c := make(chan int, 10)
++	go func() {
++		c <- 0
++	}()
++	time.Sleep(1e7)
++	c = nil
++	_ = c
++}
++
++func TestRaceChanItselfClose(t *testing.T) {
++	compl := make(chan bool, 1)
++	c := make(chan int)
++	go func() {
++		close(c)
++		compl <- true
++	}()
++	c = make(chan int)
++	<-compl
++}
++
++func TestRaceChanItselfLen(t *testing.T) {
++	compl := make(chan bool, 1)
++	c := make(chan int)
++	go func() {
++		_ = len(c)
++		compl <- true
++	}()
++	c = make(chan int)
++	<-compl
++}
++
++func TestRaceChanItselfCap(t *testing.T) {
++	compl := make(chan bool, 1)
++	c := make(chan int)
++	go func() {
++		_ = cap(c)
++		compl <- true
++	}()
++	c = make(chan int)
++	<-compl
++}
++
++func TestRaceChanCloseLen(t *testing.T) {
++	v := 0
++	c := make(chan int, 10)
++	c <- 0
++	go func() {
++		v = 1
++		close(c)
++	}()
++	time.Sleep(1e7)
++	_ = len(c)
++	v = 2
++}
++
++func TestRaceChanSameCell(t *testing.T) {
++	c := make(chan int, 1)
++	v := 0
++	go func() {
++		v = 1
++		c <- 42
++		<-c
++	}()
++	time.Sleep(1e7)
++	c <- 43
++	<-c
++	_ = v
++}
++
++func TestRaceChanCloseSend(t *testing.T) {
++	compl := make(chan bool, 1)
++	c := make(chan int, 10)
++	go func() {
++		close(c)
++		compl <- true
++	}()
++	c <- 0
++	<-compl
++}
+diff --git a/src/pkg/runtime/race/testdata/comp_test.go b/src/pkg/runtime/race/testdata/comp_test.go
+new file mode 100644
+index 0000000000..754e4db6d4
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/comp_test.go
+@@ -0,0 +1,132 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"testing"
++)
++
++type P struct {
++	x, y int
++}
++
++type S struct {
++	s1, s2 P
++}
++
++func TestNoRaceComp(t *testing.T) {
++	c := make(chan bool, 1)
++	var s S
++	go func() {
++		s.s2.x = 1
++		c <- true
++	}()
++	s.s2.y = 2
++	<-c
++}
++
++func TestNoRaceComp2(t *testing.T) {
++	c := make(chan bool, 1)
++	var s S
++	go func() {
++		s.s1.x = 1
++		c <- true
++	}()
++	s.s1.y = 2
++	<-c
++}
++
++func TestRaceComp(t *testing.T) {
++	c := make(chan bool, 1)
++	var s S
++	go func() {
++		s.s2.y = 1
++		c <- true
++	}()
++	s.s2.y = 2
++	<-c
++}
++
++func TestRaceComp2(t *testing.T) {
++	c := make(chan bool, 1)
++	var s S
++	go func() {
++		s.s1.x = 1
++		c <- true
++	}()
++	s = S{}
++	<-c
++}
++
++func TestRaceComp3(t *testing.T) {
++	c := make(chan bool, 1)
++	var s S
++	go func() {
++		s.s2.y = 1
++		c <- true
++	}()
++	s = S{}
++	<-c
++}
++
++func TestRaceCompArray(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]S, 10)
++	x := 4
++	go func() {
++		s[x].s2.y = 1
++		c <- true
++	}()
++	x = 5
++	<-c
++}
++
++type Ptr struct {
++	s1, s2 *P
++}
++
++func TestNoRaceCompPtr(t *testing.T) {
++	c := make(chan bool, 1)
++	p := Ptr{&P{}, &P{}}
++	go func() {
++		p.s1.x = 1
++		c <- true
++	}()
++	p.s1.y = 2
++	<-c
++}
++
++func TestNoRaceCompPtr2(t *testing.T) {
++	c := make(chan bool, 1)
++	p := Ptr{&P{}, &P{}}
++	go func() {
++		p.s1.x = 1
++		c <- true
++	}()
++	_ = p
++	<-c
++}
++
++func TestRaceCompPtr(t *testing.T) {
++	c := make(chan bool, 1)
++	p := Ptr{&P{}, &P{}}
++	go func() {
++		p.s2.x = 1
++		c <- true
++	}()
++	p.s2.x = 2
++	<-c
++}
++
++func TestRaceCompPtr2(t *testing.T) {
++	c := make(chan bool, 1)
++	p := Ptr{&P{}, &P{}}
++	go func() {
++		p.s2.x = 1
++		c <- true
++	}()
++	p.s2 = &P{}
++	<-c
++}
+diff --git a/src/pkg/runtime/race/testdata/finalizer_test.go b/src/pkg/runtime/race/testdata/finalizer_test.go
+new file mode 100644
+index 0000000000..2b2607689a
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/finalizer_test.go
+@@ -0,0 +1,67 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"runtime"
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestNoRaceFin(t *testing.T) {
++	c := make(chan bool)
++	go func() {
++		x := new(int)
++		runtime.SetFinalizer(x, func(x *int) {
++			*x = 42
++		})
++		*x = 66
++		c <- true
++	}()
++	<-c
++	runtime.GC()
++	time.Sleep(1e8)
++}
++
++var finVar struct {
++	sync.Mutex
++	cnt int
++}
++
++func TestNoRaceFinGlobal(t *testing.T) {
++	c := make(chan bool)
++	go func() {
++		x := new(int)
++		runtime.SetFinalizer(x, func(x *int) {
++			finVar.Lock()
++			finVar.cnt++
++			finVar.Unlock()
++		})
++		c <- true
++	}()
++	<-c
++	runtime.GC()
++	time.Sleep(1e8)
++	finVar.Lock()
++	finVar.cnt++
++	finVar.Unlock()
++}
++
++func TestRaceFin(t *testing.T) {
++	c := make(chan bool)
++	y := 0
++	go func() {
++		x := new(int)
++		runtime.SetFinalizer(x, func(x *int) {
++			y = 42
++		})
++		c <- true
++	}()
++	<-c
++	runtime.GC()
++	time.Sleep(1e8)
++	y = 66
++}
+diff --git a/src/pkg/runtime/race/testdata/io_test.go b/src/pkg/runtime/race/testdata/io_test.go
+new file mode 100644
+index 0000000000..9eb3552dc7
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/io_test.go
+@@ -0,0 +1,69 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"fmt"
++	"io/ioutil"
++	"net/http"
++	"os"
++	"path/filepath"
++	"testing"
++	"time"
++)
++
++func TestNoRaceIOFile(t *testing.T) {
++	x := 0
++	path, _ := ioutil.TempDir("", "race_test")
++	fname := filepath.Join(path, "data")
++	go func() {
++		x = 42
++		f, _ := os.Create(fname)
++		f.Write([]byte("done"))
++		f.Close()
++	}()
++	for {
++		f, err := os.Open(fname)
++		if err != nil {
++			time.Sleep(1e6)
++			continue
++		}
++		buf := make([]byte, 100)
++		count, err := f.Read(buf)
++		if count == 0 {
++			time.Sleep(1e6)
++			continue
++		}
++		break
++	}
++	_ = x
++}
++
++func TestNoRaceIOHttp(t *testing.T) {
++	x := 0
++	go func() {
++		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
++			x = 41
++			fmt.Fprintf(w, "test")
++			x = 42
++		})
++		err := http.ListenAndServe(":23651", nil)
++		if err != nil {
++			t.Fatalf("http.ListenAndServe: %v", err)
++		}
++	}()
++	time.Sleep(1e7)
++	x = 1
++	_, err := http.Get("http://127.0.0.1:23651")
++	if err != nil {
++		t.Fatalf("http.Get: %v", err)
++	}
++	x = 2
++	_, err = http.Get("http://127.0.0.1:23651")
++	if err != nil {
++		t.Fatalf("http.Get: %v", err)
++	}
++	x = 3
++}
+diff --git a/src/pkg/runtime/race/testdata/map_test.go b/src/pkg/runtime/race/testdata/map_test.go
+new file mode 100644
+index 0000000000..6e1449744d
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/map_test.go
+@@ -0,0 +1,151 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"testing"
++)
++
++func TestRaceMapRW(t *testing.T) {
++	m := make(map[int]int)
++	ch := make(chan bool, 1)
++	go func() {
++		_ = m[1]
++		ch <- true
++	}()
++	m[1] = 1
++	<-ch
++}
++
++func TestRaceMapRW2(t *testing.T) {
++	m := make(map[int]int)
++	ch := make(chan bool, 1)
++	go func() {
++		_, _ = m[1]
++		ch <- true
++	}()
++	m[1] = 1
++	<-ch
++}
++
++func TestNoRaceMapRR(t *testing.T) {
++	m := make(map[int]int)
++	ch := make(chan bool, 1)
++	go func() {
++		_, _ = m[1]
++		ch <- true
++	}()
++	_ = m[1]
++	<-ch
++}
++
++func TestRaceMapRange(t *testing.T) {
++	m := make(map[int]int)
++	ch := make(chan bool, 1)
++	go func() {
++		for _ = range m {
++		}
++		ch <- true
++	}()
++	m[1] = 1
++	<-ch
++}
++
++func TestRaceMapRange2(t *testing.T) {
++	m := make(map[int]int)
++	ch := make(chan bool, 1)
++	go func() {
++		for _, _ = range m {
++		}
++		ch <- true
++	}()
++	m[1] = 1
++	<-ch
++}
++
++func TestNoRaceMapRangeRange(t *testing.T) {
++	m := make(map[int]int)
++	// now the map is not empty and range triggers an event
++	// should work without this (as in other tests)
++	// so it is suspicious if this test passes and others don't
++	m[0] = 0
++	ch := make(chan bool, 1)
++	go func() {
++		for _ = range m {
++		}
++		ch <- true
++	}()
++	for _, _ = range m {
++	}
++	<-ch
++}
++
++// Map len is not instrumented.
++func TestRaceFailingMapLen(t *testing.T) {
++	m := make(map[string]bool)
++	ch := make(chan bool, 1)
++	go func() {
++		_ = len(m)
++		ch <- true
++	}()
++	m[""] = true
++	<-ch
++}
++
++func TestRaceMapDelete(t *testing.T) {
++	m := make(map[string]bool)
++	ch := make(chan bool, 1)
++	go func() {
++		delete(m, "")
++		ch <- true
++	}()
++	m[""] = true
++	<-ch
++}
++
++// Map len is not instrumented.
++func TestRaceFailingMapLenDelete(t *testing.T) {
++	m := make(map[string]bool)
++	ch := make(chan bool, 1)
++	go func() {
++		delete(m, "a")
++		ch <- true
++	}()
++	_ = len(m)
++	<-ch
++}
++
++func TestRaceMapVariable(t *testing.T) {
++	ch := make(chan bool, 1)
++	m := make(map[int]int)
++	go func() {
++		m = make(map[int]int)
++		ch <- true
++	}()
++	m = make(map[int]int)
++	<-ch
++}
++
++func TestRaceMapVariable2(t *testing.T) {
++	ch := make(chan bool, 1)
++	m := make(map[int]int)
++	go func() {
++		m[1] = 1
++		ch <- true
++	}()
++	m = make(map[int]int)
++	<-ch
++}
++
++func TestRaceMapVariable3(t *testing.T) {
++	ch := make(chan bool, 1)
++	m := make(map[int]int)
++	go func() {
++		_ = m[1]
++		ch <- true
++	}()
++	m = make(map[int]int)
++	<-ch
++}
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+new file mode 100644
+index 0000000000..da428c8a24
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -0,0 +1,1363 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"errors"
++	"fmt"
++	"runtime"
++	"sync"
++	"testing"
++	"time"
++	"unsafe"
++)
++
++type Point struct {
++	x, y int
++}
++
++type NamedPoint struct {
++	name string
++	p    Point
++}
++
++type DummyWriter struct {
++	state int
++}
++type Writer interface {
++	Write(p []byte) (n int)
++}
++
++func (d DummyWriter) Write(p []byte) (n int) {
++	return 0
++}
++
++var GlobalX, GlobalY int = 0, 0
++var GlobalCh chan int = make(chan int, 2)
++
++func GlobalFunc1() {
++	GlobalY = GlobalX
++	GlobalCh <- 1
++}
++
++func GlobalFunc2() {
++	GlobalX = 1
++	GlobalCh <- 1
++}
++
++func TestRaceIntRWGlobalFuncs(t *testing.T) {
++	go GlobalFunc1()
++	go GlobalFunc2()
++	<-GlobalCh
++	<-GlobalCh
++}
++
++func TestRaceIntRWClosures(t *testing.T) {
++	var x, y int
++	ch := make(chan int, 2)
++
++	go func() {
++		y = x
++		ch <- 1
++	}()
++	go func() {
++		x = 1
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestNoRaceIntRWClosures(t *testing.T) {
++	var x, y int
++	ch := make(chan int, 1)
++
++	go func() {
++		y = x
++		ch <- 1
++	}()
++	<-ch
++	go func() {
++		x = 1
++		ch <- 1
++	}()
++	<-ch
++
++}
++
++func TestRaceInt32RWClosures(t *testing.T) {
++	var x, y int32
++	ch := make(chan bool, 2)
++
++	go func() {
++		y = x
++		ch <- true
++	}()
++	go func() {
++		x = 1
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestNoRaceCase(t *testing.T) {
++	var y int
++	for x := -1; x <= 1; x++ {
++		switch {
++		case x < 0:
++			y = -1
++		case x == 0:
++			y = 0
++		case x > 0:
++			y = 1
++		}
++	}
++	y++
++}
++
++func TestRaceCaseCondition(t *testing.T) {
++	var x int = 0
++	ch := make(chan int, 2)
++
++	go func() {
++		x = 2
++		ch <- 1
++	}()
++	go func() {
++		switch x < 2 {
++		case true:
++			x = 1
++			//case false:
++			//	x = 5
++		}
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceCaseCondition2(t *testing.T) {
++	// switch body is rearranged by the compiler so the tests
++	// passes even if we don't instrument '<'
++	var x int = 0
++	ch := make(chan int, 2)
++
++	go func() {
++		x = 2
++		ch <- 1
++	}()
++	go func() {
++		switch x < 2 {
++		case true:
++			x = 1
++		case false:
++			x = 5
++		}
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceCaseBody(t *testing.T) {
++	var x, y int
++	ch := make(chan int, 2)
++
++	go func() {
++		y = x
++		ch <- 1
++	}()
++	go func() {
++		switch {
++		default:
++			x = 1
++		case x == 100:
++			x = -x
++		}
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestNoRaceCaseFallthrough(t *testing.T) {
++	var x, y, z int
++	ch := make(chan int, 2)
++	z = 1
++
++	go func() {
++		y = x
++		ch <- 1
++	}()
++	go func() {
++		switch {
++		case z == 1:
++		case z == 2:
++			x = 2
++		}
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceCaseFallthrough(t *testing.T) {
++	var x, y, z int
++	ch := make(chan int, 2)
++	z = 1
++
++	go func() {
++		y = x
++		ch <- 1
++	}()
++	go func() {
++		switch {
++		case z == 1:
++			fallthrough
++		case z == 2:
++			x = 2
++		}
++		ch <- 1
++	}()
++
++	<-ch
++	<-ch
++}
++
++func TestNoRaceRange(t *testing.T) {
++	ch := make(chan int, 3)
++	a := [...]int{1, 2, 3}
++	for _, v := range a {
++		ch <- v
++	}
++	close(ch)
++}
++
++func TestRaceRange(t *testing.T) {
++	const N = 2
++	var a [N]int
++	var x, y int
++	done := make(chan bool, N)
++	for i, v := range a {
++		go func(i int) {
++			// we don't want a write-vs-write race
++			// so there is no array b here
++			if i == 0 {
++				x = v
++			} else {
++				y = v
++			}
++			done <- true
++		}(i)
++	}
++	for i := 0; i < N; i++ {
++		<-done
++	}
++}
++
++func TestRacePlus(t *testing.T) {
++	var x, y, z int
++	ch := make(chan int, 2)
++
++	go func() {
++		y = x + z
++		ch <- 1
++	}()
++	go func() {
++		y = x + z + z
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRacePlus2(t *testing.T) {
++	var x, y, z int
++	ch := make(chan int, 2)
++
++	go func() {
++		x = 1
++		ch <- 1
++	}()
++	go func() {
++		y = +x + z
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestNoRacePlus(t *testing.T) {
++	var x, y, z, f int
++	ch := make(chan int, 2)
++
++	go func() {
++		y = x + z
++		ch <- 1
++	}()
++	go func() {
++		f = z + x
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++// May crash if the instrumentation is reckless.
++func TestNoRaceEnoughRegisters(t *testing.T) {
++	// from erf.go
++	const (
++		sa1 = 1
++		sa2 = 2
++		sa3 = 3
++		sa4 = 4
++		sa5 = 5
++		sa6 = 6
++		sa7 = 7
++		sa8 = 8
++	)
++	var s, S float64
++	s = 3.1415
++	S = 1 + s*(sa1+s*(sa2+s*(sa3+s*(sa4+s*(sa5+s*(sa6+s*(sa7+s*sa8)))))))
++	s = S
++}
++
++// emptyFunc should not be inlined.
++func emptyFunc(x int) {
++	if false {
++		fmt.Println(x)
++	}
++}
++
++func TestRaceFuncArgument(t *testing.T) {
++	var x int
++	ch := make(chan bool, 1)
++	go func() {
++		emptyFunc(x)
++		ch <- true
++	}()
++	x = 1
++	<-ch
++}
++
++func TestRaceFuncArgument2(t *testing.T) {
++	var x int
++	ch := make(chan bool, 2)
++	go func() {
++		x = 42
++		ch <- true
++	}()
++	go func(y int) {
++		ch <- true
++	}(x)
++	<-ch
++	<-ch
++}
++
++func TestRaceSprint(t *testing.T) {
++	var x int
++	ch := make(chan bool, 1)
++	go func() {
++		fmt.Sprint(x)
++		ch <- true
++	}()
++	x = 1
++	<-ch
++}
++
++// Not implemented.
++func TestRaceFailingArrayCopy(t *testing.T) {
++	ch := make(chan bool, 1)
++	var a [5]int
++	go func() {
++		a[3] = 1
++		ch <- true
++	}()
++	a = [5]int{1, 2, 3, 4, 5}
++	<-ch
++}
++
++func TestRaceStructRW(t *testing.T) {
++	p := Point{0, 0}
++	ch := make(chan bool, 1)
++	go func() {
++		p = Point{1, 1}
++		ch <- true
++	}()
++	q := p
++	<-ch
++	p = q
++}
++
++func TestRaceStructFieldRW1(t *testing.T) {
++	p := Point{0, 0}
++	ch := make(chan bool, 1)
++	go func() {
++		p.x = 1
++		ch <- true
++	}()
++	_ = p.x
++	<-ch
++}
++
++func TestNoRaceStructFieldRW1(t *testing.T) {
++	// Same struct, different variables, no
++	// pointers. The layout is known (at compile time?) ->
++	// no read on p
++	// writes on x and y
++	p := Point{0, 0}
++	ch := make(chan bool, 1)
++	go func() {
++		p.x = 1
++		ch <- true
++	}()
++	p.y = 1
++	<-ch
++	_ = p
++}
++
++func TestNoRaceStructFieldRW2(t *testing.T) {
++	// Same as NoRaceStructFieldRW1
++	// but p is a pointer, so there is a read on p
++	p := Point{0, 0}
++	ch := make(chan bool, 1)
++	go func() {
++		p.x = 1
++		ch <- true
++	}()
++	p.y = 1
++	<-ch
++	_ = p
++}
++
++func TestRaceStructFieldRW2(t *testing.T) {
++	p := &Point{0, 0}
++	ch := make(chan bool, 1)
++	go func() {
++		p.x = 1
++		ch <- true
++	}()
++	_ = p.x
++	<-ch
++}
++
++func TestRaceStructFieldRW3(t *testing.T) {
++	p := NamedPoint{name: "a", p: Point{0, 0}}
++	ch := make(chan bool, 1)
++	go func() {
++		p.p.x = 1
++		ch <- true
++	}()
++	_ = p.p.x
++	<-ch
++}
++
++func TestRaceEfaceWW(t *testing.T) {
++	var a, b interface{}
++	ch := make(chan bool, 1)
++	go func() {
++		a = 1
++		ch <- true
++	}()
++	a = 2
++	<-ch
++	_, _ = a, b
++}
++
++func TestRaceIfaceWW(t *testing.T) {
++	var a, b Writer
++	ch := make(chan bool, 1)
++	go func() {
++		a = DummyWriter{1}
++		ch <- true
++	}()
++	a = DummyWriter{2}
++	<-ch
++	b = a
++	a = b
++}
++
++func TestRaceEfaceConv(t *testing.T) {
++	c := make(chan bool)
++	v := 0
++	go func() {
++		go func(x interface{}) {
++		}(v)
++		c <- true
++	}()
++	v = 42
++	<-c
++}
++
++type OsFile struct{}
++
++func (*OsFile) Read() {
++}
++
++type IoReader interface {
++	Read()
++}
++
++func TestRaceIfaceConv(t *testing.T) {
++	c := make(chan bool)
++	f := &OsFile{}
++	go func() {
++		go func(x IoReader) {
++		}(f)
++		c <- true
++	}()
++	f = &OsFile{}
++	<-c
++}
++
++func TestRaceError(t *testing.T) {
++	ch := make(chan bool, 1)
++	var err error
++	go func() {
++		err = nil
++		ch <- true
++	}()
++	_ = err
++	<-ch
++}
++
++func TestRaceIntptrRW(t *testing.T) {
++	var x, y int
++	var p *int = &x
++	ch := make(chan bool, 1)
++	go func() {
++		*p = 5
++		ch <- true
++	}()
++	y = *p
++	x = y
++	<-ch
++}
++
++func TestRaceStringRW(t *testing.T) {
++	ch := make(chan bool, 1)
++	s := ""
++	go func() {
++		s = "abacaba"
++		ch <- true
++	}()
++	_ = s
++	<-ch
++}
++
++func TestRaceStringPtrRW(t *testing.T) {
++	ch := make(chan bool, 1)
++	var x string
++	p := &x
++	go func() {
++		*p = "a"
++		ch <- true
++	}()
++	_ = *p
++	<-ch
++}
++
++func TestRaceFloat64WW(t *testing.T) {
++	var x, y float64
++	ch := make(chan bool, 1)
++	go func() {
++		x = 1.0
++		ch <- true
++	}()
++	x = 2.0
++	<-ch
++
++	y = x
++	x = y
++}
++
++func TestRaceComplex128WW(t *testing.T) {
++	var x, y complex128
++	ch := make(chan bool, 1)
++	go func() {
++		x = 2 + 2i
++		ch <- true
++	}()
++	x = 4 + 4i
++	<-ch
++
++	y = x
++	x = y
++}
++
++func TestRaceUnsafePtrRW(t *testing.T) {
++	var x, y, z int
++	x, y, z = 1, 2, 3
++	var p unsafe.Pointer = unsafe.Pointer(&x)
++	ch := make(chan bool, 1)
++	go func() {
++		p = (unsafe.Pointer)(&z)
++		ch <- true
++	}()
++	y = *(*int)(p)
++	x = y
++	<-ch
++}
++
++func TestRaceFuncVariableRW(t *testing.T) {
++	var f func(x int) int
++	f = func(x int) int {
++		return x * x
++	}
++	ch := make(chan bool, 1)
++	go func() {
++		f = func(x int) int {
++			return x
++		}
++		ch <- true
++	}()
++	y := f(1)
++	<-ch
++	x := y
++	y = x
++}
++
++func TestRaceFuncVariableWW(t *testing.T) {
++	var f func(x int) int
++	ch := make(chan bool, 1)
++	go func() {
++		f = func(x int) int {
++			return x
++		}
++		ch <- true
++	}()
++	f = func(x int) int {
++		return x * x
++	}
++	<-ch
++}
++
++// This one should not belong to mop_test
++func TestRacePanic(t *testing.T) {
++	var x int
++	var zero int = 0
++	ch := make(chan bool, 2)
++	go func() {
++		defer func() {
++			err := recover()
++			if err == nil {
++				panic("should be panicking")
++			}
++			x = 1
++			ch <- true
++		}()
++		var y int = 1 / zero
++		zero = y
++	}()
++	go func() {
++		defer func() {
++			err := recover()
++			if err == nil {
++				panic("should be panicking")
++			}
++			x = 2
++			ch <- true
++		}()
++		var y int = 1 / zero
++		zero = y
++	}()
++
++	<-ch
++	<-ch
++	if zero != 0 {
++		panic("zero has changed")
++	}
++}
++
++func TestNoRaceBlank(t *testing.T) {
++	var a [5]int
++	ch := make(chan bool, 1)
++	go func() {
++		_, _ = a[0], a[1]
++		ch <- true
++	}()
++	_, _ = a[2], a[3]
++	<-ch
++	a[1] = a[0]
++}
++
++func TestRaceAppendRW(t *testing.T) {
++	a := make([]int, 10)
++	ch := make(chan bool)
++	go func() {
++		_ = append(a, 1)
++		ch <- true
++	}()
++	a[0] = 1
++	<-ch
++}
++
++func TestRaceAppendLenRW(t *testing.T) {
++	a := make([]int, 0)
++	ch := make(chan bool)
++	go func() {
++		a = append(a, 1)
++		ch <- true
++	}()
++	_ = len(a)
++	<-ch
++}
++
++func TestRaceAppendCapRW(t *testing.T) {
++	a := make([]int, 0)
++	ch := make(chan string)
++	go func() {
++		a = append(a, 1)
++		ch <- ""
++	}()
++	_ = cap(a)
++	<-ch
++}
++
++func TestNoRaceFuncArgsRW(t *testing.T) {
++	ch := make(chan byte, 1)
++	var x byte
++	go func(y byte) {
++		_ = y
++		ch <- 0
++	}(x)
++	x = 1
++	<-ch
++}
++
++func TestRaceFuncArgsRW(t *testing.T) {
++	ch := make(chan byte, 1)
++	var x byte
++	go func(y *byte) {
++		_ = *y
++		ch <- 0
++	}(&x)
++	x = 1
++	<-ch
++}
++
++// from the mailing list, slightly modified
++// unprotected concurrent access to seen[]
++func TestRaceCrawl(t *testing.T) {
++	url := "dummyurl"
++	depth := 3
++	seen := make(map[string]bool)
++	ch := make(chan int)
++	var crawl func(string, int)
++	crawl = func(u string, d int) {
++		nurl := 0
++		defer func() {
++			ch <- nurl
++		}()
++		seen[u] = true
++		if d <= 0 {
++			return
++		}
++		urls := [...]string{"a", "b", "c"}
++		for _, uu := range urls {
++			if _, ok := seen[uu]; !ok {
++				go crawl(uu, d-1)
++				nurl++
++			}
++		}
++	}
++	go crawl(url, depth)
++}
++
++func TestRaceIndirection(t *testing.T) {
++	ch := make(chan struct{}, 1)
++	var y int
++	var x *int = &y
++	go func() {
++		*x = 1
++		ch <- struct{}{}
++	}()
++	*x = 2
++	<-ch
++	_ = *x
++}
++
++func TestRaceRune(t *testing.T) {
++	c := make(chan bool)
++	var x rune
++	go func() {
++		x = 1
++		c <- true
++	}()
++	_ = x
++	<-c
++}
++
++func TestRaceEmptyInterface1(t *testing.T) {
++	c := make(chan bool)
++	var x interface{}
++	go func() {
++		x = nil
++		c <- true
++	}()
++	_ = x
++	<-c
++}
++
++func TestRaceEmptyInterface2(t *testing.T) {
++	c := make(chan bool)
++	var x interface{}
++	go func() {
++		x = &Point{}
++		c <- true
++	}()
++	_ = x
++	<-c
++}
++
++func TestRaceTLS(t *testing.T) {
++	comm := make(chan *int)
++	done := make(chan bool, 2)
++	go func() {
++		var x int
++		comm <- &x
++		x = 1
++		x = *(<-comm)
++		done <- true
++	}()
++	go func() {
++		p := <-comm
++		*p = 2
++		comm <- p
++		done <- true
++	}()
++	<-done
++	<-done
++}
++
++func TestNoRaceHeapReallocation(t *testing.T) {
++	// It is possible that a future implementation
++	// of memory allocation will ruin this test.
++	// Increasing n might help in this case, so
++	// this test is a bit more generic than most of the
++	// others.
++	const n = 2
++	done := make(chan bool, n)
++	empty := func(p *int) {}
++	for i := 0; i < n; i++ {
++		ms := i
++		go func() {
++			<-time.After(time.Duration(ms) * time.Millisecond)
++			runtime.GC()
++			var x int
++			empty(&x) // x goes to the heap
++			done <- true
++		}()
++	}
++	for i := 0; i < n; i++ {
++		<-done
++	}
++}
++
++func TestRaceAnd(t *testing.T) {
++	c := make(chan bool)
++	x, y := 0, 0
++	go func() {
++		x = 1
++		c <- true
++	}()
++	if x == 1 && y == 1 {
++	}
++	<-c
++}
++
++// OANDAND is not instrumented in the compiler.
++func TestRaceFailingAnd2(t *testing.T) {
++	c := make(chan bool)
++	x, y := 0, 0
++	go func() {
++		x = 1
++		c <- true
++	}()
++	if y == 0 && x == 1 {
++	}
++	<-c
++}
++
++func TestNoRaceAnd(t *testing.T) {
++	c := make(chan bool)
++	x, y := 0, 0
++	go func() {
++		x = 1
++		c <- true
++	}()
++	if y == 1 && x == 1 {
++	}
++	<-c
++}
++
++func TestRaceOr(t *testing.T) {
++	c := make(chan bool)
++	x, y := 0, 0
++	go func() {
++		x = 1
++		c <- true
++	}()
++	if x == 1 || y == 1 {
++	}
++	<-c
++}
++
++// OOROR is not instrumented in the compiler.
++func TestRaceFailingOr2(t *testing.T) {
++	c := make(chan bool)
++	x, y := 0, 0
++	go func() {
++		x = 1
++		c <- true
++	}()
++	if y == 1 || x == 1 {
++	}
++	<-c
++}
++
++func TestNoRaceOr(t *testing.T) {
++	c := make(chan bool)
++	x, y := 0, 0
++	go func() {
++		x = 1
++		c <- true
++	}()
++	if y == 0 || x == 1 {
++	}
++	<-c
++}
++
++func TestNoRaceShortCalc(t *testing.T) {
++	c := make(chan bool)
++	x, y := 0, 0
++	go func() {
++		y = 1
++		c <- true
++	}()
++	if x == 0 || y == 0 {
++	}
++	<-c
++}
++
++func TestNoRaceShortCalc2(t *testing.T) {
++	c := make(chan bool)
++	x, y := 0, 0
++	go func() {
++		y = 1
++		c <- true
++	}()
++	if x == 1 && y == 0 {
++	}
++	<-c
++}
++
++func TestRaceFuncItself(t *testing.T) {
++	c := make(chan bool)
++	f := func() {}
++	go func() {
++		f()
++		c <- true
++	}()
++	f = func() {}
++	<-c
++}
++
++func TestNoRaceFuncUnlock(t *testing.T) {
++	ch := make(chan bool, 1)
++	var mu sync.Mutex
++	x := 0
++	go func() {
++		mu.Lock()
++		x = 42
++		mu.Unlock()
++		ch <- true
++	}()
++	x = func(mu *sync.Mutex) int {
++		mu.Lock()
++		return 43
++	}(&mu)
++	mu.Unlock()
++	<-ch
++}
++
++func TestRaceStructInit(t *testing.T) {
++	type X struct {
++		x, y int
++	}
++	c := make(chan bool, 1)
++	y := 0
++	go func() {
++		y = 42
++		c <- true
++	}()
++	x := X{x: y}
++	_ = x
++	<-c
++}
++
++func TestRaceArrayInit(t *testing.T) {
++	c := make(chan bool, 1)
++	y := 0
++	go func() {
++		y = 42
++		c <- true
++	}()
++	x := []int{0, y, 42}
++	_ = x
++	<-c
++}
++
++func TestRaceMapInit(t *testing.T) {
++	c := make(chan bool, 1)
++	y := 0
++	go func() {
++		y = 42
++		c <- true
++	}()
++	x := map[int]int{0: 42, y: 42}
++	_ = x
++	<-c
++}
++
++func TestRaceMapInit2(t *testing.T) {
++	c := make(chan bool, 1)
++	y := 0
++	go func() {
++		y = 42
++		c <- true
++	}()
++	x := map[int]int{0: 42, 42: y}
++	_ = x
++	<-c
++}
++
++type Inter interface {
++	Foo(x int)
++}
++type InterImpl struct {
++	x, y int
++}
++
++func (p InterImpl) Foo(x int) {
++	// prevent inlining
++	z := 42
++	x = 85
++	y := x / z
++	z = y * z
++	x = z * y
++	_, _, _ = x, y, z
++}
++
++func TestRaceInterCall(t *testing.T) {
++	c := make(chan bool, 1)
++	p := InterImpl{}
++	var x Inter = p
++	go func() {
++		p2 := InterImpl{}
++		x = p2
++		c <- true
++	}()
++	x.Foo(0)
++	<-c
++}
++
++func TestRaceInterCall2(t *testing.T) {
++	c := make(chan bool, 1)
++	p := InterImpl{}
++	var x Inter = p
++	z := 0
++	go func() {
++		z = 42
++		c <- true
++	}()
++	x.Foo(z)
++	<-c
++}
++
++func TestRaceFuncCall(t *testing.T) {
++	c := make(chan bool, 1)
++	f := func(x, y int) {}
++	x, y := 0, 0
++	go func() {
++		y = 42
++		c <- true
++	}()
++	f(x, y)
++	<-c
++}
++
++func TestRaceMethodCall(t *testing.T) {
++	c := make(chan bool, 1)
++	i := InterImpl{}
++	x := 0
++	go func() {
++		x = 42
++		c <- true
++	}()
++	i.Foo(x)
++	<-c
++}
++
++func TestRaceMethodCall2(t *testing.T) {
++	c := make(chan bool, 1)
++	i := &InterImpl{}
++	go func() {
++		i = &InterImpl{}
++		c <- true
++	}()
++	i.Foo(0)
++	<-c
++}
++
++func TestRacePanicArg(t *testing.T) {
++	c := make(chan bool, 1)
++	err := errors.New("err")
++	go func() {
++		err = errors.New("err2")
++		c <- true
++	}()
++	defer func() {
++		recover()
++		<-c
++	}()
++	panic(err)
++}
++
++func TestRaceDeferArg(t *testing.T) {
++	c := make(chan bool, 1)
++	x := 0
++	go func() {
++		x = 42
++		c <- true
++	}()
++	func() {
++		defer func(x int) {
++		}(x)
++	}()
++	<-c
++}
++
++type DeferT int
++
++func (d DeferT) Foo() {
++}
++
++func TestRaceDeferArg2(t *testing.T) {
++	c := make(chan bool, 1)
++	var x DeferT
++	go func() {
++		var y DeferT
++		x = y
++		c <- true
++	}()
++	func() {
++		defer x.Foo()
++	}()
++	<-c
++}
++
++func TestNoRaceAddrExpr(t *testing.T) {
++	c := make(chan bool, 1)
++	x := 0
++	go func() {
++		x = 42
++		c <- true
++	}()
++	_ = &x
++	<-c
++}
++
++type AddrT struct {
++	_ [256]byte
++	x int
++}
++
++type AddrT2 struct {
++	_ [512]byte
++	p *AddrT
++}
++
++func TestRaceAddrExpr(t *testing.T) {
++	c := make(chan bool, 1)
++	a := AddrT2{p: &AddrT{x: 42}}
++	go func() {
++		a.p = &AddrT{x: 43}
++		c <- true
++	}()
++	_ = &a.p.x
++	<-c
++}
++
++func TestRaceTypeAssert(t *testing.T) {
++	c := make(chan bool, 1)
++	x := 0
++	var i interface{} = x
++	go func() {
++		y := 0
++		i = y
++		c <- true
++	}()
++	_ = i.(int)
++	<-c
++}
++
++func TestRaceBlockAs(t *testing.T) {
++	c := make(chan bool, 1)
++	var x, y int
++	go func() {
++		x = 42
++		c <- true
++	}()
++	x, y = y, x
++	<-c
++}
++
++func TestRaceSliceSlice(t *testing.T) {
++	c := make(chan bool, 1)
++	x := make([]int, 10)
++	go func() {
++		x = make([]int, 20)
++		c <- true
++	}()
++	_ = x[2:3]
++	<-c
++}
++
++func TestRaceSliceSlice2(t *testing.T) {
++	c := make(chan bool, 1)
++	x := make([]int, 10)
++	i := 2
++	go func() {
++		i = 3
++		c <- true
++	}()
++	_ = x[i:4]
++	<-c
++}
++
++func TestRaceStructInd(t *testing.T) {
++	c := make(chan bool, 1)
++	type Item struct {
++		x, y int
++	}
++	i := Item{}
++	go func(p *Item) {
++		*p = Item{}
++		c <- true
++	}(&i)
++	i.y = 42
++	<-c
++}
++
++func TestRaceAsFunc1(t *testing.T) {
++	var s []byte
++	c := make(chan bool, 1)
++	go func() {
++		var err error
++		s, err = func() ([]byte, error) {
++			t := []byte("hello world")
++			return t, nil
++		}()
++		c <- true
++		_ = err
++	}()
++	_ = string(s)
++	<-c
++}
++
++func TestRaceAsFunc2(t *testing.T) {
++	c := make(chan bool, 1)
++	x := 0
++	go func() {
++		func(x int) {
++		}(x)
++		c <- true
++	}()
++	x = 42
++	<-c
++}
++
++func TestRaceAsFunc3(t *testing.T) {
++	c := make(chan bool, 1)
++	var mu sync.Mutex
++	x := 0
++	go func() {
++		func(x int) {
++			mu.Lock()
++		}(x) // Read of x must be outside of the mutex.
++		mu.Unlock()
++		c <- true
++	}()
++	mu.Lock()
++	x = 42
++	mu.Unlock()
++	<-c
++}
++
++func TestNoRaceAsFunc4(t *testing.T) {
++	c := make(chan bool, 1)
++	var mu sync.Mutex
++	x := 0
++	go func() {
++		x = func() int { // Write of x must be under the mutex.
++			mu.Lock()
++			return 42
++		}()
++		mu.Unlock()
++		c <- true
++	}()
++	mu.Lock()
++	x = 42
++	mu.Unlock()
++	<-c
++}
++
++func TestRaceHeapParam(t *testing.T) {
++	x := func() (x int) {
++		go func() {
++			x = 42
++		}()
++		return
++	}()
++	_ = x
++}
++
++func TestNoRaceEmptyStruct(t *testing.T) {
++	type Empty struct{}
++	type X struct {
++		y int64
++		Empty
++	}
++	type Y struct {
++		x X
++		y int64
++	}
++	c := make(chan X)
++	var y Y
++	go func() {
++		x := y.x
++		c <- x
++	}()
++	y.y = 42
++	<-c
++}
++
++func TestRaceNestedStruct(t *testing.T) {
++	type X struct {
++		x, y int
++	}
++	type Y struct {
++		x X
++	}
++	c := make(chan Y)
++	var y Y
++	go func() {
++		c <- y
++	}()
++	y.x.y = 42
++	<-c
++}
+diff --git a/src/pkg/runtime/race/testdata/mutex_test.go b/src/pkg/runtime/race/testdata/mutex_test.go
+new file mode 100644
+index 0000000000..3cf03ae6b8
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/mutex_test.go
+@@ -0,0 +1,138 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestNoRaceMutex(t *testing.T) {
++	var mu sync.Mutex
++	var x int16 = 0
++	ch := make(chan bool, 2)
++	go func() {
++		mu.Lock()
++		defer mu.Unlock()
++		x = 1
++		ch <- true
++	}()
++	go func() {
++		mu.Lock()
++		x = 2
++		mu.Unlock()
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceMutex(t *testing.T) {
++	var mu sync.Mutex
++	var x int16 = 0
++	ch := make(chan bool, 2)
++	go func() {
++		x = 1
++		mu.Lock()
++		defer mu.Unlock()
++		ch <- true
++	}()
++	go func() {
++		x = 2
++		mu.Lock()
++		mu.Unlock()
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceMutex2(t *testing.T) {
++	var mu1 sync.Mutex
++	var mu2 sync.Mutex
++	var x int8 = 0
++	ch := make(chan bool, 2)
++	go func() {
++		mu1.Lock()
++		defer mu1.Unlock()
++		x = 1
++		ch <- true
++	}()
++	go func() {
++		mu2.Lock()
++		x = 2
++		mu2.Unlock()
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestNoRaceMutexPureHappensBefore(t *testing.T) {
++	var mu sync.Mutex
++	var x int16 = 0
++	ch := make(chan bool, 2)
++	go func() {
++		x = 1
++		mu.Lock()
++		mu.Unlock()
++		ch <- true
++	}()
++	go func() {
++		<-time.After(1e5)
++		mu.Lock()
++		mu.Unlock()
++		x = 1
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestNoRaceMutexSemaphore(t *testing.T) {
++	var mu sync.Mutex
++	ch := make(chan bool, 2)
++	x := 0
++	mu.Lock()
++	go func() {
++		x = 1
++		mu.Unlock()
++		ch <- true
++	}()
++	go func() {
++		mu.Lock()
++		x = 2
++		mu.Unlock()
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++// from doc/go_mem.html
++func TestNoRaceMutexExampleFromHtml(t *testing.T) {
++	var l sync.Mutex
++	a := ""
++
++	l.Lock()
++	go func() {
++		a = "hello, world"
++		l.Unlock()
++	}()
++	l.Lock()
++	_ = a
++}
++
++func TestRaceMutexOverwrite(t *testing.T) {
++	c := make(chan bool, 1)
++	var mu sync.Mutex
++	go func() {
++		mu = sync.Mutex{}
++		c <- true
++	}()
++	mu.Lock()
++	<-c
++}
+diff --git a/src/pkg/runtime/race/testdata/regression_test.go b/src/pkg/runtime/race/testdata/regression_test.go
+new file mode 100644
+index 0000000000..442379d7ed
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/regression_test.go
+@@ -0,0 +1,123 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Code patterns that caused problems in the past.
++
++package race_test
++
++import (
++	"testing"
++)
++
++type LogImpl struct {
++	x int
++}
++
++func NewLog() (l LogImpl) {
++	go func() {
++		_ = l
++	}()
++	l = LogImpl{}
++	return
++}
++
++var _ LogImpl = NewLog()
++
++func MakeMap() map[int]int {
++	return make(map[int]int)
++}
++
++func InstrumentMapLen() {
++	_ = len(MakeMap())
++}
++
++func InstrumentMapLen2() {
++	m := make(map[int]map[int]int)
++	_ = len(m[0])
++}
++
++func InstrumentMapLen3() {
++	m := make(map[int]*map[int]int)
++	_ = len(*m[0])
++}
++
++type Rect struct {
++	x, y int
++}
++
++type Image struct {
++	min, max Rect
++}
++
++func NewImage() Image {
++	var pleaseDoNotInlineMe stack
++	pleaseDoNotInlineMe.push(1)
++	_ = pleaseDoNotInlineMe.pop()
++	return Image{}
++}
++
++func AddrOfTemp() {
++	_ = NewImage().min
++}
++
++type TypeID int
++
++func (t *TypeID) encodeType(x int) (tt TypeID, err error) {
++	switch x {
++	case 0:
++		return t.encodeType(x * x)
++	}
++	return 0, nil
++}
++
++type stack []int
++
++func (s *stack) push(x int) {
++	*s = append(*s, x)
++}
++
++func (s *stack) pop() int {
++	i := len(*s)
++	n := (*s)[i-1]
++	*s = (*s)[:i-1]
++	return n
++}
++
++func TestNoRaceStackPushPop(t *testing.T) {
++	var s stack
++	go func(s *stack) {}(&s)
++	s.push(1)
++	x := s.pop()
++	_ = x
++}
++
++type RpcChan struct {
++	c chan bool
++}
++
++var makeChanCalls int
++
++func makeChan() *RpcChan {
++	var pleaseDoNotInlineMe stack
++	pleaseDoNotInlineMe.push(1)
++	_ = pleaseDoNotInlineMe.pop()
++
++	makeChanCalls++
++	c := &RpcChan{make(chan bool, 1)}
++	c.c <- true
++	return c
++}
++
++func call() bool {
++	x := <-makeChan().c
++	return x
++}
++
++func TestNoRaceRpcChan(t *testing.T) {
++	makeChanCalls = 0
++	_ = call()
++	if makeChanCalls != 1 {
++		t.Fatalf("makeChanCalls %d, expected 1\n", makeChanCalls)
++	}
++}
+diff --git a/src/pkg/runtime/race/testdata/rwmutex_test.go b/src/pkg/runtime/race/testdata/rwmutex_test.go
+new file mode 100644
+index 0000000000..85cb5df3cb
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/rwmutex_test.go
+@@ -0,0 +1,134 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestRaceMutexRWMutex(t *testing.T) {
++	var mu1 sync.Mutex
++	var mu2 sync.RWMutex
++	var x int16 = 0
++	ch := make(chan bool, 2)
++	go func() {
++		mu1.Lock()
++		defer mu1.Unlock()
++		x = 1
++		ch <- true
++	}()
++	go func() {
++		mu2.Lock()
++		x = 2
++		mu2.Unlock()
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestNoRaceRWMutex(t *testing.T) {
++	var mu sync.RWMutex
++	var x, y int64 = 0, 1
++	ch := make(chan bool, 2)
++	go func() {
++		mu.Lock()
++		defer mu.Unlock()
++		x = 2
++		ch <- true
++	}()
++	go func() {
++		mu.RLock()
++		y = x
++		mu.RUnlock()
++		ch <- true
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceRWMutexMultipleReaders(t *testing.T) {
++	var mu sync.RWMutex
++	var x, y int64 = 0, 1
++	ch := make(chan bool, 3)
++	go func() {
++		mu.Lock()
++		defer mu.Unlock()
++		x = 2
++		ch <- true
++	}()
++	go func() {
++		mu.RLock()
++		y = x + 1
++		mu.RUnlock()
++		ch <- true
++	}()
++	go func() {
++		mu.RLock()
++		y = x + 2
++		mu.RUnlock()
++		ch <- true
++	}()
++	<-ch
++	<-ch
++	<-ch
++	_ = y
++}
++
++func TestNoRaceRWMutexMultipleReaders(t *testing.T) {
++	var mu sync.RWMutex
++	x := int64(0)
++	ch := make(chan bool, 3)
++	go func() {
++		mu.Lock()
++		defer mu.Unlock()
++		x = 2
++		ch <- true
++	}()
++	go func() {
++		mu.RLock()
++		y := x + 1
++		_ = y
++		mu.RUnlock()
++		ch <- true
++	}()
++	go func() {
++		mu.RLock()
++		y := x + 2
++		_ = y
++		mu.RUnlock()
++		ch <- true
++	}()
++	<-ch
++	<-ch
++	<-ch
++}
++
++func TestNoRaceRWMutexTransitive(t *testing.T) {
++	var mu sync.RWMutex
++	x := int64(0)
++	ch := make(chan bool, 2)
++	go func() {
++		mu.RLock()
++		_ = x
++		mu.RUnlock()
++		ch <- true
++	}()
++	go func() {
++		time.Sleep(1e7)
++		mu.RLock()
++		_ = x
++		mu.RUnlock()
++		ch <- true
++	}()
++	time.Sleep(2e7)
++	mu.Lock()
++	x = 42
++	mu.Unlock()
++	<-ch
++	<-ch
++}
+diff --git a/src/pkg/runtime/race/testdata/select_test.go b/src/pkg/runtime/race/testdata/select_test.go
+new file mode 100644
+index 0000000000..4a3a236479
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/select_test.go
+@@ -0,0 +1,286 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"runtime"
++	"testing"
++)
++
++func TestNoRaceSelect1(t *testing.T) {
++	var x int
++	compl := make(chan bool)
++	c := make(chan bool)
++	c1 := make(chan bool)
++
++	go func() {
++		x = 1
++		// At least two channels are needed because
++		// otherwise the compiler optimizes select out.
++		// See comment in runtime/chan.c:^selectgo.
++		select {
++		case c <- true:
++		case c1 <- true:
++		}
++		compl <- true
++	}()
++	select {
++	case <-c:
++	case c1 <- true:
++	}
++	x = 2
++	<-compl
++}
++
++func TestNoRaceSelect2(t *testing.T) {
++	var x int
++	compl := make(chan bool)
++	c := make(chan bool)
++	c1 := make(chan bool)
++	go func() {
++		select {
++		case <-c:
++		case <-c1:
++		}
++		x = 1
++		compl <- true
++	}()
++	x = 2
++	close(c)
++	runtime.Gosched()
++	<-compl
++}
++
++func TestNoRaceSelect3(t *testing.T) {
++	var x int
++	compl := make(chan bool)
++	c := make(chan bool, 10)
++	c1 := make(chan bool)
++	go func() {
++		x = 1
++		select {
++		case c <- true:
++		case <-c1:
++		}
++		compl <- true
++	}()
++	<-c
++	x = 2
++	<-compl
++}
++
++func TestNoRaceSelect4(t *testing.T) {
++	type Task struct {
++		f    func()
++		done chan bool
++	}
++
++	queue := make(chan Task)
++	dummy := make(chan bool)
++
++	go func() {
++		for {
++			select {
++			case t := <-queue:
++				t.f()
++				t.done <- true
++			}
++		}
++	}()
++
++	doit := func(f func()) {
++		done := make(chan bool, 1)
++		select {
++		case queue <- Task{f, done}:
++		case <-dummy:
++		}
++		select {
++		case <-done:
++		case <-dummy:
++		}
++	}
++
++	var x int
++	doit(func() {
++		x = 1
++	})
++	_ = x
++}
++
++func TestNoRaceSelect5(t *testing.T) {
++	test := func(sel, needSched bool) {
++		var x int
++		ch := make(chan bool)
++		c1 := make(chan bool)
++
++		done := make(chan bool, 2)
++		go func() {
++			if needSched {
++				runtime.Gosched()
++			}
++			// println(1)
++			x = 1
++			if sel {
++				select {
++				case ch <- true:
++				case <-c1:
++				}
++			} else {
++				ch <- true
++			}
++			done <- true
++		}()
++
++		go func() {
++			// println(2)
++			if sel {
++				select {
++				case <-ch:
++				case <-c1:
++				}
++			} else {
++				<-ch
++			}
++			x = 1
++			done <- true
++		}()
++		<-done
++		<-done
++	}
++
++	test(true, true)
++	test(true, false)
++	test(false, true)
++	test(false, false)
++}
++
++func TestRaceSelect1(t *testing.T) {
++	var x int
++	compl := make(chan bool, 2)
++	c := make(chan bool)
++	c1 := make(chan bool)
++
++	go func() {
++		<-c
++		<-c
++	}()
++	f := func() {
++		select {
++		case c <- true:
++		case c1 <- true:
++		}
++		x = 1
++		compl <- true
++	}
++	go f()
++	go f()
++	<-compl
++	<-compl
++}
++
++func TestRaceSelect2(t *testing.T) {
++	var x int
++	compl := make(chan bool)
++	c := make(chan bool)
++	c1 := make(chan bool)
++	go func() {
++		x = 1
++		select {
++		case <-c:
++		case <-c1:
++		}
++		compl <- true
++	}()
++	close(c)
++	x = 2
++	<-compl
++}
++
++func TestRaceSelect3(t *testing.T) {
++	var x int
++	compl := make(chan bool)
++	c := make(chan bool)
++	c1 := make(chan bool)
++	go func() {
++		x = 1
++		select {
++		case c <- true:
++		case c1 <- true:
++		}
++		compl <- true
++	}()
++	x = 2
++	select {
++	case <-c:
++	}
++	<-compl
++}
++
++func TestRaceSelect4(t *testing.T) {
++	done := make(chan bool, 1)
++	var x int
++	go func() {
++		select {
++		default:
++			x = 2
++		}
++		done <- true
++	}()
++	_ = x
++	<-done
++}
++
++// The idea behind this test:
++// there are two variables, access to one
++// of them is synchronized, access to the other
++// is not.
++// Select must (unconditionaly) choose the non-synchronized variable
++// thus causing exactly one race.
++// Currently this test doesn't look like it accomplishes
++// this goal.
++func TestRaceSelect5(t *testing.T) {
++	done := make(chan bool, 1)
++	c1 := make(chan bool, 1)
++	c2 := make(chan bool)
++	var x, y int
++	go func() {
++		select {
++		case c1 <- true:
++			x = 1
++		case c2 <- true:
++			y = 1
++		}
++		done <- true
++	}()
++	_ = x
++	_ = y
++	<-done
++}
++
++// select statements may introduce
++// flakiness: whether this test contains
++// a race depends on the scheduling
++// (some may argue that the code contains
++// this race by definition)
++/*
++func TestFlakyDefault(t *testing.T) {
++	var x int
++	c := make(chan bool, 1)
++	done := make(chan bool, 1)
++	go func() {
++		select {
++		case <-c:
++			x = 2
++		default:
++			x = 3
++		}
++		done <- true
++	}()
++	x = 1
++	c <- true
++	_ = x
++	<-done
++}
++*/
+diff --git a/src/pkg/runtime/race/testdata/slice_test.go b/src/pkg/runtime/race/testdata/slice_test.go
+new file mode 100644
+index 0000000000..cfddf356d9
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/slice_test.go
+@@ -0,0 +1,445 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"testing"
++)
++
++func TestRaceSliceRW(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]int, 2)
++	go func() {
++		a[1] = 1
++		ch <- true
++	}()
++	_ = a[1]
++	<-ch
++}
++
++func TestNoRaceSliceRW(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]int, 2)
++	go func() {
++		a[0] = 1
++		ch <- true
++	}()
++	_ = a[1]
++	<-ch
++}
++
++func TestRaceSliceWW(t *testing.T) {
++	a := make([]int, 10)
++	ch := make(chan bool, 1)
++	go func() {
++		a[1] = 1
++		ch <- true
++	}()
++	a[1] = 2
++	<-ch
++}
++
++func TestNoRaceArrayWW(t *testing.T) {
++	var a [5]int
++	ch := make(chan bool, 1)
++	go func() {
++		a[0] = 1
++		ch <- true
++	}()
++	a[1] = 2
++	<-ch
++}
++
++func TestRaceArrayWW(t *testing.T) {
++	var a [5]int
++	ch := make(chan bool, 1)
++	go func() {
++		a[1] = 1
++		ch <- true
++	}()
++	a[1] = 2
++	<-ch
++}
++
++func TestNoRaceSliceWriteLen(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]bool, 1)
++	go func() {
++		a[0] = true
++		ch <- true
++	}()
++	_ = len(a)
++	<-ch
++}
++
++func TestNoRaceSliceWriteCap(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]uint64, 100)
++	go func() {
++		a[50] = 123
++		ch <- true
++	}()
++	_ = cap(a)
++	<-ch
++}
++
++func TestRaceSliceCopyRead(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]int, 10)
++	b := make([]int, 10)
++	go func() {
++		_ = a[5]
++		ch <- true
++	}()
++	copy(a, b)
++	<-ch
++}
++
++func TestNoRaceSliceWriteCopy(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]int, 10)
++	b := make([]int, 10)
++	go func() {
++		a[5] = 1
++		ch <- true
++	}()
++	copy(a[:5], b[:5])
++	<-ch
++}
++
++func TestRaceSliceCopyWrite2(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]int, 10)
++	b := make([]int, 10)
++	go func() {
++		b[5] = 1
++		ch <- true
++	}()
++	copy(a, b)
++	<-ch
++}
++
++func TestRaceSliceCopyWrite3(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]byte, 10)
++	go func() {
++		a[7] = 1
++		ch <- true
++	}()
++	copy(a, "qwertyqwerty")
++	<-ch
++}
++
++func TestNoRaceSliceCopyRead(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]int, 10)
++	b := make([]int, 10)
++	go func() {
++		_ = b[5]
++		ch <- true
++	}()
++	copy(a, b)
++	<-ch
++}
++
++func TestNoRaceSliceWriteSlice2(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]float64, 10)
++	go func() {
++		a[2] = 1.0
++		ch <- true
++	}()
++	_ = a[0:5]
++	<-ch
++}
++
++func TestRaceSliceWriteSlice(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]float64, 10)
++	go func() {
++		a[2] = 1.0
++		ch <- true
++	}()
++	a = a[5:10]
++	<-ch
++}
++
++func TestNoRaceSliceWriteSlice(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]float64, 10)
++	go func() {
++		a[2] = 1.0
++		ch <- true
++	}()
++	_ = a[5:10]
++	<-ch
++}
++
++func TestNoRaceSliceLenCap(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]struct{}, 10)
++	go func() {
++		_ = len(a)
++		ch <- true
++	}()
++	_ = cap(a)
++	<-ch
++}
++
++func TestNoRaceStructSlicesRangeWrite(t *testing.T) {
++	type Str struct {
++		a []int
++		b []int
++	}
++	ch := make(chan bool, 1)
++	var s Str
++	s.a = make([]int, 10)
++	s.b = make([]int, 10)
++	go func() {
++		for _ = range s.a {
++		}
++		ch <- true
++	}()
++	s.b[5] = 5
++	<-ch
++}
++
++func TestRaceSliceDifferent(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	s2 := s
++	go func() {
++		s[3] = 3
++		c <- true
++	}()
++	// false negative because s2 is PAUTO w/o PHEAP
++	// so we do not instrument it
++	s2[3] = 3
++	<-c
++}
++
++func TestRaceSliceRangeWrite(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		s[3] = 3
++		c <- true
++	}()
++	for _, v := range s {
++		_ = v
++	}
++	<-c
++}
++
++func TestNoRaceSliceRangeWrite(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		s[3] = 3
++		c <- true
++	}()
++	for _ = range s {
++	}
++	<-c
++}
++
++func TestRaceSliceRangeAppend(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		s = append(s, 3)
++		c <- true
++	}()
++	for _, _ = range s {
++	}
++	<-c
++}
++
++func TestNoRaceSliceRangeAppend(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		_ = append(s, 3)
++		c <- true
++	}()
++	for _, _ = range s {
++	}
++	<-c
++}
++
++func TestRaceSliceVarWrite(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		s[3] = 3
++		c <- true
++	}()
++	s = make([]int, 20)
++	<-c
++}
++
++func TestRaceSliceVarRead(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		_ = s[3]
++		c <- true
++	}()
++	s = make([]int, 20)
++	<-c
++}
++
++func TestRaceSliceVarRange(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		for _, _ = range s {
++		}
++		c <- true
++	}()
++	s = make([]int, 20)
++	<-c
++}
++
++func TestRaceSliceVarAppend(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		_ = append(s, 10)
++		c <- true
++	}()
++	s = make([]int, 20)
++	<-c
++}
++
++func TestRaceSliceVarCopy(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		s2 := make([]int, 10)
++		copy(s, s2)
++		c <- true
++	}()
++	s = make([]int, 20)
++	<-c
++}
++
++func TestRaceSliceVarCopy2(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		s2 := make([]int, 10)
++		copy(s2, s)
++		c <- true
++	}()
++	s = make([]int, 20)
++	<-c
++}
++
++// Not implemented.
++func TestRaceFailingSliceAppend(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10, 20)
++	go func() {
++		_ = append(s, 1)
++		c <- true
++	}()
++	_ = append(s, 2)
++	<-c
++}
++
++func TestRaceSliceAppendWrite(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		_ = append(s, 1)
++		c <- true
++	}()
++	s[0] = 42
++	<-c
++}
++
++func TestRaceSliceAppendSlice(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	go func() {
++		s2 := make([]int, 10)
++		_ = append(s, s2...)
++		c <- true
++	}()
++	s[0] = 42
++	<-c
++}
++
++func TestRaceSliceAppendSlice2(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	s2foobar := make([]int, 10)
++	go func() {
++		_ = append(s, s2foobar...)
++		c <- true
++	}()
++	s2foobar[5] = 42
++	<-c
++}
++
++func TestRaceSliceAppendString(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]byte, 10)
++	go func() {
++		_ = append(s, "qwerty"...)
++		c <- true
++	}()
++	s[0] = 42
++	<-c
++}
++
++func TestNoRaceSliceIndexAccess(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	v := 0
++	go func() {
++		_ = v
++		c <- true
++	}()
++	s[v] = 1
++	<-c
++}
++
++func TestNoRaceSliceIndexAccess2(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	v := 0
++	go func() {
++		_ = v
++		c <- true
++	}()
++	_ = s[v]
++	<-c
++}
++
++func TestRaceSliceIndexAccess(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	v := 0
++	go func() {
++		v = 1
++		c <- true
++	}()
++	s[v] = 1
++	<-c
++}
++
++func TestRaceSliceIndexAccess2(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]int, 10)
++	v := 0
++	go func() {
++		v = 1
++		c <- true
++	}()
++	_ = s[v]
++	<-c
++}
+diff --git a/src/pkg/runtime/race/testdata/sync_test.go b/src/pkg/runtime/race/testdata/sync_test.go
+new file mode 100644
+index 0000000000..e80ba3b74d
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/sync_test.go
+@@ -0,0 +1,197 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestNoRaceCond(t *testing.T) { // tsan's test02
++	ch := make(chan bool, 1)
++	var x int = 0
++	var mu sync.Mutex
++	var cond *sync.Cond = sync.NewCond(&mu)
++	var condition int = 0
++	var waker func()
++	waker = func() {
++		x = 1
++		mu.Lock()
++		condition = 1
++		cond.Signal()
++		mu.Unlock()
++	}
++
++	var waiter func()
++	waiter = func() {
++		go waker()
++		cond.L.Lock()
++		for condition != 1 {
++			cond.Wait()
++		}
++		cond.L.Unlock()
++		x = 2
++		ch <- true
++	}
++	go waiter()
++	<-ch
++}
++
++func TestRaceCond(t *testing.T) { // tsan's test50
++	ch := make(chan bool, 2)
++
++	var x int = 0
++	var mu sync.Mutex
++	var condition int = 0
++	var cond *sync.Cond = sync.NewCond(&mu)
++
++	var waker func() = func() {
++		<-time.After(1e5)
++		x = 1
++		mu.Lock()
++		condition = 1
++		cond.Signal()
++		mu.Unlock()
++		<-time.After(1e5)
++		mu.Lock()
++		x = 3
++		mu.Unlock()
++		ch <- true
++	}
++
++	var waiter func() = func() {
++		mu.Lock()
++		for condition != 1 {
++			cond.Wait()
++		}
++		mu.Unlock()
++		x = 2
++		ch <- true
++	}
++	x = 0
++	go waker()
++	go waiter()
++	<-ch
++	<-ch
++}
++
++// We do not currently automatically
++// parse this test. It is intended that the creation
++// stack is observed manually not to contain
++// off-by-one errors
++func TestRaceAnnounceThreads(t *testing.T) {
++	const N = 7
++	allDone := make(chan bool, N)
++
++	var x int
++
++	var f, g, h func()
++	f = func() {
++		x = 1
++		go g()
++		go func() {
++			x = 1
++			allDone <- true
++		}()
++		x = 2
++		allDone <- true
++	}
++
++	g = func() {
++		for i := 0; i < 2; i++ {
++			go func() {
++				x = 1
++				allDone <- true
++			}()
++			allDone <- true
++		}
++	}
++
++	h = func() {
++		x = 1
++		x = 2
++		go f()
++		allDone <- true
++	}
++
++	go h()
++
++	for i := 0; i < N; i++ {
++		<-allDone
++	}
++}
++
++func TestNoRaceAfterFunc1(t *testing.T) {
++	i := 2
++	c := make(chan bool)
++	var f func()
++	f = func() {
++		i--
++		if i >= 0 {
++			time.AfterFunc(0, f)
++		} else {
++			c <- true
++		}
++	}
++
++	time.AfterFunc(0, f)
++	<-c
++}
++
++func TestNoRaceAfterFunc2(t *testing.T) {
++	var x int
++	timer := time.AfterFunc(10, func() {
++		x = 1
++	})
++	defer timer.Stop()
++	_ = x
++}
++
++func TestNoRaceAfterFunc3(t *testing.T) {
++	c := make(chan bool, 1)
++	x := 0
++	time.AfterFunc(1e7, func() {
++		x = 1
++		c <- true
++	})
++	<-c
++}
++
++func TestRaceAfterFunc3(t *testing.T) {
++	c := make(chan bool, 2)
++	x := 0
++	time.AfterFunc(1e7, func() {
++		x = 1
++		c <- true
++	})
++	time.AfterFunc(2e7, func() {
++		x = 2
++		c <- true
++	})
++	<-c
++	<-c
++}
++
++// This test's output is intended to be
++// observed manually. One should check
++// that goroutine creation stack is
++// comprehensible.
++func TestRaceGoroutineCreationStack(t *testing.T) {
++	var x int
++	var ch = make(chan bool, 1)
++
++	f1 := func() {
++		x = 1
++		ch <- true
++	}
++	f2 := func() { go f1() }
++	f3 := func() { go f2() }
++	f4 := func() { go f3() }
++
++	go f4()
++	x = 2
++	<-ch
++}
+diff --git a/src/pkg/runtime/race/testdata/waitgroup_test.go b/src/pkg/runtime/race/testdata/waitgroup_test.go
+new file mode 100644
+index 0000000000..7ea21fa7e8
+--- /dev/null
++++ b/src/pkg/runtime/race/testdata/waitgroup_test.go
+@@ -0,0 +1,232 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"runtime"
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestNoRaceWaitGroup(t *testing.T) {
++	var x int
++	var wg sync.WaitGroup
++	n := 1
++	for i := 0; i < n; i++ {
++		wg.Add(1)
++		j := i
++		go func() {
++			x = j
++			wg.Done()
++		}()
++	}
++	wg.Wait()
++}
++
++func TestRaceWaitGroup(t *testing.T) {
++	var x int
++	var wg sync.WaitGroup
++	n := 2
++	for i := 0; i < n; i++ {
++		wg.Add(1)
++		j := i
++		go func() {
++			x = j
++			wg.Done()
++		}()
++	}
++	wg.Wait()
++}
++
++func TestNoRaceWaitGroup2(t *testing.T) {
++	var x int
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		x = 1
++		wg.Done()
++	}()
++	wg.Wait()
++	x = 2
++}
++
++// incrementing counter in Add and locking wg's mutex
++func TestRaceWaitGroupAsMutex(t *testing.T) {
++	var x int
++	var wg sync.WaitGroup
++	c := make(chan bool, 2)
++	go func() {
++		wg.Wait()
++		time.Sleep(100 * time.Millisecond)
++		wg.Add(+1)
++		x = 1
++		wg.Add(-1)
++		c <- true
++	}()
++	go func() {
++		wg.Wait()
++		time.Sleep(100 * time.Millisecond)
++		wg.Add(+1)
++		x = 2
++		wg.Add(-1)
++		c <- true
++	}()
++	<-c
++	<-c
++}
++
++// Incorrect usage: Add is too late.
++func TestRaceWaitGroupWrongWait(t *testing.T) {
++	c := make(chan bool, 2)
++	var x int
++	var wg sync.WaitGroup
++	go func() {
++		wg.Add(1)
++		runtime.Gosched()
++		x = 1
++		wg.Done()
++		c <- true
++	}()
++	go func() {
++		wg.Add(1)
++		runtime.Gosched()
++		x = 2
++		wg.Done()
++		c <- true
++	}()
++	wg.Wait()
++	<-c
++	<-c
++}
++
++// A common WaitGroup misuse that can potentially be caught be the race detector.
++// For this simple case we must emulate Add() as read on &wg and Wait() as write on &wg.
++// However it will have false positives if there are several concurrent Wait() calls.
++func TestRaceFailingWaitGroupWrongAdd(t *testing.T) {
++	c := make(chan bool, 2)
++	var wg sync.WaitGroup
++	go func() {
++		wg.Add(1)
++		wg.Done()
++		c <- true
++	}()
++	go func() {
++		wg.Add(1)
++		wg.Done()
++		c <- true
++	}()
++	wg.Wait()
++	<-c
++	<-c
++}
++
++func TestNoRaceWaitGroupMultipleWait(t *testing.T) {
++	c := make(chan bool, 2)
++	var wg sync.WaitGroup
++	go func() {
++		wg.Wait()
++		c <- true
++	}()
++	go func() {
++		wg.Wait()
++		c <- true
++	}()
++	wg.Wait()
++	<-c
++	<-c
++}
++
++func TestNoRaceWaitGroupMultipleWait2(t *testing.T) {
++	c := make(chan bool, 2)
++	var wg sync.WaitGroup
++	wg.Add(2)
++	go func() {
++		wg.Done()
++		wg.Wait()
++		c <- true
++	}()
++	go func() {
++		wg.Done()
++		wg.Wait()
++		c <- true
++	}()
++	wg.Wait()
++	<-c
++	<-c
++}
++
++// Correct usage but still a race
++func TestRaceWaitGroup2(t *testing.T) {
++	var x int
++	var wg sync.WaitGroup
++	wg.Add(2)
++	go func() {
++		x = 1
++		wg.Done()
++	}()
++	go func() {
++		x = 2
++		wg.Done()
++	}()
++	wg.Wait()
++}
++
++func TestNoRaceWaitGroupPanicRecover(t *testing.T) {
++	var x int
++	var wg sync.WaitGroup
++	defer func() {
++		err := recover()
++		if err != "sync: negative WaitGroup counter" {
++			t.Fatalf("Unexpected panic: %#v", err)
++		}
++		x = 2
++	}()
++	x = 1
++	wg.Add(-1)
++}
++
++// TODO: this is actually a panic-synchronization test, not a
++// WaitGroup test. Move it to another *_test file
++// Is it possible to get a race by synchronization via panic?
++func TestNoRaceWaitGroupPanicRecover2(t *testing.T) {
++	var x int
++	var wg sync.WaitGroup
++	ch := make(chan bool, 1)
++	var f func() = func() {
++		x = 2
++		ch <- true
++	}
++	go func() {
++		defer func() {
++			err := recover()
++			if err != "sync: negative WaitGroup counter" {
++			}
++			go f()
++		}()
++		x = 1
++		wg.Add(-1)
++	}()
++
++	<-ch
++}
++
++func TestNoRaceWaitGroupTransitive(t *testing.T) {
++	x, y := 0, 0
++	var wg sync.WaitGroup
++	wg.Add(2)
++	go func() {
++		x = 42
++		wg.Done()
++	}()
++	go func() {
++		time.Sleep(1e7)
++		y = 42
++		wg.Done()
++	}()
++	wg.Wait()
++	_ = x
++	_ = y
++}

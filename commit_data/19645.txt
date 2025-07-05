@@ -9,7 +9,32 @@ Date:   Tue Jul 1 09:26:06 2014 -0700
     R=gobot, rsc
     CC=golang-codereviews
     https://golang.org/cl/106340043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index aac4f70895..20cc31776f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -375,6 +375,7 @@ Shane Hansen <shanemhansen@gmail.com>
+ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>
++Simon Whitehead <chemnova@gmail.com>
+ Sokolov Yura <funny.falcon@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ StalkR <stalkr@stalkr.net>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b68980fceb..86893d469f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -521,6 +521,7 @@ Shawn Ledbetter <sledbetter@google.com>
+ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux@golang.org> <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>
++Simon Whitehead <chemnova@gmail.com>
+ Sokolov Yura <funny.falcon@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ StalkR <stalkr@stalkr.net>

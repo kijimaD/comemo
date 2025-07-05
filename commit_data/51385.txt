@@ -18,7 +18,109 @@ Date:   Tue Jan 18 18:46:00 2022 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/crash_cgo_test.go                  | 28 ++++----------------------
  src/runtime/testdata/testprogcgo/threadprof.go | 19 ++++++++++-------
  2 files changed, 16 insertions(+), 31 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 6f1265c014..9444554d37 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -7,7 +7,6 @@
+ package runtime_test
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+@@ -95,17 +94,8 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	}
+ 
+-	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("exit status: %v\n%s", err, got)
+-	}
+-
+-	if want := "OK\n"; string(got) != want {
++	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSIGPROF", "GO_START_SIGPROF_THREAD=1")
++	if want := "OK\n"; got != want {
+ 		t.Fatalf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
+@@ -118,18 +108,8 @@ func TestCgoExternalThreadSignal(t *testing.T) {
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	}
+ 
+-	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSignal")).CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("exit status: %v\n%s", err, got)
+-	}
+-
+-	want := []byte("OK\n")
+-	if !bytes.Equal(got, want) {
++	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSignal")
++	if want := "OK\n"; got != want {
+ 		t.Fatalf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
+diff --git a/src/runtime/testdata/testprogcgo/threadprof.go b/src/runtime/testdata/testprogcgo/threadprof.go
+index 8081173c0f..d62d4b4be8 100644
+--- a/src/runtime/testdata/testprogcgo/threadprof.go
++++ b/src/runtime/testdata/testprogcgo/threadprof.go
+@@ -2,21 +2,22 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// We only build this file with the tag "threadprof", since it starts
+-// a thread running a busy loop at constructor time.
+-
+-//go:build !plan9 && !windows && threadprof
+-// +build !plan9,!windows,threadprof
++//go:build !plan9 && !windows
++// +build !plan9,!windows
+ 
+ package main
+ 
+ /*
+ #include <stdint.h>
++#include <stdlib.h>
+ #include <signal.h>
+ #include <pthread.h>
+ 
+ volatile int32_t spinlock;
+ 
++// Note that this thread is only started if GO_START_SIGPROF_THREAD
++// is set in the environment, which is only done when running the
++// CgoExternalThreadSIGPROF test.
+ static void *thread1(void *p) {
+ 	(void)p;
+ 	while (spinlock == 0)
+@@ -26,9 +27,13 @@ static void *thread1(void *p) {
+ 	return NULL;
+ }
+ 
++// This constructor function is run when the program starts.
++// It is used for the CgoExternalThreadSIGPROF test.
+ __attribute__((constructor)) void issue9456() {
+-	pthread_t tid;
+-	pthread_create(&tid, 0, thread1, NULL);
++	if (getenv("GO_START_SIGPROF_THREAD") != NULL) {
++		pthread_t tid;
++		pthread_create(&tid, 0, thread1, NULL);
++	}
+ }
+ 
+ void **nullptr;

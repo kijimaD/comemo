@@ -12,7 +12,7 @@ Date:   Tue Aug 30 09:12:22 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm/prog.go               |   1 +
  src/cmd/compile/internal/arm/ssa.go                |   3 +
  src/cmd/compile/internal/gc/ssa.go                 |   8 +-
@@ -25,3 +25,644 @@ Date:   Tue Aug 30 09:12:22 2016 -0400
  test/intrinsic.go                                  |   2 +-
  .../atomic.go => intrinsic_atomic.go}              |   3 +-
  11 files changed, 349 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/prog.go b/src/cmd/compile/internal/arm/prog.go
+index 1cbaa2699d..9a89e4ae40 100644
+--- a/src/cmd/compile/internal/arm/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -65,6 +65,7 @@ var progtable = [arm.ALAST & obj.AMask]obj.ProgInfo{
+ 	arm.ASRA & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	arm.ASRL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	arm.ASUB & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm.ACLZ & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
+ 	arm.ATEQ & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+ 	arm.ATST & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+ 
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index cea2cf4908..217c6af286 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -407,6 +407,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMRSBSshiftRA:
+ 		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum0(v), arm.SHIFT_AR, v.AuxInt)
+ 		p.Scond = arm.C_SBIT
++	case ssa.OpARMXORshiftRR:
++		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_RR, v.AuxInt)
+ 	case ssa.OpARMMVNshiftLL:
+ 		genshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v), arm.SHIFT_LL, v.AuxInt)
+ 	case ssa.OpARMMVNshiftRL:
+@@ -666,6 +668,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 		fallthrough
+ 	case ssa.OpARMMVN,
++		ssa.OpARMCLZ,
+ 		ssa.OpARMSQRTD,
+ 		ssa.OpARMNEGF,
+ 		ssa.OpARMNEGD,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e2814685ff..0faedf0e27 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2563,16 +2563,16 @@ func intrinsicInit() {
+ 		/******** runtime/internal/sys ********/
+ 		intrinsicKey{"runtime/internal/sys", "Ctz32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
+-		}, sys.AMD64, sys.ARM64),
++		}, sys.AMD64, sys.ARM64, sys.ARM),
+ 		intrinsicKey{"runtime/internal/sys", "Ctz64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz64, Types[TUINT64], s.intrinsicFirstArg(n))
+-		}, sys.AMD64, sys.ARM64),
++		}, sys.AMD64, sys.ARM64, sys.ARM),
+ 		intrinsicKey{"runtime/internal/sys", "Bswap32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap32, Types[TUINT32], s.intrinsicFirstArg(n))
+-		}, sys.AMD64, sys.ARM64),
++		}, sys.AMD64, sys.ARM64, sys.ARM),
+ 		intrinsicKey{"runtime/internal/sys", "Bswap64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap64, Types[TUINT64], s.intrinsicFirstArg(n))
+-		}, sys.AMD64, sys.ARM64),
++		}, sys.AMD64, sys.ARM64, sys.ARM),
+ 
+ 		/******** runtime/internal/atomic ********/
+ 		intrinsicKey{"runtime/internal/atomic", "Load"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 54d7395d0c..4f863104ec 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -78,6 +78,24 @@
+ 
+ (Sqrt x) -> (SQRTD x)
+ 
++// count trailing zero
++// 32 - CLZ(x&-x - 1)
++(Ctz32 <t> x) -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
++
++// byte swap
++// let (a, b, c, d) be the bytes of x from high to low
++// t1 = x right rotate 16 bits -- (c,   d,   a,   b  )
++// t2 = x ^ t1                 -- (a^c, b^d, a^c, b^d)
++// t3 = t2 &^ 0xff0000         -- (a^c, 0,   a^c, b^d)
++// t4 = t3 >> 8                -- (0,   a^c, 0,   a^c)
++// t5 = x right rotate 8 bits  -- (d,   a,   b,   c  )
++// result = t4 ^ t5            -- (d,   c,   b,   a  )
++// using shifted ops this can be done in 4 instructions.
++(Bswap32 <t> x) ->
++	(XOR <t>
++		(SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8])
++		(SRRconst <t> x [8]))
++
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB x y) -> (AND x y)
+ (OrB x y) -> (OR x y)
+@@ -918,6 +936,8 @@
+ (XOR (SRLconst [c] y) x) -> (XORshiftRL x y [c])
+ (XOR x (SRAconst [c] y)) -> (XORshiftRA x y [c])
+ (XOR (SRAconst [c] y) x) -> (XORshiftRA x y [c])
++(XOR x (SRRconst [c] y)) -> (XORshiftRR x y [c])
++(XOR (SRRconst [c] y) x) -> (XORshiftRR x y [c])
+ (XOR x (SLL y z)) -> (XORshiftLLreg x y z)
+ (XOR (SLL y z) x) -> (XORshiftLLreg x y z)
+ (XOR x (SRL y z)) -> (XORshiftRLreg x y z)
+@@ -987,6 +1007,7 @@
+ (XORshiftLL (MOVWconst [c]) x [d]) -> (XORconst [c] (SLLconst <x.Type> x [d]))
+ (XORshiftRL (MOVWconst [c]) x [d]) -> (XORconst [c] (SRLconst <x.Type> x [d]))
+ (XORshiftRA (MOVWconst [c]) x [d]) -> (XORconst [c] (SRAconst <x.Type> x [d]))
++(XORshiftRR (MOVWconst [c]) x [d]) -> (XORconst [c] (SRRconst <x.Type> x [d]))
+ (CMPshiftLL (MOVWconst [c]) x [d]) -> (InvertFlags (CMPconst [c] (SLLconst <x.Type> x [d])))
+ (CMPshiftRL (MOVWconst [c]) x [d]) -> (InvertFlags (CMPconst [c] (SRLconst <x.Type> x [d])))
+ (CMPshiftRA (MOVWconst [c]) x [d]) -> (InvertFlags (CMPconst [c] (SRAconst <x.Type> x [d])))
+@@ -1068,6 +1089,7 @@
+ (XORshiftLL x (MOVWconst [c]) [d]) -> (XORconst x [int64(uint32(c)<<uint64(d))])
+ (XORshiftRL x (MOVWconst [c]) [d]) -> (XORconst x [int64(uint32(c)>>uint64(d))])
+ (XORshiftRA x (MOVWconst [c]) [d]) -> (XORconst x [int64(int32(c)>>uint64(d))])
++(XORshiftRR x (MOVWconst [c]) [d]) -> (XORconst x [int64(uint32(c)>>uint64(d)|uint32(c)<<uint64(32-d))])
+ (BICshiftLL x (MOVWconst [c]) [d]) -> (BICconst x [int64(uint32(c)<<uint64(d))])
+ (BICshiftRL x (MOVWconst [c]) [d]) -> (BICconst x [int64(uint32(c)>>uint64(d))])
+ (BICshiftRA x (MOVWconst [c]) [d]) -> (BICconst x [int64(int32(c)>>uint64(d))])
+@@ -1177,6 +1199,7 @@
+ (ADD a (MUL x y)) -> (MULA x y a)
+ 
+ (AND x (MVN y)) -> (BIC x y)
++(AND (MVN y) x) -> (BIC x y)
+ 
+ // simplification with *shift ops
+ (SUBshiftLL x (SLLconst x [c]) [d]) && c==d -> (MOVWconst [0])
+@@ -1198,8 +1221,11 @@
+ (BICshiftRL x (SRLconst x [c]) [d]) && c==d -> (MOVWconst [0])
+ (BICshiftRA x (SRAconst x [c]) [d]) && c==d -> (MOVWconst [0])
+ (AND x (MVNshiftLL y [c])) -> (BICshiftLL x y [c])
++(AND (MVNshiftLL y [c]) x) -> (BICshiftLL x y [c])
+ (AND x (MVNshiftRL y [c])) -> (BICshiftRL x y [c])
++(AND (MVNshiftRL y [c]) x) -> (BICshiftRL x y [c])
+ (AND x (MVNshiftRA y [c])) -> (BICshiftRA x y [c])
++(AND (MVNshiftRA y [c]) x) -> (BICshiftRA x y [c])
+ 
+ // floating point optimizations
+ (CMPF x (MOVFconst [0])) -> (CMPF0 x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index b0114328b3..78d6f22631 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -182,6 +182,8 @@ func init() {
+ 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+ 
++		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"}, // count leading zero
++
+ 		// shifts
+ 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                    // arg0 << arg1, shift amount is mod 256
+ 		{name: "SLLconst", argLength: 1, reg: gp11, asm: "SLL", aux: "Int32"}, // arg0 << auxInt
+@@ -209,6 +211,7 @@ func init() {
+ 		{name: "XORshiftLL", argLength: 2, reg: gp21, asm: "EOR", aux: "Int32"}, // arg0 ^ arg1<<auxInt
+ 		{name: "XORshiftRL", argLength: 2, reg: gp21, asm: "EOR", aux: "Int32"}, // arg0 ^ arg1>>auxInt, unsigned shift
+ 		{name: "XORshiftRA", argLength: 2, reg: gp21, asm: "EOR", aux: "Int32"}, // arg0 ^ arg1>>auxInt, signed shift
++		{name: "XORshiftRR", argLength: 2, reg: gp21, asm: "EOR", aux: "Int32"}, // arg0 ^ (arg1 right rotate by auxInt)
+ 		{name: "BICshiftLL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int32"}, // arg0 &^ (arg1<<auxInt)
+ 		{name: "BICshiftRL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int32"}, // arg0 &^ (arg1>>auxInt), unsigned shift
+ 		{name: "BICshiftRA", argLength: 2, reg: gp21, asm: "BIC", aux: "Int32"}, // arg0 &^ (arg1>>auxInt), signed shift
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64.rules b/src/cmd/compile/internal/ssa/gen/dec64.rules
+index 8f0227af66..9945ae5c6c 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec64.rules
+@@ -81,6 +81,20 @@
+ 		(Com32 <config.fe.TypeUInt32()> (Int64Hi x))
+ 		(Com32 <config.fe.TypeUInt32()> (Int64Lo x)))
+ 
++(Ctz64 x) ->
++	(Int64Make
++		(Const32 <config.fe.TypeUInt32()> [0])
++		(Add32 <config.fe.TypeUInt32()>
++			(Ctz32 <config.fe.TypeUInt32()> (Int64Lo x))
++			(And32 <config.fe.TypeUInt32()>
++				(Com32 <config.fe.TypeUInt32()> (Zeromask (Int64Lo x)))
++				(Ctz32 <config.fe.TypeUInt32()> (Int64Hi x)))))
++
++(Bswap64 x) ->
++	(Int64Make
++		(Bswap32 <config.fe.TypeUInt32()> (Int64Lo x))
++		(Bswap32 <config.fe.TypeUInt32()> (Int64Hi x)))
++
+ (SignExt32to64 x) -> (Int64Make (Signmask x) x)
+ (SignExt16to64 x) -> (SignExt32to64 (SignExt16to32 x))
+ (SignExt8to64 x) -> (SignExt32to64 (SignExt8to32 x))
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 575383a6f0..c7fa21a466 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -644,6 +644,7 @@ const (
+ 	OpARMNEGF
+ 	OpARMNEGD
+ 	OpARMSQRTD
++	OpARMCLZ
+ 	OpARMSLL
+ 	OpARMSLLconst
+ 	OpARMSRL
+@@ -669,6 +670,7 @@ const (
+ 	OpARMXORshiftLL
+ 	OpARMXORshiftRL
+ 	OpARMXORshiftRA
++	OpARMXORshiftRR
+ 	OpARMBICshiftLL
+ 	OpARMBICshiftRL
+ 	OpARMBICshiftRA
+@@ -7641,6 +7643,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "CLZ",
++		argLen: 1,
++		asm:    arm.ACLZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
++			},
++			outputs: []outputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 	{
+ 		name:   "SLL",
+ 		argLen: 2,
+@@ -8008,6 +8023,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "XORshiftRR",
++		auxType: auxInt32,
++		argLen:  2,
++		asm:     arm.AEOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
++				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
++			},
++			outputs: []outputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 	{
+ 		name:    "BICshiftLL",
+ 		auxType: auxInt32,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 543e3bdc9d..6da613a088 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -336,6 +336,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpARMXORshiftRL(v, config)
+ 	case OpARMXORshiftRLreg:
+ 		return rewriteValueARM_OpARMXORshiftRLreg(v, config)
++	case OpARMXORshiftRR:
++		return rewriteValueARM_OpARMXORshiftRR(v, config)
+ 	case OpAdd16:
+ 		return rewriteValueARM_OpAdd16(v, config)
+ 	case OpAdd32:
+@@ -362,6 +364,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpAnd8(v, config)
+ 	case OpAndB:
+ 		return rewriteValueARM_OpAndB(v, config)
++	case OpBswap32:
++		return rewriteValueARM_OpBswap32(v, config)
+ 	case OpClosureCall:
+ 		return rewriteValueARM_OpClosureCall(v, config)
+ 	case OpCom16:
+@@ -386,6 +390,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpConstNil(v, config)
+ 	case OpConvert:
+ 		return rewriteValueARM_OpConvert(v, config)
++	case OpCtz32:
++		return rewriteValueARM_OpCtz32(v, config)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueARM_OpCvt32Fto32(v, config)
+ 	case OpCvt32Fto32U:
+@@ -2697,6 +2703,21 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	// match: (AND (MVN y) x)
++	// cond:
++	// result: (BIC x y)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMVN {
++			break
++		}
++		y := v_0.Args[0]
++		x := v.Args[1]
++		v.reset(OpARMBIC)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (AND x (MVNshiftLL y [c]))
+ 	// cond:
+ 	// result: (BICshiftLL x y [c])
+@@ -2714,6 +2735,23 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	// match: (AND (MVNshiftLL y [c]) x)
++	// cond:
++	// result: (BICshiftLL x y [c])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMVNshiftLL {
++			break
++		}
++		c := v_0.AuxInt
++		y := v_0.Args[0]
++		x := v.Args[1]
++		v.reset(OpARMBICshiftLL)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (AND x (MVNshiftRL y [c]))
+ 	// cond:
+ 	// result: (BICshiftRL x y [c])
+@@ -2731,6 +2769,23 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	// match: (AND (MVNshiftRL y [c]) x)
++	// cond:
++	// result: (BICshiftRL x y [c])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMVNshiftRL {
++			break
++		}
++		c := v_0.AuxInt
++		y := v_0.Args[0]
++		x := v.Args[1]
++		v.reset(OpARMBICshiftRL)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (AND x (MVNshiftRA y [c]))
+ 	// cond:
+ 	// result: (BICshiftRA x y [c])
+@@ -2748,6 +2803,23 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	// match: (AND (MVNshiftRA y [c]) x)
++	// cond:
++	// result: (BICshiftRA x y [c])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMVNshiftRA {
++			break
++		}
++		c := v_0.AuxInt
++		y := v_0.Args[0]
++		x := v.Args[1]
++		v.reset(OpARMBICshiftRA)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMANDconst(v *Value, config *Config) bool {
+@@ -12164,6 +12236,40 @@ func rewriteValueARM_OpARMXOR(v *Value, config *Config) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	// match: (XOR x (SRRconst [c] y))
++	// cond:
++	// result: (XORshiftRR x y [c])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMSRRconst {
++			break
++		}
++		c := v_1.AuxInt
++		y := v_1.Args[0]
++		v.reset(OpARMXORshiftRR)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (XOR (SRRconst [c] y) x)
++	// cond:
++	// result: (XORshiftRR x y [c])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMSRRconst {
++			break
++		}
++		c := v_0.AuxInt
++		y := v_0.Args[0]
++		x := v.Args[1]
++		v.reset(OpARMXORshiftRR)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (XOR x (SLL y z))
+ 	// cond:
+ 	// result: (XORshiftLLreg x y z)
+@@ -12634,6 +12740,46 @@ func rewriteValueARM_OpARMXORshiftRLreg(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpARMXORshiftRR(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (XORshiftRR (MOVWconst [c]) x [d])
++	// cond:
++	// result: (XORconst [c] (SRRconst <x.Type> x [d]))
++	for {
++		d := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		v.reset(OpARMXORconst)
++		v.AuxInt = c
++		v0 := b.NewValue0(v.Line, OpARMSRRconst, x.Type)
++		v0.AuxInt = d
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (XORshiftRR x (MOVWconst [c]) [d])
++	// cond:
++	// result: (XORconst x [int64(uint32(c)>>uint64(d)|uint32(c)<<uint64(32-d))])
++	for {
++		d := v.AuxInt
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARMXORconst)
++		v.AuxInt = int64(uint32(c)>>uint64(d) | uint32(c)<<uint64(32-d))
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpAdd16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -12831,6 +12977,37 @@ func rewriteValueARM_OpAndB(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpBswap32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Bswap32 <t> x)
++	// cond:
++	// result: (XOR <t> 		(SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8]) 		(SRRconst <t> x [8]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARMXOR)
++		v.Type = t
++		v0 := b.NewValue0(v.Line, OpARMSRLconst, t)
++		v0.AuxInt = 8
++		v1 := b.NewValue0(v.Line, OpARMBICconst, t)
++		v1.AuxInt = 0xff0000
++		v2 := b.NewValue0(v.Line, OpARMXOR, t)
++		v2.AddArg(x)
++		v3 := b.NewValue0(v.Line, OpARMSRRconst, t)
++		v3.AuxInt = 16
++		v3.AddArg(x)
++		v2.AddArg(v3)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v4 := b.NewValue0(v.Line, OpARMSRRconst, t)
++		v4.AuxInt = 8
++		v4.AddArg(x)
++		v.AddArg(v4)
++		return true
++	}
++}
+ func rewriteValueARM_OpClosureCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -12994,6 +13171,32 @@ func rewriteValueARM_OpConvert(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpCtz32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Ctz32 <t> x)
++	// cond:
++	// result: (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARMRSBconst)
++		v.AuxInt = 32
++		v0 := b.NewValue0(v.Line, OpARMCLZ, t)
++		v1 := b.NewValue0(v.Line, OpARMSUBconst, t)
++		v1.AuxInt = 1
++		v2 := b.NewValue0(v.Line, OpARMAND, t)
++		v2.AddArg(x)
++		v3 := b.NewValue0(v.Line, OpARMRSBconst, t)
++		v3.AuxInt = 0
++		v3.AddArg(x)
++		v2.AddArg(v3)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpCvt32Fto32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index 4a8175accb..d718da2258 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -14,10 +14,14 @@ func rewriteValuedec64(v *Value, config *Config) bool {
+ 		return rewriteValuedec64_OpAnd64(v, config)
+ 	case OpArg:
+ 		return rewriteValuedec64_OpArg(v, config)
++	case OpBswap64:
++		return rewriteValuedec64_OpBswap64(v, config)
+ 	case OpCom64:
+ 		return rewriteValuedec64_OpCom64(v, config)
+ 	case OpConst64:
+ 		return rewriteValuedec64_OpConst64(v, config)
++	case OpCtz64:
++		return rewriteValuedec64_OpCtz64(v, config)
+ 	case OpEq64:
+ 		return rewriteValuedec64_OpEq64(v, config)
+ 	case OpGeq64:
+@@ -236,6 +240,28 @@ func rewriteValuedec64_OpArg(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuedec64_OpBswap64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Bswap64 x)
++	// cond:
++	// result: (Int64Make 		(Bswap32 <config.fe.TypeUInt32()> (Int64Lo x)) 		(Bswap32 <config.fe.TypeUInt32()> (Int64Hi x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpBswap32, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpBswap32, config.fe.TypeUInt32())
++		v3 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v3.AddArg(x)
++		v2.AddArg(v3)
++		v.AddArg(v2)
++		return true
++	}
++}
+ func rewriteValuedec64_OpCom64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -299,6 +325,42 @@ func rewriteValuedec64_OpConst64(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuedec64_OpCtz64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Ctz64 x)
++	// cond:
++	// result: (Int64Make 		(Const32 <config.fe.TypeUInt32()> [0]) 		(Add32 <config.fe.TypeUInt32()> 			(Ctz32 <config.fe.TypeUInt32()> (Int64Lo x)) 			(And32 <config.fe.TypeUInt32()> 				(Com32 <config.fe.TypeUInt32()> (Zeromask (Int64Lo x))) 				(Ctz32 <config.fe.TypeUInt32()> (Int64Hi x)))))
++	for {
++		x := v.Args[0]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpAdd32, config.fe.TypeUInt32())
++		v2 := b.NewValue0(v.Line, OpCtz32, config.fe.TypeUInt32())
++		v3 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v3.AddArg(x)
++		v2.AddArg(v3)
++		v1.AddArg(v2)
++		v4 := b.NewValue0(v.Line, OpAnd32, config.fe.TypeUInt32())
++		v5 := b.NewValue0(v.Line, OpCom32, config.fe.TypeUInt32())
++		v6 := b.NewValue0(v.Line, OpZeromask, config.fe.TypeUInt32())
++		v7 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v7.AddArg(x)
++		v6.AddArg(v7)
++		v5.AddArg(v6)
++		v4.AddArg(v5)
++		v8 := b.NewValue0(v.Line, OpCtz32, config.fe.TypeUInt32())
++		v9 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v9.AddArg(x)
++		v8.AddArg(v9)
++		v4.AddArg(v8)
++		v1.AddArg(v4)
++		v.AddArg(v1)
++		return true
++	}
++}
+ func rewriteValuedec64_OpEq64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/test/intrinsic.go b/test/intrinsic.go
+index 57a9decc1f..3e3ec12fa4 100644
+--- a/test/intrinsic.go
++++ b/test/intrinsic.go
+@@ -1,5 +1,5 @@
+ // errorcheckandrundir -0 -d=ssa/intrinsics/debug
+-// +build amd64 arm64
++// +build amd64 arm64 arm
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/intrinsic.dir/atomic.go b/test/intrinsic_atomic.go
+similarity index 91%
+rename from test/intrinsic.dir/atomic.go
+rename to test/intrinsic_atomic.go
+index 71468a1b38..dd765a0ff9 100644
+--- a/test/intrinsic.dir/atomic.go
++++ b/test/intrinsic_atomic.go
+@@ -1,4 +1,5 @@
+-// +build amd64
++// errorcheck -0 -d=ssa/intrinsics/debug
++// +build amd64 arm64
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

@@ -13,6 +13,23 @@ Date:   Thu Feb 23 23:01:36 2012 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5693055
-
+---
  src/cmd/ld/data.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 397ae83b23..786c10b64d 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -1023,6 +1023,11 @@ textaddress(void)
+ 		}
+ 		va += sym->size;
+ 	}
++	
++	// Align end of code so that rodata starts aligned.
++	// 128 bytes is likely overkill but definitely cheap.
++	va = rnd(va, 128);
++
+ 	sect->len = va - sect->vaddr;
+ }
+ 

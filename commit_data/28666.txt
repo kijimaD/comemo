@@ -23,6 +23,21 @@ Date:   Fri Jun 24 11:09:48 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/type.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index d60d0b060b..1c30608cef 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -820,6 +820,9 @@ func (t *rtype) NumMethod() int {
+ 		tt := (*interfaceType)(unsafe.Pointer(t))
+ 		return tt.NumMethod()
+ 	}
++	if t.tflag&tflagUncommon == 0 {
++		return 0 // avoid methodCache lock in zero case
++	}
+ 	return len(t.exportedMethods())
+ }
+ 

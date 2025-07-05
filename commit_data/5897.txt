@@ -9,6 +9,20 @@ Date:   Tue Jul 27 17:22:45 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1886046
-
+---
  src/pkg/bufio/bufio.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 6a73c41ef5..e73f082890 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -392,7 +392,7 @@ func (b *Writer) Write(p []byte) (nn int, err os.Error) {
+ 			}
+ 			n = b.Available()
+ 		}
+-		if b.Available() == 0 && len(p) >= len(b.buf) {
++		if b.Buffered() == 0 && len(p) >= len(b.buf) {
+ 			// Large write, empty buffer.
+ 			// Write directly from p to avoid copy.
+ 			n, b.err = b.wr.Write(p)

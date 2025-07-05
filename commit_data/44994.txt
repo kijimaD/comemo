@@ -11,7 +11,40 @@ Date:   Tue Sep 22 09:19:04 2020 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/256219
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/export_darwin_test.go | 13 +++++++++++++
  src/syscall/export_unix_test.go   |  2 +-
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/export_darwin_test.go b/src/syscall/export_darwin_test.go
+new file mode 100644
+index 0000000000..40d18f9144
+--- /dev/null
++++ b/src/syscall/export_darwin_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++func Ioctl(fd, req, arg uintptr) Errno {
++	err := ioctl(int(fd), int(req), int(arg))
++	if err != nil {
++		return err.(Errno)
++	}
++	return 0
++}
+diff --git a/src/syscall/export_unix_test.go b/src/syscall/export_unix_test.go
+index b41fe2f86b..4c3d0f6d2a 100644
+--- a/src/syscall/export_unix_test.go
++++ b/src/syscall/export_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build dragonfly freebsd linux netbsd openbsd
+ 
+ package syscall
+ 

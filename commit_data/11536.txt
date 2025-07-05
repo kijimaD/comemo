@@ -9,6 +9,20 @@ Date:   Wed Feb 1 15:12:24 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5602047
-
+---
  src/pkg/go/build/syslist.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/syslist.go b/src/pkg/go/build/syslist.go
+index 0ee9821322..ea21f3c74b 100644
+--- a/src/pkg/go/build/syslist.go
++++ b/src/pkg/go/build/syslist.go
+@@ -1,4 +1,7 @@
+-// Generated automatically by make.
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package build
+ 
+ const goosList = "darwin freebsd linux netbsd openbsd plan9 windows "

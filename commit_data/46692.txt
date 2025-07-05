@@ -13,6 +13,29 @@ Date:   Mon Jan 11 10:01:24 2021 -0500
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Roland Shoemaker <roland@golang.org>
-
+---
  src/cmd/cgo/util.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 921306b7aa..779f7be225 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -63,7 +63,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 	p.Env = append(os.Environ(), "TERM=dumb")
+ 	err := p.Run()
+ 	if _, ok := err.(*exec.ExitError); err != nil && !ok {
+-		fatalf("%s", err)
++		fatalf("exec %s: %s", argv[0], err)
+ 	}
+ 	ok = p.ProcessState.Success()
+ 	stdout, stderr = bout.Bytes(), berr.Bytes()
+@@ -88,7 +88,7 @@ func fatalf(msg string, args ...interface{}) {
+ 	// If we've already printed other errors, they might have
+ 	// caused the fatal condition. Assume they're enough.
+ 	if nerrors == 0 {
+-		fmt.Fprintf(os.Stderr, msg+"\n", args...)
++		fmt.Fprintf(os.Stderr, "cgo: "+msg+"\n", args...)
+ 	}
+ 	os.Exit(2)
+ }

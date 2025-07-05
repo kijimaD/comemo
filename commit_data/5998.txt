@@ -11,7 +11,58 @@ Date:   Wed Aug 11 14:04:03 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/1741059
-
+---
  src/pkg/template/template.go      | 10 ++++++++++
  src/pkg/template/template_test.go | 16 +++++++++++++++-
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 11371abe70..debcad4c0b 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -888,6 +888,16 @@ func (t *Template) Parse(s string) (err os.Error) {
+ 	return nil
+ }
+ 
++// ParseFile is like Parse but reads the template definition from the
++// named file.
++func (t *Template) ParseFile(filename string) (err os.Error) {
++	b, err := ioutil.ReadFile(filename)
++	if err != nil {
++		return err
++	}
++	return t.Parse(string(b))
++}
++
+ // Execute applies a parsed template to the specified data object,
+ // generating output to wr.
+ func (t *Template) Execute(data interface{}, wr io.Writer) (err os.Error) {
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index a6267bfccf..8157972e42 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -398,9 +398,23 @@ func TestAll(t *testing.T) {
+ 	testAll(t, func(test *Test) (*Template, os.Error) { return Parse(test.in, formatters) })
+ 	// ParseFile
+ 	testAll(t, func(test *Test) (*Template, os.Error) {
+-		ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
++		err := ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
++		if err != nil {
++			t.Error("unexpected write error:", err)
++			return nil, err
++		}
+ 		return ParseFile("_test/test.tmpl", formatters)
+ 	})
++	// tmpl.ParseFile
++	testAll(t, func(test *Test) (*Template, os.Error) {
++		err := ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
++		if err != nil {
++			t.Error("unexpected write error:", err)
++			return nil, err
++		}
++		tmpl := New(formatters)
++		return tmpl, tmpl.ParseFile("_test/test.tmpl")
++	})
+ }
+ 
+ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {

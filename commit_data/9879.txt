@@ -11,6 +11,24 @@ Date:   Wed Oct 5 14:36:02 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5182044
-
+---
  src/pkg/exp/norm/normalize.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/exp/norm/normalize.go b/src/pkg/exp/norm/normalize.go
+index f3d4e50b09..391bc4184f 100644
+--- a/src/pkg/exp/norm/normalize.go
++++ b/src/pkg/exp/norm/normalize.go
+@@ -379,12 +379,6 @@ func lastBoundary(fd *formInfo, b []byte) int {
+ 	return i
+ }
+ 
+-// LastBoundaryInString returns the position i of the last boundary in s
+-// or -1 if s contains no boundary.
+-func (f Form) LastBoundaryInString(s string) int {
+-	panic("not implemented")
+-}
+-
+ // decomposeSegment scans the first segment in src into rb.
+ // It returns the number of bytes consumed from src.
+ // TODO(mpvl): consider inserting U+034f (Combining Grapheme Joiner)

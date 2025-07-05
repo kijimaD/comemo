@@ -16,7 +16,7 @@ Date:   Thu May 16 09:21:49 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modconv/convert_test.go       |   2 +-
  src/cmd/go/internal/modfetch/cache.go             |  55 ++++--
  src/cmd/go/internal/modfetch/coderepo_test.go     |   8 +-
@@ -32,3 +32,1012 @@ Date:   Thu May 16 09:21:49 2019 -0400
  src/cmd/go/proxy_test.go                          |   7 +-
  src/cmd/go/testdata/script/mod_gobuild_import.txt |  16 +-
  14 files changed, 305 insertions(+), 299 deletions(-)
+
+diff --git a/src/cmd/go/internal/modconv/convert_test.go b/src/cmd/go/internal/modconv/convert_test.go
+index d6316e36e9..dd3aedf349 100644
+--- a/src/cmd/go/internal/modconv/convert_test.go
++++ b/src/cmd/go/internal/modconv/convert_test.go
+@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func testMain(m *testing.M) int {
+-	modfetch.SetProxy("direct")
++	cfg.GOPROXY = "direct"
+ 
+ 	if _, err := exec.LookPath("git"); err != nil {
+ 		fmt.Fprintln(os.Stderr, "skipping because git binary not found")
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index f269c47f59..2b2f86d96a 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -258,12 +258,12 @@ func (r *cachingRepo) Zip(dst io.Writer, version string) error {
+ // Stat is like Lookup(path).Stat(rev) but avoids the
+ // repository path resolution in Lookup if the result is
+ // already cached on local disk.
+-func Stat(path, rev string) (*RevInfo, error) {
++func Stat(proxy, path, rev string) (*RevInfo, error) {
+ 	_, info, err := readDiskStat(path, rev)
+ 	if err == nil {
+ 		return info, nil
+ 	}
+-	repo, err := Lookup(path)
++	repo, err := Lookup(proxy, path)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -276,9 +276,22 @@ func InfoFile(path, version string) (string, error) {
+ 	if !semver.IsValid(version) {
+ 		return "", fmt.Errorf("invalid version %q", version)
+ 	}
+-	if _, err := Stat(path, version); err != nil {
++
++	if file, _, err := readDiskStat(path, version); err == nil {
++		return file, nil
++	}
++
++	err := TryProxies(func(proxy string) error {
++		repo, err := Lookup(proxy, path)
++		if err == nil {
++			_, err = repo.Stat(version)
++		}
++		return err
++	})
++	if err != nil {
+ 		return "", err
+ 	}
++
+ 	// Stat should have populated the disk cache for us.
+ 	file, _, err := readDiskStat(path, version)
+ 	if err != nil {
+@@ -294,21 +307,39 @@ func GoMod(path, rev string) ([]byte, error) {
+ 	// Convert commit hash to pseudo-version
+ 	// to increase cache hit rate.
+ 	if !semver.IsValid(rev) {
+-		info, err := Stat(path, rev)
+-		if err != nil {
+-			return nil, err
++		if _, info, err := readDiskStat(path, rev); err == nil {
++			rev = info.Version
++		} else {
++			err := TryProxies(func(proxy string) error {
++				repo, err := Lookup(proxy, path)
++				if err != nil {
++					return err
++				}
++				info, err := repo.Stat(rev)
++				if err == nil {
++					rev = info.Version
++				}
++				return err
++			})
++			if err != nil {
++				return nil, err
++			}
+ 		}
+-		rev = info.Version
+ 	}
++
+ 	_, data, err := readDiskGoMod(path, rev)
+ 	if err == nil {
+ 		return data, nil
+ 	}
+-	repo, err := Lookup(path)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return repo.GoMod(rev)
++
++	err = TryProxies(func(proxy string) error {
++		repo, err := Lookup(proxy, path)
++		if err == nil {
++			data, err = repo.GoMod(rev)
++		}
++		return err
++	})
++	return data, err
+ }
+ 
+ // GoModFile is like GoMod but returns the name of the file containing
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 724602233c..1f2a33a3d9 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func testMain(m *testing.M) int {
+-	SetProxy("direct")
++	cfg.GOPROXY = "direct"
+ 
+ 	// The sum database is populated using a released version of the go command,
+ 	// but this test may include fixes for additional modules that previously
+@@ -360,7 +360,7 @@ func TestCodeRepo(t *testing.T) {
+ 				return func(t *testing.T) {
+ 					t.Parallel()
+ 
+-					repo, err := Lookup(tt.path)
++					repo, err := Lookup("direct", tt.path)
+ 					if tt.lookerr != "" {
+ 						if err != nil && err.Error() == tt.lookerr {
+ 							return
+@@ -561,7 +561,7 @@ func TestCodeRepoVersions(t *testing.T) {
+ 				tt := tt
+ 				t.Parallel()
+ 
+-				repo, err := Lookup(tt.path)
++				repo, err := Lookup("direct", tt.path)
+ 				if err != nil {
+ 					t.Fatalf("Lookup(%q): %v", tt.path, err)
+ 				}
+@@ -616,7 +616,7 @@ func TestLatest(t *testing.T) {
+ 				tt := tt
+ 				t.Parallel()
+ 
+-				repo, err := Lookup(tt.path)
++				repo, err := Lookup("direct", tt.path)
+ 				if err != nil {
+ 					t.Fatalf("Lookup(%q): %v", tt.path, err)
+ 				}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index d40d2c6fac..3b2c68b281 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -205,13 +205,16 @@ func downloadZip(mod module.Version, zipfile string) (err error) {
+ 		}
+ 	}()
+ 
+-	repo, err := Lookup(mod.Path)
++	err = TryProxies(func(proxy string) error {
++		repo, err := Lookup(proxy, mod.Path)
++		if err != nil {
++			return err
++		}
++		return repo.Zip(f, mod.Version)
++	})
+ 	if err != nil {
+ 		return err
+ 	}
+-	if err := repo.Zip(f, mod.Version); err != nil {
+-		return err
+-	}
+ 
+ 	// Double-check that the paths within the zip file are well-formed.
+ 	//
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 5f0432ceed..c1bc2776b9 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -84,16 +84,6 @@ cached module versions with GOPROXY=https://example.com/proxy.
+ `,
+ }
+ 
+-var proxyURL = cfg.Getenv("GOPROXY")
+-
+-// SetProxy sets the proxy to use when fetching modules.
+-// It accepts the same syntax as the GOPROXY environment variable,
+-// which also provides its default configuration.
+-// SetProxy must not be called after the first module fetch has begun.
+-func SetProxy(url string) {
+-	proxyURL = url
+-}
+-
+ var proxyOnce struct {
+ 	sync.Once
+ 	list []string
+@@ -102,13 +92,25 @@ var proxyOnce struct {
+ 
+ func proxyURLs() ([]string, error) {
+ 	proxyOnce.Do(func() {
+-		for _, proxyURL := range strings.Split(proxyURL, ",") {
++		if cfg.GONOPROXY != "" && cfg.GOPROXY != "direct" {
++			proxyOnce.list = append(proxyOnce.list, "noproxy")
++		}
++		for _, proxyURL := range strings.Split(cfg.GOPROXY, ",") {
++			proxyURL = strings.TrimSpace(proxyURL)
+ 			if proxyURL == "" {
+ 				continue
+ 			}
++			if proxyURL == "off" {
++				// "off" always fails hard, so can stop walking list.
++				proxyOnce.list = append(proxyOnce.list, "off")
++				break
++			}
+ 			if proxyURL == "direct" {
+ 				proxyOnce.list = append(proxyOnce.list, "direct")
+-				continue
++				// For now, "direct" is the end of the line. We may decide to add some
++				// sort of fallback behavior for them in the future, so ignore
++				// subsequent entries for forward-compatibility.
++				break
+ 			}
+ 
+ 			// Check that newProxyRepo accepts the URL.
+@@ -125,32 +127,30 @@ func proxyURLs() ([]string, error) {
+ 	return proxyOnce.list, proxyOnce.err
+ }
+ 
+-func lookupProxy(path string) (Repo, error) {
+-	list, err := proxyURLs()
++// TryProxies iterates f over each configured proxy (including "noproxy" and
++// "direct" if applicable) until f returns an error that is not
++// equivalent to os.ErrNotExist.
++//
++// TryProxies then returns that final error.
++//
++// If GOPROXY is set to "off", TryProxies invokes f once with the argument
++// "off".
++func TryProxies(f func(proxy string) error) error {
++	proxies, err := proxyURLs()
+ 	if err != nil {
+-		return nil, err
++		return err
++	}
++	if len(proxies) == 0 {
++		return f("off")
+ 	}
+ 
+-	var repos listRepo
+-	for _, u := range list {
+-		var r Repo
+-		if u == "direct" {
+-			// lookupDirect does actual network traffic.
+-			// Especially if GOPROXY="http://mainproxy,direct",
+-			// avoid the network until we need it by using a lazyRepo wrapper.
+-			r = &lazyRepo{setup: lookupDirect, path: path}
+-		} else {
+-			// The URL itself was checked in proxyURLs.
+-			// The only possible error here is a bad path,
+-			// so we can return it unconditionally.
+-			r, err = newProxyRepo(u, path)
+-			if err != nil {
+-				return nil, err
+-			}
++	for _, proxy := range proxies {
++		err = f(proxy)
++		if !errors.Is(err, os.ErrNotExist) {
++			break
+ 		}
+-		repos = append(repos, r)
+ 	}
+-	return repos, nil
++	return err
+ }
+ 
+ type proxyRepo struct {
+@@ -342,117 +342,3 @@ func (p *proxyRepo) Zip(dst io.Writer, version string) error {
+ func pathEscape(s string) string {
+ 	return strings.ReplaceAll(url.PathEscape(s), "%2F", "/")
+ }
+-
+-// A lazyRepo is a lazily-initialized Repo,
+-// constructed on demand by calling setup.
+-type lazyRepo struct {
+-	path  string
+-	setup func(string) (Repo, error)
+-	once  sync.Once
+-	repo  Repo
+-	err   error
+-}
+-
+-func (r *lazyRepo) init() {
+-	r.repo, r.err = r.setup(r.path)
+-}
+-
+-func (r *lazyRepo) ModulePath() string {
+-	return r.path
+-}
+-
+-func (r *lazyRepo) Versions(prefix string) ([]string, error) {
+-	if r.once.Do(r.init); r.err != nil {
+-		return nil, r.err
+-	}
+-	return r.repo.Versions(prefix)
+-}
+-
+-func (r *lazyRepo) Stat(rev string) (*RevInfo, error) {
+-	if r.once.Do(r.init); r.err != nil {
+-		return nil, r.err
+-	}
+-	return r.repo.Stat(rev)
+-}
+-
+-func (r *lazyRepo) Latest() (*RevInfo, error) {
+-	if r.once.Do(r.init); r.err != nil {
+-		return nil, r.err
+-	}
+-	return r.repo.Latest()
+-}
+-
+-func (r *lazyRepo) GoMod(version string) ([]byte, error) {
+-	if r.once.Do(r.init); r.err != nil {
+-		return nil, r.err
+-	}
+-	return r.repo.GoMod(version)
+-}
+-
+-func (r *lazyRepo) Zip(dst io.Writer, version string) error {
+-	if r.once.Do(r.init); r.err != nil {
+-		return r.err
+-	}
+-	return r.repo.Zip(dst, version)
+-}
+-
+-// A listRepo is a preference list of Repos.
+-// The list must be non-empty and all Repos
+-// must return the same result from ModulePath.
+-// For each method, the repos are tried in order
+-// until one succeeds or returns a non-ErrNotExist (non-404) error.
+-type listRepo []Repo
+-
+-func (l listRepo) ModulePath() string {
+-	return l[0].ModulePath()
+-}
+-
+-func (l listRepo) Versions(prefix string) ([]string, error) {
+-	for i, r := range l {
+-		v, err := r.Versions(prefix)
+-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
+-			return v, err
+-		}
+-	}
+-	panic("no repos")
+-}
+-
+-func (l listRepo) Stat(rev string) (*RevInfo, error) {
+-	for i, r := range l {
+-		info, err := r.Stat(rev)
+-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
+-			return info, err
+-		}
+-	}
+-	panic("no repos")
+-}
+-
+-func (l listRepo) Latest() (*RevInfo, error) {
+-	for i, r := range l {
+-		info, err := r.Latest()
+-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
+-			return info, err
+-		}
+-	}
+-	panic("no repos")
+-}
+-
+-func (l listRepo) GoMod(version string) ([]byte, error) {
+-	for i, r := range l {
+-		data, err := r.GoMod(version)
+-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
+-			return data, err
+-		}
+-	}
+-	panic("no repos")
+-}
+-
+-func (l listRepo) Zip(dst io.Writer, version string) error {
+-	for i, r := range l {
+-		err := r.Zip(dst, version)
+-		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
+-			return err
+-		}
+-	}
+-	panic("no repos")
+-}
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 053256be4b..d197c00fe4 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -5,6 +5,7 @@
+ package modfetch
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -172,20 +173,32 @@ type RevInfo struct {
+ 
+ var lookupCache par.Cache
+ 
+-// Lookup returns the module with the given module path.
++type lookupCacheKey struct {
++	proxy, path string
++}
++
++// Lookup returns the module with the given module path,
++// fetched through the given proxy.
++//
++// The distinguished proxy "direct" indicates that the path should be fetched
++// from its origin, and "noproxy" indicates that the patch should be fetched
++// directly only if GONOPROXY matches the given path.
++//
++// For the distinguished proxy "off", Lookup always returns a non-nil error.
++//
+ // A successful return does not guarantee that the module
+ // has any defined versions.
+-func Lookup(path string) (Repo, error) {
++func Lookup(proxy, path string) (Repo, error) {
+ 	if traceRepo {
+-		defer logCall("Lookup(%q)", path)()
++		defer logCall("Lookup(%q, %q)", proxy, path)()
+ 	}
+ 
+ 	type cached struct {
+ 		r   Repo
+ 		err error
+ 	}
+-	c := lookupCache.Do(path, func() interface{} {
+-		r, err := lookup(path)
++	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() interface{} {
++		r, err := lookup(proxy, path)
+ 		if err == nil {
+ 			if traceRepo {
+ 				r = newLoggingRepo(r)
+@@ -199,19 +212,39 @@ func Lookup(path string) (Repo, error) {
+ }
+ 
+ // lookup returns the module with the given module path.
+-func lookup(path string) (r Repo, err error) {
++func lookup(proxy, path string) (r Repo, err error) {
+ 	if cfg.BuildMod == "vendor" {
+-		return nil, fmt.Errorf("module lookup disabled by -mod=%s", cfg.BuildMod)
++		return nil, errModVendor
+ 	}
+-	if proxyURL == "off" {
+-		return nil, fmt.Errorf("module lookup disabled by GOPROXY=%s", proxyURL)
++
++	if str.GlobsMatchPath(cfg.GONOPROXY, path) {
++		switch proxy {
++		case "noproxy", "direct":
++			return lookupDirect(path)
++		default:
++			return nil, errNoproxy
++		}
+ 	}
+-	if proxyURL != "" && proxyURL != "direct" && !str.GlobsMatchPath(cfg.GONOPROXY, path) {
+-		return lookupProxy(path)
++
++	switch proxy {
++	case "off":
++		return nil, errProxyOff
++	case "direct":
++		return lookupDirect(path)
++	case "noproxy":
++		return nil, errUseProxy
++	default:
++		return newProxyRepo(proxy, path)
+ 	}
+-	return lookupDirect(path)
+ }
+ 
++var (
++	errModVendor       = errors.New("module lookup disabled by -mod=vendor")
++	errProxyOff        = errors.New("module lookup disabled by GOPROXY=off")
++	errNoproxy   error = notExistError("disabled by GONOPROXY")
++	errUseProxy  error = notExistError("path does not match GONOPROXY")
++)
++
+ func lookupDirect(path string) (Repo, error) {
+ 	security := web.SecureOnly
+ 	if get.Insecure {
+@@ -220,7 +253,7 @@ func lookupDirect(path string) (Repo, error) {
+ 	rr, err := get.RepoRootForImportPath(path, get.PreferMod, security)
+ 	if err != nil {
+ 		// We don't know where to find code for a module with this path.
+-		return nil, err
++		return nil, notExistError(err.Error())
+ 	}
+ 
+ 	if rr.VCS == "mod" {
+@@ -362,3 +395,13 @@ func (l *loggingRepo) Zip(dst io.Writer, version string) error {
+ 	defer logCall("Repo[%s]: Zip(%s, %q)", l.r.ModulePath(), dstName, version)()
+ 	return l.r.Zip(dst, version)
+ }
++
++// A notExistError is like os.ErrNotExist, but with a custom message
++type notExistError string
++
++func (e notExistError) Error() string {
++	return string(e)
++}
++func (notExistError) Is(target error) bool {
++	return target == os.ErrNotExist
++}
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index 0af7219914..965898fbf5 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -142,6 +142,9 @@ func (c *dbClient) initBase() {
+ 		return
+ 	}
+ 	for _, proxyURL := range urls {
++		if proxyURL == "noproxy" {
++			continue
++		}
+ 		if proxyURL == "direct" {
+ 			break
+ 		}
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 3f2007ca2b..dacc876701 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -18,7 +18,6 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modfetch"
+-	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+@@ -188,10 +187,13 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 
+ 	candidates, err := QueryPackage(path, "latest", Allowed)
+ 	if err != nil {
+-		if _, ok := err.(*codehost.VCSError); ok {
++		if errors.Is(err, os.ErrNotExist) {
++			// Return "cannot find module providing package […]" instead of whatever
++			// low-level error QueryPackage produced.
++			return module.Version{}, "", &ImportMissingError{ImportPath: path}
++		} else {
+ 			return module.Version{}, "", err
+ 		}
+-		return module.Version{}, "", &ImportMissingError{ImportPath: path}
+ 	}
+ 	m = candidates[0].Mod
+ 	newMissingVersion := ""
+diff --git a/src/cmd/go/internal/modload/import_test.go b/src/cmd/go/internal/modload/import_test.go
+index 9422a3d960..98d50b2f58 100644
+--- a/src/cmd/go/internal/modload/import_test.go
++++ b/src/cmd/go/internal/modload/import_test.go
+@@ -21,7 +21,7 @@ var importTests = []struct {
+ 	},
+ 	{
+ 		path: "golang.org/x/net",
+-		err:  "cannot find module providing package golang.org/x/net",
++		err:  "module golang.org/x/net@.* found, but does not contain package golang.org/x/net",
+ 	},
+ 	{
+ 		path: "golang.org/x/text",
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index b64b5b68cd..0395661e0d 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1208,11 +1208,15 @@ func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
+ func versions(path string) ([]string, error) {
+ 	// Note: modfetch.Lookup and repo.Versions are cached,
+ 	// so there's no need for us to add extra caching here.
+-	repo, err := modfetch.Lookup(path)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return repo.Versions("")
++	var versions []string
++	err := modfetch.TryProxies(func(proxy string) error {
++		repo, err := modfetch.Lookup(proxy, path)
++		if err == nil {
++			versions, err = repo.Versions("")
++		}
++		return err
++	})
++	return versions, err
+ }
+ 
+ // Previous returns the tagged version of m.Path immediately prior to
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index f0f67c193c..218d18373a 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -5,13 +5,14 @@
+ package modload
+ 
+ import (
++	"errors"
+ 	"fmt"
++	"os"
+ 	pathpkg "path"
+ 	"strings"
+ 	"sync"
+ 
+ 	"cmd/go/internal/modfetch"
+-	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/semver"
+@@ -38,6 +39,15 @@ import (
+ // If path is the path of the main module and the query is "latest",
+ // Query returns Target.Version as the version.
+ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
++	var info *modfetch.RevInfo
++	err := modfetch.TryProxies(func(proxy string) (err error) {
++		info, err = queryProxy(proxy, path, query, allowed)
++		return err
++	})
++	return info, err
++}
++
++func queryProxy(proxy, path, query string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+ 	if allowed == nil {
+ 		allowed = func(module.Version) bool { return true }
+ 	}
+@@ -112,14 +122,14 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
+ 		// If the identifier is not a canonical semver tag — including if it's a
+ 		// semver tag with a +metadata suffix — then modfetch.Stat will populate
+ 		// info.Version with a suitable pseudo-version.
+-		info, err := modfetch.Stat(path, query)
++		info, err := modfetch.Stat(proxy, path, query)
+ 		if err != nil {
+ 			queryErr := err
+ 			// The full query doesn't correspond to a tag. If it is a semantic version
+ 			// with a +metadata suffix, see if there is a tag without that suffix:
+ 			// semantic versioning defines them to be equivalent.
+ 			if vers := module.CanonicalVersion(query); vers != "" && vers != query {
+-				info, err = modfetch.Stat(path, vers)
++				info, err = modfetch.Stat(proxy, path, vers)
+ 			}
+ 			if err != nil {
+ 				return nil, queryErr
+@@ -146,7 +156,7 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
+ 	}
+ 
+ 	// Load versions and execute query.
+-	repo, err := modfetch.Lookup(path)
++	repo, err := modfetch.Lookup(proxy, path)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -248,7 +258,7 @@ func QueryPackage(path, query string, allowed func(module.Version) bool) ([]Quer
+ // If any matching package is in the main module, QueryPattern considers only
+ // the main module and only the version "latest", without checking for other
+ // possible modules.
+-func QueryPattern(pattern string, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
++func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
+ 	base := pattern
+ 	var match func(m module.Version, root string, isLocal bool) (pkgs []string)
+ 
+@@ -288,138 +298,151 @@ func QueryPattern(pattern string, query string, allowed func(module.Version) boo
+ 		}
+ 	}
+ 
+-	// If the path we're attempting is not in the module cache and we don't have a
+-	// fetch result cached either, we'll end up making a (potentially slow)
+-	// request to the proxy or (often even slower) the origin server.
+-	// To minimize latency, execute all of those requests in parallel.
+-	type result struct {
+-		QueryResult
+-		err error
++	var (
++		results          []QueryResult
++		candidateModules = modulePrefixesExcludingTarget(base)
++	)
++	if len(candidateModules) == 0 {
++		return nil, fmt.Errorf("package %s is not in the main module (%s)", pattern, Target.Path)
+ 	}
+-	results := make([]result, strings.Count(base, "/")+1) // by descending path length
+-	i, p := 0, base
+-	var wg sync.WaitGroup
+-	wg.Add(len(results))
+-	for {
+-		go func(p string, r *result) (err error) {
+-			defer func() {
+-				r.err = err
+-				wg.Done()
+-			}()
+-
+-			r.Mod.Path = p
+-			if HasModRoot() && p == Target.Path {
+-				r.Mod.Version = Target.Version
+-				r.Rev = &modfetch.RevInfo{Version: Target.Version}
+-				// We already know (from above) that Target does not contain any
+-				// packages matching pattern, so leave r.Packages empty.
+-			} else {
+-				r.Rev, err = Query(p, query, allowed)
+-				if err != nil {
+-					return err
+-				}
+-				r.Mod.Version = r.Rev.Version
+-				root, isLocal, err := fetch(r.Mod)
+-				if err != nil {
+-					return err
+-				}
+-				r.Packages = match(r.Mod, root, isLocal)
++
++	err := modfetch.TryProxies(func(proxy string) error {
++		queryModule := func(path string) (r QueryResult, err error) {
++			r.Mod.Path = path
++			r.Rev, err = queryProxy(proxy, path, query, allowed)
++			if err != nil {
++				return r, err
++			}
++			r.Mod.Version = r.Rev.Version
++			root, isLocal, err := fetch(r.Mod)
++			if err != nil {
++				return r, err
+ 			}
++			r.Packages = match(r.Mod, root, isLocal)
+ 			if len(r.Packages) == 0 {
+-				return &packageNotInModuleError{
++				return r, &packageNotInModuleError{
+ 					mod:     r.Mod,
+ 					query:   query,
+ 					pattern: pattern,
+ 				}
+ 			}
+-			return nil
+-		}(p, &results[i])
++			return r, nil
++		}
+ 
+-		j := strings.LastIndexByte(p, '/')
+-		if i++; i == len(results) {
+-			if j >= 0 {
+-				panic("undercounted slashes")
++		var err error
++		results, err = queryPrefixModules(candidateModules, queryModule)
++		return err
++	})
++
++	return results, err
++}
++
++// modulePrefixesExcludingTarget returns all prefixes of path that may plausibly
++// exist as a module, excluding targetPrefix but otherwise including path
++// itself, sorted by descending length.
++func modulePrefixesExcludingTarget(path string) []string {
++	prefixes := make([]string, 0, strings.Count(path, "/")+1)
++
++	for {
++		if path != targetPrefix {
++			if _, _, ok := module.SplitPathVersion(path); ok {
++				prefixes = append(prefixes, path)
+ 			}
+-			break
+ 		}
++
++		j := strings.LastIndexByte(path, '/')
+ 		if j < 0 {
+-			panic("overcounted slashes")
++			break
+ 		}
+-		p = p[:j]
++		path = path[:j]
++	}
++
++	return prefixes
++}
++
++type prefixResult struct {
++	QueryResult
++	err error
++}
++
++func queryPrefixModules(candidateModules []string, queryModule func(path string) (QueryResult, error)) (found []QueryResult, err error) {
++	// If the path we're attempting is not in the module cache and we don't have a
++	// fetch result cached either, we'll end up making a (potentially slow)
++	// request to the proxy or (often even slower) the origin server.
++	// To minimize latency, execute all of those requests in parallel.
++	type result struct {
++		QueryResult
++		err error
++	}
++	results := make([]result, len(candidateModules))
++	var wg sync.WaitGroup
++	wg.Add(len(candidateModules))
++	for i, p := range candidateModules {
++		go func(p string, r *result) {
++			r.QueryResult, r.err = queryModule(p)
++			wg.Done()
++		}(p, &results[i])
+ 	}
+ 	wg.Wait()
+ 
+ 	// Classify the results. In case of failure, identify the error that the user
+ 	// is most likely to find helpful.
+ 	var (
+-		successes  []QueryResult
+-		mostUseful result
++		noVersion   *NoMatchingVersionError
++		noPackage   *packageNotInModuleError
++		notExistErr error
+ 	)
+ 	for _, r := range results {
+-		if r.err == nil {
+-			successes = append(successes, r.QueryResult)
+-			continue
+-		}
+-
+-		switch mostUseful.err.(type) {
++		switch rErr := r.err.(type) {
+ 		case nil:
+-			mostUseful = r
+-			continue
+-		case *packageNotInModuleError:
+-			// Any other error is more useful than one that reports that the main
+-			// module does not contain the requested packages.
+-			if mostUseful.Mod.Path == Target.Path {
+-				mostUseful = r
+-				continue
++			found = append(found, r.QueryResult)
++		case *NoMatchingVersionError:
++			if noVersion == nil {
++				noVersion = rErr
+ 			}
+-		}
+-
+-		switch r.err.(type) {
+-		case *codehost.VCSError:
+-			// A VCSError means that we've located a repository, but couldn't look
+-			// inside it for packages. That's a very strong signal, and should
+-			// override any others.
+-			return nil, r.err
+ 		case *packageNotInModuleError:
+-			if r.Mod.Path == Target.Path {
+-				// Don't override a potentially-useful error for some other module with
+-				// a trivial error for the main module.
+-				continue
++			if noPackage == nil {
++				noPackage = rErr
+ 			}
+-			// A module with an appropriate prefix exists at the requested version,
+-			// but it does not contain the requested package(s).
+-			if _, worsePath := mostUseful.err.(*packageNotInModuleError); !worsePath {
+-				mostUseful = r
+-			}
+-		case *NoMatchingVersionError:
+-			// A module with an appropriate prefix exists, but not at the requested
+-			// version.
+-			_, worseError := mostUseful.err.(*packageNotInModuleError)
+-			_, worsePath := mostUseful.err.(*NoMatchingVersionError)
+-			if !(worseError || worsePath) {
+-				mostUseful = r
++		default:
++			if errors.Is(rErr, os.ErrNotExist) {
++				if notExistErr == nil {
++					notExistErr = rErr
++				}
++			} else {
++				err = r.err
+ 			}
+ 		}
+ 	}
+ 
+-	// TODO(#26232): If len(successes) == 0 and some of the errors are 4xx HTTP
++	// TODO(#26232): If len(found) == 0 and some of the errors are 4xx HTTP
+ 	// codes, have the auth package recheck the failed paths.
+ 	// If we obtain new credentials for any of them, re-run the above loop.
+ 
+-	if len(successes) == 0 {
+-		// All of the possible module paths either did not exist at the requested
+-		// version, or did not contain the requested package(s).
+-		return nil, mostUseful.err
++	if len(found) == 0 && err == nil {
++		switch {
++		case noPackage != nil:
++			err = noPackage
++		case noVersion != nil:
++			err = noVersion
++		case notExistErr != nil:
++			err = notExistErr
++		default:
++			panic("queryPrefixModules: no modules found, but no error detected")
++		}
+ 	}
+ 
+-	// At least one module at the requested version contained the requested
+-	// package(s). Any remaining errors only describe the non-existence of
+-	// alternatives, so ignore them.
+-	return successes, nil
++	return found, err
+ }
+ 
+ // A NoMatchingVersionError indicates that Query found a module at the requested
+ // path, but not at any versions satisfying the query string and allow-function.
++//
++// NOTE: NoMatchingVersionError MUST NOT implement Is(os.ErrNotExist).
++//
++// If the module came from a proxy, that proxy had to return a successful status
++// code for the versions it knows about, and thus did not have the opportunity
++// to return a non-400 status code to suppress fallback.
+ type NoMatchingVersionError struct {
+ 	query string
+ }
+@@ -431,6 +454,12 @@ func (e *NoMatchingVersionError) Error() string {
+ // A packageNotInModuleError indicates that QueryPattern found a candidate
+ // module at the requested version, but that module did not contain any packages
+ // matching the requested pattern.
++//
++// NOTE: packageNotInModuleError MUST NOT implement Is(os.ErrNotExist).
++//
++// If the module came from a proxy, that proxy had to return a successful status
++// code for the versions it knows about, and thus did not have the opportunity
++// to return a non-400 status code to suppress fallback.
+ type packageNotInModuleError struct {
+ 	mod     module.Version
+ 	query   string
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index d2b9baa4d5..1f67adca98 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func testMain(m *testing.M) int {
+-	modfetch.SetProxy("direct")
++	cfg.GOPROXY = "direct"
+ 
+ 	dir, err := ioutil.TempDir("", "modload-test-")
+ 	if err != nil {
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 71f709cb95..5718ca325f 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"archive/zip"
+ 	"bytes"
+ 	"encoding/json"
++	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+@@ -253,7 +254,11 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		if !quiet {
+ 			fmt.Fprintf(os.Stderr, "go proxy: no archive %s %s: %v\n", path, vers, err)
+ 		}
+-		http.Error(w, "cannot load archive", 500)
++		if errors.Is(err, os.ErrNotExist) {
++			http.NotFound(w, r)
++		} else {
++			http.Error(w, "cannot load archive", 500)
++		}
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_gobuild_import.txt b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+index eb2284e561..a4eb5d6596 100644
+--- a/src/cmd/go/testdata/script/mod_gobuild_import.txt
++++ b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+@@ -6,11 +6,11 @@ go build -o $WORK/testimport.exe ./testimport
+ 
+ # GO111MODULE=off
+ env GO111MODULE=off
+-! exec $WORK/testimport.exe x/y/z/w .
++! exec $WORK/testimport.exe gobuild.example.com/x/y/z/w .
+ 
+ # GO111MODULE=auto in GOPATH/src
+ env GO111MODULE=auto
+-exec $WORK/testimport.exe x/y/z/w .
++exec $WORK/testimport.exe gobuild.example.com/x/y/z/w .
+ 
+ # GO111MODULE=auto outside GOPATH/src
+ cd $GOPATH/other
+@@ -18,8 +18,8 @@ env GO111MODULE=auto
+ exec $WORK/testimport.exe other/x/y/z/w .
+ stdout w2.go
+ 
+-! exec $WORK/testimport.exe x/y/z/w .
+-stderr 'cannot find module providing package x/y/z/w'
++! exec $WORK/testimport.exe gobuild.example.com/x/y/z/w .
++stderr 'cannot find module providing package gobuild.example.com/x/y/z/w'
+ 
+ cd z
+ exec $WORK/testimport.exe other/x/y/z/w .
+@@ -36,17 +36,17 @@ stdout w2.go
+ # GO111MODULE=on in GOPATH/src
+ cd $GOPATH/src
+ env GO111MODULE=
+-exec $WORK/testimport.exe x/y/z/w .
++exec $WORK/testimport.exe gobuild.example.com/x/y/z/w .
+ stdout w1.go
+ env GO111MODULE=on
+-exec $WORK/testimport.exe x/y/z/w .
++exec $WORK/testimport.exe gobuild.example.com/x/y/z/w .
+ stdout w1.go
+ cd w
+-exec $WORK/testimport.exe x/y/z/w ..
++exec $WORK/testimport.exe gobuild.example.com/x/y/z/w ..
+ stdout w1.go
+ 
+ -- go.mod --
+-module x/y/z
++module gobuild.example.com/x/y/z
+ 
+ -- z.go --
+ package z

@@ -42,7 +42,7 @@ Date:   Fri Mar 18 17:21:33 2016 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Michel Lespinasse <walken@google.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  3 +-
  src/cmd/compile/internal/gc/builtin/runtime.go |  3 +-
  src/cmd/compile/internal/gc/go.go              |  4 +-
@@ -51,3 +51,226 @@ Date:   Fri Mar 18 17:21:33 2016 -0700
  src/cmd/compile/internal/gc/walk.go            | 64 ++++----------------------
  src/runtime/iface.go                           | 14 +-----
  7 files changed, 14 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index fa6e86cba5..411c7b8605 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -46,11 +46,10 @@ const runtimeimport = "" +
+ 	"func @\"\".stringiter2 (? string, ? int) (@\"\".retk·1 int, @\"\".retv·2 rune)\n" +
+ 	"func @\"\".slicecopy (@\"\".to·2 any, @\"\".fr·3 any, @\"\".wid·4 uintptr \"unsafe-uintptr\") (? int)\n" +
+ 	"func @\"\".slicestringcopy (@\"\".to·2 any, @\"\".fr·3 any) (? int)\n" +
+-	"func @\"\".typ2Itab (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte) (@\"\".ret·1 *byte)\n" +
+ 	"func @\"\".convI2E (@\"\".elem·2 any) (@\"\".ret·1 any)\n" +
+ 	"func @\"\".convI2I (@\"\".typ·2 *byte, @\"\".elem·3 any) (@\"\".ret·1 any)\n" +
+ 	"func @\"\".convT2E (@\"\".typ·2 *byte, @\"\".elem·3 *any, @\"\".buf·4 *any) (@\"\".ret·1 any)\n" +
+-	"func @\"\".convT2I (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte, @\"\".elem·5 *any, @\"\".buf·6 *any) (@\"\".ret·1 any)\n" +
++	"func @\"\".convT2I (@\"\".tab·2 *byte, @\"\".elem·3 *any, @\"\".buf·4 *any) (@\"\".ret·1 any)\n" +
+ 	"func @\"\".assertE2E (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n" +
+ 	"func @\"\".assertE2E2 (@\"\".typ·2 *byte, @\"\".iface·3 any, @\"\".ret·4 *any) (? bool)\n" +
+ 	"func @\"\".assertE2I (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index b02abda2ea..584368a144 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -60,11 +60,10 @@ func slicecopy(to any, fr any, wid uintptr) int
+ func slicestringcopy(to any, fr any) int
+ 
+ // interface conversions
+-func typ2Itab(typ *byte, typ2 *byte, cache **byte) (ret *byte)
+ func convI2E(elem any) (ret any)
+ func convI2I(typ *byte, elem any) (ret any)
+ func convT2E(typ *byte, elem, buf *any) (ret any)
+-func convT2I(typ *byte, typ2 *byte, cache **byte, elem, buf *any) (ret any)
++func convT2I(tab *byte, elem, buf *any) (ret any)
+ 
+ // interface type assertions  x.(T)
+ func assertE2E(typ *byte, iface any, ret *any)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 5925208514..b9fc8153d3 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -248,9 +248,7 @@ var localpkg *Pkg // package being compiled
+ 
+ var importpkg *Pkg // package being imported
+ 
+-var itabpkg *Pkg // fake pkg for itab cache
+-
+-var itab2pkg *Pkg // fake pkg for itab entries
++var itabpkg *Pkg // fake pkg for itab entries
+ 
+ var itablinkpkg *Pkg // fake package for runtime itab entries
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 5c5e5acdff..fd18ae5312 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -109,17 +109,14 @@ func Main() {
+ 
+ 	// pseudo-package, for scoping
+ 	builtinpkg = mkpkg("go.builtin")
+-
+ 	builtinpkg.Prefix = "go.builtin" // not go%2ebuiltin
+ 
+ 	// pseudo-package, accessed by import "unsafe"
+ 	unsafepkg = mkpkg("unsafe")
+-
+ 	unsafepkg.Name = "unsafe"
+ 
+ 	// real package, referred to by generated runtime calls
+ 	Runtimepkg = mkpkg("runtime")
+-
+ 	Runtimepkg.Name = "runtime"
+ 
+ 	// pseudo-packages used in symbol tables
+@@ -127,10 +124,6 @@ func Main() {
+ 	itabpkg.Name = "go.itab"
+ 	itabpkg.Prefix = "go.itab" // not go%2eitab
+ 
+-	itab2pkg = mkpkg("go.itab2")
+-	itab2pkg.Name = "go.itab2"
+-	itab2pkg.Prefix = "go.itab2" // not go%2eitab2
+-
+ 	typelinkpkg = mkpkg("go.typelink")
+ 	typelinkpkg.Name = "go.typelink"
+ 	typelinkpkg.Prefix = "go.typelink" // not go%2etypelink
+@@ -140,12 +133,10 @@ func Main() {
+ 	itablinkpkg.Prefix = "go.itablink" // not go%2eitablink
+ 
+ 	trackpkg = mkpkg("go.track")
+-
+ 	trackpkg.Name = "go.track"
+ 	trackpkg.Prefix = "go.track" // not go%2etrack
+ 
+ 	typepkg = mkpkg("type")
+-
+ 	typepkg.Name = "type"
+ 
+ 	goroot = obj.Getgoroot()
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 54673b1ea5..9890782916 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -951,7 +951,7 @@ func itabname(t, itype *Type) *Node {
+ 	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
+ 		Fatalf("itabname %v", t)
+ 	}
+-	s := Pkglookup(Tconv(t, FmtLeft)+","+Tconv(itype, FmtLeft), itab2pkg)
++	s := Pkglookup(Tconv(t, FmtLeft)+","+Tconv(itype, FmtLeft), itabpkg)
+ 	if s.Def == nil {
+ 		n := newname(s)
+ 		n.Type = Types[TUINT8]
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1511c878b1..7be30aab24 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1003,63 +1003,15 @@ opswitch:
+ 		}
+ 
+ 		var ll []*Node
+-		if !Isinter(n.Left.Type) {
+-			ll = append(ll, typename(n.Left.Type))
+-		}
+-		if !isnilinter(n.Type) {
+-			ll = append(ll, typename(n.Type))
+-		}
+-		if !Isinter(n.Left.Type) && !isnilinter(n.Type) {
+-			sym := Pkglookup(Tconv(n.Left.Type, FmtLeft)+"."+Tconv(n.Type, FmtLeft), itabpkg)
+-			if sym.Def == nil {
+-				l := Nod(ONAME, nil, nil)
+-				l.Sym = sym
+-				l.Type = Ptrto(Types[TUINT8])
+-				l.Addable = true
+-				l.Class = PEXTERN
+-				l.Xoffset = 0
+-				sym.Def = l
+-				ggloblsym(sym, int32(Widthptr), obj.DUPOK|obj.NOPTR)
++		if isnilinter(n.Type) {
++			if !Isinter(n.Left.Type) {
++				ll = append(ll, typename(n.Left.Type))
+ 			}
+-
+-			l := Nod(OADDR, sym.Def, nil)
+-			l.Addable = true
+-			ll = append(ll, l)
+-
+-			if isdirectiface(n.Left.Type) {
+-				// For pointer types, we can make a special form of optimization
+-				//
+-				// These statements are put onto the expression init list:
+-				// 	Itab *tab = atomicloadtype(&cache);
+-				// 	if(tab == nil)
+-				// 		tab = typ2Itab(type, itype, &cache);
+-				//
+-				// The CONVIFACE expression is replaced with this:
+-				// 	OEFACE{tab, ptr};
+-				l := temp(Ptrto(Types[TUINT8]))
+-
+-				n1 := Nod(OAS, l, sym.Def)
+-				n1 = typecheck(n1, Etop)
+-				init.Append(n1)
+-
+-				fn := syslook("typ2Itab")
+-				n1 = Nod(OCALL, fn, nil)
+-				n1.List.Set(ll)
+-				n1 = typecheck(n1, Erv)
+-				n1 = walkexpr(n1, init)
+-
+-				n2 := Nod(OIF, nil, nil)
+-				n2.Left = Nod(OEQ, l, nodnil())
+-				n2.Nbody.Set1(Nod(OAS, l, n1))
+-				n2.Likely = -1
+-				n2 = typecheck(n2, Etop)
+-				init.Append(n2)
+-
+-				l = Nod(OEFACE, l, n.Left)
+-				l.Typecheck = n.Typecheck
+-				l.Type = n.Type
+-				n = l
+-				break
++		} else {
++			if Isinter(n.Left.Type) {
++				ll = append(ll, typename(n.Type))
++			} else {
++				ll = append(ll, itabname(n.Left.Type, n.Type))
+ 			}
+ 		}
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 56f55c20c9..3ce1e237d3 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -147,12 +147,6 @@ func itabsinit() {
+ 	unlock(&ifaceLock)
+ }
+ 
+-func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
+-	tab := getitab(inter, t, false)
+-	atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
+-	return tab
+-}
+-
+ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
+ 	if raceenabled {
+ 		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
+@@ -176,18 +170,14 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
+ 	return
+ }
+ 
+-func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
++func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
++	t := tab._type
+ 	if raceenabled {
+ 		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2I))
+ 	}
+ 	if msanenabled {
+ 		msanread(elem, t.size)
+ 	}
+-	tab := (*itab)(atomic.Loadp(unsafe.Pointer(cache)))
+-	if tab == nil {
+-		tab = getitab(inter, t, false)
+-		atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
+-	}
+ 	if isDirectIface(t) {
+ 		i.tab = tab
+ 		typedmemmove(t, unsafe.Pointer(&i.data), elem)

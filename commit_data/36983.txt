@@ -21,7 +21,42 @@ Date:   Wed Jun 13 20:52:05 2018 -0400
     Change-Id: I804d95d307d1dc68cb28da3750ebe9090178c474
     Reviewed-on: https://go-review.googlesource.com/118756
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/alldocs.go                    | 6 ++++++
  src/cmd/go/internal/generate/generate.go | 6 ++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d37942b738..ffc6505c1d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -419,6 +419,12 @@
+ // (gofmt), a fully qualified path (/usr/you/bin/mytool), or a
+ // command alias, described below.
+ //
++// To convey to humans and machine tools that code is generated,
++// generated source should have a line early in the file that
++// matches the following regular expression (in Go syntax):
++//
++// 	^// Code generated .* DO NOT EDIT\.$
++//
+ // Note that go generate does not parse the file, so lines that look
+ // like directives in comments or multiline strings will be treated
+ // as directives.
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 441f91aea8..971844d2ea 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -47,6 +47,12 @@ that can be run locally. It must either be in the shell path
+ (gofmt), a fully qualified path (/usr/you/bin/mytool), or a
+ command alias, described below.
+ 
++To convey to humans and machine tools that code is generated,
++generated source should have a line early in the file that
++matches the following regular expression (in Go syntax):
++
++	^// Code generated .* DO NOT EDIT\.$
++
+ Note that go generate does not parse the file, so lines that look
+ like directives in comments or multiline strings will be treated
+ as directives.

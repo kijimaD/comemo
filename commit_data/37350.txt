@@ -15,8 +15,85 @@ Date:   Thu Jul 19 09:31:55 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/script_test.go                        | 15 +++++++++++----
  src/cmd/go/testdata/script/mod_bad_filenames.txt |  8 ++++----
  src/cmd/go/testdata/script/mod_file_proxy.txt    |  1 +
  3 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index db34252cc1..a525e27ada 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -42,10 +42,6 @@ func TestScript(t *testing.T) {
+ 		file := file
+ 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
+ 		t.Run(name, func(t *testing.T) {
+-			if strings.HasPrefix(name, "mod_") && runtime.GOOS == "windows" {
+-				// Windows is very unhappy about the module proxy.
+-				t.Skip("golang.org/issue/26457")
+-			}
+ 			t.Parallel()
+ 			ts := &testScript{t: t, name: name, file: file}
+ 			ts.setup()
+@@ -76,6 +72,10 @@ type testScript struct {
+ 	start   time.Time         // time phase started
+ }
+ 
++var extraEnvKeys = []string{
++	"SYSTEMROOT", // must be preserved on Windows to find DLLs; golang.org/issue/25210
++}
++
+ // setup sets up the test execution temporary directory and environment.
+ func (ts *testScript) setup() {
+ 	StartProxy()
+@@ -96,11 +96,18 @@ func (ts *testScript) setup() {
+ 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
+ 		"devnull=" + os.DevNull,
+ 	}
++
+ 	if runtime.GOOS == "windows" {
+ 		ts.env = append(ts.env, "exe=.exe")
+ 	} else {
+ 		ts.env = append(ts.env, "exe=")
+ 	}
++	for _, key := range extraEnvKeys {
++		if val := os.Getenv(key); val != "" {
++			ts.env = append(ts.env, key+"="+val)
++		}
++	}
++
+ 	ts.envMap = make(map[string]string)
+ 	for _, kv := range ts.env {
+ 		if i := strings.Index(kv, "="); i >= 0 {
+diff --git a/src/cmd/go/testdata/script/mod_bad_filenames.txt b/src/cmd/go/testdata/script/mod_bad_filenames.txt
+index b59e737c52..6e0c8bd302 100644
+--- a/src/cmd/go/testdata/script/mod_bad_filenames.txt
++++ b/src/cmd/go/testdata/script/mod_bad_filenames.txt
+@@ -2,10 +2,10 @@ env GO111MODULE=on
+ 
+ ! go get rsc.io/badfile1 rsc.io/badfile2 rsc.io/badfile3 rsc.io/badfile4 rsc.io/badfile5
+ ! stderr 'unzip.*badfile1'
+-stderr 'unzip.*badfile2/@v/v1.0.0.zip:.*malformed file path "☺.go": invalid char ''☺'''
+-stderr 'unzip.*badfile3/@v/v1.0.0.zip: malformed file path "x\?y.go": invalid char ''\?'''
+-stderr 'unzip.*badfile4/@v/v1.0.0.zip: case-insensitive file name collision: "x/Y.go" and "x/y.go"'
+-stderr 'unzip.*badfile5/@v/v1.0.0.zip: case-insensitive file name collision: "x/y" and "x/Y"'
++stderr 'unzip.*badfile2[\\/]@v[\\/]v1.0.0.zip:.*malformed file path "☺.go": invalid char ''☺'''
++stderr 'unzip.*badfile3[\\/]@v[\\/]v1.0.0.zip: malformed file path "x\?y.go": invalid char ''\?'''
++stderr 'unzip.*badfile4[\\/]@v[\\/]v1.0.0.zip: case-insensitive file name collision: "x/Y.go" and "x/y.go"'
++stderr 'unzip.*badfile5[\\/]@v[\\/]v1.0.0.zip: case-insensitive file name collision: "x/y" and "x/Y"'
+ 
+ -- go.mod --
+ module x
+diff --git a/src/cmd/go/testdata/script/mod_file_proxy.txt b/src/cmd/go/testdata/script/mod_file_proxy.txt
+index c82b9cf031..144d06a2e0 100644
+--- a/src/cmd/go/testdata/script/mod_file_proxy.txt
++++ b/src/cmd/go/testdata/script/mod_file_proxy.txt
+@@ -10,6 +10,7 @@ go list -getmode=local
+ grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
+ 
+ # Use download cache as file:/// proxy.
++[windows] stop # TODO: file://$WORK puts backslashes in the URL
+ env GOPATH=$WORK/gopath2
+ env GOPROXY=file:///nonexist
+ ! go list -getmode=local

@@ -7,6 +7,57 @@ Date:   Thu Jul 18 11:11:23 2013 +1000
     R=r, nigeltao
     CC=golang-dev
     https://golang.org/cl/11446043
-
+---
  src/pkg/image/gif/writer.go | 15 ++++-----------
  1 file changed, 4 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/image/gif/writer.go b/src/pkg/image/gif/writer.go
+index 23f8b1b3ad..645f8340ae 100644
+--- a/src/pkg/image/gif/writer.go
++++ b/src/pkg/image/gif/writer.go
+@@ -52,9 +52,6 @@ type encoder struct {
+ 	err error
+ 	// g is a reference to the data that is being encoded.
+ 	g *GIF
+-	// bitsPerPixel is the number of bits required to represent each color
+-	// in the image.
+-	bitsPerPixel int
+ 	// buf is a scratch buffer. It must be at least 768 so we can write the color map.
+ 	buf [1024]byte
+ }
+@@ -118,23 +115,19 @@ func (e *encoder) writeHeader() {
+ 		return
+ 	}
+ 
+-	// TODO: This bases the global color table on the first image
+-	// only.
+ 	pm := e.g.Image[0]
+ 	// Logical screen width and height.
+ 	writeUint16(e.buf[0:2], uint16(pm.Bounds().Dx()))
+ 	writeUint16(e.buf[2:4], uint16(pm.Bounds().Dy()))
+ 	e.write(e.buf[:4])
+ 
+-	e.bitsPerPixel = log2(len(pm.Palette)) + 1
+-	e.buf[0] = 0x80 | ((uint8(e.bitsPerPixel) - 1) << 4) | (uint8(e.bitsPerPixel) - 1)
++	// All frames have a local color table, so a global color table
++	// is not needed.
++	e.buf[0] = 0x00
+ 	e.buf[1] = 0x00 // Background Color Index.
+ 	e.buf[2] = 0x00 // Pixel Aspect Ratio.
+ 	e.write(e.buf[:3])
+ 
+-	// Global Color Table.
+-	e.writeColorTable(pm.Palette, e.bitsPerPixel-1)
+-
+ 	// Add animation info if necessary.
+ 	if len(e.g.Image) > 1 {
+ 		e.buf[0] = 0x21 // Extension Introducer.
+@@ -232,7 +225,7 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int) {
+ 	// Local Color Table.
+ 	e.writeColorTable(pm.Palette, paddedSize)
+ 
+-	litWidth := e.bitsPerPixel
++	litWidth := paddedSize + 1
+ 	if litWidth < 2 {
+ 		litWidth = 2
+ 	}

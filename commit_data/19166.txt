@@ -8,6 +8,20 @@ Date:   Wed Apr 16 01:41:47 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/88360044
-
+---
  src/cmd/ld/dwarf.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index fdbf932b59..c640817d45 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1393,7 +1393,7 @@ movetomodule(DWDie *parent)
+ 	die->link = parent->child;
+ }
+ 
+-// If the pcln table contains runtime/zruntime_defs_*.go, use that to set gdbscript path.
++// If the pcln table contains runtime/string.goc, use that to set gdbscript path.
+ static void
+ finddebugruntimepath(LSym *s)
+ {

@@ -11,9 +11,163 @@ Date:   Sat Mar 5 16:05:35 2011 -0800
     R=rsc, rh
     CC=golang-dev
     https://golang.org/cl/4252058
-
+---
  src/pkg/gob/decode.go    |  8 --------
  src/pkg/gob/encode.go    |  5 +++--
  src/pkg/gob/type.go      | 20 ++++++++++++--------
  src/pkg/gob/type_test.go | 22 +++++++++++-----------
  4 files changed, 26 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 34689a8ef2..b7ae78200d 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -13,9 +13,7 @@ import (
+ 	"math"
+ 	"os"
+ 	"reflect"
+-	"unicode"
+ 	"unsafe"
+-	"utf8"
+ )
+ 
+ var (
+@@ -1073,12 +1071,6 @@ func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err
+ 	return
+ }
+ 
+-// isExported reports whether this is an exported - upper case - name.
+-func isExported(name string) bool {
+-	rune, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(rune)
+-}
+-
+ // compileDec compiles the decoder engine for a value.  If the value is not a struct,
+ // it calls out to compileSingle.
+ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err os.Error) {
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 773b348423..9190d92035 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -606,13 +606,14 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
+ 		rt = ut.user
+ 	}
+ 	if !ut.isGobEncoder && isStruct {
+-		for fieldNum := 0; fieldNum < srt.NumField(); fieldNum++ {
++		for fieldNum, wireFieldNum := 0, 0; fieldNum < srt.NumField(); fieldNum++ {
+ 			f := srt.Field(fieldNum)
+ 			if !isExported(f.Name) {
+ 				continue
+ 			}
+ 			op, indir := enc.encOpFor(f.Type, seen)
+-			engine.instr = append(engine.instr, encInstr{*op, fieldNum, indir, uintptr(f.Offset)})
++			engine.instr = append(engine.instr, encInstr{*op, wireFieldNum, indir, uintptr(f.Offset)})
++			wireFieldNum++
+ 		}
+ 		if srt.NumField() > 0 && len(engine.instr) == 0 {
+ 			errorf("type %s has no exported fields", rt)
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 39744c90b4..9d82454ea8 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -9,6 +9,8 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"sync"
++	"unicode"
++	"utf8"
+ )
+ 
+ // userTypeInfo stores the information associated with a type the user has handed
+@@ -418,10 +420,6 @@ func newStructType(name string) *structType {
+ 	return s
+ }
+ 
+-func (s *structType) init(field []*fieldType) {
+-	s.Field = field
+-}
+-
+ // newTypeObject allocates a gobType for the reflection type rt.
+ // Unless ut represents a GobEncoder, rt should be the base type
+ // of ut.
+@@ -514,10 +512,11 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 		st := newStructType(name)
+ 		types[rt] = st
+ 		idToType[st.id()] = st
+-		field := make([]*fieldType, t.NumField())
+ 		for i := 0; i < t.NumField(); i++ {
+-			// TODO: don't send unexported fields.
+ 			f := t.Field(i)
++			if !isExported(f.Name) {
++				continue
++			}
+ 			typ := userType(f.Type).base
+ 			tname := typ.Name()
+ 			if tname == "" {
+@@ -528,9 +527,8 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 			if err != nil {
+ 				return nil, err
+ 			}
+-			field[i] = &fieldType{f.Name, gt.id()}
++			st.Field = append(st.Field, &fieldType{f.Name, gt.id()})
+ 		}
+-		st.init(field)
+ 		return st, nil
+ 
+ 	default:
+@@ -539,6 +537,12 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 	return nil, nil
+ }
+ 
++// isExported reports whether this is an exported - upper case - name.
++func isExported(name string) bool {
++	rune, _ := utf8.DecodeRuneInString(name)
++	return unicode.IsUpper(rune)
++}
++
+ // getBaseType returns the Gob type describing the given reflect.Type's base type.
+ // typeLock must be held.
+ func getBaseType(name string, rt reflect.Type) (gobType, os.Error) {
+diff --git a/src/pkg/gob/type_test.go b/src/pkg/gob/type_test.go
+index 6fe1ecf93e..ffd1345e5c 100644
+--- a/src/pkg/gob/type_test.go
++++ b/src/pkg/gob/type_test.go
+@@ -126,27 +126,27 @@ func TestMapType(t *testing.T) {
+ }
+ 
+ type Bar struct {
+-	x string
++	X string
+ }
+ 
+ // This structure has pointers and refers to itself, making it a good test case.
+ type Foo struct {
+-	a int
+-	b int32 // will become int
+-	c string
+-	d []byte
+-	e *float64    // will become float64
+-	f ****float64 // will become float64
+-	g *Bar
+-	h *Bar // should not interpolate the definition of Bar again
+-	i *Foo // will not explode
++	A int
++	B int32 // will become int
++	C string
++	D []byte
++	E *float64    // will become float64
++	F ****float64 // will become float64
++	G *Bar
++	H *Bar // should not interpolate the definition of Bar again
++	I *Foo // will not explode
+ }
+ 
+ func TestStructType(t *testing.T) {
+ 	sstruct := getTypeUnlocked("Foo", reflect.Typeof(Foo{}))
+ 	str := sstruct.string()
+ 	// If we can print it correctly, we built it correctly.
+-	expected := "Foo = struct { a int; b int; c string; d bytes; e float; f float; g Bar = struct { x string; }; h Bar; i Foo; }"
++	expected := "Foo = struct { A int; B int; C string; D bytes; E float; F float; G Bar = struct { X string; }; H Bar; I Foo; }"
+ 	if str != expected {
+ 		t.Errorf("struct printed as %q; expected %q", str, expected)
+ 	}

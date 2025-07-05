@@ -8,6 +8,20 @@ Date:   Fri Apr 4 09:55:19 2014 +0900
     R=rsc, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/84260043
-
+---
  src/cmd/gc/plive.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 360e8ff552..f6db02be54 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -1419,7 +1419,7 @@ livenessepilogue(Liveness *lv)
+ 	Node *n;
+ 	Prog *p, *next;
+ 	int32 i, j, numlive, startmsg, nmsg, nvars, pos;
+-	int64 xoffset;
++	vlong xoffset;
+ 	char **msg;
+ 	Fmt fmt;
+ 

@@ -49,7 +49,7 @@ Date:   Fri Jul 15 11:58:28 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4752041
-
+---
  src/cmd/5a/a.h    |  4 ++--
  src/cmd/5a/a.y    |  2 ++
  src/cmd/5a/lex.c  |  3 ++-
@@ -63,3 +63,326 @@ Date:   Fri Jul 15 11:58:28 2011 -0400
  src/cmd/5l/prof.c |  2 +-
  src/cmd/5l/span.c | 10 +---------
  12 files changed, 31 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index 550b61dcf3..a2c87cf489 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -28,8 +28,6 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include <u.h>
+-#include <libc.h>
+ #include <bio.h>
+ #include "../5l/5.out.h"
+ 
+@@ -54,7 +52,9 @@ typedef	struct	Hist	Hist;
+ #define	NSYMB		8192
+ #define	BUFSIZ		8192
+ #define	HISTSZ		20
++#ifndef	EOF
+ #define	EOF		(-1)
++#endif
+ #define	IGN		(-2)
+ #define	GETC()		((--fi.c < 0)? filbuf(): *fi.p++ & 0xff)
+ #define	NHASH		503
+diff --git a/src/cmd/5a/a.y b/src/cmd/5a/a.y
+index b39c916ab1..9a0efd5e06 100644
+--- a/src/cmd/5a/a.y
++++ b/src/cmd/5a/a.y
+@@ -29,7 +29,9 @@
+ // THE SOFTWARE.
+ 
+ %{
++#include <u.h>
+ #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
++#include <libc.h>
+ #include "a.h"
+ %}
+ %union
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 3978f1a6c1..ad7ed05ddd 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -29,9 +29,10 @@
+ // THE SOFTWARE.
+ 
+ #define	EXTERN
++#include <u.h>
++#include <libc.h>
+ #include "a.h"
+ #include "y.tab.h"
+-#include <ctype.h>
+ 
+ enum
+ {
+diff --git a/src/cmd/5c/peep.c b/src/cmd/5c/peep.c
+index c15bf0fc4c..3a905f0997 100644
+--- a/src/cmd/5c/peep.c
++++ b/src/cmd/5c/peep.c
+@@ -1122,7 +1122,6 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 				return 3;
+ 		return 0;
+ 	}
+-	return 0;
+ }
+ 
+ int
+diff --git a/src/cmd/5c/reg.c b/src/cmd/5c/reg.c
+index 8c97944184..847b2b5501 100644
+--- a/src/cmd/5c/reg.c
++++ b/src/cmd/5c/reg.c
+@@ -83,6 +83,7 @@ regopt(Prog *p)
+ 	// the disable is unconventionally here because the call is in common code shared by 5c/6c/8c
+ 	return;
+ 
++#ifdef	NOTDEF
+ 	firstr = R;
+ 	lastr = R;
+ 	nvar = 0;
+@@ -490,6 +491,7 @@ brk:
+ 		r1->link = freer;
+ 		freer = firstr;
+ 	}
++#endif
+ }
+ 
+ void
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 431f048173..7cbaadba96 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -380,10 +380,10 @@ outcode(void)
+ 		Bprint(&outbuf, "\n");
+ 		Bprint(&outbuf, "$$  // exports\n\n");
+ 		Bprint(&outbuf, "$$  // local types\n\n");
+-		Bprint(&outbuf, "$$  // dynimport\n", thestring);
++		Bprint(&outbuf, "$$  // dynimport\n");
+ 		for(i=0; i<ndynimp; i++)
+ 			Bprint(&outbuf, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+-		Bprint(&outbuf, "\n$$  // dynexport\n", thestring);
++		Bprint(&outbuf, "\n$$  // dynexport\n");
+ 		for(i=0; i<ndynexp; i++)
+ 			Bprint(&outbuf, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
+ 		Bprint(&outbuf, "\n$$\n\n");
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 28de6255a6..15b7d974e7 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -102,12 +102,15 @@ int	nelfsym = 1;
+ void
+ adddynrel(Sym *s, Reloc *r)
+ {
++	USED(s);
++	USED(r);
+ 	diag("adddynrel: unsupported binary format");
+ }
+ 
+ void
+ adddynsym(Sym *s)
+ {
++	USED(s);
+ 	diag("adddynsym: not implemented");
+ }
+ 
+@@ -120,6 +123,9 @@ elfsetupplt(void)
+ int
+ archreloc(Reloc *r, Sym *s, vlong *val)
+ {
++	USED(r);
++	USED(s);
++	USED(val);
+ 	return -1;
+ }
+ 
+@@ -452,7 +458,7 @@ asmb(void)
+ 		startva = INITTEXT - fo;	/* va of byte 0 of file */
+ 		
+ 		/* This null SHdr must appear before all others */
+-		sh = newElfShdr(elfstr[ElfStrEmpty]);
++		newElfShdr(elfstr[ElfStrEmpty]);
+ 
+ 		/* program header info */
+ 		pph = newElfPhdr();
+@@ -635,11 +641,11 @@ asmb(void)
+ 	cflush();
+ 	if(debug['c']){
+ 		print("textsize=%d\n", textsize);
+-		print("datsize=%d\n", segdata.filelen);
+-		print("bsssize=%d\n", segdata.len - segdata.filelen);
++		print("datsize=%ulld\n", segdata.filelen);
++		print("bsssize=%ulld\n", segdata.len - segdata.filelen);
+ 		print("symsize=%d\n", symsize);
+ 		print("lcsize=%d\n", lcsize);
+-		print("total=%d\n", textsize+segdata.len+symsize+lcsize);
++		print("total=%lld\n", textsize+segdata.len+symsize+lcsize);
+ 	}
+ }
+ 
+@@ -1436,6 +1442,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 	out[5] = o6;
+ 	return;
+ 
++#ifdef	NOTDEF
+ 	v = p->pc;
+ 	switch(o->size) {
+ 	default:
+@@ -1491,6 +1498,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 		lputl(o6);
+ 		break;
+ 	}
++#endif
+ }
+ 
+ int32
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 182f3e738b..dbd6b3cae0 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -31,7 +31,7 @@
+ #include	<u.h>
+ #include	<libc.h>
+ #include	<bio.h>
+-#include	"../5l/5.out.h"
++#include	"5.out.h"
+ 
+ enum
+ {
+@@ -337,9 +337,11 @@ EXTERN	Prog*	prog_modu;
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"C"	int
+ #pragma	varargck	type	"D"	Adr*
++#pragma	varargck	type	"I"	uchar*
+ #pragma	varargck	type	"N"	Adr*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"S"	char*
++#pragma	varargck	type	"i"	char*
+ 
+ int	Aconv(Fmt*);
+ int	Cconv(Fmt*);
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index dd3a7329a2..15f4b89cac 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -151,11 +151,12 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == -1) {
+ 		if(debug['U'])
+ 			HEADTYPE = Hnoheader;
+-		if(debug['B'])
++		else if(debug['B'])
+ 			HEADTYPE = Hrisc;
+-		if(debug['9'])
++		else if(debug['9'])
+ 			HEADTYPE = Hplan9x32;
+-		HEADTYPE = Hlinux;
++		else
++			HEADTYPE = Hlinux;
+ 	}
+ 	switch(HEADTYPE) {
+ 	default:
+@@ -347,7 +348,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 
+ 	case D_REGREG:
+ 		a->offset = Bgetc(f);
+-		c++;
+ 		break;
+ 
+ 	case D_CONST2:
+@@ -363,7 +363,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	case D_SCONST:
+ 		a->sval = mal(NSNAME);
+ 		Bread(f, a->sval, NSNAME);
+-		c += NSNAME;
+ 		break;
+ 
+ 	case D_FCONST:
+@@ -462,7 +461,6 @@ loop:
+ 		s = lookup(x, r);
+ 		if(x != name)
+ 			free(x);
+-		name = nil;
+ 
+ 		if(sig != 0){
+ 			if(s->sig != 0 && s->sig != sig)
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index 194a1ed5f3..c430494597 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -246,7 +246,6 @@ patch(void)
+ 
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		for(p = cursym->text; p != P; p = p->link) {
+-			a = p->as;
+ 			if(p->cond != P) {
+ 				p->cond = brloop(p->cond);
+ 				if(p->cond != P)
+diff --git a/src/cmd/5l/prof.c b/src/cmd/5l/prof.c
+index 48ad2dc594..225a524353 100644
+--- a/src/cmd/5l/prof.c
++++ b/src/cmd/5l/prof.c
+@@ -36,7 +36,7 @@
+ void
+ doprof1(void)
+ {
+-#if 0	// TODO(rsc)
++#ifdef	NOTDEF	// TODO(rsc)
+ 	Sym *s;
+ 	int32 n;
+ 	Prog *p, *q;
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index eb79f6b5a2..d3da0278bf 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -97,8 +97,6 @@ span(void)
+ 
+ 	bflag = 0;
+ 	c = INITTEXT;
+-	op = nil;
+-	p = nil;
+ 	otxt = c;
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		p = cursym->text;
+@@ -224,7 +222,6 @@ span(void)
+ 	
+ 		bp = cursym->p;
+ 		for(p = p->link; p != P; p = p->link) {
+-			curp = p;
+ 			pc = p->pc;
+ 			curp = p;
+ 			o = oplook(p);
+@@ -234,7 +231,7 @@ span(void)
+ 				*bp++ = v;
+ 				*bp++ = v>>8;
+ 				*bp++ = v>>16;
+-				*bp++ = v>>24;
++				*bp = v>>24;
+ 			}
+ 		}
+ 	}
+@@ -463,8 +460,6 @@ aclass(Adr *a)
+ 				print("%D\n", a);
+ 				return C_GOK;
+ 			}
+-			s = a->sym;
+-			t = s->type;
+ 			instoffset = 0;	// s.b. unused but just in case
+ 			return C_ADDR;
+ 
+@@ -520,8 +515,6 @@ aclass(Adr *a)
+ 		switch(a->name) {
+ 		case D_EXTERN:
+ 		case D_STATIC:
+-			s = a->sym;
+-			t = s->type;
+ 			instoffset = 0;	// s.b. unused but just in case
+ 			return C_ADDR;
+ 		}
+@@ -556,7 +549,6 @@ aclass(Adr *a)
+ 			s = a->sym;
+ 			if(s == S)
+ 				break;
+-			t = s->type;
+ 			instoffset = 0;	// s.b. unused but just in case
+ 			return C_LCON;
+ 

@@ -10,9 +10,173 @@ Date:   Fri Dec 12 13:45:19 2014 -0800
     Change-Id: Ia716b4198b8b298687843b94b878dbc5e8fc2c65
     Reviewed-on: https://go-review.googlesource.com/1480
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/reflect.c   | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
  src/reflect/type.go    | 27 +++++++++++++++++++++++++++
  src/runtime/hashmap.go |  6 +++---
  src/runtime/type.go    |  1 +
  4 files changed, 81 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 4155953be1..897fdc635a 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -954,6 +954,55 @@ weaktypesym(Type *t)
+ 	return s;
+ }
+ 
++/*
++ * Returns 1 if t has a reflexive equality operator.
++ * That is, if x==x for all x of type t.
++ */
++static int
++isreflexive(Type *t)
++{
++	Type *t1;
++	switch(t->etype) {
++		case TBOOL:
++		case TINT:
++		case TUINT:
++		case TINT8:
++		case TUINT8:
++		case TINT16:
++		case TUINT16:
++		case TINT32:
++		case TUINT32:
++		case TINT64:
++		case TUINT64:
++		case TUINTPTR:
++		case TPTR32:
++		case TPTR64:
++		case TUNSAFEPTR:
++		case TSTRING:
++		case TCHAN:
++			return 1;
++		case TFLOAT32:
++		case TFLOAT64:
++		case TCOMPLEX64:
++		case TCOMPLEX128:
++		case TINTER:
++			return 0;
++		case TARRAY:
++			if(isslice(t))
++				fatal("slice can't be a map key: %T", t);
++			return isreflexive(t->type);
++		case TSTRUCT:
++			for(t1=t->type; t1!=T; t1=t1->down) {
++				if(!isreflexive(t1->type))
++					return 0;
++			}
++			return 1;
++		default:
++			fatal("bad type for map key: %T", t);
++			return 0;
++	}
++}
++
+ static Sym*
+ dtypesym(Type *t)
+ {
+@@ -1123,6 +1172,7 @@ ok:
+ 			ot = duint8(s, ot, 0); // not indirect
+ 		}
+ 		ot = duint16(s, ot, mapbucket(t)->width);
++                ot = duint8(s, ot, isreflexive(t->down));
+ 		break;
+ 
+ 	case TPTR32:
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 441459b3f5..ededbef77d 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -345,6 +345,7 @@ type mapType struct {
+ 	valuesize     uint8  // size of value slot
+ 	indirectvalue uint8  // store ptr to value instead of value itself
+ 	bucketsize    uint16 // size of bucket
++	reflexivekey  bool   // true if k==k for all keys
+ }
+ 
+ // ptrType represents a pointer type.
+@@ -1489,6 +1490,7 @@ func MapOf(key, elem Type) Type {
+ 		mt.indirectvalue = 0
+ 	}
+ 	mt.bucketsize = uint16(mt.bucket.size)
++	mt.reflexivekey = isReflexive(ktyp)
+ 	mt.uncommonType = nil
+ 	mt.ptrToThis = nil
+ 	mt.zero = unsafe.Pointer(&make([]byte, mt.size)[0])
+@@ -1496,6 +1498,31 @@ func MapOf(key, elem Type) Type {
+ 	return cachePut(ckey, &mt.rtype)
+ }
+ 
++// isReflexive reports whether the == operation on the type is reflexive.
++// That is, x == x for all values x of type t.
++func isReflexive(t *rtype) bool {
++	switch t.Kind() {
++	case Bool, Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr, Chan, Ptr, String, UnsafePointer:
++		return true
++	case Float32, Float64, Complex64, Complex128, Interface:
++		return false
++	case Array:
++		tt := (*arrayType)(unsafe.Pointer(t))
++		return isReflexive(tt.elem)
++	case Struct:
++		tt := (*structType)(unsafe.Pointer(t))
++		for _, f := range tt.fields {
++			if !isReflexive(f.typ) {
++				return false
++			}
++		}
++		return true
++	default:
++		// Func, Map, Slice, Invalid
++		panic("isReflexive called on non-key type " + t.String())
++	}
++}
++
+ // gcProg is a helper type for generatation of GC pointer info.
+ type gcProg struct {
+ 	gc   []byte
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index b4e624423f..0aa7c60af6 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -652,7 +652,7 @@ next:
+ 				if t.indirectkey {
+ 					k2 = *((*unsafe.Pointer)(k2))
+ 				}
+-				if alg.equal(k2, k2, uintptr(t.key.size)) {
++				if t.reflexivekey || alg.equal(k2, k2, uintptr(t.key.size)) {
+ 					// If the item in the oldbucket is not destined for
+ 					// the current new bucket in the iteration, skip it.
+ 					hash := alg.hash(k2, uintptr(t.key.size), uintptr(h.hash0))
+@@ -689,7 +689,7 @@ next:
+ 				if t.indirectkey {
+ 					k2 = *((*unsafe.Pointer)(k2))
+ 				}
+-				if alg.equal(k2, k2, uintptr(t.key.size)) {
++				if t.reflexivekey || alg.equal(k2, k2, uintptr(t.key.size)) {
+ 					// Check the current hash table for the data.
+ 					// This code handles the case where the key
+ 					// has been deleted, updated, or deleted and reinserted.
+@@ -798,7 +798,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 				// to send this key/value to bucket x or bucket y).
+ 				hash := alg.hash(k2, uintptr(t.key.size), uintptr(h.hash0))
+ 				if h.flags&iterator != 0 {
+-					if !alg.equal(k2, k2, uintptr(t.key.size)) {
++					if !t.reflexivekey && !alg.equal(k2, k2, uintptr(t.key.size)) {
+ 						// If key != key (NaNs), then the hash could be (and probably
+ 						// will be) entirely different from the old hash.  Moreover,
+ 						// it isn't reproducible.  Reproducibility is required in the
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index cbd5c9ebc2..cbf2b1b6af 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -73,6 +73,7 @@ type maptype struct {
+ 	valuesize     uint8  // size of value slot
+ 	indirectvalue bool   // store ptr to value instead of value itself
+ 	bucketsize    uint16 // size of bucket
++	reflexivekey  bool   // true if k==k for all keys
+ }
+ 
+ type chantype struct {

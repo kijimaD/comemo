@@ -8,7 +8,127 @@ Date:   Fri Jul 10 11:20:10 2009 -0700
     DELTA=47  (30 added, 16 deleted, 1 changed)
     OCL=31455
     CL=31455
-
+---
  src/pkg/reflect/all_test.go  | 30 ++++++++++++++++++------------
  src/pkg/reflect/deepequal.go | 18 +++++++++++++-----
  2 files changed, 31 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 06eb1f32b1..a7f01d7ba2 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -337,18 +337,6 @@ type Basic struct {
+ 
+ type NotBasic Basic
+ 
+-type Recursive struct {
+-	x int;
+-	r *Recursive
+-}
+-
+-type Complex struct {
+-	a int;
+-	b [3]*Complex;
+-	c *string;
+-	d map[float]float
+-}
+-
+ type DeepEqualTest struct {
+ 	a, b interface{};
+ 	eq bool;
+@@ -365,6 +353,7 @@ var deepEqualTests = []DeepEqualTest {
+ 	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 3 }, true },
+ 	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.5 }, true },
+ 	DeepEqualTest{ os.Error(nil), os.Error(nil), true },
++	DeepEqualTest{ map[int]string{ 1:"one", 2:"two" }, map[int]string{ 2:"two", 1:"one" }, true },
+ 
+ 	// Inequalities
+ 	DeepEqualTest{ 1, 2, false },
+@@ -376,6 +365,10 @@ var deepEqualTests = []DeepEqualTest {
+ 	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 4 }, false },
+ 	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.6 }, false },
+ 	DeepEqualTest{ Basic{ 1, 0 }, Basic{ 2, 0 }, false },
++	DeepEqualTest{ map[int]string{ 1:"one", 3:"two" }, map[int]string{ 2:"two", 1:"one" }, false },
++	DeepEqualTest{ map[int]string{ 1:"one", 2:"txo" }, map[int]string{ 2:"two", 1:"one" }, false },
++	DeepEqualTest{ map[int]string{ 1:"one", }, map[int]string{ 2:"two", 1:"one" }, false },
++	DeepEqualTest{ map[int]string{ 2:"two", 1:"one" }, map[int]string{ 1:"one", }, false },
+ 
+ 	// Mismatched types
+ 	DeepEqualTest{ 1, 1.0, false },
+@@ -384,6 +377,7 @@ var deepEqualTests = []DeepEqualTest {
+ 	DeepEqualTest{ []int{ 1, 2, 3 }, [3]int{ 1, 2, 3 }, false },
+ 	DeepEqualTest{ &[3]interface{} { 1, 2, 4 }, &[3]interface{} { 1, 2, "s" }, false },
+ 	DeepEqualTest{ Basic{ 1, 0.5 }, NotBasic{ 1, 0.5 }, false },
++	DeepEqualTest{ map[uint]string{ 1:"one", 2:"two" }, map[int]string{ 2:"two", 1:"one" }, false },
+ }
+ 
+ func TestDeepEqual(t *testing.T) {
+@@ -407,6 +401,11 @@ func TestTypeof(t *testing.T) {
+ 	}
+ }
+ 
++type Recursive struct {
++	x int;
++	r *Recursive
++}
++
+ func TestDeepEqualRecursiveStruct(t *testing.T) {
+ 	a, b := new(Recursive), new(Recursive);
+ 	*a = Recursive{ 12, a };
+@@ -416,6 +415,13 @@ func TestDeepEqualRecursiveStruct(t *testing.T) {
+ 	}
+ }
+ 
++type Complex struct {
++	a int;
++	b [3]*Complex;
++	c *string;
++	d map[float]float
++}
++
+ func TestDeepEqualComplexStruct(t *testing.T) {
+ 	m := make(map[float]float);
+ 	stra, strb := "hello", "hello";
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index 08c3edab38..1e4717139d 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -92,9 +92,6 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
+ 			return i1 == i2;
+ 		}
+ 		return deepValueEqual(NewValue(i1), NewValue(i2), visited, depth+1);
+-	case *MapValue:
+-		// TODO(dnadasi): Implement this fully once MapValue is implemented
+-		return v1.Interface() == v2.Interface();
+ 	case *PtrValue:
+ 		return deepValueEqual(v.Elem(), v2.(*PtrValue).Elem(), visited, depth+1);
+ 	case *StructValue:
+@@ -106,6 +103,18 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
+ 			}
+ 		}
+ 		return true;
++	case *MapValue:
++		map1 := v;
++		map2 := v2.(*MapValue);
++		if map1.Len() != map2.Len() {
++			return false;
++		}
++		for i, k := range map1.Keys() {
++			if !deepValueEqual(map1.Get(k), map2.Get(k), visited, depth+1) {
++				return false;
++			}
++		}
++		return true;
+ 	default:
+ 		// Normal equality suffices
+ 		return v1.Interface() == v2.Interface();
+@@ -116,8 +125,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
+ 
+ // DeepEqual tests for deep equality. It uses normal == equality where possible
+ // but will scan members of arrays, slices, and fields of structs. It correctly
+-// handles recursive types. Until reflection supports maps, maps are equal iff
+-// they are identical.
++// handles recursive types.
+ func DeepEqual(a1, a2 interface{}) bool {
+ 	v1 := NewValue(a1);
+ 	v2 := NewValue(a2);

@@ -9,7 +9,7 @@ Date:   Mon Nov 3 16:03:12 2008 -0800
     DELTA=170  (152 added, 12 deleted, 6 changed)
     OCL=18396
     CL=18404
-
+---
  src/cmd/6l/go.c        | 97 +++++++++++++++++++++++++++++++++++++++++---------
  src/cmd/6l/l.h         |  2 ++
  src/cmd/6l/obj.c       |  1 +
@@ -18,3 +18,287 @@ Date:   Mon Nov 3 16:03:12 2008 -0800
  src/cmd/gc/sysimport.c |  1 +
  src/runtime/iface.c    | 72 +++++++++++++++++++++++++++++++++++++
  7 files changed, 158 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/6l/go.c b/src/cmd/6l/go.c
+index 494b07bd00..19984336b3 100644
+--- a/src/cmd/6l/go.c
++++ b/src/cmd/6l/go.c
+@@ -7,6 +7,7 @@
+ // accumulate all type information from .6 files.
+ // check for inconsistencies.
+ // define gotypestrings variable if needed.
++// define gotypesigs variable if needed.
+ 
+ // TODO:
+ //	include type info for non-exported types.
+@@ -301,6 +302,16 @@ importcmp(const void *va, const void *vb)
+ 	return strcmp(a->name, b->name);
+ }
+ 
++static int
++symcmp(const void *va, const void *vb)
++{
++	Sym *a, *b;
++
++	a = *(Sym**)va;
++	b = *(Sym**)vb;
++	return strcmp(a->name, b->name);
++}
++
+ // if there is an undefined reference to gotypestrings,
+ // create it.  c declaration is
+ //	extern char gotypestrings[];
+@@ -309,7 +320,7 @@ importcmp(const void *va, const void *vb)
+ void
+ definetypestrings(void)
+ {
+-	int i, j, len, n;
++	int i, j, len, n, w;
+ 	char *p;
+ 	Import **all, *x;
+ 	Fmt f;
+@@ -376,27 +387,79 @@ definetypestrings(void)
+ 	// (had to add D_SBIG even to do that; the compiler
+ 	// would have generated 8-byte chunks.)
+ 	for(i=0; i<n; i+=100) {
+-		prog = mal(sizeof *prog);
+-		prog->as = ADATA;
+-		prog->width = 100;
+-		if(prog->width > n - i)
+-			prog->width = n - i;
+-		prog->from.scale = prog->width;
+-		prog->from.type = D_EXTERN;
+-		prog->from.sym = s;
+-		prog->from.offset = i;
++		w = 100;
++		if(w > n - i)
++			w = n - i;
++		prog = newdata(s, i, w, D_EXTERN);
+ 		prog->to.type = D_SBIG;
+ 		prog->to.sbig = p + i;
+-
+-		if(edatap == P)
+-			datap = prog;
+-		else
+-			edatap->link = prog;
+-		edatap = prog;
+-		prog->link = P;
+ 	}
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f typestrings %d\n", cputime(), n);
+ }
+ 
++// if there is an undefined reference to gotypesigs, create it.
++// c declaration is
++//	extern Sigt *gotypesigs[];
++//	extern int ngotypesigs;
++// used by sys.unreflect runtime.
++void
++definetypesigs(void)
++{
++	int i, j, n;
++	Sym **all, *s, *x;
++	Prog *prog;
++
++	if(debug['g'])
++		return;
++
++	if(debug['v'])
++		Bprint(&bso, "%5.2f definetypesigs\n", cputime());
++
++	s = lookup("gotypesigs", 0);
++	if(s->type == 0)
++		return;
++	if(s->type != SXREF) {
++		diag("gotypesigs already defined");
++		return;
++	}
++	s->type = SDATA;
++
++	// make a list of all the sigt symbols.
++	n = 0;
++	for(i=0; i<NHASH; i++)
++		for(x = hash[i]; x; x=x->link)
++			if(memcmp(x->name, "sigt·", 6) == 0)
++				n++;
++	all = mal(n*sizeof all[0]);
++	j = 0;
++	for(i=0; i<NHASH; i++)
++		for(x = hash[i]; x; x=x->link)
++			if(memcmp(x->name, "sigt·", 6) == 0)
++				all[j++] = x;
++
++	// sort them by name
++	qsort(all, n, sizeof all[0], symcmp);
++
++	// emit array as sequence of references.
++	enum { PtrSize = 8 };
++	for(i=0; i<n; i++) {
++		prog = newdata(s, PtrSize*i, PtrSize, D_EXTERN);
++		prog->to.type = D_ADDR;
++		prog->to.index = D_EXTERN;
++		prog->to.sym = all[i];
++	}
++	s->value = PtrSize*n;
++
++	// emit count
++	s = lookup("ngotypesigs", 0);
++	s->type = SDATA;
++	s->value = sizeof(int32);
++	prog = newdata(s, 0, sizeof(int32), D_EXTERN);
++	prog->to.offset = n;
++
++	if(debug['v'])
++		Bprint(&bso, "%5.2f typestrings %d\n", cputime(), n);
++
++}
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index a3c59284cb..faf5025a80 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -380,6 +380,7 @@ Prog*	copyp(Prog*);
+ double	cputime(void);
+ void	datblk(int32, int32);
+ void	definetypestrings(void);
++void definetypesigs(void);
+ void	diag(char*, ...);
+ void	dodata(void);
+ void	doinit(void);
+@@ -409,6 +410,7 @@ void	lputl(int32);
+ void	main(int, char*[]);
+ void	mkfwd(void);
+ void*	mysbrk(uint32);
++Prog*	newdata(Sym*, int, int, int);
+ void	nuxiinit(void);
+ void	objfile(char*);
+ int	opsize(Prog*);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index eeb8457351..8c001e7481 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -369,6 +369,7 @@ main(int argc, char *argv[])
+ 		objfile(a);
+ 	}
+ 	definetypestrings();
++	definetypesigs();
+ 
+ 	firstp = firstp->link;
+ 	if(firstp == P)
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 3369a10e63..9f765e836f 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -926,7 +926,7 @@ ckoff(Sym *s, int32 v)
+ 		diag("relocation offset %ld for %s out of range", v, s->name);
+ }
+ 
+-static Prog*
++Prog*
+ newdata(Sym *s, int o, int w, int t)
+ {
+ 	Prog *p;
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index abbb6261f4..383f2bf7ec 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -33,6 +33,7 @@ export func	ifaceI2T(sigt *byte, iface any) (ret any);
+ export func	ifaceI2I(sigi *byte, iface any) (ret any);
+ export func	ifaceeq(i1 any, i2 any) (ret bool);
+ export func	reflect(i interface { }) (uint64, string);
++export func	unreflect(uint64, string) (ret interface { });
+ 
+ export func	argc() int;
+ export func	envc() int;
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 8d4866c28c..195e6b4a15 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -25,6 +25,7 @@ char *sysimport =
+ 	"export func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
+ 	"export func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
+ 	"export func sys.reflect (i interface { }) (? uint64, ? string)\n"
++	"export func sys.unreflect (? uint64, ? string) (ret interface { })\n"
+ 	"export func sys.argc () (? int)\n"
+ 	"export func sys.envc () (? int)\n"
+ 	"export func sys.argv (? int) (? string)\n"
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index bd54ce7aa3..c8355e8c15 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -378,3 +378,75 @@ sys·reflect(Map *im, void *it, uint64 retit, string rettype)
+ 	FLUSH(&retit);
+ 	FLUSH(&rettype);
+ }
++
++extern Sigt *gotypesigs[];
++extern int32 ngotypesigs;
++
++static Sigt*
++fakesigt(string type)
++{
++	// TODO(rsc): Cache these by type string.
++	Sigt *sigt;
++
++	// Must be pointer in order for alg, width to be right.
++	if(type == nil || type->len == 0 || type->str[0] != '*') {
++		// TODO(rsc): What to do here?
++		prints("bad unreflect type: ");
++		sys·printstring(type);
++		prints("\n");
++		throw("unreflect");
++	}
++	sigt = mal(2*sizeof sigt[0]);
++	sigt[0].name = mal(type->len + 1);
++	mcpy(sigt[0].name, type->str, type->len);
++	sigt[0].hash = ASIMP;	// alg
++	sigt[0].offset = sizeof(void*);	// width
++	return sigt;
++}
++
++static int32
++cmpstringchars(string a, uint8 *b)
++{
++	int32 i;
++
++	for(i=0;; i++) {
++		if(i == a->len) {
++			if(b[i] == 0)
++				return 0;
++			return -1;
++		}
++		if(b[i] == 0)
++			return 1;
++		if(a->str[i] != b[i]) {
++			if((uint8)a->str[i] < (uint8)b[i])
++				return -1;
++			return 1;
++		}
++	}
++}
++
++static Sigt*
++findtype(string type)
++{
++	int32 i;
++
++	for(i=0; i<ngotypesigs; i++)
++		if(cmpstringchars(type, gotypesigs[i]->name) == 0)
++			return gotypesigs[i];
++	return fakesigt(type);
++}
++
++void
++sys·unreflect(uint64 it, string type, Map *retim, void *retit)
++{
++	if(cmpstring(type, emptystring) == 0) {
++		retim = 0;
++		retit = 0;
++	} else {
++		retim = hashmap(sigi·inter, findtype(type), 0);
++		retit = (void*)it;
++	}
++	FLUSH(&retim);
++	FLUSH(&retit);
++}
++

@@ -11,8 +11,161 @@ Date:   Wed May 10 15:35:33 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go      | 64 ++++++++++++++++++++++++++++++++++++++++++++++
  src/go/build/build.go      | 20 +++++----------
  src/go/build/build_test.go |  4 ++-
  3 files changed, 73 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2b118695c9..131a0985ae 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -78,6 +78,8 @@ func init() {
+ // (temp) directory.
+ var testGOROOT string
+ 
++var testCC string
++
+ // The TestMain function creates a go command for testing purposes and
+ // deletes it after the tests have been run.
+ func TestMain(m *testing.M) {
+@@ -99,6 +101,13 @@ func TestMain(m *testing.M) {
+ 		}
+ 		testGOROOT = strings.TrimSpace(string(out))
+ 
++		out, err = exec.Command("go", "env", "CC").CombinedOutput()
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "could not find testing CC: %v\n%s", err, out)
++			os.Exit(2)
++		}
++		testCC = strings.TrimSpace(string(out))
++
+ 		if out, err := exec.Command("./testgo"+exeSuffix, "env", "CGO_ENABLED").Output(); err != nil {
+ 			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n", err)
+ 			canRun = false
+@@ -4037,3 +4046,58 @@ func main() {}`)
+ 	tg.run("build", "-x", "-buildmode=c-archive", "-gcflags=-shared=false", tg.path("override.go"))
+ 	tg.grepStderr("compile .*-shared .*-shared=false", "user can not override code generation flag")
+ }
++
++func TestCgoFlagContainsSpace(t *testing.T) {
++	if !canCgo {
++		t.Skip("skipping because cgo not enabled")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	tg.tempFile("src/cc/main.go", fmt.Sprintf(`package main
++		import (
++			"os"
++			"os/exec"
++		)
++
++		func main() {
++			var success bool
++			for _, arg := range os.Args {
++				switch arg {
++				case "-Ic flags":
++					if success {
++						panic("duplicate CFLAGS")
++					}
++					success = true
++				case "-Lld flags":
++					if success {
++						panic("duplicate LDFLAGS")
++					}
++					success = true
++				}
++			}
++			if !success {
++				panic("args should contains '-Ic flags' or '-Lld flags'")
++			}
++			cmd := exec.Command(%q, os.Args[1:]...)
++			cmd.Stdin = os.Stdin
++			cmd.Stdout = os.Stdout
++			err := cmd.Run()
++			if err != nil {
++				panic(err)
++			}
++		}
++	`, testCC))
++	tg.cd(tg.path("src/cc"))
++	tg.run("build")
++	tg.setenv("CC", tg.path("src/cc/cc"))
++	tg.tempFile("src/cgo/cgo.go", `package main
++		// #cgo CFLAGS: -I"c flags"
++		// #cgo LDFLAGS: -L"ld flags"
++		import "C"
++		func main() {}
++	`)
++	path := tg.path("src/cgo/cgo.go")
++	tg.run("run", path)
++}
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index c1f07c959a..406cb046ea 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1302,16 +1302,15 @@ func expandSrcDir(str string, srcdir string) (string, bool) {
+ 	// to "/" before starting (eg: on windows).
+ 	srcdir = filepath.ToSlash(srcdir)
+ 
+-	// Spaces are tolerated in ${SRCDIR}, but not anywhere else.
+ 	chunks := strings.Split(str, "${SRCDIR}")
+ 	if len(chunks) < 2 {
+-		return str, safeCgoName(str, false)
++		return str, safeCgoName(str)
+ 	}
+ 	ok := true
+ 	for _, chunk := range chunks {
+-		ok = ok && (chunk == "" || safeCgoName(chunk, false))
++		ok = ok && (chunk == "" || safeCgoName(chunk))
+ 	}
+-	ok = ok && (srcdir == "" || safeCgoName(srcdir, true))
++	ok = ok && (srcdir == "" || safeCgoName(srcdir))
+ 	res := strings.Join(chunks, srcdir)
+ 	return res, ok && res != ""
+ }
+@@ -1321,21 +1320,14 @@ func expandSrcDir(str string, srcdir string) (string, bool) {
+ // See golang.org/issue/6038.
+ // The @ is for OS X. See golang.org/issue/13720.
+ // The % is for Jenkins. See golang.org/issue/16959.
+-const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@%"
+-const safeSpaces = " "
++const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@% "
+ 
+-var safeBytes = []byte(safeSpaces + safeString)
+-
+-func safeCgoName(s string, spaces bool) bool {
++func safeCgoName(s string) bool {
+ 	if s == "" {
+ 		return false
+ 	}
+-	safe := safeBytes
+-	if !spaces {
+-		safe = safe[len(safeSpaces):]
+-	}
+ 	for i := 0; i < len(s); i++ {
+-		if c := s[i]; c < utf8.RuneSelf && bytes.IndexByte(safe, c) < 0 {
++		if c := s[i]; c < utf8.RuneSelf && strings.IndexByte(safeString, c) < 0 {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 9b50efe253..68d3c529db 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -285,9 +285,11 @@ func TestShellSafety(t *testing.T) {
+ 		{"-I${SRCDIR}/../include", "/projects/src/issue 11868", "-I/projects/src/issue 11868/../include", true},
+ 		{"-I${SRCDIR}", "wtf$@%", "-Iwtf$@%", true},
+ 		{"-X${SRCDIR}/1,${SRCDIR}/2", "/projects/src/issue 11868", "-X/projects/src/issue 11868/1,/projects/src/issue 11868/2", true},
+-		{"-I/tmp -I/tmp", "/tmp2", "-I/tmp -I/tmp", false},
++		{"-I/tmp -I/tmp", "/tmp2", "-I/tmp -I/tmp", true},
+ 		{"-I/tmp", "/tmp/[0]", "-I/tmp", true},
+ 		{"-I${SRCDIR}/dir", "/tmp/[0]", "-I/tmp/[0]/dir", false},
++		{"-I${SRCDIR}/dir", "/tmp/go go", "-I/tmp/go go/dir", true},
++		{"-I${SRCDIR}/dir dir", "/tmp/go", "-I/tmp/go/dir dir", true},
+ 	}
+ 	for _, test := range tests {
+ 		output, ok := expandSrcDir(test.input, test.srcdir)

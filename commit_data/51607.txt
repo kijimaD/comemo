@@ -14,9 +14,84 @@ Date:   Wed Feb 23 14:26:07 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go                  |  4 ++++
  .../internal/types2/testdata/fixedbugs/issue51335.go2    | 16 ++++++++++++++++
  src/go/types/expr.go                                     |  4 ++++
  src/go/types/testdata/fixedbugs/issue51335.go2           | 16 ++++++++++++++++
  4 files changed, 40 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index ac5630dbbb..c587c40f80 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1360,6 +1360,10 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// no composite literal type present - use hint (element type of enclosing type)
+ 			typ = hint
+ 			base, _ = deref(coreType(typ)) // *T implies &T{}
++			if base == nil {
++				check.errorf(e, "invalid composite literal element type %s: no core type", typ)
++				goto Error
++			}
+ 
+ 		default:
+ 			// TODO(gri) provide better error messages depending on context
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51335.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51335.go2
+new file mode 100644
+index 0000000000..0b5a1af082
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51335.go2
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type S1 struct{}
++type S2 struct{}
++
++func _[P *S1|*S2]() {
++	_= []P{{ /* ERROR invalid composite literal element type P: no core type */ }}
++}
++
++func _[P *S1|S1]() {
++	_= []P{{ /* ERROR invalid composite literal element type P: no core type */ }}
++}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index e8038dd178..9241c243f2 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1339,6 +1339,10 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			// no composite literal type present - use hint (element type of enclosing type)
+ 			typ = hint
+ 			base, _ = deref(coreType(typ)) // *T implies &T{}
++			if base == nil {
++				check.errorf(e, _InvalidLit, "invalid composite literal element type %s: no core type", typ)
++				goto Error
++			}
+ 
+ 		default:
+ 			// TODO(gri) provide better error messages depending on context
+diff --git a/src/go/types/testdata/fixedbugs/issue51335.go2 b/src/go/types/testdata/fixedbugs/issue51335.go2
+new file mode 100644
+index 0000000000..0b5a1af082
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51335.go2
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type S1 struct{}
++type S2 struct{}
++
++func _[P *S1|*S2]() {
++	_= []P{{ /* ERROR invalid composite literal element type P: no core type */ }}
++}
++
++func _[P *S1|S1]() {
++	_= []P{{ /* ERROR invalid composite literal element type P: no core type */ }}
++}

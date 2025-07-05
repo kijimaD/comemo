@@ -10,9 +10,190 @@ Date:   Thu Nov 1 16:21:18 2012 -0400
     R=golang-dev, agl
     CC=golang-dev
     https://golang.org/cl/6814060
-
+---
  src/pkg/crypto/md5/md5_test.go       | 28 ++++++++++++++--------------
  src/pkg/crypto/sha1/sha1_test.go     | 28 ++++++++++++++--------------
  src/pkg/crypto/sha256/sha256_test.go | 28 ++++++++++++++--------------
  src/pkg/crypto/sha512/sha512_test.go | 28 ++++++++++++++--------------
  4 files changed, 56 insertions(+), 56 deletions(-)
+
+diff --git a/src/pkg/crypto/md5/md5_test.go b/src/pkg/crypto/md5/md5_test.go
+index b474a90d5a..c810251ff2 100644
+--- a/src/pkg/crypto/md5/md5_test.go
++++ b/src/pkg/crypto/md5/md5_test.go
+@@ -80,26 +80,26 @@ func ExampleNew() {
+ }
+ 
+ var bench = md5.New()
+-var buf = makeBuf()
++var buf = make([]byte, 8192)
+ 
+-func makeBuf() []byte {
+-	b := make([]byte, 8<<10)
+-	for i := range b {
+-		b[i] = byte(i)
++func benchmarkSize(b *testing.B, size int) {
++	b.SetBytes(int64(size))
++	sum := make([]byte, bench.Size())
++	for i := 0; i < b.N; i++ {
++		bench.Reset()
++		bench.Write(buf[:size])
++		bench.Sum(sum[:0])
+ 	}
+-	return b
++}
++
++func BenchmarkHash8Bytes(b *testing.B) {
++	benchmarkSize(b, 8)
+ }
+ 
+ func BenchmarkHash1K(b *testing.B) {
+-	b.SetBytes(1024)
+-	for i := 0; i < b.N; i++ {
+-		bench.Write(buf[:1024])
+-	}
++	benchmarkSize(b, 1024)
+ }
+ 
+ func BenchmarkHash8K(b *testing.B) {
+-	b.SetBytes(int64(len(buf)))
+-	for i := 0; i < b.N; i++ {
+-		bench.Write(buf)
+-	}
++	benchmarkSize(b, 8192)
+ }
+diff --git a/src/pkg/crypto/sha1/sha1_test.go b/src/pkg/crypto/sha1/sha1_test.go
+index e3d03e52a3..5854112778 100644
+--- a/src/pkg/crypto/sha1/sha1_test.go
++++ b/src/pkg/crypto/sha1/sha1_test.go
+@@ -81,26 +81,26 @@ func ExampleNew() {
+ }
+ 
+ var bench = sha1.New()
+-var buf = makeBuf()
++var buf = make([]byte, 8192)
+ 
+-func makeBuf() []byte {
+-	b := make([]byte, 8<<10)
+-	for i := range b {
+-		b[i] = byte(i)
++func benchmarkSize(b *testing.B, size int) {
++	b.SetBytes(int64(size))
++	sum := make([]byte, bench.Size())
++	for i := 0; i < b.N; i++ {
++		bench.Reset()
++		bench.Write(buf[:size])
++		bench.Sum(sum[:0])
+ 	}
+-	return b
++}
++
++func BenchmarkHash8Bytes(b *testing.B) {
++	benchmarkSize(b, 8)
+ }
+ 
+ func BenchmarkHash1K(b *testing.B) {
+-	b.SetBytes(1024)
+-	for i := 0; i < b.N; i++ {
+-		bench.Write(buf[:1024])
+-	}
++	benchmarkSize(b, 1024)
+ }
+ 
+ func BenchmarkHash8K(b *testing.B) {
+-	b.SetBytes(int64(len(buf)))
+-	for i := 0; i < b.N; i++ {
+-		bench.Write(buf)
+-	}
++	benchmarkSize(b, 8192)
+ }
+diff --git a/src/pkg/crypto/sha256/sha256_test.go b/src/pkg/crypto/sha256/sha256_test.go
+index 8e66b4b306..29bf1619ae 100644
+--- a/src/pkg/crypto/sha256/sha256_test.go
++++ b/src/pkg/crypto/sha256/sha256_test.go
+@@ -125,26 +125,26 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ var bench = New()
+-var buf = makeBuf()
++var buf = make([]byte, 8192)
+ 
+-func makeBuf() []byte {
+-	b := make([]byte, 8<<10)
+-	for i := range b {
+-		b[i] = byte(i)
++func benchmarkSize(b *testing.B, size int) {
++	b.SetBytes(int64(size))
++	sum := make([]byte, bench.Size())
++	for i := 0; i < b.N; i++ {
++		bench.Reset()
++		bench.Write(buf[:size])
++		bench.Sum(sum[:0])
+ 	}
+-	return b
++}
++
++func BenchmarkHash8Bytes(b *testing.B) {
++	benchmarkSize(b, 8)
+ }
+ 
+ func BenchmarkHash1K(b *testing.B) {
+-	b.SetBytes(1024)
+-	for i := 0; i < b.N; i++ {
+-		bench.Write(buf[:1024])
+-	}
++	benchmarkSize(b, 1024)
+ }
+ 
+ func BenchmarkHash8K(b *testing.B) {
+-	b.SetBytes(int64(len(buf)))
+-	for i := 0; i < b.N; i++ {
+-		bench.Write(buf)
+-	}
++	benchmarkSize(b, 8192)
+ }
+diff --git a/src/pkg/crypto/sha512/sha512_test.go b/src/pkg/crypto/sha512/sha512_test.go
+index 977655ddb4..6eafb1b5fa 100644
+--- a/src/pkg/crypto/sha512/sha512_test.go
++++ b/src/pkg/crypto/sha512/sha512_test.go
+@@ -125,26 +125,26 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ var bench = New()
+-var buf = makeBuf()
++var buf = make([]byte, 8192)
+ 
+-func makeBuf() []byte {
+-	b := make([]byte, 8<<10)
+-	for i := range b {
+-		b[i] = byte(i)
++func benchmarkSize(b *testing.B, size int) {
++	b.SetBytes(int64(size))
++	sum := make([]byte, bench.Size())
++	for i := 0; i < b.N; i++ {
++		bench.Reset()
++		bench.Write(buf[:size])
++		bench.Sum(sum[:0])
+ 	}
+-	return b
++}
++
++func BenchmarkHash8Bytes(b *testing.B) {
++	benchmarkSize(b, 8)
+ }
+ 
+ func BenchmarkHash1K(b *testing.B) {
+-	b.SetBytes(1024)
+-	for i := 0; i < b.N; i++ {
+-		bench.Write(buf[:1024])
+-	}
++	benchmarkSize(b, 1024)
+ }
+ 
+ func BenchmarkHash8K(b *testing.B) {
+-	b.SetBytes(int64(len(buf)))
+-	for i := 0; i < b.N; i++ {
+-		bench.Write(buf)
+-	}
++	benchmarkSize(b, 8192)
+ }

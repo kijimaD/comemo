@@ -9,6 +9,22 @@ Date:   Thu Jan 13 18:34:22 2011 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4003042
-
+---
  lib/godoc/package.html | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 5dc61b7cd9..570ae40167 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -5,9 +5,7 @@
+ -->
+ 
+ {.section PAst}
+-	<pre>
+-	{@ FSet|html}
+-	</pre>
++	<pre>{@ FSet|html}</pre>
+ {.end}
+ {.section PDoc}
+ 	<!-- PackageName is printed as title by the top-level template -->

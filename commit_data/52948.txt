@@ -20,7 +20,64 @@ Date:   Fri Jun 17 18:22:12 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/fetch.go              |  1 +
  src/cmd/go/testdata/script/mod_tidy_duplicates.txt | 38 ++++++++++++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index a7c8c2c769..426df9bc04 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -833,6 +833,7 @@ Outer:
+ 		for _, m := range mods {
+ 			list := goSum.m[m]
+ 			sort.Strings(list)
++			str.Uniq(&list)
+ 			for _, h := range list {
+ 				st := goSum.status[modSum{m, h}]
+ 				if (!st.dirty || (st.used && keep[m])) && !sumInWorkspaceModulesLocked(m) {
+diff --git a/src/cmd/go/testdata/script/mod_tidy_duplicates.txt b/src/cmd/go/testdata/script/mod_tidy_duplicates.txt
+new file mode 100644
+index 0000000000..d454c8dc82
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_duplicates.txt
+@@ -0,0 +1,38 @@
++env GO111MODULE=on
++
++# Regression test for golang.org/issue/28456:
++# 'go mod tidy' should not leave duplicate lines when re-writing the file.
++
++go mod tidy
++cmp go.sum golden.sum
++
++-- go.mod --
++module use
++
++go 1.16
++
++require rsc.io/quote v1.5.2
++
++-- go.sum --
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++rsc.io/testonly v1.0.0 h1:K/VWHdO+Jv7woUXG0GzVNx1czBXUt3Ib1deaMn+xk64=
++rsc.io/testonly v1.0.0/go.mod h1:OqmGbIFOcF+XrFReLOGZ6BhMM7uMBiQwZsyNmh74SzY=
++-- golden.sum --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++rsc.io/testonly v1.0.0 h1:K/VWHdO+Jv7woUXG0GzVNx1czBXUt3Ib1deaMn+xk64=
++rsc.io/testonly v1.0.0/go.mod h1:OqmGbIFOcF+XrFReLOGZ6BhMM7uMBiQwZsyNmh74SzY=
++-- main.go --
++package use
++
++import _ "rsc.io/quote"

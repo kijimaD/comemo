@@ -7,8 +7,99 @@ Date:   Thu Jan 27 23:19:37 2011 +1000
     R=bradfitz, dsymonds, r2, dangabrad, rsc
     CC=golang-dev
     https://golang.org/cl/4043043
-
+---
  doc/codelab/wiki/Makefile |  4 ++--
  doc/codelab/wiki/get.go   | 16 +++++++++++++++-
  doc/codelab/wiki/test.sh  | 17 +++++++++++------
  3 files changed, 28 insertions(+), 9 deletions(-)
+
+diff --git a/doc/codelab/wiki/Makefile b/doc/codelab/wiki/Makefile
+index 6c2701de59..eff15cd62d 100644
+--- a/doc/codelab/wiki/Makefile
++++ b/doc/codelab/wiki/Makefile
+@@ -13,9 +13,9 @@ CLEANFILES+=index.html srcextract.bin htmlify.bin
+ index.html: srcextract.bin htmlify.bin
+ 	awk '/^!/{system(substr($$0,2)); next} {print}' "$$@" < wiki.html > index.html
+ 
+-test: final.bin get.bin
++test: get.bin
+ 	bash ./test.sh
+-	rm -f final.6 final.bin get.6 get.bin
++	rm -f get.6 get.bin
+ 
+ %.bin: %.$O
+ 	$(LD) -o $@ $<
+diff --git a/doc/codelab/wiki/get.go b/doc/codelab/wiki/get.go
+index 92e0c0f623..ff941a3484 100644
+--- a/doc/codelab/wiki/get.go
++++ b/doc/codelab/wiki/get.go
+@@ -3,16 +3,30 @@ package main
+ import (
+ 	"http"
+ 	"flag"
++	"fmt"
+ 	"io"
+ 	"log"
++	"net"
+ 	"os"
+ 	"strings"
+ )
+ 
+-var post = flag.String("post", "", "urlencoded form data to POST")
++var (
++	post = flag.String("post", "", "urlencoded form data to POST")
++	port = flag.Bool("port", false, "find open port and print to stdout")
++)
+ 
+ func main() {
+ 	flag.Parse()
++	if *port {
++		l, err := net.Listen("tcp", "127.0.0.1:0")
++		if err != nil {
++			log.Exit(err)
++		}
++		defer l.Close()
++		fmt.Print(l.Addr().(*net.TCPAddr).Port)
++		return
++	}
+ 	url := flag.Arg(0)
+ 	if url == "" {
+ 		log.Exit("no url supplied")
+diff --git a/doc/codelab/wiki/test.sh b/doc/codelab/wiki/test.sh
+index 27c7be66ca..fab2b00e7e 100755
+--- a/doc/codelab/wiki/test.sh
++++ b/doc/codelab/wiki/test.sh
+@@ -1,22 +1,27 @@
+ #!/bin/bash
+ 
+-./final.bin &
+-wiki_pid=$!
++wiki_pid=
+ 
+ cleanup() {
+ 	kill $wiki_pid
+-	rm -f test_*.out Test.txt
++	rm -f test_*.out Test.txt final-test.bin final-test.go
+ 	exit ${1:-1}
+ }
+ trap cleanup INT
+ 
++port=$(./get.bin -port)
++sed s/8080/$port/ < final.go > final-test.go
++gomake final-test.bin || cleanup 1
++./final-test.bin &
++wiki_pid=$!
++
+ sleep 1
+ 
+-./get.bin http://localhost:8080/edit/Test > test_edit.out
++./get.bin http://127.0.0.1:$port/edit/Test > test_edit.out
+ diff -u test_edit.out test_edit.good || cleanup 1
+-./get.bin -post=body=some%20content http://localhost:8080/save/Test
++./get.bin -post=body=some%20content http://127.0.0.1:$port/save/Test
+ diff -u Test.txt test_Test.txt.good || cleanup 1
+-./get.bin http://localhost:8080/view/Test > test_view.out
++./get.bin http://127.0.0.1:$port/view/Test > test_view.out
+ diff -u test_view.out test_view.good || cleanup 1
+ 
+ echo "Passed"

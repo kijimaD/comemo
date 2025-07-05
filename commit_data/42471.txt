@@ -13,7 +13,56 @@ Date:   Mon Dec 30 18:49:27 2019 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                                | 14 --------------
  src/cmd/go/testdata/script/build_plugin_non_main.txt | 17 +++++++++++++++++
  2 files changed, 17 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5e332ae2ac..2533c058fe 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2281,20 +2281,6 @@ func TestCoverageDashC(t *testing.T) {
+ 	tg.wantExecutable(tg.path("coverdep"), "go -test -c -coverprofile did not create executable")
+ }
+ 
+-func TestPluginNonMain(t *testing.T) {
+-	wd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	pkg := filepath.Join(wd, "testdata", "testdep", "p2")
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-
+-	tg.runFail("build", "-buildmode=plugin", pkg)
+-}
+-
+ func TestTestEmpty(t *testing.T) {
+ 	if !canRace {
+ 		t.Skip("no race detector")
+diff --git a/src/cmd/go/testdata/script/build_plugin_non_main.txt b/src/cmd/go/testdata/script/build_plugin_non_main.txt
+new file mode 100644
+index 0000000000..996d87d961
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_plugin_non_main.txt
+@@ -0,0 +1,17 @@
++# Plugins are only supported on linux,cgo and darwin,cgo.
++[!linux] [!darwin] skip
++[!cgo] skip
++
++go build -n testdep/p2
++! go build -buildmode=plugin testdep/p2
++stderr '-buildmode=plugin requires exactly one main package'
++
++-- testdep/p1/p1.go --
++package p1
++-- testdep/p1/p1_test.go --
++package p1
++
++import _ "testdep/p2"
++-- testdep/p2/p2.go --
++package p2
++

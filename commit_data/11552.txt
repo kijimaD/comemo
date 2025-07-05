@@ -10,6 +10,22 @@ Date:   Wed Feb 1 18:25:51 2012 -0500
     R=golang-dev, adg, bradfitz
     CC=golang-dev
     https://golang.org/cl/5619045
-
+---
  src/pkg/syscall/types_linux.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/syscall/types_linux.go b/src/pkg/syscall/types_linux.go
+index a02f21863b..395162f128 100644
+--- a/src/pkg/syscall/types_linux.go
++++ b/src/pkg/syscall/types_linux.go
+@@ -2,9 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-/*
+-Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
+-*/
++// Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
+ 
+ // +build ignore
+ 

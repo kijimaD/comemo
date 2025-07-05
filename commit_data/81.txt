@@ -6,7 +6,7 @@ Date:   Wed Jun 4 14:46:07 2008 -0700
     add src/test dir
     
     SVN=121166
-
+---
  src/{ => old}/c/const.c  | 0
  src/{ => old}/c/dcl.c    | 0
  src/{ => old}/c/export.c | 0
@@ -22,3 +22,60 @@ Date:   Wed Jun 4 14:46:07 2008 -0700
  src/{ => old}/c/test.c   | 0
  src/{ => old}/c/walk.c   | 0
  14 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/c/const.c b/src/old/c/const.c
+similarity index 100%
+rename from src/c/const.c
+rename to src/old/c/const.c
+diff --git a/src/c/dcl.c b/src/old/c/dcl.c
+similarity index 100%
+rename from src/c/dcl.c
+rename to src/old/c/dcl.c
+diff --git a/src/c/export.c b/src/old/c/export.c
+similarity index 100%
+rename from src/c/export.c
+rename to src/old/c/export.c
+diff --git a/src/c/gen.c b/src/old/c/gen.c
+similarity index 100%
+rename from src/c/gen.c
+rename to src/old/c/gen.c
+diff --git a/src/c/gen.h b/src/old/c/gen.h
+similarity index 100%
+rename from src/c/gen.h
+rename to src/old/c/gen.h
+diff --git a/src/c/go.h b/src/old/c/go.h
+similarity index 100%
+rename from src/c/go.h
+rename to src/old/c/go.h
+diff --git a/src/c/go.y b/src/old/c/go.y
+similarity index 100%
+rename from src/c/go.y
+rename to src/old/c/go.y
+diff --git a/src/c/gsubr.c b/src/old/c/gsubr.c
+similarity index 100%
+rename from src/c/gsubr.c
+rename to src/old/c/gsubr.c
+diff --git a/src/c/lex.c b/src/old/c/lex.c
+similarity index 100%
+rename from src/c/lex.c
+rename to src/old/c/lex.c
+diff --git a/src/c/mpatof.c b/src/old/c/mpatof.c
+similarity index 100%
+rename from src/c/mpatof.c
+rename to src/old/c/mpatof.c
+diff --git a/src/c/obj.c b/src/old/c/obj.c
+similarity index 100%
+rename from src/c/obj.c
+rename to src/old/c/obj.c
+diff --git a/src/c/subr.c b/src/old/c/subr.c
+similarity index 100%
+rename from src/c/subr.c
+rename to src/old/c/subr.c
+diff --git a/src/c/test.c b/src/old/c/test.c
+similarity index 100%
+rename from src/c/test.c
+rename to src/old/c/test.c
+diff --git a/src/c/walk.c b/src/old/c/walk.c
+similarity index 100%
+rename from src/c/walk.c
+rename to src/old/c/walk.c

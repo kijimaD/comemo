@@ -14,10 +14,182 @@ Date:   Fri Mar 19 15:21:14 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
  src/cmd/compile/internal/ssa/op.go                | 22 +++++-----------------
  src/cmd/compile/internal/ssa/rewrite.go           |  2 +-
  src/cmd/compile/internal/ssa/writebarrier.go      |  2 +-
  src/cmd/compile/internal/ssagen/ssa.go            | 16 ++++++----------
  5 files changed, 14 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index 5308d1ac48..2af6e8472c 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -247,7 +247,7 @@ func insertLoopReschedChecks(f *Func) {
+ 		//    goto header
+ 		resched := f.fe.Syslook("goschedguarded")
+ 		// TODO(register args) -- will need more details
+-		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, StaticAuxCall(resched, nil, nil, nil), mem0)
++		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, StaticAuxCall(resched, nil, nil), mem0)
+ 		sched.AddEdgeTo(h)
+ 		headerMemPhi.AddArg(mem1)
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index fe9ba0e156..9e7e169137 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -112,7 +112,6 @@ func (a *AuxNameOffset) String() string {
+ type AuxCall struct {
+ 	// TODO(register args) this information is largely redundant with ../abi information, needs cleanup once new ABI is in place.
+ 	Fn      *obj.LSym
+-	args    []Param // Includes receiver for method calls.  Does NOT include hidden closure pointer.
+ 	results []Param
+ 	reg     *regInfo                // regInfo for this call // TODO for now nil means ignore
+ 	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
+@@ -285,17 +284,6 @@ func (a *AuxCall) String() string {
+ 		fn = fmt.Sprintf("AuxCall{%v", a.Fn)
+ 	}
+ 
+-	if len(a.args) == 0 {
+-		fn += "()"
+-	} else {
+-		s := "("
+-		for _, arg := range a.args {
+-			fn += fmt.Sprintf("%s[%v,%v]", s, arg.Type, arg.Offset)
+-			s = ","
+-		}
+-		fn += ")"
+-	}
+-
+ 	if len(a.results) > 0 { // usual is zero or one; only some RT calls have more than one.
+ 		if len(a.results) == 1 {
+ 			fn += fmt.Sprintf("[%v,%v]", a.results[0].Type, a.results[0].Offset)
+@@ -323,7 +311,7 @@ func ACParamsToTypes(ps []Param) (ts []*types.Type) {
+ }
+ 
+ // StaticAuxCall returns an AuxCall for a static call.
+-func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
++func StaticAuxCall(sym *obj.LSym, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+ 	if paramResultInfo == nil {
+ 		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))
+ 	}
+@@ -331,7 +319,7 @@ func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo
+ 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+ 		reg = &regInfo{}
+ 	}
+-	return &AuxCall{Fn: sym, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
++	return &AuxCall{Fn: sym, results: results, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ // InterfaceAuxCall returns an AuxCall for an interface call.
+@@ -340,7 +328,7 @@ func InterfaceAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIPar
+ 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+ 		reg = &regInfo{}
+ 	}
+-	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
++	return &AuxCall{Fn: nil, results: results, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ // ClosureAuxCall returns an AuxCall for a closure call.
+@@ -349,7 +337,7 @@ func ClosureAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParam
+ 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+ 		reg = &regInfo{}
+ 	}
+-	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
++	return &AuxCall{Fn: nil, results: results, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ func (*AuxCall) CanBeAnSSAAux() {}
+@@ -361,7 +349,7 @@ func OwnAuxCall(fn *obj.LSym, args []Param, results []Param, paramResultInfo *ab
+ 	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
+ 		reg = &regInfo{}
+ 	}
+-	return &AuxCall{Fn: fn, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
++	return &AuxCall{Fn: fn, results: results, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ const (
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 3c222f80bf..9e67c3482c 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -765,7 +765,7 @@ func devirt(v *Value, aux Aux, sym Sym, offset int64) *AuxCall {
+ 		return nil
+ 	}
+ 	va := aux.(*AuxCall)
+-	return StaticAuxCall(lsym, va.args, va.results, va.abiInfo)
++	return StaticAuxCall(lsym, va.results, va.abiInfo)
+ }
+ 
+ // de-virtualize an InterLECall
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 0af039577f..9b956a4577 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -516,7 +516,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 	off = round(off, config.PtrSize)
+ 
+ 	// issue call
+-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, ACArgs, nil, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)), mem)
++	mem = b.NewValue1A(pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(fn, nil, b.Func.ABIDefault.ABIAnalyzeTypes(nil, argTypes, nil)), mem)
+ 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
+ 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, mem)
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 5d23b3bd79..f142810cf3 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4814,8 +4814,7 @@ func (s *state) openDeferExit() {
+ 			aux := ssa.ClosureAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
+ 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
+ 		} else {
+-			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACArgs, ACResults,
+-				s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
++			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
+ 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 		}
+ 		callArgs = append(callArgs, s.mem())
+@@ -4995,8 +4994,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 
+ 		// Call runtime.deferprocStack with pointer to _defer record.
+ 		ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(base.Ctxt.FixedFrameSize())})
+-		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, ACArgs, ACResults,
+-			s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
++		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
+ 		callArgs = append(callArgs, addr, s.mem())
+ 		call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 		call.AddArgs(callArgs...)
+@@ -5058,12 +5056,10 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		// call target
+ 		switch {
+ 		case k == callDefer:
+-			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, ACArgs, ACResults,
+-				s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults))) // TODO paramResultInfo for DeferProc
++			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults))) // TODO paramResultInfo for DeferProc
+ 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 		case k == callGo:
+-			aux := ssa.StaticAuxCall(ir.Syms.Newproc, ACArgs, ACResults,
+-				s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
++			aux := ssa.StaticAuxCall(ir.Syms.Newproc, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
+ 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux) // TODO paramResultInfo for NewProc
+ 		case closure != nil:
+ 			// rawLoad because loading the code pointer from a
+@@ -5079,7 +5075,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			aux := ssa.InterfaceAuxCall(ACArgs, ACResults, params)
+ 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
+ 		case callee != nil:
+-			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults, params)
++			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACResults, params)
+ 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 		default:
+ 			s.Fatalf("bad call type %v %v", n.Op(), n)
+@@ -5546,7 +5542,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 
+ 	// Issue call
+ 	var call *ssa.Value
+-	aux := ssa.StaticAuxCall(fn, ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, callArgTypes, results))
++	aux := ssa.StaticAuxCall(fn, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, callArgTypes, results))
+ 	callArgs = append(callArgs, s.mem())
+ 	call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 	call.AddArgs(callArgs...)

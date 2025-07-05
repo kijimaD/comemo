@@ -11,6 +11,19 @@ Date:   Tue Feb 9 16:54:51 2010 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/206053
-
+---
  src/pkg/runtime/freebsd/amd64/sys.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 02c3e91436..6fc96a0be3 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -61,6 +61,7 @@ TEXT	write(SB),7,$-8
+ TEXT gettime(SB), 7, $32
+ 	MOVL	$116, AX
+ 	LEAQ	8(SP), DI
++	MOVQ	$0, SI
+ 	SYSCALL
+ 
+ 	MOVQ	8(SP), BX	// sec

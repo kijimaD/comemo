@@ -21,6 +21,37 @@ Date:   Thu Oct 28 10:40:54 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/traceback_test.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index de9580ae53..0333b85c56 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -7,15 +7,23 @@ package runtime_test
+ import (
+ 	"bytes"
+ 	"internal/goexperiment"
++	"internal/testenv"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+ var testTracebackArgsBuf [1000]byte
+ 
+ func TestTracebackArgs(t *testing.T) {
+-	abiSel := func(x, y string) string { // select expected output based on ABI
+-		if goexperiment.RegabiArgs {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++	optimized := !strings.HasSuffix(testenv.Builder(), "-noopt")
++	abiSel := func(x, y string) string {
++		// select expected output based on ABI
++		// In noopt build we always spill arguments so the output is the same as stack ABI.
++		if optimized && goexperiment.RegabiArgs {
+ 			return x
+ 		}
+ 		return y

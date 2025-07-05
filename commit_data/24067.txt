@@ -10,7 +10,131 @@ Date:   Tue Jun 30 16:50:36 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/11811
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/multipart/multipart.go      | 35 +++++++++++++++++++++---
  src/mime/multipart/multipart_test.go | 52 ++++++++++++++++++++++++++++++++++++
  2 files changed, 84 insertions(+), 3 deletions(-)
+
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index 04a9c33aaf..6f65a55de2 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -165,16 +165,18 @@ func (pr partReader) Read(d []byte) (n int, err error) {
+ 	if peek == nil {
+ 		panic("nil peek buf")
+ 	}
+-
+ 	// Search the peek buffer for "\r\n--boundary". If found,
+ 	// consume everything up to the boundary. If not, consume only
+ 	// as much of the peek buffer as cannot hold the boundary
+ 	// string.
+ 	nCopy := 0
+ 	foundBoundary := false
+-	if idx := bytes.Index(peek, p.mr.nlDashBoundary); idx != -1 {
++	if idx, isEnd := p.mr.peekBufferSeparatorIndex(peek); idx != -1 {
+ 		nCopy = idx
+-		foundBoundary = true
++		foundBoundary = isEnd
++		if !isEnd && nCopy == 0 {
++			nCopy = 1 // make some progress.
++		}
+ 	} else if safeCount := len(peek) - len(p.mr.nlDashBoundary); safeCount > 0 {
+ 		nCopy = safeCount
+ 	} else if unexpectedEOF {
+@@ -338,6 +340,33 @@ func (mr *Reader) peekBufferIsEmptyPart(peek []byte) bool {
+ 	return bytes.HasPrefix(rest, mr.nl)
+ }
+ 
++// peekBufferSeparatorIndex returns the index of mr.nlDashBoundary in
++// peek and whether it is a real boundary (and not a prefix of an
++// unrelated separator). To be the end, the peek buffer must contain a
++// newline after the boundary.
++func (mr *Reader) peekBufferSeparatorIndex(peek []byte) (idx int, isEnd bool) {
++	idx = bytes.Index(peek, mr.nlDashBoundary)
++	if idx == -1 {
++		return
++	}
++	peek = peek[idx+len(mr.nlDashBoundary):]
++	if len(peek) > 1 && peek[0] == '-' && peek[1] == '-' {
++		return idx, true
++	}
++	peek = skipLWSPChar(peek)
++	// Don't have a complete line after the peek.
++	if bytes.IndexByte(peek, '\n') == -1 {
++		return -1, false
++	}
++	if len(peek) > 0 && peek[0] == '\n' {
++		return idx, true
++	}
++	if len(peek) > 1 && peek[0] == '\r' && peek[1] == '\n' {
++		return idx, true
++	}
++	return idx, false
++}
++
+ // skipLWSPChar returns b with leading spaces and tabs removed.
+ // RFC 822 defines:
+ //    LWSP-char = SPACE / HTAB
+diff --git a/src/mime/multipart/multipart_test.go b/src/mime/multipart/multipart_test.go
+index d662e83405..d730888490 100644
+--- a/src/mime/multipart/multipart_test.go
++++ b/src/mime/multipart/multipart_test.go
+@@ -565,6 +565,58 @@ foo: bar
+ 		},
+ 	},
+ 
++	// Issue 10616; minimal
++	{
++		name: "issue 10616 minimal",
++		sep:  "sep",
++		in: "--sep \r\nFoo: bar\r\n\r\n" +
++			"a\r\n" +
++			"--sep_alt\r\n" +
++			"b\r\n" +
++			"\r\n--sep--",
++		want: []headerBody{
++			{textproto.MIMEHeader{"Foo": {"bar"}}, "a\r\n--sep_alt\r\nb\r\n"},
++		},
++	},
++
++	// Issue 10616; full example from bug.
++	{
++		name: "nested separator prefix is outer separator",
++		sep:  "----=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9",
++		in: strings.Replace(`------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9
++Content-Type: multipart/alternative; boundary="----=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt"
++
++------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
++Content-Type: text/plain; charset="utf-8"
++Content-Transfer-Encoding: 8bit
++
++This is a multi-part message in MIME format.
++
++------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
++Content-Type: text/html; charset="utf-8"
++Content-Transfer-Encoding: 8bit
++
++html things
++------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt--
++------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9--`, "\n", "\r\n", -1),
++		want: []headerBody{
++			{textproto.MIMEHeader{"Content-Type": {`multipart/alternative; boundary="----=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt"`}},
++				strings.Replace(`------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
++Content-Type: text/plain; charset="utf-8"
++Content-Transfer-Encoding: 8bit
++
++This is a multi-part message in MIME format.
++
++------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
++Content-Type: text/html; charset="utf-8"
++Content-Transfer-Encoding: 8bit
++
++html things
++------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt--`, "\n", "\r\n", -1),
++			},
++		},
++	},
++
+ 	roundTripParseTest(),
+ }
+ 

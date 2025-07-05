@@ -12,6 +12,22 @@ Date:   Tue Jun 27 16:49:09 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 219ea01e8e..1318babdea 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -56,6 +56,10 @@ func checkGdbVersion(t *testing.T) {
+ }
+ 
+ func checkGdbPython(t *testing.T) {
++	if runtime.GOOS == "solaris" && testenv.Builder() != "solaris-amd64-smartosbuildlet" {
++		t.Skip("skipping gdb python tests on solaris; see golang.org/issue/20821")
++	}
++
+ 	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')")
+ 	out, err := cmd.CombinedOutput()
+ 

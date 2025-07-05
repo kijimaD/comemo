@@ -17,7 +17,170 @@ Date:   Wed Nov 18 12:14:07 2015 +1300
     Change-Id: I32a8561e7fc9dd4ca6ae3b0e57ad78a6c50bf1f5
     Reviewed-on: https://go-review.googlesource.com/17014
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 40 +++++++++++++++++--------
  src/cmd/internal/obj/x86/obj6.go | 65 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 93 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 95b79e1695..219d29c44a 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2096,7 +2096,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 
+ 		case obj.NAME_EXTERN,
+ 			obj.NAME_STATIC:
+-			if a.Sym != nil && isextern(a.Sym) || p.Mode == 32 {
++			if a.Sym != nil && isextern(a.Sym) || (p.Mode == 32 && ctxt.Flag_shared == 0) {
+ 				return Yi32
+ 			}
+ 			return Yiauto // use pc-relative addressing
+@@ -2515,7 +2515,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
+ 		if a.Name == obj.NAME_GOTREF {
+ 			r.Siz = 4
+ 			r.Type = obj.R_GOTPCREL
+-		} else if isextern(s) || p.Mode != 64 {
++		} else if isextern(s) || (p.Mode != 64 && ctxt.Flag_shared == 0) {
+ 			r.Siz = 4
+ 			r.Type = obj.R_ADDR
+ 		} else {
+@@ -2592,7 +2592,11 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
+ 			if !isextern(a.Sym) && p.Mode == 64 {
+ 				goto bad
+ 			}
+-			base = REG_NONE
++			if p.Mode == 32 && ctxt.Flag_shared != 0 {
++				base = REG_CX
++			} else {
++				base = REG_NONE
++			}
+ 			v = int32(vaddr(ctxt, p, a, &rel))
+ 
+ 		case obj.NAME_AUTO,
+@@ -2638,7 +2642,11 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
+ 		if a.Sym == nil {
+ 			ctxt.Diag("bad addr: %v", p)
+ 		}
+-		base = REG_NONE
++		if p.Mode == 32 && ctxt.Flag_shared != 0 {
++			base = REG_CX
++		} else {
++			base = REG_NONE
++		}
+ 		v = int32(vaddr(ctxt, p, a, &rel))
+ 
+ 	case obj.NAME_AUTO,
+@@ -4550,14 +4558,22 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
+ 			r.Off++
+ 		}
+ 		if r.Type == obj.R_PCREL {
+-			// PC-relative addressing is relative to the end of the instruction,
+-			// but the relocations applied by the linker are relative to the end
+-			// of the relocation. Because immediate instruction
+-			// arguments can follow the PC-relative memory reference in the
+-			// instruction encoding, the two may not coincide. In this case,
+-			// adjust addend so that linker can keep relocating relative to the
+-			// end of the relocation.
+-			r.Add -= p.Pc + int64(n) - (int64(r.Off) + int64(r.Siz))
++			if p.Mode == 64 || p.As == obj.AJMP || p.As == obj.ACALL {
++				// PC-relative addressing is relative to the end of the instruction,
++				// but the relocations applied by the linker are relative to the end
++				// of the relocation. Because immediate instruction
++				// arguments can follow the PC-relative memory reference in the
++				// instruction encoding, the two may not coincide. In this case,
++				// adjust addend so that linker can keep relocating relative to the
++				// end of the relocation.
++				r.Add -= p.Pc + int64(n) - (int64(r.Off) + int64(r.Siz))
++			} else if p.Mode == 32 {
++				// On 386 PC-relative addressing (for non-call/jmp instructions)
++				// assumes that the previous instruction loaded the PC of the end
++				// of that instruction into CX, so the adjustment is relative to
++				// that.
++				r.Add += int64(r.Off) - p.Pc + int64(r.Siz)
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index f19fc77898..c6e93a6902 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -311,6 +311,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	if ctxt.Flag_dynlink {
+ 		rewriteToUseGot(ctxt, p)
+ 	}
++
++	if ctxt.Flag_shared != 0 && p.Mode == 32 {
++		rewriteToPcrel(ctxt, p)
++	}
+ }
+ 
+ // Rewrite p, if necessary, to access global data via the global offset table.
+@@ -426,6 +430,67 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	obj.Nopout(p)
+ }
+ 
++func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
++	// RegTo2 is set on the instructions we insert here so they don't get
++	// processed twice.
++	if p.RegTo2 != 0 {
++		return
++	}
++	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
++		return
++	}
++	// Any Prog (aside from the above special cases) with an Addr with Name ==
++	// NAME_EXTERN, NAME_STATIC or NAME_GOTREF has a CALL __x86.get_pc_thunk.cx
++	// inserted before it.
++	isName := func(a *obj.Addr) bool {
++		if a.Sym == nil || (a.Type != obj.TYPE_MEM && a.Type != obj.TYPE_ADDR) || a.Reg != 0 {
++			return false
++		}
++		if a.Sym.Type == obj.STLSBSS {
++			return false
++		}
++		return a.Name == obj.NAME_EXTERN || a.Name == obj.NAME_STATIC || a.Name == obj.NAME_GOTREF
++	}
++
++	if isName(&p.From) && p.From.Type == obj.TYPE_ADDR {
++		// Handle things like "MOVL $sym, (SP)" or "PUSHL $sym" by rewriting
++		// to "MOVL $sym, CX; MOVL CX, (SP)" or "MOVL $sym, CX; PUSHL CX"
++		// respectively.
++		if p.To.Type != obj.TYPE_REG {
++			q := obj.Appendp(ctxt, p)
++			q.As = p.As
++			q.From.Type = obj.TYPE_REG
++			q.From.Reg = REG_CX
++			q.To = p.To
++			p.As = AMOVL
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = REG_CX
++			p.To.Sym = nil
++			p.To.Name = obj.NAME_NONE
++		}
++	}
++
++	if !isName(&p.From) && !isName(&p.To) && (p.From3 == nil || !isName(p.From3)) {
++		return
++	}
++	q := obj.Appendp(ctxt, p)
++	q.RegTo2 = 1
++	r := obj.Appendp(ctxt, q)
++	r.RegTo2 = 1
++	q.As = obj.ACALL
++	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk.cx", 0)
++	q.To.Type = obj.TYPE_MEM
++	q.To.Name = obj.NAME_EXTERN
++	q.To.Sym.Local = true
++	r.As = p.As
++	r.Scond = p.Scond
++	r.From = p.From
++	r.From3 = p.From3
++	r.Reg = p.Reg
++	r.To = p.To
++	obj.Nopout(p)
++}
++
+ func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+ 	if p.As == ALEAL || p.As == ALEAQ {
+ 		return

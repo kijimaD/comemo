@@ -22,7 +22,7 @@ Date:   Mon Feb 13 22:31:51 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5645093
-
+---
  src/all.bash                         |   4 +-
  src/cmd/dist/a.h                     |   2 +
  src/cmd/dist/build.c                 | 194 ++++++++++++++++++++++++-----------
@@ -40,3 +40,863 @@ Date:   Mon Feb 13 22:31:51 2012 -0500
  test/fixedbugs/bug302.go             |   2 +-
  test/run                             |   4 +-
  16 files changed, 256 insertions(+), 104 deletions(-)
+
+diff --git a/src/all.bash b/src/all.bash
+index d80a09d116..932b65dc07 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -9,5 +9,5 @@ if [ ! -f make.bash ]; then
+ 	exit 1
+ fi
+ . ./make.bash --no-banner
+-bash run.bash --no-rebuild
+-../bin/tool/dist banner  # print build info
++bash run.bash --no-rebuild --banner
++$GOTOOLDIR/dist banner  # print build info
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index e90f7fe65d..3fbace3f6d 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -72,7 +72,9 @@ extern char *goroot;
+ extern char *goroot_final;
+ extern char *goversion;
+ extern char *workdir;
++extern char *tooldir;
+ extern char *slash;
++extern bool rebuildall;
+ 
+ int	find(char*, char**, int);
+ void	init(void);
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index c8984300b0..72097230a1 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -13,15 +13,19 @@
+ char *goarch;
+ char *gobin;
+ char *gohostarch;
++char *gohostchar;
+ char *gohostos;
+ char *goos;
+ char *goroot = GOROOT_FINAL;
+ char *goroot_final = GOROOT_FINAL;
+ char *workdir;
++char	*tooldir;
+ char *gochar;
+ char *goversion;
+ char *slash;	// / for unix, \ for windows
+ 
++bool	rebuildall = 0;
++
+ static bool shouldbuild(char*, char*);
+ static void copy(char*, char*);
+ static char *findgoversion(void);
+@@ -99,14 +103,18 @@ init(void)
+ 	if(b.len > 0)
+ 		gohostarch = btake(&b);
+ 
+-	if(find(gohostarch, okgoarch, nelem(okgoarch)) < 0)
++	i = find(gohostarch, okgoarch, nelem(okgoarch));
++	if(i < 0)
+ 		fatal("unknown $GOHOSTARCH %s", gohostarch);
++	bprintf(&b, "%c", gochars[i]);
++	gohostchar = btake(&b);
+ 
+ 	xgetenv(&b, "GOARCH");
+ 	if(b.len == 0)
+ 		bwritestr(&b, gohostarch);
+ 	goarch = btake(&b);
+-	if((i=find(goarch, okgoarch, nelem(okgoarch))) < 0)
++	i = find(goarch, okgoarch, nelem(okgoarch));
++	if(i < 0)
+ 		fatal("unknown $GOARCH %s", goarch);
+ 	bprintf(&b, "%c", gochars[i]);
+ 	gochar = btake(&b);
+@@ -124,6 +132,9 @@ init(void)
+ 	workdir = xworkdir();
+ 	xatexit(rmworkdir);
+ 
++	bpathf(&b, "%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch);
++	tooldir = btake(&b);
++
+ 	bfree(&b);
+ }
+ 
+@@ -256,6 +267,7 @@ static char *oldtool[] = {
+ 	"8a", "8c", "8g", "8l",
+ 	"6cov",
+ 	"6nm",
++	"6prof",
+ 	"cgo",
+ 	"ebnflint",
+ 	"goapi",
+@@ -281,11 +293,8 @@ setup(void)
+ 
+ 	binit(&b);
+ 
+-	// Create tool directory.
++	// Create bin directory.
+ 	p = bpathf(&b, "%s/bin", goroot);
+-	if(!isdir(p))
+-		xmkdir(p);
+-	p = bpathf(&b, "%s/bin/tool", goroot);
+ 	if(!isdir(p))
+ 		xmkdir(p);
+ 
+@@ -293,21 +302,42 @@ setup(void)
+ 	p = bpathf(&b, "%s/pkg", goroot);
+ 	if(!isdir(p))
+ 		xmkdir(p);
+-	p = bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch);
+-	xremoveall(p);
++	p = bpathf(&b, "%s/pkg/%s_%s", goroot, gohostos, gohostarch);
++	if(rebuildall)
++		xremoveall(p);
+ 	xmkdir(p);
+-
++	if(!streq(goos, gohostos) || !streq(goarch, gohostarch)) {
++		p = bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch);
++		if(rebuildall)
++			xremoveall(p);
++		xmkdir(p);
++	}
++	
+ 	// Create object directory.
+ 	// We keep it in pkg/ so that all the generated binaries
+-	// are in one tree.
+-	p = bpathf(&b, "%s/pkg/obj", goroot);
+-	xremoveall(p);
+-	xmkdir(p);
++	// are in one tree.  If pkg/obj/libgc.a exists, it is a dreg from
++	// before we used subdirectories of obj.  Delete all of obj
++	// to clean up.
++	bpathf(&b, "%s/pkg/obj/libgc.a", goroot);
++	if(isfile(bstr(&b)))
++		xremoveall(bpathf(&b, "%s/pkg/obj", goroot));
++	p = bpathf(&b, "%s/pkg/obj/%s_%s", goroot, gohostos, gohostarch);
++	if(rebuildall)
++		xremoveall(p);
++	xmkdirall(p);
++
++	// Create tool directory.
++	// We keep it in pkg/, just like the object directory above.
++	xremoveall(tooldir);
++	xmkdirall(tooldir);
++
++	// Remove tool binaries from before the tool/gohostos_gohostarch
++	xremoveall(bpathf(&b, "%s/bin/tool", goroot));
+ 
+ 	// Remove old pre-tool binaries.
+ 	for(i=0; i<nelem(oldtool); i++)
+-		xremove(bprintf(&b, "%s%s%s%s%s", goroot, slash, "bin", slash, oldtool[i]));
+-	
++		xremove(bpathf(&b, "%s/bin/%s", goroot, oldtool[i]));
++
+ 	// If $GOBIN is set and has a Go compiler, it must be cleaned.
+ 	for(i=0; gochars[i]; i++) {
+ 		if(isfile(bprintf(&b, "%s%s%c%s", gobin, slash, gochars[i], "g"))) {
+@@ -390,37 +420,37 @@ static struct {
+ 		"../cc/pgen.c",
+ 		"../cc/pswt.c",
+ 		"../5l/enam.c",
+-		"$GOROOT/pkg/obj/libcc.a",
++		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
+ 	}},
+ 	{"cmd/6c", {
+ 		"../cc/pgen.c",
+ 		"../cc/pswt.c",
+ 		"../6l/enam.c",
+-		"$GOROOT/pkg/obj/libcc.a",
++		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
+ 	}},
+ 	{"cmd/8c", {
+ 		"../cc/pgen.c",
+ 		"../cc/pswt.c",
+ 		"../8l/enam.c",
+-		"$GOROOT/pkg/obj/libcc.a",
++		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
+ 	}},
+ 	{"cmd/5g", {
+ 		"../gc/cplx.c",
+ 		"../gc/pgen.c",
+ 		"../5l/enam.c",
+-		"$GOROOT/pkg/obj/libgc.a",
++		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+ 	}},
+ 	{"cmd/6g", {
+ 		"../gc/cplx.c",
+ 		"../gc/pgen.c",
+ 		"../6l/enam.c",
+-		"$GOROOT/pkg/obj/libgc.a",
++		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+ 	}},
+ 	{"cmd/8g", {
+ 		"../gc/cplx.c",
+ 		"../gc/pgen.c",
+ 		"../8l/enam.c",
+-		"$GOROOT/pkg/obj/libgc.a",
++		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+ 	}},
+ 	{"cmd/5l", {
+ 		"../ld/data.c",
+@@ -442,9 +472,9 @@ static struct {
+ 		"enam.c",
+ 	}},
+ 	{"cmd/", {
+-		"$GOROOT/pkg/obj/libmach.a",
+-		"$GOROOT/pkg/obj/libbio.a",
+-		"$GOROOT/pkg/obj/lib9.a",
++		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libmach.a",
++		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libbio.a",
++		"$GOROOT/pkg/obj/$GOOS_$GOARCH/lib9.a",
+ 	}},
+ 	{"pkg/runtime", {
+ 		"zasm_$GOOS_$GOARCH.h",
+@@ -490,8 +520,12 @@ install(char *dir)
+ 	Time ttarg, t;
+ 	int i, j, k, n, doclean;
+ 
+-	if(vflag)
+-		xprintf("%s\n", dir);
++	if(vflag) {
++		if(!streq(goos, gohostos) || !streq(goarch, gohostarch))
++			xprintf("%s (%s/%s)\n", dir, goos, goarch);
++		else
++			xprintf("%s\n", dir);
++	}
+ 
+ 	binit(&b);
+ 	binit(&b1);
+@@ -521,7 +555,7 @@ install(char *dir)
+ 
+ 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
+ 	ispkg = hasprefix(dir, "pkg");
+-	isgo = ispkg || streq(dir, "cmd/go");
++	isgo = ispkg || streq(dir, "cmd/go") || streq(dir, "cmd/cgo");
+ 
+ 	exe = "";
+ 	if(streq(gohostos, "windows"))
+@@ -536,27 +570,30 @@ install(char *dir)
+ 		prefix = "";
+ 		if(!hasprefix(name, "lib"))
+ 			prefix = "lib";
+-		vadd(&link, bpathf(&b, "%s/pkg/obj/%s%s.a", goroot, prefix, name));
++		vadd(&link, bpathf(&b, "%s/pkg/obj/%s_%s/%s%s.a", goroot, gohostos, gohostarch, prefix, name));
+ 	} else if(ispkg) {
+ 		// Go library (package).
+-		vadd(&link, bpathf(&b, "%s/bin/tool/pack", goroot));
++		vadd(&link, bpathf(&b, "%s/pack", tooldir));
+ 		vadd(&link, "grc");
+-		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, goos, goarch, dir+4);
++		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, gohostos, gohostarch, dir+4);
+ 		*xstrrchr(p, '/') = '\0';
+ 		xmkdirall(p);
+-		vadd(&link, bpathf(&b, "%s/pkg/%s_%s/%s.a", goroot, goos, goarch, dir+4));
+-	} else if(streq(dir, "cmd/go")) {
++		vadd(&link, bpathf(&b, "%s/pkg/%s_%s/%s.a", goroot, gohostos, gohostarch, dir+4));
++	} else if(streq(dir, "cmd/go") || streq(dir, "cmd/cgo")) {
+ 		// Go command.
+-		vadd(&link, bpathf(&b, "%s/bin/tool/%sl", goroot, gochar));
++		vadd(&link, bpathf(&b, "%s/%sl", tooldir, gochar));
+ 		vadd(&link, "-o");
+-		vadd(&link, bpathf(&b, "%s/bin/tool/go_bootstrap%s", goroot, exe));
++		elem = name;
++		if(streq(elem, "go"))
++			elem = "go_bootstrap";
++		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, elem, exe));
+ 	} else {
+ 		// C command.
+ 		// Use gccargs, but ensure that link.p[2] is output file,
+ 		// as noted above.
+ 		vadd(&link, gccargs.p[0]);
+ 		vadd(&link, "-o");
+-		vadd(&link, bpathf(&b, "%s/bin/tool/%s%s", goroot, name, exe));
++		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, name, exe));
+ 		vcopy(&link, gccargs.p+1, gccargs.len-1);
+ 		if(streq(gohostarch, "amd64"))
+ 			vadd(&link, "-m64");
+@@ -636,7 +673,7 @@ install(char *dir)
+ 	}
+ 
+ 	// Is the target up-to-date?
+-	stale = 1;  // TODO: Decide when 0 is okay.
++	stale = rebuildall;
+ 	n = 0;
+ 	for(i=0; i<files.len; i++) {
+ 		p = files.p[i];
+@@ -682,12 +719,6 @@ install(char *dir)
+ 		copy(bpathf(&b, "%s/signals_GOOS.h", workdir),
+ 			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos));
+ 	}
+-	
+-	// For cmd/prof, copy pprof into the tool directory.
+-	if(streq(dir, "cmd/prof")) {
+-		copy(bpathf(&b, "%s/bin/tool/pprof", goroot),
+-			bpathf(&b1, "%s/src/cmd/prof/pprof", goroot));
+-	}
+ 
+ 	// Generate any missing files; regenerate existing ones.
+ 	for(i=0; i<files.len; i++) {
+@@ -737,6 +768,13 @@ install(char *dir)
+ 		}
+ 		vuniq(&files);
+ 	}
++	
++	if(!streq(goos, gohostos) || !streq(goarch, gohostarch)) {
++		// We've generated the right files; the go command can do the build.
++		if(vflag > 1)
++			xprintf("skip build for cross-compile %s\n", dir);
++		goto nobuild;
++	}
+ 
+ 	// Compile the files.
+ 	for(i=0; i<files.len; i++) {
+@@ -762,7 +800,7 @@ install(char *dir)
+ 			vadd(&compile, "-I");
+ 			vadd(&compile, bstr(&path));
+ 	
+-			// runtime/goos.c gets the default constants hard-coded.
++			// lib9/goos.c gets the default constants hard-coded.
+ 			if(streq(name, "goos.c")) {
+ 				vadd(&compile, bprintf(&b, "-DGOOS=\"%s\"", goos));
+ 				vadd(&compile, bprintf(&b, "-DGOARCH=\"%s\"", goarch));
+@@ -780,9 +818,9 @@ install(char *dir)
+ 		} else {
+ 			// Supporting files for a Go package.
+ 			if(hassuffix(files.p[i], ".s"))
+-				vadd(&compile, bpathf(&b, "%s/bin/tool/%sa", goroot, gochar));
++				vadd(&compile, bpathf(&b, "%s/%sa", tooldir, gochar));
+ 			else {
+-				vadd(&compile, bpathf(&b, "%s/bin/tool/%sc", goroot, gochar));
++				vadd(&compile, bpathf(&b, "%s/%sc", tooldir, gochar));
+ 				vadd(&compile, "-FVw");
+ 			}
+ 			vadd(&compile, "-I");
+@@ -820,7 +858,7 @@ install(char *dir)
+ 		// The last loop was compiling individual files.
+ 		// Hand the Go files to the compiler en masse.
+ 		vreset(&compile);
+-		vadd(&compile, bpathf(&b, "%s/bin/tool/%sg", goroot, gochar));
++		vadd(&compile, bpathf(&b, "%s/%sg", tooldir, gochar));
+ 
+ 		bpathf(&b, "%s/_go_.%s", workdir, gochar);
+ 		vadd(&compile, "-o");
+@@ -853,6 +891,7 @@ install(char *dir)
+ 
+ 	runv(nil, nil, CheckExit, &link);
+ 
++nobuild:
+ 	// In package runtime, we install runtime.h and cgocall.h too,
+ 	// for use by cgo compilation.
+ 	if(streq(dir, "pkg/runtime")) {
+@@ -921,6 +960,8 @@ shouldbuild(char *file, char *dir)
+ 	// so special case that file.
+ 	if(hassuffix(file, "cmd/go/doc.go") || hassuffix(file, "cmd\\go\\doc.go"))
+ 		return 0;
++	if(hassuffix(file, "cmd/cgo/doc.go") || hassuffix(file, "cmd\\cgo\\doc.go"))
++		return 0;
+ 
+ 	// Check file contents for // +build lines.
+ 	binit(&b);
+@@ -940,7 +981,7 @@ shouldbuild(char *file, char *dir)
+ 			ret = 0;
+ 			goto out;
+ 		}
+-		if(contains(p, "package main") && !streq(dir, "cmd/go")) {
++		if(contains(p, "package main") && !streq(dir, "cmd/go") && !streq(dir, "cmd/cgo")) {
+ 			ret = 0;
+ 			goto out;
+ 		}
+@@ -1044,7 +1085,6 @@ static char *buildorder[] = {
+ 	"pkg/net/url",
+ 	"pkg/text/template/parse",
+ 	"pkg/text/template",
+-
+ 	"cmd/go",
+ };
+ 
+@@ -1140,15 +1180,18 @@ clean(void)
+ 			xremove(bpathf(&b, "%s/%s", bstr(&path), cleantab[i]+4));
+ 	}
+ 
+-	// Remove object tree.
+-	xremoveall(bpathf(&b, "%s/pkg/obj", goroot));
++	if(rebuildall) {
++		// Remove object tree.
++		xremoveall(bpathf(&b, "%s/pkg/obj/%s_%s", goroot, gohostos, gohostarch));
+ 	
+-	// Remove installed packages and tools.
+-	xremoveall(bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
+-	xremove(bpathf(&b, "%s/bin/tool", goroot));
+-	
+-	// Remove cached version info.
+-	xremove(bpathf(&b, "%s/VERSION.cache", goroot));
++		// Remove installed packages and tools.
++		xremoveall(bpathf(&b, "%s/pkg/%s_%s", goroot, gohostos, gohostarch));
++		xremoveall(bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
++		xremoveall(tooldir);
++
++		// Remove cached version info.
++		xremove(bpathf(&b, "%s/VERSION.cache", goroot));
++	}
+ 
+ 	bfree(&b);
+ 	bfree(&path);
+@@ -1212,7 +1255,11 @@ cmdenv(int argc, char **argv)
+ 	xprintf(format, "GOBIN", gobin);
+ 	xprintf(format, "GOARCH", goarch);
+ 	xprintf(format, "GOOS", goos);
++	xprintf(format, "GOHOSTARCH", gohostarch);
++	xprintf(format, "GOHOSTOS", gohostos);
++	xprintf(format, "GOTOOLDIR", tooldir);
+ 	xprintf(format, "GOCHAR", gochar);
++
+ 	if(pflag) {
+ 		sep = ":";
+ 		if(streq(gohostos, "windows"))
+@@ -1233,8 +1280,14 @@ cmdbootstrap(int argc, char **argv)
+ {
+ 	int i;
+ 	Buf b;
++	char *oldgoos, *oldgoarch, *oldgochar;
++
++	binit(&b);
+ 
+ 	ARGBEGIN{
++	case 'a':
++		rebuildall = 1;
++		break;
+ 	case 'v':
+ 		vflag++;
+ 		break;
+@@ -1249,9 +1302,32 @@ cmdbootstrap(int argc, char **argv)
+ 	goversion = findgoversion();
+ 	setup();
+ 	
+-	binit(&b);
+-	for(i=0; i<nelem(buildorder); i++)
+-		install(bprintf(&b, buildorder[i], gochar));
++	// For the main bootstrap, building for host os/arch.
++	oldgoos = goos;
++	oldgoarch = goarch;
++	oldgochar = gochar;
++	goos = gohostos;
++	goarch = gohostarch;
++	gochar = gohostchar;
++	xsetenv("GOARCH", goarch);
++	xsetenv("GOOS", goos);
++	
++	for(i=0; i<nelem(buildorder); i++) {
++		install(bprintf(&b, buildorder[i], gohostchar));
++		if(!streq(oldgochar, gohostchar) && xstrstr(buildorder[i], "%s"))
++			install(bprintf(&b, buildorder[i], oldgochar));
++	}
++
++	goos = oldgoos;
++	goarch = oldgoarch;
++	gochar = oldgochar;
++	xsetenv("GOARCH", goarch);
++	xsetenv("GOOS", goos);
++
++	// Build pkg/runtime for actual goos/goarch too.
++	if(!streq(goos, gohostos) || !streq(goarch, gohostarch))
++		install("pkg/runtime");
++
+ 	bfree(&b);
+ }
+ 
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index dfecc2be0d..03ebd345fd 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -191,7 +191,7 @@ ok:
+ 	// Run 6c -DGOOS_goos -DGOARCH_goarch -Iworkdir -a proc.c
+ 	// to get acid [sic] output.
+ 	vreset(&argv);
+-	vadd(&argv, bpathf(&b, "%s/bin/tool/%sc", goroot, gochar));
++	vadd(&argv, bpathf(&b, "%s/%sc", tooldir, gochar));
+ 	vadd(&argv, bprintf(&b, "-DGOOS_%s", goos));
+ 	vadd(&argv, bprintf(&b, "-DGOARCH_%s", goarch));
+ 	vadd(&argv, bprintf(&b, "-I%s", workdir));
+@@ -287,7 +287,7 @@ mkzruntimedefs(char *dir, char *file)
+ 	
+ 	// Run 6c -DGOOS_goos -DGOARCH_goarch -Iworkdir -q
+ 	// on each of the runtimedefs C files.
+-	vadd(&argv, bpathf(&b, "%s/bin/tool/%sc", goroot, gochar));
++	vadd(&argv, bpathf(&b, "%s/%sc", tooldir, gochar));
+ 	vadd(&argv, bprintf(&b, "-DGOOS_%s", goos));
+ 	vadd(&argv, bprintf(&b, "-DGOARCH_%s", goarch));
+ 	vadd(&argv, bprintf(&b, "-I%s", workdir));
+diff --git a/src/cmd/dist/goc2c.c b/src/cmd/dist/goc2c.c
+index 6829dedc78..2443c30b10 100644
+--- a/src/cmd/dist/goc2c.c
++++ b/src/cmd/dist/goc2c.c
+@@ -709,15 +709,23 @@ goc2c(char *goc, char *c)
+ 
+ 	// TODO: set gcc=1 when using gcc
+ 
+-	if(!gcc && streq(goarch, "amd64")) {
+-		type_table[Uintptr].size = 8;
+-		type_table[String].size = 16;
+-		type_table[Slice].size = 8+4+4;
+-		type_table[Eface].size = 8+8;
+-		structround = 8;
++	if(!gcc) {
++		if(streq(goarch, "amd64")) {
++			type_table[Uintptr].size = 8;
++			type_table[String].size = 16;
++			type_table[Slice].size = 8+4+4;
++			type_table[Eface].size = 8+8;
++			structround = 8;
++		} else {
++			type_table[Uintptr].size = 4;
++			type_table[String].size = 8;
++			type_table[Slice].size = 16;
++			type_table[Eface].size = 4+4;
++			structround = 4;
++		}
+ 	}
+ 
+-	bprintf(&out, "// auto generated by go tool dist\n\n");
++	bprintf(&out, "// auto generated by go tool dist\n// goos=%s goarch=%s\n\n", goos, goarch);
+ 	input = bstr(&in);
+ 	output = &out;
+ 
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 632ebbcdba..5aedbed18d 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -145,6 +145,7 @@ static struct {
+ 	int pid;
+ 	int mode;
+ 	char *cmd;
++	Buf *b;
+ } bg[MAXBG];
+ static int nbg;
+ static int maxnbg = nelem(bg);
+@@ -219,6 +220,7 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
+ 	bg[nbg].pid = pid;
+ 	bg[nbg].mode = mode;
+ 	bg[nbg].cmd = btake(&cmd);
++	bg[nbg].b = b;
+ 	nbg++;
+ 	
+ 	if(wait)
+@@ -233,6 +235,7 @@ bgwait1(void)
+ {
+ 	int i, pid, status, mode;
+ 	char *cmd;
++	Buf *b;
+ 
+ 	errno = 0;
+ 	while((pid = wait(&status)) < 0) {
+@@ -248,9 +251,13 @@ ok:
+ 	cmd = bg[i].cmd;
+ 	mode = bg[i].mode;
+ 	bg[i].pid = 0;
++	b = bg[i].b;
++	bg[i].b = nil;
+ 	bg[i] = bg[--nbg];
+ 	
+ 	if(mode == CheckExit && (!WIFEXITED(status) || WEXITSTATUS(status) != 0)) {
++		if(b != nil)
++			xprintf("%s\n", bstr(b));
+ 		fatal("FAILED: %s", cmd);
+ 	}
+ 	xfree(cmd);
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index da046eedbc..b8af30e370 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -347,14 +347,21 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		a.deps = append(a.deps, b.action(depMode, depMode, p1))
+ 	}
+ 
+-	if len(p.CgoFiles) > 0 {
+-		var stk importStack
+-		p1 := loadPackage("cmd/cgo", &stk)
+-		if p1.Error != nil {
+-			fatalf("load cmd/cgo: %v", p1.Error)
++	// If we are not doing a cross-build, then record the binary we'll
++	// generate for cgo as a dependency of the build of any package
++	// using cgo, to make sure we do not overwrite the binary while
++	// a package is using it.  If this is a cross-build, then the cgo we
++	// are writing is not the cgo we need to use.
++	if b.goos == runtime.GOOS && b.goarch == runtime.GOARCH {
++		if len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo" {
++			var stk importStack
++			p1 := loadPackage("cmd/cgo", &stk)
++			if p1.Error != nil {
++				fatalf("load cmd/cgo: %v", p1.Error)
++			}
++			a.cgo = b.action(depMode, depMode, p1)
++			a.deps = append(a.deps, a.cgo)
+ 		}
+-		a.cgo = b.action(depMode, depMode, p1)
+-		a.deps = append(a.deps, a.cgo)
+ 	}
+ 
+ 	if p.Standard {
+@@ -567,7 +574,11 @@ func (b *builder) build(a *action) error {
+ 			sfiles = nil
+ 		}
+ 
+-		outGo, outObj, err := b.cgo(a.p, a.cgo.target, obj, gccfiles)
++		cgoExe := tool("cgo")
++		if a.cgo != nil {
++			cgoExe = a.cgo.target
++		}
++		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, gccfiles)
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index e9fe845c56..00c5d30b50 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -295,13 +295,14 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
+ 
+ 	if info.Package == "main" {
+ 		_, elem := filepath.Split(importPath)
+-		if ctxt.GOOS != toolGOOS || ctxt.GOARCH != toolGOARCH {
+-			// Install cross-compiled binaries to subdirectories of bin.
+-			elem = ctxt.GOOS + "_" + ctxt.GOARCH + "/" + elem
+-		}
++		full := ctxt.GOOS + "_" + ctxt.GOARCH + "/" + elem
+ 		if t.Goroot && isGoTool[p.ImportPath] {
+-			p.target = filepath.Join(t.Path, "bin/tool", elem)
++			p.target = filepath.Join(t.Path, "pkg/tool", full)
+ 		} else {
++			if ctxt.GOOS != toolGOOS || ctxt.GOARCH != toolGOARCH {
++				// Install cross-compiled binaries to subdirectories of bin.
++				elem = full
++			}
+ 			p.target = filepath.Join(t.BinDir(), elem)
+ 		}
+ 		if ctxt.GOOS == "windows" {
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 0ec5cf6a74..19b0d37dc0 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -31,7 +31,7 @@ var (
+ 	toolGOOS      = runtime.GOOS
+ 	toolGOARCH    = runtime.GOARCH
+ 	toolIsWindows = toolGOOS == "windows"
+-	toolDir       = filepath.Join(build.Path[0].Path, "bin", "tool")
++	toolDir       = build.ToolDir
+ )
+ 
+ const toolWindowsExtension = ".exe"
+@@ -97,6 +97,7 @@ func listTools() {
+ 		setExitStatus(2)
+ 		return
+ 	}
++
+ 	sort.Strings(names)
+ 	for _, name := range names {
+ 		// Unify presentation by going to lower case.
+diff --git a/src/make.bash b/src/make.bash
+index 81ceeb7298..e30743b683 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -61,24 +61,36 @@ mkdir -p ../bin/tool
+ export GOROOT="$(cd .. && pwd)"
+ GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
+ DEFGOROOT='-DGOROOT_FINAL="'"$GOROOT_FINAL"'"'
+-gcc -O2 -Wall -Werror -o ../bin/tool/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
++gcc -O2 -Wall -Werror -ggdb -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
++eval $(./cmd/dist/dist env)
+ echo
+ 
+ if [ "$1" = "--dist-tool" ]; then
+ 	# Stop after building dist tool.
++	mv cmd/dist/dist $GOTOOLDIR/dist
+ 	exit 0
+ fi
+ 
+-echo '# Building compilers and Go bootstrap tool.'
+-../bin/tool/dist bootstrap -v # builds go_bootstrap
++echo "# Building compilers and Go bootstrap tool for host, $GOHOSTOS/$GOHOSTARCH."
++./cmd/dist/dist bootstrap -a -v # builds go_bootstrap
++# Delay move of dist tool to now, because bootstrap cleared tool directory.
++mv cmd/dist/dist $GOTOOLDIR/dist
++$GOTOOLDIR/go_bootstrap clean -i std
+ echo
+ 
+-echo '# Building packages and commands.'
+-../bin/tool/go_bootstrap clean std
+-../bin/tool/go_bootstrap install -a -v std
+-rm -f ../bin/tool/go_bootstrap
++if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
++	echo "# Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
++	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
++		$GOTOOLDIR/go_bootstrap install -v std
++	echo
++fi
++
++echo "# Building packages and commands for $GOOS/$GOARCH."
++$GOTOOLDIR/go_bootstrap install -v std
+ echo
+ 
++rm -f $GOTOOLDIR/go_bootstrap
++
+ if [ "$1" != "--no-banner" ]; then
+-	../bin/tool/dist banner
++	$GOTOOLDIR/dist banner
+ fi
+diff --git a/src/make.bat b/src/make.bat
+index 010e418c01..6618bc4ed9 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -25,26 +25,48 @@ echo # Building C bootstrap tool.
+ echo cmd/dist
+ if not exist ..\bin\tool mkdir ..\bin\tool
+ :: Windows has no glob expansion, so spell out cmd/dist/*.c.
+-gcc -O2 -Wall -Werror -o ../bin/tool/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildruntime.c cmd/dist/goc2c.c cmd/dist/main.c cmd/dist/windows.c
++gcc -O2 -Wall -Werror -o cmd/dist/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildruntime.c cmd/dist/goc2c.c cmd/dist/main.c cmd/dist/windows.c
+ if errorlevel 1 goto fail
++.\cmd\dist\dist env -wp >env.bat
++if errorlevel 1 goto fail
++call env.bat
++del env.bat
+ :: Echo with no arguments prints whether echo is turned on, so echo dot.
+ echo .
+ 
+ echo # Building compilers and Go bootstrap tool.
+-..\bin\tool\dist bootstrap -v
++.\cmd\dist\dist bootstrap -a -v
+ if errorlevel 1 goto fail
++:: Delay move of dist tool to now, because bootstrap cleared tool directory.
++move .\cmd\dist\dist.exe %GOTOOLDIR%\dist.exe
++%GOTOOLDIR%\go_bootstrap clean -i std
+ echo .
+ 
+-echo # Building packages and commands.
+-..\bin\tool\go_bootstrap clean std
++if not %GOHOSTARCH% == %GOARCH% goto localbuild
++if not %GOHOSTOS% == %GOOS% goto localbuild
++goto mainbuild
++
++:localbuild
++echo # Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
++set oldGOOS=%GOOS%
++set oldGOARCH=%GOARCH%
++set GOOS=%GOHOSTOS%
++set GOARCH=%GOHOSTARCH%
++%GOTOOLDIR%\go_bootstrap install -v std
++set GOOS=%oldGOOS%
++set GOARCH=%oldGOARCH%
+ if errorlevel 1 goto fail
+-..\bin\tool\go_bootstrap install -a -v std
++echo .
++
++:mainbuild
++echo # Building packages and commands.
++%GOTOOLDIR%\go_bootstrap install -a -v std
+ if errorlevel 1 goto fail
+-del ..\bin\tool\go_bootstrap.exe
++del %GOTOOLDIR%\go_bootstrap.exe
+ echo .
+ 
+ if "x%1"=="x--no-banner" goto nobanner
+-..\bin\tool\dist banner
++%GOTOOLDIR%\dist banner
+ :nobanner
+ 
+ goto end
+diff --git a/src/pkg/exp/types/gcimporter_test.go b/src/pkg/exp/types/gcimporter_test.go
+index 5411f3bcce..c229b50113 100644
+--- a/src/pkg/exp/types/gcimporter_test.go
++++ b/src/pkg/exp/types/gcimporter_test.go
+@@ -6,7 +6,9 @@ package types
+ 
+ import (
+ 	"go/ast"
++	"go/build"
+ 	"io/ioutil"
++	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+@@ -31,7 +33,7 @@ func init() {
+ 		gcPath = gcName
+ 		return
+ 	}
+-	gcPath = filepath.Join(runtime.GOROOT(), "/bin/tool/", gcName)
++	gcPath = filepath.Join(build.ToolDir, gcName)
+ }
+ 
+ func compile(t *testing.T, dirname, filename string) {
+@@ -90,6 +92,13 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
+ }
+ 
+ func TestGcImport(t *testing.T) {
++	// On cross-compile builds, the path will not exist.
++	// Need to use GOHOSTOS, which is not available.
++	if _, err := os.Stat(gcPath); err != nil {
++		t.Logf("skipping test: %v", err)
++		return
++	}
++
+ 	compile(t, "testdata", "exports.go")
+ 
+ 	nimports := 0
+diff --git a/src/pkg/go/build/path.go b/src/pkg/go/build/path.go
+index 7e931faff1..e160ac3b28 100644
+--- a/src/pkg/go/build/path.go
++++ b/src/pkg/go/build/path.go
+@@ -12,6 +12,9 @@ import (
+ 	"runtime"
+ )
+ 
++// ToolDir is the directory containing build tools.
++var ToolDir = filepath.Join(runtime.GOROOT(), "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
++
+ // Path is a validated list of Trees derived from $GOROOT and $GOPATH at init.
+ var Path []*Tree
+ 
+diff --git a/src/run.bash b/src/run.bash
+index 8f282249fb..d818751b2c 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -5,7 +5,7 @@
+ 
+ set -e
+ 
+-eval $(../bin/tool/dist env -p)
++eval $(go tool dist env)
+ 
+ unset CDPATH	# in case user has it set
+ 
+diff --git a/test/fixedbugs/bug302.go b/test/fixedbugs/bug302.go
+index b42db7f72b..1088b2f3c2 100644
+--- a/test/fixedbugs/bug302.go
++++ b/test/fixedbugs/bug302.go
+@@ -1,4 +1,4 @@
+-// $G $D/bug302.dir/p.go && "$GOROOT"/bin/tool/pack grc pp.a p.$A && $G $D/bug302.dir/main.go
++// $G $D/bug302.dir/p.go && pack grc pp.a p.$A && $G $D/bug302.dir/main.go
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run b/test/run
+index 4b0481caa8..7f4c350fa3 100755
+--- a/test/run
++++ b/test/run
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-eval $(../bin/tool/dist env)
++eval $(go tool dist env)
+ export GOARCH GOOS GOROOT
+ export E=
+ 
+@@ -34,7 +34,7 @@ failed=0
+ PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin
+ 
+ # TODO: We add the tool directory to the PATH to avoid thinking about a better way.
+-PATH="$GOROOT/bin/tool":$PATH
++PATH="$GOTOOLDIR:$PATH"
+ 
+ RUNFILE="/tmp/gorun-$$-$USER"
+ TMP1FILE="/tmp/gotest1-$$-$USER"

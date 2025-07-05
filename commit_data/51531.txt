@@ -12,6 +12,44 @@ Date:   Wed Feb 9 12:43:21 2022 -0800
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 4d8312a917..c0ed27730f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -6253,6 +6253,32 @@ if v == nil {
+ }
+ </pre>
+ 
++<p>
++A <a href="#Type_parameters">type parameter</a> or a <a href="#Type_declarations">parameterized type</a>
++may be used as a type in a case. If upon <a href="#Instantiations">instantiation</a> that type turns
++out to duplicate another entry in the switch, the first matching case is chosen.
++</p>
++
++<pre>
++func f[P any](x any) int {
++	switch x.(type) {
++	case P:
++		return 0
++	case string:
++		return 1
++	case []P:
++		return 2
++	case []byte:
++		return 3
++	default:
++		return 4
++	}
++}
++
++var v1 = f[string]("foo")   // v1 == 0
++var v2 = f[byte]([]byte{})  // v2 == 2
++</pre>
++
+ <p>
+ The type switch guard may be preceded by a simple statement, which
+ executes before the guard is evaluated.

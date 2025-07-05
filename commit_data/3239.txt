@@ -13,7 +13,46 @@ Date:   Wed Sep 9 01:21:20 2009 -0700
     R=ken
     OCL=34476
     CL=34476
-
+---
  src/cmd/gc/const.c     | 2 ++
  src/cmd/gc/typecheck.c | 7 ++++---
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 16daab043e..db28b3c9d4 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -132,6 +132,8 @@ convlit1(Node **np, Type *t, int explicit)
+ 	case CTNIL:
+ 		switch(et) {
+ 		default:
++			yyerror("cannot use nil as %T", t);
++			n->type = T;
+ 			goto bad;
+ 
+ 		case TSTRING:
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 7665cbf3c4..d364e5fcc6 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -307,6 +307,8 @@ reswitch:
+ 		defaultlit2(&l, &r, 0);
+ 		n->left = l;
+ 		n->right = r;
++		if(l->type == T || r->type == T)
++			goto error;
+ 		t = l->type;
+ 		if(t->etype == TIDEAL)
+ 			t = r->type;
+@@ -960,9 +962,8 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OTYPESW:
+-		ok |= Etop;
+-		typecheck(&n->right, Erv);
+-		goto ret;
++		yyerror("use of .(type) outside type switch");
++		goto error;
+ 
+ 	case OXCASE:
+ 		ok |= Etop;

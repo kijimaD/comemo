@@ -15,6 +15,19 @@ Date:   Mon Jun 5 10:23:42 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index af56b487fc..bfd084200c 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1628,6 +1628,7 @@ func computeBuildID(p *Package) {
+ 		p.CgoFiles,
+ 		p.CFiles,
+ 		p.CXXFiles,
++		p.FFiles,
+ 		p.MFiles,
+ 		p.HFiles,
+ 		p.SFiles,

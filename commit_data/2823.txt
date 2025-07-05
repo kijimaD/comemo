@@ -8,8 +8,238 @@ Date:   Wed Jul 29 13:26:49 2009 -0700
     DELTA=121  (115 added, 0 deleted, 6 changed)
     OCL=32427
     CL=32429
-
+---
  src/pkg/rpc/Makefile  |   3 +-
  src/pkg/rpc/debug.go  | 100 ++++++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/rpc/server.go |  23 ++++++++++--
  3 files changed, 121 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/rpc/Makefile b/src/pkg/rpc/Makefile
+index 0d0f109b86..a06250326c 100644
+--- a/src/pkg/rpc/Makefile
++++ b/src/pkg/rpc/Makefile
+@@ -37,6 +37,7 @@ O1=\
+ 
+ O2=\
+ 	client.$O\
++	debug.$O\
+ 
+ 
+ phases: a1 a2
+@@ -47,7 +48,7 @@ a1: $(O1)
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+-	$(AR) grc _obj$D/rpc.a client.$O
++	$(AR) grc _obj$D/rpc.a client.$O debug.$O
+ 	rm -f $(O2)
+ 
+ 
+diff --git a/src/pkg/rpc/debug.go b/src/pkg/rpc/debug.go
+new file mode 100644
+index 0000000000..7cc79333ad
+--- /dev/null
++++ b/src/pkg/rpc/debug.go
+@@ -0,0 +1,100 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rpc
++
++/*
++	Some HTML presented at http://machine:port/debug/rpc
++	Lists services, their methods, and some statistics, still rudimentary.
++*/
++
++import (
++	"fmt";
++	"gob";
++	"http";
++	"io";
++	"log";
++	"os";
++	"rpc";
++	"sort";
++	"template";
++)
++
++const debugText =
++	`<html>
++	<body>
++	<title>Services</title>
++	{.repeated section @}
++	<hr>
++	Service {name}
++	<hr>
++		<table>
++		<th align=center>Method</th><th align=center>Calls</th>
++		{.repeated section meth}
++			<tr>
++			<td align=left font=fixed>{name}({.section m}{argType}, {replyType}) os.Error</td>
++			<td align=center>{numCalls}</td>{.end}
++			</tr>
++		{.end}
++		</table>
++	{.end}
++	</body>
++	</html>`
++
++var debug *template.Template
++
++type debugMethod struct {
++	m	*methodType;
++	name	string;
++}
++
++type methodArray []debugMethod
++
++type debugService struct {
++	s	*service;
++	name	string;
++	meth	methodArray;
++}
++
++type serviceArray []debugService
++
++func (s serviceArray) Len() int { return len(s) }
++func (s serviceArray) Less(i, j int) bool { return s[i].name < s[j].name }
++func (s serviceArray) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
++
++func (m methodArray) Len() int { return len(m) }
++func (m methodArray) Less(i, j int) bool { return m[i].name < m[j].name }
++func (m methodArray) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
++
++// Runs at /debug/rpc
++func debugHTTP(c *http.Conn, req *http.Request) {
++	var err os.Error;
++	if debug == nil {
++		debug, err = template.Parse(debugText, nil);
++		if err != nil {
++			fmt.Fprintln(c, "rpc can't create debug HTML template:", err.String());
++			return;
++		}
++	}
++	// Build a sorted version of the data.
++	var services = make(serviceArray, len(server.serviceMap));
++	i := 0;
++	server.Lock();
++	for sname, service := range server.serviceMap {
++		services[i] = debugService{service, sname, make(methodArray, len(service.method))};
++		j := 0;
++		for mname, method := range service.method {
++			services[i].meth[j] = debugMethod{method, mname};
++			j++;
++		}
++		sort.Sort(services[i].meth);
++		i++;
++	}
++	server.Unlock();
++	sort.Sort(services);
++	err = debug.Execute(services, c);
++	if err != nil {
++		fmt.Fprintln(c, "rpc: error executing template:", err.String());
++	}
++}
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 2aa775d889..8ff7d260dd 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -127,9 +127,11 @@ var unusedError *os.Error;
+ var typeOfOsError = reflect.Typeof(unusedError).(*reflect.PtrType).Elem()
+ 
+ type methodType struct {
++	sync.Mutex;	// protects counters
+ 	method	reflect.Method;
+ 	argType	*reflect.PtrType;
+ 	replyType	*reflect.PtrType;
++	numCalls	uint;
+ }
+ 
+ type service struct {
+@@ -157,13 +159,14 @@ type Response struct {
+ }
+ 
+ type serverType struct {
++	sync.Mutex;	// protects the serviceMap
+ 	serviceMap	map[string] *service;
+ }
+ 
+ // This variable is a global whose "public" methods are really private methods
+ // called from the global functions of this package: rpc.Register, rpc.ServeConn, etc.
+ // For example, rpc.Register() calls server.add().
+-var server = &serverType{ make(map[string] *service) }
++var server = &serverType{ serviceMap: make(map[string] *service) }
+ 
+ // Is this a publicly vislble - upper case - name?
+ func isPublic(name string) bool {
+@@ -172,6 +175,8 @@ func isPublic(name string) bool {
+ }
+ 
+ func (server *serverType) register(rcvr interface{}) os.Error {
++	server.Lock();
++	defer server.Unlock();
+ 	if server.serviceMap == nil {
+ 		server.serviceMap = make(map[string] *service);
+ 	}
+@@ -242,7 +247,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
+ 			log.Stderr("method", mname, "returns", returnType.String(), "not os.Error");
+ 			continue;
+ 		}
+-		s.method[mname] = &methodType{method, argType, replyType};
++		s.method[mname] = &methodType{method: method, argType: argType, replyType: replyType};
+ 	}
+ 
+ 	if len(s.method) == 0 {
+@@ -279,7 +284,11 @@ func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, enc *gob
+ 	sending.Unlock();
+ }
+ 
+-func (s *service) call(sending *sync.Mutex, function *reflect.FuncValue, req *Request, argv, replyv reflect.Value, enc *gob.Encoder) {
++func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, enc *gob.Encoder) {
++	mtype.Lock();
++	mtype.numCalls++;
++	mtype.Unlock();
++	function := mtype.method.Func;
+ 	// Invoke the method, providing a new value for the reply.
+ 	returnValues := function.Call([]reflect.Value{s.rcvr, argv, replyv});
+ 	// The return value for the method is an os.Error.
+@@ -315,7 +324,9 @@ func (server *serverType) input(conn io.ReadWriteCloser) {
+ 			continue;
+ 		}
+ 		// Look up the request.
++		server.Lock();
+ 		service, ok := server.serviceMap[serviceMethod[0]];
++		server.Unlock();
+ 		if !ok {
+ 			s := "rpc: can't find service " + req.ServiceMethod;
+ 			sendResponse(sending, req, invalidRequest, enc, s);
+@@ -337,7 +348,7 @@ func (server *serverType) input(conn io.ReadWriteCloser) {
+ 			sendResponse(sending, req, replyv.Interface(), enc, err.String());
+ 			continue;
+ 		}
+-		go service.call(sending, method.Func, req, argv, replyv, enc);
++		go service.call(sending, mtype, req, argv, replyv, enc);
+ 	}
+ 	conn.Close();
+ }
+@@ -379,6 +390,7 @@ func Accept(lis net.Listener) {
+ 
+ // Can connect to RPC service using HTTP CONNECT to rpcPath.
+ var rpcPath string = "/_goRPC_"
++var debugPath string = "/debug/rpc"
+ var connected = "200 Connected to Go RPC"
+ 
+ func serveHTTP(c *http.Conn, req *http.Request) {
+@@ -397,8 +409,11 @@ func serveHTTP(c *http.Conn, req *http.Request) {
+ 	server.input(conn);
+ }
+ 
++func debugHTTP(c *http.Conn, req *http.Request)
++
+ // HandleHTTP registers an HTTP handler for RPC messages.
+ // It is still necessary to invoke http.Serve(), typically in a go statement.
+ func HandleHTTP() {
+ 	http.Handle(rpcPath, http.HandlerFunc(serveHTTP));
++	http.Handle(debugPath, http.HandlerFunc(debugHTTP));
+ }

@@ -12,6 +12,21 @@ Date:   Fri Oct 14 08:31:50 2022 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/http/transport_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index f2b5ab50c8..cd31141e52 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1680,6 +1680,9 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ 	run(t, testTransportPersistConnLeak, testNotParallel)
+ }
+ func testTransportPersistConnLeak(t *testing.T, mode testMode) {
++	if mode == http2Mode {
++		t.Skip("flaky in HTTP/2")
++	}
+ 	// Not parallel: counts goroutines
+ 
+ 	const numReq = 25

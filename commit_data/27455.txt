@@ -12,7 +12,7 @@ Date:   Mon Mar 28 12:15:51 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21242
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  28 ----
  src/cmd/compile/internal/gc/builtin/runtime.go |  33 -----
  src/cmd/compile/internal/gc/order.go           |   2 +
@@ -20,3 +20,379 @@ Date:   Mon Mar 28 12:15:51 2016 -0700
  src/runtime/wbfat.go                           | 190 -------------------------
  src/runtime/wbfat_gen.go                       |  41 ------
  6 files changed, 2 insertions(+), 317 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 6ca870285a..fa6e86cba5 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -86,34 +86,6 @@ const runtimeimport = "" +
+ 	"func @\"\".closechan (@\"\".hchan·1 any)\n" +
+ 	"var @\"\".writeBarrier struct { @\"\".enabled bool; @\"\".needed bool; @\"\".cgo bool }\n" +
+ 	"func @\"\".writebarrierptr (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
+-	"func @\"\".writebarrierstring (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
+-	"func @\"\".writebarrierslice (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
+-	"func @\"\".writebarrieriface (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
+-	"func @\"\".writebarrierfat01 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat10 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat11 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat001 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat010 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat011 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat100 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat101 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat110 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat111 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat0001 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat0010 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat0011 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat0100 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat0101 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat0110 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat0111 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat1000 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat1001 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat1010 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat1011 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat1100 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat1101 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat1110 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+-	"func @\"\".writebarrierfat1111 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+ 	"func @\"\".typedmemmove (@\"\".typ·1 *byte, @\"\".dst·2 *any, @\"\".src·3 *any)\n" +
+ 	"func @\"\".typedslicecopy (@\"\".typ·2 *byte, @\"\".dst·3 any, @\"\".src·4 any) (? int)\n" +
+ 	"func @\"\".selectnbsend (@\"\".chanType·2 *byte, @\"\".hchan·3 chan<- any, @\"\".elem·4 *any) (? bool)\n" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 944cac2c63..b02abda2ea 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -113,39 +113,6 @@ var writeBarrier struct {
+ }
+ 
+ func writebarrierptr(dst *any, src any)
+-func writebarrierstring(dst *any, src any)
+-func writebarrierslice(dst *any, src any)
+-func writebarrieriface(dst *any, src any)
+-
+-// The unused *byte argument makes sure that src is 2-pointer-aligned,
+-// which is the maximum alignment on NaCl amd64p32
+-// (and possibly on 32-bit systems if we start 64-bit aligning uint64s).
+-// The bitmap in the name tells which words being copied are pointers.
+-func writebarrierfat01(dst *any, _ uintptr, src any)
+-func writebarrierfat10(dst *any, _ uintptr, src any)
+-func writebarrierfat11(dst *any, _ uintptr, src any)
+-func writebarrierfat001(dst *any, _ uintptr, src any)
+-func writebarrierfat010(dst *any, _ uintptr, src any)
+-func writebarrierfat011(dst *any, _ uintptr, src any)
+-func writebarrierfat100(dst *any, _ uintptr, src any)
+-func writebarrierfat101(dst *any, _ uintptr, src any)
+-func writebarrierfat110(dst *any, _ uintptr, src any)
+-func writebarrierfat111(dst *any, _ uintptr, src any)
+-func writebarrierfat0001(dst *any, _ uintptr, src any)
+-func writebarrierfat0010(dst *any, _ uintptr, src any)
+-func writebarrierfat0011(dst *any, _ uintptr, src any)
+-func writebarrierfat0100(dst *any, _ uintptr, src any)
+-func writebarrierfat0101(dst *any, _ uintptr, src any)
+-func writebarrierfat0110(dst *any, _ uintptr, src any)
+-func writebarrierfat0111(dst *any, _ uintptr, src any)
+-func writebarrierfat1000(dst *any, _ uintptr, src any)
+-func writebarrierfat1001(dst *any, _ uintptr, src any)
+-func writebarrierfat1010(dst *any, _ uintptr, src any)
+-func writebarrierfat1011(dst *any, _ uintptr, src any)
+-func writebarrierfat1100(dst *any, _ uintptr, src any)
+-func writebarrierfat1101(dst *any, _ uintptr, src any)
+-func writebarrierfat1110(dst *any, _ uintptr, src any)
+-func writebarrierfat1111(dst *any, _ uintptr, src any)
+ 
+ // *byte is really *runtime.Type
+ func typedmemmove(typ *byte, dst *any, src *any)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 4c2056c6a7..306507790a 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -422,6 +422,8 @@ func ordermapassign(n *Node, order *Order) {
+ 		order.out = append(order.out, n)
+ 
+ 		// We call writebarrierfat only for values > 4 pointers long. See walk.go.
++		// TODO(mdempsky): writebarrierfat doesn't exist anymore, but removing that
++		// logic causes net/http's tests to become flaky; see CL 21242.
+ 		if (n.Left.Op == OINDEXMAP || (needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr))) && !isaddrokay(n.Right) {
+ 			m := n.Left
+ 			n.Left = ordertemp(m.Type, order, false)
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 523d890a07..f03bf18ebc 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -159,31 +159,6 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+ 	writebarrierptr_nostore1(dst, src)
+ }
+ 
+-//go:nosplit
+-func writebarrierstring(dst *[2]uintptr, src [2]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	dst[1] = src[1]
+-}
+-
+-//go:nosplit
+-func writebarrierslice(dst *[3]uintptr, src [3]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	dst[1] = src[1]
+-	dst[2] = src[2]
+-}
+-
+-//go:nosplit
+-func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	writebarrierptr(&dst[1], src[1])
+-}
+-
+-//go:generate go run wbfat_gen.go -- wbfat.go
+-//
+-// The above line generates multiword write barriers for
+-// all the combinations of ptr+scalar up to four words.
+-// The implementations are written to wbfat.go.
+-
+ // typedmemmove copies a value of type t to dst from src.
+ //go:nosplit
+ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+diff --git a/src/runtime/wbfat.go b/src/runtime/wbfat.go
+deleted file mode 100644
+index 8fe2cefd8d..0000000000
+--- a/src/runtime/wbfat.go
++++ /dev/null
+@@ -1,190 +0,0 @@
+-// generated by wbfat_gen.go; use go generate
+-
+-package runtime
+-
+-//go:nosplit
+-func writebarrierfat01(dst *[2]uintptr, _ uintptr, src [2]uintptr) {
+-	dst[0] = src[0]
+-	writebarrierptr(&dst[1], src[1])
+-}
+-
+-//go:nosplit
+-func writebarrierfat10(dst *[2]uintptr, _ uintptr, src [2]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	dst[1] = src[1]
+-}
+-
+-//go:nosplit
+-func writebarrierfat11(dst *[2]uintptr, _ uintptr, src [2]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	writebarrierptr(&dst[1], src[1])
+-}
+-
+-//go:nosplit
+-func writebarrierfat001(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
+-	dst[0] = src[0]
+-	dst[1] = src[1]
+-	writebarrierptr(&dst[2], src[2])
+-}
+-
+-//go:nosplit
+-func writebarrierfat010(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
+-	dst[0] = src[0]
+-	writebarrierptr(&dst[1], src[1])
+-	dst[2] = src[2]
+-}
+-
+-//go:nosplit
+-func writebarrierfat011(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
+-	dst[0] = src[0]
+-	writebarrierptr(&dst[1], src[1])
+-	writebarrierptr(&dst[2], src[2])
+-}
+-
+-//go:nosplit
+-func writebarrierfat100(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	dst[1] = src[1]
+-	dst[2] = src[2]
+-}
+-
+-//go:nosplit
+-func writebarrierfat101(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	dst[1] = src[1]
+-	writebarrierptr(&dst[2], src[2])
+-}
+-
+-//go:nosplit
+-func writebarrierfat110(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	writebarrierptr(&dst[1], src[1])
+-	dst[2] = src[2]
+-}
+-
+-//go:nosplit
+-func writebarrierfat111(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	writebarrierptr(&dst[1], src[1])
+-	writebarrierptr(&dst[2], src[2])
+-}
+-
+-//go:nosplit
+-func writebarrierfat0001(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	dst[0] = src[0]
+-	dst[1] = src[1]
+-	dst[2] = src[2]
+-	writebarrierptr(&dst[3], src[3])
+-}
+-
+-//go:nosplit
+-func writebarrierfat0010(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	dst[0] = src[0]
+-	dst[1] = src[1]
+-	writebarrierptr(&dst[2], src[2])
+-	dst[3] = src[3]
+-}
+-
+-//go:nosplit
+-func writebarrierfat0011(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	dst[0] = src[0]
+-	dst[1] = src[1]
+-	writebarrierptr(&dst[2], src[2])
+-	writebarrierptr(&dst[3], src[3])
+-}
+-
+-//go:nosplit
+-func writebarrierfat0100(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	dst[0] = src[0]
+-	writebarrierptr(&dst[1], src[1])
+-	dst[2] = src[2]
+-	dst[3] = src[3]
+-}
+-
+-//go:nosplit
+-func writebarrierfat0101(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	dst[0] = src[0]
+-	writebarrierptr(&dst[1], src[1])
+-	dst[2] = src[2]
+-	writebarrierptr(&dst[3], src[3])
+-}
+-
+-//go:nosplit
+-func writebarrierfat0110(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	dst[0] = src[0]
+-	writebarrierptr(&dst[1], src[1])
+-	writebarrierptr(&dst[2], src[2])
+-	dst[3] = src[3]
+-}
+-
+-//go:nosplit
+-func writebarrierfat0111(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	dst[0] = src[0]
+-	writebarrierptr(&dst[1], src[1])
+-	writebarrierptr(&dst[2], src[2])
+-	writebarrierptr(&dst[3], src[3])
+-}
+-
+-//go:nosplit
+-func writebarrierfat1000(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	dst[1] = src[1]
+-	dst[2] = src[2]
+-	dst[3] = src[3]
+-}
+-
+-//go:nosplit
+-func writebarrierfat1001(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	dst[1] = src[1]
+-	dst[2] = src[2]
+-	writebarrierptr(&dst[3], src[3])
+-}
+-
+-//go:nosplit
+-func writebarrierfat1010(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	dst[1] = src[1]
+-	writebarrierptr(&dst[2], src[2])
+-	dst[3] = src[3]
+-}
+-
+-//go:nosplit
+-func writebarrierfat1011(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	dst[1] = src[1]
+-	writebarrierptr(&dst[2], src[2])
+-	writebarrierptr(&dst[3], src[3])
+-}
+-
+-//go:nosplit
+-func writebarrierfat1100(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	writebarrierptr(&dst[1], src[1])
+-	dst[2] = src[2]
+-	dst[3] = src[3]
+-}
+-
+-//go:nosplit
+-func writebarrierfat1101(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	writebarrierptr(&dst[1], src[1])
+-	dst[2] = src[2]
+-	writebarrierptr(&dst[3], src[3])
+-}
+-
+-//go:nosplit
+-func writebarrierfat1110(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	writebarrierptr(&dst[1], src[1])
+-	writebarrierptr(&dst[2], src[2])
+-	dst[3] = src[3]
+-}
+-
+-//go:nosplit
+-func writebarrierfat1111(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
+-	writebarrierptr(&dst[0], src[0])
+-	writebarrierptr(&dst[1], src[1])
+-	writebarrierptr(&dst[2], src[2])
+-	writebarrierptr(&dst[3], src[3])
+-}
+diff --git a/src/runtime/wbfat_gen.go b/src/runtime/wbfat_gen.go
+deleted file mode 100644
+index cac19f5804..0000000000
+--- a/src/runtime/wbfat_gen.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-package main
+-
+-import (
+-	"flag"
+-	"fmt"
+-	"log"
+-	"os"
+-)
+-
+-func main() {
+-	flag.Parse()
+-	if flag.NArg() > 0 {
+-		f, err := os.Create(flag.Arg(0))
+-		if err != nil {
+-			log.Fatal(err)
+-		}
+-		os.Stdout = f
+-	}
+-	fmt.Printf("// generated by wbfat_gen.go; use go generate\n\n")
+-	fmt.Printf("package runtime\n")
+-	for i := uint(2); i <= 4; i++ {
+-		for j := 1; j < 1<<i; j++ {
+-			fmt.Printf("\n//go:nosplit\n")
+-			fmt.Printf("func writebarrierfat%0*b(dst *[%d]uintptr, _ uintptr, src [%d]uintptr) {\n", int(i), j, i, i)
+-			for k := uint(0); k < i; k++ {
+-				if j&(1<<(i-1-k)) != 0 {
+-					fmt.Printf("\twritebarrierptr(&dst[%d], src[%d])\n", k, k)
+-				} else {
+-					fmt.Printf("\tdst[%d] = src[%d]\n", k, k)
+-				}
+-			}
+-			fmt.Printf("}\n")
+-		}
+-	}
+-}

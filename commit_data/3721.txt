@@ -7,6 +7,20 @@ Date:   Mon Nov 2 11:58:47 2009 -0800
     
     R=rsc
     http://go/go-review/1016024
-
+---
  test/bugs/bug212.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/bugs/bug212.go b/test/bugs/bug212.go
+index fcf5c4775f..079bb5791f 100644
+--- a/test/bugs/bug212.go
++++ b/test/bugs/bug212.go
+@@ -7,6 +7,6 @@
+ package main
+ type I int 
+ type S struct { f map[I]int }
+-var v1 = S{ make(map[int]int) }		// OK--names are ignored.
+-var v2 map[I]int = map[int]int{}	// OK.
++var v1 = S{ make(map[int]int) }		// ERROR "cannot|illegal|incompatible|wrong"
++var v2 map[I]int = map[int]int{}	// ERROR "cannot|illegal|incompatible|wrong"
+ var v3 = S{ make(map[uint]int) }	// ERROR "cannot|illegal|incompatible|wrong"

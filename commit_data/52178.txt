@@ -18,8 +18,111 @@ Date:   Fri Apr 8 23:44:40 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 16 ++++++-------
  test/typeparam/issue51700.go                    | 26 +++++++++++++++++++++
  test/typeparam/issue52228.go                    | 30 +++++++++++++++++++++++++
  3 files changed, 64 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index a8d81b9a21..3bd5f1e932 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1328,21 +1328,21 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
+ 	// type itab struct {
+ 	//   inter  *interfacetype
+ 	//   _type  *_type
+-	//   hash   uint32
++	//   hash   uint32 // copy of _type.hash. Used for type switches.
+ 	//   _      [4]byte
+-	//   fun    [1]uintptr // variable sized
++	//   fun    [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
+ 	// }
+ 	o := objw.SymPtr(lsym, 0, writeType(iface), 0)
+ 	o = objw.SymPtr(lsym, o, writeType(typ), 0)
+ 	o = objw.Uint32(lsym, o, types.TypeHash(typ)) // copy of type hash
+ 	o += 4                                        // skip unused field
++	if !completeItab {
++		// If typ doesn't implement iface, make method entries be zero.
++		o = objw.Uintptr(lsym, o, 0)
++		entries = entries[:0]
++	}
+ 	for _, fn := range entries {
+-		if !completeItab {
+-			// If typ doesn't implement iface, make method entries be zero.
+-			o = objw.Uintptr(lsym, o, 0)
+-		} else {
+-			o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
+-		}
++		o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
+ 	}
+ 	// Nothing writes static itabs, so they are read only.
+ 	objw.Global(lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+diff --git a/test/typeparam/issue51700.go b/test/typeparam/issue51700.go
+new file mode 100644
+index 0000000000..bf8a1f6289
+--- /dev/null
++++ b/test/typeparam/issue51700.go
+@@ -0,0 +1,26 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f[B any](b B) {
++	if b1, ok := any(b).(interface{ m1() }); ok {
++		panic(1)
++		_ = b1.(B)
++	}
++	if b2, ok := any(b).(interface{ m2() }); ok {
++		panic(2)
++		_ = b2.(B)
++	}
++}
++
++type S struct{}
++
++func (S) m3() {}
++
++func main() {
++	f(S{})
++}
+diff --git a/test/typeparam/issue52228.go b/test/typeparam/issue52228.go
+new file mode 100644
+index 0000000000..3fbbde59ab
+--- /dev/null
++++ b/test/typeparam/issue52228.go
+@@ -0,0 +1,30 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type SomeInterface interface {
++	Whatever()
++}
++
++func X[T any]() T {
++	var m T
++
++	// for this example, this block should never run
++	if _, ok := any(m).(SomeInterface); ok {
++		var dst SomeInterface
++		_, _ = dst.(T)
++		return dst.(T)
++	}
++
++	return m
++}
++
++type holder struct{}
++
++func main() {
++	X[holder]()
++}

@@ -50,7 +50,57 @@ Date:   Wed Mar 13 19:48:58 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/time.go    | 13 ++++++++++++-
  src/time/sleep_test.go |  7 +++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 4b179d84fc..37c55b2b46 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -526,7 +526,17 @@ func (t *timer) needsAdd() bool {
+ // may result in concurrent calls to t.maybeAdd,
+ // so we cannot assume that t is not in a heap on entry to t.maybeAdd.
+ func (t *timer) maybeAdd() {
+-	ts := &getg().m.p.ptr().timers
++	// Note: Not holding any locks on entry to t.maybeAdd,
++	// so the current g can be rescheduled to a different M and P
++	// at any time, including between the ts := assignment and the
++	// call to ts.lock. If a reschedule happened then, we would be
++	// adding t to some other P's timers, perhaps even a P that the scheduler
++	// has marked as idle with no timers, in which case the timer could
++	// go unnoticed until long after t.when.
++	// Calling acquirem instead of using getg().m makes sure that
++	// we end up locking and inserting into the current P's timers.
++	mp := acquirem()
++	ts := &mp.p.ptr().timers
+ 	ts.lock()
+ 	ts.cleanHead()
+ 	t.lock()
+@@ -539,6 +549,7 @@ func (t *timer) maybeAdd() {
+ 	}
+ 	t.unlock()
+ 	ts.unlock()
++	releasem(mp)
+ 	if when > 0 {
+ 		wakeNetPoller(when)
+ 	}
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 565af16d4d..8c28b1e4a9 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -656,6 +656,13 @@ func TestZeroTimer(t *testing.T) {
+ 	t.Run("impl=func", func(t *testing.T) {
+ 		testZeroTimer(t, newTimerFunc)
+ 	})
++	t.Run("impl=cache", func(t *testing.T) {
++		timer := newTimerFunc(Hour)
++		testZeroTimer(t, func(d Duration) *Timer {
++			timer.Reset(d)
++			return timer
++		})
++	})
+ }
+ 
+ func testZeroTimer(t *testing.T, newTimer func(Duration) *Timer) {

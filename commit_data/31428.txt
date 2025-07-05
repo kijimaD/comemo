@@ -12,6 +12,20 @@ Date:   Sun Feb 19 10:42:34 2017 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/fmt/print.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index a7ef2e5ac2..2bd88f95a2 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -684,8 +684,6 @@ func (p *pp) printArg(arg interface{}, verb rune) {
+ 	}
+ }
+ 
+-var byteType = reflect.TypeOf(byte(0))
+-
+ // printValue is similar to printArg but starts with a reflect value, not an interface{} value.
+ // It does not handle 'p' and 'T' verbs because these should have been already handled by printArg.
+ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {

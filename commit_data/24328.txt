@@ -11,8 +11,97 @@ Date:   Wed Jul 22 15:03:02 2015 -0400
     Change-Id: I411271e702c5fe6ceb880ca47c7dacc37ffcbb6a
     Reviewed-on: https://go-review.googlesource.com/12532
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go      |  4 +---
  src/cmd/compile/internal/gc/typecheck.go | 16 +++++++-------
  test/fixedbugs/issue11790.go             | 36 ++++++++++++++++++++++++++++++++
  3 files changed, 45 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7402e17e2a..866d8e1bde 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2145,10 +2145,8 @@ func adddot(n *Node) *Node {
+ 
+ 			// rebuild elided dots
+ 			for c := d - 1; c >= 0; c-- {
+-				if n.Left.Type != nil && Isptr[n.Left.Type.Etype] {
+-					n.Left.Implicit = true
+-				}
+ 				n.Left = Nod(ODOT, n.Left, newname(dotlist[c].field.Sym))
++				n.Left.Implicit = true
+ 			}
+ 
+ 			return n
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 65fd29d266..dc2ba75e69 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2582,17 +2582,17 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+ 			}
+ 		}
+ 
++		pll := n
+ 		ll := n.Left
+-		for ll.Left != nil {
++		for ll.Left != nil && (ll.Op == ODOT || ll.Op == ODOTPTR || ll.Op == OIND) {
++			pll = ll
+ 			ll = ll.Left
+ 		}
+-		if ll.Implicit {
+-			if Isptr[ll.Type.Etype] && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
+-				// It is invalid to automatically dereference a named pointer type when selecting a method.
+-				// Make n->left == ll to clarify error message.
+-				n.Left = ll
+-				return nil
+-			}
++		if pll.Implicit && Isptr[ll.Type.Etype] && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
++			// It is invalid to automatically dereference a named pointer type when selecting a method.
++			// Make n->left == ll to clarify error message.
++			n.Left = ll
++			return nil
+ 		}
+ 
+ 		n.Right = methodname(n.Right, n.Left.Type)
+diff --git a/test/fixedbugs/issue11790.go b/test/fixedbugs/issue11790.go
+new file mode 100644
+index 0000000000..d7669f83d5
+--- /dev/null
++++ b/test/fixedbugs/issue11790.go
+@@ -0,0 +1,36 @@
++// compile
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 11790: Incorrect error following named pointer dereference on field
++
++package main
++
++import "fmt"
++
++type T0 struct {
++	x int
++}
++
++func (*T0) M0() {
++	fmt.Println("M0")
++}
++
++type T2 struct {
++	*T0
++}
++
++type Q *T2
++
++func main() {
++	// If run, expected output is
++	// 42
++	// M0
++	t0 := T0{42}
++	t2 := T2{&t0}
++	var q Q = &t2
++	fmt.Println(q.x) // Comment out either this line or the next line and the program works
++	(*q).T0.M0()
++}

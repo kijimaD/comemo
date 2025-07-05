@@ -7,7 +7,25 @@ Date:   Fri Jul 31 14:57:16 2015 +0900
     Change-Id: Ic8ff6c28ec899cf5e01553b83110eb6262870995
     Reviewed-on: https://go-review.googlesource.com/12918
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  test/bench/shootout/{fasta-1000.out => fasta-1000.txt} | 0
  test/bench/shootout/timing.sh                          | 2 +-
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/bench/shootout/fasta-1000.out b/test/bench/shootout/fasta-1000.txt
+similarity index 100%
+rename from test/bench/shootout/fasta-1000.out
+rename to test/bench/shootout/fasta-1000.txt
+diff --git a/test/bench/shootout/timing.sh b/test/bench/shootout/timing.sh
+index 78367367a3..9abcf78d8c 100755
+--- a/test/bench/shootout/timing.sh
++++ b/test/bench/shootout/timing.sh
+@@ -83,7 +83,7 @@ run() {
+ 			program=$(echo $1 | sed 's/gc //')
+ 			shift
+ 			echo $program
+-			$1 <fasta-1000.out > /tmp/$$
++			$1 <fasta-1000.txt > /tmp/$$
+ 			case $program in
+ 			chameneosredux)
+ 				# exact numbers may vary but non-numbers should match

@@ -20,8 +20,102 @@ Date:   Fri Aug 18 11:10:23 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cgo/internal/testplugin/plugin_test.go     |  6 +++--
  .../testdata/{generic => mangle}/plugin.go         | 26 +++++++++++++++++-----
  src/cmd/link/internal/ld/lib.go                    |  7 +++++-
  3 files changed, 31 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index 22fa35512b..2950b6c970 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -380,9 +380,11 @@ func TestForkExec(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGeneric(t *testing.T) {
++func TestSymbolNameMangle(t *testing.T) {
+ 	// Issue 58800: generic function name may contain weird characters
+ 	// that confuse the external linker.
++	// Issue 62098: the name mangling code doesn't handle some string
++	// symbols correctly.
+ 	globalSkip(t)
+-	goCmd(t, "build", "-buildmode=plugin", "-o", "generic.so", "./generic/plugin.go")
++	goCmd(t, "build", "-buildmode=plugin", "-o", "mangle.so", "./mangle/plugin.go")
+ }
+diff --git a/src/cmd/cgo/internal/testplugin/testdata/generic/plugin.go b/src/cmd/cgo/internal/testplugin/testdata/mangle/plugin.go
+similarity index 57%
+rename from src/cmd/cgo/internal/testplugin/testdata/generic/plugin.go
+rename to src/cmd/cgo/internal/testplugin/testdata/mangle/plugin.go
+index 6d3835a7ec..e1ccb70672 100644
+--- a/src/cmd/cgo/internal/testplugin/testdata/generic/plugin.go
++++ b/src/cmd/cgo/internal/testplugin/testdata/mangle/plugin.go
+@@ -2,21 +2,37 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Instantiated function name may contain weird characters
+-// that confuse the external linker, so it needs to be
+-// mangled.
++// Test cases for symbol name mangling.
+ 
+ package main
+ 
+-//go:noinline
+-func F[T any]() {}
++import (
++	"fmt"
++	"strings"
++)
+ 
++// Issue 58800:
++// Instantiated function name may contain weird characters
++// that confuse the external linker, so it needs to be
++// mangled.
+ type S struct {
+ 	X int `parser:"|@@)"`
+ }
+ 
++//go:noinline
++func F[T any]() {}
++
+ func P() {
+ 	F[S]()
+ }
+ 
++// Issue 62098: the name mangling code doesn't handle some string
++// symbols correctly.
++func G(id string) error {
++	if strings.ContainsAny(id, "&$@;/:+,?\\{^}%`]\">[~<#|") {
++		return fmt.Errorf("invalid")
++	}
++	return nil
++}
++
+ func main() {}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c512d9a089..a6f7173706 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -993,6 +993,11 @@ func typeSymbolMangle(name string) string {
+ 	if strings.HasPrefix(name, "type:runtime.") {
+ 		return name
+ 	}
++	if strings.HasPrefix(name, "go:string.") {
++		// String symbols will be grouped to a single go:string.* symbol.
++		// No need to mangle individual symbol names.
++		return name
++	}
+ 	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
+ 		return name
+ 	}
+@@ -1007,7 +1012,7 @@ func typeSymbolMangle(name string) string {
+ 	// instantiated symbol, replace type name in []
+ 	i := strings.IndexByte(name, '[')
+ 	j := strings.LastIndexByte(name, ']')
+-	if j == -1 {
++	if j == -1 || j <= i {
+ 		j = len(name)
+ 	}
+ 	hash := notsha256.Sum256([]byte(name[i+1 : j]))

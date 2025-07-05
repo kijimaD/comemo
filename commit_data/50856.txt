@@ -19,7 +19,7 @@ Date:   Wed Nov 10 16:52:17 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/call.go      | 2 +-
  src/go/types/check.go     | 8 +++-----
  src/go/types/decl.go      | 2 +-
@@ -27,3 +27,143 @@ Date:   Wed Nov 10 16:52:17 2021 -0500
  src/go/types/signature.go | 2 +-
  src/go/types/typexpr.go   | 9 +++++----
  6 files changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 890a2c7c5a..da4b72a0c7 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -81,7 +81,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs
+ 		}()
+ 	}
+ 
+-	inst := check.instance(pos, typ, targs, check.conf.Context).(*Signature)
++	inst := check.instance(pos, typ, targs, check.bestContext(nil)).(*Signature)
+ 	assert(len(posList) <= len(targs))
+ 	tparams := typ.TypeParams().list()
+ 	if i, err := check.verify(pos, tparams, targs); err != nil {
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 93e6ffa761..ba7d26455f 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -105,6 +105,7 @@ type Checker struct {
+ 	// package information
+ 	// (initialized by NewChecker, valid for the life-time of checker)
+ 	conf *Config
++	ctxt *Context // context for de-duplicating instances
+ 	fset *token.FileSet
+ 	pkg  *Package
+ 	*Info
+@@ -203,11 +204,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		conf = new(Config)
+ 	}
+ 
+-	// make sure we have a context
+-	if conf.Context == nil {
+-		conf.Context = NewContext()
+-	}
+-
+ 	// make sure we have an info struct
+ 	if info == nil {
+ 		info = new(Info)
+@@ -220,6 +216,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 
+ 	return &Checker{
+ 		conf:    conf,
++		ctxt:    conf.Context,
+ 		fset:    fset,
+ 		pkg:     pkg,
+ 		Info:    info,
+@@ -322,6 +319,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	check.seenPkgMap = nil
+ 	check.recvTParamMap = nil
+ 	check.defTypes = nil
++	check.ctxt = nil
+ 
+ 	// TODO(rFindley) There's more memory we should release at this point.
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 64d5bd195e..6adace3484 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -68,7 +68,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
+ 	// Funcs with m.instRecv set have not yet be completed. Complete them now
+ 	// so that they have a type when objDecl exits.
+ 	if m, _ := obj.(*Func); m != nil && m.instRecv != nil {
+-		check.completeMethod(check.conf.Context, m)
++		check.completeMethod(nil, m)
+ 	}
+ 
+ 	// Checking the declaration of obj means inferring its type
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 06b6d4692b..82a053dd0d 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -222,15 +222,17 @@ func (n *Named) setUnderlying(typ Type) {
+ 
+ // bestContext returns the best available context. In order of preference:
+ // - the given ctxt, if non-nil
+-// - check.Config.Context, if check is non-nil
++// - check.ctxt, if check is non-nil
+ // - a new Context
+ func (check *Checker) bestContext(ctxt *Context) *Context {
+ 	if ctxt != nil {
+ 		return ctxt
+ 	}
+ 	if check != nil {
+-		assert(check.conf.Context != nil)
+-		return check.conf.Context
++		if check.ctxt == nil {
++			check.ctxt = NewContext()
++		}
++		return check.ctxt
+ 	}
+ 	return NewContext()
+ }
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 3e0a046afa..698b89c462 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -211,7 +211,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 			var err string
+ 			switch T := rtyp.(type) {
+ 			case *Named:
+-				T.resolve(check.conf.Context)
++				T.resolve(check.bestContext(nil))
+ 				// The receiver type may be an instantiated type referred to
+ 				// by an alias (which cannot have receiver parameters for now).
+ 				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 09d1471985..cff9917185 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -409,9 +409,10 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
+ 	}
+ 
+ 	// create the instance
+-	h := check.conf.Context.instanceHash(orig, targs)
++	ctxt := check.bestContext(nil)
++	h := ctxt.instanceHash(orig, targs)
+ 	// targs may be incomplete, and require inference. In any case we should de-duplicate.
+-	inst, _ := check.conf.Context.lookup(h, orig, targs).(*Named)
++	inst, _ := ctxt.lookup(h, orig, targs).(*Named)
+ 	// If inst is non-nil, we can't just return here. Inst may have been
+ 	// constructed via recursive substitution, in which case we wouldn't do the
+ 	// validation below. Ensure that the validation (and resulting errors) runs
+@@ -420,7 +421,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
+ 		tname := NewTypeName(x.Pos(), orig.obj.pkg, orig.obj.name, nil)
+ 		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
+ 		inst.targs = NewTypeList(targs)
+-		inst = check.conf.Context.update(h, orig, targs, inst).(*Named)
++		inst = ctxt.update(h, orig, targs, inst).(*Named)
+ 	}
+ 	def.setUnderlying(inst)
+ 
+@@ -446,7 +447,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
+ 		// This is an instance from the source, not from recursive substitution,
+ 		// and so it must be resolved during type-checking so that we can report
+ 		// errors.
+-		inst.resolve(check.conf.Context)
++		inst.resolve(ctxt)
+ 		// Since check is non-nil, we can still mutate inst. Unpinning the resolver
+ 		// frees some memory.
+ 		inst.resolver = nil

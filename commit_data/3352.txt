@@ -9,6 +9,37 @@ Date:   Thu Sep 24 01:37:27 2009 -0700
     DELTA=4  (3 added, 0 deleted, 1 changed)
     OCL=34949
     CL=34955
-
+---
  src/pkg/go/printer/printer.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 4fdb2af342..3c9f32405c 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -14,6 +14,7 @@ import (
+ 	"io";
+ 	"os";
+ 	"reflect";
++	"runtime";
+ 	"strings";
+ 	"tabwriter";
+ )
+@@ -105,6 +106,7 @@ func (p *printer) write0(data []byte) {
+ 	p.written += n;
+ 	if err != nil {
+ 		p.errors <- err;
++		runtime.Goexit();
+ 	}
+ }
+ 
+@@ -1402,7 +1404,8 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
+ 			p.comment = n.Comments;
+ 			p.file(n);
+ 		default:
+-			p.errors <- os.NewError("unsupported node type");
++			p.errors <- os.NewError(fmt.Sprintf("unsupported node type %T", n));
++			runtime.Goexit();
+ 		}
+ 		p.flush(inf);
+ 		p.errors <- nil;  // no errors

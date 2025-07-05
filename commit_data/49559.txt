@@ -12,6 +12,23 @@ Date:   Thu Aug 26 17:48:01 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/types/type.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 7861effcb2..c7c8a53654 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -243,6 +243,11 @@ func (t *Type) Kind() Kind { return t.kind }
+ func (t *Type) Sym() *Sym       { return t.sym }
+ func (t *Type) SetSym(sym *Sym) { t.sym = sym }
+ 
++// OrigSym returns the name of the original generic type that t is an
++// instantiation of, if any.
++func (t *Type) OrigSym_() *Sym      { return t.OrigSym }
++func (t *Type) SetOrigSym(sym *Sym) { t.OrigSym = sym }
++
+ // Underlying returns the underlying type of type t.
+ func (t *Type) Underlying() *Type { return t.underlying }
+ 

@@ -16,7 +16,7 @@ Date:   Fri Aug 26 15:41:51 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/config.go         |   2 +-
  src/cmd/compile/internal/ssa/gen/generic.rules |  15 ++++
  src/cmd/compile/internal/ssa/gen/rulegen.go    |   2 +-
@@ -32,3 +32,344 @@ Date:   Fri Aug 26 15:41:51 2016 -0400
  src/cmd/compile/internal/ssa/rewritegeneric.go | 114 ++++++++++++++++++++++++-
  src/runtime/malloc.go                          |   2 +
  14 files changed, 148 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 6fc30a3847..37c2945988 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -17,7 +17,7 @@ type Config struct {
+ 	arch            string                     // "amd64", etc.
+ 	IntSize         int64                      // 4 or 8
+ 	PtrSize         int64                      // 4 or 8
+-	lowerBlock      func(*Block) bool          // lowering function
++	lowerBlock      func(*Block, *Config) bool // lowering function
+ 	lowerValue      func(*Value, *Config) bool // lowering function
+ 	registers       []Register                 // machine registers
+ 	gpRegMask       regMask                    // general purpose integer register mask
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 33d361e6d3..23cda160f7 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -896,3 +896,18 @@
+ (Div64F x (Const64F [f2i(-1)])) -> (Neg32F x)
+ 
+ (Sqrt (Const64F [c])) -> (Const64F [f2i(math.Sqrt(i2f(c)))])
++
++// recognize runtime.newobject and don't Zero/Nilcheck it
++(Zero (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) mem2)
++	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
++	&& mem2 == mem
++	&& isSameSym(sym, "runtime.newobject")
++	-> mem
++(Check (NilCheck (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) _) succ)
++	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
++	&& isSameSym(sym, "runtime.newobject")
++	-> (Plain nil succ)
++(Check (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _))) _) succ)
++	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
++	&& isSameSym(sym, "runtime.newobject")
++	-> (Plain nil succ)
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 8841c4d018..60187730e2 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -209,7 +209,7 @@ func genRules(arch arch) {
+ 
+ 	// Generate block rewrite function. There are only a few block types
+ 	// so we can make this one function with a switch.
+-	fmt.Fprintf(w, "func rewriteBlock%s(b *Block) bool {\n", arch.name)
++	fmt.Fprintf(w, "func rewriteBlock%s(b *Block, config *Config) bool {\n", arch.name)
+ 	fmt.Fprintf(w, "switch b.Kind {\n")
+ 	ops = nil
+ 	for op := range blockrules {
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 8290d9cc55..a7dea1afcf 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -11,7 +11,7 @@ import (
+ 	"path/filepath"
+ )
+ 
+-func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) {
++func applyRewrite(f *Func, rb func(*Block, *Config) bool, rv func(*Value, *Config) bool) {
+ 	// repeat rewrites until we find no more rewrites
+ 	var curb *Block
+ 	var curv *Value
+@@ -34,7 +34,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 				}
+ 			}
+ 			curb = b
+-			if rb(b) {
++			if rb(b, config) {
+ 				change = true
+ 			}
+ 			curb = nil
+@@ -161,6 +161,12 @@ func isAuto(s interface{}) bool {
+ 	return ok
+ }
+ 
++// isSameSym returns whether sym is the same as the given named symbol
++func isSameSym(sym interface{}, name string) bool {
++	s, ok := sym.(fmt.Stringer)
++	return ok && s.String() == name
++}
++
+ // nlz returns the number of leading zeros.
+ func nlz(x int64) int64 {
+ 	// log2(0) == 1, so nlz(0) == 64
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 8100b9ef7c..04932be887 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -13162,7 +13162,7 @@ func rewriteValue386_OpZeromask(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteBlock386(b *Block) bool {
++func rewriteBlock386(b *Block, config *Config) bool {
+ 	switch b.Kind {
+ 	case Block386EQ:
+ 		// match: (EQ (InvertFlags cmp) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 3e481ca725..2b685618f9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -18803,7 +18803,7 @@ func rewriteValueAMD64_OpZeroExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteBlockAMD64(b *Block) bool {
++func rewriteBlockAMD64(b *Block, config *Config) bool {
+ 	switch b.Kind {
+ 	case BlockAMD64EQ:
+ 		// match: (EQ (InvertFlags cmp) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 9b4d1ed099..543e3bdc9d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -16824,7 +16824,7 @@ func rewriteValueARM_OpZeromask(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteBlockARM(b *Block) bool {
++func rewriteBlockARM(b *Block, config *Config) bool {
+ 	switch b.Kind {
+ 	case BlockARMEQ:
+ 		// match: (EQ (FlagEQ) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index ca1dd805cd..db3ad730d8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -14719,7 +14719,7 @@ func rewriteValueARM64_OpZeroExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteBlockARM64(b *Block) bool {
++func rewriteBlockARM64(b *Block, config *Config) bool {
+ 	switch b.Kind {
+ 	case BlockARM64EQ:
+ 		// match: (EQ (FlagEQ) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 2bda6a79aa..a3e8b40393 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -9710,7 +9710,7 @@ func rewriteValueMIPS64_OpZeroExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteBlockMIPS64(b *Block) bool {
++func rewriteBlockMIPS64(b *Block, config *Config) bool {
+ 	switch b.Kind {
+ 	case BlockMIPS64EQ:
+ 		// match: (EQ (FPFlagTrue cmp) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 4be68fda2b..35441c9125 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -7159,7 +7159,7 @@ func rewriteValuePPC64_OpZeroExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteBlockPPC64(b *Block) bool {
++func rewriteBlockPPC64(b *Block, config *Config) bool {
+ 	switch b.Kind {
+ 	case BlockPPC64EQ:
+ 		// match: (EQ (FlagEQ) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index c32d54e1f5..fd52751890 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -500,7 +500,7 @@ func rewriteValuedec_OpStringPtr(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
+-func rewriteBlockdec(b *Block) bool {
++func rewriteBlockdec(b *Block, config *Config) bool {
+ 	switch b.Kind {
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index 91103f8475..4a8175accb 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -2527,7 +2527,7 @@ func rewriteValuedec64_OpZeroExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteBlockdec64(b *Block) bool {
++func rewriteBlockdec64(b *Block, config *Config) bool {
+ 	switch b.Kind {
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 81537036ab..d041afd9be 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -358,6 +358,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpXor64(v, config)
+ 	case OpXor8:
+ 		return rewriteValuegeneric_OpXor8(v, config)
++	case OpZero:
++		return rewriteValuegeneric_OpZero(v, config)
+ 	}
+ 	return false
+ }
+@@ -10969,7 +10971,43 @@ func rewriteValuegeneric_OpXor8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
+-func rewriteBlockgeneric(b *Block) bool {
++func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Zero (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) mem2)
++	// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& mem2 == mem 	&& isSameSym(sym, "runtime.newobject")
++	// result: mem
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLoad {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpOffPtr {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpSP {
++			break
++		}
++		mem := v_0.Args[1]
++		if mem.Op != OpStaticCall {
++			break
++		}
++		sym := mem.Aux
++		mem2 := v.Args[1]
++		if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && mem2 == mem && isSameSym(sym, "runtime.newobject")) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = mem.Type
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteBlockgeneric(b *Block, config *Config) bool {
+ 	switch b.Kind {
+ 	case BlockCheck:
+ 		// match: (Check (NilCheck (GetG _) _) next)
+@@ -10990,6 +11028,80 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			_ = next
+ 			return true
+ 		}
++		// match: (Check (NilCheck (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) _) succ)
++		// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& isSameSym(sym, "runtime.newobject")
++		// result: (Plain nil succ)
++		for {
++			v := b.Control
++			if v.Op != OpNilCheck {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpLoad {
++				break
++			}
++			v_0_0 := v_0.Args[0]
++			if v_0_0.Op != OpOffPtr {
++				break
++			}
++			c := v_0_0.AuxInt
++			v_0_0_0 := v_0_0.Args[0]
++			if v_0_0_0.Op != OpSP {
++				break
++			}
++			mem := v_0.Args[1]
++			if mem.Op != OpStaticCall {
++				break
++			}
++			sym := mem.Aux
++			succ := b.Succs[0]
++			if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && isSameSym(sym, "runtime.newobject")) {
++				break
++			}
++			b.Kind = BlockPlain
++			b.SetControl(nil)
++			_ = succ
++			return true
++		}
++		// match: (Check (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _))) _) succ)
++		// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& isSameSym(sym, "runtime.newobject")
++		// result: (Plain nil succ)
++		for {
++			v := b.Control
++			if v.Op != OpNilCheck {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpOffPtr {
++				break
++			}
++			v_0_0 := v_0.Args[0]
++			if v_0_0.Op != OpLoad {
++				break
++			}
++			v_0_0_0 := v_0_0.Args[0]
++			if v_0_0_0.Op != OpOffPtr {
++				break
++			}
++			c := v_0_0_0.AuxInt
++			v_0_0_0_0 := v_0_0_0.Args[0]
++			if v_0_0_0_0.Op != OpSP {
++				break
++			}
++			mem := v_0_0.Args[1]
++			if mem.Op != OpStaticCall {
++				break
++			}
++			sym := mem.Aux
++			succ := b.Succs[0]
++			if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && isSameSym(sym, "runtime.newobject")) {
++				break
++			}
++			b.Kind = BlockPlain
++			b.SetControl(nil)
++			_ = succ
++			return true
++		}
+ 	case BlockIf:
+ 		// match: (If (Not cond) yes no)
+ 		// cond:
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 38c7a3b847..7d7f9e11d3 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -781,6 +781,8 @@ func largeAlloc(size uintptr, needzero bool) *mspan {
+ }
+ 
+ // implementation of new builtin
++// compiler (both frontend and SSA backend) knows the signature
++// of this function
+ func newobject(typ *_type) unsafe.Pointer {
+ 	return mallocgc(typ.size, typ, true)
+ }

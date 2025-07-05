@@ -18,7 +18,7 @@ Date:   Wed Jan 18 12:56:37 2017 -0500
     Change-Id: I2d0ccdb84814537ab8b8842aa1b5f5bc0a88a0fc
     Reviewed-on: https://go-review.googlesource.com/36198
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/bug.go                          |  5 ++--
  src/cmd/go/generate.go                     |  2 +-
  src/cmd/go/internal/base/env.go            |  2 +-
@@ -30,3 +30,399 @@ Date:   Wed Jan 18 12:56:37 2017 -0500
  src/cmd/go/tool.go                         |  2 +-
  src/cmd/go/vcs.go                          |  6 +++--
  10 files changed, 67 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/go/bug.go b/src/cmd/go/bug.go
+index be64fe80dd..239c27e426 100644
+--- a/src/cmd/go/bug.go
++++ b/src/cmd/go/bug.go
+@@ -6,8 +6,6 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -17,6 +15,9 @@ import (
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ )
+ 
+ var cmdBug = &base.Command{
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index 60d4f01e90..bc08e99900 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -397,7 +397,7 @@ func (g *Generator) exec(words []string) {
+ 	cmd.Stderr = os.Stderr
+ 	// Run the command in the package directory.
+ 	cmd.Dir = g.dir
+-	cmd.Env = mergeEnvLists(g.env, cfg.OrigEnv)
++	cmd.Env = base.MergeEnvLists(g.env, cfg.OrigEnv)
+ 	err := cmd.Run()
+ 	if err != nil {
+ 		g.errorf("running %q: %s", words[0], err)
+diff --git a/src/cmd/go/internal/base/env.go b/src/cmd/go/internal/base/env.go
+index fb5956dfe3..fcade9d84e 100644
+--- a/src/cmd/go/internal/base/env.go
++++ b/src/cmd/go/internal/base/env.go
+@@ -6,7 +6,7 @@ package base
+ 
+ import "strings"
+ 
+-// envForDir returns a copy of the environment
++// EnvForDir returns a copy of the environment
+ // suitable for running in the given directory.
+ // The environment is the current process's environment
+ // but with an updated $PWD, so that an os.Getwd in the
+diff --git a/src/cmd/go/test.go b/src/cmd/go/internal/test/test.go
+similarity index 98%
+rename from src/cmd/go/test.go
+rename to src/cmd/go/internal/test/test.go
+index c17507041e..366b19a700 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -2,15 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package test
+ 
+ import (
+ 	"bytes"
+-	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+-	"cmd/go/internal/load"
+-	"cmd/go/internal/str"
+-	"cmd/go/internal/work"
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+@@ -30,16 +25,22 @@ import (
+ 	"time"
+ 	"unicode"
+ 	"unicode/utf8"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/load"
++	"cmd/go/internal/str"
++	"cmd/go/internal/work"
+ )
+ 
+ // Break init loop.
+ func init() {
+-	cmdTest.Run = runTest
++	CmdTest.Run = runTest
+ }
+ 
+ const testUsage = "test [build/test flags] [packages] [build/test flags & test binary flags]"
+ 
+-var cmdTest = &base.Command{
++var CmdTest = &base.Command{
+ 	CustomFlags: true,
+ 	UsageLine:   testUsage,
+ 	Short:       "test packages",
+@@ -112,7 +113,15 @@ The test binary also accepts flags that control execution of the test; these
+ flags are also accessible by 'go test'.
+ `
+ 
+-var helpTestflag = &base.Command{
++// Usage prints the usage message for 'go test -h' and exits.
++func Usage() {
++	os.Stderr.WriteString(testUsage + "\n\n" +
++		strings.TrimSpace(testFlag1) + "\n\n\t" +
++		strings.TrimSpace(testFlag2) + "\n")
++	os.Exit(2)
++}
++
++var HelpTestflag = &base.Command{
+ 	UsageLine: "testflag",
+ 	Short:     "description of testing flags",
+ 	Long: `
+@@ -317,7 +326,7 @@ In the second example, the argument math is passed through to the test
+ binary, instead of being interpreted as the package list.
+ `
+ 
+-var helpTestfunc = &base.Command{
++var HelpTestfunc = &base.Command{
+ 	UsageLine: "testfunc",
+ 	Short:     "description of testing functions",
+ 	Long: `
+@@ -408,7 +417,7 @@ func runTest(cmd *base.Command, args []string) {
+ 	var pkgArgs []string
+ 	pkgArgs, testArgs = testFlags(args)
+ 
+-	findExecCmd() // initialize cached result
++	work.FindExecCmd() // initialize cached result
+ 
+ 	work.InstrumentInit()
+ 	work.BuildModeInit()
+@@ -1107,7 +1116,7 @@ var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
+ 
+ // builderRunTest is the action for running a test binary.
+ func builderRunTest(b *work.Builder, a *work.Action) error {
+-	args := str.StringList(findExecCmd(), a.Deps[0].Target, testArgs)
++	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testArgs)
+ 	a.TestOutput = new(bytes.Buffer)
+ 
+ 	if cfg.BuildN || cfg.BuildX {
+@@ -1127,7 +1136,7 @@ func builderRunTest(b *work.Builder, a *work.Action) error {
+ 
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	cmd.Dir = a.Package.Dir
+-	cmd.Env = envForDir(cmd.Dir, cfg.OrigEnv)
++	cmd.Env = base.EnvForDir(cmd.Dir, cfg.OrigEnv)
+ 	var buf bytes.Buffer
+ 	if testStreamOutput {
+ 		cmd.Stdout = os.Stdout
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/internal/test/testflag.go
+similarity index 98%
+rename from src/cmd/go/testflag.go
+rename to src/cmd/go/internal/test/testflag.go
+index 4f519a4af6..1c44af5a00 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package test
+ 
+ import (
+ 	"flag"
+@@ -138,7 +138,6 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		} else {
+ 			// Test-only flags.
+ 			// Arguably should be handled by f.flagValue, but aren't.
+-			var err error
+ 			switch f.name {
+ 			// bool flags.
+ 			case "c", "i", "v", "cover":
+@@ -147,10 +146,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 				testO = value
+ 				testNeedBinary = true
+ 			case "exec":
+-				execCmd, err = str.SplitQuotedFields(value)
++				xcmd, err := str.SplitQuotedFields(value)
+ 				if err != nil {
+ 					base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
+ 				}
++				work.ExecCmd = xcmd
+ 			case "bench":
+ 				// record that we saw the flag; don't care about the value
+ 				testBench = true
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 830015e947..63731e1dfa 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -3622,3 +3622,28 @@ func InstrumentInit() {
+ 		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "msan")
+ 	}
+ }
++
++// ExecCmd is the command to use to run user binaries.
++// Normally it is empty, meaning run the binaries directly.
++// If cross-compiling and running on a remote system or
++// simulator, it is typically go_GOOS_GOARCH_exec, with
++// the target GOOS and GOARCH substituted.
++// The -exec flag overrides these defaults.
++var ExecCmd []string
++
++// FindExecCmd derives the value of ExecCmd to use.
++// It returns that value and leaves ExecCmd set for direct use.
++func FindExecCmd() []string {
++	if ExecCmd != nil {
++		return ExecCmd
++	}
++	ExecCmd = []string{} // avoid work the second time
++	if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH {
++		return ExecCmd
++	}
++	path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
++	if err == nil {
++		ExecCmd = []string{path}
++	}
++	return ExecCmd
++}
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 64cde307c9..502e571682 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/help"
++	"cmd/go/internal/test"
+ 	"cmd/go/internal/work"
+ )
+ 
+@@ -33,7 +34,7 @@ func init() {
+ 		work.CmdInstall,
+ 		cmdList,
+ 		cmdRun,
+-		cmdTest,
++		test.CmdTest,
+ 		cmdTool,
+ 		cmdVersion,
+ 		cmdVet,
+@@ -45,8 +46,8 @@ func init() {
+ 		help.HelpEnvironment,
+ 		help.HelpImportPath,
+ 		help.HelpPackages,
+-		helpTestflag,
+-		helpTestfunc,
++		test.HelpTestflag,
++		test.HelpTestfunc,
+ 	}
+ }
+ 
+@@ -134,41 +135,8 @@ func init() {
+ func mainUsage() {
+ 	// special case "go test -h"
+ 	if len(os.Args) > 1 && os.Args[1] == "test" {
+-		os.Stderr.WriteString(testUsage + "\n\n" +
+-			strings.TrimSpace(testFlag1) + "\n\n\t" +
+-			strings.TrimSpace(testFlag2) + "\n")
+-		os.Exit(2)
++		test.Usage()
+ 	}
+ 	help.PrintUsage(os.Stderr)
+ 	os.Exit(2)
+ }
+-
+-// envForDir returns a copy of the environment
+-// suitable for running in the given directory.
+-// The environment is the current process's environment
+-// but with an updated $PWD, so that an os.Getwd in the
+-// child will be faster.
+-func envForDir(dir string, base []string) []string {
+-	// Internally we only use rooted paths, so dir is rooted.
+-	// Even if dir is not rooted, no harm done.
+-	return mergeEnvLists([]string{"PWD=" + dir}, base)
+-}
+-
+-// mergeEnvLists merges the two environment lists such that
+-// variables with the same name in "in" replace those in "out".
+-// This always returns a newly allocated slice.
+-func mergeEnvLists(in, out []string) []string {
+-	out = append([]string(nil), out...)
+-NextVar:
+-	for _, inkv := range in {
+-		k := strings.SplitAfterN(inkv, "=", 2)[0]
+-		for i, outkv := range out {
+-			if strings.HasPrefix(outkv, k) {
+-				out[i] = inkv
+-				continue NextVar
+-			}
+-		}
+-		out = append(out, inkv)
+-	}
+-	return out
+-}
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 398a298fdc..37209b3660 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -7,8 +7,6 @@ package main
+ import (
+ 	"fmt"
+ 	"os"
+-	"os/exec"
+-	"runtime"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+@@ -18,23 +16,6 @@ import (
+ 	"cmd/go/internal/work"
+ )
+ 
+-var execCmd []string // -exec flag, for run and test
+-
+-func findExecCmd() []string {
+-	if execCmd != nil {
+-		return execCmd
+-	}
+-	execCmd = []string{} // avoid work the second time
+-	if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH {
+-		return execCmd
+-	}
+-	path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
+-	if err == nil {
+-		execCmd = []string{path}
+-	}
+-	return execCmd
+-}
+-
+ var cmdRun = &base.Command{
+ 	UsageLine: "run [build flags] [-exec xprog] gofiles... [arguments...]",
+ 	Short:     "compile and run Go program",
+@@ -62,7 +43,7 @@ func init() {
+ 	cmdRun.Run = runRun // break init loop
+ 
+ 	work.AddBuildFlags(cmdRun)
+-	cmdRun.Flag.Var((*base.StringsFlag)(&execCmd), "exec", "")
++	cmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
+ }
+ 
+ func printStderr(args ...interface{}) (int, error) {
+@@ -136,7 +117,7 @@ func runRun(cmd *base.Command, args []string) {
+ // buildRunProgram is the action for running a binary that has already
+ // been compiled. We ignore exit status.
+ func buildRunProgram(b *work.Builder, a *work.Action) error {
+-	cmdline := str.StringList(findExecCmd(), a.Deps[0].Target, a.Args)
++	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
+ 	if cfg.BuildN || cfg.BuildX {
+ 		b.Showcmd("", "%s", strings.Join(cmdline, " "))
+ 		if cfg.BuildN {
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index e6b3fd1e1b..2f08c419f3 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -72,7 +72,7 @@ func runTool(cmd *base.Command, args []string) {
+ 		Stdout: os.Stdout,
+ 		Stderr: os.Stderr,
+ 		// Set $GOROOT, mainly for go tool dist.
+-		Env: mergeEnvLists([]string{"GOROOT=" + cfg.GOROOT}, os.Environ()),
++		Env: base.MergeEnvLists([]string{"GOROOT=" + cfg.GOROOT}, os.Environ()),
+ 	}
+ 	err := toolCmd.Run()
+ 	if err != nil {
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index bcb602c69b..bb82deb379 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -6,7 +6,6 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"cmd/go/internal/cfg"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -19,6 +18,9 @@ import (
+ 	"regexp"
+ 	"strings"
+ 	"sync"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ )
+ 
+ // A vcsCmd describes how to use a version control system
+@@ -373,7 +375,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
+ 
+ 	cmd := exec.Command(v.cmd, args...)
+ 	cmd.Dir = dir
+-	cmd.Env = envForDir(cmd.Dir, os.Environ())
++	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+ 	if cfg.BuildX {
+ 		fmt.Printf("cd %s\n", dir)
+ 		fmt.Printf("%s %s\n", v.cmd, strings.Join(args, " "))

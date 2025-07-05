@@ -14,7 +14,7 @@ Date:   Mon Oct 7 15:24:17 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go      | 29 ++++-----------------
  src/cmd/compile/internal/types2/decl.go          | 10 ++------
  src/cmd/compile/internal/types2/example_test.go  |  8 +++---
@@ -40,3 +40,995 @@ Date:   Mon Oct 7 15:24:17 2024 +0000
  src/go/types/typeset.go                          | 18 ++++++-------
  src/go/types/typestring.go                       |  6 ++---
  24 files changed, 115 insertions(+), 224 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 4024a3f7c8..c43f33bcdd 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"fmt"
+ 	"internal/goversion"
+ 	"internal/testenv"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -811,8 +811,8 @@ func sortedInstances(m map[*syntax.Name]Instance) (instances []recordedInstance)
+ 	for id, inst := range m {
+ 		instances = append(instances, recordedInstance{id, inst})
+ 	}
+-	sort.Slice(instances, func(i, j int) bool {
+-		return CmpPos(instances[i].Name.Pos(), instances[j].Name.Pos()) < 0
++	slices.SortFunc(instances, func(a, b recordedInstance) int {
++		return CmpPos(a.Name.Pos(), b.Name.Pos())
+ 	})
+ 	return instances
+ }
+@@ -1385,14 +1385,7 @@ func TestScopesInfo(t *testing.T) {
+ 
+ 			// look for matching scope description
+ 			desc := kind + ":" + strings.Join(scope.Names(), " ")
+-			found := false
+-			for _, d := range test.scopes {
+-				if desc == d {
+-					found = true
+-					break
+-				}
+-			}
+-			if !found {
++			if !slices.Contains(test.scopes, desc) {
+ 				t.Errorf("package %s: no matching scope found for %s", name, desc)
+ 			}
+ 		}
+@@ -1942,7 +1935,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
+ 				t.Errorf("%s: got object = %v; want none", test.src, f)
+ 			}
+ 		}
+-		if !sameSlice(index, test.index) {
++		if !slices.Equal(index, test.index) {
+ 			t.Errorf("%s: got index = %v; want %v", test.src, index, test.index)
+ 		}
+ 		if indirect != test.indirect {
+@@ -1979,18 +1972,6 @@ type Instance = *Tree[int]
+ 	_, _, _ = LookupFieldOrMethod(T, false, pkg, "M") // verify that LookupFieldOrMethod terminates
+ }
+ 
+-func sameSlice(a, b []int) bool {
+-	if len(a) != len(b) {
+-		return false
+-	}
+-	for i, x := range a {
+-		if x != b[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // newDefined creates a new defined type named T with the given underlying type.
+ func newDefined(underlying Type) *Named {
+ 	tname := NewTypeName(nopos, nil, "T", nil)
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 3827e34563..037155a6ca 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -10,6 +10,7 @@ import (
+ 	"go/constant"
+ 	"internal/buildcfg"
+ 	. "internal/types/errors"
++	"slices"
+ )
+ 
+ func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syntax.Pos) {
+@@ -440,14 +441,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
+ 
+ 	if debug {
+ 		// obj must be one of lhs
+-		found := false
+-		for _, lhs := range lhs {
+-			if obj == lhs {
+-				found = true
+-				break
+-			}
+-		}
+-		if !found {
++		if !slices.Contains(lhs, obj) {
+ 			panic("inconsistent lhs")
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/example_test.go b/src/cmd/compile/internal/types2/example_test.go
+index 7031fdb1ad..534d4cc01f 100644
+--- a/src/cmd/compile/internal/types2/example_test.go
++++ b/src/cmd/compile/internal/types2/example_test.go
+@@ -21,7 +21,7 @@ import (
+ 	"fmt"
+ 	"log"
+ 	"regexp"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -141,14 +141,14 @@ func fib(x int) int {
+ 	}
+ 	var items []string
+ 	for obj, uses := range usesByObj {
+-		sort.Strings(uses)
++		slices.Sort(uses)
+ 		item := fmt.Sprintf("%s:\n  defined at %s\n  used at %s",
+ 			types2.ObjectString(obj, types2.RelativeTo(pkg)),
+ 			obj.Pos(),
+ 			strings.Join(uses, ", "))
+ 		items = append(items, item)
+ 	}
+-	sort.Strings(items) // sort by line:col, in effect
++	slices.Sort(items) // sort by line:col, in effect
+ 	fmt.Println(strings.Join(items, "\n"))
+ 	fmt.Println()
+ 
+@@ -168,7 +168,7 @@ func fib(x int) int {
+ 	// 		mode(tv), tvstr)
+ 	// 	items = append(items, buf.String())
+ 	// }
+-	// sort.Strings(items)
++	// slices.Sort(items)
+ 	// fmt.Println(strings.Join(items, "\n"))
+ 
+ 	// Output:
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index a57d25b263..350f46d34b 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -9,6 +9,7 @@ package types2
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -35,7 +36,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// be able to use it either.
+ 	if check.conf.Error != nil {
+ 		defer func() {
+-			assert(inferred == nil || len(inferred) == len(tparams) && !containsNil(inferred))
++			assert(inferred == nil || len(inferred) == len(tparams) && !slices.Contains(inferred, nil))
+ 		}()
+ 	}
+ 
+@@ -54,7 +55,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	assert(params.Len() == len(args))
+ 
+ 	// If we already have all type arguments, we're done.
+-	if len(targs) == n && !containsNil(targs) {
++	if len(targs) == n && !slices.Contains(targs, nil) {
+ 		return targs
+ 	}
+ 
+@@ -457,16 +458,6 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	return
+ }
+ 
+-// containsNil reports whether list contains a nil entry.
+-func containsNil(list []Type) bool {
+-	for _, t := range list {
+-		if t == nil {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // renameTParams renames the type parameters in the given type such that each type
+ // parameter is given a new identity. renameTParams returns the new type parameters
+ // and updated type. If the result type is unchanged from the argument type, none
+@@ -636,7 +627,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 		}
+ 
+ 	case *TypeParam:
+-		return tparamIndex(w.tparams, t) >= 0
++		return slices.Index(w.tparams, t) >= 0
+ 
+ 	default:
+ 		panic(fmt.Sprintf("unexpected %T", typ))
+@@ -717,7 +708,7 @@ func (w *cycleFinder) typ(typ Type) {
+ 		// in w.tparams, iterative substitution will lead to infinite expansion.
+ 		// Nil out the corresponding type which effectively kills the cycle.
+ 		if tpar, _ := typ.(*TypeParam); tpar != nil {
+-			if i := tparamIndex(w.tparams, tpar); i >= 0 {
++			if i := slices.Index(w.tparams, tpar); i >= 0 {
+ 				// cycle through tpar
+ 				w.inferred[i] = nil
+ 			}
+@@ -786,7 +777,7 @@ func (w *cycleFinder) typ(typ Type) {
+ 		}
+ 
+ 	case *TypeParam:
+-		if i := tparamIndex(w.tparams, t); i >= 0 && w.inferred[i] != nil {
++		if i := slices.Index(w.tparams, t); i >= 0 && w.inferred[i] != nil {
+ 			w.typ(w.inferred[i])
+ 		}
+ 
+@@ -800,14 +791,3 @@ func (w *cycleFinder) varList(list []*Var) {
+ 		w.typ(v.typ)
+ 	}
+ }
+-
+-// If tpar is a type parameter in list, tparamIndex returns the index
+-// of the type parameter in list. Otherwise the result is < 0.
+-func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+-	for i, p := range list {
+-		if p == tpar {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 86b0a24e51..57cb3b9257 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"regexp"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 
+@@ -164,7 +164,7 @@ L7 uses var z int`
+ 		fact := fmt.Sprintf("L%d uses %s", id.Pos().Line(), obj)
+ 		facts = append(facts, fact)
+ 	}
+-	sort.Strings(facts)
++	slices.Sort(facts)
+ 
+ 	got := strings.Join(facts, "\n")
+ 	if got != want {
+diff --git a/src/cmd/compile/internal/types2/labels.go b/src/cmd/compile/internal/types2/labels.go
+index 548df7925b..e44b7c7f70 100644
+--- a/src/cmd/compile/internal/types2/labels.go
++++ b/src/cmd/compile/internal/types2/labels.go
+@@ -7,6 +7,7 @@ package types2
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	. "internal/types/errors"
++	"slices"
+ )
+ 
+ // labels checks correct label use in body.
+@@ -108,14 +109,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 	}
+ 
+ 	jumpsOverVarDecl := func(jmp *syntax.BranchStmt) bool {
+-		if varDeclPos.IsKnown() {
+-			for _, bad := range badJumps {
+-				if jmp == bad {
+-					return true
+-				}
+-			}
+-		}
+-		return false
++		return varDeclPos.IsKnown() && slices.Contains(badJumps, jmp)
+ 	}
+ 
+ 	var stmtBranches func(syntax.Stmt)
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 627b8b3074..f968f652aa 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -193,40 +193,48 @@ func (obj *object) sameId(pkg *Package, name string, foldCase bool) bool {
+ 	return samePkg(obj.pkg, pkg)
+ }
+ 
+-// less reports whether object a is ordered before object b.
++// cmp reports whether object a is ordered before object b.
++// cmp returns:
++//
++//	-1 if a is before b
++//	 0 if a is equivalent to b
++//	+1 if a is behind b
+ //
+ // Objects are ordered nil before non-nil, exported before
+ // non-exported, then by name, and finally (for non-exported
+ // functions) by package path.
+-func (a *object) less(b *object) bool {
++func (a *object) cmp(b *object) int {
+ 	if a == b {
+-		return false
++		return 0
+ 	}
+ 
+ 	// Nil before non-nil.
+ 	if a == nil {
+-		return true
++		return -1
+ 	}
+ 	if b == nil {
+-		return false
++		return +1
+ 	}
+ 
+ 	// Exported functions before non-exported.
+ 	ea := isExported(a.name)
+ 	eb := isExported(b.name)
+ 	if ea != eb {
+-		return ea
++		if ea {
++			return -1
++		}
++		return +1
+ 	}
+ 
+ 	// Order by name and then (for non-exported names) by package.
+ 	if a.name != b.name {
+-		return a.name < b.name
++		return strings.Compare(a.name, b.name)
+ 	}
+ 	if !ea {
+-		return a.pkg.path < b.pkg.path
++		return strings.Compare(a.pkg.path, b.pkg.path)
+ 	}
+ 
+-	return false
++	return 0
+ }
+ 
+ // A PkgName represents an imported Go package.
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index ca51706d66..86b7e3dccf 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -6,7 +6,10 @@
+ 
+ package types2
+ 
+-import "unicode"
++import (
++	"slices"
++	"unicode"
++)
+ 
+ // isValid reports whether t is a valid type.
+ func isValid(t Type) bool { return Unalias(t) != Typ[Invalid] }
+@@ -506,16 +509,10 @@ func identicalOrigin(x, y *Named) bool {
+ // Instantiations are identical if their origin and type arguments are
+ // identical.
+ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool {
+-	if len(xargs) != len(yargs) {
++	if !slices.EqualFunc(xargs, yargs, Identical) {
+ 		return false
+ 	}
+ 
+-	for i, xa := range xargs {
+-		if !Identical(xa, yargs[i]) {
+-			return false
+-		}
+-	}
+-
+ 	return Identical(xorig, yorig)
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index f328359648..b2b3836e31 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -6,10 +6,11 @@ package types2
+ 
+ import (
+ 	"cmd/compile/internal/syntax"
++	"cmp"
+ 	"fmt"
+ 	"go/constant"
+ 	. "internal/types/errors"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -682,7 +683,9 @@ func (check *Checker) packageObjects() {
+ 		objList[i] = obj
+ 		i++
+ 	}
+-	sort.Sort(inSourceOrder(objList))
++	slices.SortFunc(objList, func(a, b Object) int {
++		return cmp.Compare(a.order(), b.order())
++	})
+ 
+ 	// add new methods to already type-checked types (from a prior Checker.Files call)
+ 	for _, obj := range objList {
+@@ -748,14 +751,6 @@ func (check *Checker) packageObjects() {
+ 	check.methods = nil
+ }
+ 
+-// inSourceOrder implements the sort.Sort interface.
+-// TODO(gri) replace with slices.SortFunc
+-type inSourceOrder []Object
+-
+-func (a inSourceOrder) Len() int           { return len(a) }
+-func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
+-func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-
+ // unusedImports checks for unused imports.
+ func (check *Checker) unusedImports() {
+ 	// If function bodies are not checked, packages' uses are likely missing - don't check.
+diff --git a/src/cmd/compile/internal/types2/resolver_test.go b/src/cmd/compile/internal/types2/resolver_test.go
+index 8105d8af42..daf4bb7a01 100644
+--- a/src/cmd/compile/internal/types2/resolver_test.go
++++ b/src/cmd/compile/internal/types2/resolver_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"internal/testenv"
+-	"sort"
++	"slices"
+ 	"testing"
+ 
+ 	. "cmd/compile/internal/types2"
+@@ -197,7 +197,7 @@ func TestResolveIdents(t *testing.T) {
+ 	}
+ 
+ 	// check the expected set of idents that are simultaneously uses and defs
+-	sort.Strings(both)
++	slices.Sort(both)
+ 	if got, want := fmt.Sprint(both), "[Mutex Stringer error]"; got != want {
+ 		t.Errorf("simultaneous uses/defs = %s, want %s", got, want)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/scope.go b/src/cmd/compile/internal/types2/scope.go
+index eefd8fac5b..fc2a261ad6 100644
+--- a/src/cmd/compile/internal/types2/scope.go
++++ b/src/cmd/compile/internal/types2/scope.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"io"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ )
+@@ -55,7 +55,7 @@ func (s *Scope) Names() []string {
+ 		names[i] = name
+ 		i++
+ 	}
+-	sort.Strings(names)
++	slices.Sort(names)
+ 	return names
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 8d2ca71614..e62c263b7d 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -7,7 +7,7 @@ package types2
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	. "internal/types/errors"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -345,27 +345,23 @@ func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool
+ 	return terms, comp
+ }
+ 
++func compareFunc(a, b *Func) int {
++	return a.cmp(&b.object)
++}
++
+ func sortMethods(list []*Func) {
+-	sort.Sort(byUniqueMethodName(list))
++	slices.SortFunc(list, compareFunc)
+ }
+ 
+ func assertSortedMethods(list []*Func) {
+ 	if !debug {
+ 		panic("assertSortedMethods called outside debug mode")
+ 	}
+-	if !sort.IsSorted(byUniqueMethodName(list)) {
++	if !slices.IsSortedFunc(list, compareFunc) {
+ 		panic("methods not sorted")
+ 	}
+ }
+ 
+-// byUniqueMethodName method lists can be sorted by their unique method names.
+-// todo: replace with slices.SortFunc
+-type byUniqueMethodName []*Func
+-
+-func (a byUniqueMethodName) Len() int           { return len(a) }
+-func (a byUniqueMethodName) Less(i, j int) bool { return a[i].less(&a[j].object) }
+-func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-
+ // invalidTypeSet is a singleton type set to signal an invalid type set
+ // due to an error. It's also a valid empty type set, so consumers of
+ // type sets may choose to ignore it.
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 36f90b6735..47f53bc12d 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -9,7 +9,7 @@ package types2
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"unicode/utf8"
+@@ -308,7 +308,7 @@ func (w *typeWriter) typ(typ Type) {
+ 			w.error("unnamed type parameter")
+ 			break
+ 		}
+-		if i := tparamIndex(w.tparams.list(), t); i >= 0 {
++		if i := slices.Index(w.tparams.list(), t); i >= 0 {
+ 			// The names of type parameters that are declared by the type being
+ 			// hashed are not part of the type identity. Replace them with a
+ 			// placeholder indicating their index.
+@@ -382,7 +382,7 @@ func (w *typeWriter) typeSet(s *_TypeSet) {
+ 			newTypeHasher(&buf, w.ctxt).typ(term.typ)
+ 			termHashes = append(termHashes, buf.String())
+ 		}
+-		sort.Strings(termHashes)
++		slices.Sort(termHashes)
+ 		if !first {
+ 			w.byte(';')
+ 		}
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index ac1fc63072..b686578b38 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1386,14 +1386,7 @@ func TestScopesInfo(t *testing.T) {
+ 
+ 			// look for matching scope description
+ 			desc := kind + ":" + strings.Join(scope.Names(), " ")
+-			found := false
+-			for _, d := range test.scopes {
+-				if desc == d {
+-					found = true
+-					break
+-				}
+-			}
+-			if !found {
++			if !slices.Contains(test.scopes, desc) {
+ 				t.Errorf("package %s: no matching scope found for %s", name, desc)
+ 			}
+ 		}
+@@ -1942,7 +1935,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
+ 				t.Errorf("%s: got object = %v; want none", test.src, f)
+ 			}
+ 		}
+-		if !sameSlice(index, test.index) {
++		if !slices.Equal(index, test.index) {
+ 			t.Errorf("%s: got index = %v; want %v", test.src, index, test.index)
+ 		}
+ 		if indirect != test.indirect {
+@@ -1980,18 +1973,6 @@ type Instance = *Tree[int]
+ 	_, _, _ = LookupFieldOrMethod(T, false, pkg, "M") // verify that LookupFieldOrMethod terminates
+ }
+ 
+-func sameSlice(a, b []int) bool {
+-	if len(a) != len(b) {
+-		return false
+-	}
+-	for i, x := range a {
+-		if x != b[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // newDefined creates a new defined type named T with the given underlying type.
+ // Helper function for use with TestIncompleteInterfaces only.
+ func newDefined(underlying Type) *Named {
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 9941dd538f..4fd37df786 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -11,6 +11,7 @@ import (
+ 	"go/token"
+ 	"internal/buildcfg"
+ 	. "internal/types/errors"
++	"slices"
+ )
+ 
+ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token.Pos) {
+@@ -515,14 +516,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+ 
+ 	if debug {
+ 		// obj must be one of lhs
+-		found := false
+-		for _, lhs := range lhs {
+-			if obj == lhs {
+-				found = true
+-				break
+-			}
+-		}
+-		if !found {
++		if !slices.Contains(lhs, obj) {
+ 			panic("inconsistent lhs")
+ 		}
+ 	}
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 3bdbd79870..ebb0a97c63 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -12,6 +12,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/token"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -38,7 +39,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	// be able to use it either.
+ 	if check.conf.Error != nil {
+ 		defer func() {
+-			assert(inferred == nil || len(inferred) == len(tparams) && !containsNil(inferred))
++			assert(inferred == nil || len(inferred) == len(tparams) && !slices.Contains(inferred, nil))
+ 		}()
+ 	}
+ 
+@@ -57,7 +58,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	assert(params.Len() == len(args))
+ 
+ 	// If we already have all type arguments, we're done.
+-	if len(targs) == n && !containsNil(targs) {
++	if len(targs) == n && !slices.Contains(targs, nil) {
+ 		return targs
+ 	}
+ 
+@@ -460,16 +461,6 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	return
+ }
+ 
+-// containsNil reports whether list contains a nil entry.
+-func containsNil(list []Type) bool {
+-	for _, t := range list {
+-		if t == nil {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // renameTParams renames the type parameters in the given type such that each type
+ // parameter is given a new identity. renameTParams returns the new type parameters
+ // and updated type. If the result type is unchanged from the argument type, none
+@@ -639,7 +630,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 		}
+ 
+ 	case *TypeParam:
+-		return tparamIndex(w.tparams, t) >= 0
++		return slices.Index(w.tparams, t) >= 0
+ 
+ 	default:
+ 		panic(fmt.Sprintf("unexpected %T", typ))
+@@ -720,7 +711,7 @@ func (w *cycleFinder) typ(typ Type) {
+ 		// in w.tparams, iterative substitution will lead to infinite expansion.
+ 		// Nil out the corresponding type which effectively kills the cycle.
+ 		if tpar, _ := typ.(*TypeParam); tpar != nil {
+-			if i := tparamIndex(w.tparams, tpar); i >= 0 {
++			if i := slices.Index(w.tparams, tpar); i >= 0 {
+ 				// cycle through tpar
+ 				w.inferred[i] = nil
+ 			}
+@@ -789,7 +780,7 @@ func (w *cycleFinder) typ(typ Type) {
+ 		}
+ 
+ 	case *TypeParam:
+-		if i := tparamIndex(w.tparams, t); i >= 0 && w.inferred[i] != nil {
++		if i := slices.Index(w.tparams, t); i >= 0 && w.inferred[i] != nil {
+ 			w.typ(w.inferred[i])
+ 		}
+ 
+@@ -803,14 +794,3 @@ func (w *cycleFinder) varList(list []*Var) {
+ 		w.typ(v.typ)
+ 	}
+ }
+-
+-// If tpar is a type parameter in list, tparamIndex returns the index
+-// of the type parameter in list. Otherwise the result is < 0.
+-func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+-	for i, p := range list {
+-		if p == tpar {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+diff --git a/src/go/types/labels.go b/src/go/types/labels.go
+index 2f7f7bd20c..97b753581a 100644
+--- a/src/go/types/labels.go
++++ b/src/go/types/labels.go
+@@ -8,6 +8,7 @@ import (
+ 	"go/ast"
+ 	"go/token"
+ 	. "internal/types/errors"
++	"slices"
+ )
+ 
+ // labels checks correct label use in body.
+@@ -109,14 +110,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
+ 	}
+ 
+ 	jumpsOverVarDecl := func(jmp *ast.BranchStmt) bool {
+-		if varDeclPos.IsValid() {
+-			for _, bad := range badJumps {
+-				if jmp == bad {
+-					return true
+-				}
+-			}
+-		}
+-		return false
++		return varDeclPos.IsValid() && slices.Contains(badJumps, jmp)
+ 	}
+ 
+ 	blockBranches := func(lstmt *ast.LabeledStmt, list []ast.Stmt) {
+diff --git a/src/go/types/methodset_test.go b/src/go/types/methodset_test.go
+index c40d05fc37..37529fea4a 100644
+--- a/src/go/types/methodset_test.go
++++ b/src/go/types/methodset_test.go
+@@ -5,6 +5,7 @@
+ package types_test
+ 
+ import (
++	"slices"
+ 	"strings"
+ 	"testing"
+ 
+@@ -108,7 +109,7 @@ func TestNewMethodSet(t *testing.T) {
+ 			if got, want := sel.Obj().Name(), m.name; got != want {
+ 				t.Errorf("%s [method %d]: got name = %q at, want %q", src, i, got, want)
+ 			}
+-			if got, want := sel.Index(), m.index; !sameSlice(got, want) {
++			if got, want := sel.Index(), m.index; !slices.Equal(got, want) {
+ 				t.Errorf("%s [method %d]: got index = %v, want %v", src, i, got, want)
+ 			}
+ 			if got, want := sel.Indirect(), m.indirect; got != want {
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 9cd18e3015..80cd650ff1 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -196,40 +196,48 @@ func (obj *object) sameId(pkg *Package, name string, foldCase bool) bool {
+ 	return samePkg(obj.pkg, pkg)
+ }
+ 
+-// less reports whether object a is ordered before object b.
++// cmp reports whether object a is ordered before object b.
++// cmp returns:
++//
++//	-1 if a is before b
++//	 0 if a is equivalent to b
++//	+1 if a is behind b
+ //
+ // Objects are ordered nil before non-nil, exported before
+ // non-exported, then by name, and finally (for non-exported
+ // functions) by package path.
+-func (a *object) less(b *object) bool {
++func (a *object) cmp(b *object) int {
+ 	if a == b {
+-		return false
++		return 0
+ 	}
+ 
+ 	// Nil before non-nil.
+ 	if a == nil {
+-		return true
++		return -1
+ 	}
+ 	if b == nil {
+-		return false
++		return +1
+ 	}
+ 
+ 	// Exported functions before non-exported.
+ 	ea := isExported(a.name)
+ 	eb := isExported(b.name)
+ 	if ea != eb {
+-		return ea
++		if ea {
++			return -1
++		}
++		return +1
+ 	}
+ 
+ 	// Order by name and then (for non-exported names) by package.
+ 	if a.name != b.name {
+-		return a.name < b.name
++		return strings.Compare(a.name, b.name)
+ 	}
+ 	if !ea {
+-		return a.pkg.path < b.pkg.path
++		return strings.Compare(a.pkg.path, b.pkg.path)
+ 	}
+ 
+-	return false
++	return 0
+ }
+ 
+ // A PkgName represents an imported Go package.
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 017dc17c6a..240c022848 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -9,7 +9,10 @@
+ 
+ package types
+ 
+-import "unicode"
++import (
++	"slices"
++	"unicode"
++)
+ 
+ // isValid reports whether t is a valid type.
+ func isValid(t Type) bool { return Unalias(t) != Typ[Invalid] }
+@@ -509,16 +512,10 @@ func identicalOrigin(x, y *Named) bool {
+ // Instantiations are identical if their origin and type arguments are
+ // identical.
+ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool {
+-	if len(xargs) != len(yargs) {
++	if !slices.EqualFunc(xargs, yargs, Identical) {
+ 		return false
+ 	}
+ 
+-	for i, xa := range xargs {
+-		if !Identical(xa, yargs[i]) {
+-			return false
+-		}
+-	}
+-
+ 	return Identical(xorig, yorig)
+ }
+ 
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 8cc57dc2de..939bcecffa 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -5,13 +5,14 @@
+ package types
+ 
+ import (
++	"cmp"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/internal/typeparams"
+ 	"go/token"
+ 	. "internal/types/errors"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -678,7 +679,9 @@ func (check *Checker) packageObjects() {
+ 		objList[i] = obj
+ 		i++
+ 	}
+-	sort.Sort(inSourceOrder(objList))
++	slices.SortFunc(objList, func(a, b Object) int {
++		return cmp.Compare(a.order(), b.order())
++	})
+ 
+ 	// add new methods to already type-checked types (from a prior Checker.Files call)
+ 	for _, obj := range objList {
+@@ -744,14 +747,6 @@ func (check *Checker) packageObjects() {
+ 	check.methods = nil
+ }
+ 
+-// inSourceOrder implements the sort.Sort interface.
+-// TODO(gri) replace with slices.SortFunc
+-type inSourceOrder []Object
+-
+-func (a inSourceOrder) Len() int           { return len(a) }
+-func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
+-func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-
+ // unusedImports checks for unused imports.
+ func (check *Checker) unusedImports() {
+ 	// If function bodies are not checked, packages' uses are likely missing - don't check.
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index 6d748009f8..e3fb7b6eff 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -13,7 +13,7 @@ import (
+ 	"fmt"
+ 	"go/token"
+ 	"io"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ )
+@@ -58,7 +58,7 @@ func (s *Scope) Names() []string {
+ 		names[i] = name
+ 		i++
+ 	}
+-	sort.Strings(names)
++	slices.Sort(names)
+ 	return names
+ }
+ 
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 84c7130646..d04833863d 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -10,7 +10,7 @@ package types
+ import (
+ 	"go/token"
+ 	. "internal/types/errors"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -348,27 +348,23 @@ func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool
+ 	return terms, comp
+ }
+ 
++func compareFunc(a, b *Func) int {
++	return a.cmp(&b.object)
++}
++
+ func sortMethods(list []*Func) {
+-	sort.Sort(byUniqueMethodName(list))
++	slices.SortFunc(list, compareFunc)
+ }
+ 
+ func assertSortedMethods(list []*Func) {
+ 	if !debug {
+ 		panic("assertSortedMethods called outside debug mode")
+ 	}
+-	if !sort.IsSorted(byUniqueMethodName(list)) {
++	if !slices.IsSortedFunc(list, compareFunc) {
+ 		panic("methods not sorted")
+ 	}
+ }
+ 
+-// byUniqueMethodName method lists can be sorted by their unique method names.
+-// todo: replace with slices.SortFunc
+-type byUniqueMethodName []*Func
+-
+-func (a byUniqueMethodName) Len() int           { return len(a) }
+-func (a byUniqueMethodName) Less(i, j int) bool { return a[i].less(&a[j].object) }
+-func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-
+ // invalidTypeSet is a singleton type set to signal an invalid type set
+ // due to an error. It's also a valid empty type set, so consumers of
+ // type sets may choose to ignore it.
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 3d6768db99..804e80407e 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -12,7 +12,7 @@ package types
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"unicode/utf8"
+@@ -311,7 +311,7 @@ func (w *typeWriter) typ(typ Type) {
+ 			w.error("unnamed type parameter")
+ 			break
+ 		}
+-		if i := tparamIndex(w.tparams.list(), t); i >= 0 {
++		if i := slices.Index(w.tparams.list(), t); i >= 0 {
+ 			// The names of type parameters that are declared by the type being
+ 			// hashed are not part of the type identity. Replace them with a
+ 			// placeholder indicating their index.
+@@ -385,7 +385,7 @@ func (w *typeWriter) typeSet(s *_TypeSet) {
+ 			newTypeHasher(&buf, w.ctxt).typ(term.typ)
+ 			termHashes = append(termHashes, buf.String())
+ 		}
+-		sort.Strings(termHashes)
++		slices.Sort(termHashes)
+ 		if !first {
+ 			w.byte(';')
+ 		}

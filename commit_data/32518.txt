@@ -9,7 +9,109 @@ Date:   Thu Apr 27 16:55:47 2017 -0700
     Change-Id: Ib3cf0336e0bf91580d533704ec1a9d45eb0bf62d
     Reviewed-on: https://go-review.googlesource.com/42020
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/bytes/buffer.go      | 13 +++++++------
  src/bytes/buffer_test.go | 42 +++++++++++++++++++++++++++++++++++++-----
  2 files changed, 44 insertions(+), 11 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index c821fa7c54..9b6369de08 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -346,12 +346,12 @@ func (b *Buffer) ReadRune() (r rune, size int, err error) {
+ 
+ // UnreadRune unreads the last rune returned by ReadRune.
+ // If the most recent read or write operation on the buffer was
+-// not a ReadRune, UnreadRune returns an error.  (In this regard
++// not a successful ReadRune, UnreadRune returns an error.  (In this regard
+ // it is stricter than UnreadByte, which will unread the last byte
+ // from any read operation.)
+ func (b *Buffer) UnreadRune() error {
+ 	if b.lastRead <= opInvalid {
+-		return errors.New("bytes.Buffer: UnreadRune: previous operation was not ReadRune")
++		return errors.New("bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune")
+ 	}
+ 	if b.off >= int(b.lastRead) {
+ 		b.off -= int(b.lastRead)
+@@ -360,12 +360,13 @@ func (b *Buffer) UnreadRune() error {
+ 	return nil
+ }
+ 
+-// UnreadByte unreads the last byte returned by the most recent
+-// read operation. If write has happened since the last read, UnreadByte
+-// returns an error.
++// UnreadByte unreads the last byte returned by the most recent successful
++// read operation that read at least one byte. If a write has happened since
++// the last read, if the last read returned an error, or if the read read zero
++// bytes, UnreadByte returns an error.
+ func (b *Buffer) UnreadByte() error {
+ 	if b.lastRead == opInvalid {
+-		return errors.New("bytes.Buffer: UnreadByte: previous operation was not a read")
++		return errors.New("bytes.Buffer: UnreadByte: previous operation was not a successful read")
+ 	}
+ 	b.lastRead = opInvalid
+ 	if b.off > 0 {
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index b1b85f979a..a07f58ee44 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -311,6 +311,19 @@ func TestRuneIO(t *testing.T) {
+ 
+ 	// Check that UnreadRune works
+ 	buf.Reset()
++
++	// check at EOF
++	if err := buf.UnreadRune(); err == nil {
++		t.Fatal("UnreadRune at EOF: got no error")
++	}
++	if _, _, err := buf.ReadRune(); err == nil {
++		t.Fatal("ReadRune at EOF: got no error")
++	}
++	if err := buf.UnreadRune(); err == nil {
++		t.Fatal("UnreadRune after ReadRune at EOF: got no error")
++	}
++
++	// check not at EOF
+ 	buf.Write(b)
+ 	for r := rune(0); r < NRune; r++ {
+ 		r1, size, _ := buf.ReadRune()
+@@ -473,15 +486,34 @@ func TestReadEmptyAtEOF(t *testing.T) {
+ 
+ func TestUnreadByte(t *testing.T) {
+ 	b := new(Buffer)
++
++	// check at EOF
++	if err := b.UnreadByte(); err == nil {
++		t.Fatal("UnreadByte at EOF: got no error")
++	}
++	if _, err := b.ReadByte(); err == nil {
++		t.Fatal("ReadByte at EOF: got no error")
++	}
++	if err := b.UnreadByte(); err == nil {
++		t.Fatal("UnreadByte after ReadByte at EOF: got no error")
++	}
++
++	// check not at EOF
+ 	b.WriteString("abcdefghijklmnopqrstuvwxyz")
+ 
+-	_, err := b.ReadBytes('m')
+-	if err != nil {
+-		t.Fatalf("ReadBytes: %v", err)
++	// after unsuccessful read
++	if n, err := b.Read(nil); n != 0 || err != nil {
++		t.Fatalf("Read(nil) = %d,%v; want 0,nil", n, err)
++	}
++	if err := b.UnreadByte(); err == nil {
++		t.Fatal("UnreadByte after Read(nil): got no error")
+ 	}
+ 
+-	err = b.UnreadByte()
+-	if err != nil {
++	// after successful read
++	if _, err := b.ReadBytes('m'); err != nil {
++		t.Fatalf("ReadBytes: %v", err)
++	}
++	if err := b.UnreadByte(); err != nil {
+ 		t.Fatalf("UnreadByte: %v", err)
+ 	}
+ 	c, err := b.ReadByte()

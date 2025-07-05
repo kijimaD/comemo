@@ -13,6 +13,37 @@ Date:   Wed Mar 13 15:51:15 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 825f08ca8a..ef4b933f68 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -676,17 +676,17 @@ func evconst(n *Node) {
+ 	case OREAL, OIMAG:
+ 		if nl.Op == OLITERAL {
+ 			var re, im *Mpflt
+-			switch consttype(nl) {
+-			case CTINT, CTRUNE:
++			switch u := nl.Val().U.(type) {
++			case *Mpint:
+ 				re = newMpflt()
+-				re.SetInt(nl.Val().U.(*Mpint))
++				re.SetInt(u)
+ 				// im = 0
+-			case CTFLT:
+-				re = nl.Val().U.(*Mpflt)
++			case *Mpflt:
++				re = u
+ 				// im = 0
+-			case CTCPLX:
+-				re = &nl.Val().U.(*Mpcplx).Real
+-				im = &nl.Val().U.(*Mpcplx).Imag
++			case *Mpcplx:
++				re = &u.Real
++				im = &u.Imag
+ 			default:
+ 				Fatalf("impossible")
+ 			}

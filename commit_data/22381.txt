@@ -14,10 +14,306 @@ Date:   Tue Mar 10 19:01:44 2015 +1100
     Change-Id: Ica241dfc19b3eb47ade150bf0432373c6006c38a
     Reviewed-on: https://go-review.googlesource.com/7264
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/decode_test.go                 |  12 +++++-
  src/image/jpeg/reader.go                 |  69 ++++++++++++++++++++-----------
  src/image/jpeg/scan.go                   |  42 ++++++++++---------
  src/image/testdata/video-001.221212.jpeg | Bin 0 -> 19263 bytes
  src/image/testdata/video-001.221212.png  | Bin 0 -> 29820 bytes
  5 files changed, 78 insertions(+), 45 deletions(-)
+
+diff --git a/src/image/decode_test.go b/src/image/decode_test.go
+index 8b0b6e84b0..d16ef8a1a4 100644
+--- a/src/image/decode_test.go
++++ b/src/image/decode_test.go
+@@ -6,6 +6,7 @@ package image_test
+ 
+ import (
+ 	"bufio"
++	"fmt"
+ 	"image"
+ 	"image/color"
+ 	"os"
+@@ -32,6 +33,7 @@ var imageTests = []imageTest{
+ 	// JPEG is a lossy format and hence needs a non-zero tolerance.
+ 	{"testdata/video-001.png", "testdata/video-001.jpeg", 8 << 8},
+ 	{"testdata/video-001.png", "testdata/video-001.progressive.jpeg", 8 << 8},
++	{"testdata/video-001.221212.png", "testdata/video-001.221212.jpeg", 8 << 8},
+ 	{"testdata/video-001.cmyk.png", "testdata/video-001.cmyk.jpeg", 8 << 8},
+ 	{"testdata/video-001.rgb.png", "testdata/video-001.rgb.jpeg", 8 << 8},
+ 	// Grayscale images.
+@@ -76,6 +78,11 @@ func withinTolerance(c0, c1 color.Color, tolerance int) bool {
+ }
+ 
+ func TestDecode(t *testing.T) {
++	rgba := func(c color.Color) string {
++		r, g, b, a := c.RGBA()
++		return fmt.Sprintf("rgba = 0x%04x, 0x%04x, 0x%04x, 0x%04x for %T%v", r, g, b, a, c, c)
++	}
++
+ 	golden := make(map[string]image.Image)
+ loop:
+ 	for _, it := range imageTests {
+@@ -96,13 +103,14 @@ loop:
+ 		}
+ 		b := g.Bounds()
+ 		if !b.Eq(m.Bounds()) {
+-			t.Errorf("%s: want bounds %v got %v", it.filename, b, m.Bounds())
++			t.Errorf("%s: got bounds %v want %v", it.filename, m.Bounds(), b)
+ 			continue loop
+ 		}
+ 		for y := b.Min.Y; y < b.Max.Y; y++ {
+ 			for x := b.Min.X; x < b.Max.X; x++ {
+ 				if !withinTolerance(g.At(x, y), m.At(x, y), it.tolerance) {
+-					t.Errorf("%s: at (%d, %d), want %v got %v", it.filename, x, y, g.At(x, y), m.At(x, y))
++					t.Errorf("%s: at (%d, %d):\ngot  %v\nwant %v",
++						it.filename, x, y, rgba(m.At(x, y)), rgba(g.At(x, y)))
+ 					continue loop
+ 				}
+ 			}
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index 7293f45617..12b20a6922 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -26,6 +26,8 @@ type UnsupportedError string
+ 
+ func (e UnsupportedError) Error() string { return "unsupported JPEG feature: " + string(e) }
+ 
++var errUnsupportedSubsamplingRatio = UnsupportedError("luma/chroma subsampling ratio")
++
+ // Component specification, specified in section B.2.2.
+ type component struct {
+ 	h  int   // Horizontal sampling factor.
+@@ -303,7 +305,7 @@ func (d *decoder) processSOF(n int) error {
+ 	case 6 + 3*4: // YCbCrK or CMYK image.
+ 		d.nComp = 4
+ 	default:
+-		return UnsupportedError("SOF has wrong length")
++		return UnsupportedError("number of components")
+ 	}
+ 	if err := d.readFull(d.tmp[:n]); err != nil {
+ 		return err
+@@ -315,8 +317,9 @@ func (d *decoder) processSOF(n int) error {
+ 	d.height = int(d.tmp[1])<<8 + int(d.tmp[2])
+ 	d.width = int(d.tmp[3])<<8 + int(d.tmp[4])
+ 	if int(d.tmp[5]) != d.nComp {
+-		return UnsupportedError("SOF has wrong number of image components")
++		return FormatError("SOF has wrong length")
+ 	}
++
+ 	for i := 0; i < d.nComp; i++ {
+ 		d.comp[i].c = d.tmp[6+3*i]
+ 		// Section B.2.2 states that "the value of C_i shall be different from
+@@ -328,8 +331,16 @@ func (d *decoder) processSOF(n int) error {
+ 		}
+ 
+ 		d.comp[i].tq = d.tmp[8+3*i]
+-
+-		if d.nComp == 1 {
++		hv := d.tmp[7+3*i]
++		h, v := int(hv>>4), int(hv&0x0f)
++		if h < 1 || 4 < h || v < 1 || 4 < v {
++			return FormatError("luma/chroma subsampling ratio")
++		}
++		if h == 3 || v == 3 {
++			return errUnsupportedSubsamplingRatio
++		}
++		switch d.nComp {
++		case 1:
+ 			// If a JPEG image has only one component, section A.2 says "this data
+ 			// is non-interleaved by definition" and section A.2.2 says "[in this
+ 			// case...] the order of data units within a scan shall be left-to-right
+@@ -341,27 +352,34 @@ func (d *decoder) processSOF(n int) error {
+ 			// always 1. The component's (h, v) is effectively always (1, 1): even if
+ 			// the nominal (h, v) is (2, 1), a 20x5 image is encoded in three 8x8
+ 			// MCUs, not two 16x8 MCUs.
+-			d.comp[i].h = 1
+-			d.comp[i].v = 1
+-			continue
+-		}
+-		hv := d.tmp[7+3*i]
+-		d.comp[i].h = int(hv >> 4)
+-		d.comp[i].v = int(hv & 0x0f)
+-		switch d.nComp {
++			h, v = 1, 1
++
+ 		case 3:
+ 			// For YCbCr images, we only support 4:4:4, 4:4:0, 4:2:2, 4:2:0,
+-			// 4:1:1 or 4:1:0 chroma downsampling ratios. This implies that the
++			// 4:1:1 or 4:1:0 chroma subsampling ratios. This implies that the
+ 			// (h, v) values for the Y component are either (1, 1), (1, 2),
+-			// (2, 1), (2, 2), (4, 1) or (4, 2), and the (h, v) values for the Cr
+-			// and Cb components must be (1, 1).
+-			if i == 0 {
+-				if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 && hv != 0x41 && hv != 0x42 {
+-					return UnsupportedError("luma/chroma downsample ratio")
++			// (2, 1), (2, 2), (4, 1) or (4, 2), and the Y component's values
++			// must be a multiple of the Cb and Cr component's values. We also
++			// assume that the two chroma components have the same subsampling
++			// ratio.
++			switch i {
++			case 0: // Y.
++				// We have already verified, above, that h and v are both
++				// either 1, 2 or 4, so invalid (h, v) combinations are those
++				// with v == 4.
++				if v == 4 {
++					return errUnsupportedSubsamplingRatio
++				}
++			case 1: // Cb.
++				if d.comp[0].h%h != 0 || d.comp[0].v%v != 0 {
++					return errUnsupportedSubsamplingRatio
++				}
++			case 2: // Cr.
++				if d.comp[1].h != h || d.comp[1].v != v {
++					return errUnsupportedSubsamplingRatio
+ 				}
+-			} else if hv != 0x11 {
+-				return UnsupportedError("luma/chroma downsample ratio")
+ 			}
++
+ 		case 4:
+ 			// For 4-component images (either CMYK or YCbCrK), we only support two
+ 			// hv vectors: [0x11 0x11 0x11 0x11] and [0x22 0x11 0x11 0x22].
+@@ -375,18 +393,21 @@ func (d *decoder) processSOF(n int) error {
+ 			switch i {
+ 			case 0:
+ 				if hv != 0x11 && hv != 0x22 {
+-					return UnsupportedError("luma/chroma downsample ratio")
++					return errUnsupportedSubsamplingRatio
+ 				}
+ 			case 1, 2:
+ 				if hv != 0x11 {
+-					return UnsupportedError("luma/chroma downsample ratio")
++					return errUnsupportedSubsamplingRatio
+ 				}
+ 			case 3:
+-				if d.comp[0].h != d.comp[3].h || d.comp[0].v != d.comp[3].v {
+-					return UnsupportedError("luma/chroma downsample ratio")
++				if d.comp[0].h != h || d.comp[0].v != v {
++					return errUnsupportedSubsamplingRatio
+ 				}
+ 			}
+ 		}
++
++		d.comp[i].h = h
++		d.comp[i].v = v
+ 	}
+ 	return nil
+ }
+diff --git a/src/image/jpeg/scan.go b/src/image/jpeg/scan.go
+index 420326fc15..99734c01af 100644
+--- a/src/image/jpeg/scan.go
++++ b/src/image/jpeg/scan.go
+@@ -9,26 +9,30 @@ import (
+ )
+ 
+ // makeImg allocates and initializes the destination image.
+-func (d *decoder) makeImg(h0, v0, mxx, myy int) {
++func (d *decoder) makeImg(mxx, myy int) {
+ 	if d.nComp == 1 {
+ 		m := image.NewGray(image.Rect(0, 0, 8*mxx, 8*myy))
+ 		d.img1 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.Gray)
+ 		return
+ 	}
+ 
++	h0 := d.comp[0].h
++	v0 := d.comp[0].v
++	hRatio := h0 / d.comp[1].h
++	vRatio := v0 / d.comp[1].v
+ 	var subsampleRatio image.YCbCrSubsampleRatio
+-	switch {
+-	case h0 == 1 && v0 == 1:
++	switch hRatio<<4 | vRatio {
++	case 0x11:
+ 		subsampleRatio = image.YCbCrSubsampleRatio444
+-	case h0 == 1 && v0 == 2:
++	case 0x12:
+ 		subsampleRatio = image.YCbCrSubsampleRatio440
+-	case h0 == 2 && v0 == 1:
++	case 0x21:
+ 		subsampleRatio = image.YCbCrSubsampleRatio422
+-	case h0 == 2 && v0 == 2:
++	case 0x22:
+ 		subsampleRatio = image.YCbCrSubsampleRatio420
+-	case h0 == 4 && v0 == 1:
++	case 0x41:
+ 		subsampleRatio = image.YCbCrSubsampleRatio411
+-	case h0 == 4 && v0 == 2:
++	case 0x42:
+ 		subsampleRatio = image.YCbCrSubsampleRatio410
+ 	default:
+ 		panic("unreachable")
+@@ -141,7 +145,7 @@ func (d *decoder) processSOS(n int) error {
+ 	mxx := (d.width + 8*h0 - 1) / (8 * h0)
+ 	myy := (d.height + 8*v0 - 1) / (8 * v0)
+ 	if d.img1 == nil && d.img3 == nil {
+-		d.makeImg(h0, v0, mxx, myy)
++		d.makeImg(mxx, myy)
+ 	}
+ 	if d.progressive {
+ 		for i := 0; i < nComp; i++ {
+@@ -158,10 +162,8 @@ func (d *decoder) processSOS(n int) error {
+ 		// b is the decoded coefficients, in natural (not zig-zag) order.
+ 		b  block
+ 		dc [maxComponents]int32
+-		// bx and by are the location of the current (in terms of 8x8 blocks).
+-		// For example, with 4:2:0 chroma subsampling, the block whose top left
+-		// pixel co-ordinates are (16, 8) is the third block in the first row:
+-		// bx is 2 and by is 0, even though the pixel is in the second MCU.
++		// bx and by are the location of the current block, in units of 8x8
++		// blocks: the third block in the first row has (bx, by) = (2, 0).
+ 		bx, by     int
+ 		blockCount int
+ 	)
+@@ -169,8 +171,10 @@ func (d *decoder) processSOS(n int) error {
+ 		for mx := 0; mx < mxx; mx++ {
+ 			for i := 0; i < nComp; i++ {
+ 				compIndex := scan[i].compIndex
++				hi := d.comp[compIndex].h
++				vi := d.comp[compIndex].v
+ 				qt := &d.quant[d.comp[compIndex].tq]
+-				for j := 0; j < d.comp[compIndex].h*d.comp[compIndex].v; j++ {
++				for j := 0; j < hi*vi; j++ {
+ 					// The blocks are traversed one MCU at a time. For 4:2:0 chroma
+ 					// subsampling, there are four Y 8x8 blocks in every 16x16 MCU.
+ 					//
+@@ -197,10 +201,10 @@ func (d *decoder) processSOS(n int) error {
+ 					//	0 1 2
+ 					//	3 4 5
+ 					if nComp != 1 {
+-						bx = d.comp[compIndex].h*mx + j%h0
+-						by = d.comp[compIndex].v*my + j/h0
++						bx = hi*mx + j%hi
++						by = vi*my + j/hi
+ 					} else {
+-						q := mxx * d.comp[compIndex].h
++						q := mxx * hi
+ 						bx = blockCount % q
+ 						by = blockCount / q
+ 						blockCount++
+@@ -211,7 +215,7 @@ func (d *decoder) processSOS(n int) error {
+ 
+ 					// Load the previous partially decoded coefficients, if applicable.
+ 					if d.progressive {
+-						b = d.progCoeffs[compIndex][by*mxx*d.comp[compIndex].h+bx]
++						b = d.progCoeffs[compIndex][by*mxx*hi+bx]
+ 					} else {
+ 						b = block{}
+ 					}
+@@ -284,7 +288,7 @@ func (d *decoder) processSOS(n int) error {
+ 					if d.progressive {
+ 						if zigEnd != blockSize-1 || al != 0 {
+ 							// We haven't completely decoded this 8x8 block. Save the coefficients.
+-							d.progCoeffs[compIndex][by*mxx*d.comp[compIndex].h+bx] = b
++							d.progCoeffs[compIndex][by*mxx*hi+bx] = b
+ 							// At this point, we could execute the rest of the loop body to dequantize and
+ 							// perform the inverse DCT, to save early stages of a progressive image to the
+ 							// *image.YCbCr buffers (the whole point of progressive encoding), but in Go,
+diff --git a/src/image/testdata/video-001.221212.jpeg b/src/image/testdata/video-001.221212.jpeg
+new file mode 100644
+index 0000000000..f069c76af9
+Binary files /dev/null and b/src/image/testdata/video-001.221212.jpeg differ
+diff --git a/src/image/testdata/video-001.221212.png b/src/image/testdata/video-001.221212.png
+new file mode 100644
+index 0000000000..d619a6286b
+Binary files /dev/null and b/src/image/testdata/video-001.221212.png differ

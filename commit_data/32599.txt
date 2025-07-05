@@ -45,7 +45,7 @@ Date:   Mon Apr 17 16:10:54 2017 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/html/template/doc.go         |   4 +-
  src/html/template/error.go       |  27 +++++----
  src/html/template/escape.go      | 118 ++++++++++++++++++++++++++++++++-----
@@ -53,3 +53,479 @@ Date:   Mon Apr 17 16:10:54 2017 -0700
  src/text/template/doc.go         |   5 +-
  src/text/template/funcs.go       |   5 +-
  6 files changed, 240 insertions(+), 41 deletions(-)
+
+diff --git a/src/html/template/doc.go b/src/html/template/doc.go
+index cb89812743..35d171c3fc 100644
+--- a/src/html/template/doc.go
++++ b/src/html/template/doc.go
+@@ -65,8 +65,10 @@ functions to each simple action pipeline, so given the excerpt
+ At parse time each {{.}} is overwritten to add escaping functions as necessary.
+ In this case it becomes
+ 
+-  <a href="/search?q={{. | urlquery}}">{{. | html}}</a>
++  <a href="/search?q={{. | urlescaper | attrescaper}}">{{. | htmlescaper}}</a>
+ 
++where urlescaper, attrescaper, and htmlescaper are aliases for internal escaping
++functions.
+ 
+ Errors
+ 
+diff --git a/src/html/template/error.go b/src/html/template/error.go
+index 3b70ba1ec8..0e527063ea 100644
+--- a/src/html/template/error.go
++++ b/src/html/template/error.go
+@@ -186,23 +186,30 @@ const (
+ 
+ 	// ErrPredefinedEscaper: "predefined escaper ... disallowed in template"
+ 	// Example:
+-	//   <a href="{{.X | urlquery}}">
++	//   <div class={{. | html}}>Hello<div>
+ 	// Discussion:
+ 	//   Package html/template already contextually escapes all pipelines to
+ 	//   produce HTML output safe against code injection. Manually escaping
+-	//   pipeline output using the predefined escapers "html", "urlquery", or "js"
+-	//   is unnecessary, and might affect the correctness or safety of the escaped
+-	//   pipeline output. In the above example, "urlquery" should simply be
+-	//   removed from the pipeline so that escaping is performed solely by the
+-	//   contextual autoescaper.
+-	//   If the predefined escaper occurs in the middle of a pipeline where
+-	//   subsequent commands expect escaped input, e.g.
++	//   pipeline output using the predefined escapers "html" or "urlquery" is
++	//   unnecessary, and may affect the correctness or safety of the escaped
++	//   pipeline output in Go 1.8 and earlier.
++	//
++	//   In most cases, such as the given example, this error can be resolved by
++	//   simply removing the predefined escaper from the pipeline and letting the
++	//   contextual autoescaper handle the escaping of the pipeline. In other
++	//   instances, where the predefined escaper occurs in the middle of a
++	//   pipeline where subsequent commands expect escaped input, e.g.
+ 	//     {{.X | html | makeALink}}
+ 	//   where makeALink does
+-	//     return "<a href='+input+'>link</a>"
++	//     return `<a href="`+input+`">link</a>`
+ 	//   consider refactoring the surrounding template to make use of the
+ 	//   contextual autoescaper, i.e.
+-	//     <a href='{{.X}}'>link</a>
++	//     <a href="{{.X}}">link</a>
++	//
++	//   To ease migration to Go 1.9 and beyond, "html" and "urlquery" will
++	//   continue to be allowed as the last command in a pipeline. However, if the
++	//   pipeline occurs in an unquoted attribute value context, "html" is
++	//   disallowed. Avoid using "html" and "urlquery" entirely in new templates.
+ 	ErrPredefinedEscaper
+ )
+ 
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index 3e8b455e33..3037e07b29 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -44,6 +44,21 @@ func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
+ 	return nil
+ }
+ 
++// evalArgs formats the list of arguments into a string. It is equivalent to
++// fmt.Sprint(args...), except that it deferences all pointers.
++func evalArgs(args ...interface{}) string {
++	// Optimization for simple common case of a single string argument.
++	if len(args) == 1 {
++		if s, ok := args[0].(string); ok {
++			return s
++		}
++	}
++	for i, arg := range args {
++		args[i] = indirectToStringerOrError(arg)
++	}
++	return fmt.Sprint(args...)
++}
++
+ // funcMap maps command names to functions that render their inputs safe.
+ var funcMap = template.FuncMap{
+ 	"_html_template_attrescaper":     attrEscaper,
+@@ -60,13 +75,7 @@ var funcMap = template.FuncMap{
+ 	"_html_template_urlescaper":      urlEscaper,
+ 	"_html_template_urlfilter":       urlFilter,
+ 	"_html_template_urlnormalizer":   urlNormalizer,
+-}
+-
+-// predefinedEscapers contains template predefined escapers.
+-var predefinedEscapers = map[string]bool{
+-	"html":     true,
+-	"urlquery": true,
+-	"js":       true,
++	"_eval_args_":                    evalArgs,
+ }
+ 
+ // escaper collects type inferences about templates and changes needed to make
+@@ -150,18 +159,21 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 		// A local variable assignment, not an interpolation.
+ 		return c
+ 	}
+-	// Disallow the use of predefined escapers in pipelines.
+-	for _, idNode := range n.Pipe.Cmds {
++	c = nudge(c)
++	// Check for disallowed use of predefined escapers in the pipeline.
++	for pos, idNode := range n.Pipe.Cmds {
+ 		for _, ident := range allIdents(idNode.Args[0]) {
+ 			if _, ok := predefinedEscapers[ident]; ok {
+-				return context{
+-					state: stateError,
+-					err:   errorf(ErrPredefinedEscaper, n, n.Line, "predefined escaper %q disallowed in template", ident),
++				if pos < len(n.Pipe.Cmds)-1 ||
++					c.state == stateAttr && c.delim == delimSpaceOrTagEnd && ident == "html" {
++					return context{
++						state: stateError,
++						err:   errorf(ErrPredefinedEscaper, n, n.Line, "predefined escaper %q disallowed in template", ident),
++					}
+ 				}
+ 			}
+ 		}
+ 	}
+-	c = nudge(c)
+ 	s := make([]string, 0, 3)
+ 	switch c.state {
+ 	case stateError:
+@@ -227,14 +239,51 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ }
+ 
+ // ensurePipelineContains ensures that the pipeline ends with the commands with
+-// the identifiers in s in order.
++// the identifiers in s in order. If the pipeline ends with a predefined escaper
++// (i.e. "html" or "urlquery"), merge it with the identifiers in s.
+ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 	if len(s) == 0 {
+ 		// Do not rewrite pipeline if we have no escapers to insert.
+ 		return
+ 	}
++	// Precondition: p.Cmds contains at most one predefined escaper and the
++	// escaper will be present at p.Cmds[len(p.Cmds)-1]. This precondition is
++	// always true because of the checks in escapeAction.
++	pipelineLen := len(p.Cmds)
++	if pipelineLen > 0 {
++		lastCmd := p.Cmds[pipelineLen-1]
++		if idNode, ok := lastCmd.Args[0].(*parse.IdentifierNode); ok {
++			if esc := idNode.Ident; predefinedEscapers[esc] {
++				// Pipeline ends with a predefined escaper.
++				if len(p.Cmds) == 1 && len(lastCmd.Args) > 1 {
++					// Special case: pipeline is of the form {{ esc arg1 arg2 ... argN }},
++					// where esc is the predefined escaper, and arg1...argN are its arguments.
++					// Convert this into the equivalent form
++					// {{ _eval_args_ arg1 arg2 ... argN | esc }}, so that esc can be easily
++					// merged with the escapers in s.
++					lastCmd.Args[0] = parse.NewIdentifier("_eval_args_").SetTree(nil).SetPos(lastCmd.Args[0].Position())
++					p.Cmds = appendCmd(p.Cmds, newIdentCmd(esc, p.Position()))
++					pipelineLen++
++				}
++				// If any of the commands in s that we are about to insert is equivalent
++				// to the predefined escaper, use the predefined escaper instead.
++				dup := false
++				for i, escaper := range s {
++					if escFnsEq(esc, escaper) {
++						s[i] = idNode.Ident
++						dup = true
++					}
++				}
++				if dup {
++					// The predefined escaper will already be inserted along with the
++					// escapers in s, so do not copy it to the rewritten pipeline.
++					pipelineLen--
++				}
++			}
++		}
++	}
+ 	// Rewrite the pipeline, creating the escapers in s at the end of the pipeline.
+-	newCmds := make([]*parse.CommandNode, len(p.Cmds), len(p.Cmds)+len(s))
++	newCmds := make([]*parse.CommandNode, pipelineLen, pipelineLen+len(s))
+ 	copy(newCmds, p.Cmds)
+ 	for _, name := range s {
+ 		newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
+@@ -242,6 +291,45 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 	p.Cmds = newCmds
+ }
+ 
++// predefinedEscapers contains template predefined escapers that are equivalent
++// to some contextual escapers. Keep in sync with equivEscapers.
++var predefinedEscapers = map[string]bool{
++	"html":     true,
++	"urlquery": true,
++}
++
++// equivEscapers matches contextual escapers to equivalent predefined
++// template escapers.
++var equivEscapers = map[string]string{
++	// The following pairs of HTML escapers provide equivalent security
++	// guarantees, since they all escape '\000', '\'', '"', '&', '<', and '>'.
++	"_html_template_attrescaper":   "html",
++	"_html_template_htmlescaper":   "html",
++	"_html_template_rcdataescaper": "html",
++	// These two URL escapers produce URLs safe for embedding in a URL query by
++	// percent-encoding all the reserved characters specified in RFC 3986 Section
++	// 2.2
++	"_html_template_urlescaper": "urlquery",
++	// These two functions are not actually equivalent; urlquery is stricter as it
++	// escapes reserved characters (e.g. '#'), while _html_template_urlnormalizer
++	// does not. It is therefore only safe to replace _html_template_urlnormalizer
++	// with urlquery (this happens in ensurePipelineContains), but not the otherI've
++	// way around. We keep this entry around to preserve the behavior of templates
++	// written before Go 1.9, which might depend on this substitution taking place.
++	"_html_template_urlnormalizer": "urlquery",
++}
++
++// escFnsEq reports whether the two escaping functions are equivalent.
++func escFnsEq(a, b string) bool {
++	if e := equivEscapers[a]; e != "" {
++		a = e
++	}
++	if e := equivEscapers[b]; e != "" {
++		b = e
++	}
++	return a == b
++}
++
+ // redundantFuncs[a][b] implies that funcMap[b](funcMap[a](x)) == funcMap[a](x)
+ // for all x.
+ var redundantFuncs = map[string]map[string]bool{
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 43869276c0..865226f855 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -69,7 +69,17 @@ func TestEscape(t *testing.T) {
+ 			"&lt;Goodbye&gt;!",
+ 		},
+ 		{
+-			"overescaping",
++			"overescaping1",
++			"Hello, {{.C | html}}!",
++			"Hello, &lt;Cincinatti&gt;!",
++		},
++		{
++			"overescaping2",
++			"Hello, {{html .C}}!",
++			"Hello, &lt;Cincinatti&gt;!",
++		},
++		{
++			"overescaping3",
+ 			"{{with .C}}{{$msg := .}}Hello, {{$msg}}!{{end}}",
+ 			"Hello, &lt;Cincinatti&gt;!",
+ 		},
+@@ -203,6 +213,11 @@ func TestEscape(t *testing.T) {
+ 			"<script>alert({{.A}})</script>",
+ 			`<script>alert(["\u003ca\u003e","\u003cb\u003e"])</script>`,
+ 		},
++		{
++			"jsObjValueNotOverEscaped",
++			"<button onclick='alert({{.A | html}})'>",
++			`<button onclick='alert([&#34;\u003ca\u003e&#34;,&#34;\u003cb\u003e&#34;])'>`,
++		},
+ 		{
+ 			"jsStr",
+ 			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
+@@ -218,6 +233,12 @@ func TestEscape(t *testing.T) {
+ 			`<button onclick='alert({{.M}})'>`,
+ 			`<button onclick='alert({&#34;\u003cfoo\u003e&#34;:&#34;O&#39;Reilly&#34;})'>`,
+ 		},
++		{
++			"jsStrNotUnderEscaped",
++			"<button onclick='alert({{.C | urlquery}})'>",
++			// URL escaped, then quoted for JS.
++			`<button onclick='alert(&#34;%3CCincinatti%3E&#34;)'>`,
++		},
+ 		{
+ 			"jsRe",
+ 			`<button onclick='alert(/{{"foo+bar"}}/.test(""))'>`,
+@@ -950,29 +971,30 @@ func TestErrors(t *testing.T) {
+ 			`: expected space, attr name, or end of tag, but got "=foo>"`,
+ 		},
+ 		{
+-			`Hello, {{. | html}}!`,
+-			// Piping to html is disallowed.
+-			`predefined escaper "html" disallowed in template`,
++			`Hello, {{. | urlquery | print}}!`,
++			// urlquery is disallowed if it is not the last command in the pipeline.
++			`predefined escaper "urlquery" disallowed in template`,
+ 		},
+ 		{
+ 			`Hello, {{. | html | print}}!`,
+-			// html is disallowed, even if it is not the last command in the pipeline.
++			// html is disallowed if it is not the last command in the pipeline.
+ 			`predefined escaper "html" disallowed in template`,
+ 		},
+ 		{
+-			`Hello, {{html .}}!`,
+-			// Calling html is disallowed.
++			`Hello, {{html . | print}}!`,
++			// A direct call to html is disallowed if it is not the last command in the pipeline.
+ 			`predefined escaper "html" disallowed in template`,
+ 		},
+ 		{
+-			`Hello, {{. | urlquery | html}}!`,
+-			// urlquery is disallowed; first disallowed escaper in the pipeline is reported in error.
+-			`predefined escaper "urlquery" disallowed in template`,
++			`<div class={{. | html}}>Hello<div>`,
++			// html is disallowed in a pipeline that is in an unquoted attribute context,
++			// even if it is the last command in the pipeline.
++			`predefined escaper "html" disallowed in template`,
+ 		},
+ 		{
+-			`<script>function do{{. | js}}() { return 1 }</script>`,
+-			// js is disallowed.
+-			`predefined escaper "js" disallowed in template`,
++			`Hello, {{. | urlquery | html}}!`,
++			// html is allowed since it is the last command in the pipeline, but urlquery is not.
++			`predefined escaper "urlquery" disallowed in template`,
+ 		},
+ 	}
+ 	for _, test := range tests {
+@@ -1531,11 +1553,41 @@ func TestEnsurePipelineContains(t *testing.T) {
+ 			".X",
+ 			[]string{},
+ 		},
++		{
++			"{{.X | html}}",
++			".X | html",
++			[]string{},
++		},
+ 		{
+ 			"{{.X}}",
+ 			".X | html",
+ 			[]string{"html"},
+ 		},
++		{
++			"{{html .X}}",
++			"_eval_args_ .X | html | urlquery",
++			[]string{"html", "urlquery"},
++		},
++		{
++			"{{html .X .Y .Z}}",
++			"_eval_args_ .X .Y .Z | html | urlquery",
++			[]string{"html", "urlquery"},
++		},
++		{
++			"{{.X | print}}",
++			".X | print | urlquery",
++			[]string{"urlquery"},
++		},
++		{
++			"{{.X | print | urlquery}}",
++			".X | print | urlquery",
++			[]string{"urlquery"},
++		},
++		{
++			"{{.X | urlquery}}",
++			".X | html | urlquery",
++			[]string{"html", "urlquery"},
++		},
+ 		{
+ 			"{{.X | print 2 | .f 3}}",
+ 			".X | print 2 | .f 3 | urlquery | html",
+@@ -1553,6 +1605,48 @@ func TestEnsurePipelineContains(t *testing.T) {
+ 			".X | (print 12 | js).x | urlquery | html",
+ 			[]string{"urlquery", "html"},
+ 		},
++		// The following test cases ensure that the merging of internal escapers
++		// with the predefined "html" and "urlquery" escapers is correct.
++		{
++			"{{.X | urlquery}}",
++			".X | _html_template_urlfilter | urlquery",
++			[]string{"_html_template_urlfilter", "_html_template_urlnormalizer"},
++		},
++		{
++			"{{.X | urlquery}}",
++			".X | urlquery | _html_template_urlfilter | _html_template_cssescaper",
++			[]string{"_html_template_urlfilter", "_html_template_cssescaper"},
++		},
++		{
++			"{{.X | urlquery}}",
++			".X | urlquery",
++			[]string{"_html_template_urlnormalizer"},
++		},
++		{
++			"{{.X | urlquery}}",
++			".X | urlquery",
++			[]string{"_html_template_urlescaper"},
++		},
++		{
++			"{{.X | html}}",
++			".X | html",
++			[]string{"_html_template_htmlescaper"},
++		},
++		{
++			"{{.X | html}}",
++			".X | html",
++			[]string{"_html_template_rcdataescaper"},
++		},
++		{
++			"{{.X | html}}",
++			".X | html | html",
++			[]string{"_html_template_htmlescaper", "_html_template_attrescaper"},
++		},
++		{
++			"{{.X | html}}",
++			".X | html | html",
++			[]string{"_html_template_rcdataescaper", "_html_template_attrescaper"},
++		},
+ 	}
+ 	for i, test := range tests {
+ 		tmpl := template.Must(template.New("test").Parse(test.input))
+@@ -1573,7 +1667,9 @@ func TestEnsurePipelineContains(t *testing.T) {
+ func TestEscapeMalformedPipelines(t *testing.T) {
+ 	tests := []string{
+ 		"{{ 0 | $ }}",
++		"{{ 0 | $ | urlquery }}",
+ 		"{{ 0 | (nil) }}",
++		"{{ 0 | (nil) | html }}",
+ 	}
+ 	for _, test := range tests {
+ 		var b bytes.Buffer
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index b35fe39ecc..23d58cf686 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -315,7 +315,8 @@ Predefined global functions are named as follows.
+ 		or the returned error value is non-nil, execution stops.
+ 	html
+ 		Returns the escaped HTML equivalent of the textual
+-		representation of its arguments.
++		representation of its arguments. This function is unavailable
++		in html/template, with a few exceptions.
+ 	index
+ 		Returns the result of indexing its first argument by the
+ 		following arguments. Thus "index x 1 2 3" is, in Go syntax,
+@@ -341,6 +342,8 @@ Predefined global functions are named as follows.
+ 	urlquery
+ 		Returns the escaped value of the textual representation of
+ 		its arguments in a form suitable for embedding in a URL query.
++		This function is unavailable in html/template, with a few
++		exceptions.
+ 
+ The boolean functions take any zero value to be false and a non-zero
+ value to be true.
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index 3047b272e5..9107431037 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -489,6 +489,7 @@ var (
+ 	htmlAmp  = []byte("&amp;")
+ 	htmlLt   = []byte("&lt;")
+ 	htmlGt   = []byte("&gt;")
++	htmlNull = []byte("\uFFFD")
+ )
+ 
+ // HTMLEscape writes to w the escaped HTML equivalent of the plain text data b.
+@@ -497,6 +498,8 @@ func HTMLEscape(w io.Writer, b []byte) {
+ 	for i, c := range b {
+ 		var html []byte
+ 		switch c {
++		case '\000':
++			html = htmlNull
+ 		case '"':
+ 			html = htmlQuot
+ 		case '\'':
+@@ -520,7 +523,7 @@ func HTMLEscape(w io.Writer, b []byte) {
+ // HTMLEscapeString returns the escaped HTML equivalent of the plain text data s.
+ func HTMLEscapeString(s string) string {
+ 	// Avoid allocation if we can.
+-	if !strings.ContainsAny(s, `'"&<>`) {
++	if !strings.ContainsAny(s, "'\"&<>\000") {
+ 		return s
+ 	}
+ 	var b bytes.Buffer

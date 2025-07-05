@@ -9,6 +9,21 @@ Date:   Mon Jul 8 21:14:32 2013 -0500
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/11022043
-
+---
  src/cmd/ld/lib.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 50e41ff776..d9e3af4c0f 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -665,6 +665,9 @@ hostlink(void)
+ 	case '6':
+ 		argv[argc++] = "-m64";
+ 		break;
++	case '5':
++		// nothing required for arm
++		break;
+ 	}
+ 	if(!debug['s'] && !debug_s) {
+ 		argv[argc++] = "-gdwarf-2"; 

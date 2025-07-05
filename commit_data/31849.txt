@@ -9,8 +9,50 @@ Date:   Fri Mar 10 15:52:26 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/internal/obj/link.go     | 3 ---
  src/cmd/internal/obj/util.go     | 3 ---
  src/cmd/internal/obj/x86/asm6.go | 2 --
  3 files changed, 8 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index adc1a74956..bb71925b52 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -293,9 +293,6 @@ const (
+ 	ARET
+ 	ATEXT
+ 	AUNDEF
+-	AVARDEF
+-	AVARKILL
+-	AVARLIVE
+ 	A_ARCHSPECIFIC
+ )
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 69898c7385..3e54b2efc0 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -492,9 +492,6 @@ var Anames = []string{
+ 	"RET",
+ 	"TEXT",
+ 	"UNDEF",
+-	"VARDEF",
+-	"VARKILL",
+-	"VARLIVE",
+ }
+ 
+ func Bool2int(b bool) int {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 3ac2b59e75..013ccce556 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1699,8 +1699,6 @@ var optab =
+ 	{AXGETBV, ynone, Pm, [23]uint8{01, 0xd0}},
+ 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
+ 	{obj.APCDATA, ypcdata, Px, [23]uint8{0, 0}},
+-	{obj.AVARDEF, nil, 0, [23]uint8{}},
+-	{obj.AVARKILL, nil, 0, [23]uint8{}},
+ 	{obj.ADUFFCOPY, yduff, Px, [23]uint8{0xe8}},
+ 	{obj.ADUFFZERO, yduff, Px, [23]uint8{0xe8}},
+ 	{obj.AEND, nil, 0, [23]uint8{}},

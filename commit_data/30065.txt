@@ -14,7 +14,7 @@ Date:   Fri Oct 7 00:46:56 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/error.go        |  1 +
  src/os/error_test.go   |  2 ++
  src/os/file.go         | 39 ++++++++++++++++++++++++---------------
@@ -26,3 +26,296 @@ Date:   Fri Oct 7 00:46:56 2016 -0400
  src/os/types_plan9.go  |  2 ++
  src/os/types_unix.go   |  2 ++
  10 files changed, 70 insertions(+), 30 deletions(-)
+
+diff --git a/src/os/error.go b/src/os/error.go
+index 2612f58bd1..7235bfb6d6 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -14,6 +14,7 @@ var (
+ 	ErrPermission = errors.New("permission denied")
+ 	ErrExist      = errors.New("file already exists")
+ 	ErrNotExist   = errors.New("file does not exist")
++	ErrClosed     = errors.New("file already closed")
+ )
+ 
+ // PathError records an error and the operation and file path that caused it.
+diff --git a/src/os/error_test.go b/src/os/error_test.go
+index a47c1732cb..3499ceec95 100644
+--- a/src/os/error_test.go
++++ b/src/os/error_test.go
+@@ -91,10 +91,12 @@ var isExistTests = []isExistTest{
+ 	{&os.PathError{Err: os.ErrPermission}, false, false},
+ 	{&os.PathError{Err: os.ErrExist}, true, false},
+ 	{&os.PathError{Err: os.ErrNotExist}, false, true},
++	{&os.PathError{Err: os.ErrClosed}, false, false},
+ 	{&os.LinkError{Err: os.ErrInvalid}, false, false},
+ 	{&os.LinkError{Err: os.ErrPermission}, false, false},
+ 	{&os.LinkError{Err: os.ErrExist}, true, false},
+ 	{&os.LinkError{Err: os.ErrNotExist}, false, true},
++	{&os.LinkError{Err: os.ErrClosed}, false, false},
+ 	{&os.SyscallError{Err: os.ErrNotExist}, false, true},
+ 	{&os.SyscallError{Err: os.ErrExist}, true, false},
+ 	{nil, false, false},
+diff --git a/src/os/file.go b/src/os/file.go
+index e546441497..934004f084 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -95,8 +95,8 @@ func (e *LinkError) Error() string {
+ // It returns the number of bytes read and an error, if any.
+ // EOF is signaled by a zero count with err set to io.EOF.
+ func (f *File) Read(b []byte) (n int, err error) {
+-	if f == nil {
+-		return 0, ErrInvalid
++	if err := f.checkValid("read"); err != nil {
++		return 0, err
+ 	}
+ 	n, e := f.read(b)
+ 	if n == 0 && len(b) > 0 && e == nil {
+@@ -113,8 +113,8 @@ func (f *File) Read(b []byte) (n int, err error) {
+ // ReadAt always returns a non-nil error when n < len(b).
+ // At end of file, that error is io.EOF.
+ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
+-	if f == nil {
+-		return 0, ErrInvalid
++	if err := f.checkValid("read"); err != nil {
++		return 0, err
+ 	}
+ 	for len(b) > 0 {
+ 		m, e := f.pread(b, off)
+@@ -136,8 +136,8 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
+ // It returns the number of bytes written and an error, if any.
+ // Write returns a non-nil error when n != len(b).
+ func (f *File) Write(b []byte) (n int, err error) {
+-	if f == nil {
+-		return 0, ErrInvalid
++	if err := f.checkValid("write"); err != nil {
++		return 0, err
+ 	}
+ 	n, e := f.write(b)
+ 	if n < 0 {
+@@ -159,8 +159,8 @@ func (f *File) Write(b []byte) (n int, err error) {
+ // It returns the number of bytes written and an error, if any.
+ // WriteAt returns a non-nil error when n != len(b).
+ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
+-	if f == nil {
+-		return 0, ErrInvalid
++	if err := f.checkValid("write"); err != nil {
++		return 0, err
+ 	}
+ 	for len(b) > 0 {
+ 		m, e := f.pwrite(b, off)
+@@ -181,8 +181,8 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
+ // It returns the new offset and an error, if any.
+ // The behavior of Seek on a file opened with O_APPEND is not specified.
+ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+-	if f == nil {
+-		return 0, ErrInvalid
++	if err := f.checkValid("seek"); err != nil {
++		return 0, err
+ 	}
+ 	r, e := f.seek(offset, whence)
+ 	if e == nil && f.dirinfo != nil && r != 0 {
+@@ -197,9 +197,6 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+ // WriteString is like Write, but writes the contents of string s rather than
+ // a slice of bytes.
+ func (f *File) WriteString(s string) (n int, err error) {
+-	if f == nil {
+-		return 0, ErrInvalid
+-	}
+ 	return f.Write([]byte(s))
+ }
+ 
+@@ -233,8 +230,8 @@ func Chdir(dir string) error {
+ // which must be a directory.
+ // If there is an error, it will be of type *PathError.
+ func (f *File) Chdir() error {
+-	if f == nil {
+-		return ErrInvalid
++	if err := f.checkValid("chdir"); err != nil {
++		return err
+ 	}
+ 	if e := syscall.Fchdir(f.fd); e != nil {
+ 		return &PathError{"chdir", f.name, e}
+@@ -278,3 +275,15 @@ func fixCount(n int, err error) (int, error) {
+ 	}
+ 	return n, err
+ }
++
++// checkValid checks whether f is valid for use.
++// If not, it returns an appropriate error, perhaps incorporating the operation name op.
++func (f *File) checkValid(op string) error {
++	if f == nil {
++		return ErrInvalid
++	}
++	if f.fd == badFd {
++		return &PathError{op, f.name, ErrClosed}
++	}
++	return nil
++}
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 880d56a16f..704e95b1e6 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -130,21 +130,21 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+ // Close closes the File, rendering it unusable for I/O.
+ // It returns an error, if any.
+ func (f *File) Close() error {
+-	if f == nil {
+-		return ErrInvalid
++	if err := f.checkValid("close"); err != nil {
++		return err
+ 	}
+ 	return f.file.close()
+ }
+ 
+ func (file *file) close() error {
+-	if file == nil || file.fd < 0 {
++	if file == nil || file.fd == badFd {
+ 		return ErrInvalid
+ 	}
+ 	var err error
+ 	if e := syscall.Close(file.fd); e != nil {
+ 		err = &PathError{"close", file.name, e}
+ 	}
+-	file.fd = -1 // so it can't be closed again
++	file.fd = badFd // so it can't be closed again
+ 
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(file, nil)
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 6d8076fdf5..15bb77efb5 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -57,8 +57,8 @@ func Chmod(name string, mode FileMode) error {
+ // Chmod changes the mode of the file to mode.
+ // If there is an error, it will be of type *PathError.
+ func (f *File) Chmod(mode FileMode) error {
+-	if f == nil {
+-		return ErrInvalid
++	if err := f.checkValid("chmod"); err != nil {
++		return err
+ 	}
+ 	if e := syscall.Fchmod(f.fd, syscallMode(mode)); e != nil {
+ 		return &PathError{"chmod", f.name, e}
+@@ -89,8 +89,8 @@ func Lchown(name string, uid, gid int) error {
+ // Chown changes the numeric uid and gid of the named file.
+ // If there is an error, it will be of type *PathError.
+ func (f *File) Chown(uid, gid int) error {
+-	if f == nil {
+-		return ErrInvalid
++	if err := f.checkValid("chown"); err != nil {
++		return err
+ 	}
+ 	if e := syscall.Fchown(f.fd, uid, gid); e != nil {
+ 		return &PathError{"chown", f.name, e}
+@@ -102,8 +102,8 @@ func (f *File) Chown(uid, gid int) error {
+ // It does not change the I/O offset.
+ // If there is an error, it will be of type *PathError.
+ func (f *File) Truncate(size int64) error {
+-	if f == nil {
+-		return ErrInvalid
++	if err := f.checkValid("truncate"); err != nil {
++		return err
+ 	}
+ 	if e := syscall.Ftruncate(f.fd, size); e != nil {
+ 		return &PathError{"truncate", f.name, e}
+@@ -115,11 +115,11 @@ func (f *File) Truncate(size int64) error {
+ // Typically, this means flushing the file system's in-memory copy
+ // of recently written data to disk.
+ func (f *File) Sync() error {
+-	if f == nil {
+-		return ErrInvalid
++	if err := f.checkValid("sync"); err != nil {
++		return err
+ 	}
+ 	if e := syscall.Fsync(f.fd); e != nil {
+-		return NewSyscallError("fsync", e)
++		return &PathError{"sync", f.name, e}
+ 	}
+ 	return nil
+ }
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 0d0167f9e3..00915acb75 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -128,7 +128,7 @@ func (f *File) Close() error {
+ }
+ 
+ func (file *file) close() error {
+-	if file == nil || file.fd < 0 {
++	if file == nil || file.fd == badFd {
+ 		return syscall.EINVAL
+ 	}
+ 	var err error
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index ed06b55535..9bd5e5e9ff 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -193,7 +193,7 @@ func (file *file) close() error {
+ 	if e != nil {
+ 		err = &PathError{"close", file.name, e}
+ 	}
+-	file.fd = syscall.InvalidHandle // so it can't be closed again
++	file.fd = badFd // so it can't be closed again
+ 
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(file, nil)
+@@ -575,3 +575,5 @@ func Symlink(oldname, newname string) error {
+ 	}
+ 	return nil
+ }
++
++const badFd = syscall.InvalidHandle
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 5a88bc6185..84e72e5a52 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -229,6 +229,28 @@ func TestRead0(t *testing.T) {
+ 	}
+ }
+ 
++// Reading a closed file should should return ErrClosed error
++func TestReadClosed(t *testing.T) {
++	path := sfdir + "/" + sfname
++	file, err := Open(path)
++	if err != nil {
++		t.Fatal("open failed:", err)
++	}
++	file.Close() // close immediately
++
++	b := make([]byte, 100)
++	_, err = file.Read(b)
++
++	e, ok := err.(*PathError)
++	if !ok {
++		t.Fatalf("Read: %T(%v), want PathError", e, e)
++	}
++
++	if e.Err != ErrClosed {
++		t.Errorf("Read: %v, want PathError(ErrClosed)", e)
++	}
++}
++
+ func testReaddirnames(dir string, contents []string, t *testing.T) {
+ 	file, err := Open(dir)
+ 	if err != nil {
+diff --git a/src/os/types_plan9.go b/src/os/types_plan9.go
+index 5fccc4f09a..125da661b7 100644
+--- a/src/os/types_plan9.go
++++ b/src/os/types_plan9.go
+@@ -28,3 +28,5 @@ func sameFile(fs1, fs2 *fileStat) bool {
+ 	b := fs2.sys.(*syscall.Dir)
+ 	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
+ }
++
++const badFd = -1
+diff --git a/src/os/types_unix.go b/src/os/types_unix.go
+index c0259ae0e8..1f614812fd 100644
+--- a/src/os/types_unix.go
++++ b/src/os/types_unix.go
+@@ -29,3 +29,5 @@ func (fs *fileStat) Sys() interface{}   { return &fs.sys }
+ func sameFile(fs1, fs2 *fileStat) bool {
+ 	return fs1.sys.Dev == fs2.sys.Dev && fs1.sys.Ino == fs2.sys.Ino
+ }
++
++const badFd = -1

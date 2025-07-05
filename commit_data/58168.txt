@@ -16,6 +16,40 @@ Date:   Thu Aug 24 16:48:14 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/522796
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/run/run.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 4a3dcf0f1a..aabbf016b2 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -7,9 +7,7 @@ package run
+ 
+ import (
+ 	"context"
+-	"fmt"
+ 	"go/build"
+-	"os"
+ 	"path"
+ 	"path/filepath"
+ 	"strings"
+@@ -75,10 +73,6 @@ func init() {
+ 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
+ }
+ 
+-func printStderr(args ...any) (int, error) {
+-	return fmt.Fprint(os.Stderr, args...)
+-}
+-
+ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 	if shouldUseOutsideModuleMode(args) {
+ 		// Set global module flags for 'go run cmd@version'.
+@@ -100,7 +94,6 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 			base.Fatal(err)
+ 		}
+ 	}()
+-	b.Print = printStderr
+ 
+ 	i := 0
+ 	for i < len(args) && strings.HasSuffix(args[i], ".go") {

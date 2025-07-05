@@ -10,8 +10,70 @@ Date:   Mon Mar 21 10:52:03 2016 -0700
     Change-Id: I6c526c8ab30ef7f0fef59110133c764b7b90ba05
     Reviewed-on: https://go-review.googlesource.com/20956
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/mpfloat.go | 10 +++++-----
  src/cmd/compile/internal/gc/mpint.go   |  7 +++++--
  src/cmd/compile/internal/gc/walk.go    |  4 +---
  3 files changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index ca290d70d5..72cc540556 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -116,11 +116,11 @@ func (a *Mpflt) Cmp(b *Mpflt) int {
+ 	return a.Val.Cmp(&b.Val)
+ }
+ 
+-func (b *Mpflt) CmpFloat64(c float64) int {
+-	var a Mpflt
+-
+-	a.SetFloat64(c)
+-	return b.Cmp(&a)
++func (a *Mpflt) CmpFloat64(c float64) int {
++	if c == 0 {
++		return a.Val.Sign() // common case shortcut
++	}
++	return a.Val.Cmp(big.NewFloat(c))
+ }
+ 
+ func (a *Mpflt) Float64() float64 {
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index 1ab060ee75..d0f87deb00 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -262,8 +262,11 @@ func (a *Mpint) Cmp(b *Mpint) int {
+ 	return a.Val.Cmp(&b.Val)
+ }
+ 
+-func (b *Mpint) CmpInt64(c int64) int {
+-	return b.Val.Cmp(big.NewInt(c))
++func (a *Mpint) CmpInt64(c int64) int {
++	if c == 0 {
++		return a.Val.Sign() // common case shortcut
++	}
++	return a.Val.Cmp(big.NewInt(c))
+ }
+ 
+ func (a *Mpint) Neg() {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 428d309722..7a82a808e8 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -10,8 +10,6 @@ import (
+ 	"strings"
+ )
+ 
+-var mpzero Mpint
+-
+ // The constant is known to runtime.
+ const (
+ 	tmpstringbufsize = 32
+@@ -1229,7 +1227,7 @@ opswitch:
+ 		}
+ 
+ 		if Isconst(n.Right, CTINT) {
+-			if n.Right.Val().U.(*Mpint).Cmp(&mpzero) < 0 || n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
++			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
+ 				Yyerror("index out of bounds")
+ 			}
+ 		}

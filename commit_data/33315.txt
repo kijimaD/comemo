@@ -20,7 +20,70 @@ Date:   Sat Aug 12 20:11:55 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/strconv/atoi.go      |  4 ++--
  src/strconv/atoi_test.go | 22 ++++++++++++++++++++++
  2 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index 66df149172..8261627fe3 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -115,7 +115,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
+ 
+ 		if n >= cutoff {
+ 			// n*base overflows
+-			n = maxUint64
++			n = maxVal
+ 			err = ErrRange
+ 			goto Error
+ 		}
+@@ -124,7 +124,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
+ 		n1 := n + uint64(v)
+ 		if n1 < n || n1 > maxVal {
+ 			// n+v overflows
+-			n = maxUint64
++			n = maxVal
+ 			err = ErrRange
+ 			goto Error
+ 		}
+diff --git a/src/strconv/atoi_test.go b/src/strconv/atoi_test.go
+index d608505da2..9cef025941 100644
+--- a/src/strconv/atoi_test.go
++++ b/src/strconv/atoi_test.go
+@@ -235,6 +235,17 @@ func init() {
+ 	}
+ }
+ 
++func TestParseUint32(t *testing.T) {
++	for i := range atoui32tests {
++		test := &atoui32tests[i]
++		out, err := ParseUint(test.in, 10, 32)
++		if uint64(test.out) != out || !reflect.DeepEqual(test.err, err) {
++			t.Errorf("Atoui32(%q) = %v, %v want %v, %v",
++				test.in, out, err, test.out, test.err)
++		}
++	}
++}
++
+ func TestParseUint64(t *testing.T) {
+ 	for i := range atoui64tests {
+ 		test := &atoui64tests[i]
+@@ -257,6 +268,17 @@ func TestParseUint64Base(t *testing.T) {
+ 	}
+ }
+ 
++func TestParseInt32(t *testing.T) {
++	for i := range atoi32tests {
++		test := &atoi32tests[i]
++		out, err := ParseInt(test.in, 10, 32)
++		if int64(test.out) != out || !reflect.DeepEqual(test.err, err) {
++			t.Errorf("Atoi32(%q) = %v, %v want %v, %v",
++				test.in, out, err, test.out, test.err)
++		}
++	}
++}
++
+ func TestParseInt64(t *testing.T) {
+ 	for i := range atoi64tests {
+ 		test := &atoi64tests[i]

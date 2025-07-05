@@ -8,6 +8,20 @@ Date:   Sun Apr 15 21:50:21 2012 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6037046
-
+---
  src/pkg/text/template/parse/parse.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index fd8cf433fa..cbb1686a7f 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -101,7 +101,7 @@ func (t *Tree) expect(expected itemType, context string) item {
+ 	return token
+ }
+ 
+-// expectEither consumes the next token and guarantees it has one of the required types.
++// expectOneOf consumes the next token and guarantees it has one of the required types.
+ func (t *Tree) expectOneOf(expected1, expected2 itemType, context string) item {
+ 	token := t.next()
+ 	if token.typ != expected1 && token.typ != expected2 {

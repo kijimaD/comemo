@@ -9,9 +9,70 @@ Date:   Thu Apr 11 11:45:18 2013 -0700
     R=golang-dev, minux.ma, 0xjnml, r
     CC=golang-dev
     https://golang.org/cl/8658043
-
+---
  src/cmd/gc/fmt.c                  |  3 +++
  test/fixedbugs/issue5260.dir/a.go |  7 +++++++
  test/fixedbugs/issue5260.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue5260.go       | 10 ++++++++++
  4 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 8a14aa2df9..35f01a5c26 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -443,6 +443,9 @@ Zconv(Fmt *fp)
+ 			fmtrune(fp, '\\');
+ 			fmtrune(fp, r);
+ 			break;
++		case 0xFEFF: // BOM, basically disallowed in source code
++			fmtstrcpy(fp, "\\uFEFF");
++			break;
+ 		}
+ 	}
+ 	return 0;
+diff --git a/test/fixedbugs/issue5260.dir/a.go b/test/fixedbugs/issue5260.dir/a.go
+new file mode 100644
+index 0000000000..5a2c99f65c
+--- /dev/null
++++ b/test/fixedbugs/issue5260.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++const BOM = "\uFEFF"
+diff --git a/test/fixedbugs/issue5260.dir/b.go b/test/fixedbugs/issue5260.dir/b.go
+new file mode 100644
+index 0000000000..299b75e4a7
+--- /dev/null
++++ b/test/fixedbugs/issue5260.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() {
++	_ = a.BOM
++}
+diff --git a/test/fixedbugs/issue5260.go b/test/fixedbugs/issue5260.go
+new file mode 100644
+index 0000000000..11fd5d0481
+--- /dev/null
++++ b/test/fixedbugs/issue5260.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5260: Unicode BOM in exported string constant
++// cannot be read back during package import.
++
++package ignored

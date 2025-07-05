@@ -17,7 +17,78 @@ Date:   Wed Dec 4 04:50:29 2024 +0100
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  test/fixedbugs/issue16241.go    | 20 ++++++++++++++++++++
  test/fixedbugs/issue16241_64.go | 14 ++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/test/fixedbugs/issue16241.go b/test/fixedbugs/issue16241.go
+index 33f1aa3dee..a88dc9a40a 100644
+--- a/test/fixedbugs/issue16241.go
++++ b/test/fixedbugs/issue16241.go
+@@ -18,6 +18,16 @@ func AddUintptr(x *uintptr) { // ERROR "x does not escape$"
+ 	atomic.AddUintptr(x, 42)
+ }
+ 
++func AndInt32(x *int32) { // ERROR "x does not escape$"
++	atomic.AndInt32(x, 42)
++}
++func AndUint32(x *uint32) { // ERROR "x does not escape$"
++	atomic.AndUint32(x, 42)
++}
++func AndUintptr(x *uintptr) { // ERROR "x does not escape$"
++	atomic.AndUintptr(x, 42)
++}
++
+ func CompareAndSwapInt32(x *int32) { // ERROR "x does not escape$"
+ 	atomic.CompareAndSwapInt32(x, 42, 42)
+ }
+@@ -38,6 +48,16 @@ func LoadUintptr(x *uintptr) { // ERROR "x does not escape$"
+ 	atomic.LoadUintptr(x)
+ }
+ 
++func OrInt32(x *int32) { // ERROR "x does not escape$"
++	atomic.OrInt32(x, 42)
++}
++func OrUint32(x *uint32) { // ERROR "x does not escape$"
++	atomic.OrUint32(x, 42)
++}
++func OrUintptr(x *uintptr) { // ERROR "x does not escape$"
++	atomic.OrUintptr(x, 42)
++}
++
+ func StoreInt32(x *int32) { // ERROR "x does not escape$"
+ 	atomic.StoreInt32(x, 42)
+ }
+diff --git a/test/fixedbugs/issue16241_64.go b/test/fixedbugs/issue16241_64.go
+index 82626cb796..468444bdd7 100644
+--- a/test/fixedbugs/issue16241_64.go
++++ b/test/fixedbugs/issue16241_64.go
+@@ -17,6 +17,13 @@ func AddUint64(x *uint64) { // ERROR "x does not escape$"
+ 	atomic.AddUint64(x, 42)
+ }
+ 
++func AndInt64(x *int64) { // ERROR "x does not escape$"
++	atomic.AndInt64(x, 42)
++}
++func AndUint64(x *uint64) { // ERROR "x does not escape$"
++	atomic.AndUint64(x, 42)
++}
++
+ func CompareAndSwapInt64(x *int64) { // ERROR "x does not escape$"
+ 	atomic.CompareAndSwapInt64(x, 42, 42)
+ }
+@@ -31,6 +38,13 @@ func LoadUint64(x *uint64) { // ERROR "x does not escape$"
+ 	atomic.LoadUint64(x)
+ }
+ 
++func OrInt64(x *int64) { // ERROR "x does not escape$"
++	atomic.OrInt64(x, 42)
++}
++func OrUint64(x *uint64) { // ERROR "x does not escape$"
++	atomic.OrUint64(x, 42)
++}
++
+ func StoreInt64(x *int64) { // ERROR "x does not escape$"
+ 	atomic.StoreInt64(x, 42)
+ }

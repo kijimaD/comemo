@@ -16,6 +16,19 @@ Date:   Thu Apr 23 18:46:43 2020 -0600
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/html.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 730ec6dd3f..ba37a80412 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -143,6 +143,7 @@ pre {
+     float: left;
+     overflow: hidden;
+     text-align: right;
++    margin-top: 7px;
+ }
+ 
+ .lines div {

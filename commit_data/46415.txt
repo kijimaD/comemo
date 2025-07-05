@@ -14,8 +14,48 @@ Date:   Mon Dec 28 15:29:03 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/export.go  | 1 -
  src/cmd/compile/internal/types/sizeof_test.go | 2 +-
  src/cmd/compile/internal/types/sym.go         | 3 +--
  3 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/export.go b/src/cmd/compile/internal/typecheck/export.go
+index 381a28e3ed..03deff8174 100644
+--- a/src/cmd/compile/internal/typecheck/export.go
++++ b/src/cmd/compile/internal/typecheck/export.go
+@@ -59,7 +59,6 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Cl
+ 	n := ir.NewDeclNameAt(pos, op, s)
+ 	n.Class_ = ctxt // TODO(mdempsky): Move this into NewDeclNameAt too?
+ 	s.SetPkgDef(n)
+-	s.Importdef = ipkg
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index 1ca07b12c8..675739f7f6 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Sym{}, 48, 80},
++		{Sym{}, 44, 72},
+ 		{Type{}, 56, 96},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index c512e3a003..cd061d5f1c 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -27,8 +27,7 @@ import (
+ // NOTE: In practice, things can be messier than the description above
+ // for various reasons (historical, convenience).
+ type Sym struct {
+-	Importdef *Pkg   // where imported definition was found
+-	Linkname  string // link name
++	Linkname string // link name
+ 
+ 	Pkg  *Pkg
+ 	Name string // object name

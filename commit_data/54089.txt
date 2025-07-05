@@ -14,7 +14,49 @@ Date:   Thu Sep 22 20:56:38 2022 -0400
     Reviewed-by: Rob Pike <r@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/text/template/parse/lex.go      |  2 +-
  src/text/template/parse/lex_test.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 3562e0abc9..3e60a1ecef 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -369,7 +369,7 @@ func lexComment(l *lexer) stateFn {
+ 
+ // lexRightDelim scans the right delimiter, which is known to be present, possibly with a trim marker.
+ func lexRightDelim(l *lexer) stateFn {
+-	trimSpace := hasRightTrimMarker(l.input[l.pos:])
++	_, trimSpace := l.atRightDelim()
+ 	if trimSpace {
+ 		l.pos += trimMarkerLen
+ 		l.ignore()
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index 947889a80b..d47f10f9d5 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -491,6 +491,23 @@ func TestDelimsAlphaNumeric(t *testing.T) {
+ 	}
+ }
+ 
++func TestDelimsAndMarkers(t *testing.T) {
++	test := lexTest{"delims that look like markers", "{{- .x -}} {{- - .x - -}}", []item{
++		mkItem(itemLeftDelim, "{{- "),
++		mkItem(itemField, ".x"),
++		mkItem(itemRightDelim, " -}}"),
++		mkItem(itemLeftDelim, "{{- "),
++		mkItem(itemField, ".x"),
++		mkItem(itemRightDelim, " -}}"),
++		tEOF,
++	}}
++	items := collect(&test, "{{- ", " -}}")
++
++	if !equal(items, test.items, false) {
++		t.Errorf("%s: got\n\t%v\nexpected\n\t%v", test.name, items, test.items)
++	}
++}
++
+ var lexPosTests = []lexTest{
+ 	{"empty", "", []item{{itemEOF, 0, "", 1}}},
+ 	{"punctuation", "{{,@%#}}", []item{

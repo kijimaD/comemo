@@ -9,6 +9,24 @@ Date:   Tue Jan 11 21:24:44 2011 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3949042
-
+---
  src/cmd/godoc/index.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 63b99f1934..ba6fe9acde 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -666,12 +666,6 @@ func (x *Indexer) addFile(filename string) *ast.File {
+ 
+ 
+ func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
+-	// for now, exclude bug257.go as it causes problems with suffixarray
+-	// TODO fix index/suffixarray
+-	if f.Name == "bug257.go" {
+-		return
+-	}
+-
+ 	if !isGoFile(f) {
+ 		return
+ 	}

@@ -7,6 +7,67 @@ Date:   Mon Jan 23 09:26:46 2012 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5529055
-
+---
  src/pkg/go/build/path.go | 22 +---------------------
  1 file changed, 1 insertion(+), 21 deletions(-)
+
+diff --git a/src/pkg/go/build/path.go b/src/pkg/go/build/path.go
+index b86f8288ea..7e931faff1 100644
+--- a/src/pkg/go/build/path.go
++++ b/src/pkg/go/build/path.go
+@@ -7,7 +7,6 @@ package build
+ import (
+ 	"errors"
+ 	"fmt"
+-	"log"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -81,7 +80,6 @@ func (t *Tree) HasPkg(pkg string) bool {
+ 		return false
+ 	}
+ 	return !fi.IsDir()
+-	// TODO(adg): check object version is consistent
+ }
+ 
+ var (
+@@ -150,38 +148,20 @@ var (
+ func init() {
+ 	root := runtime.GOROOT()
+ 	t, err := newTree(root)
+-	if err != nil {
+-		log.Printf("invalid GOROOT %q: %v", root, err)
+-	} else {
++	if err == nil {
+ 		t.Goroot = true
+ 		Path = []*Tree{t}
+ 	}
+ 
+-Loop:
+ 	for _, p := range filepath.SplitList(os.Getenv("GOPATH")) {
+ 		if p == "" {
+ 			continue
+ 		}
+ 		t, err := newTree(p)
+ 		if err != nil {
+-			log.Printf("invalid GOPATH %q: %v", p, err)
+ 			continue
+ 		}
+ 
+-		// Check for dupes.
+-		// TODO(alexbrainman): make this correct under windows (case insensitive).
+-		for _, t2 := range Path {
+-			if t2.Path != t.Path {
+-				continue
+-			}
+-			if t2.Goroot {
+-				log.Printf("GOPATH is the same as GOROOT: %q", t.Path)
+-			} else {
+-				log.Printf("duplicate GOPATH entry: %q", t.Path)
+-			}
+-			continue Loop
+-		}
+-
+ 		Path = append(Path, t)
+ 		gcImportArgs = append(gcImportArgs, "-I", t.PkgDir())
+ 		ldImportArgs = append(ldImportArgs, "-L", t.PkgDir())

@@ -16,10 +16,105 @@ Date:   Wed Jul 7 13:18:42 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types/fmt.go |  8 --------
  test/fixedbugs/issue47087.dir/a.go    |  9 +++++++++
  test/fixedbugs/issue47087.dir/b.go    |  9 +++++++++
  test/fixedbugs/issue47087.dir/main.go | 19 +++++++++++++++++++
  test/fixedbugs/issue47087.go          |  7 +++++++
  5 files changed, 44 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 7b284aa661..8b988952a7 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -109,10 +109,6 @@ func sconv(s *Sym, verb rune, mode fmtMode) string {
+ 		return "<S>"
+ 	}
+ 
+-	if s.Name == "_" {
+-		return "_"
+-	}
+-
+ 	q := pkgqual(s.Pkg, verb, mode)
+ 	if q == "" {
+ 		return s.Name
+@@ -136,10 +132,6 @@ func sconv2(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
+ 		b.WriteString("<S>")
+ 		return
+ 	}
+-	if s.Name == "_" {
+-		b.WriteString("_")
+-		return
+-	}
+ 
+ 	symfmt(b, s, verb, mode)
+ }
+diff --git a/test/fixedbugs/issue47087.dir/a.go b/test/fixedbugs/issue47087.dir/a.go
+new file mode 100644
+index 0000000000..6093092ace
+--- /dev/null
++++ b/test/fixedbugs/issue47087.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F() interface{} { return struct{ _ []int }{} }
++
++var X = F()
+diff --git a/test/fixedbugs/issue47087.dir/b.go b/test/fixedbugs/issue47087.dir/b.go
+new file mode 100644
+index 0000000000..8f96d25a12
+--- /dev/null
++++ b/test/fixedbugs/issue47087.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++func F() interface{} { return struct{ _ []int }{} }
++
++var X = F()
+diff --git a/test/fixedbugs/issue47087.dir/main.go b/test/fixedbugs/issue47087.dir/main.go
+new file mode 100644
+index 0000000000..ccd0891a61
+--- /dev/null
++++ b/test/fixedbugs/issue47087.dir/main.go
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"b"
++)
++
++func main() {
++	if a.F() == b.F() {
++		panic("FAIL")
++	}
++	if a.X == b.X {
++		panic("FAIL")
++	}
++}
+diff --git a/test/fixedbugs/issue47087.go b/test/fixedbugs/issue47087.go
+new file mode 100644
+index 0000000000..40df49f83b
+--- /dev/null
++++ b/test/fixedbugs/issue47087.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

@@ -7,8 +7,57 @@ Date:   Tue Feb 17 11:04:07 2015 +0900
     Change-Id: I89fdda2914030dfea3183a8b4681dd4b33489729
     Reviewed-on: https://go-review.googlesource.com/4996
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/net/ip.go        | 2 +-
  src/os/env.go        | 2 +-
  src/runtime/race1.go | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 7bcc40e8f6..f83658ccb9 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -132,7 +132,7 @@ func (ip IP) IsMulticast() bool {
+ 	return ip[0] == 0xff
+ }
+ 
+-// IsInterfaceLinkLocalMulticast returns true if ip is
++// IsInterfaceLocalMulticast returns true if ip is
+ // an interface-local multicast address.
+ func (ip IP) IsInterfaceLocalMulticast() bool {
+ 	return len(ip) == IPv6len && ip[0] == 0xff && ip[1]&0x0f == 0x01
+diff --git a/src/os/env.go b/src/os/env.go
+index 5c22fbc3d7..4bc6dade44 100644
+--- a/src/os/env.go
++++ b/src/os/env.go
+@@ -33,7 +33,7 @@ func ExpandEnv(s string) string {
+ 	return Expand(s, Getenv)
+ }
+ 
+-// isSpellSpecialVar reports whether the character identifies a special
++// isShellSpecialVar reports whether the character identifies a special
+ // shell variable such as $*.
+ func isShellSpecialVar(c uint8) bool {
+ 	switch c {
+diff --git a/src/runtime/race1.go b/src/runtime/race1.go
+index 7e011fe247..41f4938e87 100644
+--- a/src/runtime/race1.go
++++ b/src/runtime/race1.go
+@@ -314,7 +314,7 @@ func RaceReleaseMerge(addr unsafe.Pointer) {
+ 
+ //go:nosplit
+ 
+-// RaceEnable re-enables handling of race events in the current goroutine.
++// RaceDisable disables handling of race events in the current goroutine.
+ func RaceDisable() {
+ 	_g_ := getg()
+ 	if _g_.raceignore == 0 {
+@@ -325,7 +325,7 @@ func RaceDisable() {
+ 
+ //go:nosplit
+ 
+-// RaceDisable disables handling of race events in the current goroutine.
++// RaceEnable re-enables handling of race events in the current goroutine.
+ func RaceEnable() {
+ 	_g_ := getg()
+ 	_g_.raceignore--

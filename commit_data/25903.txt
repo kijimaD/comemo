@@ -9,6 +9,33 @@ Date:   Wed Dec 2 23:28:49 2015 +0100
     Change-Id: Ic04682651b26b137355950ff0c51bdbdb1d85a9c
     Reviewed-on: https://go-review.googlesource.com/17351
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/mail/message_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 9fd7923c34..7dd6304493 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -613,17 +613,17 @@ func TestAddressFormattingAndParsing(t *testing.T) {
+ 		&Address{Name: "naé, mée", Address: "test.mail@gmail.com"},
+ 	}
+ 
+-	for _, test := range tests {
++	for i, test := range tests {
+ 		parsed, err := ParseAddress(test.String())
+ 		if err != nil {
+-			t.Errorf("ParseAddr(%q) error: %v", test.String(), err)
++			t.Errorf("test #%d: ParseAddr(%q) error: %v", i, test.String(), err)
+ 			continue
+ 		}
+ 		if parsed.Name != test.Name {
+-			t.Errorf("Parsed name = %q; want %q", parsed.Name, test.Name)
++			t.Errorf("test #%d: Parsed name = %q; want %q", i, parsed.Name, test.Name)
+ 		}
+ 		if parsed.Address != test.Address {
+-			t.Errorf("Parsed address = %q; want %q", parsed.Address, test.Address)
++			t.Errorf("test #%d: Parsed address = %q; want %q", i, parsed.Address, test.Address)
+ 		}
+ 	}
+ }

@@ -7,8 +7,227 @@ Date:   Wed Dec 21 17:24:42 2011 +1100
     R=golang-dev, dsymonds, adg
     CC=golang-dev
     https://golang.org/cl/5500057
-
+---
  misc/dashboard/app/build/cache.go   | 125 ++++++++++++++++++++++++++++++++++++
  misc/dashboard/app/build/handler.go |  37 ++++++-----
  misc/dashboard/app/build/ui.go      |   5 --
  3 files changed, 145 insertions(+), 22 deletions(-)
+
+diff --git a/misc/dashboard/app/build/cache.go b/misc/dashboard/app/build/cache.go
+new file mode 100644
+index 0000000000..34d39ac92c
+--- /dev/null
++++ b/misc/dashboard/app/build/cache.go
+@@ -0,0 +1,125 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package build
++
++import (
++	"appengine"
++	"appengine/memcache"
++	"json"
++	"os"
++)
++
++const (
++	todoCacheKey    = "build-todo"
++	todoCacheExpiry = 3600 // 1 hour in seconds
++	uiCacheKey      = "build-ui"
++	uiCacheExpiry   = 10 * 60 // 10 minutes in seconds
++)
++
++// invalidateCache deletes the build cache records from memcache.
++// This function should be called whenever the datastore changes.
++func invalidateCache(c appengine.Context) {
++	keys := []string{uiCacheKey, todoCacheKey}
++	errs := memcache.DeleteMulti(c, keys)
++	for i, err := range errs {
++		if err != nil && err != memcache.ErrCacheMiss {
++			c.Errorf("memcache.Delete(%q): %v", keys[i], err)
++		}
++	}
++}
++
++// cachedTodo gets the specified todo cache entry (if it exists) from the
++// shared todo cache.
++func cachedTodo(c appengine.Context, todoKey string) (todo *Todo, hit bool) {
++	t, _ := todoCache(c)
++	if t == nil {
++		return nil, false
++	}
++	todos := unmarshalTodo(c, t)
++	if todos == nil {
++		return nil, false
++	}
++	todo, hit = todos[todoKey]
++	return
++}
++
++// cacheTodo puts the provided todo cache entry into the shared todo cache.
++// The todo cache is a JSON-encoded map[string]*Todo, where the key is todoKey.
++func cacheTodo(c appengine.Context, todoKey string, todo *Todo) {
++	// Get the todo cache record (or create a new one).
++	newItem := false
++	t, miss := todoCache(c)
++	if miss {
++		newItem = true
++		t = &memcache.Item{
++			Key:   todoCacheKey,
++			Value: []byte("{}"), // default is an empty JSON object
++		}
++	}
++	if t == nil {
++		return
++	}
++
++	// Unmarshal the JSON value.
++	todos := unmarshalTodo(c, t)
++	if todos == nil {
++		return
++	}
++
++	// Update the map.
++	todos[todoKey] = todo
++
++	// Marshal the updated JSON value.
++	var err os.Error
++	t.Value, err = json.Marshal(todos)
++	if err != nil {
++		// This shouldn't happen.
++		c.Criticalf("marshal todo cache: %v", err)
++		return
++	}
++
++	// Set a new expiry.
++	t.Expiration = todoCacheExpiry
++
++	// Update the cache record (or Set it, if new).
++	if newItem {
++		err = memcache.Set(c, t)
++	} else {
++		err = memcache.CompareAndSwap(c, t)
++	}
++	if err == memcache.ErrCASConflict || err == memcache.ErrNotStored {
++		// No big deal if it didn't work; it should next time.
++		c.Warningf("didn't update todo cache: %v", err)
++	} else if err != nil {
++		c.Errorf("update todo cache: %v", err)
++	}
++}
++
++// todoCache gets the todo cache record from memcache (if it exists).
++func todoCache(c appengine.Context) (item *memcache.Item, miss bool) {
++	t, err := memcache.Get(c, todoCacheKey)
++	if err == memcache.ErrCacheMiss {
++		return nil, true
++	} else if err != nil {
++		c.Errorf("get todo cache: %v", err)
++		return nil, false
++	}
++	return t, false
++}
++
++// unmarshalTodo decodes the given item's memcache value into a map.
++func unmarshalTodo(c appengine.Context, t *memcache.Item) map[string]*Todo {
++	todos := make(map[string]*Todo)
++	if err := json.Unmarshal(t.Value, &todos); err != nil {
++		// This shouldn't happen.
++		c.Criticalf("unmarshal todo cache: %v", err)
++		// Kill the bad record.
++		if err := memcache.Delete(c, todoCacheKey); err != nil {
++			c.Errorf("delete todo cache: %v", err)
++		}
++		return nil
++	}
++	return todos
++}
+diff --git a/misc/dashboard/app/build/handler.go b/misc/dashboard/app/build/handler.go
+index 576d7cb132..28a3889d48 100644
+--- a/misc/dashboard/app/build/handler.go
++++ b/misc/dashboard/app/build/handler.go
+@@ -7,7 +7,6 @@ package build
+ import (
+ 	"appengine"
+ 	"appengine/datastore"
+-	"appengine/memcache"
+ 	"crypto/hmac"
+ 	"fmt"
+ 	"http"
+@@ -147,8 +146,18 @@ type Todo struct {
+ // todoHandler returns the next action to be performed by a builder.
+ // It expects "builder" and "kind" query parameters and returns a *Todo value.
+ // Multiple "kind" parameters may be specified.
+-func todoHandler(r *http.Request) (todo interface{}, err os.Error) {
++func todoHandler(r *http.Request) (interface{}, os.Error) {
+ 	c := appengine.NewContext(r)
++
++	todoKey := r.Form.Encode()
++	if t, hit := cachedTodo(c, todoKey); hit {
++		c.Debugf("cache hit")
++		return t, nil
++	}
++	c.Debugf("cache miss")
++
++	var todo *Todo
++	var err os.Error
+ 	builder := r.FormValue("builder")
+ 	for _, kind := range r.Form["kind"] {
+ 		var data interface{}
+@@ -156,17 +165,19 @@ func todoHandler(r *http.Request) (todo interface{}, err os.Error) {
+ 		case "build-go-commit":
+ 			data, err = buildTodo(c, builder, "", "")
+ 		case "build-package":
+-			data, err = buildTodo(
+-				c, builder,
+-				r.FormValue("packagePath"),
+-				r.FormValue("goHash"),
+-			)
++			packagePath := r.FormValue("packagePath")
++			goHash := r.FormValue("goHash")
++			data, err = buildTodo(c, builder, packagePath, goHash)
+ 		}
+ 		if data != nil || err != nil {
+-			return &Todo{Kind: kind, Data: data}, err
++			todo = &Todo{Kind: kind, Data: data}
++			break
+ 		}
+ 	}
+-	return nil, nil
++	if err == nil {
++		cacheTodo(c, todoKey, todo)
++	}
++	return todo, err
+ }
+ 
+ // buildTodo returns the next Commit to be built (or nil if none available).
+@@ -379,11 +390,3 @@ func logErr(w http.ResponseWriter, r *http.Request, err os.Error) {
+ 	w.WriteHeader(http.StatusInternalServerError)
+ 	fmt.Fprint(w, "Error: ", err)
+ }
+-
+-// invalidateCache deletes the ui cache record from memcache.
+-func invalidateCache(c appengine.Context) {
+-	err := memcache.Delete(c, uiCacheKey)
+-	if err != nil && err != memcache.ErrCacheMiss {
+-		c.Errorf("memcache.Delete(%q): %v", uiCacheKey, err)
+-	}
+-}
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index 8a1cca320d..f2bd02b968 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -22,11 +22,6 @@ import (
+ 	"template"
+ )
+ 
+-const (
+-	uiCacheKey    = "build-ui"
+-	uiCacheExpiry = 10 * 60 // 10 minutes in seconds
+-)
+-
+ func init() {
+ 	http.HandleFunc("/", uiHandler)
+ 	html.Escape(uiTemplate)

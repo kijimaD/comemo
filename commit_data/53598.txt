@@ -19,6 +19,21 @@ Date:   Mon Aug 22 17:42:54 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/debug/plan9obj/file.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/debug/plan9obj/file.go b/src/debug/plan9obj/file.go
+index aa25809148..2b83f9bdff 100644
+--- a/src/debug/plan9obj/file.go
++++ b/src/debug/plan9obj/file.go
+@@ -212,6 +212,9 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
+ 			p = p[4:]
+ 		}
+ 
++		if len(p) < 1 {
++			return &formatError{len(data), "unexpected EOF", nil}
++		}
+ 		typ := p[0] & 0x7F
+ 		s.typ = typ
+ 		p = p[1:]

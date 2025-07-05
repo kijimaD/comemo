@@ -8,8 +8,531 @@ Date:   Mon Feb 16 16:37:49 2009 -0800
     DELTA=205  (1 added, 157 deleted, 47 changed)
     OCL=25071
     CL=25073
-
+---
  src/lib/io/io.go         |  18 ++---
  src/lib/reflect/type.go  |  62 ++++-------------
  src/lib/reflect/value.go | 172 +++++++----------------------------------------
  3 files changed, 48 insertions(+), 204 deletions(-)
+
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index 5f5966d2a2..c4464f5056 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -24,24 +24,24 @@ type Close interface {
+ }
+ 
+ type ReadWrite interface {
+-	Read(p []byte) (n int, err *os.Error);
+-	Write(p []byte) (n int, err *os.Error);
++	Read;
++	Write;
+ }
+ 
+ type ReadClose interface {
+-	Read(p []byte) (n int, err *os.Error);
+-	Close() *os.Error;
++	Read;
++	Close;
+ }
+ 
+ type WriteClose interface {
+-	Write(p []byte) (n int, err *os.Error);
+-	Close() *os.Error;
++	Write;
++	Close;
+ }
+ 
+ type ReadWriteClose interface {
+-	Read(p []byte) (n int, err *os.Error);
+-	Write(p []byte) (n int, err *os.Error);
+-	Close() *os.Error;
++	Read;
++	Write;
++	Close;
+ }
+ 
+ // Convert a string to an array of bytes for easy marshaling.
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 6d14e660f3..f0585f069d 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -108,23 +108,24 @@ func newBasicType(name string, kind int, size int) Type {
+ var (
+ 	Missing = newBasicType(missingString, MissingKind, 1);
+ 	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, 16);	// TODO(r): size of interface?
+-	Bool = newBasicType("bool", BoolKind, 1); // TODO: need to know how big a bool is
+-	Int = newBasicType("int", IntKind, 4);	// TODO: need to know how big an int is
++	Bool = newBasicType("bool", BoolKind, unsafe.Sizeof(true));
++	Int = newBasicType("int", IntKind, unsafe.Sizeof(int(0)));
+ 	Int8 = newBasicType("int8", Int8Kind, 1);
+ 	Int16 = newBasicType("int16", Int16Kind, 2);
+ 	Int32 = newBasicType("int32", Int32Kind, 4);
+ 	Int64 = newBasicType("int64", Int64Kind, 8);
+-	Uint = newBasicType("uint", UintKind, 4);	// TODO: need to know how big a uint is
++	Uint = newBasicType("uint", UintKind, unsafe.Sizeof(uint(0)));
+ 	Uint8 = newBasicType("uint8", Uint8Kind, 1);
+ 	Uint16 = newBasicType("uint16", Uint16Kind, 2);
+ 	Uint32 = newBasicType("uint32", Uint32Kind, 4);
+ 	Uint64 = newBasicType("uint64", Uint64Kind, 8);
+-	Uintptr = newBasicType("uintptr", UintptrKind, 8);	// TODO: need to know how big a uintptr is
+-	Float = newBasicType("float", FloatKind, 4);	// TODO: need to know how big a float is
++	Uintptr = newBasicType("uintptr", UintptrKind, unsafe.Sizeof(uintptr(0)));
++	Float = newBasicType("float", FloatKind, unsafe.Sizeof(float(0)));
+ 	Float32 = newBasicType("float32", Float32Kind, 4);
+ 	Float64 = newBasicType("float64", Float64Kind, 8);
+ 	Float80 = newBasicType("float80", Float80Kind, 10);	// TODO: strange size?
+-	String = newBasicType("string", StringKind, 8);	// implemented as a pointer
++	// TODO(rsc): Sizeof("") should work, doesn't.
++	String = newBasicType("string", StringKind, unsafe.Sizeof(string(0)));
+ )
+ 
+ // Stub types allow us to defer evaluating type names until needed.
+@@ -149,12 +150,7 @@ func (t *stubType) Get() Type {
+ // -- Pointer
+ 
+ type PtrType interface {
+-	// TODO: Type;
+-	Kind()	int;
+-	Name()	string;
+-	String()	string;
+-	Size()	int;
+-
++	Type;
+ 	Sub()	Type
+ }
+ 
+@@ -174,12 +170,7 @@ func (t *ptrTypeStruct) Sub() Type {
+ // -- Array
+ 
+ type ArrayType interface {
+-	// TODO: Type;
+-	Kind()	int;
+-	Name()	string;
+-	String()	string;
+-	Size()	int;
+-
++	Type;
+ 	IsSlice()	bool;
+ 	Len()	int;
+ 	Elem()	Type;
+@@ -219,12 +210,7 @@ func (t *arrayTypeStruct) Elem() Type {
+ // -- Map
+ 
+ type MapType interface {
+-	// TODO: Type;
+-	Kind()	int;
+-	Name()	string;
+-	String()	string;
+-	Size()	int;
+-
++	Type;
+ 	Key()	Type;
+ 	Elem()	Type;
+ }
+@@ -250,12 +236,7 @@ func (t *mapTypeStruct) Elem() Type {
+ // -- Chan
+ 
+ type ChanType interface {
+-	// TODO: Type;
+-	Kind()	int;
+-	Name()	string;
+-	String()	string;
+-	Size()	int;
+-
++	Type;
+ 	Dir()	int;
+ 	Elem()	Type;
+ }
+@@ -287,12 +268,7 @@ func (t *chanTypeStruct) Elem() Type {
+ // -- Struct
+ 
+ type StructType interface {
+-	// TODO: Type;
+-	Kind()	int;
+-	Name()	string;
+-	String()	string;
+-	Size()	int;
+-
++	Type;
+ 	Field(int)	(name string, typ Type, tag string, offset int);
+ 	Len()	int;
+ }
+@@ -353,12 +329,7 @@ func (t *structTypeStruct) Len() int {
+ // -- Interface
+ 
+ type InterfaceType interface {
+-	// TODO: Type;
+-	Kind()	int;
+-	Name()	string;
+-	String()	string;
+-	Size()	int;
+-
++	Type;
+ 	Field(int)	(name string, typ Type, tag string, offset int);
+ 	Len()	int;
+ }
+@@ -385,12 +356,7 @@ var nilInterface = newInterfaceTypeStruct("nil", "", make([]structField, 0));
+ // -- Func
+ 
+ type FuncType interface {
+-	// TODO: Type;
+-	Kind()	int;
+-	Name()	string;
+-	String()	string;
+-	Size()	int;
+-
++	Type;
+ 	In()	StructType;
+ 	Out()	StructType;
+ }
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 8d15a8e3d5..ba430c22d7 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -66,11 +66,7 @@ type creatorFn func(typ Type, addr Addr) Value
+ // -- Missing
+ 
+ type MissingValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
++	Value;
+ }
+ 
+ type missingValueStruct struct {
+@@ -84,12 +80,7 @@ func missingCreator(typ Type, addr Addr) Value {
+ // -- Int
+ 
+ type IntValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	int;
+ 	Set(int);
+ }
+@@ -113,12 +104,7 @@ func (v *intValueStruct) Set(i int) {
+ // -- Int8
+ 
+ type Int8Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	int8;
+ 	Set(int8);
+ }
+@@ -142,12 +128,7 @@ func (v *int8ValueStruct) Set(i int8) {
+ // -- Int16
+ 
+ type Int16Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	int16;
+ 	Set(int16);
+ }
+@@ -171,12 +152,7 @@ func (v *int16ValueStruct) Set(i int16) {
+ // -- Int32
+ 
+ type Int32Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	int32;
+ 	Set(int32);
+ }
+@@ -200,12 +176,7 @@ func (v *int32ValueStruct) Set(i int32) {
+ // -- Int64
+ 
+ type Int64Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	int64;
+ 	Set(int64);
+ }
+@@ -229,12 +200,7 @@ func (v *int64ValueStruct) Set(i int64) {
+ // -- Uint
+ 
+ type UintValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	uint;
+ 	Set(uint);
+ }
+@@ -258,12 +224,7 @@ func (v *uintValueStruct) Set(i uint) {
+ // -- Uint8
+ 
+ type Uint8Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	uint8;
+ 	Set(uint8);
+ }
+@@ -287,12 +248,7 @@ func (v *uint8ValueStruct) Set(i uint8) {
+ // -- Uint16
+ 
+ type Uint16Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	uint16;
+ 	Set(uint16);
+ }
+@@ -316,12 +272,7 @@ func (v *uint16ValueStruct) Set(i uint16) {
+ // -- Uint32
+ 
+ type Uint32Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	uint32;
+ 	Set(uint32);
+ }
+@@ -345,12 +296,7 @@ func (v *uint32ValueStruct) Set(i uint32) {
+ // -- Uint64
+ 
+ type Uint64Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	uint64;
+ 	Set(uint64);
+ }
+@@ -374,12 +320,7 @@ func (v *uint64ValueStruct) Set(i uint64) {
+ // -- Uintptr
+ 
+ type UintptrValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	uintptr;
+ 	Set(uintptr);
+ }
+@@ -403,12 +344,7 @@ func (v *uintptrValueStruct) Set(i uintptr) {
+ // -- Float
+ 
+ type FloatValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	float;
+ 	Set(float);
+ }
+@@ -432,12 +368,7 @@ func (v *floatValueStruct) Set(f float) {
+ // -- Float32
+ 
+ type Float32Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	float32;
+ 	Set(float32);
+ }
+@@ -461,12 +392,7 @@ func (v *float32ValueStruct) Set(f float32) {
+ // -- Float64
+ 
+ type Float64Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	float64;
+ 	Set(float64);
+ }
+@@ -490,12 +416,7 @@ func (v *float64ValueStruct) Set(f float64) {
+ // -- Float80
+ 
+ type Float80Value interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	float80;
+ 	Set(float80);
+ }
+@@ -522,12 +443,7 @@ func (v *Float80ValueStruct) Set(f float80) {
+ // -- String
+ 
+ type StringValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	string;
+ 	Set(string);
+ }
+@@ -551,12 +467,7 @@ func (v *stringValueStruct) Set(s string) {
+ // -- Bool
+ 
+ type BoolValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	bool;
+ 	Set(bool);
+ }
+@@ -580,12 +491,7 @@ func (v *boolValueStruct) Set(b bool) {
+ // -- Pointer
+ 
+ type PtrValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Sub()	Value;
+ 	Get()	Addr;
+ 	SetSub(Value);
+@@ -621,12 +527,7 @@ func ptrCreator(typ Type, addr Addr) Value {
+ // Slices and arrays are represented by the same interface.
+ 
+ type ArrayValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	IsSlice()	bool;
+ 	Len()	int;
+ 	Cap() int;
+@@ -759,12 +660,7 @@ func arrayCreator(typ Type, addr Addr) Value {
+ // -- Map	TODO: finish and test
+ 
+ type MapValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Len()	int;
+ 	Elem(key Value)	Value;
+ }
+@@ -789,11 +685,7 @@ func (v *mapValueStruct) Elem(key Value) Value {
+ // -- Chan
+ 
+ type ChanValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
++	Value;
+ }
+ 
+ type chanValueStruct struct {
+@@ -807,12 +699,7 @@ func chanCreator(typ Type, addr Addr) Value {
+ // -- Struct
+ 
+ type StructValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Len()	int;
+ 	Field(i int)	Value;
+ }
+@@ -846,12 +733,7 @@ func structCreator(typ Type, addr Addr) Value {
+ // -- Interface
+ 
+ type InterfaceValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
+-
++	Value;
+ 	Get()	interface {};
+ }
+ 
+@@ -870,11 +752,7 @@ func interfaceCreator(typ Type, addr Addr) Value {
+ // -- Func
+ 
+ type FuncValue interface {
+-	// TODO: Value;
+-	Kind()	int;
+-	Type()	Type;
+-	Addr()	Addr;
+-	Interface()	interface {};
++	Value;
+ }
+ 
+ type funcValueStruct struct {

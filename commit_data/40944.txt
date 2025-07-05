@@ -14,8 +14,151 @@ Date:   Wed Jul 24 17:43:31 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go | 42 ++++++++++++++++++++++++++----------
  test/fixedbugs/bug251.go             |  6 +-----
  test/fixedbugs/issue6977.go          | 40 ++++++++++++++++++++++++++++++++++
  3 files changed, 72 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 073d9f2a12..9ef31ed92c 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -27,11 +27,32 @@ func Rnd(o int64, r int64) int64 {
+ // expandiface computes the method set for interface type t by
+ // expanding embedded interfaces.
+ func expandiface(t *types.Type) {
+-	var fields []*types.Field
++	seen := make(map[*types.Sym]*types.Field)
++	var methods []*types.Field
++
++	addMethod := func(m *types.Field, explicit bool) {
++		switch prev := seen[m.Sym]; {
++		case prev == nil:
++			seen[m.Sym] = m
++		case !explicit && types.Identical(m.Type, prev.Type):
++			return
++		default:
++			yyerrorl(m.Pos, "duplicate method %s", m.Sym.Name)
++		}
++		methods = append(methods, m)
++	}
++
++	for _, m := range t.Methods().Slice() {
++		if m.Sym == nil {
++			continue
++		}
++
++		checkwidth(m.Type)
++		addMethod(m, true)
++	}
++
+ 	for _, m := range t.Methods().Slice() {
+ 		if m.Sym != nil {
+-			fields = append(fields, m)
+-			checkwidth(m.Type)
+ 			continue
+ 		}
+ 
+@@ -43,7 +64,7 @@ func expandiface(t *types.Type) {
+ 			// include the broken embedded type when
+ 			// printing t.
+ 			// TODO(mdempsky): Revisit this.
+-			fields = append(fields, m)
++			methods = append(methods, m)
+ 			continue
+ 		}
+ 
+@@ -56,23 +77,22 @@ func expandiface(t *types.Type) {
+ 			f.Sym = t1.Sym
+ 			f.Type = t1.Type
+ 			f.SetBroke(t1.Broke())
+-			fields = append(fields, f)
++			addMethod(f, false)
+ 		}
+ 	}
+ 
+-	sort.Sort(methcmp(fields))
+-	checkdupfields("method", fields)
++	sort.Sort(methcmp(methods))
+ 
+-	if int64(len(fields)) >= thearch.MAXWIDTH/int64(Widthptr) {
++	if int64(len(methods)) >= thearch.MAXWIDTH/int64(Widthptr) {
+ 		yyerror("interface too large")
+ 	}
+-	for i, f := range fields {
+-		f.Offset = int64(i) * int64(Widthptr)
++	for i, m := range methods {
++		m.Offset = int64(i) * int64(Widthptr)
+ 	}
+ 
+ 	// Access fields directly to avoid recursively calling dowidth
+ 	// within Type.Fields().
+-	t.Extra.(*types.Interface).Fields.Set(fields)
++	t.Extra.(*types.Interface).Fields.Set(methods)
+ }
+ 
+ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+diff --git a/test/fixedbugs/bug251.go b/test/fixedbugs/bug251.go
+index 05e111a61f..706bb8d690 100644
+--- a/test/fixedbugs/bug251.go
++++ b/test/fixedbugs/bug251.go
+@@ -8,11 +8,7 @@ package main
+ 
+ type I1 interface { // GC_ERROR "invalid recursive type"
+ 	m() I2
+-	// TODO(mdempsky): The duplicate method error is silly
+-	// and redundant, but tricky to prevent as it's actually
+-	// being emitted against the underlying interface type
+-	// literal, not I1 itself.
+-	I2 // ERROR "loop|interface|duplicate method m"
++	I2 // GCCGO_ERROR "loop|interface"
+ }
+ 
+ type I2 interface {
+diff --git a/test/fixedbugs/issue6977.go b/test/fixedbugs/issue6977.go
+new file mode 100644
+index 0000000000..0f657eec41
+--- /dev/null
++++ b/test/fixedbugs/issue6977.go
+@@ -0,0 +1,40 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "io"
++
++// Alan's initial report.
++
++type I interface { f(); String() string }
++type J interface { g(); String() string }
++
++type IJ1 = interface { I; J }
++type IJ2 = interface { f(); g(); String() string }
++
++var _ = (*IJ1)(nil) == (*IJ2)(nil) // static assert that IJ1 and IJ2 are identical types
++
++// The canonical example.
++
++type ReadWriteCloser interface { io.ReadCloser; io.WriteCloser }
++
++// Some more cases.
++
++type M interface { m() }
++type M32 interface { m() int32 }
++type M64 interface { m() int64 }
++
++type U1 interface { m() }
++type U2 interface { m(); M }
++type U3 interface { M; m() }
++type U4 interface { M; M; M }
++type U5 interface { U1; U2; U3; U4 }
++
++type U6 interface { m(); m() } // ERROR "duplicate method m"
++type U7 interface { M32; m() } // ERROR "duplicate method m"
++type U8 interface { m(); M32 } // ERROR "duplicate method m"
++type U9 interface { M32; M64 } // ERROR "duplicate method m"

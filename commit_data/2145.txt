@@ -7,6 +7,29 @@ Date:   Tue May 5 17:33:51 2009 -0700
     R=ken
     OCL=28314
     CL=28314
-
+---
  src/cmd/gc/gen.c | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 249d0fde05..1302ae10c6 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -439,10 +439,13 @@ cgen_as(Node *nl, Node *nr)
+ 		}
+ 
+ 		// externals and heaps should already be clear
+-		if(nl->class == PEXTERN)
+-			return;
+-		if(nl->class & PHEAP)
+-			return;
++		if(nr == N) {
++			if(nl->class == PEXTERN)
++				return;
++			if(nl->class & PHEAP)
++				return;
++		}
++
+ 		tl = nl->type;
+ 		if(tl == T)
+ 			return;

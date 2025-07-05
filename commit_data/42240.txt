@@ -15,7 +15,7 @@ Date:   Mon Nov 18 11:32:51 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                             | 102 ----------------------
  src/cmd/go/script_test.go                         |  29 +++---
  src/cmd/go/testdata/script/README                 |   6 +-
@@ -23,3 +23,318 @@ Date:   Mon Nov 18 11:32:51 2019 -0500
  src/cmd/go/testdata/script/gopath_paths.txt       |  43 +++++++++
  src/cmd/go/testdata/src/go-cmd-test/helloworld.go |   5 --
  6 files changed, 106 insertions(+), 121 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 14e26bfe31..e1516a5db1 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1369,17 +1369,6 @@ func TestRelativeGOBINFail(t *testing.T) {
+ 	tg.grepStderr("cannot install, GOBIN must be an absolute path", "go install must fail if $GOBIN is a relative path")
+ }
+ 
+-// Test that without $GOBIN set, binaries get installed
+-// into the GOPATH bin directory.
+-func TestInstallIntoGOPATH(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.creatingTemp("testdata/bin/go-cmd-test" + exeSuffix)
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("install", "go-cmd-test")
+-	tg.wantExecutable("testdata/bin/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin/go-cmd-test")
+-}
+-
+ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
+ 	tooSlow(t)
+ 	tg := testgo(t)
+@@ -1429,51 +1418,6 @@ func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
+ 	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
+ }
+ 
+-// With $GOBIN set, binaries get installed to $GOBIN.
+-func TestInstallIntoGOBIN(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	gobin := filepath.Join(tg.pwd(), "testdata", "bin1")
+-	tg.creatingTemp(gobin)
+-	tg.setenv("GOBIN", gobin)
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("install", "go-cmd-test")
+-	tg.wantExecutable("testdata/bin1/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin1/go-cmd-test")
+-}
+-
+-// Issue 11065
+-func TestInstallToCurrentDirectoryCreatesExecutable(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	pkg := filepath.Join(tg.pwd(), "testdata", "src", "go-cmd-test")
+-	tg.creatingTemp(filepath.Join(pkg, "go-cmd-test"+exeSuffix))
+-	tg.setenv("GOBIN", pkg)
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.cd(pkg)
+-	tg.run("install")
+-	tg.wantExecutable("go-cmd-test"+exeSuffix, "go install did not write to current directory")
+-}
+-
+-// Without $GOBIN set, installing a program outside $GOPATH should fail
+-// (there is nowhere to install it).
+-func TestInstallWithoutDestinationFails(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.runFail("install", "testdata/src/go-cmd-test/helloworld.go")
+-	tg.grepStderr("no install location for .go files listed on command line", "wrong error")
+-}
+-
+-// With $GOBIN set, should install there.
+-func TestInstallToGOBINCommandLinePackage(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	gobin := filepath.Join(tg.pwd(), "testdata", "bin1")
+-	tg.creatingTemp(gobin)
+-	tg.setenv("GOBIN", gobin)
+-	tg.run("install", "testdata/src/go-cmd-test/helloworld.go")
+-	tg.wantExecutable("testdata/bin1/helloworld"+exeSuffix, "go install testdata/src/go-cmd-test/helloworld.go did not write testdata/bin1/helloworld")
+-}
+-
+ func TestGoGetNonPkg(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 	testenv.MustHaveExecPath(t, "git")
+@@ -1545,52 +1489,6 @@ func TestInstalls(t *testing.T) {
+ 	tg.wantExecutable(tg.path("bin/progname")+exeSuffix, "did not install progname to $GOPATH/bin/progname")
+ }
+ 
+-func TestRejectRelativeDotPathInGOPATHCommandLinePackage(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", ".")
+-	tg.runFail("build", "testdata/src/go-cmd-test/helloworld.go")
+-	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
+-}
+-
+-func TestRejectRelativePathsInGOPATH(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	sep := string(filepath.ListSeparator)
+-	tg.setenv("GOPATH", sep+filepath.Join(tg.pwd(), "testdata")+sep+".")
+-	tg.runFail("build", "go-cmd-test")
+-	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
+-}
+-
+-func TestRejectRelativePathsInGOPATHCommandLinePackage(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", "testdata")
+-	tg.runFail("build", "testdata/src/go-cmd-test/helloworld.go")
+-	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
+-}
+-
+-// Issue 21928.
+-func TestRejectBlankPathsInGOPATH(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	sep := string(filepath.ListSeparator)
+-	tg.setenv("GOPATH", " "+sep+filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("build", "go-cmd-test")
+-	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
+-}
+-
+-// Issue 21928.
+-func TestIgnoreEmptyPathsInGOPATH(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.creatingTemp("testdata/bin/go-cmd-test" + exeSuffix)
+-	sep := string(filepath.ListSeparator)
+-	tg.setenv("GOPATH", ""+sep+filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("install", "go-cmd-test")
+-	tg.wantExecutable("testdata/bin/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin/go-cmd-test")
+-}
+-
+ // Issue 4104.
+ func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
+ 	tooSlow(t)
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index fbe4698ee5..369264da76 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -580,26 +580,31 @@ func (ts *testScript) cmdEnv(neg bool, args []string) {
+ 		args = args[1:]
+ 	}
+ 
++	var out strings.Builder
+ 	if len(args) == 0 {
+ 		printed := make(map[string]bool) // env list can have duplicates; only print effective value (from envMap) once
+ 		for _, kv := range ts.env {
+ 			k := kv[:strings.Index(kv, "=")]
+ 			if !printed[k] {
+-				fmt.Fprintf(&ts.log, "%s=%s\n", k, ts.envMap[k])
++				fmt.Fprintf(&out, "%s=%s\n", k, ts.envMap[k])
+ 			}
+ 		}
+-		return
+-	}
+-	for _, env := range args {
+-		i := strings.Index(env, "=")
+-		if i < 0 {
+-			// Display value instead of setting it.
+-			fmt.Fprintf(&ts.log, "%s=%s\n", env, ts.envMap[env])
+-			continue
++	} else {
++		for _, env := range args {
++			i := strings.Index(env, "=")
++			if i < 0 {
++				// Display value instead of setting it.
++				fmt.Fprintf(&out, "%s=%s\n", env, ts.envMap[env])
++				continue
++			}
++			key, val := env[:i], conv(env[i+1:])
++			ts.env = append(ts.env, key+"="+val)
++			ts.envMap[key] = val
+ 		}
+-		key, val := env[:i], conv(env[i+1:])
+-		ts.env = append(ts.env, key+"="+val)
+-		ts.envMap[key] = val
++	}
++	if out.Len() > 0 || len(args) > 0 {
++		ts.stdout = out.String()
++		ts.log.WriteString(out.String())
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 1fd9639b6c..511d747129 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -38,6 +38,7 @@ Scripts also have access to these other environment variables:
+ 	TMPDIR=$WORK/tmp
+ 	devnull=<value of os.DevNull>
+ 	goversion=<current Go version; for example, 1.12>
++	:=<OS-specific path list separator>
+ 
+ The scripts supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
+ and then the script begins execution in that directory as well. Thus the example above runs
+@@ -114,7 +115,8 @@ The commands are:
+   from the most recent exec or go command.
+ 
+ - env [-r] [key=value...]
+-  With no arguments, print the environment (useful for debugging).
++  With no arguments, print the environment to stdout
++  (useful for debugging and for verifying initial state).
+   Otherwise add the listed key=value pairs to the environment.
+   The -r flag causes the values to be escaped using regexp.QuoteMeta
+   before being recorded.
+@@ -163,7 +165,7 @@ The commands are:
+ 
+ - [!] stdout [-count=N] pattern
+   Apply the grep command (see above) to the standard output
+-  from the most recent exec, go, or wait command.
++  from the most recent exec, go, wait, or env command.
+ 
+ - stop [message]
+   Stop the test early (marking it as passing), including the message if given.
+diff --git a/src/cmd/go/testdata/script/gopath_install.txt b/src/cmd/go/testdata/script/gopath_install.txt
+new file mode 100644
+index 0000000000..d1ca0e5db4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gopath_install.txt
+@@ -0,0 +1,42 @@
++# Regression test for 'go install' locations in GOPATH mode.
++env GO111MODULE=off
++[short] skip
++
++# Without $GOBIN set, binaries should be installed into the GOPATH bin directory.
++env GOBIN=
++rm $GOPATH/bin/go-cmd-test$GOEXE
++go install go-cmd-test
++exists $GOPATH/bin/go-cmd-test$GOEXE
++
++# With $GOBIN set, binaries should be installed to $GOBIN.
++env GOBIN=$WORK/bin1
++mkdir -p $GOBIN
++go install go-cmd-test
++exists $GOBIN/go-cmd-test$GOEXE
++
++# Issue 11065: installing to the current directory should create an executable.
++cd go-cmd-test
++env GOBIN=$PWD
++go install
++exists ./go-cmd-test$GOEXE
++cd ..
++
++# Without $GOBIN set, installing a program outside $GOPATH should fail
++# (there is nowhere to install it).
++env GOPATH= # reset to default ($HOME/go, which does not exist)
++env GOBIN=
++! go install go-cmd-test/helloworld.go
++stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
++
++# With $GOBIN set, should install there.
++env GOBIN=$WORK/bin1
++go install go-cmd-test/helloworld.go
++exists $GOBIN/helloworld$GOEXE
++
++
++-- go-cmd-test/helloworld.go --
++package main
++
++func main() {
++	println("hello world")
++}
+diff --git a/src/cmd/go/testdata/script/gopath_paths.txt b/src/cmd/go/testdata/script/gopath_paths.txt
+new file mode 100644
+index 0000000000..04265b176f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gopath_paths.txt
+@@ -0,0 +1,43 @@
++# Regression test for GOPATH validation in GOPATH mode.
++env GO111MODULE=off
++
++env ORIG_GOPATH=$GOPATH
++
++# The literal path '.' in GOPATH should be rejected.
++env GOPATH=.
++! go build go-cmd-test/helloworld.go
++stderr 'GOPATH entry is relative'
++
++# It should still be rejected if the requested package can be
++# found using another entry.
++env GOPATH=${:}$ORIG_GOPATH${:}.
++! go build go-cmd-test
++stderr 'GOPATH entry is relative'
++
++# GOPATH cannot be a relative subdirectory of the working directory.
++env ORIG_GOPATH
++stdout 'ORIG_GOPATH='$WORK[/\\]gopath
++cd $WORK
++env GOPATH=gopath
++! go build gopath/src/go-cmd-test/helloworld.go
++stderr 'GOPATH entry is relative'
++
++# Blank paths in GOPATH should be rejected as relative (issue 21928).
++env GOPATH=' '${:}$ORIG_GOPATH
++! go build go-cmd-test
++stderr 'GOPATH entry is relative'
++
++[short] stop
++
++# Empty paths in GOPATH should be ignored (issue 21928).
++env GOPATH=${:}$ORIG_GOPATH
++env GOPATH
++go install go-cmd-test
++exists $ORIG_GOPATH/bin/go-cmd-test$GOEXE
++
++-- go-cmd-test/helloworld.go --
++package main
++
++func main() {
++	println("hello world")
++}
+diff --git a/src/cmd/go/testdata/src/go-cmd-test/helloworld.go b/src/cmd/go/testdata/src/go-cmd-test/helloworld.go
+deleted file mode 100644
+index 002a5c740c..0000000000
+--- a/src/cmd/go/testdata/src/go-cmd-test/helloworld.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package main
+-
+-func main() {
+-	println("hello world")
+-}

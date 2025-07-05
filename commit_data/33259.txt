@@ -14,6 +14,37 @@ Date:   Wed Aug 9 09:16:38 2017 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/all_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 39a3a4986b..4449228c1e 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	. "math"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ var vf = []float64{
+@@ -1368,6 +1369,8 @@ var vfldexpSC = []fi{
+ 	{Inf(-1), 0},
+ 	{Inf(-1), -1024},
+ 	{NaN(), -1024},
++	{10, int(1) << (uint64(unsafe.Sizeof(0)-1) * 8)},
++	{10, -(int(1) << (uint64(unsafe.Sizeof(0)-1) * 8))},
+ }
+ var ldexpSC = []float64{
+ 	0,
+@@ -1381,6 +1384,8 @@ var ldexpSC = []float64{
+ 	Inf(-1),
+ 	Inf(-1),
+ 	NaN(),
++	Inf(1),
++	0,
+ }
+ 
+ var vflgammaSC = []float64{

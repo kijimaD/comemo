@@ -13,7 +13,7 @@ Date:   Wed Jan 17 15:51:09 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/vet/all/whitelist/386.txt           |  2 ++
  src/cmd/vet/all/whitelist/amd64.txt         |  1 +
  src/cmd/vet/all/whitelist/nacl_amd64p32.txt |  2 ++
@@ -21,3 +21,202 @@ Date:   Wed Jan 17 15:51:09 2018 -0500
  src/runtime/asm_amd64.s                     | 19 ++++++++++++-------
  src/runtime/asm_amd64p32.s                  |  7 ++++++-
  6 files changed, 35 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 76e82317ed..100ec974fb 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -24,3 +24,5 @@ runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go de
+ runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration
+ 
+ runtime/asm_386.s: [386] stackcheck: function stackcheck missing Go declaration
++
++runtime/asm_ARCHSUFF.s: [GOARCH] abort: function abort missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 2268b39353..0b61bcaff3 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -21,3 +21,4 @@ runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go de
+ runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+ runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
++runtime/asm_ARCHSUFF.s: [GOARCH] abort: function abort missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 9280c68d2c..021a01ace7 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -26,3 +26,5 @@ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
+ runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
+ 
+ runtime/asm_amd64p32.s: [amd64p32] stackcheck: function stackcheck missing Go declaration
++
++runtime/asm_ARCHSUFF.s: [GOARCH] abort: function abort missing Go declaration
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 6cea848374..f565bb305d 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -132,7 +132,7 @@ bad_proc: // show that the program requires MMX.
+ 	CALL	runtime·write(SB)
+ 	MOVL	$1, 0(SP)
+ 	CALL	runtime·exit(SB)
+-	INT	$3
++	CALL	runtime·abort(SB)
+ 
+ has_cpuid:
+ 	MOVL	$0, AX
+@@ -306,7 +306,7 @@ ok:
+ 	// start this M
+ 	CALL	runtime·mstart(SB)
+ 
+-	INT $3
++	CALL	runtime·abort(SB)
+ 	RET
+ 
+ DATA	bad_proc_msg<>+0x00(SB)/8, $"This pro"
+@@ -500,14 +500,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	CMPL	g(CX), SI
+ 	JNE	3(PC)
+ 	CALL	runtime·badmorestackg0(SB)
+-	INT	$3
++	CALL	runtime·abort(SB)
+ 
+ 	// Cannot grow signal stack.
+ 	MOVL	m_gsignal(BX), SI
+ 	CMPL	g(CX), SI
+ 	JNE	3(PC)
+ 	CALL	runtime·badmorestackgsignal(SB)
+-	INT	$3
++	CALL	runtime·abort(SB)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -534,7 +534,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVL	-4(AX), BX	// fault if CALL would, before smashing SP
+ 	MOVL	AX, SP
+ 	CALL	runtime·newstack(SB)
+-	MOVL	$0, 0x1003	// crash if newstack returns
++	CALL	runtime·abort(SB)	// crash if newstack returns
+ 	RET
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+@@ -907,16 +907,21 @@ TEXT setg_gcc<>(SB), NOSPLIT, $0
+ 	MOVL	DX, g(AX)
+ 	RET
+ 
++TEXT runtime·abort(SB),NOSPLIT,$0-0
++	INT	$3
++loop:
++	JMP	loop
++
+ // check that SP is in range [g->stack.lo, g->stack.hi)
+ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+ 	CMPL	(g_stack+stack_hi)(AX), SP
+ 	JHI	2(PC)
+-	INT	$3
++	CALL	runtime·abort(SB)
+ 	CMPL	SP, (g_stack+stack_lo)(AX)
+ 	JHI	2(PC)
+-	INT	$3
++	CALL	runtime·abort(SB)
+ 	RET
+ 
+ // func cputicks() int64
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 953f118146..16e9f5fe40 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -227,7 +227,7 @@ needtls:
+ 	MOVQ	runtime·m0+m_tls(SB), AX
+ 	CMPQ	AX, $0x123
+ 	JEQ 2(PC)
+-	MOVL	AX, 0	// abort
++	CALL	runtime·abort(SB)
+ ok:
+ 	// set the per-goroutine and per-mach "registers"
+ 	get_tls(BX)
+@@ -262,7 +262,7 @@ ok:
+ 	// start this M
+ 	CALL	runtime·mstart(SB)
+ 
+-	MOVL	$0xf1, 0xf1  // crash
++	CALL	runtime·abort(SB)	// mstart should never return
+ 	RET
+ 
+ DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
+@@ -446,14 +446,14 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	CMPQ	g(CX), SI
+ 	JNE	3(PC)
+ 	CALL	runtime·badmorestackg0(SB)
+-	INT	$3
++	CALL	runtime·abort(SB)
+ 
+ 	// Cannot grow signal stack (m->gsignal).
+ 	MOVQ	m_gsignal(BX), SI
+ 	CMPQ	g(CX), SI
+ 	JNE	3(PC)
+ 	CALL	runtime·badmorestackgsignal(SB)
+-	INT	$3
++	CALL	runtime·abort(SB)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -479,7 +479,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVQ	BX, g(CX)
+ 	MOVQ	(g_sched+gobuf_sp)(BX), SP
+ 	CALL	runtime·newstack(SB)
+-	MOVQ	$0, 0x1003	// crash if newstack returns
++	CALL	runtime·abort(SB)	// crash if newstack returns
+ 	RET
+ 
+ // morestack but not preserving ctxt.
+@@ -886,16 +886,21 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
+ 	MOVQ	DI, g(AX)
+ 	RET
+ 
++TEXT runtime·abort(SB),NOSPLIT,$0-0
++	INT	$3
++loop:
++	JMP	loop
++
+ // check that SP is in range [g->stack.lo, g->stack.hi)
+ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+ 	CMPQ	(g_stack+stack_hi)(AX), SP
+ 	JHI	2(PC)
+-	INT	$3
++	CALL	runtime·abort(SB)
+ 	CMPQ	SP, (g_stack+stack_lo)(AX)
+ 	JHI	2(PC)
+-	INT	$3
++	CALL	runtime·abort(SB)
+ 	RET
+ 
+ // func cputicks() int64
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 1fbc6c4218..160dc556d4 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -124,7 +124,7 @@ needtls:
+ 	MOVQ	runtime·m0+m_tls(SB), AX
+ 	CMPQ	AX, $0x123
+ 	JEQ 2(PC)
+-	MOVL	AX, 0	// abort
++	CALL	runtime·abort(SB)
+ ok:
+ 	// set the per-goroutine and per-mach "registers"
+ 	get_tls(BX)
+@@ -534,6 +534,11 @@ TEXT runtime·setg(SB), NOSPLIT, $0-4
+ 	MOVL	0, AX
+ 	RET
+ 
++TEXT runtime·abort(SB),NOSPLIT,$0-0
++	INT	$3
++loop:
++	JMP	loop
++
+ // check that SP is in range [g->stack.lo, g->stack.hi)
+ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	get_tls(CX)

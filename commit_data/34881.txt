@@ -9,6 +9,20 @@ Date:   Wed Nov 22 13:00:42 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/signal/signal_cgo_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index a11adca0cc..d23aa18e5f 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -149,7 +149,7 @@ func TestTerminalSignal(t *testing.T) {
+ 
+ 	// Set the bash prompt so that we can see it.
+ 	if _, err := master.Write([]byte("PS1='" + prompt + "'\n")); err != nil {
+-		t.Fatal("setting prompt: %v", err)
++		t.Fatalf("setting prompt: %v", err)
+ 	}
+ 	select {
+ 	case <-sawPrompt:

@@ -41,10 +41,753 @@ Date:   Sat Oct 31 11:22:42 2015 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/flate/copy.go              |  32 ------
  src/compress/flate/copy_test.go         |  54 ---------
  src/compress/flate/dict_decoder.go      | 184 ++++++++++++++++++++++++++++++
  src/compress/flate/dict_decoder_test.go | 139 +++++++++++++++++++++++
  src/compress/flate/inflate.go           | 193 ++++++++++++--------------------
  5 files changed, 397 insertions(+), 205 deletions(-)
+
+diff --git a/src/compress/flate/copy.go b/src/compress/flate/copy.go
+deleted file mode 100644
+index a3200a8f49..0000000000
+--- a/src/compress/flate/copy.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package flate
+-
+-// forwardCopy is like the built-in copy function except that it always goes
+-// forward from the start, even if the dst and src overlap.
+-// It is equivalent to:
+-//   for i := 0; i < n; i++ {
+-//     mem[dst+i] = mem[src+i]
+-//   }
+-func forwardCopy(mem []byte, dst, src, n int) {
+-	if dst <= src {
+-		copy(mem[dst:dst+n], mem[src:src+n])
+-		return
+-	}
+-	for {
+-		if dst >= src+n {
+-			copy(mem[dst:dst+n], mem[src:src+n])
+-			return
+-		}
+-		// There is some forward overlap.  The destination
+-		// will be filled with a repeated pattern of mem[src:src+k].
+-		// We copy one instance of the pattern here, then repeat.
+-		// Each time around this loop k will double.
+-		k := dst - src
+-		copy(mem[dst:dst+k], mem[src:src+k])
+-		n -= k
+-		dst += k
+-	}
+-}
+diff --git a/src/compress/flate/copy_test.go b/src/compress/flate/copy_test.go
+deleted file mode 100644
+index 2011b1547c..0000000000
+--- a/src/compress/flate/copy_test.go
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package flate
+-
+-import (
+-	"testing"
+-)
+-
+-func TestForwardCopy(t *testing.T) {
+-	testCases := []struct {
+-		dst0, dst1 int
+-		src0, src1 int
+-		want       string
+-	}{
+-		{0, 9, 0, 9, "012345678"},
+-		{0, 5, 4, 9, "45678"},
+-		{4, 9, 0, 5, "01230"},
+-		{1, 6, 3, 8, "34567"},
+-		{3, 8, 1, 6, "12121"},
+-		{0, 9, 3, 6, "345"},
+-		{3, 6, 0, 9, "012"},
+-		{1, 6, 0, 9, "00000"},
+-		{0, 4, 7, 8, "7"},
+-		{0, 1, 6, 8, "6"},
+-		{4, 4, 6, 9, ""},
+-		{2, 8, 6, 6, ""},
+-		{0, 0, 0, 0, ""},
+-	}
+-	for _, tc := range testCases {
+-		b := []byte("0123456789")
+-		n := tc.dst1 - tc.dst0
+-		if tc.src1-tc.src0 < n {
+-			n = tc.src1 - tc.src0
+-		}
+-		forwardCopy(b, tc.dst0, tc.src0, n)
+-		got := string(b[tc.dst0 : tc.dst0+n])
+-		if got != tc.want {
+-			t.Errorf("dst=b[%d:%d], src=b[%d:%d]: got %q, want %q",
+-				tc.dst0, tc.dst1, tc.src0, tc.src1, got, tc.want)
+-		}
+-		// Check that the bytes outside of dst[:n] were not modified.
+-		for i, x := range b {
+-			if i >= tc.dst0 && i < tc.dst0+n {
+-				continue
+-			}
+-			if int(x) != '0'+i {
+-				t.Errorf("dst=b[%d:%d], src=b[%d:%d]: copy overrun at b[%d]: got '%c', want '%c'",
+-					tc.dst0, tc.dst1, tc.src0, tc.src1, i, x, '0'+i)
+-			}
+-		}
+-	}
+-}
+diff --git a/src/compress/flate/dict_decoder.go b/src/compress/flate/dict_decoder.go
+new file mode 100644
+index 0000000000..71c75a065e
+--- /dev/null
++++ b/src/compress/flate/dict_decoder.go
+@@ -0,0 +1,184 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flate
++
++// dictDecoder implements the LZ77 sliding dictionary as used in decompression.
++// LZ77 decompresses data through sequences of two forms of commands:
++//
++//	* Literal insertions: Runs of one or more symbols are inserted into the data
++//	stream as is. This is accomplished through the writeByte method for a
++//	single symbol, or combinations of writeSlice/writeMark for multiple symbols.
++//	Any valid stream must start with a literal insertion if no preset dictionary
++//	is used.
++//
++//	* Backward copies: Runs of one or more symbols are copied from previously
++//	emitted data. Backward copies come as the tuple (dist, length) where dist
++//	determines how far back in the stream to copy from and length determines how
++//	many bytes to copy. Note that it is valid for the length to be greater than
++//	the distance. Since LZ77 uses forward copies, that situation is used to
++//	perform a form of run-length encoding on repeated runs of symbols.
++//	The writeCopy and tryWriteCopy are used to implement this command.
++//
++// For performance reasons, this implementation performs little to no sanity
++// checks about the arguments. As such, the invariants documented for each
++// method call must be respected.
++type dictDecoder struct {
++	hist []byte // Sliding window history
++
++	// Invariant: 0 <= rdPos <= wrPos <= len(hist)
++	wrPos int  // Current output position in buffer
++	rdPos int  // Have emitted hist[:rdPos] already
++	full  bool // Has a full window length been written yet?
++}
++
++// init initializes dictDecoder to have a sliding window dictionary of the given
++// size. If a preset dict is provided, it will initialize the dictionary with
++// the contents of dict.
++func (dd *dictDecoder) init(size int, dict []byte) {
++	*dd = dictDecoder{hist: dd.hist}
++
++	if cap(dd.hist) < size {
++		dd.hist = make([]byte, size)
++	}
++	dd.hist = dd.hist[:size]
++
++	if len(dict) > len(dd.hist) {
++		dict = dict[len(dict)-len(dd.hist):]
++	}
++	dd.wrPos = copy(dd.hist, dict)
++	if dd.wrPos == len(dd.hist) {
++		dd.wrPos = 0
++		dd.full = true
++	}
++	dd.rdPos = dd.wrPos
++}
++
++// histSize reports the total amount of historical data in the dictionary.
++func (dd *dictDecoder) histSize() int {
++	if dd.full {
++		return len(dd.hist)
++	}
++	return dd.wrPos
++}
++
++// availRead reports the number of bytes that can be flushed by readFlush.
++func (dd *dictDecoder) availRead() int {
++	return dd.wrPos - dd.rdPos
++}
++
++// availWrite reports the available amount of output buffer space.
++func (dd *dictDecoder) availWrite() int {
++	return len(dd.hist) - dd.wrPos
++}
++
++// writeSlice returns a slice of the available buffer to write data to.
++//
++// This invariant will be kept: len(s) <= availWrite()
++func (dd *dictDecoder) writeSlice() []byte {
++	return dd.hist[dd.wrPos:]
++}
++
++// writeMark advances the writer pointer by cnt.
++//
++// This invariant must be kept: 0 <= cnt <= availWrite()
++func (dd *dictDecoder) writeMark(cnt int) {
++	dd.wrPos += cnt
++}
++
++// writeByte writes a single byte to the dictionary.
++//
++// This invariant must be kept: 0 < availWrite()
++func (dd *dictDecoder) writeByte(c byte) {
++	dd.hist[dd.wrPos] = c
++	dd.wrPos++
++}
++
++// writeCopy copies a string at a given (dist, length) to the output.
++// This returns the number of bytes copied and may be less than the requested
++// length if the available space in the output buffer is too small.
++//
++// This invariant must be kept: 0 < dist <= histSize()
++func (dd *dictDecoder) writeCopy(dist, length int) int {
++	dstBase := dd.wrPos
++	dstPos := dstBase
++	srcPos := dstPos - dist
++	endPos := dstPos + length
++	if endPos > len(dd.hist) {
++		endPos = len(dd.hist)
++	}
++
++	// Copy non-overlapping section after destination position.
++	//
++	// This section is non-overlapping in that the copy length for this section
++	// is always less than or equal to the backwards distance. This can occur
++	// if a distance refers to data that wraps-around in the buffer.
++	// Thus, a backwards copy is performed here; that is, the exact bytes in
++	// the source prior to the copy is placed in the destination.
++	if srcPos < 0 {
++		srcPos += len(dd.hist)
++		dstPos += copy(dd.hist[dstPos:endPos], dd.hist[srcPos:])
++		srcPos = 0
++	}
++
++	// Copy possibly overlapping section before destination position.
++	//
++	// This section can overlap if the copy length for this section is larger
++	// than the backwards distance. This is allowed by LZ77 so that repeated
++	// strings can be succinctly represented using (dist, length) pairs.
++	// Thus, a forwards copy is performed here; that is, the bytes copied is
++	// possibly dependent on the resulting bytes in the destination as the copy
++	// progresses along. This is functionally equivalent to the following:
++	//
++	//	for i := 0; i < endPos-dstPos; i++ {
++	//		dd.hist[dstPos+i] = dd.hist[srcPos+i]
++	//	}
++	//	dstPos = endPos
++	//
++	for dstPos < endPos {
++		dstPos += copy(dd.hist[dstPos:endPos], dd.hist[srcPos:dstPos])
++	}
++
++	dd.wrPos = dstPos
++	return dstPos - dstBase
++}
++
++// tryWriteCopy tries to copy a string at a given (distance, length) to the
++// output. This specialized version is optimized for short distances.
++//
++// This method is designed to be inlined for performance reasons.
++//
++// This invariant must be kept: 0 < dist <= histSize()
++func (dd *dictDecoder) tryWriteCopy(dist, length int) int {
++	dstPos := dd.wrPos
++	endPos := dstPos + length
++	if dstPos < dist || endPos > len(dd.hist) {
++		return 0
++	}
++	dstBase := dstPos
++	srcPos := dstPos - dist
++
++	// Copy possibly overlapping section before destination position.
++loop:
++	dstPos += copy(dd.hist[dstPos:endPos], dd.hist[srcPos:dstPos])
++	if dstPos < endPos {
++		goto loop // Avoid for-loop so that this function can be inlined
++	}
++
++	dd.wrPos = dstPos
++	return dstPos - dstBase
++}
++
++// readFlush returns a slice of the historical buffer that is ready to be
++// emitted to the user. The data returned by readFlush must be fully consumed
++// before calling any other dictDecoder methods.
++func (dd *dictDecoder) readFlush() []byte {
++	toRead := dd.hist[dd.rdPos:dd.wrPos]
++	dd.rdPos = dd.wrPos
++	if dd.wrPos == len(dd.hist) {
++		dd.wrPos, dd.rdPos = 0, 0
++		dd.full = true
++	}
++	return toRead
++}
+diff --git a/src/compress/flate/dict_decoder_test.go b/src/compress/flate/dict_decoder_test.go
+new file mode 100644
+index 0000000000..9275cff791
+--- /dev/null
++++ b/src/compress/flate/dict_decoder_test.go
+@@ -0,0 +1,139 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flate
++
++import (
++	"bytes"
++	"strings"
++	"testing"
++)
++
++func TestDictDecoder(t *testing.T) {
++	const (
++		abc  = "ABC\n"
++		fox  = "The quick brown fox jumped over the lazy dog!\n"
++		poem = "The Road Not Taken\nRobert Frost\n" +
++			"\n" +
++			"Two roads diverged in a yellow wood,\n" +
++			"And sorry I could not travel both\n" +
++			"And be one traveler, long I stood\n" +
++			"And looked down one as far as I could\n" +
++			"To where it bent in the undergrowth;\n" +
++			"\n" +
++			"Then took the other, as just as fair,\n" +
++			"And having perhaps the better claim,\n" +
++			"Because it was grassy and wanted wear;\n" +
++			"Though as for that the passing there\n" +
++			"Had worn them really about the same,\n" +
++			"\n" +
++			"And both that morning equally lay\n" +
++			"In leaves no step had trodden black.\n" +
++			"Oh, I kept the first for another day!\n" +
++			"Yet knowing how way leads on to way,\n" +
++			"I doubted if I should ever come back.\n" +
++			"\n" +
++			"I shall be telling this with a sigh\n" +
++			"Somewhere ages and ages hence:\n" +
++			"Two roads diverged in a wood, and I-\n" +
++			"I took the one less traveled by,\n" +
++			"And that has made all the difference.\n"
++	)
++
++	var poemRefs = []struct {
++		dist   int // Backward distance (0 if this is an insertion)
++		length int // Length of copy or insertion
++	}{
++		{0, 38}, {33, 3}, {0, 48}, {79, 3}, {0, 11}, {34, 5}, {0, 6}, {23, 7},
++		{0, 8}, {50, 3}, {0, 2}, {69, 3}, {34, 5}, {0, 4}, {97, 3}, {0, 4},
++		{43, 5}, {0, 6}, {7, 4}, {88, 7}, {0, 12}, {80, 3}, {0, 2}, {141, 4},
++		{0, 1}, {196, 3}, {0, 3}, {157, 3}, {0, 6}, {181, 3}, {0, 2}, {23, 3},
++		{77, 3}, {28, 5}, {128, 3}, {110, 4}, {70, 3}, {0, 4}, {85, 6}, {0, 2},
++		{182, 6}, {0, 4}, {133, 3}, {0, 7}, {47, 5}, {0, 20}, {112, 5}, {0, 1},
++		{58, 3}, {0, 8}, {59, 3}, {0, 4}, {173, 3}, {0, 5}, {114, 3}, {0, 4},
++		{92, 5}, {0, 2}, {71, 3}, {0, 2}, {76, 5}, {0, 1}, {46, 3}, {96, 4},
++		{130, 4}, {0, 3}, {360, 3}, {0, 3}, {178, 5}, {0, 7}, {75, 3}, {0, 3},
++		{45, 6}, {0, 6}, {299, 6}, {180, 3}, {70, 6}, {0, 1}, {48, 3}, {66, 4},
++		{0, 3}, {47, 5}, {0, 9}, {325, 3}, {0, 1}, {359, 3}, {318, 3}, {0, 2},
++		{199, 3}, {0, 1}, {344, 3}, {0, 3}, {248, 3}, {0, 10}, {310, 3}, {0, 3},
++		{93, 6}, {0, 3}, {252, 3}, {157, 4}, {0, 2}, {273, 5}, {0, 14}, {99, 4},
++		{0, 1}, {464, 4}, {0, 2}, {92, 4}, {495, 3}, {0, 1}, {322, 4}, {16, 4},
++		{0, 3}, {402, 3}, {0, 2}, {237, 4}, {0, 2}, {432, 4}, {0, 1}, {483, 5},
++		{0, 2}, {294, 4}, {0, 2}, {306, 3}, {113, 5}, {0, 1}, {26, 4}, {164, 3},
++		{488, 4}, {0, 1}, {542, 3}, {248, 6}, {0, 5}, {205, 3}, {0, 8}, {48, 3},
++		{449, 6}, {0, 2}, {192, 3}, {328, 4}, {9, 5}, {433, 3}, {0, 3}, {622, 25},
++		{615, 5}, {46, 5}, {0, 2}, {104, 3}, {475, 10}, {549, 3}, {0, 4}, {597, 8},
++		{314, 3}, {0, 1}, {473, 6}, {317, 5}, {0, 1}, {400, 3}, {0, 3}, {109, 3},
++		{151, 3}, {48, 4}, {0, 4}, {125, 3}, {108, 3}, {0, 2},
++	}
++
++	var got, want bytes.Buffer
++	var dd dictDecoder
++	dd.init(1<<11, nil)
++
++	var writeCopy = func(dist, length int) {
++		for length > 0 {
++			cnt := dd.tryWriteCopy(dist, length)
++			if cnt == 0 {
++				cnt = dd.writeCopy(dist, length)
++			}
++
++			length -= cnt
++			if dd.availWrite() == 0 {
++				got.Write(dd.readFlush())
++			}
++		}
++	}
++	var writeString = func(str string) {
++		for len(str) > 0 {
++			cnt := copy(dd.writeSlice(), str)
++			str = str[cnt:]
++			dd.writeMark(cnt)
++			if dd.availWrite() == 0 {
++				got.Write(dd.readFlush())
++			}
++		}
++	}
++
++	writeString(".")
++	want.WriteByte('.')
++
++	str := poem
++	for _, ref := range poemRefs {
++		if ref.dist == 0 {
++			writeString(str[:ref.length])
++		} else {
++			writeCopy(ref.dist, ref.length)
++		}
++		str = str[ref.length:]
++	}
++	want.WriteString(poem)
++
++	writeCopy(dd.histSize(), 33)
++	want.Write(want.Bytes()[:33])
++
++	writeString(abc)
++	writeCopy(len(abc), 59*len(abc))
++	want.WriteString(strings.Repeat(abc, 60))
++
++	writeString(fox)
++	writeCopy(len(fox), 9*len(fox))
++	want.WriteString(strings.Repeat(fox, 10))
++
++	writeString(".")
++	writeCopy(1, 9)
++	want.WriteString(strings.Repeat(".", 10))
++
++	writeString(strings.ToUpper(poem))
++	writeCopy(len(poem), 7*len(poem))
++	want.WriteString(strings.Repeat(strings.ToUpper(poem), 8))
++
++	writeCopy(dd.histSize(), 10)
++	want.Write(want.Bytes()[want.Len()-dd.histSize():][:10])
++
++	got.Write(dd.readFlush())
++	if got.String() != want.String() {
++		t.Errorf("final string mismatch:\ngot  %q\nwant %q", got.String(), want.String())
++	}
++}
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 42261e9b61..dccfdf2288 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -282,29 +282,28 @@ type decompressor struct {
+ 	codebits *[numCodes]int
+ 
+ 	// Output history, buffer.
+-	hist  *[maxHist]byte
+-	hp    int  // current output position in buffer
+-	hw    int  // have written hist[0:hw] already
+-	hfull bool // buffer has filled at least once
++	dict dictDecoder
+ 
+ 	// Temporary buffer (avoids repeated allocation).
+ 	buf [4]byte
+ 
+ 	// Next step in the decompression,
+ 	// and decompression state.
+-	step     func(*decompressor)
+-	final    bool
+-	err      error
+-	toRead   []byte
+-	hl, hd   *huffmanDecoder
+-	copyLen  int
+-	copyDist int
++	step      func(*decompressor)
++	stepState int
++	final     bool
++	err       error
++	toRead    []byte
++	hl, hd    *huffmanDecoder
++	copyLen   int
++	copyDist  int
+ }
+ 
+ func (f *decompressor) nextBlock() {
+ 	if f.final {
+-		if f.hw != f.hp {
+-			f.flush((*decompressor).nextBlock)
++		if f.dict.availRead() > 0 {
++			f.toRead = f.dict.readFlush()
++			f.step = (*decompressor).nextBlock
+ 			return
+ 		}
+ 		f.err = io.EOF
+@@ -353,6 +352,7 @@ func (f *decompressor) Read(b []byte) (int, error) {
+ 			return 0, f.err
+ 		}
+ 		f.step(f)
++		f.woffset += int64(len(f.toRead))
+ 	}
+ }
+ 
+@@ -481,7 +481,21 @@ func (f *decompressor) readHuffman() error {
+ // and the distance values, respectively.  If hd == nil, using the
+ // fixed distance encoding associated with fixed Huffman blocks.
+ func (f *decompressor) huffmanBlock() {
+-	for {
++	const (
++		stateInit = iota // Zero value must be stateInit
++		stateDict
++	)
++
++	switch f.stepState {
++	case stateInit:
++		goto readLiteral
++	case stateDict:
++		goto copyHistory
++	}
++
++readLiteral:
++	// Read literal and/or (length, distance) according to RFC section 3.2.3.
++	{
+ 		v, err := f.huffSym(f.hl)
+ 		if err != nil {
+ 			f.err = err
+@@ -491,14 +505,14 @@ func (f *decompressor) huffmanBlock() {
+ 		var length int
+ 		switch {
+ 		case v < 256:
+-			f.hist[f.hp] = byte(v)
+-			f.hp++
+-			if f.hp == len(f.hist) {
+-				// After the flush, continue this loop.
+-				f.flush((*decompressor).huffmanBlock)
++			f.dict.writeByte(byte(v))
++			if f.dict.availWrite() == 0 {
++				f.toRead = f.dict.readFlush()
++				f.step = (*decompressor).huffmanBlock
++				f.stepState = stateInit
+ 				return
+ 			}
+-			continue
++			goto readLiteral
+ 		case v == 256:
+ 			// Done with huffman block; read next block.
+ 			f.step = (*decompressor).nextBlock
+@@ -581,61 +595,33 @@ func (f *decompressor) huffmanBlock() {
+ 			return
+ 		}
+ 
+-		// Copy history[-dist:-dist+length] into output.
+-		if dist > len(f.hist) {
+-			f.err = InternalError("bad history distance")
+-			return
+-		}
+-
+ 		// No check on length; encoding can be prescient.
+-		if !f.hfull && dist > f.hp {
++		if dist > f.dict.histSize() {
+ 			f.err = CorruptInputError(f.roffset)
+ 			return
+ 		}
+ 
+ 		f.copyLen, f.copyDist = length, dist
+-		if f.copyHist() {
+-			return
+-		}
++		goto copyHistory
+ 	}
+-}
+ 
+-// copyHist copies f.copyLen bytes from f.hist (f.copyDist bytes ago) to itself.
+-// It reports whether the f.hist buffer is full.
+-func (f *decompressor) copyHist() bool {
+-	p := f.hp - f.copyDist
+-	if p < 0 {
+-		p += len(f.hist)
+-	}
+-	for f.copyLen > 0 {
+-		n := f.copyLen
+-		if x := len(f.hist) - f.hp; n > x {
+-			n = x
+-		}
+-		if x := len(f.hist) - p; n > x {
+-			n = x
+-		}
+-		forwardCopy(f.hist[:], f.hp, p, n)
+-		p += n
+-		f.hp += n
+-		f.copyLen -= n
+-		if f.hp == len(f.hist) {
+-			// After flush continue copying out of history.
+-			f.flush((*decompressor).copyHuff)
+-			return true
+-		}
+-		if p == len(f.hist) {
+-			p = 0
++copyHistory:
++	// Perform a backwards copy according to RFC section 3.2.3.
++	{
++		cnt := f.dict.tryWriteCopy(f.copyDist, f.copyLen)
++		if cnt == 0 {
++			cnt = f.dict.writeCopy(f.copyDist, f.copyLen)
+ 		}
+-	}
+-	return false
+-}
++		f.copyLen -= cnt
+ 
+-func (f *decompressor) copyHuff() {
+-	if f.copyHist() {
+-		return
++		if f.dict.availWrite() == 0 || f.copyLen > 0 {
++			f.toRead = f.dict.readFlush()
++			f.step = (*decompressor).huffmanBlock // We need to continue this work
++			f.stepState = stateDict
++			return
++		}
++		goto readLiteral
+ 	}
+-	f.huffmanBlock()
+ }
+ 
+ // Copy a single uncompressed data block from input to output.
+@@ -663,8 +649,8 @@ func (f *decompressor) dataBlock() {
+ 	}
+ 
+ 	if n == 0 {
+-		// 0-length block means sync
+-		f.flush((*decompressor).nextBlock)
++		f.toRead = f.dict.readFlush()
++		f.step = (*decompressor).nextBlock
+ 		return
+ 	}
+ 
+@@ -675,44 +661,29 @@ func (f *decompressor) dataBlock() {
+ // copyData copies f.copyLen bytes from the underlying reader into f.hist.
+ // It pauses for reads when f.hist is full.
+ func (f *decompressor) copyData() {
+-	n := f.copyLen
+-	for n > 0 {
+-		m := len(f.hist) - f.hp
+-		if m > n {
+-			m = n
+-		}
+-		m, err := io.ReadFull(f.r, f.hist[f.hp:f.hp+m])
+-		f.roffset += int64(m)
+-		if err != nil {
+-			if err == io.EOF {
+-				err = io.ErrUnexpectedEOF
+-			}
+-			f.err = err
+-			return
+-		}
+-		n -= m
+-		f.hp += m
+-		if f.hp == len(f.hist) {
+-			f.copyLen = n
+-			f.flush((*decompressor).copyData)
+-			return
+-		}
++	buf := f.dict.writeSlice()
++	if len(buf) > f.copyLen {
++		buf = buf[:f.copyLen]
+ 	}
+-	f.step = (*decompressor).nextBlock
+-}
+ 
+-func (f *decompressor) setDict(dict []byte) {
+-	if len(dict) > len(f.hist) {
+-		// Will only remember the tail.
+-		dict = dict[len(dict)-len(f.hist):]
++	cnt, err := io.ReadFull(f.r, buf)
++	f.roffset += int64(cnt)
++	f.copyLen -= cnt
++	f.dict.writeMark(cnt)
++	if err != nil {
++		if err == io.EOF {
++			err = io.ErrUnexpectedEOF
++		}
++		f.err = err
++		return
+ 	}
+ 
+-	f.hp = copy(f.hist[:], dict)
+-	if f.hp == len(f.hist) {
+-		f.hp = 0
+-		f.hfull = true
++	if f.dict.availWrite() == 0 || f.copyLen > 0 {
++		f.toRead = f.dict.readFlush()
++		f.step = (*decompressor).copyData
++		return
+ 	}
+-	f.hw = f.hp
++	f.step = (*decompressor).nextBlock
+ }
+ 
+ func (f *decompressor) moreBits() error {
+@@ -760,19 +731,6 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
+ 	}
+ }
+ 
+-// Flush any buffered output to the underlying writer.
+-func (f *decompressor) flush(step func(*decompressor)) {
+-	f.toRead = f.hist[f.hw:f.hp]
+-	f.woffset += int64(f.hp - f.hw)
+-	f.hw = f.hp
+-	if f.hp == len(f.hist) {
+-		f.hp = 0
+-		f.hw = 0
+-		f.hfull = true
+-	}
+-	f.step = step
+-}
+-
+ func makeReader(r io.Reader) Reader {
+ 	if rr, ok := r.(Reader); ok {
+ 		return rr
+@@ -805,12 +763,10 @@ func (f *decompressor) Reset(r io.Reader, dict []byte) error {
+ 		r:        makeReader(r),
+ 		bits:     f.bits,
+ 		codebits: f.codebits,
+-		hist:     f.hist,
++		dict:     f.dict,
+ 		step:     (*decompressor).nextBlock,
+ 	}
+-	if dict != nil {
+-		f.setDict(dict)
+-	}
++	f.dict.init(maxHist, nil)
+ 	return nil
+ }
+ 
+@@ -827,10 +783,10 @@ func NewReader(r io.Reader) io.ReadCloser {
+ 
+ 	var f decompressor
+ 	f.r = makeReader(r)
+-	f.hist = new([maxHist]byte)
+ 	f.bits = new([maxNumLit + maxNumDist]int)
+ 	f.codebits = new([numCodes]int)
+ 	f.step = (*decompressor).nextBlock
++	f.dict.init(maxHist, nil)
+ 	return &f
+ }
+ 
+@@ -846,10 +802,9 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
+ 
+ 	var f decompressor
+ 	f.r = makeReader(r)
+-	f.hist = new([maxHist]byte)
+ 	f.bits = new([maxNumLit + maxNumDist]int)
+ 	f.codebits = new([numCodes]int)
+ 	f.step = (*decompressor).nextBlock
+-	f.setDict(dict)
++	f.dict.init(maxHist, dict)
+ 	return &f
+ }

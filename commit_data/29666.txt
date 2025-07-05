@@ -15,7 +15,95 @@ Date:   Fri Sep 30 16:54:54 2016 -0700
     Change-Id: I5acd1970041291c2e3936f5b1fd36f2a0338e613
     Reviewed-on: https://go-review.googlesource.com/30155
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/verify.go      | 34 ++++++++++++++++++++++++++++------
  src/crypto/x509/verify_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 52 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 626f11bd4c..4a6c952a96 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -154,6 +154,31 @@ const (
+ 	rootCertificate
+ )
+ 
++func matchNameConstraint(domain, constraint string) bool {
++	// The meaning of zero length constraints is not specified, but this
++	// code follows NSS and accepts them as valid for everything.
++	if len(constraint) == 0 {
++		return true
++	}
++
++	if len(domain) < len(constraint) {
++		return false
++	}
++
++	prefixLen := len(domain) - len(constraint)
++	if !strings.EqualFold(domain[prefixLen:], constraint) {
++		return false
++	}
++
++	if prefixLen == 0 {
++		return true
++	}
++
++	isSubdomain := domain[prefixLen-1] == '.'
++	constraintHasLeadingDot := constraint[0] == '.'
++	return isSubdomain != constraintHasLeadingDot
++}
++
+ // isValid performs validity checks on the c.
+ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
+ 	now := opts.CurrentTime
+@@ -166,12 +191,9 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 
+ 	if len(c.PermittedDNSDomains) > 0 {
+ 		ok := false
+-		for _, domain := range c.PermittedDNSDomains {
+-			if opts.DNSName == domain ||
+-				(strings.HasSuffix(opts.DNSName, domain) &&
+-					len(opts.DNSName) >= 1+len(domain) &&
+-					opts.DNSName[len(opts.DNSName)-len(domain)-1] == '.') {
+-				ok = true
++		for _, constraint := range c.PermittedDNSDomains {
++			ok = matchNameConstraint(opts.DNSName, constraint)
++			if ok {
+ 				break
+ 			}
+ 		}
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 36b500f90a..fbed1d8388 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -1164,6 +1164,30 @@ func TestUnknownAuthorityError(t *testing.T) {
+ 	}
+ }
+ 
++var nameConstraintTests = []struct {
++	constraint, domain string
++	shouldMatch        bool
++}{
++	{"", "anything.com", true},
++	{"example.com", "example.com", true},
++	{"example.com", "ExAmPle.coM", true},
++	{"example.com", "exampl1.com", false},
++	{"example.com", "www.ExAmPle.coM", true},
++	{"example.com", "notexample.com", false},
++	{".example.com", "example.com", false},
++	{".example.com", "www.example.com", true},
++	{".example.com", "www..example.com", false},
++}
++
++func TestNameConstraints(t *testing.T) {
++	for i, test := range nameConstraintTests {
++		result := matchNameConstraint(test.domain, test.constraint)
++		if result != test.shouldMatch {
++			t.Errorf("unexpected result for test #%d: domain=%s, constraint=%s, result=%t", i, test.domain, test.constraint, result)
++		}
++	}
++}
++
+ const selfSignedWithCommonName = `-----BEGIN CERTIFICATE-----
+ MIIDCjCCAfKgAwIBAgIBADANBgkqhkiG9w0BAQsFADAaMQswCQYDVQQKEwJjYTEL
+ MAkGA1UEAxMCY2EwHhcNMTYwODI4MTcwOTE4WhcNMjEwODI3MTcwOTE4WjAcMQsw

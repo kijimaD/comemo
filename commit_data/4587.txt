@@ -7,7 +7,65 @@ Date:   Tue Jan 12 15:43:20 2010 -0800
     R=rsc, agl, r
     CC=golang-dev
     https://golang.org/cl/188043
-
+---
  src/Make.pkg     |  3 +++
  src/pkg/Makefile | 12 ++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index d4196b6e84..3dd57b7104 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -53,6 +53,9 @@ clean:
+ test:
+ 	$(QUOTED_GOBIN)/gotest
+ 
++bench:
++	$(QUOTED_GOBIN)/gotest -benchmarks=. -match="Do not run tests"
++
+ nuke: clean
+ 	rm -f $(pkgdir)/$(TARG).a
+ 
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 0caa0dd3fd..4f001db855 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -134,13 +134,20 @@ NOTEST=\
+ 	testing/iotest\
+ 	xgb\
+ 
++NOBENCH=\
++	container/vector\
++
+ TEST=\
+ 	$(filter-out $(NOTEST),$(DIRS))
+ 
++BENCH=\
++	$(filter-out $(NOBENCH),$(TEST))
++
+ clean.dirs: $(addsuffix .clean, $(DIRS))
+ install.dirs: $(addsuffix .install, $(DIRS))
+ nuke.dirs: $(addsuffix .nuke, $(DIRS))
+ test.dirs: $(addsuffix .test, $(TEST))
++bench.dirs: $(addsuffix .bench, $(BENCH))
+ 
+ %.clean:
+ 	+cd $* && $(QUOTED_GOBIN)/gomake clean
+@@ -154,12 +161,17 @@ test.dirs: $(addsuffix .test, $(TEST))
+ %.test:
+ 	+cd $* && $(QUOTED_GOBIN)/gomake test
+ 
++%.bench:
++	+cd $* && $(QUOTED_GOBIN)/gomake bench
++
+ clean: clean.dirs
+ 
+ install: install.dirs
+ 
+ test:	test.dirs
+ 
++bench:	bench.dirs
++
+ nuke: nuke.dirs
+ 	rm -rf "$(GOROOT)"/pkg/*
+ 

@@ -7,6 +7,25 @@ Date:   Sun Jun 20 12:05:43 2010 -0700
     TBR=r
     CC=golang-dev
     https://golang.org/cl/1734042
-
+---
  test/errchk | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/test/errchk b/test/errchk
+index 3aafddb82d..115aa7be09 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -31,7 +31,12 @@ close(SRC);
+ # Run command
+ $cmd = join(' ', @ARGV);
+ open(CMD, "exec $cmd </dev/null 2>&1 |") || die "BUG: errchk: run $cmd: $!";
+-@out = grep { !/^	/ } <CMD>;
++
++# 6g error messages continue onto additional lines with leading tabs.
++# Split the output at the beginning of each line that doesn't begin with a tab.
++$out = join('', <CMD>);
++@out = split(/^(?!\t)/m, $out);
++
+ close CMD;
+ 
+ if($? == 0) {

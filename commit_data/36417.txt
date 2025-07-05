@@ -39,7 +39,7 @@ Date:   Wed Apr 25 11:52:06 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  5 ++
  src/cmd/compile/internal/ssa/gen/ARM.rules     |  3 +
  src/cmd/compile/internal/ssa/gen/ARM64.rules   |  3 +
@@ -60,3 +60,719 @@ Date:   Wed Apr 25 11:52:06 2018 -0700
  test/codegen/mathbits.go                       | 52 ++++++++++++++++++
  test/run.go                                    |  1 +
  19 files changed, 347 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index b4560f0afc..95f996395e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -60,6 +60,11 @@
+ (Ctz16 x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [16] x)))
+ (Ctz8  x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [ 8] x)))
+ 
++(Ctz64NonZero x) -> (Select0 (BSFQ x))
++(Ctz32NonZero x) -> (Select0 (BSFL x))
++(Ctz16NonZero x) -> (Select0 (BSFL x))
++(Ctz8NonZero  x) -> (Select0 (BSFL x))
++
+ // BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
+ // However, for zero-extended values, we can cheat a bit, and calculate
+ // BSR(x<<1 + 1), which is guaranteed to be non-zero, and which conveniently
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 8e5ba66749..912539cb5b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -57,6 +57,9 @@
+ 
+ (Sqrt x) -> (SQRTD x)
+ 
++// TODO: optimize this for ARMv5 and ARMv6
++(Ctz32NonZero x) -> (Ctz32 x)
++
+ // count trailing zero for ARMv5 and ARMv6
+ // 32 - CLZ(x&-x - 1)
+ (Ctz32 <t> x) && objabi.GOARM<=6 -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index ff1f290542..59fb1bd220 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -89,6 +89,9 @@
+ (Round x) -> (FRINTAD x)
+ (Trunc x) -> (FRINTZD x)
+ 
++(Ctz64NonZero x) -> (Ctz64 x)
++(Ctz32NonZero x) -> (Ctz32 x)
++
+ (Ctz64 <t> x) -> (CLZ (RBIT <t> x))
+ (Ctz32 <t> x) -> (CLZW (RBITW <t> x))
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index a97a74f6ad..f097d93689 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -116,6 +116,9 @@
+ 
+ (Sqrt x) -> (SQRTD x)
+ 
++// TODO: optimize this case?
++(Ctz32NonZero x) -> (Ctz32 x)
++
+ // count trailing zero
+ // 32 - CLZ(x&-x - 1)
+ (Ctz32 <t> x) -> (SUB (MOVWconst [32]) (CLZ <t> (SUBconst <t> [1] (AND <t> x (NEG <t> x)))))
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 5d416151ee..8f6929f959 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -275,6 +275,10 @@
+ (Addr {sym} base) -> (MOVDaddr {sym} base)
+ (OffPtr [off] ptr) -> (ADD (MOVDconst <typ.Int64> [off]) ptr)
+ 
++// TODO: optimize these cases?
++(Ctz32NonZero x) -> (Ctz32 x)
++(Ctz64NonZero x) -> (Ctz64 x)
++
+ (Ctz64 x) -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+ (Ctz32 x) -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index b8589ae933..9debb25759 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -78,6 +78,10 @@
+ (OffPtr [off] ptr) && is32Bit(off) -> (ADDconst [off] ptr)
+ (OffPtr [off] ptr) -> (ADD (MOVDconst [off]) ptr)
+ 
++// TODO: optimize these cases?
++(Ctz64NonZero x) -> (Ctz64 x)
++(Ctz32NonZero x) -> (Ctz32 x)
++
+ // Ctz(x) = 64 - findLeftmostOne((x-1)&^x)
+ (Ctz64 <t> x) -> (SUB (MOVDconst [64]) (FLOGR (AND <t> (SUBconst <t> [1] x) (NOT <t> x))))
+ (Ctz32 <t> x) -> (SUB (MOVDconst [64]) (FLOGR (MOVWZreg (ANDW <t> (SUBWconst <t> [1] x) (NOTW <t> x)))))
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64.rules b/src/cmd/compile/internal/ssa/gen/dec64.rules
+index b9ac3de313..018bb86602 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec64.rules
+@@ -107,6 +107,11 @@
+ 		(Com32 <typ.UInt32> (Int64Hi x))
+ 		(Com32 <typ.UInt32> (Int64Lo x)))
+ 
++// Sadly, just because we know that x is non-zero,
++// we don't know whether either component is,
++// so just treat Ctz64NonZero the same as Ctz64.
++(Ctz64NonZero x) -> (Ctz64 x)
++
+ (Ctz64 x) ->
+ 	(Add32 <typ.UInt32>
+ 		(Ctz32 <typ.UInt32> (Int64Lo x))
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 42cfa74f02..20f2c1de5b 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -240,14 +240,18 @@ var genericOps = []opData{
+ 	{name: "Com32", argLength: 1},
+ 	{name: "Com64", argLength: 1},
+ 
+-	{name: "Ctz8", argLength: 1},     // Count trailing (low order) zeroes (returns 0-8)
+-	{name: "Ctz16", argLength: 1},    // Count trailing (low order) zeroes (returns 0-16)
+-	{name: "Ctz32", argLength: 1},    // Count trailing (low order) zeroes (returns 0-32)
+-	{name: "Ctz64", argLength: 1},    // Count trailing (low order) zeroes (returns 0-64)
+-	{name: "BitLen8", argLength: 1},  // Number of bits in arg[0] (returns 0-8)
+-	{name: "BitLen16", argLength: 1}, // Number of bits in arg[0] (returns 0-16)
+-	{name: "BitLen32", argLength: 1}, // Number of bits in arg[0] (returns 0-32)
+-	{name: "BitLen64", argLength: 1}, // Number of bits in arg[0] (returns 0-64)
++	{name: "Ctz8", argLength: 1},         // Count trailing (low order) zeroes (returns 0-8)
++	{name: "Ctz16", argLength: 1},        // Count trailing (low order) zeroes (returns 0-16)
++	{name: "Ctz32", argLength: 1},        // Count trailing (low order) zeroes (returns 0-32)
++	{name: "Ctz64", argLength: 1},        // Count trailing (low order) zeroes (returns 0-64)
++	{name: "Ctz8NonZero", argLength: 1},  // same as above, but arg[0] known to be non-zero, returns 0-7
++	{name: "Ctz16NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-15
++	{name: "Ctz32NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-31
++	{name: "Ctz64NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-63
++	{name: "BitLen8", argLength: 1},      // Number of bits in arg[0] (returns 0-8)
++	{name: "BitLen16", argLength: 1},     // Number of bits in arg[0] (returns 0-16)
++	{name: "BitLen32", argLength: 1},     // Number of bits in arg[0] (returns 0-32)
++	{name: "BitLen64", argLength: 1},     // Number of bits in arg[0] (returns 0-64)
+ 
+ 	{name: "Bswap32", argLength: 1}, // Swap bytes
+ 	{name: "Bswap64", argLength: 1}, // Swap bytes
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 9236080a01..211ffe88c9 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2028,6 +2028,10 @@ const (
+ 	OpCtz16
+ 	OpCtz32
+ 	OpCtz64
++	OpCtz8NonZero
++	OpCtz16NonZero
++	OpCtz32NonZero
++	OpCtz64NonZero
+ 	OpBitLen8
+ 	OpBitLen16
+ 	OpBitLen32
+@@ -25531,6 +25535,26 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "Ctz8NonZero",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Ctz16NonZero",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Ctz32NonZero",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Ctz64NonZero",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "BitLen8",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index e93b1465c1..e92f6ee079 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -365,7 +365,7 @@ var opMax = map[Op]int64{
+ 	OpAdd32: math.MaxInt32, OpSub32: math.MaxInt32,
+ }
+ 
+-// isNonNegative returns true if v is known to be non-negative.
++// isNonNegative reports whether v is known to be non-negative.
+ func (ft *factsTable) isNonNegative(v *Value) bool {
+ 	if isNonNegative(v) {
+ 		return true
+@@ -734,34 +734,48 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
+ 	}
+ }
+ 
++var ctzNonZeroOp = map[Op]Op{OpCtz8: OpCtz8NonZero, OpCtz16: OpCtz16NonZero, OpCtz32: OpCtz32NonZero, OpCtz64: OpCtz64NonZero}
++
+ // simplifyBlock simplifies some constant values in b and evaluates
+ // branches to non-uniquely dominated successors of b.
+ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+-	// Replace OpSlicemask operations in b with constants where possible.
+ 	for _, v := range b.Values {
+-		if v.Op != OpSlicemask {
+-			continue
+-		}
+-		x, delta := isConstDelta(v.Args[0])
+-		if x == nil {
+-			continue
+-		}
+-		// slicemask(x + y)
+-		// if x is larger than -y (y is negative), then slicemask is -1.
+-		lim, ok := ft.limits[x.ID]
+-		if !ok {
+-			continue
+-		}
+-		if lim.umin > uint64(-delta) {
+-			if v.Args[0].Op == OpAdd64 {
+-				v.reset(OpConst64)
+-			} else {
+-				v.reset(OpConst32)
++		switch v.Op {
++		case OpSlicemask:
++			// Replace OpSlicemask operations in b with constants where possible.
++			x, delta := isConstDelta(v.Args[0])
++			if x == nil {
++				continue
++			}
++			// slicemask(x + y)
++			// if x is larger than -y (y is negative), then slicemask is -1.
++			lim, ok := ft.limits[x.ID]
++			if !ok {
++				continue
++			}
++			if lim.umin > uint64(-delta) {
++				if v.Args[0].Op == OpAdd64 {
++					v.reset(OpConst64)
++				} else {
++					v.reset(OpConst32)
++				}
++				if b.Func.pass.debug > 0 {
++					b.Func.Warnl(v.Pos, "Proved slicemask not needed")
++				}
++				v.AuxInt = -1
++			}
++		case OpCtz8, OpCtz16, OpCtz32, OpCtz64:
++			// On some architectures, notably amd64, we can generate much better
++			// code for CtzNN if we know that the argument is non-zero.
++			// Capture that information here for use in arch-specific optimizations.
++			x := v.Args[0]
++			lim, ok := ft.limits[x.ID]
++			if !ok {
++				continue
+ 			}
+-			if b.Func.pass.debug > 0 {
+-				b.Func.Warnl(v.Pos, "Proved slicemask not needed")
++			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
++				v.Op = ctzNonZeroOp[v.Op]
+ 			}
+-			v.AuxInt = -1
+ 		}
+ 	}
+ 
+@@ -818,7 +832,7 @@ func removeBranch(b *Block, branch branch) {
+ 	}
+ }
+ 
+-// isNonNegative returns true is v is known to be greater or equal to zero.
++// isNonNegative reports whether v is known to be greater or equal to zero.
+ func isNonNegative(v *Value) bool {
+ 	switch v.Op {
+ 	case OpConst64:
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 12812b523e..c2b997ce9c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -593,12 +593,20 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpConstNil_0(v)
+ 	case OpCtz16:
+ 		return rewriteValueAMD64_OpCtz16_0(v)
++	case OpCtz16NonZero:
++		return rewriteValueAMD64_OpCtz16NonZero_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueAMD64_OpCtz32_0(v)
++	case OpCtz32NonZero:
++		return rewriteValueAMD64_OpCtz32NonZero_0(v)
+ 	case OpCtz64:
+ 		return rewriteValueAMD64_OpCtz64_0(v)
++	case OpCtz64NonZero:
++		return rewriteValueAMD64_OpCtz64NonZero_0(v)
+ 	case OpCtz8:
+ 		return rewriteValueAMD64_OpCtz8_0(v)
++	case OpCtz8NonZero:
++		return rewriteValueAMD64_OpCtz8NonZero_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueAMD64_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto64:
+@@ -53306,6 +53314,23 @@ func rewriteValueAMD64_OpCtz16_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpCtz16NonZero_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Ctz16NonZero x)
++	// cond:
++	// result: (Select0 (BSFL x))
++	for {
++		x := v.Args[0]
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpCtz32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -53326,6 +53351,23 @@ func rewriteValueAMD64_OpCtz32_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpCtz32NonZero_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Ctz32NonZero x)
++	// cond:
++	// result: (Select0 (BSFL x))
++	for {
++		x := v.Args[0]
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpCtz64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -53354,6 +53396,23 @@ func rewriteValueAMD64_OpCtz64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpCtz64NonZero_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Ctz64NonZero x)
++	// cond:
++	// result: (Select0 (BSFQ x))
++	for {
++		x := v.Args[0]
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpAMD64BSFQ, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpCtz8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -53374,6 +53433,23 @@ func rewriteValueAMD64_OpCtz8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpCtz8NonZero_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Ctz8NonZero x)
++	// cond:
++	// result: (Select0 (BSFL x))
++	for {
++		x := v.Args[0]
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 3a0b270c8e..6d3ab83ce5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -483,6 +483,8 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpConstNil_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueARM_OpCtz32_0(v)
++	case OpCtz32NonZero:
++		return rewriteValueARM_OpCtz32NonZero_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueARM_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto32U:
+@@ -17959,6 +17961,17 @@ func rewriteValueARM_OpCtz32_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpCtz32NonZero_0(v *Value) bool {
++	// match: (Ctz32NonZero x)
++	// cond:
++	// result: (Ctz32 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz32)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index dac8e1fbce..334021c259 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -393,8 +393,12 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpConstNil_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueARM64_OpCtz32_0(v)
++	case OpCtz32NonZero:
++		return rewriteValueARM64_OpCtz32NonZero_0(v)
+ 	case OpCtz64:
+ 		return rewriteValueARM64_OpCtz64_0(v)
++	case OpCtz64NonZero:
++		return rewriteValueARM64_OpCtz64NonZero_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueARM64_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto32U:
+@@ -21487,6 +21491,17 @@ func rewriteValueARM64_OpCtz32_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpCtz32NonZero_0(v *Value) bool {
++	// match: (Ctz32NonZero x)
++	// cond:
++	// result: (Ctz32 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz32)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM64_OpCtz64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -21503,6 +21518,17 @@ func rewriteValueARM64_OpCtz64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpCtz64NonZero_0(v *Value) bool {
++	// match: (Ctz64NonZero x)
++	// cond:
++	// result: (Ctz64 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz64)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM64_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index ad5033176e..b33afcc73d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -85,6 +85,8 @@ func rewriteValueMIPS(v *Value) bool {
+ 		return rewriteValueMIPS_OpConstNil_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueMIPS_OpCtz32_0(v)
++	case OpCtz32NonZero:
++		return rewriteValueMIPS_OpCtz32NonZero_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueMIPS_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto64F:
+@@ -1190,6 +1192,17 @@ func rewriteValueMIPS_OpCtz32_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS_OpCtz32NonZero_0(v *Value) bool {
++	// match: (Ctz32NonZero x)
++	// cond:
++	// result: (Ctz32 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz32)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueMIPS_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 19329b8338..5c4d81da80 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -107,8 +107,12 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpCopysign_0(v)
+ 	case OpCtz32:
+ 		return rewriteValuePPC64_OpCtz32_0(v)
++	case OpCtz32NonZero:
++		return rewriteValuePPC64_OpCtz32NonZero_0(v)
+ 	case OpCtz64:
+ 		return rewriteValuePPC64_OpCtz64_0(v)
++	case OpCtz64NonZero:
++		return rewriteValuePPC64_OpCtz64NonZero_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValuePPC64_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto64:
+@@ -1312,6 +1316,17 @@ func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpCtz32NonZero_0(v *Value) bool {
++	// match: (Ctz32NonZero x)
++	// cond:
++	// result: (Ctz32 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz32)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpCtz64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1333,6 +1348,17 @@ func rewriteValuePPC64_OpCtz64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpCtz64NonZero_0(v *Value) bool {
++	// match: (Ctz64NonZero x)
++	// cond:
++	// result: (Ctz64 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz64)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpCvt32Fto32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 8ef14bb325..6ad6d30043 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -103,8 +103,12 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpConstNil_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueS390X_OpCtz32_0(v)
++	case OpCtz32NonZero:
++		return rewriteValueS390X_OpCtz32NonZero_0(v)
+ 	case OpCtz64:
+ 		return rewriteValueS390X_OpCtz64_0(v)
++	case OpCtz64NonZero:
++		return rewriteValueS390X_OpCtz64NonZero_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueS390X_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto64:
+@@ -1420,6 +1424,17 @@ func rewriteValueS390X_OpCtz32_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpCtz32NonZero_0(v *Value) bool {
++	// match: (Ctz32NonZero x)
++	// cond:
++	// result: (Ctz32 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz32)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueS390X_OpCtz64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1449,6 +1464,17 @@ func rewriteValueS390X_OpCtz64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpCtz64NonZero_0(v *Value) bool {
++	// match: (Ctz64NonZero x)
++	// cond:
++	// result: (Ctz64 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz64)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueS390X_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index 917317133c..500e274206 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -31,6 +31,8 @@ func rewriteValuedec64(v *Value) bool {
+ 		return rewriteValuedec64_OpConst64_0(v)
+ 	case OpCtz64:
+ 		return rewriteValuedec64_OpCtz64_0(v)
++	case OpCtz64NonZero:
++		return rewriteValuedec64_OpCtz64NonZero_0(v)
+ 	case OpEq64:
+ 		return rewriteValuedec64_OpEq64_0(v)
+ 	case OpGeq64:
+@@ -454,6 +456,17 @@ func rewriteValuedec64_OpCtz64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuedec64_OpCtz64NonZero_0(v *Value) bool {
++	// match: (Ctz64NonZero x)
++	// cond:
++	// result: (Ctz64 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpCtz64)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValuedec64_OpEq64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 55a2c943f6..85c54ea61b 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -215,3 +215,55 @@ func TrailingZeros8(n uint8) int {
+ 	// s390x:"FLOGR","OR\t\\$256"
+ 	return bits.TrailingZeros8(n)
+ }
++
++// IterateBitsNN checks special handling of TrailingZerosNN when the input is known to be non-zero.
++
++func IterateBits(n uint) int {
++	i := 0
++	for n != 0 {
++		// amd64:"BSFQ",-"CMOVEQ"
++		i += bits.TrailingZeros(n)
++		n &= n - 1
++	}
++	return i
++}
++
++func IterateBits64(n uint64) int {
++	i := 0
++	for n != 0 {
++		// amd64:"BSFQ",-"CMOVEQ"
++		i += bits.TrailingZeros64(n)
++		n &= n - 1
++	}
++	return i
++}
++
++func IterateBits32(n uint32) int {
++	i := 0
++	for n != 0 {
++		// amd64:"BSFL",-"BTSQ"
++		i += bits.TrailingZeros32(n)
++		n &= n - 1
++	}
++	return i
++}
++
++func IterateBits16(n uint16) int {
++	i := 0
++	for n != 0 {
++		// amd64:"BSFL",-"BTSL"
++		i += bits.TrailingZeros16(n)
++		n &= n - 1
++	}
++	return i
++}
++
++func IterateBits8(n uint8) int {
++	i := 0
++	for n != 0 {
++		// amd64:"BSFL",-"BTSL"
++		i += bits.TrailingZeros8(n)
++		n &= n - 1
++	}
++	return i
++}
+diff --git a/test/run.go b/test/run.go
+index e6291c6590..0914b742ab 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -618,6 +618,7 @@ func (t *test) run() {
+ 			var buf bytes.Buffer
+ 			cmd.Stdout, cmd.Stderr = &buf, &buf
+ 			if err := cmd.Run(); err != nil {
++				fmt.Println(env, "\n", cmd.Stderr)
+ 				t.err = err
+ 				return
+ 			}

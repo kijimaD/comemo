@@ -11,7 +11,7 @@ Date:   Tue Jan 4 10:14:16 2011 -0800
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/3769042
-
+---
  src/cmd/cgo/ast.go          |   8 +-
  src/pkg/exp/eval/expr.go    |   8 +-
  src/pkg/go/ast/ast.go       | 194 +++++++++++++++++++++++++++++++++++++-------
@@ -19,3 +19,766 @@ Date:   Tue Jan 4 10:14:16 2011 -0800
  src/pkg/go/parser/parser.go |  68 +++++++++-------
  src/pkg/go/printer/nodes.go |  16 ++--
  6 files changed, 227 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 8cd3fd5518..7c64a5d246 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -241,9 +241,11 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 		f.walk(&n.Index, "expr", visit)
+ 	case *ast.SliceExpr:
+ 		f.walk(&n.X, "expr", visit)
+-		f.walk(&n.Index, "expr", visit)
+-		if n.End != nil {
+-			f.walk(&n.End, "expr", visit)
++		if n.Low != nil {
++			f.walk(&n.Low, "expr", visit)
++		}
++		if n.High != nil {
++			f.walk(&n.High, "expr", visit)
+ 		}
+ 	case *ast.TypeAssertExpr:
+ 		f.walk(&n.X, "expr", visit)
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index f633aea390..70f63cf2d9 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -597,19 +597,19 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 	case *ast.SliceExpr:
+ 		var lo, hi *expr
+ 		arr := a.compile(x.X, false)
+-		if x.Index == nil {
++		if x.Low == nil {
+ 			// beginning was omitted, so we need to provide it
+ 			ei := &exprInfo{a.compiler, x.Pos()}
+ 			lo = ei.compileIntLit("0")
+ 		} else {
+-			lo = a.compile(x.Index, false)
++			lo = a.compile(x.Low, false)
+ 		}
+-		if x.End == nil {
++		if x.High == nil {
+ 			// End was omitted, so we need to compute len(x.X)
+ 			ei := &exprInfo{a.compiler, x.Pos()}
+ 			hi = ei.compileBuiltinCallExpr(a.block, lenType, []*expr{arr})
+ 		} else {
+-			hi = a.compile(x.End, false)
++			hi = a.compile(x.High, false)
+ 		}
+ 		if arr == nil || lo == nil || hi == nil {
+ 			return nil
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index dfd950a943..e5f2190d13 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -34,8 +34,8 @@ import (
+ 
+ // All node types implement the Node interface.
+ type Node interface {
+-	// Pos returns the (beginning) position of the node.
+-	Pos() token.Pos
++	Pos() token.Pos // position of first character belonging to the node
++	End() token.Pos // position of first character immediately after the node
+ }
+ 
+ 
+@@ -71,6 +71,7 @@ type Comment struct {
+ 
+ 
+ func (c *Comment) Pos() token.Pos { return c.Slash }
++func (c *Comment) End() token.Pos { return token.Pos(int(c.Slash) + len(c.Text)) }
+ 
+ 
+ // A CommentGroup represents a sequence of comments
+@@ -82,6 +83,7 @@ type CommentGroup struct {
+ 
+ 
+ func (g *CommentGroup) Pos() token.Pos { return g.List[0].Pos() }
++func (g *CommentGroup) End() token.Pos { return g.List[len(g.List)-1].End() }
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -108,6 +110,14 @@ func (f *Field) Pos() token.Pos {
+ }
+ 
+ 
++func (f *Field) End() token.Pos {
++	if f.Tag != nil {
++		return f.Tag.End()
++	}
++	return f.Type.End()
++}
++
++
+ // A FieldList represents a list of Fields, enclosed by parentheses or braces.
+ type FieldList struct {
+ 	Opening token.Pos // position of opening parenthesis/brace
+@@ -117,6 +127,7 @@ type FieldList struct {
+ 
+ 
+ func (list *FieldList) Pos() token.Pos { return list.Opening }
++func (list *FieldList) End() token.Pos { return list.Closing + 1 }
+ 
+ 
+ // NumFields returns the number of (named and anonymous fields) in a FieldList.
+@@ -144,7 +155,7 @@ type (
+ 	// created.
+ 	//
+ 	BadExpr struct {
+-		Begin token.Pos // beginning position of bad expression
++		From, To token.Pos // position range of bad expression
+ 	}
+ 
+ 	// An Ident node represents an identifier.
+@@ -159,7 +170,7 @@ type (
+ 	//
+ 	Ellipsis struct {
+ 		Ellipsis token.Pos // position of "..."
+-		Elt      Expr      // ellipsis element type (parameter lists only)
++		Elt      Expr      // ellipsis element type (parameter lists only); or nil
+ 	}
+ 
+ 	// A BasicLit node represents a literal of basic type.
+@@ -179,7 +190,7 @@ type (
+ 	CompositeLit struct {
+ 		Type   Expr      // literal type; or nil
+ 		Lbrace token.Pos // position of "{"
+-		Elts   []Expr    // list of composite elements
++		Elts   []Expr    // list of composite elements; or nil
+ 		Rbrace token.Pos // position of "}"
+ 	}
+ 
+@@ -204,9 +215,9 @@ type (
+ 
+ 	// An SliceExpr node represents an expression followed by slice indices.
+ 	SliceExpr struct {
+-		X     Expr // expression
+-		Index Expr // beginning of slice range; or nil
+-		End   Expr // end of slice range; or nil
++		X    Expr // expression
++		Low  Expr // begin of slice range; or nil
++		High Expr // end of slice range; or nil
+ 	}
+ 
+ 	// A TypeAssertExpr node represents an expression followed by a
+@@ -221,7 +232,7 @@ type (
+ 	CallExpr struct {
+ 		Fun      Expr      // function expression
+ 		Lparen   token.Pos // position of "("
+-		Args     []Expr    // function arguments
++		Args     []Expr    // function arguments; or nil
+ 		Ellipsis token.Pos // position of "...", if any
+ 		Rparen   token.Pos // position of ")"
+ 	}
+@@ -324,9 +335,9 @@ type (
+ )
+ 
+ 
+-// Pos() implementations for expression/type nodes.
++// Pos and End implementations for expression/type nodes.
+ //
+-func (x *BadExpr) Pos() token.Pos  { return x.Begin }
++func (x *BadExpr) Pos() token.Pos  { return x.From }
+ func (x *Ident) Pos() token.Pos    { return x.NamePos }
+ func (x *Ellipsis) Pos() token.Pos { return x.Ellipsis }
+ func (x *BasicLit) Pos() token.Pos { return x.ValuePos }
+@@ -355,6 +366,40 @@ func (x *MapType) Pos() token.Pos        { return x.Map }
+ func (x *ChanType) Pos() token.Pos       { return x.Begin }
+ 
+ 
++func (x *BadExpr) End() token.Pos { return x.To }
++func (x *Ident) End() token.Pos   { return token.Pos(int(x.NamePos) + len(x.Name)) }
++func (x *Ellipsis) End() token.Pos {
++	if x.Elt != nil {
++		return x.Elt.End()
++	}
++	return x.Ellipsis + 3 // len("...")
++}
++func (x *BasicLit) End() token.Pos       { return token.Pos(int(x.ValuePos) + len(x.Value)) }
++func (x *FuncLit) End() token.Pos        { return x.Body.End() }
++func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
++func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
++func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
++func (x *IndexExpr) End() token.Pos      { return x.Index.End() }
++func (x *SliceExpr) End() token.Pos      { return x.High.End() }
++func (x *TypeAssertExpr) End() token.Pos { return x.Type.End() }
++func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
++func (x *StarExpr) End() token.Pos       { return x.X.End() }
++func (x *UnaryExpr) End() token.Pos      { return x.X.End() }
++func (x *BinaryExpr) End() token.Pos     { return x.Y.End() }
++func (x *KeyValueExpr) End() token.Pos   { return x.Value.End() }
++func (x *ArrayType) End() token.Pos      { return x.Elt.End() }
++func (x *StructType) End() token.Pos     { return x.Fields.End() }
++func (x *FuncType) End() token.Pos {
++	if x.Results != nil {
++		return x.Results.End()
++	}
++	return x.Params.End()
++}
++func (x *InterfaceType) End() token.Pos { return x.Methods.End() }
++func (x *MapType) End() token.Pos       { return x.Value.End() }
++func (x *ChanType) End() token.Pos      { return x.Value.End() }
++
++
+ // exprNode() ensures that only expression/type nodes can be
+ // assigned to an ExprNode.
+ //
+@@ -429,7 +474,7 @@ type (
+ 	// created.
+ 	//
+ 	BadStmt struct {
+-		Begin token.Pos // beginning position of bad statement
++		From, To token.Pos // position range of bad statement
+ 	}
+ 
+ 	// A DeclStmt node represents a declaration in a statement list.
+@@ -448,6 +493,7 @@ type (
+ 	// A LabeledStmt node represents a labeled statement.
+ 	LabeledStmt struct {
+ 		Label *Ident
++		Colon token.Pos // position of ":"
+ 		Stmt  Stmt
+ 	}
+ 
+@@ -460,8 +506,9 @@ type (
+ 
+ 	// An IncDecStmt node represents an increment or decrement statement.
+ 	IncDecStmt struct {
+-		X   Expr
+-		Tok token.Token // INC or DEC
++		X      Expr
++		TokPos token.Pos   // position of Tok
++		Tok    token.Token // INC or DEC
+ 	}
+ 
+ 	// An AssignStmt node represents an assignment or
+@@ -489,7 +536,7 @@ type (
+ 	// A ReturnStmt node represents a return statement.
+ 	ReturnStmt struct {
+ 		Return  token.Pos // position of "return" keyword
+-		Results []Expr
++		Results []Expr    // result expressions; or nil
+ 	}
+ 
+ 	// A BranchStmt node represents a break, continue, goto,
+@@ -585,9 +632,9 @@ type (
+ )
+ 
+ 
+-// Pos() implementations for statement nodes.
++// Pos and End implementations for statement nodes.
+ //
+-func (s *BadStmt) Pos() token.Pos        { return s.Begin }
++func (s *BadStmt) Pos() token.Pos        { return s.From }
+ func (s *DeclStmt) Pos() token.Pos       { return s.Decl.Pos() }
+ func (s *EmptyStmt) Pos() token.Pos      { return s.Semicolon }
+ func (s *LabeledStmt) Pos() token.Pos    { return s.Label.Pos() }
+@@ -610,6 +657,63 @@ func (s *ForStmt) Pos() token.Pos        { return s.For }
+ func (s *RangeStmt) Pos() token.Pos      { return s.For }
+ 
+ 
++func (s *BadStmt) End() token.Pos  { return s.To }
++func (s *DeclStmt) End() token.Pos { return s.Decl.End() }
++func (s *EmptyStmt) End() token.Pos {
++	return s.Semicolon + 1 /* len(";") */
++}
++func (s *LabeledStmt) End() token.Pos { return s.Stmt.End() }
++func (s *ExprStmt) End() token.Pos    { return s.X.End() }
++func (s *IncDecStmt) End() token.Pos {
++	return s.TokPos + 2 /* len("++") */
++}
++func (s *AssignStmt) End() token.Pos { return s.Rhs[len(s.Rhs)-1].End() }
++func (s *GoStmt) End() token.Pos     { return s.Call.End() }
++func (s *DeferStmt) End() token.Pos  { return s.Call.End() }
++func (s *ReturnStmt) End() token.Pos {
++	if n := len(s.Results); n > 0 {
++		return s.Results[n-1].End()
++	}
++	return s.Return + 6 // len("return")
++}
++func (s *BranchStmt) End() token.Pos {
++	if s.Label != nil {
++		return s.Label.End()
++	}
++	return token.Pos(int(s.TokPos) + len(s.Tok.String()))
++}
++func (s *BlockStmt) End() token.Pos { return s.Rbrace + 1 }
++func (s *IfStmt) End() token.Pos {
++	if s.Else != nil {
++		return s.Else.End()
++	}
++	return s.Body.End()
++}
++func (s *CaseClause) End() token.Pos {
++	if n := len(s.Body); n > 0 {
++		return s.Body[n-1].End()
++	}
++	return s.Colon + 1
++}
++func (s *SwitchStmt) End() token.Pos { return s.Body.End() }
++func (s *TypeCaseClause) End() token.Pos {
++	if n := len(s.Body); n > 0 {
++		return s.Body[n-1].End()
++	}
++	return s.Colon + 1
++}
++func (s *TypeSwitchStmt) End() token.Pos { return s.Body.End() }
++func (s *CommClause) End() token.Pos {
++	if n := len(s.Body); n > 0 {
++		return s.Body[n-1].End()
++	}
++	return s.Colon + 1
++}
++func (s *SelectStmt) End() token.Pos { return s.Body.End() }
++func (s *ForStmt) End() token.Pos    { return s.Body.End() }
++func (s *RangeStmt) End() token.Pos  { return s.Body.End() }
++
++
+ // stmtNode() ensures that only statement nodes can be
+ // assigned to a StmtNode.
+ //
+@@ -662,7 +766,7 @@ type (
+ 	//
+ 	ValueSpec struct {
+ 		Doc     *CommentGroup // associated documentation; or nil
+-		Names   []*Ident      // value names
++		Names   []*Ident      // value names (len(Names) > 0)
+ 		Type    Expr          // value type; or nil
+ 		Values  []Expr        // initial values; or nil
+ 		Comment *CommentGroup // line comments; or nil
+@@ -678,7 +782,7 @@ type (
+ )
+ 
+ 
+-// Pos() implementations for spec nodes.
++// Pos and End implementations for spec nodes.
+ //
+ func (s *ImportSpec) Pos() token.Pos {
+ 	if s.Name != nil {
+@@ -690,6 +794,19 @@ func (s *ValueSpec) Pos() token.Pos { return s.Names[0].Pos() }
+ func (s *TypeSpec) Pos() token.Pos  { return s.Name.Pos() }
+ 
+ 
++func (s *ImportSpec) End() token.Pos { return s.Path.End() }
++func (s *ValueSpec) End() token.Pos {
++	if n := len(s.Values); n > 0 {
++		return s.Values[n-1].End()
++	}
++	if s.Type != nil {
++		return s.Type.End()
++	}
++	return s.Names[len(s.Names)-1].End()
++}
++func (s *TypeSpec) End() token.Pos { return s.Type.End() }
++
++
+ // specNode() ensures that only spec nodes can be
+ // assigned to a Spec.
+ //
+@@ -706,7 +823,7 @@ type (
+ 	// created.
+ 	//
+ 	BadDecl struct {
+-		Begin token.Pos // beginning position of bad declaration
++		From, To token.Pos // position range of bad declaration
+ 	}
+ 
+ 	// A GenDecl node (generic declaration node) represents an import,
+@@ -740,13 +857,28 @@ type (
+ )
+ 
+ 
+-// Pos implementations for declaration nodes.
++// Pos and End implementations for declaration nodes.
+ //
+-func (d *BadDecl) Pos() token.Pos  { return d.Begin }
++func (d *BadDecl) Pos() token.Pos  { return d.From }
+ func (d *GenDecl) Pos() token.Pos  { return d.TokPos }
+ func (d *FuncDecl) Pos() token.Pos { return d.Type.Pos() }
+ 
+ 
++func (d *BadDecl) End() token.Pos { return d.To }
++func (d *GenDecl) End() token.Pos {
++	if d.Rparen.IsValid() {
++		return d.Rparen + 1
++	}
++	return d.Specs[0].End()
++}
++func (d *FuncDecl) End() token.Pos {
++	if d.Body != nil {
++		return d.Body.End()
++	}
++	return d.Type.End()
++}
++
++
+ // declNode() ensures that only declaration nodes can be
+ // assigned to a DeclNode.
+ //
+@@ -768,12 +900,18 @@ type File struct {
+ 	Doc      *CommentGroup   // associated documentation; or nil
+ 	Package  token.Pos       // position of "package" keyword
+ 	Name     *Ident          // package name
+-	Decls    []Decl          // top-level declarations
++	Decls    []Decl          // top-level declarations; or nil
+ 	Comments []*CommentGroup // list of all comments in the source file
+ }
+ 
+ 
+ func (f *File) Pos() token.Pos { return f.Package }
++func (f *File) End() token.Pos {
++	if n := len(f.Decls); n > 0 {
++		return f.Decls[n-1].End()
++	}
++	return f.Name.End()
++}
+ 
+ 
+ // A Package node represents a set of source files
+@@ -786,11 +924,5 @@ type Package struct {
+ }
+ 
+ 
+-func (p *Package) Pos() (pos token.Pos) {
+-	// get the position of the package clause of the first file, if any
+-	for _, f := range p.Files {
+-		pos = f.Pos()
+-		break
+-	}
+-	return
+-}
++func (p *Package) Pos() token.Pos { return token.NoPos }
++func (p *Package) End() token.Pos { return token.NoPos }
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index eb47809422..875a92f3f4 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -90,9 +90,14 @@ func Walk(v Visitor, node Node) {
+ 		}
+ 
+ 	// Expressions
+-	case *BadExpr, *Ident, *Ellipsis, *BasicLit:
++	case *BadExpr, *Ident, *BasicLit:
+ 		// nothing to do
+ 
++	case *Ellipsis:
++		if n.Elt != nil {
++			Walk(v, n.Elt)
++		}
++
+ 	case *FuncLit:
+ 		Walk(v, n.Type)
+ 		Walk(v, n.Body)
+@@ -116,11 +121,11 @@ func Walk(v Visitor, node Node) {
+ 
+ 	case *SliceExpr:
+ 		Walk(v, n.X)
+-		if n.Index != nil {
+-			Walk(v, n.Index)
++		if n.Low != nil {
++			Walk(v, n.Low)
+ 		}
+-		if n.End != nil {
+-			Walk(v, n.End)
++		if n.High != nil {
++			Walk(v, n.High)
+ 		}
+ 
+ 	case *TypeAssertExpr:
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 87655c0b2a..357b24bbd5 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -251,7 +251,7 @@ func (p *parser) expect(tok token.Token) token.Pos {
+ 	if p.tok != tok {
+ 		p.errorExpected(pos, "'"+tok.String()+"'")
+ 	}
+-	p.next() // make progress in any case
++	p.next() // make progress
+ 	return pos
+ }
+ 
+@@ -323,9 +323,10 @@ func (p *parser) parseType() ast.Expr {
+ 	typ := p.tryType()
+ 
+ 	if typ == nil {
+-		p.errorExpected(p.pos, "type")
++		pos := p.pos
++		p.errorExpected(pos, "type")
+ 		p.next() // make progress
+-		return &ast.BadExpr{p.pos}
++		return &ast.BadExpr{pos, p.pos}
+ 	}
+ 
+ 	return typ
+@@ -417,10 +418,10 @@ func (p *parser) parseFieldDecl() *ast.Field {
+ 	} else {
+ 		// ["*"] TypeName (AnonymousField)
+ 		typ = list[0] // we always have at least one element
+-		if len(list) > 1 || !isTypeName(deref(typ)) {
++		if n := len(list); n > 1 || !isTypeName(deref(typ)) {
+ 			pos := typ.Pos()
+ 			p.errorExpected(pos, "anonymous field")
+-			typ = &ast.BadExpr{pos}
++			typ = &ast.BadExpr{pos, list[n-1].End()}
+ 		}
+ 	}
+ 
+@@ -469,7 +470,7 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
+ 		typ := p.tryType() // don't use parseType so we can provide better error message
+ 		if typ == nil {
+ 			p.error(pos, "'...' parameter is missing type")
+-			typ = &ast.BadExpr{pos}
++			typ = &ast.BadExpr{pos, p.pos}
+ 		}
+ 		if p.tok != token.RPAREN {
+ 			p.error(pos, "can use '...' with last parameter type only")
+@@ -483,9 +484,10 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
+ func (p *parser) parseVarType(isParam bool) ast.Expr {
+ 	typ := p.tryVarType(isParam)
+ 	if typ == nil {
+-		p.errorExpected(p.pos, "type")
++		pos := p.pos
++		p.errorExpected(pos, "type")
+ 		p.next() // make progress
+-		typ = &ast.BadExpr{p.pos}
++		typ = &ast.BadExpr{pos, p.pos}
+ 	}
+ 	return typ
+ }
+@@ -826,9 +828,10 @@ func (p *parser) parseOperand() ast.Expr {
+ 		}
+ 	}
+ 
+-	p.errorExpected(p.pos, "operand")
++	pos := p.pos
++	p.errorExpected(pos, "operand")
+ 	p.next() // make progress
+-	return &ast.BadExpr{p.pos}
++	return &ast.BadExpr{pos, p.pos}
+ }
+ 
+ 
+@@ -984,7 +987,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 		if t.Type == nil {
+ 			// the form X.(type) is only allowed in type switch expressions
+ 			p.errorExpected(x.Pos(), "expression")
+-			x = &ast.BadExpr{x.Pos()}
++			x = &ast.BadExpr{x.Pos(), x.End()}
+ 		}
+ 	case *ast.CallExpr:
+ 	case *ast.StarExpr:
+@@ -992,13 +995,13 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 		if t.Op == token.RANGE {
+ 			// the range operator is only allowed at the top of a for statement
+ 			p.errorExpected(x.Pos(), "expression")
+-			x = &ast.BadExpr{x.Pos()}
++			x = &ast.BadExpr{x.Pos(), x.End()}
+ 		}
+ 	case *ast.BinaryExpr:
+ 	default:
+ 		// all other nodes are not proper expressions
+ 		p.errorExpected(x.Pos(), "expression")
+-		x = &ast.BadExpr{x.Pos()}
++		x = &ast.BadExpr{x.Pos(), x.End()}
+ 	}
+ 	return x
+ }
+@@ -1066,12 +1069,12 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
+ 		if t.Op == token.RANGE {
+ 			// the range operator is only allowed at the top of a for statement
+ 			p.errorExpected(x.Pos(), "expression")
+-			x = &ast.BadExpr{x.Pos()}
++			x = &ast.BadExpr{x.Pos(), x.End()}
+ 		}
+ 	case *ast.ArrayType:
+ 		if len, isEllipsis := t.Len.(*ast.Ellipsis); isEllipsis {
+ 			p.error(len.Pos(), "expected array length, found '...'")
+-			x = &ast.BadExpr{x.Pos()}
++			x = &ast.BadExpr{x.Pos(), x.End()}
+ 		}
+ 	}
+ 
+@@ -1190,14 +1193,15 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 	switch p.tok {
+ 	case token.COLON:
+ 		// labeled statement
++		colon := p.pos
+ 		p.next()
+ 		if labelOk && len(x) == 1 {
+ 			if label, isIdent := x[0].(*ast.Ident); isIdent {
+-				return &ast.LabeledStmt{label, p.parseStmt()}
++				return &ast.LabeledStmt{label, colon, p.parseStmt()}
+ 			}
+ 		}
+ 		p.error(x[0].Pos(), "illegal label declaration")
+-		return &ast.BadStmt{x[0].Pos()}
++		return &ast.BadStmt{x[0].Pos(), colon + 1}
+ 
+ 	case
+ 		token.DEFINE, token.ASSIGN, token.ADD_ASSIGN,
+@@ -1218,7 +1222,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 
+ 	if p.tok == token.INC || p.tok == token.DEC {
+ 		// increment or decrement
+-		s := &ast.IncDecStmt{x[0], p.tok}
++		s := &ast.IncDecStmt{x[0], p.pos, p.tok}
+ 		p.next() // consume "++" or "--"
+ 		return s
+ 	}
+@@ -1247,7 +1251,7 @@ func (p *parser) parseGoStmt() ast.Stmt {
+ 	call := p.parseCallExpr()
+ 	p.expectSemi()
+ 	if call == nil {
+-		return &ast.BadStmt{pos}
++		return &ast.BadStmt{pos, pos + 2} // len("go")
+ 	}
+ 
+ 	return &ast.GoStmt{pos, call}
+@@ -1263,7 +1267,7 @@ func (p *parser) parseDeferStmt() ast.Stmt {
+ 	call := p.parseCallExpr()
+ 	p.expectSemi()
+ 	if call == nil {
+-		return &ast.BadStmt{pos}
++		return &ast.BadStmt{pos, pos + 5} // len("defer")
+ 	}
+ 
+ 	return &ast.DeferStmt{pos, call}
+@@ -1311,7 +1315,7 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
+ 		return p.checkExpr(es.X)
+ 	}
+ 	p.error(s.Pos(), "expected condition, found simple statement")
+-	return &ast.BadExpr{s.Pos()}
++	return &ast.BadExpr{s.Pos(), s.End()}
+ }
+ 
+ 
+@@ -1547,7 +1551,7 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		// possibly a for statement with a range clause; check assignment operator
+ 		if as.Tok != token.ASSIGN && as.Tok != token.DEFINE {
+ 			p.errorExpected(as.TokPos, "'=' or ':='")
+-			return &ast.BadStmt{pos}
++			return &ast.BadStmt{pos, body.End()}
+ 		}
+ 		// check lhs
+ 		var key, value ast.Expr
+@@ -1558,19 +1562,19 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 			key = as.Lhs[0]
+ 		default:
+ 			p.errorExpected(as.Lhs[0].Pos(), "1 or 2 expressions")
+-			return &ast.BadStmt{pos}
++			return &ast.BadStmt{pos, body.End()}
+ 		}
+ 		// check rhs
+ 		if len(as.Rhs) != 1 {
+ 			p.errorExpected(as.Rhs[0].Pos(), "1 expressions")
+-			return &ast.BadStmt{pos}
++			return &ast.BadStmt{pos, body.End()}
+ 		}
+ 		if rhs, isUnary := as.Rhs[0].(*ast.UnaryExpr); isUnary && rhs.Op == token.RANGE {
+ 			// rhs is range expression; check lhs
+ 			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body}
+ 		} else {
+ 			p.errorExpected(s2.Pos(), "range clause")
+-			return &ast.BadStmt{pos}
++			return &ast.BadStmt{pos, body.End()}
+ 		}
+ 	} else {
+ 		// regular for statement
+@@ -1628,9 +1632,10 @@ func (p *parser) parseStmt() (s ast.Stmt) {
+ 		s = &ast.EmptyStmt{p.pos}
+ 	default:
+ 		// no statement found
+-		p.errorExpected(p.pos, "statement")
++		pos := p.pos
++		p.errorExpected(pos, "statement")
+ 		p.next() // make progress
+-		s = &ast.BadStmt{p.pos}
++		s = &ast.BadStmt{pos, p.pos}
+ 	}
+ 
+ 	return
+@@ -1754,7 +1759,8 @@ func (p *parser) parseReceiver() *ast.FieldList {
+ 	// must have exactly one receiver
+ 	if par.NumFields() != 1 {
+ 		p.errorExpected(pos, "exactly one receiver")
+-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{token.NoPos}}}
++		// TODO determine a better range for BadExpr below
++		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{pos, pos}}}
+ 		return par
+ 	}
+ 
+@@ -1763,7 +1769,7 @@ func (p *parser) parseReceiver() *ast.FieldList {
+ 	base := deref(recv.Type)
+ 	if _, isIdent := base.(*ast.Ident); !isIdent {
+ 		p.errorExpected(base.Pos(), "(unqualified) identifier")
+-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{recv.Pos()}}}
++		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{recv.Pos(), recv.End()}}}
+ 	}
+ 
+ 	return par
+@@ -1818,8 +1824,8 @@ func (p *parser) parseDecl() ast.Decl {
+ 	default:
+ 		pos := p.pos
+ 		p.errorExpected(pos, "declaration")
+-		decl := &ast.BadDecl{pos}
+-		p.next() // make progress in any case
++		p.next() // make progress
++		decl := &ast.BadDecl{pos, p.pos}
+ 		return decl
+ 	}
+ 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index dc311644ff..44e0bdedef 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -714,7 +714,7 @@ func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
+ 	case *ast.SliceExpr:
+ 		body, suffix = splitSelector(x.X)
+ 		if body != nil {
+-			suffix = &ast.SliceExpr{suffix, x.Index, x.End}
++			suffix = &ast.SliceExpr{suffix, x.Low, x.High}
+ 			return
+ 		}
+ 	case *ast.TypeAssertExpr:
+@@ -845,17 +845,17 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		// TODO(gri): should treat[] like parentheses and undo one level of depth
+ 		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine)
+ 		p.print(token.LBRACK)
+-		if x.Index != nil {
+-			p.expr0(x.Index, depth+1, multiLine)
++		if x.Low != nil {
++			p.expr0(x.Low, depth+1, multiLine)
+ 		}
+ 		// blanks around ":" if both sides exist and either side is a binary expression
+-		if depth <= 1 && x.Index != nil && x.End != nil && (isBinary(x.Index) || isBinary(x.End)) {
++		if depth <= 1 && x.Low != nil && x.High != nil && (isBinary(x.Low) || isBinary(x.High)) {
+ 			p.print(blank, token.COLON, blank)
+ 		} else {
+ 			p.print(token.COLON)
+ 		}
+-		if x.End != nil {
+-			p.expr0(x.End, depth+1, multiLine)
++		if x.High != nil {
++			p.expr0(x.High, depth+1, multiLine)
+ 		}
+ 		p.print(token.RBRACK)
+ 
+@@ -1071,7 +1071,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ 		// between (see writeWhitespace)
+ 		p.print(unindent)
+ 		p.expr(s.Label, multiLine)
+-		p.print(token.COLON, indent)
++		p.print(s.Colon, token.COLON, indent)
+ 		if e, isEmpty := s.Stmt.(*ast.EmptyStmt); isEmpty {
+ 			if !nextIsRBrace {
+ 				p.print(newline, e.Pos(), token.SEMICOLON)
+@@ -1089,7 +1089,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ 	case *ast.IncDecStmt:
+ 		const depth = 1
+ 		p.expr0(s.X, depth+1, multiLine)
+-		p.print(s.Tok)
++		p.print(s.TokPos, s.Tok)
+ 
+ 	case *ast.AssignStmt:
+ 		var depth = 1

@@ -16,6 +16,22 @@ Date:   Tue Apr 16 22:13:47 2019 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/text/template/template.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 41cdd5682c..1135d819b9 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -50,6 +50,10 @@ func (t *Template) Name() string {
+ // New allocates a new, undefined template associated with the given one and with the same
+ // delimiters. The association, which is transitive, allows one template to
+ // invoke another with a {{template}} action.
++//
++// Because associated templates share underlying data, template construction
++// cannot be done safely in parallel. Once the templates are constructed, they
++// can be executed in parallel.
+ func (t *Template) New(name string) *Template {
+ 	t.init()
+ 	nt := &Template{

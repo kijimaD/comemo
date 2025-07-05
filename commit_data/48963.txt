@@ -101,3 +101,54 @@ Date:   Wed Jun 30 18:19:26 2021 -0700
  test/fixedbugs/issue46957.go                       |  13 ++
  test/unsafebuiltins.go                             |   7 +-
  50 files changed, 508 insertions(+), 228 deletions(-)
+
+diff --cc src/internal/buildcfg/exp.go
+index e87b6221f1,9a60253aab..6e8bf30743
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@@ -41,9 -40,24 +40,22 @@@ const DefaultGOEXPERIMENT = defaultGOEX
+  // Note: must agree with runtime.framepointer_enabled.
+  var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
+  
+- func parseExperiments(goarch string) goexperiment.Flags {
++ // ParseGOEXPERIMENT parses a (GOOS, GOARCH, GOEXPERIMENT)
++ // configuration tuple and returns the enabled and baseline experiment
++ // flag sets.
++ //
++ // TODO(mdempsky): Move to internal/goexperiment.
++ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment.Flags, err error) {
+ -	regabiSupported := goarch == "amd64" && (goos == "android" || goos == "linux" || goos == "darwin" || goos == "windows")
+++	regabiSupported := goarch == "amd64" || goarch == "arm64"
++ 
++ 	baseline = goexperiment.Flags{
++ 		RegabiWrappers: regabiSupported,
+ -		RegabiG:        regabiSupported,
++ 		RegabiReflect:  regabiSupported,
+ -		RegabiDefer:    regabiSupported,
++ 		RegabiArgs:     regabiSupported,
++ 	}
++ 
+  	// Start with the statically enabled set of experiments.
+- 	flags := experimentBaseline
++ 	flags = baseline
+  
+  	// Pick up any changes to the baseline configuration from the
+  	// GOEXPERIMENT environment. This can be set at make.bash time
+@@@ -106,10 -117,14 +116,10 @@@
+  		flags.RegabiArgs = false
+  	}
+  	// Check regabi dependencies.
+ -	if flags.RegabiG && !flags.RegabiWrappers {
+ -		err = fmt.Errorf("GOEXPERIMENT regabig requires regabiwrappers")
+ -	}
+ -	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiG && flags.RegabiReflect && flags.RegabiDefer) {
+ -		err = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
+ +	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiReflect) {
+- 		Error = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabireflect")
+++		err = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabireflect")
+  	}
+- 	return flags
++ 	return
+  }
+  
+  // expList returns the list of lower-cased experiment names for

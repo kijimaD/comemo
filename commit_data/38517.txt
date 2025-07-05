@@ -11,8 +11,536 @@ Date:   Thu Oct 25 15:11:13 2018 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go                  |  50 ++++--
  src/crypto/tls/handshake_messages.go      | 278 +++++++++++++++++++++++++++---
  src/crypto/tls/handshake_messages_test.go |  51 +++++-
  3 files changed, 344 insertions(+), 35 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 9d9137bc68..717c5f0b0e 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -73,16 +73,22 @@ const (
+ 
+ // TLS extension numbers
+ const (
+-	extensionServerName          uint16 = 0
+-	extensionStatusRequest       uint16 = 5
+-	extensionSupportedCurves     uint16 = 10
+-	extensionSupportedPoints     uint16 = 11
+-	extensionSignatureAlgorithms uint16 = 13
+-	extensionALPN                uint16 = 16
+-	extensionSCT                 uint16 = 18 // RFC 6962, Section 6
+-	extensionSessionTicket       uint16 = 35
+-	extensionNextProtoNeg        uint16 = 13172 // not IANA assigned
+-	extensionRenegotiationInfo   uint16 = 0xff01
++	extensionServerName              uint16 = 0
++	extensionStatusRequest           uint16 = 5
++	extensionSupportedCurves         uint16 = 10 // supported_groups in TLS 1.3, see RFC 8446, Section 4.2.7
++	extensionSupportedPoints         uint16 = 11
++	extensionSignatureAlgorithms     uint16 = 13
++	extensionALPN                    uint16 = 16
++	extensionSCT                     uint16 = 18
++	extensionSessionTicket           uint16 = 35
++	extensionPreSharedKey            uint16 = 41
++	extensionSupportedVersions       uint16 = 43
++	extensionCookie                  uint16 = 44
++	extensionPSKModes                uint16 = 45
++	extensionSignatureAlgorithmsCert uint16 = 50
++	extensionKeyShare                uint16 = 51
++	extensionNextProtoNeg            uint16 = 13172 // not IANA assigned
++	extensionRenegotiationInfo       uint16 = 0xff01
+ )
+ 
+ // TLS signaling cipher suite values
+@@ -91,7 +97,10 @@ const (
+ )
+ 
+ // CurveID is the type of a TLS identifier for an elliptic curve. See
+-// https://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8
++// https://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8.
++//
++// In TLS 1.3, this type is called NamedGroup, but at this time this library
++// only supports Elliptic Curve based groups. See RFC 8446, Section 4.2.7.
+ type CurveID uint16
+ 
+ const (
+@@ -101,6 +110,25 @@ const (
+ 	X25519    CurveID = 29
+ )
+ 
++// TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
++type keyShare struct {
++	group CurveID
++	data  []byte
++}
++
++// TLS 1.3 PSK Key Exchange Modes. See RFC 8446, Section 4.2.9.
++const (
++	pskModePlain uint8 = 0
++	pskModeDHE   uint8 = 1
++)
++
++// TLS 1.3 PSK Identity. Can be a Session Ticket, or a reference to a saved
++// session. See RFC 8446, Section 4.2.11.
++type pskIdentity struct {
++	label               []byte
++	obfuscatedTicketAge uint32
++}
++
+ // TLS Elliptic Curve Point Formats
+ // https://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-9
+ const (
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index d6785550a2..d04efc98f6 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -49,24 +49,31 @@ func readUint24LengthPrefixed(s *cryptobyte.String, out *[]byte) bool {
+ }
+ 
+ type clientHelloMsg struct {
+-	raw                          []byte
+-	vers                         uint16
+-	random                       []byte
+-	sessionId                    []byte
+-	cipherSuites                 []uint16
+-	compressionMethods           []uint8
+-	nextProtoNeg                 bool
+-	serverName                   string
+-	ocspStapling                 bool
+-	scts                         bool
+-	supportedCurves              []CurveID
+-	supportedPoints              []uint8
+-	ticketSupported              bool
+-	sessionTicket                []uint8
+-	supportedSignatureAlgorithms []SignatureScheme
+-	secureRenegotiation          []byte
+-	secureRenegotiationSupported bool
+-	alpnProtocols                []string
++	raw                              []byte
++	vers                             uint16
++	random                           []byte
++	sessionId                        []byte
++	cipherSuites                     []uint16
++	compressionMethods               []uint8
++	nextProtoNeg                     bool
++	serverName                       string
++	ocspStapling                     bool
++	supportedCurves                  []CurveID
++	supportedPoints                  []uint8
++	ticketSupported                  bool
++	sessionTicket                    []uint8
++	supportedSignatureAlgorithms     []SignatureScheme
++	supportedSignatureAlgorithmsCert []SignatureScheme
++	secureRenegotiationSupported     bool
++	secureRenegotiation              []byte
++	alpnProtocols                    []string
++	scts                             bool
++	supportedVersions                []uint16
++	cookie                           []byte
++	keyShares                        []keyShare
++	pskModes                         []uint8
++	pskIdentities                    []pskIdentity
++	pskBinders                       [][]byte
+ }
+ 
+ func (m *clientHelloMsg) marshal() []byte {
+@@ -123,7 +130,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 				})
+ 			}
+ 			if len(m.supportedCurves) > 0 {
+-				// RFC 4492, Section 5.1.1
++				// RFC 4492, Section 5.1.1 and RFC 8446, Section 4.2.7
+ 				b.AddUint16(extensionSupportedCurves)
+ 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+ 					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+@@ -160,6 +167,17 @@ func (m *clientHelloMsg) marshal() []byte {
+ 					})
+ 				})
+ 			}
++			if len(m.supportedSignatureAlgorithmsCert) > 0 {
++				// RFC 8446, Section 4.2.3
++				b.AddUint16(extensionSignatureAlgorithmsCert)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++						for _, sigAlgo := range m.supportedSignatureAlgorithmsCert {
++							b.AddUint16(uint16(sigAlgo))
++						}
++					})
++				})
++			}
+ 			if m.secureRenegotiationSupported {
+ 				// RFC 5746, Section 3.2
+ 				b.AddUint16(extensionRenegotiationInfo)
+@@ -187,6 +205,70 @@ func (m *clientHelloMsg) marshal() []byte {
+ 				b.AddUint16(extensionSCT)
+ 				b.AddUint16(0) // empty extension_data
+ 			}
++			if len(m.supportedVersions) > 0 {
++				// RFC 8446, Section 4.2.1
++				b.AddUint16(extensionSupportedVersions)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
++						for _, vers := range m.supportedVersions {
++							b.AddUint16(vers)
++						}
++					})
++				})
++			}
++			if len(m.cookie) > 0 {
++				// RFC 8446, Section 4.2.2
++				b.AddUint16(extensionCookie)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++						b.AddBytes(m.cookie)
++					})
++				})
++			}
++			if len(m.keyShares) > 0 {
++				// RFC 8446, Section 4.2.8
++				b.AddUint16(extensionKeyShare)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++						for _, ks := range m.keyShares {
++							b.AddUint16(uint16(ks.group))
++							b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++								b.AddBytes(ks.data)
++							})
++						}
++					})
++				})
++			}
++			if len(m.pskModes) > 0 {
++				// RFC 8446, Section 4.2.9
++				b.AddUint16(extensionPSKModes)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
++						b.AddBytes(m.pskModes)
++					})
++				})
++			}
++			if len(m.pskIdentities) > 0 { // pre_shared_key must be the last extension
++				// RFC 8446, Section 4.2.11
++				b.AddUint16(extensionPreSharedKey)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++						for _, psk := range m.pskIdentities {
++							b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++								b.AddBytes(psk.label)
++							})
++							b.AddUint32(psk.obfuscatedTicketAge)
++						}
++					})
++					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++						for _, binder := range m.pskBinders {
++							b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
++								b.AddBytes(binder)
++							})
++						}
++					})
++				})
++			}
+ 
+ 			extensionsPresent = len(b.BytesOrPanic()) > 2
+ 		})
+@@ -291,7 +373,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 			}
+ 			m.ocspStapling = statusType == statusTypeOCSP
+ 		case extensionSupportedCurves:
+-			// RFC 4492, Section 5.1.1
++			// RFC 4492, Section 5.1.1 and RFC 8446, Section 4.2.7
+ 			var curves cryptobyte.String
+ 			if !extData.ReadUint16LengthPrefixed(&curves) || curves.Empty() {
+ 				return false
+@@ -327,6 +409,20 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 				m.supportedSignatureAlgorithms = append(
+ 					m.supportedSignatureAlgorithms, SignatureScheme(sigAndAlg))
+ 			}
++		case extensionSignatureAlgorithmsCert:
++			// RFC 8446, Section 4.2.3
++			var sigAndAlgs cryptobyte.String
++			if !extData.ReadUint16LengthPrefixed(&sigAndAlgs) || sigAndAlgs.Empty() {
++				return false
++			}
++			for !sigAndAlgs.Empty() {
++				var sigAndAlg uint16
++				if !sigAndAlgs.ReadUint16(&sigAndAlg) {
++					return false
++				}
++				m.supportedSignatureAlgorithmsCert = append(
++					m.supportedSignatureAlgorithmsCert, SignatureScheme(sigAndAlg))
++			}
+ 		case extensionRenegotiationInfo:
+ 			// RFC 5746, Section 3.2
+ 			if !readUint8LengthPrefixed(&extData, &m.secureRenegotiation) {
+@@ -349,6 +445,74 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 		case extensionSCT:
+ 			// RFC 6962, Section 3.3.1
+ 			m.scts = true
++		case extensionSupportedVersions:
++			// RFC 8446, Section 4.2.1
++			var versList cryptobyte.String
++			if !extData.ReadUint8LengthPrefixed(&versList) || versList.Empty() {
++				return false
++			}
++			for !versList.Empty() {
++				var vers uint16
++				if !versList.ReadUint16(&vers) {
++					return false
++				}
++				m.supportedVersions = append(m.supportedVersions, vers)
++			}
++		case extensionCookie:
++			// RFC 8446, Section 4.2.2
++			if !readUint16LengthPrefixed(&extData, &m.cookie) {
++				return false
++			}
++		case extensionKeyShare:
++			// RFC 8446, Section 4.2.8
++			var clientShares cryptobyte.String
++			if !extData.ReadUint16LengthPrefixed(&clientShares) {
++				return false
++			}
++			for !clientShares.Empty() {
++				var ks keyShare
++				if !clientShares.ReadUint16((*uint16)(&ks.group)) ||
++					!readUint16LengthPrefixed(&clientShares, &ks.data) ||
++					len(ks.data) == 0 {
++					return false
++				}
++				m.keyShares = append(m.keyShares, ks)
++			}
++		case extensionPSKModes:
++			// RFC 8446, Section 4.2.9
++			if !readUint8LengthPrefixed(&extData, &m.pskModes) {
++				return false
++			}
++		case extensionPreSharedKey:
++			// RFC 8446, Section 4.2.11
++			if !extensions.Empty() {
++				return false // pre_shared_key must be the last extension
++			}
++			var identities cryptobyte.String
++			if !extData.ReadUint16LengthPrefixed(&identities) || identities.Empty() {
++				return false
++			}
++			for !identities.Empty() {
++				var psk pskIdentity
++				if !readUint16LengthPrefixed(&identities, &psk.label) ||
++					!identities.ReadUint32(&psk.obfuscatedTicketAge) ||
++					len(psk.label) == 0 {
++					return false
++				}
++				m.pskIdentities = append(m.pskIdentities, psk)
++			}
++			var binders cryptobyte.String
++			if !extData.ReadUint16LengthPrefixed(&binders) || binders.Empty() {
++				return false
++			}
++			for !binders.Empty() {
++				var binder []byte
++				if !readUint8LengthPrefixed(&binders, &binder) ||
++					len(binder) == 0 {
++					return false
++				}
++				m.pskBinders = append(m.pskBinders, binder)
++			}
+ 		default:
+ 			// Ignore unknown extensions.
+ 			continue
+@@ -372,11 +536,19 @@ type serverHelloMsg struct {
+ 	nextProtoNeg                 bool
+ 	nextProtos                   []string
+ 	ocspStapling                 bool
+-	scts                         [][]byte
+ 	ticketSupported              bool
+-	secureRenegotiation          []byte
+ 	secureRenegotiationSupported bool
++	secureRenegotiation          []byte
+ 	alpnProtocol                 string
++	scts                         [][]byte
++	supportedVersion             uint16
++	serverShare                  keyShare
++	selectedIdentityPresent      bool
++	selectedIdentity             uint16
++
++	// HelloRetryRequest extensions
++	cookie        []byte
++	selectedGroup CurveID
+ }
+ 
+ func (m *serverHelloMsg) marshal() []byte {
+@@ -448,6 +620,42 @@ func (m *serverHelloMsg) marshal() []byte {
+ 					})
+ 				})
+ 			}
++			if m.supportedVersion != 0 {
++				b.AddUint16(extensionSupportedVersions)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint16(m.supportedVersion)
++				})
++			}
++			if m.serverShare.group != 0 {
++				b.AddUint16(extensionKeyShare)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint16(uint16(m.serverShare.group))
++					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++						b.AddBytes(m.serverShare.data)
++					})
++				})
++			}
++			if m.selectedIdentityPresent {
++				b.AddUint16(extensionPreSharedKey)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint16(m.selectedIdentity)
++				})
++			}
++
++			if len(m.cookie) > 0 {
++				b.AddUint16(extensionCookie)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++						b.AddBytes(m.cookie)
++					})
++				})
++			}
++			if m.selectedGroup != 0 {
++				b.AddUint16(extensionKeyShare)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddUint16(uint16(m.selectedGroup))
++				})
++			}
+ 
+ 			extensionsPresent = len(b.BytesOrPanic()) > 2
+ 		})
+@@ -535,6 +743,32 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
+ 				}
+ 				m.scts = append(m.scts, sct)
+ 			}
++		case extensionSupportedVersions:
++			if !extData.ReadUint16(&m.supportedVersion) {
++				return false
++			}
++		case extensionCookie:
++			if !readUint16LengthPrefixed(&extData, &m.cookie) {
++				return false
++			}
++		case extensionKeyShare:
++			// This extension has different formats in SH and HRR, accept either
++			// and let the handshake logic decide. See RFC 8446, Section 4.2.8.
++			if len(extData) == 2 {
++				if !extData.ReadUint16((*uint16)(&m.selectedGroup)) {
++					return false
++				}
++			} else {
++				if !extData.ReadUint16((*uint16)(&m.serverShare.group)) ||
++					!readUint16LengthPrefixed(&extData, &m.serverShare.data) {
++					return false
++				}
++			}
++		case extensionPreSharedKey:
++			m.selectedIdentityPresent = true
++			if !extData.ReadUint16(&m.selectedIdentity) {
++				return false
++			}
+ 		default:
+ 			// Ignore unknown extensions.
+ 			continue
+diff --git a/src/crypto/tls/handshake_messages_test.go b/src/crypto/tls/handshake_messages_test.go
+index fbc294b64e..d32f33f378 100644
+--- a/src/crypto/tls/handshake_messages_test.go
++++ b/src/crypto/tls/handshake_messages_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"strings"
+ 	"testing"
+ 	"testing/quick"
++	"time"
+ )
+ 
+ var tests = []interface{}{
+@@ -31,7 +32,7 @@ var tests = []interface{}{
+ }
+ 
+ func TestMarshalUnmarshal(t *testing.T) {
+-	rand := rand.New(rand.NewSource(0))
++	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+ 
+ 	for i, iface := range tests {
+ 		ty := reflect.ValueOf(iface).Type()
+@@ -132,7 +133,7 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 	m.supportedPoints = randomBytes(rand.Intn(5)+1, rand)
+ 	m.supportedCurves = make([]CurveID, rand.Intn(5)+1)
+ 	for i := range m.supportedCurves {
+-		m.supportedCurves[i] = CurveID(rand.Intn(30000))
++		m.supportedCurves[i] = CurveID(rand.Intn(30000) + 1)
+ 	}
+ 	if rand.Intn(10) > 5 {
+ 		m.ticketSupported = true
+@@ -145,6 +146,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 	if rand.Intn(10) > 5 {
+ 		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+ 	}
++	if rand.Intn(10) > 5 {
++		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
++	}
+ 	for i := 0; i < rand.Intn(5); i++ {
+ 		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
+ 	}
+@@ -155,6 +159,31 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 		m.secureRenegotiationSupported = true
+ 		m.secureRenegotiation = randomBytes(rand.Intn(50)+1, rand)
+ 	}
++	for i := 0; i < rand.Intn(5); i++ {
++		m.supportedVersions = append(m.supportedVersions, uint16(rand.Intn(0xffff)+1))
++	}
++	if rand.Intn(10) > 5 {
++		m.cookie = randomBytes(rand.Intn(500)+1, rand)
++	}
++	for i := 0; i < rand.Intn(5); i++ {
++		var ks keyShare
++		ks.group = CurveID(rand.Intn(30000) + 1)
++		ks.data = randomBytes(rand.Intn(200)+1, rand)
++		m.keyShares = append(m.keyShares, ks)
++	}
++	switch rand.Intn(3) {
++	case 1:
++		m.pskModes = []uint8{pskModeDHE}
++	case 2:
++		m.pskModes = []uint8{pskModeDHE, pskModePlain}
++	}
++	for i := 0; i < rand.Intn(5); i++ {
++		var psk pskIdentity
++		psk.obfuscatedTicketAge = uint32(rand.Intn(500000))
++		psk.label = randomBytes(rand.Intn(500)+1, rand)
++		m.pskIdentities = append(m.pskIdentities, psk)
++		m.pskBinders = append(m.pskBinders, randomBytes(rand.Intn(50)+32, rand))
++	}
+ 
+ 	return reflect.ValueOf(m)
+ }
+@@ -190,6 +219,24 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 		m.secureRenegotiationSupported = true
+ 		m.secureRenegotiation = randomBytes(rand.Intn(50)+1, rand)
+ 	}
++	if rand.Intn(10) > 5 {
++		m.supportedVersion = uint16(rand.Intn(0xffff) + 1)
++	}
++	if rand.Intn(10) > 5 {
++		m.cookie = randomBytes(rand.Intn(500)+1, rand)
++	}
++	if rand.Intn(10) > 5 {
++		for i := 0; i < rand.Intn(5); i++ {
++			m.serverShare.group = CurveID(rand.Intn(30000) + 1)
++			m.serverShare.data = randomBytes(rand.Intn(200)+1, rand)
++		}
++	} else if rand.Intn(10) > 5 {
++		m.selectedGroup = CurveID(rand.Intn(30000) + 1)
++	}
++	if rand.Intn(10) > 5 {
++		m.selectedIdentityPresent = true
++		m.selectedIdentity = uint16(rand.Intn(0xffff))
++	}
+ 
+ 	return reflect.ValueOf(m)
+ }

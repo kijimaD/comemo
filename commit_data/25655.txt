@@ -13,7 +13,148 @@ Date:   Thu Aug 27 14:52:06 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13975
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Joe Tsai <joetsai@digital-static.net>
-
+---
  src/archive/tar/writer.go      | 21 +++++++++++------
  src/archive/tar/writer_test.go | 53 +++++++++++++++++++++++++++++++++++++++---
  2 files changed, 64 insertions(+), 10 deletions(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 3547c1760a..0165b2259c 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -12,8 +12,8 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"os"
+ 	"path"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -288,11 +288,11 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
+ 	// succeed, and seems harmless enough.
+ 	ext.ModTime = hdr.ModTime
+ 	// The spec asks that we namespace our pseudo files
+-	// with the current pid.
+-	pid := os.Getpid()
++	// with the current pid.  However, this results in differing outputs
++	// for identical inputs.  As such, the constant 0 is now used instead.
++	// golang.org/issue/12358
+ 	dir, file := path.Split(hdr.Name)
+-	fullName := path.Join(dir,
+-		fmt.Sprintf("PaxHeaders.%d", pid), file)
++	fullName := path.Join(dir, "PaxHeaders.0", file)
+ 
+ 	ascii := toASCII(fullName)
+ 	if len(ascii) > 100 {
+@@ -302,8 +302,15 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
+ 	// Construct the body
+ 	var buf bytes.Buffer
+ 
+-	for k, v := range paxHeaders {
+-		fmt.Fprint(&buf, paxHeader(k+"="+v))
++	// Keys are sorted before writing to body to allow deterministic output.
++	var keys []string
++	for k := range paxHeaders {
++		keys = append(keys, k)
++	}
++	sort.Strings(keys)
++
++	for _, k := range keys {
++		fmt.Fprint(&buf, paxHeader(k+"="+paxHeaders[k]))
+ 	}
+ 
+ 	ext.Size = int64(len(buf.Bytes()))
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index caf40a836f..25d88dc7e1 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"reflect"
++	"sort"
+ 	"strings"
+ 	"testing"
+ 	"testing/iotest"
+@@ -291,7 +292,7 @@ func TestPax(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	// Simple test to make sure PAX extensions are in effect
+-	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.")) {
++	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.0")) {
+ 		t.Fatal("Expected at least one PAX header to be written.")
+ 	}
+ 	// Test that we can get a long name back out of the archive.
+@@ -330,7 +331,7 @@ func TestPaxSymlink(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	// Simple test to make sure PAX extensions are in effect
+-	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.")) {
++	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.0")) {
+ 		t.Fatal("Expected at least one PAX header to be written.")
+ 	}
+ 	// Test that we can get a long name back out of the archive.
+@@ -380,7 +381,7 @@ func TestPaxNonAscii(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	// Simple test to make sure PAX extensions are in effect
+-	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.")) {
++	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.0")) {
+ 		t.Fatal("Expected at least one PAX header to be written.")
+ 	}
+ 	// Test that we can get a long name back out of the archive.
+@@ -439,6 +440,52 @@ func TestPaxXattrs(t *testing.T) {
+ 	}
+ }
+ 
++func TestPaxHeadersSorted(t *testing.T) {
++	fileinfo, err := os.Stat("testdata/small.txt")
++	if err != nil {
++		t.Fatal(err)
++	}
++	hdr, err := FileInfoHeader(fileinfo, "")
++	if err != nil {
++		t.Fatalf("os.Stat: %v", err)
++	}
++	contents := strings.Repeat(" ", int(hdr.Size))
++
++	hdr.Xattrs = map[string]string{
++		"foo": "foo",
++		"bar": "bar",
++		"baz": "baz",
++		"qux": "qux",
++	}
++
++	var buf bytes.Buffer
++	writer := NewWriter(&buf)
++	if err := writer.WriteHeader(hdr); err != nil {
++		t.Fatal(err)
++	}
++	if _, err = writer.Write([]byte(contents)); err != nil {
++		t.Fatal(err)
++	}
++	if err := writer.Close(); err != nil {
++		t.Fatal(err)
++	}
++	// Simple test to make sure PAX extensions are in effect
++	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.0")) {
++		t.Fatal("Expected at least one PAX header to be written.")
++	}
++
++	// xattr bar should always appear before others
++	indices := []int{
++		bytes.Index(buf.Bytes(), []byte("bar=bar")),
++		bytes.Index(buf.Bytes(), []byte("baz=baz")),
++		bytes.Index(buf.Bytes(), []byte("foo=foo")),
++		bytes.Index(buf.Bytes(), []byte("qux=qux")),
++	}
++	if !sort.IntsAreSorted(indices) {
++		t.Fatal("PAX headers are not sorted")
++	}
++}
++
+ func TestPAXHeader(t *testing.T) {
+ 	medName := strings.Repeat("CD", 50)
+ 	longName := strings.Repeat("AB", 100)

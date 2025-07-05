@@ -7,6 +7,24 @@ Date:   Fri Feb 17 13:20:11 2012 +0400
     R=golang-dev, r, rsc, remyoudompheng, r
     CC=golang-dev
     https://golang.org/cl/5674086
-
+---
  src/pkg/sync/cond.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/sync/cond.go b/src/pkg/sync/cond.go
+index 75494b5353..44f19fae3e 100644
+--- a/src/pkg/sync/cond.go
++++ b/src/pkg/sync/cond.go
+@@ -43,9 +43,10 @@ func NewCond(l Locker) *Cond {
+ 
+ // Wait atomically unlocks c.L and suspends execution
+ // of the calling goroutine.  After later resuming execution,
+-// Wait locks c.L before returning.
++// Wait locks c.L before returning.  Unlike in other systems,
++// Wait cannot return unless awoken by Broadcast or Signal.
+ //
+-// Because L is not locked when Wait first resumes, the caller
++// Because c.L is not locked when Wait first resumes, the caller
+ // typically cannot assume that the condition is true when
+ // Wait returns.  Instead, the caller should Wait in a loop:
+ //

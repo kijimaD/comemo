@@ -13,6 +13,19 @@ Date:   Sat Jun 3 08:25:15 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/sizeof_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ssa/sizeof_test.go b/src/cmd/compile/internal/ssa/sizeof_test.go
+index fa68209534..9fab7b664f 100644
+--- a/src/cmd/compile/internal/ssa/sizeof_test.go
++++ b/src/cmd/compile/internal/ssa/sizeof_test.go
+@@ -24,6 +24,7 @@ func TestSizeof(t *testing.T) {
+ 	}{
+ 		{Value{}, 68, 112},
+ 		{Block{}, 152, 288},
++		{valState{}, 28, 40},
+ 	}
+ 
+ 	for _, tt := range tests {

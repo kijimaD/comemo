@@ -23,6 +23,20 @@ Date:   Fri Oct 28 11:14:07 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgcmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 286aeb74a9..7819698def 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -973,7 +973,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 
+ 	// Drain root marking jobs.
+ 	if work.markrootNext < work.markrootJobs {
+-		for blocking || !gp.preempt {
++		for !(preemptible && gp.preempt) {
+ 			job := atomic.Xadd(&work.markrootNext, +1) - 1
+ 			if job >= work.markrootJobs {
+ 				break

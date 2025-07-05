@@ -24,6 +24,35 @@ Date:   Fri Jun 24 15:31:35 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/413817
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a3d8202e2c..565ff9d634 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -652,6 +652,11 @@ func loadWindowsHostArchives(ctxt *Link) {
+ 				hostObject(ctxt, "crt2", p)
+ 			}
+ 		}
++		if *flagRace {
++			if p := ctxt.findLibPath("libsynchronization.a"); p != "none" {
++				hostArchive(ctxt, p)
++			}
++		}
+ 		if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
+ 			hostArchive(ctxt, p)
+ 		}
+@@ -1705,6 +1710,11 @@ func (ctxt *Link) hostlink() {
+ 			p := writeGDBLinkerScript()
+ 			argv = append(argv, "-Wl,-T,"+p)
+ 		}
++		if *flagRace {
++			if p := ctxt.findLibPath("libsynchronization.a"); p != "libsynchronization.a" {
++				argv = append(argv, "-lsynchronization")
++			}
++		}
+ 		// libmingw32 and libmingwex have some inter-dependencies,
+ 		// so must use linker groups.
+ 		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")

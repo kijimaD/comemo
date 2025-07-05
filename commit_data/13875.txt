@@ -14,9 +14,96 @@ Date:   Thu Sep 20 00:27:23 2012 +0800
     R=alex.brainman, rsc, r, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/5847068
-
+---
  misc/cgo/stdio/stdio.go        | 15 +++++++++++----
  misc/cgo/stdio/stdio_netbsd.go | 16 ----------------
  src/run.bat                    |  9 ++++-----
  test/run.go                    |  2 +-
  4 files changed, 16 insertions(+), 26 deletions(-)
+
+diff --git a/misc/cgo/stdio/stdio.go b/misc/cgo/stdio/stdio.go
+index 67b7aea1e2..76cb8ad80d 100644
+--- a/misc/cgo/stdio/stdio.go
++++ b/misc/cgo/stdio/stdio.go
+@@ -1,15 +1,22 @@
++// skip
++
+ // Copyright 2009 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !netbsd
+-
+ package stdio
+ 
+ /*
+ #include <stdio.h>
++
++// on mingw, stderr and stdout are defined as &_iob[FILENO]
++// on netbsd, they are defined as &__sF[FILENO]
++// and cgo doesn't recognize them, so write a function to get them,
++// instead of depending on internals of libc implementation.
++FILE *getStdout(void) { return stdout; }
++FILE *getStderr(void) { return stderr; }
+ */
+ import "C"
+ 
+-var Stdout = (*File)(C.stdout)
+-var Stderr = (*File)(C.stderr)
++var Stdout = (*File)(C.getStdout())
++var Stderr = (*File)(C.getStderr())
+diff --git a/misc/cgo/stdio/stdio_netbsd.go b/misc/cgo/stdio/stdio_netbsd.go
+deleted file mode 100644
+index 075c1d0c79..0000000000
+--- a/misc/cgo/stdio/stdio_netbsd.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package stdio
+-
+-/*
+-#include <stdio.h>
+-
+-extern FILE __sF[3];
+-*/
+-import "C"
+-import "unsafe"
+-
+-var Stdout = (*File)(unsafe.Pointer(&C.__sF[1]))
+-var Stderr = (*File)(unsafe.Pointer(&C.__sF[2]))
+diff --git a/src/run.bat b/src/run.bat
+index 7f4a68889a..4998d815fb 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -70,11 +70,10 @@ if x%CGO_ENABLED% == x0 goto nocgo
+ ::if errorlevel 1 goto fail
+ ::echo.
+ 
+-:: TODO ..\misc\cgo\stdio
+-::echo # ..\misc\cgo\stdio
+-::go run %GOROOT%\test\run.go - ..\misc\cgo\stdio
+-::if errorlevel 1 goto fail
+-::echo.
++echo # ..\misc\cgo\stdio
++go run %GOROOT%\test\run.go - ..\misc\cgo\stdio
++if errorlevel 1 goto fail
++echo.
+ 
+ echo # ..\misc\cgo\test
+ go test ..\misc\cgo\test
+diff --git a/test/run.go b/test/run.go
+index b23860692c..c82c138be5 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -344,7 +344,7 @@ func (t *test) run() {
+ 		if err != nil {
+ 			t.err = fmt.Errorf("%s\n%s", err, out)
+ 		}
+-		if string(out) != t.expectedOutput() {
++		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
+ 			t.err = fmt.Errorf("incorrect output\n%s", out)
+ 		}
+ 

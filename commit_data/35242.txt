@@ -16,6 +16,23 @@ Date:   Sun Jan 21 12:16:49 2018 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+index 5bcd40daa7..32af2e9b20 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+@@ -412,8 +412,10 @@ func TestHttpsInsecure(t *testing.T) {
+ 		Symbolize: "remote",
+ 	}
+ 	rx := "Saved profile in"
+-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") ||
++		runtime.GOOS == "android" {
+ 		// On iOS, $HOME points to the app root directory and is not writable.
++		// On Android, $HOME points to / which is not writable.
+ 		rx += "|Could not use temp dir"
+ 	}
+ 	o := &plugin.Options{

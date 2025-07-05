@@ -70,6 +70,36 @@ Date:   Mon Oct 19 14:15:16 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/16070
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 56dcd91739..daaae4c09a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1055,11 +1055,6 @@ func gc(mode gcMode) {
+ 		// objects reachable from global roots since they don't have write
+ 		// barriers. Rescan some roots and flush work caches.
+ 		systemstack(func() {
+-			// rescan global data and bss.
+-			for i := fixedRootCount; i < fixedRootCount+work.nDataRoots+work.nBSSRoots; i++ {
+-				markroot(nil, uint32(i))
+-			}
+-
+ 			// Disallow caching workbufs.
+ 			gcBlackenPromptly = true
+ 
+@@ -1069,6 +1064,12 @@ func gc(mode gcMode) {
+ 			forEachP(func(_p_ *p) {
+ 				_p_.gcw.dispose()
+ 			})
++
++			// Rescan global data and BSS. Bump "jobs"
++			// down before "next" so workers won't try
++			// running root jobs until we set "next".
++			atomicstore(&work.markrootJobs, uint32(fixedRootCount+work.nDataRoots+work.nBSSRoots))
++			atomicstore(&work.markrootNext, fixedRootCount)
+ 		})
+ 
+ 		// Wait for this more aggressive background mark to complete.

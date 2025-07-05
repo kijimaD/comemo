@@ -13,6 +13,25 @@ Date:   Mon Jul 26 19:37:10 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 575b879762..e482281a3c 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1291,13 +1291,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 					default:
+ 						base.FatalfAt(call.Pos(), "Unexpected builtin op")
+ 					}
+-					switch m.Op() {
+-					case ir.OAPPEND:
+-						// Append needs to pass a concrete type to the runtime.
+-						// TODO: there's no way to record a dictionary-loaded type for walk to use here
+-						m.SetType(subst.unshapifyTyp(m.Type()))
+-					}
+-
+ 				} else {
+ 					// This is the case of a function value that was a
+ 					// type parameter (implied to be a function via a

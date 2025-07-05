@@ -21,9 +21,109 @@ Date:   Fri Jul 15 11:27:16 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4755041
-
+---
  src/pkg/runtime/386/asm.s    | 13 +++++++++++++
  src/pkg/runtime/amd64/asm.s  | 13 +++++++++++++
  src/pkg/runtime/arm/atomic.c | 15 +++++++++++++++
  src/pkg/runtime/runtime.c    | 14 --------------
  4 files changed, 41 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 3aa5bdee55..c6df4f069a 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -318,6 +318,19 @@ TEXT runtime·casp(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
++// uint32 xadd(uint32 volatile *val, int32 delta)
++// Atomically:
++//	*val += delta;
++//	return *val;
++TEXT runtime·xadd(SB), 7, $0
++	MOVL	4(SP), BX
++	MOVL	8(SP), AX
++	MOVL	AX, CX
++	LOCK
++	XADDL	AX, 0(BX)
++	ADDL	CX, AX
++	RET
++
+ TEXT runtime·atomicstorep(SB), 7, $0
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), AX
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index e03c9ebfdf..2734ae1dca 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -364,6 +364,19 @@ TEXT runtime·casp(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
++// uint32 xadd(uint32 volatile *val, int32 delta)
++// Atomically:
++//	*val += delta;
++//	return *val;
++TEXT runtime·xadd(SB), 7, $0
++	MOVQ	8(SP), BX
++	MOVL	16(SP), AX
++	MOVL	AX, CX
++	LOCK
++	XADDL	AX, 0(BX)
++	ADDL	CX, AX
++	RET
++
+ TEXT runtime·atomicstorep(SB), 7, $0
+ 	MOVQ	8(SP), BX
+ 	MOVQ	16(SP), AX
+diff --git a/src/pkg/runtime/arm/atomic.c b/src/pkg/runtime/arm/atomic.c
+index 186ffcfd48..d229e8c347 100644
+--- a/src/pkg/runtime/arm/atomic.c
++++ b/src/pkg/runtime/arm/atomic.c
+@@ -4,6 +4,21 @@
+ 
+ #include "runtime.h"
+ 
++// Atomic add and return new value.
++#pragma textflag 7
++uint32
++runtime·xadd(uint32 volatile *val, int32 delta)
++{
++	uint32 oval, nval;
++
++	for(;;){
++		oval = *val;
++		nval = oval + delta;
++		if(runtime·cas(val, oval, nval))
++			return nval;
++	}
++}
++
+ #pragma textflag 7
+ uint32
+ runtime·atomicload(uint32 volatile* addr)
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 7e37d66d41..a16ca417e6 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -207,20 +207,6 @@ runtime·goenvs_unix(void)
+ 	os·Envs.cap = n;
+ }
+ 
+-// Atomic add and return new value.
+-uint32
+-runtime·xadd(uint32 volatile *val, int32 delta)
+-{
+-	uint32 oval, nval;
+-
+-	for(;;){
+-		oval = *val;
+-		nval = oval + delta;
+-		if(runtime·cas(val, oval, nval))
+-			return nval;
+-	}
+-}
+-
+ byte*
+ runtime·getenv(int8 *s)
+ {

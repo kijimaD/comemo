@@ -7,6 +7,31 @@ Date:   Fri Aug 26 10:06:35 2011 +0400
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4964043
-
+---
  src/pkg/http/transport.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index 4302ffab1e..8ac78324a3 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -54,6 +54,10 @@ type Transport struct {
+ 	// If Dial is nil, net.Dial is used.
+ 	Dial func(net, addr string) (c net.Conn, err os.Error)
+ 
++	// TLSClientConfig specifies the TLS configuration to use with
++	// tls.Client. If nil, the default configuration is used.
++	TLSClientConfig *tls.Config
++
+ 	DisableKeepAlives  bool
+ 	DisableCompression bool
+ 
+@@ -338,7 +342,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
+ 
+ 	if cm.targetScheme == "https" {
+ 		// Initiate TLS and check remote host name against certificate.
+-		conn = tls.Client(conn, nil)
++		conn = tls.Client(conn, t.TLSClientConfig)
+ 		if err = conn.(*tls.Conn).Handshake(); err != nil {
+ 			return nil, err
+ 		}

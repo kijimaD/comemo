@@ -9,6 +9,23 @@ Date:   Sun Feb 5 23:06:34 2017 +0300
     Change-Id: Iadac4cbef70db6a95b47f86eaffcfc63bfdb8e90
     Reviewed-on: https://go-review.googlesource.com/36334
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/format.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 2da9a5eca0..027fe8bdff 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -424,9 +424,9 @@ func formatNano(b []byte, nanosec uint, n int, trim bool) []byte {
+ 
+ // String returns the time formatted using the format string
+ //	"2006-01-02 15:04:05.999999999 -0700 MST"
+-// 
++//
+ // If the time has a monotonic clock reading, the returned string
+-// includes a final field "m±<value>", where value is the monotonic
++// includes a final field "m=±<value>", where value is the monotonic
+ // clock reading formatted as a decimal number of seconds.
+ func (t Time) String() string {
+ 	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")

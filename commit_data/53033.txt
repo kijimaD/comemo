@@ -19,9 +19,110 @@ Date:   Wed Jun 22 16:28:41 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/mips64.s |  8 ++++----
  src/cmd/internal/obj/mips/obj0.go          | 14 ++++++++++++++
  src/cmd/internal/obj/riscv/obj.go          | 10 ++++++++++
  src/cmd/internal/obj/s390x/objz.go         | 13 +++++++++++++
  4 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/mips64.s b/src/cmd/asm/internal/asm/testdata/mips64.s
+index 99044d89f7..8f628e26c9 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips64.s
++++ b/src/cmd/asm/internal/asm/testdata/mips64.s
+@@ -21,9 +21,9 @@ label0:
+ 	BEQ	R1, 2(PC)
+ 	JMP	label0+0	// JMP 3	// 1000fffd
+ 	BEQ	R1, 2(PC)
+-	JAL	1(PC)		// CALL 1(PC)	// 0c00000e
++	JAL	1(PC)		// CALL 1(PC)	// 0c00000f
+ 	BEQ	R1, 2(PC)
+-	JAL	label0+0	// CALL 3	// 0c000006
++	JAL	label0+0	// CALL 3	// 0c000007
+ 
+ //	LBRA addr
+ //	{
+@@ -32,11 +32,11 @@ label0:
+ 	BEQ	R1, 2(PC)
+ 	JMP	0(R1)		// JMP (R1)	// 00200008
+ 	BEQ	R1, 2(PC)
+-	JMP	foo+0(SB)	// JMP foo(SB)	// 08000018
++	JMP	foo+0(SB)	// JMP foo(SB)	// 08000019
+ 	BEQ	R1, 2(PC)
+ 	JAL	0(R1)		// CALL (R1)	// 0020f809
+ 	BEQ	R1, 2(PC)
+-	JAL	foo+0(SB)	// CALL foo(SB)	// 0c000020
++	JAL	foo+0(SB)	// CALL foo(SB)	// 0c000021
+ 
+ //
+ // BEQ/BNE
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 2a2c8ecb75..9241dfd631 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -343,6 +343,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q.Spadj = +autosize
+ 
+ 				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
++
++				// On Linux, in a cgo binary we may get a SIGSETXID signal early on
++				// before the signal stack is set, as glibc doesn't allow us to block
++				// SIGSETXID. So a signal may land on the current stack and clobber
++				// the content below the SP. We store the LR again after the SP is
++				// decremented.
++				q = obj.Appendp(q, newprog)
++				q.As = mov
++				q.Pos = p.Pos
++				q.From.Type = obj.TYPE_REG
++				q.From.Reg = REGLINK
++				q.To.Type = obj.TYPE_MEM
++				q.To.Offset = 0
++				q.To.Reg = REGSP
+ 			}
+ 
+ 			if c.cursym.Func().Text.From.Sym.Wrapper() && c.cursym.Func().Text.Mark&LEAF == 0 {
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index b30958cb38..34aa923f4a 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -410,6 +410,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		prologue.Spadj = int32(stacksize)
+ 
+ 		prologue = ctxt.EndUnsafePoint(prologue, newprog, -1)
++
++		// On Linux, in a cgo binary we may get a SIGSETXID signal early on
++		// before the signal stack is set, as glibc doesn't allow us to block
++		// SIGSETXID. So a signal may land on the current stack and clobber
++		// the content below the SP. We store the LR again after the SP is
++		// decremented.
++		prologue = obj.Appendp(prologue, newprog)
++		prologue.As = AMOV
++		prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
++		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
+ 	}
+ 
+ 	if cursym.Func().Text.From.Sym.Wrapper() {
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index fed7703759..4e8475624d 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -358,6 +358,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q.Spadj = autosize
+ 
+ 				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
++
++				// On Linux, in a cgo binary we may get a SIGSETXID signal early on
++				// before the signal stack is set, as glibc doesn't allow us to block
++				// SIGSETXID. So a signal may land on the current stack and clobber
++				// the content below the SP. We store the LR again after the SP is
++				// decremented.
++				q = obj.Appendp(q, c.newprog)
++				q.As = AMOVD
++				q.From.Type = obj.TYPE_REG
++				q.From.Reg = REG_LR
++				q.To.Type = obj.TYPE_MEM
++				q.To.Reg = REGSP
++				q.To.Offset = 0
+ 			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
+ 				// A very few functions that do not return to their caller
+ 				// (e.g. gogo) are not identified as leaves but still have

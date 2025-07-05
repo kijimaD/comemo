@@ -9,6 +9,28 @@ Date:   Fri Apr 15 08:25:44 2011 -0400
     R=rsc1, bradfitzgo, rsc
     CC=golang-dev
     https://golang.org/cl/4412045
-
+---
  src/Make.common | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/Make.common b/src/Make.common
+index 34d7016f42..0b27d07f9a 100644
+--- a/src/Make.common
++++ b/src/Make.common
+@@ -6,13 +6,13 @@ clean:
+ 	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
+ 
+ install.clean: install
+-	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
++	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES) || true
+ 
+ test.clean: test
+-	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
++	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES) || true
+ 
+ testshort.clean: testshort
+-	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
++	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES) || true
+ 
+ %.make:
+ 	$(MAKE) -C $* install

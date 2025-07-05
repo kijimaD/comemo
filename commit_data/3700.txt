@@ -8,6 +8,20 @@ Date:   Sun Nov 1 16:29:33 2009 -0800
     
     R=rsc
     http://go/go-review/1017011
-
+---
  src/quietgcc.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/quietgcc.bash b/src/quietgcc.bash
+index 29f22ee0ae..54e091e25b 100755
+--- a/src/quietgcc.bash
++++ b/src/quietgcc.bash
+@@ -17,7 +17,7 @@ ignore=$ignore'|In file included from'
+ ignore=$ignore'|        from'
+ 
+ # Figure out which cc to run; this is set by make.bash.
+-gcc=@CC@
++gcc="@CC@"
+ if test "$gcc" = "@C""C@"; then
+   gcc=gcc
+ fi

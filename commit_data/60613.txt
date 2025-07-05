@@ -17,6 +17,19 @@ Date:   Fri Jun 7 09:36:53 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/defs_linux_loong64.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/defs_linux_loong64.go b/src/runtime/defs_linux_loong64.go
+index 692d8c78e9..b983725160 100644
+--- a/src/runtime/defs_linux_loong64.go
++++ b/src/runtime/defs_linux_loong64.go
+@@ -184,6 +184,7 @@ type sigcontext struct {
+ 	sc_pc         uint64
+ 	sc_regs       [32]uint64
+ 	sc_flags      uint32
++	sc_pad0       [1]uint32
+ 	sc_extcontext [0]uint64
+ }
+ 

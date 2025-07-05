@@ -11,6 +11,24 @@ Date:   Fri Oct 1 14:04:55 2010 +1000
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2344041
-
+---
  src/pkg/fmt/print.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 8fcde73fe2..0f3dd44bf0 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -159,6 +159,12 @@ func Sprintf(format string, a ...interface{}) string {
+ 	return s
+ }
+ 
++// Errorf formats according to a format specifier and returns the string 
++// converted to an os.ErrorString, which satisfies the os.Error interface.
++func Errorf(format string, a ...interface{}) os.Error {
++	return os.ErrorString(Sprintf(format, a...))
++}
++
+ // These routines do not take a format string
+ 
+ // Fprint formats using the default formats for its operands and writes to w.

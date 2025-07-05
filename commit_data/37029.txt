@@ -16,6 +16,31 @@ Date:   Tue Jun 19 15:39:17 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 3824dc3c2a..1dd45969c7 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1951,7 +1951,7 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
+ // relocations are applied. After this, dwarfp will contain a
+ // different (new) set of symbols, and sections may have been replaced.
+ func dwarfcompress(ctxt *Link) {
+-	if !ctxt.IsELF || ctxt.LinkMode == LinkExternal {
++	if !(ctxt.IsELF || ctxt.HeadType == objabi.Hwindows) || ctxt.LinkMode == LinkExternal {
+ 		return
+ 	}
+ 
+@@ -1998,6 +1998,10 @@ func dwarfcompress(ctxt *Link) {
+ 			log.Fatalf("%s: unexpected sub-symbols", s)
+ 		}
+ 		pos += uint64(s.Size)
++		if ctxt.HeadType == objabi.Hwindows {
++			pos = uint64(Rnd(int64(pos), PEFILEALIGN))
++		}
++
+ 	}
+ 	Segdwarf.Length = pos - Segdwarf.Vaddr
+ }

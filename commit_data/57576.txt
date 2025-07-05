@@ -14,7 +14,44 @@ Date:   Thu Aug 17 01:58:22 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-
+---
  src/math/big/nat.go        | 7 -------
  src/math/rand/rand_test.go | 7 -------
  2 files changed, 14 deletions(-)
+
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 90ce6d19c4..b9f4026a04 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -389,13 +389,6 @@ func addAt(z, x nat, i int) {
+ 	}
+ }
+ 
+-func max(x, y int) int {
+-	if x > y {
+-		return x
+-	}
+-	return y
+-}
+-
+ // karatsubaLen computes an approximation to the maximum k <= n such that
+ // k = p<<i for a number p <= threshold and an i >= 0. Thus, the
+ // result is the largest number that can be divided repeatedly by 2 before
+diff --git a/src/math/rand/rand_test.go b/src/math/rand/rand_test.go
+index 7eba1dc0d3..4ad2ae2230 100644
+--- a/src/math/rand/rand_test.go
++++ b/src/math/rand/rand_test.go
+@@ -33,13 +33,6 @@ type statsResults struct {
+ 	maxError    float64
+ }
+ 
+-func max(a, b float64) float64 {
+-	if a > b {
+-		return a
+-	}
+-	return b
+-}
+-
+ func nearEqual(a, b, closeEnough, maxError float64) bool {
+ 	absDiff := math.Abs(a - b)
+ 	if absDiff < closeEnough { // Necessary when one value is zero and one value is close to zero.

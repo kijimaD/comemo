@@ -17,7 +17,46 @@ Date:   Tue Nov 3 02:11:51 2020 +1100
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_bsd.go       | 6 ++++--
  src/syscall/exec_unix_test.go | 4 +++-
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index af6c836961..b297db96cc 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -117,14 +117,16 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	if sys.Foreground {
+-		pgrp := sys.Pgid
++		// This should really be pid_t, however _C_int (aka int32) is
++		// generally equivalent.
++		pgrp := _C_int(sys.Pgid)
+ 		if pgrp == 0 {
+ 			r1, _, err1 = RawSyscall(SYS_GETPID, 0, 0, 0)
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+ 
+-			pgrp = int(r1)
++			pgrp = _C_int(r1)
+ 		}
+ 
+ 		// Place process group in foreground.
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index 4431f7fc90..d6b6f51fa6 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -172,7 +172,9 @@ func TestForeground(t *testing.T) {
+ 		t.Skipf("Can't test Foreground. Couldn't open /dev/tty: %s", err)
+ 	}
+ 
+-	fpgrp := 0
++	// This should really be pid_t, however _C_int (aka int32) is generally
++	// equivalent.
++	fpgrp := int32(0)
+ 
+ 	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+ 	if errno != 0 {

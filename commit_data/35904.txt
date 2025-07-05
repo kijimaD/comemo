@@ -13,6 +13,26 @@ Date:   Mon Mar 19 13:21:35 2018 +0300
     Reviewed-on: https://go-review.googlesource.com/101355
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strconv/doc.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/strconv/doc.go b/src/strconv/doc.go
+index 7bc1e27937..cba898426a 100644
+--- a/src/strconv/doc.go
++++ b/src/strconv/doc.go
+@@ -32,10 +32,10 @@
+ //
+ // FormatBool, FormatFloat, FormatInt, and FormatUint convert values to strings:
+ //
+-// 	s := strconv.FormatBool(true)
+-// 	s := strconv.FormatFloat(3.1415, 'E', -1, 64)
+-// 	s := strconv.FormatInt(-42, 16)
+-// 	s := strconv.FormatUint(42, 16)
++//	s := strconv.FormatBool(true)
++//	s := strconv.FormatFloat(3.1415, 'E', -1, 64)
++//	s := strconv.FormatInt(-42, 16)
++//	s := strconv.FormatUint(42, 16)
+ //
+ // AppendBool, AppendFloat, AppendInt, and AppendUint are similar but
+ // append the formatted value to a destination slice.

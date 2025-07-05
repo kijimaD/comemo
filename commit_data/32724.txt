@@ -12,8 +12,73 @@ Date:   Fri May 19 19:03:35 2017 +0900
     Reviewed-on: https://go-review.googlesource.com/43693
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/rawconn.go                                |  7 +++--
  src/net/{rawconn_test.go => rawconn_unix_test.go} |  0
  src/net/rawconn_windows_test.go                   | 36 +++++++++++++++++++++++
  3 files changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/rawconn.go b/src/net/rawconn.go
+index 486a5e7d9d..d67be644a3 100644
+--- a/src/net/rawconn.go
++++ b/src/net/rawconn.go
+@@ -9,8 +9,11 @@ import (
+ 	"syscall"
+ )
+ 
+-// BUG(mikio): On NaCl, Plan 9 and Windows, the Control, Read and
+-// Write methods of syscall.RawConn are not implemented.
++// BUG(mikio): On Windows, the Read and Write methods of
++// syscall.RawConn are not implemented.
++
++// BUG(mikio): On NaCl and Plan 9, the Control, Read and Write methods
++// of syscall.RawConn are not implemented.
+ 
+ type rawConn struct {
+ 	fd *netFD
+diff --git a/src/net/rawconn_test.go b/src/net/rawconn_unix_test.go
+similarity index 100%
+rename from src/net/rawconn_test.go
+rename to src/net/rawconn_unix_test.go
+diff --git a/src/net/rawconn_windows_test.go b/src/net/rawconn_windows_test.go
+new file mode 100644
+index 0000000000..5fb6de7539
+--- /dev/null
++++ b/src/net/rawconn_windows_test.go
+@@ -0,0 +1,36 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"syscall"
++	"testing"
++)
++
++func TestRawConn(t *testing.T) {
++	c, err := newLocalPacketListener("udp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.Close()
++	cc, err := c.(*UDPConn).SyscallConn()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var operr error
++	fn := func(s uintptr) {
++		operr = syscall.SetsockoptInt(syscall.Handle(s), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
++	}
++	err = cc.Control(fn)
++	if err != nil || operr != nil {
++		t.Fatal(err, operr)
++	}
++	c.Close()
++	err = cc.Control(fn)
++	if err == nil {
++		t.Fatal("should fail")
++	}
++}

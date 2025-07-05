@@ -9,7 +9,65 @@ Date:   Wed Apr 25 12:29:14 2012 +0900
     R=dave, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/6119043
-
+---
  src/pkg/net/ipsock_posix.go |  5 ++++-
  src/pkg/net/unicast_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index ed313195c9..171889207d 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -97,10 +97,13 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family
+ 		return syscall.AF_INET6, true
+ 	}
+ 
+-	if mode == "listen" && laddr.isWildcard() {
++	if mode == "listen" && (laddr == nil || laddr.isWildcard()) {
+ 		if supportsIPv4map {
+ 			return syscall.AF_INET6, false
+ 		}
++		if laddr == nil {
++			return syscall.AF_INET, false
++		}
+ 		return laddr.family(), false
+ 	}
+ 
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_test.go
+index e5dd013db6..7b3b19b323 100644
+--- a/src/pkg/net/unicast_test.go
++++ b/src/pkg/net/unicast_test.go
+@@ -536,3 +536,33 @@ func TestProhibitionaryDialArgs(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestWildWildcardListener(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
++		return
++	}
++
++	defer func() {
++		if recover() != nil {
++			t.Fatalf("panicked")
++		}
++	}()
++
++	if ln, err := Listen("tcp", ""); err != nil {
++		ln.Close()
++	}
++	if ln, err := ListenPacket("udp", ""); err != nil {
++		ln.Close()
++	}
++	if ln, err := ListenTCP("tcp", nil); err != nil {
++		ln.Close()
++	}
++	if ln, err := ListenUDP("udp", nil); err != nil {
++		ln.Close()
++	}
++	if ln, err := ListenIP("ip:icmp", nil); err != nil {
++		ln.Close()
++	}
++}

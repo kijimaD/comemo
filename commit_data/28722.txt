@@ -11,8 +11,45 @@ Date:   Mon Jul 4 08:45:10 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_darwin.go    | 1 +
  src/syscall/syscall_dragonfly.go | 1 +
  src/syscall/syscall_freebsd.go   | 1 +
  3 files changed, 3 insertions(+)
+
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 1a3efd1e8f..380be70fad 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -196,6 +196,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETFSSTAT64, uintptr(_p0), bufsize, uintptr(flags))
++	use(unsafe.Pointer(_p0))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 7e693290a8..4080b6ba3c 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -109,6 +109,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
++	use(unsafe.Pointer(_p0))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 7bb163a53b..950dc64910 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -129,6 +129,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
++	use(unsafe.Pointer(_p0))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1

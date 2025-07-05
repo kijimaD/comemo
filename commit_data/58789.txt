@@ -12,6 +12,22 @@ Date:   Tue Dec 12 10:52:57 2023 -0800
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  doc/go1.22.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 720d356efe..daae19fdbc 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -348,10 +348,6 @@ defer func() {
+       TODO: <a href="https://go.dev/issue/43922">https://go.dev/issue/43922</a>: implement RFC7627
+     </p>
+ 
+-    <p><!-- https://go.dev/issue/60107 -->
+-      TODO: <a href="https://go.dev/issue/60107">https://go.dev/issue/60107</a>: QUIC 0-RTT APIs
+-    </p>
+-
+     <p><!-- https://go.dev/issue/62459 -->
+       TODO: <a href="https://go.dev/issue/62459">https://go.dev/issue/62459</a>: make default minimum version for servers TLS 1.2
+     </p>

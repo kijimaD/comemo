@@ -7,6 +7,20 @@ Date:   Mon Apr 8 16:09:15 2019 -0400
     Change-Id: I6dd60ea7b8a8756be97503e163c2386af16e4e12
     Reviewed-on: https://go-review.googlesource.com/c/go/+/171144
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index a4069be407..2a7a499024 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -51,7 +51,7 @@ command, the runtime, and the <code>doc</code>, <code>net</code>,
+ <p>
+ go1.12.3 (released 2019/04/08) fixes an issue where using the prebuilt binary
+ releases on older versions of GNU/Linux
+-<a href="https://golang/go/issues/31293">led to failures</a>
++<a href="https://golang.org/issues/31293">led to failures</a>
+ when linking programs that used cgo.
+ Only Linux users who hit this issue need to update.
+ </p>

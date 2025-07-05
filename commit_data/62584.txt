@@ -13,6 +13,24 @@ Date:   Mon Feb 24 23:24:42 2025 +1100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  test/codegen/arithmetic.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 67bc88b587..beeb5357c4 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -173,6 +173,12 @@ func AddAddSubSimplify(a, b, c int) int {
+ 	return r
+ }
+ 
++func NegToInt32(a int) int {
++	// riscv64: "NEG","MOVW"
++	r := int(int32(-a))
++	return r
++}
++
+ // -------------------- //
+ //    Multiplication    //
+ // -------------------- //

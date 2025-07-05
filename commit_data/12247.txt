@@ -9,6 +9,53 @@ Date:   Tue Feb 28 10:58:01 2012 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5701064
-
+---
  src/pkg/net/sockoptip_netbsd.go | 30 +++++++++++++++++++++++++++---
  1 file changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/sockoptip_netbsd.go b/src/pkg/net/sockoptip_netbsd.go
+index ccb9697cfb..446d92aa34 100644
+--- a/src/pkg/net/sockoptip_netbsd.go
++++ b/src/pkg/net/sockoptip_netbsd.go
+@@ -2,14 +2,38 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build netbsd
++// IP-level socket options for NetBSD
+ 
+ package net
+ 
++import "syscall"
++
++func ipv4MulticastInterface(fd *netFD) (*Interface, error) {
++	// TODO: Implement this
++	return nil, syscall.EAFNOSUPPORT
++}
++
+ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
+-	panic("unimplemented")
++	// TODO: Implement this
++	return syscall.EAFNOSUPPORT
++}
++
++func ipv4MulticastLoopback(fd *netFD) (bool, error) {
++	// TODO: Implement this
++	return false, syscall.EAFNOSUPPORT
+ }
+ 
+ func setIPv4MulticastLoopback(fd *netFD, v bool) error {
+-	panic("unimplemented")
++	// TODO: Implement this
++	return syscall.EAFNOSUPPORT
++}
++
++func ipv4ReceiveInterface(fd *netFD) (bool, error) {
++	// TODO: Implement this
++	return false, syscall.EAFNOSUPPORT
++}
++
++func setIPv4ReceiveInterface(fd *netFD, v bool) error {
++	// TODO: Implement this
++	return syscall.EAFNOSUPPORT
+ }

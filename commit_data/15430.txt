@@ -9,7 +9,80 @@ Date:   Tue Feb 26 00:45:43 2013 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7365056
-
+---
  src/cmd/gc/swt.c | 12 ++++++++----
  test/switch.go   | 29 +++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 6112b0426f..a497b86222 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -117,12 +117,15 @@ exprcmp(Case *c1, Case *c2)
+ 	n1 = c1->node->left;
+ 	n2 = c2->node->left;
+ 
++	// sort by type (for switches on interface)
+ 	ct = n1->val.ctype;
+-	if(ct != n2->val.ctype) {
+-		// invalid program, but return a sort
+-		// order so that we can give a better
+-		// error later.
++	if(ct != n2->val.ctype)
+ 		return ct - n2->val.ctype;
++	if(!eqtype(n1->type, n2->type)) {
++		if(n1->type->vargen > n2->type->vargen)
++			return +1;
++		else
++			return -1;
+ 	}
+ 
+ 	// sort by constant value
+@@ -379,6 +382,7 @@ mkcaselist(Node *sw, int arg)
+ 		case Strue:
+ 		case Sfalse:
+ 			c->type = Texprvar;
++			c->hash = typehash(n->left->type);
+ 			switch(consttype(n->left)) {
+ 			case CTFLT:
+ 			case CTINT:
+diff --git a/test/switch.go b/test/switch.go
+index c6a0ebc74a..bcbde68e46 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -305,6 +305,35 @@ func main() {
+ 		assert(false, "i should be true")
+ 	}
+ 
++	// switch on interface with constant cases differing by type.
++	// was rejected by compiler: see issue 4781
++	type T int
++	type B bool
++	type F float64
++	type S string
++	switch i := interface{}(float64(1.0)); i {
++	case nil:
++		assert(false, "i should be float64(1.0)")
++	case (*int)(nil):
++		assert(false, "i should be float64(1.0)")
++	case 1:
++		assert(false, "i should be float64(1.0)")
++	case T(1):
++		assert(false, "i should be float64(1.0)")
++	case F(1.0):
++		assert(false, "i should be float64(1.0)")
++	case 1.0:
++		assert(true, "true")
++	case "hello":
++		assert(false, "i should be float64(1.0)")
++	case S("hello"):
++		assert(false, "i should be float64(1.0)")
++	case true, B(false):
++		assert(false, "i should be float64(1.0)")
++	case false, B(true):
++		assert(false, "i should be float64(1.0)")
++	}
++
+ 	// switch on array.
+ 	switch ar := [3]int{1, 2, 3}; ar {
+ 	case [3]int{1, 2, 3}:

@@ -7,7 +7,32 @@ Date:   Thu Jul 26 11:47:29 2012 -0700
     R=rsc, minux.ma, iant
     CC=golang-dev
     https://golang.org/cl/6447050
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 5782614e84..a0a36dc946 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -23,6 +23,7 @@ Andrei Vieru <euvieru@gmail.com>
+ Andrew Balholm <andybalholm@gmail.com>
+ Andrew Pritchard <awpritchard@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
++Andrew Wilkins <axwalk@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>
+ Anh Hai Trinh <anh.hai.trinh@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f5f3a0e121..4cd94a9902 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -51,6 +51,7 @@ Andrew Balholm <andybalholm@gmail.com>
+ Andrew Gerrand <adg@golang.org>
+ Andrew Pritchard <awpritchard@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
++Andrew Wilkins <axwalk@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>
+ Anh Hai Trinh <anh.hai.trinh@gmail.com>

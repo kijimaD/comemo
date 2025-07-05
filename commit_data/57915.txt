@@ -38,7 +38,7 @@ Date:   Thu Mar 24 12:27:39 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go       |   1 +
  src/cmd/compile/internal/ir/func.go          |  10 +++
  src/cmd/compile/internal/staticinit/sched.go | 110 +++++++++++++++++++++++----
@@ -46,3 +46,252 @@ Date:   Thu Mar 24 12:27:39 2022 -0700
  src/cmd/compile/internal/walk/order.go       |  12 +--
  test/fixedbugs/issue51913.go                 |  21 +++++
  6 files changed, 130 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 3925fa7182..21e8a31d1f 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -47,6 +47,7 @@ type DebugFlags struct {
+ 	Shapify               int    `help:"print information about shaping recursive types"`
+ 	Slice                 int    `help:"print information about slice compilation"`
+ 	SoftFloat             int    `help:"force compiler to emit soft-float code" concurrent:"ok"`
++	StaticCopy            int    `help:"print information about missed static copies" concurrent:"ok"`
+ 	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data"`
+ 	TypeAssert            int    `help:"print information about type assertion inlining"`
+ 	WB                    int    `help:"print information about write barriers"`
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 952f6fb929..e28bbbd577 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -445,3 +445,13 @@ func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func,
+ 
+ 	return fn
+ }
++
++// IsFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
++func IsFuncPCIntrinsic(n *CallExpr) bool {
++	if n.Op() != OCALLFUNC || n.X.Op() != ONAME {
++		return false
++	}
++	fn := n.X.(*Name).Sym()
++	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
++		fn.Pkg.Path == "internal/abi"
++}
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index dd370a305c..4358ac678a 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -42,6 +42,11 @@ type Schedule struct {
+ 
+ 	Plans map[ir.Node]*Plan
+ 	Temps map[ir.Node]*ir.Name
++
++	// seenMutation tracks whether we've seen an initialization
++	// expression that may have modified other package-scope variables
++	// within this package.
++	seenMutation bool
+ }
+ 
+ func (s *Schedule) append(n ir.Node) {
+@@ -80,26 +85,57 @@ func recordFuncForVar(v *ir.Name, fn *ir.Func) {
+ 	MapInitToVar[fn] = v
+ }
+ 
++// allBlank reports whether every node in exprs is blank.
++func allBlank(exprs []ir.Node) bool {
++	for _, expr := range exprs {
++		if !ir.IsBlank(expr) {
++			return false
++		}
++	}
++	return true
++}
++
+ // tryStaticInit attempts to statically execute an initialization
+ // statement and reports whether it succeeded.
+-func (s *Schedule) tryStaticInit(nn ir.Node) bool {
+-	// Only worry about simple "l = r" assignments. Multiple
+-	// variable/expression OAS2 assignments have already been
+-	// replaced by multiple simple OAS assignments, and the other
+-	// OAS2* assignments mostly necessitate dynamic execution
+-	// anyway.
+-	if nn.Op() != ir.OAS {
+-		return false
++func (s *Schedule) tryStaticInit(n ir.Node) bool {
++	var lhs []ir.Node
++	var rhs ir.Node
++
++	switch n.Op() {
++	default:
++		base.FatalfAt(n.Pos(), "unexpected initialization statement: %v", n)
++	case ir.OAS:
++		n := n.(*ir.AssignStmt)
++		lhs, rhs = []ir.Node{n.X}, n.Y
++	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
++		n := n.(*ir.AssignListStmt)
++		if len(n.Lhs) < 2 || len(n.Rhs) != 1 {
++			base.FatalfAt(n.Pos(), "unexpected shape for %v: %v", n.Op(), n)
++		}
++		lhs, rhs = n.Lhs, n.Rhs[0]
++	case ir.OCALLFUNC:
++		return false // outlined map init call; no mutations
+ 	}
+-	n := nn.(*ir.AssignStmt)
+-	if ir.IsBlank(n.X) && !AnySideEffects(n.Y) {
+-		// Discard.
+-		return true
++
++	if !s.seenMutation {
++		s.seenMutation = mayModifyPkgVar(rhs)
++	}
++
++	if allBlank(lhs) && !AnySideEffects(rhs) {
++		return true // discard
+ 	}
++
++	// Only worry about simple "l = r" assignments. The OAS2*
++	// assignments mostly necessitate dynamic execution anyway.
++	if len(lhs) > 1 {
++		return false
++	}
++
+ 	lno := ir.SetPos(n)
+ 	defer func() { base.Pos = lno }()
+-	nam := n.X.(*ir.Name)
+-	return s.StaticAssign(nam, 0, n.Y, nam.Type())
++
++	nam := lhs[0].(*ir.Name)
++	return s.StaticAssign(nam, 0, rhs, nam.Type())
+ }
+ 
+ // like staticassign but we are copying an already
+@@ -134,6 +170,15 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
+ 		base.Fatalf("unexpected initializer: %v", rn.Defn)
+ 	}
+ 
++	// Variable may have been reassigned by a user-written function call
++	// that was invoked to initialize another global variable (#51913).
++	if s.seenMutation {
++		if base.Debug.StaticCopy != 0 {
++			base.WarnfAt(l.Pos(), "skipping static copy of %v+%v with %v", l, loff, r)
++		}
++		return false
++	}
++
+ 	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
+ 		r = r.(*ir.ConvExpr).X
+ 	}
+@@ -830,6 +875,43 @@ func AnySideEffects(n ir.Node) bool {
+ 	return ir.Any(n, isSideEffect)
+ }
+ 
++// mayModifyPkgVar reports whether expression n may modify any
++// package-scope variables declared within the current package.
++func mayModifyPkgVar(n ir.Node) bool {
++	// safeLHS reports whether the assigned-to variable lhs is either a
++	// local variable or a global from another package.
++	safeLHS := func(lhs ir.Node) bool {
++		v, ok := ir.OuterValue(lhs).(*ir.Name)
++		return ok && v.Op() == ir.ONAME && !(v.Class == ir.PEXTERN && v.Sym().Pkg == types.LocalPkg)
++	}
++
++	return ir.Any(n, func(n ir.Node) bool {
++		switch n.Op() {
++		case ir.OCALLFUNC, ir.OCALLINTER:
++			return !ir.IsFuncPCIntrinsic(n.(*ir.CallExpr))
++
++		case ir.OAPPEND, ir.OCLEAR, ir.OCOPY:
++			return true // could mutate a global array
++
++		case ir.OAS:
++			n := n.(*ir.AssignStmt)
++			if !safeLHS(n.X) {
++				return true
++			}
++
++		case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
++			n := n.(*ir.AssignListStmt)
++			for _, lhs := range n.Lhs {
++				if !safeLHS(lhs) {
++					return true
++				}
++			}
++		}
++
++		return false
++	})
++}
++
+ // canRepeat reports whether executing n multiple times has the same effect as
+ // assigning n to a single variable and using that variable multiple times.
+ func canRepeat(n ir.Node) bool {
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index f3fd9e6c7a..b5e6050634 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -549,7 +549,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		directClosureCall(n)
+ 	}
+ 
+-	if isFuncPCIntrinsic(n) {
++	if ir.IsFuncPCIntrinsic(n) {
+ 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function, rewrite
+ 		// it to the address of the function of the ABI fn is defined.
+ 		name := n.X.(*ir.Name).Sym().Name
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index c2ed528f33..0cd050c3ea 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -538,7 +538,7 @@ func (o *orderState) call(nn ir.Node) {
+ 	n := nn.(*ir.CallExpr)
+ 	typecheck.AssertFixedCall(n)
+ 
+-	if isFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
++	if ir.IsFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
+ 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
+ 		// do not introduce temporaries here, so it is easier to rewrite it
+ 		// to symbol address reference later in walk.
+@@ -1500,16 +1500,6 @@ func (o *orderState) as2ok(n *ir.AssignListStmt) {
+ 	o.stmt(typecheck.Stmt(as))
+ }
+ 
+-// isFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
+-func isFuncPCIntrinsic(n *ir.CallExpr) bool {
+-	if n.Op() != ir.OCALLFUNC || n.X.Op() != ir.ONAME {
+-		return false
+-	}
+-	fn := n.X.(*ir.Name).Sym()
+-	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
+-		fn.Pkg.Path == "internal/abi"
+-}
+-
+ // isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.
+ func isIfaceOfFunc(n ir.Node) bool {
+ 	return n.Op() == ir.OCONVIFACE && n.(*ir.ConvExpr).X.Op() == ir.ONAME && n.(*ir.ConvExpr).X.(*ir.Name).Class == ir.PFUNC
+diff --git a/test/fixedbugs/issue51913.go b/test/fixedbugs/issue51913.go
+new file mode 100644
+index 0000000000..50b670cfc6
+--- /dev/null
++++ b/test/fixedbugs/issue51913.go
+@@ -0,0 +1,21 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var _ = func() int {
++	a = false
++	return 0
++}()
++
++var a = true
++var b = a
++
++func main() {
++	if b {
++		panic("FAIL")
++	}
++}

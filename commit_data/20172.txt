@@ -16,8 +16,50 @@ Date:   Fri Aug 22 10:18:00 2014 -0700
     R=golang-codereviews, bradfitz, josharian, gri
     CC=golang-codereviews
     https://golang.org/cl/124700043
-
+---
  src/cmd/gofmt/gofmt.go               | 4 ++--
  src/cmd/gofmt/testdata/stdin5.golden | 3 +++
  src/cmd/gofmt/testdata/stdin5.input  | 3 +++
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 576cae5228..f7d30d8405 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -277,14 +277,14 @@ func parse(fset *token.FileSet, filename string, src []byte, stdin bool) (*ast.F
+ 	// into a function body.  This handles expressions too.
+ 	// Insert using a ;, not a newline, so that the line numbers
+ 	// in fsrc match the ones in src.
+-	fsrc := append(append([]byte("package p; func _() {"), src...), '}')
++	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '}')
+ 	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
+ 	if err == nil {
+ 		adjust := func(orig, src []byte) []byte {
+ 			// Remove the wrapping.
+ 			// Gofmt has turned the ; into a \n\n.
+ 			src = src[len("package p\n\nfunc _() {"):]
+-			src = src[:len(src)-len("}\n")]
++			src = src[:len(src)-len("\n}\n")]
+ 			// Gofmt has also indented the function body one level.
+ 			// Remove that indent.
+ 			src = bytes.Replace(src, []byte("\n\t"), []byte("\n"), -1)
+diff --git a/src/cmd/gofmt/testdata/stdin5.golden b/src/cmd/gofmt/testdata/stdin5.golden
+new file mode 100644
+index 0000000000..31ce6b2485
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin5.golden
+@@ -0,0 +1,3 @@
++//gofmt -stdin
++
++i := 5 // Line comment without newline.
+\ No newline at end of file
+diff --git a/src/cmd/gofmt/testdata/stdin5.input b/src/cmd/gofmt/testdata/stdin5.input
+new file mode 100644
+index 0000000000..0a7c97d180
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin5.input
+@@ -0,0 +1,3 @@
++//gofmt -stdin
++
++i  :=5// Line comment without newline.
+\ No newline at end of file

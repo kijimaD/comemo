@@ -13,6 +13,20 @@ Date:   Fri Mar 20 09:03:39 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/testshared/shared_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index c7f15b8e89..acae1b2c21 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -221,7 +221,7 @@ func cloneGOROOTDeps(goroot string) error {
+ 
+ 	for _, dir := range gorootDirs {
+ 		if testing.Verbose() {
+-			fmt.Fprintf(os.Stderr, "+ cp -r %s %s\n", filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir))
++			fmt.Fprintf(os.Stderr, "+ cp -r %s %s\n", filepath.Join(oldGOROOT, dir), filepath.Join(goroot, dir))
+ 		}
+ 		if err := overlayDir(filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir)); err != nil {
+ 			return err

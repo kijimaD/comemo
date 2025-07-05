@@ -19,9 +19,133 @@ Date:   Fri Dec 18 20:49:50 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go     | 20 ++++++++------------
  src/cmd/compile/internal/gc/embed.go   |  4 ++--
  src/cmd/compile/internal/gc/iimport.go | 10 ++++++++--
  src/cmd/compile/internal/gc/noder.go   |  5 ++---
  4 files changed, 20 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 04e3506dba..09d2e7d8b7 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -130,17 +130,16 @@ func declare(n *ir.Name, ctxt ir.Class) {
+ 
+ // declare variables from grammar
+ // new_name_list (type | [type] = expr_list)
+-func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
++func variter(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
+ 	var init []ir.Node
+ 	doexpr := len(el) > 0
+ 
+ 	if len(el) == 1 && len(vl) > 1 {
+ 		e := el[0]
+ 		as2 := ir.Nod(ir.OAS2, nil, nil)
+-		as2.PtrList().Set(vl)
+ 		as2.PtrRlist().Set1(e)
+ 		for _, v := range vl {
+-			v := v.(*ir.Name)
++			as2.PtrList().Append(v)
+ 			declare(v, dclcontext)
+ 			v.Ntype = t
+ 			v.Defn = as2
+@@ -152,17 +151,14 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
+ 		return append(init, as2)
+ 	}
+ 
+-	nel := len(el)
+-	for _, v := range vl {
+-		v := v.(*ir.Name)
++	for i, v := range vl {
+ 		var e ir.Node
+ 		if doexpr {
+-			if len(el) == 0 {
+-				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), nel)
++			if i >= len(el) {
++				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
+ 				break
+ 			}
+-			e = el[0]
+-			el = el[1:]
++			e = el[i]
+ 		}
+ 
+ 		declare(v, dclcontext)
+@@ -180,8 +176,8 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
+ 		}
+ 	}
+ 
+-	if len(el) != 0 {
+-		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), nel)
++	if len(el) > len(vl) {
++		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
+ 	}
+ 	return init
+ }
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+index 0d4ce83716..ea23e26069 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -24,7 +24,7 @@ const (
+ 	embedFiles
+ )
+ 
+-func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
++func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
+ 	haveEmbed := false
+ 	for _, decl := range p.file.DeclList {
+ 		imp, ok := decl.(*syntax.ImportDecl)
+@@ -66,7 +66,7 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds [
+ 		return exprs
+ 	}
+ 
+-	v := names[0].(*ir.Name)
++	v := names[0]
+ 	Target.Embeds = append(Target.Embeds, v)
+ 	v.Embed = new([]ir.Embed)
+ 	for _, e := range embeds {
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 219ce4bdef..cd66d39b66 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -972,8 +972,14 @@ func (r *importReader) node() ir.Node {
+ 	case ir.ODCL:
+ 		pos := r.pos()
+ 		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.ident())
+-		typ := ir.TypeNode(r.typ())
+-		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
++		lhs.SetType(r.typ())
++
++		declare(lhs, ir.PAUTO)
++
++		var stmts ir.Nodes
++		stmts.Append(ir.Nod(ir.ODCL, lhs, nil))
++		stmts.Append(ir.Nod(ir.OAS, lhs, nil))
++		return npos(pos, liststmt(stmts.Slice()))
+ 
+ 	// case OAS, OASWB:
+ 	// 	unreachable - mapped to OAS case below by exporter
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index b61f19ae2e..97a9ac4396 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -441,7 +441,6 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
+ 
+ 	nn := make([]ir.Node, 0, len(names))
+ 	for i, n := range names {
+-		n := n.(*ir.Name)
+ 		if i >= len(values) {
+ 			base.Errorf("missing value in const declaration")
+ 			break
+@@ -492,8 +491,8 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
+ 	return nod
+ }
+ 
+-func (p *noder) declNames(op ir.Op, names []*syntax.Name) []ir.Node {
+-	nodes := make([]ir.Node, 0, len(names))
++func (p *noder) declNames(op ir.Op, names []*syntax.Name) []*ir.Name {
++	nodes := make([]*ir.Name, 0, len(names))
+ 	for _, name := range names {
+ 		nodes = append(nodes, p.declName(op, name))
+ 	}

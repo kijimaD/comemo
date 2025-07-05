@@ -9,6 +9,20 @@ Date:   Thu Jan 4 21:25:04 2018 +0100
     Change-Id: I8967cc0e9f5d37776bada96cc1443c8bf46e1117
     Reviewed-on: https://go-review.googlesource.com/86156
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/rand/rand.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 957bebdddd..147c92f9e2 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -393,7 +393,7 @@ func (r *lockedSource) Seed(seed int64) {
+ 	r.lk.Unlock()
+ }
+ 
+-// seedPos implements Seed for a lockedSource without a race condiiton.
++// seedPos implements Seed for a lockedSource without a race condition.
+ func (r *lockedSource) seedPos(seed int64, readPos *int8) {
+ 	r.lk.Lock()
+ 	r.src.Seed(seed)

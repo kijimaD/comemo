@@ -81,7 +81,7 @@ Date:   Fri Apr 24 12:28:18 2015 -0700
     Change-Id: I83d409a68688a5445f54297a7e7c745f749b9e66
     Reviewed-on: https://go-review.googlesource.com/9227
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/build.go |  11 --
  src/cmd/doc/main.go   | 273 ++++++++++++++++++++++++++++++++++
  src/cmd/doc/pkg.go    | 398 ++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -90,3 +90,886 @@ Date:   Fri Apr 24 12:28:18 2015 -0700
  src/cmd/go/main.go    |   1 +
  src/cmd/go/pkg.go     |   1 +
  7 files changed, 802 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 6c4a09485f..9bfe2d080e 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -775,17 +775,6 @@ func shouldbuild(file, dir string) bool {
+ 		return false
+ 	}
+ 
+-	// cmd/go/doc.go has a giant /* */ comment before
+-	// it gets to the important detail that it is not part of
+-	// package main.  We don't parse those comments,
+-	// so special case that file.
+-	if strings.HasSuffix(file, "cmd/go/doc.go") || strings.HasSuffix(file, "cmd\\go\\doc.go") {
+-		return false
+-	}
+-	if strings.HasSuffix(file, "cmd/cgo/doc.go") || strings.HasSuffix(file, "cmd\\cgo\\doc.go") {
+-		return false
+-	}
+-
+ 	// Check file contents for // +build lines.
+ 	for _, p := range splitlines(readfile(file)) {
+ 		p = strings.TrimSpace(p)
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+new file mode 100644
+index 0000000000..e0178effce
+--- /dev/null
++++ b/src/cmd/doc/main.go
+@@ -0,0 +1,273 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Doc (usually run as go doc) accepts zero or one argument, interpreted as:
++//	go doc
++//	go doc <pkg>
++//	go doc <sym>[.<method>]
++//	go doc [<pkg>].<sym>[.<method>]
++// The first item in this list that succeeds is the one whose documentation
++// is printed. If there is no argument, the package in the current directory
++// is chosen.
++//
++// For complete documentation, run "go help doc".
++package main
++
++import (
++	"flag"
++	"fmt"
++	"go/build"
++	"log"
++	"os"
++	"path"
++	"path/filepath"
++	"strings"
++	"unicode"
++	"unicode/utf8"
++)
++
++var (
++	unexported bool
++)
++
++func init() {
++	flag.BoolVar(&unexported, "unexported", false, "show unexported symbols as well as exported")
++	flag.BoolVar(&unexported, "u", false, "shorthand for -unexported")
++}
++
++// usage is a replacement usage function for the flags package.
++func usage() {
++	fmt.Fprintf(os.Stderr, "Usage of [go] doc:\n")
++	fmt.Fprintf(os.Stderr, "\tgo doc\n")
++	fmt.Fprintf(os.Stderr, "\tgo doc <pkg>\n")
++	fmt.Fprintf(os.Stderr, "\tgo doc <sym>[.<method>]\n")
++	fmt.Fprintf(os.Stderr, "\tgo doc [<pkg>].<sym>[.<method>]\n")
++	fmt.Fprintf(os.Stderr, "For more information run\n")
++	fmt.Fprintf(os.Stderr, "\tgo help doc\n\n")
++	fmt.Fprintf(os.Stderr, "Flags:\n")
++	flag.PrintDefaults()
++	os.Exit(2)
++}
++
++func main() {
++	log.SetFlags(0)
++	log.SetPrefix("doc: ")
++	flag.Usage = usage
++	flag.Parse()
++	buildPackage, symbol := parseArg()
++	symbol, method := parseSymbol(symbol)
++	pkg := parsePackage(buildPackage)
++	switch {
++	case symbol == "":
++		pkg.packageDoc()
++		return
++	case method == "":
++		pkg.symbolDoc(symbol)
++	default:
++		pkg.methodDoc(symbol, method)
++	}
++}
++
++// parseArg analyzes the argument (if any) and returns the package
++// it represents and the symbol (possibly with a .method) within that
++// package. parseSymbol is used to analyze the symbol itself.
++func parseArg() (*build.Package, string) {
++	switch flag.NArg() {
++	default:
++		usage()
++	case 0:
++		// Easy: current directory.
++		return importDir("."), ""
++	case 1:
++		// Done below.
++	}
++	// Usual case: one argument.
++	arg := flag.Arg(0)
++	// If it contains slashes, it begins with a package path.
++	// First, is it a complete package path as it is? If so, we are done.
++	// This avoids confusion over package paths that have other
++	// package paths as their prefix.
++	pkg, err := build.Import(arg, "", build.ImportComment)
++	if err == nil {
++		return pkg, ""
++	}
++	// Another disambiguator: If the symbol starts with an upper
++	// case letter, it can only be a symbol in the current directory.
++	// Kills the problem caused by case-insensitive file systems
++	// matching an upper case name as a package name.
++	if isUpper(arg) {
++		println("HERE", arg)
++		pkg, err := build.ImportDir(".", build.ImportComment)
++		if err == nil {
++			return pkg, arg
++		}
++	}
++	// If it has a slash, it must be a package path but there is a symbol.
++	// It's the last package path we care about.
++	slash := strings.LastIndex(arg, "/")
++	// There may be periods in the package path before or after the slash
++	// and between a symbol and method.
++	// Split the string at various periods to see what we find.
++	// In general there may be ambiguities but this should almost always
++	// work.
++	var period int
++	// slash+1: if there's no slash, the value is -1 and start is 0; otherwise
++	// start is the byte after the slash.
++	for start := slash + 1; start < len(arg); start = period + 1 {
++		period = start + strings.Index(arg[start:], ".")
++		symbol := ""
++		if period < 0 {
++			period = len(arg)
++		} else {
++			symbol = arg[period+1:]
++		}
++		// Have we identified a package already?
++		pkg, err := build.Import(arg[0:period], "", build.ImportComment)
++		if err == nil {
++			return pkg, symbol
++		}
++		// See if we have the basename or tail of a package, as in json for encoding/json
++		// or ivy/value for robpike.io/ivy/value.
++		path := findPackage(arg[0:period])
++		if path != "" {
++			return importDir(path), symbol
++		}
++		if path != "" {
++			return importDir(path), symbol
++		}
++	}
++	// If it has a slash, we've failed.
++	if slash >= 0 {
++		log.Fatalf("no such package %s", arg[0:period])
++	}
++	// Guess it's a symbol in the current directory.
++	return importDir("."), arg
++}
++
++// importDir is just an error-catching wrapper for build.ImportDir.
++func importDir(dir string) *build.Package {
++	pkg, err := build.ImportDir(dir, build.ImportComment)
++	if err != nil {
++		log.Fatal(err)
++	}
++	return pkg
++}
++
++// parseSymbol breaks str apart into a symbol and method.
++// Both may be missing or the method may be missing.
++// If present, each must be a valid Go identifier.
++func parseSymbol(str string) (symbol, method string) {
++	if str == "" {
++		return
++	}
++	elem := strings.Split(str, ".")
++	switch len(elem) {
++	case 1:
++	case 2:
++		method = elem[1]
++		isIdentifier(method)
++	default:
++		log.Printf("too many periods in symbol specification")
++		usage()
++	}
++	symbol = elem[0]
++	isIdentifier(symbol)
++	return
++}
++
++// isIdentifier checks that the name is valid Go identifier, and
++// logs and exits if it is not.
++func isIdentifier(name string) {
++	if len(name) == 0 {
++		log.Fatal("empty symbol")
++	}
++	for i, ch := range name {
++		if unicode.IsLetter(ch) || ch == '_' || i > 0 && unicode.IsDigit(ch) {
++			continue
++		}
++		log.Fatalf("invalid identifier %q", name)
++	}
++}
++
++// isExported reports whether the name is an exported identifier.
++// If the unexported flag (-u) is true, isExported returns true because
++// it means that we treat the name as if it is exported.
++func isExported(name string) bool {
++	return unexported || isUpper(name)
++}
++
++// isUpper reports whether the name starts with an upper case letter.
++func isUpper(name string) bool {
++	ch, _ := utf8.DecodeRuneInString(name)
++	return unicode.IsUpper(ch)
++}
++
++// findPackage returns the full file name path specified by the
++// (perhaps partial) package path pkg.
++func findPackage(pkg string) string {
++	if pkg == "" {
++		return ""
++	}
++	if isUpper(pkg) {
++		return "" // Upper case symbol cannot be a package name.
++	}
++	path := pathFor(build.Default.GOROOT, pkg)
++	if path != "" {
++		return path
++	}
++	for _, root := range splitGopath() {
++		path = pathFor(root, pkg)
++		if path != "" {
++			return path
++		}
++	}
++	return ""
++}
++
++// splitGopath splits $GOPATH into a list of roots.
++func splitGopath() []string {
++	return filepath.SplitList(build.Default.GOPATH)
++}
++
++// pathsFor recursively walks the tree at root looking for possible directories for the package:
++// those whose package path is pkg or which have a proper suffix pkg.
++func pathFor(root, pkg string) (result string) {
++	root = path.Join(root, "src")
++	slashDot := string(filepath.Separator) + "."
++	// We put a slash on the pkg so can use simple string comparison below
++	// yet avoid inadvertent matches, like /foobar matching bar.
++	pkgString := filepath.Clean(string(filepath.Separator) + pkg)
++
++	// We use panic/defer to short-circuit processing at the first match.
++	// A nil panic reports that the path has been found.
++	defer func() {
++		err := recover()
++		if err != nil {
++			panic(err)
++		}
++	}()
++
++	visit := func(pathName string, f os.FileInfo, err error) error {
++		if err != nil {
++			return nil
++		}
++		// One package per directory. Ignore the files themselves.
++		if !f.IsDir() {
++			return nil
++		}
++		// No .git or other dot nonsense please.
++		if strings.Contains(pathName, slashDot) {
++			return filepath.SkipDir
++		}
++		// Is the tail of the path correct?
++		if strings.HasSuffix(pathName, pkgString) {
++			result = pathName
++			panic(nil)
++		}
++		return nil
++	}
++
++	filepath.Walk(root, visit)
++	return "" // Call to panic above sets the real value.
++}
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+new file mode 100644
+index 0000000000..b7cd870865
+--- /dev/null
++++ b/src/cmd/doc/pkg.go
+@@ -0,0 +1,398 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"go/ast"
++	"go/build"
++	"go/doc"
++	"go/format"
++	"go/parser"
++	"go/token"
++	"log"
++	"os"
++	"unicode"
++	"unicode/utf8"
++)
++
++type Package struct {
++	name  string       // Package name, json for encoding/json.
++	pkg   *ast.Package // Parsed package.
++	file  *ast.File    // Merged from all files in the package
++	doc   *doc.Package
++	build *build.Package
++	fs    *token.FileSet // Needed for printing.
++}
++
++// parsePackage turns the build package we found into a parsed package
++// we can then use to generate documentation.
++func parsePackage(pkg *build.Package) *Package {
++	fs := token.NewFileSet()
++	// include tells parser.ParseDir which files to include.
++	// That means the file must be in the build package's GoFiles or CgoFiles
++	// list only (no tag-ignored files, tests, swig or other non-Go files).
++	include := func(info os.FileInfo) bool {
++		for _, name := range pkg.GoFiles {
++			if name == info.Name() {
++				return true
++			}
++		}
++		for _, name := range pkg.CgoFiles {
++			if name == info.Name() {
++				return true
++			}
++		}
++		return false
++	}
++	pkgs, err := parser.ParseDir(fs, pkg.Dir, include, parser.ParseComments)
++	if err != nil {
++		log.Fatal(err)
++	}
++	// Make sure they are all in one package.
++	if len(pkgs) != 1 {
++		log.Fatalf("multiple packages directory %s", pkg.Dir)
++	}
++	astPkg := pkgs[pkg.Name]
++
++	// TODO: go/doc does not include typed constants in the constants
++	// list, which is what we want. For instance, time.Sunday is of type
++	// time.Weekday, so it is defined in the type but not in the
++	// Consts list for the package. This prevents
++	//	go doc time.Sunday
++	// from finding the symbol. Work around this for now, but we
++	// should fix it in go/doc.
++	// A similar story applies to factory functions.
++	docPkg := doc.New(astPkg, pkg.ImportPath, doc.AllDecls)
++	for _, typ := range docPkg.Types {
++		docPkg.Consts = append(docPkg.Consts, typ.Consts...)
++		docPkg.Funcs = append(docPkg.Funcs, typ.Funcs...)
++	}
++
++	return &Package{
++		name:  pkg.Name,
++		pkg:   astPkg,
++		file:  ast.MergePackageFiles(astPkg, 0),
++		doc:   docPkg,
++		build: pkg,
++		fs:    fs,
++	}
++}
++
++var formatBuf bytes.Buffer // One instance to minimize allocation. TODO: Buffer all output.
++
++// emit prints the node.
++func (pkg *Package) emit(comment string, node ast.Node) {
++	if node != nil {
++		formatBuf.Reset()
++		if comment != "" {
++			doc.ToText(&formatBuf, comment, "", "\t", 80)
++		}
++		err := format.Node(&formatBuf, pkg.fs, node)
++		if err != nil {
++			log.Fatal(err)
++		}
++		if formatBuf.Len() > 0 && formatBuf.Bytes()[formatBuf.Len()-1] != '\n' {
++			formatBuf.WriteRune('\n')
++		}
++		os.Stdout.Write(formatBuf.Bytes())
++	}
++}
++
++// formatNode is a helper function for printing.
++func (pkg *Package) formatNode(node ast.Node) []byte {
++	formatBuf.Reset()
++	format.Node(&formatBuf, pkg.fs, node)
++	return formatBuf.Bytes()
++}
++
++// oneLineFunc prints a function declaration as a single line.
++func (pkg *Package) oneLineFunc(decl *ast.FuncDecl) {
++	decl.Doc = nil
++	decl.Body = nil
++	pkg.emit("", decl)
++}
++
++// oneLineValueGenDecl prints a var or const declaration as a single line.
++func (pkg *Package) oneLineValueGenDecl(decl *ast.GenDecl) {
++	decl.Doc = nil
++	dotDotDot := ""
++	if len(decl.Specs) > 1 {
++		dotDotDot = " ..."
++	}
++	// Find the first relevant spec.
++	for i, spec := range decl.Specs {
++		valueSpec := spec.(*ast.ValueSpec) // Must succeed; we can't mix types in one genDecl.
++		if !isExported(valueSpec.Names[0].Name) {
++			continue
++		}
++		typ := ""
++		if valueSpec.Type != nil {
++			typ = fmt.Sprintf(" %s", pkg.formatNode(valueSpec.Type))
++		}
++		val := ""
++		if i < len(valueSpec.Values) && valueSpec.Values[i] != nil {
++			val = fmt.Sprintf(" = %s", pkg.formatNode(valueSpec.Values[i]))
++		}
++		fmt.Printf("%s %s%s%s%s\n", decl.Tok, valueSpec.Names[0], typ, val, dotDotDot)
++		break
++	}
++}
++
++// oneLineTypeDecl prints a type declaration as a single line.
++func (pkg *Package) oneLineTypeDecl(spec *ast.TypeSpec) {
++	spec.Doc = nil
++	spec.Comment = nil
++	switch spec.Type.(type) {
++	case *ast.InterfaceType:
++		fmt.Printf("type %s interface { ... }\n", spec.Name)
++	case *ast.StructType:
++		fmt.Printf("type %s struct { ... }\n", spec.Name)
++	default:
++		fmt.Printf("type %s %s\n", spec.Name, pkg.formatNode(spec.Type))
++	}
++}
++
++// packageDoc prints the docs for the package (package doc plus one-liners of the rest).
++// TODO: Sort the output.
++func (pkg *Package) packageDoc() {
++	// Package comment.
++	importPath := pkg.build.ImportComment
++	if importPath == "" {
++		importPath = pkg.build.ImportPath
++	}
++	fmt.Printf("package %s // import %q\n\n", pkg.name, importPath)
++	if importPath != pkg.build.ImportPath {
++		fmt.Printf("WARNING: package source is installed in %q\n", pkg.build.ImportPath)
++	}
++	doc.ToText(os.Stdout, pkg.doc.Doc, "", "\t", 80)
++	fmt.Print("\n")
++
++	pkg.valueSummary(pkg.doc.Consts)
++	pkg.valueSummary(pkg.doc.Vars)
++	pkg.funcSummary(pkg.doc.Funcs)
++	pkg.typeSummary()
++}
++
++// valueSummary prints a one-line summary for each set of values and constants.
++func (pkg *Package) valueSummary(values []*doc.Value) {
++	for _, value := range values {
++		// Only print first item in spec, show ... to stand for the rest.
++		spec := value.Decl.Specs[0].(*ast.ValueSpec) // Must succeed.
++		exported := true
++		for _, name := range spec.Names {
++			if !isExported(name.Name) {
++				exported = false
++				break
++			}
++		}
++		if exported {
++			pkg.oneLineValueGenDecl(value.Decl)
++		}
++	}
++}
++
++// funcSummary prints a one-line summary for each function.
++func (pkg *Package) funcSummary(funcs []*doc.Func) {
++	for _, fun := range funcs {
++		decl := fun.Decl
++		// Exported functions only. The go/doc package does not include methods here.
++		if isExported(fun.Name) {
++			pkg.oneLineFunc(decl)
++		}
++	}
++}
++
++// typeSummary prints a one-line summary for each type.
++func (pkg *Package) typeSummary() {
++	for _, typ := range pkg.doc.Types {
++		for _, spec := range typ.Decl.Specs {
++			typeSpec := spec.(*ast.TypeSpec) // Must succeed.
++			if isExported(typeSpec.Name.Name) {
++				pkg.oneLineTypeDecl(typeSpec)
++			}
++		}
++	}
++}
++
++// findValue finds the doc.Value that describes the symbol.
++func (pkg *Package) findValue(symbol string, values []*doc.Value) *doc.Value {
++	for _, value := range values {
++		for _, name := range value.Names {
++			if match(symbol, name) {
++				return value
++			}
++		}
++	}
++	return nil
++}
++
++// findType finds the doc.Func that describes the symbol.
++func (pkg *Package) findFunc(symbol string) *doc.Func {
++	for _, fun := range pkg.doc.Funcs {
++		if match(symbol, fun.Name) {
++			return fun
++		}
++	}
++	return nil
++}
++
++// findType finds the doc.Type that describes the symbol.
++func (pkg *Package) findType(symbol string) *doc.Type {
++	for _, typ := range pkg.doc.Types {
++		if match(symbol, typ.Name) {
++			return typ
++		}
++	}
++	return nil
++}
++
++// findTypeSpec returns the ast.TypeSpec within the declaration that defines the symbol.
++func (pkg *Package) findTypeSpec(decl *ast.GenDecl, symbol string) *ast.TypeSpec {
++	for _, spec := range decl.Specs {
++		typeSpec := spec.(*ast.TypeSpec) // Must succeed.
++		if match(symbol, typeSpec.Name.Name) {
++			return typeSpec
++		}
++	}
++	return nil
++}
++
++// symbolDoc prints the doc for symbol. If it is a type, this includes its methods,
++// factories (TODO) and associated constants.
++func (pkg *Package) symbolDoc(symbol string) {
++	// TODO: resolve ambiguity in doc foo vs. doc Foo.
++	// Functions.
++	if fun := pkg.findFunc(symbol); fun != nil {
++		// Symbol is a function.
++		decl := fun.Decl
++		decl.Body = nil
++		pkg.emit(fun.Doc, decl)
++		return
++	}
++	// Constants and variables behave the same.
++	value := pkg.findValue(symbol, pkg.doc.Consts)
++	if value == nil {
++		value = pkg.findValue(symbol, pkg.doc.Vars)
++	}
++	if value != nil {
++		pkg.emit(value.Doc, value.Decl)
++		return
++	}
++	// Types.
++	typ := pkg.findType(symbol)
++	if typ == nil {
++		log.Fatalf("symbol %s not present in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
++	}
++	decl := typ.Decl
++	spec := pkg.findTypeSpec(decl, symbol)
++	trimUnexportedFields(spec)
++	// If there are multiple types defined, reduce to just this one.
++	if len(decl.Specs) > 1 {
++		decl.Specs = []ast.Spec{spec}
++	}
++	pkg.emit(typ.Doc, decl)
++	// TODO: Show factory functions.
++	// Show associated methods, constants, etc.
++	pkg.valueSummary(typ.Consts)
++	pkg.valueSummary(typ.Vars)
++	pkg.funcSummary(typ.Funcs)
++	pkg.funcSummary(typ.Methods)
++}
++
++// trimUnexportedFields modifies spec in place to elide unexported fields (unless
++// the unexported flag is set). If spec is not a structure declartion, nothing happens.
++func trimUnexportedFields(spec *ast.TypeSpec) {
++	if unexported {
++		// We're printing all fields.
++		return
++	}
++	// It must be a struct for us to care. (We show unexported methods in interfaces.)
++	structType, ok := spec.Type.(*ast.StructType)
++	if !ok {
++		return
++	}
++	trimmed := false
++	list := make([]*ast.Field, 0, len(structType.Fields.List))
++	for _, field := range structType.Fields.List {
++		// Trims if any is unexported. Fine in practice.
++		ok := true
++		for _, name := range field.Names {
++			if !isExported(name.Name) {
++				trimmed = true
++				ok = false
++				break
++			}
++		}
++		if ok {
++			list = append(list, field)
++		}
++	}
++	if trimmed {
++		unexportedField := &ast.Field{
++			Type: ast.NewIdent(""), // Hack: printer will treat this as a field with a named type.
++			Comment: &ast.CommentGroup{
++				List: []*ast.Comment{
++					&ast.Comment{
++						Text: "// Has unexported fields.\n",
++					},
++				},
++			},
++		}
++		list = append(list, unexportedField)
++		structType.Fields.List = list
++	}
++}
++
++// methodDoc prints the doc for symbol.method.
++func (pkg *Package) methodDoc(symbol, method string) {
++	typ := pkg.findType(symbol)
++	if typ == nil {
++		log.Fatalf("symbol %s is not a type in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
++	}
++	for _, meth := range typ.Methods {
++		if match(method, meth.Name) {
++			decl := meth.Decl
++			decl.Body = nil
++			pkg.emit(meth.Doc, decl)
++			return
++		}
++	}
++	log.Fatalf("no method %s.%s in package %s installed in %q", symbol, method, pkg.name, pkg.build.ImportPath)
++}
++
++// match reports whether the user's symbol matches the program's.
++// A lower-case character in the user's string matches either case in the program's.
++// The program string must be exported.
++func match(user, program string) bool {
++	if !isExported(program) {
++		return false
++	}
++	for _, u := range user {
++		p, w := utf8.DecodeRuneInString(program)
++		program = program[w:]
++		if u == p {
++			continue
++		}
++		if unicode.IsLower(u) && simpleFold(u) == simpleFold(p) {
++			continue
++		}
++		return false
++	}
++	return program == ""
++}
++
++// simpleFold returns the minimum rune equivalent to r
++// under Unicode-defined simple case folding.
++func simpleFold(r rune) rune {
++	for {
++		r1 := unicode.SimpleFold(r)
++		if r1 <= r {
++			return r1 // wrapped around, found min
++		}
++		r = r1
++	}
++}
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 39eb7867c7..66fc80d8a5 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -16,6 +16,7 @@ The commands are:
+ 
+ 	build       compile packages and dependencies
+ 	clean       remove object files
++	doc         show documentation for package or symbol
+ 	env         print Go environment information
+ 	fix         run go tool fix on packages
+ 	fmt         run gofmt on package sources
+@@ -183,6 +184,65 @@ For more about build flags, see 'go help build'.
+ For more about specifying packages, see 'go help packages'.
+ 
+ 
++Show documentation for package or symbol
++
++Usage:
++
++	go doc [-u] [package|[package.]symbol[.method]]
++
++Doc accepts at most one argument, indicating either a package, a symbol within a
++package, or a method of a symbol.
++
++	go doc
++	go doc <pkg>
++	go doc <sym>[.<method>]
++	go doc [<pkg>].<sym>[.<method>]
++
++Doc interprets the argument to see what it represents, determined by its syntax
++and which packages and symbols are present in the source directories of GOROOT and
++GOPATH.
++
++The first item in this list that succeeds is the one whose documentation is printed.
++For packages, the order of scanning is determined lexically, however the GOROOT
++tree is always scanned before GOPATH.
++
++If there is no package specified or matched, the package in the current directory
++is selected, so "go doc" shows the documentation for the current package and
++"go doc Foo" shows the documentation for symbol Foo in the current package.
++
++Doc prints the documentation comments associated with the top-level item the
++argument identifies (package, type, method) followed by a one-line summary of each
++of the first-level items "under" that item (package-level declarations for a
++package, methods for a type, etc.).
++
++The package paths must be either a qualified path or a proper suffix of a path
++(see examples below). The go tool's usual package mechanism does not apply: package
++path elements like . and ... are not implemented by go doc.
++
++When matching symbols, lower-case letters match either case but upper-case letters
++match exactly.
++
++Examples:
++	go doc
++		Show documentation for current package.
++	go doc Foo
++		Show documentation for Foo in the current package.
++		(Foo starts with a capital letter so it cannot match a package path.)
++	go doc encoding/json
++		Show documentation for the encoding/json package.
++	go doc json
++		Shorthand for encoding/json.
++	go doc json.Number (or go doc json.number)
++		Show documentation and method summary for json.Number.
++	go doc json.Number.Int64 (or go doc json.number.int64)
++		Show documentation for json.Number's Int64 method.
++
++Flags:
++	-u
++		Show documentation for unexported as well as exported
++		symbols and methods.
++
++
+ Print Go environment information
+ 
+ Usage:
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+new file mode 100644
+index 0000000000..2250d171d5
+--- /dev/null
++++ b/src/cmd/go/doc.go
+@@ -0,0 +1,69 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var cmdDoc = &Command{
++	Run:         runDoc,
++	UsageLine:   "doc [-u] [package|[package.]symbol[.method]]",
++	CustomFlags: true,
++	Short:       "show documentation for package or symbol",
++	Long: `
++Doc accepts at most one argument, indicating either a package, a symbol within a
++package, or a method of a symbol.
++
++	go doc
++	go doc <pkg>
++	go doc <sym>[.<method>]
++	go doc [<pkg>].<sym>[.<method>]
++
++Doc interprets the argument to see what it represents, determined by its syntax
++and which packages and symbols are present in the source directories of GOROOT and
++GOPATH.
++
++The first item in this list that succeeds is the one whose documentation is printed.
++For packages, the order of scanning is determined lexically, however the GOROOT
++tree is always scanned before GOPATH.
++
++If there is no package specified or matched, the package in the current directory
++is selected, so "go doc" shows the documentation for the current package and
++"go doc Foo" shows the documentation for symbol Foo in the current package.
++
++Doc prints the documentation comments associated with the top-level item the
++argument identifies (package, type, method) followed by a one-line summary of each
++of the first-level items "under" that item (package-level declarations for a
++package, methods for a type, etc.).
++
++The package paths must be either a qualified path or a proper suffix of a path
++(see examples below). The go tool's usual package mechanism does not apply: package
++path elements like . and ... are not implemented by go doc.
++
++When matching symbols, lower-case letters match either case but upper-case letters
++match exactly.
++
++Examples:
++	go doc
++		Show documentation for current package.
++	go doc Foo
++		Show documentation for Foo in the current package.
++		(Foo starts with a capital letter so it cannot match a package path.)
++	go doc encoding/json
++		Show documentation for the encoding/json package.
++	go doc json
++		Shorthand for encoding/json.
++	go doc json.Number (or go doc json.number)
++		Show documentation and method summary for json.Number.
++	go doc json.Number.Int64 (or go doc json.number.int64)
++		Show documentation for json.Number's Int64 method.
++
++Flags:
++	-u
++		Show documentation for unexported as well as exported
++		symbols and methods.
++`,
++}
++
++func runDoc(cmd *Command, args []string) {
++	run(buildToolExec, tool("doc"), args)
++}
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index df57575946..eeea4fa561 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -77,6 +77,7 @@ func (c *Command) Runnable() bool {
+ var commands = []*Command{
+ 	cmdBuild,
+ 	cmdClean,
++	cmdDoc,
+ 	cmdEnv,
+ 	cmdFix,
+ 	cmdFmt,
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 11986ccfbf..c8cfae6698 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -407,6 +407,7 @@ var goTools = map[string]targetDir{
+ 	"cmd/asm":                              toTool,
+ 	"cmd/cgo":                              toTool,
+ 	"cmd/dist":                             toTool,
++	"cmd/doc":                              toTool,
+ 	"cmd/fix":                              toTool,
+ 	"cmd/link":                             toTool,
+ 	"cmd/nm":                               toTool,

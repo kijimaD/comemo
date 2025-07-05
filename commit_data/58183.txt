@@ -15,6 +15,97 @@ Date:   Tue Oct 10 14:58:37 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/runtime/runtime-gdb_test.go | 30 ++++++++++++++++++++++++++++--
  1 file changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index ced71ca476..1ae6ff041a 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -85,8 +85,9 @@ func checkGdbPython(t *testing.T) {
+ 	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
+ 		t.Skip("skipping gdb python tests on illumos and solaris; see golang.org/issue/20821")
+ 	}
+-
+-	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')")
++	args := []string{"-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')"}
++	gdbArgsFixup(args)
++	cmd := exec.Command("gdb", args...)
+ 	out, err := cmd.CombinedOutput()
+ 
+ 	if err != nil {
+@@ -156,6 +157,25 @@ func lastLine(src []byte) int {
+ 	return 0
+ }
+ 
++func gdbArgsFixup(args []string) {
++	if runtime.GOOS != "windows" {
++		return
++	}
++	// On Windows, some gdb flavors expect -ex and -iex arguments
++	// containing spaces to be double quoted.
++	var quote bool
++	for i, arg := range args {
++		if arg == "-iex" || arg == "-ex" {
++			quote = true
++		} else if quote {
++			if strings.ContainsRune(arg, ' ') {
++				args[i] = `"` + arg + `"`
++			}
++			quote = false
++		}
++	}
++}
++
+ func TestGdbPython(t *testing.T) {
+ 	testGdbPython(t, false)
+ }
+@@ -269,6 +289,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		"-ex", "echo END\n",
+ 		filepath.Join(dir, "a.exe"),
+ 	)
++	gdbArgsFixup(args)
+ 	got, err := exec.Command("gdb", args...).CombinedOutput()
+ 	t.Logf("gdb output:\n%s", got)
+ 	if err != nil {
+@@ -443,6 +464,7 @@ func TestGdbBacktrace(t *testing.T) {
+ 		"-ex", "continue",
+ 		filepath.Join(dir, "a.exe"),
+ 	}
++	gdbArgsFixup(args)
+ 	cmd = testenv.Command(t, "gdb", args...)
+ 
+ 	// Work around the GDB hang reported in https://go.dev/issue/37405.
+@@ -563,6 +585,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
+ 		"-ex", "info types astruct",
+ 		filepath.Join(dir, "a.exe"),
+ 	}
++	gdbArgsFixup(args)
+ 	got, err := exec.Command("gdb", args...).CombinedOutput()
+ 	t.Logf("gdb output:\n%s", got)
+ 	if err != nil {
+@@ -631,6 +654,7 @@ func TestGdbConst(t *testing.T) {
+ 		"-ex", "print 'runtime._PageSize'",
+ 		filepath.Join(dir, "a.exe"),
+ 	}
++	gdbArgsFixup(args)
+ 	got, err := exec.Command("gdb", args...).CombinedOutput()
+ 	t.Logf("gdb output:\n%s", got)
+ 	if err != nil {
+@@ -693,6 +717,7 @@ func TestGdbPanic(t *testing.T) {
+ 		"-ex", "backtrace",
+ 		filepath.Join(dir, "a.exe"),
+ 	}
++	gdbArgsFixup(args)
+ 	got, err := exec.Command("gdb", args...).CombinedOutput()
+ 	t.Logf("gdb output:\n%s", got)
+ 	if err != nil {
+@@ -771,6 +796,7 @@ func TestGdbInfCallstack(t *testing.T) {
+ 		"-ex", "continue",
+ 		filepath.Join(dir, "a.exe"),
+ 	}
++	gdbArgsFixup(args)
+ 	got, err := exec.Command("gdb", args...).CombinedOutput()
+ 	t.Logf("gdb output:\n%s", got)
+ 	if err != nil {

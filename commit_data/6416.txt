@@ -7,6 +7,30 @@ Date:   Tue Sep 28 21:53:06 2010 -0400
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/2290041
-
+---
  src/libcgo/Makefile | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index 259799c92f..365de0f8d0 100755
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -2,6 +2,13 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++ifeq ($(GOOS),nacl)
++
++# Nothing for NaCl
++all clean install:
++	@true
++	
++else
+ include ../Make.inc
+ 
+ all: libcgo.so
+@@ -37,3 +44,4 @@ $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
+ clean:
+ 	rm -f *.o *.so
+ 
++endif

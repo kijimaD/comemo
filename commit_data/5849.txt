@@ -12,7 +12,7 @@ Date:   Tue Jul 20 15:53:16 2010 +0300
     R=rsc
     CC=dho, golang-dev
     https://golang.org/cl/1778041
-
+---
  src/pkg/runtime/arm/softfloat.c | 212 +++++++++++++++++++++++++++++++++++++---
  test/arm-pass.txt               | 136 ++++++++++++++++----------
  test/cmplxdivide.go             |   5 +
@@ -24,3 +24,905 @@ Date:   Tue Jul 20 15:53:16 2010 +0300
  test/run                        |   8 ++
  test/zerodivide.go              |   5 +
  10 files changed, 375 insertions(+), 82 deletions(-)
+
+diff --git a/src/pkg/runtime/arm/softfloat.c b/src/pkg/runtime/arm/softfloat.c
+index 46ab07c82a..4f046d734e 100644
+--- a/src/pkg/runtime/arm/softfloat.c
++++ b/src/pkg/runtime/arm/softfloat.c
+@@ -19,8 +19,17 @@ static uint32 doabort = 0;
+ static uint32 trace = 0;
+ 
+ #define DOUBLE_EXPBIAS 1023
++#define DOUBLE_MANT_MASK 0xfffffffffffffll
++#define DOUBLE_MANT_TOP_BIT 0x10000000000000ll
++#define DZERO 0x0000000000000000ll
++#define DNZERO 0x8000000000000000ll
++#define DONE 0x3ff0000000000000ll
++#define DINF 0x7ff0000000000000ll
++#define DNINF 0xfff0000000000000ll
++
+ #define SINGLE_EXPBIAS 127
+ 
++
+ static const int8* opnames[] = {
+ 	// binary
+ 	"adf",
+@@ -121,7 +130,7 @@ fmantissa(uint64 f)
+ }
+ 
+ static void
+-fprint()
++fprint(void)
+ {
+ 	uint32 i;
+ 	for (i = 0; i < 8; i++) {
+@@ -145,14 +154,25 @@ s2d(uint32 s)
+ 		(uint64)(s & 0x7fffff) << 29;	// mantissa
+ }
+ 
++static int64
++rsh(int64 f, int32 s)
++{
++	if (s >= 0)
++		return f>>s;
++	else
++		return f<<-s;
++}
++
+ // cdp, data processing instructions
+ static void
+ dataprocess(uint32* pc)
+ {
+ 	uint32 i, opcode, unary, dest, lhs, rhs, prec;
+ 	uint32 high;
++	int32 expd, exp0, exp1;
+ 	uint64 fraw0, fraw1, exp, sign;
+-	uint64 fd, f0, f1;	
++	uint64 fd, f0, f1;
++	int64 fsd, fs0, fs1;
+ 
+ 	i = *pc;
+ 
+@@ -165,6 +185,9 @@ dataprocess(uint32* pc)
+ 	rhs = i & 15;
+ 
+ 	prec = precision(i);
++//	if (prec != 1)
++//		goto undef;
++
+ 	if (unary) {
+ 		switch (opcode) {
+ 		case 0: // mvf
+@@ -174,28 +197,115 @@ dataprocess(uint32* pc)
+ 			goto undef;
+ 		}
+ 	} else {
++		fraw0 = m->freg[lhs];
++		fraw1 = frhs(rhs);
+ 		switch (opcode) {
++		case 2: // suf
++			fraw1 ^= 0x1ll << 63;
++			// fallthrough
++		case 0: // adf
++			if (fraw0 == DZERO || fraw0 == DNZERO) {
++				m->freg[dest] = fraw1;
++				goto ret;
++			}
++			if (fraw1 == DZERO || fraw1 == DNZERO) {
++				m->freg[dest] = fraw0;
++				goto ret;
++			}
++			fs0 = fraw0 & DOUBLE_MANT_MASK | DOUBLE_MANT_TOP_BIT;
++			fs1 = fraw1 & DOUBLE_MANT_MASK | DOUBLE_MANT_TOP_BIT;
++			exp0 = fexp(fraw0);
++			exp1 = fexp(fraw1);
++			if (exp0 > exp1)
++				fs1 = rsh(fs1, exp0-exp1);
++			else
++				fs0 = rsh(fs0, exp1-exp0);
++			if (fraw0 & 0x1ll<<63)
++				fs0 = -fs0;
++			if (fraw1 & 0x1ll<<63)
++				fs1 = -fs1;
++			fsd = fs0 + fs1;
++			if (fsd == 0) {
++				m->freg[dest] = DZERO;
++				goto ret;
++			}
++			sign = (uint64)fsd & 0x1ll<<63;
++			if (fsd < 0)
++				fsd = -fsd;
++			for (expd = 55; expd > 0; expd--) {
++				if (0x1ll<<expd & fsd)
++					break;
++			}
++			if (exp0 > exp1)
++				exp = expd + exp0 - 52;
++			else
++				exp = expd + exp1 - 52;
++			// too small value, can't represent
++			if (1<<31 & expd) {
++				m->freg[dest] = DZERO;
++				goto ret;
++			}
++			// infinity
++			if (expd > 1<<12) {
++				m->freg[dest] = DINF;
++				goto ret;
++			}
++			fd = sign | (exp + DOUBLE_EXPBIAS)<<52 | (uint64)fsd & DOUBLE_MANT_MASK;
++			m->freg[dest] = fd;
++			goto ret;
++
++		case 4: //dvf
++			// reciprocal for fraw1
++			if (fraw1 == DONE)
++				goto muf;
++			f0 = 0x1ll << 63;
++			f1 = fraw1 & DOUBLE_MANT_MASK | DOUBLE_MANT_TOP_BIT;
++			f1 >>= 21;
++			fd = f0/f1;
++			fd <<= 21;
++			fd &= DOUBLE_MANT_MASK;
++			exp1 = -fexp(fraw1) - 1;
++			sign = fraw1 & 0x1ll<<63;
++			fraw1 = sign | (uint64)(exp1 + DOUBLE_EXPBIAS)<<52 | fd;
++			// fallthrough
+ 		case 1: // muf
+-			fraw0 = m->freg[lhs];
+-			fraw1 = frhs(rhs);
+-			f0 = fraw0>>21 & 0xffffffff | 0x80000000;
+-			f1 = fraw1>>21 & 0xffffffff | 0x80000000;
++muf:			
++			if (fraw0 == DNZERO || fraw1 == DNZERO) {
++				m->freg[dest] = DNZERO;
++				goto ret;
++			}
++			if (fraw0 == DZERO || fraw1 == DZERO) {
++				m->freg[dest] = DZERO;
++				goto ret;
++			}
++			if (fraw0 == DONE) {
++				m->freg[dest] = fraw1;
++				goto ret;
++			}
++			if (fraw1 == DONE) {
++				m->freg[dest] = fraw0;
++				goto ret;
++			}
++			f0 = fraw0>>21 & 0x7fffffff | 0x1ll<<31;
++			f1 = fraw1>>21 & 0x7fffffff | 0x1ll<<31;
+ 			fd = f0*f1;
+ 			high = fd >> 63;
+ 			if (high)
+-				fd = fd >> 11 & 0x000fffffffffffffll;
++				fd = fd >> 11 & DOUBLE_MANT_MASK;
+ 			else
+-				fd = fd >> 10 & 0x000fffffffffffffll;
++				fd = fd >> 10 & DOUBLE_MANT_MASK;
+ 			exp = (uint64)(fexp(fraw0) + fexp(fraw1) + !!high + DOUBLE_EXPBIAS) & 0x7ff;
+ 			sign = fraw0 >> 63 ^ fraw1 >> 63;
+-			fd = sign << 63 | exp <<52 | fd;
++			fd = sign<<63 | exp<<52 | fd;
+ 			m->freg[dest] = fd;
+ 			goto ret;
++
+ 		default:
+ 			goto undef;
+ 		}
+ 	}
+ 
++
+ undef:
+ 	doabort = 1;
+ 
+@@ -209,6 +319,7 @@ ret:
+ 			printf("#%s\n", fpconst[rhs&0x7]);
+ 		else
+ 			printf("f%d\n", rhs&0x7);
++		fprint();
+ 	}
+ 	if (doabort)
+ 		fabort();
+@@ -218,12 +329,13 @@ ret:
+ #define FLAGS_N (1 << 31)
+ #define FLAGS_Z (1 << 30)
+ #define FLAGS_C (1 << 29)
++#define FLAGS_V (1 << 28)
+ 
+ // cmf, compare floating point
+ static void
+ compare(uint32 *pc, uint32 *regs) {
+ 	uint32 i, flags, lhs, rhs, sign0, sign1;
+-	uint32 f0, f1, mant0, mant1;
++	uint64 f0, f1, mant0, mant1;
+ 	int32 exp0, exp1;
+ 
+ 	i = *pc;
+@@ -233,6 +345,10 @@ compare(uint32 *pc, uint32 *regs) {
+ 
+ 	f0 = m->freg[lhs];
+ 	f1 = frhs(rhs);
++	if (isNaN(float64frombits(f0)) || isNaN(float64frombits(f1))) {
++		flags = FLAGS_C | FLAGS_V;
++		goto ret;
++	}
+ 	if (f0 == f1) {
+ 		flags = FLAGS_Z | FLAGS_C;
+ 		goto ret;
+@@ -372,6 +488,60 @@ ret:
+ 		fabort();
+ }
+ 
++static void
++fltfix(uint32 *pc, uint32 *regs)
++{
++	uint32 i, toarm, freg, reg, sign, val, prec;
++	int32 rd, exp;
++	uint64 fd, f0;
++	
++	i = *pc;
++	toarm = i>>20 & 0x1;
++	freg = i>>16 & 0x7;
++	reg = i>>12 & 0xf;
++	prec = precision(i);
++
++	if (toarm) { //fix
++		f0 = m->freg[freg];
++		fd = f0 & DOUBLE_MANT_MASK | DOUBLE_MANT_TOP_BIT;
++		exp = fexp(f0) - 52;
++		if (exp < 0)
++			fd = fd>>(-exp);
++		else
++			fd = fd<<exp;
++		rd = ((int32)fd & 0x7fffffff);
++		if (f0 & 0x1ll<<63)
++			rd = -rd;
++		regs[reg] = (uint32)rd;
++	} else { // flt
++		if (regs[reg] == 0) {
++			m->freg[freg] = DZERO;
++			goto ret;
++		}
++		sign = regs[reg] >> 31 & 0x1;
++		val = regs[reg];
++		if (sign) val = -val;
++		for (exp = 31; exp >= 0; exp--) {
++			if (1<<(exp) & val)
++				break;
++		}
++		fd = (uint64)val<<(52-exp) & DOUBLE_MANT_MASK;
++		m->freg[freg] = (uint64)(sign) << 63 | 
++			(uint64)(exp + DOUBLE_EXPBIAS) << 52 | fd;
++	}
++	goto ret;
++	
++ret:
++	if (trace || doabort) {
++		if (toarm)
++			printf(" %p %x\tfix%s\t\tr%d, f%d\n", pc, *pc, fpprec[prec], reg, freg);
++		else
++			printf(" %p %x\tflt%s\t\tf%d, r%d\n", pc, *pc, fpprec[prec], freg, reg);
++		fprint();
++	}
++	if (doabort)
++		fabort();
++}
+ 
+ // returns number of words that the fp instruction is occupying, 0 if next instruction isn't float.
+ // TODO(kaib): insert sanity checks for coproc 1
+@@ -381,8 +551,17 @@ stepflt(uint32 *pc, uint32 *regs)
+ 	uint32 i, c;
+ 
+ 	i = *pc;
+-	c = i >> 25 & 7;
+ 
++	// unconditional forward branches.
++	// inserted by linker after we instrument the code.
++	if ((i & 0xff000000) == 0xea000000) {
++		if (i & 0x00800000) {
++			return 0;
++		}
++		return i & 0x007ffffff + 2;
++	}
++	
++	c = i >> 25 & 7;
+ 	switch(c) {
+ 	case 6: // 110
+ 		loadstore(pc, regs);
+@@ -391,11 +570,14 @@ stepflt(uint32 *pc, uint32 *regs)
+ 		if (i>>24 & 1) return 0; // ignore swi
+ 
+ 		if (i>>4 & 1) { //data transfer
+-			if ((i&0x00f0ff00) != 0x0090f100) {
+-				printf(" %p %x\n", pc, i);
++			if ((i&0x00f0ff00) == 0x0090f100) {
++				compare(pc, regs);
++			} else if ((i&0x00e00f10) == 0x00000110) {
++				fltfix(pc, regs);
++			} else {
++				printf(" %p %x\t// case 7 fail\n", pc, i);
+ 				fabort();
+ 			}
+-			compare(pc, regs);
+ 		} else {
+ 			dataprocess(pc);
+ 		}
+@@ -419,7 +601,7 @@ uint32*
+ _sfloat2(uint32 *lr, uint32 r0)
+ {
+ 	uint32 skip;
+-	uint32 cpsr;
++//	uint32 cpsr;
+ 
+ 	while(skip = stepflt(lr, &r0)) {
+ 		lr += skip;
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 8878f6dc8d..974fbf02ce 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -1,12 +1,15 @@
+ ./235.go
+-./64bit.go  # slow with GOGC=on
++./64bit.go
+ ./args.go
+ ./assign.go
++./assign1.go
+ ./bigalg.go
++./bigmap.go
+ ./blank.go
+ ./blank1.go
+ ./chancap.go
+ ./char_lit.go
++./char_lit1.go
+ ./closedchan.go
+ ./closure.go
+ ./cmp1.go
+@@ -14,6 +17,9 @@
+ ./cmp3.go
+ ./cmp4.go
+ ./cmp5.go
++./cmplx.go
++# ./cmplxdivide.go	# fail
++./cmplxdivide1.go
+ ./complit.go
+ ./compos.go
+ ./const.go
+@@ -24,7 +30,7 @@
+ ./convert3.go
+ ./convlit.go
+ ./convlit1.go
+-# ./copy.go  # slow
++./copy.go
+ ./ddd.go
+ ./ddd1.go
+ ./ddd2.go
+@@ -32,23 +38,22 @@
+ ./decl.go
+ ./declbad.go
+ ./defer.go
+-# ./deferprint.go  # need floating point
++./deferprint.go
+ ./empty.go
+ ./env.go
+ ./escape.go
+-# ./float_lit.go  # need floating point
+-# ./floatcmp.go  # need floating point
++# ./float_lit.go	# fail
++# ./floatcmp.go	# fail
+ ./for.go
+-# ./func.go
++./func.go
+ ./func1.go
+ ./func2.go
+ ./func3.go
+ ./func4.go
+ ./func5.go
+-# ./gc.go
+-# ./gc1.go
++./gc.go
++./gc1.go
+ ./hashmap.go
+-./hilbert.go
+ ./helloworld.go
+ ./if.go
+ ./if1.go
+@@ -60,64 +65,70 @@
+ ./indirect.go
+ ./indirect1.go
+ ./initcomma.go
+-# ./initialize.go  # need floating point
++# ./initialize.go	# fail
+ ./initializerr.go
+ ./initsyscall.go
+ ./int_lit.go
+ ./intcvt.go
+ ./iota.go
+-# ./literal.go  # need floating point
+-# ./malloc1.go
+-# ./mallocfin.go
+-# ./mallocrand.go
+-# ./mallocrep.go
+-# ./mallocrep1.go
+-# ./map.go  # need floating point
++# ./literal.go	# fail
++./malloc1.go
++# ./mallocfin.go	# fail
++./mallocrand.go
++./mallocrep.go
++./mallocrep1.go
++# ./map.go	# fail
+ ./method.go
+ ./method1.go
+ ./method2.go
+ ./method3.go
+-#./named.go  # need floating point
++# ./named.go	# fail
+ ./named1.go
+ ./nil.go
+-# ./nul1.go  # android runner gets confused
++./nul1.go
+ ./parentype.go
+-# ./peano.go  # foo
++./peano.go
+ ./printbig.go
+-./range.go
++# ./range.go	# fail
+ ./recover.go
+ ./recover1.go
+ ./recover2.go
++# ./recover3.go	# fail
+ ./rename.go
+ ./rename1.go
+ ./runtime.go
+ ./sieve.go
+-# ./sigchld.go  # fail - does not survive signal
++./sigchld.go
+ ./simassign.go
++./sinit.go
+ ./stack.go
+ ./string_lit.go
+ ./stringrange.go
+ ./switch.go
+ ./switch1.go
++./test.go
+ ./test0.go
+ ./turing.go
+ ./typeswitch.go
+-# ./typeswitch1.go
++./typeswitch1.go
+ ./typeswitch2.go
++./undef.go
+ ./utf.go
++./varerr.go
+ ./varinit.go
+-# ./vectors.go
++./vectors.go
++# ./zerodivide.go	# fail
+ ken/array.go
+-# ken/chan.go  # slow
+-# ken/chan1.go  # slow
++ken/chan.go
++ken/chan1.go
+ ken/complit.go
+-# ken/cplx0.go  # need floating point
+-# ken/cplx1.go  # need floating point
+-# ken/cplx2.go  # need floating point
+-# ken/cplx3.go  # need floating point
+-# ken/cplx4.go  # need floating point
+-# ken/cplx5.go  # need floating point
+-# ken/divconst.go  # slow
++ken/cplx0.go
++# ken/cplx1.go	# fail
++# ken/cplx2.go	# fail
++ken/cplx3.go
++# ken/cplx4.go	# fail
++ken/cplx5.go
++ken/divconst.go
+ ken/divmod.go
+ ken/embed.go
+ ken/for.go
+@@ -127,28 +138,28 @@ ken/intervar.go
+ ken/label.go
+ ken/litfun.go
+ ken/mfunc.go
+-# ken/modconst.go  # slow
++ken/modconst.go
+ ken/ptrfun.go
+ ken/ptrvar.go
+ ken/range.go
+ ken/rob1.go
+ ken/rob2.go
+ ken/robfor.go
+-# ken/robfunc.go  # fail
++ken/robfunc.go
+ ken/robif.go
+ ken/shift.go
+-#ken/simparray.go  # need floating point
++# ken/simparray.go	# fail
+ ken/simpbool.go
+-#ken/simpconv.go  # need floating point
++# ken/simpconv.go	# fail
+ ken/simpfun.go
+ ken/simpprint.go
+ ken/simpswitch.go
+ ken/simpvar.go
+-#ken/slicearray.go  # need floating point
+-#ken/sliceslice.go  # need floating point
++ken/slicearray.go
++ken/sliceslice.go
+ ken/string.go
+ ken/strvar.go
+-# chan/doubleselect.go  # slow
++chan/doubleselect.go
+ chan/fifo.go
+ chan/goroutines.go
+ chan/nonblock.go
+@@ -167,8 +178,8 @@ interface/embed.go
+ interface/embed0.go
+ interface/embed1.go
+ interface/explicit.go
+-# interface/fake.go  # fails - panic: assert
+ interface/fail.go
++# interface/fake.go	# fail
+ interface/pointer.go
+ interface/receiver.go
+ interface/receiver1.go
+@@ -196,6 +207,7 @@ syntax/semi5.go
+ syntax/semi6.go
+ syntax/semi7.go
+ syntax/slice.go
++syntax/topexpr.go
+ syntax/vareq.go
+ syntax/vareq1.go
+ fixedbugs/bug000.go
+@@ -209,7 +221,7 @@ fixedbugs/bug007.go
+ fixedbugs/bug008.go
+ fixedbugs/bug009.go
+ fixedbugs/bug010.go
+-#fixedbugs/bug011.go  # need floating point
++fixedbugs/bug011.go
+ fixedbugs/bug012.go
+ fixedbugs/bug013.go
+ fixedbugs/bug014.go
+@@ -303,7 +315,7 @@ fixedbugs/bug116.go
+ fixedbugs/bug117.go
+ fixedbugs/bug118.go
+ fixedbugs/bug119.go
+-# fixedbugs/bug120.go  # needs floating point
++fixedbugs/bug120.go
+ fixedbugs/bug121.go
+ fixedbugs/bug122.go
+ fixedbugs/bug123.go
+@@ -332,8 +344,7 @@ fixedbugs/bug149.go
+ fixedbugs/bug150.go
+ fixedbugs/bug151.go
+ fixedbugs/bug152.go
+-fixedbugs/bug153.go
+-# fixedbugs/bug154.go  # needs floating point
++fixedbugs/bug154.go
+ fixedbugs/bug155.go
+ fixedbugs/bug156.go
+ fixedbugs/bug157.go
+@@ -397,7 +408,7 @@ fixedbugs/bug217.go
+ fixedbugs/bug218.go
+ fixedbugs/bug219.go
+ fixedbugs/bug220.go
+-# fixedbugs/bug221.go  # slow
++# fixedbugs/bug221.go	# fail
+ fixedbugs/bug222.go
+ fixedbugs/bug223.go
+ fixedbugs/bug224.go
+@@ -412,14 +423,14 @@ fixedbugs/bug232.go
+ fixedbugs/bug233.go
+ fixedbugs/bug234.go
+ fixedbugs/bug235.go
+-# fixedbugs/bug236.go  # slow
++# fixedbugs/bug236.go	# fail
+ fixedbugs/bug237.go
+ fixedbugs/bug238.go
+ fixedbugs/bug239.go
+ fixedbugs/bug240.go
+ fixedbugs/bug241.go
+ fixedbugs/bug242.go
+-# fixedbugs/bug243.go  # fail
++# fixedbugs/bug243.go	# fail
+ fixedbugs/bug244.go
+ fixedbugs/bug245.go
+ fixedbugs/bug246.go
+@@ -433,12 +444,35 @@ fixedbugs/bug253.go
+ fixedbugs/bug254.go
+ fixedbugs/bug255.go
+ fixedbugs/bug256.go
+-# fixedbugs/bug257.go  # slow
+-# fixedbugs/bug258.go  # needs floating point
++fixedbugs/bug257.go
++fixedbugs/bug258.go
+ fixedbugs/bug259.go
+ fixedbugs/bug261.go
+ fixedbugs/bug262.go
+ fixedbugs/bug263.go
+ fixedbugs/bug264.go
+ fixedbugs/bug265.go
+-bugs/bug260.go
++fixedbugs/bug266.go
++fixedbugs/bug267.go
++fixedbugs/bug268.go
++fixedbugs/bug269.go
++fixedbugs/bug270.go
++fixedbugs/bug271.go
++# fixedbugs/bug272.go	# fail
++fixedbugs/bug273.go
++fixedbugs/bug275.go
++fixedbugs/bug276.go
++fixedbugs/bug277.go
++fixedbugs/bug278.go
++fixedbugs/bug279.go
++fixedbugs/bug280.go
++# fixedbugs/bug281.go	# fail, BUG
++fixedbugs/bug282.go
++fixedbugs/bug283.go
++fixedbugs/bug284.go
++fixedbugs/bug285.go
++fixedbugs/bug287.go
++fixedbugs/bug288.go
++# bugs/bug260.go	# fail, BUG
++# bugs/bug274.go	# fail, BUG
++# bugs/bug286.go	# fail, BUG
+diff --git a/test/cmplxdivide.go b/test/cmplxdivide.go
+index ac4730d647..6a67b175de 100644
+--- a/test/cmplxdivide.go
++++ b/test/cmplxdivide.go
+@@ -34,9 +34,14 @@ func calike(a, b complex128) bool {
+ }
+ 
+ func main() {
++	bad := false
+ 	for _, t := range tests {
+ 		x := t.f/t.g
+ 		if !calike(x, t.out) {
++			if !bad {
++				fmt.Printf("BUG\n")
++				bad = true
++			}
+ 			fmt.Printf("%v/%v: expected %v error; got %v\n", t.f, t.g, t.out, x)
+ 		}
+ 	}
+diff --git a/test/float_lit.go b/test/float_lit.go
+index 58bd4dac01..f77d24e82d 100644
+--- a/test/float_lit.go
++++ b/test/float_lit.go
+@@ -6,6 +6,20 @@
+ 
+ package main
+ 
++import "os"
++
++var deLim float64
++var bad bool
++
++func
++init() {
++	if os.Getenv("GOARCH") == "arm" {
++		deLim = 1.0e-8
++	} else {
++		deLim = 10.e-14
++	}
++}
++
+ func
+ pow10(pow int) float64 {
+ 	if pow < 0 { return 1/pow10(-pow); }
+@@ -30,15 +44,18 @@ close(da float64, ia, ib int64, pow int) bool {
+ 		de = -de;
+ 	}
+ 
+-	if de < 1.0e-14 {
++	if de < deLim {
+ 		return true;
+ 	}
++	if !bad {
++		println("BUG")
++		bad = true
++	}
+ 	return false;
+ }
+ 
+ func
+ main() {
+-
+ 	if !close(0., 0, 1, 0) { print("0. is ", 0., "\n"); }
+ 	if !close(+10., 10, 1, 0) { print("+10. is ", +10., "\n"); }
+ 	if !close(-210., -210, 1, 0) { print("-210. is ", -210., "\n"); }
+diff --git a/test/floatcmp.go b/test/floatcmp.go
+index 26fc6ad14c..f51cbc2777 100644
+--- a/test/floatcmp.go
++++ b/test/floatcmp.go
+@@ -9,13 +9,13 @@ package main
+ import "math"
+ 
+ type floatTest struct {
+-	name string;
+-	expr bool;
+-	want bool;
++	name string
++	expr bool
++	want bool
+ }
+ 
+-var nan float64 = math.NaN();
+-var f float64 = 1;
++var nan float64 = math.NaN()
++var f float64 = 1
+ 
+ var tests = []floatTest{
+ 	floatTest{"nan == nan", nan == nan, false},
+@@ -75,14 +75,14 @@ var tests = []floatTest{
+ }
+ 
+ func main() {
+-	bad := false;
++	bad := false
+ 	for _, t := range tests {
+ 		if t.expr != t.want {
+ 			if !bad {
+-				bad = true;
+-				println("BUG: floatcmp");
++				bad = true
++				println("BUG: floatcmp")
+ 			}
+-			println(t.name, "=", t.expr, "want", t.want);
++			println(t.name, "=", t.expr, "want", t.want)
+ 		}
+ 	}
+ }
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index a51aea8e5a..449424dcab 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -19,16 +19,58 @@ panic: runtime error: hash of unhashable type []int
+ 
+ panic PC=xxx
+ 
++=========== ./deferprint.go
++printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
++42 true false true +1.755561e+000 world 0x0 [0/0]0x0 0x0 0x0 255
++
+ =========== ./helloworld.go
+ hello, world
+ 
++=========== ./peano.go
++0! = 1
++1! = 1
++2! = 2
++3! = 6
++4! = 24
++5! = 120
++6! = 720
++7! = 5040
++8! = 40320
++9! = 362880
++
+ =========== ./printbig.go
+ -9223372036854775808
+ 9223372036854775807
+ 
++=========== ./sigchld.go
++survived SIGCHLD
++
++=========== ./sinit.go
++FAIL
++
+ =========== ./turing.go
+ Hello World!
+ 
++=========== ken/cplx0.go
++(+1.066132e-308+1.313301e-308i)
++(+1.066132e-308+1.066132e-308i)
++(+1.066132e-308+1.313301e-308i)
++(+1.066132e-308+1.066132e-308i)
++
++=========== ken/cplx3.go
++(+1.362661e-308+2.270313e+000i)
++(+1.362661e-308+2.270313e+000i)
++64
++
++=========== ken/cplx5.go
++(+0.000000e+000+0.000000e+000i)
++(+1.066132e-308+1.066132e-308i)
++(+1.066132e-308+2.272661e+000i)
++(+2.270313e+000+2.272661e+000i)
++(+2.270313e+000+2.272661e+000i)
++(+1.313272e-308+0.000000e+000i)
++(+1.313272e-308+0.000000e+000i)
++
+ =========== ken/intervar.go
+  print 1 bio 2 file 3 -- abc
+ 
+@@ -50,6 +92,9 @@ hello world
+ =========== ken/string.go
+ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ 
++=========== chan/doubleselect.go
++PASS
++
+ =========== chan/nonblock.go
+ PASS
+ 
+@@ -104,7 +149,3 @@ panic PC=xxx
+ panic: interface conversion: interface is main.T, not main.T
+ 
+ panic PC=xxx
+-
+-=========== bugs/bug260.go
+-FAIL
+-BUG: bug260 failed
+diff --git a/test/ken/cplx4.go b/test/ken/cplx4.go
+index d55d6a6e39..3c6f1f68c9 100644
+--- a/test/ken/cplx4.go
++++ b/test/ken/cplx4.go
+@@ -39,6 +39,6 @@ func main() {
+ 	// compiler used to crash on nested divide
+ 	c4 := cmplx(real(c3/2), imag(c3/2))
+ 	if c4 != c3/2 {
+-		fmt.Printf("c3 = %G != c4 = %G\n", c3, c4)
++		fmt.Printf("BUG: c3 = %G != c4 = %G\n", c3, c4)
+ 	}
+ }
+diff --git a/test/nul1.go b/test/nul1.go
+index 5e45963312..bcd8b89c3b 100644
+--- a/test/nul1.go
++++ b/test/nul1.go
+@@ -1,4 +1,5 @@
+ // [ $GOOS != nacl ] || exit 0  # NaCl runner elides NUL in output
++// [ $GORUN != "a" ] || exit 0  # Android runner gets confused by the NUL output 
+ // $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
+ // errchk $G -e tmp.go
+ // rm -f tmp.go
+diff --git a/test/run b/test/run
+index b3f54f12f2..5920e8d994 100755
+--- a/test/run
++++ b/test/run
+@@ -63,11 +63,19 @@ do
+ 			echo "===========" $i
+ 			cat $TMP1FILE
+ 			echo >&2 fail: $i
++			echo "# $i	# fail" >>pass.out
+ 		elif test -s $TMP1FILE
+ 		then
+ 			echo
+ 			echo "===========" $i
+ 			cat $TMP1FILE
++			if grep -q '^BUG' $TMP1FILE
++			then
++				echo >&2 fail: $i
++				echo "# $i	# fail, BUG" >>pass.out
++			else
++				echo $i >>pass.out
++			fi
+ 		elif [ $dir = "bugs" ]
+ 		then
+ 			echo $i succeeded with no output.
+diff --git a/test/zerodivide.go b/test/zerodivide.go
+index 9d35b392bc..e0407df7c8 100644
+--- a/test/zerodivide.go
++++ b/test/zerodivide.go
+@@ -137,6 +137,7 @@ func alike(a, b float64) bool {
+ }
+ 
+ func main() {
++	bad := false
+ 	for _, t := range errorTests {
+ 		if t.err != "" && syscall.OS == "nacl" {
+ 			continue
+@@ -161,6 +162,10 @@ func main() {
+ 	for _, t := range floatTests {
+ 		x := t.f/t.g
+ 		if !alike(x, t.out) {
++			if !bad {
++				bad = true
++				fmt.Printf("BUG\n")
++			}
+ 			fmt.Printf("%v/%v: expected %g error; got %g\n", t.f, t.g, t.out, x)
+ 		}
+ 	}

@@ -10,6 +10,20 @@ Date:   Wed Jul 10 17:31:00 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/185542
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/textproto/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index d26e981ae4..a00fd2395f 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -88,7 +88,7 @@ func (r *Reader) readLineSlice() ([]byte, error) {
+ // The first call to ReadContinuedLine will return "Line 1 continued..."
+ // and the second will return "Line 2".
+ //
+-// A line consisting of only white space is never continued.
++// Empty lines are never continued.
+ //
+ func (r *Reader) ReadContinuedLine() (string, error) {
+ 	line, err := r.readContinuedLineSlice(noValidation)

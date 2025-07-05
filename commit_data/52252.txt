@@ -17,6 +17,48 @@ Date:   Wed Apr 20 14:13:29 2022 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/reflect/type.go | 11 +++--------
  1 file changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index e888266475..97040b5188 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2244,15 +2244,14 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	}
+ 
+ 	// Prepare GC data if any.
+-	// A bucket is at most bucketSize*(1+maxKeySize+maxValSize)+2*ptrSize bytes,
+-	// or 2072 bytes, or 259 pointer-size words, or 33 bytes of pointer bitmap.
++	// A bucket is at most bucketSize*(1+maxKeySize+maxValSize)+ptrSize bytes,
++	// or 2064 bytes, or 258 pointer-size words, or 33 bytes of pointer bitmap.
+ 	// Note that since the key and value are known to be <= 128 bytes,
+ 	// they're guaranteed to have bitmaps instead of GC programs.
+ 	var gcdata *byte
+ 	var ptrdata uintptr
+-	var overflowPad uintptr
+ 
+-	size := bucketSize*(1+ktyp.size+etyp.size) + overflowPad + goarch.PtrSize
++	size := bucketSize*(1+ktyp.size+etyp.size) + goarch.PtrSize
+ 	if size&uintptr(ktyp.align-1) != 0 || size&uintptr(etyp.align-1) != 0 {
+ 		panic("reflect: bad size computation in MapOf")
+ 	}
+@@ -2271,7 +2270,6 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 			emitGCMask(mask, base, etyp, bucketSize)
+ 		}
+ 		base += bucketSize * etyp.size / goarch.PtrSize
+-		base += overflowPad / goarch.PtrSize
+ 
+ 		word := base
+ 		mask[word/8] |= 1 << (word % 8)
+@@ -2291,9 +2289,6 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 		ptrdata: ptrdata,
+ 		gcdata:  gcdata,
+ 	}
+-	if overflowPad > 0 {
+-		b.align = 8
+-	}
+ 	s := "bucket(" + ktyp.String() + "," + etyp.String() + ")"
+ 	b.str = resolveReflectName(newName(s, "", false))
+ 	return b

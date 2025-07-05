@@ -27,7 +27,7 @@ Date:   Sat Jul 9 15:29:32 2016 -0700
     Change-Id: Iee4ed32b05447888368ed86088e3ed3771f84442
     Reviewed-on: https://go-review.googlesource.com/27811
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/all/main.go                       | 320 ++++++++++++++++++++++++++
  src/cmd/vet/all/whitelist/386.txt             |  29 +++
  src/cmd/vet/all/whitelist/64bit.txt           |  13 ++
@@ -71,3 +71,1109 @@ Date:   Sat Jul 9 15:29:32 2016 -0700
  src/cmd/vet/all/whitelist/windows_386.txt     |   9 +
  src/cmd/vet/all/whitelist/windows_amd64.txt   |   8 +
  42 files changed, 853 insertions(+)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+new file mode 100644
+index 0000000000..7aa02a2328
+--- /dev/null
++++ b/src/cmd/vet/all/main.go
+@@ -0,0 +1,320 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++// The vet/all command runs go vet on the standard library and commands.
++// It compares the output against a set of whitelists
++// maintained in the whitelist directory.
++package main
++
++import (
++	"bufio"
++	"bytes"
++	"flag"
++	"fmt"
++	"go/build"
++	"internal/testenv"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++)
++
++var (
++	flagPlatforms = flag.String("p", "", "platform(s) to use e.g. linux/amd64,darwin/386")
++	flagAll       = flag.Bool("all", false, "run all platforms")
++	flagNoLines   = flag.Bool("n", false, "don't print line numbers")
++)
++
++var cmdGoPath string
++
++func main() {
++	log.SetPrefix("vet/all: ")
++	log.SetFlags(0)
++
++	var err error
++	cmdGoPath, err = testenv.GoTool()
++	if err != nil {
++		log.Print("could not find cmd/go; skipping")
++		// We're on a platform that can't run cmd/go.
++		// We want this script to be able to run as part of all.bash,
++		// so return cleanly rather than with exit code 1.
++		return
++	}
++
++	flag.Parse()
++	switch {
++	case *flagAll && *flagPlatforms != "":
++		log.Print("-all and -p flags are incompatible")
++		flag.Usage()
++		os.Exit(2)
++	case *flagPlatforms != "":
++		vetPlatforms(parseFlagPlatforms())
++	case *flagAll:
++		vetPlatforms(allPlatforms())
++	default:
++		host := platform{os: build.Default.GOOS, arch: build.Default.GOARCH}
++		host.vet()
++	}
++}
++
++func allPlatforms() []platform {
++	var pp []platform
++	cmd := exec.Command(cmdGoPath, "tool", "dist", "list")
++	out, err := cmd.Output()
++	if err != nil {
++		log.Fatal(err)
++	}
++	lines := bytes.Split(out, []byte{'\n'})
++	for _, line := range lines {
++		if len(line) == 0 {
++			continue
++		}
++		pp = append(pp, parsePlatform(string(line)))
++	}
++	return pp
++}
++
++func parseFlagPlatforms() []platform {
++	var pp []platform
++	components := strings.Split(*flagPlatforms, ",")
++	for _, c := range components {
++		pp = append(pp, parsePlatform(c))
++	}
++	return pp
++}
++
++func parsePlatform(s string) platform {
++	vv := strings.Split(s, "/")
++	if len(vv) != 2 {
++		log.Fatalf("could not parse platform %s, must be of form goos/goarch", s)
++	}
++	return platform{os: vv[0], arch: vv[1]}
++}
++
++type whitelist map[string]int
++
++// load adds entries from the whitelist file, if present, for os/arch to w.
++func (w whitelist) load(goos string, goarch string) {
++	// Look up whether goarch is a 32-bit or 64-bit architecture.
++	archbits, ok := nbits[goarch]
++	if !ok {
++		log.Fatal("unknown bitwidth for arch %q", goarch)
++	}
++
++	// Look up whether goarch has a shared arch suffix,
++	// such as mips64x for mips64 and mips64le.
++	archsuff := goarch
++	if x, ok := archAsmX[goarch]; ok {
++		archsuff = x
++	}
++
++	// Load whitelists.
++	filenames := []string{
++		"all.txt",
++		goos + ".txt",
++		goarch + ".txt",
++		goos + "_" + goarch + ".txt",
++		fmt.Sprintf("%dbit.txt", archbits),
++	}
++	if goarch != archsuff {
++		filenames = append(filenames,
++			archsuff+".txt",
++			goos+"_"+archsuff+".txt",
++		)
++	}
++
++	// We allow error message templates using GOOS and GOARCH.
++	if goos == "android" {
++		goos = "linux" // so many special cases :(
++	}
++
++	// Read whitelists and do template substitution.
++	replace := strings.NewReplacer("GOOS", goos, "GOARCH", goarch, "ARCHSUFF", archsuff)
++
++	for _, filename := range filenames {
++		path := filepath.Join("whitelist", filename)
++		f, err := os.Open(path)
++		if err != nil {
++			// Allow not-exist errors; not all combinations have whitelists.
++			if os.IsNotExist(err) {
++				continue
++			}
++			log.Fatal(err)
++		}
++		scan := bufio.NewScanner(f)
++		for scan.Scan() {
++			line := scan.Text()
++			if len(line) == 0 || strings.HasPrefix(line, "//") {
++				continue
++			}
++			w[replace.Replace(line)]++
++		}
++		if err := scan.Err(); err != nil {
++			log.Fatal(err)
++		}
++	}
++}
++
++type platform struct {
++	os   string
++	arch string
++}
++
++func (p platform) String() string {
++	return p.os + "/" + p.arch
++}
++
++// ignorePathPrefixes are file path prefixes that should be ignored wholesale.
++var ignorePathPrefixes = [...]string{
++	// These testdata dirs have lots of intentionally broken/bad code for tests.
++	"cmd/go/testdata/",
++	"cmd/vet/testdata/",
++	"go/printer/testdata/",
++	// cmd/compile/internal/big is a vendored copy of math/big.
++	// Ignore it so that we only have to deal with math/big issues once.
++	"cmd/compile/internal/big/",
++}
++
++func vetPlatforms(pp []platform) {
++	for _, p := range pp {
++		p.vet()
++	}
++}
++
++func (p platform) vet() {
++	if p.arch == "s390x" {
++		// TODO: reinstate when s390x gets vet support (issue 15454)
++		return
++	}
++	fmt.Printf("go run main.go -p %s\n", p)
++
++	// Load whitelist(s).
++	w := make(whitelist)
++	w.load(p.os, p.arch)
++
++	env := append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch)
++
++	// Do 'go install std' before running vet.
++	// It is cheap when already installed.
++	// Not installing leads to non-obvious failures due to inability to typecheck.
++	// TODO: If go/loader ever makes it to the standard library, have vet use it,
++	// at which point vet can work off source rather than compiled packages.
++	cmd := exec.Command(cmdGoPath, "install", "std")
++	cmd.Env = env
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		log.Fatalf("failed to run GOOS=%s GOARCH=%s 'go install std': %v\n%s", p.os, p.arch, err, out)
++	}
++
++	// 'go tool vet .' is considerably faster than 'go vet ./...'
++	// TODO: The unsafeptr checks are disabled for now,
++	// because there are so many false positives,
++	// and no clear way to improve vet to eliminate large chunks of them.
++	// And having them in the whitelists will just cause annoyance
++	// and churn when working on the runtime.
++	cmd = exec.Command(cmdGoPath, "tool", "vet", "-unsafeptr=false", ".")
++	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
++	cmd.Env = env
++	stderr, err := cmd.StderrPipe()
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := cmd.Start(); err != nil {
++		log.Fatal(err)
++	}
++
++	// Process vet output.
++	scan := bufio.NewScanner(stderr)
++NextLine:
++	for scan.Scan() {
++		line := scan.Text()
++		if strings.HasPrefix(line, "vet: ") {
++			// Typecheck failure: Malformed syntax or multiple packages or the like.
++			// This will yield nicer error messages elsewhere, so ignore them here.
++			continue
++		}
++
++		fields := strings.SplitN(line, ":", 3)
++		var file, lineno, msg string
++		switch len(fields) {
++		case 2:
++			// vet message with no line number
++			file, msg = fields[0], fields[1]
++		case 3:
++			file, lineno, msg = fields[0], fields[1], fields[2]
++		default:
++			log.Fatalf("could not parse vet output line:\n%s", line)
++		}
++		msg = strings.TrimSpace(msg)
++
++		for _, ignore := range ignorePathPrefixes {
++			if strings.HasPrefix(file, filepath.FromSlash(ignore)) {
++				continue NextLine
++			}
++		}
++
++		key := file + ": " + msg
++		if w[key] == 0 {
++			// Vet error with no match in the whitelist. Print it.
++			if *flagNoLines {
++				fmt.Printf("%s: %s\n", file, msg)
++			} else {
++				fmt.Printf("%s:%s: %s\n", file, lineno, msg)
++			}
++			continue
++		}
++		w[key]--
++	}
++	if scan.Err() != nil {
++		log.Fatalf("failed to scan vet output: %v", scan.Err())
++	}
++	err = cmd.Wait()
++	// We expect vet to fail.
++	// Make sure it has failed appropriately, though (for example, not a PathError).
++	if _, ok := err.(*exec.ExitError); !ok {
++		log.Fatalf("unexpected go vet execution failure: %v", err)
++	}
++	printedHeader := false
++	if len(w) > 0 {
++		for k, v := range w {
++			if v != 0 {
++				if !printedHeader {
++					fmt.Println("unmatched whitelist entries:")
++					printedHeader = true
++				}
++				for i := 0; i < v; i++ {
++					fmt.Println(k)
++				}
++			}
++		}
++	}
++}
++
++// nbits maps from architecture names to the number of bits in a pointer.
++// TODO: figure out a clean way to avoid get this info rather than listing it here yet again.
++var nbits = map[string]int{
++	"386":      32,
++	"amd64":    64,
++	"amd64p32": 32,
++	"arm":      32,
++	"arm64":    64,
++	"mips64":   64,
++	"mips64le": 64,
++	"ppc64":    64,
++	"ppc64le":  64,
++}
++
++// archAsmX maps architectures to the suffix usually used for their assembly files,
++// if different than the arch name itself.
++var archAsmX = map[string]string{
++	"android":  "linux",
++	"mips64":   "mips64x",
++	"mips64le": "mips64x",
++	"ppc64":    "ppc64x",
++	"ppc64le":  "ppc64x",
++}
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+new file mode 100644
+index 0000000000..33b63e19ba
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -0,0 +1,29 @@
++// 386-specific vet whitelist. See readme.txt for details.
++
++runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++
++// reflect trampolines intentionally omit arg size. Same for morestack.
++reflect/asm_386.s: [386] makeFuncStub: use of 4(SP) points beyond argument frame
++reflect/asm_386.s: [386] methodValueCall: use of 4(SP) points beyond argument frame
++runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
++runtime/asm_386.s: [386] morestack: use of 8(SP) points beyond argument frame
++runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
++
++// Intentionally missing declarations. These are special assembly routines.
++runtime/asm_386.s: [386] ldt0setup: function ldt0setup missing Go declaration
++runtime/asm_386.s: [386] emptyfunc: function emptyfunc missing Go declaration
++runtime/asm_386.s: [386] aeshashbody: function aeshashbody missing Go declaration
++runtime/asm_386.s: [386] memeqbody: function memeqbody missing Go declaration
++runtime/asm_386.s: [386] cmpbody: function cmpbody missing Go declaration
++runtime/asm_386.s: [386] addmoduledata: function addmoduledata missing Go declaration
++runtime/duff_386.s: [386] duffzero: function duffzero missing Go declaration
++runtime/duff_386.s: [386] duffcopy: function duffcopy missing Go declaration
++
++runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go declaration
++runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration
++
++runtime/asm_386.s: [386] stackcheck: function stackcheck missing Go declaration
++
++// Clearer using FP than SP, but that requires named offsets.
++runtime/asm_386.s: [386] rt0_go: unknown variable argc
++runtime/asm_386.s: [386] rt0_go: unknown variable argv
+diff --git a/src/cmd/vet/all/whitelist/64bit.txt b/src/cmd/vet/all/whitelist/64bit.txt
+new file mode 100644
+index 0000000000..35b9eb3ed0
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/64bit.txt
+@@ -0,0 +1,13 @@
++// 64-bit-specific vet whitelist. See readme.txt for details.
++
++// False positives.
++
++// Clever const tricks outwit the "large shift" check.
++runtime/hashmap.go: hash might be too small for shift of 56
++runtime/hashmap.go: hash might be too small for shift of 56
++runtime/hashmap.go: hash might be too small for shift of 56
++runtime/hashmap.go: hash might be too small for shift of 56
++runtime/hashmap.go: hash might be too small for shift of 56
++runtime/hashmap.go: hash might be too small for shift of 56
++runtime/hashmap_fast.go: hash might be too small for shift of 56
++runtime/hashmap_fast.go: hash might be too small for shift of 56
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+new file mode 100644
+index 0000000000..786e65972c
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -0,0 +1,92 @@
++// Non-platform-specific vet whitelist. See readme.txt for details.
++
++// Issue 16228. Fixed, just waiting for an http2 re-vendor.
++net/http/h2_bundle.go: assignment copies lock value to *cfg: crypto/tls.Config contains sync.Once contains sync.Mutex
++
++
++// Real problems that we can't fix.
++
++// This is a bad WriteTo signature. Errors are being ignored!
++// However, we can't change it due to the Go 1 compatibility promise.
++go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have signature WriteTo(io.Writer) (int64, error)
++
++
++// False positives.
++
++// Nothing much to do about cross-package assembly. Unfortunate.
++runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: call is in package reflect
++runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
++runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
++runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
++runtime/sys_GOOS_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: now is in package time
++
++// Legitimate vet complaints in which we are testing for correct runtime behavior
++// in bad situations that vet can also detect statically.
++cmd/cover/testdata/test.go: unreachable code
++fmt/fmt_test.go: arg nil for printf verb %s of wrong type: untyped nil
++encoding/json/decode_test.go: struct field m has json tag but is not exported
++encoding/json/decode_test.go: struct field m2 has json tag but is not exported
++encoding/json/tagkey_test.go: struct field tag ":\"BadFormat\"" not compatible with reflect.StructTag.Get: bad syntax for struct tag key
++runtime/testdata/testprog/deadlock.go: unreachable code
++runtime/testdata/testprog/deadlock.go: unreachable code
++sync/cond_test.go: assignment copies lock value to c2: sync.Cond contains sync.noCopy
++
++// Non-standard method signatures.
++// These cases are basically ok.
++// Errors are handled reasonably and there's no clear need for interface satisfaction.
++// Except for the runtime/pprof case, the API is not exported.
++cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have signature Seek(int64, int) (int64, error)
++cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have signature Seek(int64, int) (int64, error)
++cmd/internal/obj/link.go: method Peek(i int) byte should have signature Peek(int) ([]byte, error)
++fmt/print.go: method WriteByte(c byte) should have signature WriteByte(byte) error
++runtime/pprof/pprof.go: method WriteTo(w io.Writer, debug int) error should have signature WriteTo(io.Writer) (int64, error)
++
++// These encoding/xml methods have the correct signature.
++// vet doesn't know it because they are *in* the encoding/xml package.
++// It's not worth teaching vet about the distinction, so whitelist them.
++encoding/gob/encode.go: method WriteByte(c byte) should have signature WriteByte(byte) error
++encoding/xml/marshal.go: method MarshalXML(e *Encoder, start StartElement) error should have signature MarshalXML(*xml.Encoder, xml.StartElement) error
++encoding/xml/marshal_test.go: method MarshalXML(e *Encoder, start StartElement) error should have signature MarshalXML(*xml.Encoder, xml.StartElement) error
++encoding/xml/read.go: method UnmarshalXML(d *Decoder, start StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
++encoding/xml/read_test.go: method UnmarshalXML(d *Decoder, start StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
++
++// Lots of false positives from the "large shift" check.
++// Mostly code that uses clever const tricks to determine
++// or use the size of an int or pointer (and related values).
++image/png/paeth.go: x might be too small for shift of 63
++math/big/arith.go: x might be too small for shift of 32
++math/big/arith.go: y might be too small for shift of 32
++math/big/arith.go: w0 might be too small for shift of 32
++math/big/arith.go: t might be too small for shift of 32
++math/big/arith.go: w1 might be too small for shift of 32
++math/big/arith.go: v might be too small for shift of 32
++math/big/arith.go: un10 might be too small for shift of 32
++math/big/arith.go: (xi&yi | (xi|yi)&^zi) might be too small for shift of 63
++math/big/arith.go: (yi&^xi | (yi|^xi)&zi) might be too small for shift of 63
++math/big/arith.go: xi &^ zi might be too small for shift of 63
++math/big/arith.go: (zi &^ xi) might be too small for shift of 63
++math/big/float.go: x[i] might be too small for shift of 32
++math/big/nat.go: t too small for shift of 64
++math/big/nat.go: x too small for shift of 64
++math/big/nat.go: ((x & -x) * (deBruijn64 & _M)) might be too small for shift of 58
++math/big/nat.go: Word(rand.Uint32()) might be too small for shift of 32
++math/big/nat.go: yi might be too small for shift of 60
++math/big/nat.go: yi might be too small for shift of 60
++runtime/cpuprof.go: h might be too small for shift of 56
++runtime/malloc.go: uintptr(i) might be too small for shift of 40
++runtime/malloc.go: uintptr(i) might be too small for shift of 40
++runtime/malloc.go: uintptr(i) might be too small for shift of 40
++sync/atomic/atomic_test.go: uintptr(seed + i) might be too small for shift of 32
++sync/atomic/atomic_test.go: uintptr(seed+i) << 32 might be too small for shift of 32
++sync/atomic/atomic_test.go: uintptr(seed + i) might be too small for shift of 32
++sync/atomic/atomic_test.go: old might be too small for shift of 32
++sync/atomic/atomic_test.go: old << 32 might be too small for shift of 32
++sync/atomic/atomic_test.go: old might be too small for shift of 32
++sync/atomic/atomic_test.go: v might be too small for shift of 32
++sync/atomic/atomic_test.go: v might be too small for shift of 32
++
++// Long struct tags used to test reflect internals
++cmd/link/link_test.go: struct field tag "\n\tLondon. Michaelmas term lately over, and the Lord Chancellor sitting in Lincoln’s Inn Hall. Implacable November weather. As much mud in the streets as if the waters had but newly retired from the face of the earth, and it would not be wonderful to meet a Megalosaurus, forty feet long or so, waddling like an elephantine lizard up Holborn Hill. Smoke lowering down from chimney-pots, making a soft black drizzle, with flakes of soot in it as big as full-grown snowflakes—gone into mourning, one might imagine, for the death of the sun. Dogs, undistinguishable in mire. Horses, scarcely better; splashed to their very blinkers. Foot passengers, jostling one another’s umbrellas in a general infection of ill temper, and losing their foot-hold at street-corners, where tens of thousands of other foot passengers have been slipping and sliding since the day broke (if this day ever broke), adding new deposits to the crust upon crust of mud, sticking at those points tenaciously to the pavement, and accumulating at compound interest.\n\n\tFog everywhere. Fog up the river, where it flows among green aits and meadows; fog down the river, where it rolls defiled among the tiers of shipping and the waterside pollutions of a great (and dirty) city. Fog on the Essex marshes, fog on the Kentish heights. Fog creeping into the cabooses of collier-brigs; fog lying out on the yards and hovering in the rigging of great ships; fog drooping on the gunwales of barges and small boats. Fog in the eyes and throats of ancient Greenwich pensioners, wheezing by the firesides of their wards; fog in the stem and bowl of the afternoon pipe of the wrathful skipper, down in his close cabin; fog cruelly pinching the toes and fingers of his shivering little ‘prentice boy on deck. Chance people on the bridges peeping over the parapets into a nether sky of fog, with fog all round them, as if they were up in a balloon and hanging in the misty clouds.\n\n\tGas looming through the fog in divers places in the streets, much as the sun may, from the spongey fields, be seen to loom by husbandman and ploughboy. Most of the shops lighted two hours before their time—as the gas seems to know, for it has a haggard and unwilling look.\n\n\tThe raw afternoon is rawest, and the dense fog is densest, and the muddy streets are muddiest near that leaden-headed old obstruction, appropriate ornament for the threshold of a leaden-headed old corporation, Temple Bar. And hard by Temple Bar, in Lincoln’s Inn Hall, at the very heart of the fog, sits the Lord High Chancellor in his High Court of Chancery." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
++cmd/link/link_test.go: struct field tag "\n\tIt was grand to see how the wind awoke, and bent the trees, and drove the rain before it like a cloud of smoke; and to hear the solemn thunder, and to see the lightning; and while thinking with awe of the tremendous powers by which our little lives are encompassed, to consider how beneficent they are, and how upon the smallest flower and leaf there was already a freshness poured from all this seeming rage, which seemed to make creation new again." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
++cmd/link/link_test.go: struct field tag "\n\tJarndyce and Jarndyce drones on. This scarecrow of a suit has, over the course of time, become so complicated, that no man alive knows what it means. The parties to it understand it least; but it has been observed that no two Chancery lawyers can talk about it for five minutes, without coming to a total disagreement as to all the premises. Innumerable children have been born into the cause; innumerable young people have married into it; innumerable old people have died out of it. Scores of persons have deliriously found themselves made parties in Jarndyce and Jarndyce, without knowing how or why; whole families have inherited legendary hatreds with the suit. The little plaintiff or defendant, who was promised a new rocking-horse when Jarndyce and Jarndyce should be settled, has grown up, possessed himself of a real horse, and trotted away into the other world. Fair wards of court have faded into mothers and grandmothers; a long procession of Chancellors has come in and gone out; the legion of bills in the suit have been transformed into mere bills of mortality; there are not three Jarndyces left upon the earth perhaps, since old Tom Jarndyce in despair blew his brains out at a coffee-house in Chancery Lane; but Jarndyce and Jarndyce still drags its dreary length before the Court, perennially hopeless." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
++cmd/link/link_test.go: struct field tag "\n\tThe one great principle of the English law is, to make business for itself. There is no other principle distinctly, certainly, and consistently maintained through all its narrow turnings. Viewed by this light it becomes a coherent scheme, and not the monstrous maze the laity are apt to think it. Let them but once clearly perceive that its grand principle is to make business for itself at their expense, and surely they will cease to grumble." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+new file mode 100644
+index 0000000000..df4ec84195
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -0,0 +1,35 @@
++// amd64-specific vet whitelist. See readme.txt for details.
++
++
++// False positives.
++
++
++// reflect trampolines intentionally omit arg size. Same for morestack.
++reflect/asm_amd64.s: [amd64] makeFuncStub: use of 8(SP) points beyond argument frame
++reflect/asm_amd64.s: [amd64] methodValueCall: use of 8(SP) points beyond argument frame
++runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
++runtime/asm_amd64.s: [amd64] morestack: use of 16(SP) points beyond argument frame
++runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
++
++// Nothing much to do about cross-package assembly. Unfortunate.
++runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package strings
++runtime/asm_amd64.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package bytes
++runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportAVX2 is in package strings
++runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportAVX2 is in package bytes
++
++// Intentionally missing declarations. These are special assembly routines.
++// Some are jumped into from other routines, with values in specific registers.
++// duff* have direct calls from the compiler.
++// Others use the platform ABI.
++// There is no sensible corresponding Go prototype.
++runtime/asm_amd64.s: [amd64] aeshashbody: function aeshashbody missing Go declaration
++runtime/asm_amd64.s: [amd64] memeqbody: function memeqbody missing Go declaration
++runtime/asm_amd64.s: [amd64] cmpbody: function cmpbody missing Go declaration
++runtime/asm_amd64.s: [amd64] indexbytebody: function indexbytebody missing Go declaration
++runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go declaration
++runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
++runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
++runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
++runtime/asm_amd64.s: [amd64] indexShortStr: function indexShortStr missing Go declaration
++
+diff --git a/src/cmd/vet/all/whitelist/android_386.txt b/src/cmd/vet/all/whitelist/android_386.txt
+new file mode 100644
+index 0000000000..5095f2fc0c
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/android_386.txt
+@@ -0,0 +1,8 @@
++// android/386-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_linux_386.s: [386] setldt: function setldt missing Go declaration
++
++// These SP references occur after a stack-altering call. They're fine.
++runtime/sys_linux_386.s: [386] clone: 12(SP) should be mp+8(FP)
++runtime/sys_linux_386.s: [386] clone: 4(SP) should be flags+0(FP)
++runtime/sys_linux_386.s: [386] clone: 8(SP) should be stk+4(FP)
+diff --git a/src/cmd/vet/all/whitelist/android_amd64.txt b/src/cmd/vet/all/whitelist/android_amd64.txt
+new file mode 100644
+index 0000000000..90dabb0209
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/android_amd64.txt
+@@ -0,0 +1,3 @@
++// android/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_linux_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/android_arm.txt b/src/cmd/vet/all/whitelist/android_arm.txt
+new file mode 100644
+index 0000000000..fbd569e604
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/android_arm.txt
+@@ -0,0 +1,5 @@
++// android/arm-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_linux_arm.s: [arm] clone: 12(R13) should be stk+4(FP)
++runtime/sys_linux_arm.s: [arm] clone: 8(R13) should be flags+0(FP)
++runtime/sys_linux_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+new file mode 100644
+index 0000000000..c0ab9de67d
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -0,0 +1,26 @@
++// arm-specific vet whitelist. See readme.txt for details.
++
++runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++
++// reflect trampolines intentionally omit arg size. Same for morestack.
++reflect/asm_arm.s: [arm] makeFuncStub: use of 8(R13) points beyond argument frame
++reflect/asm_arm.s: [arm] methodValueCall: use of 8(R13) points beyond argument frame
++runtime/asm_arm.s: [arm] morestack: use of 4(R13) points beyond argument frame
++
++// Intentionally missing declarations.
++runtime/asm_arm.s: [arm] emptyfunc: function emptyfunc missing Go declaration
++runtime/asm_arm.s: [arm] abort: function abort missing Go declaration
++runtime/asm_arm.s: [arm] armPublicationBarrier: function armPublicationBarrier missing Go declaration
++runtime/asm_arm.s: [arm] cmpbody: function cmpbody missing Go declaration
++runtime/asm_arm.s: [arm] usplitR0: function usplitR0 missing Go declaration
++runtime/asm_arm.s: [arm] addmoduledata: function addmoduledata missing Go declaration
++runtime/duff_arm.s: [arm] duffzero: function duffzero missing Go declaration
++runtime/duff_arm.s: [arm] duffcopy: function duffcopy missing Go declaration
++runtime/tls_arm.s: [arm] save_g: function save_g missing Go declaration
++runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
++runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
++
++// Clearer using FP than SP, but that requires named offsets.
++runtime/asm_arm.s: [arm] rt0_go: use of 4(R13) points beyond argument frame
++
++runtime/internal/atomic/asm_arm.s: [arm] cas: function cas missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+new file mode 100644
+index 0000000000..69842b057f
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -0,0 +1,16 @@
++// arm64-specific vet whitelist. See readme.txt for details.
++
++runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++
++// False positives.
++
++// reflect trampolines intentionally omit arg size. Same for morestack.
++reflect/asm_arm64.s: [arm64] makeFuncStub: use of 16(RSP) points beyond argument frame
++reflect/asm_arm64.s: [arm64] methodValueCall: use of 16(RSP) points beyond argument frame
++
++// Intentionally missing declarations.
++runtime/asm_arm64.s: [arm64] abort: function abort missing Go declaration
++runtime/asm_arm64.s: [arm64] addmoduledata: function addmoduledata missing Go declaration
++runtime/duff_arm64.s: [arm64] duffzero: function duffzero missing Go declaration
++runtime/tls_arm64.s: [arm64] load_g: function load_g missing Go declaration
++runtime/tls_arm64.s: [arm64] save_g: function save_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/darwin_386.txt b/src/cmd/vet/all/whitelist/darwin_386.txt
+new file mode 100644
+index 0000000000..77bc5752b3
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/darwin_386.txt
+@@ -0,0 +1,14 @@
++// darwin/386-specific vet whitelist. See readme.txt for details.
++
++// False positives due to comments in assembly.
++// To be removed. See CL 27154.
++
++runtime/sys_darwin_386.s: [386] sigreturn: 16(SP) should be ctx+0(FP)
++runtime/sys_darwin_386.s: [386] sigreturn: 20(SP) should be infostyle+4(FP)
++
++// Ok
++
++runtime/sys_darwin_386.s: [386] now: function now missing Go declaration
++runtime/sys_darwin_386.s: [386] bsdthread_start: function bsdthread_start missing Go declaration
++runtime/sys_darwin_386.s: [386] sysenter: function sysenter missing Go declaration
++runtime/sys_darwin_386.s: [386] setldt: function setldt missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/darwin_amd64.txt b/src/cmd/vet/all/whitelist/darwin_amd64.txt
+new file mode 100644
+index 0000000000..277abd7b0c
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/darwin_amd64.txt
+@@ -0,0 +1,4 @@
++// darwin/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_darwin_amd64.s: [amd64] bsdthread_start: function bsdthread_start missing Go declaration
++runtime/sys_darwin_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/darwin_arm.txt b/src/cmd/vet/all/whitelist/darwin_arm.txt
+new file mode 100644
+index 0000000000..e319cc5cb8
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/darwin_arm.txt
+@@ -0,0 +1,11 @@
++// darwin/arm-specific vet whitelist. See readme.txt for details.
++
++// False positives due to comments in assembly.
++// To be removed. See CL 27154.
++
++runtime/sys_darwin_arm.s: [arm] sigfwd: use of unnamed argument 0(FP); offset 0 is fn+0(FP)
++
++
++// Ok.
++
++runtime/sys_darwin_arm.s: [arm] bsdthread_start: function bsdthread_start missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/darwin_arm64.txt b/src/cmd/vet/all/whitelist/darwin_arm64.txt
+new file mode 100644
+index 0000000000..7120f7935e
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/darwin_arm64.txt
+@@ -0,0 +1,13 @@
++// darwin/arm64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_darwin_arm64.s: [arm64] sigtramp: 24(RSP) should be infostyle+8(FP)
++runtime/sys_darwin_arm64.s: [arm64] sigtramp: 24(RSP) should be infostyle+8(FP)
++runtime/sys_darwin_arm64.s: [arm64] bsdthread_create: RET without writing to 4-byte ret+24(FP)
++runtime/sys_darwin_arm64.s: [arm64] bsdthread_start: function bsdthread_start missing Go declaration
++runtime/sys_darwin_arm64.s: [arm64] bsdthread_register: RET without writing to 4-byte ret+0(FP)
++runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 8(RSP) points beyond argument frame
++runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 8(RSP) points beyond argument frame
++runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyond argument frame
++runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 8(RSP) points beyond argument frame
++runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyond argument frame
++runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/dragonfly_amd64.txt b/src/cmd/vet/all/whitelist/dragonfly_amd64.txt
+new file mode 100644
+index 0000000000..6c44159793
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/dragonfly_amd64.txt
+@@ -0,0 +1,7 @@
++// dragonfly/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_dragonfly_amd64.s: [amd64] settls: function settls missing Go declaration
++
++syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 8(SP) should be num+0(FP)
++syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 16(SP) should be a1+8(FP)
++syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 24(SP) should be a2+16(FP)
+diff --git a/src/cmd/vet/all/whitelist/freebsd_386.txt b/src/cmd/vet/all/whitelist/freebsd_386.txt
+new file mode 100644
+index 0000000000..d37132cebb
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/freebsd_386.txt
+@@ -0,0 +1,19 @@
++// freebsd/386-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_freebsd_386.s: [386] thr_start: unknown variable mm
++runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable signo
++runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable info
++runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable context
++runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable context
++runtime/sys_freebsd_386.s: [386] setldt: function setldt missing Go declaration
++runtime/sys_freebsd_386.s: [386] i386_set_ldt: function i386_set_ldt missing Go declaration
++syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
++syscall/asm_unix_386.s: [386] Syscall6: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] Syscall6: 4(SP) should be trap+0(FP)
++syscall/asm_unix_386.s: [386] Syscall9: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] Syscall9: 4(SP) should be num+0(FP)
++syscall/asm_unix_386.s: [386] RawSyscall: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] RawSyscall: 4(SP) should be trap+0(FP)
++syscall/asm_unix_386.s: [386] RawSyscall6: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] RawSyscall6: 4(SP) should be trap+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/freebsd_amd64.txt b/src/cmd/vet/all/whitelist/freebsd_amd64.txt
+new file mode 100644
+index 0000000000..a910f48ca5
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/freebsd_amd64.txt
+@@ -0,0 +1,6 @@
++// freebsd/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_freebsd_amd64.s: [amd64] settls: function settls missing Go declaration
++syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 8(SP) should be num+0(FP)
++syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 16(SP) should be a1+8(FP)
++syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 24(SP) should be a2+16(FP)
+diff --git a/src/cmd/vet/all/whitelist/freebsd_arm.txt b/src/cmd/vet/all/whitelist/freebsd_arm.txt
+new file mode 100644
+index 0000000000..11e5c42fd8
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/freebsd_arm.txt
+@@ -0,0 +1,4 @@
++// freebsd/arm-specific vet whitelist. See readme.txt for details.
++
++runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration
++runtime/sys_freebsd_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_386.txt b/src/cmd/vet/all/whitelist/linux_386.txt
+new file mode 100644
+index 0000000000..a5111ca876
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/linux_386.txt
+@@ -0,0 +1,13 @@
++// linux/386-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_linux_386.s: [386] setldt: function setldt missing Go declaration
++
++// These SP references occur after a stack-altering call. They're fine.
++runtime/sys_linux_386.s: [386] clone: 12(SP) should be mp+8(FP)
++runtime/sys_linux_386.s: [386] clone: 4(SP) should be flags+0(FP)
++runtime/sys_linux_386.s: [386] clone: 8(SP) should be stk+4(FP)
++
++// Android-specific; stubs missing on other linux platforms.
++runtime/sys_linux_386.s: [386] access: function access missing Go declaration
++runtime/sys_linux_386.s: [386] connect: function connect missing Go declaration
++runtime/sys_linux_386.s: [386] socket: function socket missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_amd64.txt b/src/cmd/vet/all/whitelist/linux_amd64.txt
+new file mode 100644
+index 0000000000..69ba65d54b
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/linux_amd64.txt
+@@ -0,0 +1,8 @@
++// linux/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_linux_amd64.s: [amd64] settls: function settls missing Go declaration
++
++// Android-specific; stubs missing on other linux platforms.
++runtime/sys_linux_amd64.s: [amd64] access: function access missing Go declaration
++runtime/sys_linux_amd64.s: [amd64] connect: function connect missing Go declaration
++runtime/sys_linux_amd64.s: [amd64] socket: function socket missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_arm.txt b/src/cmd/vet/all/whitelist/linux_arm.txt
+new file mode 100644
+index 0000000000..fbf0e270aa
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/linux_arm.txt
+@@ -0,0 +1,12 @@
++// linux/arm-specific vet whitelist. See readme.txt for details.
++
++
++// These SP references occur after a stack-altering call. They're fine.
++runtime/sys_linux_arm.s: [arm] clone: 12(R13) should be stk+4(FP)
++runtime/sys_linux_arm.s: [arm] clone: 8(R13) should be flags+0(FP)
++
++// Special functions.
++runtime/sys_linux_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
++runtime/sys_linux_arm.s: [arm] access: function access missing Go declaration
++runtime/sys_linux_arm.s: [arm] connect: function connect missing Go declaration
++runtime/sys_linux_arm.s: [arm] socket: function socket missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_arm64.txt b/src/cmd/vet/all/whitelist/linux_arm64.txt
+new file mode 100644
+index 0000000000..67280b7273
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/linux_arm64.txt
+@@ -0,0 +1,5 @@
++// linux/arm64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_linux_arm64.s: [arm64] access: function access missing Go declaration
++runtime/sys_linux_arm64.s: [arm64] connect: function connect missing Go declaration
++runtime/sys_linux_arm64.s: [arm64] socket: function socket missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_ppc64x.txt b/src/cmd/vet/all/whitelist/linux_ppc64x.txt
+new file mode 100644
+index 0000000000..21e87e37d8
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/linux_ppc64x.txt
+@@ -0,0 +1,5 @@
++// linux/ppc64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_linux_ppc64x.s: [GOARCH] _sigtramp: function _sigtramp missing Go declaration
++runtime/sys_linux_ppc64x.s: [GOARCH] _cgoSigtramp: function _cgoSigtramp missing Go declaration
++runtime/asm_ppc64x.s: [GOARCH] procyield: use of 24(R1) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/mips64x.txt b/src/cmd/vet/all/whitelist/mips64x.txt
+new file mode 100644
+index 0000000000..b29cf3e43c
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/mips64x.txt
+@@ -0,0 +1,8 @@
++// mips64-specific vet whitelist. See readme.txt for details.
++
++reflect/asm_mips64x.s: [GOARCH] makeFuncStub: use of 16(R29) points beyond argument frame
++reflect/asm_mips64x.s: [GOARCH] methodValueCall: use of 16(R29) points beyond argument frame
++runtime/asm_mips64x.s: [GOARCH] abort: function abort missing Go declaration
++runtime/duff_mips64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
++runtime/tls_mips64x.s: [GOARCH] save_g: function save_g missing Go declaration
++runtime/tls_mips64x.s: [GOARCH] load_g: function load_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_386.txt b/src/cmd/vet/all/whitelist/nacl_386.txt
+new file mode 100644
+index 0000000000..68bba518ac
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/nacl_386.txt
+@@ -0,0 +1,13 @@
++// nacl/386-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_nacl_386.s: [386] cannot check cross-package assembly function: naclWrite is in package syscall
++runtime/sys_nacl_386.s: [386] cannot check cross-package assembly function: now is in package syscall
++runtime/sys_nacl_386.s: [386] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
++runtime/sys_nacl_386.s: [386] setldt: function setldt missing Go declaration
++runtime/sys_nacl_386.s: [386] sigtramp: use of 20(SP) points beyond argument frame
++runtime/sys_nacl_386.s: [386] sigtramp: use of 4(SP) points beyond argument frame
++runtime/sys_nacl_386.s: [386] sigtramp: unknown variable ctxt
++runtime/sys_nacl_386.s: [386] sigtramp: use of 8(SP) points beyond argument frame
++runtime/sys_nacl_386.s: [386] sigtramp: use of 12(SP) points beyond argument frame
++runtime/sys_nacl_386.s: [386] sigtramp: use of 20(SP) points beyond argument frame
++runtime/sys_nacl_386.s: [386] sigtramp: unknown variable ctxt
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+new file mode 100644
+index 0000000000..83bcfe966e
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -0,0 +1,31 @@
++// nacl/amd64p32-specific vet whitelist. See readme.txt for details.
++
++// reflect trampolines intentionally omit arg size. Same for morestack.
++reflect/asm_amd64p32.s: [amd64p32] makeFuncStub: use of 4(SP) points beyond argument frame
++reflect/asm_amd64p32.s: [amd64p32] methodValueCall: use of 4(SP) points beyond argument frame
++runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argument frame
++runtime/asm_amd64p32.s: [amd64p32] morestack: use of 16(SP) points beyond argument frame
++runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argument frame
++
++runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
++runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
++runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
++runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
++runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
++runtime/sys_nacl_amd64p32.s: [amd64p32] nacl_sysinfo: function nacl_sysinfo missing Go declaration
++runtime/sys_nacl_amd64p32.s: [amd64p32] cannot check cross-package assembly function: naclWrite is in package syscall
++runtime/sys_nacl_amd64p32.s: [amd64p32] cannot check cross-package assembly function: now is in package syscall
++runtime/sys_nacl_amd64p32.s: [amd64p32] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
++runtime/sys_nacl_amd64p32.s: [amd64p32] settls: function settls missing Go declaration
++
++// Clearer using FP than SP, but that requires named offsets.
++runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argc
++runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
++
++runtime/asm_amd64p32.s: [amd64p32] memeqbody: function memeqbody missing Go declaration
++runtime/asm_amd64p32.s: [amd64p32] cannot check cross-package assembly function: Compare is in package bytes
++runtime/asm_amd64p32.s: [amd64p32] cmpbody: function cmpbody missing Go declaration
++runtime/asm_amd64p32.s: [amd64p32] indexbytebody: function indexbytebody missing Go declaration
++runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
++
++runtime/asm_amd64p32.s: [amd64p32] stackcheck: function stackcheck missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_arm.txt b/src/cmd/vet/all/whitelist/nacl_arm.txt
+new file mode 100644
+index 0000000000..cc0fcbab7f
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/nacl_arm.txt
+@@ -0,0 +1,8 @@
++// nacl/arm-specific vet whitelist. See readme.txt for details.
++
++runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration
++runtime/sys_nacl_arm.s: [arm] cannot check cross-package assembly function: naclWrite is in package syscall
++runtime/sys_nacl_arm.s: [arm] cannot check cross-package assembly function: now is in package syscall
++runtime/sys_nacl_arm.s: [arm] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
++runtime/sys_nacl_arm.s: [arm] nacl_sysinfo: function nacl_sysinfo missing Go declaration
++runtime/sys_nacl_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/netbsd.txt b/src/cmd/vet/all/whitelist/netbsd.txt
+new file mode 100644
+index 0000000000..48bfde5017
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/netbsd.txt
+@@ -0,0 +1,3 @@
++// netbsd-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] sigreturn_tramp: function sigreturn_tramp missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/netbsd_386.txt b/src/cmd/vet/all/whitelist/netbsd_386.txt
+new file mode 100644
+index 0000000000..1d1f323d7c
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/netbsd_386.txt
+@@ -0,0 +1,23 @@
++// netbsd/386-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] settls: function settls missing Go declaration
++
++runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 140(SP) points beyond argument frame
++runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argument frame
++runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argument frame
++runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable signo
++runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable info
++runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable context
++runtime/sys_netbsd_386.s: [386] setldt: function setldt missing Go declaration
++runtime/sys_netbsd_386.s: [386] setldt: use of 16(SP) points beyond argument frame
++
++syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
++syscall/asm_unix_386.s: [386] Syscall6: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] Syscall6: 4(SP) should be trap+0(FP)
++syscall/asm_unix_386.s: [386] Syscall9: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] Syscall9: 4(SP) should be num+0(FP)
++syscall/asm_unix_386.s: [386] RawSyscall: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] RawSyscall: 4(SP) should be trap+0(FP)
++syscall/asm_unix_386.s: [386] RawSyscall6: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] RawSyscall6: 4(SP) should be trap+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/netbsd_amd64.txt b/src/cmd/vet/all/whitelist/netbsd_amd64.txt
+new file mode 100644
+index 0000000000..8b14dc506d
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/netbsd_amd64.txt
+@@ -0,0 +1,3 @@
++// netbsd/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_netbsd_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/netbsd_arm.txt b/src/cmd/vet/all/whitelist/netbsd_arm.txt
+new file mode 100644
+index 0000000000..c0a0aa2114
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/netbsd_arm.txt
+@@ -0,0 +1,5 @@
++// netbsd/arm-specific vet whitelist. See readme.txt for details.
++
++runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration
++runtime/sys_netbsd_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
++syscall/asm_netbsd_arm.s: [arm] Syscall9: unknown variable trap; offset 0 is num+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/openbsd_386.txt b/src/cmd/vet/all/whitelist/openbsd_386.txt
+new file mode 100644
+index 0000000000..b5c0a736c2
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/openbsd_386.txt
+@@ -0,0 +1,17 @@
++// openbsd/386-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable signo
++runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable info
++runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable context
++runtime/sys_openbsd_386.s: [386] setldt: function setldt missing Go declaration
++runtime/sys_openbsd_386.s: [386] settls: function settls missing Go declaration
++syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
++syscall/asm_unix_386.s: [386] Syscall6: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] Syscall6: 4(SP) should be trap+0(FP)
++syscall/asm_unix_386.s: [386] Syscall9: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] Syscall9: 4(SP) should be num+0(FP)
++syscall/asm_unix_386.s: [386] RawSyscall: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] RawSyscall: 4(SP) should be trap+0(FP)
++syscall/asm_unix_386.s: [386] RawSyscall6: 8(SP) should be a1+4(FP)
++syscall/asm_unix_386.s: [386] RawSyscall6: 4(SP) should be trap+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/openbsd_amd64.txt b/src/cmd/vet/all/whitelist/openbsd_amd64.txt
+new file mode 100644
+index 0000000000..433f62ca07
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/openbsd_amd64.txt
+@@ -0,0 +1,3 @@
++// openbsd/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_openbsd_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/openbsd_arm.txt b/src/cmd/vet/all/whitelist/openbsd_arm.txt
+new file mode 100644
+index 0000000000..16bf26c734
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/openbsd_arm.txt
+@@ -0,0 +1,4 @@
++// openbsd/arm-specific vet whitelist. See readme.txt for details.
++
++runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration
++runtime/sys_openbsd_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/plan9_386.txt b/src/cmd/vet/all/whitelist/plan9_386.txt
+new file mode 100644
+index 0000000000..c7e8cd5517
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/plan9_386.txt
+@@ -0,0 +1,11 @@
++// plan9/386-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_plan9_386.s: [386] setldt: function setldt missing Go declaration
++syscall/asm_plan9_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
++syscall/asm_plan9_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
++syscall/asm_plan9_386.s: [386] Syscall6: 8(SP) should be a1+4(FP)
++syscall/asm_plan9_386.s: [386] Syscall6: 4(SP) should be trap+0(FP)
++syscall/asm_plan9_386.s: [386] RawSyscall: 8(SP) should be a1+4(FP)
++syscall/asm_plan9_386.s: [386] RawSyscall: 4(SP) should be trap+0(FP)
++syscall/asm_plan9_386.s: [386] RawSyscall6: 8(SP) should be a1+4(FP)
++syscall/asm_plan9_386.s: [386] RawSyscall6: 4(SP) should be trap+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/plan9_amd64.txt b/src/cmd/vet/all/whitelist/plan9_amd64.txt
+new file mode 100644
+index 0000000000..e1f751debb
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/plan9_amd64.txt
+@@ -0,0 +1,12 @@
++// plan9/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_plan9_amd64.s: [amd64] setldt: function setldt missing Go declaration
++runtime/sys_plan9_amd64.s: [amd64] settls: function settls missing Go declaration
++syscall/asm_plan9_amd64.s: [amd64] Syscall: 16(SP) should be a1+8(FP)
++syscall/asm_plan9_amd64.s: [amd64] Syscall: 8(SP) should be trap+0(FP)
++syscall/asm_plan9_amd64.s: [amd64] Syscall6: 16(SP) should be a1+8(FP)
++syscall/asm_plan9_amd64.s: [amd64] Syscall6: 8(SP) should be trap+0(FP)
++syscall/asm_plan9_amd64.s: [amd64] RawSyscall: 16(SP) should be a1+8(FP)
++syscall/asm_plan9_amd64.s: [amd64] RawSyscall: 8(SP) should be trap+0(FP)
++syscall/asm_plan9_amd64.s: [amd64] RawSyscall6: 16(SP) should be a1+8(FP)
++syscall/asm_plan9_amd64.s: [amd64] RawSyscall6: 8(SP) should be trap+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/plan9_arm.txt b/src/cmd/vet/all/whitelist/plan9_arm.txt
+new file mode 100644
+index 0000000000..5af3271760
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/plan9_arm.txt
+@@ -0,0 +1,4 @@
++// plan9/arm-specific vet whitelist. See readme.txt for details.
++
++runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration
++runtime/sys_plan9_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/ppc64x.txt b/src/cmd/vet/all/whitelist/ppc64x.txt
+new file mode 100644
+index 0000000000..4f6444e102
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/ppc64x.txt
+@@ -0,0 +1,12 @@
++// ppc64-specific vet whitelist. See readme.txt for details.
++
++runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++
++runtime/asm_ppc64x.s: [GOARCH] reginit: function reginit missing Go declaration
++runtime/asm_ppc64x.s: [GOARCH] abort: function abort missing Go declaration
++runtime/asm_ppc64x.s: [GOARCH] memeqbody: function memeqbody missing Go declaration
++runtime/asm_ppc64x.s: [GOARCH] goexit: use of 24(R1) points beyond argument frame
++runtime/asm_ppc64x.s: [GOARCH] addmoduledata: function addmoduledata missing Go declaration
++runtime/duff_ppc64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
++runtime/tls_ppc64x.s: [GOARCH] save_g: function save_g missing Go declaration
++runtime/tls_ppc64x.s: [GOARCH] load_g: function load_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/solaris_amd64.txt b/src/cmd/vet/all/whitelist/solaris_amd64.txt
+new file mode 100644
+index 0000000000..26a9da4271
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/solaris_amd64.txt
+@@ -0,0 +1,6 @@
++// solaris/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_solaris_amd64.s: [amd64] settls: function settls missing Go declaration
++runtime/sys_solaris_amd64.s: [amd64] pipe1: function pipe1 missing Go declaration
++runtime/sys_solaris_amd64.s: [amd64] asmsysvicall6: function asmsysvicall6 missing Go declaration
++runtime/sys_solaris_amd64.s: [amd64] usleep2: function usleep2 missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/windows.txt b/src/cmd/vet/all/whitelist/windows.txt
+new file mode 100644
+index 0000000000..e80a92fa71
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/windows.txt
+@@ -0,0 +1,5 @@
++// windows-specific vet whitelist. See readme.txt for details.
++
++path/filepath/path_windows_test.go: possible formatting directive in Fatal call
++runtime/sys_windows_ARCHSUFF.s: [GOARCH] sigtramp: function sigtramp missing Go declaration
++runtime/sys_windows_ARCHSUFF.s: [GOARCH] onosstack: unknown variable usec; offset 0 is fn+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/windows_386.txt b/src/cmd/vet/all/whitelist/windows_386.txt
+new file mode 100644
+index 0000000000..7a6d23faf0
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/windows_386.txt
+@@ -0,0 +1,9 @@
++// windows/386-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_windows_386.s: [386] profileloop: use of 4(SP) points beyond argument frame
++runtime/sys_windows_386.s: [386] ctrlhandler: 4(SP) should be _type+0(FP)
++runtime/sys_windows_386.s: [386] setldt: function setldt missing Go declaration
++runtime/zcallback_windows.s: [386] callbackasm: function callbackasm missing Go declaration
++runtime/sys_windows_386.s: [386] callbackasm1+0: function callbackasm1+0 missing Go declaration
++runtime/sys_windows_386.s: [386] tstart: function tstart missing Go declaration
++runtime/sys_windows_386.s: [386] tstart_stdcall: RET without writing to 4-byte ret+4(FP)
+diff --git a/src/cmd/vet/all/whitelist/windows_amd64.txt b/src/cmd/vet/all/whitelist/windows_amd64.txt
+new file mode 100644
+index 0000000000..a2e1844e4b
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/windows_amd64.txt
+@@ -0,0 +1,8 @@
++// windows/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_windows_amd64.s: [amd64] ctrlhandler: 16(SP) should be _type+0(FP)
++runtime/sys_windows_amd64.s: [amd64] ctrlhandler: RET without writing to 4-byte ret+8(FP)
++runtime/sys_windows_amd64.s: [amd64] callbackasm1: function callbackasm1 missing Go declaration
++runtime/sys_windows_amd64.s: [amd64] tstart_stdcall: RET without writing to 4-byte ret+8(FP)
++runtime/sys_windows_amd64.s: [amd64] settls: function settls missing Go declaration
++runtime/zcallback_windows.s: [amd64] callbackasm: function callbackasm missing Go declaration

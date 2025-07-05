@@ -11,6 +11,29 @@ Date:   Tue Oct 25 05:45:52 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 9c481034ce..1f9a90ff35 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -481,7 +481,7 @@ func clobber(v *Value) bool {
+ //     noteRule("note to self: rule of interest matched")
+ // and that message will print when the rule matches.
+ func noteRule(s string) bool {
+-	println(s)
++	fmt.Println(s)
+ 	return true
+ }
+ 
+@@ -489,7 +489,7 @@ func noteRule(s string) bool {
+ // cond is true and the rule is fired.
+ func warnRule(cond bool, v *Value, s string) bool {
+ 	if cond {
+-		v.Block.Func.Config.Warnl(v.Line, "removed nil check")
++		v.Block.Func.Config.Warnl(v.Line, s)
+ 	}
+ 	return true
+ }

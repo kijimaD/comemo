@@ -18,7 +18,7 @@ Date:   Fri Mar 4 17:09:08 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/27195
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  misc/nacl/testzip.proto                         |    4 +
  src/cmd/compile/internal/syntax/dumper.go       |  212 +++
  src/cmd/compile/internal/syntax/dumper_test.go  |   22 +
@@ -33,3 +33,5441 @@ Date:   Fri Mar 4 17:09:08 2016 -0800
  src/cmd/compile/internal/syntax/syntax.go       |   61 +
  src/cmd/compile/internal/syntax/tokens.go       |  263 +++
  13 files changed, 5354 insertions(+)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 8a8784c8be..bb7b39d8ca 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -18,6 +18,10 @@ go	src=..
+ 					asm
+ 						testdata
+ 							+
++			compile
++				internal
++					syntax
++						parser.go
+ 			doc
+ 				main.go
+ 				pkg.go
+diff --git a/src/cmd/compile/internal/syntax/dumper.go b/src/cmd/compile/internal/syntax/dumper.go
+new file mode 100644
+index 0000000000..bb369fc705
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/dumper.go
+@@ -0,0 +1,212 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements printing of syntax tree structures.
++
++package syntax
++
++import (
++	"fmt"
++	"io"
++	"reflect"
++	"unicode"
++	"unicode/utf8"
++)
++
++// Fdump dumps the structure of the syntax tree rooted at n to w.
++// It is intended for debugging purposes; no specific output format
++// is guaranteed.
++func Fdump(w io.Writer, n Node) (err error) {
++	p := dumper{
++		output: w,
++		ptrmap: make(map[Node]int),
++		last:   '\n', // force printing of line number on first line
++	}
++
++	defer func() {
++		if e := recover(); e != nil {
++			err = e.(localError).err // re-panics if it's not a localError
++		}
++	}()
++
++	if n == nil {
++		p.printf("nil\n")
++		return
++	}
++	p.dump(reflect.ValueOf(n), n)
++	p.printf("\n")
++
++	return
++}
++
++type dumper struct {
++	output io.Writer
++	ptrmap map[Node]int // node -> dump line number
++	indent int          // current indentation level
++	last   byte         // last byte processed by Write
++	line   int          // current line number
++}
++
++var indentBytes = []byte(".  ")
++
++func (p *dumper) Write(data []byte) (n int, err error) {
++	var m int
++	for i, b := range data {
++		// invariant: data[0:n] has been written
++		if b == '\n' {
++			m, err = p.output.Write(data[n : i+1])
++			n += m
++			if err != nil {
++				return
++			}
++		} else if p.last == '\n' {
++			p.line++
++			_, err = fmt.Fprintf(p.output, "%6d  ", p.line)
++			if err != nil {
++				return
++			}
++			for j := p.indent; j > 0; j-- {
++				_, err = p.output.Write(indentBytes)
++				if err != nil {
++					return
++				}
++			}
++		}
++		p.last = b
++	}
++	if len(data) > n {
++		m, err = p.output.Write(data[n:])
++		n += m
++	}
++	return
++}
++
++// localError wraps locally caught errors so we can distinguish
++// them from genuine panics which we don't want to return as errors.
++type localError struct {
++	err error
++}
++
++// printf is a convenience wrapper that takes care of print errors.
++func (p *dumper) printf(format string, args ...interface{}) {
++	if _, err := fmt.Fprintf(p, format, args...); err != nil {
++		panic(localError{err})
++	}
++}
++
++// dump prints the contents of x.
++// If x is the reflect.Value of a struct s, where &s
++// implements Node, then &s should be passed for n -
++// this permits printing of the unexported span and
++// comments fields of the embedded isNode field by
++// calling the Span() and Comment() instead of using
++// reflection.
++func (p *dumper) dump(x reflect.Value, n Node) {
++	switch x.Kind() {
++	case reflect.Interface:
++		if x.IsNil() {
++			p.printf("nil")
++			return
++		}
++		p.dump(x.Elem(), nil)
++
++	case reflect.Ptr:
++		if x.IsNil() {
++			p.printf("nil")
++			return
++		}
++
++		// special cases for identifiers w/o attached comments (common case)
++		if x, ok := x.Interface().(*Name); ok {
++			p.printf(x.Value)
++			return
++		}
++
++		p.printf("*")
++		// Fields may share type expressions, and declarations
++		// may share the same group - use ptrmap to keep track
++		// of nodes that have been printed already.
++		if ptr, ok := x.Interface().(Node); ok {
++			if line, exists := p.ptrmap[ptr]; exists {
++				p.printf("(Node @ %d)", line)
++				return
++			}
++			p.ptrmap[ptr] = p.line
++			n = ptr
++		}
++		p.dump(x.Elem(), n)
++
++	case reflect.Slice:
++		if x.IsNil() {
++			p.printf("nil")
++			return
++		}
++		p.printf("%s (%d entries) {", x.Type(), x.Len())
++		if x.Len() > 0 {
++			p.indent++
++			p.printf("\n")
++			for i, n := 0, x.Len(); i < n; i++ {
++				p.printf("%d: ", i)
++				p.dump(x.Index(i), nil)
++				p.printf("\n")
++			}
++			p.indent--
++		}
++		p.printf("}")
++
++	case reflect.Struct:
++		typ := x.Type()
++
++		// if span, ok := x.Interface().(lexical.Span); ok {
++		// 	p.printf("%s", &span)
++		// 	return
++		// }
++
++		p.printf("%s {", typ)
++		p.indent++
++
++		first := true
++		if n != nil {
++			p.printf("\n")
++			first = false
++			// p.printf("Span: %s\n", n.Span())
++			// if c := *n.Comments(); c != nil {
++			// 	p.printf("Comments: ")
++			// 	p.dump(reflect.ValueOf(c), nil) // a Comment is not a Node
++			// 	p.printf("\n")
++			// }
++		}
++
++		for i, n := 0, typ.NumField(); i < n; i++ {
++			// Exclude non-exported fields because their
++			// values cannot be accessed via reflection.
++			if name := typ.Field(i).Name; isExported(name) {
++				if first {
++					p.printf("\n")
++					first = false
++				}
++				p.printf("%s: ", name)
++				p.dump(x.Field(i), nil)
++				p.printf("\n")
++			}
++		}
++
++		p.indent--
++		p.printf("}")
++
++	default:
++		switch x := x.Interface().(type) {
++		case string:
++			// print strings in quotes
++			p.printf("%q", x)
++		default:
++			p.printf("%v", x)
++		}
++	}
++}
++
++func isExported(name string) bool {
++	ch, _ := utf8.DecodeRuneInString(name)
++	return unicode.IsUpper(ch)
++}
+diff --git a/src/cmd/compile/internal/syntax/dumper_test.go b/src/cmd/compile/internal/syntax/dumper_test.go
+new file mode 100644
+index 0000000000..fd38e7ca78
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/dumper_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import (
++	"os"
++	"testing"
++)
++
++func TestDump(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
++
++	ast, err := ReadFile(*src, nil, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	Fdump(os.Stdout, ast)
++}
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+new file mode 100644
+index 0000000000..4e264c1e82
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -0,0 +1,425 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++// ----------------------------------------------------------------------------
++// Nodes
++
++type Node interface {
++	aNode()
++}
++
++type node struct {
++	doc  *Comment // nil means no comment(s) attached
++	pos  uint32
++	line uint32
++}
++
++func (*node) aNode() {}
++
++func (n *node) init(p *parser) {
++	n.pos = uint32(p.pos)
++	n.line = uint32(p.line)
++}
++
++// ----------------------------------------------------------------------------
++// Files
++
++type File struct {
++	PkgName  *Name
++	DeclList []Decl
++	Pragmas  []Pragma
++	Lines    int
++	node
++}
++
++type Pragma struct {
++	Line int
++	Text string
++}
++
++// ----------------------------------------------------------------------------
++// Declarations
++
++type (
++	Decl interface {
++		Node
++		aDecl()
++	}
++
++	ImportDecl struct {
++		LocalPkgName *Name // including "."; nil means no rename present
++		Path         *BasicLit
++		Group        *Group // nil means not part of a group
++		decl
++	}
++
++	ConstDecl struct {
++		NameList []*Name
++		Type     Expr   // nil means no type
++		Values   Expr   // nil means no values
++		Group    *Group // nil means not part of a group
++		decl
++	}
++
++	TypeDecl struct {
++		Name  *Name
++		Type  Expr
++		Group *Group // nil means not part of a group
++		decl
++	}
++
++	VarDecl struct {
++		NameList []*Name
++		Type     Expr   // nil means no type
++		Values   Expr   // nil means no values
++		Group    *Group // nil means not part of a group
++		decl
++	}
++
++	FuncDecl struct {
++		Attr map[string]bool // go:attr map
++		Recv *Field          // nil means regular function
++		Name *Name
++		Type *FuncType
++		Body []Stmt // nil means no body (forward declaration)
++		decl
++	}
++)
++
++type decl struct{ node }
++
++func (*decl) aDecl() {}
++
++// All declarations belonging to the same group point to the same Group node.
++type Group struct {
++	dummy int // not empty so we are guaranteed different Group instances
++}
++
++// ----------------------------------------------------------------------------
++// Expressions
++
++type (
++	Expr interface {
++		Node
++		aExpr()
++	}
++
++	// Value
++	Name struct {
++		Value string
++		expr
++	}
++
++	// Value
++	BasicLit struct {
++		Value string
++		Kind  LitKind
++		expr
++	}
++
++	// Type { ElemList[0], ElemList[1], ... }
++	CompositeLit struct {
++		Type     Expr // nil means no literal type
++		ElemList []Expr
++		NKeys    int // number of elements with keys
++		expr
++	}
++
++	// Key: Value
++	KeyValueExpr struct {
++		Key, Value Expr
++		expr
++	}
++
++	// func Type { Body }
++	FuncLit struct {
++		Type *FuncType
++		Body []Stmt
++		expr
++	}
++
++	// (X)
++	ParenExpr struct {
++		X Expr
++		expr
++	}
++
++	// X.Sel
++	SelectorExpr struct {
++		X   Expr
++		Sel *Name
++		expr
++	}
++
++	// X[Index]
++	IndexExpr struct {
++		X     Expr
++		Index Expr
++		expr
++	}
++
++	// X[Index[0] : Index[1] : Index[2]]
++	SliceExpr struct {
++		X     Expr
++		Index [3]Expr
++		expr
++	}
++
++	// X.(Type)
++	AssertExpr struct {
++		X Expr
++		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
++		Type Expr
++		expr
++	}
++
++	Operation struct {
++		Op   Operator
++		X, Y Expr // Y == nil means unary expression
++		expr
++	}
++
++	// Fun(ArgList[0], ArgList[1], ...)
++	CallExpr struct {
++		Fun     Expr
++		ArgList []Expr
++		HasDots bool // last argument is followed by ...
++		expr
++	}
++
++	// ElemList[0], ElemList[1], ...
++	ListExpr struct {
++		ElemList []Expr
++		expr
++	}
++
++	// [Len]Elem
++	ArrayType struct {
++		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
++		Len  Expr // nil means Len is ...
++		Elem Expr
++		expr
++	}
++
++	// []Elem
++	SliceType struct {
++		Elem Expr
++		expr
++	}
++
++	// ...Elem
++	DotsType struct {
++		Elem Expr
++		expr
++	}
++
++	// struct { FieldList[0] TagList[0]; FieldList[1] TagList[1]; ... }
++	StructType struct {
++		FieldList []*Field
++		TagList   []*BasicLit // i >= len(TagList) || TagList[i] == nil means no tag for field i
++		expr
++	}
++
++	// Name Type
++	//      Type
++	Field struct {
++		Name *Name // nil means anonymous field/parameter (structs/parameters), or embedded interface (interfaces)
++		Type Expr  // field names declared in a list share the same Type (identical pointers)
++		node
++	}
++
++	// interface { MethodList[0]; MethodList[1]; ... }
++	InterfaceType struct {
++		MethodList []*Field
++		expr
++	}
++
++	FuncType struct {
++		ParamList  []*Field
++		ResultList []*Field
++		expr
++	}
++
++	// map[Key]Value
++	MapType struct {
++		Key   Expr
++		Value Expr
++		expr
++	}
++
++	//   chan Elem
++	// <-chan Elem
++	// chan<- Elem
++	ChanType struct {
++		Dir  ChanDir // 0 means no direction
++		Elem Expr
++		expr
++	}
++)
++
++type expr struct{ node }
++
++func (*expr) aExpr() {}
++
++type ChanDir uint
++
++const (
++	_ ChanDir = iota
++	SendOnly
++	RecvOnly
++)
++
++// ----------------------------------------------------------------------------
++// Statements
++
++type (
++	Stmt interface {
++		Node
++		aStmt()
++	}
++
++	SimpleStmt interface {
++		Stmt
++		aSimpleStmt()
++	}
++
++	EmptyStmt struct {
++		simpleStmt
++	}
++
++	LabeledStmt struct {
++		Label *Name
++		Stmt  Stmt
++		stmt
++	}
++
++	BlockStmt struct {
++		Body []Stmt
++		stmt
++	}
++
++	ExprStmt struct {
++		X Expr
++		simpleStmt
++	}
++
++	SendStmt struct {
++		Chan, Value Expr // Chan <- Value
++		simpleStmt
++	}
++
++	DeclStmt struct {
++		DeclList []Decl
++		stmt
++	}
++
++	AssignStmt struct {
++		Op       Operator // 0 means no operation
++		Lhs, Rhs Expr     // Rhs == ImplicitOne means Lhs++ (Op == Add) or Lhs-- (Op == Sub)
++		simpleStmt
++	}
++
++	BranchStmt struct {
++		Tok   token // Break, Continue, Fallthrough, or Goto
++		Label *Name
++		stmt
++	}
++
++	CallStmt struct {
++		Tok  token // Go or Defer
++		Call *CallExpr
++		stmt
++	}
++
++	ReturnStmt struct {
++		Results Expr // nil means no explicit return values
++		stmt
++	}
++
++	IfStmt struct {
++		Init SimpleStmt
++		Cond Expr
++		Then []Stmt
++		Else Stmt // either *IfStmt or *BlockStmt
++		stmt
++	}
++
++	ForStmt struct {
++		Init SimpleStmt // incl. *RangeClause
++		Cond Expr
++		Post SimpleStmt
++		Body []Stmt
++		stmt
++	}
++
++	SwitchStmt struct {
++		Init SimpleStmt
++		Tag  Expr
++		Body []*CaseClause
++		stmt
++	}
++
++	SelectStmt struct {
++		Body []*CommClause
++		stmt
++	}
++)
++
++type (
++	RangeClause struct {
++		Lhs Expr // nil means no Lhs = or Lhs :=
++		Def bool // means :=
++		X   Expr // range X
++		simpleStmt
++	}
++
++	TypeSwitchGuard struct {
++		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
++		Lhs *Name // nil means no Lhs :=
++		X   Expr  // X.(type)
++		expr
++	}
++
++	CaseClause struct {
++		Cases Expr // nil means default clause
++		Body  []Stmt
++		node
++	}
++
++	CommClause struct {
++		Comm SimpleStmt // send or receive stmt; nil means default clause
++		Body []Stmt
++		node
++	}
++)
++
++type stmt struct{ node }
++
++func (stmt) aStmt() {}
++
++type simpleStmt struct {
++	stmt
++}
++
++func (simpleStmt) aSimpleStmt() {}
++
++// ----------------------------------------------------------------------------
++// Comments
++
++type CommentKind uint
++
++const (
++	Above CommentKind = iota
++	Below
++	Left
++	Right
++)
++
++type Comment struct {
++	Kind CommentKind
++	Text string
++	Next *Comment
++}
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+new file mode 100644
+index 0000000000..f267d4b2c9
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -0,0 +1,2062 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import (
++	"fmt"
++	"io"
++	"strings"
++)
++
++const debug = false
++const trace = false
++
++type parser struct {
++	scanner
++
++	fnest  int    // function nesting level (for error handling)
++	xnest  int    // expression nesting level (for complit ambiguity resolution)
++	indent []byte // tracing support
++
++	nerrors int // error count
++}
++
++func (p *parser) init(src io.Reader, errh ErrorHandler) {
++	p.scanner.init(src, func(pos, line int, msg string) {
++		p.nerrors++
++		if !debug && errh != nil {
++			errh(pos, line, msg)
++			return
++		}
++		panic(fmt.Sprintf("%d: %s\n", line, msg))
++	})
++
++	p.fnest = 0
++	p.xnest = 0
++	p.indent = nil
++
++	p.nerrors = 0
++}
++
++func (p *parser) got(tok token) bool {
++	if p.tok == tok {
++		p.next()
++		return true
++	}
++	return false
++}
++
++func (p *parser) want(tok token) {
++	if !p.got(tok) {
++		p.syntax_error("expecting " + tok.String())
++		p.advance()
++	}
++}
++
++// ----------------------------------------------------------------------------
++// Error handling
++
++// syntax_error reports a syntax error at the current line.
++func (p *parser) syntax_error(msg string) {
++	if trace {
++		defer p.trace("syntax_error (" + msg + ")")()
++	}
++
++	if p.tok == _EOF && p.nerrors > 0 {
++		return // avoid meaningless follow-up errors
++	}
++
++	// add punctuation etc. as needed to msg
++	switch {
++	case msg == "":
++		// nothing to do
++	case strings.HasPrefix(msg, "in"), strings.HasPrefix(msg, "at"), strings.HasPrefix(msg, "after"):
++		msg = " " + msg
++	case strings.HasPrefix(msg, "expecting"):
++		msg = ", " + msg
++	default:
++		// plain error - we don't care about current token
++		p.error("syntax error: " + msg)
++		return
++	}
++
++	// determine token string
++	var tok string
++	switch p.tok {
++	case _Name, _Literal:
++		tok = p.lit
++	case _Operator:
++		tok = p.op.String()
++	case _AssignOp:
++		tok = p.op.String() + "="
++	case _IncOp:
++		tok = p.op.String()
++		tok += tok
++	default:
++		tok = tokstring(p.tok)
++	}
++
++	p.error("syntax error: unexpected " + tok + msg)
++}
++
++// Like syntax_error, but reports error at given line rather than current lexer line.
++func (p *parser) syntax_error_at(lineno uint32, msg string) {
++	// TODO(gri) fix this
++	// defer func(lineno int32) {
++	// 	lexlineno = lineno
++	// }(lexlineno)
++	// lexlineno = lineno
++	p.syntax_error(msg)
++}
++
++// The stopset contains keywords that start a statement.
++// They are good synchronization points in case of syntax
++// errors and (usually) shouldn't be skipped over.
++const stopset uint64 = 1<<_Break |
++	1<<_Const |
++	1<<_Continue |
++	1<<_Defer |
++	1<<_Fallthrough |
++	1<<_For |
++	1<<_Func |
++	1<<_Go |
++	1<<_Goto |
++	1<<_If |
++	1<<_Return |
++	1<<_Select |
++	1<<_Switch |
++	1<<_Type |
++	1<<_Var
++
++// Advance consumes tokens until it finds a token of the stopset or followlist.
++// The stopset is only considered if we are inside a function (p.fnest > 0).
++// The followlist is the list of valid tokens that can follow a production;
++// if it is empty, exactly one token is consumed to ensure progress.
++func (p *parser) advance(followlist ...token) {
++	if len(followlist) == 0 {
++		p.next()
++		return
++	}
++
++	// compute follow set
++	// TODO(gri) the args are constants - do as constant expressions?
++	var followset uint64 = 1 << _EOF // never skip over EOF
++	for _, tok := range followlist {
++		followset |= 1 << tok
++	}
++
++	for !(contains(followset, p.tok) || p.fnest > 0 && contains(stopset, p.tok)) {
++		p.next()
++	}
++}
++
++func tokstring(tok token) string {
++	switch tok {
++	case _EOF:
++		return "EOF"
++	case _Comma:
++		return "comma"
++	case _Semi:
++		return "semicolon or newline"
++	}
++	return tok.String()
++}
++
++// usage: defer p.trace(msg)()
++func (p *parser) trace(msg string) func() {
++	fmt.Printf("%5d: %s%s (\n", p.line, p.indent, msg)
++	const tab = ". "
++	p.indent = append(p.indent, tab...)
++	return func() {
++		p.indent = p.indent[:len(p.indent)-len(tab)]
++		if x := recover(); x != nil {
++			panic(x) // skip print_trace
++		}
++		fmt.Printf("%5d: %s)\n", p.line, p.indent)
++	}
++}
++
++// ----------------------------------------------------------------------------
++// Package files
++//
++// Parse methods are annotated with matching Go productions as appropriate.
++// The annotations are intended as guidelines only since a single Go grammar
++// rule may be covered by multiple parse methods and vice versa.
++
++// SourceFile = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } .
++func (p *parser) file() *File {
++	if trace {
++		defer p.trace("file")()
++	}
++
++	f := new(File)
++	f.init(p)
++
++	// PackageClause
++	p.want(_Package)
++	f.PkgName = p.name()
++	p.want(_Semi)
++
++	// don't bother continuing if package clause has errors
++	if p.nerrors > 0 {
++		return nil
++	}
++
++	// { ImportDecl ";" }
++	for p.got(_Import) {
++		f.DeclList = p.appendGroup(f.DeclList, p.importDecl)
++		p.want(_Semi)
++	}
++
++	// { TopLevelDecl ";" }
++	for p.tok != _EOF {
++		switch p.tok {
++		case _Const:
++			p.next()
++			f.DeclList = p.appendGroup(f.DeclList, p.constDecl)
++
++		case _Type:
++			p.next()
++			f.DeclList = p.appendGroup(f.DeclList, p.typeDecl)
++
++		case _Var:
++			p.next()
++			f.DeclList = p.appendGroup(f.DeclList, p.varDecl)
++
++		case _Func:
++			p.next()
++			f.DeclList = append(f.DeclList, p.funcDecl())
++
++		default:
++			if p.tok == _Lbrace && len(f.DeclList) > 0 && emptyFuncDecl(f.DeclList[len(f.DeclList)-1]) {
++				// opening { of function declaration on next line
++				p.syntax_error("unexpected semicolon or newline before {")
++			} else {
++				p.syntax_error("non-declaration statement outside function body")
++			}
++			p.advance(_Const, _Type, _Var, _Func)
++			continue
++		}
++
++		if p.tok != _EOF && !p.got(_Semi) {
++			p.syntax_error("after top level declaration")
++			p.advance(_Const, _Type, _Var, _Func)
++		}
++	}
++	// p.tok == _EOF
++
++	f.Lines = p.source.line
++	f.Pragmas = p.pragmas
++
++	return f
++}
++
++func emptyFuncDecl(dcl Decl) bool {
++	f, ok := dcl.(*FuncDecl)
++	return ok && f.Body == nil
++}
++
++// ----------------------------------------------------------------------------
++// Declarations
++
++// appendGroup(f) = f | "(" { f ";" } ")" .
++func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
++	if p.got(_Lparen) {
++		g := new(Group)
++		for p.tok != _EOF && p.tok != _Rparen {
++			list = append(list, f(g))
++			if !p.osemi(_Rparen) {
++				break
++			}
++		}
++		p.want(_Rparen)
++		return list
++	}
++
++	return append(list, f(nil))
++}
++
++func (p *parser) importDecl(group *Group) Decl {
++	if trace {
++		defer p.trace("importDecl")()
++	}
++
++	d := new(ImportDecl)
++	d.init(p)
++
++	switch p.tok {
++	case _Name:
++		d.LocalPkgName = p.name()
++	case _Dot:
++		n := new(Name)
++		n.init(p)
++		n.Value = "."
++		d.LocalPkgName = n
++		p.next()
++	}
++	if p.tok == _Literal && p.kind == StringLit {
++		d.Path = p.oliteral()
++	} else {
++		p.syntax_error("missing import path; require quoted string")
++		p.advance(_Semi, _Rparen)
++	}
++	d.Group = group
++
++	return d
++}
++
++// ConstSpec = IdentifierList [ [ Type ] "=" ExpressionList ] .
++func (p *parser) constDecl(group *Group) Decl {
++	if trace {
++		defer p.trace("constDecl")()
++	}
++
++	d := new(ConstDecl)
++	d.init(p)
++
++	d.NameList = p.nameList(p.name())
++	if p.tok != _EOF && p.tok != _Semi && p.tok != _Rparen {
++		d.Type = p.tryType()
++		if p.got(_Assign) {
++			d.Values = p.exprList()
++		}
++	}
++	d.Group = group
++
++	return d
++}
++
++// TypeSpec = identifier Type .
++func (p *parser) typeDecl(group *Group) Decl {
++	if trace {
++		defer p.trace("typeDecl")()
++	}
++
++	d := new(TypeDecl)
++	d.init(p)
++
++	d.Name = p.name()
++	d.Type = p.tryType()
++	if d.Type == nil {
++		p.syntax_error("in type declaration")
++		p.advance(_Semi, _Rparen)
++	}
++	d.Group = group
++
++	return d
++}
++
++// VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
++func (p *parser) varDecl(group *Group) Decl {
++	if trace {
++		defer p.trace("varDecl")()
++	}
++
++	d := new(VarDecl)
++	d.init(p)
++
++	d.NameList = p.nameList(p.name())
++	if p.got(_Assign) {
++		d.Values = p.exprList()
++	} else {
++		d.Type = p.type_()
++		if p.got(_Assign) {
++			d.Values = p.exprList()
++		}
++	}
++	d.Group = group
++
++	return d
++}
++
++// FunctionDecl = "func" FunctionName ( Function | Signature ) .
++// FunctionName = identifier .
++// Function     = Signature FunctionBody .
++// MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
++// Receiver     = Parameters .
++func (p *parser) funcDecl() *FuncDecl {
++	if trace {
++		defer p.trace("funcDecl")()
++	}
++
++	f := new(FuncDecl)
++	f.init(p)
++
++	if p.tok == _Lparen {
++		rcvr := p.paramList()
++		switch len(rcvr) {
++		case 0:
++			p.error("method has no receiver")
++			return nil // TODO(gri) better solution
++		case 1:
++			f.Recv = rcvr[0]
++		default:
++			p.error("method has multiple receivers")
++			return nil // TODO(gri) better solution
++		}
++	}
++
++	if p.tok != _Name {
++		p.syntax_error("expecting name or (")
++		p.advance(_Lbrace, _Semi)
++		return nil
++	}
++
++	// TODO(gri) check for regular functions only
++	// if name.Sym.Name == "init" {
++	// 	name = renameinit()
++	// 	if params != nil || result != nil {
++	// 		p.error("func init must have no arguments and no return values")
++	// 	}
++	// }
++
++	// if localpkg.Name == "main" && name.Name == "main" {
++	// 	if params != nil || result != nil {
++	// 		p.error("func main must have no arguments and no return values")
++	// 	}
++	// }
++
++	f.Name = p.name()
++	f.Type = p.funcType()
++	f.Body = p.funcBody()
++
++	// TODO(gri) deal with function properties
++	// if noescape && body != nil {
++	// 	p.error("can only use //go:noescape with external func implementations")
++	// }
++
++	return f
++}
++
++// ----------------------------------------------------------------------------
++// Expressions
++
++func (p *parser) expr() Expr {
++	if trace {
++		defer p.trace("expr")()
++	}
++
++	return p.binaryExpr(0)
++}
++
++// Expression = UnaryExpr | Expression binary_op Expression .
++func (p *parser) binaryExpr(prec int) Expr {
++	// don't trace binaryExpr - only leads to overly nested trace output
++
++	x := p.unaryExpr()
++	for (p.tok == _Operator || p.tok == _Star) && p.prec > prec {
++		t := new(Operation)
++		t.init(p)
++		t.Op = p.op
++		t.X = x
++		tprec := p.prec
++		p.next()
++		t.Y = p.binaryExpr(tprec)
++		x = t
++	}
++	return x
++}
++
++// UnaryExpr = PrimaryExpr | unary_op UnaryExpr .
++func (p *parser) unaryExpr() Expr {
++	if trace {
++		defer p.trace("unaryExpr")()
++	}
++
++	switch p.tok {
++	case _Operator, _Star:
++		switch p.op {
++		case Mul, Add, Sub, Not, Xor:
++			x := new(Operation)
++			x.init(p)
++			x.Op = p.op
++			p.next()
++			x.X = p.unaryExpr()
++			return x
++
++		case And:
++			p.next()
++			x := new(Operation)
++			x.init(p)
++			x.Op = And
++			// unaryExpr may have returned a parenthesized composite literal
++			// (see comment in operand) - remove parentheses if any
++			x.X = unparen(p.unaryExpr())
++			return x
++		}
++
++	case _Arrow:
++		// receive op (<-x) or receive-only channel (<-chan E)
++		p.next()
++
++		// If the next token is _Chan we still don't know if it is
++		// a channel (<-chan int) or a receive op (<-chan int(ch)).
++		// We only know once we have found the end of the unaryExpr.
++
++		x := p.unaryExpr()
++
++		// There are two cases:
++		//
++		//   <-chan...  => <-x is a channel type
++		//   <-x        => <-x is a receive operation
++		//
++		// In the first case, <- must be re-associated with
++		// the channel type parsed already:
++		//
++		//   <-(chan E)   =>  (<-chan E)
++		//   <-(chan<-E)  =>  (<-chan (<-E))
++
++		if x, ok := x.(*ChanType); ok {
++			// x is a channel type => re-associate <-
++			dir := SendOnly
++			t := x
++			for ok && dir == SendOnly {
++				dir = t.Dir
++				if dir == RecvOnly {
++					// t is type <-chan E but <-<-chan E is not permitted
++					// (report same error as for "type _ <-<-chan E")
++					p.syntax_error("unexpected <-, expecting chan")
++					// already progressed, no need to advance
++				}
++				t.Dir = RecvOnly
++				t, ok = t.Elem.(*ChanType)
++			}
++			if dir == SendOnly {
++				// channel dir is <- but channel element E is not a channel
++				// (report same error as for "type _ <-chan<-E")
++				p.syntax_error(fmt.Sprintf("unexpected %v, expecting chan", t))
++				// already progressed, no need to advance
++			}
++			return x
++		}
++
++		// x is not a channel type => we have a receive op
++		return &Operation{Op: Recv, X: x}
++	}
++
++	return p.pexpr(false)
++}
++
++// callStmt parses call-like statements that can be preceded by 'defer' and 'go'.
++func (p *parser) callStmt() *CallStmt {
++	if trace {
++		defer p.trace("callStmt")()
++	}
++
++	s := new(CallStmt)
++	s.init(p)
++	s.Tok = p.tok
++	p.next()
++
++	x := p.pexpr(p.tok == _Lparen) // keep_parens so we can report error below
++	switch x := x.(type) {
++	case *CallExpr:
++		s.Call = x
++	case *ParenExpr:
++		p.error(fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
++		// already progressed, no need to advance
++	default:
++		p.error(fmt.Sprintf("expression in %s must be function call", s.Tok))
++		// already progressed, no need to advance
++	}
++
++	return s // TODO(gri) should we return nil in case of failure?
++}
++
++// Operand     = Literal | OperandName | MethodExpr | "(" Expression ")" .
++// Literal     = BasicLit | CompositeLit | FunctionLit .
++// BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
++// OperandName = identifier | QualifiedIdent.
++func (p *parser) operand(keep_parens bool) Expr {
++	if trace {
++		defer p.trace("operand " + p.tok.String())()
++	}
++
++	switch p.tok {
++	case _Name:
++		return p.name()
++
++	case _Literal:
++		return p.oliteral()
++
++	case _Lparen:
++		p.next()
++		p.xnest++
++		x := p.expr() // expr_or_type
++		p.xnest--
++		p.want(_Rparen)
++
++		// Optimization: Record presence of ()'s only where needed
++		// for error reporting. Don't bother in other cases; it is
++		// just a waste of memory and time.
++
++		// Parentheses are not permitted on lhs of := .
++		// switch x.Op {
++		// case ONAME, ONONAME, OPACK, OTYPE, OLITERAL, OTYPESW:
++		// 	keep_parens = true
++		// }
++
++		// Parentheses are not permitted around T in a composite
++		// literal T{}. If the next token is a {, assume x is a
++		// composite literal type T (it may not be, { could be
++		// the opening brace of a block, but we don't know yet).
++		if p.tok == _Lbrace {
++			keep_parens = true
++		}
++
++		// Parentheses are also not permitted around the expression
++		// in a go/defer statement. In that case, operand is called
++		// with keep_parens set.
++		if keep_parens {
++			x = &ParenExpr{X: x}
++		}
++		return x
++
++	case _Func:
++		p.next()
++		t := p.funcType()
++		if p.tok == _Lbrace {
++			p.fnest++
++			p.xnest++
++			f := new(FuncLit)
++			f.init(p)
++			f.Type = t
++			f.Body = p.funcBody()
++			p.xnest--
++			p.fnest--
++			return f
++		}
++		return t
++
++	case _Lbrack, _Chan, _Map, _Struct, _Interface:
++		return p.type_() // othertype
++
++	case _Lbrace:
++		// common case: p.header is missing simpleStmt before { in if, for, switch
++		p.syntax_error("missing operand")
++		// '{' will be consumed in pexpr - no need to consume it here
++		return nil
++
++	default:
++		p.syntax_error("expecting expression")
++		p.advance()
++		return nil
++	}
++
++	// Syntactically, composite literals are operands. Because a complit
++	// type may be a qualified identifier which is handled by pexpr
++	// (together with selector expressions), complits are parsed there
++	// as well (operand is only called from pexpr).
++}
++
++// PrimaryExpr =
++// 	Operand |
++// 	Conversion |
++// 	PrimaryExpr Selector |
++// 	PrimaryExpr Index |
++// 	PrimaryExpr Slice |
++// 	PrimaryExpr TypeAssertion |
++// 	PrimaryExpr Arguments .
++//
++// Selector       = "." identifier .
++// Index          = "[" Expression "]" .
++// Slice          = "[" ( [ Expression ] ":" [ Expression ] ) |
++//                      ( [ Expression ] ":" Expression ":" Expression )
++//                  "]" .
++// TypeAssertion  = "." "(" Type ")" .
++// Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
++func (p *parser) pexpr(keep_parens bool) Expr {
++	if trace {
++		defer p.trace("pexpr")()
++	}
++
++	x := p.operand(keep_parens)
++
++loop:
++	for {
++		switch p.tok {
++		case _Dot:
++			p.next()
++			switch p.tok {
++			case _Name:
++				// pexpr '.' sym
++				t := new(SelectorExpr)
++				t.init(p)
++				t.X = x
++				t.Sel = p.name()
++				x = t
++
++			case _Lparen:
++				p.next()
++				if p.got(_Type) {
++					t := new(TypeSwitchGuard)
++					t.init(p)
++					t.X = x
++					x = t
++				} else {
++					t := new(AssertExpr)
++					t.init(p)
++					t.X = x
++					t.Type = p.expr()
++					x = t
++				}
++				p.want(_Rparen)
++
++			default:
++				p.syntax_error("expecting name or (")
++				p.advance(_Semi, _Rparen)
++			}
++
++		case _Lbrack:
++			p.next()
++			p.xnest++
++
++			var i Expr
++			if p.tok != _Colon {
++				i = p.expr()
++				if p.got(_Rbrack) {
++					// x[i]
++					t := new(IndexExpr)
++					t.init(p)
++					t.X = x
++					t.Index = i
++					x = t
++					p.xnest--
++					break
++				}
++			}
++
++			// x[i:...
++			t := new(SliceExpr)
++			t.init(p)
++			t.X = x
++			t.Index[0] = i
++			p.want(_Colon)
++			if p.tok != _Colon && p.tok != _Rbrack {
++				// x[i:j...
++				t.Index[1] = p.expr()
++			}
++			if p.got(_Colon) {
++				// x[i:j:...]
++				if t.Index[1] == nil {
++					p.error("middle index required in 3-index slice")
++				}
++				if p.tok != _Rbrack {
++					// x[i:j:k...
++					t.Index[2] = p.expr()
++				} else {
++					p.error("final index required in 3-index slice")
++				}
++			}
++			p.want(_Rbrack)
++
++			x = t
++			p.xnest--
++
++		case _Lparen:
++			// call or conversion
++			// convtype '(' expr ocomma ')'
++			c := new(CallExpr)
++			c.init(p)
++			c.Fun = x
++			c.ArgList, c.HasDots = p.argList()
++			x = c
++
++		case _Lbrace:
++			// operand may have returned a parenthesized complit
++			// type; accept it but complain if we have a complit
++			t := unparen(x)
++			// determine if '{' belongs to a complit or a compound_stmt
++			complit_ok := false
++			switch t.(type) {
++			case *Name, *SelectorExpr:
++				if p.xnest >= 0 {
++					// x is considered a comptype
++					complit_ok = true
++				}
++			case *ArrayType, *SliceType, *StructType, *MapType:
++				// x is a comptype
++				complit_ok = true
++			}
++			if !complit_ok {
++				break loop
++			}
++			if t != x {
++				p.syntax_error("cannot parenthesize type in composite literal")
++				// already progressed, no need to advance
++			}
++			n := p.complitexpr()
++			n.Type = x
++			x = n
++
++		default:
++			break loop
++		}
++	}
++
++	return x
++}
++
++// Element = Expression | LiteralValue .
++func (p *parser) bare_complitexpr() Expr {
++	if trace {
++		defer p.trace("bare_complitexpr")()
++	}
++
++	if p.tok == _Lbrace {
++		// '{' start_complit braced_keyval_list '}'
++		return p.complitexpr()
++	}
++
++	return p.expr()
++}
++
++// LiteralValue = "{" [ ElementList [ "," ] ] "}" .
++func (p *parser) complitexpr() *CompositeLit {
++	if trace {
++		defer p.trace("complitexpr")()
++	}
++
++	x := new(CompositeLit)
++	x.init(p)
++
++	p.want(_Lbrace)
++	p.xnest++
++
++	for p.tok != _EOF && p.tok != _Rbrace {
++		// value
++		e := p.bare_complitexpr()
++		if p.got(_Colon) {
++			// key ':' value
++			l := new(KeyValueExpr)
++			l.init(p)
++			l.Key = e
++			l.Value = p.bare_complitexpr()
++			e = l
++			x.NKeys++
++		}
++		x.ElemList = append(x.ElemList, e)
++		if !p.ocomma(_Rbrace) {
++			break
++		}
++	}
++
++	p.xnest--
++	p.want(_Rbrace)
++
++	return x
++}
++
++// ----------------------------------------------------------------------------
++// Types
++
++func (p *parser) type_() Expr {
++	if trace {
++		defer p.trace("type_")()
++	}
++
++	if typ := p.tryType(); typ != nil {
++		return typ
++	}
++
++	p.syntax_error("")
++	p.advance()
++	return nil
++}
++
++func indirect(typ Expr) Expr {
++	return &Operation{Op: Mul, X: typ}
++}
++
++// tryType is like type_ but it returns nil if there was no type
++// instead of reporting an error.
++//
++// Type     = TypeName | TypeLit | "(" Type ")" .
++// TypeName = identifier | QualifiedIdent .
++// TypeLit  = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
++// 	      SliceType | MapType | Channel_Type .
++func (p *parser) tryType() Expr {
++	if trace {
++		defer p.trace("tryType")()
++	}
++
++	switch p.tok {
++	case _Star:
++		// ptrtype
++		p.next()
++		return indirect(p.type_())
++
++	case _Arrow:
++		// recvchantype
++		p.next()
++		p.want(_Chan)
++		t := new(ChanType)
++		t.init(p)
++		t.Dir = RecvOnly
++		t.Elem = p.chanElem()
++		return t
++
++	case _Func:
++		// fntype
++		p.next()
++		return p.funcType()
++
++	case _Lbrack:
++		// '[' oexpr ']' ntype
++		// '[' _DotDotDot ']' ntype
++		p.next()
++		p.xnest++
++		if p.got(_Rbrack) {
++			// []T
++			p.xnest--
++			t := new(SliceType)
++			t.init(p)
++			t.Elem = p.type_()
++			return t
++		}
++
++		// [n]T
++		t := new(ArrayType)
++		t.init(p)
++		if !p.got(_DotDotDot) {
++			t.Len = p.expr()
++		}
++		p.want(_Rbrack)
++		p.xnest--
++		t.Elem = p.type_()
++		return t
++
++	case _Chan:
++		// _Chan non_recvchantype
++		// _Chan _Comm ntype
++		p.next()
++		t := new(ChanType)
++		t.init(p)
++		if p.got(_Arrow) {
++			t.Dir = SendOnly
++		}
++		t.Elem = p.chanElem()
++		return t
++
++	case _Map:
++		// _Map '[' ntype ']' ntype
++		p.next()
++		p.want(_Lbrack)
++		t := new(MapType)
++		t.init(p)
++		t.Key = p.type_()
++		p.want(_Rbrack)
++		t.Value = p.type_()
++		return t
++
++	case _Struct:
++		return p.structType()
++
++	case _Interface:
++		return p.interfaceType()
++
++	case _Name:
++		return p.dotname(p.name())
++
++	case _Lparen:
++		p.next()
++		t := p.type_()
++		p.want(_Rparen)
++		return t
++	}
++
++	return nil
++}
++
++func (p *parser) funcType() *FuncType {
++	if trace {
++		defer p.trace("funcType")()
++	}
++
++	typ := new(FuncType)
++	typ.init(p)
++	typ.ParamList = p.paramList()
++	typ.ResultList = p.funcResult()
++	return typ
++}
++
++func (p *parser) chanElem() Expr {
++	if trace {
++		defer p.trace("chanElem")()
++	}
++
++	if typ := p.tryType(); typ != nil {
++		return typ
++	}
++
++	p.syntax_error("missing channel element type")
++	// assume element type is simply absent - don't advance
++	return nil
++}
++
++func (p *parser) dotname(name *Name) Expr {
++	if trace {
++		defer p.trace("dotname")()
++	}
++
++	if p.got(_Dot) {
++		s := new(SelectorExpr)
++		s.init(p)
++		s.X = name
++		s.Sel = p.name()
++		return s
++	}
++	return name
++}
++
++// StructType = "struct" "{" { FieldDecl ";" } "}" .
++func (p *parser) structType() *StructType {
++	if trace {
++		defer p.trace("structType")()
++	}
++
++	typ := new(StructType)
++	typ.init(p)
++
++	p.want(_Struct)
++	p.want(_Lbrace)
++	for p.tok != _EOF && p.tok != _Rbrace {
++		p.fieldDecl(typ)
++		if !p.osemi(_Rbrace) {
++			break
++		}
++	}
++	p.want(_Rbrace)
++
++	return typ
++}
++
++// InterfaceType = "interface" "{" { MethodSpec ";" } "}" .
++func (p *parser) interfaceType() *InterfaceType {
++	if trace {
++		defer p.trace("interfaceType")()
++	}
++
++	typ := new(InterfaceType)
++	typ.init(p)
++
++	p.want(_Interface)
++	p.want(_Lbrace)
++	for p.tok != _EOF && p.tok != _Rbrace {
++		if m := p.methodDecl(); m != nil {
++			typ.MethodList = append(typ.MethodList, m)
++		}
++		if !p.osemi(_Rbrace) {
++			break
++		}
++	}
++	p.want(_Rbrace)
++
++	return typ
++}
++
++// FunctionBody = Block .
++func (p *parser) funcBody() []Stmt {
++	if trace {
++		defer p.trace("funcBody")()
++	}
++
++	if p.got(_Lbrace) {
++		p.fnest++
++		body := p.stmtList()
++		p.fnest--
++		p.want(_Rbrace)
++		if body == nil {
++			body = []Stmt{new(EmptyStmt)}
++		}
++		return body
++	}
++
++	return nil
++}
++
++// Result = Parameters | Type .
++func (p *parser) funcResult() []*Field {
++	if trace {
++		defer p.trace("funcResult")()
++	}
++
++	if p.tok == _Lparen {
++		return p.paramList()
++	}
++
++	if result := p.tryType(); result != nil {
++		f := new(Field)
++		f.init(p)
++		f.Type = result
++		return []*Field{f}
++	}
++
++	return nil
++}
++
++func (p *parser) addField(styp *StructType, name *Name, typ Expr, tag *BasicLit) {
++	if tag != nil {
++		for i := len(styp.FieldList) - len(styp.TagList); i > 0; i-- {
++			styp.TagList = append(styp.TagList, nil)
++		}
++		styp.TagList = append(styp.TagList, tag)
++	}
++
++	f := new(Field)
++	f.init(p)
++	f.Name = name
++	f.Type = typ
++	styp.FieldList = append(styp.FieldList, f)
++
++	if debug && tag != nil && len(styp.FieldList) != len(styp.TagList) {
++		panic("inconsistent struct field list")
++	}
++}
++
++// FieldDecl      = (IdentifierList Type | AnonymousField) [ Tag ] .
++// AnonymousField = [ "*" ] TypeName .
++// Tag            = string_lit .
++func (p *parser) fieldDecl(styp *StructType) {
++	if trace {
++		defer p.trace("fieldDecl")()
++	}
++
++	var name *Name
++	switch p.tok {
++	case _Name:
++		name = p.name()
++		if p.tok == _Dot || p.tok == _Literal || p.tok == _Semi || p.tok == _Rbrace {
++			// embed oliteral
++			typ := p.qualifiedName(name)
++			tag := p.oliteral()
++			p.addField(styp, nil, typ, tag)
++			return
++		}
++
++		// new_name_list ntype oliteral
++		names := p.nameList(name)
++		typ := p.type_()
++		tag := p.oliteral()
++
++		for _, name := range names {
++			p.addField(styp, name, typ, tag)
++		}
++
++	case _Lparen:
++		p.next()
++		if p.tok == _Star {
++			// '(' '*' embed ')' oliteral
++			p.next()
++			typ := indirect(p.qualifiedName(nil))
++			p.want(_Rparen)
++			tag := p.oliteral()
++			p.addField(styp, nil, typ, tag)
++			p.error("cannot parenthesize embedded type")
++
++		} else {
++			// '(' embed ')' oliteral
++			typ := p.qualifiedName(nil)
++			p.want(_Rparen)
++			tag := p.oliteral()
++			p.addField(styp, nil, typ, tag)
++			p.error("cannot parenthesize embedded type")
++		}
++
++	case _Star:
++		p.next()
++		if p.got(_Lparen) {
++			// '*' '(' embed ')' oliteral
++			typ := indirect(p.qualifiedName(nil))
++			p.want(_Rparen)
++			tag := p.oliteral()
++			p.addField(styp, nil, typ, tag)
++			p.error("cannot parenthesize embedded type")
++
++		} else {
++			// '*' embed oliteral
++			typ := indirect(p.qualifiedName(nil))
++			tag := p.oliteral()
++			p.addField(styp, nil, typ, tag)
++		}
++
++	default:
++		p.syntax_error("expecting field name or embedded type")
++		p.advance(_Semi, _Rbrace)
++	}
++}
++
++func (p *parser) oliteral() *BasicLit {
++	if p.tok == _Literal {
++		b := new(BasicLit)
++		b.init(p)
++		b.Value = p.lit
++		b.Kind = p.kind
++		p.next()
++		return b
++	}
++	return nil
++}
++
++// MethodSpec        = MethodName Signature | InterfaceTypeName .
++// MethodName        = identifier .
++// InterfaceTypeName = TypeName .
++func (p *parser) methodDecl() *Field {
++	if trace {
++		defer p.trace("methodDecl")()
++	}
++
++	switch p.tok {
++	case _Name:
++		name := p.name()
++
++		// accept potential name list but complain
++		hasNameList := false
++		for p.got(_Comma) {
++			p.name()
++			hasNameList = true
++		}
++		if hasNameList {
++			p.syntax_error("name list not allowed in interface type")
++			// already progressed, no need to advance
++		}
++
++		f := new(Field)
++		f.init(p)
++		if p.tok != _Lparen {
++			// packname
++			f.Type = p.qualifiedName(name)
++			return f
++		}
++
++		f.Name = name
++		f.Type = p.funcType()
++		return f
++
++	case _Lparen:
++		p.next()
++		f := new(Field)
++		f.init(p)
++		f.Type = p.qualifiedName(nil)
++		p.want(_Rparen)
++		p.error("cannot parenthesize embedded type")
++		return f
++
++	default:
++		p.syntax_error("")
++		p.advance(_Semi, _Rbrace)
++		return nil
++	}
++}
++
++// ParameterDecl = [ IdentifierList ] [ "..." ] Type .
++func (p *parser) paramDecl() *Field {
++	if trace {
++		defer p.trace("paramDecl")()
++	}
++
++	f := new(Field)
++	f.init(p)
++
++	switch p.tok {
++	case _Name:
++		f.Name = p.name()
++		switch p.tok {
++		case _Name, _Star, _Arrow, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
++			// sym name_or_type
++			f.Type = p.type_()
++
++		case _DotDotDot:
++			// sym dotdotdot
++			f.Type = p.dotsType()
++
++		case _Dot:
++			// name_or_type
++			// from dotname
++			f.Type = p.dotname(f.Name)
++			f.Name = nil
++		}
++
++	case _Arrow, _Star, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
++		// name_or_type
++		f.Type = p.type_()
++
++	case _DotDotDot:
++		// dotdotdot
++		f.Type = p.dotsType()
++
++	default:
++		p.syntax_error("expecting )")
++		p.advance(_Comma, _Rparen)
++		return nil
++	}
++
++	return f
++}
++
++// ...Type
++func (p *parser) dotsType() *DotsType {
++	if trace {
++		defer p.trace("dotsType")()
++	}
++
++	t := new(DotsType)
++	t.init(p)
++
++	p.want(_DotDotDot)
++	t.Elem = p.tryType()
++	if t.Elem == nil {
++		p.error("final argument in variadic function missing type")
++	}
++
++	return t
++}
++
++// Parameters    = "(" [ ParameterList [ "," ] ] ")" .
++// ParameterList = ParameterDecl { "," ParameterDecl } .
++func (p *parser) paramList() (list []*Field) {
++	if trace {
++		defer p.trace("paramList")()
++	}
++
++	p.want(_Lparen)
++
++	var named int // number of parameters that have an explicit name and type
++	for p.tok != _EOF && p.tok != _Rparen {
++		if par := p.paramDecl(); par != nil {
++			if debug && par.Name == nil && par.Type == nil {
++				panic("parameter without name or type")
++			}
++			if par.Name != nil && par.Type != nil {
++				named++
++			}
++			list = append(list, par)
++		}
++		if !p.ocomma(_Rparen) {
++			break
++		}
++	}
++
++	// distribute parameter types
++	if named == 0 {
++		// all unnamed => found names are named types
++		for _, par := range list {
++			if typ := par.Name; typ != nil {
++				par.Type = typ
++				par.Name = nil
++			}
++		}
++	} else if named != len(list) {
++		// some named => all must be named
++		var typ Expr
++		for i := len(list) - 1; i >= 0; i-- {
++			if par := list[i]; par.Type != nil {
++				typ = par.Type
++				if par.Name == nil {
++					typ = nil // error
++				}
++			} else {
++				par.Type = typ
++			}
++			if typ == nil {
++				p.syntax_error("mixed named and unnamed function parameters")
++				break
++			}
++		}
++	}
++
++	p.want(_Rparen)
++	return
++}
++
++// ----------------------------------------------------------------------------
++// Statements
++
++// We represent x++, x-- as assignments x += ImplicitOne, x -= ImplicitOne.
++// ImplicitOne should not be used elsewhere.
++var ImplicitOne = &BasicLit{Value: "1"}
++
++// SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
++//
++// simpleStmt may return missing_stmt if labelOk is set.
++func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
++	if trace {
++		defer p.trace("simpleStmt")()
++	}
++
++	if rangeOk && p.got(_Range) {
++		// _Range expr
++		if debug && lhs != nil {
++			panic("invalid call of simpleStmt")
++		}
++		return p.rangeClause(nil, false)
++	}
++
++	if lhs == nil {
++		lhs = p.exprList()
++	}
++
++	if _, ok := lhs.(*ListExpr); !ok && p.tok != _Assign && p.tok != _Define {
++		// expr
++		switch p.tok {
++		case _AssignOp:
++			// lhs op= rhs
++			op := p.op
++			p.next()
++			return p.newAssignStmt(op, lhs, p.expr())
++
++		case _IncOp:
++			// lhs++ or lhs--
++			op := p.op
++			p.next()
++			return p.newAssignStmt(op, lhs, ImplicitOne)
++
++		case _Arrow:
++			// lhs <- rhs
++			p.next()
++			s := new(SendStmt)
++			s.init(p)
++			s.Chan = lhs
++			s.Value = p.expr()
++			return s
++
++		default:
++			// expr
++			return &ExprStmt{X: lhs}
++		}
++	}
++
++	// expr_list
++	switch p.tok {
++	case _Assign:
++		p.next()
++
++		if rangeOk && p.got(_Range) {
++			// expr_list '=' _Range expr
++			return p.rangeClause(lhs, false)
++		}
++
++		// expr_list '=' expr_list
++		return p.newAssignStmt(0, lhs, p.exprList())
++
++	case _Define:
++		//lno := lineno
++		p.next()
++
++		if rangeOk && p.got(_Range) {
++			// expr_list ':=' range expr
++			return p.rangeClause(lhs, true)
++		}
++
++		// expr_list ':=' expr_list
++		rhs := p.exprList()
++
++		if x, ok := rhs.(*TypeSwitchGuard); ok {
++			switch lhs := lhs.(type) {
++			case *Name:
++				x.Lhs = lhs
++			case *ListExpr:
++				p.error(fmt.Sprintf("argument count mismatch: %d = %d", len(lhs.ElemList), 1))
++			default:
++				// TODO(mdempsky): Have Expr types implement Stringer?
++				p.error(fmt.Sprintf("invalid variable name %s in type switch", lhs))
++			}
++			return &ExprStmt{X: x}
++		}
++
++		return p.newAssignStmt(Def, lhs, rhs)
++
++	default:
++		p.syntax_error("expecting := or = or comma")
++		p.advance(_Semi, _Rbrace)
++		return nil
++	}
++}
++
++func (p *parser) rangeClause(lhs Expr, def bool) *RangeClause {
++	r := new(RangeClause)
++	r.init(p)
++	r.Lhs = lhs
++	r.Def = def
++	r.X = p.expr()
++	return r
++}
++
++func (p *parser) newAssignStmt(op Operator, lhs, rhs Expr) *AssignStmt {
++	a := new(AssignStmt)
++	a.init(p)
++	a.Op = op
++	a.Lhs = lhs
++	a.Rhs = rhs
++	return a
++}
++
++func (p *parser) labeledStmt(label *Name) Stmt {
++	if trace {
++		defer p.trace("labeledStmt")()
++	}
++
++	var ls Stmt // labeled statement
++	if p.tok != _Rbrace && p.tok != _EOF {
++		ls = p.stmt()
++		if ls == missing_stmt {
++			// report error at line of ':' token
++			p.syntax_error_at(label.line, "missing statement after label")
++			// we are already at the end of the labeled statement - no need to advance
++			return missing_stmt
++		}
++	}
++
++	s := new(LabeledStmt)
++	s.init(p)
++	s.Label = label
++	s.Stmt = ls
++	return s
++}
++
++func (p *parser) blockStmt() *BlockStmt {
++	if trace {
++		defer p.trace("blockStmt")()
++	}
++
++	s := new(BlockStmt)
++	s.init(p)
++	p.want(_Lbrace)
++	s.Body = p.stmtList()
++	p.want(_Rbrace)
++
++	return s
++}
++
++func (p *parser) declStmt(f func(*Group) Decl) *DeclStmt {
++	if trace {
++		defer p.trace("declStmt")()
++	}
++
++	s := new(DeclStmt)
++	s.init(p)
++
++	p.next() // _Const, _Type, or _Var
++	s.DeclList = p.appendGroup(nil, f)
++
++	return s
++}
++
++func (p *parser) forStmt() Stmt {
++	if trace {
++		defer p.trace("forStmt")()
++	}
++
++	s := new(ForStmt)
++	s.init(p)
++
++	p.want(_For)
++	s.Init, s.Cond, s.Post = p.header(true)
++	s.Body = p.stmtBody("for clause")
++
++	return s
++}
++
++// stmtBody parses if and for statement bodies.
++func (p *parser) stmtBody(context string) []Stmt {
++	if trace {
++		defer p.trace("stmtBody")()
++	}
++
++	if !p.got(_Lbrace) {
++		p.syntax_error("missing { after " + context)
++		p.advance(_Name, _Rbrace)
++	}
++
++	body := p.stmtList()
++	p.want(_Rbrace)
++
++	return body
++}
++
++func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleStmt) {
++	if p.tok == _Lbrace {
++		return
++	}
++
++	outer := p.xnest
++	p.xnest = -1
++
++	if p.tok != _Semi {
++		// accept potential varDecl but complain
++		if p.got(_Var) {
++			p.error("var declaration not allowed in initializer")
++		}
++		init = p.simpleStmt(nil, forStmt)
++		// If we have a range clause, we are done.
++		if _, ok := init.(*RangeClause); ok {
++			p.xnest = outer
++			return
++		}
++	}
++
++	var condStmt SimpleStmt
++	if p.got(_Semi) {
++		if forStmt {
++			if p.tok != _Semi {
++				condStmt = p.simpleStmt(nil, false)
++			}
++			p.want(_Semi)
++			if p.tok != _Lbrace {
++				post = p.simpleStmt(nil, false)
++			}
++		} else if p.tok != _Lbrace {
++			condStmt = p.simpleStmt(nil, false)
++		}
++	} else {
++		condStmt = init
++		init = nil
++	}
++
++	// unpack condStmt
++	switch s := condStmt.(type) {
++	case nil:
++		// nothing to do
++	case *ExprStmt:
++		cond = s.X
++	default:
++		p.error("invalid condition, tag, or type switch guard")
++	}
++
++	p.xnest = outer
++	return
++}
++
++func (p *parser) ifStmt() *IfStmt {
++	if trace {
++		defer p.trace("ifStmt")()
++	}
++
++	s := new(IfStmt)
++	s.init(p)
++
++	p.want(_If)
++	s.Init, s.Cond, _ = p.header(false)
++	if s.Cond == nil {
++		p.error("missing condition in if statement")
++	}
++
++	s.Then = p.stmtBody("if clause")
++
++	if p.got(_Else) {
++		if p.tok == _If {
++			s.Else = p.ifStmt()
++		} else {
++			s.Else = p.blockStmt()
++		}
++	}
++
++	return s
++}
++
++func (p *parser) switchStmt() *SwitchStmt {
++	if trace {
++		defer p.trace("switchStmt")()
++	}
++
++	p.want(_Switch)
++	s := new(SwitchStmt)
++	s.init(p)
++
++	s.Init, s.Tag, _ = p.header(false)
++
++	if !p.got(_Lbrace) {
++		p.syntax_error("missing { after switch clause")
++		p.advance(_Case, _Default, _Rbrace)
++	}
++	for p.tok != _EOF && p.tok != _Rbrace {
++		s.Body = append(s.Body, p.caseClause())
++	}
++	p.want(_Rbrace)
++
++	return s
++}
++
++func (p *parser) selectStmt() *SelectStmt {
++	if trace {
++		defer p.trace("selectStmt")()
++	}
++
++	p.want(_Select)
++	s := new(SelectStmt)
++	s.init(p)
++
++	if !p.got(_Lbrace) {
++		p.syntax_error("missing { after select clause")
++		p.advance(_Case, _Default, _Rbrace)
++	}
++	for p.tok != _EOF && p.tok != _Rbrace {
++		s.Body = append(s.Body, p.commClause())
++	}
++	p.want(_Rbrace)
++
++	return s
++}
++
++func (p *parser) caseClause() *CaseClause {
++	if trace {
++		defer p.trace("caseClause")()
++	}
++
++	c := new(CaseClause)
++	c.init(p)
++
++	switch p.tok {
++	case _Case:
++		p.next()
++		c.Cases = p.exprList()
++
++	case _Default:
++		p.next()
++
++	default:
++		p.syntax_error("expecting case or default or }")
++		p.advance(_Case, _Default, _Rbrace)
++	}
++
++	p.want(_Colon)
++	c.Body = p.stmtList()
++
++	return c
++}
++
++func (p *parser) commClause() *CommClause {
++	if trace {
++		defer p.trace("commClause")()
++	}
++
++	c := new(CommClause)
++	c.init(p)
++
++	switch p.tok {
++	case _Case:
++		p.next()
++		lhs := p.exprList()
++
++		if _, ok := lhs.(*ListExpr); !ok && p.tok == _Arrow {
++			// lhs <- x
++		} else {
++			// lhs
++			// lhs = <-x
++			// lhs := <-x
++			if p.tok == _Assign || p.tok == _Define {
++				// TODO(gri) check that lhs has at most 2 entries
++			} else if p.tok == _Colon {
++				// TODO(gri) check that lhs has at most 1 entry
++			} else {
++				panic("unimplemented")
++			}
++		}
++
++		c.Comm = p.simpleStmt(lhs, false)
++
++	case _Default:
++		p.next()
++
++	default:
++		p.syntax_error("expecting case or default or }")
++		p.advance(_Case, _Default, _Rbrace)
++	}
++
++	p.want(_Colon)
++	c.Body = p.stmtList()
++
++	return c
++}
++
++// TODO(gri) find a better solution
++var missing_stmt Stmt = new(EmptyStmt) // = Nod(OXXX, nil, nil)
++
++// Statement =
++// 	Declaration | LabeledStmt | SimpleStmt |
++// 	GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
++// 	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
++// 	DeferStmt .
++//
++// stmt may return missing_stmt.
++func (p *parser) stmt() Stmt {
++	if trace {
++		defer p.trace("stmt " + p.tok.String())()
++	}
++
++	// Most statements (assignments) start with an identifier;
++	// look for it first before doing anything more expensive.
++	if p.tok == _Name {
++		lhs := p.exprList()
++		if label, ok := lhs.(*Name); ok && p.got(_Colon) {
++			return p.labeledStmt(label)
++		}
++		return p.simpleStmt(lhs, false)
++	}
++
++	switch p.tok {
++	case _Lbrace:
++		return p.blockStmt()
++
++	case _Var:
++		return p.declStmt(p.varDecl)
++
++	case _Const:
++		return p.declStmt(p.constDecl)
++
++	case _Type:
++		return p.declStmt(p.typeDecl)
++
++	case _Operator, _Star:
++		switch p.op {
++		case Add, Sub, Mul, And, Xor, Not:
++			return p.simpleStmt(nil, false) // unary operators
++		}
++
++	case _Literal, _Func, _Lparen, // operands
++		_Lbrack, _Struct, _Map, _Chan, _Interface, // composite types
++		_Arrow: // receive operator
++		return p.simpleStmt(nil, false)
++
++	case _For:
++		return p.forStmt()
++
++	case _Switch:
++		return p.switchStmt()
++
++	case _Select:
++		return p.selectStmt()
++
++	case _If:
++		return p.ifStmt()
++
++	case _Fallthrough:
++		p.next()
++		s := new(BranchStmt)
++		s.init(p)
++		s.Tok = _Fallthrough
++		return s
++		// // will be converted to OFALL
++		// stmt := Nod(OXFALL, nil, nil)
++		// stmt.Xoffset = int64(block)
++		// return stmt
++
++	case _Break, _Continue:
++		tok := p.tok
++		p.next()
++		s := new(BranchStmt)
++		s.init(p)
++		s.Tok = tok
++		if p.tok == _Name {
++			s.Label = p.name()
++		}
++		return s
++
++	case _Go, _Defer:
++		return p.callStmt()
++
++	case _Goto:
++		p.next()
++		s := new(BranchStmt)
++		s.init(p)
++		s.Tok = _Goto
++		s.Label = p.name()
++		return s
++		// stmt := Nod(OGOTO, p.new_name(p.name()), nil)
++		// stmt.Sym = dclstack // context, for goto restrictions
++		// return stmt
++
++	case _Return:
++		p.next()
++		s := new(ReturnStmt)
++		s.init(p)
++		if p.tok != _Semi && p.tok != _Rbrace {
++			s.Results = p.exprList()
++		}
++		return s
++
++	case _Semi:
++		s := new(EmptyStmt)
++		s.init(p)
++		return s
++	}
++
++	return missing_stmt
++}
++
++// StatementList = { Statement ";" } .
++func (p *parser) stmtList() (l []Stmt) {
++	if trace {
++		defer p.trace("stmtList")()
++	}
++
++	for p.tok != _EOF && p.tok != _Rbrace && p.tok != _Case && p.tok != _Default {
++		s := p.stmt()
++		if s == missing_stmt {
++			break
++		}
++		l = append(l, s)
++		// customized version of osemi:
++		// ';' is optional before a closing ')' or '}'
++		if p.tok == _Rparen || p.tok == _Rbrace {
++			continue
++		}
++		if !p.got(_Semi) {
++			p.syntax_error("at end of statement")
++			p.advance(_Semi, _Rbrace)
++		}
++	}
++	return
++}
++
++// Arguments = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
++func (p *parser) argList() (list []Expr, hasDots bool) {
++	if trace {
++		defer p.trace("argList")()
++	}
++
++	p.want(_Lparen)
++	p.xnest++
++
++	for p.tok != _EOF && p.tok != _Rparen {
++		list = append(list, p.expr()) // expr_or_type
++		hasDots = p.got(_DotDotDot)
++		if !p.ocomma(_Rparen) || hasDots {
++			break
++		}
++	}
++
++	p.xnest--
++	p.want(_Rparen)
++
++	return
++}
++
++// ----------------------------------------------------------------------------
++// Common productions
++
++func (p *parser) name() *Name {
++	// no tracing to avoid overly verbose output
++
++	n := new(Name)
++	n.init(p)
++
++	if p.tok == _Name {
++		n.Value = p.lit
++		p.next()
++	} else {
++		n.Value = "_"
++		p.syntax_error("expecting name")
++		p.advance()
++	}
++
++	return n
++}
++
++// IdentifierList = identifier { "," identifier } .
++// The first name must be provided.
++func (p *parser) nameList(first *Name) []*Name {
++	if trace {
++		defer p.trace("nameList")()
++	}
++
++	if debug && first == nil {
++		panic("first name not provided")
++	}
++
++	l := []*Name{first}
++	for p.got(_Comma) {
++		l = append(l, p.name())
++	}
++
++	return l
++}
++
++// The first name may be provided, or nil.
++func (p *parser) qualifiedName(name *Name) Expr {
++	if trace {
++		defer p.trace("qualifiedName")()
++	}
++
++	switch {
++	case name != nil:
++		// name is provided
++	case p.tok == _Name:
++		name = p.name()
++	default:
++		name = new(Name)
++		name.init(p)
++		p.syntax_error("expecting name")
++		p.advance(_Dot, _Semi, _Rbrace)
++	}
++
++	return p.dotname(name)
++}
++
++// ExpressionList = Expression { "," Expression } .
++func (p *parser) exprList() Expr {
++	if trace {
++		defer p.trace("exprList")()
++	}
++
++	x := p.expr()
++	if p.got(_Comma) {
++		list := []Expr{x, p.expr()}
++		for p.got(_Comma) {
++			list = append(list, p.expr())
++		}
++		t := new(ListExpr)
++		t.init(p) // TODO(gri) what is the correct thing here?
++		t.ElemList = list
++		x = t
++	}
++	return x
++}
++
++// osemi parses an optional semicolon.
++func (p *parser) osemi(follow token) bool {
++	switch p.tok {
++	case _Semi:
++		p.next()
++		return true
++
++	case _Rparen, _Rbrace:
++		// semicolon is optional before ) or }
++		return true
++	}
++
++	p.syntax_error("expecting semicolon, newline, or " + tokstring(follow))
++	p.advance(follow)
++	return false
++}
++
++// ocomma parses an optional comma.
++func (p *parser) ocomma(follow token) bool {
++	switch p.tok {
++	case _Comma:
++		p.next()
++		return true
++
++	case _Rparen, _Rbrace:
++		// comma is optional before ) or }
++		return true
++	}
++
++	p.syntax_error("expecting comma or " + tokstring(follow))
++	p.advance(follow)
++	return false
++}
++
++// unparen removes all parentheses around an expression.
++func unparen(x Expr) Expr {
++	for {
++		p, ok := x.(*ParenExpr)
++		if !ok {
++			break
++		}
++		x = p.X
++	}
++	return x
++}
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+new file mode 100644
+index 0000000000..12fc019414
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -0,0 +1,157 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import (
++	"bytes"
++	"flag"
++	"fmt"
++	"io/ioutil"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++)
++
++var fast = flag.Bool("fast", false, "parse package files in parallel")
++var src = flag.String("src", "parser.go", "source file to parse")
++var verify = flag.Bool("verify", false, "verify idempotent printing")
++
++func TestParse(t *testing.T) {
++	_, err := ReadFile(*src, nil, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestStdLib(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
++
++	var m1 runtime.MemStats
++	runtime.ReadMemStats(&m1)
++	start := time.Now()
++
++	type parseResult struct {
++		filename string
++		lines    int
++	}
++
++	results := make(chan parseResult)
++	go func() {
++		for _, dir := range []string{
++			runtime.GOROOT(),
++			//"/Users/gri/src",
++		} {
++			walkDirs(t, dir, func(filename string) {
++				if debug {
++					fmt.Printf("parsing %s\n", filename)
++				}
++				ast, err := ReadFile(filename, nil, 0)
++				if err != nil {
++					t.Fatal(err)
++				}
++				if *verify {
++					verifyPrint(filename, ast)
++				}
++				results <- parseResult{filename, ast.Lines}
++			})
++		}
++		close(results)
++	}()
++
++	var count, lines int
++	for res := range results {
++		count++
++		lines += res.lines
++		if testing.Verbose() {
++			fmt.Printf("%5d  %s (%d lines)\n", count, res.filename, res.lines)
++		}
++	}
++
++	dt := time.Since(start)
++	var m2 runtime.MemStats
++	runtime.ReadMemStats(&m2)
++	dm := float64(m2.TotalAlloc-m1.TotalAlloc) / 1e6
++
++	fmt.Printf("parsed %d lines (%d files) in %v (%d lines/s)\n", lines, count, dt, int64(float64(lines)/dt.Seconds()))
++	fmt.Printf("allocated %.3fMb (%.3fMb/s)\n", dm, dm/dt.Seconds())
++}
++
++func walkDirs(t *testing.T, dir string, action func(string)) {
++	fis, err := ioutil.ReadDir(dir)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	var files, dirs []string
++	for _, fi := range fis {
++		if fi.Mode().IsRegular() {
++			if strings.HasSuffix(fi.Name(), ".go") {
++				path := filepath.Join(dir, fi.Name())
++				files = append(files, path)
++			}
++		} else if fi.IsDir() && fi.Name() != "testdata" {
++			path := filepath.Join(dir, fi.Name())
++			if !strings.Contains(path, "go/test") {
++				dirs = append(dirs, path)
++			}
++		}
++	}
++
++	if *fast {
++		var wg sync.WaitGroup
++		wg.Add(len(files))
++		for _, filename := range files {
++			go func(filename string) {
++				defer wg.Done()
++				action(filename)
++			}(filename)
++		}
++		wg.Wait()
++	} else {
++		for _, filename := range files {
++			action(filename)
++		}
++	}
++
++	for _, dir := range dirs {
++		walkDirs(t, dir, action)
++	}
++}
++
++func verifyPrint(filename string, ast1 *File) {
++	var buf1 bytes.Buffer
++	_, err := Fprint(&buf1, ast1, true)
++	if err != nil {
++		panic(err)
++	}
++
++	ast2, err := ReadBytes(buf1.Bytes(), nil, 0)
++	if err != nil {
++		panic(err)
++	}
++
++	var buf2 bytes.Buffer
++	_, err = Fprint(&buf2, ast2, true)
++	if err != nil {
++		panic(err)
++	}
++
++	if bytes.Compare(buf1.Bytes(), buf2.Bytes()) != 0 {
++		fmt.Printf("--- %s ---\n", filename)
++		fmt.Printf("%s\n", buf1.Bytes())
++		fmt.Println()
++
++		fmt.Printf("--- %s ---\n", filename)
++		fmt.Printf("%s\n", buf2.Bytes())
++		fmt.Println()
++		panic("not equal")
++	}
++}
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+new file mode 100644
+index 0000000000..0cacf1e5d4
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -0,0 +1,942 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements printing of syntax trees in source format.
++
++package syntax
++
++import (
++	"bytes"
++	"fmt"
++	"io"
++	"strings"
++)
++
++// TODO(gri) Consider removing the linebreaks flag from this signature.
++// Its likely rarely used in common cases.
++
++func Fprint(w io.Writer, x Node, linebreaks bool) (n int, err error) {
++	p := printer{
++		output:     w,
++		linebreaks: linebreaks,
++	}
++
++	defer func() {
++		n = p.written
++		if e := recover(); e != nil {
++			err = e.(localError).err // re-panics if it's not a localError
++		}
++	}()
++
++	p.print(x)
++	p.flush(_EOF)
++
++	return
++}
++
++func String(n Node) string {
++	var buf bytes.Buffer
++	_, err := Fprint(&buf, n, false)
++	if err != nil {
++		panic(err) // TODO(gri) print something sensible into buf instead
++	}
++	return buf.String()
++}
++
++type ctrlSymbol int
++
++const (
++	none ctrlSymbol = iota
++	semi
++	blank
++	newline
++	indent
++	outdent
++	// comment
++	// eolComment
++)
++
++type whitespace struct {
++	last token
++	kind ctrlSymbol
++	//text string // comment text (possibly ""); valid if kind == comment
++}
++
++type printer struct {
++	output     io.Writer
++	written    int  // number of bytes written
++	linebreaks bool // print linebreaks instead of semis
++
++	indent  int // current indentation level
++	nlcount int // number of consecutive newlines
++
++	pending []whitespace // pending whitespace
++	lastTok token        // last token (after any pending semi) processed by print
++}
++
++// write is a thin wrapper around p.output.Write
++// that takes care of accounting and error handling.
++func (p *printer) write(data []byte) {
++	n, err := p.output.Write(data)
++	p.written += n
++	if err != nil {
++		panic(localError{err})
++	}
++}
++
++var (
++	tabBytes    = []byte("\t\t\t\t\t\t\t\t")
++	newlineByte = []byte("\n")
++	blankByte   = []byte(" ")
++)
++
++func (p *printer) writeBytes(data []byte) {
++	if len(data) == 0 {
++		panic("expected non-empty []byte")
++	}
++	if p.nlcount > 0 && p.indent > 0 {
++		// write indentation
++		n := p.indent
++		for n > len(tabBytes) {
++			p.write(tabBytes)
++			n -= len(tabBytes)
++		}
++		p.write(tabBytes[:n])
++	}
++	p.write(data)
++	p.nlcount = 0
++}
++
++func (p *printer) writeString(s string) {
++	p.writeBytes([]byte(s))
++}
++
++// If impliesSemi returns true for a non-blank line's final token tok,
++// a semicolon is automatically inserted. Vice versa, a semicolon may
++// be omitted in those cases.
++func impliesSemi(tok token) bool {
++	switch tok {
++	case _Name,
++		_Break, _Continue, _Fallthrough, _Return,
++		/*_Inc, _Dec,*/ _Rparen, _Rbrack, _Rbrace: // TODO(gri) fix this
++		return true
++	}
++	return false
++}
++
++// TODO(gri) provide table of []byte values for all tokens to avoid repeated string conversion
++
++func lineComment(text string) bool {
++	return strings.HasPrefix(text, "//")
++}
++
++func (p *printer) addWhitespace(kind ctrlSymbol, text string) {
++	p.pending = append(p.pending, whitespace{p.lastTok, kind /*text*/})
++	switch kind {
++	case semi:
++		p.lastTok = _Semi
++	case newline:
++		p.lastTok = 0
++		// TODO(gri) do we need to handle /*-style comments containing newlines here?
++	}
++}
++
++func (p *printer) flush(next token) {
++	// eliminate semis and redundant whitespace
++	sawNewline := next == _EOF
++	sawParen := next == _Rparen || next == _Rbrace
++	for i := len(p.pending) - 1; i >= 0; i-- {
++		switch p.pending[i].kind {
++		case semi:
++			k := semi
++			if sawParen {
++				sawParen = false
++				k = none // eliminate semi
++			} else if sawNewline && impliesSemi(p.pending[i].last) {
++				sawNewline = false
++				k = none // eliminate semi
++			}
++			p.pending[i].kind = k
++		case newline:
++			sawNewline = true
++		case blank, indent, outdent:
++			// nothing to do
++		// case comment:
++		// 	// A multi-line comment acts like a newline; and a ""
++		// 	// comment implies by definition at least one newline.
++		// 	if text := p.pending[i].text; strings.HasPrefix(text, "/*") && strings.ContainsRune(text, '\n') {
++		// 		sawNewline = true
++		// 	}
++		// case eolComment:
++		// 	// TODO(gri) act depending on sawNewline
++		default:
++			panic("unreachable")
++		}
++	}
++
++	// print pending
++	prev := none
++	for i := range p.pending {
++		switch p.pending[i].kind {
++		case none:
++			// nothing to do
++		case semi:
++			p.writeString(";")
++			p.nlcount = 0
++			prev = semi
++		case blank:
++			if prev != blank {
++				// at most one blank
++				p.writeBytes(blankByte)
++				p.nlcount = 0
++				prev = blank
++			}
++		case newline:
++			const maxEmptyLines = 1
++			if p.nlcount <= maxEmptyLines {
++				p.write(newlineByte)
++				p.nlcount++
++				prev = newline
++			}
++		case indent:
++			p.indent++
++		case outdent:
++			p.indent--
++			if p.indent < 0 {
++				panic("negative indentation")
++			}
++		// case comment:
++		// 	if text := p.pending[i].text; text != "" {
++		// 		p.writeString(text)
++		// 		p.nlcount = 0
++		// 		prev = comment
++		// 	}
++		// 	// TODO(gri) should check that line comments are always followed by newline
++		default:
++			panic("unreachable")
++		}
++	}
++
++	p.pending = p.pending[:0] // re-use underlying array
++}
++
++func mayCombine(prev token, next byte) (b bool) {
++	return // for now
++	// switch prev {
++	// case lexical.Int:
++	// 	b = next == '.' // 1.
++	// case lexical.Add:
++	// 	b = next == '+' // ++
++	// case lexical.Sub:
++	// 	b = next == '-' // --
++	// case lexical.Quo:
++	// 	b = next == '*' // /*
++	// case lexical.Lss:
++	// 	b = next == '-' || next == '<' // <- or <<
++	// case lexical.And:
++	// 	b = next == '&' || next == '^' // && or &^
++	// }
++	// return
++}
++
++func (p *printer) print(args ...interface{}) {
++	for i := 0; i < len(args); i++ {
++		switch x := args[i].(type) {
++		case nil:
++			// we should not reach here but don't crash
++
++		case Node:
++			p.printNode(x)
++
++		case token:
++			// _Name implies an immediately following string
++			// argument which is the actual value to print.
++			var s string
++			if x == _Name {
++				i++
++				if i >= len(args) {
++					panic("missing string argument after _Name")
++				}
++				s = args[i].(string)
++			} else {
++				s = x.String()
++			}
++
++			// TODO(gri) This check seems at the wrong place since it doesn't
++			//           take into account pending white space.
++			if mayCombine(p.lastTok, s[0]) {
++				panic("adjacent tokens combine without whitespace")
++			}
++
++			if x == _Semi {
++				// delay printing of semi
++				p.addWhitespace(semi, "")
++			} else {
++				p.flush(x)
++				p.writeString(s)
++				p.nlcount = 0
++				p.lastTok = x
++			}
++
++		case Operator:
++			if x != 0 {
++				p.flush(_Operator)
++				p.writeString(x.String())
++			}
++
++		case ctrlSymbol:
++			switch x {
++			case none, semi /*, comment*/ :
++				panic("unreachable")
++			case newline:
++				// TODO(gri) need to handle mandatory newlines after a //-style comment
++				if !p.linebreaks {
++					x = blank
++				}
++			}
++			p.addWhitespace(x, "")
++
++		// case *Comment: // comments are not Nodes
++		// 	p.addWhitespace(comment, x.Text)
++
++		default:
++			panic(fmt.Sprintf("unexpected argument %v (%T)", x, x))
++		}
++	}
++}
++
++func (p *printer) printNode(n Node) {
++	// ncom := *n.Comments()
++	// if ncom != nil {
++	// 	// TODO(gri) in general we cannot make assumptions about whether
++	// 	// a comment is a /*- or a //-style comment since the syntax
++	// 	// tree may have been manipulated. Need to make sure the correct
++	// 	// whitespace is emitted.
++	// 	for _, c := range ncom.Alone {
++	// 		p.print(c, newline)
++	// 	}
++	// 	for _, c := range ncom.Before {
++	// 		if c.Text == "" || lineComment(c.Text) {
++	// 			panic("unexpected empty line or //-style 'before' comment")
++	// 		}
++	// 		p.print(c, blank)
++	// 	}
++	// }
++
++	p.printRawNode(n)
++
++	// if ncom != nil && len(ncom.After) > 0 {
++	// 	for i, c := range ncom.After {
++	// 		if i+1 < len(ncom.After) {
++	// 			if c.Text == "" || lineComment(c.Text) {
++	// 				panic("unexpected empty line or //-style non-final 'after' comment")
++	// 			}
++	// 		}
++	// 		p.print(blank, c)
++	// 	}
++	// 	//p.print(newline)
++	// }
++}
++
++func (p *printer) printRawNode(n Node) {
++	switch n := n.(type) {
++	// expressions and types
++	case *Name:
++		p.print(_Name, n.Value) // _Name requires actual value following immediately
++
++	case *BasicLit:
++		p.print(_Name, n.Value) // _Name requires actual value following immediately
++
++	case *FuncLit:
++		p.print(n.Type, blank)
++		p.printBody(n.Body)
++
++	case *CompositeLit:
++		if n.Type != nil {
++			p.print(n.Type)
++		}
++		p.print(_Lbrace)
++		if n.NKeys > 0 && n.NKeys == len(n.ElemList) {
++			p.printExprLines(n.ElemList)
++		} else {
++			p.printExprList(n.ElemList)
++		}
++		p.print(_Rbrace)
++
++	case *ParenExpr:
++		p.print(_Lparen, n.X, _Rparen)
++
++	case *SelectorExpr:
++		p.print(n.X, _Dot, n.Sel)
++
++	case *IndexExpr:
++		p.print(n.X, _Lbrack, n.Index, _Rbrack)
++
++	case *SliceExpr:
++		p.print(n.X, _Lbrack)
++		if i := n.Index[0]; i != nil {
++			p.printNode(i)
++		}
++		p.print(_Colon)
++		if j := n.Index[1]; j != nil {
++			p.printNode(j)
++		}
++		if k := n.Index[2]; k != nil {
++			p.print(_Colon, k)
++		}
++		p.print(_Rbrack)
++
++	case *AssertExpr:
++		p.print(n.X, _Dot, _Lparen)
++		if n.Type != nil {
++			p.printNode(n.Type)
++		} else {
++			p.print(_Type)
++		}
++		p.print(_Rparen)
++
++	case *CallExpr:
++		p.print(n.Fun, _Lparen)
++		p.printExprList(n.ArgList)
++		if n.HasDots {
++			p.print(_DotDotDot)
++		}
++		p.print(_Rparen)
++
++	case *Operation:
++		if n.Y == nil {
++			// unary expr
++			p.print(n.Op)
++			// if n.Op == lexical.Range {
++			// 	p.print(blank)
++			// }
++			p.print(n.X)
++		} else {
++			// binary expr
++			// TODO(gri) eventually take precedence into account
++			// to control possibly missing parentheses
++			p.print(n.X, blank, n.Op, blank, n.Y)
++		}
++
++	case *KeyValueExpr:
++		p.print(n.Key, _Colon, blank, n.Value)
++
++	case *ListExpr:
++		p.printExprList(n.ElemList)
++
++	case *ArrayType:
++		var len interface{} = _DotDotDot
++		if n.Len != nil {
++			len = n.Len
++		}
++		p.print(_Lbrack, len, _Rbrack, n.Elem)
++
++	case *SliceType:
++		p.print(_Lbrack, _Rbrack, n.Elem)
++
++	case *DotsType:
++		p.print(_DotDotDot, n.Elem)
++
++	case *StructType:
++		p.print(_Struct)
++		if len(n.FieldList) > 0 && p.linebreaks {
++			p.print(blank)
++		}
++		p.print(_Lbrace)
++		if len(n.FieldList) > 0 {
++			p.print(newline, indent)
++			p.printFieldList(n.FieldList, n.TagList)
++			p.print(outdent, newline)
++		}
++		p.print(_Rbrace)
++
++	case *FuncType:
++		p.print(_Func)
++		p.printSignature(n)
++
++	case *InterfaceType:
++		p.print(_Interface)
++		if len(n.MethodList) > 0 && p.linebreaks {
++			p.print(blank)
++		}
++		p.print(_Lbrace)
++		if len(n.MethodList) > 0 {
++			p.print(newline, indent)
++			p.printMethodList(n.MethodList)
++			p.print(outdent, newline)
++		}
++		p.print(_Rbrace)
++
++	case *MapType:
++		p.print(_Map, _Lbrack, n.Key, _Rbrack, n.Value)
++
++	case *ChanType:
++		if n.Dir == RecvOnly {
++			p.print(_Arrow)
++		}
++		p.print(_Chan)
++		if n.Dir == SendOnly {
++			p.print(_Arrow)
++		}
++		p.print(blank, n.Elem)
++
++	// statements
++	case *DeclStmt:
++		p.printDecl(n.DeclList)
++
++	case *EmptyStmt:
++		// nothing to print
++
++	case *LabeledStmt:
++		p.print(outdent, n.Label, _Colon, indent, newline, n.Stmt)
++
++	case *ExprStmt:
++		p.print(n.X)
++
++	case *SendStmt:
++		p.print(n.Chan, blank, _Arrow, blank, n.Value)
++
++	case *AssignStmt:
++		p.print(n.Lhs)
++		if n.Rhs == ImplicitOne {
++			// TODO(gri) This is going to break the mayCombine
++			//           check once we enable that again.
++			p.print(n.Op, n.Op) // ++ or --
++		} else {
++			p.print(blank, n.Op, _Assign, blank)
++			p.print(n.Rhs)
++		}
++
++	case *CallStmt:
++		p.print(n.Tok, blank, n.Call)
++
++	case *ReturnStmt:
++		p.print(_Return)
++		if n.Results != nil {
++			p.print(blank, n.Results)
++		}
++
++	case *BranchStmt:
++		p.print(n.Tok)
++		if n.Label != nil {
++			p.print(blank, n.Label)
++		}
++
++	case *BlockStmt:
++		p.printBody(n.Body)
++
++	case *IfStmt:
++		p.print(_If, blank)
++		if n.Init != nil {
++			p.print(n.Init, _Semi, blank)
++		}
++		p.print(n.Cond, blank)
++		p.printBody(n.Then)
++		if n.Else != nil {
++			p.print(blank, _Else, blank, n.Else)
++		}
++
++	case *SwitchStmt:
++		p.print(_Switch, blank)
++		if n.Init != nil {
++			p.print(n.Init, _Semi, blank)
++		}
++		if n.Tag != nil {
++			p.print(n.Tag, blank)
++		}
++		p.printSwitchBody(n.Body)
++
++	case *TypeSwitchGuard:
++		if n.Lhs != nil {
++			p.print(n.Lhs, blank, _Define, blank)
++		}
++		p.print(n.X, _Dot, _Lparen, _Type, _Rparen)
++
++	case *SelectStmt:
++		p.print(_Select, blank) // for now
++		p.printSelectBody(n.Body)
++
++	case *RangeClause:
++		if n.Lhs != nil {
++			tok := _Assign
++			if n.Def {
++				tok = _Define
++			}
++			p.print(n.Lhs, blank, tok, blank)
++		}
++		p.print(_Range, blank, n.X)
++
++	case *ForStmt:
++		p.print(_For, blank)
++		if n.Init == nil && n.Post == nil {
++			if n.Cond != nil {
++				p.print(n.Cond, blank)
++			}
++		} else {
++			if n.Init != nil {
++				p.print(n.Init)
++				// TODO(gri) clean this up
++				if _, ok := n.Init.(*RangeClause); ok {
++					p.print(blank)
++					p.printBody(n.Body)
++					break
++				}
++			}
++			p.print(_Semi, blank)
++			if n.Cond != nil {
++				p.print(n.Cond)
++			}
++			p.print(_Semi, blank)
++			if n.Post != nil {
++				p.print(n.Post, blank)
++			}
++		}
++		p.printBody(n.Body)
++
++	case *ImportDecl:
++		if n.Group == nil {
++			p.print(_Import, blank)
++		}
++		if n.LocalPkgName != nil {
++			p.print(n.LocalPkgName, blank)
++		}
++		p.print(n.Path)
++
++	case *ConstDecl:
++		if n.Group == nil {
++			p.print(_Const, blank)
++		}
++		p.printNameList(n.NameList)
++		if n.Type != nil {
++			p.print(blank, n.Type)
++		}
++		if n.Values != nil {
++			p.print(blank, _Assign, blank, n.Values)
++		}
++
++	case *TypeDecl:
++		if n.Group == nil {
++			p.print(_Type, blank)
++		}
++		p.print(n.Name, blank, n.Type)
++
++	case *VarDecl:
++		if n.Group == nil {
++			p.print(_Var, blank)
++		}
++		p.printNameList(n.NameList)
++		if n.Type != nil {
++			p.print(blank, n.Type)
++		}
++		if n.Values != nil {
++			p.print(blank, _Assign, blank, n.Values)
++		}
++
++	case *FuncDecl:
++		p.print(_Func, blank)
++		if r := n.Recv; r != nil {
++			p.print(_Lparen)
++			if r.Name != nil {
++				p.print(r.Name, blank)
++			}
++			p.printNode(r.Type)
++			p.print(_Rparen, blank)
++		}
++		p.print(n.Name)
++		p.printSignature(n.Type)
++		if n.Body != nil {
++			p.print(blank)
++			p.printBody(n.Body)
++		}
++
++	case *printGroup:
++		p.print(n.Tok, blank, _Lparen)
++		if len(n.Decls) > 0 {
++			p.print(newline, indent)
++			for _, d := range n.Decls {
++				p.printNode(d)
++				p.print(_Semi, newline)
++			}
++			p.print(outdent)
++		}
++		p.print(_Rparen)
++
++	// files
++	case *File:
++		p.print(_Package, blank, n.PkgName)
++		if len(n.DeclList) > 0 {
++			p.print(_Semi, newline, newline)
++			p.printDeclList(n.DeclList)
++		}
++
++	default:
++		panic(fmt.Sprintf("syntax.Iterate: unexpected node type %T", n))
++	}
++}
++
++func (p *printer) printFields(fields []*Field, tags []*BasicLit, i, j int) {
++	if i+1 == j && fields[i].Name == nil {
++		// anonymous field
++		p.printNode(fields[i].Type)
++	} else {
++		for k, f := range fields[i:j] {
++			if k > 0 {
++				p.print(_Comma, blank)
++			}
++			p.printNode(f.Name)
++		}
++		p.print(blank)
++		p.printNode(fields[i].Type)
++	}
++	if i < len(tags) && tags[i] != nil {
++		p.print(blank)
++		p.printNode(tags[i])
++	}
++}
++
++func (p *printer) printFieldList(fields []*Field, tags []*BasicLit) {
++	i0 := 0
++	var typ Expr
++	for i, f := range fields {
++		if f.Name == nil || f.Type != typ {
++			if i0 < i {
++				p.printFields(fields, tags, i0, i)
++				p.print(_Semi, newline)
++				i0 = i
++			}
++			typ = f.Type
++		}
++	}
++	p.printFields(fields, tags, i0, len(fields))
++}
++
++func (p *printer) printMethodList(methods []*Field) {
++	for i, m := range methods {
++		if i > 0 {
++			p.print(_Semi, newline)
++		}
++		if m.Name != nil {
++			p.printNode(m.Name)
++			p.printSignature(m.Type.(*FuncType))
++		} else {
++			p.printNode(m.Type)
++		}
++	}
++}
++
++func (p *printer) printNameList(list []*Name) {
++	for i, x := range list {
++		if i > 0 {
++			p.print(_Comma, blank)
++		}
++		p.printNode(x)
++	}
++}
++
++func (p *printer) printExprList(list []Expr) {
++	for i, x := range list {
++		if i > 0 {
++			p.print(_Comma, blank)
++		}
++		p.printNode(x)
++	}
++}
++
++func (p *printer) printExprLines(list []Expr) {
++	if len(list) > 0 {
++		p.print(newline, indent)
++		for _, x := range list {
++			p.print(x, _Comma, newline)
++		}
++		p.print(outdent)
++	}
++}
++
++func groupFor(d Decl) (token, *Group) {
++	switch d := d.(type) {
++	case *ImportDecl:
++		return _Import, d.Group
++	case *ConstDecl:
++		return _Const, d.Group
++	case *TypeDecl:
++		return _Type, d.Group
++	case *VarDecl:
++		return _Var, d.Group
++	case *FuncDecl:
++		return _Func, nil
++	default:
++		panic("unreachable")
++	}
++}
++
++type printGroup struct {
++	node
++	Tok   token
++	Decls []Decl
++}
++
++func (p *printer) printDecl(list []Decl) {
++	tok, group := groupFor(list[0])
++
++	if group == nil {
++		if len(list) != 1 {
++			panic("unreachable")
++		}
++		p.printNode(list[0])
++		return
++	}
++
++	// if _, ok := list[0].(*EmptyDecl); ok {
++	// 	if len(list) != 1 {
++	// 		panic("unreachable")
++	// 	}
++	// 	// TODO(gri) if there are comments inside the empty
++	// 	// group, we may need to keep the list non-nil
++	// 	list = nil
++	// }
++
++	// printGroup is here for consistent comment handling
++	// (this is not yet used)
++	var pg printGroup
++	// *pg.Comments() = *group.Comments()
++	pg.Tok = tok
++	pg.Decls = list
++	p.printNode(&pg)
++}
++
++func (p *printer) printDeclList(list []Decl) {
++	i0 := 0
++	var tok token
++	var group *Group
++	for i, x := range list {
++		if s, g := groupFor(x); g == nil || g != group {
++			if i0 < i {
++				p.printDecl(list[i0:i])
++				p.print(_Semi, newline)
++				// print empty line between different declaration groups,
++				// different kinds of declarations, or between functions
++				if g != group || s != tok || s == _Func {
++					p.print(newline)
++				}
++				i0 = i
++			}
++			tok, group = s, g
++		}
++	}
++	p.printDecl(list[i0:])
++}
++
++func (p *printer) printSignature(sig *FuncType) {
++	p.printParameterList(sig.ParamList)
++	if list := sig.ResultList; list != nil {
++		p.print(blank)
++		if len(list) == 1 && list[0].Name == nil {
++			p.printNode(list[0].Type)
++		} else {
++			p.printParameterList(list)
++		}
++	}
++}
++
++func (p *printer) printParameterList(list []*Field) {
++	p.print(_Lparen)
++	if len(list) > 0 {
++		for i, f := range list {
++			if i > 0 {
++				p.print(_Comma, blank)
++			}
++			if f.Name != nil {
++				p.printNode(f.Name)
++				if i+1 < len(list) {
++					f1 := list[i+1]
++					if f1.Name != nil && f1.Type == f.Type {
++						continue // no need to print type
++					}
++				}
++				p.print(blank)
++			}
++			p.printNode(f.Type)
++		}
++	}
++	p.print(_Rparen)
++}
++
++func (p *printer) printStmtList(list []Stmt, braces bool) {
++	for i, x := range list {
++		p.print(x, _Semi)
++		if i+1 < len(list) {
++			p.print(newline)
++		} else if braces {
++			// Print an extra semicolon if the last statement is
++			// an empty statement and we are in a braced block
++			// because one semicolon is automatically removed.
++			if _, ok := x.(*EmptyStmt); ok {
++				p.print(x, _Semi)
++			}
++		}
++	}
++}
++
++func (p *printer) printBody(list []Stmt) {
++	p.print(_Lbrace)
++	if len(list) > 0 {
++		p.print(newline, indent)
++		p.printStmtList(list, true)
++		p.print(outdent, newline)
++	}
++	p.print(_Rbrace)
++}
++
++func (p *printer) printSwitchBody(list []*CaseClause) {
++	p.print(_Lbrace)
++	if len(list) > 0 {
++		p.print(newline)
++		for i, c := range list {
++			p.printCaseClause(c, i+1 == len(list))
++			p.print(newline)
++		}
++	}
++	p.print(_Rbrace)
++}
++
++func (p *printer) printSelectBody(list []*CommClause) {
++	p.print(_Lbrace)
++	if len(list) > 0 {
++		p.print(newline)
++		for i, c := range list {
++			p.printCommClause(c, i+1 == len(list))
++			p.print(newline)
++		}
++	}
++	p.print(_Rbrace)
++}
++
++func (p *printer) printCaseClause(c *CaseClause, braces bool) {
++	if c.Cases != nil {
++		p.print(_Case, blank, c.Cases)
++	} else {
++		p.print(_Default)
++	}
++	p.print(_Colon)
++	if len(c.Body) > 0 {
++		p.print(newline, indent)
++		p.printStmtList(c.Body, braces)
++		p.print(outdent)
++	}
++}
++
++func (p *printer) printCommClause(c *CommClause, braces bool) {
++	if c.Comm != nil {
++		p.print(_Case, blank)
++		p.print(c.Comm)
++	} else {
++		p.print(_Default)
++	}
++	p.print(_Colon)
++	if len(c.Body) > 0 {
++		p.print(newline, indent)
++		p.printStmtList(c.Body, braces)
++		p.print(outdent)
++	}
++}
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+new file mode 100644
+index 0000000000..e8c2201e60
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -0,0 +1,24 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import (
++	"fmt"
++	"os"
++	"testing"
++)
++
++func TestPrint(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
++
++	ast, err := ReadFile(*src, nil, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	Fprint(os.Stdout, ast, true)
++	fmt.Println()
++}
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+new file mode 100644
+index 0000000000..0f0f1ead9a
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -0,0 +1,651 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import (
++	"fmt"
++	"io"
++	"strings"
++	"unicode"
++	"unicode/utf8"
++)
++
++type scanner struct {
++	source
++	nlsemi bool // if set '\n' and EOF translate to ';'
++
++	// current token, valid after calling next()
++	pos, line int
++	tok       token
++	lit       string   // valid if tok is _Name or _Literal
++	kind      LitKind  // valid if tok is _Literal
++	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
++	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
++
++	pragmas []Pragma
++}
++
++func (s *scanner) init(src io.Reader, errh ErrorHandler) {
++	s.source.init(src, errh)
++	s.nlsemi = false
++}
++
++func (s *scanner) next() {
++	nlsemi := s.nlsemi
++	s.nlsemi = false
++
++redo:
++	// skip white space
++	c := s.getr()
++	for c == ' ' || c == '\t' || c == '\n' && !nlsemi || c == '\r' {
++		c = s.getr()
++	}
++
++	// token start
++	s.pos, s.line = s.source.pos0(), s.source.line0
++
++	if isLetter(c) || c >= utf8.RuneSelf && unicode.IsLetter(c) {
++		s.ident()
++		return
++	}
++
++	switch c {
++	case -1:
++		if nlsemi {
++			s.tok = _Semi
++			break
++		}
++		s.tok = _EOF
++
++	case '\n':
++		s.tok = _Semi
++
++	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
++		s.number(c)
++
++	case '"':
++		s.stdString()
++
++	case '`':
++		s.rawString()
++
++	case '\'':
++		s.rune()
++
++	case '(':
++		s.tok = _Lparen
++
++	case '[':
++		s.tok = _Lbrack
++
++	case '{':
++		s.tok = _Lbrace
++
++	case ',':
++		s.tok = _Comma
++
++	case ';':
++		s.tok = _Semi
++
++	case ')':
++		s.nlsemi = true
++		s.tok = _Rparen
++
++	case ']':
++		s.nlsemi = true
++		s.tok = _Rbrack
++
++	case '}':
++		s.nlsemi = true
++		s.tok = _Rbrace
++
++	case ':':
++		if s.getr() == '=' {
++			s.tok = _Define
++			break
++		}
++		s.ungetr()
++		s.tok = _Colon
++
++	case '.':
++		c = s.getr()
++		if isDigit(c) {
++			s.ungetr()
++			s.source.r0-- // make sure '.' is part of literal (line cannot have changed)
++			s.number('.')
++			break
++		}
++		if c == '.' {
++			c = s.getr()
++			if c == '.' {
++				s.tok = _DotDotDot
++				break
++			}
++			s.ungetr()
++			s.source.r0-- // make next ungetr work (line cannot have changed)
++		}
++		s.ungetr()
++		s.tok = _Dot
++
++	case '+':
++		s.op, s.prec = Add, precAdd
++		c = s.getr()
++		if c != '+' {
++			goto assignop
++		}
++		s.nlsemi = true
++		s.tok = _IncOp
++
++	case '-':
++		s.op, s.prec = Sub, precAdd
++		c = s.getr()
++		if c != '-' {
++			goto assignop
++		}
++		s.nlsemi = true
++		s.tok = _IncOp
++
++	case '*':
++		s.op, s.prec = Mul, precMul
++		// don't goto assignop - want _Star token
++		if s.getr() == '=' {
++			s.tok = _AssignOp
++			break
++		}
++		s.ungetr()
++		s.tok = _Star
++
++	case '/':
++		c = s.getr()
++		if c == '/' {
++			s.lineComment()
++			goto redo
++		}
++		if c == '*' {
++			s.fullComment()
++			if s.source.line > s.line && nlsemi {
++				// A multi-line comment acts like a newline;
++				// it translates to a ';' if nlsemi is set.
++				s.tok = _Semi
++				break
++			}
++			goto redo
++		}
++		s.op, s.prec = Div, precMul
++		goto assignop
++
++	case '%':
++		s.op, s.prec = Rem, precMul
++		c = s.getr()
++		goto assignop
++
++	case '&':
++		c = s.getr()
++		if c == '&' {
++			s.op, s.prec = AndAnd, precAndAnd
++			s.tok = _Operator
++			break
++		}
++		s.op, s.prec = And, precMul
++		if c == '^' {
++			s.op = AndNot
++			c = s.getr()
++		}
++		goto assignop
++
++	case '|':
++		c = s.getr()
++		if c == '|' {
++			s.op, s.prec = OrOr, precOrOr
++			s.tok = _Operator
++			break
++		}
++		s.op, s.prec = Or, precAdd
++		goto assignop
++
++	case '~':
++		s.error("bitwise complement operator is ^")
++		fallthrough
++
++	case '^':
++		s.op, s.prec = Xor, precAdd
++		c = s.getr()
++		goto assignop
++
++	case '<':
++		c = s.getr()
++		if c == '=' {
++			s.op, s.prec = Leq, precCmp
++			s.tok = _Operator
++			break
++		}
++		if c == '<' {
++			s.op, s.prec = Shl, precMul
++			c = s.getr()
++			goto assignop
++		}
++		if c == '-' {
++			s.tok = _Arrow
++			break
++		}
++		s.ungetr()
++		s.op, s.prec = Lss, precCmp
++		s.tok = _Operator
++
++	case '>':
++		c = s.getr()
++		if c == '=' {
++			s.op, s.prec = Geq, precCmp
++			s.tok = _Operator
++			break
++		}
++		if c == '>' {
++			s.op, s.prec = Shr, precMul
++			c = s.getr()
++			goto assignop
++		}
++		s.ungetr()
++		s.op, s.prec = Gtr, precCmp
++		s.tok = _Operator
++
++	case '=':
++		if s.getr() == '=' {
++			s.op, s.prec = Eql, precCmp
++			s.tok = _Operator
++			break
++		}
++		s.ungetr()
++		s.tok = _Assign
++
++	case '!':
++		if s.getr() == '=' {
++			s.op, s.prec = Neq, precCmp
++			s.tok = _Operator
++			break
++		}
++		s.ungetr()
++		s.op, s.prec = Not, 0
++		s.tok = _Operator
++
++	default:
++		s.tok = 0
++		s.error(fmt.Sprintf("invalid rune %q", c))
++		goto redo
++	}
++
++	return
++
++assignop:
++	if c == '=' {
++		s.tok = _AssignOp
++		return
++	}
++	s.ungetr()
++	s.tok = _Operator
++}
++
++func isLetter(c rune) bool {
++	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '_'
++}
++
++func isDigit(c rune) bool {
++	return '0' <= c && c <= '9'
++}
++
++func (s *scanner) ident() {
++	s.startLit()
++
++	// accelerate common case (7bit ASCII)
++	c := s.getr()
++	for isLetter(c) || isDigit(c) {
++		c = s.getr()
++	}
++
++	// general case
++	if c >= utf8.RuneSelf {
++		for unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) {
++			c = s.getr()
++		}
++	}
++	s.ungetr()
++
++	lit := s.stopLit()
++
++	// possibly a keyword
++	if len(lit) >= 2 {
++		if tok := keywordMap[hash(lit)]; tok != 0 && strbyteseql(tokstrings[tok], lit) {
++			s.nlsemi = contains(1<<_Break|1<<_Continue|1<<_Fallthrough|1<<_Return, tok)
++			s.tok = tok
++			return
++		}
++	}
++
++	s.nlsemi = true
++	s.lit = string(lit)
++	s.tok = _Name
++}
++
++// hash is a perfect hash function for keywords.
++// It assumes that s has at least length 2.
++func hash(s []byte) uint {
++	return (uint(s[0])<<4 ^ uint(s[1]) + uint(len(s))) & uint(len(keywordMap)-1)
++}
++
++func strbyteseql(s string, b []byte) bool {
++	if len(s) == len(b) {
++		for i, b := range b {
++			if s[i] != b {
++				return false
++			}
++		}
++		return true
++	}
++	return false
++}
++
++var keywordMap [1 << 6]token // size must be power of two
++
++func init() {
++	// populate keywordMap
++	for tok := _Break; tok <= _Var; tok++ {
++		h := hash([]byte(tokstrings[tok]))
++		if keywordMap[h] != 0 {
++			panic("imperfect hash")
++		}
++		keywordMap[h] = tok
++	}
++}
++
++func (s *scanner) number(c rune) {
++	s.startLit()
++
++	if c != '.' {
++		s.kind = IntLit // until proven otherwise
++		if c == '0' {
++			c = s.getr()
++			if c == 'x' || c == 'X' {
++				// hex
++				c = s.getr()
++				hasDigit := false
++				for isDigit(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
++					c = s.getr()
++					hasDigit = true
++				}
++				if !hasDigit {
++					s.error("malformed hex constant")
++				}
++				goto done
++			}
++
++			// decimal 0, octal, or float
++			has8or9 := false
++			for isDigit(c) {
++				if c > '7' {
++					has8or9 = true
++				}
++				c = s.getr()
++			}
++			if c != '.' && c != 'e' && c != 'E' && c != 'i' {
++				// octal
++				if has8or9 {
++					s.error("malformed octal constant")
++				}
++				goto done
++			}
++
++		} else {
++			// decimal or float
++			for isDigit(c) {
++				c = s.getr()
++			}
++		}
++	}
++
++	// float
++	if c == '.' {
++		s.kind = FloatLit
++		c = s.getr()
++		for isDigit(c) {
++			c = s.getr()
++		}
++	}
++
++	// exponent
++	if c == 'e' || c == 'E' {
++		s.kind = FloatLit
++		c = s.getr()
++		if c == '-' || c == '+' {
++			c = s.getr()
++		}
++		if !isDigit(c) {
++			s.error("malformed floating-point constant exponent")
++		}
++		for isDigit(c) {
++			c = s.getr()
++		}
++	}
++
++	// complex
++	if c == 'i' {
++		s.kind = ImagLit
++		s.getr()
++	}
++
++done:
++	s.ungetr()
++	s.nlsemi = true
++	s.lit = string(s.stopLit())
++	s.tok = _Literal
++}
++
++func (s *scanner) stdString() {
++	s.startLit()
++
++	for {
++		r := s.getr()
++		if r == '"' {
++			break
++		}
++		if r == '\\' {
++			s.escape('"')
++			continue
++		}
++		if r == '\n' {
++			s.ungetr() // assume newline is not part of literal
++			s.error("newline in string")
++			break
++		}
++		if r < 0 {
++			s.error_at(s.pos, s.line, "string not terminated")
++			break
++		}
++	}
++
++	s.nlsemi = true
++	s.lit = string(s.stopLit())
++	s.kind = StringLit
++	s.tok = _Literal
++}
++
++func (s *scanner) rawString() {
++	s.startLit()
++
++	for {
++		r := s.getr()
++		if r == '`' {
++			break
++		}
++		if r < 0 {
++			s.error_at(s.pos, s.line, "string not terminated")
++			break
++		}
++	}
++	// We leave CRs in the string since they are part of the
++	// literal (even though they are not part of the literal
++	// value).
++
++	s.nlsemi = true
++	s.lit = string(s.stopLit())
++	s.kind = StringLit
++	s.tok = _Literal
++}
++
++func (s *scanner) rune() {
++	s.startLit()
++
++	r := s.getr()
++	if r == '\'' {
++		s.error("empty character literal")
++	} else if r == '\n' {
++		s.ungetr() // assume newline is not part of literal
++		s.error("newline in character literal")
++	} else {
++		ok := true
++		if r == '\\' {
++			ok = s.escape('\'')
++		}
++		r = s.getr()
++		if r != '\'' {
++			// only report error if we're ok so far
++			if ok {
++				s.error("missing '")
++			}
++			s.ungetr()
++		}
++	}
++
++	s.nlsemi = true
++	s.lit = string(s.stopLit())
++	s.kind = RuneLit
++	s.tok = _Literal
++}
++
++func (s *scanner) lineComment() {
++	// recognize pragmas
++	var prefix string
++	r := s.getr()
++	switch r {
++	case 'g':
++		prefix = "go:"
++	case 'l':
++		prefix = "line "
++	default:
++		goto skip
++	}
++
++	s.startLit()
++	for _, m := range prefix {
++		if r != m {
++			s.stopLit()
++			goto skip
++		}
++		r = s.getr()
++	}
++
++	for r >= 0 {
++		if r == '\n' {
++			s.ungetr()
++			break
++		}
++		r = s.getr()
++	}
++	s.pragmas = append(s.pragmas, Pragma{
++		Line: s.line,
++		Text: strings.TrimSuffix(string(s.stopLit()), "\r"),
++	})
++	return
++
++skip:
++	// consume line
++	for r != '\n' && r >= 0 {
++		r = s.getr()
++	}
++	s.ungetr() // don't consume '\n' - needed for nlsemi logic
++}
++
++func (s *scanner) fullComment() {
++	for {
++		r := s.getr()
++		for r == '*' {
++			r = s.getr()
++			if r == '/' {
++				return
++			}
++		}
++		if r < 0 {
++			s.error_at(s.pos, s.line, "comment not terminated")
++			return
++		}
++	}
++}
++
++func (s *scanner) escape(quote rune) bool {
++	var n int
++	var base, max uint32
++
++	c := s.getr()
++	switch c {
++	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
++		return true
++	case '0', '1', '2', '3', '4', '5', '6', '7':
++		n, base, max = 3, 8, 255
++	case 'x':
++		c = s.getr()
++		n, base, max = 2, 16, 255
++	case 'u':
++		c = s.getr()
++		n, base, max = 4, 16, unicode.MaxRune
++	case 'U':
++		c = s.getr()
++		n, base, max = 8, 16, unicode.MaxRune
++	default:
++		if c < 0 {
++			return true // complain in caller about EOF
++		}
++		s.error("unknown escape sequence")
++		return false
++	}
++
++	var x uint32
++	for i := n; i > 0; i-- {
++		d := base
++		switch {
++		case isDigit(c):
++			d = uint32(c) - '0'
++		case 'a' <= c && c <= 'f':
++			d = uint32(c) - ('a' - 10)
++		case 'A' <= c && c <= 'F':
++			d = uint32(c) - ('A' - 10)
++		}
++		if d >= base {
++			if c < 0 {
++				return true // complain in caller about EOF
++			}
++			if c != quote {
++				s.error(fmt.Sprintf("illegal character %#U in escape sequence", c))
++			} else {
++				s.error("escape sequence incomplete")
++			}
++			s.ungetr()
++			return false
++		}
++		// d < base
++		x = x*base + d
++		c = s.getr()
++	}
++	s.ungetr()
++
++	if x > max && n == 3 {
++		s.error(fmt.Sprintf("octal escape value > 255: %d", x))
++		return false
++	}
++
++	if x > max || 0xD800 <= x && x < 0xE000 /* surrogate range */ {
++		s.error("escape sequence is invalid Unicode code point")
++		return false
++	}
++
++	return true
++}
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+new file mode 100644
+index 0000000000..69e81aceca
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -0,0 +1,354 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import (
++	"fmt"
++	"os"
++	"testing"
++)
++
++func TestScanner(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
++
++	src, err := os.Open("parser.go")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer src.Close()
++
++	var s scanner
++	s.init(src, nil)
++	for {
++		s.next()
++		if s.tok == _EOF {
++			break
++		}
++		switch s.tok {
++		case _Name:
++			fmt.Println(s.line, s.tok, "=>", s.lit)
++		case _Operator:
++			fmt.Println(s.line, s.tok, "=>", s.op, s.prec)
++		default:
++			fmt.Println(s.line, s.tok)
++		}
++	}
++}
++
++func TestTokens(t *testing.T) {
++	// make source
++	var buf []byte
++	for i, s := range sampleTokens {
++		buf = append(buf, "\t\t\t\t"[:i&3]...)     // leading indentation
++		buf = append(buf, s.src...)                // token
++		buf = append(buf, "        "[:i&7]...)     // trailing spaces
++		buf = append(buf, "/* foo */ // bar\n"...) // comments
++	}
++
++	// scan source
++	var got scanner
++	got.init(&bytesReader{buf}, nil)
++	got.next()
++	for i, want := range sampleTokens {
++		nlsemi := false
++
++		if got.line != i+1 {
++			t.Errorf("got line %d; want %d", got.line, i+1)
++		}
++
++		if got.tok != want.tok {
++			t.Errorf("got tok = %s; want %s", got.tok, want.tok)
++			continue
++		}
++
++		switch want.tok {
++		case _Name, _Literal:
++			if got.lit != want.src {
++				t.Errorf("got lit = %q; want %q", got.lit, want.src)
++				continue
++			}
++			nlsemi = true
++
++		case _Operator, _AssignOp, _IncOp:
++			if got.op != want.op {
++				t.Errorf("got op = %s; want %s", got.op, want.op)
++				continue
++			}
++			if got.prec != want.prec {
++				t.Errorf("got prec = %s; want %s", got.prec, want.prec)
++				continue
++			}
++			nlsemi = want.tok == _IncOp
++
++		case _Rparen, _Rbrack, _Rbrace, _Break, _Continue, _Fallthrough, _Return:
++			nlsemi = true
++		}
++
++		if nlsemi {
++			got.next()
++			if got.tok != _Semi {
++				t.Errorf("got tok = %s; want ;", got.tok)
++				continue
++			}
++		}
++
++		got.next()
++	}
++
++	if got.tok != _EOF {
++		t.Errorf("got %q; want _EOF", got.tok)
++	}
++}
++
++var sampleTokens = [...]struct {
++	tok  token
++	src  string
++	op   Operator
++	prec int
++}{
++	// name samples
++	{_Name, "x", 0, 0},
++	{_Name, "X123", 0, 0},
++	{_Name, "foo", 0, 0},
++	{_Name, "Foo123", 0, 0},
++	{_Name, "foo_bar", 0, 0},
++	{_Name, "_", 0, 0},
++	{_Name, "_foobar", 0, 0},
++	{_Name, "a۰۱۸", 0, 0},
++	{_Name, "foo६४", 0, 0},
++	{_Name, "bar９８７６", 0, 0},
++	{_Name, "ŝ", 0, 0},
++	{_Name, "ŝfoo", 0, 0},
++
++	// literal samples
++	{_Literal, "0", 0, 0},
++	{_Literal, "1", 0, 0},
++	{_Literal, "12345", 0, 0},
++	{_Literal, "123456789012345678890123456789012345678890", 0, 0},
++	{_Literal, "01234567", 0, 0},
++	{_Literal, "0x0", 0, 0},
++	{_Literal, "0xcafebabe", 0, 0},
++	{_Literal, "0.", 0, 0},
++	{_Literal, "0.e0", 0, 0},
++	{_Literal, "0.e-1", 0, 0},
++	{_Literal, "0.e+123", 0, 0},
++	{_Literal, ".0", 0, 0},
++	{_Literal, ".0E00", 0, 0},
++	{_Literal, ".0E-0123", 0, 0},
++	{_Literal, ".0E+12345678901234567890", 0, 0},
++	{_Literal, ".45e1", 0, 0},
++	{_Literal, "3.14159265", 0, 0},
++	{_Literal, "1e0", 0, 0},
++	{_Literal, "1e+100", 0, 0},
++	{_Literal, "1e-100", 0, 0},
++	{_Literal, "2.71828e-1000", 0, 0},
++	{_Literal, "0i", 0, 0},
++	{_Literal, "1i", 0, 0},
++	{_Literal, "012345678901234567889i", 0, 0},
++	{_Literal, "123456789012345678890i", 0, 0},
++	{_Literal, "0.i", 0, 0},
++	{_Literal, ".0i", 0, 0},
++	{_Literal, "3.14159265i", 0, 0},
++	{_Literal, "1e0i", 0, 0},
++	{_Literal, "1e+100i", 0, 0},
++	{_Literal, "1e-100i", 0, 0},
++	{_Literal, "2.71828e-1000i", 0, 0},
++	{_Literal, "'a'", 0, 0},
++	{_Literal, "'\\000'", 0, 0},
++	{_Literal, "'\\xFF'", 0, 0},
++	{_Literal, "'\\uff16'", 0, 0},
++	{_Literal, "'\\U0000ff16'", 0, 0},
++	{_Literal, "`foobar`", 0, 0},
++	{_Literal, "`foo\tbar`", 0, 0},
++	{_Literal, "`\r`", 0, 0},
++
++	// operators
++	{_Operator, "||", OrOr, precOrOr},
++
++	{_Operator, "&&", AndAnd, precAndAnd},
++
++	{_Operator, "==", Eql, precCmp},
++	{_Operator, "!=", Neq, precCmp},
++	{_Operator, "<", Lss, precCmp},
++	{_Operator, "<=", Leq, precCmp},
++	{_Operator, ">", Gtr, precCmp},
++	{_Operator, ">=", Geq, precCmp},
++
++	{_Operator, "+", Add, precAdd},
++	{_Operator, "-", Sub, precAdd},
++	{_Operator, "|", Or, precAdd},
++	{_Operator, "^", Xor, precAdd},
++
++	{_Star, "*", Mul, precMul},
++	{_Operator, "/", Div, precMul},
++	{_Operator, "%", Rem, precMul},
++	{_Operator, "&", And, precMul},
++	{_Operator, "&^", AndNot, precMul},
++	{_Operator, "<<", Shl, precMul},
++	{_Operator, ">>", Shr, precMul},
++
++	// assignment operations
++	{_AssignOp, "+=", Add, precAdd},
++	{_AssignOp, "-=", Sub, precAdd},
++	{_AssignOp, "|=", Or, precAdd},
++	{_AssignOp, "^=", Xor, precAdd},
++
++	{_AssignOp, "*=", Mul, precMul},
++	{_AssignOp, "/=", Div, precMul},
++	{_AssignOp, "%=", Rem, precMul},
++	{_AssignOp, "&=", And, precMul},
++	{_AssignOp, "&^=", AndNot, precMul},
++	{_AssignOp, "<<=", Shl, precMul},
++	{_AssignOp, ">>=", Shr, precMul},
++
++	// other operations
++	{_IncOp, "++", Add, precAdd},
++	{_IncOp, "--", Sub, precAdd},
++	{_Assign, "=", 0, 0},
++	{_Define, ":=", 0, 0},
++	{_Arrow, "<-", 0, 0},
++
++	// delimiters
++	{_Lparen, "(", 0, 0},
++	{_Lbrack, "[", 0, 0},
++	{_Lbrace, "{", 0, 0},
++	{_Rparen, ")", 0, 0},
++	{_Rbrack, "]", 0, 0},
++	{_Rbrace, "}", 0, 0},
++	{_Comma, ",", 0, 0},
++	{_Semi, ";", 0, 0},
++	{_Colon, ":", 0, 0},
++	{_Dot, ".", 0, 0},
++	{_DotDotDot, "...", 0, 0},
++
++	// keywords
++	{_Break, "break", 0, 0},
++	{_Case, "case", 0, 0},
++	{_Chan, "chan", 0, 0},
++	{_Const, "const", 0, 0},
++	{_Continue, "continue", 0, 0},
++	{_Default, "default", 0, 0},
++	{_Defer, "defer", 0, 0},
++	{_Else, "else", 0, 0},
++	{_Fallthrough, "fallthrough", 0, 0},
++	{_For, "for", 0, 0},
++	{_Func, "func", 0, 0},
++	{_Go, "go", 0, 0},
++	{_Goto, "goto", 0, 0},
++	{_If, "if", 0, 0},
++	{_Import, "import", 0, 0},
++	{_Interface, "interface", 0, 0},
++	{_Map, "map", 0, 0},
++	{_Package, "package", 0, 0},
++	{_Range, "range", 0, 0},
++	{_Return, "return", 0, 0},
++	{_Select, "select", 0, 0},
++	{_Struct, "struct", 0, 0},
++	{_Switch, "switch", 0, 0},
++	{_Type, "type", 0, 0},
++	{_Var, "var", 0, 0},
++}
++
++func TestScanErrors(t *testing.T) {
++	for _, test := range []struct {
++		src, msg  string
++		pos, line int
++	}{
++		// Note: Positions for lexical errors are the earliest position
++		// where the error is apparent, not the beginning of the respective
++		// token.
++
++		// rune-level errors
++		{"fo\x00o", "invalid NUL character", 2, 1},
++		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 4, 2},
++		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 5, 3},
++
++		// token-level errors
++		{"x + ~y", "bitwise complement operator is ^", 4, 1},
++		{"foo$bar = 0", "invalid rune '$'", 3, 1},
++		{"const x = 0xyz", "malformed hex constant", 12, 1},
++		{"0123456789", "malformed octal constant", 10, 1},
++		{"0123456789. /* foobar", "comment not terminated", 12, 1},   // valid float constant
++		{"0123456789e0 /*\nfoobar", "comment not terminated", 13, 1}, // valid float constant
++		{"var a, b = 08, 07\n", "malformed octal constant", 13, 1},
++		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 10, 1},
++
++		{`''`, "empty character literal", 1, 1},
++		{"'\n", "newline in character literal", 1, 1},
++		{`'\`, "missing '", 2, 1},
++		{`'\'`, "missing '", 3, 1},
++		{`'\x`, "missing '", 3, 1},
++		{`'\x'`, "escape sequence incomplete", 3, 1},
++		{`'\y'`, "unknown escape sequence", 2, 1},
++		{`'\x0'`, "escape sequence incomplete", 4, 1},
++		{`'\00'`, "escape sequence incomplete", 4, 1},
++		{`'\377' /*`, "comment not terminated", 7, 1}, // valid octal escape
++		{`'\378`, "illegal character U+0038 '8' in escape sequence", 4, 1},
++		{`'\400'`, "octal escape value > 255: 256", 5, 1},
++		{`'xx`, "missing '", 2, 1},
++
++		{"\"\n", "newline in string", 1, 1},
++		{`"`, "string not terminated", 0, 1},
++		{`"foo`, "string not terminated", 0, 1},
++		{"`", "string not terminated", 0, 1},
++		{"`foo", "string not terminated", 0, 1},
++		{"/*/", "comment not terminated", 0, 1},
++		{"/*\n\nfoo", "comment not terminated", 0, 1},
++		{"/*\n\nfoo", "comment not terminated", 0, 1},
++		{`"\`, "string not terminated", 0, 1},
++		{`"\"`, "string not terminated", 0, 1},
++		{`"\x`, "string not terminated", 0, 1},
++		{`"\x"`, "escape sequence incomplete", 3, 1},
++		{`"\y"`, "unknown escape sequence", 2, 1},
++		{`"\x0"`, "escape sequence incomplete", 4, 1},
++		{`"\00"`, "escape sequence incomplete", 4, 1},
++		{`"\377" /*`, "comment not terminated", 7, 1}, // valid octal escape
++		{`"\378"`, "illegal character U+0038 '8' in escape sequence", 4, 1},
++		{`"\400"`, "octal escape value > 255: 256", 5, 1},
++
++		{`s := "foo\z"`, "unknown escape sequence", 10, 1},
++		{`s := "foo\z00\nbar"`, "unknown escape sequence", 10, 1},
++		{`"\x`, "string not terminated", 0, 1},
++		{`"\x"`, "escape sequence incomplete", 3, 1},
++		{`var s string = "\x"`, "escape sequence incomplete", 18, 1},
++		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 18, 1},
++
++		// former problem cases
++		{"package p\n\n\xef", "invalid UTF-8 encoding", 11, 3},
++	} {
++		var s scanner
++		nerrors := 0
++		s.init(&bytesReader{[]byte(test.src)}, func(pos, line int, msg string) {
++			nerrors++
++			// only check the first error
++			if nerrors == 1 {
++				if msg != test.msg {
++					t.Errorf("%q: got msg = %q; want %q", test.src, msg, test.msg)
++				}
++				if pos != test.pos {
++					t.Errorf("%q: got pos = %d; want %d", test.src, pos, test.pos)
++				}
++				if line != test.line {
++					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line)
++				}
++			} else if nerrors > 1 {
++				t.Errorf("%q: got unexpected %q at pos = %d, line = %d", test.src, msg, pos, line)
++			}
++		})
++
++		for {
++			s.next()
++			if s.tok == _EOF {
++				break
++			}
++		}
++
++		if nerrors == 0 {
++			t.Errorf("%q: got no error; want %q", test.src, test.msg)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/syntax/source.go b/src/cmd/compile/internal/syntax/source.go
+new file mode 100644
+index 0000000000..87c22fcc26
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/source.go
+@@ -0,0 +1,177 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import (
++	"fmt"
++	"io"
++	"unicode/utf8"
++)
++
++// buf [...read...|...|...unread...|s|...free...]
++//         ^      ^   ^            ^
++//         |      |   |            |
++//        suf     r0  r            w
++
++type source struct {
++	src  io.Reader
++	errh ErrorHandler
++
++	// source buffer
++	buf         [4 << 10]byte
++	offs        int   // source offset of buf
++	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
++	line0, line int   // previous/current line
++	err         error // pending io error
++
++	// literal buffer
++	lit []byte // literal prefix
++	suf int    // literal suffix; suf >= 0 means we are scanning a literal
++}
++
++func (s *source) init(src io.Reader, errh ErrorHandler) {
++	s.src = src
++	s.errh = errh
++
++	s.buf[0] = utf8.RuneSelf // terminate with sentinel
++	s.offs = 0
++	s.r0, s.r, s.w = 0, 0, 0
++	s.line0, s.line = 1, 1
++	s.err = nil
++
++	s.lit = s.lit[:0]
++	s.suf = -1
++}
++
++func (s *source) error(msg string) {
++	s.error_at(s.pos0(), s.line0, msg)
++}
++
++func (s *source) error_at(pos, line int, msg string) {
++	if s.errh != nil {
++		s.errh(pos, line, msg)
++		return
++	}
++	panic(fmt.Sprintf("%d: %s", line, msg))
++}
++
++// pos0 returns the byte position of the last character read.
++func (s *source) pos0() int {
++	return s.offs + s.r0
++}
++
++func (s *source) ungetr() {
++	s.r, s.line = s.r0, s.line0
++}
++
++func (s *source) getr() rune {
++redo:
++	s.r0, s.line0 = s.r, s.line
++
++	// We could avoid at least one test that is always taken in the
++	// for loop below by duplicating the common case code (ASCII)
++	// here since we always have at least the sentinel (utf8.RuneSelf)
++	// in the buffer. Measure and optimize if necessary.
++
++	// make sure we have at least one rune in buffer, or we are at EOF
++	for s.r+utf8.UTFMax > s.w && !utf8.FullRune(s.buf[s.r:s.w]) && s.err == nil && s.w-s.r < len(s.buf) {
++		s.fill() // s.w-s.r < len(s.buf) => buffer is not full
++	}
++
++	// common case: ASCII and enough bytes
++	// (invariant: s.buf[s.w] == utf8.RuneSelf)
++	if b := s.buf[s.r]; b < utf8.RuneSelf {
++		s.r++
++		if b == 0 {
++			s.error("invalid NUL character")
++			goto redo
++		}
++		if b == '\n' {
++			s.line++
++		}
++		return rune(b)
++	}
++
++	// EOF
++	if s.r == s.w {
++		if s.err != io.EOF {
++			s.error(s.err.Error())
++		}
++		return -1
++	}
++
++	// uncommon case: not ASCII
++	r, w := utf8.DecodeRune(s.buf[s.r:s.w])
++	s.r += w
++
++	if r == utf8.RuneError && w == 1 {
++		s.error("invalid UTF-8 encoding")
++		goto redo
++	}
++
++	// BOM's are only allowed as the first character in a file
++	const BOM = 0xfeff
++	if r == BOM {
++		if s.r0 > 0 { // s.r0 is always > 0 after 1st character (fill will set it to 1)
++			s.error("invalid BOM in the middle of the file")
++		}
++		goto redo
++	}
++
++	return r
++}
++
++func (s *source) fill() {
++	// Slide unread bytes to beginning but preserve last read char
++	// (for one ungetr call) plus one extra byte (for a 2nd ungetr
++	// call, only for ".." character sequence and float literals
++	// starting with ".").
++	if s.r0 > 1 {
++		// save literal prefix, if any
++		// (We see at most one ungetr call while reading
++		// a literal, so make sure s.r0 remains in buf.)
++		if s.suf >= 0 {
++			s.lit = append(s.lit, s.buf[s.suf:s.r0]...)
++			s.suf = 1 // == s.r0 after slide below
++		}
++		s.offs += s.r0 - 1
++		r := s.r - s.r0 + 1 // last read char plus one byte
++		s.w = r + copy(s.buf[r:], s.buf[s.r:s.w])
++		s.r = r
++		s.r0 = 1
++	}
++
++	// read more data: try a limited number of times
++	for i := 100; i > 0; i-- {
++		n, err := s.src.Read(s.buf[s.w : len(s.buf)-1]) // -1 to leave space for sentinel
++		if n < 0 {
++			panic("negative read") // incorrect underlying io.Reader implementation
++		}
++		s.w += n
++		if n > 0 || err != nil {
++			s.buf[s.w] = utf8.RuneSelf // sentinel
++			if err != nil {
++				s.err = err
++			}
++			return
++		}
++	}
++
++	s.err = io.ErrNoProgress
++}
++
++func (s *source) startLit() {
++	s.suf = s.r0
++	s.lit = s.lit[:0] // reuse lit
++}
++
++func (s *source) stopLit() []byte {
++	lit := s.buf[s.suf:s.r]
++	if len(s.lit) > 0 {
++		lit = append(s.lit, lit...)
++	}
++	s.suf = -1 // no pending literal
++	return lit
++}
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+new file mode 100644
+index 0000000000..85dddaa47f
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -0,0 +1,61 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import (
++	"fmt"
++	"io"
++	"os"
++)
++
++type Mode uint
++
++type ErrorHandler func(pos, line int, msg string)
++
++// TODO(gri) These need a lot more work.
++
++func ReadFile(filename string, errh ErrorHandler, mode Mode) (*File, error) {
++	src, err := os.Open(filename)
++	if err != nil {
++		return nil, err
++	}
++	defer src.Close()
++	return Read(src, errh, mode)
++}
++
++type bytesReader struct {
++	data []byte
++}
++
++func (r *bytesReader) Read(p []byte) (int, error) {
++	if len(r.data) > 0 {
++		n := copy(p, r.data)
++		r.data = r.data[n:]
++		return n, nil
++	}
++	return 0, io.EOF
++}
++
++func ReadBytes(src []byte, errh ErrorHandler, mode Mode) (*File, error) {
++	return Read(&bytesReader{src}, errh, mode)
++}
++
++func Read(src io.Reader, errh ErrorHandler, mode Mode) (*File, error) {
++	var p parser
++	p.init(src, errh)
++
++	p.next()
++	ast := p.file()
++
++	if errh == nil && p.nerrors > 0 {
++		return nil, fmt.Errorf("%d syntax errors", p.nerrors)
++	}
++
++	return ast, nil
++}
++
++func Write(w io.Writer, n *File) error {
++	panic("unimplemented")
++}
+diff --git a/src/cmd/compile/internal/syntax/tokens.go b/src/cmd/compile/internal/syntax/tokens.go
+new file mode 100644
+index 0000000000..bd0118a141
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/tokens.go
+@@ -0,0 +1,263 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import "fmt"
++
++type token uint
++
++const (
++	_ token = iota
++	_EOF
++
++	// names and literals
++	_Name
++	_Literal
++
++	// operators and operations
++	_Operator // excluding '*' (_Star)
++	_AssignOp
++	_IncOp
++	_Assign
++	_Define
++	_Arrow
++	_Star
++
++	// delimitors
++	_Lparen
++	_Lbrack
++	_Lbrace
++	_Rparen
++	_Rbrack
++	_Rbrace
++	_Comma
++	_Semi
++	_Colon
++	_Dot
++	_DotDotDot
++
++	// keywords
++	_Break
++	_Case
++	_Chan
++	_Const
++	_Continue
++	_Default
++	_Defer
++	_Else
++	_Fallthrough
++	_For
++	_Func
++	_Go
++	_Goto
++	_If
++	_Import
++	_Interface
++	_Map
++	_Package
++	_Range
++	_Return
++	_Select
++	_Struct
++	_Switch
++	_Type
++	_Var
++
++	tokenCount
++)
++
++const (
++	// for BranchStmt
++	Break       = _Break
++	Continue    = _Continue
++	Fallthrough = _Fallthrough
++	Goto        = _Goto
++
++	// for CallStmt
++	Go    = _Go
++	Defer = _Defer
++)
++
++var tokstrings = [...]string{
++	// source control
++	_EOF: "EOF",
++
++	// names and literals
++	_Name:    "name",
++	_Literal: "literal",
++
++	// operators and operations
++	_Operator: "op",
++	_AssignOp: "op=",
++	_IncOp:    "opop",
++	_Assign:   "=",
++	_Define:   ":=",
++	_Arrow:    "<-",
++	_Star:     "*",
++
++	// delimitors
++	_Lparen:    "(",
++	_Lbrack:    "[",
++	_Lbrace:    "{",
++	_Rparen:    ")",
++	_Rbrack:    "]",
++	_Rbrace:    "}",
++	_Comma:     ",",
++	_Semi:      ";",
++	_Colon:     ":",
++	_Dot:       ".",
++	_DotDotDot: "...",
++
++	// keywords
++	_Break:       "break",
++	_Case:        "case",
++	_Chan:        "chan",
++	_Const:       "const",
++	_Continue:    "continue",
++	_Default:     "default",
++	_Defer:       "defer",
++	_Else:        "else",
++	_Fallthrough: "fallthrough",
++	_For:         "for",
++	_Func:        "func",
++	_Go:          "go",
++	_Goto:        "goto",
++	_If:          "if",
++	_Import:      "import",
++	_Interface:   "interface",
++	_Map:         "map",
++	_Package:     "package",
++	_Range:       "range",
++	_Return:      "return",
++	_Select:      "select",
++	_Struct:      "struct",
++	_Switch:      "switch",
++	_Type:        "type",
++	_Var:         "var",
++}
++
++func (tok token) String() string {
++	var s string
++	if 0 <= tok && int(tok) < len(tokstrings) {
++		s = tokstrings[tok]
++	}
++	if s == "" {
++		s = fmt.Sprintf("<tok-%d>", tok)
++	}
++	return s
++}
++
++// Make sure we have at most 64 tokens so we can use them in a set.
++const _ uint64 = 1 << (tokenCount - 1)
++
++// contains reports whether tok is in tokset.
++func contains(tokset uint64, tok token) bool {
++	return tokset&(1<<tok) != 0
++}
++
++type LitKind uint
++
++const (
++	IntLit LitKind = iota
++	FloatLit
++	ImagLit
++	RuneLit
++	StringLit
++)
++
++type Operator uint
++
++const (
++	_    Operator = iota
++	Def           // :=
++	Not           // !
++	Recv          // <-
++
++	// precOrOr
++	OrOr // ||
++
++	// precAndAnd
++	AndAnd // &&
++
++	// precCmp
++	Eql // ==
++	Neq // !=
++	Lss // <
++	Leq // <=
++	Gtr // >
++	Geq // >=
++
++	// precAdd
++	Add // +
++	Sub // -
++	Or  // |
++	Xor // ^
++
++	// precMul
++	Mul    // *
++	Div    // /
++	Rem    // %
++	And    // &
++	AndNot // &^
++	Shl    // <<
++	Shr    // >>
++)
++
++var opstrings = [...]string{
++	// prec == 0
++	Def:  ":", // : in :=
++	Not:  "!",
++	Recv: "<-",
++
++	// precOrOr
++	OrOr: "||",
++
++	// precAndAnd
++	AndAnd: "&&",
++
++	// precCmp
++	Eql: "==",
++	Neq: "!=",
++	Lss: "<",
++	Leq: "<=",
++	Gtr: ">",
++	Geq: ">=",
++
++	// precAdd
++	Add: "+",
++	Sub: "-",
++	Or:  "|",
++	Xor: "^",
++
++	// precMul
++	Mul:    "*",
++	Div:    "/",
++	Rem:    "%",
++	And:    "&",
++	AndNot: "&^",
++	Shl:    "<<",
++	Shr:    ">>",
++}
++
++func (op Operator) String() string {
++	var s string
++	if 0 <= op && int(op) < len(opstrings) {
++		s = opstrings[op]
++	}
++	if s == "" {
++		s = fmt.Sprintf("<op-%d>", op)
++	}
++	return s
++}
++
++// Operator precedences
++const (
++	_ = iota
++	precOrOr
++	precAndAnd
++	precCmp
++	precAdd
++	precMul
++)

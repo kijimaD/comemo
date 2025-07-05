@@ -13,6 +13,20 @@ Date:   Fri May 15 16:03:27 2015 -0400
     Change-Id: Ie1083166e5ba4af5c9d6c5a42efdfaaef41ca997
     Reviewed-on: https://go-review.googlesource.com/10153
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index d33fbf11de..848b46804c 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -703,7 +703,7 @@ func startGC(mode int) {
+ 	// trying to run gc while holding a lock. The next mallocgc without a lock
+ 	// will do the gc instead.
+ 	mp := acquirem()
+-	if gp := getg(); gp == mp.g0 || mp.locks > 1 || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
++	if gp := getg(); gp == mp.g0 || mp.locks > 1 || mp.preemptoff != "" || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
+ 		releasem(mp)
+ 		return
+ 	}

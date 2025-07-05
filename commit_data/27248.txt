@@ -19,7 +19,7 @@ Date:   Wed Mar 16 22:22:58 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/20792
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go      |  2 -
  src/cmd/compile/internal/gc/gsubr.go   |  6 ++-
  src/cmd/compile/internal/gc/main.go    |  5 ---
@@ -28,3 +28,257 @@ Date:   Wed Mar 16 22:22:58 2016 -0700
  src/cmd/compile/internal/gc/ssa.go     |  9 +++-
  src/cmd/internal/obj/link.go           |  6 +++
  7 files changed, 72 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 4473ee6cdf..6feb5fb661 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -249,8 +249,6 @@ var localpkg *Pkg // package being compiled
+ 
+ var importpkg *Pkg // package being imported
+ 
+-var gostringpkg *Pkg // fake pkg for Go strings
+-
+ var itabpkg *Pkg // fake pkg for itab cache
+ 
+ var Runtimepkg *Pkg // package runtime
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index efc48c76a1..ddaa3f26d9 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -234,10 +234,14 @@ func ggloblnod(nam *Node) {
+ }
+ 
+ func ggloblsym(s *Sym, width int32, flags int16) {
++	ggloblLSym(Linksym(s), width, flags)
++}
++
++func ggloblLSym(s *obj.LSym, width int32, flags int16) {
+ 	p := Thearch.Gins(obj.AGLOBL, nil, nil)
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Name = obj.NAME_EXTERN
+-	p.From.Sym = Linksym(s)
++	p.From.Sym = s
+ 	if flags&obj.LOCAL != 0 {
+ 		p.From.Sym.Local = true
+ 		flags &= ^obj.LOCAL
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index f4396d13e2..63a0ab8ca9 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -122,11 +122,6 @@ func Main() {
+ 	Runtimepkg.Name = "runtime"
+ 
+ 	// pseudo-packages used in symbol tables
+-	gostringpkg = mkpkg("go.string")
+-
+-	gostringpkg.Name = "go.string"
+-	gostringpkg.Prefix = "go.string" // not go%2estring
+-
+ 	itabpkg = mkpkg("go.itab")
+ 
+ 	itabpkg.Name = "go.itab"
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 91d0ac87d5..6093d4ad6e 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -159,12 +159,16 @@ func Linksym(s *Sym) *obj.LSym {
+ }
+ 
+ func duintxx(s *Sym, off int, v uint64, wid int) int {
++	return duintxxLSym(Linksym(s), off, v, wid)
++}
++
++func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
+ 	// Update symbol data directly instead of generating a
+ 	// DATA instruction that liblink will have to interpret later.
+ 	// This reduces compilation time and memory usage.
+ 	off = int(Rnd(int64(off), int64(wid)))
+ 
+-	return int(obj.Setuintxx(Ctxt, Linksym(s), int64(off), v, int64(wid)))
++	return int(obj.Setuintxx(Ctxt, s, int64(off), v, int64(wid)))
+ }
+ 
+ func duint8(s *Sym, off int, v uint8) int {
+@@ -183,7 +187,18 @@ func duintptr(s *Sym, off int, v uint64) int {
+ 	return duintxx(s, off, v, Widthptr)
+ }
+ 
+-func stringsym(s string) (hdr, data *Sym) {
++// stringConstantSyms holds the pair of symbols we create for a
++// constant string.
++type stringConstantSyms struct {
++	hdr  *obj.LSym // string header
++	data *obj.LSym // actual string data
++}
++
++// stringConstants maps from the symbol name we use for the string
++// contents to the pair of linker symbols for that string.
++var stringConstants = make(map[string]stringConstantSyms, 100)
++
++func stringsym(s string) (hdr, data *obj.LSym) {
+ 	var symname string
+ 	if len(s) > 100 {
+ 		// Huge strings are hashed to avoid long names in object files.
+@@ -197,31 +212,34 @@ func stringsym(s string) (hdr, data *Sym) {
+ 		symname = strconv.Quote(s)
+ 	}
+ 
+-	symhdr := Pkglookup("hdr."+symname, gostringpkg)
+-	symdata := Pkglookup(symname, gostringpkg)
++	const prefix = "go.string."
++	symdataname := prefix + symname
++
++	// All the strings have the same prefix, so ignore it for map
++	// purposes, but use a slice of the symbol name string to
++	// reduce long-term memory overhead.
++	key := symdataname[len(prefix):]
+ 
+-	// SymUniq flag indicates that data is generated already
+-	if symhdr.Flags&SymUniq != 0 {
+-		return symhdr, symdata
++	if syms, ok := stringConstants[key]; ok {
++		return syms.hdr, syms.data
+ 	}
+-	symhdr.Flags |= SymUniq
+-	symhdr.Def = newname(symhdr)
++
++	symhdrname := "go.string.hdr." + symname
++
++	symhdr := obj.Linklookup(Ctxt, symhdrname, 0)
++	symdata := obj.Linklookup(Ctxt, symdataname, 0)
++
++	stringConstants[key] = stringConstantSyms{symhdr, symdata}
+ 
+ 	// string header
+ 	off := 0
+-	off = dsymptr(symhdr, off, symdata, 0)
+-	off = duintxx(symhdr, off, uint64(len(s)), Widthint)
+-	ggloblsym(symhdr, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
++	off = dsymptrLSym(symhdr, off, symdata, 0)
++	off = duintxxLSym(symhdr, off, uint64(len(s)), Widthint)
++	ggloblLSym(symhdr, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+ 
+ 	// string data
+-	if symdata.Flags&SymUniq != 0 {
+-		return symhdr, symdata
+-	}
+-	symdata.Flags |= SymUniq
+-	symdata.Def = newname(symdata)
+-
+-	off = dsname(symdata, 0, s)
+-	ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
++	off = dsnameLSym(symdata, 0, s)
++	ggloblLSym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+ 
+ 	return symhdr, symdata
+ }
+@@ -250,8 +268,7 @@ func Datastring(s string, a *obj.Addr) {
+ 	_, symdata := stringsym(s)
+ 	a.Type = obj.TYPE_MEM
+ 	a.Name = obj.NAME_EXTERN
+-	a.Sym = Linksym(symdata)
+-	a.Node = symdata.Def
++	a.Sym = symdata
+ 	a.Offset = 0
+ 	a.Etype = uint8(Simtype[TINT])
+ }
+@@ -260,8 +277,7 @@ func datagostring(sval string, a *obj.Addr) {
+ 	symhdr, _ := stringsym(sval)
+ 	a.Type = obj.TYPE_MEM
+ 	a.Name = obj.NAME_EXTERN
+-	a.Sym = Linksym(symhdr)
+-	a.Node = symhdr.Def
++	a.Sym = symhdr
+ 	a.Offset = 0
+ 	a.Etype = uint8(TSTRING)
+ }
+@@ -279,19 +295,27 @@ func dgostrlitptr(s *Sym, off int, lit *string) int {
+ 	}
+ 	off = int(Rnd(int64(off), int64(Widthptr)))
+ 	symhdr, _ := stringsym(*lit)
+-	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, Linksym(symhdr), 0)
++	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, symhdr, 0)
+ 	off += Widthptr
+ 	return off
+ }
+ 
+ func dsname(s *Sym, off int, t string) int {
+-	Linksym(s).WriteString(Ctxt, int64(off), len(t), t)
++	return dsnameLSym(Linksym(s), off, t)
++}
++
++func dsnameLSym(s *obj.LSym, off int, t string) int {
++	s.WriteString(Ctxt, int64(off), len(t), t)
+ 	return off + len(t)
+ }
+ 
+ func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
++	return dsymptrLSym(Linksym(s), off, Linksym(x), xoff)
++}
++
++func dsymptrLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+ 	off = int(Rnd(int64(off), int64(Widthptr)))
+-	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, Linksym(x), int64(xoff))
++	s.WriteAddr(Ctxt, int64(off), Widthptr, x, int64(xoff))
+ 	off += Widthptr
+ 	return off
+ }
+@@ -368,6 +392,6 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
+ func gdatastring(nam *Node, sval string) {
+ 	s := Linksym(nam.Sym)
+ 	_, symdata := stringsym(sval)
+-	s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, Linksym(symdata), 0)
++	s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
+ 	s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthint, int64(len(sval)))
+ }
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index e72fa4fdcd..a8d0c93cf5 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -770,7 +770,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 		prefix = 1
+ 	}
+ 	_, symdata := stringsym(p) // string
+-	ot = dsymptr(s, ot, symdata, prefix)
++	ot = dsymptrLSym(Linksym(s), ot, symdata, prefix)
+ 	ot = duintxx(s, ot, uint64(len(p)-prefix), Widthint)
+ 
+ 	return ot
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 716be35034..06e317eb09 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3845,7 +3845,14 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 	switch sym := v.Aux.(type) {
+ 	case *ssa.ExternSymbol:
+ 		a.Name = obj.NAME_EXTERN
+-		a.Sym = Linksym(sym.Sym.(*Sym))
++		switch s := sym.Sym.(type) {
++		case *Sym:
++			a.Sym = Linksym(s)
++		case *obj.LSym:
++			a.Sym = s
++		default:
++			v.Fatalf("ExternSymbol.Sym is %T", s)
++		}
+ 	case *ssa.ArgSymbol:
+ 		n := sym.Node.(*Node)
+ 		a.Name = obj.NAME_PARAM
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 7da7adae5d..8cae1255cd 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -343,6 +343,12 @@ type LSym struct {
+ 	R      []Reloc
+ }
+ 
++// The compiler needs LSym to satisfy fmt.Stringer, because it stores
++// an LSym in ssa.ExternSymbol.
++func (s *LSym) String() string {
++	return s.Name
++}
++
+ type Pcln struct {
+ 	Pcsp        Pcdata
+ 	Pcfile      Pcdata

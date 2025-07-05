@@ -9,7 +9,61 @@ Date:   Sun Oct 7 16:47:53 2012 +0200
     R=golang-dev, minux.ma, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6622056
-
+---
  src/cmd/gc/typecheck.c   | 10 ++++++----
  test/fixedbugs/bug462.go | 19 +++++++++++++++++++
  2 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 74ed84b134..e84b45f389 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2136,7 +2136,7 @@ typecheckcomplit(Node **np)
+ 	Node *l, *n, *r, **hash;
+ 	NodeList *ll;
+ 	Type *t, *f;
+-	Sym *s;
++	Sym *s, *s1;
+ 	int32 lno;
+ 	ulong nhash;
+ 	Node *autohash[101];
+@@ -2302,9 +2302,11 @@ typecheckcomplit(Node **np)
+ 				// Sym might have resolved to name in other top-level
+ 				// package, because of import dot.  Redirect to correct sym
+ 				// before we do the lookup.
+-				if(s->pkg != localpkg && exportname(s->name))
+-					s = lookup(s->name);
+-
++				if(s->pkg != localpkg && exportname(s->name)) {
++					s1 = lookup(s->name);
++					if(s1->origpkg == s->pkg)
++						s = s1;
++				}
+ 				f = lookdot1(nil, s, t, t->type, 0);
+ 				if(f == nil) {
+ 					yyerror("unknown %T field '%S' in struct literal", t, s);
+diff --git a/test/fixedbugs/bug462.go b/test/fixedbugs/bug462.go
+new file mode 100644
+index 0000000000..6434255c8d
+--- /dev/null
++++ b/test/fixedbugs/bug462.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "os"
++
++type T struct {
++	File int
++}
++
++func main() {
++	_ = T {
++		os.File: 1, // ERROR "unknown T field"
++	}
++}

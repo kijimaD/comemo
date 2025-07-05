@@ -20,8 +20,55 @@ Date:   Mon Jun 12 13:42:30 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go | 2 +-
  src/cmd/link/internal/arm64/asm.go | 5 +++--
  src/cmd/link/internal/ld/data.go   | 4 +++-
  3 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 7082c839ee..0c5486bf53 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -469,7 +469,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ 	rs := r.Xsym
+ 	rt := r.Type
+ 
+-	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_PCREL || rt == objabi.R_GOTPCREL || rt == objabi.R_CALL {
++	if rt == objabi.R_PCREL || rt == objabi.R_GOTPCREL || rt == objabi.R_CALL || ldr.SymType(rs) == sym.SHOSTOBJ || ldr.SymType(s) == sym.SINITARR {
+ 		if ldr.SymDynid(rs) < 0 {
+ 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
+ 			return false
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index f2a2b32232..6e691dbe65 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -577,10 +577,11 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ 		}
+ 	}
+ 
+-	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 ||
++	if rt == objabi.R_CALLARM64 ||
+ 		rt == objabi.R_ARM64_PCREL_LDST8 || rt == objabi.R_ARM64_PCREL_LDST16 ||
+ 		rt == objabi.R_ARM64_PCREL_LDST32 || rt == objabi.R_ARM64_PCREL_LDST64 ||
+-		rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL {
++		rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL ||
++		ldr.SymType(rs) == sym.SHOSTOBJ || ldr.SymType(s) == sym.SINITARR {
+ 		if ldr.SymDynid(rs) < 0 {
+ 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
+ 			return false
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d651e2e346..21b2e9a9d4 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -368,7 +368,9 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 						o = 0
+ 					}
+ 				} else if target.IsDarwin() {
+-					if ldr.SymType(rs) != sym.SHOSTOBJ {
++					if ldr.SymType(rs) != sym.SHOSTOBJ && ldr.SymType(s) != sym.SINITARR {
++						// ld-prime drops the offset in data for SINITARR. We need to use
++						// symbol-targeted relocation. See also machoreloc1.
+ 						o += ldr.SymValue(rs)
+ 					}
+ 				} else if target.IsWindows() {

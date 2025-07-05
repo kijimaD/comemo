@@ -12,6 +12,21 @@ Date:   Thu Aug 1 12:35:59 2019 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index df98783385..72e6f0da0c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1167,7 +1167,8 @@ func mstart() {
+ 	mstart1()
+ 
+ 	// Exit this thread.
+-	if GOOS == "windows" || GOOS == "solaris" || GOOS == "illumos" || GOOS == "plan9" || GOOS == "darwin" || GOOS == "aix" {
++	switch GOOS {
++	case "windows", "solaris", "illumos", "plan9", "darwin", "aix":
+ 		// Windows, Solaris, illumos, Darwin, AIX and Plan 9 always system-allocate
+ 		// the stack, but put it in _g_.stack before mstart,
+ 		// so the logic above hasn't set osStack yet.

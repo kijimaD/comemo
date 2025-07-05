@@ -22,8 +22,103 @@ Date:   Thu May 11 11:55:59 2017 +1000
     Change-Id: I5369a4db3913226aef3d9bd6317446856b0a1c34
     Reviewed-on: https://go-review.googlesource.com/43331
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go |  8 ++++++--
  src/cmd/link/internal/ld/lib.go   | 27 +++++++++++++++++++++++++++
  src/debug/pe/file_test.go         | 10 ++++++++++
  3 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 35c450904a..785fe374d2 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -872,7 +872,7 @@ func finddebugruntimepath(s *Symbol) {
+ 
+ 	for i := range s.FuncInfo.File {
+ 		f := s.FuncInfo.File[i]
+-		if i := strings.Index(f.Name, "runtime/runtime.go"); i >= 0 {
++		if i := strings.Index(f.Name, "runtime/debug.go"); i >= 0 {
+ 			gdbscript = f.Name[:i] + "runtime/runtime-gdb.py"
+ 			break
+ 		}
+@@ -1450,9 +1450,13 @@ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
+ }
+ 
+ func writegdbscript(ctxt *Link, syms []*Symbol) []*Symbol {
+-	if Linkmode == LinkExternal && Headtype == objabi.Hwindows {
++	if Linkmode == LinkExternal && Headtype == objabi.Hwindows && Buildmode == BuildmodeCArchive {
+ 		// gcc on Windows places .debug_gdb_scripts in the wrong location, which
+ 		// causes the program not to run. See https://golang.org/issue/20183
++		// Non c-archives can avoid this issue via a linker script
++		// (see fix near writeGDBLinkerScript).
++		// c-archive users would need to specify the linker script manually.
++		// For UX it's better not to deal with this.
+ 		return syms
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a7821ba32f..8906d2f91a 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -986,6 +986,29 @@ func hostobjCopy() (paths []string) {
+ 	return paths
+ }
+ 
++// writeGDBLinkerScript creates gcc linker script file in temp
++// directory. writeGDBLinkerScript returns created file path.
++// The script is used to work around gcc bug
++// (see https://golang.org/issue/20183 for details).
++func writeGDBLinkerScript() string {
++	name := "fix_debug_gdb_scripts.ld"
++	path := filepath.Join(*flagTmpdir, name)
++	src := `SECTIONS
++{
++  .debug_gdb_scripts BLOCK(__section_alignment__) (NOLOAD) :
++  {
++    *(.debug_gdb_scripts)
++  }
++}
++INSERT AFTER .debug_types;
++`
++	err := ioutil.WriteFile(path, []byte(src), 0666)
++	if err != nil {
++		Errorf(nil, "WriteFile %s failed: %v", name, err)
++	}
++	return path
++}
++
+ // archive builds a .a archive from the hostobj object files.
+ func (ctxt *Link) archive() {
+ 	if Buildmode != BuildmodeCArchive {
+@@ -1247,6 +1270,10 @@ func (l *Link) hostlink() {
+ 		}
+ 	}
+ 	if Headtype == objabi.Hwindows {
++		// use gcc linker script to work around gcc bug
++		// (see https://golang.org/issue/20183 for details).
++		p := writeGDBLinkerScript()
++		argv = append(argv, "-Wl,-T,"+p)
+ 		// libmingw32 and libmingwex have some inter-dependencies,
+ 		// so must use linker groups.
+ 		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 100516f0ba..8645d676b7 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -363,6 +363,16 @@ func testDWARF(t *testing.T, linktype int) {
+ 	}
+ 	defer f.Close()
+ 
++	var foundDebugGDBScriptsSection bool
++	for _, sect := range f.Sections {
++		if sect.Name == ".debug_gdb_scripts" {
++			foundDebugGDBScriptsSection = true
++		}
++	}
++	if !foundDebugGDBScriptsSection {
++		t.Error(".debug_gdb_scripts section is not found")
++	}
++
+ 	d, err := f.DWARF()
+ 	if err != nil {
+ 		t.Fatal(err)

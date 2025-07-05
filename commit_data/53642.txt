@@ -35,8 +35,118 @@ Date:   Tue Aug 23 18:19:06 2022 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/pgen.go |  8 +++++--
  src/cmd/compile/internal/ssagen/ssa.go  | 12 ++++++++--
  test/fixedbugs/issue54638.go            | 40 +++++++++++++++++++++++++++++++++
  3 files changed, 56 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 31e6feece5..9aaf4b81e0 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -96,6 +96,7 @@ func needAlloc(n *ir.Name) bool {
+ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	s.stksize = 0
+ 	s.stkptrsize = 0
++	s.stkalign = int64(types.RegSize)
+ 	fn := s.curfn
+ 
+ 	// Mark the PAUTO's unused.
+@@ -160,6 +161,9 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		}
+ 		s.stksize += w
+ 		s.stksize = types.RoundUp(s.stksize, n.Type().Alignment())
++		if n.Type().Alignment() > int64(types.RegSize) {
++			s.stkalign = n.Type().Alignment()
++		}
+ 		if n.Type().HasPointers() {
+ 			s.stkptrsize = s.stksize
+ 			lastHasPtr = true
+@@ -169,8 +173,8 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		n.SetFrameOffset(-s.stksize)
+ 	}
+ 
+-	s.stksize = types.RoundUp(s.stksize, int64(types.RegSize))
+-	s.stkptrsize = types.RoundUp(s.stkptrsize, int64(types.RegSize))
++	s.stksize = types.RoundUp(s.stksize, s.stkalign)
++	s.stkptrsize = types.RoundUp(s.stkptrsize, s.stkalign)
+ }
+ 
+ const maxStackSize = 1 << 30
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index a06bb2a98f..dda813518a 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7324,7 +7324,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ func defframe(s *State, e *ssafn, f *ssa.Func) {
+ 	pp := s.pp
+ 
+-	frame := types.RoundUp(s.maxarg+e.stksize, int64(types.RegSize))
++	s.maxarg = types.RoundUp(s.maxarg, e.stkalign)
++	frame := s.maxarg + e.stksize
+ 	if Arch.PadFrame != nil {
+ 		frame = Arch.PadFrame(frame)
+ 	}
+@@ -7762,7 +7763,14 @@ type ssafn struct {
+ 	strings    map[string]*obj.LSym // map from constant string to data symbols
+ 	stksize    int64                // stack size for current frame
+ 	stkptrsize int64                // prefix of stack containing pointers
+-	log        bool                 // print ssa debug to the stdout
++
++	// alignment for current frame.
++	// NOTE: when stkalign > PtrSize, currently this only ensures the offsets of
++	// objects in the stack frame are aligned. The stack pointer is still aligned
++	// only PtrSize.
++	stkalign int64
++
++	log bool // print ssa debug to the stdout
+ }
+ 
+ // StringData returns a symbol which
+diff --git a/test/fixedbugs/issue54638.go b/test/fixedbugs/issue54638.go
+new file mode 100644
+index 0000000000..d0258b0c68
+--- /dev/null
++++ b/test/fixedbugs/issue54638.go
+@@ -0,0 +1,40 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 54638: composite literal assignment with
++// alignment > PtrSize causes ICE.
++
++package p
++
++import "sync/atomic"
++
++type S struct{ l any }
++
++type T struct {
++	H any
++	a [14]int64
++	f func()
++	x atomic.Int64
++}
++
++//go:noinline
++func (T) M(any) {}
++
++type W [2]int64
++
++//go:noinline
++func (W) Done() {}
++
++func F(l any) [3]*int {
++	var w W
++	var x [3]*int // use some stack
++	t := T{H: S{l: l}}
++	go func() {
++		t.M(l)
++		w.Done()
++	}()
++	return x
++}

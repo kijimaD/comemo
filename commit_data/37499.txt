@@ -19,9 +19,164 @@ Date:   Sun Jul 29 23:26:52 2018 +0530
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 54 ++--------------------
  src/cmd/go/testdata/script/cover_atomic_pkgall.txt | 23 +++++++++
  .../go/testdata/script/cover_pkgall_runtime.txt    | 21 +++++++++
  src/cmd/go/testdata/script/cpu_profile_twice.txt   | 20 ++++++++
  4 files changed, 67 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 6ac625cfce..debe4867e6 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3047,6 +3047,9 @@ func TestGoTestMainAsNormalTest(t *testing.T) {
+ }
+ 
+ func TestGoTestMainTwice(t *testing.T) {
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+@@ -5817,57 +5820,6 @@ func init() {}
+ 	tg.run("test", "a")
+ }
+ 
+-// Issue 23150.
+-func TestCpuprofileTwice(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempFile("prof/src/x/x_test.go", `
+-		package x_test
+-		import (
+-			"testing"
+-			"time"
+-		)
+-		func TestSleep(t *testing.T) { time.Sleep(10 * time.Millisecond) }`)
+-	tg.setenv("GOPATH", tg.path("prof"))
+-	bin := tg.path("x.test")
+-	out := tg.path("cpu.out")
+-	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
+-	tg.must(os.Remove(out))
+-	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
+-	tg.mustExist(out)
+-}
+-
+-// Issue 23694.
+-func TestAtomicCoverpkgAll(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-
+-	tg.tempFile("src/x/x.go", `package x; import _ "sync/atomic"; func F() {}`)
+-	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("test", "-coverpkg=all", "-covermode=atomic", "x")
+-	if canRace {
+-		tg.run("test", "-coverpkg=all", "-race", "x")
+-	}
+-}
+-
+-// Issue 23882.
+-func TestCoverpkgAllRuntime(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-
+-	tg.tempFile("src/x/x.go", `package x; import _ "runtime"; func F() {}`)
+-	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("test", "-coverpkg=all", "x")
+-	if canRace {
+-		tg.run("test", "-coverpkg=all", "-race", "x")
+-	}
+-}
+-
+ func TestBadCommandLines(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/cover_atomic_pkgall.txt b/src/cmd/go/testdata/script/cover_atomic_pkgall.txt
+new file mode 100644
+index 0000000000..c122c05cb6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_atomic_pkgall.txt
+@@ -0,0 +1,23 @@
++[short] skip
++
++go test -coverpkg=all -covermode=atomic x
++stdout ok[\s\S]+?coverage
++
++[!race] stop
++
++go test -coverpkg=all -race x
++stdout ok[\s\S]+?coverage
++
++-- x/x.go --
++package x
++
++import _ "sync/atomic"
++
++func F() {}
++
++-- x/x_test.go --
++package x
++
++import "testing"
++
++func TestF(t *testing.T) { F() }
+diff --git a/src/cmd/go/testdata/script/cover_pkgall_runtime.txt b/src/cmd/go/testdata/script/cover_pkgall_runtime.txt
+new file mode 100644
+index 0000000000..5d169d6312
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_pkgall_runtime.txt
+@@ -0,0 +1,21 @@
++# Issue 23882
++
++[short] skip
++
++go test -coverpkg=all x
++stdout ok[\s\S]+?coverage
++
++[!race] stop
++
++go test -coverpkg=all -race x
++stdout ok[\s\S]+?coverage
++
++-- x/x.go --
++package x
++import _ "runtime"
++func F() {}
++
++-- x/x_test.go --
++package x
++import "testing"
++func TestF(t *testing.T) { F() }
+diff --git a/src/cmd/go/testdata/script/cpu_profile_twice.txt b/src/cmd/go/testdata/script/cpu_profile_twice.txt
+new file mode 100644
+index 0000000000..142d5ee718
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cpu_profile_twice.txt
+@@ -0,0 +1,20 @@
++# Issue 23150
++
++[short] skip
++
++go test -o=$WORK/x.test -cpuprofile=$WORK/cpu_profile_twice.out x
++rm $WORK/cpu_profile_twice.out
++
++go test -o=$WORK/x.test -cpuprofile=$WORK/cpu_profile_twice.out x
++exists $WORK/cpu_profile_twice.out
++
++
++-- x/x_test.go --
++package x_test
++import (
++    "testing"
++    "time"
++)
++func TestSleep(t *testing.T) {
++    time.Sleep(10 * time.Millisecond)
++}

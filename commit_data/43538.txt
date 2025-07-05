@@ -29,8 +29,331 @@ Date:   Mon Nov 11 13:18:38 2019 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go          | 78 +++++++++++++++++++------
  src/cmd/compile/internal/logopt/log_opts.go    | 80 +++++++++++++++++++-------
  src/cmd/compile/internal/logopt/logopt_test.go | 22 ++++++-
  3 files changed, 139 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 8edaf54a75..472d193efd 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
+ 	"strings"
+@@ -945,7 +946,7 @@ func (k EscHole) note(where *Node, why string) EscHole {
+ 	if where == nil || why == "" {
+ 		Fatalf("note: missing where/why")
+ 	}
+-	if Debug['m'] >= 2 {
++	if Debug['m'] >= 2 || logopt.Enabled() {
+ 		k.notes = &EscNote{
+ 			next:  k.notes,
+ 			where: where,
+@@ -1092,10 +1093,16 @@ func (e *Escape) flow(k EscHole, src *EscLocation) {
+ 		return
+ 	}
+ 	if dst.escapes && k.derefs < 0 { // dst = &src
+-		if Debug['m'] >= 2 {
++		if Debug['m'] >= 2 || logopt.Enabled() {
+ 			pos := linestr(src.n.Pos)
+-			fmt.Printf("%s: %v escapes to heap:\n", pos, src.n)
+-			e.explainFlow(pos, dst, src, k.derefs, k.notes)
++			if Debug['m'] >= 2 {
++				fmt.Printf("%s: %v escapes to heap:\n", pos, src.n)
++			}
++			explanation := e.explainFlow(pos, dst, src, k.derefs, k.notes, []*logopt.LoggedOpt{})
++			if logopt.Enabled() {
++				logopt.LogOpt(src.n.Pos, "escapes", "escape", e.curfn.funcname(), fmt.Sprintf("%v escapes to heap", src.n), explanation)
++			}
++
+ 		}
+ 		src.escapes = true
+ 		return
+@@ -1187,9 +1194,15 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
+ 			// that value flow for tagging the function
+ 			// later.
+ 			if l.isName(PPARAM) {
+-				if Debug['m'] >= 2 && !l.escapes {
+-					fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), base)
+-					e.explainPath(root, l)
++				if (logopt.Enabled() || Debug['m'] >= 2) && !l.escapes {
++					if Debug['m'] >= 2 {
++						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), base)
++					}
++					explanation := e.explainPath(root, l)
++					if logopt.Enabled() {
++						logopt.LogOpt(l.n.Pos, "leak", "escape", e.curfn.funcname(),
++							fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, e.explainLoc(root), base), explanation)
++					}
+ 				}
+ 				l.leakTo(root, base)
+ 			}
+@@ -1198,9 +1211,14 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
+ 			// outlives it, then l needs to be heap
+ 			// allocated.
+ 			if addressOf && !l.escapes {
+-				if Debug['m'] >= 2 {
+-					fmt.Printf("%s: %v escapes to heap:\n", linestr(l.n.Pos), l.n)
+-					e.explainPath(root, l)
++				if logopt.Enabled() || Debug['m'] >= 2 {
++					if Debug['m'] >= 2 {
++						fmt.Printf("%s: %v escapes to heap:\n", linestr(l.n.Pos), l.n)
++					}
++					explanation := e.explainPath(root, l)
++					if logopt.Enabled() {
++						logopt.LogOpt(l.n.Pos, "escape", "escape", e.curfn.funcname(), fmt.Sprintf("%v escapes to heap", l.n), explanation)
++					}
+ 				}
+ 				l.escapes = true
+ 				enqueue(l)
+@@ -1225,43 +1243,67 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
+ }
+ 
+ // explainPath prints an explanation of how src flows to the walk root.
+-func (e *Escape) explainPath(root, src *EscLocation) {
++func (e *Escape) explainPath(root, src *EscLocation) []*logopt.LoggedOpt {
+ 	visited := make(map[*EscLocation]bool)
+-
+ 	pos := linestr(src.n.Pos)
++	var explanation []*logopt.LoggedOpt
+ 	for {
+ 		// Prevent infinite loop.
+ 		if visited[src] {
+-			fmt.Printf("%s:   warning: truncated explanation due to assignment cycle; see golang.org/issue/35518\n", pos)
++			if Debug['m'] >= 2 {
++				fmt.Printf("%s:   warning: truncated explanation due to assignment cycle; see golang.org/issue/35518\n", pos)
++			}
+ 			break
+ 		}
+ 		visited[src] = true
+-
+ 		dst := src.dst
+ 		edge := &dst.edges[src.dstEdgeIdx]
+ 		if edge.src != src {
+ 			Fatalf("path inconsistency: %v != %v", edge.src, src)
+ 		}
+ 
+-		e.explainFlow(pos, dst, src, edge.derefs, edge.notes)
++		explanation = e.explainFlow(pos, dst, src, edge.derefs, edge.notes, explanation)
+ 
+ 		if dst == root {
+ 			break
+ 		}
+ 		src = dst
+ 	}
++
++	return explanation
+ }
+ 
+-func (e *Escape) explainFlow(pos string, dst, src *EscLocation, derefs int, notes *EscNote) {
++func (e *Escape) explainFlow(pos string, dst, srcloc *EscLocation, derefs int, notes *EscNote, explanation []*logopt.LoggedOpt) []*logopt.LoggedOpt {
+ 	ops := "&"
+ 	if derefs >= 0 {
+ 		ops = strings.Repeat("*", derefs)
+ 	}
++	print := Debug['m'] >= 2
++
++	flow := fmt.Sprintf("   flow: %s = %s%v:", e.explainLoc(dst), ops, e.explainLoc(srcloc))
++	if print {
++		fmt.Printf("%s:%s\n", pos, flow)
++	}
++	if logopt.Enabled() {
++		var epos src.XPos
++		if notes != nil {
++			epos = notes.where.Pos
++		} else if srcloc != nil && srcloc.n != nil {
++			epos = srcloc.n.Pos
++		}
++		explanation = append(explanation, logopt.NewLoggedOpt(epos, "escflow", "escape", e.curfn.funcname(), flow))
++	}
+ 
+-	fmt.Printf("%s:   flow: %s = %s%v:\n", pos, e.explainLoc(dst), ops, e.explainLoc(src))
+ 	for note := notes; note != nil; note = note.next {
+-		fmt.Printf("%s:     from %v (%v) at %s\n", pos, note.where, note.why, linestr(note.where.Pos))
++		if print {
++			fmt.Printf("%s:     from %v (%v) at %s\n", pos, note.where, note.why, linestr(note.where.Pos))
++		}
++		if logopt.Enabled() {
++			explanation = append(explanation, logopt.NewLoggedOpt(note.where.Pos, "escflow", "escape", e.curfn.funcname(),
++				fmt.Sprintf("     from %v (%v)", note.where, note.why)))
++		}
+ 	}
++	return explanation
+ }
+ 
+ func (e *Escape) explainLoc(l *EscLocation) string {
+diff --git a/src/cmd/compile/internal/logopt/log_opts.go b/src/cmd/compile/internal/logopt/log_opts.go
+index 49cb9cf57f..22a94b0f2d 100644
+--- a/src/cmd/compile/internal/logopt/log_opts.go
++++ b/src/cmd/compile/internal/logopt/log_opts.go
+@@ -294,18 +294,23 @@ func checkLogPath(flag, destination string) {
+ 	dest = destination
+ }
+ 
+-var loggedOpts []LoggedOpt
++var loggedOpts []*LoggedOpt
+ var mu = sync.Mutex{} // mu protects loggedOpts.
+ 
++func NewLoggedOpt(pos src.XPos, what, pass, fname string, args ...interface{}) *LoggedOpt {
++	pass = strings.Replace(pass, " ", "_", -1)
++	return &LoggedOpt{pos, pass, fname, what, args}
++}
++
+ func LogOpt(pos src.XPos, what, pass, fname string, args ...interface{}) {
+ 	if Format == None {
+ 		return
+ 	}
+-	pass = strings.Replace(pass, " ", "_", -1)
++	lo := NewLoggedOpt(pos, what, pass, fname, args...)
+ 	mu.Lock()
+ 	defer mu.Unlock()
+ 	// Because of concurrent calls from back end, no telling what the order will be, but is stable-sorted by outer Pos before use.
+-	loggedOpts = append(loggedOpts, LoggedOpt{pos, pass, fname, what, args})
++	loggedOpts = append(loggedOpts, lo)
+ }
+ 
+ func Enabled() bool {
+@@ -321,7 +326,7 @@ func Enabled() bool {
+ // byPos sorts diagnostics by source position.
+ type byPos struct {
+ 	ctxt *obj.Link
+-	a    []LoggedOpt
++	a    []*LoggedOpt
+ }
+ 
+ func (x byPos) Len() int { return len(x.a) }
+@@ -402,15 +407,9 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
+ 		// For LSP, make a subdirectory for the package, and for each file foo.go, create foo.json in that subdirectory.
+ 		currentFile := ""
+ 		for _, x := range loggedOpts {
+-			posTmp = ctxt.AllPos(x.pos, posTmp)
+-			// Reverse posTmp to put outermost first.
+-			l := len(posTmp)
+-			for i := 0; i < l/2; i++ {
+-				posTmp[i], posTmp[l-i-1] = posTmp[l-i-1], posTmp[i]
+-			}
+-
+-			p0 := posTmp[0]
++			posTmp, p0 := x.parsePos(ctxt, posTmp)
+ 			p0f := uprootedPath(p0.Filename())
++
+ 			if currentFile != p0f {
+ 				if w != nil {
+ 					w.Close()
+@@ -429,16 +428,27 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
+ 
+ 			diagnostic.Code = x.what
+ 			diagnostic.Message = target
+-			diagnostic.Range = Range{Start: Position{p0.Line(), p0.Col()},
+-				End: Position{p0.Line(), p0.Col()}}
++			diagnostic.Range = newPointRange(p0)
+ 			diagnostic.RelatedInformation = diagnostic.RelatedInformation[:0]
+ 
+-			for i := 1; i < l; i++ {
+-				p := posTmp[i]
+-				loc := Location{URI: uriIfy(uprootedPath(p.Filename())),
+-					Range: Range{Start: Position{p.Line(), p.Col()},
+-						End: Position{p.Line(), p.Col()}}}
+-				diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: "inlineLoc"})
++			appendInlinedPos(posTmp, &diagnostic)
++
++			// Diagnostic explanation is stored in RelatedInformation after inlining info
++			if len(x.target) > 1 {
++				switch y := x.target[1].(type) {
++				case []*LoggedOpt:
++					for _, z := range y {
++						posTmp, p0 := z.parsePos(ctxt, posTmp)
++						loc := newLocation(p0)
++						msg := z.what
++						if len(z.target) > 0 {
++							msg = msg + ": " + fmt.Sprint(z.target[0])
++						}
++
++						diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: msg})
++						appendInlinedPos(posTmp, &diagnostic)
++					}
++				}
+ 			}
+ 
+ 			encoder.Encode(diagnostic)
+@@ -448,3 +458,33 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
+ 		}
+ 	}
+ }
++
++func newPointRange(p src.Pos) Range {
++	return Range{Start: Position{p.Line(), p.Col()},
++		End: Position{p.Line(), p.Col()}}
++}
++
++func newLocation(p src.Pos) Location {
++	loc := Location{URI: uriIfy(uprootedPath(p.Filename())), Range: newPointRange(p)}
++	return loc
++}
++
++// appendInlinedPos extracts inlining information from posTmp and append it to diagnostic
++func appendInlinedPos(posTmp []src.Pos, diagnostic *Diagnostic) {
++	for i := 1; i < len(posTmp); i++ {
++		p := posTmp[i]
++		loc := newLocation(p)
++		diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: "inlineLoc"})
++	}
++}
++
++func (x *LoggedOpt) parsePos(ctxt *obj.Link, posTmp []src.Pos) ([]src.Pos, src.Pos) {
++	posTmp = ctxt.AllPos(x.pos, posTmp)
++	// Reverse posTmp to put outermost first.
++	l := len(posTmp)
++	for i := 0; i < l/2; i++ {
++		posTmp[i], posTmp[l-i-1] = posTmp[l-i-1], posTmp[i]
++	}
++	p0 := posTmp[0]
++	return posTmp, p0
++}
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index 9704bc79d5..fb08393bdb 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -41,8 +41,11 @@ func n() int {
+ `
+ 
+ func want(t *testing.T, out string, desired string) {
+-	if !strings.Contains(out, desired) {
+-		t.Errorf("did not see phrase %s in \n%s", desired, out)
++	// On Windows, Unicode escapes in the JSON output end up "normalized" elsewhere to /u....,
++	// so "normalize" what we're looking for to match that.
++	s := strings.ReplaceAll(desired, string(os.PathSeparator), "/")
++	if !strings.Contains(out, s) {
++		t.Errorf("did not see phrase %s in \n%s", s, out)
+ 	}
+ }
+ 
+@@ -178,7 +181,20 @@ func s15a8(x *[15]int64) [15]int64 {
+ 		want(t, slogged, `{"range":{"start":{"line":11,"character":6},"end":{"line":11,"character":6}},"severity":3,"code":"isInBounds","source":"go compiler","message":""}`)
+ 		want(t, slogged, `{"range":{"start":{"line":7,"character":6},"end":{"line":7,"character":6}},"severity":3,"code":"canInlineFunction","source":"go compiler","message":"cost: 35"}`)
+ 		want(t, slogged, `{"range":{"start":{"line":21,"character":21},"end":{"line":21,"character":21}},"severity":3,"code":"cannotInlineCall","source":"go compiler","message":"foo cannot be inlined (escaping closure variable)"}`)
+-
++		// escape analysis explanation
++		want(t, slogged, `{"range":{"start":{"line":7,"character":13},"end":{"line":7,"character":13}},"severity":3,"code":"leak","source":"go compiler","message":"parameter z leaks to ~r2 with derefs=0",`+
++			`"relatedInformation":[`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: y = z:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y = \u003cN\u003e (assign-pair)"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~r1 = y:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y.b (dot of pointer)"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~r1 = \u003cN\u003e (assign-pair)"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~r1:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~r1) (return)"}]}`)
+ 	})
+ }
+ 

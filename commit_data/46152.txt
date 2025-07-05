@@ -12,6 +12,20 @@ Date:   Thu Dec 10 16:45:48 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/276992
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index d8f19520c8..726aadb899 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1141,7 +1141,7 @@ func (db *DB) connectionOpener(ctx context.Context) {
+ 
+ // Open one new connection
+ func (db *DB) openNewConnection(ctx context.Context) {
+-	// maybeOpenNewConnctions has already executed db.numOpen++ before it sent
++	// maybeOpenNewConnections has already executed db.numOpen++ before it sent
+ 	// on db.openerCh. This function must execute db.numOpen-- if the
+ 	// connection fails or is closed before returning.
+ 	ci, err := db.connector.Connect(ctx)

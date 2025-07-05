@@ -11,8 +11,63 @@ Date:   Mon Aug 26 09:18:03 2019 -0400
     Change-Id: Icdf5b4b2b6eb55a5b48a31a61c41215b1ae4cf01
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191743
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue33020a.dir/a.go | 13 +++++++++++++
  test/fixedbugs/issue33020a.dir/b.go | 14 ++++++++++++++
  test/fixedbugs/issue33020a.go       |  9 +++++++++
  3 files changed, 36 insertions(+)
+
+diff --git a/test/fixedbugs/issue33020a.dir/a.go b/test/fixedbugs/issue33020a.dir/a.go
+new file mode 100644
+index 0000000000..91764982dc
+--- /dev/null
++++ b/test/fixedbugs/issue33020a.dir/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type FArg func(args []string) error
++
++type Command struct {
++	Name string
++	Arg1 FArg
++	Arg2 func(args []string) error
++}
+diff --git a/test/fixedbugs/issue33020a.dir/b.go b/test/fixedbugs/issue33020a.dir/b.go
+new file mode 100644
+index 0000000000..5b0f9d86d7
+--- /dev/null
++++ b/test/fixedbugs/issue33020a.dir/b.go
+@@ -0,0 +1,14 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++var Cmd = &a.Command{
++	Name: "test",
++}
++
++func main() {
++}
+diff --git a/test/fixedbugs/issue33020a.go b/test/fixedbugs/issue33020a.go
+new file mode 100644
+index 0000000000..cfe010e92f
+--- /dev/null
++++ b/test/fixedbugs/issue33020a.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 33020: gollvm assert in Llvm_backend::materializeComposite
++
++package ignored

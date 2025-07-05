@@ -18,7 +18,7 @@ Date:   Mon Aug 31 14:43:27 2009 -0700
     DELTA=86  (23 added, 40 deleted, 23 changed)
     OCL=33935
     CL=34132
-
+---
  src/pkg/container/list/list.go           | 23 +++++++++++++++--------
  src/pkg/container/list/list_test.go      | 15 ++++++++++++++-
  src/pkg/container/ring/ring.go           | 31 +++++--------------------------
@@ -27,3 +27,245 @@ Date:   Mon Aug 31 14:43:27 2009 -0700
  src/pkg/container/vector/stringvector.go |  4 ++--
  src/pkg/container/vector/vector.go       |  4 ++--
  7 files changed, 46 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 3b77ced59c..64000e4632 100755
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -18,6 +18,16 @@ type Element struct {
+ 	Value interface {};
+ }
+ 
++// Next returns the next list element or nil.
++func (e *Element) Next() *Element {
++	return e.next
++}
++
++// Prev returns the previous list element or nil.
++func (e *Element) Prev() *Element {
++	return e.prev
++}
++
+ // List represents a doubly linked list.
+ type List struct {
+ 	front, back *Element;
+@@ -181,18 +191,15 @@ func (l *List) Len() int {
+ 	return l.len
+ }
+ 
+-func (l *List) iterate(c chan <- *Element) {
+-	var next *Element;
+-	for e := l.front; e != nil; e = next {
+-		// Save next in case reader of c changes e.
+-		next = e.next;
+-		c <- e;
++func (l *List) iterate(c chan<- interface {}) {
++	for e := l.front; e != nil; e = e.next {
++		c <- e.Value;
+ 	}
+ 	close(c);
+ }
+ 
+-func (l *List) Iter() <-chan *Element {
+-	c := make(chan *Element);
++func (l *List) Iter() <-chan interface {} {
++	c := make(chan interface {});
+ 	go l.iterate(c);
+ 	return c
+ }
+diff --git a/src/pkg/container/list/list_test.go b/src/pkg/container/list/list_test.go
+index 4a291e9189..741aa55169 100755
+--- a/src/pkg/container/list/list_test.go
++++ b/src/pkg/container/list/list_test.go
+@@ -114,8 +114,21 @@ func TestList(t *testing.T) {
+ 	checkListPointers(t, l, []*Element{ e1, e4, e3, e2 });
+ 	l.Remove(e2);
+ 
+-	// Clear all elements by iterating
++	// Check standard iteration.
++	sum := 0;
+ 	for e := range l.Iter() {
++		if i, ok := e.(int); ok {
++			sum += i;
++		}
++	}
++	if sum != 4 {
++		t.Errorf("sum over l.Iter() = %d, want 4", sum);
++	}
++
++	// Clear all elements by iterating
++	var next *Element;
++	for e := l.Front(); e != nil; e = next {
++		next = e.Next();
+ 		l.Remove(e);
+ 	}
+ 	checkListPointers(t, l, []*Element{});
+diff --git a/src/pkg/container/ring/ring.go b/src/pkg/container/ring/ring.go
+index 0cd41cb411..fc1aef96d7 100644
+--- a/src/pkg/container/ring/ring.go
++++ b/src/pkg/container/ring/ring.go
+@@ -138,37 +138,16 @@ func (r *Ring) Len() int {
+ }
+ 
+ 
+-// Forward returns a channel for forward iteration through a ring.
+-// Iteration is undefined if the ring is changed during iteration.
+-//
+-func (r *Ring) Forward() <-chan *Ring {
+-	c := make(chan *Ring);
++func (r *Ring) Iter() <-chan interface {} {
++	c := make(chan interface {});
+ 	go func() {
+ 		if r != nil {
+-			c <- r;
++			c <- r.Value;
+ 			for p := r.Next(); p != r; p = p.next {
+-				c <- p;
+-			}
+-		}
+-		close(c);
+-	}();
+-	return c;
+-}
+-
+-
+-// Backward returns a channel for backward iteration through a ring.
+-// Iteration is undefined if the ring is changed during iteration.
+-//
+-func (r *Ring) Backward() <-chan *Ring {
+-	c := make(chan *Ring);
+-	go func() {
+-		if r != nil {
+-			c <- r;
+-			for p := r.Prev(); p != r; p = p.prev {
+-				c <- p;
++				c <- p.Value;
+ 			}
+ 		}
+ 		close(c);
+ 	}();
+-	return c;
++	return c
+ }
+diff --git a/src/pkg/container/ring/ring_test.go b/src/pkg/container/ring/ring_test.go
+index 8ecbacd14a..4f81d55aa7 100644
+--- a/src/pkg/container/ring/ring_test.go
++++ b/src/pkg/container/ring/ring_test.go
+@@ -32,13 +32,13 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
+ 		t.Errorf("r.Len() == %d; expected %d", n, N);
+ 	}
+ 
+-	// forward iteration
++	// iteration
+ 	n = 0;
+ 	s := 0;
+-	for p := range r.Forward() {
++	for p := range r.Iter() {
+ 		n++;
+-		if p.Value != nil {
+-			s += p.Value.(int);
++		if p != nil {
++			s += p.(int);
+ 		}
+ 	}
+ 	if n != N {
+@@ -48,22 +48,6 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
+ 		t.Errorf("forward ring sum = %d; expected %d", s, sum);
+ 	}
+ 
+-	// backward iteration
+-	n = 0;
+-	s = 0;
+-	for p := range r.Backward() {
+-		n++;
+-		if p.Value != nil {
+-			s += p.Value.(int);
+-		}
+-	}
+-	if n != N {
+-		t.Errorf("number of backward iterations == %d; expected %d", n, N);
+-	}
+-	if sum >= 0 && s != sum {
+-		t.Errorf("backward ring sum = %d; expected %d", s, sum);
+-	}
+-
+ 	if r == nil {
+ 		return;
+ 	}
+@@ -147,8 +131,8 @@ func makeN(n int) *Ring {
+ 
+ func sum(r *Ring) int {
+ 	s := 0;
+-	for p := range r.Forward() {
+-		s += p.Value.(int);
++	for p := range r.Iter() {
++		s += p.(int);
+ 	}
+ 	return s;
+ }
+diff --git a/src/pkg/container/vector/intvector.go b/src/pkg/container/vector/intvector.go
+index f599ce185c..076f9982d2 100644
+--- a/src/pkg/container/vector/intvector.go
++++ b/src/pkg/container/vector/intvector.go
+@@ -101,7 +101,7 @@ func (p *IntVector) Less(i, j int) bool {
+ 
+ 
+ // Iterate over all elements; driver for range
+-func (p *IntVector) iterate(c chan int) {
++func (p *IntVector) iterate(c chan<- int) {
+ 	for i, v := range p.a {
+ 		c <- v.(int)
+ 	}
+@@ -110,7 +110,7 @@ func (p *IntVector) iterate(c chan int) {
+ 
+ 
+ // Channel iterator for range.
+-func (p *IntVector) Iter() chan int {
++func (p *IntVector) Iter() <-chan int {
+ 	c := make(chan int);
+ 	go p.iterate(c);
+ 	return c;
+diff --git a/src/pkg/container/vector/stringvector.go b/src/pkg/container/vector/stringvector.go
+index 4f6d74e29a..2ead95c701 100644
+--- a/src/pkg/container/vector/stringvector.go
++++ b/src/pkg/container/vector/stringvector.go
+@@ -100,7 +100,7 @@ func (p *StringVector) Less(i, j int) bool {
+ 
+ 
+ // Iterate over all elements; driver for range
+-func (p *StringVector) iterate(c chan string) {
++func (p *StringVector) iterate(c chan<- string) {
+ 	for i, v := range p.a {
+ 		c <- v.(string)
+ 	}
+@@ -109,7 +109,7 @@ func (p *StringVector) iterate(c chan string) {
+ 
+ 
+ // Channel iterator for range.
+-func (p *StringVector) Iter() chan string {
++func (p *StringVector) Iter() <-chan string {
+ 	c := make(chan string);
+ 	go p.iterate(c);
+ 	return c;
+diff --git a/src/pkg/container/vector/vector.go b/src/pkg/container/vector/vector.go
+index 5b5cad21cd..ba5e881d16 100644
+--- a/src/pkg/container/vector/vector.go
++++ b/src/pkg/container/vector/vector.go
+@@ -228,7 +228,7 @@ func (p *Vector) Swap(i, j int) {
+ 
+ 
+ // Iterate over all elements; driver for range
+-func (p *Vector) iterate(c chan Element) {
++func (p *Vector) iterate(c chan<- Element) {
+ 	for i, v := range p.a {
+ 		c <- v
+ 	}
+@@ -237,7 +237,7 @@ func (p *Vector) iterate(c chan Element) {
+ 
+ 
+ // Channel iterator for range.
+-func (p *Vector) Iter() chan Element {
++func (p *Vector) Iter() <-chan Element {
+ 	c := make(chan Element);
+ 	go p.iterate(c);
+ 	return c;

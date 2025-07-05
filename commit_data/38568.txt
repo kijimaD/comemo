@@ -18,7 +18,7 @@ Date:   Thu Oct 25 13:42:46 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/internal/cmdflag/flag.go  |  6 +++---
  src/cmd/go/internal/test/test.go     | 36 ++++++++++--------------------------
  src/cmd/go/internal/test/testflag.go |  4 ++--
@@ -27,3 +27,201 @@ Date:   Thu Oct 25 13:42:46 2018 +0100
  src/cmd/go/main.go                   | 11 -----------
  src/cmd/go/testdata/script/help.txt  |  8 +++++++-
  7 files changed, 25 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/go/internal/cmdflag/flag.go b/src/cmd/go/internal/cmdflag/flag.go
+index b2a67e6f74..7f2c53def8 100644
+--- a/src/cmd/go/internal/cmdflag/flag.go
++++ b/src/cmd/go/internal/cmdflag/flag.go
+@@ -79,15 +79,15 @@ func AddKnownFlags(cmd string, defns []*Defn) {
+ 
+ // Parse sees if argument i is present in the definitions and if so,
+ // returns its definition, value, and whether it consumed an extra word.
+-// If the flag begins (cmd+".") it is ignored for the purpose of this function.
+-func Parse(cmd string, defns []*Defn, args []string, i int) (f *Defn, value string, extra bool) {
++// If the flag begins (cmd.Name()+".") it is ignored for the purpose of this function.
++func Parse(cmd string, usage func(), defns []*Defn, args []string, i int) (f *Defn, value string, extra bool) {
+ 	arg := args[i]
+ 	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
+ 		arg = arg[1:]
+ 	}
+ 	switch arg {
+ 	case "-?", "-h", "-help":
+-		base.Usage()
++		usage()
+ 	}
+ 	if arg == "" || arg[0] != '-' {
+ 		return
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 750b515e41..b38eb4c41d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -124,16 +124,6 @@ A cached test result is treated as executing in no time at all,
+ so a successful package test result will be cached and reused
+ regardless of -timeout setting.
+ 
+-` + strings.TrimSpace(testFlag1) + ` See 'go help testflag' for details.
+-
+-For more about build flags, see 'go help build'.
+-For more about specifying packages, see 'go help packages'.
+-
+-See also: go build, go vet.
+-`,
+-}
+-
+-const testFlag1 = `
+ In addition to the build flags, the flags handled by 'go test' itself are:
+ 
+ 	-args
+@@ -164,15 +154,13 @@ In addition to the build flags, the flags handled by 'go test' itself are:
+ 	    The test still runs (unless -c or -i is specified).
+ 
+ The test binary also accepts flags that control execution of the test; these
+-flags are also accessible by 'go test'.
+-`
+-
+-// Usage prints the usage message for 'go test -h' and exits.
+-func Usage() {
+-	os.Stderr.WriteString("usage: " + testUsage + "\n\n" +
+-		strings.TrimSpace(testFlag1) + "\n\n\t" +
+-		strings.TrimSpace(testFlag2) + "\n")
+-	os.Exit(2)
++flags are also accessible by 'go test'. See 'go help testflag' for details.
++
++For more about build flags, see 'go help build'.
++For more about specifying packages, see 'go help packages'.
++
++See also: go build, go vet.
++`,
+ }
+ 
+ var HelpTestflag = &base.Command{
+@@ -190,11 +178,6 @@ options of pprof control how the information is presented.
+ The following flags are recognized by the 'go test' command and
+ control the execution of any test:
+ 
+-	` + strings.TrimSpace(testFlag2) + `
+-`,
+-}
+-
+-const testFlag2 = `
+ 	-bench regexp
+ 	    Run only those benchmarks matching a regular expression.
+ 	    By default, no benchmarks are run.
+@@ -414,7 +397,8 @@ In the first example, the -x and the second -v are passed through to the
+ test binary unchanged and with no effect on the go command itself.
+ In the second example, the argument math is passed through to the test
+ binary, instead of being interpreted as the package list.
+-`
++`,
++}
+ 
+ var HelpTestfunc = &base.Command{
+ 	UsageLine: "testfunc",
+@@ -532,7 +516,7 @@ var testVetFlags = []string{
+ func runTest(cmd *base.Command, args []string) {
+ 	modload.LoadTests = true
+ 
+-	pkgArgs, testArgs = testFlags(args)
++	pkgArgs, testArgs = testFlags(cmd.Usage, args)
+ 
+ 	work.FindExecCmd() // initialize cached result
+ 
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 73f8c69d9e..ebcf49a4e9 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -87,7 +87,7 @@ func init() {
+ // to allow both
+ //	go test fmt -custom-flag-for-fmt-test
+ //	go test -x math
+-func testFlags(args []string) (packageNames, passToTest []string) {
++func testFlags(usage func(), args []string) (packageNames, passToTest []string) {
+ 	args = str.StringList(cmdflag.FindGOFLAGS(testFlagDefn), args)
+ 	inPkg := false
+ 	var explicitArgs []string
+@@ -108,7 +108,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			inPkg = false
+ 		}
+ 
+-		f, value, extraWord := cmdflag.Parse(cmd, testFlagDefn, args, i)
++		f, value, extraWord := cmdflag.Parse(cmd, usage, testFlagDefn, args, i)
+ 		if f == nil {
+ 			// This is a flag we do not know; we must assume
+ 			// that any args we see after this might be flag
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index b64bf3f8e8..616f774bf6 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -38,7 +38,7 @@ See also: go fmt, go fix.
+ func runVet(cmd *base.Command, args []string) {
+ 	modload.LoadTests = true
+ 
+-	vetFlags, pkgArgs := vetFlags(args)
++	vetFlags, pkgArgs := vetFlags(cmd.Usage, args)
+ 
+ 	work.BuildInit()
+ 	work.VetFlags = vetFlags
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index cfa4352cb9..22bce16cf3 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -40,7 +40,7 @@ var vetTool = os.Getenv("GOVETTOOL")
+ 
+ // vetFlags processes the command line, splitting it at the first non-flag
+ // into the list of flags and list of packages.
+-func vetFlags(args []string) (passToVet, packageNames []string) {
++func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
+ 	// Query the vet command for its flags.
+ 	tool := vetTool
+ 	if tool != "" {
+@@ -108,7 +108,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
+ 			return args[:i], args[i:]
+ 		}
+ 
+-		f, value, extraWord := cmdflag.Parse("vet", vetFlagDefn, args, i)
++		f, value, extraWord := cmdflag.Parse("vet", usage, vetFlagDefn, args, i)
+ 		if f == nil {
+ 			fmt.Fprintf(os.Stderr, "vet: flag %q not defined\n", args[i])
+ 			fmt.Fprintf(os.Stderr, "Run \"go help vet\" for more information\n")
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index d6934ce5e9..6a188262cc 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -235,17 +235,6 @@ func init() {
+ }
+ 
+ func mainUsage() {
+-	// special case "go test -h"
+-	if len(os.Args) > 1 && os.Args[1] == "test" {
+-		test.Usage()
+-	}
+-	// Since vet shares code with test in cmdflag, it doesn't show its
+-	// command usage properly. For now, special case it too.
+-	// TODO(mvdan): fix the cmdflag package instead; see
+-	// golang.org/issue/26999
+-	if len(os.Args) > 1 && os.Args[1] == "vet" {
+-		vet.CmdVet.Usage()
+-	}
+ 	help.PrintUsage(os.Stderr, base.Go)
+ 	os.Exit(2)
+ }
+diff --git a/src/cmd/go/testdata/script/help.txt b/src/cmd/go/testdata/script/help.txt
+index 656e680100..3d0650880e 100644
+--- a/src/cmd/go/testdata/script/help.txt
++++ b/src/cmd/go/testdata/script/help.txt
+@@ -35,7 +35,13 @@ stderr 'Run ''go help mod'' for usage.'
+ stderr 'usage: go vet'
+ stderr 'Run ''go help vet'' for details'
+ 
++# Earlier versions of Go printed a large document here, instead of these two
++# lines.
++! go test -h
++stderr 'usage: go test'
++stderr 'Run ''go help test'' for details'
++
+ # go help get shows usage for get
+ go help get
+ stdout 'usage: go get'
+-stdout 'get when using GOPATH'
+\ No newline at end of file
++stdout 'get when using GOPATH'

@@ -7,7 +7,34 @@ Date:   Thu Mar 11 16:40:32 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/444043
-
+---
  src/pkg/math/ldexp.go | 2 +-
  src/pkg/path/path.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/ldexp.go b/src/pkg/math/ldexp.go
+index e8223703b6..dc6b3a820e 100644
+--- a/src/pkg/math/ldexp.go
++++ b/src/pkg/math/ldexp.go
+@@ -5,7 +5,7 @@
+ package math
+ 
+ // Ldexp is the inverse of Frexp.
+-// It returns frac × 2<sup>exp</sup>.
++// It returns frac × 2^exp.
+ func Ldexp(frac float64, exp int) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 3ce2166e37..71d8b42158 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -115,7 +115,7 @@ func Split(path string) (dir, file string) {
+ 	return "", path
+ }
+ 
+-// Join joins any number of path elemets into a single path, adding a
++// Join joins any number of path elements into a single path, adding a
+ // separating slash if necessary.  All empty strings are ignored.
+ func Join(elem ...string) string {
+ 	for i, e := range elem {

@@ -13,6 +13,19 @@ Date:   Fri Apr 12 14:05:14 2013 -0700
     R=golang-dev, bradfitz, minux.ma, r
     CC=golang-dev
     https://golang.org/cl/8633043
-
+---
  src/cmd/go/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 9b90728a72..025b258bf5 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1306,6 +1306,7 @@ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...inter
+ 
+ // joinUnambiguously prints the slice, quoting where necessary to make the
+ // output unambiguous.
++// TODO: See issue 5279. The printing of commands needs a complete redo.
+ func joinUnambiguously(a []string) string {
+ 	var buf bytes.Buffer
+ 	for i, s := range a {

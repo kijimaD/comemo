@@ -63,7 +63,7 @@ Date:   Wed Feb 12 22:16:42 2014 +0400
     R=golang-codereviews, sameer, rsc, iant, jeremyjackins, gobot
     CC=golang-codereviews, khr
     https://golang.org/cl/46430043
-
+---
  src/pkg/runtime/malloc.goc |   4 +
  src/pkg/runtime/malloc.h   |  27 +++-
  src/pkg/runtime/mcentral.c |  82 +++++++++---
@@ -71,3 +71,1164 @@ Date:   Wed Feb 12 22:16:42 2014 +0400
  src/pkg/runtime/mheap.c    | 147 +++++++++++++++++++--
  src/pkg/runtime/mprof.goc  |  47 +++++--
  6 files changed, 498 insertions(+), 126 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 76945a28d4..babfb9e176 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -284,6 +284,10 @@ runtime·free(void *v)
+ 	if(raceenabled)
+ 		runtime·racefree(v);
+ 
++	// Ensure that the span is swept.
++	// If we free into an unswept span, we will corrupt GC bitmaps.
++	runtime·MSpan_EnsureSwept(s);
++
+ 	if(s->specials != nil)
+ 		runtime·freeallspecials(s, v, size);
+ 
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index fc6c85e2c1..ac9e6a2883 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -403,6 +403,12 @@ struct MSpan
+ 	PageID	start;		// starting page number
+ 	uintptr	npages;		// number of pages in span
+ 	MLink	*freelist;	// list of free objects
++	// sweep generation:
++	// if sweepgen == h->sweepgen - 2, the span needs sweeping
++	// if sweepgen == h->sweepgen - 1, the span is currently being swept
++	// if sweepgen == h->sweepgen, the span is swept and ready to use
++	// h->sweepgen is incremented by 2 after every GC
++	uint32	sweepgen;
+ 	uint16	ref;		// number of allocated objects in this span
+ 	uint8	sizeclass;	// size class
+ 	uint8	state;		// MSpanInUse etc
+@@ -416,6 +422,8 @@ struct MSpan
+ };
+ 
+ void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
++void	runtime·MSpan_EnsureSwept(MSpan *span);
++bool	runtime·MSpan_Sweep(MSpan *span);
+ 
+ // Every MSpan is in one doubly-linked list,
+ // either one of the MHeap's free lists or one of the
+@@ -423,6 +431,7 @@ void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
+ void	runtime·MSpanList_Init(MSpan *list);
+ bool	runtime·MSpanList_IsEmpty(MSpan *list);
+ void	runtime·MSpanList_Insert(MSpan *list, MSpan *span);
++void	runtime·MSpanList_InsertBack(MSpan *list, MSpan *span);
+ void	runtime·MSpanList_Remove(MSpan *span);	// from whatever list it is in
+ 
+ 
+@@ -439,7 +448,7 @@ struct MCentral
+ void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
+ int32	runtime·MCentral_AllocList(MCentral *c, MLink **first);
+ void	runtime·MCentral_FreeList(MCentral *c, MLink *first);
+-void	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
++bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
+ 
+ // Main malloc heap.
+ // The heap itself is the "free[]" and "large" arrays,
+@@ -448,10 +457,15 @@ struct MHeap
+ {
+ 	Lock;
+ 	MSpan free[MaxMHeapList];	// free lists of given length
+-	MSpan large;			// free lists length >= MaxMHeapList
+-	MSpan **allspans;
++	MSpan freelarge;		// free lists length >= MaxMHeapList
++	MSpan busy[MaxMHeapList];	// busy lists of large objects of given length
++	MSpan busylarge;		// busy lists of large objects length >= MaxMHeapList
++	MSpan **allspans;		// all spans out there
++	MSpan **sweepspans;		// copy of allspans referenced by sweeper
+ 	uint32	nspan;
+ 	uint32	nspancap;
++	uint32	sweepgen;		// sweep generation, see comment in MSpan
++	uint32	sweepdone;		// all spans are swept
+ 
+ 	// span lookup
+ 	MSpan**	spans;
+@@ -487,7 +501,7 @@ struct MHeap
+ extern MHeap runtime·mheap;
+ 
+ void	runtime·MHeap_Init(MHeap *h);
+-MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32 zeroed);
++MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool zeroed);
+ void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
+ MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
+ MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
+@@ -501,6 +515,7 @@ void*	runtime·mallocgc(uintptr size, uintptr typ, uint32 flag);
+ void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
+ int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
+ void	runtime·gc(int32 force);
++uintptr	runtime·sweepone(void);
+ void	runtime·markscan(void *v);
+ void	runtime·marknogc(void *v);
+ void	runtime·checkallocated(void *v, uintptr n);
+@@ -528,7 +543,7 @@ enum
+ };
+ 
+ void	runtime·MProf_Malloc(void*, uintptr, uintptr);
+-void	runtime·MProf_Free(Bucket*, void*, uintptr);
++void	runtime·MProf_Free(Bucket*, void*, uintptr, bool);
+ void	runtime·MProf_GC(void);
+ void	runtime·MProf_TraceGC(void);
+ int32	runtime·gcprocs(void);
+@@ -542,7 +557,7 @@ void	runtime·removefinalizer(void*);
+ void	runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot);
+ 
+ void	runtime·freeallspecials(MSpan *span, void *p, uintptr size);
+-bool	runtime·freespecial(Special *s, void *p, uintptr size);
++bool	runtime·freespecial(Special *s, void *p, uintptr size, bool freed);
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index 735a7e6a9a..d96a73394d 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -39,17 +39,58 @@ runtime·MCentral_AllocList(MCentral *c, MLink **pfirst)
+ {
+ 	MSpan *s;
+ 	int32 cap, n;
++	uint32 sg;
+ 
+ 	runtime·lock(c);
+-	// Replenish central list if empty.
+-	if(runtime·MSpanList_IsEmpty(&c->nonempty)) {
+-		if(!MCentral_Grow(c)) {
++	sg = runtime·mheap.sweepgen;
++retry:
++	for(s = c->nonempty.next; s != &c->nonempty; s = s->next) {
++		if(s->sweepgen == sg-2 && runtime·cas(&s->sweepgen, sg-2, sg-1)) {
+ 			runtime·unlock(c);
+-			*pfirst = nil;
+-			return 0;
++			runtime·MSpan_Sweep(s);
++			runtime·lock(c);
++			// the span could have been moved to heap, retry
++			goto retry;
++		}
++		if(s->sweepgen == sg-1) {
++			// the span is being swept by background sweeper, skip
++			continue;
++		}
++		// we have a nonempty span that does not require sweeping, allocate from it
++		goto havespan;
++	}
++
++	for(s = c->empty.next; s != &c->empty; s = s->next) {
++		if(s->sweepgen == sg-2 && runtime·cas(&s->sweepgen, sg-2, sg-1)) {
++			// we have an empty span that requires sweeping,
++			// sweep it and see if we can free some space in it
++			runtime·MSpanList_Remove(s);
++			// swept spans are at the end of the list
++			runtime·MSpanList_InsertBack(&c->empty, s);
++			runtime·unlock(c);
++			runtime·MSpan_Sweep(s);
++			runtime·lock(c);
++			// the span could be moved to nonempty or heap, retry
++			goto retry;
++		}
++		if(s->sweepgen == sg-1) {
++			// the span is being swept by background sweeper, skip
++			continue;
+ 		}
++		// already swept empty span,
++		// all subsequent ones must also be either swept or in process of sweeping
++		break;
++	}
++
++	// Replenish central list if empty.
++	if(!MCentral_Grow(c)) {
++		runtime·unlock(c);
++		*pfirst = nil;
++		return 0;
+ 	}
+ 	s = c->nonempty.next;
++
++havespan:
+ 	cap = (s->npages << PageShift) / s->elemsize;
+ 	n = cap - s->ref;
+ 	*pfirst = s->freelist;
+@@ -57,7 +98,7 @@ runtime·MCentral_AllocList(MCentral *c, MLink **pfirst)
+ 	s->ref += n;
+ 	c->nfree -= n;
+ 	runtime·MSpanList_Remove(s);
+-	runtime·MSpanList_Insert(&c->empty, s);
++	runtime·MSpanList_InsertBack(&c->empty, s);
+ 	runtime·unlock(c);
+ 	return n;
+ }
+@@ -116,8 +157,9 @@ MCentral_Free(MCentral *c, void *v)
+ }
+ 
+ // Free n objects from a span s back into the central free list c.
+-// Called from GC.
+-void
++// Called during sweep.
++// Returns true if the span was returned to heap.
++bool
+ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end)
+ {
+ 	int32 size;
+@@ -136,19 +178,21 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
+ 	s->ref -= n;
+ 	c->nfree += n;
+ 
+-	// If s is completely freed, return it to the heap.
+-	if(s->ref == 0) {
+-		size = runtime·class_to_size[c->sizeclass];
+-		runtime·MSpanList_Remove(s);
+-		*(uintptr*)(s->start<<PageShift) = 1;  // needs zeroing
+-		s->freelist = nil;
+-		c->nfree -= (s->npages << PageShift) / size;
+-		runtime·unlock(c);
+-		runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
+-		runtime·MHeap_Free(&runtime·mheap, s, 0);
+-	} else {
++	if(s->ref != 0) {
+ 		runtime·unlock(c);
++		return false;
+ 	}
++
++	// s is completely freed, return it to the heap.
++	size = runtime·class_to_size[c->sizeclass];
++	runtime·MSpanList_Remove(s);
++	*(uintptr*)(s->start<<PageShift) = 1;  // needs zeroing
++	s->freelist = nil;
++	c->nfree -= (s->npages << PageShift) / size;
++	runtime·unlock(c);
++	runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
++	runtime·MHeap_Free(&runtime·mheap, s, 0);
++	return true;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index dc2a8a99bb..02872759b1 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -2,7 +2,53 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Garbage collector.
++// Garbage collector (GC).
++//
++// GC is:
++// - mark&sweep
++// - mostly precise (with the exception of some C-allocated objects, assembly frames/arguments, etc)
++// - parallel (up to MaxGcproc threads)
++// - partially concurrent (mark is stop-the-world, while sweep is concurrent)
++// - non-moving/non-compacting
++// - full (non-partial)
++//
++// GC rate.
++// Next GC is after we've allocated an extra amount of memory proportional to
++// the amount already in use. The proportion is controlled by GOGC environment variable
++// (100 by default). If GOGC=100 and we're using 4M, we'll GC again when we get to 8M
++// (this mark is tracked in next_gc variable). This keeps the GC cost in linear
++// proportion to the allocation cost. Adjusting GOGC just changes the linear constant
++// (and also the amount of extra memory used).
++//
++// Concurrent sweep.
++// The sweep phase proceeds concurrently with normal program execution.
++// The heap is swept span-by-span both lazily (when a goroutine needs another span)
++// and concurrently in a background goroutine (this helps programs that are not CPU bound).
++// However, at the end of the stop-the-world GC phase we don't know the size of the live heap,
++// and so next_gc calculation is tricky and happens as follows.
++// At the end of the stop-the-world phase next_gc is conservatively set based on total
++// heap size; all spans are marked as "needs sweeping".
++// Whenever a span is swept, next_gc is decremented by GOGC*newly_freed_memory.
++// The background sweeper goroutine simply sweeps spans one-by-one bringing next_gc
++// closer to the target value. However, this is not enough to avoid over-allocating memory.
++// Consider that a goroutine wants to allocate a new span for a large object and
++// there are no free swept spans, but there are small-object unswept spans.
++// If the goroutine naively allocates a new span, it can surpass the yet-unknown
++// target next_gc value. In order to prevent such cases (1) when a goroutine needs
++// to allocate a new small-object span, it sweeps small-object spans for the same
++// object size until it frees at least one object; (2) when a goroutine needs to
++// allocate large-object span from heap, it sweeps spans until it frees at least
++// that many pages into heap. Together these two measures ensure that we don't surpass
++// target next_gc value by a large margin. There is an exception: if a goroutine sweeps
++// and frees two nonadjacent one-page spans to the heap, it will allocate a new two-page span,
++// but there can still be other one-page unswept spans which could be combined into a two-page span.
++// It's critical to ensure that no operations proceed on unswept spans (that would corrupt
++// mark bits in GC bitmap). During GC all mcaches are flushed into the central cache,
++// so they are empty. When a goroutine grabs a new span into mcache, it sweeps it.
++// When a goroutine explicitly frees an object or sets a finalizer, it ensures that
++// the span is swept (either by sweeping it, or by waiting for the concurrent sweep to finish).
++// The finalizer goroutine is kicked off only when all spans are swept.
++// When the next GC starts, it sweeps all not-yet-swept spans (if any).
+ 
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+@@ -52,6 +98,11 @@ enum {
+ 	RootCount	= 5,
+ };
+ 
++#define GcpercentUnknown (-2)
++
++// Initialized from $GOGC.  GOGC=off means no gc.
++static int32 gcpercent = GcpercentUnknown;
++
+ static struct
+ {
+ 	Lock;  
+@@ -197,14 +248,15 @@ extern byte ebss[];
+ extern byte gcdata[];
+ extern byte gcbss[];
+ 
+-static G *fing;
+-static FinBlock *finq; // list of finalizers that are to be executed
+-static FinBlock *finc; // cache of free blocks
+-static FinBlock *allfin; // list of all blocks
+-static Lock finlock;
+-static int32 fingwait;
++static G	*fing;
++static FinBlock	*finq; // list of finalizers that are to be executed
++static FinBlock	*finc; // cache of free blocks
++static FinBlock	*allfin; // list of all blocks
++static int32	fingwait;
++static Lock	gclock;
+ 
+-static void runfinq(void);
++static void	runfinq(void);
++static void	bgsweep(void);
+ static Workbuf* getempty(Workbuf*);
+ static Workbuf* getfull(Workbuf*);
+ static void	putempty(Workbuf*);
+@@ -215,6 +267,9 @@ static void	flushallmcaches(void);
+ static void	scanframe(Stkframe *frame, void *wbufp);
+ static void	addstackroots(G *gp, Workbuf **wbufp);
+ 
++static FuncVal runfinqv = {runfinq};
++static FuncVal bgsweepv = {bgsweep};
++
+ static struct {
+ 	uint64	full;  // lock-free list of full blocks
+ 	uint64	empty; // lock-free list of empty blocks
+@@ -225,7 +280,6 @@ static struct {
+ 	volatile uint32	ndone;
+ 	Note	alldone;
+ 	ParFor	*markfor;
+-	ParFor	*sweepfor;
+ 
+ 	Lock;
+ 	byte	*chunk;
+@@ -266,6 +320,8 @@ static struct {
+ 		uint64 foundword;
+ 		uint64 foundspan;
+ 	} markonly;
++	uint32 nbgsweep;
++	uint32 npausesweep;
+ } gcstats;
+ 
+ // markonly marks an object. It returns true if the object
+@@ -1209,8 +1265,9 @@ markroot(ParFor *desc, uint32 i)
+ {
+ 	Workbuf *wbuf;
+ 	FinBlock *fb;
++	MHeap *h;
+ 	MSpan **allspans, *s;
+-	uint32 spanidx;
++	uint32 spanidx, sg;
+ 	G *gp;
+ 	void *p;
+ 
+@@ -1232,12 +1289,16 @@ markroot(ParFor *desc, uint32 i)
+ 
+ 	case RootSpanTypes:
+ 		// mark span types and MSpan.specials (to walk spans only once)
+-		allspans = runtime·mheap.allspans;
++		h = &runtime·mheap;
++		sg = h->sweepgen;
++		allspans = h->allspans;
+ 		for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
+ 			Special *sp;
+ 			SpecialFinalizer *spf;
+ 
+ 			s = allspans[spanidx];
++			if(s->sweepgen != sg)
++				runtime·throw("gc: unswept span");
+ 			if(s->state != MSpanInUse)
+ 				continue;
+ 			// The garbage collector ignores type pointers stored in MSpan.types:
+@@ -1601,7 +1662,7 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType
+ 	FinBlock *block;
+ 	Finalizer *f;
+ 
+-	runtime·lock(&finlock);
++	runtime·lock(&gclock);
+ 	if(finq == nil || finq->cnt == finq->cap) {
+ 		if(finc == nil) {
+ 			finc = runtime·persistentalloc(FinBlockSize, 0, &mstats.gc_sys);
+@@ -1621,13 +1682,31 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType
+ 	f->fint = fint;
+ 	f->ot = ot;
+ 	f->arg = p;
+-	runtime·unlock(&finlock);
++	runtime·unlock(&gclock);
++}
++
++void
++runtime·MSpan_EnsureSwept(MSpan *s)
++{
++	uint32 sg;
++
++	sg = runtime·mheap.sweepgen;
++	if(runtime·atomicload(&s->sweepgen) == sg)
++		return;
++	if(runtime·cas(&s->sweepgen, sg-2, sg-1)) {
++		runtime·MSpan_Sweep(s);
++		return;
++	}
++	// unfortunate condition, and we don't have efficient means to wait
++	while(runtime·atomicload(&s->sweepgen) != sg)
++		runtime·osyield();  
+ }
+ 
+ // Sweep frees or collects finalizers for blocks not marked in the mark phase.
+ // It clears the mark bits in preparation for the next GC round.
+-static void
+-sweepspan(ParFor *desc, uint32 idx)
++// Returns true if the span was returned to heap.
++bool
++runtime·MSpan_Sweep(MSpan *s)
+ {
+ 	int32 cl, n, npages;
+ 	uintptr size, off, *bitp, shift, bits;
+@@ -1639,14 +1718,15 @@ sweepspan(ParFor *desc, uint32 idx)
+ 	byte *type_data;
+ 	byte compression;
+ 	uintptr type_data_inc;
+-	MSpan *s;
+ 	MLink *x;
+ 	Special *special, **specialp, *y;
++	bool res, sweepgenset;
+ 
+-	USED(&desc);
+-	s = runtime·mheap.allspans[idx];
+-	if(s->state != MSpanInUse)
+-		return;
++	if(s->state != MSpanInUse || s->sweepgen != runtime·mheap.sweepgen-1) {
++		runtime·printf("MSpan_Sweep: state=%d sweepgen=%d mheap.sweepgen=%d\n",
++			s->state, s->sweepgen, runtime·mheap.sweepgen);
++		runtime·throw("MSpan_Sweep: bad span state");
++	}
+ 	arena_start = runtime·mheap.arena_start;
+ 	cl = s->sizeclass;
+ 	size = s->elemsize;
+@@ -1657,9 +1737,11 @@ sweepspan(ParFor *desc, uint32 idx)
+ 		npages = runtime·class_to_allocnpages[cl];
+ 		n = (npages << PageShift) / size;
+ 	}
++	res = false;
+ 	nfree = 0;
+ 	end = &head;
+ 	c = m->mcache;
++	sweepgenset = false;
+ 
+ 	// mark any free objects in this span so we don't collect them
+ 	for(x = s->freelist; x != nil; x = x->next) {
+@@ -1690,7 +1772,7 @@ sweepspan(ParFor *desc, uint32 idx)
+ 			y = special;
+ 			special = special->next;
+ 			*specialp = special;
+-			if(!runtime·freespecial(y, p, size)) {
++			if(!runtime·freespecial(y, p, size, false)) {
+ 				// stop freeing of object if it has a finalizer
+ 				*bitp |= bitMarked << shift;
+ 			}
+@@ -1736,12 +1818,17 @@ sweepspan(ParFor *desc, uint32 idx)
+ 			// Free large span.
+ 			runtime·unmarkspan(p, 1<<PageShift);
+ 			*(uintptr*)p = (uintptr)0xdeaddeaddeaddeadll;	// needs zeroing
++			// important to set sweepgen before returning it to heap
++			runtime·atomicstore(&s->sweepgen, runtime·mheap.sweepgen);
++			sweepgenset = true;
+ 			if(runtime·debug.efence)
+ 				runtime·SysFree(p, size, &mstats.gc_sys);
+ 			else
+ 				runtime·MHeap_Free(&runtime·mheap, s, 1);
+ 			c->local_nlargefree++;
+ 			c->local_largefree += size;
++			runtime·xadd64(&mstats.next_gc, -(uint64)(size * (gcpercent + 100)/100));
++			res = true;
+ 		} else {
+ 			// Free small object.
+ 			switch(compression) {
+@@ -1763,10 +1850,86 @@ sweepspan(ParFor *desc, uint32 idx)
+ 		}
+ 	}
+ 
++	if(!sweepgenset)
++		runtime·atomicstore(&s->sweepgen, runtime·mheap.sweepgen);
+ 	if(nfree) {
+ 		c->local_nsmallfree[cl] += nfree;
+ 		c->local_cachealloc -= nfree * size;
+-		runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
++		runtime·xadd64(&mstats.next_gc, -(uint64)(nfree * size * (gcpercent + 100)/100));
++		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
++	}
++	return res;
++}
++
++// State of background sweep.
++// Pretected by gclock.
++static struct
++{
++	G*	g;
++	bool	parked;
++
++	MSpan**	spans;
++	uint32	nspan;
++	uint32	spanidx;
++} sweep;
++
++// background sweeping goroutine
++static void
++bgsweep(void)
++{
++	g->issystem = 1;
++	for(;;) {
++		while(runtime·sweepone() != -1) {
++			gcstats.nbgsweep++;
++			runtime·gosched();
++		}
++		runtime·lock(&gclock);
++		if(finq != nil) {
++			// kick off or wake up goroutine to run queued finalizers
++			if(fing == nil)
++				fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
++			else if(fingwait) {
++				fingwait = 0;
++				runtime·ready(fing);
++			}
++		}
++		sweep.parked = true;
++		runtime·parkunlock(&gclock, "GC sweep wait");
++	}
++}
++
++// sweeps one span
++// returns number of pages returned to heap, or -1 if there is nothing to sweep
++uintptr
++runtime·sweepone(void)
++{
++	MSpan *s;
++	uint32 idx, sg;
++	uintptr npages;
++
++	// increment locks to ensure that the goroutine is not preempted
++	// in the middle of sweep thus leaving the span in an inconsistent state for next GC
++	m->locks++;
++	sg = runtime·mheap.sweepgen;
++	for(;;) {
++		idx = runtime·xadd(&sweep.spanidx, 1) - 1;
++		if(idx >= sweep.nspan) {
++			runtime·mheap.sweepdone = true;
++			m->locks--;
++			return -1;
++		}
++		s = sweep.spans[idx];
++		if(s->state != MSpanInUse) {
++			s->sweepgen = sg;
++			continue;
++		}
++		if(s->sweepgen != sg-2 || !runtime·cas(&s->sweepgen, sg-2, sg-1))
++			continue;
++		npages = s->npages;
++		if(!runtime·MSpan_Sweep(s))
++			npages = 0;
++		m->locks--;
++		return npages;
+ 	}
+ }
+ 
+@@ -1859,26 +2022,12 @@ runtime·gchelper(void)
+ 	// help other threads scan secondary blocks
+ 	scanblock(nil, true);
+ 
+-	runtime·parfordo(work.sweepfor);
+ 	bufferList[m->helpgc].busy = 0;
+ 	nproc = work.nproc;  // work.nproc can change right after we increment work.ndone
+ 	if(runtime·xadd(&work.ndone, +1) == nproc-1)
+ 		runtime·notewakeup(&work.alldone);
+ }
+ 
+-#define GcpercentUnknown (-2)
+-
+-// Initialized from $GOGC.  GOGC=off means no gc.
+-//
+-// Next gc is after we've allocated an extra amount of
+-// memory proportional to the amount already in use.
+-// If gcpercent=100 and we're using 4M, we'll gc again
+-// when we get to 8M.  This keeps the gc cost in linear
+-// proportion to the allocation cost.  Adjusting gcpercent
+-// just changes the linear constant (and also the amount of
+-// extra memory used).
+-static int32 gcpercent = GcpercentUnknown;
+-
+ static void
+ cachestats(void)
+ {
+@@ -2088,21 +2237,6 @@ runtime·gc(int32 force)
+ 	runtime·semrelease(&runtime·worldsema);
+ 	runtime·starttheworld();
+ 	m->locks--;
+-
+-	// now that gc is done, kick off finalizer thread if needed
+-	if(finq != nil) {
+-		runtime·lock(&finlock);
+-		// kick off or wake up goroutine to run queued finalizers
+-		if(fing == nil)
+-			fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
+-		else if(fingwait) {
+-			fingwait = 0;
+-			runtime·ready(fing);
+-		}
+-		runtime·unlock(&finlock);
+-	}
+-	// give the queued finalizers, if any, a chance to run
+-	runtime·gosched();
+ }
+ 
+ static void
+@@ -2118,7 +2252,7 @@ static void
+ gc(struct gc_args *args)
+ {
+ 	int64 t0, t1, t2, t3, t4;
+-	uint64 heap0, heap1, obj0, obj1, ninstr;
++	uint64 heap0, heap1, obj, ninstr;
+ 	GCStats stats;
+ 	M *mp;
+ 	uint32 i;
+@@ -2133,19 +2267,9 @@ gc(struct gc_args *args)
+ 	for(mp=runtime·allm; mp; mp=mp->alllink)
+ 		runtime·settype_flush(mp);
+ 
+-	heap0 = 0;
+-	obj0 = 0;
+-	if(runtime·debug.gctrace) {
+-		updatememstats(nil);
+-		heap0 = mstats.heap_alloc;
+-		obj0 = mstats.nmalloc - mstats.nfree;
+-	}
+-
+ 	m->locks++;	// disable gc during mallocs in parforalloc
+ 	if(work.markfor == nil)
+ 		work.markfor = runtime·parforalloc(MaxGcproc);
+-	if(work.sweepfor == nil)
+-		work.sweepfor = runtime·parforalloc(MaxGcproc);
+ 	m->locks--;
+ 
+ 	if(itabtype == nil) {
+@@ -2154,32 +2278,39 @@ gc(struct gc_args *args)
+ 		itabtype = ((PtrType*)eface.type)->elem;
+ 	}
+ 
++	t1 = runtime·nanotime();
++
++	// Sweep what is not sweeped by bgsweep.
++	while(runtime·sweepone() != -1)
++		gcstats.npausesweep++;
++
+ 	work.nwait = 0;
+ 	work.ndone = 0;
+ 	work.nproc = runtime·gcprocs();
+ 	runtime·parforsetup(work.markfor, work.nproc, RootCount + runtime·allglen, nil, false, markroot);
+-	runtime·parforsetup(work.sweepfor, work.nproc, runtime·mheap.nspan, nil, true, sweepspan);
+ 	if(work.nproc > 1) {
+ 		runtime·noteclear(&work.alldone);
+ 		runtime·helpgc(work.nproc);
+ 	}
+ 
+-	t1 = runtime·nanotime();
++	t2 = runtime·nanotime();
+ 
+ 	gchelperstart();
+ 	runtime·parfordo(work.markfor);
+ 	scanblock(nil, true);
+ 
+-	t2 = runtime·nanotime();
+-
+-	runtime·parfordo(work.sweepfor);
+-	bufferList[m->helpgc].busy = 0;
+ 	t3 = runtime·nanotime();
+ 
++	bufferList[m->helpgc].busy = 0;
+ 	if(work.nproc > 1)
+ 		runtime·notesleep(&work.alldone);
+ 
+ 	cachestats();
++	// next_gc calculation is tricky with concurrent sweep since we don't know size of live heap
++	// estimate what was live heap size after previous GC (for tracing only)
++	heap0 = mstats.next_gc*100/(gcpercent+100);
++	// conservatively set next_gc to high value assuming that everything is live
++	// concurrent/lazy sweep will reduce this number while discovering new garbage
+ 	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
+ 
+ 	t4 = runtime·nanotime();
+@@ -2193,20 +2324,23 @@ gc(struct gc_args *args)
+ 	if(runtime·debug.gctrace) {
+ 		updatememstats(&stats);
+ 		heap1 = mstats.heap_alloc;
+-		obj1 = mstats.nmalloc - mstats.nfree;
++		obj = mstats.nmalloc - mstats.nfree;
+ 
+-		stats.nprocyield += work.sweepfor->nprocyield;
+-		stats.nosyield += work.sweepfor->nosyield;
+-		stats.nsleep += work.sweepfor->nsleep;
++		stats.nprocyield += work.markfor->nprocyield;
++		stats.nosyield += work.markfor->nosyield;
++		stats.nsleep += work.markfor->nsleep;
+ 
+-		runtime·printf("gc%d(%d): %D+%D+%D ms, %D -> %D MB %D -> %D (%D-%D) objects,"
++		runtime·printf("gc%d(%d): %D+%D+%D ms, %D -> %D MB, %D (%D-%D) objects,"
++				" %d/%d/%d sweeps,"
+ 				" %D(%D) handoff, %D(%D) steal, %D/%D/%D yields\n",
+-			mstats.numgc, work.nproc, (t2-t1)/1000000, (t3-t2)/1000000, (t1-t0+t4-t3)/1000000,
+-			heap0>>20, heap1>>20, obj0, obj1,
++			mstats.numgc, work.nproc, (t3-t2)/1000000, (t2-t1)/1000000, (t1-t0+t4-t3)/1000000,
++			heap0>>20, heap1>>20, obj,
+ 			mstats.nmalloc, mstats.nfree,
++			sweep.nspan, gcstats.nbgsweep, gcstats.npausesweep,
+ 			stats.nhandoff, stats.nhandoffcnt,
+-			work.sweepfor->nsteal, work.sweepfor->nstealcnt,
++			work.markfor->nsteal, work.markfor->nstealcnt,
+ 			stats.nprocyield, stats.nosyield, stats.nsleep);
++		gcstats.nbgsweep = gcstats.npausesweep = 0;
+ 		if(CollectStats) {
+ 			runtime·printf("scan: %D bytes, %D objects, %D untyped, %D types from MSpan\n",
+ 				gcstats.nbytes, gcstats.obj.cnt, gcstats.obj.notype, gcstats.obj.typelookup);
+@@ -2233,6 +2367,31 @@ gc(struct gc_args *args)
+ 		}
+ 	}
+ 
++	// We cache current runtime·mheap.allspans array in sweep.spans,
++	// because the former can be resized and freed.
++	// Otherwise we would need to take heap lock every time
++	// we want to convert span index to span pointer.
++
++	// Free the old cached array if necessary.
++	if(sweep.spans && sweep.spans != runtime·mheap.allspans)
++		runtime·SysFree(sweep.spans, sweep.nspan*sizeof(sweep.spans[0]), &mstats.other_sys);
++	// Cache the current array.
++	runtime·mheap.sweepspans = runtime·mheap.allspans;
++	runtime·mheap.sweepgen += 2;
++	runtime·mheap.sweepdone = false;
++	sweep.spans = runtime·mheap.allspans;
++	sweep.nspan = runtime·mheap.nspan;
++	sweep.spanidx = 0;
++
++	runtime·lock(&gclock);
++	if(sweep.g == nil)
++		sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, runtime·gc);
++	else if(sweep.parked) {
++		sweep.parked = false;
++		runtime·ready(sweep.g);
++	}
++	runtime·unlock(&gclock);
++
+ 	runtime·MProf_GC();
+ }
+ 
+@@ -2327,15 +2486,15 @@ runfinq(void)
+ 	frame = nil;
+ 	framecap = 0;
+ 	for(;;) {
+-		runtime·lock(&finlock);
++		runtime·lock(&gclock);
+ 		fb = finq;
+ 		finq = nil;
+ 		if(fb == nil) {
+ 			fingwait = 1;
+-			runtime·parkunlock(&finlock, "finalizer wait");
++			runtime·parkunlock(&gclock, "finalizer wait");
+ 			continue;
+ 		}
+-		runtime·unlock(&finlock);
++		runtime·unlock(&gclock);
+ 		if(raceenabled)
+ 			runtime·racefingo();
+ 		for(; fb; fb=next) {
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index ddbcc5f72f..05cc80a345 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -41,7 +41,10 @@ RecordSpan(void *vh, byte *p)
+ 			runtime·throw("runtime: cannot allocate memory");
+ 		if(h->allspans) {
+ 			runtime·memmove(all, h->allspans, h->nspancap*sizeof(all[0]));
+-			runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]), &mstats.other_sys);
++			// Don't free the old array if it's referenced by sweep.
++			// See the comment in mgc0.c.
++			if(h->allspans != runtime·mheap.sweepspans)
++				runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]), &mstats.other_sys);
+ 		}
+ 		h->allspans = all;
+ 		h->nspancap = cap;
+@@ -60,9 +63,12 @@ runtime·MHeap_Init(MHeap *h)
+ 	runtime·FixAlloc_Init(&h->specialfinalizeralloc, sizeof(SpecialFinalizer), nil, nil, &mstats.other_sys);
+ 	runtime·FixAlloc_Init(&h->specialprofilealloc, sizeof(SpecialProfile), nil, nil, &mstats.other_sys);
+ 	// h->mapcache needs no init
+-	for(i=0; i<nelem(h->free); i++)
++	for(i=0; i<nelem(h->free); i++) {
+ 		runtime·MSpanList_Init(&h->free[i]);
+-	runtime·MSpanList_Init(&h->large);
++		runtime·MSpanList_Init(&h->busy[i]);
++	}
++	runtime·MSpanList_Init(&h->freelarge);
++	runtime·MSpanList_Init(&h->busylarge);
+ 	for(i=0; i<nelem(h->central); i++)
+ 		runtime·MCentral_Init(&h->central[i], i);
+ }
+@@ -83,10 +89,86 @@ runtime·MHeap_MapSpans(MHeap *h)
+ 	h->spans_mapped = n;
+ }
+ 
++// Sweeps spans in list until reclaims at least npages into heap.
++// Returns the actual number of pages reclaimed.
++static uintptr
++MHeap_ReclaimList(MHeap *h, MSpan *list, uintptr npages)
++{
++	MSpan *s;
++	uintptr n;
++	uint32 sg;
++
++	n = 0;
++	sg = runtime·mheap.sweepgen;
++retry:
++	for(s = list->next; s != list; s = s->next) {
++		if(s->sweepgen == sg-2 && runtime·cas(&s->sweepgen, sg-2, sg-1)) {
++			runtime·MSpanList_Remove(s);
++			// swept spans are at the end of the list
++			runtime·MSpanList_InsertBack(list, s);
++			runtime·unlock(h);
++			n += runtime·MSpan_Sweep(s);
++			runtime·lock(h);
++			if(n >= npages)
++				return n;
++			// the span could have been moved elsewhere
++			goto retry;
++		}
++		if(s->sweepgen == sg-1) {
++			// the span is being sweept by background sweeper, skip
++			continue;
++		}
++		// already swept empty span,
++		// all subsequent ones must also be either swept or in process of sweeping
++		break;
++	}
++	return n;
++}
++
++// Sweeps and reclaims at least npage pages into heap.
++// Called before allocating npage pages.
++static void
++MHeap_Reclaim(MHeap *h, uintptr npage)
++{
++	uintptr reclaimed, n;
++
++	// First try to sweep busy spans with large objects of size >= npage,
++	// this has good chances of reclaiming the necessary space.
++	for(n=npage; n < nelem(h->busy); n++) {
++		if(MHeap_ReclaimList(h, &h->busy[n], npage))
++			return;  // Bingo!
++	}
++
++	// Then -- even larger objects.
++	if(MHeap_ReclaimList(h, &h->busylarge, npage))
++		return;  // Bingo!
++
++	// Now try smaller objects.
++	// One such object is not enough, so we need to reclaim several of them.
++	reclaimed = 0;
++	for(n=0; n < npage && n < nelem(h->busy); n++) {
++		reclaimed += MHeap_ReclaimList(h, &h->busy[n], npage-reclaimed);
++		if(reclaimed >= npage)
++			return;
++	}
++
++	// Now sweep everything that is not yet swept.
++	runtime·unlock(h);
++	for(;;) {
++		n = runtime·sweepone();
++		if(n == -1)  // all spans are swept
++			break;
++		reclaimed += n;
++		if(reclaimed >= npage)
++			break;
++	}
++	runtime·lock(h);
++}
++
+ // Allocate a new span of npage pages from the heap
+ // and record its size class in the HeapMap and HeapMapCache.
+ MSpan*
+-runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32 zeroed)
++runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool zeroed)
+ {
+ 	MSpan *s;
+ 
+@@ -96,9 +178,14 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32
+ 	s = MHeap_AllocLocked(h, npage, sizeclass);
+ 	if(s != nil) {
+ 		mstats.heap_inuse += npage<<PageShift;
+-		if(acct) {
++		if(large) {
+ 			mstats.heap_objects++;
+ 			mstats.heap_alloc += npage<<PageShift;
++			// Swept spans are at the end of lists.
++			if(s->npages < nelem(h->free))
++				runtime·MSpanList_InsertBack(&h->busy[s->npages], s);
++			else
++				runtime·MSpanList_InsertBack(&h->busylarge, s);
+ 		}
+ 	}
+ 	runtime·unlock(h);
+@@ -114,6 +201,11 @@ MHeap_AllocLocked(MHeap *h, uintptr npage, int32 sizeclass)
+ 	MSpan *s, *t;
+ 	PageID p;
+ 
++	// To prevent excessive heap growth, before allocating n pages
++	// we need to sweep and reclaim at least n pages.
++	if(!h->sweepdone)
++		MHeap_Reclaim(h, npage);
++
+ 	// Try in fixed-size lists up to max.
+ 	for(n=npage; n < nelem(h->free); n++) {
+ 		if(!runtime·MSpanList_IsEmpty(&h->free[n])) {
+@@ -137,6 +229,7 @@ HaveSpan:
+ 	if(s->npages < npage)
+ 		runtime·throw("MHeap_AllocLocked - bad npages");
+ 	runtime·MSpanList_Remove(s);
++	runtime·atomicstore(&s->sweepgen, h->sweepgen);
+ 	s->state = MSpanInUse;
+ 	mstats.heap_idle -= s->npages<<PageShift;
+ 	mstats.heap_released -= s->npreleased<<PageShift;
+@@ -174,6 +267,7 @@ HaveSpan:
+ 		h->spans[p] = t;
+ 		h->spans[p+t->npages-1] = t;
+ 		*(uintptr*)(t->start<<PageShift) = *(uintptr*)(s->start<<PageShift);  // copy "needs zeroing" mark
++		runtime·atomicstore(&t->sweepgen, h->sweepgen);
+ 		t->state = MSpanInUse;
+ 		MHeap_FreeLocked(h, t);
+ 		t->unusedsince = s->unusedsince; // preserve age
+@@ -196,7 +290,7 @@ HaveSpan:
+ static MSpan*
+ MHeap_AllocLarge(MHeap *h, uintptr npage)
+ {
+-	return BestFit(&h->large, npage, nil);
++	return BestFit(&h->freelarge, npage, nil);
+ }
+ 
+ // Search list for smallest span with >= npage pages.
+@@ -257,6 +351,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 	p -= ((uintptr)h->arena_start>>PageShift);
+ 	h->spans[p] = s;
+ 	h->spans[p + s->npages - 1] = s;
++	runtime·atomicstore(&s->sweepgen, h->sweepgen);
+ 	s->state = MSpanInUse;
+ 	MHeap_FreeLocked(h, s);
+ 	return true;
+@@ -324,8 +419,9 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 
+ 	s->types.compression = MTypes_Empty;
+ 
+-	if(s->state != MSpanInUse || s->ref != 0) {
+-		runtime·printf("MHeap_FreeLocked - span %p ptr %p state %d ref %d\n", s, s->start<<PageShift, s->state, s->ref);
++	if(s->state != MSpanInUse || s->ref != 0 || s->sweepgen != h->sweepgen) {
++		runtime·printf("MHeap_FreeLocked - span %p ptr %p state %d ref %d sweepgen %d/%d\n",
++			s, s->start<<PageShift, s->state, s->ref, s->sweepgen, h->sweepgen);
+ 		runtime·throw("MHeap_FreeLocked - invalid free");
+ 	}
+ 	mstats.heap_idle += s->npages<<PageShift;
+@@ -371,7 +467,7 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 	if(s->npages < nelem(h->free))
+ 		runtime·MSpanList_Insert(&h->free[s->npages], s);
+ 	else
+-		runtime·MSpanList_Insert(&h->large, s);
++		runtime·MSpanList_Insert(&h->freelarge, s);
+ }
+ 
+ static void
+@@ -414,7 +510,7 @@ scavenge(int32 k, uint64 now, uint64 limit)
+ 	sumreleased = 0;
+ 	for(i=0; i < nelem(h->free); i++)
+ 		sumreleased += scavengelist(&h->free[i], now, limit);
+-	sumreleased += scavengelist(&h->large, now, limit);
++	sumreleased += scavengelist(&h->freelarge, now, limit);
+ 
+ 	if(runtime·debug.gctrace > 0) {
+ 		if(sumreleased > 0)
+@@ -499,7 +595,7 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
+ 	span->ref = 0;
+ 	span->sizeclass = 0;
+ 	span->elemsize = 0;
+-	span->state = 0;
++	span->state = MSpanDead;
+ 	span->unusedsince = 0;
+ 	span->npreleased = 0;
+ 	span->types.compression = MTypes_Empty;
+@@ -546,6 +642,19 @@ runtime·MSpanList_Insert(MSpan *list, MSpan *span)
+ 	span->prev->next = span;
+ }
+ 
++void
++runtime·MSpanList_InsertBack(MSpan *list, MSpan *span)
++{
++	if(span->next != nil || span->prev != nil) {
++		runtime·printf("failed MSpanList_Insert %p %p %p\n", span, span->next, span->prev);
++		runtime·throw("MSpanList_Insert");
++	}
++	span->next = list;
++	span->prev = list->prev;
++	span->next->prev = span;
++	span->prev->next = span;
++}
++
+ // Adds the special record s to the list of special records for
+ // the object p.  All fields of s should be filled in except for
+ // offset & next, which this routine will fill in.
+@@ -563,6 +672,11 @@ addspecial(void *p, Special *s)
+ 	span = runtime·MHeap_LookupMaybe(&runtime·mheap, p);
+ 	if(span == nil)
+ 		runtime·throw("addspecial on invalid pointer");
++
++	// Ensure that the span is swept.
++	// GC accesses specials list w/o locks. And it's just much safer.
++	runtime·MSpan_EnsureSwept(span);
++
+ 	offset = (uintptr)p - (span->start << PageShift);
+ 	kind = s->kind;
+ 
+@@ -600,6 +714,11 @@ removespecial(void *p, byte kind)
+ 	span = runtime·MHeap_LookupMaybe(&runtime·mheap, p);
+ 	if(span == nil)
+ 		runtime·throw("removespecial on invalid pointer");
++
++	// Ensure that the span is swept.
++	// GC accesses specials list w/o locks. And it's just much safer.
++	runtime·MSpan_EnsureSwept(span);
++
+ 	offset = (uintptr)p - (span->start << PageShift);
+ 
+ 	runtime·lock(&span->specialLock);
+@@ -675,7 +794,7 @@ runtime·setprofilebucket(void *p, Bucket *b)
+ // already been unlinked from the MSpan specials list.
+ // Returns true if we should keep working on deallocating p.
+ bool
+-runtime·freespecial(Special *s, void *p, uintptr size)
++runtime·freespecial(Special *s, void *p, uintptr size, bool freed)
+ {
+ 	SpecialFinalizer *sf;
+ 	SpecialProfile *sp;
+@@ -690,7 +809,7 @@ runtime·freespecial(Special *s, void *p, uintptr size)
+ 		return false; // don't free p until finalizer is done
+ 	case KindSpecialProfile:
+ 		sp = (SpecialProfile*)s;
+-		runtime·MProf_Free(sp->b, p, size);
++		runtime·MProf_Free(sp->b, p, size, freed);
+ 		runtime·lock(&runtime·mheap.speciallock);
+ 		runtime·FixAlloc_Free(&runtime·mheap.specialprofilealloc, sp);
+ 		runtime·unlock(&runtime·mheap.speciallock);
+@@ -729,7 +848,7 @@ runtime·freeallspecials(MSpan *span, void *p, uintptr size)
+ 	while(list != nil) {
+ 		s = list;
+ 		list = s->next;
+-		if(!runtime·freespecial(s, p, size))
++		if(!runtime·freespecial(s, p, size, true))
+ 			runtime·throw("can't explicitly free an object with a finalizer");
+ 	}
+ }
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 321a2801fd..6eaecc6c2a 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -33,14 +33,33 @@ struct Bucket
+ 	{
+ 		struct  // typ == MProf
+ 		{
++			// The following complex 3-stage scheme of stats accumulation
++			// is required to obtain a consistent picture of mallocs and frees
++			// for some point in time.
++			// The problem is that mallocs come in real time, while frees
++			// come only after a GC during concurrent sweeping. So if we would
++			// naively count them, we would get a skew toward mallocs.
++			//
++			// Mallocs are accounted in recent stats.
++			// Explicit frees are accounted in recent stats.
++			// GC frees are accounted in prev stats.
++			// After GC prev stats are added to final stats and
++			// recent stats are moved into prev stats.
+ 			uintptr	allocs;
+ 			uintptr	frees;
+ 			uintptr	alloc_bytes;
+ 			uintptr	free_bytes;
+-			uintptr	recent_allocs;  // since last gc
++
++			uintptr	prev_allocs;  // since last but one till last gc
++			uintptr	prev_frees;
++			uintptr	prev_alloc_bytes;
++			uintptr	prev_free_bytes;
++
++			uintptr	recent_allocs;  // since last gc till now
+ 			uintptr	recent_frees;
+ 			uintptr	recent_alloc_bytes;
+ 			uintptr	recent_free_bytes;
++
+ 		};
+ 		struct  // typ == BProf
+ 		{
+@@ -117,10 +136,16 @@ MProf_GC(void)
+ 	Bucket *b;
+ 
+ 	for(b=mbuckets; b; b=b->allnext) {
+-		b->allocs += b->recent_allocs;
+-		b->frees += b->recent_frees;
+-		b->alloc_bytes += b->recent_alloc_bytes;
+-		b->free_bytes += b->recent_free_bytes;
++		b->allocs += b->prev_allocs;
++		b->frees += b->prev_frees;
++		b->alloc_bytes += b->prev_alloc_bytes;
++		b->free_bytes += b->prev_free_bytes;
++
++		b->prev_allocs = b->recent_allocs;
++		b->prev_frees = b->recent_frees;
++		b->prev_alloc_bytes = b->recent_alloc_bytes;
++		b->prev_free_bytes = b->recent_free_bytes;
++
+ 		b->recent_allocs = 0;
+ 		b->recent_frees = 0;
+ 		b->recent_alloc_bytes = 0;
+@@ -220,11 +245,16 @@ runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
+ 
+ // Called when freeing a profiled block.
+ void
+-runtime·MProf_Free(Bucket *b, void *p, uintptr size)
++runtime·MProf_Free(Bucket *b, void *p, uintptr size, bool freed)
+ {
+ 	runtime·lock(&proflock);
+-	b->recent_frees++;
+-	b->recent_free_bytes += size;
++	if(freed) {
++		b->recent_frees++;
++		b->recent_free_bytes += size;
++	} else {
++		b->prev_frees++;
++		b->prev_free_bytes += size;
++	}
+ 	if(runtime·debug.allocfreetrace) {
+ 		runtime·printf("MProf_Free(p=%p, size=%p)\n", p, size);
+ 		printstackframes(b->stk, b->nstk);
+@@ -318,6 +348,7 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
+ 		// garbage collection is disabled from the beginning of execution,
+ 		// accumulate stats as if a GC just happened, and recount buckets.
+ 		MProf_GC();
++		MProf_GC();
+ 		n = 0;
+ 		for(b=mbuckets; b; b=b->allnext)
+ 			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)

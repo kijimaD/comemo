@@ -13,9 +13,80 @@ Date:   Sat Aug 27 15:21:29 2022 +0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Findley <rfindley@google.com>
-
+---
  api/next/50429.txt           |  1 +
  src/go/ast/ast.go            |  1 +
  src/go/parser/parser.go      |  1 +
  src/go/parser/parser_test.go | 30 ++++++++++++++++++++++++++++++
  4 files changed, 33 insertions(+)
+
+diff --git a/api/next/50429.txt b/api/next/50429.txt
+new file mode 100644
+index 0000000000..558937de1c
+--- /dev/null
++++ b/api/next/50429.txt
+@@ -0,0 +1 @@
++pkg go/ast, type RangeStmt struct, Range token.Pos #50429
+\ No newline at end of file
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 1e089b9e70..8d138fc72a 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -754,6 +754,7 @@ type (
+ 		Key, Value Expr        // Key, Value may be nil
+ 		TokPos     token.Pos   // position of Tok; invalid if Key == nil
+ 		Tok        token.Token // ILLEGAL if Key == nil, ASSIGN, DEFINE
++		Range      token.Pos   // position of "range" keyword
+ 		X          Expr        // value to range over
+ 		Body       *BlockStmt
+ 	}
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 159834172a..1edc2e9a4d 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2338,6 +2338,7 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 			Value:  value,
+ 			TokPos: as.TokPos,
+ 			Tok:    as.Tok,
++			Range:  as.Rhs[0].Pos(),
+ 			X:      x,
+ 			Body:   body,
+ 		}
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index a62dd553ce..ddb244902c 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -697,3 +697,33 @@ func TestScopeDepthLimit(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// proposal #50429
++func TestRangePos(t *testing.T) {
++	testcases := []string{
++		"package p; func _() { for range x {} }",
++		"package p; func _() { for i = range x {} }",
++		"package p; func _() { for i := range x {} }",
++		"package p; func _() { for k, v = range x {} }",
++		"package p; func _() { for k, v := range x {} }",
++	}
++
++	for _, src := range testcases {
++		fset := token.NewFileSet()
++		f, err := ParseFile(fset, src, src, 0)
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		ast.Inspect(f, func(x ast.Node) bool {
++			switch s := x.(type) {
++			case *ast.RangeStmt:
++				pos := fset.Position(s.Range)
++				if pos.Offset != strings.Index(src, "range") {
++					t.Errorf("%s: got offset %v, want %v", src, pos.Offset, strings.Index(src, "range"))
++				}
++			}
++			return true
++		})
++	}
++}

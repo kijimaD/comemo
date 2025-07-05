@@ -9,6 +9,20 @@ Date:   Thu Apr 27 23:53:58 2017 -0500
     Change-Id: Ic1a6eb35de1f9ddac9527335eb49bf0b52963b6a
     Reviewed-on: https://go-review.googlesource.com/41992
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/syscall/syscall_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 7f92bf7ca4..551a8c0dd3 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -57,7 +57,7 @@ func UTF16ToString(s []uint16) string {
+ 
+ // StringToUTF16Ptr returns pointer to the UTF-16 encoding of
+ // the UTF-8 string s, with a terminating NUL added. If s
+-// If s contains a NUL byte this function panics instead of
++// contains a NUL byte this function panics instead of
+ // returning an error.
+ //
+ // Deprecated: Use UTF16PtrFromString instead.

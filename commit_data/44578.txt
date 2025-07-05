@@ -25,7 +25,58 @@ Date:   Tue Aug 11 12:04:25 2020 -0400
     Reviewed-by: Paul Murphy <murp@ibm.com>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/obj/ppc64/asm9.go |  3 +++
  src/cmd/internal/obj/ppc64/obj9.go | 11 +++--------
  2 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 0fd0744a42..238ca8f0b7 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -613,6 +613,9 @@ var optab = []Optab{
+ 	{obj.APCDATA, C_LCON, C_NONE, C_NONE, C_LCON, 0, 0, 0},
+ 	{obj.AFUNCDATA, C_SCON, C_NONE, C_NONE, C_ADDR, 0, 0, 0},
+ 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0},
++	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0}, // NOP operand variations added for #40689
++	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, 0, 0, 0},  // to preserve previous behavior
++	{obj.ANOP, C_FREG, C_NONE, C_NONE, C_NONE, 0, 0, 0},
+ 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0}, // same as ABR/ABL
+ 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0}, // same as ABR/ABL
+ 	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0},   // align code
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 16881c634b..749f7066de 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -429,7 +429,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	/*
+ 	 * find leaf subroutines
+-	 * strip NOPs
+ 	 * expand RET
+ 	 * expand BECOME pseudo
+ 	 */
+@@ -559,10 +558,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			q = p
+ 			q1 = p.Pcond
+ 			if q1 != nil {
+-				for q1.As == obj.ANOP {
+-					q1 = q1.Link
+-					p.Pcond = q1
+-				}
++				// NOPs are not removed due to #40689.
+ 
+ 				if q1.Mark&LEAF == 0 {
+ 					q1.Mark |= LABEL
+@@ -589,9 +585,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			continue
+ 
+ 		case obj.ANOP:
+-			q1 = p.Link
+-			q.Link = q1 /* q is non-nop */
+-			q1.Mark |= p.Mark
++			// NOPs are not removed due to
++			// #40689
+ 			continue
+ 
+ 		default:

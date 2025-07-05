@@ -7,7 +7,27 @@ Date:   Tue Jan 27 19:30:44 2009 -0800
     TBR=ken
     OCL=23650
     CL=23650
-
+---
  test/{bugs => fixedbugs}/bug135.go | 0
  test/golden.out                    | 4 ----
  2 files changed, 4 deletions(-)
+
+diff --git a/test/bugs/bug135.go b/test/fixedbugs/bug135.go
+similarity index 100%
+rename from test/bugs/bug135.go
+rename to test/fixedbugs/bug135.go
+diff --git a/test/golden.out b/test/golden.out
+index 241225ab09..d70df181d3 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -181,10 +181,6 @@ BUG: should not compile
+ =========== bugs/bug132.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug135.go
+-bugs/bug135.go:13: assignment count mismatch: 2 = 1
+-BUG: should compile
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

@@ -14,7 +14,52 @@ Date:   Tue Feb 23 21:48:33 2016 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 21 +++++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 4d43105557..ac24337920 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -586,6 +586,7 @@
+ 
+ // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
+ (Convert (Add64 (Convert ptr mem) off) mem) -> (Add64 ptr off)
++(Convert (Add64 off (Convert ptr mem)) mem) -> (Add64 ptr off)
+ (Convert (Convert ptr mem) mem) -> ptr
+ 
+ // Decompose compound argument values
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 7916c6d8f4..08ab2e14a6 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1428,6 +1428,27 @@ func rewriteValuegeneric_OpConvert(v *Value, config *Config) bool {
+ 		v.AddArg(off)
+ 		return true
+ 	}
++	// match: (Convert (Add64 off (Convert ptr mem)) mem)
++	// cond:
++	// result: (Add64 ptr off)
++	for {
++		if v.Args[0].Op != OpAdd64 {
++			break
++		}
++		off := v.Args[0].Args[0]
++		if v.Args[0].Args[1].Op != OpConvert {
++			break
++		}
++		ptr := v.Args[0].Args[1].Args[0]
++		mem := v.Args[0].Args[1].Args[1]
++		if v.Args[1] != mem {
++			break
++		}
++		v.reset(OpAdd64)
++		v.AddArg(ptr)
++		v.AddArg(off)
++		return true
++	}
+ 	// match: (Convert (Convert ptr mem) mem)
+ 	// cond:
+ 	// result: ptr

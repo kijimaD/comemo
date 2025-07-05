@@ -35,7 +35,7 @@ Date:   Sun Jan 3 20:14:00 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go      | 24 ++++++-------
  src/cmd/compile/internal/escape/escape.go       | 26 +++++++-------
  src/cmd/compile/internal/gc/abiutilsaux_test.go |  2 +-
@@ -78,3 +78,1437 @@ Date:   Sun Jan 3 20:14:00 2021 -0800
  src/cmd/compile/internal/walk/stmt.go           |  2 +-
  src/cmd/compile/internal/walk/walk.go           |  6 ++--
  41 files changed, 149 insertions(+), 151 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 6eac9d547e..1534adaac8 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -76,7 +76,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
+ 			if n.Op() != ir.ONAME { // might be OTYPE or OLITERAL
+ 				continue
+ 			}
+-			switch n.Class_ {
++			switch n.Class {
+ 			case ir.PAUTO:
+ 				if !n.Used() {
+ 					// Text == nil -> generating abstract function
+@@ -171,7 +171,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 		if c == '.' || n.Type().IsUntyped() {
+ 			continue
+ 		}
+-		if n.Class_ == ir.PPARAM && !ssagen.TypeOK(n.Type()) {
++		if n.Class == ir.PPARAM && !ssagen.TypeOK(n.Type()) {
+ 			// SSA-able args get location lists, and may move in and
+ 			// out of registers, so those are handled elsewhere.
+ 			// Autos and named output params seem to get handled
+@@ -186,10 +186,10 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 		typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
+ 		decls = append(decls, n)
+ 		abbrev := dwarf.DW_ABRV_AUTO_LOCLIST
+-		isReturnValue := (n.Class_ == ir.PPARAMOUT)
+-		if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
++		isReturnValue := (n.Class == ir.PPARAMOUT)
++		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+ 			abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+-		} else if n.Class_ == ir.PAUTOHEAP {
++		} else if n.Class == ir.PAUTOHEAP {
+ 			// If dcl in question has been promoted to heap, do a bit
+ 			// of extra work to recover original class (auto or param);
+ 			// see issue 30908. This insures that we get the proper
+@@ -198,9 +198,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 			// and not stack).
+ 			// TODO(thanm): generate a better location expression
+ 			stackcopy := n.Stackcopy
+-			if stackcopy != nil && (stackcopy.Class_ == ir.PPARAM || stackcopy.Class_ == ir.PPARAMOUT) {
++			if stackcopy != nil && (stackcopy.Class == ir.PPARAM || stackcopy.Class == ir.PPARAMOUT) {
+ 				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+-				isReturnValue = (stackcopy.Class_ == ir.PPARAMOUT)
++				isReturnValue = (stackcopy.Class == ir.PPARAMOUT)
+ 			}
+ 		}
+ 		inlIndex := 0
+@@ -275,7 +275,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 	var abbrev int
+ 	var offs int64
+ 
+-	switch n.Class_ {
++	switch n.Class {
+ 	case ir.PAUTO:
+ 		offs = n.FrameOffset()
+ 		abbrev = dwarf.DW_ABRV_AUTO
+@@ -291,7 +291,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 		abbrev = dwarf.DW_ABRV_PARAM
+ 		offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+ 	default:
+-		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class_, n)
++		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class, n)
+ 	}
+ 
+ 	typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
+@@ -308,7 +308,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 	declpos := base.Ctxt.InnermostPos(declPos(n))
+ 	return &dwarf.Var{
+ 		Name:          n.Sym().Name,
+-		IsReturnValue: n.Class_ == ir.PPARAMOUT,
++		IsReturnValue: n.Class == ir.PPARAMOUT,
+ 		IsInlFormal:   n.InlFormal(),
+ 		Abbrev:        abbrev,
+ 		StackOffset:   int32(offs),
+@@ -353,7 +353,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ 	n := debug.Vars[varID]
+ 
+ 	var abbrev int
+-	switch n.Class_ {
++	switch n.Class {
+ 	case ir.PAUTO:
+ 		abbrev = dwarf.DW_ABRV_AUTO_LOCLIST
+ 	case ir.PPARAM, ir.PPARAMOUT:
+@@ -377,7 +377,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ 	declpos := base.Ctxt.InnermostPos(n.Pos())
+ 	dvar := &dwarf.Var{
+ 		Name:          n.Sym().Name,
+-		IsReturnValue: n.Class_ == ir.PPARAMOUT,
++		IsReturnValue: n.Class == ir.PPARAMOUT,
+ 		IsInlFormal:   n.InlFormal(),
+ 		Abbrev:        abbrev,
+ 		Type:          base.Ctxt.Lookup(typename),
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 1aba0a3fd2..6a2e685fe8 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -519,7 +519,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+-		if n.Class_ == ir.PFUNC || n.Class_ == ir.PEXTERN {
++		if n.Class == ir.PFUNC || n.Class == ir.PEXTERN {
+ 			return
+ 		}
+ 		e.flow(k, e.oldLoc(n))
+@@ -791,7 +791,7 @@ func (e *escape) addr(n ir.Node) hole {
+ 		base.Fatalf("unexpected addr: %v", n)
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+-		if n.Class_ == ir.PEXTERN {
++		if n.Class == ir.PEXTERN {
+ 			break
+ 		}
+ 		k = e.oldLoc(n).asHole()
+@@ -899,7 +899,7 @@ func (e *escape) call(ks []hole, call, where ir.Node) {
+ 		switch call.Op() {
+ 		case ir.OCALLFUNC:
+ 			switch v := ir.StaticValue(call.X); {
+-			case v.Op() == ir.ONAME && v.(*ir.Name).Class_ == ir.PFUNC:
++			case v.Op() == ir.ONAME && v.(*ir.Name).Class == ir.PFUNC:
+ 				fn = v.(*ir.Name)
+ 			case v.Op() == ir.OCLOSURE:
+ 				fn = v.(*ir.ClosureExpr).Func.Nname
+@@ -1589,7 +1589,7 @@ func (b *batch) finish(fns []*ir.Func) {
+ }
+ 
+ func (l *location) isName(c ir.Class) bool {
+-	return l.n != nil && l.n.Op() == ir.ONAME && l.n.(*ir.Name).Class_ == c
++	return l.n != nil && l.n.Op() == ir.ONAME && l.n.(*ir.Name).Class == c
+ }
+ 
+ const numEscResults = 7
+@@ -1882,7 +1882,7 @@ func HeapAllocReason(n ir.Node) string {
+ 	// Parameters are always passed via the stack.
+ 	if n.Op() == ir.ONAME {
+ 		n := n.(*ir.Name)
+-		if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
++		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+ 			return ""
+ 		}
+ 	}
+@@ -1939,7 +1939,7 @@ func addrescapes(n ir.Node) {
+ 
+ 		// if this is a tmpname (PAUTO), it was tagged by tmpname as not escaping.
+ 		// on PPARAM it means something different.
+-		if n.Class_ == ir.PAUTO && n.Esc() == ir.EscNever {
++		if n.Class == ir.PAUTO && n.Esc() == ir.EscNever {
+ 			break
+ 		}
+ 
+@@ -1949,7 +1949,7 @@ func addrescapes(n ir.Node) {
+ 			break
+ 		}
+ 
+-		if n.Class_ != ir.PPARAM && n.Class_ != ir.PPARAMOUT && n.Class_ != ir.PAUTO {
++		if n.Class != ir.PPARAM && n.Class != ir.PPARAMOUT && n.Class != ir.PAUTO {
+ 			break
+ 		}
+ 
+@@ -2003,7 +2003,7 @@ func moveToHeap(n *ir.Name) {
+ 	if base.Flag.CompilingRuntime {
+ 		base.Errorf("%v escapes to heap, not allowed in runtime", n)
+ 	}
+-	if n.Class_ == ir.PAUTOHEAP {
++	if n.Class == ir.PAUTOHEAP {
+ 		ir.Dump("n", n)
+ 		base.Fatalf("double move to heap")
+ 	}
+@@ -2022,7 +2022,7 @@ func moveToHeap(n *ir.Name) {
+ 	// Parameters have a local stack copy used at function start/end
+ 	// in addition to the copy in the heap that may live longer than
+ 	// the function.
+-	if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
++	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+ 		if n.FrameOffset() == types.BADWIDTH {
+ 			base.Fatalf("addrescapes before param assignment")
+ 		}
+@@ -2034,9 +2034,9 @@ func moveToHeap(n *ir.Name) {
+ 		stackcopy := typecheck.NewName(n.Sym())
+ 		stackcopy.SetType(n.Type())
+ 		stackcopy.SetFrameOffset(n.FrameOffset())
+-		stackcopy.Class_ = n.Class_
++		stackcopy.Class = n.Class
+ 		stackcopy.Heapaddr = heapaddr
+-		if n.Class_ == ir.PPARAMOUT {
++		if n.Class == ir.PPARAMOUT {
+ 			// Make sure the pointer to the heap copy is kept live throughout the function.
+ 			// The function could panic at any point, and then a defer could recover.
+ 			// Thus, we need the pointer to the heap copy always available so the
+@@ -2058,7 +2058,7 @@ func moveToHeap(n *ir.Name) {
+ 			}
+ 			// Parameters are before locals, so can stop early.
+ 			// This limits the search even in functions with many local variables.
+-			if d.Class_ == ir.PAUTO {
++			if d.Class == ir.PAUTO {
+ 				break
+ 			}
+ 		}
+@@ -2069,7 +2069,7 @@ func moveToHeap(n *ir.Name) {
+ 	}
+ 
+ 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
+-	n.Class_ = ir.PAUTOHEAP
++	n.Class = ir.PAUTOHEAP
+ 	n.SetFrameOffset(0)
+ 	n.Heapaddr = heapaddr
+ 	n.SetEsc(ir.EscHeap)
+diff --git a/src/cmd/compile/internal/gc/abiutilsaux_test.go b/src/cmd/compile/internal/gc/abiutilsaux_test.go
+index e6590beac0..9386b554b0 100644
+--- a/src/cmd/compile/internal/gc/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/gc/abiutilsaux_test.go
+@@ -21,7 +21,7 @@ import (
+ func mkParamResultField(t *types.Type, s *types.Sym, which ir.Class) *types.Field {
+ 	field := types.NewField(src.NoXPos, s, t)
+ 	n := typecheck.NewName(s)
+-	n.Class_ = which
++	n.Class = which
+ 	field.Nname = n
+ 	n.SetType(t)
+ 	return field
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index 1b3dd672f3..25b1c76737 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -83,7 +83,7 @@ func compile(fn *ir.Func) {
+ 	// because symbols must be allocated before the parallel
+ 	// phase of the compiler.
+ 	for _, n := range fn.Dcl {
+-		switch n.Class_ {
++		switch n.Class {
+ 		case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
+ 			if liveness.ShouldTrack(n) && n.Addrtaken() {
+ 				reflectdata.WriteType(n.Type())
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index c65c6c8335..356fcfa671 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -83,7 +83,7 @@ type exporter struct {
+ func (p *exporter) markObject(n ir.Node) {
+ 	if n.Op() == ir.ONAME {
+ 		n := n.(*ir.Name)
+-		if n.Class_ == ir.PFUNC {
++		if n.Class == ir.PFUNC {
+ 			inline.Inline_Flood(n, typecheck.Export)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 30cfac1b71..fbb2145e1b 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -188,7 +188,7 @@ func dumpGlobal(n *ir.Name) {
+ 	if n.Type() == nil {
+ 		base.Fatalf("external %v nil type\n", n)
+ 	}
+-	if n.Class_ == ir.PFUNC {
++	if n.Class == ir.PFUNC {
+ 		return
+ 	}
+ 	if n.Sym().Pkg != types.LocalPkg {
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index b9b424b74d..6f5f6499ce 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -199,8 +199,8 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
+ 	if n == nil {
+ 		return
+ 	}
+-	if n.Op() != ir.ONAME || n.Class_ != ir.PFUNC {
+-		base.Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op(), n.Class_)
++	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
++		base.Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op(), n.Class)
+ 	}
+ 	fn := n.Func
+ 	if fn == nil {
+@@ -227,7 +227,7 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
+ 
+ 		case ir.ONAME:
+ 			n := n.(*ir.Name)
+-			switch n.Class_ {
++			switch n.Class {
+ 			case ir.PFUNC:
+ 				Inline_Flood(n, exportsym)
+ 				exportsym(n)
+@@ -292,7 +292,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 		// runtime.throw is a "cheap call" like panic in normal code.
+ 		if n.X.Op() == ir.ONAME {
+ 			name := n.X.(*ir.Name)
+-			if name.Class_ == ir.PFUNC && types.IsRuntimePkg(name.Sym().Pkg) {
++			if name.Class == ir.PFUNC && types.IsRuntimePkg(name.Sym().Pkg) {
+ 				fn := name.Sym().Name
+ 				if fn == "getcallerpc" || fn == "getcallersp" {
+ 					return errors.New("call to " + fn)
+@@ -407,7 +407,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+-		if n.Class_ == ir.PAUTO {
++		if n.Class == ir.PAUTO {
+ 			v.usedLocals[n] = true
+ 		}
+ 
+@@ -627,7 +627,7 @@ func inlCallee(fn ir.Node) *ir.Func {
+ 		return n.Func
+ 	case ir.ONAME:
+ 		fn := fn.(*ir.Name)
+-		if fn.Class_ == ir.PFUNC {
++		if fn.Class == ir.PFUNC {
+ 			return fn.Func
+ 		}
+ 	case ir.OCLOSURE:
+@@ -759,7 +759,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		if ln.Op() != ir.ONAME {
+ 			continue
+ 		}
+-		if ln.Class_ == ir.PPARAMOUT { // return values handled below.
++		if ln.Class == ir.PPARAMOUT { // return values handled below.
+ 			continue
+ 		}
+ 		if ir.IsParamStackCopy(ln) { // ignore the on-stack copy of a parameter that moved to the heap
+@@ -772,7 +772,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		inlf := typecheck.Expr(inlvar(ln)).(*ir.Name)
+ 		inlvars[ln] = inlf
+ 		if base.Flag.GenDwarfInl > 0 {
+-			if ln.Class_ == ir.PPARAM {
++			if ln.Class == ir.PPARAM {
+ 				inlf.Name().SetInlFormal(true)
+ 			} else {
+ 				inlf.Name().SetInlLocal(true)
+@@ -975,7 +975,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
+ 
+ 	n := typecheck.NewName(var_.Sym())
+ 	n.SetType(var_.Type())
+-	n.Class_ = ir.PAUTO
++	n.Class = ir.PAUTO
+ 	n.SetUsed(true)
+ 	n.Curfn = ir.CurFunc // the calling function, not the called one
+ 	n.SetAddrtaken(var_.Addrtaken())
+@@ -988,7 +988,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
+ func retvar(t *types.Field, i int) *ir.Name {
+ 	n := typecheck.NewName(typecheck.LookupNum("~R", i))
+ 	n.SetType(t.Type)
+-	n.Class_ = ir.PAUTO
++	n.Class = ir.PAUTO
+ 	n.SetUsed(true)
+ 	n.Curfn = ir.CurFunc // the calling function, not the called one
+ 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
+@@ -1000,7 +1000,7 @@ func retvar(t *types.Field, i int) *ir.Name {
+ func argvar(t *types.Type, i int) ir.Node {
+ 	n := typecheck.NewName(typecheck.LookupNum("~arg", i))
+ 	n.SetType(t.Elem())
+-	n.Class_ = ir.PAUTO
++	n.Class = ir.PAUTO
+ 	n.SetUsed(true)
+ 	n.Curfn = ir.CurFunc // the calling function, not the called one
+ 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
+@@ -1170,7 +1170,7 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
+ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
+ 	s := make([]*ir.Name, 0, len(ll))
+ 	for _, n := range ll {
+-		if n.Class_ == ir.PAUTO {
++		if n.Class == ir.PAUTO {
+ 			if _, found := vis.usedLocals[n]; !found {
+ 				continue
+ 			}
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 1b88427146..6d81bf8781 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -527,7 +527,7 @@ func (n *SelectorExpr) FuncName() *Name {
+ 		panic(n.no("FuncName"))
+ 	}
+ 	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel))
+-	fn.Class_ = PFUNC
++	fn.Class = PFUNC
+ 	fn.SetType(n.Type())
+ 	return fn
+ }
+@@ -736,7 +736,7 @@ func IsAddressable(n Node) bool {
+ 
+ 	case ONAME:
+ 		n := n.(*Name)
+-		if n.Class_ == PFUNC {
++		if n.Class == PFUNC {
+ 			return false
+ 		}
+ 		return true
+@@ -771,7 +771,7 @@ func staticValue1(nn Node) Node {
+ 		return nil
+ 	}
+ 	n := nn.(*Name)
+-	if n.Class_ != PAUTO || n.Addrtaken() {
++	if n.Class != PAUTO || n.Addrtaken() {
+ 		return nil
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 1eaca9c6f3..12ef083c19 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -245,11 +245,11 @@ func FuncSymName(s *types.Sym) string {
+ 
+ // MarkFunc marks a node as a function.
+ func MarkFunc(n *Name) {
+-	if n.Op() != ONAME || n.Class_ != Pxxx {
++	if n.Op() != ONAME || n.Class != Pxxx {
+ 		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
+ 	}
+ 
+-	n.Class_ = PFUNC
++	n.Class = PFUNC
+ 	n.Sym().SetFunc(true)
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 689ef983f6..58b4ababff 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -37,7 +37,7 @@ func (*Ident) CanBeNtype() {}
+ type Name struct {
+ 	miniExpr
+ 	BuiltinOp Op         // uint8
+-	Class_    Class      // uint8
++	Class     Class      // uint8
+ 	pragma    PragmaFlag // int16
+ 	flags     bitset16
+ 	sym       *types.Sym
+@@ -222,8 +222,6 @@ func (n *Name) Sym() *types.Sym     { return n.sym }
+ func (n *Name) SetSym(x *types.Sym) { n.sym = x }
+ func (n *Name) SubOp() Op           { return n.BuiltinOp }
+ func (n *Name) SetSubOp(x Op)       { n.BuiltinOp = x }
+-func (n *Name) Class() Class        { return n.Class_ }
+-func (n *Name) SetClass(x Class)    { n.Class_ = x }
+ func (n *Name) SetFunc(x *Func)     { n.Func = x }
+ func (n *Name) Offset() int64       { panic("Name.Offset") }
+ func (n *Name) SetOffset(x int64) {
+@@ -425,7 +423,7 @@ func IsParamStackCopy(n Node) bool {
+ 		return false
+ 	}
+ 	name := n.(*Name)
+-	return (name.Class_ == PPARAM || name.Class_ == PPARAMOUT) && name.Heapaddr != nil
++	return (name.Class == PPARAM || name.Class == PPARAMOUT) && name.Heapaddr != nil
+ }
+ 
+ // IsParamHeapCopy reports whether this is the on-heap copy of
+@@ -435,7 +433,7 @@ func IsParamHeapCopy(n Node) bool {
+ 		return false
+ 	}
+ 	name := n.(*Name)
+-	return name.Class_ == PAUTOHEAP && name.Stackcopy != nil
++	return name.Class == PAUTOHEAP && name.Stackcopy != nil
+ }
+ 
+ var RegFP *Name
+diff --git a/src/cmd/compile/internal/ir/scc.go b/src/cmd/compile/internal/ir/scc.go
+index f35c4d44e9..83c6074170 100644
+--- a/src/cmd/compile/internal/ir/scc.go
++++ b/src/cmd/compile/internal/ir/scc.go
+@@ -87,7 +87,7 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
+ 	Visit(n, func(n Node) {
+ 		switch n.Op() {
+ 		case ONAME:
+-			if n := n.(*Name); n.Class_ == PFUNC {
++			if n := n.(*Name); n.Class == PFUNC {
+ 				do(n.Defn)
+ 			}
+ 		case ODOTMETH, OCALLPART, OMETHEXPR:
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 91f10b0a9d..26d90824b2 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -181,7 +181,7 @@ type progeffectscache struct {
+ // nor do we care about empty structs (handled by the pointer check),
+ // nor do we care about the fake PAUTOHEAP variables.
+ func ShouldTrack(n *ir.Name) bool {
+-	return (n.Class_ == ir.PAUTO || n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT) && n.Type().HasPointers()
++	return (n.Class == ir.PAUTO || n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT) && n.Type().HasPointers()
+ }
+ 
+ // getvariables returns the list of on-stack variables that we need to track
+@@ -208,7 +208,7 @@ func (lv *liveness) initcache() {
+ 	lv.cache.initialized = true
+ 
+ 	for i, node := range lv.vars {
+-		switch node.Class_ {
++		switch node.Class {
+ 		case ir.PPARAM:
+ 			// A return instruction with a p.to is a tail return, which brings
+ 			// the stack pointer back up (if it ever went down) and then jumps
+@@ -386,7 +386,7 @@ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
+ 			break
+ 		}
+ 		node := vars[i]
+-		switch node.Class_ {
++		switch node.Class {
+ 		case ir.PAUTO:
+ 			typebits.Set(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
+ 
+@@ -687,7 +687,7 @@ func (lv *liveness) epilogue() {
+ 	// don't need to keep the stack copy live?
+ 	if lv.fn.HasDefer() {
+ 		for i, n := range lv.vars {
+-			if n.Class_ == ir.PPARAMOUT {
++			if n.Class == ir.PPARAMOUT {
+ 				if n.IsOutputParamHeapAddr() {
+ 					// Just to be paranoid.  Heap addresses are PAUTOs.
+ 					base.Fatalf("variable %v both output param and heap output param", n)
+@@ -785,7 +785,7 @@ func (lv *liveness) epilogue() {
+ 				if !liveout.Get(int32(i)) {
+ 					continue
+ 				}
+-				if n.Class_ == ir.PPARAM {
++				if n.Class == ir.PPARAM {
+ 					continue // ok
+ 				}
+ 				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Nname, n)
+@@ -818,7 +818,7 @@ func (lv *liveness) epilogue() {
+ 	// the only things that can possibly be live are the
+ 	// input parameters.
+ 	for j, n := range lv.vars {
+-		if n.Class_ != ir.PPARAM && lv.stackMaps[0].Get(int32(j)) {
++		if n.Class != ir.PPARAM && lv.stackMaps[0].Get(int32(j)) {
+ 			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Nname, n)
+ 		}
+ 	}
+@@ -1063,7 +1063,7 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
+ 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
+ 	var maxArgNode *ir.Name
+ 	for _, n := range lv.vars {
+-		switch n.Class_ {
++		switch n.Class {
+ 		case ir.PPARAM, ir.PPARAMOUT:
+ 			if maxArgNode == nil || n.FrameOffset() > maxArgNode.FrameOffset() {
+ 				maxArgNode = n
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 678e378291..76913c62a6 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1176,10 +1176,10 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
+ 		n := ir.NewReturnStmt(p.pos(stmt), p.exprList(stmt.Results))
+ 		if len(n.Results) == 0 && ir.CurFunc != nil {
+ 			for _, ln := range ir.CurFunc.Dcl {
+-				if ln.Class_ == ir.PPARAM {
++				if ln.Class == ir.PPARAM {
+ 					continue
+ 				}
+-				if ln.Class_ != ir.PPARAMOUT {
++				if ln.Class != ir.PPARAMOUT {
+ 					break
+ 				}
+ 				if ln.Sym().Def != ln {
+@@ -1956,7 +1956,7 @@ func oldname(s *types.Sym) ir.Node {
+ 		if c == nil || c.Curfn != ir.CurFunc {
+ 			// Do not have a closure var for the active closure yet; make one.
+ 			c = typecheck.NewName(s)
+-			c.Class_ = ir.PAUTOHEAP
++			c.Class = ir.PAUTOHEAP
+ 			c.SetIsClosureVar(true)
+ 			c.Defn = n
+ 
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index a32e09879c..5bc66c7e1b 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -32,7 +32,7 @@ func Task() *ir.Name {
+ 		if n.Op() == ir.ONONAME {
+ 			continue
+ 		}
+-		if n.Op() != ir.ONAME || n.(*ir.Name).Class_ != ir.PEXTERN {
++		if n.Op() != ir.ONAME || n.(*ir.Name).Class != ir.PEXTERN {
+ 			base.Fatalf("bad inittask: %v", n)
+ 		}
+ 		deps = append(deps, n.(*ir.Name).Linksym())
+@@ -89,7 +89,7 @@ func Task() *ir.Name {
+ 	sym := typecheck.Lookup(".inittask")
+ 	task := typecheck.NewName(sym)
+ 	task.SetType(types.Types[types.TUINT8]) // fake type
+-	task.Class_ = ir.PEXTERN
++	task.Class = ir.PEXTERN
+ 	sym.Def = task
+ 	lsym := task.Linksym()
+ 	ot := 0
+diff --git a/src/cmd/compile/internal/pkginit/initorder.go b/src/cmd/compile/internal/pkginit/initorder.go
+index 1c222c1de4..bdefd594ff 100644
+--- a/src/cmd/compile/internal/pkginit/initorder.go
++++ b/src/cmd/compile/internal/pkginit/initorder.go
+@@ -140,7 +140,7 @@ func (o *InitOrder) processAssign(n ir.Node) {
+ 		defn := dep.Defn
+ 		// Skip dependencies on functions (PFUNC) and
+ 		// variables already initialized (InitDone).
+-		if dep.Class_ != ir.PEXTERN || o.order[defn] == orderDone {
++		if dep.Class != ir.PEXTERN || o.order[defn] == orderDone {
+ 			continue
+ 		}
+ 		o.order[n]++
+@@ -204,7 +204,7 @@ func (o *InitOrder) findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
+ 	*path = append(*path, n)
+ 	for _, ref := range refers {
+ 		// Short-circuit variables that were initialized.
+-		if ref.Class_ == ir.PEXTERN && o.order[ref.Defn] == orderDone {
++		if ref.Class == ir.PEXTERN && o.order[ref.Defn] == orderDone {
+ 			continue
+ 		}
+ 
+@@ -221,7 +221,7 @@ func reportInitLoopAndExit(l []*ir.Name) {
+ 	// the start.
+ 	i := -1
+ 	for j, n := range l {
+-		if n.Class_ == ir.PEXTERN && (i == -1 || n.Pos().Before(l[i].Pos())) {
++		if n.Class == ir.PEXTERN && (i == -1 || n.Pos().Before(l[i].Pos())) {
+ 			i = j
+ 		}
+ 	}
+@@ -291,7 +291,7 @@ func (d *initDeps) visit(n ir.Node) {
+ 	switch n.Op() {
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+-		switch n.Class_ {
++		switch n.Class {
+ 		case ir.PEXTERN, ir.PFUNC:
+ 			d.foundDep(n)
+ 		}
+@@ -324,7 +324,7 @@ func (d *initDeps) foundDep(n *ir.Name) {
+ 		return
+ 	}
+ 	d.seen.Add(n)
+-	if d.transitive && n.Class_ == ir.PFUNC {
++	if d.transitive && n.Class == ir.PFUNC {
+ 		d.inspectList(n.Defn.(*ir.Func).Body)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index f926765326..30857fff6d 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -840,7 +840,7 @@ func TypePtr(t *types.Type) *ir.AddrExpr {
+ 	if s.Def == nil {
+ 		n := ir.NewNameAt(src.NoXPos, s)
+ 		n.SetType(types.Types[types.TUINT8])
+-		n.Class_ = ir.PEXTERN
++		n.Class = ir.PEXTERN
+ 		n.SetTypecheck(1)
+ 		s.Def = n
+ 	}
+@@ -859,7 +859,7 @@ func ITabAddr(t, itype *types.Type) *ir.AddrExpr {
+ 	if s.Def == nil {
+ 		n := typecheck.NewName(s)
+ 		n.SetType(types.Types[types.TUINT8])
+-		n.Class_ = ir.PEXTERN
++		n.Class = ir.PEXTERN
+ 		n.SetTypecheck(1)
+ 		s.Def = n
+ 		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: n.Linksym()})
+@@ -1370,7 +1370,7 @@ func WriteTabs() {
+ 			// }
+ 			nsym := dname(p.Sym().Name, "", nil, true)
+ 			t := p.Type()
+-			if p.Class_ != ir.PFUNC {
++			if p.Class != ir.PFUNC {
+ 				t = types.NewPtr(t)
+ 			}
+ 			tsym := WriteType(t)
+@@ -1674,7 +1674,7 @@ func ZeroAddr(size int64) ir.Node {
+ 	if s.Def == nil {
+ 		x := typecheck.NewName(s)
+ 		x.SetType(types.Types[types.TUINT8])
+-		x.Class_ = ir.PEXTERN
++		x.Class = ir.PEXTERN
+ 		x.SetTypecheck(1)
+ 		s.Def = x
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index a68c82ba97..530918da4d 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -148,7 +148,7 @@ func elimDeadAutosGeneric(f *Func) {
+ 		case OpAddr, OpLocalAddr:
+ 			// Propagate the address if it points to an auto.
+ 			n, ok := v.Aux.(*ir.Name)
+-			if !ok || n.Class() != ir.PAUTO {
++			if !ok || n.Class != ir.PAUTO {
+ 				return
+ 			}
+ 			if addr[v] == nil {
+@@ -159,7 +159,7 @@ func elimDeadAutosGeneric(f *Func) {
+ 		case OpVarDef, OpVarKill:
+ 			// v should be eliminated if we eliminate the auto.
+ 			n, ok := v.Aux.(*ir.Name)
+-			if !ok || n.Class() != ir.PAUTO {
++			if !ok || n.Class != ir.PAUTO {
+ 				return
+ 			}
+ 			if elim[v] == nil {
+@@ -175,7 +175,7 @@ func elimDeadAutosGeneric(f *Func) {
+ 			// may not be used by the inline code, but will be used by
+ 			// panic processing).
+ 			n, ok := v.Aux.(*ir.Name)
+-			if !ok || n.Class() != ir.PAUTO {
++			if !ok || n.Class != ir.PAUTO {
+ 				return
+ 			}
+ 			if !used[n] {
+@@ -307,7 +307,7 @@ func elimUnreadAutos(f *Func) {
+ 			if !ok {
+ 				continue
+ 			}
+-			if n.Class() != ir.PAUTO {
++			if n.Class != ir.PAUTO {
+ 				continue
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 8712ff78c1..32e6d09d1b 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -70,7 +70,7 @@ func (TestFrontend) StringData(s string) *obj.LSym {
+ }
+ func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
+ 	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"})
+-	n.SetClass(ir.PAUTO)
++	n.Class = ir.PAUTO
+ 	return n
+ }
+ func (d TestFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
+diff --git a/src/cmd/compile/internal/ssagen/nowb.go b/src/cmd/compile/internal/ssagen/nowb.go
+index 26858fac87..60cfb2f698 100644
+--- a/src/cmd/compile/internal/ssagen/nowb.go
++++ b/src/cmd/compile/internal/ssagen/nowb.go
+@@ -76,7 +76,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
+ 		return
+ 	}
+ 	fn := n.X.(*ir.Name)
+-	if fn.Class_ != ir.PFUNC || fn.Defn == nil {
++	if fn.Class != ir.PFUNC || fn.Defn == nil {
+ 		return
+ 	}
+ 	if !types.IsRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 2be10ff7af..bbd319d735 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -34,11 +34,11 @@ import (
+ // the top of the stack and increasing in size.
+ // Non-autos sort on offset.
+ func cmpstackvarlt(a, b *ir.Name) bool {
+-	if (a.Class_ == ir.PAUTO) != (b.Class_ == ir.PAUTO) {
+-		return b.Class_ == ir.PAUTO
++	if (a.Class == ir.PAUTO) != (b.Class == ir.PAUTO) {
++		return b.Class == ir.PAUTO
+ 	}
+ 
+-	if a.Class_ != ir.PAUTO {
++	if a.Class != ir.PAUTO {
+ 		return a.FrameOffset() < b.FrameOffset()
+ 	}
+ 
+@@ -79,7 +79,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 
+ 	// Mark the PAUTO's unused.
+ 	for _, ln := range fn.Dcl {
+-		if ln.Class_ == ir.PAUTO {
++		if ln.Class == ir.PAUTO {
+ 			ln.SetUsed(false)
+ 		}
+ 	}
+@@ -94,7 +94,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if n, ok := v.Aux.(*ir.Name); ok {
+-				switch n.Class_ {
++				switch n.Class {
+ 				case ir.PPARAM, ir.PPARAMOUT:
+ 					// Don't modify nodfp; it is a global.
+ 					if n != ir.RegFP {
+@@ -120,7 +120,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	// Reassign stack offsets of the locals that are used.
+ 	lastHasPtr := false
+ 	for i, n := range fn.Dcl {
+-		if n.Op() != ir.ONAME || n.Class_ != ir.PAUTO {
++		if n.Op() != ir.ONAME || n.Class != ir.PAUTO {
+ 			continue
+ 		}
+ 		if !n.Used() {
+@@ -207,7 +207,7 @@ func init() {
+ func StackOffset(slot ssa.LocalSlot) int32 {
+ 	n := slot.N
+ 	var off int64
+-	switch n.Class_ {
++	switch n.Class {
+ 	case ir.PAUTO:
+ 		off = n.FrameOffset()
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+diff --git a/src/cmd/compile/internal/ssagen/pgen_test.go b/src/cmd/compile/internal/ssagen/pgen_test.go
+index 82d8447e9f..69ed8ad74e 100644
+--- a/src/cmd/compile/internal/ssagen/pgen_test.go
++++ b/src/cmd/compile/internal/ssagen/pgen_test.go
+@@ -46,7 +46,7 @@ func TestCmpstackvar(t *testing.T) {
+ 		n := typecheck.NewName(s)
+ 		n.SetType(t)
+ 		n.SetFrameOffset(xoffset)
+-		n.Class_ = cl
++		n.Class = cl
+ 		return n
+ 	}
+ 	testdata := []struct {
+@@ -161,7 +161,7 @@ func TestStackvarSort(t *testing.T) {
+ 		n := typecheck.NewName(s)
+ 		n.SetType(t)
+ 		n.SetFrameOffset(xoffset)
+-		n.Class_ = cl
++		n.Class = cl
+ 		return n
+ 	}
+ 	inp := []*ir.Name{
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 8e3b09aac3..5998c42012 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -436,7 +436,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	var args []ssa.Param
+ 	var results []ssa.Param
+ 	for _, n := range fn.Dcl {
+-		switch n.Class_ {
++		switch n.Class {
+ 		case ir.PPARAM:
+ 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
+ 			args = append(args, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
+@@ -457,13 +457,13 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 		case ir.PFUNC:
+ 			// local function - already handled by frontend
+ 		default:
+-			s.Fatalf("local variable with class %v unimplemented", n.Class_)
++			s.Fatalf("local variable with class %v unimplemented", n.Class)
+ 		}
+ 	}
+ 
+ 	// Populate SSAable arguments.
+ 	for _, n := range fn.Dcl {
+-		if n.Class_ == ir.PPARAM && s.canSSA(n) {
++		if n.Class == ir.PPARAM && s.canSSA(n) {
+ 			v := s.newValue0A(ssa.OpArg, n.Type(), n)
+ 			s.vars[n] = v
+ 			s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
+@@ -1166,7 +1166,7 @@ func (s *state) stmt(n ir.Node) {
+ 	case ir.OCALLINTER:
+ 		n := n.(*ir.CallExpr)
+ 		s.callResult(n, callNormal)
+-		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PFUNC {
++		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PFUNC {
+ 			if fn := n.X.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
+ 				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap") {
+ 				m := s.mem()
+@@ -1242,7 +1242,7 @@ func (s *state) stmt(n ir.Node) {
+ 
+ 	case ir.ODCL:
+ 		n := n.(*ir.Decl)
+-		if n.X.Class_ == ir.PAUTOHEAP {
++		if n.X.Class == ir.PAUTOHEAP {
+ 			s.Fatalf("DCL %v", n)
+ 		}
+ 
+@@ -1634,7 +1634,7 @@ func (s *state) stmt(n ir.Node) {
+ 		if !v.Addrtaken() {
+ 			s.Fatalf("VARLIVE variable %v must have Addrtaken set", v)
+ 		}
+-		switch v.Class_ {
++		switch v.Class {
+ 		case ir.PAUTO, ir.PPARAM, ir.PPARAMOUT:
+ 		default:
+ 			s.Fatalf("VARLIVE variable %v must be Auto or Arg", v)
+@@ -2110,7 +2110,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type(), aux, s.sb)
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+-		if n.Class_ == ir.PFUNC {
++		if n.Class == ir.PFUNC {
+ 			// "value" of a function is the address of the function's closure
+ 			sym := staticdata.FuncLinksym(n)
+ 			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
+@@ -3003,7 +3003,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 	if inplace {
+ 		if sn.Op() == ir.ONAME {
+ 			sn := sn.(*ir.Name)
+-			if sn.Class_ != ir.PEXTERN {
++			if sn.Class != ir.PEXTERN {
+ 				// Tell liveness we're about to build a new slice
+ 				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
+ 			}
+@@ -3222,7 +3222,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
+ 
+ 	// If this assignment clobbers an entire local variable, then emit
+ 	// OpVarDef so liveness analysis knows the variable is redefined.
+-	if base := clobberBase(left); base.Op() == ir.ONAME && base.(*ir.Name).Class_ != ir.PEXTERN && skip == 0 {
++	if base := clobberBase(left); base.Op() == ir.ONAME && base.(*ir.Name).Class != ir.PEXTERN && skip == 0 {
+ 		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base.(*ir.Name), s.mem(), !ir.IsAutoTmp(base))
+ 	}
+ 
+@@ -4385,7 +4385,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
+ 		closureVal := s.expr(fn)
+ 		closure := s.openDeferSave(nil, fn.Type(), closureVal)
+ 		opendefer.closureNode = closure.Aux.(*ir.Name)
+-		if !(fn.Op() == ir.ONAME && fn.(*ir.Name).Class_ == ir.PFUNC) {
++		if !(fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC) {
+ 			opendefer.closure = closure
+ 		}
+ 	} else if n.Op() == ir.OCALLMETH {
+@@ -4651,7 +4651,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	switch n.Op() {
+ 	case ir.OCALLFUNC:
+ 		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
+-		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class_ == ir.PFUNC {
++		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
+ 			fn := fn.(*ir.Name)
+ 			sym = fn.Sym()
+ 			break
+@@ -4958,7 +4958,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 		fallthrough
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+-		switch n.Class_ {
++		switch n.Class {
+ 		case ir.PEXTERN:
+ 			// global variable
+ 			v := s.entryNewValue1A(ssa.OpAddr, t, n.Linksym(), s.sb)
+@@ -4987,7 +4987,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 			// that cse works on their addresses
+ 			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), true)
+ 		default:
+-			s.Fatalf("variable address class %v not implemented", n.Class_)
++			s.Fatalf("variable address class %v not implemented", n.Class)
+ 			return nil
+ 		}
+ 	case ir.ORESULT:
+@@ -5096,10 +5096,10 @@ func (s *state) canSSAName(name *ir.Name) bool {
+ 	if ir.IsParamHeapCopy(name) {
+ 		return false
+ 	}
+-	if name.Class_ == ir.PAUTOHEAP {
++	if name.Class == ir.PAUTOHEAP {
+ 		s.Fatalf("canSSA of PAUTOHEAP %v", name)
+ 	}
+-	switch name.Class_ {
++	switch name.Class {
+ 	case ir.PEXTERN:
+ 		return false
+ 	case ir.PPARAMOUT:
+@@ -5117,7 +5117,7 @@ func (s *state) canSSAName(name *ir.Name) bool {
+ 			return false
+ 		}
+ 	}
+-	if name.Class_ == ir.PPARAM && name.Sym() != nil && name.Sym().Name == ".this" {
++	if name.Class == ir.PPARAM && name.Sym() != nil && name.Sym().Name == ".this" {
+ 		// wrappers generated by genwrapper need to update
+ 		// the .this pointer in place.
+ 		// TODO: treat as a PPARAMOUT?
+@@ -6210,7 +6210,7 @@ func (s *state) mem() *ssa.Value {
+ }
+ 
+ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
+-	if n.Class_ == ir.Pxxx {
++	if n.Class == ir.Pxxx {
+ 		// Don't track our marker nodes (memVar etc.).
+ 		return
+ 	}
+@@ -6218,7 +6218,7 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
+ 		// Don't track temporary variables.
+ 		return
+ 	}
+-	if n.Class_ == ir.PPARAMOUT {
++	if n.Class == ir.PPARAMOUT {
+ 		// Don't track named output values.  This prevents return values
+ 		// from being assigned too early. See #14591 and #14762. TODO: allow this.
+ 		return
+@@ -6741,8 +6741,8 @@ func defframe(s *State, e *ssafn) {
+ 		if !n.Needzero() {
+ 			continue
+ 		}
+-		if n.Class_ != ir.PAUTO {
+-			e.Fatalf(n.Pos(), "needzero class %d", n.Class_)
++		if n.Class != ir.PAUTO {
++			e.Fatalf(n.Pos(), "needzero class %d", n.Class)
+ 		}
+ 		if n.Type().Size()%int64(types.PtrSize) != 0 || n.FrameOffset()%int64(types.PtrSize) != 0 || n.Type().Size() == 0 {
+ 			e.Fatalf(n.Pos(), "var %L has size %d offset %d", n, n.Type().Size(), n.Offset_)
+@@ -6826,7 +6826,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 		a.Name = obj.NAME_EXTERN
+ 		a.Sym = n
+ 	case *ir.Name:
+-		if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
++		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+ 			a.Name = obj.NAME_PARAM
+ 			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
+ 			a.Offset += n.FrameOffset()
+@@ -6968,7 +6968,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
+ 	a.Sym = n.Linksym()
+ 	a.Reg = int16(Arch.REGSP)
+ 	a.Offset = n.FrameOffset() + off
+-	if n.Class_ == ir.PPARAM || n.Class_ == ir.PPARAMOUT {
++	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+ 		a.Name = obj.NAME_PARAM
+ 	} else {
+ 		a.Name = obj.NAME_AUTO
+@@ -7198,7 +7198,7 @@ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
+ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
+ 	node := parent.N
+ 
+-	if node.Class_ != ir.PAUTO || node.Addrtaken() {
++	if node.Class != ir.PAUTO || node.Addrtaken() {
+ 		// addressed things and non-autos retain their parents (i.e., cannot truly be split)
+ 		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
+ 	}
+@@ -7208,7 +7208,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t
+ 	s.Def = n
+ 	ir.AsNode(s.Def).Name().SetUsed(true)
+ 	n.SetType(t)
+-	n.Class_ = ir.PAUTO
++	n.Class = ir.PAUTO
+ 	n.SetEsc(ir.EscNever)
+ 	n.Curfn = e.curfn
+ 	e.curfn.Dcl = append(e.curfn.Dcl, n)
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 27d9cec06d..94fa6760a0 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -50,8 +50,8 @@ func InitFunc(n *ir.Name, noff int64, f *ir.Name) {
+ 	if n.Sym() == nil {
+ 		base.Fatalf("pfuncsym nil n sym")
+ 	}
+-	if f.Class_ != ir.PFUNC {
+-		base.Fatalf("pfuncsym class not PFUNC %d", f.Class_)
++	if f.Class != ir.PFUNC {
++		base.Fatalf("pfuncsym class not PFUNC %d", f.Class)
+ 	}
+ 	s := n.Linksym()
+ 	s.WriteAddr(base.Ctxt, noff, types.PtrSize, FuncLinksym(f), 0)
+@@ -259,7 +259,7 @@ func FuncSym(s *types.Sym) *types.Sym {
+ }
+ 
+ func FuncLinksym(n *ir.Name) *obj.LSym {
+-	if n.Op() != ir.ONAME || n.Class_ != ir.PFUNC {
++	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
+ 		base.Fatalf("expected func name: %v", n)
+ 	}
+ 	return FuncSym(n.Sym()).Linksym()
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 8e4ce55954..ac0b6cd87e 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -78,12 +78,12 @@ func (s *Schedule) tryStaticInit(nn ir.Node) bool {
+ // like staticassign but we are copying an already
+ // initialized value r.
+ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
+-	if rn.Class_ == ir.PFUNC {
++	if rn.Class == ir.PFUNC {
+ 		// TODO if roff != 0 { panic }
+ 		staticdata.InitFunc(l, loff, rn)
+ 		return true
+ 	}
+-	if rn.Class_ != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
++	if rn.Class != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
+ 		return false
+ 	}
+ 	if rn.Defn.Op() != ir.OAS {
+@@ -246,7 +246,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 
+ 	case ir.OSTR2BYTES:
+ 		r := r.(*ir.ConvExpr)
+-		if l.Class_ == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
++		if l.Class == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
+ 			sval := ir.StringVal(r.X)
+ 			staticdata.InitSliceBytes(l, loff, sval)
+ 			return true
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 5eaf100eed..6c3aa3781e 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -91,7 +91,7 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 	s.Lastlineno = base.Pos
+ 	s.Def = n
+ 	n.Vargen = int32(gen)
+-	n.Class_ = ctxt
++	n.Class = ctxt
+ 	if ctxt == ir.PFUNC {
+ 		n.Sym().SetFunc(true)
+ 	}
+@@ -455,7 +455,7 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
+ 	n := ir.NewNameAt(pos, s)
+ 	s.Def = n
+ 	n.SetType(t)
+-	n.Class_ = ir.PAUTO
++	n.Class = ir.PAUTO
+ 	n.SetEsc(ir.EscNever)
+ 	n.Curfn = curfn
+ 	n.SetUsed(true)
+diff --git a/src/cmd/compile/internal/typecheck/export.go b/src/cmd/compile/internal/typecheck/export.go
+index c525391401..63d0a1ec6c 100644
+--- a/src/cmd/compile/internal/typecheck/export.go
++++ b/src/cmd/compile/internal/typecheck/export.go
+@@ -53,7 +53,7 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Cl
+ 	}
+ 
+ 	n := ir.NewDeclNameAt(pos, op, s)
+-	n.Class_ = ctxt // TODO(mdempsky): Move this into NewDeclNameAt too?
++	n.Class = ctxt // TODO(mdempsky): Move this into NewDeclNameAt too?
+ 	s.SetPkgDef(n)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 8592397004..b3efb8f25a 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -129,7 +129,7 @@ func CaptureVars(fn *ir.Func) {
+ 		outermost := v.Defn.(*ir.Name)
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+-		if outermost.Class_ != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Size() <= 128 {
++		if outermost.Class != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Size() <= 128 {
+ 			v.SetByval(true)
+ 		} else {
+ 			outermost.SetAddrtaken(true)
+@@ -408,7 +408,7 @@ func tcFunc(n *ir.Func) {
+ 	}
+ 
+ 	for _, ln := range n.Dcl {
+-		if ln.Op() == ir.ONAME && (ln.Class_ == ir.PPARAM || ln.Class_ == ir.PPARAMOUT) {
++		if ln.Op() == ir.ONAME && (ln.Class == ir.PPARAM || ln.Class == ir.PPARAMOUT) {
+ 			ln.Decldepth = 1
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index dd515b8ccd..a7927c39a3 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -430,7 +430,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 
+ 	switch n.Op() {
+ 	case ir.ONAME:
+-		switch n.Class_ {
++		switch n.Class {
+ 		case ir.PEXTERN:
+ 			// Variable.
+ 			w.tag('V')
+@@ -450,7 +450,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			w.funcExt(n)
+ 
+ 		default:
+-			base.Fatalf("unexpected class: %v, %v", n, n.Class_)
++			base.Fatalf("unexpected class: %v, %v", n, n.Class)
+ 		}
+ 
+ 	case ir.OLITERAL:
+@@ -1260,7 +1260,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 	case ir.ONAME:
+ 		// Package scope name.
+ 		n := n.(*ir.Name)
+-		if (n.Class_ == ir.PEXTERN || n.Class_ == ir.PFUNC) && !ir.IsBlank(n) {
++		if (n.Class == ir.PEXTERN || n.Class == ir.PFUNC) && !ir.IsBlank(n) {
+ 			w.op(ir.ONONAME)
+ 			w.qualifiedIdent(n)
+ 			break
+@@ -1526,7 +1526,7 @@ func (w *exportWriter) localName(n *ir.Name) {
+ 	// PPARAM/PPARAMOUT, because we only want to include vargen in
+ 	// non-param names.
+ 	var v int32
+-	if n.Class_ == ir.PAUTO || (n.Class_ == ir.PAUTOHEAP && n.Stackcopy == nil) {
++	if n.Class == ir.PAUTO || (n.Class == ir.PAUTOHEAP && n.Stackcopy == nil) {
+ 		v = n.Vargen
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 2dc7e70b65..15c57b2380 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -333,7 +333,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 
+ 			// methodSym already marked m.Sym as a function.
+ 			m := ir.NewNameAt(mpos, ir.MethodSym(recv.Type, msym))
+-			m.Class_ = ir.PFUNC
++			m.Class = ir.PFUNC
+ 			m.SetType(mtyp)
+ 
+ 			m.Func = ir.NewFunc(mpos)
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index 01c03b5f9f..28db40db91 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -30,7 +30,7 @@ func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
+ 		types.CalcSize(t)
+ 	}
+ 	n := ir.NewNameAt(old.Pos(), old.Sym())
+-	n.Class_ = old.Class()
++	n.Class = old.Class
+ 	n.SetType(types.SubstAny(old.Type(), &types_))
+ 	if len(types_) > 0 {
+ 		base.Fatalf("substArgTypes: too many argument types")
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 812b94de0d..981f4ef1d6 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -2099,7 +2099,7 @@ func CheckUnused(fn *ir.Func) {
+ 
+ 	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
+ 	for _, ln := range fn.Dcl {
+-		if ln.Op() == ir.ONAME && ln.Class_ == ir.PAUTO && ln.Used() {
++		if ln.Op() == ir.ONAME && ln.Class == ir.PAUTO && ln.Used() {
+ 			if guard, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
+ 				guard.Used = true
+ 			}
+@@ -2107,7 +2107,7 @@ func CheckUnused(fn *ir.Func) {
+ 	}
+ 
+ 	for _, ln := range fn.Dcl {
+-		if ln.Op() != ir.ONAME || ln.Class_ != ir.PAUTO || ln.Used() {
++		if ln.Op() != ir.ONAME || ln.Class != ir.PAUTO || ln.Used() {
+ 			continue
+ 		}
+ 		if defn, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index f1e7ed4273..402b8deeb3 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -357,6 +357,6 @@ func DeclareUniverse() {
+ 
+ 	ir.RegFP = NewName(Lookup(".fp"))
+ 	ir.RegFP.SetType(types.Types[types.TINT32])
+-	ir.RegFP.Class_ = ir.PPARAM
++	ir.RegFP.Class = ir.PPARAM
+ 	ir.RegFP.SetUsed(true)
+ }
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index ec0f60ad93..3fe810ac4e 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -392,7 +392,7 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
+ 
+ 		appendWalkStmt(&late, convas(ir.NewAssignStmt(base.Pos, lorig, r), &late))
+ 
+-		if name == nil || name.Addrtaken() || name.Class_ == ir.PEXTERN || name.Class_ == ir.PAUTOHEAP {
++		if name == nil || name.Addrtaken() || name.Class == ir.PEXTERN || name.Class == ir.PAUTOHEAP {
+ 			memWrite = true
+ 			continue
+ 		}
+@@ -418,7 +418,7 @@ func readsMemory(n ir.Node) bool {
+ 	switch n.Op() {
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+-		return n.Class_ == ir.PEXTERN || n.Class_ == ir.PAUTOHEAP || n.Addrtaken()
++		return n.Class == ir.PEXTERN || n.Class == ir.PAUTOHEAP || n.Addrtaken()
+ 
+ 	case ir.OADD,
+ 		ir.OAND,
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index fcdb43f113..449df88f9e 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -52,7 +52,7 @@ func Closure(fn *ir.Func) {
+ 				v = addr
+ 			}
+ 
+-			v.Class_ = ir.PPARAM
++			v.Class = ir.PPARAM
+ 			decls = append(decls, v)
+ 
+ 			fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
+@@ -84,7 +84,7 @@ func Closure(fn *ir.Func) {
+ 
+ 			if v.Byval() && v.Type().Width <= int64(2*types.PtrSize) {
+ 				// If it is a small variable captured by value, downgrade it to PAUTO.
+-				v.Class_ = ir.PAUTO
++				v.Class = ir.PAUTO
+ 				fn.Dcl = append(fn.Dcl, v)
+ 				body = append(body, ir.NewAssignStmt(base.Pos, v, cr))
+ 			} else {
+@@ -92,7 +92,7 @@ func Closure(fn *ir.Func) {
+ 				// and initialize in entry prologue.
+ 				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
+ 				addr.SetType(types.NewPtr(v.Type()))
+-				addr.Class_ = ir.PAUTO
++				addr.Class = ir.PAUTO
+ 				addr.SetUsed(true)
+ 				addr.Curfn = fn
+ 				fn.Dcl = append(fn.Dcl, addr)
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index d8605d39bd..8a77bba2ad 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -68,7 +68,7 @@ func isSimpleName(nn ir.Node) bool {
+ 		return false
+ 	}
+ 	n := nn.(*ir.Name)
+-	return n.Class_ != ir.PAUTOHEAP && n.Class_ != ir.PEXTERN
++	return n.Class != ir.PAUTOHEAP && n.Class != ir.PEXTERN
+ }
+ 
+ func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
+@@ -294,7 +294,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 		// copy static to slice
+ 		var_ = typecheck.AssignExpr(var_)
+ 		name, offset, ok := staticinit.StaticLoc(var_)
+-		if !ok || name.Class_ != ir.PEXTERN {
++		if !ok || name.Class != ir.PEXTERN {
+ 			base.Fatalf("slicelit: %v", var_)
+ 		}
+ 		staticdata.InitSlice(name, offset, vstat, t.NumElem())
+@@ -657,7 +657,7 @@ func genAsStatic(as *ir.AssignStmt) {
+ 	}
+ 
+ 	name, offset, ok := staticinit.StaticLoc(as.X)
+-	if !ok || (name.Class_ != ir.PEXTERN && as.X != ir.BlankNode) {
++	if !ok || (name.Class != ir.PEXTERN && as.X != ir.BlankNode) {
+ 		base.Fatalf("genAsStatic: lhs %v", as.X)
+ 	}
+ 
+@@ -674,7 +674,7 @@ func genAsStatic(as *ir.AssignStmt) {
+ 		if r.Offset_ != 0 {
+ 			base.Fatalf("genAsStatic %+v", as)
+ 		}
+-		if r.Class_ == ir.PFUNC {
++		if r.Class == ir.PFUNC {
+ 			staticdata.InitFunc(name, offset, r)
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index d0cd5ff753..85459fd92f 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -68,12 +68,12 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 
+ 	if ir.Names.Staticuint64s == nil {
+ 		ir.Names.Staticuint64s = typecheck.NewName(ir.Pkgs.Runtime.Lookup("staticuint64s"))
+-		ir.Names.Staticuint64s.Class_ = ir.PEXTERN
++		ir.Names.Staticuint64s.Class = ir.PEXTERN
+ 		// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
+ 		// individual bytes.
+ 		ir.Names.Staticuint64s.SetType(types.NewArray(types.Types[types.TUINT8], 256*8))
+ 		ir.Names.Zerobase = typecheck.NewName(ir.Pkgs.Runtime.Lookup("zerobase"))
+-		ir.Names.Zerobase.Class_ = ir.PEXTERN
++		ir.Names.Zerobase.Class = ir.PEXTERN
+ 		ir.Names.Zerobase.SetType(types.Types[types.TUINTPTR])
+ 	}
+ 
+@@ -98,7 +98,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		xe := ir.NewIndexExpr(base.Pos, ir.Names.Staticuint64s, index)
+ 		xe.SetBounded(true)
+ 		value = xe
+-	case n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PEXTERN && n.X.(*ir.Name).Readonly():
++	case n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PEXTERN && n.X.(*ir.Name).Readonly():
+ 		// n.Left is a readonly global; use it directly.
+ 		value = n.X
+ 	case !fromType.IsInterface() && n.Esc() == ir.EscNone && fromType.Width <= 1024:
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 8a56526a36..3dffb496e9 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -52,7 +52,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 		base.Fatalf("expression has untyped type: %+v", n)
+ 	}
+ 
+-	if n.Op() == ir.ONAME && n.(*ir.Name).Class_ == ir.PAUTOHEAP {
++	if n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PAUTOHEAP {
+ 		n := n.(*ir.Name)
+ 		nn := ir.NewStarExpr(base.Pos, n.Heapaddr)
+ 		nn.X.MarkNonNil()
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 2164685cd4..38a9bec6e3 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -235,7 +235,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
+ // because we emit explicit VARKILL instructions marking the end of those
+ // temporaries' lifetimes.
+ func isaddrokay(n ir.Node) bool {
+-	return ir.IsAddressable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
++	return ir.IsAddressable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class == ir.PEXTERN || ir.IsAutoTmp(n))
+ }
+ 
+ // addrTemp ensures that n is okay to pass by address to runtime routines.
+diff --git a/src/cmd/compile/internal/walk/race.go b/src/cmd/compile/internal/walk/race.go
+index 20becf9be9..77cabe50c6 100644
+--- a/src/cmd/compile/internal/walk/race.go
++++ b/src/cmd/compile/internal/walk/race.go
+@@ -39,7 +39,7 @@ func instrument(fn *ir.Func) {
+ 			// race in the future.
+ 
+ 			nodpc := ir.NewNameAt(src.NoXPos, typecheck.Lookup(".fp"))
+-			nodpc.Class_ = ir.PPARAM
++			nodpc.Class = ir.PPARAM
+ 			nodpc.SetUsed(true)
+ 			nodpc.SetType(types.Types[types.TUINTPTR])
+ 			nodpc.SetFrameOffset(int64(-types.PtrSize))
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 460c0a7c10..1df491bd4e 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -176,7 +176,7 @@ func walkStmtList(s []ir.Node) {
+ // walkDecl walks an ODCL node.
+ func walkDecl(n *ir.Decl) ir.Node {
+ 	v := n.X
+-	if v.Class_ == ir.PAUTOHEAP {
++	if v.Class == ir.PAUTOHEAP {
+ 		if base.Flag.CompilingRuntime {
+ 			base.Errorf("%v escapes to heap, not allowed in runtime", v)
+ 		}
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 57c2d43753..928b673752 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -61,7 +61,7 @@ func Walk(fn *ir.Func) {
+ 
+ func paramoutheap(fn *ir.Func) bool {
+ 	for _, ln := range fn.Dcl {
+-		switch ln.Class_ {
++		switch ln.Class {
+ 		case ir.PPARAMOUT:
+ 			if ir.IsParamStackCopy(ln) || ln.Addrtaken() {
+ 				return true
+@@ -137,7 +137,7 @@ func paramstoheap(params *types.Type) []ir.Node {
+ 
+ 		if stackcopy := v.Name().Stackcopy; stackcopy != nil {
+ 			nn = append(nn, walkStmt(ir.NewDecl(base.Pos, ir.ODCL, v.(*ir.Name))))
+-			if stackcopy.Class_ == ir.PPARAM {
++			if stackcopy.Class == ir.PPARAM {
+ 				nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, v, stackcopy))))
+ 			}
+ 		}
+@@ -185,7 +185,7 @@ func returnsfromheap(params *types.Type) []ir.Node {
+ 		if v == nil {
+ 			continue
+ 		}
+-		if stackcopy := v.Name().Stackcopy; stackcopy != nil && stackcopy.Class_ == ir.PPARAMOUT {
++		if stackcopy := v.Name().Stackcopy; stackcopy != nil && stackcopy.Class == ir.PPARAMOUT {
+ 			nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, stackcopy, v))))
+ 		}
+ 	}

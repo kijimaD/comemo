@@ -13,7 +13,7 @@ Date:   Tue May 19 14:01:03 2009 -0700
     DELTA=1252  (1249 added, 0 deleted, 3 changed)
     OCL=29013
     CL=29037
-
+---
  src/lib/crypto/block/cbc.go          |  75 +++++++++
  src/lib/crypto/block/cbc_aes_test.go | 107 ++++++++++++
  src/lib/crypto/block/cfb.go          | 100 +++++++++++
@@ -24,3 +24,1341 @@ Date:   Tue May 19 14:01:03 2009 -0700
  src/lib/crypto/block/ecb_test.go     | 183 ++++++++++++++++++++
  src/lib/io/io.go                     |  17 +-
  9 files changed, 1260 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/crypto/block/cbc.go b/src/lib/crypto/block/cbc.go
+new file mode 100644
+index 0000000000..85a746b72b
+--- /dev/null
++++ b/src/lib/crypto/block/cbc.go
+@@ -0,0 +1,75 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Cipher block chaining (CBC) mode.
++
++// CBC provides confidentiality by xoring (chaining) each plaintext block
++// with the previous ciphertext block before applying the block cipher.
++
++// See NIST SP 800-38A, pp 10-11
++
++package block
++
++import (
++	"crypto/block";
++	"io";
++)
++
++type cbcCipher struct {
++	c Cipher;
++	blockSize int;
++	iv []byte;
++	tmp []byte;
++}
++
++func newCBC(c Cipher, iv []byte) *cbcCipher {
++	n := c.BlockSize();
++	x := new(cbcCipher);
++	x.c = c;
++	x.blockSize = n;
++	x.iv = copy(iv);
++	x.tmp = make([]byte, n);
++	return x;
++}
++
++func (x *cbcCipher) BlockSize() int {
++	return x.blockSize;
++}
++
++func (x *cbcCipher) Encrypt(src, dst []byte) {
++	for i := 0; i < x.blockSize; i++ {
++		x.iv[i] ^= src[i];
++	}
++	x.c.Encrypt(x.iv, x.iv);
++	for i := 0; i < x.blockSize; i++ {
++		dst[i] = x.iv[i];
++	}
++}
++
++func (x *cbcCipher) Decrypt(src, dst []byte) {
++	x.c.Decrypt(src, x.tmp);
++	for i := 0; i < x.blockSize; i++ {
++		x.tmp[i] ^= x.iv[i];
++		x.iv[i] = src[i];
++		dst[i] = x.tmp[i];
++	}
++}
++
++// NewCBCDecrypter returns a reader that reads data from r and decrypts it using c
++// in cipher block chaining (CBC) mode with the initialization vector iv.
++// The returned Reader does not buffer or read ahead except
++// as required by the cipher's block size.
++func NewCBCDecrypter(c Cipher, iv []byte, r io.Reader) io.Reader {
++	return NewECBDecrypter(newCBC(c, iv), r);
++}
++
++// NewCBCEncrypter returns a writer that encrypts data using c
++// in cipher block chaining (CBC) mode with the initialization vector iv
++// and writes the encrypted data to w.
++// The returned Writer does no buffering except as required
++// by the cipher's block size, so there is no need for a Flush method.
++func NewCBCEncrypter(c Cipher, iv []byte, w io.Writer) io.Writer {
++	return NewECBEncrypter(newCBC(c, iv), w);
++}
++
+diff --git a/src/lib/crypto/block/cbc_aes_test.go b/src/lib/crypto/block/cbc_aes_test.go
+new file mode 100644
+index 0000000000..4681c1c071
+--- /dev/null
++++ b/src/lib/crypto/block/cbc_aes_test.go
+@@ -0,0 +1,107 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// CBC AES test vectors.
++
++// See U.S. National Institute of Standards and Technology (NIST)
++// Special Publication 800-38A, ``Recommendation for Block Cipher
++// Modes of Operation,'' 2001 Edition, pp. 24-29.
++
++package block
++
++// gobuild: $GC ecb_aes_test.go
++
++import (
++	"crypto/aes";
++	"crypto/block";
++	"io";
++	"os";
++	"testing";
++
++	"./ecb_aes_test";
++)
++
++type cbcTest struct {
++	name string;
++	key []byte;
++	iv []byte;
++	in []byte;
++	out []byte;
++}
++
++var cbcAESTests = []cbcTest {
++	// NIST SP 800-38A pp 27-29
++	cbcTest {
++		"CBC-AES128",
++		commonKey128,
++		commonIV,
++		commonInput,
++		[]byte {
++			0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46, 0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9, 0x19, 0x7d,
++			0x50, 0x86, 0xcb, 0x9b, 0x50, 0x72, 0x19, 0xee, 0x95, 0xdb, 0x11, 0x3a, 0x91, 0x76, 0x78, 0xb2,
++			0x73, 0xbe, 0xd6, 0xb8, 0xe3, 0xc1, 0x74, 0x3b, 0x71, 0x16, 0xe6, 0x9e, 0x22, 0x22, 0x95, 0x16,
++			0x3f, 0xf1, 0xca, 0xa1, 0x68, 0x1f, 0xac, 0x09, 0x12, 0x0e, 0xca, 0x30, 0x75, 0x86, 0xe1, 0xa7,
++		},
++	},
++	cbcTest {
++		"CBC-AES192",
++		commonKey192,
++		commonIV,
++		commonInput,
++		[]byte {
++			0x4f, 0x02, 0x1d, 0xb2, 0x43, 0xbc, 0x63, 0x3d, 0x71, 0x78, 0x18, 0x3a, 0x9f, 0xa0, 0x71, 0xe8,
++			0xb4, 0xd9, 0xad, 0xa9, 0xad, 0x7d, 0xed, 0xf4, 0xe5, 0xe7, 0x38, 0x76, 0x3f, 0x69, 0x14, 0x5a,
++			0x57, 0x1b, 0x24, 0x20, 0x12, 0xfb, 0x7a, 0xe0, 0x7f, 0xa9, 0xba, 0xac, 0x3d, 0xf1, 0x02, 0xe0,
++			0x08, 0xb0, 0xe2, 0x79, 0x88, 0x59, 0x88, 0x81, 0xd9, 0x20, 0xa9, 0xe6, 0x4f, 0x56, 0x15, 0xcd,
++		},
++	},
++	cbcTest {
++		"CBC-AES256",
++		commonKey256,
++		commonIV,
++		commonInput,
++		[]byte {
++			0xf5, 0x8c, 0x4c, 0x04, 0xd6, 0xe5, 0xf1, 0xba, 0x77, 0x9e, 0xab, 0xfb, 0x5f, 0x7b, 0xfb, 0xd6,
++			0x9c, 0xfc, 0x4e, 0x96, 0x7e, 0xdb, 0x80, 0x8d, 0x67, 0x9f, 0x77, 0x7b, 0xc6, 0x70, 0x2c, 0x7d,
++			0x39, 0xf2, 0x33, 0x69, 0xa9, 0xd9, 0xba, 0xcf, 0xa5, 0x30, 0xe2, 0x63, 0x04, 0x23, 0x14, 0x61,
++			0xb2, 0xeb, 0x05, 0xe2, 0xc3, 0x9b, 0xe9, 0xfc, 0xda, 0x6c, 0x19, 0x07, 0x8c, 0x6a, 0x9d, 0x1b,
++		},
++	},
++}
++
++func TestCBC_AES(t *testing.T) {
++	for i, tt := range cbcAESTests {
++		test := tt.name;
++
++		c, err := aes.NewCipher(tt.key);
++		if err != nil {
++			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
++			continue;
++		}
++
++		var crypt io.ByteBuffer;
++		w := NewCBCEncrypter(c, tt.iv, &crypt);
++		var r io.Reader = io.NewByteReader(tt.in);
++		n, err := io.Copy(r, w);
++		if n != int64(len(tt.in)) || err != nil {
++			t.Errorf("%s: CBCEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
++		} else if d := crypt.Data(); !same(tt.out, d) {
++			t.Errorf("%s: CBCEncrypter\nhave %x\nwant %x", test, d, tt.out);
++		}
++
++		var plain io.ByteBuffer;
++		r = NewCBCDecrypter(c, tt.iv, io.NewByteReader(tt.out));
++		w = &plain;
++		n, err = io.Copy(r, w);
++		if n != int64(len(tt.out)) || err != nil {
++			t.Errorf("%s: CBCDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
++		} else if d := plain.Data(); !same(tt.in, d) {
++			t.Errorf("%s: CBCDecrypter\nhave %x\nwant %x", test, d, tt.in);
++		}
++
++		if t.Failed() {
++			break;
++		}
++	}
++}
+diff --git a/src/lib/crypto/block/cfb.go b/src/lib/crypto/block/cfb.go
+new file mode 100644
+index 0000000000..827a55ee1c
+--- /dev/null
++++ b/src/lib/crypto/block/cfb.go
+@@ -0,0 +1,100 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Cipher feedback (CFB) mode.
++
++// CFB provides confidentiality by feeding a fraction of
++// the previous ciphertext in as the plaintext for the next
++// block operation.
++
++// See NIST SP 800-38A, pp 11-13
++
++package block
++
++import (
++	"crypto/block";
++	"io";
++)
++
++type cfbCipher struct {
++	c Cipher;
++	blockSize int;	// our block size (s/8)
++	cipherSize int;	// underlying cipher block size
++	iv []byte;
++	tmp []byte;
++}
++
++func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
++	if s == 0 || s % 8 != 0 {
++		panicln("invalid CFB mode", s);
++	}
++	b := c.BlockSize();
++	x := new(cfbCipher);
++	x.c = c;
++	x.blockSize = s/8;
++	x.cipherSize = b;
++	x.iv = copy(iv);
++	x.tmp = make([]byte, b);
++	return x;
++}
++
++func (x *cfbCipher) BlockSize() int {
++	return x.blockSize;
++}
++
++func (x *cfbCipher) Encrypt(src, dst []byte) {
++	// Encrypt old IV and xor prefix with src to make dst.
++	x.c.Encrypt(x.iv, x.tmp);
++	for i := 0; i < x.blockSize; i++ {
++		dst[i] = src[i] ^ x.tmp[i];
++	}
++
++	// Slide unused IV pieces down and insert dst at end.
++	for i := 0; i < x.cipherSize - x.blockSize; i++ {
++		x.iv[i] = x.iv[i + x.blockSize];
++	}
++	off := x.cipherSize - x.blockSize;
++	for i := off; i < x.cipherSize; i++ {
++		x.iv[i] = dst[i - off];
++	}
++}
++
++func (x *cfbCipher) Decrypt(src, dst []byte) {
++	// Encrypt [sic] old IV and xor prefix with src to make dst.
++	x.c.Encrypt(x.iv, x.tmp);
++	for i := 0; i < x.blockSize; i++ {
++		dst[i] = src[i] ^ x.tmp[i];
++	}
++
++	// Slide unused IV pieces down and insert src at top.
++	for i := 0; i < x.cipherSize - x.blockSize; i++ {
++		x.iv[i] = x.iv[i + x.blockSize];
++	}
++	off := x.cipherSize - x.blockSize;
++	for i := off; i < x.cipherSize; i++ {
++		// Reconstruct src = dst ^ x.tmp
++		// in case we overwrote src (src == dst).
++		x.iv[i] = dst[i - off] ^ x.tmp[i - off];
++	}
++}
++
++// NewCFBDecrypter returns a reader that reads data from r and decrypts it using c
++// in s-bit cipher feedback (CFB) mode with the initialization vector iv.
++// The returned Reader does not buffer or read ahead except
++// as required by the cipher's block size.
++// Modes for s not a multiple of 8 are unimplemented.
++func NewCFBDecrypter(c Cipher, s int, iv []byte, r io.Reader) io.Reader {
++	return NewECBDecrypter(newCFB(c, s, iv), r);
++}
++
++// NewCFBEncrypter returns a writer that encrypts data using c
++// in s-bit cipher feedback (CFB) mode with the initialization vector iv
++// and writes the encrypted data to w.
++// The returned Writer does no buffering except as required
++// by the cipher's block size, so there is no need for a Flush method.
++// Modes for s not a multiple of 8 are unimplemented.
++func NewCFBEncrypter(c Cipher, s int, iv []byte, w io.Writer) io.Writer {
++	return NewECBEncrypter(newCFB(c, s, iv), w);
++}
++
+diff --git a/src/lib/crypto/block/cfb_aes_test.go b/src/lib/crypto/block/cfb_aes_test.go
+new file mode 100644
+index 0000000000..6c793dba8e
+--- /dev/null
++++ b/src/lib/crypto/block/cfb_aes_test.go
+@@ -0,0 +1,316 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// CFB AES test vectors.
++
++// See U.S. National Institute of Standards and Technology (NIST)
++// Special Publication 800-38A, ``Recommendation for Block Cipher
++// Modes of Operation,'' 2001 Edition, pp. 29-52.
++
++package block
++
++// gobuild: $GC ecb_aes_test.go
++
++import (
++	"crypto/aes";
++	"crypto/block";
++	"io";
++	"os";
++	"testing";
++
++	"./ecb_aes_test";
++)
++
++type cfbTest struct {
++	name string;
++	s int;
++	key []byte;
++	iv []byte;
++	in []byte;
++	out []byte;
++}
++
++var cfbAESTests = []cfbTest {
++	cfbTest {
++		"CFB1-AES128",
++		1,
++		commonKey128,
++		commonIV,
++		[]byte{
++			0<<7 | 1<<6 | 1<<5 | 0<<4 | 1<<3 | 0<<2 | 1<<1,
++			1<<7 | 1<<6 | 0<<5 | 0<<4 | 0<<3 | 0<<2 | 0<<1,
++		},
++		[]byte{
++			0<<7 | 1<<6 | 1<<5 | 0<<4 | 1<<3 | 0<<2 | 0<<1,
++			1<<7 | 0<<6 | 1<<5 | 1<<4 | 0<<3 | 0<<2 | 1<<1,
++		},
++	},
++	cfbTest {
++		"CFB1-AES192",
++		1,
++		commonKey192,
++		commonIV,
++		[]byte{
++			0<<7 | 1<<6 | 1<<5 | 0<<4 | 1<<3 | 0<<2 | 1<<1,
++			1<<7 | 1<<6 | 0<<5 | 0<<4 | 0<<3 | 0<<2 | 0<<1,
++		},
++		[]byte{
++			1<<7 | 0<<6 | 0<<5 | 1<<4 | 0<<3 | 0<<2 | 1<<1,
++			0<<7 | 1<<6 | 0<<5 | 1<<4 | 1<<3 | 0<<2 | 0<<1,
++		},
++	},
++	cfbTest {
++		"CFB1-AES256",
++		1,
++		commonKey256,
++		commonIV,
++		[]byte{
++			0<<7 | 1<<6 | 1<<5 | 0<<4 | 1<<3 | 0<<2 | 1<<1,
++			1<<7 | 1<<6 | 0<<5 | 0<<4 | 0<<3 | 0<<2 | 0<<1,
++		},
++		[]byte{
++			1<<7 | 0<<6 | 0<<5 | 1<<4 | 0<<3 | 0<<2 | 0<<1,
++			0<<7 | 0<<6 | 1<<5 | 0<<4 | 1<<3 | 0<<2 | 0<<1,
++		},
++	},
++
++	cfbTest {
++		"CFB8-AES128",
++		8,
++		commonKey128,
++		commonIV,
++		[]byte{
++			0x6b,
++			0xc1,
++			0xbe,
++			0xe2,
++			0x2e,
++			0x40,
++			0x9f,
++			0x96,
++			0xe9,
++			0x3d,
++			0x7e,
++			0x11,
++			0x73,
++			0x93,
++			0x17,
++			0x2a,
++			0xae,
++			0x2d,
++		},
++		[]byte{
++			0x3b,
++			0x79,
++			0x42,
++			0x4c,
++			0x9c,
++			0x0d,
++			0xd4,
++			0x36,
++			0xba,
++			0xce,
++			0x9e,
++			0x0e,
++			0xd4,
++			0x58,
++			0x6a,
++			0x4f,
++			0x32,
++			0xb9,
++		},
++	},
++
++	cfbTest {
++		"CFB8-AES192",
++		8,
++		commonKey192,
++		commonIV,
++		[]byte{
++			0x6b,
++			0xc1,
++			0xbe,
++			0xe2,
++			0x2e,
++			0x40,
++			0x9f,
++			0x96,
++			0xe9,
++			0x3d,
++			0x7e,
++			0x11,
++			0x73,
++			0x93,
++			0x17,
++			0x2a,
++			0xae,
++			0x2d,
++		},
++		[]byte{
++			0xcd,
++			0xa2,
++			0x52,
++			0x1e,
++			0xf0,
++			0xa9,
++			0x05,
++			0xca,
++			0x44,
++			0xcd,
++			0x05,
++			0x7c,
++			0xbf,
++			0x0d,
++			0x47,
++			0xa0,
++			0x67,
++			0x8a,
++		},
++	},
++
++	cfbTest {
++		"CFB8-AES256",
++		8,
++		commonKey256,
++		commonIV,
++		[]byte{
++			0x6b,
++			0xc1,
++			0xbe,
++			0xe2,
++			0x2e,
++			0x40,
++			0x9f,
++			0x96,
++			0xe9,
++			0x3d,
++			0x7e,
++			0x11,
++			0x73,
++			0x93,
++			0x17,
++			0x2a,
++			0xae,
++			0x2d,
++		},
++		[]byte{
++			0xdc,
++			0x1f,
++			0x1a,
++			0x85,
++			0x20,
++			0xa6,
++			0x4d,
++			0xb5,
++			0x5f,
++			0xcc,
++			0x8a,
++			0xc5,
++			0x54,
++			0x84,
++			0x4e,
++			0x88,
++			0x97,
++			0x00,
++		},
++	},
++
++	cfbTest {
++		"CFB128-AES128",
++		128,
++		commonKey128,
++		commonIV,
++		[]byte{
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++			0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
++			0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11, 0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
++			0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17, 0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10,
++		},
++		[]byte{
++			0x3b, 0x3f, 0xd9, 0x2e, 0xb7, 0x2d, 0xad, 0x20, 0x33, 0x34, 0x49, 0xf8, 0xe8, 0x3c, 0xfb, 0x4a,
++			0xc8, 0xa6, 0x45, 0x37, 0xa0, 0xb3, 0xa9, 0x3f, 0xcd, 0xe3, 0xcd, 0xad, 0x9f, 0x1c, 0xe5, 0x8b,
++			0x26, 0x75, 0x1f, 0x67, 0xa3, 0xcb, 0xb1, 0x40, 0xb1, 0x80, 0x8c, 0xf1, 0x87, 0xa4, 0xf4, 0xdf,
++			0xc0, 0x4b, 0x05, 0x35, 0x7c, 0x5d, 0x1c, 0x0e, 0xea, 0xc4, 0xc6, 0x6f, 0x9f, 0xf7, 0xf2, 0xe6,
++		},
++	},
++
++	cfbTest {
++		"CFB128-AES192",
++		128,
++		commonKey192,
++		commonIV,
++		[]byte{
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++			0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
++			0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11, 0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
++			0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17, 0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10,
++		},
++		[]byte{
++			0xcd, 0xc8, 0x0d, 0x6f, 0xdd, 0xf1, 0x8c, 0xab, 0x34, 0xc2, 0x59, 0x09, 0xc9, 0x9a, 0x41, 0x74,
++			0x67, 0xce, 0x7f, 0x7f, 0x81, 0x17, 0x36, 0x21, 0x96, 0x1a, 0x2b, 0x70, 0x17, 0x1d, 0x3d, 0x7a,
++			0x2e, 0x1e, 0x8a, 0x1d, 0xd5, 0x9b, 0x88, 0xb1, 0xc8, 0xe6, 0x0f, 0xed, 0x1e, 0xfa, 0xc4, 0xc9,
++			0xc0, 0x5f, 0x9f, 0x9c, 0xa9, 0x83, 0x4f, 0xa0, 0x42, 0xae, 0x8f, 0xba, 0x58, 0x4b, 0x09, 0xff,
++		},
++	},
++
++	cfbTest {
++		"CFB128-AES256",
++		128,
++		commonKey256,
++		commonIV,
++		[]byte{
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++			0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
++			0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11, 0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
++			0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17, 0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10,
++		},
++		[]byte{
++			0xdc, 0x7e, 0x84, 0xbf, 0xda, 0x79, 0x16, 0x4b, 0x7e, 0xcd, 0x84, 0x86, 0x98, 0x5d, 0x38, 0x60,
++			0x39, 0xff, 0xed, 0x14, 0x3b, 0x28, 0xb1, 0xc8, 0x32, 0x11, 0x3c, 0x63, 0x31, 0xe5, 0x40, 0x7b,
++			0xdf, 0x10, 0x13, 0x24, 0x15, 0xe5, 0x4b, 0x92, 0xa1, 0x3e, 0xd0, 0xa8, 0x26, 0x7a, 0xe2, 0xf9,
++			0x75, 0xa3, 0x85, 0x74, 0x1a, 0xb9, 0xce, 0xf8, 0x20, 0x31, 0x62, 0x3d, 0x55, 0xb1, 0xe4, 0x71,
++		},
++	},
++}
++
++func TestCFB_AES(t *testing.T) {
++	for i, tt := range cfbAESTests {
++		test := tt.name;
++
++		if tt.s == 1 {
++			// 1-bit CFB not implemented
++			continue;
++		}
++
++		c, err := aes.NewCipher(tt.key);
++		if err != nil {
++			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
++			continue;
++		}
++
++		var crypt io.ByteBuffer;
++		w := NewCFBEncrypter(c, tt.s, tt.iv, &crypt);
++		var r io.Reader = io.NewByteReader(tt.in);
++		n, err := io.Copy(r, w);
++		if n != int64(len(tt.in)) || err != nil {
++			t.Errorf("%s: CFBEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
++		} else if d := crypt.Data(); !same(tt.out, d) {
++			t.Errorf("%s: CFBEncrypter\nhave %x\nwant %x", test, d, tt.out);
++		}
++
++		var plain io.ByteBuffer;
++		r = NewCFBDecrypter(c, tt.s, tt.iv, io.NewByteReader(tt.out));
++		w = &plain;
++		n, err = io.Copy(r, w);
++		if n != int64(len(tt.out)) || err != nil {
++			t.Errorf("%s: CFBDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
++		} else if d := plain.Data(); !same(tt.in, d) {
++			t.Errorf("%s: CFBDecrypter\nhave %x\nwant %x", test, d, tt.in);
++		}
++
++		if t.Failed() {
++			break;
++		}
++	}
++}
+diff --git a/src/lib/crypto/block/cipher.go b/src/lib/crypto/block/cipher.go
+new file mode 100644
+index 0000000000..8bff1b8782
+--- /dev/null
++++ b/src/lib/crypto/block/cipher.go
+@@ -0,0 +1,58 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The block package implements standard block cipher modes
++// that can be wrapped around low-level block cipher implementations.
++// See http://csrc.nist.gov/groups/ST/toolkit/BCM/current_modes.html
++// and NIST Special Publication 800-38A.
++package block
++
++// A Cipher represents an implementation of block cipher
++// using a given key.  It provides the capability to encrypt
++// or decrypt individual blocks.  The mode implementations
++// extend that capability to streams of blocks.
++type Cipher interface {
++	// BlockSize returns the cipher's block size.
++	BlockSize() int;
++
++	// Encrypt encrypts the first block in src into dst.
++	// Src and dst may point at the same memory.
++	Encrypt(src, dst []byte);
++
++	// Decrypt decrypts the first block in src into dst.
++	// Src and dst may point at the same memory.
++	Decrypt(src, dst []byte);
++}
++
++// Utility routines
++
++func shift1(src, dst []byte) byte {
++	var b byte;
++	for i := len(src)-1; i >= 0; i-- {
++		bb := src[i]>>7;
++		dst[i] = src[i]<<1 | b;
++		b = bb;
++	}
++	return b;
++}
++
++func same(p, q []byte) bool {
++	if len(p) != len(q) {
++		return false;
++	}
++	for i := 0; i < len(p); i++ {
++		if p[i] != q[i] {
++			return false;
++		}
++	}
++	return true;
++}
++
++func copy(p []byte) []byte {
++	q := make([]byte, len(p));
++	for i, b := range p {
++		q[i] = b;
++	}
++	return q;
++}
+diff --git a/src/lib/crypto/block/ecb.go b/src/lib/crypto/block/ecb.go
+new file mode 100644
+index 0000000000..141d38cc8d
+--- /dev/null
++++ b/src/lib/crypto/block/ecb.go
+@@ -0,0 +1,271 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Electronic codebook (ECB) mode.
++// ECB is a fancy name for ``encrypt and decrypt each block separately.''
++// It's a pretty bad thing to do for any large amount of data (more than one block),
++// because the individual blocks can still be identified, duplicated, and reordered.
++// The ECB implementation exists mainly to provide buffering for
++// the other modes, which wrap it by providing modified Ciphers.
++
++// See NIST SP 800-38A, pp 9-10
++
++package block
++
++import (
++	"crypto/block";
++	"io";
++	"os";
++)
++
++type ecbDecrypter struct {
++	c Cipher;
++	r io.Reader;
++	blockSize int;		// block size
++
++	// Buffered data.
++	// The buffer buf is used as storage for both
++	// plain or crypt; at least one of those is nil at any given time.
++	buf []byte;
++	plain []byte;	// plain text waiting to be read
++	crypt []byte;	// ciphertext waiting to be decrypted
++}
++
++// Read into x.crypt until it has a full block or EOF or an error happens.
++func (x *ecbDecrypter) fillCrypt() os.Error {
++	var err os.Error;
++	for len(x.crypt) < x.blockSize {
++		off := len(x.crypt);
++		var m int;
++		m, err = x.r.Read(x.crypt[off:x.blockSize]);
++		x.crypt = x.crypt[0:off+m];
++		if m == 0 {
++			break;
++		}
++
++		// If an error happened but we got enough
++		// data to do some decryption, we can decrypt
++		// first and report the error (with some data) later.
++		// But if we don't have enough to decrypt,
++		// have to stop now.
++		if err != nil && len(x.crypt) < x.blockSize {
++			break;
++		}
++	}
++	return err;
++}
++
++// Read from plain text buffer into p.
++func (x *ecbDecrypter) readPlain(p []byte) int {
++	n := len(x.plain);
++	if n > len(p) {
++		n = len(p);
++	}
++	for i := 0; i < n; i++ {
++		p[i] = x.plain[i];
++	}
++	if n < len(x.plain) {
++		x.plain = x.plain[n:len(x.plain)];
++	} else {
++		x.plain = nil;
++	}
++	return n;
++}
++
++func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
++	if len(p) == 0 {
++		return;
++	}
++
++	// If there's no plaintext waiting and p is not big enough
++	// to hold a whole cipher block, we'll have to work in the
++	// cipher text buffer.  Set it to non-nil so that the
++	// code below will fill it.
++	if x.plain == nil && len(p) < x.blockSize && x.crypt == nil {
++		x.crypt = x.buf[0:0];
++	}
++
++	// If there is a leftover cipher text buffer,
++	// try to accumulate a full block.
++	if x.crypt != nil {
++		err = x.fillCrypt();
++		if err != nil || len(x.crypt) == 0 {
++			return;
++		}
++		x.c.Decrypt(x.crypt, x.crypt);
++		x.plain = x.crypt;
++		x.crypt = nil;
++	}
++
++	// If there is a leftover plain text buffer, read from it.
++	if x.plain != nil {
++		n = x.readPlain(p);
++		return;
++	}
++
++	// Read and decrypt directly in caller's buffer.
++	n, err = io.ReadAtLeast(x.r, p, x.blockSize);
++	if err == io.ErrEOF && n == 0 {
++		// EOF is okay on block boundary
++		err = nil;
++		return;
++	}
++	var i int;
++	for i = 0; i+x.blockSize <= n; i += x.blockSize {
++		a := p[i:i+x.blockSize];
++		x.c.Decrypt(a, a);
++	}
++
++	// There might be an encrypted fringe remaining.
++	// Save it for next time.
++	if i < n {
++		p = p[i:n];
++		for j, v := range p {
++			x.buf[j] = p[j];
++		}
++		x.crypt = x.buf[0:len(p)];
++		n = i;
++	}
++
++	return;
++}
++
++// NewECBDecrypter returns a reader that reads data from r and decrypts it using c.
++// It decrypts by calling c.Decrypt on each block in sequence;
++// this mode is known as electronic codebook mode, or ECB.
++// The returned Reader does not buffer or read ahead except
++// as required by the cipher's block size.
++func NewECBDecrypter(c Cipher, r io.Reader) io.Reader {
++	x := new(ecbDecrypter);
++	x.c = c;
++	x.r = r;
++	x.blockSize = c.BlockSize();
++	x.buf = make([]byte, x.blockSize);
++	return x;
++}
++
++type ecbEncrypter struct {
++	c Cipher;
++	w io.Writer;
++	blockSize int;
++
++	// Buffered data.
++	// The buffer buf is used as storage for both
++	// plain or crypt.  If both are non-nil, plain
++	// follows crypt in buf.
++	buf []byte;
++	plain []byte;	// plain text waiting to be encrypted
++	crypt []byte;	// encrypted text waiting to be written
++}
++
++// Flush the x.crypt buffer to x.w.
++func (x *ecbEncrypter) flushCrypt() os.Error {
++	if len(x.crypt) == 0 {
++		return nil;
++	}
++	n, err := x.w.Write(x.crypt);
++	if n < len(x.crypt) {
++		x.crypt = x.crypt[n:len(x.crypt)];
++		if err == nil {
++			err = io.ErrShortWrite;
++		}
++	}
++	if err != nil {
++		return err;
++	}
++	x.crypt = nil;
++	return nil;
++}
++
++// Slide x.plain down to the beginning of x.buf.
++// Plain is known to have less than one block of data,
++// so this is cheap enough.
++func (x *ecbEncrypter) slidePlain() {
++	if len(x.plain) == 0 {
++		x.plain = x.buf[0:0];
++	} else if cap(x.plain) < cap(x.buf) {
++		// plain and buf share same data,
++		// but buf is before plain, so forward loop is correct
++		for i := 0; i < len(x.plain); i++ {
++			x.buf[i] = x.plain[i];
++		}
++		x.plain = x.buf[0:len(x.plain)];
++	}
++}
++
++// Fill x.plain from the data in p.
++// Return the number of bytes copied.
++func (x *ecbEncrypter) fillPlain(p []byte) int {
++	off := len(x.plain);
++	n := len(p);
++	if max := cap(x.plain) - off; n > max {
++		n = max;
++	}
++	x.plain = x.plain[0:off+n];
++	for i := 0; i < n; i++ {
++		x.plain[off + i] = p[i];
++	}
++	return n;
++}
++
++// Encrypt x.plain; record encrypted range as x.crypt.
++func (x *ecbEncrypter) encrypt() {
++	var i int;
++	n := len(x.plain);
++	for i = 0; i+x.blockSize <= n; i += x.blockSize {
++		a := x.plain[i:i+x.blockSize];
++		x.c.Encrypt(a, a);
++	}
++	x.crypt = x.plain[0:i];
++	x.plain = x.plain[i:n];
++}
++
++func (x *ecbEncrypter) Write(p []byte) (n int, err os.Error) {
++	for {
++		// If there is data waiting to be written, write it.
++		// This can happen on the first iteration
++		// if a write failed in an earlier call.
++		if err = x.flushCrypt(); err != nil {
++			return;
++		}
++
++		// Now that encrypted data is gone (flush ran),
++		// perhaps we need to slide the plaintext down.
++		x.slidePlain();
++
++		// Fill plaintext buffer from p.
++		m := x.fillPlain(p);
++		if m == 0 {
++			break;
++		}
++		n += m;
++		p = p[m:len(p)];
++
++		// Encrypt, adjusting crypt and plain.
++		x.encrypt();
++
++		// Write x.crypt.
++		if err = x.flushCrypt(); err != nil {
++			break;
++		}
++	}
++	return;
++}
++
++// NewECBEncrypter returns a writer that encrypts data using c and writes it to w.
++// It encrypts by calling c.Encrypt on each block in sequence;
++// this mode is known as electronic codebook mode, or ECB.
++// The returned Writer does no buffering except as required
++// by the cipher's block size, so there is no need for a Flush method.
++func NewECBEncrypter(c Cipher, w io.Writer) io.Writer {
++	x := new(ecbEncrypter);
++	x.c = c;
++	x.w = w;
++	x.blockSize = c.BlockSize();
++
++	// Create a buffer that is an integral number of blocks.
++	x.buf = make([]byte, 8192/x.blockSize * x.blockSize);
++	return x;
++}
++
+diff --git a/src/lib/crypto/block/ecb_aes_test.go b/src/lib/crypto/block/ecb_aes_test.go
+new file mode 100644
+index 0000000000..de8a624b9f
+--- /dev/null
++++ b/src/lib/crypto/block/ecb_aes_test.go
+@@ -0,0 +1,136 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// ECB AES test vectors.
++
++// See U.S. National Institute of Standards and Technology (NIST)
++// Special Publication 800-38A, ``Recommendation for Block Cipher
++// Modes of Operation,'' 2001 Edition, pp. 24-27.
++
++package block
++
++import (
++	"crypto/aes";
++	"crypto/block";
++	"io";
++	"os";
++	"testing";
++)
++
++type ecbTest struct {
++	name string;
++	key []byte;
++	in []byte;
++	out []byte;
++}
++
++var commonInput = []byte {
++	0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++	0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
++	0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11, 0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
++	0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17, 0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10,
++}
++
++var commonKey128 = []byte {
++	0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c,
++}
++
++var commonKey192 = []byte {
++	0x8e, 0x73, 0xb0, 0xf7, 0xda, 0x0e, 0x64, 0x52, 0xc8, 0x10, 0xf3, 0x2b, 0x80, 0x90, 0x79, 0xe5,
++	0x62, 0xf8, 0xea, 0xd2, 0x52, 0x2c, 0x6b, 0x7b,
++}
++
++var commonKey256 = []byte {
++	0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe, 0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
++	0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7, 0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4,
++}
++
++var commonIV = []byte {
++	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
++}
++
++var ecbAESTests = []ecbTest {
++	// FIPS 197, Appendix B, C
++	ecbTest {
++		"FIPS-197 Appendix B",
++		commonKey128,
++		[]byte {
++			0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d, 0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34,
++		},
++		[]byte {
++			0x39, 0x25, 0x84, 0x1d, 0x02, 0xdc, 0x09, 0xfb, 0xdc, 0x11, 0x85, 0x97, 0x19, 0x6a, 0x0b, 0x32,
++		}
++	},
++
++	// NIST SP 800-38A pp 24-27
++	ecbTest {
++		"ECB-AES128",
++		commonKey128,
++		commonInput,
++		[]byte {
++			0x3a, 0xd7, 0x7b, 0xb4, 0x0d, 0x7a, 0x36, 0x60, 0xa8, 0x9e, 0xca, 0xf3, 0x24, 0x66, 0xef, 0x97,
++			0xf5, 0xd3, 0xd5, 0x85, 0x03, 0xb9, 0x69, 0x9d, 0xe7, 0x85, 0x89, 0x5a, 0x96, 0xfd, 0xba, 0xaf,
++			0x43, 0xb1, 0xcd, 0x7f, 0x59, 0x8e, 0xce, 0x23, 0x88, 0x1b, 0x00, 0xe3, 0xed, 0x03, 0x06, 0x88,
++			0x7b, 0x0c, 0x78, 0x5e, 0x27, 0xe8, 0xad, 0x3f, 0x82, 0x23, 0x20, 0x71, 0x04, 0x72, 0x5d, 0xd4,
++		}
++	},
++	ecbTest {
++		"ECB-AES192",
++		commonKey192,
++		commonInput,
++		[]byte {
++			0xbd, 0x33, 0x4f, 0x1d, 0x6e, 0x45, 0xf2, 0x5f, 0xf7, 0x12, 0xa2, 0x14, 0x57, 0x1f, 0xa5, 0xcc,
++			0x97, 0x41, 0x04, 0x84, 0x6d, 0x0a, 0xd3, 0xad, 0x77, 0x34, 0xec, 0xb3, 0xec, 0xee, 0x4e, 0xef,
++			0xef, 0x7a, 0xfd, 0x22, 0x70, 0xe2, 0xe6, 0x0a, 0xdc, 0xe0, 0xba, 0x2f, 0xac, 0xe6, 0x44, 0x4e,
++			0x9a, 0x4b, 0x41, 0xba, 0x73, 0x8d, 0x6c, 0x72, 0xfb, 0x16, 0x69, 0x16, 0x03, 0xc1, 0x8e, 0x0e,
++		}
++	},
++	ecbTest {
++		"ECB-AES256",
++		commonKey256,
++		commonInput,
++		[]byte {
++			0xf3, 0xee, 0xd1, 0xbd, 0xb5, 0xd2, 0xa0, 0x3c, 0x06, 0x4b, 0x5a, 0x7e, 0x3d, 0xb1, 0x81, 0xf8,
++			0x59, 0x1c, 0xcb, 0x10, 0xd4, 0x10, 0xed, 0x26, 0xdc, 0x5b, 0xa7, 0x4a, 0x31, 0x36, 0x28, 0x70,
++			0xb6, 0xed, 0x21, 0xb9, 0x9c, 0xa6, 0xf4, 0xf9, 0xf1, 0x53, 0xe7, 0xb1, 0xbe, 0xaf, 0xed, 0x1d,
++			0x23, 0x30, 0x4b, 0x7a, 0x39, 0xf9, 0xf3, 0xff, 0x06, 0x7d, 0x8d, 0x8f, 0x9e, 0x24, 0xec, 0xc7,
++		}
++	}
++}
++
++func TestECB_AES(t *testing.T) {
++	for i, tt := range ecbAESTests {
++		test := tt.name;
++
++		c, err := aes.NewCipher(tt.key);
++		if err != nil {
++			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
++			continue;
++		}
++
++		var crypt io.ByteBuffer;
++		w := NewECBEncrypter(c, &crypt);
++		var r io.Reader = io.NewByteReader(tt.in);
++		n, err := io.Copy(r, w);
++		if n != int64(len(tt.in)) || err != nil {
++			t.Errorf("%s: ECBReader io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
++		} else if d := crypt.Data(); !same(tt.out, d) {
++			t.Errorf("%s: ECBReader\nhave %x\nwant %x", test, d, tt.out);
++		}
++
++		var plain io.ByteBuffer;
++		r = NewECBDecrypter(c, io.NewByteReader(tt.out));
++		w = &plain;
++		n, err = io.Copy(r, w);
++		if n != int64(len(tt.out)) || err != nil {
++			t.Errorf("%s: ECBWriter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
++		} else if d := plain.Data(); !same(tt.in, d) {
++			t.Errorf("%s: ECBWriter\nhave %x\nwant %x", test, d, tt.in);
++		}
++
++		if t.Failed() {
++			break;
++		}
++	}
++}
+diff --git a/src/lib/crypto/block/ecb_test.go b/src/lib/crypto/block/ecb_test.go
+new file mode 100644
+index 0000000000..968893a9bb
+--- /dev/null
++++ b/src/lib/crypto/block/ecb_test.go
+@@ -0,0 +1,183 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package block
++
++import (
++	"crypto/block";
++	"fmt";
++	"io";
++	"testing";
++	"testing/iotest";
++)
++
++// Simple Cipher for testing: adds an incrementing amount
++// to each byte in each
++type IncCipher struct {
++	blockSize int;
++	delta byte;
++	encrypting bool;
++}
++
++func (c *IncCipher) BlockSize() int {
++	return c.blockSize;
++}
++
++func (c *IncCipher) Encrypt(src, dst []byte) {
++	if !c.encrypting {
++		panicln("encrypt: not encrypting");
++	}
++	if len(src) != c.blockSize || len(dst) != c.blockSize {
++		panicln("encrypt: wrong block size", c.blockSize, len(src), len(dst));
++	}
++	c.delta++;
++	for i, b := range src {
++		dst[i] = b + c.delta;
++	}
++}
++
++func (c *IncCipher) Decrypt(src, dst []byte) {
++	if c.encrypting {
++		panicln("decrypt: not decrypting");
++	}
++	if len(src) != c.blockSize || len(dst) != c.blockSize {
++		panicln("decrypt: wrong block size", c.blockSize, len(src), len(dst));
++	}
++	c.delta--;
++	for i, b := range src {
++		dst[i] = b + c.delta;
++	}
++}
++
++func TestECBEncrypter(t *testing.T) {
++	var plain, crypt [256]byte;
++	for i := 0; i < len(plain); i++ {
++		plain[i] = byte(i);
++	}
++	b := new(io.ByteBuffer);
++	for block := 1; block <= 64; block *= 2 {
++		// compute encrypted version
++		delta := byte(0);
++		for i := 0; i < len(crypt); i++ {
++			if i % block == 0 {
++				delta++;
++			}
++			crypt[i] = plain[i] + delta;
++		}
++
++		for frag := 0; frag < 2; frag++ {
++			c := &IncCipher{block, 0, true};
++			b.Reset();
++			r := io.NewByteReader(&plain);
++			w := NewECBEncrypter(c, b);
++
++			// copy plain into w in increasingly large chunks: 1, 1, 2, 4, 8, ...
++			// if frag != 0, move the 1 to the end to cause fragmentation.
++			if frag == 0 {
++				nn, err := io.Copyn(r, w, 1);
++				if err != nil {
++					t.Errorf("block=%d frag=0: first Copyn: %s", block, err);
++					continue;
++				}
++			}
++			for n := 1; n <= len(plain)/2; n *= 2 {
++				nn, err := io.Copyn(r, w, int64(n));
++				if err != nil {
++					t.Errorf("block=%d frag=%d: Copyn %d: %s", block, frag, n, err);
++				}
++			}
++			if frag != 0 {
++				nn, err := io.Copyn(r, w, 1);
++				if err != nil {
++					t.Errorf("block=%d frag=1: last Copyn: %s", block, err);
++					continue;
++				}
++			}
++
++			// check output
++			data := b.Data();
++			if len(data) != len(crypt) {
++				t.Errorf("block=%d frag=%d: want %d bytes, got %d", block, frag, len(crypt), len(data));
++				continue;
++			}
++
++			if string(data) != string(&crypt) {
++				t.Errorf("block=%d frag=%d: want %x got %x", block, frag, data, crypt);
++			}
++		}
++	}
++}
++
++func testECBDecrypter(t *testing.T, maxio int) {
++	var readers = []func(io.Reader) io.Reader {
++		func (r io.Reader) io.Reader { return r },
++		iotest.OneByteReader,
++		iotest.HalfReader,
++	};
++	var plain, crypt [256]byte;
++	for i := 0; i < len(plain); i++ {
++		plain[i] = byte(255 - i);
++	}
++	b := new(io.ByteBuffer);
++	for block := 1; block <= 64 && block <= maxio; block *= 2 {
++		// compute encrypted version
++		delta := byte(0);
++		for i := 0; i < len(crypt); i++ {
++			if i % block == 0 {
++				delta++;
++			}
++			crypt[i] = plain[i] + delta;
++		}
++
++		for mode := 0; mode < len(readers); mode++ {
++			for frag := 0; frag < 2; frag++ {
++				test := fmt.Sprintf("block=%d mode=%d frag=%d maxio=%d", block, mode, frag, maxio);
++				c := &IncCipher{block, 0, false};
++				b.Reset();
++				r := NewECBDecrypter(c, readers[mode](io.NewByteReader(crypt[0:maxio])));
++
++				// read from crypt in increasingly large chunks: 1, 1, 2, 4, 8, ...
++				// if frag == 1, move the 1 to the end to cause fragmentation.
++				if frag == 0 {
++					nn, err := io.Copyn(r, b, 1);
++					if err != nil {
++						t.Errorf("%s: first Copyn: %s", test, err);
++						continue;
++					}
++				}
++				for n := 1; n <= maxio/2; n *= 2 {
++					nn, err := io.Copyn(r, b, int64(n));
++					if err != nil {
++						t.Errorf("%s: Copyn %d: %s", test, n, err);
++					}
++				}
++				if frag != 0 {
++					nn, err := io.Copyn(r, b, 1);
++					if err != nil {
++						t.Errorf("%s: last Copyn: %s", test, err);
++						continue;
++					}
++				}
++
++				// check output
++				data := b.Data();
++				if len(data) != maxio {
++					t.Errorf("%s: want %d bytes, got %d", test, maxio, len(data));
++					continue;
++				}
++
++				if string(data) != string(plain[0:maxio]) {
++					t.Errorf("%s: input=%x want %x got %x", test, crypt[0:maxio], plain[0:maxio], data);
++				}
++			}
++		}
++	}
++}
++
++func TestECBDecrypter(t *testing.T) {
++	// Do shorter I/O sizes first; they're easier to debug.
++	for n := 1; n <= 256 && !t.Failed(); n *= 2 {
++		testECBDecrypter(t, n);
++	}
++}
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index 91b6ffd8b9..c120d8d443 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -27,6 +27,9 @@ var ErrShortWrite os.Error = &Error{"short write"}
+ 
+ 
+ // Reader is the interface that wraps the basic Read method.
++// An implementation of Read is allowed to use all of p for
++// scratch space during the call, even if it eventually returns
++// n < len(p).
+ type Reader interface {
+ 	Read(p []byte) (n int, err os.Error);
+ }
+@@ -80,10 +83,11 @@ func WriteString(w Writer, s string) (n int, err os.Error) {
+ 	return w.Write(StringBytes(s))
+ }
+ 
+-// FullRead reads r until the buffer buf is full, or until EOF or error.
+-func FullRead(r Reader, buf []byte) (n int, err os.Error) {
++// ReadAtLeast reads r into buf until at least min bytes have been read,
++// or until EOF or error.
++func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
+ 	n = 0;
+-	for n < len(buf) {
++	for n < min {
+ 		nn, e := r.Read(buf[n:len(buf)]);
+ 		if nn > 0 {
+ 			n += nn
+@@ -98,6 +102,13 @@ func FullRead(r Reader, buf []byte) (n int, err os.Error) {
+ 	return n, nil
+ }
+ 
++// FullRead reads r until the buffer buf is full, or until EOF or error.
++func FullRead(r Reader, buf []byte) (n int, err os.Error) {
++	// TODO(rsc): 6g bug prevents obvious return
++	n, err = ReadAtLeast(r, buf, len(buf));
++	return;
++}
++
+ // Convert something that implements Read into something
+ // whose Reads are always FullReads
+ type fullRead struct {

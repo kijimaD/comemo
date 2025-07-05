@@ -11,6 +11,27 @@ Date:   Thu Nov 26 10:33:45 2015 +0100
     Change-Id: I66cfe0d43f9d123d4c4509a3fa18b9b6380dfc39
     Reviewed-on: https://go-review.googlesource.com/17225
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/unicode/utf8/utf8_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/unicode/utf8/utf8_test.go b/src/unicode/utf8/utf8_test.go
+index 60ce362f09..51571b61eb 100644
+--- a/src/unicode/utf8/utf8_test.go
++++ b/src/unicode/utf8/utf8_test.go
+@@ -100,6 +100,15 @@ func TestFullRune(t *testing.T) {
+ 			t.Errorf("FullRune(%q) = true, want false", s1)
+ 		}
+ 	}
++	for _, s := range []string{"\xc0", "\xc1"} {
++		b := []byte(s)
++		if !FullRune(b) {
++			t.Errorf("FullRune(%q) = false, want true", s)
++		}
++		if !FullRuneInString(s) {
++			t.Errorf("FullRuneInString(%q) = false, want true", s)
++		}
++	}
+ }
+ 
+ func TestEncodeRune(t *testing.T) {

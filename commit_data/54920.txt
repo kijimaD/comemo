@@ -16,7 +16,7 @@ Date:   Mon Nov 21 11:32:39 2022 -0800
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  doc/go1.20.html                |  8 ++++++++
  src/archive/tar/common.go      |  3 +++
  src/archive/tar/reader.go      |  2 +-
@@ -24,3 +24,185 @@ Date:   Mon Nov 21 11:32:39 2022 -0800
  src/archive/zip/reader.go      |  6 ++++++
  src/archive/zip/reader_test.go | 26 ++++++++++++++++++++++++++
  6 files changed, 64 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 1cbc993087..ebefbe6e06 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -293,6 +293,10 @@ proxyHandler := &httputil.ReverseProxy{
+       Programs that want to operate on archives containing insecure file names may
+       ignore this error.
+     </p>
++    <p>
++      Insecure tar file name checks may be entirely disabled by setting the
++      <code>GODEBUG=tarinsecurepath=1</code> environment variable.
++    </p>
+   </dd>
+ </dl><!-- archive/tar -->
+ 
+@@ -308,6 +312,10 @@ proxyHandler := &httputil.ReverseProxy{
+       Programs that want to operate on archives containing insecure file names may
+       ignore this error.
+     </p>
++    <p>
++      Insecure zip file name checks may be entirely disabled by setting the
++      <code>GODEBUG=zipinsecurepath=1</code> environment variable.
++    </p>
+     <p><!-- CL 449955 -->
+       Reading from a directory file that contains file data will now return an error.
+       The zip specification does not permit directory files to contain file data,
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index be02a24542..0d5a942024 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -13,6 +13,7 @@ package tar
+ import (
+ 	"errors"
+ 	"fmt"
++	"internal/godebug"
+ 	"io/fs"
+ 	"math"
+ 	"path"
+@@ -26,6 +27,8 @@ import (
+ // architectures. If a large value is encountered when decoding, the result
+ // stored in Header will be the truncated version.
+ 
++var tarinsecurepath = godebug.New("tarinsecurepath")
++
+ var (
+ 	ErrHeader          = errors.New("archive/tar: invalid tar header")
+ 	ErrWriteTooLong    = errors.New("archive/tar: write too long")
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 3495f083e3..99ba004c9a 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -60,7 +60,7 @@ func (tr *Reader) Next() (*Header, error) {
+ 	}
+ 	hdr, err := tr.next()
+ 	tr.err = err
+-	if err == nil && !filepath.IsLocal(hdr.Name) {
++	if err == nil && tarinsecurepath.Value() != "1" && !filepath.IsLocal(hdr.Name) {
+ 		err = ErrInsecurePath
+ 	}
+ 	return hdr, err
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 91dc1650e2..7e0462c3f8 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -1617,6 +1617,7 @@ func TestFileReader(t *testing.T) {
+ }
+ 
+ func TestInsecurePaths(t *testing.T) {
++	t.Setenv("GODEBUG", "tarinsecurepath=0")
+ 	for _, path := range []string{
+ 		"../foo",
+ 		"/foo",
+@@ -1652,3 +1653,22 @@ func TestInsecurePaths(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDisableInsecurePathCheck(t *testing.T) {
++	t.Setenv("GODEBUG", "tarinsecurepath=1")
++	var buf bytes.Buffer
++	tw := NewWriter(&buf)
++	const name = "/foo"
++	tw.WriteHeader(&Header{
++		Name: name,
++	})
++	tw.Close()
++	tr := NewReader(&buf)
++	h, err := tr.Next()
++	if err != nil {
++		t.Fatalf("tr.Next with tarinsecurepath=1: got err %v, want nil", err)
++	}
++	if h.Name != name {
++		t.Fatalf("tr.Next with tarinsecurepath=1: got name %q, want %q", h.Name, name)
++	}
++}
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index b64c61aab5..a097d084c6 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"hash"
+ 	"hash/crc32"
++	"internal/godebug"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+@@ -21,6 +22,8 @@ import (
+ 	"time"
+ )
+ 
++var zipinsecurepath = godebug.New("zipinsecurepath")
++
+ var (
+ 	ErrFormat       = errors.New("zip: not a valid zip file")
+ 	ErrAlgorithm    = errors.New("zip: unsupported compression algorithm")
+@@ -108,6 +111,9 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
+ 			// Zip permits an empty file name field.
+ 			continue
+ 		}
++		if zipinsecurepath.Value() == "1" {
++			continue
++		}
+ 		// The zip specification states that names must use forward slashes,
+ 		// so consider any backslashes in the name insecure.
+ 		if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 45cb5bfec3..f0aa11a748 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -1290,6 +1290,7 @@ func TestFSModTime(t *testing.T) {
+ }
+ 
+ func TestCVE202127919(t *testing.T) {
++	t.Setenv("GODEBUG", "zipinsecurepath=0")
+ 	// Archive containing only the file "../test.txt"
+ 	data := []byte{
+ 		0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x08, 0x00,
+@@ -1411,6 +1412,7 @@ func TestCVE202139293(t *testing.T) {
+ }
+ 
+ func TestCVE202141772(t *testing.T) {
++	t.Setenv("GODEBUG", "zipinsecurepath=0")
+ 	// Archive contains a file whose name is exclusively made up of '/', '\'
+ 	// characters, or "../", "..\" paths, which would previously cause a panic.
+ 	//
+@@ -1586,6 +1588,7 @@ func TestIssue54801(t *testing.T) {
+ }
+ 
+ func TestInsecurePaths(t *testing.T) {
++	t.Setenv("GODEBUG", "zipinsecurepath=0")
+ 	for _, path := range []string{
+ 		"../foo",
+ 		"/foo",
+@@ -1616,3 +1619,26 @@ func TestInsecurePaths(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDisableInsecurePathCheck(t *testing.T) {
++	t.Setenv("GODEBUG", "zipinsecurepath=1")
++	var buf bytes.Buffer
++	zw := NewWriter(&buf)
++	const name = "/foo"
++	_, err := zw.Create(name)
++	if err != nil {
++		t.Fatalf("zw.Create(%q) = %v", name, err)
++	}
++	zw.Close()
++	zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
++	if err != nil {
++		t.Fatalf("NewReader with zipinsecurepath=1: got err %v, want nil", err)
++	}
++	var gotPaths []string
++	for _, f := range zr.File {
++		gotPaths = append(gotPaths, f.Name)
++	}
++	if want := []string{name}; !reflect.DeepEqual(gotPaths, want) {
++		t.Errorf("NewReader with zipinsecurepath=1: got files %q, want %q", gotPaths, want)
++	}
++}

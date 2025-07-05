@@ -7,8 +7,573 @@ Date:   Sun Nov 1 15:04:46 2009 -0800
     
     R=rsc
     http://go/go-review/1017006
-
+---
  src/pkg/base64/Makefile       |  11 --
  src/pkg/base64/base64.go      | 334 ------------------------------------------
  src/pkg/base64/base64_test.go | 201 -------------------------
  3 files changed, 546 deletions(-)
+
+diff --git a/src/pkg/base64/Makefile b/src/pkg/base64/Makefile
+deleted file mode 100644
+index ff91695224..0000000000
+--- a/src/pkg/base64/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include $(GOROOT)/src/Make.$(GOARCH)
+-
+-TARG=base64
+-GOFILES=\
+-	base64.go\
+-
+-include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/base64/base64.go b/src/pkg/base64/base64.go
+deleted file mode 100644
+index b4daee3cc1..0000000000
+--- a/src/pkg/base64/base64.go
++++ /dev/null
+@@ -1,334 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package base64 implements base64 encoding as specified by RFC 4648.
+-package base64
+-
+-import (
+-	"bytes";
+-	"io";
+-	"os";
+-	"strconv";
+-)
+-
+-/*
+- * Encodings
+- */
+-
+-// An Encoding is a radix 64 encoding/decoding scheme, defined by a
+-// 64-character alphabet.  The most common encoding is the "base64"
+-// encoding defined in RFC 4648 and used in MIME (RFC 2045) and PEM
+-// (RFC 1421).  RFC 4648 also defines an alternate encoding, which is
+-// the standard encoding with - and _ substituted for + and /.
+-type Encoding struct {
+-	encode		string;
+-	decodeMap	[256]byte;
+-}
+-
+-const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+-const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+-
+-// NewEncoding returns a new Encoding defined by the given alphabet,
+-// which must be a 64-byte string.
+-func NewEncoding(encoder string) *Encoding {
+-	e := new(Encoding);
+-	e.encode = encoder;
+-	for i := 0; i < len(e.decodeMap); i++ {
+-		e.decodeMap[i] = 0xFF;
+-	}
+-	for i := 0; i < len(encoder); i++ {
+-		e.decodeMap[encoder[i]] = byte(i);
+-	}
+-	return e;
+-}
+-
+-// StdEncoding is the standard base64 encoding, as defined in
+-// RFC 4648.
+-var StdEncoding = NewEncoding(encodeStd)
+-
+-// URLEncoding is the alternate base64 encoding defined in RFC 4648.
+-// It is typically used in URLs and file names.
+-var URLEncoding = NewEncoding(encodeURL)
+-
+-/*
+- * Encoder
+- */
+-
+-// Encode encodes src using the encoding enc, writing
+-// EncodedLen(len(src)) bytes to dst.
+-//
+-// The encoding pads the output to a multiple of 4 bytes,
+-// so Encode is not appropriate for use on individual blocks
+-// of a large data stream.  Use NewEncoder() instead.
+-func (enc *Encoding) Encode(src, dst []byte) {
+-	if len(src) == 0 {
+-		return;
+-	}
+-
+-	for len(src) > 0 {
+-		dst[0] = 0;
+-		dst[1] = 0;
+-		dst[2] = 0;
+-		dst[3] = 0;
+-
+-		// Unpack 4x 6-bit source blocks into a 4 byte
+-		// destination quantum
+-		switch len(src) {
+-		default:
+-			dst[3] |= src[2]&0x3F;
+-			dst[2] |= src[2]>>6;
+-			fallthrough;
+-		case 2:
+-			dst[2] |= (src[1]<<2)&0x3F;
+-			dst[1] |= src[1]>>4;
+-			fallthrough;
+-		case 1:
+-			dst[1] |= (src[0]<<4)&0x3F;
+-			dst[0] |= src[0]>>2;
+-		}
+-
+-		// Encode 6-bit blocks using the base64 alphabet
+-		for j := 0; j < 4; j++ {
+-			dst[j] = enc.encode[dst[j]];
+-		}
+-
+-		// Pad the final quantum
+-		if len(src) < 3 {
+-			dst[3] = '=';
+-			if len(src) < 2 {
+-				dst[2] = '=';
+-			}
+-			break;
+-		}
+-
+-		src = src[3:len(src)];
+-		dst = dst[4:len(dst)];
+-	}
+-}
+-
+-type encoder struct {
+-	err	os.Error;
+-	enc	*Encoding;
+-	w	io.Writer;
+-	buf	[3]byte;	// buffered data waiting to be encoded
+-	nbuf	int;		// number of bytes in buf
+-	out	[1024]byte;	// output buffer
+-}
+-
+-func (e *encoder) Write(p []byte) (n int, err os.Error) {
+-	if e.err != nil {
+-		return 0, e.err;
+-	}
+-
+-	// Leading fringe.
+-	if e.nbuf > 0 {
+-		var i int;
+-		for i = 0; i < len(p) && e.nbuf < 3; i++ {
+-			e.buf[e.nbuf] = p[i];
+-			e.nbuf++;
+-		}
+-		n += i;
+-		p = p[i:len(p)];
+-		if e.nbuf < 3 {
+-			return;
+-		}
+-		e.enc.Encode(&e.buf, &e.out);
+-		if _, e.err = e.w.Write(e.out[0:4]); e.err != nil {
+-			return n, e.err;
+-		}
+-		e.nbuf = 0;
+-	}
+-
+-	// Large interior chunks.
+-	for len(p) >= 3 {
+-		nn := len(e.out)/4*3;
+-		if nn > len(p) {
+-			nn = len(p);
+-		}
+-		nn -= nn%3;
+-		if nn > 0 {
+-			e.enc.Encode(p[0:nn], &e.out);
+-			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
+-				return n, e.err;
+-			}
+-		}
+-		n += nn;
+-		p = p[nn:len(p)];
+-	}
+-
+-	// Trailing fringe.
+-	for i := 0; i < len(p); i++ {
+-		e.buf[i] = p[i];
+-	}
+-	e.nbuf = len(p);
+-	n += len(p);
+-	return;
+-}
+-
+-// Close flushes any pending output from the encoder.
+-// It is an error to call Write after calling Close.
+-func (e *encoder) Close() os.Error {
+-	// If there's anything left in the buffer, flush it out
+-	if e.err == nil && e.nbuf > 0 {
+-		e.enc.Encode(e.buf[0 : e.nbuf], &e.out);
+-		e.nbuf = 0;
+-		_, e.err = e.w.Write(e.out[0:4]);
+-	}
+-	return e.err;
+-}
+-
+-// NewEncoder returns a new base64 stream encoder.  Data written to
+-// the returned writer will be encoded using enc and then written to w.
+-// Base64 encodings operate in 4-byte blocks; when finished
+-// writing, the caller must Close the returned encoder to flush any
+-// partially written blocks.
+-func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
+-	return &encoder{enc: enc, w: w};
+-}
+-
+-// EncodedLen returns the length in bytes of the base64 encoding
+-// of an input buffer of length n.
+-func (enc *Encoding) EncodedLen(n int) int {
+-	return (n+2)/3*4;
+-}
+-
+-/*
+- * Decoder
+- */
+-
+-type CorruptInputError int64
+-
+-func (e CorruptInputError) String() string {
+-	return "illegal base64 data at input byte" + strconv.Itoa64(int64(e));
+-}
+-
+-// decode is like Decode but returns an additional 'end' value, which
+-// indicates if end-of-message padding was encountered and thus any
+-// additional data is an error.  decode also assumes len(src)%4==0,
+-// since it is meant for internal use.
+-func (enc *Encoding) decode(src, dst []byte) (n int, end bool, err os.Error) {
+-	for i := 0; i < len(src)/4 && !end; i++ {
+-		// Decode quantum using the base64 alphabet
+-		var dbuf [4]byte;
+-		dlen := 4;
+-
+-	dbufloop:
+-		for j := 0; j < 4; j++ {
+-			in := src[i*4 + j];
+-			if in == '=' && j >= 2 && i == len(src)/4 - 1 {
+-				// We've reached the end and there's
+-				// padding
+-				if src[i*4 + 3] != '=' {
+-					return n, false, CorruptInputError(i*4 + 2);
+-				}
+-				dlen = j;
+-				end = true;
+-				break dbufloop;
+-			}
+-			dbuf[j] = enc.decodeMap[in];
+-			if dbuf[j] == 0xFF {
+-				return n, false, CorruptInputError(i*4 + j);
+-			}
+-		}
+-
+-		// Pack 4x 6-bit source blocks into 3 byte destination
+-		// quantum
+-		switch dlen {
+-		case 4:
+-			dst[i*3 + 2] = dbuf[2]<<6 | dbuf[3];
+-			fallthrough;
+-		case 3:
+-			dst[i*3 + 1] = dbuf[1]<<4 | dbuf[2]>>2;
+-			fallthrough;
+-		case 2:
+-			dst[i*3 + 0] = dbuf[0]<<2 | dbuf[1]>>4;
+-		}
+-		n += dlen-1;
+-	}
+-
+-	return n, end, nil;
+-}
+-
+-// Decode decodes src using the encoding enc.  It writes at most
+-// DecodedLen(len(src)) bytes to dst and returns the number of bytes
+-// written.  If src contains invalid base64 data, it will return the
+-// number of bytes successfully written and CorruptInputError.
+-func (enc *Encoding) Decode(src, dst []byte) (n int, err os.Error) {
+-	if len(src)%4 != 0 {
+-		return 0, CorruptInputError(len(src)/4*4);
+-	}
+-
+-	n, _, err = enc.decode(src, dst);
+-	return;
+-}
+-
+-type decoder struct {
+-	err	os.Error;
+-	enc	*Encoding;
+-	r	io.Reader;
+-	end	bool;		// saw end of message
+-	buf	[1024]byte;	// leftover input
+-	nbuf	int;
+-	out	[]byte;	// leftover decoded output
+-	outbuf	[1024/4*3]byte;
+-}
+-
+-func (d *decoder) Read(p []byte) (n int, err os.Error) {
+-	if d.err != nil {
+-		return 0, d.err;
+-	}
+-
+-	// Use leftover decoded output from last read.
+-	if len(d.out) > 0 {
+-		n = bytes.Copy(p, d.out);
+-		d.out = d.out[n:len(d.out)];
+-		return n, nil;
+-	}
+-
+-	// Read a chunk.
+-	nn := len(p)/3*4;
+-	if nn < 4 {
+-		nn = 4;
+-	}
+-	if nn > len(d.buf) {
+-		nn = len(d.buf);
+-	}
+-	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf : nn], 4 - d.nbuf);
+-	d.nbuf += nn;
+-	if d.nbuf < 4 {
+-		return 0, d.err;
+-	}
+-
+-	// Decode chunk into p, or d.out and then p if p is too small.
+-	nr := d.nbuf / 4 * 4;
+-	nw := d.nbuf / 4 * 3;
+-	if nw > len(p) {
+-		nw, d.end, d.err = d.enc.decode(d.buf[0:nr], &d.outbuf);
+-		d.out = d.outbuf[0:nw];
+-		n = bytes.Copy(p, d.out);
+-		d.out = d.out[n:len(d.out)];
+-	} else {
+-		n, d.end, d.err = d.enc.decode(d.buf[0:nr], p);
+-	}
+-	d.nbuf -= nr;
+-	for i := 0; i < d.nbuf; i++ {
+-		d.buf[i] = d.buf[i+nr];
+-	}
+-
+-	if d.err == nil {
+-		d.err = err;
+-	}
+-	return n, d.err;
+-}
+-
+-// NewDecoder constructs a new base64 stream decoder.
+-func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
+-	return &decoder{enc: enc, r: r};
+-}
+-
+-// DecodeLen returns the maximum length in bytes of the decoded data
+-// corresponding to n bytes of base64-encoded data.
+-func (enc *Encoding) DecodedLen(n int) int {
+-	return n/4*3;
+-}
+diff --git a/src/pkg/base64/base64_test.go b/src/pkg/base64/base64_test.go
+deleted file mode 100644
+index 54d2326f58..0000000000
+--- a/src/pkg/base64/base64_test.go
++++ /dev/null
+@@ -1,201 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package base64
+-
+-import (
+-	"bytes";
+-	"io";
+-	"os";
+-	"reflect";
+-	"strings";
+-	"testing";
+-)
+-
+-type testpair struct {
+-	decoded, encoded string;
+-}
+-
+-var pairs = []testpair{
+-	// RFC 3548 examples
+-	testpair{"\x14\xfb\x9c\x03\xd9\x7e", "FPucA9l+"},
+-	testpair{"\x14\xfb\x9c\x03\xd9", "FPucA9k="},
+-	testpair{"\x14\xfb\x9c\x03", "FPucAw=="},
+-
+-	// RFC 4648 examples
+-	testpair{"", ""},
+-	testpair{"f", "Zg=="},
+-	testpair{"fo", "Zm8="},
+-	testpair{"foo", "Zm9v"},
+-	testpair{"foob", "Zm9vYg=="},
+-	testpair{"fooba", "Zm9vYmE="},
+-	testpair{"foobar", "Zm9vYmFy"},
+-
+-	// Wikipedia examples
+-	testpair{"sure.", "c3VyZS4="},
+-	testpair{"sure", "c3VyZQ=="},
+-	testpair{"sur", "c3Vy"},
+-	testpair{"su", "c3U="},
+-	testpair{"leasure.", "bGVhc3VyZS4="},
+-	testpair{"easure.", "ZWFzdXJlLg=="},
+-	testpair{"asure.", "YXN1cmUu"},
+-	testpair{"sure.", "c3VyZS4="},
+-}
+-
+-var bigtest = testpair{
+-	"Twas brillig, and the slithy toves",
+-	"VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw==",
+-}
+-
+-func testEqual(t *testing.T, msg string, args ...) bool {
+-	v := reflect.NewValue(args).(*reflect.StructValue);
+-	v1 := v.Field(v.NumField() - 2);
+-	v2 := v.Field(v.NumField() - 1);
+-	if v1.Interface() != v2.Interface() {
+-		t.Errorf(msg, args);
+-		return false;
+-	}
+-	return true;
+-}
+-
+-func TestEncode(t *testing.T) {
+-	for _, p := range pairs {
+-		buf := make([]byte, StdEncoding.EncodedLen(len(p.decoded)));
+-		StdEncoding.Encode(strings.Bytes(p.decoded), buf);
+-		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
+-	}
+-}
+-
+-func TestEncoder(t *testing.T) {
+-	for _, p := range pairs {
+-		bb := &bytes.Buffer{};
+-		encoder := NewEncoder(StdEncoding, bb);
+-		encoder.Write(strings.Bytes(p.decoded));
+-		encoder.Close();
+-		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded);
+-	}
+-}
+-
+-func TestEncoderBuffering(t *testing.T) {
+-	input := strings.Bytes(bigtest.decoded);
+-	for bs := 1; bs <= 12; bs++ {
+-		bb := &bytes.Buffer{};
+-		encoder := NewEncoder(StdEncoding, bb);
+-		for pos := 0; pos < len(input); pos += bs {
+-			end := pos+bs;
+-			if end > len(input) {
+-				end = len(input);
+-			}
+-			n, err := encoder.Write(input[pos:end]);
+-			testEqual(t, "Write(%q) gave error %v, want %v", input[pos:end], err, os.Error(nil));
+-			testEqual(t, "Write(%q) gave length %v, want %v", input[pos:end], n, end-pos);
+-		}
+-		err := encoder.Close();
+-		testEqual(t, "Close gave error %v, want %v", err, os.Error(nil));
+-		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, bigtest.decoded, bb.String(), bigtest.encoded);
+-	}
+-}
+-
+-func TestDecode(t *testing.T) {
+-	for _, p := range pairs {
+-		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
+-		count, end, err := StdEncoding.decode(strings.Bytes(p.encoded), dbuf);
+-		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
+-		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded));
+-		if len(p.encoded) > 0 {
+-			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='));
+-		}
+-		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded);
+-	}
+-}
+-
+-func TestDecoder(t *testing.T) {
+-	for _, p := range pairs {
+-		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(p.encoded));
+-		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
+-		count, err := decoder.Read(dbuf);
+-		if err != nil && err != os.EOF {
+-			t.Fatal("Read failed", err);
+-		}
+-		testEqual(t, "Read from %q = length %v, want %v", p.encoded, count, len(p.decoded));
+-		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded);
+-		if err != os.EOF {
+-			count, err = decoder.Read(dbuf);
+-		}
+-		testEqual(t, "Read from %q = %v, want %v", p.encoded, err, os.EOF);
+-	}
+-}
+-
+-func TestDecoderBuffering(t *testing.T) {
+-	for bs := 1; bs <= 12; bs++ {
+-		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(bigtest.encoded));
+-		buf := make([]byte, len(bigtest.decoded)+12);
+-		var total int;
+-		for total = 0; total < len(bigtest.decoded); {
+-			n, err := decoder.Read(buf[total : total+bs]);
+-			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", bigtest.encoded, total, n, err, os.Error(nil));
+-			total += n;
+-		}
+-		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, bigtest.encoded, string(buf[0:total]), bigtest.decoded);
+-	}
+-}
+-
+-func TestDecodeCorrupt(t *testing.T) {
+-	type corrupt struct {
+-		e	string;
+-		p	int;
+-	}
+-	examples := []corrupt{
+-		corrupt{"!!!!", 0},
+-		corrupt{"x===", 1},
+-		corrupt{"AA=A", 2},
+-		corrupt{"AAA=AAAA", 3},
+-		corrupt{"AAAAA", 4},
+-		corrupt{"AAAAAA", 4},
+-	};
+-
+-	for _, e := range examples {
+-		dbuf := make([]byte, StdEncoding.DecodedLen(len(e.e)));
+-		_, err := StdEncoding.Decode(strings.Bytes(e.e), dbuf);
+-		switch err := err.(type) {
+-		case CorruptInputError:
+-			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);
+-		default:
+-			t.Error("Decoder failed to detect corruption in", e);
+-		}
+-	}
+-}
+-
+-func TestBig(t *testing.T) {
+-	n := 3*1000 + 1;
+-	raw := make([]byte, n);
+-	const alpha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+-	for i := 0; i < n; i++ {
+-		raw[i] = alpha[i%len(alpha)];
+-	}
+-	encoded := new(bytes.Buffer);
+-	w := NewEncoder(StdEncoding, encoded);
+-	nn, err := w.Write(raw);
+-	if nn != n || err != nil {
+-		t.Fatalf("Encoder.Write(raw) = %d, %v want %d, nil", nn, err, n);
+-	}
+-	err = w.Close();
+-	if err != nil {
+-		t.Fatalf("Encoder.Close() = %v want nil", err);
+-	}
+-	decoded, err := io.ReadAll(NewDecoder(StdEncoding, encoded));
+-	if err != nil {
+-		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err);
+-	}
+-
+-	if !bytes.Equal(raw, decoded) {
+-		var i int;
+-		for i = 0; i < len(decoded) && i < len(raw); i++ {
+-			if decoded[i] != raw[i] {
+-				break;
+-			}
+-		}
+-		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i);
+-	}
+-}

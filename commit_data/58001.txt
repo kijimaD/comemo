@@ -19,6 +19,26 @@ Date:   Fri Sep 15 10:56:32 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/profbuf_test.go | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/runtime/profbuf_test.go b/src/runtime/profbuf_test.go
+index d9c5264b73..dac78ffd31 100644
+--- a/src/runtime/profbuf_test.go
++++ b/src/runtime/profbuf_test.go
+@@ -39,13 +39,7 @@ func TestProfBuf(t *testing.T) {
+ 			c <- 1
+ 		}()
+ 		time.Sleep(10 * time.Millisecond) // let goroutine run and block
+-		return func() {
+-			select {
+-			case <-c:
+-			case <-time.After(1 * time.Second):
+-				t.Fatalf("timeout waiting for blocked read")
+-			}
+-		}
++		return func() { <-c }
+ 	}
+ 	readEOF := func(t *testing.T, b *ProfBuf) {
+ 		rdata, rtags, eof := b.Read(ProfBufBlocking)

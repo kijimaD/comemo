@@ -21,7 +21,7 @@ Date:   Mon Jun 30 18:59:24 2014 -0700
     R=golang-codereviews, dvyukov, khr, dave, rsc
     CC=golang-codereviews
     https://golang.org/cl/104200047
-
+---
  src/pkg/runtime/malloc.h      |  27 +++-
  src/pkg/runtime/mcache.c      |   1 +
  src/pkg/runtime/mcentral.c    |   2 +
@@ -33,3 +33,1258 @@ Date:   Mon Jun 30 18:59:24 2014 -0700
  src/pkg/runtime/stack.c       | 356 +++++++++++++++++++++++++-----------------
  src/pkg/runtime/stack_test.go |  49 ++++++
  10 files changed, 492 insertions(+), 302 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 798c130ad5..422df5405f 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -116,6 +116,12 @@ enum
+ 	MaxMHeapList = 1<<(20 - PageShift),	// Maximum page length for fixed-size list in MHeap.
+ 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
+ 
++	// Per-P, per order stack segment cache size.
++	StackCacheSize = 32*1024,
++	// Number of orders that get caching.  Order 0 is StackMin
++	// and each successive order is twice as large.
++	NumStackOrders = 3,
++
+ 	// Number of bits in page to span calculations (4k pages).
+ 	// On Windows 64-bit we limit the arena to 32GB or 35 bits (see below for reason).
+ 	// On other 64-bit platforms, we limit the arena to 128GB, or 37 bits.
+@@ -247,8 +253,8 @@ struct MStats
+ 
+ 	// Statistics about allocation of low-level fixed-size structures.
+ 	// Protected by FixAlloc locks.
+-	uint64	stacks_inuse;	// bootstrap stacks
+-	uint64	stacks_sys;
++	uint64	stacks_inuse;	// this number is included in heap_inuse above
++	uint64	stacks_sys;	// always 0 in mstats
+ 	uint64	mspan_inuse;	// MSpan structures
+ 	uint64	mspan_sys;
+ 	uint64	mcache_inuse;	// MCache structures
+@@ -305,6 +311,13 @@ struct MCacheList
+ 	uint32 nlist;
+ };
+ 
++typedef struct StackFreeList StackFreeList;
++struct StackFreeList
++{
++	MLink *list;  // linked list of free stacks
++	uintptr size; // total size of stacks in list
++};
++
+ // Per-thread (in Go, per-P) cache for small objects.
+ // No locking needed because it is per-thread (per-P).
+ struct MCache
+@@ -320,6 +333,9 @@ struct MCache
+ 	// The rest is not accessed on every malloc.
+ 	MSpan*	alloc[NumSizeClasses];	// spans to allocate from
+ 	MCacheList free[NumSizeClasses];// lists of explicitly freed objects
++
++	StackFreeList stackcache[NumStackOrders];
++
+ 	// Local allocator stats, flushed during GC.
+ 	uintptr local_nlookup;		// number of pointer lookups
+ 	uintptr local_largefree;	// bytes freed for large objects (>MaxSmallSize)
+@@ -330,6 +346,7 @@ struct MCache
+ MSpan*	runtime·MCache_Refill(MCache *c, int32 sizeclass);
+ void	runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size);
+ void	runtime·MCache_ReleaseAll(MCache *c);
++void	runtime·stackcache_clear(MCache *c);
+ 
+ // MTypes describes the types of blocks allocated within a span.
+ // The compression field describes the layout of the data.
+@@ -409,7 +426,8 @@ struct SpecialProfile
+ // An MSpan is a run of pages.
+ enum
+ {
+-	MSpanInUse = 0,
++	MSpanInUse = 0, // allocated for garbage collected heap
++	MSpanStack,     // allocated for use by stack allocator
+ 	MSpanFree,
+ 	MSpanListHead,
+ 	MSpanDead,
+@@ -525,7 +543,9 @@ extern MHeap runtime·mheap;
+ 
+ void	runtime·MHeap_Init(MHeap *h);
+ MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool needzero);
++MSpan*	runtime·MHeap_AllocStack(MHeap *h, uintptr npage);
+ void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
++void	runtime·MHeap_FreeStack(MHeap *h, MSpan *s);
+ MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
+ MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
+ void	runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *size, int32 *npages, int32 *nobj);
+@@ -533,7 +553,6 @@ void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
+ void	runtime·MHeap_MapBits(MHeap *h);
+ void	runtime·MHeap_MapSpans(MHeap *h);
+ void	runtime·MHeap_Scavenger(void);
+-void	runtime·MHeap_SplitSpan(MHeap *h, MSpan *s);
+ 
+ void*	runtime·mallocgc(uintptr size, uintptr typ, uint32 flag);
+ void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index 13437a50cd..92521a2c7a 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -43,6 +43,7 @@ void
+ runtime·freemcache(MCache *c)
+ {
+ 	runtime·MCache_ReleaseAll(c);
++	runtime·stackcache_clear(c);
+ 	runtime·lock(&runtime·mheap);
+ 	runtime·purgecachedstats(c);
+ 	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index 203558fca5..9291c24856 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -263,6 +263,8 @@ MCentral_Grow(MCentral *c)
+ 	runtime·unlock(c);
+ 	runtime·MGetSizeClassInfo(c->sizeclass, &size, &npages, &n);
+ 	s = runtime·MHeap_Alloc(&runtime·mheap, npages, c->sizeclass, 0, 1);
++	if(s->next != nil || s->prev != nil)
++		runtime·throw("internal error: MSpan should not be in a list");
+ 	if(s == nil) {
+ 		// TODO(rsc): Log out of memory
+ 		runtime·lock(c);
+diff --git a/src/pkg/runtime/mem.go b/src/pkg/runtime/mem.go
+index fa308b5d96..0fec501e7a 100644
+--- a/src/pkg/runtime/mem.go
++++ b/src/pkg/runtime/mem.go
+@@ -30,7 +30,7 @@ type MemStats struct {
+ 	// Low-level fixed-size structure allocator statistics.
+ 	//	Inuse is bytes used now.
+ 	//	Sys is bytes obtained from system.
+-	StackInuse  uint64 // bootstrap stacks
++	StackInuse  uint64 // bytes used by stack allocator
+ 	StackSys    uint64
+ 	MSpanInuse  uint64 // mspan structures
+ 	MSpanSys    uint64
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 4ad8f3b08f..ff53c31d98 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1252,12 +1252,12 @@ markroot(ParFor *desc, uint32 i)
+ 			SpecialFinalizer *spf;
+ 
+ 			s = allspans[spanidx];
++			if(s->state != MSpanInUse)
++				continue;
+ 			if(s->sweepgen != sg) {
+ 				runtime·printf("sweep %d %d\n", s->sweepgen, sg);
+ 				runtime·throw("gc: unswept span");
+ 			}
+-			if(s->state != MSpanInUse)
+-				continue;
+ 			// The garbage collector ignores type pointers stored in MSpan.types:
+ 			//  - Compiler-generated types are stored outside of heap.
+ 			//  - The reflect package has runtime-generated types cached in its data structures.
+@@ -2124,6 +2124,7 @@ flushallmcaches(void)
+ 		if(c==nil)
+ 			continue;
+ 		runtime·MCache_ReleaseAll(c);
++		runtime·stackcache_clear(c);
+ 	}
+ }
+ 
+@@ -2133,14 +2134,12 @@ runtime·updatememstats(GCStats *stats)
+ 	M *mp;
+ 	MSpan *s;
+ 	int32 i;
+-	uint64 stacks_inuse, smallfree;
++	uint64 smallfree;
+ 	uint64 *src, *dst;
+ 
+ 	if(stats)
+ 		runtime·memclr((byte*)stats, sizeof(*stats));
+-	stacks_inuse = 0;
+ 	for(mp=runtime·allm; mp; mp=mp->alllink) {
+-		stacks_inuse += mp->stackinuse*FixedStack;
+ 		if(stats) {
+ 			src = (uint64*)&mp->gcstats;
+ 			dst = (uint64*)stats;
+@@ -2149,7 +2148,6 @@ runtime·updatememstats(GCStats *stats)
+ 			runtime·memclr((byte*)&mp->gcstats, sizeof(mp->gcstats));
+ 		}
+ 	}
+-	mstats.stacks_inuse = stacks_inuse;
+ 	mstats.mcache_inuse = runtime·mheap.cachealloc.inuse;
+ 	mstats.mspan_inuse = runtime·mheap.spanalloc.inuse;
+ 	mstats.sys = mstats.heap_sys + mstats.stacks_sys + mstats.mspan_sys +
+@@ -2509,6 +2507,12 @@ runtime·ReadMemStats(MStats *stats)
+ 	// Size of the trailing by_size array differs between Go and C,
+ 	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
+ 	runtime·memcopy(runtime·sizeof_C_MStats, stats, &mstats);
++
++	// Stack numbers are part of the heap numbers, separate those out for user consumption
++	stats->stacks_sys = stats->stacks_inuse;
++	stats->heap_inuse -= stats->stacks_inuse;
++	stats->heap_sys -= stats->stacks_inuse;
++	
+ 	g->m->gcing = 0;
+ 	g->m->locks++;
+ 	runtime·semrelease(&runtime·worldsema);
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 961b32e504..62ae126f1e 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -9,16 +9,16 @@
+ // When a MSpan is in the heap free list, state == MSpanFree
+ // and heapmap(s->start) == span, heapmap(s->start+s->npages-1) == span.
+ //
+-// When a MSpan is allocated, state == MSpanInUse
++// When a MSpan is allocated, state == MSpanInUse or MSpanStack
+ // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
+ 
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+-static MSpan *MHeap_AllocLocked(MHeap*, uintptr, int32);
++static MSpan *MHeap_AllocSpanLocked(MHeap*, uintptr);
++static void MHeap_FreeSpanLocked(MHeap*, MSpan*);
+ static bool MHeap_Grow(MHeap*, uintptr);
+-static void MHeap_FreeLocked(MHeap*, MSpan*);
+ static MSpan *MHeap_AllocLarge(MHeap*, uintptr);
+ static MSpan *BestFit(MSpan*, uintptr, MSpan*);
+ 
+@@ -165,19 +165,38 @@ MHeap_Reclaim(MHeap *h, uintptr npage)
+ 	runtime·lock(h);
+ }
+ 
+-// Allocate a new span of npage pages from the heap
++// Allocate a new span of npage pages from the heap for GC'd memory
+ // and record its size class in the HeapMap and HeapMapCache.
+-MSpan*
+-runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool needzero)
++static MSpan*
++mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
+ {
+ 	MSpan *s;
+ 
++	if(g != g->m->g0)
++		runtime·throw("mheap_alloc not on M stack");
+ 	runtime·lock(h);
++
++	// To prevent excessive heap growth, before allocating n pages
++	// we need to sweep and reclaim at least n pages.
++	if(!h->sweepdone)
++		MHeap_Reclaim(h, npage);
++
++	// transfer stats from cache to global
+ 	mstats.heap_alloc += g->m->mcache->local_cachealloc;
+ 	g->m->mcache->local_cachealloc = 0;
+-	s = MHeap_AllocLocked(h, npage, sizeclass);
++
++	s = MHeap_AllocSpanLocked(h, npage);
+ 	if(s != nil) {
+-		mstats.heap_inuse += npage<<PageShift;
++		// Record span info, because gc needs to be
++		// able to map interior pointer to containing span.
++		s->state = MSpanInUse;
++		s->ref = 0;
++		s->sizeclass = sizeclass;
++		s->elemsize = (sizeclass==0 ? s->npages<<PageShift : runtime·class_to_size[sizeclass]);
++		s->types.compression = MTypes_Empty;
++		s->sweepgen = h->sweepgen;
++
++		// update stats, sweep lists
+ 		if(large) {
+ 			mstats.heap_objects++;
+ 			mstats.heap_alloc += npage<<PageShift;
+@@ -189,6 +208,42 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool
+ 		}
+ 	}
+ 	runtime·unlock(h);
++	return s;
++}
++
++void
++mheap_alloc_m(G *gp)
++{
++	MHeap *h;
++	MSpan *s;
++
++	h = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	s = mheap_alloc(h, g->m->scalararg[0], g->m->scalararg[1], g->m->scalararg[2]);
++	g->m->ptrarg[0] = s;
++
++	runtime·gogo(&gp->sched);
++}
++
++MSpan*
++runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool needzero)
++{
++	MSpan *s;
++
++	// Don't do any operations that lock the heap on the G stack.
++	// It might trigger stack growth, and the stack growth code needs
++	// to be able to allocate heap.
++	if(g == g->m->g0) {
++		s = mheap_alloc(h, npage, sizeclass, large);
++	} else {
++		g->m->ptrarg[0] = h;
++		g->m->scalararg[0] = npage;
++		g->m->scalararg[1] = sizeclass;
++		g->m->scalararg[2] = large;
++		runtime·mcall(mheap_alloc_m);
++		s = g->m->ptrarg[0];
++		g->m->ptrarg[0] = nil;
++	}
+ 	if(s != nil) {
+ 		if(needzero && s->needzero)
+ 			runtime·memclr((byte*)(s->start<<PageShift), s->npages<<PageShift);
+@@ -197,18 +252,34 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool
+ 	return s;
+ }
+ 
++MSpan*
++runtime·MHeap_AllocStack(MHeap *h, uintptr npage)
++{
++	MSpan *s;
++
++	if(g != g->m->g0)
++		runtime·throw("mheap_allocstack not on M stack");
++	runtime·lock(h);
++	s = MHeap_AllocSpanLocked(h, npage);
++	if(s != nil) {
++		s->state = MSpanStack;
++		s->ref = 0;
++		mstats.stacks_inuse += s->npages<<PageShift;
++	}
++	runtime·unlock(h);
++	return s;
++}
++
++// Allocates a span of the given size.  h must be locked.
++// The returned span has been removed from the
++// free list, but its state is still MSpanFree.
+ static MSpan*
+-MHeap_AllocLocked(MHeap *h, uintptr npage, int32 sizeclass)
++MHeap_AllocSpanLocked(MHeap *h, uintptr npage)
+ {
+ 	uintptr n;
+ 	MSpan *s, *t;
+ 	PageID p;
+ 
+-	// To prevent excessive heap growth, before allocating n pages
+-	// we need to sweep and reclaim at least n pages.
+-	if(!h->sweepdone)
+-		MHeap_Reclaim(h, npage);
+-
+ 	// Try in fixed-size lists up to max.
+ 	for(n=npage; n < nelem(h->free); n++) {
+ 		if(!runtime·MSpanList_IsEmpty(&h->free[n])) {
+@@ -232,13 +303,13 @@ HaveSpan:
+ 	if(s->npages < npage)
+ 		runtime·throw("MHeap_AllocLocked - bad npages");
+ 	runtime·MSpanList_Remove(s);
+-	runtime·atomicstore(&s->sweepgen, h->sweepgen);
+-	s->state = MSpanInUse;
+-	mstats.heap_idle -= s->npages<<PageShift;
+-	mstats.heap_released -= s->npreleased<<PageShift;
+-	if(s->npreleased > 0)
++	if(s->next != nil || s->prev != nil)
++		runtime·throw("still in list");
++	if(s->npreleased > 0) {
+ 		runtime·SysUsed((void*)(s->start<<PageShift), s->npages<<PageShift);
+-	s->npreleased = 0;
++		mstats.heap_released -= s->npreleased<<PageShift;
++		s->npreleased = 0;
++	}
+ 
+ 	if(s->npages > npage) {
+ 		// Trim extra and put it back in the heap.
+@@ -252,22 +323,25 @@ HaveSpan:
+ 		h->spans[p] = t;
+ 		h->spans[p+t->npages-1] = t;
+ 		t->needzero = s->needzero;
+-		runtime·atomicstore(&t->sweepgen, h->sweepgen);
+-		t->state = MSpanInUse;
+-		MHeap_FreeLocked(h, t);
+-		t->unusedsince = s->unusedsince; // preserve age
++		s->state = MSpanStack; // prevent coalescing with s
++		t->state = MSpanStack;
++		MHeap_FreeSpanLocked(h, t);
++		t->unusedsince = s->unusedsince; // preserve age (TODO: wrong: t is possibly merged and/or deallocated at this point)
++		s->state = MSpanFree;
+ 	}
+ 	s->unusedsince = 0;
+ 
+-	// Record span info, because gc needs to be
+-	// able to map interior pointer to containing span.
+-	s->sizeclass = sizeclass;
+-	s->elemsize = (sizeclass==0 ? s->npages<<PageShift : runtime·class_to_size[sizeclass]);
+-	s->types.compression = MTypes_Empty;
+ 	p = s->start;
+ 	p -= ((uintptr)h->arena_start>>PageShift);
+ 	for(n=0; n<npage; n++)
+ 		h->spans[p+n] = s;
++
++	mstats.heap_inuse += npage<<PageShift;
++	mstats.heap_idle -= npage<<PageShift;
++
++	//runtime·printf("spanalloc %p\n", s->start << PageShift);
++	if(s->next != nil || s->prev != nil)
++		runtime·throw("still in list");
+ 	return s;
+ }
+ 
+@@ -338,7 +412,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 	h->spans[p + s->npages - 1] = s;
+ 	runtime·atomicstore(&s->sweepgen, h->sweepgen);
+ 	s->state = MSpanInUse;
+-	MHeap_FreeLocked(h, s);
++	MHeap_FreeSpanLocked(h, s);
+ 	return true;
+ }
+ 
+@@ -380,34 +454,83 @@ runtime·MHeap_LookupMaybe(MHeap *h, void *v)
+ }
+ 
+ // Free the span back into the heap.
+-void
+-runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
++static void
++mheap_free(MHeap *h, MSpan *s, int32 acct)
+ {
++	if(g != g->m->g0)
++		runtime·throw("mheap_free not on M stack");
+ 	runtime·lock(h);
+ 	mstats.heap_alloc += g->m->mcache->local_cachealloc;
+ 	g->m->mcache->local_cachealloc = 0;
+-	mstats.heap_inuse -= s->npages<<PageShift;
+ 	if(acct) {
+ 		mstats.heap_alloc -= s->npages<<PageShift;
+ 		mstats.heap_objects--;
+ 	}
+-	MHeap_FreeLocked(h, s);
++	s->types.compression = MTypes_Empty;
++	MHeap_FreeSpanLocked(h, s);
+ 	runtime·unlock(h);
+ }
+ 
+ static void
+-MHeap_FreeLocked(MHeap *h, MSpan *s)
++mheap_free_m(G *gp)
++{
++	MHeap *h;
++	MSpan *s;
++	
++	h = g->m->ptrarg[0];
++	s = g->m->ptrarg[1];
++	g->m->ptrarg[0] = nil;
++	g->m->ptrarg[1] = nil;
++	mheap_free(h, s, g->m->scalararg[0]);
++	runtime·gogo(&gp->sched);
++}
++
++void
++runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
++{
++	if(g == g->m->g0) {
++		mheap_free(h, s, acct);
++	} else {
++		g->m->ptrarg[0] = h;
++		g->m->ptrarg[1] = s;
++		g->m->scalararg[0] = acct;
++		runtime·mcall(mheap_free_m);
++	}
++}
++
++void
++runtime·MHeap_FreeStack(MHeap *h, MSpan *s)
++{
++	if(g != g->m->g0)
++		runtime·throw("mheap_freestack not on M stack");
++	s->needzero = 1;
++	runtime·lock(h);
++	MHeap_FreeSpanLocked(h, s);
++	mstats.stacks_inuse -= s->npages<<PageShift;
++	runtime·unlock(h);
++}
++
++static void
++MHeap_FreeSpanLocked(MHeap *h, MSpan *s)
+ {
+ 	MSpan *t;
+ 	PageID p;
+ 
+-	s->types.compression = MTypes_Empty;
+-
+-	if(s->state != MSpanInUse || s->ref != 0 || s->sweepgen != h->sweepgen) {
+-		runtime·printf("MHeap_FreeLocked - span %p ptr %p state %d ref %d sweepgen %d/%d\n",
+-			s, s->start<<PageShift, s->state, s->ref, s->sweepgen, h->sweepgen);
+-		runtime·throw("MHeap_FreeLocked - invalid free");
++	switch(s->state) {
++	case MSpanStack:
++		break;
++	case MSpanInUse:
++		if(s->ref != 0 || s->sweepgen != h->sweepgen) {
++			runtime·printf("MHeap_FreeSpanLocked - span %p ptr %p ref %d sweepgen %d/%d\n",
++				       s, s->start<<PageShift, s->ref, s->sweepgen, h->sweepgen);
++			runtime·throw("MHeap_FreeSpanLocked - invalid free");
++		}
++		break;
++	default:
++		runtime·throw("MHeap_FreeSpanLocked - invalid span state");
++		break;
+ 	}
++	mstats.heap_inuse -= s->npages<<PageShift;
+ 	mstats.heap_idle += s->npages<<PageShift;
+ 	s->state = MSpanFree;
+ 	runtime·MSpanList_Remove(s);
+@@ -419,7 +542,7 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 	// Coalesce with earlier, later spans.
+ 	p = s->start;
+ 	p -= (uintptr)h->arena_start >> PageShift;
+-	if(p > 0 && (t = h->spans[p-1]) != nil && t->state != MSpanInUse) {
++	if(p > 0 && (t = h->spans[p-1]) != nil && t->state != MSpanInUse && t->state != MSpanStack) {
+ 		s->start = t->start;
+ 		s->npages += t->npages;
+ 		s->npreleased = t->npreleased; // absorb released pages
+@@ -430,7 +553,7 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 		t->state = MSpanDead;
+ 		runtime·FixAlloc_Free(&h->spanalloc, t);
+ 	}
+-	if((p+s->npages)*sizeof(h->spans[0]) < h->spans_mapped && (t = h->spans[p+s->npages]) != nil && t->state != MSpanInUse) {
++	if((p+s->npages)*sizeof(h->spans[0]) < h->spans_mapped && (t = h->spans[p+s->npages]) != nil && t->state != MSpanInUse && t->state != MSpanStack) {
+ 		s->npages += t->npages;
+ 		s->npreleased += t->npreleased;
+ 		s->needzero |= t->needzero;
+@@ -498,6 +621,15 @@ scavenge(int32 k, uint64 now, uint64 limit)
+ 	}
+ }
+ 
++static void
++scavenge_m(G *gp)
++{
++	runtime·lock(&runtime·mheap);
++	scavenge(g->m->scalararg[0], g->m->scalararg[1], g->m->scalararg[2]);
++	runtime·unlock(&runtime·mheap);
++	runtime·gogo(&gp->sched);
++}
++
+ static FuncVal forcegchelperv = {(void(*)(void))forcegchelper};
+ 
+ // Release (part of) unused memory to OS.
+@@ -507,7 +639,7 @@ void
+ runtime·MHeap_Scavenger(void)
+ {
+ 	MHeap *h;
+-	uint64 tick, now, forcegc, limit;
++	uint64 tick, forcegc, limit;
+ 	int64 unixnow;
+ 	int32 k;
+ 	Note note, *notep;
+@@ -546,9 +678,11 @@ runtime·MHeap_Scavenger(void)
+ 				runtime·printf("scvg%d: GC forced\n", k);
+ 			runtime·lock(h);
+ 		}
+-		now = runtime·nanotime();
+-		scavenge(k, now, limit);
+ 		runtime·unlock(h);
++		g->m->scalararg[0] = k;
++		g->m->scalararg[1] = runtime·nanotime();
++		g->m->scalararg[2] = limit;
++		runtime·mcall(scavenge_m);
+ 	}
+ }
+ 
+@@ -556,9 +690,11 @@ void
+ runtime∕debug·freeOSMemory(void)
+ {
+ 	runtime·gc(2);  // force GC and do eager sweep
+-	runtime·lock(&runtime·mheap);
+-	scavenge(-1, ~(uintptr)0, 0);
+-	runtime·unlock(&runtime·mheap);
++
++	g->m->scalararg[0] = -1;
++	g->m->scalararg[1] = ~(uintptr)0;
++	g->m->scalararg[2] = 0;
++	runtime·mcall(scavenge_m);
+ }
+ 
+ // Initialize a new span with the given start and npages.
+@@ -841,92 +977,3 @@ runtime·freeallspecials(MSpan *span, void *p, uintptr size)
+ 			runtime·throw("can't explicitly free an object with a finalizer");
+ 	}
+ }
+-
+-// Split an allocated span into two equal parts.
+-void
+-runtime·MHeap_SplitSpan(MHeap *h, MSpan *s)
+-{
+-	MSpan *t;
+-	MCentral *c;
+-	uintptr i;
+-	uintptr npages;
+-	PageID p;
+-
+-	if(s->state != MSpanInUse)
+-		runtime·throw("MHeap_SplitSpan on a free span");
+-	if(s->sizeclass != 0 && s->ref != 1)
+-		runtime·throw("MHeap_SplitSpan doesn't have an allocated object");
+-	npages = s->npages;
+-
+-	// remove the span from whatever list it is in now
+-	if(s->sizeclass > 0) {
+-		// must be in h->central[x].empty
+-		c = &h->central[s->sizeclass];
+-		runtime·lock(c);
+-		runtime·MSpanList_Remove(s);
+-		runtime·unlock(c);
+-		runtime·lock(h);
+-	} else {
+-		// must be in h->busy/busylarge
+-		runtime·lock(h);
+-		runtime·MSpanList_Remove(s);
+-	}
+-	// heap is locked now
+-
+-	if(npages == 1) {
+-		// convert span of 1 PageSize object to a span of 2 PageSize/2 objects.
+-		s->ref = 2;
+-		s->sizeclass = runtime·SizeToClass(PageSize/2);
+-		s->elemsize = PageSize/2;
+-	} else {
+-		// convert span of n>1 pages into two spans of n/2 pages each.
+-		if((s->npages & 1) != 0)
+-			runtime·throw("MHeap_SplitSpan on an odd size span");
+-
+-		// compute position in h->spans
+-		p = s->start;
+-		p -= (uintptr)h->arena_start >> PageShift;
+-
+-		// Allocate a new span for the first half.
+-		t = runtime·FixAlloc_Alloc(&h->spanalloc);
+-		runtime·MSpan_Init(t, s->start, npages/2);
+-		t->limit = (byte*)((t->start + npages/2) << PageShift);
+-		t->state = MSpanInUse;
+-		t->elemsize = npages << (PageShift - 1);
+-		t->sweepgen = s->sweepgen;
+-		if(t->elemsize <= MaxSmallSize) {
+-			t->sizeclass = runtime·SizeToClass(t->elemsize);
+-			t->ref = 1;
+-		}
+-
+-		// the old span holds the second half.
+-		s->start += npages/2;
+-		s->npages = npages/2;
+-		s->elemsize = npages << (PageShift - 1);
+-		if(s->elemsize <= MaxSmallSize) {
+-			s->sizeclass = runtime·SizeToClass(s->elemsize);
+-			s->ref = 1;
+-		}
+-
+-		// update span lookup table
+-		for(i = p; i < p + npages/2; i++)
+-			h->spans[i] = t;
+-	}
+-
+-	// place the span into a new list
+-	if(s->sizeclass > 0) {
+-		runtime·unlock(h);
+-		c = &h->central[s->sizeclass];
+-		runtime·lock(c);
+-		// swept spans are at the end of the list
+-		runtime·MSpanList_InsertBack(&c->empty, s);
+-		runtime·unlock(c);
+-	} else {
+-		// Swept spans are at the end of lists.
+-		if(s->npages < nelem(h->free))
+-			runtime·MSpanList_InsertBack(&h->busy[s->npages], s);
+-		else
+-			runtime·MSpanList_InsertBack(&h->busylarge, s);
+-		runtime·unlock(h);
+-	}
+-}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 04808f2c50..ccaddee2eb 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -152,6 +152,7 @@ runtime·schedinit(void)
+ 	runtime·precisestack = true; // haveexperiment("precisestack");
+ 
+ 	runtime·symtabinit();
++	runtime·stackinit();
+ 	runtime·mallocinit();
+ 	mcommoninit(g->m);
+ 	
+@@ -1926,7 +1927,7 @@ gfput(P *p, G *gp)
+ 		runtime·throw("gfput: bad stacksize");
+ 	}
+ 	top = (Stktop*)gp->stackbase;
+-	if(top->malloced) {
++	if(stksize != FixedStack) {
+ 		// non-standard stack size - free it.
+ 		runtime·stackfree(gp, (void*)gp->stack0, top);
+ 		gp->stack0 = 0;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 0f630abbf2..4350f280d7 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -146,13 +146,6 @@ enum
+ {
+ 	PtrSize = sizeof(void*),
+ };
+-enum
+-{
+-	// Per-M stack segment cache size.
+-	StackCacheSize = 32,
+-	// Global <-> per-M stack segment cache transfer batch size.
+-	StackCacheBatch = 16,
+-};
+ /*
+  * structures
+  */
+@@ -326,10 +319,6 @@ struct	M
+ 	M*	schedlink;
+ 	uint32	machport;	// Return address for Mach IPC (OS X)
+ 	MCache*	mcache;
+-	int32	stackinuse;
+-	uint32	stackcachepos;
+-	uint32	stackcachecnt;
+-	void*	stackcache[StackCacheSize];
+ 	G*	lockedg;
+ 	uintptr	createstack[32];// Stack that created this thread.
+ 	uint32	freglo[16];	// D[i] lsb and F[i]
+@@ -346,6 +335,8 @@ struct	M
+ 	bool	(*waitunlockf)(G*, void*);
+ 	void*	waitlock;
+ 	uintptr	forkstackguard;
++	uintptr scalararg[4];	// scalar argument/return for mcall
++	void*   ptrarg[4];	// pointer argument/return for mcall
+ #ifdef GOOS_windows
+ 	void*	thread;		// thread handle
+ 	// these are here because they are too large to be on the stack
+@@ -428,7 +419,6 @@ struct	Stktop
+ 
+ 	uint8*	argp;	// pointer to arguments in old frame
+ 	bool	panic;	// is this frame the top of a panic?
+-	bool	malloced;
+ };
+ struct	SigTab
+ {
+@@ -866,6 +856,7 @@ int32	runtime·funcarglen(Func*, uintptr);
+ int32	runtime·funcspdelta(Func*, uintptr);
+ int8*	runtime·funcname(Func*);
+ int32	runtime·pcdatavalue(Func*, int32, uintptr);
++void	runtime·stackinit(void);
+ void*	runtime·stackalloc(G*, uint32);
+ void	runtime·stackfree(G*, void*, Stktop*);
+ void	runtime·shrinkstack(G*);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index a07042111e..96ba515c68 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -21,76 +21,163 @@ enum
+ 	StackDebug = 0,
+ 	StackFromSystem = 0,	// allocate stacks from system memory instead of the heap
+ 	StackFaultOnFree = 0,	// old stacks are mapped noaccess to detect use after free
++
++	StackCache = 1,
+ };
+ 
+-typedef struct StackCacheNode StackCacheNode;
+-struct StackCacheNode
++// Global pool of spans that have free stacks.
++// Stacks are assigned an order according to size.
++//     order = log_2(size/FixedStack)
++// There is a free list for each order.
++static MSpan stackpool[NumStackOrders];
++static Lock stackpoolmu;
++// TODO: one lock per order?
++
++void
++runtime·stackinit(void)
+ {
+-	StackCacheNode *next;
+-	void*	batch[StackCacheBatch-1];
+-};
++	int32 i;
++
++	for(i = 0; i < NumStackOrders; i++)
++		runtime·MSpanList_Init(&stackpool[i]);
++}
++
++// Allocates a stack from the free pool.  Must be called with
++// stackpoolmu held.
++static MLink*
++poolalloc(uint8 order)
++{
++	MSpan *list;
++	MSpan *s;
++	MLink *x;
++	uintptr i;
++
++	list = &stackpool[order];
++	s = list->next;
++	if(s == list) {
++		// no free stacks.  Allocate another span worth.
++		s = runtime·MHeap_AllocStack(&runtime·mheap, StackCacheSize >> PageShift);
++		if(s == nil)
++			runtime·throw("out of memory");
++		for(i = 0; i < StackCacheSize; i += FixedStack << order) {
++			x = (MLink*)((s->start << PageShift) + i);
++			x->next = s->freelist;
++			s->freelist = x;
++		}
++	}
++	x = s->freelist;
++	s->freelist = x->next;
++	s->ref--;
++	if(s->ref == 0) {
++		// all stacks in s are allocated.
++		runtime·MSpanList_Remove(s);
++	}
++	return x;
++}
++
++// Adds stack x to the free pool.  Must be called with stackpoolmu held.
++static void
++poolfree(MLink *x, uint8 order)
++{
++	MSpan *s;
+ 
+-static StackCacheNode *stackcache;
+-static Lock stackcachemu;
++	s = runtime·MHeap_Lookup(&runtime·mheap, x);
++	x->next = s->freelist;
++	s->freelist = x;
++	if(s->ref == 0) {
++		// s now has a free stack
++		runtime·MSpanList_Insert(&stackpool[order], s);
++	}
++	s->ref++;
++	if(s->ref == (StackCacheSize / FixedStack) >> order) {
++		// span is completely free - return to heap
++		runtime·MSpanList_Remove(s);
++		runtime·MHeap_FreeStack(&runtime·mheap, s);
++	}
++}
+ 
+-// stackcacherefill/stackcacherelease implement a global cache of stack segments.
+-// The cache is required to prevent unlimited growth of per-thread caches.
++// stackcacherefill/stackcacherelease implement a global pool of stack segments.
++// The pool is required to prevent unlimited growth of per-thread caches.
+ static void
+-stackcacherefill(void)
++stackcacherefill(MCache *c, uint8 order)
+ {
+-	StackCacheNode *n;
+-	int32 i, pos;
+-
+-	runtime·lock(&stackcachemu);
+-	n = stackcache;
+-	if(n)
+-		stackcache = n->next;
+-	runtime·unlock(&stackcachemu);
+-	if(n == nil) {
+-		n = (StackCacheNode*)runtime·SysAlloc(FixedStack*StackCacheBatch, &mstats.stacks_sys);
+-		if(n == nil)
+-			runtime·throw("out of memory (stackcacherefill)");
+-		for(i = 0; i < StackCacheBatch-1; i++)
+-			n->batch[i] = (byte*)n + (i+1)*FixedStack;
+-	}
+-	pos = g->m->stackcachepos;
+-	for(i = 0; i < StackCacheBatch-1; i++) {
+-		g->m->stackcache[pos] = n->batch[i];
+-		pos = (pos + 1) % StackCacheSize;
+-	}
+-	g->m->stackcache[pos] = n;
+-	pos = (pos + 1) % StackCacheSize;
+-	g->m->stackcachepos = pos;
+-	g->m->stackcachecnt += StackCacheBatch;
++	MLink *x, *list;
++	uintptr size;
++
++	if(StackDebug >= 1)
++		runtime·printf("stackcacherefill order=%d\n", order);
++
++	// Grab some stacks from the global cache.
++	// Grab half of the allowed capacity (to prevent thrashing).
++	list = nil;
++	size = 0;
++	runtime·lock(&stackpoolmu);
++	while(size < StackCacheSize/2) {
++		x = poolalloc(order);
++		x->next = list;
++		list = x;
++		size += FixedStack << order;
++	}
++	runtime·unlock(&stackpoolmu);
++
++	c->stackcache[order].list = list;
++	c->stackcache[order].size = size;
+ }
+ 
+ static void
+-stackcacherelease(void)
++stackcacherelease(MCache *c, uint8 order)
+ {
+-	StackCacheNode *n;
+-	uint32 i, pos;
+-
+-	pos = (g->m->stackcachepos - g->m->stackcachecnt) % StackCacheSize;
+-	n = (StackCacheNode*)g->m->stackcache[pos];
+-	pos = (pos + 1) % StackCacheSize;
+-	for(i = 0; i < StackCacheBatch-1; i++) {
+-		n->batch[i] = g->m->stackcache[pos];
+-		pos = (pos + 1) % StackCacheSize;
+-	}
+-	g->m->stackcachecnt -= StackCacheBatch;
+-	runtime·lock(&stackcachemu);
+-	n->next = stackcache;
+-	stackcache = n;
+-	runtime·unlock(&stackcachemu);
++	MLink *x, *y;
++	uintptr size;
++
++	if(StackDebug >= 1)
++		runtime·printf("stackcacherelease order=%d\n", order);
++	x = c->stackcache[order].list;
++	size = c->stackcache[order].size;
++	runtime·lock(&stackpoolmu);
++	while(size > StackCacheSize/2) {
++		y = x->next;
++		poolfree(x, order);
++		x = y;
++		size -= FixedStack << order;
++	}
++	runtime·unlock(&stackpoolmu);
++	c->stackcache[order].list = x;
++	c->stackcache[order].size = size;
++}
++
++void
++runtime·stackcache_clear(MCache *c)
++{
++	uint8 order;
++	MLink *x, *y;
++
++	if(StackDebug >= 1)
++		runtime·printf("stackcache clear\n");
++	runtime·lock(&stackpoolmu);
++	for(order = 0; order < NumStackOrders; order++) {
++		x = c->stackcache[order].list;
++		while(x != nil) {
++			y = x->next;
++			poolfree(x, order);
++			x = y;
++		}
++		c->stackcache[order].list = nil;
++		c->stackcache[order].size = 0;
++	}
++	runtime·unlock(&stackpoolmu);
+ }
+ 
+ void*
+ runtime·stackalloc(G *gp, uint32 n)
+ {
+-	uint32 pos;
++	uint8 order;
++	uint32 n2;
+ 	void *v;
+-	bool malloced;
+ 	Stktop *top;
++	MLink *x;
++	MSpan *s;
++	MCache *c;
+ 
+ 	// Stackalloc must be called on scheduler stack, so that we
+ 	// never try to grow the stack during the code that stackalloc runs.
+@@ -110,41 +197,58 @@ runtime·stackalloc(G *gp, uint32 n)
+ 		return v;
+ 	}
+ 
+-	// Minimum-sized stacks are allocated with a fixed-size free-list allocator,
+-	// but if we need a stack of a bigger size, we fall back on malloc
+-	// (assuming that inside malloc all the stack frames are small,
+-	// so that we do not deadlock).
+-	malloced = true;
+-	if(n == FixedStack || g->m->mallocing) {
+-		if(n != FixedStack) {
+-			runtime·printf("stackalloc: in malloc, size=%d want %d\n", FixedStack, n);
+-			runtime·throw("stackalloc");
++	// Small stacks are allocated with a fixed-size free-list allocator.
++	// If we need a stack of a bigger size, we fall back on allocating
++	// a dedicated span.
++	if(StackCache && n < FixedStack << NumStackOrders) {
++		order = 0;
++		n2 = n;
++		while(n2 > FixedStack) {
++			order++;
++			n2 >>= 1;
+ 		}
+-		if(g->m->stackcachecnt == 0)
+-			stackcacherefill();
+-		pos = g->m->stackcachepos;
+-		pos = (pos - 1) % StackCacheSize;
+-		v = g->m->stackcache[pos];
+-		g->m->stackcachepos = pos;
+-		g->m->stackcachecnt--;
+-		g->m->stackinuse++;
+-		malloced = false;
+-	} else
+-		v = runtime·mallocgc(n, 0, FlagNoProfiling|FlagNoGC|FlagNoZero|FlagNoInvokeGC);
+-
++		c = g->m->mcache;
++		if(c == nil) {
++			// This can happen in the guts of exitsyscall or
++			// procresize. Just get a stack from the global pool.
++			runtime·lock(&stackpoolmu);
++			x = poolalloc(order);
++			runtime·unlock(&stackpoolmu);
++		} else {
++			x = c->stackcache[order].list;
++			if(x == nil) {
++				stackcacherefill(c, order);
++				x = c->stackcache[order].list;
++			}
++			c->stackcache[order].list = x->next;
++			c->stackcache[order].size -= n;
++		}
++		v = (byte*)x;
++	} else {
++		s = runtime·MHeap_AllocStack(&runtime·mheap, (n+PageSize-1) >> PageShift);
++		if(s == nil)
++			runtime·throw("out of memory");
++		v = (byte*)(s->start<<PageShift);
++	}
+ 	top = (Stktop*)((byte*)v+n-sizeof(Stktop));
+ 	runtime·memclr((byte*)top, sizeof(*top));
+-	top->malloced = malloced;
++	if(StackDebug >= 1)
++		runtime·printf("  allocated %p\n", v);
+ 	return v;
+ }
+ 
+ void
+ runtime·stackfree(G *gp, void *v, Stktop *top)
+ {
+-	uint32 pos;
+-	uintptr n;
++	uint8 order;
++	uintptr n, n2;
++	MSpan *s;
++	MLink *x;
++	MCache *c;
+ 
+ 	n = (uintptr)(top+1) - (uintptr)v;
++	if(n & (n-1))
++		runtime·throw("stack not a power of 2");
+ 	if(StackDebug >= 1)
+ 		runtime·printf("stackfree %p %d\n", v, (int32)n);
+ 	gp->stacksize -= n;
+@@ -155,19 +259,34 @@ runtime·stackfree(G *gp, void *v, Stktop *top)
+ 			runtime·SysFree(v, n, &mstats.stacks_sys);
+ 		return;
+ 	}
+-	if(top->malloced) {
+-		runtime·free(v);
+-		return;
++	if(StackCache && n < FixedStack << NumStackOrders) {
++		order = 0;
++		n2 = n;
++		while(n2 > FixedStack) {
++			order++;
++			n2 >>= 1;
++		}
++		x = (MLink*)v;
++		c = g->m->mcache;
++		if(c == nil) {
++			runtime·lock(&stackpoolmu);
++			poolfree(x, order);
++			runtime·unlock(&stackpoolmu);
++		} else {
++			if(c->stackcache[order].size >= StackCacheSize)
++				stackcacherelease(c, order);
++			x->next = c->stackcache[order].list;
++			c->stackcache[order].list = x;
++			c->stackcache[order].size += n;
++		}
++	} else {
++		s = runtime·MHeap_Lookup(&runtime·mheap, v);
++		if(s->state != MSpanStack) {
++			runtime·printf("%p %p\n", s->start<<PageShift, v);
++			runtime·throw("bad span state");
++		}
++		runtime·MHeap_FreeStack(&runtime·mheap, s);
+ 	}
+-	if(n != FixedStack)
+-		runtime·throw("stackfree: bad fixed size");
+-	if(g->m->stackcachecnt == StackCacheSize)
+-		stackcacherelease();
+-	pos = g->m->stackcachepos;
+-	g->m->stackcache[pos] = v;
+-	g->m->stackcachepos = (pos + 1) % StackCacheSize;
+-	g->m->stackcachecnt++;
+-	g->m->stackinuse--;
+ }
+ 
+ // Called from runtime·lessstack when returning from a function which
+@@ -599,7 +718,6 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	uintptr oldsize, used;
+ 	AdjustInfo adjinfo;
+ 	Stktop *oldtop, *newtop;
+-	bool malloced;
+ 
+ 	if(gp->syscallstack != 0)
+ 		runtime·throw("can't handle stack copy in syscall yet");
+@@ -613,10 +731,9 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	newstk = runtime·stackalloc(gp, newsize);
+ 	newbase = newstk + newsize;
+ 	newtop = (Stktop*)(newbase - sizeof(Stktop));
+-	malloced = newtop->malloced;
+ 
+ 	if(StackDebug >= 1)
+-		runtime·printf("copystack [%p %p]/%d -> [%p %p]/%d\n", oldstk, oldbase, (int32)oldsize, newstk, newbase, (int32)newsize);
++		runtime·printf("copystack gp=%p [%p %p]/%d -> [%p %p]/%d\n", gp, oldstk, oldbase, (int32)oldsize, newstk, newbase, (int32)newsize);
+ 	USED(oldsize);
+ 	
+ 	// adjust pointers in the to-be-copied frames
+@@ -631,7 +748,6 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	
+ 	// copy the stack (including Stktop) to the new location
+ 	runtime·memmove(newbase - used, oldbase - used, used);
+-	newtop->malloced = malloced;
+ 	
+ 	// Swap out old stack for new one
+ 	gp->stackbase = (uintptr)newtop;
+@@ -792,7 +908,7 @@ runtime·newstack(void)
+ 	top = (Stktop*)(stk+framesize-sizeof(*top));
+ 
+ 	if(StackDebug >= 1) {
+-		runtime·printf("\t-> new stack [%p, %p]\n", stk, top);
++		runtime·printf("\t-> new stack gp=%p [%p, %p]\n", gp, stk, top);
+ 	}
+ 
+ 	top->stackbase = gp->stackbase;
+@@ -881,7 +997,6 @@ runtime·shrinkstack(G *gp)
+ 	int32 nframes;
+ 	byte *oldstk, *oldbase;
+ 	uintptr used, oldsize, newsize;
+-	MSpan *span;
+ 
+ 	if(!runtime·copystack)
+ 		return;
+@@ -895,53 +1010,14 @@ runtime·shrinkstack(G *gp)
+ 	if(used >= oldsize / 4)
+ 		return; // still using at least 1/4 of the segment.
+ 
+-	// To shrink to less than 1/2 a page, we need to copy.
+-	if(newsize < PageSize/2) {
+-		if(gp->syscallstack != (uintptr)nil) // TODO: can we handle this case?
+-			return;
++	if(gp->syscallstack != (uintptr)nil) // TODO: can we handle this case?
++		return;
+ #ifdef GOOS_windows
+-		if(gp->m != nil && gp->m->libcallsp != 0)
+-			return;
+-#endif
+-		nframes = copyabletopsegment(gp);
+-		if(nframes == -1)
+-			return;
+-		copystack(gp, nframes, newsize);
++	if(gp->m != nil && gp->m->libcallsp != 0)
+ 		return;
+-	}
+-
+-	// To shrink a stack of one page size or more, we can shrink it
+-	// without copying.  Just deallocate the lower half.
+-	span = runtime·MHeap_LookupMaybe(&runtime·mheap, oldstk);
+-	if(span == nil)
+-		return; // stack allocated outside heap.  Can't shrink it.  Can happen if stack is allocated while inside malloc.  TODO: shrink by copying?
+-	if(span->elemsize != oldsize)
+-		runtime·throw("span element size doesn't match stack size");
+-	if((uintptr)oldstk != span->start << PageShift)
+-		runtime·throw("stack not at start of span");
+-
+-	if(StackDebug)
+-		runtime·printf("shrinking stack in place %p %X->%X\n", oldstk, oldsize, newsize);
+-
+-	// new stack guard for smaller stack
+-	gp->stackguard = (uintptr)oldstk + newsize + StackGuard;
+-	gp->stackguard0 = (uintptr)oldstk + newsize + StackGuard;
+-	if(gp->stack0 == (uintptr)oldstk)
+-		gp->stack0 = (uintptr)oldstk + newsize;
+-	gp->stacksize -= oldsize - newsize;
+-
+-	// Free bottom half of the stack.
+-	if(runtime·debug.efence || StackFromSystem) {
+-		if(runtime·debug.efence || StackFaultOnFree)
+-			runtime·SysFault(oldstk, newsize);
+-		else
+-			runtime·SysFree(oldstk, newsize, &mstats.stacks_sys);
++#endif
++	nframes = copyabletopsegment(gp);
++	if(nframes == -1)
+ 		return;
+-	}
+-	// First, we trick malloc into thinking
+-	// we allocated the stack as two separate half-size allocs.  Then the
+-	// free() call does the rest of the work for us.
+-	runtime·MSpan_EnsureSwept(span);
+-	runtime·MHeap_SplitSpan(&runtime·mheap, span);
+-	runtime·free(oldstk);
++	copystack(gp, nframes, newsize);
+ }
+diff --git a/src/pkg/runtime/stack_test.go b/src/pkg/runtime/stack_test.go
+index f0c599ac5d..424a15b3e5 100644
+--- a/src/pkg/runtime/stack_test.go
++++ b/src/pkg/runtime/stack_test.go
+@@ -281,3 +281,52 @@ func TestDeferPtrs(t *testing.T) {
+ 	defer set(&y, 42)
+ 	growStack()
+ }
++
++// use about n KB of stack
++func useStack(n int) {
++	if n == 0 {
++		return
++	}
++	var b [1024]byte // makes frame about 1KB
++	useStack(n - 1 + int(b[99]))
++}
++
++func growing(c chan int, done chan struct{}) {
++	for n := range c {
++		useStack(n)
++		done <- struct{}{}
++	}
++	done <- struct{}{}
++}
++
++func TestStackCache(t *testing.T) {
++	// Allocate a bunch of goroutines and grow their stacks.
++	// Repeat a few times to test the stack cache.
++	const (
++		R = 4
++		G = 200
++		S = 5
++	)
++	for i := 0; i < R; i++ {
++		var reqchans [G]chan int
++		done := make(chan struct{})
++		for j := 0; j < G; j++ {
++			reqchans[j] = make(chan int)
++			go growing(reqchans[j], done)
++		}
++		for s := 0; s < S; s++ {
++			for j := 0; j < G; j++ {
++				reqchans[j] <- 1 << uint(s)
++			}
++			for j := 0; j < G; j++ {
++				<-done
++			}
++		}
++		for j := 0; j < G; j++ {
++			close(reqchans[j])
++		}
++		for j := 0; j < G; j++ {
++			<-done
++		}
++	}
++}

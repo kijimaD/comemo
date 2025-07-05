@@ -20,6 +20,19 @@ Date:   Fri Jun 9 15:46:08 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_arm.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 803cf8d4bf..87f9378247 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -941,6 +941,7 @@ TEXT runtime·procyield(SB),NOSPLIT,$-4
+ 	MOVW	cycles+0(FP), R1
+ 	MOVW	$0, R0
+ yieldloop:
++	WORD	$0xe320f001	// YIELD (NOP pre-ARMv6K)
+ 	CMP	R0, R1
+ 	B.NE	2(PC)
+ 	RET

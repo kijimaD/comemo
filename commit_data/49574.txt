@@ -15,6 +15,31 @@ Date:   Fri Aug 27 22:53:48 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/types/type.go | 13 -------------
  1 file changed, 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 60bb7b46fa..c510a705f2 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1680,19 +1680,6 @@ func (t *Type) HasPointers() bool {
+ 	return PtrDataSize(t) > 0
+ }
+ 
+-// Tie returns 'T' if t is a concrete type,
+-// 'I' if t is an interface type, and 'E' if t is an empty interface type.
+-// It is used to build calls to the conv* and assert* runtime routines.
+-func (t *Type) Tie() byte {
+-	if t.IsEmptyInterface() {
+-		return 'E'
+-	}
+-	if t.IsInterface() {
+-		return 'I'
+-	}
+-	return 'T'
+-}
+-
+ var recvType *Type
+ 
+ // FakeRecvType returns the singleton type used for interface method receivers.

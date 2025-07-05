@@ -10,6 +10,22 @@ Date:   Tue Jan 21 00:24:28 2025 +0330
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/url/url.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 8a8de1c6a8..3acde9fb0f 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -67,8 +67,9 @@ func unhex(c byte) byte {
+ 		return c - 'a' + 10
+ 	case 'A' <= c && c <= 'F':
+ 		return c - 'A' + 10
++	default:
++		panic("invalid hex character")
+ 	}
+-	return 0
+ }
+ 
+ type encoding int

@@ -19,8 +19,120 @@ Date:   Thu Apr 16 21:25:15 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/subr.go   |  2 +-
  src/cmd/compile/internal/gc/syntax.go | 28 ++++++++++++++++++++++++++--
  src/cmd/compile/internal/gc/walk.go   | 10 +++++-----
  3 files changed, 32 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index ff0fffb9bd..2bbc5e4ae1 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1913,10 +1913,10 @@ func ifaceData(pos src.XPos, n *Node, t *types.Type) *Node {
+ 		return ptr
+ 	}
+ 	ptr.Type = types.NewPtr(t)
+-	ptr.SetBounded(true)
+ 	ptr.SetTypecheck(1)
+ 	ind := nodl(pos, ODEREF, ptr, nil)
+ 	ind.Type = t
+ 	ind.SetTypecheck(1)
++	ind.SetBounded(true)
+ 	return ind
+ }
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index b7e20c5535..fe2d097e09 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -188,15 +188,39 @@ func (n *Node) SetImplicit(b bool)  { n.flags.set(nodeImplicit, b) }
+ func (n *Node) SetIsDDD(b bool)     { n.flags.set(nodeIsDDD, b) }
+ func (n *Node) SetDiag(b bool)      { n.flags.set(nodeDiag, b) }
+ func (n *Node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
+-func (n *Node) SetNonNil(b bool)    { n.flags.set(nodeNonNil, b) }
+ func (n *Node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
+-func (n *Node) SetBounded(b bool)   { n.flags.set(nodeBounded, b) }
+ func (n *Node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
+ func (n *Node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
+ func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
+ func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
+ func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
+ 
++// MarkNonNil marks a pointer n as being guaranteed non-nil,
++// on all code paths, at all times.
++// During conversion to SSA, non-nil pointers won't have nil checks
++// inserted before dereferencing. See state.exprPtr.
++func (n *Node) MarkNonNil() {
++	if !n.Type.IsPtr() && !n.Type.IsUnsafePtr() {
++		Fatalf("MarkNonNil(%v), type %v", n, n.Type)
++	}
++	n.flags.set(nodeNonNil, true)
++}
++
++// SetBounded indicates whether operation n does not need safety checks.
++// When n is an index or slice operation, n does not need bounds checks.
++// When n is a dereferencing operation, n does not need nil checks.
++func (n *Node) SetBounded(b bool) {
++	switch n.Op {
++	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
++		// No bounds checks needed.
++	case ODOTPTR, ODEREF:
++		// No nil check needed.
++	default:
++		Fatalf("SetBounded(%v)", n)
++	}
++	n.flags.set(nodeBounded, b)
++}
++
+ // MarkReadonly indicates that n is an ONAME with readonly contents.
+ func (n *Node) MarkReadonly() {
+ 	if n.Op != ONAME {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 3a2a97373d..66f4eaf40b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -457,7 +457,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
+ 		nn := nod(ODEREF, n.Name.Param.Heapaddr, nil)
+ 		nn = typecheck(nn, ctxExpr)
+ 		nn = walkexpr(nn, init)
+-		nn.Left.SetNonNil(true)
++		nn.Left.MarkNonNil()
+ 		return nn
+ 	}
+ 
+@@ -762,7 +762,7 @@ opswitch:
+ 		if !a.isBlank() {
+ 			var_ := temp(types.NewPtr(t.Elem()))
+ 			var_.SetTypecheck(1)
+-			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
++			var_.MarkNonNil() // mapaccess always returns a non-nil pointer
+ 			n.List.SetFirst(var_)
+ 			n = walkexpr(n, init)
+ 			init.Append(n)
+@@ -1103,7 +1103,7 @@ opswitch:
+ 			}
+ 		}
+ 		n.Type = types.NewPtr(t.Elem())
+-		n.SetNonNil(true) // mapaccess1* and mapassign always return non-nil pointers.
++		n.MarkNonNil() // mapaccess1* and mapassign always return non-nil pointers.
+ 		n = nod(ODEREF, n, nil)
+ 		n.Type = t.Elem()
+ 		n.SetTypecheck(1)
+@@ -1382,7 +1382,7 @@ opswitch:
+ 
+ 			fn := syslook(fnname)
+ 			m.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
+-			m.Left.SetNonNil(true)
++			m.Left.MarkNonNil()
+ 			m.List.Set2(conv(len, types.Types[TINT]), conv(cap, types.Types[TINT]))
+ 
+ 			m = typecheck(m, ctxExpr)
+@@ -1952,7 +1952,7 @@ func callnew(t *types.Type) *Node {
+ 	n := nod(ONEWOBJ, typename(t), nil)
+ 	n.Type = types.NewPtr(t)
+ 	n.SetTypecheck(1)
+-	n.SetNonNil(true)
++	n.MarkNonNil()
+ 	return n
+ }
+ 

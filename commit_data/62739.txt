@@ -12,9 +12,114 @@ Date:   Thu Apr 3 23:10:16 2025 +0800
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Auto-Submit: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  api/next/63796.txt                       |  1 +
  doc/next/6-stdlib/99-minor/sync/63769.md |  2 ++
  src/sync/waitgroup.go                    | 47 ++++++++++++++++++++++++++++++--
  src/sync/waitgroup_test.go               | 12 ++++++++
  4 files changed, 60 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/63796.txt b/api/next/63796.txt
+new file mode 100644
+index 0000000000..624ee9db3b
+--- /dev/null
++++ b/api/next/63796.txt
+@@ -0,0 +1 @@
++pkg sync, method (*WaitGroup) Go(func()) #63769
+diff --git a/doc/next/6-stdlib/99-minor/sync/63769.md b/doc/next/6-stdlib/99-minor/sync/63769.md
+new file mode 100644
+index 0000000000..60d91a949a
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/sync/63769.md
+@@ -0,0 +1,2 @@
++[WaitGroup] has added a new method [WaitGroup.Go],
++that makes the common pattern of creating and counting goroutines more convenient.
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index b50ecd94d3..8511f948ef 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -10,12 +10,35 @@ import (
+ 	"unsafe"
+ )
+ 
+-// A WaitGroup waits for a collection of goroutines to finish.
+-// The main goroutine calls [WaitGroup.Add] to set the number of
++// A WaitGroup is a counting semaphore typically used to wait
++// for a group of goroutines to finish.
++//
++// The main goroutine calls [WaitGroup.Add] to set (or increase) the number of
+ // goroutines to wait for. Then each of the goroutines
+ // runs and calls [WaitGroup.Done] when finished. At the same time,
+ // [WaitGroup.Wait] can be used to block until all goroutines have finished.
+ //
++// This is a typical pattern of WaitGroup usage to
++// synchronize 3 goroutines, each calling the function f:
++//
++//	var wg sync.WaitGroup
++//	for range 3 {
++//	   wg.Add(1)
++//	   go func() {
++//	       defer wg.Done()
++//	       f()
++//	   }()
++//	}
++//	wg.Wait()
++//
++// For convenience, the [WaitGroup.Go] method simplifies this pattern to:
++//
++//	var wg sync.WaitGroup
++//	for range 3 {
++//	   wg.Go(f)
++//	}
++//	wg.Wait()
++//
+ // A WaitGroup must not be copied after first use.
+ //
+ // In the terminology of [the Go memory model], a call to [WaitGroup.Done]
+@@ -127,3 +150,23 @@ func (wg *WaitGroup) Wait() {
+ 		}
+ 	}
+ }
++
++// Go calls f in a new goroutine and adds that task to the WaitGroup.
++// When f returns, the task is removed from the WaitGroup.
++//
++// If the WaitGroup is empty, Go must happen before a [WaitGroup.Wait].
++// Typically, this simply means Go is called to start tasks before Wait is called.
++// If the WaitGroup is not empty, Go may happen at any time.
++// This means a goroutine started by Go may itself call Go.
++// If a WaitGroup is reused to wait for several independent sets of tasks,
++// new Go calls must happen after all previous Wait calls have returned.
++//
++// In the terminology of [the Go memory model](https://go.dev/ref/mem),
++// the return from f "synchronizes before" the return of any Wait call that it unblocks.
++func (wg *WaitGroup) Go(f func()) {
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		f()
++	}()
++}
+diff --git a/src/sync/waitgroup_test.go b/src/sync/waitgroup_test.go
+index 4ded218d2d..8a948f8972 100644
+--- a/src/sync/waitgroup_test.go
++++ b/src/sync/waitgroup_test.go
+@@ -98,6 +98,18 @@ func TestWaitGroupAlign(t *testing.T) {
+ 	x.wg.Wait()
+ }
+ 
++func TestWaitGroupGo(t *testing.T) {
++	wg := &WaitGroup{}
++	var i int
++	wg.Go(func() {
++		i++
++	})
++	wg.Wait()
++	if i != 1 {
++		t.Fatalf("got %d, want 1", i)
++	}
++}
++
+ func BenchmarkWaitGroupUncontended(b *testing.B) {
+ 	type PaddedWaitGroup struct {
+ 		WaitGroup

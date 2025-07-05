@@ -9,7 +9,7 @@ Date:   Tue Oct 6 11:42:55 2009 -0700
     DELTA=456  (77 added, 3 deleted, 376 changed)
     OCL=35378
     CL=35383
-
+---
  doc/progs/echo.go             |  12 ++--
  doc/progs/file.go             |  32 +++++-----
  doc/progs/helloworld.go       |   2 +-
@@ -39,3 +39,1841 @@ Date:   Tue Oct 6 11:42:55 2009 -0700
  src/pkg/big/nat.go            |  48 ++++++++------
  src/pkg/big/nat_test.go       |  16 +++--
  28 files changed, 447 insertions(+), 373 deletions(-)
+
+diff --git a/doc/progs/echo.go b/doc/progs/echo.go
+index 3ddb4f83e2..e5cd016005 100644
+--- a/doc/progs/echo.go
++++ b/doc/progs/echo.go
+@@ -12,21 +12,21 @@ import (
+ var n_flag = flag.Bool("n", false, "don't print final newline")
+ 
+ const (
+-	kSpace = " ";
+-	kNewline = "\n";
++	kSpace		= " ";
++	kNewline	= "\n";
+ )
+ 
+ func main() {
+-	flag.Parse();   // Scans the arg list and sets up flags
++	flag.Parse();	// Scans the arg list and sets up flags
+ 	var s string = "";
+ 	for i := 0; i < flag.NArg(); i++ {
+ 		if i > 0 {
+-			s += kSpace
++			s += kSpace;
+ 		}
+-		s += flag.Arg(i)
++		s += flag.Arg(i);
+ 	}
+ 	if !*n_flag {
+-		s += kNewline
++		s += kNewline;
+ 	}
+ 	os.Stdout.WriteString(s);
+ }
+diff --git a/doc/progs/file.go b/doc/progs/file.go
+index bda3890de2..74b9ee4403 100644
+--- a/doc/progs/file.go
++++ b/doc/progs/file.go
+@@ -10,21 +10,21 @@ import (
+ )
+ 
+ type File struct {
+-	fd      int;  // file descriptor number
+-	name    string; // file name at Open time
++	fd	int;	// file descriptor number
++	name	string;	// file name at Open time
+ }
+ 
+ func newFile(fd int, name string) *File {
+ 	if fd < 0 {
+-		return nil
++		return nil;
+ 	}
+-	return &File{fd, name}
++	return &File{fd, name};
+ }
+ 
+ var (
+-	Stdin  = newFile(0, "/dev/stdin");
+-	Stdout = newFile(1, "/dev/stdout");
+-	Stderr = newFile(2, "/dev/stderr");
++	Stdin	= newFile(0, "/dev/stdin");
++	Stdout	= newFile(1, "/dev/stdout");
++	Stderr	= newFile(2, "/dev/stderr");
+ )
+ 
+ func Open(name string, mode int, perm int) (file *File, err os.Error) {
+@@ -32,43 +32,43 @@ func Open(name string, mode int, perm int) (file *File, err os.Error) {
+ 	if e != 0 {
+ 		err = os.Errno(e);
+ 	}
+-	return newFile(r, name), err
++	return newFile(r, name), err;
+ }
+ 
+ func (file *File) Close() os.Error {
+ 	if file == nil {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	e := syscall.Close(file.fd);
+-	file.fd = -1;  // so it can't be closed again
++	file.fd = -1;	// so it can't be closed again
+ 	if e != 0 {
+ 		return os.Errno(e);
+ 	}
+-	return nil
++	return nil;
+ }
+ 
+ func (file *File) Read(b []byte) (ret int, err os.Error) {
+ 	if file == nil {
+-		return -1, os.EINVAL
++		return -1, os.EINVAL;
+ 	}
+ 	r, e := syscall.Read(file.fd, b);
+ 	if e != 0 {
+ 		err = os.Errno(e);
+ 	}
+-	return int(r), err
++	return int(r), err;
+ }
+ 
+ func (file *File) Write(b []byte) (ret int, err os.Error) {
+ 	if file == nil {
+-		return -1, os.EINVAL
++		return -1, os.EINVAL;
+ 	}
+ 	r, e := syscall.Write(file.fd, b);
+ 	if e != 0 {
+ 		err = os.Errno(e);
+ 	}
+-	return int(r), err
++	return int(r), err;
+ }
+ 
+ func (file *File) String() string {
+-	return file.name
++	return file.name;
+ }
+diff --git a/doc/progs/helloworld.go b/doc/progs/helloworld.go
+index c4c3855edf..9192c41ba4 100644
+--- a/doc/progs/helloworld.go
++++ b/doc/progs/helloworld.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import fmt "fmt"  // Package implementing formatted I/O.
++import fmt "fmt"	// Package implementing formatted I/O.
+ 
+ func main() {
+ 	fmt.Printf("Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n");
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index ea567fe1bd..1aa0eab09c 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -13,9 +13,9 @@ import (
+ func main() {
+ 	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
+ 	file.Stdout.Write(hello);
+-	file, err := file.Open("/does/not/exist",  0,  0);
++	file, err := file.Open("/does/not/exist", 0, 0);
+ 	if file == nil {
+-		fmt.Printf("can't open file; err=%s\n",  err.String());
++		fmt.Printf("can't open file; err=%s\n", err.String());
+ 		os.Exit(1);
+ 	}
+ }
+diff --git a/doc/progs/print.go b/doc/progs/print.go
+index cc146fed8c..0c08bff18d 100644
+--- a/doc/progs/print.go
++++ b/doc/progs/print.go
+@@ -7,11 +7,14 @@ package main
+ import "fmt"
+ 
+ func main() {
+-	var u64 uint64 = 1<<64-1;
++	var u64 uint64 = 1<<64 - 1;
+ 	fmt.Printf("%d %d\n", u64, int64(u64));
+ 
+ 	// harder stuff
+-	type T struct { a int; b string };
++	type T struct {
++		a	int;
++		b	string;
++	}
+ 	t := T{77, "Sunset Strip"};
+ 	a := []int{1, 2, 3, 4};
+ 	fmt.Printf("%v %v %v\n", u64, t, a);
+diff --git a/doc/progs/print_string.go b/doc/progs/print_string.go
+index 13a8d82418..7526f79fbd 100644
+--- a/doc/progs/print_string.go
++++ b/doc/progs/print_string.go
+@@ -6,13 +6,16 @@ package main
+ 
+ import "fmt"
+ 
+-type testType struct { a int; b string }
++type testType struct {
++	a	int;
++	b	string;
++}
+ 
+ func (t *testType) String() string {
+-	return fmt.Sprint(t.a) + " " + t.b
++	return fmt.Sprint(t.a) + " " + t.b;
+ }
+ 
+ func main() {
+ 	t := &testType{77, "Sunset Strip"};
+-	fmt.Println(t)
++	fmt.Println(t);
+ }
+diff --git a/doc/progs/sieve.go b/doc/progs/sieve.go
+index cd011d2931..601c2c410a 100644
+--- a/doc/progs/sieve.go
++++ b/doc/progs/sieve.go
+@@ -9,7 +9,7 @@ import "fmt"
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func generate(ch chan int) {
+ 	for i := 2; ; i++ {
+-		ch <- i  // Send 'i' to channel 'ch'.
++		ch <- i;	// Send 'i' to channel 'ch'.
+ 	}
+ }
+ 
+@@ -17,22 +17,22 @@ func generate(ch chan int) {
+ // removing those divisible by 'prime'.
+ func filter(in, out chan int, prime int) {
+ 	for {
+-		i := <-in;  // Receive value of new variable 'i' from 'in'.
+-		if i % prime != 0 {
+-			out <- i  // Send 'i' to channel 'out'.
++		i := <-in;	// Receive value of new variable 'i' from 'in'.
++		if i%prime != 0 {
++			out <- i;	// Send 'i' to channel 'out'.
+ 		}
+ 	}
+ }
+ 
+ // The prime sieve: Daisy-chain filter processes together.
+ func main() {
+-	ch := make(chan int);  // Create a new channel.
+-	go generate(ch);  // Start generate() as a goroutine.
++	ch := make(chan int);	// Create a new channel.
++	go generate(ch);	// Start generate() as a goroutine.
+ 	for {
+ 		prime := <-ch;
+ 		fmt.Println(prime);
+ 		ch1 := make(chan int);
+ 		go filter(ch, ch1, prime);
+-		ch = ch1
++		ch = ch1;
+ 	}
+ }
+diff --git a/doc/progs/sieve1.go b/doc/progs/sieve1.go
+index 0ae3893ab7..7dd5ecc2cf 100644
+--- a/doc/progs/sieve1.go
++++ b/doc/progs/sieve1.go
+@@ -6,12 +6,12 @@ package main
+ 
+ import "fmt"
+ 
+-// Send the sequence 2, 3, 4, ... to returned channel 
++// Send the sequence 2, 3, 4, ... to returned channel
+ func generate() chan int {
+ 	ch := make(chan int);
+-	go func(){
++	go func() {
+ 		for i := 2; ; i++ {
+-			ch <- i
++			ch <- i;
+ 		}
+ 	}();
+ 	return ch;
+@@ -22,8 +22,8 @@ func filter(in chan int, prime int) chan int {
+ 	out := make(chan int);
+ 	go func() {
+ 		for {
+-			if i := <-in; i % prime != 0 {
+-				out <- i
++			if i := <-in; i%prime != 0 {
++				out <- i;
+ 			}
+ 		}
+ 	}();
+diff --git a/doc/progs/sort.go b/doc/progs/sort.go
+index 687217a316..0d9eab6077 100644
+--- a/doc/progs/sort.go
++++ b/doc/progs/sort.go
+@@ -20,8 +20,8 @@ func Sort(data SortInterface) {
+ 
+ func IsSorted(data SortInterface) bool {
+ 	n := data.Len();
+-	for i := n - 1; i > 0; i-- {
+-		if data.Less(i, i - 1) {
++	for i := n-1; i > 0; i-- {
++		if data.Less(i, i-1) {
+ 			return false;
+ 		}
+ 	}
+@@ -32,32 +32,62 @@ func IsSorted(data SortInterface) bool {
+ 
+ type IntArray []int
+ 
+-func (p IntArray) Len() int            { return len(p); }
+-func (p IntArray) Less(i, j int) bool  { return p[i] < p[j]; }
+-func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
++func (p IntArray) Len() int {
++	return len(p);
++}
++func (p IntArray) Less(i, j int) bool {
++	return p[i] < p[j];
++}
++func (p IntArray) Swap(i, j int) {
++	p[i], p[j] = p[j], p[i];
++}
+ 
+ 
+ type FloatArray []float
+ 
+-func (p FloatArray) Len() int            { return len(p); }
+-func (p FloatArray) Less(i, j int) bool  { return p[i] < p[j]; }
+-func (p FloatArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
++func (p FloatArray) Len() int {
++	return len(p);
++}
++func (p FloatArray) Less(i, j int) bool {
++	return p[i] < p[j];
++}
++func (p FloatArray) Swap(i, j int) {
++	p[i], p[j] = p[j], p[i];
++}
+ 
+ 
+ type StringArray []string
+ 
+-func (p StringArray) Len() int            { return len(p); }
+-func (p StringArray) Less(i, j int) bool  { return p[i] < p[j]; }
+-func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
++func (p StringArray) Len() int {
++	return len(p);
++}
++func (p StringArray) Less(i, j int) bool {
++	return p[i] < p[j];
++}
++func (p StringArray) Swap(i, j int) {
++	p[i], p[j] = p[j], p[i];
++}
+ 
+ 
+ // Convenience wrappers for common cases
+ 
+-func SortInts(a []int)        { Sort(IntArray(a)); }
+-func SortFloats(a []float)    { Sort(FloatArray(a)); }
+-func SortStrings(a []string)  { Sort(StringArray(a)); }
++func SortInts(a []int) {
++	Sort(IntArray(a));
++}
++func SortFloats(a []float) {
++	Sort(FloatArray(a));
++}
++func SortStrings(a []string) {
++	Sort(StringArray(a));
++}
+ 
+ 
+-func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)); }
+-func FloatsAreSorted(a []float) bool   { return IsSorted(FloatArray(a)); }
+-func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)); }
++func IntsAreSorted(a []int) bool {
++	return IsSorted(IntArray(a));
++}
++func FloatsAreSorted(a []float) bool {
++	return IsSorted(FloatArray(a));
++}
++func StringsAreSorted(a []string) bool {
++	return IsSorted(StringArray(a));
++}
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index 63d68ff05c..9f1a58ce5b 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -14,7 +14,7 @@ func ints() {
+ 	a := sort.IntArray(data);
+ 	sort.Sort(a);
+ 	if !sort.IsSorted(a) {
+-		panic()
++		panic();
+ 	}
+ }
+ 
+@@ -23,42 +23,48 @@ func strings() {
+ 	a := sort.StringArray(data);
+ 	sort.Sort(a);
+ 	if !sort.IsSorted(a) {
+-		panic()
++		panic();
+ 	}
+ }
+ 
+ type day struct {
+-	num        int;
+-	short_name string;
+-	long_name  string;
++	num		int;
++	short_name	string;
++	long_name	string;
+ }
+ 
+ type dayArray struct {
+ 	data []*day;
+ }
+ 
+-func (p *dayArray) Len() int            { return len(p.data); }
+-func (p *dayArray) Less(i, j int) bool  { return p.data[i].num < p.data[j].num; }
+-func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
++func (p *dayArray) Len() int {
++	return len(p.data);
++}
++func (p *dayArray) Less(i, j int) bool {
++	return p.data[i].num < p.data[j].num;
++}
++func (p *dayArray) Swap(i, j int) {
++	p.data[i], p.data[j] = p.data[j], p.data[i];
++}
+ 
+ func days() {
+-	Sunday :=    day{ 0, "SUN", "Sunday" };
+-	Monday :=    day{ 1, "MON", "Monday" };
+-	Tuesday :=   day{ 2, "TUE", "Tuesday" };
+-	Wednesday := day{ 3, "WED", "Wednesday" };
+-	Thursday :=  day{ 4, "THU", "Thursday" };
+-	Friday :=    day{ 5, "FRI", "Friday" };
+-	Saturday :=  day{ 6, "SAT", "Saturday" };
++	Sunday := day{0, "SUN", "Sunday"};
++	Monday := day{1, "MON", "Monday"};
++	Tuesday := day{2, "TUE", "Tuesday"};
++	Wednesday := day{3, "WED", "Wednesday"};
++	Thursday := day{4, "THU", "Thursday"};
++	Friday := day{5, "FRI", "Friday"};
++	Saturday := day{6, "SAT", "Saturday"};
+ 	data := []*day{&Tuesday, &Thursday, &Wednesday, &Sunday, &Monday, &Friday, &Saturday};
+ 	a := dayArray{data};
+ 	sort.Sort(&a);
+ 	if !sort.IsSorted(&a) {
+-		panic()
++		panic();
+ 	}
+ 	for _, d := range data {
+-		fmt.Printf("%s ", d.long_name)
++		fmt.Printf("%s ", d.long_name);
+ 	}
+-	fmt.Printf("\n")
++	fmt.Printf("\n");
+ }
+ 
+ 
+diff --git a/doc/progs/strings.go b/doc/progs/strings.go
+index 2c4937e38f..3a3d61f470 100644
+--- a/doc/progs/strings.go
++++ b/doc/progs/strings.go
+@@ -9,7 +9,9 @@ import "os"
+ 
+ func main() {
+ 	s := "hello";
+-	if s[1] != 'e' { os.Exit(1) }
++	if s[1] != 'e' {
++		os.Exit(1);
++	}
+ 	s = "good bye";
+ 	var p *string = &s;
+ 	*p = "ciao";
+diff --git a/doc/progs/sum.go b/doc/progs/sum.go
+index f087ca3e5c..1194230f8f 100644
+--- a/doc/progs/sum.go
++++ b/doc/progs/sum.go
+@@ -6,16 +6,16 @@ package main
+ 
+ import "fmt"
+ 
+-func sum(a []int) int {   // returns an int
++func sum(a []int) int {	// returns an int
+ 	s := 0;
+ 	for i := 0; i < len(a); i++ {
+-		s += a[i]
++		s += a[i];
+ 	}
+-	return s
++	return s;
+ }
+ 
+ 
+ func main() {
+-	s := sum(&[3]int{1,2,3});  // a slice of the array is passed to sum
++	s := sum(&[3]int{1, 2, 3});	// a slice of the array is passed to sum
+ 	fmt.Print(s, "\n");
+ }
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 57500680ba..e5956375ca 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -17,41 +17,41 @@ import (
+ 
+ // A Cref refers to an expression of the form C.xxx in the AST.
+ type Cref struct {
+-	Name string;
+-	Expr *ast.Expr;
+-	Context string;	// "type", "expr", or "call"
+-	TypeName bool;	// whether xxx is a C type name
+-	Type *Type;	// the type of xxx
+-	FuncType *FuncType;
++	Name		string;
++	Expr		*ast.Expr;
++	Context		string;	// "type", "expr", or "call"
++	TypeName	bool;	// whether xxx is a C type name
++	Type		*Type;	// the type of xxx
++	FuncType	*FuncType;
+ }
+ 
+ // A Prog collects information about a cgo program.
+ type Prog struct {
+-	AST *ast.File;	// parsed AST
+-	Preamble string;	// C preamble (doc comment on import "C")
+-	PackagePath string;
+-	Package string;
+-	Crefs []*Cref;
+-	Typedef map[string]ast.Expr;
+-	Vardef map[string]*Type;
+-	Funcdef map[string]*FuncType;
+-	PtrSize int64;
+-	GccOptions []string;
++	AST		*ast.File;	// parsed AST
++	Preamble	string;		// C preamble (doc comment on import "C")
++	PackagePath	string;
++	Package		string;
++	Crefs		[]*Cref;
++	Typedef		map[string]ast.Expr;
++	Vardef		map[string]*Type;
++	Funcdef		map[string]*FuncType;
++	PtrSize		int64;
++	GccOptions	[]string;
+ }
+ 
+ // A Type collects information about a type in both the C and Go worlds.
+ type Type struct {
+-	Size int64;
+-	Align int64;
+-	C string;
+-	Go ast.Expr;
++	Size	int64;
++	Align	int64;
++	C	string;
++	Go	ast.Expr;
+ }
+ 
+ // A FuncType collects information about a function type in both the C and Go worlds.
+ type FuncType struct {
+-	Params []*Type;
+-	Result *Type;
+-	Go *ast.FuncType;
++	Params	[]*Type;
++	Result	*Type;
++	Go	*ast.FuncType;
+ }
+ 
+ func openProg(name string) *Prog {
+@@ -139,11 +139,11 @@ func walk(x interface{}, p *Prog, context string) {
+ 					}
+ 					p.Crefs = new;
+ 				}
+-				p.Crefs = p.Crefs[0:i+1];
++				p.Crefs = p.Crefs[0 : i+1];
+ 				p.Crefs[i] = &Cref{
+ 					Name: sel.Sel.Value,
+ 					Expr: n,
+-					Context: context
++					Context: context,
+ 				};
+ 				break;
+ 			}
+@@ -321,4 +321,3 @@ func walk(x interface{}, p *Prog, context string) {
+ 		}
+ 	}
+ }
+-
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index eb04fa77d1..0b67e24534 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -20,13 +20,13 @@ func usage() {
+ 	fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go\n");
+ }
+ 
+-var ptrSizeMap = map[string]int64 {
++var ptrSizeMap = map[string]int64{
+ 	"386": 4,
+ 	"amd64": 8,
+-	"arm": 4
++	"arm": 4,
+ }
+ 
+-var expandName = map[string]string {
++var expandName = map[string]string{
+ 	"schar": "signed char",
+ 	"uchar": "unsigned char",
+ 	"ushort": "unsigned short",
+@@ -42,7 +42,7 @@ func main() {
+ 		usage();
+ 		os.Exit(2);
+ 	}
+-	gccOptions := args[1:len(args)-1];
++	gccOptions := args[1 : len(args)-1];
+ 	input := args[len(args)-1];
+ 
+ 	arch := os.Getenv("GOARCH");
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index d2eedc3313..524786d548 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ func creat(name string) *os.File {
+-	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
++	f, err := os.Open(name, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0666);
+ 	if err != nil {
+ 		fatal("%s", err);
+ 	}
+@@ -27,7 +27,7 @@ func (p *Prog) writeOutput(srcfile string) {
+ 
+ 	base := srcfile;
+ 	if strings.HasSuffix(base, ".go") {
+-		base = base[0:len(base)-3];
++		base = base[0 : len(base)-3];
+ 	}
+ 	fgo1 := creat(base + ".cgo1.go");
+ 	fgo2 := creat(base + ".cgo2.go");
+@@ -71,7 +71,7 @@ func (p *Prog) writeOutput(srcfile string) {
+ 	for name, def := range p.Funcdef {
+ 		// Go func declaration.
+ 		d := &ast.FuncDecl{
+-			Name: &ast.Ident{Value: "_C_" + name},
++			Name: &ast.Ident{Value: "_C_"+name},
+ 			Type: def.Go,
+ 		};
+ 		printer.Fprint(fgo2, d, 0, 8);
+@@ -91,8 +91,8 @@ func (p *Prog) writeOutput(srcfile string) {
+ 		off := int64(0);
+ 		npad := 0;
+ 		for i, t := range def.Params {
+-			if off%t.Align != 0 {
+-				pad := t.Align - off%t.Align;
++			if off % t.Align != 0 {
++				pad := t.Align - off % t.Align;
+ 				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
+ 				off += pad;
+ 				npad++;
+@@ -100,15 +100,15 @@ func (p *Prog) writeOutput(srcfile string) {
+ 			structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i);
+ 			off += t.Size;
+ 		}
+-		if off%p.PtrSize != 0 {
+-			pad := p.PtrSize - off%p.PtrSize;
++		if off % p.PtrSize != 0 {
++			pad := p.PtrSize - off % p.PtrSize;
+ 			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
+ 			off += pad;
+ 			npad++;
+ 		}
+ 		if t := def.Result; t != nil {
+-			if off%t.Align != 0 {
+-				pad := t.Align - off%t.Align;
++			if off % t.Align != 0 {
++				pad := t.Align - off % t.Align;
+ 				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
+ 				off += pad;
+ 				npad++;
+@@ -116,8 +116,8 @@ func (p *Prog) writeOutput(srcfile string) {
+ 			structType += fmt.Sprintf("\t\t%s r;\n", t.C);
+ 			off += t.Size;
+ 		}
+-		if off%p.PtrSize != 0 {
+-			pad := p.PtrSize - off%p.PtrSize;
++		if off % p.PtrSize != 0 {
++			pad := p.PtrSize - off % p.PtrSize;
+ 			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
+ 			off += pad;
+ 			npad++;
+@@ -218,4 +218,3 @@ void
+ 	FLUSH(&p);
+ }
+ `
+-
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 3f2fd01c94..a2a013180b 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -93,4 +93,3 @@ func error(pos token.Position, msg string, args ...) {
+ 	fmt.Fprintf(os.Stderr, msg, args);
+ 	fmt.Fprintf(os.Stderr, "\n");
+ }
+-
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+index 606961e7d8..57fb87ea93 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -17,7 +17,7 @@ import (
+ )
+ 
+ 
+-var start = flag.String("start", "Start", "name of start production");
++var start = flag.String("start", "Start", "name of start production")
+ 
+ 
+ func usage() {
+@@ -29,8 +29,8 @@ func usage() {
+ 
+ // Markers around EBNF sections in .html files
+ var (
+-	open = strings.Bytes(`<pre class="ebnf">`);
+-	close = strings.Bytes(`</pre>`);
++	open	= strings.Bytes(`<pre class="ebnf">`);
++	close	= strings.Bytes(`</pre>`);
+ )
+ 
+ 
+@@ -41,30 +41,30 @@ func extractEBNF(src []byte) []byte {
+ 		// i = beginning of EBNF text
+ 		i := bytes.Index(src, open);
+ 		if i < 0 {
+-			break;  // no EBNF found - we are done
++			break;	// no EBNF found - we are done
+ 		}
+ 		i += len(open);
+ 
+ 		// write as many newlines as found in the excluded text
+ 		// to maintain correct line numbers in error messages
+-		for _, ch := range src[0 : i] {
++		for _, ch := range src[0:i] {
+ 			if ch == '\n' {
+ 				buf.WriteByte('\n');
+ 			}
+ 		}
+ 
+ 		// j = end of EBNF text (or end of source)
+-		j := bytes.Index(src[i : len(src)], close);  // close marker
++		j := bytes.Index(src[i:len(src)], close);	// close marker
+ 		if j < 0 {
+ 			j = len(src)-i;
+ 		}
+ 		j += i;
+ 
+ 		// copy EBNF text
+-		buf.Write(src[i : j]);
++		buf.Write(src[i:j]);
+ 
+ 		// advance
+-		src = src[j : len(src)];
++		src = src[j:len(src)];
+ 	}
+ 
+ 	return buf.Bytes();
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 0f680fc2bf..b4c05a185f 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -6,86 +6,86 @@ package PACKAGE
+ 
+ // emitted by compiler, not referred to by go programs
+ 
+-func	mal(int32) *any;
+-func	throwindex();
+-func	throwreturn();
+-func	throwinit();
+-func	panicl();
++func mal(int32) *any
++func throwindex()
++func throwreturn()
++func throwinit()
++func panicl()
+ 
+-func	printbool(bool);
+-func	printfloat(float64);
+-func	printint(int64);
+-func	printuint(uint64);
+-func	printstring(string);
+-func	printpointer(any);
+-func	printiface(any);
+-func	printeface(any);
+-func	printslice(any);
+-func	printnl();
+-func	printsp();
++func printbool(bool)
++func printfloat(float64)
++func printint(int64)
++func printuint(uint64)
++func printstring(string)
++func printpointer(any)
++func printiface(any)
++func printeface(any)
++func printslice(any)
++func printnl()
++func printsp()
+ 
+-func	catstring(string, string) string;
+-func	cmpstring(string, string) int;
+-func	slicestring(string, int, int) string;
+-func	indexstring(string, int) byte;
+-func	intstring(int64) string;
+-func	slicebytetostring([]byte) string;
+-func	sliceinttostring([]int) string;
+-func	stringiter(string, int) int;
+-func	stringiter2(string, int) (retk int, retv int);
++func catstring(string, string) string
++func cmpstring(string, string) int
++func slicestring(string, int, int) string
++func indexstring(string, int) byte
++func intstring(int64) string
++func slicebytetostring([]byte) string
++func sliceinttostring([]int) string
++func stringiter(string, int) int
++func stringiter2(string, int) (retk int, retv int)
+ 
+-func	ifaceI2E(iface any) (ret any);
+-func	ifaceE2I(typ *byte, iface any) (ret any);
+-func	ifaceT2E(typ *byte, elem any) (ret any);
+-func	ifaceE2T(typ *byte, elem any) (ret any);
+-func	ifaceE2I2(typ *byte, iface any) (ret any, ok bool);
+-func	ifaceE2T2(typ *byte, elem any) (ret any, ok bool);
+-func	ifaceT2I(typ1 *byte, typ2 *byte, elem any) (ret any);
+-func	ifaceI2T(typ *byte, iface any) (ret any);
+-func	ifaceI2T2(typ *byte, iface any) (ret any, ok bool);
+-func	ifaceI2I(typ *byte, iface any) (ret any);
+-func	ifaceI2Ix(typ *byte, iface any) (ret any);
+-func	ifaceI2I2(typ *byte, iface any) (ret any, ok bool);
+-func	ifaceeq(i1 any, i2 any) (ret bool);
+-func	efaceeq(i1 any, i2 any) (ret bool);
+-func	ifacethash(i1 any) (ret uint32);
+-func	efacethash(i1 any) (ret uint32);
++func ifaceI2E(iface any) (ret any)
++func ifaceE2I(typ *byte, iface any) (ret any)
++func ifaceT2E(typ *byte, elem any) (ret any)
++func ifaceE2T(typ *byte, elem any) (ret any)
++func ifaceE2I2(typ *byte, iface any) (ret any, ok bool)
++func ifaceE2T2(typ *byte, elem any) (ret any, ok bool)
++func ifaceT2I(typ1 *byte, typ2 *byte, elem any) (ret any)
++func ifaceI2T(typ *byte, iface any) (ret any)
++func ifaceI2T2(typ *byte, iface any) (ret any, ok bool)
++func ifaceI2I(typ *byte, iface any) (ret any)
++func ifaceI2Ix(typ *byte, iface any) (ret any)
++func ifaceI2I2(typ *byte, iface any) (ret any, ok bool)
++func ifaceeq(i1 any, i2 any) (ret bool)
++func efaceeq(i1 any, i2 any) (ret bool)
++func ifacethash(i1 any) (ret uint32)
++func efacethash(i1 any) (ret uint32)
+ 
+ // *byte is really *runtime.Type
+-func	makemap(key, val *byte, hint int) (hmap map[any]any);
+-func	mapaccess1(hmap map[any]any, key any) (val any);
+-func	mapaccess2(hmap map[any]any, key any) (val any, pres bool);
+-func	mapassign1(hmap map[any]any, key any, val any);
+-func	mapassign2(hmap map[any]any, key any, val any, pres bool);
+-func	mapiterinit(hmap map[any]any, hiter *any);
+-func	mapiternext(hiter *any);
+-func	mapiter1(hiter *any) (key any);
+-func	mapiter2(hiter *any) (key any, val any);
++func makemap(key, val *byte, hint int) (hmap map[any]any)
++func mapaccess1(hmap map[any]any, key any) (val any)
++func mapaccess2(hmap map[any]any, key any) (val any, pres bool)
++func mapassign1(hmap map[any]any, key any, val any)
++func mapassign2(hmap map[any]any, key any, val any, pres bool)
++func mapiterinit(hmap map[any]any, hiter *any)
++func mapiternext(hiter *any)
++func mapiter1(hiter *any) (key any)
++func mapiter2(hiter *any) (key any, val any)
+ 
+ // *byte is really *runtime.Type
+-func	makechan(elem *byte, hint int) (hchan chan any);
+-func	chanrecv1(hchan <-chan any) (elem any);
+-func	chanrecv2(hchan <-chan any) (elem any, pres bool);
+-func	chansend1(hchan chan<- any, elem any);
+-func	chansend2(hchan chan<- any, elem any) (pres bool);
+-func	closechan(hchan any);
+-func	closedchan(hchan any) bool;
++func makechan(elem *byte, hint int) (hchan chan any)
++func chanrecv1(hchan <-chan any) (elem any)
++func chanrecv2(hchan <-chan any) (elem any, pres bool)
++func chansend1(hchan chan<- any, elem any)
++func chansend2(hchan chan<- any, elem any) (pres bool)
++func closechan(hchan any)
++func closedchan(hchan any) bool
+ 
+-func	newselect(size int) (sel *byte);
+-func	selectsend(sel *byte, hchan chan<- any, elem any) (selected bool);
+-func	selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool);
+-func	selectdefault(sel *byte) (selected bool);
+-func	selectgo(sel *byte);
++func newselect(size int) (sel *byte)
++func selectsend(sel *byte, hchan chan<- any, elem any) (selected bool)
++func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
++func selectdefault(sel *byte) (selected bool)
++func selectgo(sel *byte)
+ 
+-func	makeslice(nel int, cap int, width int) (ary []any);
+-func	sliceslice(old []any, lb int, hb int, width int) (ary []any);
+-func	slicearray(old *any, nel int, lb int, hb int, width int) (ary []any);
+-func	arraytoslice(old *any, nel int) (ary []any);
++func makeslice(nel int, cap int, width int) (ary []any)
++func sliceslice(old []any, lb int, hb int, width int) (ary []any)
++func slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
++func arraytoslice(old *any, nel int) (ary []any)
+ 
+-func	closure();	// has args, but compiler fills in
++func closure()	// has args, but compiler fills in
+ 
+ // only used on 32-bit
+-func	int64div(int64, int64) int64
+-func	uint64div(uint64, uint64) uint64
+-func	int64mod(int64, int64) int64
+-func	uint64mod(uint64, uint64) uint64
++func int64div(int64, int64) int64
++func uint64div(uint64, uint64) uint64
++func int64mod(int64, int64) int64
++func uint64mod(uint64, uint64) uint64
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+index eff7b0d405..364dd6b05f 100644
+--- a/src/cmd/gc/unsafe.go
++++ b/src/cmd/gc/unsafe.go
+@@ -4,10 +4,10 @@
+ 
+ package PACKAGE
+ 
+-type	Pointer	*any;
+-func	Offsetof(any) int;
+-func	Sizeof(any) int;
+-func	Alignof(any) int;
+-func	Typeof(i interface { }) (typ interface{});
+-func	Reflect(i interface { }) (typ interface{}, addr Pointer);
+-func	Unreflect(typ interface{}, addr Pointer) (ret interface { });
++type Pointer *any
++func Offsetof(any) int
++func Sizeof(any) int
++func Alignof(any) int
++func Typeof(i interface{}) (typ interface{})
++func Reflect(i interface{}) (typ interface{}, addr Pointer)
++func Unreflect(typ interface{}, addr Pointer) (ret interface{})
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 9442957a90..bdcfbc5f3a 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -5,35 +5,35 @@
+ package main
+ 
+ import (
+-	"flag";
+-	"fmt";
+-	"go/ast";
+-	"go/parser";
+-	"go/printer";
+-	"go/scanner";
+-	"os";
+-	pathutil "path";
+-	"strings";
++			"flag";
++			"fmt";
++			"go/ast";
++			"go/parser";
++			"go/printer";
++			"go/scanner";
++			"os";
++	pathutil	"path";
++			"strings";
+ )
+ 
+ 
+-const pkgDir = "src/pkg";  // relative to $GOROOT
++const pkgDir = "src/pkg"	// relative to $GOROOT
+ 
+ 
+ var (
+-	goroot = flag.String("goroot", os.Getenv("GOROOT"), "Go root directory");
++	goroot	= flag.String("goroot", os.Getenv("GOROOT"), "Go root directory");
+ 
+ 	// operation modes
+-	allgo = flag.Bool("a", false, "include all .go files for package");
+-	comments = flag.Bool("c", false, "omit comments");
+-	silent = flag.Bool("s", false, "silent mode: parsing only");
+-	verbose = flag.Bool("v", false, "verbose mode: trace parsing");
+-	exports = flag.Bool("x", false, "show exports only");
++	allgo		= flag.Bool("a", false, "include all .go files for package");
++	comments	= flag.Bool("c", false, "omit comments");
++	silent		= flag.Bool("s", false, "silent mode: parsing only");
++	verbose		= flag.Bool("v", false, "verbose mode: trace parsing");
++	exports		= flag.Bool("x", false, "show exports only");
+ 
+ 	// layout control
+-	tabwidth = flag.Int("tabwidth", 8, "tab width");
+-	rawformat = flag.Bool("rawformat", false, "do not use a tabwriter");
+-	usespaces = flag.Bool("spaces", false, "align with blanks instead of tabs");
++	tabwidth	= flag.Int("tabwidth", 8, "tab width");
++	rawformat	= flag.Bool("rawformat", false, "do not use a tabwriter");
++	usespaces	= flag.Bool("spaces", false, "align with blanks instead of tabs");
+ )
+ 
+ 
+diff --git a/src/pkg/archive/tar/common.go b/src/pkg/archive/tar/common.go
+index 182d465278..1407f0f7aa 100644
+--- a/src/pkg/archive/tar/common.go
++++ b/src/pkg/archive/tar/common.go
+@@ -12,42 +12,42 @@
+ package tar
+ 
+ const (
+-	blockSize = 512;
++	blockSize	= 512;
+ 
+ 	// Types
+-	TypeReg = '0';
+-	TypeRegA = '\x00';
+-	TypeLink = '1';
+-	TypeSymlink = '2';
+-	TypeChar = '3';
+-	TypeBlock = '4';
+-	TypeDir = '5';
+-	TypeFifo = '6';
+-	TypeCont = '7';
+-	TypeXHeader = 'x';
+-	TypeXGlobalHeader = 'g';
++	TypeReg			= '0';
++	TypeRegA		= '\x00';
++	TypeLink		= '1';
++	TypeSymlink		= '2';
++	TypeChar		= '3';
++	TypeBlock		= '4';
++	TypeDir			= '5';
++	TypeFifo		= '6';
++	TypeCont		= '7';
++	TypeXHeader		= 'x';
++	TypeXGlobalHeader	= 'g';
+ )
+ 
+ // A Header represents a single header in a tar archive.
+ // Some fields may not be populated.
+ type Header struct {
+-	Name string;
+-	Mode int64;
+-	Uid int64;
+-	Gid int64;
+-	Size int64;
+-	Mtime int64;
+-	Typeflag byte;
+-	Linkname string;
+-	Uname string;
+-	Gname string;
+-	Devmajor int64;
+-	Devminor int64;
+-	Atime int64;
+-	Ctime int64;
++	Name		string;
++	Mode		int64;
++	Uid		int64;
++	Gid		int64;
++	Size		int64;
++	Mtime		int64;
++	Typeflag	byte;
++	Linkname	string;
++	Uname		string;
++	Gname		string;
++	Devmajor	int64;
++	Devminor	int64;
++	Atime		int64;
++	Ctime		int64;
+ }
+ 
+-var zeroBlock = make([]byte, blockSize);
++var zeroBlock = make([]byte, blockSize)
+ 
+ // POSIX specifies a sum of the unsigned byte values, but the Sun tar uses signed byte values.
+ // We compute and return both.
+@@ -55,20 +55,20 @@ func checksum(header []byte) (unsigned int64, signed int64) {
+ 	for i := 0; i < len(header); i++ {
+ 		if i == 148 {
+ 			// The chksum field (header[148:156]) is special: it should be treated as space bytes.
+-			unsigned += ' ' * 8;
+-			signed += ' ' * 8;
++			unsigned += ' '*8;
++			signed += ' '*8;
+ 			i += 7;
+-			continue
++			continue;
+ 		}
+ 		unsigned += int64(header[i]);
+ 		signed += int64(int8(header[i]));
+ 	}
+-	return
++	return;
+ }
+ 
+ type slicer []byte
+ func (sp *slicer) next(n int) (b []byte) {
+ 	s := *sp;
+ 	b, *sp = s[0:n], s[n:len(s)];
+-	return
++	return;
+ }
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 1c3df6bfd1..c78950fab4 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -37,15 +37,15 @@ var (
+ //		io.Copy(tr, data);
+ //	}
+ type Reader struct {
+-	r io.Reader;
+-	err os.Error;
+-	nb int64;	// number of unread bytes for current file entry
+-	pad int64;	// amount of padding (ignored) after current file entry
++	r	io.Reader;
++	err	os.Error;
++	nb	int64;	// number of unread bytes for current file entry
++	pad	int64;	// amount of padding (ignored) after current file entry
+ }
+ 
+ // NewReader creates a new Reader reading from r.
+ func NewReader(r io.Reader) *Reader {
+-	return &Reader{ r: r }
++	return &Reader{r: r};
+ }
+ 
+ // Next advances to the next entry in the tar archive.
+@@ -57,7 +57,7 @@ func (tr *Reader) Next() (*Header, os.Error) {
+ 	if tr.err == nil {
+ 		hdr = tr.readHeader();
+ 	}
+-	return hdr, tr.err
++	return hdr, tr.err;
+ }
+ 
+ // Parse bytes as a NUL-terminated C-style string.
+@@ -67,7 +67,7 @@ func cString(b []byte) string {
+ 	for n < len(b) && b[n] != 0 {
+ 		n++;
+ 	}
+-	return string(b[0:n])
++	return string(b[0:n]);
+ }
+ 
+ func (tr *Reader) octal(b []byte) int64 {
+@@ -77,18 +77,18 @@ func (tr *Reader) octal(b []byte) int64 {
+ 	}
+ 	// Removing trailing NULs and spaces.
+ 	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
+-		b = b[0:len(b)-1];
++		b = b[0 : len(b)-1];
+ 	}
+ 	x, err := strconv.Btoui64(cString(b), 8);
+ 	if err != nil {
+ 		tr.err = err;
+ 	}
+-	return int64(x)
++	return int64(x);
+ }
+ 
+-type ignoreWriter struct {}
++type ignoreWriter struct{}
+ func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
+-	return len(b), nil
++	return len(b), nil;
+ }
+ 
+ // Skip any unread bytes in the existing file entry, as well as any alignment padding.
+@@ -105,34 +105,34 @@ func (tr *Reader) skipUnread() {
+ 
+ func (tr *Reader) verifyChecksum(header []byte) bool {
+ 	if tr.err != nil {
+-		return false
++		return false;
+ 	}
+ 
+ 	given := tr.octal(header[148:156]);
+ 	unsigned, signed := checksum(header);
+-	return given == unsigned || given == signed
++	return given == unsigned || given == signed;
+ }
+ 
+ func (tr *Reader) readHeader() *Header {
+ 	header := make([]byte, blockSize);
+ 	if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+-		return nil
++		return nil;
+ 	}
+ 
+ 	// Two blocks of zero bytes marks the end of the archive.
+ 	if bytes.Equal(header, zeroBlock[0:blockSize]) {
+ 		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+-			return nil
++			return nil;
+ 		}
+ 		if !bytes.Equal(header, zeroBlock[0:blockSize]) {
+ 			tr.err = HeaderError;
+ 		}
+-		return nil
++		return nil;
+ 	}
+ 
+ 	if !tr.verifyChecksum(header) {
+ 		tr.err = HeaderError;
+-		return nil
++		return nil;
+ 	}
+ 
+ 	// Unpack
+@@ -145,23 +145,23 @@ func (tr *Reader) readHeader() *Header {
+ 	hdr.Gid = tr.octal(s.next(8));
+ 	hdr.Size = tr.octal(s.next(12));
+ 	hdr.Mtime = tr.octal(s.next(12));
+-	s.next(8);  // chksum
++	s.next(8);	// chksum
+ 	hdr.Typeflag = s.next(1)[0];
+ 	hdr.Linkname = cString(s.next(100));
+ 
+ 	// The remainder of the header depends on the value of magic.
+ 	// The original (v7) version of tar had no explicit magic field,
+ 	// so its magic bytes, like the rest of the block, are NULs.
+-	magic := string(s.next(8));  // contains version field as well.
++	magic := string(s.next(8));	// contains version field as well.
+ 	var format string;
+ 	switch magic {
+-	case "ustar\x0000":  // POSIX tar (1003.1-1988)
++	case "ustar\x0000":	// POSIX tar (1003.1-1988)
+ 		if string(header[508:512]) == "tar\x00" {
+ 			format = "star";
+ 		} else {
+ 			format = "posix";
+-		}
+-	case "ustar  \x00":  // old GNU tar
++				}
++	case "ustar  \x00":	// old GNU tar
+ 		format = "gnu";
+ 	}
+ 
+@@ -191,15 +191,15 @@ func (tr *Reader) readHeader() *Header {
+ 
+ 	if tr.err != nil {
+ 		tr.err = HeaderError;
+-		return nil
++		return nil;
+ 	}
+ 
+ 	// Maximum value of hdr.Size is 64 GB (12 octal digits),
+ 	// so there's no risk of int64 overflowing.
+ 	tr.nb = int64(hdr.Size);
+-	tr.pad = -tr.nb & (blockSize - 1);  // blockSize is a power of two
++	tr.pad = -tr.nb & (blockSize-1);	// blockSize is a power of two
+ 
+-	return hdr
++	return hdr;
+ }
+ 
+ // Read reads from the current entry in the tar archive.
+@@ -207,10 +207,10 @@ func (tr *Reader) readHeader() *Header {
+ // until Next is called to advance to the next entry.
+ func (tr *Reader) Read(b []uint8) (n int, err os.Error) {
+ 	if int64(len(b)) > tr.nb {
+-		b = b[0:tr.nb];
++		b = b[0 : tr.nb];
+ 	}
+ 	n, err = tr.r.Read(b);
+ 	tr.nb -= int64(n);
+ 	tr.err = err;
+-	return
++	return;
+ }
+diff --git a/src/pkg/base64/base64_test.go b/src/pkg/base64/base64_test.go
+index 78433665a7..fcf58c3243 100644
+--- a/src/pkg/base64/base64_test.go
++++ b/src/pkg/base64/base64_test.go
+@@ -17,7 +17,7 @@ type testpair struct {
+ 	decoded, encoded string;
+ }
+ 
+-var pairs = []testpair {
++var pairs = []testpair{
+ 	// RFC 3548 examples
+ 	testpair{"\x14\xfb\x9c\x03\xd9\x7e", "FPucA9l+"},
+ 	testpair{"\x14\xfb\x9c\x03\xd9", "FPucA9k="},
+@@ -43,9 +43,9 @@ var pairs = []testpair {
+ 	testpair{"sure.", "c3VyZS4="},
+ }
+ 
+-var bigtest = testpair {
++var bigtest = testpair{
+ 	"Twas brillig, and the slithy toves",
+-	"VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw=="
++	"VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw==",
+ }
+ 
+ func testEqual(t *testing.T, msg string, args ...) bool {
+@@ -104,7 +104,7 @@ func TestDecode(t *testing.T) {
+ 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
+ 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded));
+ 		if len(p.encoded) > 0 {
+-			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='));
++			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded) - 1] == '='));
+ 		}
+ 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded);
+ 	}
+@@ -133,7 +133,7 @@ func TestDecoderBuffering(t *testing.T) {
+ 		buf := make([]byte, len(bigtest.decoded) + 12);
+ 		var total int;
+ 		for total = 0; total < len(bigtest.decoded); {
+-			n, err := decoder.Read(buf[total:total+bs]);
++			n, err := decoder.Read(buf[total : total+bs]);
+ 			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", bigtest.encoded, total, n, err, os.Error(nil));
+ 			total += n;
+ 		}
+@@ -143,10 +143,10 @@ func TestDecoderBuffering(t *testing.T) {
+ 
+ func TestDecodeCorrupt(t *testing.T) {
+ 	type corrupt struct {
+-		e string;
+-		p int;
+-	};
+-	examples := []corrupt {
++		e	string;
++		p	int;
++	}
++	examples := []corrupt{
+ 		corrupt{"!!!!", 0},
+ 		corrupt{"x===", 1},
+ 		corrupt{"AA=A", 2},
+@@ -168,7 +168,7 @@ func TestDecodeCorrupt(t *testing.T) {
+ }
+ 
+ func TestBig(t *testing.T) {
+-	n := 3*1000+1;
++	n := 3*1000 + 1;
+ 	raw := make([]byte, n);
+ 	const alpha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+ 	for i := 0; i < n; i++ {
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index e995192ecf..26acb0e6b9 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -13,13 +13,13 @@ import "unsafe"
+ type Word uintptr
+ 
+ const (
+-	_S = uintptr(unsafe.Sizeof(Word(0)));  // TODO(gri) should Sizeof return a uintptr?
+-	_W = _S*8;
+-	_B = 1<<_W;
+-	_M = _B-1;
+-	_W2 = _W/2;
+-	_B2 = 1<<_W2;
+-	_M2 = _B2-1;
++	_S	= uintptr(unsafe.Sizeof(Word(0)));	// TODO(gri) should Sizeof return a uintptr?
++	_W	= _S*8;
++	_B	= 1<<_W;
++	_M	= _B-1;
++	_W2	= _W/2;
++	_B2	= 1<<_W2;
++	_M2	= _B2-1;
+ )
+ 
+ 
+@@ -61,7 +61,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
+ 	// and return the product as 2 Words.
+ 
+ 	if x < y {
+-		x, y = y, x
++		x, y = y, x;
+ 	}
+ 
+ 	if x < _B2 {
+@@ -85,7 +85,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
+ 		// compute result digits but avoid overflow
+ 		// z = z[1]*_B + z[0] = x*y
+ 		z0 = t1<<_W2 + t0;
+-		z1 = (t1 + t0>>_W2) >> _W2;
++		z1 = (t1 + t0>>_W2)>>_W2;
+ 		return;
+ 	}
+ 
+@@ -104,7 +104,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
+ 	// compute result digits but avoid overflow
+ 	// z = z[1]*_B + z[0] = x*y
+ 	z0 = t1<<_W2 + t0;
+-	z1 = t2 + (t1 + t0>>_W2) >> _W2;
++	z1 = t2 + (t1 + t0>>_W2)>>_W2;
+ 	return;
+ }
+ 
+@@ -133,7 +133,7 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+ 	// compute result digits but avoid overflow
+ 	// z = z[1]*_B + z[0] = x*y
+ 	z0 = t1<<_W2 + t0;
+-	z1 = t2 + (t1 + t0>>_W2) >> _W2;
++	z1 = t2 + (t1 + t0>>_W2)>>_W2;
+ 	return;
+ }
+ 
+@@ -180,7 +180,7 @@ func leadingZeros(x Word) (n uint) {
+ 	if x == 0 {
+ 		return uint(_W);
+ 	}
+-	for x & (1<<(_W-1)) == 0 {
++	for x&(1<<(_W-1)) == 0 {
+ 		n++;
+ 		x <<= 1;
+ 	}
+@@ -200,7 +200,7 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
+ 	if y > x1 {
+ 		if z != 0 {
+ 			y <<= z;
+-			x1 = (x1 << z) | (x0 >> (uint(_W) - z));
++			x1 = (x1<<z)|(x0>>(uint(_W)-z));
+ 			x0 <<= z;
+ 		}
+ 		q0, x0 = divStep(x1, x0, y);
+@@ -210,10 +210,10 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
+ 			x1 -= y;
+ 			q1 = 1;
+ 		} else {
+-			z1 := uint(_W) - z;
++			z1 := uint(_W)-z;
+ 			y <<= z;
+-			x2 := x1 >> z1;
+-			x1 = (x1 << z) | (x0 >> z1);
++			x2 := x1>>z1;
++			x1 = (x1<<z)|(x0>>z1);
+ 			x0 <<= z;
+ 			q1, x1 = divStep(x2, x1, y);
+ 		}
+@@ -221,7 +221,7 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
+ 		q0, x0 = divStep(x1, x0, y);
+ 	}
+ 
+-	r = x0 >> z;
++	r = x0>>z;
+ 
+ 	if q1 != 0 {
+ 		panic("div out of range");
+@@ -240,25 +240,25 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
+ // f_s should be installed if they exist.
+ var (
+ 	// addVV sets z and returns c such that z+c = x+y.
+-	addVV func(z, x, y *Word, n int) (c Word)	= addVV_g;
++	addVV	func(z, x, y *Word, n int) (c Word)	= addVV_g;
+ 
+ 	// subVV sets z and returns c such that z-c = x-y.
+-	subVV func(z, x, y *Word, n int) (c Word)	= subVV_g;
++	subVV	func(z, x, y *Word, n int) (c Word)	= subVV_g;
+ 
+ 	// addVW sets z and returns c such that z+c = x-y.
+-	addVW func(z, x *Word, y Word, n int) (c Word)	= addVW_g;
++	addVW	func(z, x *Word, y Word, n int) (c Word)	= addVW_g;
+ 
+ 	// subVW sets z and returns c such that z-c = x-y.
+-	subVW func(z, x *Word, y Word, n int) (c Word)	= subVW_g;
++	subVW	func(z, x *Word, y Word, n int) (c Word)	= subVW_g;
+ 
+ 	// mulAddVWW sets z and returns c such that z+c = x*y + r.
+-	mulAddVWW func(z, x *Word, y, r Word, n int) (c Word)	= mulAddVWW_g;
++	mulAddVWW	func(z, x *Word, y, r Word, n int) (c Word)	= mulAddVWW_g;
+ 
+ 	// addMulVVW sets z and returns c such that z+c = z + x*y.
+-	addMulVVW func(z, x *Word, y Word, n int) (c Word)	= addMulVVW_g;
++	addMulVVW	func(z, x *Word, y Word, n int) (c Word)	= addMulVVW_g;
+ 
+ 	// divWVW sets z and returns r such that z-r = (xn<<(n*_W) + x) / y.
+-	divWVW func(z* Word, xn Word, x *Word, y Word, n int) (r Word)	= divWVW_g;
++	divWVW	func(z *Word, xn Word, x *Word, y Word, n int) (r Word)	= divWVW_g;
+ )
+ 
+ 
+@@ -289,7 +289,7 @@ func addVV_g(z, x, y *Word, n int) (c Word) {
+ 	for i := 0; i < n; i++ {
+ 		c, *z.at(i) = addWW_g(*x.at(i), *y.at(i), c);
+ 	}
+-	return
++	return;
+ }
+ 
+ 
+@@ -298,7 +298,7 @@ func subVV_g(z, x, y *Word, n int) (c Word) {
+ 	for i := 0; i < n; i++ {
+ 		c, *z.at(i) = subWW_g(*x.at(i), *y.at(i), c);
+ 	}
+-	return
++	return;
+ }
+ 
+ 
+@@ -308,7 +308,7 @@ func addVW_g(z, x *Word, y Word, n int) (c Word) {
+ 	for i := 0; i < n; i++ {
+ 		c, *z.at(i) = addWW_g(*x.at(i), c, 0);
+ 	}
+-	return
++	return;
+ }
+ 
+ 
+@@ -318,7 +318,7 @@ func subVW_g(z, x *Word, y Word, n int) (c Word) {
+ 	for i := 0; i < n; i++ {
+ 		c, *z.at(i) = subWW_g(*x.at(i), c, 0);
+ 	}
+-	return
++	return;
+ }
+ 
+ 
+@@ -328,7 +328,7 @@ func mulAddVWW_g(z, x *Word, y, r Word, n int) (c Word) {
+ 	for i := 0; i < n; i++ {
+ 		c, *z.at(i) = mulAddWWW_g(*x.at(i), y, c);
+ 	}
+-	return
++	return;
+ }
+ 
+ 
+@@ -343,8 +343,8 @@ func addMulVVW_g(z, x *Word, y Word, n int) (c Word) {
+ }
+ 
+ 
+-func divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
+-func divWVW_g(z* Word, xn Word, x *Word, y Word, n int) (r Word) {
++func divWVW_s(z *Word, xn Word, x *Word, y Word, n int) (r Word)
++func divWVW_g(z *Word, xn Word, x *Word, y Word, n int) (r Word) {
+ 	r = xn;
+ 	for i := n-1; i >= 0; i-- {
+ 		*z.at(i), r = divWW_g(r, *x.at(i), y);
+diff --git a/src/pkg/big/arith_test.go b/src/pkg/big/arith_test.go
+index 8e6183ecc7..27f640304b 100644
+--- a/src/pkg/big/arith_test.go
++++ b/src/pkg/big/arith_test.go
+@@ -8,7 +8,9 @@ import "testing"
+ 
+ 
+ type funWW func(x, y, c Word) (z1, z0 Word)
+-type argWW struct { x, y, c, z1, z0 Word }
++type argWW struct {
++	x, y, c, z1, z0 Word;
++}
+ 
+ var sumWW = []argWW{
+ 	argWW{0, 0, 0, 0, 0},
+@@ -59,7 +61,10 @@ func addr(x []Word) *Word {
+ 
+ 
+ type funVV func(z, x, y *Word, n int) (c Word)
+-type argVV struct { z, x, y []Word; c Word }
++type argVV struct {
++	z, x, y	[]Word;
++	c	Word;
++}
+ 
+ var sumVV = []argVV{
+ 	argVV{},
+@@ -112,7 +117,11 @@ func TestFunVV(t *testing.T) {
+ 
+ 
+ type funVW func(z, x *Word, y Word, n int) (c Word)
+-type argVW struct { z, x []Word; y Word; c Word }
++type argVW struct {
++	z, x	[]Word;
++	y	Word;
++	c	Word;
++}
+ 
+ var sumVW = []argVW{
+ 	argVW{},
+@@ -133,9 +142,9 @@ var prodVW = []argVW{
+ 	argVW{[]Word{0, 0, 0, 22793}, []Word{0, 0, 0, 991}, 23, 0},
+ 	argVW{[]Word{0, 0, 0, 0}, []Word{7893475, 7395495, 798547395, 68943}, 0, 0},
+ 	argVW{[]Word{0, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 0},
+-	argVW{[]Word{_M<<1 & _M}, []Word{_M}, 1<<1, _M>>(_W-1)},
+-	argVW{[]Word{_M<<7 & _M}, []Word{_M}, 1<<7, _M>>(_W-7)},
+-	argVW{[]Word{_M<<7 & _M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, _M>>(_W-7)},
++	argVW{[]Word{_M<<1&_M}, []Word{_M}, 1<<1, _M>>(_W-1)},
++	argVW{[]Word{_M<<7&_M}, []Word{_M}, 1<<7, _M>>(_W-7)},
++	argVW{[]Word{_M<<7&_M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, _M>>(_W-7)},
+ }
+ 
+ 
+@@ -169,7 +178,11 @@ func TestFunVW(t *testing.T) {
+ 
+ 
+ type funVWW func(z, x *Word, y, r Word, n int) (c Word)
+-type argVWW struct { z, x []Word; y, r Word; c Word }
++type argVWW struct {
++	z, x	[]Word;
++	y, r	Word;
++	c	Word;
++}
+ 
+ var prodVWW = []argVWW{
+ 	argVWW{},
+@@ -217,8 +230,14 @@ func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
+ // TODO(gri) mulAddVWW and divWVW are symmetric operations but
+ //           their signature is not symmetric. Try to unify.
+ 
+-type funWVW func(z* Word, xn Word, x *Word, y Word, n int) (r Word)
+-type argWVW struct { z []Word; xn Word; x []Word; y Word; r Word }
++type funWVW func(z *Word, xn Word, x *Word, y Word, n int) (r Word)
++type argWVW struct {
++	z	[]Word;
++	xn	Word;
++	x	[]Word;
++	y	Word;
++	r	Word;
++}
+ 
+ func testFunWVW(t *testing.T, msg string, f funWVW, a argWVW) {
+ 	n := len(a.z);
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index 6d885d1921..efa678c05d 100644
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -9,8 +9,8 @@ package big
+ // An Int represents a signed multi-precision integer.
+ // The zero value for an Int represents the value 0.
+ type Int struct {
+-	neg bool;  // sign
+-	abs []Word;  // absolute value of the integer
++	neg	bool;	// sign
++	abs	[]Word;	// absolute value of the integer
+ }
+ 
+ 
+@@ -53,9 +53,9 @@ func (z *Int) Add(x, y *Int) *Int {
+ 		}
+ 	}
+ 	if len(z.abs) == 0 {
+-		z.neg = false;  // 0 has no sign
++		z.neg = false;	// 0 has no sign
+ 	}
+-	return z
++	return z;
+ }
+ 
+ 
+@@ -78,9 +78,9 @@ func (z *Int) Sub(x, y *Int) *Int {
+ 		}
+ 	}
+ 	if len(z.abs) == 0 {
+-		z.neg = false;  // 0 has no sign
++		z.neg = false;	// 0 has no sign
+ 	}
+-	return z
++	return z;
+ }
+ 
+ 
+@@ -91,15 +91,15 @@ func (z *Int) Mul(x, y *Int) *Int {
+ 	// (-x) * y == -(x * y)
+ 	// (-x) * (-y) == x * y
+ 	z.abs = mulNN(z.abs, x.abs, y.abs);
+-	z.neg = len(z.abs) > 0 && x.neg != y.neg;  // 0 has no sign
+-	return z
++	z.neg = len(z.abs) > 0 && x.neg != y.neg;	// 0 has no sign
++	return z;
+ }
+ 
+ 
+ // Neg computes z = -x.
+ func (z *Int) Neg(x *Int) *Int {
+ 	z.abs = setN(z.abs, x.abs);
+-	z.neg = len(z.abs) > 0 && !x.neg;  // 0 has no sign
++	z.neg = len(z.abs) > 0 && !x.neg;	// 0 has no sign
+ 	return z;
+ }
+ 
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 041f7b324a..62e649be9f 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -39,14 +39,14 @@ func normN(z []Word) []Word {
+ 	for i > 0 && z[i-1] == 0 {
+ 		i--;
+ 	}
+-	z = z[0 : i];
++	z = z[0:i];
+ 	return z;
+ }
+ 
+ 
+ func makeN(z []Word, m int, clear bool) []Word {
+ 	if len(z) > m {
+-		z = z[0 : m];  // reuse z - has at least one extra word for a carry, if any
++		z = z[0:m];	// reuse z - has at least one extra word for a carry, if any
+ 		if clear {
+ 			for i := range z {
+ 				z[i] = 0;
+@@ -55,11 +55,11 @@ func makeN(z []Word, m int, clear bool) []Word {
+ 		return z;
+ 	}
+ 
+-	c := 4;  // minimum capacity
++	c := 4;	// minimum capacity
+ 	if m > c {
+ 		c = m;
+ 	}
+-	return make([]Word, m, c+1);  // +1: extra word for a carry, if any
++	return make([]Word, m, c+1);	// +1: extra word for a carry, if any
+ }
+ 
+ 
+@@ -84,7 +84,7 @@ func newN(z []Word, x uint64) []Word {
+ 	// split x into n words
+ 	z = makeN(z, n, false);
+ 	for i := 0; i < n; i++ {
+-		z[i] = Word(x & _M);
++		z[i] = Word(x&_M);
+ 		x >>= _W;
+ 	}
+ 
+@@ -166,8 +166,10 @@ func cmpNN(x, y []Word) (r int) {
+ 	n := len(y);
+ 	if m != n || m == 0 {
+ 		switch {
+-		case m < n: r = -1;
+-		case m > n: r = 1;
++		case m < n:
++			r = -1;
++		case m > n:
++			r = 1;
+ 		}
+ 		return;
+ 	}
+@@ -178,8 +180,10 @@ func cmpNN(x, y []Word) (r int) {
+ 	}
+ 
+ 	switch {
+-	case x[i] < y[i]: r = -1;
+-	case x[i] > y[i]: r = 1;
++	case x[i] < y[i]:
++		r = -1;
++	case x[i] > y[i]:
++		r = 1;
+ 	}
+ 	return;
+ }
+@@ -219,7 +223,7 @@ func mulNN(z, x, y []Word) []Word {
+ 
+ 	z = makeN(z, m+n, true);
+ 	if &z[0] == &x[0] || &z[0] == &y[0] {
+-		z = makeN(nil, m+n, true);  // z is an alias for x or y - cannot reuse
++		z = makeN(nil, m+n, true);	// z is an alias for x or y - cannot reuse
+ 	}
+ 	for i := 0; i < n; i++ {
+ 		if f := y[i]; f != 0 {
+@@ -228,7 +232,7 @@ func mulNN(z, x, y []Word) []Word {
+ 	}
+ 	z = normN(z);
+ 
+-	return z
++	return z;
+ }
+ 
+ 
+@@ -239,10 +243,10 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
+ 	case y == 0:
+ 		panic("division by zero");
+ 	case y == 1:
+-		q = setN(z, x);  // result is x
++		q = setN(z, x);	// result is x
+ 		return;
+ 	case m == 0:
+-		q = setN(z, nil);  // result is 0
++		q = setN(z, nil);	// result is 0
+ 		return;
+ 	}
+ 	// m > 0
+@@ -280,10 +284,14 @@ func log2N(x []Word) int {
+ func hexValue(ch byte) int {
+ 	var d byte;
+ 	switch {
+-	case '0' <= ch && ch <= '9': d = ch - '0';
+-	case 'a' <= ch && ch <= 'f': d = ch - 'a' + 10;
+-	case 'A' <= ch && ch <= 'F': d = ch - 'A' + 10;
+-	default: return -1;
++	case '0' <= ch && ch <= '9':
++		d = ch-'0';
++	case 'a' <= ch && ch <= 'f':
++		d = ch-'a'+10;
++	case 'A' <= ch && ch <= 'F':
++		d = ch-'A'+10;
++	default:
++		return -1;
+ 	}
+ 	return int(d);
+ }
+@@ -344,7 +352,7 @@ func stringN(x []Word, base int) string {
+ 	}
+ 
+ 	// allocate buffer for conversion
+-	i := (log2N(x) + 1) / log2(Word(base)) + 1;  // +1: round up
++	i := (log2N(x)+1)/log2(Word(base)) + 1;	// +1: round up
+ 	s := make([]byte, i);
+ 
+ 	// don't destroy x
+@@ -356,7 +364,7 @@ func stringN(x []Word, base int) string {
+ 		var r Word;
+ 		q, r = divNW(q, q, 10);
+ 		s[i] = "0123456789abcdef"[r];
+-	};
++	}
+ 
+-	return string(s[i : len(s)]);
++	return string(s[i:len(s)]);
+ }
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index 23d793f276..d26f39ac0f 100644
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -7,12 +7,14 @@ package big
+ import "testing"
+ 
+ func TestCmpNN(t *testing.T) {
+-	// TODO(gri) write this test - all other tests depends on it
++// TODO(gri) write this test - all other tests depends on it
+ }
+ 
+ 
+ type funNN func(z, x, y []Word) []Word
+-type argNN struct { z, x, y []Word }
++type argNN struct {
++	z, x, y []Word;
++}
+ 
+ var sumNN = []argNN{
+ 	argNN{},
+@@ -23,7 +25,7 @@ var sumNN = []argNN{
+ 	argNN{[]Word{0, 0, 0, 1}, []Word{0, 0, _M}, []Word{0, 0, 1}},
+ }
+ 
+-var prodNN = []argNN {
++var prodNN = []argNN{
+ 	argNN{},
+ 	argNN{nil, nil, nil},
+ 	argNN{nil, []Word{991}, nil},
+@@ -78,9 +80,13 @@ func TestFunNN(t *testing.T) {
+ }
+ 
+ 
+-type strN struct { x []Word; b int; s string }
++type strN struct {
++	x	[]Word;
++	b	int;
++	s	string;
++}
+ var tabN = []strN{
+-	strN{nil, 10,  "0"},
++	strN{nil, 10, "0"},
+ 	strN{[]Word{1}, 10, "1"},
+ 	strN{[]Word{10}, 10, "10"},
+ 	strN{[]Word{1234567890}, 10, "1234567890"},

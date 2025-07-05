@@ -28,10 +28,119 @@ Date:   Wed Aug 19 21:39:12 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/syntax.go     |  4 ++--
  src/cmd/compile/internal/gc/walk.go       |  7 ++++++-
  src/runtime/checkptr_test.go              |  1 +
  src/runtime/testdata/testprog/checkptr.go |  8 ++++++++
  test/fixedbugs/issue40917.go              | 23 +++++++++++++++++++++++
  5 files changed, 40 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index b658410c53..47e5e59156 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -141,8 +141,8 @@ const (
+ 	nodeInitorder, _                   // tracks state during init1; two bits
+ 	_, _                               // second nodeInitorder bit
+ 	_, nodeHasBreak
+-	_, nodeNoInline // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+-	_, nodeImplicit
++	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
++	_, nodeImplicit  // implicit OADDR or ODEREF; ++/-- statement represented as OASOP; or ANDNOT lowered to OAND
+ 	_, nodeIsDDD     // is the argument variadic
+ 	_, nodeDiag      // already printed error about this
+ 	_, nodeColas     // OAS resulting from :=
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8ae3d9a5c7..74ed0411bd 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -973,6 +973,7 @@ opswitch:
+ 	case OANDNOT:
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Op = OAND
++		n.SetImplicit(true) // for walkCheckPtrArithmetic
+ 		n.Right = nod(OBITNOT, n.Right, nil)
+ 		n.Right = typecheck(n.Right, ctxExpr)
+ 		n.Right = walkexpr(n.Right, init)
+@@ -4003,8 +4004,12 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
+ 		case OADD:
+ 			walk(n.Left)
+ 			walk(n.Right)
+-		case OSUB, OANDNOT:
++		case OSUB:
+ 			walk(n.Left)
++		case OAND:
++			if n.Implicit() { // was OANDNOT
++				walk(n.Left)
++			}
+ 		case OCONVNOP:
+ 			if n.Left.Type.Etype == TUNSAFEPTR {
+ 				n.Left = cheapexpr(n.Left, init)
+diff --git a/src/runtime/checkptr_test.go b/src/runtime/checkptr_test.go
+index 8ab8a4937c..194cc1243a 100644
+--- a/src/runtime/checkptr_test.go
++++ b/src/runtime/checkptr_test.go
+@@ -27,6 +27,7 @@ func TestCheckPtr(t *testing.T) {
+ 		{"CheckPtrAlignmentPtr", "fatal error: checkptr: misaligned pointer conversion\n"},
+ 		{"CheckPtrAlignmentNoPtr", ""},
+ 		{"CheckPtrArithmetic", "fatal error: checkptr: pointer arithmetic result points to invalid allocation\n"},
++		{"CheckPtrArithmetic2", "fatal error: checkptr: pointer arithmetic result points to invalid allocation\n"},
+ 		{"CheckPtrSize", "fatal error: checkptr: converted pointer straddles multiple allocations\n"},
+ 		{"CheckPtrSmall", "fatal error: checkptr: pointer arithmetic computed bad pointer value\n"},
+ 	}
+diff --git a/src/runtime/testdata/testprog/checkptr.go b/src/runtime/testdata/testprog/checkptr.go
+index 45e6fb1aa5..e0a2794f4c 100644
+--- a/src/runtime/testdata/testprog/checkptr.go
++++ b/src/runtime/testdata/testprog/checkptr.go
+@@ -10,6 +10,7 @@ func init() {
+ 	register("CheckPtrAlignmentNoPtr", CheckPtrAlignmentNoPtr)
+ 	register("CheckPtrAlignmentPtr", CheckPtrAlignmentPtr)
+ 	register("CheckPtrArithmetic", CheckPtrArithmetic)
++	register("CheckPtrArithmetic2", CheckPtrArithmetic2)
+ 	register("CheckPtrSize", CheckPtrSize)
+ 	register("CheckPtrSmall", CheckPtrSmall)
+ }
+@@ -32,6 +33,13 @@ func CheckPtrArithmetic() {
+ 	sink2 = (*int)(unsafe.Pointer(i))
+ }
+ 
++func CheckPtrArithmetic2() {
++	var x [2]int64
++	p := unsafe.Pointer(&x[1])
++	var one uintptr = 1
++	sink2 = unsafe.Pointer(uintptr(p) & ^one)
++}
++
+ func CheckPtrSize() {
+ 	p := new(int64)
+ 	sink2 = p
+diff --git a/test/fixedbugs/issue40917.go b/test/fixedbugs/issue40917.go
+new file mode 100644
+index 0000000000..2128be5eca
+--- /dev/null
++++ b/test/fixedbugs/issue40917.go
+@@ -0,0 +1,23 @@
++// run -gcflags=-d=checkptr
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++func main() {
++	var x [2]uint64
++	a := unsafe.Pointer(&x[1])
++
++	b := a
++	b = unsafe.Pointer(uintptr(b) + 2)
++	b = unsafe.Pointer(uintptr(b) - 1)
++	b = unsafe.Pointer(uintptr(b) &^ 1)
++
++	if a != b {
++		panic("pointer arithmetic failed")
++	}
++}

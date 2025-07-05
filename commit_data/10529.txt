@@ -7,7 +7,7 @@ Date:   Mon Nov 28 13:04:52 2011 -0800
     R=rsc, golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5445046
-
+---
  src/pkg/math/abs.go    | 3 +--
  src/pkg/math/asinh.go  | 3 +--
  src/pkg/math/floor.go  | 9 +++------
@@ -15,3 +15,106 @@ Date:   Mon Nov 28 13:04:52 2011 -0800
  src/pkg/math/modf.go   | 3 +--
  src/pkg/math/sincos.go | 3 +--
  6 files changed, 8 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/math/abs.go b/src/pkg/math/abs.go
+index eb3e4c72b3..4c6297c6f3 100644
+--- a/src/pkg/math/abs.go
++++ b/src/pkg/math/abs.go
+@@ -7,8 +7,7 @@ package math
+ // Abs returns the absolute value of x.
+ //
+ // Special cases are:
+-//	Abs(+Inf) = +Inf
+-//	Abs(-Inf) = +Inf
++//	Abs(±Inf) = +Inf
+ //	Abs(NaN) = NaN
+ func Abs(x float64) float64 {
+ 	switch {
+diff --git a/src/pkg/math/asinh.go b/src/pkg/math/asinh.go
+index c1cad563c7..d6979463d6 100644
+--- a/src/pkg/math/asinh.go
++++ b/src/pkg/math/asinh.go
+@@ -33,8 +33,7 @@ package math
+ // Asinh(x) calculates the inverse hyperbolic sine of x.
+ //
+ // Special cases are:
+-//	Asinh(+Inf) = +Inf
+-//	Asinh(-Inf) = -Inf
++//	Asinh(±Inf) = ±Inf
+ //	Asinh(NaN) = NaN
+ func Asinh(x float64) float64 {
+ 	const (
+diff --git a/src/pkg/math/floor.go b/src/pkg/math/floor.go
+index babbf645f5..8de4d7e2ce 100644
+--- a/src/pkg/math/floor.go
++++ b/src/pkg/math/floor.go
+@@ -7,8 +7,7 @@ package math
+ // Floor returns the greatest integer value less than or equal to x.
+ //
+ // Special cases are:
+-//	Floor(+Inf) = +Inf
+-//	Floor(-Inf) = -Inf
++//	Floor(±Inf) = ±Inf
+ //	Floor(NaN) = NaN
+ func Floor(x float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+@@ -30,16 +29,14 @@ func Floor(x float64) float64 {
+ // Ceil returns the least integer value greater than or equal to x.
+ //
+ // Special cases are:
+-//	Ceil(+Inf) = +Inf
+-//	Ceil(-Inf) = -Inf
++//	Ceil(±Inf) = ±Inf
+ //	Ceil(NaN) = NaN
+ func Ceil(x float64) float64 { return -Floor(-x) }
+ 
+ // Trunc returns the integer value of x.
+ //
+ // Special cases are:
+-//	Trunc(+Inf) = +Inf
+-//	Trunc(-Inf) = -Inf
++//	Trunc(±Inf) = ±Inf
+ //	Trunc(NaN) = NaN
+ func Trunc(x float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+diff --git a/src/pkg/math/gamma.go b/src/pkg/math/gamma.go
+index ae2c0c418a..7365d8e775 100644
+--- a/src/pkg/math/gamma.go
++++ b/src/pkg/math/gamma.go
+@@ -113,8 +113,7 @@ func stirling(x float64) float64 {
+ // Gamma(x) returns the Gamma function of x.
+ //
+ // Special cases are:
+-//	Gamma(Inf) = Inf
+-//	Gamma(-Inf) = -Inf
++//	Gamma(±Inf) = ±Inf
+ //	Gamma(NaN) = NaN
+ // Large values overflow to +Inf.
+ // Negative integer values equal ±Inf.
+diff --git a/src/pkg/math/modf.go b/src/pkg/math/modf.go
+index 315174b701..34889e0c0a 100644
+--- a/src/pkg/math/modf.go
++++ b/src/pkg/math/modf.go
+@@ -8,8 +8,7 @@ package math
+ // that sum to f.  Both values have the same sign as f.
+ //
+ // Special cases are:
+-//	Modf(+Inf) = +Inf, NaN
+-//	Modf(-Inf) = -Inf, NaN
++//	Modf(±Inf) = ±Inf, NaN
+ //	Modf(NaN) = NaN, NaN
+ func Modf(f float64) (int float64, frac float64) {
+ 	if f < 1 {
+diff --git a/src/pkg/math/sincos.go b/src/pkg/math/sincos.go
+index 4c1576bead..e8261bca71 100644
+--- a/src/pkg/math/sincos.go
++++ b/src/pkg/math/sincos.go
+@@ -7,7 +7,6 @@ package math
+ // Sincos(x) returns Sin(x), Cos(x).
+ //
+ // Special conditions are:
+-//	Sincos(+Inf) = NaN, NaN
+-//	Sincos(-Inf) = NaN, NaN
++//	Sincos(±Inf) = NaN, NaN
+ //	Sincos(NaN) = NaN, NaN
+ func Sincos(x float64) (sin, cos float64) { return Sin(x), Cos(x) }

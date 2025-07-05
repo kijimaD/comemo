@@ -12,8 +12,64 @@ Date:   Tue Dec 9 06:52:17 2014 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Chris Manghane <cmang@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/gc/fmt.go  |  8 ++++----
  test/fixedbugs/issue6964.go |  2 +-
  test/fixedbugs/issue9076.go | 15 +++++++++++++++
  3 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index ce73676655..5ad607e04e 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -1261,14 +1261,14 @@ func exprfmt(n *Node, prec int) string {
+ 		return f
+ 
+ 	case OLITERAL: // this is a bit of a mess
+-		if fmtmode == FErr && n.Sym != nil {
++		if n.Orig != nil && n.Orig != n {
+ 			var f string
+-			f += fmt.Sprintf("%v", Sconv(n.Sym, 0))
++			f += exprfmt(n.Orig, prec)
+ 			return f
+ 		}
+-		if n.Val.Ctype == CTNIL && n.Orig != nil && n.Orig != n {
++		if fmtmode == FErr && n.Sym != nil {
+ 			var f string
+-			f += exprfmt(n.Orig, prec)
++			f += fmt.Sprintf("%v", Sconv(n.Sym, 0))
+ 			return f
+ 		}
+ 		if n.Type != nil && n.Type != Types[n.Type.Etype] && n.Type != idealbool && n.Type != idealstring {
+diff --git a/test/fixedbugs/issue6964.go b/test/fixedbugs/issue6964.go
+index 821735c082..8f4b60db3c 100644
+--- a/test/fixedbugs/issue6964.go
++++ b/test/fixedbugs/issue6964.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	_ = string(-4 + 2i + 2) // ERROR "-4\+2i"
++	_ = string(-4 + 2i + 2) // ERROR "-4 \+ 2i"
+ }
+diff --git a/test/fixedbugs/issue9076.go b/test/fixedbugs/issue9076.go
+new file mode 100644
+index 0000000000..ad1cd5db0c
+--- /dev/null
++++ b/test/fixedbugs/issue9076.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 9076: cmd/gc shows computed values in error messages instead of original expression.
++
++package main
++
++import "unsafe"
++
++const Hundred = 100
++var _ int32 = 100/unsafe.Sizeof(int(0)) + 1 // GC_ERROR "100 \/ unsafe.Sizeof\(int\(0\)\) \+ 1"
++var _ int32 = Hundred/unsafe.Sizeof(int(0)) + 1 // GC_ERROR "Hundred \/ unsafe.Sizeof\(int\(0\)\) \+ 1"

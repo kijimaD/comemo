@@ -22,7 +22,131 @@ Date:   Tue May 11 17:02:20 2021 +0200
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                 | 56 +++++++++++++------------
  src/cmd/go/testdata/script/list_find_nodeps.txt | 39 +++++++++++++++++
  2 files changed, 69 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 3c7cd44ee3..a3b96702ce 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1797,35 +1797,37 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 		}
+ 	}
+ 
+-	// Cgo translation adds imports of "unsafe", "runtime/cgo" and "syscall",
+-	// except for certain packages, to avoid circular dependencies.
+-	if p.UsesCgo() {
+-		addImport("unsafe", true)
+-	}
+-	if p.UsesCgo() && (!p.Standard || !cgoExclude[p.ImportPath]) && cfg.BuildContext.Compiler != "gccgo" {
+-		addImport("runtime/cgo", true)
+-	}
+-	if p.UsesCgo() && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
+-		addImport("syscall", true)
+-	}
+-
+-	// SWIG adds imports of some standard packages.
+-	if p.UsesSwig() {
+-		addImport("unsafe", true)
+-		if cfg.BuildContext.Compiler != "gccgo" {
++	if !opts.IgnoreImports {
++		// Cgo translation adds imports of "unsafe", "runtime/cgo" and "syscall",
++		// except for certain packages, to avoid circular dependencies.
++		if p.UsesCgo() {
++			addImport("unsafe", true)
++		}
++		if p.UsesCgo() && (!p.Standard || !cgoExclude[p.ImportPath]) && cfg.BuildContext.Compiler != "gccgo" {
+ 			addImport("runtime/cgo", true)
+ 		}
+-		addImport("syscall", true)
+-		addImport("sync", true)
++		if p.UsesCgo() && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
++			addImport("syscall", true)
++		}
+ 
+-		// TODO: The .swig and .swigcxx files can use
+-		// %go_import directives to import other packages.
+-	}
++		// SWIG adds imports of some standard packages.
++		if p.UsesSwig() {
++			addImport("unsafe", true)
++			if cfg.BuildContext.Compiler != "gccgo" {
++				addImport("runtime/cgo", true)
++			}
++			addImport("syscall", true)
++			addImport("sync", true)
+ 
+-	// The linker loads implicit dependencies.
+-	if p.Name == "main" && !p.Internal.ForceLibrary {
+-		for _, dep := range LinkerDeps(p) {
+-			addImport(dep, false)
++			// TODO: The .swig and .swigcxx files can use
++			// %go_import directives to import other packages.
++		}
++
++		// The linker loads implicit dependencies.
++		if p.Name == "main" && !p.Internal.ForceLibrary {
++			for _, dep := range LinkerDeps(p) {
++				addImport(dep, false)
++			}
+ 		}
+ 	}
+ 
+@@ -2387,7 +2389,9 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
+ // PackageOpts control the behavior of PackagesAndErrors and other package
+ // loading functions.
+ type PackageOpts struct {
+-	// IgnoreImports controls whether we ignore imports when loading packages.
++	// IgnoreImports controls whether we ignore explicit and implicit imports
++	// when loading packages.  Implicit imports are added when supporting Cgo
++	// or SWIG and when linking main packages.
+ 	IgnoreImports bool
+ 
+ 	// ModResolveTests indicates whether calls to the module loader should also
+diff --git a/src/cmd/go/testdata/script/list_find_nodeps.txt b/src/cmd/go/testdata/script/list_find_nodeps.txt
+new file mode 100644
+index 0000000000..55f98f6c6c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_find_nodeps.txt
+@@ -0,0 +1,39 @@
++# Issue #46092
++# go list -find should always return a package with an empty Deps list
++
++# The linker loads implicit dependencies
++go list -find -f {{.Deps}} ./cmd
++stdout '\[\]'
++
++# Cgo translation may add imports of "unsafe", "runtime/cgo" and "syscall"
++go list -find -f {{.Deps}} ./cgo
++stdout '\[\]'
++
++# SWIG adds imports of some standard packages
++go list -find -f {{.Deps}} ./swig
++stdout '\[\]'
++
++-- go.mod --
++module listfind
++
++-- cmd/main.go --
++package main
++
++func main() {}
++
++-- cgo/pkg.go --
++package cgopkg
++
++/*
++#include <limits.h>
++*/
++import "C"
++
++func F() {
++    println(C.INT_MAX)
++}
++
++-- swig/pkg.go --
++package swigpkg
++
++-- swig/a.swigcxx --

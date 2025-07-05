@@ -57,8 +57,76 @@ Date:   Wed Sep 26 15:59:21 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go     | 12 ++++++++++++
  src/runtime/mgcmark.go |  7 +++++++
  src/runtime/mheap.go   | 15 +++++++++++++++
  3 files changed, 34 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f4646db67a..0215a2c0c2 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -2023,6 +2023,18 @@ func gcResetMarkState() {
+ 	}
+ 	unlock(&allglock)
+ 
++	// Clear page marks. This is just 1MB per 64GB of heap, so the
++	// time here is pretty trivial.
++	lock(&mheap_.lock)
++	arenas := mheap_.allArenas
++	unlock(&mheap_.lock)
++	for _, ai := range arenas {
++		ha := mheap_.arenas[ai.l1()][ai.l2()]
++		for i := range ha.pageMarks {
++			ha.pageMarks[i] = 0
++		}
++	}
++
+ 	work.bytesMarked = 0
+ 	work.initialHeapLive = atomic.Load64(&memstats.heap_live)
+ }
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 28260ab706..03c64c4b11 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1229,6 +1229,13 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
+ 			return
+ 		}
+ 		mbits.setMarked()
++
++		// Mark span.
++		arena, pageIdx, pageMask := pageIndexOf(span.base())
++		if arena.pageMarks[pageIdx]&pageMask == 0 {
++			atomic.Or8(&arena.pageMarks[pageIdx], pageMask)
++		}
++
+ 		// If this is a noscan object, fast-track it to black
+ 		// instead of greying it.
+ 		if span.spanclass.noscan() {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 12868075d4..d183268b54 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -201,6 +201,21 @@ type heapArena struct {
+ 	//
+ 	// Writes are protected by mheap_.lock.
+ 	pageInUse [pagesPerArena / 8]uint8
++
++	// pageMarks is a bitmap that indicates which spans have any
++	// marked objects on them. Like pageInUse, only the bit
++	// corresponding to the first page in each span is used.
++	//
++	// Writes are done atomically during marking. Reads are
++	// non-atomic and lock-free since they only occur during
++	// sweeping (and hence never race with writes).
++	//
++	// This is used to quickly find whole spans that can be freed.
++	//
++	// TODO(austin): It would be nice if this was uint64 for
++	// faster scanning, but we don't have 64-bit atomic bit
++	// operations.
++	pageMarks [pagesPerArena / 8]uint8
+ }
+ 
+ // arenaHint is a hint for where to grow the heap arenas. See

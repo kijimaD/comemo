@@ -21,7 +21,7 @@ Date:   Thu Aug 17 14:15:04 2023 -0700
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/base/debug.go    |  2 +
  src/cmd/compile/internal/escape/assign.go |  8 +++-
  src/cmd/compile/internal/escape/escape.go | 74 +++++++++++++++--------------
@@ -31,3 +31,307 @@ Date:   Thu Aug 17 14:15:04 2023 -0700
  test/escape_mutations.go                  | 77 +++++++++++++++++++++++++++++++
  test/inline_big.go                        |  6 +--
  8 files changed, 145 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 36a75ae8e5..3925fa7182 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -24,6 +24,7 @@ type DebugFlags struct {
+ 	DumpInlFuncProps      string `help:"dump function properties from inl heuristics to specified file"`
+ 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
+ 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
++	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
+ 	Export                int    `help:"print export data"`
+ 	Fmahash               string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
+ 	GCAdjust              int    `help:"log adjustments to GOGC" concurrent:"ok"`
+@@ -58,6 +59,7 @@ type DebugFlags struct {
+ 	PGODevirtualize       int    `help:"enable profile-guided devirtualization" concurrent:"ok"`
+ 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
+ 	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
++	ZeroCopy              int    `help:"enable zero-copy string->[]byte conversions" concurrent:"ok"`
+ 
+ 	ConcurrentOk bool // true if only concurrentOk flags seen
+ }
+diff --git a/src/cmd/compile/internal/escape/assign.go b/src/cmd/compile/internal/escape/assign.go
+index 1c1d5799ad..6af5388683 100644
+--- a/src/cmd/compile/internal/escape/assign.go
++++ b/src/cmd/compile/internal/escape/assign.go
+@@ -41,8 +41,12 @@ func (e *escape) addr(n ir.Node) hole {
+ 		} else {
+ 			e.mutate(n.X)
+ 		}
+-	case ir.ODEREF, ir.ODOTPTR:
+-		e.mutate(n)
++	case ir.ODEREF:
++		n := n.(*ir.StarExpr)
++		e.mutate(n.X)
++	case ir.ODOTPTR:
++		n := n.(*ir.SelectorExpr)
++		e.mutate(n.X)
+ 	case ir.OINDEXMAP:
+ 		n := n.(*ir.IndexExpr)
+ 		e.discard(n.X)
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 2882f9fda3..25136c242b 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -12,6 +12,7 @@ import (
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ )
+ 
+ // Escape analysis.
+@@ -345,10 +346,7 @@ func (b *batch) finish(fns []*ir.Func) {
+ 
+ 		// If the result of a string->[]byte conversion is never mutated,
+ 		// then it can simply reuse the string's memory directly.
+-		//
+-		// TODO(mdempsky): Enable in a subsequent CL. We need to ensure
+-		// []byte("") evaluates to []byte{}, not []byte(nil).
+-		if false {
++		if base.Debug.ZeroCopy != 0 {
+ 			if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OSTR2BYTES && !loc.hasAttr(attrMutates) {
+ 				if base.Flag.LowerM >= 1 {
+ 					base.WarnfAt(n.Pos(), "zero-copy string->[]byte conversion")
+@@ -474,40 +472,48 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+ 	esc.Optimize()
+ 
+ 	if diagnose && !loc.hasAttr(attrEscapes) {
+-		anyLeaks := false
+-		if x := esc.Heap(); x >= 0 {
+-			if x == 0 {
+-				base.WarnfAt(f.Pos, "leaking param: %v", name())
+-			} else {
+-				// TODO(mdempsky): Mention level=x like below?
+-				base.WarnfAt(f.Pos, "leaking param content: %v", name())
+-			}
+-			anyLeaks = true
+-		}
+-		for i := 0; i < numEscResults; i++ {
+-			if x := esc.Result(i); x >= 0 {
+-				res := fn.Type().Results().Field(i).Sym
+-				base.WarnfAt(f.Pos, "leaking param: %v to result %v level=%d", name(), res, x)
+-				anyLeaks = true
+-			}
++		b.reportLeaks(f.Pos, name(), esc, fn.Type())
++	}
++
++	return esc.Encode()
++}
++
++func (b *batch) reportLeaks(pos src.XPos, name string, esc leaks, sig *types.Type) {
++	warned := false
++	if x := esc.Heap(); x >= 0 {
++		if x == 0 {
++			base.WarnfAt(pos, "leaking param: %v", name)
++		} else {
++			// TODO(mdempsky): Mention level=x like below?
++			base.WarnfAt(pos, "leaking param content: %v", name)
+ 		}
+-		if !anyLeaks {
+-			base.WarnfAt(f.Pos, "%v does not escape", name())
++		warned = true
++	}
++	for i := 0; i < numEscResults; i++ {
++		if x := esc.Result(i); x >= 0 {
++			res := sig.Results().Field(i).Sym
++			base.WarnfAt(pos, "leaking param: %v to result %v level=%d", name, res, x)
++			warned = true
+ 		}
++	}
+ 
+-		if base.Flag.LowerM >= 2 {
+-			if x := esc.Mutator(); x >= 0 {
+-				base.WarnfAt(f.Pos, "mutates param: %v derefs=%v", name(), x)
+-			} else {
+-				base.WarnfAt(f.Pos, "does not mutate param: %v", name())
+-			}
+-			if x := esc.Callee(); x >= 0 {
+-				base.WarnfAt(f.Pos, "calls param: %v derefs=%v", name(), x)
+-			} else {
+-				base.WarnfAt(f.Pos, "does not call param: %v", name())
+-			}
++	if base.Debug.EscapeMutationsCalls <= 0 {
++		if !warned {
++			base.WarnfAt(pos, "%v does not escape", name)
+ 		}
++		return
+ 	}
+ 
+-	return esc.Encode()
++	if x := esc.Mutator(); x >= 0 {
++		base.WarnfAt(pos, "mutates param: %v derefs=%v", name, x)
++		warned = true
++	}
++	if x := esc.Callee(); x >= 0 {
++		base.WarnfAt(pos, "calls param: %v derefs=%v", name, x)
++		warned = true
++	}
++
++	if !warned {
++		base.WarnfAt(pos, "%v does not escape, mutate, or call", name)
++	}
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index fe4a242002..28f68e01bc 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2659,6 +2659,14 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
+ 		n := n.(*ir.ConvExpr)
+ 		str := s.expr(n.X)
+ 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, str)
++		if !n.NonNil() {
++			// We need to ensure []byte("") evaluates to []byte{}, and not []byte(nil).
++			//
++			// TODO(mdempsky): Investigate using "len != 0" instead of "ptr != nil".
++			cond := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], ptr, s.constNil(ptr.Type))
++			zerobase := s.newValue1A(ssa.OpAddr, ptr.Type, ir.Syms.Zerobase, s.sb)
++			ptr = s.ternary(cond, ptr, zerobase)
++		}
+ 		len := s.newValue1(ssa.OpStringLen, types.Types[types.TINT], str)
+ 		return s.newValue3(ssa.OpSliceMake, n.Type(), ptr, len, len)
+ 	case ir.OCFUNC:
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 3e3bda15e7..c38477f33e 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -815,8 +815,14 @@ func (o *orderState) stmt(n ir.Node) {
+ 		// Mark []byte(str) range expression to reuse string backing storage.
+ 		// It is safe because the storage cannot be mutated.
+ 		n := n.(*ir.RangeStmt)
+-		if n.X.Op() == ir.OSTR2BYTES {
+-			n.X.(*ir.ConvExpr).SetOp(ir.OSTR2BYTESTMP)
++		if x, ok := n.X.(*ir.ConvExpr); ok {
++			switch x.Op() {
++			case ir.OSTR2BYTES:
++				x.SetOp(ir.OSTR2BYTESTMP)
++				fallthrough
++			case ir.OSTR2BYTESTMP:
++				x.MarkNonNil() // "range []byte(nil)" is fine
++			}
+ 		}
+ 
+ 		t := o.markTemp()
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 3af457b8c0..f59ae33f51 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -736,6 +736,7 @@ func stringSearch(expr ir.Node, cc []exprClause, out *ir.Nodes) {
+ 	// Convert expr to a []int8
+ 	slice := ir.NewConvExpr(base.Pos, ir.OSTR2BYTESTMP, types.NewSlice(types.Types[types.TINT8]), expr)
+ 	slice.SetTypecheck(1) // legacy typechecker doesn't handle this op
++	slice.MarkNonNil()
+ 	// Load the byte we're splitting on.
+ 	load := ir.NewIndexExpr(base.Pos, slice, ir.NewInt(base.Pos, int64(bestIdx)))
+ 	// Compare with the value we're splitting on.
+diff --git a/test/escape_mutations.go b/test/escape_mutations.go
+new file mode 100644
+index 0000000000..4365fc1ec3
+--- /dev/null
++++ b/test/escape_mutations.go
+@@ -0,0 +1,77 @@
++// errorcheck -0 -m -d=escapemutationscalls,zerocopy -l
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "fmt"
++
++type B struct {
++	x  int
++	px *int
++	pb *B
++}
++
++func F1(b *B) { // ERROR "mutates param: b derefs=0"
++	b.x = 1
++}
++
++func F2(b *B) { // ERROR "mutates param: b derefs=1"
++	*b.px = 1
++}
++
++func F2a(b *B) { // ERROR "mutates param: b derefs=0"
++	b.px = nil
++}
++
++func F3(b *B) { // ERROR "leaking param: b"
++	fmt.Println(b) // ERROR "\.\.\. argument does not escape"
++}
++
++func F4(b *B) { // ERROR "leaking param content: b"
++	fmt.Println(*b) // ERROR "\.\.\. argument does not escape" "\*b escapes to heap"
++}
++
++func F4a(b *B) { // ERROR "leaking param content: b" "mutates param: b derefs=0"
++	b.x = 2
++	fmt.Println(*b) // ERROR "\.\.\. argument does not escape" "\*b escapes to heap"
++}
++
++func F5(b *B) { // ERROR "leaking param: b"
++	sink = b
++}
++
++func F6(b *B) int { // ERROR "b does not escape, mutate, or call"
++	return b.x
++}
++
++var sink any
++
++func M() {
++	var b B // ERROR "moved to heap: b"
++	F1(&b)
++	F2(&b)
++	F2a(&b)
++	F3(&b)
++	F4(&b)
++}
++
++func g(s string) { // ERROR "s does not escape, mutate, or call"
++	sink = &([]byte(s))[10] // ERROR "\(\[\]byte\)\(s\) escapes to heap"
++}
++
++func h(out []byte, s string) { // ERROR "mutates param: out derefs=0" "s does not escape, mutate, or call"
++	copy(out, []byte(s)) // ERROR "zero-copy string->\[\]byte conversion" "\(\[\]byte\)\(s\) does not escape"
++}
++
++func i(s string) byte { // ERROR "s does not escape, mutate, or call"
++	p := []byte(s) // ERROR "zero-copy string->\[\]byte conversion" "\(\[\]byte\)\(s\) does not escape"
++	return p[20]
++}
++
++func j(s string, x byte) { // ERROR "s does not escape, mutate, or call"
++	p := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape"
++	p[20] = x
++}
+diff --git a/test/inline_big.go b/test/inline_big.go
+index f579fc0910..7dd1abdb6a 100644
+--- a/test/inline_big.go
++++ b/test/inline_big.go
+@@ -9,18 +9,18 @@
+ 
+ package foo
+ 
+-func small(a []int) int { // ERROR "can inline small with cost .* as:.*" "a does not escape" "does not mutate param: a" "does not call param: a"
++func small(a []int) int { // ERROR "can inline small with cost .* as:.*" "a does not escape"
+ 	// Cost 16 body (need cost < 20).
+ 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
+ 	return a[0] + a[1] + a[2] + a[3]
+ }
+-func medium(a []int) int { // ERROR "can inline medium with cost .* as:.*" "a does not escape" "does not mutate param: a" "does not call param: a"
++func medium(a []int) int { // ERROR "can inline medium with cost .* as:.*" "a does not escape"
+ 	// Cost 32 body (need cost > 20 and cost < 80).
+ 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
+ 	return a[0] + a[1] + a[2] + a[3] + a[4] + a[5] + a[6] + a[7]
+ }
+ 
+-func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape" "function f considered 'big'" "mutates param: a derefs=0" "does not call param: a"
++func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape" "function f considered 'big'"
+ 	// Add lots of nodes to f's body. We need >5000.
+ 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
+ 	a[0] = 0

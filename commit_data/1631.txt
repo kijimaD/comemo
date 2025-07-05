@@ -8,7 +8,65 @@ Date:   Fri Feb 6 14:32:09 2009 -0800
     DELTA=31  (30 added, 1 deleted, 0 changed)
     OCL=24568
     CL=24575
-
+---
  src/lib/container/array/array.go      |  7 +++++++
  src/lib/container/array/array_test.go | 24 +++++++++++++++++++++++-
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/container/array/array.go b/src/lib/container/array/array.go
+index 768e46d3a4..e29736fb65 100644
+--- a/src/lib/container/array/array.go
++++ b/src/lib/container/array/array.go
+@@ -140,6 +140,13 @@ func (p *Array) Slice(i, j int) *Array {
+ }
+ 
+ 
++func (p *Array) Do(f func(elem Element)) {
++	for i := 0; i < len(p.a); i++ {
++		f(p.a[i])	// not too safe if f changes the Array
++	}
++}
++
++
+ // Convenience wrappers
+ 
+ func (p *Array) Push(x Element) {
+diff --git a/src/lib/container/array/array_test.go b/src/lib/container/array/array_test.go
+index df9fee673c..43ac702abc 100644
+--- a/src/lib/container/array/array_test.go
++++ b/src/lib/container/array/array_test.go
+@@ -139,7 +139,6 @@ func TestInsertArray(t *testing.T) {
+ 	verify_pattern(t, a, 8, 1000, 2);
+ }
+ 
+-
+ func TestSorting(t *testing.T) {
+ 	const n = 100;
+ 	a := array.NewIntArray(n);
+@@ -148,3 +147,26 @@ func TestSorting(t *testing.T) {
+ 	}
+ 	if sort.IsSorted(a) { t.Error("not sorted") }
+ }
++
++
++func TestDo(t *testing.T) {
++	const n = 25;
++	const salt = 17;
++	a := array.NewIntArray(n);
++	for i := 0; i < n; i++ {
++		a.Set(i, salt * i);
++	}
++	count := 0;
++	a.Do(
++		func(e array.Element) {
++			i := e.(int);
++			if i != count*salt {
++				t.Error("value at", count, "should be", count*salt, "not", i)
++			}
++			count++;
++		}
++	);
++	if count != n {
++		t.Error("should visit", n, "values; did visit", count)
++	}
++}

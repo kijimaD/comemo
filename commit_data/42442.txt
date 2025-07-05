@@ -17,6 +17,20 @@ Date:   Mon Dec 23 13:47:20 2019 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/benchmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 04127727c1..93f461b07a 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -86,7 +86,7 @@ type InternalBenchmark struct {
+ // may be called simultaneously from multiple goroutines.
+ //
+ // Like in tests, benchmark logs are accumulated during execution
+-// and dumped to standard error when done. Unlike in tests, benchmark logs
++// and dumped to standard output when done. Unlike in tests, benchmark logs
+ // are always printed, so as not to hide output whose existence may be
+ // affecting benchmark results.
+ type B struct {

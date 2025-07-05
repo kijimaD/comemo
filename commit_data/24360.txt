@@ -12,10 +12,234 @@ Date:   Sat Jul 25 12:53:58 2015 -0500
     Change-Id: I1e65b63cc32ac673a9bb5a297b578b44c2f1ac8f
     Reviewed-on: https://go-review.googlesource.com/12678
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa_test.go           |  3 ++
  src/cmd/compile/internal/gc/testdata/arith_ssa.go | 47 +++++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules      |  9 +++--
  src/cmd/compile/internal/ssa/rewrite.go           |  7 +++-
  src/cmd/compile/internal/ssa/rewriteAMD64.go      | 45 +++++++++++++---------
  5 files changed, 88 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index 4354d020f2..f51d6de871 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -42,3 +42,6 @@ func TestShortCircuit(t *testing.T) { runTest(t, "short_ssa.go") }
+ 
+ // TestBreakContinue tests that continue and break statements do what they say.
+ func TestBreakContinue(t *testing.T) { runTest(t, "break_ssa.go") }
++
++// TestArithmetic tests that both backends have the same result for arithmetic expressions.
++func TestArithmetic(t *testing.T) { runTest(t, "arith_ssa.go") }
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+new file mode 100644
+index 0000000000..a4fdf16f7d
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -0,0 +1,47 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests arithmetic expressions
++
++package main
++
++func test64BitConstMult(a, b int64) {
++	want := 34359738369*a + b*34359738370
++	if got := test64BitConstMult_ssa(a, b); want != got {
++		println("test64BitConstMult failed, wanted", want, "got", got)
++		failed = true
++	}
++}
++func test64BitConstMult_ssa(a, b int64) int64 {
++	switch { // prevent inlining
++	}
++	return 34359738369*a + b*34359738370
++}
++
++func test64BitConstAdd(a, b int64) {
++	want := a + 575815584948629622 + b + 2991856197886747025
++	if got := test64BitConstAdd_ssa(a, b); want != got {
++		println("test64BitConstAdd failed, wanted", want, "got", got)
++		failed = true
++	}
++}
++func test64BitConstAdd_ssa(a, b int64) int64 {
++	switch {
++	}
++	return a + 575815584948629622 + b + 2991856197886747025
++}
++
++var failed = false
++
++func main() {
++
++	test64BitConstMult(1, 2)
++	test64BitConstAdd(1, 2)
++
++	if failed {
++		panic("failed")
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index f1ae4f6a82..7f5fd663e3 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -136,12 +136,13 @@
+ // TODO: Should this be a separate pass?
+ 
+ // fold constants into instructions
+-(ADDQ x (MOVQconst [c])) -> (ADDQconst [c] x) // TODO: restrict c to int32 range?
+-(ADDQ (MOVQconst [c]) x) -> (ADDQconst [c] x)
++// TODO: restrict c to int32 range for all?
++(ADDQ x (MOVQconst [c])) && is32Bit(c) -> (ADDQconst [c] x)
++(ADDQ (MOVQconst [c]) x) && is32Bit(c) -> (ADDQconst [c] x)
+ (SUBQ x (MOVQconst [c])) -> (SUBQconst x [c])
+ (SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBQconst <t> x [c]))
+-(MULQ x (MOVQconst [c])) && c == int64(int32(c)) -> (MULQconst [c] x)
+-(MULQ (MOVQconst [c]) x) -> (MULQconst [c] x)
++(MULQ x (MOVQconst [c])) && is32Bit(c) -> (MULQconst [c] x)
++(MULQ (MOVQconst [c]) x) && is32Bit(c) -> (MULQconst [c] x)
+ (ANDQ x (MOVQconst [c])) -> (ANDQconst [c] x)
+ (ANDQ (MOVQconst [c]) x) -> (ANDQconst [c] x)
+ (SHLQ x (MOVQconst [c])) -> (SHLQconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 90ac7d7a68..a02f1d50b2 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -130,7 +130,12 @@ func log2(n int64) (l int64) {
+ 	return l
+ }
+ 
+-// isPowerOfTwo returns true if n is a power of 2.
++// isPowerOfTwo reports whether n is a power of 2.
+ func isPowerOfTwo(n int64) bool {
+ 	return n > 0 && n&(n-1) == 0
+ }
++
++// is32Bit reports whether n can be represented as a signed 32 bit integer.
++func is32Bit(n int64) bool {
++	return n == int64(int32(n))
++}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index f8642a7bb5..5019e69529 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -6,14 +6,17 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	switch v.Op {
+ 	case OpAMD64ADDQ:
+ 		// match: (ADDQ x (MOVQconst [c]))
+-		// cond:
++		// cond: is32Bit(c)
+ 		// result: (ADDQconst [c] x)
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpAMD64MOVQconst {
+-				goto endacffd55e74ee0ff59ad58a18ddfc9973
++				goto end1de8aeb1d043e0dadcffd169a99ce5c0
+ 			}
+ 			c := v.Args[1].AuxInt
++			if !(is32Bit(c)) {
++				goto end1de8aeb1d043e0dadcffd169a99ce5c0
++			}
+ 			v.Op = OpAMD64ADDQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -22,18 +25,21 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto endacffd55e74ee0ff59ad58a18ddfc9973
+-	endacffd55e74ee0ff59ad58a18ddfc9973:
++		goto end1de8aeb1d043e0dadcffd169a99ce5c0
++	end1de8aeb1d043e0dadcffd169a99ce5c0:
+ 		;
+ 		// match: (ADDQ (MOVQconst [c]) x)
+-		// cond:
++		// cond: is32Bit(c)
+ 		// result: (ADDQconst [c] x)
+ 		{
+ 			if v.Args[0].Op != OpAMD64MOVQconst {
+-				goto end7166f476d744ab7a51125959d3d3c7e2
++				goto endca635e3bdecd9e3aeb892f841021dfaa
+ 			}
+ 			c := v.Args[0].AuxInt
+ 			x := v.Args[1]
++			if !(is32Bit(c)) {
++				goto endca635e3bdecd9e3aeb892f841021dfaa
++			}
+ 			v.Op = OpAMD64ADDQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -42,8 +48,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto end7166f476d744ab7a51125959d3d3c7e2
+-	end7166f476d744ab7a51125959d3d3c7e2:
++		goto endca635e3bdecd9e3aeb892f841021dfaa
++	endca635e3bdecd9e3aeb892f841021dfaa:
+ 		;
+ 		// match: (ADDQ x (SHLQconst [3] y))
+ 		// cond:
+@@ -1223,16 +1229,16 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		;
+ 	case OpAMD64MULQ:
+ 		// match: (MULQ x (MOVQconst [c]))
+-		// cond: c == int64(int32(c))
++		// cond: is32Bit(c)
+ 		// result: (MULQconst [c] x)
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpAMD64MOVQconst {
+-				goto end680a32a37babfff4bfa7d23be592a131
++				goto endb38c6e3e0ddfa25ba0ef9684ac1528c0
+ 			}
+ 			c := v.Args[1].AuxInt
+-			if !(c == int64(int32(c))) {
+-				goto end680a32a37babfff4bfa7d23be592a131
++			if !(is32Bit(c)) {
++				goto endb38c6e3e0ddfa25ba0ef9684ac1528c0
+ 			}
+ 			v.Op = OpAMD64MULQconst
+ 			v.AuxInt = 0
+@@ -1242,18 +1248,21 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto end680a32a37babfff4bfa7d23be592a131
+-	end680a32a37babfff4bfa7d23be592a131:
++		goto endb38c6e3e0ddfa25ba0ef9684ac1528c0
++	endb38c6e3e0ddfa25ba0ef9684ac1528c0:
+ 		;
+ 		// match: (MULQ (MOVQconst [c]) x)
+-		// cond:
++		// cond: is32Bit(c)
+ 		// result: (MULQconst [c] x)
+ 		{
+ 			if v.Args[0].Op != OpAMD64MOVQconst {
+-				goto endc6e18d6968175d6e58eafa6dcf40c1b8
++				goto end9cb4f29b0bd7141639416735dcbb3b87
+ 			}
+ 			c := v.Args[0].AuxInt
+ 			x := v.Args[1]
++			if !(is32Bit(c)) {
++				goto end9cb4f29b0bd7141639416735dcbb3b87
++			}
+ 			v.Op = OpAMD64MULQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -1262,8 +1271,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto endc6e18d6968175d6e58eafa6dcf40c1b8
+-	endc6e18d6968175d6e58eafa6dcf40c1b8:
++		goto end9cb4f29b0bd7141639416735dcbb3b87
++	end9cb4f29b0bd7141639416735dcbb3b87:
+ 		;
+ 	case OpAMD64MULQconst:
+ 		// match: (MULQconst [-1] x)

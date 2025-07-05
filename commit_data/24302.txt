@@ -7,6 +7,19 @@ Date:   Wed Jul 22 16:30:32 2015 +0530
     Change-Id: I8633a005da7d0c34a5f074fbd979c8e0fc1fba37
     Reviewed-on: https://go-review.googlesource.com/12505
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/install-source.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 11e00d055b..d0e4d1a1f7 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -487,6 +487,7 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+ <td></td><td><code>windows</code></td> <td><code>amd64</code></td>
+ </tr>
+ </table>
++<br>
+ 
+ <li><code>$GOHOSTOS</code> and <code>$GOHOSTARCH</code>
+ <p>

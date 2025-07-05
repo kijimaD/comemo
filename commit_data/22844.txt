@@ -10,9 +10,103 @@ Date:   Wed Apr 1 15:53:52 2015 +1300
     Change-Id: I66a6e1adf7818558e7d1351ab215a5021b4a8a6b
     Reviewed-on: https://go-review.googlesource.com/8333
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go    | 14 ++++++++++++++
  src/cmd/go/doc.go      |  3 +++
  src/cmd/go/test.go     |  1 +
  src/cmd/go/testflag.go |  3 ++-
  4 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index c8a37b64d1..1b86c9a69d 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -77,6 +77,9 @@ and test commands:
+ 
+ 	-buildmode mode
+ 		build mode to use. See 'go help buildmodes' for more.
++	-linkshared
++		link against shared libraries previously created with
++		-buildmode=shared
+ 	-compiler name
+ 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+ 	-gccgoflags 'arg list'
+@@ -149,6 +152,7 @@ var buildGccgoflags []string // -gccgoflags flag
+ var buildRace bool           // -race flag
+ var buildToolExec []string   // -toolexec flag
+ var buildBuildmode string    // -buildmode flag
++var buildLinkshared bool     // -linkshared flag
+ 
+ var buildContext = build.Default
+ var buildToolchain toolchain = noToolchain{}
+@@ -204,6 +208,7 @@ func addBuildFlags(cmd *Command) {
+ 	cmd.Flag.BoolVar(&buildRace, "race", false, "")
+ 	cmd.Flag.Var((*stringsFlag)(&buildToolExec), "toolexec", "")
+ 	cmd.Flag.StringVar(&buildBuildmode, "buildmode", "default", "")
++	cmd.Flag.BoolVar(&buildLinkshared, "linkshared", false, "")
+ }
+ 
+ func addBuildFlagsNX(cmd *Command) {
+@@ -307,6 +312,15 @@ func buildModeInit() {
+ 	default:
+ 		fatalf("buildmode=%s not supported", buildBuildmode)
+ 	}
++	if buildLinkshared {
++		if goarch != "amd64" || goos != "linux" {
++			fmt.Fprintf(os.Stderr, "go %s: -linkshared is only supported on linux/amd64\n", flag.Args()[0])
++			os.Exit(2)
++		}
++		codegenArg = "-dynlink"
++		// TODO(mwhudson): remove -w when that gets fixed in linker.
++		buildLdflags = append(buildLdflags, "-linkshared", "-w")
++	}
+ 	if ldBuildmode != "" {
+ 		buildLdflags = append(buildLdflags, "-buildmode="+ldBuildmode)
+ 	}
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 95b8094a67..9d10d4f3fb 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -97,6 +97,9 @@ and test commands:
+ 
+ 	-buildmode mode
+ 		build mode to use. See 'go help buildmodes' for more.
++	-linkshared
++		link against shared libraries previously created with
++		-buildmode=shared
+ 	-compiler name
+ 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+ 	-gccgoflags 'arg list'
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index e96ed22361..03e9eeda9b 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -314,6 +314,7 @@ func runTest(cmd *Command, args []string) {
+ 	findExecCmd() // initialize cached result
+ 
+ 	raceInit()
++	buildModeInit()
+ 	pkgs := packagesForBuild(pkgArgs)
+ 	if len(pkgs) == 0 {
+ 		fatalf("no packages to test")
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 5652e5466c..8767c2525b 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -48,6 +48,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "tags"},
+ 	{name: "compiler"},
+ 	{name: "race", boolVar: &buildRace},
++	{name: "linkshared", boolVar: &buildLinkshared},
+ 	{name: "installsuffix"},
+ 
+ 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+@@ -115,7 +116,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		var err error
+ 		switch f.name {
+ 		// bool flags.
+-		case "a", "c", "i", "n", "x", "v", "race", "cover", "work":
++		case "a", "c", "i", "n", "x", "v", "race", "cover", "work", "linkshared":
+ 			setBoolFlag(f.boolVar, value)
+ 		case "o":
+ 			testO = value

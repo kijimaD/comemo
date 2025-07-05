@@ -23,7 +23,42 @@ Date:   Wed Dec 13 19:58:23 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cgo/internal/testsanitizers/msan_test.go      | 5 ++++-
  src/cmd/cgo/internal/testsanitizers/testdata/msan8.go | 7 +++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/msan_test.go b/src/cmd/cgo/internal/testsanitizers/msan_test.go
+index 83d66f6660..c534b72442 100644
+--- a/src/cmd/cgo/internal/testsanitizers/msan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/msan_test.go
+@@ -71,7 +71,10 @@ func TestMSAN(t *testing.T) {
+ 			defer dir.RemoveAll(t)
+ 
+ 			outPath := dir.Join(name)
+-			mustRun(t, config.goCmdWithExperiments("build", []string{"-o", outPath, srcPath(tc.src)}, tc.experiments))
++			buildcmd := config.goCmdWithExperiments("build", []string{"-o", outPath, srcPath(tc.src)}, tc.experiments)
++			// allow tests to define -f flags in CGO_CFLAGS
++			replaceEnv(buildcmd, "CGO_CFLAGS_ALLOW", "-f.*")
++			mustRun(t, buildcmd)
+ 
+ 			cmd := hangProneCmd(outPath)
+ 			if tc.wantErr {
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/msan8.go b/src/cmd/cgo/internal/testsanitizers/testdata/msan8.go
+index 1cb5c5677f..e79d343cc7 100644
+--- a/src/cmd/cgo/internal/testsanitizers/testdata/msan8.go
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/msan8.go
+@@ -5,6 +5,13 @@
+ package main
+ 
+ /*
++// For clang >= 16, uninitialized memory is more aggressively reported.
++// Restore the old behavior for this particular test as it relies on
++// uninitialized variables. See #64616
++#if __clang_major__ >= 16
++#cgo CFLAGS: -fno-sanitize-memory-param-retval
++#endif
++
+ #include <pthread.h>
+ #include <signal.h>
+ #include <stdint.h>

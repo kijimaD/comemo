@@ -7,7 +7,37 @@ Date:   Thu Oct 27 19:39:40 2011 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5308061
-
+---
  src/pkg/go/build/build_test.go      | 2 +-
  src/pkg/go/build/pkgtest/pkgtest.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index 68a4180c90..398e31ce26 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -28,7 +28,7 @@ var buildPkgs = []struct {
+ 			GoFiles:      []string{"pkgtest.go"},
+ 			SFiles:       []string{"sqrt_" + runtime.GOARCH + ".s"},
+ 			Package:      "pkgtest",
+-			Imports:      []string{"os"},
++			Imports:      []string{"bytes"},
+ 			TestImports:  []string{"fmt", "pkgtest"},
+ 			TestGoFiles:  sortstr([]string{"sqrt_test.go", "sqrt_" + runtime.GOARCH + "_test.go"}),
+ 			XTestGoFiles: []string{"xsqrt_test.go"},
+diff --git a/src/pkg/go/build/pkgtest/pkgtest.go b/src/pkg/go/build/pkgtest/pkgtest.go
+index 03ebb9893a..08eea1e2bc 100644
+--- a/src/pkg/go/build/pkgtest/pkgtest.go
++++ b/src/pkg/go/build/pkgtest/pkgtest.go
+@@ -4,9 +4,9 @@
+ 
+ package pkgtest
+ 
+-import "os"
++import "bytes"
+ 
+-func Foo() os.Error {
++func Foo() *bytes.Buffer {
+ 	return nil
+ }
+ 

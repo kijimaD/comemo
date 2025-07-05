@@ -9,7 +9,61 @@ Date:   Mon Sep 23 13:19:08 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/13235059
-
+---
  src/pkg/reflect/all_test.go     |  6 +++---
  src/pkg/reflect/example_test.go | 14 ++++++++++++++
  2 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 1376286246..a2f639fcc4 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -948,7 +948,7 @@ func TestMap(t *testing.T) {
+ 
+ 	newm := newmap.Interface().(map[string]int)
+ 	if len(newm) != len(m) {
+-		t.Errorf("length after copy: newm=%d, m=%d", newm, m)
++		t.Errorf("length after copy: newm=%d, m=%d", len(newm), len(m))
+ 	}
+ 
+ 	for k, v := range newm {
+@@ -3478,7 +3478,7 @@ func TestAllocsInterfaceBig(t *testing.T) {
+ 	}
+ 	v := ValueOf(S{})
+ 	if allocs := testing.AllocsPerRun(100, func() { v.Interface() }); allocs > 0 {
+-		t.Errorf("allocs:", allocs)
++		t.Error("allocs:", allocs)
+ 	}
+ }
+ 
+@@ -3495,7 +3495,7 @@ func TestAllocsInterfaceSmall(t *testing.T) {
+ 	}
+ 	v := ValueOf(int64(0))
+ 	if allocs := testing.AllocsPerRun(100, func() { v.Interface() }); allocs > 0 {
+-		t.Errorf("allocs:", allocs)
++		t.Error("allocs:", allocs)
+ 	}
+ }
+ 
+diff --git a/src/pkg/reflect/example_test.go b/src/pkg/reflect/example_test.go
+index 62455c00ad..cca28eeece 100644
+--- a/src/pkg/reflect/example_test.go
++++ b/src/pkg/reflect/example_test.go
+@@ -50,3 +50,17 @@ func ExampleMakeFunc() {
+ 	// 1 0
+ 	// 3.14 2.72
+ }
++
++func ExampleStructTag() {
++	type S struct {
++		F string `species:"gopher" color:"blue"`
++	}
++
++	s := S{}
++	st := reflect.TypeOf(s)
++	field := st.Field(0)
++	fmt.Println(field.Tag.Get("color"), field.Tag.Get("species"))
++
++	// Output:
++	// blue gopher
++}

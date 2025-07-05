@@ -13,8 +13,75 @@ Date:   Fri Apr 9 11:20:35 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  misc/cgo/test/cgo_test.go |  1 +
  misc/cgo/test/test.go     | 19 +++++++++++++++++++
  src/reflect/value.go      |  7 ++++++-
  3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 837307263a..143f23f0e0 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -59,6 +59,7 @@ func Test28896(t *testing.T)                 { test28896(t) }
+ func Test30065(t *testing.T)                 { test30065(t) }
+ func Test32579(t *testing.T)                 { test32579(t) }
+ func Test31891(t *testing.T)                 { test31891(t) }
++func Test45451(t *testing.T)                 { test45451(t) }
+ func TestAlign(t *testing.T)                 { testAlign(t) }
+ func TestAtol(t *testing.T)                  { testAtol(t) }
+ func TestBlocking(t *testing.T)              { testBlocking(t) }
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 76afa524c3..3b8f548b13 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -912,6 +912,9 @@ void cFunc37033(uintptr_t handle) { GoFunc37033(handle); }
+ enum Enum40494 { X_40494 };
+ union Union40494 { int x; };
+ void issue40494(enum Enum40494 e, union Union40494* up) {}
++
++// Issue 45451, bad handling of go:notinheap types.
++typedef struct issue45451Undefined issue45451;
+ */
+ import "C"
+ 
+@@ -2266,3 +2269,19 @@ var issue39877 *C.void = nil
+ func Issue40494() {
+ 	C.issue40494(C.enum_Enum40494(C.X_40494), (*C.union_Union40494)(nil))
+ }
++
++// Issue 45451.
++func test45451(t *testing.T) {
++	var u *C.issue45451
++	typ := reflect.ValueOf(u).Type().Elem()
++
++	// The type is undefined in C so allocating it should panic.
++	defer func() {
++		if r := recover(); r == nil {
++			t.Error("expected panic")
++		}
++	}()
++
++	_ = reflect.New(typ)
++	t.Errorf("reflect.New(%v) should have panicked", typ)
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 9670d4656b..7890c125d8 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2702,9 +2702,14 @@ func New(typ Type) Value {
+ 		panic("reflect: New(nil)")
+ 	}
+ 	t := typ.(*rtype)
++	pt := t.ptrTo()
++	if ifaceIndir(pt) {
++		// This is a pointer to a go:notinheap type.
++		panic("reflect: New of type that may not be allocated in heap (possibly undefined cgo C type)")
++	}
+ 	ptr := unsafe_New(t)
+ 	fl := flag(Ptr)
+-	return Value{t.ptrTo(), ptr, fl}
++	return Value{pt, ptr, fl}
+ }
+ 
+ // NewAt returns a Value representing a pointer to a value of the

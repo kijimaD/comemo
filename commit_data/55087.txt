@@ -13,6 +13,20 @@ Date:   Wed Dec 21 13:27:04 2022 +0100
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  doc/go1.20.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 70ab62a3e9..9f506134e6 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -424,7 +424,7 @@ Do not send CLs removing the interior tags from such phrases.
+ </p>
+ <p>
+   The <a href="/pkg/fmt/#Errorf"><code>fmt.Errorf</code></a> function
+-  now supports multiple occurrances of the <code>%w</code> format verb,
++  now supports multiple occurrences of the <code>%w</code> format verb,
+   which will cause it to return an error that wraps all of those error operands.
+ </p>
+ <p>

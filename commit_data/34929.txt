@@ -13,9 +13,79 @@ Date:   Mon Jul 17 17:00:35 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/49371
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go                        | 10 ++++++++++
  src/cmd/go/internal/work/build.go            |  4 ++--
  src/cmd/go/internal/work/init.go             |  6 ++++++
  src/cmd/go/testdata/src/not_main/not_main.go |  3 +++
  4 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d756814f7b..3507b12a03 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2045,6 +2045,16 @@ func TestGoTestMutexprofileDashOControlsBinaryLocation(t *testing.T) {
+ 	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -mutexprofile -o myerrors.test did not create myerrors.test")
+ }
+ 
++func TestGoBuildNonMain(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	// TODO: tg.parallel()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.runFail("build", "-buildmode=exe", "-o", "not_main"+exeSuffix, "not_main")
++	tg.grepStderr("-buildmode=exe requires exactly one main package", "go build with -o and -buildmode=exe should on a non-main package should throw an error")
++	tg.mustNotExist("not_main" + exeSuffix)
++}
++
+ func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 6ae2ca35cf..57b7b00879 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -310,6 +310,8 @@ func runBuild(cmd *base.Command, args []string) {
+ 		depMode = ModeInstall
+ 	}
+ 
++	pkgs = pkgsFilter(load.Packages(args))
++
+ 	if cfg.BuildO != "" {
+ 		if len(pkgs) > 1 {
+ 			base.Fatalf("go build: cannot use -o with multiple packages")
+@@ -325,8 +327,6 @@ func runBuild(cmd *base.Command, args []string) {
+ 		return
+ 	}
+ 
+-	pkgs = pkgsFilter(load.Packages(args))
+-
+ 	a := &Action{Mode: "go build"}
+ 	for _, p := range pkgs {
+ 		a.Deps = append(a.Deps, b.AutoAction(ModeBuild, depMode, p))
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 0e17286cf6..7f894f5c6d 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -123,6 +123,12 @@ func buildModeInit() {
+ 	case "exe":
+ 		pkgsFilter = pkgsMain
+ 		ldBuildmode = "exe"
++		// Set the pkgsFilter to oneMainPkg if the user passed a specific binary output
++		// and is using buildmode=exe for a better error message.
++		// See issue #20017.
++		if cfg.BuildO != "" {
++			pkgsFilter = oneMainPkg
++		}
+ 	case "pie":
+ 		if cfg.BuildRace {
+ 			base.Fatalf("-buildmode=pie not supported when -race is enabled")
+diff --git a/src/cmd/go/testdata/src/not_main/not_main.go b/src/cmd/go/testdata/src/not_main/not_main.go
+new file mode 100644
+index 0000000000..75a397c6cb
+--- /dev/null
++++ b/src/cmd/go/testdata/src/not_main/not_main.go
+@@ -0,0 +1,3 @@
++package not_main
++
++func F() {}

@@ -7,6 +7,19 @@ Date:   Tue Oct 1 11:24:24 2013 +1000
     R=adg, djd
     CC=golang-dev
     https://golang.org/cl/14176043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6a571f7696..53a5983972 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -145,6 +145,7 @@ Daniel Theophanes <kardianos@gmail.com>
+ Darren Elwood <darren@textnode.com>
+ Dave Borowitz <dborowitz@google.com>
+ Dave Cheney <dave@cheney.net>
++Dave Day <djd@golang.org>
+ Dave Grijalva <dgrijalva@ngmoco.com>
+ David Anderson <danderson@google.com>
+ David Bürgin <676c7473@gmail.com>

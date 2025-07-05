@@ -15,6 +15,31 @@ Date:   Mon Oct 26 13:39:56 2020 +0000
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/x509.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index b421d75973..a314b5ed1a 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -14,8 +14,6 @@ import (
+ 	"crypto/elliptic"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+-	_ "crypto/sha256"
+-	_ "crypto/sha512"
+ 	"crypto/x509/pkix"
+ 	"encoding/asn1"
+ 	"encoding/pem"
+@@ -30,6 +28,10 @@ import (
+ 	"time"
+ 	"unicode"
+ 
++	_ "crypto/sha1"
++	_ "crypto/sha256"
++	_ "crypto/sha512"
++
+ 	"golang.org/x/crypto/cryptobyte"
+ 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
+ )

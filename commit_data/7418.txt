@@ -12,7 +12,7 @@ Date:   Wed Feb 9 14:23:01 2011 -0800
     R=rsc, gri, adg, eds, r2, aam
     CC=golang-dev
     https://golang.org/cl/4169042
-
+---
  doc/codelab/wiki/final.go         |  2 +-
  doc/codelab/wiki/index.html       |  2 +-
  doc/effective_go.html             |  2 +-
@@ -26,3 +26,271 @@ Date:   Wed Feb 9 14:23:01 2011 -0800
  src/pkg/template/template_test.go | 20 ++++++++++----------
  test/chan/select5.go              |  2 +-
  12 files changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/doc/codelab/wiki/final.go b/doc/codelab/wiki/final.go
+index 8ecd97d748..c97a699d4b 100644
+--- a/doc/codelab/wiki/final.go
++++ b/doc/codelab/wiki/final.go
+@@ -64,7 +64,7 @@ func init() {
+ }
+ 
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+-	err := templates[tmpl].Execute(p, w)
++	err := templates[tmpl].Execute(w, p)
+ 	if err != nil {
+ 		http.Error(w, err.String(), http.StatusInternalServerError)
+ 	}
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index e29106a6e5..fc8c27bfa0 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -734,7 +734,7 @@ the <code>Execute</code> method on the appropriate <code>Template</code> from
+ 
+ <pre>
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+-	err := templates[tmpl].Execute(p, w)
++	err := templates[tmpl].Execute(w, p)
+ 	if err != nil {
+ 		http.Error(w, err.String(), http.StatusInternalServerError)
+ 	}
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 71d50c02b7..8f94f467be 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2885,7 +2885,7 @@ func main() {
+ }
+ 
+ func QR(w http.ResponseWriter, req *http.Request) {
+-    templ.Execute(req.FormValue("s"), w)
++    templ.Execute(w, req.FormValue("s"))
+ }
+ 
+ func UrlHtmlFormatter(w io.Writer, fmt string, v ...interface{}) {
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index bc11bb759b..3ca5ed80c6 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -66,7 +66,7 @@ func FrontPage(w http.ResponseWriter, req *http.Request) {
+ 	if err != nil {
+ 		data = helloWorld
+ 	}
+-	frontPage.Execute(data, w)
++	frontPage.Execute(w, data)
+ }
+ 
+ // Compile is an HTTP handler that reads Go source code from the request,
+@@ -123,7 +123,7 @@ func Compile(w http.ResponseWriter, req *http.Request) {
+ 	if *htmlOutput {
+ 		w.Write(out)
+ 	} else {
+-		output.Execute(out, w)
++		output.Execute(w, out)
+ 	}
+ }
+ 
+@@ -132,9 +132,9 @@ func Compile(w http.ResponseWriter, req *http.Request) {
+ func error(w http.ResponseWriter, out []byte, err os.Error) {
+ 	w.WriteHeader(404)
+ 	if out != nil {
+-		output.Execute(out, w)
++		output.Execute(w, out)
+ 	} else {
+-		output.Execute(err.String(), w)
++		output.Execute(w, err.String())
+ 	}
+ }
+ 
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index fd3f97f62b..ca9e2bb542 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -674,7 +674,7 @@ func servePage(w http.ResponseWriter, title, subtitle, query string, content []b
+ 		content,
+ 	}
+ 
+-	if err := godocHTML.Execute(&d, w); err != nil {
++	if err := godocHTML.Execute(w, &d); err != nil {
+ 		log.Printf("godocHTML.Execute: %s", err)
+ 	}
+ }
+@@ -742,7 +742,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
+ 
+ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
+ 	var buf bytes.Buffer
+-	if err := t.Execute(data, &buf); err != nil {
++	if err := t.Execute(&buf, data); err != nil {
+ 		log.Printf("%s.Execute: %s", name, err)
+ 	}
+ 	return buf.Bytes()
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 4fd2b88c69..7494b339af 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -381,7 +381,7 @@ func main() {
+ 		}
+ 	}
+ 
+-	if err := packageText.Execute(info, os.Stdout); err != nil {
++	if err := packageText.Execute(os.Stdout, info); err != nil {
+ 		log.Printf("packageText.Execute: %s", err)
+ 	}
+ }
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 93a648b2bf..8d4d6c5d28 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -75,7 +75,7 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
+ 
+ 	var buf bytes.Buffer
+ 	md := makedata{pkg, goFiles, cgoFiles, oFiles}
+-	if err := makefileTemplate.Execute(&md, &buf); err != nil {
++	if err := makefileTemplate.Execute(&buf, &md); err != nil {
+ 		return nil, err
+ 	}
+ 	return buf.Bytes(), nil
+diff --git a/src/pkg/exp/eval/gen.go b/src/pkg/exp/eval/gen.go
+index a2b1198465..de98a5d155 100644
+--- a/src/pkg/exp/eval/gen.go
++++ b/src/pkg/exp/eval/gen.go
+@@ -368,7 +368,7 @@ func main() {
+ 	if err != nil {
+ 		log.Exit(err)
+ 	}
+-	err = t.Execute(data, os.Stdout)
++	err = t.Execute(os.Stdout, data)
+ 	if err != nil {
+ 		log.Exit(err)
+ 	}
+diff --git a/src/pkg/rpc/debug.go b/src/pkg/rpc/debug.go
+index 44b32e04ba..32dc8a18ba 100644
+--- a/src/pkg/rpc/debug.go
++++ b/src/pkg/rpc/debug.go
+@@ -83,7 +83,7 @@ func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 	server.Unlock()
+ 	sort.Sort(services)
+-	err := debug.Execute(services, w)
++	err := debug.Execute(w, services)
+ 	if err != nil {
+ 		fmt.Fprintln(w, "rpc: error executing template:", err.String())
+ 	}
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index f71d76c088..36fd06dc22 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -972,7 +972,7 @@ func (t *Template) ParseFile(filename string) (err os.Error) {
+ 
+ // Execute applies a parsed template to the specified data object,
+ // generating output to wr.
+-func (t *Template) Execute(data interface{}, wr io.Writer) (err os.Error) {
++func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
+ 	// Extract the driver data.
+ 	val := reflect.NewValue(data)
+ 	defer checkError(&err)
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index a89fceb4cb..9df3ab59c0 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -492,7 +492,7 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
+ 			t.Error("unexpected parse error: ", err)
+ 			continue
+ 		}
+-		err = tmpl.Execute(s, &buf)
++		err = tmpl.Execute(&buf, s)
+ 		if test.err == "" {
+ 			if err != nil {
+ 				t.Error("unexpected execute error:", err)
+@@ -517,7 +517,7 @@ func TestMapDriverType(t *testing.T) {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+ 	var b bytes.Buffer
+-	err = tmpl.Execute(mp, &b)
++	err = tmpl.Execute(&b, mp)
+ 	if err != nil {
+ 		t.Error("unexpected execute error:", err)
+ 	}
+@@ -535,7 +535,7 @@ func TestMapNoEntry(t *testing.T) {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+ 	var b bytes.Buffer
+-	err = tmpl.Execute(mp, &b)
++	err = tmpl.Execute(&b, mp)
+ 	if err != nil {
+ 		t.Error("unexpected execute error:", err)
+ 	}
+@@ -552,7 +552,7 @@ func TestStringDriverType(t *testing.T) {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+ 	var b bytes.Buffer
+-	err = tmpl.Execute("hello", &b)
++	err = tmpl.Execute(&b, "hello")
+ 	if err != nil {
+ 		t.Error("unexpected execute error:", err)
+ 	}
+@@ -569,7 +569,7 @@ func TestTwice(t *testing.T) {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+ 	var b bytes.Buffer
+-	err = tmpl.Execute("hello", &b)
++	err = tmpl.Execute(&b, "hello")
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+@@ -578,7 +578,7 @@ func TestTwice(t *testing.T) {
+ 	if s != expect {
+ 		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+ 	}
+-	err = tmpl.Execute("hello", &b)
++	err = tmpl.Execute(&b, "hello")
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+@@ -614,7 +614,7 @@ func TestCustomDelims(t *testing.T) {
+ 				continue
+ 			}
+ 			var b bytes.Buffer
+-			err = tmpl.Execute("hello", &b)
++			err = tmpl.Execute(&b, "hello")
+ 			s := b.String()
+ 			if s != "template: hello"+ldelim+rdelim {
+ 				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
+@@ -635,7 +635,7 @@ func TestVarIndirection(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("unexpected parse error:", err)
+ 	}
+-	err = tmpl.Execute(s, &buf)
++	err = tmpl.Execute(&buf, s)
+ 	if err != nil {
+ 		t.Fatal("unexpected execute error:", err)
+ 	}
+@@ -669,7 +669,7 @@ func TestReferenceToUnexported(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("unexpected parse error:", err)
+ 	}
+-	err = tmpl.Execute(u, &buf)
++	err = tmpl.Execute(&buf, u)
+ 	if err == nil {
+ 		t.Fatal("expected execute error, got none")
+ 	}
+@@ -749,7 +749,7 @@ func TestFormatters(t *testing.T) {
+ 				continue
+ 			}
+ 			buf := bytes.NewBuffer(nil)
+-			err = tmpl.Execute(data, buf)
++			err = tmpl.Execute(buf, data)
+ 			if err != nil {
+ 				t.Error("unexpected Execute error: ", err)
+ 				continue
+diff --git a/test/chan/select5.go b/test/chan/select5.go
+index 0678b8dab6..e7ca9e015c 100644
+--- a/test/chan/select5.go
++++ b/test/chan/select5.go
+@@ -49,7 +49,7 @@ func main() {
+ }
+ 
+ func run(t *template.Template, a interface{}, out io.Writer) {
+-	if err := t.Execute(a, out); err != nil {
++	if err := t.Execute(out, a); err != nil {
+ 		panic(err)
+ 	}
+ }

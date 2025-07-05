@@ -7,6 +7,38 @@ Date:   Wed Aug 26 16:19:59 2009 -0700
     R=r
     OCL=33913
     CL=33913
-
+---
  src/pkg/gob/codec_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index a59621eb96..c81bd3609e 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -168,7 +168,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	{
+ 		b.Reset();
+ 		data := struct { a int8 } { 17 };
+-		instr := &encInstr{ encInt, 6, 0, 0 };
++		instr := &encInstr{ encInt8, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+ 		if !bytes.Equal(signedResult, b.Data()) {
+@@ -180,7 +180,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	{
+ 		b.Reset();
+ 		data := struct { a uint8 } { 17 };
+-		instr := &encInstr{ encUint, 6, 0, 0 };
++		instr := &encInstr{ encUint8, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+ 		if !bytes.Equal(unsignedResult, b.Data()) {
+@@ -255,7 +255,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	{
+ 		b.Reset();
+ 		data := struct { a uint64 } { 17 };
+-		instr := &encInstr{ encUint, 6, 0, 0 };
++		instr := &encInstr{ encUint64, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+ 		if !bytes.Equal(unsignedResult, b.Data()) {

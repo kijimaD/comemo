@@ -16,10 +16,263 @@ Date:   Wed Oct 10 15:52:03 2018 +0530
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/reader.go                    | 34 +++++++++++++++++++++++----------
  src/go/doc/testdata/issue12839.0.golden | 18 +++++++++++++++++
  src/go/doc/testdata/issue12839.1.golden | 18 +++++++++++++++++
  src/go/doc/testdata/issue12839.2.golden | 18 +++++++++++++++++
  src/go/doc/testdata/issue12839.go       | 31 ++++++++++++++++++++++++++++++
  5 files changed, 109 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index 4950e7c6c3..6db5c21c4a 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -365,6 +365,12 @@ func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
+ 	}
+ }
+ 
++// isPredeclared reports whether n denotes a predeclared type.
++//
++func (r *reader) isPredeclared(n string) bool {
++	return predeclaredTypes[n] && r.types[n] == nil
++}
++
+ // readFunc processes a func or method declaration.
+ //
+ func (r *reader) readFunc(fun *ast.FuncDecl) {
+@@ -398,29 +404,30 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ 		return
+ 	}
+ 
+-	// Associate factory functions with the first visible result type, if that
+-	// is the only type returned.
++	// Associate factory functions with the first visible result type, as long as
++	// others are predeclared types.
+ 	if fun.Type.Results.NumFields() >= 1 {
+ 		var typ *namedType // type to associate the function with
+ 		numResultTypes := 0
+ 		for _, res := range fun.Type.Results.List {
+-			// exactly one (named or anonymous) result associated
+-			// with the first type in result signature (there may
+-			// be more than one result)
+ 			factoryType := res.Type
+ 			if t, ok := factoryType.(*ast.ArrayType); ok {
+ 				// We consider functions that return slices or arrays of type
+ 				// T (or pointers to T) as factory functions of T.
+ 				factoryType = t.Elt
+ 			}
+-			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) {
++			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) && !r.isPredeclared(n) {
+ 				if t := r.lookupType(n); t != nil {
+ 					typ = t
+ 					numResultTypes++
++					if numResultTypes > 1 {
++						break
++					}
+ 				}
+ 			}
+ 		}
+-		// If there is exactly one result type, associate the function with that type.
++		// If there is exactly one result type,
++		// associate the function with that type.
+ 		if numResultTypes == 1 {
+ 			typ.funcs.set(fun, r.mode&PreserveAST != 0)
+ 			return
+@@ -494,7 +501,7 @@ func (r *reader) readFile(src *ast.File) {
+ 		}
+ 	}
+ 
+-	// add all declarations
++	// add all declarations but for functions which are processed in a separate pass
+ 	for _, decl := range src.Decls {
+ 		switch d := decl.(type) {
+ 		case *ast.GenDecl:
+@@ -548,8 +555,6 @@ func (r *reader) readFile(src *ast.File) {
+ 					}
+ 				}
+ 			}
+-		case *ast.FuncDecl:
+-			r.readFunc(d)
+ 		}
+ 	}
+ 
+@@ -586,6 +591,15 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
+ 		}
+ 		r.readFile(f)
+ 	}
++
++	// process functions now that we have better type information
++	for _, f := range pkg.Files {
++		for _, decl := range f.Decls {
++			if d, ok := decl.(*ast.FuncDecl); ok {
++				r.readFunc(d)
++			}
++		}
++	}
+ }
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/go/doc/testdata/issue12839.0.golden b/src/go/doc/testdata/issue12839.0.golden
+index 76c2855560..6b59774fb9 100644
+--- a/src/go/doc/testdata/issue12839.0.golden
++++ b/src/go/doc/testdata/issue12839.0.golden
+@@ -14,9 +14,15 @@ FUNCTIONS
+ 	// F1 should not be associated with T1 
+ 	func F1() (*T1, *T2)
+ 
++	// F10 should not be associated with T1. 
++	func F10() (T1, T2, error)
++
+ 	// F4 should not be associated with a type (same as F1) 
+ 	func F4() (a T1, b T2)
+ 
++	// F9 should not be associated with T1. 
++	func F9() (int, T1, T2)
++
+ 
+ TYPES
+ 	// 
+@@ -28,6 +34,18 @@ TYPES
+ 	// F3 should be associated with T1 because b.T3 is from a ...
+ 	func F3() (a T1, b p.T3)
+ 
++	// F5 should be associated with T1. 
++	func F5() (T1, error)
++
++	// F6 should be associated with T1. 
++	func F6() (*T1, error)
++
++	// F7 should be associated with T1. 
++	func F7() (T1, string)
++
++	// F8 should be associated with T1. 
++	func F8() (int, T1, string)
++
+ 	// 
+ 	type T2 struct{}
+ 
+diff --git a/src/go/doc/testdata/issue12839.1.golden b/src/go/doc/testdata/issue12839.1.golden
+index b0a327ffd6..4b9b9f6477 100644
+--- a/src/go/doc/testdata/issue12839.1.golden
++++ b/src/go/doc/testdata/issue12839.1.golden
+@@ -14,9 +14,15 @@ FUNCTIONS
+ 	// F1 should not be associated with T1 
+ 	func F1() (*T1, *T2)
+ 
++	// F10 should not be associated with T1. 
++	func F10() (T1, T2, error)
++
+ 	// F4 should not be associated with a type (same as F1) 
+ 	func F4() (a T1, b T2)
+ 
++	// F9 should not be associated with T1. 
++	func F9() (int, T1, T2)
++
+ 
+ TYPES
+ 	// 
+@@ -28,6 +34,18 @@ TYPES
+ 	// F3 should be associated with T1 because b.T3 is from a ...
+ 	func F3() (a T1, b p.T3)
+ 
++	// F5 should be associated with T1. 
++	func F5() (T1, error)
++
++	// F6 should be associated with T1. 
++	func F6() (*T1, error)
++
++	// F7 should be associated with T1. 
++	func F7() (T1, string)
++
++	// F8 should be associated with T1. 
++	func F8() (int, T1, string)
++
+ 	// 
+ 	func (t T1) hello() string
+ 
+diff --git a/src/go/doc/testdata/issue12839.2.golden b/src/go/doc/testdata/issue12839.2.golden
+index 76c2855560..6b59774fb9 100644
+--- a/src/go/doc/testdata/issue12839.2.golden
++++ b/src/go/doc/testdata/issue12839.2.golden
+@@ -14,9 +14,15 @@ FUNCTIONS
+ 	// F1 should not be associated with T1 
+ 	func F1() (*T1, *T2)
+ 
++	// F10 should not be associated with T1. 
++	func F10() (T1, T2, error)
++
+ 	// F4 should not be associated with a type (same as F1) 
+ 	func F4() (a T1, b T2)
+ 
++	// F9 should not be associated with T1. 
++	func F9() (int, T1, T2)
++
+ 
+ TYPES
+ 	// 
+@@ -28,6 +34,18 @@ TYPES
+ 	// F3 should be associated with T1 because b.T3 is from a ...
+ 	func F3() (a T1, b p.T3)
+ 
++	// F5 should be associated with T1. 
++	func F5() (T1, error)
++
++	// F6 should be associated with T1. 
++	func F6() (*T1, error)
++
++	// F7 should be associated with T1. 
++	func F7() (T1, string)
++
++	// F8 should be associated with T1. 
++	func F8() (int, T1, string)
++
+ 	// 
+ 	type T2 struct{}
+ 
+diff --git a/src/go/doc/testdata/issue12839.go b/src/go/doc/testdata/issue12839.go
+index 500d49511b..51c7ac1268 100644
+--- a/src/go/doc/testdata/issue12839.go
++++ b/src/go/doc/testdata/issue12839.go
+@@ -5,6 +5,7 @@
+ // Package issue12839 is a go/doc test to test association of a function
+ // that returns multiple types.
+ // See golang.org/issue/12839.
++// (See also golang.org/issue/27928.)
+ package issue12839
+ 
+ import "p"
+@@ -36,3 +37,33 @@ func F3() (a T1, b p.T3) {
+ func F4() (a T1, b T2) {
+ 	return T1{}, T2{}
+ }
++
++// F5 should be associated with T1.
++func F5() (T1, error) {
++	return T1{}, nil
++}
++
++// F6 should be associated with T1.
++func F6() (*T1, error) {
++	return &T1{}, nil
++}
++
++// F7 should be associated with T1.
++func F7() (T1, string) {
++	return T1{}, nil
++}
++
++// F8 should be associated with T1.
++func F8() (int, T1, string) {
++	return 0, T1{}, nil
++}
++
++// F9 should not be associated with T1.
++func F9() (int, T1, T2) {
++	return 0, T1{}, T2{}
++}
++
++// F10 should not be associated with T1.
++func F10() (T1, T2, error) {
++	return T1{}, T2{}, nil
++}

@@ -11,7 +11,56 @@ Date:   Wed Apr 18 08:48:04 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go  | 4 +++-
  src/cmd/compile/internal/gc/ssa.go | 8 ++++----
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 3ba0598f61..572afdb4b4 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -304,7 +304,9 @@ var (
+ 	racewriterange,
+ 	msanread,
+ 	msanwrite,
+-	Udiv *obj.LSym
++	Udiv,
++	supportPopcnt,
++	supportSSE41 *obj.LSym
+ 
+ 	// GO386=387
+ 	ControlWord64trunc,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 59de5efe11..82811ccd20 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -81,6 +81,8 @@ func initssaconfig() {
+ 	msanread = sysfunc("msanread")
+ 	msanwrite = sysfunc("msanwrite")
+ 	Udiv = sysfunc("udiv")
++	supportPopcnt = sysfunc("support_popcnt")
++	supportSSE41 = sysfunc("support_sse41")
+ 
+ 	// GO386=387 runtime functions
+ 	ControlWord64trunc = sysfunc("controlWord64trunc")
+@@ -3019,8 +3021,7 @@ func init() {
+ 
+ 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			aux := syslook("support_sse41").Sym.Linksym()
+-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), supportSSE41, s.sb)
+ 			v := s.load(types.Types[TBOOL], addr)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+@@ -3183,8 +3184,7 @@ func init() {
+ 		sys.ARM64)
+ 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			aux := syslook("support_popcnt").Sym.Linksym()
+-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), supportPopcnt, s.sb)
+ 			v := s.load(types.Types[TBOOL], addr)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf

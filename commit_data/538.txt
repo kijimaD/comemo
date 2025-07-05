@@ -8,7 +8,38 @@ Date:   Wed Aug 20 15:43:12 2008 -0700
     DELTA=10  (6 added, 4 deleted, 0 changed)
     OCL=14348
     CL=14348
-
+---
  test/bugs/bug090.go | 6 ++++++
  test/const.go       | 4 ----
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/test/bugs/bug090.go b/test/bugs/bug090.go
+index bcb9095ff2..0654cff9d4 100644
+--- a/test/bugs/bug090.go
++++ b/test/bugs/bug090.go
+@@ -36,4 +36,10 @@ func main() {
+ 	i = f3div2;	// BUG: probably shouldn't compile
+ 	assert(i == c3div2, "i == c3div2 from f3div2");
+ 	assert(i != f3div2, "i != f3div2");	// BUG: certainly shouldn't fail
++
++	const g float64 = 1.0;
++	i = g;  // BUG: shouldn't compile
++
++	const h float64 = 3.14;
++	i = h;  // BUG: certainly shouldn't compile
+ }
+diff --git a/test/const.go b/test/const.go
+index ced52dc224..f16a8c4b75 100644
+--- a/test/const.go
++++ b/test/const.go
+@@ -89,10 +89,6 @@ func floats() {
+ 	assert(i == f0, "i == f0");
+ 	i = fm1;
+ 	assert(i == fm1, "i == fm1");
+-	i = f1;
+-	assert(i == f1, "i == f1");
+-	i = f1e3;
+-	assert(i == f1e3, "i == f1e3");
+ 
+ 	// verify that all are assignable as floats
+ 	var f float64;

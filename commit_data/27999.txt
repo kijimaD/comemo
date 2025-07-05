@@ -11,7 +11,7 @@ Date:   Fri Apr 22 07:14:10 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go |  6 +++---
  src/cmd/compile/internal/gc/bimport.go |  2 +-
  src/cmd/compile/internal/gc/fmt.go     |  4 ++++
@@ -19,3 +19,174 @@ Date:   Fri Apr 22 07:14:10 2016 -0700
  src/cmd/compile/internal/gc/sinit.go   |  2 +-
  src/cmd/compile/internal/gc/ssa.go     | 14 +++++++-------
  6 files changed, 19 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 496491131a..6b83e70403 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1274,7 +1274,7 @@ func (p *exporter) expr(n *Node) {
+ 		p.op(ODCLCONST)
+ 
+ 	default:
+-		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", opnames[n.Op])
++		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", n.Op)
+ 	}
+ }
+ 
+@@ -1404,7 +1404,7 @@ func (p *exporter) stmt(n *Node) {
+ 		p.expr(n.Left)
+ 
+ 	default:
+-		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", opnames[n.Op])
++		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", n.Op)
+ 	}
+ }
+ 
+@@ -1492,7 +1492,7 @@ func (p *exporter) bool(b bool) bool {
+ func (p *exporter) op(op Op) {
+ 	if p.trace {
+ 		p.tracef("[")
+-		defer p.tracef("= %s] ", opnames[op])
++		defer p.tracef("= %s] ", op)
+ 	}
+ 
+ 	p.int(int(op))
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index e05329bb12..cbd3fb0e87 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -1013,7 +1013,7 @@ func (p *importer) node() *Node {
+ 		return nil
+ 
+ 	default:
+-		Fatalf("importer: %s (%d) node not yet supported", opnames[op], op)
++		Fatalf("importer: %s (%d) node not yet supported", op, op)
+ 		panic("unreachable") // satisfy compiler
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 5f6edd1018..a14b837584 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -453,6 +453,10 @@ func (e EType) String() string {
+ 	return Econv(e)
+ }
+ 
++func (o Op) String() string {
++	return Oconv(o, 0)
++}
++
+ // Fmt "%S": syms
+ func symfmt(s *Sym, flag FmtFlag) string {
+ 	if s.Pkg != nil && flag&FmtShort == 0 {
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 378ac0d2c3..c1132b6aac 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -334,7 +334,7 @@ func dsymptrOffLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+ 
+ func gdata(nam *Node, nr *Node, wid int) {
+ 	if nam.Op != ONAME {
+-		Fatalf("gdata nam op %v", opnames[nam.Op])
++		Fatalf("gdata nam op %v", nam.Op)
+ 	}
+ 	if nam.Sym == nil {
+ 		Fatalf("gdata nil nam sym")
+@@ -372,7 +372,7 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 
+ 	case OADDR:
+ 		if nr.Left.Op != ONAME {
+-			Fatalf("gdata ADDR left op %s", opnames[nr.Left.Op])
++			Fatalf("gdata ADDR left op %s", nr.Left.Op)
+ 		}
+ 		to := nr.Left
+ 		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(to.Sym), to.Xoffset)
+@@ -384,7 +384,7 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(funcsym(nr.Sym)), nr.Xoffset)
+ 
+ 	default:
+-		Fatalf("gdata unhandled op %v %v\n", nr, opnames[nr.Op])
++		Fatalf("gdata unhandled op %v %v\n", nr, nr.Op)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index cc1d1962d2..cb43855514 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1033,7 +1033,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 	t := n.Type
+ 	switch n.Op {
+ 	default:
+-		Fatalf("anylit: not lit, op=%v node=%v", opnames[n.Op], n)
++		Fatalf("anylit: not lit, op=%v node=%v", n.Op, n)
+ 
+ 	case OPTRLIT:
+ 		if !t.IsPtr() {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f989ad0375..964818a082 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -969,7 +969,7 @@ func (s *state) stmt(n *Node) {
+ 		s.nilCheck(p)
+ 
+ 	default:
+-		s.Unimplementedf("unhandled stmt %s", opnames[n.Op])
++		s.Unimplementedf("unhandled stmt %s", n.Op)
+ 	}
+ }
+ 
+@@ -1247,7 +1247,7 @@ func (s *state) ssaOp(op Op, t *Type) ssa.Op {
+ 	etype := s.concreteEtype(t)
+ 	x, ok := opToSSA[opAndType{op, etype}]
+ 	if !ok {
+-		s.Unimplementedf("unhandled binary op %s %s", opnames[op], Econv(etype))
++		s.Unimplementedf("unhandled binary op %s %s", op, Econv(etype))
+ 	}
+ 	return x
+ }
+@@ -1405,7 +1405,7 @@ func (s *state) ssaShiftOp(op Op, t *Type, u *Type) ssa.Op {
+ 	etype2 := s.concreteEtype(u)
+ 	x, ok := shiftOpToSSA[opAndTwoTypes{op, etype1, etype2}]
+ 	if !ok {
+-		s.Unimplementedf("unhandled shift op %s etype=%s/%s", opnames[op], Econv(etype1), Econv(etype2))
++		s.Unimplementedf("unhandled shift op %s etype=%s/%s", op, Econv(etype1), Econv(etype2))
+ 	}
+ 	return x
+ }
+@@ -1414,7 +1414,7 @@ func (s *state) ssaRotateOp(op Op, t *Type) ssa.Op {
+ 	etype1 := s.concreteEtype(t)
+ 	x, ok := opToSSA[opAndType{op, etype1}]
+ 	if !ok {
+-		s.Unimplementedf("unhandled rotate op %s etype=%s", opnames[op], Econv(etype1))
++		s.Unimplementedf("unhandled rotate op %s etype=%s", op, Econv(etype1))
+ 	}
+ 	return x
+ }
+@@ -1729,7 +1729,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			case ONE:
+ 				return s.newValue1(ssa.OpNot, Types[TBOOL], c)
+ 			default:
+-				s.Fatalf("ordered complex compare %s", opnames[n.Op])
++				s.Fatalf("ordered complex compare %s", n.Op)
+ 			}
+ 		}
+ 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
+@@ -2088,7 +2088,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.append(n, false)
+ 
+ 	default:
+-		s.Unimplementedf("unhandled expr %s", opnames[n.Op])
++		s.Unimplementedf("unhandled expr %s", n.Op)
+ 		return nil
+ 	}
+ }
+@@ -2632,7 +2632,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	case sym != nil:
+ 		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, sym, s.mem())
+ 	default:
+-		Fatalf("bad call type %s %v", opnames[n.Op], n)
++		Fatalf("bad call type %s %v", n.Op, n)
+ 	}
+ 	call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
+ 

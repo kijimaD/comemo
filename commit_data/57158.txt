@@ -11,6 +11,43 @@ Date:   Sun Jun 25 11:20:35 2023 +0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  test/codegen/floats.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index 81471082d4..9cb62e031a 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -20,6 +20,7 @@ func Mul2(f float64) float64 {
+ 	// arm/7:"ADDD",-"MULD"
+ 	// arm64:"FADDD",-"FMULD"
+ 	// ppc64x:"FADD",-"FMUL"
++	// riscv64:"FADDD",-"FMULD"
+ 	return f * 2.0
+ }
+ 
+@@ -29,6 +30,7 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	// arm/7:"MULD",-"DIVD"
+ 	// arm64:"FMULD",-"FDIVD"
+ 	// ppc64x:"FMUL",-"FDIV"
++	// riscv64:"FMULD",-"FDIVD"
+ 	x := f1 / 16.0
+ 
+ 	// 386/sse2:"MULSD",-"DIVSD"
+@@ -36,6 +38,7 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	// arm/7:"MULD",-"DIVD"
+ 	// arm64:"FMULD",-"FDIVD"
+ 	// ppc64x:"FMUL",-"FDIVD"
++	// riscv64:"FMULD",-"FDIVD"
+ 	y := f2 / 0.125
+ 
+ 	// 386/sse2:"ADDSD",-"DIVSD",-"MULSD"
+@@ -43,6 +46,7 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	// arm/7:"ADDD",-"MULD",-"DIVD"
+ 	// arm64:"FADDD",-"FMULD",-"FDIVD"
+ 	// ppc64x:"FADD",-"FMUL",-"FDIV"
++	// riscv64:"FADDD",-"FMULD",-"FDIVD"
+ 	z := f3 / 0.5
+ 
+ 	return x, y, z

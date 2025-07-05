@@ -16,10 +16,110 @@ Date:   Wed Mar 12 10:33:09 2014 +0900
     R=golang-codereviews, gobot, iant, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/72760043
-
+---
  src/pkg/runtime/defs_freebsd.go      | 6 ++++--
  src/pkg/runtime/defs_freebsd_386.h   | 6 ++++--
  src/pkg/runtime/defs_freebsd_amd64.h | 6 ++++--
  src/pkg/runtime/defs_freebsd_arm.h   | 6 ++++--
  src/pkg/runtime/os_freebsd.c         | 6 +++---
  5 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_freebsd.go b/src/pkg/runtime/defs_freebsd.go
+index dad20f16dd..2832583e06 100644
+--- a/src/pkg/runtime/defs_freebsd.go
++++ b/src/pkg/runtime/defs_freebsd.go
+@@ -49,8 +49,10 @@ const (
+ 	SA_RESTART = C.SA_RESTART
+ 	SA_ONSTACK = C.SA_ONSTACK
+ 
+-	UMTX_OP_WAIT_UINT = C.UMTX_OP_WAIT_UINT
+-	UMTX_OP_WAKE      = C.UMTX_OP_WAKE
++	UMTX_OP_WAIT_UINT         = C.UMTX_OP_WAIT_UINT
++	UMTX_OP_WAIT_UINT_PRIVATE = C.UMTX_OP_WAIT_UINT_PRIVATE
++	UMTX_OP_WAKE              = C.UMTX_OP_WAKE
++	UMTX_OP_WAKE_PRIVATE      = C.UMTX_OP_WAKE_PRIVATE
+ 
+ 	SIGHUP    = C.SIGHUP
+ 	SIGINT    = C.SIGINT
+diff --git a/src/pkg/runtime/defs_freebsd_386.h b/src/pkg/runtime/defs_freebsd_386.h
+index cf9c76eb1a..fab9385269 100644
+--- a/src/pkg/runtime/defs_freebsd_386.h
++++ b/src/pkg/runtime/defs_freebsd_386.h
+@@ -21,8 +21,10 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	UMTX_OP_WAIT_UINT	= 0xb,
+-	UMTX_OP_WAKE		= 0x3,
++	UMTX_OP_WAIT_UINT		= 0xb,
++	UMTX_OP_WAIT_UINT_PRIVATE	= 0xf,
++	UMTX_OP_WAKE			= 0x3,
++	UMTX_OP_WAKE_PRIVATE		= 0x10,
+ 
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+diff --git a/src/pkg/runtime/defs_freebsd_amd64.h b/src/pkg/runtime/defs_freebsd_amd64.h
+index 3fb33f38a3..c1db91803e 100644
+--- a/src/pkg/runtime/defs_freebsd_amd64.h
++++ b/src/pkg/runtime/defs_freebsd_amd64.h
+@@ -21,8 +21,10 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	UMTX_OP_WAIT_UINT	= 0xb,
+-	UMTX_OP_WAKE		= 0x3,
++	UMTX_OP_WAIT_UINT		= 0xb,
++	UMTX_OP_WAIT_UINT_PRIVATE	= 0xf,
++	UMTX_OP_WAKE			= 0x3,
++	UMTX_OP_WAKE_PRIVATE		= 0x10,
+ 
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+diff --git a/src/pkg/runtime/defs_freebsd_arm.h b/src/pkg/runtime/defs_freebsd_arm.h
+index e868ca313e..4fc452e457 100644
+--- a/src/pkg/runtime/defs_freebsd_arm.h
++++ b/src/pkg/runtime/defs_freebsd_arm.h
+@@ -21,8 +21,10 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	UMTX_OP_WAIT_UINT	= 0xb,
+-	UMTX_OP_WAKE		= 0x3,
++	UMTX_OP_WAIT_UINT		= 0xb,
++	UMTX_OP_WAIT_UINT_PRIVATE	= 0xf,
++	UMTX_OP_WAKE			= 0x3,
++	UMTX_OP_WAKE_PRIVATE		= 0x10,
+ 
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 8b7b0f6263..7598b13ba5 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -50,7 +50,7 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 	Timespec ts;
+ 
+ 	if(ns < 0) {
+-		ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, nil);
++		ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT_PRIVATE, val, nil, nil);
+ 		if(ret >= 0 || ret == -EINTR)
+ 			return;
+ 		goto fail;
+@@ -58,7 +58,7 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 	// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+ 	ts.tv_nsec = 0;
+ 	ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
+-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, &ts);
++	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT_PRIVATE, val, nil, &ts);
+ 	if(ret >= 0 || ret == -EINTR)
+ 		return;
+ 
+@@ -78,7 +78,7 @@ runtime·futexwakeup(uint32 *addr, uint32 cnt)
+ {
+ 	int32 ret;
+ 
+-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE, cnt, nil, nil);
++	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE_PRIVATE, cnt, nil, nil);
+ 	if(ret >= 0)
+ 		return;
+ 

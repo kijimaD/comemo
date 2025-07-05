@@ -9,9 +9,126 @@ Date:   Thu Feb 16 09:44:01 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5677047
-
+---
  lib/godoc/example.html                 |  4 ++--
  lib/godoc/package.html                 |  3 ++-
  src/cmd/godoc/godoc.go                 | 38 ++++++++++++++++++++++++++++++++--
  src/pkg/container/heap/example_test.go |  5 +----
  4 files changed, 41 insertions(+), 9 deletions(-)
+
+diff --git a/lib/godoc/example.html b/lib/godoc/example.html
+index d31e204a2f..f70e447d9e 100644
+--- a/lib/godoc/example.html
++++ b/lib/godoc/example.html
+@@ -1,9 +1,9 @@
+ <div id="example_{{.Name}}" class="example">
+ 	<div class="collapsed">
+-		<p class="exampleHeading">▹ Example</p>
++		<p class="exampleHeading">▹ Example{{example_suffix .Name}}</p>
+ 	</div>
+ 	<div class="expanded">
+-		<p class="exampleHeading">▾ Example</p>
++		<p class="exampleHeading">▾ Example{{example_suffix .Name}}</p>
+ 		<p>Code:</p>
+ 		<pre class="code">{{.Code}}</pre>
+ 		{{if .Output}}
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index f69f885cea..0874b7fa28 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -20,6 +20,7 @@
+ 		<h2 id="overview">Overview</h2>
+ 		<!-- The package's Name is printed as title by the top-level template -->
+ 		{{comment_html .Doc}}
++		{{example_html "" $.Examples $.FSet}}
+ 	
+ 		<h2 id="index">Index</h2>
+ 		<!-- Table of contents for API; must be named manual-nav to turn off auto nav. -->
+@@ -56,7 +57,7 @@
+ 			<h4>Examples</h4>
+ 			<dl>
+ 			{{range $.Examples}}
+-			<dd><a class="exampleLink" href="#example_{{.Name}}">{{.Name}}</a></dd>
++			<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>
+ 			{{end}}
+ 			</dl>
+ 		{{end}}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index e7c2f2135d..89b7b69538 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -526,7 +526,7 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
+ 
+ 		err := exampleHTML.Execute(&buf, struct {
+ 			Name, Code, Output string
+-		}{name, code, eg.Output})
++		}{eg.Name, code, eg.Output})
+ 		if err != nil {
+ 			log.Print(err)
+ 		}
+@@ -534,6 +534,38 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
+ 	return buf.String()
+ }
+ 
++// example_nameFunc takes an example function name and returns its display
++// name. For example, "Foo_Bar_quux" becomes "Foo.Bar (Quux)".
++func example_nameFunc(s string) string {
++	name, suffix := splitExampleName(s)
++	// replace _ with . for method names
++	name = strings.Replace(name, "_", ".", 1)
++	// use "Package" if no name provided
++	if name == "" {
++		name = "Package"
++	}
++	return name + suffix
++}
++
++// example_suffixFunc takes an example function name and returns its suffix in
++// parenthesized form. For example, "Foo_Bar_quux" becomes " (Quux)".
++func example_suffixFunc(name string) string {
++	_, suffix := splitExampleName(name)
++	return suffix
++
++}
++
++func splitExampleName(s string) (name, suffix string) {
++	i := strings.LastIndex(s, "_")
++	if 0 <= i && i < len(s)-1 && !startsWithUppercase(s[i+1:]) {
++		name = s[:i]
++		suffix = " (" + strings.Title(s[i+1:]) + ")"
++		return
++	}
++	name = s
++	return
++}
++
+ func pkgLinkFunc(path string) string {
+ 	relpath := relativeURL(path)
+ 	// because of the irregular mapping under goroot
+@@ -610,7 +642,9 @@ var fmap = template.FuncMap{
+ 	"posLink_url": posLink_urlFunc,
+ 
+ 	// formatting of Examples
+-	"example_html": example_htmlFunc,
++	"example_html":   example_htmlFunc,
++	"example_name":   example_nameFunc,
++	"example_suffix": example_suffixFunc,
+ }
+ 
+ func readTemplate(name string) *template.Template {
+diff --git a/src/pkg/container/heap/example_test.go b/src/pkg/container/heap/example_test.go
+index c3b8d94cb2..861d9620dc 100644
+--- a/src/pkg/container/heap/example_test.go
++++ b/src/pkg/container/heap/example_test.go
+@@ -58,10 +58,7 @@ func (pq *PriorityQueue) Pop() interface{} {
+ }
+ 
+ // 99:seven 88:five 77:zero 66:nine 55:three 44:two 33:six 22:one 11:four 00:eight
+-func ExampleInterface() {
+-	// The full code of this example, including the methods that implement
+-	// heap.Interface, is in the file src/pkg/container/heap/example_test.go.
+-
++func Example() {
+ 	const nItem = 10
+ 	// Random priorities for the items (a permutation of 0..9, times 11)).
+ 	priorities := [nItem]int{

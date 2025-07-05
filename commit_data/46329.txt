@@ -21,7 +21,7 @@ Date:   Thu Nov 12 21:19:52 2020 -0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/runtime/os_js.go              |  2 +-
  src/runtime/os_linux.go           | 18 ++++++++++++++++++
  src/runtime/os_plan9.go           |  2 +-
@@ -30,3 +30,178 @@ Date:   Thu Nov 12 21:19:52 2020 -0800
  src/runtime/signal_unix.go        | 19 +++++++++++++++----
  src/syscall/syscall_linux_test.go | 13 +++++++++++++
  7 files changed, 53 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 94983b358d..91d18a078f 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -72,7 +72,7 @@ func clearSignalHandlers() {
+ }
+ 
+ //go:nosplit
+-func sigblock() {
++func sigblock(exiting bool) {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 371db73502..f122d2c2ef 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -301,6 +301,24 @@ func getHugePageSize() uintptr {
+ func osinit() {
+ 	ncpu = getproccount()
+ 	physHugePageSize = getHugePageSize()
++	if iscgo {
++		// #42494 glibc and musl reserve some signals for
++		// internal use and require they not be blocked by
++		// the rest of a normal C runtime. When the go runtime
++		// blocks...unblocks signals, temporarily, the blocked
++		// interval of time is generally very short. As such,
++		// these expectations of *libc code are mostly met by
++		// the combined go+cgo system of threads. However,
++		// when go causes a thread to exit, via a return from
++		// mstart(), the combined runtime can deadlock if
++		// these signals are blocked. Thus, don't block these
++		// signals when exiting threads.
++		// - glibc: SIGCANCEL (32), SIGSETXID (33)
++		// - musl: SIGTIMER (32), SIGCANCEL (33), SIGSYNCCALL (34)
++		sigdelset(&sigsetAllExiting, 32)
++		sigdelset(&sigsetAllExiting, 33)
++		sigdelset(&sigsetAllExiting, 34)
++	}
+ 	osArchInit()
+ }
+ 
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 62aecea060..a035526937 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -195,7 +195,7 @@ func msigrestore(sigmask sigset) {
+ func clearSignalHandlers() {
+ }
+ 
+-func sigblock() {
++func sigblock(exiting bool) {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index ffb087f9db..d389d38ab9 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -886,7 +886,7 @@ func clearSignalHandlers() {
+ }
+ 
+ //go:nosplit
+-func sigblock() {
++func sigblock(exiting bool) {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5adcbf07dc..592d621241 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1313,7 +1313,7 @@ func mexit(osStack bool) {
+ 		throw("locked m0 woke up")
+ 	}
+ 
+-	sigblock()
++	sigblock(true)
+ 	unminit()
+ 
+ 	// Free the gsignal stack.
+@@ -1754,7 +1754,7 @@ func needm() {
+ 	// starting a new m to run Go code via newosproc.
+ 	var sigmask sigset
+ 	sigsave(&sigmask)
+-	sigblock()
++	sigblock(false)
+ 
+ 	// Lock extra list, take head, unlock popped list.
+ 	// nilokay=false is safe here because of the invariant above,
+@@ -1903,7 +1903,7 @@ func dropm() {
+ 	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
+ 	// It's important not to try to handle a signal between those two steps.
+ 	sigmask := mp.sigmask
+-	sigblock()
++	sigblock(false)
+ 	unminit()
+ 
+ 	mnext := lockextra(true)
+@@ -3776,7 +3776,7 @@ func beforefork() {
+ 	// group. See issue #18600.
+ 	gp.m.locks++
+ 	sigsave(&gp.m.sigmask)
+-	sigblock()
++	sigblock(false)
+ 
+ 	// This function is called before fork in syscall package.
+ 	// Code between fork and exec must not allocate memory nor even try to grow stack.
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index e8f39c3321..382ba37a87 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -1042,15 +1042,26 @@ func msigrestore(sigmask sigset) {
+ 	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+ }
+ 
+-// sigblock blocks all signals in the current thread's signal mask.
++// sigsetAllExiting is used by sigblock(true) when a thread is
++// exiting. sigset_all is defined in OS specific code, and per GOOS
++// behavior may override this default for sigsetAllExiting: see
++// osinit().
++var sigsetAllExiting = sigset_all
++
++// sigblock blocks signals in the current thread's signal mask.
+ // This is used to block signals while setting up and tearing down g
+-// when a non-Go thread calls a Go function.
+-// The OS-specific code is expected to define sigset_all.
++// when a non-Go thread calls a Go function. When a thread is exiting
++// we use the sigsetAllExiting value, otherwise the OS specific
++// definition of sigset_all is used.
+ // This is nosplit and nowritebarrierrec because it is called by needm
+ // which may be called on a non-Go thread with no g available.
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigblock() {
++func sigblock(exiting bool) {
++	if exiting {
++		sigprocmask(_SIG_SETMASK, &sigsetAllExiting, nil)
++		return
++	}
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
+ }
+ 
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index 153d0efef1..adeb7c9ebb 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -597,6 +597,14 @@ func compareStatus(filter, expect string) error {
+ 	return nil
+ }
+ 
++// killAThread locks the goroutine to an OS thread and exits; this
++// causes an OS thread to terminate.
++func killAThread(c <-chan struct{}) {
++	runtime.LockOSThread()
++	<-c
++	return
++}
++
+ // TestSetuidEtc performs tests on all of the wrapped system calls
+ // that mirror to the 9 glibc syscalls with POSIX semantics. The test
+ // here is considered authoritative and should compile and run
+@@ -647,6 +655,11 @@ func TestSetuidEtc(t *testing.T) {
+ 	}
+ 
+ 	for i, v := range vs {
++		// Generate some thread churn as we execute the tests.
++		c := make(chan struct{})
++		go killAThread(c)
++		close(c)
++
+ 		if err := v.fn(); err != nil {
+ 			t.Errorf("[%d] %q failed: %v", i, v.call, err)
+ 			continue

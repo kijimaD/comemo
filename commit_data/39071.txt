@@ -9,6 +9,26 @@ Date:   Fri Dec 21 11:16:43 2018 -0800
     Change-Id: Ia643d51004c47953642a2ba41dfed281f1112be6
     Reviewed-on: https://go-review.googlesource.com/c/155637
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go_mem.html | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 143f3b2ff2..d355bebaed 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -418,8 +418,12 @@ func twoprint() {
+ </pre>
+ 
+ <p>
+-calling <code>twoprint</code> causes <code>"hello, world"</code> to be printed twice.
+-The first call to <code>doprint</code> runs <code>setup</code> once.
++calling <code>twoprint</code> will call <code>setup</code> exactly
++once.
++The <code>setup</code> function will complete before either call
++of <code>print</code>.
++The result will be that <code>"hello, world"</code> will be printed
++twice.
+ </p>
+ 
+ <h2>Incorrect synchronization</h2>

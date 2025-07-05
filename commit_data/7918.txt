@@ -8,7 +8,36 @@ Date:   Tue Mar 29 10:41:23 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4331043
-
+---
  src/pkg/debug/gosym/Makefile        | 6 ++++++
  src/pkg/debug/gosym/pclntab_test.go | 3 ---
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/debug/gosym/Makefile b/src/pkg/debug/gosym/Makefile
+index 3c0d8c4409..4f420e7299 100644
+--- a/src/pkg/debug/gosym/Makefile
++++ b/src/pkg/debug/gosym/Makefile
+@@ -11,3 +11,9 @@ GOFILES=\
+ 
+ include ../../../Make.pkg
+ 
++test: make-pclinetest
++
++testshort: make-pclinetest
++
++make-pclinetest:
++	@if [ "`uname`-`uname -m`" = Linux-x86_64 -a $(GOARCH) = amd64 ]; then mkdir -p _test && $(AS) pclinetest.s && $(LD) -E main -o _test/pclinetest pclinetest.$O; fi
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index 9087021734..c83e64eabd 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -143,9 +143,6 @@ func TestLineAline(t *testing.T) {
+ 	}
+ }
+ 
+-// gotest: if [ "$(uname)-$(uname -m)" = Linux-x86_64 -a "$GOARCH" = amd64 ]; then
+-// gotest:    mkdir -p _test && $AS pclinetest.s && $LD -E main -o _test/pclinetest pclinetest.$O
+-// gotest: fi
+ func TestPCLine(t *testing.T) {
+ 	if !dotest() {
+ 		return

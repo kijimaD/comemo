@@ -7,6 +7,20 @@ Date:   Fri Mar 27 03:29:06 2015 +0000
     Change-Id: If986ed2cf94efba92763d00a3182047c05d6f805
     Reviewed-on: https://go-review.googlesource.com/8133
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/math/big/int_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index dff8057cf9..058dd96292 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -353,7 +353,7 @@ func checkBytes(b []byte) bool {
+ }
+ 
+ func TestBytes(t *testing.T) {
+-	if err := quick.Check(checkSetBytes, nil); err != nil {
++	if err := quick.Check(checkBytes, nil); err != nil {
+ 		t.Error(err)
+ 	}
+ }

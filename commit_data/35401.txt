@@ -16,7 +16,42 @@ Date:   Wed Jan 31 20:53:44 2018 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/print.go |  3 +--
  src/cmd/vet/types.go | 11 -----------
  2 files changed, 1 insertion(+), 13 deletions(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 04c59551b2..38d6f72419 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -657,8 +657,7 @@ func (f *File) recursiveStringer(e ast.Expr) bool {
+ 
+ 	// It's unlikely to be a recursive stringer if it has a Format method.
+ 	if typ := f.pkg.types[e].Type; typ != nil {
+-		// Not a perfect match; see issue 6259.
+-		if f.hasMethod(typ, "Format") {
++		if f.isFormatter(typ) {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 1f30b4b42b..ea4269a7f9 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -310,15 +310,4 @@ func (f *File) matchStructArgType(t printfArgType, typ *types.Struct, arg ast.Ex
+ 	return true
+ }
+ 
+-// hasMethod reports whether the type contains a method with the given name.
+-// It is part of the workaround for Formatters and should be deleted when
+-// that workaround is no longer necessary.
+-// TODO: This could be better once issue 6259 is fixed.
+-func (f *File) hasMethod(typ types.Type, name string) bool {
+-	// assume we have an addressable variable of type typ
+-	obj, _, _ := types.LookupFieldOrMethod(typ, true, f.pkg.typesPkg, name)
+-	_, ok := obj.(*types.Func)
+-	return ok
+-}
+-
+ var archSizes = types.SizesFor("gc", build.Default.GOARCH)

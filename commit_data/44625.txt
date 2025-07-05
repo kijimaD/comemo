@@ -16,6 +16,20 @@ Date:   Thu Aug 13 16:59:52 2020 -0400
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/arm/asm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 22bcb518df..611c96ce35 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -220,7 +220,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		addpltsym(target, ldr, syms, targ)
+ 		su := ldr.MakeSymbolUpdater(s)
+ 		su.SetRelocSym(rIdx, syms.PLT)
+-		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
++		su.SetRelocAdd(rIdx, int64(braddoff(int32(r.Add()), ldr.SymPlt(targ)/4))) // TODO: don't use r.Add for instruction bytes (issue 19811)
+ 		return true
+ 
+ 	case objabi.R_ADDR:

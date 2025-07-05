@@ -12,7 +12,7 @@ Date:   Thu Sep 10 08:48:19 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/14449
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/syscall/asm_linux_mips64x.s       | 104 +++++++++++++++++
  src/syscall/syscall_linux.go          |   2 +-
  src/syscall/syscall_linux_386.go      |   5 +-
@@ -29,3 +29,514 @@ Date:   Thu Sep 10 08:48:19 2015 -0400
  src/syscall/zsyscall_linux_ppc64.go   |   2 +-
  src/syscall/zsyscall_linux_ppc64le.go |   2 +-
  15 files changed, 343 insertions(+), 12 deletions(-)
+
+diff --git a/src/syscall/asm_linux_mips64x.s b/src/syscall/asm_linux_mips64x.s
+new file mode 100644
+index 0000000000..81717d2588
+--- /dev/null
++++ b/src/syscall/asm_linux_mips64x.s
+@@ -0,0 +1,104 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++// +build mips64 mips64le
++
++#include "textflag.h"
++
++//
++// System calls for mips64, Linux
++//
++
++// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
++
++TEXT	·Syscall(SB),NOSPLIT,$0-56
++	JAL	runtime·entersyscall(SB)
++	MOVV	a1+8(FP), R4
++	MOVV	a2+16(FP), R5
++	MOVV	a3+24(FP), R6
++	MOVV	R0, R7
++	MOVV	R0, R8
++	MOVV	R0, R9
++	MOVV	trap+0(FP), R2	// syscall entry
++	SYSCALL
++	BEQ	R7, ok
++	MOVV	$-1, R1
++	MOVV	R1, r1+32(FP)	// r1
++	MOVV	R0, r2+40(FP)	// r2
++	MOVV	R2, err+48(FP)	// errno
++	JAL	runtime·exitsyscall(SB)
++	RET
++ok:
++	MOVV	R2, r1+32(FP)	// r1
++	MOVV	R3, r2+40(FP)	// r2
++	MOVV	R0, err+48(FP)	// errno
++	JAL	runtime·exitsyscall(SB)
++	RET
++
++TEXT ·Syscall6(SB),NOSPLIT,$0-80
++	JAL	runtime·entersyscall(SB)
++	MOVV	a1+8(FP), R4
++	MOVV	a2+16(FP), R5
++	MOVV	a3+24(FP), R6
++	MOVV	a4+32(FP), R7
++	MOVV	a5+40(FP), R8
++	MOVV	a6+48(FP), R9
++	MOVV	trap+0(FP), R2	// syscall entry
++	SYSCALL
++	BEQ	R7, ok6
++	MOVV	$-1, R1
++	MOVV	R1, r1+56(FP)	// r1
++	MOVV	R0, r2+64(FP)	// r2
++	MOVV	R2, err+72(FP)	// errno
++	JAL	runtime·exitsyscall(SB)
++	RET
++ok6:
++	MOVV	R2, r1+56(FP)	// r1
++	MOVV	R3, r2+64(FP)	// r2
++	MOVV	R0, err+72(FP)	// errno
++	JAL	runtime·exitsyscall(SB)
++	RET
++
++TEXT ·RawSyscall(SB),NOSPLIT,$0-56
++	MOVV	a1+8(FP), R4
++	MOVV	a2+16(FP), R5
++	MOVV	a3+24(FP), R6
++	MOVV	R0, R7
++	MOVV	R0, R8
++	MOVV	R0, R9
++	MOVV	trap+0(FP), R2	// syscall entry
++	SYSCALL
++	BEQ	R7, ok1
++	MOVV	$-1, R1
++	MOVV	R1, r1+32(FP)	// r1
++	MOVV	R0, r2+40(FP)	// r2
++	MOVV	R2, err+48(FP)	// errno
++	RET
++ok1:
++	MOVV	R2, r1+32(FP)	// r1
++	MOVV	R3, r2+40(FP)	// r2
++	MOVV	R0, err+48(FP)	// errno
++	RET
++
++TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
++	MOVV	a1+8(FP), R4
++	MOVV	a2+16(FP), R5
++	MOVV	a3+24(FP), R6
++	MOVV	a4+32(FP), R7
++	MOVV	a5+40(FP), R8
++	MOVV	a6+48(FP), R9
++	MOVV	trap+0(FP), R2	// syscall entry
++	SYSCALL
++	BEQ	R7, ok2
++	MOVV	$-1, R1
++	MOVV	R1, r1+56(FP)	// r1
++	MOVV	R0, r2+64(FP)	// r2
++	MOVV	R2, err+72(FP)	// errno
++	RET
++ok2:
++	MOVV	R2, r1+56(FP)	// r1
++	MOVV	R3, r2+64(FP)	// r2
++	MOVV	R0, err+72(FP)	// errno
++	RET
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 5ce00a176e..2875067df7 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -837,7 +837,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
+ //sys	Fdatasync(fd int) (err error)
+ //sys	Flock(fd int, how int) (err error)
+ //sys	Fsync(fd int) (err error)
+-//sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
++//sys	Getdents(fd int, buf []byte) (n int, err error) = _SYS_getdents
+ //sysnb	Getpgid(pid int) (pgid int, err error)
+ 
+ func Getpgrp() (pid int) {
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 9ee1c1cd16..0e637b47d3 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -9,7 +9,10 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const _SYS_dup = SYS_DUP2
++const (
++	_SYS_dup      = SYS_DUP2
++	_SYS_getdents = SYS_GETDENTS64
++)
+ 
+ func Getpagesize() int { return 4096 }
+ 
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 6fbef21120..d1bda291d1 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -4,7 +4,10 @@
+ 
+ package syscall
+ 
+-const _SYS_dup = SYS_DUP2
++const (
++	_SYS_dup      = SYS_DUP2
++	_SYS_getdents = SYS_GETDENTS64
++)
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 218d6b86d4..7c78254673 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -6,7 +6,10 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const _SYS_dup = SYS_DUP2
++const (
++	_SYS_dup      = SYS_DUP2
++	_SYS_getdents = SYS_GETDENTS64
++)
+ 
+ func Getpagesize() int { return 4096 }
+ 
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 3d55181150..5f1478ca5c 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -4,7 +4,10 @@
+ 
+ package syscall
+ 
+-const _SYS_dup = SYS_DUP3
++const (
++	_SYS_dup      = SYS_DUP3
++	_SYS_getdents = SYS_GETDENTS64
++)
+ 
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+new file mode 100644
+index 0000000000..a14485a905
+--- /dev/null
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -0,0 +1,210 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++// +build mips64 mips64le
++
++package syscall
++
++const (
++	_SYS_dup = SYS_DUP2
++
++	// Linux introduced getdents64 syscall for N64 ABI only in 3.10
++	// (May 21 2013, rev dec33abaafc89bcbd78f85fad0513170415a26d5),
++	// to support older kernels, we have to use getdents for mips64.
++	// Also note that struct dirent is different for these two.
++	// Lookup linux_dirent{,64} in kernel source code for details.
++	_SYS_getdents = SYS_GETDENTS
++)
++
++//sys	Dup2(oldfd int, newfd int) (err error)
++//sys	Fchown(fd int, uid int, gid int) (err error)
++//sys	Fstatfs(fd int, buf *Statfs_t) (err error)
++//sys	Ftruncate(fd int, length int64) (err error)
++//sysnb	Getegid() (egid int)
++//sysnb	Geteuid() (euid int)
++//sysnb	Getgid() (gid int)
++//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
++//sysnb	Getuid() (uid int)
++//sysnb	InotifyInit() (fd int, err error)
++//sys	Lchown(path string, uid int, gid int) (err error)
++//sys	Listen(s int, n int) (err error)
++//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
++//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
++//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS_PSELECT6
++//sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
++//sys	Setfsgid(gid int) (err error)
++//sys	Setfsuid(uid int) (err error)
++//sysnb	Setregid(rgid int, egid int) (err error)
++//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
++//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
++//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
++//sysnb	Setreuid(ruid int, euid int) (err error)
++//sys	Shutdown(fd int, how int) (err error)
++//sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
++//sys	Statfs(path string, buf *Statfs_t) (err error)
++//sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
++//sys	Truncate(path string, length int64) (err error)
++//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
++//sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
++//sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
++//sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
++//sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
++//sysnb	setgroups(n int, list *_Gid_t) (err error)
++//sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
++//sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
++//sysnb	socket(domain int, typ int, proto int) (fd int, err error)
++//sysnb	socketpair(domain int, typ int, proto int, fd *[2]int32) (err error)
++//sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
++//sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
++//sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
++//sys	sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
++//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
++//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
++//sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
++
++func Getpagesize() int { return 65536 }
++
++//sysnb	Gettimeofday(tv *Timeval) (err error)
++
++func Time(t *Time_t) (tt Time_t, err error) {
++	var tv Timeval
++	err = Gettimeofday(&tv)
++	if err != nil {
++		return 0, err
++	}
++	if t != nil {
++		*t = Time_t(tv.Sec)
++	}
++	return Time_t(tv.Sec), nil
++}
++
++func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
++
++func NsecToTimespec(nsec int64) (ts Timespec) {
++	ts.Sec = nsec / 1e9
++	ts.Nsec = nsec % 1e9
++	return
++}
++
++func TimevalToNsec(tv Timeval) int64 { return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	nsec += 999 // round up to microsecond
++	tv.Sec = nsec / 1e9
++	tv.Usec = nsec % 1e9 / 1e3
++	return
++}
++
++func Pipe(p []int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var pp [2]_C_int
++	err = pipe2(&pp, 0)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
++//sysnb pipe2(p *[2]_C_int, flags int) (err error)
++
++func Pipe2(p []int, flags int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var pp [2]_C_int
++	err = pipe2(&pp, flags)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
++func Ioperm(from int, num int, on int) (err error) {
++	return ENOSYS
++}
++
++func Iopl(level int) (err error) {
++	return ENOSYS
++}
++
++type stat_t struct {
++	Dev        uint32
++	Pad0       [3]int32
++	Ino        uint64
++	Mode       uint32
++	Nlink      uint32
++	Uid        uint32
++	Gid        uint32
++	Rdev       uint32
++	Pad1       [3]uint32
++	Size       int64
++	Atime      uint32
++	Atime_nsec uint32
++	Mtime      uint32
++	Mtime_nsec uint32
++	Ctime      uint32
++	Ctime_nsec uint32
++	Blksize    uint32
++	Pad2       uint32
++	Blocks     int64
++}
++
++//sys	fstat(fd int, st *stat_t) (err error)
++//sys	lstat(path string, st *stat_t) (err error)
++//sys	stat(path string, st *stat_t) (err error)
++
++func Fstat(fd int, s *Stat_t) (err error) {
++	st := &stat_t{}
++	err = fstat(fd, st)
++	fillStat_t(s, st)
++	return
++}
++
++func Lstat(path string, s *Stat_t) (err error) {
++	st := &stat_t{}
++	err = lstat(path, st)
++	fillStat_t(s, st)
++	return
++}
++
++func Stat(path string, s *Stat_t) (err error) {
++	st := &stat_t{}
++	err = stat(path, st)
++	fillStat_t(s, st)
++	return
++}
++
++func fillStat_t(s *Stat_t, st *stat_t) {
++	s.Dev = st.Dev
++	s.Ino = st.Ino
++	s.Mode = st.Mode
++	s.Nlink = st.Nlink
++	s.Uid = st.Uid
++	s.Gid = st.Gid
++	s.Rdev = st.Rdev
++	s.Size = st.Size
++	s.Atim = Timespec{int64(st.Atime), int64(st.Atime_nsec)}
++	s.Mtim = Timespec{int64(st.Mtime), int64(st.Mtime_nsec)}
++	s.Ctim = Timespec{int64(st.Ctime), int64(st.Ctime_nsec)}
++	s.Blksize = st.Blksize
++	s.Blocks = st.Blocks
++}
++
++func (r *PtraceRegs) PC() uint64 { return r.Regs[64] }
++
++func (r *PtraceRegs) SetPC(pc uint64) { r.Regs[64] = pc }
++
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint64(length)
++}
++
++func (msghdr *Msghdr) SetControllen(length int) {
++	msghdr.Controllen = uint64(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint64(length)
++}
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 10489d927f..9f1c07e54c 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -7,7 +7,10 @@
+ 
+ package syscall
+ 
+-const _SYS_dup = SYS_DUP2
++const (
++	_SYS_dup      = SYS_DUP2
++	_SYS_getdents = SYS_GETDENTS64
++)
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+diff --git a/src/syscall/types_linux.go b/src/syscall/types_linux.go
+index 0ebdc7c311..cff4069370 100644
+--- a/src/syscall/types_linux.go
++++ b/src/syscall/types_linux.go
+@@ -91,6 +91,8 @@ typedef struct user_regs PtraceRegs;
+ typedef struct user_pt_regs PtraceRegs;
+ #elif defined(__powerpc64__)
+ typedef struct pt_regs PtraceRegs;
++#elif defined(__mips__)
++typedef struct user PtraceRegs;
+ #else
+ typedef struct user_regs_struct PtraceRegs;
+ #endif
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 620fba287a..82834fdccc 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -505,7 +505,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 16cafbf06e..e7f754e775 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -505,7 +505,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 9bc3a54f31..aed89cdc34 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -505,7 +505,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index 041e770eef..69df4073ee 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -505,7 +505,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 4f61114d5f..352525faf0 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -505,7 +505,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 4073a0fa34..ac49c5c17e 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -505,7 +505,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)

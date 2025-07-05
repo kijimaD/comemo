@@ -9,6 +9,20 @@ Date:   Mon Feb 8 21:10:18 2016 +0000
     Change-Id: I23fedec0eb85ae28e56bc24539bc864674856130
     Reviewed-on: https://go-review.googlesource.com/19318
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index ffe7590526..3f8f6968c2 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -16,7 +16,7 @@ type timer struct {
+ 	i int // heap index
+ 
+ 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
+-	// each time calling f(now, arg) in the timer goroutine, so f must be
++	// each time calling f(arg, now) in the timer goroutine, so f must be
+ 	// a well-behaved function and not block.
+ 	when   int64
+ 	period int64

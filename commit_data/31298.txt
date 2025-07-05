@@ -9,6 +9,21 @@ Date:   Mon Feb 6 18:06:40 2017 -0800
     Change-Id: If3ef28e62f7e449d4c8dc1dfd78f7d6f5a87ed26
     Reviewed-on: https://go-review.googlesource.com/36478
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/json/decode.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 77fc4607db..c815599cd5 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -22,7 +22,8 @@ import (
+ )
+ 
+ // Unmarshal parses the JSON-encoded data and stores the result
+-// in the value pointed to by v.
++// in the value pointed to by v. If v is nil or not a pointer,
++// Unmarshal returns an InvalidUnmarshalError.
+ //
+ // Unmarshal uses the inverse of the encodings that
+ // Marshal uses, allocating maps, slices, and pointers as necessary,

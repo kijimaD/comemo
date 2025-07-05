@@ -8,7 +8,130 @@ Date:   Fri Jul 25 15:12:45 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/116320043
-
+---
  src/pkg/runtime/complex.go  | 52 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/complex.goc | 58 ---------------------------------------------
  2 files changed, 52 insertions(+), 58 deletions(-)
+
+diff --git a/src/pkg/runtime/complex.go b/src/pkg/runtime/complex.go
+new file mode 100644
+index 0000000000..ec50f89470
+--- /dev/null
++++ b/src/pkg/runtime/complex.go
+@@ -0,0 +1,52 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++func complex128div(n complex128, d complex128) complex128 {
++	// Special cases as in C99.
++	ninf := real(n) == posinf || real(n) == neginf ||
++		imag(n) == posinf || imag(n) == neginf
++	dinf := real(d) == posinf || real(d) == neginf ||
++		imag(d) == posinf || imag(d) == neginf
++
++	nnan := !ninf && (real(n) != real(n) || imag(n) != imag(n))
++	dnan := !dinf && (real(d) != real(d) || imag(d) != imag(d))
++
++	switch {
++	case nnan || dnan:
++		return complex(nan, nan)
++	case ninf && !dinf:
++		return complex(posinf, posinf)
++	case !ninf && dinf:
++		return complex(0, 0)
++	case real(d) == 0 && imag(d) == 0:
++		if real(n) == 0 && imag(n) == 0 {
++			return complex(nan, nan)
++		} else {
++			return complex(posinf, posinf)
++		}
++	default:
++		// Standard complex arithmetic, factored to avoid unnecessary overflow.
++		a := real(d)
++		if a < 0 {
++			a = -a
++		}
++		b := imag(d)
++		if b < 0 {
++			b = -b
++		}
++		if a <= b {
++			ratio := real(d) / imag(d)
++			denom := real(d)*ratio + imag(d)
++			return complex((real(n)*ratio+imag(n))/denom,
++				(imag(n)*ratio-real(n))/denom)
++		} else {
++			ratio := imag(d) / real(d)
++			denom := imag(d)*ratio + real(d)
++			return complex((imag(n)*ratio+real(n))/denom,
++				(imag(n)-real(n)*ratio)/denom)
++		}
++	}
++}
+diff --git a/src/pkg/runtime/complex.goc b/src/pkg/runtime/complex.goc
+deleted file mode 100644
+index 40935cf1cd..0000000000
+--- a/src/pkg/runtime/complex.goc
++++ /dev/null
+@@ -1,58 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-#include "runtime.h"
+-
+-func complex128div(n Complex128, d Complex128) (q Complex128) {
+-	int32 ninf, dinf, nnan, dnan;
+-	float64 a, b, ratio, denom;
+-
+-	// Special cases as in C99.
+-	ninf = n.real == runtime·posinf || n.real == runtime·neginf ||
+-	       n.imag == runtime·posinf || n.imag == runtime·neginf;
+-	dinf = d.real == runtime·posinf || d.real == runtime·neginf ||
+-	       d.imag == runtime·posinf || d.imag == runtime·neginf;
+-
+-	nnan = !ninf && (ISNAN(n.real) || ISNAN(n.imag));
+-	dnan = !dinf && (ISNAN(d.real) || ISNAN(d.imag));
+-
+-	if(nnan || dnan) {
+-		q.real = runtime·nan;
+-		q.imag = runtime·nan;
+-	} else if(ninf && !dinf) {
+-		q.real = runtime·posinf;
+-		q.imag = runtime·posinf;
+-	} else if(!ninf && dinf) {
+-		q.real = 0;
+-		q.imag = 0;
+-	} else if(d.real == 0 && d.imag == 0) {
+-		if(n.real == 0 && n.imag == 0) {
+-			q.real = runtime·nan;
+-			q.imag = runtime·nan;
+-		} else {
+-			q.real = runtime·posinf;
+-			q.imag = runtime·posinf;
+-		}
+-	} else {
+-		// Standard complex arithmetic, factored to avoid unnecessary overflow.
+-		a = d.real;
+-		if(a < 0)
+-			a = -a;
+-		b = d.imag;
+-		if(b < 0)
+-			b = -b;
+-		if(a <= b) {
+-			ratio = d.real/d.imag;
+-			denom = d.real*ratio + d.imag;
+-			q.real = (n.real*ratio + n.imag) / denom;
+-			q.imag = (n.imag*ratio - n.real) / denom;
+-		} else {
+-			ratio = d.imag/d.real;
+-			denom = d.imag*ratio + d.real;
+-			q.real = (n.imag*ratio + n.real) / denom;
+-			q.imag = (n.imag - n.real*ratio) / denom;
+-		}
+-	}
+-}

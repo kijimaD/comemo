@@ -14,7 +14,7 @@ Date:   Tue May 23 13:22:45 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go          |  3 ++-
  src/cmd/go/internal/modcmd/vendor.go     |  2 +-
  src/cmd/go/internal/modget/get.go        |  6 +++---
@@ -34,3 +34,784 @@ Date:   Tue May 23 13:22:45 2023 -0400
  src/cmd/go/internal/mvs/mvs_test.go      |  4 ++--
  src/cmd/go/internal/workcmd/sync.go      |  3 ++-
  18 files changed, 80 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 7878619a35..4ae2444927 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -34,6 +34,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modindex"
+@@ -2321,7 +2322,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 	for mod := range mdeps {
+ 		sortedMods = append(sortedMods, mod)
+ 	}
+-	module.Sort(sortedMods)
++	gover.ModSort(sortedMods)
+ 	deps := make([]*debug.Module, len(sortedMods))
+ 	for i, mod := range sortedMods {
+ 		deps[i] = mdeps[mod]
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 1478bf21d0..8f23ae3546 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -133,7 +133,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 			vendorMods = append(vendorMods, m)
+ 		}
+ 	}
+-	module.Sort(vendorMods)
++	gover.ModSort(vendorMods)
+ 
+ 	var (
+ 		buf bytes.Buffer
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index d25873ae71..f29f632808 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -37,6 +37,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+@@ -46,7 +47,6 @@ import (
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ var CmdGet = &base.Command{
+@@ -1587,7 +1587,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 		r.work.Add(func() {
+ 			if _, err := modfetch.DownloadZip(ctx, mActual); err != nil {
+ 				verb := "upgraded"
+-				if semver.Compare(m.Version, old.Version) < 0 {
++				if gover.ModCompare(m.Path, m.Version, old.Version) < 0 {
+ 					verb = "downgraded"
+ 				}
+ 				replaced := ""
+@@ -1683,7 +1683,7 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
+ 			fmt.Fprintf(os.Stderr, "go: added %s %s\n", c.path, c.new)
+ 		} else if c.new == "none" || c.new == "" {
+ 			fmt.Fprintf(os.Stderr, "go: removed %s %s\n", c.path, c.old)
+-		} else if semver.Compare(c.new, c.old) > 0 {
++		} else if gover.ModCompare(c.path, c.new, c.old) > 0 {
+ 			fmt.Fprintf(os.Stderr, "go: upgraded %s %s => %s\n", c.path, c.old, c.new)
+ 		} else {
+ 			fmt.Fprintf(os.Stderr, "go: downgraded %s %s => %s\n", c.path, c.old, c.new)
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 0543ebc45b..5da0472bd4 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -16,6 +16,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/modindex"
+@@ -23,7 +24,6 @@ import (
+ 	"cmd/go/internal/search"
+ 
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ var (
+@@ -152,7 +152,7 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
+ 		return
+ 	}
+ 
+-	if semver.Compare(info.Version, m.Version) > 0 {
++	if gover.ModCompare(m.Path, info.Version, m.Version) > 0 {
+ 		m.Update = &modinfo.ModulePublic{
+ 			Path:    m.Path,
+ 			Version: info.Version,
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 58ef80bfe5..d68260e455 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -7,6 +7,7 @@ package modload
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/slices"
+@@ -22,7 +23,6 @@ import (
+ 	"sync/atomic"
+ 
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ // A Requirements represents a logically-immutable set of root module requirements.
+@@ -95,7 +95,7 @@ var requirements *Requirements
+ // The dependencies of the roots will be loaded lazily at the first call to the
+ // Graph method.
+ //
+-// The rootModules slice must be sorted according to module.Sort.
++// The rootModules slice must be sorted according to gover.ModSort.
+ // The caller must not modify the rootModules slice or direct map after passing
+ // them to newRequirements.
+ //
+@@ -124,7 +124,7 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
+ 		}
+ 		if i > 0 {
+ 			prev := rootModules[i-1]
+-			if prev.Path > m.Path || (prev.Path == m.Path && semver.Compare(prev.Version, m.Version) > 0) {
++			if prev.Path > m.Path || (prev.Path == m.Path && gover.ModCompare(m.Path, prev.Version, m.Version) > 0) {
+ 				panic(fmt.Sprintf("newRequirements called with unsorted roots: %v", rootModules))
+ 			}
+ 		}
+@@ -138,7 +138,7 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
+ 	}
+ 
+ 	for _, m := range rootModules {
+-		if v, ok := rs.maxRootVersion[m.Path]; ok && cmpVersion(v, m.Version) >= 0 {
++		if v, ok := rs.maxRootVersion[m.Path]; ok && gover.ModCompare(m.Path, v, m.Version) >= 0 {
+ 			continue
+ 		}
+ 		rs.maxRootVersion[m.Path] = m.Version
+@@ -409,7 +409,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 				reqs, _ := mg.g.RequiredBy(m)
+ 				for _, r := range reqs {
+ 					s := module.Version{Path: r.Path, Version: mg.g.Selected(r.Path)}
+-					if cmpVersion(s.Version, r.Version) > 0 && !seen[s] {
++					if gover.ModCompare(r.Path, s.Version, r.Version) > 0 && !seen[s] {
+ 						needsEnqueueing[s] = true
+ 					}
+ 				}
+@@ -787,7 +787,7 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, direct map[
+ 		queue = append(queue, pkg)
+ 		queued[pkg] = true
+ 	}
+-	module.Sort(roots)
++	gover.ModSort(roots)
+ 	tidy := newRequirements(pruned, roots, direct)
+ 
+ 	for len(queue) > 0 {
+@@ -816,7 +816,7 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, direct map[
+ 			}
+ 
+ 			if !pathIsRoot[m.Path] {
+-				if s := mg.Selected(m.Path); cmpVersion(s, m.Version) < 0 {
++				if s := mg.Selected(m.Path); gover.ModCompare(m.Path, s, m.Version) < 0 {
+ 					roots = append(roots, m)
+ 					pathIsRoot[m.Path] = true
+ 				}
+@@ -824,7 +824,7 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, direct map[
+ 		}
+ 
+ 		if len(roots) > len(tidy.rootModules) {
+-			module.Sort(roots)
++			gover.ModSort(roots)
+ 			tidy = newRequirements(pruned, roots, tidy.direct)
+ 		}
+ 	}
+@@ -1027,14 +1027,14 @@ func updatePrunedRoots(ctx context.Context, direct map[string]bool, rs *Requirem
+ 	}
+ 
+ 	for _, m := range add {
+-		if v, ok := rs.rootSelected(m.Path); !ok || cmpVersion(v, m.Version) < 0 {
++		if v, ok := rs.rootSelected(m.Path); !ok || gover.ModCompare(m.Path, v, m.Version) < 0 {
+ 			roots = append(roots, m)
+ 			rootsUpgraded = true
+ 			needSort = true
+ 		}
+ 	}
+ 	if needSort {
+-		module.Sort(roots)
++		gover.ModSort(roots)
+ 	}
+ 
+ 	// "Each root appears only once, at the selected version of its path ….”
+@@ -1175,7 +1175,7 @@ func spotCheckRoots(ctx context.Context, rs *Requirements, mods map[module.Versi
+ 			}
+ 
+ 			for _, r := range summary.require {
+-				if v, ok := rs.rootSelected(r.Path); ok && cmpVersion(v, r.Version) < 0 {
++				if v, ok := rs.rootSelected(r.Path); ok && gover.ModCompare(r.Path, v, r.Version) < 0 {
+ 					cancel()
+ 					return
+ 				}
+@@ -1259,7 +1259,7 @@ func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct ma
+ 	// in go.mod. See comment on altMods above.
+ 	keptAltMod := false
+ 	for _, m := range buildList {
+-		if v, ok := altMods[m.Path]; ok && semver.Compare(m.Version, v) < 0 {
++		if v, ok := altMods[m.Path]; ok && gover.ModCompare(m.Path, m.Version, v) < 0 {
+ 			keep = append(keep, module.Version{Path: m.Path, Version: v})
+ 			keptAltMod = true
+ 		}
+@@ -1377,7 +1377,7 @@ func updateUnprunedRoots(ctx context.Context, direct map[string]bool, rs *Requir
+ 		roots = append(roots, min...)
+ 	}
+ 	if MainModules.Len() > 1 {
+-		module.Sort(roots)
++		gover.ModSort(roots)
+ 	}
+ 	if rs.pruning == unpruned && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+ 		// The root set is unchanged and rs was already unpruned, so keep rs to
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index 8e81dd18a2..7ee4db536e 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -6,6 +6,7 @@ package modload
+ 
+ import (
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/par"
+ 	"context"
+@@ -71,7 +72,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 	}
+ 
+ 	for _, r := range tryUpgrade {
+-		if v, ok := selectedRoot[r.Path]; ok && cmpVersion(v, r.Version) >= 0 {
++		if v, ok := selectedRoot[r.Path]; ok && gover.ModCompare(r.Path, v, r.Version) >= 0 {
+ 			continue
+ 		}
+ 		if cfg.BuildV {
+@@ -90,7 +91,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 	for _, r := range mustSelect {
+ 		if v, ok := mustSelectVersion[r.Path]; ok && v != r.Version {
+ 			prev := module.Version{Path: r.Path, Version: v}
+-			if cmpVersion(v, r.Version) > 0 {
++			if gover.ModCompare(r.Path, v, r.Version) > 0 {
+ 				conflicts = append(conflicts, Conflict{Path: []module.Version{prev}, Constraint: r})
+ 			} else {
+ 				conflicts = append(conflicts, Conflict{Path: []module.Version{r}, Constraint: prev})
+@@ -175,7 +176,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 				roots = append(roots, module.Version{Path: p, Version: v})
+ 			}
+ 		}
+-		module.Sort(roots)
++		gover.ModSort(roots)
+ 
+ 		// First, we extend the graph so that it includes the selected version
+ 		// of every root. The upgraded roots are in addition to the original
+@@ -213,7 +214,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 		// Now check the resulting extended graph for errors and incompatibilities.
+ 		t := dqTracker{extendedRootPruning: extendedRootPruning}
+ 		mg.g.WalkBreadthFirst(func(m module.Version) {
+-			if max, ok := mustSelectVersion[m.Path]; ok && cmpVersion(m.Version, max) > 0 {
++			if max, ok := mustSelectVersion[m.Path]; ok && gover.ModCompare(m.Path, m.Version, max) > 0 {
+ 				// m itself violates mustSelect, so it cannot appear in the module graph
+ 				// even if its transitive dependencies would be pruned out.
+ 				t.disqualify(m, pruned, dqState{dep: m})
+@@ -253,7 +254,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 			// violates mustSelect disqualifies m, even if the requirements of r are
+ 			// themselves pruned out.
+ 			for _, r := range reqs {
+-				if max, ok := mustSelectVersion[r.Path]; ok && cmpVersion(r.Version, max) > 0 {
++				if max, ok := mustSelectVersion[r.Path]; ok && gover.ModCompare(r.Path, r.Version, max) > 0 {
+ 					t.disqualify(m, pruned, dqState{dep: r})
+ 					return
+ 				}
+@@ -370,7 +371,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 			prev := m
+ 			for {
+ 				prev, err = previousVersion(ctx, prev)
+-				if cmpVersion(m.Version, origV) > 0 && (cmpVersion(prev.Version, origV) < 0 || err != nil) {
++				if gover.ModCompare(m.Path, m.Version, origV) > 0 && (gover.ModCompare(m.Path, prev.Version, origV) < 0 || err != nil) {
+ 					// previousVersion skipped over origV. Insert it into the order.
+ 					prev.Version = origV
+ 				} else if err != nil {
+@@ -449,7 +450,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 		}
+ 		if rootsDirty {
+ 			if cfg.BuildV {
+-				module.Sort(upgradedFrom) // Make logging deterministic.
++				gover.ModSort(upgradedFrom) // Make logging deterministic.
+ 				for _, m := range upgradedFrom {
+ 					fmt.Fprintf(os.Stderr, "go: accepting indirect upgrade from %v to %s\n", m, selectedRoot[m.Path])
+ 				}
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index cf56d4e21a..4f7fed4856 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -18,6 +18,7 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modindex"
+ 	"cmd/go/internal/par"
+@@ -25,7 +26,6 @@ import (
+ 	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ type ImportMissingError struct {
+@@ -509,7 +509,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
+ 			if err != nil {
+ 				return module.Version{}, err
+ 			}
+-			if cmpVersion(mg.Selected(mp), mv) >= 0 {
++			if gover.ModCompare(mp, mg.Selected(mp), mv) >= 0 {
+ 				// We can't resolve the import by adding mp@mv to the module graph,
+ 				// because the selected version of mp is already at least mv.
+ 				continue
+@@ -602,7 +602,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
+ 
+ 	candidate0MissingVersion := ""
+ 	for i, c := range candidates {
+-		if v := mg.Selected(c.Mod.Path); semver.Compare(v, c.Mod.Version) > 0 {
++		if v := mg.Selected(c.Mod.Path); gover.ModCompare(c.Mod.Path, v, c.Mod.Version) > 0 {
+ 			// QueryPattern proposed that we add module c.Mod to provide the package,
+ 			// but we already depend on a newer version of that module (and that
+ 			// version doesn't have the package).
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 1bf2904fb8..9d8fbd18da 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -30,7 +30,6 @@ import (
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ // Variables set by other packages.
+@@ -1051,7 +1050,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 		}
+ 		replacedByWorkFile[r.Old.Path] = true
+ 		v, ok := mainModules.highestReplaced[r.Old.Path]
+-		if !ok || semver.Compare(r.Old.Version, v) > 0 {
++		if !ok || gover.ModCompare(r.Old.Path, r.Old.Version, v) > 0 {
+ 			mainModules.highestReplaced[r.Old.Path] = r.Old.Version
+ 		}
+ 		replacements[r.Old] = r.New
+@@ -1107,7 +1106,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 				replacements[r.Old] = newV
+ 
+ 				v, ok := mainModules.highestReplaced[r.Old.Path]
+-				if !ok || semver.Compare(r.Old.Version, v) > 0 {
++				if !ok || gover.ModCompare(r.Old.Path, r.Old.Version, v) > 0 {
+ 					mainModules.highestReplaced[r.Old.Path] = r.Old.Version
+ 				}
+ 			}
+@@ -1150,7 +1149,7 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
+ 			}
+ 		}
+ 	}
+-	module.Sort(roots)
++	gover.ModSort(roots)
+ 	rs := newRequirements(pruning, roots, direct)
+ 	return rs
+ }
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index d917b5defe..6d620de076 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1120,7 +1120,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		for m := range modAddedBy {
+ 			toAdd = append(toAdd, m)
+ 		}
+-		module.Sort(toAdd) // to make errors deterministic
++		gover.ModSort(toAdd) // to make errors deterministic
+ 
+ 		// We ran updateRequirements before resolving missing imports and it didn't
+ 		// make any changes, so we know that the requirement graph is already
+@@ -1662,7 +1662,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
+ 	for m := range need {
+ 		toAdd = append(toAdd, m)
+ 	}
+-	module.Sort(toAdd)
++	gover.ModSort(toAdd)
+ 
+ 	rs, err := updateRoots(ctx, ld.requirements.direct, ld.requirements, nil, toAdd, ld.AssumeRootsImported)
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 0757821035..226807126a 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -237,7 +237,7 @@ func CheckRetractions(ctx context.Context, m module.Version) (err error) {
+ 	var rationale []string
+ 	isRetracted := false
+ 	for _, r := range summary.retract {
+-		if semver.Compare(r.Low, m.Version) <= 0 && semver.Compare(m.Version, r.High) <= 0 {
++		if gover.ModCompare(m.Path, r.Low, m.Version) <= 0 && gover.ModCompare(m.Path, m.Version, r.High) <= 0 {
+ 			isRetracted = true
+ 			if r.Rationale != "" {
+ 				rationale = append(rationale, r.Rationale)
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index d0ffbf221a..4b30fa3100 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -10,20 +10,20 @@ import (
+ 	"os"
+ 	"sort"
+ 
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+ 
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ // cmpVersion implements the comparison for versions in the module loader.
+ //
+-// It is consistent with semver.Compare except that as a special case,
++// It is consistent with gover.ModCompare except that as a special case,
+ // the version "" is considered higher than all other versions.
+ // The main module (also known as the target) has no version and must be chosen
+ // over other versions of the same module in the module dependency graph.
+-func cmpVersion(v1, v2 string) int {
++func cmpVersion(p string, v1, v2 string) int {
+ 	if v2 == "" {
+ 		if v1 == "" {
+ 			return 0
+@@ -33,7 +33,7 @@ func cmpVersion(v1, v2 string) int {
+ 	if v1 == "" {
+ 		return 1
+ 	}
+-	return semver.Compare(v1, v2)
++	return gover.ModCompare(p, v1, v2)
+ }
+ 
+ // mvsReqs implements mvs.Reqs for module semantic versions,
+@@ -66,8 +66,8 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
+ // versions. The main module (also known as the target) has no version and must
+ // be chosen over other versions of the same module in the module dependency
+ // graph.
+-func (*mvsReqs) Max(v1, v2 string) string {
+-	if cmpVersion(v1, v2) < 0 {
++func (*mvsReqs) Max(p, v1, v2 string) string {
++	if cmpVersion(p, v1, v2) < 0 {
+ 		return v2
+ 	}
+ 	return v1
+@@ -123,7 +123,7 @@ func previousVersion(ctx context.Context, m module.Version) (module.Version, err
+ 		}
+ 		return module.Version{}, err
+ 	}
+-	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) >= 0 })
++	i := sort.Search(len(list), func(i int) bool { return gover.ModCompare(m.Path, list[i], m.Version) >= 0 })
+ 	if i > 0 {
+ 		return module.Version{Path: m.Path, Version: list[i-1]}, nil
+ 	}
+diff --git a/src/cmd/go/internal/modload/mvs_test.go b/src/cmd/go/internal/modload/mvs_test.go
+index 50e93c381f..e0a38b98d1 100644
+--- a/src/cmd/go/internal/modload/mvs_test.go
++++ b/src/cmd/go/internal/modload/mvs_test.go
+@@ -23,7 +23,7 @@ func TestReqsMax(t *testing.T) {
+ 		{a: "none", b: "", want: ""},
+ 		{a: "", b: "none", want: ""},
+ 	} {
+-		max := reqs.Max(tc.a, tc.b)
++		max := reqs.Max("", tc.a, tc.b)
+ 		if max != tc.want {
+ 			t.Errorf("(%T).Max(%q, %q) = %q; want %q", reqs, tc.a, tc.b, max, tc.want)
+ 		}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 773ca3b8e4..c539e144ba 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -18,6 +18,7 @@ import (
+ 	"time"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+@@ -135,7 +136,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 	ctx, span := trace.StartSpan(ctx, "modload.queryProxy "+path+" "+query)
+ 	defer span.Done()
+ 
+-	if current != "" && current != "none" && !semver.IsValid(current) {
++	if current != "" && current != "none" && !gover.ModIsValid(path, current) {
+ 		return nil, fmt.Errorf("invalid previous version %q", current)
+ 	}
+ 	if cfg.BuildMod == "vendor" {
+@@ -399,7 +400,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ 			qm.mayUseLatest = true
+ 		} else {
+ 			qm.mayUseLatest = module.IsPseudoVersion(current)
+-			qm.filter = func(mv string) bool { return semver.Compare(mv, current) >= 0 }
++			qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, current) >= 0 }
+ 		}
+ 
+ 	case query == "patch":
+@@ -411,7 +412,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ 		} else {
+ 			qm.mayUseLatest = module.IsPseudoVersion(current)
+ 			qm.prefix = semver.MajorMinor(current) + "."
+-			qm.filter = func(mv string) bool { return semver.Compare(mv, current) >= 0 }
++			qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, current) >= 0 }
+ 		}
+ 
+ 	case strings.HasPrefix(query, "<="):
+@@ -423,7 +424,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ 			// Refuse to say whether <=v1.2 allows v1.2.3 (remember, @v1.2 might mean v1.2.3).
+ 			return nil, fmt.Errorf("ambiguous semantic version %q in range %q", v, query)
+ 		}
+-		qm.filter = func(mv string) bool { return semver.Compare(mv, v) <= 0 }
++		qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, v) <= 0 }
+ 		if !matchesMajor(v) {
+ 			qm.preferIncompatible = true
+ 		}
+@@ -433,7 +434,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ 		if !semver.IsValid(v) {
+ 			return badVersion(v)
+ 		}
+-		qm.filter = func(mv string) bool { return semver.Compare(mv, v) < 0 }
++		qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, v) < 0 }
+ 		if !matchesMajor(v) {
+ 			qm.preferIncompatible = true
+ 		}
+@@ -443,7 +444,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ 		if !semver.IsValid(v) {
+ 			return badVersion(v)
+ 		}
+-		qm.filter = func(mv string) bool { return semver.Compare(mv, v) >= 0 }
++		qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, v) >= 0 }
+ 		qm.preferLower = true
+ 		if !matchesMajor(v) {
+ 			qm.preferIncompatible = true
+@@ -458,7 +459,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ 			// Refuse to say whether >v1.2 allows v1.2.3 (remember, @v1.2 might mean v1.2.3).
+ 			return nil, fmt.Errorf("ambiguous semantic version %q in range %q", v, query)
+ 		}
+-		qm.filter = func(mv string) bool { return semver.Compare(mv, v) > 0 }
++		qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, v) > 0 }
+ 		qm.preferLower = true
+ 		if !matchesMajor(v) {
+ 			qm.preferIncompatible = true
+@@ -469,10 +470,10 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ 			qm.prefix = query + "."
+ 			// Do not allow the query "v1.2" to match versions lower than "v1.2.0",
+ 			// such as prereleases for that version. (https://golang.org/issue/31972)
+-			qm.filter = func(mv string) bool { return semver.Compare(mv, query) >= 0 }
++			qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, query) >= 0 }
+ 		} else {
+ 			qm.canStat = true
+-			qm.filter = func(mv string) bool { return semver.Compare(mv, query) == 0 }
++			qm.filter = func(mv string) bool { return gover.ModCompare(qm.path, mv, query) == 0 }
+ 			qm.prefix = semver.Canonical(query)
+ 		}
+ 		if !matchesMajor(query) {
+@@ -1133,8 +1134,9 @@ func (rr *replacementRepo) Versions(ctx context.Context, prefix string) (*modfet
+ 		return repoVersions, nil
+ 	}
+ 
++	path := rr.ModulePath()
+ 	sort.Slice(versions, func(i, j int) bool {
+-		return semver.Compare(versions[i], versions[j]) < 0
++		return gover.ModCompare(path, versions[i], versions[j]) < 0
+ 	})
+ 	str.Uniq(&versions)
+ 	return &modfetch.Versions{List: versions}, nil
+@@ -1194,7 +1196,7 @@ func (rr *replacementRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error
+ 			}
+ 		}
+ 
+-		if err != nil || semver.Compare(v, info.Version) > 0 {
++		if err != nil || gover.ModCompare(path, v, info.Version) > 0 {
+ 			return rr.replacementStat(v)
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index ba7c83b2f5..2fb834b866 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -128,7 +128,7 @@ func readVendorList(mainModule module.Version) {
+ 				// Since this module provides a package for the build, we know that it
+ 				// is in the build list and is the selected version of its path.
+ 				// If this information is new, record it.
+-				if v, ok := vendorVersion[mod.Path]; !ok || semver.Compare(v, mod.Version) < 0 {
++				if v, ok := vendorVersion[mod.Path]; !ok || gover.ModCompare(mod.Path, v, mod.Version) < 0 {
+ 					vendorList = append(vendorList, mod)
+ 					vendorVersion[mod.Path] = mod.Version
+ 				}
+diff --git a/src/cmd/go/internal/mvs/graph.go b/src/cmd/go/internal/mvs/graph.go
+index 94835bcb3f..6d6e6f584d 100644
+--- a/src/cmd/go/internal/mvs/graph.go
++++ b/src/cmd/go/internal/mvs/graph.go
+@@ -5,6 +5,7 @@
+ package mvs
+ 
+ import (
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/slices"
+ 	"fmt"
+ 
+@@ -14,7 +15,7 @@ import (
+ // Graph implements an incremental version of the MVS algorithm, with the
+ // requirements pushed by the caller instead of pulled by the MVS traversal.
+ type Graph struct {
+-	cmp   func(v1, v2 string) int
++	cmp   func(p, v1, v2 string) int
+ 	roots []module.Version
+ 
+ 	required map[module.Version][]module.Version
+@@ -28,7 +29,7 @@ type Graph struct {
+ //
+ // The caller must ensure that the root slice is not modified while the Graph
+ // may be in use.
+-func NewGraph(cmp func(v1, v2 string) int, roots []module.Version) *Graph {
++func NewGraph(cmp func(p, v1, v2 string) int, roots []module.Version) *Graph {
+ 	g := &Graph{
+ 		cmp:      cmp,
+ 		roots:    slices.Clip(roots),
+@@ -39,7 +40,7 @@ func NewGraph(cmp func(v1, v2 string) int, roots []module.Version) *Graph {
+ 
+ 	for _, m := range roots {
+ 		g.isRoot[m] = true
+-		if g.cmp(g.Selected(m.Path), m.Version) < 0 {
++		if g.cmp(m.Path, g.Selected(m.Path), m.Version) < 0 {
+ 			g.selected[m.Path] = m.Version
+ 		}
+ 	}
+@@ -78,7 +79,7 @@ func (g *Graph) Require(m module.Version, reqs []module.Version) {
+ 			g.isRoot[dep] = false
+ 		}
+ 
+-		if g.cmp(g.Selected(dep.Path), dep.Version) < 0 {
++		if g.cmp(dep.Path, g.Selected(dep.Path), dep.Version) < 0 {
+ 			g.selected[dep.Path] = dep.Version
+ 		}
+ 	}
+@@ -138,7 +139,7 @@ func (g *Graph) BuildList() []module.Version {
+ 			list = append(list, module.Version{Path: path, Version: version})
+ 		}
+ 	}
+-	module.Sort(list[len(uniqueRoots):])
++	gover.ModSort(list[len(uniqueRoots):])
+ 
+ 	return list
+ }
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index ec5e49a1a6..468a985927 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -32,7 +32,8 @@ type Reqs interface {
+ 	// The caller must not modify the returned list.
+ 	Required(m module.Version) ([]module.Version, error)
+ 
+-	// Max returns the maximum of v1 and v2 (it returns either v1 or v2).
++	// Max returns the maximum of v1 and v2 (it returns either v1 or v2)
++	// in the module with path p.
+ 	//
+ 	// For all versions v, Max(v, "none") must be v,
+ 	// and for the target passed as the first argument to MVS functions,
+@@ -40,7 +41,7 @@ type Reqs interface {
+ 	//
+ 	// Note that v1 < v2 can be written Max(v1, v2) != v1
+ 	// and similarly v1 <= v2 can be written Max(v1, v2) == v2.
+-	Max(v1, v2 string) string
++	Max(p, v1, v2 string) string
+ }
+ 
+ // An UpgradeReqs is a Reqs that can also identify available upgrades.
+@@ -91,11 +92,11 @@ func BuildList(targets []module.Version, reqs Reqs) ([]module.Version, error) {
+ }
+ 
+ func buildList(targets []module.Version, reqs Reqs, upgrade func(module.Version) (module.Version, error)) ([]module.Version, error) {
+-	cmp := func(v1, v2 string) int {
+-		if reqs.Max(v1, v2) != v1 {
++	cmp := func(p, v1, v2 string) int {
++		if reqs.Max(p, v1, v2) != v1 {
+ 			return -1
+ 		}
+-		if reqs.Max(v2, v1) != v2 {
++		if reqs.Max(p, v2, v1) != v2 {
+ 			return 1
+ 		}
+ 		return 0
+@@ -302,7 +303,7 @@ func Upgrade(target module.Version, reqs UpgradeReqs, upgrade ...module.Version)
+ 			list = append(list, module.Version{Path: u.Path, Version: "none"})
+ 		}
+ 		if prev, dup := upgradeTo[u.Path]; dup {
+-			upgradeTo[u.Path] = reqs.Max(prev, u.Version)
++			upgradeTo[u.Path] = reqs.Max(u.Path, prev, u.Version)
+ 		} else {
+ 			upgradeTo[u.Path] = u.Version
+ 		}
+@@ -342,7 +343,7 @@ func Downgrade(target module.Version, reqs DowngradeReqs, downgrade ...module.Ve
+ 		max[r.Path] = r.Version
+ 	}
+ 	for _, d := range downgrade {
+-		if v, ok := max[d.Path]; !ok || reqs.Max(v, d.Version) != d.Version {
++		if v, ok := max[d.Path]; !ok || reqs.Max(d.Path, v, d.Version) != d.Version {
+ 			max[d.Path] = d.Version
+ 		}
+ 	}
+@@ -368,7 +369,7 @@ func Downgrade(target module.Version, reqs DowngradeReqs, downgrade ...module.Ve
+ 			return
+ 		}
+ 		added[m] = true
+-		if v, ok := max[m.Path]; ok && reqs.Max(m.Version, v) != v {
++		if v, ok := max[m.Path]; ok && reqs.Max(m.Path, m.Version, v) != v {
+ 			// m would upgrade an existing dependency — it is not a strict downgrade,
+ 			// and because it was already present as a dependency, it could affect the
+ 			// behavior of other relevant packages.
+@@ -419,7 +420,7 @@ List:
+ 			// included when iterating over prior versions using reqs.Previous.
+ 			// Insert it into the right place in the iteration.
+ 			// If v is excluded, p should be returned again by reqs.Previous on the next iteration.
+-			if v := max[r.Path]; reqs.Max(v, r.Version) != v && reqs.Max(p.Version, v) != p.Version {
++			if v := max[r.Path]; reqs.Max(r.Path, v, r.Version) != v && reqs.Max(r.Path, p.Version, v) != p.Version {
+ 				p.Version = v
+ 			}
+ 			if p.Version == "none" {
+diff --git a/src/cmd/go/internal/mvs/mvs_test.go b/src/cmd/go/internal/mvs/mvs_test.go
+index 26d004fee2..6e1e71cd5c 100644
+--- a/src/cmd/go/internal/mvs/mvs_test.go
++++ b/src/cmd/go/internal/mvs/mvs_test.go
+@@ -587,7 +587,7 @@ func Test(t *testing.T) {
+ 
+ type reqsMap map[module.Version][]module.Version
+ 
+-func (r reqsMap) Max(v1, v2 string) string {
++func (r reqsMap) Max(_, v1, v2 string) string {
+ 	if v1 == "none" || v2 == "" {
+ 		return v2
+ 	}
+@@ -603,7 +603,7 @@ func (r reqsMap) Max(v1, v2 string) string {
+ func (r reqsMap) Upgrade(m module.Version) (module.Version, error) {
+ 	u := module.Version{Version: "none"}
+ 	for k := range r {
+-		if k.Path == m.Path && r.Max(u.Version, k.Version) == k.Version && !strings.HasSuffix(k.Version, ".hidden") {
++		if k.Path == m.Path && r.Max(k.Path, u.Version, k.Version) == k.Version && !strings.HasSuffix(k.Version, ".hidden") {
+ 			u = k
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+index 9f9962709b..eca6325442 100644
+--- a/src/cmd/go/internal/workcmd/sync.go
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -8,6 +8,7 @@ package workcmd
+ 
+ import (
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modload"
+ 	"context"
+@@ -83,7 +84,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 				inMustSelect[r] = true
+ 			}
+ 		}
+-		module.Sort(mustSelect) // ensure determinism
++		gover.ModSort(mustSelect) // ensure determinism
+ 		mustSelectFor[m] = mustSelect
+ 	}
+ 

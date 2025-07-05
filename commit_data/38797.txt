@@ -25,10 +25,76 @@ Date:   Wed Nov 28 09:33:19 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/vendor/golang_org/x/net/internal/nettest/helper_nobsd.go | 2 +-
  src/vendor/golang_org/x/net/internal/nettest/helper_posix.go | 2 +-
  src/vendor/golang_org/x/net/internal/nettest/helper_stub.go  | 2 +-
  src/vendor/golang_org/x/net/internal/nettest/helper_unix.go  | 2 +-
  src/vendor/golang_org/x/net/internal/nettest/stack.go        | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_nobsd.go b/src/vendor/golang_org/x/net/internal/nettest/helper_nobsd.go
+index bc7da5e0d5..1611a907f0 100644
+--- a/src/vendor/golang_org/x/net/internal/nettest/helper_nobsd.go
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_nobsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux solaris
++// +build aix linux solaris
+ 
+ package nettest
+ 
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_posix.go b/src/vendor/golang_org/x/net/internal/nettest/helper_posix.go
+index 963ed99655..efc67a8eba 100644
+--- a/src/vendor/golang_org/x/net/internal/nettest/helper_posix.go
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package nettest
+ 
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go b/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go
+index d729156de6..d89cf29962 100644
+--- a/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build js,wasm nacl plan9
++// +build js nacl plan9
+ 
+ package nettest
+ 
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_unix.go b/src/vendor/golang_org/x/net/internal/nettest/helper_unix.go
+index ed13e448b7..b6839dcd8f 100644
+--- a/src/vendor/golang_org/x/net/internal/nettest/helper_unix.go
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package nettest
+ 
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/stack.go b/src/vendor/golang_org/x/net/internal/nettest/stack.go
+index 46d2fccab5..3b8a01e9bb 100644
+--- a/src/vendor/golang_org/x/net/internal/nettest/stack.go
++++ b/src/vendor/golang_org/x/net/internal/nettest/stack.go
+@@ -72,7 +72,7 @@ func TestableNetwork(network string) bool {
+ 		}
+ 	case "unixpacket":
+ 		switch runtime.GOOS {
+-		case "android", "darwin", "freebsd", "js", "nacl", "plan9", "windows":
++		case "aix", "android", "darwin", "freebsd", "js", "nacl", "plan9", "windows":
+ 			return false
+ 		case "netbsd":
+ 			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.

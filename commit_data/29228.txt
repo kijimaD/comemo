@@ -16,6 +16,20 @@ Date:   Thu Aug 4 16:49:05 2016 -0700
     Change-Id: Iae4bc04c3887ad6e2491e36e38feda40324022c5
     Reviewed-on: https://go-review.googlesource.com/25501
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/rand/rand.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index dd8d43cca1..5b271e62a2 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -24,6 +24,8 @@ type Source interface {
+ }
+ 
+ // NewSource returns a new pseudo-random Source seeded with the given value.
++// Unlike the default Source used by top-level functions, this source is not
++// safe for concurrent use by multiple goroutines.
+ func NewSource(seed int64) Source {
+ 	var rng rngSource
+ 	rng.Seed(seed)

@@ -12,9 +12,145 @@ Date:   Sat Aug 18 14:16:26 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/129802
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/go/internal/modcmd/download.go      | 38 ++++++++++++++++++-----------
  src/cmd/go/internal/modfetch/cache.go       | 17 +++++++++++++
  src/cmd/go/internal/modfetch/fetch.go       | 11 ++++++---
  src/cmd/go/testdata/script/mod_download.txt |  2 ++
  4 files changed, 51 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 2f072d73cf..cf42eff58a 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -32,13 +32,15 @@ to standard output, describing each downloaded module (or failure),
+ corresponding to this Go struct:
+ 
+     type Module struct {
+-        Path    string // module path
+-        Version string // module version
+-        Error   string // error loading module
+-        Info    string // absolute path to cached .info file
+-        GoMod   string // absolute path to cached .mod file
+-        Zip     string // absolute path to cached .zip file
+-        Dir     string // absolute path to cached source root directory
++        Path     string // module path
++        Version  string // module version
++        Error    string // error loading module
++        Info     string // absolute path to cached .info file
++        GoMod    string // absolute path to cached .mod file
++        Zip      string // absolute path to cached .zip file
++        Dir      string // absolute path to cached source root directory
++        Sum      string // checksum for path, version (as in go.sum)
++        GoModSum string // checksum for go.mod (as in go.sum)
+     }
+ 
+ See 'go help modules' for more about module queries.
+@@ -52,13 +54,15 @@ func init() {
+ }
+ 
+ type moduleJSON struct {
+-	Path    string `json:",omitempty"`
+-	Version string `json:",omitempty"`
+-	Error   string `json:",omitempty"`
+-	Info    string `json:",omitempty"`
+-	GoMod   string `json:",omitempty"`
+-	Zip     string `json:",omitempty"`
+-	Dir     string `json:",omitempty"`
++	Path     string `json:",omitempty"`
++	Version  string `json:",omitempty"`
++	Error    string `json:",omitempty"`
++	Info     string `json:",omitempty"`
++	GoMod    string `json:",omitempty"`
++	Zip      string `json:",omitempty"`
++	Dir      string `json:",omitempty"`
++	Sum      string `json:",omitempty"`
++	GoModSum string `json:",omitempty"`
+ }
+ 
+ func runDownload(cmd *base.Command, args []string) {
+@@ -98,12 +102,18 @@ func runDownload(cmd *base.Command, args []string) {
+ 			m.Error = err.Error()
+ 			return
+ 		}
++		m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
++		if err != nil {
++			m.Error = err.Error()
++			return
++		}
+ 		mod := module.Version{Path: m.Path, Version: m.Version}
+ 		m.Zip, err = modfetch.DownloadZip(mod)
+ 		if err != nil {
+ 			m.Error = err.Error()
+ 			return
+ 		}
++		m.Sum = modfetch.Sum(mod)
+ 		m.Dir, err = modfetch.Download(mod)
+ 		if err != nil {
+ 			m.Error = err.Error()
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index efcd4854e8..1f9cc96c3e 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -290,6 +290,23 @@ func GoModFile(path, version string) (string, error) {
+ 	return file, nil
+ }
+ 
++// GoModSum returns the go.sum entry for the module version's go.mod file.
++// (That is, it returns the entry listed in go.sum as "path version/go.mod".)
++func GoModSum(path, version string) (string, error) {
++	if !semver.IsValid(version) {
++		return "", fmt.Errorf("invalid version %q", version)
++	}
++	data, err := GoMod(path, version)
++	if err != nil {
++		return "", err
++	}
++	sum, err := goModSum(data)
++	if err != nil {
++		return "", err
++	}
++	return sum, nil
++}
++
+ var errNotCached = fmt.Errorf("not in cache")
+ 
+ // readDiskStat reads a cached stat result from disk,
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 480579156f..2e26bac434 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -253,12 +253,17 @@ func checkSum(mod module.Version) {
+ 	checkOneSum(mod, h)
+ }
+ 
++// goModSum returns the checksum for the go.mod contents.
++func goModSum(data []byte) (string, error) {
++	return dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
++		return ioutil.NopCloser(bytes.NewReader(data)), nil
++	})
++}
++
+ // checkGoMod checks the given module's go.mod checksum;
+ // data is the go.mod content.
+ func checkGoMod(path, version string, data []byte) {
+-	h, err := dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
+-		return ioutil.NopCloser(bytes.NewReader(data)), nil
+-	})
++	h, err := goModSum(data)
+ 	if err != nil {
+ 		base.Fatalf("go: verifying %s %s go.mod: %v", path, version, err)
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index ef931cfd30..6be6acb360 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -15,6 +15,8 @@ stdout '^\t"Version": "v1.5.0"'
+ stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.info"'
+ stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.mod"'
+ stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.zip"'
++stdout '^\t"Sum": "h1:6fJa6E\+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE="'  # hash of testdata/mod version, not real version!
++stdout '^\t"GoModSum": "h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe\+TKr0="'
+ ! stdout '"Error"'
+ 
+ # download queries above should not have added to go.mod.

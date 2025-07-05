@@ -8,7 +8,7 @@ Date:   Fri Feb 24 10:30:39 2012 +1100
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5698054
-
+---
  test/nil.go       |   2 +
  test/nilptr.go    |   3 ++
  test/parentype.go |   2 +
@@ -23,3 +23,390 @@ Date:   Fri Feb 24 10:30:39 2012 +1100
  test/rune.go      |   3 ++
  test/runtime.go   |   5 ++-
  13 files changed, 134 insertions(+), 74 deletions(-)
+
+diff --git a/test/nil.go b/test/nil.go
+index fd93827396..9f7bcbb59f 100644
+--- a/test/nil.go
++++ b/test/nil.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test nil.
++
+ package main
+ 
+ import (
+diff --git a/test/nilptr.go b/test/nilptr.go
+index 1a489aae96..b784914e59 100644
+--- a/test/nilptr.go
++++ b/test/nilptr.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that the implementation catches nil ptr indirection
++// in a large address space.
++
+ package main
+ 
+ import "unsafe"
+diff --git a/test/parentype.go b/test/parentype.go
+index d7c14f3a26..eafa076481 100644
+--- a/test/parentype.go
++++ b/test/parentype.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that types can be parenthesized.
++
+ package main
+ 
+ func f(interface{})
+diff --git a/test/peano.go b/test/peano.go
+index 2cc0ac280f..745f5153f6 100644
+--- a/test/peano.go
++++ b/test/peano.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that heavy recursion works. Simple torture test for
++// segmented stacks: do math in unary by recursion.
++
+ package main
+ 
+ type Number *Number
+diff --git a/test/printbig.go b/test/printbig.go
+index d867bdc646..6985796f3a 100644
+--- a/test/printbig.go
++++ b/test/printbig.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that big numbers work as constants and print can print them.
++
+ package main
+ 
+ func main() {
+diff --git a/test/range.go b/test/range.go
+index 7921e447ec..b0f3ae605a 100644
+--- a/test/range.go
++++ b/test/range.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test the 'for range' construct.
++
+ package main
+ 
+ // test range over channels
+diff --git a/test/recover3.go b/test/recover3.go
+index f87547fc3e..98700231ef 100644
+--- a/test/recover3.go
++++ b/test/recover3.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test recovering from runtime errors.
++
+ package main
+ 
+ import (
+diff --git a/test/rename.go b/test/rename.go
+index ab61c57f6f..817a8de79a 100644
+--- a/test/rename.go
++++ b/test/rename.go
+@@ -4,70 +4,95 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that predeclared names can be redeclared by the user.
++
+ package main
+ 
+ import "fmt"
+ 
+ func main() {
+ 	n :=
+-		bool +
++		append +
++			bool +
+ 			byte +
+-			float +
++			complex +
++			complex64 +
++			complex128 +
++			cap +
++			close +
++			delete +
++			error +
++			false +
+ 			float32 +
+ 			float64 +
++			imag +
+ 			int +
+ 			int8 +
+ 			int16 +
+ 			int32 +
+ 			int64 +
++			len +
++			make +
++			new +
++			nil +
++			panic +
++			print +
++			println +
++			real +
++			recover +
++			rune +
++			string +
++			true +
+ 			uint +
+ 			uint8 +
+ 			uint16 +
+ 			uint32 +
+ 			uint64 +
+ 			uintptr +
+-			true +
+-			false +
+-			iota +
+-			nil +
+-			cap +
+-			len +
+-			make +
+-			new +
+-			panic +
+-			print +
+-			println
+-	if n != 27*28/2 {
+-		fmt.Println("BUG: wrong n", n, 27*28/2)
++			iota
++	if n != NUM*(NUM-1)/2 {
++		fmt.Println("BUG: wrong n", n, NUM*(NUM-1)/2)
+ 	}
+ }
+ 
+ const (
+-	bool    = 1
+-	byte    = 2
+-	float   = 3
+-	float32 = 4
+-	float64 = 5
+-	int     = 6
+-	int8    = 7
+-	int16   = 8
+-	int32   = 9
+-	int64   = 10
+-	uint    = 11
+-	uint8   = 12
+-	uint16  = 13
+-	uint32  = 14
+-	uint64  = 15
+-	uintptr = 16
+-	true    = 17
+-	false   = 18
+-	iota    = 19
+-	nil     = 20
+-	cap     = 21
+-	len     = 22
+-	make    = 23
+-	new     = 24
+-	panic   = 25
+-	print   = 26
+-	println = 27
++	append = iota
++	bool
++	byte
++	complex
++	complex64
++	complex128
++	cap
++	close
++	delete
++	error
++	false
++	float32
++	float64
++	imag
++	int
++	int8
++	int16
++	int32
++	int64
++	len
++	make
++	new
++	nil
++	panic
++	print
++	println
++	real
++	recover
++	rune
++	string
++	true
++	uint
++	uint8
++	uint16
++	uint32
++	uint64
++	uintptr
++	NUM
++	iota = 0
+ )
+diff --git a/test/rename1.go b/test/rename1.go
+index 765fba2ac1..48262fd2b5 100644
+--- a/test/rename1.go
++++ b/test/rename1.go
+@@ -4,11 +4,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that renamed identifiers no longer have their old meaning.
++// Does not compile.
++
+ package main
+ 
+ func main() {
+ 	var n byte       // ERROR "not a type|expected type"
+-	var y = float(0) // ERROR "cannot call|expected function"
++	var y = float32(0) // ERROR "cannot call|expected function"
+ 	const (
+ 		a = 1 + iota // ERROR "string|incompatible types" "convert iota"
+ 	)
+@@ -16,31 +19,43 @@ func main() {
+ }
+ 
+ const (
+-	bool    = 1
+-	byte    = 2
+-	float   = 3
+-	float32 = 4
+-	float64 = 5
+-	int     = 6
+-	int8    = 7
+-	int16   = 8
+-	int32   = 9
+-	int64   = 10
+-	uint    = 11
+-	uint8   = 12
+-	uint16  = 13
+-	uint32  = 14
+-	uint64  = 15
+-	uintptr = 16
+-	true    = 17
+-	false   = 18
+-	iota    = "abc"
+-	nil     = 20
+-	cap     = 21
+-	len     = 22
+-	make    = 23
+-	new     = 24
+-	panic   = 25
+-	print   = 26
+-	println = 27
++	append = iota
++	bool
++	byte
++	complex
++	complex64
++	complex128
++	cap
++	close
++	delete
++	error
++	false
++	float32
++	float64
++	imag
++	int
++	int8
++	int16
++	int32
++	int64
++	len
++	make
++	new
++	nil
++	panic
++	print
++	println
++	real
++	recover
++	rune
++	string
++	true
++	uint
++	uint8
++	uint16
++	uint32
++	uint64
++	uintptr
++	NUM
++	iota = "123"
+ )
+diff --git a/test/reorder.go b/test/reorder.go
+index a98fd8cbf0..007039e8a9 100644
+--- a/test/reorder.go
++++ b/test/reorder.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check reordering of assignments.
++// Test reordering of assignments.
+ 
+ package main
+ 
+diff --git a/test/reorder2.go b/test/reorder2.go
+index 22fefde530..d91f1d8953 100644
+--- a/test/reorder2.go
++++ b/test/reorder2.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// derived from fixedbugs/bug294.go
++// Test reorderings; derived from fixedbugs/bug294.go.
+ 
+ package main
+ 
+diff --git a/test/rune.go b/test/rune.go
+index 3d3823e68b..c013c471d3 100644
+--- a/test/rune.go
++++ b/test/rune.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test rune constants, expressions and types.
++// Compiles but does not run.
++
+ package rune
+ 
+ var (
+diff --git a/test/runtime.go b/test/runtime.go
+index 3162b3f13e..89f59e3edb 100644
+--- a/test/runtime.go
++++ b/test/runtime.go
+@@ -4,12 +4,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// make sure that even if a file imports runtime,
++// Test that even if a file imports runtime,
+ // it cannot get at the low-level runtime definitions
+-// known to the compiler.  for normal packages
++// known to the compiler.  For normal packages
+ // the compiler doesn't even record the lower case
+ // functions in its symbol table, but some functions
+ // in runtime are hard-coded into the compiler.
++// Does not compile.
+ 
+ package main
+ 

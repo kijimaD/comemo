@@ -13,9 +13,89 @@ Date:   Sun Sep 3 13:48:01 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/internal/test/issue18146.go                       | 2 +-
  src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt | 4 ++--
  src/net/http/serve_test.go                                    | 6 +++---
  src/os/executable_test.go                                     | 2 +-
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/test/issue18146.go b/src/cmd/cgo/internal/test/issue18146.go
+index b9255234eb..112b7ee2e7 100644
+--- a/src/cmd/cgo/internal/test/issue18146.go
++++ b/src/cmd/cgo/internal/test/issue18146.go
+@@ -72,7 +72,7 @@ func test18146(t *testing.T) {
+ 			}()
+ 		}
+ 		runtime.GOMAXPROCS(threads)
+-		argv := append(os.Args, "-test.run=NoSuchTestExists")
++		argv := append(os.Args, "-test.run=^$")
+ 		if err := syscall.Exec(os.Args[0], argv, os.Environ()); err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt b/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
+index e61c4f9d04..11aaacaad2 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
+@@ -21,7 +21,7 @@ go run check_cache/check_cache.go $GOCACHE/fuzz/FuzzMinCache
+ # Test that minimization occurs for a crash that appears while minimizing a
+ # newly found interesting input. There must be only one worker for this test to
+ # be flaky like we want.
+-! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.run=XXX -test.fuzztime=10000x -test.parallel=1
++! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.run=^$ -test.fuzztime=10000x -test.parallel=1
+ ! stdout '^ok'
+ stdout -count=1 'got the minimum size!'
+ stdout -count=1 'bad input'
+@@ -32,7 +32,7 @@ go run check_testdata/check_testdata.go FuzzMinimizerCrashInMinimization 1
+ 
+ # Test that a nonrecoverable error that occurs while minimizing an interesting
+ # input is reported correctly.
+-! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerNonrecoverableCrashInMinimization -test.run=XXX -test.fuzztime=10000x -test.parallel=1
++! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerNonrecoverableCrashInMinimization -test.run=^$ -test.fuzztime=10000x -test.parallel=1
+ ! stdout '^ok'
+ stdout -count=1 'fuzzing process hung or terminated unexpectedly while minimizing'
+ stdout -count=1 'EOF'
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 2473a88056..f26a6b3190 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4992,7 +4992,7 @@ func benchmarkClientServerParallel(b *testing.B, parallelism int, mode testMode)
+ // For use like:
+ //
+ //	$ go test -c
+-//	$ ./http.test -test.run=XX -test.bench='^BenchmarkServer$' -test.benchtime=15s -test.cpuprofile=http.prof
++//	$ ./http.test -test.run='^$' -test.bench='^BenchmarkServer$' -test.benchtime=15s -test.cpuprofile=http.prof
+ //	$ go tool pprof http.test http.prof
+ //	(pprof) web
+ func BenchmarkServer(b *testing.B) {
+@@ -5031,7 +5031,7 @@ func BenchmarkServer(b *testing.B) {
+ 	defer ts.Close()
+ 	b.StartTimer()
+ 
+-	cmd := testenv.Command(b, os.Args[0], "-test.run=XXXX", "-test.bench=^BenchmarkServer$")
++	cmd := testenv.Command(b, os.Args[0], "-test.run=^$", "-test.bench=^BenchmarkServer$")
+ 	cmd.Env = append([]string{
+ 		fmt.Sprintf("TEST_BENCH_CLIENT_N=%d", b.N),
+ 		fmt.Sprintf("TEST_BENCH_SERVER_URL=%s", ts.URL),
+@@ -5086,7 +5086,7 @@ func BenchmarkClient(b *testing.B) {
+ 
+ 	// Start server process.
+ 	ctx, cancel := context.WithCancel(context.Background())
+-	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=XXXX", "-test.bench=^BenchmarkClient$")
++	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=^$", "-test.bench=^BenchmarkClient$")
+ 	cmd.Env = append(cmd.Environ(), "TEST_BENCH_SERVER=yes")
+ 	cmd.Stderr = os.Stderr
+ 	stdout, err := cmd.StdoutPipe()
+diff --git a/src/os/executable_test.go b/src/os/executable_test.go
+index c835bb436b..98b72d7d5e 100644
+--- a/src/os/executable_test.go
++++ b/src/os/executable_test.go
+@@ -30,7 +30,7 @@ func TestExecutable(t *testing.T) {
+ 		t.Fatalf("filepath.Rel: %v", err)
+ 	}
+ 
+-	cmd := testenv.Command(t, fn, "-test.run=XXXX")
++	cmd := testenv.Command(t, fn, "-test.run=^$")
+ 	// make child start with a relative program path
+ 	cmd.Dir = dir
+ 	cmd.Path = fn

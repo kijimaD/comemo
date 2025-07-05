@@ -19,7 +19,47 @@ Date:   Mon Oct 31 15:58:06 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/text/template/exec.go      | 12 ++++++++++--
  src/text/template/exec_test.go |  2 ++
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 66cb535c47..fb60c17931 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -363,11 +363,19 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
+ 	oneIteration := func(index, elem reflect.Value) {
+ 		// Set top var (lexically the second if there are two) to the element.
+ 		if len(r.Pipe.Decl) > 0 {
+-			s.setTopVar(1, elem)
++			if r.Pipe.IsAssign {
++				s.setVar(r.Pipe.Decl[0].Ident[0], elem)
++			} else {
++				s.setTopVar(1, elem)
++			}
+ 		}
+ 		// Set next var (lexically the first if there are two) to the index.
+ 		if len(r.Pipe.Decl) > 1 {
+-			s.setTopVar(2, index)
++			if r.Pipe.IsAssign {
++				s.setVar(r.Pipe.Decl[1].Ident[0], index)
++			} else {
++				s.setTopVar(2, index)
++			}
+ 		}
+ 		defer s.pop(mark)
+ 		defer func() {
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 6bfae3d319..6b163f0ae1 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -692,6 +692,8 @@ var execTests = []execTest{
+ 	{"bug18a", "{{eq . '.'}}", "true", '.', true},
+ 	{"bug18b", "{{eq . 'e'}}", "true", 'e', true},
+ 	{"bug18c", "{{eq . 'P'}}", "true", 'P', true},
++
++	{"issue56490", "{{$i := 0}}{{$x := 0}}{{range $i = .AI}}{{end}}{{$i}}", "5", tVal, true},
+ }
+ 
+ func zeroArgs() string {

@@ -12,6 +12,25 @@ Date:   Fri Jul 11 15:16:00 2014 +0000
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/105710043
-
+---
  src/cmd/ld/dwarf.c | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index a9f9329932..90c6725bc7 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -835,11 +835,8 @@ newmemberoffsetattr(DWDie *die, int32 offs)
+ 	int i;
+ 
+ 	i = 0;
+-	if (offs != 0) {
+-		block[i++] = DW_OP_consts;
+-		i += sleb128enc(offs, block+i);
+-		block[i++] = DW_OP_plus;
+-	}
++	block[i++] = DW_OP_plus_uconst;
++	i += uleb128enc(offs, block+i);
+ 	newattr(die, DW_AT_data_member_location, DW_CLS_BLOCK, i, mal(i));
+ 	memmove(die->attr->data, block, i);
+ }

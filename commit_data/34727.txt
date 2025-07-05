@@ -11,7 +11,72 @@ Date:   Sat Nov 11 10:10:14 2017 +0200
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      |  1 +
  src/net/http/httputil/reverseproxy_test.go | 44 ++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index a0f36d1221..b96bb21019 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -207,6 +207,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		if err := p.ModifyResponse(res); err != nil {
+ 			p.logf("http: proxy error: %v", err)
+ 			rw.WriteHeader(http.StatusBadGateway)
++			res.Body.Close()
+ 			return
+ 		}
+ 	}
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 37a9992375..2232042d3e 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -769,3 +769,47 @@ type roundTripperFunc func(req *http.Request) (*http.Response, error)
+ func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+ 	return fn(req)
+ }
++
++func TestModifyResponseClosesBody(t *testing.T) {
++	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
++	req.RemoteAddr = "1.2.3.4:56789"
++	closeCheck := new(checkCloser)
++	logBuf := new(bytes.Buffer)
++	outErr := errors.New("ModifyResponse error")
++	rp := &ReverseProxy{
++		Director: func(req *http.Request) {},
++		Transport: &staticTransport{&http.Response{
++			StatusCode: 200,
++			Body:       closeCheck,
++		}},
++		ErrorLog: log.New(logBuf, "", 0),
++		ModifyResponse: func(*http.Response) error {
++			return outErr
++		},
++	}
++	rec := httptest.NewRecorder()
++	rp.ServeHTTP(rec, req)
++	res := rec.Result()
++	if g, e := res.StatusCode, http.StatusBadGateway; g != e {
++		t.Errorf("got res.StatusCode %d; expected %d", g, e)
++	}
++	if !closeCheck.closed {
++		t.Errorf("body should have been closed")
++	}
++	if g, e := logBuf.String(), outErr.Error(); !strings.Contains(g, e) {
++		t.Errorf("ErrorLog %q does not contain %q", g, e)
++	}
++}
++
++type checkCloser struct {
++	closed bool
++}
++
++func (cc *checkCloser) Close() error {
++	cc.closed = true
++	return nil
++}
++
++func (cc *checkCloser) Read(b []byte) (int, error) {
++	return len(b), nil
++}

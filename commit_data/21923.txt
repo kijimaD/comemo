@@ -10,6 +10,23 @@ Date:   Thu Feb 12 22:31:27 2015 +0300
     Change-Id: I06dd5bb0cb3e2811bd4ef605d7a5225cfa033fe0
     Reviewed-on: https://go-review.googlesource.com/4731
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/gc/reflect.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 852485d13e..7f81e676f9 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -173,6 +173,11 @@ mapbucket(Type *t)
+ 	field[nelem(field)-1]->down = T;
+ 	dowidth(bucket);
+ 
++	// Pad to the native integer alignment.
++	// This is usually the same as widthptr; the exception (as usual) is amd64p32.
++	if(widthreg > widthptr)
++		bucket->width += widthreg - widthptr;
++
+ 	// See comment on hmap.overflow in ../../runtime/hashmap.go.
+ 	if(!haspointers(t->type) && !haspointers(t->down))
+ 		bucket->haspointers = 1;  // no pointers

@@ -7,8 +7,325 @@ Date:   Mon Apr 23 10:26:10 2012 -0700
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/6099043
-
+---
  src/pkg/net/http/cookie.go   |   7 +-
  src/pkg/net/http/lex.go      | 206 +++++++++++++++++--------------------------
  src/pkg/net/http/lex_test.go |  65 +++-----------
  3 files changed, 97 insertions(+), 181 deletions(-)
+
+diff --git a/src/pkg/net/http/cookie.go b/src/pkg/net/http/cookie.go
+index 2e30bbff17..43f519d1fb 100644
+--- a/src/pkg/net/http/cookie.go
++++ b/src/pkg/net/http/cookie.go
+@@ -258,10 +258,5 @@ func parseCookieValueUsing(raw string, validByte func(byte) bool) (string, bool)
+ }
+ 
+ func isCookieNameValid(raw string) bool {
+-	for _, c := range raw {
+-		if !isToken(byte(c)) {
+-			return false
+-		}
+-	}
+-	return true
++	return strings.IndexFunc(raw, isNotToken) < 0
+ }
+diff --git a/src/pkg/net/http/lex.go b/src/pkg/net/http/lex.go
+index ffb393ccf6..cb33318f49 100644
+--- a/src/pkg/net/http/lex.go
++++ b/src/pkg/net/http/lex.go
+@@ -6,131 +6,91 @@ package http
+ 
+ // This file deals with lexical matters of HTTP
+ 
+-func isSeparator(c byte) bool {
+-	switch c {
+-	case '(', ')', '<', '>', '@', ',', ';', ':', '\\', '"', '/', '[', ']', '?', '=', '{', '}', ' ', '\t':
+-		return true
+-	}
+-	return false
++var isTokenTable = [127]bool{
++	'!':  true,
++	'#':  true,
++	'$':  true,
++	'%':  true,
++	'&':  true,
++	'\'': true,
++	'*':  true,
++	'+':  true,
++	'-':  true,
++	'.':  true,
++	'0':  true,
++	'1':  true,
++	'2':  true,
++	'3':  true,
++	'4':  true,
++	'5':  true,
++	'6':  true,
++	'7':  true,
++	'8':  true,
++	'9':  true,
++	'A':  true,
++	'B':  true,
++	'C':  true,
++	'D':  true,
++	'E':  true,
++	'F':  true,
++	'G':  true,
++	'H':  true,
++	'I':  true,
++	'J':  true,
++	'K':  true,
++	'L':  true,
++	'M':  true,
++	'N':  true,
++	'O':  true,
++	'P':  true,
++	'Q':  true,
++	'R':  true,
++	'S':  true,
++	'T':  true,
++	'U':  true,
++	'W':  true,
++	'V':  true,
++	'X':  true,
++	'Y':  true,
++	'Z':  true,
++	'^':  true,
++	'_':  true,
++	'`':  true,
++	'a':  true,
++	'b':  true,
++	'c':  true,
++	'd':  true,
++	'e':  true,
++	'f':  true,
++	'g':  true,
++	'h':  true,
++	'i':  true,
++	'j':  true,
++	'k':  true,
++	'l':  true,
++	'm':  true,
++	'n':  true,
++	'o':  true,
++	'p':  true,
++	'q':  true,
++	'r':  true,
++	's':  true,
++	't':  true,
++	'u':  true,
++	'v':  true,
++	'w':  true,
++	'x':  true,
++	'y':  true,
++	'z':  true,
++	'|':  true,
++	'~':  true,
+ }
+ 
+-func isCtl(c byte) bool { return (0 <= c && c <= 31) || c == 127 }
+-
+-func isChar(c byte) bool { return 0 <= c && c <= 127 }
+-
+-func isAnyText(c byte) bool { return !isCtl(c) }
+-
+-func isQdText(c byte) bool { return isAnyText(c) && c != '"' }
+-
+-func isToken(c byte) bool { return isChar(c) && !isCtl(c) && !isSeparator(c) }
+-
+-// Valid escaped sequences are not specified in RFC 2616, so for now, we assume
+-// that they coincide with the common sense ones used by GO. Malformed
+-// characters should probably not be treated as errors by a robust (forgiving)
+-// parser, so we replace them with the '?' character.
+-func httpUnquotePair(b byte) byte {
+-	// skip the first byte, which should always be '\'
+-	switch b {
+-	case 'a':
+-		return '\a'
+-	case 'b':
+-		return '\b'
+-	case 'f':
+-		return '\f'
+-	case 'n':
+-		return '\n'
+-	case 'r':
+-		return '\r'
+-	case 't':
+-		return '\t'
+-	case 'v':
+-		return '\v'
+-	case '\\':
+-		return '\\'
+-	case '\'':
+-		return '\''
+-	case '"':
+-		return '"'
+-	}
+-	return '?'
+-}
+-
+-// raw must begin with a valid quoted string. Only the first quoted string is
+-// parsed and is unquoted in result. eaten is the number of bytes parsed, or -1
+-// upon failure.
+-func httpUnquote(raw []byte) (eaten int, result string) {
+-	buf := make([]byte, len(raw))
+-	if raw[0] != '"' {
+-		return -1, ""
+-	}
+-	eaten = 1
+-	j := 0 // # of bytes written in buf
+-	for i := 1; i < len(raw); i++ {
+-		switch b := raw[i]; b {
+-		case '"':
+-			eaten++
+-			buf = buf[0:j]
+-			return i + 1, string(buf)
+-		case '\\':
+-			if len(raw) < i+2 {
+-				return -1, ""
+-			}
+-			buf[j] = httpUnquotePair(raw[i+1])
+-			eaten += 2
+-			j++
+-			i++
+-		default:
+-			if isQdText(b) {
+-				buf[j] = b
+-			} else {
+-				buf[j] = '?'
+-			}
+-			eaten++
+-			j++
+-		}
+-	}
+-	return -1, ""
++func isToken(r rune) bool {
++	i := int(r)
++	return i < len(isTokenTable) && isTokenTable[i]
+ }
+ 
+-// This is a best effort parse, so errors are not returned, instead not all of
+-// the input string might be parsed. result is always non-nil.
+-func httpSplitFieldValue(fv string) (eaten int, result []string) {
+-	result = make([]string, 0, len(fv))
+-	raw := []byte(fv)
+-	i := 0
+-	chunk := ""
+-	for i < len(raw) {
+-		b := raw[i]
+-		switch {
+-		case b == '"':
+-			eaten, unq := httpUnquote(raw[i:len(raw)])
+-			if eaten < 0 {
+-				return i, result
+-			} else {
+-				i += eaten
+-				chunk += unq
+-			}
+-		case isSeparator(b):
+-			if chunk != "" {
+-				result = result[0 : len(result)+1]
+-				result[len(result)-1] = chunk
+-				chunk = ""
+-			}
+-			i++
+-		case isToken(b):
+-			chunk += string(b)
+-			i++
+-		case b == '\n' || b == '\r':
+-			i++
+-		default:
+-			chunk += "?"
+-			i++
+-		}
+-	}
+-	if chunk != "" {
+-		result = result[0 : len(result)+1]
+-		result[len(result)-1] = chunk
+-		chunk = ""
+-	}
+-	return i, result
++func isNotToken(r rune) bool {
++	return !isToken(r)
+ }
+diff --git a/src/pkg/net/http/lex_test.go b/src/pkg/net/http/lex_test.go
+index 5386f7534d..6d9d294f70 100644
+--- a/src/pkg/net/http/lex_test.go
++++ b/src/pkg/net/http/lex_test.go
+@@ -8,63 +8,24 @@ import (
+ 	"testing"
+ )
+ 
+-type lexTest struct {
+-	Raw    string
+-	Parsed int // # of parsed characters
+-	Result []string
+-}
++func isChar(c rune) bool { return c <= 127 }
+ 
+-var lexTests = []lexTest{
+-	{
+-		Raw:    `"abc"def,:ghi`,
+-		Parsed: 13,
+-		Result: []string{"abcdef", "ghi"},
+-	},
+-	// My understanding of the RFC is that escape sequences outside of
+-	// quotes are not interpreted?
+-	{
+-		Raw:    `"\t"\t"\t"`,
+-		Parsed: 10,
+-		Result: []string{"\t", "t\t"},
+-	},
+-	{
+-		Raw:    `"\yab"\r\n`,
+-		Parsed: 10,
+-		Result: []string{"?ab", "r", "n"},
+-	},
+-	{
+-		Raw:    "ab\f",
+-		Parsed: 3,
+-		Result: []string{"ab?"},
+-	},
+-	{
+-		Raw:    "\"ab \" c,de f, gh, ij\n\t\r",
+-		Parsed: 23,
+-		Result: []string{"ab ", "c", "de", "f", "gh", "ij"},
+-	},
+-}
++func isCtl(c rune) bool { return c <= 31 || c == 127 }
+ 
+-func min(x, y int) int {
+-	if x <= y {
+-		return x
++func isSeparator(c rune) bool {
++	switch c {
++	case '(', ')', '<', '>', '@', ',', ';', ':', '\\', '"', '/', '[', ']', '?', '=', '{', '}', ' ', '\t':
++		return true
+ 	}
+-	return y
++	return false
+ }
+ 
+-func TestSplitFieldValue(t *testing.T) {
+-	for k, l := range lexTests {
+-		parsed, result := httpSplitFieldValue(l.Raw)
+-		if parsed != l.Parsed {
+-			t.Errorf("#%d: Parsed %d, expected %d", k, parsed, l.Parsed)
+-		}
+-		if len(result) != len(l.Result) {
+-			t.Errorf("#%d: Result len  %d, expected %d", k, len(result), len(l.Result))
+-		}
+-		for i := 0; i < min(len(result), len(l.Result)); i++ {
+-			if result[i] != l.Result[i] {
+-				t.Errorf("#%d: %d-th entry mismatch. Have {%s}, expect {%s}",
+-					k, i, result[i], l.Result[i])
+-			}
++func TestIsToken(t *testing.T) {
++	for i := 0; i <= 130; i++ {
++		r := rune(i)
++		expected := isChar(r) && !isCtl(r) && !isSeparator(r)
++		if isToken(r) != expected {
++			t.Errorf("isToken(0x%x) = %v", r, !expected)
+ 		}
+ 	}
+ }

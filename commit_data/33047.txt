@@ -16,7 +16,58 @@ Date:   Fri May 26 01:14:30 2017 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/sync/export_test.go |  2 ++
  src/sync/pool_test.go   | 11 +++++++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/sync/export_test.go b/src/sync/export_test.go
+index 6ed38dad89..669076efad 100644
+--- a/src/sync/export_test.go
++++ b/src/sync/export_test.go
+@@ -7,3 +7,5 @@ package sync
+ // Export for testing.
+ var Runtime_Semacquire = runtime_Semacquire
+ var Runtime_Semrelease = runtime_Semrelease
++var Runtime_procPin = runtime_procPin
++var Runtime_procUnpin = runtime_procUnpin
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index 5a38cbfcb6..9e5132bb18 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -23,6 +23,10 @@ func TestPool(t *testing.T) {
+ 	if p.Get() != nil {
+ 		t.Fatal("expected empty")
+ 	}
++
++	// Make sure that the goroutine doesn't migrate to another P
++	// between Put and Get calls.
++	Runtime_procPin()
+ 	p.Put("a")
+ 	p.Put("b")
+ 	if g := p.Get(); g != "a" {
+@@ -34,6 +38,7 @@ func TestPool(t *testing.T) {
+ 	if g := p.Get(); g != nil {
+ 		t.Fatalf("got %#v; want nil", g)
+ 	}
++	Runtime_procUnpin()
+ 
+ 	p.Put("c")
+ 	debug.SetGCPercent(100) // to allow following GC to actually run
+@@ -60,10 +65,16 @@ func TestPoolNew(t *testing.T) {
+ 	if v := p.Get(); v != 2 {
+ 		t.Fatalf("got %v; want 2", v)
+ 	}
++
++	// Make sure that the goroutine doesn't migrate to another P
++	// between Put and Get calls.
++	Runtime_procPin()
+ 	p.Put(42)
+ 	if v := p.Get(); v != 42 {
+ 		t.Fatalf("got %v; want 42", v)
+ 	}
++	Runtime_procUnpin()
++
+ 	if v := p.Get(); v != 3 {
+ 		t.Fatalf("got %v; want 3", v)
+ 	}

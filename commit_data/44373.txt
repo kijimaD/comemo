@@ -15,9 +15,99 @@ Date:   Thu Jun 18 12:51:35 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/type.go          |  1 +
  src/reflect/value.go         |  8 ++++++++
  src/runtime/stack.go         |  1 +
  test/fixedbugs/issue39541.go | 33 +++++++++++++++++++++++++++++++++
  4 files changed, 43 insertions(+)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index ec26bef091..38b1283d42 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -3068,6 +3068,7 @@ func ifaceIndir(t *rtype) bool {
+ 	return t.kind&kindDirectIface == 0
+ }
+ 
++// Note: this type must agree with runtime.bitvector.
+ type bitVector struct {
+ 	n    uint32 // number of bits
+ 	data []byte
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 8ce495a33b..c6f24a5609 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -589,6 +589,13 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
+ 			// Convert v to type typ if v is assignable to a variable
+ 			// of type t in the language spec.
+ 			// See issue 28761.
++			if typ.Kind() == Interface {
++				// We must clear the destination before calling assignTo,
++				// in case assignTo writes (with memory barriers) to the
++				// target location used as scratch space. See issue 39541.
++				*(*uintptr)(addr) = 0
++				*(*uintptr)(add(addr, ptrSize, "typ.size == 2*ptrSize")) = 0
++			}
+ 			v = v.assignTo("reflect.MakeFunc", typ, addr)
+ 
+ 			// We are writing to stack. No write barrier.
+@@ -2381,6 +2388,7 @@ func NewAt(typ Type, p unsafe.Pointer) Value {
+ // assignTo returns a value v that can be assigned directly to typ.
+ // It panics if v is not assignable to typ.
+ // For a conversion to an interface type, target is a suggested scratch space to use.
++// target must be initialized memory (or nil).
+ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value {
+ 	if v.flag&flagMethod != 0 {
+ 		v = makeMethodValue(context, v)
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 52e54171cb..0e930f60db 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -556,6 +556,7 @@ func adjustpointer(adjinfo *adjustinfo, vpp unsafe.Pointer) {
+ }
+ 
+ // Information from the compiler about the layout of stack frames.
++// Note: this type must agree with reflect.bitVector.
+ type bitvector struct {
+ 	n        int32 // # of bits
+ 	bytedata *uint8
+diff --git a/test/fixedbugs/issue39541.go b/test/fixedbugs/issue39541.go
+new file mode 100644
+index 0000000000..fba52916eb
+--- /dev/null
++++ b/test/fixedbugs/issue39541.go
+@@ -0,0 +1,33 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "reflect"
++
++func sub(args []reflect.Value) []reflect.Value {
++	type A struct {
++		s int
++		t int
++	}
++	return []reflect.Value{reflect.ValueOf(A{1, 2})}
++}
++
++func main() {
++	f := reflect.MakeFunc(reflect.TypeOf((func() interface{})(nil)), sub).Interface().(func() interface{})
++	c := make(chan bool, 100)
++	for i := 0; i < 100; i++ {
++		go func() {
++			for j := 0; j < 10000; j++ {
++				f()
++			}
++			c <- true
++		}()
++	}
++	for i := 0; i < 100; i++ {
++		<-c
++	}
++}

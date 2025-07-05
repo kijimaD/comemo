@@ -13,6 +13,20 @@ Date:   Thu Nov 9 11:43:13 2023 -0500
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index c2d3effd65..4009b776ea 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -528,6 +528,8 @@ opSwitch:
+ 				case "throw":
+ 					v.budget -= inlineExtraThrowCost
+ 					break opSwitch
++				case "panicrangeexit":
++					cheap = true
+ 				}
+ 				// Special case for reflect.noescape. It does just type
+ 				// conversions to appease the escape analysis, and doesn't

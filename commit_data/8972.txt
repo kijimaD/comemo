@@ -15,7 +15,61 @@ Date:   Thu Jul 7 18:06:50 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4657080
-
+---
  src/pkg/crypto/x509/verify.go      |  6 ++++++
  src/pkg/crypto/x509/verify_test.go | 11 ++++++-----
  2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 20a81574d0..cad863db82 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -171,8 +171,14 @@ func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain [
+ 		chains = append(chains, appendToFreshChain(currentChain, root))
+ 	}
+ 
++nextIntermediate:
+ 	for _, intermediateNum := range opts.Intermediates.findVerifiedParents(c) {
+ 		intermediate := opts.Intermediates.certs[intermediateNum]
++		for _, cert := range currentChain {
++			if cert == intermediate {
++				continue nextIntermediate
++			}
++		}
+ 		err = intermediate.isValid(intermediateCertificate, opts)
+ 		if err != nil {
+ 			continue
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index 7a631186a2..111f60eb11 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -72,23 +72,24 @@ var verifyTests = []verifyTest{
+ 		},
+ 	},
+ 	{
+-		leaf:          googleLeaf,
+-		intermediates: []string{verisignRoot, thawteIntermediate},
+-		roots:         []string{verisignRoot},
++		leaf:          dnssecExpLeaf,
++		intermediates: []string{startComIntermediate},
++		roots:         []string{startComRoot},
+ 		currentTime:   1302726541,
+ 
+ 		expectedChains: [][]string{
+-			[]string{"Google", "Thawte", "VeriSign"},
++			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
+ 		},
+ 	},
+ 	{
+ 		leaf:          dnssecExpLeaf,
+-		intermediates: []string{startComIntermediate},
++		intermediates: []string{startComIntermediate, startComRoot},
+ 		roots:         []string{startComRoot},
+ 		currentTime:   1302726541,
+ 
+ 		expectedChains: [][]string{
+ 			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
++			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority", "StartCom Certification Authority"},
+ 		},
+ 	},
+ }

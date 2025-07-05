@@ -9,6 +9,18 @@ Date:   Tue Jul 19 22:10:07 2011 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/4782042
-
+---
  src/pkg/sync/atomic/asm_linux_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index a09e06703a..9ac411944c 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -94,5 +94,5 @@ loadloop1:
+ 	MOVW	R0, R1
+ 	BL	cas<>(SB)
+ 	BCC	loadloop1
+-	MOVW	R0, val+4(FP)
++	MOVW	R1, val+4(FP)
+ 	RET

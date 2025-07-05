@@ -18,7 +18,66 @@ Date:   Mon Jul 9 22:29:00 2018 +0000
     Change-Id: Ic1fa8405fd54c858ce8c797cec79d006833a9f7d
     Reviewed-on: https://go-review.googlesource.com/122819
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 28 +++++++++++++++++++++++++++-
  src/net/http/httputil/reverseproxy_test.go |  1 +
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 2eda6b70d0..6f0a2418b3 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -253,7 +253,11 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		defer res.Body.Close()
+ 		// Since we're streaming the response, if we run into an error all we can do
+ 		// is abort the request. Issue 23643: ReverseProxy should use ErrAbortHandler
+-		// on read error while copying body
++		// on read error while copying body.
++		if !shouldPanicOnCopyError(req) {
++			p.logf("suppressing panic for copyResponse error in test; copy error: %v", err)
++			return
++		}
+ 		panic(http.ErrAbortHandler)
+ 	}
+ 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
+@@ -271,6 +275,28 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	}
+ }
+ 
++var inOurTests bool // whether we're in our own tests
++
++// shouldPanicOnCopyError reports whether the reverse proxy should
++// panic with http.ErrAbortHandler. This is the right thing to do by
++// default, but Go 1.10 and earlier did not, so existing unit tests
++// weren't expecting panics. Only panic in our own tests, or when
++// running under the HTTP server.
++func shouldPanicOnCopyError(req *http.Request) bool {
++	if inOurTests {
++		// Our tests know to handle this panic.
++		return true
++	}
++	if req.Context().Value(http.ServerContextKey) != nil {
++		// We seem to be running under an HTTP server, so
++		// it'll recover the panic.
++		return true
++	}
++	// Otherwise act like Go 1.10 and earlier to not break
++	// existing tests.
++	return false
++}
++
+ // removeConnectionHeaders removes hop-by-hop headers listed in the "Connection" header of h.
+ // See RFC 7230, section 6.1
+ func removeConnectionHeaders(h http.Header) {
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 0240bfa8a6..2a12e753b5 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -29,6 +29,7 @@ import (
+ const fakeHopHeader = "X-Fake-Hop-Header-For-Test"
+ 
+ func init() {
++	inOurTests = true
+ 	hopHeaders = append(hopHeaders, fakeHopHeader)
+ }
+ 

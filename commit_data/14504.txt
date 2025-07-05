@@ -10,6 +10,30 @@ Date:   Tue Nov 27 12:18:54 2012 +0400
     R=golang-dev, bradfitz, dave, mikioh.mikioh, remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/6859043
-
+---
  src/pkg/net/timeout_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 9bda4ac9b6..9749d03b93 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -588,8 +588,10 @@ func TestProlongTimeout(t *testing.T) {
+ 
+ 	ln := newLocalListener(t)
+ 	defer ln.Close()
++	connected := make(chan bool)
+ 	go func() {
+ 		s, err := ln.Accept()
++		connected <- true
+ 		if err != nil {
+ 			t.Fatalf("ln.Accept: %v", err)
+ 		}
+@@ -619,6 +621,7 @@ func TestProlongTimeout(t *testing.T) {
+ 		t.Fatalf("DialTCP: %v", err)
+ 	}
+ 	defer c.Close()
++	<-connected
+ 	for i := 0; i < 1024; i++ {
+ 		var buf [1]byte
+ 		c.Write(buf[:])

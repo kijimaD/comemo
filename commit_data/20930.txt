@@ -15,6 +15,24 @@ Date:   Tue Oct 28 15:08:09 2014 -0400
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/160690043
-
+---
  src/cmd/9a/lex.c | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/9a/lex.c b/src/cmd/9a/lex.c
+index bd38493d5a..26f21f7436 100644
+--- a/src/cmd/9a/lex.c
++++ b/src/cmd/9a/lex.c
+@@ -706,10 +706,9 @@ outgcode(int a, Addr *g1, int reg, Addr *g2, Addr *g3)
+ 		p->mark |= NOSCHED;
+ 	p->from = *g1;
+ 	p->reg = reg;
+-	p->to = *g2;
+-	p->from3 = *g3;
++	p->from3 = *g2;
++	p->to = *g3;
+ 	p->pc = pc;
+-	print("oc: %P\n", p);
+ 
+ 	if(lastpc == nil) {
+ 		pl = linknewplist(ctxt);

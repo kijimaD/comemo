@@ -15,6 +15,20 @@ Date:   Thu Jun 2 09:58:42 2022 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/archive/zip/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 12b650990d..d7fcff2afd 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -133,7 +133,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 			if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
+ 				return err
+ 			}
+-			buf = bufio.NewReader(rs)
++			buf.Reset(rs)
+ 			continue
+ 		}
+ 

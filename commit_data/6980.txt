@@ -7,6 +7,20 @@ Date:   Wed Dec 15 19:29:53 2010 -0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/3708041
-
+---
  src/cmd/ld/data.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index ca580b528f..210f10ab56 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -857,7 +857,7 @@ address(void)
+ 	uvlong va;
+ 
+ 	va = INITTEXT;
+-	segtext.rwx = 07;
++	segtext.rwx = 05;
+ 	segtext.vaddr = va;
+ 	segtext.fileoff = HEADR;
+ 	for(s=segtext.sect; s != nil; s=s->next) {

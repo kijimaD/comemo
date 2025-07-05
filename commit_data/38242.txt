@@ -9,6 +9,27 @@ Date:   Fri Sep 28 15:17:24 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/regexp/regexp.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 3586029555..38b3c86d9f 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -105,9 +105,13 @@ func (re *Regexp) String() string {
+ }
+ 
+ // Copy returns a new Regexp object copied from re.
++// Calling Longest on one copy does not affect another.
+ //
+-// When using a Regexp in multiple goroutines, giving each goroutine
+-// its own copy helps to avoid lock contention.
++// Deprecated: In earlier releases, when using a Regexp in multiple goroutines,
++// giving each goroutine its own copy helped to avoid lock contention.
++// As of Go 1.12, using Copy is no longer necessary to avoid lock contention.
++// Copy may still be appropriate if the reason for its use is to make
++// two copies with different Longest settings.
+ func (re *Regexp) Copy() *Regexp {
+ 	re2 := *re
+ 	return &re2

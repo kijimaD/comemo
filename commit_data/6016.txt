@@ -8,6 +8,20 @@ Date:   Thu Aug 12 14:58:38 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1962046
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 509c8b6d40..0a5ef727fd 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -789,7 +789,7 @@ def change(ui, repo, *pats, **opts):
+ 		if opts["delete"]:
+ 			if cl.copied_from:
+ 				return "original author must delete CL; hg change -D will remove locally"
+-			PostMessage(ui, cl.name, "*** Abandoned ***")
++			PostMessage(ui, cl.name, "*** Abandoned ***", send_mail=cl.mailed)
+ 			EditDesc(cl.name, closed="checked")
+ 		cl.Delete(ui, repo)
+ 		return

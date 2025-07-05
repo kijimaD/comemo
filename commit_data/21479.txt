@@ -13,6 +13,20 @@ Date:   Wed Jan 7 01:23:45 2015 -0500
     Change-Id: I3778b91acf54d2ff22d7427fbf2b6ec9b9ce3b43
     Reviewed-on: https://go-review.googlesource.com/2440
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/swig/stdio/file_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/swig/stdio/file_test.go b/misc/swig/stdio/file_test.go
+index 6478a7cf37..38d0746768 100644
+--- a/misc/swig/stdio/file_test.go
++++ b/misc/swig/stdio/file_test.go
+@@ -10,7 +10,7 @@ import "testing"
+ // as expected.
+ func TestRead(t *testing.T) {
+ 	f := Fopen("file_test.go", "r")
+-	if f == nil {
++	if f.Swigcptr() == 0 {
+ 		t.Fatal("fopen failed")
+ 	}
+ 	if Fgetc(f) != '/' || Fgetc(f) != '/' || Fgetc(f) != ' ' || Fgetc(f) != 'C' {

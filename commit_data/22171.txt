@@ -10,6 +10,29 @@ Date:   Thu Feb 26 14:30:40 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6130
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/runtime-gdb_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index da15835db0..36c96ac1c8 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -42,6 +43,9 @@ func TestGdbPython(t *testing.T) {
+ 	if runtime.GOOS == "darwin" {
+ 		t.Skip("gdb does not work on darwin")
+ 	}
++	if strings.HasPrefix(runtime.GOARCH, "ppc64") {
++		t.Skip("gdb does not work on ppc64 - issue 10017")
++	}
+ 
+ 	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
+ 		t.Skip("issue 10002")

@@ -12,6 +12,28 @@ Date:   Tue Oct 7 12:42:57 2008 -0700
     R=ken
     OCL=16650
     CL=16650
-
+---
  src/cmd/gc/dcl.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index a0fb824fe3..7776816a40 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -62,12 +62,15 @@ dodcltype(Type *n)
+ 		switch(s->otype->etype) {
+ 		case TFORWSTRUCT:
+ 		case TFORWINTER:
+-			return s->otype;
++			n = s->otype;
++			goto found;
+ 		}
+ 	}
+ 
+ 	// otherwise declare a new type
+ 	addtyp(n, dclcontext);
++
++found:
+ 	n->sym->local = 1;
+ 	if(exportadj)
+ 		exportsym(n->sym);

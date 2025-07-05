@@ -12,7 +12,41 @@ Date:   Fri Oct 24 09:37:25 2014 -0700
     R=golang-codereviews, bradfitz, gri, rsc
     CC=golang-codereviews
     https://golang.org/cl/162060043
-
+---
  doc/go1compat.html   | 8 ++++++++
  src/unsafe/unsafe.go | 3 +++
  2 files changed, 11 insertions(+)
+
+diff --git a/doc/go1compat.html b/doc/go1compat.html
+index 04a6c1124b..94c48d2ce3 100644
+--- a/doc/go1compat.html
++++ b/doc/go1compat.html
+@@ -104,6 +104,14 @@ outside of tests, and using it may cause a program to fail
+ to compile in future releases.
+ </li>
+ 
++<li>
++Use of package <code>unsafe</code>. Packages that import
++<a href="/pkg/unsafe/"><code>unsafe</code></a>
++may depend on internal properties of the Go implementation.
++We reserve the right to make changes to the implementation
++that may break such programs.
++</li>
++
+ </ul>
+ 
+ <p>
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index 83b2e14052..79499b2955 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -4,6 +4,9 @@
+ 
+ /*
+ 	Package unsafe contains operations that step around the type safety of Go programs.
++
++	Packages that import unsafe may be non-portable and are not protected by the
++	Go 1 compatibility guidelines.
+ */
+ package unsafe
+ 

@@ -8,6 +8,28 @@ Date:   Tue Mar 3 16:09:40 2009 -0800
     DELTA=5  (0 added, 0 deleted, 5 changed)
     OCL=25651
     CL=25655
-
+---
  src/run.bash | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index a7e57f1fdb..2c5636cfa4 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -48,11 +48,11 @@ time make
+ GOMAXPROCS=10 make test
+ ) || exit $?
+ 
+-# (xcd ../usr/gri/pretty
+-# make clean
+-# time make
+-# make smoketest
+-# ) || exit $?
++(xcd ../usr/gri/pretty
++make clean
++time make
++make smoketest
++) || exit $?
+ 
+ (xcd ../doc/progs
+ time ./run

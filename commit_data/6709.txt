@@ -7,7 +7,44 @@ Date:   Thu Nov 4 16:04:04 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2907041
-
+---
  src/cmd/gc/lex.c | 6 +-----
  test/eof1.go     | 9 +++++++++
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f9d9267709..9dded356d4 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -728,14 +728,10 @@ l0:
+ 		if(c1 == '/') {
+ 			c = getlinepragma();
+ 			for(;;) {
+-				if(c == '\n') {
++				if(c == '\n' || c == EOF) {
+ 					ungetc(c);
+ 					goto l0;
+ 				}
+-				if(c == EOF) {
+-					yyerror("eof in comment");
+-					errorexit();
+-				}
+ 				c = getr();
+ 			}
+ 		}
+diff --git a/test/eof1.go b/test/eof1.go
+new file mode 100644
+index 0000000000..c39a3cfdb1
+--- /dev/null
++++ b/test/eof1.go
+@@ -0,0 +1,9 @@
++// $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// No newline at the end of this comment.
+\ No newline at end of file

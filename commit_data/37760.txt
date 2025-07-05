@@ -11,7 +11,7 @@ Date:   Tue Jul 31 16:00:10 2018 -0700
     Change-Id: Idbba88ef60f15a0ec9a83c78541a4d4fb63e534a
     Reviewed-on: https://go-review.googlesource.com/127116
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa_test.go            | 54 -------------------
  .../testdata/{addressed.go => addressed_test.go}   | 59 ++++++++++----------
  .../gc/testdata/{append.go => append_test.go}      | 37 +++++--------
@@ -25,3 +25,991 @@ Date:   Tue Jul 31 16:00:10 2018 -0700
  .../testdata/{sqrt_const.go => sqrtConst_test.go}  | 19 ++-----
  .../gc/testdata/{unsafe.go => unsafe_test.go}      | 35 ++++++------
  12 files changed, 175 insertions(+), 287 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index 98230a15c6..7f7c9464d4 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -20,39 +20,6 @@ import (
+ 	"testing"
+ )
+ 
+-// TODO: move all these tests elsewhere?
+-// Perhaps teach test/run.go how to run them with a new action verb.
+-func runTest(t *testing.T, filename string, flags ...string) {
+-	t.Parallel()
+-	doTest(t, filename, "run", flags...)
+-}
+-func doTest(t *testing.T, filename string, kind string, flags ...string) {
+-	testenv.MustHaveGoBuild(t)
+-	gotool := testenv.GoToolPath(t)
+-
+-	var stdout, stderr bytes.Buffer
+-	args := []string{kind}
+-	if len(flags) == 0 {
+-		args = append(args, "-gcflags=-d=ssa/check/on")
+-	} else {
+-		args = append(args, flags...)
+-	}
+-	args = append(args, filepath.Join("testdata", filename))
+-	cmd := exec.Command(gotool, args...)
+-	cmd.Stdout = &stdout
+-	cmd.Stderr = &stderr
+-	err := cmd.Run()
+-	if err != nil {
+-		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
+-	}
+-	if s := stdout.String(); s != "" {
+-		t.Errorf("Stdout = %s\nWant empty", s)
+-	}
+-	if s := stderr.String(); strings.Contains(s, "SSA unimplemented") {
+-		t.Errorf("Unimplemented message found in stderr:\n%s", s)
+-	}
+-}
+-
+ // runGenTest runs a test-generator, then runs the generated test.
+ // Generated test can either fail in compilation or execution.
+ // The environment variable parameter(s) is passed to the run
+@@ -222,24 +189,3 @@ func TestCode(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-// TestClosure tests closure related behavior.
+-func TestClosure(t *testing.T) { runTest(t, "closure.go") }
+-
+-func TestArray(t *testing.T) { runTest(t, "array.go") }
+-
+-func TestAppend(t *testing.T) { runTest(t, "append.go") }
+-
+-func TestAddressed(t *testing.T) { runTest(t, "addressed.go") }
+-
+-func TestUnsafe(t *testing.T) { runTest(t, "unsafe.go") }
+-
+-func TestPhi(t *testing.T) { runTest(t, "phi.go") }
+-
+-func TestSlice(t *testing.T) { runTest(t, "slice.go") }
+-
+-func TestNamedReturn(t *testing.T) { runTest(t, "namedReturn.go") }
+-
+-func TestDuplicateLoad(t *testing.T) { runTest(t, "dupLoad.go") }
+-
+-func TestSqrt(t *testing.T) { runTest(t, "sqrt_const.go") }
+diff --git a/src/cmd/compile/internal/gc/testdata/addressed.go b/src/cmd/compile/internal/gc/testdata/addressed_test.go
+similarity index 83%
+rename from src/cmd/compile/internal/gc/testdata/addressed.go
+rename to src/cmd/compile/internal/gc/testdata/addressed_test.go
+index 59cf238c74..cdabf978f0 100644
+--- a/src/cmd/compile/internal/gc/testdata/addressed.go
++++ b/src/cmd/compile/internal/gc/testdata/addressed_test.go
+@@ -4,48 +4,51 @@
+ 
+ package main
+ 
+-import "fmt"
++import (
++	"fmt"
++	"testing"
++)
+ 
+ var output string
+ 
+-func mypanic(s string) {
+-	fmt.Printf(output)
+-	panic(s)
++func mypanic(t *testing.T, s string) {
++	t.Fatalf(s + "\n" + output)
++
+ }
+ 
+-func assertEqual(x, y int) {
++func assertEqual(t *testing.T, x, y int) {
+ 	if x != y {
+-		mypanic("assertEqual failed")
++		mypanic(t, fmt.Sprintf("assertEqual failed got %d, want %d", x, y))
+ 	}
+ }
+ 
+-func main() {
++func TestAddressed(t *testing.T) {
+ 	x := f1_ssa(2, 3)
+ 	output += fmt.Sprintln("*x is", *x)
+ 	output += fmt.Sprintln("Gratuitously use some stack")
+ 	output += fmt.Sprintln("*x is", *x)
+-	assertEqual(*x, 9)
++	assertEqual(t, *x, 9)
+ 
+ 	w := f3a_ssa(6)
+ 	output += fmt.Sprintln("*w is", *w)
+ 	output += fmt.Sprintln("Gratuitously use some stack")
+ 	output += fmt.Sprintln("*w is", *w)
+-	assertEqual(*w, 6)
++	assertEqual(t, *w, 6)
+ 
+ 	y := f3b_ssa(12)
+ 	output += fmt.Sprintln("*y.(*int) is", *y.(*int))
+ 	output += fmt.Sprintln("Gratuitously use some stack")
+ 	output += fmt.Sprintln("*y.(*int) is", *y.(*int))
+-	assertEqual(*y.(*int), 12)
++	assertEqual(t, *y.(*int), 12)
+ 
+ 	z := f3c_ssa(8)
+ 	output += fmt.Sprintln("*z.(*int) is", *z.(*int))
+ 	output += fmt.Sprintln("Gratuitously use some stack")
+ 	output += fmt.Sprintln("*z.(*int) is", *z.(*int))
+-	assertEqual(*z.(*int), 8)
++	assertEqual(t, *z.(*int), 8)
+ 
+-	args()
+-	test_autos()
++	args(t)
++	test_autos(t)
+ }
+ 
+ //go:noinline
+@@ -75,13 +78,13 @@ type V struct {
+ 	w, x int64
+ }
+ 
+-func args() {
++func args(t *testing.T) {
+ 	v := V{p: nil, w: 1, x: 1}
+ 	a := V{p: &v, w: 2, x: 2}
+ 	b := V{p: &v, w: 0, x: 0}
+ 	i := v.args_ssa(a, b)
+ 	output += fmt.Sprintln("i=", i)
+-	assertEqual(int(i), 2)
++	assertEqual(t, int(i), 2)
+ }
+ 
+ //go:noinline
+@@ -100,32 +103,32 @@ func (v V) args_ssa(a, b V) int64 {
+ 	return -1
+ }
+ 
+-func test_autos() {
+-	test(11)
+-	test(12)
+-	test(13)
+-	test(21)
+-	test(22)
+-	test(23)
+-	test(31)
+-	test(32)
++func test_autos(t *testing.T) {
++	test(t, 11)
++	test(t, 12)
++	test(t, 13)
++	test(t, 21)
++	test(t, 22)
++	test(t, 23)
++	test(t, 31)
++	test(t, 32)
+ }
+ 
+-func test(which int64) {
++func test(t *testing.T, which int64) {
+ 	output += fmt.Sprintln("test", which)
+ 	v1 := V{w: 30, x: 3, p: nil}
+ 	v2, v3 := v1.autos_ssa(which, 10, 1, 20, 2)
+ 	if which != v2.val() {
+ 		output += fmt.Sprintln("Expected which=", which, "got v2.val()=", v2.val())
+-		mypanic("Failure of expected V value")
++		mypanic(t, "Failure of expected V value")
+ 	}
+ 	if v2.p.val() != v3.val() {
+ 		output += fmt.Sprintln("Expected v2.p.val()=", v2.p.val(), "got v3.val()=", v3.val())
+-		mypanic("Failure of expected V.p value")
++		mypanic(t, "Failure of expected V.p value")
+ 	}
+ 	if which != v3.p.p.p.p.p.p.p.val() {
+ 		output += fmt.Sprintln("Expected which=", which, "got v3.p.p.p.p.p.p.p.val()=", v3.p.p.p.p.p.p.p.val())
+-		mypanic("Failure of expected V.p value")
++		mypanic(t, "Failure of expected V.p value")
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/append.go b/src/cmd/compile/internal/gc/testdata/append_test.go
+similarity index 60%
+rename from src/cmd/compile/internal/gc/testdata/append.go
+rename to src/cmd/compile/internal/gc/testdata/append_test.go
+index 03cd219c32..6663ce75fa 100644
+--- a/src/cmd/compile/internal/gc/testdata/append.go
++++ b/src/cmd/compile/internal/gc/testdata/append_test.go
+@@ -5,9 +5,7 @@
+ // append_ssa.go tests append operations.
+ package main
+ 
+-import "fmt"
+-
+-var failed = false
++import "testing"
+ 
+ //go:noinline
+ func appendOne_ssa(a []int, x int) []int {
+@@ -19,7 +17,7 @@ func appendThree_ssa(a []int, x, y, z int) []int {
+ 	return append(a, x, y, z)
+ }
+ 
+-func eq(a, b []int) bool {
++func eqBytes(a, b []int) bool {
+ 	if len(a) != len(b) {
+ 		return false
+ 	}
+@@ -31,40 +29,33 @@ func eq(a, b []int) bool {
+ 	return true
+ }
+ 
+-func expect(got, want []int) {
+-	if eq(got, want) {
++func expect(t *testing.T, got, want []int) {
++	if eqBytes(got, want) {
+ 		return
+ 	}
+-	fmt.Printf("expected %v, got %v\n", want, got)
+-	failed = true
++	t.Errorf("expected %v, got %v\n", want, got)
+ }
+ 
+-func testAppend() {
++func testAppend(t *testing.T) {
+ 	var store [7]int
+ 	a := store[:0]
+ 
+ 	a = appendOne_ssa(a, 1)
+-	expect(a, []int{1})
++	expect(t, a, []int{1})
+ 	a = appendThree_ssa(a, 2, 3, 4)
+-	expect(a, []int{1, 2, 3, 4})
++	expect(t, a, []int{1, 2, 3, 4})
+ 	a = appendThree_ssa(a, 5, 6, 7)
+-	expect(a, []int{1, 2, 3, 4, 5, 6, 7})
++	expect(t, a, []int{1, 2, 3, 4, 5, 6, 7})
+ 	if &a[0] != &store[0] {
+-		fmt.Println("unnecessary grow")
+-		failed = true
++		t.Errorf("unnecessary grow")
+ 	}
+ 	a = appendOne_ssa(a, 8)
+-	expect(a, []int{1, 2, 3, 4, 5, 6, 7, 8})
++	expect(t, a, []int{1, 2, 3, 4, 5, 6, 7, 8})
+ 	if &a[0] == &store[0] {
+-		fmt.Println("didn't grow")
+-		failed = true
++		t.Errorf("didn't grow")
+ 	}
+ }
+ 
+-func main() {
+-	testAppend()
+-
+-	if failed {
+-		panic("failed")
+-	}
++func TestAppend(t *testing.T) {
++	testAppend(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/array.go b/src/cmd/compile/internal/gc/testdata/array_test.go
+similarity index 62%
+rename from src/cmd/compile/internal/gc/testdata/array.go
+rename to src/cmd/compile/internal/gc/testdata/array_test.go
+index 6be8d9155b..efa00d0520 100644
+--- a/src/cmd/compile/internal/gc/testdata/array.go
++++ b/src/cmd/compile/internal/gc/testdata/array_test.go
+@@ -1,6 +1,6 @@
+ package main
+ 
+-var failed = false
++import "testing"
+ 
+ //go:noinline
+ func testSliceLenCap12_ssa(a [10]int, i, j int) (int, int) {
+@@ -20,7 +20,7 @@ func testSliceLenCap2_ssa(a [10]int, i, j int) (int, int) {
+ 	return len(b), cap(b)
+ }
+ 
+-func testSliceLenCap() {
++func testSliceLenCap(t *testing.T) {
+ 	a := [10]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+ 	tests := [...]struct {
+ 		fn   func(a [10]int, i, j int) (int, int)
+@@ -43,11 +43,9 @@ func testSliceLenCap() {
+ 		{testSliceLenCap2_ssa, -1, 10, 10, 10},
+ 	}
+ 
+-	for i, t := range tests {
+-		if l, c := t.fn(a, t.i, t.j); l != t.l && c != t.c {
+-			println("#", i, " len(a[", t.i, ":", t.j, "]), cap(a[", t.i, ":", t.j, "]) =", l, c,
+-				", want", t.l, t.c)
+-			failed = true
++	for i, test := range tests {
++		if l, c := test.fn(a, test.i, test.j); l != test.l && c != test.c {
++			t.Errorf("#%d len(a[%d:%d]), cap(a[%d:%d]) = %d %d, want %d %d", i, test.i, test.j, test.i, test.j, l, c, test.l, test.c)
+ 		}
+ 	}
+ }
+@@ -57,7 +55,7 @@ func testSliceGetElement_ssa(a [10]int, i, j, p int) int {
+ 	return a[i:j][p]
+ }
+ 
+-func testSliceGetElement() {
++func testSliceGetElement(t *testing.T) {
+ 	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
+ 	tests := [...]struct {
+ 		i, j, p int
+@@ -69,10 +67,9 @@ func testSliceGetElement() {
+ 		{1, 9, 7, 80},
+ 	}
+ 
+-	for i, t := range tests {
+-		if got := testSliceGetElement_ssa(a, t.i, t.j, t.p); got != t.want {
+-			println("#", i, " a[", t.i, ":", t.j, "][", t.p, "] = ", got, " wanted ", t.want)
+-			failed = true
++	for i, test := range tests {
++		if got := testSliceGetElement_ssa(a, test.i, test.j, test.p); got != test.want {
++			t.Errorf("#%d a[%d:%d][%d] = %d, wanted %d", i, test.i, test.j, test.p, got, test.want)
+ 		}
+ 	}
+ }
+@@ -82,7 +79,7 @@ func testSliceSetElement_ssa(a *[10]int, i, j, p, x int) {
+ 	(*a)[i:j][p] = x
+ }
+ 
+-func testSliceSetElement() {
++func testSliceSetElement(t *testing.T) {
+ 	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
+ 	tests := [...]struct {
+ 		i, j, p int
+@@ -94,49 +91,42 @@ func testSliceSetElement() {
+ 		{1, 9, 7, 99},
+ 	}
+ 
+-	for i, t := range tests {
+-		testSliceSetElement_ssa(&a, t.i, t.j, t.p, t.want)
+-		if got := a[t.i+t.p]; got != t.want {
+-			println("#", i, " a[", t.i, ":", t.j, "][", t.p, "] = ", got, " wanted ", t.want)
+-			failed = true
++	for i, test := range tests {
++		testSliceSetElement_ssa(&a, test.i, test.j, test.p, test.want)
++		if got := a[test.i+test.p]; got != test.want {
++			t.Errorf("#%d a[%d:%d][%d] = %d, wanted %d", i, test.i, test.j, test.p, got, test.want)
+ 		}
+ 	}
+ }
+ 
+-func testSlicePanic1() {
++func testSlicePanic1(t *testing.T) {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			println("panicked as expected")
++			//println("panicked as expected")
+ 		}
+ 	}()
+ 
+ 	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
+ 	testSliceLenCap12_ssa(a, 3, 12)
+-	println("expected to panic, but didn't")
+-	failed = true
++	t.Errorf("expected to panic, but didn't")
+ }
+ 
+-func testSlicePanic2() {
++func testSlicePanic2(t *testing.T) {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			println("panicked as expected")
++			//println("panicked as expected")
+ 		}
+ 	}()
+ 
+ 	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
+ 	testSliceGetElement_ssa(a, 3, 7, 4)
+-	println("expected to panic, but didn't")
+-	failed = true
++	t.Errorf("expected to panic, but didn't")
+ }
+ 
+-func main() {
+-	testSliceLenCap()
+-	testSliceGetElement()
+-	testSliceSetElement()
+-	testSlicePanic1()
+-	testSlicePanic2()
+-
+-	if failed {
+-		panic("failed")
+-	}
++func TestArray(t *testing.T) {
++	testSliceLenCap(t)
++	testSliceGetElement(t)
++	testSliceSetElement(t)
++	testSlicePanic1(t)
++	testSlicePanic2(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/closure.go b/src/cmd/compile/internal/gc/testdata/closure_test.go
+similarity index 60%
+rename from src/cmd/compile/internal/gc/testdata/closure.go
+rename to src/cmd/compile/internal/gc/testdata/closure_test.go
+index 70181bc24b..6cddc2d167 100644
+--- a/src/cmd/compile/internal/gc/testdata/closure.go
++++ b/src/cmd/compile/internal/gc/testdata/closure_test.go
+@@ -2,12 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// map_ssa.go tests map operations.
++// closure.go tests closure operations.
+ package main
+ 
+-import "fmt"
+-
+-var failed = false
++import "testing"
+ 
+ //go:noinline
+ func testCFunc_ssa() int {
+@@ -22,17 +20,13 @@ func testCFunc_ssa() int {
+ 	return a
+ }
+ 
+-func testCFunc() {
++func testCFunc(t *testing.T) {
+ 	if want, got := 2, testCFunc_ssa(); got != want {
+-		fmt.Printf("expected %d, got %d", want, got)
+-		failed = true
++		t.Errorf("expected %d, got %d", want, got)
+ 	}
+ }
+ 
+-func main() {
+-	testCFunc()
+-
+-	if failed {
+-		panic("failed")
+-	}
++// TestClosure tests closure related behavior.
++func TestClosure(t *testing.T) {
++	testCFunc(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/dupLoad.go b/src/cmd/compile/internal/gc/testdata/dupLoad_test.go
+similarity index 84%
+rename from src/cmd/compile/internal/gc/testdata/dupLoad.go
+rename to src/cmd/compile/internal/gc/testdata/dupLoad_test.go
+index d18dc733e1..9d65f54946 100644
+--- a/src/cmd/compile/internal/gc/testdata/dupLoad.go
++++ b/src/cmd/compile/internal/gc/testdata/dupLoad_test.go
+@@ -1,5 +1,3 @@
+-// run
+-
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -9,7 +7,7 @@
+ 
+ package main
+ 
+-import "fmt"
++import "testing"
+ 
+ //go:noinline
+ func read1(b []byte) (uint16, uint16) {
+@@ -19,9 +17,8 @@ func read1(b []byte) (uint16, uint16) {
+ 	return uint16(v), uint16(v) | uint16(b[1])<<8
+ }
+ 
+-const N = 100000
+-
+-func main1() {
++func main1(t *testing.T) {
++	const N = 100000
+ 	done := make(chan struct{})
+ 	b := make([]byte, 2)
+ 	go func() {
+@@ -35,8 +32,7 @@ func main1() {
+ 		for i := 0; i < N; i++ {
+ 			x, y := read1(b)
+ 			if byte(x) != byte(y) {
+-				fmt.Printf("x=%x y=%x\n", x, y)
+-				panic("bad")
++				t.Fatalf("x=%x y=%x\n", x, y)
+ 			}
+ 		}
+ 		done <- struct{}{}
+@@ -53,7 +49,8 @@ func read2(b []byte) (uint16, uint16) {
+ 	return v, uint16(b[0]) | v
+ }
+ 
+-func main2() {
++func main2(t *testing.T) {
++	const N = 100000
+ 	done := make(chan struct{})
+ 	b := make([]byte, 2)
+ 	go func() {
+@@ -67,8 +64,7 @@ func main2() {
+ 		for i := 0; i < N; i++ {
+ 			x, y := read2(b)
+ 			if x&0xff00 != y&0xff00 {
+-				fmt.Printf("x=%x y=%x\n", x, y)
+-				panic("bad")
++				t.Fatalf("x=%x y=%x\n", x, y)
+ 			}
+ 		}
+ 		done <- struct{}{}
+@@ -77,7 +73,7 @@ func main2() {
+ 	<-done
+ }
+ 
+-func main() {
+-	main1()
+-	main2()
++func TestDupLoad(t *testing.T) {
++	main1(t)
++	main2(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/namedReturn.go b/src/cmd/compile/internal/gc/testdata/namedReturn_test.go
+similarity index 69%
+rename from src/cmd/compile/internal/gc/testdata/namedReturn.go
+rename to src/cmd/compile/internal/gc/testdata/namedReturn_test.go
+index 19ef8a7e43..b07e225c1c 100644
+--- a/src/cmd/compile/internal/gc/testdata/namedReturn.go
++++ b/src/cmd/compile/internal/gc/testdata/namedReturn_test.go
+@@ -1,5 +1,3 @@
+-// run
+-
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -11,8 +9,8 @@
+ package main
+ 
+ import (
+-	"fmt"
+ 	"runtime"
++	"testing"
+ )
+ 
+ // Our heap-allocated object that will be GC'd incorrectly.
+@@ -21,44 +19,44 @@ import (
+ type B [4]int
+ 
+ // small (SSAable) array
+-type T1 [3]*B
++type A1 [3]*B
+ 
+ //go:noinline
+-func f1() (t T1) {
++func f1() (t A1) {
+ 	t[0] = &B{91, 92, 93, 94}
+ 	runtime.GC()
+ 	return t
+ }
+ 
+ // large (non-SSAable) array
+-type T2 [8]*B
++type A2 [8]*B
+ 
+ //go:noinline
+-func f2() (t T2) {
++func f2() (t A2) {
+ 	t[0] = &B{91, 92, 93, 94}
+ 	runtime.GC()
+ 	return t
+ }
+ 
+ // small (SSAable) struct
+-type T3 struct {
++type A3 struct {
+ 	a, b, c *B
+ }
+ 
+ //go:noinline
+-func f3() (t T3) {
++func f3() (t A3) {
+ 	t.a = &B{91, 92, 93, 94}
+ 	runtime.GC()
+ 	return t
+ }
+ 
+ // large (non-SSAable) struct
+-type T4 struct {
++type A4 struct {
+ 	a, b, c, d, e, f *B
+ }
+ 
+ //go:noinline
+-func f4() (t T4) {
++func f4() (t A4) {
+ 	t.a = &B{91, 92, 93, 94}
+ 	runtime.GC()
+ 	return t
+@@ -68,7 +66,7 @@ var sink *B
+ 
+ func f5() int {
+ 	b := &B{91, 92, 93, 94}
+-	t := T4{b, nil, nil, nil, nil, nil}
++	t := A4{b, nil, nil, nil, nil, nil}
+ 	sink = b   // make sure b is heap allocated ...
+ 	sink = nil // ... but not live
+ 	runtime.GC()
+@@ -76,30 +74,20 @@ func f5() int {
+ 	return t.a[1]
+ }
+ 
+-func main() {
+-	failed := false
+-
++func TestNamedReturn(t *testing.T) {
+ 	if v := f1()[0][1]; v != 92 {
+-		fmt.Printf("f1()[0][1]=%d, want 92\n", v)
+-		failed = true
++		t.Errorf("f1()[0][1]=%d, want 92\n", v)
+ 	}
+ 	if v := f2()[0][1]; v != 92 {
+-		fmt.Printf("f2()[0][1]=%d, want 92\n", v)
+-		failed = true
++		t.Errorf("f2()[0][1]=%d, want 92\n", v)
+ 	}
+ 	if v := f3().a[1]; v != 92 {
+-		fmt.Printf("f3().a[1]=%d, want 92\n", v)
+-		failed = true
++		t.Errorf("f3().a[1]=%d, want 92\n", v)
+ 	}
+ 	if v := f4().a[1]; v != 92 {
+-		fmt.Printf("f4().a[1]=%d, want 92\n", v)
+-		failed = true
++		t.Errorf("f4().a[1]=%d, want 92\n", v)
+ 	}
+ 	if v := f5(); v != 92 {
+-		fmt.Printf("f5()=%d, want 92\n", v)
+-		failed = true
+-	}
+-	if failed {
+-		panic("bad")
++		t.Errorf("f5()=%d, want 92\n", v)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/phi.go b/src/cmd/compile/internal/gc/testdata/phi_test.go
+similarity index 94%
+rename from src/cmd/compile/internal/gc/testdata/phi.go
+rename to src/cmd/compile/internal/gc/testdata/phi_test.go
+index 6469bfea44..c8a73ffd74 100644
+--- a/src/cmd/compile/internal/gc/testdata/phi.go
++++ b/src/cmd/compile/internal/gc/testdata/phi_test.go
+@@ -9,13 +9,10 @@ package main
+ // of the post-shortened size.
+ 
+ import (
+-	"fmt"
+ 	"runtime"
++	"testing"
+ )
+ 
+-// unfoldable true
+-var true_ = true
+-
+ var data1 [26]int32
+ var data2 [26]int64
+ 
+@@ -29,7 +26,7 @@ func init() {
+ 
+ func foo() int32 {
+ 	var a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z int32
+-	if true_ {
++	if always {
+ 		a = data1[0]
+ 		b = data1[1]
+ 		c = data1[2]
+@@ -93,11 +90,10 @@ func foo() int32 {
+ 	return a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v + w + x + y + z
+ }
+ 
+-func main() {
++func TestPhi(t *testing.T) {
+ 	want := int32(0)
+ 	got := foo()
+ 	if got != want {
+-		fmt.Printf("want %d, got %d\n", want, got)
+-		panic("bad")
++		t.Fatalf("want %d, got %d\n", want, got)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/slice.go b/src/cmd/compile/internal/gc/testdata/slice.go
+deleted file mode 100644
+index a02e4a442a..0000000000
+--- a/src/cmd/compile/internal/gc/testdata/slice.go
++++ /dev/null
+@@ -1,50 +0,0 @@
+-// run
+-
+-// This test makes sure that t.s = t.s[0:x] doesn't write
+-// either the slice pointer or the capacity.
+-// See issue #14855.
+-
+-package main
+-
+-import "fmt"
+-
+-const N = 1000000
+-
+-type T struct {
+-	s []int
+-}
+-
+-func main() {
+-	done := make(chan struct{})
+-	a := make([]int, N+10)
+-
+-	t := &T{a}
+-
+-	go func() {
+-		for i := 0; i < N; i++ {
+-			t.s = t.s[1:9]
+-		}
+-		done <- struct{}{}
+-	}()
+-	go func() {
+-		for i := 0; i < N; i++ {
+-			t.s = t.s[0:8] // should only write len
+-		}
+-		done <- struct{}{}
+-	}()
+-	<-done
+-	<-done
+-
+-	ok := true
+-	if cap(t.s) != cap(a)-N {
+-		fmt.Printf("wanted cap=%d, got %d\n", cap(a)-N, cap(t.s))
+-		ok = false
+-	}
+-	if &t.s[0] != &a[N] {
+-		fmt.Printf("wanted ptr=%p, got %p\n", &a[N], &t.s[0])
+-		ok = false
+-	}
+-	if !ok {
+-		panic("bad")
+-	}
+-}
+diff --git a/src/cmd/compile/internal/gc/testdata/slice_test.go b/src/cmd/compile/internal/gc/testdata/slice_test.go
+new file mode 100644
+index 0000000000..c134578034
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/slice_test.go
+@@ -0,0 +1,46 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test makes sure that t.s = t.s[0:x] doesn't write
++// either the slice pointer or the capacity.
++// See issue #14855.
++
++package main
++
++import "testing"
++
++const N = 1000000
++
++type X struct {
++	s []int
++}
++
++func TestSlice(t *testing.T) {
++	done := make(chan struct{})
++	a := make([]int, N+10)
++
++	x := &X{a}
++
++	go func() {
++		for i := 0; i < N; i++ {
++			x.s = x.s[1:9]
++		}
++		done <- struct{}{}
++	}()
++	go func() {
++		for i := 0; i < N; i++ {
++			x.s = x.s[0:8] // should only write len
++		}
++		done <- struct{}{}
++	}()
++	<-done
++	<-done
++
++	if cap(x.s) != cap(a)-N {
++		t.Errorf("wanted cap=%d, got %d\n", cap(a)-N, cap(x.s))
++	}
++	if &x.s[0] != &a[N] {
++		t.Errorf("wanted ptr=%p, got %p\n", &a[N], &x.s[0])
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/testdata/sqrt_const.go b/src/cmd/compile/internal/gc/testdata/sqrtConst_test.go
+similarity index 73%
+rename from src/cmd/compile/internal/gc/testdata/sqrt_const.go
+rename to src/cmd/compile/internal/gc/testdata/sqrtConst_test.go
+index 1f25d9aded..5b7a149e42 100644
+--- a/src/cmd/compile/internal/gc/testdata/sqrt_const.go
++++ b/src/cmd/compile/internal/gc/testdata/sqrtConst_test.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"fmt"
+ 	"math"
++	"testing"
+ )
+ 
+ var tests = [...]struct {
+@@ -33,27 +33,18 @@ var nanTests = [...]struct {
+ 	{"sqrtNegInf", math.Inf(-1), math.Sqrt(math.Inf(-1))},
+ }
+ 
+-var failed = false
+-
+-func main() {
++func TestSqrtConst(t *testing.T) {
+ 	for _, test := range tests {
+ 		if test.got != test.want {
+-			fmt.Printf("%s: math.Sqrt(%f): got %f, want %f\n", test.name, test.in, test.got, test.want)
+-			failed = true
++			t.Errorf("%s: math.Sqrt(%f): got %f, want %f\n", test.name, test.in, test.got, test.want)
+ 		}
+ 	}
+ 	for _, test := range nanTests {
+ 		if math.IsNaN(test.got) != true {
+-			fmt.Printf("%s: math.Sqrt(%f): got %f, want NaN\n", test.name, test.in, test.got)
+-			failed = true
++			t.Errorf("%s: math.Sqrt(%f): got %f, want NaN\n", test.name, test.in, test.got)
+ 		}
+ 	}
+ 	if got := math.Sqrt(math.Inf(1)); !math.IsInf(got, 1) {
+-		fmt.Printf("math.Sqrt(+Inf), got %f, want +Inf\n", got)
+-		failed = true
+-	}
+-
+-	if failed {
+-		panic("failed")
++		t.Errorf("math.Sqrt(+Inf), got %f, want +Inf\n", got)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/unsafe.go b/src/cmd/compile/internal/gc/testdata/unsafe_test.go
+similarity index 88%
+rename from src/cmd/compile/internal/gc/testdata/unsafe.go
+rename to src/cmd/compile/internal/gc/testdata/unsafe_test.go
+index a3d9dbcc39..37599d3fd4 100644
+--- a/src/cmd/compile/internal/gc/testdata/unsafe.go
++++ b/src/cmd/compile/internal/gc/testdata/unsafe_test.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"fmt"
+ 	"runtime"
++	"testing"
+ 	"unsafe"
+ )
+ 
+@@ -14,7 +14,7 @@ import (
+ var a *[8]uint
+ 
+ // unfoldable true
+-var b = true
++var always = true
+ 
+ // Test to make sure that a pointer value which is alive
+ // across a call is retained, even when there are matching
+@@ -25,7 +25,7 @@ var b = true
+ func f_ssa() *[8]uint {
+ 	// Make x a uintptr pointing to where a points.
+ 	var x uintptr
+-	if b {
++	if always {
+ 		x = uintptr(unsafe.Pointer(a))
+ 	} else {
+ 		x = 0
+@@ -48,7 +48,7 @@ func f_ssa() *[8]uint {
+ 	// to unsafe.Pointer can't be combined with the
+ 	// uintptr cast above.
+ 	var z uintptr
+-	if b {
++	if always {
+ 		z = y
+ 	} else {
+ 		z = 0
+@@ -61,7 +61,7 @@ func f_ssa() *[8]uint {
+ func g_ssa() *[7]uint {
+ 	// Make x a uintptr pointing to where a points.
+ 	var x uintptr
+-	if b {
++	if always {
+ 		x = uintptr(unsafe.Pointer(a))
+ 	} else {
+ 		x = 0
+@@ -87,7 +87,7 @@ func g_ssa() *[7]uint {
+ 	// to unsafe.Pointer can't be combined with the
+ 	// uintptr cast above.
+ 	var z uintptr
+-	if b {
++	if always {
+ 		z = y
+ 	} else {
+ 		z = 0
+@@ -95,7 +95,7 @@ func g_ssa() *[7]uint {
+ 	return (*[7]uint)(unsafe.Pointer(z))
+ }
+ 
+-func testf() {
++func testf(t *testing.T) {
+ 	a = new([8]uint)
+ 	for i := 0; i < 8; i++ {
+ 		a[i] = 0xabcd
+@@ -103,13 +103,12 @@ func testf() {
+ 	c := f_ssa()
+ 	for i := 0; i < 8; i++ {
+ 		if c[i] != 0xabcd {
+-			fmt.Printf("%d:%x\n", i, c[i])
+-			panic("bad c")
++			t.Fatalf("%d:%x\n", i, c[i])
+ 		}
+ 	}
+ }
+ 
+-func testg() {
++func testg(t *testing.T) {
+ 	a = new([8]uint)
+ 	for i := 0; i < 8; i++ {
+ 		a[i] = 0xabcd
+@@ -117,8 +116,7 @@ func testg() {
+ 	c := g_ssa()
+ 	for i := 0; i < 7; i++ {
+ 		if c[i] != 0xabcd {
+-			fmt.Printf("%d:%x\n", i, c[i])
+-			panic("bad c")
++			t.Fatalf("%d:%x\n", i, c[i])
+ 		}
+ 	}
+ }
+@@ -130,19 +128,18 @@ func alias_ssa(ui64 *uint64, ui32 *uint32) uint32 {
+ 	*ui64 = 0xffffffffffffffff // store
+ 	return ret
+ }
+-func testdse() {
++func testdse(t *testing.T) {
+ 	x := int64(-1)
+ 	// construct two pointers that alias one another
+ 	ui64 := (*uint64)(unsafe.Pointer(&x))
+ 	ui32 := (*uint32)(unsafe.Pointer(&x))
+ 	if want, got := uint32(0), alias_ssa(ui64, ui32); got != want {
+-		fmt.Printf("alias_ssa: wanted %d, got %d\n", want, got)
+-		panic("alias_ssa")
++		t.Fatalf("alias_ssa: wanted %d, got %d\n", want, got)
+ 	}
+ }
+ 
+-func main() {
+-	testf()
+-	testg()
+-	testdse()
++func TestUnsafe(t *testing.T) {
++	testf(t)
++	testg(t)
++	testdse(t)
+ }

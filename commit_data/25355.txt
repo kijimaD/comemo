@@ -7,6 +7,21 @@ Date:   Wed Oct 21 17:04:49 2015 -0400
     Change-Id: Iffc25fc80452baf090bf8ef15ab798cfaa120b8e
     Reviewed-on: https://go-review.googlesource.com/16154
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/msan0.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/msan0.go b/src/runtime/msan0.go
+index f66fbe8779..e206720697 100644
+--- a/src/runtime/msan0.go
++++ b/src/runtime/msan0.go
+@@ -16,7 +16,7 @@ const msanenabled = false
+ 
+ // Because msanenabled is false, none of these functions should be called.
+ 
+-func msanread(addr unsafe.Pointer, sz uintptr)   { throw("race") }
+-func msanwrite(addr unsafe.Pointer, sz uintptr)  { throw("race") }
++func msanread(addr unsafe.Pointer, sz uintptr)   { throw("msan") }
++func msanwrite(addr unsafe.Pointer, sz uintptr)  { throw("msan") }
+ func msanmalloc(addr unsafe.Pointer, sz uintptr) { throw("msan") }
+ func msanfree(addr unsafe.Pointer, sz uintptr)   { throw("msan") }

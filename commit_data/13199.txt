@@ -13,6 +13,31 @@ Date:   Tue May 29 16:30:06 2012 -0400
     R=sameer
     CC=golang-dev
     https://golang.org/cl/6157044
-
+---
  misc/emacs/go-mode.el | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 783d1a8bb5..f6ae568229 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -250,8 +250,8 @@ comment or string."
+ 
+   (unless pos
+     (setq pos (point)))
+-  (when (> pos go-mode-mark-cs-end)
+-    (go-mode-mark-cs pos))
++  (when (>= pos go-mode-mark-cs-end)
++    (go-mode-mark-cs (1+ pos)))
+   (get-text-property pos 'go-mode-cs))
+ 
+ (defun go-mode-mark-cs (end)
+@@ -597,7 +597,7 @@ indented one level."
+       (cond
+        ((and cs (save-excursion
+                   (goto-char (car cs))
+-                  (looking-at "\\s\"")))
++                  (looking-at "`")))
+         ;; Inside a multi-line string.  Don't mess with indentation.
+         nil)
+        (cs

@@ -7,6 +7,31 @@ Date:   Wed May 9 02:43:08 2018 +0800
     Change-Id: Ib1c2f7cc8e8f631ed9e74161699332f492d4cb0d
     Reviewed-on: https://go-review.googlesource.com/112196
     Reviewed-by: Peter Weinberger <pjw@google.com>
-
+---
  src/cmd/trace/annotations.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index dcec42eb5b..459e67c15a 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -861,12 +861,16 @@ func (h *durationHistogram) ToHTML(urlmaker func(min, max time.Duration) string)
+ 	fmt.Fprintf(w, `<table>`)
+ 	for i := h.MinBucket; i <= h.MaxBucket; i++ {
+ 		// Tick label.
+-		fmt.Fprintf(w, `<tr><td class="histoTime" align="right"><a href=%s>%s</a></td>`, urlmaker(h.BucketMin(i), h.BucketMin(i+1)), niceDuration(h.BucketMin(i)))
++		if h.Buckets[i] > 0 {
++			fmt.Fprintf(w, `<tr><td class="histoTime" align="right"><a href=%s>%s</a></td>`, urlmaker(h.BucketMin(i), h.BucketMin(i+1)), niceDuration(h.BucketMin(i)))
++		} else {
++			fmt.Fprintf(w, `<tr><td class="histoTime" align="right">%s</td>`, niceDuration(h.BucketMin(i)))
++		}
+ 		// Bucket bar.
+ 		width := h.Buckets[i] * barWidth / maxCount
+-		fmt.Fprintf(w, `<td><div style="width:%dpx;background:blue;top:.6em;position:relative">&nbsp;</div></td>`, width)
++		fmt.Fprintf(w, `<td><div style="width:%dpx;background:blue;position:relative">&nbsp;</div></td>`, width)
+ 		// Bucket count.
+-		fmt.Fprintf(w, `<td align="right"><div style="top:.6em;position:relative">%d</div></td>`, h.Buckets[i])
++		fmt.Fprintf(w, `<td align="right"><div style="position:relative">%d</div></td>`, h.Buckets[i])
+ 		fmt.Fprintf(w, "</tr>\n")
+ 
+ 	}

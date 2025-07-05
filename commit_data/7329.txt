@@ -7,6 +7,20 @@ Date:   Tue Feb 1 21:10:16 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4073051
-
+---
  src/pkg/fmt/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 02c29389d0..03800aa47a 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -28,6 +28,8 @@
+ 		%X	base 16, with upper-case letters for A-F
+ 		%U	Unicode format: U+1234; same as "U+%x" with 4 digits default
+ 	Floating-point and complex constituents:
++		%b	decimalless scientific notation with exponent a power
++			of two, in the manner of strconv.Ftoa32, e.g. -123456p-78
+ 		%e	scientific notation, e.g. -1234.456e+78
+ 		%E	scientific notation, e.g. -1234.456E+78
+ 		%f	decimal point but no exponent, e.g. 123.456

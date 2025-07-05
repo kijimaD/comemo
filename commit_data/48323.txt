@@ -10,6 +10,24 @@ Date:   Fri May 7 10:47:47 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/318012
     Trust: Joe Tsai <joetsai@digital-static.net>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.17.html | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 894b8ae133..cf856a1e73 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -275,7 +275,11 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="compress/lzw"><dt><a href="/pkg/compress/lzw/">compress/lzw</a></dt>
+   <dd>
+     <p><!-- CL 273667 -->
+-      TODO: <a href="https://golang.org/cl/273667">https://golang.org/cl/273667</a>: add Reset method to Reader and Writer
++      The new
++      <a href="/pkg/compress/lzw/#Reader.Reset"><code>Reader.Reset</code></a>
++      and
++      <a href="/pkg/compress/lzw/#Writer.Reset"><code>Writer.Reset</code></a>
++      methods allow reuse of a <code>Reader</code> or <code>Writer</code>.
+     </p>
+   </dd>
+ </dl><!-- compress/lzw -->

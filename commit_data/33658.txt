@@ -21,7 +21,79 @@ Date:   Mon Aug 28 15:33:11 2017 +1000
     Reviewed-on: https://go-review.googlesource.com/59413
     Reviewed-by: Aliaksandr Valialkin <valyala@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/doc/doc_test.go | 30 ++++++++++++++++++++++++++++++
  src/cmd/doc/main.go     | 11 +++++------
  2 files changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 8928252998..ce0d77a445 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -541,6 +541,36 @@ func TestMultiplePackages(t *testing.T) {
+ 	}
+ }
+ 
++// Test the code to look up packages when given two args. First test case is
++//	go doc binary BigEndian
++// This needs to find encoding/binary.BigEndian, which means
++// finding the package encoding/binary given only "binary".
++// Second case is
++//	go doc rand Float64
++// which again needs to find math/rand and not give up after crypto/rand,
++// which has no such function.
++func TestTwoArgLookup(t *testing.T) {
++	if testing.Short() {
++		t.Skip("scanning file system takes too long")
++	}
++	maybeSkip(t)
++	var b bytes.Buffer // We don't care about the output.
++	{
++		var flagSet flag.FlagSet
++		err := do(&b, &flagSet, []string{"binary", "BigEndian"})
++		if err != nil {
++			t.Errorf("unexpected error %q from binary BigEndian", err)
++		}
++	}
++	{
++		var flagSet flag.FlagSet
++		err := do(&b, &flagSet, []string{"rand", "Float64"})
++		if err != nil {
++			t.Errorf("unexpected error %q from rand Float64", err)
++		}
++	}
++}
++
+ type trimTest struct {
+ 	path   string
+ 	prefix string
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 76c7dba2d9..de275403a2 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -176,12 +176,12 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 	case 1:
+ 		// Done below.
+ 	case 2:
+-		// Package must be importable.
+-		pkg, err := build.Import(args[0], "", build.ImportComment)
+-		if err != nil {
+-			log.Fatalf("%s", err)
++		// Package must be findable and importable.
++		packagePath, ok := findPackage(args[0])
++		if !ok {
++			log.Fatalf("no such package: %s", args[0])
+ 		}
+-		return pkg, args[0], args[1], false
++		return importDir(packagePath), args[0], args[1], true
+ 	}
+ 	// Usual case: one argument.
+ 	arg := args[0]
+@@ -230,7 +230,6 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 		}
+ 		// See if we have the basename or tail of a package, as in json for encoding/json
+ 		// or ivy/value for robpike.io/ivy/value.
+-		// Launch findPackage as a goroutine so it can return multiple paths if required.
+ 		path, ok := findPackage(arg[0:period])
+ 		if ok {
+ 			return importDir(path), arg[0:period], symbol, true

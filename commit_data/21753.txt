@@ -22,7 +22,7 @@ Date:   Mon Feb 2 10:56:41 2015 -0800
     Change-Id: I91ea892098f76ef4f129fd2530e0c63ffd8745a9
     Reviewed-on: https://go-review.googlesource.com/3688
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/addr/addr.go   |  2 +-
  src/cmd/asm/internal/asm/asm.go     | 20 ++++++++++++--------
  src/cmd/asm/internal/asm/parse.go   |  4 +---
@@ -30,3 +30,160 @@ Date:   Mon Feb 2 10:56:41 2015 -0800
  src/cmd/asm/internal/lex/input.go   |  4 +++-
  src/cmd/asm/main.go                 |  5 ++---
  6 files changed, 20 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/asm/internal/addr/addr.go b/src/cmd/asm/internal/addr/addr.go
+index 7acd0b939c..b82af7e396 100644
+--- a/src/cmd/asm/internal/addr/addr.go
++++ b/src/cmd/asm/internal/addr/addr.go
+@@ -71,7 +71,7 @@ func (a *Addr) Has(mask int) bool {
+ 	return false
+ }
+ 
+-// Is reports whether the address has exactly the specified elements.
++// Is reports whether the address has all the specified elements.
+ // Indirect and immediate are checked.
+ func (a *Addr) Is(mask int) bool {
+ 	if (mask&ImmediateConstant == 0) != !a.IsImmediateConstant {
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 43085ae256..e17c1daa87 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -302,7 +302,8 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
+ 
+ 	// Operand 0 has the general form foo<>+0x04(SB).
+ 	nameAddr := p.address(operands[0])
+-	if !nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Register != arch.RSB {
++	ok := nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect|addr.Offset)
++	if !ok || nameAddr.Register != arch.RSB {
+ 		p.errorf("GLOBL symbol %q must be an offset from SB", nameAddr.Symbol)
+ 	}
+ 	name := strings.Replace(nameAddr.Symbol, "·", ".", 1)
+@@ -399,17 +400,19 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ 	if !valueAddr.Is(addr.ImmediateConstant | addr.Offset) {
+ 		p.errorf("FUNCDATA value must be an immediate constant")
+ 	}
+-	value := valueAddr.Offset
++	value0 := valueAddr.Offset
+ 
+ 	// Operand 1 is a symbol name in the form foo(SB).
+ 	// That means symbol plus indirect on SB and no offset.
+ 	nameAddr := p.address(operands[1])
+-	if !nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Register != arch.RSB {
++	ok := nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect|addr.Offset)
++	if !ok || nameAddr.Register != arch.RSB {
+ 		p.errorf("FUNCDATA symbol %q must be an offset from SB", nameAddr.Symbol)
+ 	}
+ 	name := strings.Replace(nameAddr.Symbol, "·", ".", 1)
++	value1 := nameAddr.Offset
+ 
+-	// log.Printf("FUNCDATA %s, $%d", name, value)
++	// log.Printf("FUNCDATA $%d, %d", value0, value1)
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.linkCtxt,
+ 		As:     int16(p.arch.AFUNCDATA),
+@@ -417,12 +420,13 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ 		From: obj.Addr{
+ 			Type:   int16(p.arch.D_CONST),
+ 			Index:  uint8(p.arch.D_NONE),
+-			Offset: value,
++			Offset: value0,
+ 		},
+ 		To: obj.Addr{
+-			Type:  int16(p.symbolType(&nameAddr)),
+-			Index: uint8(p.arch.D_NONE),
+-			Sym:   obj.Linklookup(p.linkCtxt, name, 0),
++			Type:   int16(p.symbolType(&nameAddr)),
++			Index:  uint8(p.arch.D_NONE),
++			Sym:    obj.Linklookup(p.linkCtxt, name, 0),
++			Offset: value1,
+ 		},
+ 	}
+ 	p.append(prog, true)
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 3efea625da..9420fc2458 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -92,7 +92,7 @@ func (p *Parser) line() bool {
+ 		p.lineNum = p.lex.Line()
+ 		p.histLineNum = lex.HistLine()
+ 		switch tok {
+-		case '\n':
++		case '\n', ';':
+ 			continue
+ 		case scanner.EOF:
+ 			return false
+@@ -438,8 +438,6 @@ func (p *Parser) term() uint64 {
+ 			return value
+ 		}
+ 	}
+-	p.errorf("unexpected %s evaluating expression", p.peek())
+-	return 0
+ }
+ 
+ // factor = const | '+' factor | '-' factor | '~' factor | '(' expr ')'
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 9640f994d7..df0049faa6 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -49,7 +49,7 @@ func Usage() {
+ 	os.Exit(2)
+ }
+ 
+-func Parse(goroot, goos, goarch string, theChar int) { // TODO: see below
++func Parse(theChar int) {
+ 	flag.Usage = Usage
+ 	flag.Parse()
+ 	if flag.NArg() != 1 {
+@@ -64,8 +64,4 @@ func Parse(goroot, goos, goarch string, theChar int) { // TODO: see below
+ 		}
+ 		*OutputFile = fmt.Sprintf("%s.%c", input, theChar)
+ 	}
+-	// Initialize to include $GOROOT/pkg/$GOOS_GOARCH/ so we find textflag.h
+-	// TODO: Delete last line once asm is installed because the go command takes care of this.
+-	// The arguments to Parse can be simplified then too.
+-	I = append(I, filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch)))
+ }
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index b3d86ca364..19a50f4fd0 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -93,7 +93,9 @@ func (in *Input) Next() ScanToken {
+ 		in.text = in.peekText
+ 		return tok
+ 	}
+-	for {
++	// If we cannot generate a token after 100 tries, we're in trouble.
++	// The usual case is caught by Push, below, but be safe.
++	for i := 0; i < 100; i++ {
+ 		tok := in.Stack.Next()
+ 		switch tok {
+ 		case '#':
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 937b192178..31d5b95d68 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -7,7 +7,6 @@ package main
+ import (
+ 	"flag"
+ 	"fmt"
+-	"go/build"
+ 	"log"
+ 	"os"
+ 
+@@ -23,14 +22,14 @@ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("asm: ")
+ 
+-	GOARCH := build.Default.GOARCH
++	GOARCH := obj.Getgoarch()
+ 
+ 	architecture := arch.Set(GOARCH)
+ 	if architecture == nil {
+ 		log.Fatalf("asm: unrecognized architecture %s", GOARCH)
+ 	}
+ 
+-	flags.Parse(obj.Getgoroot(), obj.Getgoos(), obj.Getgoarch(), architecture.Thechar)
++	flags.Parse(architecture.Thechar)
+ 
+ 	// Create object file, write header.
+ 	fd, err := os.Create(*flags.OutputFile)

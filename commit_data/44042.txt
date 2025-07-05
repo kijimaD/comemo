@@ -31,7 +31,7 @@ Date:   Wed Nov 20 17:10:34 2019 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/obj/arm64/asm7.go  | 31 ++++++++++++-----
  src/cmd/internal/obj/mips/asm0.go   |  2 +-
  src/cmd/internal/obj/plist.go       | 66 ++++++++++++++++++++++++++++++-------
@@ -53,3 +53,785 @@ Date:   Wed Nov 20 17:10:34 2019 -0500
  src/runtime/signal_unix.go          |  8 +++--
  src/runtime/symtab.go               | 53 +++++++++++++++++++++--------
  20 files changed, 223 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 8e5b598084..9a1908a655 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -287,8 +287,8 @@ var optab = []Optab{
+ 	{AADD, C_BITCON, C_RSP, C_NONE, C_RSP, 62, 8, 0, 0, 0},
+ 	{AADD, C_BITCON, C_NONE, C_NONE, C_RSP, 62, 8, 0, 0, 0},
+ 	{ACMP, C_BITCON, C_RSP, C_NONE, C_NONE, 62, 8, 0, 0, 0},
+-	{AADD, C_ADDCON2, C_RSP, C_NONE, C_RSP, 48, 8, 0, 0, 0},
+-	{AADD, C_ADDCON2, C_NONE, C_NONE, C_RSP, 48, 8, 0, 0, 0},
++	{AADD, C_ADDCON2, C_RSP, C_NONE, C_RSP, 48, 8, 0, NOTUSETMP, 0},
++	{AADD, C_ADDCON2, C_NONE, C_NONE, C_RSP, 48, 8, 0, NOTUSETMP, 0},
+ 	{AADD, C_MOVCON2, C_RSP, C_NONE, C_RSP, 13, 12, 0, 0, 0},
+ 	{AADD, C_MOVCON2, C_NONE, C_NONE, C_RSP, 13, 12, 0, 0, 0},
+ 	{AADD, C_MOVCON3, C_RSP, C_NONE, C_RSP, 13, 16, 0, 0, 0},
+@@ -1072,16 +1072,29 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// We use REGTMP as a scratch register during call injection,
+ 	// so instruction sequences that use REGTMP are unsafe to
+ 	// preempt asynchronously.
+-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
++	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, c.isRestartable)
+ }
+ 
+-// Return whether p is an unsafe point.
++// isUnsafePoint returns whether p is an unsafe point.
+ func (c *ctxt7) isUnsafePoint(p *obj.Prog) bool {
+-	if p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP {
+-		return true
++	// If p explicitly uses REGTMP, it's unsafe to preempt, because the
++	// preemption sequence clobbers REGTMP.
++	return p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP
++}
++
++// isRestartable returns whether p is a multi-instruction sequence that,
++// if preempted, can be restarted.
++func (c *ctxt7) isRestartable(p *obj.Prog) bool {
++	if c.isUnsafePoint(p) {
++		return false
+ 	}
+-	// Most of the multi-instruction sequence uses REGTMP, except
+-	// ones marked safe.
++	// If p is a multi-instruction sequence with uses REGTMP inserted by
++	// the assembler in order to materialize a large constant/offset, we
++	// can restart p (at the start of the instruction sequence), recompute
++	// the content of REGTMP, upon async preemption. Currently, all cases
++	// of assembler-inserted REGTMP fall into this category.
++	// If p doesn't use REGTMP, it can be simply preempted, so we don't
++	// mark it.
+ 	o := c.oplook(p)
+ 	return o.size > 4 && o.flag&NOTUSETMP == 0
+ }
+@@ -3831,6 +3844,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= fields | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
+ 
+ 	case 48: /* ADD $C_ADDCON2, Rm, Rd */
++		// NOTE: this case does not use REGTMP. If it ever does,
++		// remove the NOTUSETMP flag in optab.
+ 		op := c.opirr(p, p.As)
+ 		if op&Sbit != 0 {
+ 			c.ctxt.Diag("can not break addition/subtraction when S bit is set", p)
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 13d875ed3a..957f2d5c93 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -526,7 +526,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// We use REGTMP as a scratch register during call injection,
+ 	// so instruction sequences that use REGTMP are unsafe to
+ 	// preempt asynchronously.
+-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
++	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, nil)
+ }
+ 
+ // Return whether p is an unsafe point.
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 44ec4602de..73b6e8b1a1 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -236,13 +236,13 @@ func (ctxt *Link) StartUnsafePoint(p *Prog, newprog ProgAlloc) *Prog {
+ 	pcdata.From.Type = TYPE_CONST
+ 	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+ 	pcdata.To.Type = TYPE_CONST
+-	pcdata.To.Offset = -2 // pcdata -2 marks unsafe point
++	pcdata.To.Offset = objabi.PCDATA_RegMapUnsafe
+ 
+ 	return pcdata
+ }
+ 
+ // EndUnsafePoint generates PCDATA Progs after p to mark the end of an
+-// unsafe point, restoring the stack map index to oldval.
++// unsafe point, restoring the register map index to oldval.
+ // The unsafe point ends right after p.
+ // It returns the last Prog generated.
+ func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog {
+@@ -253,23 +253,33 @@ func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog
+ 	pcdata.To.Type = TYPE_CONST
+ 	pcdata.To.Offset = oldval
+ 
+-	// TODO: register map?
+-
+ 	return pcdata
+ }
+ 
+-// MarkUnsafePoints inserts PCDATAs to mark nonpreemptible instruction
+-// sequences, based on isUnsafePoint predicate. p0 is the start of the
+-// instruction stream.
+-func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint func(*Prog) bool) {
++// MarkUnsafePoints inserts PCDATAs to mark nonpreemptible and restartable
++// instruction sequences, based on isUnsafePoint and isRestartable predicate.
++// p0 is the start of the instruction stream.
++// isUnsafePoint(p) returns true if p is not safe for async preemption.
++// isRestartable(p) returns true if we can restart at the start of p (this Prog)
++// upon async preemption. (Currently multi-Prog restartable sequence is not
++// supported.)
++// isRestartable can be nil. In this case it is treated as always returning false.
++// If isUnsafePoint(p) and isRestartable(p) are both true, it is treated as
++// an unsafe point.
++func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, isRestartable func(*Prog) bool) {
++	if isRestartable == nil {
++		// Default implementation: nothing is restartable.
++		isRestartable = func(*Prog) bool { return false }
++	}
+ 	prev := p0
+-	oldval := int64(-1) // entry pcdata
++	prevPcdata := int64(-1) // entry PC data value
++	prevRestart := int64(0)
+ 	for p := prev.Link; p != nil; p, prev = p.Link, p {
+ 		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_RegMapIndex {
+-			oldval = p.To.Offset
++			prevPcdata = p.To.Offset
+ 			continue
+ 		}
+-		if oldval == -2 {
++		if prevPcdata == objabi.PCDATA_RegMapUnsafe {
+ 			continue // already unsafe
+ 		}
+ 		if isUnsafePoint(p) {
+@@ -283,7 +293,39 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint fun
+ 			if p.Link == nil {
+ 				break // Reached the end, don't bother marking the end
+ 			}
+-			p = ctxt.EndUnsafePoint(p, newprog, oldval)
++			p = ctxt.EndUnsafePoint(p, newprog, prevPcdata)
++			p.Pc = p.Link.Pc
++			continue
++		}
++		if isRestartable(p) {
++			val := int64(objabi.PCDATA_Restart1)
++			if val == prevRestart {
++				val = objabi.PCDATA_Restart2
++			}
++			prevRestart = val
++			q := Appendp(prev, newprog)
++			q.As = APCDATA
++			q.From.Type = TYPE_CONST
++			q.From.Offset = objabi.PCDATA_RegMapIndex
++			q.To.Type = TYPE_CONST
++			q.To.Offset = val
++			q.Pc = p.Pc
++			q.Link = p
++
++			if p.Link == nil {
++				break // Reached the end, don't bother marking the end
++			}
++			if isRestartable(p.Link) {
++				// Next Prog is also restartable. No need to mark the end
++				// of this sequence. We'll just go ahead mark the next one.
++				continue
++			}
++			p = Appendp(p, newprog)
++			p.As = APCDATA
++			p.From.Type = TYPE_CONST
++			p.From.Offset = objabi.PCDATA_RegMapIndex
++			p.To.Type = TYPE_CONST
++			p.To.Offset = prevPcdata
+ 			p.Pc = p.Link.Pc
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 6fcde2d67e..2eb2935b31 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2005,7 +2005,7 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		ctxt.Arch.ByteOrder.PutUint32(p, symcode[i])
+ 	}
+ 
+-	obj.MarkUnsafePoints(ctxt, cursym.Func.Text, newprog, isUnsafePoint)
++	obj.MarkUnsafePoints(ctxt, cursym.Func.Text, newprog, isUnsafePoint, nil)
+ }
+ 
+ func isUnsafePoint(p *obj.Prog) bool {
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 30c0738c33..29182ea805 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -500,7 +500,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// We use REGTMP as a scratch register during call injection,
+ 	// so instruction sequences that use REGTMP are unsafe to
+ 	// preempt asynchronously.
+-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
++	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, nil)
+ }
+ 
+ // Return whether p is an unsafe point.
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 3eaed2ab54..f7d81dc2f7 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2226,7 +2226,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			// the first instruction.)
+ 			return p.From.Index == REG_TLS
+ 		}
+-		obj.MarkUnsafePoints(ctxt, s.Func.Text, newprog, useTLS)
++		obj.MarkUnsafePoints(ctxt, s.Func.Text, newprog, useTLS, nil)
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/objabi/funcdata.go b/src/cmd/internal/objabi/funcdata.go
+index 2a51816cbd..d5bacb5900 100644
+--- a/src/cmd/internal/objabi/funcdata.go
++++ b/src/cmd/internal/objabi/funcdata.go
+@@ -40,4 +40,15 @@ const (
+ 	// PCDATA_UnsafePoint values.
+ 	PCDATA_UnsafePointSafe   = -1 // Safe for async preemption
+ 	PCDATA_UnsafePointUnsafe = -2 // Unsafe for async preemption
++
++	// PCDATA_Restart1(2) apply on a sequence of instructions, within
++	// which if an async preemption happens, we should back off the PC
++	// to the start of the sequence when resuming.
++	// We need two so we can distinguish the start/end of the sequence
++	// in case that two sequences are next to each other.
++	PCDATA_Restart1 = -3
++	PCDATA_Restart2 = -4
++
++	// Like PCDATA_Restart1, but back to function entry if async preempted.
++	PCDATA_RestartAtEntry = -5
+ )
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 7baba83817..a584ada702 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -1192,23 +1192,24 @@ func preemptM(mp *m) {
+ 
+ 	// Does it want a preemption and is it safe to preempt?
+ 	gp := gFromTLS(mp)
+-	if wantAsyncPreempt(gp) && isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()) {
+-		// Inject call to asyncPreempt
+-		targetPC := funcPC(asyncPreempt)
+-		switch GOARCH {
+-		default:
+-			throw("unsupported architecture")
+-		case "386", "amd64":
+-			// Make it look like the thread called targetPC.
+-			pc := c.ip()
+-			sp := c.sp()
+-			sp -= sys.PtrSize
+-			*(*uintptr)(unsafe.Pointer(sp)) = pc
+-			c.set_sp(sp)
+-			c.set_ip(targetPC)
+-		}
++	if wantAsyncPreempt(gp) {
++		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
++			// Inject call to asyncPreempt
++			targetPC := funcPC(asyncPreempt)
++			switch GOARCH {
++			default:
++				throw("unsupported architecture")
++			case "386", "amd64":
++				// Make it look like the thread called targetPC.
++				sp := c.sp()
++				sp -= sys.PtrSize
++				*(*uintptr)(unsafe.Pointer(sp)) = newpc
++				c.set_sp(sp)
++				c.set_ip(targetPC)
++			}
+ 
+-		stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
++			stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
++		}
+ 	}
+ 
+ 	atomic.Store(&mp.preemptExtLock, 0)
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 41a32fa650..761856576a 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -61,6 +61,8 @@ import (
+ // Keep in sync with cmd/compile/internal/gc/plive.go:go115ReduceLiveness.
+ const go115ReduceLiveness = true
+ 
++const go115RestartSeq = go115ReduceLiveness && true // enable restartable sequences
++
+ type suspendGState struct {
+ 	g *g
+ 
+@@ -359,31 +361,35 @@ func wantAsyncPreempt(gp *g) bool {
+ // 3. It's generally safe to interact with the runtime, even if we're
+ // in a signal handler stopped here. For example, there are no runtime
+ // locks held, so acquiring a runtime lock won't self-deadlock.
+-func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
++//
++// In some cases the PC is safe for asynchronous preemption but it
++// also needs to adjust the resumption PC. The new PC is returned in
++// the second result.
++func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 	mp := gp.m
+ 
+ 	// Only user Gs can have safe-points. We check this first
+ 	// because it's extremely common that we'll catch mp in the
+ 	// scheduler processing this G preemption.
+ 	if mp.curg != gp {
+-		return false
++		return false, 0
+ 	}
+ 
+ 	// Check M state.
+ 	if mp.p == 0 || !canPreemptM(mp) {
+-		return false
++		return false, 0
+ 	}
+ 
+ 	// Check stack space.
+ 	if sp < gp.stack.lo || sp-gp.stack.lo < asyncPreemptStack {
+-		return false
++		return false, 0
+ 	}
+ 
+ 	// Check if PC is an unsafe-point.
+ 	f := findfunc(pc)
+ 	if !f.valid() {
+ 		// Not Go code.
+-		return false
++		return false, 0
+ 	}
+ 	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc, nil) == 0 {
+ 		// We probably stopped at a half-executed CALL instruction,
+@@ -394,23 +400,25 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
+ 		// stack for unwinding, not the LR value. But if this is a
+ 		// call to morestack, we haven't created the frame, and we'll
+ 		// use the LR for unwinding, which will be bad.
+-		return false
++		return false, 0
+ 	}
++	var up int32
++	var startpc uintptr
+ 	if !go115ReduceLiveness {
+ 		smi := pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
+ 		if smi == -2 {
+ 			// Unsafe-point marked by compiler. This includes
+ 			// atomic sequences (e.g., write barrier) and nosplit
+ 			// functions (except at calls).
+-			return false
++			return false, 0
+ 		}
+ 	} else {
+-		up := pcdatavalue(f, _PCDATA_UnsafePoint, pc, nil)
++		up, startpc = pcdatavalue2(f, _PCDATA_UnsafePoint, pc)
+ 		if up != _PCDATA_UnsafePointSafe {
+ 			// Unsafe-point marked by compiler. This includes
+ 			// atomic sequences (e.g., write barrier) and nosplit
+ 			// functions (except at calls).
+-			return false
++			return false, 0
+ 		}
+ 	}
+ 	if fd := funcdata(f, _FUNCDATA_LocalsPointerMaps); fd == nil || fd == unsafe.Pointer(&no_pointers_stackmap) {
+@@ -422,7 +430,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
+ 		//
+ 		// TODO: Are there cases that are safe but don't have a
+ 		// locals pointer map, like empty frame functions?
+-		return false
++		return false, 0
+ 	}
+ 	name := funcname(f)
+ 	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
+@@ -445,10 +453,29 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
+ 		//
+ 		// TODO(austin): We should improve this, or opt things
+ 		// in incrementally.
+-		return false
++		return false, 0
+ 	}
+-
+-	return true
++	if go115RestartSeq {
++		switch up {
++		case _PCDATA_Restart1, _PCDATA_Restart2:
++			// Restartable instruction sequence. Back off PC to
++			// the start PC.
++			if startpc == 0 || startpc > pc || pc-startpc > 20 {
++				throw("bad restart PC")
++			}
++			return true, startpc
++		case _PCDATA_RestartAtEntry:
++			// Restart from the function entry at resumption.
++			return true, f.entry
++		}
++	} else {
++		switch up {
++		case _PCDATA_Restart1, _PCDATA_Restart2, _PCDATA_RestartAtEntry:
++			// go115RestartSeq is not enabled. Treat it as unsafe point.
++			return false, 0
++		}
++	}
++	return true, pc
+ }
+ 
+ var no_pointers_stackmap uint64 // defined in assembly, for NO_LOCAL_POINTERS macro
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index 95749d2cb2..065aff48d3 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -41,19 +41,18 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	sp := uintptr(c.esp())
+ 
+ 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
+-		c.pushCall(funcPC(sigpanic))
++		c.pushCall(funcPC(sigpanic), pc)
+ 	} else {
+ 		// Not safe to push the call. Just clobber the frame.
+ 		c.set_eip(uint32(funcPC(sigpanic)))
+ 	}
+ }
+ 
+-func (c *sigctxt) pushCall(targetPC uintptr) {
+-	// Make it look like the signaled instruction called target.
+-	pc := uintptr(c.eip())
++func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
++	// Make it look like we called target at resumePC.
+ 	sp := uintptr(c.esp())
+ 	sp -= sys.PtrSize
+-	*(*uintptr)(unsafe.Pointer(sp)) = pc
++	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
+ 	c.set_esp(uint32(sp))
+ 	c.set_eip(uint32(targetPC))
+ }
+diff --git a/src/runtime/signal_amd64.go b/src/runtime/signal_amd64.go
+index 63ffedbc87..6ab1f758c2 100644
+--- a/src/runtime/signal_amd64.go
++++ b/src/runtime/signal_amd64.go
+@@ -66,19 +66,18 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	sp := uintptr(c.rsp())
+ 
+ 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
+-		c.pushCall(funcPC(sigpanic))
++		c.pushCall(funcPC(sigpanic), pc)
+ 	} else {
+ 		// Not safe to push the call. Just clobber the frame.
+ 		c.set_rip(uint64(funcPC(sigpanic)))
+ 	}
+ }
+ 
+-func (c *sigctxt) pushCall(targetPC uintptr) {
+-	// Make it look like the signaled instruction called target.
+-	pc := uintptr(c.rip())
++func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
++	// Make it look like we called target at resumePC.
+ 	sp := uintptr(c.rsp())
+ 	sp -= sys.PtrSize
+-	*(*uintptr)(unsafe.Pointer(sp)) = pc
++	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
+ 	c.set_rsp(uint64(sp))
+ 	c.set_rip(uint64(targetPC))
+ }
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index b4b3ca458f..156d9d384c 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -63,7 +63,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint32(funcPC(sigpanic)))
+ }
+ 
+-func (c *sigctxt) pushCall(targetPC uintptr) {
++func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+ 	// for restoring the LR and setting the SP back.
+@@ -72,7 +72,7 @@ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	c.set_sp(sp)
+ 	*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.lr()
+ 	// Set up PC and LR to pretend the function being signaled
+-	// calls targetPC at the faulting PC.
+-	c.set_lr(c.pc())
++	// calls targetPC at resumePC.
++	c.set_lr(uint32(resumePC))
+ 	c.set_pc(uint32(targetPC))
+ }
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index ef65f92aa3..3c20139c99 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -79,7 +79,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-func (c *sigctxt) pushCall(targetPC uintptr) {
++func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+ 	// for restoring the LR and setting the SP back.
+@@ -88,7 +88,7 @@ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	c.set_sp(sp)
+ 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.lr()
+ 	// Set up PC and LR to pretend the function being signaled
+-	// calls targetPC at the faulting PC.
+-	c.set_lr(c.pc())
++	// calls targetPC at resumePC.
++	c.set_lr(uint64(resumePC))
+ 	c.set_pc(uint64(targetPC))
+ }
+diff --git a/src/runtime/signal_linux_s390x.go b/src/runtime/signal_linux_s390x.go
+index 15f50351bb..12d5c31593 100644
+--- a/src/runtime/signal_linux_s390x.go
++++ b/src/runtime/signal_linux_s390x.go
+@@ -110,7 +110,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-func (c *sigctxt) pushCall(targetPC uintptr) {
++func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+ 	// for restoring the LR and setting the SP back.
+@@ -119,7 +119,7 @@ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	c.set_sp(sp)
+ 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+ 	// Set up PC and LR to pretend the function being signaled
+-	// calls targetPC at the faulting PC.
+-	c.set_link(c.pc())
++	// calls targetPC at resumePC.
++	c.set_link(uint64(resumePC))
+ 	c.set_pc(uint64(targetPC))
+ }
+diff --git a/src/runtime/signal_mips64x.go b/src/runtime/signal_mips64x.go
+index 6110b1c023..040c959f04 100644
+--- a/src/runtime/signal_mips64x.go
++++ b/src/runtime/signal_mips64x.go
+@@ -85,7 +85,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(sigpanicPC)
+ }
+ 
+-func (c *sigctxt) pushCall(targetPC uintptr) {
++func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+ 	// for restoring the LR and setting the SP back.
+@@ -94,7 +94,7 @@ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	c.set_sp(sp)
+ 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+ 	// Set up PC and LR to pretend the function being signaled
+-	// calls targetPC at the faulting PC.
+-	c.set_link(c.pc())
++	// calls targetPC at resumePC.
++	c.set_link(uint64(resumePC))
+ 	c.set_pc(uint64(targetPC))
+ }
+diff --git a/src/runtime/signal_mipsx.go b/src/runtime/signal_mipsx.go
+index cdbe193501..8c29f59bd1 100644
+--- a/src/runtime/signal_mipsx.go
++++ b/src/runtime/signal_mipsx.go
+@@ -80,7 +80,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint32(funcPC(sigpanic)))
+ }
+ 
+-func (c *sigctxt) pushCall(targetPC uintptr) {
++func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+ 	// for restoring the LR and setting the SP back.
+@@ -89,7 +89,7 @@ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	c.set_sp(sp)
+ 	*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.link()
+ 	// Set up PC and LR to pretend the function being signaled
+-	// calls targetPC at the faulting PC.
+-	c.set_link(c.pc())
++	// calls targetPC at resumePC.
++	c.set_link(uint32(resumePC))
+ 	c.set_pc(uint32(targetPC))
+ }
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index 2da09d378a..5de93a330a 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -86,7 +86,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-func (c *sigctxt) pushCall(targetPC uintptr) {
++func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+ 	// for restoring the LR and setting the SP back.
+@@ -104,8 +104,8 @@ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	*(*uint64)(unsafe.Pointer(uintptr(sp) + 8)) = c.r2()
+ 	*(*uint64)(unsafe.Pointer(uintptr(sp) + 16)) = c.r12()
+ 	// Set up PC and LR to pretend the function being signaled
+-	// calls targetPC at the faulting PC.
+-	c.set_link(c.pc())
++	// calls targetPC at resumePC.
++	c.set_link(uint64(resumePC))
+ 	c.set_r12(uint64(targetPC))
+ 	c.set_pc(uint64(targetPC))
+ }
+diff --git a/src/runtime/signal_riscv64.go b/src/runtime/signal_riscv64.go
+index e2edaf3735..93363a4746 100644
+--- a/src/runtime/signal_riscv64.go
++++ b/src/runtime/signal_riscv64.go
+@@ -78,7 +78,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-func (c *sigctxt) pushCall(targetPC uintptr) {
++func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+ 	// for restoring the LR and setting the SP back.
+@@ -87,7 +87,7 @@ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	c.set_sp(sp)
+ 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.ra()
+ 	// Set up PC and LR to pretend the function being signaled
+-	// calls targetPC at the faulting PC.
+-	c.set_ra(c.pc())
++	// calls targetPC at resumePC.
++	c.set_ra(uint64(resumePC))
+ 	c.set_pc(uint64(targetPC))
+ }
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index f5d79e561c..5aedbf7778 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -326,9 +326,11 @@ func sigpipe() {
+ func doSigPreempt(gp *g, ctxt *sigctxt) {
+ 	// Check if this G wants to be preempted and is safe to
+ 	// preempt.
+-	if wantAsyncPreempt(gp) && isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()) {
+-		// Inject a call to asyncPreempt.
+-		ctxt.pushCall(funcPC(asyncPreempt))
++	if wantAsyncPreempt(gp) {
++		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()); ok {
++			// Adjust the PC and inject a call to asyncPreempt.
++			ctxt.pushCall(funcPC(asyncPreempt), newpc)
++		}
+ 	}
+ 
+ 	// Acknowledge the preemption.
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 04aa90e077..ce2ec6dd1d 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -287,6 +287,18 @@ const (
+ 	// PCDATA_UnsafePoint values.
+ 	_PCDATA_UnsafePointSafe   = -1 // Safe for async preemption
+ 	_PCDATA_UnsafePointUnsafe = -2 // Unsafe for async preemption
++
++	// _PCDATA_Restart1(2) apply on a sequence of instructions, within
++	// which if an async preemption happens, we should back off the PC
++	// to the start of the sequence when resume.
++	// We need two so we can distinguish the start/end of the sequence
++	// in case that two sequences are next to each other.
++	_PCDATA_Restart1 = -3
++	_PCDATA_Restart2 = -4
++
++	// Like _PCDATA_RestartAtEntry, but back to function entry if async
++	// preempted.
++	_PCDATA_RestartAtEntry = -5
+ )
+ 
+ // A FuncID identifies particular functions that need to be treated
+@@ -708,9 +720,11 @@ func pcvalueCacheKey(targetpc uintptr) uintptr {
+ 	return (targetpc / sys.PtrSize) % uintptr(len(pcvalueCache{}.entries))
+ }
+ 
+-func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
++// Returns the PCData value, and the PC where this value starts.
++// TODO: the start PC is returned only when cache is nil.
++func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, strict bool) (int32, uintptr) {
+ 	if off == 0 {
+-		return -1
++		return -1, 0
+ 	}
+ 
+ 	// Check the cache. This speeds up walks of deep stacks, which
+@@ -729,7 +743,7 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
+ 			// fail in the first clause.
+ 			ent := &cache.entries[x][i]
+ 			if ent.off == off && ent.targetpc == targetpc {
+-				return ent.val
++				return ent.val, 0
+ 			}
+ 		}
+ 	}
+@@ -739,11 +753,12 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
+ 			print("runtime: no module data for ", hex(f.entry), "\n")
+ 			throw("no module data")
+ 		}
+-		return -1
++		return -1, 0
+ 	}
+ 	datap := f.datap
+ 	p := datap.pclntable[off:]
+ 	pc := f.entry
++	prevpc := pc
+ 	val := int32(-1)
+ 	for {
+ 		var ok bool
+@@ -770,14 +785,15 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
+ 				}
+ 			}
+ 
+-			return val
++			return val, prevpc
+ 		}
++		prevpc = pc
+ 	}
+ 
+ 	// If there was a table, it should have covered all program counters.
+ 	// If not, something is wrong.
+ 	if panicking != 0 || !strict {
+-		return -1
++		return -1, 0
+ 	}
+ 
+ 	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
+@@ -795,7 +811,7 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
+ 	}
+ 
+ 	throw("invalid runtime symbol table")
+-	return -1
++	return -1, 0
+ }
+ 
+ func cfuncname(f funcInfo) *byte {
+@@ -833,9 +849,9 @@ func funcline1(f funcInfo, targetpc uintptr, strict bool) (file string, line int
+ 	if !f.valid() {
+ 		return "?", 0
+ 	}
+-	fileno := int(pcvalue(f, f.pcfile, targetpc, nil, strict))
+-	line = pcvalue(f, f.pcln, targetpc, nil, strict)
+-	if fileno == -1 || line == -1 || fileno >= len(datap.filetab) {
++	fileno, _ := pcvalue(f, f.pcfile, targetpc, nil, strict)
++	line, _ = pcvalue(f, f.pcln, targetpc, nil, strict)
++	if fileno == -1 || line == -1 || int(fileno) >= len(datap.filetab) {
+ 		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
+ 		return "?", 0
+ 	}
+@@ -848,7 +864,7 @@ func funcline(f funcInfo, targetpc uintptr) (file string, line int32) {
+ }
+ 
+ func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
+-	x := pcvalue(f, f.pcsp, targetpc, cache, true)
++	x, _ := pcvalue(f, f.pcsp, targetpc, cache, true)
+ 	if x&(sys.PtrSize-1) != 0 {
+ 		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
+ 	}
+@@ -882,14 +898,25 @@ func pcdatavalue(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache)
+ 	if table < 0 || table >= f.npcdata {
+ 		return -1
+ 	}
+-	return pcvalue(f, pcdatastart(f, table), targetpc, cache, true)
++	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, cache, true)
++	return r
+ }
+ 
+ func pcdatavalue1(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
+ 	if table < 0 || table >= f.npcdata {
+ 		return -1
+ 	}
+-	return pcvalue(f, pcdatastart(f, table), targetpc, cache, strict)
++	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, cache, strict)
++	return r
++}
++
++// Like pcdatavalue, but also return the start PC of this PCData value.
++// It doesn't take a cache.
++func pcdatavalue2(f funcInfo, table int32, targetpc uintptr) (int32, uintptr) {
++	if table < 0 || table >= f.npcdata {
++		return -1, 0
++	}
++	return pcvalue(f, pcdatastart(f, table), targetpc, nil, true)
+ }
+ 
+ func funcdata(f funcInfo, i uint8) unsafe.Pointer {

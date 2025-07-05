@@ -9,6 +9,23 @@ Date:   Sat Oct 13 14:53:45 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/ssa/sparsetree.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/sparsetree.go b/src/cmd/compile/internal/ssa/sparsetree.go
+index f7af85446b..546da8348d 100644
+--- a/src/cmd/compile/internal/ssa/sparsetree.go
++++ b/src/cmd/compile/internal/ssa/sparsetree.go
+@@ -98,9 +98,9 @@ func (t SparseTree) treestructure1(b *Block, i int) string {
+ 	s := "\n" + strings.Repeat("\t", i) + b.String() + "->["
+ 	for i, e := range b.Succs {
+ 		if i > 0 {
+-			s = s + ","
++			s += ","
+ 		}
+-		s = s + e.b.String()
++		s += e.b.String()
+ 	}
+ 	s += "]"
+ 	if c0 := t[b.ID].child; c0 != nil {

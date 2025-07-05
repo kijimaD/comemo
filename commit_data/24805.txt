@@ -9,7 +9,7 @@ Date:   Tue Sep 1 12:26:42 2015 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go   |  2 --
  src/cmd/link/internal/arm/l.go       |  3 ---
  src/cmd/link/internal/arm64/l.go     |  3 ---
@@ -22,3 +22,266 @@ Date:   Tue Sep 1 12:26:42 2015 +1200
  src/cmd/link/internal/ppc64/l.go     |  3 ---
  src/cmd/link/internal/x86/l.go       |  2 --
  11 files changed, 1 insertion(+), 113 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 3e316e64e4..51765a1847 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -42,8 +42,6 @@ func PADDR(x uint32) uint32 {
+ 	return x &^ 0x80000000
+ }
+ 
+-var zeroes string
+-
+ func Addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) int64 {
+ 	s.Reachable = true
+ 	i := s.Size
+diff --git a/src/cmd/link/internal/arm/l.go b/src/cmd/link/internal/arm/l.go
+index 4973772163..b6de5a0cc1 100644
+--- a/src/cmd/link/internal/arm/l.go
++++ b/src/cmd/link/internal/arm/l.go
+@@ -64,9 +64,6 @@ package arm
+ 
+ const (
+ 	thechar   = '5'
+-	PtrSize   = 4
+-	IntSize   = 4
+-	RegSize   = 4
+ 	MaxAlign  = 8 // max data alignment
+ 	FuncAlign = 4 // single-instruction alignment
+ 	MINLC     = 4
+diff --git a/src/cmd/link/internal/arm64/l.go b/src/cmd/link/internal/arm64/l.go
+index 8d0d57e72a..62703d2b7d 100644
+--- a/src/cmd/link/internal/arm64/l.go
++++ b/src/cmd/link/internal/arm64/l.go
+@@ -63,9 +63,6 @@ package arm64
+ 
+ const (
+ 	thechar   = '7'
+-	PtrSize   = 8
+-	IntSize   = 8
+-	RegSize   = 8
+ 	MaxAlign  = 32 // max data alignment
+ 	FuncAlign = 8
+ 	MINLC     = 4
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 0e59016edb..a596e9a969 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -32,13 +32,11 @@ package ld
+ 
+ const (
+ 	SARMAG  = 8
+-	SARNAME = 16
+ 	SAR_HDR = 16 + 44
+ )
+ 
+ const (
+-	ARMAG  = "!<arch>\n"
+-	ARFMAG = "`\n"
++	ARMAG = "!<arch>\n"
+ )
+ 
+ type ArHdr struct {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f31070f41b..66f0a514a4 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -142,7 +142,6 @@ var (
+ // use in debuggers and such.
+ 
+ const (
+-	MAXIO   = 8192
+ 	MINFUNC = 16 // minimum size for a function
+ )
+ 
+@@ -241,12 +240,6 @@ var coutbuf struct {
+ 	f *os.File
+ }
+ 
+-const (
+-	// Whether to assume that the external linker is "gold"
+-	// (http://sourceware.org/ml/binutils/2008-03/msg00162.html).
+-	AssumeGoldLinker = 0
+-)
+-
+ const (
+ 	symname = "__.GOSYMDEF"
+ 	pkgname = "__.PKGDEF"
+@@ -965,10 +958,6 @@ func hostlink() {
+ 		}
+ 	}
+ 
+-	if Iself && AssumeGoldLinker != 0 /*TypeKind(100016)*/ {
+-		argv = append(argv, "-Wl,--rosegment")
+-	}
+-
+ 	switch Buildmode {
+ 	case BuildmodeExe:
+ 		if HEADTYPE == obj.Hdarwin {
+@@ -1473,10 +1462,6 @@ func Be32(b []byte) uint32 {
+ 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+ }
+ 
+-func Be64(b []byte) uint64 {
+-	return uint64(Be32(b))<<32 | uint64(Be32(b[4:]))
+-}
+-
+ type Chain struct {
+ 	sym   *LSym
+ 	up    *Chain
+@@ -1688,33 +1673,6 @@ func stkprint(ch *Chain, limit int) {
+ 	}
+ }
+ 
+-func Yconv(s *LSym) string {
+-	var fp string
+-
+-	if s == nil {
+-		fp += fmt.Sprintf("<nil>")
+-	} else {
+-		fmt_ := ""
+-		fmt_ += fmt.Sprintf("%s @0x%08x [%d]", s.Name, int64(s.Value), int64(s.Size))
+-		for i := 0; int64(i) < s.Size; i++ {
+-			if i%8 == 0 {
+-				fmt_ += fmt.Sprintf("\n\t0x%04x ", i)
+-			}
+-			fmt_ += fmt.Sprintf("%02x ", s.P[i])
+-		}
+-
+-		fmt_ += fmt.Sprintf("\n")
+-		for i := 0; i < len(s.R); i++ {
+-			fmt_ += fmt.Sprintf("\t0x%04x[%x] %d %s[%x]\n", s.R[i].Off, s.R[i].Siz, s.R[i].Type, s.R[i].Sym.Name, int64(s.R[i].Add))
+-		}
+-
+-		str := fmt_
+-		fp += str
+-	}
+-
+-	return fp
+-}
+-
+ func Cflush() {
+ 	if err := coutbuf.Writer.Flush(); err != nil {
+ 		Exitf("flushing %s: %v", coutbuf.f.Name(), err)
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 54154340e0..7a2c1fa296 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -209,10 +209,6 @@ const (
+ 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
+ )
+ 
+-const (
+-	LINKHASH = 100003
+-)
+-
+ // Pcdata iterator.
+ //	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
+ 
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 652109d3e3..e1b2f958aa 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -39,10 +39,6 @@ import (
+ 	"strconv"
+ )
+ 
+-func yy_isalpha(c int) bool {
+-	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
+-}
+-
+ var headers = []struct {
+ 	name string
+ 	val  int
+diff --git a/src/cmd/link/internal/ld/textflag.go b/src/cmd/link/internal/ld/textflag.go
+deleted file mode 100644
+index 6457fda9dd..0000000000
+--- a/src/cmd/link/internal/ld/textflag.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ld
+-
+-// This file defines flags attached to various functions
+-// and data objects.  The compilers, assemblers, and linker must
+-// all agree on these values.
+-
+-const (
+-	// Don't profile the marked routine.
+-	//
+-	// Deprecated: Not implemented, do not use.
+-	NOPROF = 1
+-	// It is ok for the linker to get multiple of these symbols.  It will
+-	// pick one of the duplicates to use.
+-	DUPOK = 2
+-	// Don't insert stack check preamble.
+-	NOSPLIT = 4
+-	// Put this data in a read-only section.
+-	RODATA = 8
+-	// This data contains no pointers.
+-	NOPTR = 16
+-	// This is a wrapper function and should not count as disabling 'recover'.
+-	WRAPPER = 32
+-	// This function uses its incoming context register.
+-	NEEDCTXT = 64
+-)
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index f38f05ce9d..2995e7f052 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -67,24 +67,6 @@ func tokenize(s string) []string {
+ 	return f
+ }
+ 
+-func cutStringAtNUL(s string) string {
+-	if i := strings.Index(s, "\x00"); i >= 0 {
+-		s = s[:i]
+-	}
+-	return s
+-}
+-
+-func Access(name string, mode int) int {
+-	if mode != 0 {
+-		panic("bad access")
+-	}
+-	_, err := os.Stat(name)
+-	if err != nil {
+-		return -1
+-	}
+-	return 0
+-}
+-
+ // strings.Compare, introduced in Go 1.5.
+ func stringsCompare(a, b string) int {
+ 	if a == b {
+diff --git a/src/cmd/link/internal/ppc64/l.go b/src/cmd/link/internal/ppc64/l.go
+index 1275a34dbb..1c4a4a9c86 100644
+--- a/src/cmd/link/internal/ppc64/l.go
++++ b/src/cmd/link/internal/ppc64/l.go
+@@ -63,9 +63,6 @@ package ppc64
+ 
+ const (
+ 	thechar   = '9'
+-	PtrSize   = 8
+-	IntSize   = 8
+-	RegSize   = 8
+ 	MaxAlign  = 32 // max data alignment
+ 	FuncAlign = 8
+ 	MINLC     = 4
+diff --git a/src/cmd/link/internal/x86/l.go b/src/cmd/link/internal/x86/l.go
+index 8a811ff0a2..c067425ba5 100644
+--- a/src/cmd/link/internal/x86/l.go
++++ b/src/cmd/link/internal/x86/l.go
+@@ -33,8 +33,6 @@ package x86
+ const (
+ 	thechar   = '8'
+ 	PtrSize   = 4
+-	IntSize   = 4
+-	RegSize   = 4
+ 	MaxAlign  = 32 // max data alignment
+ 	FuncAlign = 16
+ 	MINLC     = 1

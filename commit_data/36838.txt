@@ -28,9 +28,306 @@ Date:   Thu May 24 15:39:21 2018 -0700
     Change-Id: I7c28714bdafe6c8d9afedf12a8a887554237337c
     Reviewed-on: https://go-review.googlesource.com/114517
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/check.go    | 16 ++++++++++
  src/go/types/decl.go     | 78 ++++++++++++++++++++++++++++++++++++++++++++++--
  src/go/types/object.go   | 58 +++++++++++++++++++++++++++++------
  src/go/types/universe.go |  3 +-
  4 files changed, 143 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 177065fded..1d75ab1fc7 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -90,6 +90,7 @@ type Checker struct {
+ 	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
+ 	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
+ 	delayed    []func()                 // stack of delayed actions
++	objPath    []Object                 // path of object dependencies during type inference (for cycle reporting)
+ 
+ 	// context within which the current object is type-checked
+ 	// (valid only for the duration of type-checking a specific object)
+@@ -144,6 +145,21 @@ func (check *Checker) later(f func()) {
+ 	check.delayed = append(check.delayed, f)
+ }
+ 
++// push pushes obj onto the object path and returns its index in the path.
++func (check *Checker) push(obj Object) int {
++	check.objPath = append(check.objPath, obj)
++	return len(check.objPath) - 1
++}
++
++// pop pops and returns the topmost object from the object path.
++func (check *Checker) pop() Object {
++	i := len(check.objPath) - 1
++	obj := check.objPath[i]
++	check.objPath[i] = nil
++	check.objPath = check.objPath[:i]
++	return obj
++}
++
+ // NewChecker returns a new Checker instance for a given package.
+ // Package files may be added incrementally via checker.Files.
+ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Checker {
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 288ba8e447..aa769ce678 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -52,8 +52,82 @@ func pathString(path []*TypeName) string {
+ // objDecl type-checks the declaration of obj in its respective (file) context.
+ // See check.typ for the details on def and path.
+ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+-	if obj.Type() != nil {
+-		return // already checked - nothing to do
++	// Checking the declaration of obj means inferring its type
++	// (and possibly its value, for constants).
++	// An object's type (and thus the object) may be in one of
++	// three states which are expressed by colors:
++	//
++	// - an object whose type is not yet known is painted white (initial color)
++	// - an object whose type is in the process of being inferred is painted grey
++	// - an object whose type is fully inferred is painted black
++	//
++	// During type inference, an object's color changes from white to grey
++	// to black (pre-declared objects are painted black from the start).
++	// A black object (i.e., its type) can only depend on (refer to) other black
++	// ones. White and grey objects may depend on white and black objects.
++	// A dependency on a grey object indicates a cycle which may or may not be
++	// valid.
++	//
++	// When objects turn grey, they are pushed on the object path (a stack);
++	// they are popped again when they turn black. Thus, if a grey object (a
++	// cycle) is encountered, it is on the object path, and all the objects
++	// it depends on are the remaining objects on that path. Color encoding
++	// is such that the color value of a grey object indicates the index of
++	// that object in the object path.
++
++	// During type-checking, white objects may be assigned a type without
++	// traversing through objDecl; e.g., when initializing constants and
++	// variables. Update the colors of those objects here (rather than
++	// everywhere where we set the type) to satisfy the color invariants.
++	if obj.color() == white && obj.Type() != nil {
++		obj.setColor(black)
++		return
++	}
++
++	switch obj.color() {
++	case white:
++		assert(obj.Type() == nil)
++		// All color values other than white and black are considered grey.
++		// Because black and white are < grey, all values >= grey are grey.
++		// Use those values to encode the object's index into the object path.
++		obj.setColor(grey + color(check.push(obj)))
++		defer func() {
++			check.pop().setColor(black)
++		}()
++
++	case black:
++		assert(obj.Type() != nil)
++		return
++
++	default:
++		// Color values other than white or black are considered grey.
++		fallthrough
++
++	case grey:
++		// We have a cycle.
++		// In the existing code, this is marked by a non-nil type
++		// for the object except for constants and variables, which
++		// have their own "visited" flag (the new marking approach
++		// will allow us to remove that flag eventually). Their type
++		// may be nil because they haven't determined their init
++		// values yet (from which to deduce the type). But in that
++		// case, they must have been marked as visited.
++		// For now, handle constants and variables specially.
++		visited := false
++		switch obj := obj.(type) {
++		case *Const:
++			visited = obj.visited
++		case *Var:
++			visited = obj.visited
++		default:
++			assert(obj.Type() != nil)
++			return
++		}
++		if obj.Type() != nil {
++			return
++		}
++		assert(visited)
++
+ 	}
+ 
+ 	if trace {
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index f158e2733f..1305a9db6e 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -34,9 +34,15 @@ type Object interface {
+ 	// 0 for all other objects (including objects in file scopes).
+ 	order() uint32
+ 
++	// color returns the object's color.
++	color() color
++
+ 	// setOrder sets the order number of the object. It must be > 0.
+ 	setOrder(uint32)
+ 
++	// setColor sets the object's color. It must not be white.
++	setColor(color color)
++
+ 	// setParent sets the parent scope of the object.
+ 	setParent(*Scope)
+ 
+@@ -78,9 +84,41 @@ type object struct {
+ 	name      string
+ 	typ       Type
+ 	order_    uint32
++	color_    color
+ 	scopePos_ token.Pos
+ }
+ 
++// color encodes the color of an object (see Checker.objDecl for details).
++type color uint32
++
++// An object may be painted in one of three colors.
++// Color values other than white or black are considered grey.
++const (
++	white color = iota
++	black
++	grey // must be > white and black
++)
++
++func (c color) String() string {
++	switch c {
++	case white:
++		return "white"
++	case black:
++		return "black"
++	default:
++		return "grey"
++	}
++}
++
++// colorFor returns the (initial) color for an object depending on
++// whether its type t is known or not.
++func colorFor(t Type) color {
++	if t != nil {
++		return black
++	}
++	return white
++}
++
+ // Parent returns the scope in which the object is declared.
+ // The result is nil for methods and struct fields.
+ func (obj *object) Parent() *Scope { return obj.parent }
+@@ -108,10 +146,12 @@ func (obj *object) Id() string { return Id(obj.pkg, obj.name) }
+ 
+ func (obj *object) String() string      { panic("abstract") }
+ func (obj *object) order() uint32       { return obj.order_ }
++func (obj *object) color() color        { return obj.color_ }
+ func (obj *object) scopePos() token.Pos { return obj.scopePos_ }
+ 
+ func (obj *object) setParent(parent *Scope)   { obj.parent = parent }
+ func (obj *object) setOrder(order uint32)     { assert(order > 0); obj.order_ = order }
++func (obj *object) setColor(color color)      { assert(color != white); obj.color_ = color }
+ func (obj *object) setScopePos(pos token.Pos) { obj.scopePos_ = pos }
+ 
+ func (obj *object) sameId(pkg *Package, name string) bool {
+@@ -147,7 +187,7 @@ type PkgName struct {
+ // NewPkgName returns a new PkgName object representing an imported package.
+ // The remaining arguments set the attributes found with all Objects.
+ func NewPkgName(pos token.Pos, pkg *Package, name string, imported *Package) *PkgName {
+-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, token.NoPos}, imported, false}
++	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, token.NoPos}, imported, false}
+ }
+ 
+ // Imported returns the package that was imported.
+@@ -164,7 +204,7 @@ type Const struct {
+ // NewConst returns a new constant with value val.
+ // The remaining arguments set the attributes found with all Objects.
+ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.Value) *Const {
+-	return &Const{object{nil, pos, pkg, name, typ, 0, token.NoPos}, val, false}
++	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, val, false}
+ }
+ 
+ // Val returns the constant's value.
+@@ -185,7 +225,7 @@ type TypeName struct {
+ // argument for NewNamed, which will set the TypeName's type as a side-
+ // effect.
+ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
+-	return &TypeName{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
++	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
+ }
+ 
+ // IsAlias reports whether obj is an alias name for a type.
+@@ -224,19 +264,19 @@ type Var struct {
+ // NewVar returns a new variable.
+ // The arguments set the attributes found with all Objects.
+ func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}}
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
+ }
+ 
+ // NewParam returns a new variable representing a function parameter.
+ func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, used: true} // parameters are always 'used'
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, used: true} // parameters are always 'used'
+ }
+ 
+ // NewField returns a new variable representing a struct field.
+ // For embedded fields, the name is the unqualified type name
+ /// under which the field is accessible.
+ func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, embedded: embedded, isField: true}
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, embedded: embedded, isField: true}
+ }
+ 
+ // Anonymous reports whether the variable is an embedded field.
+@@ -266,7 +306,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
+ 	if sig != nil {
+ 		typ = sig
+ 	}
+-	return &Func{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
++	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
+ }
+ 
+ // FullName returns the package- or receiver-type-qualified name of
+@@ -291,7 +331,7 @@ type Label struct {
+ 
+ // NewLabel returns a new label.
+ func NewLabel(pos token.Pos, pkg *Package, name string) *Label {
+-	return &Label{object{pos: pos, pkg: pkg, name: name, typ: Typ[Invalid]}, false}
++	return &Label{object{pos: pos, pkg: pkg, name: name, typ: Typ[Invalid], color_: black}, false}
+ }
+ 
+ // A Builtin represents a built-in function.
+@@ -302,7 +342,7 @@ type Builtin struct {
+ }
+ 
+ func newBuiltin(id builtinId) *Builtin {
+-	return &Builtin{object{name: predeclaredFuncs[id].name, typ: Typ[Invalid]}, id}
++	return &Builtin{object{name: predeclaredFuncs[id].name, typ: Typ[Invalid], color_: black}, id}
+ }
+ 
+ // Nil represents the predeclared value nil.
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 286ef7ba46..2ae8a31970 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -102,7 +102,7 @@ func defPredeclaredConsts() {
+ }
+ 
+ func defPredeclaredNil() {
+-	def(&Nil{object{name: "nil", typ: Typ[UntypedNil]}})
++	def(&Nil{object{name: "nil", typ: Typ[UntypedNil], color_: black}})
+ }
+ 
+ // A builtinId is the id of a builtin function.
+@@ -207,6 +207,7 @@ func init() {
+ // scope; other objects are inserted in the universe scope.
+ //
+ func def(obj Object) {
++	assert(obj.color() == black)
+ 	name := obj.Name()
+ 	if strings.Contains(name, " ") {
+ 		return // nothing to do

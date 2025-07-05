@@ -7,9 +7,77 @@ Date:   Tue Nov 8 09:06:02 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5330067
-
+---
  src/pkg/os/env_plan9.go          | 2 +-
  src/pkg/os/error_plan9.go        | 2 +-
  src/pkg/os/exec_plan9.go         | 3 ++-
  src/pkg/syscall/syscall_plan9.go | 4 ++--
  4 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/os/env_plan9.go b/src/pkg/os/env_plan9.go
+index 762734a54c..9757aa902a 100644
+--- a/src/pkg/os/env_plan9.go
++++ b/src/pkg/os/env_plan9.go
+@@ -7,7 +7,7 @@
+ package os
+ 
+ import (
+-	"error"
++	"errors"
+ 	"syscall"
+ )
+ 
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index 1e5114dc07..e08707078e 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -28,7 +28,7 @@ func NewSyscallError(syscall string, err syscall.Error) error {
+ 	if err == nil {
+ 		return nil
+ 	}
+-	return &SyscallError{syscall, err.String()}
++	return &SyscallError{syscall, err.Error()}
+ }
+ 
+ var (
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index a815c99d68..a1a335359d 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"errors"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -47,7 +48,7 @@ func (note Plan9Note) String() string {
+ 
+ func (p *Process) Signal(sig Signal) error {
+ 	if p.done {
+-		return NewError("os: process already finished")
++		return errors.New("os: process already finished")
+ 	}
+ 
+ 	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/note", O_WRONLY, 0)
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index 16f8e7337e..0cc8ee9555 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -19,13 +19,13 @@ const ImplementsGetwd = true
+ 
+ // An Error can represent any printable error condition.
+ type Error interface {
+-	String() string
++	error
+ }
+ 
+ // ErrorString implements Error's String method by returning itself.
+ type ErrorString string
+ 
+-func (e ErrorString) String() string { return string(e) }
++func (e ErrorString) Error() string { return string(e) }
+ 
+ // NewError converts s to an ErrorString, which satisfies the Error interface.
+ func NewError(s string) Error { return ErrorString(s) }

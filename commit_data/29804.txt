@@ -16,8 +16,109 @@ Date:   Mon Oct 10 18:23:56 2016 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/struct.go   |  2 +-
  src/archive/zip/writer.go   | 19 +++++++++++--------
  src/archive/zip/zip_test.go | 39 +++++++++++++++++++++++++++++++++++++++
  3 files changed, 51 insertions(+), 9 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 8e6eb840f9..287571ed3a 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -65,7 +65,7 @@ const (
+ 	zip64ExtraId = 0x0001 // zip64 Extended Information Extra Field
+ 	ntfsExtraId  = 0x000a // NTFS Extra Field
+ 	unixExtraId  = 0x000d // UNIX Extra Field
+-	exttsExtraId = 0x5455 // Extra Timestamp Extra Field
++	exttsExtraId = 0x5455 // Extended Timestamp Extra Field
+ )
+ 
+ // FileHeader describes a file within a zip file.
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 2a747b8f37..4ab993d949 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -99,14 +99,17 @@ func (w *Writer) Close() error {
+ 			b.uint32(h.UncompressedSize)
+ 		}
+ 
+-		mt := uint32(h.FileHeader.ModTime().Unix())
+-		var mbuf [9]byte // 2x uint16 + uint8 + uint32
+-		eb := writeBuf(mbuf[:])
+-		eb.uint16(exttsExtraId)
+-		eb.uint16(5)  // size = uint8 + uint32
+-		eb.uint8(1)   // flags = modtime
+-		eb.uint32(mt) // ModTime
+-		h.Extra = append(h.Extra, mbuf[:]...)
++		// use Extended Timestamp Extra Field.
++		if h.ModifiedTime != 0 || h.ModifiedDate != 0 {
++			mt := uint32(h.ModTime().Unix())
++			var mbuf [9]byte // 2x uint16 + uint8 + uint32
++			eb := writeBuf(mbuf[:])
++			eb.uint16(exttsExtraId)
++			eb.uint16(5)  // size = uint8 + uint32
++			eb.uint8(1)   // flags = modtime
++			eb.uint32(mt) // ModTime
++			h.Extra = append(h.Extra, mbuf[:]...)
++		}
+ 
+ 		b.uint16(uint16(len(h.Name)))
+ 		b.uint16(uint16(len(h.Extra)))
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index 3a3c915d34..f166b76e3f 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
++	"reflect"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -111,6 +112,44 @@ func TestFileHeaderRoundTrip64(t *testing.T) {
+ 	testHeaderRoundTrip(fh, uint32max, fh.UncompressedSize64, t)
+ }
+ 
++func TestZeroFileRoundTrip(t *testing.T) {
++	var b bytes.Buffer
++	w := NewWriter(&b)
++	if _, err := w.Create(""); err != nil {
++		t.Fatal(err)
++	}
++	if err := w.Close(); err != nil {
++		t.Fatal(err)
++	}
++	r, err := NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Verify that fields that should reasonably be the zero value stays
++	// as the zero value.
++	var want FileHeader
++	if len(r.File) != 1 {
++		t.Fatalf("len(r.File) = %d, want 1", len(r.File))
++	}
++	fh := r.File[0].FileHeader
++	got := FileHeader{
++		Name:               fh.Name,
++		ModifiedTime:       fh.ModifiedTime,
++		ModifiedDate:       fh.ModifiedDate,
++		UncompressedSize:   fh.UncompressedSize,
++		UncompressedSize64: fh.UncompressedSize64,
++		ExternalAttrs:      fh.ExternalAttrs,
++		Comment:            fh.Comment,
++	}
++	if len(fh.Extra) > 0 {
++		got.Extra = fh.Extra
++	}
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("FileHeader mismatch:\ngot  %#v\nwant %#v", got, want)
++	}
++}
++
+ type repeatedByte struct {
+ 	off int64
+ 	b   byte

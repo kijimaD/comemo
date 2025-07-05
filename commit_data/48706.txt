@@ -14,7 +14,7 @@ Date:   Fri Jun 4 18:11:59 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 11 ++++-------
  src/runtime/asm_386.s                  |  2 --
  src/runtime/asm_amd64.s                |  2 --
@@ -30,3 +30,312 @@ Date:   Fri Jun 4 18:11:59 2021 -0400
  src/runtime/panic.go                   |  9 ++-------
  src/runtime/proc.go                    | 27 +++++++++++----------------
  14 files changed, 39 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6479346845..27f0ee685b 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4972,14 +4972,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		argStart := base.Ctxt.FixedFrameSize()
+ 		// Defer/go args.
+ 		if k != callNormal {
+-			// Write argsize and closure (args to newproc/deferproc).
+-			argsize := s.constInt32(types.Types[types.TUINT32], int32(stksize))
+-			ACArgs = append(ACArgs, types.Types[types.TUINT32]) // not argExtra
+-			callArgs = append(callArgs, argsize)
+-			ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
++			// Write closure (arg to newproc/deferproc).
++			ACArgs = append(ACArgs, types.Types[types.TUINTPTR]) // not argExtra
+ 			callArgs = append(callArgs, closure)
+-			stksize += 2 * int64(types.PtrSize)
+-			argStart += 2 * int64(types.PtrSize)
++			stksize += int64(types.PtrSize)
++			argStart += int64(types.PtrSize)
+ 		}
+ 
+ 		// Set receiver (for interface calls).
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index ec5ea58028..dd2ea458cc 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -244,10 +244,8 @@ ok:
+ 
+ 	// create a new goroutine to start program
+ 	PUSHL	$runtime·mainPC(SB)	// entry
+-	PUSHL	$0	// arg size
+ 	CALL	runtime·newproc(SB)
+ 	POPL	AX
+-	POPL	AX
+ 
+ 	// start this M
+ 	CALL	runtime·mstart(SB)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 96f0d3fefc..f8f5fc62e6 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -214,10 +214,8 @@ ok:
+ 	// create a new goroutine to start program
+ 	MOVQ	$runtime·mainPC(SB), AX		// entry
+ 	PUSHQ	AX
+-	PUSHQ	$0			// arg size
+ 	CALL	runtime·newproc(SB)
+ 	POPQ	AX
+-	POPQ	AX
+ 
+ 	// start this M
+ 	CALL	runtime·mstart(SB)
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 872e56aeb4..5c2bc00fe8 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -168,14 +168,13 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	BL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-	SUB	$12, R13
++	SUB	$8, R13
+ 	MOVW	$runtime·mainPC(SB), R0
+-	MOVW	R0, 8(R13)	// arg 2: fn
++	MOVW	R0, 4(R13)	// arg 1: fn
+ 	MOVW	$0, R0
+-	MOVW	R0, 4(R13)	// arg 1: siz
+ 	MOVW	R0, 0(R13)	// dummy LR
+ 	BL	runtime·newproc(SB)
+-	ADD	$12, R13	// pop args and LR
++	ADD	$8, R13	// pop args and LR
+ 
+ 	// start this M
+ 	BL	runtime·mstart(SB)
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index be4313d35d..e7c5fa3225 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -87,14 +87,11 @@ nocgo:
+ 
+ 	// create a new goroutine to start program
+ 	MOVD	$runtime·mainPC(SB), R0		// entry
+-	MOVD	RSP, R7
+-	MOVD.W	$0, -8(R7)
+-	MOVD.W	R0, -8(R7)
+-	MOVD.W	$0, -8(R7)
+-	MOVD.W	$0, -8(R7)
+-	MOVD	R7, RSP
++	SUB	$16, RSP
++	MOVD	R0, 8(RSP) // arg
++	MOVD	$0, 0(RSP) // dummy LR
+ 	BL	runtime·newproc(SB)
+-	ADD	$32, RSP
++	ADD	$16, RSP
+ 
+ 	// start this M
+ 	BL	runtime·mstart(SB)
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index d4d2280105..f3ac453d99 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -63,12 +63,11 @@ nocgo:
+ 
+ 	// create a new goroutine to start program
+ 	MOVV	$runtime·mainPC(SB), R1		// entry
+-	ADDV	$-24, R29
+-	MOVV	R1, 16(R29)
+-	MOVV	R0, 8(R29)
++	ADDV	$-16, R29
++	MOVV	R1, 8(R29)
+ 	MOVV	R0, 0(R29)
+ 	JAL	runtime·newproc(SB)
+-	ADDV	$24, R29
++	ADDV	$16, R29
+ 
+ 	// start this M
+ 	JAL	runtime·mstart(SB)
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index ea7edf20cf..4dc165849e 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -64,12 +64,11 @@ nocgo:
+ 
+ 	// create a new goroutine to start program
+ 	MOVW	$runtime·mainPC(SB), R1	// entry
+-	ADDU	$-12, R29
+-	MOVW	R1, 8(R29)
+-	MOVW	R0, 4(R29)
++	ADDU	$-8, R29
++	MOVW	R1, 4(R29)
+ 	MOVW	R0, 0(R29)
+ 	JAL	runtime·newproc(SB)
+-	ADDU	$12, R29
++	ADDU	$8, R29
+ 
+ 	// start this M
+ 	JAL	runtime·mstart(SB)
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 942cc14f17..a789d041e4 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -94,9 +94,8 @@ nocgo:
+ 	MOVDU	R0, -8(R1)
+ 	MOVDU	R0, -8(R1)
+ 	MOVDU	R0, -8(R1)
+-	MOVDU	R0, -8(R1)
+ 	BL	runtime·newproc(SB)
+-	ADD	$(16+FIXED_FRAME), R1
++	ADD	$(8+FIXED_FRAME), R1
+ 
+ 	// start this M
+ 	BL	runtime·mstart(SB)
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index ef7af4e10d..69ab88f1d2 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -57,12 +57,11 @@ nocgo:
+ 
+ 	// create a new goroutine to start program
+ 	MOV	$runtime·mainPC(SB), T0		// entry
+-	ADD	$-24, X2
+-	MOV	T0, 16(X2)
+-	MOV	ZERO, 8(X2)
++	ADD	$-16, X2
++	MOV	T0, 8(X2)
+ 	MOV	ZERO, 0(X2)
+ 	CALL	runtime·newproc(SB)
+-	ADD	$24, X2
++	ADD	$16, X2
+ 
+ 	// start this M
+ 	CALL	runtime·mstart(SB)
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index fb38271630..534cb6112c 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -147,12 +147,11 @@ nocgo:
+ 
+ 	// create a new goroutine to start program
+ 	MOVD	$runtime·mainPC(SB), R2		// entry
+-	SUB     $24, R15
+-	MOVD 	R2, 16(R15)
+-	MOVD 	$0, 8(R15)
++	SUB     $16, R15
++	MOVD 	R2, 8(R15)
+ 	MOVD 	$0, 0(R15)
+ 	BL	runtime·newproc(SB)
+-	ADD	$24, R15
++	ADD	$16, R15
+ 
+ 	// start this M
+ 	BL	runtime·mstart(SB)
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 33c335ba5a..53c271aa70 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -18,8 +18,7 @@ TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME|TOPFRAME, $0
+ 	CALLNORESUME runtime·args(SB)
+ 	CALLNORESUME runtime·osinit(SB)
+ 	CALLNORESUME runtime·schedinit(SB)
+-	MOVD $0, 0(SP)
+-	MOVD $runtime·mainPC(SB), 8(SP)
++	MOVD $runtime·mainPC(SB), 0(SP)
+ 	CALLNORESUME runtime·newproc(SB)
+ 	CALL runtime·mstart(SB) // WebAssembly stack will unwind when switching to another goroutine
+ 	UNDEF
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index faddf59eed..ad66a18c26 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -112,7 +112,7 @@ func debugCallWrap(dispatch uintptr) {
+ 		// closure and start the goroutine with that closure, but the compiler disallows
+ 		// implicit closure allocation in the runtime.
+ 		fn := debugCallWrap1
+-		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), nil, 0, gp, callerpc)
++		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), gp, callerpc)
+ 		args := &debugCallWrapArgs{
+ 			dispatch: dispatch,
+ 			callingG: gp,
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 8a296a3c17..46e43382cd 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -224,21 +224,16 @@ func panicmemAddr(addr uintptr) {
+ 	panic(errorAddressString{msg: "invalid memory address or nil pointer dereference", addr: addr})
+ }
+ 
+-// Create a new deferred function fn with siz bytes of arguments.
++// Create a new deferred function fn, which has no arguments and results.
+ // The compiler turns a defer statement into a call to this.
+ //go:nosplit
+-func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
++func deferproc(fn *funcval) { // TODO: Make deferproc just take a func().
+ 	gp := getg()
+ 	if gp.m.curg != gp {
+ 		// go code on the system stack can't defer
+ 		throw("defer on system stack")
+ 	}
+ 
+-	if siz != 0 {
+-		// TODO: Make deferproc just take a func().
+-		throw("defer with non-empty frame")
+-	}
+-
+ 	// the arguments of fn are in a perilous state. The stack map
+ 	// for deferproc does not describe them. So we can't let garbage
+ 	// collection or stack copying trigger until we've copied them out
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index be18bbc090..5d2511b83c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4217,7 +4217,7 @@ func malg(stacksize int32) *g {
+ 	return newg
+ }
+ 
+-// Create a new g running fn with siz bytes of arguments.
++// Create a new g running fn.
+ // Put it on the queue of g's waiting to run.
+ // The compiler turns a go statement into a call to this.
+ //
+@@ -4232,12 +4232,11 @@ func malg(stacksize int32) *g {
+ // be able to adjust them and stack splits won't be able to copy them.
+ //
+ //go:nosplit
+-func newproc(siz int32, fn *funcval) {
+-	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
++func newproc(fn *funcval) {
+ 	gp := getg()
+ 	pc := getcallerpc()
+ 	systemstack(func() {
+-		newg := newproc1(fn, argp, siz, gp, pc)
++		newg := newproc1(fn, gp, pc)
+ 
+ 		_p_ := getg().m.p.ptr()
+ 		runqput(_p_, newg, true)
+@@ -4248,23 +4247,19 @@ func newproc(siz int32, fn *funcval) {
+ 	})
+ }
+ 
+-// Create a new g in state _Grunnable, starting at fn, with narg bytes
+-// of arguments starting at argp. callerpc is the address of the go
+-// statement that created this. The caller is responsible for adding
+-// the new g to the scheduler.
++// Create a new g in state _Grunnable, starting at fn. callerpc is the
++// address of the go statement that created this. The caller is responsible
++// for adding the new g to the scheduler.
+ //
+ // This must run on the system stack because it's the continuation of
+ // newproc, which cannot split the stack.
+ //
+ //go:systemstack
+-func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerpc uintptr) *g {
+-	if narg != 0 {
+-		// TODO: When we commit to GOEXPERIMENT=regabidefer,
+-		// rewrite the comments for newproc and newproc1.
+-		// newproc will no longer have a funny stack layout or
+-		// need to be nosplit.
+-		throw("go with non-empty frame")
+-	}
++func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
++	// TODO: When we commit to GOEXPERIMENT=regabidefer,
++	// rewrite the comments for newproc and newproc1.
++	// newproc will no longer have a funny stack layout or
++	// need to be nosplit.
+ 
+ 	_g_ := getg()
+ 

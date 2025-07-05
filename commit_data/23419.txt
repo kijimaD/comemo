@@ -9,6 +9,20 @@ Date:   Wed May 13 17:26:19 2015 -0400
     Change-Id: I68b1152ef7ea248c8e80c7f71e97da76e3ec6394
     Reviewed-on: https://go-review.googlesource.com/9999
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  misc/cgo/testcshared/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index ed437577c7..492d25e134 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -46,7 +46,7 @@ function run() {
+ 	case "$goos" in
+ 	"android")
+ 		local args=$@
+-		output=$(adb shell "cd ${androidpath}; env $@")
++		output=$(adb shell "cd ${androidpath}; $@")
+ 		output=$(echo $output|tr -d '\r')
+ 		case $output in
+ 			*PASS) echo "PASS";; 

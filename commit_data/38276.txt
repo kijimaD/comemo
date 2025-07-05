@@ -12,7 +12,7 @@ Date:   Mon Oct 15 12:53:07 2018 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/codegen/arithmetic.go  | 22 ++++++++++++++++++++++
  test/codegen/comparisons.go |  1 +
  test/codegen/copy.go        |  7 +++++++
@@ -23,3 +23,803 @@ Date:   Mon Oct 15 12:53:07 2018 -0400
  test/codegen/rotate.go      |  8 ++++++++
  test/codegen/stack.go       |  5 +++++
  9 files changed, 130 insertions(+), 2 deletions(-)
+
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index b1cdef6eee..d91eb16edb 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -48,12 +48,16 @@ func Pow2Muls(n1, n2 int) (int, int) {
+ 	// 386:"SHLL\t[$]5",-"IMULL"
+ 	// arm:"SLL\t[$]5",-"MUL"
+ 	// arm64:"LSL\t[$]5",-"MUL"
++	// ppc64:"SLD\t[$]5",-"MUL"
++	// ppc64le:"SLD\t[$]5",-"MUL"
+ 	a := n1 * 32
+ 
+ 	// amd64:"SHLQ\t[$]6",-"IMULQ"
+ 	// 386:"SHLL\t[$]6",-"IMULL"
+ 	// arm:"SLL\t[$]6",-"MUL"
+ 	// arm64:`NEG\sR[0-9]+<<6,\sR[0-9]+`,-`LSL`,-`MUL`
++	// ppc64:"SLD\t[$]6","NEG\\sR[0-9]+,\\sR[0-9]+",-"MUL"
++	// ppc64le:"SLD\t[$]6","NEG\\sR[0-9]+,\\sR[0-9]+",-"MUL"
+ 	b := -64 * n2
+ 
+ 	return a, b
+@@ -117,12 +121,16 @@ func Pow2Divs(n1 uint, n2 int) (uint, int) {
+ 	// amd64:"SHRQ\t[$]5",-"DIVQ"
+ 	// arm:"SRL\t[$]5",-".*udiv"
+ 	// arm64:"LSR\t[$]5",-"UDIV"
++	// ppc64:"SRD"
++	// ppc64le:"SRD"
+ 	a := n1 / 32 // unsigned
+ 
+ 	// amd64:"SARQ\t[$]6",-"IDIVQ"
+ 	// 386:"SARL\t[$]6",-"IDIVL"
+ 	// arm:"SRA\t[$]6",-".*udiv"
+ 	// arm64:"ASR\t[$]6",-"SDIV"
++	// ppc64:"SRAD"
++	// ppc64le:"SRAD"
+ 	b := n2 / 64 // signed
+ 
+ 	return a, b
+@@ -149,6 +157,8 @@ func Pow2Mods(n1 uint, n2 int) (uint, int) {
+ 	// amd64:"ANDQ\t[$]31",-"DIVQ"
+ 	// arm:"AND\t[$]31",-".*udiv"
+ 	// arm64:"AND\t[$]31",-"UDIV"
++	// ppc64:"ANDCC\t[$]31"
++	// ppc64le:"ANDCC\t[$]31"
+ 	a := n1 % 32 // unsigned
+ 
+ 	// 386:-"IDIVL"
+@@ -177,36 +187,48 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
+ func LenDiv1(a []int) int {
+ 	// 386:"SHRL\t[$]10"
+ 	// amd64:"SHRQ\t[$]10"
++	// ppc64:"SRD"\t[$]10"
++	// ppc64le:"SRD"\t[$]10"
+ 	return len(a) / 1024
+ }
+ 
+ func LenDiv2(s string) int {
+ 	// 386:"SHRL\t[$]11"
+ 	// amd64:"SHRQ\t[$]11"
++	// ppc64:"SRD\t[$]11"
++	// ppc64le:"SRD\t[$]11"
+ 	return len(s) / (4097 >> 1)
+ }
+ 
+ func LenMod1(a []int) int {
+ 	// 386:"ANDL\t[$]1023"
+ 	// amd64:"ANDQ\t[$]1023"
++	// ppc64:"ANDCC\t[$]1023"
++	// ppc64le:"ANDCC\t[$]1023"
+ 	return len(a) % 1024
+ }
+ 
+ func LenMod2(s string) int {
+ 	// 386:"ANDL\t[$]2047"
+ 	// amd64:"ANDQ\t[$]2047"
++	// ppc64:"ANDCC\t[$]2047"
++	// ppc64le:"ANDCC\t[$]2047"
+ 	return len(s) % (4097 >> 1)
+ }
+ 
+ func CapDiv(a []int) int {
+ 	// 386:"SHRL\t[$]12"
+ 	// amd64:"SHRQ\t[$]12"
++	// ppc64:"SRD\t[$]12"
++	// ppc64le:"SRD\t[$]12"
+ 	return cap(a) / ((1 << 11) + 2048)
+ }
+ 
+ func CapMod(a []int) int {
+ 	// 386:"ANDL\t[$]4095"
+ 	// amd64:"ANDQ\t[$]4095"
++	// ppc64:"ANDCC\t[$]4095"
++	// ppc64le:"ANDCC\t[$]4095"
+ 	return cap(a) % ((1 << 11) + 2048)
+ }
+ 
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 072393f3a6..fb17d3ca5d 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -36,6 +36,7 @@ func CompareString2(s string) bool {
+ func CompareString3(s string) bool {
+ 	// amd64:`CMPQ\t\(.*\), [A-Z]`
+ 	// arm64:-`CMPW\t`
++	// ppc64:-`CMPW\t`
+ 	// ppc64le:-`CMPW\t`
+ 	// s390x:-`CMPW\t`
+ 	return s == "xxxxxxxx"
+diff --git a/test/codegen/copy.go b/test/codegen/copy.go
+index dc8ee43f4c..46c2bde9ab 100644
+--- a/test/codegen/copy.go
++++ b/test/codegen/copy.go
+@@ -16,6 +16,8 @@ func movesmall4() {
+ 	// amd64:-".*memmove"
+ 	// arm:-".*memmove"
+ 	// arm64:-".*memmove"
++	// ppc64:-".*memmove"
++	// ppc64le:-".*memmove"
+ 	copy(x[1:], x[:])
+ }
+ 
+@@ -24,6 +26,8 @@ func movesmall7() {
+ 	// 386:-".*memmove"
+ 	// amd64:-".*memmove"
+ 	// arm64:-".*memmove"
++	// ppc64:-".*memmove"
++	// ppc64le:-".*memmove"
+ 	copy(x[1:], x[:])
+ }
+ 
+@@ -63,6 +67,7 @@ func moveDisjointNoOverlap(a *[256]byte) {
+ 
+ func ptrEqual() {
+ 	// amd64:-"JEQ",-"JNE"
++	// ppc64:-"BEQ",-"BNE"
+ 	// ppc64le:-"BEQ",-"BNE"
+ 	// s390x:-"BEQ",-"BNE"
+ 	copy(x[:], x[:])
+@@ -70,6 +75,7 @@ func ptrEqual() {
+ 
+ func ptrOneOffset() {
+ 	// amd64:-"JEQ",-"JNE"
++	// ppc64:-"BEQ",-"BNE"
+ 	// ppc64le:-"BEQ",-"BNE"
+ 	// s390x:-"BEQ",-"BNE"
+ 	copy(x[1:], x[:])
+@@ -77,6 +83,7 @@ func ptrOneOffset() {
+ 
+ func ptrBothOffset() {
+ 	// amd64:-"JEQ",-"JNE"
++	// ppc64:-"BEQ",-"BNE"
+ 	// ppc64le:-"BEQ",-"BNE"
+ 	// s390x:-"BEQ",-"BNE"
+ 	copy(x[1:], x[2:])
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index c20f6984bf..5e1f60b08b 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -22,6 +22,8 @@ func Mul2(f float64) float64 {
+ 	// amd64:"ADDSD",-"MULSD"
+ 	// arm/7:"ADDD",-"MULD"
+ 	// arm64:"FADDD",-"FMULD"
++	// ppc64:"FADD",-"FMUL"
++	// ppc64le:"FADD",-"FMUL"
+ 	return f * 2.0
+ }
+ 
+@@ -31,6 +33,8 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	// amd64:"MULSD",-"DIVSD"
+ 	// arm/7:"MULD",-"DIVD"
+ 	// arm64:"FMULD",-"FDIVD"
++	// ppc64:"FMUL",-"FDIV"
++	// ppc64le:"FMUL",-"FDIV"
+ 	x := f1 / 16.0
+ 
+ 	// 386/sse2:"MULSD",-"DIVSD"
+@@ -38,6 +42,8 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	// amd64:"MULSD",-"DIVSD"
+ 	// arm/7:"MULD",-"DIVD"
+ 	// arm64:"FMULD",-"FDIVD"
++	// ppc64:"FMUL",-"FDIVD"
++	// ppc64le:"FMUL",-"FDIVD"
+ 	y := f2 / 0.125
+ 
+ 	// 386/sse2:"ADDSD",-"DIVSD",-"MULSD"
+@@ -45,6 +51,8 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	// amd64:"ADDSD",-"DIVSD",-"MULSD"
+ 	// arm/7:"ADDD",-"MULD",-"DIVD"
+ 	// arm64:"FADDD",-"FMULD",-"FDIVD"
++	// ppc64:"FADD",-"FMUL",-"FDIV"
++	// ppc64le:"FADD",-"FMUL",-"FDIV"
+ 	z := f3 / 0.5
+ 
+ 	return x, y, z
+@@ -71,6 +79,7 @@ func indexStore(b0 []float64, b1 float64, idx int) {
+ 
+ func FusedAdd32(x, y, z float32) float32 {
+ 	// s390x:"FMADDS\t"
++	// ppc64:"FMADDS\t"
+ 	// ppc64le:"FMADDS\t"
+ 	// arm64:"FMADDS"
+ 	return x*y + z
+@@ -78,6 +87,7 @@ func FusedAdd32(x, y, z float32) float32 {
+ 
+ func FusedSub32_a(x, y, z float32) float32 {
+ 	// s390x:"FMSUBS\t"
++	// ppc64:"FMSUBS\t"
+ 	// ppc64le:"FMSUBS\t"
+ 	return x*y - z
+ }
+@@ -89,6 +99,7 @@ func FusedSub32_b(x, y, z float32) float32 {
+ 
+ func FusedAdd64(x, y, z float64) float64 {
+ 	// s390x:"FMADD\t"
++	// ppc64:"FMADD\t"
+ 	// ppc64le:"FMADD\t"
+ 	// arm64:"FMADDD"
+ 	return x*y + z
+@@ -96,6 +107,7 @@ func FusedAdd64(x, y, z float64) float64 {
+ 
+ func FusedSub64_a(x, y, z float64) float64 {
+ 	// s390x:"FMSUB\t"
++	// ppc64:"FMSUB\t"
+ 	// ppc64le:"FMSUB\t"
+ 	return x*y - z
+ }
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 78e7bfa110..aaf6b080ff 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -13,21 +13,25 @@ var sink64 [8]float64
+ func approx(x float64) {
+ 	// s390x:"FIDBR\t[$]6"
+ 	// arm64:"FRINTPD"
++	// ppc64:"FRIP"
+ 	// ppc64le:"FRIP"
+ 	sink64[0] = math.Ceil(x)
+ 
+ 	// s390x:"FIDBR\t[$]7"
+ 	// arm64:"FRINTMD"
++	// ppc64:"FRIM"
+ 	// ppc64le:"FRIM"
+ 	sink64[1] = math.Floor(x)
+ 
+ 	// s390x:"FIDBR\t[$]1"
+ 	// arm64:"FRINTAD"
++	// ppc64:"FRIN"
+ 	// ppc64le:"FRIN"
+ 	sink64[2] = math.Round(x)
+ 
+ 	// s390x:"FIDBR\t[$]5"
+ 	// arm64:"FRINTZD"
++	// ppc64:"FRIZ"
+ 	// ppc64le:"FRIZ"
+ 	sink64[3] = math.Trunc(x)
+ 
+@@ -51,11 +55,13 @@ func abs(x, y float64) {
+ 	// amd64:"BTRQ\t[$]63"
+ 	// arm64:"FABSD\t"
+ 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
++	// ppc64:"FABS\t"
+ 	// ppc64le:"FABS\t"
+ 	sink64[0] = math.Abs(x)
+ 
+ 	// amd64:"BTRQ\t[$]63","PXOR"    (TODO: this should be BTSQ)
+ 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
++	// ppc64:"FNABS\t"
+ 	// ppc64le:"FNABS\t"
+ 	sink64[1] = -math.Abs(y)
+ }
+@@ -70,11 +76,13 @@ func abs32(x float32) float32 {
+ func copysign(a, b, c float64) {
+ 	// amd64:"BTRQ\t[$]63","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
+ 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
++	// ppc64:"FCPSGN"
+ 	// ppc64le:"FCPSGN"
+ 	sink64[0] = math.Copysign(a, b)
+ 
+ 	// amd64:"BTSQ\t[$]63"
+ 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
++	// ppc64:"FCPSGN"
+ 	// ppc64le:"FCPSGN"
+ 	// arm64:"ORR", -"AND"
+ 	sink64[1] = math.Copysign(c, -1)
+@@ -86,6 +94,7 @@ func copysign(a, b, c float64) {
+ 
+ 	// amd64:-"SHLQ\t[$]1",-"SHRQ\t[$]1","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
+ 	// s390x:"CPSDR\t",-"MOVD\t"     (no integer load/store)
++	// ppc64:"FCPSGN"
+ 	// ppc64le:"FCPSGN"
+ 	sink64[3] = math.Copysign(-1, c)
+ }
+@@ -93,6 +102,8 @@ func copysign(a, b, c float64) {
+ func fromFloat64(f64 float64) uint64 {
+ 	// amd64:"MOVQ\tX.*, [^X].*"
+ 	// arm64:"FMOVD\tF.*, R.*"
++	// ppc64:"MFVSRD"
++	// ppc64le:"MFVSRD"
+ 	return math.Float64bits(f64+1) + 1
+ }
+ 
+@@ -105,6 +116,8 @@ func fromFloat32(f32 float32) uint32 {
+ func toFloat64(u64 uint64) float64 {
+ 	// amd64:"MOVQ\t[^X].*, X.*"
+ 	// arm64:"FMOVD\tR.*, F.*"
++	// ppc64:"MTVSRD"
++	// ppc64le:"MTVSRD"
+ 	return math.Float64frombits(u64+1) + 1
+ }
+ 
+@@ -135,6 +148,7 @@ func constantCheck32() bool {
+ func constantConvert32(x float32) float32 {
+ 	// amd64:"MOVSS\t[$]f32.3f800000\\(SB\\)"
+ 	// s390x:"FMOVS\t[$]f32.3f800000\\(SB\\)"
++	// ppc64:"FMOVS\t[$]f32.3f800000\\(SB\\)"
+ 	// ppc64le:"FMOVS\t[$]f32.3f800000\\(SB\\)"
+ 	// arm64:"FMOVS\t[$]\\(1.0\\)"
+ 	if x > math.Float32frombits(0x3f800000) {
+@@ -146,6 +160,7 @@ func constantConvert32(x float32) float32 {
+ func constantConvertInt32(x uint32) uint32 {
+ 	// amd64:-"MOVSS"
+ 	// s390x:-"FMOVS"
++	// ppc64:-"FMOVS"
+ 	// ppc64le:-"FMOVS"
+ 	// arm64:-"FMOVS"
+ 	if x > math.Float32bits(1) {
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 89a77d96f9..c21de19707 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -105,6 +105,7 @@ func OnesCount(n uint) int {
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTD"
++	// ppc64le:"POPCNTD"
+ 	return bits.OnesCount(n)
+ }
+ 
+@@ -113,6 +114,7 @@ func OnesCount64(n uint64) int {
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTD"
++	// ppc64le:"POPCNTD"
+ 	return bits.OnesCount64(n)
+ }
+ 
+@@ -121,6 +123,7 @@ func OnesCount32(n uint32) int {
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTW"
++	// ppc64le:"POPCNTW"
+ 	return bits.OnesCount32(n)
+ }
+ 
+@@ -129,12 +132,14 @@ func OnesCount16(n uint16) int {
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTW"
++	// ppc64le:"POPCNTW"
+ 	return bits.OnesCount16(n)
+ }
+ 
+ func OnesCount8(n uint8) int {
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTB"
++	// ppc64le:"POPCNTB"
+ 	return bits.OnesCount8(n)
+ }
+ 
+@@ -176,6 +181,7 @@ func RotateLeft64(n uint64) uint64 {
+ 	// amd64:"ROLQ"
+ 	// arm64:"ROR"
+ 	// ppc64:"ROTL"
++	// ppc64le:"ROTL"
+ 	// s390x:"RLLG"
+ 	return bits.RotateLeft64(n, 37)
+ }
+@@ -184,6 +190,7 @@ func RotateLeft32(n uint32) uint32 {
+ 	// amd64:"ROLL" 386:"ROLL"
+ 	// arm64:"RORW"
+ 	// ppc64:"ROTLW"
++	// ppc64le:"ROTLW"
+ 	// s390x:"RLL"
+ 	return bits.RotateLeft32(n, 9)
+ }
+@@ -202,6 +209,7 @@ func RotateLeftVariable(n uint, m int) uint {
+ 	// amd64:"ROLQ"
+ 	// arm64:"ROR"
+ 	// ppc64:"ROTL"
++	// ppc64le:"ROTL"
+ 	// s390x:"RLLG"
+ 	return bits.RotateLeft(n, m)
+ }
+@@ -210,6 +218,7 @@ func RotateLeftVariable64(n uint64, m int) uint64 {
+ 	// amd64:"ROLQ"
+ 	// arm64:"ROR"
+ 	// ppc64:"ROTL"
++	// ppc64le:"ROTL"
+ 	// s390x:"RLLG"
+ 	return bits.RotateLeft64(n, m)
+ }
+@@ -218,6 +227,7 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
+ 	// amd64:"ROLL"
+ 	// arm64:"RORW"
+ 	// ppc64:"ROTLW"
++	// ppc64le:"ROTLW"
+ 	// s390x:"RLL"
+ 	return bits.RotateLeft32(n, m)
+ }
+@@ -230,6 +240,7 @@ func TrailingZeros(n uint) int {
+ 	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+ 	// s390x:"FLOGR"
+ 	// ppc64:"ANDN","POPCNTD"
++	// ppc64le:"ANDN","POPCNTD"
+ 	return bits.TrailingZeros(n)
+ }
+ 
+@@ -237,6 +248,7 @@ func TrailingZeros64(n uint64) int {
+ 	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+ 	// s390x:"FLOGR"
+ 	// ppc64:"ANDN","POPCNTD"
++	// ppc64le:"ANDN","POPCNTD"
+ 	return bits.TrailingZeros64(n)
+ }
+ 
+@@ -244,6 +256,7 @@ func TrailingZeros32(n uint32) int {
+ 	// amd64:"BTSQ\\t\\$32","BSFQ"
+ 	// s390x:"FLOGR","MOVWZ"
+ 	// ppc64:"ANDN","POPCNTW"
++	// ppc64le:"ANDN","POPCNTW"
+ 	return bits.TrailingZeros32(n)
+ }
+ 
+@@ -251,6 +264,7 @@ func TrailingZeros16(n uint16) int {
+ 	// amd64:"BSFL","BTSL\\t\\$16"
+ 	// s390x:"FLOGR","OR\t\\$65536"
+ 	// ppc64:"POPCNTD","OR\\t\\$65536"
++	// ppc64le:"POPCNTD","OR\\t\\$65536"
+ 	return bits.TrailingZeros16(n)
+ }
+ 
+@@ -319,13 +333,15 @@ func IterateBits8(n uint8) int {
+ func Mul(x, y uint) (hi, lo uint) {
+ 	// amd64:"MULQ"
+ 	// arm64:"UMULH","MUL"
+-	// ppc64: "MULHDU", "MULLD"
++	// ppc64:"MULHDU","MULLD"
++	// ppc64le:"MULHDU","MULLD"
+ 	return bits.Mul(x, y)
+ }
+ 
+ func Mul64(x, y uint64) (hi, lo uint64) {
+ 	// amd64:"MULQ"
+ 	// arm64:"UMULH","MUL"
+-	// ppc64: "MULHDU", "MULLD"
++	// ppc64:"MULHDU","MULLD"
++	// ppc64le:"MULHDU","MULLD"
+ 	return bits.Mul64(x, y)
+ }
+diff --git a/test/codegen/noextend.go b/test/codegen/noextend.go
+index ee4900226c..46bfe3f2f9 100644
+--- a/test/codegen/noextend.go
++++ b/test/codegen/noextend.go
+@@ -21,30 +21,38 @@ var val8 [8]uint8
+ 
+ func set16(x8 int8, u8 uint8, y8 int8, z8 uint8) {
+ 	// Truncate not needed, load does sign/zero extend
++	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+ 	sval16[0] = int16(x8)
+ 
++	// ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+ 	val16[0] = uint16(u8)
+ 
+ 	// AND not needed due to size
++	// ppc64:-"ANDCC"
+         // ppc64le:-"ANDCC"
+         sval16[1] = 255 & int16(x8+y8)
+ 
++	// ppc64:-"ANDCC"
+         // ppc64le:-"ANDCC"
+         val16[1] = 255 & uint16(u8+z8)
+ 
+ }
+ func shiftidx(x8 int8, u8 uint8, x16 int16, u16 uint16, x32 int32, u32 uint32) {
++	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+         sval16[0] = int16(val16[x8>>1])
+ 
++	// ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+         val16[0] = uint16(sval16[u8>>2])
+ 
++	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+         sval16[1] = int16(val16[x16>>1])
+ 
++	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+         val16[1] = uint16(sval16[u16>>2])
+ 
+@@ -53,87 +61,109 @@ func shiftidx(x8 int8, u8 uint8, x16 int16, u16 uint16, x32 int32, u32 uint32) {
+ func setnox(x8 int8, u8 uint8, y8 int8, z8 uint8, x16 int16, u16 uint16, x32 int32, u32 uint32) {
+ 	// Truncate not needed due to sign/zero extension on load
+ 
++	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+ 	sval16[0] = int16(x8)
+ 
++	// ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+ 	val16[0] = uint16(u8)
+ 
+ 	// AND not needed due to size
++	// ppc64:-"ANDCC"
+ 	// ppc64le:-"ANDCC"
+         sval16[1] = 255 & int16(x8+y8)
+ 
++	// ppc64:-"ANDCC"
+         // ppc64le:-"ANDCC"
+         val16[1] = 255 & uint16(u8+z8)
+ 
++	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+ 	sval32[0] = int32(x8)
+ 
++	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+ 	sval32[1] = int32(x16)
+ 
++	//ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+ 	//ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+ 	val32[0] = uint32(u8)
+ 
++	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	val32[1] = uint32(u16)
+ 
++	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+         sval64[0] = int64(x8)
+ 
++	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+         sval64[1] = int64(x16)
+ 
++	// ppc64:-"MOVW\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVW\tR\\d+,\\sR\\d+"
+ 	sval64[2] = int64(x32)
+ 
++	//ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+         //ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+         val64[0] = uint64(u8)
+ 
++	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+         val64[1] = uint64(u16)
+ 
++	// ppc64:-"MOVWZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVWZ\tR\\d+,\\sR\\d+"
+ 	val64[2] = uint64(u32)
+ }
+ 
+ func cmp16(x8 int8, u8 uint8, x32 int32, u32 uint32, x64 int64, u64 uint64) bool {
++	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+ 	if int16(x8) == sval16[0] {
+ 		return true
+ 	}
+ 
++	// ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+         if uint16(u8) == val16[0] {
+                 return true
+ 	}
+ 
++	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	if uint16(u32>>16) == val16[0] {
+ 		return true
+ 	}
+ 
++	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	if uint16(u64>>48) == val16[0] {
+ 		return true
+ 	}
+ 
+ 	// Verify the truncates are using the correct sign.
++	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	if int16(x32) == sval16[0] {
+ 		return true
+ 	}
+ 
++	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+ 	if uint16(u32) == val16[0] {
+ 		return true
+ 	}
+ 
++	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	if int16(x64) == sval16[0] {
+ 		return true
+ 	}
+ 
++	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+ 	if uint16(u64) == val16[0] {
+ 		return true
+@@ -143,32 +173,38 @@ func cmp16(x8 int8, u8 uint8, x32 int32, u32 uint32, x64 int64, u64 uint64) bool
+ }
+ 
+ func cmp32(x8 int8, u8 uint8, x16 int16, u16 uint16, x64 int64, u64 uint64) bool {
++	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+         if int32(x8) == sval32[0] {
+                 return true
+         }
+ 
++	// ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+         if uint32(u8) == val32[0] {
+                 return true
+         }
+ 
++	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+ 	if int32(x16) == sval32[0] {
+ 		return true
+ 	}
+ 
++	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+ 	if uint32(u16) == val32[0] {
+ 		return true
+ 	}
+ 
+ 	// Verify the truncates are using the correct sign.
++	// ppc64:-"MOVWZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVWZ\tR\\d+,\\sR\\d+"
+ 	if int32(x64) == sval32[0] {
+ 		return true
+ 	}
+ 
++	// ppc64:-"MOVW\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVW\tR\\d+,\\sR\\d+"
+ 	if uint32(u64) == val32[0] {
+ 		return true
+@@ -179,31 +215,37 @@ func cmp32(x8 int8, u8 uint8, x16 int16, u16 uint16, x64 int64, u64 uint64) bool
+ 
+ 
+ func cmp64(x8 int8, u8 uint8, x16 int16, u16 uint16, x32 int32, u32 uint32)  bool {
++	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+         if int64(x8) == sval64[0] {
+                 return true
+         }
+ 
++	// ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+         if uint64(u8) == val64[0] {
+                 return true
+         }
+ 
++	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+         if int64(x16) == sval64[0] {
+                 return true
+         }
+ 
++	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+         if uint64(u16) == val64[0] {
+                 return true
+         }
+ 
++	// ppc64:-"MOVW\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVW\tR\\d+,\\sR\\d+"
+         if int64(x32) == sval64[0] {
+                 return true
+         }
+ 
++	// ppc64:-"MOVWZ\tR\\d+,\\sR\\d+"
+         // ppc64le:-"MOVWZ\tR\\d+,\\sR\\d+"
+         if uint64(u32) == val64[0] {
+                 return true
+diff --git a/test/codegen/rotate.go b/test/codegen/rotate.go
+index 5812e1c0b1..ce24b57877 100644
+--- a/test/codegen/rotate.go
++++ b/test/codegen/rotate.go
+@@ -16,18 +16,21 @@ func rot64(x uint64) uint64 {
+ 	// amd64:"ROLQ\t[$]7"
+ 	// arm64:"ROR\t[$]57"
+ 	// s390x:"RLLG\t[$]7"
++	// ppc64:"ROTL\t[$]7"
+ 	// ppc64le:"ROTL\t[$]7"
+ 	a += x<<7 | x>>57
+ 
+ 	// amd64:"ROLQ\t[$]8"
+ 	// arm64:"ROR\t[$]56"
+ 	// s390x:"RLLG\t[$]8"
++	// ppc64:"ROTL\t[$]8"
+ 	// ppc64le:"ROTL\t[$]8"
+ 	a += x<<8 + x>>56
+ 
+ 	// amd64:"ROLQ\t[$]9"
+ 	// arm64:"ROR\t[$]55"
+ 	// s390x:"RLLG\t[$]9"
++	// ppc64:"ROTL\t[$]9"
+ 	// ppc64le:"ROTL\t[$]9"
+ 	a += x<<9 ^ x>>55
+ 
+@@ -41,6 +44,7 @@ func rot32(x uint32) uint32 {
+ 	// arm:"MOVW\tR\\d+@>25"
+ 	// arm64:"RORW\t[$]25"
+ 	// s390x:"RLL\t[$]7"
++	// ppc64:"ROTLW\t[$]7"
+ 	// ppc64le:"ROTLW\t[$]7"
+ 	a += x<<7 | x>>25
+ 
+@@ -48,6 +52,7 @@ func rot32(x uint32) uint32 {
+ 	// arm:"MOVW\tR\\d+@>24"
+ 	// arm64:"RORW\t[$]24"
+ 	// s390x:"RLL\t[$]8"
++	// ppc64:"ROTLW\t[$]8"
+ 	// ppc64le:"ROTLW\t[$]8"
+ 	a += x<<8 + x>>24
+ 
+@@ -55,6 +60,7 @@ func rot32(x uint32) uint32 {
+ 	// arm:"MOVW\tR\\d+@>23"
+ 	// arm64:"RORW\t[$]23"
+ 	// s390x:"RLL\t[$]9"
++	// ppc64:"ROTLW\t[$]9"
+ 	// ppc64le:"ROTLW\t[$]9"
+ 	a += x<<9 ^ x>>23
+ 
+@@ -101,6 +107,7 @@ func rot64nc(x uint64, z uint) uint64 {
+ 	z &= 63
+ 
+ 	// amd64:"ROLQ"
++	// ppc64:"ROTL"
+ 	// ppc64le:"ROTL"
+ 	a += x<<z | x>>(64-z)
+ 
+@@ -116,6 +123,7 @@ func rot32nc(x uint32, z uint) uint32 {
+ 	z &= 31
+ 
+ 	// amd64:"ROLL"
++	// ppc64:"ROTLW"
+ 	// ppc64le:"ROTLW"
+ 	a += x<<z | x>>(32-z)
+ 
+diff --git a/test/codegen/stack.go b/test/codegen/stack.go
+index 0f2f6178c7..ed2c1ed959 100644
+--- a/test/codegen/stack.go
++++ b/test/codegen/stack.go
+@@ -18,6 +18,7 @@ import "runtime"
+ // arm:"TEXT\t.*, [$]-4-"
+ // arm64:"TEXT\t.*, [$]0-"
+ // mips:"TEXT\t.*, [$]-4-"
++// ppc64:"TEXT\t.*, [$]0-"
+ // ppc64le:"TEXT\t.*, [$]0-"
+ // s390x:"TEXT\t.*, [$]0-"
+ func StackStore() int {
+@@ -37,6 +38,7 @@ type T struct {
+ // arm:"TEXT\t.*, [$]0-" (spills return address)
+ // arm64:"TEXT\t.*, [$]0-"
+ // mips:"TEXT\t.*, [$]-4-"
++// ppc64:"TEXT\t.*, [$]0-"
+ // ppc64le:"TEXT\t.*, [$]0-"
+ // s390x:"TEXT\t.*, [$]0-"
+ func ZeroLargeStruct(x *T) {
+@@ -51,6 +53,7 @@ func ZeroLargeStruct(x *T) {
+ // amd64:"TEXT\t.*, [$]0-"
+ // arm:"TEXT\t.*, [$]0-" (spills return address)
+ // arm64:"TEXT\t.*, [$]0-"
++// ppc64:"TEXT\t.*, [$]0-"
+ // ppc64le:"TEXT\t.*, [$]0-"
+ // s390x:"TEXT\t.*, [$]0-"
+ // Note: that 386 currently has to spill a register.
+@@ -65,6 +68,7 @@ func KeepWanted(t *T) {
+ // - arm & mips fail due to softfloat calls
+ // amd64:"TEXT\t.*, [$]0-"
+ // arm64:"TEXT\t.*, [$]0-"
++// ppc64:"TEXT\t.*, [$]0-"
+ // ppc64le:"TEXT\t.*, [$]0-"
+ // s390x:"TEXT\t.*, [$]0-"
+ func ArrayAdd64(a, b [4]float64) [4]float64 {
+@@ -78,6 +82,7 @@ func ArrayAdd64(a, b [4]float64) [4]float64 {
+ // arm:"TEXT\t.*, [$]0-" (spills return address)
+ // arm64:"TEXT\t.*, [$]0-"
+ // mips:"TEXT\t.*, [$]-4-"
++// ppc64:"TEXT\t.*, [$]0-"
+ // ppc64le:"TEXT\t.*, [$]0-"
+ // s390x:"TEXT\t.*, [$]0-"
+ func ArrayInit(i, j int) [4]int {

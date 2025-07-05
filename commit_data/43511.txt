@@ -32,6 +32,54 @@ Date:   Fri Mar 13 11:09:05 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/runtime-gdb_test.go | 15 +++++++++++++--
  1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 4639e2fcb8..58f410cc59 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -108,6 +108,7 @@ import "fmt"
+ import "runtime"
+ var gslice []string
+ func main() {
++	go func() { select{} }() // ensure a second goroutine is running
+ 	mapvar := make(map[string]string, 13)
+ 	mapvar["abc"] = "def"
+ 	mapvar["ghi"] = "jkl"
+@@ -117,7 +118,7 @@ func main() {
+ 	slicevar = append(slicevar, mapvar["abc"])
+ 	fmt.Println("hi")
+ 	runtime.KeepAlive(ptrvar)
+-	_ = ptrvar
++	_ = ptrvar // set breakpoint here
+ 	gslice = slicevar
+ 	runtime.KeepAlive(mapvar)
+ }  // END_OF_PROGRAM
+@@ -169,6 +170,16 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 
+ 	src := buf.Bytes()
+ 
++	// Locate breakpoint line
++	var bp int
++	lines := bytes.Split(src, []byte("\n"))
++	for i, line := range lines {
++		if bytes.Contains(line, []byte("breakpoint")) {
++			bp = i
++			break
++		}
++	}
++
+ 	err = ioutil.WriteFile(filepath.Join(dir, "main.go"), src, 0644)
+ 	if err != nil {
+ 		t.Fatalf("failed to create file: %v", err)
+@@ -203,7 +214,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 	}
+ 	args = append(args,
+ 		"-ex", "set python print-stack full",
+-		"-ex", "br main.go:15",
++		"-ex", fmt.Sprintf("br main.go:%d", bp),
+ 		"-ex", "run",
+ 		"-ex", "echo BEGIN info goroutines\n",
+ 		"-ex", "info goroutines",

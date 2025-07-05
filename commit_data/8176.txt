@@ -15,6 +15,33 @@ Date:   Thu Apr 21 10:23:03 2011 -0400
     R=golang-dev, rsc1, rsc
     CC=golang-dev
     https://golang.org/cl/4431054
-
+---
  src/pkg/net/dnsclient.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index d3e4049ad2..89f2409bf6 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -313,16 +313,16 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
+ // depending on our lookup code, so that Go and C get the same
+ // answers.
+ func goLookupHost(name string) (addrs []string, err os.Error) {
+-	onceLoadConfig.Do(loadConfig)
+-	if dnserr != nil || cfg == nil {
+-		err = dnserr
+-		return
+-	}
+ 	// Use entries from /etc/hosts if they match.
+ 	addrs = lookupStaticHost(name)
+ 	if len(addrs) > 0 {
+ 		return
+ 	}
++	onceLoadConfig.Do(loadConfig)
++	if dnserr != nil || cfg == nil {
++		err = dnserr
++		return
++	}
+ 	ips, err := goLookupIP(name)
+ 	if err != nil {
+ 		return

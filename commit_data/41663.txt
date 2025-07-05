@@ -11,7 +11,65 @@ Date:   Sun Oct 13 23:06:29 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/init.go      |  8 ++++++++
  src/cmd/compile/internal/gc/typecheck.go | 27 +++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index bb894152c5..03e475e85a 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -73,6 +73,14 @@ func fninit(n []*Node) {
+ 	// Record user init functions.
+ 	for i := 0; i < renameinitgen; i++ {
+ 		s := lookupN("init.", i)
++		fn := asNode(s.Def).Name.Defn
++		// Skip init functions with empty bodies.
++		// noder.go doesn't allow external init functions, and
++		// order.go has already removed any OEMPTY nodes, so
++		// checking Len() == 0 is sufficient here.
++		if fn.Nbody.Len() == 0 {
++			continue
++		}
+ 		fns = append(fns, s.Linksym())
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 6067454a3c..d2ad2f04f0 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3812,6 +3812,33 @@ func checkreturn(fn *Node) {
+ 
+ func deadcode(fn *Node) {
+ 	deadcodeslice(fn.Nbody)
++	deadcodefn(fn)
++}
++
++func deadcodefn(fn *Node) {
++	if fn.Nbody.Len() == 0 {
++		return
++	}
++
++	for _, n := range fn.Nbody.Slice() {
++		if n.Ninit.Len() > 0 {
++			return
++		}
++		switch n.Op {
++		case OIF:
++			if !Isconst(n.Left, CTBOOL) || n.Nbody.Len() > 0 || n.Rlist.Len() > 0 {
++				return
++			}
++		case OFOR:
++			if !Isconst(n.Left, CTBOOL) || n.Left.Bool() {
++				return
++			}
++		default:
++			return
++		}
++	}
++
++	fn.Nbody.Set([]*Node{nod(OEMPTY, nil, nil)})
+ }
+ 
+ func deadcodeslice(nn Nodes) {

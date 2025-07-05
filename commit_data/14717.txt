@@ -12,6 +12,33 @@ Date:   Sat Dec 22 10:50:11 2012 -0500
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6721056
-
+---
  src/pkg/crypto/des/des_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/pkg/crypto/des/des_test.go b/src/pkg/crypto/des/des_test.go
+index e9fc236299..2e87e99b67 100644
+--- a/src/pkg/crypto/des/des_test.go
++++ b/src/pkg/crypto/des/des_test.go
+@@ -1503,3 +1503,21 @@ func TestSubstitutionTableKnownAnswerDecrypt(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func ExampleNewTripleDESCipher() {
++	// NewTripleDESCipher can also be used when EDE2 is required by
++	// duplicating the first 8 bytes of the 16-byte key.
++	ede2Key := []byte("example key 1234")
++
++	var tripleDESKey []byte
++	tripleDESKey = append(tripleDESKey, ede2Key[:16]...)
++	tripleDESKey = append(tripleDESKey, ede2Key[:8]...)
++
++	_, err := NewTripleDESCipher(tripleDESKey)
++	if err != nil {
++		panic(err)
++	}
++
++	// See crypto/cipher for how to use a cipher.Block for encryption and
++	// decryption.
++}

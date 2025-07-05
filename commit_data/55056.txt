@@ -19,6 +19,26 @@ Date:   Fri Dec 9 11:22:32 2022 -0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/os_test.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index f4103907fa..bc27b2db49 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -274,9 +274,11 @@ func TestLstat(t *testing.T) {
+ 	if !equal(sfname, dir.Name()) {
+ 		t.Error("name should be ", sfname, "; is", dir.Name())
+ 	}
+-	filesize := size(path, t)
+-	if dir.Size() != filesize {
+-		t.Error("size should be", filesize, "; is", dir.Size())
++	if dir.Mode()&ModeSymlink == 0 {
++		filesize := size(path, t)
++		if dir.Size() != filesize {
++			t.Error("size should be", filesize, "; is", dir.Size())
++		}
+ 	}
+ }
+ 

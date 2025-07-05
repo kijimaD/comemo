@@ -15,7 +15,51 @@ Date:   Sun Mar 20 02:10:17 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/internal/reflectlite/all_test.go | 5 +++++
  src/internal/reflectlite/type.go     | 9 ++++++++-
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/reflectlite/all_test.go b/src/internal/reflectlite/all_test.go
+index ea750831ef..eb6aaa9c28 100644
+--- a/src/internal/reflectlite/all_test.go
++++ b/src/internal/reflectlite/all_test.go
+@@ -958,6 +958,9 @@ type nameTest struct {
+ 	want string
+ }
+ 
++type A struct{}
++type B[T any] struct{}
++
+ var nameTests = []nameTest{
+ 	{(*int32)(nil), "int32"},
+ 	{(*D1)(nil), "D1"},
+@@ -971,6 +974,8 @@ var nameTests = []nameTest{
+ 		F()
+ 	})(nil), ""},
+ 	{(*TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678)(nil), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
++	{(*B[A])(nil), "B[reflectlite_test.A]"},
++	{(*B[B[A]])(nil), "B[reflectlite_test.B[reflectlite_test.A]]"},
+ }
+ 
+ func TestNames(t *testing.T) {
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 8f649600d2..34677b400e 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -577,7 +577,14 @@ func (t *rtype) Name() string {
+ 	}
+ 	s := t.String()
+ 	i := len(s) - 1
+-	for i >= 0 && s[i] != '.' {
++	sqBrackets := 0
++	for i >= 0 && (s[i] != '.' || sqBrackets != 0) {
++		switch s[i] {
++		case ']':
++			sqBrackets++
++		case '[':
++			sqBrackets--
++		}
+ 		i--
+ 	}
+ 	return s[i+1:]

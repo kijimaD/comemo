@@ -15,9 +15,174 @@ Date:   Wed Oct 5 21:22:33 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go      | 34 ++--------------------------------
  src/runtime/mgcmark.go  |  4 ++--
  src/runtime/mgcsweep.go | 21 ++++++---------------
  src/runtime/mheap.go    |  4 +---
  4 files changed, 11 insertions(+), 52 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index e162ab8b41..94a6e00685 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -815,11 +815,6 @@ var work struct {
+ 	// mode is the concurrency mode of the current GC cycle.
+ 	mode gcMode
+ 
+-	// Snapshot of mheap.allspans for marker or sweeper created by
+-	// gcCopySpans. Unlike allspans, this does not change except
+-	// at controlled GC transition points.
+-	spans []*mspan
+-
+ 	// totaltime is the CPU nanoseconds spent in GC since the
+ 	// program started if debug.gctrace > 0.
+ 	totaltime int64
+@@ -981,7 +976,7 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 	systemstack(stopTheWorldWithSema)
+ 	// Finish sweep before we start concurrent scan.
+ 	systemstack(func() {
+-		finishsweep_m(true)
++		finishsweep_m()
+ 	})
+ 	// clearpools before we start the GC. If we wait they memory will not be
+ 	// reclaimed until the next GC cycle.
+@@ -1018,10 +1013,6 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 		// possible.
+ 		setGCPhase(_GCmark)
+ 
+-		// markrootSpans uses work.spans, so make sure
+-		// it is up to date.
+-		gcCopySpans()
+-
+ 		gcBgMarkPrepare() // Must happen before assist enable.
+ 		gcMarkRootPrepare()
+ 
+@@ -1222,7 +1213,7 @@ func gcMarkTermination() {
+ 			// they have gcscanvalid==true and gcworkdone==true.
+ 			// Reset these so that all stacks will be rescanned.
+ 			gcResetMarkState()
+-			finishsweep_m(true)
++			finishsweep_m()
+ 
+ 			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
+ 			// At this point all objects will be found during the gcMark which
+@@ -1565,8 +1556,6 @@ func gcMark(start_time int64) {
+ 	}
+ 	work.tstart = start_time
+ 
+-	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
+-
+ 	// Queue root marking jobs.
+ 	gcMarkRootPrepare()
+ 
+@@ -1679,7 +1668,6 @@ func gcSweep(mode gcMode) {
+ 	if gcphase != _GCoff {
+ 		throw("gcSweep being done but phase is not GCoff")
+ 	}
+-	gcCopySpans()
+ 
+ 	lock(&mheap_.lock)
+ 	mheap_.sweepgen += 2
+@@ -1735,24 +1723,6 @@ func gcSweep(mode gcMode) {
+ 	unlock(&sweep.lock)
+ }
+ 
+-func gcCopySpans() {
+-	// Cache runtime.mheap_.allspans in work.spans to avoid conflicts with
+-	// resizing/freeing allspans.
+-	// New spans can be created while GC progresses, but they are not garbage for
+-	// this round:
+-	//  - new stack spans can be created even while the world is stopped.
+-	//  - new malloc spans can be created during the concurrent sweep
+-	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+-	lock(&mheap_.lock)
+-	// Free the old cached mark array if necessary.
+-	if work.spans != nil && &work.spans[0] != &mheap_.allspans[0] {
+-		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
+-	}
+-	// Cache the current array for sweeping.
+-	work.spans = mheap_.allspans
+-	unlock(&mheap_.lock)
+-}
+-
+ // gcResetMarkState resets global state prior to marking (concurrent
+ // or STW) and resets the stack scan state of all Gs.
+ //
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index e0f82d496b..e47072d88c 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1421,7 +1421,7 @@ var useCheckmark = false
+ //go:nowritebarrier
+ func initCheckmarks() {
+ 	useCheckmark = true
+-	for _, s := range work.spans {
++	for _, s := range mheap_.allspans {
+ 		if s.state == _MSpanInUse {
+ 			heapBitsForSpan(s.base()).initCheckmarkSpan(s.layout())
+ 		}
+@@ -1430,7 +1430,7 @@ func initCheckmarks() {
+ 
+ func clearCheckmarks() {
+ 	useCheckmark = false
+-	for _, s := range work.spans {
++	for _, s := range mheap_.allspans {
+ 		if s.state == _MSpanInUse {
+ 			heapBitsForSpan(s.base()).clearCheckmarkSpan(s.layout())
+ 		}
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 8119ade5a5..e74a451d0d 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -28,8 +28,13 @@ type sweepdata struct {
+ 	pacertracegen uint32
+ }
+ 
++// finishsweep_m ensures that all spans are swept.
++//
++// The world must be stopped. This ensures there are no sweeps in
++// progress.
++//
+ //go:nowritebarrier
+-func finishsweep_m(stw bool) {
++func finishsweep_m() {
+ 	// Sweeping must be complete before marking commences, so
+ 	// sweep any unswept spans. If this is a concurrent GC, there
+ 	// shouldn't be any spans left to sweep, so this should finish
+@@ -39,20 +44,6 @@ func finishsweep_m(stw bool) {
+ 		sweep.npausesweep++
+ 	}
+ 
+-	// There may be some other spans being swept concurrently that
+-	// we need to wait for. If finishsweep_m is done with the world stopped
+-	// this is not required because the STW must have waited for sweeps.
+-	//
+-	// TODO(austin): As of this writing, we always pass true for stw.
+-	// Consider removing this code.
+-	if !stw {
+-		sg := mheap_.sweepgen
+-		for _, s := range work.spans {
+-			if s.sweepgen != sg && s.state == _MSpanInUse {
+-				s.ensureSwept()
+-			}
+-		}
+-	}
+ 	nextMarkBitArenaEpoch()
+ }
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index a34a5eb1e4..9c691c6887 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -285,9 +285,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ 		}
+ 		oldAllspans := h.allspans
+ 		h.allspans = new
+-		// Don't free the old array if it's referenced by sweep.
+-		// See the comment in mgc.go.
+-		if len(oldAllspans) != 0 && &oldAllspans[0] != &work.spans[0] {
++		if len(oldAllspans) != 0 {
+ 			sysFree(unsafe.Pointer(&oldAllspans[0]), uintptr(cap(oldAllspans))*unsafe.Sizeof(oldAllspans[0]), &memstats.other_sys)
+ 		}
+ 	}

@@ -8,6 +8,23 @@ Date:   Wed Nov 11 22:20:05 2009 -0800
     
     R=ken
     https://golang.org/cl/154079
-
+---
  src/cmd/gc/subr.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 35a3a2f951..75ece477d2 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1138,6 +1138,11 @@ Tpretty(Fmt *fp, Type *t)
+ 			break;
+ 		case 1:
+ 			t1 = getoutargx(t)->type;
++			if(t1 == T) {
++				// failure to typecheck earlier; don't know the type
++				fmtprint(fp, " ?unknown-type?");
++				break;
++			}
+ 			if(t1->etype != TFIELD && t1->etype != TFUNC) {
+ 				fmtprint(fp, " %T", t1);
+ 				break;

@@ -10,6 +10,21 @@ Date:   Mon Feb 5 12:19:08 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/92075
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 9009ec92e1..7db62da34e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5696,6 +5696,8 @@ func TestAtomicCoverpkgAll(t *testing.T) {
+ 	tg.tempFile("src/x/x.go", `package x; import _ "sync/atomic"; func F() {}`)
+ 	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("test", "-coverpkg=all", "-race", "x")
+ 	tg.run("test", "-coverpkg=all", "-covermode=atomic", "x")
++	if canRace {
++		tg.run("test", "-coverpkg=all", "-race", "x")
++	}
+ }

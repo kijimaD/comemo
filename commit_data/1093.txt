@@ -9,6 +9,24 @@ Date:   Fri Nov 7 18:31:50 2008 -0800
     DELTA=6  (6 added, 0 deleted, 0 changed)
     OCL=18839
     CL=18843
-
+---
  src/lib/container/vector.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector.go
+index c646917678..5feea65d46 100644
+--- a/src/lib/container/vector.go
++++ b/src/lib/container/vector.go
+@@ -42,6 +42,12 @@ func (v *Vector) At(i int) Element {
+ }
+ 
+ 
++func (v *Vector) Set(i int, e Element) {
++	// range check unnecessary - done by runtime
++	v.elem[i] = e;
++}
++
++
+ func (v *Vector) Remove(i int) Element {
+ 	ret := v.elem[i];
+ 	n := v.Len();

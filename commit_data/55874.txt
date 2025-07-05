@@ -13,9 +13,192 @@ Date:   Mon Mar 20 21:04:14 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go | 27 +-------------------------
  src/cmd/compile/internal/types2/expr.go | 34 +++++++++++++++++++++++++++++----
  src/go/types/call.go                    | 27 +-------------------------
  src/go/types/expr.go                    | 34 +++++++++++++++++++++++++++++----
  4 files changed, 62 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index db83d58fcc..4a4c77decf 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -265,32 +265,8 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
+ 	switch len(elist) {
+ 	case 0:
+ 		// nothing to do
+-
+ 	case 1:
+-		// single (possibly comma-ok) value, or function returning multiple values
+-		e := elist[0]
+-		var x operand
+-		check.multiExpr(&x, e)
+-		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
+-			// multiple values
+-			xlist = make([]*operand, t.Len())
+-			for i, v := range t.vars {
+-				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
+-			}
+-			break
+-		}
+-
+-		// exactly one (possibly invalid or comma-ok) value
+-		xlist = []*operand{&x}
+-		if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
+-			x2 := &operand{mode: value, expr: e, typ: Typ[UntypedBool]}
+-			if x.mode == commaerr {
+-				x2.typ = universeError
+-			}
+-			xlist = append(xlist, x2)
+-			commaOk = true
+-		}
+-
++		return check.multiExpr(elist[0], allowCommaOk)
+ 	default:
+ 		// multiple (possibly invalid) values
+ 		xlist = make([]*operand, len(elist))
+@@ -300,7 +276,6 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
+ 			xlist[i] = &x
+ 		}
+ 	}
+-
+ 	return
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 2baa80c4fa..72c0186339 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1816,10 +1816,36 @@ func (check *Checker) expr(x *operand, e syntax.Expr) {
+ 	check.singleValue(x)
+ }
+ 
+-// multiExpr is like expr but the result may also be a multi-value.
+-func (check *Checker) multiExpr(x *operand, e syntax.Expr) {
+-	check.rawExpr(x, e, nil, false)
+-	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
++// multiExpr typechecks e and returns its value (or values) in list.
++// If allowCommaOk is set and e is a map index, comma-ok, or comma-err
++// expression, the result is a two-element list containing the value
++// of e, and an untyped bool value or an error value, respectively.
++func (check *Checker) multiExpr(e syntax.Expr, allowCommaOk bool) (list []*operand, commaOk bool) {
++	var x operand
++	check.rawExpr(&x, e, nil, false)
++	check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
++
++	if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
++		// multiple values
++		list = make([]*operand, t.Len())
++		for i, v := range t.vars {
++			list[i] = &operand{mode: value, expr: e, typ: v.typ}
++		}
++		return
++	}
++
++	// exactly one (possibly invalid or comma-ok) value
++	list = []*operand{&x}
++	if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
++		x2 := &operand{mode: value, expr: e, typ: Typ[UntypedBool]}
++		if x.mode == commaerr {
++			x2.typ = universeError
++		}
++		list = append(list, x2)
++		commaOk = true
++	}
++
++	return
+ }
+ 
+ // exprWithHint typechecks expression e and initializes x with the expression value;
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index dbb8411185..bb9bba32c8 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -267,32 +267,8 @@ func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*op
+ 	switch len(elist) {
+ 	case 0:
+ 		// nothing to do
+-
+ 	case 1:
+-		// single (possibly comma-ok) value, or function returning multiple values
+-		e := elist[0]
+-		var x operand
+-		check.multiExpr(&x, e)
+-		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
+-			// multiple values
+-			xlist = make([]*operand, t.Len())
+-			for i, v := range t.vars {
+-				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
+-			}
+-			break
+-		}
+-
+-		// exactly one (possibly invalid or comma-ok) value
+-		xlist = []*operand{&x}
+-		if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
+-			x2 := &operand{mode: value, expr: e, typ: Typ[UntypedBool]}
+-			if x.mode == commaerr {
+-				x2.typ = universeError
+-			}
+-			xlist = append(xlist, x2)
+-			commaOk = true
+-		}
+-
++		return check.multiExpr(elist[0], allowCommaOk)
+ 	default:
+ 		// multiple (possibly invalid) values
+ 		xlist = make([]*operand, len(elist))
+@@ -302,7 +278,6 @@ func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*op
+ 			xlist[i] = &x
+ 		}
+ 	}
+-
+ 	return
+ }
+ 
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 7c87702bd8..4dff5332ea 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1763,10 +1763,36 @@ func (check *Checker) expr(x *operand, e ast.Expr) {
+ 	check.singleValue(x)
+ }
+ 
+-// multiExpr is like expr but the result may also be a multi-value.
+-func (check *Checker) multiExpr(x *operand, e ast.Expr) {
+-	check.rawExpr(x, e, nil, false)
+-	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
++// multiExpr typechecks e and returns its value (or values) in list.
++// If allowCommaOk is set and e is a map index, comma-ok, or comma-err
++// expression, the result is a two-element list containing the value
++// of e, and an untyped bool value or an error value, respectively.
++func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand, commaOk bool) {
++	var x operand
++	check.rawExpr(&x, e, nil, false)
++	check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
++
++	if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
++		// multiple values
++		list = make([]*operand, t.Len())
++		for i, v := range t.vars {
++			list[i] = &operand{mode: value, expr: e, typ: v.typ}
++		}
++		return
++	}
++
++	// exactly one (possibly invalid or comma-ok) value
++	list = []*operand{&x}
++	if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
++		x2 := &operand{mode: value, expr: e, typ: Typ[UntypedBool]}
++		if x.mode == commaerr {
++			x2.typ = universeError
++		}
++		list = append(list, x2)
++		commaOk = true
++	}
++
++	return
+ }
+ 
+ // exprWithHint typechecks expression e and initializes x with the expression value;

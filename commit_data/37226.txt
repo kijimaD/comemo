@@ -40,6 +40,24 @@ Date:   Wed Jul 11 17:35:13 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/transport.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 182390cf01..10b961219b 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -811,12 +811,6 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince
+ 			// carry on.
+ 			continue
+ 		}
+-		if pconn.idleTimer != nil && !pconn.idleTimer.Stop() {
+-			// We picked this conn at the ~same time it
+-			// was expiring and it's trying to close
+-			// itself in another goroutine. Don't use it.
+-			continue
+-		}
+ 		return pconn, pconn.idleAt
+ 	}
+ }

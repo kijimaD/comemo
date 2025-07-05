@@ -27,7 +27,7 @@ Date:   Tue Sep 26 15:14:50 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_test.go          |   1 +
  misc/cgo/test/issue21897.go        |  56 +++++++++++
  misc/cgo/test/issue21897b.go       |  13 +++
@@ -39,3 +39,678 @@ Date:   Tue Sep 26 15:14:50 2017 -0700
  src/cmd/fix/typecheck.go           |  56 +++++++++++
  src/crypto/x509/root_cgo_darwin.go |   6 +-
  10 files changed, 549 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 33228a4f9a..67abfff2c0 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -85,5 +85,6 @@ func Test21708(t *testing.T)                 { test21708(t) }
+ func Test21809(t *testing.T)                 { test21809(t) }
+ func Test6907(t *testing.T)                  { test6907(t) }
+ func Test6907Go(t *testing.T)                { test6907Go(t) }
++func Test21897(t *testing.T)                 { test21897(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue21897.go b/misc/cgo/test/issue21897.go
+new file mode 100644
+index 0000000000..d13246bd84
+--- /dev/null
++++ b/misc/cgo/test/issue21897.go
+@@ -0,0 +1,56 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin,cgo,!internal
++
++package cgotest
++
++/*
++#cgo LDFLAGS: -framework CoreFoundation
++#include <CoreFoundation/CoreFoundation.h>
++*/
++import "C"
++import (
++	"runtime/debug"
++	"testing"
++	"unsafe"
++)
++
++func test21897(t *testing.T) {
++	// Please write barrier, kick in soon.
++	defer debug.SetGCPercent(debug.SetGCPercent(1))
++
++	for i := 0; i < 10000; i++ {
++		testCFNumberRef()
++		testCFDateRef()
++		testCFBooleanRef()
++		// Allocate some memory, so eventually the write barrier is enabled
++		// and it will see writes of bad pointers in the test* functions below.
++		byteSliceSink = make([]byte, 1024)
++	}
++}
++
++var byteSliceSink []byte
++
++func testCFNumberRef() {
++	var v int64 = 0
++	xCFNumberRef = C.CFNumberCreate(C.kCFAllocatorSystemDefault, C.kCFNumberSInt64Type, unsafe.Pointer(&v))
++	//fmt.Printf("CFNumberRef: %x\n", uintptr(unsafe.Pointer(xCFNumberRef)))
++}
++
++var xCFNumberRef C.CFNumberRef
++
++func testCFDateRef() {
++	xCFDateRef = C.CFDateCreate(C.kCFAllocatorSystemDefault, 0) // 0 value is 1 Jan 2001 00:00:00 GMT
++	//fmt.Printf("CFDateRef: %x\n", uintptr(unsafe.Pointer(xCFDateRef)))
++}
++
++var xCFDateRef C.CFDateRef
++
++func testCFBooleanRef() {
++	xCFBooleanRef = C.kCFBooleanFalse
++	//fmt.Printf("CFBooleanRef: %x\n", uintptr(unsafe.Pointer(xCFBooleanRef)))
++}
++
++var xCFBooleanRef C.CFBooleanRef
+diff --git a/misc/cgo/test/issue21897b.go b/misc/cgo/test/issue21897b.go
+new file mode 100644
+index 0000000000..08b5f4d808
+--- /dev/null
++++ b/misc/cgo/test/issue21897b.go
+@@ -0,0 +1,13 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !darwin !cgo internal
++
++package cgotest
++
++import "testing"
++
++func test21897(t *testing.T) {
++	t.Skip("test runs only on darwin+cgo")
++}
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index bc0c5d95fa..c1bdf0659f 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -128,6 +128,10 @@ C.complexfloat (complex float), and C.complexdouble (complex double).
+ The C type void* is represented by Go's unsafe.Pointer.
+ The C types __int128_t and __uint128_t are represented by [16]byte.
+ 
++A few special C types which would normally be represented by a pointer
++type in Go are instead represented by a uintptr.  See the Special
++cases section below.
++
+ To access a struct, union, or enum type directly, prefix it with
+ struct_, union_, or enum_, as in C.struct_stat.
+ 
+@@ -334,6 +338,84 @@ and of course there is nothing stopping the C code from doing anything
+ it likes. However, programs that break these rules are likely to fail
+ in unexpected and unpredictable ways.
+ 
++Special cases
++
++A few special C types which would normally be represented by a pointer
++type in Go are instead represented by a uintptr. Those types are
++the CF*Ref types from the CoreFoundation library on Darwin, including:
++
++	CFAllocatorRef
++	CFArrayRef
++	CFAttributedStringRef
++	CFBagRef
++	CFBinaryHeapRef
++	CFBitVectorRef
++	CFBooleanRef
++	CFBundleRef
++	CFCalendarRef
++	CFCharacterSetRef
++	CFDataRef
++	CFDateFormatterRef
++	CFDateRef
++	CFDictionaryRef
++	CFErrorRef
++	CFFileDescriptorRef
++	CFFileSecurityRef
++	CFLocaleRef
++	CFMachPortRef
++	CFMessagePortRef
++	CFMutableArrayRef
++	CFMutableAttributedStringRef
++	CFMutableBagRef
++	CFMutableBitVectorRef
++	CFMutableCharacterSetRef
++	CFMutableDataRef
++	CFMutableDictionaryRef
++	CFMutableSetRef
++	CFMutableStringRef
++	CFNotificationCenterRef
++	CFNullRef
++	CFNumberFormatterRef
++	CFNumberRef
++	CFPlugInInstanceRef
++	CFPlugInRef
++	CFPropertyListRef
++	CFReadStreamRef
++	CFRunLoopObserverRef
++	CFRunLoopRef
++	CFRunLoopSourceRef
++	CFRunLoopTimerRef
++	CFSetRef
++	CFSocketRef
++	CFStringRef
++	CFStringTokenizerRef
++	CFTimeZoneRef
++	CFTreeRef
++	CFTypeRef
++	CFURLCreateFromFSRef
++	CFURLEnumeratorRef
++	CFURLGetFSRef
++	CFURLRef
++	CFUUIDRef
++	CFUserNotificationRef
++	CFWriteStreamRef
++	CFXMLNodeRef
++	CFXMLParserRef
++	CFXMLTreeRef
++
++These types are uintptr on the Go side because they would otherwise
++confuse the Go garbage collector; they are sometimes not really
++pointers but data structures encoded in a pointer type. All operations
++on these types must happen in C. The proper constant to initialize an
++empty such reference is 0, not nil.
++
++This special case was introduced in Go 1.10. For auto-updating code
++from Go 1.9 and earlier, use the cftype rewrite in the Go fix tool:
++
++	go tool fix -r cftype <pkg>
++
++It will replace nil with 0 in the appropriate places.
++
+ Using cgo directly
+ 
+ Usage:
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 66efc67465..77a59c6633 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2057,6 +2057,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		name := c.Ident("_Ctype_" + dt.Name)
+ 		goIdent[name.Name] = name
+ 		sub := c.Type(dt.Type, pos)
++		if badPointerTypedef(dt.Name) {
++			// Treat this typedef as a uintptr.
++			s := *sub
++			s.Go = c.uintptr
++			sub = &s
++		}
+ 		t.Go = name
+ 		if unionWithPointer[sub.Go] {
+ 			unionWithPointer[t.Go] = true
+@@ -2215,6 +2221,11 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+ 			if _, void := base(ptr.Type).(*dwarf.VoidType); void {
+ 				break
+ 			}
++			// ...or the typedef is one in which we expect bad pointers.
++			// It will be a uintptr instead of *X.
++			if badPointerTypedef(dt.Name) {
++				break
++			}
+ 
+ 			t = c.Type(ptr, pos)
+ 			if t == nil {
+@@ -2547,3 +2558,51 @@ func fieldPrefix(fld []*ast.Field) string {
+ 	}
+ 	return prefix
+ }
++
++// badPointerTypedef reports whether t is a C typedef that should not be considered a pointer in Go.
++// A typedef is bad if C code sometimes stores non-pointers in this type.
++// TODO: Currently our best solution is to find these manually and list them as
++// they come up. A better solution is desired.
++func badPointerTypedef(t string) bool {
++	// The real bad types are CFNumberRef and CFTypeRef.
++	// Sometimes non-pointers are stored in these types.
++	// CFTypeRef is a supertype of those, so it can have bad pointers in it as well.
++	// We return true for the other CF*Ref types just so casting between them is easier.
++	// See comment below for details about the bad pointers.
++	return goos == "darwin" && strings.HasPrefix(t, "CF") && strings.HasSuffix(t, "Ref")
++}
++
++// Comment from Darwin's CFInternal.h
++/*
++// Tagged pointer support
++// Low-bit set means tagged object, next 3 bits (currently)
++// define the tagged object class, next 4 bits are for type
++// information for the specific tagged object class.  Thus,
++// the low byte is for type info, and the rest of a pointer
++// (32 or 64-bit) is for payload, whatever the tagged class.
++//
++// Note that the specific integers used to identify the
++// specific tagged classes can and will change from release
++// to release (that's why this stuff is in CF*Internal*.h),
++// as can the definition of type info vs payload above.
++//
++#if __LP64__
++#define CF_IS_TAGGED_OBJ(PTR)	((uintptr_t)(PTR) & 0x1)
++#define CF_TAGGED_OBJ_TYPE(PTR)	((uintptr_t)(PTR) & 0xF)
++#else
++#define CF_IS_TAGGED_OBJ(PTR)	0
++#define CF_TAGGED_OBJ_TYPE(PTR)	0
++#endif
++
++enum {
++    kCFTaggedObjectID_Invalid = 0,
++    kCFTaggedObjectID_Atom = (0 << 1) + 1,
++    kCFTaggedObjectID_Undefined3 = (1 << 1) + 1,
++    kCFTaggedObjectID_Undefined2 = (2 << 1) + 1,
++    kCFTaggedObjectID_Integer = (3 << 1) + 1,
++    kCFTaggedObjectID_DateTS = (4 << 1) + 1,
++    kCFTaggedObjectID_ManagedObjectID = (5 << 1) + 1, // Core Data
++    kCFTaggedObjectID_Date = (6 << 1) + 1,
++    kCFTaggedObjectID_Undefined7 = (7 << 1) + 1,
++};
++*/
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 9053d6df77..49435880ec 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -915,7 +915,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 	t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
+ 
+ 	if t.internalLink() {
+-		t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=internal", t.runFlag(""))
++		t.addCmd(dt, "misc/cgo/test", "go", "test", "-tags", "internal", "-ldflags", "-linkmode=internal", t.runFlag(""))
+ 	}
+ 
+ 	pair := gohostos + "-" + goarch
+diff --git a/src/cmd/fix/cftype.go b/src/cmd/fix/cftype.go
+new file mode 100644
+index 0000000000..da1627fbfb
+--- /dev/null
++++ b/src/cmd/fix/cftype.go
+@@ -0,0 +1,93 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++	"go/token"
++	"reflect"
++	"strings"
++)
++
++func init() {
++	register(cftypeFix)
++}
++
++var cftypeFix = fix{
++	name:     "cftype",
++	date:     "2017-09-27",
++	f:        cftypefix,
++	desc:     `Fixes initializers of C.CF*Ptr types`,
++	disabled: false,
++}
++
++// Old state:
++//   type CFTypeRef unsafe.Pointer
++// New state:
++//   type CFTypeRef uintptr
++// and similar for other CF*Ref types.
++// This fix finds nils initializing these types and replaces the nils with 0s.
++func cftypefix(f *ast.File) bool {
++	if !imports(f, "C") {
++		return false
++	}
++	typeof, _ := typecheck(&TypeConfig{}, f)
++
++	// step 1: Find all the nils with the offending types.
++	// Compute their replacement.
++	badNils := map[interface{}]ast.Expr{}
++	walk(f, func(n interface{}) {
++		if i, ok := n.(*ast.Ident); ok && i.Name == "nil" && badPointerType(typeof[n]) {
++			badNils[n] = &ast.BasicLit{ValuePos: i.NamePos, Kind: token.INT, Value: "0"}
++		}
++	})
++	if len(badNils) == 0 {
++		return false
++	}
++
++	// step 2: find all uses of the bad nils, replace them with 0.
++	// There's no easy way to map from an ast.Expr to all the places that use them, so
++	// we use reflect to find all such references.
++	exprType := reflect.TypeOf((*ast.Expr)(nil)).Elem()
++	exprSliceType := reflect.TypeOf(([]ast.Expr)(nil))
++	walk(f, func(n interface{}) {
++		if n == nil {
++			return
++		}
++		v := reflect.ValueOf(n)
++		if v.Type().Kind() != reflect.Ptr {
++			return
++		}
++		if v.IsNil() {
++			return
++		}
++		v = v.Elem()
++		if v.Type().Kind() != reflect.Struct {
++			return
++		}
++		for i := 0; i < v.NumField(); i++ {
++			f := v.Field(i)
++			if f.Type() == exprType {
++				if r := badNils[f.Interface()]; r != nil {
++					f.Set(reflect.ValueOf(r))
++				}
++			}
++			if f.Type() == exprSliceType {
++				for j := 0; j < f.Len(); j++ {
++					e := f.Index(j)
++					if r := badNils[e.Interface()]; r != nil {
++						e.Set(reflect.ValueOf(r))
++					}
++				}
++			}
++		}
++	})
++
++	return true
++}
++
++func badPointerType(s string) bool {
++	return strings.HasPrefix(s, "C.CF") && strings.HasSuffix(s, "Ref")
++}
+diff --git a/src/cmd/fix/cftype_test.go b/src/cmd/fix/cftype_test.go
+new file mode 100644
+index 0000000000..adaed2114f
+--- /dev/null
++++ b/src/cmd/fix/cftype_test.go
+@@ -0,0 +1,185 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(cftypeTests, cftypefix)
++}
++
++var cftypeTests = []testCase{
++	{
++		Name: "cftype.localVariable",
++		In: `package main
++
++import "C"
++
++func f() {
++	var x C.CFTypeRef = nil
++	x = nil
++	x, x = nil, nil
++}
++`,
++		Out: `package main
++
++import "C"
++
++func f() {
++	var x C.CFTypeRef = 0
++	x = 0
++	x, x = 0, 0
++}
++`,
++	},
++	{
++		Name: "cftype.globalVariable",
++		In: `package main
++
++import "C"
++
++var x C.CFTypeRef = nil
++
++func f() {
++	x = nil
++}
++`,
++		Out: `package main
++
++import "C"
++
++var x C.CFTypeRef = 0
++
++func f() {
++	x = 0
++}
++`,
++	},
++	{
++		Name: "cftype.EqualArgument",
++		In: `package main
++
++import "C"
++
++var x C.CFTypeRef
++var y = x == nil
++var z = x != nil
++`,
++		Out: `package main
++
++import "C"
++
++var x C.CFTypeRef
++var y = x == 0
++var z = x != 0
++`,
++	},
++	{
++		Name: "cftype.StructField",
++		In: `package main
++
++import "C"
++
++type T struct {
++	x C.CFTypeRef
++}
++
++var t = T{x: nil}
++`,
++		Out: `package main
++
++import "C"
++
++type T struct {
++	x C.CFTypeRef
++}
++
++var t = T{x: 0}
++`,
++	},
++	{
++		Name: "cftype.FunctionArgument",
++		In: `package main
++
++import "C"
++
++func f(x C.CFTypeRef) {
++}
++
++func g() {
++	f(nil)
++}
++`,
++		Out: `package main
++
++import "C"
++
++func f(x C.CFTypeRef) {
++}
++
++func g() {
++	f(0)
++}
++`,
++	},
++	{
++		Name: "cftype.ArrayElement",
++		In: `package main
++
++import "C"
++
++var x = [3]C.CFTypeRef{nil, nil, nil}
++`,
++		Out: `package main
++
++import "C"
++
++var x = [3]C.CFTypeRef{0, 0, 0}
++`,
++	},
++	{
++		Name: "cftype.SliceElement",
++		In: `package main
++
++import "C"
++
++var x = []C.CFTypeRef{nil, nil, nil}
++`,
++		Out: `package main
++
++import "C"
++
++var x = []C.CFTypeRef{0, 0, 0}
++`,
++	},
++	{
++		Name: "cftype.MapKey",
++		In: `package main
++
++import "C"
++
++var x = map[C.CFTypeRef]int{nil: 0}
++`,
++		Out: `package main
++
++import "C"
++
++var x = map[C.CFTypeRef]int{0: 0}
++`,
++	},
++	{
++		Name: "cftype.MapValue",
++		In: `package main
++
++import "C"
++
++var x = map[int]C.CFTypeRef{0: nil}
++`,
++		Out: `package main
++
++import "C"
++
++var x = map[int]C.CFTypeRef{0: 0}
++`,
++	},
++}
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index 0352c49db0..58d915869d 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -498,6 +498,50 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
+ 			// T{...} has type T.
+ 			typeof[n] = gofmt(n.Type)
+ 
++			// Propagate types down to values used in the composite literal.
++			t := expand(typeof[n])
++			if strings.HasPrefix(t, "[") { // array or slice
++				// Lazy: assume there are no nested [] in the array length.
++				if i := strings.Index(t, "]"); i >= 0 {
++					et := t[i+1:]
++					for _, e := range n.Elts {
++						if kv, ok := e.(*ast.KeyValueExpr); ok {
++							e = kv.Value
++						}
++						if typeof[e] == "" {
++							typeof[e] = et
++						}
++					}
++				}
++			}
++			if strings.HasPrefix(t, "map[") { // map
++				// Lazy: assume there are no nested [] in the map key type.
++				if i := strings.Index(t, "]"); i >= 0 {
++					kt, vt := t[4:i], t[i+1:]
++					for _, e := range n.Elts {
++						if kv, ok := e.(*ast.KeyValueExpr); ok {
++							if typeof[kv.Key] == "" {
++								typeof[kv.Key] = kt
++							}
++							if typeof[kv.Value] == "" {
++								typeof[kv.Value] = vt
++							}
++						}
++					}
++				}
++			}
++			if typ := cfg.Type[t]; typ != nil && len(typ.Field) > 0 { // struct
++				for _, e := range n.Elts {
++					if kv, ok := e.(*ast.KeyValueExpr); ok {
++						if ft := typ.Field[fmt.Sprintf("%s", kv.Key)]; ft != "" {
++							if typeof[kv.Value] == "" {
++								typeof[kv.Value] = ft
++							}
++						}
++					}
++				}
++			}
++
+ 		case *ast.ParenExpr:
+ 			// (x) has type of x.
+ 			typeof[n] = typeof[n.X]
+@@ -579,6 +623,18 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
+ 					set(res[i], t[i], false)
+ 				}
+ 			}
++
++		case *ast.BinaryExpr:
++			// Propagate types across binary ops that require two args of the same type.
++			switch n.Op {
++			case token.EQL, token.NEQ: // TODO: more cases. This is enough for the cftype fix.
++				if typeof[n.X] != "" && typeof[n.Y] == "" {
++					typeof[n.Y] = typeof[n.X]
++				}
++				if typeof[n.X] == "" && typeof[n.Y] != "" {
++					typeof[n.X] = typeof[n.Y]
++				}
++			}
+ 		}
+ 	}
+ 	walkBeforeAfter(f, before, after)
+diff --git a/src/crypto/x509/root_cgo_darwin.go b/src/crypto/x509/root_cgo_darwin.go
+index 8e80533590..5f0e5e1888 100644
+--- a/src/crypto/x509/root_cgo_darwin.go
++++ b/src/crypto/x509/root_cgo_darwin.go
+@@ -207,8 +207,8 @@ import (
+ func loadSystemRoots() (*CertPool, error) {
+ 	roots := NewCertPool()
+ 
+-	var data C.CFDataRef = nil
+-	var untrustedData C.CFDataRef = nil
++	var data C.CFDataRef = 0
++	var untrustedData C.CFDataRef = 0
+ 	err := C.FetchPEMRoots(&data, &untrustedData)
+ 	if err == -1 {
+ 		// TODO: better error message
+@@ -218,7 +218,7 @@ func loadSystemRoots() (*CertPool, error) {
+ 	defer C.CFRelease(C.CFTypeRef(data))
+ 	buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
+ 	roots.AppendCertsFromPEM(buf)
+-	if untrustedData == nil {
++	if untrustedData == 0 {
+ 		return roots, nil
+ 	}
+ 	defer C.CFRelease(C.CFTypeRef(untrustedData))

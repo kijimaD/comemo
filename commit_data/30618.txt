@@ -15,7 +15,76 @@ Date:   Wed May 18 09:56:51 2016 -0700
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/driver/types.go      | 16 +++++++++++++---
  src/database/sql/driver/types_test.go | 16 ++++++++++++++++
  2 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/src/database/sql/driver/types.go b/src/database/sql/driver/types.go
+index c93c97a392..8b3cb6c8f6 100644
+--- a/src/database/sql/driver/types.go
++++ b/src/database/sql/driver/types.go
+@@ -198,9 +198,9 @@ func IsScanValue(v interface{}) bool {
+ // Value method is used to return a Value. As a fallback, the provided
+ // argument's underlying type is used to convert it to a Value:
+ // underlying integer types are converted to int64, floats to float64,
+-// and strings to []byte. If the argument is a nil pointer,
+-// ConvertValue returns a nil Value. If the argument is a non-nil
+-// pointer, it is dereferenced and ConvertValue is called
++// bool, string, and []byte to themselves. If the argument is a nil
++// pointer, ConvertValue returns a nil Value. If the argument is a
++// non-nil pointer, it is dereferenced and ConvertValue is called
+ // recursively. Other types are an error.
+ var DefaultParameterConverter defaultConverter
+ 
+@@ -267,6 +267,16 @@ func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
+ 		return int64(u64), nil
+ 	case reflect.Float32, reflect.Float64:
+ 		return rv.Float(), nil
++	case reflect.Bool:
++		return rv.Bool(), nil
++	case reflect.Slice:
++		ek := rv.Type().Elem().Kind()
++		if ek == reflect.Uint8 {
++			return rv.Bytes(), nil
++		}
++		return nil, fmt.Errorf("unsupported type %T, a slice of %s", v, ek)
++	case reflect.String:
++		return rv.String(), nil
+ 	}
+ 	return nil, fmt.Errorf("unsupported type %T, a %s", v, rv.Kind())
+ }
+diff --git a/src/database/sql/driver/types_test.go b/src/database/sql/driver/types_test.go
+index 1ce0ff0654..0379bf8892 100644
+--- a/src/database/sql/driver/types_test.go
++++ b/src/database/sql/driver/types_test.go
+@@ -20,6 +20,16 @@ type valueConverterTest struct {
+ var now = time.Now()
+ var answer int64 = 42
+ 
++type (
++	i  int64
++	f  float64
++	b  bool
++	bs []byte
++	s  string
++	t  time.Time
++	is []int
++)
++
+ var valueConverterTests = []valueConverterTest{
+ 	{Bool, "true", true, ""},
+ 	{Bool, "True", true, ""},
+@@ -41,6 +51,12 @@ var valueConverterTests = []valueConverterTest{
+ 	{DefaultParameterConverter, (*int64)(nil), nil, ""},
+ 	{DefaultParameterConverter, &answer, answer, ""},
+ 	{DefaultParameterConverter, &now, now, ""},
++	{DefaultParameterConverter, i(9), int64(9), ""},
++	{DefaultParameterConverter, f(0.1), float64(0.1), ""},
++	{DefaultParameterConverter, b(true), true, ""},
++	{DefaultParameterConverter, bs{1}, []byte{1}, ""},
++	{DefaultParameterConverter, s("a"), "a", ""},
++	{DefaultParameterConverter, is{1}, nil, "unsupported type driver.is, a slice of int"},
+ }
+ 
+ func TestValueConverters(t *testing.T) {

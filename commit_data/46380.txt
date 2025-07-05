@@ -20,7 +20,7 @@ Date:   Thu Dec 24 18:16:44 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go             | 6 +++---
  src/cmd/compile/internal/ssagen/ssa.go          | 2 +-
  src/cmd/compile/internal/typecheck/expr.go      | 2 +-
@@ -30,3 +30,132 @@ Date:   Thu Dec 24 18:16:44 2020 +0700
  src/cmd/compile/internal/walk/expr.go           | 2 +-
  src/cmd/compile/internal/walk/order.go          | 2 +-
  8 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 4675966090..a79b78fb45 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -776,12 +776,12 @@ func IsZero(n Node) bool {
+ }
+ 
+ // lvalue etc
+-func IsAssignable(n Node) bool {
++func IsAddressable(n Node) bool {
+ 	switch n.Op() {
+ 	case OINDEX:
+ 		n := n.(*IndexExpr)
+ 		if n.X.Type() != nil && n.X.Type().IsArray() {
+-			return IsAssignable(n.X)
++			return IsAddressable(n.X)
+ 		}
+ 		if n.X.Type() != nil && n.X.Type().IsString() {
+ 			return false
+@@ -792,7 +792,7 @@ func IsAssignable(n Node) bool {
+ 
+ 	case ODOT:
+ 		n := n.(*SelectorExpr)
+-		return IsAssignable(n.X)
++		return IsAddressable(n.X)
+ 
+ 	case ONAME:
+ 		n := n.(*Name)
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index cf683e578d..69e1696423 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2736,7 +2736,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		// SSA, then load just the selected field. This
+ 		// prevents false memory dependencies in race/msan
+ 		// instrumentation.
+-		if ir.IsAssignable(n) && !s.canSSA(n) {
++		if ir.IsAddressable(n) && !s.canSSA(n) {
+ 			p := s.addr(n)
+ 			return s.load(n.Type(), p)
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 6bbb68550e..879ae385c7 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -842,7 +842,7 @@ func tcSlice(n *ir.SliceExpr) ir.Node {
+ 		return n
+ 	}
+ 	if l.Type().IsArray() {
+-		if !ir.IsAssignable(n.X) {
++		if !ir.IsAddressable(n.X) {
+ 			base.Errorf("invalid operation %v (slice of unaddressable value)", n)
+ 			n.SetType(nil)
+ 			return n
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index bf43402d3d..87daee123d 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1638,7 +1638,7 @@ func nonexported(sym *types.Sym) bool {
+ }
+ 
+ func checklvalue(n ir.Node, verb string) {
+-	if !ir.IsAssignable(n) {
++	if !ir.IsAddressable(n) {
+ 		base.Errorf("cannot %s %v", verb, n)
+ 	}
+ }
+@@ -1656,7 +1656,7 @@ func checkassign(stmt ir.Node, n ir.Node) {
+ 		}
+ 	}
+ 
+-	if ir.IsAssignable(n) {
++	if ir.IsAddressable(n) {
+ 		return
+ 	}
+ 	if n.Op() == ir.OINDEXMAP {
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index 40b45d4dea..a4ea31bf55 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -155,7 +155,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 	// Chose not to inline. Call equality function directly.
+ 	if !inline {
+ 		// eq algs take pointers; cmpl and cmpr must be addressable
+-		if !ir.IsAssignable(cmpl) || !ir.IsAssignable(cmpr) {
++		if !ir.IsAddressable(cmpl) || !ir.IsAddressable(cmpr) {
+ 			base.Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index fd954d6113..99abf30668 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -178,7 +178,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		// with a non-interface, especially in a switch on interface value
+ 		// with non-interface cases, is not visible to order.stmt, so we
+ 		// have to fall back on allocating a temp here.
+-		if !ir.IsAssignable(v) {
++		if !ir.IsAddressable(v) {
+ 			v = copyExpr(v, v.Type(), init)
+ 		}
+ 		v = typecheck.NodAddr(v)
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 658a579fda..882e455749 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -429,7 +429,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 	}
+ 
+ 	// make a copy; must not be used as an lvalue
+-	if ir.IsAssignable(n) {
++	if ir.IsAddressable(n) {
+ 		base.Fatalf("missing lvalue case in safeexpr: %v", n)
+ 	}
+ 	return cheapExpr(n, init)
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 1fcebf5194..ef95dc14c7 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -235,7 +235,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
+ // because we emit explicit VARKILL instructions marking the end of those
+ // temporaries' lifetimes.
+ func isaddrokay(n ir.Node) bool {
+-	return ir.IsAssignable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
++	return ir.IsAddressable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class_ == ir.PEXTERN || ir.IsAutoTmp(n))
+ }
+ 
+ // addrTemp ensures that n is okay to pass by address to runtime routines.

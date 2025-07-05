@@ -32,7 +32,7 @@ Date:   Fri Sep 9 09:59:21 2022 -0700
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/abt/avlint32.go        | 2 +-
  src/cmd/compile/internal/ssagen/ssa.go          | 2 +-
  src/cmd/compile/internal/syntax/scanner_test.go | 8 ++++----
@@ -42,3 +42,138 @@ Date:   Fri Sep 9 09:59:21 2022 -0700
  src/runtime/trace/annotation_test.go            | 2 +-
  src/runtime/wincallback.go                      | 8 ++++----
  8 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abt/avlint32.go b/src/cmd/compile/internal/abt/avlint32.go
+index eed5fa5d38..e0998f5bac 100644
+--- a/src/cmd/compile/internal/abt/avlint32.go
++++ b/src/cmd/compile/internal/abt/avlint32.go
+@@ -339,7 +339,7 @@ func (t *T) String() string {
+ 		}
+ 		b.WriteString(strconv.FormatInt(int64(k), 10))
+ 		b.WriteString(":")
+-		b.WriteString(fmt.Sprint(v))
++		fmt.Fprint(&b, v)
+ 	}
+ 	return b.String()
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 21b8fbc8ec..88d43b9915 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7271,7 +7271,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 			}
+ 			buf.WriteString("</dt>")
+ 			buf.WriteString("<dd class=\"ssa-prog\">")
+-			buf.WriteString(fmt.Sprintf("%.5d <span class=\"l%v line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString())))
++			fmt.Fprintf(&buf, "%.5d <span class=\"l%v line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString()))
+ 			buf.WriteString("</dd>")
+ 		}
+ 		buf.WriteString("</dl>")
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 2deb3bbf84..450ec1ff8a 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -88,10 +88,10 @@ func TestEmbeddedTokens(t *testing.T) {
+ 	// make source
+ 	var buf bytes.Buffer
+ 	for i, s := range sampleTokens {
+-		buf.WriteString("\t\t\t\t"[:i&3])                            // leading indentation
+-		buf.WriteString(s.src)                                       // token
+-		buf.WriteString("        "[:i&7])                            // trailing spaces
+-		buf.WriteString(fmt.Sprintf("/*line foo:%d */ // bar\n", i)) // comments + newline (don't crash w/o directive handler)
++		buf.WriteString("\t\t\t\t"[:i&3])                 // leading indentation
++		buf.WriteString(s.src)                            // token
++		buf.WriteString("        "[:i&7])                 // trailing spaces
++		fmt.Fprintf(&buf, "/*line foo:%d */ // bar\n", i) // comments + newline (don't crash w/o directive handler)
+ 	}
+ 
+ 	// scan source
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index c6e99d26c2..990f2e5f52 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -577,7 +577,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 		} else {
+ 			b.WriteString("tp")
+ 			// Print out the pointer value for now to disambiguate type params
+-			b.WriteString(fmt.Sprintf("%p", t))
++			fmt.Fprintf(b, "%p", t)
+ 		}
+ 
+ 	case TUNION:
+diff --git a/src/go/types/exprstring.go b/src/go/types/exprstring.go
+index e19d79d9c8..3cdf30fba1 100644
+--- a/src/go/types/exprstring.go
++++ b/src/go/types/exprstring.go
+@@ -33,7 +33,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 
+ 	switch x := x.(type) {
+ 	default:
+-		buf.WriteString(fmt.Sprintf("(ast: %T)", x)) // nil, ast.BadExpr, ast.KeyValueExpr
++		fmt.Fprintf(buf, "(ast: %T)", x) // nil, ast.BadExpr, ast.KeyValueExpr
+ 
+ 	case *ast.Ident:
+ 		buf.WriteString(x.Name)
+diff --git a/src/internal/fmtsort/sort_test.go b/src/internal/fmtsort/sort_test.go
+index 11befca6f1..cddcf70159 100644
+--- a/src/internal/fmtsort/sort_test.go
++++ b/src/internal/fmtsort/sort_test.go
+@@ -147,7 +147,7 @@ func sprint(data any) string {
+ 		}
+ 		b.WriteString(sprintKey(key))
+ 		b.WriteRune(':')
+-		b.WriteString(fmt.Sprint(om.Value[i]))
++		fmt.Fprint(b, om.Value[i])
+ 	}
+ 	return b.String()
+ }
+diff --git a/src/runtime/trace/annotation_test.go b/src/runtime/trace/annotation_test.go
+index 31fccef206..69ea8f2d3b 100644
+--- a/src/runtime/trace/annotation_test.go
++++ b/src/runtime/trace/annotation_test.go
+@@ -147,7 +147,7 @@ func TestUserTaskRegion(t *testing.T) {
+ 		pretty := func(data []testData) string {
+ 			var s strings.Builder
+ 			for _, d := range data {
+-				s.WriteString(fmt.Sprintf("\t%+v\n", d))
++				fmt.Fprintf(&s, "\t%+v\n", d)
+ 			}
+ 			return s.String()
+ 		}
+diff --git a/src/runtime/wincallback.go b/src/runtime/wincallback.go
+index 442a984708..9ec2027f97 100644
+--- a/src/runtime/wincallback.go
++++ b/src/runtime/wincallback.go
+@@ -62,7 +62,7 @@ func genasmArm() {
+ TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
+ `)
+ 	for i := 0; i < maxCallback; i++ {
+-		buf.WriteString(fmt.Sprintf("\tMOVW\t$%d, R12\n", i))
++		fmt.Fprintf(&buf, "\tMOVW\t$%d, R12\n", i)
+ 		buf.WriteString("\tB\truntime·callbackasm1(SB)\n")
+ 	}
+ 
+@@ -90,7 +90,7 @@ func genasmArm64() {
+ TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
+ `)
+ 	for i := 0; i < maxCallback; i++ {
+-		buf.WriteString(fmt.Sprintf("\tMOVD\t$%d, R12\n", i))
++		fmt.Fprintf(&buf, "\tMOVD\t$%d, R12\n", i)
+ 		buf.WriteString("\tB\truntime·callbackasm1(SB)\n")
+ 	}
+ 
+@@ -104,12 +104,12 @@ TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
+ func gengo() {
+ 	var buf bytes.Buffer
+ 
+-	buf.WriteString(fmt.Sprintf(`// Code generated by wincallback.go using 'go generate'. DO NOT EDIT.
++	fmt.Fprintf(&buf, `// Code generated by wincallback.go using 'go generate'. DO NOT EDIT.
+ 
+ package runtime
+ 
+ const cb_max = %d // maximum number of windows callbacks allowed
+-`, maxCallback))
++`, maxCallback)
+ 	err := os.WriteFile("zcallback_windows.go", buf.Bytes(), 0666)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "wincallback: %s\n", err)

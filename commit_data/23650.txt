@@ -12,9 +12,140 @@ Date:   Wed May 27 10:43:53 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10535
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/esc.go | 14 ++++++++------
  src/cmd/compile/internal/gc/go.y   |  4 ++--
  src/cmd/compile/internal/gc/swt.go | 19 ++++++++++---------
  src/cmd/compile/internal/gc/y.go   |  4 ++--
  4 files changed, 22 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 4aae1a32a2..e9ac674952 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -604,9 +604,9 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	if n.Op == OSWITCH && n.Left != nil && n.Left.Op == OTYPESW {
+ 		for ll := n.List; ll != nil; ll = ll.Next { // cases
+ 
+-			// ll->n->nname is the variable per case
+-			if ll.N.Nname != nil {
+-				e.nodeEscState(ll.N.Nname).Escloopdepth = e.loopdepth
++			// ll.N.Rlist is the variable per case
++			if ll.N.Rlist != nil {
++				e.nodeEscState(ll.N.Rlist.N).Escloopdepth = e.loopdepth
+ 			}
+ 		}
+ 	}
+@@ -677,9 +677,11 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		if n.Left != nil && n.Left.Op == OTYPESW {
+ 			for ll := n.List; ll != nil; ll = ll.Next {
+ 				// cases
+-				// ntest->right is the argument of the .(type),
+-				// ll->n->nname is the variable per case
+-				escassign(e, ll.N.Nname, n.Left.Right)
++				// n.Left.Right is the argument of the .(type),
++				// ll.N.Rlist is the variable per case
++				if ll.N.Rlist != nil {
++					escassign(e, ll.N.Rlist.N, n.Left.Right)
++				}
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index c6aeda86c4..23b4240ad6 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -549,7 +549,7 @@ case:
+ 				// type switch - declare variable
+ 				nn = newname(n.Sym);
+ 				declare(nn, dclcontext);
+-				$$.Nname = nn;
++				$$.Rlist = list1(nn);
+ 	
+ 				// keep track of the instances for reporting unused
+ 				nn.Name.Defn = typesw.Right;
+@@ -595,7 +595,7 @@ case:
+ 				// type switch - declare variable
+ 				nn = newname(n.Sym);
+ 				declare(nn, dclcontext);
+-				$$.Nname = nn;
++				$$.Rlist = list1(nn);
+ 	
+ 				// keep track of the instances for reporting unused
+ 				nn.Name.Defn = typesw.Right;
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 82a64571e0..436193fa92 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -165,8 +165,8 @@ func typecheckswitch(n *Node) {
+ 
+ 		if top == Etype && n.Type != nil {
+ 			ll = ncase.List
+-			nvar := ncase.Nname
+-			if nvar != nil {
++			if ncase.Rlist != nil {
++				nvar := ncase.Rlist.N
+ 				if ll != nil && ll.Next == nil && ll.N.Type != nil && !Istype(ll.N.Type, TNIL) {
+ 					// single entry type switch
+ 					nvar.Name.Param.Ntype = typenod(ll.N.Type)
+@@ -176,7 +176,7 @@ func typecheckswitch(n *Node) {
+ 				}
+ 
+ 				typecheck(&nvar, Erv|Easgn)
+-				ncase.Nname = nvar
++				ncase.Rlist.N = nvar
+ 			}
+ 		}
+ 
+@@ -378,9 +378,9 @@ func casebody(sw *Node, typeswvar *Node) {
+ 		}
+ 
+ 		stat = list(stat, Nod(OLABEL, jmp.Left, nil))
+-		if typeswvar != nil && needvar && n.Nname != nil {
+-			l := list1(Nod(ODCL, n.Nname, nil))
+-			l = list(l, Nod(OAS, n.Nname, typeswvar))
++		if typeswvar != nil && needvar && n.Rlist != nil {
++			l := list1(Nod(ODCL, n.Rlist.N, nil))
++			l = list(l, Nod(OAS, n.Rlist.N, typeswvar))
+ 			typechecklist(l, Etop)
+ 			stat = concat(stat, l)
+ 		}
+@@ -645,12 +645,13 @@ func (s *typeSwitch) walk(sw *Node) {
+ // typeone generates an AST that jumps to the
+ // case body if the variable is of type t.
+ func (s *typeSwitch) typeone(t *Node) *Node {
+-	name := t.Nname
++	var name *Node
+ 	var init *NodeList
+-	if name == nil {
+-		typecheck(&nblank, Erv|Easgn)
++	if t.Rlist == nil {
+ 		name = nblank
++		typecheck(&nblank, Erv|Easgn)
+ 	} else {
++		name = t.Rlist.N
+ 		init = list1(Nod(ODCL, name, nil))
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index a8be95dfd9..6bc34834e3 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -1618,7 +1618,7 @@ yydefault:
+ 					// type switch - declare variable
+ 					nn = newname(n.Sym)
+ 					declare(nn, dclcontext)
+-					yyVAL.node.Nname = nn
++					yyVAL.node.Rlist = list1(nn)
+ 
+ 					// keep track of the instances for reporting unused
+ 					nn.Name.Defn = typesw.Right
+@@ -1670,7 +1670,7 @@ yydefault:
+ 					// type switch - declare variable
+ 					nn = newname(n.Sym)
+ 					declare(nn, dclcontext)
+-					yyVAL.node.Nname = nn
++					yyVAL.node.Rlist = list1(nn)
+ 
+ 					// keep track of the instances for reporting unused
+ 					nn.Name.Defn = typesw.Right

@@ -9,7 +9,7 @@ Date:   Fri Jun 17 15:25:05 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4641044
-
+---
  src/cmd/5g/gobj.c        |   4 +
  src/cmd/5g/gsubr.c       |  15 ++++
  src/cmd/6g/gobj.c        |   4 +
@@ -27,3 +27,879 @@ Date:   Fri Jun 17 15:25:05 2011 -0400
  test/fixedbugs/bug274.go |   2 +-
  test/fixedbugs/bug344.go |   6 +-
  16 files changed, 270 insertions(+), 135 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index acece6c0dd..27c8be67d7 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -182,6 +182,8 @@ dumpfuncs(void)
+ 	// fix up pc
+ 	pcloc = 0;
+ 	for(pl=plist; pl!=nil; pl=pl->link) {
++		if(isblank(pl->name))
++			continue;
+ 		for(p=pl->firstpc; p!=P; p=p->link) {
+ 			p->loc = pcloc;
+ 			if(p->as != ADATA && p->as != AGLOBL)
+@@ -191,6 +193,8 @@ dumpfuncs(void)
+ 
+ 	// put out functions
+ 	for(pl=plist; pl!=nil; pl=pl->link) {
++		if(isblank(pl->name))
++			continue;
+ 
+ 		if(debug['S']) {
+ 			s = S;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index caaa3e246f..7f20b4c7df 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -102,6 +102,21 @@ patch(Prog *p, Prog *to)
+ 	p->to.offset = to->loc;
+ }
+ 
++Prog*
++unpatch(Prog *p)
++{
++	Prog *q;
++
++	if(p->to.type != D_BRANCH)
++		fatal("unpatch: not a branch");
++	if(p->to.branch == P)
++		fatal("unpatch: not patched");
++	q = p->to.branch;
++	p->to.branch = P;
++	p->to.offset = 0;
++	return q;
++}
++
+ /*
+  * start a new Prog list.
+  */
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 507764a3bc..ba8a4870ec 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -228,6 +228,8 @@ dumpfuncs(void)
+ 	// fix up pc
+ 	pcloc = 0;
+ 	for(pl=plist; pl!=nil; pl=pl->link) {
++		if(isblank(pl->name))
++			continue;
+ 		for(p=pl->firstpc; p!=P; p=p->link) {
+ 			p->loc = pcloc;
+ 			if(p->as != ADATA && p->as != AGLOBL)
+@@ -237,6 +239,8 @@ dumpfuncs(void)
+ 
+ 	// put out functions
+ 	for(pl=plist; pl!=nil; pl=pl->link) {
++		if(isblank(pl->name))
++			continue;
+ 
+ 		if(debug['S']) {
+ 			s = S;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 49d66e0833..211915f544 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -98,6 +98,19 @@ patch(Prog *p, Prog *to)
+ 	p->to.offset = to->loc;
+ }
+ 
++Prog*
++unpatch(Prog *p)
++{
++	Prog *q;
++
++	if(p->to.type != D_BRANCH)
++		fatal("unpatch: not a branch");
++	q = p->to.branch;
++	p->to.branch = P;
++	p->to.offset = 0;
++	return q;
++}
++
+ /*
+  * start a new Prog list.
+  */
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index bc1dfe8bf6..31c42a3f27 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -226,6 +226,8 @@ dumpfuncs(void)
+ 	// fix up pc
+ 	pcloc = 0;
+ 	for(pl=plist; pl!=nil; pl=pl->link) {
++		if(isblank(pl->name))
++			continue;
+ 		for(p=pl->firstpc; p!=P; p=p->link) {
+ 			p->loc = pcloc;
+ 			if(p->as != ADATA && p->as != AGLOBL)
+@@ -235,6 +237,8 @@ dumpfuncs(void)
+ 
+ 	// put out functions
+ 	for(pl=plist; pl!=nil; pl=pl->link) {
++		if(isblank(pl->name))
++			continue;
+ 
+ 		if(debug['S']) {
+ 			s = S;
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index a8d65cf22f..be306ed922 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -100,6 +100,21 @@ patch(Prog *p, Prog *to)
+ 	p->to.offset = to->loc;
+ }
+ 
++Prog*
++unpatch(Prog *p)
++{
++	Prog *q;
++
++	if(p->to.type != D_BRANCH)
++		fatal("unpatch: not a branch");
++	if(p->to.branch == P)
++		fatal("unpatch: not patched");
++	q = p->to.branch;
++	p->to.branch = P;
++	p->to.offset = 0;
++	return q;
++}
++
+ /*
+  * start a new Prog list.
+  */
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 335d056a06..7290f9d3bb 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -39,6 +39,7 @@ push(void)
+ 	Sym *d;
+ 
+ 	d = mal(sizeof(*d));
++	d->lastlineno = lineno;
+ 	d->link = dclstack;
+ 	dclstack = d;
+ 	return d;
+@@ -60,6 +61,7 @@ void
+ popdcl(void)
+ {
+ 	Sym *d, *s;
++	int lno;
+ 
+ //	if(dflag())
+ //		print("revert\n");
+@@ -68,7 +70,9 @@ popdcl(void)
+ 		if(d->name == nil)
+ 			break;
+ 		s = pkglookup(d->name, d->pkg);
++		lno = s->lastlineno;
+ 		dcopy(s, d);
++		d->lastlineno = lno;
+ 		if(dflag())
+ 			print("\t%L pop %S %p\n", lineno, s, s->def);
+ 	}
+@@ -81,19 +85,12 @@ popdcl(void)
+ void
+ poptodcl(void)
+ {
+-	Sym *d, *s;
+-
+-	for(d=dclstack; d!=S; d=d->link) {
+-		if(d->name == nil)
+-			break;
+-		s = pkglookup(d->name, d->pkg);
+-		dcopy(s, d);
+-		if(dflag())
+-			print("\t%L pop %S\n", lineno, s);
+-	}
+-	if(d == S)
+-		fatal("poptodcl: no mark");
+-	dclstack = d;
++	// pop the old marker and push a new one
++	// (cannot reuse the existing one)
++	// because we use the markers to identify blocks
++	// for the goto restriction checks.
++	popdcl();
++	markdcl();
+ }
+ 
+ void
+@@ -1241,10 +1238,7 @@ funccompile(Node *n, int isclosure)
+ 	stksize = 0;
+ 	dclcontext = PAUTO;
+ 	funcdepth = n->funcdepth + 1;
+-	hasgoto = 0;
+ 	compile(n);
+-	if(hasgoto)
+-		clearstk();
+ 	curfn = nil;
+ 	funcdepth = 0;
+ 	dclcontext = PEXTERN;
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index ad7b65b306..cb66921bae 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -11,6 +11,10 @@
+ 
+ static void	cgen_dcl(Node *n);
+ static void	cgen_proc(Node *n, int proc);
++static void checkgoto(Node*, Node*);
++
++static Label *labellist;
++static Label *lastlabel;
+ 
+ Node*
+ sysfunc(char *name)
+@@ -80,71 +84,122 @@ clearlabels(void)
+ 	lastlabel = L;
+ }
+ 
+-static void
+-newlab(int op, Node *nlab, Node *stmt)
++static Label*
++newlab(Node *n)
+ {
+-	Label *lab;
+ 	Sym *s;
+-	int32 lno;
++	Label *lab;
++	
++	s = n->left->sym;
++	if((lab = s->label) == L) {
++		lab = mal(sizeof(*lab));
++		if(lastlabel == nil)
++			labellist = lab;
++		else
++			lastlabel->link = lab;
++		lastlabel = lab;
++		lab->sym = s;
++		s->label = lab;
++	}
+ 	
+-	s = nlab->left->sym;
+-	lno = nlab->left->lineno;
+-
+-	lab = mal(sizeof(*lab));
+-	if(lastlabel == nil)
+-		labellist = lab;
+-	else
+-		lastlabel->link = lab;
+-	lastlabel = lab;
+-
+-	lab->lineno = lno;
+-	lab->sym = s;
+-	lab->op = op;
+-	lab->label = pc;
+-	lab->stmt = stmt;
+-	if(op == OLABEL) {
+-		if(s->label != L) {
+-			lineno = lno;
+-			yyerror("label %S already defined at %L", s, s->label->lineno);
+-		} else
+-			s->label = lab;
+-	}	
++	if(n->op == OLABEL) {
++		if(lab->def != N)
++			yyerror("label %S already defined at %L", s, lab->def->lineno);
++		else
++			lab->def = n;
++	} else
++		lab->use = list(lab->use, n);
++
++	return lab;
+ }
+ 
+ void
+ checklabels(void)
+ {
+-	Label *l;
+-	Sym *s;
+-	int lno;
++	Label *lab;
++	NodeList *l;
+ 
+-	lno = lineno;
+-	
+-	// resolve goto using syms
+-	for(l=labellist; l!=L; l=l->link) {
+-		switch(l->op) {
+-		case OGOTO:
+-			s = l->sym;
+-			if(s->label == L) {
+-				lineno = l->lineno;
+-				yyerror("label %S not defined", s);
+-				break;
+-			}
+-			s->label->used = 1;
+-			patch(l->label, s->label->label);
+-			break;
++	for(lab=labellist; lab!=L; lab=lab->link) {
++		if(lab->def == N) {
++			for(l=lab->use; l; l=l->next)
++				yyerrorl(l->n->lineno, "label %S not defined", lab->sym);
++			continue;
+ 		}
++		if(lab->use == nil && !lab->used) {
++			yyerrorl(lab->def->lineno, "label %S defined and not used", lab->sym);
++			continue;
++		}
++		if(lab->gotopc != P)
++			fatal("label %S never resolved", lab->sym);
++		for(l=lab->use; l; l=l->next)
++			checkgoto(l->n, lab->def);
+ 	}
+-	
+-	// diagnose unused labels
+-	for(l=labellist; l!=L; l=l->link) {
+-		if(l->op == OLABEL && !l->used) {
+-			lineno = l->lineno;
+-			yyerror("label %S defined and not used", l->sym);
++}
++
++static void
++checkgoto(Node *from, Node *to)
++{
++	int nf, nt;
++	Sym *block, *dcl, *fs, *ts;
++	int lno;
++
++	if(from->sym == to->sym)
++		return;
++
++	nf = 0;
++	for(fs=from->sym; fs; fs=fs->link)
++		nf++;
++	nt = 0;
++	for(fs=to->sym; fs; fs=fs->link)
++		nt++;
++	fs = from->sym;
++	for(; nf > nt; nf--)
++		fs = fs->link;
++	if(fs != to->sym) {
++		lno = lineno;
++		setlineno(from);
++
++		// decide what to complain about.
++		// prefer to complain about 'into block' over declarations,
++		// so scan backward to find most recent block or else dcl.
++		block = S;
++		dcl = S;
++		ts = to->sym;
++		for(; nt > nf; nt--) {
++			if(ts->pkg == nil)
++				block = ts;
++			else
++				dcl = ts;
++			ts = ts->link;
+ 		}
++		while(ts != fs) {
++			if(ts->pkg == nil)
++				block = ts;
++			else
++				dcl = ts;
++			ts = ts->link;
++			fs = fs->link;
++		}
++
++		if(block)
++			yyerror("goto %S jumps into block starting at %L", from->left->sym, block->lastlineno);
++		else
++			yyerror("goto %S jumps over declaration of %S at %L", from->left->sym, dcl, dcl->lastlineno);
++		lineno = lno;
+ 	}
+-	
+-	lineno = lno;
++}
++
++static Label*
++stmtlabel(Node *n)
++{
++	Label *lab;
++
++	if(n->sym != S)
++	if((lab = n->sym->label) != L)
++	if(lab->def != N)
++	if(lab->def->right == n)
++		return lab;
++	return L;
+ }
+ 
+ /*
+@@ -193,11 +248,6 @@ gen(Node *n)
+ 		break;
+ 
+ 	case OEMPTY:
+-		// insert no-op so that
+-		//	L:; for { }
+-		// does not treat L as a label for the loop.
+-		if(lastlabel != L && lastlabel->label == p3)
+-			gused(N);
+ 		break;
+ 
+ 	case OBLOCK:
+@@ -205,13 +255,41 @@ gen(Node *n)
+ 		break;
+ 
+ 	case OLABEL:
+-		newlab(OLABEL, n, n->right);
++		lab = newlab(n);
++
++		// if there are pending gotos, resolve them all to the current pc.
++		for(p1=lab->gotopc; p1; p1=p2) {
++			p2 = unpatch(p1);
++			patch(p1, pc);
++		}
++		lab->gotopc = P;
++		if(lab->labelpc == P)
++			lab->labelpc = pc;
++
++		if(n->right) {
++			switch(n->right->op) {
++			case OFOR:
++			case OSWITCH:
++			case OSELECT:
++				// so stmtlabel can find the label
++				n->right->sym = lab->sym;
++			}
++		}
+ 		break;
+ 
+ 	case OGOTO:
+-		hasgoto = 1;
+-		newlab(OGOTO, n, N);
+-		gjmp(P);
++		// if label is defined, emit jump to it.
++		// otherwise save list of pending gotos in lab->gotopc.
++		// the list is linked through the normal jump target field
++		// to avoid a second list.  (the jumps are actually still
++		// valid code, since they're just going to another goto
++		// to the same label.  we'll unwind it when we learn the pc
++		// of the label in the OLABEL case above.)
++		lab = newlab(n);
++		if(lab->labelpc != P)
++			gjmp(lab->labelpc);
++		else
++			lab->gotopc = gjmp(lab->gotopc);
+ 		break;
+ 
+ 	case OBREAK:
+@@ -266,12 +344,10 @@ gen(Node *n)
+ 		continpc = pc;
+ 
+ 		// define break and continue labels
+-		if((lab = lastlabel) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n) {
++		if((lab = stmtlabel(n)) != L) {
+ 			lab->breakpc = breakpc;
+ 			lab->continpc = continpc;
+-		} else
+-			lab = L;
+-
++		}
+ 		gen(n->nincr);				// contin:	incr
+ 		patch(p1, pc);				// test:
+ 		bgen(n->ntest, 0, breakpc);		//		if(!test) goto break
+@@ -304,10 +380,8 @@ gen(Node *n)
+ 		breakpc = gjmp(P);		// break:	goto done
+ 
+ 		// define break label
+-		if((lab = lastlabel) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n)
++		if((lab = stmtlabel(n)) != L)
+ 			lab->breakpc = breakpc;
+-		else
+-			lab = L;
+ 
+ 		patch(p1, pc);				// test:
+ 		genlist(n->nbody);				//		switch(test) body
+@@ -323,10 +397,8 @@ gen(Node *n)
+ 		breakpc = gjmp(P);		// break:	goto done
+ 
+ 		// define break label
+-		if((lab = lastlabel) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n)
++		if((lab = stmtlabel(n)) != L)
+ 			lab->breakpc = breakpc;
+-		else
+-			lab = L;
+ 
+ 		patch(p1, pc);				// test:
+ 		genlist(n->nbody);				//		select() body
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index a689d603d1..b68768165e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -278,6 +278,7 @@ struct	Node
+ 	int32	iota;
+ };
+ #define	N	((Node*)0)
++EXTERN	int32	walkgen;
+ 
+ struct	NodeList
+ {
+@@ -632,21 +633,20 @@ typedef struct	Prog Prog;
+ 
+ struct	Label
+ {
+-	uchar	op;		// OGOTO/OLABEL
+ 	uchar	used;
+ 	Sym*	sym;
+-	Node*	stmt;
+-	Prog*	label;		// pointer to code
++	Node*	def;
++	NodeList*	use;
++	Label*	link;
++	
++	// for use during gen
++	Prog*	gotopc;	// pointer to unresolved gotos
++	Prog*	labelpc;	// pointer to code
+ 	Prog*	breakpc;	// pointer to code
+ 	Prog*	continpc;	// pointer to code
+-	Label*	link;
+-	int32	lineno;
+ };
+ #define	L	((Label*)0)
+ 
+-EXTERN	Label*	labellist;
+-EXTERN	Label*	lastlabel;
+-
+ /*
+  * note this is the runtime representation
+  * of the compilers arrays.
+@@ -691,6 +691,7 @@ EXTERN	char*	infile;
+ EXTERN	char*	outfile;
+ EXTERN	Biobuf*	bout;
+ EXTERN	int	nerrors;
++EXTERN	int	nsavederrors;
+ EXTERN	int	nsyntaxerrors;
+ EXTERN	int	safemode;
+ EXTERN	char	namebuf[NSYMB];
+@@ -913,8 +914,8 @@ Type*	pkgtype(Sym *s);
+ void	allocparams(void);
+ void	cgen_as(Node *nl, Node *nr);
+ void	cgen_callmeth(Node *n, int proc);
+-void	checklabels(void);
+ void	clearlabels(void);
++void	checklabels(void);
+ int	dotoffset(Node *n, int *oary, Node **nn);
+ void	gen(Node *n);
+ void	genlist(NodeList *l);
+@@ -1132,6 +1133,7 @@ Type*	ptrto(Type *t);
+ void*	remal(void *p, int32 on, int32 n);
+ Sym*	restrictlookup(char *name, Pkg *pkg);
+ Node*	safeexpr(Node *n, NodeList **init);
++void	saveerrors(void);
+ Node*	cheapexpr(Node *n, NodeList **init);
+ int32	setlineno(Node *n);
+ void	setmaxarg(Type *t);
+@@ -1252,11 +1254,10 @@ Plist*	newplist(void);
+ Node*	nodarg(Type*, int);
+ void	nopout(Prog*);
+ void	patch(Prog*, Prog*);
++Prog*	unpatch(Prog*);
+ void	zfile(Biobuf *b, char *p, int n);
+ void	zhist(Biobuf *b, int line, vlong offset);
+ void	zname(Biobuf *b, Sym *s, int t);
+ void	data(void);
+ void	text(void);
+ 
+-EXTERN	int	hasgoto;
+-void	clearstk(void);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 1278c25863..5d28c0e3b6 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -66,7 +66,7 @@ static void fixlbrace(int);
+ %type	<node>	switch_stmt uexpr
+ %type	<node>	xfndcl typedcl
+ 
+-%type	<list>	xdcl fnbody fnres switch_body loop_body dcl_name_list
++%type	<list>	xdcl fnbody fnres loop_body dcl_name_list
+ %type	<list>	new_name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
+ %type	<list>	oexpr_list caseblock_list stmt_list oarg_type_list_ocomma arg_type_list
+ %type	<list>	interfacedcl_list vardcl vardcl_list structdcl structdcl_list
+@@ -449,7 +449,7 @@ case:
+ 		// will be converted to OCASE
+ 		// right will point to next case
+ 		// done in casebody()
+-		poptodcl();
++		markdcl();
+ 		$$ = nod(OXCASE, N, N);
+ 		$$->list = $2;
+ 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
+@@ -468,7 +468,7 @@ case:
+ 		// will be converted to OCASE
+ 		// right will point to next case
+ 		// done in casebody()
+-		poptodcl();
++		markdcl();
+ 		$$ = nod(OXCASE, N, N);
+ 		if($2->next == nil)
+ 			n = nod(OAS, $2->n, $4);
+@@ -484,7 +484,7 @@ case:
+ 		// will be converted to OCASE
+ 		// right will point to next case
+ 		// done in casebody()
+-		poptodcl();
++		markdcl();
+ 		$$ = nod(OXCASE, N, N);
+ 		$$->list = list1(colas($2, list1($4)));
+ 	}
+@@ -492,7 +492,7 @@ case:
+ 	{
+ 		Node *n;
+ 
+-		poptodcl();
++		markdcl();
+ 		$$ = nod(OXCASE, N, N);
+ 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
+ 			// type switch - declare variable
+@@ -514,17 +514,6 @@ compound_stmt:
+ 		popdcl();
+ 	}
+ 
+-switch_body:
+-	LBODY
+-	{
+-		markdcl();
+-	}
+-	caseblock_list '}'
+-	{
+-		$$ = $3;
+-		popdcl();
+-	}
+-
+ caseblock:
+ 	case
+ 	{
+@@ -553,6 +542,7 @@ caseblock:
+ 			yyerror("missing statement after label");
+ 		$$ = $1;
+ 		$$->nbody = $3;
++		popdcl();
+ 	}
+ 
+ caseblock_list:
+@@ -674,11 +664,11 @@ switch_stmt:
+ 			n = N;
+ 		typesw = nod(OXXX, typesw, n);
+ 	}
+-	switch_body
++	LBODY caseblock_list '}'
+ 	{
+ 		$$ = $3;
+ 		$$->op = OSWITCH;
+-		$$->list = $5;
++		$$->list = $6;
+ 		typesw = typesw->left;
+ 		popdcl();
+ 	}
+@@ -686,15 +676,13 @@ switch_stmt:
+ select_stmt:
+ 	LSELECT
+ 	{
+-		markdcl();
+ 		typesw = nod(OXXX, typesw, N);
+ 	}
+-	switch_body
++	LBODY caseblock_list '}'
+ 	{
+ 		$$ = nod(OSELECT, N, N);
+-		$$->list = $3;
++		$$->list = $4;
+ 		typesw = typesw->left;
+-		popdcl();
+ 	}
+ 
+ /*
+@@ -1474,13 +1462,19 @@ non_dcl_stmt:
+ 		$$ = $1;
+ 		$$->nelse = list1($3);
+ 	}
+-|	labelname ':' stmt
++|	labelname ':'
++	{
++		$1 = nod(OLABEL, $1, N);
++		$1->sym = dclstack;  // context, for goto restrictions
++	}
++	stmt
+ 	{
+ 		NodeList *l;
+ 
+-		l = list1(nod(OLABEL, $1, $3));
+-		if($3)
+-			l = list(l, $3);
++		$1->right = $4;
++		l = list1($1);
++		if($4)
++			l = list(l, $4);
+ 		$$ = liststmt(l);
+ 	}
+ |	LFALL
+@@ -1507,6 +1501,7 @@ non_dcl_stmt:
+ |	LGOTO new_name
+ 	{
+ 		$$ = nod(OGOTO, $2, N);
++		$$->sym = dclstack;  // context, for goto restrictions
+ 	}
+ |	LRETURN oexpr_list
+ 	{
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 88acb60af1..5c642375a3 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -97,7 +97,7 @@ fault(int s)
+ 	// in the program, don't bother complaining
+ 	// about the seg fault too; let the user clean up
+ 	// the code and try again.
+-	if(nerrors > 0)
++	if(nsavederrors + nerrors > 0)
+ 		errorexit();
+ 	fatal("fault");
+ }
+@@ -256,7 +256,10 @@ main(int argc, char *argv[])
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC) {
+ 			curfn = l->n;
++			saveerrors();
+ 			typechecklist(l->n->nbody, Etop);
++			if(nerrors != 0)
++				l->n->nbody = nil;  // type errors; do not compile
+ 		}
+ 	curfn = nil;
+ 
+@@ -264,7 +267,7 @@ main(int argc, char *argv[])
+ 		if(l->n->op == ODCLFUNC)
+ 			funccompile(l->n, 0);
+ 
+-	if(nerrors == 0)
++	if(nsavederrors+nerrors == 0)
+ 		fninit(xtop);
+ 
+ 	while(closures) {
+@@ -278,12 +281,12 @@ main(int argc, char *argv[])
+ 		if(l->n->op == ONAME)
+ 			typecheck(&l->n, Erv);
+ 
+-	if(nerrors)
++	if(nerrors+nsavederrors)
+ 		errorexit();
+ 
+ 	dumpobj();
+ 
+-	if(nerrors)
++	if(nerrors+nsavederrors)
+ 		errorexit();
+ 
+ 	flusherrors();
+@@ -291,6 +294,13 @@ main(int argc, char *argv[])
+ 	return 0;
+ }
+ 
++void
++saveerrors(void)
++{
++	nsavederrors += nerrors;
++	nerrors = 0;
++}
++
+ static int
+ arsize(Biobuf *b, char *name)
+ {
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 9a8fa31388..552e405d8b 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -30,6 +30,8 @@ compile(Node *fn)
+ 	if(fn->nbody == nil)
+ 		return;
+ 
++	saveerrors();
++
+ 	// set up domain for labels
+ 	clearlabels();
+ 
+@@ -53,7 +55,7 @@ compile(Node *fn)
+ 
+ 	hasdefer = 0;
+ 	walk(curfn);
+-	if(nerrors != 0 || isblank(curfn->nname))
++	if(nerrors != 0)
+ 		goto ret;
+ 
+ 	allocparams();
+@@ -67,7 +69,7 @@ compile(Node *fn)
+ 	setlineno(curfn);
+ 
+ 	nodconst(&nod1, types[TINT32], 0);
+-	ptxt = gins(ATEXT, curfn->nname, &nod1);
++	ptxt = gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
+ 	afunclit(&ptxt->from);
+ 
+ 	ginit();
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 04dc1a5077..dfe0f30f77 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2716,6 +2716,11 @@ typecheckdef(Node *n)
+ 	default:
+ 		fatal("typecheckdef %O", n->op);
+ 
++	case OGOTO:
++	case OLABEL:
++		// not really syms
++		break;
++
+ 	case OLITERAL:
+ 		if(n->ntype != N) {
+ 			typecheck(&n->ntype, Etype);
+@@ -2772,7 +2777,7 @@ typecheckdef(Node *n)
+ 		if(n->defn == N) {
+ 			if(n->etype != 0)	// like OPRINTN
+ 				break;
+-			if(nerrors > 0) {
++			if(nsavederrors+nerrors > 0) {
+ 				// Can have undefined variables in x := foo
+ 				// that make x have an n->ndefn == nil.
+ 				// If there are other errors anyway, don't
+diff --git a/test/fixedbugs/bug238.go b/test/fixedbugs/bug238.go
+index 7e8660d37e..4d5a905f05 100644
+--- a/test/fixedbugs/bug238.go
++++ b/test/fixedbugs/bug238.go
+@@ -19,4 +19,3 @@ const h bool = false
+ const i int = 2
+ const j float64 = 5
+ 
+-func main() { println(a, b, c, d, e, f, g) }
+diff --git a/test/fixedbugs/bug274.go b/test/fixedbugs/bug274.go
+index 348aed429e..81ee9e5b8a 100644
+--- a/test/fixedbugs/bug274.go
++++ b/test/fixedbugs/bug274.go
+@@ -25,6 +25,6 @@ func main() {
+ 		L1:  // ERROR "statement"
+ 	default:
+ 		     // correct since no semicolon is required before a '}'
+-		L2:  // GCCGO_ERROR "not used"
++		L2:  // ERROR "not used"
+ 	}
+ }
+diff --git a/test/fixedbugs/bug344.go b/test/fixedbugs/bug344.go
+index 2a20dcf6ff..d217b3bd3e 100644
+--- a/test/fixedbugs/bug344.go
++++ b/test/fixedbugs/bug344.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug344
++// errchk $G -e $D/$F.go
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -14,7 +14,9 @@ func main() {
+ 	i := 42
+ 	a := []*int{&i, &i, &i, &i}
+ 	x := a[0]
+-	goto start
++	goto start  // ERROR "goto start jumps into block"
++	z := 1
++	_ = z
+ 	for _, x = range a {
+ 	start:
+ 		fmt.Sprint(*x)

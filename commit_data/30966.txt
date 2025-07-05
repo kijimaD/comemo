@@ -11,7 +11,7 @@ Date:   Wed Jan 4 10:30:28 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 22 ++++++++++++++++++++++
  src/cmd/go/pkg.go                                  |  4 ++++
  src/cmd/go/testdata/src/empty/pkg/pkg.go           |  1 +
@@ -27,3 +27,136 @@ Date:   Wed Jan 4 10:30:28 2017 -0500
  .../go/testdata/src/empty/testxtest/xtest_test.go  |  1 +
  src/cmd/go/testdata/src/empty/xtest/xtest_test.go  |  1 +
  14 files changed, 38 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5665eb745a..f7ea6c8bbd 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2247,6 +2247,28 @@ func TestCoverageImportMainLoop(t *testing.T) {
+ 	tg.grepStderr("not an importable package", "did not detect import main")
+ }
+ 
++func TestTestEmpty(t *testing.T) {
++	if !canRace {
++		t.Skip("no race detector")
++	}
++
++	wd, _ := os.Getwd()
++	testdata := filepath.Join(wd, "testdata")
++
++	for _, dir := range []string{"pkg", "test", "xtest", "pkgtest", "pkgxtest", "pkgtestxtest", "testxtest"} {
++		t.Run(dir, func(t *testing.T) {
++			tg := testgo(t)
++			defer tg.cleanup()
++			tg.setenv("GOPATH", testdata)
++			tg.cd(filepath.Join(testdata, "src/empty/"+dir))
++			tg.run("test", "-cover", "-coverpkg=.", "-race")
++		})
++		if testing.Short() {
++			break
++		}
++	}
++}
++
+ func TestBuildDryRunWithCgo(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("skipping because cgo not enabled")
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 98e722b9f5..d69fa5118f 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -955,6 +955,10 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		if p.Name == "main" && goarch == "arm" {
+ 			importPaths = append(importPaths, "math")
+ 		}
++		// In coverage atomic mode everything depends on sync/atomic.
++		if testCoverMode == "atomic" && (!p.Standard || (p.ImportPath != "runtime/cgo" && p.ImportPath != "runtime/race" && p.ImportPath != "sync/atomic")) {
++			importPaths = append(importPaths, "sync/atomic")
++		}
+ 	}
+ 
+ 	// Runtime and its internal packages depend on runtime/internal/sys,
+diff --git a/src/cmd/go/testdata/src/empty/pkg/pkg.go b/src/cmd/go/testdata/src/empty/pkg/pkg.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/pkg/pkg.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/empty/pkgtest/pkg.go b/src/cmd/go/testdata/src/empty/pkgtest/pkg.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/pkgtest/pkg.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/empty/pkgtest/test_test.go b/src/cmd/go/testdata/src/empty/pkgtest/test_test.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/pkgtest/test_test.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/empty/pkgtestxtest/pkg.go b/src/cmd/go/testdata/src/empty/pkgtestxtest/pkg.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/pkgtestxtest/pkg.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/empty/pkgtestxtest/test_test.go b/src/cmd/go/testdata/src/empty/pkgtestxtest/test_test.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/pkgtestxtest/test_test.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/empty/pkgtestxtest/xtest_test.go b/src/cmd/go/testdata/src/empty/pkgtestxtest/xtest_test.go
+new file mode 100644
+index 0000000000..9b64e8e1a2
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/pkgtestxtest/xtest_test.go
+@@ -0,0 +1 @@
++package p_test
+diff --git a/src/cmd/go/testdata/src/empty/pkgxtest/pkg.go b/src/cmd/go/testdata/src/empty/pkgxtest/pkg.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/pkgxtest/pkg.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/empty/pkgxtest/xtest_test.go b/src/cmd/go/testdata/src/empty/pkgxtest/xtest_test.go
+new file mode 100644
+index 0000000000..9b64e8e1a2
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/pkgxtest/xtest_test.go
+@@ -0,0 +1 @@
++package p_test
+diff --git a/src/cmd/go/testdata/src/empty/test/test_test.go b/src/cmd/go/testdata/src/empty/test/test_test.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/test/test_test.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/empty/testxtest/test_test.go b/src/cmd/go/testdata/src/empty/testxtest/test_test.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/testxtest/test_test.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/empty/testxtest/xtest_test.go b/src/cmd/go/testdata/src/empty/testxtest/xtest_test.go
+new file mode 100644
+index 0000000000..9b64e8e1a2
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/testxtest/xtest_test.go
+@@ -0,0 +1 @@
++package p_test
+diff --git a/src/cmd/go/testdata/src/empty/xtest/xtest_test.go b/src/cmd/go/testdata/src/empty/xtest/xtest_test.go
+new file mode 100644
+index 0000000000..9b64e8e1a2
+--- /dev/null
++++ b/src/cmd/go/testdata/src/empty/xtest/xtest_test.go
+@@ -0,0 +1 @@
++package p_test

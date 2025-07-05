@@ -9,7 +9,34 @@ Date:   Tue Mar 15 17:45:10 2016 -0400
     Change-Id: Ifcaf8572bfe815ffaa78442a1991f6e20e990a50
     Reviewed-on: https://go-review.googlesource.com/20740
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/debug/garbage.go | 2 +-
  src/runtime/heapdump.go      | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 2fb85a652c..4d3ca79a81 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -155,7 +155,7 @@ func SetPanicOnFault(enabled bool) bool {
+ 
+ // WriteHeapDump writes a description of the heap and the objects in
+ // it to the given file descriptor.
+-// The heap dump format is defined at https://golang.org/s/go13heapdump.
++// The heap dump format is defined at https://golang.org/s/go15heapdump.
+ func WriteHeapDump(fd uintptr)
+ 
+ // SetTraceback sets the amount of detail printed by the runtime in
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index ae63b2182c..e6a41f7f97 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -7,7 +7,7 @@
+ // finalizers, etc.) to a file.
+ 
+ // The format of the dumped file is described at
+-// https://golang.org/s/go14heapdump.
++// https://golang.org/s/go15heapdump.
+ 
+ package runtime
+ 

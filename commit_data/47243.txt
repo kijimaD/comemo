@@ -14,7 +14,40 @@ Date:   Thu Mar 4 20:56:01 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
  test/fixedbugs/issue24470.go                    | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 030158b1a1..647465af4f 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -876,7 +876,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 	case ir.OTYPESW:
+ 		n := n.(*ir.TypeSwitchGuard)
+ 		base.Errorf("use of .(type) outside type switch")
+-		n.SetType(nil)
++		n.SetDiag(true)
+ 		return n
+ 
+ 	case ir.ODCLFUNC:
+diff --git a/test/fixedbugs/issue24470.go b/test/fixedbugs/issue24470.go
+index 2805998cca..5b7b2b5adf 100644
+--- a/test/fixedbugs/issue24470.go
++++ b/test/fixedbugs/issue24470.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -10,7 +10,7 @@
+ package p
+ 
+ func f(i interface{}) {
+-	if x, ok := i.(type); ok { // ERROR "outside type switch"
++	if x, ok := i.(type); ok { // ERROR "assignment mismatch|outside type switch"
+ 		_ = x
+ 	}
+ }

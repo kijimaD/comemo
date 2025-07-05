@@ -10,7 +10,45 @@ Date:   Fri Mar 7 16:59:11 2014 -0800
     R=golang-codereviews, gri
     CC=golang-codereviews
     https://golang.org/cl/72570044
-
+---
  src/pkg/net/rpc/jsonrpc/all_test.go | 1 -
  src/pkg/net/rpc/jsonrpc/server.go   | 6 ++----
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/rpc/jsonrpc/all_test.go b/src/pkg/net/rpc/jsonrpc/all_test.go
+index 07913572aa..a433a365e8 100644
+--- a/src/pkg/net/rpc/jsonrpc/all_test.go
++++ b/src/pkg/net/rpc/jsonrpc/all_test.go
+@@ -205,7 +205,6 @@ func TestMalformedOutput(t *testing.T) {
+ }
+ 
+ func TestServerErrorHasNullResult(t *testing.T) {
+-	t.Skip("Known failing test; Issue 7442")
+ 	var out bytes.Buffer
+ 	sc := NewServerCodec(struct {
+ 		io.Reader
+diff --git a/src/pkg/net/rpc/jsonrpc/server.go b/src/pkg/net/rpc/jsonrpc/server.go
+index 16ec0fe9ad..e6d37cfa64 100644
+--- a/src/pkg/net/rpc/jsonrpc/server.go
++++ b/src/pkg/net/rpc/jsonrpc/server.go
+@@ -100,7 +100,6 @@ func (c *serverCodec) ReadRequestBody(x interface{}) error {
+ var null = json.RawMessage([]byte("null"))
+ 
+ func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) error {
+-	var resp serverResponse
+ 	c.mutex.Lock()
+ 	b, ok := c.pending[r.Seq]
+ 	if !ok {
+@@ -114,10 +113,9 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) error {
+ 		// Invalid request so no id.  Use JSON null.
+ 		b = &null
+ 	}
+-	resp.Id = b
+-	resp.Result = x
++	resp := serverResponse{Id: b}
+ 	if r.Error == "" {
+-		resp.Error = nil
++		resp.Result = x
+ 	} else {
+ 		resp.Error = r.Error
+ 	}

@@ -18,6 +18,50 @@ Date:   Wed May 23 14:01:21 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/debug_test.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index bbc86fba9e..4181d59c1f 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -18,14 +18,17 @@ package runtime_test
+ import (
+ 	"fmt"
+ 	"runtime"
++	"runtime/debug"
+ 	"sync/atomic"
+ 	"syscall"
+ 	"testing"
+ )
+ 
+ func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
+-	// This can deadlock if there aren't enough threads.
++	// This can deadlock if there aren't enough threads or if a GC
++	// tries to interrupt an atomic loop (see issue #10958).
+ 	ogomaxprocs := runtime.GOMAXPROCS(2)
++	ogcpercent := debug.SetGCPercent(-1)
+ 
+ 	ready := make(chan *runtime.G)
+ 	var stop uint32
+@@ -39,6 +42,7 @@ func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
+ 			t.Fatal(err)
+ 		}
+ 		runtime.GOMAXPROCS(ogomaxprocs)
++		debug.SetGCPercent(ogcpercent)
+ 	}
+ }
+ 
+@@ -156,8 +160,10 @@ func debugCallUnsafePointWorker(gpp **runtime.G, ready, stop *uint32) {
+ }
+ 
+ func TestDebugCallUnsafePoint(t *testing.T) {
+-	// This can deadlock if there aren't enough threads.
++	// This can deadlock if there aren't enough threads or if a GC
++	// tries to interrupt an atomic loop (see issue #10958).
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
++	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+ 
+ 	// Test that the runtime refuses call injection at unsafe points.
+ 	var g *runtime.G

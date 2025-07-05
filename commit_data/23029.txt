@@ -13,7 +13,7 @@ Date:   Sun Apr 19 22:17:08 2015 +0900
     Change-Id: I09e65522a22f45c641792d774ebf7a0081b874ad
     Reviewed-on: https://go-review.googlesource.com/9140
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/interface.go         | 44 ++++++++++++++++++++++++++++++++------------
  src/net/interface_bsd.go     | 13 ++++++-------
  src/net/interface_darwin.go  | 11 ++++-------
@@ -21,3 +21,332 @@ Date:   Sun Apr 19 22:17:08 2015 +0900
  src/net/interface_linux.go   | 13 ++++++-------
  src/net/interface_windows.go |  9 ++++-----
  6 files changed, 56 insertions(+), 45 deletions(-)
+
+diff --git a/src/net/interface.go b/src/net/interface.go
+index 2e9f1ebc67..e6d874f538 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -62,41 +62,61 @@ func (f Flags) String() string {
+ // Addrs returns interface addresses for a specific interface.
+ func (ifi *Interface) Addrs() ([]Addr, error) {
+ 	if ifi == nil {
+-		return nil, errInvalidInterface
++		return nil, &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: errInvalidInterface}
+ 	}
+-	return interfaceAddrTable(ifi)
++	ifat, err := interfaceAddrTable(ifi)
++	if err != nil {
++		err = &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: err}
++	}
++	return ifat, err
+ }
+ 
+ // MulticastAddrs returns multicast, joined group addresses for
+ // a specific interface.
+ func (ifi *Interface) MulticastAddrs() ([]Addr, error) {
+ 	if ifi == nil {
+-		return nil, errInvalidInterface
++		return nil, &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: errInvalidInterface}
++	}
++	ifat, err := interfaceMulticastAddrTable(ifi)
++	if err != nil {
++		err = &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: err}
+ 	}
+-	return interfaceMulticastAddrTable(ifi)
++	return ifat, err
+ }
+ 
+ // Interfaces returns a list of the system's network interfaces.
+ func Interfaces() ([]Interface, error) {
+-	return interfaceTable(0)
++	ift, err := interfaceTable(0)
++	if err != nil {
++		err = &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: err}
++	}
++	return ift, err
+ }
+ 
+ // InterfaceAddrs returns a list of the system's network interface
+ // addresses.
+ func InterfaceAddrs() ([]Addr, error) {
+-	return interfaceAddrTable(nil)
++	ifat, err := interfaceAddrTable(nil)
++	if err != nil {
++		err = &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: err}
++	}
++	return ifat, err
+ }
+ 
+ // InterfaceByIndex returns the interface specified by index.
+ func InterfaceByIndex(index int) (*Interface, error) {
+ 	if index <= 0 {
+-		return nil, errInvalidInterfaceIndex
++		return nil, &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: errInvalidInterfaceIndex}
+ 	}
+ 	ift, err := interfaceTable(index)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: err}
+ 	}
+-	return interfaceByIndex(ift, index)
++	ifi, err := interfaceByIndex(ift, index)
++	if err != nil {
++		err = &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: err}
++	}
++	return ifi, err
+ }
+ 
+ func interfaceByIndex(ift []Interface, index int) (*Interface, error) {
+@@ -111,16 +131,16 @@ func interfaceByIndex(ift []Interface, index int) (*Interface, error) {
+ // InterfaceByName returns the interface specified by name.
+ func InterfaceByName(name string) (*Interface, error) {
+ 	if name == "" {
+-		return nil, errInvalidInterfaceName
++		return nil, &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: errInvalidInterfaceName}
+ 	}
+ 	ift, err := interfaceTable(0)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: err}
+ 	}
+ 	for _, ifi := range ift {
+ 		if name == ifi.Name {
+ 			return &ifi, nil
+ 		}
+ 	}
+-	return nil, errNoSuchInterface
++	return nil, &OpError{Op: "route", Net: "ip+net", Addr: nil, Err: errNoSuchInterface}
+ }
+diff --git a/src/net/interface_bsd.go b/src/net/interface_bsd.go
+index 2f66e4fc31..01a67c69a1 100644
+--- a/src/net/interface_bsd.go
++++ b/src/net/interface_bsd.go
+@@ -7,7 +7,6 @@
+ package net
+ 
+ import (
+-	"os"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -18,11 +17,11 @@ import (
+ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route rib", err)
++		return nil, err
+ 	}
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route message", err)
++		return nil, err
+ 	}
+ 	return parseInterfaceTable(ifindex, msgs)
+ }
+@@ -51,7 +50,7 @@ loop:
+ func newLink(m *syscall.InterfaceMessage) (*Interface, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route sockaddr", err)
++		return nil, err
+ 	}
+ 	ifi := &Interface{Index: int(m.Header.Index), Flags: linkFlags(m.Header.Flags)}
+ 	sa, _ := sas[syscall.RTAX_IFP].(*syscall.SockaddrDatalink)
+@@ -104,11 +103,11 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 	}
+ 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, index)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route rib", err)
++		return nil, err
+ 	}
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route message", err)
++		return nil, err
+ 	}
+ 	var ift []Interface
+ 	if index == 0 {
+@@ -145,7 +144,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (*IPNet, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route sockaddr", err)
++		return nil, err
+ 	}
+ 	ifa := &IPNet{}
+ 	switch sa := sas[syscall.RTAX_NETMASK].(type) {
+diff --git a/src/net/interface_darwin.go b/src/net/interface_darwin.go
+index 475b8611ce..bda6ff9a57 100644
+--- a/src/net/interface_darwin.go
++++ b/src/net/interface_darwin.go
+@@ -4,21 +4,18 @@
+ 
+ package net
+ 
+-import (
+-	"os"
+-	"syscall"
+-)
++import "syscall"
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific
+ // interface.
+ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifi.Index)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route rib", err)
++		return nil, err
+ 	}
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route message", err)
++		return nil, err
+ 	}
+ 	var ifmat []Addr
+ 	for _, m := range msgs {
+@@ -41,7 +38,7 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) (*IPAddr, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route sockaddr", err)
++		return nil, err
+ 	}
+ 	switch sa := sas[syscall.RTAX_IFA].(type) {
+ 	case *syscall.SockaddrInet4:
+diff --git a/src/net/interface_freebsd.go b/src/net/interface_freebsd.go
+index 13bf438103..c759db4720 100644
+--- a/src/net/interface_freebsd.go
++++ b/src/net/interface_freebsd.go
+@@ -4,21 +4,18 @@
+ 
+ package net
+ 
+-import (
+-	"os"
+-	"syscall"
+-)
++import "syscall"
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific
+ // interface.
+ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFMALIST, ifi.Index)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route rib", err)
++		return nil, err
+ 	}
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route message", err)
++		return nil, err
+ 	}
+ 	var ifmat []Addr
+ 	for _, m := range msgs {
+@@ -41,7 +38,7 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) (*IPAddr, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("route sockaddr", err)
++		return nil, err
+ 	}
+ 	switch sa := sas[syscall.RTAX_IFA].(type) {
+ 	case *syscall.SockaddrInet4:
+diff --git a/src/net/interface_linux.go b/src/net/interface_linux.go
+index 84d57c3c93..3c117ea2f5 100644
+--- a/src/net/interface_linux.go
++++ b/src/net/interface_linux.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"os"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -16,11 +15,11 @@ import (
+ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("netlink rib", err)
++		return nil, err
+ 	}
+ 	msgs, err := syscall.ParseNetlinkMessage(tab)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("netlink message", err)
++		return nil, err
+ 	}
+ 	var ift []Interface
+ loop:
+@@ -33,7 +32,7 @@ loop:
+ 			if ifindex == 0 || ifindex == int(ifim.Index) {
+ 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
+ 				if err != nil {
+-					return nil, os.NewSyscallError("netlink routeattr", err)
++					return nil, err
+ 				}
+ 				ift = append(ift, *newLink(ifim, attrs))
+ 				if ifindex == int(ifim.Index) {
+@@ -120,11 +119,11 @@ func linkFlags(rawFlags uint32) Flags {
+ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("netlink rib", err)
++		return nil, err
+ 	}
+ 	msgs, err := syscall.ParseNetlinkMessage(tab)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("netlink message", err)
++		return nil, err
+ 	}
+ 	var ift []Interface
+ 	if ifi == nil {
+@@ -160,7 +159,7 @@ loop:
+ 				}
+ 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
+ 				if err != nil {
+-					return nil, os.NewSyscallError("netlink routeattr", err)
++					return nil, err
+ 				}
+ 				ifa := newAddr(ifi, ifam, attrs)
+ 				if ifa != nil {
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index ac12e28a17..83870efb10 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -6,7 +6,6 @@ package net
+ 
+ import (
+ 	"internal/syscall/windows"
+-	"os"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -27,7 +26,7 @@ func getAdapters() (*windows.IpAdapterAddresses, error) {
+ 			break
+ 		}
+ 		if err.(syscall.Errno) != syscall.ERROR_BUFFER_OVERFLOW {
+-			return nil, os.NewSyscallError("GetAdaptersAddresses", err)
++			return nil, err
+ 		}
+ 	}
+ 	return &addrs[0], nil
+@@ -36,16 +35,16 @@ func getAdapters() (*windows.IpAdapterAddresses, error) {
+ func getInterfaceInfos() ([]syscall.InterfaceInfo, error) {
+ 	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("Socket", err)
++		return nil, err
+ 	}
+-	defer syscall.Closesocket(s)
++	defer closeFunc(s)
+ 
+ 	iia := [20]syscall.InterfaceInfo{}
+ 	ret := uint32(0)
+ 	size := uint32(unsafe.Sizeof(iia))
+ 	err = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&iia[0])), size, &ret, nil, 0)
+ 	if err != nil {
+-		return nil, os.NewSyscallError("WSAIoctl", err)
++		return nil, err
+ 	}
+ 	iilen := ret / uint32(unsafe.Sizeof(iia[0]))
+ 	return iia[:iilen-1], nil

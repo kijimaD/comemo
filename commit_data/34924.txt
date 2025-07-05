@@ -14,7 +14,7 @@ Date:   Mon Oct 30 22:41:14 2017 +0300
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/alldocs.go                    |  3 ++
  src/cmd/go/go_test.go                    | 44 ++++++++++++++++++++++++++
  src/cmd/go/internal/test/test.go         |  5 ++-
@@ -22,3 +22,237 @@ Date:   Mon Oct 30 22:41:14 2017 +0300
  src/cmd/go/testdata/src/failfast_test.go | 54 ++++++++++++++++++++++++++++++++
  src/testing/testing.go                   | 18 ++++++++++-
  6 files changed, 125 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 70bd3a1811..50d5ac5ae8 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1537,6 +1537,9 @@
+ // 	    benchmarks should be executed. The default is the current value
+ // 	    of GOMAXPROCS.
+ //
++// 	-failfast
++// 	    Do not start new tests after the first test failure.
++//
+ // 	-list regexp
+ // 	    List tests, benchmarks, or examples matching the regular expression.
+ // 	    No tests, benchmarks or examples will be run. This will only
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8f0db27cb2..d756814f7b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5199,3 +5199,47 @@ func TestGoTestJSON(t *testing.T) {
+ 	}
+ 	t.Fatalf("did not see JSON output")
+ }
++
++func TestFailFast(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	tests := []struct {
++		run      string
++		failfast bool
++		nfail    int
++	}{
++		{"TestFailingA", true, 1},
++		{"TestFailing[AB]", true, 1},
++		{"TestFailing[AB]", false, 2},
++		// mix with non-failing tests:
++		{"TestA|TestFailing[AB]", true, 1},
++		{"TestA|TestFailing[AB]", false, 2},
++		// mix with parallel tests:
++		{"TestFailingB|TestParallelFailingA", true, 2},
++		{"TestFailingB|TestParallelFailingA", false, 2},
++		{"TestFailingB|TestParallelFailing[AB]", true, 3},
++		{"TestFailingB|TestParallelFailing[AB]", false, 3},
++		// mix with parallel sub-tests
++		{"TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA", true, 3},
++		{"TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA", false, 5},
++		{"TestParallelFailingSubtestsA", true, 1},
++		// only parallels:
++		{"TestParallelFailing[AB]", false, 2},
++		// non-parallel subtests:
++		{"TestFailingSubtestsA", true, 1},
++		{"TestFailingSubtestsA", false, 2},
++	}
++
++	for _, tt := range tests {
++		t.Run(tt.run, func(t *testing.T) {
++			tg.runFail("test", "./testdata/src/failfast_test.go", "-run="+tt.run, "-failfast="+strconv.FormatBool(tt.failfast))
++
++			nfail := strings.Count(tg.getStdout(), "FAIL - ")
++
++			if nfail != tt.nfail {
++				t.Errorf("go test -run=%s -failfast=%t printed %d FAILs, want %d", tt.run, tt.failfast, nfail, tt.nfail)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index f8490485dd..a7c4c60ae3 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -187,7 +187,7 @@ control the execution of any test:
+ const testFlag2 = `
+ 	-bench regexp
+ 	    Run only those benchmarks matching a regular expression.
+-	    By default, no benchmarks are run. 
++	    By default, no benchmarks are run.
+ 	    To run all benchmarks, use '-bench .' or '-bench=.'.
+ 	    The regular expression is split by unbracketed slash (/)
+ 	    characters into a sequence of regular expressions, and each
+@@ -237,6 +237,9 @@ const testFlag2 = `
+ 	    benchmarks should be executed. The default is the current value
+ 	    of GOMAXPROCS.
+ 
++	-failfast
++	    Do not start new tests after the first test failure.
++
+ 	-list regexp
+ 	    List tests, benchmarks, or examples matching the regular expression.
+ 	    No tests, benchmarks or examples will be run. This will only
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 661b4d8f1d..d9352ec27b 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -40,15 +40,16 @@ var testFlagDefn = []*cmdflag.Defn{
+ 	{Name: "bench", PassToTest: true},
+ 	{Name: "benchmem", BoolVar: new(bool), PassToTest: true},
+ 	{Name: "benchtime", PassToTest: true},
++	{Name: "blockprofile", PassToTest: true},
++	{Name: "blockprofilerate", PassToTest: true},
+ 	{Name: "count", PassToTest: true},
+ 	{Name: "coverprofile", PassToTest: true},
+ 	{Name: "cpu", PassToTest: true},
+ 	{Name: "cpuprofile", PassToTest: true},
++	{Name: "failfast", BoolVar: new(bool), PassToTest: true},
+ 	{Name: "list", PassToTest: true},
+ 	{Name: "memprofile", PassToTest: true},
+ 	{Name: "memprofilerate", PassToTest: true},
+-	{Name: "blockprofile", PassToTest: true},
+-	{Name: "blockprofilerate", PassToTest: true},
+ 	{Name: "mutexprofile", PassToTest: true},
+ 	{Name: "mutexprofilefraction", PassToTest: true},
+ 	{Name: "outputdir", PassToTest: true},
+diff --git a/src/cmd/go/testdata/src/failfast_test.go b/src/cmd/go/testdata/src/failfast_test.go
+new file mode 100644
+index 0000000000..fef4d2a35e
+--- /dev/null
++++ b/src/cmd/go/testdata/src/failfast_test.go
+@@ -0,0 +1,54 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package failfast
++
++import "testing"
++
++func TestA(t *testing.T) {
++	// Edge-case testing, mixing unparallel tests too
++	t.Logf("LOG: %s", t.Name())
++}
++
++func TestFailingA(t *testing.T) {
++	t.Errorf("FAIL - %s", t.Name())
++}
++
++func TestB(t *testing.T) {
++	// Edge-case testing, mixing unparallel tests too
++	t.Logf("LOG: %s", t.Name())
++}
++
++func TestParallelFailingA(t *testing.T) {
++	t.Parallel()
++	t.Errorf("FAIL - %s", t.Name())
++}
++
++func TestParallelFailingB(t *testing.T) {
++	t.Parallel()
++	t.Errorf("FAIL - %s", t.Name())
++}
++
++func TestParallelFailingSubtestsA(t *testing.T) {
++	t.Parallel()
++	t.Run("TestFailingSubtestsA1", func(t *testing.T) {
++		t.Errorf("FAIL - %s", t.Name())
++	})
++	t.Run("TestFailingSubtestsA2", func(t *testing.T) {
++		t.Errorf("FAIL - %s", t.Name())
++	})
++}
++
++func TestFailingSubtestsA(t *testing.T) {
++	t.Run("TestFailingSubtestsA1", func(t *testing.T) {
++		t.Errorf("FAIL - %s", t.Name())
++	})
++	t.Run("TestFailingSubtestsA2", func(t *testing.T) {
++		t.Errorf("FAIL - %s", t.Name())
++	})
++}
++
++func TestFailingB(t *testing.T) {
++	t.Errorf("FAIL - %s", t.Name())
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 4beb9c6c1c..e12b622b03 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -242,6 +242,9 @@ var (
+ 	// full test of the package.
+ 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
+ 
++	// The failfast flag requests that test execution stop after the first test failure.
++	failFast = flag.Bool("test.failfast", false, "do not start new tests after the first test failure")
++
+ 	// The directory in which to create profile files and the like. When run from
+ 	// "go test", the binary always runs in the source directory for the package;
+ 	// this flag lets "go test" tell the binary to write the files in the directory where
+@@ -269,6 +272,8 @@ var (
+ 	haveExamples bool // are there examples?
+ 
+ 	cpuList []int
++
++	numFailed uint32 // number of test failures
+ )
+ 
+ // common holds the elements common between T and B and
+@@ -767,6 +772,10 @@ func tRunner(t *T, fn func(t *T)) {
+ 	t.start = time.Now()
+ 	t.raceErrors = -race.Errors()
+ 	fn(t)
++
++	if t.failed {
++		atomic.AddUint32(&numFailed, 1)
++	}
+ 	t.finished = true
+ }
+ 
+@@ -779,7 +788,7 @@ func tRunner(t *T, fn func(t *T)) {
+ func (t *T) Run(name string, f func(t *T)) bool {
+ 	atomic.StoreInt32(&t.hasSub, 1)
+ 	testName, ok, _ := t.context.match.fullName(&t.common, name)
+-	if !ok {
++	if !ok || shouldFailFast() {
+ 		return true
+ 	}
+ 	t = &T{
+@@ -1021,6 +1030,9 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 	for _, procs := range cpuList {
+ 		runtime.GOMAXPROCS(procs)
+ 		for i := uint(0); i < *count; i++ {
++			if shouldFailFast() {
++				break
++			}
+ 			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
+ 			t := &T{
+ 				common: common{
+@@ -1209,3 +1221,7 @@ func parseCpuList() {
+ 		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+ 	}
+ }
++
++func shouldFailFast() bool {
++	return *failFast && atomic.LoadUint32(&numFailed) > 0
++}

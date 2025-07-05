@@ -25,7 +25,55 @@ Date:   Thu Apr 8 21:07:02 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgc.go      | 2 +-
  src/runtime/mgcpacer.go | 9 +++++++--
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 6f8463c253..f937287281 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -545,7 +545,7 @@ func (t gcTrigger) test() bool {
+ 		// own write.
+ 		return gcController.heapLive >= gcController.trigger
+ 	case gcTriggerTime:
+-		if gcController.gcPercent < 0 {
++		if atomic.Loadint32(&gcController.gcPercent) < 0 {
+ 			return false
+ 		}
+ 		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 55f3bc926d..44b870446f 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -73,6 +73,10 @@ var gcController gcControllerState
+ 
+ type gcControllerState struct {
+ 	// Initialized from $GOGC. GOGC=off means no GC.
++	//
++	// Updated atomically with mheap_.lock held or during a STW.
++	// Safe to read atomically at any time, or non-atomically with
++	// mheap_.lock or STW.
+ 	gcPercent int32
+ 
+ 	_ uint32 // padding so following 64-bit values are 8-byte aligned
+@@ -355,7 +359,7 @@ func (c *gcControllerState) startCycle() {
+ // is when assists are enabled and the necessary statistics are
+ // available).
+ func (c *gcControllerState) revise() {
+-	gcPercent := c.gcPercent
++	gcPercent := atomic.Loadint32(&c.gcPercent)
+ 	if gcPercent < 0 {
+ 		// If GC is disabled but we're running a forced GC,
+ 		// act like GOGC is huge for the below calculations.
+@@ -800,7 +804,8 @@ func (c *gcControllerState) setGCPercent(in int32) int32 {
+ 	if in < 0 {
+ 		in = -1
+ 	}
+-	c.gcPercent = in
++	// Write it atomically so readers like revise() can read it safely.
++	atomic.Storeint32(&c.gcPercent, in)
+ 	c.heapMinimum = defaultHeapMinimum * uint64(c.gcPercent) / 100
+ 	// Update pacing in response to gcPercent change.
+ 	c.commit(c.triggerRatio)

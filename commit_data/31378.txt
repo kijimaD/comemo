@@ -9,6 +9,26 @@ Date:   Wed Feb 15 19:22:45 2017 +1100
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_poll_runtime.go | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index f0d7a22729..5040d6a1f7 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -100,14 +100,6 @@ func (pd *pollDesc) waitCanceled(mode int) {
+ 	runtime_pollWaitCanceled(pd.runtimeCtx, mode)
+ }
+ 
+-func (pd *pollDesc) waitCanceledRead() {
+-	pd.waitCanceled('r')
+-}
+-
+-func (pd *pollDesc) waitCanceledWrite() {
+-	pd.waitCanceled('w')
+-}
+-
+ func convertErr(res int) error {
+ 	switch res {
+ 	case 0:

@@ -28,7 +28,7 @@ Date:   Thu Mar 1 16:38:41 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes_decl.go                     |   4 +-
  src/cmd/dist/build.go                       |   5 +
  src/cmd/link/internal/ld/data.go            |   5 +-
@@ -62,3 +62,2511 @@ Date:   Thu Mar 1 16:38:41 2018 -0800
  src/runtime/os_linux_s390x.go               |   3 +
  src/strings/strings_decl.go                 |   2 +-
  32 files changed, 1204 insertions(+), 959 deletions(-)
+
+diff --git a/src/bytes/bytes_decl.go b/src/bytes/bytes_decl.go
+index df0614fed0..d144fccf4b 100644
+--- a/src/bytes/bytes_decl.go
++++ b/src/bytes/bytes_decl.go
+@@ -6,8 +6,8 @@ package bytes
+ 
+ //go:noescape
+ 
+-// IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+-func IndexByte(s []byte, c byte) int // ../runtime/asm_$GOARCH.s
++// IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
++func IndexByte(b []byte, c byte) int // in internal/bytealg
+ 
+ //go:noescape
+ 
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 49ed80033e..398a187658 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -791,6 +791,11 @@ func runInstall(dir string, ch chan struct{}) {
+ 	if dir == "runtime" {
+ 		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
+ 	}
++	if dir == "internal/bytealg" {
++		// TODO: why don't we generate go_asm.h for all packages
++		// that have any assembly?
++		compile = append(compile, "-asmhdr", pathf("%s/go_asm.h", workdir))
++	}
+ 	compile = append(compile, gofiles...)
+ 	run(path, CheckExit|ShowOutput, compile...)
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 65de24ef98..ad801a240b 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -49,7 +49,9 @@ import (
+ func isRuntimeDepPkg(pkg string) bool {
+ 	switch pkg {
+ 	case "runtime",
+-		"sync/atomic": // runtime may call to sync/atomic, due to go:linkname
++		"sync/atomic",      // runtime may call to sync/atomic, due to go:linkname
++		"internal/bytealg", // for IndexByte
++		"internal/cpu":     // for cpu features
+ 		return true
+ 	}
+ 	return strings.HasPrefix(pkg, "runtime/internal/") && !strings.HasSuffix(pkg, "_test")
+@@ -1874,7 +1876,6 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
+ 	// Only break at outermost syms.
+ 
+ 	if ctxt.Arch.InFamily(sys.PPC64) && s.Outer == nil && ctxt.IsELF && ctxt.LinkMode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(s, isTramp) > 0x1c00000 {
+-
+ 		// Set the length for the previous text section
+ 		sect.Length = va - sect.Vaddr
+ 
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 960ef6b541..4af8d0a699 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -12,8 +12,8 @@ go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have
+ // Nothing much to do about cross-package assembly. Unfortunate.
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: call is in package reflect
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
+-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
+-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
++internal/bytealg/indexbyte_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
++internal/bytealg/indexbyte_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
+ 
+ // The write barrier is called directly by the compiler, so no Go def
+ runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 56a6e2eb8d..80f168fbee 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -24,7 +24,6 @@ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: count
+ runtime/asm_amd64.s: [amd64] aeshashbody: function aeshashbody missing Go declaration
+ runtime/asm_amd64.s: [amd64] memeqbody: function memeqbody missing Go declaration
+ runtime/asm_amd64.s: [amd64] cmpbody: function cmpbody missing Go declaration
+-runtime/asm_amd64.s: [amd64] indexbytebody: function indexbytebody missing Go declaration
+ runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 4b2aad2aac..0fea40f4a1 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -23,7 +23,6 @@ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
+ runtime/asm_amd64p32.s: [amd64p32] memeqbody: function memeqbody missing Go declaration
+ runtime/asm_amd64p32.s: [amd64p32] cannot check cross-package assembly function: Compare is in package bytes
+ runtime/asm_amd64p32.s: [amd64p32] cmpbody: function cmpbody missing Go declaration
+-runtime/asm_amd64p32.s: [amd64p32] indexbytebody: function indexbytebody missing Go declaration
+ runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
+ 
+ runtime/asm_amd64p32.s: [amd64p32] stackcheck: function stackcheck missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index f18236c4f1..8a2f310003 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -1,7 +1,6 @@
+ runtime/asm_s390x.s: [s390x] abort: function abort missing Go declaration
+ runtime/asm_s390x.s: [s390x] memeqbody: function memeqbody missing Go declaration
+ runtime/asm_s390x.s: [s390x] memeqbodyclc: function memeqbodyclc missing Go declaration
+-runtime/asm_s390x.s: [s390x] indexbytebody: function indexbytebody missing Go declaration
+ runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
+ runtime/asm_s390x.s: [s390x] cmpbody: function cmpbody missing Go declaration
+ runtime/asm_s390x.s: [s390x] cmpbodyclc: function cmpbodyclc missing Go declaration
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index bc3cbd27bf..964655f7fe 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -36,14 +36,15 @@ var pkgDeps = map[string][]string{
+ 	// L0 is the lowest level, core, nearly unavoidable packages.
+ 	"errors":                  {},
+ 	"io":                      {"errors", "sync", "sync/atomic"},
+-	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys"},
++	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "internal/cpu", "internal/bytealg"},
+ 	"runtime/internal/sys":    {},
+ 	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
+ 	"internal/race":           {"runtime", "unsafe"},
+ 	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
+ 	"sync/atomic":             {"unsafe"},
+ 	"unsafe":                  {},
+-	"internal/cpu":            {"runtime"},
++	"internal/cpu":            {},
++	"internal/bytealg":        {"unsafe", "internal/cpu"},
+ 
+ 	"L0": {
+ 		"errors",
+@@ -54,6 +55,7 @@ var pkgDeps = map[string][]string{
+ 		"sync/atomic",
+ 		"unsafe",
+ 		"internal/cpu",
++		"internal/bytealg",
+ 	},
+ 
+ 	// L1 adds simple functions and strings processing,
+diff --git a/src/internal/bytealg/indexbyte_386.s b/src/internal/bytealg/indexbyte_386.s
+new file mode 100644
+index 0000000000..fa7e73e5cb
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_386.s
+@@ -0,0 +1,40 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·IndexByte(SB),NOSPLIT,$0-20
++	MOVL	b_base+0(FP), SI
++	MOVL	b_len+4(FP), CX
++	MOVB	c+12(FP), AL
++	MOVL	SI, DI
++	CLD; REPN; SCASB
++	JZ 3(PC)
++	MOVL	$-1, ret+16(FP)
++	RET
++	SUBL	SI, DI
++	SUBL	$1, DI
++	MOVL	DI, ret+16(FP)
++	RET
++
++TEXT ·IndexByteString(SB),NOSPLIT,$0-16
++	MOVL	s_base+0(FP), SI
++	MOVL	s_len+4(FP), CX
++	MOVB	c+8(FP), AL
++	MOVL	SI, DI
++	CLD; REPN; SCASB
++	JZ 3(PC)
++	MOVL	$-1, ret+12(FP)
++	RET
++	SUBL	SI, DI
++	SUBL	$1, DI
++	MOVL	DI, ret+12(FP)
++	RET
++
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
++	JMP ·IndexByte(SB)
++
++TEXT strings·IndexByte(SB),NOSPLIT,$0-16
++	JMP ·IndexByteString(SB)
+diff --git a/src/internal/bytealg/indexbyte_amd64.s b/src/internal/bytealg/indexbyte_amd64.s
+new file mode 100644
+index 0000000000..e4768bb912
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_amd64.s
+@@ -0,0 +1,169 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT	·IndexByte(SB), NOSPLIT, $0-40
++	MOVQ b_base+0(FP), SI
++	MOVQ b_len+8(FP), BX
++	MOVB c+24(FP), AL
++	LEAQ ret+32(FP), R8
++	JMP  indexbytebody<>(SB)
++
++TEXT	·IndexByteString(SB), NOSPLIT, $0-32
++	MOVQ s_base+0(FP), SI
++	MOVQ s_len+8(FP), BX
++	MOVB c+16(FP), AL
++	LEAQ ret+24(FP), R8
++	JMP  indexbytebody<>(SB)
++
++	// Provide direct access to these functions from other packages.
++	// This is the equivlant of doing:
++	//     package bytes
++	//     func IndexByte(b []byte, c byte) int {
++	//         return bytealg.IndexByte(s, c)
++	//     }
++	// but involves no call overhead.
++	// TODO: remove this hack when midstack inlining is enabled?
++TEXT	bytes·IndexByte(SB), NOSPLIT, $0-40
++	MOVQ b_base+0(FP), SI
++	MOVQ b_len+8(FP), BX
++	MOVB c+24(FP), AL
++	LEAQ ret+32(FP), R8
++	JMP  indexbytebody<>(SB)
++
++TEXT	strings·IndexByte(SB), NOSPLIT, $0-32
++	MOVQ s_base+0(FP), SI
++	MOVQ s_len+8(FP), BX
++	MOVB c+16(FP), AL
++	LEAQ ret+24(FP), R8
++	JMP  indexbytebody<>(SB)
++
++// input:
++//   SI: data
++//   BX: data len
++//   AL: byte sought
++//   R8: address to put result
++TEXT	indexbytebody<>(SB), NOSPLIT, $0
++	// Shuffle X0 around so that each byte contains
++	// the character we're looking for.
++	MOVD AX, X0
++	PUNPCKLBW X0, X0
++	PUNPCKLBW X0, X0
++	PSHUFL $0, X0, X0
++
++	CMPQ BX, $16
++	JLT small
++
++	MOVQ SI, DI
++
++	CMPQ BX, $32
++	JA avx2
++sse:
++	LEAQ	-16(SI)(BX*1), AX	// AX = address of last 16 bytes
++	JMP	sseloopentry
++
++sseloop:
++	// Move the next 16-byte chunk of the data into X1.
++	MOVOU	(DI), X1
++	// Compare bytes in X0 to X1.
++	PCMPEQB	X0, X1
++	// Take the top bit of each byte in X1 and put the result in DX.
++	PMOVMSKB X1, DX
++	// Find first set bit, if any.
++	BSFL	DX, DX
++	JNZ	ssesuccess
++	// Advance to next block.
++	ADDQ	$16, DI
++sseloopentry:
++	CMPQ	DI, AX
++	JB	sseloop
++
++	// Search the last 16-byte chunk. This chunk may overlap with the
++	// chunks we've already searched, but that's ok.
++	MOVQ	AX, DI
++	MOVOU	(AX), X1
++	PCMPEQB	X0, X1
++	PMOVMSKB X1, DX
++	BSFL	DX, DX
++	JNZ	ssesuccess
++
++failure:
++	MOVQ $-1, (R8)
++	RET
++
++// We've found a chunk containing the byte.
++// The chunk was loaded from DI.
++// The index of the matching byte in the chunk is DX.
++// The start of the data is SI.
++ssesuccess:
++	SUBQ SI, DI	// Compute offset of chunk within data.
++	ADDQ DX, DI	// Add offset of byte within chunk.
++	MOVQ DI, (R8)
++	RET
++
++// handle for lengths < 16
++small:
++	TESTQ	BX, BX
++	JEQ	failure
++
++	// Check if we'll load across a page boundary.
++	LEAQ	16(SI), AX
++	TESTW	$0xff0, AX
++	JEQ	endofpage
++
++	MOVOU	(SI), X1 // Load data
++	PCMPEQB	X0, X1	// Compare target byte with each byte in data.
++	PMOVMSKB X1, DX	// Move result bits to integer register.
++	BSFL	DX, DX	// Find first set bit.
++	JZ	failure	// No set bit, failure.
++	CMPL	DX, BX
++	JAE	failure	// Match is past end of data.
++	MOVQ	DX, (R8)
++	RET
++
++endofpage:
++	MOVOU	-16(SI)(BX*1), X1	// Load data into the high end of X1.
++	PCMPEQB	X0, X1	// Compare target byte with each byte in data.
++	PMOVMSKB X1, DX	// Move result bits to integer register.
++	MOVL	BX, CX
++	SHLL	CX, DX
++	SHRL	$16, DX	// Shift desired bits down to bottom of register.
++	BSFL	DX, DX	// Find first set bit.
++	JZ	failure	// No set bit, failure.
++	MOVQ	DX, (R8)
++	RET
++
++avx2:
++	CMPB   internal∕cpu·X86+const_x86_HasAVX2(SB), $1
++	JNE sse
++	MOVD AX, X0
++	LEAQ -32(SI)(BX*1), R11
++	VPBROADCASTB  X0, Y1
++avx2_loop:
++	VMOVDQU (DI), Y2
++	VPCMPEQB Y1, Y2, Y3
++	VPTEST Y3, Y3
++	JNZ avx2success
++	ADDQ $32, DI
++	CMPQ DI, R11
++	JLT avx2_loop
++	MOVQ R11, DI
++	VMOVDQU (DI), Y2
++	VPCMPEQB Y1, Y2, Y3
++	VPTEST Y3, Y3
++	JNZ avx2success
++	VZEROUPPER
++	MOVQ $-1, (R8)
++	RET
++
++avx2success:
++	VPMOVMSKB Y3, DX
++	BSFL DX, DX
++	SUBQ SI, DI
++	ADDQ DI, DX
++	MOVQ DX, (R8)
++	VZEROUPPER
++	RET
+diff --git a/src/internal/bytealg/indexbyte_amd64p32.s b/src/internal/bytealg/indexbyte_amd64p32.s
+new file mode 100644
+index 0000000000..7cf6b1791e
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_amd64p32.s
+@@ -0,0 +1,129 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·IndexByte(SB),NOSPLIT,$0-20
++	MOVL b_base+0(FP), SI
++	MOVL b_len+4(FP), BX
++	MOVB c+12(FP), AL
++	CALL indexbytebody<>(SB)
++	MOVL AX, ret+16(FP)
++	RET
++
++TEXT ·IndexByteString(SB),NOSPLIT,$0-20
++	MOVL s_base+0(FP), SI
++	MOVL s_len+4(FP), BX
++	MOVB c+8(FP), AL
++	CALL indexbytebody<>(SB)
++	MOVL AX, ret+16(FP)
++	RET
++
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
++	MOVL b_base+0(FP), SI
++	MOVL b_len+4(FP), BX
++	MOVB c+12(FP), AL
++	CALL indexbytebody<>(SB)
++	MOVL AX, ret+16(FP)
++	RET
++
++TEXT strings·IndexByte(SB),NOSPLIT,$0-20
++	MOVL s_base+0(FP), SI
++	MOVL s_len+4(FP), BX
++	MOVB c+8(FP), AL
++	CALL indexbytebody<>(SB)
++	MOVL AX, ret+16(FP)
++	RET
++
++// input:
++//   SI: data
++//   BX: data len
++//   AL: byte sought
++// output:
++//   AX
++TEXT indexbytebody<>(SB),NOSPLIT,$0
++	MOVL SI, DI
++
++	CMPL BX, $16
++	JLT small
++
++	// round up to first 16-byte boundary
++	TESTL $15, SI
++	JZ aligned
++	MOVL SI, CX
++	ANDL $~15, CX
++	ADDL $16, CX
++
++	// search the beginning
++	SUBL SI, CX
++	REPN; SCASB
++	JZ success
++
++// DI is 16-byte aligned; get ready to search using SSE instructions
++aligned:
++	// round down to last 16-byte boundary
++	MOVL BX, R11
++	ADDL SI, R11
++	ANDL $~15, R11
++
++	// shuffle X0 around so that each byte contains c
++	MOVD AX, X0
++	PUNPCKLBW X0, X0
++	PUNPCKLBW X0, X0
++	PSHUFL $0, X0, X0
++	JMP condition
++
++sse:
++	// move the next 16-byte chunk of the buffer into X1
++	MOVO (DI), X1
++	// compare bytes in X0 to X1
++	PCMPEQB X0, X1
++	// take the top bit of each byte in X1 and put the result in DX
++	PMOVMSKB X1, DX
++	TESTL DX, DX
++	JNZ ssesuccess
++	ADDL $16, DI
++
++condition:
++	CMPL DI, R11
++	JNE sse
++
++	// search the end
++	MOVL SI, CX
++	ADDL BX, CX
++	SUBL R11, CX
++	// if CX == 0, the zero flag will be set and we'll end up
++	// returning a false success
++	JZ failure
++	REPN; SCASB
++	JZ success
++
++failure:
++	MOVL $-1, AX
++	RET
++
++// handle for lengths < 16
++small:
++	MOVL BX, CX
++	REPN; SCASB
++	JZ success
++	MOVL $-1, AX
++	RET
++
++// we've found the chunk containing the byte
++// now just figure out which specific byte it is
++ssesuccess:
++	// get the index of the least significant set bit
++	BSFW DX, DX
++	SUBL SI, DI
++	ADDL DI, DX
++	MOVL DX, AX
++	RET
++
++success:
++	SUBL SI, DI
++	SUBL $1, DI
++	MOVL DI, AX
++	RET
+diff --git a/src/internal/bytealg/indexbyte_arm.s b/src/internal/bytealg/indexbyte_arm.s
+new file mode 100644
+index 0000000000..3883c2f448
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_arm.s
+@@ -0,0 +1,60 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·IndexByte(SB),NOSPLIT,$0-20
++	MOVW	b_base+0(FP), R0
++	MOVW	b_len+4(FP), R1
++	MOVBU	c+12(FP), R2	// byte to find
++	MOVW	R0, R4		// store base for later
++	ADD	R0, R1		// end
++
++_loop:
++	CMP	R0, R1
++	B.EQ	_notfound
++	MOVBU.P	1(R0), R3
++	CMP	R2, R3
++	B.NE	_loop
++
++	SUB	$1, R0		// R0 will be one beyond the position we want
++	SUB	R4, R0		// remove base
++	MOVW    R0, ret+16(FP)
++	RET
++
++_notfound:
++	MOVW	$-1, R0
++	MOVW	R0, ret+16(FP)
++	RET
++
++TEXT ·IndexByteString(SB),NOSPLIT,$0-16
++	MOVW	s_base+0(FP), R0
++	MOVW	s_len+4(FP), R1
++	MOVBU	c+8(FP), R2	// byte to find
++	MOVW	R0, R4		// store base for later
++	ADD	R0, R1		// end
++
++_sib_loop:
++	CMP	R0, R1
++	B.EQ	_sib_notfound
++	MOVBU.P	1(R0), R3
++	CMP	R2, R3
++	B.NE	_sib_loop
++
++	SUB	$1, R0		// R0 will be one beyond the position we want
++	SUB	R4, R0		// remove base
++	MOVW	R0, ret+12(FP)
++	RET
++
++_sib_notfound:
++	MOVW	$-1, R0
++	MOVW	R0, ret+12(FP)
++	RET
++
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
++	JMP ·IndexByte(SB)
++
++TEXT strings·IndexByte(SB),NOSPLIT,$0-16
++	JMP ·IndexByteString(SB)
+diff --git a/src/internal/bytealg/indexbyte_arm64.s b/src/internal/bytealg/indexbyte_arm64.s
+new file mode 100644
+index 0000000000..9e5aa1e920
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_arm64.s
+@@ -0,0 +1,140 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·IndexByte(SB),NOSPLIT,$0-40
++	MOVD	b_base+0(FP), R0
++	MOVD	b_len+8(FP), R2
++	MOVBU	c+24(FP), R1
++	MOVD	$ret+32(FP), R8
++	B	indexbytebody<>(SB)
++
++TEXT ·IndexByteString(SB),NOSPLIT,$0-32
++	MOVD	s_base+0(FP), R0
++	MOVD	s_len+8(FP), R2
++	MOVBU	c+16(FP), R1
++	MOVD	$ret+24(FP), R8
++	B	indexbytebody<>(SB)
++
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
++	MOVD	b_base+0(FP), R0
++	MOVD	b_len+8(FP), R2
++	MOVBU	c+24(FP), R1
++	MOVD	$ret+32(FP), R8
++	B	indexbytebody<>(SB)
++
++TEXT strings·IndexByte(SB),NOSPLIT,$0-32
++	MOVD	s_base+0(FP), R0
++	MOVD	s_len+8(FP), R2
++	MOVBU	c+16(FP), R1
++	MOVD	$ret+24(FP), R8
++	B	indexbytebody<>(SB)
++
++// input:
++//   R0: data
++//   R1: byte to search
++//   R2: data len
++//   R8: address to put result
++TEXT indexbytebody<>(SB),NOSPLIT,$0
++	// Core algorithm:
++	// For each 32-byte chunk we calculate a 64-bit syndrome value,
++	// with two bits per byte. For each tuple, bit 0 is set if the
++	// relevant byte matched the requested character and bit 1 is
++	// not used (faster than using a 32bit syndrome). Since the bits
++	// in the syndrome reflect exactly the order in which things occur
++	// in the original string, counting trailing zeros allows to
++	// identify exactly which byte has matched.
++
++	CBZ	R2, fail
++	MOVD	R0, R11
++	// Magic constant 0x40100401 allows us to identify
++	// which lane matches the requested byte.
++	// 0x40100401 = ((1<<0) + (4<<8) + (16<<16) + (64<<24))
++	// Different bytes have different bit masks (i.e: 1, 4, 16, 64)
++	MOVD	$0x40100401, R5
++	VMOV	R1, V0.B16
++	// Work with aligned 32-byte chunks
++	BIC	$0x1f, R0, R3
++	VMOV	R5, V5.S4
++	ANDS	$0x1f, R0, R9
++	AND	$0x1f, R2, R10
++	BEQ	loop
++
++	// Input string is not 32-byte aligned. We calculate the
++	// syndrome value for the aligned 32 bytes block containing
++	// the first bytes and mask off the irrelevant part.
++	VLD1.P	(R3), [V1.B16, V2.B16]
++	SUB	$0x20, R9, R4
++	ADDS	R4, R2, R2
++	VCMEQ	V0.B16, V1.B16, V3.B16
++	VCMEQ	V0.B16, V2.B16, V4.B16
++	VAND	V5.B16, V3.B16, V3.B16
++	VAND	V5.B16, V4.B16, V4.B16
++	VADDP	V4.B16, V3.B16, V6.B16 // 256->128
++	VADDP	V6.B16, V6.B16, V6.B16 // 128->64
++	VMOV	V6.D[0], R6
++	// Clear the irrelevant lower bits
++	LSL	$1, R9, R4
++	LSR	R4, R6, R6
++	LSL	R4, R6, R6
++	// The first block can also be the last
++	BLS	masklast
++	// Have we found something already?
++	CBNZ	R6, tail
++
++loop:
++	VLD1.P	(R3), [V1.B16, V2.B16]
++	SUBS	$0x20, R2, R2
++	VCMEQ	V0.B16, V1.B16, V3.B16
++	VCMEQ	V0.B16, V2.B16, V4.B16
++	// If we're out of data we finish regardless of the result
++	BLS	end
++	// Use a fast check for the termination condition
++	VORR	V4.B16, V3.B16, V6.B16
++	VADDP	V6.D2, V6.D2, V6.D2
++	VMOV	V6.D[0], R6
++	// We're not out of data, loop if we haven't found the character
++	CBZ	R6, loop
++
++end:
++	// Termination condition found, let's calculate the syndrome value
++	VAND	V5.B16, V3.B16, V3.B16
++	VAND	V5.B16, V4.B16, V4.B16
++	VADDP	V4.B16, V3.B16, V6.B16
++	VADDP	V6.B16, V6.B16, V6.B16
++	VMOV	V6.D[0], R6
++	// Only do the clear for the last possible block with less than 32 bytes
++	// Condition flags come from SUBS in the loop
++	BHS	tail
++
++masklast:
++	// Clear the irrelevant upper bits
++	ADD	R9, R10, R4
++	AND	$0x1f, R4, R4
++	SUB	$0x20, R4, R4
++	NEG	R4<<1, R4
++	LSL	R4, R6, R6
++	LSR	R4, R6, R6
++
++tail:
++	// Check that we have found a character
++	CBZ	R6, fail
++	// Count the trailing zeros using bit reversing
++	RBIT	R6, R6
++	// Compensate the last post-increment
++	SUB	$0x20, R3, R3
++	// And count the leading zeros
++	CLZ	R6, R6
++	// R6 is twice the offset into the fragment
++	ADD	R6>>1, R3, R0
++	// Compute the offset result
++	SUB	R11, R0, R0
++	MOVD	R0, (R8)
++	RET
++
++fail:
++	MOVD	$-1, R0
++	MOVD	R0, (R8)
++	RET
+diff --git a/src/internal/bytealg/indexbyte_generic.go b/src/internal/bytealg/indexbyte_generic.go
+new file mode 100644
+index 0000000000..e767211e84
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_generic.go
+@@ -0,0 +1,47 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !386,!amd64,!amd64p32,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!mips64,!mips64le
++
++package bytealg
++
++import _ "unsafe" // for go:linkname
++
++func IndexByte(b []byte, c byte) int {
++	for i, x := range b {
++		if x == c {
++			return i
++		}
++	}
++	return -1
++}
++
++func IndexByteString(s string, c byte) int {
++	for i := 0; i < len(s); i++ {
++		if s[i] == c {
++			return i
++		}
++	}
++	return -1
++}
++
++//go:linkname bytes_IndexByte bytes.IndexByte
++func bytes_IndexByte(b []byte, c byte) int {
++	for i, x := range b {
++		if x == c {
++			return i
++		}
++	}
++	return -1
++}
++
++//go:linkname strings_IndexByte strings.IndexByte
++func strings_IndexByte(s string, c byte) int {
++	for i := 0; i < len(s); i++ {
++		if s[i] == c {
++			return i
++		}
++	}
++	return -1
++}
+diff --git a/src/internal/bytealg/indexbyte_mips64x.s b/src/internal/bytealg/indexbyte_mips64x.s
+new file mode 100644
+index 0000000000..2dc736df4d
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_mips64x.s
+@@ -0,0 +1,60 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·IndexByte(SB),NOSPLIT,$0-40
++	MOVV	b_base+0(FP), R1
++	MOVV	b_len+8(FP), R2
++	MOVBU	c+24(FP), R3	// byte to find
++	MOVV	R1, R4		// store base for later
++	ADDV	R1, R2		// end
++	ADDV	$-1, R1
++
++loop:
++	ADDV	$1, R1
++	BEQ	R1, R2, notfound
++	MOVBU	(R1), R5
++	BNE	R3, R5, loop
++
++	SUBV	R4, R1		// remove base
++	MOVV	R1, ret+32(FP)
++	RET
++
++notfound:
++	MOVV	$-1, R1
++	MOVV	R1, ret+32(FP)
++	RET
++
++TEXT ·IndexByteString(SB),NOSPLIT,$0-32
++	MOVV	s_base+0(FP), R1
++	MOVV	s_len+8(FP), R2
++	MOVBU	c+16(FP), R3	// byte to find
++	MOVV	R1, R4		// store base for later
++	ADDV	R1, R2		// end
++	ADDV	$-1, R1
++
++loop:
++	ADDV	$1, R1
++	BEQ	R1, R2, notfound
++	MOVBU	(R1), R5
++	BNE	R3, R5, loop
++
++	SUBV	R4, R1		// remove base
++	MOVV	R1, ret+24(FP)
++	RET
++
++notfound:
++	MOVV	$-1, R1
++	MOVV	R1, ret+24(FP)
++	RET
++
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
++	JMP ·IndexByte(SB)
++
++TEXT strings·IndexByte(SB),NOSPLIT,$0-32
++	JMP ·IndexByteString(SB)
+diff --git a/src/internal/bytealg/indexbyte_mipsx.s b/src/internal/bytealg/indexbyte_mipsx.s
+new file mode 100644
+index 0000000000..1544572b4a
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_mipsx.s
+@@ -0,0 +1,58 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips mipsle
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·IndexByte(SB),NOSPLIT,$0-20
++	MOVW	b_base+0(FP), R1
++	MOVW	b_len+4(FP), R2
++	MOVBU	c+12(FP), R3	// byte to find
++	ADDU	$1, R1, R4	// store base+1 for later
++	ADDU	R1, R2	// end
++
++loop:
++	BEQ	R1, R2, notfound
++	MOVBU	(R1), R5
++	ADDU	$1, R1
++	BNE	R3, R5, loop
++
++	SUBU	R4, R1	// R1 will be one beyond the position we want so remove (base+1)
++	MOVW	R1, ret+16(FP)
++	RET
++
++notfound:
++	MOVW	$-1, R1
++	MOVW	R1, ret+16(FP)
++	RET
++
++TEXT ·IndexByteString(SB),NOSPLIT,$0-16
++	MOVW	s_base+0(FP), R1
++	MOVW	s_len+4(FP), R2
++	MOVBU	c+8(FP), R3	// byte to find
++	ADDU	$1, R1, R4	// store base+1 for later
++	ADDU	R1, R2	// end
++
++loop:
++	BEQ	R1, R2, notfound
++	MOVBU	(R1), R5
++	ADDU	$1, R1
++	BNE	R3, R5, loop
++
++	SUBU	R4, R1	// remove (base+1)
++	MOVW	R1, ret+12(FP)
++	RET
++
++notfound:
++	MOVW	$-1, R1
++	MOVW	R1, ret+12(FP)
++	RET
++
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
++	JMP ·IndexByte(SB)
++
++TEXT strings·IndexByte(SB),NOSPLIT,$0-16
++	JMP ·IndexByteString(SB)
+diff --git a/src/internal/bytealg/indexbyte_native.go b/src/internal/bytealg/indexbyte_native.go
+new file mode 100644
+index 0000000000..83b7239fcd
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_native.go
+@@ -0,0 +1,23 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32 s390x arm arm64 ppc64 ppc64le mips mipsle mips64 mips64le
++
++package bytealg
++
++import (
++	"internal/cpu"
++	"unsafe"
++)
++
++// Offsets into internal/cpu records for use in assembly
++// TODO: find a better way to do this?
++const x86_HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
++const s390x_HasVX = unsafe.Offsetof(cpu.S390X.HasVX)
++
++//go:noescape
++func IndexByte(b []byte, c byte) int
++
++//go:noescape
++func IndexByteString(s string, c byte) int
+diff --git a/src/internal/bytealg/indexbyte_ppc64x.s b/src/internal/bytealg/indexbyte_ppc64x.s
+new file mode 100644
+index 0000000000..d522f8a9d6
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_ppc64x.s
+@@ -0,0 +1,325 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
++	MOVD	b_base+0(FP), R3	// R3 = byte array pointer
++	MOVD	b_len+8(FP), R4		// R4 = length
++	MOVBZ	c+24(FP), R5		// R5 = byte
++	MOVD	$ret+32(FP), R14	// R14 = &ret
++	BR	indexbytebody<>(SB)
++
++TEXT ·IndexByteString(SB),NOSPLIT|NOFRAME,$0-32
++	MOVD	s_base+0(FP), R3  // R3 = string
++	MOVD	s_len+8(FP), R4	  // R4 = length
++	MOVBZ	c+16(FP), R5	  // R5 = byte
++	MOVD	$ret+24(FP), R14  // R14 = &ret
++	BR	indexbytebody<>(SB)
++
++TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
++	MOVD	b_base+0(FP), R3	// R3 = byte array pointer
++	MOVD	b_len+8(FP), R4		// R4 = length
++	MOVBZ	c+24(FP), R5		// R5 = byte
++	MOVD	$ret+32(FP), R14	// R14 = &ret
++	BR	indexbytebody<>(SB)
++
++TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
++	MOVD	s_base+0(FP), R3  // R3 = string
++	MOVD	s_len+8(FP), R4	  // R4 = length
++	MOVBZ	c+16(FP), R5	  // R5 = byte
++	MOVD	$ret+24(FP), R14  // R14 = &ret
++	BR	indexbytebody<>(SB)
++
++TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
++	DCBT	(R3)		// Prepare cache line.
++	MOVD	R3,R17		// Save base address for calculating the index later.
++	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.
++	RLDIMI	$8,R5,$48,R5	// Replicating the byte across the register.
++	ADD	R4,R3,R7	// Last acceptable address in R7.
++
++	RLDIMI	$16,R5,$32,R5
++	CMPU	R4,$32		// Check if it's a small string (<32 bytes). Those will be processed differently.
++	MOVD	$-1,R9
++	WORD	$0x54661EB8	// Calculate padding in R6 (rlwinm r6,r3,3,26,28).
++	RLDIMI	$32,R5,$0,R5
++	MOVD	R7,R10		// Save last acceptable address in R10 for later.
++	ADD	$-1,R7,R7
++#ifdef GOARCH_ppc64le
++	SLD	R6,R9,R9	// Prepare mask for Little Endian
++#else
++	SRD	R6,R9,R9	// Same for Big Endian
++#endif
++	BLE	small_string	// Jump to the small string case if it's <32 bytes.
++
++	// If we are 64-byte aligned, branch to qw_align just to get the auxiliary values
++	// in V0, V1 and V10, then branch to the preloop.
++	ANDCC	$63,R3,R11
++	BEQ	CR0,qw_align
++	RLDICL	$0,R3,$61,R11
++
++	MOVD	0(R8),R12	// Load one doubleword from the aligned address in R8.
++	CMPB	R12,R5,R3	// Check for a match.
++	AND	R9,R3,R3	// Mask bytes below s_base
++	RLDICL	$0,R7,$61,R6	// length-1
++	RLDICR	$0,R7,$60,R7	// Last doubleword in R7
++	CMPU	R3,$0,CR7	// If we have a match, jump to the final computation
++	BNE	CR7,done
++	ADD	$8,R8,R8
++	ADD	$-8,R4,R4
++	ADD	R4,R11,R4
++
++	// Check for quadword alignment
++	ANDCC	$15,R8,R11
++	BEQ	CR0,qw_align
++
++	// Not aligned, so handle the next doubleword
++	MOVD	0(R8),R12
++	CMPB	R12,R5,R3
++	CMPU	R3,$0,CR7
++	BNE	CR7,done
++	ADD	$8,R8,R8
++	ADD	$-8,R4,R4
++
++	// Either quadword aligned or 64-byte at this point. We can use LVX.
++qw_align:
++
++	// Set up auxiliary data for the vectorized algorithm.
++	VSPLTISB  $0,V0		// Replicate 0 across V0
++	VSPLTISB  $3,V10	// Use V10 as control for VBPERMQ
++	MTVRD	  R5,V1
++	LVSL	  (R0+R0),V11
++	VSLB	  V11,V10,V10
++	VSPLTB	  $7,V1,V1	// Replicate byte across V1
++	CMPU	  R4, $64	// If len <= 64, don't use the vectorized loop
++	BLE	  tail
++
++	// We will load 4 quardwords per iteration in the loop, so check for
++	// 64-byte alignment. If 64-byte aligned, then branch to the preloop.
++	ANDCC	  $63,R8,R11
++	BEQ	  CR0,preloop
++
++	// Not 64-byte aligned. Load one quadword at a time until aligned.
++	LVX	    (R8+R0),V4
++	VCMPEQUBCC  V1,V4,V6		// Check for byte in V4
++	BNE	    CR6,found_qw_align
++	ADD	    $16,R8,R8
++	ADD	    $-16,R4,R4
++
++	ANDCC	    $63,R8,R11
++	BEQ	    CR0,preloop
++	LVX	    (R8+R0),V4
++	VCMPEQUBCC  V1,V4,V6		// Check for byte in V4
++	BNE	    CR6,found_qw_align
++	ADD	    $16,R8,R8
++	ADD	    $-16,R4,R4
++
++	ANDCC	    $63,R8,R11
++	BEQ	    CR0,preloop
++	LVX	    (R8+R0),V4
++	VCMPEQUBCC  V1,V4,V6		// Check for byte in V4
++	BNE	    CR6,found_qw_align
++	ADD	    $-16,R4,R4
++	ADD	    $16,R8,R8
++
++	// 64-byte aligned. Prepare for the main loop.
++preloop:
++	CMPU	R4,$64
++	BLE	tail	      // If len <= 64, don't use the vectorized loop
++
++	// We are now aligned to a 64-byte boundary. We will load 4 quadwords
++	// per loop iteration. The last doubleword is in R10, so our loop counter
++	// starts at (R10-R8)/64.
++	SUB	R8,R10,R6
++	SRD	$6,R6,R9      // Loop counter in R9
++	MOVD	R9,CTR
++
++	MOVD	$16,R11      // Load offsets for the vector loads
++	MOVD	$32,R9
++	MOVD	$48,R7
++
++	// Main loop we will load 64 bytes per iteration
++loop:
++	LVX	    (R8+R0),V2	      // Load 4 16-byte vectors
++	LVX	    (R11+R8),V3
++	LVX	    (R9+R8),V4
++	LVX	    (R7+R8),V5
++	VCMPEQUB    V1,V2,V6	      // Look for byte in each vector
++	VCMPEQUB    V1,V3,V7
++	VCMPEQUB    V1,V4,V8
++	VCMPEQUB    V1,V5,V9
++	VOR	    V6,V7,V11	      // Compress the result in a single vector
++	VOR	    V8,V9,V12
++	VOR	    V11,V12,V11
++	VCMPEQUBCC  V0,V11,V11	      // Check for byte
++	BGE	    CR6,found
++	ADD	    $64,R8,R8
++	BC	    16,0,loop	      // bdnz loop
++
++	// Handle the tailing bytes or R4 <= 64
++	RLDICL	$0,R6,$58,R4
++tail:
++	CMPU	    R4,$0
++	BEQ	    notfound
++	LVX	    (R8+R0),V4
++	VCMPEQUBCC  V1,V4,V6
++	BNE	    CR6,found_qw_align
++	ADD	    $16,R8,R8
++	CMPU	    R4,$16,CR6
++	BLE	    CR6,notfound
++	ADD	    $-16,R4,R4
++
++	LVX	    (R8+R0),V4
++	VCMPEQUBCC  V1,V4,V6
++	BNE	    CR6,found_qw_align
++	ADD	    $16,R8,R8
++	CMPU	    R4,$16,CR6
++	BLE	    CR6,notfound
++	ADD	    $-16,R4,R4
++
++	LVX	    (R8+R0),V4
++	VCMPEQUBCC  V1,V4,V6
++	BNE	    CR6,found_qw_align
++	ADD	    $16,R8,R8
++	CMPU	    R4,$16,CR6
++	BLE	    CR6,notfound
++	ADD	    $-16,R4,R4
++
++	LVX	    (R8+R0),V4
++	VCMPEQUBCC  V1,V4,V6
++	BNE	    CR6,found_qw_align
++
++notfound:
++	MOVD	$-1,R3
++	MOVD	R3,(R14)
++	RET
++
++found:
++	// We will now compress the results into a single doubleword,
++	// so it can be moved to a GPR for the final index calculation.
++
++	// The bytes in V6-V9 are either 0x00 or 0xFF. So, permute the
++	// first bit of each byte into bits 48-63.
++	VBPERMQ	  V6,V10,V6
++	VBPERMQ	  V7,V10,V7
++	VBPERMQ	  V8,V10,V8
++	VBPERMQ	  V9,V10,V9
++
++	// Shift each 16-bit component into its correct position for
++	// merging into a single doubleword.
++#ifdef GOARCH_ppc64le
++	VSLDOI	  $2,V7,V7,V7
++	VSLDOI	  $4,V8,V8,V8
++	VSLDOI	  $6,V9,V9,V9
++#else
++	VSLDOI	  $6,V6,V6,V6
++	VSLDOI	  $4,V7,V7,V7
++	VSLDOI	  $2,V8,V8,V8
++#endif
++
++	// Merge V6-V9 into a single doubleword and move to a GPR.
++	VOR	V6,V7,V11
++	VOR	V8,V9,V4
++	VOR	V4,V11,V4
++	MFVRD	V4,R3
++
++#ifdef GOARCH_ppc64le
++	ADD	  $-1,R3,R11
++	ANDN	  R3,R11,R11
++	POPCNTD	  R11,R11	// Count trailing zeros (Little Endian).
++#else
++	CNTLZD	R3,R11		// Count leading zeros (Big Endian).
++#endif
++	ADD	R8,R11,R3	// Calculate byte address
++
++return:
++	SUB	R17,R3
++	MOVD	R3,(R14)
++	RET
++
++found_qw_align:
++	// Use the same algorithm as above. Compress the result into
++	// a single doubleword and move it to a GPR for the final
++	// calculation.
++	VBPERMQ	  V6,V10,V6
++
++#ifdef GOARCH_ppc64le
++	MFVRD	  V6,R3
++	ADD	  $-1,R3,R11
++	ANDN	  R3,R11,R11
++	POPCNTD	  R11,R11
++#else
++	VSLDOI	  $6,V6,V6,V6
++	MFVRD	  V6,R3
++	CNTLZD	  R3,R11
++#endif
++	ADD	  R8,R11,R3
++	CMPU	  R11,R4
++	BLT	  return
++	BR	  notfound
++
++done:
++	// At this point, R3 has 0xFF in the same position as the byte we are
++	// looking for in the doubleword. Use that to calculate the exact index
++	// of the byte.
++#ifdef GOARCH_ppc64le
++	ADD	$-1,R3,R11
++	ANDN	R3,R11,R11
++	POPCNTD	R11,R11		// Count trailing zeros (Little Endian).
++#else
++	CNTLZD	R3,R11		// Count leading zeros (Big Endian).
++#endif
++	CMPU	R8,R7		// Check if we are at the last doubleword.
++	SRD	$3,R11		// Convert trailing zeros to bytes.
++	ADD	R11,R8,R3
++	CMPU	R11,R6,CR7	// If at the last doubleword, check the byte offset.
++	BNE	return
++	BLE	CR7,return
++	BR	notfound
++
++small_string:
++	// We unroll this loop for better performance.
++	CMPU	R4,$0		// Check for length=0
++	BEQ	notfound
++
++	MOVD	0(R8),R12	// Load one doubleword from the aligned address in R8.
++	CMPB	R12,R5,R3	// Check for a match.
++	AND	R9,R3,R3	// Mask bytes below s_base.
++	CMPU	R3,$0,CR7	// If we have a match, jump to the final computation.
++	RLDICL	$0,R7,$61,R6	// length-1
++	RLDICR	$0,R7,$60,R7	// Last doubleword in R7.
++	CMPU	R8,R7
++	BNE	CR7,done
++	BEQ	notfound	// Hit length.
++
++	MOVDU	8(R8),R12
++	CMPB	R12,R5,R3
++	CMPU	R3,$0,CR6
++	CMPU	R8,R7
++	BNE	CR6,done
++	BEQ	notfound
++
++	MOVDU	8(R8),R12
++	CMPB	R12,R5,R3
++	CMPU	R3,$0,CR6
++	CMPU	R8,R7
++	BNE	CR6,done
++	BEQ	notfound
++
++	MOVDU	8(R8),R12
++	CMPB	R12,R5,R3
++	CMPU	R3,$0,CR6
++	CMPU	R8,R7
++	BNE	CR6,done
++	BEQ	notfound
++
++	MOVDU	8(R8),R12
++	CMPB	R12,R5,R3
++	CMPU	R3,$0,CR6
++	BNE	CR6,done
++	BR	notfound
++
+diff --git a/src/internal/bytealg/indexbyte_s390x.s b/src/internal/bytealg/indexbyte_s390x.s
+new file mode 100644
+index 0000000000..6565c783e6
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_s390x.s
+@@ -0,0 +1,122 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
++	MOVD	b_base+0(FP), R3// b_base => R3
++	MOVD	b_len+8(FP), R4 // b_len => R4
++	MOVBZ	c+24(FP), R5    // c => R5
++	MOVD	$ret+32(FP), R2 // &ret => R9
++	BR	indexbytebody<>(SB)
++
++TEXT ·IndexByteString(SB),NOSPLIT|NOFRAME,$0-32
++	MOVD	s_base+0(FP), R3// s_base => R3
++	MOVD	s_len+8(FP), R4 // s_len => R4
++	MOVBZ	c+16(FP), R5    // c => R5
++	MOVD	$ret+24(FP), R2 // &ret => R9
++	BR	indexbytebody<>(SB)
++
++TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
++	MOVD	b_base+0(FP), R3// b_base => R3
++	MOVD	b_len+8(FP), R4 // b_len => R4
++	MOVBZ	c+24(FP), R5    // c => R5
++	MOVD	$ret+32(FP), R2 // &ret => R9
++	BR	indexbytebody<>(SB)
++
++TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
++	MOVD	s_base+0(FP), R3// s_base => R3
++	MOVD	s_len+8(FP), R4 // s_len => R4
++	MOVBZ	c+16(FP), R5    // c => R5
++	MOVD	$ret+24(FP), R2 // &ret => R9
++	BR	indexbytebody<>(SB)
++
++// input:
++// R3: s
++// R4: s_len
++// R5: c -- byte sought
++// R2: &ret -- address to put index into
++TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0
++	CMPBEQ	R4, $0, notfound
++	MOVD	R3, R6          // store base for later
++	ADD	R3, R4, R8      // the address after the end of the string
++	//if the length is small, use loop; otherwise, use vector or srst search
++	CMPBGE	R4, $16, large
++
++residual:
++	CMPBEQ	R3, R8, notfound
++	MOVBZ	0(R3), R7
++	LA	1(R3), R3
++	CMPBNE	R7, R5, residual
++
++found:
++	SUB	R6, R3
++	SUB	$1, R3
++	MOVD	R3, 0(R2)
++	RET
++
++notfound:
++	MOVD	$-1, 0(R2)
++	RET
++
++large:
++	MOVBZ	internal∕cpu·S390X+const_s390x_HasVX(SB), R1
++	CMPBNE	R1, $0, vectorimpl
++
++srstimpl:                       // no vector facility
++	MOVBZ	R5, R0          // c needs to be in R0, leave until last minute as currently R0 is expected to be 0
++srstloop:
++	WORD	$0xB25E0083     // srst %r8, %r3 (search the range [R3, R8))
++	BVS	srstloop        // interrupted - continue
++	BGT	notfoundr0
++foundr0:
++	XOR	R0, R0          // reset R0
++	SUB	R6, R8          // remove base
++	MOVD	R8, 0(R2)
++	RET
++notfoundr0:
++	XOR	R0, R0          // reset R0
++	MOVD	$-1, 0(R2)
++	RET
++
++vectorimpl:
++	//if the address is not 16byte aligned, use loop for the header
++	MOVD	R3, R8
++	AND	$15, R8
++	CMPBGT	R8, $0, notaligned
++
++aligned:
++	ADD	R6, R4, R8
++	MOVD	R8, R7
++	AND	$-16, R7
++	// replicate c across V17
++	VLVGB	$0, R5, V19
++	VREPB	$0, V19, V17
++
++vectorloop:
++	CMPBGE	R3, R7, residual
++	VL	0(R3), V16    // load string to be searched into V16
++	ADD	$16, R3
++	VFEEBS	V16, V17, V18 // search V17 in V16 and set conditional code accordingly
++	BVS	vectorloop
++
++	// when vector search found c in the string
++	VLGVB	$7, V18, R7   // load 7th element of V18 containing index into R7
++	SUB	$16, R3
++	SUB	R6, R3
++	ADD	R3, R7
++	MOVD	R7, 0(R2)
++	RET
++
++notaligned:
++	MOVD	R3, R8
++	AND	$-16, R8
++	ADD     $16, R8
++notalignedloop:
++	CMPBEQ	R3, R8, aligned
++	MOVBZ	0(R3), R7
++	LA	1(R3), R3
++	CMPBNE	R7, R5, notalignedloop
++	BR	found
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 22fc561002..4194d6d724 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -75,3 +75,11 @@ type arm64 struct {
+ 	HasATOMICS bool
+ 	_          [CacheLineSize]byte
+ }
++
++var S390X s390x
++
++type s390x struct {
++	_     [CacheLineSize]byte
++	HasVX bool // vector facility. Note: the runtime sets this when it processes auxv records.
++	_     [CacheLineSize]byte
++}
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index a8de5976ac..5533681cab 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1495,34 +1495,6 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-28
+ 	LEAL	ret+24(FP), AX
+ 	JMP	runtime·cmpbody(SB)
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+-	MOVL	s+0(FP), SI
+-	MOVL	s_len+4(FP), CX
+-	MOVB	c+12(FP), AL
+-	MOVL	SI, DI
+-	CLD; REPN; SCASB
+-	JZ 3(PC)
+-	MOVL	$-1, ret+16(FP)
+-	RET
+-	SUBL	SI, DI
+-	SUBL	$1, DI
+-	MOVL	DI, ret+16(FP)
+-	RET
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+-	MOVL	s+0(FP), SI
+-	MOVL	s_len+4(FP), CX
+-	MOVB	c+8(FP), AL
+-	MOVL	SI, DI
+-	CLD; REPN; SCASB
+-	JZ 3(PC)
+-	MOVL	$-1, ret+12(FP)
+-	RET
+-	SUBL	SI, DI
+-	SUBL	$1, DI
+-	MOVL	DI, ret+12(FP)
+-	RET
+-
+ // input:
+ //   SI = a
+ //   DI = b
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 2376fe0aae..07e3b0b6e9 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1995,148 +1995,6 @@ success:
+ 	MOVQ DI, (R11)
+ 	RET
+ 
+-
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+-	MOVQ s+0(FP), SI
+-	MOVQ s_len+8(FP), BX
+-	MOVB c+24(FP), AL
+-	LEAQ ret+32(FP), R8
+-	JMP  runtime·indexbytebody(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-32
+-	MOVQ s+0(FP), SI
+-	MOVQ s_len+8(FP), BX
+-	MOVB c+16(FP), AL
+-	LEAQ ret+24(FP), R8
+-	JMP  runtime·indexbytebody(SB)
+-
+-// input:
+-//   SI: data
+-//   BX: data len
+-//   AL: byte sought
+-//   R8: address to put result
+-TEXT runtime·indexbytebody(SB),NOSPLIT,$0
+-	// Shuffle X0 around so that each byte contains
+-	// the character we're looking for.
+-	MOVD AX, X0
+-	PUNPCKLBW X0, X0
+-	PUNPCKLBW X0, X0
+-	PSHUFL $0, X0, X0
+-	
+-	CMPQ BX, $16
+-	JLT small
+-
+-	MOVQ SI, DI
+-
+-	CMPQ BX, $32
+-	JA avx2
+-sse:
+-	LEAQ	-16(SI)(BX*1), AX	// AX = address of last 16 bytes
+-	JMP	sseloopentry
+-	
+-sseloop:
+-	// Move the next 16-byte chunk of the data into X1.
+-	MOVOU	(DI), X1
+-	// Compare bytes in X0 to X1.
+-	PCMPEQB	X0, X1
+-	// Take the top bit of each byte in X1 and put the result in DX.
+-	PMOVMSKB X1, DX
+-	// Find first set bit, if any.
+-	BSFL	DX, DX
+-	JNZ	ssesuccess
+-	// Advance to next block.
+-	ADDQ	$16, DI
+-sseloopentry:
+-	CMPQ	DI, AX
+-	JB	sseloop
+-
+-	// Search the last 16-byte chunk. This chunk may overlap with the
+-	// chunks we've already searched, but that's ok.
+-	MOVQ	AX, DI
+-	MOVOU	(AX), X1
+-	PCMPEQB	X0, X1
+-	PMOVMSKB X1, DX
+-	BSFL	DX, DX
+-	JNZ	ssesuccess
+-
+-failure:
+-	MOVQ $-1, (R8)
+-	RET
+-
+-// We've found a chunk containing the byte.
+-// The chunk was loaded from DI.
+-// The index of the matching byte in the chunk is DX.
+-// The start of the data is SI.
+-ssesuccess:
+-	SUBQ SI, DI	// Compute offset of chunk within data.
+-	ADDQ DX, DI	// Add offset of byte within chunk.
+-	MOVQ DI, (R8)
+-	RET
+-
+-// handle for lengths < 16
+-small:
+-	TESTQ	BX, BX
+-	JEQ	failure
+-
+-	// Check if we'll load across a page boundary.
+-	LEAQ	16(SI), AX
+-	TESTW	$0xff0, AX
+-	JEQ	endofpage
+-
+-	MOVOU	(SI), X1 // Load data
+-	PCMPEQB	X0, X1	// Compare target byte with each byte in data.
+-	PMOVMSKB X1, DX	// Move result bits to integer register.
+-	BSFL	DX, DX	// Find first set bit.
+-	JZ	failure	// No set bit, failure.
+-	CMPL	DX, BX
+-	JAE	failure	// Match is past end of data.
+-	MOVQ	DX, (R8)
+-	RET
+-
+-endofpage:
+-	MOVOU	-16(SI)(BX*1), X1	// Load data into the high end of X1.
+-	PCMPEQB	X0, X1	// Compare target byte with each byte in data.
+-	PMOVMSKB X1, DX	// Move result bits to integer register.
+-	MOVL	BX, CX
+-	SHLL	CX, DX
+-	SHRL	$16, DX	// Shift desired bits down to bottom of register.
+-	BSFL	DX, DX	// Find first set bit.
+-	JZ	failure	// No set bit, failure.
+-	MOVQ	DX, (R8)
+-	RET
+-
+-avx2:
+-	CMPB   runtime·support_avx2(SB), $1
+-	JNE sse
+-	MOVD AX, X0
+-	LEAQ -32(SI)(BX*1), R11
+-	VPBROADCASTB  X0, Y1
+-avx2_loop:
+-	VMOVDQU (DI), Y2
+-	VPCMPEQB Y1, Y2, Y3
+-	VPTEST Y3, Y3
+-	JNZ avx2success
+-	ADDQ $32, DI
+-	CMPQ DI, R11
+-	JLT avx2_loop
+-	MOVQ R11, DI
+-	VMOVDQU (DI), Y2
+-	VPCMPEQB Y1, Y2, Y3
+-	VPTEST Y3, Y3
+-	JNZ avx2success
+-	VZEROUPPER
+-	MOVQ $-1, (R8)
+-	RET
+-
+-avx2success:
+-	VPMOVMSKB Y3, DX
+-	BSFL DX, DX
+-	SUBQ SI, DI
+-	ADDQ DI, DX
+-	MOVQ DX, (R8)
+-	VZEROUPPER
+-	RET
+-
+ TEXT bytes·Equal(SB),NOSPLIT,$0-49
+ 	MOVQ	a_len+8(FP), BX
+ 	MOVQ	b_len+32(FP), CX
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index dc4c57de13..3c3adc3990 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -837,113 +837,6 @@ allsame:
+ 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+-	MOVL s+0(FP), SI
+-	MOVL s_len+4(FP), BX
+-	MOVB c+12(FP), AL
+-	CALL runtime·indexbytebody(SB)
+-	MOVL AX, ret+16(FP)
+-	RET
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-20
+-	MOVL s+0(FP), SI
+-	MOVL s_len+4(FP), BX
+-	MOVB c+8(FP), AL
+-	CALL runtime·indexbytebody(SB)
+-	MOVL AX, ret+16(FP)
+-	RET
+-
+-// input:
+-//   SI: data
+-//   BX: data len
+-//   AL: byte sought
+-// output:
+-//   AX
+-TEXT runtime·indexbytebody(SB),NOSPLIT,$0
+-	MOVL SI, DI
+-
+-	CMPL BX, $16
+-	JLT small
+-
+-	// round up to first 16-byte boundary
+-	TESTL $15, SI
+-	JZ aligned
+-	MOVL SI, CX
+-	ANDL $~15, CX
+-	ADDL $16, CX
+-
+-	// search the beginning
+-	SUBL SI, CX
+-	REPN; SCASB
+-	JZ success
+-
+-// DI is 16-byte aligned; get ready to search using SSE instructions
+-aligned:
+-	// round down to last 16-byte boundary
+-	MOVL BX, R11
+-	ADDL SI, R11
+-	ANDL $~15, R11
+-
+-	// shuffle X0 around so that each byte contains c
+-	MOVD AX, X0
+-	PUNPCKLBW X0, X0
+-	PUNPCKLBW X0, X0
+-	PSHUFL $0, X0, X0
+-	JMP condition
+-
+-sse:
+-	// move the next 16-byte chunk of the buffer into X1
+-	MOVO (DI), X1
+-	// compare bytes in X0 to X1
+-	PCMPEQB X0, X1
+-	// take the top bit of each byte in X1 and put the result in DX
+-	PMOVMSKB X1, DX
+-	TESTL DX, DX
+-	JNZ ssesuccess
+-	ADDL $16, DI
+-
+-condition:
+-	CMPL DI, R11
+-	JNE sse
+-
+-	// search the end
+-	MOVL SI, CX
+-	ADDL BX, CX
+-	SUBL R11, CX
+-	// if CX == 0, the zero flag will be set and we'll end up
+-	// returning a false success
+-	JZ failure
+-	REPN; SCASB
+-	JZ success
+-
+-failure:
+-	MOVL $-1, AX
+-	RET
+-
+-// handle for lengths < 16
+-small:
+-	MOVL BX, CX
+-	REPN; SCASB
+-	JZ success
+-	MOVL $-1, AX
+-	RET
+-
+-// we've found the chunk containing the byte
+-// now just figure out which specific byte it is
+-ssesuccess:
+-	// get the index of the least significant set bit
+-	BSFW DX, DX
+-	SUBL SI, DI
+-	ADDL DI, DX
+-	MOVL DX, AX
+-	RET
+-
+-success:
+-	SUBL SI, DI
+-	SUBL $1, DI
+-	MOVL DI, AX
+-	RET
+-
+ TEXT bytes·Equal(SB),NOSPLIT,$0-25
+ 	MOVL	a_len+4(FP), BX
+ 	MOVL	b_len+16(FP), CX
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 0b429705e8..d672bc26a2 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -925,54 +925,6 @@ equal:
+ 	MOVBU	R0, ret+24(FP)
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+-	MOVW	s+0(FP), R0
+-	MOVW	s_len+4(FP), R1
+-	MOVBU	c+12(FP), R2	// byte to find
+-	MOVW	R0, R4		// store base for later
+-	ADD	R0, R1		// end
+-
+-_loop:
+-	CMP	R0, R1
+-	B.EQ	_notfound
+-	MOVBU.P	1(R0), R3
+-	CMP	R2, R3
+-	B.NE	_loop
+-
+-	SUB	$1, R0		// R0 will be one beyond the position we want
+-	SUB	R4, R0		// remove base
+-	MOVW    R0, ret+16(FP)
+-	RET
+-
+-_notfound:
+-	MOVW	$-1, R0
+-	MOVW	R0, ret+16(FP)
+-	RET
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+-	MOVW	s+0(FP), R0
+-	MOVW	s_len+4(FP), R1
+-	MOVBU	c+8(FP), R2	// byte to find
+-	MOVW	R0, R4		// store base for later
+-	ADD	R0, R1		// end
+-
+-_sib_loop:
+-	CMP	R0, R1
+-	B.EQ	_sib_notfound
+-	MOVBU.P	1(R0), R3
+-	CMP	R2, R3
+-	B.NE	_sib_loop
+-
+-	SUB	$1, R0		// R0 will be one beyond the position we want
+-	SUB	R4, R0		// remove base
+-	MOVW	R0, ret+12(FP)
+-	RET
+-
+-_sib_notfound:
+-	MOVW	$-1, R0
+-	MOVW	R0, ret+12(FP)
+-	RET
+-
+ TEXT runtime·return0(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+ 	RET
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 2e08013097..6abb9945e2 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -800,126 +800,6 @@ samebytes:
+ //
+ // functions for other packages
+ //
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+-	MOVD	b+0(FP), R0
+-	MOVD	b_len+8(FP), R2
+-	MOVBU	c+24(FP), R1
+-	MOVD	$ret+32(FP), R8
+-	B	runtime·indexbytebody<>(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-32
+-	MOVD	s+0(FP), R0
+-	MOVD	s_len+8(FP), R2
+-	MOVBU	c+16(FP), R1
+-	MOVD	$ret+24(FP), R8
+-	B	runtime·indexbytebody<>(SB)
+-
+-// input:
+-//   R0: data
+-//   R1: byte to search
+-//   R2: data len
+-//   R8: address to put result
+-TEXT runtime·indexbytebody<>(SB),NOSPLIT,$0
+-	// Core algorithm:
+-	// For each 32-byte chunk we calculate a 64-bit syndrome value,
+-	// with two bits per byte. For each tuple, bit 0 is set if the
+-	// relevant byte matched the requested character and bit 1 is
+-	// not used (faster than using a 32bit syndrome). Since the bits
+-	// in the syndrome reflect exactly the order in which things occur
+-	// in the original string, counting trailing zeros allows to
+-	// identify exactly which byte has matched.
+-
+-	CBZ	R2, fail
+-	MOVD	R0, R11
+-	// Magic constant 0x40100401 allows us to identify
+-	// which lane matches the requested byte.
+-	// 0x40100401 = ((1<<0) + (4<<8) + (16<<16) + (64<<24))
+-	// Different bytes have different bit masks (i.e: 1, 4, 16, 64)
+-	MOVD	$0x40100401, R5
+-	VMOV	R1, V0.B16
+-	// Work with aligned 32-byte chunks
+-	BIC	$0x1f, R0, R3
+-	VMOV	R5, V5.S4
+-	ANDS	$0x1f, R0, R9
+-	AND	$0x1f, R2, R10
+-	BEQ	loop
+-
+-	// Input string is not 32-byte aligned. We calculate the
+-	// syndrome value for the aligned 32 bytes block containing
+-	// the first bytes and mask off the irrelevant part.
+-	VLD1.P	(R3), [V1.B16, V2.B16]
+-	SUB	$0x20, R9, R4
+-	ADDS	R4, R2, R2
+-	VCMEQ	V0.B16, V1.B16, V3.B16
+-	VCMEQ	V0.B16, V2.B16, V4.B16
+-	VAND	V5.B16, V3.B16, V3.B16
+-	VAND	V5.B16, V4.B16, V4.B16
+-	VADDP	V4.B16, V3.B16, V6.B16 // 256->128
+-	VADDP	V6.B16, V6.B16, V6.B16 // 128->64
+-	VMOV	V6.D[0], R6
+-	// Clear the irrelevant lower bits
+-	LSL	$1, R9, R4
+-	LSR	R4, R6, R6
+-	LSL	R4, R6, R6
+-	// The first block can also be the last
+-	BLS	masklast
+-	// Have we found something already?
+-	CBNZ	R6, tail
+-
+-loop:
+-	VLD1.P	(R3), [V1.B16, V2.B16]
+-	SUBS	$0x20, R2, R2
+-	VCMEQ	V0.B16, V1.B16, V3.B16
+-	VCMEQ	V0.B16, V2.B16, V4.B16
+-	// If we're out of data we finish regardless of the result
+-	BLS	end
+-	// Use a fast check for the termination condition
+-	VORR	V4.B16, V3.B16, V6.B16
+-	VADDP	V6.D2, V6.D2, V6.D2
+-	VMOV	V6.D[0], R6
+-	// We're not out of data, loop if we haven't found the character
+-	CBZ	R6, loop
+-
+-end:
+-	// Termination condition found, let's calculate the syndrome value
+-	VAND	V5.B16, V3.B16, V3.B16
+-	VAND	V5.B16, V4.B16, V4.B16
+-	VADDP	V4.B16, V3.B16, V6.B16
+-	VADDP	V6.B16, V6.B16, V6.B16
+-	VMOV	V6.D[0], R6
+-	// Only do the clear for the last possible block with less than 32 bytes
+-	// Condition flags come from SUBS in the loop
+-	BHS	tail
+-
+-masklast:
+-	// Clear the irrelevant upper bits
+-	ADD	R9, R10, R4
+-	AND	$0x1f, R4, R4
+-	SUB	$0x20, R4, R4
+-	NEG	R4<<1, R4
+-	LSL	R4, R6, R6
+-	LSR	R4, R6, R6
+-
+-tail:
+-	// Check that we have found a character
+-	CBZ	R6, fail
+-	// Count the trailing zeros using bit reversing
+-	RBIT	R6, R6
+-	// Compensate the last post-increment
+-	SUB	$0x20, R3, R3
+-	// And count the leading zeros
+-	CLZ	R6, R6
+-	// R6 is twice the offset into the fragment
+-	ADD	R6>>1, R3, R0
+-	// Compute the offset result
+-	SUB	R11, R0, R0
+-	MOVD	R0, (R8)
+-	RET
+-
+-fail:
+-	MOVD	$-1, R0
+-	MOVD	R0, (R8)
+-	RET
+ 
+ // Equal(a, b []byte) bool
+ TEXT bytes·Equal(SB),NOSPLIT,$0-49
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index f59421fbf6..ca47824ab8 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -697,52 +697,6 @@ equal:
+ 	MOVB	R1, ret+48(FP)
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+-	MOVV	s+0(FP), R1
+-	MOVV	s_len+8(FP), R2
+-	MOVBU	c+24(FP), R3	// byte to find
+-	MOVV	R1, R4		// store base for later
+-	ADDV	R1, R2		// end
+-	ADDV	$-1, R1
+-
+-loop:
+-	ADDV	$1, R1
+-	BEQ	R1, R2, notfound
+-	MOVBU	(R1), R5
+-	BNE	R3, R5, loop
+-
+-	SUBV	R4, R1		// remove base
+-	MOVV	R1, ret+32(FP)
+-	RET
+-
+-notfound:
+-	MOVV	$-1, R1
+-	MOVV	R1, ret+32(FP)
+-	RET
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-32
+-	MOVV	p+0(FP), R1
+-	MOVV	b_len+8(FP), R2
+-	MOVBU	c+16(FP), R3	// byte to find
+-	MOVV	R1, R4		// store base for later
+-	ADDV	R1, R2		// end
+-	ADDV	$-1, R1
+-
+-loop:
+-	ADDV	$1, R1
+-	BEQ	R1, R2, notfound
+-	MOVBU	(R1), R5
+-	BNE	R3, R5, loop
+-
+-	SUBV	R4, R1		// remove base
+-	MOVV	R1, ret+24(FP)
+-	RET
+-
+-notfound:
+-	MOVV	$-1, R1
+-	MOVV	R1, ret+24(FP)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R1
+ 	RET
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 47367f1703..ba80361a80 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -712,50 +712,6 @@ equal:
+ 	MOVB	R1, ret+24(FP)
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+-	MOVW	s+0(FP), R1
+-	MOVW	s_len+4(FP), R2
+-	MOVBU	c+12(FP), R3	// byte to find
+-	ADDU	$1, R1, R4	// store base+1 for later
+-	ADDU	R1, R2	// end
+-
+-loop:
+-	BEQ	R1, R2, notfound
+-	MOVBU	(R1), R5
+-	ADDU	$1, R1
+-	BNE	R3, R5, loop
+-
+-	SUBU	R4, R1	// R1 will be one beyond the position we want so remove (base+1)
+-	MOVW	R1, ret+16(FP)
+-	RET
+-
+-notfound:
+-	MOVW	$-1, R1
+-	MOVW	R1, ret+16(FP)
+-	RET
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+-	MOVW	s_base+0(FP), R1
+-	MOVW	s_len+4(FP), R2
+-	MOVBU	c+8(FP), R3	// byte to find
+-	ADDU	$1, R1, R4	// store base+1 for later
+-	ADDU	R1, R2	// end
+-
+-loop:
+-	BEQ	R1, R2, notfound
+-	MOVBU	(R1), R5
+-	ADDU	$1, R1
+-	BNE	R3, R5, loop
+-
+-	SUBU	R4, R1	// remove (base+1)
+-	MOVW	R1, ret+12(FP)
+-	RET
+-
+-notfound:
+-	MOVW	$-1, R1
+-	MOVW	R1, ret+12(FP)
+-	RET
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVW	s1_base+0(FP), R3
+ 	MOVW	s1_len+4(FP), R1
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index c0e872f7a9..0440751724 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1068,308 +1068,6 @@ equal:
+ 	MOVBZ	R3,ret+48(FP)
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
+-	MOVD	s+0(FP), R3		// R3 = byte array pointer
+-	MOVD	s_len+8(FP), R4		// R4 = length
+-	MOVBZ	c+24(FP), R5		// R5 = byte
+-	MOVD	$ret+32(FP), R14	// R14 = &ret
+-	BR	runtime·indexbytebody<>(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
+-	MOVD	s+0(FP), R3	  // R3 = string
+-	MOVD	s_len+8(FP), R4	  // R4 = length
+-	MOVBZ	c+16(FP), R5	  // R5 = byte
+-	MOVD	$ret+24(FP), R14  // R14 = &ret
+-	BR	runtime·indexbytebody<>(SB)
+-
+-TEXT runtime·indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
+-	DCBT	(R3)		// Prepare cache line.
+-	MOVD	R3,R17		// Save base address for calculating the index later.
+-	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.
+-	RLDIMI	$8,R5,$48,R5	// Replicating the byte across the register.
+-	ADD	R4,R3,R7	// Last acceptable address in R7.
+-
+-	RLDIMI	$16,R5,$32,R5
+-	CMPU	R4,$32		// Check if it's a small string (<32 bytes). Those will be processed differently.
+-	MOVD	$-1,R9
+-	WORD	$0x54661EB8	// Calculate padding in R6 (rlwinm r6,r3,3,26,28).
+-	RLDIMI	$32,R5,$0,R5
+-	MOVD	R7,R10		// Save last acceptable address in R10 for later.
+-	ADD	$-1,R7,R7
+-#ifdef GOARCH_ppc64le
+-	SLD	R6,R9,R9	// Prepare mask for Little Endian
+-#else
+-	SRD	R6,R9,R9	// Same for Big Endian
+-#endif
+-	BLE	small_string	// Jump to the small string case if it's <32 bytes.
+-
+-	// If we are 64-byte aligned, branch to qw_align just to get the auxiliary values
+-	// in V0, V1 and V10, then branch to the preloop.
+-	ANDCC	$63,R3,R11
+-	BEQ	CR0,qw_align
+-	RLDICL	$0,R3,$61,R11
+-
+-	MOVD	0(R8),R12	// Load one doubleword from the aligned address in R8.
+-	CMPB	R12,R5,R3	// Check for a match.
+-	AND	R9,R3,R3	// Mask bytes below s_base
+-	RLDICL	$0,R7,$61,R6	// length-1
+-	RLDICR	$0,R7,$60,R7	// Last doubleword in R7
+-	CMPU	R3,$0,CR7	// If we have a match, jump to the final computation
+-	BNE	CR7,done
+-	ADD	$8,R8,R8
+-	ADD	$-8,R4,R4
+-	ADD	R4,R11,R4
+-
+-	// Check for quadword alignment
+-	ANDCC	$15,R8,R11
+-	BEQ	CR0,qw_align
+-
+-	// Not aligned, so handle the next doubleword
+-	MOVD	0(R8),R12
+-	CMPB	R12,R5,R3
+-	CMPU	R3,$0,CR7
+-	BNE	CR7,done
+-	ADD	$8,R8,R8
+-	ADD	$-8,R4,R4
+-
+-	// Either quadword aligned or 64-byte at this point. We can use LVX.
+-qw_align:
+-
+-	// Set up auxiliary data for the vectorized algorithm.
+-	VSPLTISB  $0,V0		// Replicate 0 across V0
+-	VSPLTISB  $3,V10	// Use V10 as control for VBPERMQ
+-	MTVRD	  R5,V1
+-	LVSL	  (R0+R0),V11
+-	VSLB	  V11,V10,V10
+-	VSPLTB	  $7,V1,V1	// Replicate byte across V1
+-	CMPU	  R4, $64	// If len <= 64, don't use the vectorized loop
+-	BLE	  tail
+-
+-	// We will load 4 quardwords per iteration in the loop, so check for
+-	// 64-byte alignment. If 64-byte aligned, then branch to the preloop.
+-	ANDCC	  $63,R8,R11
+-	BEQ	  CR0,preloop
+-
+-	// Not 64-byte aligned. Load one quadword at a time until aligned.
+-	LVX	    (R8+R0),V4
+-	VCMPEQUBCC  V1,V4,V6		// Check for byte in V4
+-	BNE	    CR6,found_qw_align
+-	ADD	    $16,R8,R8
+-	ADD	    $-16,R4,R4
+-
+-	ANDCC	    $63,R8,R11
+-	BEQ	    CR0,preloop
+-	LVX	    (R8+R0),V4
+-	VCMPEQUBCC  V1,V4,V6		// Check for byte in V4
+-	BNE	    CR6,found_qw_align
+-	ADD	    $16,R8,R8
+-	ADD	    $-16,R4,R4
+-
+-	ANDCC	    $63,R8,R11
+-	BEQ	    CR0,preloop
+-	LVX	    (R8+R0),V4
+-	VCMPEQUBCC  V1,V4,V6		// Check for byte in V4
+-	BNE	    CR6,found_qw_align
+-	ADD	    $-16,R4,R4
+-	ADD	    $16,R8,R8
+-
+-	// 64-byte aligned. Prepare for the main loop.
+-preloop:
+-	CMPU	R4,$64
+-	BLE	tail	      // If len <= 64, don't use the vectorized loop
+-
+-	// We are now aligned to a 64-byte boundary. We will load 4 quadwords
+-	// per loop iteration. The last doubleword is in R10, so our loop counter
+-	// starts at (R10-R8)/64.
+-	SUB	R8,R10,R6
+-	SRD	$6,R6,R9      // Loop counter in R9
+-	MOVD	R9,CTR
+-
+-	MOVD	$16,R11      // Load offsets for the vector loads
+-	MOVD	$32,R9
+-	MOVD	$48,R7
+-
+-	// Main loop we will load 64 bytes per iteration
+-loop:
+-	LVX	    (R8+R0),V2	      // Load 4 16-byte vectors
+-	LVX	    (R11+R8),V3
+-	LVX	    (R9+R8),V4
+-	LVX	    (R7+R8),V5
+-	VCMPEQUB    V1,V2,V6	      // Look for byte in each vector
+-	VCMPEQUB    V1,V3,V7
+-	VCMPEQUB    V1,V4,V8
+-	VCMPEQUB    V1,V5,V9
+-	VOR	    V6,V7,V11	      // Compress the result in a single vector
+-	VOR	    V8,V9,V12
+-	VOR	    V11,V12,V11
+-	VCMPEQUBCC  V0,V11,V11	      // Check for byte
+-	BGE	    CR6,found
+-	ADD	    $64,R8,R8
+-	BC	    16,0,loop	      // bdnz loop
+-
+-	// Handle the tailing bytes or R4 <= 64
+-	RLDICL	$0,R6,$58,R4
+-tail:
+-	CMPU	    R4,$0
+-	BEQ	    notfound
+-	LVX	    (R8+R0),V4
+-	VCMPEQUBCC  V1,V4,V6
+-	BNE	    CR6,found_qw_align
+-	ADD	    $16,R8,R8
+-	CMPU	    R4,$16,CR6
+-	BLE	    CR6,notfound
+-	ADD	    $-16,R4,R4
+-
+-	LVX	    (R8+R0),V4
+-	VCMPEQUBCC  V1,V4,V6
+-	BNE	    CR6,found_qw_align
+-	ADD	    $16,R8,R8
+-	CMPU	    R4,$16,CR6
+-	BLE	    CR6,notfound
+-	ADD	    $-16,R4,R4
+-
+-	LVX	    (R8+R0),V4
+-	VCMPEQUBCC  V1,V4,V6
+-	BNE	    CR6,found_qw_align
+-	ADD	    $16,R8,R8
+-	CMPU	    R4,$16,CR6
+-	BLE	    CR6,notfound
+-	ADD	    $-16,R4,R4
+-
+-	LVX	    (R8+R0),V4
+-	VCMPEQUBCC  V1,V4,V6
+-	BNE	    CR6,found_qw_align
+-
+-notfound:
+-	MOVD	$-1,R3
+-	MOVD	R3,(R14)
+-	RET
+-
+-found:
+-	// We will now compress the results into a single doubleword,
+-	// so it can be moved to a GPR for the final index calculation.
+-
+-	// The bytes in V6-V9 are either 0x00 or 0xFF. So, permute the
+-	// first bit of each byte into bits 48-63.
+-	VBPERMQ	  V6,V10,V6
+-	VBPERMQ	  V7,V10,V7
+-	VBPERMQ	  V8,V10,V8
+-	VBPERMQ	  V9,V10,V9
+-
+-	// Shift each 16-bit component into its correct position for
+-	// merging into a single doubleword.
+-#ifdef GOARCH_ppc64le
+-	VSLDOI	  $2,V7,V7,V7
+-	VSLDOI	  $4,V8,V8,V8
+-	VSLDOI	  $6,V9,V9,V9
+-#else
+-	VSLDOI	  $6,V6,V6,V6
+-	VSLDOI	  $4,V7,V7,V7
+-	VSLDOI	  $2,V8,V8,V8
+-#endif
+-
+-	// Merge V6-V9 into a single doubleword and move to a GPR.
+-	VOR	V6,V7,V11
+-	VOR	V8,V9,V4
+-	VOR	V4,V11,V4
+-	MFVRD	V4,R3
+-
+-#ifdef GOARCH_ppc64le
+-	ADD	  $-1,R3,R11
+-	ANDN	  R3,R11,R11
+-	POPCNTD	  R11,R11	// Count trailing zeros (Little Endian).
+-#else
+-	CNTLZD	R3,R11		// Count leading zeros (Big Endian).
+-#endif
+-	ADD	R8,R11,R3	// Calculate byte address
+-
+-return:
+-	SUB	R17,R3
+-	MOVD	R3,(R14)
+-	RET
+-
+-found_qw_align:
+-	// Use the same algorithm as above. Compress the result into
+-	// a single doubleword and move it to a GPR for the final
+-	// calculation.
+-	VBPERMQ	  V6,V10,V6
+-
+-#ifdef GOARCH_ppc64le
+-	MFVRD	  V6,R3
+-	ADD	  $-1,R3,R11
+-	ANDN	  R3,R11,R11
+-	POPCNTD	  R11,R11
+-#else
+-	VSLDOI	  $6,V6,V6,V6
+-	MFVRD	  V6,R3
+-	CNTLZD	  R3,R11
+-#endif
+-	ADD	  R8,R11,R3
+-	CMPU	  R11,R4
+-	BLT	  return
+-	BR	  notfound
+-
+-done:
+-	// At this point, R3 has 0xFF in the same position as the byte we are
+-	// looking for in the doubleword. Use that to calculate the exact index
+-	// of the byte.
+-#ifdef GOARCH_ppc64le
+-	ADD	$-1,R3,R11
+-	ANDN	R3,R11,R11
+-	POPCNTD	R11,R11		// Count trailing zeros (Little Endian).
+-#else
+-	CNTLZD	R3,R11		// Count leading zeros (Big Endian).
+-#endif
+-	CMPU	R8,R7		// Check if we are at the last doubleword.
+-	SRD	$3,R11		// Convert trailing zeros to bytes.
+-	ADD	R11,R8,R3
+-	CMPU	R11,R6,CR7	// If at the last doubleword, check the byte offset.
+-	BNE	return
+-	BLE	CR7,return
+-	BR	notfound
+-
+-small_string:
+-	// We unroll this loop for better performance.
+-	CMPU	R4,$0		// Check for length=0
+-	BEQ	notfound
+-
+-	MOVD	0(R8),R12	// Load one doubleword from the aligned address in R8.
+-	CMPB	R12,R5,R3	// Check for a match.
+-	AND	R9,R3,R3	// Mask bytes below s_base.
+-	CMPU	R3,$0,CR7	// If we have a match, jump to the final computation.
+-	RLDICL	$0,R7,$61,R6	// length-1
+-	RLDICR	$0,R7,$60,R7	// Last doubleword in R7.
+-	CMPU	R8,R7
+-	BNE	CR7,done
+-	BEQ	notfound	// Hit length.
+-
+-	MOVDU	8(R8),R12
+-	CMPB	R12,R5,R3
+-	CMPU	R3,$0,CR6
+-	CMPU	R8,R7
+-	BNE	CR6,done
+-	BEQ	notfound
+-
+-	MOVDU	8(R8),R12
+-	CMPB	R12,R5,R3
+-	CMPU	R3,$0,CR6
+-	CMPU	R8,R7
+-	BNE	CR6,done
+-	BEQ	notfound
+-
+-	MOVDU	8(R8),R12
+-	CMPB	R12,R5,R3
+-	CMPU	R3,$0,CR6
+-	CMPU	R8,R7
+-	BNE	CR6,done
+-	BEQ	notfound
+-
+-	MOVDU	8(R8),R12
+-	CMPB	R12,R5,R3
+-	CMPU	R3,$0,CR6
+-	BNE	CR6,done
+-	BR	notfound
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVD	s1_base+0(FP), R5
+ 	MOVD	s2_base+16(FP), R6
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 766a408c3c..19262a332a 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -854,108 +854,6 @@ TEXT runtime·memeqbodyclc(SB),NOSPLIT|NOFRAME,$0-0
+ 	CLC	$1, 0(R3), 0(R5)
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
+-	MOVD	s+0(FP), R3     // s => R3
+-	MOVD	s_len+8(FP), R4 // s_len => R4
+-	MOVBZ	c+24(FP), R5    // c => R5
+-	MOVD	$ret+32(FP), R2 // &ret => R9
+-	BR	runtime·indexbytebody(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
+-	MOVD	s+0(FP), R3     // s => R3
+-	MOVD	s_len+8(FP), R4 // s_len => R4
+-	MOVBZ	c+16(FP), R5    // c => R5
+-	MOVD	$ret+24(FP), R2 // &ret => R9
+-	BR	runtime·indexbytebody(SB)
+-
+-// input:
+-// R3: s
+-// R4: s_len
+-// R5: c -- byte sought
+-// R2: &ret -- address to put index into
+-TEXT runtime·indexbytebody(SB),NOSPLIT|NOFRAME,$0
+-	CMPBEQ	R4, $0, notfound
+-	MOVD	R3, R6          // store base for later
+-	ADD	R3, R4, R8      // the address after the end of the string
+-	//if the length is small, use loop; otherwise, use vector or srst search
+-	CMPBGE	R4, $16, large
+-
+-residual:
+-	CMPBEQ	R3, R8, notfound
+-	MOVBZ	0(R3), R7
+-	LA	1(R3), R3
+-	CMPBNE	R7, R5, residual
+-
+-found:
+-	SUB	R6, R3
+-	SUB	$1, R3
+-	MOVD	R3, 0(R2)
+-	RET
+-
+-notfound:
+-	MOVD	$-1, 0(R2)
+-	RET
+-
+-large:
+-	MOVBZ	·cpu+facilities_hasVX(SB), R1
+-	CMPBNE	R1, $0, vectorimpl
+-
+-srstimpl:                       // no vector facility
+-	MOVBZ	R5, R0          // c needs to be in R0, leave until last minute as currently R0 is expected to be 0
+-srstloop:
+-	WORD	$0xB25E0083     // srst %r8, %r3 (search the range [R3, R8))
+-	BVS	srstloop        // interrupted - continue
+-	BGT	notfoundr0
+-foundr0:
+-	XOR	R0, R0          // reset R0
+-	SUB	R6, R8          // remove base
+-	MOVD	R8, 0(R2)
+-	RET
+-notfoundr0:
+-	XOR	R0, R0          // reset R0
+-	MOVD	$-1, 0(R2)
+-	RET
+-
+-vectorimpl:
+-	//if the address is not 16byte aligned, use loop for the header
+-	MOVD	R3, R8
+-	AND	$15, R8
+-	CMPBGT	R8, $0, notaligned
+-
+-aligned:
+-	ADD	R6, R4, R8
+-	MOVD	R8, R7
+-	AND	$-16, R7
+-	// replicate c across V17
+-	VLVGB	$0, R5, V19
+-	VREPB	$0, V19, V17
+-
+-vectorloop:
+-	CMPBGE	R3, R7, residual
+-	VL	0(R3), V16    // load string to be searched into V16
+-	ADD	$16, R3
+-	VFEEBS	V16, V17, V18 // search V17 in V16 and set conditional code accordingly
+-	BVS	vectorloop
+-
+-	// when vector search found c in the string
+-	VLGVB	$7, V18, R7   // load 7th element of V18 containing index into R7
+-	SUB	$16, R3
+-	SUB	R6, R3
+-	ADD	R3, R7
+-	MOVD	R7, 0(R2)
+-	RET
+-
+-notaligned:
+-	MOVD	R3, R8
+-	AND	$-16, R8
+-	ADD     $16, R8
+-notalignedloop:
+-	CMPBEQ	R3, R8, aligned
+-	MOVBZ	0(R3), R7
+-	LA	1(R3), R3
+-	CMPBNE	R7, R5, notalignedloop
+-	BR	found
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R3
+ 	RET
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index e1291e1543..4b6fb32b78 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -4,7 +4,7 @@
+ 
+ package runtime
+ 
+-import _ "unsafe" // for go:linkname
++import "internal/bytealg"
+ 
+ // The Error interface identifies a run time error.
+ type Error interface {
+@@ -118,11 +118,6 @@ func printany(i interface{}) {
+ 	}
+ }
+ 
+-// strings.IndexByte is implemented in runtime/asm_$goarch.s
+-// but amusingly we need go:linkname to get access to it here in the runtime.
+-//go:linkname stringsIndexByte strings.IndexByte
+-func stringsIndexByte(s string, c byte) int
+-
+ // panicwrap generates a panic for a call to a wrapped value method
+ // with a nil pointer receiver.
+ //
+@@ -133,7 +128,7 @@ func panicwrap() {
+ 	// name is something like "main.(*T).F".
+ 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").
+ 	// Do it by finding the parens.
+-	i := stringsIndexByte(name, '(')
++	i := bytealg.IndexByteString(name, '(')
+ 	if i < 0 {
+ 		throw("panicwrap: no ( in " + name)
+ 	}
+@@ -142,7 +137,7 @@ func panicwrap() {
+ 		throw("panicwrap: unexpected string after package name: " + name)
+ 	}
+ 	name = name[i+2:]
+-	i = stringsIndexByte(name, ')')
++	i = bytealg.IndexByteString(name, ')')
+ 	if i < 0 {
+ 		throw("panicwrap: no ) in " + name)
+ 	}
+diff --git a/src/runtime/os_linux_s390x.go b/src/runtime/os_linux_s390x.go
+index 3ca6d4c8c8..2129052836 100644
+--- a/src/runtime/os_linux_s390x.go
++++ b/src/runtime/os_linux_s390x.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	internalcpu "internal/cpu"
+ 	"runtime/internal/sys"
+ )
+ 
+@@ -22,11 +23,13 @@ type facilities struct {
+ 
+ // cpu indicates the availability of s390x facilities that can be used in
+ // Go assembly but are optional on models supported by Go.
++// TODO: remove this once we're only using internal/cpu.
+ var cpu facilities
+ 
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+ 	case _AT_HWCAP: // CPU capability bit flags
++		internalcpu.S390X.HasVX = val&_HWCAP_S390_VX != 0
+ 		cpu.hasVX = val&_HWCAP_S390_VX != 0
+ 	}
+ }
+diff --git a/src/strings/strings_decl.go b/src/strings/strings_decl.go
+index 3bae8448c3..98194445e1 100644
+--- a/src/strings/strings_decl.go
++++ b/src/strings/strings_decl.go
+@@ -5,4 +5,4 @@
+ package strings
+ 
+ // IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+-func IndexByte(s string, c byte) int // ../runtime/asm_$GOARCH.s
++func IndexByte(s string, c byte) int // in internal/bytealg

@@ -8,7 +8,7 @@ Date:   Tue Mar 2 17:23:07 2010 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/223101
-
+---
  src/cmd/godoc/godoc.go                          | 10 +++---
  src/pkg/exp/ogle/rruntime.go                    | 14 ++++----
  src/pkg/go/printer/nodes.go                     | 45 ++++++++++++++-----------
@@ -16,3 +16,279 @@ Date:   Tue Mar 2 17:23:07 2010 -0800
  src/pkg/go/printer/testdata/declarations.input  | 21 +++++++++++-
  src/pkg/http/response.go                        |  4 +--
  6 files changed, 82 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 5b85af8700..b16f144e42 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -795,11 +795,11 @@ func readTemplate(name string) *template.Template {
+ 
+ var (
+ 	dirlistHTML,
+-		errorHTML,
+-		godocHTML,
+-		packageHTML,
+-		packageText,
+-		searchHTML *template.Template
++	errorHTML,
++	godocHTML,
++	packageHTML,
++	packageText,
++	searchHTML *template.Template
+ )
+ 
+ func readTemplates() {
+diff --git a/src/pkg/exp/ogle/rruntime.go b/src/pkg/exp/ogle/rruntime.go
+index e3bdcbe1f8..46c40e85f7 100644
+--- a/src/pkg/exp/ogle/rruntime.go
++++ b/src/pkg/exp/ogle/rruntime.go
+@@ -214,7 +214,7 @@ type runtimeValues struct {
+ 	String, Slice, Eface *remoteType
+ 	// Runtime type structures
+ 	Type, CommonType, UncommonType, StructField, StructType, PtrType,
+-		ArrayType, SliceType *remoteType
++	ArrayType, SliceType *remoteType
+ 	// Runtime scheduler structures
+ 	Stktop, Gobuf, G *remoteType
+ 	// Addresses of *runtime.XType types.  These are the
+@@ -222,12 +222,12 @@ type runtimeValues struct {
+ 	// reflection to fill these in from the remote symbol table,
+ 	// so the names must match the runtime names.
+ 	PBoolType,
+-		PUint8Type, PUint16Type, PUint32Type, PUint64Type, PUintType, PUintptrType,
+-		PInt8Type, PInt16Type, PInt32Type, PInt64Type, PIntType,
+-		PFloat32Type, PFloat64Type, PFloatType,
+-		PArrayType, PStringType, PStructType, PPtrType, PFuncType,
+-		PInterfaceType, PSliceType, PMapType, PChanType,
+-		PDotDotDotType, PUnsafePointerType proc.Word
++	PUint8Type, PUint16Type, PUint32Type, PUint64Type, PUintType, PUintptrType,
++	PInt8Type, PInt16Type, PInt32Type, PInt64Type, PIntType,
++	PFloat32Type, PFloat64Type, PFloatType,
++	PArrayType, PStringType, PStructType, PPtrType, PFuncType,
++	PInterfaceType, PSliceType, PMapType, PChanType,
++	PDotDotDotType, PUnsafePointerType proc.Word
+ 	// G status values
+ 	runtimeGStatus
+ }
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 04b9610267..3045300aaf 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -81,17 +81,6 @@ func (p *printer) setComment(g *ast.CommentGroup) {
+ }
+ 
+ 
+-// Sets multiLine to true if the identifier list spans multiple lines.
+-func (p *printer) identList(list []*ast.Ident, multiLine *bool) {
+-	// convert into an expression list so we can re-use exprList formatting
+-	xlist := make([]ast.Expr, len(list))
+-	for i, x := range list {
+-		xlist[i] = x
+-	}
+-	p.exprList(noPos, xlist, 1, commaSep, multiLine, noPos)
+-}
+-
+-
+ type exprListMode uint
+ 
+ const (
+@@ -103,6 +92,23 @@ const (
+ )
+ 
+ 
++// Sets multiLine to true if the identifier list spans multiple lines.
++// If ident is set, a multi-line identifier list is indented after the
++// first linebreak encountered.
++func (p *printer) identList(list []*ast.Ident, indent bool, multiLine *bool) {
++	// convert into an expression list so we can re-use exprList formatting
++	xlist := make([]ast.Expr, len(list))
++	for i, x := range list {
++		xlist[i] = x
++	}
++	mode := commaSep
++	if !indent {
++		mode |= noIndent
++	}
++	p.exprList(noPos, xlist, 1, mode, multiLine, noPos)
++}
++
++
+ // isOneLineExpr returns true if x is "small enough" to fit onto a single line.
+ func (p *printer) isOneLineExpr(x ast.Expr) bool {
+ 	const maxSize = 60 // aproximate value, excluding space for comments
+@@ -238,7 +244,7 @@ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
+ 				p.print(token.COMMA, blank)
+ 			}
+ 			if len(par.Names) > 0 {
+-				p.identList(par.Names, multiLine)
++				p.identList(par.Names, false, multiLine)
+ 				p.print(blank)
+ 			}
+ 			p.expr(par.Type, multiLine)
+@@ -352,7 +358,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ 			p.setComment(f.Doc)
+ 			if len(f.Names) > 0 {
+ 				// named fields
+-				p.identList(f.Names, &ml)
++				p.identList(f.Names, false, &ml)
+ 				p.print(sep)
+ 				p.expr(f.Type, &ml)
+ 				extraTabs = 1
+@@ -1040,10 +1046,11 @@ const (
+ 
+ // The parameter n is the number of specs in the group; context specifies
+ // the surroundings of the declaration. Separating semicolons are printed
+-// depending on the context. Sets multiLine to true if the spec spans
+-// multiple lines.
++// depending on the context. If indent is set, a multi-line identifier lists
++// in the spec are indented when the first linebreak is encountered. Sets
++// multiLine to true if the spec spans multiple lines.
+ //
+-func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *bool) {
++func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, multiLine *bool) {
+ 	var (
+ 		comment   *ast.CommentGroup // a line comment, if any
+ 		extraTabs int               // number of extra tabs before comment, if any
+@@ -1061,7 +1068,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
+ 
+ 	case *ast.ValueSpec:
+ 		p.setComment(s.Doc)
+-		p.identList(s.Names, multiLine) // always present
++		p.identList(s.Names, indent, multiLine) // always present
+ 		if n == 1 {
+ 			if s.Type != nil {
+ 				p.print(blank)
+@@ -1129,7 +1136,7 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool)
+ 					p.linebreak(s.Pos().Line, 1, 2, ignore, ml)
+ 				}
+ 				ml = false
+-				p.spec(s, len(d.Specs), inGroup, &ml)
++				p.spec(s, len(d.Specs), inGroup, false, &ml)
+ 			}
+ 			p.print(unindent, formfeed)
+ 			*multiLine = true
+@@ -1138,7 +1145,7 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool)
+ 
+ 	} else {
+ 		// single declaration
+-		p.spec(d.Specs[0], 1, context, multiLine)
++		p.spec(d.Specs[0], 1, context, true, multiLine)
+ 	}
+ }
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index ef93eb9657..c19b90c208 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -411,6 +411,14 @@ type _ struct {
+ 	h			float	"tag"	// comment
+ }
+ 
++type _ struct {
++	a, b,
++	c, d	int	// this line should be indented
++	u, v, w, x	float	// this line should be indented
++	p, q,
++	r, s	float	// this line should be indented
++}
++
+ 
+ // difficult cases
+ type _ struct {
+@@ -444,6 +452,7 @@ type _ interface {	// this comment must not change indentation
+ 	gggggggggggg(x, y, z int)	// hurray
+ }
+ 
++
+ // formatting of variable declarations
+ func _() {
+ 	type day struct {
+@@ -462,6 +471,19 @@ func _() {
+ }
+ 
+ 
++// formatting of multi-line variable declarations
++var a1, b1, c1 int	// all on one line
++
++var a2, b2,
++	c2 int	// this line should be indented
++
++var (
++	a3, b3,
++	c3, d3	int	// this line should be indented
++	a4, b4, c4	int	// this line should be indented
++)
++
++
+ func _() {
+ 	var privateKey2 = &Block{Type:	"RSA PRIVATE KEY",
+ 		Headers:	map[string]string{},
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index 6c3e1682b0..67dac0da6a 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -410,6 +410,13 @@ type _ struct {
+ 	h float "tag"  // comment
+ }
+ 
++type _ struct { a, b,
++c, d int  // this line should be indented
++u, v, w, x float // this line should be indented
++p, q,
++r, s float // this line should be indented
++}
++
+ 
+ // difficult cases
+ type _ struct {
+@@ -418,7 +425,6 @@ type _ struct {
+ }
+ 
+ 
+-
+ // formatting of interfaces
+ type EI interface{}
+ 
+@@ -444,6 +450,7 @@ type _ interface {  // this comment must not change indentation
+ 	gggggggggggg(x, y, z int) ()  // hurray
+ }
+ 
++
+ // formatting of variable declarations
+ func _() {
+ 	type day struct { n int; short, long string }
+@@ -459,6 +466,18 @@ func _() {
+ }
+ 
+ 
++// formatting of multi-line variable declarations
++var a1, b1, c1 int  // all on one line
++
++var a2, b2,
++c2 int  // this line should be indented
++
++var (a3, b3,
++c3, d3 int  // this line should be indented
++a4, b4, c4 int  // this line should be indented
++)
++
++
+ func _() {
+ 	var privateKey2 = &Block{Type: "RSA PRIVATE KEY",
+ 					Headers: map[string]string{},
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index 12751b43e7..3a46375765 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -17,9 +17,9 @@ import (
+ )
+ 
+ var respExcludeHeader = map[string]int{
+-	"Content-Length": 0,
++	"Content-Length":    0,
+ 	"Transfer-Encoding": 0,
+-	"Trailer": 0,
++	"Trailer":           0,
+ }
+ 
+ // Response represents the response from an HTTP request.

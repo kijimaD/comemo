@@ -11,6 +11,20 @@ Date:   Thu Apr 23 21:49:53 2020 +0000
     GitHub-Pull-Request: golang/go#38631
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229763
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/strings/strings.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 314e2276d4..5f244d6e20 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -369,8 +369,6 @@ func Fields(s string) []string {
+ // FieldsFunc splits the string s at each run of Unicode code points c satisfying f(c)
+ // and returns an array of slices of s. If all code points in s satisfy f(c) or the
+ // string is empty, an empty slice is returned.
+-// FieldsFunc makes no guarantees about the order in which it calls f(c).
+-// If f does not return consistent results for a given c, FieldsFunc may crash.
+ func FieldsFunc(s string, f func(rune) bool) []string {
+ 	// A span is used to record a slice of s of the form s[start:end].
+ 	// The start index is inclusive and the end index is exclusive.

@@ -11,7 +11,7 @@ Date:   Sun Sep 4 17:59:50 2022 +0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/html/template/clone_test.go    |  5 ++---
  src/html/template/content_test.go  |  4 ++--
  src/html/template/escape_test.go   | 16 ++++++++--------
@@ -22,3 +22,362 @@ Date:   Sun Sep 4 17:59:50 2022 +0800
  src/html/template/template_test.go |  4 ++--
  src/html/template/url.go           | 11 +++++------
  9 files changed, 33 insertions(+), 36 deletions(-)
+
+diff --git a/src/html/template/clone_test.go b/src/html/template/clone_test.go
+index 7cb1b9ca06..e4f6f78835 100644
+--- a/src/html/template/clone_test.go
++++ b/src/html/template/clone_test.go
+@@ -5,7 +5,6 @@
+ package template
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -22,7 +21,7 @@ func TestAddParseTreeHTML(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	added := Must(root.AddParseTree("b", tree["b"]))
+-	b := new(bytes.Buffer)
++	b := new(strings.Builder)
+ 	err = added.ExecuteTemplate(b, "a", "1>0")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -39,7 +38,7 @@ func TestClone(t *testing.T) {
+ 	// In the t2 template, it will be in a JavaScript context.
+ 	// In the t3 template, it will be in a CSS context.
+ 	const tmpl = `{{define "a"}}{{template "lhs"}}{{.}}{{template "rhs"}}{{end}}`
+-	b := new(bytes.Buffer)
++	b := new(strings.Builder)
+ 
+ 	// Create an incomplete template t0.
+ 	t0 := Must(New("t0").Parse(tmpl))
+diff --git a/src/html/template/content_test.go b/src/html/template/content_test.go
+index f4af2f2a35..d1d8d2d211 100644
+--- a/src/html/template/content_test.go
++++ b/src/html/template/content_test.go
+@@ -385,7 +385,7 @@ func TestTypedContent(t *testing.T) {
+ 		tmpl := Must(New("x").Parse(test.input))
+ 		pre := strings.Index(test.input, "{{.}}")
+ 		post := len(test.input) - (pre + 5)
+-		var b bytes.Buffer
++		var b strings.Builder
+ 		for i, x := range data {
+ 			b.Reset()
+ 			if err := tmpl.Execute(&b, x); err != nil {
+@@ -419,7 +419,7 @@ func (s *errorer) Error() string {
+ 
+ func TestStringer(t *testing.T) {
+ 	s := &myStringer{3}
+-	b := new(bytes.Buffer)
++	b := new(strings.Builder)
+ 	tmpl := Must(New("x").Parse("{{.}}"))
+ 	if err := tmpl.Execute(b, s); err != nil {
+ 		t.Fatal(err)
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 58f3f271b7..12add077c3 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -688,7 +688,7 @@ func TestEscape(t *testing.T) {
+ 			t.Errorf("%s: tree not set properly", test.name)
+ 			continue
+ 		}
+-		b := new(bytes.Buffer)
++		b := new(strings.Builder)
+ 		if err := tmpl.Execute(b, data); err != nil {
+ 			t.Errorf("%s: template execution failed: %s", test.name, err)
+ 			continue
+@@ -735,7 +735,7 @@ func TestEscapeMap(t *testing.T) {
+ 		},
+ 	} {
+ 		tmpl := Must(New("").Parse(test.input))
+-		b := new(bytes.Buffer)
++		b := new(strings.Builder)
+ 		if err := tmpl.Execute(b, data); err != nil {
+ 			t.Errorf("%s: template execution failed: %s", test.desc, err)
+ 			continue
+@@ -877,7 +877,7 @@ func TestEscapeSet(t *testing.T) {
+ 			t.Errorf("error parsing %q: %v", source, err)
+ 			continue
+ 		}
+-		var b bytes.Buffer
++		var b strings.Builder
+ 
+ 		if err := tmpl.ExecuteTemplate(&b, "main", data); err != nil {
+ 			t.Errorf("%q executing %v", err.Error(), tmpl.Lookup("main"))
+@@ -1828,7 +1828,7 @@ func TestIndirectPrint(t *testing.T) {
+ 	bp := &b
+ 	bpp := &bp
+ 	tmpl := Must(New("t").Parse(`{{.}}`))
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	err := tmpl.Execute(&buf, ap)
+ 	if err != nil {
+ 		t.Errorf("Unexpected error: %s", err)
+@@ -1871,7 +1871,7 @@ func TestPipeToMethodIsEscaped(t *testing.T) {
+ 				t.Errorf("panicked: %v\n", panicValue)
+ 			}
+ 		}()
+-		var b bytes.Buffer
++		var b strings.Builder
+ 		tmpl.Execute(&b, Issue7379(0))
+ 		return b.String()
+ 	}
+@@ -1904,7 +1904,7 @@ func TestIdempotentExecute(t *testing.T) {
+ 		Parse(`{{define "main"}}<body>{{template "hello"}}</body>{{end}}`))
+ 	Must(tmpl.
+ 		Parse(`{{define "hello"}}Hello, {{"Ladies & Gentlemen!"}}{{end}}`))
+-	got := new(bytes.Buffer)
++	got := new(strings.Builder)
+ 	var err error
+ 	// Ensure that "hello" produces the same output when executed twice.
+ 	want := "Hello, Ladies &amp; Gentlemen!"
+@@ -1947,7 +1947,7 @@ func TestOrphanedTemplate(t *testing.T) {
+ 	t1 := Must(New("foo").Parse(`<a href="{{.}}">link1</a>`))
+ 	t2 := Must(t1.New("foo").Parse(`bar`))
+ 
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	const wantError = `template: "foo" is an incomplete or empty template`
+ 	if err := t1.Execute(&b, "javascript:alert(1)"); err == nil {
+ 		t.Fatal("expected error executing t1")
+@@ -1976,7 +1976,7 @@ func TestAliasedParseTreeDoesNotOverescape(t *testing.T) {
+ 	if _, err := tpl.AddParseTree("bar", tpl.Tree); err != nil {
+ 		t.Fatalf("AddParseTree error: %v", err)
+ 	}
+-	var b1, b2 bytes.Buffer
++	var b1, b2 strings.Builder
+ 	if err := tpl.ExecuteTemplate(&b1, "foo", data); err != nil {
+ 		t.Fatalf(`ExecuteTemplate failed for "foo": %v`, err)
+ 	}
+diff --git a/src/html/template/exec_test.go b/src/html/template/exec_test.go
+index f042cf5125..1ec346fe81 100644
+--- a/src/html/template/exec_test.go
++++ b/src/html/template/exec_test.go
+@@ -764,7 +764,7 @@ func mapOfThree() any {
+ }
+ 
+ func testExecute(execTests []execTest, template *Template, t *testing.T) {
+-	b := new(bytes.Buffer)
++	b := new(strings.Builder)
+ 	funcs := FuncMap{
+ 		"add":         add,
+ 		"count":       count,
+@@ -856,7 +856,7 @@ func TestDelims(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("delim %q text %q parse err %s", left, text, err)
+ 		}
+-		var b = new(bytes.Buffer)
++		var b = new(strings.Builder)
+ 		err = tmpl.Execute(b, value)
+ 		if err != nil {
+ 			t.Fatalf("delim %q exec err %s", left, err)
+@@ -997,7 +997,7 @@ func TestTree(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("parse error:", err)
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	const expect = "[1[2[3[4]][5[6]]][7[8[9]][10[11]]]]"
+ 	// First by looking up the template.
+ 	err = tmpl.Lookup("tree").Execute(&b, tree)
+@@ -1207,7 +1207,7 @@ var cmpTests = []cmpTest{
+ }
+ 
+ func TestComparison(t *testing.T) {
+-	b := new(bytes.Buffer)
++	b := new(strings.Builder)
+ 	var cmpStruct = struct {
+ 		Uthree, Ufour  uint
+ 		NegOne, Three  int
+@@ -1255,7 +1255,7 @@ func TestMissingMapKey(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	// By default, just get "<no value>" // NOTE: not in html/template, get empty string
+ 	err = tmpl.Execute(&b, data)
+ 	if err != nil {
+@@ -1424,7 +1424,7 @@ func TestBlock(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	if err := tmpl.Execute(&buf, "hello"); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1530,7 +1530,7 @@ func TestAddrOfIndex(t *testing.T) {
+ 	}
+ 	for _, text := range texts {
+ 		tmpl := Must(New("tmpl").Parse(text))
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		err := tmpl.Execute(&buf, reflect.ValueOf([]V{{1}}))
+ 		if err != nil {
+ 			t.Fatalf("%s: Execute: %v", text, err)
+@@ -1586,7 +1586,7 @@ func TestInterfaceValues(t *testing.T) {
+ 
+ 	for _, tt := range tests {
+ 		tmpl := Must(New("tmpl").Parse(tt.text))
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		err := tmpl.Execute(&buf, map[string]any{
+ 			"PlusOne": func(n int) int {
+ 				return n + 1
+@@ -1681,7 +1681,7 @@ func TestIssue31810(t *testing.T) {
+ 	t.Skip("broken in html/template")
+ 
+ 	// A simple value with no arguments is fine.
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	const text = "{{ (.)  }}"
+ 	tmpl, err := New("").Parse(text)
+ 	if err != nil {
+diff --git a/src/html/template/html.go b/src/html/template/html.go
+index 46e9d93151..bcca0b51a0 100644
+--- a/src/html/template/html.go
++++ b/src/html/template/html.go
+@@ -176,7 +176,7 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
+ // stripTags takes a snippet of HTML and returns only the text content.
+ // For example, `<b>&iexcl;Hi!</b> <script>...</script>` -> `&iexcl;Hi! `.
+ func stripTags(html string) string {
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	s, c, i, allText := []byte(html), context{}, 0, true
+ 	// Using the transition funcs helps us avoid mangling
+ 	// `<div title="1>2">` or `I <3 Ponies!`.
+diff --git a/src/html/template/js_test.go b/src/html/template/js_test.go
+index 56579d8d30..580cb0a12d 100644
+--- a/src/html/template/js_test.go
++++ b/src/html/template/js_test.go
+@@ -5,7 +5,6 @@
+ package template
+ 
+ import (
+-	"bytes"
+ 	"math"
+ 	"strings"
+ 	"testing"
+@@ -321,7 +320,7 @@ func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
+ 
+ 		// Escape it rune by rune to make sure that any
+ 		// fast-path checking does not break escaping.
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		for _, c := range input {
+ 			buf.WriteString(test.escaper(string(c)))
+ 		}
+diff --git a/src/html/template/multi_test.go b/src/html/template/multi_test.go
+index 6535ab6c04..21050865cf 100644
+--- a/src/html/template/multi_test.go
++++ b/src/html/template/multi_test.go
+@@ -8,8 +8,8 @@ package template
+ 
+ import (
+ 	"archive/zip"
+-	"bytes"
+ 	"os"
++	"strings"
+ 	"testing"
+ 	"text/template/parse"
+ )
+@@ -245,7 +245,7 @@ func TestEmptyTemplate(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 		}
+-		buf := &bytes.Buffer{}
++		buf := &strings.Builder{}
+ 		if err := m.Execute(buf, c.in); err != nil {
+ 			t.Error(i, err)
+ 			continue
+@@ -280,7 +280,7 @@ func TestIssue19294(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 		}
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		res.Execute(&buf, 0)
+ 		if buf.String() != "stylesheet" {
+ 			t.Fatalf("iteration %d: got %q; expected %q", i, buf.String(), "stylesheet")
+diff --git a/src/html/template/template_test.go b/src/html/template/template_test.go
+index 99a1091c77..96d8013484 100644
+--- a/src/html/template/template_test.go
++++ b/src/html/template/template_test.go
+@@ -26,7 +26,7 @@ func TestTemplateClone(t *testing.T) {
+ 
+ 	const want = "stuff"
+ 	parsed := Must(clone.Parse(want))
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	err = parsed.Execute(&buf, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -207,7 +207,7 @@ func (c *testCase) mustNotParse(t *Template, text string) {
+ }
+ 
+ func (c *testCase) mustExecute(t *Template, val any, want string) {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	err := t.Execute(&buf, val)
+ 	if err != nil {
+ 		c.t.Fatalf("execute: %v", err)
+diff --git a/src/html/template/url.go b/src/html/template/url.go
+index 9d0be39022..7820561dc0 100644
+--- a/src/html/template/url.go
++++ b/src/html/template/url.go
+@@ -5,7 +5,6 @@
+ package template
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"strings"
+ )
+@@ -76,7 +75,7 @@ func urlProcessor(norm bool, args ...any) string {
+ 	if t == contentTypeURL {
+ 		norm = true
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	if processURLOnto(s, norm, &b) {
+ 		return b.String()
+ 	}
+@@ -85,7 +84,7 @@ func urlProcessor(norm bool, args ...any) string {
+ 
+ // processURLOnto appends a normalized URL corresponding to its input to b
+ // and reports whether the appended content differs from s.
+-func processURLOnto(s string, norm bool, b *bytes.Buffer) bool {
++func processURLOnto(s string, norm bool, b *strings.Builder) bool {
+ 	b.Grow(len(s) + 16)
+ 	written := 0
+ 	// The byte loop below assumes that all URLs use UTF-8 as the
+@@ -149,7 +148,7 @@ func srcsetFilterAndEscaper(args ...any) string {
+ 	case contentTypeURL:
+ 		// Normalizing gets rid of all HTML whitespace
+ 		// which separate the image URL from its metadata.
+-		var b bytes.Buffer
++		var b strings.Builder
+ 		if processURLOnto(s, true, &b) {
+ 			s = b.String()
+ 		}
+@@ -157,7 +156,7 @@ func srcsetFilterAndEscaper(args ...any) string {
+ 		return strings.ReplaceAll(s, ",", "%2c")
+ 	}
+ 
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	written := 0
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] == ',' {
+@@ -183,7 +182,7 @@ func isHTMLSpaceOrASCIIAlnum(c byte) bool {
+ 	return (c < 0x80) && 0 != (htmlSpaceAndASCIIAlnumBytes[c>>3]&(1<<uint(c&0x7)))
+ }
+ 
+-func filterSrcsetElement(s string, left int, right int, b *bytes.Buffer) {
++func filterSrcsetElement(s string, left int, right int, b *strings.Builder) {
+ 	start := left
+ 	for start < right && isHTMLSpace(s[start]) {
+ 		start++

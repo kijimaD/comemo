@@ -7,10 +7,282 @@ Date:   Tue Feb 1 08:44:18 2011 -0500
     R=rsc, binet
     CC=golang-dev
     https://golang.org/cl/3921043
-
+---
  src/Make.pkg        |  22 ++++++++----
  src/cmd/cgo/doc.go  |   9 +++++
  src/cmd/cgo/gcc.go  | 102 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/main.go |  21 ++++++++---
  src/cmd/cgo/out.go  |   6 ++++
  5 files changed, 150 insertions(+), 10 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index ec7d5722ed..0ffab72945 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -48,7 +48,7 @@ coverage:
+ 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+ 
+ CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.*
+-CLEANFILES+=_cgo_.c _cgo_import.c _cgo_main.c
++CLEANFILES+=_cgo_.c _cgo_import.c _cgo_main.c _cgo_flags _cgo_run
+ CLEANFILES+=*.so _obj _test _testmain.go *.exe
+ 
+ test:
+@@ -112,11 +112,21 @@ dir:
+ #
+ 
+ ifdef CGOFILES
+-_cgo_defun.c: $(CGOFILES)
++_cgo_run: $(CGOFILES)
++	@touch _cgo_run
+ 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
+ 
++# _CGO_CFLAGS and _CGO_LDFLAGS are defined via the evaluation of _cgo_flags.
++# The include happens before the commands in the recipe run,
++# so it cannot be done in the same recipe that runs cgo.
++_cgo_flags: _cgo_run
++	$(eval include _cgo_flags)
++
++# Include any previous flags in case cgo files are up to date.
++-include _cgo_flags
++
+ # Ugly but necessary - cgo writes these files too.
+-_cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c: _cgo_defun.c
++_cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c _cgo_defun.c: _cgo_flags
+ 	@true
+ 
+ %.cgo1.go %.cgo2.c: _cgo_defun.c
+@@ -125,7 +135,7 @@ endif
+ 
+ # Compile rules for gcc source files.
+ %.o: %.c
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.c
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) $*.c
+ 
+ # To find out which symbols are needed from external libraries
+ # and which libraries are needed, we build a simple a.out that
+@@ -136,10 +146,10 @@ endif
+ # by Go code.  That's crosscall2 and any exported symbols.
+ 
+ _cgo_main.o: _cgo_main.c
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_main.c
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) _cgo_main.c
+ 
+ _cgo1_.o: _cgo_main.o $(CGO_OFILES)
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS)
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS) $(_CGO_LDFLAGS)
+ 
+ _cgo_import.c: _cgo1_.o
+ 	cgo -dynimport _cgo1_.o >_$@ && mv -f _$@ $@
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 0f9204d7ff..c4868345ca 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -23,6 +23,15 @@ the package.  For example:
+ 	// #include <errno.h>
+ 	import "C"
+ 
++CFLAGS and LDFLAGS may be defined with pseudo #cgo directives
++within these comments to tweak the behavior of gcc.  Values defined
++in multiple directives are concatenated together.  For example:
++
++	// #cgo CFLAGS: -DPNG_DEBUG=1
++	// #cgo LDFLAGS: -lpng
++	// #include <png.h>
++	import "C"
++
+ C identifiers or field names that are keywords in Go can be
+ accessed by prefixing them with an underscore: if x points at
+ a C struct with a field named "type", x._type accesses the field.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index e400fcdde7..cadc6fae90 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -21,6 +21,7 @@ import (
+ 	"os"
+ 	"strconv"
+ 	"strings"
++	"unicode"
+ )
+ 
+ var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
+@@ -59,6 +60,107 @@ func cname(s string) string {
+ 	return s
+ }
+ 
++// ParseFlags extracts #cgo CFLAGS and LDFLAGS options from the file
++// preamble. Multiple occurrences are concatenated with a separating space,
++// even across files.
++func (p *Package) ParseFlags(f *File, srcfile string) {
++	linesIn := strings.Split(f.Preamble, "\n", -1)
++	linesOut := make([]string, 0, len(linesIn))
++	for _, line := range linesIn {
++		l := strings.TrimSpace(line)
++		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(int(l[4])) {
++			linesOut = append(linesOut, line)
++			continue
++		}
++
++		l = strings.TrimSpace(l[4:])
++		fields := strings.Split(l, ":", 2)
++		if len(fields) != 2 {
++			fatal("%s: bad #cgo line: %s", srcfile, line)
++		}
++
++		k := fields[0]
++		v := strings.TrimSpace(fields[1])
++		if k != "CFLAGS" && k != "LDFLAGS" {
++			fatal("%s: unsupported #cgo option %s", srcfile, k)
++		}
++		args, err := splitQuoted(v)
++		if err != nil {
++			fatal("%s: bad #cgo option %s: %s", srcfile, k, err.String())
++		}
++		if oldv, ok := p.CgoFlags[k]; ok {
++			p.CgoFlags[k] = oldv + " " + v
++		} else {
++			p.CgoFlags[k] = v
++		}
++		if k == "CFLAGS" {
++			p.GccOptions = append(p.GccOptions, args...)
++		}
++	}
++	f.Preamble = strings.Join(linesOut, "\n")
++}
++
++// splitQuoted splits the string s around each instance of one or more consecutive
++// white space characters while taking into account quotes and escaping, and
++// returns an array of substrings of s or an empty list if s contains only white space.
++// Single quotes and double quotes are recognized to prevent splitting within the
++// quoted region, and are removed from the resulting substrings. If a quote in s
++// isn't closed err will be set and r will have the unclosed argument as the
++// last element.  The backslash is used for escaping.
++//
++// For example, the following string:
++//
++//     `a b:"c d" 'e''f'  "g\""`
++//
++// Would be parsed as:
++//
++//     []string{"a", "b:c d", "ef", `g"`}
++//
++func splitQuoted(s string) (r []string, err os.Error) {
++	var args []string
++	arg := make([]int, len(s))
++	escaped := false
++	quoted := false
++	quote := 0
++	i := 0
++	for _, rune := range s {
++		switch {
++		case escaped:
++			escaped = false
++		case rune == '\\':
++			escaped = true
++			continue
++		case quote != 0:
++			if rune == quote {
++				quote = 0
++				continue
++			}
++		case rune == '"' || rune == '\'':
++			quoted = true
++			quote = rune
++			continue
++		case unicode.IsSpace(rune):
++			if quoted || i > 0 {
++				quoted = false
++				args = append(args, string(arg[:i]))
++				i = 0
++			}
++			continue
++		}
++		arg[i] = rune
++		i++
++	}
++	if quoted || i > 0 {
++		args = append(args, string(arg[:i]))
++	}
++	if quote != 0 {
++		err = os.ErrorString("unclosed quote")
++	} else if escaped {
++		err = os.ErrorString("unfinished escaping")
++	}
++	return args, err
++}
++
+ // Translate rewrites f.AST, the original Go input, to remove
+ // references to the imported package C, replacing them with
+ // references to the equivalent Go types, functions, and variables.
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 5d2bfd0e3b..b15d345278 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -29,6 +29,7 @@ type Package struct {
+ 	PackagePath string
+ 	PtrSize     int64
+ 	GccOptions  []string
++	CgoFlags    map[string]string // #cgo flags (CFLAGS, LDFLAGS)
+ 	Written     map[string]bool
+ 	Name        map[string]*Name    // accumulated Name from Files
+ 	Typedef     map[string]ast.Expr // accumulated Typedef from Files
+@@ -161,7 +162,12 @@ func main() {
+ 	if i == len(args) {
+ 		usage()
+ 	}
+-	gccOptions, goFiles := args[0:i], args[i:]
++
++	// Copy it to a new slice so it can grow.
++	gccOptions := make([]string, i)
++	copy(gccOptions, args[0:i])
++
++	goFiles := args[i:]
+ 
+ 	arch := os.Getenv("GOARCH")
+ 	if arch == "" {
+@@ -180,6 +186,7 @@ func main() {
+ 	p := &Package{
+ 		PtrSize:    ptrSize,
+ 		GccOptions: gccOptions,
++		CgoFlags:   make(map[string]string),
+ 		Written:    make(map[string]bool),
+ 	}
+ 
+@@ -199,11 +206,17 @@ func main() {
+ 	}
+ 	cPrefix = fmt.Sprintf("_%x", h.Sum()[0:6])
+ 
+-	for _, input := range goFiles {
++	fs := make([]*File, len(goFiles))
++	for i, input := range goFiles {
++		// Parse flags for all files before translating due to CFLAGS.
+ 		f := new(File)
+-		// Reset f.Preamble so that we don't end up with conflicting headers / defines
+-		f.Preamble = ""
+ 		f.ReadGo(input)
++		p.ParseFlags(f, input)
++		fs[i] = f
++	}
++
++	for i, input := range goFiles {
++		f := fs[i]
+ 		p.Translate(f)
+ 		for _, cref := range f.Ref {
+ 			switch cref.Context {
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index d5fc63409f..ede8f57d85 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -33,6 +33,12 @@ func (p *Package) writeDefs() {
+ 	fc := creat("_cgo_defun.c")
+ 	fm := creat("_cgo_main.c")
+ 
++	fflg := creat("_cgo_flags")
++	for k, v := range p.CgoFlags {
++		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, v)
++	}
++	fflg.Close()
++
+ 	// Write C main file for using gcc to resolve imports.
+ 	fmt.Fprintf(fm, "int main() { return 0; }\n")
+ 	fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")

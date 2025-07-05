@@ -19,7 +19,7 @@ Date:   Sun Jan 17 00:30:32 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/deadcode/deadcode.go   |  2 +-
  src/cmd/compile/internal/escape/escape.go       |  4 ++--
  src/cmd/compile/internal/inline/inl.go          |  2 +-
@@ -35,3 +35,276 @@ Date:   Sun Jan 17 00:30:32 2021 -0800
  src/cmd/compile/internal/walk/order.go          |  2 +-
  src/cmd/compile/internal/walk/stmt.go           |  4 ++--
  14 files changed, 63 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/deadcode/deadcode.go b/src/cmd/compile/internal/deadcode/deadcode.go
+index c409320fc4..520203787f 100644
+--- a/src/cmd/compile/internal/deadcode/deadcode.go
++++ b/src/cmd/compile/internal/deadcode/deadcode.go
+@@ -75,7 +75,7 @@ func stmts(nn *ir.Nodes) {
+ 				// might be the target of a goto. See issue 28616.
+ 				if body := body; len(body) != 0 {
+ 					switch body[(len(body) - 1)].Op() {
+-					case ir.ORETURN, ir.ORETJMP, ir.OPANIC:
++					case ir.ORETURN, ir.OTAILCALL, ir.OPANIC:
+ 						if i > lastLabel {
+ 							cut = true
+ 						}
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 26420b820a..5ee6d4f498 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -534,8 +534,8 @@ func (e *escape) stmt(n ir.Node) {
+ 		e.stmts(n.Call.Init())
+ 		e.call(nil, n.Call, n)
+ 
+-	case ir.ORETJMP:
+-		// TODO(mdempsky): What do? esc.go just ignores it.
++	case ir.OTAILCALL:
++		// TODO(mdempsky): Treat like a normal call? esc.go used to just ignore it.
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 4bb849cdae..143fbe9efe 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -359,7 +359,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 		ir.OGO,
+ 		ir.ODEFER,
+ 		ir.ODCLTYPE, // can't print yet
+-		ir.ORETJMP:
++		ir.OTAILCALL:
+ 		return errors.New("unhandled op " + n.Op().String())
+ 
+ 	case ir.OAPPEND:
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 68e1bc1569..ee6a62625a 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -378,9 +378,9 @@ func stmtFmt(n Node, s fmt.State) {
+ 		n := n.(*ReturnStmt)
+ 		fmt.Fprintf(s, "return %.v", n.Results)
+ 
+-	case ORETJMP:
+-		n := n.(*BranchStmt)
+-		fmt.Fprintf(s, "retjmp %v", n.Label)
++	case OTAILCALL:
++		n := n.(*TailCallStmt)
++		fmt.Fprintf(s, "tailcall %v", n.Target)
+ 
+ 	case OINLMARK:
+ 		n := n.(*InlineMarkStmt)
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index a725307c2c..291e1286bb 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -306,8 +306,8 @@ const (
+ 	OLINKSYMOFFSET // offset within a name
+ 
+ 	// arch-specific opcodes
+-	ORETJMP // return to other function
+-	OGETG   // runtime.getg() (read g pointer)
++	OTAILCALL // tail call to another function
++	OGETG     // runtime.getg() (read g pointer)
+ 
+ 	OEND
+ )
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 8f89c67748..af9ee8d86e 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -1227,6 +1227,28 @@ func (n *SwitchStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.Compiled, edit)
+ }
+ 
++func (n *TailCallStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
++func (n *TailCallStmt) copy() Node {
++	c := *n
++	c.init = copyNodes(c.init)
++	return &c
++}
++func (n *TailCallStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Target != nil && do(n.Target) {
++		return true
++	}
++	return false
++}
++func (n *TailCallStmt) editChildren(edit func(Node) Node) {
++	editNodes(n.init, edit)
++	if n.Target != nil {
++		n.Target = edit(n.Target).(*Name)
++	}
++}
++
+ func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *TypeAssertExpr) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 35196b01ae..15c60baf44 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -157,14 +157,14 @@ func _() {
+ 	_ = x[ORESULT-146]
+ 	_ = x[OINLMARK-147]
+ 	_ = x[OLINKSYMOFFSET-148]
+-	_ = x[ORETJMP-149]
++	_ = x[OTAILCALL-149]
+ 	_ = x[OGETG-150]
+ 	_ = x[OEND-151]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRSTMTEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETRETJMPGETGEND"
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRSTMTEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETTAILCALLGETGEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 309, 315, 318, 324, 331, 339, 343, 350, 358, 360, 362, 364, 366, 368, 370, 375, 380, 388, 391, 400, 403, 407, 415, 422, 431, 444, 447, 450, 453, 456, 459, 462, 468, 471, 474, 480, 484, 487, 491, 496, 501, 507, 512, 516, 521, 529, 537, 543, 552, 563, 570, 574, 581, 589, 593, 597, 601, 608, 615, 623, 629, 637, 645, 650, 655, 659, 667, 672, 676, 679, 687, 691, 693, 698, 700, 705, 711, 717, 723, 729, 734, 738, 745, 751, 756, 762, 768, 775, 780, 784, 789, 793, 798, 806, 812, 819, 826, 832, 839, 852, 858, 862, 865}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 309, 315, 318, 324, 331, 339, 343, 350, 358, 360, 362, 364, 366, 368, 370, 375, 380, 388, 391, 400, 403, 407, 415, 422, 431, 444, 447, 450, 453, 456, 459, 462, 468, 471, 474, 480, 484, 487, 491, 496, 501, 507, 512, 516, 521, 529, 537, 543, 552, 563, 570, 574, 581, 589, 593, 597, 601, 608, 615, 623, 629, 637, 645, 650, 655, 659, 667, 672, 676, 679, 687, 691, 693, 698, 700, 705, 711, 717, 723, 729, 734, 738, 745, 751, 756, 762, 768, 775, 780, 784, 789, 793, 798, 806, 812, 819, 826, 832, 839, 852, 860, 864, 867}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 0358569a1f..c304867e1d 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -144,9 +144,6 @@ func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
+ }
+ 
+ // A BranchStmt is a break, continue, fallthrough, or goto statement.
+-//
+-// For back-end code generation, Op may also be RETJMP (return+jump),
+-// in which case the label names another function entirely.
+ type BranchStmt struct {
+ 	miniStmt
+ 	Label *types.Sym // label if present
+@@ -154,7 +151,7 @@ type BranchStmt struct {
+ 
+ func NewBranchStmt(pos src.XPos, op Op, label *types.Sym) *BranchStmt {
+ 	switch op {
+-	case OBREAK, OCONTINUE, OFALL, OGOTO, ORETJMP:
++	case OBREAK, OCONTINUE, OFALL, OGOTO:
+ 		// ok
+ 	default:
+ 		panic("NewBranch " + op.String())
+@@ -384,6 +381,23 @@ func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
+ 	return n
+ }
+ 
++// A TailCallStmt is a tail call statement, which is used for back-end
++// code generation to jump directly to another function entirely.
++type TailCallStmt struct {
++	miniStmt
++	Target *Name
++}
++
++func NewTailCallStmt(pos src.XPos, target *Name) *TailCallStmt {
++	if target.Op() != ONAME || target.Class != PFUNC {
++		base.FatalfAt(pos, "tail call to non-func %v", target)
++	}
++	n := &TailCallStmt{Target: target}
++	n.pos = pos
++	n.op = OTAILCALL
++	return n
++}
++
+ // A TypeSwitchGuard is the [Name :=] X.(type) in a type switch.
+ type TypeSwitchGuard struct {
+ 	miniNode
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index efe863cc3f..fd3e6beaa3 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1794,7 +1794,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+ 		}
+ 		as := ir.NewAssignStmt(base.Pos, nthis, typecheck.ConvNop(left, rcvr))
+ 		fn.Body.Append(as)
+-		fn.Body.Append(ir.NewBranchStmt(base.Pos, ir.ORETJMP, ir.MethodSym(methodrcvr, method.Sym)))
++		fn.Body.Append(ir.NewTailCallStmt(base.Pos, method.Nname.(*ir.Name)))
+ 	} else {
+ 		fn.SetWrapper(true) // ignore frame for panic+recover matching
+ 		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 274c543ca5..b5da420872 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -303,7 +303,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	var tail ir.Node
+ 	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
+ 
+-		tail = ir.NewBranchStmt(base.Pos, ir.ORETJMP, f.Nname.Sym())
++		tail = ir.NewTailCallStmt(base.Pos, f.Nname)
+ 	} else {
+ 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
+ 		call.Args = ir.ParamNames(tfn.Type())
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 1cd49a487e..beef0d8234 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1580,11 +1580,11 @@ func (s *state) stmt(n ir.Node) {
+ 		b := s.exit()
+ 		b.Pos = s.lastPos.WithIsStmt()
+ 
+-	case ir.ORETJMP:
+-		n := n.(*ir.BranchStmt)
++	case ir.OTAILCALL:
++		n := n.(*ir.TailCallStmt)
+ 		b := s.exit()
+ 		b.Kind = ssa.BlockRetJmp // override BlockRet
+-		b.Aux = callTargetLSym(n.Label, s.curfn.LSym)
++		b.Aux = callTargetLSym(n.Target.Sym(), s.curfn.LSym)
+ 
+ 	case ir.OCONTINUE, ir.OBREAK:
+ 		n := n.(*ir.BranchStmt)
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 5b44a5743f..7881ea308d 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -857,8 +857,8 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		n := n.(*ir.ReturnStmt)
+ 		return tcReturn(n)
+ 
+-	case ir.ORETJMP:
+-		n := n.(*ir.BranchStmt)
++	case ir.OTAILCALL:
++		n := n.(*ir.TailCallStmt)
+ 		return n
+ 
+ 	case ir.OSELECT:
+@@ -2023,7 +2023,7 @@ func isTermNode(n ir.Node) bool {
+ 		n := n.(*ir.BlockStmt)
+ 		return isTermNodes(n.List)
+ 
+-	case ir.OGOTO, ir.ORETURN, ir.ORETJMP, ir.OPANIC, ir.OFALL:
++	case ir.OGOTO, ir.ORETURN, ir.OTAILCALL, ir.OPANIC, ir.OFALL:
+ 		return true
+ 
+ 	case ir.OFOR, ir.OFORUNTIL:
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index d34c58009a..e1e9f168bb 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -692,7 +692,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 		ir.OFALL,
+ 		ir.OGOTO,
+ 		ir.OLABEL,
+-		ir.ORETJMP:
++		ir.OTAILCALL:
+ 		o.out = append(o.out, n)
+ 
+ 	// Special: handle call arguments.
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index d892b2413f..46a621c2ba 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -136,8 +136,8 @@ func walkStmt(n ir.Node) ir.Node {
+ 		n := n.(*ir.ReturnStmt)
+ 		return walkReturn(n)
+ 
+-	case ir.ORETJMP:
+-		n := n.(*ir.BranchStmt)
++	case ir.OTAILCALL:
++		n := n.(*ir.TailCallStmt)
+ 		return n
+ 
+ 	case ir.OINLMARK:

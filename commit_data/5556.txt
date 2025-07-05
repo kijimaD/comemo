@@ -7,7 +7,7 @@ Date:   Thu May 27 14:51:47 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1326042
-
+---
  src/cmd/godoc/godoc.go                       |  2 +-
  src/pkg/bytes/buffer.go                      |  4 ++--
  src/pkg/compress/flate/flate_test.go         |  2 +-
@@ -55,3 +55,903 @@ Date:   Thu May 27 14:51:47 2010 -0700
  src/pkg/tabwriter/tabwriter.go               |  2 +-
  src/pkg/utf8/utf8_test.go                    |  2 +-
  46 files changed, 95 insertions(+), 95 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index bf8912e1da..2e14b4b733 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1035,7 +1035,7 @@ func isTextFile(path string) bool {
+ 	defer f.Close()
+ 
+ 	var buf [1024]byte
+-	n, err := f.Read(&buf)
++	n, err := f.Read(buf[0:])
+ 	if err != nil {
+ 		return false
+ 	}
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 7a996c4caf..32571d8d8e 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -74,7 +74,7 @@ func (b *Buffer) grow(n int) int {
+ 	if len(b.buf)+n > cap(b.buf) {
+ 		var buf []byte
+ 		if b.buf == nil && n <= len(b.bootstrap) {
+-			buf = &b.bootstrap
++			buf = b.bootstrap[0:]
+ 		} else {
+ 			// not enough space anywhere
+ 			buf = make([]byte, 2*cap(b.buf)+n)
+@@ -181,7 +181,7 @@ func (b *Buffer) WriteRune(r int) (n int, err os.Error) {
+ 		b.WriteByte(byte(r))
+ 		return 1, nil
+ 	}
+-	n = utf8.EncodeRune(r, &b.runeBytes)
++	n = utf8.EncodeRune(r, b.runeBytes[0:])
+ 	b.Write(b.runeBytes[0:n])
+ 	return n, nil
+ }
+diff --git a/src/pkg/compress/flate/flate_test.go b/src/pkg/compress/flate/flate_test.go
+index 6beaf4a8e8..bfd3b8381d 100644
+--- a/src/pkg/compress/flate/flate_test.go
++++ b/src/pkg/compress/flate/flate_test.go
+@@ -93,7 +93,7 @@ var initDecoderTests = []*InitDecoderTest{
+ 
+ 	// Static Huffman codes (RFC 1951 section 3.2.6)
+ 	&InitDecoderTest{
+-		&fixedHuffmanBits,
++		fixedHuffmanBits[0:],
+ 		fixedHuffmanDecoder,
+ 		true,
+ 	},
+diff --git a/src/pkg/compress/flate/huffman_bit_writer.go b/src/pkg/compress/flate/huffman_bit_writer.go
+index 46e353ddcf..abff82dd69 100644
+--- a/src/pkg/compress/flate/huffman_bit_writer.go
++++ b/src/pkg/compress/flate/huffman_bit_writer.go
+@@ -126,7 +126,7 @@ func (w *huffmanBitWriter) flushBits() {
+ 	w.bytes[n] = byte(bits)
+ 	w.bytes[n+1] = byte(bits >> 8)
+ 	if n += 2; n >= len(w.bytes) {
+-		_, w.err = w.w.Write(&w.bytes)
++		_, w.err = w.w.Write(w.bytes[0:])
+ 		n = 0
+ 	}
+ 	w.nbytes = n
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 92582be306..f0bd005318 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -290,7 +290,7 @@ func (f *decompressor) readHuffman() os.Error {
+ 	for i := nclen; i < len(codeOrder); i++ {
+ 		f.codebits[codeOrder[i]] = 0
+ 	}
+-	if !f.h1.init(&f.codebits) {
++	if !f.h1.init(f.codebits[0:]) {
+ 		return CorruptInputError(f.roffset)
+ 	}
+ 
+diff --git a/src/pkg/compress/zlib/writer_test.go b/src/pkg/compress/zlib/writer_test.go
+index 4183e76d71..fa9e78e8e7 100644
+--- a/src/pkg/compress/zlib/writer_test.go
++++ b/src/pkg/compress/zlib/writer_test.go
+@@ -46,7 +46,7 @@ func testFileLevel(t *testing.T, fn string, level int) {
+ 		defer zlibw.Close()
+ 		var b [1024]byte
+ 		for {
+-			n, err0 := raw.Read(&b)
++			n, err0 := raw.Read(b[0:])
+ 			if err0 != nil && err0 != os.EOF {
+ 				t.Errorf("%s (level=%d): %v", fn, level, err0)
+ 				return
+diff --git a/src/pkg/crypto/block/ecb_test.go b/src/pkg/crypto/block/ecb_test.go
+index 3767e63dba..1e991e1dde 100644
+--- a/src/pkg/crypto/block/ecb_test.go
++++ b/src/pkg/crypto/block/ecb_test.go
+@@ -67,7 +67,7 @@ func TestECBEncrypter(t *testing.T) {
+ 		for frag := 0; frag < 2; frag++ {
+ 			c := &IncCipher{block, 0, true}
+ 			b.Reset()
+-			r := bytes.NewBuffer(&plain)
++			r := bytes.NewBuffer(plain[0:])
+ 			w := NewECBEncrypter(c, b)
+ 
+ 			// copy plain into w in increasingly large chunks: 1, 1, 2, 4, 8, ...
+@@ -100,7 +100,7 @@ func TestECBEncrypter(t *testing.T) {
+ 				continue
+ 			}
+ 
+-			if string(data) != string(&crypt) {
++			if string(data) != string(crypt[0:]) {
+ 				t.Errorf("block=%d frag=%d: want %x got %x", block, frag, data, crypt)
+ 			}
+ 		}
+diff --git a/src/pkg/crypto/block/xor_test.go b/src/pkg/crypto/block/xor_test.go
+index 87b493a405..50f6bb08df 100644
+--- a/src/pkg/crypto/block/xor_test.go
++++ b/src/pkg/crypto/block/xor_test.go
+@@ -53,7 +53,7 @@ func testXorWriter(t *testing.T, maxio int) {
+ 		for frag := 0; frag < 2; frag++ {
+ 			test := fmt.Sprintf("block=%d frag=%d maxio=%d", block, frag, maxio)
+ 			b.Reset()
+-			r := bytes.NewBuffer(&plain)
++			r := bytes.NewBuffer(plain[0:])
+ 			s := newIncStream(block)
+ 			w := newXorWriter(s, b)
+ 
+diff --git a/src/pkg/crypto/blowfish/block.go b/src/pkg/crypto/blowfish/block.go
+index 9d9a02e65d..7fbe7eefb0 100644
+--- a/src/pkg/crypto/blowfish/block.go
++++ b/src/pkg/crypto/blowfish/block.go
+@@ -5,11 +5,11 @@
+ package blowfish
+ 
+ func expandKey(key []byte, c *Cipher) {
+-	copy(&c.p, &p)
+-	copy(&c.s0, &s0)
+-	copy(&c.s1, &s1)
+-	copy(&c.s2, &s2)
+-	copy(&c.s3, &s3)
++	copy(c.p[0:], p[0:])
++	copy(c.s0[0:], s0[0:])
++	copy(c.s1[0:], s1[0:])
++	copy(c.s2[0:], s2[0:])
++	copy(c.s3[0:], s3[0:])
+ 
+ 	j := 0
+ 	for i := 0; i < 18; i++ {
+diff --git a/src/pkg/crypto/blowfish/cipher.go b/src/pkg/crypto/blowfish/cipher.go
+index 6a8bdc0e04..ee0def85e5 100644
+--- a/src/pkg/crypto/blowfish/cipher.go
++++ b/src/pkg/crypto/blowfish/cipher.go
+@@ -71,9 +71,9 @@ func (c *Cipher) Decrypt(src, dst []byte) {
+ // Reset zeros the key data, so that it will no longer
+ // appear in the process's memory.
+ func (c *Cipher) Reset() {
+-	zero(&c.p)
+-	zero(&c.s0)
+-	zero(&c.s1)
+-	zero(&c.s2)
+-	zero(&c.s3)
++	zero(c.p[0:])
++	zero(c.s0[0:])
++	zero(c.s1[0:])
++	zero(c.s2[0:])
++	zero(c.s3[0:])
+ }
+diff --git a/src/pkg/crypto/md4/md4.go b/src/pkg/crypto/md4/md4.go
+index 54d1ba3dc2..adbdf29e7c 100644
+--- a/src/pkg/crypto/md4/md4.go
++++ b/src/pkg/crypto/md4/md4.go
+@@ -60,7 +60,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 		}
+ 		d.nx += n
+ 		if d.nx == _Chunk {
+-			_Block(d, &d.x)
++			_Block(d, d.x[0:])
+ 			d.nx = 0
+ 		}
+ 		p = p[n:]
+diff --git a/src/pkg/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+index f61273c08a..a833376512 100644
+--- a/src/pkg/crypto/md5/md5.go
++++ b/src/pkg/crypto/md5/md5.go
+@@ -60,7 +60,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 		}
+ 		d.nx += n
+ 		if d.nx == _Chunk {
+-			_Block(d, &d.x)
++			_Block(d, d.x[0:])
+ 			d.nx = 0
+ 		}
+ 		p = p[n:]
+diff --git a/src/pkg/crypto/rand/rand.go b/src/pkg/crypto/rand/rand.go
+index 127b1d0825..01c30316bd 100644
+--- a/src/pkg/crypto/rand/rand.go
++++ b/src/pkg/crypto/rand/rand.go
+@@ -81,15 +81,15 @@ func (r *reader) Read(b []byte) (n int, err os.Error) {
+ 
+ 	for len(b) > 0 {
+ 		if r.budget == 0 {
+-			_, err := io.ReadFull(r.entropy, &r.seed)
++			_, err := io.ReadFull(r.entropy, r.seed[0:])
+ 			if err != nil {
+ 				return n - len(b), err
+ 			}
+-			_, err = io.ReadFull(r.entropy, &r.key)
++			_, err = io.ReadFull(r.entropy, r.key[0:])
+ 			if err != nil {
+ 				return n - len(b), err
+ 			}
+-			r.cipher, err = aes.NewCipher(&r.key)
++			r.cipher, err = aes.NewCipher(r.key[0:])
+ 			if err != nil {
+ 				return n - len(b), err
+ 			}
+@@ -112,17 +112,17 @@ func (r *reader) Read(b []byte) (n int, err os.Error) {
+ 		r.time[5] = byte(ns >> 16)
+ 		r.time[6] = byte(ns >> 8)
+ 		r.time[7] = byte(ns)
+-		r.cipher.Encrypt(&r.time, &r.time)
++		r.cipher.Encrypt(r.time[0:], r.time[0:])
+ 		for i := 0; i < aes.BlockSize; i++ {
+ 			r.dst[i] = r.time[i] ^ r.seed[i]
+ 		}
+-		r.cipher.Encrypt(&r.dst, &r.dst)
++		r.cipher.Encrypt(r.dst[0:], r.dst[0:])
+ 		for i := 0; i < aes.BlockSize; i++ {
+ 			r.seed[i] = r.time[i] ^ r.dst[i]
+ 		}
+-		r.cipher.Encrypt(&r.seed, &r.seed)
++		r.cipher.Encrypt(r.seed[0:], r.seed[0:])
+ 
+-		m := copy(b, &r.dst)
++		m := copy(b, r.dst[0:])
+ 		b = b[m:]
+ 	}
+ 
+diff --git a/src/pkg/crypto/ripemd160/ripemd160.go b/src/pkg/crypto/ripemd160/ripemd160.go
+index d485910563..5d55198424 100644
+--- a/src/pkg/crypto/ripemd160/ripemd160.go
++++ b/src/pkg/crypto/ripemd160/ripemd160.go
+@@ -64,7 +64,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 		}
+ 		d.nx += n
+ 		if d.nx == BlockSize {
+-			_Block(d, &d.x)
++			_Block(d, d.x[0:])
+ 			d.nx = 0
+ 		}
+ 		p = p[n:]
+diff --git a/src/pkg/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+index cd7d8fd20b..681870a218 100644
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -62,7 +62,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 		}
+ 		d.nx += n
+ 		if d.nx == _Chunk {
+-			_Block(d, &d.x)
++			_Block(d, d.x[0:])
+ 			d.nx = 0
+ 		}
+ 		p = p[n:]
+diff --git a/src/pkg/crypto/sha256/sha256.go b/src/pkg/crypto/sha256/sha256.go
+index b95fd8ecb5..df00a72985 100644
+--- a/src/pkg/crypto/sha256/sha256.go
++++ b/src/pkg/crypto/sha256/sha256.go
+@@ -104,7 +104,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 		}
+ 		d.nx += n
+ 		if d.nx == _Chunk {
+-			_Block(d, &d.x)
++			_Block(d, d.x[0:])
+ 			d.nx = 0
+ 		}
+ 		p = p[n:]
+diff --git a/src/pkg/crypto/sha512/sha512.go b/src/pkg/crypto/sha512/sha512.go
+index 9e8314898c..21b030563d 100644
+--- a/src/pkg/crypto/sha512/sha512.go
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -104,7 +104,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 		}
+ 		d.nx += n
+ 		if d.nx == _Chunk {
+-			_Block(d, &d.x)
++			_Block(d, d.x[0:])
+ 			d.nx = 0
+ 		}
+ 		p = p[n:]
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index d0e8464d53..0798e26f65 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -171,7 +171,7 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
+ 		remoteMAC := payload[n:]
+ 
+ 		hc.mac.Reset()
+-		hc.mac.Write(&hc.seq)
++		hc.mac.Write(hc.seq[0:])
+ 		hc.incSeq()
+ 		hc.mac.Write(b.data)
+ 
+@@ -188,7 +188,7 @@ func (hc *halfConn) encrypt(b *block) (bool, alert) {
+ 	// mac
+ 	if hc.mac != nil {
+ 		hc.mac.Reset()
+-		hc.mac.Write(&hc.seq)
++		hc.mac.Write(hc.seq[0:])
+ 		hc.incSeq()
+ 		hc.mac.Write(b.data)
+ 		mac := hc.mac.Sum()
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 15e462db0d..568370b857 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -166,7 +166,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	sr := io.NewSectionReader(r, 0, 1<<63-1)
+ 	// Read and decode ELF identifier
+ 	var ident [16]uint8
+-	if _, err := r.ReadAt(&ident, 0); err != nil {
++	if _, err := r.ReadAt(ident[0:], 0); err != nil {
+ 		return nil, err
+ 	}
+ 	if ident[0] != '\x7f' || ident[1] != 'E' || ident[2] != 'L' || ident[3] != 'F' {
+diff --git a/src/pkg/encoding/ascii85/ascii85.go b/src/pkg/encoding/ascii85/ascii85.go
+index 67d6ef7edf..ead0c24757 100644
+--- a/src/pkg/encoding/ascii85/ascii85.go
++++ b/src/pkg/encoding/ascii85/ascii85.go
+@@ -117,7 +117,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		if e.nbuf < 4 {
+ 			return
+ 		}
+-		nout := Encode(&e.out, &e.buf)
++		nout := Encode(e.out[0:], e.buf[0:])
+ 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 			return n, e.err
+ 		}
+@@ -132,7 +132,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		}
+ 		nn -= nn % 4
+ 		if nn > 0 {
+-			nout := Encode(&e.out, p[0:nn])
++			nout := Encode(e.out[0:], p[0:nn])
+ 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 				return n, e.err
+ 			}
+@@ -155,7 +155,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ func (e *encoder) Close() os.Error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+-		nout := Encode(&e.out, e.buf[0:e.nbuf])
++		nout := Encode(e.out[0:], e.buf[0:e.nbuf])
+ 		e.nbuf = 0
+ 		_, e.err = e.w.Write(e.out[0:nout])
+ 	}
+@@ -275,10 +275,10 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 		// Decode leftover input from last read.
+ 		var nn, nsrc, ndst int
+ 		if d.nbuf > 0 {
+-			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0:d.nbuf], d.readErr != nil)
++			ndst, nsrc, d.err = Decode(d.outbuf[0:], d.buf[0:d.nbuf], d.readErr != nil)
+ 			if ndst > 0 {
+ 				d.out = d.outbuf[0:ndst]
+-				d.nbuf = copy(&d.buf, d.buf[nsrc:d.nbuf])
++				d.nbuf = copy(d.buf[0:], d.buf[nsrc:d.nbuf])
+ 				continue // copy out and return
+ 			}
+ 		}
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+index c8e70fccf0..496129798c 100644
+--- a/src/pkg/encoding/base64/base64.go
++++ b/src/pkg/encoding/base64/base64.go
+@@ -132,7 +132,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		if e.nbuf < 3 {
+ 			return
+ 		}
+-		e.enc.Encode(&e.out, &e.buf)
++		e.enc.Encode(e.out[0:], e.buf[0:])
+ 		if _, e.err = e.w.Write(e.out[0:4]); e.err != nil {
+ 			return n, e.err
+ 		}
+@@ -147,7 +147,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		}
+ 		nn -= nn % 3
+ 		if nn > 0 {
+-			e.enc.Encode(&e.out, p[0:nn])
++			e.enc.Encode(e.out[0:], p[0:nn])
+ 			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
+ 				return n, e.err
+ 			}
+@@ -170,7 +170,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ func (e *encoder) Close() os.Error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+-		e.enc.Encode(&e.out, e.buf[0:e.nbuf])
++		e.enc.Encode(e.out[0:], e.buf[0:e.nbuf])
+ 		e.nbuf = 0
+ 		_, e.err = e.w.Write(e.out[0:4])
+ 	}
+@@ -301,7 +301,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 	nr := d.nbuf / 4 * 4
+ 	nw := d.nbuf / 4 * 3
+ 	if nw > len(p) {
+-		nw, d.end, d.err = d.enc.decode(&d.outbuf, d.buf[0:nr])
++		nw, d.end, d.err = d.enc.decode(d.outbuf[0:], d.buf[0:nr])
+ 		d.out = d.outbuf[0:nw]
+ 		n = copy(p, d.out)
+ 		d.out = d.out[n:]
+diff --git a/src/pkg/encoding/git85/git.go b/src/pkg/encoding/git85/git.go
+index 25a3deac00..09a45cd3c7 100644
+--- a/src/pkg/encoding/git85/git.go
++++ b/src/pkg/encoding/git85/git.go
+@@ -177,7 +177,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		if e.nbuf < 52 {
+ 			return
+ 		}
+-		nout := Encode(&e.out, &e.buf)
++		nout := Encode(e.out[0:], e.buf[0:])
+ 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 			return n, e.err
+ 		}
+@@ -191,7 +191,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 			nn = len(p) / 52 * 52
+ 		}
+ 		if nn > 0 {
+-			nout := Encode(&e.out, p[0:nn])
++			nout := Encode(e.out[0:], p[0:nn])
+ 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 				return n, e.err
+ 			}
+@@ -212,7 +212,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ func (e *encoder) Close() os.Error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+-		nout := Encode(&e.out, e.buf[0:e.nbuf])
++		nout := Encode(e.out[0:], e.buf[0:e.nbuf])
+ 		e.nbuf = 0
+ 		_, e.err = e.w.Write(e.out[0:nout])
+ 	}
+@@ -265,12 +265,12 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 		if nl < 0 {
+ 			continue
+ 		}
+-		nn, d.err = Decode(&d.outbuf, d.buf[0:nl+1])
++		nn, d.err = Decode(d.outbuf[0:], d.buf[0:nl+1])
+ 		if e, ok := d.err.(CorruptInputError); ok {
+ 			d.err = CorruptInputError(int64(e) + d.off)
+ 		}
+ 		d.out = d.outbuf[0:nn]
+-		d.nbuf = copy(&d.buf, d.buf[nl+1:d.nbuf])
++		d.nbuf = copy(d.buf[0:], d.buf[nl+1:d.nbuf])
+ 		d.off += int64(nl + 1)
+ 	}
+ 	panic("unreacahable")
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index a1b7bd6b9c..415b900b9c 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -95,7 +95,7 @@ func Run(argv0 string, argv, envv []string, dir string, stdin, stdout, stderr in
+ 	}
+ 
+ 	// Run command.
+-	p.Pid, err = os.ForkExec(argv0, argv, envv, dir, &fd)
++	p.Pid, err = os.ForkExec(argv0, argv, envv, dir, fd[0:])
+ 	if err != nil {
+ 		goto Error
+ 	}
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 2637eb4cd6..c7a67d3bde 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -168,7 +168,7 @@ func (f *fmt) fmt_boolean(v bool) {
+ // integer; interprets prec but not wid.  Once formatted, result is sent to pad()
+ // and then flags are cleared.
+ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+-	var buf []byte = &f.intbuf
++	var buf []byte = f.intbuf[0:]
+ 	negative := signedness == signed && a < 0
+ 	if negative {
+ 		a = -a
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index e4413efa47..9c19405990 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -201,7 +201,7 @@ func (p *pp) add(c int) {
+ 	if c < utf8.RuneSelf {
+ 		p.buf.WriteByte(byte(c))
+ 	} else {
+-		w := utf8.EncodeRune(c, &p.runeBuf)
++		w := utf8.EncodeRune(c, p.runeBuf[0:])
+ 		p.buf.Write(p.runeBuf[0:w])
+ 	}
+ }
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index b082399fa4..0c9ed4d76c 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -95,7 +95,7 @@ func (r readRune) ReadRune() (rune int, size int, err os.Error) {
+ 		if err != nil {
+ 			break
+ 		}
+-		if !utf8.FullRune(&r.buf) {
++		if !utf8.FullRune(r.buf[0:]) {
+ 			continue
+ 		}
+ 		if c, w := utf8.DecodeRune(r.buf[0:size]); w == size {
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 8e59089a6c..9bb6564a5e 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -709,7 +709,7 @@ func (p *printer) writeWhitespace(n int) {
+ 			fallthrough
+ 		default:
+ 			data[0] = byte(ch)
+-			p.write(&data)
++			p.write(data[0:])
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 309dd82740..40bb3d1384 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -131,7 +131,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 	} else {
+ 		// read first chunk to decide between utf-8 text and binary
+ 		var buf [1024]byte
+-		n, _ := io.ReadFull(f, &buf)
++		n, _ := io.ReadFull(f, buf[0:])
+ 		b := buf[0:n]
+ 		if isText(b) {
+ 			c.SetHeader("Content-Type", "text-plain; charset=utf-8")
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index d7f2c9a5c4..2f5930bcc1 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -248,8 +248,8 @@ func (s *pollServer) Run() {
+ 		}
+ 		if fd == s.pr.Fd() {
+ 			// Drain our wakeup pipe.
+-			for nn, _ := s.pr.Read(&scratch); nn > 0; {
+-				nn, _ = s.pr.Read(&scratch)
++			for nn, _ := s.pr.Read(scratch[0:]); nn > 0; {
++				nn, _ = s.pr.Read(scratch[0:])
+ 			}
+ 			// Read from channels
+ 			for fd, ok := <-s.cr; ok; fd, ok = <-s.cr {
+@@ -271,7 +271,7 @@ func (s *pollServer) Run() {
+ 
+ var wakeupbuf [1]byte
+ 
+-func (s *pollServer) Wakeup() { s.pw.Write(&wakeupbuf) }
++func (s *pollServer) Wakeup() { s.pw.Write(wakeupbuf[0:]) }
+ 
+ func (s *pollServer) WaitRead(fd *netFD) {
+ 	s.cr <- fd
+diff --git a/src/pkg/net/fd_darwin.go b/src/pkg/net/fd_darwin.go
+index a33504f6e4..cd07387532 100644
+--- a/src/pkg/net/fd_darwin.go
++++ b/src/pkg/net/fd_darwin.go
+@@ -46,7 +46,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 	}
+ 	syscall.SetKevent(ev, fd, kmode, flags)
+ 
+-	n, e := syscall.Kevent(p.kq, &events, &events, nil)
++	n, e := syscall.Kevent(p.kq, events[0:], events[0:], nil)
+ 	if e != 0 {
+ 		return os.NewSyscallError("kevent", e)
+ 	}
+@@ -72,7 +72,7 @@ func (p *pollster) DelFD(fd int, mode int) {
+ 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
+ 	//	rather than waiting for real event
+ 	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE|syscall.EV_RECEIPT)
+-	syscall.Kevent(p.kq, &events, &events, nil)
++	syscall.Kevent(p.kq, events[0:], events[0:], nil)
+ }
+ 
+ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+@@ -84,7 +84,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ 			}
+ 			*t = syscall.NsecToTimespec(nsec)
+ 		}
+-		nn, e := syscall.Kevent(p.kq, nil, &p.eventbuf, t)
++		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf[0:], t)
+ 		if e != 0 {
+ 			if e == syscall.EINTR {
+ 				continue
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index 5024eec026..ef86cb17f3 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -113,9 +113,9 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ 	if nsec > 0 {
+ 		msec = int((nsec + 1e6 - 1) / 1e6)
+ 	}
+-	n, e := syscall.EpollWait(p.epfd, &evarray, msec)
++	n, e := syscall.EpollWait(p.epfd, evarray[0:], msec)
+ 	for e == syscall.EAGAIN || e == syscall.EINTR {
+-		n, e = syscall.EpollWait(p.epfd, &evarray, msec)
++		n, e = syscall.EpollWait(p.epfd, evarray[0:], msec)
+ 	}
+ 	if e != 0 {
+ 		return -1, 0, os.NewSyscallError("epoll_wait", e)
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index e4b442e73c..9477420d66 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -103,9 +103,9 @@ func getip(fd int, remote bool) (ip []byte, port int, ok bool) {
+ 	}
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+-		return &sa.Addr, sa.Port, true
++		return sa.Addr[0:], sa.Port, true
+ 	case *syscall.SockaddrInet6:
+-		return &sa.Addr, sa.Port, true
++		return sa.Addr[0:], sa.Port, true
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index d6b3276ba7..0d077fe95f 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -23,7 +23,7 @@ func runEcho(fd io.ReadWriter, done chan<- int) {
+ 	var buf [1024]byte
+ 
+ 	for {
+-		n, err := fd.Read(&buf)
++		n, err := fd.Read(buf[0:])
+ 		if err != nil || n == 0 {
+ 			break
+ 		}
+@@ -74,7 +74,7 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
+ 		t.Fatalf("fd.Write(%q) = %d, %v", b, n, err1)
+ 	}
+ 
+-	n, err1 = fd.Read(&b1)
++	n, err1 = fd.Read(b1[0:])
+ 	if n != len(b) || err1 != nil {
+ 		t.Fatalf("fd.Read() = %d, %v (want %d, nil)", n, err1, len(b))
+ 	}
+@@ -126,7 +126,7 @@ func runPacket(t *testing.T, network, addr string, listening chan<- string, done
+ 	c.SetReadTimeout(10e6) // 10ms
+ 	var buf [1000]byte
+ 	for {
+-		n, addr, err := c.ReadFrom(&buf)
++		n, addr, err := c.ReadFrom(buf[0:])
+ 		if e, ok := err.(Error); ok && e.Timeout() {
+ 			if done <- 1 {
+ 				break
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index be92095a66..fbdb695839 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -155,9 +155,9 @@ func (e *UnknownSocketError) String() string {
+ func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
+ 	switch a := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+-		return joinHostPort(IP(&a.Addr).String(), itoa(a.Port)), nil
++		return joinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
+ 	case *syscall.SockaddrInet6:
+-		return joinHostPort(IP(&a.Addr).String(), itoa(a.Port)), nil
++		return joinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
+ 	case *syscall.SockaddrUnix:
+ 		return a.Name, nil
+ 	}
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 9a7a2685e4..3594c0a350 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -23,9 +23,9 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
+ 	var n int
+ 	var err1 os.Error
+ 	if readFrom {
+-		n, _, err1 = fd.(PacketConn).ReadFrom(&b)
++		n, _, err1 = fd.(PacketConn).ReadFrom(b[0:])
+ 	} else {
+-		n, err1 = fd.Read(&b)
++		n, err1 = fd.Read(b[0:])
+ 	}
+ 	t1 := time.Nanoseconds()
+ 	what := "Read"
+diff --git a/src/pkg/os/dir_linux.go b/src/pkg/os/dir_linux.go
+index e693794f02..84f87007ed 100644
+--- a/src/pkg/os/dir_linux.go
++++ b/src/pkg/os/dir_linux.go
+@@ -57,7 +57,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 				continue
+ 			}
+ 			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]))
+-			var name = string(bytes[0:clen(bytes)])
++			var name = string(bytes[0:clen(bytes[0:])])
+ 			if name == "." || name == ".." { // Useless names
+ 				continue
+ 			}
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 3196406d60..be2a30693e 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -194,7 +194,7 @@ func Pipe() (r *File, w *File, err Error) {
+ 
+ 	// See ../syscall/exec.go for description of lock.
+ 	syscall.ForkLock.RLock()
+-	e := syscall.Pipe(&p)
++	e := syscall.Pipe(p[0:])
+ 	if e != 0 {
+ 		syscall.ForkLock.RUnlock()
+ 		return nil, nil, NewSyscallError("pipe", e)
+@@ -418,7 +418,7 @@ func Chtimes(name string, atime_ns int64, mtime_ns int64) Error {
+ 	var utimes [2]syscall.Timeval
+ 	utimes[0] = syscall.NsecToTimeval(atime_ns)
+ 	utimes[1] = syscall.NsecToTimeval(mtime_ns)
+-	if e := syscall.Utimes(name, &utimes); e != 0 {
++	if e := syscall.Utimes(name, utimes[0:]); e != 0 {
+ 		return &PathError{"chtimes", name, Errno(e)}
+ 	}
+ 	return nil
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index b2332f0c8f..6827c3f60c 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -42,7 +42,7 @@ func size(name string, t *testing.T) int64 {
+ 	var buf [100]byte
+ 	len := 0
+ 	for {
+-		n, e := file.Read(&buf)
++		n, e := file.Read(buf[0:])
+ 		len += n
+ 		if e == EOF {
+ 			break
+diff --git a/src/pkg/os/sys_linux.go b/src/pkg/os/sys_linux.go
+index 0622b67122..b82d295d3d 100644
+--- a/src/pkg/os/sys_linux.go
++++ b/src/pkg/os/sys_linux.go
+@@ -16,7 +16,7 @@ func Hostname() (name string, err Error) {
+ 	defer f.Close()
+ 
+ 	var buf [512]byte // Enough for a DNS name.
+-	n, err := f.Read(&buf)
++	n, err := f.Read(buf[0:])
+ 	if err != nil {
+ 		return "", err
+ 	}
+diff --git a/src/pkg/patch/git.go b/src/pkg/patch/git.go
+index 3c70d8ced2..6516097260 100644
+--- a/src/pkg/patch/git.go
++++ b/src/pkg/patch/git.go
+@@ -103,7 +103,7 @@ func ParseGitBinary(raw []byte) (Diff, os.Error) {
+ 				return nil, err
+ 			}
+ 			var buf [1]byte
+-			m, err := z.Read(&buf)
++			m, err := z.Read(buf[0:])
+ 			if m != 0 || err != os.EOF {
+ 				return nil, os.NewError("Git binary literal longer than expected")
+ 			}
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index 4c5ed61ef3..2085a67c82 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -18,7 +18,7 @@ var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "
+ 
+ func TestSortIntArray(t *testing.T) {
+ 	data := ints
+-	a := IntArray(&data)
++	a := IntArray(data[0:])
+ 	Sort(a)
+ 	if !IsSorted(a) {
+ 		t.Errorf("sorted %v", ints)
+@@ -28,7 +28,7 @@ func TestSortIntArray(t *testing.T) {
+ 
+ func TestSortFloatArray(t *testing.T) {
+ 	data := floats
+-	a := FloatArray(&data)
++	a := FloatArray(data[0:])
+ 	Sort(a)
+ 	if !IsSorted(a) {
+ 		t.Errorf("sorted %v", floats)
+@@ -38,7 +38,7 @@ func TestSortFloatArray(t *testing.T) {
+ 
+ func TestSortStringArray(t *testing.T) {
+ 	data := strings
+-	a := StringArray(&data)
++	a := StringArray(data[0:])
+ 	Sort(a)
+ 	if !IsSorted(a) {
+ 		t.Errorf("sorted %v", strings)
+@@ -48,8 +48,8 @@ func TestSortStringArray(t *testing.T) {
+ 
+ func TestSortInts(t *testing.T) {
+ 	data := ints
+-	SortInts(&data)
+-	if !IntsAreSorted(&data) {
++	SortInts(data[0:])
++	if !IntsAreSorted(data[0:]) {
+ 		t.Errorf("sorted %v", ints)
+ 		t.Errorf("   got %v", data)
+ 	}
+@@ -57,8 +57,8 @@ func TestSortInts(t *testing.T) {
+ 
+ func TestSortFloats(t *testing.T) {
+ 	data := floats
+-	SortFloats(&data)
+-	if !FloatsAreSorted(&data) {
++	SortFloats(data[0:])
++	if !FloatsAreSorted(data[0:]) {
+ 		t.Errorf("sorted %v", floats)
+ 		t.Errorf("   got %v", data)
+ 	}
+@@ -66,8 +66,8 @@ func TestSortFloats(t *testing.T) {
+ 
+ func TestSortStrings(t *testing.T) {
+ 	data := strings
+-	SortStrings(&data)
+-	if !StringsAreSorted(&data) {
++	SortStrings(data[0:])
++	if !StringsAreSorted(data[0:]) {
+ 		t.Errorf("sorted %v", strings)
+ 		t.Errorf("   got %v", data)
+ 	}
+diff --git a/src/pkg/syscall/exec.go b/src/pkg/syscall/exec.go
+index 3418ff0888..c7f7893e7d 100644
+--- a/src/pkg/syscall/exec.go
++++ b/src/pkg/syscall/exec.go
+@@ -244,7 +244,7 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
+ 	ForkLock.Lock()
+ 
+ 	// Allocate child status pipe close on exec.
+-	if err = Pipe(&p); err != 0 {
++	if err = Pipe(p[0:]); err != 0 {
+ 		goto error
+ 	}
+ 	if _, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != 0 {
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index c0f580c7bc..bf124bd135 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -68,7 +68,7 @@ const ImplementsGetwd = true
+ //sys	Getcwd(buf []byte) (n int, errno int)
+ func Getwd() (wd string, errno int) {
+ 	var buf [PathMax]byte
+-	n, err := Getcwd(&buf)
++	n, err := Getcwd(buf[0:])
+ 	if err != 0 {
+ 		return "", err
+ 	}
+@@ -442,7 +442,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
+ 		if errno != 0 {
+ 			return n, errno
+ 		}
+-		copied := copy(out, &buf)
++		copied := copy(out, buf[0:])
+ 		n += copied
+ 		out = out[copied:]
+ 	}
+@@ -497,7 +497,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
+ 		if errno != 0 {
+ 			return n, errno
+ 		}
+-		copy(&buf, data)
++		copy(buf[0:], data)
+ 		word := *((*uintptr)(unsafe.Pointer(&buf[0])))
+ 		errno = ptrace(pokeReq, pid, addr+uintptr(n), word)
+ 		if errno != 0 {
+diff --git a/src/pkg/syslog/syslog_test.go b/src/pkg/syslog/syslog_test.go
+index 6a8ae3012c..7b95be3b7d 100644
+--- a/src/pkg/syslog/syslog_test.go
++++ b/src/pkg/syslog/syslog_test.go
+@@ -16,7 +16,7 @@ func runSyslog(c net.PacketConn, done chan<- string) {
+ 	var buf [4096]byte
+ 	var rcvd string = ""
+ 	for {
+-		n, _, err := c.ReadFrom(&buf)
++		n, _, err := c.ReadFrom(buf[0:])
+ 		if err != nil || n == 0 {
+ 			break
+ 		}
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index f37be51411..e6ce3232ac 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -271,7 +271,7 @@ func (b *Writer) writePadding(textw, cellw int, useTabs bool) {
+ 	}
+ 
+ 	// padding is done with non-tab characters
+-	b.writeN(&b.padbytes, cellw-textw)
++	b.writeN(b.padbytes[0:], cellw-textw)
+ }
+ 
+ 
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index 460fdb543c..2466cf554b 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -78,7 +78,7 @@ func TestEncodeRune(t *testing.T) {
+ 		m := utf8map[i]
+ 		b := makeBytes(m.str)
+ 		var buf [10]byte
+-		n := EncodeRune(m.rune, &buf)
++		n := EncodeRune(m.rune, buf[0:])
+ 		b1 := buf[0:n]
+ 		if !bytes.Equal(b, b1) {
+ 			t.Errorf("EncodeRune(%#04x) = %q want %q", m.rune, b1, b)

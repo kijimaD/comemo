@@ -7,6 +7,19 @@ Date:   Wed Jan 24 15:07:15 2018 -0800
     Change-Id: Id2332332ba5ff5a3ae6e58882743aa25359c02f6
     Reviewed-on: https://go-review.googlesource.com/89675
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/conduct.html | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/conduct.html b/doc/conduct.html
+index c40b0074f2..bf52ef9fd5 100644
+--- a/doc/conduct.html
++++ b/doc/conduct.html
+@@ -183,7 +183,6 @@ satisfaction of all parties. They are:
+ 	<li>Aditya Mukerjee &lt;dev@chimeracoder.net&gt;
+ 	<li>Andrew Gerrand &lt;adg@golang.org&gt;
+ 	<li>Peggy Li &lt;peggyli.224@gmail.com&gt;
+-	<li>Sarah Adams &lt;sadams.codes@gmail.com&gt;
+ 	<li>Steve Francia &lt;steve.francia@gmail.com&gt;
+ 	<li>Verónica López &lt;gveronicalg@gmail.com&gt;
+ </ul>

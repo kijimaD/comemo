@@ -14,6 +14,20 @@ Date:   Wed Jan 9 15:05:22 2013 -0800
     R=rsc, dave
     CC=golang-dev
     https://golang.org/cl/7057058
-
+---
  src/cmd/ld/lib.h | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 92d458a14c..05363fc14d 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -97,6 +97,8 @@ struct Segment
+ 	Section*	sect;
+ };
+ 
++#pragma incomplete struct Elf64_Shdr
++
+ struct Section
+ {
+ 	uchar	rwx;

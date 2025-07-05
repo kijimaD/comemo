@@ -9,10 +9,484 @@ Date:   Thu Aug 3 15:49:33 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/ecdsa/boring.go              | 109 ++++++++++++++++++
  src/crypto/ecdsa/ecdsa.go               |  42 +++++++
  src/crypto/internal/boring/boring.go    |  12 ++
  src/crypto/internal/boring/ecdsa.go     | 188 ++++++++++++++++++++++++++++++++
  src/crypto/internal/boring/notboring.go |  23 ++++
  5 files changed, 374 insertions(+)
+
+diff --git a/src/crypto/ecdsa/boring.go b/src/crypto/ecdsa/boring.go
+new file mode 100644
+index 0000000000..3e59f76a14
+--- /dev/null
++++ b/src/crypto/ecdsa/boring.go
+@@ -0,0 +1,109 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ecdsa
++
++import (
++	"crypto/elliptic"
++	"crypto/internal/boring"
++	"math/big"
++)
++
++// Cached conversions from Go PublicKey/PrivateKey to BoringCrypto.
++//
++// A new 'boring atomic.Value' field in both PublicKey and PrivateKey
++// serves as a cache for the most recent conversion. The cache is an
++// atomic.Value because code might reasonably set up a key and then
++// (thinking it immutable) use it from multiple goroutines simultaneously.
++// The first operation initializes the cache; if there are multiple simultaneous
++// first operations, they will do redundant work but not step on each other.
++//
++// We could just assume that once used in a Sign or Verify operation,
++// a particular key is never again modified, but that has not been a
++// stated assumption before. Just in case there is any existing code that
++// does modify the key between operations, we save the original values
++// alongside the cached BoringCrypto key and check that the real key
++// still matches before using the cached key. The theory is that the real
++// operations are significantly more expensive than the comparison.
++
++type boringPub struct {
++	key  *boring.PublicKeyECDSA
++	orig publicKey
++}
++
++// copy of PublicKey without the atomic.Value field, to placate vet.
++type publicKey struct {
++	elliptic.Curve
++	X, Y *big.Int
++}
++
++func boringPublicKey(pub *PublicKey) (*boring.PublicKeyECDSA, error) {
++	b, _ := pub.boring.Load().(boringPub)
++	if publicKeyEqual(&b.orig, pub) {
++		return b.key, nil
++	}
++
++	b.orig = copyPublicKey(pub)
++	key, err := boring.NewPublicKeyECDSA(b.orig.Curve.Params().Name, b.orig.X, b.orig.Y)
++	if err != nil {
++		return nil, err
++	}
++	b.key = key
++	pub.boring.Store(b)
++	return key, nil
++}
++
++type boringPriv struct {
++	key  *boring.PrivateKeyECDSA
++	orig privateKey
++}
++
++// copy of PrivateKey without the atomic.Value field, to placate vet.
++type privateKey struct {
++	publicKey
++	D *big.Int
++}
++
++func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyECDSA, error) {
++	b, _ := priv.boring.Load().(boringPriv)
++	if privateKeyEqual(&b.orig, priv) {
++		return b.key, nil
++	}
++
++	b.orig = copyPrivateKey(priv)
++	key, err := boring.NewPrivateKeyECDSA(b.orig.Curve.Params().Name, b.orig.X, b.orig.Y, b.orig.D)
++	if err != nil {
++		return nil, err
++	}
++	b.key = key
++	priv.boring.Store(b)
++	return key, nil
++}
++
++func publicKeyEqual(k1 *publicKey, k2 *PublicKey) bool {
++	return k1.X != nil &&
++		k1.Curve.Params() == k2.Curve.Params() &&
++		k1.X.Cmp(k2.X) == 0 &&
++		k1.Y.Cmp(k2.Y) == 0
++}
++
++func privateKeyEqual(k1 *privateKey, k2 *PrivateKey) bool {
++	return publicKeyEqual(&k1.publicKey, &k2.PublicKey) &&
++		k1.D.Cmp(k2.D) == 0
++}
++
++func copyPublicKey(k *PublicKey) publicKey {
++	return publicKey{
++		Curve: k.Curve,
++		X:     new(big.Int).Set(k.X),
++		Y:     new(big.Int).Set(k.Y),
++	}
++}
++
++func copyPrivateKey(k *PrivateKey) privateKey {
++	return privateKey{
++		publicKey: copyPublicKey(&k.PublicKey),
++		D:         new(big.Int).Set(k.D),
++	}
++}
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 02848fd595..a3fa743e66 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -21,11 +21,13 @@ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/elliptic"
++	"crypto/internal/boring"
+ 	"crypto/sha512"
+ 	"encoding/asn1"
+ 	"errors"
+ 	"io"
+ 	"math/big"
++	"sync/atomic"
+ )
+ 
+ // A invertible implements fast inverse mod Curve.Params().N
+@@ -47,12 +49,16 @@ const (
+ type PublicKey struct {
+ 	elliptic.Curve
+ 	X, Y *big.Int
++
++	boring atomic.Value
+ }
+ 
+ // PrivateKey represents a ECDSA private key.
+ type PrivateKey struct {
+ 	PublicKey
+ 	D *big.Int
++
++	boring atomic.Value
+ }
+ 
+ type ecdsaSignature struct {
+@@ -69,6 +75,15 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
+ // hardware module. Common uses should use the Sign function in this package
+ // directly.
+ func (priv *PrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
++	if boring.Enabled && rand == boring.RandReader {
++		b, err := boringPrivateKey(priv)
++		if err != nil {
++			return nil, err
++		}
++		return boring.SignMarshalECDSA(b, msg)
++	}
++	boring.UnreachableExceptTests()
++
+ 	r, s, err := Sign(rand, priv, msg)
+ 	if err != nil {
+ 		return nil, err
+@@ -98,6 +113,15 @@ func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error)
+ 
+ // GenerateKey generates a public and private key pair.
+ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
++	if boring.Enabled && rand == boring.RandReader {
++		x, y, d, err := boring.GenerateKeyECDSA(c.Params().Name)
++		if err != nil {
++			return nil, err
++		}
++		return &PrivateKey{PublicKey: PublicKey{Curve: c, X: x, Y: y}, D: d}, nil
++	}
++	boring.UnreachableExceptTests()
++
+ 	k, err := randFieldElement(c, rand)
+ 	if err != nil {
+ 		return nil, err
+@@ -149,6 +173,15 @@ var errZeroParam = errors.New("zero parameter")
+ // returns the signature as a pair of integers. The security of the private key
+ // depends on the entropy of rand.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
++	if boring.Enabled && rand == boring.RandReader {
++		b, err := boringPrivateKey(priv)
++		if err != nil {
++			return nil, nil, err
++		}
++		return boring.SignECDSA(b, hash)
++	}
++	boring.UnreachableExceptTests()
++
+ 	// Get min(log2(q) / 2, 256) bits of entropy from rand.
+ 	entropylen := (priv.Curve.Params().BitSize + 7) / 16
+ 	if entropylen > 32 {
+@@ -225,6 +258,15 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ // Verify verifies the signature in r, s of hash using the public key, pub. Its
+ // return value records whether the signature is valid.
+ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
++	if boring.Enabled {
++		b, err := boringPublicKey(pub)
++		if err != nil {
++			return false
++		}
++		return boring.VerifyECDSA(b, hash, r, s)
++	}
++	boring.UnreachableExceptTests()
++
+ 	// See [NSA] 3.4.2
+ 	c := pub.Curve
+ 	N := c.Params().N
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index 615b1efadc..bf1509122d 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -9,6 +9,7 @@ package boring
+ 
+ // #include "goboringcrypto.h"
+ import "C"
++import "math/big"
+ 
+ const available = true
+ 
+@@ -41,3 +42,14 @@ func UnreachableExceptTests() {
+ type fail string
+ 
+ func (e fail) Error() string { return "boringcrypto: " + string(e) + " failed" }
++
++func bigToBN(x *big.Int) *C.GO_BIGNUM {
++	raw := x.Bytes()
++	return C._goboringcrypto_BN_bin2bn(base(raw), C.size_t(len(raw)), nil)
++}
++
++func bnToBig(bn *C.GO_BIGNUM) *big.Int {
++	raw := make([]byte, C._goboringcrypto_BN_num_bytes(bn))
++	n := C._goboringcrypto_BN_bn2bin(bn, base(raw))
++	return new(big.Int).SetBytes(raw[:n])
++}
+diff --git a/src/crypto/internal/boring/ecdsa.go b/src/crypto/internal/boring/ecdsa.go
+new file mode 100644
+index 0000000000..36176efccd
+--- /dev/null
++++ b/src/crypto/internal/boring/ecdsa.go
+@@ -0,0 +1,188 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,amd64
++// +build !cmd_go_bootstrap
++
++package boring
++
++// #include "goboringcrypto.h"
++import "C"
++import (
++	"encoding/asn1"
++	"errors"
++	"math/big"
++	"runtime"
++	"unsafe"
++)
++
++type ecdsaSignature struct {
++	R, S *big.Int
++}
++
++type PrivateKeyECDSA struct {
++	key *C.GO_EC_KEY
++}
++
++func (k *PrivateKeyECDSA) finalize() {
++	C._goboringcrypto_EC_KEY_free(k.key)
++}
++
++type PublicKeyECDSA struct {
++	key *C.GO_EC_KEY
++}
++
++func (k *PublicKeyECDSA) finalize() {
++	C._goboringcrypto_EC_KEY_free(k.key)
++}
++
++var errUnknownCurve = errors.New("boringcrypto: unknown elliptic curve")
++
++func curveNID(curve string) (C.int, error) {
++	switch curve {
++	case "P-224":
++		return C.GO_NID_secp224r1, nil
++	case "P-256":
++		return C.GO_NID_X9_62_prime256v1, nil
++	case "P-384":
++		return C.GO_NID_secp384r1, nil
++	case "P-521":
++		return C.GO_NID_secp521r1, nil
++	}
++	return 0, errUnknownCurve
++}
++
++func NewPublicKeyECDSA(curve string, X, Y *big.Int) (*PublicKeyECDSA, error) {
++	key, err := newECKey(curve, X, Y)
++	if err != nil {
++		return nil, err
++	}
++	k := &PublicKeyECDSA{key}
++	runtime.SetFinalizer(k, (*PublicKeyECDSA).finalize)
++	return k, nil
++}
++
++func newECKey(curve string, X, Y *big.Int) (*C.GO_EC_KEY, error) {
++	nid, err := curveNID(curve)
++	if err != nil {
++		return nil, err
++	}
++	key := C._goboringcrypto_EC_KEY_new_by_curve_name(nid)
++	if key == nil {
++		return nil, fail("EC_KEY_new_by_curve_name")
++	}
++	group := C._goboringcrypto_EC_KEY_get0_group(key)
++	pt := C._goboringcrypto_EC_POINT_new(group)
++	if pt == nil {
++		C._goboringcrypto_EC_KEY_free(key)
++		return nil, fail("EC_POINT_new")
++	}
++	bx := bigToBN(X)
++	by := bigToBN(Y)
++	ok := bx != nil && by != nil && C._goboringcrypto_EC_POINT_set_affine_coordinates_GFp(group, pt, bx, by, nil) != 0 &&
++		C._goboringcrypto_EC_KEY_set_public_key(key, pt) != 0
++	if bx != nil {
++		C._goboringcrypto_BN_free(bx)
++	}
++	if by != nil {
++		C._goboringcrypto_BN_free(by)
++	}
++	C._goboringcrypto_EC_POINT_free(pt)
++	if !ok {
++		C._goboringcrypto_EC_KEY_free(key)
++		return nil, fail("EC_POINT_set_affine_coordinates_GFp")
++	}
++	return key, nil
++}
++
++func NewPrivateKeyECDSA(curve string, X, Y *big.Int, D *big.Int) (*PrivateKeyECDSA, error) {
++	key, err := newECKey(curve, X, Y)
++	if err != nil {
++		return nil, err
++	}
++	bd := bigToBN(D)
++	ok := bd != nil && C._goboringcrypto_EC_KEY_set_private_key(key, bd) != 0
++	if bd != nil {
++		C._goboringcrypto_BN_free(bd)
++	}
++	if !ok {
++		C._goboringcrypto_EC_KEY_free(key)
++		return nil, fail("EC_KEY_set_private_key")
++	}
++	k := &PrivateKeyECDSA{key}
++	runtime.SetFinalizer(k, (*PrivateKeyECDSA).finalize)
++	return k, nil
++}
++
++func SignECDSA(priv *PrivateKeyECDSA, hash []byte) (r, s *big.Int, err error) {
++	// We could use ECDSA_do_sign instead but would need to convert
++	// the resulting BIGNUMs to *big.Int form. If we're going to do a
++	// conversion, converting the ASN.1 form is more convenient and
++	// likely not much more expensive.
++	sig, err := SignMarshalECDSA(priv, hash)
++	if err != nil {
++		return nil, nil, err
++	}
++	var esig ecdsaSignature
++	if _, err := asn1.Unmarshal(sig, &esig); err != nil {
++		return nil, nil, err
++	}
++	return esig.R, esig.S, nil
++}
++
++func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
++	size := C._goboringcrypto_ECDSA_size(priv.key)
++	sig := make([]byte, size)
++	var sigLen C.uint
++	if C._goboringcrypto_ECDSA_sign(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), &sigLen, priv.key) == 0 {
++		return nil, fail("ECDSA_sign")
++	}
++	return sig[:sigLen], nil
++}
++
++func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, r, s *big.Int) bool {
++	// We could use ECDSA_do_verify instead but would need to convert
++	// r and s to BIGNUM form. If we're going to do a conversion, marshaling
++	// to ASN.1 is more convenient and likely not much more expensive.
++	sig, err := asn1.Marshal(ecdsaSignature{r, s})
++	if err != nil {
++		return false
++	}
++	return C._goboringcrypto_ECDSA_verify(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), C.size_t(len(sig)), pub.key) != 0
++}
++
++func GenerateKeyECDSA(curve string) (X, Y, D *big.Int, err error) {
++	nid, err := curveNID(curve)
++	if err != nil {
++		return nil, nil, nil, err
++	}
++	key := C._goboringcrypto_EC_KEY_new_by_curve_name(nid)
++	if key == nil {
++		return nil, nil, nil, fail("EC_KEY_new_by_curve_name")
++	}
++	defer C._goboringcrypto_EC_KEY_free(key)
++	if C._goboringcrypto_EC_KEY_generate_key_fips(key) == 0 {
++		return nil, nil, nil, fail("EC_KEY_generate_key_fips")
++	}
++	group := C._goboringcrypto_EC_KEY_get0_group(key)
++	pt := C._goboringcrypto_EC_KEY_get0_public_key(key)
++	bd := C._goboringcrypto_EC_KEY_get0_private_key(key)
++	if pt == nil || bd == nil {
++		return nil, nil, nil, fail("EC_KEY_get0_private_key")
++	}
++	bx := C._goboringcrypto_BN_new()
++	if bx == nil {
++		return nil, nil, nil, fail("BN_new")
++	}
++	defer C._goboringcrypto_BN_free(bx)
++	by := C._goboringcrypto_BN_new()
++	if by == nil {
++		return nil, nil, nil, fail("BN_new")
++	}
++	defer C._goboringcrypto_BN_free(by)
++	if C._goboringcrypto_EC_POINT_get_affine_coordinates_GFp(group, pt, bx, by, nil) == 0 {
++		return nil, nil, nil, fail("EC_POINT_get_affine_coordinates_GFp")
++	}
++	return bnToBig(bx), bnToBig(by), bnToBig(bd), nil
++}
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index 5cf12bc4b0..5ef2f8477e 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -9,6 +9,7 @@ package boring
+ import (
+ 	"crypto/cipher"
+ 	"hash"
++	"math/big"
+ )
+ 
+ const available = false
+@@ -36,3 +37,25 @@ func NewSHA512() hash.Hash { panic("boringcrypto: not available") }
+ func NewHMAC(h func() hash.Hash, key []byte) hash.Hash { panic("boringcrypto: not available") }
+ 
+ func NewAESCipher(key []byte) (cipher.Block, error) { panic("boringcrypto: not available") }
++
++type PublicKeyECDSA struct{ _ int }
++type PrivateKeyECDSA struct{ _ int }
++
++func GenerateKeyECDSA(curve string) (X, Y, D *big.Int, err error) {
++	panic("boringcrypto: not available")
++}
++func NewPrivateKeyECDSA(curve string, X, Y, D *big.Int) (*PrivateKeyECDSA, error) {
++	panic("boringcrypto: not available")
++}
++func NewPublicKeyECDSA(curve string, X, Y *big.Int) (*PublicKeyECDSA, error) {
++	panic("boringcrypto: not available")
++}
++func SignECDSA(priv *PrivateKeyECDSA, hash []byte) (r, s *big.Int, err error) {
++	panic("boringcrypto: not available")
++}
++func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
++	panic("boringcrypto: not available")
++}
++func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, r, s *big.Int) bool {
++	panic("boringcrypto: not available")
++}

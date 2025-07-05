@@ -7,8 +7,155 @@ Date:   Thu Dec 6 09:20:03 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6867062
-
+---
  src/cmd/gofmt/gofmt_test.go              |  3 +-
  src/cmd/gofmt/testdata/typeswitch.golden | 60 ++++++++++++++++++++++++++++++++
  src/cmd/gofmt/testdata/typeswitch.input  | 60 ++++++++++++++++++++++++++++++++
  3 files changed, 122 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 1f19d64eee..ee943989b6 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -83,7 +83,8 @@ var tests = []struct {
+ 	{"testdata/stdin*.input", "-stdin"},
+ 	{"testdata/comments.input", ""},
+ 	{"testdata/import.input", ""},
+-	{"testdata/crlf.input", ""}, // test case for issue 3961; see also TestCRLF
++	{"testdata/crlf.input", ""},       // test case for issue 3961; see also TestCRLF
++	{"testdata/typeswitch.input", ""}, // test case for issue 4470
+ }
+ 
+ func TestRewrite(t *testing.T) {
+diff --git a/src/cmd/gofmt/testdata/typeswitch.golden b/src/cmd/gofmt/testdata/typeswitch.golden
+new file mode 100644
+index 0000000000..87e9161815
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/typeswitch.golden
+@@ -0,0 +1,60 @@
++/*
++	Parenthesized type switch expressions originally
++	accepted by gofmt must continue to be rewritten
++	into the correct unparenthesized form.
++
++	Only type-switches that didn't declare a variable
++	in the the type switch type assertion and which
++	contained only "expression-like" (named) types in their
++	cases were permitted to have their type assertion parenthesized
++	by go/parser (due to a weak predicate in the parser). All others
++	were rejected always, either with a syntax error in the
++	type switch header or in the case.
++
++	See also issue 4470.
++*/
++package p
++
++func f() {
++	var x interface{}
++	switch x.(type) { // should remain the same
++	}
++	switch x.(type) { // should become: switch x.(type) {
++	}
++
++	switch x.(type) { // should remain the same
++	case int:
++	}
++	switch x.(type) { // should become: switch x.(type) {
++	case int:
++	}
++
++	switch x.(type) { // should remain the same
++	case []int:
++	}
++
++	// Parenthesized (x.(type)) in type switches containing cases
++	// with unnamed (literal) types were never permitted by gofmt;
++	// thus there won't be any code in the wild using this style if
++	// the code was gofmt-ed.
++	/*
++		switch (x.(type)) {
++		case []int:
++		}
++	*/
++
++	switch t := x.(type) { // should remain the same
++	default:
++		_ = t
++	}
++
++	// Parenthesized (x.(type)) in type switches declaring a variable
++	// were never permitted by gofmt; thus there won't be any code in
++	// the wild using this style if the code was gofmt-ed.
++	/*
++		switch t := (x.(type)) {
++		default:
++			_ = t
++		}
++	*/
++}
+diff --git a/src/cmd/gofmt/testdata/typeswitch.input b/src/cmd/gofmt/testdata/typeswitch.input
+new file mode 100644
+index 0000000000..f90f28949a
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/typeswitch.input
+@@ -0,0 +1,60 @@
++/*
++	Parenthesized type switch expressions originally
++	accepted by gofmt must continue to be rewritten
++	into the correct unparenthesized form.
++
++	Only type-switches that didn't declare a variable
++	in the the type switch type assertion and which
++	contained only "expression-like" (named) types in their
++	cases were permitted to have their type assertion parenthesized
++	by go/parser (due to a weak predicate in the parser). All others
++	were rejected always, either with a syntax error in the
++	type switch header or in the case.
++
++	See also issue 4470.
++*/
++package p
++
++func f() {
++	var x interface{}
++	switch x.(type) { // should remain the same
++	}
++	switch (x.(type)) { // should become: switch x.(type) {
++	}
++
++	switch x.(type) { // should remain the same
++	case int:
++	}
++	switch (x.(type)) { // should become: switch x.(type) {
++	case int:
++	}
++
++	switch x.(type) { // should remain the same
++	case []int:
++	}
++
++	// Parenthesized (x.(type)) in type switches containing cases
++	// with unnamed (literal) types were never permitted by gofmt;
++	// thus there won't be any code in the wild using this style if
++	// the code was gofmt-ed.
++	/*
++	switch (x.(type)) {
++	case []int:
++	}
++	*/
++
++	switch t := x.(type) { // should remain the same
++	default:
++		_ = t
++	}
++
++	// Parenthesized (x.(type)) in type switches declaring a variable
++	// were never permitted by gofmt; thus there won't be any code in
++	// the wild using this style if the code was gofmt-ed.
++	/*
++	switch t := (x.(type)) {
++	default:
++		_ = t
++	}
++	*/
++}

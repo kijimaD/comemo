@@ -9,8 +9,149 @@ Date:   Thu Aug 30 11:16:55 2012 -0700
     R=golang-dev, nigeltao, rsc
     CC=golang-dev
     https://golang.org/cl/6443109
-
+---
  src/lib9/utf/rune.c               | 18 +++++++++++++-----
  src/pkg/unicode/utf8/utf8_test.go |  6 ++++--
  test/string_lit.go                | 24 +++++++++++++++++++++++-
  3 files changed, 40 insertions(+), 8 deletions(-)
+
+diff --git a/src/lib9/utf/rune.c b/src/lib9/utf/rune.c
+index cf98bab150..676f27bba6 100644
+--- a/src/lib9/utf/rune.c
++++ b/src/lib9/utf/rune.c
+@@ -36,12 +36,14 @@ enum
+ 	Rune1	= (1<<(Bit1+0*Bitx))-1,		/* 0000 0000 0111 1111 */
+ 	Rune2	= (1<<(Bit2+1*Bitx))-1,		/* 0000 0111 1111 1111 */
+ 	Rune3	= (1<<(Bit3+2*Bitx))-1,		/* 1111 1111 1111 1111 */
+-	Rune4	= (1<<(Bit4+3*Bitx))-1,
+-                                        /* 0001 1111 1111 1111 1111 1111 */
++	Rune4	= (1<<(Bit4+3*Bitx))-1,		/* 0001 1111 1111 1111 1111 1111 */
+ 
+ 	Maskx	= (1<<Bitx)-1,			/* 0011 1111 */
+ 	Testx	= Maskx ^ 0xFF,			/* 1100 0000 */
+ 
++	SurrogateMin	= 0xD800,
++	SurrogateMax	= 0xDFFF,
++
+ 	Bad	= Runeerror,
+ };
+ 
+@@ -122,6 +124,8 @@ charntorune(Rune *rune, const char *str, int length)
+ 		l = ((((c << Bitx) | c1) << Bitx) | c2) & Rune3;
+ 		if(l <= Rune2)
+ 			goto bad;
++		if (SurrogateMin <= l && l <= SurrogateMax)
++			goto bad;
+ 		*rune = l;
+ 		return 3;
+ 	}
+@@ -138,7 +142,7 @@ charntorune(Rune *rune, const char *str, int length)
+ 		goto bad;
+ 	if (c < T5) {
+ 		l = ((((((c << Bitx) | c1) << Bitx) | c2) << Bitx) | c3) & Rune4;
+-		if (l <= Rune3)
++		if (l <= Rune3 || l > Runemax)
+ 			goto bad;
+ 		*rune = l;
+ 		return 4;
+@@ -208,6 +212,8 @@ chartorune(Rune *rune, const char *str)
+ 		l = ((((c << Bitx) | c1) << Bitx) | c2) & Rune3;
+ 		if(l <= Rune2)
+ 			goto bad;
++		if (SurrogateMin <= l && l <= SurrogateMax)
++			goto bad;
+ 		*rune = l;
+ 		return 3;
+ 	}
+@@ -221,7 +227,7 @@ chartorune(Rune *rune, const char *str)
+ 		goto bad;
+ 	if (c < T5) {
+ 		l = ((((((c << Bitx) | c1) << Bitx) | c2) << Bitx) | c3) & Rune4;
+-		if (l <= Rune3)
++		if (l <= Rune3 || l > Runemax)
+ 			goto bad;
+ 		*rune = l;
+ 		return 4;
+@@ -273,13 +279,15 @@ runetochar(char *str, const Rune *rune)
+ 	}
+ 
+ 	/*
+-	 * If the Rune is out of range, convert it to the error rune.
++	 * If the Rune is out of range or a surrogate half, convert it to the error rune.
+ 	 * Do this test here because the error rune encodes to three bytes.
+ 	 * Doing it earlier would duplicate work, since an out of range
+ 	 * Rune wouldn't have fit in one or two bytes.
+ 	 */
+ 	if (c > Runemax)
+ 		c = Runeerror;
++	if (SurrogateMin <= c && c <= SurrogateMax)
++		c = Runeerror;
+ 
+ 	/*
+ 	 * three character sequence
+diff --git a/src/pkg/unicode/utf8/utf8_test.go b/src/pkg/unicode/utf8/utf8_test.go
+index e9b30a20cb..c516871c99 100644
+--- a/src/pkg/unicode/utf8/utf8_test.go
++++ b/src/pkg/unicode/utf8/utf8_test.go
+@@ -69,7 +69,7 @@ var utf8map = []Utf8Map{
+ 
+ var surrogateMap = []Utf8Map{
+ 	{0xd800, "\xed\xa0\x80"}, // surrogate min decodes to (RuneError, 1)
+-	{0xdfff, "\xed bf bf"},   // surrogate max decodes to (RuneError, 1)
++	{0xdfff, "\xed\xbf\xbf"}, // surrogate max decodes to (RuneError, 1)
+ }
+ 
+ var testStrings = []string{
+@@ -355,7 +355,9 @@ var validTests = []ValidTest{
+ 	{string([]byte{66, 250}), false},
+ 	{string([]byte{66, 250, 67}), false},
+ 	{"a\uFFFDb", true},
+-	{string("\xF7\xBF\xBF\xBF"), true},      // U+1FFFFF
++	{string("\xF4\x8F\xBF\xBF"), true},      // U+10FFFF
++	{string("\xF4\x90\x80\x80"), false},     // U+10FFFF+1; out of range
++	{string("\xF7\xBF\xBF\xBF"), false},     // 0x1FFFFF; out of range
+ 	{string("\xFB\xBF\xBF\xBF\xBF"), false}, // 0x3FFFFFF; out of range
+ 	{string("\xc0\x80"), false},             // U+0000 encoded in two bytes: incorrect
+ 	{string("\xed\xa0\x80"), false},         // U+D800 high surrogate (sic)
+diff --git a/test/string_lit.go b/test/string_lit.go
+index 956330038e..457faaa88c 100644
+--- a/test/string_lit.go
++++ b/test/string_lit.go
+@@ -93,7 +93,7 @@ func main() {
+ 		"backslashes 2 (backquote)")
+ 	assert("\\x\\u\\U\\", `\x\u\U\`, "backslash 3 (backquote)")
+ 
+-	// test large runes. perhaps not the most logical place for this test.
++	// test large and surrogate-half runes. perhaps not the most logical place for these tests.
+ 	var r int32
+ 	r = 0x10ffff // largest rune value
+ 	s = string(r)
+@@ -101,6 +101,28 @@ func main() {
+ 	r = 0x10ffff + 1
+ 	s = string(r)
+ 	assert(s, "\xef\xbf\xbd", "too-large rune")
++	r = 0xD800
++	s = string(r)
++	assert(s, "\xef\xbf\xbd", "surrogate rune min")
++	r = 0xDFFF
++	s = string(r)
++	assert(s, "\xef\xbf\xbd", "surrogate rune max")
++	r = -1
++	s = string(r)
++	assert(s, "\xef\xbf\xbd", "negative rune")
++	
++	// the large rune tests again, this time using constants instead of a variable.
++	// these conversions will be done at compile time.
++	s = string(0x10ffff) // largest rune value
++	assert(s, "\xf4\x8f\xbf\xbf", "largest rune constant")
++	s = string(0x10ffff + 1)
++	assert(s, "\xef\xbf\xbd", "too-large rune constant")
++	s = string(0xD800)
++	assert(s, "\xef\xbf\xbd", "surrogate rune min constant")
++	s = string(0xDFFF)
++	assert(s, "\xef\xbf\xbd", "surrogate rune max constant")
++	s = string(-1)
++	assert(s, "\xef\xbf\xbd", "negative rune")
+ 
+ 	assert(string(gr1), gx1, "global ->[]rune")
+ 	assert(string(gr2), gx2fix, "global invalid ->[]rune")

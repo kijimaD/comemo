@@ -8,6 +8,20 @@ Date:   Wed Sep 1 10:48:45 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2099041
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 5843b75eab..861c858be1 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1907,7 +1907,7 @@ argument.  For instance, the method <code>Scale</code> has type
+ </p>
+ 
+ <pre>
+-func (p *Point, factor float)
++func(p *Point, factor float)
+ </pre>
+ 
+ <p>

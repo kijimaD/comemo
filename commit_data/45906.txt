@@ -12,6 +12,20 @@ Date:   Thu Nov 26 14:16:33 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/bufio/bufio_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index 75086f1f24..d7b34bd0d8 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -146,7 +146,7 @@ func TestReader(t *testing.T) {
+ 	for i := 0; i < len(texts)-1; i++ {
+ 		texts[i] = str + "\n"
+ 		all += texts[i]
+-		str += string(rune(i)%26 + 'a')
++		str += string(rune(i%26 + 'a'))
+ 	}
+ 	texts[len(texts)-1] = all
+ 

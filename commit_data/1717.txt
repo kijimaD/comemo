@@ -8,6 +8,20 @@ Date:   Wed Feb 25 16:58:57 2009 -0800
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=25449
     CL=25449
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 0ccf431191..e286a4e6dd 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -560,7 +560,7 @@ because the size of the pointer itself is always known.
+ The <i>interface</i> of a type is the set of methods bound to it
+ (§Method declarations); for pointer types, it is the interface
+ of the pointer base type (§Pointer types). All types have an interface;
+-if they have no methods, it is the <i>empty'' interface</i>.
++if they have no methods, it is the <i>empty interface</i>.
+ </p>
+ <p>
+ The <i>static type</i> (or just <i>type</i>) of a variable is the

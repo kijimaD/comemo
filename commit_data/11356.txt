@@ -7,6 +7,20 @@ Date:   Tue Jan 24 13:52:45 2012 -0500
     R=rsc, imkrasin
     CC=golang-dev
     https://golang.org/cl/5569048
-
+---
  src/pkg/compress/flate/deflate.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+index 5745336cc8..1e725890b7 100644
+--- a/src/pkg/compress/flate/deflate.go
++++ b/src/pkg/compress/flate/deflate.go
+@@ -27,7 +27,7 @@ const (
+ 	// stop things from getting too large.
+ 	maxFlateBlockTokens = 1 << 14
+ 	maxStoreBlockSize   = 65535
+-	hashBits            = 15
++	hashBits            = 17
+ 	hashSize            = 1 << hashBits
+ 	hashMask            = (1 << hashBits) - 1
+ 	hashShift           = (hashBits + minMatchLength - 1) / minMatchLength

@@ -15,9 +15,58 @@ Date:   Thu Mar 4 22:24:58 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/noder.go         | 2 +-
  src/cmd/compile/internal/typecheck/typecheck.go | 4 +++-
  test/char_lit1.go                               | 2 +-
  test/fixedbugs/issue20232.go                    | 2 +-
  4 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 8c456e4561..4c7c9fc322 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -689,7 +689,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
+ 		if expr.Kind == syntax.RuneLit {
+ 			n.SetType(types.UntypedRune)
+ 		}
+-		n.SetDiag(expr.Bad) // avoid follow-on errors if there was a syntax error
++		n.SetDiag(expr.Bad || n.Val().Kind() == constant.Unknown) // avoid follow-on errors if there was a syntax error
+ 		return n
+ 	case *syntax.CompositeLit:
+ 		n := ir.NewCompLitExpr(p.pos(expr), ir.OCOMPLIT, p.typeExpr(expr.Type), nil)
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 647465af4f..548c1af85c 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -482,7 +482,9 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 
+ 	case ir.OLITERAL:
+ 		if n.Sym() == nil && n.Type() == nil {
+-			base.Fatalf("literal missing type: %v", n)
++			if !n.Diag() {
++				base.Fatalf("literal missing type: %v", n)
++			}
+ 		}
+ 		return n
+ 
+diff --git a/test/char_lit1.go b/test/char_lit1.go
+index 489744b6e9..8899aff83a 100644
+--- a/test/char_lit1.go
++++ b/test/char_lit1.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue20232.go b/test/fixedbugs/issue20232.go
+index 7a0300a4c4..846843dccb 100644
+--- a/test/fixedbugs/issue20232.go
++++ b/test/fixedbugs/issue20232.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

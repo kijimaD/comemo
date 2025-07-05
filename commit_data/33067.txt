@@ -17,6 +17,50 @@ Date:   Fri Jun 30 16:12:28 2017 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/benchmark.go | 18 ++++++------------
  1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 484a6d7e12..84005aa322 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -87,11 +87,9 @@ func (b *B) StartTimer() {
+ func (b *B) StopTimer() {
+ 	if b.timerOn {
+ 		b.duration += time.Now().Sub(b.start)
+-		if *benchmarkMemory || b.showAllocResult {
+-			runtime.ReadMemStats(&memStats)
+-			b.netAllocs += memStats.Mallocs - b.startAllocs
+-			b.netBytes += memStats.TotalAlloc - b.startBytes
+-		}
++		runtime.ReadMemStats(&memStats)
++		b.netAllocs += memStats.Mallocs - b.startAllocs
++		b.netBytes += memStats.TotalAlloc - b.startBytes
+ 		b.timerOn = false
+ 	}
+ }
+@@ -100,11 +98,9 @@ func (b *B) StopTimer() {
+ // It does not affect whether the timer is running.
+ func (b *B) ResetTimer() {
+ 	if b.timerOn {
+-		if *benchmarkMemory || b.showAllocResult {
+-			runtime.ReadMemStats(&memStats)
+-			b.startAllocs = memStats.Mallocs
+-			b.startBytes = memStats.TotalAlloc
+-		}
++		runtime.ReadMemStats(&memStats)
++		b.startAllocs = memStats.Mallocs
++		b.startBytes = memStats.TotalAlloc
+ 		b.start = time.Now()
+ 	}
+ 	b.duration = 0
+@@ -298,8 +294,6 @@ func (b *B) launch() {
+ }
+ 
+ // The results of a benchmark run.
+-// MemAllocs and MemBytes may be zero if memory benchmarking is not requested
+-// using B.ReportAllocs or the -benchmem command line flag.
+ type BenchmarkResult struct {
+ 	N         int           // The number of iterations.
+ 	T         time.Duration // The total time taken.

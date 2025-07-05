@@ -8,6 +8,22 @@ Date:   Tue Jun 28 11:09:21 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4639081
-
+---
  src/pkg/os/file.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 0e97e0bd93..1b8faec494 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -187,9 +187,7 @@ func (file *File) WriteString(s string) (ret int, err Error) {
+ 	if file == nil {
+ 		return 0, EINVAL
+ 	}
+-	b := syscall.StringByteSlice(s)
+-	b = b[0 : len(b)-1]
+-	return file.Write(b)
++	return file.Write([]byte(s))
+ }
+ 
+ // Mkdir creates a new directory with the specified name and permission bits.

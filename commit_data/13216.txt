@@ -7,7 +7,7 @@ Date:   Wed May 30 13:07:52 2012 -0400
     R=rsc, remyoudompheng, minux.ma, ality
     CC=golang-dev
     https://golang.org/cl/6242061
-
+---
  src/pkg/runtime/cgocall.c        |  2 +-
  src/pkg/runtime/mgc0.c           | 12 +++----
  src/pkg/runtime/mprof.goc        |  2 +-
@@ -21,3 +21,465 @@ Date:   Wed May 30 13:07:52 2012 -0400
  src/pkg/runtime/traceback_arm.c  |  6 ++--
  src/pkg/runtime/traceback_x86.c  | 10 +++---
  12 files changed, 65 insertions(+), 61 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 537a845886..d9090ba67f 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -235,7 +235,7 @@ unwindm(void)
+ 	case '8':
+ 	case '6':
+ 	case '5':
+-		m->g0->sched.sp = *(void**)m->g0->sched.sp;
++		m->g0->sched.sp = *(uintptr*)m->g0->sched.sp;
+ 		break;
+ 	}
+ }
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 5fde535a5e..5f3d20b05b 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -539,7 +539,7 @@ addstackroots(G *gp)
+ 	byte *sp, *guard;
+ 
+ 	stk = (Stktop*)gp->stackbase;
+-	guard = gp->stackguard;
++	guard = (byte*)gp->stackguard;
+ 
+ 	if(gp == g) {
+ 		// Scanning our own stack: start at &gp.
+@@ -550,17 +550,17 @@ addstackroots(G *gp)
+ 	} else {
+ 		// Scanning another goroutine's stack.
+ 		// The goroutine is usually asleep (the world is stopped).
+-		sp = gp->sched.sp;
++		sp = (byte*)gp->sched.sp;
+ 
+ 		// The exception is that if the goroutine is about to enter or might
+ 		// have just exited a system call, it may be executing code such
+ 		// as schedlock and may have needed to start a new stack segment.
+ 		// Use the stack segment and stack pointer at the time of
+ 		// the system call instead, since that won't change underfoot.
+-		if(gp->gcstack != nil) {
++		if(gp->gcstack != (uintptr)nil) {
+ 			stk = (Stktop*)gp->gcstack;
+-			sp = gp->gcsp;
+-			guard = gp->gcguard;
++			sp = (byte*)gp->gcsp;
++			guard = (byte*)gp->gcguard;
+ 		}
+ 	}
+ 
+@@ -571,7 +571,7 @@ addstackroots(G *gp)
+ 			runtime·throw("scanstack");
+ 		}
+ 		addroot(sp, (byte*)stk - sp);
+-		sp = stk->gobuf.sp;
++		sp = (byte*)stk->gobuf.sp;
+ 		guard = stk->stackguard;
+ 		stk = (Stktop*)stk->stackbase;
+ 		n++;
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index dac897e3bb..061cd06681 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -392,7 +392,7 @@ func GoroutineProfile(b Slice) (n int32, ok bool) {
+ 			for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
+ 				if(gp == g || gp->status == Gdead)
+ 					continue;
+-				saveg(gp->sched.pc, gp->sched.sp, gp, r++);
++				saveg(gp->sched.pc, (byte*)gp->sched.sp, gp, r++);
+ 			}
+ 		}
+ 	
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index fbc262904b..2c0a93dff7 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -318,7 +318,7 @@ runtime·tracebackothers(G *me)
+ 			continue;
+ 		runtime·printf("\n");
+ 		runtime·goroutineheader(g);
+-		runtime·traceback(g->sched.pc, g->sched.sp, 0, g);
++		runtime·traceback(g->sched.pc, (byte*)g->sched.sp, 0, g);
+ 	}
+ }
+ 
+@@ -849,7 +849,7 @@ runtime·newm(void)
+ 			m->g0 = runtime·malg(-1);
+ 		else
+ 			m->g0 = runtime·malg(8192);
+-		runtime·newosproc(m, m->g0, m->g0->stackbase, runtime·mstart);
++		runtime·newosproc(m, m->g0, (byte*)m->g0->stackbase, runtime·mstart);
+ 	}
+ 
+ 	return m;
+@@ -1034,7 +1034,7 @@ runtime·exitsyscall(void)
+ 		g->status = Grunning;
+ 		// Garbage collector isn't running (since we are),
+ 		// so okay to clear gcstack.
+-		g->gcstack = nil;
++		g->gcstack = (uintptr)nil;
+ 
+ 		if(m->profilehz > 0)
+ 			runtime·setprof(true);
+@@ -1059,7 +1059,7 @@ runtime·exitsyscall(void)
+ 	// Must wait until now because until gosched returns
+ 	// we don't know for sure that the garbage collector
+ 	// is not running.
+-	g->gcstack = nil;
++	g->gcstack = (uintptr)nil;
+ }
+ 
+ // Called from runtime·lessstack when returning from a function which
+@@ -1090,9 +1090,9 @@ runtime·oldstack(void)
+ 	USED(goid);
+ 
+ 	if(old.free != 0)
+-		runtime·stackfree(g1->stackguard - StackGuard, old.free);
+-	g1->stackbase = old.stackbase;
+-	g1->stackguard = old.stackguard;
++		runtime·stackfree((byte*)g1->stackguard - StackGuard, old.free);
++	g1->stackbase = (uintptr)old.stackbase;
++	g1->stackguard = (uintptr)old.stackguard;
+ 
+ 	cret = m->cret;
+ 	m->cret = 0;  // drop reference
+@@ -1139,7 +1139,7 @@ runtime·newstack(void)
+ 		// the new Stktop* is necessary to unwind, but
+ 		// we don't need to create a new segment.
+ 		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
+-		stk = g1->stackguard - StackGuard;
++		stk = (byte*)g1->stackguard - StackGuard;
+ 		free = 0;
+ 	} else {
+ 		// allocate new segment.
+@@ -1156,22 +1156,22 @@ runtime·newstack(void)
+ //runtime·printf("newstack framesize=%d argsize=%d morepc=%p moreargp=%p gobuf=%p, %p top=%p old=%p\n",
+ //framesize, argsize, m->morepc, m->moreargp, m->morebuf.pc, m->morebuf.sp, top, g1->stackbase);
+ 
+-	top->stackbase = g1->stackbase;
+-	top->stackguard = g1->stackguard;
++	top->stackbase = (byte*)g1->stackbase;
++	top->stackguard = (byte*)g1->stackguard;
+ 	top->gobuf = m->morebuf;
+ 	top->argp = m->moreargp;
+ 	top->argsize = argsize;
+ 	top->free = free;
+ 	m->moreargp = nil;
+ 	m->morebuf.pc = nil;
+-	m->morebuf.sp = nil;
++	m->morebuf.sp = (uintptr)nil;
+ 
+ 	// copy flag from panic
+ 	top->panic = g1->ispanic;
+ 	g1->ispanic = false;
+ 
+-	g1->stackbase = (byte*)top;
+-	g1->stackguard = stk + StackGuard;
++	g1->stackbase = (uintptr)top;
++	g1->stackguard = (uintptr)stk + StackGuard;
+ 
+ 	sp = (byte*)top;
+ 	if(argsize > 0) {
+@@ -1186,7 +1186,7 @@ runtime·newstack(void)
+ 
+ 	// Continue as if lessstack had just called m->morepc
+ 	// (the PC that decided to grow the stack).
+-	label.sp = sp;
++	label.sp = (uintptr)sp;
+ 	label.pc = (byte*)runtime·lessstack;
+ 	label.g = m->curg;
+ 	runtime·gogocall(&label, m->morepc);
+@@ -1229,10 +1229,10 @@ runtime·malg(int32 stacksize)
+ 			stk = g->param;
+ 			g->param = nil;
+ 		}
+-		newg->stack0 = stk;
+-		newg->stackguard = stk + StackGuard;
+-		newg->stackbase = stk + StackSystem + stacksize - sizeof(Stktop);
+-		runtime·memclr(newg->stackbase, sizeof(Stktop));
++		newg->stack0 = (uintptr)stk;
++		newg->stackguard = (uintptr)stk + StackGuard;
++		newg->stackbase = (uintptr)stk + StackSystem + stacksize - sizeof(Stktop);
++		runtime·memclr((byte*)newg->stackbase, sizeof(Stktop));
+ 	}
+ 	return newg;
+ }
+@@ -1295,7 +1295,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	newg->status = Gwaiting;
+ 	newg->waitreason = "new goroutine";
+ 
+-	sp = newg->stackbase;
++	sp = (byte*)newg->stackbase;
+ 	sp -= siz;
+ 	runtime·memmove(sp, argp, narg);
+ 	if(thechar == '5') {
+@@ -1304,7 +1304,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 		*(void**)sp = nil;
+ 	}
+ 
+-	newg->sched.sp = sp;
++	newg->sched.sp = (uintptr)sp;
+ 	newg->sched.pc = (byte*)runtime·goexit;
+ 	newg->sched.g = newg;
+ 	newg->entry = fn;
+@@ -1332,8 +1332,12 @@ uintptr
+ runtime·deferproc(int32 siz, byte* fn, ...)
+ {
+ 	Defer *d;
+-
+-	d = runtime·malloc(sizeof(*d) + siz - sizeof(d->args));
++	int32 mallocsiz;
++ 
++	mallocsiz = sizeof(*d);
++	if(siz > sizeof(d->args))
++		mallocsiz += siz - sizeof(d->args);
++	d = runtime·malloc(mallocsiz);
+ 	d->fn = fn;
+ 	d->siz = siz;
+ 	d->pc = runtime·getcallerpc(&siz);
+@@ -1394,7 +1398,7 @@ rundefer(void)
+ 
+ 	while((d = g->defer) != nil) {
+ 		g->defer = d->link;
+-		reflect·call(d->fn, d->args, d->siz);
++		reflect·call(d->fn, (byte*)d->args, d->siz);
+ 		if(!d->nofree)
+ 			runtime·free(d);
+ 	}
+@@ -1413,16 +1417,16 @@ unwindstack(G *gp, byte *sp)
+ 		runtime·throw("unwindstack on self");
+ 
+ 	while((top = (Stktop*)gp->stackbase) != nil && top->stackbase != nil) {
+-		stk = gp->stackguard - StackGuard;
+-		if(stk <= sp && sp < gp->stackbase)
++		stk = (byte*)gp->stackguard - StackGuard;
++		if(stk <= sp && sp < (byte*)gp->stackbase)
+ 			break;
+-		gp->stackbase = top->stackbase;
+-		gp->stackguard = top->stackguard;
++		gp->stackbase = (uintptr)top->stackbase;
++		gp->stackguard = (uintptr)top->stackguard;
+ 		if(top->free != 0)
+ 			runtime·stackfree(stk, top->free);
+ 	}
+ 
+-	if(sp != nil && (sp < gp->stackguard - StackGuard || gp->stackbase < sp)) {
++	if(sp != nil && (sp < (byte*)gp->stackguard - StackGuard || (byte*)gp->stackbase < sp)) {
+ 		runtime·printf("recover: %p not in [%p, %p]\n", sp, gp->stackguard - StackGuard, gp->stackbase);
+ 		runtime·throw("bad unwindstack");
+ 	}
+@@ -1455,7 +1459,7 @@ runtime·panic(Eface e)
+ 	p = runtime·mal(sizeof *p);
+ 	p->arg = e;
+ 	p->link = g->panic;
+-	p->stackbase = g->stackbase;
++	p->stackbase = (byte*)g->stackbase;
+ 	g->panic = p;
+ 
+ 	for(;;) {
+@@ -1465,7 +1469,7 @@ runtime·panic(Eface e)
+ 		// take defer off list in case of recursive panic
+ 		g->defer = d->link;
+ 		g->ispanic = true;	// rock for newstack, where reflect.call ends up
+-		reflect·call(d->fn, d->args, d->siz);
++		reflect·call(d->fn, (byte*)d->args, d->siz);
+ 		if(p->recovered) {
+ 			g->panic = p->link;
+ 			if(g->panic == nil)	// must be done with signal
+@@ -1513,9 +1517,9 @@ recovery(G *gp)
+ 	// before it tests the return value.)
+ 	// On the arm there are 2 saved LRs mixed in too.
+ 	if(thechar == '5')
+-		gp->sched.sp = (byte*)d->argp - 4*sizeof(uintptr);
++		gp->sched.sp = (uintptr)d->argp - 4*sizeof(uintptr);
+ 	else
+-		gp->sched.sp = (byte*)d->argp - 2*sizeof(uintptr);
++		gp->sched.sp = (uintptr)d->argp - 2*sizeof(uintptr);
+ 	gp->sched.pc = d->pc;
+ 	if(!d->nofree)
+ 		runtime·free(d);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8a7c9c68a5..cdd71726e5 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -167,7 +167,7 @@ struct	Slice
+ struct	Gobuf
+ {
+ 	// The offsets of these fields are known to (hard-coded in) libmach.
+-	byte*	sp;
++	uintptr	sp;
+ 	byte*	pc;
+ 	G*	g;
+ };
+@@ -183,15 +183,15 @@ struct	GCStats
+ };
+ struct	G
+ {
+-	byte*	stackguard;	// cannot move - also known to linker, libmach, runtime/cgo
+-	byte*	stackbase;	// cannot move - also known to libmach, runtime/cgo
++	uintptr	stackguard;	// cannot move - also known to linker, libmach, runtime/cgo
++	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
+ 	Defer*	defer;
+ 	Panic*	panic;
+ 	Gobuf	sched;
+-	byte*	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
+-	byte*	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
+-	byte*	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
+-	byte*	stack0;
++	uintptr	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
++	uintptr	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
++	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
++	uintptr	stack0;
+ 	byte*	entry;		// initial function
+ 	G*	alllink;	// on allg
+ 	void*	param;		// passed parameter on wakeup
+@@ -486,7 +486,7 @@ struct Defer
+ 	byte*	pc;
+ 	byte*	fn;
+ 	Defer*	link;
+-	byte	args[8];	// padded to actual size
++	void*	args[1];	// padded to actual size
+ };
+ 
+ /*
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index a0fb5272f7..bfdd9873ea 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -114,7 +114,7 @@ runtime·minit(void)
+ {
+ 	// Initialize signal handling.
+ 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+-	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 
+ 	if(m->profilehz > 0)
+ 		runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 4c546178f4..1597b1e88b 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -126,7 +126,7 @@ runtime·minit(void)
+ {
+ 	// Initialize signal handling
+ 	m->gsignal = runtime·malg(32*1024);
+-	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·sigprocmask(&sigset_none, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index 858be70360..5db074175c 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -186,7 +186,7 @@ runtime·minit(void)
+ {
+ 	// Initialize signal handling.
+ 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+-	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·rtsigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof sigset_none);
+ }
+ 
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index 72557c713e..d87c6b003e 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -198,7 +198,7 @@ runtime·minit(void)
+ {
+ 	// Initialize signal handling
+ 	m->gsignal = runtime·malg(32*1024);
+-	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index 56bb1c8ebf..4e4db74745 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -171,7 +171,7 @@ runtime·minit(void)
+ {
+ 	// Initialize signal handling
+ 	m->gsignal = runtime·malg(32*1024);
+-	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·sigprocmask(SIG_SETMASK, sigset_none);
+ }
+ 
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 22e0bc3a66..9ca54784ff 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -57,7 +57,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 		if(pc == (uintptr)runtime·lessstack) {
+ 			// Hit top of stack segment.  Unwind to next segment.
+ 			pc = (uintptr)stk->gobuf.pc;
+-			sp = stk->gobuf.sp;
++			sp = (byte*)stk->gobuf.sp;
+ 			lr = 0;
+ 			fp = nil;
+ 			if(pcbuf == nil)
+@@ -151,7 +151,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 			pc = (uintptr)m->morepc;
+ 			sp = (byte*)m->moreargp - sizeof(void*);
+ 			lr = (uintptr)m->morebuf.pc;
+-			fp = m->morebuf.sp;
++			fp = (byte*)m->morebuf.sp;
+ 			g = m->curg;
+ 			stk = (Stktop*)g->stackbase;
+ 			continue;
+@@ -161,7 +161,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
+ 			g = m->curg;
+ 			stk = (Stktop*)g->stackbase;
+-			sp = stk->gobuf.sp;
++			sp = (byte*)stk->gobuf.sp;
+ 			pc = (uintptr)stk->gobuf.pc;
+ 			fp = nil;
+ 			lr = 0;
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index be35bab002..5a307de3b5 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -40,7 +40,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 	waspanic = false;
+ 	
+ 	// If the PC is goexit, the goroutine hasn't started yet.
+-	if(pc0 == g->sched.pc && sp == g->sched.sp && pc0 == (byte*)runtime·goexit) {
++	if(pc0 == g->sched.pc && sp == (byte*)g->sched.sp && pc0 == (byte*)runtime·goexit) {
+ 		fp = sp;
+ 		lr = pc;
+ 		pc = (uintptr)g->entry;
+@@ -74,7 +74,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 		if(pc == (uintptr)runtime·lessstack) {
+ 			// Hit top of stack segment.  Unwind to next segment.
+ 			pc = (uintptr)stk->gobuf.pc;
+-			sp = stk->gobuf.sp;
++			sp = (byte*)stk->gobuf.sp;
+ 			lr = 0;
+ 			fp = nil;
+ 			if(pcbuf == nil)
+@@ -167,9 +167,9 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 			// use it to keep unwinding the stack.
+ 			runtime·printf("----- morestack called from goroutine %d -----\n", m->curg->goid);
+ 			pc = (uintptr)m->morepc;
+-			sp = m->morebuf.sp - sizeof(void*);
++			sp = (byte*)m->morebuf.sp - sizeof(void*);
+ 			lr = (uintptr)m->morebuf.pc;
+-			fp = m->morebuf.sp;
++			fp = (byte*)m->morebuf.sp;
+ 			sawnewstack = 0;
+ 			g = m->curg;
+ 			stk = (Stktop*)g->stackbase;
+@@ -181,7 +181,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
+ 			g = m->curg;
+ 			stk = (Stktop*)g->stackbase;
+-			sp = stk->gobuf.sp;
++			sp = (byte*)stk->gobuf.sp;
+ 			pc = (uintptr)stk->gobuf.pc;
+ 			fp = nil;
+ 			lr = 0;

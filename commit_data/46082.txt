@@ -26,10 +26,163 @@ Date:   Sun Dec 6 12:29:42 2020 -0800
     Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go     |  8 ++++----
  src/cmd/compile/internal/gc/export.go  |  4 ++--
  src/cmd/compile/internal/gc/go.go      |  2 +-
  src/cmd/compile/internal/gc/iexport.go |  6 +++---
  src/cmd/compile/internal/ir/node.go    | 22 +++++++++++-----------
  5 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index ce13f0bdfc..56f8d1b9bf 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -931,7 +931,7 @@ func (c *nowritebarrierrecChecker) check() {
+ 	// acts as the set of marks for the BFS of the call graph.
+ 	funcs := make(map[ir.Node]nowritebarrierrecCall)
+ 	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
+-	var q ir.NodeQueue
++	var q ir.NameQueue
+ 
+ 	for _, n := range xtop {
+ 		if n.Op() != ir.ODCLFUNC {
+@@ -944,7 +944,7 @@ func (c *nowritebarrierrecChecker) check() {
+ 		// Make nowritebarrierrec functions BFS roots.
+ 		if fn.Pragma&ir.Nowritebarrierrec != 0 {
+ 			funcs[fn] = nowritebarrierrecCall{}
+-			q.PushRight(fn)
++			q.PushRight(fn.Nname)
+ 		}
+ 		// Check go:nowritebarrier functions.
+ 		if fn.Pragma&ir.Nowritebarrier != 0 && fn.WBPos.IsKnown() {
+@@ -966,10 +966,10 @@ func (c *nowritebarrierrecChecker) check() {
+ 
+ 		// Record the path.
+ 		funcs[target] = nowritebarrierrecCall{target: src, lineno: pos}
+-		q.PushRight(target)
++		q.PushRight(target.Nname)
+ 	}
+ 	for !q.Empty() {
+-		fn := q.PopLeft().(*ir.Func)
++		fn := q.PopLeft().Func()
+ 
+ 		// Check fn.
+ 		if fn.WBPos.IsKnown() {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 44fc70be03..b632a15865 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -24,7 +24,7 @@ func exportf(bout *bio.Writer, format string, args ...interface{}) {
+ var asmlist []ir.Node
+ 
+ // exportsym marks n for export (or reexport).
+-func exportsym(n ir.Node) {
++func exportsym(n *ir.Name) {
+ 	if n.Sym().OnExportList() {
+ 		return
+ 	}
+@@ -41,7 +41,7 @@ func initname(s string) bool {
+ 	return s == "init"
+ }
+ 
+-func autoexport(n ir.Node, ctxt ir.Class) {
++func autoexport(n *ir.Name, ctxt ir.Class) {
+ 	if n.Sym().Pkg != ir.LocalPkg {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index c493165c76..c4b9c185dc 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -130,7 +130,7 @@ var (
+ 
+ var xtop []ir.Node
+ 
+-var exportlist []ir.Node
++var exportlist []*ir.Name
+ 
+ var importlist []*ir.Func // imported functions and methods with inlinable bodies
+ 
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index bb6f2b11e6..14614d8ab8 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -368,7 +368,7 @@ type iexporter struct {
+ 	// main index.
+ 	allPkgs map[*types.Pkg]bool
+ 
+-	declTodo ir.NodeQueue
++	declTodo ir.NameQueue
+ 
+ 	strings     intWriter
+ 	stringIndex map[string]uint64
+@@ -394,7 +394,7 @@ func (p *iexporter) stringOff(s string) uint64 {
+ }
+ 
+ // pushDecl adds n to the declaration work queue, if not already present.
+-func (p *iexporter) pushDecl(n ir.Node) {
++func (p *iexporter) pushDecl(n *ir.Name) {
+ 	if n.Sym() == nil || n.Sym().Def != n && n.Op() != ir.OTYPE {
+ 		base.Fatalf("weird Sym: %v, %v", n, n.Sym())
+ 	}
+@@ -573,7 +573,7 @@ func (w *exportWriter) pkg(pkg *types.Pkg) {
+ 
+ func (w *exportWriter) qualifiedIdent(n ir.Node) {
+ 	// Ensure any referenced declarations are written out too.
+-	w.p.pushDecl(n)
++	w.p.pushDecl(n.Name())
+ 
+ 	s := n.Sym()
+ 	w.string(s.Name)
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index a0ee8aa0fe..7fd02925ba 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -539,25 +539,25 @@ func (n Nodes) Copy() Nodes {
+ 	return c
+ }
+ 
+-// nodeQueue is a FIFO queue of *Node. The zero value of nodeQueue is
++// NameQueue is a FIFO queue of *Name. The zero value of NameQueue is
+ // a ready-to-use empty queue.
+-type NodeQueue struct {
+-	ring       []Node
++type NameQueue struct {
++	ring       []*Name
+ 	head, tail int
+ }
+ 
+-// empty reports whether q contains no Nodes.
+-func (q *NodeQueue) Empty() bool {
++// Empty reports whether q contains no Names.
++func (q *NameQueue) Empty() bool {
+ 	return q.head == q.tail
+ }
+ 
+-// pushRight appends n to the right of the queue.
+-func (q *NodeQueue) PushRight(n Node) {
++// PushRight appends n to the right of the queue.
++func (q *NameQueue) PushRight(n *Name) {
+ 	if len(q.ring) == 0 {
+-		q.ring = make([]Node, 16)
++		q.ring = make([]*Name, 16)
+ 	} else if q.head+len(q.ring) == q.tail {
+ 		// Grow the ring.
+-		nring := make([]Node, len(q.ring)*2)
++		nring := make([]*Name, len(q.ring)*2)
+ 		// Copy the old elements.
+ 		part := q.ring[q.head%len(q.ring):]
+ 		if q.tail-q.head <= len(part) {
+@@ -574,9 +574,9 @@ func (q *NodeQueue) PushRight(n Node) {
+ 	q.tail++
+ }
+ 
+-// popLeft pops a node from the left of the queue. It panics if q is
++// PopLeft pops a Name from the left of the queue. It panics if q is
+ // empty.
+-func (q *NodeQueue) PopLeft() Node {
++func (q *NameQueue) PopLeft() *Name {
+ 	if q.Empty() {
+ 		panic("dequeue empty")
+ 	}

@@ -13,7 +13,41 @@ Date:   Mon Nov 30 15:46:33 2020 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/init.go                  |  2 +-
  src/cmd/go/testdata/script/mod_import_issue42891.txt | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a9b77c82b3..1c31a5f90a 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1018,7 +1018,7 @@ func keepSums(addDirect bool) map[module.Version]bool {
+ 			}
+ 		}
+ 		for _, pkg := range loaded.pkgs {
+-			if pkg.testOf != nil || pkg.inStd {
++			if pkg.testOf != nil || pkg.inStd || module.CheckImportPath(pkg.path) != nil {
+ 				continue
+ 			}
+ 			for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {
+diff --git a/src/cmd/go/testdata/script/mod_import_issue42891.txt b/src/cmd/go/testdata/script/mod_import_issue42891.txt
+new file mode 100644
+index 0000000000..a78cab29ba
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_import_issue42891.txt
+@@ -0,0 +1,14 @@
++# If an import declaration is an absolute path, most commands should report
++# an error instead of going into an infinite loop.
++# Verifies golang.org/issue/42891.
++go list .
++stdout '^m$'
++
++-- go.mod --
++module m
++
++go 1.16
++-- m.go --
++package m
++
++import "/"

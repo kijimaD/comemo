@@ -19,9 +19,92 @@ Date:   Mon Jan 5 13:14:04 2015 +1100
     Reviewed-on: https://go-review.googlesource.com/2208
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/crypto/x509/root_bsd.go     | 14 ++++++++++++++
  src/crypto/x509/root_linux.go   | 13 +++++++++++++
  src/crypto/x509/root_solaris.go | 10 ++++++++++
  src/crypto/x509/root_unix.go    | 12 ------------
  4 files changed, 37 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/x509/root_bsd.go b/src/crypto/x509/root_bsd.go
+new file mode 100644
+index 0000000000..9317283736
+--- /dev/null
++++ b/src/crypto/x509/root_bsd.go
+@@ -0,0 +1,14 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build dragonfly freebsd netbsd openbsd
++
++package x509
++
++// Possible certificate files; stop after finding one.
++var certFiles = []string{
++	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD/DragonFly
++	"/etc/ssl/cert.pem",                      // OpenBSD
++	"/etc/openssl/certs/ca-certificates.crt", // NetBSD
++}
+diff --git a/src/crypto/x509/root_linux.go b/src/crypto/x509/root_linux.go
+new file mode 100644
+index 0000000000..cfeca6958c
+--- /dev/null
++++ b/src/crypto/x509/root_linux.go
+@@ -0,0 +1,13 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++// Possible certificate files; stop after finding one.
++var certFiles = []string{
++	"/etc/ssl/certs/ca-certificates.crt", // Debian/Ubuntu/Gentoo etc.
++	"/etc/pki/tls/certs/ca-bundle.crt",   // Fedora/RHEL
++	"/etc/ssl/ca-bundle.pem",             // OpenSUSE
++	"/etc/pki/tls/cacert.pem",            // OpenELEC
++}
+diff --git a/src/crypto/x509/root_solaris.go b/src/crypto/x509/root_solaris.go
+new file mode 100644
+index 0000000000..bf5d826e0d
+--- /dev/null
++++ b/src/crypto/x509/root_solaris.go
+@@ -0,0 +1,10 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++// Possible certificate files; stop after finding one.
++var certFiles = []string{
++	"/etc/certs/ca-certificates.crt", // Solaris 11.2+
++}
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index f77d6c0c57..8d3b2fbb23 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -8,22 +8,10 @@ package x509
+ 
+ import "io/ioutil"
+ 
+-// Possible certificate files; stop after finding one.
+-var certFiles = []string{
+-	"/etc/ssl/certs/ca-certificates.crt",     // Debian/Ubuntu/Gentoo etc.
+-	"/etc/pki/tls/certs/ca-bundle.crt",       // Fedora/RHEL
+-	"/etc/ssl/ca-bundle.pem",                 // OpenSUSE
+-	"/etc/ssl/cert.pem",                      // OpenBSD
+-	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD/DragonFly
+-	"/etc/pki/tls/cacert.pem",                // OpenELEC
+-	"/etc/certs/ca-certificates.crt",         // Solaris 11.2+
+-}
+-
+ // Possible directories with certificate files; stop after successfully
+ // reading at least one file from a directory.
+ var certDirectories = []string{
+ 	"/system/etc/security/cacerts", // Android
+-
+ }
+ 
+ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {

@@ -13,7 +13,59 @@ Date:   Fri Oct 13 16:43:39 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/internal/toolchain/select.go          |  6 ++++--
  src/cmd/go/testdata/script/gotoolchain_local.txt | 13 +++++++++++++
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/toolchain/select.go b/src/cmd/go/internal/toolchain/select.go
+index c3985dedc6..9fd1549a61 100644
+--- a/src/cmd/go/internal/toolchain/select.go
++++ b/src/cmd/go/internal/toolchain/select.go
+@@ -167,12 +167,14 @@ func Select() {
+ 			gover.Startup.AutoToolchain = toolchain
+ 		} else {
+ 			if toolchain != "" {
+-				// Accept toolchain only if it is >= our min.
++				// Accept toolchain only if it is > our min.
++				// (If it is equal, then min satisfies it anyway: that can matter if min
++				// has a suffix like "go1.21.1-foo" and toolchain is "go1.21.1".)
+ 				toolVers := gover.FromToolchain(toolchain)
+ 				if toolVers == "" || (!strings.HasPrefix(toolchain, "go") && !strings.Contains(toolchain, "-go")) {
+ 					base.Fatalf("invalid toolchain %q in %s", toolchain, base.ShortPath(file))
+ 				}
+-				if gover.Compare(toolVers, minVers) >= 0 {
++				if gover.Compare(toolVers, minVers) > 0 {
+ 					gotoolchain = toolchain
+ 					minVers = toolVers
+ 					gover.Startup.AutoToolchain = toolchain
+diff --git a/src/cmd/go/testdata/script/gotoolchain_local.txt b/src/cmd/go/testdata/script/gotoolchain_local.txt
+index 93f557008a..db7e082db9 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_local.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_local.txt
+@@ -163,12 +163,25 @@ go mod edit -go=1.499 -toolchain=none
+ go version
+ stdout go1.500-bigcorp
+ 
++go mod edit -go=1.499 -toolchain=go1.499
++go version
++stdout go1.500-bigcorp
++
+ go mod edit -go=1.500 -toolchain=none
+ go version
+ stdout go1.500-bigcorp
+ 
++go mod edit -go=1.500 -toolchain=go1.500
++go version
++stdout go1.500-bigcorp
++
+ go mod edit -go=1.501 -toolchain=none
+ go version
++stdout go1.501
++
++	# If toolchain > go, we must upgrade to the indicated toolchain (not just the go version).
++go mod edit -go=1.499 -toolchain=go1.501
++go version
+ stdout go1.501
+ 
+ env TESTGO_VERSION='go1.500 (bigcorp)'

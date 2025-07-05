@@ -22,9 +22,315 @@ Date:   Sun Apr 15 19:00:27 2018 +0200
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/codegen/README    |  18 +++++++
  test/codegen/floats.go |  20 +++++---
  test/codegen/math.go   |   5 +-
  test/run.go            | 135 +++++++++++++++++++++++++++++++++++++------------
  4 files changed, 137 insertions(+), 41 deletions(-)
+
+diff --git a/test/codegen/README b/test/codegen/README
+index ddb88a6373..298d807bde 100644
+--- a/test/codegen/README
++++ b/test/codegen/README
+@@ -94,6 +94,24 @@ For example:
+ verifies that NO memmove call is present in the assembly generated for
+ the copy() line.
+ 
++- Architecture specifiers
++
++There are three different ways to specify on which architecture a test
++should be run:
++
++* Specify only the architecture (eg: "amd64"). This indicates that the
++  check should be run on all the supported architecture variants. For
++  instance, arm checks will be run against all supported GOARM
++  variations (5,6,7).
++* Specify both the architecture and a variant, separated by a slash
++  (eg: "arm/7"). This means that the check will be run only on that
++  specific variant.
++* Specify the operating system, the architecture and the variant,
++  separated by slashes (eg: "plan9/386/sse2", "plan9/amd64/"). This is
++  needed in the rare case that you need to do a codegen test affected
++  by a specific operating system; by default, tests are compiled only
++  targeting linux.
++
+ 
+ - Remarks, and Caveats
+ 
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index c2847dd939..e0e4d973a3 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -15,29 +15,33 @@ package codegen
+ // --------------------- //
+ 
+ func Mul2(f float64) float64 {
+-	// 386:"ADDSD|FADDDP",-"MULSD",-"FMULDP"
++	// 386/sse2:"ADDSD",-"MULSD"
++	// 386/387:"FADDDP",-"FMULDP"
+ 	// amd64:"ADDSD",-"MULSD"
+-	// arm:"ADDD",-"MULD"
++	// arm/7:"ADDD",-"MULD"
+ 	// arm64:"FADDD",-"FMULD"
+ 	return f * 2.0
+ }
+ 
+ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+-	// 386:"MULSD|FMULDP",-"DIVSD",-"FDIVDP"
++	// 386/sse2:"MULSD",-"DIVSD"
++	// 386/387:"FMULDP",-"FDIVDP"
+ 	// amd64:"MULSD",-"DIVSD"
+-	// arm:"MULD",-"DIVD"
++	// arm/7:"MULD",-"DIVD"
+ 	// arm64:"FMULD",-"FDIVD"
+ 	x := f1 / 16.0
+ 
+-	// 386:"MULSD|FMULDP",-"DIVSD",-"FDIVDP"
++	// 386/sse2:"MULSD",-"DIVSD"
++	// 386/387:"FMULDP",-"FDIVDP"
+ 	// amd64:"MULSD",-"DIVSD"
+-	// arm:"MULD",-"DIVD"
++	// arm/7:"MULD",-"DIVD"
+ 	// arm64:"FMULD",-"FDIVD"
+ 	y := f2 / 0.125
+ 
+-	// 386:"ADDSD|FADDDP",-"DIVSD",-"MULSD",-"FDIVDP",-"FMULDP"
++	// 386/sse2:"ADDSD",-"DIVSD",-"MULSD"
++	// 386/387:"FADDDP",-"FDIVDP",-"FMULDP"
+ 	// amd64:"ADDSD",-"DIVSD",-"MULSD"
+-	// arm:"ADDD",-"MULD",-"DIVD"
++	// arm/7:"ADDD",-"MULD",-"DIVD"
+ 	// arm64:"FADDD",-"FMULD",-"FDIVD"
+ 	z := f3 / 0.5
+ 
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 9abbc0d1bb..efa3a2bc8f 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -33,9 +33,10 @@ func approx(x float64) {
+ 
+ func sqrt(x float64) float64 {
+ 	// amd64:"SQRTSD"
+-	// 386:"FSQRT|SQRTSD"   (387 or sse2)
++	// 386/387:"FSQRT" 386/sse2:"SQRTSD"
+ 	// arm64:"FSQRTD"
+-	// mips:"SQRTD" mips64:"SQRTD"
++	// arm/7:"SQRTD"
++	// mips/hardfloat:"SQRTD" mips64:"SQRTD"
+ 	return math.Sqrt(x)
+ }
+ 
+diff --git a/test/run.go b/test/run.go
+index d432b67485..e80b037ca1 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -5,9 +5,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Run runs tests in the test directory.
+-//
+-// TODO(bradfitz): docs of some sort, once we figure out how we're changing
+-// headers of files
+ package main
+ 
+ import (
+@@ -610,13 +607,13 @@ func (t *test) run() {
+ 		t.err = fmt.Errorf("unimplemented action %q", action)
+ 
+ 	case "asmcheck":
+-		ops, archs := t.wantedAsmOpcodes(long)
+-		for _, arch := range archs {
++		ops := t.wantedAsmOpcodes(long)
++		for _, env := range ops.Envs() {
+ 			cmdline := []string{"build", "-gcflags", "-S"}
+ 			cmdline = append(cmdline, flags...)
+ 			cmdline = append(cmdline, long)
+ 			cmd := exec.Command(goTool(), cmdline...)
+-			cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+arch, "GOARM=7")
++			cmd.Env = append(os.Environ(), env.Environ()...)
+ 
+ 			var buf bytes.Buffer
+ 			cmd.Stdout, cmd.Stderr = &buf, &buf
+@@ -625,7 +622,7 @@ func (t *test) run() {
+ 				return
+ 			}
+ 
+-			t.err = t.asmCheck(buf.String(), long, arch, ops[arch])
++			t.err = t.asmCheck(buf.String(), long, env, ops[env])
+ 			if t.err != nil {
+ 				return
+ 			}
+@@ -1289,12 +1286,28 @@ var (
+ 
+ 	// Regexp to extract an architecture check: architecture name, followed by semi-colon,
+ 	// followed by a comma-separated list of opcode checks.
+-	rxAsmPlatform = regexp.MustCompile(`(\w+):(` + reMatchCheck + `(?:,` + reMatchCheck + `)*)`)
++	rxAsmPlatform = regexp.MustCompile(`(\w+)(/\w+)?(/\w*)?:(` + reMatchCheck + `(?:,` + reMatchCheck + `)*)`)
+ 
+ 	// Regexp to extract a single opcoded check
+ 	rxAsmCheck = regexp.MustCompile(reMatchCheck)
++
++	// List of all architecture variants. Key is the GOARCH architecture,
++	// value[1] is the variant-changing environment variable, and values[1:]
++	// are the supported variants.
++	archVariants = map[string][]string{
++		"386":     {"GO386", "387", "sse2"},
++		"amd64":   {},
++		"arm":     {"GOARM", "5", "6", "7"},
++		"arm64":   {},
++		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
++		"mips64":  {},
++		"ppc64":   {},
++		"ppc64le": {},
++		"s390x":   {},
++	}
+ )
+ 
++// wantedAsmOpcode is a single asmcheck check
+ type wantedAsmOpcode struct {
+ 	fileline string         // original source file/line (eg: "/path/foo.go:45")
+ 	line     int            // original source line
+@@ -1303,9 +1316,44 @@ type wantedAsmOpcode struct {
+ 	found    bool           // true if the opcode check matched at least one in the output
+ }
+ 
+-func (t *test) wantedAsmOpcodes(fn string) (map[string]map[string][]wantedAsmOpcode, []string) {
+-	ops := make(map[string]map[string][]wantedAsmOpcode)
+-	archs := make(map[string]bool)
++// A build environment triplet separated by slashes (eg: linux/386/sse2).
++// The third field can be empty if the arch does not support variants (eg: "plan9/amd64")
++type buildEnv string
++
++// Environ returns the environment it represents in cmd.Environ() "key=val" format
++// For instance, "linux/386/sse2".Environ() returns {"GOOS=linux", "GOARCH=386", "GO386=sse2"}
++func (b buildEnv) Environ() []string {
++	fields := strings.Split(string(b), "/")
++	if len(fields) != 3 && len(fields) != 2 {
++		panic("invalid buildEnv string: " + string(b))
++	}
++	env := []string{"GOOS=" + fields[0], "GOARCH=" + fields[1]}
++	if len(fields) == 3 {
++		env = append(env, archVariants[fields[1]][0]+"="+fields[2])
++	}
++	return env
++}
++
++// asmChecks represents all the asmcheck checks present in a test file
++// The outer map key is the build triplet in which the checks must be performed.
++// The inner map key represent the source file line ("filename.go:1234") at which the
++// checks must be performed.
++type asmChecks map[buildEnv]map[string][]wantedAsmOpcode
++
++// Envs returns all the buildEnv in which at least one check is present
++func (a asmChecks) Envs() []buildEnv {
++	var envs []buildEnv
++	for e := range a {
++		envs = append(envs, e)
++	}
++	sort.Slice(envs, func(i, j int) bool {
++		return string(envs[i]) < string(envs[j])
++	})
++	return envs
++}
++
++func (t *test) wantedAsmOpcodes(fn string) asmChecks {
++	ops := make(asmChecks)
+ 
+ 	comment := ""
+ 	src, _ := ioutil.ReadFile(fn)
+@@ -1324,7 +1372,36 @@ func (t *test) wantedAsmOpcodes(fn string) (map[string]map[string][]wantedAsmOpc
+ 		// made by one architecture name and multiple checks.
+ 		lnum := fn + ":" + strconv.Itoa(i+1)
+ 		for _, ac := range rxAsmPlatform.FindAllStringSubmatch(comment, -1) {
+-			arch, allchecks := ac[1], ac[2]
++			archspec, allchecks := ac[1:4], ac[4]
++
++			var arch, subarch, os string
++			switch {
++			case archspec[2] != "": // 3 components: "linux/386/sse2"
++				os, arch, subarch = archspec[0], archspec[1][1:], archspec[2][1:]
++			case archspec[1] != "": // 2 components: "386/sse2"
++				os, arch, subarch = "linux", archspec[0], archspec[1][1:]
++			default: // 1 component: "386"
++				os, arch, subarch = "linux", archspec[0], ""
++			}
++
++			if _, ok := archVariants[arch]; !ok {
++				log.Fatalf("%s:%d: unsupported architecture: %v", t.goFileName(), i+1, arch)
++			}
++
++			// Create the build environments corresponding the above specifiers
++			envs := make([]buildEnv, 0, 4)
++			if subarch != "" {
++				envs = append(envs, buildEnv(os+"/"+arch+"/"+subarch))
++			} else {
++				subarchs := archVariants[arch]
++				if len(subarchs) == 0 {
++					envs = append(envs, buildEnv(os+"/"+arch))
++				} else {
++					for _, sa := range archVariants[arch][1:] {
++						envs = append(envs, buildEnv(os+"/"+arch+"/"+sa))
++					}
++				}
++			}
+ 
+ 			for _, m := range rxAsmCheck.FindAllString(allchecks, -1) {
+ 				negative := false
+@@ -1350,31 +1427,27 @@ func (t *test) wantedAsmOpcodes(fn string) (map[string]map[string][]wantedAsmOpc
+ 				if err != nil {
+ 					log.Fatalf("%s:%d: %v", t.goFileName(), i+1, err)
+ 				}
+-				if ops[arch] == nil {
+-					ops[arch] = make(map[string][]wantedAsmOpcode)
++
++				for _, env := range envs {
++					if ops[env] == nil {
++						ops[env] = make(map[string][]wantedAsmOpcode)
++					}
++					ops[env][lnum] = append(ops[env][lnum], wantedAsmOpcode{
++						negative: negative,
++						fileline: lnum,
++						line:     i + 1,
++						opcode:   oprx,
++					})
+ 				}
+-				archs[arch] = true
+-				ops[arch][lnum] = append(ops[arch][lnum], wantedAsmOpcode{
+-					negative: negative,
+-					fileline: lnum,
+-					line:     i + 1,
+-					opcode:   oprx,
+-				})
+ 			}
+ 		}
+ 		comment = ""
+ 	}
+ 
+-	var sarchs []string
+-	for a := range archs {
+-		sarchs = append(sarchs, a)
+-	}
+-	sort.Strings(sarchs)
+-
+-	return ops, sarchs
++	return ops
+ }
+ 
+-func (t *test) asmCheck(outStr string, fn string, arch string, fullops map[string][]wantedAsmOpcode) (err error) {
++func (t *test) asmCheck(outStr string, fn string, env buildEnv, fullops map[string][]wantedAsmOpcode) (err error) {
+ 	// The assembly output contains the concatenated dump of multiple functions.
+ 	// the first line of each function begins at column 0, while the rest is
+ 	// indented by a tabulation. These data structures help us index the
+@@ -1449,9 +1522,9 @@ func (t *test) asmCheck(outStr string, fn string, arch string, fullops map[strin
+ 		}
+ 
+ 		if o.negative {
+-			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong opcode found: %q\n", t.goFileName(), o.line, arch, o.opcode.String())
++			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong opcode found: %q\n", t.goFileName(), o.line, env, o.opcode.String())
+ 		} else {
+-			fmt.Fprintf(&errbuf, "%s:%d: %s: opcode not found: %q\n", t.goFileName(), o.line, arch, o.opcode.String())
++			fmt.Fprintf(&errbuf, "%s:%d: %s: opcode not found: %q\n", t.goFileName(), o.line, env, o.opcode.String())
+ 		}
+ 	}
+ 	err = errors.New(errbuf.String())

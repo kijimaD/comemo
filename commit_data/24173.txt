@@ -12,7 +12,58 @@ Date:   Mon Jul 13 20:50:51 2015 -0400
     Change-Id: I416a848754fb615c0d75f9f0ccc00723d07f7f01
     Reviewed-on: https://go-review.googlesource.com/12145
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go |  1 +
  src/cmd/compile/internal/gc/dcl.go     | 20 ++++++++++++++------
  2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 24af94c0cd..65f77d9079 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -199,6 +199,7 @@ func makeclosure(func_ *Node) *Node {
+ 	xfunc.Func.Nname.Name.Funcdepth = func_.Func.Depth
+ 	xfunc.Func.Depth = func_.Func.Depth
+ 	xfunc.Func.Endlineno = func_.Func.Endlineno
++	makefuncsym(xfunc.Func.Nname.Sym)
+ 
+ 	xfunc.Nbody = func_.Nbody
+ 	xfunc.Func.Dcl = concat(func_.Func.Dcl, xfunc.Func.Dcl)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index cba8e21705..0cb04eead6 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -585,6 +585,10 @@ func funchdr(n *Node) {
+ 		Fatal("funchdr: dclcontext")
+ 	}
+ 
++	if importpkg == nil && n.Func.Nname != nil {
++		makefuncsym(n.Func.Nname.Sym)
++	}
++
+ 	dclcontext = PAUTO
+ 	markdcl()
+ 	Funcdepth++
+@@ -1489,12 +1493,16 @@ func funcsym(s *Sym) *Sym {
+ 	}
+ 
+ 	s1 := Pkglookup(s.Name+"·f", s.Pkg)
+-	if s1.Def == nil {
+-		s1.Def = newfuncname(s1)
+-		s1.Def.Func.Shortname = newname(s)
+-		funcsyms = list(funcsyms, s1.Def)
+-	}
+ 	s.Fsym = s1
+-
+ 	return s1
+ }
++
++func makefuncsym(s *Sym) {
++	if isblanksym(s) {
++		return
++	}
++	s1 := funcsym(s)
++	s1.Def = newfuncname(s1)
++	s1.Def.Func.Shortname = newname(s)
++	funcsyms = list(funcsyms, s1.Def)
++}

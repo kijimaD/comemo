@@ -12,6 +12,19 @@ Date:   Wed Apr 19 15:14:56 2017 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/s390x/a.out.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 98ea5aebcd..9d5b34a0b1 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -138,7 +138,6 @@ const (
+ 
+ 	REG_RESERVED // end of allocated registers
+ 
+-	REGZERO = REG_R0  // set to zero
+ 	REGARG  = -1      // -1 disables passing the first argument in register
+ 	REGRT1  = REG_R3  // used during zeroing of the stack - not reserved
+ 	REGRT2  = REG_R4  // used during zeroing of the stack - not reserved

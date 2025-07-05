@@ -8,6 +8,43 @@ Date:   Thu Sep 18 15:54:21 2008 -0700
     DELTA=0  (0 added, 0 deleted, 0 changed)
     OCL=15492
     CL=15494
-
+---
  src/cmd/6l/pass.c | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 39394026dc..cf6e6c92f7 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -681,13 +681,13 @@ dostkoff(void)
+ 					p->from.type = D_INDIR+D_R15;
+ 					p->from.offset = 8;
+ 					p->to.type = D_SP;
+-					
++
+ 					p = appendp(p);
+ 					p->as = AJHI;
+ 					p->to.type = D_BRANCH;
+ 					p->to.offset = 4;
+ 					q1 = p;
+-					
++
+ 					p = appendp(p);
+ 					p->as = AINT;
+ 					p->from.type = D_CONST;
+@@ -716,13 +716,13 @@ dostkoff(void)
+ 							q1->pcond = p;
+ 							q1 = P;
+ 						}
+-	
++
+ 						p = appendp(p);
+ 						p->as = ACMPQ;
+ 						p->from.type = D_AX;
+ 						p->to.type = D_INDIR+D_R15;
+ 					}
+-	
++
+ 					// common
+ 					p = appendp(p);
+ 					p->as = AJHI;

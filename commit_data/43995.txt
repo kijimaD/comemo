@@ -20,10 +20,143 @@ Date:   Thu Apr 30 23:05:51 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/test.go                      |  8 ++++++++
  misc/cgo/testgodefs/testdata/issue38649.go | 15 +++++++++++++++
  misc/cgo/testgodefs/testdata/main.go       |  3 +++
  misc/cgo/testgodefs/testgodefs_test.go     |  1 +
  src/cmd/cgo/gcc.go                         | 15 +++++++++------
  5 files changed, 36 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index b0148995fe..b5009d43ce 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -897,6 +897,10 @@ static uint16_t issue31093F(uint16_t v) { return v; }
+ 
+ // issue 32579
+ typedef struct S32579 { unsigned char data[1]; } S32579;
++
++// issue 38649
++// Test that #define'd type aliases work.
++#define netbsd_gid unsigned int
+ */
+ import "C"
+ 
+@@ -2192,3 +2196,7 @@ func test32579(t *testing.T) {
+ 		t.Errorf("&s[0].data[0] failed: got %d, want %d", s[0].data[0], 1)
+ 	}
+ }
++
++// issue 38649
++
++var issue38649 C.netbsd_gid = 42
+diff --git a/misc/cgo/testgodefs/testdata/issue38649.go b/misc/cgo/testgodefs/testdata/issue38649.go
+new file mode 100644
+index 0000000000..6af74d6058
+--- /dev/null
++++ b/misc/cgo/testgodefs/testdata/issue38649.go
+@@ -0,0 +1,15 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ignore
++
++package main
++
++/*
++struct Issue38649 { int x; };
++#define issue38649 struct Issue38649
++*/
++import "C"
++
++type issue38649 C.issue38649
+diff --git a/misc/cgo/testgodefs/testdata/main.go b/misc/cgo/testgodefs/testdata/main.go
+index ef45b95e65..2e1ad3376a 100644
+--- a/misc/cgo/testgodefs/testdata/main.go
++++ b/misc/cgo/testgodefs/testdata/main.go
+@@ -19,5 +19,8 @@ var v6 = B{}
+ // Test that S is fully defined
+ var v7 = S{}
+ 
++// Test that #define'd type is fully defined
++var _ = issue38649{X: 0}
++
+ func main() {
+ }
+diff --git a/misc/cgo/testgodefs/testgodefs_test.go b/misc/cgo/testgodefs/testgodefs_test.go
+index 438d23d65c..178fff3fbc 100644
+--- a/misc/cgo/testgodefs/testgodefs_test.go
++++ b/misc/cgo/testgodefs/testgodefs_test.go
+@@ -23,6 +23,7 @@ var filePrefixes = []string{
+ 	"fieldtypedef",
+ 	"issue37479",
+ 	"issue37621",
++	"issue38649",
+ }
+ 
+ func TestGoDefs(t *testing.T) {
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index e01ea081d9..39ab5788ec 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -182,6 +182,9 @@ func (p *Package) Translate(f *File) {
+ 		numTypedefs = len(p.typedefs)
+ 		// Also ask about any typedefs we've seen so far.
+ 		for _, info := range p.typedefList {
++			if f.Name[info.typedef] != nil {
++				continue
++			}
+ 			n := &Name{
+ 				Go: info.typedef,
+ 				C:  info.typedef,
+@@ -710,6 +713,9 @@ func (p *Package) prepareNames(f *File) {
+ 			}
+ 		}
+ 		p.mangleName(n)
++		if n.Kind == "type" && typedef[n.Mangle] == nil {
++			typedef[n.Mangle] = n.Type
++		}
+ 	}
+ }
+ 
+@@ -1348,6 +1354,9 @@ func (p *Package) rewriteRef(f *File) {
+ 
+ 		if *godefs {
+ 			// Substitute definition for mangled type name.
++			if r.Name.Type != nil {
++				expr = r.Name.Type.Go
++			}
+ 			if id, ok := expr.(*ast.Ident); ok {
+ 				if t := typedef[id.Name]; t != nil {
+ 					expr = t.Go
+@@ -1413,9 +1422,7 @@ func (p *Package) rewriteName(f *File, r *Ref) ast.Expr {
+ 				r.Context = ctxType
+ 				if r.Name.Type == nil {
+ 					error_(r.Pos(), "invalid conversion to C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
+-					break
+ 				}
+-				expr = r.Name.Type.Go
+ 				break
+ 			}
+ 			error_(r.Pos(), "call of non-function C.%s", fixGo(r.Name.Go))
+@@ -1472,9 +1479,7 @@ func (p *Package) rewriteName(f *File, r *Ref) ast.Expr {
+ 			// Okay - might be new(T)
+ 			if r.Name.Type == nil {
+ 				error_(r.Pos(), "expression C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
+-				break
+ 			}
+-			expr = r.Name.Type.Go
+ 		case "var":
+ 			expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+ 		case "macro":
+@@ -1493,8 +1498,6 @@ func (p *Package) rewriteName(f *File, r *Ref) ast.Expr {
+ 			// Use of C.enum_x, C.struct_x or C.union_x without C definition.
+ 			// GCC won't raise an error when using pointers to such unknown types.
+ 			error_(r.Pos(), "type C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
+-		} else {
+-			expr = r.Name.Type.Go
+ 		}
+ 	default:
+ 		if r.Name.Kind == "func" {

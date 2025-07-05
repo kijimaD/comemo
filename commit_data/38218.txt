@@ -13,8 +13,104 @@ Date:   Wed Oct 10 16:08:24 2018 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Yury Smolsky <yury@smolsky.by>
-
+---
  src/cmd/compile/internal/gc/ssa.go    | 13 ++++++-------
  src/cmd/compile/internal/ssa/debug.go |  6 +++++-
  src/cmd/compile/internal/ssa/func.go  |  7 ++++---
  3 files changed, 15 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5b11e15655..4a4461948c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -147,6 +147,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	s.f.Cache.Reset()
+ 	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH", name)
+ 	s.f.Name = name
++	s.f.PrintOrHtmlSSA = printssa
+ 	if fn.Func.Pragma&Nosplit != 0 {
+ 		s.f.NoSplit = true
+ 	}
+@@ -5000,9 +5001,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	var progToValue map[*obj.Prog]*ssa.Value
+ 	var progToBlock map[*obj.Prog]*ssa.Block
+ 	var valueToProgAfter []*obj.Prog // The first Prog following computation of a value v; v is visible at this point.
+-	var logProgs = e.log
+-	if f.HTMLWriter != nil {
+-		// logProgs can be false, meaning that we do not dump to the Stdout.
++	if f.PrintOrHtmlSSA {
+ 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
+ 		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
+ 		f.Logf("genssa %s\n", f.Name)
+@@ -5085,7 +5084,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				valueToProgAfter[v.ID] = s.pp.next
+ 			}
+ 
+-			if logProgs {
++			if f.PrintOrHtmlSSA {
+ 				for ; x != s.pp.next; x = x.Link {
+ 					progToValue[x] = v
+ 				}
+@@ -5103,7 +5102,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		x := s.pp.next
+ 		s.SetPos(b.Pos)
+ 		thearch.SSAGenBlock(&s, b, next)
+-		if logProgs {
++		if f.PrintOrHtmlSSA {
+ 			for ; x != s.pp.next; x = x.Link {
+ 				progToBlock[x] = b
+ 			}
+@@ -5136,7 +5135,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		}
+ 	}
+ 
+-	if logProgs {
++	if e.log { // spew to stdout
+ 		filename := ""
+ 		for p := pp.Text; p != nil; p = p.Link {
+ 			if p.Pos.IsKnown() && p.InnermostFilename() != filename {
+@@ -5155,7 +5154,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 			f.Logf(" %-6s\t%.5d (%s)\t%s\n", s, p.Pc, p.InnermostLineNumber(), p.InstructionString())
+ 		}
+ 	}
+-	if f.HTMLWriter != nil {
++	if f.HTMLWriter != nil { // spew to ssa.html
+ 		var buf bytes.Buffer
+ 		buf.WriteString("<code>")
+ 		buf.WriteString("<dl class=\"ssa-gen\">")
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index c1fbdcc517..8df8a94b76 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -153,8 +153,12 @@ var BlockEnd = &Value{
+ // RegisterSet is a bitmap of registers, indexed by Register.num.
+ type RegisterSet uint64
+ 
++// logf prints debug-specific logging to stdout (always stdout) if the current
++// function is tagged by GOSSAFUNC (for ssa output directed either to stdout or html).
+ func (s *debugState) logf(msg string, args ...interface{}) {
+-	s.f.Logf(msg, args...)
++	if s.f.PrintOrHtmlSSA {
++		fmt.Printf(msg, args...)
++	}
+ }
+ 
+ type debugState struct {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index eb5775efcb..2ed4086fd1 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -37,9 +37,10 @@ type Func struct {
+ 
+ 	// Given an environment variable used for debug hash match,
+ 	// what file (if any) receives the yes/no logging?
+-	logfiles   map[string]writeSyncer
+-	HTMLWriter *HTMLWriter // html writer, for debugging
+-	DebugTest  bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
++	logfiles       map[string]writeSyncer
++	HTMLWriter     *HTMLWriter // html writer, for debugging
++	DebugTest      bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
++	PrintOrHtmlSSA bool        // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
+ 
+ 	scheduled bool // Values in Blocks are in final order
+ 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.

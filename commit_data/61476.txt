@@ -15,6 +15,19 @@ Date:   Fri Jan 26 15:06:14 2024 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/test/test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 58c54c99e0..3f4f3accaa 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -993,7 +993,6 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
+ 		if err != nil {
+ 			str := err.Error()
+-			str = strings.TrimPrefix(str, "\n")
+ 			if p.ImportPath != "" {
+ 				base.Errorf("# %s\n%s", p.ImportPath, str)
+ 			} else {

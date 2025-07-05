@@ -7,9 +7,62 @@ Date:   Thu Oct 13 13:34:01 2011 +1100
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/5266041
-
+---
  src/pkg/exp/sql/fakedb_test.go           | 2 +-
  src/pkg/exp/sql/sql_test.go              | 2 +-
  src/pkg/exp/template/html/escape_test.go | 2 +-
  src/pkg/template/exec_test.go            | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exp/sql/fakedb_test.go b/src/pkg/exp/sql/fakedb_test.go
+index 40f60f782b..c906185e58 100644
+--- a/src/pkg/exp/sql/fakedb_test.go
++++ b/src/pkg/exp/sql/fakedb_test.go
+@@ -145,7 +145,7 @@ func (db *fakeDB) createTable(name string, columnNames, columnTypes []string) os
+ 	}
+ 	if len(columnNames) != len(columnTypes) {
+ 		return fmt.Errorf("create table of %q len(names) != len(types): %d vs %d",
+-			len(columnNames), len(columnTypes))
++			name, len(columnNames), len(columnTypes))
+ 	}
+ 	db.tables[name] = &table{colname: columnNames, coltype: columnTypes}
+ 	return nil
+diff --git a/src/pkg/exp/sql/sql_test.go b/src/pkg/exp/sql/sql_test.go
+index 9dca710e61..eaa0a90356 100644
+--- a/src/pkg/exp/sql/sql_test.go
++++ b/src/pkg/exp/sql/sql_test.go
+@@ -85,7 +85,7 @@ func TestStatementQueryRow(t *testing.T) {
+ 		if err := stmt.QueryRow(tt.name).Scan(&age); err != nil {
+ 			t.Errorf("%d: on %q, QueryRow/Scan: %v", n, tt.name, err)
+ 		} else if age != tt.want {
+-			t.Errorf("%d: age=%d, want %d", age, tt.want)
++			t.Errorf("%d: age=%d, want %d", n, age, tt.want)
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 9466cc1d5d..e5f8370935 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -1570,7 +1570,7 @@ func TestEscapeErrorsNotIgnorable(t *testing.T) {
+ func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
+ 	s, err := (&template.Set{}).Parse(`{{define "t"}}<a{{end}}`)
+ 	if err != nil {
+-		t.Error("failed to parse set: %q", err)
++		t.Errorf("failed to parse set: %q", err)
+ 	}
+ 	EscapeSet(s, "t")
+ 	var b bytes.Buffer
+diff --git a/src/pkg/template/exec_test.go b/src/pkg/template/exec_test.go
+index 46b89fd294..d583033cbb 100644
+--- a/src/pkg/template/exec_test.go
++++ b/src/pkg/template/exec_test.go
+@@ -532,7 +532,7 @@ func TestDelims(t *testing.T) {
+ 			t.Fatalf("delim %q exec err %s", left, err)
+ 		}
+ 		if b.String() != hello+trueLeft {
+-			t.Error("expected %q got %q", hello+trueLeft, b.String())
++			t.Errorf("expected %q got %q", hello+trueLeft, b.String())
+ 		}
+ 	}
+ }

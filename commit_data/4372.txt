@@ -6,7 +6,7 @@ Date:   Thu Dec 10 11:25:54 2009 -0800
     
     R=rsc
     https://golang.org/cl/173045
-
+---
  test/fixedbugs/bug036.go | 3 +--
  test/fixedbugs/bug055.go | 2 +-
  test/fixedbugs/bug064.go | 3 +--
@@ -16,3 +16,123 @@ Date:   Thu Dec 10 11:25:54 2009 -0800
  test/fixedbugs/bug203.go | 6 ++----
  test/import1.go          | 2 +-
  8 files changed, 13 insertions(+), 17 deletions(-)
+
+diff --git a/test/fixedbugs/bug036.go b/test/fixedbugs/bug036.go
+index 8698dc7bf3..cc20516ce8 100644
+--- a/test/fixedbugs/bug036.go
++++ b/test/fixedbugs/bug036.go
+@@ -7,8 +7,7 @@
+ 
+ package main
+ 
+-func main()
+-{
++func main() {
+ 	s := float(0);
+ 	s := float(0);  // BUG redeclaration
+ }
+diff --git a/test/fixedbugs/bug055.go b/test/fixedbugs/bug055.go
+index 3b6d864277..0326d828f2 100644
+--- a/test/fixedbugs/bug055.go
++++ b/test/fixedbugs/bug055.go
+@@ -18,5 +18,5 @@ func main() {
+ 	type s2 int;
+ 	var k = func (a int) int { return a+1 }(3);
+ 	_, _ = j, k;
+-ro:
++ro: ;
+ }
+diff --git a/test/fixedbugs/bug064.go b/test/fixedbugs/bug064.go
+index 38c2188dd2..92d2154236 100644
+--- a/test/fixedbugs/bug064.go
++++ b/test/fixedbugs/bug064.go
+@@ -12,8 +12,7 @@ swap(x, y int) (u, v int) {
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	a := 1;
+ 	b := 2;
+ 	a, b = swap(swap(a, b));
+diff --git a/test/fixedbugs/bug076.go b/test/fixedbugs/bug076.go
+index 0828662c32..065cecc015 100644
+--- a/test/fixedbugs/bug076.go
++++ b/test/fixedbugs/bug076.go
+@@ -7,12 +7,12 @@
+ package main
+ 
+ func f() {
+-exit:
++exit: ;
+ }
+ 
+ 
+ func main() {
+-exit:  // this should be legal (labels not properly scoped?)
++exit: ; // this should be legal (labels not properly scoped?)
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug089.go b/test/fixedbugs/bug089.go
+index e3d8ff66bb..fd3dff3ec9 100644
+--- a/test/fixedbugs/bug089.go
++++ b/test/fixedbugs/bug089.go
+@@ -15,7 +15,7 @@ var	i1	I1;
+ var	i2	I2;
+ 
+ func
+-main()
+-{
++main() {
++
+ 	i2 = e().(I2);	// bug089.go:16: fatal error: agen_inter i2i
+ }
+diff --git a/test/fixedbugs/bug194.go b/test/fixedbugs/bug194.go
+index 5f101440ed..42d06311cd 100644
+--- a/test/fixedbugs/bug194.go
++++ b/test/fixedbugs/bug194.go
+@@ -17,9 +17,9 @@ var v8 = T5{f:11}
+ var pf func(T1)
+ 
+ func main() {
+-	if v1 != 1 || v2.f != 2 || v3[0] != 3 || v3[1] != 4
+-	   || v4[0] != 5 || v4[1] != 6 || v5[0] != 7 || v5[1] != 8
+-	   || v6.f != 9 || v7[0] != 10 || v8[0] != 11 {
++	if v1 != 1 || v2.f != 2 || v3[0] != 3 || v3[1] != 4 ||
++	   v4[0] != 5 || v4[1] != 6 || v5[0] != 7 || v5[1] != 8 ||
++	   v6.f != 9 || v7[0] != 10 || v8[0] != 11 {
+ 		panic()
+ 	}
+ }
+diff --git a/test/fixedbugs/bug203.go b/test/fixedbugs/bug203.go
+index 5b04b2efbc..bf86ee912b 100644
+--- a/test/fixedbugs/bug203.go
++++ b/test/fixedbugs/bug203.go
+@@ -9,12 +9,10 @@ package main
+ var s [8]string
+ 
+ func
+-init()
+-{
++init() {
+        s = [...]string{ "now", "is", "the", "time", "to", "fix", "this", "bug"}
+ }
+ 
+ func
+-main()
+-{
++main() {
+ }
+diff --git a/test/import1.go b/test/import1.go
+index e809990b76..baed207cc0 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -14,4 +14,4 @@ import bufio "os"	// ERROR "redeclared|redefinition|incompatible"
+ import (
+ 	"fmt";	// GCCGO_ERROR "previous"
+ 	fmt "math";	// ERROR "redeclared|redefinition|incompatible"
+-)
+\ No newline at end of file
++)

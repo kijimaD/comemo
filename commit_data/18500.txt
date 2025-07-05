@@ -12,7 +12,70 @@ Date:   Thu Feb 13 19:04:43 2014 +0000
     R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
     https://golang.org/cl/62430043
-
+---
  src/cmd/gc/esc.c |  4 +++-
  test/escape2.go  | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 99e4134a8c..c038dfc589 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -423,6 +423,9 @@ esc(EscState *e, Node *n)
+ 
+ 	lno = setlineno(n);
+ 
++	// ninit logically runs at a different loopdepth than the rest of the for loop.
++	esclist(e, n->ninit);
++
+ 	if(n->op == OFOR || n->op == ORANGE)
+ 		e->loopdepth++;
+ 
+@@ -430,7 +433,6 @@ esc(EscState *e, Node *n)
+ 	esc(e, n->right);
+ 	esc(e, n->ntest);
+ 	esc(e, n->nincr);
+-	esclist(e, n->ninit);
+ 	esclist(e, n->nbody);
+ 	esclist(e, n->nelse);
+ 	esclist(e, n->list);
+diff --git a/test/escape2.go b/test/escape2.go
+index be89c2d840..73342fd2bc 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1357,3 +1357,35 @@ func foo144() {
+ //go:noescape
+ 
+ func foo144b(*int)
++
++// issue 7313: for loop init should not be treated as "in loop"
++
++type List struct {
++	Next *List
++}
++
++func foo145(l List) { // ERROR "l does not escape"
++	var p *List
++	for p = &l; p.Next != nil; p = p.Next { // ERROR "&l does not escape"
++	}
++}
++
++func foo146(l List) { // ERROR "l does not escape"
++	var p *List
++	p = &l // ERROR "&l does not escape"
++	for ; p.Next != nil; p = p.Next {
++	}
++}
++
++func foo147(l List) { // ERROR "l does not escape"
++	var p *List
++	p = &l // ERROR "&l does not escape"
++	for p.Next != nil {
++		p = p.Next
++	}
++}
++
++func foo148(l List) { // ERROR " l does not escape"
++	for p := &l; p.Next != nil; p = p.Next { // ERROR "&l does not escape"
++	}
++}

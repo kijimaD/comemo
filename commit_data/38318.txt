@@ -15,7 +15,49 @@ Date:   Thu Oct 18 17:39:35 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/expr.go            |  4 ++--
  src/go/types/testdata/expr2.src | 13 +++++++++++++
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 87769d1db0..35e9b36f31 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -590,10 +590,10 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
+ 		switch op {
+ 		case token.EQL, token.NEQ:
+ 			// spec: "The equality operators == and != apply to operands that are comparable."
+-			defined = Comparable(x.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
++			defined = Comparable(x.typ) && Comparable(y.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
+ 		case token.LSS, token.LEQ, token.GTR, token.GEQ:
+ 			// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
+-			defined = isOrdered(x.typ)
++			defined = isOrdered(x.typ) && isOrdered(y.typ)
+ 		default:
+ 			unreachable()
+ 		}
+diff --git a/src/go/types/testdata/expr2.src b/src/go/types/testdata/expr2.src
+index 31dc5f021c..0c959e8011 100644
+--- a/src/go/types/testdata/expr2.src
++++ b/src/go/types/testdata/expr2.src
+@@ -208,6 +208,19 @@ func interfaces() {
+ 
+ 	_ = i /* ERROR mismatched types */ == s2
+ 	_ = i /* ERROR mismatched types */ == &s2
++
++	// issue #28164
++	// testcase from issue
++	_ = interface /* ERROR cannot compare */ {}(nil) == []int(nil)
++
++	// related cases
++	var e interface{}
++	var s []int
++	var x int
++	_ = e /* ERROR cannot compare */ == s
++	_ = s /* ERROR cannot compare */ == e
++	_ = e /* ERROR cannot compare */ < x
++	_ = x /* ERROR cannot compare */ < e
+ }
+ 
+ func slices() {

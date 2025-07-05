@@ -8,6 +8,19 @@ Date:   Sat Jan 25 10:09:08 2014 -0800
     R=golang-codereviews, 0intro, r
     CC=golang-codereviews
     https://golang.org/cl/55430043
-
+---
  src/pkg/runtime/pprof/pprof_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 4d911b1e99..ce4eaf5518 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -267,6 +267,7 @@ func TestMathBigDivide(t *testing.T) {
+ var badOS = map[string]bool{
+ 	"darwin": true,
+ 	"netbsd": true,
++	"plan9":  true,
+ }
+ 
+ func TestBlockProfile(t *testing.T) {

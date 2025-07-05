@@ -16,9 +16,135 @@ Date:   Mon Jan 26 13:51:39 2015 -0500
     Change-Id: I5fb1c4338d42e3f61ab56c9beb63b7b2da25f4f1
     Reviewed-on: https://go-review.googlesource.com/3275
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/malloc.go   |  8 ++++++++
  src/runtime/mgc.go      | 13 +++++++++++--
  src/runtime/proc1.go    | 13 ++++++++++++-
  src/runtime/runtime2.go |  1 +
  4 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index f827b9c418..ea1dd6ea49 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -395,6 +395,14 @@ func gcwork(force int32) {
+ 		gctimer.cycle.markterm = nanotime()
+ 		systemstack(stoptheworld)
+ 		systemstack(gcinstalloffwb_m)
++	} else {
++		// For non-concurrent GC (force != 0) g stack have not been scanned so
++		// set gcscanvalid such that mark termination scans all stacks.
++		// No races here since we are in a STW phase.
++		for _, gp := range allgs {
++			gp.gcworkdone = false  // set to true in gcphasework
++			gp.gcscanvalid = false // stack has not been scanned
++		}
+ 	}
+ 
+ 	startTime := nanotime()
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 8cc060c2cf..67ecd3a806 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -587,7 +587,10 @@ func markroot(desc *parfor, i uint32) {
+ 		}
+ 
+ 		// Shrink a stack if not much of it is being used but not in the scan phase.
+-		if gcphase != _GCscan { // Do not shrink during GCscan phase.
++		if gcphase == _GCmarktermination {
++			// Shrink during STW GCmarktermination phase thus avoiding
++			// complications introduced by shrinking during
++			// non-STW phases.
+ 			shrinkstack(gp)
+ 		}
+ 		if readgstatus(gp) == _Gdead {
+@@ -853,6 +856,9 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
+ 
+ //go:nowritebarrier
+ func scanstack(gp *g) {
++	if gp.gcscanvalid {
++		return
++	}
+ 
+ 	if readgstatus(gp)&_Gscan == 0 {
+ 		print("runtime:scanstack: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", hex(readgstatus(gp)), "\n")
+@@ -882,6 +888,7 @@ func scanstack(gp *g) {
+ 
+ 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+ 	tracebackdefers(gp, scanframe, nil)
++	gp.gcscanvalid = true
+ }
+ 
+ // Shade the object if it isn't already.
+@@ -945,6 +952,7 @@ func gcphasework(gp *g) {
+ 	case _GCscan:
+ 		// scan the stack, mark the objects, put pointers in work buffers
+ 		// hanging off the P where this is being run.
++		// Indicate that the scan is valid until the goroutine runs again
+ 		scanstack(gp)
+ 	case _GCmark:
+ 		// No work.
+@@ -1455,7 +1463,8 @@ func gcscan_m() {
+ 	local_allglen := allglen
+ 	for i := uintptr(0); i < local_allglen; i++ {
+ 		gp := allgs[i]
+-		gp.gcworkdone = false // set to true in gcphasework
++		gp.gcworkdone = false  // set to true in gcphasework
++		gp.gcscanvalid = false // stack has not been scanned
+ 	}
+ 	unlock(&allglock)
+ 
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index fcff60541d..8efb5467be 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -345,6 +345,9 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ 		dumpgstatus(gp)
+ 		throw("casfrom_Gscanstatus: gp->status is not in scan state")
+ 	}
++	if newval == _Grunning {
++		gp.gcscanvalid = false
++	}
+ }
+ 
+ // This will return false if the gp is not in the expected status and the cas fails.
+@@ -358,6 +361,10 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
+ 			return cas(&gp.atomicstatus, oldval, newval)
+ 		}
+ 	case _Grunning:
++		if gp.gcscanvalid {
++			print("runtime: castogscanstatus _Grunning and gp.gcscanvalid is true, newval=", hex(newval), "\n")
++			throw("castogscanstatus")
++		}
+ 		if newval == _Gscanrunning || newval == _Gscanenqueue {
+ 			return cas(&gp.atomicstatus, oldval, newval)
+ 		}
+@@ -375,11 +382,15 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
+ func casgstatus(gp *g, oldval, newval uint32) {
+ 	if (oldval&_Gscan != 0) || (newval&_Gscan != 0) || oldval == newval {
+ 		systemstack(func() {
+-			print("casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
++			print("runtime: casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
+ 			throw("casgstatus: bad incoming values")
+ 		})
+ 	}
+ 
++	if newval == _Grunning {
++		gp.gcscanvalid = false
++	}
++
+ 	// loop if gp->atomicstatus is in a scan state giving
+ 	// GC time to finish and change the state to oldval.
+ 	for !cas(&gp.atomicstatus, oldval, newval) {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index c71a3c3143..6935fcd826 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -203,6 +203,7 @@ type g struct {
+ 	paniconfault bool // panic (instead of crash) on unexpected fault address
+ 	preemptscan  bool // preempted g does scan for gc
+ 	gcworkdone   bool // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
++	gcscanvalid  bool // false at start of gc cycle, true if G has not run since last scan
+ 	throwsplit   bool // must not split stack
+ 	raceignore   int8 // ignore race detection events
+ 	m            *m   // for debuggers, but offset not hard-coded

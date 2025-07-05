@@ -21,6 +21,43 @@ Date:   Tue May 9 09:42:16 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 19 +++++++++----------
  1 file changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index fd942de567..f762fa5a6c 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -575,22 +575,21 @@ func func3(c chan int) { <-c }
+ func func4(c chan int) { <-c }
+ 
+ func TestGoroutineCounts(t *testing.T) {
+-	if runtime.GOOS == "openbsd" {
+-		testenv.SkipFlaky(t, 15156)
+-	}
+ 	c := make(chan int)
+ 	for i := 0; i < 100; i++ {
+-		if i%10 == 0 {
++		switch {
++		case i%10 == 0:
+ 			go func1(c)
+-			continue
+-		}
+-		if i%2 == 0 {
++		case i%2 == 0:
+ 			go func2(c)
+-			continue
++		default:
++			go func3(c)
++		}
++		// Let goroutines block on channel
++		for j := 0; j < 5; j++ {
++			runtime.Gosched()
+ 		}
+-		go func3(c)
+ 	}
+-	time.Sleep(10 * time.Millisecond) // let goroutines block on channel
+ 
+ 	var w bytes.Buffer
+ 	goroutineProf := Lookup("goroutine")

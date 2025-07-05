@@ -9,6 +9,20 @@ Date:   Wed Dec 7 15:00:44 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5437154
-
+---
  test/nilptr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/nilptr.go b/test/nilptr.go
+index 6cf2192047..b0c1df2d95 100644
+--- a/test/nilptr.go
++++ b/test/nilptr.go
+@@ -13,7 +13,7 @@ import "unsafe"
+ // cause a memory access fault. This test checks
+ // that Go is doing the correct explicit checks to catch
+ // these nil pointer accesses, not just relying on the hardware.
+-var dummy [512 << 20]byte // give us a big address space
++var dummy [256 << 20]byte // give us a big address space
+ 
+ func main() {
+ 	// the test only tests what we intend to test

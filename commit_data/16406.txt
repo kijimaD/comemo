@@ -11,6 +11,24 @@ Date:   Fri May 24 16:34:50 2013 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/9750043
-
+---
  doc/go1.2.txt | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+new file mode 100644
+index 0000000000..844e367a0a
+--- /dev/null
++++ b/doc/go1.2.txt
+@@ -0,0 +1,11 @@
++This file collects notes about what has changed since Go 1.1
++and should be mentioned in the Go 1.2 release notes.
++During the Go 1.2 release process it will be necessary to convert
++it to HTML, similar to go1.1.html, but for now it is a text file,
++to make the process of keeping it up-to-date more lightweight.
++
++Please keep the descriptions to a single line, starting with the
++package or cmd/xxx directory name, and ending in a CL number.
++Please keep the list sorted (as in sort.Strings of the lines).
++
++io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).

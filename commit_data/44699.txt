@@ -24,6 +24,44 @@ Date:   Fri Aug 21 11:11:32 2020 +0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/hash/maphash/maphash_test.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/src/hash/maphash/maphash_test.go b/src/hash/maphash/maphash_test.go
+index caea43a8c8..daf6eb4786 100644
+--- a/src/hash/maphash/maphash_test.go
++++ b/src/hash/maphash/maphash_test.go
+@@ -165,3 +165,32 @@ func TestSeedFromReset(t *testing.T) {
+ // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
+ var _ hash.Hash = &Hash{}
+ var _ hash.Hash64 = &Hash{}
++
++func benchmarkSize(b *testing.B, size int) {
++	h := &Hash{}
++	buf := make([]byte, size)
++	b.SetBytes(int64(size))
++	b.ResetTimer()
++
++	for i := 0; i < b.N; i++ {
++		h.Reset()
++		h.Write(buf)
++		h.Sum64()
++	}
++}
++
++func BenchmarkHash8Bytes(b *testing.B) {
++	benchmarkSize(b, 8)
++}
++
++func BenchmarkHash320Bytes(b *testing.B) {
++	benchmarkSize(b, 320)
++}
++
++func BenchmarkHash1K(b *testing.B) {
++	benchmarkSize(b, 1024)
++}
++
++func BenchmarkHash8K(b *testing.B) {
++	benchmarkSize(b, 8192)
++}

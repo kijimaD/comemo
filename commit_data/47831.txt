@@ -18,7 +18,72 @@ Date:   Sun Apr 11 17:29:17 2021 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/go.go   | 28 +++++-----------------------
  src/cmd/link/internal/ld/util.go |  2 +-
  2 files changed, 6 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 8cbdd58b3a..ec6ceb82ce 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -101,29 +101,6 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 		return
+ 	}
+ 
+-	// Find cgo_export symbols. They are roots in the deadcode pass.
+-	for _, f := range directives {
+-		switch f[0] {
+-		case "cgo_export_static", "cgo_export_dynamic":
+-			if len(f) < 2 || len(f) > 3 {
+-				continue
+-			}
+-			local := f[1]
+-			switch ctxt.BuildMode {
+-			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
+-				if local == "main" {
+-					continue
+-				}
+-			}
+-			local = expandpkg(local, pkg)
+-			if f[0] == "cgo_export_static" {
+-				ctxt.cgo_export_static[local] = true
+-			} else {
+-				ctxt.cgo_export_dynamic[local] = true
+-			}
+-		}
+-	}
+-
+ 	// Record the directives. We'll process them later after Symbols are created.
+ 	ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
+ }
+@@ -254,11 +231,16 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
+ 				return
+ 			}
+ 
++			// Mark exported symbols and also add them to
++			// the lists used for roots in the deadcode pass.
+ 			if f[0] == "cgo_export_static" {
+ 				l.SetAttrCgoExportStatic(s, true)
++				ctxt.cgo_export_static[local] = true
+ 			} else {
+ 				l.SetAttrCgoExportDynamic(s, true)
++				ctxt.cgo_export_dynamic[local] = true
+ 			}
++
+ 			continue
+ 
+ 		case "cgo_dynamic_linker":
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index 9228ed163d..779f4988b6 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -57,7 +57,7 @@ func afterErrorAction() {
+ // Logging an error means that on exit cmd/link will delete any
+ // output file and return a non-zero error code.
+ //
+-// TODO: remove. Use ctxt.Errof instead.
++// TODO: remove. Use ctxt.Errorf instead.
+ // All remaining calls use nil as first arg.
+ func Errorf(dummy *int, format string, args ...interface{}) {
+ 	format += "\n"

@@ -7,6 +7,46 @@ Date:   Sat Dec 21 01:22:10 2013 +0100
     R=golang-codereviews, rsc
     CC=golang-codereviews, jas
     https://golang.org/cl/44790043
-
+---
  src/pkg/os/file_plan9.go | 20 +++++++++++++++++---
  1 file changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index 102ad5f892..e6496558ca 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -6,7 +6,6 @@ package os
+ 
+ import (
+ 	"runtime"
+-	"strings"
+ 	"syscall"
+ 	"time"
+ )
+@@ -314,9 +313,24 @@ func Remove(name string) error {
+ 	return nil
+ }
+ 
++// HasPrefix from the strings package.
++func hasPrefix(s, prefix string) bool {
++	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
++}
++
++// Variant of LastIndex from the strings package.
++func lastIndex(s string, sep byte) int {
++	for i := len(s) - 1; i >= 0; i-- {
++		if s[i] == sep {
++			return i
++		}
++	}
++	return -1
++}
++
+ func rename(oldname, newname string) error {
+-	dirname := oldname[:strings.LastIndex(oldname, "/")+1]
+-	if strings.HasPrefix(newname, dirname) {
++	dirname := oldname[:lastIndex(oldname, '/')+1]
++	if hasPrefix(newname, dirname) {
+ 		newname = newname[len(dirname):]
+ 	}
+ 

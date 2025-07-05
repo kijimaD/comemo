@@ -7,6 +7,17 @@ Date:   Tue Nov 18 19:36:36 2008 -0800
     R=rsc
     OCL=19567
     CL=19567
-
+---
  src/cmd/gotest/gotest | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 8c73e4e337..1980dc6850 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -69,4 +69,4 @@ trap "rm -f _testmain.go _testmain.6 6.out" 0 1 2 3 14 15
+ 
+ 6g _testmain.go
+ 6l _testmain.6
+-6.out "$@"
++./6.out "$@"

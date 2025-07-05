@@ -15,7 +15,7 @@ Date:   Thu Mar 23 13:57:47 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/typexpr.go          | 10 +++++++---
  src/go/types/typexpr.go                             | 10 +++++++---
  src/internal/types/testdata/check/decls0.go         |  2 +-
@@ -24,3 +24,122 @@ Date:   Thu Mar 23 13:57:47 2023 -0700
  test/fixedbugs/issue49814.go                        |  4 ++--
  test/fixedbugs/issue5609.go                         |  2 +-
  7 files changed, 30 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 9fe9c17803..d85e7beedd 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -503,13 +503,17 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
+ 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
+ 					return n
+ 				}
+-				check.errorf(&x, InvalidArrayLen, "invalid array length %s", &x)
+-				return -1
+ 			}
+ 		}
+ 	}
+ 
+-	check.errorf(&x, InvalidArrayLen, "array length %s must be integer", &x)
++	var msg string
++	if isInteger(x.typ) {
++		msg = "invalid array length %s"
++	} else {
++		msg = "array length %s must be integer"
++	}
++	check.errorf(&x, InvalidArrayLen, msg, &x)
+ 	return -1
+ }
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 861290098d..b619eccf0f 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -494,13 +494,17 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
+ 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
+ 					return n
+ 				}
+-				check.errorf(&x, InvalidArrayLen, "invalid array length %s", &x)
+-				return -1
+ 			}
+ 		}
+ 	}
+ 
+-	check.errorf(&x, InvalidArrayLen, "array length %s must be integer", &x)
++	var msg string
++	if isInteger(x.typ) {
++		msg = "invalid array length %s"
++	} else {
++		msg = "array length %s must be integer"
++	}
++	check.errorf(&x, InvalidArrayLen, msg, &x)
+ 	return -1
+ }
+ 
+diff --git a/src/internal/types/testdata/check/decls0.go b/src/internal/types/testdata/check/decls0.go
+index 25dc286b77..0b99faab19 100644
+--- a/src/internal/types/testdata/check/decls0.go
++++ b/src/internal/types/testdata/check/decls0.go
+@@ -55,7 +55,7 @@ type (
+ 	// The error message below could be better. At the moment
+ 	// we believe an integer that is too large is not an integer.
+ 	// But at least we get an error.
+-	iA1 [1 /* ERROR "must be integer" */ <<100]int
++	iA1 [1 /* ERROR "invalid array length" */ <<100]int
+ 	iA2 [- /* ERROR "invalid array length" */ 1]complex128
+ 	iA3 ["foo" /* ERROR "must be integer" */ ]string
+ 	iA4 [float64 /* ERROR "must be integer" */ (0)]int
+diff --git a/src/internal/types/testdata/fixedbugs/issue59209.go b/src/internal/types/testdata/fixedbugs/issue59209.go
+new file mode 100644
+index 0000000000..870ae52864
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue59209.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++	_ [1 /* ERROR "invalid array length" */ << 100]int
++	_ [1.0]int
++	_ [1.1 /* ERROR "must be integer" */ ]int
++)
+diff --git a/test/fixedbugs/bug255.go b/test/fixedbugs/bug255.go
+index 184ff2d378..4f6470fab3 100644
+--- a/test/fixedbugs/bug255.go
++++ b/test/fixedbugs/bug255.go
+@@ -13,7 +13,7 @@ var d ["abc"]int // ERROR "invalid array bound|not numeric|must be integer"
+ var e [nil]int   // ERROR "use of untyped nil|invalid array (bound|length)|not numeric|must be constant"
+ // var f [e]int  // ok with Go 1.17 because an error was reported for e; leads to an error for Go 1.18
+ var f [ee]int      // ERROR "undefined|undeclared"
+-var g [1 << 65]int // ERROR "array bound is too large|overflows|must be integer"
++var g [1 << 65]int // ERROR "array bound is too large|overflows|invalid array length"
+ var h [len(a)]int  // ok
+ 
+ func ff() string
+diff --git a/test/fixedbugs/issue49814.go b/test/fixedbugs/issue49814.go
+index 9b9695d95d..067ce42b76 100644
+--- a/test/fixedbugs/issue49814.go
++++ b/test/fixedbugs/issue49814.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ // "must be integer" error is for 32-bit architectures
+-type V [1 << 50]byte // ERROR "larger than address space|must be integer"
++type V [1 << 50]byte // ERROR "larger than address space|invalid array length"
+ 
+-var X [1 << 50]byte // ERROR "larger than address space|must be integer"
++var X [1 << 50]byte // ERROR "larger than address space|invalid array length"
+ 
+ func main() {}
+diff --git a/test/fixedbugs/issue5609.go b/test/fixedbugs/issue5609.go
+index a39d3fb0c6..43ad185778 100644
+--- a/test/fixedbugs/issue5609.go
++++ b/test/fixedbugs/issue5609.go
+@@ -10,4 +10,4 @@ package pkg
+ 
+ const Large uint64 = 18446744073709551615
+ 
+-var foo [Large]uint64 // ERROR "array bound is too large|array bound overflows|array length.*must be integer"
++var foo [Large]uint64 // ERROR "array bound is too large|array bound overflows|invalid array length"

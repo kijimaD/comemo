@@ -12,7 +12,50 @@ Date:   Sat Oct 1 14:01:09 2016 +0200
     Change-Id: I67eb0e81ce74ed57752d0280059f91419f09e93b
     Reviewed-on: https://go-review.googlesource.com/30099
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/strconv/decimal.go   | 6 ++++--
  src/strconv/ftoa_test.go | 3 +++
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/strconv/decimal.go b/src/strconv/decimal.go
+index 5252d6e86e..957acd9891 100644
+--- a/src/strconv/decimal.go
++++ b/src/strconv/decimal.go
+@@ -131,11 +131,13 @@ func rightShift(a *decimal, k uint) {
+ 	}
+ 	a.dp -= r - 1
+ 
++	var mask uint = (1 << k) - 1
++
+ 	// Pick up a digit, put down a digit.
+ 	for ; r < a.nd; r++ {
+ 		c := uint(a.d[r])
+ 		dig := n >> k
+-		n -= dig << k
++		n &= mask
+ 		a.d[w] = byte(dig + '0')
+ 		w++
+ 		n = n*10 + c - '0'
+@@ -144,7 +146,7 @@ func rightShift(a *decimal, k uint) {
+ 	// Put down extra digits.
+ 	for n > 0 {
+ 		dig := n >> k
+-		n -= dig << k
++		n &= mask
+ 		if w < len(a.d) {
+ 			a.d[w] = byte(dig + '0')
+ 			w++
+diff --git a/src/strconv/ftoa_test.go b/src/strconv/ftoa_test.go
+index 1d25242ff3..976bd2c9b8 100644
+--- a/src/strconv/ftoa_test.go
++++ b/src/strconv/ftoa_test.go
+@@ -208,6 +208,9 @@ var ftoaBenches = []struct {
+ 	{"64Fixed2", 123.456, 'e', 3, 64},
+ 	{"64Fixed3", 1.23456e+78, 'e', 3, 64},
+ 	{"64Fixed4", 1.23456e-78, 'e', 3, 64},
++
++	// Trigger slow path (see issue #15672).
++	{"Slowpath64", 622666234635.3213e-320, 'e', -1, 64},
+ }
+ 
+ func BenchmarkFormatFloat(b *testing.B) {

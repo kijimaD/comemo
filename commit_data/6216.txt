@@ -8,9 +8,88 @@ Date:   Thu Sep 9 17:11:51 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2158044
-
+---
  src/cmd/5g/ggen.c | 4 ++++
  src/cmd/6g/ggen.c | 4 ++++
  src/cmd/8g/ggen.c | 4 ++++
  src/cmd/gc/go.y   | 1 +
  4 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 328d3284da..c906064584 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -61,6 +61,8 @@ compile(Node *fn)
+ 
+ 	pl = newplist();
+ 	pl->name = curfn->nname;
++	
++	setlineno(curfn);
+ 
+ 	nodconst(&nod1, types[TINT32], 0);
+ 	ptxt = gins(ATEXT, curfn->nname, &nod1);
+@@ -93,6 +95,8 @@ compile(Node *fn)
+ 		genlist(curfn->exit);
+ 	if(nerrors != 0)
+ 		goto ret;
++	if(curfn->endlineno)
++		lineno = curfn->endlineno;
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index f0aa16cb42..6d005d7ece 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -62,6 +62,8 @@ compile(Node *fn)
+ 	pl = newplist();
+ 	pl->name = curfn->nname;
+ 
++	setlineno(curfn);
++
+ 	nodconst(&nod1, types[TINT32], 0);
+ 	ptxt = gins(ATEXT, curfn->nname, &nod1);
+ 	afunclit(&ptxt->from);
+@@ -83,6 +85,8 @@ compile(Node *fn)
+ 	checklabels();
+ 	if(nerrors != 0)
+ 		goto ret;
++	if(curfn->endlineno)
++		lineno = curfn->endlineno;
+ 
+ 	if(curfn->type->outtuple != 0)
+ 		ginscall(throwreturn, 0);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 5c51833ea2..0c3a8260c2 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -64,6 +64,8 @@ compile(Node *fn)
+ 	pl = newplist();
+ 	pl->name = curfn->nname;
+ 
++	setlineno(curfn);
++
+ 	nodconst(&nod1, types[TINT32], 0);
+ 	ptxt = gins(ATEXT, curfn->nname, &nod1);
+ 	afunclit(&ptxt->from);
+@@ -85,6 +87,8 @@ compile(Node *fn)
+ 	checklabels();
+ 	if(nerrors != 0)
+ 		goto ret;
++	if(curfn->endlineno)
++		lineno = curfn->endlineno;
+ 
+ 	if(curfn->type->outtuple != 0)
+ 		ginscall(throwreturn, 0);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 48b8c711e1..e210fbd2cd 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1100,6 +1100,7 @@ xfndcl:
+ 		if($$ == N)
+ 			break;
+ 		$$->nbody = $3;
++		$$->endlineno = lineno;
+ 		funcbody($$);
+ 	}
+ 

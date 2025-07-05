@@ -14,7 +14,52 @@ Date:   Thu Jul 1 14:25:45 2021 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/escape/escape.go | 8 ++++----
  src/cmd/compile/internal/walk/builtin.go  | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 3ac7ff1ebe..cd56f07b61 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -2013,14 +2013,14 @@ func HeapAllocReason(n ir.Node) string {
+ 		return "too large for stack"
+ 	}
+ 
+-	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Width >= ir.MaxImplicitStackVarSize {
++	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Width > ir.MaxImplicitStackVarSize {
+ 		return "too large for stack"
+ 	}
+ 
+-	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() >= ir.MaxImplicitStackVarSize {
++	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() > ir.MaxImplicitStackVarSize {
+ 		return "too large for stack"
+ 	}
+-	if n.Op() == ir.OCALLPART && typecheck.PartialCallType(n.(*ir.SelectorExpr)).Size() >= ir.MaxImplicitStackVarSize {
++	if n.Op() == ir.OCALLPART && typecheck.PartialCallType(n.(*ir.SelectorExpr)).Size() > ir.MaxImplicitStackVarSize {
+ 		return "too large for stack"
+ 	}
+ 
+@@ -2033,7 +2033,7 @@ func HeapAllocReason(n ir.Node) string {
+ 		if !ir.IsSmallIntConst(r) {
+ 			return "non-constant size"
+ 		}
+-		if t := n.Type(); t.Elem().Width != 0 && ir.Int64Val(r) >= ir.MaxImplicitStackVarSize/t.Elem().Width {
++		if t := n.Type(); t.Elem().Width != 0 && ir.Int64Val(r) > ir.MaxImplicitStackVarSize/t.Elem().Width {
+ 			return "too large for stack"
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 1f08e4d312..14efc05e32 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -489,7 +489,7 @@ func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+ 		base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", n.Type().Elem())
+ 	}
+ 	if n.Esc() == ir.EscNone {
+-		if t.Size() >= ir.MaxImplicitStackVarSize {
++		if t.Size() > ir.MaxImplicitStackVarSize {
+ 			base.Fatalf("large ONEW with EscNone: %v", n)
+ 		}
+ 		return stackTempAddr(init, t)

@@ -7,8 +7,51 @@ Date:   Fri May 29 14:42:24 2009 -0700
     R=r
     OCL=29619
     CL=29619
-
+---
  src/cmd/6g/ggen.c                  | 4 +++-
  test/{bugs => fixedbugs}/bug155.go | 0
  test/golden.out                    | 6 ------
  3 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 06b0f8003f..b92d24ebcd 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -557,13 +557,15 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	Node n1, n2, n3;
+ 	int a;
+ 	Prog *p1;
++	uvlong sc;
+ 
+ 	a = optoas(op, nl->type);
+ 
+ 	if(nr->op == OLITERAL) {
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+-		if(mpgetfix(nr->val.u.xval) >= nl->type->width*8) {
++		sc = mpgetfix(nr->val.u.xval);
++		if(sc >= nl->type->width*8) {
+ 			// large shift gets 2 shifts by width
+ 			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
+ 			gins(a, &n3, &n1);
+diff --git a/test/bugs/bug155.go b/test/fixedbugs/bug155.go
+similarity index 100%
+rename from test/bugs/bug155.go
+rename to test/fixedbugs/bug155.go
+diff --git a/test/golden.out b/test/golden.out
+index 98348e753a..46b4fb2209 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -104,12 +104,6 @@ BUG should compile
+ 5 7
+ BUG: should crash
+ 
+-=========== bugs/bug155.go
+-main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
+-main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
+-main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
+-BUG: bug155
+-
+ =========== bugs/bug156.go
+ bugs/bug156.go:7: constant 18446744073709551615 overflows int64
+ BUG: bug156

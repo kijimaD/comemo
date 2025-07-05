@@ -30,10 +30,226 @@ Date:   Wed Dec 18 20:19:29 2013 +0100
     R=golang-dev, jas, gobot, rsc
     CC=golang-dev
     https://golang.org/cl/40370043
-
+---
  src/liblink/asm5.c  | 36 ++++++++++++++++++------------------
  src/liblink/asm8.c  |  4 ++--
  src/liblink/list5.c |  4 ++--
  src/liblink/obj6.c  |  1 -
  src/liblink/pcln.c  |  2 +-
  5 files changed, 23 insertions(+), 24 deletions(-)
+
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 4501e47f7a..6c744a815a 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -479,8 +479,10 @@ span5(Link *ctxt, LSym *cursym)
+ 		m = o->size;
+ 		// must check literal pool here in case p generates many instructions
+ 		if(ctxt->blitrl){
+-			if(checkpool(ctxt, op, p->as == ACASE ? casesz(ctxt, p) : m))
+-				c = p->pc = scan(ctxt, op, p, c);
++			if(checkpool(ctxt, op, p->as == ACASE ? casesz(ctxt, p) : m)) {
++				p->pc = scan(ctxt, op, p, c);
++				c = p->pc;
++			}
+ 		}
+ 		if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA)) {
+ 			ctxt->diag("zero-width instruction\n%P", p);
+@@ -560,8 +562,6 @@ span5(Link *ctxt, LSym *cursym)
+ 		cursym->size = c;
+ 	} while(bflag);
+ 
+-	c += c&4;
+-
+ 	/*
+ 	 * lay out the code.  all the pc-relative code references,
+ 	 * even cross-function, are resolved now;
+@@ -617,7 +617,7 @@ flushpool(Link *ctxt, Prog *p, int skip, int force)
+ 
+ 	if(ctxt->blitrl) {
+ 		if(skip){
+-			if(0 && skip==1)print("note: flush literal pool at %ux: len=%ud ref=%ux\n", p->pc+4, pool.size, pool.start);
++			if(0 && skip==1)print("note: flush literal pool at %llux: len=%ud ref=%ux\n", p->pc+4, pool.size, pool.start);
+ 			q = ctxt->arch->prg();
+ 			q->as = AB;
+ 			q->to.type = D_BRANCH;
+@@ -1212,7 +1212,7 @@ buildop(Link *ctxt)
+ 	}
+ }
+ 
+-void
++static void
+ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out, LSym *gmsym)
+ {
+ 	int32 o1, o2, o3, o4, o5, o6, v;
+@@ -2082,7 +2082,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ #endif
+ }
+ 
+-int32
++static int32
+ oprrr(Link *ctxt, int a, int sc)
+ {
+ 	int32 o;
+@@ -2196,7 +2196,7 @@ oprrr(Link *ctxt, int a, int sc)
+ 	return 0;
+ }
+ 
+-int32
++static int32
+ opbra(Link *ctxt, int a, int sc)
+ {
+ 
+@@ -2231,7 +2231,7 @@ opbra(Link *ctxt, int a, int sc)
+ 	return 0;
+ }
+ 
+-int32
++static int32
+ olr(Link *ctxt, int32 v, int b, int r, int sc)
+ {
+ 	int32 o;
+@@ -2260,7 +2260,7 @@ olr(Link *ctxt, int32 v, int b, int r, int sc)
+ 	return o;
+ }
+ 
+-int32
++static int32
+ olhr(Link *ctxt, int32 v, int b, int r, int sc)
+ {
+ 	int32 o;
+@@ -2285,7 +2285,7 @@ olhr(Link *ctxt, int32 v, int b, int r, int sc)
+ 	return o;
+ }
+ 
+-int32
++static int32
+ osr(Link *ctxt, int a, int r, int32 v, int b, int sc)
+ {
+ 	int32 o;
+@@ -2296,7 +2296,7 @@ osr(Link *ctxt, int a, int r, int32 v, int b, int sc)
+ 	return o;
+ }
+ 
+-int32
++static int32
+ oshr(Link *ctxt, int r, int32 v, int b, int sc)
+ {
+ 	int32 o;
+@@ -2306,33 +2306,33 @@ oshr(Link *ctxt, int r, int32 v, int b, int sc)
+ }
+ 
+ 
+-int32
++static int32
+ osrr(Link *ctxt, int r, int i, int b, int sc)
+ {
+ 
+ 	return olr(ctxt, i, b, r, sc) ^ ((1<<25) | (1<<20));
+ }
+ 
+-int32
++static int32
+ oshrr(Link *ctxt, int r, int i, int b, int sc)
+ {
+ 	return olhr(ctxt, i, b, r, sc) ^ ((1<<22) | (1<<20));
+ }
+ 
+-int32
++static int32
+ olrr(Link *ctxt, int i, int b, int r, int sc)
+ {
+ 
+ 	return olr(ctxt, i, b, r, sc) ^ (1<<25);
+ }
+ 
+-int32
++static int32
+ olhrr(Link *ctxt, int i, int b, int r, int sc)
+ {
+ 	return olhr(ctxt, i, b, r, sc) ^ (1<<22);
+ }
+ 
+-int32
++static int32
+ ofsr(Link *ctxt, int a, int r, int32 v, int b, int sc, Prog *p)
+ {
+ 	int32 o;
+@@ -2369,7 +2369,7 @@ ofsr(Link *ctxt, int a, int r, int32 v, int b, int sc, Prog *p)
+ 	return o;
+ }
+ 
+-int32
++static int32
+ omvl(Link *ctxt, Prog *p, Addr *a, int dr)
+ {
+ 	int32 v, o1;
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index e2ff530cca..b7d03743d1 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -1263,7 +1263,7 @@ span8(Link *ctxt, LSym *s)
+ 	s->size = c;
+ 
+ 	if(0 /* debug['a'] > 1 */) {
+-		print("span1 %s %d (%d tries)\n %.6ux", s->name, s->size, n, 0);
++		print("span1 %s %lld (%d tries)\n %.6ux", s->name, s->size, n, 0);
+ 		for(i=0; i<s->np; i++) {
+ 			print(" %.2ux", s->p[i]);
+ 			if(i%16 == 15)
+@@ -1276,7 +1276,7 @@ span8(Link *ctxt, LSym *s)
+ 			Reloc *r;
+ 			
+ 			r = &s->r[i];
+-			print(" rel %#.4ux/%d %s%+d\n", r->off, r->siz, r->sym->name, r->add);
++			print(" rel %#.4ux/%d %s%+lld\n", r->off, r->siz, r->sym->name, r->add);
+ 		}
+ 	}
+ }
+diff --git a/src/liblink/list5.c b/src/liblink/list5.c
+index cc6dd43991..5a50a9329e 100644
+--- a/src/liblink/list5.c
++++ b/src/liblink/list5.c
+@@ -150,7 +150,7 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_CONST2:
+-		sprint(str, "$%d-%d", a->offset, a->offset2);
++		sprint(str, "$%lld-%d", a->offset, a->offset2);
+ 		break;
+ 
+ 	case D_SHIFT:
+@@ -307,7 +307,7 @@ Nconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_NONE:
+-		sprint(str, "%d", a->offset);
++		sprint(str, "%lld", a->offset);
+ 		break;
+ 
+ 	case D_EXTERN:
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 802afaa835..6bb65a2869 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -647,7 +647,6 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ 		q1->pcond = p;
+ 	}
+ 
+-	q = nil;
+ 	q1 = nil;
+ 	if(framesize <= StackSmall) {
+ 		// small stack: SP <= stackguard
+diff --git a/src/liblink/pcln.c b/src/liblink/pcln.c
+index aca050602b..28cff90326 100644
+--- a/src/liblink/pcln.c
++++ b/src/liblink/pcln.c
+@@ -29,7 +29,7 @@ addvarint(Link *ctxt, Pcdata *d, uint32 val)
+ 	p = d->p + d->n;
+ 	for(v = val; v >= 0x80; v >>= 7)
+ 		*p++ = v | 0x80;
+-	*p++ = v;
++	*p = v;
+ 	d->n += n;
+ }
+ 

@@ -33,9 +33,239 @@ Date:   Thu Dec 1 13:39:39 2022 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/importer/gcimporter.go | 65 ++++++++++++++++---------
  src/go/internal/gcimporter/gcimporter.go        | 62 +++++++++++++++--------
  src/internal/goroot/importcfg.go                |  8 +--
  src/internal/testenv/testenv.go                 |  2 +-
  4 files changed, 91 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index e479bd12d3..5d948f03c8 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -7,38 +7,59 @@ package importer
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"fmt"
+ 	"go/build"
+-	"internal/goroot"
+ 	"internal/pkgbits"
+ 	"io"
+ 	"os"
+-	"path"
++	"os/exec"
+ 	"path/filepath"
+ 	"strings"
++	"sync"
+ 
+ 	"cmd/compile/internal/types2"
+ )
+ 
+-func lookupGorootExport(pkgpath, srcRoot, srcDir string) (string, bool) {
+-	pkgpath = filepath.ToSlash(pkgpath)
+-	m, err := goroot.PkgfileMap()
+-	if err != nil {
+-		return "", false
+-	}
+-	if export, ok := m[pkgpath]; ok {
+-		return export, true
+-	}
+-	vendorPrefix := "vendor"
+-	if strings.HasPrefix(srcDir, filepath.Join(srcRoot, "cmd")) {
+-		vendorPrefix = path.Join("cmd", vendorPrefix)
++var exportMap sync.Map // package dir → func() (string, bool)
++
++// lookupGorootExport returns the location of the export data
++// (normally found in the build cache, but located in GOROOT/pkg
++// in prior Go releases) for the package located in pkgDir.
++//
++// (We use the package's directory instead of its import path
++// mainly to simplify handling of the packages in src/vendor
++// and cmd/vendor.)
++func lookupGorootExport(pkgDir string) (string, bool) {
++	f, ok := exportMap.Load(pkgDir)
++	if !ok {
++		var (
++			listOnce   sync.Once
++			exportPath string
++		)
++		f, _ = exportMap.LoadOrStore(pkgDir, func() (string, bool) {
++			listOnce.Do(func() {
++				cmd := exec.Command("go", "list", "-export", "-f", "{{.Export}}", pkgDir)
++				cmd.Dir = build.Default.GOROOT
++				var output []byte
++				output, err := cmd.Output()
++				if err != nil {
++					return
++				}
++
++				exports := strings.Split(string(bytes.TrimSpace(output)), "\n")
++				if len(exports) != 1 {
++					return
++				}
++
++				exportPath = exports[0]
++			})
++
++			return exportPath, exportPath != ""
++		})
+ 	}
+-	pkgpath = path.Join(vendorPrefix, pkgpath)
+-	if false { // for debugging
+-		fmt.Fprintln(os.Stderr, "looking up ", pkgpath)
+-	}
+-	export, ok := m[pkgpath]
+-	return export, ok
++
++	return f.(func() (string, bool))()
+ }
+ 
+ var pkgExts = [...]string{".a", ".o"} // a file from the build cache will have no extension
+@@ -64,8 +85,8 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
+ 		if bp.PkgObj == "" {
+ 			var ok bool
+-			if bp.Goroot {
+-				filename, ok = lookupGorootExport(path, bp.SrcRoot, srcDir)
++			if bp.Goroot && bp.Dir != "" {
++				filename, ok = lookupGorootExport(bp.Dir)
+ 			}
+ 			if !ok {
+ 				id = path // make sure we have an id to print in error message
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 614fe52caf..2140a9f98c 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -7,38 +7,62 @@ package gcimporter // import "go/internal/gcimporter"
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"fmt"
+ 	"go/build"
+ 	"go/token"
+ 	"go/types"
+-	"internal/goroot"
+ 	"internal/pkgbits"
+ 	"io"
+ 	"os"
+-	"path"
++	"os/exec"
+ 	"path/filepath"
+ 	"strings"
++	"sync"
+ )
+ 
+ // debugging/development support
+ const debug = false
+ 
+-func lookupGorootExport(pkgpath, srcRoot, srcDir string) (string, bool) {
+-	pkgpath = filepath.ToSlash(pkgpath)
+-	m, err := goroot.PkgfileMap()
+-	if err != nil {
+-		return "", false
+-	}
+-	if export, ok := m[pkgpath]; ok {
+-		return export, true
++var exportMap sync.Map // package dir → func() (string, bool)
++
++// lookupGorootExport returns the location of the export data
++// (normally found in the build cache, but located in GOROOT/pkg
++// in prior Go releases) for the package located in pkgDir.
++//
++// (We use the package's directory instead of its import path
++// mainly to simplify handling of the packages in src/vendor
++// and cmd/vendor.)
++func lookupGorootExport(pkgDir string) (string, bool) {
++	f, ok := exportMap.Load(pkgDir)
++	if !ok {
++		var (
++			listOnce   sync.Once
++			exportPath string
++		)
++		f, _ = exportMap.LoadOrStore(pkgDir, func() (string, bool) {
++			listOnce.Do(func() {
++				cmd := exec.Command("go", "list", "-export", "-f", "{{.Export}}", pkgDir)
++				cmd.Dir = build.Default.GOROOT
++				var output []byte
++				output, err := cmd.Output()
++				if err != nil {
++					return
++				}
++
++				exports := strings.Split(string(bytes.TrimSpace(output)), "\n")
++				if len(exports) != 1 {
++					return
++				}
++
++				exportPath = exports[0]
++			})
++
++			return exportPath, exportPath != ""
++		})
+ 	}
+-	vendorPrefix := "vendor"
+-	if strings.HasPrefix(srcDir, filepath.Join(srcRoot, "cmd")) {
+-		vendorPrefix = path.Join("cmd", vendorPrefix)
+-	}
+-	pkgpath = path.Join(vendorPrefix, pkgpath)
+-	export, ok := m[pkgpath]
+-	return export, ok
++
++	return f.(func() (string, bool))()
+ }
+ 
+ var pkgExts = [...]string{".a", ".o"} // a file from the build cache will have no extension
+@@ -64,8 +88,8 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
+ 		if bp.PkgObj == "" {
+ 			var ok bool
+-			if bp.Goroot {
+-				filename, ok = lookupGorootExport(path, bp.SrcRoot, srcDir)
++			if bp.Goroot && bp.Dir != "" {
++				filename, ok = lookupGorootExport(bp.Dir)
+ 			}
+ 			if !ok {
+ 				id = path // make sure we have an id to print in error message
+diff --git a/src/internal/goroot/importcfg.go b/src/internal/goroot/importcfg.go
+index 89f58c5d3e..e324073746 100644
+--- a/src/internal/goroot/importcfg.go
++++ b/src/internal/goroot/importcfg.go
+@@ -24,9 +24,7 @@ func Importcfg() (string, error) {
+ 	}
+ 	fmt.Fprintf(&icfg, "# import config")
+ 	for importPath, export := range m {
+-		if importPath != "unsafe" && export != "" { // unsafe
+-			fmt.Fprintf(&icfg, "\npackagefile %s=%s", importPath, export)
+-		}
++		fmt.Fprintf(&icfg, "\npackagefile %s=%s", importPath, export)
+ 	}
+ 	s := icfg.String()
+ 	return s, nil
+@@ -58,7 +56,9 @@ func PkgfileMap() (map[string]string, error) {
+ 				return
+ 			}
+ 			importPath, export := sp[0], sp[1]
+-			m[importPath] = export
++			if export != "" {
++				m[importPath] = export
++			}
+ 		}
+ 		stdlibPkgfileMap = m
+ 	})
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 6190000d02..6a28b25278 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -357,7 +357,7 @@ func WriteImportcfg(t testing.TB, dstPath string, additionalPackageFiles map[str
+ 	if err != nil {
+ 		t.Fatalf("preparing the importcfg failed: %s", err)
+ 	}
+-	os.WriteFile(dstPath, []byte(importcfg), 0655)
++	err = os.WriteFile(dstPath, []byte(importcfg), 0655)
+ 	if err != nil {
+ 		t.Fatalf("writing the importcfg failed: %s", err)
+ 	}

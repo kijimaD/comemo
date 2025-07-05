@@ -9,6 +9,22 @@ Date:   Mon Apr 30 17:00:24 2012 -0400
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6040046
-
+---
  src/cmd/go/run.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 94cd592969..6043b7e202 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -49,6 +49,10 @@ func runRun(cmd *Command, args []string) {
+ 	if p.Error != nil {
+ 		fatalf("%s", p.Error)
+ 	}
++	for _, err := range p.DepsErrors {
++		errorf("%s", err)
++	}
++	exitIfErrors()
+ 	if p.Name != "main" {
+ 		fatalf("go run: cannot run non-main package")
+ 	}

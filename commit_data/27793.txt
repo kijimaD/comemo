@@ -11,7 +11,7 @@ Date:   Tue Apr 12 23:18:47 2016 +0300
     Run-TryBot: Shahar Kohanim <skohanim@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 10 +++++-----
  src/cmd/link/internal/ld/dwarf.go    | 16 ++++++++--------
  src/cmd/link/internal/ld/lib.go      | 16 ++++++++--------
@@ -19,3 +19,222 @@ Date:   Tue Apr 12 23:18:47 2016 +0300
  src/cmd/link/internal/ld/objfile.go  |  4 ++--
  src/cmd/link/internal/ld/pcln.go     | 10 +++++-----
  6 files changed, 30 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 83e4cdc077..51fae02ef0 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -272,8 +272,8 @@ func (d *deadcodepass) flood() {
+ 			if Debug['v'] > 1 {
+ 				fmt.Fprintf(d.ctxt.Bso, "marktext %s\n", s.Name)
+ 			}
+-			if s.Pcln != nil {
+-				for _, a := range s.Pcln.Autom {
++			if s.FuncInfo != nil {
++				for _, a := range s.FuncInfo.Autom {
+ 					d.mark(a.Gotype, s)
+ 				}
+ 			}
+@@ -335,9 +335,9 @@ func (d *deadcodepass) flood() {
+ 			d.markableMethods = append(d.markableMethods, methods...)
+ 		}
+ 
+-		if s.Pcln != nil {
+-			for i := range s.Pcln.Funcdata {
+-				d.mark(s.Pcln.Funcdata[i], s)
++		if s.FuncInfo != nil {
++			for i := range s.FuncInfo.Funcdata {
++				d.mark(s.FuncInfo.Funcdata[i], s)
+ 			}
+ 		}
+ 		d.mark(s.Gotype, s)
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 82689988c5..b1208b63a8 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1345,8 +1345,8 @@ func finddebugruntimepath(s *LSym) {
+ 		return
+ 	}
+ 
+-	for i := range s.Pcln.File {
+-		f := s.Pcln.File[i]
++	for i := range s.FuncInfo.File {
++		f := s.FuncInfo.File[i]
+ 		if i := strings.Index(f.Name, "runtime/runtime.go"); i >= 0 {
+ 			gdbscript = f.Name[:i] + "runtime/runtime-gdb.py"
+ 			break
+@@ -1514,14 +1514,14 @@ func writelines(prev *LSym) *LSym {
+ 			newattr(dwfunc, DW_AT_external, DW_CLS_FLAG, 1, 0)
+ 		}
+ 
+-		if s.Pcln == nil {
++		if s.FuncInfo == nil {
+ 			continue
+ 		}
+ 
+ 		finddebugruntimepath(s)
+ 
+-		pciterinit(Ctxt, &pcfile, &s.Pcln.Pcfile)
+-		pciterinit(Ctxt, &pcline, &s.Pcln.Pcline)
++		pciterinit(Ctxt, &pcfile, &s.FuncInfo.Pcfile)
++		pciterinit(Ctxt, &pcline, &s.FuncInfo.Pcline)
+ 		epc = pc
+ 		for pcfile.done == 0 && pcline.done == 0 {
+ 			if epc-s.Value >= int64(pcfile.nextpc) {
+@@ -1556,7 +1556,7 @@ func writelines(prev *LSym) *LSym {
+ 			dt, da int
+ 			offs   int64
+ 		)
+-		for _, a := range s.Pcln.Autom {
++		for _, a := range s.FuncInfo.Autom {
+ 			switch a.Name {
+ 			case obj.A_AUTO:
+ 				dt = DW_ABRV_AUTO
+@@ -1698,14 +1698,14 @@ func writeframes(prev *LSym) *LSym {
+ 	var pcsp Pciter
+ 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
+ 		s := Ctxt.Cursym
+-		if s.Pcln == nil {
++		if s.FuncInfo == nil {
+ 			continue
+ 		}
+ 
+ 		// Emit a FDE, Section 6.4.1.
+ 		// First build the section contents into a byte buffer.
+ 		deltaBuf = deltaBuf[:0]
+-		for pciterinit(Ctxt, &pcsp, &s.Pcln.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
++		for pciterinit(Ctxt, &pcsp, &s.FuncInfo.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
+ 			nextpc := pcsp.nextpc
+ 
+ 			// pciterinit goes up to the end of the function,
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index db34e68404..bdcc84a129 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1710,7 +1710,7 @@ func stkcheck(up *Chain, depth int) int {
+ 		return -1
+ 	}
+ 
+-	if s.Attr.External() || s.Pcln == nil {
++	if s.Attr.External() || s.FuncInfo == nil {
+ 		// external function.
+ 		// should never be called directly.
+ 		// only diagnose the direct caller.
+@@ -1748,8 +1748,8 @@ func stkcheck(up *Chain, depth int) int {
+ 		}
+ 		// Raise limit to allow frame.
+ 		locals := int32(0)
+-		if s.Pcln != nil {
+-			locals = s.Pcln.Locals
++		if s.FuncInfo != nil {
++			locals = s.FuncInfo.Locals
+ 		}
+ 		limit = int(obj.StackLimit+locals) + int(Ctxt.FixedFrameSize())
+ 	}
+@@ -1761,7 +1761,7 @@ func stkcheck(up *Chain, depth int) int {
+ 	var ch1 Chain
+ 	var pcsp Pciter
+ 	var r *Reloc
+-	for pciterinit(Ctxt, &pcsp, &s.Pcln.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
++	for pciterinit(Ctxt, &pcsp, &s.FuncInfo.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
+ 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
+ 
+ 		// Check stack size in effect for this span.
+@@ -1983,16 +1983,16 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), s.Gotype)
+ 
+ 		locals := int32(0)
+-		if s.Pcln != nil {
+-			locals = s.Pcln.Locals
++		if s.FuncInfo != nil {
++			locals = s.FuncInfo.Locals
+ 		}
+ 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
+ 		put(nil, ".frame", 'm', int64(locals)+int64(SysArch.PtrSize), 0, 0, nil)
+ 
+-		if s.Pcln == nil {
++		if s.FuncInfo == nil {
+ 			continue
+ 		}
+-		for _, a := range s.Pcln.Autom {
++		for _, a := range s.FuncInfo.Autom {
+ 			// Emit a or p according to actual offset, even if label is wrong.
+ 			// This avoids negative offsets, which cannot be encoded.
+ 			if a.Name != obj.A_AUTO && a.Name != obj.A_PARAM {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 93454fb4b2..b0bca4300f 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -65,7 +65,7 @@ type LSym struct {
+ 	Dynimplib   string
+ 	Dynimpvers  string
+ 	Sect        *Section
+-	Pcln        *Pcln
++	FuncInfo    *FuncInfo
+ 	P           []byte
+ 	R           []Reloc
+ }
+@@ -217,7 +217,7 @@ type Library struct {
+ 	hash   []byte
+ }
+ 
+-type Pcln struct {
++type FuncInfo struct {
+ 	Args        int32
+ 	Locals      int32
+ 	Autom       []Auto
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index eacccb59fb..6826737cae 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -331,8 +331,8 @@ overwrite:
+ 	}
+ 
+ 	if s.Type == obj.STEXT {
+-		s.Pcln = new(Pcln)
+-		pc := s.Pcln
++		s.FuncInfo = new(FuncInfo)
++		pc := s.FuncInfo
+ 
+ 		pc.Args = r.readInt32()
+ 		pc.Locals = r.readInt32()
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 3ef52444af..74ef8c2929 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -204,7 +204,7 @@ func container(s *LSym) int {
+ // pclntab initializes the pclntab symbol with
+ // runtime function and file name information.
+ 
+-var pclntab_zpcln Pcln
++var pclntab_zpcln FuncInfo
+ 
+ // These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
+ var pclntabNfunc int32
+@@ -255,13 +255,13 @@ func pclntab() {
+ 	var i int32
+ 	var it Pciter
+ 	var off int32
+-	var pcln *Pcln
++	var pcln *FuncInfo
+ 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
+ 		last = Ctxt.Cursym
+ 		if container(Ctxt.Cursym) != 0 {
+ 			continue
+ 		}
+-		pcln = Ctxt.Cursym.Pcln
++		pcln = Ctxt.Cursym.FuncInfo
+ 		if pcln == nil {
+ 			pcln = &pclntab_zpcln
+ 		}
+@@ -294,8 +294,8 @@ func pclntab() {
+ 		// args int32
+ 		// TODO: Move into funcinfo.
+ 		args := uint32(0)
+-		if Ctxt.Cursym.Pcln != nil {
+-			args = uint32(Ctxt.Cursym.Pcln.Args)
++		if Ctxt.Cursym.FuncInfo != nil {
++			args = uint32(Ctxt.Cursym.FuncInfo.Args)
+ 		}
+ 		off = int32(setuint32(Ctxt, ftab, int64(off), args))
+ 

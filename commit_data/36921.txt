@@ -13,7 +13,26 @@ Date:   Mon Jun 11 11:56:45 2018 +0200
     Change-Id: Ib9a8eb409554848285fc88363dbb04ed9d6d9eb0
     Reviewed-on: https://go-review.googlesource.com/117855
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  lib/time/update.bash  |   4 ++--
  lib/time/zoneinfo.zip | Bin 364985 -> 365101 bytes
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index 26ad79d52d..629e74fce8 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -8,8 +8,8 @@
+ # Consult https://www.iana.org/time-zones for the latest versions.
+ 
+ # Versions to use.
+-CODE=2017c
+-DATA=2017c
++CODE=2018e
++DATA=2018e
+ 
+ set -e
+ rm -rf work
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+index 0703e08e36..08dca21418 100644
+Binary files a/lib/time/zoneinfo.zip and b/lib/time/zoneinfo.zip differ

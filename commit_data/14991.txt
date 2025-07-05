@@ -12,7 +12,7 @@ Date:   Sun Jan 27 00:24:09 2013 +0100
     R=golang-dev, dave, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/7196052
-
+---
  src/pkg/debug/gosym/pclntab_test.go              |  12 +-
  src/pkg/exp/locale/collate/build/builder_test.go |   5 +-
  src/pkg/expvar/expvar_test.go                    |   5 +
@@ -23,3 +23,420 @@ Date:   Sun Jan 27 00:24:09 2013 +0100
  src/pkg/net/http/serve_test.go                   |   5 +-
  src/pkg/os/exec/exec_test.go                     |  13 ++-
  9 files changed, 124 insertions(+), 93 deletions(-)
+
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index 5f2242eba0..20acba612f 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -52,6 +52,14 @@ func dotest() bool {
+ 	return true
+ }
+ 
++func endtest() {
++	if pclineTempDir != "" {
++		os.RemoveAll(pclineTempDir)
++		pclineTempDir = ""
++		pclinetestBinary = ""
++	}
++}
++
+ func getTable(t *testing.T) *Table {
+ 	f, tab := crack(os.Args[0], t)
+ 	f.Close()
+@@ -95,6 +103,7 @@ func TestLineFromAline(t *testing.T) {
+ 	if !dotest() {
+ 		return
+ 	}
++	defer endtest()
+ 
+ 	tab := getTable(t)
+ 
+@@ -142,6 +151,7 @@ func TestLineAline(t *testing.T) {
+ 	if !dotest() {
+ 		return
+ 	}
++	defer endtest()
+ 
+ 	tab := getTable(t)
+ 
+@@ -183,7 +193,7 @@ func TestPCLine(t *testing.T) {
+ 	if !dotest() {
+ 		return
+ 	}
+-	defer os.RemoveAll(pclineTempDir)
++	defer endtest()
+ 
+ 	f, tab := crack(pclinetestBinary, t)
+ 	text := f.Section(".text")
+diff --git a/src/pkg/exp/locale/collate/build/builder_test.go b/src/pkg/exp/locale/collate/build/builder_test.go
+index f163050a2d..568309798e 100644
+--- a/src/pkg/exp/locale/collate/build/builder_test.go
++++ b/src/pkg/exp/locale/collate/build/builder_test.go
+@@ -89,7 +89,10 @@ var convLargeTests = []convertTest{
+ 
+ func TestConvertLarge(t *testing.T) {
+ 	for i, tt := range convLargeTests {
+-		e := &entry{elems: tt.in}
++		e := new(entry)
++		for _, ce := range tt.in {
++			e.elems = append(e.elems, makeRawCE(ce.w, ce.ccc))
++		}
+ 		elems, err := convertLargeWeights(e.elems)
+ 		if tt.err {
+ 			if err == nil {
+diff --git a/src/pkg/expvar/expvar_test.go b/src/pkg/expvar/expvar_test.go
+index bbd9dd8d6e..572c62beed 100644
+--- a/src/pkg/expvar/expvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -18,6 +18,7 @@ func RemoveAll() {
+ }
+ 
+ func TestInt(t *testing.T) {
++	RemoveAll()
+ 	reqs := NewInt("requests")
+ 	if reqs.i != 0 {
+ 		t.Errorf("reqs.i = %v, want 0", reqs.i)
+@@ -43,6 +44,7 @@ func TestInt(t *testing.T) {
+ }
+ 
+ func TestFloat(t *testing.T) {
++	RemoveAll()
+ 	reqs := NewFloat("requests-float")
+ 	if reqs.f != 0.0 {
+ 		t.Errorf("reqs.f = %v, want 0", reqs.f)
+@@ -68,6 +70,7 @@ func TestFloat(t *testing.T) {
+ }
+ 
+ func TestString(t *testing.T) {
++	RemoveAll()
+ 	name := NewString("my-name")
+ 	if name.s != "" {
+ 		t.Errorf("name.s = %q, want \"\"", name.s)
+@@ -84,6 +87,7 @@ func TestString(t *testing.T) {
+ }
+ 
+ func TestMapCounter(t *testing.T) {
++	RemoveAll()
+ 	colors := NewMap("bike-shed-colors")
+ 
+ 	colors.Add("red", 1)
+@@ -123,6 +127,7 @@ func TestMapCounter(t *testing.T) {
+ }
+ 
+ func TestFunc(t *testing.T) {
++	RemoveAll()
+ 	var x interface{} = []string{"a", "b"}
+ 	f := Func(func() interface{} { return x })
+ 	if s, exp := f.String(), `["a","b"]`; s != exp {
+diff --git a/src/pkg/flag/flag_test.go b/src/pkg/flag/flag_test.go
+index 7a26fffd8d..ddd54b2777 100644
+--- a/src/pkg/flag/flag_test.go
++++ b/src/pkg/flag/flag_test.go
+@@ -15,17 +15,6 @@ import (
+ 	"time"
+ )
+ 
+-var (
+-	test_bool     = Bool("test_bool", false, "bool value")
+-	test_int      = Int("test_int", 0, "int value")
+-	test_int64    = Int64("test_int64", 0, "int64 value")
+-	test_uint     = Uint("test_uint", 0, "uint value")
+-	test_uint64   = Uint64("test_uint64", 0, "uint64 value")
+-	test_string   = String("test_string", "0", "string value")
+-	test_float64  = Float64("test_float64", 0, "float64 value")
+-	test_duration = Duration("test_duration", 0, "time.Duration value")
+-)
+-
+ func boolString(s string) string {
+ 	if s == "0" {
+ 		return "false"
+@@ -34,6 +23,16 @@ func boolString(s string) string {
+ }
+ 
+ func TestEverything(t *testing.T) {
++	ResetForTesting(nil)
++	Bool("test_bool", false, "bool value")
++	Int("test_int", 0, "int value")
++	Int64("test_int64", 0, "int64 value")
++	Uint("test_uint", 0, "uint value")
++	Uint64("test_uint64", 0, "uint64 value")
++	String("test_string", "0", "string value")
++	Float64("test_float64", 0, "float64 value")
++	Duration("test_duration", 0, "time.Duration value")
++
+ 	m := make(map[string]*Flag)
+ 	desired := "0"
+ 	visitor := func(f *Flag) {
+diff --git a/src/pkg/go/parser/error_test.go b/src/pkg/go/parser/error_test.go
+index 377c8b80cb..8d06d1c843 100644
+--- a/src/pkg/go/parser/error_test.go
++++ b/src/pkg/go/parser/error_test.go
+@@ -34,9 +34,11 @@ import (
+ 
+ const testdata = "testdata"
+ 
++var fsetErrs *token.FileSet
++
+ // getFile assumes that each filename occurs at most once
+ func getFile(filename string) (file *token.File) {
+-	fset.Iterate(func(f *token.File) bool {
++	fsetErrs.Iterate(func(f *token.File) bool {
+ 		if f.Name() == filename {
+ 			if file != nil {
+ 				panic(filename + " used multiple times")
+@@ -125,7 +127,7 @@ func compareErrors(t *testing.T, expected map[token.Pos]string, found scanner.Er
+ 	if len(expected) > 0 {
+ 		t.Errorf("%d errors not reported:", len(expected))
+ 		for pos, msg := range expected {
+-			t.Errorf("%s: %s\n", fset.Position(pos), msg)
++			t.Errorf("%s: %s\n", fsetErrs.Position(pos), msg)
+ 		}
+ 	}
+ }
+@@ -137,7 +139,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
+ 		return
+ 	}
+ 
+-	_, err = ParseFile(fset, filename, src, DeclarationErrors)
++	_, err = ParseFile(fsetErrs, filename, src, DeclarationErrors)
+ 	found, ok := err.(scanner.ErrorList)
+ 	if err != nil && !ok {
+ 		t.Error(err)
+@@ -153,6 +155,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
+ }
+ 
+ func TestErrors(t *testing.T) {
++	fsetErrs = token.NewFileSet()
+ 	list, err := ioutil.ReadDir(testdata)
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/pkg/go/types/check_test.go b/src/pkg/go/types/check_test.go
+index 46c00c8663..fe0e279827 100644
+--- a/src/pkg/go/types/check_test.go
++++ b/src/pkg/go/types/check_test.go
+@@ -230,12 +230,17 @@ func checkFiles(t *testing.T, testname string, testfiles []string) {
+ 	}
+ }
+ 
++var testBuiltinsDeclared = false
++
+ func TestCheck(t *testing.T) {
+ 	// Declare builtins for testing.
+ 	// Not done in an init func to avoid an init race with
+ 	// the construction of the Universe var.
+-	def(&Func{Name: "assert", Type: &builtin{_Assert, "assert", 1, false, true}})
+-	def(&Func{Name: "trace", Type: &builtin{_Trace, "trace", 0, true, true}})
++	if !testBuiltinsDeclared {
++		testBuiltinsDeclared = true
++		def(&Func{Name: "assert", Type: &builtin{_Assert, "assert", 1, false, true}})
++		def(&Func{Name: "trace", Type: &builtin{_Trace, "trace", 0, true, true}})
++	}
+ 
+ 	// For easy debugging w/o changing the testing code,
+ 	// if there is a local test file, only test that file.
+diff --git a/src/pkg/net/http/responsewrite_test.go b/src/pkg/net/http/responsewrite_test.go
+index f8e63acf4f..5c10e2161c 100644
+--- a/src/pkg/net/http/responsewrite_test.go
++++ b/src/pkg/net/http/responsewrite_test.go
+@@ -15,83 +15,83 @@ type respWriteTest struct {
+ 	Raw  string
+ }
+ 
+-var respWriteTests = []respWriteTest{
+-	// HTTP/1.0, identity coding; no trailer
+-	{
+-		Response{
+-			StatusCode:    503,
+-			ProtoMajor:    1,
+-			ProtoMinor:    0,
+-			Request:       dummyReq("GET"),
+-			Header:        Header{},
+-			Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+-			ContentLength: 6,
+-		},
++func TestResponseWrite(t *testing.T) {
++	respWriteTests := []respWriteTest{
++		// HTTP/1.0, identity coding; no trailer
++		{
++			Response{
++				StatusCode:    503,
++				ProtoMajor:    1,
++				ProtoMinor:    0,
++				Request:       dummyReq("GET"),
++				Header:        Header{},
++				Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
++				ContentLength: 6,
++			},
+ 
+-		"HTTP/1.0 503 Service Unavailable\r\n" +
+-			"Content-Length: 6\r\n\r\n" +
+-			"abcdef",
+-	},
+-	// Unchunked response without Content-Length.
+-	{
+-		Response{
+-			StatusCode:    200,
+-			ProtoMajor:    1,
+-			ProtoMinor:    0,
+-			Request:       dummyReq("GET"),
+-			Header:        Header{},
+-			Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+-			ContentLength: -1,
++			"HTTP/1.0 503 Service Unavailable\r\n" +
++				"Content-Length: 6\r\n\r\n" +
++				"abcdef",
+ 		},
+-		"HTTP/1.0 200 OK\r\n" +
+-			"\r\n" +
+-			"abcdef",
+-	},
+-	// HTTP/1.1, chunked coding; empty trailer; close
+-	{
+-		Response{
+-			StatusCode:       200,
+-			ProtoMajor:       1,
+-			ProtoMinor:       1,
+-			Request:          dummyReq("GET"),
+-			Header:           Header{},
+-			Body:             ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+-			ContentLength:    6,
+-			TransferEncoding: []string{"chunked"},
+-			Close:            true,
++		// Unchunked response without Content-Length.
++		{
++			Response{
++				StatusCode:    200,
++				ProtoMajor:    1,
++				ProtoMinor:    0,
++				Request:       dummyReq("GET"),
++				Header:        Header{},
++				Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
++				ContentLength: -1,
++			},
++			"HTTP/1.0 200 OK\r\n" +
++				"\r\n" +
++				"abcdef",
+ 		},
++		// HTTP/1.1, chunked coding; empty trailer; close
++		{
++			Response{
++				StatusCode:       200,
++				ProtoMajor:       1,
++				ProtoMinor:       1,
++				Request:          dummyReq("GET"),
++				Header:           Header{},
++				Body:             ioutil.NopCloser(bytes.NewBufferString("abcdef")),
++				ContentLength:    6,
++				TransferEncoding: []string{"chunked"},
++				Close:            true,
++			},
+ 
+-		"HTTP/1.1 200 OK\r\n" +
+-			"Connection: close\r\n" +
+-			"Transfer-Encoding: chunked\r\n\r\n" +
+-			"6\r\nabcdef\r\n0\r\n\r\n",
+-	},
++			"HTTP/1.1 200 OK\r\n" +
++				"Connection: close\r\n" +
++				"Transfer-Encoding: chunked\r\n\r\n" +
++				"6\r\nabcdef\r\n0\r\n\r\n",
++		},
+ 
+-	// Header value with a newline character (Issue 914).
+-	// Also tests removal of leading and trailing whitespace.
+-	{
+-		Response{
+-			StatusCode: 204,
+-			ProtoMajor: 1,
+-			ProtoMinor: 1,
+-			Request:    dummyReq("GET"),
+-			Header: Header{
+-				"Foo": []string{" Bar\nBaz "},
++		// Header value with a newline character (Issue 914).
++		// Also tests removal of leading and trailing whitespace.
++		{
++			Response{
++				StatusCode: 204,
++				ProtoMajor: 1,
++				ProtoMinor: 1,
++				Request:    dummyReq("GET"),
++				Header: Header{
++					"Foo": []string{" Bar\nBaz "},
++				},
++				Body:             nil,
++				ContentLength:    0,
++				TransferEncoding: []string{"chunked"},
++				Close:            true,
+ 			},
+-			Body:             nil,
+-			ContentLength:    0,
+-			TransferEncoding: []string{"chunked"},
+-			Close:            true,
+-		},
+ 
+-		"HTTP/1.1 204 No Content\r\n" +
+-			"Connection: close\r\n" +
+-			"Foo: Bar Baz\r\n" +
+-			"\r\n",
+-	},
+-}
++			"HTTP/1.1 204 No Content\r\n" +
++				"Connection: close\r\n" +
++				"Foo: Bar Baz\r\n" +
++				"\r\n",
++		},
++	}
+ 
+-func TestResponseWrite(t *testing.T) {
+ 	for i := range respWriteTests {
+ 		tt := &respWriteTests[i]
+ 		var braw bytes.Buffer
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 853aac7f4d..886ed4e8f7 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -184,10 +184,11 @@ var vtests = []struct {
+ }
+ 
+ func TestHostHandlers(t *testing.T) {
++	mux := NewServeMux()
+ 	for _, h := range handlers {
+-		Handle(h.pattern, stringHandler(h.msg))
++		mux.Handle(h.pattern, stringHandler(h.msg))
+ 	}
+-	ts := httptest.NewServer(nil)
++	ts := httptest.NewServer(mux)
+ 	defer ts.Close()
+ 
+ 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index 0702d3bdf6..ff8954fd02 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -144,6 +144,8 @@ func TestPipes(t *testing.T) {
+ 	check("Wait", err)
+ }
+ 
++var testedAlreadyLeaked = false
++
+ func TestExtraFiles(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		t.Skip("no operating system support; skipping")
+@@ -151,10 +153,13 @@ func TestExtraFiles(t *testing.T) {
+ 
+ 	// Ensure that file descriptors have not already been leaked into
+ 	// our environment.
+-	for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
+-		err := os.NewFile(fd, "").Close()
+-		if err == nil {
+-			t.Logf("Something already leaked - closed fd %d", fd)
++	if !testedAlreadyLeaked {
++		testedAlreadyLeaked = true
++		for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
++			err := os.NewFile(fd, "").Close()
++			if err == nil {
++				t.Logf("Something already leaked - closed fd %d", fd)
++			}
+ 		}
+ 	}
+ 

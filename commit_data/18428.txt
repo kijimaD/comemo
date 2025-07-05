@@ -8,6 +8,20 @@ Date:   Fri Feb 7 16:58:45 2014 +1100
     R=golang-codereviews, minux.ma, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/60900043
-
+---
  src/pkg/net/fd_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 630fc5e6f7..0f8d6de5b5 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -119,7 +119,7 @@ func (o *operation) InitBuf(buf []byte) {
+ 	o.buf.Len = uint32(len(buf))
+ 	o.buf.Buf = nil
+ 	if len(buf) != 0 {
+-		o.buf.Buf = (*byte)(unsafe.Pointer(&buf[0]))
++		o.buf.Buf = &buf[0]
+ 	}
+ }
+ 

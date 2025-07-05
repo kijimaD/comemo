@@ -26,8 +26,121 @@ Date:   Thu May 15 11:03:15 2025 -0700
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/encoding/json/encode.go         | 23 ++++++++++-------------
  src/encoding/json/encode_test.go    | 20 ++++++++++++++++++++
  src/encoding/json/v2_encode_test.go | 20 ++++++++++++++++++++
  3 files changed, 50 insertions(+), 13 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 78d0865b89..1992e7372e 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -359,25 +359,22 @@ func typeEncoder(t reflect.Type) encoderFunc {
+ 	}
+ 
+ 	// To deal with recursive types, populate the map with an
+-	// indirect func before we build it. This type waits on the
+-	// real func (f) to be ready and then calls it. This indirect
+-	// func is only used for recursive types.
+-	var (
+-		wg sync.WaitGroup
+-		f  encoderFunc
+-	)
+-	wg.Add(1)
++	// indirect func before we build it. If the type is recursive,
++	// the second lookup for the type will return the indirect func.
++	//
++	// This indirect func is only used for recursive types,
++	// and briefly during racing calls to typeEncoder.
++	indirect := sync.OnceValue(func() encoderFunc {
++		return newTypeEncoder(t, true)
++	})
+ 	fi, loaded := encoderCache.LoadOrStore(t, encoderFunc(func(e *encodeState, v reflect.Value, opts encOpts) {
+-		wg.Wait()
+-		f(e, v, opts)
++		indirect()(e, v, opts)
+ 	}))
+ 	if loaded {
+ 		return fi.(encoderFunc)
+ 	}
+ 
+-	// Compute the real encoder and replace the indirect func with it.
+-	f = newTypeEncoder(t, true)
+-	wg.Done()
++	f := indirect()
+ 	encoderCache.Store(t, f)
+ 	return f
+ }
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index bc31f9d48a..87074eabd4 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -16,7 +16,9 @@ import (
+ 	"regexp"
+ 	"runtime/debug"
+ 	"strconv"
++	"sync"
+ 	"testing"
++	"testing/synctest"
+ 	"time"
+ )
+ 
+@@ -1403,3 +1405,21 @@ func TestIssue63379(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue #73733: encoding/json used a WaitGroup to coordinate access to cache entries.
++// Since WaitGroup.Wait is durably blocking, this caused apparent deadlocks when
++// multiple bubbles called json.Marshal at the same time.
++func TestSynctestMarshal(t *testing.T) {
++	var wg sync.WaitGroup
++	for range 5 {
++		wg.Go(func() {
++			synctest.Test(t, func(t *testing.T) {
++				_, err := Marshal([]string{})
++				if err != nil {
++					t.Errorf("Marshal: %v", err)
++				}
++			})
++		})
++	}
++	wg.Wait()
++}
+diff --git a/src/encoding/json/v2_encode_test.go b/src/encoding/json/v2_encode_test.go
+index 16e8d01218..11c5218649 100644
+--- a/src/encoding/json/v2_encode_test.go
++++ b/src/encoding/json/v2_encode_test.go
+@@ -16,7 +16,9 @@ import (
+ 	"regexp"
+ 	"runtime/debug"
+ 	"strconv"
++	"sync"
+ 	"testing"
++	"testing/synctest"
+ 	"time"
+ )
+ 
+@@ -1408,3 +1410,21 @@ func TestIssue63379(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue #73733: encoding/json used a WaitGroup to coordinate access to cache entries.
++// Since WaitGroup.Wait is durably blocking, this caused apparent deadlocks when
++// multiple bubbles called json.Marshal at the same time.
++func TestSynctestMarshal(t *testing.T) {
++	var wg sync.WaitGroup
++	for range 5 {
++		wg.Go(func() {
++			synctest.Test(t, func(t *testing.T) {
++				_, err := Marshal([]string{})
++				if err != nil {
++					t.Errorf("Marshal: %v", err)
++				}
++			})
++		})
++	}
++	wg.Wait()
++}

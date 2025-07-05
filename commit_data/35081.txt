@@ -10,6 +10,22 @@ Date:   Sat Sep 23 11:55:02 2017 -0400
     Change-Id: Ia421c18a166d7cdf599ac86f2336541c1ef42a0d
     Reviewed-on: https://go-review.googlesource.com/65670
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/plugin/plugin.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index c37b65fd82..5506e95692 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -13,8 +13,8 @@
+ // already part of the program are called. The main function is not run.
+ // A plugin is only initialized once, and cannot be closed.
+ //
+-// The plugin support is currently incomplete, only supports Linux,
+-// and has known bugs. Please report any issues.
++// Currently plugins are only supported on Linux and macOS.
++// Please report any issues.
+ package plugin
+ 
+ // Plugin is a loaded Go plugin.

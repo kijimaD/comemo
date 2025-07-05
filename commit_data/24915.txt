@@ -10,8 +10,48 @@ Date:   Tue Sep 8 19:26:02 2015 +0800
     Change-Id: Iedfad67f4b8b9c84f128b98b9b06fa76919af388
     Reviewed-on: https://go-review.googlesource.com/14357
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/go/types/type.go        | 2 +-
  src/math/big/float.go       | 2 +-
  src/text/scanner/scanner.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 1df8b45b28..b93039abd8 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -360,7 +360,7 @@ type Chan struct {
+ // A ChanDir value indicates a channel direction.
+ type ChanDir int
+ 
+-// The direction of a channel is indicated by one of the following constants.
++// The direction of a channel is indicated by one of these constants.
+ const (
+ 	SendRecv ChanDir = iota
+ 	SendOnly
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index d7aa8953c4..ef74fec513 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -124,7 +124,7 @@ const (
+ // rounding error is described by the Float's Accuracy.
+ type RoundingMode byte
+ 
+-// The following rounding modes are supported.
++// These constants define supported rounding modes.
+ const (
+ 	ToNearestEven RoundingMode = iota // == IEEE 754-2008 roundTiesToEven
+ 	ToNearestAway                     // == IEEE 754-2008 roundTiesToAway
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index 3ab01edd24..0155800f34 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -73,7 +73,7 @@ const (
+ 	GoTokens       = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments
+ )
+ 
+-// The result of Scan is one of the following tokens or a Unicode character.
++// The result of Scan is one of these tokens or a Unicode character.
+ const (
+ 	EOF = -(iota + 1)
+ 	Ident

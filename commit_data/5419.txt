@@ -9,8 +9,109 @@ Date:   Mon May 3 12:09:44 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1064041
-
+---
  doc/codelab/wiki/final-template.go |  4 ++--
  doc/codelab/wiki/index.html        |  4 ++--
  doc/codelab/wiki/wiki.html         | 15 +++++++++------
  3 files changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/doc/codelab/wiki/final-template.go b/doc/codelab/wiki/final-template.go
+index 481cda1e69..06c9366ad8 100644
+--- a/doc/codelab/wiki/final-template.go
++++ b/doc/codelab/wiki/final-template.go
+@@ -34,13 +34,13 @@ func editHandler(c *http.Conn, r *http.Request) {
+ 	if err != nil {
+ 		p = &page{title: title}
+ 	}
+-	renderTemplate(c, "view", p)
++	renderTemplate(c, "edit", p)
+ }
+ 
+ func viewHandler(c *http.Conn, r *http.Request) {
+ 	title := r.URL.Path[lenPath:]
+ 	p, _ := loadPage(title)
+-	renderTemplate(c, "edit", p)
++	renderTemplate(c, "view", p)
+ }
+ 
+ func saveHandler(c *http.Conn, r *http.Request) {
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index 7a078f0a5c..c63496e404 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -544,7 +544,7 @@ to its own function:
+ func viewHandler(c *http.Conn, r *http.Request) {
+ 	title := r.URL.Path[lenPath:]
+ 	p, _ := loadPage(title)
+-	renderTemplate(c, &#34;edit&#34;, p)
++	renderTemplate(c, &#34;view&#34;, p)
+ }
+ 
+ func editHandler(c *http.Conn, r *http.Request) {
+@@ -553,7 +553,7 @@ func editHandler(c *http.Conn, r *http.Request) {
+ 	if err != nil {
+ 		p = &amp;page{title: title}
+ 	}
+-	renderTemplate(c, &#34;view&#34;, p)
++	renderTemplate(c, &#34;edit&#34;, p)
+ }
+ 
+ func renderTemplate(c *http.Conn, tmpl string, p *page) {
+diff --git a/doc/codelab/wiki/wiki.html b/doc/codelab/wiki/wiki.html
+index b5d7c8955b..5c89378744 100644
+--- a/doc/codelab/wiki/wiki.html
++++ b/doc/codelab/wiki/wiki.html
+@@ -58,13 +58,15 @@ package main
+ import (
+ 	"fmt"
+ 	"io/ioutil"
++	"os"
+ )
+ </pre>
+ 
+ <p>
+-Both <code>fmt</code> and <code>ioutil</code> are built-in packages that 
+-we'll be using. Later, as we implement additional functionality, we will add 
+-more packages to this <code>import</code> declaration.
++We import the <code>fmt</code>, <code>ioutil</code> and <code>os</code>
++packages from the Go standard library. Later, as we implement additional
++functionality, we will add more packages to this <code>import</code>
++declaration.
+ </p>
+ 
+ <h2>Data Structures</h2>
+@@ -161,7 +163,7 @@ function to return <code>*page</code> and <code>os.Error</code>.
+ 
+ <p>
+ Callers of this function can now check the second parameter; if it is
+-<code>nil</code> then it has succesfully loaded a page. If not, it will be an
++<code>nil</code> then it has successfully loaded a page. If not, it will be an
+ <code>os.Error</code> that can be handled by the caller (see the <a
+ href="http://golang.org/pkg/os/#Error">os package documentation</a> for 
+ details).
+@@ -198,7 +200,7 @@ This is a sample page.
+ <p>
+ (The <code>8g</code> and <code>8l</code> commands are applicable to
+ <code>GOARCH=386</code>. If you're on an <code>amd64</code> system,
+-subtitute 6's for the 8's.)
++substitute 6's for the 8's.)
+ </p>
+ 
+ <p>
+@@ -268,6 +270,7 @@ import (
+ 	"fmt"
+ 	<b>"http"</b>
+ 	"io/ioutil"
++	"os"
+ )
+ </pre>
+ 
+@@ -389,7 +392,7 @@ import (
+ </pre>
+ 
+ <p>
+-Let's create a template file containg the HTML form. 
++Let's create a template file containing the HTML form. 
+ Open a new file named <code>edit.html</code>, and add the following lines:
+ </p>
+ 

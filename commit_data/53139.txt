@@ -11,7 +11,34 @@ Date:   Sun Jul 17 08:43:55 2022 +0930
     Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/internal/nistec/p224_sqrt.go | 2 +-
  src/debug/gosym/symtab.go               | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/nistec/p224_sqrt.go b/src/crypto/internal/nistec/p224_sqrt.go
+index ac4d761bf5..9a35cea6aa 100644
+--- a/src/crypto/internal/nistec/p224_sqrt.go
++++ b/src/crypto/internal/nistec/p224_sqrt.go
+@@ -19,7 +19,7 @@ var p224MinusOne = new(fiat.P224Element).Sub(
+ func p224SqrtCandidate(r, x *fiat.P224Element) {
+ 	// Since p = 1 mod 4, we can't use the exponentiation by (p + 1) / 4 like
+ 	// for the other primes. Instead, implement a variation of Tonelli–Shanks.
+-	// The contant-time implementation is adapted from Thomas Pornin's ecGFp5.
++	// The constant-time implementation is adapted from Thomas Pornin's ecGFp5.
+ 	//
+ 	// https://github.com/pornin/ecgfp5/blob/82325b965/rust/src/field.rs#L337-L385
+ 
+diff --git a/src/debug/gosym/symtab.go b/src/debug/gosym/symtab.go
+index 4e63f1cdf7..afc67198c3 100644
+--- a/src/debug/gosym/symtab.go
++++ b/src/debug/gosym/symtab.go
+@@ -86,7 +86,7 @@ func (s *Sym) ReceiverName() string {
+ 	// Find the first dot after pathend (or from the beginning, if there was
+ 	// no slash in name).
+ 	l := strings.Index(name[pathend:], ".")
+-	// Find the last dot after pathend (or the beginnng).
++	// Find the last dot after pathend (or the beginning).
+ 	r := strings.LastIndex(name[pathend:], ".")
+ 	if l == -1 || r == -1 || l == r {
+ 		// There is no receiver if we didn't find two distinct dots after pathend.

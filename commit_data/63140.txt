@@ -14,6 +14,30 @@ Date:   Wed May 21 11:10:24 2025 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/race_s390x.s | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/race_s390x.s b/src/runtime/race_s390x.s
+index a12bf8416b..3dfda9e733 100644
+--- a/src/runtime/race_s390x.s
++++ b/src/runtime/race_s390x.s
+@@ -412,13 +412,13 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
+ 	MOVD	g_m(g), R8			// R8 = thread.
+ 
+ 	// Switch to g0 stack if we aren't already on g0 or gsignal.
+-	MOVD	m_gsignal(R8), R8
+-	CMPBEQ	R8, g, call
++	MOVD	m_gsignal(R8), R9
++	CMPBEQ	R9, g, call
+ 
+-	MOVD	m_g0(R8), R8
+-	CMPBEQ	R8, g, call
++	MOVD	m_g0(R8), R9
++	CMPBEQ	R9, g, call
+ 
+-	MOVD	(g_sched+gobuf_sp)(R8), R15	// Switch SP to g0.
++	MOVD	(g_sched+gobuf_sp)(R9), R15	// Switch SP to g0.
+ 
+ call:	SUB	$160, R15			// Allocate C frame.
+ 	BL	R1				// Call C code.

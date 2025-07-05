@@ -18,6 +18,19 @@ Date:   Thu Aug 19 21:35:57 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/343809
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/call.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 390e9cd892..08ef2451bf 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -223,7 +223,6 @@ func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*op
+ 		// exactly one (possibly invalid or comma-ok) value
+ 		xlist = []*operand{&x}
+ 		if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
+-			x.mode = value
+ 			x2 := &operand{mode: value, expr: e, typ: Typ[UntypedBool]}
+ 			if x.mode == commaerr {
+ 				x2.typ = universeError

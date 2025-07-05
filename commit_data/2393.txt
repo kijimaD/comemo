@@ -8,7 +8,7 @@ Date:   Thu Jun 4 21:09:06 2009 -0700
     DELTA=44  (19 added, 1 deleted, 24 changed)
     OCL=29912
     CL=29915
-
+---
  src/lib/reflect/type.go  |  4 ++--
  src/lib/reflect/value.go | 13 ++++++++++---
  src/runtime/386/asm.s    |  2 +-
@@ -18,3 +18,263 @@ Date:   Thu Jun 4 21:09:06 2009 -0700
  src/runtime/runtime.c    | 22 ++++++++++++++--------
  src/runtime/runtime.h    |  8 ++++----
  8 files changed, 45 insertions(+), 27 deletions(-)
+
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 083968634d..c8542183aa 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -91,8 +91,8 @@ const (
+ 	interfacesize = unsafe.Sizeof(x.xinterface);
+ )
+ 
+-var missingString = "$missing$"	// syntactic name for undefined type names
+-var dotDotDotString = "..."
++const missingString = "$missing$"	// syntactic name for undefined type names
++const dotDotDotString = "..."
+ 
+ // Type is the generic interface to reflection types.  Once its Kind is known,
+ // such as ArrayKind, the Type can be narrowed to the appropriate, more
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 0a86e7166d..d4783d5467 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -61,7 +61,7 @@ func (c *commonValue) Interface() interface {} {
+ 	switch {
+ 	case c.typ.Kind() == InterfaceKind:
+ 		panic("not reached");	// InterfaceValue overrides this method
+-	case c.typ.Size() > 8:	// TODO(rsc): how do we know it is 8?
++	case c.typ.Size() > unsafe.Sizeof(uintptr(0)):
+ 		i = unsafe.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
+ 	default:
+ 		if uintptr(c.addr) == 0 {
+@@ -872,7 +872,7 @@ var typecache = make(map[string] Type);
+ func newValueAddr(typ Type, addr Addr) Value {
+ 	c, ok := creator[typ.Kind()];
+ 	if !ok {
+-		panicln("no creator for type" , typ.Kind());
++		panicln("no creator for type" , typ.String());
+ 	}
+ 	return c(typ, addr);
+ }
+@@ -945,9 +945,16 @@ func NewValue(e interface {}) Value {
+ 	typ, ok := typecache[typestring];
+ 	if !ok {
+ 		typ = ParseTypeString("", typestring);
++		if typ.Kind() == MissingKind {
++			// This can not happen: unsafe.Reflect should only
++			// ever tell us the names of types that exist.
++			// Of course it does happen, and when it does
++			// it is more helpful to catch it in action here than
++			// to see $missing$ in a later print.
++			panicln("missing type for", typestring);
++		}
+ 		typecache[typestring] = typ;
+ 	}
+-
+ 	var ap Addr;
+ 	if indir {
+ 		// Content of interface is large and didn't
+diff --git a/src/runtime/386/asm.s b/src/runtime/386/asm.s
+index cb6af7a155..5d3c4261ab 100644
+--- a/src/runtime/386/asm.s
++++ b/src/runtime/386/asm.s
+@@ -116,7 +116,7 @@ TEXT gosave(SB), 7, $0
+ // save AX, jmp to lesstack to switch back
+ TEXT	retfromnewstack(SB),7,$0
+ 	MOVL	4(FS), BX	// m
+-	MOVL	AX, 8(BX)	// save AX in m->cret
++	MOVL	AX, 12(BX)	// save AX in m->cret
+ 	JMP	lessstack(SB)
+ 
+ // gogo, returning 2nd arg instead of 1
+diff --git a/src/runtime/hashmap.h b/src/runtime/hashmap.h
+index 970e9e12e6..ff93e9ee30 100644
+--- a/src/runtime/hashmap.h
++++ b/src/runtime/hashmap.h
+@@ -54,7 +54,7 @@
+ 	} else {
+ 	      printf ("not found in table\n");
+ 	}
+-	
++
+   Example iteration over the elements of *h:
+ 	char **data;
+ 	struct hash_iter it;
+@@ -76,7 +76,7 @@ struct hash;		/* opaque */
+ struct hash_subtable;	/* opaque */
+ struct hash_entry;	/* opaque */
+ 
+-typedef	uint64 uintptr_t;
++typedef uintptr uintptr_t;
+ typedef uintptr_t hash_hash_t;
+ 
+ struct hash_iter {
+@@ -96,7 +96,7 @@ struct hash_iter {
+ };
+ 
+ /* Return a hashtable h 2**init_power empty entries, each with
+-   "datasize" data bytes.  
++   "datasize" data bytes.
+    (*data_hash)(a) should return the hash value of data element *a.
+    (*data_eq)(a,b) should return whether the data at "a" and the data at "b"
+    are equal.
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 2351f422d0..6c933b1b2a 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -542,7 +542,7 @@ sys·ifaceE2I2(Sigi *si, Eface e, Iface ret, bool ok)
+ 	FLUSH(&ok);
+ }
+ 
+-static uint64
++static uintptr
+ ifacehash1(void *data, Sigt *sigt)
+ {
+ 	int32 alg, wid;
+@@ -565,7 +565,7 @@ ifacehash1(void *data, Sigt *sigt)
+ 	return algarray[alg].hash(wid, data);
+ }
+ 
+-uint64
++uintptr
+ ifacehash(Iface a)
+ {
+ 	if(a.type == nil)
+@@ -573,7 +573,7 @@ ifacehash(Iface a)
+ 	return ifacehash1(a.data, a.type->sigt);
+ }
+ 
+-uint64
++uintptr
+ efacehash(Eface a)
+ {
+ 	return ifacehash1(a.data, a.type);
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index b33cc6fe25..81cdfb3001 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -58,7 +58,10 @@ malloc(uintptr size)
+ 	}
+ 
+ 	// setup for mark sweep
+-	mlookup(v, nil, nil, &ref);
++	if(!mlookup(v, nil, nil, &ref)) {
++		printf("malloc %D; mlookup failed\n", (uint64)size);
++		throw("malloc mlookup");
++	}
+ 	*ref = RefNone;
+ 
+ 	m->mallocing = 0;
+@@ -93,7 +96,8 @@ free(void *v)
+ 		throw("malloc/free - deadlock");
+ 	m->mallocing = 1;
+ 
+-	mlookup(v, nil, nil, &ref);
++	if(!mlookup(v, nil, nil, &ref))
++		throw("free mlookup");
+ 	*ref = RefFree;
+ 
+ 	// Find size class for v.
+@@ -283,7 +287,8 @@ stackalloc(uint32 n)
+ 		return v;
+ 	}
+ 	v = malloc(n);
+-	mlookup(v, nil, nil, &ref);
++	if(!mlookup(v, nil, nil, &ref))
++		throw("stackalloc mlookup");
+ 	*ref = RefStack;
+ 	return v;
+ }
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index fb9bf5cbc2..c5ba3e6a5e 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -267,16 +267,22 @@ check(void)
+  * map and chan helpers for
+  * dealing with unknown types
+  */
+-static uint64
++static uintptr
+ memhash(uint32 s, void *a)
+ {
+ 	byte *b;
+-	uint64 hash;
++	uintptr hash;
+ 
+ 	b = a;
+-	hash = 33054211828000289ULL;
++	if(sizeof(hash) == 4)
++		hash = 2860486313U;
++	else
++		hash = 33054211828000289ULL;
+ 	while(s > 0) {
+-		hash = (hash ^ *b) * 23344194077549503ULL;
++		if(sizeof(hash) == 4)
++			hash = (hash ^ *b) * 3267000013UL;
++		else
++			hash = (hash ^ *b) * 23344194077549503ULL;
+ 		b++;
+ 		s--;
+ 	}
+@@ -337,7 +343,7 @@ memcopy(uint32 s, void *a, void *b)
+ 		ba[i] = bb[i];
+ }
+ 
+-static uint64
++static uintptr
+ strhash(uint32 s, String *a)
+ {
+ 	USED(s);
+@@ -358,7 +364,7 @@ strprint(uint32 s, String *a)
+ 	sys·printstring(*a);
+ }
+ 
+-static uint64
++static uintptr
+ interhash(uint32 s, Iface *a)
+ {
+ 	USED(s);
+@@ -379,7 +385,7 @@ interequal(uint32 s, Iface *a, Iface *b)
+ 	return ifaceeq(*a, *b);
+ }
+ 
+-static uint64
++static uintptr
+ nilinterhash(uint32 s, Eface *a)
+ {
+ 	USED(s);
+@@ -400,7 +406,7 @@ nilinterequal(uint32 s, Eface *a, Eface *b)
+ 	return efaceeq(*a, *b);
+ }
+ 
+-uint64
++uintptr
+ nohash(uint32 s, void *a)
+ {
+ 	USED(s);
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 8c20c1d021..749364f954 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -194,7 +194,7 @@ struct	Stktop
+ };
+ struct	Alg
+ {
+-	uint64	(*hash)(uint32, void*);
++	uintptr	(*hash)(uint32, void*);
+ 	uint32	(*equal)(uint32, void*, void*);
+ 	void	(*print)(uint32, void*);
+ 	void	(*copy)(uint32, void*, void*);
+@@ -333,9 +333,9 @@ MCache*	allocmcache(void);
+ void	mallocinit(void);
+ bool	ifaceeq(Iface, Iface);
+ bool	efaceeq(Eface, Eface);
+-uint64	ifacehash(Iface);
+-uint64	efacehash(Eface);
+-uint64	nohash(uint32, void*);
++uintptr	ifacehash(Iface);
++uintptr	efacehash(Eface);
++uintptr	nohash(uint32, void*);
+ uint32	noequal(uint32, void*, void*);
+ void*	malloc(uintptr size);
+ void*	mallocgc(uintptr size);

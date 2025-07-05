@@ -24,8 +24,171 @@ Date:   Tue Apr 12 17:46:36 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/crash_test.go              | 44 ++++++++++++++++++++
  src/runtime/panic.go                   | 10 ++++-
  src/runtime/testdata/testprog/crash.go | 73 ++++++++++++++++++++++++++++++++++
  3 files changed, 125 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index d8cabcdda2..01d7cbeb29 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -800,3 +800,47 @@ func TestDoublePanic(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that panic while panicking discards error message
++// See issue 52257
++func TestPanicWhilePanicking(t *testing.T) {
++	tests := []struct {
++		Want string
++		Func string
++	}{
++		{
++			"panic while printing panic value: important error message",
++			"ErrorPanic",
++		},
++		{
++			"panic while printing panic value: important stringer message",
++			"StringerPanic",
++		},
++		{
++			"panic while printing panic value: type",
++			"DoubleErrorPanic",
++		},
++		{
++			"panic while printing panic value: type",
++			"DoubleStringerPanic",
++		},
++		{
++			"panic while printing panic value: type",
++			"CircularPanic",
++		},
++		{
++			"important string message",
++			"StringPanic",
++		},
++		{
++			"nil",
++			"NilPanic",
++		},
++	}
++	for _, x := range tests {
++		output := runTestProg(t, "testprog", x.Func)
++		if !strings.Contains(output, x.Want) {
++			t.Errorf("output does not contain %q:\n%s", x.Want, output)
++		}
++	}
++}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index f2137c6853..e4cc7bfb31 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -525,8 +525,14 @@ func Goexit() {
+ // Used when crashing with panicking.
+ func preprintpanics(p *_panic) {
+ 	defer func() {
+-		if recover() != nil {
+-			throw("panic while printing panic value")
++		text := "panic while printing panic value"
++		switch r := recover().(type) {
++		case nil:
++			// nothing to do
++		case string:
++			throw(text + ": " + r)
++		default:
++			throw(text + ": type " + efaceOf(&r)._type.string())
+ 		}
+ 	}()
+ 	for p != nil {
+diff --git a/src/runtime/testdata/testprog/crash.go b/src/runtime/testdata/testprog/crash.go
+index c4990cdda9..a2294ba149 100644
+--- a/src/runtime/testdata/testprog/crash.go
++++ b/src/runtime/testdata/testprog/crash.go
+@@ -12,6 +12,13 @@ import (
+ func init() {
+ 	register("Crash", Crash)
+ 	register("DoublePanic", DoublePanic)
++	register("ErrorPanic", ErrorPanic)
++	register("StringerPanic", StringerPanic)
++	register("DoubleErrorPanic", DoubleErrorPanic)
++	register("DoubleStringerPanic", DoubleStringerPanic)
++	register("StringPanic", StringPanic)
++	register("NilPanic", NilPanic)
++	register("CircularPanic", CircularPanic)
+ }
+ 
+ func test(name string) {
+@@ -64,3 +71,69 @@ func DoublePanic() {
+ 	}()
+ 	panic(P("XXX"))
+ }
++
++// Test that panic while panicking discards error message
++// See issue 52257
++type exampleError struct{}
++
++func (e exampleError) Error() string {
++	panic("important error message")
++}
++
++func ErrorPanic() {
++	panic(exampleError{})
++}
++
++type examplePanicError struct{}
++
++func (e examplePanicError) Error() string {
++	panic(exampleError{})
++}
++
++func DoubleErrorPanic() {
++	panic(examplePanicError{})
++}
++
++type exampleStringer struct{}
++
++func (s exampleStringer) String() string {
++	panic("important stringer message")
++}
++
++func StringerPanic() {
++	panic(exampleStringer{})
++}
++
++type examplePanicStringer struct{}
++
++func (s examplePanicStringer) String() string {
++	panic(exampleStringer{})
++}
++
++func DoubleStringerPanic() {
++	panic(examplePanicStringer{})
++}
++
++func StringPanic() {
++	panic("important string message")
++}
++
++func NilPanic() {
++	panic(nil)
++}
++
++type exampleCircleStartError struct {}
++
++func (e exampleCircleStartError) Error() string {
++	panic(exampleCircleEndError{})
++}
++
++type exampleCircleEndError struct {}
++
++func (e exampleCircleEndError) Error() string {
++	panic(exampleCircleStartError{})
++}
++
++func CircularPanic() {
++	panic(exampleCircleStartError{})
++}
+\ No newline at end of file

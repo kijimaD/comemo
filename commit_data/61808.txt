@@ -17,6 +17,21 @@ Date:   Tue Nov 26 15:26:25 2024 -0800
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/debug/elf/file.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 05062f1433..aa523c3fae 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -497,6 +497,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	if c < 0 {
+ 		return nil, &FormatError{0, "too many sections", shnum}
+ 	}
++	if shnum > 0 && ((1<<64)-1)/uint64(shnum) < uint64(shentsize) {
++		return nil, &FormatError{0, "section header overflow", shnum}
++	}
+ 	f.Sections = make([]*Section, 0, c)
+ 	names := make([]uint32, 0, c)
+ 	shdata, err := saferio.ReadDataAt(sr, uint64(shnum)*uint64(shentsize), shoff)

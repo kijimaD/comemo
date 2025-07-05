@@ -9,8 +9,120 @@ Date:   Fri May 15 10:43:00 2009 -0700
     DELTA=40  (6 added, 30 deleted, 4 changed)
     OCL=28866
     CL=28897
-
+---
  src/lib/container/vector/intvector.go   | 27 ---------------------------
  src/lib/container/vector/vector.go      | 14 ++++++++------
  src/lib/container/vector/vector_test.go |  3 ++-
  3 files changed, 10 insertions(+), 34 deletions(-)
+
+diff --git a/src/lib/container/vector/intvector.go b/src/lib/container/vector/intvector.go
+index c85d983605..e2dd5e04ae 100644
+--- a/src/lib/container/vector/intvector.go
++++ b/src/lib/container/vector/intvector.go
+@@ -8,7 +8,6 @@ import "container/vector"
+ 
+ // IntVector is a specialization of Vector that hides the wrapping of Elements around ints.
+ type IntVector struct {
+-	// TODO do not export field
+ 	vector.Vector;
+ }
+ 
+@@ -34,38 +33,12 @@ func (p *IntVector) At(i int) int {
+ }
+ 
+ 
+-// Set sets the i'th element of the vector to value x.
+-func (p *IntVector) Set(i int, x int) {
+-	p.Vector.Set(i, x)
+-}
+-
+-
+ // Last returns the element in the vector of highest index.
+ func (p *IntVector) Last() int {
+ 	return p.Vector.Last().(int)
+ }
+ 
+ 
+-// Insert inserts into the vector an element of value x before
+-// the current element at index i.
+-func (p *IntVector) Insert(i int, x int) {
+-	p.Vector.Insert(i, x)
+-}
+-
+-
+-// Delete deletes the i'th element of the vector.  The gap is closed so the old
+-// element at index i+1 has index i afterwards.
+-func (p *IntVector) Delete(i int) int {
+-	return p.Vector.Delete(i).(int)
+-}
+-
+-
+-// Push appends x to the end of the vector.
+-func (p *IntVector) Push(x int) {
+-	p.Vector.Push(x)
+-}
+-
+-
+ // Pop deletes and returns the last element of the vector.
+ func (p *IntVector) Pop() int {
+ 	return p.Vector.Pop().(int)
+diff --git a/src/lib/container/vector/vector.go b/src/lib/container/vector/vector.go
+index 392e5e596d..30bbbab2a7 100644
+--- a/src/lib/container/vector/vector.go
++++ b/src/lib/container/vector/vector.go
+@@ -127,16 +127,13 @@ func (p *Vector) Insert(i int, x Element) {
+ 
+ // Delete deletes the i'th element of the vector.  The gap is closed so the old
+ // element at index i+1 has index i afterwards.
+-func (p *Vector) Delete(i int) Element {
++func (p *Vector) Delete(i int) {
+ 	a := p.a;
+ 	n := len(a);
+ 
+-	x := a[i];
+ 	copy(a[i : n-1], a[i+1 : n]);
+ 	a[n-1] = nil;  // support GC, nil out entry
+ 	p.a = a[0 : n-1];
+-
+-	return x
+ }
+ 
+ 
+@@ -189,9 +186,13 @@ func (p *Vector) Push(x Element) {
+ }
+ 
+ 
+-// Push deletes the last element of the vector.
++// Pop deletes the last element of the vector.
+ func (p *Vector) Pop() Element {
+-	return p.Delete(len(p.a) - 1)
++	i := len(p.a) - 1;
++	x := p.a[i];
++	p.a[i] = nil;  // support GC, nil out entry
++	p.a = p.a[0 : i];
++	return x;
+ }
+ 
+ 
+@@ -230,6 +231,7 @@ func (p *Vector) iterate(c chan Element) {
+ 	close(c);
+ }
+ 
++
+ // Channel iterator for range.
+ func (p *Vector) Iter() chan Element {
+ 	c := make(chan Element);
+diff --git a/src/lib/container/vector/vector_test.go b/src/lib/container/vector/vector_test.go
+index 21c4dfe327..385513264b 100644
+--- a/src/lib/container/vector/vector_test.go
++++ b/src/lib/container/vector/vector_test.go
+@@ -53,7 +53,8 @@ func TestInsertDeleteClear(t *testing.T) {
+ 	}
+ 	for i := n-1; i >= 0; i-- {
+ 		if a.Last().(int) != val(0) { t.Error("C") }
+-		if a.Delete(0).(int) != val(i) { t.Error("D") }
++		if a.At(0).(int) != val(i) { t.Error("D") }
++		a.Delete(0);
+ 		if a.Len() != i { t.Errorf("E) wrong len %d (expected %d)", a.Len(), i) }
+ 	}
+ 

@@ -17,8 +17,73 @@ Date:   Sat Apr 15 15:17:29 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go   |  5 ++---
  src/runtime/map_test.go  |  8 ++++++++
  test/fixedbugs/bug273.go | 11 -----------
  3 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index c6c2fa5fdf..11ce0cbc4b 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -255,9 +255,8 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+ 		throw("bad hmap size")
+ 	}
+ 
+-	if hint < 0 || int64(int32(hint)) != hint {
+-		panic(plainError("makemap: size out of range"))
+-		// TODO: make hint an int, then none of this nonsense
++	if hint < 0 || hint > int64(maxSliceCap(t.bucket.size)) {
++		hint = 0
+ 	}
+ 
+ 	if !ismapkey(t.key) {
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 45d14126c2..81f05a0613 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -588,6 +588,14 @@ func TestMapLargeValNoPointer(t *testing.T) {
+ 	}
+ }
+ 
++// Test that making a map with a large or invalid hint
++// doesn't panic. (Issue 19926).
++func TestIgnoreBogusMapHint(t *testing.T) {
++	for _, hint := range []int64{-1, 1 << 62} {
++		_ = make(map[int]int, hint)
++	}
++}
++
+ func benchmarkMapPop(b *testing.B, n int) {
+ 	m := map[int]int{}
+ 	for i := 0; i < b.N; i++ {
+diff --git a/test/fixedbugs/bug273.go b/test/fixedbugs/bug273.go
+index b6258d54fc..c04f2116c5 100644
+--- a/test/fixedbugs/bug273.go
++++ b/test/fixedbugs/bug273.go
+@@ -48,15 +48,6 @@ func bigcap() {
+ 	g1 = make([]block, 10, big)
+ }
+ 
+-var g3 map[block]block
+-func badmapcap() {
+-	g3 = make(map[block]block, minus1)
+-}
+-
+-func bigmapcap() {
+-	g3 = make(map[block]block, big)
+-}
+-
+ type cblock [1<<16-1]byte
+ 
+ var g4 chan cblock
+@@ -78,8 +69,6 @@ func main() {
+ 	shouldfail(badcap, "badcap")
+ 	shouldfail(badcap1, "badcap1")
+ 	shouldfail(bigcap, "bigcap")
+-	shouldfail(badmapcap, "badmapcap")
+-	shouldfail(bigmapcap, "bigmapcap")
+ 	shouldfail(badchancap, "badchancap")
+ 	shouldfail(bigchancap, "bigchancap")
+ 	shouldfail(overflowchan, "overflowchan")

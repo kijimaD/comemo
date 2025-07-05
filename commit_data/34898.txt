@@ -13,10 +13,190 @@ Date:   Sat Nov 18 22:00:16 2017 +0100
     Reviewed-on: https://go-review.googlesource.com/78655
     Run-TryBot: Adam Langley <agl@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/asn1/asn1.go         | 29 ++++++++++++++++++++++++++---
  src/encoding/asn1/asn1_test.go    |  2 ++
  src/encoding/asn1/common.go       |  3 +++
  src/encoding/asn1/marshal.go      | 12 ++++++++++++
  src/encoding/asn1/marshal_test.go |  8 ++++++++
  5 files changed, 51 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index fb03b06aba..4459ce4ed6 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -372,6 +372,25 @@ func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
+ 	return
+ }
+ 
++// NumericString
++
++// parseNumericString parses an ASN.1 NumericString from the given byte array
++// and returns it.
++func parseNumericString(bytes []byte) (ret string, err error) {
++	for _, b := range bytes {
++		if !isNumeric(b) {
++			return "", SyntaxError{"NumericString contains invalid character"}
++		}
++	}
++	return string(bytes), nil
++}
++
++// isNumeric reports whether the given b is in the ASN.1 NumericString set.
++func isNumeric(b byte) bool {
++	return '0' <= b && b <= '9' ||
++		b == ' '
++}
++
+ // PrintableString
+ 
+ // parsePrintableString parses an ASN.1 PrintableString from the given byte
+@@ -561,7 +580,7 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
+ 			return
+ 		}
+ 		switch t.tag {
+-		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
++		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString:
+ 			// We pretend that various other string types are
+ 			// PRINTABLE STRINGs so that a sequence of them can be
+ 			// parsed into a []string.
+@@ -643,6 +662,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			switch t.tag {
+ 			case TagPrintableString:
+ 				result, err = parsePrintableString(innerBytes)
++			case TagNumericString:
++				result, err = parseNumericString(innerBytes)
+ 			case TagIA5String:
+ 				result, err = parseIA5String(innerBytes)
+ 			case TagT61String:
+@@ -729,7 +750,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 	if universalTag == TagPrintableString {
+ 		if t.class == ClassUniversal {
+ 			switch t.tag {
+-			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
++			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString:
+ 				universalTag = t.tag
+ 			}
+ 		} else if params.stringType != 0 {
+@@ -907,6 +928,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		switch universalTag {
+ 		case TagPrintableString:
+ 			v, err = parsePrintableString(innerBytes)
++		case TagNumericString:
++			v, err = parseNumericString(innerBytes)
+ 		case TagIA5String:
+ 			v, err = parseIA5String(innerBytes)
+ 		case TagT61String:
+@@ -980,7 +1003,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
+ //
+ // An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a time.Time.
+ //
+-// An ASN.1 PrintableString or IA5String can be written to a string.
++// An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
+ //
+ // Any of the above ASN.1 values can be written to an interface{}.
+ // The value stored in the interface has the corresponding Go type.
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 7ff9c05cc0..56129530f5 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -424,6 +424,7 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
+ 	{"generalized", fieldParameters{timeType: TagGeneralizedTime}},
+ 	{"utc", fieldParameters{timeType: TagUTCTime}},
+ 	{"printable", fieldParameters{stringType: TagPrintableString}},
++	{"numeric", fieldParameters{stringType: TagNumericString}},
+ 	{"optional", fieldParameters{optional: true}},
+ 	{"explicit", fieldParameters{explicit: true, tag: new(int)}},
+ 	{"application", fieldParameters{application: true, tag: new(int)}},
+@@ -496,6 +497,7 @@ var unmarshalTestData = []struct {
+ 	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},
+ 	{[]byte{0x30, 0x05, 0x02, 0x03, 0x12, 0x34, 0x56}, &TestBigInt{big.NewInt(0x123456)}},
+ 	{[]byte{0x30, 0x0b, 0x31, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &TestSet{Ints: []int{1, 2, 3}}},
++	{[]byte{0x12, 0x0b, '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ' '}, newString("0123456789 ")},
+ }
+ 
+ func TestUnmarshal(t *testing.T) {
+diff --git a/src/encoding/asn1/common.go b/src/encoding/asn1/common.go
+index 3e4dfd1679..a6589a521a 100644
+--- a/src/encoding/asn1/common.go
++++ b/src/encoding/asn1/common.go
+@@ -30,6 +30,7 @@ const (
+ 	TagUTF8String      = 12
+ 	TagSequence        = 16
+ 	TagSet             = 17
++	TagNumericString   = 18
+ 	TagPrintableString = 19
+ 	TagT61String       = 20
+ 	TagIA5String       = 22
+@@ -106,6 +107,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
+ 			ret.stringType = TagIA5String
+ 		case part == "printable":
+ 			ret.stringType = TagPrintableString
++		case part == "numeric":
++			ret.stringType = TagNumericString
+ 		case part == "utf8":
+ 			ret.stringType = TagUTF8String
+ 		case strings.HasPrefix(part, "default:"):
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 3f46e03d35..422614f657 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -289,6 +289,16 @@ func makeIA5String(s string) (e encoder, err error) {
+ 	return stringEncoder(s), nil
+ }
+ 
++func makeNumericString(s string) (e encoder, err error) {
++	for i := 0; i < len(s); i++ {
++		if !isNumeric(s[i]) {
++			return nil, StructuralError{"NumericString contains invalid character"}
++		}
++	}
++
++	return stringEncoder(s), nil
++}
++
+ func makeUTF8String(s string) encoder {
+ 	return stringEncoder(s)
+ }
+@@ -506,6 +516,8 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
+ 			return makeIA5String(v.String())
+ 		case TagPrintableString:
+ 			return makePrintableString(v.String())
++		case TagNumericString:
++			return makeNumericString(v.String())
+ 		default:
+ 			return makeUTF8String(v.String()), nil
+ 		}
+diff --git a/src/encoding/asn1/marshal_test.go b/src/encoding/asn1/marshal_test.go
+index 75adc303b0..ac3d31ff9e 100644
+--- a/src/encoding/asn1/marshal_test.go
++++ b/src/encoding/asn1/marshal_test.go
+@@ -80,6 +80,10 @@ type applicationTest struct {
+ 	B int `asn1:"application,tag:1,explicit"`
+ }
+ 
++type numericStringTest struct {
++	A string `asn1:"numeric"`
++}
++
+ type testSET []int
+ 
+ var PST = time.FixedZone("PST", -8*60*60)
+@@ -164,6 +168,7 @@ var marshalTests = []marshalTest{
+ 	{defaultTest{1}, "3000"},
+ 	{defaultTest{2}, "3003020102"},
+ 	{applicationTest{1, 2}, "30084001016103020102"},
++	{numericStringTest{"1 9"}, "30051203312039"},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+@@ -212,6 +217,9 @@ type marshalErrTest struct {
+ 
+ var marshalErrTests = []marshalErrTest{
+ 	{bigIntStruct{nil}, "empty integer"},
++	{numericStringTest{"a"}, "invalid character"},
++	{ia5StringTest{"\xb0"}, "invalid character"},
++	{printableStringTest{"!"}, "invalid character"},
+ }
+ 
+ func TestMarshalError(t *testing.T) {

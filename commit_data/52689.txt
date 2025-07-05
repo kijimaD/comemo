@@ -14,7 +14,7 @@ Date:   Tue May 17 23:37:44 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/ssa/loopbce.go       | 2 +-
  src/cmd/compile/internal/typecheck/iimport.go | 2 +-
  src/cmd/go/internal/fsys/fsys.go              | 2 +-
@@ -30,3 +30,184 @@ Date:   Tue May 17 23:37:44 2022 +0000
  src/runtime/sys_windows_arm64.s               | 2 +-
  test/fixedbugs/bug150.go                      | 2 +-
  14 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index dd63541771..3181edca29 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -161,7 +161,7 @@ func findIndVar(f *Func) []indVar {
+ 
+ 		// Up to now we extracted the induction variable (ind),
+ 		// the increment delta (inc), the temporary sum (nxt),
+-		// the mininum value (min) and the maximum value (max).
++		// the minimum value (min) and the maximum value (max).
+ 		//
+ 		// We also know that ind has the form (Phi min nxt) where
+ 		// nxt is (Add inc nxt) which means: 1) inc dominates nxt
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 6a29c14e3c..3a51f781f0 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -733,7 +733,7 @@ func (p *iimporter) typAt(off uint64) *types.Type {
+ 		}
+ 		t = p.newReader(off-predeclReserved, nil).typ1()
+ 		// Ensure size is calculated for imported types. Since CL 283313, the compiler
+-		// does not compile the function immediately when it sees them. Instead, funtions
++		// does not compile the function immediately when it sees them. Instead, functions
+ 		// are pushed to compile queue, then draining from the queue for compiling.
+ 		// During this process, the size calculation is disabled, so it is not safe for
+ 		// calculating size during SSA generation anymore. See issue #44732.
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 9a1bbf890e..41d0bbfe66 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -295,7 +295,7 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
+ 				files[name] = missingFile(name)
+ 				continue
+ 			} else if f.IsDir() {
+-				return nil, fmt.Errorf("for overlay of %q to %q: overlay Replace entries can't point to dirctories",
++				return nil, fmt.Errorf("for overlay of %q to %q: overlay Replace entries can't point to directories",
+ 					filepath.Join(dir, name), to.actualFilePath)
+ 			}
+ 			// Add a fileinfo for the overlaid file, so that it has
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 9cf1fcd460..98933464bb 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -7412,7 +7412,7 @@ func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) u
+ 	return o
+ }
+ 
+-/* genrate instruction encoding for ldp and stp series */
++/* generate instruction encoding for ldp and stp series */
+ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uint32) uint32 {
+ 	wback := false
+ 	if o.scond == C_XPOST || o.scond == C_XPRE {
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 2605014e6d..c1bda1fced 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -204,7 +204,7 @@ const ( // comments from func aclass in asmz.go
+ 	C_DCON     // constant (int64 or uint64)
+ 	C_SACON    // computed address, 16-bit displacement, possibly SP-relative
+ 	C_LACON    // computed address, 32-bit displacement, possibly SP-relative
+-	C_DACON    // computed address, 64-bit displacment?
++	C_DACON    // computed address, 64-bit displacement?
+ 	C_SBRA     // short branch
+ 	C_LBRA     // long branch
+ 	C_SAUTO    // short auto
+diff --git a/src/io/ioutil/tempfile_test.go b/src/io/ioutil/tempfile_test.go
+index 5cef18c33b..818fcdadf8 100644
+--- a/src/io/ioutil/tempfile_test.go
++++ b/src/io/ioutil/tempfile_test.go
+@@ -155,7 +155,7 @@ func TestTempDir_BadDir(t *testing.T) {
+ 	badDir := filepath.Join(dir, "not-exist")
+ 	_, err = TempDir(badDir, "foo")
+ 	if pe, ok := err.(*fs.PathError); !ok || !os.IsNotExist(err) || pe.Path != badDir {
+-		t.Errorf("TempDir error = %#v; want PathError for path %q satisifying os.IsNotExist", err, badDir)
++		t.Errorf("TempDir error = %#v; want PathError for path %q satisfying os.IsNotExist", err, badDir)
+ 	}
+ }
+ 
+diff --git a/src/os/tempfile_test.go b/src/os/tempfile_test.go
+index e71a2444c9..e5b74bc21f 100644
+--- a/src/os/tempfile_test.go
++++ b/src/os/tempfile_test.go
+@@ -151,7 +151,7 @@ func TestMkdirTempBadDir(t *testing.T) {
+ 	badDir := filepath.Join(dir, "not-exist")
+ 	_, err = MkdirTemp(badDir, "foo")
+ 	if pe, ok := err.(*fs.PathError); !ok || !IsNotExist(err) || pe.Path != badDir {
+-		t.Errorf("TempDir error = %#v; want PathError for path %q satisifying IsNotExist", err, badDir)
++		t.Errorf("TempDir error = %#v; want PathError for path %q satisfying IsNotExist", err, badDir)
+ 	}
+ }
+ 
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 86d6a96d88..d2f7984178 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1775,7 +1775,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+ // 2. Push the current PC on the stack (updating SP).
+ // 3. Write the desired argument frame size at SP-16 (using the SP
+ //    after step 2).
+-// 4. Save all machine registers (including flags and XMM reigsters)
++// 4. Save all machine registers (including flags and XMM registers)
+ //    so they can be restored later by the debugger.
+ // 5. Set the PC to debugCallV2 and resume execution.
+ //
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 8310c2ca10..f593b4a78b 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1259,7 +1259,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+ // 3. Store the current LR in (SP) (using the SP after step 2).
+ // 4. Store the current PC in the LR register.
+ // 5. Write the desired argument frame size at SP-16
+-// 6. Save all machine registers (including flags and fpsimd reigsters)
++// 6. Save all machine registers (including flags and fpsimd registers)
+ //    so they can be restored later by the debugger.
+ // 7. Set the PC to debugCallV2 and resume execution.
+ //
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 7acedfcded..c275c7dbc4 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -1153,7 +1153,7 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
+ 
+ 	// Below this point, c.heapMarked < goal.
+ 
+-	// heapMarked is our absolute minumum, and it's possible the trigger
++	// heapMarked is our absolute minimum, and it's possible the trigger
+ 	// bound we get from heapGoalinternal is less than that.
+ 	if minTrigger < c.heapMarked {
+ 		minTrigger = c.heapMarked
+diff --git a/src/runtime/mspanset.go b/src/runtime/mspanset.go
+index 29f14910cc..4158495ddd 100644
+--- a/src/runtime/mspanset.go
++++ b/src/runtime/mspanset.go
+@@ -201,7 +201,7 @@ claimLoop:
+ 
+ 	// Increase the popped count. If we are the last possible popper
+ 	// in the block (note that bottom need not equal spanSetBlockEntries-1
+-	// due to races) then it's our resposibility to free the block.
++	// due to races) then it's our responsibility to free the block.
+ 	//
+ 	// If we increment popped to spanSetBlockEntries, we can be sure that
+ 	// we're the last popper for this block, and it's thus safe to free it.
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index e5b1b7e9f3..5dc576a260 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -319,7 +319,7 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
+ // Runs on OS stack.
+ // duration (in -100ns units) is in dt+0(FP).
+ // g is valid.
+-// TODO: neeeds to be implemented properly.
++// TODO: needs to be implemented properly.
+ TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
+ 	B	runtime·abort(SB)
+ 
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 7b1514f552..024625f821 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -371,7 +371,7 @@ TEXT runtime·usleep2(SB),NOSPLIT,$32-4
+ // Runs on OS stack.
+ // duration (in -100ns units) is in dt+0(FP).
+ // g is valid.
+-// TODO: neeeds to be implemented properly.
++// TODO: needs to be implemented properly.
+ TEXT runtime·usleep2HighRes(SB),NOSPLIT,$0-4
+ 	B	runtime·abort(SB)
+ 
+diff --git a/test/fixedbugs/bug150.go b/test/fixedbugs/bug150.go
+index b565ef73dd..bb4b0d2242 100644
+--- a/test/fixedbugs/bug150.go
++++ b/test/fixedbugs/bug150.go
+@@ -19,5 +19,5 @@ func f() (a, b M) {
+ }
+ 
+ /*
+-bugs/bug150.go:13: reorder2: too many funcation calls evaluating parameters
++bugs/bug150.go:13: reorder2: too many function calls evaluating parameters
+ */

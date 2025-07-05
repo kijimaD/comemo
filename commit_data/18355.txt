@@ -14,7 +14,34 @@ Date:   Mon Jan 27 20:29:21 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews
     https://golang.org/cl/54760045
-
+---
  src/pkg/runtime/malloc.goc | 2 ++
  src/pkg/runtime/string.goc | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 0a0420d415..280a0a2a8f 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -224,6 +224,8 @@ largealloc(uint32 flag, uintptr *sizep)
+ 
+ 	// Allocate directly from heap.
+ 	size = *sizep;
++	if(size + PageSize < size)
++		runtime·throw("out of memory");
+ 	npages = size >> PageShift;
+ 	if((size & PageMask) != 0)
+ 		npages++;
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 407188cfe6..a46fa5d8d2 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -334,6 +334,8 @@ func stringtoslicerune(s String) (b Slice) {
+ 		n++;
+ 	}
+ 
++	if(n > MaxMem/sizeof(r[0]))
++		runtime·throw("out of memory");
+ 	mem = runtime·roundupsize(n*sizeof(r[0]));
+ 	b.array = runtime·mallocgc(mem, 0, FlagNoScan|FlagNoZero);
+ 	b.len = n;

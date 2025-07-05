@@ -9,9 +9,159 @@ Date:   Fri Apr 10 14:53:01 2020 -0400
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf2.go | 12 ++++++------
  src/cmd/link/internal/ld/link.go   |  4 ++++
  src/cmd/link/internal/ld/sym.go    |  1 +
  src/cmd/link/internal/ld/symtab.go | 34 ++++++++++++++--------------------
  4 files changed, 25 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf2.go b/src/cmd/link/internal/ld/dwarf2.go
+index 233cd6a784..cf69e17a1a 100644
+--- a/src/cmd/link/internal/ld/dwarf2.go
++++ b/src/cmd/link/internal/ld/dwarf2.go
+@@ -56,20 +56,20 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
+ 	}
+ 
+ 	s := ctxt.Syms.Lookup(".debug_info", 0)
+-	putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	s = ctxt.Syms.Lookup(".debug_abbrev", 0)
+-	putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	s = ctxt.Syms.Lookup(".debug_line", 0)
+-	putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	s = ctxt.Syms.Lookup(".debug_frame", 0)
+-	putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	s = ctxt.Syms.Lookup(".debug_loc", 0)
+ 	if s.Sect != nil {
+-		putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++		putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	}
+ 	s = ctxt.Syms.Lookup(".debug_ranges", 0)
+ 	if s.Sect != nil {
+-		putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++		putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 8695a3a904..97599661c5 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -96,6 +96,10 @@ type Link struct {
+ 
+ 	datap   []*sym.Symbol
+ 	dynexp2 []loader.Sym
++
++	// Elf symtab variables.
++	numelfsym int // starts at 0, 1 is reserved
++	elfbind   int
+ }
+ 
+ type cgodata struct {
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index ff47c688b6..6a8b3dbed1 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -46,6 +46,7 @@ func linknew(arch *sys.Arch) *Link {
+ 		outSem:       make(chan int, 2*runtime.GOMAXPROCS(0)),
+ 		Out:          NewOutBuf(arch),
+ 		LibraryByPkg: make(map[string]*sym.Library),
++		numelfsym:    1,
+ 	}
+ 
+ 	if objabi.GOARCH != arch.Name {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index c7b83f2192..cd1fa8e6f1 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -73,10 +73,6 @@ func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx
+ 	}
+ }
+ 
+-var numelfsym = 1 // 0 is reserved
+-
+-var elfbind int
+-
+ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go_ *sym.Symbol) {
+ 	var typ int
+ 
+@@ -178,7 +174,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
+ 		s = strings.Replace(s, "·", ".", -1)
+ 	}
+ 
+-	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == sym.STEXT {
++	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && ctxt.elfbind == STB_LOCAL && x.Type == sym.STEXT {
+ 		// When dynamically linking, we want references to functions defined
+ 		// in this module to always be to the function object, not to the
+ 		// PLT. We force this by writing an additional local symbol for every
+@@ -188,22 +184,22 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
+ 		// ELF linker -Bsymbolic-functions option, but that is buggy on
+ 		// several platforms.
+ 		putelfsyment(ctxt.Out, putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
+-		x.LocalElfsym = int32(numelfsym)
+-		numelfsym++
++		x.LocalElfsym = int32(ctxt.numelfsym)
++		ctxt.numelfsym++
+ 		return
+-	} else if bind != elfbind {
++	} else if bind != ctxt.elfbind {
+ 		return
+ 	}
+ 
+ 	putelfsyment(ctxt.Out, putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
+-	x.Elfsym = int32(numelfsym)
+-	numelfsym++
++	x.Elfsym = int32(ctxt.numelfsym)
++	ctxt.numelfsym++
+ }
+ 
+-func putelfsectionsym(out *OutBuf, s *sym.Symbol, shndx int) {
++func putelfsectionsym(ctxt *Link, out *OutBuf, s *sym.Symbol, shndx int) {
+ 	putelfsyment(out, 0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
+-	s.Elfsym = int32(numelfsym)
+-	numelfsym++
++	s.Elfsym = int32(ctxt.numelfsym)
++	ctxt.numelfsym++
+ }
+ 
+ func Asmelfsym(ctxt *Link) {
+@@ -217,13 +213,13 @@ func Asmelfsym(ctxt *Link) {
+ 	// It is added with a name to avoid problems with external linking
+ 	// encountered on some versions of Solaris. See issue #14957.
+ 	putelfsyment(ctxt.Out, putelfstr("go.go"), 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
+-	numelfsym++
++	ctxt.numelfsym++
+ 
+-	elfbind = STB_LOCAL
++	ctxt.elfbind = STB_LOCAL
+ 	genasmsym(ctxt, putelfsym)
+ 
+-	elfbind = STB_GLOBAL
+-	elfglobalsymndx = numelfsym
++	ctxt.elfbind = STB_GLOBAL
++	elfglobalsymndx = ctxt.numelfsym
+ 	genasmsym(ctxt, putelfsym)
+ }
+ 
+@@ -260,8 +256,6 @@ func Asmplan9sym(ctxt *Link) {
+ 	genasmsym(ctxt, putplan9sym)
+ }
+ 
+-var symt *sym.Symbol
+-
+ type byPkg []*sym.Library
+ 
+ func (libs byPkg) Len() int {
+@@ -434,7 +428,7 @@ func (ctxt *Link) symtab() {
+ 	symitablink := ctxt.Syms.Lookup("runtime.itablink", 0)
+ 	symitablink.Type = sym.SITABLINK
+ 
+-	symt = ctxt.Syms.Lookup("runtime.symtab", 0)
++	symt := ctxt.Syms.Lookup("runtime.symtab", 0)
+ 	symt.Attr |= sym.AttrLocal
+ 	symt.Type = sym.SSYMTAB
+ 	symt.Size = 0

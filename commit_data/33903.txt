@@ -23,7 +23,51 @@ Date:   Thu Sep 14 11:11:30 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/63917
     Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go           | 8 ++++++--
  src/cmd/go/internal/load/pkg.go | 6 ++++++
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 7d80d965ae..25c1846921 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3614,8 +3614,8 @@ func TestBinaryOnlyPackages(t *testing.T) {
+ 	tg.grepStdout("false", "did not see BinaryOnly=false for p4")
+ }
+ 
+-// Issue 16050.
+-func TestAlwaysLinkSysoFiles(t *testing.T) {
++// Issue 16050 and 21884.
++func TestLinkSysoFiles(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+@@ -3634,6 +3634,10 @@ func TestAlwaysLinkSysoFiles(t *testing.T) {
+ 	tg.setenv("CGO_ENABLED", "0")
+ 	tg.run("list", "-f", "{{.SysoFiles}}", "syso")
+ 	tg.grepStdout("a.syso", "missing syso file with CGO_ENABLED=0")
++
++	tg.setenv("CGO_ENABLED", "1")
++	tg.run("list", "-msan", "-f", "{{.SysoFiles}}", "syso")
++	tg.grepStdoutNot("a.syso", "unexpected syso file with -msan")
+ }
+ 
+ // Issue 16120.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 60de666164..4fbde1de8c 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -207,6 +207,12 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.SwigFiles = pp.SwigFiles
+ 	p.SwigCXXFiles = pp.SwigCXXFiles
+ 	p.SysoFiles = pp.SysoFiles
++	if cfg.BuildMSan {
++		// There's no way for .syso files to be built both with and without
++		// support for memory sanitizer. Assume they are built without,
++		// and drop them.
++		p.SysoFiles = nil
++	}
+ 	p.CgoCFLAGS = pp.CgoCFLAGS
+ 	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
+ 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS

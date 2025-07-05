@@ -11,6 +11,20 @@ Date:   Fri May 31 23:45:26 2024 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/time/internal_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index 619f605ae7..ef82d4acfb 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -47,7 +47,7 @@ func CheckRuntimeTimerPeriodOverflow() {
+ 	// We manually create a runtimeTimer with huge period, but that expires
+ 	// immediately. The public Timer interface would require waiting for
+ 	// the entire period before the first update.
+-	t := (*Timer)(newTimer(runtimeNano(), 1<<63-1, empty, nil, nil))
++	t := newTimer(runtimeNano(), 1<<63-1, empty, nil, nil)
+ 	defer t.Stop()
+ 
+ 	// If this test fails, we will either throw (when siftdownTimer detects

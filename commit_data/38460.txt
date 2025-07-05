@@ -18,7 +18,59 @@ Date:   Tue Oct 30 10:56:02 2018 -0700
     Change-Id: Ie52430422196e3c91e5529d6e56a8435ced1fc4c
     Reviewed-on: https://go-review.googlesource.com/c/146018
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/string_test.go  | 28 ++++++++++++++++++++++++++++
  src/strings/strings_decl.go |  2 ++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 678ff00363..a1716fa32f 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -240,6 +240,34 @@ func TestCompareTempString(t *testing.T) {
+ 	}
+ }
+ 
++func TestStringIndexHaystack(t *testing.T) {
++	// See issue 25864.
++	haystack := []byte("hello")
++	needle := "ll"
++	n := testing.AllocsPerRun(1000, func() {
++		if strings.Index(string(haystack), needle) != 2 {
++			t.Fatalf("needle not found")
++		}
++	})
++	if n != 0 {
++		t.Fatalf("want 0 allocs, got %v", n)
++	}
++}
++
++func TestStringIndexNeedle(t *testing.T) {
++	// See issue 25864.
++	haystack := "hello"
++	needle := []byte("ll")
++	n := testing.AllocsPerRun(1000, func() {
++		if strings.Index(haystack, string(needle)) != 2 {
++			t.Fatalf("needle not found")
++		}
++	})
++	if n != 0 {
++		t.Fatalf("want 0 allocs, got %v", n)
++	}
++}
++
+ func TestStringOnStack(t *testing.T) {
+ 	s := ""
+ 	for i := 0; i < 3; i++ {
+diff --git a/src/strings/strings_decl.go b/src/strings/strings_decl.go
+index 98194445e1..6718c3ace4 100644
+--- a/src/strings/strings_decl.go
++++ b/src/strings/strings_decl.go
+@@ -4,5 +4,7 @@
+ 
+ package strings
+ 
++//go:noescape
++
+ // IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+ func IndexByte(s string, c byte) int // in internal/bytealg

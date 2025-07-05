@@ -12,7 +12,168 @@ Date:   Fri Jul 13 12:31:01 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/123755
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go |  12 ++++
  src/cmd/go/mod_test.go              | 121 ++++++++++++++++++++++++++++++++++++
  2 files changed, 133 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a360a2c9ed..82820899e6 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -423,11 +423,23 @@ func FindModulePath(dir string) (string, error) {
+ 	}
+ 
+ 	// Look for path in GOPATH.
++	xdir, errdir := filepath.EvalSymlinks(dir)
+ 	for _, gpdir := range filepath.SplitList(cfg.BuildContext.GOPATH) {
++		xgpdir, errgpdir := filepath.EvalSymlinks(gpdir)
+ 		src := filepath.Join(gpdir, "src") + string(filepath.Separator)
++		xsrc := filepath.Join(xgpdir, "src") + string(filepath.Separator)
+ 		if strings.HasPrefix(dir, src) {
+ 			return filepath.ToSlash(dir[len(src):]), nil
+ 		}
++		if errdir == nil && strings.HasPrefix(xdir, src) {
++			return filepath.ToSlash(xdir[len(src):]), nil
++		}
++		if errgpdir == nil && strings.HasPrefix(dir, xsrc) {
++			return filepath.ToSlash(dir[len(xsrc):]), nil
++		}
++		if errdir == nil && errgpdir == nil && strings.HasPrefix(xdir, xsrc) {
++			return filepath.ToSlash(xdir[len(xsrc):]), nil
++		}
+ 	}
+ 
+ 	// Look for .git/config with github origin as last resort.
+diff --git a/src/cmd/go/mod_test.go b/src/cmd/go/mod_test.go
+index faebff0f7a..4814ef82a8 100644
+--- a/src/cmd/go/mod_test.go
++++ b/src/cmd/go/mod_test.go
+@@ -212,6 +212,127 @@ func TestModFindModulePath(t *testing.T) {
+ 	if path != "unexpected.com/z" || err != nil {
+ 		t.Fatalf("FindModulePath = %q, %v, want %q, nil", path, err, "unexpected.com/z")
+ 	}
++
++	// Empty dir outside GOPATH
++	tg.must(os.RemoveAll(tg.tempdir))
++	tg.must(os.MkdirAll(tg.path("gp"), 0777))
++	tg.must(os.MkdirAll(tg.path("x"), 0777))
++	cfg.BuildContext.GOPATH = tg.path("gp")
++
++	path, err = modload.FindModulePath(tg.path("x"))
++	if path != "" || err == nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, %q", path, err, "", "cannot determine module path for source directory")
++	}
++
++	// Empty dir inside GOPATH
++	tg.must(os.RemoveAll(tg.tempdir))
++	tg.must(os.MkdirAll(tg.path("gp/src/x"), 0777))
++	cfg.BuildContext.GOPATH = tg.path("gp")
++
++	path, err = modload.FindModulePath(tg.path("gp/src/x"))
++	if path != "x" || err != nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	}
++
++	if !testenv.HasSymlink() {
++		t.Logf("skipping symlink tests")
++		return
++	}
++
++	// Empty dir inside GOPATH, dir has symlink
++	// GOPATH = gp
++	// gplink -> gp
++	tg.must(os.RemoveAll(tg.tempdir))
++	tg.must(os.MkdirAll(tg.path("gp/src/x"), 0777))
++	tg.must(os.Symlink(tg.path("gp"), tg.path("gplink")))
++	cfg.BuildContext.GOPATH = tg.path("gp")
++
++	path, err = modload.FindModulePath(tg.path("gplink/src/x"))
++	if path != "x" || err != nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	}
++	path, err = modload.FindModulePath(tg.path("gp/src/x"))
++	if path != "x" || err != nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	}
++
++	// Empty dir inside GOPATH, dir has symlink 2
++	// GOPATH = gp
++	// gp/src/x -> x/x
++	tg.must(os.RemoveAll(tg.tempdir))
++	tg.must(os.MkdirAll(tg.path("gp/src"), 0777))
++	tg.must(os.MkdirAll(tg.path("x/x"), 0777))
++	tg.must(os.Symlink(tg.path("x/x"), tg.path("gp/src/x")))
++	cfg.BuildContext.GOPATH = tg.path("gp")
++
++	path, err = modload.FindModulePath(tg.path("gp/src/x"))
++	if path != "x" || err != nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	}
++
++	// Empty dir inside GOPATH, GOPATH has symlink
++	// GOPATH = gplink
++	// gplink -> gp
++	tg.must(os.RemoveAll(tg.tempdir))
++	tg.must(os.MkdirAll(tg.path("gp/src/x"), 0777))
++	tg.must(os.Symlink(tg.path("gp"), tg.path("gplink")))
++	cfg.BuildContext.GOPATH = tg.path("gplink")
++
++	path, err = modload.FindModulePath(tg.path("gplink/src/x"))
++	if path != "x" || err != nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	}
++	path, err = modload.FindModulePath(tg.path("gp/src/x"))
++	if path != "x" || err != nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	}
++
++	// Empty dir inside GOPATH, GOPATH has symlink, dir has symlink 2
++	// GOPATH = gplink
++	// gplink -> gp
++	// gplink2 -> gp
++	tg.must(os.RemoveAll(tg.tempdir))
++	tg.must(os.MkdirAll(tg.path("gp/src/x"), 0777))
++	tg.must(os.Symlink(tg.path("gp"), tg.path("gplink")))
++	tg.must(os.Symlink(tg.path("gp"), tg.path("gplink2")))
++	cfg.BuildContext.GOPATH = tg.path("gplink")
++
++	path, err = modload.FindModulePath(tg.path("gplink2/src/x"))
++	if path != "x" || err != nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	}
++	path, err = modload.FindModulePath(tg.path("gplink/src/x"))
++	if path != "x" || err != nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	}
++	path, err = modload.FindModulePath(tg.path("gp/src/x"))
++	if path != "x" || err != nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	}
++
++	// Empty dir inside GOPATH, GOPATH has symlink, dir has symlink 3
++	// GOPATH = gplink
++	// gplink -> gp
++	// gplink2 -> gp
++	// gp/src/x -> x/x
++	tg.must(os.RemoveAll(tg.tempdir))
++	tg.must(os.MkdirAll(tg.path("gp/src"), 0777))
++	tg.must(os.MkdirAll(tg.path("x/x"), 0777))
++	tg.must(os.Symlink(tg.path("gp"), tg.path("gplink")))
++	tg.must(os.Symlink(tg.path("gp"), tg.path("gplink2")))
++	tg.must(os.Symlink(tg.path("x/x"), tg.path("gp/src/x")))
++	cfg.BuildContext.GOPATH = tg.path("gplink")
++
++	path, err = modload.FindModulePath(tg.path("gplink/src/x"))
++	if path != "x" || err != nil {
++		t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	}
++
++	// This test fails when /tmp -> /private/tmp.
++	// path, err = modload.FindModulePath(tg.path("gp/src/x"))
++	// if path != "x" || err != nil {
++	// 	t.Fatalf("FindModulePath() = %q, %v, want %q, nil", path, err, "x")
++	// }
+ }
+ 
+ func TestModImportModFails(t *testing.T) {

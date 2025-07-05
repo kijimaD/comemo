@@ -16,7 +16,68 @@ Date:   Thu Jul 26 17:09:11 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6448060
-
+---
  src/pkg/go/printer/nodes.go        |  7 ++++++-
  src/pkg/go/printer/printer_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 138f3eee60..04f2adbd87 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -325,9 +325,14 @@ func (p *printer) parameters(fields *ast.FieldList) {
+ }
+ 
+ func (p *printer) signature(params, result *ast.FieldList) {
+-	p.parameters(params)
++	if params != nil {
++		p.parameters(params)
++	} else {
++		p.print(token.LPAREN, token.RPAREN)
++	}
+ 	n := result.NumFields()
+ 	if n > 0 {
++		// result != nil
+ 		p.print(blank)
+ 		if n == 1 && result.List[0].Names == nil {
+ 			// single anonymous result; no ()'s
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 497d671f24..ab9e9b2ec8 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -385,6 +385,35 @@ func (t *t) foo(a, b, c int) int {
+ 	}
+ }
+ 
++// TestFuncType tests that an ast.FuncType with a nil Params field
++// can be printed (per go/ast specification). Test case for issue 3870.
++func TestFuncType(t *testing.T) {
++	src := &ast.File{
++		Name: &ast.Ident{Name: "p"},
++		Decls: []ast.Decl{
++			&ast.FuncDecl{
++				Name: &ast.Ident{Name: "f"},
++				Type: &ast.FuncType{},
++			},
++		},
++	}
++
++	var buf bytes.Buffer
++	if err := Fprint(&buf, fset, src); err != nil {
++		t.Fatal(err)
++	}
++	got := buf.String()
++
++	const want = `package p
++
++func f()
++`
++
++	if got != want {
++		t.Fatalf("got:\n%s\nwant:\n%s\n", got, want)
++	}
++}
++
+ // TextX is a skeleton test that can be filled in for debugging one-off cases.
+ // Do not remove.
+ func TestX(t *testing.T) {

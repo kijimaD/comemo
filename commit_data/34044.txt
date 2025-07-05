@@ -12,6 +12,20 @@ Date:   Wed Sep 27 10:36:04 2017 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 0ecc2b3bca..2ab3f6bb16 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -212,7 +212,7 @@ type Type interface {
+ // t.FieldByName("x") is not well defined if the struct type t contains
+ // multiple fields named x (embedded from different packages).
+ // FieldByName may return one of the fields named x or may report that there are none.
+-// See golang.org/issue/4876 for more details.
++// See https://golang.org/issue/4876 for more details.
+ 
+ /*
+  * These data structures are known to the compiler (../../cmd/internal/gc/reflect.go).

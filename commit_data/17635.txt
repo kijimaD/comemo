@@ -19,7 +19,7 @@ Date:   Tue Sep 17 16:54:22 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/13334052
-
+---
  src/cmd/5g/ggen.c |   2 +-
  src/cmd/5g/peep.c |  28 ++++++++
  src/cmd/5g/prog.c |   2 +-
@@ -37,3 +37,714 @@ Date:   Tue Sep 17 16:54:22 2013 -0400
  src/cmd/gc/walk.c |   5 --
  test/nilptr3.go   | 191 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
  16 files changed, 510 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 9065a8dd37..040c3d2a98 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -889,7 +889,7 @@ expandchecks(Prog *firstp)
+ 		if(p->as != ACHECKNIL)
+ 			continue;
+ 		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
+-			warnl(p->lineno, "nil check %D", &p->from);
++			warnl(p->lineno, "generated nil check");
+ 		if(p->from.type != D_REG)
+ 			fatal("invalid nil check %P", p);
+ 		reg = p->from.reg;
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 9e51fa1b8a..c78fb3d1c7 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1193,6 +1193,20 @@ copyas(Adr *a, Adr *v)
+ 	return 0;
+ }
+ 
++int
++sameaddr(Adr *a, Adr *v)
++{
++	if(a->type != v->type)
++		return 0;
++	if(regtyp(v) && a->reg == v->reg)
++		return 1;
++	if(v->type == D_AUTO || v->type == D_PARAM) {
++		if(v->offset == a->offset)
++			return 1;
++	}
++	return 0;
++}
++
+ /*
+  * either direct or indirect
+  */
+@@ -1525,3 +1539,17 @@ isdconst(Addr *a)
+ 		return 1;
+ 	return 0;
+ }
++
++int
++stackaddr(Addr *a)
++{
++	return regtyp(a) && a->reg == REGSP;
++}
++
++int
++smallindir(Addr *a, Addr *reg)
++{
++	return reg->type == D_REG && a->type == D_OREG &&
++		a->reg == reg->reg &&
++		0 <= a->offset && a->offset < 4096;
++}
+diff --git a/src/cmd/5g/prog.c b/src/cmd/5g/prog.c
+index c3d7ca5a2f..5aa6163d80 100644
+--- a/src/cmd/5g/prog.c
++++ b/src/cmd/5g/prog.c
+@@ -100,7 +100,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[AMOVHU]=		{SizeW | LeftRead | RightWrite | Conv},
+ 	
+ 	// Jumps.
+-	[AB]=		{Jump},
++	[AB]=		{Jump | Break},
+ 	[ABL]=		{Call},
+ 	[ABEQ]=		{Cjmp},
+ 	[ABNE]=		{Cjmp},
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index c9a5e8446e..d2a8cc4885 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -1293,6 +1293,10 @@ dumpit(char *str, Flow *r0, int isreg)
+ 			print("	pred:");
+ 			for(; r1 != nil; r1 = r1->p2link)
+ 				print(" %.4ud", r1->prog->loc);
++			if(r->p1 != nil)
++				print(" (and %.4ud)", r->p1->prog->loc);
++			else
++				print(" (only)");
+ 			print("\n");
+ 		}
+ //		r1 = r->s1;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index d034dc055e..ada2baa81c 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1015,6 +1015,7 @@ igen(Node *n, Node *a, Node *res)
+ 			fixlargeoffset(a);
+ 			return;
+ 		}
++		break;
+ 	}
+ 
+ 	agenr(n, a, res);
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 6f4c84704a..9fad9f7f1b 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1081,7 +1081,7 @@ expandchecks(Prog *firstp)
+ 		if(p->as != ACHECKNIL)
+ 			continue;
+ 		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
+-			warnl(p->lineno, "nil check %D", &p->from);
++			warnl(p->lineno, "generated nil check");
+ 		// check is
+ 		//	CMP arg, $0
+ 		//	JNE 2(PC) (likely)
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 9ae5421bf9..5ccf901036 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -844,6 +844,19 @@ copyas(Adr *a, Adr *v)
+ 	return 0;
+ }
+ 
++int
++sameaddr(Addr *a, Addr *v)
++{
++	if(a->type != v->type)
++		return 0;
++	if(regtyp(v))
++		return 1;
++	if(v->type == D_AUTO || v->type == D_PARAM)
++		if(v->offset == a->offset)
++			return 1;
++	return 0;
++}
++
+ /*
+  * either direct or indirect
+  */
+@@ -951,3 +964,18 @@ loop:
+ 		break;
+ 	}
+ }
++
++int
++smallindir(Addr *a, Addr *reg)
++{
++	return regtyp(reg) &&
++		a->type == D_INDIR + reg->type &&
++		a->index == D_NONE &&
++		0 <= a->offset && a->offset < 4096;
++}
++
++int
++stackaddr(Addr *a)
++{
++	return regtyp(a) && a->type == D_SP;
++}
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 9b79c175bf..cc28a31457 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -857,7 +857,35 @@ igen(Node *n, Node *a, Node *res)
+ 		a->xoffset = fp->width;
+ 		a->type = n->type;
+ 		return;
++
++	case OINDEX:
++		// Index of fixed-size array by constant can
++		// put the offset in the addressing.
++		// Could do the same for slice except that we need
++		// to use the real index for the bounds checking.
++		if(isfixedarray(n->left->type) ||
++		   (isptr[n->left->type->etype] && isfixedarray(n->left->left->type)))
++		if(isconst(n->right, CTINT)) {
++			// Compute &a.
++			if(!isptr[n->left->type->etype])
++				igen(n->left, a, res);
++			else {
++				igen(n->left, &n1, res);
++				cgen_checknil(&n1);
++				regalloc(a, types[tptr], res);
++				gmove(&n1, a);
++				regfree(&n1);
++				a->op = OINDREG;
++			}
++
++			// Compute &a[i] as &a + i*width.
++			a->type = n->type;
++			a->xoffset += mpgetfix(n->right->val.u.xval)*n->type->width;
++			return;
++		}
++		break;
+ 	}
++
+ 	// release register for now, to avoid
+ 	// confusing tempname.
+ 	if(res != N && res->op == OREGISTER)
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 9f2758c91e..fa5ed00dd0 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -1232,7 +1232,7 @@ expandchecks(Prog *firstp)
+ 		if(p->as != ACHECKNIL)
+ 			continue;
+ 		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
+-			warnl(p->lineno, "nil check %D", &p->from);
++			warnl(p->lineno, "generated nil check");
+ 		// check is
+ 		//	CMP arg, $0
+ 		//	JNE 2(PC) (likely)
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index f8e832e6d4..966c0421bf 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -640,6 +640,19 @@ copyas(Adr *a, Adr *v)
+ 	return 0;
+ }
+ 
++int
++sameaddr(Addr *a, Addr *v)
++{
++	if(a->type != v->type)
++		return 0;
++	if(regtyp(v))
++		return 1;
++	if(v->type == D_AUTO || v->type == D_PARAM)
++		if(v->offset == a->offset)
++			return 1;
++	return 0;
++}
++
+ /*
+  * either direct or indirect
+  */
+@@ -738,3 +751,18 @@ loop:
+ 		break;
+ 	}
+ }
++
++int
++smallindir(Addr *a, Addr *reg)
++{
++	return regtyp(reg) &&
++		a->type == D_INDIR + reg->type &&
++		a->index == D_NONE &&
++		0 <= a->offset && a->offset < 4096;
++}
++
++int
++stackaddr(Addr *a)
++{
++	return regtyp(a) && a->type == D_SP;
++}
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 404e28e422..ada16eacc5 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -629,6 +629,10 @@ cgen_discard(Node *nr)
+ 	case OPLUS:
+ 		cgen_discard(nr->left);
+ 		break;
++	
++	case OIND:
++		cgen_checknil(nr->left);
++		break;
+ 
+ 	// special enough to just evaluate
+ 	default:
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 7ea76fc5fc..2850af6bb0 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -181,6 +181,7 @@ compile(Node *fn)
+ 
+ 	if(!debug['N'] || debug['R'] || debug['P']) {
+ 		regopt(ptxt);
++		nilopt(ptxt);
+ 	}
+ 	expandchecks(ptxt);
+ 
+@@ -537,8 +538,11 @@ cgen_checknil(Node *n)
+ 
+ 	if(disable_checknil)
+ 		return;
+-	while(n->op == ODOT || (n->op == OINDEX && isfixedarray(n->left->type->type))) // NOTE: not ODOTPTR
+-		n = n->left;
++	// Ideally we wouldn't see any TUINTPTR here, but we do.
++	if(n->type == T || (!isptr[n->type->etype] && n->type->etype != TUINTPTR && n->type->etype != TUNSAFEPTR)) {
++		dump("checknil", n);
++		fatal("bad checknil");
++	}
+ 	if((thechar == '5' && n->op != OREGISTER) || !n->addable) {
+ 		regalloc(&reg, types[tptr], n);
+ 		cgen(n, &reg);
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index c3277b48fc..22ea73eb60 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -764,3 +764,187 @@ mergewalk(TempVar *v, TempFlow *r0, uint32 gen)
+ 		for(r2 = (TempFlow*)r->f.p2; r2 != nil; r2 = (TempFlow*)r2->f.p2link)
+ 			mergewalk(v, r2, gen);
+ }
++
++// Eliminate redundant nil pointer checks.
++//
++// The code generation pass emits a CHECKNIL for every possibly nil pointer.
++// This pass removes a CHECKNIL if every predecessor path has already
++// checked this value for nil.
++//
++// Simple backwards flood from check to definition.
++// Run prog loop backward from end of program to beginning to avoid quadratic
++// behavior removing a run of checks.
++//
++// Assume that stack variables with address not taken can be loaded multiple times
++// from memory without being rechecked. Other variables need to be checked on
++// each load.
++	
++typedef struct NilVar NilVar;
++typedef struct NilFlow NilFlow;
++
++struct NilFlow {
++	Flow f;
++	int kill;
++};
++
++static void nilwalkback(NilFlow *rcheck);
++static void nilwalkfwd(NilFlow *rcheck);
++
++void
++nilopt(Prog *firstp)
++{
++	NilFlow *r;
++	Prog *p;
++	uint32 gen;
++	Graph *g;
++	int ncheck, nkill;
++
++	g = flowstart(firstp, sizeof(NilFlow));
++	if(g == nil)
++		return;
++
++	if(debug_checknil > 1 /* || strcmp(curfn->nname->sym->name, "f1") == 0 */)
++		dumpit("nilopt", g->start, 0);
++
++	gen = 0;
++	ncheck = 0;
++	nkill = 0;
++	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
++		p = r->f.prog;
++		if(p->as != ACHECKNIL || !regtyp(&p->from))
++			continue;
++		ncheck++;
++		if(stackaddr(&p->from)) {
++			if(debug_checknil && p->lineno > 1)
++				warnl(p->lineno, "removed nil check of SP address");
++			r->kill = 1;
++			continue;
++		}
++		nilwalkfwd(r);
++		if(r->kill) {
++			if(debug_checknil && p->lineno > 1)
++				warnl(p->lineno, "removed nil check before indirect");
++			continue;
++		}
++		nilwalkback(r);
++		if(r->kill) {
++			if(debug_checknil && p->lineno > 1)
++				warnl(p->lineno, "removed repeated nil check");
++			continue;
++		}
++	}
++	
++	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
++		if(r->kill) {
++			nkill++;
++			excise(&r->f);
++		}
++	}
++
++	flowend(g);
++	
++	if(debug_checknil > 1)
++		print("%S: removed %d of %d nil checks\n", curfn->nname->sym, nkill, ncheck);
++}
++
++static void
++nilwalkback(NilFlow *rcheck)
++{
++	Prog *p;
++	ProgInfo info;
++	NilFlow *r;
++	
++	for(r = rcheck; r != nil; r = (NilFlow*)uniqp(&r->f)) {
++		p = r->f.prog;
++		proginfo(&info, p);
++		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from)) {
++			// Found initialization of value we're checking for nil.
++			// without first finding the check, so this one is unchecked.
++			return;
++		}
++		if(r != rcheck && p->as == ACHECKNIL && sameaddr(&p->from, &rcheck->f.prog->from)) {
++			rcheck->kill = 1;
++			return;
++		}
++	}
++
++	// Here is a more complex version that scans backward across branches.
++	// It assumes rcheck->kill = 1 has been set on entry, and its job is to find a reason
++	// to keep the check (setting rcheck->kill = 0).
++	// It doesn't handle copying of aggregates as well as I would like,
++	// nor variables with their address taken,
++	// and it's too subtle to turn on this late in Go 1.2. Perhaps for Go 1.3.
++	/*
++	for(r1 = r0; r1 != nil; r1 = (NilFlow*)r1->f.p1) {
++		if(r1->f.active == gen)
++			break;
++		r1->f.active = gen;
++		p = r1->f.prog;
++		
++		// If same check, stop this loop but still check
++		// alternate predecessors up to this point.
++		if(r1 != rcheck && p->as == ACHECKNIL && sameaddr(&p->from, &rcheck->f.prog->from))
++			break;
++
++		proginfo(&info, p);
++		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from)) {
++			// Found initialization of value we're checking for nil.
++			// without first finding the check, so this one is unchecked.
++			rcheck->kill = 0;
++			return;
++		}
++		
++		if(r1->f.p1 == nil && r1->f.p2 == nil) {
++			print("lost pred for %P\n", rcheck->f.prog);
++			for(r1=r0; r1!=nil; r1=(NilFlow*)r1->f.p1) {
++				proginfo(&info, r1->f.prog);
++				print("\t%P %d %d %D %D\n", r1->f.prog, info.flags&RightWrite, sameaddr(&r1->f.prog->to, &rcheck->f.prog->from), &r1->f.prog->to, &rcheck->f.prog->from);
++			}
++			fatal("lost pred trail");
++		}
++	}
++
++	for(r = r0; r != r1; r = (NilFlow*)r->f.p1)
++		for(r2 = (NilFlow*)r->f.p2; r2 != nil; r2 = (NilFlow*)r2->f.p2link)
++			nilwalkback(rcheck, r2, gen);
++	*/
++}
++
++static void
++nilwalkfwd(NilFlow *rcheck)
++{
++	NilFlow *r;
++	Prog *p;
++	ProgInfo info;
++	
++	// If the path down from rcheck dereferences the address
++	// (possibly with a small offset) before writing to memory
++	// and before any subsequent checks, it's okay to wait for
++	// that implicit check. Only consider this basic block to
++	// avoid problems like:
++	//	_ = *x // should panic
++	//	for {} // no writes but infinite loop may be considered visible
++	for(r = (NilFlow*)uniqs(&rcheck->f); r != nil; r = (NilFlow*)uniqs(&r->f)) {
++		p = r->f.prog;
++		proginfo(&info, p);
++		
++		if((info.flags & LeftRead) && smallindir(&p->from, &rcheck->f.prog->from)) {
++			rcheck->kill = 1;
++			return;
++		}
++		if((info.flags & (RightRead|RightWrite)) && smallindir(&p->to, &rcheck->f.prog->from)) {
++			rcheck->kill = 1;
++			return;
++		}
++		
++		// Stop if another nil check happens.
++		if(p->as == ACHECKNIL)
++			return;
++		// Stop if value is lost.
++		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from))
++			return;
++		// Stop if memory write.
++		if((info.flags & RightWrite) && !regtyp(&p->to))
++			return;
++	}
++}
+diff --git a/src/cmd/gc/popt.h b/src/cmd/gc/popt.h
+index 4060185ed0..8d5dfff1a7 100644
+--- a/src/cmd/gc/popt.h
++++ b/src/cmd/gc/popt.h
+@@ -36,7 +36,11 @@ Graph*	flowstart(Prog*, int);
+ void	flowrpo(Graph*);
+ void	flowend(Graph*);
+ void	mergetemp(Prog*);
++void	nilopt(Prog*);
+ int	noreturn(Prog*);
+ int	regtyp(Addr*);
++int	sameaddr(Addr*, Addr*);
++int	smallindir(Addr*, Addr*);
++int	stackaddr(Addr*);
+ Flow*	uniqp(Flow*);
+ Flow*	uniqs(Flow*);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 9bba736631..495223e149 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -407,11 +407,6 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OIND:
+-		if(n->left->type->type->width == 0) {
+-			// No actual copy will be generated, so emit an explicit nil check.
+-			n->left = cheapexpr(n->left, init);
+-			checknil(n->left, init);
+-		}
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+ 
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+new file mode 100644
+index 0000000000..08597a02d9
+--- /dev/null
++++ b/test/nilptr3.go
+@@ -0,0 +1,191 @@
++// errorcheck -0 -d=nil
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that nil checks are removed.
++// Optimization is enabled.
++
++package p
++
++type Struct struct {
++	X int
++	Y float64
++}
++
++type BigStruct struct {
++	X int
++	Y float64
++	A [1<<20]int
++	Z string
++}
++
++type Empty struct {
++}
++
++type Empty1 struct {
++	Empty
++}
++
++var (
++	intp *int
++	arrayp *[10]int
++	array0p *[0]int
++	bigarrayp *[1<<26]int
++	structp *Struct
++	bigstructp *BigStruct
++	emptyp *Empty
++	empty1p *Empty1
++)
++
++func f1() {
++	_ = *intp // ERROR "generated nil check"
++	
++	// This one should be removed but the block copy needs
++	// to be turned into its own pseudo-op in order to see
++	// the indirect.
++	_ = *arrayp // ERROR "generated nil check"
++	
++	// 0-byte indirect doesn't suffice
++	_ = *array0p // ERROR "generated nil check"
++	_ = *array0p // ERROR "removed repeated nil check" 386
++
++	_ = *intp // ERROR "removed repeated nil check"
++	_ = *arrayp // ERROR "removed repeated nil check"
++	_ = *structp // ERROR "generated nil check"
++	_ = *emptyp // ERROR "generated nil check"
++	_ = *arrayp // ERROR "removed repeated nil check"
++}
++
++func f2() {
++	var (
++		intp *int
++		arrayp *[10]int
++		array0p *[0]int
++		bigarrayp *[1<<20]int
++		structp *Struct
++		bigstructp *BigStruct
++		emptyp *Empty
++		empty1p *Empty1
++	)
++
++	_ = *intp // ERROR "generated nil check"
++	_ = *arrayp // ERROR "generated nil check"
++	_ = *array0p // ERROR "generated nil check"
++	_ = *array0p // ERROR "removed repeated nil check"
++	_ = *intp // ERROR "removed repeated nil check"
++	_ = *arrayp // ERROR "removed repeated nil check"
++	_ = *structp // ERROR "generated nil check"
++	_ = *emptyp // ERROR "generated nil check"
++	_ = *arrayp // ERROR "removed repeated nil check"
++	_ = *bigarrayp // ERROR "generated nil check" ARM removed nil check before indirect!!
++	_ = *bigstructp // ERROR "generated nil check"
++	_ = *empty1p // ERROR "generated nil check"
++}
++
++func fx10k() *[10000]int
++var b bool
++
++
++func f3(x *[10000]int) {
++	// Using a huge type and huge offsets so the compiler
++	// does not expect the memory hardware to fault.
++	_ = x[9999] // ERROR "generated nil check"
++	
++	for {
++		if x[9999] != 0 { // ERROR "generated nil check"
++			break
++		}
++	}
++	
++	x = fx10k() 
++	_ = x[9999] // ERROR "generated nil check"
++	if b {
++		_ = x[9999] // ERROR "removed repeated nil check"
++	} else {
++		_ = x[9999] // ERROR "removed repeated nil check"
++	}	
++	_ = x[9999] // ERROR "generated nil check"
++
++	x = fx10k() 
++	if b {
++		_ = x[9999] // ERROR "generated nil check"
++	} else {
++		_ = x[9999] // ERROR "generated nil check"
++	}	
++	_ = x[9999] // ERROR "generated nil check"
++	
++	fx10k()
++	// This one is a bit redundant, if we figured out that
++	// x wasn't going to change across the function call.
++	// But it's a little complex to do and in practice doesn't
++	// matter enough.
++	_ = x[9999] // ERROR "generated nil check"
++}
++
++func f3a() {
++	x := fx10k()
++	y := fx10k()
++	z := fx10k()
++	_ = &x[9] // ERROR "generated nil check"
++	y = z
++	_ = &x[9] // ERROR "removed repeated nil check"
++	x = y
++	_ = &x[9] // ERROR "generated nil check"
++}
++
++func f3b() {
++	x := fx10k()
++	y := fx10k()
++	_ = &x[9] // ERROR "generated nil check"
++	y = x
++	_ = &x[9] // ERROR "removed repeated nil check"
++	x = y
++	_ = &x[9] // ERROR "removed repeated nil check"
++}
++
++func fx10() *[10]int 
++
++func f4(x *[10]int) {
++	// Most of these have no checks because a real memory reference follows,
++	// and the offset is small enough that if x is nil, the address will still be
++	// in the first unmapped page of memory.
++
++	_ = x[9] // ERROR "removed nil check before indirect"
++	
++	for {
++		if x[9] != 0 { // ERROR "removed nil check before indirect"
++			break
++		}
++	}
++	
++	x = fx10() 
++	_ = x[9] // ERROR "removed nil check before indirect"
++	if b {
++		_ = x[9] // ERROR "removed nil check before indirect"
++	} else {
++		_ = x[9] // ERROR "removed nil check before indirect"
++	}
++	_ = x[9] // ERROR "removed nil check before indirect"
++
++	x = fx10() 
++	if b {
++		_ = x[9] // ERROR "removed nil check before indirect"
++	} else {
++		_ = &x[9] // ERROR "generated nil check"
++	}	
++	_ = x[9] // ERROR "removed nil check before indirect"
++	
++	fx10()
++	_ = x[9] // ERROR "removed nil check before indirect"
++	
++	x = fx10()
++	y := fx10()
++	_ = &x[9] // ERROR "generated nil check"
++	y = x
++	_ = &x[9] // ERROR "removed repeated nil check"
++	x = y
++	_ = &x[9] // ERROR "removed repeated nil check"
++}
++

@@ -29,7 +29,7 @@ Date:   Thu Feb 28 15:27:52 2013 -0800
     R=adonovan, axwalk
     CC=golang-dev
     https://golang.org/cl/7381052
-
+---
  src/pkg/exp/gotype/gotype_test.go   |  19 +--
  src/pkg/go/types/api.go             |  10 +-
  src/pkg/go/types/builtins.go        |   2 +-
@@ -39,3 +39,1088 @@ Date:   Thu Feb 28 15:27:52 2013 -0800
  src/pkg/go/types/testdata/expr3.src |  87 ++++++++++-
  src/pkg/go/types/testdata/stmt0.src |  31 ++--
  8 files changed, 419 insertions(+), 145 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index 9e2fad0154..6d75782eac 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -16,6 +16,7 @@ func runTest(t *testing.T, path string) {
+ 	errorCount = 0
+ 
+ 	*recursive = false
++	*allErrors = true
+ 	if suffix := ".go"; strings.HasSuffix(path, suffix) {
+ 		// single file
+ 		path = filepath.Join(runtime.GOROOT(), "src/pkg", path)
+@@ -64,7 +65,7 @@ var tests = []string{
+ 	"compress/bzip2",
+ 	"compress/flate",
+ 	"compress/gzip",
+-	// "compress/lzw",
++	"compress/lzw",
+ 	"compress/zlib",
+ 
+ 	"container/heap",
+@@ -94,14 +95,14 @@ var tests = []string{
+ 	"database/sql",
+ 	"database/sql/driver",
+ 
+-	// "debug/dwarf",
++	"debug/dwarf",
+ 	"debug/elf",
+ 	"debug/gosym",
+ 	"debug/macho",
+ 	"debug/pe",
+ 
+ 	"encoding/ascii85",
+-	// "encoding/asn1",
++	"encoding/asn1",
+ 	"encoding/base32",
+ 	"encoding/base64",
+ 	"encoding/binary",
+@@ -150,14 +151,14 @@ var tests = []string{
+ 	"log/syslog",
+ 
+ 	"math",
+-	//"math/big",
++	"math/big",
+ 	"math/cmplx",
+ 	"math/rand",
+ 
+ 	"mime",
+ 	"mime/multipart",
+ 
+-	// "net",
++	"net",
+ 	"net/http",
+ 	"net/http/cgi",
+ 	"net/http/fcgi",
+@@ -179,25 +180,25 @@ var tests = []string{
+ 	"regexp",
+ 	"regexp/syntax",
+ 
+-	// "runtime",
++	"runtime",
+ 	"runtime/cgo",
+ 	"runtime/debug",
+ 	"runtime/pprof",
+ 
+ 	"sort",
+-	// "strconv",
++	"strconv",
+ 	"strings",
+ 
+ 	"sync",
+ 	"sync/atomic",
+ 
+-	// "syscall",
++	"syscall",
+ 
+ 	"testing",
+ 	"testing/iotest",
+ 	"testing/quick",
+ 
+-	// "text/scanner",
++	"text/scanner",
+ 	"text/tabwriter",
+ 	"text/template",
+ 	"text/template/parse",
+diff --git a/src/pkg/go/types/api.go b/src/pkg/go/types/api.go
+index 536f0c6f8d..13b453faac 100644
+--- a/src/pkg/go/types/api.go
++++ b/src/pkg/go/types/api.go
+@@ -33,9 +33,13 @@ type Context struct {
+ 	// Objects - than we could lift this restriction.
+ 	Ident func(id *ast.Ident, obj Object)
+ 
+-	// If Expr != nil, it is called for each expression x that is
+-	// type-checked: typ is the expression type, and val is the value
+-	// if x is constant, val is nil otherwise.
++	// If Expr != nil, it is called exactly once for each expression x
++	// that is type-checked: typ is the expression type, and val is the
++	// value if x is constant, val is nil otherwise.
++	//
++	// If x is a literal value (constant, composite literal), typ is always
++	// the dynamic type of x (never an interface type). Otherwise, typ is x's
++	// static type (possibly an interface type).
+ 	//
+ 	// Constants are represented as follows:
+ 	//
+diff --git a/src/pkg/go/types/builtins.go b/src/pkg/go/types/builtins.go
+index fd796ee75d..ad9259118e 100644
+--- a/src/pkg/go/types/builtins.go
++++ b/src/pkg/go/types/builtins.go
+@@ -338,7 +338,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 			check.invalidArg(x.pos(), "%s has no single field %s", x, sel)
+ 			goto Error
+ 		}
+-		offs := check.ctxt.offsetof(x.typ, res.index)
++		offs := check.ctxt.offsetof(deref(x.typ), res.index)
+ 		if offs < 0 {
+ 			check.invalidArg(x.pos(), "field %s is embedded via a pointer in %s", sel, x)
+ 			goto Error
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+index cf8d20de1f..f7b87e30c6 100644
+--- a/src/pkg/go/types/check.go
++++ b/src/pkg/go/types/check.go
+@@ -12,8 +12,11 @@ import (
+ 	"go/token"
+ )
+ 
+-// enable for debugging
+-const trace = false
++// debugging support
++const (
++	debug = true  // leave on during development
++	trace = false // turn on for detailed type resolution traces
++)
+ 
+ type checker struct {
+ 	ctxt  *Context
+@@ -28,9 +31,19 @@ type checker struct {
+ 	initspecs   map[*ast.ValueSpec]*ast.ValueSpec // "inherited" type and initialization expressions for constant declarations
+ 	methods     map[*TypeName]*Scope              // maps type names to associated methods
+ 	conversions map[*ast.CallExpr]bool            // set of type-checked conversions (to distinguish from calls)
+-	funclist    []function                        // list of functions/methods with correct signatures and non-empty bodies
+-	funcsig     *Signature                        // signature of currently typechecked function
+-	pos         []token.Pos                       // stack of expr positions; debugging support, used if trace is set
++
++	// untyped expressions
++	// TODO(gri): Consider merging the untyped and constants map. Should measure
++	// the ratio between untyped non-constant and untyped constant expressions
++	// to make an informed decision.
++	untyped   map[ast.Expr]*Basic      // map of expressions of untyped type
++	constants map[ast.Expr]interface{} // map of untyped constant expressions; each key also appears in untyped
++	shiftOps  map[ast.Expr]bool        // map of lhs shift operands with delayed type-checking
++
++	// functions
++	funclist []function  // list of functions/methods with correct signatures and non-empty bodies
++	funcsig  *Signature  // signature of currently typechecked function
++	pos      []token.Pos // stack of expr positions; debugging support, used if trace is set
+ }
+ 
+ func (check *checker) register(id *ast.Ident, obj Object) {
+@@ -413,6 +426,9 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
+ 		initspecs:   make(map[*ast.ValueSpec]*ast.ValueSpec),
+ 		methods:     make(map[*TypeName]*Scope),
+ 		conversions: make(map[*ast.CallExpr]bool),
++		untyped:     make(map[ast.Expr]*Basic),
++		constants:   make(map[ast.Expr]interface{}),
++		shiftOps:    make(map[ast.Expr]bool),
+ 	}
+ 
+ 	// set results and handle panics
+@@ -424,7 +440,6 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
+ 			err = check.firsterr
+ 		default:
+ 			// unexpected panic: don't crash clients
+-			const debug = true
+ 			if debug {
+ 				check.dump("INTERNAL PANIC: %v", p)
+ 				panic(p)
+@@ -468,5 +483,25 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
+ 		check.stmtList(f.body.List)
+ 	}
+ 
++	// remaining untyped expressions must indeed be untyped
++	if debug {
++		for x, typ := range check.untyped {
++			if !isUntyped(typ) {
++				check.dump("%s: %s (type %s) is not untyped", x.Pos(), x, typ)
++				panic(0)
++			}
++		}
++	}
++
++	// notify client of any untyped types left
++	// TODO(gri) Consider doing this before and
++	// after function body checking for smaller
++	// map size and more immediate feedback.
++	if ctxt.Expr != nil {
++		for x, typ := range check.untyped {
++			ctxt.Expr(x, typ, check.constants[x])
++		}
++	}
++
+ 	return
+ }
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index 8b645e4e20..f54b6252b6 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -18,6 +18,7 @@ import (
+ // - rethink error handling: should all callers check if x.mode == valid after making a call?
+ // - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
+ // - use "" or "_" consistently for anonymous identifiers? (e.g. reeceivers that have no name)
++// - consider storing error messages in invalid operands for better error messages/debugging output
+ 
+ // TODO(gri) API issues
+ // - clients need access to builtins type information
+@@ -268,6 +269,87 @@ func (check *checker) isRepresentable(x *operand, typ *Basic) {
+ 	}
+ }
+ 
++// updateExprType updates the type of all untyped nodes in the
++// expression tree of x to typ. If shiftOp is set, x is the lhs
++// of a shift expression. In that case, and if x is in the set
++// of shift operands with delayed type checking, and typ is not
++// an untyped type, updateExprType will check if typ is an
++// integer type.
++// If Context.Expr != nil, it is called for all nodes that are
++// now assigned their final (not untyped) type.
++func (check *checker) updateExprType(x ast.Expr, typ Type, shiftOp bool) {
++	switch x := x.(type) {
++	case *ast.BadExpr,
++		*ast.FuncLit,
++		*ast.CompositeLit,
++		*ast.SelectorExpr,
++		*ast.IndexExpr,
++		*ast.SliceExpr,
++		*ast.TypeAssertExpr,
++		*ast.CallExpr,
++		*ast.StarExpr,
++		*ast.KeyValueExpr,
++		*ast.ArrayType,
++		*ast.StructType,
++		*ast.FuncType,
++		*ast.InterfaceType,
++		*ast.MapType,
++		*ast.ChanType:
++		// these expression are never untyped - nothing to do
++		return
++
++	case *ast.Ident, *ast.BasicLit:
++		// update type
++
++	case *ast.ParenExpr:
++		check.updateExprType(x.X, typ, false)
++
++	case *ast.UnaryExpr:
++		check.updateExprType(x.X, typ, false)
++
++	case *ast.BinaryExpr:
++		if isComparison(x.Op) {
++			// result type is independent of operand types
++		} else if isShift(x.Op) {
++			// result type depends only on lhs operand
++			check.updateExprType(x.X, typ, true)
++		} else {
++			// operand types match result type
++			check.updateExprType(x.X, typ, false)
++			check.updateExprType(x.Y, typ, false)
++		}
++
++	case *ast.Ellipsis:
++		unreachable()
++	default:
++		unreachable()
++	}
++
++	// TODO(gri) t should always exist, shouldn't it?
++	if t := check.untyped[x]; t != nil {
++		if isUntyped(typ) {
++			check.untyped[x] = typ.(*Basic)
++		} else {
++			// notify clients of final type for x
++			if f := check.ctxt.Expr; f != nil {
++				f(x, typ, check.constants[x])
++			}
++			delete(check.untyped, x)
++			delete(check.constants, x)
++			// check delayed shift
++			// Note: Using shiftOp is an optimization: it prevents
++			// map lookups when we know x is not a shiftOp in the
++			// first place.
++			if shiftOp && check.shiftOps[x] {
++				if !isInteger(typ) {
++					check.invalidOp(x.Pos(), "shifted operand %s (type %s) must be integer", x, typ)
++				}
++				delete(check.shiftOps, x)
++			}
++		}
++	}
++}
++
+ // convertUntyped attempts to set the type of an untyped value to the target type.
+ func (check *checker) convertUntyped(x *operand, target Type) {
+ 	if x.mode == invalid || !isUntyped(x.typ) {
+@@ -284,6 +366,7 @@ func (check *checker) convertUntyped(x *operand, target Type) {
+ 		if isNumeric(x.typ) && isNumeric(target) {
+ 			if xkind < tkind {
+ 				x.typ = target
++				check.updateExprType(x.expr, target, false)
+ 			}
+ 		} else if xkind != tkind {
+ 			goto Error
+@@ -300,20 +383,43 @@ func (check *checker) convertUntyped(x *operand, target Type) {
+ 		return
+ 	case *Basic:
+ 		check.isRepresentable(x, t)
++		if x.mode == invalid {
++			return // error already reported
++		}
+ 	case *Interface:
+ 		if !x.isNil() && len(t.Methods) > 0 /* empty interfaces are ok */ {
+ 			goto Error
+ 		}
++		// Update operand types to the default type rather then
++		// the target (interface) type: values must have concrete
++		// dynamic types. If the value is nil, keep it untyped
++		// (this is important for tools such as go vet which need
++		// the dynamic type for argument checking of say, print
++		// functions)
++		if x.isNil() {
++			target = Typ[UntypedNil]
++		} else {
++			// cannot assign untyped values to non-empty interfaces
++			if len(t.Methods) > 0 {
++				goto Error
++			}
++			target = defaultType(x.typ)
++		}
+ 	case *Pointer, *Signature, *Slice, *Map, *Chan:
+ 		if !x.isNil() {
+ 			goto Error
+ 		}
++		// keep nil untyped - see comment for interfaces, above
++		target = Typ[UntypedNil]
+ 	default:
+-		check.dump("x = %v, target = %v", x, target) // leave for debugging
++		if debug {
++			check.dump("convertUntyped(x = %v, target = %v)", x, target)
++		}
+ 		unreachable()
+ 	}
+ 
+ 	x.typ = target
++	check.updateExprType(x.expr, target, false)
+ 	return
+ 
+ Error:
+@@ -353,72 +459,73 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
+ 	x.typ = Typ[UntypedBool]
+ }
+ 
+-// untyped lhs shift operands convert to the hint type
+-func (check *checker) shift(x, y *operand, op token.Token, hint Type) {
++func (check *checker) shift(x, y *operand, op token.Token) {
+ 	// spec: "The right operand in a shift expression must have unsigned
+ 	// integer type or be an untyped constant that can be converted to
+ 	// unsigned integer type."
+ 	switch {
+ 	case isInteger(y.typ) && isUnsigned(y.typ):
+ 		// nothing to do
+-	case y.mode == constant && isUntyped(y.typ) && isRepresentableConst(y.val, check.ctxt, UntypedInt):
+-		y.typ = Typ[UntypedInt]
++	case y.mode == constant && isUntyped(y.typ):
++		check.convertUntyped(x, Typ[UntypedInt])
+ 	default:
+ 		check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
+ 		x.mode = invalid
+ 		return
+ 	}
+ 
+-	// spec: "If the left operand of a non-constant shift expression is
+-	// an untyped constant, the type of the constant is what it would be
+-	// if the shift expression were replaced by its left operand alone;
+-	// the type is int if it cannot be determined from the context (for
+-	// instance, if the shift expression is an operand in a comparison
+-	// against an untyped constant)".
+-	if x.mode == constant && isUntyped(x.typ) {
++	if x.mode == constant {
+ 		if y.mode == constant {
+-			// constant shift - accept values of any (untyped) type
+-			// as long as the value is representable as an integer
+-			if x.mode == constant && isUntyped(x.typ) {
+-				if isRepresentableConst(x.val, check.ctxt, UntypedInt) {
+-					x.typ = Typ[UntypedInt]
++			// constant shift - lhs must be (representable as) an integer
++			if isUntyped(x.typ) {
++				if !isRepresentableConst(x.val, check.ctxt, UntypedInt) {
++					check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
++					x.mode = invalid
++					return
+ 				}
++				x.typ = Typ[UntypedInt]
+ 			}
+-		} else {
+-			// non-constant shift
+-			if hint == nil {
+-				// TODO(gri) need to check for x.isNil (see other uses of defaultType)
+-				hint = defaultType(x.typ)
+-			}
+-			check.convertUntyped(x, hint)
+-			if x.mode == invalid {
++			assert(x.isInteger(check.ctxt))
++
++			// rhs must be within reasonable bounds
++			const stupidShift = 1024
++			s, ok := y.val.(int64)
++			if !ok || s < 0 || s >= stupidShift {
++				check.invalidOp(y.pos(), "%s: stupid shift", y)
++				x.mode = invalid
+ 				return
+ 			}
++
++			// everything's ok
++			x.val = shiftConst(x.val, uint(s), op)
++			return
++		}
++
++		// non-constant shift with constant lhs
++		if isUntyped(x.typ) {
++			// spec: "If the left operand of a non-constant shift expression is
++			// an untyped constant, the type of the constant is what it would be
++			// if the shift expression were replaced by its left operand alone;
++			// the type is int if it cannot be determined from the context (for
++			// instance, if the shift expression is an operand in a comparison
++			// against an untyped constant)".
++
++			// delay operand checking until we know the type
++			check.shiftOps[x.expr] = true
++			x.mode = value
++			return
+ 		}
+ 	}
+ 
++	// non-constant shift - lhs must be an integer
+ 	if !isInteger(x.typ) {
+ 		check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
+ 		x.mode = invalid
+ 		return
+ 	}
+ 
+-	if y.mode == constant {
+-		const stupidShift = 1024
+-		s, ok := y.val.(int64)
+-		if !ok || s < 0 || s >= stupidShift {
+-			check.invalidOp(y.pos(), "%s: stupid shift", y)
+-			x.mode = invalid
+-			return
+-		}
+-		if x.mode == constant {
+-			x.val = shiftConst(x.val, uint(s), op)
+-			return
+-		}
+-	}
+-
++	// non-constant shift
+ 	x.mode = value
+-	// x.typ is already set
+ }
+ 
+ var binaryOpPredicates = opPredicates{
+@@ -437,9 +544,14 @@ var binaryOpPredicates = opPredicates{
+ 	token.LOR:  isBoolean,
+ }
+ 
+-func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
++func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token, iota int) {
++	var y operand
++
++	check.expr(x, lhs, nil, iota)
++	check.expr(&y, rhs, nil, iota)
++
+ 	if isShift(op) {
+-		check.shift(x, y, op, hint)
++		check.shift(x, &y, op)
+ 		return
+ 	}
+ 
+@@ -447,14 +559,14 @@ func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
+ 	if x.mode == invalid {
+ 		return
+ 	}
+-	check.convertUntyped(y, x.typ)
++	check.convertUntyped(&y, x.typ)
+ 	if y.mode == invalid {
+ 		x.mode = invalid
+ 		return
+ 	}
+ 
+ 	if isComparison(op) {
+-		check.comparison(x, y, op)
++		check.comparison(x, &y, op)
+ 		return
+ 	}
+ 
+@@ -574,7 +686,7 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota
+ 		// check element against composite literal element type
+ 		var x operand
+ 		check.expr(&x, eval, typ, iota)
+-		if !x.isAssignable(check.ctxt, typ) {
++		if !check.assignment(&x, typ) && x.mode != invalid {
+ 			check.errorf(x.pos(), "cannot use %s as %s value in array or slice literal", &x, typ)
+ 		}
+ 	}
+@@ -623,7 +735,9 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand,
+ 		z.typ = &Slice{Elt: z.typ} // change final parameter type to []T
+ 	}
+ 
+-	check.assignOperand(&z, x)
++	if !check.assignment(x, z.typ) && x.mode != invalid {
++		check.errorf(x.pos(), "cannot pass argument %s to %s", x, &z)
++	}
+ }
+ 
+ var emptyResult Result
+@@ -642,12 +756,30 @@ func (check *checker) callExpr(x *operand) {
+ 	default:
+ 		typ = x.typ
+ 	}
+-	check.ctxt.Expr(x.expr, typ, val)
++
++	// if the operand is untyped, delay notification
++	// until it becomes typed or until the end of
++	// type checking
++	if isUntyped(typ) {
++		check.untyped[x.expr] = typ.(*Basic)
++		if val != nil {
++			check.constants[x.expr] = val
++		}
++		return
++	}
++
++	// TODO(gri) ensure that literals always report
++	// their dynamic (never interface) type.
++	// This is not the case yet.
++
++	if check.ctxt.Expr != nil {
++		check.ctxt.Expr(x.expr, typ, val)
++	}
+ }
+ 
+ // rawExpr typechecks expression e and initializes x with the expression
+ // value or type. If an error occurred, x.mode is set to invalid.
+-// A hint != nil is used as operand type for untyped shifted operands;
++// If hint != nil, it is the type of a composite literal element.
+ // iota >= 0 indicates that the expression is part of a constant declaration.
+ // cycleOk indicates whether it is ok for a type expression to refer to itself.
+ //
+@@ -661,9 +793,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		defer check.untrace("=> %s", x)
+ 	}
+ 
+-	if check.ctxt.Expr != nil {
+-		defer check.callExpr(x)
+-	}
++	defer check.callExpr(x)
+ 
+ 	switch e := e.(type) {
+ 	case *ast.BadExpr:
+@@ -795,8 +925,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 					visited[i] = true
+ 					check.expr(x, kv.Value, nil, iota)
+ 					etyp := fields[i].Type
+-					if !x.isAssignable(check.ctxt, etyp) {
+-						check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
++					if !check.assignment(x, etyp) {
++						if x.mode != invalid {
++							check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
++						}
+ 						continue
+ 					}
+ 				}
+@@ -814,8 +946,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 					}
+ 					// i < len(fields)
+ 					etyp := fields[i].Type
+-					if !x.isAssignable(check.ctxt, etyp) {
+-						check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
++					if !check.assignment(x, etyp) {
++						if x.mode != invalid {
++							check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
++						}
+ 						continue
+ 					}
+ 				}
+@@ -845,8 +979,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 				}
+ 				check.compositeLitKey(kv.Key)
+ 				check.expr(x, kv.Key, nil, iota)
+-				if !x.isAssignable(check.ctxt, utyp.Key) {
+-					check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.Key)
++				if !check.assignment(x, utyp.Key) {
++					if x.mode != invalid {
++						check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.Key)
++					}
+ 					continue
+ 				}
+ 				if x.mode == constant {
+@@ -857,8 +993,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 					visited[x.val] = true
+ 				}
+ 				check.expr(x, kv.Value, utyp.Elt, iota)
+-				if !x.isAssignable(check.ctxt, utyp.Elt) {
+-					check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.Elt)
++				if !check.assignment(x, utyp.Elt) {
++					if x.mode != invalid {
++						check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.Elt)
++					}
+ 					continue
+ 				}
+ 			}
+@@ -872,7 +1010,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		x.typ = typ
+ 
+ 	case *ast.ParenExpr:
+-		check.rawExpr(x, e.X, hint, iota, cycleOk)
++		check.rawExpr(x, e.X, nil, iota, cycleOk)
+ 
+ 	case *ast.SelectorExpr:
+ 		sel := e.Sel.Name
+@@ -917,7 +1055,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			}
+ 		}
+ 
+-		check.exprOrType(x, e.X, nil, iota, false)
++		check.exprOrType(x, e.X, iota, false)
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+@@ -950,7 +1088,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		}
+ 
+ 	case *ast.IndexExpr:
+-		check.expr(x, e.X, hint, iota)
++		check.expr(x, e.X, nil, iota)
+ 
+ 		valid := false
+ 		length := int64(-1) // valid if >= 0
+@@ -992,8 +1130,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		case *Map:
+ 			var key operand
+ 			check.expr(&key, e.Index, nil, iota)
+-			if key.mode == invalid || !key.isAssignable(check.ctxt, typ.Key) {
+-				check.invalidOp(x.pos(), "cannot use %s as map index of type %s", &key, typ.Key)
++			if key.mode == invalid || !check.assignment(&key, typ.Key) {
++				if x.mode != invalid {
++					check.invalidOp(x.pos(), "cannot use %s as map index of type %s", &key, typ.Key)
++				}
+ 				goto Error
+ 			}
+ 			x.mode = valueok
+@@ -1016,7 +1156,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		// ok to continue
+ 
+ 	case *ast.SliceExpr:
+-		check.expr(x, e.X, hint, iota)
++		check.expr(x, e.X, nil, iota)
+ 
+ 		valid := false
+ 		length := int64(-1) // valid if >= 0
+@@ -1085,7 +1225,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		}
+ 
+ 	case *ast.TypeAssertExpr:
+-		check.expr(x, e.X, hint, iota)
++		check.expr(x, e.X, nil, iota)
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+@@ -1118,7 +1258,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		x.typ = typ
+ 
+ 	case *ast.CallExpr:
+-		check.exprOrType(x, e.Fun, nil, iota, false)
++		check.exprOrType(x, e.Fun, iota, false)
+ 		if x.mode == invalid {
+ 			goto Error
+ 		} else if x.mode == typexpr {
+@@ -1209,7 +1349,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		}
+ 
+ 	case *ast.StarExpr:
+-		check.exprOrType(x, e.X, hint, iota, true)
++		check.exprOrType(x, e.X, iota, true)
+ 		switch x.mode {
+ 		case invalid:
+ 			goto Error
+@@ -1226,14 +1366,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		}
+ 
+ 	case *ast.UnaryExpr:
+-		check.expr(x, e.X, hint, iota)
++		check.expr(x, e.X, nil, iota)
+ 		check.unary(x, e.Op)
+ 
+ 	case *ast.BinaryExpr:
+-		var y operand
+-		check.expr(x, e.X, hint, iota)
+-		check.expr(&y, e.Y, hint, iota)
+-		check.binary(x, &y, e.Op, hint)
++		check.binary(x, e.X, e.Y, e.Op, iota)
+ 
+ 	case *ast.KeyValueExpr:
+ 		// key:value expressions are handled in composite literals
+@@ -1300,8 +1437,8 @@ Error:
+ }
+ 
+ // exprOrType is like rawExpr but reports an error if e doesn't represents a value or type.
+-func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cycleOk bool) {
+-	check.rawExpr(x, e, hint, iota, cycleOk)
++func (check *checker) exprOrType(x *operand, e ast.Expr, iota int, cycleOk bool) {
++	check.rawExpr(x, e, nil, iota, cycleOk)
+ 	if x.mode == novalue {
+ 		check.errorf(x.pos(), "%s used as value or type", x)
+ 		x.mode = invalid
+diff --git a/src/pkg/go/types/stmt.go b/src/pkg/go/types/stmt.go
+index 65b12a01ef..24a47901f8 100644
+--- a/src/pkg/go/types/stmt.go
++++ b/src/pkg/go/types/stmt.go
+@@ -11,20 +11,23 @@ import (
+ 	"go/token"
+ )
+ 
+-func (check *checker) assignOperand(z, x *operand) {
++// assigment reports whether x can be assigned to a variable of type 'to',
++// if necessary by attempting to convert untyped values to the appropriate
++// type. If x.mode == invalid upon return, then assignment has already
++// issued an error message and the caller doesn't have to report another.
++// TODO(gri) This latter behavior is for historic reasons and complicates
++// callers. Needs to be cleaned up.
++func (check *checker) assignment(x *operand, to Type) bool {
+ 	if t, ok := x.typ.(*Result); ok {
+ 		// TODO(gri) elsewhere we use "assignment count mismatch" (consolidate)
+ 		check.errorf(x.pos(), "%d-valued expression %s used as single value", len(t.Values), x)
+ 		x.mode = invalid
+-		return
++		return false
+ 	}
+ 
+-	check.convertUntyped(x, z.typ)
++	check.convertUntyped(x, to)
+ 
+-	if !x.isAssignable(check.ctxt, z.typ) {
+-		check.errorf(x.pos(), "cannot assign %s to %s", x, z)
+-		x.mode = invalid
+-	}
++	return x.mode != invalid && x.isAssignable(check.ctxt, to)
+ }
+ 
+ // assign1to1 typechecks a single assignment of the form lhs = rhs (if rhs != nil),
+@@ -49,6 +52,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota
+ 
+ 	if !decl {
+ 		// regular assignment - start with lhs to obtain a type hint
++		// TODO(gri) clean this up - we don't need type hints anymore
+ 		var z operand
+ 		check.expr(&z, lhs, nil, -1)
+ 		if z.mode == invalid {
+@@ -66,8 +70,13 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota
+ 			return
+ 		}
+ 
+-		check.assignOperand(&z, x)
+-		if x.mode != invalid && z.mode == constant {
++		if !check.assignment(x, z.typ) {
++			if x.mode != invalid {
++				check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
++			}
++			return
++		}
++		if z.mode == constant {
+ 			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
+ 		}
+ 		return
+@@ -118,18 +127,19 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota
+ 	}
+ 
+ 	if x.mode != invalid {
+-		var z operand
+-		switch obj.(type) {
+-		case *Const:
+-			z.mode = constant
+-		case *Var:
+-			z.mode = variable
+-		default:
+-			unreachable()
++		if !check.assignment(x, typ) {
++			if x.mode != invalid {
++				switch obj.(type) {
++				case *Const:
++					check.errorf(x.pos(), "cannot assign %s to variable of type %s", x, typ)
++				case *Var:
++					check.errorf(x.pos(), "cannot initialize constant of type %s with %s", typ, x)
++				default:
++					unreachable()
++				}
++				x.mode = invalid
++			}
+ 		}
+-		z.expr = ident
+-		z.typ = typ
+-		check.assignOperand(&z, x)
+ 	}
+ 
+ 	// for constants, set their value
+@@ -345,8 +355,10 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		if ch.mode == invalid || x.mode == invalid {
+ 			return
+ 		}
+-		if tch, ok := underlying(ch.typ).(*Chan); !ok || tch.Dir&ast.SEND == 0 || !x.isAssignable(check.ctxt, tch.Elt) {
+-			check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
++		if tch, ok := underlying(ch.typ).(*Chan); !ok || tch.Dir&ast.SEND == 0 || !check.assignment(&x, tch.Elt) {
++			if x.mode != invalid {
++				check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
++			}
+ 		}
+ 
+ 	case *ast.IncDecStmt:
+@@ -360,10 +372,12 @@ func (check *checker) stmt(s ast.Stmt) {
+ 			check.invalidAST(s.TokPos, "unknown inc/dec operation %s", s.Tok)
+ 			return
+ 		}
+-		var x, y operand
+-		check.expr(&x, s.X, nil, -1)
+-		check.expr(&y, &ast.BasicLit{ValuePos: x.pos(), Kind: token.INT, Value: "1"}, nil, -1) // use x's position
+-		check.binary(&x, &y, op, nil)
++		var x operand
++		Y := &ast.BasicLit{ValuePos: s.X.Pos(), Kind: token.INT, Value: "1"} // use x's position
++		check.binary(&x, s.X, Y, op, -1)
++		if x.mode == invalid {
++			return
++		}
+ 		check.assign1to1(s.X, nil, &x, false, -1)
+ 
+ 	case *ast.AssignStmt:
+@@ -409,18 +423,11 @@ func (check *checker) stmt(s ast.Stmt) {
+ 				check.invalidAST(s.TokPos, "unknown assignment operation %s", s.Tok)
+ 				return
+ 			}
+-			var x, y operand
+-			// The lhs operand's type doesn't need a hint (from the rhs operand),
+-			// because it must be a fully typed variable in this case.
+-			check.expr(&x, s.Lhs[0], nil, -1)
++			var x operand
++			check.binary(&x, s.Lhs[0], s.Rhs[0], op, -1)
+ 			if x.mode == invalid {
+ 				return
+ 			}
+-			check.expr(&y, s.Rhs[0], x.typ, -1)
+-			if y.mode == invalid {
+-				return
+-			}
+-			check.binary(&x, &y, op, x.typ)
+ 			check.assign1to1(s.Lhs[0], nil, &x, false, -1)
+ 		}
+ 
+@@ -464,7 +471,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		check.optionalStmt(s.Init)
+ 		var x operand
+ 		check.expr(&x, s.Cond, nil, -1)
+-		if !isBoolean(x.typ) {
++		if x.mode != invalid && !isBoolean(x.typ) {
+ 			check.errorf(s.Cond.Pos(), "non-boolean condition in if statement")
+ 		}
+ 		check.stmt(s.Body)
+@@ -641,7 +648,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		if s.Cond != nil {
+ 			var x operand
+ 			check.expr(&x, s.Cond, nil, -1)
+-			if !isBoolean(x.typ) {
++			if x.mode != invalid && !isBoolean(x.typ) {
+ 				check.errorf(s.Cond.Pos(), "non-boolean condition in for statement")
+ 			}
+ 		}
+diff --git a/src/pkg/go/types/testdata/expr3.src b/src/pkg/go/types/testdata/expr3.src
+index 1fae2640ba..ff17f2eee4 100644
+--- a/src/pkg/go/types/testdata/expr3.src
++++ b/src/pkg/go/types/testdata/expr3.src
+@@ -28,22 +28,103 @@ func shifts1() {
+ }
+ 
+ func shifts2() {
+-	// TODO(gri) enable commented out tests below.
++	// from the spec
+ 	var (
+ 		s uint = 33
+ 		i = 1<<s           // 1 has type int
+ 		j int32 = 1<<s     // 1 has type int32; j == 0
+ 		k = uint64(1<<s)   // 1 has type uint64; k == 1<<33
+ 		m int = 1.0<<s     // 1.0 has type int
+-	//	n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
++		n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
+ 		o = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
+-	//	p = 1<<s == 1 /* ERROR "overflows" */ <<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
++		p = 1<<s == 1<<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
+ 		u = 1.0 /* ERROR "must be integer" */ <<s         // illegal: 1.0 has type float64, cannot shift
+ 		v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
+ 		w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
+ 	)
+ }
+ 
++func shifts3(a int16, b float32) {
++	var (
++		s uint = 11
++		u = 1 /* ERROR "must be integer" */ <<s + 1.0
++		v complex128 = 1 /* ERROR "must be integer" */ << s + 1.0 /* ERROR "must be integer" */ << s + 1
++	)
++	x := 1.0 /* ERROR "must be integer" */ <<s + 1
++	shifts3(1.0 << s, 1 /* ERROR "must be integer" */ >> s)
++	// TODO(gri) add more tests (systematically)
++}
++
++func shifts4() {
++	// from src/pkg/compress/lzw/reader.go:90
++	{
++		var d struct {
++			bits     uint32
++			width    uint
++		}
++		_ = uint16(d.bits & (1<<d.width - 1))
++	}
++
++	// from src/pkg/debug/dwarf/buf.go:116
++	{
++		var ux uint64
++		var bits uint
++		x := int64(ux)
++		if x&(1<<(bits-1)) != 0 {}
++	}
++
++	// from src/pkg/encoding/asn1/asn1.go:160
++	{
++		var bytes []byte
++		if bytes[len(bytes)-1]&((1<<bytes[0])-1) != 0 {}
++	}
++
++	// from src/pkg/math/big/rat.go:140
++	{
++		var exp int
++		var mantissa uint64
++		shift := uint64(-1022 - (exp - 1)) // [1..53)
++		_ = mantissa & (1<<shift - 1)
++	}
++
++	// from src/pkg/net/interface.go:51
++	{
++		type Flags uint
++		var f Flags
++		var i int
++		if f&(1<<uint(i)) != 0 {}
++	}
++
++	// from src/pkg/runtime/softfloat64.go:234
++	{
++		var gm uint64
++		var shift uint
++		_ = gm & (1<<shift - 1)
++	}
++
++	// from src/pkg/strconv/atof.go:326
++	{
++		var mant uint64
++		var mantbits uint
++		if mant == 2<<mantbits {}
++	}
++
++	// from src/pkg/syscall/route_bsd.go:82
++	{
++		var Addrs int32
++		const rtaRtMask = 1
++		var i uint
++		if Addrs&rtaRtMask&(1<<i) == 0 {}
++	}
++
++	// from src/pkg/text/scanner/scanner.go:540
++	{
++		var s struct { Whitespace uint64 }
++		var ch rune
++		for s.Whitespace&(1<<uint(ch)) != 0 {}
++	}
++}
++
+ // TODO(gri) The error messages below depond on adjusting the spec
+ //           to reflect what gc is doing at the moment (the spec
+ //           asks for run-time errors at the moment - see issue 4231).
+diff --git a/src/pkg/go/types/testdata/stmt0.src b/src/pkg/go/types/testdata/stmt0.src
+index d4e08f6c0d..9d85de3bbb 100644
+--- a/src/pkg/go/types/testdata/stmt0.src
++++ b/src/pkg/go/types/testdata/stmt0.src
+@@ -36,7 +36,7 @@ func _() {
+ 	undeclared /* ERROR "undeclared" */ = 991
+ }
+ 
+-func _incdecs() {
++func incdecs() {
+ 	const c = 3.14
+ 	c /* ERROR "cannot assign" */ ++
+ 	s := "foo"
+@@ -52,17 +52,17 @@ func _incdecs() {
+ 	z++
+ }
+ 
+-func _sends() {
++func sends() {
+ 	var ch chan int
+ 	var rch <-chan int
+ 	var x int
+ 	x /* ERROR "cannot send" */ <- x
+ 	rch /* ERROR "cannot send" */ <- x
+-	ch /* ERROR "cannot send" */ <- "foo"
++	ch <- "foo" /* ERROR "cannot convert" */
+ 	ch <- x
+ }
+ 
+-func _selects() {
++func selects() {
+ 	select {}
+ 	var (
+ 		ch chan int
+@@ -82,23 +82,23 @@ func _selects() {
+ 	}
+ }
+ 
+-func _gos() {
++func gos() {
+ 	go 1 /* ERROR "expected function/method call" */
+-	go _gos()
++	go gos()
+ 	var c chan int
+ 	go close(c)
+ 	go len(c) // TODO(gri) this should not be legal
+ }
+ 
+-func _defers() {
++func defers() {
+ 	defer 1 /* ERROR "expected function/method call" */
+-	defer _defers()
++	defer defers()
+ 	var c chan int
+ 	defer close(c)
+ 	defer len(c) // TODO(gri) this should not be legal
+ }
+ 
+-func _switches() {
++func switches() {
+ 	var x int
+ 
+ 	switch x {
+@@ -148,7 +148,7 @@ type T2 struct{}
+ func (T) m() {}
+ func (T2) m(int) {}
+ 
+-func _typeswitches() {
++func typeswitches() {
+ 	var i int
+ 	var x interface{}
+ 
+@@ -189,7 +189,16 @@ func _typeswitches() {
+ 	}
+ }
+ 
+-func _rangeloops() {
++func typeswitch0() {
++	switch y := interface{}(nil).(type) {
++	case int:
++		// TODO(gri) y has the wrong type here (type-checking
++		// of captured variable is delayed)
++		// func() int { return y + 0 }()
++	}
++}
++
++func rangeloops() {
+ 	var (
+ 		x int
+ 		a [10]float32

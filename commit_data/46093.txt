@@ -16,6 +16,20 @@ Date:   Sun Dec 6 20:13:47 2020 +0000
     Reviewed-by: Andrew G. Morgan <agm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Filippo Valsorda <filippo@golang.org>
-
+---
  src/runtime/cgo/linux_syscall.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/linux_syscall.c b/src/runtime/cgo/linux_syscall.c
+index c8e91918a1..56f3d67d8b 100644
+--- a/src/runtime/cgo/linux_syscall.c
++++ b/src/runtime/cgo/linux_syscall.c
+@@ -10,7 +10,7 @@
+ 
+ #include <grp.h>
+ #include <sys/types.h>
+-#include <sys/unistd.h>
++#include <unistd.h>
+ #include <errno.h>
+ #include "libcgo.h"
+ 

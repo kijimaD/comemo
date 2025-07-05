@@ -15,6 +15,19 @@ Date:   Fri Jan 15 13:19:31 2021 -0500
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/link/link_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 7eeb7ef568..8153c0b31b 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -320,6 +320,7 @@ func TestBuildForTvOS(t *testing.T) {
+ 	}
+ 
+ 	link := exec.Command(CC[0], CC[1:]...)
++	link.Args = append(link.Args, "-o", filepath.Join(tmpDir, "a.out")) // Avoid writing to package directory.
+ 	link.Args = append(link.Args, ar, filepath.Join("testdata", "testBuildFortvOS", "main.m"))
+ 	if out, err := link.CombinedOutput(); err != nil {
+ 		t.Fatalf("%v: %v:\n%s", link.Args, err, out)

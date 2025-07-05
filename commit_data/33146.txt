@@ -9,6 +9,27 @@ Date:   Sat Jul 15 16:55:41 2017 -0600
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/bytes/example_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 0d35a0dc9c..93972770ab 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -30,6 +30,15 @@ func ExampleBuffer_reader() {
+ 	// Output: Gophers rule!
+ }
+ 
++func ExampleBuffer_Grow() {
++	var b bytes.Buffer
++	b.Grow(64)
++	bb := b.Bytes()
++	b.Write([]byte("64 bytes or fewer"))
++	fmt.Printf("%q", bb[:b.Len()])
++	// Output: "64 bytes or fewer"
++}
++
+ func ExampleCompare() {
+ 	// Interpret Compare's result by comparing it to zero.
+ 	var a, b []byte

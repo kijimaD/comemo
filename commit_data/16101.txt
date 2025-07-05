@@ -10,6 +10,29 @@ Date:   Thu Apr 4 11:11:54 2013 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/8365043
-
+---
  doc/code.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 10f12d987c..2d63d4dc91 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -234,7 +234,7 @@ You can now run the program by typing its full path at the command line:
+ 
+ <pre>
+ $ <b>$GOPATH/bin/hello</b>
+-Hello!
++Hello, world.
+ </pre>
+ 
+ <p>
+@@ -244,7 +244,7 @@ just type the binary name:
+ 
+ <pre>
+ $ <b>hello</b>
+-Hello!
++Hello, world.
+ </pre>
+ 
+ <p>

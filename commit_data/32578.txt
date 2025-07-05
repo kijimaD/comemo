@@ -23,7 +23,48 @@ Date:   Sun Apr 9 10:44:39 2017 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/gob/decode.go      | 5 ++---
  src/encoding/gob/timing_test.go | 4 ++--
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 013f71ccdb..879d6d2b77 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -557,11 +557,10 @@ func decodeIntoValue(state *decoderState, op decOp, isPtr bool, value reflect.Va
+ // Because the internals of maps are not visible to us, we must
+ // use reflection rather than pointer magic.
+ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value reflect.Value, keyOp, elemOp decOp, ovfl error) {
++	n := int(state.decodeUint())
+ 	if value.IsNil() {
+-		// Allocate map.
+-		value.Set(reflect.MakeMap(mtyp))
++		value.Set(reflect.MakeMapWithSize(mtyp, n))
+ 	}
+-	n := int(state.decodeUint())
+ 	keyIsPtr := mtyp.Key().Kind() == reflect.Ptr
+ 	elemIsPtr := mtyp.Elem().Kind() == reflect.Ptr
+ 	keyInstr := &decInstr{keyOp, 0, nil, ovfl}
+diff --git a/src/encoding/gob/timing_test.go b/src/encoding/gob/timing_test.go
+index 2a503ebfc5..3478bd247e 100644
+--- a/src/encoding/gob/timing_test.go
++++ b/src/encoding/gob/timing_test.go
+@@ -289,7 +289,7 @@ func BenchmarkDecodeInterfaceSlice(b *testing.B) {
+ }
+ 
+ func BenchmarkDecodeMap(b *testing.B) {
+-	count := 10000
++	count := 1000
+ 	m := make(map[int]int, count)
+ 	for i := 0; i < count; i++ {
+ 		m[i] = i
+@@ -303,7 +303,7 @@ func BenchmarkDecodeMap(b *testing.B) {
+ 	bbuf := benchmarkBuf{data: buf.Bytes()}
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		rm := make(map[int]int, 0)
++		var rm map[int]int
+ 		bbuf.reset()
+ 		dec := NewDecoder(&bbuf)
+ 		err := dec.Decode(&rm)

@@ -12,9 +12,136 @@ Date:   Thu Aug 24 11:18:18 2023 +0800
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: shuang cui <imcusg@gmail.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/writer.go             | 14 +++++++-------
  src/cmd/compile/internal/pgo/internal/graph/graph.go | 10 +++++-----
  src/cmd/compile/internal/ssa/debug.go                |  4 ++--
  src/cmd/compile/internal/ssa/expand_calls.go         | 12 ++++++------
  4 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 824b8883bd..07b46b1f2c 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -2834,9 +2834,9 @@ func isNil(p *pkgWriter, expr syntax.Expr) bool {
+ 
+ // isBuiltin reports whether expr is a (possibly parenthesized)
+ // referenced to the specified built-in function.
+-func (p *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
++func (pw *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
+ 	if name, ok := unparen(expr).(*syntax.Name); ok && name.Value == builtin {
+-		return p.typeAndValue(name).IsBuiltin()
++		return pw.typeAndValue(name).IsBuiltin()
+ 	}
+ 	return false
+ }
+@@ -2946,7 +2946,7 @@ func lastNonEmptyStmt(stmts []syntax.Stmt) syntax.Stmt {
+ 
+ // terminates reports whether stmt terminates normal control flow
+ // (i.e., does not merely advance to the following statement).
+-func (p *pkgWriter) terminates(stmt syntax.Stmt) bool {
++func (pw *pkgWriter) terminates(stmt syntax.Stmt) bool {
+ 	switch stmt := stmt.(type) {
+ 	case *syntax.BranchStmt:
+ 		if stmt.Tok == syntax.Goto {
+@@ -2956,7 +2956,7 @@ func (p *pkgWriter) terminates(stmt syntax.Stmt) bool {
+ 		return true
+ 	case *syntax.ExprStmt:
+ 		if call, ok := unparen(stmt.X).(*syntax.CallExpr); ok {
+-			if p.isBuiltin(call.Fun, "panic") {
++			if pw.isBuiltin(call.Fun, "panic") {
+ 				return true
+ 			}
+ 		}
+@@ -2969,10 +2969,10 @@ func (p *pkgWriter) terminates(stmt syntax.Stmt) bool {
+ 		//	}
+ 		//	unreachable
+ 	case *syntax.IfStmt:
+-		cond := p.staticBool(&stmt.Cond)
+-		return (cond < 0 || p.terminates(stmt.Then)) && (cond > 0 || p.terminates(stmt.Else))
++		cond := pw.staticBool(&stmt.Cond)
++		return (cond < 0 || pw.terminates(stmt.Then)) && (cond > 0 || pw.terminates(stmt.Else))
+ 	case *syntax.BlockStmt:
+-		return p.terminates(lastNonEmptyStmt(stmt.List))
++		return pw.terminates(lastNonEmptyStmt(stmt.List))
+ 	}
+ 
+ 	return false
+diff --git a/src/cmd/compile/internal/pgo/internal/graph/graph.go b/src/cmd/compile/internal/pgo/internal/graph/graph.go
+index 127529804f..4d89b1ba63 100644
+--- a/src/cmd/compile/internal/pgo/internal/graph/graph.go
++++ b/src/cmd/compile/internal/pgo/internal/graph/graph.go
+@@ -466,9 +466,9 @@ func (g *Graph) String() string {
+ // Sort returns a slice of the edges in the map, in a consistent
+ // order. The sort order is first based on the edge weight
+ // (higher-to-lower) and then by the node names to avoid flakiness.
+-func (e EdgeMap) Sort() []*Edge {
+-	el := make(edgeList, 0, len(e))
+-	for _, w := range e {
++func (em EdgeMap) Sort() []*Edge {
++	el := make(edgeList, 0, len(em))
++	for _, w := range em {
+ 		el = append(el, w)
+ 	}
+ 
+@@ -477,9 +477,9 @@ func (e EdgeMap) Sort() []*Edge {
+ }
+ 
+ // Sum returns the total weight for a set of nodes.
+-func (e EdgeMap) Sum() int64 {
++func (em EdgeMap) Sum() int64 {
+ 	var ret int64
+-	for _, edge := range e {
++	for _, edge := range em {
+ 		ret += edge.Weight
+ 	}
+ 	return ret
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 36f9271ebf..5dd91cbf54 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -70,8 +70,8 @@ func (ls *liveSlot) String() string {
+ 	return fmt.Sprintf("0x%x.%d.%d", ls.Registers, ls.stackOffsetValue(), int32(ls.StackOffset)&1)
+ }
+ 
+-func (loc liveSlot) absent() bool {
+-	return loc.Registers == 0 && !loc.onStack()
++func (ls liveSlot) absent() bool {
++	return ls.Registers == 0 && !ls.onStack()
+ }
+ 
+ // StackOffset encodes whether a value is on the stack and if so, where.
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 3afd73eb6a..79822c17db 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -64,15 +64,15 @@ type registerCursor struct {
+ 	regValues *[]*Value // values assigned to registers accumulate here
+ }
+ 
+-func (rc *registerCursor) String() string {
++func (c *registerCursor) String() string {
+ 	dest := "<none>"
+-	if rc.storeDest != nil {
+-		dest = rc.storeDest.String()
++	if c.storeDest != nil {
++		dest = c.storeDest.String()
+ 	}
+ 	regs := "<none>"
+-	if rc.regValues != nil {
++	if c.regValues != nil {
+ 		regs = ""
+-		for i, x := range *rc.regValues {
++		for i, x := range *c.regValues {
+ 			if i > 0 {
+ 				regs = regs + "; "
+ 			}
+@@ -80,7 +80,7 @@ func (rc *registerCursor) String() string {
+ 		}
+ 	}
+ 	// not printing the config because that has not been useful
+-	return fmt.Sprintf("RCSR{storeDest=%v, regsLen=%d, nextSlice=%d, regValues=[%s]}", dest, rc.regsLen, rc.nextSlice, regs)
++	return fmt.Sprintf("RCSR{storeDest=%v, regsLen=%d, nextSlice=%d, regValues=[%s]}", dest, c.regsLen, c.nextSlice, regs)
+ }
+ 
+ // next effectively post-increments the register cursor; the receiver is advanced,

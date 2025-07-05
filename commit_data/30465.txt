@@ -7,6 +7,32 @@ Date:   Mon Nov 7 18:43:13 2016 +0000
     Change-Id: Ibf73ee7be4591393f4e08d464edfa325c3ec2c11
     Reviewed-on: https://go-review.googlesource.com/32798
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 3410f417e4..2b0f01d8fb 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -43,7 +43,7 @@ includes the <a href="#context">context package</a>, promoted from the
+ and now used in the standard library;
+ and <a href="#testing">adds support in the testing package</a> for
+ creating hierarchies of tests and benchmarks.
+-The release also <a href="#cmd/go">finalizes the vendoring support</a>
++The release also <a href="#cmd_go">finalizes the vendoring support</a>
+ started in Go 1.5, making it a standard feature.
+ </p>
+ 
+@@ -394,9 +394,9 @@ This allows the use of contexts for cancelation, timeouts, and passing
+ request-scoped data in other standard library packages,
+ including
+ <a href="#net">net</a>,
+-<a href="#net/http">net/http</a>,
++<a href="#net_http">net/http</a>,
+ and
+-<a href="#os/exec">os/exec</a>,
++<a href="#os_exec">os/exec</a>,
+ as noted below.
+ </p>
+ 

@@ -9,7 +9,59 @@ Date:   Tue Dec 11 11:49:41 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6929049
-
+---
  src/pkg/fmt/fmt_test.go | 5 +++++
  src/pkg/fmt/format.go   | 4 ++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 84fc380307..867cd981ff 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -476,6 +476,11 @@ var fmttests = []struct {
+ 
+ 	// Used to crash because nByte didn't allow for a sign.
+ 	{"%b", int64(-1 << 63), "-1000000000000000000000000000000000000000000000000000000000000000"},
++
++	// Complex fmt used to leave the plus flag set for future entries in the array
++	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
++	{"%v", []complex64{1, 2, 3}, "[(1+0i) (2+0i) (3+0i)]"},
++	{"%v", []complex128{1, 2, 3}, "[(1+0i) (2+0i) (3+0i)]"},
+ }
+ 
+ func TestSprintf(t *testing.T) {
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index ce801162d6..d1167ebbf9 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -428,6 +428,7 @@ func (f *fmt) fmt_fb32(v float32) { f.formatFloat(float64(v), 'b', 0, 32) }
+ func (f *fmt) fmt_c64(v complex64, verb rune) {
+ 	f.buf.WriteByte('(')
+ 	r := real(v)
++	oldPlus := f.plus
+ 	for i := 0; ; i++ {
+ 		switch verb {
+ 		case 'e':
+@@ -447,6 +448,7 @@ func (f *fmt) fmt_c64(v complex64, verb rune) {
+ 		f.plus = true
+ 		r = imag(v)
+ 	}
++	f.plus = oldPlus
+ 	f.buf.Write(irparenBytes)
+ }
+ 
+@@ -454,6 +456,7 @@ func (f *fmt) fmt_c64(v complex64, verb rune) {
+ func (f *fmt) fmt_c128(v complex128, verb rune) {
+ 	f.buf.WriteByte('(')
+ 	r := real(v)
++	oldPlus := f.plus
+ 	for i := 0; ; i++ {
+ 		switch verb {
+ 		case 'e':
+@@ -473,5 +476,6 @@ func (f *fmt) fmt_c128(v complex128, verb rune) {
+ 		f.plus = true
+ 		r = imag(v)
+ 	}
++	f.plus = oldPlus
+ 	f.buf.Write(irparenBytes)
+ }

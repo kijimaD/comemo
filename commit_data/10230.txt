@@ -22,7 +22,7 @@ Date:   Thu Nov 3 12:42:57 2011 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/5332053
-
+---
  src/pkg/Makefile                                     | 10 +++++-----
  src/pkg/deps.bash                                    | 20 +++++++++++++++-----
  .../{exp/template/html => html/template}/Makefile    |  4 ++--
@@ -88,3 +88,442 @@ Date:   Thu Nov 3 12:42:57 2011 -0700
  src/pkg/{ => math}/rand/rng.go                       |  0
  src/pkg/{ => math}/rand/zipf.go                      |  0
  64 files changed, 30 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 105f3c4cfa..036e9cae8b 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -16,10 +16,8 @@ all: install
+ DIRS=\
+ 	archive/tar\
+ 	archive/zip\
+-	big\
+ 	bufio\
+ 	bytes\
+-	cmath\
+ 	compress/bzip2\
+ 	compress/flate\
+ 	compress/gzip\
+@@ -89,7 +87,6 @@ DIRS=\
+ 	exp/spdy\
+ 	exp/sql\
+ 	exp/sql/driver\
+-	exp/template/html\
+ 	exp/types\
+ 	expvar\
+ 	flag\
+@@ -107,6 +104,7 @@ DIRS=\
+ 	hash/crc64\
+ 	hash/fnv\
+ 	html\
++	html/template\
+ 	http\
+ 	http/cgi\
+ 	http/fcgi\
+@@ -125,8 +123,12 @@ DIRS=\
+ 	io\
+ 	io/ioutil\
+ 	log\
++	log/syslog\
+ 	mail\
+ 	math\
++	math/big\
++	math/cmplx\
++	math/rand\
+ 	mime\
+ 	mime/multipart\
+ 	net\
+@@ -141,7 +143,6 @@ DIRS=\
+ 	patch\
+ 	path\
+ 	path/filepath\
+-	rand\
+ 	reflect\
+ 	regexp\
+ 	regexp/syntax\
+@@ -159,7 +160,6 @@ DIRS=\
+ 	sync\
+ 	sync/atomic\
+ 	syscall\
+-	syslog\
+ 	tabwriter\
+ 	template\
+ 	template/parse\
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index 598c167661..3f2a3abc66 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -26,9 +26,14 @@ dirpat=$(echo $dirs C | awk '{
+ # Append old names of renamed packages. TODO: clean up after renaming.
+ dirpat="$dirpat
+ /^(asn1)$/
++/^(big)$/
++/^(cmath)$/
+ /^(csv)$/
++/^(exp\/template\/html)$/
+ /^(gob)$/
+ /^(json)$/
++/^(rand)$/
++/^(syslog)$/
+ /^(xml)$/
+ "
+ 
+@@ -49,11 +54,16 @@ for dir in $dirs; do (
+ 		grep -v "^$dir\$" |
+ 		sed 's/$/.install/' |
+ 		# TODO: rename the dependencies for renamed directories.  TODO: clean up after renaming.
+-		sed 's;^asn1.install$;encoding/asn1.install;' |
+-		sed 's;^csv.install$;encoding/csv.install;' |
+-		sed 's;^gob.install$;encoding/gob.install;' |
+-		sed 's;^json.install$;encoding/json.install;' |
+-		sed 's;^xml.install$;encoding/xml.install;' |
++		sed 's;^asn1.install$;encoding/asn1.install;
++		s;^big.install$;math/big.install;
++		s;^cmath.install$;math/cmplx.install;
++		s;^csv.install$;encoding/csv.install;
++		s;^exp/template/html.install$;html/template.install;
++		s;^gob.install$;encoding/gob.install;
++		s;^json.install$;encoding/json.install;
++		s;^syslog.install$;log/syslog.install;
++		s;^rand.install$;math/rand.install;
++		s;^xml.install$;encoding/xml.install;' |
+ 		# TODO: end of renamings.
+ 		sed 's;^C\.install;runtime/cgo.install;' |
+ 		sort -u
+diff --git a/src/pkg/exp/template/html/Makefile b/src/pkg/html/template/Makefile
+similarity index 84%
+rename from src/pkg/exp/template/html/Makefile
+rename to src/pkg/html/template/Makefile
+index 2ccbdd3e85..3b216ba611 100644
+--- a/src/pkg/exp/template/html/Makefile
++++ b/src/pkg/html/template/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=exp/template/html
+ GOFILES=\
+@@ -19,4 +19,4 @@ GOFILES=\
+ 	transition.go\
+ 	url.go\
+ 
+-include ../../../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/exp/template/html/attr.go b/src/pkg/html/template/attr.go
+similarity index 100%
+rename from src/pkg/exp/template/html/attr.go
+rename to src/pkg/html/template/attr.go
+diff --git a/src/pkg/exp/template/html/clone.go b/src/pkg/html/template/clone.go
+similarity index 100%
+rename from src/pkg/exp/template/html/clone.go
+rename to src/pkg/html/template/clone.go
+diff --git a/src/pkg/exp/template/html/clone_test.go b/src/pkg/html/template/clone_test.go
+similarity index 100%
+rename from src/pkg/exp/template/html/clone_test.go
+rename to src/pkg/html/template/clone_test.go
+diff --git a/src/pkg/exp/template/html/content.go b/src/pkg/html/template/content.go
+similarity index 100%
+rename from src/pkg/exp/template/html/content.go
+rename to src/pkg/html/template/content.go
+diff --git a/src/pkg/exp/template/html/content_test.go b/src/pkg/html/template/content_test.go
+similarity index 100%
+rename from src/pkg/exp/template/html/content_test.go
+rename to src/pkg/html/template/content_test.go
+diff --git a/src/pkg/exp/template/html/context.go b/src/pkg/html/template/context.go
+similarity index 100%
+rename from src/pkg/exp/template/html/context.go
+rename to src/pkg/html/template/context.go
+diff --git a/src/pkg/exp/template/html/css.go b/src/pkg/html/template/css.go
+similarity index 100%
+rename from src/pkg/exp/template/html/css.go
+rename to src/pkg/html/template/css.go
+diff --git a/src/pkg/exp/template/html/css_test.go b/src/pkg/html/template/css_test.go
+similarity index 100%
+rename from src/pkg/exp/template/html/css_test.go
+rename to src/pkg/html/template/css_test.go
+diff --git a/src/pkg/exp/template/html/doc.go b/src/pkg/html/template/doc.go
+similarity index 100%
+rename from src/pkg/exp/template/html/doc.go
+rename to src/pkg/html/template/doc.go
+diff --git a/src/pkg/exp/template/html/error.go b/src/pkg/html/template/error.go
+similarity index 100%
+rename from src/pkg/exp/template/html/error.go
+rename to src/pkg/html/template/error.go
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/html/template/escape.go
+similarity index 100%
+rename from src/pkg/exp/template/html/escape.go
+rename to src/pkg/html/template/escape.go
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/html/template/escape_test.go
+similarity index 100%
+rename from src/pkg/exp/template/html/escape_test.go
+rename to src/pkg/html/template/escape_test.go
+diff --git a/src/pkg/exp/template/html/html.go b/src/pkg/html/template/html.go
+similarity index 100%
+rename from src/pkg/exp/template/html/html.go
+rename to src/pkg/html/template/html.go
+diff --git a/src/pkg/exp/template/html/html_test.go b/src/pkg/html/template/html_test.go
+similarity index 100%
+rename from src/pkg/exp/template/html/html_test.go
+rename to src/pkg/html/template/html_test.go
+diff --git a/src/pkg/exp/template/html/js.go b/src/pkg/html/template/js.go
+similarity index 100%
+rename from src/pkg/exp/template/html/js.go
+rename to src/pkg/html/template/js.go
+diff --git a/src/pkg/exp/template/html/js_test.go b/src/pkg/html/template/js_test.go
+similarity index 100%
+rename from src/pkg/exp/template/html/js_test.go
+rename to src/pkg/html/template/js_test.go
+diff --git a/src/pkg/exp/template/html/transition.go b/src/pkg/html/template/transition.go
+similarity index 100%
+rename from src/pkg/exp/template/html/transition.go
+rename to src/pkg/html/template/transition.go
+diff --git a/src/pkg/exp/template/html/url.go b/src/pkg/html/template/url.go
+similarity index 100%
+rename from src/pkg/exp/template/html/url.go
+rename to src/pkg/html/template/url.go
+diff --git a/src/pkg/exp/template/html/url_test.go b/src/pkg/html/template/url_test.go
+similarity index 100%
+rename from src/pkg/exp/template/html/url_test.go
+rename to src/pkg/html/template/url_test.go
+diff --git a/src/pkg/syslog/Makefile b/src/pkg/log/syslog/Makefile
+similarity index 80%
+rename from src/pkg/syslog/Makefile
+rename to src/pkg/log/syslog/Makefile
+index 82baf7253a..27cdedb6f0 100644
+--- a/src/pkg/syslog/Makefile
++++ b/src/pkg/log/syslog/Makefile
+@@ -2,11 +2,11 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=syslog
+ GOFILES=\
+ 	syslog.go\
+ 	syslog_unix.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+similarity index 100%
+rename from src/pkg/syslog/syslog.go
+rename to src/pkg/log/syslog/syslog.go
+diff --git a/src/pkg/syslog/syslog_test.go b/src/pkg/log/syslog/syslog_test.go
+similarity index 100%
+rename from src/pkg/syslog/syslog_test.go
+rename to src/pkg/log/syslog/syslog_test.go
+diff --git a/src/pkg/syslog/syslog_unix.go b/src/pkg/log/syslog/syslog_unix.go
+similarity index 100%
+rename from src/pkg/syslog/syslog_unix.go
+rename to src/pkg/log/syslog/syslog_unix.go
+diff --git a/src/pkg/big/Makefile b/src/pkg/math/big/Makefile
+similarity index 83%
+rename from src/pkg/big/Makefile
+rename to src/pkg/math/big/Makefile
+index 3d4b56d789..8e9f956dac 100644
+--- a/src/pkg/big/Makefile
++++ b/src/pkg/math/big/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=big
+ GOFILES=\
+@@ -15,4 +15,4 @@ GOFILES=\
+ OFILES=\
+ 	arith_$(GOARCH).$O\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/big/arith.go b/src/pkg/math/big/arith.go
+similarity index 100%
+rename from src/pkg/big/arith.go
+rename to src/pkg/math/big/arith.go
+diff --git a/src/pkg/big/arith_386.s b/src/pkg/math/big/arith_386.s
+similarity index 100%
+rename from src/pkg/big/arith_386.s
+rename to src/pkg/math/big/arith_386.s
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/math/big/arith_amd64.s
+similarity index 100%
+rename from src/pkg/big/arith_amd64.s
+rename to src/pkg/math/big/arith_amd64.s
+diff --git a/src/pkg/big/arith_arm.s b/src/pkg/math/big/arith_arm.s
+similarity index 100%
+rename from src/pkg/big/arith_arm.s
+rename to src/pkg/math/big/arith_arm.s
+diff --git a/src/pkg/big/arith_decl.go b/src/pkg/math/big/arith_decl.go
+similarity index 100%
+rename from src/pkg/big/arith_decl.go
+rename to src/pkg/math/big/arith_decl.go
+diff --git a/src/pkg/big/arith_test.go b/src/pkg/math/big/arith_test.go
+similarity index 100%
+rename from src/pkg/big/arith_test.go
+rename to src/pkg/math/big/arith_test.go
+diff --git a/src/pkg/big/calibrate_test.go b/src/pkg/math/big/calibrate_test.go
+similarity index 100%
+rename from src/pkg/big/calibrate_test.go
+rename to src/pkg/math/big/calibrate_test.go
+diff --git a/src/pkg/big/hilbert_test.go b/src/pkg/math/big/hilbert_test.go
+similarity index 100%
+rename from src/pkg/big/hilbert_test.go
+rename to src/pkg/math/big/hilbert_test.go
+diff --git a/src/pkg/big/int.go b/src/pkg/math/big/int.go
+similarity index 100%
+rename from src/pkg/big/int.go
+rename to src/pkg/math/big/int.go
+diff --git a/src/pkg/big/int_test.go b/src/pkg/math/big/int_test.go
+similarity index 100%
+rename from src/pkg/big/int_test.go
+rename to src/pkg/math/big/int_test.go
+diff --git a/src/pkg/big/nat.go b/src/pkg/math/big/nat.go
+similarity index 100%
+rename from src/pkg/big/nat.go
+rename to src/pkg/math/big/nat.go
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/math/big/nat_test.go
+similarity index 100%
+rename from src/pkg/big/nat_test.go
+rename to src/pkg/math/big/nat_test.go
+diff --git a/src/pkg/big/rat.go b/src/pkg/math/big/rat.go
+similarity index 100%
+rename from src/pkg/big/rat.go
+rename to src/pkg/math/big/rat.go
+diff --git a/src/pkg/big/rat_test.go b/src/pkg/math/big/rat_test.go
+similarity index 100%
+rename from src/pkg/big/rat_test.go
+rename to src/pkg/math/big/rat_test.go
+diff --git a/src/pkg/cmath/Makefile b/src/pkg/math/cmplx/Makefile
+similarity index 85%
+rename from src/pkg/cmath/Makefile
+rename to src/pkg/math/cmplx/Makefile
+index 486caace46..c95b856826 100644
+--- a/src/pkg/cmath/Makefile
++++ b/src/pkg/math/cmplx/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=cmath
+ 
+@@ -22,4 +22,4 @@ GOFILES=\
+ 	sqrt.go\
+ 	tan.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/cmath/abs.go b/src/pkg/math/cmplx/abs.go
+similarity index 100%
+rename from src/pkg/cmath/abs.go
+rename to src/pkg/math/cmplx/abs.go
+diff --git a/src/pkg/cmath/asin.go b/src/pkg/math/cmplx/asin.go
+similarity index 100%
+rename from src/pkg/cmath/asin.go
+rename to src/pkg/math/cmplx/asin.go
+diff --git a/src/pkg/cmath/cmath_test.go b/src/pkg/math/cmplx/cmath_test.go
+similarity index 100%
+rename from src/pkg/cmath/cmath_test.go
+rename to src/pkg/math/cmplx/cmath_test.go
+diff --git a/src/pkg/cmath/conj.go b/src/pkg/math/cmplx/conj.go
+similarity index 100%
+rename from src/pkg/cmath/conj.go
+rename to src/pkg/math/cmplx/conj.go
+diff --git a/src/pkg/cmath/exp.go b/src/pkg/math/cmplx/exp.go
+similarity index 100%
+rename from src/pkg/cmath/exp.go
+rename to src/pkg/math/cmplx/exp.go
+diff --git a/src/pkg/cmath/isinf.go b/src/pkg/math/cmplx/isinf.go
+similarity index 100%
+rename from src/pkg/cmath/isinf.go
+rename to src/pkg/math/cmplx/isinf.go
+diff --git a/src/pkg/cmath/isnan.go b/src/pkg/math/cmplx/isnan.go
+similarity index 100%
+rename from src/pkg/cmath/isnan.go
+rename to src/pkg/math/cmplx/isnan.go
+diff --git a/src/pkg/cmath/log.go b/src/pkg/math/cmplx/log.go
+similarity index 100%
+rename from src/pkg/cmath/log.go
+rename to src/pkg/math/cmplx/log.go
+diff --git a/src/pkg/cmath/phase.go b/src/pkg/math/cmplx/phase.go
+similarity index 100%
+rename from src/pkg/cmath/phase.go
+rename to src/pkg/math/cmplx/phase.go
+diff --git a/src/pkg/cmath/polar.go b/src/pkg/math/cmplx/polar.go
+similarity index 100%
+rename from src/pkg/cmath/polar.go
+rename to src/pkg/math/cmplx/polar.go
+diff --git a/src/pkg/cmath/pow.go b/src/pkg/math/cmplx/pow.go
+similarity index 100%
+rename from src/pkg/cmath/pow.go
+rename to src/pkg/math/cmplx/pow.go
+diff --git a/src/pkg/cmath/rect.go b/src/pkg/math/cmplx/rect.go
+similarity index 100%
+rename from src/pkg/cmath/rect.go
+rename to src/pkg/math/cmplx/rect.go
+diff --git a/src/pkg/cmath/sin.go b/src/pkg/math/cmplx/sin.go
+similarity index 100%
+rename from src/pkg/cmath/sin.go
+rename to src/pkg/math/cmplx/sin.go
+diff --git a/src/pkg/cmath/sqrt.go b/src/pkg/math/cmplx/sqrt.go
+similarity index 100%
+rename from src/pkg/cmath/sqrt.go
+rename to src/pkg/math/cmplx/sqrt.go
+diff --git a/src/pkg/cmath/tan.go b/src/pkg/math/cmplx/tan.go
+similarity index 100%
+rename from src/pkg/cmath/tan.go
+rename to src/pkg/math/cmplx/tan.go
+diff --git a/src/pkg/rand/Makefile b/src/pkg/math/rand/Makefile
+similarity index 81%
+rename from src/pkg/rand/Makefile
+rename to src/pkg/math/rand/Makefile
+index ec3b34180e..81c2d88c2b 100644
+--- a/src/pkg/rand/Makefile
++++ b/src/pkg/math/rand/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=rand
+ GOFILES=\
+@@ -12,4 +12,4 @@ GOFILES=\
+ 	rng.go\
+ 	zipf.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/rand/exp.go b/src/pkg/math/rand/exp.go
+similarity index 100%
+rename from src/pkg/rand/exp.go
+rename to src/pkg/math/rand/exp.go
+diff --git a/src/pkg/rand/normal.go b/src/pkg/math/rand/normal.go
+similarity index 100%
+rename from src/pkg/rand/normal.go
+rename to src/pkg/math/rand/normal.go
+diff --git a/src/pkg/rand/rand.go b/src/pkg/math/rand/rand.go
+similarity index 100%
+rename from src/pkg/rand/rand.go
+rename to src/pkg/math/rand/rand.go
+diff --git a/src/pkg/rand/rand_test.go b/src/pkg/math/rand/rand_test.go
+similarity index 100%
+rename from src/pkg/rand/rand_test.go
+rename to src/pkg/math/rand/rand_test.go
+diff --git a/src/pkg/rand/rng.go b/src/pkg/math/rand/rng.go
+similarity index 100%
+rename from src/pkg/rand/rng.go
+rename to src/pkg/math/rand/rng.go
+diff --git a/src/pkg/rand/zipf.go b/src/pkg/math/rand/zipf.go
+similarity index 100%
+rename from src/pkg/rand/zipf.go
+rename to src/pkg/math/rand/zipf.go

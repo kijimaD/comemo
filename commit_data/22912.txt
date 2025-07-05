@@ -11,7 +11,142 @@ Date:   Wed Apr 15 13:03:24 2015 +1000
     Change-Id: I3399ce53dc8b41b1b5f0b906a5912e6efd80418f
     Reviewed-on: https://go-review.googlesource.com/8905
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/png/reader.go      | 18 +++++++++-----
  src/image/png/reader_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 71 insertions(+), 6 deletions(-)
+
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index 0a40ca161d..dae7a7db37 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -47,6 +47,10 @@ const (
+ 	cbTCA16
+ )
+ 
++func cbPaletted(cb int) bool {
++	return cbP1 <= cb && cb <= cbP8
++}
++
+ // Filter type, as per the PNG spec.
+ const (
+ 	ftNone    = 0
+@@ -81,15 +85,16 @@ var interlacing = []interlaceScan{
+ }
+ 
+ // Decoding stage.
+-// The PNG specification says that the IHDR, PLTE (if present), IDAT and IEND
+-// chunks must appear in that order. There may be multiple IDAT chunks, and
+-// IDAT chunks must be sequential (i.e. they may not have any other chunks
+-// between them).
++// The PNG specification says that the IHDR, PLTE (if present), tRNS (if
++// present), IDAT and IEND chunks must appear in that order. There may be
++// multiple IDAT chunks, and IDAT chunks must be sequential (i.e. they may not
++// have any other chunks between them).
+ // http://www.w3.org/TR/PNG/#5ChunkOrdering
+ const (
+ 	dsStart = iota
+ 	dsSeenIHDR
+ 	dsSeenPLTE
++	dsSeentRNS
+ 	dsSeenIDAT
+ 	dsSeenIEND
+ )
+@@ -687,9 +692,10 @@ func (d *decoder) parseChunk() error {
+ 		if d.stage != dsSeenPLTE {
+ 			return chunkOrderError
+ 		}
++		d.stage = dsSeentRNS
+ 		return d.parsetRNS(length)
+ 	case "IDAT":
+-		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.cb == cbP8 && d.stage == dsSeenIHDR) {
++		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.stage == dsSeenIHDR && cbPaletted(d.cb)) {
+ 			return chunkOrderError
+ 		}
+ 		d.stage = dsSeenIDAT
+@@ -779,7 +785,7 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
+ 			}
+ 			return image.Config{}, err
+ 		}
+-		paletted := d.cb == cbP8 || d.cb == cbP4 || d.cb == cbP2 || d.cb == cbP1
++		paletted := cbPaletted(d.cb)
+ 		if d.stage == dsSeenIHDR && !paletted {
+ 			break
+ 		}
+diff --git a/src/image/png/reader_test.go b/src/image/png/reader_test.go
+index ce772eb6f0..9f24f041e5 100644
+--- a/src/image/png/reader_test.go
++++ b/src/image/png/reader_test.go
+@@ -6,6 +6,7 @@ package png
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"fmt"
+ 	"image"
+ 	"image/color"
+@@ -319,6 +320,64 @@ func TestPalettedDecodeConfig(t *testing.T) {
+ 	}
+ }
+ 
++func TestMultipletRNSChunks(t *testing.T) {
++	/*
++		The following is a valid 1x1 paletted PNG image with a 1-element palette
++		containing color.NRGBA{0xff, 0x00, 0x00, 0x7f}:
++			0000000: 8950 4e47 0d0a 1a0a 0000 000d 4948 4452  .PNG........IHDR
++			0000010: 0000 0001 0000 0001 0803 0000 0028 cb34  .............(.4
++			0000020: bb00 0000 0350 4c54 45ff 0000 19e2 0937  .....PLTE......7
++			0000030: 0000 0001 7452 4e53 7f80 5cb4 cb00 0000  ....tRNS..\.....
++			0000040: 0e49 4441 5478 9c62 6200 0400 00ff ff00  .IDATx.bb.......
++			0000050: 0600 03fa d059 ae00 0000 0049 454e 44ae  .....Y.....IEND.
++			0000060: 4260 82                                  B`.
++		Dropping the tRNS chunk makes that color's alpha 0xff instead of 0x7f.
++	*/
++	const (
++		ihdr = "\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x03\x00\x00\x00\x28\xcb\x34\xbb"
++		plte = "\x00\x00\x00\x03PLTE\xff\x00\x00\x19\xe2\x09\x37"
++		trns = "\x00\x00\x00\x01tRNS\x7f\x80\x5c\xb4\xcb"
++		idat = "\x00\x00\x00\x0eIDAT\x78\x9c\x62\x62\x00\x04\x00\x00\xff\xff\x00\x06\x00\x03\xfa\xd0\x59\xae"
++		iend = "\x00\x00\x00\x00IEND\xae\x42\x60\x82"
++	)
++	for i := 0; i < 4; i++ {
++		var b []byte
++		b = append(b, pngHeader...)
++		b = append(b, ihdr...)
++		b = append(b, plte...)
++		for j := 0; j < i; j++ {
++			b = append(b, trns...)
++		}
++		b = append(b, idat...)
++		b = append(b, iend...)
++
++		var want color.Color
++		m, err := Decode(bytes.NewReader(b))
++		switch i {
++		case 0:
++			if err != nil {
++				t.Errorf("%d tRNS chunks: %v", i, err)
++				continue
++			}
++			want = color.RGBA{0xff, 0x00, 0x00, 0xff}
++		case 1:
++			if err != nil {
++				t.Errorf("%d tRNS chunks: %v", i, err)
++				continue
++			}
++			want = color.NRGBA{0xff, 0x00, 0x00, 0x7f}
++		default:
++			if err == nil {
++				t.Errorf("%d tRNS chunks: got nil error, want non-nil", i)
++			}
++			continue
++		}
++		if got := m.At(0, 0); got != want {
++			t.Errorf("%d tRNS chunks: got %T %v, want %T %v", i, got, got, want, want)
++		}
++	}
++}
++
+ func benchmarkDecode(b *testing.B, filename string, bytesPerPixel int) {
+ 	b.StopTimer()
+ 	data, err := ioutil.ReadFile(filename)

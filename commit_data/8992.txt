@@ -7,6 +7,19 @@ Date:   Sat Jul 9 15:18:18 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4657089
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 8bb57f9ab4..f3920b7791 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -94,6 +94,7 @@ Eivind Uggedal <eivind@uggedal.com>
+ Eoghan Sherry <ejsherry@gmail.com>
+ Eric Clark <zerohp@gmail.com>
+ Eric Eisner <eric.d.eisner@gmail.com>
++Evan Martin <evan.martin@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
+ Fan Hongjian <fan.howard@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>

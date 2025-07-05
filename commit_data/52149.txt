@@ -21,7 +21,7 @@ Date:   Sun Apr 3 16:16:46 2022 -0400
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/doc/comment/parse.go           | 50 ++++++++++++++++++++++-
  src/go/doc/comment/print.go           | 31 +++++++++++++-
  src/go/doc/comment/testdata/link2.txt | 29 +++++++++++++
@@ -32,3 +32,421 @@ Date:   Sun Apr 3 16:16:46 2022 -0400
  src/go/doc/comment/testdata/link7.txt | 25 ++++++++++++
  src/go/doc/comment/text.go            | 15 +++++++
  9 files changed, 321 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/doc/comment/parse.go b/src/go/doc/comment/parse.go
+index af7e1931d9..920b446c7e 100644
+--- a/src/go/doc/comment/parse.go
++++ b/src/go/doc/comment/parse.go
+@@ -303,7 +303,9 @@ func (p *Parser) Parse(text string) *Doc {
+ 		if line != "" {
+ 			var b Block
+ 			b, lines = d.paragraph(lines)
+-			d.Content = append(d.Content, b)
++			if b != nil {
++				d.Content = append(d.Content, b)
++			}
+ 		} else {
+ 			lines = lines[1:]
+ 		}
+@@ -434,7 +436,7 @@ func isOldHeading(line string, all []string, off int) bool {
+ 	return true
+ }
+ 
+-// parargraph returns a paragraph block built from the
++// paragraph returns a paragraph block built from the
+ // unindented text at the start of lines, along with the remainder of the lines.
+ // If there is no unindented text at the start of lines,
+ // then paragraph returns a nil Block.
+@@ -452,9 +454,53 @@ func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
+ 		return nil, rest
+ 	}
+ 
++	// Is this a block of known links? Handle.
++	var defs []*LinkDef
++	for _, line := range lines {
++		def, ok := parseLink(line)
++		if !ok {
++			goto NoDefs
++		}
++		defs = append(defs, def)
++	}
++	for _, def := range defs {
++		d.Links = append(d.Links, def)
++		if d.links[def.Text] == nil {
++			d.links[def.Text] = def
++		}
++	}
++	return nil, rest
++NoDefs:
++
+ 	return &Paragraph{Text: []Text{Plain(strings.Join(lines, "\n"))}}, rest
+ }
+ 
++// parseLink parses a single link definition line:
++//	[text]: url
++// It returns the link definition and whether the line was well formed.
++func parseLink(line string) (*LinkDef, bool) {
++	if line == "" || line[0] != '[' {
++		return nil, false
++	}
++	i := strings.Index(line, "]:")
++	if i < 0 || i+3 >= len(line) || (line[i+2] != ' ' && line[i+2] != '\t') {
++		return nil, false
++	}
++
++	text := line[1:i]
++	url := strings.TrimSpace(line[i+3:])
++	j := strings.Index(url, "://")
++	if j < 0 || !isScheme(url[:j]) {
++		return nil, false
++	}
++
++	// Line has right form and has valid scheme://.
++	// That's good enough for us - we are not as picky
++	// about the characters beyond the :// as we are
++	// when extracting inline URLs from text.
++	return &LinkDef{Text: text, URL: url}, true
++}
++
+ // parseLinkedText parses text that is allowed to contain explicit links,
+ // such as [math.Sin] or [Go home page], into a slice of Text items.
+ //
+diff --git a/src/go/doc/comment/print.go b/src/go/doc/comment/print.go
+index 4f316fb75c..2ef8d7375d 100644
+--- a/src/go/doc/comment/print.go
++++ b/src/go/doc/comment/print.go
+@@ -121,6 +121,29 @@ func (p *Printer) Comment(d *Doc) []byte {
+ 		cp.block(&out, x)
+ 	}
+ 
++	// Print one block containing all the link definitions that were used,
++	// and then a second block containing all the unused ones.
++	// This makes it easy to clean up the unused ones: gofmt and
++	// delete the final block. And it's a nice visual signal without
++	// affecting the way the comment formats for users.
++	for i := 0; i < 2; i++ {
++		used := i == 0
++		first := true
++		for _, def := range d.Links {
++			if def.Used == used {
++				if first {
++					out.WriteString("\n")
++					first = false
++				}
++				out.WriteString("[")
++				out.WriteString(def.Text)
++				out.WriteString("]: ")
++				out.WriteString(def.URL)
++				out.WriteString("\n")
++			}
++		}
++	}
++
+ 	return out.Bytes()
+ }
+ 
+@@ -154,7 +177,13 @@ func (p *commentPrinter) text(out *bytes.Buffer, indent string, x []Text) {
+ 		case Italic:
+ 			p.indent(out, indent, string(t))
+ 		case *Link:
+-			p.text(out, indent, t.Text)
++			if t.Auto {
++				p.text(out, indent, t.Text)
++			} else {
++				out.WriteString("[")
++				p.text(out, indent, t.Text)
++				out.WriteString("]")
++			}
+ 		case *DocLink:
+ 			out.WriteString("[")
+ 			p.text(out, indent, t.Text)
+diff --git a/src/go/doc/comment/testdata/link2.txt b/src/go/doc/comment/testdata/link2.txt
+new file mode 100644
+index 0000000000..a19835c4f6
+--- /dev/null
++++ b/src/go/doc/comment/testdata/link2.txt
+@@ -0,0 +1,29 @@
++-- input --
++The Go home page is https://go.dev/.
++It used to be https://golang.org.
++https:// is not a link.
++Nor is https://
++https://☺ is not a link.
++https://:80 is not a link.
++
++-- gofmt --
++The Go home page is https://go.dev/.
++It used to be https://golang.org.
++https:// is not a link.
++Nor is https://
++https://☺ is not a link.
++https://:80 is not a link.
++
++-- text --
++The Go home page is https://go.dev/. It used to be https://golang.org. https:// is not a link. Nor is https:// https://☺ is not a link. https://:80 is not a link.
++
++-- markdown --
++The Go home page is [https://go.dev/](https://go.dev/). It used to be [https://golang.org](https://golang.org). https:// is not a link. Nor is https:// https://☺ is not a link. https://:80 is not a link.
++
++-- html --
++<p>The Go home page is <a href="https://go.dev/">https://go.dev/</a>.
++It used to be <a href="https://golang.org">https://golang.org</a>.
++https:// is not a link.
++Nor is https://
++https://☺ is not a link.
++https://:80 is not a link.
+diff --git a/src/go/doc/comment/testdata/link3.txt b/src/go/doc/comment/testdata/link3.txt
+new file mode 100644
+index 0000000000..5a115b5cb7
+--- /dev/null
++++ b/src/go/doc/comment/testdata/link3.txt
+@@ -0,0 +1,14 @@
++-- input --
++Doc text.
++
++[Go home page]: https://go.dev
++-- gofmt --
++Doc text.
++
++[Go home page]: https://go.dev
++-- text --
++Doc text.
++-- markdown --
++Doc text.
++-- html --
++<p>Doc text.
+diff --git a/src/go/doc/comment/testdata/link4.txt b/src/go/doc/comment/testdata/link4.txt
+new file mode 100644
+index 0000000000..75f194c845
+--- /dev/null
++++ b/src/go/doc/comment/testdata/link4.txt
+@@ -0,0 +1,77 @@
++-- input --
++These are not links.
++
++[x
++
++[x]:
++
++[x]:https://go.dev
++
++[x]https://go.dev
++
++[x]: surprise://go.dev
++
++[x]: surprise!
++
++But this is, with a tab (although it's unused).
++
++[z]:	https://go.dev
++-- gofmt --
++These are not links.
++
++[x
++
++[x]:
++
++[x]:https://go.dev
++
++[x]https://go.dev
++
++[x]: surprise://go.dev
++
++[x]: surprise!
++
++But this is, with a tab (although it's unused).
++
++[z]: https://go.dev
++-- text --
++These are not links.
++
++[x
++
++[x]:
++
++[x]:https://go.dev
++
++[x]https://go.dev
++
++[x]: surprise://go.dev
++
++[x]: surprise!
++
++But this is, with a tab (although it's unused).
++-- markdown --
++These are not links.
++
++\[x
++
++\[x]:
++
++\[x]:[https://go.dev](https://go.dev)
++
++\[x][https://go.dev](https://go.dev)
++
++\[x]: surprise://go.dev
++
++\[x]: surprise!
++
++But this is, with a tab (although it's unused).
++-- html --
++<p>These are not links.
++<p>[x
++<p>[x]:
++<p>[x]:<a href="https://go.dev">https://go.dev</a>
++<p>[x]<a href="https://go.dev">https://go.dev</a>
++<p>[x]: surprise://go.dev
++<p>[x]: surprise!
++<p>But this is, with a tab (although it&apos;s unused).
+diff --git a/src/go/doc/comment/testdata/link5.txt b/src/go/doc/comment/testdata/link5.txt
+new file mode 100644
+index 0000000000..b4fb5889f4
+--- /dev/null
++++ b/src/go/doc/comment/testdata/link5.txt
+@@ -0,0 +1,36 @@
++-- input --
++See the [Go home page] and the [pkg
++site].
++
++[Go home page]: https://go.dev/
++[pkg site]: https://pkg.go.dev
++[Go home page]: https://duplicate.ignored
++
++They're really great!
++
++-- gofmt --
++See the [Go home page] and the [pkg
++site].
++
++They're really great!
++
++[Go home page]: https://go.dev/
++[pkg site]: https://pkg.go.dev
++
++[Go home page]: https://duplicate.ignored
++
++-- text --
++See the Go home page and the pkg site.
++
++They're really great!
++
++[Go home page]: https://go.dev/
++[pkg site]: https://pkg.go.dev
++-- markdown --
++See the [Go home page](https://go.dev/) and the [pkg site](https://pkg.go.dev).
++
++They're really great!
++-- html --
++<p>See the <a href="https://go.dev/">Go home page</a> and the <a href="https://pkg.go.dev">pkg
++site</a>.
++<p>They&apos;re really great!
+diff --git a/src/go/doc/comment/testdata/link6.txt b/src/go/doc/comment/testdata/link6.txt
+new file mode 100644
+index 0000000000..579b35d211
+--- /dev/null
++++ b/src/go/doc/comment/testdata/link6.txt
+@@ -0,0 +1,47 @@
++-- input --
++URLs with punctuation are hard.
++We don't want to consume the end-of-sentence punctuation.
++
++For example, https://en.wikipedia.org/wiki/John_Adams_(miniseries).
++And https://example.com/[foo]/bar{.
++And https://example.com/(foo)/bar!
++And https://example.com/{foo}/bar{.
++And https://example.com/)baz{foo}.
++
++[And https://example.com/].
++
++-- gofmt --
++URLs with punctuation are hard.
++We don't want to consume the end-of-sentence punctuation.
++
++For example, https://en.wikipedia.org/wiki/John_Adams_(miniseries).
++And https://example.com/[foo]/bar{.
++And https://example.com/(foo)/bar!
++And https://example.com/{foo}/bar{.
++And https://example.com/)baz{foo}.
++
++[And https://example.com/].
++
++-- text --
++URLs with punctuation are hard. We don't want to consume the end-of-sentence punctuation.
++
++For example, https://en.wikipedia.org/wiki/John_Adams_(miniseries). And https://example.com/[foo]/bar{. And https://example.com/(foo)/bar! And https://example.com/{foo}/bar{. And https://example.com/)baz{foo}.
++
++[And https://example.com/].
++
++-- markdown --
++URLs with punctuation are hard. We don't want to consume the end-of-sentence punctuation.
++
++For example, [https://en.wikipedia.org/wiki/John\_Adams\_(miniseries)](https://en.wikipedia.org/wiki/John_Adams_(miniseries)). And [https://example.com/\[foo]/bar](https://example.com/[foo]/bar){. And [https://example.com/(foo)/bar](https://example.com/(foo)/bar)! And [https://example.com/{foo}/bar](https://example.com/{foo}/bar){. And [https://example.com/](https://example.com/))baz{foo}.
++
++\[And [https://example.com/](https://example.com/)].
++
++-- html --
++<p>URLs with punctuation are hard.
++We don&apos;t want to consume the end-of-sentence punctuation.
++<p>For example, <a href="https://en.wikipedia.org/wiki/John_Adams_(miniseries)">https://en.wikipedia.org/wiki/John_Adams_(miniseries)</a>.
++And <a href="https://example.com/[foo]/bar">https://example.com/[foo]/bar</a>{.
++And <a href="https://example.com/(foo)/bar">https://example.com/(foo)/bar</a>!
++And <a href="https://example.com/{foo}/bar">https://example.com/{foo}/bar</a>{.
++And <a href="https://example.com/">https://example.com/</a>)baz{foo}.
++<p>[And <a href="https://example.com/">https://example.com/</a>].
+diff --git a/src/go/doc/comment/testdata/link7.txt b/src/go/doc/comment/testdata/link7.txt
+new file mode 100644
+index 0000000000..89a8b3170e
+--- /dev/null
++++ b/src/go/doc/comment/testdata/link7.txt
+@@ -0,0 +1,25 @@
++-- input --
++[math] is a package but this is not a doc link.
++
++[io] is a doc link.
++
++[math]: https://example.com
++-- gofmt --
++[math] is a package but this is not a doc link.
++
++[io] is a doc link.
++
++[math]: https://example.com
++-- text --
++math is a package but this is not a doc link.
++
++io is a doc link.
++
++[math]: https://example.com
++-- markdown --
++[math](https://example.com) is a package but this is not a doc link.
++
++[io](/io) is a doc link.
++-- html --
++<p><a href="https://example.com">math</a> is a package but this is not a doc link.
++<p><a href="/io">io</a> is a doc link.
+diff --git a/src/go/doc/comment/text.go b/src/go/doc/comment/text.go
+index 531675d5a4..e9941bc957 100644
+--- a/src/go/doc/comment/text.go
++++ b/src/go/doc/comment/text.go
+@@ -29,6 +29,21 @@ func (p *Printer) Text(d *Doc) []byte {
+ 		}
+ 		tp.block(&out, x)
+ 	}
++	anyUsed := false
++	for _, def := range d.Links {
++		if def.Used {
++			anyUsed = true
++			break
++		}
++	}
++	if anyUsed {
++		writeNL(&out)
++		for _, def := range d.Links {
++			if def.Used {
++				fmt.Fprintf(&out, "[%s]: %s\n", def.Text, def.URL)
++			}
++		}
++	}
+ 	return out.Bytes()
+ }
+ 

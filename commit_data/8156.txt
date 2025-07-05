@@ -7,7 +7,7 @@ Date:   Wed Apr 20 09:57:05 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4442064
-
+---
  doc/effective_go.html                    |  4 ++--
  src/pkg/archive/tar/common.go            |  2 +-
  src/pkg/archive/zip/reader.go            |  2 +-
@@ -118,3 +118,1589 @@ Date:   Wed Apr 20 09:57:05 2011 +1000
  src/pkg/utf8/utf8.go                     |  4 ++--
  src/pkg/websocket/websocket.go           |  2 +-
  109 files changed, 181 insertions(+), 183 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 27bfd1bf52..a7e6b7bdff 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -159,7 +159,7 @@ should set up the detailed documentation that follows.
+ 
+ <pre>
+ /*
+-    The regexp package implements a simple library for
++    Package regexp implements a simple library for
+     regular expressions.
+ 
+     The syntax of the regular expressions accepted is:
+@@ -186,7 +186,7 @@ If the package is simple, the package comment can be brief.
+ </p>
+ 
+ <pre>
+-// The path package implements utility routines for
++// Package path implements utility routines for
+ // manipulating slash-separated filename paths.
+ </pre>
+ 
+diff --git a/src/pkg/archive/tar/common.go b/src/pkg/archive/tar/common.go
+index 5b781ff3d7..5288587658 100644
+--- a/src/pkg/archive/tar/common.go
++++ b/src/pkg/archive/tar/common.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The tar package implements access to tar archives.
++// Package tar implements access to tar archives.
+ // It aims to cover most of the variations, including those produced
+ // by GNU and BSD tars.
+ //
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index 0391d6441f..17464c5d8e 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-The zip package provides support for reading ZIP archives.
++Package zip provides support for reading ZIP archives.
+ 
+ See: http://www.pkware.com/documents/casestudies/APPNOTE.TXT
+ 
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index 8c99bd7a0f..c433edb870 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The asn1 package implements parsing of DER-encoded ASN.1 data structures,
++// Package asn1 implements parsing of DER-encoded ASN.1 data structures,
+ // as defined in ITU-T Rec X.690.
+ //
+ // See also ``A Layman's Guide to a Subset of ASN.1, BER, and DER,''
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index a04d3b1d9c..4848d427b3 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -2,11 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file contains operations on unsigned multi-precision integers.
+-// These are the building blocks for the operations on signed integers
+-// and rationals.
+-
+-// This package implements multi-precision arithmetic (big numbers).
++// Package big implements multi-precision arithmetic (big numbers).
+ // The following numeric types are supported:
+ //
+ //	- Int	signed integers
+@@ -18,6 +14,10 @@
+ //
+ package big
+ 
++// This file contains operations on unsigned multi-precision integers.
++// These are the building blocks for the operations on signed integers
++// and rationals.
++
+ import "rand"
+ 
+ // An unsigned integer x of the form
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 32a25afae9..eaae8bb42c 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements buffered I/O.  It wraps an io.Reader or io.Writer
++// Package bufio implements buffered I/O.  It wraps an io.Reader or io.Writer
+ // object, creating another object (Reader or Writer) that also implements
+ // the interface but provides buffering and some help for textual I/O.
+ package bufio
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index c12a135738..0f9ac98637 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The bytes package implements functions for the manipulation of byte slices.
+-// Analogous to the facilities of the strings package.
++// Package bytes implements functions for the manipulation of byte slices.
++// It is analogous to the facilities of the strings package.
+ package bytes
+ 
+ import (
+diff --git a/src/pkg/cmath/abs.go b/src/pkg/cmath/abs.go
+index 725dc4e982..f3199cad56 100644
+--- a/src/pkg/cmath/abs.go
++++ b/src/pkg/cmath/abs.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The cmath package provides basic constants
+-// and mathematical functions for complex numbers.
++// Package cmath provides basic constants and mathematical functions for
++// complex numbers.
+ package cmath
+ 
+ import "math"
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 787ea2533c..320b80d069 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The flate package implements the DEFLATE compressed data
+-// format, described in RFC 1951.  The gzip and zlib packages
+-// implement access to DEFLATE-based file formats.
++// Package flate implements the DEFLATE compressed data format, described in
++// RFC 1951.  The gzip and zlib packages implement access to DEFLATE-based file
++// formats.
+ package flate
+ 
+ import (
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 3c0b3c5e5f..b0ddc81d25 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The gzip package implements reading and writing of
+-// gzip format compressed files, as specified in RFC 1952.
++// Package gzip implements reading and writing of gzip format compressed files,
++// as specified in RFC 1952.
+ package gzip
+ 
+ import (
+diff --git a/src/pkg/compress/lzw/reader.go b/src/pkg/compress/lzw/reader.go
+index 8a540cbe6a..d418bc8561 100644
+--- a/src/pkg/compress/lzw/reader.go
++++ b/src/pkg/compress/lzw/reader.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The lzw package implements the Lempel-Ziv-Welch compressed data format,
++// Package lzw implements the Lempel-Ziv-Welch compressed data format,
+ // described in T. A. Welch, ``A Technique for High-Performance Data
+ // Compression'', Computer, 17(6) (June 1984), pp 8-19.
+ //
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+index b191c27330..8a3ef1580a 100644
+--- a/src/pkg/compress/zlib/reader.go
++++ b/src/pkg/compress/zlib/reader.go
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-The zlib package implements reading and writing of zlib
+-format compressed data, as specified in RFC 1950.
++Package zlib implements reading and writing of zlib format compressed data,
++as specified in RFC 1950.
+ 
+ The implementation provides filters that uncompress during reading
+ and compress during writing.  For example, to write compressed data
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index 4435a57c4e..f2b8a750a4 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package provides heap operations for any type that implements
++// Package heap provides heap operations for any type that implements
+ // heap.Interface.
+ //
+ package heap
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index c1ebcddaa7..a3fd4b39f3 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The list package implements a doubly linked list.
++// Package list implements a doubly linked list.
+ //
+ // To iterate over a list (where l is a *List):
+ //	for e := l.Front(); e != nil; e = e.Next() {
+diff --git a/src/pkg/container/ring/ring.go b/src/pkg/container/ring/ring.go
+index 5925164e9d..cc870ce936 100644
+--- a/src/pkg/container/ring/ring.go
++++ b/src/pkg/container/ring/ring.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The ring package implements operations on circular lists.
++// Package ring implements operations on circular lists.
+ package ring
+ 
+ // A Ring is an element of a circular list, or ring.
+diff --git a/src/pkg/container/vector/defs.go b/src/pkg/container/vector/defs.go
+index a2febb6dee..bfb5481fb8 100644
+--- a/src/pkg/container/vector/defs.go
++++ b/src/pkg/container/vector/defs.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The vector package implements containers for managing sequences
+-// of elements. Vectors grow and shrink dynamically as necessary.
++// Package vector implements containers for managing sequences of elements.
++// Vectors grow and shrink dynamically as necessary.
+ package vector
+ 
+ 
+diff --git a/src/pkg/crypto/aes/const.go b/src/pkg/crypto/aes/const.go
+index 97a5b64ec6..25acd0d170 100644
+--- a/src/pkg/crypto/aes/const.go
++++ b/src/pkg/crypto/aes/const.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// AES constants - 8720 bytes of initialized data.
+-
+-// This package implements AES encryption (formerly Rijndael),
+-// as defined in U.S. Federal Information Processing Standards Publication 197.
++// Package aes implements AES encryption (formerly Rijndael), as defined in
++// U.S. Federal Information Processing Standards Publication 197.
+ package aes
+ 
++// This file contains AES constants - 8720 bytes of initialized data.
++
+ // http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
+ 
+ // AES is based on the mathematical behavior of binary polynomials
+diff --git a/src/pkg/crypto/blowfish/cipher.go b/src/pkg/crypto/blowfish/cipher.go
+index 947f762d8b..f3c5175acf 100644
+--- a/src/pkg/crypto/blowfish/cipher.go
++++ b/src/pkg/crypto/blowfish/cipher.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements Bruce Schneier's Blowfish encryption algorithm.
++// Package blowfish implements Bruce Schneier's Blowfish encryption algorithm.
+ package blowfish
+ 
+ // The code is a port of Bruce Schneier's C implementation.
+diff --git a/src/pkg/crypto/cast5/cast5.go b/src/pkg/crypto/cast5/cast5.go
+index 35f3e64b64..cb62e3132e 100644
+--- a/src/pkg/crypto/cast5/cast5.go
++++ b/src/pkg/crypto/cast5/cast5.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements CAST5, as defined in RFC 2144. CAST5 is a common
++// Package cast5 implements CAST5, as defined in RFC 2144. CAST5 is a common
+ // OpenPGP cipher.
+ package cast5
+ 
+diff --git a/src/pkg/crypto/cipher/cipher.go b/src/pkg/crypto/cipher/cipher.go
+index 50516b23a1..1ffaa8c2c3 100644
+--- a/src/pkg/crypto/cipher/cipher.go
++++ b/src/pkg/crypto/cipher/cipher.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The cipher package implements standard block cipher modes
+-// that can be wrapped around low-level block cipher implementations.
++// Package cipher implements standard block cipher modes that can be wrapped
++// around low-level block cipher implementations.
+ // See http://csrc.nist.gov/groups/ST/toolkit/BCM/current_modes.html
+ // and NIST Special Publication 800-38A.
+ package cipher
+diff --git a/src/pkg/crypto/crypto.go b/src/pkg/crypto/crypto.go
+index be6b34adf2..53672a4da3 100644
+--- a/src/pkg/crypto/crypto.go
++++ b/src/pkg/crypto/crypto.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The crypto package collects common cryptographic constants.
++// Package crypto collects common cryptographic constants.
+ package crypto
+ 
+ import (
+diff --git a/src/pkg/crypto/elliptic/elliptic.go b/src/pkg/crypto/elliptic/elliptic.go
+index 2296e96077..335c9645dc 100644
+--- a/src/pkg/crypto/elliptic/elliptic.go
++++ b/src/pkg/crypto/elliptic/elliptic.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The elliptic package implements several standard elliptic curves over prime
+-// fields
++// Package elliptic implements several standard elliptic curves over prime
++// fields.
+ package elliptic
+ 
+ // This package operates, internally, on Jacobian coordinates. For a given
+diff --git a/src/pkg/crypto/hmac/hmac.go b/src/pkg/crypto/hmac/hmac.go
+index 298fb2c069..04ec86e9ab 100644
+--- a/src/pkg/crypto/hmac/hmac.go
++++ b/src/pkg/crypto/hmac/hmac.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The hmac package implements the Keyed-Hash Message Authentication Code (HMAC)
+-// as defined in U.S. Federal Information Processing Standards Publication 198.
++// Package hmac implements the Keyed-Hash Message Authentication Code (HMAC) as
++// defined in U.S. Federal Information Processing Standards Publication 198.
+ // An HMAC is a cryptographic hash that uses a key to sign a message.
+ // The receiver verifies the hash by recomputing it using the same key.
+ package hmac
+diff --git a/src/pkg/crypto/md4/md4.go b/src/pkg/crypto/md4/md4.go
+index ee46544a92..848d9552df 100644
+--- a/src/pkg/crypto/md4/md4.go
++++ b/src/pkg/crypto/md4/md4.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the MD4 hash algorithm as defined in RFC 1320.
++// Package md4 implements the MD4 hash algorithm as defined in RFC 1320.
+ package md4
+ 
+ import (
+diff --git a/src/pkg/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+index 8f93fc4b35..378faa6ec7 100644
+--- a/src/pkg/crypto/md5/md5.go
++++ b/src/pkg/crypto/md5/md5.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the MD5 hash algorithm as defined in RFC 1321.
++// Package md5 implements the MD5 hash algorithm as defined in RFC 1321.
+ package md5
+ 
+ import (
+diff --git a/src/pkg/crypto/ocsp/ocsp.go b/src/pkg/crypto/ocsp/ocsp.go
+index f42d808888..acd75b8b06 100644
+--- a/src/pkg/crypto/ocsp/ocsp.go
++++ b/src/pkg/crypto/ocsp/ocsp.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package parses OCSP responses as specified in RFC 2560. OCSP responses
++// Package ocsp parses OCSP responses as specified in RFC 2560. OCSP responses
+ // are signed messages attesting to the validity of a certificate for a small
+ // period of time. This is used to manage revocation for X.509 certificates.
+ package ocsp
+diff --git a/src/pkg/crypto/openpgp/armor/armor.go b/src/pkg/crypto/openpgp/armor/armor.go
+index d695a8c332..8da612c500 100644
+--- a/src/pkg/crypto/openpgp/armor/armor.go
++++ b/src/pkg/crypto/openpgp/armor/armor.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements OpenPGP ASCII Armor, see RFC 4880. OpenPGP Armor is
++// Package armor implements OpenPGP ASCII Armor, see RFC 4880. OpenPGP Armor is
+ // very similar to PEM except that it has an additional CRC checksum.
+ package armor
+ 
+diff --git a/src/pkg/crypto/openpgp/error/error.go b/src/pkg/crypto/openpgp/error/error.go
+index 053d159672..3759ce1612 100644
+--- a/src/pkg/crypto/openpgp/error/error.go
++++ b/src/pkg/crypto/openpgp/error/error.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package contains common error types for the OpenPGP packages.
++// Package error contains common error types for the OpenPGP packages.
+ package error
+ 
+ import (
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index 57ff3afbfc..c0ec44dd8e 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements parsing and serialisation of OpenPGP packets, as
++// Package packet implements parsing and serialisation of OpenPGP packets, as
+ // specified in RFC 4880.
+ package packet
+ 
+diff --git a/src/pkg/crypto/openpgp/read.go b/src/pkg/crypto/openpgp/read.go
+index ac6998f0d2..4f84dff82b 100644
+--- a/src/pkg/crypto/openpgp/read.go
++++ b/src/pkg/crypto/openpgp/read.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This openpgp package implements high level operations on OpenPGP messages.
++// Package openpgp implements high level operations on OpenPGP messages.
+ package openpgp
+ 
+ import (
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k.go b/src/pkg/crypto/openpgp/s2k/s2k.go
+index 873b33dc0d..93b7582fa0 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the various OpenPGP string-to-key transforms as
++// Package s2k implements the various OpenPGP string-to-key transforms as
+ // specified in RFC 4800 section 3.7.1.
+ package s2k
+ 
+diff --git a/src/pkg/crypto/rc4/rc4.go b/src/pkg/crypto/rc4/rc4.go
+index 65fd195f3d..7ee471093b 100644
+--- a/src/pkg/crypto/rc4/rc4.go
++++ b/src/pkg/crypto/rc4/rc4.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements RC4 encryption, as defined in Bruce Schneier's
++// Package rc4 implements RC4 encryption, as defined in Bruce Schneier's
+ // Applied Cryptography.
+ package rc4
+ 
+diff --git a/src/pkg/crypto/ripemd160/ripemd160.go b/src/pkg/crypto/ripemd160/ripemd160.go
+index 6e88521c3f..5aaca59a3c 100644
+--- a/src/pkg/crypto/ripemd160/ripemd160.go
++++ b/src/pkg/crypto/ripemd160/ripemd160.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the RIPEMD-160 hash algorithm.
++// Package ripemd160 implements the RIPEMD-160 hash algorithm.
+ package ripemd160
+ 
+ // RIPEMD-160 is designed by by Hans Dobbertin, Antoon Bosselaers, and Bart
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index b3b212c206..c5bdf0e8cd 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements RSA encryption as specified in PKCS#1.
++// Package rsa implements RSA encryption as specified in PKCS#1.
+ package rsa
+ 
+ // TODO(agl): Add support for PSS padding.
+diff --git a/src/pkg/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+index e6aa096e2a..788d1ff555 100644
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the SHA1 hash algorithm as defined in RFC 3174.
++// Package sha1 implements the SHA1 hash algorithm as defined in RFC 3174.
+ package sha1
+ 
+ import (
+diff --git a/src/pkg/crypto/sha256/sha256.go b/src/pkg/crypto/sha256/sha256.go
+index 69b356b4e5..a2c058d180 100644
+--- a/src/pkg/crypto/sha256/sha256.go
++++ b/src/pkg/crypto/sha256/sha256.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the SHA224 and SHA256 hash algorithms as defined in FIPS 180-2.
++// Package sha256 implements the SHA224 and SHA256 hash algorithms as defined
++// in FIPS 180-2.
+ package sha256
+ 
+ import (
+diff --git a/src/pkg/crypto/sha512/sha512.go b/src/pkg/crypto/sha512/sha512.go
+index 7e9f330e59..78f5fe26f8 100644
+--- a/src/pkg/crypto/sha512/sha512.go
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the SHA384 and SHA512 hash algorithms as defined in FIPS 180-2.
++// Package sha512 implements the SHA384 and SHA512 hash algorithms as defined
++// in FIPS 180-2.
+ package sha512
+ 
+ import (
+diff --git a/src/pkg/crypto/subtle/constant_time.go b/src/pkg/crypto/subtle/constant_time.go
+index a3d70b9c96..57dbe9db55 100644
+--- a/src/pkg/crypto/subtle/constant_time.go
++++ b/src/pkg/crypto/subtle/constant_time.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements functions that are often useful in cryptographic
++// Package subtle implements functions that are often useful in cryptographic
+ // code but require careful thought to use correctly.
+ package subtle
+ 
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 7de44bbd24..7d0bb9f34b 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package partially implements the TLS 1.1 protocol, as specified in RFC 4346.
++// Package tls partially implements the TLS 1.1 protocol, as specified in RFC
++// 4346.
+ package tls
+ 
+ import (
+diff --git a/src/pkg/crypto/twofish/twofish.go b/src/pkg/crypto/twofish/twofish.go
+index 62253e7978..9303f03ffd 100644
+--- a/src/pkg/crypto/twofish/twofish.go
++++ b/src/pkg/crypto/twofish/twofish.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements Bruce Schneier's Twofish encryption algorithm.
++// Package twofish implements Bruce Schneier's Twofish encryption algorithm.
+ package twofish
+ 
+ // Twofish is defined in http://www.schneier.com/paper-twofish-paper.pdf [TWOFISH]
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 39cb3443ae..f9e6eb6b3f 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package parses X.509-encoded keys and certificates.
++// Package x509 parses X.509-encoded keys and certificates.
+ package x509
+ 
+ import (
+diff --git a/src/pkg/crypto/xtea/cipher.go b/src/pkg/crypto/xtea/cipher.go
+index b0fa2a1844..f2a5da0035 100644
+--- a/src/pkg/crypto/xtea/cipher.go
++++ b/src/pkg/crypto/xtea/cipher.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements XTEA encryption, as defined in Needham and
+-// Wheeler's 1997 technical report, "Tea extensions."
++// Package xtea implements XTEA encryption, as defined in Needham and Wheeler's
++// 1997 technical report, "Tea extensions."
+ package xtea
+ 
+ // For details, see http://www.cix.co.uk/~klockstone/xtea.pdf
+diff --git a/src/pkg/debug/dwarf/open.go b/src/pkg/debug/dwarf/open.go
+index cb009e0e09..d9525f7883 100644
+--- a/src/pkg/debug/dwarf/open.go
++++ b/src/pkg/debug/dwarf/open.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package provides access to DWARF debugging information
+-// loaded from executable files, as defined in the DWARF 2.0 Standard
+-// at http://dwarfstd.org/doc/dwarf-2.0.0.pdf
++// Package dwarf provides access to DWARF debugging information loaded from
++// executable files, as defined in the DWARF 2.0 Standard at
++// http://dwarfstd.org/doc/dwarf-2.0.0.pdf
+ package dwarf
+ 
+ import (
+diff --git a/src/pkg/ebnf/ebnf.go b/src/pkg/ebnf/ebnf.go
+index e5aabd582b..7918c4593b 100644
+--- a/src/pkg/ebnf/ebnf.go
++++ b/src/pkg/ebnf/ebnf.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A library for EBNF grammars. The input is text ([]byte) satisfying
+-// the following grammar (represented itself in EBNF):
++// Package ebnf is a library for EBNF grammars. The input is text ([]byte)
++// satisfying the following grammar (represented itself in EBNF):
+ //
+ //	Production  = name "=" Expression "." .
+ //	Expression  = Alternative { "|" Alternative } .
+diff --git a/src/pkg/encoding/hex/hex.go b/src/pkg/encoding/hex/hex.go
+index 292d917eb4..891de18610 100644
+--- a/src/pkg/encoding/hex/hex.go
++++ b/src/pkg/encoding/hex/hex.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements hexadecimal encoding and decoding.
++// Package hex implements hexadecimal encoding and decoding.
+ package hex
+ 
+ import (
+diff --git a/src/pkg/encoding/line/line.go b/src/pkg/encoding/line/line.go
+index f46ce1c83a..123962b1f9 100644
+--- a/src/pkg/encoding/line/line.go
++++ b/src/pkg/encoding/line/line.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The line package implements a Reader that reads lines delimited by '\n' or ' \r\n'.
++// Package line implements a Reader that reads lines delimited by '\n' or
++// ' \r\n'.
+ package line
+ 
+ import (
+diff --git a/src/pkg/encoding/pem/pem.go b/src/pkg/encoding/pem/pem.go
+index 5653aeb77c..44e3d0ad09 100644
+--- a/src/pkg/encoding/pem/pem.go
++++ b/src/pkg/encoding/pem/pem.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the PEM data encoding, which originated in Privacy
++// Package pem implements the PEM data encoding, which originated in Privacy
+ // Enhanced Mail. The most common use of PEM encoding today is in TLS keys and
+ // certificates. See RFC 1421.
+ package pem
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 5398eb8e0c..043f847283 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The exec package runs external commands. It wraps os.StartProcess
+-// to make it easier to remap stdin and stdout, connect I/O with pipes,
+-// and do other adjustments.
++// Package exec runs external commands. It wraps os.StartProcess to make it
++// easier to remap stdin and stdout, connect I/O with pipes, and do other
++// adjustments.
+ package exec
+ 
+ // BUG(r): This package should be made even easier to use or merged into os.
+diff --git a/src/pkg/exp/datafmt/datafmt.go b/src/pkg/exp/datafmt/datafmt.go
+index 6d816fc2d3..fec45e4afe 100644
+--- a/src/pkg/exp/datafmt/datafmt.go
++++ b/src/pkg/exp/datafmt/datafmt.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-/*	The datafmt package implements syntax-directed, type-driven formatting
++/*	Package datafmt implements syntax-directed, type-driven formatting
+ 	of arbitrary data structures. Formatting a data structure consists of
+ 	two phases: first, a parser reads a format specification and builds a
+ 	"compiled" format. Then, the format can be applied repeatedly to
+diff --git a/src/pkg/exp/draw/x11/conn.go b/src/pkg/exp/draw/x11/conn.go
+index 53294af15c..81c67267db 100644
+--- a/src/pkg/exp/draw/x11/conn.go
++++ b/src/pkg/exp/draw/x11/conn.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements an X11 backend for the exp/draw package.
++// Package x11 implements an X11 backend for the exp/draw package.
+ //
+ // The X protocol specification is at ftp://ftp.x.org/pub/X11R7.0/doc/PDF/proto.pdf.
+ // A summary of the wire format can be found in XCB's xproto.xml.
+diff --git a/src/pkg/exp/eval/world.go b/src/pkg/exp/eval/world.go
+index 02d18bd793..a5f6ac7e5e 100644
+--- a/src/pkg/exp/eval/world.go
++++ b/src/pkg/exp/eval/world.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package is the beginning of an interpreter for Go.
++// Package eval is the beginning of an interpreter for Go.
+ // It can run simple Go programs but does not implement
+ // interface values or packages.
+ package eval
+diff --git a/src/pkg/exp/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+index 813d3a875a..a8db523ea1 100644
+--- a/src/pkg/exp/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Ogle is the beginning of a debugger for Go.
++// Package ogle is the beginning of a debugger for Go.
+ package ogle
+ 
+ import (
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 7736aea0a0..7123d4b0f7 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The expvar package provides a standardized interface to public variables,
+-// such as operation counters in servers. It exposes these variables via
+-// HTTP at /debug/vars in JSON format.
++// Package expvar provides a standardized interface to public variables, such
++// as operation counters in servers. It exposes these variables via HTTP at
++// /debug/vars in JSON format.
+ //
+ // Operations to set or modify these public variables are atomic.
+ //
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 19a3104553..9ed20e06b5 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	The flag package implements command-line flag parsing.
++	Package flag implements command-line flag parsing.
+ 
+ 	Usage:
+ 
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index ed3e2cdd9b..2fc1a60323 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The AST package declares the types used to represent
+-// syntax trees for Go packages.
++// Package ast declares the types used to represent syntax trees for Go
++// packages.
+ //
+ package ast
+ 
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index e7a8d3f63b..29d205d391 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The doc package extracts source code documentation from a Go AST.
++// Package doc extracts source code documentation from a Go AST.
+ package doc
+ 
+ import (
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 84a0da6ae7..5c57e41d13 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A parser for Go source files. Input may be provided in a variety of
+-// forms (see the various Parse* functions); the output is an abstract
+-// syntax tree (AST) representing the Go source. The parser is invoked
+-// through one of the Parse* functions.
++// Package parser implements a parser for Go source files. Input may be
++// provided in a variety of forms (see the various Parse* functions); the
++// output is an abstract syntax tree (AST) representing the Go source. The
++// parser is invoked through one of the Parse* functions.
+ //
+ package parser
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 697a83fa86..01ebf783c4 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The printer package implements printing of AST nodes.
++// Package printer implements printing of AST nodes.
+ package printer
+ 
+ import (
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 2f949ad256..07b7454c87 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A scanner for Go source text. Takes a []byte as source which can
+-// then be tokenized through repeated calls to the Scan function.
+-// Typical use:
++// Package scanner implements a scanner for Go source text. Takes a []byte as
++// source which can then be tokenized through repeated calls to the Scan
++// function. Typical use:
+ //
+ //	var s Scanner
+ //	fset := token.NewFileSet()  // position information is relative to fset
+diff --git a/src/pkg/go/token/token.go b/src/pkg/go/token/token.go
+index a5f21df168..c2ec80ae14 100644
+--- a/src/pkg/go/token/token.go
++++ b/src/pkg/go/token/token.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package defines constants representing the lexical
+-// tokens of the Go programming language and basic operations
+-// on tokens (printing, predicates).
++// Package token defines constants representing the lexical tokens of the Go
++// programming language and basic operations on tokens (printing, predicates).
+ //
+ package token
+ 
+diff --git a/src/pkg/go/types/types.go b/src/pkg/go/types/types.go
+index 72384e1217..2ee645d989 100644
+--- a/src/pkg/go/types/types.go
++++ b/src/pkg/go/types/types.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // PACKAGE UNDER CONSTRUCTION. ANY AND ALL PARTS MAY CHANGE.
+-// The types package declares the types used to represent Go types.
++// Package types declares the types used to represent Go types.
+ //
+ package types
+ 
+diff --git a/src/pkg/gob/doc.go b/src/pkg/gob/doc.go
+index 613974a000..189086f525 100644
+--- a/src/pkg/gob/doc.go
++++ b/src/pkg/gob/doc.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-The gob package manages streams of gobs - binary values exchanged between an
++Package gob manages streams of gobs - binary values exchanged between an
+ Encoder (transmitter) and a Decoder (receiver).  A typical use is transporting
+ arguments and results of remote procedure calls (RPCs) such as those provided by
+ package "rpc".
+diff --git a/src/pkg/hash/adler32/adler32.go b/src/pkg/hash/adler32/adler32.go
+index cd0c2599ac..f13a937933 100644
+--- a/src/pkg/hash/adler32/adler32.go
++++ b/src/pkg/hash/adler32/adler32.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the Adler-32 checksum.
++// Package adler32 implements the Adler-32 checksum.
+ // Defined in RFC 1950:
+ //	Adler-32 is composed of two sums accumulated per byte: s1 is
+ //	the sum of all bytes, s2 is the sum of all s1 values. Both sums
+diff --git a/src/pkg/hash/crc32/crc32.go b/src/pkg/hash/crc32/crc32.go
+index 2ab0c54919..88a4499716 100644
+--- a/src/pkg/hash/crc32/crc32.go
++++ b/src/pkg/hash/crc32/crc32.go
+@@ -2,8 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the 32-bit cyclic redundancy check, or CRC-32, checksum.
+-// See http://en.wikipedia.org/wiki/Cyclic_redundancy_check for information.
++// Package crc32 implements the 32-bit cyclic redundancy check, or CRC-32,
++// checksum. See http://en.wikipedia.org/wiki/Cyclic_redundancy_check for
++// information.
+ package crc32
+ 
+ import (
+diff --git a/src/pkg/hash/crc64/crc64.go b/src/pkg/hash/crc64/crc64.go
+index 8443865645..ae37e781cd 100644
+--- a/src/pkg/hash/crc64/crc64.go
++++ b/src/pkg/hash/crc64/crc64.go
+@@ -2,8 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements the 64-bit cyclic redundancy check, or CRC-64, checksum.
+-// See http://en.wikipedia.org/wiki/Cyclic_redundancy_check for information.
++// Package crc64 implements the 64-bit cyclic redundancy check, or CRC-64,
++// checksum. See http://en.wikipedia.org/wiki/Cyclic_redundancy_check for
++// information.
+ package crc64
+ 
+ import (
+diff --git a/src/pkg/hash/fnv/fnv.go b/src/pkg/hash/fnv/fnv.go
+index 66ab5a635b..9a1c6a0f2d 100644
+--- a/src/pkg/hash/fnv/fnv.go
++++ b/src/pkg/hash/fnv/fnv.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The fnv package implements FNV-1 and FNV-1a,
+-// non-cryptographic hash functions created by
+-// Glenn Fowler, Landon Curt Noll, and Phong Vo.
++// Package fnv implements FNV-1 and FNV-1a, non-cryptographic hash functions
++// created by Glenn Fowler, Landon Curt Noll, and Phong Vo.
+ // See http://isthe.com/chongo/tech/comp/fnv/.
+ package fnv
+ 
+diff --git a/src/pkg/hash/hash.go b/src/pkg/hash/hash.go
+index 56ac259db1..3536c0b6a6 100644
+--- a/src/pkg/hash/hash.go
++++ b/src/pkg/hash/hash.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Package hash provides interfaces for hash functions.
+ package hash
+ 
+ import "io"
+diff --git a/src/pkg/html/doc.go b/src/pkg/html/doc.go
+index 4f5dee72da..55135c3d05 100644
+--- a/src/pkg/html/doc.go
++++ b/src/pkg/html/doc.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-The html package implements an HTML5-compliant tokenizer and parser.
++Package html implements an HTML5-compliant tokenizer and parser.
+ 
+ Tokenization is done by creating a Tokenizer for an io.Reader r. It is the
+ caller's responsibility to ensure that r provides UTF-8 encoded HTML.
+diff --git a/src/pkg/http/httptest/recorder.go b/src/pkg/http/httptest/recorder.go
+index 0dd19a617c..f2fedefcfd 100644
+--- a/src/pkg/http/httptest/recorder.go
++++ b/src/pkg/http/httptest/recorder.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The httptest package provides utilities for HTTP testing.
++// Package httptest provides utilities for HTTP testing.
+ package httptest
+ 
+ import (
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 5eebf8333b..633c91e8d2 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -4,9 +4,8 @@
+ 
+ // HTTP Request reading and parsing.
+ 
+-// The http package implements parsing of HTTP requests, replies,
+-// and URLs and provides an extensible HTTP server and a basic
+-// HTTP client.
++// Package http implements parsing of HTTP requests, replies, and URLs and
++// provides an extensible HTTP server and a basic HTTP client.
+ package http
+ 
+ import (
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index c0e96e1f7b..5f398a3047 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The image package implements a basic 2-D image library.
++// Package image implements a basic 2-D image library.
+ package image
+ 
+ // A Config consists of an image's color model and dimensions.
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index eee4eac2e1..b30a951c1c 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The png package implements a PNG image decoder and encoder.
++// Package png implements a PNG image decoder and encoder.
+ //
+ // The PNG specification is at http://www.libpng.org/pub/png/spec/1.2/PNG-Contents.html
+ package png
+diff --git a/src/pkg/image/ycbcr/ycbcr.go b/src/pkg/image/ycbcr/ycbcr.go
+index b2e033b821..cda45996df 100644
+--- a/src/pkg/image/ycbcr/ycbcr.go
++++ b/src/pkg/image/ycbcr/ycbcr.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The ycbcr package provides images from the Y'CbCr color model.
++// Package ycbcr provides images from the Y'CbCr color model.
+ //
+ // JPEG, VP8, the MPEG family and other codecs use this color model. Such
+ // codecs often use the terms YUV and Y'CbCr interchangeably, but strictly
+diff --git a/src/pkg/index/suffixarray/suffixarray.go b/src/pkg/index/suffixarray/suffixarray.go
+index d8c6fc91b4..079b7d8ed0 100644
+--- a/src/pkg/index/suffixarray/suffixarray.go
++++ b/src/pkg/index/suffixarray/suffixarray.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The suffixarray package implements substring search in logarithmic time
+-// using an in-memory suffix array.
++// Package suffixarray implements substring search in logarithmic time using
++// an in-memory suffix array.
+ //
+ // Example use:
+ //
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index d3707eb1db..0bc73d67dd 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package provides basic interfaces to I/O primitives.
++// Package io provides basic interfaces to I/O primitives.
+ // Its primary job is to wrap existing implementations of such primitives,
+ // such as those in package os, into shared public interfaces that
+ // abstract the functionality, plus some other related primitives.
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index 57d797e851..ac481928b4 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Utility functions.
+-
++// Package ioutil implements some I/O utility functions.
+ package ioutil
+ 
+ import (
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index dfa3c59da5..281334e37c 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The json package implements encoding and decoding of JSON objects as
+-// defined in RFC 4627.
++// Package json implements encoding and decoding of JSON objects as defined in
++// RFC 4627.
+ package json
+ 
+ import (
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index 33140ee08a..00bce6a17d 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Simple logging package. It defines a type, Logger, with methods
+-// for formatting output. It also has a predefined 'standard' Logger
+-// accessible through helper functions Print[f|ln], Fatal[f|ln], and
++// Package log implements a simple logging package. It defines a type, Logger,
++// with methods for formatting output. It also has a predefined 'standard'
++// Logger accessible through helper functions Print[f|ln], Fatal[f|ln], and
+ // Panic[f|ln], which are easier to use than creating a Logger manually.
+ // That logger writes to standard error and prints the date and time
+ // of each logged message.
+diff --git a/src/pkg/math/const.go b/src/pkg/math/const.go
+index b53527a4f3..a108d3e294 100644
+--- a/src/pkg/math/const.go
++++ b/src/pkg/math/const.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The math package provides basic constants and mathematical functions.
++// Package math provides basic constants and mathematical functions.
+ package math
+ 
+ // Mathematical constants.
+diff --git a/src/pkg/mime/type.go b/src/pkg/mime/type.go
+index 6fe0ed5fd5..8c43b81b0c 100644
+--- a/src/pkg/mime/type.go
++++ b/src/pkg/mime/type.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The mime package implements parts of the MIME spec.
++// Package mime implements parts of the MIME spec.
+ package mime
+ 
+ import (
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 04a898a9aa..51db107395 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The net package provides a portable interface to Unix
+-// networks sockets, including TCP/IP, UDP, domain name
+-// resolution, and Unix domain sockets.
++// Package net provides a portable interface to Unix networks sockets,
++// including TCP/IP, UDP, domain name resolution, and Unix domain sockets.
+ package net
+ 
+ // TODO(rsc):
+diff --git a/src/pkg/net/textproto/textproto.go b/src/pkg/net/textproto/textproto.go
+index fbfad9d61c..9f19b5495d 100644
+--- a/src/pkg/net/textproto/textproto.go
++++ b/src/pkg/net/textproto/textproto.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The textproto package implements generic support for
+-// text-based request/response protocols in the style of
+-// HTTP, NNTP, and SMTP.
++// Package textproto implements generic support for text-based request/response
++// protocols in the style of HTTP, NNTP, and SMTP.
+ //
+ // The package provides:
+ //
+diff --git a/src/pkg/netchan/export.go b/src/pkg/netchan/export.go
+index dacee4f183..55dbc4fccb 100644
+--- a/src/pkg/netchan/export.go
++++ b/src/pkg/netchan/export.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	The netchan package implements type-safe networked channels:
++	Package netchan implements type-safe networked channels:
+ 	it allows the two ends of a channel to appear on different
+ 	computers connected by a network.  It does this by transporting
+ 	data sent to a channel on one machine so it can be recovered
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 3aad802345..643b225ce7 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The os package provides a platform-independent interface to operating
+-// system functionality.  The design is Unix-like.
++// Package os provides a platform-independent interface to operating system
++// functionality.  The design is Unix-like.
+ package os
+ 
+ import (
+diff --git a/src/pkg/os/inotify/inotify_linux.go b/src/pkg/os/inotify/inotify_linux.go
+index 8b5c30e0dc..7c7b7698fe 100644
+--- a/src/pkg/os/inotify/inotify_linux.go
++++ b/src/pkg/os/inotify/inotify_linux.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-This package implements a wrapper for the Linux inotify system.
++Package inotify implements a wrapper for the Linux inotify system.
+ 
+ Example:
+     watcher, err := inotify.NewWatcher()
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index de673a7257..541a233066 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The filepath package implements utility routines for manipulating
+-// filename paths in a way compatible with the target operating
+-// system-defined file paths.
++// Package filepath implements utility routines for manipulating filename paths
++// in a way compatible with the target operating system-defined file paths.
+ package filepath
+ 
+ import (
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 658eec0938..235384667c 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The path package implements utility routines for manipulating
+-// slash-separated filename paths.
++// Package path implements utility routines for manipulating slash-separated
++// filename paths.
+ package path
+ 
+ import (
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 5e3051cab5..a400810560 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The reflect package implements run-time reflection, allowing a program to
+-// manipulate objects with arbitrary types.  The typical use is to take a
+-// value with static type interface{} and extract its dynamic type
+-// information by calling Typeof, which returns a Type.
++// Package reflect implements run-time reflection, allowing a program to
++// manipulate objects with arbitrary types.  The typical use is to take a value
++// with static type interface{} and extract its dynamic type information by
++// calling Typeof, which returns a Type.
+ //
+ // A call to NewValue returns a Value representing the run-time data.
+ // Zero takes a Type and returns a Value representing a zero value
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index d46bc4343e..d67978a48e 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	The rpc package provides access to the exported methods of an object across a
++	Package rpc provides access to the exported methods of an object across a
+ 	network or other I/O connection.  A server registers an object, making it visible
+ 	as a service with the name of the type of the object.  After registration, exported
+ 	methods of the object will be accessible remotely.  A server may register multiple
+diff --git a/src/pkg/runtime/debug/stack.go b/src/pkg/runtime/debug/stack.go
+index e7d56ac233..e5fae632b1 100644
+--- a/src/pkg/runtime/debug/stack.go
++++ b/src/pkg/runtime/debug/stack.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The debug package contains facilities for programs to debug themselves
+-// while they are running.
++// Package debug contains facilities for programs to debug themselves while
++// they are running.
+ package debug
+ 
+ import (
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index c6e664abbb..9da3423c61 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	The runtime package contains operations that interact with Go's runtime system,
++	Package runtime contains operations that interact with Go's runtime system,
+ 	such as functions to control goroutines. It also includes the low-level type information
+ 	used by the reflect package; see reflect's documentation for the programmable
+ 	interface to the run-time type system.
+diff --git a/src/pkg/scanner/scanner.go b/src/pkg/scanner/scanner.go
+index ec22664773..e79d392f70 100644
+--- a/src/pkg/scanner/scanner.go
++++ b/src/pkg/scanner/scanner.go
+@@ -2,10 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A scanner and tokenizer for UTF-8-encoded text.  Takes an io.Reader
+-// providing the source, which then can be tokenized through repeated calls
+-// to the Scan function.  For compatibility with existing tools, the NUL
+-// character is not allowed (implementation restriction).
++// Package scanner provides a scanner and tokenizer for UTF-8-encoded text.
++// It takes an io.Reader providing the source, which then can be tokenized
++// through repeated calls to the Scan function.  For compatibility with
++// existing tools, the NUL character is not allowed (implementation
++// restriction).
+ //
+ // By default, a Scanner skips white space and Go comments and recognizes all
+ // literals as defined by the Go language specification.  It may be
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index c7945d21b6..30b1819af2 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The sort package provides primitives for sorting arrays
+-// and user-defined collections.
++// Package sort provides primitives for sorting arrays and user-defined
++// collections.
+ package sort
+ 
+ // A type, typically a collection, that satisfies sort.Interface can be
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index 72f162c513..a91e8bfa4a 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -2,16 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Package strconv implements conversions to and from string representations
++// of basic data types.
++package strconv
++
+ // decimal to binary floating point conversion.
+ // Algorithm:
+ //   1) Store input in multiprecision decimal.
+ //   2) Multiply/divide decimal by powers of two until in range [0.5, 1)
+ //   3) Multiply by 2^precision and round to get mantissa.
+ 
+-// The strconv package implements conversions to and from
+-// string representations of basic data types.
+-package strconv
+-
+ import (
+ 	"math"
+ 	"os"
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 93c7c46473..bfd057180d 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A package of simple functions to manipulate strings.
++// Package strings implements simple functions to manipulate strings.
+ package strings
+ 
+ import (
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index da565d38de..13f03cad39 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The sync package provides basic synchronization primitives
+-// such as mutual exclusion locks.  Other than the Once and
+-// WaitGroup types, most are intended for use by low-level
+-// library routines.  Higher-level synchronization is better
+-// done via channels and communication.
++// Package sync provides basic synchronization primitives such as mutual
++// exclusion locks.  Other than the Once and WaitGroup types, most are intended
++// for use by low-level library routines.  Higher-level synchronization is
++// better done via channels and communication.
+ package sync
+ 
+ import (
+diff --git a/src/pkg/syscall/syscall.go b/src/pkg/syscall/syscall.go
+index 2a9ffd4afb..157abaa8b4 100644
+--- a/src/pkg/syscall/syscall.go
++++ b/src/pkg/syscall/syscall.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package contains an interface to the low-level operating system
++// Package syscall contains an interface to the low-level operating system
+ // primitives.  The details vary depending on the underlying system.
+ // Its primary use is inside other packages that provide a more portable
+ // interface to the system, such as "os", "time" and "net".  Use those
+diff --git a/src/pkg/syslog/syslog.go b/src/pkg/syslog/syslog.go
+index 4ada113f1d..6933372127 100644
+--- a/src/pkg/syslog/syslog.go
++++ b/src/pkg/syslog/syslog.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The syslog package provides a simple interface to
+-// the system log service. It can send messages to the
+-// syslog daemon using UNIX domain sockets, UDP, or
++// Package syslog provides a simple interface to the system log service. It
++// can send messages to the syslog daemon using UNIX domain sockets, UDP, or
+ // TCP connections.
+ package syslog
+ 
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index 848703e8ca..d91a07db24 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The tabwriter package implements a write filter (tabwriter.Writer)
+-// that translates tabbed columns in input into properly aligned text.
++// Package tabwriter implements a write filter (tabwriter.Writer) that
++// translates tabbed columns in input into properly aligned text.
+ //
+ // The package is using the Elastic Tabstops algorithm described at
+ // http://nickgravgaard.com/elastictabstops/index.html.
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 28872dbee4..733c7e16f5 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	Data-driven templates for generating textual output such as
+-	HTML.
++	Package template implements data-driven templates for generating textual
++	output such as HTML.
+ 
+ 	Templates are executed by applying them to a data structure.
+ 	Annotations in the template refer to elements of the data
+diff --git a/src/pkg/testing/iotest/reader.go b/src/pkg/testing/iotest/reader.go
+index 647520a09f..e4003d7445 100644
+--- a/src/pkg/testing/iotest/reader.go
++++ b/src/pkg/testing/iotest/reader.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The iotest package implements Readers and Writers
+-// useful only for testing.
++// Package iotest implements Readers and Writers useful only for testing.
+ package iotest
+ 
+ import (
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+index 94450da988..40f33f0154 100644
+--- a/src/pkg/testing/quick/quick.go
++++ b/src/pkg/testing/quick/quick.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements utility functions to help with black box testing.
++// Package quick implements utility functions to help with black box testing.
+ package quick
+ 
+ import (
+diff --git a/src/pkg/testing/script/script.go b/src/pkg/testing/script/script.go
+index b180184970..109abe2b41 100644
+--- a/src/pkg/testing/script/script.go
++++ b/src/pkg/testing/script/script.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package aids in the testing of code that uses channels.
++// Package script aids in the testing of code that uses channels.
+ package script
+ 
+ import (
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 1e65528ef9..8781b207de 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The testing package provides support for automated testing of Go packages.
++// Package testing provides support for automated testing of Go packages.
+ // It is intended to be used in concert with the ``gotest'' utility, which automates
+ // execution of any function of the form
+ //     func TestXxx(*testing.T)
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 40338f7752..a0480786aa 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The time package provides functionality for measuring and
+-// displaying time.
++// Package time provides functionality for measuring and displaying time.
+ package time
+ 
+ // Days of the week.
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index 9380624fd9..382c6eb3f4 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package provides data and functions to test some properties of Unicode code points.
++// Package unicode provides data and functions to test some properties of
++// Unicode code points.
+ package unicode
+ 
+ const (
+diff --git a/src/pkg/unsafe/unsafe.go b/src/pkg/unsafe/unsafe.go
+index 3cd4cff6e9..8507bed525 100644
+--- a/src/pkg/unsafe/unsafe.go
++++ b/src/pkg/unsafe/unsafe.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	The unsafe package contains operations that step around the type safety of Go programs.
++	Package unsafe contains operations that step around the type safety of Go programs.
+ */
+ package unsafe
+ 
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/utf8/utf8.go
+index 455499e4d9..f542358d6d 100644
+--- a/src/pkg/utf8/utf8.go
++++ b/src/pkg/utf8/utf8.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Functions and constants to support text encoded in UTF-8.
+-// This package calls a Unicode character a rune for brevity.
++// Package utf8 implements functions and constants to support text encoded in
++// UTF-8. This package calls a Unicode character a rune for brevity.
+ package utf8
+ 
+ import "unicode" // only needed for a couple of constants
+diff --git a/src/pkg/websocket/websocket.go b/src/pkg/websocket/websocket.go
+index d5996abe1a..eaad22eb33 100644
+--- a/src/pkg/websocket/websocket.go
++++ b/src/pkg/websocket/websocket.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The websocket package implements a client and server for the Web Socket protocol.
++// Package websocket implements a client and server for the Web Socket protocol.
+ // The protocol is defined at http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol
+ package websocket
+ 

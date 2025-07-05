@@ -17,6 +17,32 @@ Date:   Mon May 22 20:37:05 2023 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/file_unix.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 25ce83bf9d..a34de8333d 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -104,13 +104,15 @@ func (f *File) Fd() uintptr {
+ // constraints apply.
+ func NewFile(fd uintptr, name string) *File {
+ 	kind := kindNewFile
+-	if nb, err := unix.IsNonblock(int(fd)); err == nil && nb {
+-		kind = kindNonBlock
+-	}
+-	f := newFile(fd, name, kind)
++	appendMode := false
+ 	if flags, err := unix.Fcntl(int(fd), syscall.F_GETFL, 0); err == nil {
+-		f.appendMode = flags&syscall.O_APPEND != 0
++		if unix.HasNonblockFlag(flags) {
++			kind = kindNonBlock
++		}
++		appendMode = flags&syscall.O_APPEND != 0
+ 	}
++	f := newFile(fd, name, kind)
++	f.appendMode = appendMode
+ 	return f
+ }
+ 

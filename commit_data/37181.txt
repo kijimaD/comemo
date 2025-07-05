@@ -22,7 +22,7 @@ Date:   Fri Jul 6 13:15:01 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go                        | 37 ----------------------------
  src/cmd/go/internal/load/test.go             |  3 +++
  src/cmd/go/internal/test/test.go             | 28 ++++++++++++++++-----
@@ -33,3 +33,202 @@ Date:   Fri Jul 6 13:15:01 2018 -0700
  src/cmd/go/testdata/testcover/pkg3/a_test.go |  7 ------
  src/cmd/internal/test2json/test2json.go      |  4 +--
  9 files changed, 27 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c2d85c8730..0186ad51d4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3262,43 +3262,6 @@ func TestGoTestBuildsAnXtestContainingOnlyNonRunnableExamples(t *testing.T) {
+ 	tg.grepStdout("File with non-runnable example was built.", "file with non-runnable example was not built")
+ }
+ 
+-// issue 24570
+-func TestGoTestCoverMultiPackage(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-cover", "./testdata/testcover/...")
+-	tg.grepStdout(`\?.*testdata/testcover/pkg1.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
+-	tg.grepStdout(`ok.*testdata/testcover/pkg2.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
+-	tg.grepStdout(`ok.*testdata/testcover/pkg3.*(\d\.\d\d\ds|cached).*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
+-}
+-
+-// issue 24570
+-func TestGoTestCoverprofileMultiPackage(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.creatingTemp("testdata/cover.out")
+-	tg.run("test", "-coverprofile=testdata/cover.out", "./testdata/testcover/...")
+-	tg.grepStdout(`\?.*testdata/testcover/pkg1.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no test files\]`, "expected [no test files] for pkg1")
+-	tg.grepStdout(`ok.*testdata/testcover/pkg2.*(\d\.\d\d\ds|cached).*coverage:.*0\.0% of statements \[no tests to run\]`, "expected [no tests to run] for pkg2")
+-	tg.grepStdout(`ok.*testdata/testcover/pkg3.*(\d\.\d\d\ds|cached).*coverage:.*100\.0% of statements`, "expected 100% coverage for pkg3")
+-	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
+-		t.Error(err)
+-	} else {
+-		if !bytes.Contains(out, []byte("mode: set")) {
+-			t.Errorf(`missing "mode: set" in %s`, out)
+-		}
+-		if !bytes.Contains(out, []byte(`pkg1/a.go:5.10,7.2 1 0`)) && !bytes.Contains(out, []byte(`pkg1\a.go:5.10,7.2 1 0`)) {
+-			t.Errorf(`missing "pkg1/a.go:5.10,7.2 1 0" in %s`, out)
+-		}
+-		if !bytes.Contains(out, []byte(`pkg2/a.go:5.10,7.2 1 0`)) && !bytes.Contains(out, []byte(`pkg2\a.go:5.10,7.2 1 0`)) {
+-			t.Errorf(`missing "pkg2/a.go:5.10,7.2 1 0" in %s`, out)
+-		}
+-		if !bytes.Contains(out, []byte(`pkg3/a.go:5.10,7.2 1 1`)) && !bytes.Contains(out, []byte(`pkg3\a.go:5.10,7.2 1 1`)) {
+-			t.Errorf(`missing "pkg3/a.go:5.10,7.2 1 1" in %s`, out)
+-		}
+-	}
+-}
+-
+ func TestGoGenerateHandlesSimpleCommand(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		t.Skip("skipping because windows has no echo command")
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 0a13dfc1b7..1444ddb58a 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -49,6 +49,9 @@ type TestCover struct {
+ // (for example, if there are no "package p" test files and
+ // package p need not be instrumented for coverage or any other reason),
+ // then the returned ptest == p.
++//
++// The caller is expected to have checked that len(p.TestGoFiles)+len(p.XTestGoFiles) > 0,
++// or else there's no point in any of this.
+ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
+ 	var imports, ximports []*Package
+ 	var stk ImportStack
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index aff5ff2c9d..585481b6b7 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -781,6 +781,14 @@ var windowsBadWords = []string{
+ }
+ 
+ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
++	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
++		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
++		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
++		addTestVet(b, p, run, nil)
++		print := &work.Action{Mode: "test print", Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
++		return build, run, print, nil
++	}
++
+ 	// Build Package structs describing:
+ 	//	pmain - pkg.test binary
+ 	//	ptest - package + test files
+@@ -1168,17 +1176,13 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 
+ 	if err == nil {
+ 		norun := ""
+-		res := "ok"
+ 		if !testShowPass && !testJSON {
+ 			buf.Reset()
+ 		}
+-		if len(a.Package.TestGoFiles)+len(a.Package.XTestGoFiles) == 0 {
+-			res = "? "
+-			norun = " [no test files]"
+-		} else if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
++		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
+ 			norun = " [no tests to run]"
+ 		}
+-		fmt.Fprintf(cmd.Stdout, "%s  \t%s\t%s%s%s\n", res, a.Package.ImportPath, t, coveragePercentage(out), norun)
++		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
+ 		c.saveOutput(a)
+ 	} else {
+ 		base.SetExitStatus(1)
+@@ -1592,3 +1596,15 @@ func builderPrintTest(b *work.Builder, a *work.Action) error {
+ 	}
+ 	return nil
+ }
++
++// builderNoTest is the action for testing a package with no test files.
++func builderNoTest(b *work.Builder, a *work.Action) error {
++	var stdout io.Writer = os.Stdout
++	if testJSON {
++		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
++		defer json.Close()
++		stdout = json
++	}
++	fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", a.Package.ImportPath)
++	return nil
++}
+diff --git a/src/cmd/go/testdata/testcover/pkg1/a.go b/src/cmd/go/testdata/testcover/pkg1/a.go
+deleted file mode 100644
+index e2916119d4..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg1/a.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package pkg1
+-
+-import "fmt"
+-
+-func F() {
+-	fmt.Println("pkg1")
+-}
+diff --git a/src/cmd/go/testdata/testcover/pkg2/a.go b/src/cmd/go/testdata/testcover/pkg2/a.go
+deleted file mode 100644
+index 7bd9bd44ee..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg2/a.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package pkg2
+-
+-import "fmt"
+-
+-func F() {
+-	fmt.Println("pkg2")
+-}
+diff --git a/src/cmd/go/testdata/testcover/pkg2/a_test.go b/src/cmd/go/testdata/testcover/pkg2/a_test.go
+deleted file mode 100644
+index 4f791ad6ab..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg2/a_test.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package pkg2
+diff --git a/src/cmd/go/testdata/testcover/pkg3/a.go b/src/cmd/go/testdata/testcover/pkg3/a.go
+deleted file mode 100644
+index bf86ed8dc0..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg3/a.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package pkg3
+-
+-import "fmt"
+-
+-func F() {
+-	fmt.Println("pkg3")
+-}
+diff --git a/src/cmd/go/testdata/testcover/pkg3/a_test.go b/src/cmd/go/testdata/testcover/pkg3/a_test.go
+deleted file mode 100644
+index 39c2c5a6fc..0000000000
+--- a/src/cmd/go/testdata/testcover/pkg3/a_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package pkg3
+-
+-import "testing"
+-
+-func TestF(t *testing.T) {
+-	F()
+-}
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index 1a54a1c3bb..f8052136be 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -147,7 +147,7 @@ var (
+ 	fourSpace = []byte("    ")
+ 
+ 	skipLinePrefix = []byte("?   \t")
+-	skipLineSuffix = []byte(" [no test files]\n")
++	skipLineSuffix = []byte("\t[no test files]\n")
+ )
+ 
+ // handleInputLine handles a single whole test output line.
+@@ -166,7 +166,7 @@ func (c *converter) handleInputLine(line []byte) {
+ 		return
+ 	}
+ 
+-	// Special case for entirely skipped test binary: "?   \tpkgname\t0.001s [no test files]\n" is only line.
++	// Special case for entirely skipped test binary: "?   \tpkgname\t[no test files]\n" is only line.
+ 	// Report it as plain output but remember to say skip in the final summary.
+ 	if bytes.HasPrefix(line, skipLinePrefix) && bytes.HasSuffix(line, skipLineSuffix) && len(c.report) == 0 {
+ 		c.result = "skip"

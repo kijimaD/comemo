@@ -14,8 +14,50 @@ Date:   Mon Sep 2 12:37:51 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/go/printer/nodes.go                 | 4 +---
  src/go/printer/testdata/generics.golden | 2 ++
  src/go/printer/testdata/generics.input  | 2 ++
  3 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index a4651e0608..495ec22031 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -411,9 +411,7 @@ func combinesWithName(x ast.Expr) bool {
+ 	case *ast.BinaryExpr:
+ 		return combinesWithName(x.X) && !isTypeElem(x.Y)
+ 	case *ast.ParenExpr:
+-		// name(x) combines but we are making sure at
+-		// the call site that x is never parenthesized.
+-		panic("unexpected parenthesized expression")
++		return combinesWithName(x.X)
+ 	}
+ 	return false
+ }
+diff --git a/src/go/printer/testdata/generics.golden b/src/go/printer/testdata/generics.golden
+index 7ddf20b3d1..89f5b88dbf 100644
+--- a/src/go/printer/testdata/generics.golden
++++ b/src/go/printer/testdata/generics.golden
+@@ -45,6 +45,8 @@ type _[P T | T] struct{}
+ type _[P T | T | T | T] struct{}
+ type _[P *T, _ any] struct{}
+ type _[P *T,] struct{}
++type _[P *T,] struct{}
++type _[P ~int] struct{}
+ type _[P *T, _ any] struct{}
+ type _[P T] struct{}
+ type _[P T, _ any] struct{}
+diff --git a/src/go/printer/testdata/generics.input b/src/go/printer/testdata/generics.input
+index 4940f9319a..bc24119c2e 100644
+--- a/src/go/printer/testdata/generics.input
++++ b/src/go/printer/testdata/generics.input
+@@ -42,6 +42,8 @@ type _[P T | T] struct{}
+ type _[P T | T | T | T] struct{}
+ type _[P *T, _ any] struct{}
+ type _[P (*T),] struct{}
++type _[P ((*T)),] struct{}
++type _[P ((~int)),] struct{}
+ type _[P (*T), _ any] struct{}
+ type _[P (T),] struct{}
+ type _[P (T), _ any] struct{}

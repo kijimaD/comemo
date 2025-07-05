@@ -14,7 +14,7 @@ Date:   Fri Dec 6 20:11:36 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210779
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/dist/buildtool.go                 |    1 +
  src/cmd/link/internal/ld/ar.go            |   30 +-
  src/cmd/link/internal/ld/go.go            |  161 ++++
@@ -25,3 +25,2517 @@ Date:   Fri Dec 6 20:11:36 2019 -0500
  src/cmd/link/internal/loadelfold/ldelf.go | 1243 +++++++++++++++++++++++++++++
  src/cmd/link/internal/loader/loader.go    |  158 ++--
  9 files changed, 1850 insertions(+), 233 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 12baccbc4f..83ab61d155 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -74,6 +74,7 @@ var bootstrapDirs = []string{
+ 	"cmd/link/internal/arm64",
+ 	"cmd/link/internal/ld",
+ 	"cmd/link/internal/loadelf",
++	"cmd/link/internal/loadelfold",
+ 	"cmd/link/internal/loader",
+ 	"cmd/link/internal/loadmacho",
+ 	"cmd/link/internal/loadpe",
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 1271d2d37d..74223d7752 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -104,16 +104,28 @@ func hostArchive(ctxt *Link, name string) {
+ 	any := true
+ 	for any {
+ 		var load []uint64
+-		for _, s := range ctxt.loader.Syms {
+-			if s == nil {
+-				continue
++		if ctxt.IsELF && *FlagNewLdElf {
++			returnAllUndefs := -1
++			undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
++			for _, symIdx := range undefs {
++				name := ctxt.loader.SymName(symIdx)
++				if off := armap[name]; off != 0 && !loaded[off] {
++					load = append(load, off)
++					loaded[off] = true
++				}
+ 			}
+-			for i := range s.R {
+-				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
+-				if r.Sym != nil && r.Sym.Type == sym.SXREF {
+-					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
+-						load = append(load, off)
+-						loaded[off] = true
++		} else {
++			for _, s := range ctxt.loader.Syms {
++				if s == nil {
++					continue
++				}
++				for i := range s.R {
++					r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
++					if r.Sym != nil && r.Sym.Type == sym.SXREF {
++						if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
++							load = append(load, off)
++							loaded[off] = true
++						}
+ 					}
+ 				}
+ 			}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index a9dde2209a..555d3b09ab 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/objabi"
++	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"encoding/json"
+ 	"fmt"
+@@ -293,6 +294,166 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) *sym.Symbol, file string, p
+ 	}
+ }
+ 
++// Set symbol attributes or flags based on cgo directives.
++// This version works with loader.Sym and not sym.Symbol.
++// Any newly discovered HOSTOBJ syms are added to 'hostObjSyms'.
++func setCgoAttr2(ctxt *Link, lookup func(string, int) loader.Sym, file string, pkg string, directives [][]string, hostObjSyms map[loader.Sym]struct{}) {
++	l := ctxt.loader
++	for _, f := range directives {
++		switch f[0] {
++		case "cgo_import_dynamic":
++			if len(f) < 2 || len(f) > 4 {
++				break
++			}
++
++			local := f[1]
++			remote := local
++			if len(f) > 2 {
++				remote = f[2]
++			}
++			lib := ""
++			if len(f) > 3 {
++				lib = f[3]
++			}
++
++			if *FlagD {
++				fmt.Fprintf(os.Stderr, "%s: %s: cannot use dynamic imports with -d flag\n", os.Args[0], file)
++				nerrors++
++				return
++			}
++
++			if local == "_" && remote == "_" {
++				// allow #pragma dynimport _ _ "foo.so"
++				// to force a link of foo.so.
++				havedynamic = 1
++
++				if ctxt.HeadType == objabi.Hdarwin {
++					machoadddynlib(lib, ctxt.LinkMode)
++				} else {
++					dynlib = append(dynlib, lib)
++				}
++				continue
++			}
++
++			local = expandpkg(local, pkg)
++			q := ""
++			if i := strings.Index(remote, "#"); i >= 0 {
++				remote, q = remote[:i], remote[i+1:]
++			}
++			s := lookup(local, 0)
++			st := l.SymType(s)
++			if st == 0 || st == sym.SXREF || st == sym.SBSS || st == sym.SNOPTRBSS || st == sym.SHOSTOBJ {
++				l.SetSymDynimplib(s, lib)
++				l.SetSymExtname(s, remote)
++				l.SetSymDynimpvers(s, q)
++				if st != sym.SHOSTOBJ {
++					su, _ := l.MakeSymbolUpdater(s)
++					su.SetType(sym.SDYNIMPORT)
++				} else {
++					hostObjSyms[s] = struct{}{}
++				}
++				havedynamic = 1
++			}
++
++			continue
++
++		case "cgo_import_static":
++			if len(f) != 2 {
++				break
++			}
++			local := f[1]
++
++			su, s := l.MakeSymbolUpdater(lookup(local, 0))
++			su.SetType(sym.SHOSTOBJ)
++			su.SetSize(0)
++			hostObjSyms[s] = struct{}{}
++			continue
++
++		case "cgo_export_static", "cgo_export_dynamic":
++			if len(f) < 2 || len(f) > 3 {
++				break
++			}
++			local := f[1]
++			remote := local
++			if len(f) > 2 {
++				remote = f[2]
++			}
++			local = expandpkg(local, pkg)
++
++			// The compiler arranges for an ABI0 wrapper
++			// to be available for all cgo-exported
++			// functions. Link.loadlib will resolve any
++			// ABI aliases we find here (since we may not
++			// yet know it's an alias).
++			s := lookup(local, 0)
++
++			if l.SymType(s) == sym.SHOSTOBJ {
++				hostObjSyms[s] = struct{}{}
++			}
++
++			switch ctxt.BuildMode {
++			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
++				if s == lookup("main", 0) {
++					continue
++				}
++			}
++
++			// export overrides import, for openbsd/cgo.
++			// see issue 4878.
++			if l.SymDynimplib(s) != "" {
++				l.SetSymDynimplib(s, "")
++				l.SetSymDynimpvers(s, "")
++				l.SetSymExtname(s, "")
++				var su *loader.SymbolBuilder
++				su, s = l.MakeSymbolUpdater(s)
++				su.SetType(0)
++			}
++
++			if !(l.AttrCgoExportStatic(s) || l.AttrCgoExportDynamic(s)) {
++				l.SetSymExtname(s, remote)
++			} else if l.SymExtname(s) != remote {
++				fmt.Fprintf(os.Stderr, "%s: conflicting cgo_export directives: %s as %s and %s\n", os.Args[0], l.SymName(s), l.SymExtname(s), remote)
++				nerrors++
++				return
++			}
++
++			if f[0] == "cgo_export_static" {
++				l.SetAttrCgoExportStatic(s, true)
++			} else {
++				l.SetAttrCgoExportDynamic(s, true)
++			}
++			continue
++
++		case "cgo_dynamic_linker":
++			if len(f) != 2 {
++				break
++			}
++
++			if *flagInterpreter == "" {
++				if interpreter != "" && interpreter != f[1] {
++					fmt.Fprintf(os.Stderr, "%s: conflict dynlinker: %s and %s\n", os.Args[0], interpreter, f[1])
++					nerrors++
++					return
++				}
++
++				interpreter = f[1]
++			}
++			continue
++
++		case "cgo_ldflag":
++			if len(f) != 2 {
++				break
++			}
++			ldflag = append(ldflag, f[1])
++			continue
++		}
++
++		fmt.Fprintf(os.Stderr, "%s: %s: invalid cgo directive: %q\n", os.Args[0], file, f)
++		nerrors++
++	}
++	return
++}
++
+ var seenlib = make(map[string]bool)
+ 
+ func adddynlib(ctxt *Link, lib string) {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a4af4f0dd2..dfca7e969b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -38,6 +38,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loadelf"
++	"cmd/link/internal/loadelfold"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/loadmacho"
+ 	"cmd/link/internal/loadpe"
+@@ -455,33 +456,8 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
+-	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
+-		// In newobj mode, we typically create sym.Symbols later therefore
+-		// also set cgo attributes later. However, for internal cgo linking,
+-		// the host object loaders still work with sym.Symbols (for now),
+-		// and they need cgo attributes set to work properly. So process
+-		// them now.
+-		for _, d := range ctxt.cgodata {
+-			setCgoAttr(ctxt, ctxt.loader.LookupOrCreate, d.file, d.pkg, d.directives)
+-		}
+-		ctxt.cgodata = nil
+-
+-		// Drop all the cgo_import_static declarations.
+-		// Turns out we won't be needing them.
+-		for _, s := range ctxt.loader.Syms {
+-			if s != nil && s.Type == sym.SHOSTOBJ {
+-				// If a symbol was marked both
+-				// cgo_import_static and cgo_import_dynamic,
+-				// then we want to make it cgo_import_dynamic
+-				// now.
+-				if s.Extname() != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
+-					s.Type = sym.SDYNIMPORT
+-				} else {
+-					s.Type = 0
+-				}
+-			}
+-		}
+-	}
++	// Process cgo directives (has to be done before host object loading).
++	ctxt.loadcgodirectives(ctxt.IsELF && *FlagNewLdElf)
+ 
+ 	// Conditionally load host objects, or setup for external linking.
+ 	hostobjs(ctxt)
+@@ -494,15 +470,22 @@ func (ctxt *Link) loadlib() {
+ 		// If we have any undefined symbols in external
+ 		// objects, try to read them from the libgcc file.
+ 		any := false
+-		for _, s := range ctxt.loader.Syms {
+-			if s == nil {
+-				continue
++		if ctxt.IsELF && *FlagNewLdElf {
++			undefs := ctxt.loader.UndefinedRelocTargets(1)
++			if len(undefs) > 0 {
++				any = true
+ 			}
+-			for i := range s.R {
+-				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
+-				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
+-					any = true
+-					break
++		} else {
++			for _, s := range ctxt.loader.Syms {
++				if s == nil {
++					continue
++				}
++				for i := range s.R {
++					r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
++					if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
++						any = true
++						break
++					}
+ 				}
+ 			}
+ 		}
+@@ -581,6 +564,67 @@ func setupdynexp(ctxt *Link) {
+ 	ctxt.cgo_export_dynamic = nil
+ }
+ 
++// loadcgodirectives reads the previously discovered cgo directives,
++// creating symbols (either sym.Symbol or loader.Sym) in preparation
++// for host object loading or use later in the link.
++func (ctxt *Link) loadcgodirectives(useLoader bool) {
++	if useLoader {
++		l := ctxt.loader
++		hostObjSyms := make(map[loader.Sym]struct{})
++		for _, d := range ctxt.cgodata {
++			setCgoAttr2(ctxt, ctxt.loader.LookupOrCreateSym, d.file, d.pkg, d.directives, hostObjSyms)
++		}
++		ctxt.cgodata = nil
++
++		if ctxt.LinkMode == LinkInternal {
++			// Drop all the cgo_import_static declarations.
++			// Turns out we won't be needing them.
++			for symIdx := range hostObjSyms {
++				if l.SymType(symIdx) == sym.SHOSTOBJ {
++					// If a symbol was marked both
++					// cgo_import_static and cgo_import_dynamic,
++					// then we want to make it cgo_import_dynamic
++					// now.
++					su, _ := l.MakeSymbolUpdater(symIdx)
++					if l.SymExtname(symIdx) != "" && l.SymDynimplib(symIdx) != "" && !(l.AttrCgoExportStatic(symIdx) || l.AttrCgoExportDynamic(symIdx)) {
++						su.SetType(sym.SDYNIMPORT)
++					} else {
++						su.SetType(0)
++					}
++				}
++			}
++		}
++	} else {
++		// In newobj mode, we typically create sym.Symbols later therefore
++		// also set cgo attributes later. However, for internal cgo linking,
++		// the host object loaders still work with sym.Symbols (for now),
++		// and they need cgo attributes set to work properly. So process
++		// them now.
++		for _, d := range ctxt.cgodata {
++			setCgoAttr(ctxt, ctxt.loader.LookupOrCreate, d.file, d.pkg, d.directives)
++		}
++		ctxt.cgodata = nil
++
++		if ctxt.LinkMode == LinkInternal {
++			// Drop all the cgo_import_static declarations.
++			// Turns out we won't be needing them.
++			for _, s := range ctxt.loader.Syms {
++				if s != nil && s.Type == sym.SHOSTOBJ {
++					// If a symbol was marked both
++					// cgo_import_static and cgo_import_dynamic,
++					// then we want to make it cgo_import_dynamic
++					// now.
++					if s.Extname() != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
++						s.Type = sym.SDYNIMPORT
++					} else {
++						s.Type = 0
++					}
++				}
++			}
++		}
++	}
++}
++
+ // Set up flags and special symbols depending on the platform build mode.
+ func (ctxt *Link) linksetup() {
+ 	switch ctxt.BuildMode {
+@@ -1675,16 +1719,29 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 
+ 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
+ 	if magic == 0x7f454c46 { // \x7F E L F
+-		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+-			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
+-			if err != nil {
+-				Errorf(nil, "%v", err)
+-				return
++		if *FlagNewLdElf {
++			ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
++				textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
++				if err != nil {
++					Errorf(nil, "%v", err)
++					return
++				}
++				ehdr.flags = flags
++				ctxt.Textp2 = append(ctxt.Textp2, textp...)
+ 			}
+-			ehdr.flags = flags
+-			ctxt.Textp = append(ctxt.Textp, textp...)
++			return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
++		} else {
++			ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
++				textp, flags, err := loadelfold.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
++				if err != nil {
++					Errorf(nil, "%v", err)
++					return
++				}
++				ehdr.flags = flags
++				ctxt.Textp = append(ctxt.Textp, textp...)
++			}
++			return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
+ 		}
+-		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
+ 	}
+ 
+ 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
+@@ -1950,6 +2007,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		return
+ 	}
+ 	gcdataLocations := make(map[uint64]*sym.Symbol)
++	gcdataLocations2 := make(map[uint64]loader.Sym)
+ 	for _, elfsym := range syms {
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
+ 			continue
+@@ -1962,45 +2020,103 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 			ver = sym.SymVerABIInternal
+ 		}
+ 
+-		lsym := ctxt.loader.LookupOrCreate(elfsym.Name, ver)
++		if *FlagNewLdElf {
++			l := ctxt.loader
++			symIdx := l.LookupOrCreateSym(elfsym.Name, ver)
+ 
+-		// Because loadlib above loads all .a files before loading any shared
+-		// libraries, any non-dynimport symbols we find that duplicate symbols
+-		// already loaded should be ignored (the symbols from the .a files
+-		// "win").
+-		if lsym.Type != 0 && lsym.Type != sym.SDYNIMPORT {
+-			continue
+-		}
+-		lsym.Type = sym.SDYNIMPORT
+-		lsym.SetElfType(elf.ST_TYPE(elfsym.Info))
+-		lsym.Size = int64(elfsym.Size)
+-		if elfsym.Section != elf.SHN_UNDEF {
+-			// Set .File for the library that actually defines the symbol.
+-			lsym.File = libpath
+-			// The decodetype_* functions in decodetype.go need access to
+-			// the type data.
+-			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
+-				lsym.P = readelfsymboldata(ctxt, f, &elfsym)
+-				gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
+-			}
+-		}
+-		// For function symbols, we don't know what ABI is
+-		// available, so alias it under both ABIs.
+-		//
+-		// TODO(austin): This is almost certainly wrong once
+-		// the ABIs are actually different. We might have to
+-		// mangle Go function names in the .so to include the
+-		// ABI.
+-		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
+-			alias := ctxt.loader.LookupOrCreate(elfsym.Name, sym.SymVerABIInternal)
+-			if alias.Type != 0 {
++			// Because loadlib above loads all .a files before loading
++			// any shared libraries, any non-dynimport symbols we find
++			// that duplicate symbols already loaded should be ignored
++			// (the symbols from the .a files "win").
++			if l.SymType(symIdx) != 0 && l.SymType(symIdx) != sym.SDYNIMPORT {
++				continue
++			}
++			su, s := l.MakeSymbolUpdater(symIdx)
++			su.SetType(sym.SDYNIMPORT)
++			l.SetSymElfType(s, elf.ST_TYPE(elfsym.Info))
++			su.SetSize(int64(elfsym.Size))
++			if elfsym.Section != elf.SHN_UNDEF {
++				// If it's not undefined, mark the symbol as reachable
++				// so as to protect it from dead code elimination,
++				// even if there aren't any explicit references to it.
++				// Under the previous sym.Symbol based regime this
++				// wasn't necessary, but for the loader-based deadcode
++				// it is definitely needed.
++				//
++				// FIXME: have a more general/flexible mechanism for this?
++				//
++				l.SetAttrReachable(s, true)
++
++				// Set .File for the library that actually defines the symbol.
++				l.SetSymFile(s, libpath)
++
++				// The decodetype_* functions in decodetype.go need access to
++				// the type data.
++				sname := l.SymName(s)
++				if strings.HasPrefix(sname, "type.") && !strings.HasPrefix(sname, "type..") {
++					su.SetData(readelfsymboldata(ctxt, f, &elfsym))
++					gcdataLocations2[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = s
++				}
++			}
++
++			// For function symbols, we don't know what ABI is
++			// available, so alias it under both ABIs.
++			//
++			// TODO(austin): This is almost certainly wrong once
++			// the ABIs are actually different. We might have to
++			// mangle Go function names in the .so to include the
++			// ABI.
++			if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
++				alias := ctxt.loader.LookupOrCreateSym(elfsym.Name, sym.SymVerABIInternal)
++				if l.SymType(alias) != 0 {
++					continue
++				}
++				su, _ := l.MakeSymbolUpdater(alias)
++				su.SetType(sym.SABIALIAS)
++				su.AddReloc(loader.Reloc{Sym: s})
++			}
++		} else {
++			lsym := ctxt.loader.LookupOrCreate(elfsym.Name, ver)
++
++			// Because loadlib above loads all .a files before loading any shared
++			// libraries, any non-dynimport symbols we find that duplicate symbols
++			// already loaded should be ignored (the symbols from the .a files
++			// "win").
++			if lsym.Type != 0 && lsym.Type != sym.SDYNIMPORT {
+ 				continue
+ 			}
+-			alias.Type = sym.SABIALIAS
+-			alias.R = []sym.Reloc{{Sym: lsym}}
++			lsym.Type = sym.SDYNIMPORT
++			lsym.SetElfType(elf.ST_TYPE(elfsym.Info))
++			lsym.Size = int64(elfsym.Size)
++			if elfsym.Section != elf.SHN_UNDEF {
++				// Set .File for the library that actually defines the symbol.
++				lsym.File = libpath
++				// The decodetype_* functions in decodetype.go need access to
++				// the type data.
++				if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
++					lsym.P = readelfsymboldata(ctxt, f, &elfsym)
++					gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
++				}
++			}
++			// For function symbols, we don't know what ABI is
++			// available, so alias it under both ABIs.
++			//
++			// TODO(austin): This is almost certainly wrong once
++			// the ABIs are actually different. We might have to
++			// mangle Go function names in the .so to include the
++			// ABI.
++			if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
++				alias := ctxt.loader.LookupOrCreate(elfsym.Name, sym.SymVerABIInternal)
++				if alias.Type != 0 {
++					continue
++				}
++				alias.Type = sym.SABIALIAS
++				alias.R = []sym.Reloc{{Sym: lsym}}
++			}
+ 		}
+ 	}
+ 	gcdataAddresses := make(map[*sym.Symbol]uint64)
++	gcdataAddresses2 := make(map[loader.Sym]uint64)
+ 	if ctxt.Arch.Family == sys.ARM64 {
+ 		for _, sect := range f.Sections {
+ 			if sect.Type == elf.SHT_RELA {
+@@ -2018,15 +2134,21 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 					if t != elf.R_AARCH64_RELATIVE {
+ 						continue
+ 					}
+-					if lsym, ok := gcdataLocations[rela.Off]; ok {
+-						gcdataAddresses[lsym] = uint64(rela.Addend)
++					if *FlagNewLdElf {
++						if symIdx, ok := gcdataLocations2[rela.Off]; ok {
++							gcdataAddresses2[symIdx] = uint64(rela.Addend)
++						}
++					} else {
++						if lsym, ok := gcdataLocations[rela.Off]; ok {
++							gcdataAddresses[lsym] = uint64(rela.Addend)
++						}
+ 					}
+ 				}
+ 			}
+ 		}
+ 	}
+ 
+-	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
++	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses, gcdataAddresses2: gcdataAddresses2})
+ }
+ 
+ func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {
+@@ -2594,11 +2716,6 @@ func (ctxt *Link) loadlibfull() {
+ 	// Pull the symbols out.
+ 	ctxt.loader.ExtractSymbols(ctxt.Syms)
+ 
+-	// Load cgo directives.
+-	for _, d := range ctxt.cgodata {
+-		setCgoAttr(ctxt, ctxt.Syms.Lookup, d.file, d.pkg, d.directives)
+-	}
+-
+ 	setupdynexp(ctxt)
+ 
+ 	// Populate ctxt.Reachparent if appropriate.
+@@ -2617,11 +2734,13 @@ func (ctxt *Link) loadlibfull() {
+ 		}
+ 	}
+ 
+-	// Drop the reference.
+-	ctxt.loader = nil
++	// Drop the cgodata reference.
+ 	ctxt.cgodata = nil
+ 
+ 	addToTextp(ctxt)
++
++	// Drop the loader.
++	ctxt.loader = nil
+ }
+ 
+ func (ctxt *Link) dumpsyms() {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 965c0851d2..2c915f0556 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -42,11 +42,12 @@ import (
+ )
+ 
+ type Shlib struct {
+-	Path            string
+-	Hash            []byte
+-	Deps            []string
+-	File            *elf.File
+-	gcdataAddresses map[*sym.Symbol]uint64
++	Path             string
++	Hash             []byte
++	Deps             []string
++	File             *elf.File
++	gcdataAddresses  map[*sym.Symbol]uint64
++	gcdataAddresses2 map[loader.Sym]uint64
+ }
+ 
+ // Link holds the context for writing object code from a compiler
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 299a0a1fa5..c23da8679e 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -87,6 +87,7 @@ var (
+ 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
+ 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
++	FlagNewLdElf    = flag.Bool("newldelf", false, "ELF host obj load with new loader")
+ 
+ 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 2ee8af6bc9..7d613c7a6d 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -1,4 +1,4 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
++// Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -282,7 +282,7 @@ type ElfSect struct {
+ 	align   uint64
+ 	entsize uint64
+ 	base    []byte
+-	sym     *sym.Symbol
++	sym     loader.Sym
+ }
+ 
+ type ElfObj struct {
+@@ -320,7 +320,7 @@ type ElfSym struct {
+ 	type_ uint8
+ 	other uint8
+ 	shndx uint16
+-	sym   *sym.Symbol
++	sym   loader.Sym
+ }
+ 
+ var ElfMagic = [4]uint8{0x7F, 'E', 'L', 'F'}
+@@ -453,21 +453,21 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags
+ }
+ 
+ // Load loads the ELF file pn from f.
+-// Symbols are written into syms, and a slice of the text symbols is returned.
++// Symbols are installed into the loader, and a slice of the text symbols is returned.
+ //
+ // On ARM systems, Load will attempt to determine what ELF header flags to
+ // emit by scanning the attributes in the ELF file being loaded. The
+ // parameter initEhdrFlags contains the current header flags for the output
+ // object, and the returned ehdrFlags contains what this Load function computes.
+ // TODO: find a better place for this logic.
+-func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
+-	newSym := func(name string, version int) *sym.Symbol {
+-		return l.Create(name)
++func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []loader.Sym, ehdrFlags uint32, err error) {
++	newSym := func(name string, version int) loader.Sym {
++		return l.CreateExtSym(name)
+ 	}
+-	lookup := func(name string, version int) *sym.Symbol {
+-		return l.LookupOrCreate(name, version)
++	lookup := func(name string, version int) loader.Sym {
++		return l.LookupOrCreateSym(name, version)
+ 	}
+-	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, uint32, error) {
++	errorf := func(str string, args ...interface{}) ([]loader.Sym, uint32, error) {
+ 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
+ 	}
+ 
+@@ -721,46 +721,46 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		}
+ 		sectsymNames[name] = true
+ 
+-		s := lookup(name, localSymVersion)
++		sb, _ := l.MakeSymbolUpdater(lookup(name, localSymVersion))
+ 
+ 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
+ 		default:
+ 			return errorf("%s: unexpected flags for ELF section %s", pn, sect.name)
+ 
+ 		case ElfSectFlagAlloc:
+-			s.Type = sym.SRODATA
++			sb.SetType(sym.SRODATA)
+ 
+ 		case ElfSectFlagAlloc + ElfSectFlagWrite:
+ 			if sect.type_ == ElfSectNobits {
+-				s.Type = sym.SNOPTRBSS
++				sb.SetType(sym.SNOPTRBSS)
+ 			} else {
+-				s.Type = sym.SNOPTRDATA
++				sb.SetType(sym.SNOPTRDATA)
+ 			}
+ 
+ 		case ElfSectFlagAlloc + ElfSectFlagExec:
+-			s.Type = sym.STEXT
++			sb.SetType(sym.STEXT)
+ 		}
+ 
+ 		if sect.name == ".got" || sect.name == ".toc" {
+-			s.Type = sym.SELFGOT
++			sb.SetType(sym.SELFGOT)
+ 		}
+ 		if sect.type_ == ElfSectProgbits {
+-			s.P = sect.base
+-			s.P = s.P[:sect.size]
++			sb.SetData(sect.base[:sect.size])
+ 		}
+ 
+-		s.Size = int64(sect.size)
+-		s.Align = int32(sect.align)
+-		sect.sym = s
++		sb.SetSize(int64(sect.size))
++		sb.SetAlign(int32(sect.align))
++
++		sect.sym = sb.Sym()
+ 	}
+ 
+ 	// enter sub-symbols into symbol table.
+ 	// symbol 0 is the null symbol.
+-	symbols := make([]*sym.Symbol, elfobj.nsymtab)
++	symbols := make([]loader.Sym, elfobj.nsymtab)
+ 
+ 	for i := 1; i < elfobj.nsymtab; i++ {
+ 		var elfsym ElfSym
+-		if err := readelfsym(newSym, lookup, arch, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
++		if err := readelfsym(newSym, lookup, l, arch, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
+ 			return errorf("%s: malformed elf file: %v", pn, err)
+ 		}
+ 		symbols[i] = elfsym.sym
+@@ -768,13 +768,15 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 			continue
+ 		}
+ 		if elfsym.shndx == ElfSymShnCommon || elfsym.type_ == ElfSymTypeCommon {
+-			s := elfsym.sym
+-			if uint64(s.Size) < elfsym.size {
+-				s.Size = int64(elfsym.size)
++			sb, ns := l.MakeSymbolUpdater(elfsym.sym)
++			if uint64(sb.Size()) < elfsym.size {
++				sb.SetSize(int64(elfsym.size))
+ 			}
+-			if s.Type == 0 || s.Type == sym.SXREF {
+-				s.Type = sym.SNOPTRBSS
++			if sb.Type() == 0 || sb.Type() == sym.SXREF {
++				sb.SetType(sym.SNOPTRBSS)
+ 			}
++			symbols[i] = ns
++			elfsym.sym = ns
+ 			continue
+ 		}
+ 
+@@ -783,11 +785,11 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		}
+ 
+ 		// even when we pass needSym == 1 to readelfsym, it might still return nil to skip some unwanted symbols
+-		if elfsym.sym == nil {
++		if elfsym.sym == 0 {
+ 			continue
+ 		}
+ 		sect = &elfobj.sect[elfsym.shndx]
+-		if sect.sym == nil {
++		if sect.sym == 0 {
+ 			if strings.HasPrefix(elfsym.name, ".Linfo_string") { // clang does this
+ 				continue
+ 			}
+@@ -812,36 +814,37 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		}
+ 
+ 		s := elfsym.sym
+-		if s.Outer != nil {
+-			if s.Attr.DuplicateOK() {
++		if l.OuterSym(s) != 0 {
++			if l.AttrDuplicateOK(s) {
+ 				continue
+ 			}
+-			return errorf("duplicate symbol reference: %s in both %s and %s", s.Name, s.Outer.Name, sect.sym.Name)
++			return errorf("duplicate symbol reference: %s in both %s and %s",
++				l.SymName(s), l.SymName(l.OuterSym(s)), l.SymName(sect.sym))
+ 		}
+ 
+-		s.Sub = sect.sym.Sub
+-		sect.sym.Sub = s
+-		s.Type = sect.sym.Type
+-		s.Attr |= sym.AttrSubSymbol
+-		if !s.Attr.CgoExportDynamic() {
+-			s.SetDynimplib("") // satisfy dynimport
++		sectsb, _ := l.MakeSymbolUpdater(sect.sym)
++		sb, _ := l.MakeSymbolUpdater(s)
++
++		sb.SetType(sectsb.Type())
++		sectsb.PrependSub(s)
++		if !l.AttrCgoExportDynamic(s) {
++			sb.SetDynimplib("") // satisfy dynimport
+ 		}
+-		s.Value = int64(elfsym.value)
+-		s.Size = int64(elfsym.size)
+-		s.Outer = sect.sym
+-		if sect.sym.Type == sym.STEXT {
+-			if s.Attr.External() && !s.Attr.DuplicateOK() {
+-				return errorf("%v: duplicate symbol definition", s)
++		sb.SetValue(int64(elfsym.value))
++		sb.SetSize(int64(elfsym.size))
++		if sectsb.Type() == sym.STEXT {
++			if l.AttrExternal(s) && !l.AttrDuplicateOK(s) {
++				return errorf("%s: duplicate symbol definition", sb.Name())
+ 			}
+-			s.Attr |= sym.AttrExternal
++			l.SetAttrExternal(s, true)
+ 		}
+ 
+ 		if elfobj.machine == ElfMachPower64 {
+ 			flag := int(elfsym.other) >> 5
+ 			if 2 <= flag && flag <= 6 {
+-				s.SetLocalentry(1 << uint(flag-2))
++				l.SetSymLocalentry(s, 1<<uint(flag-2))
+ 			} else if flag == 7 {
+-				return errorf("%v: invalid sym.other 0x%x", s, elfsym.other)
++				return errorf("%s: invalid sym.other 0x%x", sb.Name(), elfsym.other)
+ 			}
+ 		}
+ 	}
+@@ -850,24 +853,28 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 	// This keeps textp in increasing address order.
+ 	for i := uint(0); i < elfobj.nsect; i++ {
+ 		s := elfobj.sect[i].sym
+-		if s == nil {
++		if s == 0 {
+ 			continue
+ 		}
+-		if s.Sub != nil {
+-			s.Sub = sym.SortSub(s.Sub)
++		sb, _ := l.MakeSymbolUpdater(s)
++		s = sb.Sym()
++		if l.SubSym(s) != 0 {
++			sb.SortSub()
+ 		}
+-		if s.Type == sym.STEXT {
+-			if s.Attr.OnList() {
+-				return errorf("symbol %s listed multiple times", s.Name)
++		if sb.Type() == sym.STEXT {
++			if l.AttrOnList(s) {
++				return errorf("symbol %s listed multiple times",
++					l.SymName(s))
+ 			}
+-			s.Attr |= sym.AttrOnList
++			l.SetAttrOnList(s, true)
+ 			textp = append(textp, s)
+-			for s = s.Sub; s != nil; s = s.Sub {
+-				if s.Attr.OnList() {
+-					return errorf("symbol %s listed multiple times", s.Name)
++			for ss := l.SubSym(s); ss != 0; ss = l.SubSym(ss) {
++				if l.AttrOnList(ss) {
++					return errorf("symbol %s listed multiple times",
++						l.SymName(ss))
+ 				}
+-				s.Attr |= sym.AttrOnList
+-				textp = append(textp, s)
++				l.SetAttrOnList(ss, true)
++				textp = append(textp, ss)
+ 			}
+ 		}
+ 	}
+@@ -890,7 +897,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 			rela = 1
+ 		}
+ 		n := int(rsect.size / uint64(4+4*is64) / uint64(2+rela))
+-		r := make([]sym.Reloc, n)
++		r := make([]loader.Reloc, n)
+ 		p := rsect.base
+ 		for j := 0; j < n; j++ {
+ 			var add uint64
+@@ -928,22 +935,22 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 			}
+ 
+ 			if info>>32 == 0 { // absolute relocation, don't bother reading the null symbol
+-				rp.Sym = nil
++				rp.Sym = 0
+ 			} else {
+ 				var elfsym ElfSym
+-				if err := readelfsym(newSym, lookup, arch, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
++				if err := readelfsym(newSym, lookup, l, arch, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
+ 					return errorf("malformed elf file: %v", err)
+ 				}
+ 				elfsym.sym = symbols[info>>32]
+-				if elfsym.sym == nil {
+-					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", sect.sym.Name, j, int(info>>32), elfsym.name, elfsym.shndx, elfsym.type_)
++				if elfsym.sym == 0 {
++					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", l.SymName(sect.sym), j, int(info>>32), elfsym.name, elfsym.shndx, elfsym.type_)
+ 				}
+ 
+ 				rp.Sym = elfsym.sym
+ 			}
+ 
+ 			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(info)
+-			rp.Siz, err = relSize(arch, pn, uint32(info))
++			rp.Size, err = relSize(arch, pn, uint32(info))
+ 			if err != nil {
+ 				return nil, 0, err
+ 			}
+@@ -951,30 +958,30 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 				rp.Add = int64(add)
+ 			} else {
+ 				// load addend from image
+-				if rp.Siz == 4 {
++				if rp.Size == 4 {
+ 					rp.Add = int64(e.Uint32(sect.base[rp.Off:]))
+-				} else if rp.Siz == 8 {
++				} else if rp.Size == 8 {
+ 					rp.Add = int64(e.Uint64(sect.base[rp.Off:]))
+ 				} else {
+-					return errorf("invalid rela size %d", rp.Siz)
++					return errorf("invalid rela size %d", rp.Size)
+ 				}
+ 			}
+ 
+-			if rp.Siz == 2 {
++			if rp.Size == 2 {
+ 				rp.Add = int64(int16(rp.Add))
+ 			}
+-			if rp.Siz == 4 {
++			if rp.Size == 4 {
+ 				rp.Add = int64(int32(rp.Add))
+ 			}
+ 		}
+ 
+ 		//print("rel %s %d %d %s %#llx\n", sect->sym->name, rp->type, rp->siz, rp->sym->name, rp->add);
+-		sort.Sort(sym.RelocByOff(r[:n]))
++		sort.Sort(loader.RelocByOff(r[:n]))
+ 		// just in case
+ 
+-		s := sect.sym
+-		s.R = r
+-		s.R = s.R[:n]
++		sb, _ := l.MakeSymbolUpdater(sect.sym)
++		r = r[:n]
++		sb.SetRelocs(r)
+ 	}
+ 
+ 	return textp, ehdrFlags, nil
+@@ -1008,7 +1015,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
+ 	return nil
+ }
+ 
+-func readelfsym(newSym, lookup func(string, int) *sym.Symbol, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
++func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
+ 	if i >= elfobj.nsymtab || i < 0 {
+ 		err = fmt.Errorf("invalid elf symbol index")
+ 		return err
+@@ -1040,7 +1047,8 @@ func readelfsym(newSym, lookup func(string, int) *sym.Symbol, arch *sys.Arch, el
+ 		elfsym.other = b.Other
+ 	}
+ 
+-	var s *sym.Symbol
++	var s loader.Sym
++
+ 	if elfsym.name == "_GLOBAL_OFFSET_TABLE_" {
+ 		elfsym.name = ".got"
+ 	}
+@@ -1067,8 +1075,12 @@ func readelfsym(newSym, lookup func(string, int) *sym.Symbol, arch *sys.Arch, el
+ 				// TODO(minux): correctly handle __i686.get_pc_thunk.bx without
+ 				// set dupok generally. See https://golang.org/cl/5823055
+ 				// comment #5 for details.
+-				if s != nil && elfsym.other == 2 {
+-					s.Attr |= sym.AttrDuplicateOK | sym.AttrVisibilityHidden
++				if s != 0 && elfsym.other == 2 {
++					if !l.IsExternal(s) {
++						_, s = l.MakeSymbolUpdater(s)
++					}
++					l.SetAttrDuplicateOK(s, true)
++					l.SetAttrVisibilityHidden(s, true)
+ 				}
+ 			}
+ 
+@@ -1084,9 +1096,8 @@ func readelfsym(newSym, lookup func(string, int) *sym.Symbol, arch *sys.Arch, el
+ 				// so put it in the hash table.
+ 				if needSym != 0 {
+ 					s = lookup(elfsym.name, localSymVersion)
+-					s.Attr |= sym.AttrVisibilityHidden
++					l.SetAttrVisibilityHidden(s, true)
+ 				}
+-
+ 				break
+ 			}
+ 
+@@ -1098,20 +1109,19 @@ func readelfsym(newSym, lookup func(string, int) *sym.Symbol, arch *sys.Arch, el
+ 				// reduce mem use, but also (possibly) make it harder
+ 				// to debug problems.
+ 				s = newSym(elfsym.name, localSymVersion)
+-
+-				s.Attr |= sym.AttrVisibilityHidden
++				l.SetAttrVisibilityHidden(s, true)
+ 			}
+ 
+ 		case ElfSymBindWeak:
+ 			if needSym != 0 {
+ 				s = lookup(elfsym.name, 0)
+ 				if elfsym.other == 2 {
+-					s.Attr |= sym.AttrVisibilityHidden
++					l.SetAttrVisibilityHidden(s, true)
+ 				}
+ 
+ 				// Allow weak symbols to be duplicated when already defined.
+-				if s.Outer != nil {
+-					s.Attr |= sym.AttrDuplicateOK
++				if l.OuterSym(s) != 0 {
++					l.SetAttrDuplicateOK(s, true)
+ 				}
+ 			}
+ 
+@@ -1123,8 +1133,9 @@ func readelfsym(newSym, lookup func(string, int) *sym.Symbol, arch *sys.Arch, el
+ 
+ 	// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+ 	// sense and should be removed when someone has thought about it properly.
+-	if s != nil && s.Type == 0 && !s.Attr.VisibilityHidden() && elfsym.type_ != ElfSymTypeSection {
+-		s.Type = sym.SXREF
++	if s != 0 && l.SymType(s) == 0 && !l.AttrVisibilityHidden(s) && elfsym.type_ != ElfSymTypeSection {
++		sb, _ := l.MakeSymbolUpdater(s)
++		sb.SetType(sym.SXREF)
+ 	}
+ 	elfsym.sym = s
+ 
+diff --git a/src/cmd/link/internal/loadelfold/ldelf.go b/src/cmd/link/internal/loadelfold/ldelf.go
+new file mode 100644
+index 0000000000..c5e0222828
+--- /dev/null
++++ b/src/cmd/link/internal/loadelfold/ldelf.go
+@@ -0,0 +1,1243 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package loadelf implements an ELF file reader.
++// This is the legacy sym.Symbol based reader, to be deprecated
++// once the loader.Loader version is completely on line.
++package loadelfold
++
++import (
++	"bytes"
++	"cmd/internal/bio"
++	"cmd/internal/objabi"
++	"cmd/internal/sys"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
++	"debug/elf"
++	"encoding/binary"
++	"fmt"
++	"io"
++	"log"
++	"sort"
++	"strings"
++)
++
++/*
++Derived from Plan 9 from User Space's src/libmach/elf.h, elf.c
++http://code.swtch.com/plan9port/src/tip/src/libmach/
++
++	Copyright © 2004 Russ Cox.
++	Portions Copyright © 2008-2010 Google Inc.
++	Portions Copyright © 2010 The Go Authors.
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in
++all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++THE SOFTWARE.
++*/
++const (
++	ElfClassNone = 0
++	ElfClass32   = 1
++	ElfClass64   = 2
++)
++
++const (
++	ElfDataNone = 0
++	ElfDataLsb  = 1
++	ElfDataMsb  = 2
++)
++
++const (
++	ElfTypeNone         = 0
++	ElfTypeRelocatable  = 1
++	ElfTypeExecutable   = 2
++	ElfTypeSharedObject = 3
++	ElfTypeCore         = 4
++)
++
++const (
++	ElfMachNone        = 0
++	ElfMach32100       = 1
++	ElfMachSparc       = 2
++	ElfMach386         = 3
++	ElfMach68000       = 4
++	ElfMach88000       = 5
++	ElfMach486         = 6
++	ElfMach860         = 7
++	ElfMachMips        = 8
++	ElfMachS370        = 9
++	ElfMachMipsLe      = 10
++	ElfMachParisc      = 15
++	ElfMachVpp500      = 17
++	ElfMachSparc32Plus = 18
++	ElfMach960         = 19
++	ElfMachPower       = 20
++	ElfMachPower64     = 21
++	ElfMachS390        = 22
++	ElfMachV800        = 36
++	ElfMachFr20        = 37
++	ElfMachRh32        = 38
++	ElfMachRce         = 39
++	ElfMachArm         = 40
++	ElfMachAlpha       = 41
++	ElfMachSH          = 42
++	ElfMachSparc9      = 43
++	ElfMachAmd64       = 62
++	ElfMachArm64       = 183
++)
++
++const (
++	ElfAbiNone     = 0
++	ElfAbiSystemV  = 0
++	ElfAbiHPUX     = 1
++	ElfAbiNetBSD   = 2
++	ElfAbiLinux    = 3
++	ElfAbiSolaris  = 6
++	ElfAbiAix      = 7
++	ElfAbiIrix     = 8
++	ElfAbiFreeBSD  = 9
++	ElfAbiTru64    = 10
++	ElfAbiModesto  = 11
++	ElfAbiOpenBSD  = 12
++	ElfAbiARM      = 97
++	ElfAbiEmbedded = 255
++)
++
++const (
++	ElfSectNone      = 0
++	ElfSectProgbits  = 1
++	ElfSectSymtab    = 2
++	ElfSectStrtab    = 3
++	ElfSectRela      = 4
++	ElfSectHash      = 5
++	ElfSectDynamic   = 6
++	ElfSectNote      = 7
++	ElfSectNobits    = 8
++	ElfSectRel       = 9
++	ElfSectShlib     = 10
++	ElfSectDynsym    = 11
++	ElfSectFlagWrite = 0x1
++	ElfSectFlagAlloc = 0x2
++	ElfSectFlagExec  = 0x4
++)
++
++const (
++	ElfSymBindLocal  = 0
++	ElfSymBindGlobal = 1
++	ElfSymBindWeak   = 2
++)
++
++const (
++	ElfSymTypeNone    = 0
++	ElfSymTypeObject  = 1
++	ElfSymTypeFunc    = 2
++	ElfSymTypeSection = 3
++	ElfSymTypeFile    = 4
++	ElfSymTypeCommon  = 5
++	ElfSymTypeTLS     = 6
++)
++
++const (
++	ElfSymShnNone   = 0
++	ElfSymShnAbs    = 0xFFF1
++	ElfSymShnCommon = 0xFFF2
++)
++
++const (
++	ElfProgNone      = 0
++	ElfProgLoad      = 1
++	ElfProgDynamic   = 2
++	ElfProgInterp    = 3
++	ElfProgNote      = 4
++	ElfProgShlib     = 5
++	ElfProgPhdr      = 6
++	ElfProgFlagExec  = 0x1
++	ElfProgFlagWrite = 0x2
++	ElfProgFlagRead  = 0x4
++)
++
++const (
++	ElfNotePrStatus     = 1
++	ElfNotePrFpreg      = 2
++	ElfNotePrPsinfo     = 3
++	ElfNotePrTaskstruct = 4
++	ElfNotePrAuxv       = 6
++	ElfNotePrXfpreg     = 0x46e62b7f
++)
++
++// TODO(crawshaw): de-duplicate with cmd/link/internal/ld/elf.go.
++const (
++	ELF64SYMSIZE = 24
++	ELF32SYMSIZE = 16
++
++	SHT_ARM_ATTRIBUTES = 0x70000003
++)
++
++type ElfHdrBytes struct {
++	Ident     [16]uint8
++	Type      [2]uint8
++	Machine   [2]uint8
++	Version   [4]uint8
++	Entry     [4]uint8
++	Phoff     [4]uint8
++	Shoff     [4]uint8
++	Flags     [4]uint8
++	Ehsize    [2]uint8
++	Phentsize [2]uint8
++	Phnum     [2]uint8
++	Shentsize [2]uint8
++	Shnum     [2]uint8
++	Shstrndx  [2]uint8
++}
++
++type ElfSectBytes struct {
++	Name    [4]uint8
++	Type    [4]uint8
++	Flags   [4]uint8
++	Addr    [4]uint8
++	Off     [4]uint8
++	Size    [4]uint8
++	Link    [4]uint8
++	Info    [4]uint8
++	Align   [4]uint8
++	Entsize [4]uint8
++}
++
++type ElfProgBytes struct {
++}
++
++type ElfSymBytes struct {
++	Name  [4]uint8
++	Value [4]uint8
++	Size  [4]uint8
++	Info  uint8
++	Other uint8
++	Shndx [2]uint8
++}
++
++type ElfHdrBytes64 struct {
++	Ident     [16]uint8
++	Type      [2]uint8
++	Machine   [2]uint8
++	Version   [4]uint8
++	Entry     [8]uint8
++	Phoff     [8]uint8
++	Shoff     [8]uint8
++	Flags     [4]uint8
++	Ehsize    [2]uint8
++	Phentsize [2]uint8
++	Phnum     [2]uint8
++	Shentsize [2]uint8
++	Shnum     [2]uint8
++	Shstrndx  [2]uint8
++}
++
++type ElfSectBytes64 struct {
++	Name    [4]uint8
++	Type    [4]uint8
++	Flags   [8]uint8
++	Addr    [8]uint8
++	Off     [8]uint8
++	Size    [8]uint8
++	Link    [4]uint8
++	Info    [4]uint8
++	Align   [8]uint8
++	Entsize [8]uint8
++}
++
++type ElfProgBytes64 struct {
++}
++
++type ElfSymBytes64 struct {
++	Name  [4]uint8
++	Info  uint8
++	Other uint8
++	Shndx [2]uint8
++	Value [8]uint8
++	Size  [8]uint8
++}
++
++type ElfSect struct {
++	name    string
++	nameoff uint32
++	type_   uint32
++	flags   uint64
++	addr    uint64
++	off     uint64
++	size    uint64
++	link    uint32
++	info    uint32
++	align   uint64
++	entsize uint64
++	base    []byte
++	sym     *sym.Symbol
++}
++
++type ElfObj struct {
++	f         *bio.Reader
++	base      int64 // offset in f where ELF begins
++	length    int64 // length of ELF
++	is64      int
++	name      string
++	e         binary.ByteOrder
++	sect      []ElfSect
++	nsect     uint
++	nsymtab   int
++	symtab    *ElfSect
++	symstr    *ElfSect
++	type_     uint32
++	machine   uint32
++	version   uint32
++	entry     uint64
++	phoff     uint64
++	shoff     uint64
++	flags     uint32
++	ehsize    uint32
++	phentsize uint32
++	phnum     uint32
++	shentsize uint32
++	shnum     uint32
++	shstrndx  uint32
++}
++
++type ElfSym struct {
++	name  string
++	value uint64
++	size  uint64
++	bind  uint8
++	type_ uint8
++	other uint8
++	shndx uint16
++	sym   *sym.Symbol
++}
++
++var ElfMagic = [4]uint8{0x7F, 'E', 'L', 'F'}
++
++const (
++	TagFile               = 1
++	TagCPUName            = 4
++	TagCPURawName         = 5
++	TagCompatibility      = 32
++	TagNoDefaults         = 64
++	TagAlsoCompatibleWith = 65
++	TagABIVFPArgs         = 28
++)
++
++type elfAttribute struct {
++	tag  uint64
++	sval string
++	ival uint64
++}
++
++type elfAttributeList struct {
++	data []byte
++	err  error
++}
++
++func (a *elfAttributeList) string() string {
++	if a.err != nil {
++		return ""
++	}
++	nul := bytes.IndexByte(a.data, 0)
++	if nul < 0 {
++		a.err = io.EOF
++		return ""
++	}
++	s := string(a.data[:nul])
++	a.data = a.data[nul+1:]
++	return s
++}
++
++func (a *elfAttributeList) uleb128() uint64 {
++	if a.err != nil {
++		return 0
++	}
++	v, size := binary.Uvarint(a.data)
++	a.data = a.data[size:]
++	return v
++}
++
++// Read an elfAttribute from the list following the rules used on ARM systems.
++func (a *elfAttributeList) armAttr() elfAttribute {
++	attr := elfAttribute{tag: a.uleb128()}
++	switch {
++	case attr.tag == TagCompatibility:
++		attr.ival = a.uleb128()
++		attr.sval = a.string()
++
++	case attr.tag == 64: // Tag_nodefaults has no argument
++
++	case attr.tag == 65: // Tag_also_compatible_with
++		// Not really, but we don't actually care about this tag.
++		attr.sval = a.string()
++
++	// Tag with string argument
++	case attr.tag == TagCPUName || attr.tag == TagCPURawName || (attr.tag >= 32 && attr.tag&1 != 0):
++		attr.sval = a.string()
++
++	default: // Tag with integer argument
++		attr.ival = a.uleb128()
++	}
++	return attr
++}
++
++func (a *elfAttributeList) done() bool {
++	if a.err != nil || len(a.data) == 0 {
++		return true
++	}
++	return false
++}
++
++// Look for the attribute that indicates the object uses the hard-float ABI (a
++// file-level attribute with tag Tag_VFP_arch and value 1). Unfortunately the
++// format used means that we have to parse all of the file-level attributes to
++// find the one we are looking for. This format is slightly documented in "ELF
++// for the ARM Architecture" but mostly this is derived from reading the source
++// to gold and readelf.
++func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags uint32, err error) {
++	found = false
++	if data[0] != 'A' {
++		return false, 0, fmt.Errorf(".ARM.attributes has unexpected format %c\n", data[0])
++	}
++	data = data[1:]
++	for len(data) != 0 {
++		sectionlength := e.Uint32(data)
++		sectiondata := data[4:sectionlength]
++		data = data[sectionlength:]
++
++		nulIndex := bytes.IndexByte(sectiondata, 0)
++		if nulIndex < 0 {
++			return false, 0, fmt.Errorf("corrupt .ARM.attributes (section name not NUL-terminated)\n")
++		}
++		name := string(sectiondata[:nulIndex])
++		sectiondata = sectiondata[nulIndex+1:]
++
++		if name != "aeabi" {
++			continue
++		}
++		for len(sectiondata) != 0 {
++			subsectiontag, sz := binary.Uvarint(sectiondata)
++			subsectionsize := e.Uint32(sectiondata[sz:])
++			subsectiondata := sectiondata[sz+4 : subsectionsize]
++			sectiondata = sectiondata[subsectionsize:]
++
++			if subsectiontag != TagFile {
++				continue
++			}
++			attrList := elfAttributeList{data: subsectiondata}
++			for !attrList.done() {
++				attr := attrList.armAttr()
++				if attr.tag == TagABIVFPArgs && attr.ival == 1 {
++					found = true
++					ehdrFlags = 0x5000402 // has entry point, Version5 EABI, hard-float ABI
++				}
++			}
++			if attrList.err != nil {
++				return false, 0, fmt.Errorf("could not parse .ARM.attributes\n")
++			}
++		}
++	}
++	return found, ehdrFlags, nil
++}
++
++// Load loads the ELF file pn from f.
++// Symbols are written into syms, and a slice of the text symbols is returned.
++//
++// On ARM systems, Load will attempt to determine what ELF header flags to
++// emit by scanning the attributes in the ELF file being loaded. The
++// parameter initEhdrFlags contains the current header flags for the output
++// object, and the returned ehdrFlags contains what this Load function computes.
++// TODO: find a better place for this logic.
++func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
++	newSym := func(name string, version int) *sym.Symbol {
++		return l.Create(name)
++	}
++	lookup := func(name string, version int) *sym.Symbol {
++		return l.LookupOrCreate(name, version)
++	}
++	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, uint32, error) {
++		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
++	}
++
++	base := f.Offset()
++
++	var hdrbuf [64]uint8
++	if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
++		return errorf("malformed elf file: %v", err)
++	}
++	hdr := new(ElfHdrBytes)
++	binary.Read(bytes.NewReader(hdrbuf[:]), binary.BigEndian, hdr) // only byte arrays; byte order doesn't matter
++	if string(hdr.Ident[:4]) != "\x7FELF" {
++		return errorf("malformed elf file, bad header")
++	}
++	var e binary.ByteOrder
++	switch hdr.Ident[5] {
++	case ElfDataLsb:
++		e = binary.LittleEndian
++
++	case ElfDataMsb:
++		e = binary.BigEndian
++
++	default:
++		return errorf("malformed elf file, unknown header")
++	}
++
++	// read header
++	elfobj := new(ElfObj)
++
++	elfobj.e = e
++	elfobj.f = f
++	elfobj.base = base
++	elfobj.length = length
++	elfobj.name = pn
++
++	is64 := 0
++	if hdr.Ident[4] == ElfClass64 {
++		is64 = 1
++		hdr := new(ElfHdrBytes64)
++		binary.Read(bytes.NewReader(hdrbuf[:]), binary.BigEndian, hdr) // only byte arrays; byte order doesn't matter
++		elfobj.type_ = uint32(e.Uint16(hdr.Type[:]))
++		elfobj.machine = uint32(e.Uint16(hdr.Machine[:]))
++		elfobj.version = e.Uint32(hdr.Version[:])
++		elfobj.phoff = e.Uint64(hdr.Phoff[:])
++		elfobj.shoff = e.Uint64(hdr.Shoff[:])
++		elfobj.flags = e.Uint32(hdr.Flags[:])
++		elfobj.ehsize = uint32(e.Uint16(hdr.Ehsize[:]))
++		elfobj.phentsize = uint32(e.Uint16(hdr.Phentsize[:]))
++		elfobj.phnum = uint32(e.Uint16(hdr.Phnum[:]))
++		elfobj.shentsize = uint32(e.Uint16(hdr.Shentsize[:]))
++		elfobj.shnum = uint32(e.Uint16(hdr.Shnum[:]))
++		elfobj.shstrndx = uint32(e.Uint16(hdr.Shstrndx[:]))
++	} else {
++		elfobj.type_ = uint32(e.Uint16(hdr.Type[:]))
++		elfobj.machine = uint32(e.Uint16(hdr.Machine[:]))
++		elfobj.version = e.Uint32(hdr.Version[:])
++		elfobj.entry = uint64(e.Uint32(hdr.Entry[:]))
++		elfobj.phoff = uint64(e.Uint32(hdr.Phoff[:]))
++		elfobj.shoff = uint64(e.Uint32(hdr.Shoff[:]))
++		elfobj.flags = e.Uint32(hdr.Flags[:])
++		elfobj.ehsize = uint32(e.Uint16(hdr.Ehsize[:]))
++		elfobj.phentsize = uint32(e.Uint16(hdr.Phentsize[:]))
++		elfobj.phnum = uint32(e.Uint16(hdr.Phnum[:]))
++		elfobj.shentsize = uint32(e.Uint16(hdr.Shentsize[:]))
++		elfobj.shnum = uint32(e.Uint16(hdr.Shnum[:]))
++		elfobj.shstrndx = uint32(e.Uint16(hdr.Shstrndx[:]))
++	}
++
++	elfobj.is64 = is64
++
++	if v := uint32(hdr.Ident[6]); v != elfobj.version {
++		return errorf("malformed elf version: got %d, want %d", v, elfobj.version)
++	}
++
++	if e.Uint16(hdr.Type[:]) != ElfTypeRelocatable {
++		return errorf("elf but not elf relocatable object")
++	}
++
++	switch arch.Family {
++	default:
++		return errorf("elf %s unimplemented", arch.Name)
++
++	case sys.MIPS:
++		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass32 {
++			return errorf("elf object but not mips")
++		}
++
++	case sys.MIPS64:
++		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass64 {
++			return errorf("elf object but not mips64")
++		}
++
++	case sys.ARM:
++		if e != binary.LittleEndian || elfobj.machine != ElfMachArm || hdr.Ident[4] != ElfClass32 {
++			return errorf("elf object but not arm")
++		}
++
++	case sys.AMD64:
++		if e != binary.LittleEndian || elfobj.machine != ElfMachAmd64 || hdr.Ident[4] != ElfClass64 {
++			return errorf("elf object but not amd64")
++		}
++
++	case sys.ARM64:
++		if e != binary.LittleEndian || elfobj.machine != ElfMachArm64 || hdr.Ident[4] != ElfClass64 {
++			return errorf("elf object but not arm64")
++		}
++
++	case sys.I386:
++		if e != binary.LittleEndian || elfobj.machine != ElfMach386 || hdr.Ident[4] != ElfClass32 {
++			return errorf("elf object but not 386")
++		}
++
++	case sys.PPC64:
++		if elfobj.machine != ElfMachPower64 || hdr.Ident[4] != ElfClass64 {
++			return errorf("elf object but not ppc64")
++		}
++
++	case sys.S390X:
++		if elfobj.machine != ElfMachS390 || hdr.Ident[4] != ElfClass64 {
++			return errorf("elf object but not s390x")
++		}
++	}
++
++	// load section list into memory.
++	elfobj.sect = make([]ElfSect, elfobj.shnum)
++
++	elfobj.nsect = uint(elfobj.shnum)
++	for i := 0; uint(i) < elfobj.nsect; i++ {
++		f.MustSeek(int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0)
++		sect := &elfobj.sect[i]
++		if is64 != 0 {
++			var b ElfSectBytes64
++
++			if err := binary.Read(f, e, &b); err != nil {
++				return errorf("malformed elf file: %v", err)
++			}
++
++			sect.nameoff = e.Uint32(b.Name[:])
++			sect.type_ = e.Uint32(b.Type[:])
++			sect.flags = e.Uint64(b.Flags[:])
++			sect.addr = e.Uint64(b.Addr[:])
++			sect.off = e.Uint64(b.Off[:])
++			sect.size = e.Uint64(b.Size[:])
++			sect.link = e.Uint32(b.Link[:])
++			sect.info = e.Uint32(b.Info[:])
++			sect.align = e.Uint64(b.Align[:])
++			sect.entsize = e.Uint64(b.Entsize[:])
++		} else {
++			var b ElfSectBytes
++
++			if err := binary.Read(f, e, &b); err != nil {
++				return errorf("malformed elf file: %v", err)
++			}
++
++			sect.nameoff = e.Uint32(b.Name[:])
++			sect.type_ = e.Uint32(b.Type[:])
++			sect.flags = uint64(e.Uint32(b.Flags[:]))
++			sect.addr = uint64(e.Uint32(b.Addr[:]))
++			sect.off = uint64(e.Uint32(b.Off[:]))
++			sect.size = uint64(e.Uint32(b.Size[:]))
++			sect.link = e.Uint32(b.Link[:])
++			sect.info = e.Uint32(b.Info[:])
++			sect.align = uint64(e.Uint32(b.Align[:]))
++			sect.entsize = uint64(e.Uint32(b.Entsize[:]))
++		}
++	}
++
++	// read section string table and translate names
++	if elfobj.shstrndx >= uint32(elfobj.nsect) {
++		return errorf("malformed elf file: shstrndx out of range %d >= %d", elfobj.shstrndx, elfobj.nsect)
++	}
++
++	sect := &elfobj.sect[elfobj.shstrndx]
++	if err := elfmap(elfobj, sect); err != nil {
++		return errorf("malformed elf file: %v", err)
++	}
++	for i := 0; uint(i) < elfobj.nsect; i++ {
++		if elfobj.sect[i].nameoff != 0 {
++			elfobj.sect[i].name = cstring(sect.base[elfobj.sect[i].nameoff:])
++		}
++	}
++
++	// load string table for symbols into memory.
++	elfobj.symtab = section(elfobj, ".symtab")
++
++	if elfobj.symtab == nil {
++		// our work is done here - no symbols means nothing can refer to this file
++		return
++	}
++
++	if elfobj.symtab.link <= 0 || elfobj.symtab.link >= uint32(elfobj.nsect) {
++		return errorf("elf object has symbol table with invalid string table link")
++	}
++
++	elfobj.symstr = &elfobj.sect[elfobj.symtab.link]
++	if is64 != 0 {
++		elfobj.nsymtab = int(elfobj.symtab.size / ELF64SYMSIZE)
++	} else {
++		elfobj.nsymtab = int(elfobj.symtab.size / ELF32SYMSIZE)
++	}
++
++	if err := elfmap(elfobj, elfobj.symtab); err != nil {
++		return errorf("malformed elf file: %v", err)
++	}
++	if err := elfmap(elfobj, elfobj.symstr); err != nil {
++		return errorf("malformed elf file: %v", err)
++	}
++
++	// load text and data segments into memory.
++	// they are not as small as the section lists, but we'll need
++	// the memory anyway for the symbol images, so we might
++	// as well use one large chunk.
++
++	// create symbols for elfmapped sections
++	sectsymNames := make(map[string]bool)
++	counter := 0
++	for i := 0; uint(i) < elfobj.nsect; i++ {
++		sect = &elfobj.sect[i]
++		if sect.type_ == SHT_ARM_ATTRIBUTES && sect.name == ".ARM.attributes" {
++			if err := elfmap(elfobj, sect); err != nil {
++				return errorf("%s: malformed elf file: %v", pn, err)
++			}
++			// We assume the soft-float ABI unless we see a tag indicating otherwise.
++			if initEhdrFlags == 0x5000002 {
++				ehdrFlags = 0x5000202
++			} else {
++				ehdrFlags = initEhdrFlags
++			}
++			found, newEhdrFlags, err := parseArmAttributes(e, sect.base[:sect.size])
++			if err != nil {
++				// TODO(dfc) should this return an error?
++				log.Printf("%s: %v", pn, err)
++			}
++			if found {
++				ehdrFlags = newEhdrFlags
++			}
++		}
++		if (sect.type_ != ElfSectProgbits && sect.type_ != ElfSectNobits) || sect.flags&ElfSectFlagAlloc == 0 {
++			continue
++		}
++		if sect.type_ != ElfSectNobits {
++			if err := elfmap(elfobj, sect); err != nil {
++				return errorf("%s: malformed elf file: %v", pn, err)
++			}
++		}
++
++		name := fmt.Sprintf("%s(%s)", pkg, sect.name)
++		for sectsymNames[name] {
++			counter++
++			name = fmt.Sprintf("%s(%s%d)", pkg, sect.name, counter)
++		}
++		sectsymNames[name] = true
++
++		s := lookup(name, localSymVersion)
++
++		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
++		default:
++			return errorf("%s: unexpected flags for ELF section %s", pn, sect.name)
++
++		case ElfSectFlagAlloc:
++			s.Type = sym.SRODATA
++
++		case ElfSectFlagAlloc + ElfSectFlagWrite:
++			if sect.type_ == ElfSectNobits {
++				s.Type = sym.SNOPTRBSS
++			} else {
++				s.Type = sym.SNOPTRDATA
++			}
++
++		case ElfSectFlagAlloc + ElfSectFlagExec:
++			s.Type = sym.STEXT
++		}
++
++		if sect.name == ".got" || sect.name == ".toc" {
++			s.Type = sym.SELFGOT
++		}
++		if sect.type_ == ElfSectProgbits {
++			s.P = sect.base
++			s.P = s.P[:sect.size]
++		}
++
++		s.Size = int64(sect.size)
++		s.Align = int32(sect.align)
++		sect.sym = s
++	}
++
++	// enter sub-symbols into symbol table.
++	// symbol 0 is the null symbol.
++	symbols := make([]*sym.Symbol, elfobj.nsymtab)
++
++	for i := 1; i < elfobj.nsymtab; i++ {
++		var elfsym ElfSym
++		if err := readelfsym(newSym, lookup, arch, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
++			return errorf("%s: malformed elf file: %v", pn, err)
++		}
++		symbols[i] = elfsym.sym
++		if elfsym.type_ != ElfSymTypeFunc && elfsym.type_ != ElfSymTypeObject && elfsym.type_ != ElfSymTypeNone && elfsym.type_ != ElfSymTypeCommon {
++			continue
++		}
++		if elfsym.shndx == ElfSymShnCommon || elfsym.type_ == ElfSymTypeCommon {
++			s := elfsym.sym
++			if uint64(s.Size) < elfsym.size {
++				s.Size = int64(elfsym.size)
++			}
++			if s.Type == 0 || s.Type == sym.SXREF {
++				s.Type = sym.SNOPTRBSS
++			}
++			continue
++		}
++
++		if uint(elfsym.shndx) >= elfobj.nsect || elfsym.shndx == 0 {
++			continue
++		}
++
++		// even when we pass needSym == 1 to readelfsym, it might still return nil to skip some unwanted symbols
++		if elfsym.sym == nil {
++			continue
++		}
++		sect = &elfobj.sect[elfsym.shndx]
++		if sect.sym == nil {
++			if strings.HasPrefix(elfsym.name, ".Linfo_string") { // clang does this
++				continue
++			}
++
++			if elfsym.name == "" && elfsym.type_ == 0 && sect.name == ".debug_str" {
++				// This reportedly happens with clang 3.7 on ARM.
++				// See issue 13139.
++				continue
++			}
++
++			if strings.HasPrefix(elfsym.name, "$d") && elfsym.type_ == 0 && sect.name == ".debug_frame" {
++				// "$d" is a marker, not a real symbol.
++				// This happens with gcc on ARM64.
++				// See https://sourceware.org/bugzilla/show_bug.cgi?id=21809
++				continue
++			}
++
++			if strings.HasPrefix(elfsym.name, ".LASF") { // gcc on s390x does this
++				continue
++			}
++			return errorf("%v: sym#%d: ignoring symbol in section %d (type %d)", elfsym.sym, i, elfsym.shndx, elfsym.type_)
++		}
++
++		s := elfsym.sym
++		if s.Outer != nil {
++			if s.Attr.DuplicateOK() {
++				continue
++			}
++			return errorf("duplicate symbol reference: %s in both %s and %s", s.Name, s.Outer.Name, sect.sym.Name)
++		}
++
++		s.Sub = sect.sym.Sub
++		sect.sym.Sub = s
++		s.Type = sect.sym.Type
++		s.Attr |= sym.AttrSubSymbol
++		if !s.Attr.CgoExportDynamic() {
++			s.SetDynimplib("") // satisfy dynimport
++		}
++		s.Value = int64(elfsym.value)
++		s.Size = int64(elfsym.size)
++		s.Outer = sect.sym
++		if sect.sym.Type == sym.STEXT {
++			if s.Attr.External() && !s.Attr.DuplicateOK() {
++				return errorf("%v: duplicate symbol definition", s)
++			}
++			s.Attr |= sym.AttrExternal
++		}
++
++		if elfobj.machine == ElfMachPower64 {
++			flag := int(elfsym.other) >> 5
++			if 2 <= flag && flag <= 6 {
++				s.SetLocalentry(1 << uint(flag-2))
++			} else if flag == 7 {
++				return errorf("%v: invalid sym.other 0x%x", s, elfsym.other)
++			}
++		}
++	}
++
++	// Sort outer lists by address, adding to textp.
++	// This keeps textp in increasing address order.
++	for i := uint(0); i < elfobj.nsect; i++ {
++		s := elfobj.sect[i].sym
++		if s == nil {
++			continue
++		}
++		if s.Sub != nil {
++			s.Sub = sym.SortSub(s.Sub)
++		}
++		if s.Type == sym.STEXT {
++			if s.Attr.OnList() {
++				return errorf("symbol %s listed multiple times", s.Name)
++			}
++			s.Attr |= sym.AttrOnList
++			textp = append(textp, s)
++			for s = s.Sub; s != nil; s = s.Sub {
++				if s.Attr.OnList() {
++					return errorf("symbol %s listed multiple times", s.Name)
++				}
++				s.Attr |= sym.AttrOnList
++				textp = append(textp, s)
++			}
++		}
++	}
++
++	// load relocations
++	for i := uint(0); i < elfobj.nsect; i++ {
++		rsect := &elfobj.sect[i]
++		if rsect.type_ != ElfSectRela && rsect.type_ != ElfSectRel {
++			continue
++		}
++		if rsect.info >= uint32(elfobj.nsect) || elfobj.sect[rsect.info].base == nil {
++			continue
++		}
++		sect = &elfobj.sect[rsect.info]
++		if err := elfmap(elfobj, rsect); err != nil {
++			return errorf("malformed elf file: %v", err)
++		}
++		rela := 0
++		if rsect.type_ == ElfSectRela {
++			rela = 1
++		}
++		n := int(rsect.size / uint64(4+4*is64) / uint64(2+rela))
++		r := make([]sym.Reloc, n)
++		p := rsect.base
++		for j := 0; j < n; j++ {
++			var add uint64
++			rp := &r[j]
++			var info uint64
++			if is64 != 0 {
++				// 64-bit rel/rela
++				rp.Off = int32(e.Uint64(p))
++
++				p = p[8:]
++				info = e.Uint64(p)
++				p = p[8:]
++				if rela != 0 {
++					add = e.Uint64(p)
++					p = p[8:]
++				}
++			} else {
++				// 32-bit rel/rela
++				rp.Off = int32(e.Uint32(p))
++
++				p = p[4:]
++				info = uint64(e.Uint32(p))
++				info = info>>8<<32 | info&0xff // convert to 64-bit info
++				p = p[4:]
++				if rela != 0 {
++					add = uint64(e.Uint32(p))
++					p = p[4:]
++				}
++			}
++
++			if info&0xffffffff == 0 { // skip R_*_NONE relocation
++				j--
++				n--
++				continue
++			}
++
++			if info>>32 == 0 { // absolute relocation, don't bother reading the null symbol
++				rp.Sym = nil
++			} else {
++				var elfsym ElfSym
++				if err := readelfsym(newSym, lookup, arch, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
++					return errorf("malformed elf file: %v", err)
++				}
++				elfsym.sym = symbols[info>>32]
++				if elfsym.sym == nil {
++					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", sect.sym.Name, j, int(info>>32), elfsym.name, elfsym.shndx, elfsym.type_)
++				}
++
++				rp.Sym = elfsym.sym
++			}
++
++			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(info)
++			rp.Siz, err = relSize(arch, pn, uint32(info))
++			if err != nil {
++				return nil, 0, err
++			}
++			if rela != 0 {
++				rp.Add = int64(add)
++			} else {
++				// load addend from image
++				if rp.Siz == 4 {
++					rp.Add = int64(e.Uint32(sect.base[rp.Off:]))
++				} else if rp.Siz == 8 {
++					rp.Add = int64(e.Uint64(sect.base[rp.Off:]))
++				} else {
++					return errorf("invalid rela size %d", rp.Siz)
++				}
++			}
++
++			if rp.Siz == 2 {
++				rp.Add = int64(int16(rp.Add))
++			}
++			if rp.Siz == 4 {
++				rp.Add = int64(int32(rp.Add))
++			}
++		}
++
++		//print("rel %s %d %d %s %#llx\n", sect->sym->name, rp->type, rp->siz, rp->sym->name, rp->add);
++		sort.Sort(sym.RelocByOff(r[:n]))
++		// just in case
++
++		s := sect.sym
++		s.R = r
++		s.R = s.R[:n]
++	}
++
++	return textp, ehdrFlags, nil
++}
++
++func section(elfobj *ElfObj, name string) *ElfSect {
++	for i := 0; uint(i) < elfobj.nsect; i++ {
++		if elfobj.sect[i].name != "" && name != "" && elfobj.sect[i].name == name {
++			return &elfobj.sect[i]
++		}
++	}
++	return nil
++}
++
++func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
++	if sect.base != nil {
++		return nil
++	}
++
++	if sect.off+sect.size > uint64(elfobj.length) {
++		err = fmt.Errorf("elf section past end of file")
++		return err
++	}
++
++	sect.base = make([]byte, sect.size)
++	elfobj.f.MustSeek(int64(uint64(elfobj.base)+sect.off), 0)
++	if _, err := io.ReadFull(elfobj.f, sect.base); err != nil {
++		return fmt.Errorf("short read: %v", err)
++	}
++
++	return nil
++}
++
++func readelfsym(newSym, lookup func(string, int) *sym.Symbol, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
++	if i >= elfobj.nsymtab || i < 0 {
++		err = fmt.Errorf("invalid elf symbol index")
++		return err
++	}
++
++	if i == 0 {
++		return fmt.Errorf("readym: read null symbol!")
++	}
++
++	if elfobj.is64 != 0 {
++		b := new(ElfSymBytes64)
++		binary.Read(bytes.NewReader(elfobj.symtab.base[i*ELF64SYMSIZE:(i+1)*ELF64SYMSIZE]), elfobj.e, b)
++		elfsym.name = cstring(elfobj.symstr.base[elfobj.e.Uint32(b.Name[:]):])
++		elfsym.value = elfobj.e.Uint64(b.Value[:])
++		elfsym.size = elfobj.e.Uint64(b.Size[:])
++		elfsym.shndx = elfobj.e.Uint16(b.Shndx[:])
++		elfsym.bind = b.Info >> 4
++		elfsym.type_ = b.Info & 0xf
++		elfsym.other = b.Other
++	} else {
++		b := new(ElfSymBytes)
++		binary.Read(bytes.NewReader(elfobj.symtab.base[i*ELF32SYMSIZE:(i+1)*ELF32SYMSIZE]), elfobj.e, b)
++		elfsym.name = cstring(elfobj.symstr.base[elfobj.e.Uint32(b.Name[:]):])
++		elfsym.value = uint64(elfobj.e.Uint32(b.Value[:]))
++		elfsym.size = uint64(elfobj.e.Uint32(b.Size[:]))
++		elfsym.shndx = elfobj.e.Uint16(b.Shndx[:])
++		elfsym.bind = b.Info >> 4
++		elfsym.type_ = b.Info & 0xf
++		elfsym.other = b.Other
++	}
++
++	var s *sym.Symbol
++	if elfsym.name == "_GLOBAL_OFFSET_TABLE_" {
++		elfsym.name = ".got"
++	}
++	if elfsym.name == ".TOC." {
++		// Magic symbol on ppc64.  Will be set to this object
++		// file's .got+0x8000.
++		elfsym.bind = ElfSymBindLocal
++	}
++
++	switch elfsym.type_ {
++	case ElfSymTypeSection:
++		s = elfobj.sect[elfsym.shndx].sym
++
++	case ElfSymTypeObject, ElfSymTypeFunc, ElfSymTypeNone, ElfSymTypeCommon:
++		switch elfsym.bind {
++		case ElfSymBindGlobal:
++			if needSym != 0 {
++				s = lookup(elfsym.name, 0)
++
++				// for global scoped hidden symbols we should insert it into
++				// symbol hash table, but mark them as hidden.
++				// __i686.get_pc_thunk.bx is allowed to be duplicated, to
++				// workaround that we set dupok.
++				// TODO(minux): correctly handle __i686.get_pc_thunk.bx without
++				// set dupok generally. See https://golang.org/cl/5823055
++				// comment #5 for details.
++				if s != nil && elfsym.other == 2 {
++					s.Attr |= sym.AttrDuplicateOK | sym.AttrVisibilityHidden
++				}
++			}
++
++		case ElfSymBindLocal:
++			if (arch.Family == sys.ARM || arch.Family == sys.ARM64) && (strings.HasPrefix(elfsym.name, "$a") || strings.HasPrefix(elfsym.name, "$d") || strings.HasPrefix(elfsym.name, "$x")) {
++				// binutils for arm and arm64 generate these mapping
++				// symbols, ignore these
++				break
++			}
++
++			if elfsym.name == ".TOC." {
++				// We need to be able to look this up,
++				// so put it in the hash table.
++				if needSym != 0 {
++					s = lookup(elfsym.name, localSymVersion)
++					s.Attr |= sym.AttrVisibilityHidden
++				}
++
++				break
++			}
++
++			if needSym != 0 {
++				// local names and hidden global names are unique
++				// and should only be referenced by their index, not name, so we
++				// don't bother to add them into the hash table
++				// FIXME: pass empty string here for name? This would
++				// reduce mem use, but also (possibly) make it harder
++				// to debug problems.
++				s = newSym(elfsym.name, localSymVersion)
++
++				s.Attr |= sym.AttrVisibilityHidden
++			}
++
++		case ElfSymBindWeak:
++			if needSym != 0 {
++				s = lookup(elfsym.name, 0)
++				if elfsym.other == 2 {
++					s.Attr |= sym.AttrVisibilityHidden
++				}
++
++				// Allow weak symbols to be duplicated when already defined.
++				if s.Outer != nil {
++					s.Attr |= sym.AttrDuplicateOK
++				}
++			}
++
++		default:
++			err = fmt.Errorf("%s: invalid symbol binding %d", elfsym.name, elfsym.bind)
++			return err
++		}
++	}
++
++	// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
++	// sense and should be removed when someone has thought about it properly.
++	if s != nil && s.Type == 0 && !s.Attr.VisibilityHidden() && elfsym.type_ != ElfSymTypeSection {
++		s.Type = sym.SXREF
++	}
++	elfsym.sym = s
++
++	return nil
++}
++
++func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
++	// TODO(mdempsky): Replace this with a struct-valued switch statement
++	// once golang.org/issue/15164 is fixed or found to not impair cmd/link
++	// performance.
++
++	const (
++		AMD64 = uint32(sys.AMD64)
++		ARM   = uint32(sys.ARM)
++		ARM64 = uint32(sys.ARM64)
++		I386  = uint32(sys.I386)
++		PPC64 = uint32(sys.PPC64)
++		S390X = uint32(sys.S390X)
++	)
++
++	switch uint32(arch.Family) | elftype<<16 {
++	default:
++		return 0, fmt.Errorf("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
++
++	case S390X | uint32(elf.R_390_8)<<16:
++		return 1, nil
++
++	case PPC64 | uint32(elf.R_PPC64_TOC16)<<16,
++		PPC64 | uint32(elf.R_PPC64_TOC16_LO)<<16,
++		PPC64 | uint32(elf.R_PPC64_TOC16_HI)<<16,
++		PPC64 | uint32(elf.R_PPC64_TOC16_HA)<<16,
++		PPC64 | uint32(elf.R_PPC64_TOC16_DS)<<16,
++		PPC64 | uint32(elf.R_PPC64_TOC16_LO_DS)<<16,
++		PPC64 | uint32(elf.R_PPC64_REL16_LO)<<16,
++		PPC64 | uint32(elf.R_PPC64_REL16_HI)<<16,
++		PPC64 | uint32(elf.R_PPC64_REL16_HA)<<16,
++		S390X | uint32(elf.R_390_16)<<16,
++		S390X | uint32(elf.R_390_GOT16)<<16,
++		S390X | uint32(elf.R_390_PC16)<<16,
++		S390X | uint32(elf.R_390_PC16DBL)<<16,
++		S390X | uint32(elf.R_390_PLT16DBL)<<16:
++		return 2, nil
++
++	case ARM | uint32(elf.R_ARM_ABS32)<<16,
++		ARM | uint32(elf.R_ARM_GOT32)<<16,
++		ARM | uint32(elf.R_ARM_PLT32)<<16,
++		ARM | uint32(elf.R_ARM_GOTOFF)<<16,
++		ARM | uint32(elf.R_ARM_GOTPC)<<16,
++		ARM | uint32(elf.R_ARM_THM_PC22)<<16,
++		ARM | uint32(elf.R_ARM_REL32)<<16,
++		ARM | uint32(elf.R_ARM_CALL)<<16,
++		ARM | uint32(elf.R_ARM_V4BX)<<16,
++		ARM | uint32(elf.R_ARM_GOT_PREL)<<16,
++		ARM | uint32(elf.R_ARM_PC24)<<16,
++		ARM | uint32(elf.R_ARM_JUMP24)<<16,
++		ARM64 | uint32(elf.R_AARCH64_CALL26)<<16,
++		ARM64 | uint32(elf.R_AARCH64_ADR_GOT_PAGE)<<16,
++		ARM64 | uint32(elf.R_AARCH64_LD64_GOT_LO12_NC)<<16,
++		ARM64 | uint32(elf.R_AARCH64_ADR_PREL_PG_HI21)<<16,
++		ARM64 | uint32(elf.R_AARCH64_ADD_ABS_LO12_NC)<<16,
++		ARM64 | uint32(elf.R_AARCH64_LDST8_ABS_LO12_NC)<<16,
++		ARM64 | uint32(elf.R_AARCH64_LDST32_ABS_LO12_NC)<<16,
++		ARM64 | uint32(elf.R_AARCH64_LDST64_ABS_LO12_NC)<<16,
++		ARM64 | uint32(elf.R_AARCH64_LDST128_ABS_LO12_NC)<<16,
++		ARM64 | uint32(elf.R_AARCH64_PREL32)<<16,
++		ARM64 | uint32(elf.R_AARCH64_JUMP26)<<16,
++		AMD64 | uint32(elf.R_X86_64_PC32)<<16,
++		AMD64 | uint32(elf.R_X86_64_PLT32)<<16,
++		AMD64 | uint32(elf.R_X86_64_GOTPCREL)<<16,
++		AMD64 | uint32(elf.R_X86_64_GOTPCRELX)<<16,
++		AMD64 | uint32(elf.R_X86_64_REX_GOTPCRELX)<<16,
++		I386 | uint32(elf.R_386_32)<<16,
++		I386 | uint32(elf.R_386_PC32)<<16,
++		I386 | uint32(elf.R_386_GOT32)<<16,
++		I386 | uint32(elf.R_386_PLT32)<<16,
++		I386 | uint32(elf.R_386_GOTOFF)<<16,
++		I386 | uint32(elf.R_386_GOTPC)<<16,
++		I386 | uint32(elf.R_386_GOT32X)<<16,
++		PPC64 | uint32(elf.R_PPC64_REL24)<<16,
++		PPC64 | uint32(elf.R_PPC_REL32)<<16,
++		S390X | uint32(elf.R_390_32)<<16,
++		S390X | uint32(elf.R_390_PC32)<<16,
++		S390X | uint32(elf.R_390_GOT32)<<16,
++		S390X | uint32(elf.R_390_PLT32)<<16,
++		S390X | uint32(elf.R_390_PC32DBL)<<16,
++		S390X | uint32(elf.R_390_PLT32DBL)<<16,
++		S390X | uint32(elf.R_390_GOTPCDBL)<<16,
++		S390X | uint32(elf.R_390_GOTENT)<<16:
++		return 4, nil
++
++	case AMD64 | uint32(elf.R_X86_64_64)<<16,
++		AMD64 | uint32(elf.R_X86_64_PC64)<<16,
++		ARM64 | uint32(elf.R_AARCH64_ABS64)<<16,
++		ARM64 | uint32(elf.R_AARCH64_PREL64)<<16,
++		PPC64 | uint32(elf.R_PPC64_ADDR64)<<16,
++		S390X | uint32(elf.R_390_GLOB_DAT)<<16,
++		S390X | uint32(elf.R_390_RELATIVE)<<16,
++		S390X | uint32(elf.R_390_GOTOFF)<<16,
++		S390X | uint32(elf.R_390_GOTPC)<<16,
++		S390X | uint32(elf.R_390_64)<<16,
++		S390X | uint32(elf.R_390_PC64)<<16,
++		S390X | uint32(elf.R_390_GOT64)<<16,
++		S390X | uint32(elf.R_390_PLT64)<<16:
++		return 8, nil
++	}
++}
++
++func cstring(x []byte) string {
++	i := bytes.IndexByte(x, '\x00')
++	if i >= 0 {
++		x = x[:i]
++	}
++	return string(x)
++}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 4ddffcc44b..757462db29 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1663,7 +1663,9 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 		nr += len(pp.relocs)
+ 		// create and install the sym.Symbol here so that l.Syms will
+ 		// be fully populated when we do relocation processing and
+-		// outer/sub processing below.
++		// outer/sub processing below. Note that once we do this,
++		// we'll need to get at the payload for a symbol with direct
++		// reference to l.payloads[] as opposed to calling l.getPayload().
+ 		s := l.allocSym(sname, 0)
+ 		l.installSym(i, s)
+ 		toConvert = append(toConvert, i)
+@@ -1701,46 +1703,11 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 		// Copy data
+ 		s.P = pp.data
+ 
+-		// Convert outer/sub relationships
+-		if outer, ok := l.outer[i]; ok {
+-			s.Outer = l.Syms[outer]
+-		}
+-		if sub, ok := l.sub[i]; ok {
+-			s.Sub = l.Syms[sub]
+-		}
++		// Transfer over attributes.
++		l.migrateAttributes(i, s)
+ 
+-		// Preprocess symbol.
++		// Preprocess symbol. May set 'AttrLocal'.
+ 		preprocess(arch, s)
+-
+-		// Convert attributes.
+-		// Note: this is an incomplete set; will be fixed up in
+-		// a subsequent patch.
+-		s.Attr.Set(sym.AttrReachable, l.attrReachable.has(i))
+-		s.Attr.Set(sym.AttrOnList, l.attrOnList.has(i))
+-		if l.attrLocal.has(i) {
+-			s.Attr.Set(sym.AttrLocal, true)
+-		}
+-
+-		// Set sub-symbol attribute. FIXME: would be better
+-		// to do away with this and just use l.OuterSymbol() != 0
+-		// elsewhere within the linker.
+-		s.Attr.Set(sym.AttrSubSymbol, s.Outer != nil)
+-
+-		// Copy over dynimplib, dynimpvers, extname.
+-		if l.SymExtname(i) != "" {
+-			s.SetExtname(l.SymExtname(i))
+-		}
+-		if l.SymDynimplib(i) != "" {
+-			s.SetDynimplib(l.SymDynimplib(i))
+-		}
+-		if l.SymDynimpvers(i) != "" {
+-			s.SetDynimpvers(l.SymDynimpvers(i))
+-		}
+-
+-		// Copy ELF type if set.
+-		if et, ok := l.elfType[i]; ok {
+-			s.SetElfType(et)
+-		}
+ 	}
+ 
+ 	// load contents of defined symbols
+@@ -1888,9 +1855,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
+ 		}
+ 
+ 		s := l.addNewSym(istart+Sym(i), name, ver, r.unit, t)
+-		// NB: this is an incomplete set of attributes; a more complete
+-		// attribute migration appears in a subsequent patch.
+-		s.Attr.Set(sym.AttrReachable, l.attrReachable.has(istart+Sym(i)))
++		l.migrateAttributes(istart+Sym(i), s)
+ 		nr += r.NReloc(i)
+ 	}
+ 	return nr
+@@ -2038,16 +2003,89 @@ func (l *Loader) cloneToExternal(symIdx Sym) Sym {
+ 		l.symsByName[sver][sname] = ns
+ 	}
+ 
++	// Copy over selected attributes / properties. This is
++	// probably overkill for most of these attributes, but it's
++	// simpler just to copy everything.
++	l.copyAttributes(symIdx, ns)
++	if l.SymExtname(symIdx) != "" {
++		l.SetSymExtname(ns, l.SymExtname(symIdx))
++	}
++	if l.SymDynimplib(symIdx) != "" {
++		l.SetSymDynimplib(ns, l.SymDynimplib(symIdx))
++	}
++	if l.SymDynimpvers(symIdx) != "" {
++		l.SetSymDynimpvers(ns, l.SymDynimpvers(symIdx))
++	}
++
+ 	// Add an overwrite entry (in case there are relocations against
+ 	// the old symbol).
+ 	l.overwrite[symIdx] = ns
+ 
+-	// FIXME: copy other attributes? reachable is the main one, and we
+-	// don't expect it to be set at this point.
+-
+ 	return ns
+ }
+ 
++// copyAttributes copies over all of the attributes of symbol 'src' to
++// symbol 'dst'. The assumption is that 'dst' is an external symbol.
++func (l *Loader) copyAttributes(src Sym, dst Sym) {
++	l.SetAttrReachable(dst, l.AttrReachable(src))
++	l.SetAttrOnList(dst, l.AttrOnList(src))
++	l.SetAttrLocal(dst, l.AttrLocal(src))
++	l.SetAttrVisibilityHidden(dst, l.AttrVisibilityHidden(src))
++	l.SetAttrDuplicateOK(dst, l.AttrDuplicateOK(src))
++	l.SetAttrShared(dst, l.AttrShared(src))
++	l.SetAttrExternal(dst, l.AttrExternal(src))
++	l.SetAttrTopFrame(dst, l.AttrTopFrame(src))
++	l.SetAttrSpecial(dst, l.AttrSpecial(src))
++	l.SetAttrCgoExportDynamic(dst, l.AttrCgoExportDynamic(src))
++	l.SetAttrCgoExportStatic(dst, l.AttrCgoExportStatic(src))
++}
++
++// migrateAttributes copies over all of the attributes of symbol 'src' to
++// sym.Symbol 'dst'.
++func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
++	src = l.getOverwrite(src)
++	dst.Attr.Set(sym.AttrReachable, l.AttrReachable(src))
++	dst.Attr.Set(sym.AttrOnList, l.AttrOnList(src))
++	dst.Attr.Set(sym.AttrLocal, l.AttrLocal(src))
++	dst.Attr.Set(sym.AttrVisibilityHidden, l.AttrVisibilityHidden(src))
++	dst.Attr.Set(sym.AttrDuplicateOK, l.AttrDuplicateOK(src))
++	dst.Attr.Set(sym.AttrShared, l.AttrShared(src))
++	dst.Attr.Set(sym.AttrExternal, l.AttrExternal(src))
++	dst.Attr.Set(sym.AttrTopFrame, l.AttrTopFrame(src))
++	dst.Attr.Set(sym.AttrSpecial, l.AttrSpecial(src))
++	dst.Attr.Set(sym.AttrCgoExportDynamic, l.AttrCgoExportDynamic(src))
++	dst.Attr.Set(sym.AttrCgoExportStatic, l.AttrCgoExportStatic(src))
++
++	// Convert outer/sub relationships
++	if outer, ok := l.outer[src]; ok {
++		dst.Outer = l.Syms[outer]
++	}
++	if sub, ok := l.sub[src]; ok {
++		dst.Sub = l.Syms[sub]
++	}
++
++	// Set sub-symbol attribute. FIXME: would be better to do away
++	// with this and just use l.OuterSymbol() != 0 elsewhere within
++	// the linker.
++	dst.Attr.Set(sym.AttrSubSymbol, dst.Outer != nil)
++
++	// Copy over dynimplib, dynimpvers, extname.
++	if l.SymExtname(src) != "" {
++		dst.SetExtname(l.SymExtname(src))
++	}
++	if l.SymDynimplib(src) != "" {
++		dst.SetDynimplib(l.SymDynimplib(src))
++	}
++	if l.SymDynimpvers(src) != "" {
++		dst.SetDynimpvers(l.SymDynimpvers(src))
++	}
++
++	// Copy ELF type if set.
++	if et, ok := l.elfType[src]; ok {
++		dst.SetElfType(et)
++	}
++}
++
+ // CreateExtSym creates a new external symbol with the specified name
+ // without adding it to any lookup tables, returning a Sym index for it.
+ func (l *Loader) CreateExtSym(name string) Sym {
+@@ -2396,6 +2434,36 @@ func patchDWARFName(s *sym.Symbol, r *oReader) {
+ 	}
+ }
+ 
++// UndefinedRelocTargets iterates through the global symbol index
++// space, looking for symbols with relocations targeting undefined
++// references. The linker's loadlib method uses this to determine if
++// there are unresolved references to functions in system libraries
++// (for example, libgcc.a), presumably due to CGO code. Return
++// value is a list of loader.Sym's corresponding to the undefined
++// cross-refs. The "limit" param controls the maximum number of
++// results returned; if "limit" is -1, then all undefs are returned.
++func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
++	result := []Sym{}
++	rslice := []Reloc{}
++	for si := Sym(1); si <= l.max; si++ {
++		if _, ok := l.overwrite[si]; ok {
++			continue
++		}
++		relocs := l.Relocs(si)
++		rslice = relocs.ReadAll(rslice)
++		for ri := 0; ri < relocs.Count; ri++ {
++			r := &rslice[ri]
++			if r.Sym != 0 && l.SymType(r.Sym) == sym.SXREF && l.RawSymName(r.Sym) != ".got" {
++				result = append(result, r.Sym)
++				if limit != -1 && len(result) >= limit {
++					break
++				}
++			}
++		}
++	}
++	return result
++}
++
+ // For debugging.
+ func (l *Loader) Dump() {
+ 	fmt.Println("objs")

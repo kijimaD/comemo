@@ -12,6 +12,20 @@ Date:   Thu Feb 29 06:58:29 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/internal/buildid/buildid_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/buildid/buildid_test.go b/src/cmd/internal/buildid/buildid_test.go
+index 8efa47346c..854e39f029 100644
+--- a/src/cmd/internal/buildid/buildid_test.go
++++ b/src/cmd/internal/buildid/buildid_test.go
+@@ -149,7 +149,7 @@ func TestReadFile(t *testing.T) {
+ 			// Because we clobbered the note type above,
+ 			// we don't expect to see a Go build ID.
+ 			// The issue we are testing for was a crash
+-			// in Readefile; see issue #62097.
++			// in Readfile; see issue #62097.
+ 			if id != "" || err != nil {
+ 				t.Errorf("ReadFile with zero ELF Align = %q, %v, want %q, nil", id, err, "")
+ 				continue

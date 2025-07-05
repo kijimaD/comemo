@@ -9,6 +9,19 @@ Date:   Mon Feb 13 11:46:48 2017 -0800
     Change-Id: If6a4c4f8d12e148b162256f13a8ee423f6e30637
     Reviewed-on: https://go-review.googlesource.com/36918
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 9ec0ae468b..7c7532b4e6 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -164,6 +164,7 @@ func checkStaleRuntime(t *testing.T) {
+ 			return
+ 		}
+ 		if string(out) != "false\n" {
++			t.Logf("go list -f {{.Stale}} runtime:\n%s", out)
+ 			staleRuntimeErr = fmt.Errorf("Stale runtime.a. Run 'go install runtime'.")
+ 		}
+ 	})

@@ -23,6 +23,24 @@ Date:   Wed Jun 9 11:31:27 2021 -0700
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/crypto/tls/key_agreement.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 8cfbd734f1..c28a64f3a8 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -86,7 +86,11 @@ func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello
+ 		return nil, nil, err
+ 	}
+ 
+-	encrypted, err := rsa.EncryptPKCS1v15(config.rand(), cert.PublicKey.(*rsa.PublicKey), preMasterSecret)
++	rsaKey, ok := cert.PublicKey.(*rsa.PublicKey)
++	if !ok {
++		return nil, nil, errors.New("tls: server certificate contains incorrect key type for selected ciphersuite")
++	}
++	encrypted, err := rsa.EncryptPKCS1v15(config.rand(), rsaKey, preMasterSecret)
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}

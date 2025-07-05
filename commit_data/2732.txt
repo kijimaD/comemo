@@ -8,7 +8,74 @@ Date:   Thu Jul 16 18:21:14 2009 -0700
     DELTA=34  (33 added, 0 deleted, 1 changed)
     OCL=31752
     CL=31754
-
+---
  src/pkg/reflect/all_test.go | 11 ++++++++++-
  src/pkg/reflect/type.go     | 24 ++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 52e85f411f..5a639fb754 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -214,9 +214,18 @@ func TestAll(t *testing.T) {	// TODO(r): wrap up better
+ 	styp := etyp.(*StructType);
+ 	f := styp.Field(0);
+ 	testType(t, 5, f.Type, "chan *int32");
+-	f = styp.Field(1);
++
++	f, present := styp.FieldByName("d");
++	if !present {
++		t.Errorf("FieldByName says present field is absent");
++	}
+ 	testType(t, 6, f.Type, "float32");
+ 
++	f, present = styp.FieldByName("absent");
++	if present {
++		t.Errorf("FieldByName says absent field is present");
++	}
++
+ 	typ = Typeof(([32]int32)(nil));
+ 	testType(t, 7, typ, "[32]int32");
+ 	testType(t, 8, typ.(*ArrayType).Elem(), "int32");
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index fe7619f85d..6a0b70a7a7 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -455,6 +455,7 @@ type StructField struct {
+ 	Type Type;
+ 	Tag string;
+ 	Offset uintptr;
++	Index int;
+ 	Anonymous bool;
+ }
+ 
+@@ -482,6 +483,29 @@ func (t *StructType) Field(i int) (f StructField) {
+ 	return;
+ }
+ 
++// FieldByName returns the field with the provided name and a boolean to indicate
++// that the field was found..
++func (t *StructType) FieldByName(name string) (f StructField, present bool) {
++	for i, p := range t.fields {
++		if p.name == nil || *p.name != name {
++			continue;
++		}
++		f.Name = *p.name;
++		f.Type = toType(*p.typ);
++		if p.pkgPath != nil {
++			f.PkgPath = *p.pkgPath;
++		}
++		if p.tag != nil {
++			f.Tag = *p.tag;
++		}
++		f.Offset = p.offset;
++		f.Index = i;
++		present = true;
++		break;
++	}
++	return;
++}
++
+ // NumField returns the number of struct fields.
+ func (t *StructType) NumField() int {
+ 	return len(t.fields);

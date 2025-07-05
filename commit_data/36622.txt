@@ -18,7 +18,44 @@ Date:   Wed May 9 17:35:10 2018 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go | 3 ++-
  test/codegen/rotate.go                 | 2 ++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 3bf6229467..cb4eb182af 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -93,9 +93,10 @@ func (t *Types) SetTypPtrs() {
+ 	t.UInt16 = types.Types[types.TUINT16]
+ 	t.UInt32 = types.Types[types.TUINT32]
+ 	t.UInt64 = types.Types[types.TUINT64]
++	t.Int = types.Types[types.TINT]
+ 	t.Float32 = types.Types[types.TFLOAT32]
+ 	t.Float64 = types.Types[types.TFLOAT64]
+-	t.Int = types.Types[types.TINT]
++	t.UInt = types.Types[types.TUINT]
+ 	t.Uintptr = types.Types[types.TUINTPTR]
+ 	t.String = types.Types[types.TSTRING]
+ 	t.BytePtr = types.NewPtr(types.Types[types.TUINT8])
+diff --git a/test/codegen/rotate.go b/test/codegen/rotate.go
+index 43d337a09c..5812e1c0b1 100644
+--- a/test/codegen/rotate.go
++++ b/test/codegen/rotate.go
+@@ -101,6 +101,7 @@ func rot64nc(x uint64, z uint) uint64 {
+ 	z &= 63
+ 
+ 	// amd64:"ROLQ"
++	// ppc64le:"ROTL"
+ 	a += x<<z | x>>(64-z)
+ 
+ 	// amd64:"RORQ"
+@@ -115,6 +116,7 @@ func rot32nc(x uint32, z uint) uint32 {
+ 	z &= 31
+ 
+ 	// amd64:"ROLL"
++	// ppc64le:"ROTLW"
+ 	a += x<<z | x>>(32-z)
+ 
+ 	// amd64:"RORL"

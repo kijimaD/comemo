@@ -7,6 +7,19 @@ Date:   Thu Jan 14 09:10:57 2016 -0800
     Change-Id: I6b1dc789e54a385c958961e7ba16bfd9d0f3b313
     Reviewed-on: https://go-review.googlesource.com/18629
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os3_solaris.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 3f2efa88c7..7bda07bd4a 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -540,7 +540,6 @@ func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-//go:noescape
+ func sigprocmask(how int32, set *sigset, oset *sigset) /* int32 */ {
+ 	sysvicall3(&libc_sigprocmask, uintptr(how), uintptr(unsafe.Pointer(set)), uintptr(unsafe.Pointer(oset)))
+ }

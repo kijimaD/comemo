@@ -8,6 +8,26 @@ Date:   Sat Jul 15 14:51:58 2017 -0600
     Reviewed-on: https://go-review.googlesource.com/48961
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/example_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index 473b8c3833..e9621522ef 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -234,6 +234,14 @@ func ExampleTrim() {
+ 	// Output: ["Achtung! Achtung"]
+ }
+ 
++func ExampleTrimFunc() {
++	f := func(c rune) bool {
++		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
++	}
++	fmt.Printf("[%q]", strings.TrimFunc("  Achtung1! Achtung2,...", f))
++	// Output: ["Achtung1! Achtung2"]
++}
++
+ func ExampleMap() {
+ 	rot13 := func(r rune) rune {
+ 		switch {

@@ -10,9 +10,74 @@ Date:   Tue Oct 29 21:02:35 2019 -0400
     Change-Id: I56d376df44a5f831134a130d052521cec6b5b781
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204104
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s | 3 +++
  src/cmd/internal/obj/s390x/a.out.go       | 3 +++
  src/cmd/internal/obj/s390x/anames.go      | 1 +
  src/cmd/internal/obj/s390x/asmz.go        | 6 ++++++
  4 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index ad5241f926..85adb476b7 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -284,6 +284,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	IPM	R3                     // b2220030
+ 	IPM	R12                    // b22200c0
+ 
++	SPM	R1                     // 0410
++	SPM	R10                    // 04a0
++
+ 	BRC	$7, 0(PC)              // a7740000
+ 	BNE	0(PC)                  // a7740000
+ 	BEQ	0(PC)                  // a7840000
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 7dcf3e8cfe..6768be0977 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -386,6 +386,9 @@ const (
+ 	// insert program mask
+ 	AIPM
+ 
++	// set program mask
++	ASPM
++
+ 	// compare and swap
+ 	ACS
+ 	ACSG
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index c3a76a0df0..d8556d8645 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -138,6 +138,7 @@ var Anames = []string{
+ 	"TMLH",
+ 	"TMLL",
+ 	"IPM",
++	"SPM",
+ 	"CS",
+ 	"CSG",
+ 	"SYNC",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 48353a4121..0402e8ce03 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -286,6 +286,9 @@ var optab = []Optab{
+ 	// insert program mask
+ 	{i: 92, as: AIPM, a1: C_REG},
+ 
++	// set program mask
++	{i: 76, as: ASPM, a1: C_REG},
++
+ 	// 32-bit access registers
+ 	{i: 68, as: AMOVW, a1: C_AREG, a6: C_REG},
+ 	{i: 68, as: AMOVWZ, a1: C_AREG, a6: C_REG},
+@@ -3630,6 +3633,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		}
+ 		c.addrilreloc(p.From.Sym, int64(i2))
+ 
++	case 76: // set program mask
++		zRR(op_SPM, uint32(p.From.Reg), 0, asm)
++
+ 	case 77: // syscall $constant
+ 		if p.From.Offset > 255 || p.From.Offset < 1 {
+ 			c.ctxt.Diag("illegal system call; system call number out of range: %v", p)

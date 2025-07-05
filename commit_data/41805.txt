@@ -20,10 +20,161 @@ Date:   Fri Sep 27 14:13:22 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/mgc.go         |  3 +--
  src/runtime/mgcmark.go     |  9 +--------
  src/runtime/proc.go        | 31 -------------------------------
  src/runtime/runtime2.go    |  1 -
  src/runtime/sizeof_test.go |  2 +-
  5 files changed, 3 insertions(+), 43 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index a7089dd879..4a2ae89391 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -2168,8 +2168,7 @@ func gcResetMarkState() {
+ 	// allgs doesn't change.
+ 	lock(&allglock)
+ 	for _, gp := range allgs {
+-		gp.gcscandone = false  // set to true in gcphasework
+-		gp.gcscanvalid = false // stack has not been scanned
++		gp.gcscandone = false // set to true in gcphasework
+ 		gp.gcAssistBytes = 0
+ 	}
+ 	unlock(&allglock)
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index adfdaced18..22e70ce157 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -125,8 +125,7 @@ func gcMarkRootCheck() {
+ fail:
+ 	println("gp", gp, "goid", gp.goid,
+ 		"status", readgstatus(gp),
+-		"gcscandone", gp.gcscandone,
+-		"gcscanvalid", gp.gcscanvalid)
++		"gcscandone", gp.gcscandone)
+ 	unlock(&allglock) // Avoid self-deadlock with traceback.
+ 	throw("scan missed a g")
+ }
+@@ -674,10 +673,6 @@ func gcFlushBgCredit(scanWork int64) {
+ //go:nowritebarrier
+ //go:systemstack
+ func scanstack(gp *g, gcw *gcWork) {
+-	if gp.gcscanvalid {
+-		return
+-	}
+-
+ 	if readgstatus(gp)&_Gscan == 0 {
+ 		print("runtime:scanstack: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", hex(readgstatus(gp)), "\n")
+ 		throw("scanstack - bad status")
+@@ -817,8 +812,6 @@ func scanstack(gp *g, gcw *gcWork) {
+ 	if state.buf != nil || state.freeBuf != nil {
+ 		throw("remaining pointer buffers")
+ 	}
+-
+-	gp.gcscanvalid = true
+ }
+ 
+ // Scan a stack frame: local variables and function arguments/results.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9e40bc8c94..9a553a5f88 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -710,18 +710,6 @@ func readgstatus(gp *g) uint32 {
+ 	return atomic.Load(&gp.atomicstatus)
+ }
+ 
+-// Ownership of gcscanvalid:
+-//
+-// If gp is running (meaning status == _Grunning or _Grunning|_Gscan),
+-// then gp owns gp.gcscanvalid, and other goroutines must not modify it.
+-//
+-// Otherwise, a second goroutine can lock the scan state by setting _Gscan
+-// in the status bit and then modify gcscanvalid, and then unlock the scan state.
+-//
+-// Note that the first condition implies an exception to the second:
+-// if a second goroutine changes gp's status to _Grunning|_Gscan,
+-// that second goroutine still does not have the right to modify gcscanvalid.
+-
+ // The Gscanstatuses are acting like locks and this releases them.
+ // If it proves to be a performance hit we should be able to make these
+ // simple atomic stores but for now we are going to throw if
+@@ -781,17 +769,6 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 		})
+ 	}
+ 
+-	if oldval == _Grunning && gp.gcscanvalid {
+-		// If oldvall == _Grunning, then the actual status must be
+-		// _Grunning or _Grunning|_Gscan; either way,
+-		// we own gp.gcscanvalid, so it's safe to read.
+-		// gp.gcscanvalid must not be true when we are running.
+-		systemstack(func() {
+-			print("runtime: casgstatus ", hex(oldval), "->", hex(newval), " gp.status=", hex(gp.atomicstatus), " gp.gcscanvalid=true\n")
+-			throw("casgstatus")
+-		})
+-	}
+-
+ 	// See https://golang.org/cl/21503 for justification of the yield delay.
+ 	const yieldDelay = 5 * 1000
+ 	var nextYield int64
+@@ -814,9 +791,6 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 			nextYield = nanotime() + yieldDelay/2
+ 		}
+ 	}
+-	if newval == _Grunning {
+-		gp.gcscanvalid = false
+-	}
+ }
+ 
+ // casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
+@@ -1585,7 +1559,6 @@ func oneNewExtraM() {
+ 	gp.syscallpc = gp.sched.pc
+ 	gp.syscallsp = gp.sched.sp
+ 	gp.stktopsp = gp.sched.sp
+-	gp.gcscanvalid = true
+ 	// malg returns status as _Gidle. Change to _Gdead before
+ 	// adding to allg where GC can see it. We use _Gdead to hide
+ 	// this from tracebacks and stack scans since it isn't a
+@@ -2815,9 +2788,6 @@ func goexit0(gp *g) {
+ 		gp.gcAssistBytes = 0
+ 	}
+ 
+-	// Note that gp's stack scan is now "valid" because it has no
+-	// stack.
+-	gp.gcscanvalid = true
+ 	dropg()
+ 
+ 	if GOARCH == "wasm" { // no threads yet on wasm
+@@ -3462,7 +3432,6 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
+ 	if isSystemGoroutine(newg, false) {
+ 		atomic.Xadd(&sched.ngsys, +1)
+ 	}
+-	newg.gcscanvalid = false
+ 	casgstatus(newg, _Gdead, _Grunnable)
+ 
+ 	if _p_.goidcache == _p_.goidcacheend {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 7630888a3d..a146f47446 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -422,7 +422,6 @@ type g struct {
+ 	preemptStop    bool       // transition to _Gpreempted on preemption; otherwise, just deschedule
+ 	paniconfault   bool       // panic (instead of crash) on unexpected fault address
+ 	gcscandone     bool       // g has scanned stack; protected by _Gscan bit in status
+-	gcscanvalid    bool       // false at start of gc cycle, true if G has not run since last scan; TODO: remove?
+ 	throwsplit     bool       // must not split stack
+ 	raceignore     int8       // ignore race detection events
+ 	sysblocktraced bool       // StartTrace has emitted EvGoInSyscall about this goroutine
+diff --git a/src/runtime/sizeof_test.go b/src/runtime/sizeof_test.go
+index 852244d425..406a38aad9 100644
+--- a/src/runtime/sizeof_test.go
++++ b/src/runtime/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{runtime.G{}, 216, 376}, // g, but exported for testing
++		{runtime.G{}, 212, 368}, // g, but exported for testing
+ 	}
+ 
+ 	for _, tt := range tests {

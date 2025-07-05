@@ -23,7 +23,127 @@ Date:   Sat Nov 21 17:43:16 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/buildid/buildid_test.go | 31 ++++++++++++++++++++
  src/cmd/internal/buildid/rewrite.go      | 50 ++++++++++++++++++++++++++++++++
  2 files changed, 81 insertions(+)
+
+diff --git a/src/cmd/internal/buildid/buildid_test.go b/src/cmd/internal/buildid/buildid_test.go
+index 904c2c6f37..e832f9987e 100644
+--- a/src/cmd/internal/buildid/buildid_test.go
++++ b/src/cmd/internal/buildid/buildid_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -146,3 +147,33 @@ func TestFindAndHash(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestExcludedReader(t *testing.T) {
++	const s = "0123456789abcdefghijklmn"
++	tests := []struct {
++		start, end int64    // excluded range
++		results    []string // expected results of reads
++	}{
++		{12, 15, []string{"0123456789", "ab\x00\x00\x00fghij", "klmn"}},                              // within one read
++		{8, 21, []string{"01234567\x00\x00", "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", "\x00lmn"}}, // across multiple reads
++		{10, 20, []string{"0123456789", "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", "klmn"}},         // a whole read
++		{0, 5, []string{"\x00\x00\x00\x00\x0056789", "abcdefghij", "klmn"}},                          // start
++		{12, 24, []string{"0123456789", "ab\x00\x00\x00\x00\x00\x00\x00\x00", "\x00\x00\x00\x00"}},   // end
++	}
++	p := make([]byte, 10)
++	for _, test := range tests {
++		r := &excludedReader{strings.NewReader(s), 0, test.start, test.end}
++		for _, res := range test.results {
++			n, err := r.Read(p)
++			if err != nil {
++				t.Errorf("read failed: %v", err)
++			}
++			if n != len(res) {
++				t.Errorf("unexpected number of bytes read: want %d, got %d", len(res), n)
++			}
++			if string(p[:n]) != res {
++				t.Errorf("unexpected bytes: want %q, got %q", res, p[:n])
++			}
++		}
++	}
++}
+diff --git a/src/cmd/internal/buildid/rewrite.go b/src/cmd/internal/buildid/rewrite.go
+index 5be54552a6..d3d2009d1c 100644
+--- a/src/cmd/internal/buildid/rewrite.go
++++ b/src/cmd/internal/buildid/rewrite.go
+@@ -6,7 +6,9 @@ package buildid
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/codesign"
+ 	"crypto/sha256"
++	"debug/macho"
+ 	"fmt"
+ 	"io"
+ )
+@@ -26,6 +28,11 @@ func FindAndHash(r io.Reader, id string, bufSize int) (matches []int64, hash [32
+ 	zeros := make([]byte, len(id))
+ 	idBytes := []byte(id)
+ 
++	// For Mach-O files, we want to exclude the code signature.
++	// The code signature contains hashes of the whole file (except the signature
++	// itself), including the buildid. So the buildid cannot contain the signature.
++	r = excludeMachoCodeSignature(r)
++
+ 	// The strategy is to read the file through buf, looking for id,
+ 	// but we need to worry about what happens if id is broken up
+ 	// and returned in parts by two different reads.
+@@ -89,3 +96,46 @@ func Rewrite(w io.WriterAt, pos []int64, id string) error {
+ 	}
+ 	return nil
+ }
++
++func excludeMachoCodeSignature(r io.Reader) io.Reader {
++	ra, ok := r.(io.ReaderAt)
++	if !ok {
++		return r
++	}
++	f, err := macho.NewFile(ra)
++	if err != nil {
++		return r
++	}
++	cmd, ok := codesign.FindCodeSigCmd(f)
++	if !ok {
++		return r
++	}
++	return &excludedReader{r, 0, int64(cmd.Dataoff), int64(cmd.Dataoff + cmd.Datasize)}
++}
++
++// excludedReader wraps an io.Reader. Reading from it returns the bytes from
++// the underlying reader, except that when the byte offset is within the
++// range between start and end, it returns zero bytes.
++type excludedReader struct {
++	r          io.Reader
++	off        int64 // current offset
++	start, end int64 // the range to be excluded (read as zero)
++}
++
++func (r *excludedReader) Read(p []byte) (int, error) {
++	n, err := r.r.Read(p)
++	if n > 0 && r.off+int64(n) > r.start && r.off < r.end {
++		cstart := r.start - r.off
++		if cstart < 0 {
++			cstart = 0
++		}
++		cend := r.end - r.off
++		if cend > int64(n) {
++			cend = int64(n)
++		}
++		zeros := make([]byte, cend-cstart)
++		copy(p[cstart:cend], zeros)
++	}
++	r.off += int64(n)
++	return n, err
++}

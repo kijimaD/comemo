@@ -20,7 +20,41 @@ Date:   Tue Oct 18 16:57:02 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/reader.go      | 9 +++++++--
  src/archive/tar/reader_test.go | 2 ++
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 5fb0b3df96..0d60d23b8b 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -363,8 +363,13 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 			sparseMap.WriteString(value)
+ 			sparseMap.Write([]byte{','})
+ 		} else {
+-			// Normal key. Set the value in the headers map.
+-			headers[keyStr] = value
++			// According to PAX specification, a value is stored only if it is
++			// non-empty. Otherwise, the key is deleted.
++			if len(value) > 0 {
++				headers[key] = value
++			} else {
++				delete(headers, key)
++			}
+ 		}
+ 	}
+ 	if sparseMap.Len() != 0 {
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 7d73be2232..b315af5ec3 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -1072,6 +1072,8 @@ func TestParsePAX(t *testing.T) {
+ 			map[string]string{"GNU.sparse.map": "0,1,2,3"}, true},
+ 		{"13 key1=haha\n13 key2=nana\n13 key3=kaka\n",
+ 			map[string]string{"key1": "haha", "key2": "nana", "key3": "kaka"}, true},
++		{"13 key1=val1\n13 key2=val2\n8 key1=\n",
++			map[string]string{"key2": "val2"}, true},
+ 	}
+ 
+ 	for i, v := range vectors {

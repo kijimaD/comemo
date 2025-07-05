@@ -17,8 +17,108 @@ Date:   Mon Dec 16 12:48:35 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/41590043
-
+---
  src/pkg/database/sql/fakedb_test.go |  6 ++++++
  src/pkg/database/sql/sql.go         | 17 +++++++++++++----
  src/pkg/database/sql/sql_test.go    | 29 +++++++++++++++++++++++++++++
  3 files changed, 48 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/database/sql/fakedb_test.go b/src/pkg/database/sql/fakedb_test.go
+index a8adfdd942..775f67d19e 100644
+--- a/src/pkg/database/sql/fakedb_test.go
++++ b/src/pkg/database/sql/fakedb_test.go
+@@ -686,7 +686,13 @@ func (rc *rowsCursor) Columns() []string {
+ 	return rc.cols
+ }
+ 
++var rowsCursorNextHook func(dest []driver.Value) error
++
+ func (rc *rowsCursor) Next(dest []driver.Value) error {
++	if rowsCursorNextHook != nil {
++		return rowsCursorNextHook(dest)
++	}
++
+ 	if rc.closed {
+ 		return errors.New("fakedb: cursor is closed")
+ 	}
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index f883ddbe90..fae109f252 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -1495,10 +1495,12 @@ type Rows struct {
+ 	closeStmt driver.Stmt // if non-nil, statement to Close on close
+ }
+ 
+-// Next prepares the next result row for reading with the Scan method.
+-// It returns true on success, false if there is no next result row.
+-// Every call to Scan, even the first one, must be preceded by a call
+-// to Next.
++// Next prepares the next result row for reading with the Scan method.  It
++// returns true on success, or false if there is no next result row or an error
++// happened while preparing it.  Err should be consulted to distinguish between
++// the two cases.
++//
++// Every call to Scan, even the first one, must be preceded by a call to Next.
+ func (rs *Rows) Next() bool {
+ 	if rs.closed {
+ 		return false
+@@ -1625,12 +1627,19 @@ func (r *Row) Scan(dest ...interface{}) error {
+ 	}
+ 
+ 	if !r.rows.Next() {
++		if err := r.rows.Err(); err != nil {
++			return err
++		}
+ 		return ErrNoRows
+ 	}
+ 	err := r.rows.Scan(dest...)
+ 	if err != nil {
+ 		return err
+ 	}
++	// Make sure the query can be processed to completion with no errors.
++	if err := r.rows.Close(); err != nil {
++		return err
++	}
+ 
+ 	return nil
+ }
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 093c0d64ca..a3720c4e76 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -660,6 +660,35 @@ func TestQueryRowClosingStmt(t *testing.T) {
+ 	}
+ }
+ 
++// Test issue 6651
++func TestIssue6651(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++
++	var v string
++
++	want := "error in rows.Next"
++	rowsCursorNextHook = func(dest []driver.Value) error {
++		return fmt.Errorf(want)
++	}
++	defer func() { rowsCursorNextHook = nil }()
++	err := db.QueryRow("SELECT|people|name|").Scan(&v)
++	if err == nil || err.Error() != want {
++		t.Errorf("error = %q; want %q", err, want)
++	}
++	rowsCursorNextHook = nil
++
++	want = "error in rows.Close"
++	rowsCloseHook = func(rows *Rows, err *error) {
++		*err = fmt.Errorf(want)
++	}
++	defer func() { rowsCloseHook = nil }()
++	err = db.QueryRow("SELECT|people|name|").Scan(&v)
++	if err == nil || err.Error() != want {
++		t.Errorf("error = %q; want %q", err, want)
++	}
++}
++
+ type nullTestRow struct {
+ 	nullParam    interface{}
+ 	notNullParam interface{}

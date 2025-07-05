@@ -14,6 +14,39 @@ Date:   Tue Jun 1 19:16:33 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/link_test.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 4d6bc76aca..4a580991ef 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -524,14 +524,13 @@ const testFuncAlignSrc = `
+ package main
+ import (
+ 	"fmt"
+-	"reflect"
+ )
+ func alignPc()
++var alignPcFnAddr uintptr
+ 
+ func main() {
+-	addr := reflect.ValueOf(alignPc).Pointer()
+-	if (addr % 512) != 0 {
+-		fmt.Printf("expected 512 bytes alignment, got %v\n", addr)
++	if alignPcFnAddr % 512 != 0 {
++		fmt.Printf("expected 512 bytes alignment, got %v\n", alignPcFnAddr)
+ 	} else {
+ 		fmt.Printf("PASS")
+ 	}
+@@ -546,6 +545,9 @@ TEXT	·alignPc(SB),NOSPLIT, $0-0
+ 	PCALIGN	$512
+ 	MOVD	$3, R1
+ 	RET
++
++GLOBL	·alignPcFnAddr(SB),RODATA,$8
++DATA	·alignPcFnAddr(SB)/8,$·alignPc(SB)
+ `
+ 
+ // TestFuncAlign verifies that the address of a function can be aligned

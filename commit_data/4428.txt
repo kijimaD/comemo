@@ -6,7 +6,35 @@ Date:   Tue Dec 15 16:20:37 2009 -0800
     
     R=ken2
     https://golang.org/cl/179070
-
+---
  src/cmd/gc/go.y          | 2 +-
  test/fixedbugs/bug232.go | 8 ++++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index a8b921db5a..6d86a6a99f 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1285,7 +1285,7 @@ indcl:
+ 	'(' oarg_type_list_ocomma ')' fnres
+ 	{
+ 		// without func keyword
+-		$2 = checkarglist($2, 0);
++		$2 = checkarglist($2, 1);
+ 		$$ = nod(OTFUNC, fakethis(), N);
+ 		$$->list = $2;
+ 		$$->rlist = $4;
+diff --git a/test/fixedbugs/bug232.go b/test/fixedbugs/bug232.go
+new file mode 100644
+index 0000000000..c0b8eb69ad
+--- /dev/null
++++ b/test/fixedbugs/bug232.go
+@@ -0,0 +1,8 @@
++// $G $D/$F.go
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++type I interface { X(...) }

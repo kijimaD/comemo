@@ -6,6 +6,22 @@ Date:   Tue Sep 16 21:49:10 2014 -0700
     
     CC=golang-codereviews
     https://golang.org/cl/145800043
-
+---
  doc/go1.4.txt | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index 5656a5cc89..f441a80238 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -26,8 +26,9 @@ os: implement symlink support for windows (CL 86160044)
+ reflect: add type.Comparable (CL 144020043)
+ runtime: implement monotonic clocks on windows (CL 108700045)
+ runtime/race: freebsd is supported (CL 107270043)
++sync/atomic: add Value (CL 136710045)
+ syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved (CL 106170043)
+-syscal: now frozen (CL 129820043)
++syscall: now frozen (CL 129820043)
+ testing: add Coverage (CL 98150043)
+ text/scanner: add IsIdentRune field of Scanner. (CL 108030044)
+ time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)

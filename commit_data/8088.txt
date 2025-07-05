@@ -8,6 +8,22 @@ Date:   Wed Apr 13 23:12:48 2011 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/4396048
-
+---
  src/lib9/create.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/lib9/create.c b/src/lib9/create.c
+index 59845ba91f..d7023aea02 100644
+--- a/src/lib9/create.c
++++ b/src/lib9/create.c
+@@ -37,9 +37,8 @@ THE SOFTWARE.
+ int
+ p9create(char *path, int mode, ulong perm)
+ {
+-	int fd, umode, rclose, rdwr;
++	int fd, umode, rclose;
+ 
+-	rdwr = mode&3;
+ 	rclose = mode&ORCLOSE;
+ 	mode &= ~ORCLOSE;
+ 

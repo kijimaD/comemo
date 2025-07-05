@@ -8,6 +8,25 @@ Date:   Fri Oct 31 09:59:29 2008 -0700
     DELTA=3  (2 added, 0 deleted, 1 changed)
     OCL=18232
     CL=18232
-
+---
  src/lib/reflect/type.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 06fab4be55..0d73944bb1 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -452,10 +452,12 @@ func init() {
+ 		functiontype
+ 	typename =
+ 		name '.' name
++	doublequotedstring = 
++		string in " ";  escapes are \0 (NUL) \n \t \" \\
+ 	fieldlist =
+ 		[ field { [ ',' | ';' ] field } ]
+ 	field =
+-		identifier stubtype
++		identifier stubtype [ doublequotedstring ]
+ 	arraytype =
+ 		'[' [ number ] ']' stubtype
+ 	structtype =

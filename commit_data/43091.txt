@@ -16,6 +16,52 @@ Date:   Mon Feb 24 21:08:12 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220842
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go | 30 +++++++++++++++++++++---------
  1 file changed, 21 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 629cd5cd27..25dda36293 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -571,19 +571,31 @@ func relocsym(target *Target, err *ErrorReporter, lookup LookupFn, syms *ArchSym
+ }
+ 
+ func (ctxt *Link) reloc() {
++	var wg sync.WaitGroup
+ 	target := &ctxt.Target
+ 	reporter := &ctxt.ErrorReporter
+ 	lookup := ctxt.Syms.ROLookup
+ 	syms := &ctxt.ArchSyms
+-	for _, s := range ctxt.Textp {
+-		relocsym(target, reporter, lookup, syms, s)
+-	}
+-	for _, s := range datap {
+-		relocsym(target, reporter, lookup, syms, s)
+-	}
+-	for _, s := range dwarfp {
+-		relocsym(target, reporter, lookup, syms, s)
+-	}
++	wg.Add(3)
++	go func() {
++		for _, s := range ctxt.Textp {
++			relocsym(target, reporter, lookup, syms, s)
++		}
++		wg.Done()
++	}()
++	go func() {
++		for _, s := range datap {
++			relocsym(target, reporter, lookup, syms, s)
++		}
++		wg.Done()
++	}()
++	go func() {
++		for _, s := range dwarfp {
++			relocsym(target, reporter, lookup, syms, s)
++		}
++		wg.Done()
++	}()
++	wg.Wait()
+ }
+ 
+ func windynrelocsym(ctxt *Link, rel, s *sym.Symbol) {

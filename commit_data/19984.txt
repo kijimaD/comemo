@@ -14,6 +14,34 @@ Date:   Fri Aug 8 20:13:57 2014 +0400
     R=khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/126870043
-
+---
  src/pkg/runtime/stack.c | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 0a806e8fab..772080af55 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -223,9 +223,11 @@ runtime·stackalloc(G *gp, uint32 n)
+ 			n2 >>= 1;
+ 		}
+ 		c = g->m->mcache;
+-		if(c == nil) {
+-			// This can happen in the guts of exitsyscall or
++		if(c == nil || g->m->gcing || g->m->helpgc) {
++			// c == nil can happen in the guts of exitsyscall or
+ 			// procresize. Just get a stack from the global pool.
++			// Also don't touch stackcache during gc
++			// as it's flushed concurrently.
+ 			runtime·lock(&stackpoolmu);
+ 			x = poolalloc(order);
+ 			runtime·unlock(&stackpoolmu);
+@@ -285,7 +287,7 @@ runtime·stackfree(G *gp, void *v, Stktop *top)
+ 		}
+ 		x = (MLink*)v;
+ 		c = g->m->mcache;
+-		if(c == nil) {
++		if(c == nil || g->m->gcing || g->m->helpgc) {
+ 			runtime·lock(&stackpoolmu);
+ 			poolfree(x, order);
+ 			runtime·unlock(&stackpoolmu);

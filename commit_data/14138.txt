@@ -17,6 +17,27 @@ Date:   Fri Oct 12 13:39:12 2012 +0800
     R=golang-dev, r, dave
     CC=golang-dev
     https://golang.org/cl/6655045
-
+---
  src/cmd/5l/l.h | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 68b6478581..36bf254e46 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -74,13 +74,12 @@ struct	Adr
+ 		char*	u0sbig;
+ 	} u0;
+ 	Sym*	sym;
++	Sym*	gotype;
++	int32	offset2; // argsize
+ 	char	type;
+-	uchar	index; // not used on arm, required by ld/go.c
+ 	char	reg;
+ 	char	name;
+-	int32	offset2; // argsize
+ 	char	class;
+-	Sym*	gotype;
+ };
+ 
+ #define	offset	u0.u0offset

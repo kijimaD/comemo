@@ -18,6 +18,20 @@ Date:   Tue Jan 8 19:59:08 2019 +0100
     Change-Id: I7653a6ea15ce111a60929c7ae7e9fb0dc9515502
     Reviewed-on: https://go-review.googlesource.com/c/156858
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index d8547e9f96..046be21093 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -135,7 +135,7 @@ go vet -vettool=$(which shadow)
+ 	Go 1.12 will translate the C type <code>EGLDisplay</code> to the Go type <code>uintptr</code>.
+ 	This change is similar to how Go 1.10 and newer treats Darwin's CoreFoundation
+ 	and Java's JNI types. See the
+-	<a href="https://golang.org/cmd/cgo/#hdr-Special_cases">cgo documentation</a>
++	<a href="/cmd/cgo/#hdr-Special_cases">cgo documentation</a>
+ 	for more information.
+ </p>
+ 

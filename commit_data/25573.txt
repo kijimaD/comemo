@@ -27,7 +27,57 @@ Date:   Fri Oct 30 14:25:28 2015 -0400
     Change-Id: I0e23e7a4ccf126cca000fed5067b20017028dd6b
     Reviewed-on: https://go-review.googlesource.com/16515
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mcentral.go |  4 ++++
  src/runtime/mgcsweep.go | 16 ++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 1e1f6fd13d..a09801a549 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -101,6 +101,10 @@ havespan:
+ 	if n == 0 {
+ 		throw("empty span")
+ 	}
++	usedBytes := uintptr(s.ref) * s.elemsize
++	if usedBytes > 0 {
++		reimburseSweepCredit(usedBytes)
++	}
+ 	if s.freelist.ptr() == nil {
+ 		throw("freelist empty")
+ 	}
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index fc92301857..84b6181b6e 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -354,6 +354,11 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ // also sweep pages (e.g., for a large allocation), it can pass a
+ // non-zero callerSweepPages to leave that many pages unswept.
+ //
++// deductSweepCredit makes a worst-case assumption that all spanBytes
++// bytes of the ultimately allocated span will be available for object
++// allocation. The caller should call reimburseSweepCredit if that
++// turns out not to be the case once the span is allocated.
++//
+ // deductSweepCredit is the core of the "proportional sweep" system.
+ // It uses statistics gathered by the garbage collector to perform
+ // enough sweeping so that all pages are swept during the concurrent
+@@ -379,6 +384,17 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
+ 	}
+ }
+ 
++// reimburseSweepCredit records that unusableBytes bytes of a
++// just-allocated span are not available for object allocation. This
++// offsets the worst-case charge performed by deductSweepCredit.
++func reimburseSweepCredit(unusableBytes uintptr) {
++	if mheap_.sweepPagesPerByte == 0 {
++		// Nobody cares about the credit. Avoid the atomic.
++		return
++	}
++	xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))
++}
++
+ func dumpFreeList(s *mspan) {
+ 	printlock()
+ 	print("runtime: free list of span ", s, ":\n")

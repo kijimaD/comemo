@@ -238,3 +238,4 @@ Date:   Tue Aug 25 14:45:41 2015 -0700
  test/fixedbugs/issue12133.go                       |  26 ++
  test/fixedbugs/issue12226.go                       |  15 +
  228 files changed, 5502 insertions(+), 3791 deletions(-)
+

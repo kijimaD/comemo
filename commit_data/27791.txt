@@ -9,7 +9,45 @@ Date:   Tue Apr 12 17:46:41 2016 -0700
     Change-Id: I70b8808f97f0e07de680e7e6ede1322ea0fdbbc0
     Reviewed-on: https://go-review.googlesource.com/21936
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go |  7 +++++++
  test/fixedbugs/issue11361.go        | 11 +++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 091762f496..ea2db8721a 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -540,8 +540,15 @@ func treecopy(n *Node, lineno int32) *Node {
+ 		}
+ 		return n
+ 
++	case OPACK:
++		// OPACK nodes are never valid in const value declarations,
++		// but allow them like any other declared symbol to avoid
++		// crashing (golang.org/issue/11361).
++		fallthrough
++
+ 	case ONAME, OLITERAL, OTYPE:
+ 		return n
++
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/issue11361.go b/test/fixedbugs/issue11361.go
+new file mode 100644
+index 0000000000..d01776b47c
+--- /dev/null
++++ b/test/fixedbugs/issue11361.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import "fmt"  // ERROR "imported and not used"
++
++const n = fmt // ERROR "fmt without selector" "fmt is not a constant"

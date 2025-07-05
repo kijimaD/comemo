@@ -13,7 +13,7 @@ Date:   Thu Sep 1 12:03:40 2011 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4968052
-
+---
  src/pkg/exp/template/html/Makefile       |   1 +
  src/pkg/exp/template/html/context.go     |  52 ++++-
  src/pkg/exp/template/html/escape.go      | 285 ++++++++++++++++++++++---
@@ -21,3 +21,1526 @@ Date:   Thu Sep 1 12:03:40 2011 +1000
  src/pkg/exp/template/html/js.go          | 344 ++++++++++++++++++++++++++++++
  src/pkg/exp/template/html/js_test.go     | 352 +++++++++++++++++++++++++++++++
  6 files changed, 1254 insertions(+), 60 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/Makefile b/src/pkg/exp/template/html/Makefile
+index 6d8ff5cd14..3a93bebc09 100644
+--- a/src/pkg/exp/template/html/Makefile
++++ b/src/pkg/exp/template/html/Makefile
+@@ -8,5 +8,6 @@ TARG=exp/template/html
+ GOFILES=\
+ 	context.go\
+ 	escape.go\
++	js.go\
+ 
+ include ../../../../Make.pkg
+diff --git a/src/pkg/exp/template/html/context.go b/src/pkg/exp/template/html/context.go
+index d8fed15867..428b3d0b3a 100644
+--- a/src/pkg/exp/template/html/context.go
++++ b/src/pkg/exp/template/html/context.go
+@@ -19,13 +19,14 @@ type context struct {
+ 	state   state
+ 	delim   delim
+ 	urlPart urlPart
++	jsCtx   jsCtx
+ 	errLine int
+ 	errStr  string
+ }
+ 
+ // eq returns whether two contexts are equal.
+ func (c context) eq(d context) bool {
+-	return c.state == d.state && c.delim == d.delim && c.urlPart == d.urlPart && c.errLine == d.errLine && c.errStr == d.errStr
++	return c.state == d.state && c.delim == d.delim && c.urlPart == d.urlPart && c.jsCtx == d.jsCtx && c.errLine == d.errLine && c.errStr == d.errStr
+ }
+ 
+ // state describes a high-level HTML parser state.
+@@ -50,17 +51,35 @@ const (
+ 	stateAttr
+ 	// stateURL occurs inside an HTML attribute whose content is a URL.
+ 	stateURL
++	// stateJS occurs inside an event handler or script element.
++	stateJS
++	// stateJSDqStr occurs inside a JavaScript double quoted string.
++	stateJSDqStr
++	// stateJSSqStr occurs inside a JavaScript single quoted string.
++	stateJSSqStr
++	// stateJSRegexp occurs inside a JavaScript regexp literal.
++	stateJSRegexp
++	// stateJSBlockCmt occurs inside a JavaScript /* block comment */.
++	stateJSBlockCmt
++	// stateJSLineCmt occurs inside a JavaScript // line comment.
++	stateJSLineCmt
+ 	// stateError is an infectious error state outside any valid
+ 	// HTML/CSS/JS construct.
+ 	stateError
+ )
+ 
+ var stateNames = [...]string{
+-	stateText:  "stateText",
+-	stateTag:   "stateTag",
+-	stateAttr:  "stateAttr",
+-	stateURL:   "stateURL",
+-	stateError: "stateError",
++	stateText:       "stateText",
++	stateTag:        "stateTag",
++	stateAttr:       "stateAttr",
++	stateURL:        "stateURL",
++	stateJS:         "stateJS",
++	stateJSDqStr:    "stateJSDqStr",
++	stateJSSqStr:    "stateJSSqStr",
++	stateJSRegexp:   "stateJSRegexp",
++	stateJSBlockCmt: "stateJSBlockCmt",
++	stateJSLineCmt:  "stateJSLineCmt",
++	stateError:      "stateError",
+ }
+ 
+ func (s state) String() string {
+@@ -131,3 +150,24 @@ func (u urlPart) String() string {
+ 	}
+ 	return fmt.Sprintf("illegal urlPart %d", u)
+ }
++
++// jsCtx determines whether a '/' starts a regular expression literal or a
++// division operator.
++type jsCtx uint8
++
++const (
++	// jsCtxRegexp occurs where a '/' would start a regexp literal.
++	jsCtxRegexp jsCtx = iota
++	// jsCtxDivOp occurs where a '/' would start a division operator.
++	jsCtxDivOp
++)
++
++func (c jsCtx) String() string {
++	switch c {
++	case jsCtxRegexp:
++		return "jsCtxRegexp"
++	case jsCtxDivOp:
++		return "jsCtxDivOp"
++	}
++	return fmt.Sprintf("illegal jsCtx %d", c)
++}
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index e7de81c4c6..0eb8dfec8d 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -33,7 +33,10 @@ func Escape(t *template.Template) (*template.Template, os.Error) {
+ 
+ // funcMap maps command names to functions that render their inputs safe.
+ var funcMap = template.FuncMap{
+-	"exp_template_html_urlfilter": urlFilter,
++	"exp_template_html_urlfilter":       urlFilter,
++	"exp_template_html_jsvalescaper":    jsValEscaper,
++	"exp_template_html_jsstrescaper":    jsStrEscaper,
++	"exp_template_html_jsregexpescaper": jsRegexpEscaper,
+ }
+ 
+ // escape escapes a template node.
+@@ -58,15 +61,16 @@ func escape(c context, n parse.Node) context {
+ 
+ // escapeAction escapes an action template node.
+ func escapeAction(c context, n *parse.ActionNode) context {
+-	sanitizer := "html"
+-	if c.state == stateURL {
++	s := make([]string, 0, 2)
++	switch c.state {
++	case stateURL:
+ 		switch c.urlPart {
+ 		case urlPartNone:
+-			sanitizer = "exp_template_html_urlfilter"
++			s = append(s, "exp_template_html_urlfilter")
+ 		case urlPartQueryOrFrag:
+-			sanitizer = "urlquery"
++			s = append(s, "urlquery")
+ 		case urlPartPreQuery:
+-			// The default "html" works here.
++			s = append(s, "html")
+ 		case urlPartUnknown:
+ 			return context{
+ 				state:   stateError,
+@@ -76,21 +80,94 @@ func escapeAction(c context, n *parse.ActionNode) context {
+ 		default:
+ 			panic(c.urlPart.String())
+ 		}
++	case stateJS:
++		s = append(s, "exp_template_html_jsvalescaper")
++		if c.delim != delimNone {
++			s = append(s, "html")
++		}
++	case stateJSDqStr, stateJSSqStr:
++		s = append(s, "exp_template_html_jsstrescaper")
++	case stateJSRegexp:
++		s = append(s, "exp_template_html_jsregexpescaper")
++	case stateJSBlockCmt, stateJSLineCmt:
++		return context{
++			state:   stateError,
++			errLine: n.Line,
++			errStr:  fmt.Sprintf("%s appears inside a comment", n),
++		}
++	default:
++		s = append(s, "html")
++	}
++	ensurePipelineContains(n.Pipe, s)
++	return c
++}
++
++// ensurePipelineContains ensures that the pipeline has commands with
++// the identifiers in s in order.
++// If the pipeline already has some of the sanitizers, do not interfere.
++// For example, if p is (.X | html) and s is ["escapeJSVal", "html"] then it
++// has one matching, "html", and one to insert, "escapeJSVal", to produce
++// (.X | escapeJSVal | html).
++func ensurePipelineContains(p *parse.PipeNode, s []string) {
++	if len(s) == 0 {
++		return
++	}
++	n := len(p.Cmds)
++	// Find the identifiers at the end of the command chain.
++	idents := p.Cmds
++	for i := n - 1; i >= 0; i-- {
++		if cmd := p.Cmds[i]; len(cmd.Args) != 0 {
++			if _, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
++				continue
++			}
++		}
++		idents = p.Cmds[i+1:]
+ 	}
+-	// If the pipe already ends with the sanitizer, do not interfere.
+-	if m := len(n.Pipe.Cmds); m != 0 {
+-		if last := n.Pipe.Cmds[m-1]; len(last.Args) != 0 {
+-			if i, ok := last.Args[0].(*parse.IdentifierNode); ok && i.Ident == sanitizer {
+-				return c
++	dups := 0
++	for _, id := range idents {
++		if s[dups] == (id.Args[0].(*parse.IdentifierNode)).Ident {
++			dups++
++			if dups == len(s) {
++				return
+ 			}
+ 		}
+ 	}
+-	// Otherwise, append the sanitizer.
+-	n.Pipe.Cmds = append(n.Pipe.Cmds, &parse.CommandNode{
++	newCmds := make([]*parse.CommandNode, n-len(idents), n+len(s)-dups)
++	copy(newCmds, p.Cmds)
++	// Merge existing identifier commands with the sanitizers needed.
++	for _, id := range idents {
++		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s)
++		if i != -1 {
++			for _, name := range s[:i] {
++				newCmds = append(newCmds, newIdentCmd(name))
++			}
++			s = s[i+1:]
++		}
++		newCmds = append(newCmds, id)
++	}
++	// Create any remaining sanitizers.
++	for _, name := range s {
++		newCmds = append(newCmds, newIdentCmd(name))
++	}
++	p.Cmds = newCmds
++}
++
++// indexOfStr is the least i such that strs[i] == s or -1 if s is not in strs.
++func indexOfStr(s string, strs []string) int {
++	for i, t := range strs {
++		if s == t {
++			return i
++		}
++	}
++	return -1
++}
++
++// newIdentCmd produces a command containing a single identifier node.
++func newIdentCmd(identifier string) *parse.CommandNode {
++	return &parse.CommandNode{
+ 		NodeType: parse.NodeCommand,
+-		Args:     []parse.Node{parse.NewIdentifier(sanitizer)},
+-	})
+-	return c
++		Args:     []parse.Node{parse.NewIdentifier(identifier)},
++	}
+ }
+ 
+ // join joins the two contexts of a branch template node. The result is an
+@@ -203,11 +280,17 @@ func escapeText(c context, s []byte) context {
+ // A transition function takes a context and template text input, and returns
+ // the updated context and any unconsumed text.
+ var transitionFunc = [...]func(context, []byte) (context, []byte){
+-	stateText:  tText,
+-	stateTag:   tTag,
+-	stateURL:   tURL,
+-	stateAttr:  tAttr,
+-	stateError: tError,
++	stateText:       tText,
++	stateTag:        tTag,
++	stateURL:        tURL,
++	stateJS:         tJS,
++	stateJSDqStr:    tJSStr,
++	stateJSSqStr:    tJSStr,
++	stateJSRegexp:   tJSRegexp,
++	stateJSBlockCmt: tJSBlockCmt,
++	stateJSLineCmt:  tJSLineCmt,
++	stateAttr:       tAttr,
++	stateError:      tError,
+ }
+ 
+ // tText is the context transition function for the text state.
+@@ -249,8 +332,11 @@ func tTag(c context, s []byte) (context, []byte) {
+ 		return context{state: stateTag}, nil
+ 	}
+ 	state := stateAttr
+-	if urlAttr[strings.ToLower(string(s[attrStart:i]))] {
++	canonAttrName := strings.ToLower(string(s[attrStart:i]))
++	if urlAttr[canonAttrName] {
+ 		state = stateURL
++	} else if strings.HasPrefix(canonAttrName, "on") {
++		state = stateJS
+ 	}
+ 
+ 	// Look for the start of the value.
+@@ -268,16 +354,17 @@ func tTag(c context, s []byte) (context, []byte) {
+ 	i = eatWhiteSpace(s, i+1)
+ 
+ 	// Find the attribute delimiter.
++	delim := delimSpaceOrTagEnd
+ 	if i < len(s) {
+ 		switch s[i] {
+ 		case '\'':
+-			return context{state: state, delim: delimSingleQuote}, s[i+1:]
++			delim, i = delimSingleQuote, i+1
+ 		case '"':
+-			return context{state: state, delim: delimDoubleQuote}, s[i+1:]
++			delim, i = delimDoubleQuote, i+1
+ 		}
+ 	}
+ 
+-	return context{state: state, delim: delimSpaceOrTagEnd}, s[i:]
++	return context{state: state, delim: delim}, s[i:]
+ }
+ 
+ // tAttr is the context transition function for the attribute state.
+@@ -295,6 +382,154 @@ func tURL(c context, s []byte) (context, []byte) {
+ 	return c, nil
+ }
+ 
++// tJS is the context transition function for the JS state.
++func tJS(c context, s []byte) (context, []byte) {
++	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
++	// has been merged.
++
++	i := bytes.IndexAny(s, `"'/`)
++	if i == -1 {
++		// Entire input is non string, comment, regexp tokens.
++		c.jsCtx = nextJSCtx(s, c.jsCtx)
++		return c, nil
++	}
++	c.jsCtx = nextJSCtx(s[:i], c.jsCtx)
++	switch s[i] {
++	case '"':
++		c.state, c.jsCtx = stateJSDqStr, jsCtxRegexp
++	case '\'':
++		c.state, c.jsCtx = stateJSSqStr, jsCtxRegexp
++	case '/':
++		switch {
++		case i+1 < len(s) && s[i+1] == '/':
++			c.state = stateJSLineCmt
++		case i+1 < len(s) && s[i+1] == '*':
++			c.state = stateJSBlockCmt
++		case c.jsCtx == jsCtxRegexp:
++			c.state = stateJSRegexp
++		default:
++			c.jsCtx = jsCtxRegexp
++		}
++	default:
++		panic("unreachable")
++	}
++	return c, s[i+1:]
++}
++
++// tJSStr is the context transition function for the JS string states.
++func tJSStr(c context, s []byte) (context, []byte) {
++	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
++	// has been merged.
++
++	quoteAndEsc := `\"`
++	if c.state == stateJSSqStr {
++		quoteAndEsc = `\'`
++	}
++
++	b := s
++	for {
++		i := bytes.IndexAny(b, quoteAndEsc)
++		if i == -1 {
++			return c, nil
++		}
++		if b[i] == '\\' {
++			i++
++			if i == len(b) {
++				return context{
++					state:  stateError,
++					errStr: fmt.Sprintf("unfinished escape sequence in JS string: %q", s),
++				}, nil
++			}
++		} else {
++			c.state, c.jsCtx = stateJS, jsCtxDivOp
++			return c, b[i+1:]
++		}
++		b = b[i+1:]
++	}
++	panic("unreachable")
++}
++
++// tJSRegexp is the context transition function for the /RegExp/ literal state.
++func tJSRegexp(c context, s []byte) (context, []byte) {
++	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
++	// has been merged.
++
++	b := s
++	inCharset := false
++	for {
++		i := bytes.IndexAny(b, `/[\]`)
++		if i == -1 {
++			break
++		}
++		switch b[i] {
++		case '/':
++			if !inCharset {
++				c.state, c.jsCtx = stateJS, jsCtxDivOp
++				return c, b[i+1:]
++			}
++		case '\\':
++			i++
++			if i == len(b) {
++				return context{
++					state:  stateError,
++					errStr: fmt.Sprintf("unfinished escape sequence in JS regexp: %q", s),
++				}, nil
++			}
++		case '[':
++			inCharset = true
++		case ']':
++			inCharset = false
++		default:
++			panic("unreachable")
++		}
++		b = b[i+1:]
++	}
++
++	if inCharset {
++		// This can be fixed by making context richer if interpolation
++		// into charsets is desired.
++		return context{
++			state:  stateError,
++			errStr: fmt.Sprintf("unfinished JS regexp charset: %q", s),
++		}, nil
++	}
++
++	return c, nil
++}
++
++var blockCommentEnd = []byte("*/")
++
++// tJSBlockCmt is the context transition function for the JS /*comment*/ state.
++func tJSBlockCmt(c context, s []byte) (context, []byte) {
++	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
++	// has been merged.
++
++	i := bytes.Index(s, blockCommentEnd)
++	if i == -1 {
++		return c, nil
++	}
++	c.state = stateJS
++	return c, s[i+2:]
++}
++
++// tJSLineCmt is the context transition function for the JS //comment state.
++func tJSLineCmt(c context, s []byte) (context, []byte) {
++	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
++	// has been merged.
++
++	i := bytes.IndexAny(s, "\r\n\u2028\u2029")
++	if i == -1 {
++		return c, nil
++	}
++	c.state = stateJS
++	// Per section 7.4 of EcmaScript 5 : http://es5.github.com/#x7.4
++	// "However, the LineTerminator at the end of the line is not
++	// considered to be part of the single-line comment; it is recognised
++	// separately by the lexical grammar and becomes part of the stream of
++	// input elements for the syntactic grammar."
++	return c, s[i:]
++}
++
+ // tError is the context transition function for the error state.
+ func tError(c context, s []byte) (context, []byte) {
+ 	return c, nil
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index a911c7d835..6f5ecf6ef3 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"strings"
+ 	"template"
++	"template/parse"
+ 	"testing"
+ )
+ 
+@@ -16,6 +17,8 @@ func TestEscape(t *testing.T) {
+ 		F, T    bool
+ 		C, G, H string
+ 		A, E    []string
++		N       int
++		Z       *int
+ 	}{
+ 		F: false,
+ 		T: true,
+@@ -24,9 +27,11 @@ func TestEscape(t *testing.T) {
+ 		H: "<Hello>",
+ 		A: []string{"<a>", "<b>"},
+ 		E: []string{},
++		N: 42,
++		Z: nil,
+ 	}
+ 
+-	var testCases = []struct {
++	tests := []struct {
+ 		name   string
+ 		input  string
+ 		output string
+@@ -141,29 +146,71 @@ func TestEscape(t *testing.T) {
+ 			`<a href="{{if .T}}/foo?a={{else}}/bar#{{end}}{{.C}}">`,
+ 			`<a href="/foo?a=%3CCincinatti%3E">`,
+ 		},
++		{
++			"jsStrValue",
++			"<button onclick='alert({{.H}})'>",
++			`<button onclick='alert(&#34;\u003cHello\u003e&#34;)'>`,
++		},
++		{
++			"jsNumericValue",
++			"<button onclick='alert({{.N}})'>",
++			`<button onclick='alert( 42 )'>`,
++		},
++		{
++			"jsBoolValue",
++			"<button onclick='alert({{.T}})'>",
++			`<button onclick='alert( true )'>`,
++		},
++		{
++			"jsNilValue",
++			"<button onclick='alert(typeof{{.Z}})'>",
++			`<button onclick='alert(typeof null )'>`,
++		},
++		{
++			"jsObjValue",
++			"<button onclick='alert({{.A}})'>",
++			`<button onclick='alert([&#34;\u003ca\u003e&#34;,&#34;\u003cb\u003e&#34;])'>`,
++		},
++		{
++			"jsObjValueNotOverEscaped",
++			"<button onclick='alert({{.A | html}})'>",
++			`<button onclick='alert([&#34;\u003ca\u003e&#34;,&#34;\u003cb\u003e&#34;])'>`,
++		},
++		{
++			"jsStr",
++			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
++			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
++		},
++		{
++			"jsStrNotUnderEscaped",
++			"<button onclick='alert({{.C | urlquery}})'>",
++			// URL escaped, then quoted for JS.
++			`<button onclick='alert(&#34;%3CCincinatti%3E&#34;)'>`,
++		},
++		{
++			"jsRe",
++			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
++			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
++		},
+ 	}
+ 
+-	for _, tc := range testCases {
+-		tmpl, err := template.New(tc.name).Parse(tc.input)
+-		if err != nil {
+-			t.Errorf("%s: template parsing failed: %s", tc.name, err)
+-			continue
+-		}
+-		Escape(tmpl)
++	for _, test := range tests {
++		tmpl := template.Must(template.New(test.name).Parse(test.input))
++		tmpl, err := Escape(tmpl)
+ 		b := new(bytes.Buffer)
+ 		if err = tmpl.Execute(b, data); err != nil {
+-			t.Errorf("%s: template execution failed: %s", tc.name, err)
++			t.Errorf("%s: template execution failed: %s", test.name, err)
+ 			continue
+ 		}
+-		if w, g := tc.output, b.String(); w != g {
+-			t.Errorf("%s: escaped output: want %q got %q", tc.name, w, g)
++		if w, g := test.output, b.String(); w != g {
++			t.Errorf("%s: escaped output: want\n\t%q\ngot\n\t%q", test.name, w, g)
+ 			continue
+ 		}
+ 	}
+ }
+ 
+ func TestErrors(t *testing.T) {
+-	var testCases = []struct {
++	tests := []struct {
+ 		input string
+ 		err   string
+ 	}{
+@@ -235,33 +282,53 @@ func TestErrors(t *testing.T) {
+ 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
+ 			"z:1: (action: [(command: [F=[H]])]) appears in an ambiguous URL context",
+ 		},
++		{
++			`<a onclick="alert('Hello \`,
++			`unfinished escape sequence in JS string: "Hello \\"`,
++		},
++		{
++			`<a onclick='alert("Hello\, World\`,
++			`unfinished escape sequence in JS string: "Hello\\, World\\"`,
++		},
++		{
++			`<a onclick='alert(/x+\`,
++			`unfinished escape sequence in JS regexp: "x+\\"`,
++		},
++		{
++			`<a onclick="/foo[\]/`,
++			`unfinished JS regexp charset: "foo[\\]/"`,
++		},
++		{
++			`<a onclick="/* alert({{.X}} */">`,
++			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
++		},
++		{
++			`<a onclick="// alert({{.X}}">`,
++			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
++		},
+ 	}
+ 
+-	for _, tc := range testCases {
+-		tmpl, err := template.New("z").Parse(tc.input)
+-		if err != nil {
+-			t.Errorf("input=%q: template parsing failed: %s", tc.input, err)
+-			continue
+-		}
++	for _, test := range tests {
++		tmpl := template.Must(template.New("z").Parse(test.input))
+ 		var got string
+ 		if _, err := Escape(tmpl); err != nil {
+ 			got = err.String()
+ 		}
+-		if tc.err == "" {
++		if test.err == "" {
+ 			if got != "" {
+-				t.Errorf("input=%q: unexpected error %q", tc.input, got)
++				t.Errorf("input=%q: unexpected error %q", test.input, got)
+ 			}
+ 			continue
+ 		}
+-		if strings.Index(got, tc.err) == -1 {
+-			t.Errorf("input=%q: error %q does not contain expected string %q", tc.input, got, tc.err)
++		if strings.Index(got, test.err) == -1 {
++			t.Errorf("input=%q: error %q does not contain expected string %q", test.input, got, test.err)
+ 			continue
+ 		}
+ 	}
+ }
+ 
+ func TestEscapeText(t *testing.T) {
+-	var testCases = []struct {
++	tests := []struct {
+ 		input  string
+ 		output context
+ 	}{
+@@ -378,18 +445,173 @@ func TestEscapeText(t *testing.T) {
+ 			`<input checked type="checkbox"`,
+ 			context{state: stateTag},
+ 		},
++		{
++			`<a onclick="`,
++			context{state: stateJS, delim: delimDoubleQuote},
++		},
++		{
++			`<a onclick="//foo`,
++			context{state: stateJSLineCmt, delim: delimDoubleQuote},
++		},
++		{
++			"<a onclick='//\n",
++			context{state: stateJS, delim: delimSingleQuote},
++		},
++		{
++			"<a onclick='//\r\n",
++			context{state: stateJS, delim: delimSingleQuote},
++		},
++		{
++			"<a onclick='//\u2028",
++			context{state: stateJS, delim: delimSingleQuote},
++		},
++		{
++			`<a onclick="/*`,
++			context{state: stateJSBlockCmt, delim: delimDoubleQuote},
++		},
++		{
++			`<a onkeypress="&quot;`,
++			context{state: stateJSDqStr, delim: delimDoubleQuote},
++		},
++		{
++			`<a onclick='&quot;foo&quot;`,
++			context{state: stateJS, delim: delimSingleQuote, jsCtx: jsCtxDivOp},
++		},
++		{
++			`<a onclick=&#39;foo&#39;`,
++			context{state: stateJS, delim: delimSpaceOrTagEnd, jsCtx: jsCtxDivOp},
++		},
++		{
++			`<a onclick=&#39;foo`,
++			context{state: stateJSSqStr, delim: delimSpaceOrTagEnd},
++		},
++		{
++			`<a onclick="&quot;foo'`,
++			context{state: stateJSDqStr, delim: delimDoubleQuote},
++		},
++		{
++			`<a onclick="'foo&quot;`,
++			context{state: stateJSSqStr, delim: delimDoubleQuote},
++		},
++		{
++			`<A ONCLICK="'`,
++			context{state: stateJSSqStr, delim: delimDoubleQuote},
++		},
++		{
++			`<a onclick="/`,
++			context{state: stateJSRegexp, delim: delimDoubleQuote},
++		},
++		{
++			`<a onclick="'foo'`,
++			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
++		},
++		{
++			`<a onclick="'foo\'`,
++			context{state: stateJSSqStr, delim: delimDoubleQuote},
++		},
++		{
++			`<a onclick="'foo\'`,
++			context{state: stateJSSqStr, delim: delimDoubleQuote},
++		},
++		{
++			`<a onclick="/foo/`,
++			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
++		},
++		{
++			`<a onclick="1 /foo`,
++			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
++		},
++		{
++			`<a onclick="1 /*c*/ /foo`,
++			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
++		},
++		{
++			`<a onclick="/foo[/]`,
++			context{state: stateJSRegexp, delim: delimDoubleQuote},
++		},
++		{
++			`<a onclick="/foo\/`,
++			context{state: stateJSRegexp, delim: delimDoubleQuote},
++		},
+ 	}
+ 
+-	for _, tc := range testCases {
+-		b := []byte(tc.input)
++	for _, test := range tests {
++		b := []byte(test.input)
+ 		c := escapeText(context{}, b)
+-		if !tc.output.eq(c) {
+-			t.Errorf("input %q: want context %v got %v", tc.input, tc.output, c)
++		if !test.output.eq(c) {
++			t.Errorf("input %q: want context\n\t%v\ngot\n\t%v", test.input, test.output, c)
+ 			continue
+ 		}
+-		if tc.input != string(b) {
+-			t.Errorf("input %q: text node was modified: want %q got %q", tc.input, tc.input, b)
++		if test.input != string(b) {
++			t.Errorf("input %q: text node was modified: want %q got %q", test.input, test.input, b)
+ 			continue
+ 		}
+ 	}
+ }
++
++func TestEnsurePipelineContains(t *testing.T) {
++	tests := []struct {
++		input, output string
++		ids           []string
++	}{
++		{
++			"{{.X}}",
++			"[(command: [F=[X]])]",
++			[]string{},
++		},
++		{
++			"{{.X | html}}",
++			"[(command: [F=[X]]) (command: [I=html])]",
++			[]string{},
++		},
++		{
++			"{{.X}}",
++			"[(command: [F=[X]]) (command: [I=html])]",
++			[]string{"html"},
++		},
++		{
++			"{{.X | html}}",
++			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
++			[]string{"urlquery"},
++		},
++		{
++			"{{.X | html | urlquery}}",
++			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
++			[]string{"urlquery"},
++		},
++		{
++			"{{.X | html | urlquery}}",
++			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
++			[]string{"html", "urlquery"},
++		},
++		{
++			"{{.X | html | urlquery}}",
++			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
++			[]string{"html"},
++		},
++		{
++			"{{.X | urlquery}}",
++			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
++			[]string{"html", "urlquery"},
++		},
++		{
++			"{{.X | html | print}}",
++			"[(command: [F=[X]]) (command: [I=urlquery]) (command: [I=html]) (command: [I=print])]",
++			[]string{"urlquery", "html"},
++		},
++	}
++	for _, test := range tests {
++		tmpl := template.Must(template.New("test").Parse(test.input))
++		action, ok := (tmpl.Tree.Root.Nodes[0].(*parse.ActionNode))
++		if !ok {
++			t.Errorf("First node is not an action: %s", test.input)
++			continue
++		}
++		pipe := action.Pipe
++		ensurePipelineContains(pipe, test.ids)
++		got := pipe.String()
++		if got != test.output {
++			t.Errorf("%s, %v: want\n\t%s\ngot\n\t%s", test.input, test.ids, test.output, got)
++		}
++	}
++}
+diff --git a/src/pkg/exp/template/html/js.go b/src/pkg/exp/template/html/js.go
+new file mode 100644
+index 0000000000..d29e0577ad
+--- /dev/null
++++ b/src/pkg/exp/template/html/js.go
+@@ -0,0 +1,344 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"bytes"
++	"fmt"
++	"json"
++	"strings"
++	"utf8"
++)
++
++// nextJSCtx returns the context that determines whether a slash after the
++// given run of tokens tokens starts a regular expression instead of a division
++// operator: / or /=.
++//
++// This assumes that the token run does not include any string tokens, comment
++// tokens, regular expression literal tokens, or division operators.
++//
++// This fails on some valid but nonsensical JavaScript programs like
++// "x = ++/foo/i" which is quite different than "x++/foo/i", but is not known to
++// fail on any known useful programs. It is based on the draft
++// JavaScript 2.0 lexical grammar and requires one token of lookbehind:
++// http://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
++func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
++	s = bytes.TrimRight(s, "\t\n\f\r \u2028\u2029")
++	if len(s) == 0 {
++		return preceding
++	}
++
++	// All cases below are in the single-byte UTF-8 group.
++	switch c, n := s[len(s)-1], len(s); c {
++	case '+', '-':
++		// ++ and -- are not regexp preceders, but + and - are whether
++		// they are used as infix or prefix operators.
++		start := n - 1
++		// Count the number of adjacent dashes or pluses.
++		for start > 0 && s[start-1] == c {
++			start--
++		}
++		if (n-start)&1 == 1 {
++			// Reached for trailing minus signs since "---" is the
++			// same as "-- -".
++			return jsCtxRegexp
++		}
++		return jsCtxDivOp
++	case '.':
++		// Handle "42."
++		if n != 1 && '0' <= s[n-2] && s[n-2] <= '9' {
++			return jsCtxDivOp
++		}
++		return jsCtxRegexp
++	// Suffixes for all punctuators from section 7.7 of the language spec
++	// that only end binary operators not handled above.
++	case ',', '<', '>', '=', '*', '%', '&', '|', '^', '?':
++		return jsCtxRegexp
++	// Suffixes for all punctuators from section 7.7 of the language spec
++	// that are prefix operators not handled above.
++	case '!', '~':
++		return jsCtxRegexp
++	// Matches all the punctuators from section 7.7 of the language spec
++	// that are open brackets not handled above.
++	case '(', '[':
++		return jsCtxRegexp
++	// Matches all the punctuators from section 7.7 of the language spec
++	// that precede expression starts.
++	case ':', ';', '{':
++		return jsCtxRegexp
++	// CAVEAT: the close punctuators ('}', ']', ')') precede div ops and
++	// are handled in the default except for '}' which can precede a
++	// division op as in
++	//    ({ valueOf: function () { return 42 } } / 2
++	// which is valid, but, in practice, developers don't divide object
++	// literals, so our heuristic works well for code like
++	//    function () { ... }  /foo/.test(x) && sideEffect();
++	// The ')' punctuator can precede a regular expression as in
++	//     if (b) /foo/.test(x) && ...
++	// but this is much less likely than
++	//     (a + b) / c
++	case '}':
++		return jsCtxRegexp
++	default:
++		// Look for an IdentifierName and see if it is a keyword that
++		// can precede a regular expression.
++		j := n
++		for j > 0 && isJSIdentPart(int(s[j-1])) {
++			j--
++		}
++		if regexpPrecederKeywords[string(s[j:])] {
++			return jsCtxRegexp
++		}
++	}
++	// Otherwise is a punctuator not listed above, or
++	// a string which precedes a div op, or an identifier
++	// which precedes a div op.
++	return jsCtxDivOp
++}
++
++// regexPrecederKeywords is a set of reserved JS keywords that can precede a
++// regular expression in JS source.
++var regexpPrecederKeywords = map[string]bool{
++	"break":      true,
++	"case":       true,
++	"continue":   true,
++	"delete":     true,
++	"do":         true,
++	"else":       true,
++	"finally":    true,
++	"in":         true,
++	"instanceof": true,
++	"return":     true,
++	"throw":      true,
++	"try":        true,
++	"typeof":     true,
++	"void":       true,
++}
++
++// jsValEscaper escapes its inputs to a JS Expression (section 11.14) that has
++// nether side-effects nor free variables outside (NaN, Infinity).
++func jsValEscaper(args ...interface{}) string {
++	var a interface{}
++	if len(args) == 1 {
++		a = args[0]
++	} else {
++		a = fmt.Sprint(args...)
++	}
++	// TODO: detect cycles before calling Marshal which loops infinitely on
++	// cyclic data. This may be an unnacceptable DoS risk.
++
++	// TODO: make sure that json.Marshal escapes codepoints U+2028 & U+2029
++	// so it falls within the subset of JSON which is valid JS and maybe
++	// post-process to prevent it from containing
++	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
++	// in case custom marshallers produce output containing those.
++
++	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
++
++	// TODO: JSON allows arbitrary unicode codepoints, but EcmaScript
++	// defines a SourceCharacter as either a UTF-16 or UCS-2 code-unit.
++	// Determine whether supplemental codepoints in UTF-8 encoded JS inside
++	// string literals are properly interpreted by major interpreters.
++
++	b, err := json.Marshal(a)
++	if err != nil {
++		// Put a space before comment so that if it is flush against
++		// a division operator it is not turned into a line comment:
++		//     x/{{y}}
++		// turning into
++		//     x//* error marshalling y:
++		//          second line of error message */null
++		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.String(), "*/", "* /", -1))
++	}
++	if len(b) != 0 {
++		first, _ := utf8.DecodeRune(b)
++		last, _ := utf8.DecodeLastRune(b)
++		if isJSIdentPart(first) || isJSIdentPart(last) {
++			return " " + string(b) + " "
++		}
++	}
++	return string(b)
++}
++
++// jsStrEscaper produces a string that can be included between quotes in
++// JavaScript source, in JavaScript embedded in an HTML5 <script> element,
++// or in an HTML5 event handler attribute such as onclick.
++func jsStrEscaper(args ...interface{}) string {
++	ok := false
++	var s string
++	if len(args) == 1 {
++		s, ok = args[0].(string)
++	}
++	if !ok {
++		s = fmt.Sprint(args...)
++	}
++	var b bytes.Buffer
++	written := 0
++	for i, r := range s {
++		var repl string
++		switch r {
++		// All cases must appear in the IndexAny call above.
++		case 0:
++			repl = `\0`
++		case '\t':
++			repl = `\t`
++		case '\n':
++			repl = `\n`
++		case '\v':
++			// "\v" == "v" on IE 6.
++			repl = `\x0b`
++		case '\f':
++			repl = `\f`
++		case '\r':
++			repl = `\r`
++		// Encode HTML specials as hex so the output can be embedded
++		// in HTML attributes without further encoding.
++		case '"':
++			repl = `\x22`
++		case '&':
++			repl = `\x26`
++		case '\'':
++			repl = `\x27`
++		case '+':
++			repl = `\x2b`
++		case '/':
++			repl = `\/`
++		case '<':
++			repl = `\x3c`
++		case '>':
++			repl = `\x3e`
++		case '\\':
++			repl = `\\`
++		case '\u2028':
++			repl = `\u2028`
++		case '\u2029':
++			repl = `\u2029`
++		default:
++			continue
++		}
++		b.WriteString(s[written:i])
++		b.WriteString(repl)
++		written = i + utf8.RuneLen(r)
++	}
++	if b.Len() == 0 {
++		return s
++	}
++	b.WriteString(s[written:])
++	return b.String()
++}
++
++// jsRegexpEscaper behaves like jsStrEscaper but escapes regular expression
++// specials so the result is treated literally when included in a regular
++// expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
++// the literal text of {{.X}} followed by the string "bar".
++func jsRegexpEscaper(args ...interface{}) string {
++	ok := false
++	var s string
++	if len(args) == 1 {
++		s, ok = args[0].(string)
++	}
++	if !ok {
++		s = fmt.Sprint(args...)
++	}
++	var b bytes.Buffer
++	written := 0
++	for i, r := range s {
++		var repl string
++		switch r {
++		// All cases must appear in the IndexAny call above.
++		case 0:
++			repl = `\0`
++		case '\t':
++			repl = `\t`
++		case '\n':
++			repl = `\n`
++		case '\v':
++			// "\v" == "v" on IE 6.
++			repl = `\x0b`
++		case '\f':
++			repl = `\f`
++		case '\r':
++			repl = `\r`
++		// Encode HTML specials as hex so the output can be embedded
++		// in HTML attributes without further encoding.
++		case '"':
++			repl = `\x22`
++		case '$':
++			repl = `\$`
++		case '&':
++			repl = `\x26`
++		case '\'':
++			repl = `\x27`
++		case '(':
++			repl = `\(`
++		case ')':
++			repl = `\)`
++		case '*':
++			repl = `\*`
++		case '+':
++			repl = `\x2b`
++		case '-':
++			repl = `\-`
++		case '.':
++			repl = `\.`
++		case '/':
++			repl = `\/`
++		case '<':
++			repl = `\x3c`
++		case '>':
++			repl = `\x3e`
++		case '?':
++			repl = `\?`
++		case '[':
++			repl = `\[`
++		case '\\':
++			repl = `\\`
++		case ']':
++			repl = `\]`
++		case '^':
++			repl = `\^`
++		case '{':
++			repl = `\{`
++		case '|':
++			repl = `\|`
++		case '}':
++			repl = `\}`
++		case '\u2028':
++			repl = `\u2028`
++		case '\u2029':
++			repl = `\u2029`
++		default:
++			continue
++		}
++		b.WriteString(s[written:i])
++		b.WriteString(repl)
++		written = i + utf8.RuneLen(r)
++	}
++	if b.Len() == 0 {
++		return s
++	}
++	b.WriteString(s[written:])
++	return b.String()
++}
++
++// isJSIdentPart is true if the given rune is a JS identifier part.
++// It does not handle all the non-Latin letters, joiners, and combining marks,
++// but it does handle every codepoint that can occur in a numeric literal or
++// a keyword.
++func isJSIdentPart(rune int) bool {
++	switch {
++	case '$' == rune:
++		return true
++	case '0' <= rune && rune <= '9':
++		return true
++	case 'A' <= rune && rune <= 'Z':
++		return true
++	case '_' == rune:
++		return true
++	case 'a' <= rune && rune <= 'z':
++		return true
++	}
++	return false
++}
+diff --git a/src/pkg/exp/template/html/js_test.go b/src/pkg/exp/template/html/js_test.go
+new file mode 100644
+index 0000000000..0a51a21673
+--- /dev/null
++++ b/src/pkg/exp/template/html/js_test.go
+@@ -0,0 +1,352 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"bytes"
++	"math"
++	"strings"
++	"testing"
++)
++
++func TestNextJsCtx(t *testing.T) {
++	tests := []struct {
++		jsCtx jsCtx
++		s     string
++	}{
++		// Statement terminators precede regexps.
++		{jsCtxRegexp, ";"},
++		// This is not airtight.
++		//     ({ valueOf: function () { return 1 } } / 2)
++		// is valid JavaScript but in practice, devs do not do this.
++		// A block followed by a statement starting with a RegExp is
++		// much more common:
++		//     while (x) {...} /foo/.test(x) || panic()
++		{jsCtxRegexp, "}"},
++		// But member, call, grouping, and array expression terminators
++		// precede div ops.
++		{jsCtxDivOp, ")"},
++		{jsCtxDivOp, "]"},
++		// At the start of a primary expression, array, or expression
++		// statement, expect a regexp.
++		{jsCtxRegexp, "("},
++		{jsCtxRegexp, "["},
++		{jsCtxRegexp, "{"},
++		// Assignment operators precede regexps as do all exclusively
++		// prefix and binary operators.
++		{jsCtxRegexp, "="},
++		{jsCtxRegexp, "+="},
++		{jsCtxRegexp, "*="},
++		{jsCtxRegexp, "*"},
++		{jsCtxRegexp, "!"},
++		// Whether the + or - is infix or prefix, it cannot precede a
++		// div op.
++		{jsCtxRegexp, "+"},
++		{jsCtxRegexp, "-"},
++		// An incr/decr op precedes a div operator.
++		// This is not airtight.  In (g = ++/h/i) a regexp follows a
++		// pre-increment operator, but in practice devs do not try to
++		// increment or decrement regular expressions.
++		// (g++/h/i) where ++ is a postfix operator on g is much more
++		// common.
++		{jsCtxDivOp, "--"},
++		{jsCtxDivOp, "++"},
++		{jsCtxDivOp, "x--"},
++		// When we have many dashes or pluses, then they are grouped
++		// left to right.
++		{jsCtxRegexp, "x---"}, // A postfix -- then a -.
++		// return followed by a slash returns the regexp literal or the
++		// slash starts a regexp literal in an expression statement that
++		// is dead code.
++		{jsCtxRegexp, "return"},
++		{jsCtxRegexp, "return "},
++		{jsCtxRegexp, "return\t"},
++		{jsCtxRegexp, "return\n"},
++		{jsCtxRegexp, "return\u2028"},
++		// Identifiers can be divided and cannot validly be preceded by
++		// a regular expressions.  Semicolon insertion cannot happen
++		// between an identifier and a regular expression on a new line
++		// because the one token lookahead for semicolon insertion has
++		// to conclude that it could be a div binary op and treat it as
++		// such.
++		{jsCtxDivOp, "x"},
++		{jsCtxDivOp, "x "},
++		{jsCtxDivOp, "x\t"},
++		{jsCtxDivOp, "x\n"},
++		{jsCtxDivOp, "x\u2028"},
++		{jsCtxDivOp, "preturn"},
++		// Numbers precede div ops.
++		{jsCtxDivOp, "0"},
++		// Dots that are part of a number are div preceders.
++		{jsCtxDivOp, "0."},
++	}
++
++	for _, test := range tests {
++		if nextJSCtx([]byte(test.s), jsCtxRegexp) != test.jsCtx {
++			t.Errorf("want %s got %q", test.jsCtx, test.s)
++		}
++		if nextJSCtx([]byte(test.s), jsCtxDivOp) != test.jsCtx {
++			t.Errorf("want %s got %q", test.jsCtx, test.s)
++		}
++	}
++
++	if nextJSCtx([]byte("   "), jsCtxRegexp) != jsCtxRegexp {
++		t.Error("Blank tokens")
++	}
++
++	if nextJSCtx([]byte("   "), jsCtxDivOp) != jsCtxDivOp {
++		t.Error("Blank tokens")
++	}
++}
++
++func TestJSValEscaper(t *testing.T) {
++	tests := []struct {
++		x  interface{}
++		js string
++	}{
++		{int(42), " 42 "},
++		{uint(42), " 42 "},
++		{int16(42), " 42 "},
++		{uint16(42), " 42 "},
++		{int32(-42), " -42 "},
++		{uint32(42), " 42 "},
++		{int16(-42), " -42 "},
++		{uint16(42), " 42 "},
++		{int64(-42), " -42 "},
++		{uint64(42), " 42 "},
++		{uint64(1) << 53, " 9007199254740992 "},
++		// ulp(1 << 53) > 1 so this loses precision in JS
++		// but it is still a representable integer literal.
++		{uint64(1)<<53 + 1, " 9007199254740993 "},
++		{float32(1.0), " 1 "},
++		{float32(-1.0), " -1 "},
++		{float32(0.5), " 0.5 "},
++		{float32(-0.5), " -0.5 "},
++		{float32(1.0) / float32(256), " 0.00390625 "},
++		{float32(0), " 0 "},
++		{math.Copysign(0, -1), " -0 "},
++		{float64(1.0), " 1 "},
++		{float64(-1.0), " -1 "},
++		{float64(0.5), " 0.5 "},
++		{float64(-0.5), " -0.5 "},
++		{float64(0), " 0 "},
++		{math.Copysign(0, -1), " -0 "},
++		{"", `""`},
++		{"foo", `"foo"`},
++		// Newlines.
++		// {"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`}, // TODO: FAILING.  Maybe fix in json package.
++		// "\v" == "v" on IE 6 so use "\x0b" instead.
++		{"\t\x0b", `"\u0009\u000b"`},
++		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`},
++		{[]interface{}{}, "[]"},
++		{[]interface{}{42, "foo", nil}, `[42,"foo",null]`},
++		{"<!--", `"\u003c!--"`},
++		{"-->", `"--\u003e"`},
++		{"<![CDATA[", `"\u003c![CDATA["`},
++		{"]]>", `"]]\u003e"`},
++		{"</script", `"\u003c/script"`},
++		{"\U0001D11E", "\"\U0001D11E\""}, // or "\uD834\uDD1E"
++	}
++
++	for _, test := range tests {
++		if js := jsValEscaper(test.x); js != test.js {
++			t.Errorf("%+v: want\n\t%q\ngot\n\t%q", test.x, test.js, js)
++		}
++		// Make sure that escaping corner cases are not broken
++		// by nesting.
++		a := []interface{}{test.x}
++		want := "[" + strings.TrimSpace(test.js) + "]"
++		if js := jsValEscaper(a); js != want {
++			t.Errorf("%+v: want\n\t%q\ngot\n\t%q", a, want, js)
++		}
++	}
++}
++
++func TestJSStrEscaper(t *testing.T) {
++	tests := []struct {
++		x   interface{}
++		esc string
++	}{
++		{"", ``},
++		{"foo", `foo`},
++		{"\u0000", `\0`},
++		{"\t", `\t`},
++		{"\n", `\n`},
++		{"\r", `\r`},
++		{"\u2028", `\u2028`},
++		{"\u2029", `\u2029`},
++		{"\\", `\\`},
++		{"\\n", `\\n`},
++		{"foo\r\nbar", `foo\r\nbar`},
++		// Preserve attribute boundaries.
++		{`"`, `\x22`},
++		{`'`, `\x27`},
++		// Allow embedding in HTML without further escaping.
++		{`&amp;`, `\x26amp;`},
++		// Prevent breaking out of text node and element boundaries.
++		{"</script>", `\x3c\/script\x3e`},
++		{"<![CDATA[", `\x3c![CDATA[`},
++		{"]]>", `]]\x3e`},
++		// http://dev.w3.org/html5/markup/aria/syntax.html#escaping-text-span
++		//   "The text in style, script, title, and textarea elements
++		//   must not have an escaping text span start that is not
++		//   followed by an escaping text span end."
++		// Furthermore, spoofing an escaping text span end could lead
++		// to different interpretation of a </script> sequence otherwise
++		// masked by the escaping text span, and spoofing a start could
++		// allow regular text content to be interpreted as script
++		// allowing script execution via a combination of a JS string
++		// injection followed by an HTML text injection.
++		{"<!--", `\x3c!--`},
++		{"-->", `--\x3e`},
++		// From http://code.google.com/p/doctype/wiki/ArticleUtf7
++		{"+ADw-script+AD4-alert(1)+ADw-/script+AD4-",
++			`\x2bADw-script\x2bAD4-alert(1)\x2bADw-\/script\x2bAD4-`,
++		},
++	}
++
++	for _, test := range tests {
++		esc := jsStrEscaper(test.x)
++		if esc != test.esc {
++			t.Errorf("%q: want %q got %q", test.x, test.esc, esc)
++		}
++	}
++}
++
++func TestJSRegexpEscaper(t *testing.T) {
++	tests := []struct {
++		x   interface{}
++		esc string
++	}{
++		{"", ``},
++		{"foo", `foo`},
++		{"\u0000", `\0`},
++		{"\t", `\t`},
++		{"\n", `\n`},
++		{"\r", `\r`},
++		{"\u2028", `\u2028`},
++		{"\u2029", `\u2029`},
++		{"\\", `\\`},
++		{"\\n", `\\n`},
++		{"foo\r\nbar", `foo\r\nbar`},
++		// Preserve attribute boundaries.
++		{`"`, `\x22`},
++		{`'`, `\x27`},
++		// Allow embedding in HTML without further escaping.
++		{`&amp;`, `\x26amp;`},
++		// Prevent breaking out of text node and element boundaries.
++		{"</script>", `\x3c\/script\x3e`},
++		{"<![CDATA[", `\x3c!\[CDATA\[`},
++		{"]]>", `\]\]\x3e`},
++		// Escaping text spans.
++		{"<!--", `\x3c!\-\-`},
++		{"-->", `\-\-\x3e`},
++		{"*", `\*`},
++		{"+", `\x2b`},
++		{"?", `\?`},
++		{"[](){}", `\[\]\(\)\{\}`},
++		{"$foo|x.y", `\$foo\|x\.y`},
++		{"x^y", `x\^y`},
++	}
++
++	for _, test := range tests {
++		esc := jsRegexpEscaper(test.x)
++		if esc != test.esc {
++			t.Errorf("%q: want %q got %q", test.x, test.esc, esc)
++		}
++	}
++}
++
++func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
++	input := ("\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f" +
++		"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
++		` !"#$%&'()*+,-./` +
++		`0123456789:;<=>?` +
++		`@ABCDEFGHIJKLMNO` +
++		`PQRSTUVWXYZ[\]^_` +
++		"`abcdefghijklmno" +
++		"pqrstuvwxyz{|}~\x7f" +
++		"\u00A0\u0100\u2028\u2029\ufeff\U0001D11E")
++
++	tests := []struct {
++		name    string
++		escaper func(...interface{}) string
++		escaped string
++	}{
++		{
++			"jsStrEscaper",
++			jsStrEscaper,
++			"\\0\x01\x02\x03\x04\x05\x06\x07" +
++				"\x08\\t\\n\\x0b\\f\\r\x0E\x0F" +
++				"\x10\x11\x12\x13\x14\x15\x16\x17" +
++				"\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
++				` !\x22#$%\x26\x27()*\x2b,-.\/` +
++				`0123456789:;\x3c=\x3e?` +
++				`@ABCDEFGHIJKLMNO` +
++				`PQRSTUVWXYZ[\\]^_` +
++				"`abcdefghijklmno" +
++				"pqrstuvwxyz{|}~\x7f" +
++				"\u00A0\u0100\\u2028\\u2029\ufeff\U0001D11E",
++		},
++		{
++			"jsRegexpEscaper",
++			jsRegexpEscaper,
++			"\\0\x01\x02\x03\x04\x05\x06\x07" +
++				"\x08\\t\\n\\x0b\\f\\r\x0E\x0F" +
++				"\x10\x11\x12\x13\x14\x15\x16\x17" +
++				"\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
++				` !\x22#\$%\x26\x27\(\)\*\x2b,\-\.\/` +
++				`0123456789:;\x3c=\x3e\?` +
++				`@ABCDEFGHIJKLMNO` +
++				`PQRSTUVWXYZ\[\\\]\^_` +
++				"`abcdefghijklmno" +
++				`pqrstuvwxyz\{\|\}~` + "\u007f" +
++				"\u00A0\u0100\\u2028\\u2029\ufeff\U0001D11E",
++		},
++	}
++
++	for _, test := range tests {
++		if s := test.escaper(input); s != test.escaped {
++			t.Errorf("%s once: want\n\t%q\ngot\n\t%q", test.name, test.escaped, s)
++			continue
++		}
++
++		// Escape it rune by rune to make sure that any
++		// fast-path checking does not break escaping.
++		var buf bytes.Buffer
++		for _, c := range input {
++			buf.WriteString(test.escaper(string(c)))
++		}
++
++		if s := buf.String(); s != test.escaped {
++			t.Errorf("%s rune-wise: want\n\t%q\ngot\n\t%q", test.name, test.escaped, s)
++			continue
++		}
++	}
++}
++
++func BenchmarkJSStrEscaperNoSpecials(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		jsStrEscaper("The quick, brown fox jumps over the lazy dog.")
++	}
++}
++
++func BenchmarkJSStrEscaper(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		jsStrEscaper("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
++	}
++}
++
++func BenchmarkJSRegexpEscaperNoSpecials(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		jsRegexpEscaper("The quick, brown fox jumps over the lazy dog")
++	}
++}
++
++func BenchmarkJSRegexpEscaper(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		jsRegexpEscaper("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
++	}
++}

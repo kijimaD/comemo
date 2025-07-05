@@ -10,7 +10,34 @@ Date:   Sun Mar 22 06:22:41 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/224590
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/netpoll_aix.go    | 2 +-
  src/runtime/netpoll_kqueue.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/netpoll_aix.go b/src/runtime/netpoll_aix.go
+index 76ee876771..c936fbb70f 100644
+--- a/src/runtime/netpoll_aix.go
++++ b/src/runtime/netpoll_aix.go
+@@ -128,7 +128,7 @@ func netpollarm(pd *pollDesc, mode int) {
+ 	unlock(&mtxset)
+ }
+ 
+-// netpollBreak interrupts an epollwait.
++// netpollBreak interrupts a poll.
+ func netpollBreak() {
+ 	netpollwakeup()
+ }
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 22902aa786..39d402252d 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -76,7 +76,7 @@ func netpollarm(pd *pollDesc, mode int) {
+ 	throw("runtime: unused")
+ }
+ 
+-// netpollBreak interrupts an epollwait.
++// netpollBreak interrupts a kevent.
+ func netpollBreak() {
+ 	for {
+ 		var b byte

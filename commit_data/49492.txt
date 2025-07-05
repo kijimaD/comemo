@@ -25,8 +25,301 @@ Date:   Fri Jul 30 15:55:31 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/internal/fuzz/coverage.go | 63 ++++++++++++++++++++++++++++++++++++-------
  src/internal/fuzz/fuzz.go     | 56 ++++++++++++++++++++------------------
  src/internal/fuzz/worker.go   | 24 ++++++++---------
  3 files changed, 95 insertions(+), 48 deletions(-)
+
+diff --git a/src/internal/fuzz/coverage.go b/src/internal/fuzz/coverage.go
+index bd1ff8690d..2468e70fa4 100644
+--- a/src/internal/fuzz/coverage.go
++++ b/src/internal/fuzz/coverage.go
+@@ -6,6 +6,7 @@ package fuzz
+ 
+ import (
+ 	"internal/unsafeheader"
++	"math/bits"
+ 	"unsafe"
+ )
+ 
+@@ -36,26 +37,70 @@ func ResetCoverage() {
+ }
+ 
+ // SnapshotCoverage copies the current counter values into coverageSnapshot,
+-// preserving them for later inspection.
++// preserving them for later inspection. SnapshotCoverage also rounds each
++// counter down to the nearest power of two. This lets the coordinator store
++// multiple values for each counter by OR'ing them together.
+ func SnapshotCoverage() {
+ 	cov := coverage()
+-	if coverageSnapshot == nil {
+-		coverageSnapshot = make([]byte, len(cov))
++	for i, b := range cov {
++		b |= b >> 1
++		b |= b >> 2
++		b |= b >> 4
++		b -= b >> 1
++		coverageSnapshot[i] = b
+ 	}
+-	copy(coverageSnapshot, cov)
+ }
+ 
+-func countEdges(cov []byte) int {
++// diffCoverage returns a set of bits set in snapshot but not in base.
++// If there are no new bits set, diffCoverage returns nil.
++func diffCoverage(base, snapshot []byte) []byte {
++	found := false
++	for i := range snapshot {
++		if snapshot[i]&^base[i] != 0 {
++			found = true
++			break
++		}
++	}
++	if !found {
++		return nil
++	}
++	diff := make([]byte, len(snapshot))
++	for i := range diff {
++		diff[i] = snapshot[i] &^ base[i]
++	}
++	return diff
++}
++
++// countNewCoverageBits returns the number of bits set in snapshot that are not
++// set in base.
++func countNewCoverageBits(base, snapshot []byte) int {
+ 	n := 0
+-	for _, c := range cov {
+-		if c > 0 {
+-			n++
++	for i := range snapshot {
++		n += bits.OnesCount8(snapshot[i] &^ base[i])
++	}
++	return n
++}
++
++// hasCoverageBit returns true if snapshot has at least one bit set that is
++// also set in base.
++func hasCoverageBit(base, snapshot []byte) bool {
++	for i := range snapshot {
++		if snapshot[i]&base[i] != 0 {
++			return true
+ 		}
+ 	}
++	return false
++}
++
++func countBits(cov []byte) int {
++	n := 0
++	for _, c := range cov {
++		n += bits.OnesCount8(c)
++	}
+ 	return n
+ }
+ 
+-var coverageSnapshot []byte
++var coverageSnapshot = make([]byte, len(coverage()))
+ 
+ // _counters and _ecounters mark the start and end, respectively, of where
+ // the 8-bit coverage counters reside in memory. They're known to cmd/link,
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 673727e291..419faac5ac 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -14,6 +14,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
++	"math/bits"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+@@ -235,8 +236,8 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 					stop(err)
+ 				}
+ 			} else if result.coverageData != nil {
+-				newEdges := c.updateCoverage(result.coverageData)
+-				if newEdges > 0 && !c.coverageOnlyRun() {
++				newBitCount := c.updateCoverage(result.coverageData)
++				if newBitCount > 0 && !c.coverageOnlyRun() {
+ 					// Found an interesting value that expanded coverage.
+ 					// This is not a crasher, but we should add it to the
+ 					// on-disk corpus, and prioritize it for future fuzzing.
+@@ -255,13 +256,13 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 					if printDebugInfo() {
+ 						fmt.Fprintf(
+ 							c.opts.Log,
+-							"DEBUG new interesting input, elapsed: %s, id: %s, parent: %s, gen: %d, new edges: %d, total edges: %d, size: %d, exec time: %s\n",
++							"DEBUG new interesting input, elapsed: %s, id: %s, parent: %s, gen: %d, new bits: %d, total bits: %d, size: %d, exec time: %s\n",
+ 							time.Since(c.startTime),
+ 							result.entry.Name,
+ 							result.entry.Parent,
+ 							result.entry.Generation,
+-							newEdges,
+-							countEdges(c.coverageData),
++							newBitCount,
++							countBits(c.coverageMask),
+ 							len(result.entry.Data),
+ 							result.entryDuration,
+ 						)
+@@ -271,10 +272,10 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 					if printDebugInfo() {
+ 						fmt.Fprintf(
+ 							c.opts.Log,
+-							"DEBUG processed an initial input, elapsed: %s, id: %s, new edges: %d, size: %d, exec time: %s\n",
++							"DEBUG processed an initial input, elapsed: %s, id: %s, new bits: %d, size: %d, exec time: %s\n",
+ 							time.Since(c.startTime),
+ 							result.entry.Parent,
+-							newEdges,
++							newBitCount,
+ 							len(result.entry.Data),
+ 							result.entryDuration,
+ 						)
+@@ -288,10 +289,10 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 						if printDebugInfo() {
+ 							fmt.Fprintf(
+ 								c.opts.Log,
+-								"DEBUG finished processing input corpus, elapsed: %s, entries: %d, initial coverage edges: %d\n",
++								"DEBUG finished processing input corpus, elapsed: %s, entries: %d, initial coverage bits: %d\n",
+ 								time.Since(c.startTime),
+ 								len(c.corpus.entries),
+-								countEdges(c.coverageData),
++								countBits(c.coverageMask),
+ 							)
+ 						}
+ 					}
+@@ -494,7 +495,13 @@ type coordinator struct {
+ 	// which corpus value to send next (or generates something new).
+ 	corpusIndex int
+ 
+-	coverageData []byte
++	// coverageMask aggregates coverage that was found for all inputs in the
++	// corpus. Each byte represents a single basic execution block. Each set bit
++	// within the byte indicates that an input has triggered that block at least
++	// 1 << n times, where n is the position of the bit in the byte. For example, a
++	// value of 12 indicates that separate inputs have triggered this block
++	// between 4-7 times and 8-15 times.
++	coverageMask []byte
+ }
+ 
+ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+@@ -535,7 +542,7 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+ 		c.covOnlyInputs = 0
+ 	} else {
+ 		// Set c.coverageData to a clean []byte full of zeros.
+-		c.coverageData = make([]byte, covSize)
++		c.coverageMask = make([]byte, covSize)
+ 	}
+ 
+ 	if c.covOnlyInputs > 0 {
+@@ -555,8 +562,6 @@ func (c *coordinator) updateStats(result fuzzResult) {
+ }
+ 
+ func (c *coordinator) logStats() {
+-	// TODO(jayconrod,katiehockman): consider printing the amount of coverage
+-	// that has been reached so far (perhaps a percentage of edges?)
+ 	elapsed := time.Since(c.startTime)
+ 	if c.coverageOnlyRun() {
+ 		fmt.Fprintf(c.opts.Log, "gathering baseline coverage, elapsed: %.1fs, workers: %d, left: %d\n", elapsed.Seconds(), c.opts.Parallel, c.covOnlyInputs)
+@@ -578,8 +583,9 @@ func (c *coordinator) nextInput() (fuzzInput, bool) {
+ 	input := fuzzInput{
+ 		entry:            c.corpus.entries[c.corpusIndex],
+ 		interestingCount: c.interestingCount,
+-		coverageData:     c.coverageData,
++		coverageData:     make([]byte, len(c.coverageMask)),
+ 	}
++	copy(input.coverageData, c.coverageMask)
+ 	c.corpusIndex = (c.corpusIndex + 1) % (len(c.corpus.entries))
+ 
+ 	if c.coverageOnlyRun() {
+@@ -607,22 +613,20 @@ func (c *coordinator) coverageOnlyRun() bool {
+ 	return c.covOnlyInputs > 0
+ }
+ 
+-// updateCoverage updates c.coverageData for all edges that have a higher
+-// counter value in newCoverage. It return true if a new edge was hit.
++// updateCoverage sets bits in c.coverageData that are set in newCoverage.
++// updateCoverage returns the number of newly set bits. See the comment on
++// coverageMask for the format.
+ func (c *coordinator) updateCoverage(newCoverage []byte) int {
+-	if len(newCoverage) != len(c.coverageData) {
+-		panic(fmt.Sprintf("num edges changed at runtime: %d, expected %d", len(newCoverage), len(c.coverageData)))
++	if len(newCoverage) != len(c.coverageMask) {
++		panic(fmt.Sprintf("number of coverage counters changed at runtime: %d, expected %d", len(newCoverage), len(c.coverageMask)))
+ 	}
+-	newEdges := 0
++	newBitCount := 0
+ 	for i := range newCoverage {
+-		if newCoverage[i] > c.coverageData[i] {
+-			if c.coverageData[i] == 0 {
+-				newEdges++
+-			}
+-			c.coverageData[i] = newCoverage[i]
+-		}
++		diff := newCoverage[i] &^ c.coverageMask[i]
++		newBitCount += bits.OnesCount8(diff)
++		c.coverageMask[i] |= newCoverage[i]
+ 	}
+-	return newEdges
++	return newBitCount
+ }
+ 
+ // readCache creates a combined corpus from seed values and values in the cache
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index e3029bcd66..de4f6b08b6 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -569,10 +569,10 @@ type workerServer struct {
+ 	workerComm
+ 	m *mutator
+ 
+-	// coverageData is the local coverage data for the worker. It is
++	// coverageMask is the local coverage data for the worker. It is
+ 	// periodically updated to reflect the data in the coordinator when new
+-	// edges are hit.
+-	coverageData []byte
++	// coverage is found.
++	coverageMask []byte
+ 
+ 	// fuzzFn runs the worker's fuzz function on the given input and returns
+ 	// an error if it finds a crasher (the process may also exit or crash).
+@@ -633,7 +633,7 @@ func (ws *workerServer) serve(ctx context.Context) error {
+ // the crashing input with this information, since the PRNG is deterministic.
+ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzResponse) {
+ 	if args.CoverageData != nil {
+-		ws.coverageData = args.CoverageData
++		ws.coverageMask = args.CoverageData
+ 	}
+ 	start := time.Now()
+ 	defer func() { resp.TotalDuration = time.Since(start) }()
+@@ -666,8 +666,8 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 		return resp
+ 	}
+ 
+-	if cov := coverage(); len(cov) != len(ws.coverageData) {
+-		panic(fmt.Sprintf("num edges changed at runtime: %d, expected %d", len(cov), len(ws.coverageData)))
++	if cov := coverage(); len(cov) != len(ws.coverageMask) {
++		panic(fmt.Sprintf("number of coverage counters changed at runtime: %d, expected %d", len(cov), len(ws.coverageMask)))
+ 	}
+ 	for {
+ 		select {
+@@ -687,13 +687,11 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 				}
+ 				return resp
+ 			}
+-			for i := range coverageSnapshot {
+-				if ws.coverageData[i] == 0 && coverageSnapshot[i] > ws.coverageData[i] {
+-					// TODO(jayconrod,katie): minimize this.
+-					resp.CoverageData = coverageSnapshot
+-					resp.InterestingDuration = fDur
+-					return resp
+-				}
++			if countNewCoverageBits(ws.coverageMask, coverageSnapshot) > 0 {
++				// TODO(jayconrod,katie): minimize this.
++				resp.CoverageData = coverageSnapshot
++				resp.InterestingDuration = fDur
++				return resp
+ 			}
+ 			if args.Limit > 0 && mem.header().count == args.Limit {
+ 				return resp

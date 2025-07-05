@@ -20,7 +20,75 @@ Date:   Wed Oct 31 11:31:31 2018 +0100
     Change-Id: Iec8eacb8563dbc574a82358b3bac7ac479c16826
     Reviewed-on: https://go-review.googlesource.com/c/146337
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/tcpsock_test.go | 31 +++++++++++++++++++++++++++++++
  src/runtime/time.go     | 10 +++++-----
  2 files changed, 36 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index c2f26b1770..36d2ccb09a 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -796,3 +796,34 @@ func TestCopyPipeIntoTCP(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func BenchmarkSetReadDeadline(b *testing.B) {
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		b.Fatal(err)
++	}
++	defer ln.Close()
++	var serv Conn
++	done := make(chan error)
++	go func() {
++		var err error
++		serv, err = ln.Accept()
++		done <- err
++	}()
++	c, err := Dial("tcp", ln.Addr().String())
++	if err != nil {
++		b.Fatal(err)
++	}
++	defer c.Close()
++	if err := <-done; err != nil {
++		b.Fatal(err)
++	}
++	defer serv.Close()
++	c.SetWriteDeadline(time.Now().Add(2 * time.Hour))
++	deadline := time.Now().Add(time.Hour)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		c.SetReadDeadline(deadline)
++		deadline = deadline.Add(1)
++	}
++}
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 790819f259..5e1a925dee 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -156,7 +156,7 @@ func (tb *timersBucket) addtimerLocked(t *timer) bool {
+ 	}
+ 	if t.i == 0 {
+ 		// siftup moved to top: new earliest deadline.
+-		if tb.sleeping {
++		if tb.sleeping && tb.sleepUntil > t.when {
+ 			tb.sleeping = false
+ 			notewakeup(&tb.waitnote)
+ 		}
+@@ -164,10 +164,10 @@ func (tb *timersBucket) addtimerLocked(t *timer) bool {
+ 			tb.rescheduling = false
+ 			goready(tb.gp, 0)
+ 		}
+-	}
+-	if !tb.created {
+-		tb.created = true
+-		go timerproc(tb)
++		if !tb.created {
++			tb.created = true
++			go timerproc(tb)
++		}
+ 	}
+ 	return true
+ }

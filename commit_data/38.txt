@@ -6,8 +6,64 @@ Date:   Wed Mar 26 16:12:43 2008 -0700
       no (optional) UTF-8 marker present.
     
     SVN=113931
-
+---
  test/char_lit.go   | 5 ++---
  test/runtests.sh   | 3 ++-
  test/string_lit.go | 8 ++++----
  3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/test/char_lit.go b/test/char_lit.go
+index 66ffec2085..6af96be9ca 100644
+--- a/test/char_lit.go
++++ b/test/char_lit.go
+@@ -9,9 +9,8 @@ package main
+ func main() {
+   [ ' ',
+     'a',
+-    // need to fix Coco/R scanner to read Unicode.
+-    // 'ä',
+-    //'本',
++    'ä',
++    '本',
+     '\a',
+     '\b',
+     '\f',
+diff --git a/test/runtests.sh b/test/runtests.sh
+index 48f512a4f4..9fb0f0ab13 100755
+--- a/test/runtests.sh
++++ b/test/runtests.sh
+@@ -3,6 +3,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ #!/bin/bash
++GO=$1
+ for f in *.go; do
+-  go $f
++  $GO $f
+ done
+diff --git a/test/string_lit.go b/test/string_lit.go
+index 568e7a511d..87f7dae3ac 100644
+--- a/test/string_lit.go
++++ b/test/string_lit.go
+@@ -11,8 +11,8 @@ func main() {
+     " ",
+     "'`",
+     "a",
+-    //"ä",
+-    //"本",
++    "ä",
++    "本",
+     "\a\b\f\n\r\t\v\\\'\"",
+     "\000\123\x00\xca\xFE\u0123\ubabe\U0123ABCD\Ucafebabe",
+     
+@@ -20,8 +20,8 @@ func main() {
+     ` `,
+     `'"`,
+     `a`,
+-    //`ä`,
+-    //`本`,
++    `ä`,
++    `本`,
+     `\a\b\f\n\r\t\v\\\'\"`,
+     `\000\123\x00\xca\xFE\u0123\ubabe\U0123ABCD\Ucafebabe`,
+     `\x\u\U\`

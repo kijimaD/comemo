@@ -15,6 +15,27 @@ Date:   Tue Nov 9 10:59:32 2021 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/pprof/pprof_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 417d5034a6..704c0c516d 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -494,6 +494,7 @@ func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, p
+ 	p := parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, labels map[string][]string) {
+ 		fmt.Fprintf(&buf, "%d:", count)
+ 		fprintStack(&buf, stk)
++		fmt.Fprintf(&buf, " labels: %v\n", labels)
+ 		samples += count
+ 		for i, spec := range need {
+ 			if matches(spec, count, stk, labels) {
+@@ -675,7 +676,6 @@ func fprintStack(w io.Writer, stk []*profile.Location) {
+ 		}
+ 		fmt.Fprintf(w, ")")
+ 	}
+-	fmt.Fprintf(w, "\n")
+ }
+ 
+ // Test that profiling of division operations is okay, especially on ARM. See issue 6681.

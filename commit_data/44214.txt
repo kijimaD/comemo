@@ -17,6 +17,20 @@ Date:   Wed May 27 11:37:00 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index a4c051bda6..e2de6286a0 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1249,7 +1249,7 @@ func (lv *Liveness) compact(b *ssa.Block) {
+ 		if go115ReduceLiveness {
+ 			hasStackMap := lv.hasStackMap(v)
+ 			isUnsafePoint := lv.allUnsafe || lv.unsafePoints.Get(int32(v.ID))
+-			idx := LivenessIndex{StackMapDontCare, 0, isUnsafePoint}
++			idx := LivenessIndex{StackMapDontCare, StackMapDontCare, isUnsafePoint}
+ 			if hasStackMap {
+ 				idx.stackMapIndex = lv.stackMapSet.add(lv.livevars[pos].vars)
+ 				pos++

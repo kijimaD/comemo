@@ -11,6 +11,27 @@ Date:   Fri Apr 3 09:23:19 2020 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  doc/install-source.html | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 3d42a10ad6..8f0d3a9d14 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -540,15 +540,9 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+ <td></td><td><code>android</code></td> <td><code>arm64</code></td>
+ </tr>
+ <tr>
+-<td></td><td><code>darwin</code></td> <td><code>386</code></td>
+-</tr>
+-<tr>
+ <td></td><td><code>darwin</code></td> <td><code>amd64</code></td>
+ </tr>
+ <tr>
+-<td></td><td><code>darwin</code></td> <td><code>arm</code></td>
+-</tr>
+-<tr>
+ <td></td><td><code>darwin</code></td> <td><code>arm64</code></td>
+ </tr>
+ <tr>

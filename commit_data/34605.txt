@@ -10,6 +10,24 @@ Date:   Thu Sep 28 11:12:16 2017 -0400
     Change-Id: If9a411c9235b78c116a8ffb21fef71f7a4a4ce8f
     Reviewed-on: https://go-review.googlesource.com/66890
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 4329e61e60..b59179fb3c 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3161,10 +3161,10 @@ type tcpKeepAliveListener struct {
+ 	*net.TCPListener
+ }
+ 
+-func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
++func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
+ 	tc, err := ln.AcceptTCP()
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 	tc.SetKeepAlive(true)
+ 	tc.SetKeepAlivePeriod(3 * time.Minute)

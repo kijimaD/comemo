@@ -19,9 +19,154 @@ Date:   Thu Nov 17 14:47:49 2011 -0800
     R=bradfitz
     CC=golang-dev, rsc
     https://golang.org/cl/5410043
-
+---
  lib/godoc/package.html | 18 +++++++++++++-----
  lib/godoc/package.txt  |  9 +++++----
  src/cmd/godoc/doc.go   |  7 ++++---
  src/cmd/godoc/godoc.go | 30 ++++++++++++++++++++++++++----
  4 files changed, 48 insertions(+), 16 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index e2889f5934..6c7be70588 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -141,17 +141,25 @@
+ 	<p>
+ 	<table class="layout">
+ 	<tr>
+-	<th align="left" colspan="{{html .MaxHeight}}">Name</th>
+-	<td width="25">&nbsp;</td>
++	{{if $.DirFlat}}
++		<th align="left">Name</th>
++	{{else}}
++		<th align="left" colspan="{{html .MaxHeight}}">Name</th>
++	{{end}}
++	<th width="25"></th>
+ 	<th align="left">Synopsis</th>
+ 	</tr>
+ 	<tr>
+-	<th align="left"><a href="..">..</a></th>
++	<td align="left"><a href="..">..</a></td>
+ 	</tr>
+ 	{{range .List}}
+ 		<tr>
+-		{{repeat `<td width="25"></td>` .Depth}}
+-		<td align="left" colspan="{{html .Height}}"><a href="{{html .Path}}">{{html .Name}}</a></td>
++		{{if $.DirFlat}}
++			<td align="left"><a href="{{html .Path}}">{{html .Path}}</a></td>
++		{{else}}
++			{{repeat `<td width="20"></td>` .Depth}}
++			<td align="left" colspan="{{html .Height}}"><a href="{{html .Path}}">{{html .Name}}</a></td>
++		{{end}}
+ 		<td></td>
+ 		<td align="left">{{html .Synopsis}}</td>
+ 		</tr>
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index 179b33493d..90d1dda103 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -76,7 +76,8 @@ OTHER PACKAGES
+ 
+ */}}{{with .Dirs}}
+ SUBDIRECTORIES
+-
+-{{range .List}}
+-	{{.Name}}{{end}}
+-{{end}}
++{{if $.DirFlat}}{{range .List}}
++	{{.Path}}{{end}}
++{{else}}{{range .List}}
++	{{repeat `. ` .Depth}}{{.Name}}{{end}}
++{{end}}{{end}}
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 53104152d9..acea2b5d06 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -134,10 +134,11 @@ The presentation mode of web pages served by godoc can be controlled with the
+ 	all	show documentation for all (not just exported) declarations
+ 	src	show the original source code rather then the extracted documentation
+ 	text	present the page in textual (command-line) form rather than HTML
++	flat	present flat (not indented) directory listings using full paths
+ 
+-For instance, http://golang.org/pkg/big/?m=all,text shows the documentation for
+-all (not just the exported) declarations of package big, in textual form (as
+-it would appear when using godoc from the command line: "godoc -src big .*").
++For instance, http://golang.org/pkg/math/big/?m=all,text shows the documentation
++for all (not just the exported) declarations of package big, in textual form (as
++it would appear when using godoc from the command line: "godoc -src math/big .*").
+ 
+ By default, godoc serves files from the file system of the underlying OS.
+ Instead, a .zip file may be provided via the -zip flag, which contains
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 9cc0352504..b66617431e 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -825,6 +825,7 @@ const (
+ 	noFiltering PageInfoMode = 1 << iota // do not filter exports
+ 	showSource                           // show source code, do not extract documentation
+ 	noHtml                               // show result in textual form, do not generate HTML
++	flatDir                              // show directory in a flat (non-indented) manner
+ )
+ 
+ // modeNames defines names for each PageInfoMode flag.
+@@ -832,18 +833,26 @@ var modeNames = map[string]PageInfoMode{
+ 	"all":  noFiltering,
+ 	"src":  showSource,
+ 	"text": noHtml,
++	"flat": flatDir,
+ }
+ 
+ // getPageInfoMode computes the PageInfoMode flags by analyzing the request
+ // URL form value "m". It is value is a comma-separated list of mode names
+ // as defined by modeNames (e.g.: m=src,text).
+-func getPageInfoMode(r *http.Request) (mode PageInfoMode) {
++func getPageInfoMode(r *http.Request) PageInfoMode {
++	var mode PageInfoMode
+ 	for _, k := range strings.Split(r.FormValue("m"), ",") {
+ 		if m, found := modeNames[strings.TrimSpace(k)]; found {
+ 			mode |= m
+ 		}
+ 	}
+-	return
++	return adjustPageInfoMode(r, mode)
++}
++
++// Specialized versions of godoc may adjust the PageInfoMode by overriding
++// this variable.
++var adjustPageInfoMode = func(_ *http.Request, mode PageInfoMode) PageInfoMode {
++	return mode
+ }
+ 
+ // remoteSearchURL returns the search URL for a given query as needed by
+@@ -868,8 +877,9 @@ type PageInfo struct {
+ 	Examples []*doc.Example  // nil if no example code
+ 	Dirs     *DirList        // nil if no directory information
+ 	DirTime  int64           // directory time stamp in seconds since epoch
++	DirFlat  bool            // if set, show directory in a flat (non-indented) manner
+ 	IsPkg    bool            // false if this is not documenting a real package
+-	Err      error           // directory read error or nil
++	Err      error           // I/O error or nil
+ }
+ 
+ func (info *PageInfo) IsEmpty() bool {
+@@ -1105,7 +1115,19 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 		timestamp = time.Seconds()
+ 	}
+ 
+-	return PageInfo{abspath, plist, fset, past, pdoc, examples, dir.listing(true), timestamp, h.isPkg, nil}
++	return PageInfo{
++		Dirname:  abspath,
++		PList:    plist,
++		FSet:     fset,
++		PAst:     past,
++		PDoc:     pdoc,
++		Examples: examples,
++		Dirs:     dir.listing(true),
++		DirTime:  timestamp,
++		DirFlat:  mode&flatDir != 0,
++		IsPkg:    h.isPkg,
++		Err:      nil,
++	}
+ }
+ 
+ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

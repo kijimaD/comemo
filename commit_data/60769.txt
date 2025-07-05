@@ -30,10 +30,196 @@ Date:   Mon Aug 5 16:10:14 2024 -0400
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/base/path.go                   | 38 +++++++++++++++++++++-
  src/cmd/go/internal/modload/load.go                |  2 +-
  src/cmd/go/internal/modload/modfile.go             |  5 ++-
  src/cmd/go/internal/workcmd/use.go                 | 13 ++++----
  .../script/work_use_symlink_issue68383.txt         | 23 +++++++++++++
  5 files changed, 72 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/path.go b/src/cmd/go/internal/base/path.go
+index 64f213b408..c17b14e67b 100644
+--- a/src/cmd/go/internal/base/path.go
++++ b/src/cmd/go/internal/base/path.go
+@@ -5,11 +5,14 @@
+ package base
+ 
+ import (
++	"errors"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+ 	"sync"
++
++	"cmd/go/internal/str"
+ )
+ 
+ var cwd string
+@@ -36,6 +39,9 @@ func Cwd() string {
+ }
+ 
+ // ShortPath returns an absolute or relative name for path, whatever is shorter.
++// There are rare cases where the path produced by ShortPath could be incorrect
++// so it should only be used when formatting paths for error messages, not to read
++// a file.
+ func ShortPath(path string) string {
+ 	if rel, err := filepath.Rel(Cwd(), path); err == nil && len(rel) < len(path) {
+ 		return rel
+@@ -43,12 +49,42 @@ func ShortPath(path string) string {
+ 	return path
+ }
+ 
++// ShortPathConservative is similar to ShortPath, but returns the input if the result of ShortPath
++// would meet conditions that could make it invalid. If the short path would reach into a
++// parent directory and the base path contains a symlink, a ".." component can
++// cross a symlink boundary. That could be a problem because the symlinks could be evaluated,
++// changing the relative location of the boundary, before the ".." terms are applied to
++// go to parents. The check here is a little more conservative: it checks
++// whether the path starts with a ../ or ..\ component, and if any of the parent directories
++// of the working directory are symlinks.
++// See #68383 for a case where this could happen.
++func ShortPathConservative(path string) string {
++	if rel, err := relConservative(Cwd(), path); err == nil && len(rel) < len(path) {
++		return rel
++	}
++	return path
++}
++
++func relConservative(basepath, targpath string) (string, error) {
++	relpath, err := filepath.Rel(basepath, targpath)
++	if err != nil {
++		return "", err
++	}
++	if strings.HasPrefix(relpath, str.WithFilePathSeparator("..")) {
++		expanded, err := filepath.EvalSymlinks(basepath)
++		if err != nil || expanded != basepath { // The basepath contains a symlink. Be conservative and reject it.
++			return "", errors.New("conservatively rejecting relative path that may be invalid")
++		}
++	}
++	return relpath, nil
++}
++
+ // RelPaths returns a copy of paths with absolute paths
+ // made relative to the current directory if they would be shorter.
+ func RelPaths(paths []string) []string {
+ 	var out []string
+ 	for _, p := range paths {
+-		rel, err := filepath.Rel(Cwd(), p)
++		rel, err := relConservative(Cwd(), p)
+ 		if err == nil && len(rel) < len(p) {
+ 			p = rel
+ 		}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index d1b49d4cca..933d40325e 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -668,7 +668,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
+ 		}
+ 		if inWorkspaceMode() {
+ 			if mr := findModuleRoot(absDir); mr != "" {
+-				return "", fmt.Errorf("%s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use %s", dirstr, base.ShortPath(mr))
++				return "", fmt.Errorf("%s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use %s", dirstr, base.ShortPathConservative(mr))
+ 			}
+ 			return "", fmt.Errorf("%s outside modules listed in go.work or their selected dependencies", dirstr)
+ 		}
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 257d3323b6..5b9edfbf02 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -30,7 +30,10 @@ import (
+ // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
+ // overlay, locks the file while reading, and applies fix, if applicable.
+ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfile.File, err error) {
+-	gomod = base.ShortPath(gomod) // use short path in any errors
++	// The path used to open the file shows up in errors. Use ShortPathConservative
++	// so a more convenient path is displayed in the errors. ShortPath isn't used
++	// because it's meant only to be used in errors, not to open files.
++	gomod = base.ShortPathConservative(gomod)
+ 	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+ 		// Don't lock go.mod if it's part of the overlay.
+ 		// On Plan 9, locking requires chmod, and we don't want to modify any file
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index 0cdbed6b18..e2c197c663 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -102,7 +102,7 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
+ 	lookDir := func(dir string) {
+ 		absDir, dir := pathRel(workDir, dir)
+ 
+-		file := base.ShortPath(filepath.Join(absDir, "go.mod"))
++		file := base.ShortPathConservative(filepath.Join(absDir, "go.mod"))
+ 		fi, err := fsys.Stat(file)
+ 		if err != nil {
+ 			if os.IsNotExist(err) {
+@@ -126,17 +126,18 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
+ 
+ 	for _, useDir := range args {
+ 		absArg, _ := pathRel(workDir, useDir)
++		useDirShort := base.ShortPathConservative(absArg) // relative to the working directory rather than the workspace
+ 
+-		info, err := fsys.Stat(base.ShortPath(absArg))
++		info, err := fsys.Stat(useDirShort)
+ 		if err != nil {
+ 			// Errors raised from os.Stat are formatted to be more user-friendly.
+ 			if os.IsNotExist(err) {
+-				err = fmt.Errorf("directory %v does not exist", base.ShortPath(absArg))
++				err = fmt.Errorf("directory %v does not exist", useDirShort)
+ 			}
+ 			sw.Error(err)
+ 			continue
+ 		} else if !info.IsDir() {
+-			sw.Error(fmt.Errorf("%s is not a directory", base.ShortPath(absArg)))
++			sw.Error(fmt.Errorf("%s is not a directory", useDirShort))
+ 			continue
+ 		}
+ 
+@@ -157,7 +158,7 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
+ 			if !info.IsDir() {
+ 				if info.Mode()&fs.ModeSymlink != 0 {
+ 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+-						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", base.ShortPath(path))
++						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", base.ShortPathConservative(path))
+ 					}
+ 				}
+ 				return nil
+@@ -209,7 +210,7 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
+ 		} else {
+ 			abs = filepath.Join(workDir, use.Path)
+ 		}
+-		_, mf, err := modload.ReadModFile(base.ShortPath(filepath.Join(abs, "go.mod")), nil)
++		_, mf, err := modload.ReadModFile(base.ShortPathConservative(filepath.Join(abs, "go.mod")), nil)
+ 		if err != nil {
+ 			sw.Error(err)
+ 			continue
+diff --git a/src/cmd/go/testdata/script/work_use_symlink_issue68383.txt b/src/cmd/go/testdata/script/work_use_symlink_issue68383.txt
+new file mode 100644
+index 0000000000..7bcc96d39b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_use_symlink_issue68383.txt
+@@ -0,0 +1,23 @@
++# This is a test for #68383, where go work use is used in a CWD
++# one of whose parent directories is a symlink, trying to use
++# a directory that exists in a subdirectory of a parent of that
++# directory.
++
++[!symlink] skip 'tests an issue involving symlinks'
++
++symlink sym -> a/b
++cd sym/c/d
++
++go work use $WORK/gopath/src/x/y    # "crosses" the symlink at $WORK/sym
++cmpenv go.work go.work.want  # Check that the relative path is not used
++
++-- x/y/go.mod --
++module example.com/y
++
++go 1.24
++-- a/b/c/d/go.work --
++go 1.24
++-- a/b/c/d/go.work.want --
++go 1.24
++
++use $WORK${/}gopath${/}src${/}x${/}y
+\ No newline at end of file

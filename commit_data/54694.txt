@@ -27,8 +27,75 @@ Date:   Wed Nov 9 09:42:04 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/base/path.go  | 15 +++++++++++++++
  src/cmd/go/internal/test/test.go  |  7 +++++--
  src/cmd/go/internal/work/build.go |  2 +-
  3 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/path.go b/src/cmd/go/internal/base/path.go
+index 4d8715ef5f..ebe4f153ed 100644
+--- a/src/cmd/go/internal/base/path.go
++++ b/src/cmd/go/internal/base/path.go
+@@ -7,6 +7,7 @@ package base
+ import (
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"sync"
+ )
+@@ -54,3 +55,17 @@ func IsTestFile(file string) bool {
+ 	// We don't cover tests, only the code they test.
+ 	return strings.HasSuffix(file, "_test.go")
+ }
++
++// IsNull reports whether the path is a common name for the null device.
++// It returns true for /dev/null on Unix, or NUL (case-insensitive) on Windows.
++func IsNull(path string) bool {
++	if path == os.DevNull {
++		return true
++	}
++	if runtime.GOOS == "windows" {
++		if strings.EqualFold(path, "NUL") {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 6ec32dfa1e..5a56009829 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1010,13 +1010,16 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 	if testC || testNeedBinary() {
+ 		// -c or profiling flag: create action to copy binary to ./test.out.
+ 		target := filepath.Join(base.Cwd(), testBinary+cfg.ExeSuffix)
++		isNull := false
+ 		if testO != "" {
+ 			target = testO
+-			if !filepath.IsAbs(target) {
++			if base.IsNull(target) {
++				isNull = true
++			} else if !filepath.IsAbs(target) {
+ 				target = filepath.Join(base.Cwd(), target)
+ 			}
+ 		}
+-		if target == os.DevNull {
++		if isNull {
+ 			runAction = buildAction
+ 		} else {
+ 			pmain.Target = target
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 98babc0024..848f07029f 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -482,7 +482,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	pkgs = omitTestOnly(pkgsFilter(pkgs))
+ 
+ 	// Special case -o /dev/null by not writing at all.
+-	if cfg.BuildO == os.DevNull {
++	if base.IsNull(cfg.BuildO) {
+ 		cfg.BuildO = ""
+ 	}
+ 

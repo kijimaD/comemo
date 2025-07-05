@@ -25,8 +25,98 @@ Date:   Thu Sep 30 10:04:46 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/noder.go       |  2 +-
  src/go/internal/gcimporter/gcimporter_test.go |  5 ++-
  test/typeparam/issue48424.go                  | 54 +++++++++++++++++++++++++++
  3 files changed, 58 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 7c14fcf041..2e7b636681 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -36,7 +36,7 @@ func LoadPackage(filenames []string) {
+ 
+ 	mode := syntax.CheckBranches
+ 	if supportsGenerics {
+-		mode |= syntax.AllowGenerics
++		mode |= syntax.AllowGenerics | syntax.AllowTypeSets
+ 	}
+ 
+ 	// Limit the number of simultaneously open files.
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 3a9ed79df6..825f735db9 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -165,8 +165,9 @@ func TestImportTypeparamTests(t *testing.T) {
+ 	}
+ 
+ 	skip := map[string]string{
+-		"equal.go":  "inconsistent embedded sorting", // TODO(rfindley): investigate this.
+-		"nested.go": "fails to compile",              // TODO(rfindley): investigate this.
++		"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
++		"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
++		"issue48424.go": "go/types support missing",      // TODO: need to implement this if #48424 is accepted
+ 	}
+ 
+ 	for _, entry := range list {
+diff --git a/test/typeparam/issue48424.go b/test/typeparam/issue48424.go
+new file mode 100644
+index 0000000000..b1238df697
+--- /dev/null
++++ b/test/typeparam/issue48424.go
+@@ -0,0 +1,54 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Smoke test for constraint literals with elided interface
++// per issue #48424.
++
++package main
++
++func identity[T int](x T) T {
++	return x
++}
++
++func min[T int|string](x, y T) T {
++	if x < y {
++		return x
++	}
++	return y
++}
++
++func max[T ~float64](x, y T) T {
++	if x > y {
++		return x
++	}
++	return y
++}
++
++func main() {
++	if identity(1) != 1 {
++		panic("identity(1) failed")
++	}
++
++	if min(2, 3) != 2 {
++		panic("min(2, 3) failed")
++	}
++
++	if min("foo", "bar") != "bar" {
++		panic(`min("foo", "bar") failed`)
++	}
++
++	if max(2, 3) != 3 {
++		panic("max(2, 3) failed")
++	}
++}
++
++// Some random type parameter lists with elided interfaces.
++
++type (
++	_ [T struct{}] struct{}
++	_ [M map[K]V, K comparable, V any] struct{}
++	_ [_ interface{}|int] struct{}
++)

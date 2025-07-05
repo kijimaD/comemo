@@ -11,7 +11,36 @@ Date:   Tue Sep 20 22:56:57 2016 +0100
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/math/big/int.go      | 5 +++++
  src/math/big/int_test.go | 1 +
  2 files changed, 6 insertions(+)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index f2a75d1cd5..6c08843861 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -577,6 +577,11 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
+ // ModInverse sets z to the multiplicative inverse of g in the ring ℤ/nℤ
+ // and returns z. If g and n are not relatively prime, the result is undefined.
+ func (z *Int) ModInverse(g, n *Int) *Int {
++	if g.neg {
++		// GCD expects parameters a and b to be > 0.
++		var g2 Int
++		g = g2.Mod(g, n)
++	}
+ 	var d Int
+ 	d.GCD(z, nil, g, n)
+ 	// x and y are such that g*x + n*y = d. Since g and n are
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index fcc2ebc9ba..0cae4a12c5 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1309,6 +1309,7 @@ var modInverseTests = []struct {
+ }{
+ 	{"1234567", "458948883992"},
+ 	{"239487239847", "2410312426921032588552076022197566074856950548502459942654116941958108831682612228890093858261341614673227141477904012196503648957050582631942730706805009223062734745341073406696246014589361659774041027169249453200378729434170325843778659198143763193776859869524088940195577346119843545301547043747207749969763750084308926339295559968882457872412993810129130294592999947926365264059284647209730384947211681434464714438488520940127459844288859336526896320919633919"},
++	{"-10", "13"}, // issue #16984
+ }
+ 
+ func TestModInverse(t *testing.T) {

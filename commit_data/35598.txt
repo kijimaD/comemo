@@ -14,6 +14,23 @@ Date:   Fri Feb 23 16:55:19 2018 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/regexp.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 2e4c6e8926..7d32d8d5a6 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -226,6 +226,11 @@ func (re *Regexp) get() *machine {
+ // grow to the maximum number of simultaneous matches
+ // run using re.  (The cache empties when re gets garbage collected.)
+ func (re *Regexp) put(z *machine) {
++	// Remove references to input data that we no longer need.
++	z.inputBytes.str = nil
++	z.inputString.str = ""
++	z.inputReader.r = nil
++
+ 	re.mu.Lock()
+ 	re.machine = append(re.machine, z)
+ 	re.mu.Unlock()

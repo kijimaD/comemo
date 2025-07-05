@@ -9,6 +9,59 @@ Date:   Fri Sep 2 11:47:15 2011 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4977049
-
+---
  src/pkg/fmt/fmt_test.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 1142c9f8ad..b1ad345186 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -5,6 +5,7 @@
+ package fmt_test
+ 
+ import (
++	"bytes"
+ 	. "fmt"
+ 	"io"
+ 	"math"
+@@ -503,12 +504,39 @@ func TestCountMallocs(t *testing.T) {
+ 	Printf("mallocs per Sprintf(\"%%x\"): %d\n", mallocs/100)
+ 	runtime.UpdateMemStats()
+ 	mallocs = 0 - runtime.MemStats.Mallocs
++	for i := 0; i < 100; i++ {
++		Sprintf("%s", "hello")
++	}
++	runtime.UpdateMemStats()
++	mallocs += runtime.MemStats.Mallocs
++	Printf("mallocs per Sprintf(\"%%s\"): %d\n", mallocs/100)
++	runtime.UpdateMemStats()
++	mallocs = 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < 100; i++ {
+ 		Sprintf("%x %x", i, i)
+ 	}
+ 	runtime.UpdateMemStats()
+ 	mallocs += runtime.MemStats.Mallocs
+ 	Printf("mallocs per Sprintf(\"%%x %%x\"): %d\n", mallocs/100)
++	buf := new(bytes.Buffer)
++	runtime.UpdateMemStats()
++	mallocs = 0 - runtime.MemStats.Mallocs
++	for i := 0; i < 100; i++ {
++		buf.Reset()
++		Fprintf(buf, "%x %x %x", i, i, i)
++	}
++	runtime.UpdateMemStats()
++	mallocs += runtime.MemStats.Mallocs
++	Printf("mallocs per Fprintf(buf, \"%%x %%x %%x\"): %d\n", mallocs/100)
++	runtime.UpdateMemStats()
++	mallocs = 0 - runtime.MemStats.Mallocs
++	for i := 0; i < 100; i++ {
++		buf.Reset()
++		Fprintf(buf, "%s", "hello")
++	}
++	runtime.UpdateMemStats()
++	mallocs += runtime.MemStats.Mallocs
++	Printf("mallocs per Fprintf(buf, \"%%s\"): %d\n", mallocs/100)
+ }
+ 
+ type flagPrinter struct{}

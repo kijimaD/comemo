@@ -29,7 +29,81 @@ Date:   Mon Dec 22 22:43:49 2014 -0500
     Reviewed-on: https://go-review.googlesource.com/2065
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc1.go    |  7 +++----
  src/runtime/runtime2.go | 26 +++++++++++++++++++++++++-
  2 files changed, 28 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 00dbeda3f9..6fcbd6946a 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -908,7 +908,7 @@ func newextram() {
+ 	gp.sched.sp = gp.stack.hi
+ 	gp.sched.sp -= 4 * regSize // extra space in case of reads slightly beyond frame
+ 	gp.sched.lr = 0
+-	gp.sched.g = gp
++	gp.sched.g = guintptr(unsafe.Pointer(gp))
+ 	gp.syscallpc = gp.sched.pc
+ 	gp.syscallsp = gp.sched.sp
+ 	// malg returns status as Gidle, change to Gsyscall before adding to allg
+@@ -1580,8 +1580,7 @@ func save(pc, sp uintptr) {
+ 	_g_.sched.lr = 0
+ 	_g_.sched.ret = 0
+ 	_g_.sched.ctxt = nil
+-	// _g_.sched.g = _g_, but avoid write barrier, which smashes _g_.sched
+-	*(*uintptr)(unsafe.Pointer(&_g_.sched.g)) = uintptr(unsafe.Pointer(_g_))
++	_g_.sched.g = guintptr(unsafe.Pointer(_g_))
+ }
+ 
+ // The goroutine g is about to enter a system call.
+@@ -1984,7 +1983,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	memclr(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
+ 	newg.sched.sp = sp
+ 	newg.sched.pc = funcPC(goexit) + _PCQuantum // +PCQuantum so that previous instruction is in same function
+-	newg.sched.g = newg
++	newg.sched.g = guintptr(unsafe.Pointer(newg))
+ 	gostartcallfn(&newg.sched, fn)
+ 	newg.gopc = callerpc
+ 	casgstatus(newg, _Gdead, _Grunnable)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 04c8440ebf..3afc67baff 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -93,11 +93,35 @@ type slice struct {
+ 	cap   uint  // allocated number of elements
+ }
+ 
++// A guintptr holds a goroutine pointer, but typed as a uintptr
++// to bypass write barriers. It is used in the Gobuf goroutine state.
++//
++// The Gobuf.g goroutine pointer is almost always updated by assembly code.
++// In one of the few places it is updated by Go code - func save - it must be
++// treated as a uintptr to avoid a write barrier being emitted at a bad time.
++// Instead of figuring out how to emit the write barriers missing in the
++// assembly manipulation, we change the type of the field to uintptr,
++// so that it does not require write barriers at all.
++//
++// Goroutine structs are published in the allg list and never freed.
++// That will keep the goroutine structs from being collected.
++// There is never a time that Gobuf.g's contain the only references
++// to a goroutine: the publishing of the goroutine in allg comes first.
++// Goroutine pointers are also kept in non-GC-visible places like TLS,
++// so I can't see them ever moving. If we did want to start moving data
++// in the GC, we'd need to allocate the goroutine structs from an
++// alternate arena. Using guintptr doesn't make that problem any worse.
++type guintptr uintptr
++
++func (gp guintptr) ptr() *g {
++	return (*g)(unsafe.Pointer(gp))
++}
++
+ type gobuf struct {
+ 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
+ 	sp   uintptr
+ 	pc   uintptr
+-	g    *g
++	g    guintptr
+ 	ctxt unsafe.Pointer // this has to be a pointer so that gc scans it
+ 	ret  uintreg
+ 	lr   uintptr

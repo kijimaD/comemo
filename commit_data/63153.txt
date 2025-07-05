@@ -15,7 +15,7 @@ Date:   Wed May 7 11:37:52 2025 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-
+---
  api/next/71920.txt                             |  1 +
  doc/next/6-stdlib/99-minor/crypto/tls/71920.md |  3 ++
  src/crypto/tls/common.go                       | 18 ++++++++
@@ -24,3 +24,239 @@ Date:   Wed May 7 11:37:52 2025 -0700
  src/crypto/tls/handshake_server_tls13.go       | 12 ++++-
  src/crypto/tls/tls_test.go                     | 63 ++++++++++++++++++--------
  7 files changed, 87 insertions(+), 26 deletions(-)
+
+diff --git a/api/next/71920.txt b/api/next/71920.txt
+new file mode 100644
+index 0000000000..c15759f45f
+--- /dev/null
++++ b/api/next/71920.txt
+@@ -0,0 +1 @@
++pkg crypto/tls, type Config struct, GetEncryptedClientHelloKeys func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error) #71920
+diff --git a/doc/next/6-stdlib/99-minor/crypto/tls/71920.md b/doc/next/6-stdlib/99-minor/crypto/tls/71920.md
+new file mode 100644
+index 0000000000..848211751a
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/tls/71920.md
+@@ -0,0 +1,3 @@
++The new [Config.GetEncryptedClientHelloKeys] callback can be used to set the
++[EncryptedClientHelloKey]s for a server to use when a client sends an Encrypted
++Client Hello extension.
+\ No newline at end of file
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index cc00efdc54..71b9ddb02c 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -837,6 +837,20 @@ type Config struct {
+ 	// when ECH is rejected, even if set, and InsecureSkipVerify is ignored.
+ 	EncryptedClientHelloRejectionVerify func(ConnectionState) error
+ 
++	// GetEncryptedClientHelloKeys, if not nil, is called when by a server when
++	// a client attempts ECH.
++	//
++	// If GetEncryptedClientHelloKeys is not nil, [EncryptedClientHelloKeys] is
++	// ignored.
++	//
++	// If GetEncryptedClientHelloKeys returns an error, the handshake will be
++	// aborted and the error will be returned. Otherwise,
++	// GetEncryptedClientHelloKeys must return a non-nil slice of
++	// [EncryptedClientHelloKey] that represents the acceptable ECH keys.
++	//
++	// For further details, see [EncryptedClientHelloKeys].
++	GetEncryptedClientHelloKeys func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error)
++
+ 	// EncryptedClientHelloKeys are the ECH keys to use when a client
+ 	// attempts ECH.
+ 	//
+@@ -847,6 +861,9 @@ type Config struct {
+ 	// will send a list of configs to retry based on the set of
+ 	// EncryptedClientHelloKeys which have the SendAsRetry field set.
+ 	//
++	// If GetEncryptedClientHelloKeys is non-nil, EncryptedClientHelloKeys is
++	// ignored.
++	//
+ 	// On the client side, this field is ignored. In order to configure ECH for
+ 	// clients, see the EncryptedClientHelloConfigList field.
+ 	EncryptedClientHelloKeys []EncryptedClientHelloKey
+@@ -935,6 +952,7 @@ func (c *Config) Clone() *Config {
+ 		GetCertificate:                      c.GetCertificate,
+ 		GetClientCertificate:                c.GetClientCertificate,
+ 		GetConfigForClient:                  c.GetConfigForClient,
++		GetEncryptedClientHelloKeys:         c.GetEncryptedClientHelloKeys,
+ 		VerifyPeerCertificate:               c.VerifyPeerCertificate,
+ 		VerifyConnection:                    c.VerifyConnection,
+ 		RootCAs:                             c.RootCAs,
+diff --git a/src/crypto/tls/ech.go b/src/crypto/tls/ech.go
+index 6d64191b8b..76727a8908 100644
+--- a/src/crypto/tls/ech.go
++++ b/src/crypto/tls/ech.go
+@@ -578,7 +578,7 @@ func marshalEncryptedClientHelloConfigList(configs []EncryptedClientHelloKey) ([
+ 	return builder.Bytes()
+ }
+ 
+-func (c *Conn) processECHClientHello(outer *clientHelloMsg) (*clientHelloMsg, *echServerContext, error) {
++func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedClientHelloKey) (*clientHelloMsg, *echServerContext, error) {
+ 	echType, echCiphersuite, configID, encap, payload, err := parseECHExt(outer.encryptedClientHello)
+ 	if err != nil {
+ 		if errors.Is(err, errInvalidECHExt) {
+@@ -594,11 +594,11 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg) (*clientHelloMsg, *e
+ 		return outer, &echServerContext{inner: true}, nil
+ 	}
+ 
+-	if len(c.config.EncryptedClientHelloKeys) == 0 {
++	if len(echKeys) == 0 {
+ 		return outer, nil, nil
+ 	}
+ 
+-	for _, echKey := range c.config.EncryptedClientHelloKeys {
++	for _, echKey := range echKeys {
+ 		skip, config, err := parseECHConfig(echKey.Config)
+ 		if err != nil || skip {
+ 			c.sendAlert(alertInternalError)
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 5be74e2967..c2c924c07b 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -149,7 +149,15 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, *echServer
+ 	// the contents of the client hello, since we may swap it out completely.
+ 	var ech *echServerContext
+ 	if len(clientHello.encryptedClientHello) != 0 {
+-		clientHello, ech, err = c.processECHClientHello(clientHello)
++		echKeys := c.config.EncryptedClientHelloKeys
++		if c.config.GetEncryptedClientHelloKeys != nil {
++			echKeys, err = c.config.GetEncryptedClientHelloKeys(clientHelloInfo(ctx, c, clientHello))
++			if err != nil {
++				c.sendAlert(alertInternalError)
++				return nil, nil, err
++			}
++		}
++		clientHello, ech, err = c.processECHClientHello(clientHello, echKeys)
+ 		if err != nil {
+ 			return nil, nil, err
+ 		}
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index fbdf55d461..54b3cac810 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -804,8 +804,16 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
+ 
+ 	// If client sent ECH extension, but we didn't accept it,
+ 	// send retry configs, if available.
+-	if len(hs.c.config.EncryptedClientHelloKeys) > 0 && len(hs.clientHello.encryptedClientHello) > 0 && hs.echContext == nil {
+-		encryptedExtensions.echRetryConfigs, err = buildRetryConfigList(hs.c.config.EncryptedClientHelloKeys)
++	echKeys := hs.c.config.EncryptedClientHelloKeys
++	if hs.c.config.GetEncryptedClientHelloKeys != nil {
++		echKeys, err = hs.c.config.GetEncryptedClientHelloKeys(clientHelloInfo(hs.ctx, c, hs.clientHello))
++		if err != nil {
++			c.sendAlert(alertInternalError)
++			return err
++		}
++	}
++	if len(echKeys) > 0 && len(hs.clientHello.encryptedClientHello) > 0 && hs.echContext == nil {
++		encryptedExtensions.echRetryConfigs, err = buildRetryConfigList(echKeys)
+ 		if err != nil {
+ 			c.sendAlert(alertInternalError)
+ 			return err
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 4913a3ae5c..bfcc62ccfb 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -811,7 +811,7 @@ func TestWarningAlertFlood(t *testing.T) {
+ }
+ 
+ func TestCloneFuncFields(t *testing.T) {
+-	const expectedCount = 9
++	const expectedCount = 10
+ 	called := 0
+ 
+ 	c1 := Config{
+@@ -851,6 +851,10 @@ func TestCloneFuncFields(t *testing.T) {
+ 			called |= 1 << 8
+ 			return nil
+ 		},
++		GetEncryptedClientHelloKeys: func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error) {
++			called |= 1 << 9
++			return nil, nil
++		},
+ 	}
+ 
+ 	c2 := c1.Clone()
+@@ -864,6 +868,7 @@ func TestCloneFuncFields(t *testing.T) {
+ 	c2.UnwrapSession(nil, ConnectionState{})
+ 	c2.WrapSession(ConnectionState{}, nil)
+ 	c2.EncryptedClientHelloRejectionVerify(ConnectionState{})
++	c2.GetEncryptedClientHelloKeys(nil)
+ 
+ 	if called != (1<<expectedCount)-1 {
+ 		t.Fatalf("expected %d calls but saw calls %b", expectedCount, called)
+@@ -882,7 +887,7 @@ func TestCloneNonFuncFields(t *testing.T) {
+ 		switch fn := typ.Field(i).Name; fn {
+ 		case "Rand":
+ 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
+-		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession", "EncryptedClientHelloRejectionVerify":
++		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession", "EncryptedClientHelloRejectionVerify", "GetEncryptedClientHelloKeys":
+ 			// DeepEqual can't compare functions. If you add a
+ 			// function field to this list, you must also change
+ 			// TestCloneFuncFields to ensure that the func field is
+@@ -2301,26 +2306,44 @@ func TestECH(t *testing.T) {
+ 		{Config: echConfig, PrivateKey: echKey.Bytes(), SendAsRetry: true},
+ 	}
+ 
+-	ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+-	if err != nil {
+-		t.Fatalf("unexpected failure: %s", err)
+-	}
+-	if !ss.ECHAccepted {
+-		t.Fatal("server ConnectionState shows ECH not accepted")
+-	}
+-	if !cs.ECHAccepted {
+-		t.Fatal("client ConnectionState shows ECH not accepted")
+-	}
+-	if cs.ServerName != "secret.example" || ss.ServerName != "secret.example" {
+-		t.Fatalf("unexpected ConnectionState.ServerName, want %q, got server:%q, client: %q", "secret.example", ss.ServerName, cs.ServerName)
++	check := func() {
++		ss, cs, err := testHandshake(t, clientConfig, serverConfig)
++		if err != nil {
++			t.Fatalf("unexpected failure: %s", err)
++		}
++		if !ss.ECHAccepted {
++			t.Fatal("server ConnectionState shows ECH not accepted")
++		}
++		if !cs.ECHAccepted {
++			t.Fatal("client ConnectionState shows ECH not accepted")
++		}
++		if cs.ServerName != "secret.example" || ss.ServerName != "secret.example" {
++			t.Fatalf("unexpected ConnectionState.ServerName, want %q, got server:%q, client: %q", "secret.example", ss.ServerName, cs.ServerName)
++		}
++		if len(cs.VerifiedChains) != 1 {
++			t.Fatal("unexpect number of certificate chains")
++		}
++		if len(cs.VerifiedChains[0]) != 1 {
++			t.Fatal("unexpect number of certificates")
++		}
++		if !cs.VerifiedChains[0][0].Equal(secretCert) {
++			t.Fatal("unexpected certificate")
++		}
+ 	}
+-	if len(cs.VerifiedChains) != 1 {
+-		t.Fatal("unexpect number of certificate chains")
++
++	check()
++
++	serverConfig.GetEncryptedClientHelloKeys = func(_ *ClientHelloInfo) ([]EncryptedClientHelloKey, error) {
++		return []EncryptedClientHelloKey{{Config: echConfig, PrivateKey: echKey.Bytes(), SendAsRetry: true}}, nil
+ 	}
+-	if len(cs.VerifiedChains[0]) != 1 {
+-		t.Fatal("unexpect number of certificates")
++	randKey, err := ecdh.X25519().GenerateKey(rand.Reader)
++	if err != nil {
++		t.Fatal(err)
+ 	}
+-	if !cs.VerifiedChains[0][0].Equal(secretCert) {
+-		t.Fatal("unexpected certificate")
++	randConfig := marshalECHConfig(32, randKey.PublicKey().Bytes(), "random.example", 32)
++	serverConfig.EncryptedClientHelloKeys = []EncryptedClientHelloKey{
++		{Config: randConfig, PrivateKey: randKey.Bytes(), SendAsRetry: true},
+ 	}
++
++	check()
+ }

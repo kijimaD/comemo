@@ -17,7 +17,68 @@ Date:   Wed Jun 29 11:30:47 2022 -0700
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/x509/x509.go      |  4 ++++
  src/crypto/x509/x509_test.go | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 7dcebfa5f1..950f6d08c8 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2196,6 +2196,10 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
++	if numBytes := template.Number.Bytes(); len(numBytes) > 20 || (len(numBytes) == 20 && numBytes[0]&0x80 != 0) {
++		return nil, errors.New("x509: CRL number exceeds 20 octets")
++	}
+ 	crlNum, err := asn1.Marshal(template.Number)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index cddad1e246..cba44f6f8c 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -2478,6 +2478,40 @@ func TestCreateRevocationList(t *testing.T) {
+ 			},
+ 			expectedError: "x509: template contains nil Number field",
+ 		},
++		{
++			name: "long Number",
++			key:  ec256Priv,
++			issuer: &Certificate{
++				KeyUsage: KeyUsageCRLSign,
++				Subject: pkix.Name{
++					CommonName: "testing",
++				},
++				SubjectKeyId: []byte{1, 2, 3},
++			},
++			template: &RevocationList{
++				ThisUpdate: time.Time{}.Add(time.Hour * 24),
++				NextUpdate: time.Time{}.Add(time.Hour * 48),
++				Number:     big.NewInt(0).SetBytes(append([]byte{1}, make([]byte, 20)...)),
++			},
++			expectedError: "x509: CRL number exceeds 20 octets",
++		},
++		{
++			name: "long Number (20 bytes, MSB set)",
++			key:  ec256Priv,
++			issuer: &Certificate{
++				KeyUsage: KeyUsageCRLSign,
++				Subject: pkix.Name{
++					CommonName: "testing",
++				},
++				SubjectKeyId: []byte{1, 2, 3},
++			},
++			template: &RevocationList{
++				ThisUpdate: time.Time{}.Add(time.Hour * 24),
++				NextUpdate: time.Time{}.Add(time.Hour * 48),
++				Number:     big.NewInt(0).SetBytes(append([]byte{255}, make([]byte, 19)...)),
++			},
++			expectedError: "x509: CRL number exceeds 20 octets",
++		},
+ 		{
+ 			name: "invalid signature algorithm",
+ 			key:  ec256Priv,

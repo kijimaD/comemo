@@ -13,7 +13,7 @@ Date:   Wed Aug 4 17:50:22 2010 -0700
     R=ken2, r
     CC=golang-dev
     https://golang.org/cl/1847051
-
+---
  src/cmd/6a/a.y                      |   6 ++
  src/cmd/6c/cgen.c                   |   6 ++
  src/cmd/6c/peep.c                   |   2 -
@@ -39,3 +39,1301 @@ Date:   Wed Aug 4 17:50:22 2010 -0700
  src/pkg/runtime/linux/amd64/sys.s   |  54 ++++++++--
  src/pkg/runtime/mkasmh.sh           |  16 +--
  24 files changed, 467 insertions(+), 218 deletions(-)
+
+diff --git a/src/cmd/6a/a.y b/src/cmd/6a/a.y
+index 804f638a07..6341ba7462 100644
+--- a/src/cmd/6a/a.y
++++ b/src/cmd/6a/a.y
+@@ -453,6 +453,12 @@ omem:
+ 		$$.type = D_INDIR+D_SP;
+ 		$$.offset = $1;
+ 	}
++|	con '(' LSREG ')'
++	{
++		$$ = nullgen;
++		$$.type = D_INDIR+$3;
++		$$.offset = $1;
++	}
+ |	con '(' LLREG '*' con ')'
+ 	{
+ 		$$ = nullgen;
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index 39452c9892..dd8573c075 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -57,6 +57,12 @@ cgen(Node *n, Node *nn)
+ 	l = n->left;
+ 	r = n->right;
+ 	o = n->op;
++	
++	if(n->op == OEXREG || (nn != Z && nn->op == OEXREG)) {
++		gmove(n, nn);
++		return;
++	}
++
+ 	if(n->addable >= INDEXED) {
+ 		if(nn == Z) {
+ 			switch(o) {
+diff --git a/src/cmd/6c/peep.c b/src/cmd/6c/peep.c
+index 01793bfc5c..13fd25e737 100644
+--- a/src/cmd/6c/peep.c
++++ b/src/cmd/6c/peep.c
+@@ -797,8 +797,6 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 3;
+ 
+ 	case ACALL:	/* funny */
+-		if(REGEXT && v->type <= REGEXT && v->type > exregoffset)
+-			return 2;
+ 		if(REGARG >= 0 && v->type == REGARG)
+ 			return 2;
+ 
+diff --git a/src/cmd/6c/sgen.c b/src/cmd/6c/sgen.c
+index b8247a1b70..42045f8fa1 100644
+--- a/src/cmd/6c/sgen.c
++++ b/src/cmd/6c/sgen.c
+@@ -131,6 +131,10 @@ xcom(Node *n)
+ 			n->addable = 11;
+ 		break;
+ 
++	case OEXREG:
++		n->addable = 0;
++		break;
++
+ 	case OREGISTER:
+ 		n->addable = 12;
+ 		break;
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index f96c40f8eb..9a94ca201b 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -38,8 +38,6 @@ ginit(void)
+ 
+ 	thechar = '6';
+ 	thestring = "amd64";
+-	exregoffset = REGEXT;
+-	exfregoffset = FREGEXT;
+ 	listinit();
+ 	nstring = 0;
+ 	mnstring = 0;
+@@ -491,6 +489,10 @@ naddr(Node *n, Adr *a)
+ 		a->sym = S;
+ 		break;
+ 
++	case OEXREG:
++		a->type = D_INDIR + D_GS;
++		a->offset = n->reg - 1;
++		break;
+ 
+ 	case OIND:
+ 		naddr(n->left, a);
+@@ -1502,11 +1504,11 @@ exreg(Type *t)
+ 	int32 o;
+ 
+ 	if(typechlpv[t->etype]) {
+-		if(exregoffset <= REGEXT-4)
++		if(exregoffset >= 64)
+ 			return 0;
+ 		o = exregoffset;
+-		exregoffset--;
+-		return o;
++		exregoffset += 8;
++		return o+1;	// +1 to avoid 0 == failure; naddr's case OEXREG will subtract 1.
+ 	}
+ 	return 0;
+ }
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index b45557ebe7..fa419b659a 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -821,6 +821,17 @@ asmb(void)
+ 			ph->type = PT_DYNAMIC;
+ 			ph->flags = PF_R + PF_W;
+ 			phsh(ph, sh);
++			
++			/*
++			 * Thread-local storage segment (really just size).
++			 */
++			if(tlsoffset != 0) {
++				ph = newElfPhdr();
++				ph->type = PT_TLS;
++				ph->flags = PF_R;
++				ph->memsz = -tlsoffset;
++				ph->align = 8;
++			}
+ 		}
+ 
+ 		ph = newElfPhdr();
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index eb796e203b..23ca2232ba 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -340,6 +340,7 @@ EXTERN	Sym*	symlist;
+ EXTERN	int32	symsize;
+ EXTERN	Prog*	textp;
+ EXTERN	vlong	textsize;
++EXTERN	int	tlsoffset;
+ EXTERN	int	version;
+ EXTERN	Prog	zprg;
+ EXTERN	int	dtype;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 724f11296a..3b981a6127 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -165,6 +165,11 @@ main(int argc, char *argv[])
+ 			INITRND = 4096;
+ 		break;
+ 	case 6:	/* apple MACH */
++		/*
++		 * OS X system constant - offset from 0(GS) to our TLS.
++		 * Explained in ../../libcgo/darwin_amd64.c.
++		 */
++		tlsoffset = 0x8a0;
+ 		machoinit();
+ 		HEADR = MACHORESERVE;
+ 		if(INITRND == -1)
+@@ -176,6 +181,13 @@ main(int argc, char *argv[])
+ 		break;
+ 	case 7:	/* elf64 executable */
+ 	case 9: /* freebsd */
++		/*
++		 * ELF uses TLS offset negative from FS.
++		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
++		 * Also known to ../../pkg/runtime/linux/amd64/sys.s
++		 * and ../../libcgo/linux_amd64.s.
++		 */
++		tlsoffset = -16;
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+@@ -434,6 +446,8 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 		adrgotype = zsym(pn, f, h);
+ 	s = a->sym;
+ 	t = a->type;
++	if(t == D_INDIR+D_GS)
++		a->offset += tlsoffset;
+ 	if(t != D_AUTO && t != D_PARAM) {
+ 		if(s && adrgotype)
+ 			s->gotype = adrgotype;
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 8eced5083e..5fedee24a9 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -421,6 +421,13 @@ patch(void)
+ 	s = lookup("exit", 0);
+ 	vexit = s->value;
+ 	for(p = firstp; p != P; p = p->link) {
++		if(HEADTYPE == 7 || HEADTYPE == 9) {
++			// ELF uses FS instead of GS.
++			if(p->from.type == D_INDIR+D_GS)
++				p->from.type = D_INDIR+D_FS;
++			if(p->to.type == D_INDIR+D_GS)
++				p->to.type = D_INDIR+D_FS;
++		}
+ 		if(p->as == ATEXT)
+ 			curtext = p;
+ 		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
+@@ -663,6 +670,15 @@ dostkoff(void)
+ 				diag("nosplit func likely to overflow stack");
+ 
+ 			if(!(p->from.scale & NOSPLIT)) {
++				p = appendp(p);	// load g into CX
++				p->as = AMOVQ;
++				if(HEADTYPE == 7 || HEADTYPE == 9)	// ELF uses FS
++					p->from.type = D_INDIR+D_FS;
++				else
++					p->from.type = D_INDIR+D_GS;
++				p->from.offset = tlsoffset+0;
++				p->to.type = D_CX;
++				
+ 				if(debug['K']) {
+ 					// 6l -K means check not only for stack
+ 					// overflow but stack underflow.
+@@ -672,7 +688,7 @@ dostkoff(void)
+ 
+ 					p = appendp(p);
+ 					p->as = ACMPQ;
+-					p->from.type = D_INDIR+D_R15;
++					p->from.type = D_INDIR+D_CX;
+ 					p->from.offset = 8;
+ 					p->to.type = D_SP;
+ 
+@@ -694,7 +710,7 @@ dostkoff(void)
+ 						p = appendp(p);
+ 						p->as = ACMPQ;
+ 						p->from.type = D_SP;
+-						p->to.type = D_INDIR+D_R15;
++						p->to.type = D_INDIR+D_CX;
+ 						if(q1) {
+ 							q1->pcond = p;
+ 							q1 = P;
+@@ -714,7 +730,7 @@ dostkoff(void)
+ 						p = appendp(p);
+ 						p->as = ACMPQ;
+ 						p->from.type = D_AX;
+-						p->to.type = D_INDIR+D_R15;
++						p->to.type = D_INDIR+D_CX;
+ 					}
+ 
+ 					// common
+@@ -824,7 +840,7 @@ dostkoff(void)
+ 				// function is marked as nosplit.
+ 				p = appendp(p);
+ 				p->as = AMOVQ;
+-				p->from.type = D_INDIR+D_R15;
++				p->from.type = D_INDIR+D_CX;
+ 				p->from.offset = 0;
+ 				p->to.type = D_BX;
+ 
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 15f931bcb1..7e0086e930 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -444,6 +444,24 @@ asmlc(void)
+ 	Bflush(&bso);
+ }
+ 
++int
++prefixof(Adr *a)
++{
++	switch(a->type) {
++	case D_INDIR+D_CS:
++		return 0x2e;
++	case D_INDIR+D_DS:
++		return 0x3e;
++	case D_INDIR+D_ES:
++		return 0x26;
++	case D_INDIR+D_FS:
++		return 0x64;
++	case D_INDIR+D_GS:
++		return 0x65;
++	}
++	return 0;
++}
++
+ int
+ oclass(Adr *a)
+ {
+@@ -879,7 +897,7 @@ asmandsz(Adr *a, int r, int rex, int m64)
+ 	if(t >= D_INDIR) {
+ 		t -= D_INDIR;
+ 		rexflag |= (regrex[t] & Rxb) | rex;
+-		if(t == D_NONE) {
++		if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
+ 			if(asmode != 64){
+ 				*andptr++ = (0 << 6) | (5 << 0) | (r << 3);
+ 				put4(v);
+@@ -1173,7 +1191,7 @@ doasm(Prog *p)
+ 	Prog *q, pp;
+ 	uchar *t;
+ 	Movtab *mo;
+-	int z, op, ft, tt, xo, l;
++	int z, op, ft, tt, xo, l, pre;
+ 	vlong v;
+ 
+ 	o = opindex[p->as];
+@@ -1181,6 +1199,13 @@ doasm(Prog *p)
+ 		diag("asmins: missing op %P", p);
+ 		return;
+ 	}
++	
++	pre = prefixof(&p->from);
++	if(pre)
++		*andptr++ = pre;
++	pre = prefixof(&p->to);
++	if(pre)
++		*andptr++ = pre;
+ 
+ 	if(p->ft == 0)
+ 		p->ft = oclass(&p->from);
+@@ -1748,7 +1773,7 @@ asmins(Prog *p)
+ 		n = andptr - and;
+ 		for(np = 0; np < n; np++) {
+ 			c = and[np];
+-			if(c != 0x66 && c != 0xf2 && c != 0xf3 && c != 0x67)
++			if(c != 0xf2 && c != 0xf3 && (c < 0x64 || c > 0x67) && c != 0x2e && c != 0x3e && c != 0x26)
+ 				break;
+ 		}
+ 		memmove(and+np+1, and+np, n-np);
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 194599c3a9..4cfd7bc1e6 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -1403,7 +1403,6 @@ exreg(Type *t)
+ 		return o+1;	// +1 to avoid 0 == failure; naddr case OEXREG will -1.
+ 	}
+ 
+-	USED(t);
+ 	return 0;
+ }
+ 
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index f3584bf01d..9067e94707 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -227,7 +227,7 @@ main(int argc, char *argv[])
+ 	case 7:	/* elf32 executable */
+ 	case 9:
+ 		/*
+-		 * Linux ELF uses TLS offsets negative from %gs.
++		 * ELF uses TLS offsets negative from %gs.
+ 		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
+ 		 * Also known to ../../pkg/runtime/linux/386/sys.s
+ 		 * and ../../libcgo/linux_386.c.
+diff --git a/src/cmd/cc/com.c b/src/cmd/cc/com.c
+index 5cbe8b77cd..b1a8a47041 100644
+--- a/src/cmd/cc/com.c
++++ b/src/cmd/cc/com.c
+@@ -638,10 +638,10 @@ tcomo(Node *n, int f)
+ 		n->addable = 1;
+ 		if(n->class == CEXREG) {
+ 			n->op = OREGISTER;
+-			// on 386, "extern register" generates
++			// on 386 or amd64, "extern register" generates
+ 			// memory references relative to the
+-			// fs segment.
+-			if(thechar == '8')	// [sic]
++			// gs or fs segment.
++			if(thechar == '8' || thechar == '6')	// [sic]
+ 				n->op = OEXREG;
+ 			n->reg = n->sym->offset;
+ 			n->xoffset = 0;
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index 13374719db..ff928f14cd 100755
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -26,10 +26,10 @@ LDFLAGS_freebsd=-pthread -shared -lm
+ LDFLAGS_windows=-shared -lm -mthreads
+ 
+ %.o: %.c
+-	$(CC) $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.c
++	$(CC) $(CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.c
+ 
+ %.o: %.S
+-	$(CC) $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.S
++	$(CC) $(CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.S
+ 
+ libcgo.so: $(OFILES)
+ 	$(CC) $(CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
+diff --git a/src/libcgo/amd64.S b/src/libcgo/amd64.S
+index 92ded0ac26..178c33cde0 100644
+--- a/src/libcgo/amd64.S
++++ b/src/libcgo/amd64.S
+@@ -12,7 +12,7 @@
+ #endif
+ 
+ /*
+- * void crosscall_amd64(M *m, G *g, void (*fn)(void))
++ * void crosscall_amd64(void (*fn)(void))
+  *
+  * Calling into the 6c tool chain, where all registers are caller save.
+  * Called from standard x86-64 ABI, where %rbx, %rbp, %r12-%r15
+@@ -32,9 +32,7 @@ EXT(crosscall_amd64):
+ 	pushq %r14
+ 	pushq %r15
+ 
+-	movq %rdi, %r14	/* m */
+-	movq %rsi, %r15	/* g */
+-	call *%rdx	/* fn */
++	call *%rdi	/* fn */
+ 
+ 	popq %r15
+ 	popq %r14
+@@ -60,16 +58,10 @@ EXT(crosscall2):
+ 	movq  %r14, 0x30(%rsp)
+ 	movq  %r15, 0x38(%rsp)
+ 
+-	movq  %rdi, %r12	/* fn */
+ 	movq  %rsi, 0(%rsp)	/* arg */
+ 	movq  %rdx, 8(%rsp)	/* argsize (includes padding) */
+ 
+-	leaq  0x40(%rsp), %rdi
+-	call  EXT(libcgo_get_scheduler)
+-	movq  0x40(%rsp), %r14	/* m */
+-	movq  0x48(%rsp), %r15	/* g */
+-
+-	call *%r12
++	call *%rdi	/* fn */
+ 
+ 	movq  0x10(%rsp), %rbx
+ 	movq  0x18(%rsp), %rbp
+diff --git a/src/libcgo/darwin_amd64.c b/src/libcgo/darwin_amd64.c
+index 2e0e124113..9d7255fbd5 100644
+--- a/src/libcgo/darwin_amd64.c
++++ b/src/libcgo/darwin_amd64.c
+@@ -6,22 +6,88 @@
+ #include "libcgo.h"
+ 
+ static void* threadentry(void*);
++static pthread_key_t k1, k2;
+ 
+-static pthread_key_t km, kg;
++/* gccism: arrange for inittls to be called at dynamic load time */
++static void inittls(void) __attribute__((constructor));
+ 
+-void
+-initcgo(void)
++static void
++inittls(void)
+ {
+-	if(pthread_key_create(&km, nil) < 0) {
+-		fprintf(stderr, "libcgo: pthread_key_create failed\n");
+-		abort();
++	uint64 x, y;
++	pthread_key_t tofree[16], k;
++	int i, ntofree;
++	int havek1, havek2;
++
++	/*
++	 * Same logic, code as darwin_386.c:/inittls, except that words
++	 * are 8 bytes long now, and the thread-local storage starts at 0x60.
++	 * So the offsets are
++	 * 0x60+8*0x108 = 0x8a0 and 0x60+8*0x109 = 0x8a8.
++	 *
++	 * The linker and runtime hard-code these constant offsets
++	 * from %gs where we expect to find m and g.  The code
++	 * below verifies that the constants are correct once it has
++	 * obtained the keys.  Known to ../cmd/6l/obj.c:/8a0
++	 * and to ../pkg/runtime/darwin/amd64/sys.s:/8a0
++	 *
++	 * As disgusting as on the 386; same justification.
++	 */
++	havek1 = 0;
++	havek2 = 0;
++	ntofree = 0;
++	while(!havek1 || !havek2) {
++		if(pthread_key_create(&k, nil) < 0) {
++			fprintf(stderr, "libcgo: pthread_key_create failed\n");
++			abort();
++		}
++		if(k == 0x108) {
++			havek1 = 1;
++			k1 = k;
++			continue;
++		}
++		if(k == 0x109) {
++			havek2 = 1;
++			k2 = k;
++			continue;
++		}
++		if(ntofree >= nelem(tofree)) {
++			fprintf(stderr, "libcgo: could not obtain pthread_keys\n");
++			fprintf(stderr, "\twanted 0x108 and 0x109\n");
++			fprintf(stderr, "\tgot");
++			for(i=0; i<ntofree; i++)
++				fprintf(stderr, " %#x", tofree[i]);
++			fprintf(stderr, "\n");
++			abort();
++		}
++		tofree[ntofree++] = k;
+ 	}
+-	if(pthread_key_create(&kg, nil) < 0) {
+-		fprintf(stderr, "libcgo: pthread_key_create failed\n");
++
++	for(i=0; i<ntofree; i++)
++		pthread_key_delete(tofree[i]);
++
++	/*
++	 * We got the keys we wanted.  Make sure that we observe
++	 * updates to k1 at 0x8a0, to verify that the TLS array
++	 * offset from %gs hasn't changed.
++	 */
++	pthread_setspecific(k1, (void*)0x123456789abcdef0ULL);
++	asm volatile("movq %%gs:0x8a0, %0" : "=r"(x));
++
++	pthread_setspecific(k2, (void*)0x0fedcba987654321);
++	asm volatile("movq %%gs:0x8a8, %0" : "=r"(y));
++
++	if(x != 0x123456789abcdef0ULL || y != 0x0fedcba987654321) {
++		printf("libcgo: thread-local storage %#x not at %%gs:0x8a0 - x=%#llx y=%#llx\n", k1, x, y);
+ 		abort();
+ 	}
+ }
+ 
++void
++initcgo(void)
++{
++}
++
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {
+@@ -51,28 +117,9 @@ threadentry(void *v)
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+ 
+-	crosscall_amd64(ts.m, ts.g, ts.fn);
+-	return nil;
+-}
+-
+-void
+-libcgo_set_scheduler(void *m, void *g)
+-{
+-	pthread_setspecific(km, m);
+-	pthread_setspecific(kg, g);
+-}
+-
+-struct get_scheduler_args {
+-	void *m;
+-	void *g;
+-};
+-
+-void libcgo_get_scheduler(struct get_scheduler_args *)
+-  __attribute__ ((visibility("hidden")));
++	pthread_setspecific(k1, (void*)ts.g);
++	pthread_setspecific(k2, (void*)ts.m);
+ 
+-void
+-libcgo_get_scheduler(struct get_scheduler_args *p)
+-{
+-	p->m = pthread_getspecific(km);
+-	p->g = pthread_getspecific(kg);
++	crosscall_amd64(ts.fn);
++	return nil;
+ }
+diff --git a/src/libcgo/freebsd_amd64.c b/src/libcgo/freebsd_amd64.c
+index 4baf16ee80..bc3a561868 100644
+--- a/src/libcgo/freebsd_amd64.c
++++ b/src/libcgo/freebsd_amd64.c
+@@ -39,36 +39,15 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
+-	 * change to actual guard pointer.
++	 * Set specific keys.  On FreeBSD/ELF, the thread local storage
++	 * is just before %fs:0.  Our dynamic 6.out's reserve 16 bytes
++	 * for the two words g and m at %fs:-16 and %fs:-8.
+ 	 */
+-	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+-
+-	crosscall_amd64(ts.m, ts.g, ts.fn);
++	asm volatile (
++		"movq %0, %%fs:-16\n"	// MOVL g, -16(FS)
++		"movq %1, %%fs:-8\n"	// MOVL m, -8(FS)
++		:: "r"(ts.g), "r"(ts.m)
++	);
++	crosscall_amd64(ts.fn);
+ 	return nil;
+ }
+-
+-static __thread void *libcgo_m;
+-static __thread void *libcgo_g;
+-
+-void
+-libcgo_set_scheduler(void *m, void *g)
+-{
+-	libcgo_m = m;
+-	libcgo_g = g;
+-}
+-
+-struct get_scheduler_args {
+-	void *m;
+-	void *g;
+-};
+-
+-void libcgo_get_scheduler(struct get_scheduler_args *)
+-  __attribute__ ((visibility("hidden")));
+-
+-void
+-libcgo_get_scheduler(struct get_scheduler_args *p)
+-{
+-	p->m = libcgo_m;
+-	p->g = libcgo_g;
+-}
+diff --git a/src/libcgo/libcgo.h b/src/libcgo/libcgo.h
+index b4b25accb5..611f4ad475 100644
+--- a/src/libcgo/libcgo.h
++++ b/src/libcgo/libcgo.h
+@@ -10,6 +10,7 @@
+ #define nelem(x) (sizeof(x)/sizeof((x)[0]))
+ 
+ typedef uint32_t uint32;
++typedef uint64_t uint64;
+ typedef uintptr_t uintptr;
+ 
+ /*
+@@ -49,10 +50,9 @@ void libcgo_thread_start(ThreadStart *ts);
+ void libcgo_sys_thread_start(ThreadStart *ts);
+ 
+ /*
+- * Call fn in the 6c world, with m and g
+- * set to the given parameters.
++ * Call fn in the 6c world.
+  */
+-void crosscall_amd64(uintptr m, G *g, void (*fn)(void));
++void crosscall_amd64(void (*fn)(void));
+ 
+ /*
+  * Call fn in the 8c world.
+diff --git a/src/libcgo/linux_amd64.c b/src/libcgo/linux_amd64.c
+index fc4a239fb1..a4e0fe57a9 100644
+--- a/src/libcgo/linux_amd64.c
++++ b/src/libcgo/linux_amd64.c
+@@ -41,31 +41,16 @@ threadentry(void *v)
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+ 
+-	crosscall_amd64(ts.m, ts.g, ts.fn);
++	/*
++	 * Set specific keys.  On Linux/ELF, the thread local storage
++	 * is just before %fs:0.  Our dynamic 6.out's reserve 16 bytes
++	 * for the two words g and m at %fs:-16 and %fs:-8.
++	 */
++	asm volatile (
++		"movq %0, %%fs:-16\n"	// MOVL g, -16(FS)
++		"movq %1, %%fs:-8\n"	// MOVL m, -8(FS)
++		:: "r"(ts.g), "r"(ts.m)
++	);
++	crosscall_amd64(ts.fn);
+ 	return nil;
+ }
+-
+-static __thread void *libcgo_m;
+-static __thread void *libcgo_g;
+-
+-void
+-libcgo_set_scheduler(void *m, void *g)
+-{
+-	libcgo_m = m;
+-	libcgo_g = g;
+-}
+-
+-struct get_scheduler_args {
+-	void *m;
+-	void *g;
+-};
+-
+-void libcgo_get_scheduler(struct get_scheduler_args *)
+-  __attribute__ ((visibility("hidden")));
+-
+-void
+-libcgo_get_scheduler(struct get_scheduler_args *p)
+-{
+-	p->m = libcgo_m;
+-	p->g = libcgo_g;
+-}
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 52b0a89bcb..fd3f3471e5 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -16,18 +16,36 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	// if there is an initcgo, call it.
+ 	MOVQ	initcgo(SB), AX
+ 	TESTQ	AX, AX
+-	JZ	2(PC)
++	JZ	needtls
+ 	CALL	AX
+-
+-	// set the per-goroutine and per-mach registers
+-	LEAQ	m0(SB), m
+-	LEAQ	g0(SB), g
+-	MOVQ	g, m_g0(m)		// m has pointer to its g0
++	JMP ok
++
++needtls:
++	LEAQ	tls0(SB), DI
++	CALL	settls(SB)
++
++	// store through it, to make sure it works
++	get_tls(BX)
++	MOVQ	$0x123, g(BX)
++	MOVQ	tls0(SB), AX
++	CMPQ	AX, $0x123
++	JEQ 2(PC)
++	MOVL	AX, 0	// abort
++ok:
++	// set the per-goroutine and per-mach "registers"
++	get_tls(BX)
++	LEAQ	g0(SB), CX
++	MOVQ	CX, g(BX)
++	LEAQ	m0(SB), AX
++	MOVQ	AX, m(BX)
++
++	// save m->g0 = g0
++	MOVQ	CX, m_g0(AX)
+ 
+ 	// create istack out of the given (operating system) stack
+ 	LEAQ	(-8192+104)(SP), AX
+-	MOVQ	AX, g_stackguard(g)
+-	MOVQ	SP, g_stackbase(g)
++	MOVQ	AX, g_stackguard(CX)
++	MOVQ	SP, g_stackbase(CX)
+ 
+ 	CLD				// convention is D is always left cleared
+ 	CALL	check(SB)
+@@ -79,7 +97,9 @@ TEXT gosave(SB), 7, $0
+ 	MOVQ	BX, gobuf_sp(AX)
+ 	MOVQ	0(SP), BX		// caller's PC
+ 	MOVQ	BX, gobuf_pc(AX)
+-	MOVQ	g, gobuf_g(AX)
++	get_tls(CX)
++	MOVQ	g(CX), BX
++	MOVQ	BX, gobuf_g(AX)
+ 	MOVL	$0, AX			// return 0
+ 	RET
+ 
+@@ -88,8 +108,10 @@ TEXT gosave(SB), 7, $0
+ TEXT gogo(SB), 7, $0
+ 	MOVQ	16(SP), AX		// return 2nd arg
+ 	MOVQ	8(SP), BX		// gobuf
+-	MOVQ	gobuf_g(BX), g
+-	MOVQ	0(g), CX		// make sure g != nil
++	MOVQ	gobuf_g(BX), DX
++	MOVQ	0(DX), CX		// make sure g != nil
++	get_tls(CX)
++	MOVQ	DX, g(CX)
+ 	MOVQ	gobuf_sp(BX), SP	// restore SP
+ 	MOVQ	gobuf_pc(BX), BX
+ 	JMP	BX
+@@ -100,8 +122,10 @@ TEXT gogo(SB), 7, $0
+ TEXT gogocall(SB), 7, $0
+ 	MOVQ	16(SP), AX		// fn
+ 	MOVQ	8(SP), BX		// gobuf
+-	MOVQ	gobuf_g(BX), g
+-	MOVQ	0(g), CX		// make sure g != nil
++	MOVQ	gobuf_g(BX), DX
++	get_tls(CX)
++	MOVQ	DX, g(CX)
++	MOVQ	0(DX), CX	// make sure g != nil
+ 	MOVQ	gobuf_sp(BX), SP	// restore SP
+ 	MOVQ	gobuf_pc(BX), BX
+ 	PUSHQ	BX
+@@ -113,23 +137,33 @@ TEXT gogocall(SB), 7, $0
+  */
+ 
+ // Called during function prolog when more stack is needed.
+-TEXT ·morestack(SB),7,$0
++// Caller has already done get_tls(CX); MOVQ m(CX), BX.
++TEXT morestack(SB),7,$0
++	// Cannot grow scheduler stack (m->g0).
++	MOVQ	m_g0(BX), SI
++	CMPQ	g(CX), SI
++	JNE	2(PC)
++	INT	$3
++
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOVQ	8(SP), AX	// f's caller's PC
+-	MOVQ	AX, (m_morebuf+gobuf_pc)(m)
++	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
+ 	LEAQ	16(SP), AX	// f's caller's SP
+-	MOVQ	AX, (m_morebuf+gobuf_sp)(m)
+-	MOVQ	AX, (m_morefp)(m)
+-	MOVQ	g, (m_morebuf+gobuf_g)(m)
++	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
++	MOVQ	AX, (m_morefp)(BX)
++	get_tls(CX)
++	MOVQ	g(CX), SI
++	MOVQ	SI, (m_morebuf+gobuf_g)(BX)
+ 
+ 	// Set m->morepc to f's PC.
+ 	MOVQ	0(SP), AX
+-	MOVQ	AX, m_morepc(m)
++	MOVQ	AX, m_morepc(BX)
+ 
+ 	// Call newstack on m's scheduling stack.
+-	MOVQ	m_g0(m), g
+-	MOVQ	(m_sched+gobuf_sp)(m), SP
++	MOVQ	m_g0(BX), BP
++	MOVQ	BP, g(CX)
++	MOVQ	(m_sched+gobuf_sp)(BX), SP
+ 	CALL	newstack(SB)
+ 	MOVQ	$0, 0x1003	// crash if newstack returns
+ 	RET
+@@ -140,13 +174,17 @@ TEXT ·morestack(SB),7,$0
+ //
+ // func call(fn *byte, arg *byte, argsize uint32).
+ TEXT reflect·call(SB), 7, $0
++	get_tls(CX)
++	MOVQ	m(CX), BX
++
+ 	// Save our caller's state as the PC and SP to
+ 	// restore when returning from f.
+ 	MOVQ	0(SP), AX	// our caller's PC
+-	MOVQ	AX, (m_morebuf+gobuf_pc)(m)
++	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
+ 	LEAQ	8(SP), AX	// our caller's SP
+-	MOVQ	AX, (m_morebuf+gobuf_sp)(m)
+-	MOVQ	g, (m_morebuf+gobuf_g)(m)
++	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
++	MOVQ	g(CX), AX
++	MOVQ	AX, (m_morebuf+gobuf_g)(BX)
+ 
+ 	// Set up morestack arguments to call f on a new stack.
+ 	// We set f's frame size to 1, as a hint to newstack
+@@ -155,17 +193,19 @@ TEXT reflect·call(SB), 7, $0
+ 	// the default stack, f's usual stack growth prolog will
+ 	// allocate a new segment (and recopy the arguments).
+ 	MOVQ	8(SP), AX	// fn
+-	MOVQ	16(SP), BX	// arg frame
++	MOVQ	16(SP), DX	// arg frame
+ 	MOVL	24(SP), CX	// arg size
+ 
+-	MOVQ	AX, m_morepc(m)	// f's PC
+-	MOVQ	BX, m_morefp(m)	// argument frame pointer
+-	MOVL	CX, m_moreargs(m)	// f's argument size
+-	MOVL	$1, m_moreframe(m)	// f's frame size
++	MOVQ	AX, m_morepc(BX)	// f's PC
++	MOVQ	DX, m_morefp(BX)	// argument frame pointer
++	MOVL	CX, m_moreargs(BX)	// f's argument size
++	MOVL	$1, m_moreframe(BX)	// f's frame size
+ 
+ 	// Call newstack on m's scheduling stack.
+-	MOVQ	m_g0(m), g
+-	MOVQ	(m_sched+gobuf_sp)(m), SP
++	MOVQ	m_g0(BX), BP
++	get_tls(CX)
++	MOVQ	BP, g(CX)
++	MOVQ	(m_sched+gobuf_sp)(BX), SP
+ 	CALL	newstack(SB)
+ 	MOVQ	$0, 0x1103	// crash if newstack returns
+ 	RET
+@@ -173,37 +213,48 @@ TEXT reflect·call(SB), 7, $0
+ // Return point when leaving stack.
+ TEXT ·lessstack(SB), 7, $0
+ 	// Save return value in m->cret
+-	MOVQ	AX, m_cret(m)
++	get_tls(CX)
++	MOVQ	m(CX), BX
++	MOVQ	AX, m_cret(BX)
+ 
+ 	// Call oldstack on m's scheduling stack.
+-	MOVQ	m_g0(m), g
+-	MOVQ	(m_sched+gobuf_sp)(m), SP
++	MOVQ	m_g0(BX), DX
++	MOVQ	DX, g(CX)
++	MOVQ	(m_sched+gobuf_sp)(BX), SP
+ 	CALL	oldstack(SB)
+ 	MOVQ	$0, 0x1004	// crash if oldstack returns
+ 	RET
+ 
+ // morestack trampolines
+ TEXT	·morestack00+0(SB),7,$0
++	get_tls(CX)
++	MOVQ	m(CX), BX
+ 	MOVQ	$0, AX
+-	MOVQ	AX, m_moreframe(m)
+-	MOVQ	$·morestack+0(SB), AX
++	MOVQ	AX, m_moreframe(BX)
++	MOVQ	$morestack+0(SB), AX
+ 	JMP	AX
+ 
+ TEXT	·morestack01+0(SB),7,$0
++	get_tls(CX)
++	MOVQ	m(CX), BX
+ 	SHLQ	$32, AX
+-	MOVQ	AX, m_moreframe(m)
+-	MOVQ	$·morestack+0(SB), AX
++	MOVQ	AX, m_moreframe(BX)
++	MOVQ	$morestack+0(SB), AX
+ 	JMP	AX
+ 
+ TEXT	·morestack10+0(SB),7,$0
++	get_tls(CX)
++	MOVQ	m(CX), BX
+ 	MOVLQZX	AX, AX
+-	MOVQ	AX, m_moreframe(m)
+-	MOVQ	$·morestack+0(SB), AX
++	MOVQ	AX, m_moreframe(BX)
++	MOVQ	$morestack+0(SB), AX
+ 	JMP	AX
+ 
+ TEXT	·morestack11+0(SB),7,$0
+-	MOVQ	AX, m_moreframe(m)
+-	MOVQ	$·morestack+0(SB), AX
++	get_tls(CX)
++	MOVQ	m(CX), BX
++	MOVQ	AX, m_moreframe(BX)
++	MOVQ	$morestack+0(SB), AX
+ 	JMP	AX
+ 
+ // subcases of morestack01
+@@ -239,10 +290,12 @@ TEXT	·morestack48(SB),7,$0
+ 	JMP	AX
+ 
+ TEXT	·morestackx(SB),7,$0
++	get_tls(CX)
++	MOVQ	m(CX), BX
+ 	POPQ	AX
+ 	SHLQ	$35, AX
+-	MOVQ	AX, m_moreframe(m)
+-	MOVQ	$·morestack(SB), AX
++	MOVQ	AX, m_moreframe(BX)
++	MOVQ	$morestack(SB), AX
+ 	JMP	AX
+ 
+ // bool cas(int32 *val, int32 old, int32 new)
+@@ -279,40 +332,33 @@ TEXT jmpdefer(SB), 7, $0
+ // runcgo(void(*fn)(void*), void *arg)
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+-// Save g and m across the call,
+-// since the foreign code might reuse them.
+ TEXT runcgo(SB),7,$32
+ 	MOVQ	fn+0(FP), R12
+ 	MOVQ	arg+8(FP), R13
+ 	MOVQ	SP, CX
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+-	MOVQ	m_g0(m), SI
+-	CMPQ	SI, g
++	get_tls(DI)
++	MOVQ	m(DI), DX
++	MOVQ	m_g0(DX), SI
++	CMPQ	g(DI), SI
+ 	JEQ	2(PC)
+-	MOVQ	(m_sched+gobuf_sp)(m), SP
++	MOVQ	(m_sched+gobuf_sp)(DX), SP
+ 
+ 	// Now on a scheduling stack (a pthread-created stack).
+ 	SUBQ	$32, SP
+ 	ANDQ	$~15, SP	// alignment for gcc ABI
+-	MOVQ	g, 24(SP)	// save old g, m, SP
+-	MOVQ	m, 16(SP)
++	MOVQ	g(DI), BP
++	MOVQ	BP, 16(SP)
++	MOVQ	SI, g(DI)
+ 	MOVQ	CX, 8(SP)
+-
+-	// Save g and m values for a potential callback.  The callback
+-	// will start running with on the g0 stack and as such should
+-	// have g set to m->g0.
+-	MOVQ	m, DI		// DI = first argument in AMD64 ABI
+-				// SI, second argument, set above
+-	MOVQ	libcgo_set_scheduler(SB), BX
+-	CALL	BX
+-
+ 	MOVQ	R13, DI		// DI = first argument in AMD64 ABI
+ 	CALL	R12
+ 
+-	// Restore registers, stack pointer.
+-	MOVQ	16(SP), m
+-	MOVQ	24(SP), g
++	// Restore registers, g, stack pointer.
++	get_tls(DI)
++	MOVQ	16(SP), SI
++	MOVQ	SI, g(DI)
+ 	MOVQ	8(SP), SP
+ 	RET
+ 
+@@ -324,30 +370,37 @@ TEXT runcgocallback(SB),7,$48
+ 	MOVQ	sp+8(FP), AX
+ 	MOVQ	fp+16(FP), BX
+ 
+-	MOVQ	DX, g
+-
+ 	// We are running on m's scheduler stack.  Save current SP
+ 	// into m->sched.sp so that a recursive call to runcgo doesn't
+ 	// clobber our stack, and also so that we can restore
+ 	// the SP when the call finishes.  Reusing m->sched.sp
+ 	// for this purpose depends on the fact that there is only
+ 	// one possible gosave of m->sched.
+-	MOVQ	SP, (m_sched+gobuf_sp)(m)
++	get_tls(CX)
++	MOVQ	DX, g(CX)
++	MOVQ	m(CX), CX
++	MOVQ	SP, (m_sched+gobuf_sp)(CX)
+ 
+ 	// Set new SP, call fn
+ 	MOVQ	AX, SP
+ 	CALL	BX
+ 
+-	// Restore old SP, return
+-	MOVQ	(m_sched+gobuf_sp)(m), SP
++	// Restore old g and SP, return
++	get_tls(CX)
++	MOVQ	m(CX), DX
++	MOVQ	m_g0(DX), BX
++	MOVQ	BX, g(CX)
++	MOVQ	(m_sched+gobuf_sp)(DX), SP
+ 	RET
+ 
+ // check that SP is in range [g->stackbase, g->stackguard)
+ TEXT stackcheck(SB), 7, $0
+-	CMPQ	g_stackbase(g), SP
++	get_tls(CX)
++	MOVQ	g(CX), AX
++	CMPQ	g_stackbase(AX), SP
+ 	JHI	2(PC)
+ 	INT	$3
+-	CMPQ	SP, g_stackguard(g)
++	CMPQ	SP, g_stackguard(AX)
+ 	JHI	2(PC)
+ 	INT	$3
+ 	RET
+@@ -379,4 +432,4 @@ TEXT getcallersp(SB),7,$0
+ 	RET
+ 
+ GLOBL initcgo(SB), $8
+-GLOBL libcgo_set_scheduler(SB), $8
++GLOBL tls0(SB), $64
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 1654fa2b0c..148624934e 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -7,6 +7,9 @@
+ // See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
+ // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
+ //
++// The low 24 bits are the system call number.
++// The high 8 bits specify the kind of system call: 1=Mach, 2=BSD, 3=Machine-Dependent.
++//
+ 
+ #include "amd64/asm.h"
+ 
+@@ -61,14 +64,30 @@ TEXT	sigaction(SB),7,$0
+ 	CALL	notok(SB)
+ 	RET
+ 
+-TEXT sigtramp(SB),7,$40
+-	MOVQ	m_gsignal(m), g
++TEXT sigtramp(SB),7,$64
++	get_tls(BX)
++	
++	// save g
++	MOVQ	g(BX), BP
++	MOVQ	BP, 40(SP)
++	
++	// g = m->gsignal
++	MOVQ	m(BX), BP
++	MOVQ	m_gsignal(BP), BP
++	MOVQ	BP, g(BX)
++
+ 	MOVL	DX, 0(SP)
+ 	MOVQ	CX, 8(SP)
+ 	MOVQ	R8, 16(SP)
+ 	MOVQ	R8, 24(SP)	// save ucontext
+ 	MOVQ	SI, 32(SP)	// save infostyle
+ 	CALL	DI
++
++	// restore g
++	get_tls(BX)
++	MOVQ	40(SP), BP
++	MOVQ	BP, g(BX)
++
+ 	MOVL	$(0x2000000+184), AX	// sigreturn(ucontext, infostyle)
+ 	MOVQ	24(SP), DI	// saved ucontext
+ 	MOVQ	32(SP), SI	// saved infostyle
+@@ -134,10 +153,25 @@ TEXT bsdthread_create(SB),7,$0
+ //	SP = stack - C_64_REDZONE_LEN (= stack - 128)
+ TEXT bsdthread_start(SB),7,$0
+ 	MOVQ	R8, SP		// empirically, SP is very wrong but R8 is right
+-	MOVQ	CX, m
+-	MOVQ	m_g0(m), g
+-	CALL	stackcheck(SB)
+-	MOVQ	SI, m_procid(m)	// thread port is m->procid
++
++	PUSHQ	DX
++	PUSHQ	CX
++	PUSHQ	SI
++
++	// set up thread local storage pointing at m->tls.
++	LEAQ	m_tls(CX), DI
++	CALL	settls(SB)
++
++	POPQ	SI
++	POPQ	CX
++	POPQ	DX
++	
++	get_tls(BX)
++	MOVQ	CX, m(BX)
++	MOVQ	SI, m_procid(CX)	// thread port is m->procid
++	MOVQ	m_g0(CX), AX
++	MOVQ	AX, g(BX)
++	CALL	stackcheck(SB)	// smashes AX, CX
+ 	CALL	DX	// fn
+ 	CALL	exit1(SB)
+ 	RET
+@@ -222,3 +256,16 @@ TEXT mach_semaphore_signal_all(SB),7,$0
+ 	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
+ 	SYSCALL
+ 	RET
++
++// set tls base to DI
++TEXT	settls(SB),7,$32
++	/*
++	* Same as in ../386/sys.s:/ugliness, different constant.
++	* See ../../../../libcgo/darwin_amd64.c for the derivation
++	* of the constant.
++	*/
++	SUBQ $0x8a0, DI
++
++	MOVL	$(0x3000000+3), AX	// thread_fast_set_cthread_self - machdep call #3
++	SYSCALL
++	RET
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 604b763ab9..50ec64d6f9 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -26,13 +26,22 @@ TEXT thr_new(SB),7,$0
+ 	RET
+ 
+ TEXT thr_start(SB),7,$0
+-	MOVQ DI, m
+-	MOVQ m_g0(m), g
++	MOVQ	DI, R13	// m
++
++	// set up FS to point at m->tls
++	LEAQ	m_tls(R13), DI
++	CALL	settls(SB)	// smashes DI
++
++	// set up m, g
++	get_tls(CX)
++	MOVQ	R13, m(CX)
++	MOVQ	m_g0(R13), DI
++	MOVQ	DI, g(CX)
++
+ 	CALL stackcheck(SB)
+ 	CALL mstart(SB)
+ 	MOVQ 0, AX			// crash (not reached)
+ 
+-
+ // Exit the entire program (like C exit)
+ TEXT	exit(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 exit status
+@@ -84,7 +93,10 @@ TEXT	sigaction(SB),7,$-8
+ 	RET
+ 
+ TEXT	sigtramp(SB),7,$24-16
+-	MOVQ	m_gsignal(m), g
++	get_tls(CX)
++	MOVQ	m(CX), AX
++	MOVQ	m_gsignal(AX), AX
++	MOVQ	AX, g(CX)
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SI, 8(SP)
+ 	MOVQ	DX, 16(SP)
+@@ -117,3 +129,15 @@ TEXT sigaltstack(SB),7,$-8
+ 	JCC	2(PC)
+ 	CALL	notok(SB)
+ 	RET
++
++// set tls base to DI
++TEXT settls(SB),7,$8
++	ADDQ	$16, DI	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
++	MOVQ	DI, 0(SP)
++	MOVQ	SP, SI
++	MOVQ	$129, DI	// AMD64_SET_FSBASE
++	MOVQ	$165, AX	// sysarch
++	SYSCALL
++	JCC	2(PC)
++	CALL	notok(SB)
++	RET
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index dd04731581..20287c8d02 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -60,12 +60,27 @@ TEXT	rt_sigaction(SB),7,$0-32
+ 	SYSCALL
+ 	RET
+ 
+-TEXT	sigtramp(SB),7,$24-16
+-	MOVQ	m_gsignal(m), g
++TEXT	sigtramp(SB),7,$64
++	get_tls(BX)
++
++	// save g
++	MOVQ	g(BX), BP
++	MOVQ	BP, 40(SP)
++
++	// g = m->gsignal
++	MOVQ	m(BX), BP
++	MOVQ	m_gsignal(BP), BP
++	MOVQ	BP, g(BX)
++
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SI, 8(SP)
+ 	MOVQ	DX, 16(SP)
+ 	CALL	sighandler(SB)
++
++	// restore g
++	get_tls(BX)
++	MOVQ	40(SP), BP
++	MOVQ	BP, g(BX)
+ 	RET
+ 
+ TEXT	sigignore(SB),7,$0
+@@ -129,17 +144,24 @@ TEXT	clone(SB),7,$0
+ 	CMPQ	AX, $0
+ 	JEQ	2(PC)
+ 	RET
+-
+-	// In child, set up new stack
++	
++	// In child, on new stack.
+ 	MOVQ	SI, SP
+-	MOVQ	R8, m
+-	MOVQ	R9, g
+-	CALL	stackcheck(SB)
+-
++	
+ 	// Initialize m->procid to Linux tid
+ 	MOVL	$186, AX	// gettid
+ 	SYSCALL
+-	MOVQ	AX, m_procid(m)
++	MOVQ	AX, m_procid(R8)
++
++	// Set FS to point at m->tls.
++	LEAQ	m_tls(R8), DI
++	CALL	settls(SB)
++
++	// In child, set up new stack
++	get_tls(CX)
++	MOVQ	R8, m(CX)
++	MOVQ	R9, g(CX)
++	CALL	stackcheck(SB)
+ 
+ 	// Call fn
+ 	CALL	R12
+@@ -159,3 +181,17 @@ TEXT	sigaltstack(SB),7,$-8
+ 	JLS	2(PC)
+ 	CALL	notok(SB)
+ 	RET
++
++// set tls base to DI
++TEXT settls(SB),7,$32
++	ADDQ	$16, DI	// ELF wants to use -16(FS), -8(FS)
++
++	MOVQ	DI, SI
++	MOVQ	$0x1002, DI	// ARCH_SET_FS
++	MOVQ	$158, AX	// arch_prctl
++	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	2(PC)
++	CALL	notok(SB)
++	RET
++
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index df8ad88381..8544d15d84 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -16,8 +16,8 @@ case "$GOARCH" in
+ 	# The offsets 0 and 4 are also known to:
+ 	#	nacl/thread.c:/^newosproc
+ 	#	../../cmd/8l/pass.c:/D_GS
+-	#	../../libcgo/linux_386.c:/^start
+-	#	../../libcgo/darwin_386.c:/^start
++	#	../../libcgo/linux_386.c:/^threadentry
++	#	../../libcgo/darwin_386.c:/^threadentry
+ 	case "$GOOS" in
+ 	windows)
+ 		echo '#define	get_tls(r)	MOVL 0x2c(FS), r'
+@@ -57,10 +57,14 @@ case "$GOARCH" in
+ 	esac
+ 	;;
+ amd64)
+-	# These registers are also known to:
+-	#	../../libcgo/linux_amd64.c:/^start
+-	echo '#define	g	R15'
+-	echo '#define	m	R14'
++	# The offsets 0 and 8 are known to:
++	#	../../cmd/6l/pass.c:/D_GS
++	#	../../libcgo/linux_amd64.c:/^threadentry
++	#	../../libcgo/darwin_amd64.c:/^threadentry
++	#
++	echo '#define	get_tls(r)'
++	echo '#define	g(r) 0(GS)'
++	echo '#define	m(r) 8(GS)'
+ 	;;
+ arm)
+ 	echo '#define	g	R10'

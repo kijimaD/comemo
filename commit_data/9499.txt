@@ -7,7 +7,56 @@ Date:   Fri Aug 26 11:31:59 2011 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4917049
-
+---
  src/pkg/image/tiff/reader_test.go                  |  25 +++++++++++++++++++++
  .../tiff/testdata/video-001-uncompressed.tiff      | Bin 0 -> 46674 bytes
  2 files changed, 25 insertions(+)
+
+diff --git a/src/pkg/image/tiff/reader_test.go b/src/pkg/image/tiff/reader_test.go
+index f2122c4403..1eb2bcd76e 100644
+--- a/src/pkg/image/tiff/reader_test.go
++++ b/src/pkg/image/tiff/reader_test.go
+@@ -5,10 +5,16 @@
+ package tiff
+ 
+ import (
++	"io/ioutil"
+ 	"os"
+ 	"testing"
+ )
+ 
++// Read makes *buffer implements io.Reader, so that we can pass one to Decode.
++func (*buffer) Read([]byte) (int, os.Error) {
++	panic("unimplemented")
++}
++
+ // TestNoRPS tries to decode an image that has no RowsPerStrip tag.
+ // The tag is mandatory according to the spec but some software omits
+ // it in the case of a single strip.
+@@ -23,3 +29,22 @@ func TestNoRPS(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++const filename = "testdata/video-001-uncompressed.tiff"
++
++// BenchmarkDecode benchmarks the decoding of an image.
++func BenchmarkDecode(b *testing.B) {
++	b.StopTimer()
++	contents, err := ioutil.ReadFile(filename)
++	if err != nil {
++		panic(err)
++	}
++	r := &buffer{buf: contents}
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		_, err := Decode(r)
++		if err != nil {
++			panic(err)
++		}
++	}
++}
+diff --git a/src/pkg/image/tiff/testdata/video-001-uncompressed.tiff b/src/pkg/image/tiff/testdata/video-001-uncompressed.tiff
+new file mode 100644
+index 0000000000..fad147107b
+Binary files /dev/null and b/src/pkg/image/tiff/testdata/video-001-uncompressed.tiff differ

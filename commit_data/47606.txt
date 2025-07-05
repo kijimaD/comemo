@@ -14,6 +14,27 @@ Date:   Wed Mar 31 10:27:06 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index c987647131..4e3e5e75e3 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -137,7 +137,14 @@ func schedule(f *Func) {
+ 			case v.Op == OpVarDef:
+ 				// We want all the vardefs next.
+ 				score[v.ID] = ScoreVarDef
+-			case v.Op == OpArg || v.Op == OpArgIntReg || v.Op == OpArgFloatReg:
++			case v.Op == OpArgIntReg || v.Op == OpArgFloatReg:
++				// In-register args must be scheduled as early as possible to ensure that the
++				// context register is not stomped. They should only appear in the entry block.
++				if b != f.Entry {
++					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
++				}
++				score[v.ID] = ScorePhi
++			case v.Op == OpArg:
+ 				// We want all the args as early as possible, for better debugging.
+ 				score[v.ID] = ScoreArg
+ 			case v.Type.IsMemory():

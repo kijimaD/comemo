@@ -26,10 +26,516 @@ Date:   Wed Nov 23 14:16:53 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/api/{goapi.go => api.go}                   | 130 +++++++++------------
  src/cmd/api/{goapi_test.go => api_test.go}         |  33 +++++-
  .../api/{goapi_boring_test.go => boring_test.go}   |   2 +-
  src/cmd/api/run.go                                 | 123 -------------------
  src/cmd/dist/test.go                               |  17 +--
  5 files changed, 87 insertions(+), 218 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/api.go
+similarity index 91%
+rename from src/cmd/api/goapi.go
+rename to src/cmd/api/api.go
+index 894657c117..f93e54cda1 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/api.go
+@@ -2,8 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Api computes the exported API of a set of Go packages.
+-package main
++// Package api computes the exported API of a set of Go packages.
++// It is only a test, not a command, nor a usefully importable package.
++package api
+ 
+ import (
+ 	"bufio"
+@@ -16,6 +17,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"go/types"
++	"internal/testenv"
+ 	"io"
+ 	"log"
+ 	"os"
+@@ -27,33 +29,23 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	"testing"
+ )
+ 
++const verbose = false
++
+ func goCmd() string {
+ 	var exeSuffix string
+ 	if runtime.GOOS == "windows" {
+ 		exeSuffix = ".exe"
+ 	}
+-	if goroot := build.Default.GOROOT; goroot != "" {
+-		path := filepath.Join(goroot, "bin", "go"+exeSuffix)
+-		if _, err := os.Stat(path); err == nil {
+-			return path
+-		}
++	path := filepath.Join(testenv.GOROOT(nil), "bin", "go"+exeSuffix)
++	if _, err := os.Stat(path); err == nil {
++		return path
+ 	}
+ 	return "go"
+ }
+ 
+-// Flags
+-var (
+-	checkFiles      = flag.String("c", "", "optional comma-separated filename(s) to check API against")
+-	requireApproval = flag.String("approval", "", "require approvals in comma-separated list of `files`")
+-	allowNew        = flag.Bool("allow_new", true, "allow API additions")
+-	exceptFile      = flag.String("except", "", "optional filename of packages that are allowed to change without triggering a failure in the tool")
+-	nextFiles       = flag.String("next", "", "comma-separated list of `files` for upcoming API features for the next release. These files can be lazily maintained. They only affects the delta warnings from the -c file printed on success.")
+-	verbose         = flag.Bool("v", false, "verbose debugging")
+-	forceCtx        = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
+-)
+-
+ // contexts are the default contexts which are scanned, unless
+ // overridden by the -contexts flag.
+ var contexts = []*build.Context{
+@@ -117,36 +109,25 @@ func parseContext(c string) *build.Context {
+ 	return bc
+ }
+ 
+-func setContexts() {
+-	contexts = []*build.Context{}
+-	for _, c := range strings.Split(*forceCtx, ",") {
+-		contexts = append(contexts, parseContext(c))
+-	}
+-}
+-
+ var internalPkg = regexp.MustCompile(`(^|/)internal($|/)`)
+ 
+ var exitCode = 0
+ 
+-func main() {
+-	log.SetPrefix("api: ")
+-	log.SetFlags(0)
+-	flag.Parse()
+-
+-	if build.Default.GOROOT == "" {
+-		log.Fatalf("GOROOT not found. (If binary was built with -trimpath, $GOROOT must be set.)")
++func Check(t *testing.T) {
++	checkFiles, err := filepath.Glob(filepath.Join(testenv.GOROOT(t), "api/go1*.txt"))
++	if err != nil {
++		t.Fatal(err)
+ 	}
+ 
+-	if !strings.Contains(runtime.Version(), "weekly") && !strings.Contains(runtime.Version(), "devel") {
+-		if *nextFiles != "" {
+-			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFiles)
+-			*nextFiles = ""
++	var nextFiles []string
++	if strings.Contains(runtime.Version(), "devel") {
++		next, err := filepath.Glob(filepath.Join(testenv.GOROOT(t), "api/next/*.txt"))
++		if err != nil {
++			t.Fatal(err)
+ 		}
++		nextFiles = next
+ 	}
+ 
+-	if *forceCtx != "" {
+-		setContexts()
+-	}
+ 	for _, c := range contexts {
+ 		c.Compiler = build.Default.Compiler
+ 	}
+@@ -158,7 +139,7 @@ func main() {
+ 		wg.Add(1)
+ 		go func() {
+ 			defer wg.Done()
+-			walkers[i] = NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
++			walkers[i] = NewWalker(context, filepath.Join(testenv.GOROOT(t), "src"))
+ 		}()
+ 	}
+ 	wg.Wait()
+@@ -204,40 +185,29 @@ func main() {
+ 	}
+ 
+ 	bw := bufio.NewWriter(os.Stdout)
+-	defer func() {
+-		bw.Flush()
+-		if exitCode != 0 {
+-			os.Exit(exitCode)
+-		}
+-	}()
+-
+-	if *checkFiles == "" {
+-		sort.Strings(features)
+-		for _, f := range features {
+-			fmt.Fprintln(bw, f)
+-		}
+-		return
+-	}
++	defer bw.Flush()
+ 
+ 	var required []string
+-	for _, file := range strings.Split(*checkFiles, ",") {
+-		required = append(required, fileFeatures(file)...)
++	for _, file := range checkFiles {
++		required = append(required, fileFeatures(file, needApproval(file))...)
+ 	}
+ 	var optional []string
+-	if *nextFiles != "" {
+-		for _, file := range strings.Split(*nextFiles, ",") {
+-			optional = append(optional, fileFeatures(file)...)
+-		}
++	for _, file := range nextFiles {
++		optional = append(optional, fileFeatures(file, true)...)
+ 	}
+-	exception := fileFeatures(*exceptFile)
+-	if !compareAPI(bw, features, required, optional, exception, *allowNew) {
+-		exitCode = 1
++	exception := fileFeatures(filepath.Join(testenv.GOROOT(t), "api/except.txt"), false)
++
++	if exitCode == 1 {
++		t.Errorf("API database problems found")
++	}
++	if !compareAPI(bw, features, required, optional, exception, false) {
++		t.Errorf("API differences found")
+ 	}
+ }
+ 
+ // export emits the exported package features.
+ func (w *Walker) export(pkg *types.Package) {
+-	if *verbose {
++	if verbose {
+ 		log.Println(pkg)
+ 	}
+ 	pop := w.pushScope("pkg " + pkg.Path())
+@@ -353,17 +323,7 @@ var aliasReplacer = strings.NewReplacer(
+ 	"os.PathError", "fs.PathError",
+ )
+ 
+-func fileFeatures(filename string) []string {
+-	if filename == "" {
+-		return nil
+-	}
+-	needApproval := false
+-	for _, name := range strings.Split(*requireApproval, ",") {
+-		if filename == name {
+-			needApproval = true
+-			break
+-		}
+-	}
++func fileFeatures(filename string, needApproval bool) []string {
+ 	bs, err := os.ReadFile(filename)
+ 	if err != nil {
+ 		log.Fatal(err)
+@@ -406,6 +366,11 @@ func fileFeatures(filename string) []string {
+ 				exitCode = 1
+ 			}
+ 			line = strings.TrimSpace(feature)
++		} else {
++			if strings.Contains(line, " #") {
++				log.Printf("%s:%d: unexpected approval\n", filename, i+1)
++				exitCode = 1
++			}
+ 		}
+ 		nonblank = append(nonblank, line)
+ 	}
+@@ -1140,7 +1105,20 @@ func (w *Walker) emitf(format string, args ...any) {
+ 	}
+ 	w.features[f] = true
+ 
+-	if *verbose {
++	if verbose {
+ 		log.Printf("feature: %s", f)
+ 	}
+ }
++
++func needApproval(filename string) bool {
++	name := filepath.Base(filename)
++	if name == "go1.txt" {
++		return false
++	}
++	minor := strings.TrimSuffix(strings.TrimPrefix(name, "go1."), ".txt")
++	n, err := strconv.Atoi(minor)
++	if err != nil {
++		log.Fatalf("unexpected api file: %v", name)
++	}
++	return n >= 19 // started tracking approvals in Go 1.19
++}
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/api_test.go
+similarity index 87%
+rename from src/cmd/api/goapi_test.go
+rename to src/cmd/api/api_test.go
+index 464dc68322..b215c48e73 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/api_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package api
+ 
+ import (
+ 	"flag"
+@@ -17,6 +17,8 @@ import (
+ 	"testing"
+ )
+ 
++var flagCheck = flag.Bool("check", false, "run API checks")
++
+ func TestMain(m *testing.M) {
+ 	if !testenv.HasExec() {
+ 		os.Stdout.WriteString("skipping test: platform cannot exec")
+@@ -40,7 +42,7 @@ func TestMain(m *testing.M) {
+ 		wg.Add(1)
+ 		go func() {
+ 			defer wg.Done()
+-			_ = NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
++			_ = NewWalker(context, filepath.Join(testenv.GOROOT(nil), "src"))
+ 		}()
+ 	}
+ 	wg.Wait()
+@@ -53,6 +55,10 @@ var (
+ )
+ 
+ func TestGolden(t *testing.T) {
++	if *flagCheck {
++		// slow, not worth repeating in -check
++		t.Skip("skipping with -check set")
++	}
+ 	td, err := os.Open("testdata/src/pkg")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -194,7 +200,7 @@ func TestSkipInternal(t *testing.T) {
+ func BenchmarkAll(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		for _, context := range contexts {
+-			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
++			w := NewWalker(context, filepath.Join(testenv.GOROOT(b), "src"))
+ 			for _, name := range w.stdPackages {
+ 				pkg, _ := w.Import(name)
+ 				w.export(pkg)
+@@ -205,6 +211,10 @@ func BenchmarkAll(b *testing.B) {
+ }
+ 
+ func TestIssue21181(t *testing.T) {
++	if *flagCheck {
++		// slow, not worth repeating in -check
++		t.Skip("skipping with -check set")
++	}
+ 	for _, context := range contexts {
+ 		w := NewWalker(context, "testdata/src/issue21181")
+ 		pkg, err := w.Import("p")
+@@ -217,6 +227,10 @@ func TestIssue21181(t *testing.T) {
+ }
+ 
+ func TestIssue29837(t *testing.T) {
++	if *flagCheck {
++		// slow, not worth repeating in -check
++		t.Skip("skipping with -check set")
++	}
+ 	for _, context := range contexts {
+ 		w := NewWalker(context, "testdata/src/issue29837")
+ 		_, err := w.Import("p")
+@@ -227,9 +241,13 @@ func TestIssue29837(t *testing.T) {
+ }
+ 
+ func TestIssue41358(t *testing.T) {
++	if *flagCheck {
++		// slow, not worth repeating in -check
++		t.Skip("skipping with -check set")
++	}
+ 	context := new(build.Context)
+ 	*context = build.Default
+-	context.Dir = filepath.Join(context.GOROOT, "src")
++	context.Dir = filepath.Join(testenv.GOROOT(t), "src")
+ 
+ 	w := NewWalker(context, context.Dir)
+ 	for _, pkg := range w.stdPackages {
+@@ -238,3 +256,10 @@ func TestIssue41358(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestCheck(t *testing.T) {
++	if !*flagCheck {
++		t.Skip("-check not specified")
++	}
++	Check(t)
++}
+diff --git a/src/cmd/api/goapi_boring_test.go b/src/cmd/api/boring_test.go
+similarity index 95%
+rename from src/cmd/api/goapi_boring_test.go
+rename to src/cmd/api/boring_test.go
+index f0e3575637..a9ec6e6bfe 100644
+--- a/src/cmd/api/goapi_boring_test.go
++++ b/src/cmd/api/boring_test.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build boringcrypto
+ 
+-package main
++package api
+ 
+ import (
+ 	"fmt"
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+deleted file mode 100644
+index e17beb001f..0000000000
+--- a/src/cmd/api/run.go
++++ /dev/null
+@@ -1,123 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build ignore
+-
+-// The run program is invoked via the dist tool.
+-// To invoke manually: go tool dist test -run api --no-rebuild
+-package main
+-
+-import (
+-	"errors"
+-	"fmt"
+-	"internal/goversion"
+-	"io/fs"
+-	"log"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"runtime"
+-	"strconv"
+-	"strings"
+-)
+-
+-func goCmd() string {
+-	var exeSuffix string
+-	if runtime.GOOS == "windows" {
+-		exeSuffix = ".exe"
+-	}
+-	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+-	if _, err := os.Stat(path); err == nil {
+-		return path
+-	}
+-	return "go"
+-}
+-
+-var goroot string
+-
+-func main() {
+-	log.SetFlags(0)
+-	goroot = os.Getenv("GOROOT") // should be set by run.{bash,bat}
+-	if goroot == "" {
+-		log.Fatal("No $GOROOT set.")
+-	}
+-	if err := os.Chdir(filepath.Join(goroot, "api")); err != nil {
+-		log.Fatal(err)
+-	}
+-
+-	files, err := filepath.Glob("go1*.txt")
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	next, err := filepath.Glob(filepath.Join("next", "*.txt"))
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	cmd := exec.Command(goCmd(), "tool", "api",
+-		"-c", strings.Join(files, ","),
+-		"-approval", strings.Join(append(approvalNeeded(files), next...), ","),
+-		allowNew(),
+-		"-next", strings.Join(next, ","),
+-		"-except", "except.txt",
+-	)
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		log.Fatalf("Error running API checker (see $GOROOT/api/README): %v\n%s", err, out)
+-	}
+-	fmt.Print(string(out))
+-}
+-
+-func approvalNeeded(files []string) []string {
+-	var out []string
+-	for _, f := range files {
+-		name := filepath.Base(f)
+-		if name == "go1.txt" {
+-			continue
+-		}
+-		minor := strings.TrimSuffix(strings.TrimPrefix(name, "go1."), ".txt")
+-		n, err := strconv.Atoi(minor)
+-		if err != nil {
+-			log.Fatalf("unexpected api file: %v", f)
+-		}
+-		if n >= 19 { // approvals started being tracked in Go 1.19
+-			out = append(out, f)
+-		}
+-	}
+-	return out
+-}
+-
+-// allowNew returns the -allow_new flag to use for the 'go tool api' invocation.
+-func allowNew() string {
+-	// Experiment for Go 1.19: always require api file updates.
+-	return "-allow_new=false"
+-
+-	// Verify that the api/go1.n.txt for previous Go version exists.
+-	// It definitely should, otherwise it's a signal that the logic below may be outdated.
+-	if _, err := os.Stat(fmt.Sprintf("go1.%d.txt", goversion.Version-1)); err != nil {
+-		log.Fatalln("Problem with api file for previous release:", err)
+-	}
+-
+-	// See whether the api/go1.n.txt for this Go version has been created.
+-	// (As of April 2021, it gets created during the release of the first Beta.)
+-	_, err := os.Stat(fmt.Sprintf("go1.%d.txt", goversion.Version))
+-	if errors.Is(err, fs.ErrNotExist) {
+-		// It doesn't exist, so we're in development or before Beta 1.
+-		// At this stage, unmentioned API additions are deemed okay.
+-		// (They will be quietly shown in API check output, but the test won't fail).
+-		return "-allow_new=true"
+-	} else if err == nil {
+-		// The api/go1.n.txt for this Go version has been created,
+-		// so we're definitely past Beta 1 in the release cycle.
+-		//
+-		// From this point, enforce that api/go1.n.txt is an accurate and complete
+-		// representation of what's going into the release by failing API check if
+-		// there are API additions (a month into the freeze, there shouldn't be many).
+-		//
+-		// See golang.org/issue/43956.
+-		return "-allow_new=false"
+-	} else {
+-		log.Fatal(err)
+-	}
+-	panic("unreachable")
+-}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index f93879c04b..722aa0868b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -957,20 +957,9 @@ func (t *tester) registerTests() {
+ 	// Every platform checks the API on every GOOS/GOARCH/CGO_ENABLED combination anyway,
+ 	// so we really only need to run this check once anywhere to get adequate coverage.
+ 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
+-	// which is darwin/linux/windows and amd64/arm64.
+-	if (goos == "darwin" || goos == "linux" || goos == "windows") && (goarch == "amd64" || goarch == "arm64") {
+-		t.tests = append(t.tests, distTest{
+-			name:    "api",
+-			heading: "API check",
+-			fn: func(dt *distTest) error {
+-				if t.compileOnly {
+-					t.addCmd(dt, "src", "go", "build", "-o", os.DevNull, filepath.Join(goroot, "src/cmd/api/run.go"))
+-					return nil
+-				}
+-				t.addCmd(dt, "src", "go", "run", filepath.Join(goroot, "src/cmd/api/run.go"))
+-				return nil
+-			},
+-		})
++	// which is darwin,linux,windows/amd64 and darwin/arm64.
++	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
++		t.registerTest("api", "", &goTest{dir: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+ 	}
+ 
+ 	// Ensure that the toolchain can bootstrap itself.

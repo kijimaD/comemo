@@ -55,7 +55,7 @@ Date:   Thu Aug 4 09:43:44 2022 +0000
     Run-TryBot: Eric Fang <eric.fang@arm.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |  30 +-
  src/cmd/compile/internal/ssa/gen/ARM64.rules | 111 +++---
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  28 +-
@@ -65,3 +65,1573 @@ Date:   Thu Aug 4 09:43:44 2022 +0000
  src/runtime/memmove_test.go                  | 318 +++++++++++++---
  test/codegen/strings.go                      |   2 +-
  8 files changed, 782 insertions(+), 258 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 64980daf48..8299cb1de4 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -449,6 +449,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpARM64LDP:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		ssagen.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REGREG
++		p.To.Reg = v.Reg0()
++		p.To.Offset = int64(v.Reg1())
+ 	case ssa.OpARM64MOVBloadidx,
+ 		ssa.OpARM64MOVBUloadidx,
+ 		ssa.OpARM64MOVHloadidx,
+@@ -1021,25 +1029,27 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Sym = ir.Syms.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpARM64LoweredMove:
+-		// MOVD.P	8(R16), Rtmp
+-		// MOVD.P	Rtmp, 8(R17)
++		// LDP.P	16(R16), (R25, Rtmp)
++		// STP.P	(R25, Rtmp), 16(R17)
+ 		// CMP	Rarg2, R16
+ 		// BLE	-3(PC)
+ 		// arg2 is the address of the last element of src
+-		p := s.Prog(arm64.AMOVD)
++		p := s.Prog(arm64.ALDP)
+ 		p.Scond = arm64.C_XPOST
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = arm64.REG_R16
+-		p.From.Offset = 8
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = arm64.REGTMP
+-		p2 := s.Prog(arm64.AMOVD)
++		p.From.Offset = 16
++		p.To.Type = obj.TYPE_REGREG
++		p.To.Reg = arm64.REG_R25
++		p.To.Offset = int64(arm64.REGTMP)
++		p2 := s.Prog(arm64.ASTP)
+ 		p2.Scond = arm64.C_XPOST
+-		p2.From.Type = obj.TYPE_REG
+-		p2.From.Reg = arm64.REGTMP
++		p2.From.Type = obj.TYPE_REGREG
++		p2.From.Reg = arm64.REG_R25
++		p2.From.Offset = int64(arm64.REGTMP)
+ 		p2.To.Type = obj.TYPE_MEM
+ 		p2.To.Reg = arm64.REG_R17
+-		p2.To.Offset = 8
++		p2.To.Offset = 16
+ 		p3 := s.Prog(arm64.ACMP)
+ 		p3.From.Type = obj.TYPE_REG
+ 		p3.From.Reg = v.Args[2].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index c42b9219f1..3cbfea83cf 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -352,8 +352,6 @@
+ (Zero [1] ptr mem) => (MOVBstore ptr (MOVDconst [0]) mem)
+ (Zero [2] ptr mem) => (MOVHstore ptr (MOVDconst [0]) mem)
+ (Zero [4] ptr mem) => (MOVWstore ptr (MOVDconst [0]) mem)
+-(Zero [8] ptr mem) => (MOVDstore ptr (MOVDconst [0]) mem)
+-
+ (Zero [3] ptr mem) =>
+ 	(MOVBstore [2] ptr (MOVDconst [0])
+ 		(MOVHstore ptr (MOVDconst [0]) mem))
+@@ -364,9 +362,9 @@
+ 	(MOVHstore [4] ptr (MOVDconst [0])
+ 		(MOVWstore ptr (MOVDconst [0]) mem))
+ (Zero [7] ptr mem) =>
+-	(MOVBstore [6] ptr (MOVDconst [0])
+-		(MOVHstore [4] ptr (MOVDconst [0])
+-			(MOVWstore ptr (MOVDconst [0]) mem)))
++	(MOVWstore [3] ptr (MOVDconst [0])
++		(MOVWstore ptr (MOVDconst [0]) mem))
++(Zero [8] ptr mem) => (MOVDstore ptr (MOVDconst [0]) mem)
+ (Zero [9] ptr mem) =>
+ 	(MOVBstore [8] ptr (MOVDconst [0])
+ 		(MOVDstore ptr (MOVDconst [0]) mem))
+@@ -374,25 +372,20 @@
+ 	(MOVHstore [8] ptr (MOVDconst [0])
+ 		(MOVDstore ptr (MOVDconst [0]) mem))
+ (Zero [11] ptr mem) =>
+-	(MOVBstore [10] ptr (MOVDconst [0])
+-		(MOVHstore [8] ptr (MOVDconst [0])
+-			(MOVDstore ptr (MOVDconst [0]) mem)))
++	(MOVDstore [3] ptr (MOVDconst [0])
++		(MOVDstore ptr (MOVDconst [0]) mem))
+ (Zero [12] ptr mem) =>
+ 	(MOVWstore [8] ptr (MOVDconst [0])
+ 		(MOVDstore ptr (MOVDconst [0]) mem))
+ (Zero [13] ptr mem) =>
+-	(MOVBstore [12] ptr (MOVDconst [0])
+-		(MOVWstore [8] ptr (MOVDconst [0])
+-			(MOVDstore ptr (MOVDconst [0]) mem)))
++	(MOVDstore [5] ptr (MOVDconst [0])
++		(MOVDstore ptr (MOVDconst [0]) mem))
+ (Zero [14] ptr mem) =>
+-	(MOVHstore [12] ptr (MOVDconst [0])
+-		(MOVWstore [8] ptr (MOVDconst [0])
+-			(MOVDstore ptr (MOVDconst [0]) mem)))
++	(MOVDstore [6] ptr (MOVDconst [0])
++		(MOVDstore ptr (MOVDconst [0]) mem))
+ (Zero [15] ptr mem) =>
+-	(MOVBstore [14] ptr (MOVDconst [0])
+-		(MOVHstore [12] ptr (MOVDconst [0])
+-			(MOVWstore [8] ptr (MOVDconst [0])
+-				(MOVDstore ptr (MOVDconst [0]) mem))))
++	(MOVDstore [7] ptr (MOVDconst [0])
++		(MOVDstore ptr (MOVDconst [0]) mem))
+ (Zero [16] ptr mem) =>
+ 	(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem)
+ 
+@@ -440,12 +433,10 @@
+ (Move [0] _ _ mem) => mem
+ (Move [1] dst src mem) => (MOVBstore dst (MOVBUload src mem) mem)
+ (Move [2] dst src mem) => (MOVHstore dst (MOVHUload src mem) mem)
+-(Move [4] dst src mem) => (MOVWstore dst (MOVWUload src mem) mem)
+-(Move [8] dst src mem) => (MOVDstore dst (MOVDload src mem) mem)
+-
+ (Move [3] dst src mem) =>
+ 	(MOVBstore [2] dst (MOVBUload [2] src mem)
+ 		(MOVHstore dst (MOVHUload src mem) mem))
++(Move [4] dst src mem) => (MOVWstore dst (MOVWUload src mem) mem)
+ (Move [5] dst src mem) =>
+ 	(MOVBstore [4] dst (MOVBUload [4] src mem)
+ 		(MOVWstore dst (MOVWUload src mem) mem))
+@@ -453,35 +444,60 @@
+ 	(MOVHstore [4] dst (MOVHUload [4] src mem)
+ 		(MOVWstore dst (MOVWUload src mem) mem))
+ (Move [7] dst src mem) =>
+-	(MOVBstore [6] dst (MOVBUload [6] src mem)
+-		(MOVHstore [4] dst (MOVHUload [4] src mem)
+-			(MOVWstore dst (MOVWUload src mem) mem)))
++	(MOVWstore [3] dst (MOVWUload [3] src mem)
++		(MOVWstore dst (MOVWUload src mem) mem))
++(Move [8] dst src mem) => (MOVDstore dst (MOVDload src mem) mem)
++(Move [9] dst src mem) =>
++	(MOVBstore [8] dst (MOVBUload [8] src mem)
++		(MOVDstore dst (MOVDload src mem) mem))
++(Move [10] dst src mem) =>
++	(MOVHstore [8] dst (MOVHUload [8] src mem)
++		(MOVDstore dst (MOVDload src mem) mem))
++(Move [11] dst src mem) =>
++	(MOVDstore [3] dst (MOVDload [3] src mem)
++		(MOVDstore dst (MOVDload src mem) mem))
+ (Move [12] dst src mem) =>
+ 	(MOVWstore [8] dst (MOVWUload [8] src mem)
+ 		(MOVDstore dst (MOVDload src mem) mem))
+-(Move [16] dst src mem) =>
+-	(MOVDstore [8] dst (MOVDload [8] src mem)
++(Move [13] dst src mem) =>
++	(MOVDstore [5] dst (MOVDload [5] src mem)
++		(MOVDstore dst (MOVDload src mem) mem))
++(Move [14] dst src mem) =>
++	(MOVDstore [6] dst (MOVDload [6] src mem)
++		(MOVDstore dst (MOVDload src mem) mem))
++(Move [15] dst src mem) =>
++	(MOVDstore [7] dst (MOVDload [7] src mem)
+ 		(MOVDstore dst (MOVDload src mem) mem))
+-(Move [24] dst src mem) =>
+-	(MOVDstore [16] dst (MOVDload [16] src mem)
+-		(MOVDstore [8] dst (MOVDload [8] src mem)
+-			(MOVDstore dst (MOVDload src mem) mem)))
++(Move [16] dst src mem) =>
++	(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)
++(Move [32] dst src mem) =>
++	(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
++		(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
++(Move [48] dst src mem) =>
++	(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
++		(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
++			(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
++(Move [64] dst src mem) =>
++	(STP [48] dst (Select0 <typ.UInt64> (LDP [48] src mem)) (Select1 <typ.UInt64> (LDP [48] src mem))
++		(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
++			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
++				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
+ 
+ // strip off fractional word move
+-(Move [s] dst src mem) && s%8 != 0 && s > 8 =>
+-	(Move [s%8]
+-		(OffPtr <dst.Type> dst [s-s%8])
+-		(OffPtr <src.Type> src [s-s%8])
+-		(Move [s-s%8] dst src mem))
++(Move [s] dst src mem) && s%16 != 0 && s%16 <= 8 && s > 16 =>
++	(Move [8]
++		(OffPtr <dst.Type> dst [s-8])
++		(OffPtr <src.Type> src [s-8])
++		(Move [s-s%16] dst src mem))
++(Move [s] dst src mem) && s%16 != 0 && s%16 > 8 && s > 16 =>
++	(Move [16]
++		(OffPtr <dst.Type> dst [s-16])
++		(OffPtr <src.Type> src [s-16])
++		(Move [s-s%16] dst src mem))
+ 
+ // medium move uses a duff device
+ (Move [s] dst src mem)
+-	&& s > 32 && s <= 16*64 && s%16 == 8
+-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
+-	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
+-		(DUFFCOPY <types.TypeMem> [8*(64-(s-8)/16)] dst src mem))
+-(Move [s] dst src mem)
+-	&& s > 32 && s <= 16*64 && s%16 == 0
++	&& s > 64 && s <= 16*64 && s%16 == 0
+ 	&& !config.noDuffDevice && logLargeCopy(v, s) =>
+ 	(DUFFCOPY [8 * (64 - s/16)] dst src mem)
+ // 8 is the number of bytes to encode:
+@@ -493,11 +509,12 @@
+ 
+ // large move uses a loop
+ (Move [s] dst src mem)
+-	&& s > 24 && s%8 == 0 && logLargeCopy(v, s) =>
++	&& s%16 == 0 && (s > 16*64 || config.noDuffDevice)
++	&& logLargeCopy(v, s) =>
+ 	(LoweredMove
+ 		dst
+ 		src
+-		(ADDconst <src.Type> src [s-8])
++		(ADDconst <src.Type> src [s-16])
+ 		mem)
+ 
+ // calls
+@@ -779,6 +796,9 @@
+ (MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
+ 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+ 	(MOVDload [off1+int32(off2)] {sym} ptr mem)
++(LDP [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
++	(LDP [off1+int32(off2)] {sym} ptr mem)
+ (FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
+ 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+ 	(FMOVSload [off1+int32(off2)] {sym} ptr mem)
+@@ -958,6 +978,10 @@
+ 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+ 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+ 	(MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++(LDP [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
++	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
++	(LDP [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+ 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+ 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+@@ -1069,6 +1093,7 @@
+ //(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWreg x)
+ //(MOVWUload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWUreg x)
+ //(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
++//(LDP [off] {sym} ptr (STP [off2] {sym2} ptr2 x y _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x y
+ //(FMOVSload [off] {sym} ptr (FMOVSstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+ //(FMOVDload [off] {sym} ptr (FMOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index cc7de7583e..5aeaf3ad96 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -156,6 +156,7 @@ func init() {
+ 		gp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+ 		gp31           = regInfo{inputs: []regMask{gpg, gpg, gpg}, outputs: []regMask{gp}}
+ 		gpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
++		gpload2        = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gpg, gpg}}
+ 		gpstore        = regInfo{inputs: []regMask{gpspsbg, gpg}}
+ 		gpstore0       = regInfo{inputs: []regMask{gpspsbg}}
+ 		gpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
+@@ -366,15 +367,16 @@ func init() {
+ 
+ 		{name: "MOVDaddr", argLength: 1, reg: regInfo{inputs: []regMask{buildReg("SP") | buildReg("SB")}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVD", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
+ 
+-		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8", faultOnNilArg0: true, symEffect: "Read"},      // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},   // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16", faultOnNilArg0: true, symEffect: "Read"},     // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"},  // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "Int32", faultOnNilArg0: true, symEffect: "Read"},     // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVWU", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"},  // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVDload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVD", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "FMOVSload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVS", typ: "Float32", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "FMOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVD", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8", faultOnNilArg0: true, symEffect: "Read"},       // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16", faultOnNilArg0: true, symEffect: "Read"},      // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"},   // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "Int32", faultOnNilArg0: true, symEffect: "Read"},      // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVWU", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"},   // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVDload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVD", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},     // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "LDP", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDP", typ: "(UInt64,UInt64)", faultOnNilArg0: true, symEffect: "Read"}, // load from ptr = arg0 + auxInt + aux, returns the tuple <*(*uint64)ptr, *(*uint64)(ptr+8)>. arg1=mem.
++		{name: "FMOVSload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVS", typ: "Float32", faultOnNilArg0: true, symEffect: "Read"},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "FMOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVD", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"},  // load from arg0 + auxInt + aux.  arg1=mem.
+ 
+ 		// register indexed load
+ 		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},    // load 64-bit dword from arg0 + arg1, arg2 = mem.
+@@ -581,18 +583,18 @@ func init() {
+ 		// arg2 = address of the last element of src
+ 		// arg3 = mem
+ 		// returns mem
+-		//	MOVD.P	8(R16), Rtmp
+-		//	MOVD.P	Rtmp, 8(R17)
++		//	LDP.P	16(R16), (R25, Rtmp)
++		//	STP.P	(R25, Rtmp), 16(R17)
+ 		//	CMP	Rarg2, R16
+ 		//	BLE	-3(PC)
+ 		// Note: the-end-of-src may be not a valid pointer. it's a problem if it is spilled.
+-		// the-end-of-src - 8 is within the area to copy, ok to spill.
++		// the-end-of-src - 16 is within the area to copy, ok to spill.
+ 		{
+ 			name:      "LoweredMove",
+ 			argLength: 4,
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("R17"), buildReg("R16"), gp},
+-				clobbers: buildReg("R16 R17"),
++				clobbers: buildReg("R16 R17 R25"),
+ 			},
+ 			clobberFlags:   true,
+ 			faultOnNilArg0: true,
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6d69a86844..c156d51ac0 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1553,6 +1553,7 @@ const (
+ 	OpARM64MOVWload
+ 	OpARM64MOVWUload
+ 	OpARM64MOVDload
++	OpARM64LDP
+ 	OpARM64FMOVSload
+ 	OpARM64FMOVDload
+ 	OpARM64MOVDloadidx
+@@ -20795,6 +20796,23 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LDP",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            arm64.ALDP,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++			outputs: []outputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++		},
++	},
+ 	{
+ 		name:           "FMOVSload",
+ 		auxType:        auxSymOff,
+@@ -22238,7 +22256,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 65536},     // R16
+ 				{2, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+ 			},
+-			clobbers: 196608, // R16 R17
++			clobbers: 33751040, // R16 R17 R25
+ 		},
+ 	},
+ 	{
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 0376e44e4b..65d5e5f339 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -161,6 +161,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64GreaterThanF(v)
+ 	case OpARM64GreaterThanU:
+ 		return rewriteValueARM64_OpARM64GreaterThanU(v)
++	case OpARM64LDP:
++		return rewriteValueARM64_OpARM64LDP(v)
+ 	case OpARM64LessEqual:
+ 		return rewriteValueARM64_OpARM64LessEqual(v)
+ 	case OpARM64LessEqualF:
+@@ -5917,6 +5919,56 @@ func rewriteValueARM64_OpARM64GreaterThanU(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64LDP(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	config := b.Func.Config
++	// match: (LDP [off1] {sym} (ADDconst [off2] ptr) mem)
++	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
++	// result: (LDP [off1+int32(off2)] {sym} ptr mem)
++	for {
++		off1 := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		if v_0.Op != OpARM64ADDconst {
++			break
++		}
++		off2 := auxIntToInt64(v_0.AuxInt)
++		ptr := v_0.Args[0]
++		mem := v_1
++		if !(is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
++			break
++		}
++		v.reset(OpARM64LDP)
++		v.AuxInt = int32ToAuxInt(off1 + int32(off2))
++		v.Aux = symToAux(sym)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++	// match: (LDP [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
++	// cond: canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2)) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
++	// result: (LDP [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	for {
++		off1 := auxIntToInt32(v.AuxInt)
++		sym1 := auxToSym(v.Aux)
++		if v_0.Op != OpARM64MOVDaddr {
++			break
++		}
++		off2 := auxIntToInt32(v_0.AuxInt)
++		sym2 := auxToSym(v_0.Aux)
++		ptr := v_0.Args[0]
++		mem := v_1
++		if !(canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
++			break
++		}
++		v.reset(OpARM64LDP)
++		v.AuxInt = int32ToAuxInt(off1 + off2)
++		v.Aux = symToAux(mergeSym(sym1, sym2))
++		v.AddArg2(ptr, mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64LessEqual(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+@@ -25783,36 +25835,6 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		v.AddArg3(dst, v0, mem)
+ 		return true
+ 	}
+-	// match: (Move [4] dst src mem)
+-	// result: (MOVWstore dst (MOVWUload src mem) mem)
+-	for {
+-		if auxIntToInt64(v.AuxInt) != 4 {
+-			break
+-		}
+-		dst := v_0
+-		src := v_1
+-		mem := v_2
+-		v.reset(OpARM64MOVWstore)
+-		v0 := b.NewValue0(v.Pos, OpARM64MOVWUload, typ.UInt32)
+-		v0.AddArg2(src, mem)
+-		v.AddArg3(dst, v0, mem)
+-		return true
+-	}
+-	// match: (Move [8] dst src mem)
+-	// result: (MOVDstore dst (MOVDload src mem) mem)
+-	for {
+-		if auxIntToInt64(v.AuxInt) != 8 {
+-			break
+-		}
+-		dst := v_0
+-		src := v_1
+-		mem := v_2
+-		v.reset(OpARM64MOVDstore)
+-		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
+-		v0.AddArg2(src, mem)
+-		v.AddArg3(dst, v0, mem)
+-		return true
+-	}
+ 	// match: (Move [3] dst src mem)
+ 	// result: (MOVBstore [2] dst (MOVBUload [2] src mem) (MOVHstore dst (MOVHUload src mem) mem))
+ 	for {
+@@ -25834,6 +25856,21 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		v.AddArg3(dst, v0, v1)
+ 		return true
+ 	}
++	// match: (Move [4] dst src mem)
++	// result: (MOVWstore dst (MOVWUload src mem) mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 4 {
++			break
++		}
++		dst := v_0
++		src := v_1
++		mem := v_2
++		v.reset(OpARM64MOVWstore)
++		v0 := b.NewValue0(v.Pos, OpARM64MOVWUload, typ.UInt32)
++		v0.AddArg2(src, mem)
++		v.AddArg3(dst, v0, mem)
++		return true
++	}
+ 	// match: (Move [5] dst src mem)
+ 	// result: (MOVBstore [4] dst (MOVBUload [4] src mem) (MOVWstore dst (MOVWUload src mem) mem))
+ 	for {
+@@ -25877,7 +25914,7 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [7] dst src mem)
+-	// result: (MOVBstore [6] dst (MOVBUload [6] src mem) (MOVHstore [4] dst (MOVHUload [4] src mem) (MOVWstore dst (MOVWUload src mem) mem)))
++	// result: (MOVWstore [3] dst (MOVWUload [3] src mem) (MOVWstore dst (MOVWUload src mem) mem))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 7 {
+ 			break
+@@ -25885,21 +25922,93 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
++		v.reset(OpARM64MOVWstore)
++		v.AuxInt = int32ToAuxInt(3)
++		v0 := b.NewValue0(v.Pos, OpARM64MOVWUload, typ.UInt32)
++		v0.AuxInt = int32ToAuxInt(3)
++		v0.AddArg2(src, mem)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVWstore, types.TypeMem)
++		v2 := b.NewValue0(v.Pos, OpARM64MOVWUload, typ.UInt32)
++		v2.AddArg2(src, mem)
++		v1.AddArg3(dst, v2, mem)
++		v.AddArg3(dst, v0, v1)
++		return true
++	}
++	// match: (Move [8] dst src mem)
++	// result: (MOVDstore dst (MOVDload src mem) mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 {
++			break
++		}
++		dst := v_0
++		src := v_1
++		mem := v_2
++		v.reset(OpARM64MOVDstore)
++		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
++		v0.AddArg2(src, mem)
++		v.AddArg3(dst, v0, mem)
++		return true
++	}
++	// match: (Move [9] dst src mem)
++	// result: (MOVBstore [8] dst (MOVBUload [8] src mem) (MOVDstore dst (MOVDload src mem) mem))
++	for {
++		if auxIntToInt64(v.AuxInt) != 9 {
++			break
++		}
++		dst := v_0
++		src := v_1
++		mem := v_2
+ 		v.reset(OpARM64MOVBstore)
+-		v.AuxInt = int32ToAuxInt(6)
++		v.AuxInt = int32ToAuxInt(8)
+ 		v0 := b.NewValue0(v.Pos, OpARM64MOVBUload, typ.UInt8)
+-		v0.AuxInt = int32ToAuxInt(6)
++		v0.AuxInt = int32ToAuxInt(8)
+ 		v0.AddArg2(src, mem)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVHstore, types.TypeMem)
+-		v1.AuxInt = int32ToAuxInt(4)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVHUload, typ.UInt16)
+-		v2.AuxInt = int32ToAuxInt(4)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
++		v2 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
++		v2.AddArg2(src, mem)
++		v1.AddArg3(dst, v2, mem)
++		v.AddArg3(dst, v0, v1)
++		return true
++	}
++	// match: (Move [10] dst src mem)
++	// result: (MOVHstore [8] dst (MOVHUload [8] src mem) (MOVDstore dst (MOVDload src mem) mem))
++	for {
++		if auxIntToInt64(v.AuxInt) != 10 {
++			break
++		}
++		dst := v_0
++		src := v_1
++		mem := v_2
++		v.reset(OpARM64MOVHstore)
++		v.AuxInt = int32ToAuxInt(8)
++		v0 := b.NewValue0(v.Pos, OpARM64MOVHUload, typ.UInt16)
++		v0.AuxInt = int32ToAuxInt(8)
++		v0.AddArg2(src, mem)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
++		v2 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
+ 		v2.AddArg2(src, mem)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVWstore, types.TypeMem)
+-		v4 := b.NewValue0(v.Pos, OpARM64MOVWUload, typ.UInt32)
+-		v4.AddArg2(src, mem)
+-		v3.AddArg3(dst, v4, mem)
+-		v1.AddArg3(dst, v2, v3)
++		v1.AddArg3(dst, v2, mem)
++		v.AddArg3(dst, v0, v1)
++		return true
++	}
++	// match: (Move [11] dst src mem)
++	// result: (MOVDstore [3] dst (MOVDload [3] src mem) (MOVDstore dst (MOVDload src mem) mem))
++	for {
++		if auxIntToInt64(v.AuxInt) != 11 {
++			break
++		}
++		dst := v_0
++		src := v_1
++		mem := v_2
++		v.reset(OpARM64MOVDstore)
++		v.AuxInt = int32ToAuxInt(3)
++		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
++		v0.AuxInt = int32ToAuxInt(3)
++		v0.AddArg2(src, mem)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
++		v2 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
++		v2.AddArg2(src, mem)
++		v1.AddArg3(dst, v2, mem)
+ 		v.AddArg3(dst, v0, v1)
+ 		return true
+ 	}
+@@ -25924,19 +26033,19 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		v.AddArg3(dst, v0, v1)
+ 		return true
+ 	}
+-	// match: (Move [16] dst src mem)
+-	// result: (MOVDstore [8] dst (MOVDload [8] src mem) (MOVDstore dst (MOVDload src mem) mem))
++	// match: (Move [13] dst src mem)
++	// result: (MOVDstore [5] dst (MOVDload [5] src mem) (MOVDstore dst (MOVDload src mem) mem))
+ 	for {
+-		if auxIntToInt64(v.AuxInt) != 16 {
++		if auxIntToInt64(v.AuxInt) != 13 {
+ 			break
+ 		}
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+ 		v.reset(OpARM64MOVDstore)
+-		v.AuxInt = int32ToAuxInt(8)
++		v.AuxInt = int32ToAuxInt(5)
+ 		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
+-		v0.AuxInt = int32ToAuxInt(8)
++		v0.AuxInt = int32ToAuxInt(5)
+ 		v0.AddArg2(src, mem)
+ 		v1 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
+ 		v2 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
+@@ -25945,89 +26054,243 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		v.AddArg3(dst, v0, v1)
+ 		return true
+ 	}
+-	// match: (Move [24] dst src mem)
+-	// result: (MOVDstore [16] dst (MOVDload [16] src mem) (MOVDstore [8] dst (MOVDload [8] src mem) (MOVDstore dst (MOVDload src mem) mem)))
++	// match: (Move [14] dst src mem)
++	// result: (MOVDstore [6] dst (MOVDload [6] src mem) (MOVDstore dst (MOVDload src mem) mem))
+ 	for {
+-		if auxIntToInt64(v.AuxInt) != 24 {
++		if auxIntToInt64(v.AuxInt) != 14 {
+ 			break
+ 		}
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+ 		v.reset(OpARM64MOVDstore)
+-		v.AuxInt = int32ToAuxInt(16)
++		v.AuxInt = int32ToAuxInt(6)
++		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
++		v0.AuxInt = int32ToAuxInt(6)
++		v0.AddArg2(src, mem)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
++		v2 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
++		v2.AddArg2(src, mem)
++		v1.AddArg3(dst, v2, mem)
++		v.AddArg3(dst, v0, v1)
++		return true
++	}
++	// match: (Move [15] dst src mem)
++	// result: (MOVDstore [7] dst (MOVDload [7] src mem) (MOVDstore dst (MOVDload src mem) mem))
++	for {
++		if auxIntToInt64(v.AuxInt) != 15 {
++			break
++		}
++		dst := v_0
++		src := v_1
++		mem := v_2
++		v.reset(OpARM64MOVDstore)
++		v.AuxInt = int32ToAuxInt(7)
+ 		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
+-		v0.AuxInt = int32ToAuxInt(16)
++		v0.AuxInt = int32ToAuxInt(7)
+ 		v0.AddArg2(src, mem)
+ 		v1 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
+-		v1.AuxInt = int32ToAuxInt(8)
+ 		v2 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
+-		v2.AuxInt = int32ToAuxInt(8)
+ 		v2.AddArg2(src, mem)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
+-		v4 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
+-		v4.AddArg2(src, mem)
+-		v3.AddArg3(dst, v4, mem)
+-		v1.AddArg3(dst, v2, v3)
++		v1.AddArg3(dst, v2, mem)
+ 		v.AddArg3(dst, v0, v1)
+ 		return true
+ 	}
++	// match: (Move [16] dst src mem)
++	// result: (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 16 {
++			break
++		}
++		dst := v_0
++		src := v_1
++		mem := v_2
++		v.reset(OpARM64STP)
++		v0 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v1.AddArg2(src, mem)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v2.AddArg(v1)
++		v.AddArg4(dst, v0, v2, mem)
++		return true
++	}
++	// match: (Move [32] dst src mem)
++	// result: (STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
++	for {
++		if auxIntToInt64(v.AuxInt) != 32 {
++			break
++		}
++		dst := v_0
++		src := v_1
++		mem := v_2
++		v.reset(OpARM64STP)
++		v.AuxInt = int32ToAuxInt(16)
++		v0 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v1.AuxInt = int32ToAuxInt(16)
++		v1.AddArg2(src, mem)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v2.AddArg(v1)
++		v3 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v4 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v5 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v5.AddArg2(src, mem)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v6.AddArg(v5)
++		v3.AddArg4(dst, v4, v6, mem)
++		v.AddArg4(dst, v0, v2, v3)
++		return true
++	}
++	// match: (Move [48] dst src mem)
++	// result: (STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem)) (STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
++	for {
++		if auxIntToInt64(v.AuxInt) != 48 {
++			break
++		}
++		dst := v_0
++		src := v_1
++		mem := v_2
++		v.reset(OpARM64STP)
++		v.AuxInt = int32ToAuxInt(32)
++		v0 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v1.AuxInt = int32ToAuxInt(32)
++		v1.AddArg2(src, mem)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v2.AddArg(v1)
++		v3 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v3.AuxInt = int32ToAuxInt(16)
++		v4 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v5 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v5.AuxInt = int32ToAuxInt(16)
++		v5.AddArg2(src, mem)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v6.AddArg(v5)
++		v7 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v8 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v9 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v9.AddArg2(src, mem)
++		v8.AddArg(v9)
++		v10 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v10.AddArg(v9)
++		v7.AddArg4(dst, v8, v10, mem)
++		v3.AddArg4(dst, v4, v6, v7)
++		v.AddArg4(dst, v0, v2, v3)
++		return true
++	}
++	// match: (Move [64] dst src mem)
++	// result: (STP [48] dst (Select0 <typ.UInt64> (LDP [48] src mem)) (Select1 <typ.UInt64> (LDP [48] src mem)) (STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem)) (STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
++	for {
++		if auxIntToInt64(v.AuxInt) != 64 {
++			break
++		}
++		dst := v_0
++		src := v_1
++		mem := v_2
++		v.reset(OpARM64STP)
++		v.AuxInt = int32ToAuxInt(48)
++		v0 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v1.AuxInt = int32ToAuxInt(48)
++		v1.AddArg2(src, mem)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v2.AddArg(v1)
++		v3 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v3.AuxInt = int32ToAuxInt(32)
++		v4 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v5 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v5.AuxInt = int32ToAuxInt(32)
++		v5.AddArg2(src, mem)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v6.AddArg(v5)
++		v7 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v7.AuxInt = int32ToAuxInt(16)
++		v8 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v9 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v9.AuxInt = int32ToAuxInt(16)
++		v9.AddArg2(src, mem)
++		v8.AddArg(v9)
++		v10 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v10.AddArg(v9)
++		v11 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v12 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v13 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v13.AddArg2(src, mem)
++		v12.AddArg(v13)
++		v14 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v14.AddArg(v13)
++		v11.AddArg4(dst, v12, v14, mem)
++		v7.AddArg4(dst, v8, v10, v11)
++		v3.AddArg4(dst, v4, v6, v7)
++		v.AddArg4(dst, v0, v2, v3)
++		return true
++	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s%8 != 0 && s > 8
+-	// result: (Move [s%8] (OffPtr <dst.Type> dst [s-s%8]) (OffPtr <src.Type> src [s-s%8]) (Move [s-s%8] dst src mem))
++	// cond: s%16 != 0 && s%16 <= 8 && s > 16
++	// result: (Move [8] (OffPtr <dst.Type> dst [s-8]) (OffPtr <src.Type> src [s-8]) (Move [s-s%16] dst src mem))
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s%8 != 0 && s > 8) {
++		if !(s%16 != 0 && s%16 <= 8 && s > 16) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+-		v.AuxInt = int64ToAuxInt(s % 8)
++		v.AuxInt = int64ToAuxInt(8)
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
+-		v0.AuxInt = int64ToAuxInt(s - s%8)
++		v0.AuxInt = int64ToAuxInt(s - 8)
+ 		v0.AddArg(dst)
+ 		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
+-		v1.AuxInt = int64ToAuxInt(s - s%8)
++		v1.AuxInt = int64ToAuxInt(s - 8)
+ 		v1.AddArg(src)
+ 		v2 := b.NewValue0(v.Pos, OpMove, types.TypeMem)
+-		v2.AuxInt = int64ToAuxInt(s - s%8)
++		v2.AuxInt = int64ToAuxInt(s - s%16)
+ 		v2.AddArg3(dst, src, mem)
+ 		v.AddArg3(v0, v1, v2)
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 32 && s <= 16*64 && s%16 == 8 && !config.noDuffDevice && logLargeCopy(v, s)
+-	// result: (MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem) (DUFFCOPY <types.TypeMem> [8*(64-(s-8)/16)] dst src mem))
++	// cond: s%16 != 0 && s%16 > 8 && s > 16
++	// result: (Move [16] (OffPtr <dst.Type> dst [s-16]) (OffPtr <src.Type> src [s-16]) (Move [s-s%16] dst src mem))
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s > 32 && s <= 16*64 && s%16 == 8 && !config.noDuffDevice && logLargeCopy(v, s)) {
++		if !(s%16 != 0 && s%16 > 8 && s > 16) {
+ 			break
+ 		}
+-		v.reset(OpARM64MOVDstore)
+-		v.AuxInt = int32ToAuxInt(int32(s - 8))
+-		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
+-		v0.AuxInt = int32ToAuxInt(int32(s - 8))
+-		v0.AddArg2(src, mem)
+-		v1 := b.NewValue0(v.Pos, OpARM64DUFFCOPY, types.TypeMem)
+-		v1.AuxInt = int64ToAuxInt(8 * (64 - (s-8)/16))
+-		v1.AddArg3(dst, src, mem)
+-		v.AddArg3(dst, v0, v1)
++		v.reset(OpMove)
++		v.AuxInt = int64ToAuxInt(16)
++		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
++		v0.AuxInt = int64ToAuxInt(s - 16)
++		v0.AddArg(dst)
++		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
++		v1.AuxInt = int64ToAuxInt(s - 16)
++		v1.AddArg(src)
++		v2 := b.NewValue0(v.Pos, OpMove, types.TypeMem)
++		v2.AuxInt = int64ToAuxInt(s - s%16)
++		v2.AddArg3(dst, src, mem)
++		v.AddArg3(v0, v1, v2)
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 32 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
++	// cond: s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
+ 	// result: (DUFFCOPY [8 * (64 - s/16)] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s > 32 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
++		if !(s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64DUFFCOPY)
+@@ -26036,19 +26299,19 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 24 && s%8 == 0 && logLargeCopy(v, s)
+-	// result: (LoweredMove dst src (ADDconst <src.Type> src [s-8]) mem)
++	// cond: s%16 == 0 && (s > 16*64 || config.noDuffDevice) && logLargeCopy(v, s)
++	// result: (LoweredMove dst src (ADDconst <src.Type> src [s-16]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s > 24 && s%8 == 0 && logLargeCopy(v, s)) {
++		if !(s%16 == 0 && (s > 16*64 || config.noDuffDevice) && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64LoweredMove)
+ 		v0 := b.NewValue0(v.Pos, OpARM64ADDconst, src.Type)
+-		v0.AuxInt = int64ToAuxInt(s - 8)
++		v0.AuxInt = int64ToAuxInt(s - 16)
+ 		v0.AddArg(src)
+ 		v.AddArg4(dst, src, v0, mem)
+ 		return true
+@@ -27713,20 +27976,6 @@ func rewriteValueARM64_OpZero(v *Value) bool {
+ 		v.AddArg3(ptr, v0, mem)
+ 		return true
+ 	}
+-	// match: (Zero [8] ptr mem)
+-	// result: (MOVDstore ptr (MOVDconst [0]) mem)
+-	for {
+-		if auxIntToInt64(v.AuxInt) != 8 {
+-			break
+-		}
+-		ptr := v_0
+-		mem := v_1
+-		v.reset(OpARM64MOVDstore)
+-		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+-		v0.AuxInt = int64ToAuxInt(0)
+-		v.AddArg3(ptr, v0, mem)
+-		return true
+-	}
+ 	// match: (Zero [3] ptr mem)
+ 	// result: (MOVBstore [2] ptr (MOVDconst [0]) (MOVHstore ptr (MOVDconst [0]) mem))
+ 	for {
+@@ -27779,25 +28028,36 @@ func rewriteValueARM64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [7] ptr mem)
+-	// result: (MOVBstore [6] ptr (MOVDconst [0]) (MOVHstore [4] ptr (MOVDconst [0]) (MOVWstore ptr (MOVDconst [0]) mem)))
++	// result: (MOVWstore [3] ptr (MOVDconst [0]) (MOVWstore ptr (MOVDconst [0]) mem))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 7 {
+ 			break
+ 		}
+ 		ptr := v_0
+ 		mem := v_1
+-		v.reset(OpARM64MOVBstore)
+-		v.AuxInt = int32ToAuxInt(6)
++		v.reset(OpARM64MOVWstore)
++		v.AuxInt = int32ToAuxInt(3)
+ 		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+ 		v0.AuxInt = int64ToAuxInt(0)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVHstore, types.TypeMem)
+-		v1.AuxInt = int32ToAuxInt(4)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVWstore, types.TypeMem)
+-		v2.AddArg3(ptr, v0, mem)
+-		v1.AddArg3(ptr, v0, v2)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVWstore, types.TypeMem)
++		v1.AddArg3(ptr, v0, mem)
+ 		v.AddArg3(ptr, v0, v1)
+ 		return true
+ 	}
++	// match: (Zero [8] ptr mem)
++	// result: (MOVDstore ptr (MOVDconst [0]) mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 {
++			break
++		}
++		ptr := v_0
++		mem := v_1
++		v.reset(OpARM64MOVDstore)
++		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
++		v0.AuxInt = int64ToAuxInt(0)
++		v.AddArg3(ptr, v0, mem)
++		return true
++	}
+ 	// match: (Zero [9] ptr mem)
+ 	// result: (MOVBstore [8] ptr (MOVDconst [0]) (MOVDstore ptr (MOVDconst [0]) mem))
+ 	for {
+@@ -27833,22 +28093,19 @@ func rewriteValueARM64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [11] ptr mem)
+-	// result: (MOVBstore [10] ptr (MOVDconst [0]) (MOVHstore [8] ptr (MOVDconst [0]) (MOVDstore ptr (MOVDconst [0]) mem)))
++	// result: (MOVDstore [3] ptr (MOVDconst [0]) (MOVDstore ptr (MOVDconst [0]) mem))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 11 {
+ 			break
+ 		}
+ 		ptr := v_0
+ 		mem := v_1
+-		v.reset(OpARM64MOVBstore)
+-		v.AuxInt = int32ToAuxInt(10)
++		v.reset(OpARM64MOVDstore)
++		v.AuxInt = int32ToAuxInt(3)
+ 		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+ 		v0.AuxInt = int64ToAuxInt(0)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVHstore, types.TypeMem)
+-		v1.AuxInt = int32ToAuxInt(8)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
+-		v2.AddArg3(ptr, v0, mem)
+-		v1.AddArg3(ptr, v0, v2)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
++		v1.AddArg3(ptr, v0, mem)
+ 		v.AddArg3(ptr, v0, v1)
+ 		return true
+ 	}
+@@ -27870,65 +28127,53 @@ func rewriteValueARM64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [13] ptr mem)
+-	// result: (MOVBstore [12] ptr (MOVDconst [0]) (MOVWstore [8] ptr (MOVDconst [0]) (MOVDstore ptr (MOVDconst [0]) mem)))
++	// result: (MOVDstore [5] ptr (MOVDconst [0]) (MOVDstore ptr (MOVDconst [0]) mem))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 13 {
+ 			break
+ 		}
+ 		ptr := v_0
+ 		mem := v_1
+-		v.reset(OpARM64MOVBstore)
+-		v.AuxInt = int32ToAuxInt(12)
++		v.reset(OpARM64MOVDstore)
++		v.AuxInt = int32ToAuxInt(5)
+ 		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+ 		v0.AuxInt = int64ToAuxInt(0)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVWstore, types.TypeMem)
+-		v1.AuxInt = int32ToAuxInt(8)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
+-		v2.AddArg3(ptr, v0, mem)
+-		v1.AddArg3(ptr, v0, v2)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
++		v1.AddArg3(ptr, v0, mem)
+ 		v.AddArg3(ptr, v0, v1)
+ 		return true
+ 	}
+ 	// match: (Zero [14] ptr mem)
+-	// result: (MOVHstore [12] ptr (MOVDconst [0]) (MOVWstore [8] ptr (MOVDconst [0]) (MOVDstore ptr (MOVDconst [0]) mem)))
++	// result: (MOVDstore [6] ptr (MOVDconst [0]) (MOVDstore ptr (MOVDconst [0]) mem))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 14 {
+ 			break
+ 		}
+ 		ptr := v_0
+ 		mem := v_1
+-		v.reset(OpARM64MOVHstore)
+-		v.AuxInt = int32ToAuxInt(12)
++		v.reset(OpARM64MOVDstore)
++		v.AuxInt = int32ToAuxInt(6)
+ 		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+ 		v0.AuxInt = int64ToAuxInt(0)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVWstore, types.TypeMem)
+-		v1.AuxInt = int32ToAuxInt(8)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
+-		v2.AddArg3(ptr, v0, mem)
+-		v1.AddArg3(ptr, v0, v2)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
++		v1.AddArg3(ptr, v0, mem)
+ 		v.AddArg3(ptr, v0, v1)
+ 		return true
+ 	}
+ 	// match: (Zero [15] ptr mem)
+-	// result: (MOVBstore [14] ptr (MOVDconst [0]) (MOVHstore [12] ptr (MOVDconst [0]) (MOVWstore [8] ptr (MOVDconst [0]) (MOVDstore ptr (MOVDconst [0]) mem))))
++	// result: (MOVDstore [7] ptr (MOVDconst [0]) (MOVDstore ptr (MOVDconst [0]) mem))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 15 {
+ 			break
+ 		}
+ 		ptr := v_0
+ 		mem := v_1
+-		v.reset(OpARM64MOVBstore)
+-		v.AuxInt = int32ToAuxInt(14)
++		v.reset(OpARM64MOVDstore)
++		v.AuxInt = int32ToAuxInt(7)
+ 		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+ 		v0.AuxInt = int64ToAuxInt(0)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVHstore, types.TypeMem)
+-		v1.AuxInt = int32ToAuxInt(12)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVWstore, types.TypeMem)
+-		v2.AuxInt = int32ToAuxInt(8)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
+-		v3.AddArg3(ptr, v0, mem)
+-		v2.AddArg3(ptr, v0, v3)
+-		v1.AddArg3(ptr, v0, v2)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVDstore, types.TypeMem)
++		v1.AddArg3(ptr, v0, mem)
+ 		v.AddArg3(ptr, v0, v1)
+ 		return true
+ 	}
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index b2273de21a..d9fa428920 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1238,7 +1238,9 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ func (c *ctxt7) isUnsafePoint(p *obj.Prog) bool {
+ 	// If p explicitly uses REGTMP, it's unsafe to preempt, because the
+ 	// preemption sequence clobbers REGTMP.
+-	return p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP
++	return p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP ||
++		p.From.Type == obj.TYPE_REGREG && p.From.Offset == REGTMP ||
++		p.To.Type == obj.TYPE_REGREG && p.To.Offset == REGTMP
+ }
+ 
+ // isRestartable returns whether p is a multi-instruction sequence that,
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index dbb4b6a836..382920bde6 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -468,160 +468,382 @@ func BenchmarkMemclrRange(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkClearFat7(b *testing.B) {
++	p := new([7]byte)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = [7]byte{}
++	}
++}
++
+ func BenchmarkClearFat8(b *testing.B) {
++	p := new([8 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [8 / 4]uint32
+-		_ = x
++		*p = [8 / 4]uint32{}
+ 	}
+ }
++
++func BenchmarkClearFat11(b *testing.B) {
++	p := new([11]byte)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = [11]byte{}
++	}
++}
++
+ func BenchmarkClearFat12(b *testing.B) {
++	p := new([12 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = [12 / 4]uint32{}
++	}
++}
++
++func BenchmarkClearFat13(b *testing.B) {
++	p := new([13]byte)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = [13]byte{}
++	}
++}
++
++func BenchmarkClearFat14(b *testing.B) {
++	p := new([14]byte)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [12 / 4]uint32
+-		_ = x
++		*p = [14]byte{}
+ 	}
+ }
++
++func BenchmarkClearFat15(b *testing.B) {
++	p := new([15]byte)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = [15]byte{}
++	}
++}
++
+ func BenchmarkClearFat16(b *testing.B) {
++	p := new([16 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [16 / 4]uint32
+-		_ = x
++		*p = [16 / 4]uint32{}
+ 	}
+ }
++
+ func BenchmarkClearFat24(b *testing.B) {
++	p := new([24 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [24 / 4]uint32
+-		_ = x
++		*p = [24 / 4]uint32{}
+ 	}
+ }
++
+ func BenchmarkClearFat32(b *testing.B) {
++	p := new([32 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [32 / 4]uint32
+-		_ = x
++		*p = [32 / 4]uint32{}
+ 	}
+ }
++
+ func BenchmarkClearFat40(b *testing.B) {
++	p := new([40 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [40 / 4]uint32
+-		_ = x
++		*p = [40 / 4]uint32{}
+ 	}
+ }
++
+ func BenchmarkClearFat48(b *testing.B) {
++	p := new([48 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [48 / 4]uint32
+-		_ = x
++		*p = [48 / 4]uint32{}
+ 	}
+ }
++
+ func BenchmarkClearFat56(b *testing.B) {
++	p := new([56 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [56 / 4]uint32
+-		_ = x
++		*p = [56 / 4]uint32{}
+ 	}
+ }
++
+ func BenchmarkClearFat64(b *testing.B) {
++	p := new([64 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [64 / 4]uint32
+-		_ = x
++		*p = [64 / 4]uint32{}
+ 	}
+ }
++
++func BenchmarkClearFat72(b *testing.B) {
++	p := new([72 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = [72 / 4]uint32{}
++	}
++}
++
+ func BenchmarkClearFat128(b *testing.B) {
++	p := new([128 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [128 / 4]uint32
+-		_ = x
++		*p = [128 / 4]uint32{}
+ 	}
+ }
++
+ func BenchmarkClearFat256(b *testing.B) {
++	p := new([256 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [256 / 4]uint32
+-		_ = x
++		*p = [256 / 4]uint32{}
+ 	}
+ }
++
+ func BenchmarkClearFat512(b *testing.B) {
++	p := new([512 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [512 / 4]uint32
+-		_ = x
++		*p = [512 / 4]uint32{}
+ 	}
+ }
++
+ func BenchmarkClearFat1024(b *testing.B) {
++	p := new([1024 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = [1024 / 4]uint32{}
++	}
++}
++
++func BenchmarkClearFat1032(b *testing.B) {
++	p := new([1032 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = [1032 / 4]uint32{}
++	}
++}
++
++func BenchmarkClearFat1040(b *testing.B) {
++	p := new([1040 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = [1040 / 4]uint32{}
++	}
++}
++
++func BenchmarkCopyFat7(b *testing.B) {
++	var x [7]byte
++	p := new([7]byte)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		var x [1024 / 4]uint32
+-		_ = x
++		*p = x
+ 	}
+ }
+ 
+ func BenchmarkCopyFat8(b *testing.B) {
+ 	var x [8 / 4]uint32
++	p := new([8 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
++
++func BenchmarkCopyFat11(b *testing.B) {
++	var x [11]byte
++	p := new([11]byte)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = x
++	}
++}
++
+ func BenchmarkCopyFat12(b *testing.B) {
+ 	var x [12 / 4]uint32
++	p := new([12 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = x
++	}
++}
++
++func BenchmarkCopyFat13(b *testing.B) {
++	var x [13]byte
++	p := new([13]byte)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = x
++	}
++}
++
++func BenchmarkCopyFat14(b *testing.B) {
++	var x [14]byte
++	p := new([14]byte)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = x
++	}
++}
++
++func BenchmarkCopyFat15(b *testing.B) {
++	var x [15]byte
++	p := new([15]byte)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
++
+ func BenchmarkCopyFat16(b *testing.B) {
+ 	var x [16 / 4]uint32
++	p := new([16 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
++
+ func BenchmarkCopyFat24(b *testing.B) {
+ 	var x [24 / 4]uint32
++	p := new([24 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
++
+ func BenchmarkCopyFat32(b *testing.B) {
+ 	var x [32 / 4]uint32
++	p := new([32 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
++
+ func BenchmarkCopyFat64(b *testing.B) {
+ 	var x [64 / 4]uint32
++	p := new([64 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
++
++func BenchmarkCopyFat72(b *testing.B) {
++	var x [72 / 4]uint32
++	p := new([72 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = x
++	}
++}
++
+ func BenchmarkCopyFat128(b *testing.B) {
+ 	var x [128 / 4]uint32
++	p := new([128 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
++
+ func BenchmarkCopyFat256(b *testing.B) {
+ 	var x [256 / 4]uint32
++	p := new([256 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
++
+ func BenchmarkCopyFat512(b *testing.B) {
+ 	var x [512 / 4]uint32
++	p := new([512 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
++
+ func BenchmarkCopyFat520(b *testing.B) {
+ 	var x [520 / 4]uint32
++	p := new([520 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
++
+ func BenchmarkCopyFat1024(b *testing.B) {
+ 	var x [1024 / 4]uint32
++	p := new([1024 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = x
++	}
++}
++
++func BenchmarkCopyFat1032(b *testing.B) {
++	var x [1032 / 4]uint32
++	p := new([1032 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		*p = x
++	}
++}
++
++func BenchmarkCopyFat1040(b *testing.B) {
++	var x [1040 / 4]uint32
++	p := new([1040 / 4]uint32)
++	Escape(p)
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		y := x
+-		_ = y
++		*p = x
+ 	}
+ }
+ 
+diff --git a/test/codegen/strings.go b/test/codegen/strings.go
+index 08425a418a..a2c2fc0a62 100644
+--- a/test/codegen/strings.go
++++ b/test/codegen/strings.go
+@@ -45,7 +45,7 @@ func ConstantLoad() {
+ 	// 7306073769690871863 = 0x6564636261393837
+ 	// amd64:`MOVQ\t\$3978425819141910832`,`MOVQ\t\$7306073769690871863`
+ 	//   386:`MOVL\t\$858927408, \(`,`DUFFCOPY`
+-	// arm64:`MOVD\t\$3978425819141910832`,`MOVD\t\$1650538808`,`MOVD\t\$25699`,`MOVD\t\$101`
++	// arm64:`MOVD\t\$3978425819141910832`,`MOVD\t\$7306073769690871863`,`MOVD\t\$15`
+ 	//  wasm:`I64Const\t\$3978425819141910832`,`I64Store\t\$0`,`I64Const\t\$7306073769690871863`,`I64Store\t\$7`
+ 	bsink = []byte("0123456789abcde")
+ 

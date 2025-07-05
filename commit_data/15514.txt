@@ -7,7 +7,44 @@ Date:   Fri Mar 1 11:22:13 2013 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/7442045
-
+---
  doc/root.html | 6 +++---
  doc/style.css | 2 ++
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index cc2bfd1ba9..34915c025d 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -53,11 +53,11 @@ simple, reliable, and efficient software.
+ <div id="gopher"></div>
+ 
+ <a href="/doc/install" id="start">
+-<div class="big">Download Go</div>
+-<div class="desc">
++<span class="big">Download Go</span>
++<span class="desc">
+ Binary distributions available for<br>
+ Linux, Mac OS X, Windows, and more.
+-</div>
++</span>
+ </a>
+ 
+ </div>
+diff --git a/doc/style.css b/doc/style.css
+index f4fcf3eae8..3d881b03a7 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -267,10 +267,12 @@ a#start {
+ 	border-radius: 5px;
+ }
+ a#start .big {
++	display: block;
+ 	font-weight: bold;
+ 	font-size: 20px;
+ }
+ a#start .desc {
++	display: block;
+ 	font-size: 14px;
+ 	font-weight: normal;
+ 	margin-top: 5px;

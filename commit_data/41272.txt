@@ -14,6 +14,20 @@ Date:   Thu Sep 19 17:16:59 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index ee864ac0d4..f7fab7b659 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -577,7 +577,7 @@ func TestAmbientCaps(t *testing.T) {
+ }
+ 
+ func TestAmbientCapsUserns(t *testing.T) {
+-	skipNoUserNamespaces(t)
++	checkUserNS(t)
+ 	testAmbientCaps(t, true)
+ }
+ 

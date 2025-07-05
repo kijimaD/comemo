@@ -14,7 +14,110 @@ Date:   Mon Aug 5 03:00:42 2024 +0000
     Auto-Submit: Robert Griesemer <gri@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/bytes/bytes_test.go     |  9 ++++-----
  src/strings/strings_test.go | 22 +++++-----------------
  2 files changed, 9 insertions(+), 22 deletions(-)
+
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 94301358e0..6fb6140c18 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"internal/testenv"
+ 	"math"
+ 	"math/rand"
+-	"reflect"
+ 	"slices"
+ 	"strings"
+ 	"testing"
+@@ -814,8 +813,8 @@ func TestSplit(t *testing.T) {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+ 		}
+ 		if tt.n < 0 {
+-			b := Split([]byte(tt.s), []byte(tt.sep))
+-			if !reflect.DeepEqual(a, b) {
++			b := sliceOfString(Split([]byte(tt.s), []byte(tt.sep)))
++			if !slices.Equal(result, b) {
+ 				t.Errorf("Split disagrees withSplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+ 			}
+ 		}
+@@ -869,8 +868,8 @@ func TestSplitAfter(t *testing.T) {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+ 		}
+ 		if tt.n < 0 {
+-			b := SplitAfter([]byte(tt.s), []byte(tt.sep))
+-			if !reflect.DeepEqual(a, b) {
++			b := sliceOfString(SplitAfter([]byte(tt.s), []byte(tt.sep)))
++			if !slices.Equal(result, b) {
+ 				t.Errorf("SplitAfter disagrees withSplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+ 			}
+ 		}
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 4c8c25ee13..c918372280 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -19,18 +19,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-func eq(a, b []string) bool {
+-	if len(a) != len(b) {
+-		return false
+-	}
+-	for i := 0; i < len(a); i++ {
+-		if a[i] != b[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ var abcd = "abcd"
+ var faces = "☺☻☹"
+ var commas = "1,2,3,4"
+@@ -418,7 +406,7 @@ var splittests = []SplitTest{
+ func TestSplit(t *testing.T) {
+ 	for _, tt := range splittests {
+ 		a := SplitN(tt.s, tt.sep, tt.n)
+-		if !eq(a, tt.a) {
++		if !slices.Equal(a, tt.a) {
+ 			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a)
+ 			continue
+ 		}
+@@ -457,7 +445,7 @@ var splitaftertests = []SplitTest{
+ func TestSplitAfter(t *testing.T) {
+ 	for _, tt := range splitaftertests {
+ 		a := SplitAfterN(tt.s, tt.sep, tt.n)
+-		if !eq(a, tt.a) {
++		if !slices.Equal(a, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a)
+ 			continue
+ 		}
+@@ -500,7 +488,7 @@ var fieldstests = []FieldsTest{
+ func TestFields(t *testing.T) {
+ 	for _, tt := range fieldstests {
+ 		a := Fields(tt.s)
+-		if !eq(a, tt.a) {
++		if !slices.Equal(a, tt.a) {
+ 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
+ 			continue
+ 		}
+@@ -517,7 +505,7 @@ var FieldsFuncTests = []FieldsTest{
+ func TestFieldsFunc(t *testing.T) {
+ 	for _, tt := range fieldstests {
+ 		a := FieldsFunc(tt.s, unicode.IsSpace)
+-		if !eq(a, tt.a) {
++		if !slices.Equal(a, tt.a) {
+ 			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
+ 			continue
+ 		}
+@@ -525,7 +513,7 @@ func TestFieldsFunc(t *testing.T) {
+ 	pred := func(c rune) bool { return c == 'X' }
+ 	for _, tt := range FieldsFuncTests {
+ 		a := FieldsFunc(tt.s, pred)
+-		if !eq(a, tt.a) {
++		if !slices.Equal(a, tt.a) {
+ 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+ 		}
+ 	}

@@ -16,9 +16,136 @@ Date:   Wed Jul 12 17:23:09 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  src/log/slog/handler.go      |  3 ++-
  src/log/slog/handler_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
  src/log/slog/json_handler.go |  2 ++
  src/log/slog/text_handler.go |  2 ++
  4 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index e479ca8a4c..8398b928c1 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -193,7 +193,7 @@ type commonHandler struct {
+ 	groupPrefix string
+ 	groups      []string // all groups started from WithGroup
+ 	nOpenGroups int      // the number of groups opened in preformattedAttrs
+-	mu          sync.Mutex
++	mu          *sync.Mutex
+ 	w           io.Writer
+ }
+ 
+@@ -207,6 +207,7 @@ func (h *commonHandler) clone() *commonHandler {
+ 		groups:            slices.Clip(h.groups),
+ 		nOpenGroups:       h.nOpenGroups,
+ 		w:                 h.w,
++		mu:                h.mu, // mutex shared among all clones of this handler
+ 	}
+ }
+ 
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 3fb7360fc2..4f10ee5028 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"slices"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 	"testing"
+ 	"time"
+ )
+@@ -106,6 +107,52 @@ func TestDefaultHandle(t *testing.T) {
+ 	}
+ }
+ 
++func TestConcurrentWrites(t *testing.T) {
++	ctx := context.Background()
++	count := 1000
++	for _, handlerType := range []string{"text", "json"} {
++		t.Run(handlerType, func(t *testing.T) {
++			var buf bytes.Buffer
++			var h Handler
++			switch handlerType {
++			case "text":
++				h = NewTextHandler(&buf, nil)
++			case "json":
++				h = NewJSONHandler(&buf, nil)
++			default:
++				t.Fatalf("unexpected handlerType %q", handlerType)
++			}
++			sub1 := h.WithAttrs([]Attr{Bool("sub1", true)})
++			sub2 := h.WithAttrs([]Attr{Bool("sub2", true)})
++			var wg sync.WaitGroup
++			for i := 0; i < count; i++ {
++				sub1Record := NewRecord(time.Time{}, LevelInfo, "hello from sub1", 0)
++				sub1Record.AddAttrs(Int("i", i))
++				sub2Record := NewRecord(time.Time{}, LevelInfo, "hello from sub2", 0)
++				sub2Record.AddAttrs(Int("i", i))
++				wg.Add(1)
++				go func() {
++					defer wg.Done()
++					if err := sub1.Handle(ctx, sub1Record); err != nil {
++						t.Error(err)
++					}
++					if err := sub2.Handle(ctx, sub2Record); err != nil {
++						t.Error(err)
++					}
++				}()
++			}
++			wg.Wait()
++			for i := 1; i <= 2; i++ {
++				want := "hello from sub" + strconv.Itoa(i)
++				n := strings.Count(buf.String(), want)
++				if n != count {
++					t.Fatalf("want %d occurrences of %q, got %d", count, want, n)
++				}
++			}
++		})
++	}
++}
++
+ // Verify the common parts of TextHandler and JSONHandler.
+ func TestJSONAndTextHandlers(t *testing.T) {
+ 	// remove all Attrs
+diff --git a/src/log/slog/json_handler.go b/src/log/slog/json_handler.go
+index cebcfba45a..1c51ab05ff 100644
+--- a/src/log/slog/json_handler.go
++++ b/src/log/slog/json_handler.go
+@@ -13,6 +13,7 @@ import (
+ 	"io"
+ 	"log/slog/internal/buffer"
+ 	"strconv"
++	"sync"
+ 	"time"
+ 	"unicode/utf8"
+ )
+@@ -35,6 +36,7 @@ func NewJSONHandler(w io.Writer, opts *HandlerOptions) *JSONHandler {
+ 			json: true,
+ 			w:    w,
+ 			opts: *opts,
++			mu:   &sync.Mutex{},
+ 		},
+ 	}
+ }
+diff --git a/src/log/slog/text_handler.go b/src/log/slog/text_handler.go
+index 75b66b716f..58edb2f66d 100644
+--- a/src/log/slog/text_handler.go
++++ b/src/log/slog/text_handler.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"reflect"
+ 	"strconv"
++	"sync"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -33,6 +34,7 @@ func NewTextHandler(w io.Writer, opts *HandlerOptions) *TextHandler {
+ 			json: false,
+ 			w:    w,
+ 			opts: *opts,
++			mu:   &sync.Mutex{},
+ 		},
+ 	}
+ }

@@ -10,8 +10,186 @@ Date:   Thu Feb 24 10:14:19 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4209042
-
+---
  src/pkg/fmt/doc.go       |  2 +-
  src/pkg/fmt/scan.go      | 23 +++++++++++++++----
  src/pkg/fmt/scan_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 78 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index b40e265ae9..66947b77ce 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -120,7 +120,7 @@
+ 	An analogous set of functions scans formatted text to yield
+ 	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
+ 	Fscanf and Fscanln read from a specified os.Reader; Sscan,
+-	Sscanf and Sscanln read from an argument string.  Sscanln,
++	Sscanf and Sscanln read from an argument string.  Scanln,
+ 	Fscanln and Sscanln stop scanning at a newline and require that
+ 	the items be followed by one; Sscanf, Fscanf and Sscanf require
+ 	newlines in the input to match newlines in the format; the other
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 53d88d574d..ed539a26f7 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -29,6 +29,8 @@ type runeUnreader interface {
+ // to discover the next space-delimited token.
+ type ScanState interface {
+ 	// GetRune reads the next rune (Unicode code point) from the input.
++	// If invoked during Scanln, Fscanln, or Sscanln, GetRune() will
++	// return EOF after returning the first '\n'.
+ 	GetRune() (rune int, err os.Error)
+ 	// UngetRune causes the next call to GetRune to return the same rune.
+ 	UngetRune()
+@@ -44,7 +46,7 @@ type ScanState interface {
+ // Scanner is implemented by any value that has a Scan method, which scans
+ // the input for the representation of a value and stores the result in the
+ // receiver, which must be a pointer to be useful.  The Scan method is called
+-// for any argument to Scan or Scanln that implements it.
++// for any argument to Scan, Scanf, or Scanln that implements it.
+ type Scanner interface {
+ 	Scan(state ScanState, verb int) os.Error
+ }
+@@ -96,7 +98,7 @@ func Sscanf(str string, format string, a ...interface{}) (n int, err os.Error) {
+ // returns the number of items successfully scanned.  If that is less
+ // than the number of arguments, err will report why.
+ func Fscan(r io.Reader, a ...interface{}) (n int, err os.Error) {
+-	s := newScanState(r, true)
++	s := newScanState(r, true, false)
+ 	n, err = s.doScan(a)
+ 	s.free()
+ 	return
+@@ -105,7 +107,7 @@ func Fscan(r io.Reader, a ...interface{}) (n int, err os.Error) {
+ // Fscanln is similar to Fscan, but stops scanning at a newline and
+ // after the final item there must be a newline or EOF.
+ func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
+-	s := newScanState(r, false)
++	s := newScanState(r, false, true)
+ 	n, err = s.doScan(a)
+ 	s.free()
+ 	return
+@@ -115,7 +117,7 @@ func Fscanln(r io.Reader, a ...interface{}) (n int, err os.Error) {
+ // values into successive arguments as determined by the format.  It
+ // returns the number of items successfully parsed.
+ func Fscanf(r io.Reader, format string, a ...interface{}) (n int, err os.Error) {
+-	s := newScanState(r, false)
++	s := newScanState(r, false, false)
+ 	n, err = s.doScanf(format, a)
+ 	s.free()
+ 	return
+@@ -134,6 +136,7 @@ type ss struct {
+ 	rr         io.RuneReader // where to read input
+ 	buf        bytes.Buffer  // token accumulator
+ 	nlIsSpace  bool          // whether newline counts as white space
++	nlIsEnd    bool          // whether newline terminates scan
+ 	peekRune   int           // one-rune lookahead
+ 	prevRune   int           // last rune returned by GetRune
+ 	atEOF      bool          // already read EOF
+@@ -149,6 +152,11 @@ func (s *ss) GetRune() (rune int, err os.Error) {
+ 		s.peekRune = -1
+ 		return
+ 	}
++	if s.nlIsEnd && s.prevRune == '\n' {
++		rune = EOF
++		err = os.EOF
++		return
++	}
+ 	rune, _, err = s.rr.ReadRune()
+ 	if err == nil {
+ 		s.prevRune = rune
+@@ -300,7 +308,7 @@ func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
+ var ssFree = newCache(func() interface{} { return new(ss) })
+ 
+ // Allocate a new ss struct or grab a cached one.
+-func newScanState(r io.Reader, nlIsSpace bool) *ss {
++func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) *ss {
+ 	s := ssFree.get().(*ss)
+ 	if rr, ok := r.(io.RuneReader); ok {
+ 		s.rr = rr
+@@ -308,6 +316,8 @@ func newScanState(r io.Reader, nlIsSpace bool) *ss {
+ 		s.rr = &readRune{reader: r}
+ 	}
+ 	s.nlIsSpace = nlIsSpace
++	s.nlIsEnd = nlIsEnd
++	s.prevRune = -1
+ 	s.peekRune = -1
+ 	s.atEOF = false
+ 	s.maxWid = 0
+@@ -804,6 +814,9 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 	if v, ok := field.(Scanner); ok {
+ 		err = v.Scan(s, verb)
+ 		if err != nil {
++			if err == os.EOF {
++				err = io.ErrUnexpectedEOF
++			}
+ 			s.error(err)
+ 		}
+ 		return
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 478b109238..f62888365e 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -673,3 +673,62 @@ func TestUnreadRuneWithBufio(t *testing.T) {
+ 		t.Errorf("expected αb; got %q", a)
+ 	}
+ }
++
++type TwoLines string
++
++// Attempt to read two lines into the object.  Scanln should prevent this
++// because it stops at newline; Scan and Scanf should be fine.
++func (t *TwoLines) Scan(state ScanState, verb int) os.Error {
++	chars := make([]int, 0, 100)
++	for nlCount := 0; nlCount < 2; {
++		c, err := state.GetRune()
++		if err != nil {
++			return err
++		}
++		chars = append(chars, c)
++		if c == '\n' {
++			nlCount++
++		}
++	}
++	*t = TwoLines(string(chars))
++	return nil
++}
++
++func TestMultiLine(t *testing.T) {
++	input := "abc\ndef\n"
++	// Sscan should work
++	var tscan TwoLines
++	n, err := Sscan(input, &tscan)
++	if n != 1 {
++		t.Errorf("Sscan: expected 1 item; got %d", n)
++	}
++	if err != nil {
++		t.Errorf("Sscan: expected no error; got %s", err)
++	}
++	if string(tscan) != input {
++		t.Errorf("Sscan: expected %q; got %q", input, tscan)
++	}
++	// Sscanf should work
++	var tscanf TwoLines
++	n, err = Sscanf(input, "%s", &tscanf)
++	if n != 1 {
++		t.Errorf("Sscanf: expected 1 item; got %d", n)
++	}
++	if err != nil {
++		t.Errorf("Sscanf: expected no error; got %s", err)
++	}
++	if string(tscanf) != input {
++		t.Errorf("Sscanf: expected %q; got %q", input, tscanf)
++	}
++	// Sscanln should not work
++	var tscanln TwoLines
++	n, err = Sscanln(input, &tscanln)
++	if n != 0 {
++		t.Errorf("Sscanln: expected 0 items; got %d: %q", n, tscanln)
++	}
++	if err == nil {
++		t.Error("Sscanln: expected error; got none")
++	} else if err != io.ErrUnexpectedEOF {
++		t.Errorf("Sscanln: expected io.ErrUnexpectedEOF (ha!); got %s", err)
++	}
++}

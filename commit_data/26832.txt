@@ -19,6 +19,30 @@ Date:   Tue Dec 8 18:26:22 2015 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/bzip2/bzip2_test.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/compress/bzip2/bzip2_test.go b/src/compress/bzip2/bzip2_test.go
+index 2a2136df4d..2acf40290c 100644
+--- a/src/compress/bzip2/bzip2_test.go
++++ b/src/compress/bzip2/bzip2_test.go
+@@ -194,7 +194,17 @@ func benchmarkDecode(b *testing.B, testfile int) {
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}
+-	b.SetBytes(int64(len(compressed)))
++
++	// Determine the uncompressed size of testfile.
++	uncompressedSize, err := io.Copy(ioutil.Discard, NewReader(bytes.NewReader(compressed)))
++	if err != nil {
++		b.Fatal(err)
++	}
++
++	b.SetBytes(uncompressedSize)
++	b.ReportAllocs()
++	b.ResetTimer()
++
+ 	for i := 0; i < b.N; i++ {
+ 		r := bytes.NewReader(compressed)
+ 		io.Copy(ioutil.Discard, NewReader(r))

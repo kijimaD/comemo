@@ -9,7 +9,7 @@ Date:   Mon Oct 14 07:33:54 2019 +0000
     Change-Id: I7ef5301fbd650d26a37a1241ddf7ca1ccd58b89d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/200941
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |  7 ---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 ---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  7 ---
@@ -17,3 +17,216 @@ Date:   Mon Oct 14 07:33:54 2019 +0000
  src/cmd/compile/internal/ssa/opGen.go        | 39 -----------------
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 65 ----------------------------
  6 files changed, 1 insertion(+), 124 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index b52b996407..a82ed0995c 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -947,13 +947,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+ 		s.UseArgs(int64(2 * gc.Widthptr)) // space used in callee args area by assembly stubs
+ 
+-	case ssa.OpAMD64LoweredPanicExtendA, ssa.OpAMD64LoweredPanicExtendB, ssa.OpAMD64LoweredPanicExtendC:
+-		p := s.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.ExtendCheckFunc[v.AuxInt]
+-		s.UseArgs(int64(3 * gc.Widthptr)) // space used in callee args area by assembly stubs
+-
+ 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL,
+ 		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,
+ 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL:
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 03ba064a69..8ef51f9565 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -567,11 +567,6 @@
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 -> (LoweredPanicBoundsC [kind] x y mem)
+ 
+-// For amd64p32
+-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 0 -> (LoweredPanicExtendA [kind] hi lo y mem)
+-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 1 -> (LoweredPanicExtendB [kind] hi lo y mem)
+-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 2 -> (LoweredPanicExtendC [kind] hi lo y mem)
+-
+ // ***************************
+ // Above: lowering rules
+ // Below: optimizations
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index ed58db4d59..3fa5cfbb96 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -94,7 +94,6 @@ func init() {
+ 		cx         = buildReg("CX")
+ 		dx         = buildReg("DX")
+ 		bx         = buildReg("BX")
+-		si         = buildReg("SI")
+ 		gp         = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+ 		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15")
+ 		gpsp       = gp | buildReg("SP")
+@@ -718,12 +717,6 @@ func init() {
+ 		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{cx, dx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{ax, cx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 
+-		// amd64p32 only: PanicBounds ops take 32-bit indexes.
+-		// The Extend ops are the same as the Bounds ops except the indexes are 64-bit.
+-		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{si, dx, bx}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+-		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{si, cx, dx}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+-		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{si, ax, cx}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+-
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+ 		// three from the unsigned total order. The == cases overlap.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 2983870486..9795215c8a 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -154,7 +154,7 @@ func init() {
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
+ 				outputs:  []regMask{buildReg("R0"), buildReg("R1")},
+-				clobbers: buildReg("R2 R3 R14"), // also clobbers R12 on NaCl (modified in ../config.go)
++				clobbers: buildReg("R2 R3 R14"),
+ 			},
+ 			clobberFlags: true,
+ 			typ:          "(UInt32,UInt32)",
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6ac86bbb9e..b7e65174f9 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -868,9 +868,6 @@ const (
+ 	OpAMD64LoweredPanicBoundsA
+ 	OpAMD64LoweredPanicBoundsB
+ 	OpAMD64LoweredPanicBoundsC
+-	OpAMD64LoweredPanicExtendA
+-	OpAMD64LoweredPanicExtendB
+-	OpAMD64LoweredPanicExtendC
+ 	OpAMD64FlagEQ
+ 	OpAMD64FlagLT_ULT
+ 	OpAMD64FlagLT_UGT
+@@ -11317,42 +11314,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:    "LoweredPanicExtendA",
+-		auxType: auxInt64,
+-		argLen:  4,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 64}, // SI
+-				{1, 4},  // DX
+-				{2, 8},  // BX
+-			},
+-		},
+-	},
+-	{
+-		name:    "LoweredPanicExtendB",
+-		auxType: auxInt64,
+-		argLen:  4,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 64}, // SI
+-				{1, 2},  // CX
+-				{2, 4},  // DX
+-			},
+-		},
+-	},
+-	{
+-		name:    "LoweredPanicExtendC",
+-		auxType: auxInt64,
+-		argLen:  4,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 64}, // SI
+-				{1, 1},  // AX
+-				{2, 2},  // CX
+-			},
+-		},
+-	},
+ 	{
+ 		name:   "FlagEQ",
+ 		argLen: 0,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 0d5763b1bf..386086f4b0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -990,8 +990,6 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpOrB_0(v)
+ 	case OpPanicBounds:
+ 		return rewriteValueAMD64_OpPanicBounds_0(v)
+-	case OpPanicExtend:
+-		return rewriteValueAMD64_OpPanicExtend_0(v)
+ 	case OpPopCount16:
+ 		return rewriteValueAMD64_OpPopCount16_0(v)
+ 	case OpPopCount32:
+@@ -55176,69 +55174,6 @@ func rewriteValueAMD64_OpPanicBounds_0(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueAMD64_OpPanicExtend_0(v *Value) bool {
+-	// match: (PanicExtend [kind] hi lo y mem)
+-	// cond: boundsABI(kind) == 0
+-	// result: (LoweredPanicExtendA [kind] hi lo y mem)
+-	for {
+-		kind := v.AuxInt
+-		mem := v.Args[3]
+-		hi := v.Args[0]
+-		lo := v.Args[1]
+-		y := v.Args[2]
+-		if !(boundsABI(kind) == 0) {
+-			break
+-		}
+-		v.reset(OpAMD64LoweredPanicExtendA)
+-		v.AuxInt = kind
+-		v.AddArg(hi)
+-		v.AddArg(lo)
+-		v.AddArg(y)
+-		v.AddArg(mem)
+-		return true
+-	}
+-	// match: (PanicExtend [kind] hi lo y mem)
+-	// cond: boundsABI(kind) == 1
+-	// result: (LoweredPanicExtendB [kind] hi lo y mem)
+-	for {
+-		kind := v.AuxInt
+-		mem := v.Args[3]
+-		hi := v.Args[0]
+-		lo := v.Args[1]
+-		y := v.Args[2]
+-		if !(boundsABI(kind) == 1) {
+-			break
+-		}
+-		v.reset(OpAMD64LoweredPanicExtendB)
+-		v.AuxInt = kind
+-		v.AddArg(hi)
+-		v.AddArg(lo)
+-		v.AddArg(y)
+-		v.AddArg(mem)
+-		return true
+-	}
+-	// match: (PanicExtend [kind] hi lo y mem)
+-	// cond: boundsABI(kind) == 2
+-	// result: (LoweredPanicExtendC [kind] hi lo y mem)
+-	for {
+-		kind := v.AuxInt
+-		mem := v.Args[3]
+-		hi := v.Args[0]
+-		lo := v.Args[1]
+-		y := v.Args[2]
+-		if !(boundsABI(kind) == 2) {
+-			break
+-		}
+-		v.reset(OpAMD64LoweredPanicExtendC)
+-		v.AuxInt = kind
+-		v.AddArg(hi)
+-		v.AddArg(lo)
+-		v.AddArg(y)
+-		v.AddArg(mem)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueAMD64_OpPopCount16_0(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types

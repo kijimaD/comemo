@@ -7,7 +7,7 @@ Date:   Wed Dec 21 16:57:44 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5502054
-
+---
  src/buildscript_windows_386.sh   |  2 +-
  src/buildscript_windows_amd64.sh |  2 +-
  src/cmd/go/build.go              | 42 +++++++++++++++++++++++++++++++++++++++-
@@ -16,3 +16,144 @@ Date:   Wed Dec 21 16:57:44 2011 +1100
  src/pkg/mime/type_unix.go        |  2 ++
  src/pkg/runtime/cgo/trigger.go   |  2 +-
  7 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/src/buildscript_windows_386.sh b/src/buildscript_windows_386.sh
+index 954ce37058..d5eba87ddf 100755
+--- a/src/buildscript_windows_386.sh
++++ b/src/buildscript_windows_386.sh
+@@ -545,4 +545,4 @@ mkdir -p $WORK/cmd/go/_obj/
+ gopack grc $WORK/cmd/go.a $WORK/cmd/go/_obj/_go_.6
+ 8l -o $WORK/cmd/go/_obj/a.out -L $WORK $WORK/cmd/go.a
+ mkdir -p $GOBIN/
+-cp $WORK/cmd/go/_obj/a.out $GOBIN/go
++cp $WORK/cmd/go/_obj/a.out $GOBIN/go.exe
+diff --git a/src/buildscript_windows_amd64.sh b/src/buildscript_windows_amd64.sh
+index eca576ec60..836994ebc2 100755
+--- a/src/buildscript_windows_amd64.sh
++++ b/src/buildscript_windows_amd64.sh
+@@ -544,4 +544,4 @@ mkdir -p $WORK/cmd/go/_obj/
+ gopack grc $WORK/cmd/go.a $WORK/cmd/go/_obj/_go_.6
+ 6l -o $WORK/cmd/go/_obj/a.out -L $WORK $WORK/cmd/go.a
+ mkdir -p $GOBIN/
+-cp $WORK/cmd/go/_obj/a.out $GOBIN/go
++cp $WORK/cmd/go/_obj/a.out $GOBIN/go.exe
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index f53efc8c1f..b10687b489 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -15,6 +15,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"strings"
+ 	"sync"
+ )
+@@ -518,6 +519,33 @@ func (b *builder) install(a *action) error {
+ 	return b.copyFile(dst, src, perm)
+ }
+ 
++// removeByRenaming removes file name by moving it to a tmp
++// directory and deleting the target if possible.
++func removeByRenaming(name string) error {
++	f, err := ioutil.TempFile("", "")
++	if err != nil {
++		return err
++	}
++	tmpname := f.Name()
++	f.Close()
++	err = os.Remove(tmpname)
++	if err != nil {
++		return err
++	}
++	err = os.Rename(name, tmpname)
++	if err != nil {
++		// assume name file does not exists,
++		// otherwise later code will fail.
++		return nil
++	}
++	err = os.Remove(tmpname)
++	if err != nil {
++		// TODO(brainman): file is locked and can't be deleted.
++		// We need to come up with a better way of doing it. 
++	}
++	return nil
++}
++
+ // copyFile is like 'cp src dst'.
+ func (b *builder) copyFile(dst, src string, perm uint32) error {
+ 	if b.nflag || b.xflag {
+@@ -535,7 +563,19 @@ func (b *builder) copyFile(dst, src string, perm uint32) error {
+ 	os.Remove(dst)
+ 	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+ 	if err != nil {
+-		return err
++		if runtime.GOOS != "windows" {
++			return err
++		}
++		// Windows does not allow to replace binary file
++		// while it is executing. We will cheat.
++		err = removeByRenaming(dst)
++		if err != nil {
++			return err
++		}
++		df, err = os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
++		if err != nil {
++			return err
++		}
+ 	}
+ 	_, err = io.Copy(df, sf)
+ 	df.Close()
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 6d70da824f..2efe4bdac0 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -285,7 +285,7 @@ func allPackages() []string {
+ 			if err != nil {
+ 				return nil
+ 			}
+-			name := path[len(src):]
++			name := filepath.ToSlash(path[len(src):])
+ 			if !have[name] {
+ 				pkgs = append(pkgs, name)
+ 				have[name] = true
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 599c4e0779..f86a9b6722 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -113,6 +113,9 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
+ 	if info.Package == "main" {
+ 		_, elem := filepath.Split(importPath)
+ 		targ = filepath.Join(t.BinDir(), elem)
++		if ctxt.GOOS == "windows" {
++			targ += ".exe"
++		}
+ 	} else {
+ 		targ = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
+ 	}
+diff --git a/src/pkg/mime/type_unix.go b/src/pkg/mime/type_unix.go
+index 45127ba29d..2950e7b400 100644
+--- a/src/pkg/mime/type_unix.go
++++ b/src/pkg/mime/type_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd plan9
++
+ package mime
+ 
+ import (
+diff --git a/src/pkg/runtime/cgo/trigger.go b/src/pkg/runtime/cgo/trigger.go
+index 61666ff4c2..a7788118fa 100644
+--- a/src/pkg/runtime/cgo/trigger.go
++++ b/src/pkg/runtime/cgo/trigger.go
+@@ -14,7 +14,7 @@ package cgo
+ #cgo linux LDFLAGS: -lpthread
+ #cgo netbsd LDFLAGS: -lpthread
+ #cgo openbsd LDFLAGS: -lpthread
+-#cgo windows LDFLAGS: -lm -lmthreads
++#cgo windows LDFLAGS: -lm -mthreads
+ 
+ */
+ import "C"

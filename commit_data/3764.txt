@@ -6,7 +6,104 @@ Date:   Wed Nov 4 11:33:43 2009 -0800
     
     R=rsc
     http://go/go-review/1018036
-
+---
  src/cmd/godoc/doc.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/gofmt/doc.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 84 insertions(+)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+new file mode 100644
+index 0000000000..cdf107ab29
+--- /dev/null
++++ b/src/cmd/godoc/doc.go
+@@ -0,0 +1,46 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++The godoc program extracts and generates documentation for Go programs.
++
++It has two modes.
++
++Without the -http flag, it prints plain text documentation to standard output and exits.
++
++	godoc fmt
++	godoc fmt Printf
++
++With the -http flag, it runs as a web server and presents the documentation as a web page.
++
++	godoc -http=:6060
++
++Usage:
++	godoc [flag] package [name ...]
++
++The flags are:
++	-v
++		verbose mode
++	-tabwidth=4
++		width of tabs in units of spaces
++	-tmplroot="lib/godoc"
++		root template directory (if unrooted, relative to --goroot)
++	-pkgroot="src/pkg"
++		root package source directory (if unrooted, relative to --goroot)
++	-html=
++		print HTML in command-line mode
++	-goroot=$GOROOT
++		Go root directory
++	-http=
++		HTTP service address (e.g., '127.0.0.1:6060' or just ':6060')
++	-sync="command"
++		if this and -sync_minutes are set, run the argument as a
++		command every sync_minutes; it is intended to update the
++		repository holding the source files.
++	-sync_minutes=0
++		sync interval in minutes; sync is disabled if <= 0
++
++*/
++package documentation
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+new file mode 100644
+index 0000000000..a374add4a4
+--- /dev/null
++++ b/src/cmd/gofmt/doc.go
+@@ -0,0 +1,38 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++The gofmt program is a formatter for Go programs.
++
++Without an explicit path, it processes the standard input.  Given a file,
++it operates on that file; given a directory, it operates on all .go files in
++that directory, recursively.  (Files starting with a period are ignored.)
++
++Usage:
++	gofmt [flags] [path ...]
++
++The flags are:
++
++	-l
++		just list files whose formatting differs from gofmt's; generate no other output
++		unless -w is also set.
++	-w
++		if set, overwrite each input file with its output.
++	-spaces
++		align with spaces instead of tabs.
++	-tabwidth=8
++		tab width in spaces.
++	-align=true
++		align columns.
++
++Debugging flags:
++
++	-trace
++		print parse trace.
++	-comments=true
++		print comments; if false, all comments are elided from the output.
++
++*/
++package documentation

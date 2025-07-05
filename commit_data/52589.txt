@@ -26,6 +26,30 @@ Date:   Thu Nov 25 11:41:03 2021 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 9b15f20624..2b74c9e420 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -79,7 +79,7 @@ func (h ValHeap) Less(i, j int) bool {
+ func (op Op) isLoweredGetClosurePtr() bool {
+ 	switch op {
+ 	case OpAMD64LoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr, OpARMLoweredGetClosurePtr, OpARM64LoweredGetClosurePtr,
+-		Op386LoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr, OpS390XLoweredGetClosurePtr, OpMIPSLoweredGetClosurePtr,
++		Op386LoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr, OpLOONG64LoweredGetClosurePtr, OpS390XLoweredGetClosurePtr, OpMIPSLoweredGetClosurePtr,
+ 		OpRISCV64LoweredGetClosurePtr, OpWasmLoweredGetClosurePtr:
+ 		return true
+ 	}
+@@ -129,7 +129,8 @@ func schedule(f *Func) {
+ 				v.Op == OpARMLoweredNilCheck || v.Op == OpARM64LoweredNilCheck ||
+ 				v.Op == Op386LoweredNilCheck || v.Op == OpMIPS64LoweredNilCheck ||
+ 				v.Op == OpS390XLoweredNilCheck || v.Op == OpMIPSLoweredNilCheck ||
+-				v.Op == OpRISCV64LoweredNilCheck || v.Op == OpWasmLoweredNilCheck:
++				v.Op == OpRISCV64LoweredNilCheck || v.Op == OpWasmLoweredNilCheck ||
++				v.Op == OpLOONG64LoweredNilCheck:
+ 				// Nil checks must come before loads from the same address.
+ 				score[v.ID] = ScoreNilCheck
+ 			case v.Op == OpPhi:

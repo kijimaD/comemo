@@ -10,7 +10,45 @@ Date:   Sat Jul 6 17:19:06 2024 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  2 ++
  src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 13 +++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index eec31f9f6c..64cbe76295 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -730,6 +730,8 @@
+ (MOVWUreg (MOVVconst [c])) => (MOVVconst [int64(uint32(c))])
+ (MOVVreg  (MOVVconst [c])) => (MOVVconst [c])
+ 
++(MOVBUreg (ANDconst [c] x)) => (ANDconst [c&0xff] x)
++
+ // constant comparisons
+ (SGTconst [c] (MOVVconst [d])) && c>d => (MOVVconst [1])
+ (SGTconst [c] (MOVVconst [d])) && c<=d => (MOVVconst [0])
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 30dc407df1..df5043b949 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -1960,6 +1960,19 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(uint8(c)))
+ 		return true
+ 	}
++	// match: (MOVBUreg (ANDconst [c] x))
++	// result: (ANDconst [c&0xff] x)
++	for {
++		if v_0.Op != OpLOONG64ANDconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		v.reset(OpLOONG64ANDconst)
++		v.AuxInt = int64ToAuxInt(c & 0xff)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueLOONG64_OpLOONG64MOVBload(v *Value) bool {

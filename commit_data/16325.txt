@@ -11,6 +11,30 @@ Date:   Thu May 16 12:29:23 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/9187047
-
+---
  src/pkg/crypto/tls/handshake_client_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_client_test.go b/src/pkg/crypto/tls/handshake_client_test.go
+index 7e2bae766c..9446a6e531 100644
+--- a/src/pkg/crypto/tls/handshake_client_test.go
++++ b/src/pkg/crypto/tls/handshake_client_test.go
+@@ -84,7 +84,7 @@ func TestEmptyRecords(t *testing.T) {
+ 	// the first application data from the server. This test ensures that
+ 	// the empty record doesn't cause (0, nil) to be returned from
+ 	// Conn.Read.
+-	var config = *testConfig
++	config := *testConfig
+ 	config.CipherSuites = []uint16{TLS_RSA_WITH_AES_256_CBC_SHA}
+ 
+ 	c, s := net.Pipe()
+@@ -92,8 +92,8 @@ func TestEmptyRecords(t *testing.T) {
+ 	go func() {
+ 		buf := make([]byte, 1024)
+ 		n, err := cli.Read(buf)
+-		defer cli.Close()
+ 		defer c.Close()
++		defer cli.Close()
+ 
+ 		if err != nil {
+ 			t.Fatalf("error reading from tls.Client: %s", err)

@@ -11,7 +11,7 @@ Date:   Fri Mar 24 15:57:12 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go  |  5 +---
  src/cmd/compile/internal/gc/dcl.go      | 16 +-----------
  src/cmd/compile/internal/gc/esc.go      |  4 +--
@@ -20,3 +20,277 @@ Date:   Fri Mar 24 15:57:12 2017 -0700
  src/cmd/compile/internal/gc/subr.go     | 43 ++++++++++++++++++++++++---------
  src/cmd/compile/internal/gc/universe.go | 16 ++++--------
  7 files changed, 45 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index f53501ca51..42543312f9 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -623,13 +623,10 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 	if int(cv.Type.Align) > Widthptr {
+ 		cv.Xoffset = int64(cv.Type.Align)
+ 	}
+-	ptr := nod(ONAME, nil, nil)
+-	ptr.Sym = lookup("rcvr")
++	ptr := newname(lookup("rcvr"))
+ 	ptr.Class = PAUTO
+-	ptr.SetAddable(true)
+ 	ptr.SetUsed(true)
+ 	ptr.Name.Curfn = xfunc
+-	ptr.Xoffset = 0
+ 	xfunc.Func.Dcl = append(xfunc.Func.Dcl, ptr)
+ 	var body []*Node
+ 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 3db049c85f..7ac8622fc6 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -283,18 +283,6 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ 	return init
+ }
+ 
+-// newname returns a new ONAME Node associated with symbol s.
+-func newname(s *Sym) *Node {
+-	if s == nil {
+-		Fatalf("newname nil")
+-	}
+-	n := nod(ONAME, nil, nil)
+-	n.Sym = s
+-	n.SetAddable(true)
+-	n.Xoffset = 0
+-	return n
+-}
+-
+ // newnoname returns a new ONONAME Node associated with symbol s.
+ func newnoname(s *Sym) *Node {
+ 	if s == nil {
+@@ -366,8 +354,7 @@ func oldname(s *Sym) *Node {
+ 		c := n.Name.Param.Innermost
+ 		if c == nil || c.Name.Funcdepth != funcdepth {
+ 			// Do not have a closure var for the active closure yet; make one.
+-			c = nod(ONAME, nil, nil)
+-			c.Sym = s
++			c = newname(s)
+ 			c.Class = PAUTOHEAP
+ 			c.SetIsClosureVar(true)
+ 			c.SetIsddd(n.Isddd())
+@@ -380,7 +367,6 @@ func oldname(s *Sym) *Node {
+ 			c.Name.Param.Outer = n.Name.Param.Innermost
+ 			n.Name.Param.Innermost = c
+ 
+-			c.Xoffset = 0
+ 			Curfn.Func.Cvars.Append(c)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 72b136fe11..5992c07215 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1440,9 +1440,9 @@ func (e *EscState) initEscRetval(call *Node, fntype *Type) {
+ 	cE := e.nodeEscState(call)
+ 	cE.Retval.Set(nil) // Suspect this is not nil for indirect calls.
+ 	for i, f := range fntype.Results().Fields().Slice() {
+-		ret := nod(ONAME, nil, nil)
+ 		buf := fmt.Sprintf(".out%d", i)
+-		ret.Sym = lookup(buf)
++		ret := newname(lookup(buf))
++		ret.SetAddable(false) // TODO(mdempsky): Seems suspicious.
+ 		ret.Type = f.Type
+ 		ret.Class = PAUTO
+ 		ret.Name.Curfn = Curfn
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 7051123d06..2e21b457d1 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -133,8 +133,8 @@ func moveToHeap(n *Node) {
+ 		// Preserve a copy so we can still write code referring to the original,
+ 		// and substitute that copy into the function declaration list
+ 		// so that analyses of the local (on-stack) variables use it.
+-		stackcopy := nod(ONAME, nil, nil)
+-		stackcopy.Sym = n.Sym
++		stackcopy := newname(n.Sym)
++		stackcopy.SetAddable(false)
+ 		stackcopy.Type = n.Type
+ 		stackcopy.Xoffset = n.Xoffset
+ 		stackcopy.Class = n.Class
+@@ -200,19 +200,16 @@ func tempname(nn *Node, t *Type) {
+ 	// Add a preceding . to avoid clash with legal names.
+ 	s := lookupN(".autotmp_", statuniqgen)
+ 	statuniqgen++
+-	n := nod(ONAME, nil, nil)
+-	n.Sym = s
++	n := newname(s)
+ 	s.Def = n
+ 	n.Type = t
+ 	n.Class = PAUTO
+-	n.SetAddable(true)
+ 	n.Esc = EscNever
+ 	n.Name.Curfn = Curfn
+ 	n.Name.SetAutoTemp(true)
+ 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
+ 
+ 	dowidth(t)
+-	n.Xoffset = 0
+ 	*nn = *n
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 8b41569430..353a5afb57 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -226,8 +226,7 @@ func nodarg(t interface{}, fp int) *Node {
+ 		funarg = t.StructType().Funarg
+ 
+ 		// Build fake variable name for whole arg struct.
+-		n = nod(ONAME, nil, nil)
+-		n.Sym = lookup(".args")
++		n = newname(lookup(".args"))
+ 		n.Type = t
+ 		first := t.Field(0)
+ 		if first == nil {
+@@ -237,7 +236,6 @@ func nodarg(t interface{}, fp int) *Node {
+ 			Fatalf("nodarg: offset not computed for %v", t)
+ 		}
+ 		n.Xoffset = first.Offset
+-		n.SetAddable(true)
+ 
+ 	case *Field:
+ 		funarg = t.Funarg
+@@ -275,14 +273,12 @@ func nodarg(t interface{}, fp int) *Node {
+ 		// Build fake name for individual variable.
+ 		// This is safe because if there was a real declared name
+ 		// we'd have used it above.
+-		n = nod(ONAME, nil, nil)
++		n = newname(lookup("__"))
+ 		n.Type = t.Type
+-		n.Sym = t.Sym
+ 		if t.Offset == BADWIDTH {
+ 			Fatalf("nodarg: offset not computed for %v", t)
+ 		}
+ 		n.Xoffset = t.Offset
+-		n.SetAddable(true)
+ 		n.Orig = t.Nname
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index d486bd9775..726f84794c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -332,7 +332,11 @@ func importdot(opkg *Pkg, pack *Node) {
+ 	}
+ }
+ 
+-func nod(op Op, nleft *Node, nright *Node) *Node {
++func nod(op Op, nleft, nright *Node) *Node {
++	return nodl(lineno, op, nleft, nright)
++}
++
++func nodl(pos src.XPos, op Op, nleft, nright *Node) *Node {
+ 	var n *Node
+ 	switch op {
+ 	case OCLOSURE, ODCLFUNC:
+@@ -343,14 +347,7 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
+ 		n = &x.Node
+ 		n.Func = &x.Func
+ 	case ONAME:
+-		var x struct {
+-			Node
+-			Name
+-			Param
+-		}
+-		n = &x.Node
+-		n.Name = &x.Name
+-		n.Name.Param = &x.Param
++		Fatalf("use newname instead")
+ 	case OLABEL, OPACK:
+ 		var x struct {
+ 			Node
+@@ -364,12 +361,34 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
+ 	n.Op = op
+ 	n.Left = nleft
+ 	n.Right = nright
+-	n.Pos = lineno
++	n.Pos = pos
+ 	n.Xoffset = BADWIDTH
+ 	n.Orig = n
+-	if n.Name != nil {
+-		n.Name.Curfn = Curfn
++	return n
++}
++
++// newname returns a new ONAME Node associated with symbol s.
++func newname(s *Sym) *Node {
++	if s == nil {
++		Fatalf("newname nil")
++	}
++
++	var x struct {
++		Node
++		Name
++		Param
+ 	}
++	n := &x.Node
++	n.Name = &x.Name
++	n.Name.Param = &x.Param
++
++	n.Op = ONAME
++	n.Pos = lineno
++	n.Name.Curfn = Curfn
++	n.Orig = n
++
++	n.Sym = s
++	n.SetAddable(true)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index b6fbd2d566..e797a062b6 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -102,15 +102,13 @@ func lexinit() {
+ 	for _, s := range builtinFuncs {
+ 		// TODO(marvin): Fix Node.EType type union.
+ 		s2 := Pkglookup(s.name, builtinpkg)
+-		s2.Def = nod(ONAME, nil, nil)
+-		s2.Def.Sym = s2
++		s2.Def = newname(s2)
+ 		s2.Def.Etype = EType(s.op)
+ 	}
+ 
+ 	for _, s := range unsafeFuncs {
+ 		s2 := Pkglookup(s.name, unsafepkg)
+-		s2.Def = nod(ONAME, nil, nil)
+-		s2.Def.Sym = s2
++		s2.Def = newname(s2)
+ 		s2.Def.Etype = EType(s.op)
+ 	}
+ 
+@@ -132,16 +130,14 @@ func lexinit() {
+ 
+ 	s = lookup("_")
+ 	s.Block = -100
+-	s.Def = nod(ONAME, nil, nil)
+-	s.Def.Sym = s
++	s.Def = newname(s)
+ 	Types[TBLANK] = typ(TBLANK)
+ 	s.Def.Type = Types[TBLANK]
+ 	nblank = s.Def
+ 
+ 	s = Pkglookup("_", builtinpkg)
+ 	s.Block = -100
+-	s.Def = nod(ONAME, nil, nil)
+-	s.Def.Sym = s
++	s.Def = newname(s)
+ 	Types[TBLANK] = typ(TBLANK)
+ 	s.Def.Type = Types[TBLANK]
+ 
+@@ -464,9 +460,7 @@ func finishUniverse() {
+ 		s1.Block = s.Block
+ 	}
+ 
+-	nodfp = nod(ONAME, nil, nil)
++	nodfp = newname(lookup(".fp"))
+ 	nodfp.Type = Types[TINT32]
+-	nodfp.Xoffset = 0
+ 	nodfp.Class = PPARAM
+-	nodfp.Sym = lookup(".fp")
+ }

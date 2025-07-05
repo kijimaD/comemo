@@ -12,7 +12,7 @@ Date:   Thu Dec 24 13:09:20 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/escape/escape.go     | 18 +++---
  src/cmd/compile/internal/ir/fmt.go            | 13 ++--
  src/cmd/compile/internal/ir/node_gen.go       |  7 ++-
@@ -24,3 +24,383 @@ Date:   Thu Dec 24 13:09:20 2020 +0700
  src/cmd/compile/internal/walk/order.go        |  5 +-
  src/cmd/compile/internal/walk/range.go        | 18 +-----
  10 files changed, 73 insertions(+), 104 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 7a52ff3b88..31d157b165 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -347,21 +347,19 @@ func (e *escape) stmt(n ir.Node) {
+ 		e.loopDepth--
+ 
+ 	case ir.ORANGE:
+-		// for List = range Right { Nbody }
++		// for Key, Value = range X { Body }
+ 		n := n.(*ir.RangeStmt)
+ 		e.loopDepth++
+-		ks := e.addrs(n.Vars)
++		e.addr(n.Key)
++		k := e.addr(n.Value)
+ 		e.block(n.Body)
+ 		e.loopDepth--
+ 
+-		// Right is evaluated outside the loop.
+-		k := e.discardHole()
+-		if len(ks) >= 2 {
+-			if n.X.Type().IsArray() {
+-				k = ks[1].note(n, "range")
+-			} else {
+-				k = ks[1].deref(n, "range-deref")
+-			}
++		// X is evaluated outside the loop.
++		if n.X.Type().IsArray() {
++			k = k.note(n, "range")
++		} else {
++			k = k.deref(n, "range-deref")
+ 		}
+ 		e.expr(e.later(k), n.X)
+ 
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index b882979aa4..2b73c5ac1b 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -444,12 +444,15 @@ func stmtFmt(n Node, s fmt.State) {
+ 			break
+ 		}
+ 
+-		if len(n.Vars) == 0 {
+-			fmt.Fprintf(s, "for range %v { %v }", n.X, n.Body)
+-			break
++		fmt.Fprint(s, "for")
++		if n.Key != nil {
++			fmt.Fprintf(s, " %v", n.Key)
++			if n.Value != nil {
++				fmt.Fprintf(s, ", %v", n.Value)
++			}
++			fmt.Fprint(s, " =")
+ 		}
+-
+-		fmt.Fprintf(s, "for %.v = range %v { %v }", n.Vars, n.X, n.Body)
++		fmt.Fprintf(s, " range %v { %v }", n.X, n.Body)
+ 
+ 	case OSELECT:
+ 		n := n.(*SelectStmt)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 7d3488f3fd..ecb39563c4 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -724,22 +724,23 @@ func (n *RangeStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *RangeStmt) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.Vars = c.Vars.Copy()
+ 	c.Body = c.Body.Copy()
+ 	return &c
+ }
+ func (n *RangeStmt) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+-	err = maybeDoList(n.Vars, err, do)
+ 	err = maybeDo(n.X, err, do)
++	err = maybeDo(n.Key, err, do)
++	err = maybeDo(n.Value, err, do)
+ 	err = maybeDoList(n.Body, err, do)
+ 	return err
+ }
+ func (n *RangeStmt) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+-	editList(n.Vars, edit)
+ 	n.X = maybeEdit(n.X, edit)
++	n.Key = maybeEdit(n.Key, edit)
++	n.Value = maybeEdit(n.Value, edit)
+ 	editList(n.Body, edit)
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index c9988eba5c..453153c024 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -290,25 +290,24 @@ func NewLabelStmt(pos src.XPos, label *types.Sym) *LabelStmt {
+ 
+ func (n *LabelStmt) Sym() *types.Sym { return n.Label }
+ 
+-// A RangeStmt is a range loop: for Vars = range X { Stmts }
+-// Op can be OFOR or OFORUNTIL (!Cond).
++// A RangeStmt is a range loop: for Key, Value = range X { Body }
+ type RangeStmt struct {
+ 	miniStmt
+ 	Label    *types.Sym
+-	Vars     Nodes // TODO(rsc): Replace with Key, Value Node
+ 	Def      bool
+ 	X        Node
++	Key      Node
++	Value    Node
+ 	Body     Nodes
+ 	HasBreak bool
+ 	typ      *types.Type // TODO(rsc): Remove - use X.Type() instead
+ 	Prealloc *Name
+ }
+ 
+-func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {
+-	n := &RangeStmt{X: x}
++func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
++	n := &RangeStmt{X: x, Key: key, Value: value}
+ 	n.pos = pos
+ 	n.op = ORANGE
+-	n.Vars.Set(vars)
+ 	n.Body.Set(body)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 68a01612dc..ad66b6c850 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1172,10 +1172,14 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
+ 			panic("unexpected RangeClause")
+ 		}
+ 
+-		n := ir.NewRangeStmt(p.pos(r), nil, p.expr(r.X), nil)
++		n := ir.NewRangeStmt(p.pos(r), nil, nil, p.expr(r.X), nil)
+ 		if r.Lhs != nil {
+ 			n.Def = r.Def
+-			n.Vars.Set(p.assignList(r.Lhs, n, n.Def))
++			lhs := p.assignList(r.Lhs, n, n.Def)
++			n.Key = lhs[0]
++			if len(lhs) > 1 {
++				n.Value = lhs[1]
++			}
+ 		}
+ 		n.Body.Set(p.blockStmt(stmt.Body))
+ 		p.closeAnotherScope()
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 4cb943daaf..449d99266d 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1143,7 +1143,7 @@ func (w *exportWriter) stmt(n ir.Node) {
+ 		n := n.(*ir.RangeStmt)
+ 		w.op(ir.ORANGE)
+ 		w.pos(n.Pos())
+-		w.stmtList(n.Vars)
++		w.exprsOrNil(n.Key, n.Value)
+ 		w.expr(n.X)
+ 		w.stmtList(n.Body)
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 221229571c..8285c418e9 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1028,7 +1028,9 @@ func (r *importReader) node() ir.Node {
+ 		return ir.NewForStmt(pos, init, cond, post, r.stmtList())
+ 
+ 	case ir.ORANGE:
+-		return ir.NewRangeStmt(r.pos(), r.stmtList(), r.expr(), r.stmtList())
++		pos := r.pos()
++		k, v := r.exprsOrNil()
++		return ir.NewRangeStmt(pos, k, v, r.expr(), r.stmtList())
+ 
+ 	case ir.OSELECT:
+ 		pos := r.pos()
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 133f93e53b..dfa224b318 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -19,19 +19,18 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 		return
+ 	}
+ 	// delicate little dance.  see typecheckas2
+-	ls := n.Vars
+-	for i1, n1 := range ls {
+-		if !ir.DeclaredBy(n1, n) {
+-			ls[i1] = AssignExpr(ls[i1])
+-		}
++	if n.Key != nil && !ir.DeclaredBy(n.Key, n) {
++		n.Key = AssignExpr(n.Key)
++	}
++	if n.Value != nil && !ir.DeclaredBy(n.Value, n) {
++		n.Value = AssignExpr(n.Value)
+ 	}
+-
+ 	if t.IsPtr() && t.Elem().IsArray() {
+ 		t = t.Elem()
+ 	}
+ 	n.SetType(t)
+ 
+-	var t1, t2 *types.Type
++	var tk, tv *types.Type
+ 	toomany := false
+ 	switch t.Kind() {
+ 	default:
+@@ -39,12 +38,12 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 		return
+ 
+ 	case types.TARRAY, types.TSLICE:
+-		t1 = types.Types[types.TINT]
+-		t2 = t.Elem()
++		tk = types.Types[types.TINT]
++		tv = t.Elem()
+ 
+ 	case types.TMAP:
+-		t1 = t.Key()
+-		t2 = t.Elem()
++		tk = t.Key()
++		tv = t.Elem()
+ 
+ 	case types.TCHAN:
+ 		if !t.ChanDir().CanRecv() {
+@@ -52,61 +51,35 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 			return
+ 		}
+ 
+-		t1 = t.Elem()
+-		t2 = nil
+-		if len(n.Vars) == 2 {
++		tk = t.Elem()
++		tv = nil
++		if n.Value != nil {
+ 			toomany = true
+ 		}
+ 
+ 	case types.TSTRING:
+-		t1 = types.Types[types.TINT]
+-		t2 = types.RuneType
++		tk = types.Types[types.TINT]
++		tv = types.RuneType
+ 	}
+ 
+-	if len(n.Vars) > 2 || toomany {
++	if toomany {
+ 		base.ErrorfAt(n.Pos(), "too many variables in range")
+ 	}
+ 
+-	var v1, v2 ir.Node
+-	if len(n.Vars) != 0 {
+-		v1 = n.Vars[0]
+-	}
+-	if len(n.Vars) > 1 {
+-		v2 = n.Vars[1]
+-	}
+-
+-	// this is not only an optimization but also a requirement in the spec.
+-	// "if the second iteration variable is the blank identifier, the range
+-	// clause is equivalent to the same clause with only the first variable
+-	// present."
+-	if ir.IsBlank(v2) {
+-		if v1 != nil {
+-			n.Vars = []ir.Node{v1}
+-		}
+-		v2 = nil
+-	}
+-
+-	if v1 != nil {
+-		if ir.DeclaredBy(v1, n) {
+-			v1.SetType(t1)
+-		} else if v1.Type() != nil {
+-			if op, why := assignop(t1, v1.Type()); op == ir.OXXX {
+-				base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t1, v1, why)
+-			}
+-		}
+-		checkassign(n, v1)
+-	}
+-
+-	if v2 != nil {
+-		if ir.DeclaredBy(v2, n) {
+-			v2.SetType(t2)
+-		} else if v2.Type() != nil {
+-			if op, why := assignop(t2, v2.Type()); op == ir.OXXX {
+-				base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t2, v2, why)
++	do := func(nn ir.Node, t *types.Type) {
++		if nn != nil {
++			if ir.DeclaredBy(nn, n) {
++				nn.SetType(t)
++			} else if nn.Type() != nil {
++				if op, why := assignop(t, nn.Type()); op == ir.OXXX {
++					base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t, nn, why)
++				}
+ 			}
++			checkassign(n, nn)
+ 		}
+-		checkassign(n, v2)
+ 	}
++	do(n.Key, tk)
++	do(n.Value, tv)
+ }
+ 
+ // type check assignment.
+@@ -399,11 +372,11 @@ func tcRange(n *ir.RangeStmt) {
+ 
+ 	// second half of dance, the first half being typecheckrangeExpr
+ 	n.SetTypecheck(1)
+-	ls := n.Vars
+-	for i1, n1 := range ls {
+-		if n1.Typecheck() == 0 {
+-			ls[i1] = AssignExpr(ls[i1])
+-		}
++	if n.Key != nil && n.Key.Typecheck() == 0 {
++		n.Key = AssignExpr(n.Key)
++	}
++	if n.Value != nil && n.Value.Typecheck() == 0 {
++		n.Value = AssignExpr(n.Value)
+ 	}
+ 
+ 	decldepth++
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index de6a3807e6..1fcebf5194 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -848,7 +848,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 			base.Fatalf("order.stmt range %v", n.Type())
+ 
+ 		case types.TARRAY, types.TSLICE:
+-			if len(n.Vars) < 2 || ir.IsBlank(n.Vars[1]) {
++			if n.Value == nil || ir.IsBlank(n.Value) {
+ 				// for i := range x will only use x once, to compute len(x).
+ 				// No need to copy it.
+ 				break
+@@ -887,7 +887,8 @@ func (o *orderState) stmt(n ir.Node) {
+ 			// hiter contains pointers and needs to be zeroed.
+ 			n.Prealloc = o.newTemp(reflectdata.MapIterType(n.Type()), true)
+ 		}
+-		o.exprListInPlace(n.Vars)
++		n.Key = o.exprInPlace(n.Key)
++		n.Value = o.exprInPlace(n.Value)
+ 		if orderBody {
+ 			orderBlock(&n.Body, o.free)
+ 		}
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 98a3dc23f9..5ecd577f74 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -61,15 +61,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 	a := nrange.X
+ 	lno := ir.SetPos(a)
+ 
+-	var v1, v2 ir.Node
+-	l := len(nrange.Vars)
+-	if l > 0 {
+-		v1 = nrange.Vars[0]
+-	}
+-
+-	if l > 1 {
+-		v2 = nrange.Vars[1]
+-	}
++	v1, v2 := nrange.Key, nrange.Value
+ 
+ 	if ir.IsBlank(v2) {
+ 		v2 = nil
+@@ -343,15 +335,11 @@ func isMapClear(n *ir.RangeStmt) bool {
+ 		return false
+ 	}
+ 
+-	if n.Op() != ir.ORANGE || n.Type().Kind() != types.TMAP || len(n.Vars) != 1 {
+-		return false
+-	}
+-
+-	k := n.Vars[0]
+-	if k == nil || ir.IsBlank(k) {
++	if n.Op() != ir.ORANGE || n.Type().Kind() != types.TMAP || n.Key == nil || n.Value != nil {
+ 		return false
+ 	}
+ 
++	k := n.Key
+ 	// Require k to be a new variable name.
+ 	if !ir.DeclaredBy(k, n) {
+ 		return false

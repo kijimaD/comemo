@@ -9,6 +9,24 @@ Date:   Tue Apr 7 16:43:11 2015 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index e0988b0b8c..513c8ca3d7 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -376,6 +376,12 @@ func (t *tester) cgoTest() error {
+ 		return cmd.Run()
+ 	}
+ 
++	cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=auto")
++	cmd.Env = env
++	if err := cmd.Run(); err != nil {
++		return err
++	}
++
+ 	if t.gohostos != "dragonfly" {
+ 		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
+ 		cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=internal")

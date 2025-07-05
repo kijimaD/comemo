@@ -11,7 +11,7 @@ Date:   Wed Aug 31 12:30:46 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/check.go          | 2 ++
  src/cmd/compile/internal/ssa/gen/genericOps.go | 8 ++++----
  src/cmd/compile/internal/ssa/gen/rulegen.go    | 2 +-
@@ -19,3 +19,94 @@ Date:   Wed Aug 31 12:30:46 2016 -0700
  src/cmd/compile/internal/ssa/opGen.go          | 4 ++--
  src/cmd/compile/internal/ssa/value.go          | 2 ++
  6 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index bfedd47794..e99a485b14 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -165,6 +165,8 @@ func checkFunc(f *Func) {
+ 				if !isExactFloat32(v) {
+ 					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
+ 				}
++			case auxSizeAndAlign:
++				canHaveAuxInt = true
+ 			case auxString, auxSym:
+ 				canHaveAux = true
+ 			case auxSymOff, auxSymValAndOff:
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 1bdacb2413..d3b0305310 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -305,10 +305,10 @@ var genericOps = []opData{
+ 	{name: "Func", aux: "Sym"},   // entry address of a function
+ 
+ 	// Memory operations
+-	{name: "Load", argLength: 2},                            // Load from arg0.  arg1=memory
+-	{name: "Store", argLength: 3, typ: "Mem", aux: "Int64"}, // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
+-	{name: "Move", argLength: 3, typ: "Mem", aux: "Int64"},  // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
+-	{name: "Zero", argLength: 2, typ: "Mem", aux: "Int64"},  // arg0=destptr, arg1=mem, auxint=size. Returns memory.
++	{name: "Load", argLength: 2},                                  // Load from arg0.  arg1=memory
++	{name: "Store", argLength: 3, typ: "Mem", aux: "Int64"},       // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
++	{name: "Move", argLength: 3, typ: "Mem", aux: "SizeAndAlign"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment.  Returns memory.
++	{name: "Zero", argLength: 2, typ: "Mem", aux: "SizeAndAlign"}, // arg0=destptr, arg1=mem, auxint=size+alignment. Returns memory.
+ 
+ 	// Function calls. Arguments to the call have already been written to the stack.
+ 	// Return values appear on the stack. The method receiver, if any, is treated
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 60187730e2..afe17469ae 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -657,7 +657,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
+ 	// Sanity check aux, auxint.
+ 	if auxint != "" {
+ 		switch op.aux {
+-		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32":
++		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32", "SizeAndAlign":
+ 		default:
+ 			log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 987cbd7b56..887cce1511 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -58,6 +58,7 @@ const (
+ 	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
+ 	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
+ 	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
++	auxSizeAndAlign         // auxInt is a SizeAndAlign
+ 	auxString               // aux is a string
+ 	auxSym                  // aux is a symbol
+ 	auxSymOff               // aux is a symbol, auxInt is an offset
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 678ba183c3..5e62fab2ff 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -15873,13 +15873,13 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Move",
+-		auxType: auxInt64,
++		auxType: auxSizeAndAlign,
+ 		argLen:  3,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Zero",
+-		auxType: auxInt64,
++		auxType: auxSizeAndAlign,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index d30ef27182..562037a191 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -126,6 +126,8 @@ func (v *Value) auxString() string {
+ 		return fmt.Sprintf(" [%d]", v.AuxInt32())
+ 	case auxInt64, auxInt128:
+ 		return fmt.Sprintf(" [%d]", v.AuxInt)
++	case auxSizeAndAlign:
++		return fmt.Sprintf(" [%s]", SizeAndAlign(v.AuxInt))
+ 	case auxFloat32, auxFloat64:
+ 		return fmt.Sprintf(" [%g]", v.AuxFloat())
+ 	case auxString:

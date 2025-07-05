@@ -7,6 +7,29 @@ Date:   Fri Jan 20 14:44:05 2012 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/5555062
-
+---
  doc/go_for_cpp_programmers.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_for_cpp_programmers.html b/doc/go_for_cpp_programmers.html
+index 7edb88013f..8e215190fa 100644
+--- a/doc/go_for_cpp_programmers.html
++++ b/doc/go_for_cpp_programmers.html
+@@ -225,7 +225,7 @@ f(v9.i, p9.i)
+ </pre>
+ 
+ <p>
+-Go does not require parentheses around the condition of a <code>if</code>
++Go does not require parentheses around the condition of an <code>if</code>
+ statement, or the expressions of a <code>for</code> statement, or the value of a
+ <code>switch</code> statement.  On the other hand, it does require curly braces
+ around the body of an <code>if</code> or <code>for</code> statement.
+@@ -538,7 +538,7 @@ func f2() {
+ 
+ <p>
+ The <code>set</code> method is effectively inherited from
+-<code>myChildType</code>, because
++<code>myType</code>, because
+ methods associated with the anonymous field are promoted to become methods
+ of the enclosing type.  In this case, because <code>myChildType</code> has an
+ anonymous field of type <code>myType</code>, the methods of

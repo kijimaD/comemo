@@ -19,8 +19,68 @@ Date:   Sun Apr 26 23:52:42 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/9371
     Reviewed-by: Peter Waldschmidt <peter@waldschmidt.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/json/decode.go      |  2 +-
  src/encoding/json/decode_test.go | 21 +++++++++++++++++++++
  src/encoding/json/encode.go      |  2 --
  3 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index f26a7d49f0..613641afbb 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -739,7 +739,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 		default:
+ 			d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
+ 		case reflect.Slice:
+-			if v.Type() != byteSliceType {
++			if v.Type().Elem().Kind() != reflect.Uint8 {
+ 				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
+ 				break
+ 			}
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 7ecc8f4402..f208ee8a7c 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -1207,7 +1207,28 @@ func TestStringKind(t *testing.T) {
+ 	if !reflect.DeepEqual(m1, m2) {
+ 		t.Error("Items should be equal after encoding and then decoding")
+ 	}
++}
++
++// Custom types with []byte as underlying type could not be marshalled
++// and then unmarshalled.
++// Issue 8962.
++func TestByteKind(t *testing.T) {
++	type byteKind []byte
++
++	a := byteKind("hello")
+ 
++	data, err := Marshal(a)
++	if err != nil {
++		t.Error(err)
++	}
++	var b byteKind
++	err = Unmarshal(data, &b)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !reflect.DeepEqual(a, b) {
++		t.Errorf("expected %v == %v", a, b)
++	}
+ }
+ 
+ var decodeTypeErrorTests = []struct {
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 4db9f35e69..7789bb5141 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -275,8 +275,6 @@ func (e *encodeState) error(err error) {
+ 	panic(err)
+ }
+ 
+-var byteSliceType = reflect.TypeOf([]byte(nil))
+-
+ func isEmptyValue(v reflect.Value) bool {
+ 	switch v.Kind() {
+ 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:

@@ -7,6 +7,20 @@ Date:   Thu Jan 13 16:30:56 2011 -0800
     R=ken
     CC=golang-dev
     https://golang.org/cl/4003041
-
+---
  src/pkg/cmath/cmath_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/cmath/cmath_test.go b/src/pkg/cmath/cmath_test.go
+index 93fac4e206..bf1a9605df 100644
+--- a/src/pkg/cmath/cmath_test.go
++++ b/src/pkg/cmath/cmath_test.go
+@@ -615,7 +615,7 @@ func TestExp(t *testing.T) {
+ func TestIsNaN(t *testing.T) {
+ 	for i := 0; i < len(vcIsNaNSC); i++ {
+ 		if f := IsNaN(vcIsNaNSC[i]); isNaNSC[i] != f {
+-			t.Errorf("IsNaN(%g) = %g, want %g", vcIsNaNSC[i], f, isNaNSC[i])
++			t.Errorf("IsNaN(%v) = %v, want %v", vcIsNaNSC[i], f, isNaNSC[i])
+ 		}
+ 	}
+ }

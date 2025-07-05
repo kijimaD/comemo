@@ -10,7 +10,52 @@ Date:   Sat Sep 29 23:23:56 2012 +0800
     R=daniel.morsing, remyoudompheng, r
     CC=golang-dev
     https://golang.org/cl/6594043
-
+---
  src/cmd/gc/range.c       |  6 +++++-
  test/fixedbugs/bug454.go | 21 +++++++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 741a9ac9a7..50c4617c06 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -71,7 +71,11 @@ typecheckrange(Node *n)
+ 	v2 = N;
+ 	if(n->list->next)
+ 		v2 = n->list->next->n;
+-	
++
++	// this is not only a optimization but also a requirement in the spec.
++	// "if the second iteration variable is the blank identifier, the range
++	// clause is equivalent to the same clause with only the first variable
++	// present."
+ 	if(isblank(v2)) {
+ 		n->list = list1(v1);
+ 		v2 = N;
+diff --git a/test/fixedbugs/bug454.go b/test/fixedbugs/bug454.go
+new file mode 100644
+index 0000000000..a10abba8b2
+--- /dev/null
++++ b/test/fixedbugs/bug454.go
+@@ -0,0 +1,21 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4173
++
++package main
++
++func main() {
++	var arr *[10]int
++	s := 0
++	for i, _ := range arr {
++		// used to panic trying to access arr[i]
++		s += i
++	}
++	if s != 45 {
++		println("BUG")
++	}
++}

@@ -8,6 +8,26 @@ Date:   Wed Feb 16 22:35:31 2011 -0800
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/4192041
-
+---
  doc/effective_go.html | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 8f94f467be..a32179298e 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -194,9 +194,13 @@ Comments do not need extra formatting such as banners of stars.
+ The generated output may not even be presented in a fixed-width font, so don't depend
+ on spacing for alignment&mdash;<code>godoc</code>, like <code>gofmt</code>,
+ takes care of that.
+-Finally, the comments are uninterpreted plain text, so HTML and other
++The comments are uninterpreted plain text, so HTML and other
+ annotations such as <code>_this_</code> will reproduce <i>verbatim</i> and should
+ not be used.
++Depending on the context, <code>godoc</code> might not even
++reformat comments, so make sure they look good straight up:
++use correct spelling, punctuation, and sentence structure,
++fold long lines, and so on.
+ </p>
+ 
+ <p>

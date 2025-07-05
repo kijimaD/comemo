@@ -16,7 +16,7 @@ Date:   Thu Mar 7 19:57:10 2013 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7551045
-
+---
  src/pkg/runtime/asm_386.s          |  4 ++--
  src/pkg/runtime/rt0_darwin_386.s   | 10 ++++++++--
  src/pkg/runtime/rt0_freebsd_386.s  | 11 ++++++++---
@@ -27,3 +27,182 @@ Date:   Thu Mar 7 19:57:10 2013 -0800
  src/pkg/runtime/rt0_windows_386.s  | 11 ++++++++++-
  src/pkg/runtime/signal_linux_386.c |  3 +--
  9 files changed, 66 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 96f04e0ae9..375274e0b3 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -6,8 +6,8 @@
+ 
+ TEXT _rt0_386(SB),7,$0
+ 	// copy arguments forward on an even stack
+-	MOVL	0(SP), AX		// argc
+-	LEAL	4(SP), BX		// argv
++	MOVL	argc+0(FP), AX
++	MOVL	argv+4(FP), BX
+ 	SUBL	$128, SP		// plenty of scratch
+ 	ANDL	$~15, SP
+ 	MOVL	AX, 120(SP)		// save argc, argv away
+diff --git a/src/pkg/runtime/rt0_darwin_386.s b/src/pkg/runtime/rt0_darwin_386.s
+index 30b497f5e7..4b4c1f2942 100644
+--- a/src/pkg/runtime/rt0_darwin_386.s
++++ b/src/pkg/runtime/rt0_darwin_386.s
+@@ -2,7 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Darwin and Linux use the same linkage to main
++TEXT _rt0_386_darwin(SB),7,$8
++	MOVL	8(SP), AX
++	LEAL	12(SP), BX
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	CALL	main(SB)
++	INT	$3
+ 
+-TEXT _rt0_386_darwin(SB),7,$0
++TEXT main(SB),7,$0
+ 	JMP	_rt0_386(SB)
+diff --git a/src/pkg/runtime/rt0_freebsd_386.s b/src/pkg/runtime/rt0_freebsd_386.s
+index 3ca981b3a3..c84482cdbf 100644
+--- a/src/pkg/runtime/rt0_freebsd_386.s
++++ b/src/pkg/runtime/rt0_freebsd_386.s
+@@ -2,8 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Darwin and Linux use the same linkage to main
++TEXT _rt0_386_freebsd(SB),7,$8
++	MOVL	8(SP), AX
++	LEAL	12(SP), BX
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	CALL	main(SB)
++	INT	$3
+ 
+-TEXT _rt0_386_freebsd(SB),7,$0
++TEXT main(SB),7,$0
+ 	JMP	_rt0_386(SB)
+-
+diff --git a/src/pkg/runtime/rt0_linux_386.s b/src/pkg/runtime/rt0_linux_386.s
+index 83149540ec..73cca5d980 100644
+--- a/src/pkg/runtime/rt0_linux_386.s
++++ b/src/pkg/runtime/rt0_linux_386.s
+@@ -2,11 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Darwin and Linux use the same linkage to main
+-
+-TEXT _rt0_386_linux(SB),7,$0
++TEXT _rt0_386_linux(SB),7,$8
++	MOVL	8(SP), AX
++	LEAL	12(SP), BX
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
+ 	CALL	runtime·linux_setup_vdso(SB)
+-	JMP		_rt0_386(SB)
++	CALL	main(SB)
++	INT	$3
++
++TEXT main(SB),7,$0
++	JMP	_rt0_386(SB)
+ 
+ TEXT _fallback_vdso(SB),7,$0
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/rt0_netbsd_386.s b/src/pkg/runtime/rt0_netbsd_386.s
+index 829e4133b8..b4c029c538 100644
+--- a/src/pkg/runtime/rt0_netbsd_386.s
++++ b/src/pkg/runtime/rt0_netbsd_386.s
+@@ -2,5 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_netbsd(SB),7,$0
+-	JMP     _rt0_386(SB)
++TEXT _rt0_386_netbsd(SB),7,$8
++	MOVL	8(SP), AX
++	LEAL	12(SP), BX
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	CALL	main(SB)
++	INT	$3
++
++TEXT main(SB),7,$0
++	JMP	_rt0_386(SB)
+diff --git a/src/pkg/runtime/rt0_openbsd_386.s b/src/pkg/runtime/rt0_openbsd_386.s
+index e7e0da78f2..9c00a73340 100644
+--- a/src/pkg/runtime/rt0_openbsd_386.s
++++ b/src/pkg/runtime/rt0_openbsd_386.s
+@@ -2,5 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_openbsd(SB),7,$0
+-	JMP     _rt0_386(SB)
++TEXT _rt0_386_openbsd(SB),7,$8
++	MOVL	8(SP), AX
++	LEAL	12(SP), BX
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	CALL	main(SB)
++	INT	$3
++
++TEXT main(SB),7,$0
++	JMP	_rt0_386(SB)
+diff --git a/src/pkg/runtime/rt0_plan9_386.s b/src/pkg/runtime/rt0_plan9_386.s
+index 56f3a0f6c7..7af1eae7cb 100644
+--- a/src/pkg/runtime/rt0_plan9_386.s
++++ b/src/pkg/runtime/rt0_plan9_386.s
+@@ -26,6 +26,13 @@ argv_fix:
+ 	LOOP	argv_fix
+ 	
+ 	CALL	runtime·asminit(SB)
++
++	MOVL	0(SP), AX
++	LEAL	4(SP), BX
++	PUSHL	BX
++	PUSHL	AX
++	PUSHL	$-1
++
+ 	JMP	_rt0_386(SB)
+ 
+ DATA  runtime·isplan9(SB)/4, $1
+diff --git a/src/pkg/runtime/rt0_windows_386.s b/src/pkg/runtime/rt0_windows_386.s
+index a06aa787e2..6e34c6c172 100644
+--- a/src/pkg/runtime/rt0_windows_386.s
++++ b/src/pkg/runtime/rt0_windows_386.s
+@@ -2,8 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_windows(SB),7,$0
++TEXT _rt0_386_windows(SB),7,$12
++	MOVL	12(SP), AX
++	LEAL	16(SP), BX
++	MOVL	AX, 4(SP)
++	MOVL	BX, 8(SP)
++	MOVL	$-1, 0(SP) // return PC for main
++	JMP	main(SB)
++
++TEXT main(SB),7,$0
+ 	JMP	_rt0_386(SB)
+ 
++
+ DATA  runtime·iswindows(SB)/4, $1
+ GLOBL runtime·iswindows(SB), $4
+diff --git a/src/pkg/runtime/signal_linux_386.c b/src/pkg/runtime/signal_linux_386.c
+index 9b45ec3bd2..ed9ae3a8e5 100644
+--- a/src/pkg/runtime/signal_linux_386.c
++++ b/src/pkg/runtime/signal_linux_386.c
+@@ -155,9 +155,8 @@ extern uint32 runtime·_vdso;
+ 
+ #pragma textflag 7
+ void
+-runtime·linux_setup_vdso(int32 argc, void *argv_list)
++runtime·linux_setup_vdso(int32 argc, byte **argv)
+ {
+-	byte **argv = &argv_list;
+ 	byte **envp;
+ 	uint32 *auxv;
+ 

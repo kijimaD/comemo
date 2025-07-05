@@ -6,6 +6,26 @@ Date:   Mon Nov 16 11:58:28 2009 -0800
     
     R=rsc
     https://golang.org/cl/155069
-
+---
  src/cmd/5g/cgen.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 019704c98a..6fc42f5acf 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -898,11 +898,11 @@ bgen(Node *n, int true, Prog *to)
+ 		if(!true) {
+ 			if(isfloat[nl->type->etype]) {
+ 				// brcom is not valid on floats when NaN is involved.
+-				p1 = gbranch(AJMP, T);
+-				p2 = gbranch(AJMP, T);
++				p1 = gbranch(AB, T);
++				p2 = gbranch(AB, T);
+ 				patch(p1, pc);
+ 				bgen(n, 1, p2);
+-				patch(gbranch(AJMP, T), to);
++				patch(gbranch(AB, T), to);
+ 				patch(p2, pc);
+ 				goto ret;
+ 			}				

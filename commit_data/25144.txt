@@ -18,7 +18,479 @@ Date:   Mon Sep 28 16:38:16 2015 -0700
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/reader.go      | 139 ++++++++++++++++++++---------
  src/archive/tar/reader_test.go | 194 +++++++++++++++++++++++++++++------------
  2 files changed, 232 insertions(+), 101 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 67daca27a9..e9a6aa350a 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -12,6 +12,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"io/ioutil"
++	"math"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+@@ -49,12 +50,36 @@ type regFileReader struct {
+ 	nb int64     // number of unread bytes for current file entry
+ }
+ 
+-// A sparseFileReader is a numBytesReader for reading sparse file data from a tar archive.
++// A sparseFileReader is a numBytesReader for reading sparse file data from a
++// tar archive.
+ type sparseFileReader struct {
+-	rfr *regFileReader // reads the sparse-encoded file data
+-	sp  []sparseEntry  // the sparse map for the file
+-	pos int64          // keeps track of file position
+-	tot int64          // total size of the file
++	rfr   numBytesReader // Reads the sparse-encoded file data
++	sp    []sparseEntry  // The sparse map for the file
++	pos   int64          // Keeps track of file position
++	total int64          // Total size of the file
++}
++
++// A sparseEntry holds a single entry in a sparse file's sparse map.
++//
++// Sparse files are represented using a series of sparseEntrys.
++// Despite the name, a sparseEntry represents an actual data fragment that
++// references data found in the underlying archive stream. All regions not
++// covered by a sparseEntry are logically filled with zeros.
++//
++// For example, if the underlying raw file contains the 10-byte data:
++//	var compactData = "abcdefgh"
++//
++// And the sparse map has the following entries:
++//	var sp = []sparseEntry{
++//		{offset: 2,  numBytes: 5} // Data fragment for [2..7]
++//		{offset: 18, numBytes: 3} // Data fragment for [18..21]
++//	}
++//
++// Then the content of the resulting sparse file with a "real" size of 25 is:
++//	var sparseData = "\x00"*2 + "abcde" + "\x00"*11 + "fgh" + "\x00"*4
++type sparseEntry struct {
++	offset   int64 // Starting position of the fragment
++	numBytes int64 // Length of the fragment
+ }
+ 
+ // Keywords for GNU sparse files in a PAX extended header
+@@ -128,7 +153,10 @@ func (tr *Reader) Next() (*Header, error) {
+ 		if sp != nil {
+ 			// Current file is a PAX format GNU sparse file.
+ 			// Set the current file reader to a sparse file reader.
+-			tr.curr = &sparseFileReader{rfr: tr.curr.(*regFileReader), sp: sp, tot: hdr.Size}
++			tr.curr, tr.err = newSparseFileReader(tr.curr, sp, hdr.Size)
++			if tr.err != nil {
++				return nil, tr.err
++			}
+ 		}
+ 		return hdr, nil
+ 	case TypeGNULongName:
+@@ -541,21 +569,17 @@ func (tr *Reader) readHeader() *Header {
+ 		if tr.err != nil {
+ 			return nil
+ 		}
++
+ 		// Current file is a GNU sparse file. Update the current file reader.
+-		tr.curr = &sparseFileReader{rfr: tr.curr.(*regFileReader), sp: sp, tot: hdr.Size}
++		tr.curr, tr.err = newSparseFileReader(tr.curr, sp, hdr.Size)
++		if tr.err != nil {
++			return nil
++		}
+ 	}
+ 
+ 	return hdr
+ }
+ 
+-// A sparseEntry holds a single entry in a sparse file's sparse map.
+-// A sparse entry indicates the offset and size in a sparse file of a
+-// block of data.
+-type sparseEntry struct {
+-	offset   int64
+-	numBytes int64
+-}
+-
+ // readOldGNUSparseMap reads the sparse map as stored in the old GNU sparse format.
+ // The sparse map is stored in the tar header if it's small enough. If it's larger than four entries,
+ // then one or more extension headers are used to store the rest of the sparse map.
+@@ -771,9 +795,33 @@ func (rfr *regFileReader) numBytes() int64 {
+ 	return rfr.nb
+ }
+ 
+-// readHole reads a sparse file hole ending at offset toOffset
+-func (sfr *sparseFileReader) readHole(b []byte, toOffset int64) int {
+-	n64 := toOffset - sfr.pos
++// newSparseFileReader creates a new sparseFileReader, but validates all of the
++// sparse entries before doing so.
++func newSparseFileReader(rfr numBytesReader, sp []sparseEntry, total int64) (*sparseFileReader, error) {
++	if total < 0 {
++		return nil, ErrHeader // Total size cannot be negative
++	}
++
++	// Validate all sparse entries. These are the same checks as performed by
++	// the BSD tar utility.
++	for i, s := range sp {
++		switch {
++		case s.offset < 0 || s.numBytes < 0:
++			return nil, ErrHeader // Negative values are never okay
++		case s.offset > math.MaxInt64-s.numBytes:
++			return nil, ErrHeader // Integer overflow with large length
++		case s.offset+s.numBytes > total:
++			return nil, ErrHeader // Region extends beyond the "real" size
++		case i > 0 && sp[i-1].offset+sp[i-1].numBytes > s.offset:
++			return nil, ErrHeader // Regions can't overlap and must be in order
++		}
++	}
++	return &sparseFileReader{rfr: rfr, sp: sp, total: total}, nil
++}
++
++// readHole reads a sparse hole ending at endOffset.
++func (sfr *sparseFileReader) readHole(b []byte, endOffset int64) int {
++	n64 := endOffset - sfr.pos
+ 	if n64 > int64(len(b)) {
+ 		n64 = int64(len(b))
+ 	}
+@@ -787,49 +835,54 @@ func (sfr *sparseFileReader) readHole(b []byte, toOffset int64) int {
+ 
+ // Read reads the sparse file data in expanded form.
+ func (sfr *sparseFileReader) Read(b []byte) (n int, err error) {
++	// Skip past all empty fragments.
++	for len(sfr.sp) > 0 && sfr.sp[0].numBytes == 0 {
++		sfr.sp = sfr.sp[1:]
++	}
++
++	// If there are no more fragments, then it is possible that there
++	// is one last sparse hole.
+ 	if len(sfr.sp) == 0 {
+-		// No more data fragments to read from.
+-		if sfr.pos < sfr.tot {
+-			// We're in the last hole
+-			n = sfr.readHole(b, sfr.tot)
+-			return
++		// This behavior matches the BSD tar utility.
++		// However, GNU tar stops returning data even if sfr.total is unmet.
++		if sfr.pos < sfr.total {
++			return sfr.readHole(b, sfr.total), nil
+ 		}
+-		// Otherwise, we're at the end of the file
+ 		return 0, io.EOF
+ 	}
+-	if sfr.tot < sfr.sp[0].offset {
+-		return 0, io.ErrUnexpectedEOF
+-	}
++
++	// In front of a data fragment, so read a hole.
+ 	if sfr.pos < sfr.sp[0].offset {
+-		// We're in a hole
+-		n = sfr.readHole(b, sfr.sp[0].offset)
+-		return
++		return sfr.readHole(b, sfr.sp[0].offset), nil
+ 	}
+ 
+-	// We're not in a hole, so we'll read from the next data fragment
+-	posInFragment := sfr.pos - sfr.sp[0].offset
+-	bytesLeft := sfr.sp[0].numBytes - posInFragment
++	// In a data fragment, so read from it.
++	// This math is overflow free since we verify that offset and numBytes can
++	// be safely added when creating the sparseFileReader.
++	endPos := sfr.sp[0].offset + sfr.sp[0].numBytes // End offset of fragment
++	bytesLeft := endPos - sfr.pos                   // Bytes left in fragment
+ 	if int64(len(b)) > bytesLeft {
+-		b = b[0:bytesLeft]
++		b = b[:bytesLeft]
+ 	}
+ 
+ 	n, err = sfr.rfr.Read(b)
+ 	sfr.pos += int64(n)
+-
+-	if int64(n) == bytesLeft {
+-		// We're done with this fragment
+-		sfr.sp = sfr.sp[1:]
++	if err == io.EOF {
++		if sfr.pos < endPos {
++			err = io.ErrUnexpectedEOF // There was supposed to be more data
++		} else if sfr.pos < sfr.total {
++			err = nil // There is still an implicit sparse hole at the end
++		}
+ 	}
+ 
+-	if err == io.EOF && sfr.pos < sfr.tot {
+-		// We reached the end of the last fragment's data, but there's a final hole
+-		err = nil
++	if sfr.pos == endPos {
++		sfr.sp = sfr.sp[1:] // We are done with this fragment, so pop it
+ 	}
+-	return
++	return n, err
+ }
+ 
+ // numBytes returns the number of bytes left to read in the sparse file's
+ // sparse-encoded data in the tar archive.
+ func (sfr *sparseFileReader) numBytes() int64 {
+-	return sfr.rfr.nb
++	return sfr.rfr.numBytes()
+ }
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index da01f26591..bca0c05d12 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
++	"math"
+ 	"os"
+ 	"reflect"
+ 	"strings"
+@@ -560,80 +561,155 @@ func TestSparseEndToEnd(t *testing.T) {
+ 	}
+ }
+ 
+-type sparseFileReadTest struct {
+-	sparseData []byte
+-	sparseMap  []sparseEntry
+-	realSize   int64
+-	expected   []byte
+-}
+-
+-var sparseFileReadTests = []sparseFileReadTest{
+-	{
+-		sparseData: []byte("abcde"),
++func TestSparseFileReader(t *testing.T) {
++	var vectors = []struct {
++		realSize   int64         // Real size of the output file
++		sparseMap  []sparseEntry // Input sparse map
++		sparseData string        // Input compact data
++		expected   string        // Expected output data
++		err        error         // Expected error outcome
++	}{{
++		realSize: 8,
+ 		sparseMap: []sparseEntry{
+ 			{offset: 0, numBytes: 2},
+ 			{offset: 5, numBytes: 3},
+ 		},
+-		realSize: 8,
+-		expected: []byte("ab\x00\x00\x00cde"),
+-	},
+-	{
+-		sparseData: []byte("abcde"),
++		sparseData: "abcde",
++		expected:   "ab\x00\x00\x00cde",
++	}, {
++		realSize: 10,
+ 		sparseMap: []sparseEntry{
+ 			{offset: 0, numBytes: 2},
+ 			{offset: 5, numBytes: 3},
+ 		},
+-		realSize: 10,
+-		expected: []byte("ab\x00\x00\x00cde\x00\x00"),
+-	},
+-	{
+-		sparseData: []byte("abcde"),
++		sparseData: "abcde",
++		expected:   "ab\x00\x00\x00cde\x00\x00",
++	}, {
++		realSize: 8,
+ 		sparseMap: []sparseEntry{
+ 			{offset: 1, numBytes: 3},
+ 			{offset: 6, numBytes: 2},
+ 		},
++		sparseData: "abcde",
++		expected:   "\x00abc\x00\x00de",
++	}, {
+ 		realSize: 8,
+-		expected: []byte("\x00abc\x00\x00de"),
+-	},
+-	{
+-		sparseData: []byte("abcde"),
+ 		sparseMap: []sparseEntry{
+ 			{offset: 1, numBytes: 3},
++			{offset: 6, numBytes: 0},
++			{offset: 6, numBytes: 0},
+ 			{offset: 6, numBytes: 2},
+ 		},
++		sparseData: "abcde",
++		expected:   "\x00abc\x00\x00de",
++	}, {
+ 		realSize: 10,
+-		expected: []byte("\x00abc\x00\x00de\x00\x00"),
+-	},
+-	{
+-		sparseData: []byte(""),
+-		sparseMap:  nil,
++		sparseMap: []sparseEntry{
++			{offset: 1, numBytes: 3},
++			{offset: 6, numBytes: 2},
++		},
++		sparseData: "abcde",
++		expected:   "\x00abc\x00\x00de\x00\x00",
++	}, {
++		realSize: 10,
++		sparseMap: []sparseEntry{
++			{offset: 1, numBytes: 3},
++			{offset: 6, numBytes: 2},
++			{offset: 8, numBytes: 0},
++			{offset: 8, numBytes: 0},
++			{offset: 8, numBytes: 0},
++			{offset: 8, numBytes: 0},
++		},
++		sparseData: "abcde",
++		expected:   "\x00abc\x00\x00de\x00\x00",
++	}, {
+ 		realSize:   2,
+-		expected:   []byte("\x00\x00"),
+-	},
+-}
++		sparseMap:  []sparseEntry{},
++		sparseData: "",
++		expected:   "\x00\x00",
++	}, {
++		realSize:  -2,
++		sparseMap: []sparseEntry{},
++		err:       ErrHeader,
++	}, {
++		realSize: -10,
++		sparseMap: []sparseEntry{
++			{offset: 1, numBytes: 3},
++			{offset: 6, numBytes: 2},
++		},
++		sparseData: "abcde",
++		err:        ErrHeader,
++	}, {
++		realSize: 10,
++		sparseMap: []sparseEntry{
++			{offset: 1, numBytes: 3},
++			{offset: 6, numBytes: 5},
++		},
++		sparseData: "abcde",
++		err:        ErrHeader,
++	}, {
++		realSize: 35,
++		sparseMap: []sparseEntry{
++			{offset: 1, numBytes: 3},
++			{offset: 6, numBytes: 5},
++		},
++		sparseData: "abcde",
++		err:        io.ErrUnexpectedEOF,
++	}, {
++		realSize: 35,
++		sparseMap: []sparseEntry{
++			{offset: 1, numBytes: 3},
++			{offset: 6, numBytes: -5},
++		},
++		sparseData: "abcde",
++		err:        ErrHeader,
++	}, {
++		realSize: 35,
++		sparseMap: []sparseEntry{
++			{offset: math.MaxInt64, numBytes: 3},
++			{offset: 6, numBytes: -5},
++		},
++		sparseData: "abcde",
++		err:        ErrHeader,
++	}, {
++		realSize: 10,
++		sparseMap: []sparseEntry{
++			{offset: 1, numBytes: 3},
++			{offset: 2, numBytes: 2},
++		},
++		sparseData: "abcde",
++		err:        ErrHeader,
++	}}
+ 
+-func TestSparseFileReader(t *testing.T) {
+-	for i, test := range sparseFileReadTests {
+-		r := bytes.NewReader(test.sparseData)
+-		nb := int64(r.Len())
+-		sfr := &sparseFileReader{
+-			rfr: &regFileReader{r: r, nb: nb},
+-			sp:  test.sparseMap,
+-			pos: 0,
+-			tot: test.realSize,
++	for i, v := range vectors {
++		r := bytes.NewReader([]byte(v.sparseData))
++		rfr := &regFileReader{r: r, nb: int64(len(v.sparseData))}
++
++		var sfr *sparseFileReader
++		var err error
++		var buf []byte
++
++		sfr, err = newSparseFileReader(rfr, v.sparseMap, v.realSize)
++		if err != nil {
++			goto fail
+ 		}
+-		if sfr.numBytes() != nb {
+-			t.Errorf("test %d: Before reading, sfr.numBytes() = %d, want %d", i, sfr.numBytes(), nb)
++		if sfr.numBytes() != int64(len(v.sparseData)) {
++			t.Errorf("test %d, numBytes() before reading: got %d, want %d", i, sfr.numBytes(), len(v.sparseData))
+ 		}
+-		buf, err := ioutil.ReadAll(sfr)
++		buf, err = ioutil.ReadAll(sfr)
+ 		if err != nil {
+-			t.Errorf("test %d: Unexpected error: %v", i, err)
++			goto fail
+ 		}
+-		if e := test.expected; !bytes.Equal(buf, e) {
+-			t.Errorf("test %d: Contents = %v, want %v", i, buf, e)
++		if string(buf) != v.expected {
++			t.Errorf("test %d, ReadAll(): got %q, want %q", i, string(buf), v.expected)
+ 		}
+ 		if sfr.numBytes() != 0 {
+-			t.Errorf("test %d: After draining the reader, numBytes() was nonzero", i)
++			t.Errorf("test %d, numBytes() after reading: got %d, want %d", i, sfr.numBytes(), 0)
++		}
++
++	fail:
++		if err != v.err {
++			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
+ 		}
+ 	}
+ }
+@@ -646,10 +722,10 @@ func TestSparseIncrementalRead(t *testing.T) {
+ 	r := bytes.NewReader(sparseData)
+ 	nb := int64(r.Len())
+ 	sfr := &sparseFileReader{
+-		rfr: &regFileReader{r: r, nb: nb},
+-		sp:  sparseMap,
+-		pos: 0,
+-		tot: int64(len(expected)),
++		rfr:   &regFileReader{r: r, nb: nb},
++		sp:    sparseMap,
++		pos:   0,
++		total: int64(len(expected)),
+ 	}
+ 
+ 	// We'll read the data 6 bytes at a time, with a hole of size 10 at
+@@ -747,6 +823,11 @@ func TestUninitializedRead(t *testing.T) {
+ 
+ }
+ 
++// TODO(dsnet): TestNegativeHdrSize, TestIssue10968, and TestIssue11169 tests
++// that Reader properly handles corrupted tar files. Given the increasing number
++// of invalid/malicious that can crash Reader, we should modify TestReader to
++// be able to test that intentionally corrupt tar files don't succeed or crash.
++
+ // Negative header size should not cause panic.
+ // Issues 10959 and 10960.
+ func TestNegativeHdrSize(t *testing.T) {
+@@ -771,14 +852,11 @@ func TestIssue10968(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	defer f.Close()
++
+ 	r := NewReader(f)
+ 	_, err = r.Next()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	_, err = io.Copy(ioutil.Discard, r)
+-	if err != io.ErrUnexpectedEOF {
+-		t.Fatalf("expected %q, got %q", io.ErrUnexpectedEOF, err)
++	if err == nil {
++		t.Fatal("Unexpected success")
+ 	}
+ }
+ 

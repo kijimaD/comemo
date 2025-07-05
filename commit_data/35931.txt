@@ -21,7 +21,7 @@ Date:   Mon Mar 19 23:07:18 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go  |  4 ++++
  src/cmd/asm/internal/asm/testdata/386enc.s | 16 ++++++++++++++++
  src/runtime/asm_386.s                      |  4 ++--
@@ -29,3 +29,137 @@ Date:   Mon Mar 19 23:07:18 2018 +0300
  src/runtime/sys_darwin_386.s               |  2 +-
  src/sync/atomic/asm_386.s                  | 12 ++++--------
  6 files changed, 33 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 093d5c40ed..999464e49e 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -393,6 +393,10 @@ func TestAMD64EndToEnd(t *testing.T) {
+ 	testEndToEnd(t, "amd64", "amd64")
+ }
+ 
++func Test386Encoder(t *testing.T) {
++	testEndToEnd(t, "386", "386enc")
++}
++
+ func TestAMD64Encoder(t *testing.T) {
+ 	testEndToEnd(t, "amd64", "amd64enc")
+ 	testEndToEnd(t, "amd64", "amd64enc_extra")
+diff --git a/src/cmd/asm/internal/asm/testdata/386enc.s b/src/cmd/asm/internal/asm/testdata/386enc.s
+new file mode 100644
+index 0000000000..94a06de69c
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/testdata/386enc.s
+@@ -0,0 +1,16 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../../../../runtime/textflag.h"
++
++TEXT asmtest(SB),DUPOK|NOSPLIT,$0
++	// Instructions that were encoded with BYTE sequences.
++	// Included to simplify validation of CL that fixed that.
++	MOVQ (AX), M0  // 0f6f00
++	MOVQ M0, 8(SP) // 0f7f442408
++	MOVQ 8(SP), M0 // 0f6f442408
++	MOVQ M0, (AX)  // 0f7f00
++	MOVQ M0, (BX)  // 0f7f03
++	// End of tests.
++	RET
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index f565bb305d..8b706f6706 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -930,10 +930,10 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	JNE	done
+ 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
+ 	JNE	mfence
+-	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
++	LFENCE
+ 	JMP	done
+ mfence:
+-	BYTE	$0x0f; BYTE $0xae; BYTE $0xf0 // MFENCE
++	MFENCE
+ done:
+ 	RDTSC
+ 	MOVL	AX, ret_lo+0(FP)
+diff --git a/src/runtime/internal/atomic/asm_386.s b/src/runtime/internal/atomic/asm_386.s
+index 882906e9ed..c3ef79f913 100644
+--- a/src/runtime/internal/atomic/asm_386.s
++++ b/src/runtime/internal/atomic/asm_386.s
+@@ -124,12 +124,9 @@ TEXT runtime∕internal∕atomic·Load64(SB), NOSPLIT, $0-12
+ 	JZ	2(PC)
+ 	MOVL	0, AX // crash with nil ptr deref
+ 	LEAL	ret_lo+4(FP), BX
+-	// MOVQ (%EAX), %MM0
+-	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
+-	// MOVQ %MM0, 0(%EBX)
+-	BYTE $0x0f; BYTE $0x7f; BYTE $0x03
+-	// EMMS
+-	BYTE $0x0F; BYTE $0x77
++	MOVQ	(AX), M0
++	MOVQ	M0, (BX)
++	EMMS
+ 	RET
+ 
+ // void runtime∕internal∕atomic·Store64(uint64 volatile* addr, uint64 v);
+@@ -139,12 +136,9 @@ TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-12
+ 	JZ	2(PC)
+ 	MOVL	0, AX // crash with nil ptr deref
+ 	// MOVQ and EMMS were introduced on the Pentium MMX.
+-	// MOVQ 0x8(%ESP), %MM0
+-	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
+-	// MOVQ %MM0, (%EAX)
+-	BYTE $0x0f; BYTE $0x7f; BYTE $0x00 
+-	// EMMS
+-	BYTE $0x0F; BYTE $0x77
++	MOVQ	val+4(FP), M0
++	MOVQ	M0, (AX)
++	EMMS
+ 	// This is essentially a no-op, but it provides required memory fencing.
+ 	// It can be replaced with MFENCE, but MFENCE was introduced only on the Pentium4 (SSE2).
+ 	MOVL	$0, AX
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index ccd901ada5..3b5ed44724 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -464,7 +464,7 @@ TEXT runtime·bsdthread_register(SB),NOSPLIT,$40
+ TEXT runtime·sysenter(SB),NOSPLIT,$0
+ 	POPL	DX
+ 	MOVL	SP, CX
+-	BYTE $0x0F; BYTE $0x34;  // SYSENTER
++	SYSENTER
+ 	// returns to DX with SP set to CX
+ 
+ TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
+diff --git a/src/sync/atomic/asm_386.s b/src/sync/atomic/asm_386.s
+index f2a13dab66..b2dc558aa2 100644
+--- a/src/sync/atomic/asm_386.s
++++ b/src/sync/atomic/asm_386.s
+@@ -158,10 +158,8 @@ TEXT ·LoadUint64(SB),NOSPLIT,$0-12
+ 	JZ	2(PC)
+ 	MOVL	0, AX // crash with nil ptr deref
+ 	// MOVQ and EMMS were introduced on the Pentium MMX.
+-	// MOVQ (%EAX), %MM0
+-	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
+-	// MOVQ %MM0, 0x8(%ESP)
+-	BYTE $0x0f; BYTE $0x7f; BYTE $0x44; BYTE $0x24; BYTE $0x08
++	MOVQ	(AX), M0
++	MOVQ	M0, val+4(FP)
+ 	EMMS
+ 	RET
+ 
+@@ -189,10 +187,8 @@ TEXT ·StoreUint64(SB),NOSPLIT,$0-12
+ 	JZ	2(PC)
+ 	MOVL	0, AX // crash with nil ptr deref
+ 	// MOVQ and EMMS were introduced on the Pentium MMX.
+-	// MOVQ 0x8(%ESP), %MM0
+-	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
+-	// MOVQ %MM0, (%EAX)
+-	BYTE $0x0f; BYTE $0x7f; BYTE $0x00 
++	MOVQ	val+4(FP), M0
++	MOVQ	M0, (AX)
+ 	EMMS
+ 	// This is essentially a no-op, but it provides required memory fencing.
+ 	// It can be replaced with MFENCE, but MFENCE was introduced only on the Pentium4 (SSE2).

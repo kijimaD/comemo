@@ -11,6 +11,28 @@ Date:   Mon Jan 9 12:54:31 2012 -0800
     R=golang-dev, r, r, gri
     CC=golang-dev, remy
     https://golang.org/cl/5527046
-
+---
  src/pkg/text/template/exec.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index acb88afee3..2171b279be 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -78,10 +78,14 @@ func (s *state) error(err error) {
+ func errRecover(errp *error) {
+ 	e := recover()
+ 	if e != nil {
+-		if _, ok := e.(runtime.Error); ok {
++		switch err := e.(type) {
++		case runtime.Error:
++			panic(e)
++		case error:
++			*errp = err
++		default:
+ 			panic(e)
+ 		}
+-		*errp = e.(error)
+ 	}
+ }
+ 

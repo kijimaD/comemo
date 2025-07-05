@@ -8,8 +8,122 @@ Date:   Tue Aug 12 19:50:30 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/128070043
-
+---
  src/pkg/runtime/defs1_linux.go |  6 ++++--
  src/pkg/runtime/defs3_linux.go | 43 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/defs_linux.go  | 11 ++++++-----
  3 files changed, 53 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/defs1_linux.go b/src/pkg/runtime/defs1_linux.go
+index 451817a67a..c0b510ac41 100644
+--- a/src/pkg/runtime/defs1_linux.go
++++ b/src/pkg/runtime/defs1_linux.go
+@@ -15,12 +15,14 @@ package runtime
+ /*
+ #include <ucontext.h>
+ #include <fcntl.h>
++#include <asm/signal.h>
+ */
+ import "C"
+ 
+ const (
+-	O_RDONLY  = C.O_RDONLY
+-	O_CLOEXEC = C.O_CLOEXEC
++	O_RDONLY    = C.O_RDONLY
++	O_CLOEXEC   = C.O_CLOEXEC
++	SA_RESTORER = C.SA_RESTORER
+ )
+ 
+ type Usigset C.__sigset_t
+diff --git a/src/pkg/runtime/defs3_linux.go b/src/pkg/runtime/defs3_linux.go
+new file mode 100644
+index 0000000000..eb65f9d1ed
+--- /dev/null
++++ b/src/pkg/runtime/defs3_linux.go
+@@ -0,0 +1,43 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++/*
++Input to cgo -cdefs
++
++GOARCH=power64 cgo -cdefs defs_linux.go defs3_linux.go > defs_linux_power64.h
++*/
++
++package runtime
++
++/*
++#define size_t __kernel_size_t
++#define sigset_t __sigset_t // rename the sigset_t here otherwise cgo will complain about "inconsistent definitions for C.sigset_t"
++#define	_SYS_TYPES_H	// avoid inclusion of sys/types.h
++#include <asm/ucontext.h>
++#include <asm-generic/fcntl.h>
++*/
++import "C"
++
++const (
++	O_RDONLY    = C.O_RDONLY
++	O_CLOEXEC   = C.O_CLOEXEC
++	SA_RESTORER = 0 // unused
++)
++
++type Usigset C.__sigset_t
++
++// types used in sigcontext
++type Ptregs C.struct_pt_regs
++type Gregset C.elf_gregset_t
++type FPregset C.elf_fpregset_t
++type Vreg C.elf_vrreg_t
++
++type Sigaltstack C.struct_sigaltstack
++
++// PPC64 uses sigcontext in place of mcontext in ucontext.
++// see http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/arch/powerpc/include/uapi/asm/ucontext.h
++type Sigcontext C.struct_sigcontext
++type Ucontext C.struct_ucontext
+diff --git a/src/pkg/runtime/defs_linux.go b/src/pkg/runtime/defs_linux.go
+index 8657dbb0ec..553366a50b 100644
+--- a/src/pkg/runtime/defs_linux.go
++++ b/src/pkg/runtime/defs_linux.go
+@@ -20,6 +20,7 @@ package runtime
+ // headers for things like ucontext_t, so that happens in
+ // a separate file, defs1.go.
+ 
++#define	_SYS_TYPES_H	// avoid inclusion of sys/types.h
+ #include <asm/posix_types.h>
+ #define size_t __kernel_size_t
+ #include <asm/signal.h>
+@@ -28,7 +29,7 @@ package runtime
+ #include <asm-generic/errno.h>
+ #include <asm-generic/poll.h>
+ #include <linux/eventpoll.h>
+-#undef size_t
++#include <linux/time.h>
+ */
+ import "C"
+ 
+@@ -48,10 +49,9 @@ const (
+ 
+ 	MADV_DONTNEED = C.MADV_DONTNEED
+ 
+-	SA_RESTART  = C.SA_RESTART
+-	SA_ONSTACK  = C.SA_ONSTACK
+-	SA_RESTORER = C.SA_RESTORER
+-	SA_SIGINFO  = C.SA_SIGINFO
++	SA_RESTART = C.SA_RESTART
++	SA_ONSTACK = C.SA_ONSTACK
++	SA_SIGINFO = C.SA_SIGINFO
+ 
+ 	SIGHUP    = C.SIGHUP
+ 	SIGINT    = C.SIGINT
+@@ -116,6 +116,7 @@ const (
+ 	EPOLL_CTL_MOD = C.EPOLL_CTL_MOD
+ )
+ 
++type Sigset C.sigset_t
+ type Timespec C.struct_timespec
+ type Timeval C.struct_timeval
+ type Sigaction C.struct_sigaction

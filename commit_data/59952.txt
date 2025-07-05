@@ -13,7 +13,7 @@ Date:   Fri May 10 18:52:41 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/584237
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  src/cmd/vendor/golang.org/x/telemetry/dir.go       | 12 +++++
@@ -26,3 +26,485 @@ Date:   Fri May 10 18:52:41 2024 -0400
  .../x/telemetry/internal/upload/upload.go          | 20 ++++-----
  src/cmd/vendor/modules.txt                         |  2 +-
  11 files changed, 96 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index c8dd755d7f..6c5b5c46ea 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.17.1-0.20240507203540-6686f416970d
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.20.0
+-	golang.org/x/telemetry v0.0.0-20240507150523-279072785af5
++	golang.org/x/telemetry v0.0.0-20240510223629-51e8b5d718eb
+ 	golang.org/x/term v0.18.0
+ 	golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index b2e1efface..3e0b99dc67 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -32,8 +32,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
+ golang.org/x/sys v0.20.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240507150523-279072785af5 h1:zFQWkRwC+EyXtRREL8K8h7raUgJeU9jiQmUt9tQVxm0=
+-golang.org/x/telemetry v0.0.0-20240507150523-279072785af5/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
++golang.org/x/telemetry v0.0.0-20240510223629-51e8b5d718eb h1:UTGVF0T+nFaQu6f7USlW8TktAybpMdEjJcF5HyX4dxo=
++golang.org/x/telemetry v0.0.0-20240510223629-51e8b5d718eb/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
+ golang.org/x/term v0.18.0 h1:FcHjZXDMxI8mM3nwhX9HlKop4C0YQvCVCdwYl2wOtE8=
+ golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/dir.go b/src/cmd/vendor/golang.org/x/telemetry/dir.go
+new file mode 100644
+index 0000000000..5931669e72
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/dir.go
+@@ -0,0 +1,12 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package telemetry
++
++import "golang.org/x/telemetry/internal/telemetry"
++
++// Dir returns the telemetry directory.
++func Dir() string {
++	return telemetry.Default.Dir()
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index 12181b25ec..43297f9b74 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -256,9 +256,9 @@ func (f *file) rotate() {
+ 
+ func nop() {}
+ 
+-// counterTime returns the current UTC time.
++// CounterTime returns the current UTC time.
+ // Mutable for testing.
+-var counterTime = func() time.Time {
++var CounterTime = func() time.Time {
+ 	return time.Now().UTC()
+ }
+ 
+@@ -280,7 +280,7 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
+ 		previous.close()
+ 	}
+ 
+-	name, expire, err := f.filename(counterTime())
++	name, expire, err := f.filename(CounterTime())
+ 	if err != nil {
+ 		// This could be mode == "off" (when rotate is called for the first time)
+ 		ret := nop
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go
+index 4280c1eca9..a42a3513ce 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"strings"
+-	"time"
+ 	"unsafe"
+ 
+ 	"golang.org/x/telemetry/internal/mmap"
+@@ -27,6 +26,7 @@ func Parse(filename string, data []byte) (*File, error) {
+ 		return nil, fmt.Errorf("%s: wrong hdr (not %q)", filename, hdrPrefix)
+ 	}
+ 	corrupt := func() (*File, error) {
++		// TODO(rfindley): return a useful error message.
+ 		return nil, fmt.Errorf("%s: corrupt counter file", filename)
+ 	}
+ 
+@@ -60,21 +60,6 @@ func Parse(filename string, data []byte) (*File, error) {
+ 		}
+ 		f.Meta[k] = v
+ 	}
+-	if f.Meta["TimeBegin"] == "" {
+-		// Infer from file name.
+-		if !strings.HasSuffix(filename, ".v1.count") || len(filename) < len("-2022-11-19") {
+-			return corrupt()
+-		}
+-		short := strings.TrimSuffix(filename, ".v1.count")
+-		short = short[len(short)-len("2022-11-19"):]
+-		t, err := time.ParseInLocation("2006-01-02", short, time.UTC)
+-		if err != nil {
+-			return nil, fmt.Errorf("%s: invalid counter file name", filename)
+-		}
+-		f.Meta["TimeBegin"] = t.Format(time.RFC3339)
+-		// TODO(pjw): 1 isn't correct. 7?, but is this ever executed?
+-		f.Meta["TimeEnd"] = t.AddDate(0, 0, 1).Format(time.RFC3339)
+-	}
+ 
+ 	for i := uint32(0); i < numHash; i++ {
+ 		headOff := hdrLen + hashOff + i*4
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
+index 4fc770fc0f..26e65bd9bf 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
+@@ -28,38 +28,31 @@ func (u *Uploader) tooOld(date string, uploadStartTime time.Time) bool {
+ 	return age > distantPast
+ }
+ 
+-// a time in the far future for the expiry time with errors
+-var farFuture = time.UnixMilli(1 << 62)
+-
+-// counterDateSpan parses the counter file named fname and returns the (begin, end) span
+-// recorded in its metadata.
+-// On any error, it returns (0, farFuture), so that invalid files don't look
+-// like they can be used.
+-//
+-// TODO(rfindley): just return an error to make this explicit.
+-func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time) {
+-	parsed, err := u.parse(fname)
++// counterDateSpan parses the counter file named fname and returns the (begin,
++// end) span recorded in its metadata, or an error if this data could not be
++// extracted.
++func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time, _ error) {
++	parsed, err := u.parseCountFile(fname)
+ 	if err != nil {
+-		u.logger.Printf("expiry Parse: %v for %s", err, fname)
+-		return time.Time{}, farFuture
++		return time.Time{}, time.Time{}, err
++	}
++	timeBegin, ok := parsed.Meta["TimeBegin"]
++	if !ok {
++		return time.Time{}, time.Time{}, fmt.Errorf("missing counter metadata for TimeBegin")
+ 	}
+-	begin, err = time.Parse(time.RFC3339, parsed.Meta["TimeBegin"])
++	begin, err = time.Parse(time.RFC3339, timeBegin)
+ 	if err != nil {
+-		u.logger.Printf("time.Parse(%s[TimeBegin]) failed: %v", fname, err)
+-		return time.Time{}, farFuture
++		return time.Time{}, time.Time{}, fmt.Errorf("failed to parse TimeBegin: %v", err)
++	}
++	timeEnd, ok := parsed.Meta["TimeEnd"]
++	if !ok {
++		return time.Time{}, time.Time{}, fmt.Errorf("missing counter metadata for TimeEnd")
+ 	}
+-	end, err = time.Parse(time.RFC3339, parsed.Meta["TimeEnd"])
++	end, err = time.Parse(time.RFC3339, timeEnd)
+ 	if err != nil {
+-		u.logger.Printf("time.Parse(%s[TimeEnd]) failed: %v", fname, err)
+-		return time.Time{}, farFuture
++		return time.Time{}, time.Time{}, fmt.Errorf("failed to parse TimeEnd: %v", err)
+ 	}
+-	return begin, end
+-}
+-
+-// stillOpen returns true if the counter file might still be active
+-func (u *Uploader) stillOpen(fname string) bool {
+-	_, expiry := u.counterDateSpan(fname)
+-	return expiry.After(u.startTime)
++	return begin, end, nil
+ }
+ 
+ // avoid parsing count files multiple times
+@@ -68,7 +61,7 @@ type parsedCache struct {
+ 	m  map[string]*counter.File
+ }
+ 
+-func (u *Uploader) parse(fname string) (*counter.File, error) {
++func (u *Uploader) parseCountFile(fname string) (*counter.File, error) {
+ 	u.cache.mu.Lock()
+ 	defer u.cache.mu.Unlock()
+ 	if u.cache.m == nil {
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
+index 22add2a6f5..6bd559a841 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
+@@ -40,11 +40,16 @@ func (u *Uploader) findWork() work {
+ 	for _, fi := range fis {
+ 		if strings.HasSuffix(fi.Name(), ".v1.count") {
+ 			fname := filepath.Join(localdir, fi.Name())
+-			if u.stillOpen(fname) {
+-				u.logger.Printf("Skipping count file %s: still active", fname)
+-				continue
++			_, expiry, err := u.counterDateSpan(fname)
++			switch {
++			case err != nil:
++				u.logger.Printf("Error reading expiry for count file %s: %v", fi.Name(), err)
++			case expiry.After(u.startTime):
++				u.logger.Printf("Skipping count file %s: still active", fi.Name())
++			default:
++				u.logger.Printf("Collecting count file %s", fi.Name())
++				ans.countfiles = append(ans.countfiles, fname)
+ 			}
+-			ans.countfiles = append(ans.countfiles, fname)
+ 		} else if strings.HasPrefix(fi.Name(), "local.") {
+ 			// skip
+ 		} else if strings.HasSuffix(fi.Name(), ".json") && mode == "on" {
+@@ -63,7 +68,7 @@ func (u *Uploader) findWork() work {
+ 					//
+ 					// TODO(rfindley): store the begin date in reports, so that we can
+ 					// verify this assumption.
+-					u.logger.Printf("uploadable %s", fi.Name())
++					u.logger.Printf("Uploadable: %s", fi.Name())
+ 					ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
+ 				}
+ 			} else {
+@@ -73,7 +78,7 @@ func (u *Uploader) findWork() work {
+ 				// TODO(rfindley): invert this logic following more testing. We
+ 				// should only upload if we know both the asof date and the report
+ 				// date, and they are acceptable.
+-				u.logger.Printf("uploadable anyway %s", fi.Name())
++				u.logger.Printf("Uploadable (missing date): %s", fi.Name())
+ 				ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
+ 			}
+ 		}
+@@ -89,6 +94,7 @@ func (u *Uploader) findWork() work {
+ 	ans.uploaded = make(map[string]bool)
+ 	for _, fi := range fis {
+ 		if strings.HasSuffix(fi.Name(), ".json") {
++			u.logger.Printf("Already uploaded: %s", fi.Name())
+ 			ans.uploaded[fi.Name()] = true
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+index 4052bb0ab4..bb95971932 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+@@ -31,11 +31,17 @@ func (u *Uploader) reports(todo *work) ([]string, error) {
+ 	if lastWeek >= today { //should never happen
+ 		lastWeek = ""
+ 	}
+-	u.logger.Printf("lastWeek %q, today %s", lastWeek, today)
++	u.logger.Printf("Last week: %s, today: %s", lastWeek, today)
+ 	countFiles := make(map[string][]string) // expiry date string->filenames
+ 	earliest := make(map[string]time.Time)  // earliest begin time for any counter
+ 	for _, f := range todo.countfiles {
+-		begin, end := u.counterDateSpan(f)
++		begin, end, err := u.counterDateSpan(f)
++		if err != nil {
++			// This shouldn't happen: we should have already skipped count files that
++			// don't contain valid start or end times.
++			u.logger.Printf("BUG: failed to parse expiry for collected count file: %v", err)
++			continue
++		}
+ 
+ 		if end.Before(thisInstant) {
+ 			expiry := end.Format(dateFormat)
+@@ -47,7 +53,7 @@ func (u *Uploader) reports(todo *work) ([]string, error) {
+ 	}
+ 	for expiry, files := range countFiles {
+ 		if notNeeded(expiry, *todo) {
+-			u.logger.Printf("files for %s not needed, deleting %v", expiry, files)
++			u.logger.Printf("Files for %s not needed, deleting %v", expiry, files)
+ 			// The report already exists.
+ 			// There's another check in createReport.
+ 			u.deleteFiles(files)
+@@ -55,9 +61,11 @@ func (u *Uploader) reports(todo *work) ([]string, error) {
+ 		}
+ 		fname, err := u.createReport(earliest[expiry], expiry, files, lastWeek)
+ 		if err != nil {
+-			return nil, err
++			u.logger.Printf("Failed to create report for %s: %v", expiry, err)
++			continue
+ 		}
+ 		if fname != "" {
++			u.logger.Printf("Ready to upload: %s", filepath.Base(fname))
+ 			todo.readyfiles = append(todo.readyfiles, fname)
+ 		}
+ 	}
+@@ -109,24 +117,24 @@ func (u *Uploader) deleteFiles(files []string) {
+ 
+ // createReport for all the count files for the same date.
+ // returns the absolute path name of the file containing the report
+-func (u *Uploader) createReport(start time.Time, expiryDate string, files []string, lastWeek string) (string, error) {
++func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles []string, lastWeek string) (string, error) {
+ 	uploadOK := true
+ 	mode, asof := u.dir.Mode()
+ 	if mode != "on" {
+-		u.logger.Printf("no upload config or mode %q is not 'on'", mode)
++		u.logger.Printf("No upload config or mode %q is not 'on'", mode)
+ 		uploadOK = false // no config, nothing to upload
+ 	}
+ 	if u.tooOld(expiryDate, u.startTime) {
+-		u.logger.Printf("expiryDate %s is too old", expiryDate)
++		u.logger.Printf("Expiry date %s is too old", expiryDate)
+ 		uploadOK = false
+ 	}
+ 	// If the mode is recorded with an asof date, don't upload if the report
+ 	// includes any data on or before the asof date.
+ 	if !asof.IsZero() && !asof.Before(start) {
+-		u.logger.Printf("asof %s is not before start %s", asof, start)
++		u.logger.Printf("As-of date %s is not before start %s", asof, start)
+ 		uploadOK = false
+ 	}
+-	// should we check that all the x.Meta are consistent for GOOS, GOARCH, etc?
++	// TODO(rfindley): check that all the x.Meta are consistent for GOOS, GOARCH, etc.
+ 	report := &telemetry.Report{
+ 		Config:   u.configVersion,
+ 		X:        computeRandom(), // json encodes all the bits
+@@ -134,14 +142,14 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
+ 		LastWeek: lastWeek,
+ 	}
+ 	if report.X > u.config.SampleRate && u.config.SampleRate > 0 {
+-		u.logger.Printf("X:%f > SampleRate:%f, not uploadable", report.X, u.config.SampleRate)
++		u.logger.Printf("X: %f > SampleRate:%f, not uploadable", report.X, u.config.SampleRate)
+ 		uploadOK = false
+ 	}
+ 	var succeeded bool
+-	for _, f := range files {
+-		x, err := u.parse(string(f))
++	for _, f := range countFiles {
++		x, err := u.parseCountFile(f)
+ 		if err != nil {
+-			u.logger.Printf("unparseable (%v) %s", err, f)
++			u.logger.Printf("Unparseable count file %s: %v", filepath.Base(f), err)
+ 			continue
+ 		}
+ 		prog := findProgReport(x.Meta, report)
+@@ -157,18 +165,20 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
+ 		}
+ 	}
+ 	if !succeeded {
+-		return "", fmt.Errorf("all %d count files were unparseable", len(files))
++		// TODO(rfindley): this isn't right: a count file is not unparseable just
++		// because it has no counters
++		return "", fmt.Errorf("all %d count files for %s were unparseable", len(countFiles), expiryDate)
+ 	}
+ 	// 1. generate the local report
+ 	localContents, err := json.MarshalIndent(report, "", " ")
+ 	if err != nil {
+-		return "", fmt.Errorf("failed to marshal report (%v)", err)
++		return "", fmt.Errorf("failed to marshal report for %s: %v", expiryDate, err)
+ 	}
+ 	// check that the report can be read back
+ 	// TODO(pjw): remove for production?
+ 	var report2 telemetry.Report
+ 	if err := json.Unmarshal(localContents, &report2); err != nil {
+-		return "", fmt.Errorf("failed to unmarshal local report (%v)", err)
++		return "", fmt.Errorf("failed to unmarshal local report for %s: %v", expiryDate, err)
+ 	}
+ 
+ 	var uploadContents []byte
+@@ -215,7 +225,7 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
+ 
+ 		uploadContents, err = json.MarshalIndent(upload, "", " ")
+ 		if err != nil {
+-			return "", fmt.Errorf("failed to marshal upload report (%v)", err)
++			return "", fmt.Errorf("failed to marshal upload report for %s: %v", expiryDate, err)
+ 		}
+ 	}
+ 	localFileName := filepath.Join(u.dir.LocalDir(), "local."+expiryDate+".json")
+@@ -225,11 +235,11 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
+ 	// if either file exists, someone has been here ahead of us
+ 	// (there is still a race, but this check shortens the open window)
+ 	if _, err := os.Stat(localFileName); err == nil {
+-		u.deleteFiles(files)
++		u.deleteFiles(countFiles)
+ 		return "", fmt.Errorf("local report %s already exists", localFileName)
+ 	}
+ 	if _, err := os.Stat(uploadFileName); err == nil {
+-		u.deleteFiles(files)
++		u.deleteFiles(countFiles)
+ 		return "", fmt.Errorf("report %s already exists", uploadFileName)
+ 	}
+ 	// write the uploadable file
+@@ -249,8 +259,8 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
+ 	if errUpload != nil {
+ 		return "", fmt.Errorf("failed to write upload file %s (%v)", uploadFileName, errUpload)
+ 	}
+-	u.logger.Printf("created %q, deleting %v", uploadFileName, files)
+-	u.deleteFiles(files)
++	u.logger.Printf("Created %s, deleting %d count files", filepath.Base(uploadFileName), len(countFiles))
++	u.deleteFiles(countFiles)
+ 	if uploadOK {
+ 		return uploadFileName, nil
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
+index de63324bf7..2fb9fa670a 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
+@@ -94,7 +94,7 @@ func NewUploader(rcfg RunConfig) (*Uploader, error) {
+ 	default:
+ 		logWriter = io.MultiWriter(logWriters...)
+ 	}
+-	logger := log.New(logWriter, "", 0)
++	logger := log.New(logWriter, "", log.Ltime|log.Lmicroseconds|log.Lshortfile)
+ 
+ 	// Fetch the upload config, if it is not provided.
+ 	config, configVersion, err := configstore.Download("latest", rcfg.Env)
+@@ -136,8 +136,10 @@ func (u *Uploader) Run() error {
+ 	todo := u.findWork()
+ 	ready, err := u.reports(&todo)
+ 	if err != nil {
++		u.logger.Printf("Error building reports: %v", err)
+ 		return fmt.Errorf("reports failed: %v", err)
+ 	}
++	u.logger.Printf("Uploading %d reports", len(ready))
+ 	for _, f := range ready {
+ 		u.uploadReport(f)
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+index 5f3f63985d..bec2230837 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+@@ -44,9 +44,9 @@ func (u *Uploader) uploadReport(fname string) {
+ 	today := thisInstant.Format("2006-01-02")
+ 	match := dateRE.FindStringSubmatch(fname)
+ 	if match == nil || len(match) < 2 {
+-		u.logger.Printf("report name seemed to have no date %q", filepath.Base(fname))
++		u.logger.Printf("Report name %q missing date", filepath.Base(fname))
+ 	} else if match[1] > today {
+-		u.logger.Printf("report %q is later than today %s", filepath.Base(fname), today)
++		u.logger.Printf("Report date for %q is later than today (%s)", filepath.Base(fname), today)
+ 		return // report is in the future, which shouldn't happen
+ 	}
+ 	buf, err := os.ReadFile(fname)
+@@ -64,31 +64,31 @@ func (u *Uploader) uploadReportContents(fname string, buf []byte) bool {
+ 	b := bytes.NewReader(buf)
+ 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
+ 	fdate = fdate[len(fdate)-len("2006-01-02"):]
+-	server := u.uploadServerURL + "/" + fdate
++	endpoint := u.uploadServerURL + "/" + fdate
+ 
+-	resp, err := http.Post(server, "application/json", b)
++	resp, err := http.Post(endpoint, "application/json", b)
+ 	if err != nil {
+-		u.logger.Printf("error on Post: %v %q for %q", err, server, fname)
++		u.logger.Printf("Error upload %s to %s: %v", filepath.Base(fname), endpoint, err)
+ 		return false
+ 	}
+ 	// hope for a 200, remove file on a 4xx, otherwise it will be retried by another process
+ 	if resp.StatusCode != 200 {
+-		u.logger.Printf("resp error on upload %q: %v for %q %q [%+v]", server, resp.Status, fname, fdate, resp)
++		u.logger.Printf("Failed to upload %s to %s: %s", filepath.Base(fname), endpoint, resp.Status)
+ 		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+ 			err := os.Remove(fname)
+ 			if err == nil {
+-				u.logger.Printf("removed")
++				u.logger.Printf("Removed local/%s", filepath.Base(fname))
+ 			} else {
+-				u.logger.Printf("error removing: %v", err)
++				u.logger.Printf("Error removing local/%s: %v", filepath.Base(fname), err)
+ 			}
+ 		}
+ 		return false
+ 	}
+-	// put a copy in the uploaded directory
++	// Store a copy of the uploaded report in the uploaded directory.
+ 	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
+ 	if err := os.WriteFile(newname, buf, 0644); err == nil {
+ 		os.Remove(fname) // if it exists
+ 	}
+-	u.logger.Printf("uploaded %s to %q", fdate+".json", server)
++	u.logger.Printf("Uploaded %s to %q", fdate+".json", endpoint)
+ 	return true
+ }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 8167330328..44a0b69008 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240507150523-279072785af5
++# golang.org/x/telemetry v0.0.0-20240510223629-51e8b5d718eb
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

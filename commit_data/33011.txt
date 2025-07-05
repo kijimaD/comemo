@@ -16,7 +16,34 @@ Date:   Fri Jun 23 08:05:37 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm.s | 2 +-
  src/cmd/internal/obj/arm/asm5.go        | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index e5ad86cdc2..8f743e7bfa 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -975,7 +975,7 @@ jmp_label_3:
+ 	MULL	R1, R2, (R4, R3)     // 9231c4e0
+ 	MULL.S	R1, R2, (R4, R3)     // 9231d4e0
+ 	MMUL	R1, R2, R3           // 12f153e7
+-	MULBB	R1, R2, R3           // 82f163e1
++	MULBB	R1, R2, R3           // 820163e1
+ 	MULWB	R1, R2, R3           // a20123e1
+ 	MULWT	R1, R2, R3           // e20123e1
+ 
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 6cb6072769..0836a7fa4e 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -2866,7 +2866,7 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
+ 		return o&(0xf<<28) | 0x12<<20 | 0xa<<4
+ 
+ 	case AMULBB:
+-		return o&(0xf<<28) | 0x16<<20 | 0xf<<12 | 0x8<<4
++		return o&(0xf<<28) | 0x16<<20 | 0x8<<4
+ 
+ 	case AMULAWT:
+ 		return o&(0xf<<28) | 0x12<<20 | 0xc<<4

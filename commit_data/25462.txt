@@ -14,8 +14,299 @@ Date:   Mon Sep 21 16:12:24 2015 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/filepath/path_test.go       |  85 +++++++++++++++++++++++-
  src/path/filepath/symlink.go         | 125 ++++++++++++++++++++++-------------
  src/path/filepath/symlink_windows.go |   6 +-
  3 files changed, 166 insertions(+), 50 deletions(-)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index b0c37b0f4c..09e7be228a 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -752,6 +752,18 @@ var EvalSymlinksTests = []EvalSymlinksTest{
+ 	{"test/linkabs", "/"},
+ }
+ 
++// findEvalSymlinksTestDirsDest searches testDirs
++// for matching path and returns correspondent dest.
++func findEvalSymlinksTestDirsDest(t *testing.T, testDirs []EvalSymlinksTest, path string) string {
++	for _, d := range testDirs {
++		if d.path == path {
++			return d.dest
++		}
++	}
++	t.Fatalf("did not find %q in testDirs slice", path)
++	return ""
++}
++
+ // simpleJoin builds a file name from the directory and path.
+ // It does not use Join because we don't want ".." to be evaluated.
+ func simpleJoin(dir, path string) string {
+@@ -780,8 +792,22 @@ func TestEvalSymlinks(t *testing.T) {
+ 		t.Fatal("eval symlink for tmp dir:", err)
+ 	}
+ 
++	tests := EvalSymlinksTests
++	testdirs := EvalSymlinksTestDirs
++	if runtime.GOOS == "windows" {
++		if len(tmpDir) < 3 {
++			t.Fatalf("tmpDir path %q is too short", tmpDir)
++		}
++		if tmpDir[1] != ':' {
++			t.Fatalf("tmpDir path %q must have drive letter in it", tmpDir)
++		}
++		newtest := EvalSymlinksTest{"test/linkabswin", tmpDir[:3]}
++		tests = append(tests, newtest)
++		testdirs = append(testdirs, newtest)
++	}
++
+ 	// Create the symlink farm using relative paths.
+-	for _, d := range EvalSymlinksTestDirs {
++	for _, d := range testdirs {
+ 		var err error
+ 		path := simpleJoin(tmpDir, d.path)
+ 		if d.dest == "" {
+@@ -794,8 +820,13 @@ func TestEvalSymlinks(t *testing.T) {
+ 		}
+ 	}
+ 
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++
+ 	// Evaluate the symlink farm.
+-	for _, d := range EvalSymlinksTests {
++	for _, d := range tests {
+ 		path := simpleJoin(tmpDir, d.path)
+ 		dest := simpleJoin(tmpDir, d.dest)
+ 		if filepath.IsAbs(d.dest) || os.IsPathSeparator(d.dest[0]) {
+@@ -806,6 +837,56 @@ func TestEvalSymlinks(t *testing.T) {
+ 		} else if filepath.Clean(p) != filepath.Clean(dest) {
+ 			t.Errorf("Clean(%q)=%q, want %q", path, p, dest)
+ 		}
++
++		// test EvalSymlinks(".")
++		func() {
++			defer func() {
++				err := os.Chdir(wd)
++				if err != nil {
++					t.Fatal(err)
++				}
++			}()
++
++			err := os.Chdir(path)
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			p, err := filepath.EvalSymlinks(".")
++			if err != nil {
++				t.Errorf(`EvalSymlinks(".") in %q directory error: %v`, d.path, err)
++				return
++			}
++			if p == "." {
++				return
++			}
++			want := filepath.Clean(findEvalSymlinksTestDirsDest(t, testdirs, d.path))
++			if p == want {
++				return
++			}
++			t.Errorf(`EvalSymlinks(".") in %q directory returns %q, want "." or %q`, d.path, p, want)
++		}()
++
++		// test EvalSymlinks where parameter is relative path
++		func() {
++			defer func() {
++				err := os.Chdir(wd)
++				if err != nil {
++					t.Fatal(err)
++				}
++			}()
++
++			err := os.Chdir(tmpDir)
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			if p, err := filepath.EvalSymlinks(d.path); err != nil {
++				t.Errorf("EvalSymlinks(%q) error: %v", d.path, err)
++			} else if filepath.Clean(p) != filepath.Clean(d.dest) {
++				t.Errorf("Clean(%q)=%q, want %q", d.path, p, d.dest)
++			}
++		}()
+ 	}
+ }
+ 
+diff --git a/src/path/filepath/symlink.go b/src/path/filepath/symlink.go
+index df0a9e0c2b..546f93b237 100644
+--- a/src/path/filepath/symlink.go
++++ b/src/path/filepath/symlink.go
+@@ -5,68 +5,99 @@
+ package filepath
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"os"
++	"runtime"
+ )
+ 
+-const utf8RuneSelf = 0x80
++// isRoot returns true if path is root of file system
++// (`/` on unix and `/`, `\`, `c:\` or `c:/` on windows).
++func isRoot(path string) bool {
++	if runtime.GOOS != "windows" {
++		return path == "/"
++	}
++	switch len(path) {
++	case 1:
++		return os.IsPathSeparator(path[0])
++	case 3:
++		return path[1] == ':' && os.IsPathSeparator(path[2])
++	}
++	return false
++}
+ 
+-func walkSymlinks(path string) (string, error) {
+-	const maxIter = 255
+-	originalPath := path
+-	// consume path by taking each frontmost path element,
+-	// expanding it if it's a symlink, and appending it to b
+-	var b bytes.Buffer
+-	for n := 0; path != ""; n++ {
+-		if n > maxIter {
+-			return "", errors.New("EvalSymlinks: too many links in " + originalPath)
+-		}
++// isDriveLetter returns true if path is Windows drive letter (like "c:").
++func isDriveLetter(path string) bool {
++	if runtime.GOOS != "windows" {
++		return false
++	}
++	return len(path) == 2 && path[1] == ':'
++}
+ 
+-		// find next path component, p
+-		var i = -1
+-		for j, c := range path {
+-			if c < utf8RuneSelf && os.IsPathSeparator(uint8(c)) {
+-				i = j
+-				break
+-			}
+-		}
+-		var p string
+-		if i == -1 {
+-			p, path = path, ""
+-		} else {
+-			p, path = path[:i], path[i+1:]
+-		}
++func walkLink(path string, linksWalked *int) (newpath string, islink bool, err error) {
++	if *linksWalked > 255 {
++		return "", false, errors.New("EvalSymlinks: too many links")
++	}
++	fi, err := os.Lstat(path)
++	if err != nil {
++		return "", false, err
++	}
++	if fi.Mode()&os.ModeSymlink == 0 {
++		return path, false, nil
++	}
++	newpath, err = os.Readlink(path)
++	if err != nil {
++		return "", false, err
++	}
++	*linksWalked++
++	return newpath, true, nil
++}
+ 
+-		if p == "" {
+-			if b.Len() == 0 {
+-				// must be absolute path
+-				b.WriteRune(Separator)
++func walkLinks(path string, linksWalked *int) (string, error) {
++	switch dir, file := Split(path); {
++	case dir == "":
++		newpath, _, err := walkLink(file, linksWalked)
++		return newpath, err
++	case file == "":
++		if isDriveLetter(dir) {
++			// appending "." to avoid bug in Join (see issue 11551)
++			return dir + ".", nil
++		}
++		if os.IsPathSeparator(dir[len(dir)-1]) {
++			if isRoot(dir) {
++				return dir, nil
+ 			}
+-			continue
++			return walkLinks(dir[:len(dir)-1], linksWalked)
+ 		}
+-
+-		fi, err := os.Lstat(b.String() + p)
++		newpath, _, err := walkLink(dir, linksWalked)
++		return newpath, err
++	default:
++		newdir, err := walkLinks(dir, linksWalked)
+ 		if err != nil {
+ 			return "", err
+ 		}
+-		if fi.Mode()&os.ModeSymlink == 0 {
+-			b.WriteString(p)
+-			if path != "" || (b.Len() == 2 && len(p) == 2 && p[1] == ':') {
+-				b.WriteRune(Separator)
+-			}
+-			continue
+-		}
+-
+-		// it's a symlink, put it at the front of path
+-		dest, err := os.Readlink(b.String() + p)
++		newpath, islink, err := walkLink(Join(newdir, file), linksWalked)
+ 		if err != nil {
+ 			return "", err
+ 		}
+-		if IsAbs(dest) || os.IsPathSeparator(dest[0]) {
+-			b.Reset()
++		if !islink {
++			return newpath, nil
++		}
++		if IsAbs(newpath) || os.IsPathSeparator(newpath[0]) {
++			return newpath, nil
+ 		}
+-		path = dest + string(Separator) + path
++		return Join(newdir, newpath), nil
++
++	}
++}
++
++func walkSymlinks(path string) (string, error) {
++	if path == "" {
++		return path, nil
++	}
++	var linksWalked int // to protect against cycles
++	newpath, err := walkLinks(path, &linksWalked)
++	if err != nil {
++		return "", err
+ 	}
+-	return Clean(b.String()), nil
++	return Clean(newpath), nil
+ }
+diff --git a/src/path/filepath/symlink_windows.go b/src/path/filepath/symlink_windows.go
+index 4b38f6fac3..58288731aa 100644
+--- a/src/path/filepath/symlink_windows.go
++++ b/src/path/filepath/symlink_windows.go
+@@ -47,10 +47,14 @@ func toLong(path string) (string, error) {
+ }
+ 
+ func evalSymlinks(path string) (string, error) {
+-	path, err := walkSymlinks(path)
++	newpath, err := walkSymlinks(path)
+ 	if err != nil {
+ 		return "", err
+ 	}
++	// discard the walk if path is "." and link destination is relative path (just like unix does)
++	if path != "." || IsAbs(newpath) {
++		path = newpath
++	}
+ 
+ 	p, err := toShort(path)
+ 	if err != nil {

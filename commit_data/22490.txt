@@ -18,8 +18,154 @@ Date:   Mon Mar 16 17:13:10 2015 -0700
     Change-Id: Ia03a456f7e7a4362b706392b0e3c4cc93ce06f9f
     Reviewed-on: https://go-review.googlesource.com/7647
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go         |  9 ++++++---
  src/crypto/tls/common.go                |  9 ++++++---
  src/crypto/tls/handshake_server_test.go | 35 +++++++++++++++++++++++++++------
  3 files changed, 41 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 4b4695ad8e..b315436c1f 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -49,6 +49,9 @@ const (
+ 	// suiteTLS12 indicates that the cipher suite should only be advertised
+ 	// and accepted when using TLS 1.2.
+ 	suiteTLS12
++	// suiteDefaultOff indicates that this cipher suite is not included by
++	// default.
++	suiteDefaultOff
+ )
+ 
+ // A cipherSuite is a specific combination of key agreement, cipher and MAC
+@@ -75,13 +78,13 @@ var cipherSuites = []*cipherSuite{
+ 	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadAESGCM, crypto.SHA256},
+ 	{TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadAESGCM, crypto.SHA384},
+ 	{TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadAESGCM, crypto.SHA384},
+-	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE, cipherRC4, macSHA1, nil, crypto.SHA256},
+-	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherRC4, macSHA1, nil, crypto.SHA256},
++	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE | suiteDefaultOff, cipherRC4, macSHA1, nil, crypto.SHA256},
++	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteDefaultOff, cipherRC4, macSHA1, nil, crypto.SHA256},
+ 	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil, crypto.SHA256},
+ 	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil, crypto.SHA256},
+ 	{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil, crypto.SHA256},
+ 	{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil, crypto.SHA256},
+-	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, 0, cipherRC4, macSHA1, nil, crypto.SHA256},
++	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, suiteDefaultOff, cipherRC4, macSHA1, nil, crypto.SHA256},
+ 	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil, crypto.SHA256},
+ 	{TLS_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil, crypto.SHA256},
+ 	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, suiteECDHE, cipher3DES, macSHA1, nil, crypto.SHA256},
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 89ae140fea..43b3f6b1d8 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -611,9 +611,12 @@ func defaultCipherSuites() []uint16 {
+ }
+ 
+ func initDefaultCipherSuites() {
+-	varDefaultCipherSuites = make([]uint16, len(cipherSuites))
+-	for i, suite := range cipherSuites {
+-		varDefaultCipherSuites[i] = suite.id
++	varDefaultCipherSuites = make([]uint16, 0, len(cipherSuites))
++	for _, suite := range cipherSuites {
++		if suite.flags&suiteDefaultOff != 0 {
++			continue
++		}
++		varDefaultCipherSuites = append(varDefaultCipherSuites, suite.id)
+ 	}
+ }
+ 
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index f0ef26000a..af5cadb959 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -37,6 +37,15 @@ func (zeroSource) Read(b []byte) (n int, err error) {
+ 
+ var testConfig *Config
+ 
++func allCipherSuites() []uint16 {
++	ids := make([]uint16, len(cipherSuites))
++	for i, suite := range cipherSuites {
++		ids[i] = suite.id
++	}
++
++	return ids
++}
++
+ func init() {
+ 	testConfig = &Config{
+ 		Time:               func() time.Time { return time.Unix(0, 0) },
+@@ -45,6 +54,7 @@ func init() {
+ 		InsecureSkipVerify: true,
+ 		MinVersion:         VersionSSL30,
+ 		MaxVersion:         VersionTLS12,
++		CipherSuites:       allCipherSuites(),
+ 	}
+ 	testConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
+ 	testConfig.Certificates[0].PrivateKey = testRSAPrivateKey
+@@ -53,7 +63,7 @@ func init() {
+ 	testConfig.BuildNameToCertificate()
+ }
+ 
+-func testClientHelloFailure(t *testing.T, m handshakeMessage, expectedSubStr string) {
++func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessage, expectedSubStr string) {
+ 	// Create in-memory network connection,
+ 	// send message to server.  Should return
+ 	// expected error.
+@@ -66,7 +76,7 @@ func testClientHelloFailure(t *testing.T, m handshakeMessage, expectedSubStr str
+ 		cli.writeRecord(recordTypeHandshake, m.marshal())
+ 		c.Close()
+ 	}()
+-	err := Server(s, testConfig).Handshake()
++	err := Server(s, serverConfig).Handshake()
+ 	s.Close()
+ 	if err == nil || !strings.Contains(err.Error(), expectedSubStr) {
+ 		t.Errorf("Got error: %s; expected to match substring '%s'", err, expectedSubStr)
+@@ -74,14 +84,14 @@ func testClientHelloFailure(t *testing.T, m handshakeMessage, expectedSubStr str
+ }
+ 
+ func TestSimpleError(t *testing.T) {
+-	testClientHelloFailure(t, &serverHelloDoneMsg{}, "unexpected handshake message")
++	testClientHelloFailure(t, testConfig, &serverHelloDoneMsg{}, "unexpected handshake message")
+ }
+ 
+ var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205}
+ 
+ func TestRejectBadProtocolVersion(t *testing.T) {
+ 	for _, v := range badProtocolVersions {
+-		testClientHelloFailure(t, &clientHelloMsg{vers: v}, "unsupported, maximum protocol version")
++		testClientHelloFailure(t, testConfig, &clientHelloMsg{vers: v}, "unsupported, maximum protocol version")
+ 	}
+ }
+ 
+@@ -91,7 +101,7 @@ func TestNoSuiteOverlap(t *testing.T) {
+ 		cipherSuites:       []uint16{0xff00},
+ 		compressionMethods: []uint8{0},
+ 	}
+-	testClientHelloFailure(t, clientHello, "no cipher suite supported by both client and server")
++	testClientHelloFailure(t, testConfig, clientHello, "no cipher suite supported by both client and server")
+ }
+ 
+ func TestNoCompressionOverlap(t *testing.T) {
+@@ -100,7 +110,20 @@ func TestNoCompressionOverlap(t *testing.T) {
+ 		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
+ 		compressionMethods: []uint8{0xff},
+ 	}
+-	testClientHelloFailure(t, clientHello, "client does not support uncompressed connections")
++	testClientHelloFailure(t, testConfig, clientHello, "client does not support uncompressed connections")
++}
++
++func TestNoRC4ByDefault(t *testing.T) {
++	clientHello := &clientHelloMsg{
++		vers:               0x0301,
++		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
++		compressionMethods: []uint8{0},
++	}
++	serverConfig := *testConfig
++	// Reset the enabled cipher suites to nil in order to test the
++	// defaults.
++	serverConfig.CipherSuites = nil
++	testClientHelloFailure(t, &serverConfig, clientHello, "no cipher suite supported by both client and server")
+ }
+ 
+ func TestRenegotiationExtension(t *testing.T) {

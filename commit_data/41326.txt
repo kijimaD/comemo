@@ -11,10 +11,133 @@ Date:   Thu Sep 5 12:45:15 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/import_test.go      |  2 +-
  src/cmd/go/internal/modload/load.go             |  5 +++++
  src/cmd/go/internal/modload/query.go            | 30 +++++++++++++++++--------
  src/cmd/go/testdata/script/mod_get_patterns.txt |  4 ++--
  src/cmd/go/testdata/script/mod_replace.txt      |  7 ++++++
  5 files changed, 36 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import_test.go b/src/cmd/go/internal/modload/import_test.go
+index c6ade5d17f..c58892e2ab 100644
+--- a/src/cmd/go/internal/modload/import_test.go
++++ b/src/cmd/go/internal/modload/import_test.go
+@@ -21,7 +21,7 @@ var importTests = []struct {
+ 	},
+ 	{
+ 		path: "golang.org/x/net",
+-		err:  "module golang.org/x/net@.* found, but does not contain package golang.org/x/net",
++		err:  `module golang.org/x/net@.* found \(v0.0.0-.*\), but does not contain package golang.org/x/net`,
+ 	},
+ 	{
+ 		path: "golang.org/x/text",
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index b50a084166..92e76a9246 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1205,6 +1205,11 @@ func (*mvsReqs) next(m module.Version) (module.Version, error) {
+ 	return module.Version{Path: m.Path, Version: "none"}, nil
+ }
+ 
++// fetch downloads the given module (or its replacement)
++// and returns its location.
++//
++// The isLocal return value reports whether the replacement,
++// if any, is local to the filesystem.
+ func fetch(mod module.Version) (dir string, isLocal bool, err error) {
+ 	if mod == Target {
+ 		return ModRoot(), true, nil
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index f3c003a7cd..0359470d95 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -381,9 +381,10 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
+ 			r.Packages = match(r.Mod, root, isLocal)
+ 			if len(r.Packages) == 0 {
+ 				return r, &PackageNotInModuleError{
+-					Mod:     r.Mod,
+-					Query:   query,
+-					Pattern: pattern,
++					Mod:         r.Mod,
++					Replacement: Replacement(r.Mod),
++					Query:       query,
++					Pattern:     pattern,
+ 				}
+ 			}
+ 			return r, nil
+@@ -536,21 +537,32 @@ func (e *NoMatchingVersionError) Error() string {
+ // code for the versions it knows about, and thus did not have the opportunity
+ // to return a non-400 status code to suppress fallback.
+ type PackageNotInModuleError struct {
+-	Mod     module.Version
+-	Query   string
+-	Pattern string
++	Mod         module.Version
++	Replacement module.Version
++	Query       string
++	Pattern     string
+ }
+ 
+ func (e *PackageNotInModuleError) Error() string {
+ 	found := ""
+-	if e.Query != e.Mod.Version {
++	if r := e.Replacement; r.Path != "" {
++		replacement := r.Path
++		if r.Version != "" {
++			replacement = fmt.Sprintf("%s@%s", r.Path, r.Version)
++		}
++		if e.Query == e.Mod.Version {
++			found = fmt.Sprintf(" (replaced by %s)", replacement)
++		} else {
++			found = fmt.Sprintf(" (%s, replaced by %s)", e.Mod.Version, replacement)
++		}
++	} else if e.Query != e.Mod.Version {
+ 		found = fmt.Sprintf(" (%s)", e.Mod.Version)
+ 	}
+ 
+ 	if strings.Contains(e.Pattern, "...") {
+-		return fmt.Sprintf("module %s@%s%s found, but does not contain packages matching %s", e.Mod.Path, e.Query, found, e.Pattern)
++		return fmt.Sprintf("module %s@%s found%s, but does not contain packages matching %s", e.Mod.Path, e.Query, found, e.Pattern)
+ 	}
+-	return fmt.Sprintf("module %s@%s%s found, but does not contain package %s", e.Mod.Path, e.Query, found, e.Pattern)
++	return fmt.Sprintf("module %s@%s found%s, but does not contain package %s", e.Mod.Path, e.Query, found, e.Pattern)
+ }
+ 
+ // ModuleHasRootPackage returns whether module m contains a package m.Path.
+diff --git a/src/cmd/go/testdata/script/mod_get_patterns.txt b/src/cmd/go/testdata/script/mod_get_patterns.txt
+index bfab70090c..8adc4b0c06 100644
+--- a/src/cmd/go/testdata/script/mod_get_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_get_patterns.txt
+@@ -10,11 +10,11 @@ grep 'require rsc.io/quote' go.mod
+ 
+ cp go.mod.orig go.mod
+ ! go get -d rsc.io/quote/x...
+-stderr 'go get rsc.io/quote/x...: module rsc.io/quote@upgrade \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x...'
++stderr 'go get rsc.io/quote/x...: module rsc.io/quote@upgrade found \(v1.5.2\), but does not contain packages matching rsc.io/quote/x...'
+ ! grep 'require rsc.io/quote' go.mod
+ 
+ ! go get -d rsc.io/quote/x/...
+-stderr 'go get rsc.io/quote/x/...: module rsc.io/quote@upgrade \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x/...'
++stderr 'go get rsc.io/quote/x/...: module rsc.io/quote@upgrade found \(v1.5.2\), but does not contain packages matching rsc.io/quote/x/...'
+ ! grep 'require rsc.io/quote' go.mod
+ 
+ # If a pattern matches no packages within a module, the module should not
+diff --git a/src/cmd/go/testdata/script/mod_replace.txt b/src/cmd/go/testdata/script/mod_replace.txt
+index 35824b3a8a..e4301b50d0 100644
+--- a/src/cmd/go/testdata/script/mod_replace.txt
++++ b/src/cmd/go/testdata/script/mod_replace.txt
+@@ -38,6 +38,13 @@ grep 'not-rsc.io/quote/v3 v3.1.0' go.mod
+ exec ./a5.exe
+ stdout 'Concurrency is not parallelism.'
+ 
++# Error messages for modules not found in replacements should
++# indicate the replacement module.
++cp go.mod.orig go.mod
++go mod edit -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
++! go get -d rsc.io/quote/v3/missing-package
++stderr 'module rsc.io/quote/v3@upgrade found \(v3.0.0, replaced by ./local/rsc.io/quote/v3\), but does not contain package'
++
+ -- go.mod --
+ module quoter
+ 

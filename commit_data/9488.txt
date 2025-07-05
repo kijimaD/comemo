@@ -7,6 +7,20 @@ Date:   Thu Aug 25 12:25:19 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4944043
-
+---
  src/pkg/template/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/doc.go b/src/pkg/template/doc.go
+index f65946aed9..a52f32d91b 100644
+--- a/src/pkg/template/doc.go
++++ b/src/pkg/template/doc.go
+@@ -294,7 +294,7 @@ This defines two templates, T1 and T2, and a third T3 that invokes the other two
+ when it is executed.
+ 
+ The second way to build a template set is to use Set's Add method to add a
+-parsed template to a set.  A template may be bound at most one set.  If it's
++parsed template to a set.  A template may be bound to at most one set.  If it's
+ necessary to have a template in multiple sets, the template definition must be
+ parsed multiple times to create distinct *Template values.
+ 

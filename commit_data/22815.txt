@@ -9,6 +9,29 @@ Date:   Thu Apr 9 18:18:24 2015 -0700
     Change-Id: Ie2e89a22b91748e82f7bc4723660a24ed4135687
     Reviewed-on: https://go-review.googlesource.com/8734
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/asm_arm64.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index a61d99c65b..7899153b13 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -806,7 +806,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+ 	MOVD	s1_len+8(FP), R0
+ 	MOVD	s2_base+16(FP), R3
+ 	MOVD	s2_len+24(FP), R1
+-	BL	runtime·cmpbody(SB)
++	BL	runtime·cmpbody<>(SB)
+ 	MOVD	R8, ret+32(FP)
+ 	RET
+ 
+@@ -815,7 +815,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-56
+ 	MOVD	s1+8(FP), R0
+ 	MOVD	s2+24(FP), R3
+ 	MOVD	s2+32(FP), R1
+-	BL	runtime·cmpbody(SB)
++	BL	runtime·cmpbody<>(SB)
+ 	MOVD	R8, ret+48(FP)
+ 	RET
+ 

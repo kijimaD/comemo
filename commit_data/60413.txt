@@ -10,7 +10,43 @@ Date:   Wed Jul 10 19:22:24 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/math/big/float.go | 4 ++--
  src/math/big/int.go   | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 51d5574781..57ad236130 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -393,7 +393,7 @@ func (x *Float) validate0() string {
+ // have before calling round. z's mantissa must be normalized (with the msb set)
+ // or empty.
+ //
+-// CAUTION: The rounding modes ToNegativeInf, ToPositiveInf are affected by the
++// CAUTION: The rounding modes [ToNegativeInf], [ToPositiveInf] are affected by the
+ // sign of z. For correct rounding, the sign of z must be set correctly before
+ // calling round.
+ func (z *Float) round(sbit uint) {
+@@ -733,7 +733,7 @@ func msb64(x nat) uint64 {
+ }
+ 
+ // Uint64 returns the unsigned integer resulting from truncating x
+-// towards zero. If 0 <= x <= math.MaxUint64, the result is [Exact]
++// towards zero. If 0 <= x <= [math.MaxUint64], the result is [Exact]
+ // if x is an integer and [Below] otherwise.
+ // The result is (0, [Above]) for x < 0, and ([math.MaxUint64], [Below])
+ // for x > [math.MaxUint64].
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 8e9b306f07..ebd5ac7b5c 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -289,7 +289,7 @@ func (z *Int) Rem(x, y *Int) *Int {
+ //	r = x - y*q
+ //
+ // (See Daan Leijen, “Division and Modulus for Computer Scientists”.)
+-// See DivMod for Euclidean division and modulus (unlike Go).
++// See [DivMod] for Euclidean division and modulus (unlike Go).
+ func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
+ 	z.abs, r.abs = z.abs.div(r.abs, x.abs, y.abs)
+ 	z.neg, r.neg = len(z.abs) > 0 && x.neg != y.neg, len(r.abs) > 0 && x.neg // 0 has no sign

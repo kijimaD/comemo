@@ -24,7 +24,7 @@ Date:   Fri Sep 12 07:46:11 2014 -0400
     R=khr, rlh
     CC=golang-codereviews
     https://golang.org/cl/137540043
-
+---
  src/runtime/asm_386.s      |  9 +++---
  src/runtime/asm_amd64.s    | 10 +++----
  src/runtime/asm_amd64p32.s |  6 +---
@@ -34,3 +34,405 @@ Date:   Fri Sep 12 07:46:11 2014 -0400
  src/runtime/symtab.go      |  7 -----
  src/runtime/traceback.go   | 48 ++++++++++--------------------
  8 files changed, 64 insertions(+), 100 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 37ad092414..c9fd75bfc4 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -102,9 +102,7 @@ ok:
+ 	// create a new goroutine to start program
+ 	PUSHL	$runtime·main·f(SB)	// entry
+ 	PUSHL	$0	// arg size
+-	ARGSIZE(8)
+ 	CALL	runtime·newproc(SB)
+-	ARGSIZE(-1)
+ 	POPL	AX
+ 	POPL	AX
+ 
+@@ -206,7 +204,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ // lives at the bottom of the G stack from the one that lives
+ // at the top of the M stack because the one at the top of
+ // the M stack terminates the stack walk (see topofstack()).
+-TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
++TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
+ 	RET
+ 
+ // func onM_signalok(fn func())
+@@ -263,7 +261,6 @@ oncurg:
+ 	MOVL	BX, SP
+ 
+ 	// call target function
+-	ARGSIZE(0)
+ 	MOVL	DI, DX
+ 	MOVL	0(DI), DI
+ 	CALL	DI
+@@ -656,6 +653,7 @@ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
+ 	RET
+ 
+ TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
++	GO_ARGS
+ 	MOVL	fn+0(FP), AX
+ 	MOVL	arg+4(FP), BX
+ 	CALL	asmcgocall<>(SB)
+@@ -716,6 +714,9 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
+ // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+ // See cgocall.c for more details.
+ TEXT runtime·cgocallback_gofunc(SB),NOSPLIT,$12-12
++	GO_ARGS
++	NO_LOCAL_POINTERS
++
+ 	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 241d5feebf..d5e2f56ef0 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -98,9 +98,7 @@ ok:
+ 	MOVQ	$runtime·main·f(SB), BP		// entry
+ 	PUSHQ	BP
+ 	PUSHQ	$0			// arg size
+-	ARGSIZE(16)
+ 	CALL	runtime·newproc(SB)
+-	ARGSIZE(-1)
+ 	POPQ	AX
+ 	POPQ	AX
+ 
+@@ -183,7 +181,6 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ 	MOVQ	SI, g(CX)	// g = m->g0
+ 	MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
+ 	PUSHQ	AX
+-	ARGSIZE(8)
+ 	MOVQ	DI, DX
+ 	MOVQ	0(DI), DI
+ 	CALL	DI
+@@ -197,7 +194,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ // lives at the bottom of the G stack from the one that lives
+ // at the top of the M stack because the one at the top of
+ // the M stack terminates the stack walk (see topofstack()).
+-TEXT runtime·switchtoM(SB), NOSPLIT, $0-8
++TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
+ 	RET
+ 
+ // func onM_signalok(fn func())
+@@ -255,7 +252,6 @@ oncurg:
+ 	MOVQ	BX, SP
+ 
+ 	// call target function
+-	ARGSIZE(0)
+ 	MOVQ	DI, DX
+ 	MOVQ	0(DI), DI
+ 	CALL	DI
+@@ -634,6 +630,7 @@ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-16
+ 	RET
+ 
+ TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-20
++	GO_ARGS
+ 	MOVQ	fn+0(FP), AX
+ 	MOVQ	arg+8(FP), BX
+ 	CALL	asmcgocall<>(SB)
+@@ -703,6 +700,9 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
+ // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+ // See cgocall.c for more details.
+ TEXT runtime·cgocallback_gofunc(SB),NOSPLIT,$8-24
++	GO_ARGS
++	NO_LOCAL_POINTERS
++
+ 	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one m for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 62fa4ff868..bbbd886a53 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -75,9 +75,7 @@ ok:
+ 	MOVL	$runtime·main·f(SB), AX	// entry
+ 	MOVL	$0, 0(SP)
+ 	MOVL	AX, 4(SP)
+-	ARGSIZE(8)
+ 	CALL	runtime·newproc(SB)
+-	ARGSIZE(-1)
+ 
+ 	// start this M
+ 	CALL	runtime·mstart(SB)
+@@ -158,7 +156,6 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ 	MOVL	SI, g(CX)	// g = m->g0
+ 	MOVL	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
+ 	PUSHQ	AX
+-	ARGSIZE(8)
+ 	MOVL	DI, DX
+ 	MOVL	0(DI), DI
+ 	CALL	DI
+@@ -172,7 +169,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ // lives at the bottom of the G stack from the one that lives
+ // at the top of the M stack because the one at the top of
+ // the M stack terminates the stack walk (see topofstack()).
+-TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
++TEXT runtime·switchtoM(SB), NOSPLIT, $0-0
+ 	RET
+ 
+ // func onM_signalok(fn func())
+@@ -225,7 +222,6 @@ oncurg:
+ 	MOVL	(g_sched+gobuf_sp)(DX), SP
+ 
+ 	// call target function
+-	ARGSIZE(0)
+ 	MOVL	DI, DX
+ 	MOVL	0(DI), DI
+ 	CALL	DI
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index a4524f919b..368b4ad8e8 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -77,9 +77,7 @@ nocgo:
+ 	MOVW.W	R0, -4(R13)
+ 	MOVW	$0, R0
+ 	MOVW.W	R0, -4(R13)	// push $0 as guard
+-	ARGSIZE(12)
+ 	BL	runtime·newproc(SB)
+-	ARGSIZE(-1)
+ 	MOVW	$12(R13), R13	// pop args and LR
+ 
+ 	// start this M
+@@ -197,7 +195,7 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
+ // lives at the bottom of the G stack from the one that lives
+ // at the top of the M stack because the one at the top of
+ // the M stack terminates the stack walk (see topofstack()).
+-TEXT runtime·switchtoM(SB),NOSPLIT,$0-4
++TEXT runtime·switchtoM(SB),NOSPLIT,$0-0
+ 	MOVW	$0, R0
+ 	BL	(R0) // clobber lr to ensure push {lr} is kept
+ 	RET
+@@ -258,7 +256,6 @@ oncurg:
+ 	MOVW	R3, SP
+ 
+ 	// call target function
+-	ARGSIZE(0)
+ 	MOVW	R0, R7
+ 	MOVW	0(R0), R0
+ 	BL	(R0)
+@@ -490,6 +487,7 @@ TEXT	runtime·asmcgocall(SB),NOSPLIT,$0-8
+ 	RET
+ 
+ TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
++	GO_ARGS
+ 	MOVW	fn+0(FP), R1
+ 	MOVW	arg+4(FP), R0
+ 	BL	asmcgocall<>(SB)
+@@ -553,6 +551,9 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
+ // cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize)
+ // See cgocall.c for more details.
+ TEXT	runtime·cgocallback_gofunc(SB),NOSPLIT,$8-12
++	GO_ARGS
++	NO_LOCAL_POINTERS
++	
+ 	// Load m and g from thread-local storage.
+ 	MOVB	runtime·iscgo(SB), R0
+ 	CMP	$0, R0
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 4221aaab2f..47659be266 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -65,7 +65,6 @@
+ enum {
+ 	Debug		= 0,
+ 	ConcurrentSweep	= 1,
+-	PreciseScan	= 1,
+ 
+ 	WorkbufSize	= 4*1024,
+ 	FinBlockSize	= 4*1024,
+@@ -239,16 +238,6 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
+ 		ptrmask = nil; // use GC bitmap for pointer info
+ 
+ 	scanobj:
+-		if(!PreciseScan) {
+-			if(ptrmask == nil) {
+-				// Heap obj, obtain real size.
+-				if(!runtime·mlookup(b, &p, &n, nil))
+-					continue; // not an allocated obj
+-				if(b != p)
+-					runtime·throw("bad heap object");
+-			}
+-			ptrmask = ScanConservatively;
+-		}
+ 		// Find bits of the beginning of the object.
+ 		if(ptrmask == nil) {
+ 			off = (uintptr*)b - (uintptr*)arena_start;
+@@ -620,7 +609,7 @@ scanframe(Stkframe *frame, void *unused)
+ 	Func *f;
+ 	StackMap *stackmap;
+ 	BitVector bv;
+-	uintptr size;
++	uintptr size, minsize;
+ 	uintptr targetpc;
+ 	int32 pcdata;
+ 
+@@ -644,25 +633,21 @@ scanframe(Stkframe *frame, void *unused)
+ 	}
+ 
+ 	// Scan local variables if stack frame has been allocated.
+-	// Use pointer information if known.
+-	stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+-	if(stackmap == nil) {
+-		// No locals information, scan everything.
+-		size = frame->varp - frame->sp;
+-		if(Debug > 2)
+-			runtime·printf("frame %s unsized locals %p+%p\n", runtime·funcname(f), (byte*)(frame->varp-size), size);
+-		scanblock((byte*)(frame->varp - size), size, ScanConservatively);
+-	} else if(stackmap->n < 0) {
+-		// Locals size information, scan just the locals.
+-		size = -stackmap->n;
+-		if(Debug > 2)
+-			runtime·printf("frame %s conservative locals %p+%p\n", runtime·funcname(f), (byte*)(frame->varp-size), size);
+-		scanblock((byte*)(frame->varp - size), size, ScanConservatively);
+-	} else if(stackmap->n > 0) {
++	size = frame->varp - frame->sp;
++	minsize = 0;
++	if(thechar != '6' && thechar != '8')
++		minsize = sizeof(uintptr);
++	if(size > minsize) {
++		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
++		if(stackmap == nil || stackmap->n <= 0) {
++			runtime·printf("runtime: frame %s untyped locals %p+%p\n", runtime·funcname(f), (byte*)(frame->varp-size), size);
++			runtime·throw("missing stackmap");
++		}
++
+ 		// Locals bitmap information, scan just the pointers in locals.
+ 		if(pcdata < 0 || pcdata >= stackmap->n) {
+ 			// don't know where we are
+-			runtime·printf("pcdata is %d and %d stack map entries for %s (targetpc=%p)\n",
++			runtime·printf("runtime: pcdata is %d and %d locals stack map entries for %s (targetpc=%p)\n",
+ 				pcdata, stackmap->n, runtime·funcname(f), targetpc);
+ 			runtime·throw("scanframe: bad symbol table");
+ 		}
+@@ -672,19 +657,26 @@ scanframe(Stkframe *frame, void *unused)
+ 	}
+ 
+ 	// Scan arguments.
+-	// Use pointer information if known.
+-	if(frame->argmap != nil) {
+-		bv = *frame->argmap;
+-		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, bv.bytedata);
+-	} else if((stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps)) != nil) {
+-		bv = runtime·stackmapdata(stackmap, pcdata);
+-		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, bv.bytedata);
+-	} else {
+-		if(Debug > 2)
+-			runtime·printf("frame %s conservative args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
+-		scanblock((byte*)frame->argp, frame->arglen, ScanConservatively);
+-	}
+-	return true;
++	if(frame->arglen > 0) {
++		if(frame->argmap != nil)
++			bv = *frame->argmap;
++		else {
++			stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
++			if(stackmap == nil || stackmap->n <= 0) {
++				runtime·printf("runtime: frame %s untyped args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
++				runtime·throw("missing stackmap");
++			}
++			if(pcdata < 0 || pcdata >= stackmap->n) {
++				// don't know where we are
++				runtime·printf("runtime: pcdata is %d and %d args stack map entries for %s (targetpc=%p)\n",
++					pcdata, stackmap->n, runtime·funcname(f), targetpc);
++				runtime·throw("scanframe: bad symbol table");
++			}
++ 			bv = runtime·stackmapdata(stackmap, pcdata);
++		}
++ 		scanblock((byte*)frame->argp, bv.n/BitsPerPointer*PtrSize, bv.bytedata);
++ 	}
++ 	return true;
+ }
+ 
+ static void
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 6300b83c97..8c2b09b317 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -806,7 +806,6 @@ void	runtime·signalstack(byte*, int32);
+ void	runtime·symtabinit(void);
+ Func*	runtime·findfunc(uintptr);
+ int32	runtime·funcline(Func*, uintptr, String*);
+-int32	runtime·funcarglen(Func*, uintptr);
+ int32	runtime·funcspdelta(Func*, uintptr);
+ int8*	runtime·funcname(Func*);
+ int32	runtime·pcdatavalue(Func*, int32, uintptr);
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index bd9e9924c4..48d4023b9a 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -237,13 +237,6 @@ func pcdatavalue(f *_func, table int32, targetpc uintptr) int32 {
+ 	return pcvalue(f, off, targetpc, true)
+ }
+ 
+-func funcarglen(f *_func, targetpc uintptr) int32 {
+-	if targetpc == f.entry {
+-		return 0
+-	}
+-	return pcdatavalue(f, _PCDATA_ArgSize, targetpc-_PCQuantum)
+-}
+-
+ func funcdata(f *_func, i int32) unsafe.Pointer {
+ 	if i < 0 || i >= f.nfuncdata {
+ 		return nil
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 84cb08c9e1..eaf54db319 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -187,41 +187,23 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 			if usesLR {
+ 				frame.argp += ptrSize
+ 			}
+-			if f.args != _ArgsSizeUnknown {
+-				frame.arglen = uintptr(f.args)
+-			} else if callback != nil && (gofuncname(f) == "reflect.makeFuncStub" || gofuncname(f) == "reflect.methodValueCall") {
+-				// NOTE: Two calls to gofuncname on line above will be
+-				// collapsed to one when we pull out all the imprecise fallback code.
+-				arg0 := frame.sp
+-				if usesLR {
+-					arg0 += ptrSize
+-				}
+-				fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
+-				if fn[0] != f.entry {
+-					print("runtime: confused by ", gofuncname(f), "\n")
+-					gothrow("reflect mismatch")
+-				}
+-				bv := (*bitvector)(unsafe.Pointer(fn[1]))
+-				frame.arglen = uintptr(bv.n / 2 * ptrSize)
+-				frame.argmap = bv
+-			} else if flr == nil {
+-				frame.arglen = 0
+-			} else {
+-				i := funcarglen(flr, frame.lr)
+-				if i >= 0 {
+-					frame.arglen = uintptr(i)
+-				} else {
+-					var tmp string
+-					if flr != nil {
+-						tmp = gofuncname(flr)
+-					} else {
+-						tmp = "?"
++			frame.arglen = uintptr(f.args)
++			if callback != nil && f.args == _ArgsSizeUnknown {
++				// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
++				switch gofuncname(f) {
++				case "reflect.makeFuncStub", "reflect.methodValueCall":
++					arg0 := frame.sp
++					if usesLR {
++						arg0 += ptrSize
+ 					}
+-					print("runtime: unknown argument frame size for ", gofuncname(f), " called from ", hex(frame.lr), " [", tmp, "]\n")
+-					if callback != nil {
+-						gothrow("invalid stack")
++					fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
++					if fn[0] != f.entry {
++						print("runtime: confused by ", gofuncname(f), "\n")
++						gothrow("reflect mismatch")
+ 					}
+-					frame.arglen = 0
++					bv := (*bitvector)(unsafe.Pointer(fn[1]))
++					frame.arglen = uintptr(bv.n / 2 * ptrSize)
++					frame.argmap = bv
+ 				}
+ 			}
+ 		}

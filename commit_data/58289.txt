@@ -12,9 +12,76 @@ Date:   Mon Oct 23 18:45:06 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/537255
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/gcsizes.go | 3 ++-
  src/cmd/compile/internal/types2/sizes.go   | 6 ++++--
  src/go/types/gcsizes.go                    | 3 ++-
  src/go/types/sizes.go                      | 6 ++++--
  4 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/gcsizes.go b/src/cmd/compile/internal/types2/gcsizes.go
+index fe961e30ef..d204d9feef 100644
+--- a/src/cmd/compile/internal/types2/gcsizes.go
++++ b/src/cmd/compile/internal/types2/gcsizes.go
+@@ -160,7 +160,8 @@ func (s *gcSizes) Sizeof(T Type) int64 {
+ }
+ 
+ // gcSizesFor returns the Sizes used by gc for an architecture.
+-// The result is nil if a compiler/architecture pair is not known.
++// The result is a nil *gcSizes pointer (which is not a valid types.Sizes)
++// if a compiler/architecture pair is not known.
+ func gcSizesFor(compiler, arch string) *gcSizes {
+ 	if compiler != "gc" {
+ 		return nil
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index 64da072fbf..486c05c61c 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -257,10 +257,12 @@ var gcArchSizes = map[string]*gcSizes{
+ func SizesFor(compiler, arch string) Sizes {
+ 	switch compiler {
+ 	case "gc":
+-		return gcSizesFor(compiler, arch)
++		if s := gcSizesFor(compiler, arch); s != nil {
++			return Sizes(s)
++		}
+ 	case "gccgo":
+ 		if s, ok := gccgoArchSizes[arch]; ok {
+-			return s
++			return Sizes(s)
+ 		}
+ 	}
+ 	return nil
+diff --git a/src/go/types/gcsizes.go b/src/go/types/gcsizes.go
+index 9a7c0cf43c..4329cc22e8 100644
+--- a/src/go/types/gcsizes.go
++++ b/src/go/types/gcsizes.go
+@@ -162,7 +162,8 @@ func (s *gcSizes) Sizeof(T Type) int64 {
+ }
+ 
+ // gcSizesFor returns the Sizes used by gc for an architecture.
+-// The result is nil if a compiler/architecture pair is not known.
++// The result is a nil *gcSizes pointer (which is not a valid types.Sizes)
++// if a compiler/architecture pair is not known.
+ func gcSizesFor(compiler, arch string) *gcSizes {
+ 	if compiler != "gc" {
+ 		return nil
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 5e40614f39..12a21401e2 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -259,10 +259,12 @@ var gcArchSizes = map[string]*gcSizes{
+ func SizesFor(compiler, arch string) Sizes {
+ 	switch compiler {
+ 	case "gc":
+-		return gcSizesFor(compiler, arch)
++		if s := gcSizesFor(compiler, arch); s != nil {
++			return Sizes(s)
++		}
+ 	case "gccgo":
+ 		if s, ok := gccgoArchSizes[arch]; ok {
+-			return s
++			return Sizes(s)
+ 		}
+ 	}
+ 	return nil

@@ -10,7 +10,135 @@ Date:   Mon Jan 5 11:15:18 2015 +0000
     Change-Id: Ie408d332de913dc2a33bdd86433be38abb7b55be
     Reviewed-on: https://go-review.googlesource.com/2257
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/pkix/pkix.go | 43 ++++++++++++++++++++++++++++++-------------
  src/crypto/x509/x509_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 57 insertions(+), 13 deletions(-)
+
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 0589264b54..5add4e5d3e 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -46,14 +46,17 @@ type Extension struct {
+ }
+ 
+ // Name represents an X.509 distinguished name. This only includes the common
+-// elements of a DN.  Additional elements in the name are ignored.
++// elements of a DN. When parsing, all elements are stored in Names and
++// non-standard elements can be extracted from there. When marshaling, elements
++// in ExtraNames are appended and override other values with the same OID.
+ type Name struct {
+ 	Country, Organization, OrganizationalUnit []string
+ 	Locality, Province                        []string
+ 	StreetAddress, PostalCode                 []string
+ 	SerialNumber, CommonName                  string
+ 
+-	Names []AttributeTypeAndValue
++	Names      []AttributeTypeAndValue
++	ExtraNames []AttributeTypeAndValue
+ }
+ 
+ func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
+@@ -110,8 +113,8 @@ var (
+ // and returns the new value. The relativeDistinguishedNameSET contains an
+ // attributeTypeAndValue for each of the given values. See RFC 5280, A.1, and
+ // search for AttributeTypeAndValue.
+-func appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentifier) RDNSequence {
+-	if len(values) == 0 {
++func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentifier) RDNSequence {
++	if len(values) == 0 || oidInAttributeTypeAndValue(oid, n.ExtraNames) {
+ 		return in
+ 	}
+ 
+@@ -125,23 +128,37 @@ func appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentifier) RDNS
+ }
+ 
+ func (n Name) ToRDNSequence() (ret RDNSequence) {
+-	ret = appendRDNs(ret, n.Country, oidCountry)
+-	ret = appendRDNs(ret, n.Organization, oidOrganization)
+-	ret = appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
+-	ret = appendRDNs(ret, n.Locality, oidLocality)
+-	ret = appendRDNs(ret, n.Province, oidProvince)
+-	ret = appendRDNs(ret, n.StreetAddress, oidStreetAddress)
+-	ret = appendRDNs(ret, n.PostalCode, oidPostalCode)
++	ret = n.appendRDNs(ret, n.Country, oidCountry)
++	ret = n.appendRDNs(ret, n.Organization, oidOrganization)
++	ret = n.appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
++	ret = n.appendRDNs(ret, n.Locality, oidLocality)
++	ret = n.appendRDNs(ret, n.Province, oidProvince)
++	ret = n.appendRDNs(ret, n.StreetAddress, oidStreetAddress)
++	ret = n.appendRDNs(ret, n.PostalCode, oidPostalCode)
+ 	if len(n.CommonName) > 0 {
+-		ret = appendRDNs(ret, []string{n.CommonName}, oidCommonName)
++		ret = n.appendRDNs(ret, []string{n.CommonName}, oidCommonName)
+ 	}
+ 	if len(n.SerialNumber) > 0 {
+-		ret = appendRDNs(ret, []string{n.SerialNumber}, oidSerialNumber)
++		ret = n.appendRDNs(ret, []string{n.SerialNumber}, oidSerialNumber)
++	}
++	for _, atv := range n.ExtraNames {
++		ret = append(ret, []AttributeTypeAndValue{atv})
+ 	}
+ 
+ 	return ret
+ }
+ 
++// oidInAttributeTypeAndValue returns whether a type with the given OID exists
++// in atv.
++func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAndValue) bool {
++	for _, a := range atv {
++		if a.Type.Equal(oid) {
++			return true
++		}
++	}
++	return false
++}
++
+ // CertificateList represents the ASN.1 structure of the same name. See RFC
+ // 5280, section 5.1. Use Certificate.CheckCRLSignature to verify the
+ // signature.
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index f275375ba7..bd7cbed8a2 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -326,6 +326,18 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			Subject: pkix.Name{
+ 				CommonName:   commonName,
+ 				Organization: []string{"Σ Acme Co"},
++				Country:      []string{"US"},
++				ExtraNames: []pkix.AttributeTypeAndValue{
++					{
++						Type:  []int{2, 5, 4, 42},
++						Value: "Gopher",
++					},
++					// This should override the Country, above.
++					{
++						Type:  []int{2, 5, 4, 6},
++						Value: "NL",
++					},
++				},
+ 			},
+ 			NotBefore: time.Unix(1000, 0),
+ 			NotAfter:  time.Unix(100000, 0),
+@@ -391,6 +403,21 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			t.Errorf("%s: subject wasn't correctly copied from the template. Got %s, want %s", test.name, cert.Subject.CommonName, commonName)
+ 		}
+ 
++		if len(cert.Subject.Country) != 1 || cert.Subject.Country[0] != "NL" {
++			t.Errorf("%s: ExtraNames didn't override Country", test.name)
++		}
++
++		found := false
++		for _, atv := range cert.Subject.Names {
++			if atv.Type.Equal([]int{2, 5, 4, 42}) {
++				found = true
++				break
++			}
++		}
++		if !found {
++			t.Errorf("%s: Names didn't contain oid 2.5.4.42 from ExtraNames", test.name)
++		}
++
+ 		if cert.Issuer.CommonName != commonName {
+ 			t.Errorf("%s: issuer wasn't correctly copied from the template. Got %s, want %s", test.name, cert.Issuer.CommonName, commonName)
+ 		}

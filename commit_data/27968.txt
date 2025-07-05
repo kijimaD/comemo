@@ -15,7 +15,7 @@ Date:   Thu Apr 7 21:37:45 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 15 ++++++---------
  src/cmd/link/internal/ld/decodesym.go  |  6 +++---
  src/cmd/link/internal/ld/symtab.go     |  5 +++++
@@ -24,3 +24,199 @@ Date:   Thu Apr 7 21:37:45 2016 -0400
  src/runtime/iface.go                   |  2 +-
  src/runtime/type.go                    |  6 ++++--
  7 files changed, 30 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 1643c2ce4b..3cd769fd2d 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -75,7 +75,7 @@ func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
+ 	if t.Sym == nil && len(methods(t)) == 0 {
+ 		return 0
+ 	}
+-	return 2 * Widthptr
++	return 4 + 2 + 2
+ }
+ 
+ func makefield(name string, t *Type) *Field {
+@@ -463,6 +463,9 @@ func dgopkgpathLSym(s *obj.LSym, ot int, pkg *Pkg) int {
+ 
+ // dgopkgpathOffLSym writes an offset relocation in s at offset ot to the pkg path symbol.
+ func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *Pkg) int {
++	if pkg == nil {
++		return duintxxLSym(s, ot, 0, 4)
++	}
+ 	if pkg == localpkg && myimportpath == "" {
+ 		// If we don't know the full import path of the package being compiled
+ 		// (i.e. -p was not passed on the compiler command line), emit a reference to
+@@ -597,12 +600,9 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
+ 		dtypesym(a.type_)
+ 	}
+ 
+-	ot = dgopkgpath(s, ot, typePkg(t))
++	ot = dgopkgpathOffLSym(Linksym(s), ot, typePkg(t))
+ 
+-	dataAdd += Widthptr + 2 + 2
+-	if Widthptr == 8 {
+-		dataAdd += 4
+-	}
++	dataAdd += 4 + 2 + 2
+ 	mcount := len(m)
+ 	if mcount != int(uint16(mcount)) {
+ 		Fatalf("too many methods on %s: %d", t, mcount)
+@@ -613,9 +613,6 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
+ 
+ 	ot = duint16(s, ot, uint16(mcount))
+ 	ot = duint16(s, ot, uint16(dataAdd))
+-	if Widthptr == 8 {
+-		ot = duint32(s, ot, 0) // align for following pointers
+-	}
+ 	return ot
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 330aa6dc13..3ec488bbe8 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -61,7 +61,7 @@ func decode_inuxi(p []byte, sz int) uint64 {
+ 
+ func commonsize() int      { return 4*SysArch.PtrSize + 8 + 8 } // runtime._type
+ func structfieldSize() int { return 3 * SysArch.PtrSize }       // runtime.structfield
+-func uncommonSize() int    { return 2 * SysArch.PtrSize }       // runtime.uncommontype
++func uncommonSize() int    { return 4 + 2 + 2 }                 // runtime.uncommontype
+ 
+ // Type.commonType.kind
+ func decodetype_kind(s *LSym) uint8 {
+@@ -361,8 +361,8 @@ func decodetype_methods(s *LSym) []methodsig {
+ 		// just Sizeof(rtype)
+ 	}
+ 
+-	mcount := int(decode_inuxi(s.P[off+SysArch.PtrSize:], 2))
+-	moff := int(decode_inuxi(s.P[off+SysArch.PtrSize+2:], 2))
++	mcount := int(decode_inuxi(s.P[off+4:], 2))
++	moff := int(decode_inuxi(s.P[off+4+2:], 2))
+ 	off += moff                // offset to array of reflect.method values
+ 	const sizeofMethod = 4 * 4 // sizeof reflect.method in program
+ 	return decode_methodsig(s, off, sizeofMethod, mcount)
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index acc238f698..94a6d0ab29 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -435,6 +435,11 @@ func symtab() {
+ 				s.Outer = symtype
+ 			}
+ 
++		case strings.HasPrefix(s.Name, "go.importpath.") && UseRelro():
++			// Keep go.importpath symbols in the same section as types and
++			// names, as they can be referred to by a section offset.
++			s.Type = obj.STYPERELRO
++
+ 		case strings.HasPrefix(s.Name, "go.typelink."):
+ 			ntypelinks++
+ 			s.Type = obj.STYPELINK
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index b1758e6913..ff6ff14c83 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -311,9 +311,9 @@ type method struct {
+ // Using a pointer to this struct reduces the overall size required
+ // to describe an unnamed type with no methods.
+ type uncommonType struct {
+-	pkgPath name   // import path; empty for built-in types like int, string
+-	mcount  uint16 // number of methods
+-	moff    uint16 // offset from this uncommontype to [mcount]method
++	pkgPath nameOff // import path; empty for built-in types like int, string
++	mcount  uint16  // number of methods
++	moff    uint16  // offset from this uncommontype to [mcount]method
+ }
+ 
+ // ChanDir represents a channel type's direction.
+@@ -613,13 +613,6 @@ func (t *uncommonType) methods() []method {
+ 	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff)))[:t.mcount:t.mcount]
+ }
+ 
+-func (t *uncommonType) PkgPath() string {
+-	if t == nil {
+-		return ""
+-	}
+-	return t.pkgPath.name()
+-}
+-
+ // resolveNameOff resolves a name offset from a base pointer.
+ // The (*rtype).nameOff method is a convenience wrapper for this function.
+ // Implemented in the runtime package.
+@@ -799,7 +792,7 @@ func (t *rtype) Method(i int) (m Method) {
+ 	if !pname.isExported() {
+ 		m.PkgPath = pname.pkgPath()
+ 		if m.PkgPath == "" {
+-			m.PkgPath = ut.pkgPath.name()
++			m.PkgPath = t.nameOff(ut.pkgPath).name()
+ 		}
+ 		fl |= flagStickyRO
+ 	}
+@@ -846,7 +839,11 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+ }
+ 
+ func (t *rtype) PkgPath() string {
+-	return t.uncommon().PkgPath()
++	ut := t.uncommon()
++	if ut == nil {
++		return ""
++	}
++	return t.nameOff(ut.pkgPath).name()
+ }
+ 
+ func hasPrefix(s, prefix string) bool {
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 1db29d7cb4..0afab09095 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -183,10 +183,10 @@ func dumptype(t *_type) {
+ 	dumpint(tagType)
+ 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
+ 	dumpint(uint64(t.size))
+-	if x := t.uncommon(); x == nil || x.pkgpath.name() == "" {
++	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
+ 		dumpstr(t.string())
+ 	} else {
+-		pkgpathstr := x.pkgpath.name()
++		pkgpathstr := t.nameOff(x.pkgpath).name()
+ 		pkgpath := stringStructOf(&pkgpathstr)
+ 		namestr := t.name()
+ 		name := stringStructOf(&namestr)
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 007c1ed174..b57d1cc63c 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -112,7 +112,7 @@ func additab(m *itab, locked, canfail bool) {
+ 			if typ.typeOff(t.mtyp) == itype && tname.name() == iname {
+ 				pkgPath := tname.pkgPath()
+ 				if pkgPath == "" {
+-					pkgPath = x.pkgpath.name()
++					pkgPath = typ.nameOff(x.pkgpath).name()
+ 				}
+ 				if tname.isExported() || pkgPath == ipkg {
+ 					if m != nil {
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 0b28fa6d43..9e4c40553a 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -304,7 +304,7 @@ type method struct {
+ }
+ 
+ type uncommontype struct {
+-	pkgpath name
++	pkgpath nameOff
+ 	mcount  uint16 // number of methods
+ 	moff    uint16 // offset from this uncommontype to [mcount]method
+ }
+@@ -524,7 +524,9 @@ func typesEqual(t, v *_type) bool {
+ 		if ut == nil || uv == nil {
+ 			return false
+ 		}
+-		if ut.pkgpath.name() != uv.pkgpath.name() {
++		pkgpatht := t.nameOff(ut.pkgpath).name()
++		pkgpathv := v.nameOff(uv.pkgpath).name()
++		if pkgpatht != pkgpathv {
+ 			return false
+ 		}
+ 	}

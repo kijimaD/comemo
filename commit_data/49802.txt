@@ -24,7 +24,56 @@ Date:   Mon Sep 13 09:17:22 2021 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Martin Möhrmann <martin@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/reflect/value.go         |  4 ++--
  test/fixedbugs/issue48357.go | 20 ++++++++++++++++++++
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 6e9aaabe8a..bc48a76ce6 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1517,7 +1517,7 @@ func (v Value) MapIndex(key Value) Value {
+ 	// of unexported fields.
+ 
+ 	var e unsafe.Pointer
+-	if key.kind() == String && tt.key.Kind() == String {
++	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+ 		k := *(*string)(key.ptr)
+ 		e = mapaccess_faststr(v.typ, v.pointer(), k)
+ 	} else {
+@@ -2128,7 +2128,7 @@ func (v Value) SetMapIndex(key, elem Value) {
+ 	key.mustBeExported()
+ 	tt := (*mapType)(unsafe.Pointer(v.typ))
+ 
+-	if key.kind() == String && tt.key.Kind() == String {
++	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+ 		k := *(*string)(key.ptr)
+ 		if elem.typ == nil {
+ 			mapdelete_faststr(v.typ, v.pointer(), k)
+diff --git a/test/fixedbugs/issue48357.go b/test/fixedbugs/issue48357.go
+new file mode 100644
+index 0000000000..5b39fc43d4
+--- /dev/null
++++ b/test/fixedbugs/issue48357.go
+@@ -0,0 +1,20 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "reflect"
++
++type T [129]byte
++
++func main() {
++	m := map[string]T{}
++	v := reflect.ValueOf(m)
++	v.SetMapIndex(reflect.ValueOf("a"), reflect.ValueOf(T{}))
++	g = m["a"]
++}
++
++var g T

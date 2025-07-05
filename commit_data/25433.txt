@@ -9,7 +9,7 @@ Date:   Wed Oct 28 17:57:30 2015 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcshared/src/libgo2/dup2.go   | 13 +++++++++++++
  misc/cgo/testcshared/src/libgo2/dup3.go   | 13 +++++++++++++
  misc/cgo/testcshared/src/libgo2/libgo2.go |  2 +-
@@ -20,3 +20,136 @@ Date:   Wed Oct 28 17:57:30 2015 -0400
  src/cmd/link/internal/arm64/obj.go        |  4 ++++
  src/cmd/link/internal/ld/lib.go           |  2 +-
  9 files changed, 37 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/testcshared/src/libgo2/dup2.go b/misc/cgo/testcshared/src/libgo2/dup2.go
+new file mode 100644
+index 0000000000..d18f0b130d
+--- /dev/null
++++ b/misc/cgo/testcshared/src/libgo2/dup2.go
+@@ -0,0 +1,13 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux,!arm64 netbsd openbsd
++
++package main
++
++import "syscall"
++
++func dup2(oldfd, newfd int) error {
++	return syscall.Dup2(oldfd, newfd)
++}
+diff --git a/misc/cgo/testcshared/src/libgo2/dup3.go b/misc/cgo/testcshared/src/libgo2/dup3.go
+new file mode 100644
+index 0000000000..c9c65a6e3c
+--- /dev/null
++++ b/misc/cgo/testcshared/src/libgo2/dup3.go
+@@ -0,0 +1,13 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,arm64
++
++package main
++
++import "syscall"
++
++func dup2(oldfd, newfd int) error {
++	return syscall.Dup3(oldfd, newfd, 0)
++}
+diff --git a/misc/cgo/testcshared/src/libgo2/libgo2.go b/misc/cgo/testcshared/src/libgo2/libgo2.go
+index 6096860d63..636679b978 100644
+--- a/misc/cgo/testcshared/src/libgo2/libgo2.go
++++ b/misc/cgo/testcshared/src/libgo2/libgo2.go
+@@ -31,7 +31,7 @@ func init() {
+ 		os.Exit(2)
+ 	}
+ 
+-	if e := syscall.Dup2(p[0], fd); e != nil {
++	if e := dup2(p[0], fd); e != nil {
+ 		fmt.Fprintf(os.Stderr, "dup2: %v\n", e)
+ 		os.Exit(2)
+ 	}
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index 1b9f919d00..a6411628a7 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -114,7 +114,7 @@ if [ "$output" != "PASS" ]; then
+ fi
+ 
+ # test2: tests libgo2 which does not export any functions.
+-GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo2.$libext src/libgo2/libgo2.go
++GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo2.$libext libgo2
+ binpush libgo2.$libext
+ linkflags="-Wl,--no-as-needed"
+ if [ "$goos" == "darwin" ]; then
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 334b3ea715..b6a43ac49e 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -220,7 +220,8 @@ func Main() {
+ 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
+ 	var flag_shared int
+ 	var flag_dynlink bool
+-	if Thearch.Thechar == '5' || Thearch.Thechar == '6' || Thearch.Thechar == '9' {
++	switch Thearch.Thechar {
++	case '5', '6', '7', '9':
+ 		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
+ 	}
+ 	if Thearch.Thechar == '6' {
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 0afe4c6060..6b0056a3ae 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -581,7 +581,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 	case "c-shared":
+ 		// TODO(hyangah): add linux-386.
+ 		switch pair {
+-		case "linux-amd64", "darwin-amd64", "android-arm", "linux-arm":
++		case "linux-amd64", "darwin-amd64", "android-arm", "linux-arm", "linux-arm64":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index c87cedc571..e25a56ac30 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -350,7 +350,7 @@ func buildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/amd64", "linux/arm",
++			case "linux/amd64", "linux/arm", "linux/arm64",
+ 				"android/amd64", "android/arm":
+ 				codegenArg = "-shared"
+ 			case "darwin/amd64":
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 56f5815903..5c28551d65 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -104,6 +104,10 @@ func archinit() {
+ 		break
+ 	}
+ 
++	if ld.Buildmode == ld.BuildmodeCShared {
++		ld.Linkmode = ld.LinkExternal
++	}
++
+ 	switch ld.HEADTYPE {
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b97cf0fe58..ff9cabc214 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -316,7 +316,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		}
+ 		*mode = BuildmodeCArchive
+ 	case "c-shared":
+-		if goarch != "amd64" && goarch != "arm" {
++		if goarch != "amd64" && goarch != "arm" && goarch != "arm64" {
+ 			return badmode()
+ 		}
+ 		*mode = BuildmodeCShared

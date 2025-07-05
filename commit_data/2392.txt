@@ -8,7 +8,56 @@ Date:   Thu Jun 4 16:51:47 2009 -0700
     DELTA=18  (10 added, 2 deleted, 6 changed)
     OCL=29909
     CL=29909
-
+---
  doc/go_spec.html   |  2 --
  test/ken/string.go | 20 +++++++++++++++-----
  2 files changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 793dbb2eab..ab05fbcd1b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4388,8 +4388,6 @@ Implementation does not honor the restriction on goto statements and targets (no
+ cap() does not work on maps or chans.
+ <br/>
+ len() does not work on chans.
+-<br>
+-string([]int{...}) conversion is not yet implemented.
+ </font>
+ </p>
+ 
+diff --git a/test/ken/string.go b/test/ken/string.go
+index a823e92835..f7c02822f1 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -88,15 +88,25 @@ main()
+ 	z1[2] = 'c';
+ 	c = string(&z1);
+ 	if c != "abc" {
+-		panic("create array ", c);
++		panic("create byte array ", c);
+ 	}
+ 
+-	/* create string with byte array pointer */
+-	z2 := new([3]byte);
++	/* create string with int array */
++	var z2 [3]int;
+ 	z2[0] = 'a';
+-	z2[1] = 'b';
++	z2[1] = '\u1234';
+ 	z2[2] = 'c';
+-	c = string(z2);
++	c = string(&z2);
++	if c != "a\u1234c" {
++		panic("create int array ", c);
++	}
++
++	/* create string with byte array pointer */
++	z3 := new([3]byte);
++	z3[0] = 'a';
++	z3[1] = 'b';
++	z3[2] = 'c';
++	c = string(z3);
+ 	if c != "abc" {
+ 		panic("create array pointer ", c);
+ 	}

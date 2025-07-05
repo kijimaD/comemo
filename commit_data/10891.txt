@@ -7,7 +7,53 @@ Date:   Mon Dec 19 20:56:37 2011 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5495097
-
+---
  src/pkg/runtime/lock_futex.c | 4 ++--
  src/pkg/runtime/lock_sema.c  | 6 +++---
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index c6b64ca6de..6ec4aee7bf 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -8,13 +8,13 @@
+ 
+ // This implementation depends on OS-specific implementations of
+ //
+-//	runtime.futexsleep(uint32 *addr, uint32 val, int64 ns)
++//	runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ //		Atomically,
+ //			if(*addr == val) sleep
+ //		Might be woken up spuriously; that's allowed.
+ //		Don't sleep longer than ns; ns < 0 means forever.
+ //
+-//	runtime.futexwakeup(uint32 *addr, uint32 cnt)
++//	runtime·futexwakeup(uint32 *addr, uint32 cnt)
+ //		If any procs are sleeping on addr, wake up at most cnt.
+ 
+ enum
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index ae229ec728..28d2c3281e 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -8,17 +8,17 @@
+ 
+ // This implementation depends on OS-specific implementations of
+ //
+-//	uintptr runtime.semacreate(void)
++//	uintptr runtime·semacreate(void)
+ //		Create a semaphore, which will be assigned to m->waitsema.
+ //		The zero value is treated as absence of any semaphore,
+ //		so be sure to return a non-zero value.
+ //
+-//	int32 runtime.semasleep(int64 ns)
++//	int32 runtime·semasleep(int64 ns)
+ //		If ns < 0, acquire m->waitsema and return 0.
+ //		If ns >= 0, try to acquire m->waitsema for at most ns nanoseconds.
+ //		Return 0 if the semaphore was acquired, -1 if interrupted or timed out.
+ //
+-//	int32 runtime.semawakeup(M *mp)
++//	int32 runtime·semawakeup(M *mp)
+ //		Wake up mp, which is or will soon be sleeping on mp->waitsema.
+ //
+ 

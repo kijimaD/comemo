@@ -9,6 +9,45 @@ Date:   Tue Nov 6 20:54:22 2012 +0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6812091
-
+---
  src/pkg/runtime/race.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index bea16cc832..ef7eec2b6b 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -47,6 +47,8 @@ runtime·racefini(void)
+ }
+ 
+ // Called from instrumented code.
++// If we split stack, getcallerpc() can return runtime·lessstack().
++#pragma textflag 7
+ void
+ runtime·racewrite(uintptr addr)
+ {
+@@ -58,6 +60,8 @@ runtime·racewrite(uintptr addr)
+ }
+ 
+ // Called from instrumented code.
++// If we split stack, getcallerpc() can return runtime·lessstack().
++#pragma textflag 7
+ void
+ runtime·raceread(uintptr addr)
+ {
+@@ -69,6 +73,7 @@ runtime·raceread(uintptr addr)
+ }
+ 
+ // Called from instrumented code.
++#pragma textflag 7
+ void
+ runtime·racefuncenter(uintptr pc)
+ {
+@@ -83,6 +88,7 @@ runtime·racefuncenter(uintptr pc)
+ }
+ 
+ // Called from instrumented code.
++#pragma textflag 7
+ void
+ runtime·racefuncexit(void)
+ {

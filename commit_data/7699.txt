@@ -7,6 +7,20 @@ Date:   Tue Mar 8 12:33:49 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4240090
-
+---
  src/pkg/time/time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 432b3523a8..40338f7752 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -23,7 +23,7 @@ type Time struct {
+ 	Month, Day           int    // Jan-2 is 1, 2
+ 	Hour, Minute, Second int    // 15:04:05 is 15, 4, 5.
+ 	Weekday              int    // Sunday, Monday, ...
+-	ZoneOffset           int    // seconds east of UTC, e.g. -7*60 for -0700
++	ZoneOffset           int    // seconds east of UTC, e.g. -7*60*60 for -0700
+ 	Zone                 string // e.g., "MST"
+ }
+ 

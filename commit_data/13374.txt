@@ -11,7 +11,37 @@ Date:   Sun Jun 24 10:41:12 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6294093
-
+---
  src/pkg/net/http/client.go      | 3 ++-
  src/pkg/net/http/client_test.go | 4 ++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index fba775fddc..89441424e1 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -36,7 +36,8 @@ type Client struct {
+ 	// following an HTTP redirect. The arguments req and via
+ 	// are the upcoming request and the requests made already,
+ 	// oldest first. If CheckRedirect returns an error, the client
+-	// returns that error instead of issue the Request req.
++	// returns that error (wrapped in a url.Error) instead of
++	// issuing the Request req.
+ 	//
+ 	// If CheckRedirect is nil, the Client uses its default policy,
+ 	// which is to stop after 10 consecutive requests.
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index e2a08204e0..fe4b626a31 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -231,8 +231,8 @@ func TestRedirects(t *testing.T) {
+ 
+ 	checkErr = errors.New("no redirects allowed")
+ 	res, err = c.Get(ts.URL)
+-	if e, g := "Get /?n=1: no redirects allowed", fmt.Sprintf("%v", err); e != g {
+-		t.Errorf("with redirects forbidden, expected error %q, got %q", e, g)
++	if urlError, ok := err.(*url.Error); !ok || urlError.Err != checkErr {
++		t.Errorf("with redirects forbidden, expected a *url.Error with our 'no redirects allowed' error inside; got %#v (%q)", err, err)
+ 	}
+ }
+ 

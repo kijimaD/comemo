@@ -11,6 +11,33 @@ Date:   Fri Mar 30 14:15:24 2018 +0400
     Change-Id: I65955f62a70807c87216519d03f3643a8f214dee
     Reviewed-on: https://go-review.googlesource.com/103655
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup_test.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 217a24705b..c2a6477e2e 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -308,9 +308,20 @@ func TestLookupCNAME(t *testing.T) {
+ 
+ 	defer dnsWaitGroup.Wait()
+ 
+-	for _, tt := range lookupCNAMETests {
++	attempts := 0
++	for i := 0; i < len(lookupCNAMETests); i++ {
++		tt := lookupCNAMETests[i]
+ 		cname, err := LookupCNAME(tt.name)
+ 		if err != nil {
++			testenv.SkipFlakyNet(t)
++			if attempts < len(backoffDuration) {
++				dur := backoffDuration[attempts]
++				t.Logf("backoff %v after failure %v\n", dur, err)
++				time.Sleep(dur)
++				attempts++
++				i--
++				continue
++			}
+ 			t.Fatal(err)
+ 		}
+ 		if !strings.HasSuffix(cname, tt.cname) {

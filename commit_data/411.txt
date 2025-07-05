@@ -7,7 +7,7 @@ Date:   Wed Jul 23 16:04:11 2008 -0700
     R=r
     OCL=13391
     CL=13391
-
+---
  usr/gri/gosrc/ast.go     |  32 ++++++-
  usr/gri/gosrc/export.go  |  43 ++++------
  usr/gri/gosrc/globals.go |   4 +-
@@ -16,3 +16,916 @@ Date:   Wed Jul 23 16:04:11 2008 -0700
  usr/gri/gosrc/scope.go   |  14 ---
  usr/gri/gosrc/type.go    |   4 +-
  7 files changed, 233 insertions(+), 89 deletions(-)
+
+diff --git a/usr/gri/gosrc/ast.go b/usr/gri/gosrc/ast.go
+index 6a220a1ee5..413a3c0c2f 100644
+--- a/usr/gri/gosrc/ast.go
++++ b/usr/gri/gosrc/ast.go
+@@ -8,15 +8,39 @@ import Globals "globals"
+ import Universe "universe"
+ 
+ 
++// ----------------------------------------------------------------------------
++// Expressions
++
+ export Expr
+-type Expr struct {
++type Expr interface {
++}
++
++
++export BinaryExpr
++type BinaryExpr struct {
+ 	typ *Globals.Type;
+ 	op int;
+-	x, y *Expr;
++	x, y Expr;
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Statements
++
+ export Stat
+-type Stat struct {
+-	// To be completed
++type Stat interface {
++}
++
++
++export Block
++type Block struct {
++	// TODO fill in
++}
++
++
++export IfStat
++type IfStat struct {
++	cond Expr;
++	then_ Stat;
++	else_ Stat;
+ }
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 0740e1b23d..57c49ba6dc 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -149,23 +149,23 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
+ 		E.WriteObjTag(obj.kind);
+ 		E.WriteString(obj.ident);
+ 		E.WriteType(obj.typ);
+-		E.WritePackage(E.comp.pkgs[obj.pnolev]);
++		//E.WritePackage(E.comp.pkgs[obj.pnolev]);
+ 
+ 		switch obj.kind {
+-		case Object.BAD: fallthrough;
+-		case Object.PACKAGE: fallthrough;
+-		case Object.PTYPE:
+-			panic "UNREACHABLE";
+ 		case Object.CONST:
+ 			E.WriteInt(0);  // should be the correct value
+-			break;
++
+ 		case Object.TYPE:
+ 			// nothing to do
++			
+ 		case Object.VAR:
+ 			E.WriteInt(0);  // should be the correct address/offset
++			
+ 		case Object.FUNC:
+ 			E.WriteInt(0);  // should be the correct address/offset
++			
+ 		default:
++			print "obj.kind = ", obj.kind, "\n";
+ 			panic "UNREACHABLE";
+ 		}
+ 	}
+@@ -200,41 +200,30 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 	}
+ 
+ 	switch typ.form {
+-	case Type.UNDEF: fallthrough;
+-	case Type.BAD: fallthrough;
+-	case Type.NIL: fallthrough;
+-	case Type.BOOL: fallthrough;
+-	case Type.UINT: fallthrough;
+-	case Type.INT: fallthrough;
+-	case Type.FLOAT: fallthrough;
+-	case Type.STRING: fallthrough;
+-	case Type.ANY:
+-		panic "UNREACHABLE";
+-
+ 	case Type.ARRAY:
+ 		E.WriteInt(typ.len_);
+-		E.WriteTypeField(typ.elt);
++		E.WriteType(typ.elt);
+ 
+ 	case Type.MAP:
+-		E.WriteTypeField(typ.key);
+-		E.WriteTypeField(typ.elt);
++		E.WriteType(typ.key);
++		E.WriteType(typ.elt);
+ 
+ 	case Type.CHANNEL:
+ 		E.WriteInt(typ.flags);
+-		E.WriteTypeField(typ.elt);
++		E.WriteType(typ.elt);
+ 
+ 	case Type.FUNCTION:
+ 		E.WriteInt(typ.flags);
+-		fallthrough;
+-	case Type.STRUCT: fallthrough;
+-	case Type.INTERFACE:
++		E.WriteScope(typ.scope);
++		
++	case Type.STRUCT, Type.INTERFACE:
+ 		E.WriteScope(typ.scope);
+ 
+-	case Type.POINTER: fallthrough;
+-	case Type.REFERENCE:
+-		E.WriteTypeField(typ.elt);
++	case Type.POINTER, Type.REFERENCE:
++		E.WriteType(typ.elt);
+ 
+ 	default:
++		print "typ.form = ", typ.form, "\n";
+ 		panic "UNREACHABLE";
+ 	}
+ }
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index f8842a758d..2a936647ee 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -32,8 +32,8 @@ type Type struct {
+ 	size int;  // in bytes
+ 	len_ int;  // array length, no. of parameters (w/o recv)
+ 	obj *Object;  // primary type object or NULL
+-	key *Object;  // maps
+-	elt *Object;  // arrays, maps, channels, pointers, references
++	key *Type;  // maps
++	elt *Type;  // arrays, maps, channels, pointers
+ 	scope *Scope;  // structs, interfaces, functions
+ }
+ 
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index e5c5d15cc1..c835939ac3 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -216,15 +216,15 @@ func (I *Importer) ReadType() *Globals.Type {
+ 
+ 	case Type.ARRAY:
+ 		typ.len_ = I.ReadInt();
+-		typ.elt = I.ReadTypeField();
++		typ.elt = I.ReadType();
+ 
+ 	case Type.MAP:
+-		typ.key = I.ReadTypeField();
+-		typ.elt = I.ReadTypeField();
++		typ.key = I.ReadType();
++		typ.elt = I.ReadType();
+ 
+ 	case Type.CHANNEL:
+ 		typ.flags = I.ReadInt();
+-		typ.elt = I.ReadTypeField();
++		typ.elt = I.ReadType();
+ 
+ 	case Type.FUNCTION:
+ 		typ.flags = I.ReadInt();
+@@ -235,7 +235,7 @@ func (I *Importer) ReadType() *Globals.Type {
+ 
+ 	case Type.POINTER: fallthrough;
+ 	case Type.REFERENCE:
+-		typ.elt = I.ReadTypeField();
++		typ.elt = I.ReadType();
+ 	}
+ 
+ 	return ptyp;  // only use primary type
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 28fdf39d2a..c40b70b64d 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -126,11 +126,7 @@ func (P *Parser) Lookup(ident string) *Globals.Object {
+ 
+ 
+ func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
+-	if !EnableSemanticTests {
+-		return;
+-	}
+-	
+-	if scope.Lookup(obj.ident) != nil {
++	if EnableSemanticTests && scope.Lookup(obj.ident) != nil {
+ 		// TODO is this the correct error position?
+ 		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
+ 		return;  // don't insert it into the scope
+@@ -283,63 +279,92 @@ func (P *Parser) ParseTypeName() *Globals.Type {
+ 
+ func (P *Parser) ParseArrayType() *Globals.Type {
+ 	P.Trace("ArrayType");
++	
+ 	P.Expect(Scanner.LBRACK);
++	typ := Globals.NewType(Type.ARRAY);
+ 	if P.tok != Scanner.RBRACK {
++		// TODO set typ.len_
+ 		P.ParseExpression();
+ 	}
+ 	P.Expect(Scanner.RBRACK);
+-	P.ParseType();
++	typ.elt = P.ParseType();
+ 	P.Ecart();
+-	return Universe.bad_t;
++	
++	return typ;
+ }
+ 
+ 
+ func (P *Parser) ParseChannelType() *Globals.Type {
+ 	P.Trace("ChannelType");
++	
+ 	P.Expect(Scanner.CHAN);
++	typ := Globals.NewType(Type.CHANNEL);
+ 	switch P.tok {
+-	case Scanner.SEND: fallthrough
++	case Scanner.SEND:
++		typ.flags = Type.SEND;
++		P.Next();
+ 	case Scanner.RECV:
++		typ.flags = Type.RECV;
+ 		P.Next();
++	default:
++		typ.flags = Type.SEND + Type.RECV;
+ 	}
+-	P.ParseType();
++	typ.elt = P.ParseType();
++	P.Ecart();
++	
++	return typ;
++}
++
++
++func (P *Parser) ParseVarDeclList() {
++	P.Trace("VarDeclList");
++	
++	list := P.ParseIdentDeclList(Object.VAR);
++	typ := P.ParseType();  // TODO should check completeness of types
++	for p := list.first; p != nil; p = p.next {
++		p.obj.typ = typ;  // TODO should use/have set_type()
++	}
++	
+ 	P.Ecart();
+-	return Universe.bad_t;
+ }
+ 
+ 
+ func (P *Parser) ParseParameterSection() {
+ 	P.Trace("ParameterSection");
+-	P.ParseIdentList();
+-	P.ParseType();
++	P.ParseVarDeclList();
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseParameterList() {
+ 	P.Trace("ParameterList");
++	
+ 	P.ParseParameterSection();
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+ 		P.ParseParameterSection();
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseParameters() {
+ 	P.Trace("Parameters");
++	
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+ 		P.ParseParameterList();
+ 	}
+ 	P.Expect(Scanner.RPAREN);
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) TryResult() bool {
+ 	P.Trace("Result (try)");
++	
+ 	res := false;
+ 	if P.tok == Scanner.LPAREN {
+ 		// TODO: here we allow empty returns - should proably fix this
+@@ -349,10 +374,31 @@ func (P *Parser) TryResult() bool {
+ 		res = P.TryType() != nil;
+ 	}
+ 	P.Ecart();
++	
+ 	return res;
+ }
+ 
+ 
++func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
++  // Determine if we have a receiver or not.
++  if p0 > 0 && check_recv {
++    // method
++	if p0 != 1 {
++		panic "p0 != 1";
++	}
++  }
++  typ := Globals.NewType(Type.FUNCTION);
++  if p0 == 0 {
++	typ.flags = 0;
++  } else {
++	typ.flags = Type.RECV;
++  }
++  typ.len_ = r0 - p0;
++  typ.scope = sig;
++  return typ;
++}
++
++
+ // Anonymous signatures
+ //
+ //          (params)
+@@ -362,17 +408,33 @@ func (P *Parser) TryResult() bool {
+ // (recv) . (params) type
+ // (recv) . (params) (results)
+ 
+-func (P *Parser) ParseAnonymousSignature() {
++func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 	P.Trace("AnonymousSignature");
++	
+ 	P.OpenScope();
++	sig := P.top_scope;
++	p0 := 0;
++	
++	recv_pos := P.pos;
+ 	P.ParseParameters();
++	
+ 	if P.tok == Scanner.PERIOD {
++		p0 = sig.entries.len_;
++		if (p0 != 1) {
++			P.Error(recv_pos, "must have exactly one receiver")
++			panic "UNIMPLEMENTED";
++			// TODO do something useful here
++		}
+ 		P.Next();
+ 		P.ParseParameters();
+ 	}
++	
++	r0 := sig.entries.len_;
+ 	P.TryResult();
+ 	P.CloseScope();
++	
+ 	P.Ecart();
++	return MakeFunctionType(sig, p0, r0, true);
+ }
+ 
+ 
+@@ -385,75 +447,97 @@ func (P *Parser) ParseAnonymousSignature() {
+ // (recv) name (params) type
+ // (recv) name (params) (results)
+ 
+-func (P *Parser) ParseNamedSignature() {
++func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
+ 	P.Trace("NamedSignature");
++	
+ 	P.OpenScope();
++	sig := P.top_scope;
++	p0 := 0;
++
+ 	if P.tok == Scanner.LPAREN {
++		recv_pos := P.pos;
+ 		P.ParseParameters();
++		p0 = sig.entries.len_;
++		if (p0 != 1) {
++			print "p0 = ", p0, "\n";
++			P.Error(recv_pos, "must have exactly one receiver")
++			panic "UNIMPLEMENTED";
++			// TODO do something useful here
++		}
+ 	}
+-	P.ParseIdent();  // function name
++	
++	name = P.ParseIdent();
++
+ 	P.ParseParameters();
++	
++	r0 := sig.entries.len_;
+ 	P.TryResult();
+ 	P.CloseScope();
+-	P.Ecart();
++	
++	return name, MakeFunctionType(sig, p0, r0, true);
+ }
+ 
+ 
+ func (P *Parser) ParseFunctionType() *Globals.Type {
+ 	P.Trace("FunctionType");
++	
+ 	P.Expect(Scanner.FUNC);
+-	P.ParseAnonymousSignature();
++	typ := P.ParseAnonymousSignature();
++	
+ 	P.Ecart();
+-	return Universe.bad_t;
++	return typ;
+ }
+ 
+ 
+ func (P *Parser) ParseMethodDecl() {
+ 	P.Trace("MethodDecl");
++	
+ 	P.ParseIdent();
+ 	P.ParseParameters();
+ 	P.TryResult();
+ 	P.Optional(Scanner.SEMICOLON);
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseInterfaceType() *Globals.Type {
+ 	P.Trace("InterfaceType");
++	
+ 	P.Expect(Scanner.INTERFACE);
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
++	typ := Globals.NewType(Type.INTERFACE);
++	typ.scope = P.top_scope;
+ 	for P.tok != Scanner.RBRACE {
+ 		P.ParseMethodDecl();
+ 	}
+ 	P.CloseScope();
+ 	P.Next();
++	
+ 	P.Ecart();
+-	return Universe.bad_t;
++	return typ;
+ }
+ 
+ 
+ func (P *Parser) ParseMapType() *Globals.Type {
+ 	P.Trace("MapType");
++	
+ 	P.Expect(Scanner.MAP);
+ 	P.Expect(Scanner.LBRACK);
+-	P.ParseType();
++	typ := Globals.NewType(Type.MAP);
++	typ.key = P.ParseType();
+ 	P.Expect(Scanner.RBRACK);
+-	P.ParseType();
++	typ.elt = P.ParseType();
+ 	P.Ecart();
+-	return Universe.bad_t;
++	
++	return typ;
+ }
+ 
+ 
+ func (P *Parser) ParseFieldDecl() {
+ 	P.Trace("FieldDecl");
+-	
+-	list := P.ParseIdentDeclList(Object.VAR);
+-	typ := P.ParseType();  // TODO should check completeness of types
+-	for p := list.first; p != nil; p = p.next {
+-		p.obj.typ = typ;  // TODO should use/have set_type()
+-	}
+-	
++	P.ParseVarDeclList();
+ 	P.Ecart();
+ }
+ 
+@@ -483,10 +567,19 @@ func (P *Parser) ParseStructType() *Globals.Type {
+ 
+ func (P *Parser) ParsePointerType() *Globals.Type {
+ 	P.Trace("PointerType");
++	
+ 	P.Expect(Scanner.MUL);
+-	P.ParseType();
+-	P.Ecart();
+-	return Universe.bad_t;
++	typ := Universe.undef_t;
++	if (EnableSemanticTests && P.tok == Scanner.IDENT && P.Lookup(P.val) == nil) {
++		// forward declaration
++		panic "UNIMPLEMENTED *forward_declared_type";
++	} else {
++		typ = Globals.NewType(Type.POINTER);
++		typ.elt = P.ParseType();
++	}
++
++	P.Ecart();	
++	return typ;
+ }
+ 
+ 
+@@ -535,6 +628,7 @@ func (P *Parser) ParseStatementList() {
+ 
+ func (P *Parser) ParseBlock() {
+ 	P.Trace("Block");
++	
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
+ 	if P.tok != Scanner.RBRACE && P.tok != Scanner.SEMICOLON {
+@@ -543,6 +637,7 @@ func (P *Parser) ParseBlock() {
+ 	P.Optional(Scanner.SEMICOLON);
+ 	P.CloseScope();
+ 	P.Expect(Scanner.RBRACE);
++	
+ 	P.Ecart();
+ }
+ 
+@@ -552,17 +647,20 @@ func (P *Parser) ParseBlock() {
+ 
+ func (P *Parser) ParseExpressionList() {
+ 	P.Trace("ExpressionList");
++	
+ 	P.ParseExpression();
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+ 		P.ParseExpression();
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseNew() {
+ 	P.Trace("New");
++	
+ 	P.Expect(Scanner.NEW);
+ 	P.Expect(Scanner.LPAREN);
+ 	P.ParseType();
+@@ -571,20 +669,24 @@ func (P *Parser) ParseNew() {
+ 		P.ParseExpressionList()
+ 	}
+ 	P.Expect(Scanner.RPAREN);
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseFunctionLit() {
+ 	P.Trace("FunctionLit");
++	
+ 	P.ParseFunctionType();
+ 	P.ParseBlock();
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseOperand() {
+ 	P.Trace("Operand");
++	
+ 	switch P.tok {
+ 	case Scanner.IDENT:
+ 		P.ParseQualifiedIdent();
+@@ -607,12 +709,14 @@ func (P *Parser) ParseOperand() {
+ 		P.Error(P.pos, "operand expected");
+ 		P.Next();  // make progress
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseSelectorOrTypeAssertion() {
+ 	P.Trace("SelectorOrTypeAssertion");
++	
+ 	P.Expect(Scanner.PERIOD);
+ 	if P.tok == Scanner.IDENT {
+ 		P.ParseIdent();
+@@ -621,12 +725,14 @@ func (P *Parser) ParseSelectorOrTypeAssertion() {
+ 		P.ParseType();
+ 		P.Expect(Scanner.RPAREN);
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseIndexOrSlice() {
+ 	P.Trace("IndexOrSlice");
++	
+ 	P.Expect(Scanner.LBRACK);
+ 	P.ParseExpression();
+ 	if P.tok == Scanner.COLON {
+@@ -634,23 +740,27 @@ func (P *Parser) ParseIndexOrSlice() {
+ 		P.ParseExpression();
+ 	}
+ 	P.Expect(Scanner.RBRACK);
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseInvocation() {
+ 	P.Trace("Invocation");
++	
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+ 		P.ParseExpressionList();
+ 	}
+ 	P.Expect(Scanner.RPAREN);
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParsePrimaryExpr() {
+ 	P.Trace("PrimaryExpr");
++	
+ 	P.ParseOperand();
+ 	for {
+ 		switch P.tok {
+@@ -665,23 +775,27 @@ func (P *Parser) ParsePrimaryExpr() {
+ 			return;
+ 		}
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParsePrimaryExprList() {
+ 	P.Trace("PrimaryExprList");
++	
+ 	P.ParsePrimaryExpr();
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+ 		P.ParsePrimaryExpr();
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+-func (P *Parser) ParseUnaryExpr() *AST.Expr {
++func (P *Parser) ParseUnaryExpr() AST.Expr {
+ 	P.Trace("UnaryExpr");
++	
+ 	switch P.tok {
+ 	case Scanner.ADD: fallthrough;
+ 	case Scanner.SUB: fallthrough;
+@@ -696,6 +810,7 @@ func (P *Parser) ParseUnaryExpr() *AST.Expr {
+ 		return nil;  // TODO fix this
+ 	}
+ 	P.ParsePrimaryExpr();
++	
+ 	P.Ecart();
+ 	return nil;  // TODO fix this
+ }
+@@ -721,13 +836,13 @@ func Precedence(tok int) int {
+ }
+ 
+ 
+-func (P *Parser) ParseBinaryExpr(prec1 int) *AST.Expr {
++func (P *Parser) ParseBinaryExpr(prec1 int) AST.Expr {
+ 	P.Trace("BinaryExpr");
+ 	
+ 	x := P.ParseUnaryExpr();
+ 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
+ 		for Precedence(P.tok) == prec {
+-			e := new(AST.Expr);
++			e := new(AST.BinaryExpr);
+ 			e.typ = Universe.undef_t;  // TODO fix this
+ 			e.op = P.tok;  // TODO should we use tokens or separate operator constants?
+ 			e.x = x;
+@@ -744,7 +859,9 @@ func (P *Parser) ParseBinaryExpr(prec1 int) *AST.Expr {
+ func (P *Parser) ParseExpression() {
+ 	P.Trace("Expression");
+ 	indent := P.indent;
++	
+ 	P.ParseBinaryExpr(1);
++	
+ 	if indent != P.indent {
+ 		panic "imbalanced tracing code";
+ 	}
+@@ -809,26 +926,31 @@ func (P *Parser) ParseGoStat() {
+ 
+ func (P *Parser) ParseReturnStat() {
+ 	P.Trace("ReturnStat");
++	
+ 	P.Expect(Scanner.RETURN);
+ 	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
+ 		P.ParseExpressionList();
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseControlFlowStat(tok int) {
+ 	P.Trace("ControlFlowStat");
++	
+ 	P.Expect(tok);
+ 	if P.tok == Scanner.IDENT {
+ 		P.ParseIdent();
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+-func (P *Parser) ParseIfStat() {
++func (P *Parser) ParseIfStat() *AST.IfStat {
+ 	P.Trace("IfStat");
++	
+ 	P.Expect(Scanner.IF);
+ 	P.OpenScope();
+ 	if P.tok != Scanner.LBRACE {
+@@ -853,12 +975,14 @@ func (P *Parser) ParseIfStat() {
+ 		}
+ 	}
+ 	P.CloseScope();
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseForStat() {
+ 	P.Trace("ForStat");
++	
+ 	P.Expect(Scanner.FOR);
+ 	P.OpenScope();
+ 	if P.tok != Scanner.LBRACE {
+@@ -878,12 +1002,14 @@ func (P *Parser) ParseForStat() {
+ 	}
+ 	P.ParseBlock();
+ 	P.CloseScope();
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseCase() {
+ 	P.Trace("Case");
++	
+ 	if P.tok == Scanner.CASE {
+ 		P.Next();
+ 		P.ParseExpressionList();
+@@ -891,22 +1017,26 @@ func (P *Parser) ParseCase() {
+ 		P.Expect(Scanner.DEFAULT);
+ 	}
+ 	P.Expect(Scanner.COLON);
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseCaseList() {
+ 	P.Trace("CaseList");
++	
+ 	P.ParseCase();
+ 	for P.tok == Scanner.CASE || P.tok == Scanner.DEFAULT {
+ 		P.ParseCase();
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseCaseClause() {
+ 	P.Trace("CaseClause");
++	
+ 	P.ParseCaseList();
+ 	if P.tok != Scanner.FALLTHROUGH && P.tok != Scanner.RBRACE {
+ 		P.ParseStatementList();
+@@ -916,12 +1046,14 @@ func (P *Parser) ParseCaseClause() {
+ 		P.Next();
+ 		P.Optional(Scanner.SEMICOLON);
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseSwitchStat() {
+ 	P.Trace("SwitchStat");
++	
+ 	P.Expect(Scanner.SWITCH);
+ 	P.OpenScope();
+ 	if P.tok != Scanner.LBRACE {
+@@ -941,12 +1073,14 @@ func (P *Parser) ParseSwitchStat() {
+ 	}
+ 	P.Expect(Scanner.RBRACE);
+ 	P.CloseScope();
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseCommCase() {
+   P.Trace("CommCase");
++  
+   if P.tok == Scanner.CASE {
+ 	P.Next();
+ 	if P.tok == Scanner.GTR {
+@@ -968,40 +1102,47 @@ func (P *Parser) ParseCommCase() {
+ 	P.Expect(Scanner.DEFAULT);
+   }
+   P.Expect(Scanner.COLON);
++  
+   P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseCommClause() {
+ 	P.Trace("CommClause");
++	
+ 	P.ParseCommCase();
+ 	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
+ 		P.ParseStatementList();
+ 		P.Optional(Scanner.SEMICOLON);
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseRangeStat() bool {
+ 	P.Trace("RangeStat");
++	
+ 	P.Expect(Scanner.RANGE);
+ 	P.ParseIdentList();
+ 	P.Expect(Scanner.DEFINE);
+ 	P.ParseExpression();
+ 	P.ParseBlock();
++	
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseSelectStat() bool {
+ 	P.Trace("SelectStat");
++	
+ 	P.Expect(Scanner.SELECT);
+ 	P.Expect(Scanner.LBRACE);
+ 	for P.tok != Scanner.RBRACE {
+ 		P.ParseCommClause();
+ 	}
+ 	P.Next();
++	
+ 	P.Ecart();
+ }
+ 
+@@ -1009,6 +1150,7 @@ func (P *Parser) ParseSelectStat() bool {
+ func (P *Parser) TryStatement() bool {
+ 	P.Trace("Statement (try)");
+ 	indent := P.indent;
++
+ 	res := true;
+ 	switch P.tok {
+ 	case Scanner.CONST: fallthrough;
+@@ -1050,6 +1192,7 @@ func (P *Parser) TryStatement() bool {
+ 		// no statement found
+ 		res = false;
+ 	}
++
+ 	if indent != P.indent {
+ 		panic "imbalanced tracing code"
+ 	}
+diff --git a/usr/gri/gosrc/scope.go b/usr/gri/gosrc/scope.go
+deleted file mode 100644
+index 13a14ce49a..0000000000
+--- a/usr/gri/gosrc/scope.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package Scope
+-
+-import Globals "Globals"
+-
+-type Scope Globals.Scope
+-
+-func New(parent *Scope) *Scope {
+-	panic "UNIMPLEMENTED";
+-	return nil;
+-}
+diff --git a/usr/gri/gosrc/type.go b/usr/gri/gosrc/type.go
+index df3e43ea50..f46f58d001 100644
+--- a/usr/gri/gosrc/type.go
++++ b/usr/gri/gosrc/type.go
+@@ -10,7 +10,6 @@ export
+ 	ANY,
+ 	ARRAY, STRUCT, INTERFACE, MAP, CHANNEL, FUNCTION, POINTER, REFERENCE
+ 
+-
+ const /* form */ (
+ 	// internal types
+ 	UNDEF = iota; BAD; NIL;
+@@ -23,6 +22,9 @@ const /* form */ (
+ )
+ 
+ 
++export
++	SEND, RECV
++	
+ const /* flag */ (
+ 	SEND = 1 << iota;  // chan>
+ 	RECV;  // chan< or method

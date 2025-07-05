@@ -13,6 +13,30 @@ Date:   Thu Apr 29 21:38:43 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/315370
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/ast/commentmap.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/ast/commentmap.go b/src/go/ast/commentmap.go
+index 2a653a60ac..5161ea70b7 100644
+--- a/src/go/ast/commentmap.go
++++ b/src/go/ast/commentmap.go
+@@ -315,9 +315,17 @@ loop:
+ }
+ 
+ func (cmap CommentMap) String() string {
++	// print map entries in sorted order
++	var nodes []Node
++	for node := range cmap {
++		nodes = append(nodes, node)
++	}
++	sort.Sort(byInterval(nodes))
++
+ 	var buf bytes.Buffer
+ 	fmt.Fprintln(&buf, "CommentMap {")
+-	for node, comment := range cmap {
++	for _, node := range nodes {
++		comment := cmap[node]
+ 		// print name of identifiers; print node type for other nodes
+ 		var s string
+ 		if ident, ok := node.(*Ident); ok {

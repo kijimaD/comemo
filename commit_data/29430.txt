@@ -20,10 +20,166 @@ Date:   Sat Sep 10 22:44:00 2016 +0200
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go |  6 +++++-
  src/cmd/compile/internal/gc/ssa.go  | 34 ++++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/walk.go |  8 ++++++++
  src/runtime/string.go               | 23 +++++++++++++----------
  src/runtime/string_test.go          |  7 +++++++
  5 files changed, 67 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index eca8f929db..363079a423 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -42,6 +42,10 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	}
+ 
+ 	switch n.Op {
++	case OARRAYBYTESTRTMP:
++		sgen_wb(n.Left, res, n.Type.Width, wb)
++		return
++
+ 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
+ 		cgen_slice(n, res, wb)
+ 		return
+@@ -1567,7 +1571,7 @@ func Agen(n *Node, res *Node) {
+ 		cgen_call(n, 0)
+ 		cgen_aret(n, res)
+ 
+-	case OEFACE, ODOTTYPE, OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
++	case OEFACE, ODOTTYPE, OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR, OARRAYBYTESTRTMP:
+ 		var n1 Node
+ 		Tempname(&n1, n.Type)
+ 		Cgen(n, &n1)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index bba40f6f7a..f722007667 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1410,6 +1410,11 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 	s.stmtList(n.Ninit)
+ 	switch n.Op {
++	case OARRAYBYTESTRTMP:
++		slice := s.expr(n.Left)
++		ptr := s.newValue1(ssa.OpSlicePtr, Ptrto(Types[TUINT8]), slice)
++		len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
++		return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
+ 	case OCFUNC:
+ 		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: n.Left.Sym})
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
+@@ -2484,6 +2489,22 @@ type sizedIntrinsicKey struct {
+ 	size int
+ }
+ 
++// disableForInstrumenting returns nil when instrumenting, fn otherwise
++func disableForInstrumenting(fn func(*state, *Node) *ssa.Value) func(*state, *Node) *ssa.Value {
++	if instrumenting {
++		return nil
++	}
++	return fn
++}
++
++// enableForRuntime returns fn when compiling runtime, nil otherwise
++func enableForRuntime(fn func(*state, *Node) *ssa.Value) func(*state, *Node) *ssa.Value {
++	if compiling_runtime {
++		return fn
++	}
++	return nil
++}
++
+ // enableOnArch returns fn on given archs, nil otherwise
+ func enableOnArch(fn func(*state, *Node) *ssa.Value, archs ...sys.ArchFamily) func(*state, *Node) *ssa.Value {
+ 	if Thearch.LinkArch.InFamily(archs...) {
+@@ -2498,6 +2519,19 @@ func intrinsicInit() {
+ 
+ 	// initial set of intrinsics.
+ 	i.std = map[intrinsicKey]intrinsicBuilder{
++		/******** runtime ********/
++		intrinsicKey{"", "slicebytetostringtmp"}: enableForRuntime(disableForInstrumenting(func(s *state, n *Node) *ssa.Value {
++			// pkg name left empty because intrinsification only should apply
++			// inside the runtime package when non instrumented.
++			// Compiler frontend optimizations emit OARRAYBYTESTRTMP nodes
++			// for the backend instead of slicebytetostringtmp calls
++			// when not instrumenting.
++			slice := s.intrinsicFirstArg(n)
++			ptr := s.newValue1(ssa.OpSlicePtr, Ptrto(Types[TUINT8]), slice)
++			len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
++			return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
++		})),
++
+ 		/******** runtime/internal/sys ********/
+ 		intrinsicKey{"runtime/internal/sys", "Ctz32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 5810268574..67a29374c7 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1554,6 +1554,14 @@ opswitch:
+ 
+ 		// slicebytetostringtmp([]byte) string;
+ 	case OARRAYBYTESTRTMP:
++		n.Left = walkexpr(n.Left, init)
++
++		if !instrumenting {
++			// Let the backend handle OARRAYBYTESTRTMP directly
++			// to avoid a function call to slicebytetostringtmp.
++			break
++		}
++
+ 		n = mkcall("slicebytetostringtmp", n.Type, init, n.Left)
+ 
+ 		// slicerunetostring(*[32]byte, []rune) string;
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 2263e16410..4c4b736c63 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -109,17 +109,20 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
+ 	return
+ }
+ 
++// slicebytetostringtmp returns a "string" referring to the actual []byte bytes.
++//
++// Callers need to ensure that the returned string will not be used after
++// the calling goroutine modifies the original slice or synchronizes with
++// another goroutine.
++//
++// The function is only called when instrumenting
++// and otherwise intrinsified by the compiler.
++//
++// Some internal compiler optimizations use this function.
++// - Used for m[string(k)] lookup where m is a string-keyed map and k is a []byte.
++// - Used for "<"+string(b)+">" concatenation where b is []byte.
++// - Used for string(b)=="foo" comparison where b is []byte.
+ func slicebytetostringtmp(b []byte) string {
+-	// Return a "string" referring to the actual []byte bytes.
+-	// This is only for use by internal compiler optimizations
+-	// that know that the string form will be discarded before
+-	// the calling goroutine could possibly modify the original
+-	// slice or synchronize with another goroutine.
+-	// First such case is a m[string(k)] lookup where
+-	// m is a string-keyed map and k is a []byte.
+-	// Second such case is "<"+string(b)+">" concatenation where b is []byte.
+-	// Third such case is string(b)=="foo" comparison where b is []byte.
+-
+ 	if raceenabled && len(b) > 0 {
+ 		racereadrangepc(unsafe.Pointer(&b[0]),
+ 			uintptr(len(b)),
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 6aab0ed764..4ee32ea671 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -82,6 +82,13 @@ func BenchmarkCompareStringBig(b *testing.B) {
+ 	b.SetBytes(int64(len(s1)))
+ }
+ 
++func BenchmarkConcatStringAndBytes(b *testing.B) {
++	s1 := []byte("Gophers!")
++	for i := 0; i < b.N; i++ {
++		_ = "Hello " + string(s1)
++	}
++}
++
+ var stringdata = []struct{ name, data string }{
+ 	{"ASCII", "01234567890"},
+ 	{"Japanese", "日本語日本語日本語"},

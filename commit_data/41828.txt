@@ -14,7 +14,45 @@ Date:   Sat Oct 26 06:53:07 2019 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/heapdump.go | 7 ++++++-
  src/runtime/runtime2.go | 8 ++++----
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 992df6391e..4d55b316f7 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -371,7 +371,12 @@ func dumpgoroutine(gp *g) {
+ 		dumpint(uint64(d.sp))
+ 		dumpint(uint64(d.pc))
+ 		dumpint(uint64(uintptr(unsafe.Pointer(d.fn))))
+-		dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
++		if d.fn == nil {
++			// d.fn can be nil for open-coded defers
++			dumpint(uint64(0))
++		} else {
++			dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
++		}
+ 		dumpint(uint64(uintptr(unsafe.Pointer(d.link))))
+ 	}
+ 	for p := gp._panic; p != nil; p = p.link {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index eecc6a78ac..c319196557 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -824,10 +824,10 @@ type _defer struct {
+ 	// defers. We have only one defer record for the entire frame (which may
+ 	// currently have 0, 1, or more defers active).
+ 	openDefer bool
+-	sp        uintptr // sp at time of defer
+-	pc        uintptr // pc at time of defer
+-	fn        *funcval
+-	_panic    *_panic // panic that is running defer
++	sp        uintptr  // sp at time of defer
++	pc        uintptr  // pc at time of defer
++	fn        *funcval // can be nil for open-coded defers
++	_panic    *_panic  // panic that is running defer
+ 	link      *_defer
+ 
+ 	// If openDefer is true, the fields below record values about the stack

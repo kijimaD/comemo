@@ -27,10 +27,118 @@ Date:   Fri May 17 17:25:07 2019 +0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue15071.dir/{exp => }/exp.go |  0
  test/fixedbugs/issue15071.go                   |  7 ++++++
  test/fixedbugs/issue15609.go                   |  7 ++++++
  test/fixedbugs/issue29612.go                   |  7 ++++++
  test/run.go                                    | 31 +++++++++++++++++++++++---
  5 files changed, 49 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/issue15071.dir/exp/exp.go b/test/fixedbugs/issue15071.dir/exp.go
+similarity index 100%
+rename from test/fixedbugs/issue15071.dir/exp/exp.go
+rename to test/fixedbugs/issue15071.dir/exp.go
+diff --git a/test/fixedbugs/issue15071.go b/test/fixedbugs/issue15071.go
+new file mode 100644
+index 0000000000..af6f134172
+--- /dev/null
++++ b/test/fixedbugs/issue15071.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/fixedbugs/issue15609.go b/test/fixedbugs/issue15609.go
+new file mode 100644
+index 0000000000..87c96b480f
+--- /dev/null
++++ b/test/fixedbugs/issue15609.go
+@@ -0,0 +1,7 @@
++// runindir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/fixedbugs/issue29612.go b/test/fixedbugs/issue29612.go
+new file mode 100644
+index 0000000000..87c96b480f
+--- /dev/null
++++ b/test/fixedbugs/issue29612.go
+@@ -0,0 +1,7 @@
++// runindir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/run.go b/test/run.go
+index 84f5cd991c..28ed865c50 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -522,7 +522,7 @@ func (t *test) run() {
+ 
+ 	// TODO: Clean up/simplify this switch statement.
+ 	switch action {
+-	case "compile", "compiledir", "build", "builddir", "buildrundir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
++	case "compile", "compiledir", "build", "builddir", "buildrundir", "run", "buildrun", "runoutput", "rundir", "runindir", "asmcheck":
+ 		// nothing to do
+ 	case "errorcheckandrundir":
+ 		wantError = false // should be no error if also will run
+@@ -603,16 +603,19 @@ func (t *test) run() {
+ 	}
+ 
+ 	useTmp := true
++	runInDir := false
+ 	runcmd := func(args ...string) ([]byte, error) {
+ 		cmd := exec.Command(args[0], args[1:]...)
+ 		var buf bytes.Buffer
+ 		cmd.Stdout = &buf
+ 		cmd.Stderr = &buf
++		cmd.Env = os.Environ()
+ 		if useTmp {
+ 			cmd.Dir = t.tempDir
+ 			cmd.Env = envForDir(cmd.Dir)
+-		} else {
+-			cmd.Env = os.Environ()
++		}
++		if runInDir {
++			cmd.Dir = t.goDirName()
+ 		}
+ 
+ 		var err error
+@@ -834,6 +837,28 @@ func (t *test) run() {
+ 			}
+ 		}
+ 
++	case "runindir":
++		// run "go run ." in t.goDirName()
++		// It's used when test requires go build and run the binary success.
++		// Example when long import path require (see issue29612.dir) or test
++		// contains assembly file (see issue15609.dir).
++		// Verify the expected output.
++		useTmp = false
++		runInDir = true
++		cmd := []string{goTool(), "run", goGcflags()}
++		if *linkshared {
++			cmd = append(cmd, "-linkshared")
++		}
++		cmd = append(cmd, ".")
++		out, err := runcmd(cmd...)
++		if err != nil {
++			t.err = err
++			return
++		}
++		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
++			t.err = fmt.Errorf("incorrect output\n%s", out)
++		}
++
+ 	case "build":
+ 		// Build Go file.
+ 		_, err := runcmd(goTool(), "build", goGcflags(), "-o", "a.exe", long)

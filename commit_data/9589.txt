@@ -9,10 +9,352 @@ Date:   Sat Sep 3 18:27:16 2011 +1000
     R=rsc, alex.brainman, vcc.163, jp
     CC=golang-dev
     https://golang.org/cl/4977044
-
+---
  src/cmd/ld/pe.c                        | 57 ++++++++++++++++++++--
  src/pkg/runtime/windows/amd64/defs.h   | 58 +++++++++++++++++++++-
  src/pkg/runtime/windows/amd64/signal.c | 89 +++++++++++++++++++++++++++++++++-
  src/pkg/runtime/windows/amd64/sys.s    | 39 +++++++++++++++
  src/pkg/runtime/windows/defs.c         |  5 ++
  5 files changed, 243 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 6379b1ad3a..df6c95976f 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -525,6 +525,48 @@ addpersrc(void)
+ 	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h->VirtualSize;
+ }
+ 
++static void
++addexcept(IMAGE_SECTION_HEADER *text)
++{
++	IMAGE_SECTION_HEADER *pdata, *xdata;
++	vlong startoff;
++	uvlong n;
++	Sym *sym;
++
++	if(thechar != '6')
++		return;
++
++	// write unwind info
++	sym = lookup("runtime.sigtramp", 0);
++	startoff = cpos();
++	lputl(9);	// version=1, flags=UNW_FLAG_EHANDLER, rest 0
++	lputl(sym->value - PEBASE);
++	lputl(0);
++
++	n = cpos() - startoff;
++	xdata = addpesection(".xdata", n, n);
++	xdata->Characteristics = IMAGE_SCN_MEM_READ|
++		IMAGE_SCN_CNT_INITIALIZED_DATA;
++	chksectoff(xdata, startoff);
++	strnput("", xdata->SizeOfRawData - n);
++
++	// write a function table entry for the whole text segment
++	startoff = cpos();
++	lputl(text->VirtualAddress);
++	lputl(text->VirtualAddress + text->VirtualSize);
++	lputl(xdata->VirtualAddress);
++
++	n = cpos() - startoff;
++	pdata = addpesection(".pdata", n, n);
++	pdata->Characteristics = IMAGE_SCN_MEM_READ|
++		IMAGE_SCN_CNT_INITIALIZED_DATA;
++	chksectoff(pdata, startoff);
++	strnput("", pdata->SizeOfRawData - n);
++
++	dd[IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = pdata->VirtualAddress;
++	dd[IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = pdata->VirtualSize;
++}
++
+ void
+ asmbpe(void)
+ {
+@@ -562,7 +604,8 @@ asmbpe(void)
+ 	addexports();
+ 	addsymtable();
+ 	addpersrc();
+-	
++	addexcept(t);
++
+ 	fh.NumberOfSections = nsect;
+ 	fh.TimeDateStamp = time(0);
+ 	fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED|
+@@ -599,8 +642,16 @@ asmbpe(void)
+ 		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_GUI);
+ 	else
+ 		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_CUI);
+-	set(SizeOfStackReserve, 0x0040000);
+-	set(SizeOfStackCommit, 0x00001000);
++
++	// Disable stack growth as we don't want Windows to
++	// fiddle with the thread stack limits, which we set
++	// ourselves to circumvent the stack checks in the
++	// Windows exception dispatcher.
++	// Commit size must be strictly less than reserve
++	// size otherwise reserve will be rounded up to a
++	// larger size, as verified with VMMap.
++	set(SizeOfStackReserve, 0x00010000);
++	set(SizeOfStackCommit, 0x0000ffff);
+ 	set(SizeOfHeapReserve, 0x00100000);
+ 	set(SizeOfHeapCommit, 0x00001000);
+ 	set(NumberOfRvaAndSizes, 16);
+diff --git a/src/pkg/runtime/windows/amd64/defs.h b/src/pkg/runtime/windows/amd64/defs.h
+index 830c6a8559..30c66df51c 100644
+--- a/src/pkg/runtime/windows/amd64/defs.h
++++ b/src/pkg/runtime/windows/amd64/defs.h
+@@ -1,4 +1,4 @@
+-// g:\opensource\go\bin\godefs.exe -f -m64 defs.c
++// c:\go\bin\godefs.exe -f -m64 defs.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -37,4 +37,60 @@ struct ExceptionRecord {
+ 	byte pad_godefs_0[4];
+ 	uint64 ExceptionInformation[15];
+ };
++
++typedef struct M128a M128a;
++struct M128a {
++	uint64 Low;
++	int64 High;
++};
++
++typedef struct Context Context;
++struct Context {
++	uint64 P1Home;
++	uint64 P2Home;
++	uint64 P3Home;
++	uint64 P4Home;
++	uint64 P5Home;
++	uint64 P6Home;
++	uint32 ContextFlags;
++	uint32 MxCsr;
++	uint16 SegCs;
++	uint16 SegDs;
++	uint16 SegEs;
++	uint16 SegFs;
++	uint16 SegGs;
++	uint16 SegSs;
++	uint32 EFlags;
++	uint64 Dr0;
++	uint64 Dr1;
++	uint64 Dr2;
++	uint64 Dr3;
++	uint64 Dr6;
++	uint64 Dr7;
++	uint64 Rax;
++	uint64 Rcx;
++	uint64 Rdx;
++	uint64 Rbx;
++	uint64 Rsp;
++	uint64 Rbp;
++	uint64 Rsi;
++	uint64 Rdi;
++	uint64 R8;
++	uint64 R9;
++	uint64 R10;
++	uint64 R11;
++	uint64 R12;
++	uint64 R13;
++	uint64 R14;
++	uint64 R15;
++	uint64 Rip;
++	byte Pad_godefs_0[512];
++	M128a VectorRegister[26];
++	uint64 VectorControl;
++	uint64 DebugControl;
++	uint64 LastBranchToRip;
++	uint64 LastBranchFromRip;
++	uint64 LastExceptionToRip;
++	uint64 LastExceptionFromRip;
++};
+ #pragma pack off
+diff --git a/src/pkg/runtime/windows/amd64/signal.c b/src/pkg/runtime/windows/amd64/signal.c
+index 46951152f5..1e621b7607 100644
+--- a/src/pkg/runtime/windows/amd64/signal.c
++++ b/src/pkg/runtime/windows/amd64/signal.c
+@@ -6,10 +6,97 @@
+ #include "defs.h"
+ #include "os.h"
+ 
++extern void *runtime·sigtramp;
++
++void
++runtime·dumpregs(Context *r)
++{
++	runtime·printf("rax     %X\n", r->Rax);
++	runtime·printf("rbx     %X\n", r->Rbx);
++	runtime·printf("rcx     %X\n", r->Rcx);
++	runtime·printf("rdx     %X\n", r->Rdx);
++	runtime·printf("rdi     %X\n", r->Rdi);
++	runtime·printf("rsi     %X\n", r->Rsi);
++	runtime·printf("rbp     %X\n", r->Rbp);
++	runtime·printf("rsp     %X\n", r->Rsp);
++	runtime·printf("r8      %X\n", r->R8 );
++	runtime·printf("r9      %X\n", r->R9 );
++	runtime·printf("r10     %X\n", r->R10);
++	runtime·printf("r11     %X\n", r->R11);
++	runtime·printf("r12     %X\n", r->R12);
++	runtime·printf("r13     %X\n", r->R13);
++	runtime·printf("r14     %X\n", r->R14);
++	runtime·printf("r15     %X\n", r->R15);
++	runtime·printf("rip     %X\n", r->Rip);
++	runtime·printf("rflags  %X\n", r->EFlags);
++	runtime·printf("cs      %X\n", (uint64)r->SegCs);
++	runtime·printf("fs      %X\n", (uint64)r->SegFs);
++	runtime·printf("gs      %X\n", (uint64)r->SegGs);
++}
++
+ void
+-runtime·initsig(int32 queue)
++runtime·initsig(int32)
+ {
+ 	runtime·siginit();
++	// following line keeps sigtramp alive at link stage
++	// if there's a better way please write it here
++	void *p = runtime·sigtramp;
++	USED(p);
++}
++
++uint32
++runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
++{
++	uintptr *sp;
++
++	switch(info->ExceptionCode) {
++	case EXCEPTION_BREAKPOINT:
++		return 1;
++	}
++
++	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = info->ExceptionCode;
++		gp->sigcode0 = info->ExceptionInformation[0];
++		gp->sigcode1 = info->ExceptionInformation[1];
++		gp->sigpc = r->Rip;
++
++		// Only push runtime·sigpanic if r->rip != 0.
++		// If r->rip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to runtime·sigpanic instead.
++		// (Otherwise the trace will end at runtime·sigpanic and we
++		// won't get to see who faulted.)
++		if(r->Rip != 0) {
++			sp = (uintptr*)r->Rsp;
++			*--sp = r->Rip;
++			r->Rsp = (uintptr)sp;
++		}
++		r->Rip = (uintptr)runtime·sigpanic;
++		return 0;
++	}
++
++	if(runtime·panicking)	// traceback already printed
++		runtime·exit(2);
++	runtime·panicking = 1;
++
++	runtime·printf("Exception %x %p %p\n", info->ExceptionCode,
++		info->ExceptionInformation[0], info->ExceptionInformation[1]);
++
++	runtime·printf("PC=%X\n", r->Rip);
++	runtime·printf("\n");
++
++	if(runtime·gotraceback()){
++		runtime·traceback((void*)r->Rip, (void*)r->Rsp, 0, gp);
++		runtime·tracebackothers(gp);
++		runtime·dumpregs(r);
++	}
++
++	runtime·exit(2);
++	return 0;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/windows/amd64/sys.s b/src/pkg/runtime/windows/amd64/sys.s
+index eb197d72ef..9b4a17eda7 100644
+--- a/src/pkg/runtime/windows/amd64/sys.s
++++ b/src/pkg/runtime/windows/amd64/sys.s
+@@ -70,6 +70,36 @@ TEXT runtime·setlasterror(SB),7,$0
+ 	MOVL	AX, 0x68(CX)
+ 	RET
+ 
++TEXT runtime·sigtramp(SB),7,$56
++	// CX: exception record
++	// R8: context
++
++	// unwinding?
++	TESTL	$6, 4(CX)		// exception flags
++	MOVL	$1, AX
++	JNZ	sigdone
++
++	// copy arguments for call to sighandler
++	MOVQ	CX, 0(SP)
++	MOVQ	R8, 8(SP)
++	get_tls(CX)
++	MOVQ	g(CX), CX
++	MOVQ	CX, 16(SP)
++
++	MOVQ	BX, 24(SP)
++	MOVQ	BP, 32(SP)
++	MOVQ	SI, 40(SP)
++	MOVQ	DI, 48(SP)
++
++	CALL	runtime·sighandler(SB)
++
++	MOVQ	24(SP), BX
++	MOVQ	32(SP), BP
++	MOVQ	40(SP), SI
++	MOVQ	48(SP), DI
++sigdone:
++	RET
++
+ // Windows runs the ctrl handler in a new thread.
+ TEXT runtime·ctrlhandler(SB),7,$0
+ 	PUSHQ	BP
+@@ -182,6 +212,13 @@ TEXT runtime·callbackasm(SB),7,$0
+ 	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
+ 	RET
+ 
++TEXT runtime·setstacklimits(SB),7,$0
++	MOVQ	0x30(GS), CX
++	MOVQ	$0, 0x10(CX)
++	MOVQ	$0xffffffffffff, AX
++	MOVQ	AX, 0x08(CX)
++	RET
++
+ // uint32 tstart_stdcall(M *newm);
+ TEXT runtime·tstart_stdcall(SB),7,$0
+ 	// CX contains first arg newm
+@@ -202,6 +239,7 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ 	// Someday the convention will be D is always cleared.
+ 	CLD
+ 
++	CALL	runtime·setstacklimits(SB)
+ 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
+ 	CALL	runtime·mstart(SB)
+ 
+@@ -215,5 +253,6 @@ TEXT runtime·notok(SB),7,$0
+ 
+ // set tls base to DI
+ TEXT runtime·settls(SB),7,$0
++	CALL	runtime·setstacklimits(SB)
+ 	MOVQ	DI, 0x58(GS)
+ 	RET
+diff --git a/src/pkg/runtime/windows/defs.c b/src/pkg/runtime/windows/defs.c
+index 3b2824940f..b076afd5dd 100644
+--- a/src/pkg/runtime/windows/defs.c
++++ b/src/pkg/runtime/windows/defs.c
+@@ -33,5 +33,10 @@ enum {
+ };
+ 
+ typedef EXCEPTION_RECORD $ExceptionRecord;
++#ifdef _X86_
+ typedef FLOATING_SAVE_AREA $FloatingSaveArea;
++#endif
++#ifdef _AMD64_
++typedef M128A $M128a;
++#endif
+ typedef CONTEXT $Context;

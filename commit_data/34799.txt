@@ -14,10 +14,84 @@ Date:   Thu Nov 9 23:58:42 2017 -0500
     Change-Id: I4b8cd90805accf61f54e3ee167f54f4dc10c7c59
     Reviewed-on: https://go-review.googlesource.com/77152
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cover/func.go                      |  4 ++++
  src/cmd/go/go_test.go                      | 13 +++++++++++++
  src/cmd/go/testdata/src/coverasm/p.go      |  7 +++++++
  src/cmd/go/testdata/src/coverasm/p.s       |  2 ++
  src/cmd/go/testdata/src/coverasm/p_test.go |  7 +++++++
  5 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/cover/func.go b/src/cmd/cover/func.go
+index 05c7c12c99..1673fbf315 100644
+--- a/src/cmd/cover/func.go
++++ b/src/cmd/cover/func.go
+@@ -113,6 +113,10 @@ type FuncVisitor struct {
+ func (v *FuncVisitor) Visit(node ast.Node) ast.Visitor {
+ 	switch n := node.(type) {
+ 	case *ast.FuncDecl:
++		if n.Body == nil {
++			// Do not count declarations of assembly functions.
++			break
++		}
+ 		start := v.fset.Position(n.Pos())
+ 		end := v.fset.Position(n.End())
+ 		fe := &FuncExtent{
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d2933bc3cb..9dd5f8347c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2457,6 +2457,19 @@ func TestCoverageErrorLine(t *testing.T) {
+ 	}
+ }
+ 
++func TestCoverageFunc(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++
++	tg.run("test", "-coverprofile="+filepath.Join(tg.tempdir, "cover.out"), "coverasm")
++	tg.run("tool", "cover", "-func="+filepath.Join(tg.tempdir, "cover.out"))
++	tg.grepStdout(`\tg\t*100.0%`, "did not find g 100% covered")
++	tg.grepStdoutNot(`\tf\t*[0-9]`, "reported coverage for assembly function f")
++}
++
+ func TestPluginNonMain(t *testing.T) {
+ 	wd, err := os.Getwd()
+ 	if err != nil {
+diff --git a/src/cmd/go/testdata/src/coverasm/p.go b/src/cmd/go/testdata/src/coverasm/p.go
+new file mode 100644
+index 0000000000..ab0c300d72
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverasm/p.go
+@@ -0,0 +1,7 @@
++package p
++
++func f()
++
++func g() {
++	println("g")
++}
+diff --git a/src/cmd/go/testdata/src/coverasm/p.s b/src/cmd/go/testdata/src/coverasm/p.s
+new file mode 100644
+index 0000000000..5e728f9946
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverasm/p.s
+@@ -0,0 +1,2 @@
++// empty asm file,
++// so go test doesn't complain about declaration of f in p.go.
+diff --git a/src/cmd/go/testdata/src/coverasm/p_test.go b/src/cmd/go/testdata/src/coverasm/p_test.go
+new file mode 100644
+index 0000000000..3cb3bd5664
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverasm/p_test.go
+@@ -0,0 +1,7 @@
++package p
++
++import "testing"
++
++func Test(t *testing.T) {
++	g()
++}

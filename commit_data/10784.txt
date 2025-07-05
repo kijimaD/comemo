@@ -7,7 +7,34 @@ Date:   Wed Dec 14 10:25:48 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5484073
-
+---
  src/pkg/crypto/tls/root_stub.go | 2 ++
  src/pkg/crypto/tls/root_unix.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/pkg/crypto/tls/root_stub.go b/src/pkg/crypto/tls/root_stub.go
+index 1903eed813..18dcb02043 100644
+--- a/src/pkg/crypto/tls/root_stub.go
++++ b/src/pkg/crypto/tls/root_stub.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build plan9
++
+ package tls
+ 
+ func initDefaultRoots() {
+diff --git a/src/pkg/crypto/tls/root_unix.go b/src/pkg/crypto/tls/root_unix.go
+index 1b9aeb03b5..5bbd9825dc 100644
+--- a/src/pkg/crypto/tls/root_unix.go
++++ b/src/pkg/crypto/tls/root_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build freebsd linux openbsd netbsd
++
+ package tls
+ 
+ import (

@@ -8,6 +8,20 @@ Date:   Fri Aug 15 08:46:16 2014 +0900
     R=golang-codereviews, minux, adg
     CC=golang-codereviews
     https://golang.org/cl/129180043
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 8dec005e71..a8f5963ca7 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -24,7 +24,7 @@ Read the <a href="/doc/go1.3">Go 1.3 Release Notes</a> for more information.
+ 
+ <p>
+ go1.3.1 (released 2014/08/13) includes bug fixes to the compiler and the <code>runtime</code>, <code>net</code>, and <code>crypto/rsa</code> packages.
+-See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1.3&r=40272ab1339ab2fb9e7160483e5e5d42d6b7e810">change history</a> for details.
++See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1.3&r=073fc578434bf3e1e22749b559d273c8da728ebb">change history</a> for details.
+ </p>
+ 
+ <h2 id="go1.2">go1.2 (released 2013/12/01)</h2>

@@ -9,6 +9,20 @@ Date:   Wed Oct 31 15:52:27 2012 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/6817045
-
+---
  doc/articles/json_and_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/json_and_go.html b/doc/articles/json_and_go.html
+index 067e23ce97..aab800e860 100644
+--- a/doc/articles/json_and_go.html
++++ b/doc/articles/json_and_go.html
+@@ -130,7 +130,7 @@ preference):
+ 
+ <ul>
+ <li>
+-An exported field with a tag of <code>"Foo"</code> (see the
++An exported field with a tag of <code>`json:"Foo"`</code> (see the
+ <a href="/ref/spec#Struct_types">Go spec</a> for more on struct tags),
+ </li>
+ <li>

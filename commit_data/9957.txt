@@ -7,6 +7,30 @@ Date:   Thu Oct 13 12:17:55 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5245056
-
+---
  src/cmd/gc/go.y | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 63cff8655c..ea467cd23e 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1546,6 +1546,18 @@ non_dcl_stmt:
+ 	{
+ 		$$ = nod(ORETURN, N, N);
+ 		$$->list = $2;
++		if($$->list == nil) {
++			NodeList *l;
++			
++			for(l=curfn->dcl; l; l=l->next) {
++				if(l->n->class == PPARAM)
++					continue;
++				if(l->n->class != PPARAMOUT)
++					break;
++				if(l->n->sym->def != l->n)
++					yyerror("%s is shadowed during return", l->n->sym->name);
++			}
++		}
+ 	}
+ 
+ stmt_list:

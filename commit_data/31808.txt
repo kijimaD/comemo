@@ -11,7 +11,7 @@ Date:   Fri Mar 17 13:35:36 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/align.go |  6 +++---
  src/cmd/compile/internal/gc/go.go    |  2 +-
  src/cmd/compile/internal/gc/main.go  | 14 +++++++-------
@@ -22,3 +22,321 @@ Date:   Fri Mar 17 13:35:36 2017 -0700
  src/cmd/compile/internal/gc/subr.go  |  2 +-
  src/cmd/compile/internal/gc/walk.go  |  4 ++--
  9 files changed, 36 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 207abe0470..c31464272d 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -20,7 +20,7 @@ func offmod(t *Type) {
+ 	for _, f := range t.Fields().Slice() {
+ 		f.Offset = int64(o)
+ 		o += int32(Widthptr)
+-		if int64(o) >= Thearch.MAXWIDTH {
++		if int64(o) >= thearch.MAXWIDTH {
+ 			yyerror("interface too large")
+ 			o = int32(Widthptr)
+ 		}
+@@ -74,7 +74,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 			lastzero = o
+ 		}
+ 		o += w
+-		maxwidth := Thearch.MAXWIDTH
++		maxwidth := thearch.MAXWIDTH
+ 		// On 32-bit systems, reflect tables impose an additional constraint
+ 		// that each field start offset must fit in 31 bits.
+ 		if maxwidth < 1<<32 {
+@@ -258,7 +258,7 @@ func dowidth(t *Type) {
+ 
+ 		dowidth(t.Elem())
+ 		if t.Elem().Width != 0 {
+-			cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
++			cap := (uint64(thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
+ 			if uint64(t.NumElem()) > cap {
+ 				yyerror("type %L larger than address space", t)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index ecdbd1d9a1..43eb816502 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -382,7 +382,7 @@ type Arch struct {
+ 
+ var pcloc int32
+ 
+-var Thearch Arch
++var thearch Arch
+ 
+ var (
+ 	staticbytes,
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index bcb2ac3d0c..8037096832 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -112,9 +112,9 @@ func Main(archInit func(*Arch)) {
+ 
+ 	defer hidePanic()
+ 
+-	archInit(&Thearch)
++	archInit(&thearch)
+ 
+-	Ctxt = obj.Linknew(Thearch.LinkArch)
++	Ctxt = obj.Linknew(thearch.LinkArch)
+ 	Ctxt.DebugInfo = debuginfo
+ 	Ctxt.DiagFunc = yyerror
+ 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
+@@ -208,11 +208,11 @@ func Main(archInit func(*Arch)) {
+ 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
+ 	var flag_shared bool
+ 	var flag_dynlink bool
+-	if supportsDynlink(Thearch.LinkArch.Arch) {
++	if supportsDynlink(thearch.LinkArch.Arch) {
+ 		flag.BoolVar(&flag_shared, "shared", false, "generate code that can be linked into a shared library")
+ 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
+ 	}
+-	if Thearch.LinkArch.Family == sys.AMD64 {
++	if thearch.LinkArch.Family == sys.AMD64 {
+ 		flag.BoolVar(&flag_largemodel, "largemodel", false, "generate code that assumes a large memory model")
+ 	}
+ 	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
+@@ -336,9 +336,9 @@ func Main(archInit func(*Arch)) {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+ 
+-	Widthint = Thearch.LinkArch.IntSize
+-	Widthptr = Thearch.LinkArch.PtrSize
+-	Widthreg = Thearch.LinkArch.RegSize
++	Widthint = thearch.LinkArch.IntSize
++	Widthptr = thearch.LinkArch.PtrSize
++	Widthreg = thearch.LinkArch.RegSize
+ 
+ 	initUniverse()
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 4b29bb83ae..47c9644a28 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -273,7 +273,7 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
+ 
+ 		dowidth(n.Type)
+ 		w := n.Type.Width
+-		if w >= Thearch.MAXWIDTH || w < 0 {
++		if w >= thearch.MAXWIDTH || w < 0 {
+ 			Fatalf("bad width")
+ 		}
+ 		Stksize += w
+@@ -281,7 +281,7 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
+ 		if haspointers(n.Type) {
+ 			stkptrsize = Stksize
+ 		}
+-		if Thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
++		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
+ 			Stksize = Rnd(Stksize, int64(Widthptr))
+ 		}
+ 		if Stksize >= 1<<31 {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index e8447e4e68..ef45d9d9bc 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -508,7 +508,7 @@ func (lv *Liveness) progeffects(prog *obj.Prog) (uevar, varkill, avarinit []int3
+ 	varkill = lv.cache.varkill[:0]
+ 	avarinit = lv.cache.avarinit[:0]
+ 
+-	info := Thearch.Proginfo(prog)
++	info := thearch.Proginfo(prog)
+ 
+ 	if info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
+ 		from := &prog.From
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 12b8587607..6bee2a342c 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1226,7 +1226,7 @@ func stataddr(nam *Node, n *Node) bool {
+ 		}
+ 
+ 		// Check for overflow.
+-		if n.Type.Width != 0 && Thearch.MAXWIDTH/n.Type.Width <= int64(l) {
++		if n.Type.Width != 0 && thearch.MAXWIDTH/n.Type.Width <= int64(l) {
+ 			break
+ 		}
+ 		nam.Xoffset += int64(l) * n.Type.Width
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5e03e6a3a1..bff3ccddb6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -23,9 +23,9 @@ var ssaExp ssaExport
+ var ssaCache *ssa.Cache
+ 
+ func initssaconfig() {
+-	ssaConfig = ssa.NewConfig(Thearch.LinkArch.Name, &ssaExp, Ctxt, Debug['N'] == 0)
+-	if Thearch.LinkArch.Name == "386" {
+-		ssaConfig.Set387(Thearch.Use387)
++	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, &ssaExp, Ctxt, Debug['N'] == 0)
++	if thearch.LinkArch.Name == "386" {
++		ssaConfig.Set387(thearch.Use387)
+ 	}
+ 	ssaCache = new(ssa.Cache)
+ }
+@@ -1549,18 +1549,18 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 		if ft.IsFloat() || tt.IsFloat() {
+ 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
+-			if s.config.IntSize == 4 && Thearch.LinkArch.Name != "amd64p32" && Thearch.LinkArch.Family != sys.MIPS {
++			if s.config.IntSize == 4 && thearch.LinkArch.Name != "amd64p32" && thearch.LinkArch.Family != sys.MIPS {
+ 				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
+ 					conv = conv1
+ 				}
+ 			}
+-			if Thearch.LinkArch.Name == "arm64" {
++			if thearch.LinkArch.Name == "arm64" {
+ 				if conv1, ok1 := uint64fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
+ 					conv = conv1
+ 				}
+ 			}
+ 
+-			if Thearch.LinkArch.Family == sys.MIPS {
++			if thearch.LinkArch.Family == sys.MIPS {
+ 				if ft.Size() == 4 && ft.IsInteger() && !ft.IsSigned() {
+ 					// tt is float32 or float64, and ft is also unsigned
+ 					if tt.Size() == 4 {
+@@ -2850,7 +2850,7 @@ func findIntrinsic(sym *Sym) intrinsicBuilder {
+ 		return nil
+ 	}
+ 	fn := sym.Name
+-	return intrinsics[intrinsicKey{Thearch.LinkArch.Arch, pkg, fn}]
++	return intrinsics[intrinsicKey{thearch.LinkArch.Arch, pkg, fn}]
+ }
+ 
+ func isIntrinsicCall(n *Node) bool {
+@@ -3378,7 +3378,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
+ 		off += size
+ 	}
+ 	off = Rnd(off, int64(Widthptr))
+-	if Thearch.LinkArch.Name == "amd64p32" {
++	if thearch.LinkArch.Name == "amd64p32" {
+ 		// amd64p32 wants 8-byte alignment of the start of the return values.
+ 		off = Rnd(off, 8)
+ 	}
+@@ -4226,7 +4226,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 		blockProgs[pc] = f.Blocks[0]
+ 	}
+ 
+-	if Thearch.Use387 {
++	if thearch.Use387 {
+ 		s.SSEto387 = map[int16]int16{}
+ 	}
+ 
+@@ -4237,7 +4237,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	for i, b := range f.Blocks {
+ 		s.bstart[b.ID] = pc
+ 		// Emit values in block
+-		Thearch.SSAMarkMoves(&s, b)
++		thearch.SSAMarkMoves(&s, b)
+ 		for _, v := range b.Values {
+ 			x := pc
+ 			s.SetPos(v.Pos)
+@@ -4267,7 +4267,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 
+ 			default:
+ 				// let the backend handle it
+-				Thearch.SSAGenValue(&s, v)
++				thearch.SSAGenValue(&s, v)
+ 			}
+ 
+ 			if logProgs {
+@@ -4287,7 +4287,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 		}
+ 		x := pc
+ 		s.SetPos(b.Pos)
+-		Thearch.SSAGenBlock(&s, b, next)
++		thearch.SSAGenBlock(&s, b, next)
+ 		if logProgs {
+ 			for ; x != pc; x = x.Link {
+ 				blockProgs[x] = b
+@@ -4345,7 +4345,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	liveness(Curfn, ptxt, gcargs, gclocals)
+ 
+ 	// Add frame prologue. Zero ambiguously live variables.
+-	Thearch.Defframe(ptxt)
++	thearch.Defframe(ptxt)
+ 	if Debug['f'] != 0 {
+ 		frame(0)
+ 	}
+@@ -4570,7 +4570,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
+ 	a.Type = obj.TYPE_MEM
+ 	a.Node = n
+ 	a.Sym = Linksym(n.Sym)
+-	a.Reg = int16(Thearch.REGSP)
++	a.Reg = int16(thearch.REGSP)
+ 	a.Offset = n.Xoffset + off
+ 	if n.Class == PPARAM || n.Class == PPARAMOUT {
+ 		a.Name = obj.NAME_PARAM
+@@ -4587,7 +4587,7 @@ func (s *SSAGenState) AddrScratch(a *obj.Addr) {
+ 	a.Name = obj.NAME_AUTO
+ 	a.Node = s.ScratchFpMem
+ 	a.Sym = Linksym(s.ScratchFpMem.Sym)
+-	a.Reg = int16(Thearch.REGSP)
++	a.Reg = int16(thearch.REGSP)
+ 	a.Offset = s.ScratchFpMem.Xoffset
+ }
+ 
+@@ -4601,7 +4601,7 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+ 		// insert an actual hardware NOP that will have the right line number.
+ 		// This is different from obj.ANOP, which is a virtual no-op
+ 		// that doesn't make it into the instruction stream.
+-		Thearch.Ginsnop()
++		thearch.Ginsnop()
+ 	}
+ 
+ 	p := Prog(obj.ACALL)
+@@ -4611,7 +4611,7 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+ 		p.To.Sym = sym
+ 	} else {
+ 		// TODO(mdempsky): Can these differences be eliminated?
+-		switch Thearch.LinkArch.Family {
++		switch thearch.LinkArch.Family {
+ 		case sys.AMD64, sys.I386, sys.PPC64, sys.S390X:
+ 			p.To.Type = obj.TYPE_REG
+ 		case sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64:
+@@ -4768,7 +4768,7 @@ func (e *ssaExport) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
+ 		return ssa.LocalSlot{N: h, Type: t, Off: 0}, ssa.LocalSlot{N: l, Type: Types[TUINT32], Off: 0}
+ 	}
+ 	// Return the two parts of the larger variable.
+-	if Thearch.LinkArch.ByteOrder == binary.BigEndian {
++	if thearch.LinkArch.ByteOrder == binary.BigEndian {
+ 		return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: Types[TUINT32], Off: name.Off + 4}
+ 	}
+ 	return ssa.LocalSlot{N: n, Type: t, Off: name.Off + 4}, ssa.LocalSlot{N: n, Type: Types[TUINT32], Off: name.Off}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 4817d6f3a6..b393e48a08 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1766,7 +1766,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	// the TOC to the appropriate value for that module. But if it returns
+ 	// directly to the wrapper's caller, nothing will reset it to the correct
+ 	// value for that function.
+-	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(Thearch.LinkArch.Name == "ppc64le" && Ctxt.Flag_dynlink) {
++	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(thearch.LinkArch.Name == "ppc64le" && Ctxt.Flag_dynlink) {
+ 		// generate tail call: adjust pointer receiver and jump to embedded method.
+ 		dot = dot.Left // skip final .M
+ 		// TODO(mdempsky): Remove dependency on dotlist.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 5db29bdca9..e401f174bc 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1009,7 +1009,7 @@ opswitch:
+ 		n = walkexpr(n, init)
+ 
+ 	case OCONV, OCONVNOP:
+-		if Thearch.LinkArch.Family == sys.ARM || Thearch.LinkArch.Family == sys.MIPS {
++		if thearch.LinkArch.Family == sys.ARM || thearch.LinkArch.Family == sys.MIPS {
+ 			if n.Left.Type.IsFloat() {
+ 				if n.Type.Etype == TINT64 {
+ 					n = mkcall("float64toint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
+@@ -1035,7 +1035,7 @@ opswitch:
+ 			}
+ 		}
+ 
+-		if Thearch.LinkArch.Family == sys.I386 {
++		if thearch.LinkArch.Family == sys.I386 {
+ 			if n.Left.Type.IsFloat() {
+ 				if n.Type.Etype == TINT64 {
+ 					n = mkcall("float64toint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))

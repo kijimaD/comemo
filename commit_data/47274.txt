@@ -13,7 +13,48 @@ Date:   Fri Mar 5 09:49:28 2021 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 8 ++++++++
  src/cmd/compile/internal/typecheck/iimport.go | 3 +++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 38ac753201..6f33ca1597 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -246,6 +246,11 @@ const (
+ 	interfaceType
+ )
+ 
++const (
++	debug = false
++	magic = 0x6742937dc293105
++)
++
+ func WriteExports(out *bufio.Writer) {
+ 	p := iexporter{
+ 		allPkgs:     map[*types.Pkg]bool{},
+@@ -1584,6 +1589,9 @@ func (w *exportWriter) expr(n ir.Node) {
+ }
+ 
+ func (w *exportWriter) op(op ir.Op) {
++	if debug {
++		w.uint64(magic)
++	}
+ 	w.uint64(uint64(op))
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 8df75b2285..d7c118b631 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1228,6 +1228,9 @@ func (r *importReader) node() ir.Node {
+ }
+ 
+ func (r *importReader) op() ir.Op {
++	if debug && r.uint64() != magic {
++		base.Fatalf("import stream has desynchronized")
++	}
+ 	return ir.Op(r.uint64())
+ }
+ 

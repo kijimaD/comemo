@@ -20,7 +20,48 @@ Date:   Sun Jun 25 21:17:52 2017 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/benchmark.go |  8 +++-----
  src/testing/sub_test.go  | 10 ++++++++++
  2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 8b7f5cebaf..be9e96d50c 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -73,11 +73,9 @@ type B struct {
+ // a call to StopTimer.
+ func (b *B) StartTimer() {
+ 	if !b.timerOn {
+-		if *benchmarkMemory || b.showAllocResult {
+-			runtime.ReadMemStats(&memStats)
+-			b.startAllocs = memStats.Mallocs
+-			b.startBytes = memStats.TotalAlloc
+-		}
++		runtime.ReadMemStats(&memStats)
++		b.startAllocs = memStats.Mallocs
++		b.startBytes = memStats.TotalAlloc
+ 		b.start = time.Now()
+ 		b.timerOn = true
+ 	}
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index af2d39c5be..acf5dea878 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -540,6 +540,16 @@ func TestBenchmarkStartsFrom1(t *T) {
+ 	})
+ }
+ 
++func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
++	var first = true
++	Benchmark(func(b *B) {
++		if first && (b.startAllocs == 0 || b.startBytes == 0) {
++			panic(fmt.Sprintf("ReadMemStats not called before first run"))
++		}
++		first = false
++	})
++}
++
+ func TestParallelSub(t *T) {
+ 	c := make(chan int)
+ 	block := make(chan int)

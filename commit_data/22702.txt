@@ -11,6 +11,22 @@ Date:   Thu Apr 2 20:13:17 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/8431
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  src/cmd/7g/prog.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/7g/prog.go b/src/cmd/7g/prog.go
+index f503f78ef1..2763e27a1e 100644
+--- a/src/cmd/7g/prog.go
++++ b/src/cmd/7g/prog.go
+@@ -70,8 +70,8 @@ var progtable = [arm64.ALAST]obj.ProgInfo{
+ 	arm64.AFMULS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+ 	arm64.AFDIVD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+ 	arm64.AFDIVS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFCMPD: {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	arm64.AFCMPS: {gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm64.AFCMPD: {gc.SizeD | gc.LeftRead | gc.RegRead, 0, 0, 0},
++	arm64.AFCMPS: {gc.SizeF | gc.LeftRead | gc.RegRead, 0, 0, 0},
+ 
+ 	// float -> integer
+ 	arm64.AFCVTZSD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},

@@ -7,6 +7,22 @@ Date:   Wed Dec 18 14:17:47 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/43730043
-
+---
  src/pkg/runtime/runtime_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/runtime_test.go b/src/pkg/runtime/runtime_test.go
+index 238b70572f..f6b48ba3a6 100644
+--- a/src/pkg/runtime/runtime_test.go
++++ b/src/pkg/runtime/runtime_test.go
+@@ -93,6 +93,10 @@ func BenchmarkDeferMany(b *testing.B) {
+ // The value reported will include the padding between runtime.gogo and the
+ // next function in memory. That's fine.
+ func TestRuntimeGogoBytes(t *testing.T) {
++	// TODO(brainman): delete when issue 6973 is fixed.
++	if GOOS == "windows" {
++		t.Skip("skipping broken test on windows")
++	}
+ 	dir, err := ioutil.TempDir("", "go-build")
+ 	if err != nil {
+ 		t.Fatalf("failed to create temp directory: %v", err)

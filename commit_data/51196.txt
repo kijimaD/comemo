@@ -33,9 +33,115 @@ Date:   Mon Dec 13 14:28:17 2021 -0500
     Reviewed-by: Patrik Nyblom <pnyb@google.com>
     Trust: Patrik Nyblom <pnyb@google.com>
     Run-TryBot: Patrik Nyblom <pnyb@google.com>
-
+---
  src/runtime/syscall_windows_test.go |  1 +
  src/testing/testing.go              | 32 +++++++++++++++++++++++++++++++-
  src/testing/testing_other.go        | 13 +++++++++++++
  src/testing/testing_windows.go      | 18 ++++++++++++++++++
  4 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 101e94107c..dcd390ff9d 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -770,6 +770,7 @@ func TestSyscallN(t *testing.T) {
+ 	for arglen := 0; arglen <= runtime.MaxArgs; arglen++ {
+ 		arglen := arglen
+ 		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
++			t.Parallel()
+ 			args := make([]string, arglen)
+ 			rets := make([]string, arglen+1)
+ 			params := make([]uintptr, arglen)
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 7bd13a850c..a8c8122aa7 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1087,7 +1087,7 @@ func (c *common) TempDir() string {
+ 		c.tempDir, c.tempDirErr = os.MkdirTemp("", pattern)
+ 		if c.tempDirErr == nil {
+ 			c.Cleanup(func() {
+-				if err := os.RemoveAll(c.tempDir); err != nil {
++				if err := removeAll(c.tempDir); err != nil {
+ 					c.Errorf("TempDir RemoveAll cleanup: %v", err)
+ 				}
+ 			})
+@@ -1106,6 +1106,36 @@ func (c *common) TempDir() string {
+ 	return dir
+ }
+ 
++// removeAll is like os.RemoveAll, but retries Windows "Access is denied."
++// errors up to an arbitrary timeout.
++//
++// Those errors have been known to occur spuriously on at least the
++// windows-amd64-2012 builder (https://go.dev/issue/50051), and can only occur
++// legitimately if the test leaves behind a temp file that either is still open
++// or the test otherwise lacks permission to delete. In the case of legitimate
++// failures, a failing test may take a bit longer to fail, but once the test is
++// fixed the extra latency will go away.
++func removeAll(path string) error {
++	const arbitraryTimeout = 2 * time.Second
++	var (
++		start     time.Time
++		nextSleep = 1 * time.Millisecond
++	)
++	for {
++		err := os.RemoveAll(path)
++		if !isWindowsAccessDenied(err) {
++			return err
++		}
++		if start.IsZero() {
++			start = time.Now()
++		} else if d := time.Since(start) + nextSleep; d >= arbitraryTimeout {
++			return err
++		}
++		time.Sleep(nextSleep)
++		nextSleep += time.Duration(rand.Int63n(int64(nextSleep)))
++	}
++}
++
+ // Setenv calls os.Setenv(key, value) and uses Cleanup to
+ // restore the environment variable to its original value
+ // after the test.
+diff --git a/src/testing/testing_other.go b/src/testing/testing_other.go
+new file mode 100644
+index 0000000000..29496d81bc
+--- /dev/null
++++ b/src/testing/testing_other.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !windows
++
++package testing
++
++// isWindowsAccessDenied reports whether err is ERROR_ACCESS_DENIED,
++// which is defined only on Windows.
++func isWindowsAccessDenied(err error) bool {
++	return false
++}
+diff --git a/src/testing/testing_windows.go b/src/testing/testing_windows.go
+new file mode 100644
+index 0000000000..bc76cb80cc
+--- /dev/null
++++ b/src/testing/testing_windows.go
+@@ -0,0 +1,18 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build windows
++
++package testing
++
++import (
++	"errors"
++	"syscall"
++)
++
++// isWindowsAccessDenied reports whether err is ERROR_ACCESS_DENIED,
++// which is defined only on Windows.
++func isWindowsAccessDenied(err error) bool {
++	return errors.Is(err, syscall.ERROR_ACCESS_DENIED)
++}

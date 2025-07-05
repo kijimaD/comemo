@@ -14,7 +14,38 @@ Date:   Sun Feb 21 15:28:41 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/testing/fstest/testfs.go      | 2 +-
  src/testing/fstest/testfs_test.go | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 8fc8acaaf3..736bbf0590 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -303,7 +303,7 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
+ 		for i, e := range elem {
+ 			var pattern []rune
+ 			for j, r := range e {
+-				if r == '*' || r == '?' || r == '\\' || r == '[' {
++				if r == '*' || r == '?' || r == '\\' || r == '[' || r == '-' {
+ 					pattern = append(pattern, '\\', r)
+ 					continue
+ 				}
+diff --git a/src/testing/fstest/testfs_test.go b/src/testing/fstest/testfs_test.go
+index 5b8813c343..aefb4b3361 100644
+--- a/src/testing/fstest/testfs_test.go
++++ b/src/testing/fstest/testfs_test.go
+@@ -29,3 +29,12 @@ func TestSymlink(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func TestDash(t *testing.T) {
++	m := MapFS{
++		"a-b/a": {Data: []byte("a-b/a")},
++	}
++	if err := TestFS(m, "a-b/a"); err != nil {
++		t.Error(err)
++	}
++}

@@ -7,6 +7,17 @@ Date:   Mon Dec 8 11:39:11 2014 +1100
     Change-Id: I5c788d324e56ca88366fb54b67240cebf5dced2c
     Reviewed-on: https://go-review.googlesource.com/1171
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  .gitignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.gitignore b/.gitignore
+index c695683005..d859e34386 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -48,4 +48,5 @@ goinstall.log
+ last-change
+ VERSION.cache
+ 
++bin/
+ pkg/

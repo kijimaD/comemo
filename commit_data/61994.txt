@@ -16,6 +16,30 @@ Date:   Mon Jan 6 16:22:10 2025 -0800
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/testdata/issue70974.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue70974.go b/src/cmd/compile/internal/syntax/testdata/issue70974.go
+new file mode 100644
+index 0000000000..ebc69eda95
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue70974.go
+@@ -0,0 +1,17 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++M:
++L:
++	for range 0 {
++		break L
++		break /* ERROR invalid break label M */ M
++	}
++	for range 0 {
++		break /* ERROR invalid break label L */ L
++	}
++}

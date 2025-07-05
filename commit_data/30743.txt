@@ -9,6 +9,37 @@ Date:   Thu Dec 1 00:48:51 2016 +0000
     Change-Id: I57af6b0c0d5ecdaf19cf6f969b05ec9ec03058f1
     Reviewed-on: https://go-review.googlesource.com/33756
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/binary/binary.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index fd360a2e54..3834254596 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -7,7 +7,7 @@
+ //
+ // Numbers are translated by reading and writing fixed-size values.
+ // A fixed-size value is either a fixed-size arithmetic
+-// type (int8, uint8, int16, float32, complex64, ...)
++// type (bool, int8, uint8, int16, float32, complex64, ...)
+ // or an array or struct containing only fixed-size values.
+ //
+ // The varint functions encode and decode single integer values using
+@@ -147,6 +147,8 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
+ // of fixed-size values.
+ // Bytes read from r are decoded using the specified byte order
+ // and written to successive fields of the data.
++// When decoding boolean values, a zero byte is decoded as false, and
++// any other non-zero byte is decoded as true.
+ // When reading into structs, the field data for fields with
+ // blank (_) field names is skipped; i.e., blank field names
+ // may be used for padding.
+@@ -249,6 +251,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ // Write writes the binary representation of data into w.
+ // Data must be a fixed-size value or a slice of fixed-size
+ // values, or a pointer to such data.
++// Boolean values encode as one byte: 1 for true, and 0 for false.
+ // Bytes written to w are encoded using the specified byte order
+ // and read from successive fields of the data.
+ // When writing structs, zero values are written for fields

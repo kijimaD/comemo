@@ -18,7 +18,48 @@ Date:   Thu May 17 23:56:11 2018 -0400
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Dominik Honnef <dominik@honnef.co>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/parser/parser.go          | 6 ++++++
  src/go/types/testdata/issues.src | 8 ++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 7671d2a4bb..189bfb4223 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1830,6 +1830,7 @@ func (p *parser) makeExpr(s ast.Stmt, want string) ast.Expr {
+ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
+ 	if p.tok == token.LBRACE {
+ 		p.error(p.pos, "missing condition in if statement")
++		cond = &ast.BadExpr{From: p.pos, To: p.pos}
+ 		return
+ 	}
+ 	// p.tok != token.LBRACE
+@@ -1877,6 +1878,11 @@ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
+ 		}
+ 	}
+ 
++	// make sure we have a valid AST
++	if cond == nil {
++		cond = &ast.BadExpr{From: p.pos, To: p.pos}
++	}
++
+ 	p.exprLev = outer
+ 	return
+ }
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 8c11b376c8..da6dc6320a 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -240,3 +240,11 @@ func issue24140(x interface{}) int {
+                 panic(0)
+         }
+ }
++
++// Test that we don't crash when the 'if' condition is missing.
++func issue25438() {
++	if { /* ERROR missing condition */ }
++	if x := 0; /* ERROR missing condition */ { _ = x }
++	if
++	{ /* ERROR missing condition */ }
++}

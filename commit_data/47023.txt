@@ -14,6 +14,23 @@ Date:   Fri Feb 19 17:01:35 2021 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 168c1d4496..14321b0934 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -591,6 +591,11 @@ func TestMorestack(t *testing.T) {
+ 		// https://build.golang.org/log/280d387327806e17c8aabeb38b9503dbbd942ed1
+ 		t.Skip("skipping on darwin race detector")
+ 	}
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++		// For whatever reason, darwin/arm64 also doesn't work.
++		// https://build.golang.org/log/c45e82cc25f152642e6fb90d882ef5a8cd130ce5
++		t.Skip("skipping on darwin/arm64")
++	}
+ 	testCPUProfile(t, stackContainsAll, []string{"runtime.newstack,runtime/pprof.growstack"}, avoidFunctions(), func(duration time.Duration) {
+ 		t := time.After(duration)
+ 		c := make(chan bool)

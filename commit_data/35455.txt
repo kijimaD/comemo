@@ -10,7 +10,41 @@ Date:   Sun Jan 14 04:05:21 2018 +0900
     Reviewed-on: https://go-review.googlesource.com/87695
     Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go |  2 +-
  test/fixedbugs/issue23298.go        | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f48513dc73..872b20925e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1665,7 +1665,7 @@ opswitch:
+ 			a = nod(OADDR, temp(t), nil)
+ 		}
+ 
+-		n = mkcall("stringtoslicerune", n.Type, init, a, n.Left)
++		n = mkcall("stringtoslicerune", n.Type, init, a, conv(n.Left, types.Types[TSTRING]))
+ 
+ 		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
+ 	case OCMPIFACE:
+diff --git a/test/fixedbugs/issue23298.go b/test/fixedbugs/issue23298.go
+new file mode 100644
+index 0000000000..be00a8ec67
+--- /dev/null
++++ b/test/fixedbugs/issue23298.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T string
++
++var (
++	t = T("T")
++	r = []rune(t)
++)

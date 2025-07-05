@@ -18,7 +18,133 @@ Date:   Thu Dec 21 08:21:59 2023 -0500
     Auto-Submit: Than McIntosh <thanm@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/work/exec.go          | 29 +++++++------
  src/cmd/go/testdata/script/cover_swig.txt | 72 +++++++++++++++++++++++++++++++
  2 files changed, 88 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index ecad324886..e05471b06c 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -629,19 +629,6 @@ OverlayLoop:
+ 		}
+ 	}
+ 
+-	// Run SWIG on each .swig and .swigcxx file.
+-	// Each run will generate two files, a .go file and a .c or .cxx file.
+-	// The .go file will use import "C" and is to be processed by cgo.
+-	if p.UsesSwig() {
+-		outGo, outC, outCXX, err := b.swig(a, objdir, pcCFLAGS)
+-		if err != nil {
+-			return err
+-		}
+-		cgofiles = append(cgofiles, outGo...)
+-		cfiles = append(cfiles, outC...)
+-		cxxfiles = append(cxxfiles, outCXX...)
+-	}
+-
+ 	// If we're doing coverage, preprocess the .go files and put them in the work directory
+ 	if p.Internal.Cover.Mode != "" {
+ 		outfiles := []string{}
+@@ -722,6 +709,22 @@ OverlayLoop:
+ 		}
+ 	}
+ 
++	// Run SWIG on each .swig and .swigcxx file.
++	// Each run will generate two files, a .go file and a .c or .cxx file.
++	// The .go file will use import "C" and is to be processed by cgo.
++	// For -cover test or build runs, this needs to happen after the cover
++	// tool is run; we don't want to instrument swig-generated Go files,
++	// see issue #64661.
++	if p.UsesSwig() {
++		outGo, outC, outCXX, err := b.swig(a, objdir, pcCFLAGS)
++		if err != nil {
++			return err
++		}
++		cgofiles = append(cgofiles, outGo...)
++		cfiles = append(cfiles, outC...)
++		cxxfiles = append(cxxfiles, outCXX...)
++	}
++
+ 	// Run cgo.
+ 	if p.UsesCgo() || p.UsesSwig() {
+ 		// In a package using cgo, cgo compiles the C, C++ and assembly files with gcc.
+diff --git a/src/cmd/go/testdata/script/cover_swig.txt b/src/cmd/go/testdata/script/cover_swig.txt
+new file mode 100644
+index 0000000000..decb29aaec
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_swig.txt
+@@ -0,0 +1,72 @@
++
++# Testcase for issue 64661.  This testcase is intended to verify that
++# we don't try to send swig-generated Go files through the cover tool
++# for "go test -cover" runs on packages that have *.swig source files.
++
++[!exec:swig] skip
++[!cgo] skip
++
++go test -v -count=1 -coverprofile=foo.p
++stdout 'coverage: 100.0% of statements'
++
++-- go.mod --
++module simple
++
++go 1.21
++-- main.c --
++/* A global variable */
++double Foo = 3.0;
++
++/* Compute the greatest common divisor of positive integers */
++int gcd(int x, int y) {
++  int g;
++  g = y;
++  while (x > 0) {
++    g = x;
++    x = y % x;
++    y = g;
++  }
++  return g;
++}
++
++
++-- main.go --
++package main
++
++import (
++	"fmt"
++)
++
++func main() {
++	// Call our gcd() function
++	x := 42
++	y := 105
++	g := Gcd(x, y)
++	fmt.Println("The gcd of", x, "and", y, "is", g)
++
++	// Manipulate the Foo global variable
++
++	// Output its current value
++	fmt.Println("Foo =", GetFoo())
++
++	// Change its value
++	SetFoo(3.1415926)
++
++	// See if the change took effect
++	fmt.Println("Foo =", GetFoo())
++}
++-- main.swig --
++%module main
++
++%inline %{
++extern int    gcd(int x, int y);
++extern double Foo;
++%}
++-- main_test.go --
++package main
++
++import "testing"
++
++func TestSwigFuncs(t *testing.T) {
++	main()
++}

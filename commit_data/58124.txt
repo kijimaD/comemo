@@ -13,6 +13,19 @@ Date:   Tue Oct 3 22:19:42 2023 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/time/time.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 1db9d3768e..9d4c6e919e 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -113,7 +113,6 @@ import (
+ // Time with a specific Location. Changing the Location of a Time value with
+ // these methods does not change the actual instant it represents, only the time
+ // zone in which to interpret it.
+-
+ //
+ // Representations of a Time value saved by the GobEncode, MarshalBinary,
+ // MarshalJSON, and MarshalText methods store the Time.Location's offset, but not

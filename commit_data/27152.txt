@@ -14,7 +14,7 @@ Date:   Sun Mar 13 14:24:22 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/20646
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go      | 27 ++++++++++-------
  src/cmd/compile/internal/arm/peep.go |  1 -
  src/cmd/compile/internal/gc/gsubr.go |  2 +-
@@ -25,3 +25,213 @@ Date:   Sun Mar 13 14:24:22 2016 -0700
  src/cmd/internal/obj/util.go         |  2 +-
  src/cmd/internal/obj/x86/asm6.go     |  1 -
  9 files changed, 21 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index a59fb23038..235fc9ea86 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -219,18 +219,23 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
+ 	}
+ 	p.dataAddr[name] = nameAddr.Offset + int64(scale)
+ 
+-	prog := &obj.Prog{
+-		Ctxt:   p.ctxt,
+-		As:     obj.ADATA,
+-		Lineno: p.histLineNum,
+-		From:   nameAddr,
+-		From3: &obj.Addr{
+-			Offset: int64(scale),
+-		},
+-		To: valueAddr,
++	switch valueAddr.Type {
++	case obj.TYPE_CONST:
++		nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Offset)
++	case obj.TYPE_FCONST:
++		switch scale {
++		case 4:
++			nameAddr.Sym.WriteFloat32(p.ctxt, nameAddr.Offset, float32(valueAddr.Val.(float64)))
++		case 8:
++			nameAddr.Sym.WriteFloat64(p.ctxt, nameAddr.Offset, valueAddr.Val.(float64))
++		default:
++			panic("bad float scale")
++		}
++	case obj.TYPE_SCONST:
++		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Val.(string))
++	case obj.TYPE_ADDR:
++		nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Sym, valueAddr.Offset)
+ 	}
+-
+-	p.append(prog, "", false)
+ }
+ 
+ // asmGlobl assembles a GLOBL pseudo-op.
+diff --git a/src/cmd/compile/internal/arm/peep.go b/src/cmd/compile/internal/arm/peep.go
+index 700b909fe5..9e5bba5a61 100644
+--- a/src/cmd/compile/internal/arm/peep.go
++++ b/src/cmd/compile/internal/arm/peep.go
+@@ -1547,7 +1547,6 @@ func predicable(p *obj.Prog) bool {
+ 	switch p.As {
+ 	case obj.ANOP,
+ 		obj.AXXX,
+-		obj.ADATA,
+ 		obj.AGLOBL,
+ 		obj.ATEXT,
+ 		arm.AWORD:
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 9584176d9d..072a66634b 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -100,7 +100,7 @@ func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
+ func Prog(as obj.As) *obj.Prog {
+ 	var p *obj.Prog
+ 
+-	if as == obj.ADATA || as == obj.AGLOBL {
++	if as == obj.AGLOBL {
+ 		if ddumped {
+ 			Fatalf("already dumped data")
+ 		}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 683989a720..d512986452 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -864,7 +864,7 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
+ 		if false {
+ 			fmt.Printf("analyzing '%v'\n", p)
+ 		}
+-		if p.As != obj.ADATA && p.As != obj.AGLOBL && p.As != obj.ATYPE {
++		if p.As != obj.AGLOBL && p.As != obj.ATYPE {
+ 			checkprog(fn, p)
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index ad31aee7f0..1f09c9de12 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -110,65 +110,6 @@ func (s *LSym) WriteString(ctxt *Link, off, siz int64, str string) {
+ 	copy(s.P[off:off+siz], str)
+ }
+ 
+-func savedata(ctxt *Link, p *Prog) {
+-	s := p.From.Sym
+-	off := int32(p.From.Offset)
+-	siz := int32(p.From3.Offset)
+-	if off < 0 || siz < 0 || off >= 1<<30 || siz >= 100 {
+-		log.Fatalf("savedata: bad off=%d siz=%d", off, siz)
+-	}
+-	if s.Type == SBSS || s.Type == STLSBSS {
+-		ctxt.Diag("cannot supply data for BSS var")
+-	}
+-	Symgrow(ctxt, s, int64(off+siz))
+-
+-	switch p.To.Type {
+-	default:
+-		ctxt.Diag("bad data: %v", p)
+-
+-	case TYPE_FCONST:
+-		switch siz {
+-		default:
+-			ctxt.Diag("unexpected %d-byte floating point constant", siz)
+-
+-		case 4:
+-			flt := math.Float32bits(float32(p.To.Val.(float64)))
+-			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], flt)
+-
+-		case 8:
+-			flt := math.Float64bits(p.To.Val.(float64))
+-			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], flt)
+-		}
+-
+-	case TYPE_SCONST:
+-		copy(s.P[off:off+siz], p.To.Val.(string))
+-
+-	case TYPE_CONST, TYPE_ADDR:
+-		if p.To.Sym != nil || p.To.Type == TYPE_ADDR {
+-			r := Addrel(s)
+-			r.Off = off
+-			r.Siz = uint8(siz)
+-			r.Sym = p.To.Sym
+-			r.Type = R_ADDR
+-			r.Add = p.To.Offset
+-			break
+-		}
+-		o := p.To.Offset
+-		switch siz {
+-		default:
+-			ctxt.Diag("unexpected %d-byte integer constant", siz)
+-		case 1:
+-			s.P[off] = byte(o)
+-		case 2:
+-			ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(o))
+-		case 4:
+-			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(o))
+-		case 8:
+-			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(o))
+-		}
+-	}
+-}
+-
+ func Addrel(s *LSym) *Reloc {
+ 	s.R = append(s.R, Reloc{})
+ 	return &s.R[len(s.R)-1]
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 91837145ef..cfd4c73675 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -198,7 +198,7 @@ const (
+ )
+ 
+ // TODO(rsc): Describe prog.
+-// TODO(rsc): Describe TEXT/GLOBL flag in from3, DATA width in from3.
++// TODO(rsc): Describe TEXT/GLOBL flag in from3
+ type Prog struct {
+ 	Ctxt   *Link
+ 	Link   *Prog
+@@ -266,7 +266,7 @@ const (
+ 	AXXX As = iota
+ 	ACALL
+ 	ACHECKNIL
+-	ADATA
++	ADATA // used only by the assembler for parsing
+ 	ADUFFCOPY
+ 	ADUFFZERO
+ 	AEND
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 0920edafff..21641a4c20 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -200,10 +200,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				ctxt.Edata = s
+ 				continue
+ 
+-			case ADATA:
+-				savedata(ctxt, p)
+-				continue
+-
+ 			case ATEXT:
+ 				s := p.From.Sym
+ 				if s == nil {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index bd533a0036..05cfd8c720 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -288,7 +288,7 @@ func (p *Prog) String() string {
+ 		sep = ", "
+ 	}
+ 	if p.From3Type() != TYPE_NONE {
+-		if p.From3.Type == TYPE_CONST && (p.As == ADATA || p.As == ATEXT || p.As == AGLOBL) {
++		if p.From3.Type == TYPE_CONST && (p.As == ATEXT || p.As == AGLOBL) {
+ 			// Special case - omit $.
+ 			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
+ 		} else {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index c976481229..481b08b304 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1100,7 +1100,6 @@ var optab =
+ 	{ACQO, ynone, Pw, [23]uint8{0x99}},
+ 	{ADAA, ynone, P32, [23]uint8{0x27}},
+ 	{ADAS, ynone, P32, [23]uint8{0x2f}},
+-	{obj.ADATA, nil, 0, [23]uint8{}},
+ 	{ADECB, yincb, Pb, [23]uint8{0xfe, 01}},
+ 	{ADECL, yincl, Px1, [23]uint8{0x48, 0xff, 01}},
+ 	{ADECQ, yincq, Pw, [23]uint8{0xff, 01}},

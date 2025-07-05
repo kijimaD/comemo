@@ -7,9 +7,139 @@ Date:   Fri Oct 24 14:56:54 2008 -0700
     R=ken
     OCL=17819
     CL=17819
-
+---
  src/cmd/gc/dcl.c  | 15 ++++++++++-----
  src/cmd/gc/subr.c | 17 +++++++++++++++--
  test/golden.out   |  6 +++---
  test/method1.go   | 18 ++++++++++++++++++
  4 files changed, 46 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index f836f3ba74..649ecddc80 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -279,8 +279,10 @@ addmethod(Node *n, Type *t, int local)
+ 			d = f;
+ 			continue;
+ 		}
+-		if(!eqtype(t, f->type, 0))
++		if(!eqtype(t, f->type, 0)) {
+ 			yyerror("method redeclared: %S of type %S", sf, st);
++			print("\t%T\n\t%T\n", f->type, t);
++		}
+ 		return;
+ 	}
+ 
+@@ -337,10 +339,13 @@ funchdr(Node *n)
+ 	// check for same types
+ 	if(on != N) {
+ 		if(eqtype(n->type, on->type, 0)) {
+-			if(!eqargs(n->type, on->type))
+-				yyerror("forward declarations not the same: %S", s);
++			if(!eqargs(n->type, on->type)) {
++				yyerror("function arg names changed: %S", s);
++				print("\t%T\n\t%T\n", on->type, n->type);
++			}
+ 		} else {
+-			yyerror("redeclare of function: %S", s);
++			yyerror("function redeclared: %S", s);
++			print("\t%T\n\t%T\n", on->type, n->type);
+ 			on = N;
+ 		}
+ 	}
+@@ -674,7 +679,7 @@ addvar(Node *n, Type *t, int ctxt)
+ 	if(s->vblock == block) {
+ 		if(s->oname != N) {
+ 			yyerror("var %S redeclared in this block"
+-				"\n     previous declaration at %L",
++				"\n\tprevious declaration at %L",
+ 				s, s->oname->lineno);
+ 		} else
+ 			yyerror("var %S redeclared in this block", s);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 4e1a9ea3a3..50223cce78 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1763,9 +1763,11 @@ eqtype(Type *t1, Type *t2, int d)
+ 		return 1;
+ 
+ 	case TFUNC:
++		// Loop over structs: receiver, in, out.
+ 		t1 = t1->type;
+ 		t2 = t2->type;
+ 		for(;;) {
++			Type *ta, *tb;
+ 			if(t1 == t2)
+ 				break;
+ 			if(t1 == T || t2 == T)
+@@ -1773,8 +1775,19 @@ eqtype(Type *t1, Type *t2, int d)
+ 			if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
+ 				return 0;
+ 
+-			if(!eqtype(t1->type, t2->type, 0))
+-				return 0;
++			// Loop over fields in structs, checking type only.
++			ta = t1->type;
++			tb = t2->type;
++			while(ta != tb) {
++				if(ta == T || tb == T)
++					return 0;
++				if(ta->etype != TFIELD || tb->etype != TFIELD)
++					return 0;
++				if(!eqtype(ta->type, tb->type, 0))
++					return 0;
++				ta = ta->down;
++				tb = tb->down;
++			}
+ 
+ 			t1 = t1->down;
+ 			t2 = t2->down;
+diff --git a/test/golden.out b/test/golden.out
+index 93d080c732..ec8b29af1d 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -182,9 +182,9 @@ fixedbugs/bug029.go:6: syntax error near int
+ 
+ =========== fixedbugs/bug035.go
+ fixedbugs/bug035.go:6: var i redeclared in this block
+-     previous declaration at fixedbugs/bug035.go:5
++	previous declaration at fixedbugs/bug035.go:5
+ fixedbugs/bug035.go:7: var f redeclared in this block
+-     previous declaration at fixedbugs/bug035.go:5
++	previous declaration at fixedbugs/bug035.go:5
+ 
+ =========== fixedbugs/bug037.go
+ fixedbugs/bug037.go:6: vlong: undefined
+@@ -193,7 +193,7 @@ fixedbugs/bug037.go:6: illegal types for operand: AS
+ 
+ =========== fixedbugs/bug039.go
+ fixedbugs/bug039.go:6: var x redeclared in this block
+-     previous declaration at fixedbugs/bug039.go:5
++	previous declaration at fixedbugs/bug039.go:5
+ 
+ =========== fixedbugs/bug049.go
+ fixedbugs/bug049.go:6: illegal conversion of nil to string
+diff --git a/test/method1.go b/test/method1.go
+new file mode 100644
+index 0000000000..f25eb30c8b
+--- /dev/null
++++ b/test/method1.go
+@@ -0,0 +1,18 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct { }
++func (t *T) M(int, string);
++func (t *T) M(int, float) { }   // ERROR "redeclared"
++
++func f(int, string);
++func f(int, float) { }  // ERROR "redeclared"
++
++func g(a int, b string);
++func g(a int, c string);  // ERROR "names changed"
++

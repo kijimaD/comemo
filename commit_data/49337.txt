@@ -10,6 +10,20 @@ Date:   Wed Aug 11 08:52:31 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/341389
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  lib/time/README | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/time/README b/lib/time/README
+index aab4daa7e2..edb8dccd26 100644
+--- a/lib/time/README
++++ b/lib/time/README
+@@ -4,7 +4,7 @@ The IANA asserts that the database is in the public domain.
+ 
+ For more information, see
+ https://www.iana.org/time-zones
+-ftp://ftp.iana.org/tz/code/tz-link.htm
++ftp://ftp.iana.org/tz/code/tz-link.html
+ http://tools.ietf.org/html/rfc6557
+ 
+ To rebuild the archive, read and run update.bash.

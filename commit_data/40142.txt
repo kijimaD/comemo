@@ -19,7 +19,7 @@ Date:   Wed Mar 20 12:46:20 2019 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |  17 +++-
  src/cmd/compile/internal/gc/ssa.go           |   4 +-
  src/cmd/compile/internal/ssa/gen/ARM64.rules |   8 +-
@@ -28,3 +28,455 @@ Date:   Wed Mar 20 12:46:20 2019 +0000
  src/cmd/compile/internal/ssa/rewriteARM64.go | 128 +++++++++++++++++++++++++++
  test/codegen/mathbits.go                     |  10 +++
  7 files changed, 240 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index be4ddb4b6b..d3fc89d400 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -260,7 +260,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = arm64.REGZERO
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpARM64ADCSflags, ssa.OpARM64ADDSflags:
++	case ssa.OpARM64ADCSflags,
++		ssa.OpARM64ADDSflags,
++		ssa.OpARM64SBCSflags,
++		ssa.OpARM64SUBSflags:
+ 		r := v.Reg0()
+ 		r1 := v.Args[0].Reg()
+ 		r2 := v.Args[1].Reg()
+@@ -270,6 +273,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpARM64NEGSflags:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++	case ssa.OpARM64NGCzerocarry:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = arm64.REGZERO
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpARM64EXTRconst,
+ 		ssa.OpARM64EXTRWconst:
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8159dc7bca..930779045a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3579,8 +3579,8 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+ 		},
+-		sys.AMD64)
+-	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64)
++		sys.AMD64, sys.ARM64)
++	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64, sys.ArchARM64)
+ 	addF("math/bits", "Div64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			// check for divide-by-zero/overflow and panic with appropriate message
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 70b1681c63..de7ab3861d 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -148,6 +148,10 @@
+ (Select0 (Add64carry x y c)) -> (Select0 <typ.UInt64> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c))))
+ (Select1 (Add64carry x y c)) -> (ADCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c)))))
+ 
++// 64-bit subtraction with borrowing.
++(Select0 (Sub64borrow x y bo)) -> (Select0 <typ.UInt64> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))
++(Select1 (Sub64borrow x y bo)) -> (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))))
++
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB x y) -> (AND x y)
+ (OrB x y) -> (OR x y)
+@@ -1206,9 +1210,11 @@
+ (ADD a l:(MNEGW x y)) && a.Type.Size() != 8 && l.Uses==1 && clobber(l) -> (MSUBW a x y)
+ (SUB a l:(MNEGW x y)) && a.Type.Size() != 8 && l.Uses==1 && clobber(l) -> (MADDW a x y)
+ 
+-// optimize ADCSflags and friends
++// optimize ADCSflags, SBCSflags and friends
+ (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c)))) -> (ADCSflags x y c)
+ (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (MOVDconst [0])))) -> (ADDSflags x y)
++(SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> bo))))) -> (SBCSflags x y bo)
++(SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (MOVDconst [0])))) -> (SUBSflags x y)
+ 
+ // mul by constant
+ (MUL x (MOVDconst [-1])) -> (NEG x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index a885a8f467..ece53eb750 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -183,6 +183,8 @@ func init() {
+ 		{name: "ADDSflags", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "ADDS", commutative: true},      // arg0+arg1, set flags.
+ 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                                                            // arg0 - arg1
+ 		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64"},                                         // arg0 - auxInt
++		{name: "SBCSflags", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "SBCS"},                    // arg0-(arg1+borrowing), set flags.
++		{name: "SUBSflags", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "SUBS"},                         // arg0 - arg1, set flags.
+ 		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},                                         // arg0 * arg1
+ 		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true},                                       // arg0 * arg1, 32-bit
+ 		{name: "MNEG", argLength: 2, reg: gp21, asm: "MNEG", commutative: true},                                       // -arg0 * arg1
+@@ -224,21 +226,23 @@ func init() {
+ 		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, returns (hi, lo)
+ 
+ 		// unary ops
+-		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},         // ^arg0
+-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},         // -arg0
+-		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD"},     // abs(arg0), float64
+-		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},     // -arg0, float32
+-		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},     // -arg0, float64
+-		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},   // sqrt(arg0), float64
+-		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},         // byte reverse, 64-bit
+-		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},       // byte reverse, 32-bit
+-		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"},   // byte reverse in each 16-bit halfword, 32-bit
+-		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},       // bit reverse, 64-bit
+-		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},     // bit reverse, 32-bit
+-		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},         // count leading zero, 64-bit
+-		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},       // count leading zero, 32-bit
+-		{name: "VCNT", argLength: 1, reg: fp11, asm: "VCNT"},       // count set bits for each 8-bit unit and store the result in each 8-bit unit
+-		{name: "VUADDLV", argLength: 1, reg: fp11, asm: "VUADDLV"}, // unsigned sum of eight bytes in a 64-bit value, zero extended to 64-bit.
++		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},                                    // ^arg0
++		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                    // -arg0
++		{name: "NEGSflags", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "NEGS"}, // -arg0, set flags.
++		{name: "NGCzerocarry", argLength: 1, reg: gp0flags1, typ: "UInt64", asm: "NGC"},       // -1 if borrowing, 0 otherwise.
++		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD"},                                // abs(arg0), float64
++		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},                                // -arg0, float32
++		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},                                // -arg0, float64
++		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},                              // sqrt(arg0), float64
++		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},                                    // byte reverse, 64-bit
++		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},                                  // byte reverse, 32-bit
++		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"},                              // byte reverse in each 16-bit halfword, 32-bit
++		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},                                  // bit reverse, 64-bit
++		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},                                // bit reverse, 32-bit
++		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},                                    // count leading zero, 64-bit
++		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},                                  // count leading zero, 32-bit
++		{name: "VCNT", argLength: 1, reg: fp11, asm: "VCNT"},                                  // count set bits for each 8-bit unit and store the result in each 8-bit unit
++		{name: "VUADDLV", argLength: 1, reg: fp11, asm: "VUADDLV"},                            // unsigned sum of eight bytes in a 64-bit value, zero extended to 64-bit.
+ 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 06dcb2d7ac..1af77c88de 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1149,6 +1149,8 @@ const (
+ 	OpARM64ADDSflags
+ 	OpARM64SUB
+ 	OpARM64SUBconst
++	OpARM64SBCSflags
++	OpARM64SUBSflags
+ 	OpARM64MUL
+ 	OpARM64MULW
+ 	OpARM64MNEG
+@@ -1187,6 +1189,8 @@ const (
+ 	OpARM64LoweredMuluhilo
+ 	OpARM64MVN
+ 	OpARM64NEG
++	OpARM64NEGSflags
++	OpARM64NGCzerocarry
+ 	OpARM64FABSD
+ 	OpARM64FNEGS
+ 	OpARM64FNEGD
+@@ -15260,6 +15264,36 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SBCSflags",
++		argLen: 3,
++		asm:    arm64.ASBCS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++				{1, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:   "SUBSflags",
++		argLen: 2,
++		asm:    arm64.ASUBS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++				{1, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:        "MUL",
+ 		argLen:      2,
+@@ -15808,6 +15842,30 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "NEGSflags",
++		argLen: 1,
++		asm:    arm64.ANEGS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:   "NGCzerocarry",
++		argLen: 1,
++		asm:    arm64.ANGC,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:   "FABSD",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 0f55a6f7d8..bc7f17dfb3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -319,6 +319,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64RORWconst_0(v)
+ 	case OpARM64RORconst:
+ 		return rewriteValueARM64_OpARM64RORconst_0(v)
++	case OpARM64SBCSflags:
++		return rewriteValueARM64_OpARM64SBCSflags_0(v)
+ 	case OpARM64SLL:
+ 		return rewriteValueARM64_OpARM64SLL_0(v)
+ 	case OpARM64SLLconst:
+@@ -28509,6 +28511,80 @@ func rewriteValueARM64_OpARM64RORconst_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64SBCSflags_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> bo)))))
++	// cond:
++	// result: (SBCSflags x y bo)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpSelect1 {
++			break
++		}
++		if v_2.Type != types.TypeFlags {
++			break
++		}
++		v_2_0 := v_2.Args[0]
++		if v_2_0.Op != OpARM64NEGSflags {
++			break
++		}
++		v_2_0_0 := v_2_0.Args[0]
++		if v_2_0_0.Op != OpARM64NEG {
++			break
++		}
++		if v_2_0_0.Type != typ.UInt64 {
++			break
++		}
++		v_2_0_0_0 := v_2_0_0.Args[0]
++		if v_2_0_0_0.Op != OpARM64NGCzerocarry {
++			break
++		}
++		if v_2_0_0_0.Type != typ.UInt64 {
++			break
++		}
++		bo := v_2_0_0_0.Args[0]
++		v.reset(OpARM64SBCSflags)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(bo)
++		return true
++	}
++	// match: (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (MOVDconst [0]))))
++	// cond:
++	// result: (SUBSflags x y)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpSelect1 {
++			break
++		}
++		if v_2.Type != types.TypeFlags {
++			break
++		}
++		v_2_0 := v_2.Args[0]
++		if v_2_0.Op != OpARM64NEGSflags {
++			break
++		}
++		v_2_0_0 := v_2_0.Args[0]
++		if v_2_0_0.Op != OpARM64MOVDconst {
++			break
++		}
++		if v_2_0_0.AuxInt != 0 {
++			break
++		}
++		v.reset(OpARM64SUBSflags)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64SLL_0(v *Value) bool {
+ 	// match: (SLL x (MOVDconst [c]))
+ 	// cond:
+@@ -36898,6 +36974,30 @@ func rewriteValueARM64_OpSelect0_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Select0 (Sub64borrow x y bo))
++	// cond:
++	// result: (Select0 <typ.UInt64> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpSub64borrow {
++			break
++		}
++		bo := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpSelect0)
++		v.Type = typ.UInt64
++		v0 := b.NewValue0(v.Pos, OpARM64SBCSflags, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v2 := b.NewValue0(v.Pos, OpARM64NEGSflags, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v2.AddArg(bo)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpSelect1_0(v *Value) bool {
+@@ -36930,6 +37030,34 @@ func rewriteValueARM64_OpSelect1_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Select1 (Sub64borrow x y bo))
++	// cond:
++	// result: (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpSub64borrow {
++			break
++		}
++		bo := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpARM64NEG)
++		v.Type = typ.UInt64
++		v0 := b.NewValue0(v.Pos, OpARM64NGCzerocarry, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v2 := b.NewValue0(v.Pos, OpARM64SBCSflags, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v2.AddArg(x)
++		v2.AddArg(y)
++		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v4 := b.NewValue0(v.Pos, OpARM64NEGSflags, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v4.AddArg(bo)
++		v3.AddArg(v4)
++		v2.AddArg(v3)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpSignExt16to32_0(v *Value) bool {
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 6676c69188..70874590fe 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -446,21 +446,25 @@ func Add64M(p, q, r *[3]uint64) {
+ 
+ func Sub(x, y, ci uint) (r, co uint) {
+ 	// amd64:"NEGL","SBBQ","NEGQ"
++	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
+ 	return bits.Sub(x, y, ci)
+ }
+ 
+ func SubC(x, ci uint) (r, co uint) {
+ 	// amd64:"NEGL","SBBQ","NEGQ"
++	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
+ 	return bits.Sub(x, 7, ci)
+ }
+ 
+ func SubZ(x, y uint) (r, co uint) {
+ 	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
++	// arm64:"SUBS","NGC","NEG",-"SBCS",-"ADD",-"SUB\t",-"CMP"
+ 	return bits.Sub(x, y, 0)
+ }
+ 
+ func SubR(x, y, ci uint) uint {
+ 	// amd64:"NEGL","SBBQ",-"NEGQ"
++	// arm64:"NEGS","SBCS",-"NGC",-"NEG\t",-"ADD",-"SUB",-"CMP"
+ 	r, _ := bits.Sub(x, y, ci)
+ 	return r
+ }
+@@ -468,27 +472,32 @@ func SubM(p, q, r *[3]uint) {
+ 	var c uint
+ 	r[0], c = bits.Sub(p[0], q[0], c)
+ 	// amd64:"SBBQ",-"NEGL",-"NEGQ"
++	// arm64:"SBCS",-"NEGS",-"NGC",-"NEG",-"ADD",-"SUB",-"CMP"
+ 	r[1], c = bits.Sub(p[1], q[1], c)
+ 	r[2], c = bits.Sub(p[2], q[2], c)
+ }
+ 
+ func Sub64(x, y, ci uint64) (r, co uint64) {
+ 	// amd64:"NEGL","SBBQ","NEGQ"
++	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
+ 	return bits.Sub64(x, y, ci)
+ }
+ 
+ func Sub64C(x, ci uint64) (r, co uint64) {
+ 	// amd64:"NEGL","SBBQ","NEGQ"
++	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
+ 	return bits.Sub64(x, 7, ci)
+ }
+ 
+ func Sub64Z(x, y uint64) (r, co uint64) {
+ 	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
++	// arm64:"SUBS","NGC","NEG",-"SBCS",-"ADD",-"SUB\t",-"CMP"
+ 	return bits.Sub64(x, y, 0)
+ }
+ 
+ func Sub64R(x, y, ci uint64) uint64 {
+ 	// amd64:"NEGL","SBBQ",-"NEGQ"
++	// arm64:"NEGS","SBCS",-"NGC",-"NEG\t",-"ADD",-"SUB",-"CMP"
+ 	r, _ := bits.Sub64(x, y, ci)
+ 	return r
+ }
+@@ -496,6 +505,7 @@ func Sub64M(p, q, r *[3]uint64) {
+ 	var c uint64
+ 	r[0], c = bits.Sub64(p[0], q[0], c)
+ 	// amd64:"SBBQ",-"NEGL",-"NEGQ"
++	// arm64:"SBCS",-"NEGS",-"NGC",-"NEG",-"ADD",-"SUB",-"CMP"
+ 	r[1], c = bits.Sub64(p[1], q[1], c)
+ 	r[2], c = bits.Sub64(p[2], q[2], c)
+ }

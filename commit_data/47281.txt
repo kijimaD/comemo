@@ -19,7 +19,7 @@ Date:   Wed Feb 17 17:31:22 2021 -0500
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt           |  8 +--
  src/cmd/go/testdata/script/test_fuzz_cache.txt     |  2 +-
  src/cmd/go/testdata/script/test_fuzz_fuzztime.txt  |  2 +-
@@ -29,3 +29,353 @@ Date:   Wed Feb 17 17:31:22 2021 -0500
  src/internal/fuzz/sys_posix.go                     |  2 +-
  src/internal/fuzz/worker.go                        |  3 +-
  8 files changed, 60 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index f9783504ee..c8567b996f 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -9,12 +9,12 @@ stdout FAIL
+ 
+ # Test that fuzzing a fuzz target that returns without failing or calling
+ # f.Fuzz fails and causes a non-zero exit status.
+-! go test -fuzz=Fuzz -fuzztime=5s -parallel=1 noop_fuzz_test.go
++! go test -fuzz=Fuzz -fuzztime=5s noop_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test that calling f.Error in a fuzz target causes a non-zero exit status.
+-! go test -fuzz=Fuzz -fuzztime=5s -parallel=1 error_fuzz_test.go
++! go test -fuzz=Fuzz -fuzztime=5s error_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+@@ -29,12 +29,12 @@ stdout ^ok
+ ! stdout FAIL
+ 
+ # Test that successful fuzzing exits cleanly.
+-go test -fuzz=Fuzz -fuzztime=5s -parallel=1 success_fuzz_test.go
++go test -fuzz=Fuzz -fuzztime=5s success_fuzz_test.go
+ stdout ok
+ ! stdout FAIL
+ 
+ # Test that calling f.Fatal while fuzzing causes a non-zero exit status.
+-! go test -fuzz=Fuzz -fuzztime=5s -parallel=1 fatal_fuzz_test.go
++! go test -fuzz=Fuzz -fuzztime=5s fatal_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cache.txt b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+index b4f59271ea..21546a828b 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cache.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+@@ -10,7 +10,7 @@ exists $GOCACHE
+ ! exists $GOCACHE/fuzz
+ 
+ # Fuzzing should write interesting values to the cache.
+-go test -fuzz=FuzzY -fuzztime=5s -parallel=1 .
++go test -fuzz=FuzzY -fuzztime=5s .
+ go run ./contains_files $GOCACHE/fuzz/example.com/y/FuzzY
+ 
+ # 'go clean -cache' should not delete the fuzz cache.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+index 1da095f06c..15a0f86e93 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+@@ -7,7 +7,7 @@
+ go test
+ 
+ # Fuzzing should exit 0 when after fuzztime, even if timeout is short.
+-go test -timeout=10ms -fuzz=FuzzFast -fuzztime=5s -parallel=1
++go test -timeout=10ms -fuzz=FuzzFast -fuzztime=5s
+ 
+ # We should see the same behavior when invoking the test binary directly.
+ go test -c
+diff --git a/src/cmd/go/testdata/script/test_fuzz_match.txt b/src/cmd/go/testdata/script/test_fuzz_match.txt
+index 4ea2fe2540..7b2216f3dd 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_match.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_match.txt
+@@ -7,12 +7,12 @@ go test standalone_fuzz_test.go
+ stdout '^ok'
+ 
+ # Matches only for fuzzing.
+-go test -fuzz Fuzz -fuzztime 5s -parallel 1 standalone_fuzz_test.go
++go test -fuzz Fuzz -fuzztime 2s -parallel 4 standalone_fuzz_test.go
+ ! stdout '^ok.*\[no tests to run\]'
+ stdout '^ok'
+ 
+ # Matches none for fuzzing but will run the fuzz target as a test.
+-go test -fuzz ThisWillNotMatch -fuzztime 5s -parallel 1 standalone_fuzz_test.go
++go test -fuzz ThisWillNotMatch -fuzztime 2s -parallel 4 standalone_fuzz_test.go
+ ! stdout '^ok.*\[no tests to run\]'
+ stdout '^ok'
+ stdout '\[no targets to fuzz\]'
+@@ -30,7 +30,7 @@ stdout '^ok.*\[no tests to run\]'
+ ! stdout '\[no targets to fuzz\]'
+ 
+ # Matches more than one fuzz target for fuzzing.
+-go test -fuzz Fuzz -fuzztime 5s -parallel 1 multiple_fuzz_test.go
++go test -fuzz Fuzz -fuzztime 2s -parallel 4 multiple_fuzz_test.go
+ # The tests should run, but not be fuzzed
+ ! stdout '\[no tests to run\]'
+ ! stdout '\[no targets to fuzz\]'
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index 66e1cd8b76..bd9ce5c512 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -8,50 +8,48 @@
+ 
+ [short] skip
+ 
+-# TODO: remove -parallel=1 once the races are fixed.
+-
+ # Running the seed corpus for all of the targets should pass the first
+ # time, since nothing in the seed corpus will cause a crash.
+-go test -parallel=1
++go test
+ 
+ # Running the fuzzer should find a crashing input quickly.
+-! go test -fuzz=FuzzWithBug -fuzztime=5s -parallel=1
++! go test -fuzz=FuzzWithBug -fuzztime=5s
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithBug[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzWithBug
+ 
+ # Now, the failing bytes should have been added to the seed corpus for
+ # the target, and should fail when run without fuzzing.
+-! go test -parallel=1
++! go test
+ 
+ # Running the fuzzer should find a crashing input quickly for fuzzing two types.
+-! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=5s -parallel=1
++! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=5s
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
+ stdout 'these inputs caused a crash!'
+ go run check_testdata.go FuzzWithTwoTypes
+ 
+-! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=5s -parallel=1
++! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=5s
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
+ stdout 'runtime.Goexit'
+ go run check_testdata.go FuzzWithNilPanic
+ 
+-! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=5s -parallel=1
++! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=5s
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithFail[/\\]'
+ go run check_testdata.go FuzzWithFail
+ 
+-! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=5s -parallel=1
++! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=5s
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithErrorf[/\\]'
+ # TODO: Uncomment this part of the test once it's fixed
+ # stdout 'errorf was called here'
+ go run check_testdata.go FuzzWithErrorf
+ 
+-! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=5s -parallel=1
++! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=5s
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithFatalf[/\\]'
+ # TODO: Uncomment this part of the test once it's fixed
+ # stdout 'fatalf was called here'
+ go run check_testdata.go FuzzWithFatalf
+ 
+-! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=5s -parallel=1
++! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=5s
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithBadExit[/\\]'
+ stdout 'unexpectedly'
+ go run check_testdata.go FuzzWithBadExit
+@@ -154,8 +152,8 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 
+-	if len(files) != 1 {
+-		fmt.Fprintln(os.Stderr, fmt.Errorf("expect only one new mutation to be written to testdata", len(files)))
++	if len(files) == 0 {
++		fmt.Fprintf(os.Stderr, "expect at least one new mutation to be written to testdata\n")
+ 		os.Exit(1)
+ 	}
+ 
+@@ -166,13 +164,13 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 	if bytes.Equal(contents, []byte("aa")) {
+-		fmt.Fprintln(os.Stderr, fmt.Errorf("newly written testdata entry was not mutated"))
++		fmt.Fprintf(os.Stderr, "newly written testdata entry was not mutated\n")
+ 		os.Exit(1)
+ 	}
+ 	// The hash of the bytes in the file should match the filename.
+ 	h := []byte(fmt.Sprintf("%x", sha256.Sum256(contents)))
+ 	if !bytes.Equal([]byte(fname), h) {
+-		fmt.Fprintln(os.Stderr, fmt.Errorf("hash of bytes %q does not match filename %q", h, fname))
++		fmt.Fprintf(os.Stderr, "hash of bytes %q does not match filename %q\n", h, fname)
+ 		os.Exit(1)
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index b8405622df..9ae1eadaec 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -18,7 +18,6 @@ import (
+ 	"reflect"
+ 	"runtime"
+ 	"strings"
+-	"sync"
+ )
+ 
+ // CoordinateFuzzing creates several worker processes and communicates with
+@@ -82,8 +81,8 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
+ 		inputC:       make(chan CorpusEntry),
+ 		interestingC: make(chan CorpusEntry),
+ 		crasherC:     make(chan crasherEntry),
+-		errC:         make(chan error),
+ 	}
++	errC := make(chan error)
+ 
+ 	newWorker := func() (*worker, error) {
+ 		mem, err := sharedMemTempFile(sharedMemSize)
+@@ -102,6 +101,19 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
+ 		}, nil
+ 	}
+ 
++	var fuzzErr error
++	stopping := false
++	stop := func(err error) {
++		if fuzzErr == nil || fuzzErr == ctx.Err() {
++			fuzzErr = err
++		}
++		if stopping {
++			return
++		}
++		stopping = true
++		close(c.doneC)
++	}
++
+ 	// Start workers.
+ 	workers := make([]*worker, parallel)
+ 	for i := range workers {
+@@ -111,38 +123,22 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
+ 			return err
+ 		}
+ 	}
+-
+-	workerErrs := make([]error, len(workers))
+-	var wg sync.WaitGroup
+-	wg.Add(len(workers))
+ 	for i := range workers {
+-		go func(i int) {
+-			defer wg.Done()
+-			workerErrs[i] = workers[i].runFuzzing()
+-			if cleanErr := workers[i].cleanup(); workerErrs[i] == nil {
+-				workerErrs[i] = cleanErr
++		w := workers[i]
++		go func() {
++			err := w.runFuzzing()
++			cleanErr := w.cleanup()
++			if err == nil {
++				err = cleanErr
+ 			}
+-		}(i)
++			errC <- err
++		}()
+ 	}
+ 
+-	// Before returning, signal workers to stop, wait for them to actually stop,
+-	// and gather any errors they encountered.
+-	defer func() {
+-		close(c.doneC)
+-		wg.Wait()
+-		if err == nil || err == ctx.Err() {
+-			for _, werr := range workerErrs {
+-				if werr != nil {
+-					// Return the first error found, replacing ctx.Err() if a more
+-					// interesting error is found.
+-					err = werr
+-					break
+-				}
+-			}
+-		}
+-	}()
+-
+ 	// Main event loop.
++	// Do not return until all workers have terminated. We avoid a deadlock by
++	// receiving messages from workers even after closing c.doneC.
++	activeWorkers := len(workers)
+ 	i := 0
+ 	for {
+ 		select {
+@@ -152,7 +148,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
+ 			// not the coordinator or worker processes. 'go test' will stop running
+ 			// actions, but it won't interrupt its child processes. This makes it
+ 			// difficult to stop fuzzing on Windows without a timeout.
+-			return ctx.Err()
++			stop(ctx.Err())
+ 
+ 		case crasher := <-c.crasherC:
+ 			// A worker found a crasher. Write it to testdata and return it.
+@@ -165,7 +161,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
+ 			}
+ 			// TODO(jayconrod,katiehockman): if -keepfuzzing, report the error to
+ 			// the user and restart the crashed worker.
+-			return err
++			stop(err)
+ 
+ 		case entry := <-c.interestingC:
+ 			// Some interesting input arrived from a worker.
+@@ -179,13 +175,17 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
+ 			corpus.entries = append(corpus.entries, entry)
+ 			if cacheDir != "" {
+ 				if _, err := writeToCorpus(entry.Data, cacheDir); err != nil {
+-					return err
++					stop(err)
+ 				}
+ 			}
+ 
+-		case err := <-c.errC:
+-			// A worker encountered a fatal error.
+-			return err
++		case err := <-errC:
++			// A worker terminated, possibly after encountering a fatal error.
++			stop(err)
++			activeWorkers--
++			if activeWorkers == 0 {
++				return fuzzErr
++			}
+ 
+ 		case c.inputC <- corpus.entries[i]:
+ 			// Send the next input to any worker.
+@@ -268,10 +268,6 @@ type coordinator struct {
+ 	// should be saved in the corpus, and we may want to stop fuzzing after
+ 	// receiving one.
+ 	crasherC chan crasherEntry
+-
+-	// errC is sent internal errors encountered by workers. When the coordinator
+-	// receives an error, it closes doneC and returns.
+-	errC chan error
+ }
+ 
+ // readCache creates a combined corpus from seed values and values in the cache
+diff --git a/src/internal/fuzz/sys_posix.go b/src/internal/fuzz/sys_posix.go
+index 3fbbb47869..8ea84d2025 100644
+--- a/src/internal/fuzz/sys_posix.go
++++ b/src/internal/fuzz/sys_posix.go
+@@ -88,5 +88,5 @@ func isInterruptError(err error) bool {
+ 		return false
+ 	}
+ 	status := exitErr.Sys().(syscall.WaitStatus)
+-	return status.Signal() == syscall.SIGINT
++	return status.Signal() == syscall.SIGINT || status.Signal() == syscall.SIGKILL
+ }
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 4ccf469d60..d42044bb91 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -72,8 +72,7 @@ func (w *worker) runFuzzing() error {
+ 	// Start the process.
+ 	if err := w.start(); err != nil {
+ 		// We couldn't start the worker process. We can't do anything, and it's
+-		// likely that other workers can't either, so give up.
+-		w.coordinator.errC <- err
++		// likely that other workers can't either, so don't try to restart.
+ 		return err
+ 	}
+ 

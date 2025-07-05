@@ -7,6 +7,20 @@ Date:   Mon Aug 29 09:24:24 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/4971043
-
+---
  doc/codelab/wiki/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/codelab/wiki/Makefile b/doc/codelab/wiki/Makefile
+index 09c3291a0d..32dc1a1c29 100644
+--- a/doc/codelab/wiki/Makefile
++++ b/doc/codelab/wiki/Makefile
+@@ -10,7 +10,7 @@ include ../../../src/Make.common
+ 
+ CLEANFILES+=index.html srcextract.bin htmlify.bin get.bin
+ 
+-index.html: srcextract.bin htmlify.bin
++index.html: wiki.html srcextract.bin htmlify.bin
+ 	PATH=.:$$PATH awk '/^!/{system(substr($$0,2)); next} {print}' < wiki.html | tr -d '\r' > index.html
+ 
+ test: get.bin

@@ -7,6 +7,23 @@ Date:   Sat Jan 18 08:34:31 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/53690043
-
+---
  src/pkg/syscall/{rlimit_linux_test.go => rlimit_unix_test.go} | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/syscall/rlimit_linux_test.go b/src/pkg/syscall/rlimit_unix_test.go
+similarity index 94%
+rename from src/pkg/syscall/rlimit_linux_test.go
+rename to src/pkg/syscall/rlimit_unix_test.go
+index 4ec720e936..b96c4bb996 100644
+--- a/src/pkg/syscall/rlimit_linux_test.go
++++ b/src/pkg/syscall/rlimit_unix_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
+ package syscall_test
+ 
+ import (

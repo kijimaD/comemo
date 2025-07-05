@@ -20,7 +20,7 @@ Date:   Tue Nov 9 13:54:57 2021 -0500
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |   4 +-
  src/cmd/go.sum                                     |   8 +-
  .../x/tools/go/analysis/internal/facts/imports.go  |  33 +++-
@@ -37,3 +37,1171 @@ Date:   Tue Nov 9 13:54:57 2021 -0500
  .../golang.org/x/tools/go/types/typeutil/callee.go |  30 ++-
  src/cmd/vendor/modules.txt                         |   4 +-
  15 files changed, 467 insertions(+), 145 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 173679c7be..facc54cee1 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,10 +5,10 @@ go 1.18
+ require (
+ 	github.com/google/pprof v0.0.0-20211104044539-f987b9c94b31
+ 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670
+-	golang.org/x/mod v0.5.1-0.20210913215816-37dd6891021a
++	golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+-	golang.org/x/tools v0.1.8-0.20211025211149-f916b54a1784
++	golang.org/x/tools v0.1.8-0.20211109164901-e9000123914f
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 9188847173..f248d84e24 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -9,8 +9,8 @@ golang.org/x/arch v0.0.0-20210923205945-b76863e36670 h1:18EFjUmQOcUvxNYSkA6jO9VA
+ golang.org/x/arch v0.0.0-20210923205945-b76863e36670/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+ golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa h1:idItI2DDfCokpg0N51B2VtiLdJ4vAuXC9fnCb2gACo4=
+ golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
+-golang.org/x/mod v0.5.1-0.20210913215816-37dd6891021a h1:55PVa91KndtPGH2lus5l2gDZqoO/x+Oa5CV0lVf8Ij8=
+-golang.org/x/mod v0.5.1-0.20210913215816-37dd6891021a/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
++golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a h1:gAiIC0JKDJwXAQFyqEYxROcAzeeh5ZTwWjKORCFuQxs=
++golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c h1:5KslGYwFpkhGh+Q16bwMP3cOontH8FOep7tGV86Y7SQ=
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+@@ -18,7 +18,7 @@ golang.org/x/sys v0.0.0-20211109065445-02f5c0300f6e h1:i6Vklmyu+fZMFYpum+sR4ZWAB
+ golang.org/x/sys v0.0.0-20211109065445-02f5c0300f6e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 h1:JGgROgKl9N8DuW20oFS5gxc+lE67/N3FcwmBPMe7ArY=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.8-0.20211025211149-f916b54a1784 h1:+xP+QoP2SEPgbn+07I/yJTzP+gavj0XKGS6+JU5tlck=
+-golang.org/x/tools v0.1.8-0.20211025211149-f916b54a1784/go.mod h1:LGqMHiF4EqQNHR1JncWGqT5BVaXmza+X+BDGol+dOxo=
++golang.org/x/tools v0.1.8-0.20211109164901-e9000123914f h1:wwsTeyXackfHvwdCKtGcDlYwO78AwwW6OwUomSMB0aI=
++golang.org/x/tools v0.1.8-0.20211109164901-e9000123914f/go.mod h1:nABZi5QlRsZVlzPpHl034qft6wpY4eDcsTt5AaioBiU=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go
+index 34740f48e0..ade0cc6fab 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go
+@@ -4,7 +4,11 @@
+ 
+ package facts
+ 
+-import "go/types"
++import (
++	"go/types"
++
++	"golang.org/x/tools/internal/typeparams"
++)
+ 
+ // importMap computes the import map for a package by traversing the
+ // entire exported API each of its imports.
+@@ -42,9 +46,20 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 			// nop
+ 		case *types.Named:
+ 			if addObj(T.Obj()) {
++				// TODO(taking): Investigate why the Underlying type is not added here.
+ 				for i := 0; i < T.NumMethods(); i++ {
+ 					addObj(T.Method(i))
+ 				}
++				if tparams := typeparams.ForNamed(T); tparams != nil {
++					for i := 0; i < tparams.Len(); i++ {
++						addType(tparams.At(i))
++					}
++				}
++				if targs := typeparams.NamedTypeArgs(T); targs != nil {
++					for i := 0; i < targs.Len(); i++ {
++						addType(targs.At(i))
++					}
++				}
+ 			}
+ 		case *types.Pointer:
+ 			addType(T.Elem())
+@@ -60,6 +75,11 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 		case *types.Signature:
+ 			addType(T.Params())
+ 			addType(T.Results())
++			if tparams := typeparams.ForSignature(T); tparams != nil {
++				for i := 0; i < tparams.Len(); i++ {
++					addType(tparams.At(i))
++				}
++			}
+ 		case *types.Struct:
+ 			for i := 0; i < T.NumFields(); i++ {
+ 				addObj(T.Field(i))
+@@ -72,6 +92,17 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 			for i := 0; i < T.NumMethods(); i++ {
+ 				addObj(T.Method(i))
+ 			}
++			for i := 0; i < T.NumEmbeddeds(); i++ {
++				addType(T.EmbeddedType(i)) // walk Embedded for implicits
++			}
++		case *typeparams.Union:
++			for i := 0; i < T.Len(); i++ {
++				addType(T.Term(i).Type())
++			}
++		case *typeparams.TypeParam:
++			if addObj(T.Obj()) {
++				addType(T.Constraint())
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+index c4ebf78571..350dc4e0fe 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+@@ -17,6 +17,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ const Doc = `check for locks erroneously passed by value
+@@ -145,7 +146,7 @@ func checkCopyLocksCallExpr(pass *analysis.Pass, ce *ast.CallExpr) {
+ func checkCopyLocksFunc(pass *analysis.Pass, name string, recv *ast.FieldList, typ *ast.FuncType) {
+ 	if recv != nil && len(recv.List) > 0 {
+ 		expr := recv.List[0].Type
+-		if path := lockPath(pass.Pkg, pass.TypesInfo.Types[expr].Type); path != nil {
++		if path := lockPath(pass.Pkg, pass.TypesInfo.Types[expr].Type, nil); path != nil {
+ 			pass.ReportRangef(expr, "%s passes lock by value: %v", name, path)
+ 		}
+ 	}
+@@ -153,7 +154,7 @@ func checkCopyLocksFunc(pass *analysis.Pass, name string, recv *ast.FieldList, t
+ 	if typ.Params != nil {
+ 		for _, field := range typ.Params.List {
+ 			expr := field.Type
+-			if path := lockPath(pass.Pkg, pass.TypesInfo.Types[expr].Type); path != nil {
++			if path := lockPath(pass.Pkg, pass.TypesInfo.Types[expr].Type, nil); path != nil {
+ 				pass.ReportRangef(expr, "%s passes lock by value: %v", name, path)
+ 			}
+ 		}
+@@ -199,12 +200,12 @@ func checkCopyLocksRangeVar(pass *analysis.Pass, rtok token.Token, e ast.Expr) {
+ 	if typ == nil {
+ 		return
+ 	}
+-	if path := lockPath(pass.Pkg, typ); path != nil {
++	if path := lockPath(pass.Pkg, typ, nil); path != nil {
+ 		pass.Reportf(e.Pos(), "range var %s copies lock: %v", analysisutil.Format(pass.Fset, e), path)
+ 	}
+ }
+ 
+-type typePath []types.Type
++type typePath []string
+ 
+ // String pretty-prints a typePath.
+ func (path typePath) String() string {
+@@ -215,7 +216,7 @@ func (path typePath) String() string {
+ 			fmt.Fprint(&buf, " contains ")
+ 		}
+ 		// The human-readable path is in reverse order, outermost to innermost.
+-		fmt.Fprint(&buf, path[n-i-1].String())
++		fmt.Fprint(&buf, path[n-i-1])
+ 	}
+ 	return buf.String()
+ }
+@@ -234,16 +235,57 @@ func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
+ 			return nil
+ 		}
+ 	}
+-	return lockPath(pass.Pkg, pass.TypesInfo.Types[x].Type)
++	return lockPath(pass.Pkg, pass.TypesInfo.Types[x].Type, nil)
+ }
+ 
+ // lockPath returns a typePath describing the location of a lock value
+ // contained in typ. If there is no contained lock, it returns nil.
+-func lockPath(tpkg *types.Package, typ types.Type) typePath {
++//
++// The seenTParams map is used to short-circuit infinite recursion via type
++// parameters.
++func lockPath(tpkg *types.Package, typ types.Type, seenTParams map[*typeparams.TypeParam]bool) typePath {
+ 	if typ == nil {
+ 		return nil
+ 	}
+ 
++	if tpar, ok := typ.(*typeparams.TypeParam); ok {
++		if seenTParams == nil {
++			// Lazily allocate seenTParams, since the common case will not involve
++			// any type parameters.
++			seenTParams = make(map[*typeparams.TypeParam]bool)
++		}
++		if seenTParams[tpar] {
++			return nil
++		}
++		seenTParams[tpar] = true
++		terms, err := typeparams.StructuralTerms(tpar)
++		if err != nil {
++			return nil // invalid type
++		}
++		for _, term := range terms {
++			subpath := lockPath(tpkg, term.Type(), seenTParams)
++			if len(subpath) > 0 {
++				if term.Tilde() {
++					// Prepend a tilde to our lock path entry to clarify the resulting
++					// diagnostic message. Consider the following example:
++					//
++					//  func _[Mutex interface{ ~sync.Mutex; M() }](m Mutex) {}
++					//
++					// Here the naive error message will be something like "passes lock
++					// by value: Mutex contains sync.Mutex". This is misleading because
++					// the local type parameter doesn't actually contain sync.Mutex,
++					// which lacks the M method.
++					//
++					// With tilde, it is clearer that the containment is via an
++					// approximation element.
++					subpath[len(subpath)-1] = "~" + subpath[len(subpath)-1]
++				}
++				return append(subpath, typ.String())
++			}
++		}
++		return nil
++	}
++
+ 	for {
+ 		atyp, ok := typ.Underlying().(*types.Array)
+ 		if !ok {
+@@ -252,6 +294,17 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
+ 		typ = atyp.Elem()
+ 	}
+ 
++	ttyp, ok := typ.Underlying().(*types.Tuple)
++	if ok {
++		for i := 0; i < ttyp.Len(); i++ {
++			subpath := lockPath(tpkg, ttyp.At(i).Type(), seenTParams)
++			if subpath != nil {
++				return append(subpath, typ.String())
++			}
++		}
++		return nil
++	}
++
+ 	// We're only interested in the case in which the underlying
+ 	// type is a struct. (Interfaces and pointers are safe to copy.)
+ 	styp, ok := typ.Underlying().(*types.Struct)
+@@ -263,7 +316,7 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
+ 	// is a sync.Locker, but a value is not. This differentiates
+ 	// embedded interfaces from embedded values.
+ 	if types.Implements(types.NewPointer(typ), lockerType) && !types.Implements(typ, lockerType) {
+-		return []types.Type{typ}
++		return []string{typ.String()}
+ 	}
+ 
+ 	// In go1.10, sync.noCopy did not implement Locker.
+@@ -272,15 +325,15 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
+ 	if named, ok := typ.(*types.Named); ok &&
+ 		named.Obj().Name() == "noCopy" &&
+ 		named.Obj().Pkg().Path() == "sync" {
+-		return []types.Type{typ}
++		return []string{typ.String()}
+ 	}
+ 
+ 	nfields := styp.NumFields()
+ 	for i := 0; i < nfields; i++ {
+ 		ftyp := styp.Field(i).Type()
+-		subpath := lockPath(tpkg, ftyp)
++		subpath := lockPath(tpkg, ftyp, seenTParams)
+ 		if subpath != nil {
+-			return append(subpath, typ)
++			return append(subpath, typ.String())
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go
+index 51600ffc7e..73746d6f04 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go
+@@ -187,7 +187,11 @@ func (c *CFGs) callMayReturn(call *ast.CallExpr) (r bool) {
+ 		return false // panic never returns
+ 	}
+ 
+-	// Is this a static call?
++	// Is this a static call? Also includes static functions
++	// parameterized by a type. Such functions may or may not
++	// return depending on the parameter type, but in some
++	// cases the answer is definite. We let ctrlflow figure
++	// that out.
+ 	fn := typeutil.StaticCallee(c.pass.TypesInfo, call)
+ 	if fn == nil {
+ 		return true // callee not statically known; be conservative
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+index cd42c9897f..850f6f8fae 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+@@ -14,6 +14,7 @@ import (
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ const Doc = `check for useless comparisons between functions and nil
+@@ -59,6 +60,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			obj = pass.TypesInfo.Uses[v]
+ 		case *ast.SelectorExpr:
+ 			obj = pass.TypesInfo.Uses[v.Sel]
++		case *ast.IndexExpr, *typeparams.IndexListExpr:
++			// Check generic functions such as "f[T1,T2]".
++			if id, ok := typeparams.GetIndexExprData(v).X.(*ast.Ident); ok {
++				obj = pass.TypesInfo.Uses[id]
++			}
+ 		default:
+ 			return
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 4169d30e4f..0206073578 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -452,8 +452,15 @@ func stringConstantArg(pass *analysis.Pass, call *ast.CallExpr, idx int) (string
+ 	if idx >= len(call.Args) {
+ 		return "", false
+ 	}
+-	arg := call.Args[idx]
+-	lit := pass.TypesInfo.Types[arg].Value
++	return stringConstantExpr(pass, call.Args[idx])
++}
++
++// stringConstantExpr returns expression's string constant value.
++//
++// ("", false) is returned if expression isn't a string
++// constant.
++func stringConstantExpr(pass *analysis.Pass, expr ast.Expr) (string, bool) {
++	lit := pass.TypesInfo.Types[expr].Value
+ 	if lit != nil && lit.Kind() == constant.String {
+ 		return constant.StringVal(lit), true
+ 	}
+@@ -872,8 +879,12 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 			return
+ 		}
+ 		arg := call.Args[argNum]
+-		if !matchArgType(pass, argInt, nil, arg) {
+-			pass.ReportRangef(call, "%s format %s uses non-int %s as argument of *", state.name, state.format, analysisutil.Format(pass.Fset, arg))
++		if reason, ok := matchArgType(pass, argInt, arg); !ok {
++			details := ""
++			if reason != "" {
++				details = " (" + reason + ")"
++			}
++			pass.ReportRangef(call, "%s format %s uses non-int %s%s as argument of *", state.name, state.format, analysisutil.Format(pass.Fset, arg), details)
+ 			return false
+ 		}
+ 	}
+@@ -890,12 +901,16 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 		pass.ReportRangef(call, "%s format %s arg %s is a func value, not called", state.name, state.format, analysisutil.Format(pass.Fset, arg))
+ 		return false
+ 	}
+-	if !matchArgType(pass, v.typ, nil, arg) {
++	if reason, ok := matchArgType(pass, v.typ, arg); !ok {
+ 		typeString := ""
+ 		if typ := pass.TypesInfo.Types[arg].Type; typ != nil {
+ 			typeString = typ.String()
+ 		}
+-		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString)
++		details := ""
++		if reason != "" {
++			details = " (" + reason + ")"
++		}
++		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString, details)
+ 		return false
+ 	}
+ 	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) {
+@@ -1053,10 +1068,10 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 	}
+ 
+ 	arg := args[0]
+-	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+-		// Ignore trailing % character in lit.Value.
++	if s, ok := stringConstantExpr(pass, arg); ok {
++		// Ignore trailing % character
+ 		// The % in "abc 0.0%" couldn't be a formatting directive.
+-		s := strings.TrimSuffix(lit.Value, `%"`)
++		s = strings.TrimSuffix(s, "%")
+ 		if strings.Contains(s, "%") {
+ 			m := printFormatRE.FindStringSubmatch(s)
+ 			if m != nil {
+@@ -1067,9 +1082,8 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 	if strings.HasSuffix(fn.Name(), "ln") {
+ 		// The last item, if a string, should not have a newline.
+ 		arg = args[len(args)-1]
+-		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+-			str, _ := strconv.Unquote(lit.Value)
+-			if strings.HasSuffix(str, "\n") {
++		if s, ok := stringConstantExpr(pass, arg); ok {
++			if strings.HasSuffix(s, "\n") {
+ 				pass.ReportRangef(call, "%s arg list ends with redundant newline", fn.FullName())
+ 			}
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+index 6a5fae44f4..81bf36e1ee 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+@@ -5,45 +5,60 @@
+ package printf
+ 
+ import (
++	"fmt"
+ 	"go/ast"
+ 	"go/types"
+ 
+ 	"golang.org/x/tools/go/analysis"
+-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+ 
+-// matchArgType reports an error if printf verb t is not appropriate
+-// for operand arg.
++// matchArgType reports an error if printf verb t is not appropriate for
++// operand arg.
+ //
+-// typ is used only for recursive calls; external callers must supply nil.
+-//
+-// (Recursion arises from the compound types {map,chan,slice} which
+-// may be printed with %d etc. if that is appropriate for their element
+-// types.)
+-func matchArgType(pass *analysis.Pass, t printfArgType, typ types.Type, arg ast.Expr) bool {
+-	return matchArgTypeInternal(pass, t, typ, arg, make(map[types.Type]bool))
+-}
+-
+-// matchArgTypeInternal is the internal version of matchArgType. It carries a map
+-// remembering what types are in progress so we don't recur when faced with recursive
+-// types or mutually recursive types.
+-func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type, arg ast.Expr, inProgress map[types.Type]bool) bool {
++// If arg is a type parameter, the verb t must be appropriate for every type in
++// the type parameter type set.
++func matchArgType(pass *analysis.Pass, t printfArgType, arg ast.Expr) (reason string, ok bool) {
+ 	// %v, %T accept any argument type.
+ 	if t == anyType {
+-		return true
++		return "", true
+ 	}
++
++	typ := pass.TypesInfo.Types[arg].Type
+ 	if typ == nil {
+-		// external call
+-		typ = pass.TypesInfo.Types[arg].Type
+-		if typ == nil {
+-			return true // probably a type check problem
+-		}
++		return "", true // probably a type check problem
+ 	}
+ 
++	m := &argMatcher{t: t, seen: make(map[types.Type]bool)}
++	ok = m.match(typ, true)
++	return m.reason, ok
++}
++
++// argMatcher recursively matches types against the printfArgType t.
++//
++// To short-circuit recursion, it keeps track of types that have already been
++// matched (or are in the process of being matched) via the seen map. Recursion
++// arises from the compound types {map,chan,slice} which may be printed with %d
++// etc. if that is appropriate for their element types, as well as from type
++// parameters, which are expanded to the constituents of their type set.
++//
++// The reason field may be set to report the cause of the mismatch.
++type argMatcher struct {
++	t      printfArgType
++	seen   map[types.Type]bool
++	reason string
++}
++
++// match checks if typ matches m's printf arg type. If topLevel is true, typ is
++// the actual type of the printf arg, for which special rules apply. As a
++// special case, top level type parameters pass topLevel=true when checking for
++// matches among the constituents of their type set, as type arguments will
++// replace the type parameter at compile time.
++func (m *argMatcher) match(typ types.Type, topLevel bool) bool {
+ 	// %w accepts only errors.
+-	if t == argError {
++	if m.t == argError {
+ 		return types.ConvertibleTo(typ, errorType)
+ 	}
+ 
+@@ -51,86 +66,153 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type,
+ 	if isFormatter(typ) {
+ 		return true
+ 	}
++
+ 	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?
+-	if t&argString != 0 && isConvertibleToString(pass, typ) {
++	if m.t&argString != 0 && isConvertibleToString(typ) {
++		return true
++	}
++
++	if typ, _ := typ.(*typeparams.TypeParam); typ != nil {
++		// Avoid infinite recursion through type parameters.
++		if m.seen[typ] {
++			return true
++		}
++		m.seen[typ] = true
++		terms, err := typeparams.StructuralTerms(typ)
++		if err != nil {
++			return true // invalid type (possibly an empty type set)
++		}
++
++		if len(terms) == 0 {
++			// No restrictions on the underlying of typ. Type parameters implementing
++			// error, fmt.Formatter, or fmt.Stringer were handled above, and %v and
++			// %T was handled in matchType. We're about to check restrictions the
++			// underlying; if the underlying type is unrestricted there must be an
++			// element of the type set that violates one of the arg type checks
++			// below, so we can safely return false here.
++
++			if m.t == anyType { // anyType must have already been handled.
++				panic("unexpected printfArgType")
++			}
++			return false
++		}
++
++		// Only report a reason if typ is the argument type, otherwise it won't
++		// make sense. Note that it is not sufficient to check if topLevel == here,
++		// as type parameters can have a type set consisting of other type
++		// parameters.
++		reportReason := len(m.seen) == 1
++
++		for _, term := range terms {
++			if !m.match(term.Type(), topLevel) {
++				if reportReason {
++					if term.Tilde() {
++						m.reason = fmt.Sprintf("contains ~%s", term.Type())
++					} else {
++						m.reason = fmt.Sprintf("contains %s", term.Type())
++					}
++				}
++				return false
++			}
++		}
+ 		return true
+ 	}
+ 
+ 	typ = typ.Underlying()
+-	if inProgress[typ] {
+-		// We're already looking at this type. The call that started it will take care of it.
++	if m.seen[typ] {
++		// We've already considered typ, or are in the process of considering it.
++		// In case we've already considered typ, it must have been valid (else we
++		// would have stopped matching). In case we're in the process of
++		// considering it, we must avoid infinite recursion.
++		//
++		// There are some pathological cases where returning true here is
++		// incorrect, for example `type R struct { F []R }`, but these are
++		// acceptable false negatives.
+ 		return true
+ 	}
+-	inProgress[typ] = true
++	m.seen[typ] = true
+ 
+ 	switch typ := typ.(type) {
+ 	case *types.Signature:
+-		return t == argPointer
++		return m.t == argPointer
+ 
+ 	case *types.Map:
+-		return t == argPointer ||
+-			// Recur: map[int]int matches %d.
+-			(matchArgTypeInternal(pass, t, typ.Key(), arg, inProgress) && matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress))
++		if m.t == argPointer {
++			return true
++		}
++		// Recur: map[int]int matches %d.
++		return m.match(typ.Key(), false) && m.match(typ.Elem(), false)
+ 
+ 	case *types.Chan:
+-		return t&argPointer != 0
++		return m.t&argPointer != 0
+ 
+ 	case *types.Array:
+ 		// Same as slice.
+-		if types.Identical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
++		if types.Identical(typ.Elem().Underlying(), types.Typ[types.Byte]) && m.t&argString != 0 {
+ 			return true // %s matches []byte
+ 		}
+ 		// Recur: []int matches %d.
+-		return matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress)
++		return m.match(typ.Elem(), false)
+ 
+ 	case *types.Slice:
+ 		// Same as array.
+-		if types.Identical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
++		if types.Identical(typ.Elem().Underlying(), types.Typ[types.Byte]) && m.t&argString != 0 {
+ 			return true // %s matches []byte
+ 		}
+-		if t == argPointer {
++		if m.t == argPointer {
+ 			return true // %p prints a slice's 0th element
+ 		}
+ 		// Recur: []int matches %d. But watch out for
+ 		//	type T []T
+ 		// If the element is a pointer type (type T[]*T), it's handled fine by the Pointer case below.
+-		return matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress)
++		return m.match(typ.Elem(), false)
+ 
+ 	case *types.Pointer:
+ 		// Ugly, but dealing with an edge case: a known pointer to an invalid type,
+ 		// probably something from a failed import.
+-		if typ.Elem().String() == "invalid type" {
+-			if false {
+-				pass.Reportf(arg.Pos(), "printf argument %v is pointer to invalid or unknown type", analysisutil.Format(pass.Fset, arg))
+-			}
++		if typ.Elem() == types.Typ[types.Invalid] {
+ 			return true // special case
+ 		}
+ 		// If it's actually a pointer with %p, it prints as one.
+-		if t == argPointer {
++		if m.t == argPointer {
+ 			return true
+ 		}
+ 
+ 		under := typ.Elem().Underlying()
+ 		switch under.(type) {
++		case *typeparams.TypeParam:
++			return true // We don't know whether the logic below applies. Give up.
+ 		case *types.Struct: // see below
+ 		case *types.Array: // see below
+ 		case *types.Slice: // see below
+ 		case *types.Map: // see below
+ 		default:
+ 			// Check whether the rest can print pointers.
+-			return t&argPointer != 0
++			return m.t&argPointer != 0
+ 		}
+-		// If it's a top-level pointer to a struct, array, slice, or
++		// If it's a top-level pointer to a struct, array, slice, type param, or
+ 		// map, that's equivalent in our analysis to whether we can
+ 		// print the type being pointed to. Pointers in nested levels
+ 		// are not supported to minimize fmt running into loops.
+-		if len(inProgress) > 1 {
++		if !topLevel {
+ 			return false
+ 		}
+-		return matchArgTypeInternal(pass, t, under, arg, inProgress)
++		return m.match(under, false)
+ 
+ 	case *types.Struct:
+-		return matchStructArgType(pass, t, typ, arg, inProgress)
++		// report whether all the elements of the struct match the expected type. For
++		// instance, with "%d" all the elements must be printable with the "%d" format.
++		for i := 0; i < typ.NumFields(); i++ {
++			typf := typ.Field(i)
++			if !m.match(typf.Type(), false) {
++				return false
++			}
++			if m.t&argString != 0 && !typf.Exported() && isConvertibleToString(typf.Type()) {
++				// Issue #17798: unexported Stringer or error cannot be properly formatted.
++				return false
++			}
++		}
++		return true
+ 
+ 	case *types.Interface:
+ 		// There's little we can do.
+@@ -142,7 +224,7 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type,
+ 		switch typ.Kind() {
+ 		case types.UntypedBool,
+ 			types.Bool:
+-			return t&argBool != 0
++			return m.t&argBool != 0
+ 
+ 		case types.UntypedInt,
+ 			types.Int,
+@@ -156,35 +238,32 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type,
+ 			types.Uint32,
+ 			types.Uint64,
+ 			types.Uintptr:
+-			return t&argInt != 0
++			return m.t&argInt != 0
+ 
+ 		case types.UntypedFloat,
+ 			types.Float32,
+ 			types.Float64:
+-			return t&argFloat != 0
++			return m.t&argFloat != 0
+ 
+ 		case types.UntypedComplex,
+ 			types.Complex64,
+ 			types.Complex128:
+-			return t&argComplex != 0
++			return m.t&argComplex != 0
+ 
+ 		case types.UntypedString,
+ 			types.String:
+-			return t&argString != 0
++			return m.t&argString != 0
+ 
+ 		case types.UnsafePointer:
+-			return t&(argPointer|argInt) != 0
++			return m.t&(argPointer|argInt) != 0
+ 
+ 		case types.UntypedRune:
+-			return t&(argInt|argRune) != 0
++			return m.t&(argInt|argRune) != 0
+ 
+ 		case types.UntypedNil:
+ 			return false
+ 
+ 		case types.Invalid:
+-			if false {
+-				pass.Reportf(arg.Pos(), "printf argument %v has invalid or unknown type", analysisutil.Format(pass.Fset, arg))
+-			}
+ 			return true // Probably a type check problem.
+ 		}
+ 		panic("unreachable")
+@@ -193,7 +272,7 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type,
+ 	return false
+ }
+ 
+-func isConvertibleToString(pass *analysis.Pass, typ types.Type) bool {
++func isConvertibleToString(typ types.Type) bool {
+ 	if bt, ok := typ.(*types.Basic); ok && bt.Kind() == types.UntypedNil {
+ 		// We explicitly don't want untyped nil, which is
+ 		// convertible to both of the interfaces below, as it
+@@ -228,19 +307,3 @@ func hasBasicType(pass *analysis.Pass, x ast.Expr, kind types.BasicKind) bool {
+ 	b, ok := t.(*types.Basic)
+ 	return ok && b.Kind() == kind
+ }
+-
+-// matchStructArgType reports whether all the elements of the struct match the expected
+-// type. For instance, with "%d" all the elements must be printable with the "%d" format.
+-func matchStructArgType(pass *analysis.Pass, t printfArgType, typ *types.Struct, arg ast.Expr, inProgress map[types.Type]bool) bool {
+-	for i := 0; i < typ.NumFields(); i++ {
+-		typf := typ.Field(i)
+-		if !matchArgTypeInternal(pass, t, typf.Type(), arg, inProgress) {
+-			return false
+-		}
+-		if t&argString != 0 && !typf.Exported() && isConvertibleToString(pass, typf.Type()) {
+-			// Issue #17798: unexported Stringer or error cannot be properly formatted.
+-			return false
+-		}
+-	}
+-	return true
+-}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+index 1f3df07ccd..640de28e05 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+@@ -14,11 +14,13 @@ import (
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/token"
++	"math"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ const Doc = "check for shifts that equal or exceed the width of the integer"
+@@ -93,9 +95,27 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
+ 	if t == nil {
+ 		return
+ 	}
+-	size := 8 * pass.TypesSizes.Sizeof(t)
+-	if amt >= size {
++	terms, err := typeparams.StructuralTerms(t)
++	if err != nil {
++		return // invalid type
++	}
++	sizes := make(map[int64]struct{})
++	for _, term := range terms {
++		size := 8 * pass.TypesSizes.Sizeof(term.Type())
++		sizes[size] = struct{}{}
++	}
++	minSize := int64(math.MaxInt64)
++	for size := range sizes {
++		if size < minSize {
++			minSize = size
++		}
++	}
++	if amt >= minSize {
+ 		ident := analysisutil.Format(pass.Fset, x)
+-		pass.ReportRangef(node, "%s (%d bits) too small for shift of %d", ident, size, amt)
++		qualifier := ""
++		if len(sizes) > 1 {
++			qualifier = "may be "
++		}
++		pass.ReportRangef(node, "%s (%s%d bits) too small for shift of %d", ident, qualifier, minSize, amt)
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+index 7a005901e8..92fd375f23 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+@@ -10,10 +10,12 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/types"
++	"strings"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ const Doc = `check for string(int) conversions
+@@ -36,6 +38,35 @@ var Analyzer = &analysis.Analyzer{
+ 	Run:      run,
+ }
+ 
++// describe returns a string describing the type typ contained within the type
++// set of inType. If non-empty, inName is used as the name of inType (this is
++// necessary so that we can use alias type names that may not be reachable from
++// inType itself).
++func describe(typ, inType types.Type, inName string) string {
++	name := inName
++	if typ != inType {
++		name = typeName(typ)
++	}
++	if name == "" {
++		return ""
++	}
++
++	var parentheticals []string
++	if underName := typeName(typ.Underlying()); underName != "" && underName != name {
++		parentheticals = append(parentheticals, underName)
++	}
++
++	if typ != inType && inName != "" && inName != name {
++		parentheticals = append(parentheticals, "in "+inName)
++	}
++
++	if len(parentheticals) > 0 {
++		name += " (" + strings.Join(parentheticals, ", ") + ")"
++	}
++
++	return name
++}
++
+ func typeName(typ types.Type) string {
+ 	if v, _ := typ.(interface{ Name() string }); v != nil {
+ 		return v.Name()
+@@ -54,6 +85,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	inspect.Preorder(nodeFilter, func(n ast.Node) {
+ 		call := n.(*ast.CallExpr)
+ 
++		if len(call.Args) != 1 {
++			return
++		}
++		arg := call.Args[0]
++
+ 		// Retrieve target type name.
+ 		var tname *types.TypeName
+ 		switch fun := call.Fun.(type) {
+@@ -65,60 +101,100 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		if tname == nil {
+ 			return
+ 		}
+-		target := tname.Name()
+ 
+-		// Check that target type T in T(v) has an underlying type of string.
+-		T, _ := tname.Type().Underlying().(*types.Basic)
+-		if T == nil || T.Kind() != types.String {
+-			return
++		// In the conversion T(v) of a value v of type V to a target type T, we
++		// look for types T0 in the type set of T and V0 in the type set of V, such
++		// that V0->T0 is a problematic conversion. If T and V are not type
++		// parameters, this amounts to just checking if V->T is a problematic
++		// conversion.
++
++		// First, find a type T0 in T that has an underlying type of string.
++		T := tname.Type()
++		tterms, err := typeparams.StructuralTerms(T)
++		if err != nil {
++			return // invalid type
+ 		}
+-		if s := T.Name(); target != s {
+-			target += " (" + s + ")"
++
++		var T0 types.Type // string type in the type set of T
++
++		for _, term := range tterms {
++			u, _ := term.Type().Underlying().(*types.Basic)
++			if u != nil && u.Kind() == types.String {
++				T0 = term.Type()
++				break
++			}
+ 		}
+ 
+-		// Check that type V of v has an underlying integral type that is not byte or rune.
+-		if len(call.Args) != 1 {
++		if T0 == nil {
++			// No target types have an underlying type of string.
+ 			return
+ 		}
+-		v := call.Args[0]
+-		vtyp := pass.TypesInfo.TypeOf(v)
+-		V, _ := vtyp.Underlying().(*types.Basic)
+-		if V == nil || V.Info()&types.IsInteger == 0 {
+-			return
++
++		// Next, find a type V0 in V that has an underlying integral type that is
++		// not byte or rune.
++		V := pass.TypesInfo.TypeOf(arg)
++		vterms, err := typeparams.StructuralTerms(V)
++		if err != nil {
++			return // invalid type
+ 		}
+-		switch V.Kind() {
+-		case types.Byte, types.Rune, types.UntypedRune:
+-			return
++
++		var V0 types.Type // integral type in the type set of V
++
++		for _, term := range vterms {
++			u, _ := term.Type().Underlying().(*types.Basic)
++			if u != nil && u.Info()&types.IsInteger != 0 {
++				switch u.Kind() {
++				case types.Byte, types.Rune, types.UntypedRune:
++					continue
++				}
++				V0 = term.Type()
++				break
++			}
+ 		}
+ 
+-		// Retrieve source type name.
+-		source := typeName(vtyp)
+-		if source == "" {
++		if V0 == nil {
++			// No source types are non-byte or rune integer types.
+ 			return
+ 		}
+-		if s := V.Name(); source != s {
+-			source += " (" + s + ")"
++
++		convertibleToRune := true // if true, we can suggest a fix
++		for _, term := range vterms {
++			if !types.ConvertibleTo(term.Type(), types.Typ[types.Rune]) {
++				convertibleToRune = false
++				break
++			}
++		}
++
++		target := describe(T0, T, tname.Name())
++		source := describe(V0, V, typeName(V))
++
++		if target == "" || source == "" {
++			return // something went wrong
+ 		}
++
+ 		diag := analysis.Diagnostic{
+ 			Pos:     n.Pos(),
+ 			Message: fmt.Sprintf("conversion from %s to %s yields a string of one rune, not a string of digits (did you mean fmt.Sprint(x)?)", source, target),
+-			SuggestedFixes: []analysis.SuggestedFix{
++		}
++
++		if convertibleToRune {
++			diag.SuggestedFixes = []analysis.SuggestedFix{
+ 				{
+ 					Message: "Did you mean to convert a rune to a string?",
+ 					TextEdits: []analysis.TextEdit{
+ 						{
+-							Pos:     v.Pos(),
+-							End:     v.Pos(),
++							Pos:     arg.Pos(),
++							End:     arg.Pos(),
+ 							NewText: []byte("rune("),
+ 						},
+ 						{
+-							Pos:     v.End(),
+-							End:     v.End(),
++							Pos:     arg.End(),
++							End:     arg.End(),
+ 							NewText: []byte(")"),
+ 						},
+ 					},
+ 				},
+-			},
++			}
+ 		}
+ 		pass.Report(diag)
+ 	})
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+index ce05a56cca..3d4bd49085 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+@@ -11,6 +11,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ const Doc = `report calls to (*testing.T).Fatal from goroutines started by a test.
+@@ -124,16 +125,30 @@ func typeIsTestingDotTOrB(expr ast.Expr) (string, bool) {
+ // function literals declared in the same function, and
+ // static calls within the same package are supported.
+ func goStmtFun(goStmt *ast.GoStmt) ast.Node {
+-	switch goStmt.Call.Fun.(type) {
+-	case *ast.Ident:
+-		id := goStmt.Call.Fun.(*ast.Ident)
+-		// TODO(cuonglm): improve this once golang/go#48141 resolved.
++	switch fun := goStmt.Call.Fun.(type) {
++	case *ast.IndexExpr, *typeparams.IndexListExpr:
++		ix := typeparams.GetIndexExprData(fun)
++		if ix == nil {
++			break
++		}
++		id, _ := ix.X.(*ast.Ident)
++		if id == nil {
++			break
++		}
+ 		if id.Obj == nil {
+ 			break
+ 		}
+ 		if funDecl, ok := id.Obj.Decl.(ast.Node); ok {
+ 			return funDecl
+ 		}
++	case *ast.Ident:
++		// TODO(cuonglm): improve this once golang/go#48141 resolved.
++		if fun.Obj == nil {
++			break
++		}
++		if funDecl, ok := fun.Obj.Decl.(ast.Node); ok {
++			return funDecl
++		}
+ 	case *ast.FuncLit:
+ 		return goStmt.Call.Fun
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+index 570ad5c209..2c87882496 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+@@ -16,6 +16,7 @@ import (
+ 	"unicode/utf8"
+ 
+ 	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ const Doc = `check for common mistaken usages of tests and examples
+@@ -170,6 +171,9 @@ func checkExampleName(pass *analysis.Pass, fn *ast.FuncDecl) {
+ 	if results := fn.Type.Results; results != nil && len(results.List) != 0 {
+ 		pass.Reportf(fn.Pos(), "%s should return nothing", fnName)
+ 	}
++	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
++		pass.Reportf(fn.Pos(), "%s should not have type params", fnName)
++	}
+ 
+ 	if fnName == "Example" {
+ 		// Nothing more to do.
+@@ -236,6 +240,12 @@ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
+ 		return
+ 	}
+ 
++	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
++		// Note: cmd/go/internal/load also errors about TestXXX and BenchmarkXXX functions with type parameters.
++		// We have currently decided to also warn before compilation/package loading. This can help users in IDEs.
++		pass.Reportf(fn.Pos(), "%s has type parameters: it will not be run by go test as a %sXXX function", fn.Name.Name, prefix)
++	}
++
+ 	if !isTestSuffix(fn.Name.Name[len(prefix):]) {
+ 		pass.Reportf(fn.Pos(), "%s has malformed name: first letter after '%s' must not be lowercase", fn.Name.Name, prefix)
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
+index bececee7e9..fd94508f88 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
+@@ -17,6 +17,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ // TODO(adonovan): make this analysis modular: export a mustUseResult
+@@ -70,6 +71,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			return // a conversion, not a call
+ 		}
+ 
++		index := typeparams.GetIndexExprData(fun)
++		if index != nil {
++			fun = index.X // If this is generic function or method call, skip the instantiation arguments
++		}
++
+ 		selector, ok := fun.(*ast.SelectorExpr)
+ 		if !ok {
+ 			return // neither a method call nor a qualified ident
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
+index 38f596daf9..2b8960332d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
+@@ -9,13 +9,30 @@ import (
+ 	"go/types"
+ 
+ 	"golang.org/x/tools/go/ast/astutil"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ // Callee returns the named target of a function call, if any:
+ // a function, method, builtin, or variable.
++//
++// Functions and methods may potentially have type parameters.
+ func Callee(info *types.Info, call *ast.CallExpr) types.Object {
++	fun := astutil.Unparen(call.Fun)
++
++	// Look through type instantiation if necessary.
++	isInstance := false
++	switch fun.(type) {
++	case *ast.IndexExpr, *typeparams.IndexListExpr:
++		// When extracting the callee from an *IndexExpr, we need to check that
++		// it is a *types.Func and not a *types.Var.
++		// Example: Don't match a slice m within the expression `m[0]()`.
++		isInstance = true
++		ix := typeparams.GetIndexExprData(fun)
++		fun = ix.X
++	}
++
+ 	var obj types.Object
+-	switch fun := astutil.Unparen(call.Fun).(type) {
++	switch fun := fun.(type) {
+ 	case *ast.Ident:
+ 		obj = info.Uses[fun] // type, var, builtin, or declared func
+ 	case *ast.SelectorExpr:
+@@ -28,11 +45,18 @@ func Callee(info *types.Info, call *ast.CallExpr) types.Object {
+ 	if _, ok := obj.(*types.TypeName); ok {
+ 		return nil // T(x) is a conversion, not a call
+ 	}
++	// A Func is required to match instantiations.
++	if _, ok := obj.(*types.Func); isInstance && !ok {
++		return nil // Was not a Func.
++	}
+ 	return obj
+ }
+ 
+-// StaticCallee returns the target (function or method) of a static
+-// function call, if any. It returns nil for calls to builtins.
++// StaticCallee returns the target (function or method) of a static function
++// call, if any. It returns nil for calls to builtins.
++//
++// Note: for calls of instantiated functions and methods, StaticCallee returns
++// the corresponding generic function or method on the generic type.
+ func StaticCallee(info *types.Info, call *ast.CallExpr) *types.Func {
+ 	if f, ok := Callee(info, call).(*types.Func); ok && !interfaceMethod(f) {
+ 		return f
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 2ac22b951b..3806f7171c 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ ## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+-# golang.org/x/mod v0.5.1-0.20210913215816-37dd6891021a
++# golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -51,7 +51,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.8-0.20211025211149-f916b54a1784
++# golang.org/x/tools v0.1.8-0.20211109164901-e9000123914f
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

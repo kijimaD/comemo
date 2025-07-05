@@ -5,6 +5,25 @@ Date:   Tue Jun 24 18:14:32 2008 -0700
     bug in returning a fat function result
     
     SVN=124436
-
+---
  src/cmd/6g/gen.c | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 0bfd7be166..4faca96c58 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -694,12 +694,7 @@ cgen_aret(Node *n, Node *res)
+ 	nod1.xoffset = fp->width;
+ 	nod1.type = fp->type;
+ 
+-	memset(&nod2, 0, sizeof(nod2));
+-	nod2.op = OADDR;
+-	nod2.left = &nod1;
+-	nod2.addable = 1;
+-
+-	cgen_as(res, &nod2, 0);
++	gins(ALEAQ, &nod1, res);
+ }
+ 
+ void

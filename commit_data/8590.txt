@@ -10,7 +10,7 @@ Date:   Thu Jun 2 10:10:17 2011 -0400
     R=rsc, dave, robert.hencke
     CC=golang-dev
     https://golang.org/cl/4532098
-
+---
  src/pkg/net/udpsock.go                  |  8 ++++----
  src/pkg/syscall/syscall_bsd.go          |  7 +++++--
  src/pkg/syscall/syscall_linux.go        |  6 +++++-
@@ -26,3 +26,636 @@ Date:   Thu Jun 2 10:10:17 2011 -0400
  src/pkg/syscall/ztypes_linux_amd64.go   | 16 ++++++++++++++--
  src/pkg/syscall/ztypes_linux_arm.go     | 16 ++++++++++++++--
  14 files changed, 148 insertions(+), 51 deletions(-)
+
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 409355667b..5469acffad 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -293,10 +293,10 @@ func (c *UDPConn) JoinGroup(addr IP) os.Error {
+ 	if ip == nil {
+ 		return &OpError{"joingroup", "udp", &IPAddr{ip}, errInvalidMulticast}
+ 	}
+-	mreq := &syscall.IpMreq{
++	mreq := &syscall.IPMreq{
+ 		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
+ 	}
+-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIpMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
++	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
+ 	if err != nil {
+ 		return &OpError{"joingroup", "udp", &IPAddr{ip}, err}
+ 	}
+@@ -312,10 +312,10 @@ func (c *UDPConn) LeaveGroup(addr IP) os.Error {
+ 	if ip == nil {
+ 		return &OpError{"leavegroup", "udp", &IPAddr{ip}, errInvalidMulticast}
+ 	}
+-	mreq := &syscall.IpMreq{
++	mreq := &syscall.IPMreq{
+ 		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
+ 	}
+-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIpMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq))
++	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq))
+ 	if err != nil {
+ 		return &OpError{"leavegroup", "udp", &IPAddr{ip}, err}
+ 	}
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index d670e64cbf..89bcc7f0e3 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -22,7 +22,6 @@ const ImplementsGetwd = false
+ 
+ func Getwd() (string, int) { return "", ENOTSUP }
+ 
+-
+ /*
+  * Wrapped
+  */
+@@ -392,7 +391,11 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
+ }
+ 
+-func SetsockoptIpMreq(fd, level, opt int, mreq *IpMreq) (errno int) {
++func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
++}
++
++func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 9e9037ea14..63682d23c4 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -463,7 +463,11 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
+ }
+ 
+-func SetsockoptIpMreq(fd, level, opt int, mreq *IpMreq) (errno int) {
++func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
++}
++
++func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 37e90053e0..bb93533bd0 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -680,14 +680,20 @@ const (
+ 	IP_DROP_MEMBERSHIP
+ )
+ 
+-type IpMreq struct {
++type IPMreq struct {
+ 	Multiaddr [4]byte /* in_addr */
+ 	Interface [4]byte /* in_addr */
+ }
+ 
+-func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int)    { return EWINDOWS }
+-func SetsockoptIpMreq(fd, level, opt int, mreq *IpMreq) (errno int) { return EWINDOWS }
+-func BindToDevice(fd int, device string) (errno int)                { return EWINDOWS }
++type IPv6Mreq struct {
++	Multiaddr [16]byte /* in6_addr */
++	Interface uint32
++}
++
++func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int)        { return EWINDOWS }
++func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (errno int)     { return EWINDOWS }
++func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (errno int) { return EWINDOWS }
++func BindToDevice(fd int, device string) (errno int)                    { return EWINDOWS }
+ 
+ // TODO(brainman): fix all needed for os
+ 
+diff --git a/src/pkg/syscall/types_darwin.c b/src/pkg/syscall/types_darwin.c
+index 666923a686..ecccd5bd92 100644
+--- a/src/pkg/syscall/types_darwin.c
++++ b/src/pkg/syscall/types_darwin.c
+@@ -39,8 +39,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ 
+ // Machine characteristics; for internal use.
+ 
+-enum
+-{
++enum {
+ 	$sizeofPtr = sizeof(void*),
+ 	$sizeofShort = sizeof(short),
+ 	$sizeofInt = sizeof(int),
+@@ -48,7 +47,6 @@ enum
+ 	$sizeofLongLong = sizeof(long long),
+ };
+ 
+-
+ // Basic types
+ 
+ typedef short $_C_short;
+@@ -71,8 +69,7 @@ typedef gid_t $_Gid_t;
+ 
+ // Files
+ 
+-enum
+-{
++enum {
+ 	$O_CLOEXEC = 0,	// not supported
+ };
+ 
+@@ -86,8 +83,6 @@ typedef struct log2phys $Log2phys_t;
+ 
+ typedef struct dirent $Dirent;
+ 
+-// Wait status.
+-
+ // Sockets
+ 
+ union sockaddr_all {
+@@ -112,9 +107,11 @@ typedef struct sockaddr_any $RawSockaddrAny;
+ typedef socklen_t $_Socklen;
+ typedef struct linger $Linger;
+ typedef struct iovec $Iovec;
+-typedef struct ip_mreq $IpMreq;
++typedef struct ip_mreq $IPMreq;
++typedef struct ipv6_mreq $IPv6Mreq;
+ typedef struct msghdr $Msghdr;
+ typedef struct cmsghdr $Cmsghdr;
++typedef struct in6_pktinfo $Inet6Pktinfo;
+ 
+ enum {
+ 	$SizeofSockaddrInet4 = sizeof(struct sockaddr_in),
+@@ -123,19 +120,21 @@ enum {
+ 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
+ 	$SizeofSockaddrDatalink = sizeof(struct sockaddr_dl),
+ 	$SizeofLinger = sizeof(struct linger),
+-	$SizeofIpMreq = sizeof(struct ip_mreq),
++	$SizeofIPMreq = sizeof(struct ip_mreq),
++	$SizeofIPv6Mreq = sizeof(struct ipv6_mreq),
+ 	$SizeofMsghdr = sizeof(struct msghdr),
+ 	$SizeofCmsghdr = sizeof(struct cmsghdr),
++	$SizeofInet6Pktinfo = sizeof(struct in6_pktinfo),
+ };
+ 
+ // Ptrace requests
++
+ enum {
+ 	$PTRACE_TRACEME = PT_TRACE_ME,
+ 	$PTRACE_CONT = PT_CONTINUE,
+ 	$PTRACE_KILL = PT_KILL,
+ };
+ 
+-
+ // Events (kqueue, kevent)
+ 
+ typedef struct kevent $Kevent_t;
+diff --git a/src/pkg/syscall/types_freebsd.c b/src/pkg/syscall/types_freebsd.c
+index 9d65683ef1..97636550ac 100644
+--- a/src/pkg/syscall/types_freebsd.c
++++ b/src/pkg/syscall/types_freebsd.c
+@@ -35,8 +35,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ 
+ // Machine characteristics; for internal use.
+ 
+-enum
+-{
++enum {
+ 	$sizeofPtr = sizeof(void*),
+ 	$sizeofShort = sizeof(short),
+ 	$sizeofInt = sizeof(int),
+@@ -44,7 +43,6 @@ enum
+ 	$sizeofLongLong = sizeof(long long),
+ };
+ 
+-
+ // Basic types
+ 
+ typedef short $_C_short;
+@@ -66,13 +64,11 @@ typedef gid_t $_Gid_t;
+ 
+ // Files
+ 
+-enum
+-{
++enum {
+ 	$O_CLOEXEC = 0,	// not supported
+ };
+ 
+-enum
+-{	// Directory mode bits
++enum {	// Directory mode bits
+ 	$S_IFMT = S_IFMT,
+ 	$S_IFIFO = S_IFIFO,
+ 	$S_IFCHR = S_IFCHR,
+@@ -95,8 +91,6 @@ typedef struct flock $Flock_t;
+ 
+ typedef struct dirent $Dirent;
+ 
+-// Wait status.
+-
+ // Sockets
+ 
+ union sockaddr_all {
+@@ -121,9 +115,11 @@ typedef struct sockaddr_any $RawSockaddrAny;
+ typedef socklen_t $_Socklen;
+ typedef struct linger $Linger;
+ typedef struct iovec $Iovec;
+-typedef struct ip_mreq $IpMreq;
++typedef struct ip_mreq $IPMreq;
++typedef struct ipv6_mreq $IPv6Mreq;
+ typedef struct msghdr $Msghdr;
+ typedef struct cmsghdr $Cmsghdr;
++typedef struct in6_pktinfo $Inet6Pktinfo;
+ 
+ enum {
+ 	$SizeofSockaddrInet4 = sizeof(struct sockaddr_in),
+@@ -132,19 +128,21 @@ enum {
+ 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
+ 	$SizeofSockaddrDatalink = sizeof(struct sockaddr_dl),
+ 	$SizeofLinger = sizeof(struct linger),
+-	$SizeofIpMreq = sizeof(struct ip_mreq),
++	$SizeofIPMreq = sizeof(struct ip_mreq),
++	$SizeofIPv6Mreq = sizeof(struct ipv6_mreq),
+ 	$SizeofMsghdr = sizeof(struct msghdr),
+ 	$SizeofCmsghdr = sizeof(struct cmsghdr),
++	$SizeofInet6Pktinfo = sizeof(struct in6_pktinfo),
+ };
+ 
+ // Ptrace requests
++
+ enum {
+ 	$PTRACE_TRACEME = PT_TRACE_ME,
+ 	$PTRACE_CONT = PT_CONTINUE,
+ 	$PTRACE_KILL = PT_KILL,
+ };
+ 
+-
+ // Events (kqueue, kevent)
+ 
+ typedef struct kevent $Kevent_t;
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+index c8ddc12f27..ce7f96764a 100644
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -47,8 +47,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ 
+ // Machine characteristics; for internal use.
+ 
+-enum
+-{
++enum {
+ 	$sizeofPtr = sizeof(void*),
+ 	$sizeofShort = sizeof(short),
+ 	$sizeofInt = sizeof(int),
+@@ -113,9 +112,11 @@ typedef struct sockaddr_any $RawSockaddrAny;
+ typedef socklen_t $_Socklen;
+ typedef struct linger $Linger;
+ typedef struct iovec $Iovec;
+-typedef struct ip_mreq $IpMreq;
++typedef struct ip_mreq $IPMreq;
++typedef struct ipv6_mreq $IPv6Mreq;
+ typedef struct msghdr $Msghdr;
+ typedef struct cmsghdr $Cmsghdr;
++typedef struct in6_pktinfo $Inet6Pktinfo;
+ typedef struct ucred $Ucred;
+ 
+ enum {
+@@ -126,9 +127,11 @@ enum {
+ 	$SizeofSockaddrLinklayer = sizeof(struct sockaddr_ll),
+ 	$SizeofSockaddrNetlink = sizeof(struct sockaddr_nl),
+ 	$SizeofLinger = sizeof(struct linger),
+-	$SizeofIpMreq = sizeof(struct ip_mreq),	
++	$SizeofIPMreq = sizeof(struct ip_mreq),
++	$SizeofIPv6Mreq = sizeof(struct ipv6_mreq),
+ 	$SizeofMsghdr = sizeof(struct msghdr),
+ 	$SizeofCmsghdr = sizeof(struct cmsghdr),
++	$SizeofInet6Pktinfo = sizeof(struct in6_pktinfo),
+ 	$SizeofUcred = sizeof(struct ucred),
+ };
+ 
+diff --git a/src/pkg/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+index 1f378427f6..2dec017873 100644
+--- a/src/pkg/syscall/ztypes_darwin_386.go
++++ b/src/pkg/syscall/ztypes_darwin_386.go
+@@ -22,9 +22,11 @@ const (
+ 	SizeofSockaddrUnix     = 0x6a
+ 	SizeofSockaddrDatalink = 0x14
+ 	SizeofLinger           = 0x8
+-	SizeofIpMreq           = 0x8
++	SizeofIPMreq           = 0x8
++	SizeofIPv6Mreq         = 0x14
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
++	SizeofInet6Pktinfo     = 0x14
+ 	PTRACE_TRACEME         = 0
+ 	PTRACE_CONT            = 0x7
+ 	PTRACE_KILL            = 0x8
+@@ -226,11 +228,16 @@ type Iovec struct {
+ 	Len  uint32
+ }
+ 
+-type IpMreq struct {
++type IPMreq struct {
+ 	Multiaddr [4]byte /* in_addr */
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPv6Mreq struct {
++	Multiaddr [16]byte /* in6_addr */
++	Interface uint32
++}
++
+ type Msghdr struct {
+ 	Name       *byte
+ 	Namelen    uint32
+@@ -247,6 +254,11 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet6Pktinfo struct {
++	Addr    [16]byte /* in6_addr */
++	Ifindex uint32
++}
++
+ type Kevent_t struct {
+ 	Ident  uint32
+ 	Filter int16
+diff --git a/src/pkg/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+index 5fa27bdd75..96500d7327 100644
+--- a/src/pkg/syscall/ztypes_darwin_amd64.go
++++ b/src/pkg/syscall/ztypes_darwin_amd64.go
+@@ -22,9 +22,11 @@ const (
+ 	SizeofSockaddrUnix     = 0x6a
+ 	SizeofSockaddrDatalink = 0x14
+ 	SizeofLinger           = 0x8
+-	SizeofIpMreq           = 0x8
++	SizeofIPMreq           = 0x8
++	SizeofIPv6Mreq         = 0x14
+ 	SizeofMsghdr           = 0x30
+ 	SizeofCmsghdr          = 0xc
++	SizeofInet6Pktinfo     = 0x14
+ 	PTRACE_TRACEME         = 0
+ 	PTRACE_CONT            = 0x7
+ 	PTRACE_KILL            = 0x8
+@@ -234,11 +236,16 @@ type Iovec struct {
+ 	Len  uint64
+ }
+ 
+-type IpMreq struct {
++type IPMreq struct {
+ 	Multiaddr [4]byte /* in_addr */
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPv6Mreq struct {
++	Multiaddr [16]byte /* in6_addr */
++	Interface uint32
++}
++
+ type Msghdr struct {
+ 	Name         *byte
+ 	Namelen      uint32
+@@ -257,6 +264,11 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet6Pktinfo struct {
++	Addr    [16]byte /* in6_addr */
++	Ifindex uint32
++}
++
+ type Kevent_t struct {
+ 	Ident  uint64
+ 	Filter int16
+diff --git a/src/pkg/syscall/ztypes_freebsd_386.go b/src/pkg/syscall/ztypes_freebsd_386.go
+index f4d256f4e2..6304d3b813 100644
+--- a/src/pkg/syscall/ztypes_freebsd_386.go
++++ b/src/pkg/syscall/ztypes_freebsd_386.go
+@@ -32,9 +32,11 @@ const (
+ 	SizeofSockaddrUnix     = 0x6a
+ 	SizeofSockaddrDatalink = 0x36
+ 	SizeofLinger           = 0x8
+-	SizeofIpMreq           = 0x8
++	SizeofIPMreq           = 0x8
++	SizeofIPv6Mreq         = 0x14
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
++	SizeofInet6Pktinfo     = 0x14
+ 	PTRACE_TRACEME         = 0
+ 	PTRACE_CONT            = 0x7
+ 	PTRACE_KILL            = 0x8
+@@ -219,11 +221,16 @@ type Iovec struct {
+ 	Len  uint32
+ }
+ 
+-type IpMreq struct {
++type IPMreq struct {
+ 	Multiaddr [4]byte /* in_addr */
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPv6Mreq struct {
++	Multiaddr [16]byte /* in6_addr */
++	Interface uint32
++}
++
+ type Msghdr struct {
+ 	Name       *byte
+ 	Namelen    uint32
+@@ -240,6 +247,11 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet6Pktinfo struct {
++	Addr    [16]byte /* in6_addr */
++	Ifindex uint32
++}
++
+ type Kevent_t struct {
+ 	Ident  uint32
+ 	Filter int16
+diff --git a/src/pkg/syscall/ztypes_freebsd_amd64.go b/src/pkg/syscall/ztypes_freebsd_amd64.go
+index cf6355caf0..ef5a51c4d8 100644
+--- a/src/pkg/syscall/ztypes_freebsd_amd64.go
++++ b/src/pkg/syscall/ztypes_freebsd_amd64.go
+@@ -32,9 +32,11 @@ const (
+ 	SizeofSockaddrUnix     = 0x6a
+ 	SizeofSockaddrDatalink = 0x36
+ 	SizeofLinger           = 0x8
+-	SizeofIpMreq           = 0x8
++	SizeofIPMreq           = 0x8
++	SizeofIPv6Mreq         = 0x14
+ 	SizeofMsghdr           = 0x30
+ 	SizeofCmsghdr          = 0xc
++	SizeofInet6Pktinfo     = 0x14
+ 	PTRACE_TRACEME         = 0
+ 	PTRACE_CONT            = 0x7
+ 	PTRACE_KILL            = 0x8
+@@ -220,11 +222,16 @@ type Iovec struct {
+ 	Len  uint64
+ }
+ 
+-type IpMreq struct {
++type IPMreq struct {
+ 	Multiaddr [4]byte /* in_addr */
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPv6Mreq struct {
++	Multiaddr [16]byte /* in6_addr */
++	Interface uint32
++}
++
+ type Msghdr struct {
+ 	Name         *byte
+ 	Namelen      uint32
+@@ -243,6 +250,11 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet6Pktinfo struct {
++	Addr    [16]byte /* in6_addr */
++	Ifindex uint32
++}
++
+ type Kevent_t struct {
+ 	Ident  uint64
+ 	Filter int16
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index f33de049d6..65c8b87db1 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -19,9 +19,11 @@ const (
+ 	SizeofSockaddrLinklayer = 0x14
+ 	SizeofSockaddrNetlink   = 0xc
+ 	SizeofLinger            = 0x8
+-	SizeofIpMreq            = 0x8
++	SizeofIPMreq            = 0x8
++	SizeofIPv6Mreq          = 0x14
+ 	SizeofMsghdr            = 0x1c
+ 	SizeofCmsghdr           = 0xc
++	SizeofInet6Pktinfo      = 0x14
+ 	SizeofUcred             = 0xc
+ 	IFA_UNSPEC              = 0
+ 	IFA_ADDRESS             = 0x1
+@@ -298,11 +300,16 @@ type Iovec struct {
+ 	Len  uint32
+ }
+ 
+-type IpMreq struct {
++type IPMreq struct {
+ 	Multiaddr [4]byte /* in_addr */
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPv6Mreq struct {
++	Multiaddr [16]byte /* in6_addr */
++	Interface uint32
++}
++
+ type Msghdr struct {
+ 	Name       *byte
+ 	Namelen    uint32
+@@ -319,6 +326,11 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet6Pktinfo struct {
++	Addr    [16]byte /* in6_addr */
++	Ifindex uint32
++}
++
+ type Ucred struct {
+ 	Pid int32
+ 	Uid uint32
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index 3c293f00e5..e26b6bfd2d 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -19,9 +19,11 @@ const (
+ 	SizeofSockaddrLinklayer = 0x14
+ 	SizeofSockaddrNetlink   = 0xc
+ 	SizeofLinger            = 0x8
+-	SizeofIpMreq            = 0x8
++	SizeofIPMreq            = 0x8
++	SizeofIPv6Mreq          = 0x14
+ 	SizeofMsghdr            = 0x38
+ 	SizeofCmsghdr           = 0x10
++	SizeofInet6Pktinfo      = 0x14
+ 	SizeofUcred             = 0xc
+ 	IFA_UNSPEC              = 0
+ 	IFA_ADDRESS             = 0x1
+@@ -298,11 +300,16 @@ type Iovec struct {
+ 	Len  uint64
+ }
+ 
+-type IpMreq struct {
++type IPMreq struct {
+ 	Multiaddr [4]byte /* in_addr */
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPv6Mreq struct {
++	Multiaddr [16]byte /* in6_addr */
++	Interface uint32
++}
++
+ type Msghdr struct {
+ 	Name         *byte
+ 	Namelen      uint32
+@@ -321,6 +328,11 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet6Pktinfo struct {
++	Addr    [16]byte /* in6_addr */
++	Ifindex uint32
++}
++
+ type Ucred struct {
+ 	Pid int32
+ 	Uid uint32
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index 3b282d8ca6..ebd5379cb5 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -24,9 +24,11 @@ const (
+ 	SizeofSockaddrLinklayer = 0x14
+ 	SizeofSockaddrNetlink   = 0xc
+ 	SizeofLinger            = 0x8
+-	SizeofIpMreq            = 0x8
++	SizeofIPMreq            = 0x8
++	SizeofIPv6Mreq          = 0x14
+ 	SizeofMsghdr            = 0x1c
+ 	SizeofCmsghdr           = 0xc
++	SizeofInet6Pktinfo      = 0x14
+ 	SizeofUcred             = 0xc
+ 	IFA_UNSPEC              = 0
+ 	IFA_ADDRESS             = 0x1
+@@ -305,11 +307,16 @@ type Iovec struct {
+ 	Len  uint32
+ }
+ 
+-type IpMreq struct {
++type IPMreq struct {
+ 	Multiaddr [4]byte /* in_addr */
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPv6Mreq struct {
++	Multiaddr [16]byte /* in6_addr */
++	Interface uint32
++}
++
+ type Msghdr struct {
+ 	Name       *byte
+ 	Namelen    uint32
+@@ -326,6 +333,11 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet6Pktinfo struct {
++	Addr    [16]byte /* in6_addr */
++	Ifindex uint32
++}
++
+ type Ucred struct {
+ 	Pid int32
+ 	Uid uint32

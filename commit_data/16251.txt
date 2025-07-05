@@ -49,7 +49,59 @@ Date:   Tue Apr 30 17:04:58 2013 -0400
     R=golang-dev, iant, r
     CC=golang-dev
     https://golang.org/cl/8797049
-
+---
  src/cmd/go/doc.go |  2 +-
  src/cmd/go/run.go | 16 ++--------------
  2 files changed, 3 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index d7fca80627..df82ab45b0 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -367,7 +367,7 @@ Compile and run Go program
+ 
+ Usage:
+ 
+-	go run [build flags] [gofiles...] [arguments...]
++	go run [build flags] gofiles... [arguments...]
+ 
+ Run compiles and runs the main package comprising the named Go source files.
+ If no files are named, it compiles and runs all non-test Go source files.
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index d8ba4dbddd..91bdc1be2a 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -8,12 +8,11 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
+-	"path/filepath"
+ 	"strings"
+ )
+ 
+ var cmdRun = &Command{
+-	UsageLine: "run [build flags] [gofiles...] [arguments...]",
++	UsageLine: "run [build flags] gofiles... [arguments...]",
+ 	Short:     "compile and run Go program",
+ 	Long: `
+ Run compiles and runs the main package comprising the named Go source files.
+@@ -46,18 +45,7 @@ func runRun(cmd *Command, args []string) {
+ 	}
+ 	files, cmdArgs := args[:i], args[i:]
+ 	if len(files) == 0 {
+-		allFiles, err := filepath.Glob("*.go")
+-		if err != nil {
+-			fatalf("go run: %s", err)
+-		}
+-		for _, file := range allFiles {
+-			if !strings.HasSuffix(file, "_test.go") {
+-				files = append(files, file)
+-			}
+-		}
+-		if len(files) == 0 {
+-			fatalf("go run: no go files found")
+-		}
++		fatalf("go run: no go files listed")
+ 	}
+ 	for _, file := range files {
+ 		if strings.HasSuffix(file, "_test.go") {

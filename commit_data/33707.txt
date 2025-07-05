@@ -19,6 +19,20 @@ Date:   Tue Aug 29 21:16:28 2017 +0200
     Change-Id: I7943448e882d269b5cff7e921a2a6f3430c50878
     Reviewed-on: https://go-review.googlesource.com/60030
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 9d9b43152e..3e1f26b866 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -146,7 +146,7 @@ func mapbucket(t *types.Type) *types.Type {
+ 	// so if the struct needs 64-bit padding (because a key or value does)
+ 	// then it would end with an extra 32-bit padding field.
+ 	// Preempt that by emitting the padding here.
+-	if int(t.Val().Align) > Widthptr || int(t.Key().Align) > Widthptr {
++	if int(valtype.Align) > Widthptr || int(keytype.Align) > Widthptr {
+ 		field = append(field, makefield("pad", types.Types[TUINTPTR]))
+ 	}
+ 

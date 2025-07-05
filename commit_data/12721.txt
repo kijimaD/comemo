@@ -9,7 +9,50 @@ Date:   Thu Mar 22 09:44:31 2012 -0700
     R=golang-dev, gri, lvd, r
     CC=golang-dev
     https://golang.org/cl/5876044
-
+---
  src/cmd/gc/walk.c        |  6 ++++++
  test/fixedbugs/bug428.go | 19 +++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5c8282b52e..ff6f1d28bd 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2358,6 +2358,12 @@ append(Node *n, NodeList **init)
+ 
+ 	walkexprlistsafe(n->list, init);
+ 
++	// walkexprlistsafe will leave OINDEX (s[n]) along if both s
++	// and n are name or literal, but those may index the slice we're
++	// modifying here.  Fix explicitly.
++	for(l = n->list; l; l=l->next)
++		l->n = cheapexpr(l->n, init);
++
+ 	nsrc = n->list->n;
+ 	argc = count(n->list) - 1;
+ 	if (argc < 1) {
+diff --git a/test/fixedbugs/bug428.go b/test/fixedbugs/bug428.go
+new file mode 100644
+index 0000000000..298c455183
+--- /dev/null
++++ b/test/fixedbugs/bug428.go
+@@ -0,0 +1,19 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that when the compiler expands append inline it does not
++// overwrite a value before it needs it (issue 3369).
++
++package main
++
++func main() {
++	s := make([]byte, 5, 6)
++	copy(s, "12346")
++	s = append(s[:len(s)-1], '5', s[len(s)-1])
++	if string(s) != "123456" {
++		panic(s)
++	}
++}

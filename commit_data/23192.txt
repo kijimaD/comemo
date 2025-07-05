@@ -7,6 +7,20 @@ Date:   Wed Apr 29 15:05:45 2015 -0700
     Change-Id: I5569dcdefe8adba346810124b16721674956bce6
     Reviewed-on: https://go-review.googlesource.com/9515
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/buildall.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/buildall.bash b/src/buildall.bash
+index a3579af699..89a4501bcb 100755
+--- a/src/buildall.bash
++++ b/src/buildall.bash
+@@ -51,7 +51,7 @@ do
+         export GOARCH=386
+         export GO386=387
+     fi
+-    if ! go build -a std; then
++    if ! "$GOROOT/bin/go" build -a std; then
+         failed=true
+         if $sete; then
+             exit 1

@@ -11,6 +11,19 @@ Date:   Tue Apr 5 12:54:46 2016 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/gosym/pclntab_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index b8f167b3c7..1a780bf121 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -208,6 +208,7 @@ func TestPCLine(t *testing.T) {
+ 	defer endtest()
+ 
+ 	f, tab := crack(pclinetestBinary, t)
++	defer f.Close()
+ 	text := f.Section(".text")
+ 	textdat, err := text.Data()
+ 	if err != nil {

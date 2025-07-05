@@ -6,8 +6,77 @@ Date:   Wed Oct 28 10:14:59 2009 -0700
     
     R=rsc
     http://go/go-review/1013017
-
+---
  src/pkg/go/printer/printer.go                 |  7 ++++++-
  src/pkg/go/printer/testdata/statements.go     | 17 +++++++++++++++++
  src/pkg/go/printer/testdata/statements.golden | 17 +++++++++++++++++
  3 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 01f45356f6..50dcffd866 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -418,7 +418,12 @@ func (p *printer) writeWhitespace(n int) {
+ 			// part of the comment whitespace prefix and the comment
+ 			// will be positioned correctly indented.
+ 			if i+1 < n && p.buffer[i+1] == unindent {
+-				p.buffer[i], p.buffer[i+1] = unindent, ch;
++				// Use a formfeed to terminate the current section.
++				// Otherwise, a long label name on the next line leading
++				// to a wide column may increase the indentation column
++				// of lines before the label; effectively leading to wrong
++				// indentation.
++				p.buffer[i], p.buffer[i+1] = unindent, formfeed;
+ 				i--;  // do it again
+ 				continue;
+ 			}
+diff --git a/src/pkg/go/printer/testdata/statements.go b/src/pkg/go/printer/testdata/statements.go
+index 85cb5989ce..c58131f0b6 100644
+--- a/src/pkg/go/printer/testdata/statements.go
++++ b/src/pkg/go/printer/testdata/statements.go
+@@ -156,3 +156,20 @@ func _() {
+ 		_ = 0;
+ 	}
+ }
++
++
++func _() {
++	if {
++		_ = 0;
++	}
++	_ = 0;  // the indentation here should not be affected by the long label name
++AnOverlongLabel:
++	_ = 0;
++	
++	if {
++		_ = 0;
++	}
++	_ = 0;
++
++L:	_ = 0;
++}
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index 3d8d424c10..16392806ae 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -174,3 +174,20 @@ func _() {
+ 		_ = 0;
+ 	}
+ }
++
++
++func _() {
++	if {
++		_ = 0;
++	}
++	_ = 0;	// the indentation here should not be affected by the long label name
++AnOverlongLabel:
++	_ = 0;
++
++	if {
++		_ = 0;
++	}
++	_ = 0;
++
++L:	_ = 0;
++}

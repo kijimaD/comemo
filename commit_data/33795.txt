@@ -24,6 +24,29 @@ Date:   Thu Aug 31 12:21:51 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/buildgo.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/buildgo.go b/src/cmd/dist/buildgo.go
+index 1de2c4eccd..105451bbda 100644
+--- a/src/cmd/dist/buildgo.go
++++ b/src/cmd/dist/buildgo.go
+@@ -22,7 +22,7 @@ import (
+ //	const defaultCXX = <defaultcxx>
+ //	const defaultPkgConfig = <defaultpkgconfig>
+ //
+-// It is invoked to write cmd/go/zdefaultcc.go
++// It is invoked to write cmd/go/internal/cfg/zdefaultcc.go
+ // but we also write cmd/cgo/zdefaultcc.go
+ func mkzdefaultcc(dir, file string) {
+ 	outGo := fmt.Sprintf(
+@@ -101,7 +101,7 @@ func mkzcgo(dir, file string) {
+ 	for _, plat := range list {
+ 		fmt.Fprintf(&buf, "\t%q: true,\n", plat)
+ 	}
+-	fmt.Fprintf(&buf, "}")
++	fmt.Fprintf(&buf, "}\n")
+ 
+ 	writefile(buf.String(), file, writeSkipSame)
+ }

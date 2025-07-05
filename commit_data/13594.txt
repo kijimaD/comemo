@@ -7,6 +7,20 @@ Date:   Mon Aug 6 20:40:43 2012 -0700
     R=r
     CC=adg, gobot, golang-dev
     https://golang.org/cl/6449096
-
+---
  src/pkg/text/template/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/doc.go b/src/pkg/text/template/doc.go
+index aa50ab97f6..4a1682d97a 100644
+--- a/src/pkg/text/template/doc.go
++++ b/src/pkg/text/template/doc.go
+@@ -198,7 +198,7 @@ If a "range" action initializes a variable, the variable is set to the
+ successive elements of the iteration.  Also, a "range" may declare two
+ variables, separated by a comma:
+ 
+-	$index, $element := pipeline
++	range $index, $element := pipeline
+ 
+ in which case $index and $element are set to the successive values of the
+ array/slice index or map key and element, respectively.  Note that if there is

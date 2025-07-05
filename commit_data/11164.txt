@@ -7,6 +7,19 @@ Date:   Fri Jan 13 16:49:30 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5528101
-
+---
  src/pkg/go/doc/reader.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index b9b5d1606a..939dd89b00 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package doc extracts source code documentation from a Go AST.
+ package doc
+ 
+ import (

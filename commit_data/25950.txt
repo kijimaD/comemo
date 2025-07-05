@@ -11,6 +11,19 @@ Date:   Fri Nov 6 23:27:01 2015 +0530
     Change-Id: If461c30a1f6d2275539f33a2eabd7b19bbfa411d
     Reviewed-on: https://go-review.googlesource.com/16718
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/pprof/pprof.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 44f4f6cb72..2b20f1da77 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -27,6 +27,7 @@ func main() {
+ 	var extraCommands map[string]*commands.Command // no added Go-specific commands
+ 	if err := driver.PProf(flags{}, fetch.Fetcher, symbolize, new(objTool), plugin.StandardUI(), extraCommands); err != nil {
+ 		fmt.Fprintf(os.Stderr, "%v\n", err)
++		os.Exit(2)
+ 	}
+ }
+ 

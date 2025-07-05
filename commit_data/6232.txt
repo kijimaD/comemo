@@ -12,6 +12,22 @@ Date:   Fri Sep 10 12:45:46 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2139045
-
+---
  test/varerr.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/varerr.go b/test/varerr.go
+index 32f33ecc77..ddd718f5b8 100644
+--- a/test/varerr.go
++++ b/test/varerr.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ func main() {
+-	_ = asdf	// ERROR "undefined: asdf"
++	_ = asdf	// ERROR "undefined.*asdf"
+ 
+-	new = 1	// ERROR "use of builtin new not in function call"
++	new = 1	// ERROR "use of builtin new not in function call|invalid left hand side"
+ }
+ 

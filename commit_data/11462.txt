@@ -7,8 +7,54 @@ Date:   Mon Jan 30 16:43:28 2012 +1100
     R=golang-dev, rsc, cw, rsc
     CC=golang-dev
     https://golang.org/cl/5576070
-
+---
  src/cmd/cov/Makefile  | 2 +-
  src/cmd/go/tool.go    | 3 ++-
  src/cmd/prof/Makefile | 4 ++--
  3 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index 616e94f647..eb5298663f 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -38,4 +38,4 @@ install-darwin: $(TARG)
+ 	@true
+ 
+ install-default: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/go-tool/$(TARG)
++	cp $(TARG) "$(GOROOT)"/bin/go-tool/$(TARG)
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 12be9a8036..869a40dd18 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -9,6 +9,7 @@ import (
+ 	"go/build"
+ 	"os"
+ 	"os/exec"
++	"path/filepath"
+ 	"sort"
+ 	"strings"
+ )
+@@ -28,7 +29,7 @@ For more about each tool command, see 'go tool command -h'.
+ var (
+ 	toolGoos       = build.DefaultContext.GOOS
+ 	toolIsWindows  = toolGoos == "windows"
+-	toolBinToolDir = build.Path[0].BinDir() + "/go-tool"
++	toolBinToolDir = filepath.Join(build.Path[0].Path, "bin", "go-tool")
+ )
+ 
+ const toolWindowsExtension = ".exe"
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index 9266814a0a..195525c280 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -32,7 +32,7 @@ install-darwin: $(TARG)
+ 	@true
+ 
+ install-default: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/go-tool/$(TARG)
++	cp $(TARG) "$(GOROOT)"/bin/go-tool/$(TARG)
+ 
+ install-pprof: pprof
+-	cp pprof "$(GOBIN)"/go-tool/pprof
++	cp pprof "$(GOROOT)"/bin/go-tool/pprof

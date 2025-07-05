@@ -17,6 +17,20 @@ Date:   Fri May 27 11:42:59 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  misc/cgo/testsanitizers/testdata/tsan11.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testsanitizers/testdata/tsan11.go b/misc/cgo/testsanitizers/testdata/tsan11.go
+index 70ac9c8ae2..189e10f699 100644
+--- a/misc/cgo/testsanitizers/testdata/tsan11.go
++++ b/misc/cgo/testsanitizers/testdata/tsan11.go
+@@ -45,7 +45,7 @@ static void register_handler(int signo) {
+ import "C"
+ 
+ func main() {
+-	ch := make(chan os.Signal)
++	ch := make(chan os.Signal, 1)
+ 	signal.Notify(ch, syscall.SIGUSR2)
+ 
+ 	C.register_handler(C.int(syscall.SIGUSR1))

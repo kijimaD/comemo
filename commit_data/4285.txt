@@ -6,6 +6,20 @@ Date:   Wed Dec 2 13:26:39 2009 -0800
     
     R=gri
     https://golang.org/cl/164081
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 0fd5053417..2f04de419d 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1418,7 +1418,7 @@ Zero value:
+ 	nil
+ 
+ Functions:
+-	cap close closed len make new panic panicln print println
++	cap close closed copy len make new panic panicln print println
+ </pre>
+ 
+ 

@@ -20,7 +20,188 @@ Date:   Fri Oct 13 14:46:06 2017 -0700
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/x509.go      | 107 +++++++++++++++++++++++++------------------
  src/crypto/x509/x509_test.go |   9 +++-
  2 files changed, 70 insertions(+), 46 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 6b26331bed..89789ceba4 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2317,7 +2317,7 @@ func newRawAttributes(attributes []pkix.AttributeTypeAndValueSET) ([]asn1.RawVal
+ 	return rawAttributes, nil
+ }
+ 
+-// parseRawAttributes Unmarshals RawAttributes intos AttributeTypeAndValueSETs.
++// parseRawAttributes Unmarshals RawAttributes into AttributeTypeAndValueSETs.
+ func parseRawAttributes(rawAttributes []asn1.RawValue) []pkix.AttributeTypeAndValueSET {
+ 	var attributes []pkix.AttributeTypeAndValueSET
+ 	for _, rawAttr := range rawAttributes {
+@@ -2410,77 +2410,96 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
+ 
+ 	extensions = append(extensions, template.ExtraExtensions...)
+ 
+-	var attributes []pkix.AttributeTypeAndValueSET
+-	attributes = append(attributes, template.Attributes...)
++	// Make a copy of template.Attributes because we may alter it below.
++	attributes := make([]pkix.AttributeTypeAndValueSET, 0, len(template.Attributes))
++	for _, attr := range template.Attributes {
++		values := make([][]pkix.AttributeTypeAndValue, len(attr.Value))
++		copy(values, attr.Value)
++		attributes = append(attributes, pkix.AttributeTypeAndValueSET{
++			Type:  attr.Type,
++			Value: values,
++		})
++	}
+ 
++	extensionsAppended := false
+ 	if len(extensions) > 0 {
+-		// specifiedExtensions contains all the extensions that we
+-		// found specified via template.Attributes.
+-		specifiedExtensions := make(map[string]bool)
+-
+-		for _, atvSet := range template.Attributes {
+-			if !atvSet.Type.Equal(oidExtensionRequest) {
++		// Append the extensions to an existing attribute if possible.
++		for _, atvSet := range attributes {
++			if !atvSet.Type.Equal(oidExtensionRequest) || len(atvSet.Value) == 0 {
+ 				continue
+ 			}
+ 
++			// specifiedExtensions contains all the extensions that we
++			// found specified via template.Attributes.
++			specifiedExtensions := make(map[string]bool)
++
+ 			for _, atvs := range atvSet.Value {
+ 				for _, atv := range atvs {
+ 					specifiedExtensions[atv.Type.String()] = true
+ 				}
+ 			}
+-		}
+ 
+-		atvs := make([]pkix.AttributeTypeAndValue, 0, len(extensions))
+-		for _, e := range extensions {
+-			if specifiedExtensions[e.Id.String()] {
+-				// Attributes already contained a value for
+-				// this extension and it takes priority.
+-				continue
+-			}
++			newValue := make([]pkix.AttributeTypeAndValue, 0, len(atvSet.Value[0])+len(extensions))
++			newValue = append(newValue, atvSet.Value[0]...)
+ 
+-			atvs = append(atvs, pkix.AttributeTypeAndValue{
+-				// There is no place for the critical flag in a CSR.
+-				Type:  e.Id,
+-				Value: e.Value,
+-			})
+-		}
++			for _, e := range extensions {
++				if specifiedExtensions[e.Id.String()] {
++					// Attributes already contained a value for
++					// this extension and it takes priority.
++					continue
++				}
+ 
+-		// Append the extensions to an existing attribute if possible.
+-		appended := false
+-		for _, atvSet := range attributes {
+-			if !atvSet.Type.Equal(oidExtensionRequest) || len(atvSet.Value) == 0 {
+-				continue
++				newValue = append(newValue, pkix.AttributeTypeAndValue{
++					// There is no place for the critical
++					// flag in an AttributeTypeAndValue.
++					Type:  e.Id,
++					Value: e.Value,
++				})
+ 			}
+ 
+-			atvSet.Value[0] = append(atvSet.Value[0], atvs...)
+-			appended = true
++			atvSet.Value[0] = newValue
++			extensionsAppended = true
+ 			break
+ 		}
++	}
++
++	rawAttributes, err := newRawAttributes(attributes)
++	if err != nil {
++		return
++	}
++
++	// If not included in attributes, add a new attribute for the
++	// extensions.
++	if len(extensions) > 0 && !extensionsAppended {
++		attr := struct {
++			Type  asn1.ObjectIdentifier
++			Value [][]pkix.Extension `asn1:"set"`
++		}{
++			Type:  oidExtensionRequest,
++			Value: [][]pkix.Extension{extensions},
++		}
+ 
+-		// Otherwise, add a new attribute for the extensions.
+-		if !appended {
+-			attributes = append(attributes, pkix.AttributeTypeAndValueSET{
+-				Type: oidExtensionRequest,
+-				Value: [][]pkix.AttributeTypeAndValue{
+-					atvs,
+-				},
+-			})
++		b, err := asn1.Marshal(attr)
++		if err != nil {
++			return nil, errors.New("x509: failed to serialise extensions attribute: " + err.Error())
+ 		}
++
++		var rawValue asn1.RawValue
++		if _, err := asn1.Unmarshal(b, &rawValue); err != nil {
++			return nil, err
++		}
++
++		rawAttributes = append(rawAttributes, rawValue)
+ 	}
+ 
+ 	asn1Subject := template.RawSubject
+ 	if len(asn1Subject) == 0 {
+ 		asn1Subject, err = asn1.Marshal(template.Subject.ToRDNSequence())
+ 		if err != nil {
+-			return
++			return nil, err
+ 		}
+ 	}
+ 
+-	rawAttributes, err := newRawAttributes(attributes)
+-	if err != nil {
+-		return
+-	}
+-
+ 	tbsCSR := tbsCertificateRequest{
+ 		Version: 0, // PKCS #10, RFC 2986
+ 		Subject: asn1.RawValue{FullBytes: asn1Subject},
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 8280d9d11c..b396da1b98 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1240,8 +1240,9 @@ func TestCertificateRequestOverrides(t *testing.T) {
+ 		// template.
+ 		ExtraExtensions: []pkix.Extension{
+ 			{
+-				Id:    oidExtensionSubjectAltName,
+-				Value: sanContents,
++				Id:       oidExtensionSubjectAltName,
++				Value:    sanContents,
++				Critical: true,
+ 			},
+ 		},
+ 	}
+@@ -1252,6 +1253,10 @@ func TestCertificateRequestOverrides(t *testing.T) {
+ 		t.Errorf("Extension did not override template. Got %v\n", csr.DNSNames)
+ 	}
+ 
++	if len(csr.Extensions) != 1 || !csr.Extensions[0].Id.Equal(oidExtensionSubjectAltName) || !csr.Extensions[0].Critical {
++		t.Errorf("SAN extension was not faithfully copied, got %#v", csr.Extensions)
++	}
++
+ 	// If there is already an attribute with X.509 extensions then the
+ 	// extra extensions should be added to it rather than creating a CSR
+ 	// with two extension attributes.

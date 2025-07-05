@@ -10,6 +10,24 @@ Date:   Tue Apr 12 12:46:54 2016 -0400
     Change-Id: If8fe2e974ed44a9883282430157c3545d5bd04bd
     Reviewed-on: https://go-review.googlesource.com/21892
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fs_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 9253ebe43a..c811891e87 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -978,9 +978,9 @@ func TestLinuxSendfile(t *testing.T) {
+ 
+ 	syscalls := "sendfile,sendfile64"
+ 	switch runtime.GOARCH {
+-	case "mips64", "mips64le":
+-		// mips64 strace doesn't support sendfile64 and will error out
+-		// if we specify that with `-e trace='.
++	case "mips64", "mips64le", "s390x":
++		// strace on the above platforms doesn't support sendfile64
++		// and will error out if we specify that with `-e trace='.
+ 		syscalls = "sendfile"
+ 	}
+ 

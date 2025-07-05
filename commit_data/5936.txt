@@ -7,7 +7,7 @@ Date:   Tue Aug 3 00:53:32 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1731057
-
+---
  src/cmd/gc/go.h                    |  1 +
  src/cmd/gc/go.y                    | 32 ++++++++++++++++++++++++++++++++
  src/pkg/reflect/all_test.go        | 18 ++++++++----------
@@ -16,3 +16,263 @@ Date:   Tue Aug 3 00:53:32 2010 -0700
  test/{bugs => fixedbugs}/bug300.go | 12 ++++++------
  test/golden.out                    | 12 ------------
  7 files changed, 74 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 6b87a782f6..2da3a76fe7 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -209,6 +209,7 @@ struct	Node
+ 	uchar	dodata;		// compile literal assignment as data statement
+ 	uchar	used;
+ 	uchar	isddd;
++	uchar	paren;	// was parenthesized
+ 	uchar	pun;		// dont registerize variable ONAME
+ 
+ 	// most nodes
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 8ded62be5a..b61ca759e5 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -832,6 +832,7 @@ pexpr:
+ |	'(' expr_or_type ')'
+ 	{
+ 		$$ = $2;
++		$$->paren++;
+ 	}
+ |	pexpr '.' '(' expr_or_type ')'
+ 	{
+@@ -874,6 +875,8 @@ pexpr:
+ 	}
+ |	pexpr '{' braced_keyval_list '}'
+ 	{
++		if($1->paren)
++			yyerror("cannot parenthesize type in composite literal");
+ 		// composite expression
+ 		$$ = nod(OCOMPLIT, N, $1);
+ 		$$->list = $3;
+@@ -963,6 +966,7 @@ ntype:
+ |	'(' ntype ')'
+ 	{
+ 		$$ = $2;
++		$$->paren++;
+ 	}
+ 
+ non_expr_type:
+@@ -982,6 +986,7 @@ non_recvchantype:
+ |	'(' ntype ')'
+ 	{
+ 		$$ = $2;
++		$$->paren++;
+ 	}
+ 
+ convtype:
+@@ -1141,6 +1146,8 @@ fndcl:
+ 			yyerror("bad receiver in method");
+ 			break;
+ 		}
++		if(rcvr->right->paren || (rcvr->right->op == OIND && rcvr->right->left->paren))
++			yyerror("cannot parenthesize receiver type");
+ 
+ 		$$ = nod(ODCLFUNC, N, N);
+ 		$$->nname = methodname1(name, rcvr->right);
+@@ -1273,12 +1280,32 @@ structdcl:
+ 		$1->val = $2;
+ 		$$ = list1($1);
+ 	}
++|	'(' embed ')' oliteral
++	{
++		$2->val = $4;
++		$$ = list1($2);
++		yyerror("cannot parenthesize embedded type");
++	}
+ |	'*' embed oliteral
+ 	{
+ 		$2->right = nod(OIND, $2->right, N);
+ 		$2->val = $3;
+ 		$$ = list1($2);
+ 	}
++|	'(' '*' embed ')' oliteral
++	{
++		$3->right = nod(OIND, $3->right, N);
++		$3->val = $5;
++		$$ = list1($3);
++		yyerror("cannot parenthesize embedded type");
++	}
++|	'*' '(' embed ')' oliteral
++	{
++		$3->right = nod(OIND, $3->right, N);
++		$3->val = $5;
++		$$ = list1($3);
++		yyerror("cannot parenthesize embedded type");
++	}
+ 
+ packname:
+ 	LNAME
+@@ -1319,6 +1346,11 @@ interfacedcl:
+ 	{
+ 		$$ = nod(ODCLFIELD, N, oldname($1));
+ 	}
++|	'(' packname ')'
++	{
++		$$ = nod(ODCLFIELD, N, oldname($2));
++		yyerror("cannot parenthesize embedded type");
++	}
+ 
+ indcl:
+ 	'(' oarg_type_list_ocomma ')' fnres
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index e2c57dadbf..16b5ef6e96 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -170,33 +170,31 @@ var valueTests = []pair{
+ 	pair{(bool)(false), "true"},
+ 	pair{(*int8)(nil), "*int8(0)"},
+ 	pair{(**int8)(nil), "**int8(0)"},
+-	pair{([5]int32){}, "[5]int32{0, 0, 0, 0, 0}"},
++	pair{[5]int32{}, "[5]int32{0, 0, 0, 0, 0}"},
+ 	pair{(**integer)(nil), "**reflect_test.integer(0)"},
+ 	pair{(map[string]int32)(nil), "map[string] int32{<can't iterate on maps>}"},
+ 	pair{(chan<- string)(nil), "chan<- string"},
+-	pair{(struct {
++	pair{struct {
+ 		c chan *int32
+ 		d float32
+-	}){},
++	}{},
+ 		"struct { c chan *int32; d float32 }{chan *int32, 0}",
+ 	},
+ 	pair{(func(a int8, b int32))(nil), "func(int8, int32)(0)"},
+-	pair{(struct {
+-		c func(chan *integer, *int8)
+-	}){},
++	pair{struct{ c func(chan *integer, *int8) }{},
+ 		"struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}",
+ 	},
+-	pair{(struct {
++	pair{struct {
+ 		a int8
+ 		b int32
+-	}){},
++	}{},
+ 		"struct { a int8; b int32 }{0, 0}",
+ 	},
+-	pair{(struct {
++	pair{struct {
+ 		a int8
+ 		b int8
+ 		c int32
+-	}){},
++	}{},
+ 		"struct { a int8; b int8; c int32 }{0, 0, 0}",
+ 	},
+ }
+diff --git a/test/bugs/bug299.go b/test/bugs/bug299.go
+deleted file mode 100644
+index d455540c65..0000000000
+--- a/test/bugs/bug299.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// errchk $G $D/$F.go
+-
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-type T struct {
+-	// accepted by both compilers, legal according to spec
+-	x int
+-	y (int)
+-	int
+-	*float
+-	// not accepted by both compilers, not legal according to spec
+-	(complex)  // ERROR "non-declaration|expected"
+-	(*string)  // ERROR "non-declaration|expected"
+-	*(bool)    // ERROR "non-declaration|expected"
+-}
+-
+-// accepted by both compilers, legal according to spec
+-func (p T) m() {}
+-
+-// accepted by 6g, not accepted by gccgo, not legal according to spec
+-func (p (T)) f() {}   // ERROR "expected"
+-func (p *(T)) g() {}  // ERROR "expected"
+-func (p (*T)) h() {}  // ERROR "expected"
+diff --git a/test/fixedbugs/bug299.go b/test/fixedbugs/bug299.go
+new file mode 100644
+index 0000000000..1793a0de69
+--- /dev/null
++++ b/test/fixedbugs/bug299.go
+@@ -0,0 +1,27 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct {
++	// legal according to spec
++	x int
++	y (int)
++	int
++	*float
++	// not legal according to spec
++	(complex)  // ERROR "non-declaration|expected|parenthesize"
++	(*string)  // ERROR "non-declaration|expected|parenthesize"
++	*(bool)    // ERROR "non-declaration|expected|parenthesize"
++}
++
++// legal according to spec
++func (p T) m() {}
++
++// not legal according to spec
++func (p (T)) f() {}   // ERROR "parenthesize"
++func (p *(T)) g() {}  // ERROR "parenthesize"
++func (p (*T)) h() {}  // ERROR "parenthesize"
+diff --git a/test/bugs/bug300.go b/test/fixedbugs/bug300.go
+similarity index 61%
+rename from test/bugs/bug300.go
+rename to test/fixedbugs/bug300.go
+index dbed509391..09ee3ab697 100644
+--- a/test/bugs/bug300.go
++++ b/test/fixedbugs/bug300.go
+@@ -20,10 +20,10 @@ func main() {
+ 	_ = T{}
+ 
+ 	// illegal composite literals: parentheses not allowed around literal type
+-	_ = (struct{}){}	// ERROR "xxx"
+-	_ = ([42]int){}		// ERROR "xxx"
+-	_ = ([...]int){}	// ERROR "xxx"
+-	_ = ([]int){}		// ERROR "xxx"
+-	_ = (map[int]int){}	// ERROR "xxx"
+-	_ = (T){}		// ERROR "xxx"
++	_ = (struct{}){}    // ERROR "parenthesize"
++	_ = ([42]int){}     // ERROR "parenthesize"
++	_ = ([...]int){}    // ERROR "parenthesize"
++	_ = ([]int){}       // ERROR "parenthesize"
++	_ = (map[int]int){} // ERROR "parenthesize"
++	_ = (T){}           // ERROR "parenthesize"
+ }
+diff --git a/test/golden.out b/test/golden.out
+index 5999db6616..49bca4b874 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -177,15 +177,3 @@ panic PC=xxx
+ =========== bugs/bug260.go
+ FAIL
+ BUG: bug260 failed
+-
+-=========== bugs/bug299.go
+-BUG: errchk: bugs/bug299.go:25: missing expected error: 'expected'
+-errchk: bugs/bug299.go:26: missing expected error: 'expected'
+-errchk: bugs/bug299.go:27: missing expected error: 'expected'
+-errchk: bugs/bug299.go: unmatched error messages:
+-==================================================
+-bugs/bug299.go:19: syntax error: unexpected }
+-==================================================
+-
+-=========== bugs/bug300.go
+-BUG: errchk: command succeeded unexpectedly

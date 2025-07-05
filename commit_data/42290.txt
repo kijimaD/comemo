@@ -15,6 +15,43 @@ Date:   Thu Nov 21 18:54:38 2019 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/modfile_flag.txt | 19 ++++++++++++++++++-
  1 file changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/modfile_flag.txt b/src/cmd/go/testdata/script/modfile_flag.txt
+index 46a169fc42..1409be9599 100644
+--- a/src/cmd/go/testdata/script/modfile_flag.txt
++++ b/src/cmd/go/testdata/script/modfile_flag.txt
+@@ -44,6 +44,19 @@ exists vendor
+ go mod edit -require rsc.io/quote@v1.5.1
+ ! go list .
+ go list -mod=mod
++rm vendor
++
++
++# 'go generate' should use the alternate file when resolving packages.
++# Recursive go commands started with 'go generate' should not get an explicitly
++# passed -modfile, but they should see arguments from GOFLAGS.
++cp go.alt.mod go.gen.mod
++env OLD_GOFLAGS=$GOFLAGS
++env GOFLAGS=-modfile=go.gen.mod
++go generate -modfile=go.alt.mod .
++env GOFLAGS=$OLD_GOFLAGS
++grep example.com/exclude go.gen.mod
++! grep example.com/exclude go.alt.mod
+ 
+ 
+ # The original files should not have been modified.
+@@ -62,6 +75,10 @@ stderr '-modfile=goaltmod: file does not have .mod extension'
+ -- go.sum --
+ ʕ◔ϖ◔ʔ
+ -- use.go --
+-package use
++package main
+ 
+ import _ "rsc.io/quote"
++-- gen.go --
++//go:generate go mod edit -exclude example.com/exclude@v1.0.0
++
++package main

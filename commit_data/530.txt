@@ -8,7 +8,7 @@ Date:   Tue Aug 12 14:04:03 2008 -0700
     DELTA=138  (75 added, 12 deleted, 51 changed)
     OCL=14129
     CL=14131
-
+---
  src/cmd/6g/gen.c      |  5 ++--
  src/cmd/gc/const.c    | 20 +++++++++-----
  src/cmd/gc/go.h       |  2 ++
@@ -19,3 +19,374 @@ Date:   Tue Aug 12 14:04:03 2008 -0700
  src/cmd/gc/walk.c     |  2 +-
  test/ken/rob2.go      | 72 +++++++++++++++++++++++++--------------------------
  9 files changed, 121 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index e15a9e20ac..babaebbba8 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -455,10 +455,9 @@ swgen(Node *n)
+ 		}
+ 
+ 		// put in the break between cases
+-		if(any) {
++		if(any)
+ 			patch(gbranch(AJMP, T), breakpc);
+-			any = 0;
+-		}
++		any = 1;
+ 
+ 		// over case expressions
+ 		c2 = listfirst(&save2, &c1->left);
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 2188178a69..90eaff269e 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -63,12 +63,16 @@ convlit(Node *n, Type *t)
+ 			break;
+ 		}
+ 		if(isfloat[et]) {
++			Mpint *xv;
++
+ 			// int to float
+-			if(mpcmpfltflt(n->val.u.fval, minfltval[et]) < 0)
++			xv = n->val.u.xval;
++			if(mpcmpfixflt(xv, minfltval[et]) < 0)
+ 				goto bad2;
+-			if(mpcmpfltflt(n->val.u.fval, maxfltval[et]) > 0)
++			if(mpcmpfixflt(xv, maxfltval[et]) > 0)
+ 				goto bad2;
+-			mpmovefixflt(n->val.u.fval, n->val.u.xval);
++			n->val.u.fval = mal(sizeof(*n->val.u.fval));
++			mpmovefixflt(n->val.u.fval, xv);
+ 			n->val.ctype = CTFLT;
+ 			break;
+ 		}
+@@ -76,12 +80,16 @@ convlit(Node *n, Type *t)
+ 
+ 	case Wlitfloat:
+ 		if(isint[et]) {
++			Mpflt *fv;
++
+ 			// float to int
+-			if(mpcmpfixfix(n->val.u.xval, minintval[et]) < 0)
++			fv = n->val.u.fval;
++			if(mpcmpfltfix(fv, minintval[et]) < 0)
+ 				goto bad2;
+-			if(mpcmpfixfix(n->val.u.xval, maxintval[et]) > 0)
++			if(mpcmpfltfix(fv, maxintval[et]) > 0)
+ 				goto bad2;
+-			mpmovefltfix(n->val.u.xval, n->val.u.fval);
++			n->val.u.xval = mal(sizeof(*n->val.u.xval));
++			mpmovefltfix(n->val.u.xval, fv);
+ 			n->val.ctype = CTINT;
+ 			break;
+ 		}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 16efdc9cb9..47f1f54f41 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -471,6 +471,8 @@ void	mkpackage(char*);
+ /*
+  *	mparith1.c
+  */
++int	mpcmpfixflt(Mpint *a, Mpflt *b);
++int	mpcmpfltfix(Mpflt *a, Mpint *b);
+ int	mpcmpfixfix(Mpint *a, Mpint *b);
+ int	mpcmpfixc(Mpint *b, vlong c);
+ int	mpcmpfltflt(Mpflt *a, Mpflt *b);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index f3060e02f3..a997193d45 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -708,7 +708,7 @@ pexpr:
+ 	{
+ 		$$ = $2;
+ 	}
+-|	pexpr '.' sym1
++|	pexpr '.' sym2
+ 	{
+ 		$$ = nod(ODOT, $1, newname($3));
+ 	}
+@@ -812,13 +812,13 @@ name_name:
+ 	}
+ 
+ new_name:
+-	sym2
++	sym1
+ 	{
+ 		$$ = newname($1);
+ 	}
+ 
+ new_type:
+-	sym2
++	sym1
+ 	{
+ 		$$ = newtype($1);
+ 	}
+@@ -832,17 +832,36 @@ sym:
+ sym1:
+ 	sym
+ |	key1
+-|	key2
+ 
+ sym2:
+ 	sym
++|	key1
+ |	key2
+ 
+ /*
+  * keywords that we can
++>>>> ORIGINAL go/src/cmd/gc/go.y#8
++==== THEIRS go/src/cmd/gc/go.y#9
+  * use as field names
++==== YOURS go/src/cmd/gc/go.y
++ * use a variable/type names
++<<<<
+  */
+ key1:
++	LNIL
++|	LTRUE
++|	LFALSE
++|	LIOTA
++|	LLEN
++|	LPANIC
++|	LPRINT
++|	LNEW
++|	LBASETYPE
++
++/*
++ * keywords that we can
++ */
++key2:
+ 	LPACKAGE
+ |	LIMPORT
+ |	LEXPORT
+@@ -871,8 +890,21 @@ key1:
+ |	LRANGE
+ |	LIGNORE
+ 
+-/*
+- * keywords that we can
++>>>> ORIGINAL go/src/cmd/gc/go.y#8
++ * use a variable/type names
++ */
++key2:
++	LNIL
++|	LTRUE
++|	LFALSE
++|	LIOTA
++|	LLEN
++|	LPANIC
++|	LPRINT
++|	LNEW
++|	LBASETYPE
++
++==== THEIRS go/src/cmd/gc/go.y#9
+  * use as variable/type names
+  */
+ key2:
+@@ -886,6 +918,8 @@ key2:
+ |	LNEW
+ |	LBASETYPE
+ 
++==== YOURS src/cmd/gc/go.y
++<<<<
+ name:
+ 	lname
+ 	{
+@@ -1394,7 +1428,7 @@ export:
+ 	{
+ 		exportsym($1);
+ 	}
+-|	sym '.' sym1
++|	sym '.' sym2
+ 	{
+ 		exportsym(pkglookup($3->name, $1->name));
+ 	}
+@@ -1578,7 +1612,7 @@ hidden_import:
+ 	}
+ 
+ isym:
+-	sym '.' sym1
++	sym '.' sym2
+ 	{
+ 		$$ = nod(OIMPORT, N, N);
+ 		$$->osym = $1;
+@@ -1586,7 +1620,7 @@ isym:
+ 		$$->sym = $3;
+ 		renamepkg($$);
+ 	}
+-|	'(' sym ')' sym '.' sym1
++|	'(' sym ')' sym '.' sym2
+ 	{
+ 		$$ = nod(OIMPORT, N, N);
+ 		$$->osym = $2;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 200960dff9..2087ed5eab 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1022,8 +1022,8 @@ void
+ lexinit(void)
+ {
+ 	int i, etype, lex;
+-	Sym *s;
+ 	Type *t;
++	Sym *s;
+ 
+ 	besetptr();
+ 
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index 189e43af6f..a787f7d895 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -6,6 +6,28 @@
+ 
+ /// uses arihmetic
+ 
++int
++mpcmpfixflt(Mpint *a, Mpflt *b)
++{
++	char buf[500];
++	Mpflt c;
++
++	sprint(buf, "%B", a);
++	mpatoflt(&c, buf);
++	return mpcmpfltflt(&c, b);
++}
++
++int
++mpcmpfltfix(Mpflt *a, Mpint *b)
++{
++	char buf[500];
++	Mpflt c;
++
++	sprint(buf, "%B", b);
++	mpatoflt(&c, buf);
++	return mpcmpfltflt(a, &c);
++}
++
+ int
+ mpcmpfixfix(Mpint *a, Mpint *b)
+ {
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 11cb870f9a..0234700fc3 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1064,7 +1064,7 @@ Nconv(Fmt *fp)
+ 			snprint(buf1, sizeof(buf1), "S\"%Z\"", n->val.u.sval);
+ 			break;
+ 		case CTBOOL:
+-			snprint(buf1, sizeof(buf1), "B%lld", n->val.u.bval);
++			snprint(buf1, sizeof(buf1), "B%d", n->val.u.bval);
+ 			break;
+ 		case CTNIL:
+ 			snprint(buf1, sizeof(buf1), "N");
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ad96e2e2b1..36021ec0c9 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1399,11 +1399,11 @@ Node*
+ prcompat(Node *n)
+ {
+ 	Node *l, *r;
++	Node *on;
+ 	Type *t;
+ 	Iter save;
+ 	int w;
+ 	char *name;
+-	Node *on;
+ 
+ 	r = N;
+ 	l = listfirst(&save, &n);
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index b18435dfca..f7bec7bb78 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -162,35 +162,34 @@ func NextToken()
+ 		c = Get();
+ 	}
+ 	switch c {
+-		case EOF:
+-			token = EOF;
+-		case '(':
+-		case ')':
+-			token = c;
+-			break;
+-		default:
+-			for i = 0; i < 100 - 1; {	// sizeof tokenbuf - 1
+-				tokenbuf[i] = convert(byte, c);
+-				i = i + 1;
+-				c = Get();
+-				if c == EOF {
+-					break;
+-				}
+-				if WhiteSpace(c) || c == ')' {
+-					peekc = c;
+-					break;
+-				}
+-			}
+-			if i >= 100 - 1 {	// sizeof tokenbuf - 1
+-				panic("atom too long\n");
++	case EOF:
++		token = EOF;
++	case '(', ')':
++		token = c;
++		break;
++	default:
++		for i = 0; i < 100 - 1; {	// sizeof tokenbuf - 1
++			tokenbuf[i] = convert(byte, c);
++			i = i + 1;
++			c = Get();
++			if c == EOF {
++				break;
+ 			}
+-			tokenlen = i;
+-			tokenbuf[i] = nilchar;
+-			if '0' <= tokenbuf[0] && tokenbuf[0] <= '9' {
+-				token = '0';
+-			} else {
+-				token = 'A';
++			if WhiteSpace(c) || c == ')' {
++				peekc = c;
++				break;
+ 			}
++		}
++		if i >= 100 - 1 {	// sizeof tokenbuf - 1
++			panic("atom too long\n");
++		}
++		tokenlen = i;
++		tokenbuf[i] = nilchar;
++		if '0' <= tokenbuf[0] && tokenbuf[0] <= '9' {
++			token = '0';
++		} else {
++			token = 'A';
++		}
+ 	}
+ }
+ 
+@@ -267,16 +266,15 @@ func Parse() *Slist
+ 	} else {
+ 		// Atom
+ 		switch token {
+-			case EOF:
+-				return nil;
+-			case '0':
+-				slist = atom(atoi());
+-			case '"':
+-			case 'A':
+-				slist = atom(0);
+-			default:
+-				slist = nil;
+-				print("unknown token"); // token, tokenbuf);
++		case EOF:
++			return nil;
++		case '0':
++			slist = atom(atoi());
++		case '"', 'A':
++			slist = atom(0);
++		default:
++			slist = nil;
++			print("unknown token: ", token, "\n");
+ 		}
+ 		NextToken();
+ 		return slist;

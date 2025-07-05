@@ -15,10 +15,474 @@ Date:   Thu Feb 11 15:09:43 2016 -0500
     Change-Id: Id205a9f6986efd518043e12d651f0b01206aeb1b
     Reviewed-on: https://go-review.googlesource.com/19471
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go    |   3 +-
  src/cmd/compile/internal/gc/type.go       | 243 ++++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/cse.go       |  43 +++---
  src/cmd/compile/internal/ssa/type.go      |  35 +++++
  src/cmd/compile/internal/ssa/type_test.go |  23 +++
  5 files changed, 321 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 264955c702..f6dd75ec4a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -55,8 +55,7 @@ const (
+ func makefield(name string, t *Type) *Type {
+ 	f := typ(TFIELD)
+ 	f.Type = t
+-	f.Sym = new(Sym)
+-	f.Sym.Name = name
++	f.Sym = nopkg.Lookup(name)
+ 	return f
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 3f218ee3da..f09094ce23 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -11,6 +11,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/ssa"
++	"fmt"
+ )
+ 
+ func (t *Type) Size() int64 {
+@@ -35,6 +36,248 @@ func (t *Type) Equal(u ssa.Type) bool {
+ 	return Eqtype(t, x)
+ }
+ 
++// Compare compares types for purposes of the SSA back
++// end, returning an ssa.Cmp (one of CMPlt, CMPeq, CMPgt).
++// The answers are correct for an optimizer
++// or code generator, but not for Go source.
++// For example, "type gcDrainFlags int" results in
++// two Go-different types that Compare equal.
++// The order chosen is also arbitrary, only division into
++// equivalence classes (Types that compare CMPeq) matters.
++func (t *Type) Compare(u ssa.Type) ssa.Cmp {
++	x, ok := u.(*Type)
++	// ssa.CompilerType is smaller than gc.Type
++	// bare pointer equality is easy.
++	if !ok {
++		return ssa.CMPgt
++	}
++	if x == t {
++		return ssa.CMPeq
++	}
++	return t.cmp(x)
++}
++
++func cmpForNe(x bool) ssa.Cmp {
++	if x {
++		return ssa.CMPlt
++	}
++	return ssa.CMPgt
++}
++
++func (r *Sym) cmpsym(s *Sym) ssa.Cmp {
++	if r == s {
++		return ssa.CMPeq
++	}
++	if r == nil {
++		return ssa.CMPlt
++	}
++	if s == nil {
++		return ssa.CMPgt
++	}
++	// Fast sort, not pretty sort
++	if len(r.Name) != len(s.Name) {
++		return cmpForNe(len(r.Name) < len(s.Name))
++	}
++	if r.Pkg != s.Pkg {
++		if len(r.Pkg.Prefix) != len(s.Pkg.Prefix) {
++			return cmpForNe(len(r.Pkg.Prefix) < len(s.Pkg.Prefix))
++		}
++		if r.Pkg.Prefix != s.Pkg.Prefix {
++			return cmpForNe(r.Pkg.Prefix < s.Pkg.Prefix)
++		}
++	}
++	if r.Name != s.Name {
++		return cmpForNe(r.Name < s.Name)
++	}
++	return ssa.CMPeq
++}
++
++// cmp compares two *Types t and x, returning ssa.CMPlt,
++// ssa.CMPeq, ssa.CMPgt as t<x, t==x, t>x, for an arbitrary
++// and optimizer-centric notion of comparison.
++func (t *Type) cmp(x *Type) ssa.Cmp {
++	// This follows the structure of Eqtype in subr.go
++	// with two exceptions.
++	// 1. Symbols are compared more carefully because a <,=,> result is desired.
++	// 2. Maps are treated specially to avoid endless recursion -- maps
++	//    contain an internal data type not expressible in Go source code.
++	if t == x {
++		return ssa.CMPeq
++	}
++	if t == nil {
++		return ssa.CMPlt
++	}
++	if x == nil {
++		return ssa.CMPgt
++	}
++
++	if t.Etype != x.Etype {
++		return cmpForNe(t.Etype < x.Etype)
++	}
++
++	if t.Sym != nil || x.Sym != nil {
++		// Special case: we keep byte and uint8 separate
++		// for error messages.  Treat them as equal.
++		switch t.Etype {
++		case TUINT8:
++			if (t == Types[TUINT8] || t == bytetype) && (x == Types[TUINT8] || x == bytetype) {
++				return ssa.CMPeq
++			}
++
++		case TINT32:
++			if (t == Types[runetype.Etype] || t == runetype) && (x == Types[runetype.Etype] || x == runetype) {
++				return ssa.CMPeq
++			}
++		}
++	}
++
++	csym := t.Sym.cmpsym(x.Sym)
++	if csym != ssa.CMPeq {
++		return csym
++	}
++
++	if x.Sym != nil {
++		// Syms non-nil, if vargens match then equal.
++		if t.Vargen == x.Vargen {
++			return ssa.CMPeq
++		}
++		if t.Vargen < x.Vargen {
++			return ssa.CMPlt
++		}
++		return ssa.CMPgt
++	}
++	// both syms nil, look at structure below.
++
++	switch t.Etype {
++	case TBOOL, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TUNSAFEPTR, TUINTPTR,
++		TINT8, TINT16, TINT32, TINT64, TINT, TUINT8, TUINT16, TUINT32, TUINT64, TUINT:
++		return ssa.CMPeq
++	}
++
++	switch t.Etype {
++	case TMAP, TFIELD:
++		// No special cases for these two, they are handled
++		// by the general code after the switch.
++
++	case TPTR32, TPTR64:
++		return t.Type.cmp(x.Type)
++
++	case TSTRUCT:
++		if t.Map == nil {
++			if x.Map != nil {
++				return ssa.CMPlt // nil < non-nil
++			}
++			// to the fallthrough
++		} else if x.Map == nil {
++			return ssa.CMPgt // nil > non-nil
++		} else if t.Map.Bucket == t {
++			// Both have non-nil Map
++			// Special case for Maps which include a recursive type where the recursion is not broken with a named type
++			if x.Map.Bucket != x {
++				return ssa.CMPlt // bucket maps are least
++			}
++			return t.Map.cmp(x.Map)
++		} // If t != t.Map.Bucket, fall through to general case
++
++		fallthrough
++	case TINTER:
++		t1 := t.Type
++		x1 := x.Type
++		for ; t1 != nil && x1 != nil; t1, x1 = t1.Down, x1.Down {
++			if t1.Embedded != x1.Embedded {
++				if t1.Embedded < x1.Embedded {
++					return ssa.CMPlt
++				}
++				return ssa.CMPgt
++			}
++			if t1.Note != x1.Note {
++				if t1.Note == nil {
++					return ssa.CMPlt
++				}
++				if x1.Note == nil {
++					return ssa.CMPgt
++				}
++				if *t1.Note != *x1.Note {
++					if *t1.Note < *x1.Note {
++						return ssa.CMPlt
++					}
++					return ssa.CMPgt
++				}
++			}
++			c := t1.Sym.cmpsym(x1.Sym)
++			if c != ssa.CMPeq {
++				return c
++			}
++			c = t1.Type.cmp(x1.Type)
++			if c != ssa.CMPeq {
++				return c
++			}
++		}
++		if t1 == x1 {
++			return ssa.CMPeq
++		}
++		if t1 == nil {
++			return ssa.CMPlt
++		}
++		return ssa.CMPgt
++
++	case TFUNC:
++		t1 := t.Type
++		t2 := x.Type
++		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
++			// Loop over fields in structs, ignoring argument names.
++			ta := t1.Type
++			tb := t2.Type
++			for ; ta != nil && tb != nil; ta, tb = ta.Down, tb.Down {
++				if ta.Isddd != tb.Isddd {
++					if ta.Isddd {
++						return ssa.CMPgt
++					}
++					return ssa.CMPlt
++				}
++				c := ta.Type.cmp(tb.Type)
++				if c != ssa.CMPeq {
++					return c
++				}
++			}
++
++			if ta != tb {
++				if t1 == nil {
++					return ssa.CMPlt
++				}
++				return ssa.CMPgt
++			}
++		}
++		if t1 != t2 {
++			if t1 == nil {
++				return ssa.CMPlt
++			}
++			return ssa.CMPgt
++		}
++		return ssa.CMPeq
++
++	case TARRAY:
++		if t.Bound != x.Bound {
++			return cmpForNe(t.Bound < x.Bound)
++		}
++
++	case TCHAN:
++		if t.Chan != x.Chan {
++			return cmpForNe(t.Chan < x.Chan)
++		}
++
++	default:
++		e := fmt.Sprintf("Do not know how to compare %s with %s", t, x)
++		panic(e)
++	}
++
++	c := t.Down.cmp(x.Down)
++	if c != ssa.CMPeq {
++		return c
++	}
++	return t.Type.cmp(x.Type)
++}
++
+ func (t *Type) IsBoolean() bool {
+ 	return t.Etype == TBOOL
+ }
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index ea4fe0a97b..44bd87683d 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -155,12 +155,15 @@ func cse(f *Func) {
+ 		}
+ 	}
+ 
++	rewrites := 0
++
+ 	// Apply substitutions
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			for i, w := range v.Args {
+ 				if x := rewrite[w.ID]; x != nil {
+ 					v.SetArg(i, x)
++					rewrites++
+ 				}
+ 			}
+ 		}
+@@ -175,6 +178,9 @@ func cse(f *Func) {
+ 			}
+ 		}
+ 	}
++	if Debug > 0 && rewrites > 0 {
++		fmt.Printf("CSE: %d rewrites\n", rewrites)
++	}
+ }
+ 
+ // An eqclass approximates an equivalence class.  During the
+@@ -197,9 +203,8 @@ type eqclass []*Value
+ // backed by the same storage as the input slice.
+ // Equivalence classes of size 1 are ignored.
+ func partitionValues(a []*Value) []eqclass {
+-	typNames := map[Type]string{}
+ 	auxIDs := map[interface{}]int32{}
+-	sort.Sort(sortvalues{a, typNames, auxIDs})
++	sort.Sort(sortvalues{a, auxIDs})
+ 
+ 	var partition []eqclass
+ 	for len(a) > 0 {
+@@ -217,10 +222,10 @@ func partitionValues(a []*Value) []eqclass {
+ 					v.Args[0].AuxInt != w.Args[0].AuxInt) ||
+ 				len(v.Args) >= 2 && (v.Args[1].Op != w.Args[1].Op ||
+ 					v.Args[1].AuxInt != w.Args[1].AuxInt) ||
+-				typNames[v.Type] != typNames[w.Type] {
++				v.Type.Compare(w.Type) != CMPeq {
+ 				if Debug > 3 {
+-					fmt.Printf("CSE.partitionValues separates %s from %s, AuxInt=%v, Aux=%v, typNames=%v",
+-						v.LongString(), w.LongString(), v.AuxInt != w.AuxInt, v.Aux != w.Aux, typNames[v.Type] != typNames[w.Type])
++					fmt.Printf("CSE.partitionValues separates %s from %s, AuxInt=%v, Aux=%v, Type.compare=%v",
++						v.LongString(), w.LongString(), v.AuxInt != w.AuxInt, v.Aux != w.Aux, v.Type.Compare(w.Type))
+ 					if !rootsDiffer {
+ 						if len(v.Args) >= 1 {
+ 							fmt.Printf(", a0Op=%v, a0AuxInt=%v", v.Args[0].Op != w.Args[0].Op, v.Args[0].AuxInt != w.Args[0].AuxInt)
+@@ -245,9 +250,8 @@ func partitionValues(a []*Value) []eqclass {
+ 
+ // Sort values to make the initial partition.
+ type sortvalues struct {
+-	a        []*Value              // array of values
+-	typNames map[Type]string       // type -> type ID map
+-	auxIDs   map[interface{}]int32 // aux -> aux ID map
++	a      []*Value              // array of values
++	auxIDs map[interface{}]int32 // aux -> aux ID map
+ }
+ 
+ func (sv sortvalues) Len() int      { return len(sv.a) }
+@@ -301,26 +305,17 @@ func (sv sortvalues) Less(i, j int) bool {
+ 		}
+ 	}
+ 
+-	// Sort by type.  Types are just interfaces, so we can't compare
+-	// them with < directly.  Instead, map types to their names and
+-	// sort on that.
++	// Sort by type, using the ssa.Type Compare method
+ 	if v.Type != w.Type {
+-		x := sv.typNames[v.Type]
+-		if x == "" {
+-			x = v.Type.String()
+-			sv.typNames[v.Type] = x
+-		}
+-		y := sv.typNames[w.Type]
+-		if y == "" {
+-			y = w.Type.String()
+-			sv.typNames[w.Type] = y
+-		}
+-		if x != y {
+-			return x < y
++		c := v.Type.Compare(w.Type)
++		if c != CMPeq {
++			return c == CMPlt
+ 		}
+ 	}
+ 
+-	// Same deal for aux fields.
++	// Aux fields are interfaces with no comparison
++	// method.  Use a map to number distinct ones,
++	// and use those numbers for comparison.
+ 	if v.Aux != w.Aux {
+ 		x := sv.auxIDs[v.Aux]
+ 		if x == 0 {
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index 9a692dcfb0..afe04fa043 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -40,6 +40,7 @@ type Type interface {
+ 	String() string
+ 	SimpleString() string // a coarser generic description of T, e.g. T's underlying type
+ 	Equal(Type) bool
++	Compare(Type) Cmp // compare types, returning one of CMPlt, CMPeq, CMPgt.
+ }
+ 
+ // Special compiler-only types.
+@@ -76,6 +77,40 @@ func (t *CompilerType) FieldType(i int64) Type { panic("not implemented") }
+ func (t *CompilerType) FieldOff(i int64) int64 { panic("not implemented") }
+ func (t *CompilerType) NumElem() int64         { panic("not implemented") }
+ 
++// Cmp is a comparison between values a and b.
++// -1 if a < b
++//  0 if a == b
++//  1 if a > b
++type Cmp int8
++
++const (
++	CMPlt = Cmp(-1)
++	CMPeq = Cmp(0)
++	CMPgt = Cmp(1)
++)
++
++func (t *CompilerType) Compare(u Type) Cmp {
++	x, ok := u.(*CompilerType)
++	// ssa.CompilerType is smaller than any other type
++	if !ok {
++		return CMPlt
++	}
++	// desire fast sorting, not pretty sorting.
++	if len(t.Name) == len(x.Name) {
++		if t.Name == x.Name {
++			return CMPeq
++		}
++		if t.Name < x.Name {
++			return CMPlt
++		}
++		return CMPgt
++	}
++	if len(t.Name) > len(x.Name) {
++		return CMPgt
++	}
++	return CMPlt
++}
++
+ func (t *CompilerType) Equal(u Type) bool {
+ 	x, ok := u.(*CompilerType)
+ 	if !ok {
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index f09919a652..26c8223c62 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -57,6 +57,29 @@ func (t *TypeImpl) Equal(u Type) bool {
+ 	return x == t
+ }
+ 
++func (t *TypeImpl) Compare(u Type) Cmp {
++	x, ok := u.(*TypeImpl)
++	// ssa.CompilerType < ssa.TypeImpl < gc.Type
++	if !ok {
++		_, ok := u.(*CompilerType)
++		if ok {
++			return CMPgt
++		}
++		return CMPlt
++	}
++	if t == x {
++		return CMPeq
++	}
++	if t.Name < x.Name {
++		return CMPlt
++	}
++	if t.Name > x.Name {
++		return CMPgt
++	}
++	return CMPeq
++
++}
++
+ var (
+ 	// shortcuts for commonly used basic types
+ 	TypeInt8       = &TypeImpl{Size_: 1, Align: 1, Integer: true, Signed: true, Name: "int8"}

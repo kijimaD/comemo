@@ -7,6 +7,75 @@ Date:   Mon Oct 17 12:53:10 2011 -0700
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/5272045
-
+---
  doc/go_spec.html | 43 +++++++++++++++++++++++++------------------
  1 file changed, 25 insertions(+), 18 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 810df2c46a..4c1ecef353 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1159,9 +1159,10 @@ map [string] interface {}
+ The number of map elements is called its length.
+ For a map <code>m</code>, it can be discovered using the
+ built-in function <a href="#Length_and_capacity"><code>len(m)</code></a>
+-and may change during execution. Elements may be added and removed
+-during execution using special forms of <a href="#Assignments">assignment</a>;
+-and they may be accessed with <a href="#Indexes">index</a> expressions.
++and may change during execution. Elements may be added during execution
++using <a href="#Assignments">assignments</a> and retrieved with
++<a href="#Indexes">index</a> expressions; they may be removed with the
++<a href="#Deletion_of_map_elements"><code>delete</code></a> built-in function.
+ </p>
+ <p>
+ A new, empty map value is made using the built-in
+@@ -2431,21 +2432,6 @@ where the result of the index expression is a pair of values with types
+ <code>a[x]</code> as in the single-result form.
+ </p>
+ 
+-<p>
+-Similarly, if an assignment to a map element has the special form
+-</p>
+-
+-<pre>
+-a[x] = v, ok
+-</pre>
+-
+-<p>
+-and boolean <code>ok</code> has the value <code>false</code>,
+-the entry for key <code>x</code> is deleted from the map; if
+-<code>ok</code> is <code>true</code>, the construct acts like
+-a regular assignment to an element of the map.
+-</p>
+-
+ <p>
+ Assigning to an element of a <code>nil</code> map causes a
+ <a href="#Run_time_panics">run-time panic</a>.
+@@ -4738,6 +4724,27 @@ n2 := copy(s, s[2:])            // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
+ n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
+ </pre>
+ 
++
++<h3 id="Deletion_of_map_elements">Deletion of map elements</h3>
++
++<p>
++The built-in function <code>delete</code> removes the element with key
++<code>k</code> from a <a href="#Map_types">map</a> <code>m</code>. The
++type of <code>k</code> must be <a href="#Assignability">assignable</a>
++to the key type of <code>m</code>.
++</p>
++
++<pre class="grammar">
++delete(m, k)  // remove element m[k] from map m
++</pre>
++
++<p>
++If the element <code>m[k]</code> does not exist, <code>delete</code> is
++a no-op. Calling <code>delete</code> with a nil map causes a
++<a href="#Run_time_panics">run-time panic</a>.
++</p>
++
++
+ <h3 id="Complex_numbers">Assembling and disassembling complex numbers</h3>
+ 
+ <p>

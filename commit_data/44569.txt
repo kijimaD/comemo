@@ -15,8 +15,87 @@ Date:   Tue Apr 14 17:29:27 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go    |  1 +
  src/cmd/go/internal/work/build.go |  1 +
  src/cmd/go/main.go                | 24 ++++++++++++++++++++++++
  3 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 7f8f8e92be..f9bbcd9180 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -51,6 +51,7 @@ var (
+ 	CmdName string // "build", "install", "list", "mod tidy", etc.
+ 
+ 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
++	DebugTrace       string // -debug-trace flag
+ )
+ 
+ func defaultContext() build.Context {
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 7146c9ce00..fbd49b457b 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -270,6 +270,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 
+ 	// Undocumented, unstable debugging flags.
+ 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
++	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
+ }
+ 
+ // AddModCommonFlags adds the module-related flags common to build commands
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index fdf49b7380..3512866e4a 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -7,6 +7,7 @@
+ package main
+ 
+ import (
++	"context"
+ 	"flag"
+ 	"fmt"
+ 	"log"
+@@ -34,6 +35,7 @@ import (
+ 	"cmd/go/internal/run"
+ 	"cmd/go/internal/test"
+ 	"cmd/go/internal/tool"
++	"cmd/go/internal/trace"
+ 	"cmd/go/internal/version"
+ 	"cmd/go/internal/vet"
+ 	"cmd/go/internal/work"
+@@ -187,7 +189,11 @@ BigCmdLoop:
+ 				cmd.Flag.Parse(args[1:])
+ 				args = cmd.Flag.Args()
+ 			}
++			ctx := maybeStartTrace(context.Background())
++			ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
++			_ = ctx
+ 			cmd.Run(cmd, args)
++			span.Done()
+ 			base.Exit()
+ 			return
+ 		}
+@@ -209,3 +215,21 @@ func mainUsage() {
+ 	help.PrintUsage(os.Stderr, base.Go)
+ 	os.Exit(2)
+ }
++
++func maybeStartTrace(pctx context.Context) context.Context {
++	if cfg.DebugTrace == "" {
++		return pctx
++	}
++
++	ctx, close, err := trace.Start(pctx, cfg.DebugTrace)
++	if err != nil {
++		base.Fatalf("failed to start trace: %v", err)
++	}
++	base.AtExit(func() {
++		if err := close(); err != nil {
++			base.Fatalf("failed to stop trace: %v", err)
++		}
++	})
++
++	return ctx
++}

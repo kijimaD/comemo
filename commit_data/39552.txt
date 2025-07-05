@@ -12,6 +12,31 @@ Date:   Thu Feb 28 09:13:56 2019 +0100
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index d0f905e4d7..d47c7c2262 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -36,8 +36,6 @@ func checkGdbEnvironment(t *testing.T) {
+ 		if runtime.GOARCH == "mips" {
+ 			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
+ 		}
+-	case "aix":
+-		t.Skip("gdb does not work on AIX; see https://golang.org/issue/28558")
+ 	case "freebsd":
+ 		t.Skip("skipping gdb tests on FreeBSD; see https://golang.org/issue/29508")
+ 	}
+@@ -396,6 +394,10 @@ func TestGdbAutotmpTypes(t *testing.T) {
+ 	t.Parallel()
+ 	checkGdbVersion(t)
+ 
++	if runtime.GOOS == "aix" && testing.Short() {
++		t.Skip("TestGdbAutotmpTypes is too slow on aix/ppc64")
++	}
++
+ 	dir, err := ioutil.TempDir("", "go-build")
+ 	if err != nil {
+ 		t.Fatalf("failed to create temp directory: %v", err)

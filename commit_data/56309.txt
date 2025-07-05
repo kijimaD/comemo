@@ -19,6 +19,27 @@ Date:   Mon Apr 24 11:26:23 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/api/api.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/api/api.go b/src/cmd/api/api.go
+index f0d48e3ccd..4dd33b13a5 100644
+--- a/src/cmd/api/api.go
++++ b/src/cmd/api/api.go
+@@ -193,13 +193,12 @@ func Check(t *testing.T) {
+ 	bw := bufio.NewWriter(os.Stdout)
+ 	defer bw.Flush()
+ 
+-	var required []string
++	var required, optional []string
+ 	for _, file := range checkFiles {
+ 		required = append(required, fileFeatures(file, needApproval(file))...)
+ 	}
+-	var optional []string
+ 	for _, file := range nextFiles {
+-		optional = append(optional, fileFeatures(file, true)...)
++		required = append(required, fileFeatures(file, true)...)
+ 	}
+ 	exception := fileFeatures(filepath.Join(testenv.GOROOT(t), "api/except.txt"), false)
+ 

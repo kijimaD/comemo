@@ -14,6 +14,23 @@ Date:   Thu Jan 5 15:00:25 2023 +0800
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/exec_linux_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 1e21fffaef..a6900f9033 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -505,8 +505,9 @@ func prepareCgroupFD(t *testing.T) (int, string) {
+ 	// Need an ability to create a sub-cgroup.
+ 	subCgroup, err := os.MkdirTemp(prefix+string(bytes.TrimSpace(cg)), "subcg-")
+ 	if err != nil {
+-		// Running in an unprivileged container, this may also return EROFS #57262.
+-		if os.IsPermission(err) || errors.Is(err, syscall.EROFS) {
++		// ErrPermission or EROFS (#57262) when running in an unprivileged container.
++		// ErrNotExist when cgroupfs is not mounted in chroot/schroot.
++		if os.IsNotExist(err) || os.IsPermission(err) || errors.Is(err, syscall.EROFS) {
+ 			t.Skip(err)
+ 		}
+ 		t.Fatal(err)

@@ -7,6 +7,24 @@ Date:   Fri Mar 1 11:56:33 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7447044
-
+---
  src/pkg/net/fd_unix.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 8ef960f2b5..0540df8255 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -182,11 +182,7 @@ func (s *pollServer) CheckDeadlines() {
+ 		if t > 0 {
+ 			if t <= now {
+ 				delete(s.pending, key)
+-				if mode == 'r' {
+-					s.poll.DelFD(fd.sysfd, mode)
+-				} else {
+-					s.poll.DelFD(fd.sysfd, mode)
+-				}
++				s.poll.DelFD(fd.sysfd, mode)
+ 				s.WakeFD(fd, mode, errTimeout)
+ 			} else if nextDeadline == 0 || t < nextDeadline {
+ 				nextDeadline = t

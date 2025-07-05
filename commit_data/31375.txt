@@ -11,6 +11,19 @@ Date:   Wed Feb 15 12:47:51 2017 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/testenv/testenv_windows.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/internal/testenv/testenv_windows.go b/src/internal/testenv/testenv_windows.go
+index e593f64711..eb8d6ac165 100644
+--- a/src/internal/testenv/testenv_windows.go
++++ b/src/internal/testenv/testenv_windows.go
+@@ -30,7 +30,6 @@ func initWinHasSymlink() {
+ 			winSymlinkErr = err
+ 		}
+ 	}
+-	os.Remove("target")
+ }
+ 
+ func hasSymlink() (ok bool, reason string) {

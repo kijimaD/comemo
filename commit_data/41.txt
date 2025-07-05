@@ -5,6 +5,19 @@ Date:   Thu Mar 27 17:19:52 2008 -0700
     Fix date stamp
     
     SVN=114123
-
+---
  doc/go_lang.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 9305e4e487..d30675e064 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -1,6 +1,6 @@
+ The Go Programming Language
+ ----
+-(March 7, 2008)
++(March 28, 2008)
+ 
+ This document is an informal specification/proposal for a new systems programming
+ language.

@@ -13,7 +13,7 @@ Date:   Thu Jan 9 17:18:12 2020 -0500
     Change-Id: I1f49a84f91735f39d5922c1347e79298780149c7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214218
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                         | 107 --------------------------
  src/cmd/go/testdata/script/test_vet.txt       |  88 +++++++++++++++++++++
  src/cmd/go/testdata/script/vet.txt            |  58 ++++++++++++++
@@ -25,3 +25,382 @@ Date:   Thu Jan 9 17:18:12 2020 -0500
  src/cmd/go/testdata/src/vetpkg/b.go           |   7 --
  src/cmd/go/testdata/src/vetpkg/c.go           |   9 ---
  10 files changed, 146 insertions(+), 159 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 89c949a614..f43c7becc2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2146,66 +2146,6 @@ func TestGoTestBuildsAnXtestContainingOnlyNonRunnableExamples(t *testing.T) {
+ 	tg.grepStdout("File with non-runnable example was built.", "file with non-runnable example was not built")
+ }
+ 
+-func TestGoVetWithExternalTests(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("vet", "vetpkg")
+-	tg.grepBoth("Printf", "go vet vetpkg did not find missing argument for Printf")
+-}
+-
+-func TestGoVetWithTags(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("vet", "-tags", "tagtest", "vetpkg")
+-	tg.grepBoth(`c\.go.*Printf`, "go vet vetpkg did not run scan tagged file")
+-}
+-
+-func TestGoVetWithFlagsOn(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("vet", "-printf", "vetpkg")
+-	tg.grepBoth("Printf", "go vet -printf vetpkg did not find missing argument for Printf")
+-}
+-
+-func TestGoVetWithFlagsOff(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("vet", "-printf=false", "vetpkg")
+-}
+-
+-// Issue 23395.
+-func TestGoVetWithOnlyTestFiles(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempFile("src/p/p_test.go", "package p; import \"testing\"; func TestMe(*testing.T) {}")
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("vet", "p")
+-}
+-
+-// Issue 24193.
+-func TestVetWithOnlyCgoFiles(t *testing.T) {
+-	if !canCgo {
+-		t.Skip("skipping because cgo not enabled")
+-	}
+-	tooSlow(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempFile("src/p/p.go", "package p; import \"C\"; func F() {}")
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("vet", "p")
+-}
+-
+ // Test that you cannot use a local import in a package
+ // accessed by a non-local import (found in a GOPATH/GOROOT).
+ // See golang.org/issue/17475.
+@@ -3527,53 +3467,6 @@ func TestTestCache(t *testing.T) {
+ 	}
+ }
+ 
+-func TestTestVet(t *testing.T) {
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-
+-	tg.tempFile("p1_test.go", `
+-		package p
+-		import "testing"
+-		func Test(t *testing.T) {
+-			t.Logf("%d") // oops
+-		}
+-	`)
+-
+-	tg.runFail("test", tg.path("p1_test.go"))
+-	tg.grepStderr(`Logf format %d`, "did not diagnose bad Logf")
+-	tg.run("test", "-vet=off", tg.path("p1_test.go"))
+-	tg.grepStdout(`^ok`, "did not print test summary")
+-
+-	tg.tempFile("p1.go", `
+-		package p
+-		import "fmt"
+-		func F() {
+-			fmt.Printf("%d") // oops
+-		}
+-	`)
+-	tg.runFail("test", tg.path("p1.go"))
+-	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
+-	tg.run("test", "-x", "-vet=shift", tg.path("p1.go"))
+-	tg.grepStderr(`[\\/]vet.*-shift`, "did not run vet with -shift")
+-	tg.grepStdout(`\[no test files\]`, "did not print test summary")
+-	tg.run("test", "-vet=off", tg.path("p1.go"))
+-	tg.grepStdout(`\[no test files\]`, "did not print test summary")
+-
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("test", "vetcycle") // must not fail; #22890
+-
+-	tg.runFail("test", "vetfail/...")
+-	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
+-	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
+-
+-	// Use -a so that we need to recompute the vet-specific export data for
+-	// vetfail/p1.
+-	tg.run("test", "-a", "vetfail/p2")
+-	tg.grepStderrNot(`invalid.*constraint`, "did diagnose bad build constraint in vetxonly mode")
+-}
+-
+ func TestTestSkipVetAfterFailedBuild(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/test_vet.txt b/src/cmd/go/testdata/script/test_vet.txt
+new file mode 100644
+index 0000000000..af26b4de79
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_vet.txt
+@@ -0,0 +1,88 @@
++[short] skip
++
++# Test file
++! go test p1_test.go
++stderr 'Logf format %d'
++go test -vet=off
++stdout '^ok'
++
++# Non-test file
++! go test p1.go
++stderr 'Printf format %d'
++go test -x -vet=shift p1.go
++stderr '[\\/]vet.*-shift'
++stdout '\[no test files\]'
++go test -vet=off p1.go
++! stderr '[\\/]vet.*-shift'
++stdout '\[no test files\]'
++
++# Test issue #22890
++go test vetcycle
++stdout 'vetcycle.*\[no test files\]'
++
++# Test with ...
++! go test vetfail/...
++stderr 'Printf format %d'
++stdout 'ok\s+vetfail/p2'
++
++# Check there's no diagnosis of a bad build constraint in vetxonly mode.
++# Use -a so that we need to recompute the vet-specific export data for
++# vetfail/p1.
++go test -a vetfail/p2
++! stderr 'invalid.*constraint'
++
++-- p1_test.go --
++package p
++
++import "testing"
++
++func Test(t *testing.T) {
++	t.Logf("%d") // oops
++}
++-- p1.go --
++package p
++
++import "fmt"
++
++func F() {
++	fmt.Printf("%d") // oops
++}
++-- vetcycle/p.go --
++package p
++
++type (
++	_  interface{ m(B1) }
++	A1 interface{ a(D1) }
++	B1 interface{ A1 }
++	C1 interface {
++		B1 /* ERROR issue #18395 */
++	}
++	D1 interface{ C1 }
++)
++
++var _ A1 = C1 /* ERROR cannot use C1 */ (nil)
++-- vetfail/p1/p1.go --
++// +build !foo-bar
++
++package p1
++
++import "fmt"
++
++func F() {
++	fmt.Printf("%d", "hello") // causes vet error
++}
++-- vetfail/p2/p2.go --
++package p2
++
++import _ "vetfail/p1"
++
++func F() {
++}
++-- vetfail/p2/p2_test.go --
++package p2
++
++import "testing"
++
++func TestF(t *testing.T) {
++	F()
++}
+diff --git a/src/cmd/go/testdata/script/vet.txt b/src/cmd/go/testdata/script/vet.txt
+new file mode 100644
+index 0000000000..73fe2958fc
+--- /dev/null
++++ b/src/cmd/go/testdata/script/vet.txt
+@@ -0,0 +1,58 @@
++# Package with external tests
++! go vet vetpkg
++stderr 'Printf'
++
++# With tags
++! go vet -tags tagtest vetpkg
++stderr 'c\.go.*Printf'
++
++# With flags on
++! go vet -printf vetpkg
++stderr 'Printf'
++
++# With flags off
++go vet -printf=false vetpkg
++! stderr .
++
++# With only test files (tests issue #23395)
++go vet onlytest
++! stderr .
++
++# With only cgo files (tests issue #24193)
++[!cgo] skip
++[short] skip
++go vet onlycgo
++! stderr .
++
++-- vetpkg/a_test.go --
++package p_test
++-- vetpkg/b.go --
++package p
++
++import "fmt"
++
++func f() {
++	fmt.Printf("%d")
++}
++-- vetpkg/c.go --
++// +build tagtest
++
++package p
++
++import "fmt"
++
++func g() {
++	fmt.Printf("%d", 3, 4)
++}
++-- onlytest/p_test.go --
++package p
++
++import "testing"
++
++func TestMe(*testing.T) {}
++-- onlycgo/p.go --
++package p
++
++import "C"
++
++func F() {}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/src/vetcycle/p.go b/src/cmd/go/testdata/src/vetcycle/p.go
+deleted file mode 100644
+index 5b058e7806..0000000000
+--- a/src/cmd/go/testdata/src/vetcycle/p.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-package p
+-
+-type (
+-	_  interface{ m(B1) }
+-	A1 interface{ a(D1) }
+-	B1 interface{ A1 }
+-	C1 interface {
+-		B1 /* ERROR issue #18395 */
+-	}
+-	D1 interface{ C1 }
+-)
+-
+-var _ A1 = C1 /* ERROR cannot use C1 */ (nil)
+diff --git a/src/cmd/go/testdata/src/vetfail/p1/p1.go b/src/cmd/go/testdata/src/vetfail/p1/p1.go
+deleted file mode 100644
+index eaa9b18333..0000000000
+--- a/src/cmd/go/testdata/src/vetfail/p1/p1.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// +build !foo-bar
+-
+-package p1
+-
+-import "fmt"
+-
+-func F() {
+-	fmt.Printf("%d", "hello") // causes vet error
+-}
+diff --git a/src/cmd/go/testdata/src/vetfail/p2/p2.go b/src/cmd/go/testdata/src/vetfail/p2/p2.go
+deleted file mode 100644
+index 88b1cc2373..0000000000
+--- a/src/cmd/go/testdata/src/vetfail/p2/p2.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-package p2
+-
+-import _ "vetfail/p1"
+-
+-func F() {
+-}
+diff --git a/src/cmd/go/testdata/src/vetfail/p2/p2_test.go b/src/cmd/go/testdata/src/vetfail/p2/p2_test.go
+deleted file mode 100644
+index fde0d1a73f..0000000000
+--- a/src/cmd/go/testdata/src/vetfail/p2/p2_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package p2
+-
+-import "testing"
+-
+-func TestF(t *testing.T) {
+-	F()
+-}
+diff --git a/src/cmd/go/testdata/src/vetpkg/a_test.go b/src/cmd/go/testdata/src/vetpkg/a_test.go
+deleted file mode 100644
+index 9b64e8e1a2..0000000000
+--- a/src/cmd/go/testdata/src/vetpkg/a_test.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package p_test
+diff --git a/src/cmd/go/testdata/src/vetpkg/b.go b/src/cmd/go/testdata/src/vetpkg/b.go
+deleted file mode 100644
+index 99e18f63dc..0000000000
+--- a/src/cmd/go/testdata/src/vetpkg/b.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package p
+-
+-import "fmt"
+-
+-func f() {
+-	fmt.Printf("%d")
+-}
+diff --git a/src/cmd/go/testdata/src/vetpkg/c.go b/src/cmd/go/testdata/src/vetpkg/c.go
+deleted file mode 100644
+index ef5648f059..0000000000
+--- a/src/cmd/go/testdata/src/vetpkg/c.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// +build tagtest
+-
+-package p
+-
+-import "fmt"
+-
+-func g() {
+-	fmt.Printf("%d", 3, 4)
+-}

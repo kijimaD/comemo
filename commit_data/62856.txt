@@ -16,6 +16,20 @@ Date:   Tue Apr 8 11:34:56 2025 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
-
+---
  src/runtime/lock_spinbit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/lock_spinbit.go b/src/runtime/lock_spinbit.go
+index ba5268abdd..7b7bc651ad 100644
+--- a/src/runtime/lock_spinbit.go
++++ b/src/runtime/lock_spinbit.go
+@@ -143,7 +143,7 @@ func mutexPreferLowLatency(l *mutex) bool {
+ }
+ 
+ func mutexContended(l *mutex) bool {
+-	return atomic.Loaduintptr(&l.key) > mutexLocked
++	return atomic.Loaduintptr(&l.key)&^mutexMMask != 0
+ }
+ 
+ func lock(l *mutex) {

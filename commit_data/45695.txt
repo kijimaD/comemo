@@ -30,7 +30,45 @@ Date:   Fri Jul 31 13:57:48 2020 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 2 +-
  test/prove.go                         | 6 ++----
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index ce7d689f93..8a2e7c09bc 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1082,7 +1082,7 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
+ 			return nil
+ 		}
+ 		pred, child := b.Preds[1].b, b
+-		for ; pred != nil; pred = uniquePred(pred) {
++		for ; pred != nil; pred, child = uniquePred(pred), pred {
+ 			if pred.Kind != BlockIf {
+ 				continue
+ 			}
+diff --git a/test/prove.go b/test/prove.go
+index 3c19c513b6..d37021d283 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -670,8 +670,7 @@ func oforuntil(b []int) {
+ 	i := 0
+ 	if len(b) > i {
+ 	top:
+-		// TODO: remove the todo of next line once we complete the following optimization of CL 244579
+-		// println(b[i]) // todo: ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
++		println(b[i]) // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+ 		i++
+ 		if i < len(b) {
+ 			goto top
+@@ -721,8 +720,7 @@ func range1(b []int) {
+ // range2 elements are larger, so they use the general form of a range loop.
+ func range2(b [][32]int) {
+ 	for i, v := range b {
+-		// TODO: remove the todo of next line once we complete the following optimization of CL 244579
+-		b[i][0] = v[0] + 1 // todo: ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
++		b[i][0] = v[0] + 1 // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
+ 		if i < len(b) {    // ERROR "Proved Less64$"
+ 			println("x")
+ 		}

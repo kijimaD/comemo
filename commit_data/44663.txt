@@ -28,8 +28,110 @@ Date:   Mon Aug 17 19:06:19 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  4 +--
  src/cmd/compile/internal/ssa/opGen.go        |  2 +-
  src/runtime/asm_ppc64x.s                     | 41 ++++++++++++++--------------
  3 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index f8bc6cb20b..0261dc283b 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -645,9 +645,9 @@ func init() {
+ 		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true},
+ 
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+-		// It preserves R0 through R15, g, and its arguments R20 and R21,
++		// It preserves R0 through R17 (except special registers R1, R2, R11, R12, R13), g, and its arguments R20 and R21,
+ 		// but may clobber anything else, including R31 (REGTMP).
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ buildReg("R0 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R20 R21 g")) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ buildReg("R0 R3 R4 R5 R6 R7 R8 R9 R10 R14 R15 R16 R17 R20 R21 g")) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 408c855dbd..df2a27368b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -26889,7 +26889,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 1048576}, // R20
+ 				{1, 2097152}, // R21
+ 			},
+-			clobbers: 576460746931503104, // R16 R17 R18 R19 R22 R23 R24 R25 R26 R27 R28 R29 R31 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			clobbers: 576460746931312640, // R11 R12 R18 R19 R22 R23 R24 R25 R26 R27 R28 R29 R31 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 11d2f2f51a..23387a2165 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -916,23 +916,23 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ // - R20 is the destination of the write
+ // - R21 is the value being written at R20.
+ // It clobbers condition codes.
+-// It does not clobber R0 through R15,
++// It does not clobber R0 through R17 (except special registers),
+ // but may clobber any other register, *including* R31.
+ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$112
+ 	// The standard prologue clobbers R31.
+-	// We use R16 and R17 as scratch registers.
+-	MOVD	g_m(g), R16
+-	MOVD	m_p(R16), R16
+-	MOVD	(p_wbBuf+wbBuf_next)(R16), R17
++	// We use R18 and R19 as scratch registers.
++	MOVD	g_m(g), R18
++	MOVD	m_p(R18), R18
++	MOVD	(p_wbBuf+wbBuf_next)(R18), R19
+ 	// Increment wbBuf.next position.
+-	ADD	$16, R17
+-	MOVD	R17, (p_wbBuf+wbBuf_next)(R16)
+-	MOVD	(p_wbBuf+wbBuf_end)(R16), R16
+-	CMP	R16, R17
++	ADD	$16, R19
++	MOVD	R19, (p_wbBuf+wbBuf_next)(R18)
++	MOVD	(p_wbBuf+wbBuf_end)(R18), R18
++	CMP	R18, R19
+ 	// Record the write.
+-	MOVD	R21, -16(R17)	// Record value
+-	MOVD	(R20), R16	// TODO: This turns bad writes into bad reads.
+-	MOVD	R16, -8(R17)	// Record *slot
++	MOVD	R21, -16(R19)	// Record value
++	MOVD	(R20), R18	// TODO: This turns bad writes into bad reads.
++	MOVD	R18, -8(R19)	// Record *slot
+ 	// Is the buffer full? (flags set in CMP above)
+ 	BEQ	flush
+ ret:
+@@ -956,11 +956,12 @@ flush:
+ 	MOVD	R8, (FIXED_FRAME+56)(R1)
+ 	MOVD	R9, (FIXED_FRAME+64)(R1)
+ 	MOVD	R10, (FIXED_FRAME+72)(R1)
+-	MOVD	R11, (FIXED_FRAME+80)(R1)
+-	MOVD	R12, (FIXED_FRAME+88)(R1)
++	// R11, R12 may be clobbered by external-linker-inserted trampoline
+ 	// R13 is REGTLS
+-	MOVD	R14, (FIXED_FRAME+96)(R1)
+-	MOVD	R15, (FIXED_FRAME+104)(R1)
++	MOVD	R14, (FIXED_FRAME+80)(R1)
++	MOVD	R15, (FIXED_FRAME+88)(R1)
++	MOVD	R16, (FIXED_FRAME+96)(R1)
++	MOVD	R17, (FIXED_FRAME+104)(R1)
+ 
+ 	// This takes arguments R20 and R21.
+ 	CALL	runtime·wbBufFlush(SB)
+@@ -975,10 +976,10 @@ flush:
+ 	MOVD	(FIXED_FRAME+56)(R1), R8
+ 	MOVD	(FIXED_FRAME+64)(R1), R9
+ 	MOVD	(FIXED_FRAME+72)(R1), R10
+-	MOVD	(FIXED_FRAME+80)(R1), R11
+-	MOVD	(FIXED_FRAME+88)(R1), R12
+-	MOVD	(FIXED_FRAME+96)(R1), R14
+-	MOVD	(FIXED_FRAME+104)(R1), R15
++	MOVD	(FIXED_FRAME+80)(R1), R14
++	MOVD	(FIXED_FRAME+88)(R1), R15
++	MOVD	(FIXED_FRAME+96)(R1), R16
++	MOVD	(FIXED_FRAME+104)(R1), R17
+ 	JMP	ret
+ 
+ // Note: these functions use a special calling convention to save generated code space.

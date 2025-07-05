@@ -9,7 +9,38 @@ Date:   Thu Jan 5 15:18:08 2012 +1100
     R=golang-dev, mikioh.mikioh, iant
     CC=golang-dev
     https://golang.org/cl/5508043
-
+---
  src/pkg/net/iprawsock_plan9.go | 4 ++--
  src/pkg/net/iprawsock_posix.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock_plan9.go b/src/pkg/net/iprawsock_plan9.go
+index 7e4bc56fac..3fd9dce05e 100644
+--- a/src/pkg/net/iprawsock_plan9.go
++++ b/src/pkg/net/iprawsock_plan9.go
+@@ -84,8 +84,8 @@ func splitNetProto(netProto string) (net string, proto int, err error) {
+ 	return
+ }
+ 
+-// DialIP connects to the remote address raddr on the network net,
+-// which must be "ip", "ip4", or "ip6".
++// DialIP connects to the remote address raddr on the network protocol netProto,
++// which must be "ip", "ip4", or "ip6" followed by a colon and a protocol number or name.
+ func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err error) {
+ 	return nil, os.EPLAN9
+ }
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 7bb4c7dc0d..584069418c 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -224,8 +224,8 @@ func splitNetProto(netProto string) (net string, proto int, err error) {
+ 	return net, proto, nil
+ }
+ 
+-// DialIP connects to the remote address raddr on the network net,
+-// which must be "ip", "ip4", or "ip6".
++// DialIP connects to the remote address raddr on the network protocol netProto,
++// which must be "ip", "ip4", or "ip6" followed by a colon and a protocol number or name.
+ func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err error) {
+ 	net, proto, err := splitNetProto(netProto)
+ 	if err != nil {

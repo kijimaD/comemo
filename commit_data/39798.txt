@@ -10,7 +10,7 @@ Date:   Thu Mar 21 09:16:56 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite386.go         | 18 ++++------
  .../compile/internal/ssa/rewrite386splitload.go    | 30 ++++------------
  src/cmd/compile/internal/ssa/rewriteAMD64.go       | 18 ++++------
@@ -22,3 +22,775 @@ Date:   Thu Mar 21 09:16:56 2019 -0700
  src/cmd/compile/internal/ssa/rewritePPC64.go       |  9 ++---
  src/cmd/compile/internal/ssa/rewriteS390X.go       |  9 ++---
  10 files changed, 50 insertions(+), 128 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index bb59feab0b..aae0c59300 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -22907,10 +22907,9 @@ func rewriteValue386_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsA [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -22926,10 +22925,9 @@ func rewriteValue386_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsB [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -22945,10 +22943,9 @@ func rewriteValue386_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsC [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+@@ -22967,11 +22964,10 @@ func rewriteValue386_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendA [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -22988,11 +22984,10 @@ func rewriteValue386_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendB [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -23009,11 +23004,10 @@ func rewriteValue386_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendC [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewrite386splitload.go b/src/cmd/compile/internal/ssa/rewrite386splitload.go
+index 96f8cf587a..31ed4d0a41 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386splitload.go
++++ b/src/cmd/compile/internal/ssa/rewrite386splitload.go
+@@ -34,18 +34,15 @@ func rewriteValue386splitload(v *Value) bool {
+ }
+ func rewriteValue386splitload_Op386CMPBconstload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPBconstload {sym} [vo] ptr mem)
+ 	// cond:
+ 	// result: (CMPBconst (MOVBload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
+ 	for {
+ 		vo := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[1]
+-		ptr := v.Args[0]
+ 		mem := v.Args[1]
++		ptr := v.Args[0]
+ 		v.reset(Op386CMPBconst)
+ 		v.AuxInt = valOnly(vo)
+ 		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
+@@ -59,19 +56,16 @@ func rewriteValue386splitload_Op386CMPBconstload_0(v *Value) bool {
+ }
+ func rewriteValue386splitload_Op386CMPBload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPBload {sym} [off] ptr x mem)
+ 	// cond:
+ 	// result: (CMPB (MOVBload {sym} [off] ptr mem) x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		x := v.Args[1]
+-		mem := v.Args[2]
+ 		v.reset(Op386CMPB)
+ 		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
+ 		v0.AuxInt = off
+@@ -85,18 +79,15 @@ func rewriteValue386splitload_Op386CMPBload_0(v *Value) bool {
+ }
+ func rewriteValue386splitload_Op386CMPLconstload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPLconstload {sym} [vo] ptr mem)
+ 	// cond:
+ 	// result: (CMPLconst (MOVLload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
+ 	for {
+ 		vo := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[1]
+-		ptr := v.Args[0]
+ 		mem := v.Args[1]
++		ptr := v.Args[0]
+ 		v.reset(Op386CMPLconst)
+ 		v.AuxInt = valOnly(vo)
+ 		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+@@ -110,19 +101,16 @@ func rewriteValue386splitload_Op386CMPLconstload_0(v *Value) bool {
+ }
+ func rewriteValue386splitload_Op386CMPLload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPLload {sym} [off] ptr x mem)
+ 	// cond:
+ 	// result: (CMPL (MOVLload {sym} [off] ptr mem) x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		x := v.Args[1]
+-		mem := v.Args[2]
+ 		v.reset(Op386CMPL)
+ 		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+ 		v0.AuxInt = off
+@@ -136,18 +124,15 @@ func rewriteValue386splitload_Op386CMPLload_0(v *Value) bool {
+ }
+ func rewriteValue386splitload_Op386CMPWconstload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPWconstload {sym} [vo] ptr mem)
+ 	// cond:
+ 	// result: (CMPWconst (MOVWload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
+ 	for {
+ 		vo := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[1]
+-		ptr := v.Args[0]
+ 		mem := v.Args[1]
++		ptr := v.Args[0]
+ 		v.reset(Op386CMPWconst)
+ 		v.AuxInt = valOnly(vo)
+ 		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
+@@ -161,19 +146,16 @@ func rewriteValue386splitload_Op386CMPWconstload_0(v *Value) bool {
+ }
+ func rewriteValue386splitload_Op386CMPWload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPWload {sym} [off] ptr x mem)
+ 	// cond:
+ 	// result: (CMPW (MOVWload {sym} [off] ptr mem) x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		x := v.Args[1]
+-		mem := v.Args[2]
+ 		v.reset(Op386CMPW)
+ 		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
+ 		v0.AuxInt = off
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 708ab9df05..c377e28170 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -61719,10 +61719,9 @@ func rewriteValueAMD64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsA [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -61738,10 +61737,9 @@ func rewriteValueAMD64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsB [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -61757,10 +61755,9 @@ func rewriteValueAMD64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsC [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+@@ -61779,11 +61776,10 @@ func rewriteValueAMD64_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendA [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -61800,11 +61796,10 @@ func rewriteValueAMD64_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendB [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -61821,11 +61816,10 @@ func rewriteValueAMD64_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendC [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go b/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
+index af7067b754..dbd0e031a4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
+@@ -38,18 +38,15 @@ func rewriteValueAMD64splitload(v *Value) bool {
+ }
+ func rewriteValueAMD64splitload_OpAMD64CMPBconstload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPBconstload {sym} [vo] ptr mem)
+ 	// cond:
+ 	// result: (CMPBconst (MOVBload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
+ 	for {
+ 		vo := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[1]
+-		ptr := v.Args[0]
+ 		mem := v.Args[1]
++		ptr := v.Args[0]
+ 		v.reset(OpAMD64CMPBconst)
+ 		v.AuxInt = valOnly(vo)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, typ.UInt8)
+@@ -63,19 +60,16 @@ func rewriteValueAMD64splitload_OpAMD64CMPBconstload_0(v *Value) bool {
+ }
+ func rewriteValueAMD64splitload_OpAMD64CMPBload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPBload {sym} [off] ptr x mem)
+ 	// cond:
+ 	// result: (CMPB (MOVBload {sym} [off] ptr mem) x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		x := v.Args[1]
+-		mem := v.Args[2]
+ 		v.reset(OpAMD64CMPB)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, typ.UInt8)
+ 		v0.AuxInt = off
+@@ -89,18 +83,15 @@ func rewriteValueAMD64splitload_OpAMD64CMPBload_0(v *Value) bool {
+ }
+ func rewriteValueAMD64splitload_OpAMD64CMPLconstload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPLconstload {sym} [vo] ptr mem)
+ 	// cond:
+ 	// result: (CMPLconst (MOVLload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
+ 	for {
+ 		vo := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[1]
+-		ptr := v.Args[0]
+ 		mem := v.Args[1]
++		ptr := v.Args[0]
+ 		v.reset(OpAMD64CMPLconst)
+ 		v.AuxInt = valOnly(vo)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, typ.UInt32)
+@@ -114,19 +105,16 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstload_0(v *Value) bool {
+ }
+ func rewriteValueAMD64splitload_OpAMD64CMPLload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPLload {sym} [off] ptr x mem)
+ 	// cond:
+ 	// result: (CMPL (MOVLload {sym} [off] ptr mem) x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		x := v.Args[1]
+-		mem := v.Args[2]
+ 		v.reset(OpAMD64CMPL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, typ.UInt32)
+ 		v0.AuxInt = off
+@@ -140,18 +128,15 @@ func rewriteValueAMD64splitload_OpAMD64CMPLload_0(v *Value) bool {
+ }
+ func rewriteValueAMD64splitload_OpAMD64CMPQconstload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPQconstload {sym} [vo] ptr mem)
+ 	// cond:
+ 	// result: (CMPQconst (MOVQload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
+ 	for {
+ 		vo := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[1]
+-		ptr := v.Args[0]
+ 		mem := v.Args[1]
++		ptr := v.Args[0]
+ 		v.reset(OpAMD64CMPQconst)
+ 		v.AuxInt = valOnly(vo)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
+@@ -165,19 +150,16 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstload_0(v *Value) bool {
+ }
+ func rewriteValueAMD64splitload_OpAMD64CMPQload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPQload {sym} [off] ptr x mem)
+ 	// cond:
+ 	// result: (CMPQ (MOVQload {sym} [off] ptr mem) x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		x := v.Args[1]
+-		mem := v.Args[2]
+ 		v.reset(OpAMD64CMPQ)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
+ 		v0.AuxInt = off
+@@ -191,18 +173,15 @@ func rewriteValueAMD64splitload_OpAMD64CMPQload_0(v *Value) bool {
+ }
+ func rewriteValueAMD64splitload_OpAMD64CMPWconstload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPWconstload {sym} [vo] ptr mem)
+ 	// cond:
+ 	// result: (CMPWconst (MOVWload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
+ 	for {
+ 		vo := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[1]
+-		ptr := v.Args[0]
+ 		mem := v.Args[1]
++		ptr := v.Args[0]
+ 		v.reset(OpAMD64CMPWconst)
+ 		v.AuxInt = valOnly(vo)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, typ.UInt16)
+@@ -216,19 +195,16 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstload_0(v *Value) bool {
+ }
+ func rewriteValueAMD64splitload_OpAMD64CMPWload_0(v *Value) bool {
+ 	b := v.Block
+-	_ = b
+ 	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (CMPWload {sym} [off] ptr x mem)
+ 	// cond:
+ 	// result: (CMPW (MOVWload {sym} [off] ptr mem) x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		x := v.Args[1]
+-		mem := v.Args[2]
+ 		v.reset(OpAMD64CMPW)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, typ.UInt16)
+ 		v0.AuxInt = off
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 11c1bde8d1..9d3dbd88f8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -20085,10 +20085,9 @@ func rewriteValueARM_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsA [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -20104,10 +20103,9 @@ func rewriteValueARM_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsB [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -20123,10 +20121,9 @@ func rewriteValueARM_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsC [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+@@ -20145,11 +20142,10 @@ func rewriteValueARM_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendA [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -20166,11 +20162,10 @@ func rewriteValueARM_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendB [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -20187,11 +20182,10 @@ func rewriteValueARM_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendC [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 7cc85b66cd..e54eeb1eb1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -35685,10 +35685,9 @@ func rewriteValueARM64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsA [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -35704,10 +35703,9 @@ func rewriteValueARM64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsB [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -35723,10 +35721,9 @@ func rewriteValueARM64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsC [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index d506d77ae3..4c11640616 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -6985,10 +6985,9 @@ func rewriteValueMIPS_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsA [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -7004,10 +7003,9 @@ func rewriteValueMIPS_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsB [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -7023,10 +7021,9 @@ func rewriteValueMIPS_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsC [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+@@ -7045,11 +7042,10 @@ func rewriteValueMIPS_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendA [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -7066,11 +7062,10 @@ func rewriteValueMIPS_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendB [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -7087,11 +7082,10 @@ func rewriteValueMIPS_OpPanicExtend_0(v *Value) bool {
+ 	// result: (LoweredPanicExtendC [kind] hi lo y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[3]
++		mem := v.Args[3]
+ 		hi := v.Args[0]
+ 		lo := v.Args[1]
+ 		y := v.Args[2]
+-		mem := v.Args[3]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index ca93e04c2c..d9efa99261 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -7420,10 +7420,9 @@ func rewriteValueMIPS64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsA [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -7439,10 +7438,9 @@ func rewriteValueMIPS64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsB [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -7458,10 +7456,9 @@ func rewriteValueMIPS64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsC [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 012e5c7680..4c25c39707 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -26110,10 +26110,9 @@ func rewriteValuePPC64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsA [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -26129,10 +26128,9 @@ func rewriteValuePPC64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsB [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -26148,10 +26146,9 @@ func rewriteValuePPC64_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsC [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index ddf648ded7..78fa5c5c96 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -4973,10 +4973,9 @@ func rewriteValueS390X_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsA [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 0) {
+ 			break
+ 		}
+@@ -4992,10 +4991,9 @@ func rewriteValueS390X_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsB [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 1) {
+ 			break
+ 		}
+@@ -5011,10 +5009,9 @@ func rewriteValueS390X_OpPanicBounds_0(v *Value) bool {
+ 	// result: (LoweredPanicBoundsC [kind] x y mem)
+ 	for {
+ 		kind := v.AuxInt
+-		_ = v.Args[2]
++		mem := v.Args[2]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		mem := v.Args[2]
+ 		if !(boundsABI(kind) == 2) {
+ 			break
+ 		}

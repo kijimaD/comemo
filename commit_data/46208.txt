@@ -16,7 +16,44 @@ Date:   Thu Dec 10 09:52:52 2020 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/text/template/exec.go      |  4 ++++
  src/text/template/exec_test.go | 13 +++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 7ac5175006..19154fc640 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -373,6 +373,10 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
+ 		if val.IsNil() {
+ 			break
+ 		}
++		if val.Type().ChanDir() == reflect.SendDir {
++			s.errorf("range over send-only channel %v", val)
++			break
++		}
+ 		i := 0
+ 		for ; ; i++ {
+ 			elem, ok := val.Recv()
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 1611ee054f..1a129ed5af 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1697,3 +1697,16 @@ func TestIssue31810(t *testing.T) {
+ 		t.Errorf("%s got %q, expected %q", textCall, b.String(), "result")
+ 	}
+ }
++
++// Issue 43065, range over send only channel
++func TestIssue43065(t *testing.T) {
++	var b bytes.Buffer
++	tmp := Must(New("").Parse(`{{range .}}{{end}}`))
++	ch := make(chan<- int)
++	err := tmp.Execute(&b, ch)
++	if err == nil {
++		t.Error("expected err got nil")
++	} else if !strings.Contains(err.Error(), "range over send-only channel") {
++		t.Errorf("%s", err)
++	}
++}

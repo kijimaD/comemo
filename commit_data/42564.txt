@@ -16,6 +16,26 @@ Date:   Thu Jan 9 10:57:46 2020 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/malloc_test.go | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 5ed4feb77d..5c97f548fd 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -204,14 +204,6 @@ type acLink struct {
+ var arenaCollisionSink []*acLink
+ 
+ func TestArenaCollision(t *testing.T) {
+-	if GOOS == "darwin" && race.Enabled {
+-		// Skip this test on Darwin in race mode because Darwin 10.10 has
+-		// issues following arena hints and runs out of them in race mode, so
+-		// MAP_FIXED is used to ensure we keep the heap in the memory region the
+-		// race detector expects.
+-		// TODO(mknyszek): Delete this when Darwin 10.10 is no longer supported.
+-		t.Skip("disabled on Darwin with race mode since MAP_FIXED is used")
+-	}
+ 	testenv.MustHaveExec(t)
+ 
+ 	// Test that mheap.sysAlloc handles collisions with other

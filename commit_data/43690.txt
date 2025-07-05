@@ -20,9 +20,227 @@ Date:   Mon Apr 20 14:43:30 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 16 ++++++-------
  src/cmd/compile/internal/ssa/rewrite.go        |  8 ++++---
  src/cmd/compile/internal/ssa/rewritegeneric.go | 32 +++++++++++++-------------
  test/codegen/bits.go                           |  5 ++++
  4 files changed, 34 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index e81e7d733e..9a66312c90 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1775,21 +1775,21 @@
+ (Neq(8|16|32|64) s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Neq(8|16|32|64) x y)
+ 
+ // Optimize bitsets
+-(Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [y])) && isPowerOfTwo8(y)
++(Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [y])) && oneBit8(y)
+   => (Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+-(Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [y])) && isPowerOfTwo16(y)
++(Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [y])) && oneBit16(y)
+   => (Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+-(Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [y])) && isPowerOfTwo32(y)
++(Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [y])) && oneBit32(y)
+   => (Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+-(Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [y])) && isPowerOfTwo64(y)
++(Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [y])) && oneBit64(y)
+   => (Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+-(Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [y])) && isPowerOfTwo8(y)
++(Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [y])) && oneBit8(y)
+   => (Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+-(Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [y])) && isPowerOfTwo16(y)
++(Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [y])) && oneBit16(y)
+   => (Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+-(Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [y])) && isPowerOfTwo32(y)
++(Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [y])) && oneBit32(y)
+   => (Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+-(Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [y])) && isPowerOfTwo64(y)
++(Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [y])) && oneBit64(y)
+   => (Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+ 
+ // Reassociate expressions involving
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 3681daaebf..ca327c9f0f 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -395,9 +395,11 @@ func ntz32(x int32) int { return bits.TrailingZeros32(uint32(x)) }
+ func ntz16(x int16) int { return bits.TrailingZeros16(uint16(x)) }
+ func ntz8(x int8) int   { return bits.TrailingZeros8(uint8(x)) }
+ 
+-func oneBit(x int64) bool {
+-	return bits.OnesCount64(uint64(x)) == 1
+-}
++func oneBit(x int64) bool   { return bits.OnesCount64(uint64(x)) == 1 }
++func oneBit8(x int8) bool   { return bits.OnesCount8(uint8(x)) == 1 }
++func oneBit16(x int16) bool { return bits.OnesCount16(uint16(x)) == 1 }
++func oneBit32(x int32) bool { return bits.OnesCount32(uint32(x)) == 1 }
++func oneBit64(x int64) bool { return bits.OnesCount64(uint64(x)) == 1 }
+ 
+ // nlo returns the number of leading ones.
+ func nlo(x int64) int64 {
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 5ef9ac5d30..1fabe738d4 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -6313,7 +6313,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [y]))
+-	// cond: isPowerOfTwo16(y)
++	// cond: oneBit16(y)
+ 	// result: (Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -6330,7 +6330,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
+ 					continue
+ 				}
+ 				y := auxIntToInt16(v_0_1.AuxInt)
+-				if v_1.Op != OpConst16 || v_1.Type != t || auxIntToInt16(v_1.AuxInt) != y || !(isPowerOfTwo16(y)) {
++				if v_1.Op != OpConst16 || v_1.Type != t || auxIntToInt16(v_1.AuxInt) != y || !(oneBit16(y)) {
+ 					continue
+ 				}
+ 				v.reset(OpNeq16)
+@@ -7177,7 +7177,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [y]))
+-	// cond: isPowerOfTwo32(y)
++	// cond: oneBit32(y)
+ 	// result: (Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -7194,7 +7194,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
+ 					continue
+ 				}
+ 				y := auxIntToInt32(v_0_1.AuxInt)
+-				if v_1.Op != OpConst32 || v_1.Type != t || auxIntToInt32(v_1.AuxInt) != y || !(isPowerOfTwo32(y)) {
++				if v_1.Op != OpConst32 || v_1.Type != t || auxIntToInt32(v_1.AuxInt) != y || !(oneBit32(y)) {
+ 					continue
+ 				}
+ 				v.reset(OpNeq32)
+@@ -7758,7 +7758,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [y]))
+-	// cond: isPowerOfTwo64(y)
++	// cond: oneBit64(y)
+ 	// result: (Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -7775,7 +7775,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
+ 					continue
+ 				}
+ 				y := auxIntToInt64(v_0_1.AuxInt)
+-				if v_1.Op != OpConst64 || v_1.Type != t || auxIntToInt64(v_1.AuxInt) != y || !(isPowerOfTwo64(y)) {
++				if v_1.Op != OpConst64 || v_1.Type != t || auxIntToInt64(v_1.AuxInt) != y || !(oneBit64(y)) {
+ 					continue
+ 				}
+ 				v.reset(OpNeq64)
+@@ -8180,7 +8180,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [y]))
+-	// cond: isPowerOfTwo8(y)
++	// cond: oneBit8(y)
+ 	// result: (Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -8197,7 +8197,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
+ 					continue
+ 				}
+ 				y := auxIntToInt8(v_0_1.AuxInt)
+-				if v_1.Op != OpConst8 || v_1.Type != t || auxIntToInt8(v_1.AuxInt) != y || !(isPowerOfTwo8(y)) {
++				if v_1.Op != OpConst8 || v_1.Type != t || auxIntToInt8(v_1.AuxInt) != y || !(oneBit8(y)) {
+ 					continue
+ 				}
+ 				v.reset(OpNeq8)
+@@ -14907,7 +14907,7 @@ func rewriteValuegeneric_OpNeq16(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (Neq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [y]))
+-	// cond: isPowerOfTwo16(y)
++	// cond: oneBit16(y)
+ 	// result: (Eq16 (And16 <t> x (Const16 <t> [y])) (Const16 <t> [0]))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -14924,7 +14924,7 @@ func rewriteValuegeneric_OpNeq16(v *Value) bool {
+ 					continue
+ 				}
+ 				y := auxIntToInt16(v_0_1.AuxInt)
+-				if v_1.Op != OpConst16 || v_1.Type != t || auxIntToInt16(v_1.AuxInt) != y || !(isPowerOfTwo16(y)) {
++				if v_1.Op != OpConst16 || v_1.Type != t || auxIntToInt16(v_1.AuxInt) != y || !(oneBit16(y)) {
+ 					continue
+ 				}
+ 				v.reset(OpEq16)
+@@ -15094,7 +15094,7 @@ func rewriteValuegeneric_OpNeq32(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (Neq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [y]))
+-	// cond: isPowerOfTwo32(y)
++	// cond: oneBit32(y)
+ 	// result: (Eq32 (And32 <t> x (Const32 <t> [y])) (Const32 <t> [0]))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -15111,7 +15111,7 @@ func rewriteValuegeneric_OpNeq32(v *Value) bool {
+ 					continue
+ 				}
+ 				y := auxIntToInt32(v_0_1.AuxInt)
+-				if v_1.Op != OpConst32 || v_1.Type != t || auxIntToInt32(v_1.AuxInt) != y || !(isPowerOfTwo32(y)) {
++				if v_1.Op != OpConst32 || v_1.Type != t || auxIntToInt32(v_1.AuxInt) != y || !(oneBit32(y)) {
+ 					continue
+ 				}
+ 				v.reset(OpEq32)
+@@ -15304,7 +15304,7 @@ func rewriteValuegeneric_OpNeq64(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (Neq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [y]))
+-	// cond: isPowerOfTwo64(y)
++	// cond: oneBit64(y)
+ 	// result: (Eq64 (And64 <t> x (Const64 <t> [y])) (Const64 <t> [0]))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -15321,7 +15321,7 @@ func rewriteValuegeneric_OpNeq64(v *Value) bool {
+ 					continue
+ 				}
+ 				y := auxIntToInt64(v_0_1.AuxInt)
+-				if v_1.Op != OpConst64 || v_1.Type != t || auxIntToInt64(v_1.AuxInt) != y || !(isPowerOfTwo64(y)) {
++				if v_1.Op != OpConst64 || v_1.Type != t || auxIntToInt64(v_1.AuxInt) != y || !(oneBit64(y)) {
+ 					continue
+ 				}
+ 				v.reset(OpEq64)
+@@ -15514,7 +15514,7 @@ func rewriteValuegeneric_OpNeq8(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (Neq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [y]))
+-	// cond: isPowerOfTwo8(y)
++	// cond: oneBit8(y)
+ 	// result: (Eq8 (And8 <t> x (Const8 <t> [y])) (Const8 <t> [0]))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -15531,7 +15531,7 @@ func rewriteValuegeneric_OpNeq8(v *Value) bool {
+ 					continue
+ 				}
+ 				y := auxIntToInt8(v_0_1.AuxInt)
+-				if v_1.Op != OpConst8 || v_1.Type != t || auxIntToInt8(v_1.AuxInt) != y || !(isPowerOfTwo8(y)) {
++				if v_1.Op != OpConst8 || v_1.Type != t || auxIntToInt8(v_1.AuxInt) != y || !(oneBit8(y)) {
+ 					continue
+ 				}
+ 				v.reset(OpEq8)
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 18f9daf7cf..0a5428b55a 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -278,6 +278,11 @@ func bitOpOnMem(a []uint32) {
+ 	a[5] ^= 0x2000
+ }
+ 
++func bitcheckMostNegative(b uint8) bool {
++	// amd64:"TESTB"
++	return b&0x80 == 0x80
++}
++
+ // Check AND masking on arm64 (Issue #19857)
+ 
+ func and_mask_1(a uint64) uint64 {

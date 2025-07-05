@@ -16,6 +16,31 @@ Date:   Thu Aug 17 11:29:19 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/race/testdata/mop_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/testdata/mop_test.go b/src/runtime/race/testdata/mop_test.go
+index c96acb9021..560a762315 100644
+--- a/src/runtime/race/testdata/mop_test.go
++++ b/src/runtime/race/testdata/mop_test.go
+@@ -6,9 +6,9 @@ package race_test
+ 
+ import (
+ 	"bytes"
+-	"crypto/sha1"
+ 	"errors"
+ 	"fmt"
++	"hash/crc32"
+ 	"io"
+ 	"os"
+ 	"runtime"
+@@ -1904,7 +1904,7 @@ func TestRaceIssue5567(t *testing.T) {
+ 			err = nil
+ 		}
+ 	}()
+-	h := sha1.New()
++	h := crc32.New(crc32.MakeTable(0x12345678))
+ 	for b := range in {
+ 		h.Write(b)
+ 	}

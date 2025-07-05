@@ -16,10 +16,80 @@ Date:   Tue Jan 23 15:56:24 2018 +0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/export_linux_test.go  | 6 ++++++
  src/runtime/runtime_linux_test.go | 9 +++++++++
  src/runtime/sys_linux_mips64x.s   | 1 +
  src/runtime/sys_linux_mipsx.s     | 1 +
  src/runtime/sys_linux_ppc64x.s    | 1 +
  5 files changed, 18 insertions(+)
+
+diff --git a/src/runtime/export_linux_test.go b/src/runtime/export_linux_test.go
+index ef0c111677..c73f2f33d1 100644
+--- a/src/runtime/export_linux_test.go
++++ b/src/runtime/export_linux_test.go
+@@ -6,5 +6,11 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ var NewOSProc0 = newosproc0
+ var Mincore = mincore
++
++func Epollctl(epfd, op, fd int32, ev unsafe.Pointer) int32 {
++	return epollctl(epfd, op, fd, (*epollevent)(ev))
++}
+diff --git a/src/runtime/runtime_linux_test.go b/src/runtime/runtime_linux_test.go
+index 612397293f..17d6fbde46 100644
+--- a/src/runtime/runtime_linux_test.go
++++ b/src/runtime/runtime_linux_test.go
+@@ -52,3 +52,12 @@ func TestMincoreErrorSign(t *testing.T) {
+ 		t.Errorf("mincore = %v, want %v", v, -EINVAL)
+ 	}
+ }
++
++func TestEpollctlErrorSign(t *testing.T) {
++	v := Epollctl(-1, 1, -1, unsafe.Pointer(&struct{}{}))
++
++	const EBADF = 0x09
++	if v != -EBADF {
++		t.Errorf("epollctl = %v, want %v", v, -EBADF)
++	}
++}
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 7632e06fbd..9ce810a6b6 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -410,6 +410,7 @@ TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	ev+16(FP), R7
+ 	MOVV	$SYS_epoll_ctl, R2
+ 	SYSCALL
++	SUBVU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index 52eccca093..95f6367893 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -444,6 +444,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0-20
+ 	MOVW	ev+12(FP), R7
+ 	MOVW	$SYS_epoll_ctl, R2
+ 	SYSCALL
++	SUBU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, ret+16(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index b8fe5cc31b..b7d34b00da 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -496,6 +496,7 @@ TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	fd+8(FP), R5
+ 	MOVD	ev+16(FP), R6
+ 	SYSCALL	$SYS_epoll_ctl
++	NEG	R3	// caller expects negative errno
+ 	MOVW	R3, ret+24(FP)
+ 	RET
+ 

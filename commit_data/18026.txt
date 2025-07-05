@@ -7,6 +7,20 @@ Date:   Tue Dec 17 14:21:11 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/38540046
-
+---
  src/pkg/container/list/list.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index ed2d15a457..1cc7e311bb 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -65,7 +65,7 @@ func New() *List { return new(List).Init() }
+ // The complexity is O(1).
+ func (l *List) Len() int { return l.len }
+ 
+-// Front returns the first element of list l or nil
++// Front returns the first element of list l or nil.
+ func (l *List) Front() *Element {
+ 	if l.len == 0 {
+ 		return nil

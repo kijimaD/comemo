@@ -14,7 +14,45 @@ Date:   Mon Oct 30 16:06:19 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/74430
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go | 10 +++++++---
  src/runtime/mbarrier.go                 |  4 ++++
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 2ffd0f96a8..90bfdbf688 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -170,10 +170,14 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 	case OCALLINTER:
+ 		instrumentnode(&n.Left, init, 0, 0)
+ 
+-	// Instrument dst argument of runtime.writebarrier* calls
+-	// as we do not instrument runtime code.
+-	// typedslicecopy is instrumented in runtime.
+ 	case OCALLFUNC:
++		// Note that runtime.typedslicecopy is the only
++		// assignment-like function call in the AST at this
++		// point (between walk and SSA); since we don't
++		// instrument it here, typedslicecopy is manually
++		// instrumented in runtime. Calls to the write barrier
++		// and typedmemmove are created later by SSA, so those
++		// still appear as OAS nodes at this point.
+ 		instrumentnode(&n.Left, init, 0, 0)
+ 
+ 	case ONOT,
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index cb2959fbc3..e28bdb8b8d 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -326,6 +326,10 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 	dstp := dst.array
+ 	srcp := src.array
+ 
++	// The compiler emits calls to typedslicecopy before
++	// instrumentation runs, so unlike the other copying and
++	// assignment operations, it's not instrumented in the calling
++	// code and needs its own instrumentation.
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+ 		pc := funcPC(slicecopy)

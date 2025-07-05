@@ -7,7 +7,34 @@ Date:   Mon Dec 14 13:30:11 2009 +1100
     R=rsc
     CC=pwil3058
     https://golang.org/cl/174087
-
+---
  doc/go_tutorial.html | 2 +-
  doc/go_tutorial.txt  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 9ed408d345..f3715f3bdf 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -355,7 +355,7 @@ By the way, another thing that works on strings, arrays, slices, maps
+ and channels is the <code>range</code> clause on <code>for</code> loops.  Instead of writing
+ <p>
+ <pre>
+-    for i := 0; i < len(a); i++ { ... }
++    for i := 0; i &lt; len(a); i++ { ... }
+ </pre>
+ <p>
+ to loop over the elements of a slice (or map or ...) , we could write
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index dae3c6815e..7c0ffac80c 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -278,7 +278,7 @@ slices, maps, and channels.
+ By the way, another thing that works on strings, arrays, slices, maps
+ and channels is the "range" clause on "for" loops.  Instead of writing
+ 
+-	for i := 0; i < len(a); i++ { ... }
++	for i := 0; i &lt; len(a); i++ { ... }
+ 
+ to loop over the elements of a slice (or map or ...) , we could write
+ 

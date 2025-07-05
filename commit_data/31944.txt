@@ -9,7 +9,34 @@ Date:   Fri Mar 24 13:10:24 2017 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go  | 2 +-
  src/cmd/compile/internal/gc/noder.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 8e9004d6e9..413ff0e879 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -745,7 +745,7 @@ func loadsys() {
+ 	inimport = false
+ }
+ 
+-func importfile(f *Val, indent []byte) *Pkg {
++func importfile(f *Val) *Pkg {
+ 	path_, ok := f.U.(string)
+ 	if !ok {
+ 		yyerror("import path must be a string")
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 8b38606d33..9226482ae9 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -136,7 +136,7 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+ 
+ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 	val := p.basicLit(imp.Path)
+-	ipkg := importfile(&val, nil)
++	ipkg := importfile(&val)
+ 
+ 	if ipkg == nil {
+ 		if nerrors == 0 {

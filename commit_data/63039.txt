@@ -137,7 +137,7 @@ Date:   Wed Apr 30 22:17:21 2025 -0400
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/internal/modfetch/fetch.go              |  72 +++-
  src/cmd/go/internal/modfetch/repo.go               |   7 +-
  src/cmd/go/internal/modget/get.go                  | 105 +++++-
@@ -146,3 +146,997 @@ Date:   Wed Apr 30 22:17:21 2025 -0400
  src/cmd/go/internal/modload/modfile.go             |  96 +++---
  .../go/testdata/script/mod_get_work_incomplete.txt | 378 +++++++++++++++++++++
  7 files changed, 681 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index c16e83aea3..5d310ccbba 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -35,7 +35,12 @@ import (
+ 	modzip "golang.org/x/mod/zip"
+ )
+ 
+-var downloadCache par.ErrCache[module.Version, string] // version → directory
++// The downloadCache is used to cache the operation of downloading a module to disk
++// (if it's not already downloaded) and getting the directory it was downloaded to.
++// It is important that downloadCache must not be accessed by any of the exported
++// functions of this package after they return, because it can be modified by the
++// non-thread-safe SetState function
++var downloadCache = new(par.ErrCache[module.Version, string]) // version → directory;
+ 
+ var ErrToolchain = errors.New("internal error: invalid operation on toolchain module")
+ 
+@@ -432,6 +437,10 @@ func RemoveAll(dir string) error {
+ 	return robustio.RemoveAll(dir)
+ }
+ 
++// The GoSumFile, WorkspaceGoSumFiles, and goSum are global state that must not be
++// accessed by any of the exported functions of this package after they return, because
++// they can be modified by the non-thread-safe SetState function.
++
+ var GoSumFile string             // path to go.sum; set by package modload
+ var WorkspaceGoSumFiles []string // path to module go.sums in workspace; set by package modload
+ 
+@@ -441,7 +450,11 @@ type modSum struct {
+ }
+ 
+ var goSum struct {
+-	mu        sync.Mutex
++	mu sync.Mutex
++	sumState
++}
++
++type sumState struct {
+ 	m         map[module.Version][]string            // content of go.sum file
+ 	w         map[string]map[module.Version][]string // sum file in workspace -> content of that sum file
+ 	status    map[modSum]modSumStatus                // state of sums in m
+@@ -453,26 +466,55 @@ type modSumStatus struct {
+ 	used, dirty bool
+ }
+ 
++// State holds a snapshot of the global state of the modfetch package.
++type State struct {
++	goSumFile           string
++	workspaceGoSumFiles []string
++	lookupCache         *par.Cache[lookupCacheKey, Repo]
++	downloadCache       *par.ErrCache[module.Version, string]
++	sumState            sumState
++}
++
+ // Reset resets globals in the modfetch package, so previous loads don't affect
+ // contents of go.sum files.
+ func Reset() {
+-	GoSumFile = ""
+-	WorkspaceGoSumFiles = nil
++	SetState(State{})
++}
++
++// SetState sets the global state of the modfetch package to the newState, and returns the previous
++// global state. newState should have been returned by SetState, or be an empty State.
++// There should be no concurrent calls to any of the exported functions of this package with
++// a call to SetState because it will modify the global state in a non-thread-safe way.
++func SetState(newState State) (oldState State) {
++	if newState.lookupCache == nil {
++		newState.lookupCache = new(par.Cache[lookupCacheKey, Repo])
++	}
++	if newState.downloadCache == nil {
++		newState.downloadCache = new(par.ErrCache[module.Version, string])
++	}
+ 
++	goSum.mu.Lock()
++	defer goSum.mu.Unlock()
++
++	oldState = State{
++		goSumFile:           GoSumFile,
++		workspaceGoSumFiles: WorkspaceGoSumFiles,
++		lookupCache:         lookupCache,
++		downloadCache:       downloadCache,
++		sumState:            goSum.sumState,
++	}
++
++	GoSumFile = newState.goSumFile
++	WorkspaceGoSumFiles = newState.workspaceGoSumFiles
+ 	// Uses of lookupCache and downloadCache both can call checkModSum,
+ 	// which in turn sets the used bit on goSum.status for modules.
+-	// Reset them so used can be computed properly.
+-	lookupCache = par.Cache[lookupCacheKey, Repo]{}
+-	downloadCache = par.ErrCache[module.Version, string]{}
++	// Set (or reset) them so used can be computed properly.
++	lookupCache = newState.lookupCache
++	downloadCache = newState.downloadCache
++	// Set, or reset all fields on goSum. If being reset to empty, it will be initialized later.
++	goSum.sumState = newState.sumState
+ 
+-	// Clear all fields on goSum. It will be initialized later
+-	goSum.mu.Lock()
+-	goSum.m = nil
+-	goSum.w = nil
+-	goSum.status = nil
+-	goSum.overwrite = false
+-	goSum.enabled = false
+-	goSum.mu.Unlock()
++	return oldState
+ }
+ 
+ // initGoSum initializes the go.sum data.
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index dd707ec264..0fdb2a8736 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -184,7 +184,10 @@ type RevInfo struct {
+ // To avoid version control access except when absolutely necessary,
+ // Lookup does not attempt to connect to the repository itself.
+ 
+-var lookupCache par.Cache[lookupCacheKey, Repo]
++// The Lookup cache is used cache the work done by Lookup.
++// It is important that the global functions of this package that access it do not
++// do so after they return.
++var lookupCache = new(par.Cache[lookupCacheKey, Repo])
+ 
+ type lookupCacheKey struct {
+ 	proxy, path string
+@@ -218,7 +221,7 @@ func Lookup(ctx context.Context, proxy, path string) Repo {
+ 	})
+ }
+ 
+-var lookupLocalCache par.Cache[string, Repo] // path, Repo
++var lookupLocalCache = new(par.Cache[string, Repo]) // path, Repo
+ 
+ // LookupLocal returns a Repo that accesses local VCS information.
+ //
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 48ae12fe53..6867bdaa36 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -399,6 +399,9 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 			pkgPatterns = append(pkgPatterns, q.pattern)
+ 		}
+ 	}
++
++	// If a workspace applies, checkPackageProblems will switch to the workspace
++	// using modload.EnterWorkspace when doing the final load, and then switch back.
+ 	r.checkPackageProblems(ctx, pkgPatterns)
+ 
+ 	if *getTool {
+@@ -532,6 +535,10 @@ type resolver struct {
+ 	work *par.Queue
+ 
+ 	matchInModuleCache par.ErrCache[matchInModuleKey, []string]
++
++	// workspace is used to check whether, in workspace mode, any of the workspace
++	// modules would contain a package.
++	workspace *workspace
+ }
+ 
+ type versionReason struct {
+@@ -565,6 +572,7 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
+ 		buildListVersion: initialVersion,
+ 		initialVersion:   initialVersion,
+ 		nonesByPath:      map[string]*query{},
++		workspace:        loadWorkspace(modload.FindGoWork(base.Cwd())),
+ 	}
+ 
+ 	for _, q := range queries {
+@@ -1233,12 +1241,12 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
+ 	}
+ 
+ 	_, pkgs := modload.LoadPackages(ctx, opts, patterns...)
+-	for _, path := range pkgs {
++	for _, pkgPath := range pkgs {
+ 		const (
+ 			parentPath  = ""
+ 			parentIsStd = false
+ 		)
+-		_, _, err := modload.Lookup(parentPath, parentIsStd, path)
++		_, _, err := modload.Lookup(parentPath, parentIsStd, pkgPath)
+ 		if err == nil {
+ 			continue
+ 		}
+@@ -1246,6 +1254,10 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
+ 			// We already added candidates during loading.
+ 			continue
+ 		}
++		if r.workspace != nil && r.workspace.hasPackage(pkgPath) {
++			// Don't try to resolve imports that are in the resolver's associated workspace. (#73654)
++			continue
++		}
+ 
+ 		var (
+ 			importMissing *modload.ImportMissingError
+@@ -1258,7 +1270,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
+ 			continue
+ 		}
+ 
+-		path := path
++		path := pkgPath
+ 		r.work.Add(func() {
+ 			findPackage(ctx, path, module.Version{})
+ 		})
+@@ -1557,6 +1569,27 @@ func (r *resolver) chooseArbitrarily(cs pathSet) (isPackage bool, m module.Versi
+ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []string) {
+ 	defer base.ExitIfErrors()
+ 
++	// Enter workspace mode, if the current main module would belong to it, when
++	// doing the workspace load. We want to check that the workspace loads properly
++	// and doesn't have missing or ambiguous imports (rather than checking the module
++	// by itself) because the module may have unreleased dependencies in the workspace.
++	// We'll also report issues for retracted and deprecated modules using the workspace
++	// info, but switch back to single module mode when fetching sums so that we update
++	// the single module's go.sum file.
++	var exitWorkspace func()
++	if r.workspace != nil && r.workspace.hasModule(modload.MainModules.Versions()[0].Path) {
++		var err error
++		exitWorkspace, err = modload.EnterWorkspace(ctx)
++		if err != nil {
++			// A TooNewError can happen for
++			// go get go@newversion when all the required modules
++			// are old enough but the go command itself is not new
++			// enough. See the related comment on the SwitchOrFatal
++			// in runGet when WriteGoMod returns an error.
++			toolchain.SwitchOrFatal(ctx, err)
++		}
++	}
++
+ 	// Gather information about modules we might want to load retractions and
+ 	// deprecations for. Loading this metadata requires at least one version
+ 	// lookup per module, and we don't want to load information that's neither
+@@ -1566,7 +1599,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 		resolved modFlags = 1 << iota // version resolved by 'go get'
+ 		named                         // explicitly named on command line or provides a named package
+ 		hasPkg                        // needed to build named packages
+-		direct                        // provides a direct dependency of the main module
++		direct                        // provides a direct dependency of the main module or workspace modules
+ 	)
+ 	relevantMods := make(map[module.Version]modFlags)
+ 	for path, reason := range r.resolvedVersion {
+@@ -1657,8 +1690,8 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 
+ 	// Load deprecations for modules mentioned on the command line. Only load
+ 	// deprecations for indirect dependencies if they're also direct dependencies
+-	// of the main module. Deprecations of purely indirect dependencies are
+-	// not actionable.
++	// of the main module or workspace modules. Deprecations of purely indirect
++	// dependencies are not actionable.
+ 	deprecations := make([]modMessage, 0, len(relevantMods))
+ 	for m, flags := range relevantMods {
+ 		if flags&(resolved|named) != 0 || flags&(hasPkg|direct) == hasPkg|direct {
+@@ -1677,6 +1710,16 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 		})
+ 	}
+ 
++	// exit the workspace if we had entered it earlier. We want to add the sums
++	// to the go.sum file for the module we're running go get from.
++	if exitWorkspace != nil {
++		// Wait for retraction and deprecation checks (that depend on the global
++		// modload state containing the workspace) to finish before we reset the
++		// state back to single module mode.
++		<-r.work.Idle()
++		exitWorkspace()
++	}
++
+ 	// Load sums for updated modules that had sums before. When we update a
+ 	// module, we may update another module in the build list that provides a
+ 	// package in 'all' that wasn't loaded as part of this 'go get' command.
+@@ -2000,3 +2043,53 @@ func isNoSuchPackageVersion(err error) bool {
+ 	var noPackage *modload.PackageNotInModuleError
+ 	return isNoSuchModuleVersion(err) || errors.As(err, &noPackage)
+ }
++
++// workspace represents the set of modules in a workspace.
++// It can be used
++type workspace struct {
++	modules map[string]string // path -> modroot
++}
++
++// loadWorkspace loads infomation about a workspace using a go.work
++// file path.
++func loadWorkspace(workFilePath string) *workspace {
++	if workFilePath == "" {
++		// Return the empty workspace checker. All HasPackage checks will return false.
++		return nil
++	}
++
++	_, modRoots, err := modload.LoadWorkFile(workFilePath)
++	if err != nil {
++		return nil
++	}
++
++	w := &workspace{modules: make(map[string]string)}
++	for _, modRoot := range modRoots {
++		modFile := filepath.Join(modRoot, "go.mod")
++		_, f, err := modload.ReadModFile(modFile, nil)
++		if err != nil {
++			continue // Error will be reported in the final load of the workspace.
++		}
++		w.modules[f.Module.Mod.Path] = modRoot
++	}
++
++	return w
++}
++
++// hasPackage reports whether there is a workspace module that could
++// provide the package with the given path.
++func (w *workspace) hasPackage(pkgpath string) bool {
++	for modPath, modroot := range w.modules {
++		if modload.PkgIsInLocalModule(pkgpath, modPath, modroot) {
++			return true
++		}
++	}
++	return false
++}
++
++// hasModule reports whether there is a workspace module with the given
++// path.
++func (w *workspace) hasModule(modPath string) bool {
++	_, ok := w.modules[modPath]
++	return ok
++}
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 5003ede241..171d9d692f 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -661,6 +661,15 @@ var (
+ 	haveGoFilesCache par.ErrCache[string, bool] // dir → haveGoFiles
+ )
+ 
++// PkgIsInLocalModule reports whether the directory of the package with
++// the given pkgpath, exists in the module with the given modpath
++// at the given modroot, and contains go source files.
++func PkgIsInLocalModule(pkgpath, modpath, modroot string) bool {
++	const isLocal = true
++	_, haveGoFiles, err := dirInModule(pkgpath, modpath, modroot, isLocal)
++	return err == nil && haveGoFiles
++}
++
+ // dirInModule locates the directory that would hold the package named by the given path,
+ // if it were in the module with module path mpath and root mdir.
+ // If path is syntactically not within mpath,
+@@ -673,6 +682,8 @@ var (
+ // whether there are in fact Go source files in that directory.
+ // A non-nil error indicates that the existence of the directory and/or
+ // source files could not be determined, for example due to a permission error.
++//
++// TODO(matloob): Could we use the modindex to check packages in indexed modules?
+ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFiles bool, err error) {
+ 	// Determine where to expect the package.
+ 	if path == mpath {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 41b3b9df1b..20daf61350 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -13,6 +13,7 @@ import (
+ 	"internal/godebugs"
+ 	"internal/lazyregexp"
+ 	"io"
++	"maps"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -82,6 +83,36 @@ func EnterModule(ctx context.Context, enterModroot string) {
+ 	LoadModFile(ctx)
+ }
+ 
++// EnterWorkspace enters workspace mode from module mode, applying the updated requirements to the main
++// module to that module in the workspace. There should be no calls to any of the exported
++// functions of the modload package running concurrently with a call to EnterWorkspace as
++// EnterWorkspace will modify the global state they depend on in a non-thread-safe way.
++func EnterWorkspace(ctx context.Context) (exit func(), err error) {
++	// Find the identity of the main module that will be updated before we reset modload state.
++	mm := MainModules.mustGetSingleMainModule()
++	// Get the updated modfile we will use for that module.
++	_, _, updatedmodfile, err := UpdateGoModFromReqs(ctx, WriteOpts{})
++	if err != nil {
++		return nil, err
++	}
++
++	// Reset the state to a clean state.
++	oldstate := setState(state{})
++	ForceUseModules = true
++
++	// Load in workspace mode.
++	InitWorkfile()
++	LoadModFile(ctx)
++
++	// Update the content of the previous main module, and recompute the requirements.
++	*MainModules.ModFile(mm) = *updatedmodfile
++	requirements = requirementsFromModFiles(ctx, MainModules.workFile, slices.Collect(maps.Values(MainModules.modFiles)), nil)
++
++	return func() {
++		setState(oldstate)
++	}, nil
++}
++
+ // Variable set in InitWorkfile
+ var (
+ 	// Set to the path to the go.work file, or "" if workspace mode is disabled.
+@@ -395,15 +426,44 @@ func WorkFilePath() string {
+ // Reset clears all the initialized, cached state about the use of modules,
+ // so that we can start over.
+ func Reset() {
+-	initialized = false
+-	ForceUseModules = false
+-	RootMode = 0
+-	modRoots = nil
+-	cfg.ModulesEnabled = false
+-	MainModules = nil
+-	requirements = nil
+-	workFilePath = ""
+-	modfetch.Reset()
++	setState(state{})
++}
++
++func setState(s state) state {
++	oldState := state{
++		initialized:     initialized,
++		forceUseModules: ForceUseModules,
++		rootMode:        RootMode,
++		modRoots:        modRoots,
++		modulesEnabled:  cfg.ModulesEnabled,
++		mainModules:     MainModules,
++		requirements:    requirements,
++	}
++	initialized = s.initialized
++	ForceUseModules = s.forceUseModules
++	RootMode = s.rootMode
++	modRoots = s.modRoots
++	cfg.ModulesEnabled = s.modulesEnabled
++	MainModules = s.mainModules
++	requirements = s.requirements
++	workFilePath = s.workFilePath
++	// The modfetch package's global state is used to compute
++	// the go.sum file, so save and restore it along with the
++	// modload state.
++	oldState.modfetchState = modfetch.SetState(s.modfetchState)
++	return oldState
++}
++
++type state struct {
++	initialized     bool
++	forceUseModules bool
++	rootMode        Root
++	modRoots        []string
++	modulesEnabled  bool
++	mainModules     *MainModuleSet
++	requirements    *Requirements
++	workFilePath    string
++	modfetchState   modfetch.State
+ }
+ 
+ // Init determines whether module mode is enabled, locates the root of the
+@@ -636,6 +696,9 @@ func ModFilePath() string {
+ }
+ 
+ func modFilePath(modRoot string) string {
++	// TODO(matloob): This seems incompatible with workspaces
++	// (unless the user's intention is to replace all workspace modules' modfiles?).
++	// Should we produce an error in workspace mode if cfg.ModFile is set?
+ 	if cfg.ModFile != "" {
+ 		return cfg.ModFile
+ 	}
+@@ -689,7 +752,10 @@ func (goModDirtyError) Error() string {
+ 
+ var errGoModDirty error = goModDirtyError{}
+ 
+-func loadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, err error) {
++// LoadWorkFile parses and checks the go.work file at the given path,
++// and returns the absolute paths of the workspace modules' modroots.
++// It does not modify the global state of the modload package.
++func LoadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, err error) {
+ 	workDir := filepath.Dir(path)
+ 	wf, err := ReadWorkFile(path)
+ 	if err != nil {
+@@ -838,7 +904,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error)
+ 	var workFile *modfile.WorkFile
+ 	if inWorkspaceMode() {
+ 		var err error
+-		workFile, modRoots, err = loadWorkFile(workFilePath)
++		workFile, modRoots, err = LoadWorkFile(workFilePath)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 3b82b857c4..cb385c3505 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -695,9 +695,16 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 		// If there are no modules in the workspace, we synthesize an empty
+ 		// command-line-arguments module, which rawGoModData cannot read a go.mod for.
+ 		return &modFileSummary{module: m}, nil
++	} else if m.Version == "" && inWorkspaceMode() && MainModules.Contains(m.Path) {
++		// When go get uses EnterWorkspace to check that the workspace loads properly,
++		// it will update the contents of the workspace module's modfile in memory. To use the updated
++		// contents of the modfile when doing the load, don't read from disk and instead
++		// recompute a summary using the updated contents of the modfile.
++		if mf := MainModules.ModFile(m); mf != nil {
++			return summaryFromModFile(m, MainModules.modFiles[m])
++		}
+ 	}
+ 	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
+-		summary := new(modFileSummary)
+ 		name, data, err := rawGoModData(m)
+ 		if err != nil {
+ 			return nil, err
+@@ -706,54 +713,59 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 		if err != nil {
+ 			return nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(name), err))
+ 		}
+-		if f.Module != nil {
+-			summary.module = f.Module.Mod
+-			summary.deprecated = f.Module.Deprecated
+-		}
+-		if f.Go != nil {
+-			rawGoVersion.LoadOrStore(m, f.Go.Version)
+-			summary.goVersion = f.Go.Version
+-			summary.pruning = pruningForGoVersion(f.Go.Version)
+-		} else {
+-			summary.pruning = unpruned
+-		}
+-		if f.Toolchain != nil {
+-			summary.toolchain = f.Toolchain.Name
+-		}
+-		if f.Ignore != nil {
+-			for _, i := range f.Ignore {
+-				summary.ignore = append(summary.ignore, i.Path)
+-			}
++		return summaryFromModFile(m, f)
++	})
++}
++
++func summaryFromModFile(m module.Version, f *modfile.File) (*modFileSummary, error) {
++	summary := new(modFileSummary)
++	if f.Module != nil {
++		summary.module = f.Module.Mod
++		summary.deprecated = f.Module.Deprecated
++	}
++	if f.Go != nil {
++		rawGoVersion.LoadOrStore(m, f.Go.Version)
++		summary.goVersion = f.Go.Version
++		summary.pruning = pruningForGoVersion(f.Go.Version)
++	} else {
++		summary.pruning = unpruned
++	}
++	if f.Toolchain != nil {
++		summary.toolchain = f.Toolchain.Name
++	}
++	if f.Ignore != nil {
++		for _, i := range f.Ignore {
++			summary.ignore = append(summary.ignore, i.Path)
+ 		}
+-		if len(f.Require) > 0 {
+-			summary.require = make([]module.Version, 0, len(f.Require)+1)
+-			for _, req := range f.Require {
+-				summary.require = append(summary.require, req.Mod)
+-			}
++	}
++	if len(f.Require) > 0 {
++		summary.require = make([]module.Version, 0, len(f.Require)+1)
++		for _, req := range f.Require {
++			summary.require = append(summary.require, req.Mod)
+ 		}
++	}
+ 
+-		if len(f.Retract) > 0 {
+-			summary.retract = make([]retraction, 0, len(f.Retract))
+-			for _, ret := range f.Retract {
+-				summary.retract = append(summary.retract, retraction{
+-					VersionInterval: ret.VersionInterval,
+-					Rationale:       ret.Rationale,
+-				})
+-			}
++	if len(f.Retract) > 0 {
++		summary.retract = make([]retraction, 0, len(f.Retract))
++		for _, ret := range f.Retract {
++			summary.retract = append(summary.retract, retraction{
++				VersionInterval: ret.VersionInterval,
++				Rationale:       ret.Rationale,
++			})
+ 		}
++	}
+ 
+-		// This block must be kept at the end of the function because the summary may
+-		// be used for reading retractions or deprecations even if a TooNewError is
+-		// returned.
+-		if summary.goVersion != "" && gover.Compare(summary.goVersion, gover.GoStrictVersion) >= 0 {
+-			summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
+-			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
+-				return summary, &gover.TooNewError{What: "module " + m.String(), GoVersion: summary.goVersion}
+-			}
++	// This block must be kept at the end of the function because the summary may
++	// be used for reading retractions or deprecations even if a TooNewError is
++	// returned.
++	if summary.goVersion != "" && gover.Compare(summary.goVersion, gover.GoStrictVersion) >= 0 {
++		summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
++		if gover.Compare(summary.goVersion, gover.Local()) > 0 {
++			return summary, &gover.TooNewError{What: "module " + m.String(), GoVersion: summary.goVersion}
+ 		}
++	}
+ 
+-		return summary, nil
+-	})
++	return summary, nil
+ }
+ 
+ var rawGoModSummaryCache par.ErrCache[module.Version, *modFileSummary]
+diff --git a/src/cmd/go/testdata/script/mod_get_work_incomplete.txt b/src/cmd/go/testdata/script/mod_get_work_incomplete.txt
+new file mode 100644
+index 0000000000..ada2ae50f1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_work_incomplete.txt
+@@ -0,0 +1,378 @@
++# Enter the first set of test cases. In this test case, package
++# example.com/m has an import of example.com/n, which is also
++# in the workspace, but is not required by example.com/m, and does not exist
++# upstream. It also has an import of rsc.io/quote, which
++# is also not required by example.com/m but does exist upstream. get should resolve
++# rsc.io/quote and not try to resolve example.com/n.
++cd m
++cp go.mod go.mod.orig
++
++# Test go get with an incomplete module using a local query.
++cp go.mod.orig go.mod
++go get
++cmp go.mod go.mod.want
++cmp go.sum go.sum.want
++
++# Test go get with an incomplete module using a wildcard query.
++cp go.mod.orig go.mod
++rm go.sum
++go get ./...
++cmp go.mod go.mod.want
++cmp go.sum go.sum.want
++
++# Test go get with an incomplete module using a path query that can be resolved.
++cp go.mod.orig go.mod
++rm go.sum
++go get rsc.io/quote
++cmp go.mod go.mod.want.path_query # query wasn't resolved through import, so don't know if it's direct
++cmp go.sum go.sum.want
++
++# Test go get with a path query that is to a workspace module but that can't be resolved.
++# Normally, when we encounter an unresolved import of a workspace module, it's
++# ignored, but a path query of the module was asked for explicitly and isn't ignored.
++cp go.mod.orig go.mod
++rm go.sum
++! go get example.com/n
++# The following error is returned because module example.com does exist in the proxy we use
++# to run these tests, and because its is a prefix of example.com/n, it is a candidate to
++# satisfy the import.
++stderr 'module example.com@upgrade found \(v1\.0\.0\), but does not contain package example.com/n'
++
++# Test go get with an incomplete module using an "all" query.
++cp go.mod.orig go.mod
++rm go.sum
++go get all
++cmp go.mod go.mod.want.all # all loads a different graph so the requirements get bumped up
++cmp go.sum go.sum.want.all
++
++# Test go get with an incomplete module using a tool query
++# The hastool directory has its own go.work file than includes example.com/n and hastool.
++cd ../hastool
++go get tool
++cmp go.mod go.mod.want
++
++# Test that missing imports from loading the workspace are reported.
++# In this example, there is a workspace with the
++# example.com/missingworkspaceimport and example.com/withmissing modules.
++# missingworkspaceimport imports withmissing, and withmissing in turn
++# imports rsc.io/quote, but doesn't have a requirement on it.
++# The get operation won't resolve rsc.io/quote because it doesn't
++# appear in the missingworkspaceimport's module graph, and the
++# workspace will fail to load in checkPackageProblems because of the missing import.
++cd ../missingworkspaceimport
++! go get ./...
++stderr 'cannot find module providing package rsc.io/quote'
++
++# Test that missing imports are not reported if they're not in the package
++# graph. This test case is the same as the above except that there's no
++# import from the missingworkspaceimport package to the one that
++# imports the unresolved rsc.io/quote dependency. The example.com/missingworkspaceimport
++# package imports example.com/withmissing/other so it still depends on the example.com/missing
++# module, but not on the withmissing package itself. The example.com/withmissing
++# module still has an import on the rsc.io/quote package, but the package
++# with the import doesn't appear in the loaded package graph.
++cd ../missingworkspaceimport_disconnected
++go get ./...
++
++# Test that deprecations are reported using the workspace.
++# First, the control case: without the workspace, the deprecated module
++# is an indirect dependency of example.com/withdeprecation/indirect,
++# so we shouldn't get a deprecation warning.
++cd ../withdeprecation/indirect
++cp go.mod go.mod.orig
++env GOWORK=off
++go get ./...
++! stderr 'is deprecated'
++cmp go.mod go.mod.want
++# Now, in the workspace, we should get a deprecation warning, because
++# the deprecated module is a direct dependency of example.com/withdeprecation/direct, which
++# is a workspace module.
++cp go.mod.orig go.mod
++env GOWORK=
++go get ./...
++stderr 'go: module example.com/deprecated/b is deprecated: in example.com/deprecated/b@v1.9.0'
++cmp go.mod go.mod.want
++
++# Test that retractions are reported using the workspace.
++# First, the control case. Even though a workspace module depends on
++# a retracted version, because we didn't ask for it on the command line,
++# we didn't resolve that retracted module to satisfy an import,
++# or need it to build a requested package, we don't produce the warning.
++cd ../../withretraction/doesnotrequireretracted
++cp go.mod go.mod.orig
++go get rsc.io/quote
++! stderr 'retracted'
++# If we do request a non-retracted version of the module but the workspace
++# is off, we also won't see the retraction warning because the retracted
++# module isn't selected in the graph.
++cp go.mod.orig go.mod
++env GOWORK=off
++go get example.com/retract@v1.0.0-good
++! stderr 'retracted'
++# Now, with the workspace on, because example.com/retract@v1.0.0-unused
++# is a higher version, it will be selected and the retraction will
++# be reported.
++cp go.mod.orig go.mod
++env GOWORK=
++go get example.com/retract@v1.0.0-good
++stderr 'retracted'
++# Finally, with the workspace on, if the other workspace depends on
++# example.com/retract@v1.0.0-bad rather than 'v1.0.0-unused', because
++# 'v1.0.0-bad' is considered a lower version than 'v1.0.0-good', 'v1.0.0-good'
++# will be selected and the deprecation will not be reported.
++cp go.mod.orig go.mod
++cd ../requiresretracted
++go get example.com/retract@v1.0.0-bad # set the verison to 'v1.0.0-bad'
++stderr 'retracted'
++cd ../doesnotrequireretracted
++go get example.com/retract@v1.0.0-good
++! stderr 'retracted'
++
++-- go.work --
++go 1.25
++
++use (
++	m
++	n
++)
++-- q/go.mod --
++module example.com/q
++
++go 1.25
++-- q/q.go --
++package q
++
++import "rsc.io/quote"
++
++func Q() {
++	quote.Hello()
++}
++-- m/go.mod --
++module example.com/m
++
++go 1.25
++-- m/go.mod.want --
++module example.com/m
++
++go 1.25
++
++require rsc.io/quote v1.5.2
++
++require (
++	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
++	rsc.io/sampler v1.3.0 // indirect
++)
++-- m/go.mod.want.path_query --
++module example.com/m
++
++go 1.25
++
++require (
++	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
++	rsc.io/quote v1.5.2 // indirect
++	rsc.io/sampler v1.3.0 // indirect
++)
++-- m/go.sum.want --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++-- m/go.mod.want.all --
++module example.com/m
++
++go 1.25
++
++require rsc.io/quote v1.5.2
++
++require (
++	golang.org/x/text v0.3.0 // indirect
++	rsc.io/sampler v1.99.99 // indirect
++)
++-- m/go.sum.want.all --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++golang.org/x/text v0.3.0 h1:ivTorhoiROmZ1mcs15mO2czVF0uy0tnezXpBVNzgrmA=
++golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++rsc.io/sampler v1.99.99 h1:iMG9lbEG/8MdeR4lgL+Q8IcwbLNw7ijW7fTiK8Miqts=
++rsc.io/sampler v1.99.99/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++-- m/m.go --
++package m
++
++import (
++	"example.com/n"
++	"rsc.io/quote"
++)
++
++func M() {
++	n.Hello()
++	quote.Hello()
++}
++-- n/go.mod --
++module example.com/n
++
++go 1.25
++-- n/n.go --
++package n
++
++func Hello() {
++}
++-- hastool/go.work --
++go 1.25
++
++use (
++	.
++	../n
++)
++-- hastool/go.mod --
++module example.com/hastool
++
++go 1.25
++
++tool rsc.io/fortune
++-- hastool/go.mod.want --
++module example.com/hastool
++
++go 1.25
++
++tool rsc.io/fortune
++
++require (
++	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
++	rsc.io/fortune v1.0.0 // indirect
++	rsc.io/quote v1.5.2 // indirect
++	rsc.io/sampler v1.3.0 // indirect
++)
++-- hastool/p.go --
++package hastool
++
++import "example.com/n"
++
++func T() {
++	n.Hello()
++}
++-- missingworkspaceimport/go.work --
++go 1.25
++
++use (
++	.
++	withmissing
++)
++-- missingworkspaceimport/go.mod --
++module example.com/missingworkspaceimport
++
++go 1.25
++-- missingworkspaceimport/m.go --
++package m
++
++import _ "example.com/withmissing"
++-- missingworkspaceimport/withmissing/go.mod --
++module example.com/withmissing
++
++go 1.25
++-- missingworkspaceimport/withmissing/w.go --
++package w
++
++import _ "rsc.io/quote"
++-- missingworkspaceimport_disconnected/go.work --
++go 1.25
++
++use (
++	.
++	withmissing
++)
++-- missingworkspaceimport_disconnected/go.mod --
++module example.com/missingworkspaceimport
++
++go 1.25
++-- missingworkspaceimport_disconnected/m.go --
++package m
++
++import _ "example.com/withmissing/other"
++-- missingworkspaceimport_disconnected/withmissing/go.mod --
++module example.com/withmissing
++
++go 1.25
++-- missingworkspaceimport_disconnected/withmissing/w.go --
++package w
++
++import _ "rsc.io/quote"
++-- missingworkspaceimport_disconnected/withmissing/other/other.go --
++package other
++-- withdeprecation/go.work --
++go 1.25
++
++use (
++	indirect
++	direct
++)
++
++replace example.com/requiresdeprecatednotworkspace => ./requiresdeprecatednotworkspace
++-- withdeprecation/indirect/go.mod --
++module example.com/withdeprecation/indirect
++
++go 1.25
++
++replace example.com/requiresdeprecatednotworkspace => ../requiresdeprecatednotworkspace
++-- withdeprecation/indirect/go.mod.want --
++module example.com/withdeprecation/indirect
++
++go 1.25
++
++replace example.com/requiresdeprecatednotworkspace => ../requiresdeprecatednotworkspace
++
++require example.com/requiresdeprecatednotworkspace v0.0.0-00010101000000-000000000000
++
++require example.com/deprecated/b v1.9.0 // indirect
++-- withdeprecation/indirect/go.mod.want.direct --
++module example.com/withdeprecation/indirect
++
++go 1.25
++
++replace example.com/requiresdeprecatednotworkspace => ../requiresdeprecatednotworkspace
++
++require example.com/requiresdeprecatednotworkspace v0.0.0-00010101000000-000000000000
++
++require example.com/deprecated/b v1.9.0
++-- withdeprecation/indirect/a.go --
++package indirect
++
++import "example.com/requiresdeprecatednotworkspace"
++-- withdeprecation/direct/go.mod --
++module example.com/withdeprecation/direct
++
++go 1.25
++
++require "example.com/deprecated/b" v1.9.0
++-- withdeprecation/direct/import.go --
++package direct
++
++import "example.com/deprecated/b"
++-- withdeprecation/requiresdeprecatednotworkspace/go.mod --
++module example.com/requiresdeprecatednotworkspace
++
++go 1.25
++-- withdeprecation/requiresdeprecatednotworkspace/a.go --
++package a
++
++import "example.com/deprecated/b"
++-- withretraction/go.work --
++go 1.25
++
++use (
++	doesnotrequireretracted
++	requiresretracted
++)
++-- withretraction/doesnotrequireretracted/go.mod --
++module example.com/withretraction/doesnotrequireretracted
++
++go 1.25
++-- withretraction/requiresretracted/go.mod --
++module example.com/withretraction/requiresretracted
++
++go 1.25
++
++require example.com/retract v1.0.0-unused

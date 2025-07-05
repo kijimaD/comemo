@@ -17,7 +17,7 @@ Date:   Tue Jun 16 17:17:02 2009 -0700
     DELTA=1332  (673 added, 614 deleted, 45 changed)
     OCL=30327
     CL=30380
-
+---
  src/pkg/os/os_test.go                    |  14 +-
  src/pkg/syscall/PORT                     |   1 +
  src/pkg/syscall/asm_darwin_386.s         |   6 +-
@@ -35,3 +35,1361 @@ Date:   Tue Jun 16 17:17:02 2009 -0700
  src/pkg/syscall/zsyscall_linux_amd64.go  | 286 +++++++++++++++----------------
  src/pkg/syscall/ztypes_linux_386.go      |  31 ++--
  16 files changed, 422 insertions(+), 363 deletions(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 9f3e833f39..6a132f343e 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -61,7 +61,7 @@ func TestStat(t *testing.T) {
+ 	}
+ 	filesize := size("/etc/passwd", t);
+ 	if dir.Size != filesize {
+-		t.Error("size should be ", filesize, "; is", dir.Size);
++		t.Error("size should be", filesize, "; is", dir.Size);
+ 	}
+ }
+ 
+@@ -80,7 +80,7 @@ func TestFstat(t *testing.T) {
+ 	}
+ 	filesize := size("/etc/passwd", t);
+ 	if dir.Size != filesize {
+-		t.Error("size should be ", filesize, "; is", dir.Size);
++		t.Error("size should be", filesize, "; is", dir.Size);
+ 	}
+ }
+ 
+@@ -94,7 +94,7 @@ func TestLstat(t *testing.T) {
+ 	}
+ 	filesize := size("/etc/passwd", t);
+ 	if dir.Size != filesize {
+-		t.Error("size should be ", filesize, "; is", dir.Size);
++		t.Error("size should be", filesize, "; is", dir.Size);
+ 	}
+ }
+ 
+@@ -367,13 +367,13 @@ func TestChmod(t *testing.T) {
+ func checkUidGid(t *testing.T, path string, uid, gid int) {
+ 	dir, err := Stat(path);
+ 	if err != nil {
+-		t.Fatalf("Stat %q (looking for uid/gid %#o/%#o): %s", path, uid, gid, err);
++		t.Fatalf("Stat %q (looking for uid/gid %d/%d): %s", path, uid, gid, err);
+ 	}
+ 	if dir.Uid != uint32(uid) {
+-		t.Errorf("Stat %q: uid %#o want %#o", path, dir.Uid, uid);
++		t.Errorf("Stat %q: uid %d want %d", path, dir.Uid, uid);
+ 	}
+ 	if dir.Gid != uint32(gid) {
+-		t.Errorf("Stat %q: gid %#o want %#o", path, dir.Gid, uid);
++		t.Errorf("Stat %q: gid %d want %d", path, dir.Gid, gid);
+ 	}
+ }
+ 
+@@ -398,6 +398,7 @@ func TestChown(t *testing.T) {
+ 	// Can't change uid unless root, but can try
+ 	// changing the group id.  First try our current group.
+ 	gid := Getgid();
++	t.Log("gid:", gid);
+ 	if err = Chown(Path, -1, gid); err != nil {
+ 		t.Fatalf("chown %s -1 %d: %s", Path, gid, err);
+ 	}
+@@ -408,6 +409,7 @@ func TestChown(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("getgroups: %s", err);
+ 	}
++	t.Log("groups: ", groups);
+ 	for i, g := range groups {
+ 		if err = Chown(Path, -1, g); err != nil {
+ 			t.Fatalf("chown %s -1 %d: %s", Path, g, err);
+diff --git a/src/pkg/syscall/PORT b/src/pkg/syscall/PORT
+index f3addcdb07..2eb05920c4 100755
+--- a/src/pkg/syscall/PORT
++++ b/src/pkg/syscall/PORT
+@@ -100,6 +100,7 @@ darwin_amd64)
+ 	mkerrors="mkerrors"
+ 	;;
+ linux_386)
++	mksyscall="mksyscall -l32"
+ 	mksysnum="mksysnum_linux /usr/include/asm/unistd_32.h"
+ 	mktypes="godefs -gsyscall -f-m32"
+ 	;;
+diff --git a/src/pkg/syscall/asm_darwin_386.s b/src/pkg/syscall/asm_darwin_386.s
+index a8ec5b00cf..646851b7e6 100644
+--- a/src/pkg/syscall/asm_darwin_386.s
++++ b/src/pkg/syscall/asm_darwin_386.s
+@@ -29,7 +29,7 @@ TEXT	syscall·Syscall(SB),7,$0
+ 	RET
+ ok:
+ 	MOVL	AX, 20(SP)	// r1
+-	MOVL	DX, 24(SP)	// r2 ???
++	MOVL	DX, 24(SP)	// r2
+ 	MOVL	$0, 28(SP)	// errno
+ 	CALL	sys·exitsyscall(SB)
+ 	RET
+@@ -56,7 +56,7 @@ TEXT	syscall·Syscall6(SB),7,$0
+ 	RET
+ ok6:
+ 	MOVL	AX, 32(SP)	// r1
+-	MOVL	DX, 36(SP)	// r2 ???
++	MOVL	DX, 36(SP)	// r2
+ 	MOVL	$0, 40(SP)	// errno
+ 	CALL	sys·exitsyscall(SB)
+ 	RET
+@@ -78,6 +78,6 @@ TEXT syscall·RawSyscall(SB),7,$0
+ 	RET
+ ok1:
+ 	MOVL	AX, 20(SP)	// r1
+-	MOVL	DX, 24(SP)	// r2 ???
++	MOVL	DX, 24(SP)	// r2
+ 	MOVL	$0, 28(SP)	// errno
+ 	RET
+diff --git a/src/pkg/syscall/asm_linux_386.s b/src/pkg/syscall/asm_linux_386.s
+index c6b01792d7..638a31dbce 100644
+--- a/src/pkg/syscall/asm_linux_386.s
++++ b/src/pkg/syscall/asm_linux_386.s
+@@ -6,7 +6,7 @@
+ // System calls for 386, Linux
+ //
+ 
+-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
++// func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+ // Trap # in AX, args in BX CX DX SI DI, return in AX
+ 
+ TEXT	syscall·Syscall(SB),7,$0
+@@ -33,6 +33,7 @@ ok:
+ 	CALL	sys·exitsyscall(SB)
+ 	RET
+ 
++// func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
+ // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
+ TEXT	syscall·Syscall6(SB),7,$0
+ 	CALL	sys·entersyscall(SB)
+@@ -59,6 +60,7 @@ ok6:
+ 	CALL	sys·exitsyscall(SB)
+ 	RET
+ 
++// func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+ TEXT syscall·RawSyscall(SB),7,$0
+ 	MOVL	4(SP), AX	// syscall entry
+ 	MOVL	8(SP), BX
+@@ -96,13 +98,42 @@ TEXT syscall·socketcall(SB),7,$0
+ 	INT	$0x80
+ 	CMPL	AX, $0xfffff001
+ 	JLS	oksock
+-	MOVL	$-1, 28(SP)	// n
++	MOVL	$-1, 32(SP)	// n
+ 	NEGL	AX
+-	MOVL	AX, 32(SP)  // errno
++	MOVL	AX, 36(SP)  // errno
+ 	CALL	sys·exitsyscall(SB)
+ 	RET
+ oksock:
+-	MOVL	AX, 28(SP)	// n
+-	MOVL	$0, 32(SP)	// errno
++	MOVL	AX, 32(SP)	// n
++	MOVL	$0, 36(SP)	// errno
++	CALL	sys·exitsyscall(SB)
++	RET
++
++#define SYS__LLSEEK 140	/* from zsysnum_linux_386.go */
++// func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
++// Implemented in assembly to avoid allocation when
++// taking the address of the return value newoffset.
++// Underlying system call is
++//	llseek(int fd, int offhi, int offlo, int64 *result, int whence)
++TEXT syscall·Seek(SB),7,$0
++	CALL	sys·entersyscall(SB)
++	MOVL	$SYS__LLSEEK, AX	// syscall entry
++	MOVL	4(SP), BX	// fd
++	MOVL	12(SP), CX	// offset-high
++	MOVL	8(SP), DX	// offset-low
++	LEAL	20(SP), SI	// result pointer
++	MOVL	16(SP),  DI	// whence
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	okseek
++	MOVL	$-1, 20(SP)	// newoffset low
++	MOVL	$-1, 24(SP)	// newoffset high
++	NEGL	AX
++	MOVL	AX, 28(SP)  // errno
++	CALL	sys·exitsyscall(SB)
++	RET
++okseek:
++	// system call filled in newoffset already
++	MOVL	$0, 28(SP)	// errno
+ 	CALL	sys·exitsyscall(SB)
+ 	RET
+diff --git a/src/pkg/syscall/mksyscall b/src/pkg/syscall/mksyscall
+index 850fc1e3fa..6a2c916cfc 100755
+--- a/src/pkg/syscall/mksyscall
++++ b/src/pkg/syscall/mksyscall
+@@ -142,6 +142,18 @@ while(<>) {
+ 		if($type eq "bool") {
+ 			$reg = "$reg != 0";
+ 		}
++		if($type eq "int64" && $_32bit ne "") {
++			# 64-bit number in r1:r0 or r0:r1.
++			if($i+2 > @out) {
++				print STDERR "$ARGV:$.: not enough registers for int64 return\n";
++			}
++			if($_32bit eq "big-endian") {
++				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i, $i+1);
++			} else {
++				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i+1, $i);
++			}
++			$i++;		# loop will do another $i++
++		}
+ 		$text .= "\t$name = $type($reg);\n";
+ 	}
+ 
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 011fc7a0fe..8ea78c6675 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -154,13 +154,6 @@ func Pipe(p []int) (errno int) {
+ 	return;
+ }
+ 
+-// TODO(rsc): How does 386 return an int64 newoffset?
+-//sys	lseek(fd int, offset int64, whence int) (newoffset uintptr, errno int)
+-func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
+-	n, e := lseek(fd, offset, whence);
+-	return int64(n), e;
+-}
+-
+ func Sleep(ns int64) (errno int) {
+ 	tv := NsecToTimeval(ns);
+ 	return Select(0, nil, nil, nil, &tv);
+@@ -427,6 +420,7 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno
+ //sys	Rename(from string, to string) (errno int)
+ //sys	Revoke(path string) (errno int)
+ //sys	Rmdir(path string) (errno int)
++//sys	Seek(fd int, offset int64, whence int) (newoffset int64, errno int) = SYS_LSEEK
+ //sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int)
+ //sys	Setegid(egid int) (errno int)
+ //sys	Seteuid(euid int) (errno int)
+diff --git a/src/pkg/syscall/syscall_darwin_386.go b/src/pkg/syscall/syscall_darwin_386.go
+index 5633d7c034..6792109d78 100644
+--- a/src/pkg/syscall/syscall_darwin_386.go
++++ b/src/pkg/syscall/syscall_darwin_386.go
+@@ -31,7 +31,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return;
+ }
+ 
+-//sys	gettimeofday(tp *Timeval) (sec int64, usec int32, errno int)
++//sys	gettimeofday(tp *Timeval) (sec int32, usec int32, errno int)
+ func Gettimeofday(tv *Timeval) (errno int) {
+ 	// The tv passed to gettimeofday must be non-nil
+ 	// but is otherwise unused.  The answers come back
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 50f3938d7f..1c0a4f5db8 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -66,8 +66,6 @@ func Getwd() (wd string, errno int) {
+ 	return string(buf[0:n-1]), 0
+ }
+ 
+-//sys	getgroups(n int, list *_Gid_t) (nn int, errno int)
+-//sys	setgroups(n int, list *_Gid_t) (errno int)
+ func Getgroups() (gids []int, errno int) {
+ 	n, err := getgroups(0, nil);
+ 	if err != 0 {
+@@ -380,7 +378,6 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ //sys	Adjtimex(buf *Timex) (state int, errno int)
+ //sys	Chdir(path string) (errno int)
+ //sys	Chmod(path string, mode int) (errno int)
+-//sys	Chown(path string, uid int, gid int) (errno int)
+ //sys	Chroot(path string) (errno int)
+ //sys	Close(fd int) (errno int)
+ //sys	Creat(path string, mode int) (fd int, errno int)
+@@ -395,18 +392,12 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ //sys	Fchdir(fd int) (errno int)
+ //sys	Fchmod(fd int, mode int) (errno int)
+ //sys	Fchmodat(dirfd int, path string, mode int, flags int) (errno int)
+-//sys	Fchown(fd int, uid int, gid int) (errno int)
+ //sys	Fchownat(dirfd int, path string, uid int, gid int, flags int) (errno int)
+ //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
+ //sys	Fdatasync(fd int) (errno int)
+-//sys	Fstat(fd int, stat *Stat_t) (errno int)
+-//sys	Fstatfs(fd int, buf *Statfs_t) (errno int)
+ //sys	Fsync(fd int) (errno int)
+ //sys	Ftruncate(fd int, length int64) (errno int)
+ //sys	Getdents(fd int, buf []byte) (n int, errno int) = SYS_GETDENTS64
+-//sys	Getegid() (egid int)
+-//sys	Geteuid() (euid int)
+-//sys	Getgid() (gid int)
+ //sys	Getpgid(pid int) (pgid int, errno int)
+ //sys	Getpgrp() (pid int)
+ //sys	Getpid() (pid int)
+@@ -415,14 +406,11 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ //sys	Getrusage(who int, rusage *Rusage) (errno int)
+ //sys	Gettid() (tid int)
+ //sys	Gettimeofday(tv *Timeval) (errno int)
+-//sys	Getuid() (uid int)
+ //sys	Ioperm(from int, num int, on int) (errno int)
+ //sys	Iopl(level int) (errno int)
+ //sys	Kill(pid int, sig int) (errno int)
+ //sys	Klogctl(typ int, buf []byte) (n int, errno int) = SYS_SYSLOG
+-//sys	Lchown(path string, uid int, gid int) (errno int)
+ //sys	Link(oldpath string, newpath string) (errno int)
+-//sys	Lstat(path string, stat *Stat_t) (errno int)
+ //sys	Mkdir(path string, mode int) (errno int)
+ //sys	Mkdirat(dirfd int, path string, mode int) (errno int)
+ //sys	Mknod(path string, mode int, dev int) (errno int)
+@@ -439,25 +427,15 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ //sys	Rename(oldpath string, newpath string) (errno int)
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (errno int)
+ //sys	Rmdir(path string) (errno int)
+-//sys	Seek(fd int, offset int64, whence int) (off int64, errno int) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int)
+ //sys	Setdomainname(p []byte) (errno int)
+-//sys	Setfsgid(gid int) (errno int)
+-//sys	Setfsuid(uid int) (errno int)
+-//sys	Setgid(gid int) (errno int)
+ //sys	Sethostname(p []byte) (errno int)
+ //sys	Setpgid(pid int, pgid int) (errno int)
+-//sys	Setregid(rgid int, egid int) (errno int)
+-//sys	Setresgid(rgid int, egid int, sgid int) (errno int)
+-//sys	Setresuid(ruid int, euid int, suid int) (errno int)
+-//sys	Setreuid(ruid int, euid int) (errno int)
+ //sys	Setrlimit(resource int, rlim *Rlimit) (errno int)
+ //sys	Setsid() (pid int)
+ //sys	Settimeofday(tv *Timeval) (errno int)
+ //sys	Setuid(uid int) (errno int)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int)
+-//sys	Stat(path string, stat *Stat_t) (errno int)
+-//sys	Statfs(path string, buf *Statfs_t) (errno int)
+ //sys	Symlink(oldpath string, newpath string) (errno int)
+ //sys	Sync()
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 9bf3f9cf00..b41c60a552 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -34,6 +34,34 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return;
+ }
+ 
++// 64-bit file system and 32-bit uid calls
++// (386 default is 32-bit file system and 16-bit uid).
++//sys	Chown(path string, uid int, gid int) (errno int) = SYS_CHOWN32
++//sys	Fchown(fd int, uid int, gid int) (errno int) = SYS_FCHOWN32
++//sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
++//sys	Fstatfs(fd int, buf *Statfs_t) (errno int) = SYS_FSTATFS64
++//sys	Getegid() (egid int) = SYS_GETEGID32
++//sys	Geteuid() (euid int) = SYS_GETEUID32
++//sys	Getgid() (gid int) = SYS_GETGID32
++//sys	Getuid() (uid int) = SYS_GETUID32
++//sys	Lchown(path string, uid int, gid int) (errno int) = SYS_LCHOWN32
++//sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
++//sys	Setfsgid(gid int) (errno int) = SYS_SETFSGID32
++//sys	Setfsuid(uid int) (errno int) = SYS_SETFSUID32
++//sys	Setgid(gid int) (errno int) = SYS_SETGID32
++//sys	Setregid(rgid int, egid int) (errno int) = SYS_SETREGID32
++//sys	Setresgid(rgid int, egid int, sgid int) (errno int) = SYS_SETRESGID32
++//sys	Setresuid(ruid int, euid int, suid int) (errno int) = SYS_SETRESUID32
++//sys	Setreuid(ruid int, euid int) (errno int) = SYS_SETREUID32
++//sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
++//sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
++//sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
++//sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
++
++// Underlying system call writes to newoffset via pointer.
++// Implemented in assembly to avoid allocation.
++func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
++
+ // On x86 Linux, all the socket calls go through an extra indirection,
+ // I think because the 5-register system call interface can't handle
+ // the 6-argument calls like sendto and recvfrom.  Instead the
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index a2a58c35ba..1792a098c6 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -6,13 +6,35 @@ package syscall
+ 
+ import "syscall"
+ 
++//sys	Chown(path string, uid int, gid int) (errno int)
++//sys	Fchown(fd int, uid int, gid int) (errno int)
++//sys	Fstat(fd int, stat *Stat_t) (errno int)
++//sys	Fstatfs(fd int, buf *Statfs_t) (errno int)
++//sys	Getegid() (egid int)
++//sys	Geteuid() (euid int)
++//sys	Getgid() (gid int)
++//sys	Getuid() (uid int)
++//sys	Lchown(path string, uid int, gid int) (errno int)
++//sys	Listen(s int, n int) (errno int)
++//sys	Lstat(path string, stat *Stat_t) (errno int)
++//sys	Seek(fd int, offset int64, whence int) (off int64, errno int) = SYS_LSEEK
++//sys	Setfsgid(gid int) (errno int)
++//sys	Setfsuid(uid int) (errno int)
++//sys	Setgid(gid int) (errno int)
++//sys	Setregid(rgid int, egid int) (errno int)
++//sys	Setresgid(rgid int, egid int, sgid int) (errno int)
++//sys	Setresuid(ruid int, euid int, suid int) (errno int)
++//sys	Setreuid(ruid int, euid int) (errno int)
++//sys	Shutdown(fd int, how int) (errno int)
++//sys	Stat(path string, stat *Stat_t) (errno int)
++//sys	Statfs(path string, buf *Statfs_t) (errno int)
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
+ //sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
+ //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
+-//sys	socket(domain int, typ int, proto int) (fd int, errno int)
++//sys	getgroups(n int, list *_Gid_t) (nn int, errno int)
++//sys	setgroups(n int, list *_Gid_t) (errno int)
+ //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+-//sys	Listen(s int, n int) (errno int)
+-//sys	Shutdown(fd int, how int) (errno int)
++//sys	socket(domain int, typ int, proto int) (fd int, errno int)
+ 
+ func Getpagesize() int {
+ 	return 4096
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+index 261772eac2..40b36481f3 100644
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -6,8 +6,10 @@
+ Input to godefs.  See PORT.
+  */
+ 
+-#define __DARWIN_UNIX03 0
+-#define KERNEL
++#define _LARGEFILE_SOURCE
++#define _LARGEFILE64_SOURCE
++#define _FILE_OFFSET_BITS 64
++#define _GNU_SOURCE
+ 
+ #include <dirent.h>
+ #include <fcntl.h>
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 61f7c01db4..6974c83bf8 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -36,13 +36,6 @@ func pipe() (r int, w int, errno int) {
+ 	return;
+ }
+ 
+-func lseek(fd int, offset int64, whence int) (newoffset uintptr, errno int) {
+-	r0, r1, e1 := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset >> 32), uintptr(whence), 0, 0);
+-	newoffset = uintptr(r0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	r0, r1, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
+ 	fd = int(r0);
+@@ -450,6 +443,12 @@ func Rmdir(path string) (errno int) {
+ 	return;
+ }
+ 
++func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
++	r0, r1, e1 := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset >> 32), uintptr(whence), 0, 0);
++	newoffset = int64(int64(r1)<<32 | int64(r0));
++	return;
++}
++
+ func Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int) {
+ 	r0, r1, e1 := Syscall6(SYS_SELECT, uintptr(n), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
+ 	errno = int(e1);
+@@ -612,9 +611,9 @@ func write(fd int, buf *byte, nbuf int) (n int, errno int) {
+ 	return;
+ }
+ 
+-func gettimeofday(tp *Timeval) (sec int64, usec int32, errno int) {
++func gettimeofday(tp *Timeval) (sec int32, usec int32, errno int) {
+ 	r0, r1, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0);
+-	sec = int64(r0);
++	sec = int32(r0);
+ 	usec = int32(r1);
+ 	errno = int(e1);
+ 	return;
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index c8a0b10a7a..e6b99916e4 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -36,13 +36,6 @@ func pipe() (r int, w int, errno int) {
+ 	return;
+ }
+ 
+-func lseek(fd int, offset int64, whence int) (newoffset uintptr, errno int) {
+-	r0, r1, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
+-	newoffset = uintptr(r0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	r0, r1, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
+ 	fd = int(r0);
+@@ -450,6 +443,13 @@ func Rmdir(path string) (errno int) {
+ 	return;
+ }
+ 
++func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
++	r0, r1, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
++	newoffset = int64(r0);
++	errno = int(e1);
++	return;
++}
++
+ func Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int) {
+ 	r0, r1, e1 := Syscall6(SYS_SELECT, uintptr(n), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
+ 	errno = int(e1);
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index ef323b0885..6e82bbb1bf 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -1,4 +1,4 @@
+-// mksyscall syscall_linux.go syscall_linux_386.go
++// mksyscall -l32 syscall_linux.go syscall_linux_386.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+ package syscall
+@@ -35,19 +35,6 @@ func Getcwd(buf []byte) (n int, errno int) {
+ 	return;
+ }
+ 
+-func getgroups(n int, list *_Gid_t) (nn int, errno int) {
+-	r0, r1, e1 := Syscall(SYS_GETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0);
+-	nn = int(r0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func setgroups(n int, list *_Gid_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int) {
+ 	r0, r1, e1 := Syscall6(SYS_WAIT4, uintptr(pid), uintptr(unsafe.Pointer(wstatus)), uintptr(options), uintptr(unsafe.Pointer(rusage)), 0, 0);
+ 	wpid = int(r0);
+@@ -86,12 +73,6 @@ func Chmod(path string, mode int) (errno int) {
+ 	return;
+ }
+ 
+-func Chown(path string, uid int, gid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Chroot(path string) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_CHROOT, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
+ 	errno = int(e1);
+@@ -182,12 +163,6 @@ func Fchmodat(dirfd int, path string, mode int, flags int) (errno int) {
+ 	return;
+ }
+ 
+-func Fchown(fd int, uid int, gid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid));
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Fchownat(dirfd int, path string, uid int, gid int, flags int) (errno int) {
+ 	r0, r1, e1 := Syscall6(SYS_FCHOWNAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid), uintptr(flags), 0);
+ 	errno = int(e1);
+@@ -207,18 +182,6 @@ func Fdatasync(fd int) (errno int) {
+ 	return;
+ }
+ 
+-func Fstat(fd int, stat *Stat_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Fstatfs(fd int, buf *Statfs_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Fsync(fd int) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_FSYNC, uintptr(fd), 0, 0);
+ 	errno = int(e1);
+@@ -240,24 +203,6 @@ func Getdents(fd int, buf []byte) (n int, errno int) {
+ 	return;
+ }
+ 
+-func Getegid() (egid int) {
+-	r0, r1, e1 := Syscall(SYS_GETEGID, 0, 0, 0);
+-	egid = int(r0);
+-	return;
+-}
+-
+-func Geteuid() (euid int) {
+-	r0, r1, e1 := Syscall(SYS_GETEUID, 0, 0, 0);
+-	euid = int(r0);
+-	return;
+-}
+-
+-func Getgid() (gid int) {
+-	r0, r1, e1 := Syscall(SYS_GETGID, 0, 0, 0);
+-	gid = int(r0);
+-	return;
+-}
+-
+ func Getpgid(pid int) (pgid int, errno int) {
+ 	r0, r1, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0);
+ 	pgid = int(r0);
+@@ -307,12 +252,6 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ 	return;
+ }
+ 
+-func Getuid() (uid int) {
+-	r0, r1, e1 := Syscall(SYS_GETUID, 0, 0, 0);
+-	uid = int(r0);
+-	return;
+-}
+-
+ func Ioperm(from int, num int, on int) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_IOPERM, uintptr(from), uintptr(num), uintptr(on));
+ 	errno = int(e1);
+@@ -340,24 +279,12 @@ func Klogctl(typ int, buf []byte) (n int, errno int) {
+ 	return;
+ }
+ 
+-func Lchown(path string, uid int, gid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_LCHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Link(oldpath string, newpath string) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_LINK, uintptr(unsafe.Pointer(StringBytePtr(oldpath))), uintptr(unsafe.Pointer(StringBytePtr(newpath))), 0);
+ 	errno = int(e1);
+ 	return;
+ }
+ 
+-func Lstat(path string, stat *Stat_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Mkdir(path string, mode int) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
+ 	errno = int(e1);
+@@ -468,13 +395,6 @@ func Rmdir(path string) (errno int) {
+ 	return;
+ }
+ 
+-func Seek(fd int, offset int64, whence int) (off int64, errno int) {
+-	r0, r1, e1 := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset >> 32), uintptr(whence), 0, 0);
+-	off = int64(r0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
+ 	r0, r1, e1 := Syscall6(SYS_SELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
+ 	n = int(r0);
+@@ -490,24 +410,6 @@ func Setdomainname(p []byte) (errno int) {
+ 	return;
+ }
+ 
+-func Setfsgid(gid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETFSGID, uintptr(gid), 0, 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Setfsuid(uid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETFSUID, uintptr(uid), 0, 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Setgid(gid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Sethostname(p []byte) (errno int) {
+ 	var _p0 *byte;
+ 	if len(p) > 0 { _p0 = &p[0]; }
+@@ -522,30 +424,6 @@ func Setpgid(pid int, pgid int) (errno int) {
+ 	return;
+ }
+ 
+-func Setregid(rgid int, egid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Setresgid(rgid int, egid int, sgid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid));
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Setresuid(ruid int, euid int, suid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid));
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Setreuid(ruid int, euid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0);
+ 	errno = int(e1);
+@@ -572,20 +450,7 @@ func Setuid(uid int) (errno int) {
+ 
+ func Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int) {
+ 	r0, r1, e1 := Syscall6(SYS_SPLICE, uintptr(rfd), uintptr(unsafe.Pointer(roff)), uintptr(wfd), uintptr(unsafe.Pointer(woff)), uintptr(len), uintptr(flags));
+-	n = int64(r0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Stat(path string, stat *Stat_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Statfs(path string, buf *Statfs_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_STATFS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0);
+-	errno = int(e1);
++	n = int64(int64(r1)<<32 | int64(r0));
+ 	return;
+ }
+ 
+@@ -614,8 +479,7 @@ func Sysinfo(info *Sysinfo_t) (errno int) {
+ 
+ func Tee(rfd int, wfd int, len int, flags int) (n int64, errno int) {
+ 	r0, r1, e1 := Syscall6(SYS_TEE, uintptr(rfd), uintptr(wfd), uintptr(len), uintptr(flags), 0, 0);
+-	n = int64(r0);
+-	errno = int(e1);
++	n = int64(int64(r1)<<32 | int64(r0));
+ 	return;
+ }
+ 
+@@ -716,5 +580,132 @@ func write(fd int, p *byte, np int) (n int, errno int) {
+ 	return;
+ }
+ 
++func Chown(path string, uid int, gid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_CHOWN32, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Fchown(fd int, uid int, gid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_FCHOWN32, uintptr(fd), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Fstat(fd int, stat *Stat_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_FSTAT64, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fstatfs(fd int, buf *Statfs_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Getegid() (egid int) {
++	r0, r1, e1 := Syscall(SYS_GETEGID32, 0, 0, 0);
++	egid = int(r0);
++	return;
++}
++
++func Geteuid() (euid int) {
++	r0, r1, e1 := Syscall(SYS_GETEUID32, 0, 0, 0);
++	euid = int(r0);
++	return;
++}
++
++func Getgid() (gid int) {
++	r0, r1, e1 := Syscall(SYS_GETGID32, 0, 0, 0);
++	gid = int(r0);
++	return;
++}
++
++func Getuid() (uid int) {
++	r0, r1, e1 := Syscall(SYS_GETUID32, 0, 0, 0);
++	uid = int(r0);
++	return;
++}
++
++func Lchown(path string, uid int, gid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_LCHOWN32, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Lstat(path string, stat *Stat_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_LSTAT64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setfsgid(gid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETFSGID32, uintptr(gid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setfsuid(uid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETFSUID32, uintptr(uid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setgid(gid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETGID32, uintptr(gid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setregid(rgid int, egid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETREGID32, uintptr(rgid), uintptr(egid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setresgid(rgid int, egid int, sgid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETRESGID32, uintptr(rgid), uintptr(egid), uintptr(sgid));
++	errno = int(e1);
++	return;
++}
++
++func Setresuid(ruid int, euid int, suid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETRESUID32, uintptr(ruid), uintptr(euid), uintptr(suid));
++	errno = int(e1);
++	return;
++}
++
++func Setreuid(ruid int, euid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETREUID32, uintptr(ruid), uintptr(euid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Stat(path string, stat *Stat_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_STAT64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Statfs(path string, buf *Statfs_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0);
++	errno = int(e1);
++	return;
++}
++
++func getgroups(n int, list *_Gid_t) (nn int, errno int) {
++	r0, r1, e1 := Syscall(SYS_GETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0);
++	nn = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func setgroups(n int, list *_Gid_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0);
++	errno = int(e1);
++	return;
++}
++
+ 
+ 
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 490ffc3926..6d5c753853 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -35,19 +35,6 @@ func Getcwd(buf []byte) (n int, errno int) {
+ 	return;
+ }
+ 
+-func getgroups(n int, list *_Gid_t) (nn int, errno int) {
+-	r0, r1, e1 := Syscall(SYS_GETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0);
+-	nn = int(r0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func setgroups(n int, list *_Gid_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int) {
+ 	r0, r1, e1 := Syscall6(SYS_WAIT4, uintptr(pid), uintptr(unsafe.Pointer(wstatus)), uintptr(options), uintptr(unsafe.Pointer(rusage)), 0, 0);
+ 	wpid = int(r0);
+@@ -86,12 +73,6 @@ func Chmod(path string, mode int) (errno int) {
+ 	return;
+ }
+ 
+-func Chown(path string, uid int, gid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Chroot(path string) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_CHROOT, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
+ 	errno = int(e1);
+@@ -182,12 +163,6 @@ func Fchmodat(dirfd int, path string, mode int, flags int) (errno int) {
+ 	return;
+ }
+ 
+-func Fchown(fd int, uid int, gid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid));
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Fchownat(dirfd int, path string, uid int, gid int, flags int) (errno int) {
+ 	r0, r1, e1 := Syscall6(SYS_FCHOWNAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid), uintptr(flags), 0);
+ 	errno = int(e1);
+@@ -207,18 +182,6 @@ func Fdatasync(fd int) (errno int) {
+ 	return;
+ }
+ 
+-func Fstat(fd int, stat *Stat_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Fstatfs(fd int, buf *Statfs_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Fsync(fd int) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_FSYNC, uintptr(fd), 0, 0);
+ 	errno = int(e1);
+@@ -240,24 +203,6 @@ func Getdents(fd int, buf []byte) (n int, errno int) {
+ 	return;
+ }
+ 
+-func Getegid() (egid int) {
+-	r0, r1, e1 := Syscall(SYS_GETEGID, 0, 0, 0);
+-	egid = int(r0);
+-	return;
+-}
+-
+-func Geteuid() (euid int) {
+-	r0, r1, e1 := Syscall(SYS_GETEUID, 0, 0, 0);
+-	euid = int(r0);
+-	return;
+-}
+-
+-func Getgid() (gid int) {
+-	r0, r1, e1 := Syscall(SYS_GETGID, 0, 0, 0);
+-	gid = int(r0);
+-	return;
+-}
+-
+ func Getpgid(pid int) (pgid int, errno int) {
+ 	r0, r1, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0);
+ 	pgid = int(r0);
+@@ -307,12 +252,6 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ 	return;
+ }
+ 
+-func Getuid() (uid int) {
+-	r0, r1, e1 := Syscall(SYS_GETUID, 0, 0, 0);
+-	uid = int(r0);
+-	return;
+-}
+-
+ func Ioperm(from int, num int, on int) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_IOPERM, uintptr(from), uintptr(num), uintptr(on));
+ 	errno = int(e1);
+@@ -340,24 +279,12 @@ func Klogctl(typ int, buf []byte) (n int, errno int) {
+ 	return;
+ }
+ 
+-func Lchown(path string, uid int, gid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_LCHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Link(oldpath string, newpath string) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_LINK, uintptr(unsafe.Pointer(StringBytePtr(oldpath))), uintptr(unsafe.Pointer(StringBytePtr(newpath))), 0);
+ 	errno = int(e1);
+ 	return;
+ }
+ 
+-func Lstat(path string, stat *Stat_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Mkdir(path string, mode int) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
+ 	errno = int(e1);
+@@ -468,13 +395,6 @@ func Rmdir(path string) (errno int) {
+ 	return;
+ }
+ 
+-func Seek(fd int, offset int64, whence int) (off int64, errno int) {
+-	r0, r1, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
+-	off = int64(r0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
+ 	r0, r1, e1 := Syscall6(SYS_SELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
+ 	n = int(r0);
+@@ -490,24 +410,6 @@ func Setdomainname(p []byte) (errno int) {
+ 	return;
+ }
+ 
+-func Setfsgid(gid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETFSGID, uintptr(gid), 0, 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Setfsuid(uid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETFSUID, uintptr(uid), 0, 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Setgid(gid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Sethostname(p []byte) (errno int) {
+ 	var _p0 *byte;
+ 	if len(p) > 0 { _p0 = &p[0]; }
+@@ -522,30 +424,6 @@ func Setpgid(pid int, pgid int) (errno int) {
+ 	return;
+ }
+ 
+-func Setregid(rgid int, egid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Setresgid(rgid int, egid int, sgid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid));
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Setresuid(ruid int, euid int, suid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid));
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Setreuid(ruid int, euid int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0);
+ 	errno = int(e1);
+@@ -577,18 +455,6 @@ func Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n i
+ 	return;
+ }
+ 
+-func Stat(path string, stat *Stat_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Statfs(path string, buf *Statfs_t) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_STATFS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Symlink(oldpath string, newpath string) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_SYMLINK, uintptr(unsafe.Pointer(StringBytePtr(oldpath))), uintptr(unsafe.Pointer(StringBytePtr(newpath))), 0);
+ 	errno = int(e1);
+@@ -716,6 +582,139 @@ func write(fd int, p *byte, np int) (n int, errno int) {
+ 	return;
+ }
+ 
++func Chown(path string, uid int, gid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Fchown(fd int, uid int, gid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Fstat(fd int, stat *Stat_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fstatfs(fd int, buf *Statfs_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Getegid() (egid int) {
++	r0, r1, e1 := Syscall(SYS_GETEGID, 0, 0, 0);
++	egid = int(r0);
++	return;
++}
++
++func Geteuid() (euid int) {
++	r0, r1, e1 := Syscall(SYS_GETEUID, 0, 0, 0);
++	euid = int(r0);
++	return;
++}
++
++func Getgid() (gid int) {
++	r0, r1, e1 := Syscall(SYS_GETGID, 0, 0, 0);
++	gid = int(r0);
++	return;
++}
++
++func Getuid() (uid int) {
++	r0, r1, e1 := Syscall(SYS_GETUID, 0, 0, 0);
++	uid = int(r0);
++	return;
++}
++
++func Lchown(path string, uid int, gid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_LCHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Listen(s int, n int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_LISTEN, uintptr(s), uintptr(n), 0);
++	errno = int(e1);
++	return;
++}
++
++func Lstat(path string, stat *Stat_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Seek(fd int, offset int64, whence int) (off int64, errno int) {
++	r0, r1, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
++	off = int64(r0);
++	errno = int(e1);
++	return;
++}
++
++func Setfsgid(gid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETFSGID, uintptr(gid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setfsuid(uid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETFSUID, uintptr(uid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setgid(gid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setregid(rgid int, egid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setresgid(rgid int, egid int, sgid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid));
++	errno = int(e1);
++	return;
++}
++
++func Setresuid(ruid int, euid int, suid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid));
++	errno = int(e1);
++	return;
++}
++
++func Setreuid(ruid int, euid int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Shutdown(fd int, how int) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0);
++	errno = int(e1);
++	return;
++}
++
++func Stat(path string, stat *Stat_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Statfs(path string, buf *Statfs_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_STATFS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0);
++	errno = int(e1);
++	return;
++}
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	r0, r1, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
+ 	fd = int(r0);
+@@ -735,27 +734,28 @@ func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
+ 	return;
+ }
+ 
+-func socket(domain int, typ int, proto int) (fd int, errno int) {
+-	r0, r1, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto));
+-	fd = int(r0);
++func getgroups(n int, list *_Gid_t) (nn int, errno int) {
++	r0, r1, e1 := Syscall(SYS_GETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0);
++	nn = int(r0);
+ 	errno = int(e1);
+ 	return;
+ }
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
+-	r0, r1, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0);
++func setgroups(n int, list *_Gid_t) (errno int) {
++	r0, r1, e1 := Syscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0);
+ 	errno = int(e1);
+ 	return;
+ }
+ 
+-func Listen(s int, n int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_LISTEN, uintptr(s), uintptr(n), 0);
++func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
++	r0, r1, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0);
+ 	errno = int(e1);
+ 	return;
+ }
+ 
+-func Shutdown(fd int, how int) (errno int) {
+-	r0, r1, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0);
++func socket(domain int, typ int, proto int) (fd int, errno int) {
++	r0, r1, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto));
++	fd = int(r0);
+ 	errno = int(e1);
+ 	return;
+ }
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index c3a0837621..9d4190133e 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -163,8 +163,8 @@ type Rusage struct {
+ }
+ 
+ type Rlimit struct {
+-	Cur uint32;
+-	Max uint32;
++	Cur uint64;
++	Max uint64;
+ }
+ 
+ type _C_int int32
+@@ -175,7 +175,7 @@ type Stat_t struct {
+ 	Dev uint64;
+ 	__pad1 uint16;
+ 	Pad0 [2]byte;
+-	Ino uint32;
++	__st_ino uint32;
+ 	Mode uint32;
+ 	Nlink uint32;
+ 	Uid uint32;
+@@ -183,24 +183,23 @@ type Stat_t struct {
+ 	Rdev uint64;
+ 	__pad2 uint16;
+ 	Pad1 [2]byte;
+-	Size int32;
++	Size int64;
+ 	Blksize int32;
+-	Blocks int32;
++	Blocks int64;
+ 	Atim Timespec;
+ 	Mtim Timespec;
+ 	Ctim Timespec;
+-	__unused4 uint32;
+-	__unused5 uint32;
++	Ino uint64;
+ }
+ 
+ type Statfs_t struct {
+ 	Type int32;
+ 	Bsize int32;
+-	Blocks uint32;
+-	Bfree uint32;
+-	Bavail uint32;
+-	Files uint32;
+-	Ffree uint32;
++	Blocks uint64;
++	Bfree uint64;
++	Bavail uint64;
++	Files uint64;
++	Ffree uint64;
+ 	Fsid [8]byte /* __fsid_t */;
+ 	Namelen int32;
+ 	Frsize int32;
+@@ -208,8 +207,8 @@ type Statfs_t struct {
+ }
+ 
+ type Dirent struct {
+-	Ino uint32;
+-	Off int32;
++	Ino uint64;
++	Off int64;
+ 	Reclen uint16;
+ 	Type uint8;
+ 	Name [256]int8;
+@@ -254,7 +253,7 @@ type Linger struct {
+ }
+ 
+ type FdSet struct {
+-	__fds_bits [32]int32;
++	Bits [32]int32;
+ }
+ 
+ type Sysinfo_t struct {
+@@ -280,7 +279,7 @@ type Utsname struct {
+ 	Release [65]int8;
+ 	Version [65]int8;
+ 	Machine [65]int8;
+-	__domainname [65]int8;
++	Domainname [65]int8;
+ }
+ 
+ type Ustat_t struct {

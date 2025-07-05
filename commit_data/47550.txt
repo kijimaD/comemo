@@ -13,6 +13,19 @@ Date:   Tue Mar 23 11:18:50 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/net/net.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/net.go b/src/net/net.go
+index 4b4ed129cc..7e172b708e 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -733,6 +733,7 @@ func (v *Buffers) consume(n int64) {
+ 			return
+ 		}
+ 		n -= ln0
++		(*v)[0] = nil
+ 		*v = (*v)[1:]
+ 	}
+ }

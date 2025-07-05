@@ -11,6 +11,20 @@ Date:   Wed Mar 6 15:56:14 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/sort/sort_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sort/sort_test.go b/src/sort/sort_test.go
+index ba757a845a..ba0f0c5224 100644
+--- a/src/sort/sort_test.go
++++ b/src/sort/sort_test.go
+@@ -50,7 +50,7 @@ func TestSortFloat64sCompareSlicesSort(t *testing.T) {
+ 	slices.Sort(slice2)
+ 
+ 	// Compare for equality using cmp.Compare, which considers NaNs equal.
+-	if !slices.EqualFunc(slice1, slice1, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
++	if !slices.EqualFunc(slice1, slice2, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
+ 		t.Errorf("mismatch between Sort and slices.Sort: got %v, want %v", slice1, slice2)
+ 	}
+ }

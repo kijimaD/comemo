@@ -7,6 +7,25 @@ Date:   Sat Apr 21 08:20:39 2018 -0300
     Change-Id: I00f0195d54bf9bc30073741974ab941ec4d51a5c
     Reviewed-on: https://go-review.googlesource.com/108635
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/signal/signal.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/signal/signal.go b/src/os/signal/signal.go
+index dc6b674c4f..a0eba0d50f 100644
+--- a/src/os/signal/signal.go
++++ b/src/os/signal/signal.go
+@@ -88,11 +88,8 @@ func Ignore(sig ...os.Signal) {
+ 
+ // Ignored reports whether sig is currently ignored.
+ func Ignored(sig os.Signal) bool {
+-	if sn := signum(sig); sn < 0 {
+-		return false
+-	} else {
+-		return signalIgnored(sn)
+-	}
++	sn := signum(sig)
++	return sn >= 0 && signalIgnored(sn)
+ }
+ 
+ // Notify causes package signal to relay incoming signals to c.

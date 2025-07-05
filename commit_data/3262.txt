@@ -8,6 +8,36 @@ Date:   Mon Sep 14 13:09:53 2009 -0700
     DELTA=12  (12 added, 0 deleted, 0 changed)
     OCL=34601
     CL=34601
-
+---
  test/func5.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/test/func5.go b/test/func5.go
+index 556d94d291..033aa0e3ff 100644
+--- a/test/func5.go
++++ b/test/func5.go
+@@ -52,6 +52,11 @@ func three(x int) {
+ 
+ var notmain func()
+ 
++func emptyresults() () {}
++func noresults() {}
++
++var nothing func()
++
+ func main() {
+ 	three(call(add, 1, 2));
+ 	three(call1(add, 1, 2));
+@@ -73,5 +78,12 @@ func main() {
+ 	three(<-c);
+ 	go func(a, b int, c chan int){c <- a+b}(1, 2, c);
+ 	three(<-c);
++
++	emptyresults();
++	noresults();
++	nothing = emptyresults;
++	nothing();
++	nothing = noresults;
++	nothing();
+ }
+ 

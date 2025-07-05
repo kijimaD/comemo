@@ -10,7 +10,7 @@ Date:   Thu Oct 15 17:46:53 2009 -0700
     DELTA=46  (13 added, 15 deleted, 18 changed)
     OCL=35806
     CL=35806
-
+---
  src/pkg/Make.deps             |  2 +-
  src/pkg/runtime/extern.go     | 11 +++++++++++
  src/pkg/runtime/sema.cgo      |  6 +++---
@@ -18,3 +18,168 @@ Date:   Thu Oct 15 17:46:53 2009 -0700
  src/pkg/sync/mutex.go         | 21 +++++++++++----------
  src/pkg/sync/mutex_test.go    |  9 +++++----
  6 files changed, 31 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 21e412ba38..a90da1aba0 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -61,7 +61,7 @@ runtime.install:
+ sort.install:
+ strconv.install: bytes.install math.install os.install unicode.install utf8.install
+ strings.install: os.install unicode.install utf8.install
+-sync.install:
++sync.install: runtime.install
+ syscall.install: sync.install
+ tabwriter.install: bytes.install container/vector.install io.install os.install utf8.install
+ template.install: bytes.install container/vector.install fmt.install io.install os.install reflect.install runtime.install strings.install
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 131767aef1..70c6f434be 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -46,3 +46,14 @@ func GOMAXPROCS(n int)
+ 
+ // Cgocalls returns the number of cgo calls made by the current process.
+ func Cgocalls() int64
++
++// Semacquire waits until *s > 0 and then atomically decrements it.
++// It is intended as a simple sleep primitive for use by the synchronization
++// library and should not be used directly.
++func Semacquire(s *uint32)
++
++// Semrelease atomically increments *s and notifies a waiting goroutine
++// if one is blocked in Semacquire.
++// It is intended as a simple wakeup primitive for use by the synchronization
++// library and should not be used directly.
++func Semrelease(s *uint32)
+diff --git a/src/pkg/runtime/sema.cgo b/src/pkg/runtime/sema.cgo
+index 81834ae6dc..71395ce771 100644
+--- a/src/pkg/runtime/sema.cgo
++++ b/src/pkg/runtime/sema.cgo
+@@ -17,7 +17,7 @@
+ // See Mullender and Cox, ``Semaphores in Plan 9,''
+ // http://swtch.com/semaphore.pdf
+ 
+-package sync
++package runtime
+ #include "runtime.h"
+ 
+ typedef struct Sema Sema;
+@@ -176,10 +176,10 @@ semrelease(uint32 *addr)
+ 	semwakeup(addr);
+ }
+ 
+-func semacquire(addr *uint32) {
++func Semacquire(addr *uint32) {
+ 	semacquire(addr);
+ }
+ 
+-func semrelease(addr *uint32) {
++func Semrelease(addr *uint32) {
+ 	semrelease(addr);
+ }
+diff --git a/src/pkg/sync/internal_test.go b/src/pkg/sync/internal_test.go
+deleted file mode 100644
+index b365f79e91..0000000000
+--- a/src/pkg/sync/internal_test.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// expose internals for testing
+-
+-package sync
+-
+-func Semacquire(s *int32) {
+-	semacquire(s);
+-}
+-
+-func Semrelease(s *int32) {
+-	semrelease(s);
+-}
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index 23691aa33e..309970f1e5 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -8,23 +8,24 @@
+ // is better done via channels and communication.
+ package sync
+ 
+-func cas(val *int32, old, new int32) bool
+-func semacquire(*int32)
+-func semrelease(*int32)
++import "runtime"
++
++func cas(val *uint32, old, new uint32) bool
+ 
+ // A Mutex is a mutual exclusion lock.
+ // Mutexes can be created as part of other structures;
+ // the zero value for a Mutex is an unlocked mutex.
+ type Mutex struct {
+-	key	int32;
+-	sema	int32;
++	key	uint32;
++	sema	uint32;
+ }
+ 
+-func xadd(val *int32, delta int32) (new int32) {
++func xadd(val *uint32, delta int32) (new uint32) {
+ 	for {
+ 		v := *val;
+-		if cas(val, v, v+delta) {
+-			return v+delta;
++		nv := v+uint32(delta);
++		if cas(val, v, nv) {
++			return nv;
+ 		}
+ 	}
+ 	panic("unreached");
+@@ -38,7 +39,7 @@ func (m *Mutex) Lock() {
+ 		// changed from 0 to 1; we hold lock
+ 		return;
+ 	}
+-	semacquire(&m.sema);
++	runtime.Semacquire(&m.sema);
+ }
+ 
+ // Unlock unlocks m.
+@@ -52,7 +53,7 @@ func (m *Mutex) Unlock() {
+ 		// changed from 1 to 0; no contention
+ 		return;
+ 	}
+-	semrelease(&m.sema);
++	runtime.Semrelease(&m.sema);
+ }
+ 
+ // Stub implementation of r/w locks.
+diff --git a/src/pkg/sync/mutex_test.go b/src/pkg/sync/mutex_test.go
+index 2944a20fb9..d7be79fff2 100644
+--- a/src/pkg/sync/mutex_test.go
++++ b/src/pkg/sync/mutex_test.go
+@@ -7,20 +7,21 @@
+ package sync_test
+ 
+ import (
++		"runtime";
+ 	.	"sync";
+ 		"testing";
+ )
+ 
+-func HammerSemaphore(s *int32, cdone chan bool) {
++func HammerSemaphore(s *uint32, cdone chan bool) {
+ 	for i := 0; i < 1000; i++ {
+-		Semacquire(s);
+-		Semrelease(s);
++		runtime.Semacquire(s);
++		runtime.Semrelease(s);
+ 	}
+ 	cdone <- true;
+ }
+ 
+ func TestSemaphore(t *testing.T) {
+-	s := new(int32);
++	s := new(uint32);
+ 	*s = 1;
+ 	c := make(chan bool);
+ 	for i := 0; i < 10; i++ {

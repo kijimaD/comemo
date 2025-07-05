@@ -10,6 +10,20 @@ Date:   Sun Jul 20 18:52:46 2014 +0400
     R=golang-codereviews, 0intro
     CC=aram, golang-codereviews
     https://golang.org/cl/113350043
-
+---
  src/cmd/gc/select.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 7346cf5814..86313cb2bb 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -347,7 +347,7 @@ selecttype(int32 size)
+ 	scase = nod(OTSTRUCT, N, N);
+ 	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("sg")), sudog));
+ 	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("chan")), typenod(ptrto(types[TUINT8]))));
+-	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("pc")), typenod(ptrto(types[TUINT8]))));
++	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("pc")), typenod(types[TUINTPTR])));
+ 	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("kind")), typenod(types[TUINT16])));
+ 	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("so")), typenod(types[TUINT16])));
+ 	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("receivedp")), typenod(ptrto(types[TUINT8]))));

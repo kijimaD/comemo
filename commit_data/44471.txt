@@ -12,7 +12,34 @@ Date:   Tue Jul 7 14:17:30 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 2 ++
  src/cmd/go/internal/help/helpdoc.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 2316fb9991..68bad3cff1 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1700,6 +1700,8 @@
+ // 	GOCACHE
+ // 		The directory where the go command will store cached
+ // 		information for reuse in future builds.
++// 	GOMODCACHE
++// 		The directory where the go command will store downloaded modules.
+ // 	GODEBUG
+ // 		Enable various debugging facilities. See 'go doc runtime'
+ // 		for details.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index b937a6155e..e1f0521ea4 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -493,6 +493,8 @@ General-purpose environment variables:
+ 	GOCACHE
+ 		The directory where the go command will store cached
+ 		information for reuse in future builds.
++	GOMODCACHE
++		The directory where the go command will store downloaded modules.
+ 	GODEBUG
+ 		Enable various debugging facilities. See 'go doc runtime'
+ 		for details.

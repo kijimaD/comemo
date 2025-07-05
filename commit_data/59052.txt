@@ -12,9 +12,69 @@ Date:   Tue Dec 13 14:51:17 2022 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/cgo_unix.go          | 2 +-
  src/net/cgo_unix_cgo_res.go  | 6 +++---
  src/net/cgo_unix_cgo_resn.go | 6 +++---
  src/net/cgo_unix_syscall.go  | 5 +++--
  4 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 7ed5daad73..9879315019 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -352,7 +352,7 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
+ 
+ 	var size int
+ 	for {
+-		size, _ = _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
++		size := _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
+ 		if size <= 0 || size > 0xffff {
+ 			return nil, errors.New("res_nsearch failure")
+ 		}
+diff --git a/src/net/cgo_unix_cgo_res.go b/src/net/cgo_unix_cgo_res.go
+index 37bbc9a762..c5f30238a1 100644
+--- a/src/net/cgo_unix_cgo_res.go
++++ b/src/net/cgo_unix_cgo_res.go
+@@ -32,7 +32,7 @@ func _C_res_nclose(state *_C_struct___res_state) {
+ 	return
+ }
+ 
+-func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_uchar, anslen int) (int, error) {
+-	x, err := C.res_search(dname, C.int(class), C.int(typ), ans, C.int(anslen))
+-	return int(x), err
++func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_uchar, anslen int) int {
++	x := C.res_search(dname, C.int(class), C.int(typ), ans, C.int(anslen))
++	return int(x)
+ }
+diff --git a/src/net/cgo_unix_cgo_resn.go b/src/net/cgo_unix_cgo_resn.go
+index 4a5ff165df..4fc747b5a3 100644
+--- a/src/net/cgo_unix_cgo_resn.go
++++ b/src/net/cgo_unix_cgo_resn.go
+@@ -33,7 +33,7 @@ func _C_res_nclose(state *_C_struct___res_state) {
+ 	C.res_nclose(state)
+ }
+ 
+-func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_uchar, anslen int) (int, error) {
+-	x, err := C.res_nsearch(state, dname, C.int(class), C.int(typ), ans, C.int(anslen))
+-	return int(x), err
++func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_uchar, anslen int) int {
++	x := C.res_nsearch(state, dname, C.int(class), C.int(typ), ans, C.int(anslen))
++	return int(x)
+ }
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+index ac9aaa78fe..735dcdfe36 100644
+--- a/src/net/cgo_unix_syscall.go
++++ b/src/net/cgo_unix_syscall.go
+@@ -73,8 +73,9 @@ func _C_res_ninit(state *_C_struct___res_state) error {
+ 	return nil
+ }
+ 
+-func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) (int, error) {
+-	return unix.ResNsearch(state, dname, class, typ, ans, anslen)
++func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) int {
++	x, _ := unix.ResNsearch(state, dname, class, typ, ans, anslen)
++	return x
+ }
+ 
+ func _C_res_nclose(state *_C_struct___res_state) {

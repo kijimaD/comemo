@@ -18,10 +18,520 @@ Date:   Sun Oct 25 00:32:23 2020 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/264658
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go        |  33 +++-
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  34 ++--
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   9 +
  src/cmd/compile/internal/ssa/opGen.go          |  98 +++++++++++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 235 +++----------------------
  5 files changed, 178 insertions(+), 231 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 73f0dbc195..78ff40f53d 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -190,7 +190,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		// input args need no code
+ 	case ssa.OpPhi:
+ 		gc.CheckLoweredPhi(v)
+-	case ssa.OpCopy, ssa.OpRISCV64MOVconvert:
++	case ssa.OpCopy, ssa.OpRISCV64MOVconvert, ssa.OpRISCV64MOVDreg:
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}
+@@ -228,6 +228,37 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddrAuto(&p.To, v)
+ 	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
+ 		// nothing to do
++	case ssa.OpRISCV64MOVBreg, ssa.OpRISCV64MOVHreg, ssa.OpRISCV64MOVWreg,
++		ssa.OpRISCV64MOVBUreg, ssa.OpRISCV64MOVHUreg, ssa.OpRISCV64MOVWUreg:
++		a := v.Args[0]
++		for a.Op == ssa.OpCopy || a.Op == ssa.OpRISCV64MOVDreg {
++			a = a.Args[0]
++		}
++		as := v.Op.Asm()
++		rs := v.Args[0].Reg()
++		rd := v.Reg()
++		if a.Op == ssa.OpLoadReg {
++			t := a.Type
++			switch {
++			case v.Op == ssa.OpRISCV64MOVBreg && t.Size() == 1 && t.IsSigned(),
++				v.Op == ssa.OpRISCV64MOVHreg && t.Size() == 2 && t.IsSigned(),
++				v.Op == ssa.OpRISCV64MOVWreg && t.Size() == 4 && t.IsSigned(),
++				v.Op == ssa.OpRISCV64MOVBUreg && t.Size() == 1 && !t.IsSigned(),
++				v.Op == ssa.OpRISCV64MOVHUreg && t.Size() == 2 && !t.IsSigned(),
++				v.Op == ssa.OpRISCV64MOVWUreg && t.Size() == 4 && !t.IsSigned():
++				// arg is a proper-typed load and already sign/zero-extended
++				if rs == rd {
++					return
++				}
++				as = riscv.AMOV
++			default:
++			}
++		}
++		p := s.Prog(as)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = rs
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = rd
+ 	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64SUBW, ssa.OpRISCV64XOR, ssa.OpRISCV64OR, ssa.OpRISCV64AND,
+ 		ssa.OpRISCV64SLL, ssa.OpRISCV64SRA, ssa.OpRISCV64SRL,
+ 		ssa.OpRISCV64SLT, ssa.OpRISCV64SLTU, ssa.OpRISCV64MUL, ssa.OpRISCV64MULW, ssa.OpRISCV64MULH,
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 9437c8e9d4..b356247ff6 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -98,25 +98,21 @@
+ 
+ (Sqrt ...) => (FSQRTD ...)
+ 
+-// Zero and sign extension
+-// Shift left until the bits we want are at the top of the register.
+-// Then logical/arithmetic shift right for zero/sign extend.
+-// We always extend to 64 bits; there's no reason not to,
+-// and optimization rules can then collapse some extensions.
+-
+-(SignExt8to16  <t> x) => (SRAI [56] (SLLI <t> [56] x))
+-(SignExt8to32  <t> x) => (SRAI [56] (SLLI <t> [56] x))
+-(SignExt8to64  <t> x) => (SRAI [56] (SLLI <t> [56] x))
+-(SignExt16to32 <t> x) => (SRAI [48] (SLLI <t> [48] x))
+-(SignExt16to64 <t> x) => (SRAI [48] (SLLI <t> [48] x))
+-(SignExt32to64 <t> x) => (ADDIW [0] x)
+-
+-(ZeroExt8to16  <t> x) => (SRLI [56] (SLLI <t> [56] x))
+-(ZeroExt8to32  <t> x) => (SRLI [56] (SLLI <t> [56] x))
+-(ZeroExt8to64  <t> x) => (SRLI [56] (SLLI <t> [56] x))
+-(ZeroExt16to32 <t> x) => (SRLI [48] (SLLI <t> [48] x))
+-(ZeroExt16to64 <t> x) => (SRLI [48] (SLLI <t> [48] x))
+-(ZeroExt32to64 <t> x) => (SRLI [32] (SLLI <t> [32] x))
++// Sign and zero extension.
++
++(SignExt8to16  ...) => (MOVBreg ...)
++(SignExt8to32  ...) => (MOVBreg ...)
++(SignExt8to64  ...) => (MOVBreg ...)
++(SignExt16to32 ...) => (MOVHreg ...)
++(SignExt16to64 ...) => (MOVHreg ...)
++(SignExt32to64 ...) => (MOVWreg ...)
++
++(ZeroExt8to16  ...) => (MOVBUreg ...)
++(ZeroExt8to32  ...) => (MOVBUreg ...)
++(ZeroExt8to64  ...) => (MOVBUreg ...)
++(ZeroExt16to32 ...) => (MOVHUreg ...)
++(ZeroExt16to64 ...) => (MOVHUreg ...)
++(ZeroExt32to64 ...) => (MOVWUreg ...)
+ 
+ (Cvt32to32F ...) => (FCVTSW ...)
+ (Cvt32to64F ...) => (FCVTDW ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index fb944f3132..48be8e2c26 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -193,6 +193,15 @@ func init() {
+ 		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // 32 bits
+ 		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOV", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // 64 bits
+ 
++		// Conversions
++		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
++		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH"},   // move from arg0, sign-extended from half
++		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},   // move from arg0, sign-extended from word
++		{name: "MOVDreg", argLength: 1, reg: gp11, asm: "MOV"},    // move from arg0
++		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
++		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU"}, // move from arg0, unsign-extended from half
++		{name: "MOVWUreg", argLength: 1, reg: gp11, asm: "MOVWU"}, // move from arg0, unsign-extended from word
++
+ 		// Shift ops
+ 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << (aux1 & 63)
+ 		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> (aux1 & 63), signed
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a4938a4992..1057944d2b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2077,6 +2077,13 @@ const (
+ 	OpRISCV64MOVHstorezero
+ 	OpRISCV64MOVWstorezero
+ 	OpRISCV64MOVDstorezero
++	OpRISCV64MOVBreg
++	OpRISCV64MOVHreg
++	OpRISCV64MOVWreg
++	OpRISCV64MOVDreg
++	OpRISCV64MOVBUreg
++	OpRISCV64MOVHUreg
++	OpRISCV64MOVWUreg
+ 	OpRISCV64SLL
+ 	OpRISCV64SRA
+ 	OpRISCV64SRL
+@@ -27689,6 +27696,97 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MOVBreg",
++		argLen: 1,
++		asm:    riscv.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:   "MOVHreg",
++		argLen: 1,
++		asm:    riscv.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:   "MOVWreg",
++		argLen: 1,
++		asm:    riscv.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:   "MOVDreg",
++		argLen: 1,
++		asm:    riscv.AMOV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:   "MOVBUreg",
++		argLen: 1,
++		asm:    riscv.AMOVBU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:   "MOVHUreg",
++		argLen: 1,
++		asm:    riscv.AMOVHU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:   "MOVWUreg",
++		argLen: 1,
++		asm:    riscv.AMOVWU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:   "SLL",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index c178290343..174d48e7c4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -543,17 +543,23 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpRsh8x8:
+ 		return rewriteValueRISCV64_OpRsh8x8(v)
+ 	case OpSignExt16to32:
+-		return rewriteValueRISCV64_OpSignExt16to32(v)
++		v.Op = OpRISCV64MOVHreg
++		return true
+ 	case OpSignExt16to64:
+-		return rewriteValueRISCV64_OpSignExt16to64(v)
++		v.Op = OpRISCV64MOVHreg
++		return true
+ 	case OpSignExt32to64:
+-		return rewriteValueRISCV64_OpSignExt32to64(v)
++		v.Op = OpRISCV64MOVWreg
++		return true
+ 	case OpSignExt8to16:
+-		return rewriteValueRISCV64_OpSignExt8to16(v)
++		v.Op = OpRISCV64MOVBreg
++		return true
+ 	case OpSignExt8to32:
+-		return rewriteValueRISCV64_OpSignExt8to32(v)
++		v.Op = OpRISCV64MOVBreg
++		return true
+ 	case OpSignExt8to64:
+-		return rewriteValueRISCV64_OpSignExt8to64(v)
++		v.Op = OpRISCV64MOVBreg
++		return true
+ 	case OpSlicemask:
+ 		return rewriteValueRISCV64_OpSlicemask(v)
+ 	case OpSqrt:
+@@ -621,17 +627,23 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpZero:
+ 		return rewriteValueRISCV64_OpZero(v)
+ 	case OpZeroExt16to32:
+-		return rewriteValueRISCV64_OpZeroExt16to32(v)
++		v.Op = OpRISCV64MOVHUreg
++		return true
+ 	case OpZeroExt16to64:
+-		return rewriteValueRISCV64_OpZeroExt16to64(v)
++		v.Op = OpRISCV64MOVHUreg
++		return true
+ 	case OpZeroExt32to64:
+-		return rewriteValueRISCV64_OpZeroExt32to64(v)
++		v.Op = OpRISCV64MOVWUreg
++		return true
+ 	case OpZeroExt8to16:
+-		return rewriteValueRISCV64_OpZeroExt8to16(v)
++		v.Op = OpRISCV64MOVBUreg
++		return true
+ 	case OpZeroExt8to32:
+-		return rewriteValueRISCV64_OpZeroExt8to32(v)
++		v.Op = OpRISCV64MOVBUreg
++		return true
+ 	case OpZeroExt8to64:
+-		return rewriteValueRISCV64_OpZeroExt8to64(v)
++		v.Op = OpRISCV64MOVBUreg
++		return true
+ 	}
+ 	return false
+ }
+@@ -4719,103 +4731,6 @@ func rewriteValueRISCV64_OpRsh8x8(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueRISCV64_OpSignExt16to32(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (SignExt16to32 <t> x)
+-	// result: (SRAI [48] (SLLI <t> [48] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRAI)
+-		v.AuxInt = int64ToAuxInt(48)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(48)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpSignExt16to64(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (SignExt16to64 <t> x)
+-	// result: (SRAI [48] (SLLI <t> [48] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRAI)
+-		v.AuxInt = int64ToAuxInt(48)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(48)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpSignExt32to64(v *Value) bool {
+-	v_0 := v.Args[0]
+-	// match: (SignExt32to64 <t> x)
+-	// result: (ADDIW [0] x)
+-	for {
+-		x := v_0
+-		v.reset(OpRISCV64ADDIW)
+-		v.AuxInt = int64ToAuxInt(0)
+-		v.AddArg(x)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpSignExt8to16(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (SignExt8to16 <t> x)
+-	// result: (SRAI [56] (SLLI <t> [56] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRAI)
+-		v.AuxInt = int64ToAuxInt(56)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(56)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpSignExt8to32(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (SignExt8to32 <t> x)
+-	// result: (SRAI [56] (SLLI <t> [56] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRAI)
+-		v.AuxInt = int64ToAuxInt(56)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(56)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpSignExt8to64(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (SignExt8to64 <t> x)
+-	// result: (SRAI [56] (SLLI <t> [56] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRAI)
+-		v.AuxInt = int64ToAuxInt(56)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(56)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteValueRISCV64_OpSlicemask(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+@@ -5016,108 +4931,6 @@ func rewriteValueRISCV64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueRISCV64_OpZeroExt16to32(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (ZeroExt16to32 <t> x)
+-	// result: (SRLI [48] (SLLI <t> [48] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRLI)
+-		v.AuxInt = int64ToAuxInt(48)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(48)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpZeroExt16to64(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (ZeroExt16to64 <t> x)
+-	// result: (SRLI [48] (SLLI <t> [48] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRLI)
+-		v.AuxInt = int64ToAuxInt(48)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(48)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpZeroExt32to64(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (ZeroExt32to64 <t> x)
+-	// result: (SRLI [32] (SLLI <t> [32] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRLI)
+-		v.AuxInt = int64ToAuxInt(32)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(32)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpZeroExt8to16(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (ZeroExt8to16 <t> x)
+-	// result: (SRLI [56] (SLLI <t> [56] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRLI)
+-		v.AuxInt = int64ToAuxInt(56)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(56)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpZeroExt8to32(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (ZeroExt8to32 <t> x)
+-	// result: (SRLI [56] (SLLI <t> [56] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRLI)
+-		v.AuxInt = int64ToAuxInt(56)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(56)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+-func rewriteValueRISCV64_OpZeroExt8to64(v *Value) bool {
+-	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (ZeroExt8to64 <t> x)
+-	// result: (SRLI [56] (SLLI <t> [56] x))
+-	for {
+-		t := v.Type
+-		x := v_0
+-		v.reset(OpRISCV64SRLI)
+-		v.AuxInt = int64ToAuxInt(56)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(56)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+-}
+ func rewriteBlockRISCV64(b *Block) bool {
+ 	switch b.Kind {
+ 	case BlockRISCV64BEQ:

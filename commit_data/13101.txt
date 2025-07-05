@@ -10,6 +10,20 @@ Date:   Mon May 21 00:38:14 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6208083
-
+---
  src/pkg/net/dial_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 7212087fe0..f64cc6c955 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -130,7 +130,7 @@ func TestSelfConnect(t *testing.T) {
+ 		n = 1000
+ 	}
+ 	switch runtime.GOOS {
+-	case "darwin", "freebsd", "openbsd", "windows":
++	case "darwin", "freebsd", "netbsd", "openbsd", "windows":
+ 		// Non-Linux systems take a long time to figure
+ 		// out that there is nothing listening on localhost.
+ 		n = 100

@@ -15,6 +15,23 @@ Date:   Tue Aug 1 12:38:43 2023 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/rpc/server.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index 5cea2cc507..fc3ec484ad 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -146,9 +146,8 @@ const (
+ 	DefaultDebugPath = "/debug/rpc"
+ )
+ 
+-// Precompute the reflect type for error. Can't use error directly
+-// because Typeof takes an empty interface value. This is annoying.
+-var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
++// Precompute the reflect type for error.
++var typeOfError = reflect.TypeFor[error]()
+ 
+ type methodType struct {
+ 	sync.Mutex // protects counters

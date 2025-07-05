@@ -10,6 +10,23 @@ Date:   Mon Aug 11 17:11:31 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/129720043
-
+---
  src/cmd/8g/peep.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 35129a7c46..91a91d20db 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -636,9 +636,9 @@ copyu(Prog *p, Adr *v, Adr *s)
+ static int
+ copyas(Adr *a, Adr *v)
+ {
+-	if(D_AL <= a->type && a->type <= D_R15B)
++	if(D_AL <= a->type && a->type <= D_BL)
+ 		fatal("use of byte register");
+-	if(D_AL <= v->type && v->type <= D_R15B)
++	if(D_AL <= v->type && v->type <= D_BL)
+ 		fatal("use of byte register");
+ 
+ 	if(a->type != v->type)

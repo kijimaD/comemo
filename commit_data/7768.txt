@@ -8,7 +8,7 @@ Date:   Tue Mar 15 14:41:19 2011 -0400
     R=rsc, gri, brainman, rsc1
     CC=golang-dev
     https://golang.org/cl/4253052
-
+---
  src/cmd/cgo/util.go              |  2 +-
  src/cmd/godoc/main.go            |  2 +-
  src/pkg/debug/proc/proc_linux.go | 18 ++++++++----
@@ -19,3 +19,394 @@ Date:   Tue Mar 15 14:41:19 2011 -0400
  src/pkg/syscall/exec_unix.go     | 62 +++++++++++++++++++++++++++-------------
  src/pkg/syscall/exec_windows.go  | 24 ++++++++++++----
  9 files changed, 115 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 59529a6d24..56258f2cdc 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -32,7 +32,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 	if err != nil {
+ 		fatal("%s", err)
+ 	}
+-	p, err := os.StartProcess(cmd, argv, os.Environ(), "", []*os.File{r0, w1, w2})
++	p, err := os.StartProcess(cmd, argv, &os.ProcAttr{Files: []*os.File{r0, w1, w2}})
+ 	if err != nil {
+ 		fatal("%s", err)
+ 	}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index c6dd6ded0e..b31758bc88 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -83,7 +83,7 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
+ 	if *verbose {
+ 		log.Printf("executing %v", args)
+ 	}
+-	p, err := os.StartProcess(bin, args, os.Environ(), *goroot, fds)
++	p, err := os.StartProcess(bin, args, &os.ProcAttr{Files: fds, Dir: *goroot})
+ 	defer r.Close()
+ 	w.Close()
+ 	if err != nil {
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index f0cc43a108..6890a2221e 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -1279,25 +1279,31 @@ func Attach(pid int) (Process, os.Error) {
+ 	return p, nil
+ }
+ 
+-// ForkExec forks the current process and execs argv0, stopping the
+-// new process after the exec syscall.  See os.ForkExec for additional
++// StartProcess forks the current process and execs argv0, stopping the
++// new process after the exec syscall.  See os.StartProcess for additional
+ // details.
+-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
++func StartProcess(argv0 string, argv []string, attr *os.ProcAttr) (Process, os.Error) {
++	sysattr := &syscall.ProcAttr{
++		Dir:    attr.Dir,
++		Env:    attr.Env,
++		Ptrace: true,
++	}
+ 	p := newProcess(-1)
+ 
+ 	// Create array of integer (system) fds.
+-	intfd := make([]int, len(fd))
+-	for i, f := range fd {
++	intfd := make([]int, len(attr.Files))
++	for i, f := range attr.Files {
+ 		if f == nil {
+ 			intfd[i] = -1
+ 		} else {
+ 			intfd[i] = f.Fd()
+ 		}
+ 	}
++	sysattr.Files = intfd
+ 
+ 	// Fork from the monitor thread so we get the right tracer pid.
+ 	err := p.do(func() os.Error {
+-		pid, errno := syscall.PtraceForkExec(argv0, argv, envv, dir, intfd)
++		pid, _, errno := syscall.StartProcess(argv0, argv, sysattr)
+ 		if errno != 0 {
+ 			return &os.PathError{"fork/exec", argv0, os.Errno(errno)}
+ 		}
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 80f6f3c7dd..0a364da121 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -105,7 +105,7 @@ func Run(name string, argv, envv []string, dir string, stdin, stdout, stderr int
+ 	}
+ 
+ 	// Run command.
+-	c.Process, err = os.StartProcess(name, argv, envv, dir, fd[0:])
++	c.Process, err = os.StartProcess(name, argv, &os.ProcAttr{Dir: dir, Files: fd[:], Env: envv})
+ 	if err != nil {
+ 		goto Error
+ 	}
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index 47257e3c23..9bea6007b5 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -99,7 +99,8 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
+ 		fmt.Fprintf(rw, "pipe: %s\n", err)
+ 		return
+ 	}
+-	p, err := os.StartProcess("/bin/date", []string{"date"}, os.Environ(), "", []*os.File{nil, w, w})
++
++	p, err := os.StartProcess("/bin/date", []string{"date"}, &os.ProcAttr{Files: []*os.File{nil, w, w}})
+ 	defer r.Close()
+ 	w.Close()
+ 	if err != nil {
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index dbdfacc585..9d80ccfbed 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -21,27 +21,46 @@ func newProcess(pid, handle int) *Process {
+ 	return p
+ }
+ 
+-// StartProcess starts a new process with the program, arguments,
+-// and environment specified by name, argv, and envv. The fd array specifies the
+-// file descriptors to be set up in the new process: fd[0] will be Unix file
+-// descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
+-// will cause the child to have no open file descriptor with that index.
+-// If dir is not empty, the child chdirs into the directory before execing the program.
+-func StartProcess(name string, argv []string, envv []string, dir string, fd []*File) (p *Process, err Error) {
+-	if envv == nil {
+-		envv = Environ()
++// ProcAttr holds the attributes that will be applied to a new process
++// started by StartProcess.
++type ProcAttr struct {
++	// If Dir is non-empty, the child changes into the directory before
++	// creating the process.
++	Dir string
++	// If Env is non-nil, it gives the environment variables for the
++	// new process in the form returned by Environ.
++	// If it is nil, the result of Environ will be used.
++	Env []string
++	// Files specifies the open files inherited by the new process.  The
++	// first three entries correspond to standard input, standard output, and
++	// standard error.  An implementation may support additional entries,
++	// depending on the underlying operating system.  A nil entry corresponds
++	// to that file being closed when the process starts.
++	Files []*File
++}
++
++// StartProcess starts a new process with the program, arguments and attributes
++// specified by name, argv and attr.
++func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err Error) {
++	sysattr := &syscall.ProcAttr{
++		Dir: attr.Dir,
++		Env: attr.Env,
++	}
++	if sysattr.Env == nil {
++		sysattr.Env = Environ()
+ 	}
+ 	// Create array of integer (system) fds.
+-	intfd := make([]int, len(fd))
+-	for i, f := range fd {
++	intfd := make([]int, len(attr.Files))
++	for i, f := range attr.Files {
+ 		if f == nil {
+ 			intfd[i] = -1
+ 		} else {
+ 			intfd[i] = f.Fd()
+ 		}
+ 	}
++	sysattr.Files = intfd
+ 
+-	pid, h, e := syscall.StartProcess(name, argv, envv, dir, intfd)
++	pid, h, e := syscall.StartProcess(name, argv, sysattr)
+ 	if e != 0 {
+ 		return nil, &PathError{"fork/exec", name, Errno(e)}
+ 	}
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index b45546c8a2..e06b289402 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -409,25 +409,26 @@ func TestRename(t *testing.T) {
+ 	}
+ }
+ 
+-func TestForkExec(t *testing.T) {
+-	var cmd, adir, expect string
++func TestStartProcess(t *testing.T) {
++	var cmd, expect string
+ 	var args []string
+ 	r, w, err := Pipe()
+ 	if err != nil {
+ 		t.Fatalf("Pipe: %v", err)
+ 	}
++	attr := &ProcAttr{Files: []*File{nil, w, Stderr}}
+ 	if syscall.OS == "windows" {
+ 		cmd = Getenv("COMSPEC")
+ 		args = []string{Getenv("COMSPEC"), "/c cd"}
+-		adir = Getenv("SystemRoot")
++		attr.Dir = Getenv("SystemRoot")
+ 		expect = Getenv("SystemRoot") + "\r\n"
+ 	} else {
+ 		cmd = "/bin/pwd"
+ 		args = []string{"pwd"}
+-		adir = "/"
++		attr.Dir = "/"
+ 		expect = "/\n"
+ 	}
+-	p, err := StartProcess(cmd, args, nil, adir, []*File{nil, w, Stderr})
++	p, err := StartProcess(cmd, args, attr)
+ 	if err != nil {
+ 		t.Fatalf("StartProcess: %v", err)
+ 	}
+@@ -751,7 +752,7 @@ func run(t *testing.T, cmd []string) string {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	p, err := StartProcess("/bin/hostname", []string{"hostname"}, nil, "/", []*File{nil, w, Stderr})
++	p, err := StartProcess("/bin/hostname", []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index 2e09539eea..3888b544d2 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -96,13 +96,16 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
+ // no rescheduling, no malloc calls, and no new stack segments.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
+-func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, dir *byte, fd []int, pipe int) (pid int, err int) {
++func forkAndExecInChild(argv0 *byte, argv, envv []*byte, dir *byte, attr *ProcAttr, pipe int) (pid int, err int) {
+ 	// Declare all variables at top in case any
+ 	// declarations require heap allocation (e.g., err1).
+ 	var r1, r2, err1 uintptr
+ 	var nextfd int
+ 	var i int
+ 
++	// guard against side effects of shuffling fds below.
++	fd := append([]int(nil), attr.Files...)
++
+ 	darwin := OS == "darwin"
+ 
+ 	// About to call fork.
+@@ -128,13 +131,21 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
+ 	// Fork succeeded, now in child.
+ 
+ 	// Enable tracing if requested.
+-	if traceme {
++	if attr.Ptrace {
+ 		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+ 	}
+ 
++	// Session ID
++	if attr.Setsid {
++		_, _, err1 = RawSyscall(SYS_SETSID, 0, 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
+ 	// Chdir
+ 	if dir != nil {
+ 		_, _, err1 = RawSyscall(SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0)
+@@ -220,28 +231,44 @@ childerror:
+ 	panic("unreached")
+ }
+ 
+-func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir string, fd []int) (pid int, err int) {
++
++type ProcAttr struct {
++	Setsid bool     // Create session.
++	Ptrace bool     // Enable tracing.
++	Dir    string   // Current working directory.
++	Env    []string // Environment.
++	Files  []int    // File descriptors.
++}
++
++var zeroAttributes ProcAttr
++
++func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
+ 	var p [2]int
+ 	var n int
+ 	var err1 uintptr
+ 	var wstatus WaitStatus
+ 
++	if attr == nil {
++		attr = &zeroAttributes
++	}
++
+ 	p[0] = -1
+ 	p[1] = -1
+ 
+ 	// Convert args to C form.
+ 	argv0p := StringBytePtr(argv0)
+ 	argvp := StringArrayPtr(argv)
+-	envvp := StringArrayPtr(envv)
+-	var dirp *byte
+-	if len(dir) > 0 {
+-		dirp = StringBytePtr(dir)
+-	}
++	envvp := StringArrayPtr(attr.Env)
+ 
+ 	if OS == "freebsd" && len(argv[0]) > len(argv0) {
+ 		argvp[0] = argv0p
+ 	}
+ 
++	var dir *byte
++	if attr.Dir != "" {
++		dir = StringBytePtr(attr.Dir)
++	}
++
+ 	// Acquire the fork lock so that no other threads
+ 	// create new fds that are not yet close-on-exec
+ 	// before we fork.
+@@ -259,7 +286,7 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
+ 	}
+ 
+ 	// Kick off child.
+-	pid, err = forkAndExecInChild(argv0p, argvp, envvp, traceme, dirp, fd, p[1])
++	pid, err = forkAndExecInChild(argv0p, argvp, envvp, dir, attr, p[1])
+ 	if err != 0 {
+ 	error:
+ 		if p[0] >= 0 {
+@@ -297,13 +324,14 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
+ }
+ 
+ // Combination of fork and exec, careful to be thread safe.
+-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int) (pid int, err int) {
+-	return forkExec(argv0, argv, envv, false, dir, fd)
++func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
++	return forkExec(argv0, argv, attr)
+ }
+ 
+-// PtraceForkExec is like ForkExec, but starts the child in a traced state.
+-func PtraceForkExec(argv0 string, argv []string, envv []string, dir string, fd []int) (pid int, err int) {
+-	return forkExec(argv0, argv, envv, true, dir, fd)
++// StartProcess wraps ForkExec for package os.
++func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err int) {
++	pid, err = forkExec(argv0, argv, attr)
++	return pid, 0, err
+ }
+ 
+ // Ordinary exec.
+@@ -314,9 +342,3 @@ func Exec(argv0 string, argv []string, envv []string) (err int) {
+ 		uintptr(unsafe.Pointer(&StringArrayPtr(envv)[0])))
+ 	return int(err1)
+ }
+-
+-// StartProcess wraps ForkExec for package os.
+-func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []int) (pid, handle int, err int) {
+-	pid, err = forkExec(argv0, argv, envv, false, dir, fd)
+-	return pid, 0, err
+-}
+diff --git a/src/pkg/syscall/exec_windows.go b/src/pkg/syscall/exec_windows.go
+index 73c3c8624d..06c33331fb 100644
+--- a/src/pkg/syscall/exec_windows.go
++++ b/src/pkg/syscall/exec_windows.go
+@@ -114,21 +114,33 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
+ 	return 0
+ }
+ 
++type ProcAttr struct {
++	Dir   string
++	Env   []string
++	Files []int
++}
++
++var zeroAttributes ProcAttr
+ 
+ // TODO(kardia): Add trace
+ //The command and arguments are passed via the Command line parameter.
+-func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []int) (pid, handle int, err int) {
+-	if len(fd) > 3 {
++func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err int) {
++	if attr == nil {
++		attr = &zeroAttributes
++	}
++	if len(attr.Files) > 3 {
+ 		return 0, 0, EWINDOWS
+ 	}
+ 
+-	//CreateProcess will throw an error if the dir is not set to a valid dir
+-	//  thus get the working dir if dir is empty.
+-	if len(dir) == 0 {
++	// CreateProcess will throw an error if the dir is not set to a valid dir
++	// thus get the working dir if dir is empty.
++	dir := attr.Dir
++	if dir == "" {
+ 		if wd, ok := Getwd(); ok == 0 {
+ 			dir = wd
+ 		}
+ 	}
++	fd := attr.Files
+ 
+ 	startupInfo := new(StartupInfo)
+ 	processInfo := new(ProcessInformation)
+@@ -180,7 +192,7 @@ func StartProcess(argv0 string, argv []string, envv []string, dir string, fd []i
+ 		nil,  //ptr to struct lpThreadAttributes
+ 		true, //bInheritHandles
+ 		CREATE_UNICODE_ENVIRONMENT, //Flags
+-		createEnvBlock(envv),       //env block, NULL uses parent env
++		createEnvBlock(attr.Env),   //env block, NULL uses parent env
+ 		StringToUTF16Ptr(dir),
+ 		startupInfo,
+ 		processInfo)

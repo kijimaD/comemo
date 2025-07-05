@@ -21,9 +21,70 @@ Date:   Tue Aug 24 17:35:51 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/345411
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/types.go |  7 ++++++-
  test/typeparam/issue47514c.dir/a.go     |  5 +++++
  test/typeparam/issue47514c.dir/main.go  | 10 ++++++++++
  test/typeparam/issue47514c.go           |  7 +++++++
  4 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index c9f7c2bbe4..a5a90aacaa 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -118,9 +118,14 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 				return s.Def.Type()
+ 			}
+ 
++			// Make sure the base generic type exists in type1 (it may
++			// not yet if we are referecing an imported generic type, as
++			// opposed to a generic type declared in this package).
++			_ = g.obj(typ.Orig().Obj())
++
+ 			// Create a forwarding type first and put it in the g.typs
+ 			// map, in order to deal with recursive generic types
+-			// (including via method signatures).. Set up the extra
++			// (including via method signatures). Set up the extra
+ 			// ntyp information (Def, RParams, which may set
+ 			// HasTParam) before translating the underlying type
+ 			// itself, so we handle recursion correctly.
+diff --git a/test/typeparam/issue47514c.dir/a.go b/test/typeparam/issue47514c.dir/a.go
+new file mode 100644
+index 0000000000..782b1d2a4f
+--- /dev/null
++++ b/test/typeparam/issue47514c.dir/a.go
+@@ -0,0 +1,5 @@
++package a
++
++type Doer[T any] interface {
++	Do() T
++}
+diff --git a/test/typeparam/issue47514c.dir/main.go b/test/typeparam/issue47514c.dir/main.go
+new file mode 100644
+index 0000000000..bc1166f761
+--- /dev/null
++++ b/test/typeparam/issue47514c.dir/main.go
+@@ -0,0 +1,10 @@
++package main
++
++import "a"
++
++func Do[T any](doer a.Doer[T]) {
++	doer.Do()
++}
++
++func main() {
++}
+diff --git a/test/typeparam/issue47514c.go b/test/typeparam/issue47514c.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue47514c.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

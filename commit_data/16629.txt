@@ -9,7 +9,78 @@ Date:   Mon Jun 24 13:23:02 2013 -0700
     R=r, rsc
     CC=gobot, golang-dev
     https://golang.org/cl/10370043
-
+---
  src/pkg/net/rpc/server.go      | 11 +++++++----
  src/pkg/net/rpc/server_test.go | 13 +++++++++++++
  2 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/rpc/server.go b/src/pkg/net/rpc/server.go
+index e71b6fb1a4..6cfda7c809 100644
+--- a/src/pkg/net/rpc/server.go
++++ b/src/pkg/net/rpc/server.go
+@@ -560,20 +560,23 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
+ 	// we can still recover and move on to the next request.
+ 	keepReading = true
+ 
+-	serviceMethod := strings.Split(req.ServiceMethod, ".")
+-	if len(serviceMethod) != 2 {
++	dot := strings.LastIndex(req.ServiceMethod, ".")
++	if dot < 0 {
+ 		err = errors.New("rpc: service/method request ill-formed: " + req.ServiceMethod)
+ 		return
+ 	}
++	serviceName := req.ServiceMethod[:dot]
++	methodName := req.ServiceMethod[dot+1:]
++
+ 	// Look up the request.
+ 	server.mu.RLock()
+-	service = server.serviceMap[serviceMethod[0]]
++	service = server.serviceMap[serviceName]
+ 	server.mu.RUnlock()
+ 	if service == nil {
+ 		err = errors.New("rpc: can't find service " + req.ServiceMethod)
+ 		return
+ 	}
+-	mtype = service.method[serviceMethod[1]]
++	mtype = service.method[methodName]
+ 	if mtype == nil {
+ 		err = errors.New("rpc: can't find method " + req.ServiceMethod)
+ 	}
+diff --git a/src/pkg/net/rpc/server_test.go b/src/pkg/net/rpc/server_test.go
+index 8277324006..b64228111b 100644
+--- a/src/pkg/net/rpc/server_test.go
++++ b/src/pkg/net/rpc/server_test.go
+@@ -84,6 +84,7 @@ func listenTCP() (net.Listener, string) {
+ 
+ func startServer() {
+ 	Register(new(Arith))
++	RegisterName("net.rpc.Arith", new(Arith))
+ 
+ 	var l net.Listener
+ 	l, serverAddr = listenTCP()
+@@ -97,6 +98,7 @@ func startServer() {
+ func startNewServer() {
+ 	newServer = NewServer()
+ 	newServer.Register(new(Arith))
++	newServer.RegisterName("net.rpc.Arith", new(Arith))
+ 
+ 	var l net.Listener
+ 	l, newServerAddr = listenTCP()
+@@ -234,6 +236,17 @@ func testRPC(t *testing.T, addr string) {
+ 	if reply.C != args.A*args.B {
+ 		t.Errorf("Mul: expected %d got %d", reply.C, args.A*args.B)
+ 	}
++
++	// ServiceName contain "." character
++	args = &Args{7, 8}
++	reply = new(Reply)
++	err = client.Call("net.rpc.Arith.Add", args, reply)
++	if err != nil {
++		t.Errorf("Add: expected no error but got string %q", err.Error())
++	}
++	if reply.C != args.A+args.B {
++		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
++	}
+ }
+ 
+ func TestHTTP(t *testing.T) {

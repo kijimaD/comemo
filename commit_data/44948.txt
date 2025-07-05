@@ -15,7 +15,54 @@ Date:   Thu Sep 17 15:31:07 2020 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/flags/flags.go | 7 ++++---
  src/cmd/asm/main.go                 | 4 +---
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 1df9df9563..64024cc97d 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -17,7 +17,6 @@ import (
+ var (
+ 	Debug      = flag.Bool("debug", false, "dump instructions as they are parsed")
+ 	OutputFile = flag.String("o", "", "output file; default foo.o for /a/b/c/foo.s as first argument")
+-	PrintOut   = flag.Bool("S", false, "print assembly and machine code")
+ 	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths")
+ 	Shared     = flag.Bool("shared", false, "generate code that can be linked into a shared library")
+ 	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
+@@ -28,14 +27,16 @@ var (
+ )
+ 
+ var (
+-	D MultiFlag
+-	I MultiFlag
++	D        MultiFlag
++	I        MultiFlag
++	PrintOut int
+ )
+ 
+ func init() {
+ 	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
+ 	flag.Var(&I, "I", "include directory; can be set multiple times")
+ 	objabi.AddVersionFlag() // -V
++	objabi.Flagcount("S", "print assembly and machine code", &PrintOut)
+ }
+ 
+ // MultiFlag allows setting a value multiple times to collect a list, as in -I=dir1 -I=dir2.
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index a6eb44de73..fd079a2ccd 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -35,9 +35,7 @@ func main() {
+ 	flags.Parse()
+ 
+ 	ctxt := obj.Linknew(architecture.LinkArch)
+-	if *flags.PrintOut {
+-		ctxt.Debugasm = 1
+-	}
++	ctxt.Debugasm = flags.PrintOut
+ 	ctxt.Flag_dynlink = *flags.Dynlink
+ 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+ 	ctxt.IsAsm = true

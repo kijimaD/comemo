@@ -15,6 +15,20 @@ Date:   Thu Nov 11 10:02:13 2021 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/riscv/cpu.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index ed88f621d9..d9434e7415 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -183,7 +183,7 @@ const (
+ 	REGG  = REG_G
+ )
+ 
+-// https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md#dwarf-register-numbers
++// https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-dwarf.adoc#dwarf-register-numbers
+ var RISCV64DWARFRegisters = map[int16]int16{
+ 	// Integer Registers.
+ 	REG_X0:  0,

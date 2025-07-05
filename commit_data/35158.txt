@@ -11,7 +11,45 @@ Date:   Thu Jan 4 12:27:32 2018 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go          | 13 +++++++++++++
  src/cmd/go/internal/work/gc.go |  2 +-
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 18e5eae2bc..ddf097d240 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1589,6 +1589,19 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
+ 	tg.run("test", "main_test")
+ }
+ 
++func TestPackageMainTestCompilerFlags(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	tg.tempFile("src/p1/p1.go", "package main\n")
++	tg.tempFile("src/p1/p1_test.go", "package main\nimport \"testing\"\nfunc Test(t *testing.T){}\n")
++	tg.run("test", "-c", "-n", "p1")
++	tg.grepBothNot(`[\\/]compile.* -p main.*p1\.go`, "should not have run compile -p main p1.go")
++	tg.grepStderr(`[\\/]compile.* -p p1.*p1\.go`, "should have run compile -p p1 p1.go")
++}
++
+ // The runtime version string takes one of two forms:
+ // "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
+ // Determine whether we are in a released copy by
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 49258b30fd..d3bded6989 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -49,7 +49,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
+ 	pkgpath := p.ImportPath
+ 	if cfg.BuildBuildmode == "plugin" {
+ 		pkgpath = pluginPath(a)
+-	} else if p.Name == "main" {
++	} else if p.Name == "main" && !p.Internal.ForceLibrary {
+ 		pkgpath = "main"
+ 	}
+ 	gcargs := []string{"-p", pkgpath}

@@ -7,6 +7,25 @@ Date:   Mon Jul 8 14:19:07 2019 -0400
     Change-Id: Id5d2f4cc6bc310bed2516ce0f50c395802475f66
     Reviewed-on: https://go-review.googlesource.com/c/go/+/185258
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 99106b4cd2..6bca2e5ff8 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -77,6 +77,13 @@ the go command, and the <code>crypto/x509</code>, <code>net/http</code>, and
+ 1.12.6 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.12.7 (released 2019/07/08) includes fixes to cgo, the compiler,
++and the linker.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.7">Go
++1.12.7 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.11">go1.11 (released 2018/08/24)</h2>
+ 
+ <p>

@@ -22,6 +22,23 @@ Date:   Wed Oct 4 14:35:33 2017 +0300
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/sema.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 8715e07d7a..d5ea14d46d 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -275,7 +275,10 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
+ 	// on the ticket: s.ticket <= both s.prev.ticket and s.next.ticket.
+ 	// https://en.wikipedia.org/wiki/Treap
+ 	// http://faculty.washington.edu/aragon/pubs/rst89.pdf
+-	s.ticket = fastrand()
++	//
++	// s.ticket compared with zero in couple of places, therefore set lowest bit.
++	// It will not affect treap's quality noticeably.
++	s.ticket = fastrand() | 1
+ 	s.parent = last
+ 	*pt = s
+ 

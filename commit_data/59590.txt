@@ -10,8 +10,69 @@ Date:   Wed Mar 27 23:09:23 2024 +0100
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/ast/ast.go   | 9 ++++++---
  src/go/ast/print.go | 4 ++--
  src/go/ast/scope.go | 4 ++--
  3 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index ef96cc4a6d..73aa3da89e 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -1032,9 +1032,12 @@ func (*FuncDecl) declNode() {}
+ // positions). A [CommentMap] may be used to facilitate some of these operations.
+ //
+ // Whether and how a comment is associated with a node depends on the
+-// interpretation of the syntax tree by the manipulating program: Except for Doc
++// interpretation of the syntax tree by the manipulating program: except for Doc
+ // and [Comment] comments directly associated with nodes, the remaining comments
+-// are "free-floating" (see also issues #18593, #20744).
++// are "free-floating" (see also issues [#18593], [#20744]).
++//
++// [#18593]: https://go.dev/issue/18593
++// [#20744]: https://go.dev/issue/20744
+ type File struct {
+ 	Doc     *CommentGroup // associated documentation; or nil
+ 	Package token.Pos     // position of "package" keyword
+@@ -1080,7 +1083,7 @@ func (p *Package) End() token.Pos { return token.NoPos }
+ // not handwritten, by detecting the special comment described
+ // at https://go.dev/s/generatedcode.
+ //
+-// The syntax tree must have been parsed with the ParseComments flag.
++// The syntax tree must have been parsed with the [parser.ParseComments] flag.
+ // Example:
+ //
+ //	f, err := parser.ParseFile(fset, filename, src, parser.ParseComments|parser.PackageClauseOnly)
+diff --git a/src/go/ast/print.go b/src/go/ast/print.go
+index d1aad50103..ccef0577da 100644
+--- a/src/go/ast/print.go
++++ b/src/go/ast/print.go
+@@ -17,8 +17,8 @@ import (
+ // A FieldFilter may be provided to [Fprint] to control the output.
+ type FieldFilter func(name string, value reflect.Value) bool
+ 
+-// NotNilFilter returns true for field values that are not nil;
+-// it returns false otherwise.
++// NotNilFilter is a [FieldFilter] that returns true for field values
++// that are not nil; it returns false otherwise.
+ func NotNilFilter(_ string, v reflect.Value) bool {
+ 	switch v.Kind() {
+ 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+diff --git a/src/go/ast/scope.go b/src/go/ast/scope.go
+index 039ca58bc0..9d97e24e29 100644
+--- a/src/go/ast/scope.go
++++ b/src/go/ast/scope.go
+@@ -144,10 +144,10 @@ func (obj *Object) Pos() token.Pos {
+ 	return token.NoPos
+ }
+ 
+-// ObjKind describes what an object represents.
++// ObjKind describes what an [Object] represents.
+ type ObjKind int
+ 
+-// The list of possible Object kinds.
++// The list of possible [Object] kinds.
+ const (
+ 	Bad ObjKind = iota // for error handling
+ 	Pkg                // package

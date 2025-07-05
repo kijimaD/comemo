@@ -6,6 +6,22 @@ Date:   Tue Nov 10 15:33:59 2009 -0800
     
     R=rsc
     https://golang.org/cl/152046
-
+---
  src/pkg/container/vector/vector.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/container/vector/vector.go b/src/pkg/container/vector/vector.go
+index 714312be48..0a4db3b1f9 100644
+--- a/src/pkg/container/vector/vector.go
++++ b/src/pkg/container/vector/vector.go
+@@ -19,8 +19,8 @@ type Vector struct {
+ 
+ 
+ func copy(dst, src []Element) {
+-	for i := 0; i < len(src); i++ {
+-		dst[i] = src[i]
++	for i, x := range src {
++		dst[i] = x
+ 	}
+ }
+ 

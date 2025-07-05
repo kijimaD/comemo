@@ -24,7 +24,54 @@ Date:   Mon Apr 14 09:48:11 2014 -0400
     R=golang-codereviews, r
     CC=golang-codereviews, iant, mpvl
     https://golang.org/cl/85580046
-
+---
  src/cmd/gc/reflect.c        |  3 +--
  test/fixedbugs/issue7363.go | 26 --------------------------
  2 files changed, 1 insertion(+), 28 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 75d7d8c1c8..af9177f900 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -1138,8 +1138,7 @@ ok:
+ 					ot = dgopkgpath(s, ot, t1->sym->pkg);
+ 			} else {
+ 				ot = dgostringptr(s, ot, nil);
+-				if(t1->type->sym != S &&
+-				   (t1->type->sym->pkg == builtinpkg || !exportname(t1->type->sym->name)))
++				if(t1->type->sym != S && t1->type->sym->pkg == builtinpkg)
+ 					ot = dgopkgpath(s, ot, localpkg);
+ 				else
+ 					ot = dgostringptr(s, ot, nil);
+diff --git a/test/fixedbugs/issue7363.go b/test/fixedbugs/issue7363.go
+deleted file mode 100644
+index 726396a7ce..0000000000
+--- a/test/fixedbugs/issue7363.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// run
+-
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// issue 7363: CanSet must return false for unexported embedded struct fields.
+-
+-package main
+-
+-import "reflect"
+-
+-type a struct {
+-}
+-
+-type B struct {
+-	a
+-}
+-
+-func main() {
+-	b := &B{}
+-	v := reflect.ValueOf(b).Elem().Field(0)
+-	if v.CanSet() {
+-		panic("B.a is an unexported embedded struct field")
+-	}
+-}

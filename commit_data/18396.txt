@@ -10,7 +10,32 @@ Date:   Sun Feb 2 12:52:54 2014 +0100
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/56730044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f0f36a7f3c..79a0a63b24 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -80,6 +80,7 @@ Chris Jones <chris@cjones.org>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
+ Christine Hansmann <chhansmann@gmail.com>
++Christoffer Buchholz <christoffer.buchholz@gmail.com>
+ Christoph Hack <christoph@tux21b.org>
+ Christopher Cahoon <chris.cahoon@gmail.com>
+ Christopher Nielsen <m4dh4tt3r@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 72b9a062e2..7b4c0cfefc 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -129,6 +129,7 @@ Chris Lennert <calennert@gmail.com>
+ Chris Manghane <cmang@golang.org>
+ Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>
+ Christine Hansmann <chhansmann@gmail.com>
++Christoffer Buchholz <christoffer.buchholz@gmail.com>
+ Christoph Hack <christoph@tux21b.org>
+ Christopher Cahoon <chris.cahoon@gmail.com>
+ Christopher Nielsen <m4dh4tt3r@gmail.com>

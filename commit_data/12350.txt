@@ -9,7 +9,34 @@ Date:   Sun Mar 4 11:34:21 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5737043
-
+---
  doc/articles/defer_panic_recover.html | 2 +-
  doc/articles/defer_panic_recover.tmpl | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/articles/defer_panic_recover.html b/doc/articles/defer_panic_recover.html
+index 18c0de2d6c..9798bedef2 100644
+--- a/doc/articles/defer_panic_recover.html
++++ b/doc/articles/defer_panic_recover.html
+@@ -42,7 +42,7 @@ contents of one file to the other:
+ }</pre>
+ 
+ <p>
+-This works, but there is a bug. If the second call to os.Open fails, the
++This works, but there is a bug. If the call to os.Create fails, the
+ function will return without closing the source file. This can be easily
+ remedied by putting a call to src.Close() before the second return statement,
+ but if the function were more complex the problem might not be so easily
+diff --git a/doc/articles/defer_panic_recover.tmpl b/doc/articles/defer_panic_recover.tmpl
+index 60c8eebe0b..d2ca7ae2cf 100644
+--- a/doc/articles/defer_panic_recover.tmpl
++++ b/doc/articles/defer_panic_recover.tmpl
+@@ -22,7 +22,7 @@ contents of one file to the other:
+ {{code "progs/defer.go" `/func CopyFile/` `/STOP/`}}
+ 
+ <p>
+-This works, but there is a bug. If the second call to os.Open fails, the
++This works, but there is a bug. If the call to os.Create fails, the
+ function will return without closing the source file. This can be easily
+ remedied by putting a call to src.Close() before the second return statement,
+ but if the function were more complex the problem might not be so easily

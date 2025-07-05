@@ -14,6 +14,28 @@ Date:   Wed Oct 23 20:54:05 2019 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/getdirentries_test.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/getdirentries_test.go b/src/syscall/getdirentries_test.go
+index 8505a0bb89..1cbed8d4f7 100644
+--- a/src/syscall/getdirentries_test.go
++++ b/src/syscall/getdirentries_test.go
+@@ -66,7 +66,15 @@ func testGetdirentries(t *testing.T, count int) {
+ 		}
+ 		data := buf[:n]
+ 		for len(data) > 0 {
+-			dirent := (*syscall.Dirent)(unsafe.Pointer(&data[0]))
++			// syscall.Getdirentries's return value may be (and usually is) much
++			// smaller than a syscall.Dirent, which has lots of padding for
++			// the name at the end. The compiler's checkptr validation doesn't like
++			// that. So allocate direntMem that's always big enough, and use that
++			// when converting to *syscall.Dirent.
++			var direntMem [unsafe.Sizeof(syscall.Dirent{})]byte
++			copy(direntMem[:], data)
++			dirent := (*syscall.Dirent)(unsafe.Pointer(&direntMem[0]))
++
+ 			data = data[dirent.Reclen:]
+ 			name := make([]byte, dirent.Namlen)
+ 			for i := 0; i < int(dirent.Namlen); i++ {

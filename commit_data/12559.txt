@@ -9,6 +9,21 @@ Date:   Mon Mar 12 13:50:25 2012 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5798060
-
+---
  src/cmd/vet/taglit.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/taglit.go b/src/cmd/vet/taglit.go
+index 864e7bc609..c3c4f3234b 100644
+--- a/src/cmd/vet/taglit.go
++++ b/src/cmd/vet/taglit.go
+@@ -81,7 +81,8 @@ var untaggedLiteralWhitelist = map[string]bool{
+ 
+ 		find $GOROOT/src/pkg -type f | grep -v _test.go | xargs grep '^type.*\[\]' | \
+ 			grep -v ' map\[' | sed 's,/[^/]*go.type,,' | sed 's,.*src/pkg/,,' | \
+-			sed 's, ,.,' |  sed 's, .*,,' | grep -v '\.[a-z]' | sort
++			sed 's, ,.,' |  sed 's, .*,,' | grep -v '\.[a-z]' | \
++			sort | awk '{ print "\"" $0 "\": true," }'
+ 	*/
+ 	"crypto/x509/pkix.RDNSequence":                  true,
+ 	"crypto/x509/pkix.RelativeDistinguishedNameSET": true,

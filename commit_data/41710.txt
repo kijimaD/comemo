@@ -15,7 +15,52 @@ Date:   Fri Oct 18 12:03:18 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/reflectlite/type.go | 4 ++--
  src/reflect/type.go              | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index e90071c67c..49a03ac1e1 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -629,7 +629,7 @@ func (t *funcType) in() []*rtype {
+ 	if t.inCount == 0 {
+ 		return nil
+ 	}
+-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount]
++	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount:t.inCount]
+ }
+ 
+ func (t *funcType) out() []*rtype {
+@@ -641,7 +641,7 @@ func (t *funcType) out() []*rtype {
+ 	if outCount == 0 {
+ 		return nil
+ 	}
+-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount]
++	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount : t.inCount+outCount]
+ }
+ 
+ // add returns p+x.
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 231b38b898..e4b0432d42 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1008,7 +1008,7 @@ func (t *funcType) in() []*rtype {
+ 	if t.inCount == 0 {
+ 		return nil
+ 	}
+-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount]
++	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount:t.inCount]
+ }
+ 
+ func (t *funcType) out() []*rtype {
+@@ -1020,7 +1020,7 @@ func (t *funcType) out() []*rtype {
+ 	if outCount == 0 {
+ 		return nil
+ 	}
+-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount]
++	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount : t.inCount+outCount]
+ }
+ 
+ // add returns p+x.

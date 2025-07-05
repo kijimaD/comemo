@@ -11,6 +11,21 @@ Date:   Fri Oct 28 18:25:31 2016 -0400
     Change-Id: I783c1309e476a9616a1c1c290eac713aba3b0b57
     Reviewed-on: https://go-review.googlesource.com/32332
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/time.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index d9e1f645eb..33da9fe341 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -75,8 +75,7 @@ func (t Time) Before(u Time) bool {
+ // Equal reports whether t and u represent the same time instant.
+ // Two times can be equal even if they are in different locations.
+ // For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
+-// This comparison is different from using t == u, which also compares
+-// the locations.
++// Note that using == with Time values produces unpredictable results.
+ func (t Time) Equal(u Time) bool {
+ 	return t.sec == u.sec && t.nsec == u.nsec
+ }

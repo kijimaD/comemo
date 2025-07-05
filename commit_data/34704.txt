@@ -14,7 +14,42 @@ Date:   Thu Nov 9 15:41:45 2017 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go            | 9 +++++++++
  src/cmd/go/internal/test/test.go | 6 ++++--
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b49c558f4a..ecaa3afeae 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5060,3 +5060,12 @@ func TestGcflagsPatterns(t *testing.T) {
+ 	tg.grepStderr("compile.* -N .*-p reflect", "did not build reflect with -N flag")
+ 	tg.grepStderrNot("compile.* -N .*-p fmt", "incorrectly built fmt with -N flag")
+ }
++
++// Issue 22644
++func TestGoTestMinusN(t *testing.T) {
++	// Intent here is to verify that 'go test -n' works without crashing.
++	// This reuses flag_test.go, but really any test would do.
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "testdata/flag_test.go", "-n", "-args", "-v=7")
++}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index c8e843cef2..529c7e93f6 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1472,8 +1472,10 @@ func builderCleanTest(b *work.Builder, a *work.Action) error {
+ func builderPrintTest(b *work.Builder, a *work.Action) error {
+ 	clean := a.Deps[0]
+ 	run := clean.Deps[0]
+-	os.Stdout.Write(run.TestOutput.Bytes())
+-	run.TestOutput = nil
++	if run.TestOutput != nil {
++		os.Stdout.Write(run.TestOutput.Bytes())
++		run.TestOutput = nil
++	}
+ 	return nil
+ }
+ 

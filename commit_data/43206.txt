@@ -17,7 +17,46 @@ Date:   Tue Mar 17 15:17:22 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/script_test.go                          | 2 +-
  src/cmd/go/testdata/script/install_cross_gobin.txt | 9 ++++-----
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 00c6523cbc..e83782a24a 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -759,7 +759,7 @@ func (ts *testScript) cmdStale(neg bool, args []string) {
+ 	if len(args) == 0 {
+ 		ts.fatalf("usage: stale target...")
+ 	}
+-	tmpl := "{{if .Error}}{{.ImportPath}}: {{.Error.Err}}{else}}"
++	tmpl := "{{if .Error}}{{.ImportPath}}: {{.Error.Err}}{{else}}"
+ 	if neg {
+ 		tmpl += "{{if .Stale}}{{.ImportPath}} is unexpectedly stale{{end}}"
+ 	} else {
+diff --git a/src/cmd/go/testdata/script/install_cross_gobin.txt b/src/cmd/go/testdata/script/install_cross_gobin.txt
+index 57c18be602..33d48fce89 100644
+--- a/src/cmd/go/testdata/script/install_cross_gobin.txt
++++ b/src/cmd/go/testdata/script/install_cross_gobin.txt
+@@ -1,5 +1,5 @@
+ env GO111MODULE=off
+-[!short] skip # rebuilds std for alternate architecture
++[short] skip # rebuilds std for alternate architecture
+ 
+ cd mycmd
+ go build mycmd
+@@ -16,10 +16,9 @@ env GOBIN=$WORK/bin
+ ! go install mycmd
+ ! exists $GOBIN/linux_$GOARCH
+ 
+-# installing standard command should still work
+-# (should also be mtime update only if cmd/pack is up-to-date).
+-! stale cmd/pack
+-[!short] go install cmd/pack
++# The install directory for a cross-compiled standard command should include GOARCH.
++go list -f '{{.Target}}'  cmd/pack
++stdout ${GOROOT}[/\\]pkg[/\\]tool[/\\]${GOOS}_${GOARCH}[/\\]pack$
+ 
+ -- mycmd/x.go --
+ package main

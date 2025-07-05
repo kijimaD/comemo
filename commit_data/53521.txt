@@ -29,7 +29,34 @@ Date:   Sat Jun 25 13:27:11 2022 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Joedian Reid <joedian@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mheap.go | 2 +-
  src/runtime/stack.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index af14bf58a3..be53f7bd91 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -200,7 +200,7 @@ type mheap struct {
+ 	// central is indexed by spanClass.
+ 	central [numSpanClasses]struct {
+ 		mcentral mcentral
+-		pad      [cpu.CacheLinePadSize - unsafe.Sizeof(mcentral{})%cpu.CacheLinePadSize]byte
++		pad      [(cpu.CacheLinePadSize - unsafe.Sizeof(mcentral{})%cpu.CacheLinePadSize) % cpu.CacheLinePadSize]byte
+ 	}
+ 
+ 	spanalloc             fixalloc // allocator for span*
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b94a4a7249..22dc2d4748 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -157,7 +157,7 @@ const (
+ // There is a free list for each order.
+ var stackpool [_NumStackOrders]struct {
+ 	item stackpoolItem
+-	_    [cpu.CacheLinePadSize - unsafe.Sizeof(stackpoolItem{})%cpu.CacheLinePadSize]byte
++	_    [(cpu.CacheLinePadSize - unsafe.Sizeof(stackpoolItem{})%cpu.CacheLinePadSize) % cpu.CacheLinePadSize]byte
+ }
+ 
+ type stackpoolItem struct {

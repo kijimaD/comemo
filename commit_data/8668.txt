@@ -8,7 +8,34 @@ Date:   Thu Jun 9 17:47:01 2011 +1000
     R=jeff
     CC=golang-dev
     https://golang.org/cl/4591057
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 5c1955db14..35489b40af 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -74,7 +74,7 @@ James Whitehead <jnwhiteh@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jeff R. Allen <jra@nella.org>
+-Jeffrey M Hodges <jeff@somethingsimilar.com>
++Jeff Hodges <jeff@somethingsimilar.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Mark <jhmark@xenops.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ae1ce2c486..f8e8e652aa 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -118,7 +118,7 @@ Jamie Gennis <jgennis@google.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+-Jeffrey M Hodges <jeff@somethingsimilar.com>
++Jeff Hodges <jeff@somethingsimilar.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Johan Euphrosine <proppy@google.com>

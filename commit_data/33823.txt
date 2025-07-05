@@ -14,6 +14,39 @@ Date:   Mon Sep 11 07:51:57 2017 +0900
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 14821d8271..47c719b7b6 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1939,7 +1939,12 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
+ 	s := ctxt.Syms.Lookup("runtime.text", 0)
+ 	if s.Type == STEXT {
+-		put(ctxt, s, s.Name, TextSym, s.Value, nil)
++		// We've already included this symbol in ctxt.Textp
++		// if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin.
++		// See data.go:/textaddress
++		if !(ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin) {
++			put(ctxt, s, s.Name, TextSym, s.Value, nil)
++		}
+ 	}
+ 
+ 	n := 0
+@@ -1965,7 +1970,12 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 
+ 	s = ctxt.Syms.Lookup("runtime.etext", 0)
+ 	if s.Type == STEXT {
+-		put(ctxt, s, s.Name, TextSym, s.Value, nil)
++		// We've already included this symbol in ctxt.Textp
++		// if ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin.
++		// See data.go:/textaddress
++		if !(ctxt.DynlinkingGo() && Headtype == objabi.Hdarwin) {
++			put(ctxt, s, s.Name, TextSym, s.Value, nil)
++		}
+ 	}
+ 
+ 	for _, s := range ctxt.Syms.Allsym {

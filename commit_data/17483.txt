@@ -9,7 +9,53 @@ Date:   Fri Sep 6 12:01:01 2013 -0700
     R=golang-dev, rsc, iant, dave
     CC=golang-dev
     https://golang.org/cl/13261050
-
+---
  src/cmd/api/goapi.go                       | 5 +----
  src/cmd/api/testdata/src/pkg/p1/golden.txt | 8 ++++++++
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 1138f4db02..7102e9d409 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -690,16 +690,13 @@ func (w *Walker) emitObj(obj types.Object) {
+ 	switch obj := obj.(type) {
+ 	case *types.Const:
+ 		w.emitf("const %s %s", obj.Name(), w.typeString(obj.Type()))
+-
++		w.emitf("const %s = %s", obj.Name(), obj.Val())
+ 	case *types.Var:
+ 		w.emitf("var %s %s", obj.Name(), w.typeString(obj.Type()))
+-
+ 	case *types.TypeName:
+ 		w.emitType(obj)
+-
+ 	case *types.Func:
+ 		w.emitFunc(obj)
+-
+ 	default:
+ 		panic("unknown object: " + obj.String())
+ 	}
+diff --git a/src/cmd/api/testdata/src/pkg/p1/golden.txt b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+index 12fd452ffe..3c43a226ff 100644
+--- a/src/cmd/api/testdata/src/pkg/p1/golden.txt
++++ b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+@@ -1,10 +1,18 @@
++pkg p1, const A = 1
+ pkg p1, const A ideal-int
++pkg p1, const A64 = 1
+ pkg p1, const A64 int64
++pkg p1, const AIsLowerA = 11
+ pkg p1, const AIsLowerA ideal-int
++pkg p1, const B0 = 2
+ pkg p1, const B0 ideal-int
++pkg p1, const ConstChase2 = 11
+ pkg p1, const ConstChase2 ideal-int
++pkg p1, const ConversionConst = 5
+ pkg p1, const ConversionConst MyInt
++pkg p1, const FloatConst = 3/2
+ pkg p1, const FloatConst ideal-float
++pkg p1, const StrConst = "foo"
+ pkg p1, const StrConst ideal-string
+ pkg p1, func Bar(int8, int16, int64)
+ pkg p1, func Bar1(int8, int16, int64) uint64

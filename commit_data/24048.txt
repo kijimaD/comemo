@@ -10,10 +10,228 @@ Date:   Mon Jun 29 15:17:14 2015 -0400
     Change-Id: I7f27e199d7101b785a7645f789e8fe41a405a86f
     Reviewed-on: https://go-review.googlesource.com/11713
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go    |   6 ++
  src/cmd/compile/internal/gc/racewalk.go |  40 ++++++------
  src/cmd/compile/internal/gc/walk.go     |   5 ++
  src/runtime/race/race_test.go           |   9 +++
  src/runtime/race/testdata/mop_test.go   | 104 ++++++++++++++++++++++++++++++++
  5 files changed, 144 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7d89a821bc..799a17e184 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -434,6 +434,12 @@ func ordermapassign(n *Node, order *Order) {
+ 				a = Nod(OAS, m, l.N)
+ 				typecheck(&a, Etop)
+ 				post = list(post, a)
++			} else if flag_race != 0 && n.Op == OAS2FUNC && !isblank(l.N) {
++				m = l.N
++				l.N = ordertemp(m.Type, order, false)
++				a = Nod(OAS, m, l.N)
++				typecheck(&a, Etop)
++				post = list(post, a)
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 2664e0cd6d..a360c4de65 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -147,27 +147,27 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		goto ret
+ 
+ 	case OBLOCK:
+-		if n.List == nil {
+-			goto ret
+-		}
+-
+-		switch n.List.N.Op {
+-		// Blocks are used for multiple return function calls.
+-		// x, y := f() becomes BLOCK{CALL f, AS x [SP+0], AS y [SP+n]}
+-		// We don't want to instrument between the statements because it will
+-		// smash the results.
+-		case OCALLFUNC, OCALLMETH, OCALLINTER:
+-			racewalknode(&n.List.N, &n.List.N.Ninit, 0, 0)
+-
+-			var fini *NodeList
+-			racewalklist(n.List.Next, &fini)
+-			n.List = concat(n.List, fini)
+-
+-			// Ordinary block, for loop initialization or inlined bodies.
+-		default:
+-			racewalklist(n.List, nil)
++		var out *NodeList
++		for l := n.List; l != nil; l = l.Next {
++			switch l.N.Op {
++			case OCALLFUNC, OCALLMETH, OCALLINTER:
++				racewalknode(&l.N, &out, 0, 0)
++				out = list(out, l.N)
++				// Scan past OAS nodes copying results off stack.
++				// Those must not be instrumented, because the
++				// instrumentation calls will smash the results.
++				// The assignments are to temporaries, so they cannot
++				// be involved in races and need not be instrumented.
++				for l.Next != nil && l.Next.N.Op == OAS && iscallret(l.Next.N.Right) {
++					l = l.Next
++					out = list(out, l.N)
++				}
++			default:
++				racewalknode(&l.N, &out, 0, 0)
++				out = list(out, l.N)
++			}
+ 		}
+-
++		n.List = out
+ 		goto ret
+ 
+ 	case ODEFER:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f5ae9fbe21..626b26fec7 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2127,6 +2127,11 @@ func callnew(t *Type) *Node {
+ 	return mkcall1(fn, Ptrto(t), nil, typename(t))
+ }
+ 
++func iscallret(n *Node) bool {
++	n = outervalue(n)
++	return n.Op == OINDREG && n.Reg == int16(Thearch.REGSP)
++}
++
+ func isstack(n *Node) bool {
+ 	n = outervalue(n)
+ 
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index 37272c751c..6898e74900 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -173,3 +173,12 @@ func TestIssue8102(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue9137(t *testing.T) {
++	a := []string{"a"}
++	i := 0
++	a[i], a[len(a)-1], a = a[len(a)-1], "", a[:len(a)-1]
++	if len(a) != 0 || a[:1][0] != "" {
++		t.Errorf("mangled a: %q %q", a, a[:1])
++	}
++}
+diff --git a/src/runtime/race/testdata/mop_test.go b/src/runtime/race/testdata/mop_test.go
+index 7f95051a8c..d7cbc98f95 100644
+--- a/src/runtime/race/testdata/mop_test.go
++++ b/src/runtime/race/testdata/mop_test.go
+@@ -1587,6 +1587,110 @@ func TestRaceBlockAs(t *testing.T) {
+ 	<-c
+ }
+ 
++func TestRaceBlockCall1(t *testing.T) {
++	done := make(chan bool)
++	x, y := 0, 0
++	go func() {
++		f := func() (int, int) {
++			return 42, 43
++		}
++		x, y = f()
++		done <- true
++	}()
++	_ = x
++	<-done
++	if x != 42 || y != 43 {
++		panic("corrupted data")
++	}
++}
++func TestRaceBlockCall2(t *testing.T) {
++	done := make(chan bool)
++	x, y := 0, 0
++	go func() {
++		f := func() (int, int) {
++			return 42, 43
++		}
++		x, y = f()
++		done <- true
++	}()
++	_ = y
++	<-done
++	if x != 42 || y != 43 {
++		panic("corrupted data")
++	}
++}
++func TestRaceBlockCall3(t *testing.T) {
++	done := make(chan bool)
++	var x *int
++	y := 0
++	go func() {
++		f := func() (*int, int) {
++			i := 42
++			return &i, 43
++		}
++		x, y = f()
++		done <- true
++	}()
++	_ = x
++	<-done
++	if *x != 42 || y != 43 {
++		panic("corrupted data")
++	}
++}
++func TestRaceBlockCall4(t *testing.T) {
++	done := make(chan bool)
++	x := 0
++	var y *int
++	go func() {
++		f := func() (int, *int) {
++			i := 43
++			return 42, &i
++		}
++		x, y = f()
++		done <- true
++	}()
++	_ = y
++	<-done
++	if x != 42 || *y != 43 {
++		panic("corrupted data")
++	}
++}
++func TestRaceBlockCall5(t *testing.T) {
++	done := make(chan bool)
++	var x *int
++	y := 0
++	go func() {
++		f := func() (*int, int) {
++			i := 42
++			return &i, 43
++		}
++		x, y = f()
++		done <- true
++	}()
++	_ = y
++	<-done
++	if *x != 42 || y != 43 {
++		panic("corrupted data")
++	}
++}
++func TestRaceBlockCall6(t *testing.T) {
++	done := make(chan bool)
++	x := 0
++	var y *int
++	go func() {
++		f := func() (int, *int) {
++			i := 43
++			return 42, &i
++		}
++		x, y = f()
++		done <- true
++	}()
++	_ = x
++	<-done
++	if x != 42 || *y != 43 {
++		panic("corrupted data")
++	}
++}
+ func TestRaceSliceSlice(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	x := make([]int, 10)

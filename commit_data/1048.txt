@@ -8,8 +8,41 @@ Date:   Tue Nov 4 13:55:18 2008 -0800
     DELTA=3501  (1752 added, 1749 deleted, 0 changed)
     OCL=18460
     CL=18471
-
+---
  {usr/gri/bignum => src/lib}/bignum.go   | 0
  src/lib/make.bash                       | 1 +
  {usr/gri/bignum => test}/bignum_test.go | 2 ++
  3 files changed, 3 insertions(+)
+
+diff --git a/usr/gri/bignum/bignum.go b/src/lib/bignum.go
+similarity index 100%
+rename from usr/gri/bignum/bignum.go
+rename to src/lib/bignum.go
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+index e6e1e18955..7ea1861921 100755
+--- a/src/lib/make.bash
++++ b/src/lib/make.bash
+@@ -35,6 +35,7 @@ for i in \
+ 	io.go\
+ 	bufio.go\
+ 	once.go\
++	bignum.go\
+ 
+ do
+ 	base=$(basename $i .go)
+diff --git a/usr/gri/bignum/bignum_test.go b/test/bignum_test.go
+similarity index 99%
+rename from usr/gri/bignum/bignum_test.go
+rename to test/bignum_test.go
+index f277bb941f..3b80a309c3 100644
+--- a/usr/gri/bignum/bignum_test.go
++++ b/test/bignum_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
+ package main
+ 
+ import Big "bignum"

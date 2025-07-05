@@ -22,6 +22,20 @@ Date:   Mon Jul 27 13:52:04 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12687
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/xml/marshal.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index b8dad494fb..86d1422a5b 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -945,7 +945,7 @@ func (s *parentStack) trim(parents []string) error {
+ 			return err
+ 		}
+ 	}
+-	s.stack = parents[:split]
++	s.stack = s.stack[:split]
+ 	return nil
+ }
+ 

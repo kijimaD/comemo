@@ -16,7 +16,57 @@ Date:   Mon May 17 10:47:04 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go                   | 10 ++++++++--
  src/cmd/compile/internal/types2/testdata/check/decls0.src |  8 ++++----
  2 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 6d149340b2..f0f769ec70 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -576,17 +576,23 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 
+ 		check.recordSelection(e, MethodExpr, x.typ, m, index, indirect)
+ 
++		sig := m.typ.(*Signature)
++		if sig.recv == nil {
++			check.error(e, "illegal cycle in method declaration")
++			goto Error
++		}
++
+ 		// the receiver type becomes the type of the first function
+ 		// argument of the method expression's function type
+ 		var params []*Var
+-		sig := m.typ.(*Signature)
+ 		if sig.params != nil {
+ 			params = sig.params.vars
+ 		}
++		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, sig.recv.name, x.typ)}, params...)
+ 		x.mode = value
+ 		x.typ = &Signature{
+ 			tparams:  sig.tparams,
+-			params:   NewTuple(append([]*Var{NewVar(nopos, check.pkg, "_", x.typ)}, params...)...),
++			params:   NewTuple(params...),
+ 			results:  sig.results,
+ 			variadic: sig.variadic,
+ 		}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls0.src b/src/cmd/compile/internal/types2/testdata/check/decls0.src
+index e78d8867e0..80bf4ebb3d 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/decls0.src
+@@ -185,10 +185,10 @@ func f2(x *f2 /* ERROR "not a type" */ ) {}
+ func f3() (x f3 /* ERROR "not a type" */ ) { return }
+ func f4() (x *f4 /* ERROR "not a type" */ ) { return }
+ 
+-func (S0) m1(x S0 /* ERROR value .* is not a type */ .m1) {}
+-func (S0) m2(x *S0 /* ERROR value .* is not a type */ .m2) {}
+-func (S0) m3() (x S0 /* ERROR value .* is not a type */ .m3) { return }
+-func (S0) m4() (x *S0 /* ERROR value .* is not a type */ .m4) { return }
++func (S0) m1(x S0 /* ERROR illegal cycle in method declaration */ .m1) {}
++func (S0) m2(x *S0 /* ERROR illegal cycle in method declaration */ .m2) {}
++func (S0) m3() (x S0 /* ERROR illegal cycle in method declaration */ .m3) { return }
++func (S0) m4() (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { return }
+ 
+ // interfaces may not have any blank methods
+ type BlankI interface {

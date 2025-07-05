@@ -26,7 +26,7 @@ Date:   Wed Oct 2 13:29:47 2024 +0200
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  .../internal/fips/sha3/_asm/keccakf_amd64_asm.go   |   2 +-
  src/crypto/internal/fips/sha3/hashes.go            |  24 +-
  src/crypto/internal/fips/sha3/keccakf.go           |  29 +-
@@ -40,3 +40,845 @@ Date:   Wed Oct 2 13:29:47 2024 +0200
  src/crypto/internal/fips/sha3/sha3_test.go         |  16 +-
  src/crypto/internal/fips/sha3/shake.go             |  10 +-
  12 files changed, 198 insertions(+), 344 deletions(-)
+
+diff --git a/src/crypto/internal/fips/sha3/_asm/keccakf_amd64_asm.go b/src/crypto/internal/fips/sha3/_asm/keccakf_amd64_asm.go
+index 78e931f757..06e2db3a44 100644
+--- a/src/crypto/internal/fips/sha3/_asm/keccakf_amd64_asm.go
++++ b/src/crypto/internal/fips/sha3/_asm/keccakf_amd64_asm.go
+@@ -101,7 +101,7 @@ const (
+ 
+ func main() {
+ 	Package("golang.org/x/crypto/sha3")
+-	ConstraintExpr("amd64,!purego,gc")
++	ConstraintExpr("!purego")
+ 	keccakF1600()
+ 	Generate()
+ }
+diff --git a/src/crypto/internal/fips/sha3/hashes.go b/src/crypto/internal/fips/sha3/hashes.go
+index b3d4b0a39a..da1b9bcf5f 100644
+--- a/src/crypto/internal/fips/sha3/hashes.go
++++ b/src/crypto/internal/fips/sha3/hashes.go
+@@ -6,22 +6,22 @@ package sha3
+ 
+ // New224 returns a new Digest computing the SHA3-224 hash.
+ func New224() *Digest {
+-	return new224()
++	return &Digest{rate: rateK448, outputLen: 28, dsbyte: dsbyteSHA3}
+ }
+ 
+ // New256 returns a new Digest computing the SHA3-256 hash.
+ func New256() *Digest {
+-	return new256()
++	return &Digest{rate: rateK512, outputLen: 32, dsbyte: dsbyteSHA3}
+ }
+ 
+ // New384 returns a new Digest computing the SHA3-384 hash.
+ func New384() *Digest {
+-	return new384()
++	return &Digest{rate: rateK768, outputLen: 48, dsbyte: dsbyteSHA3}
+ }
+ 
+ // New512 returns a new Digest computing the SHA3-512 hash.
+ func New512() *Digest {
+-	return new512()
++	return &Digest{rate: rateK1024, outputLen: 64, dsbyte: dsbyteSHA3}
+ }
+ 
+ // TODO(fips): do this in the stdlib crypto/sha3 package.
+@@ -46,22 +46,6 @@ const (
+ 	rateK1024 = (1600 - 1024) / 8
+ )
+ 
+-func new224Generic() *Digest {
+-	return &Digest{rate: rateK448, outputLen: 28, dsbyte: dsbyteSHA3}
+-}
+-
+-func new256Generic() *Digest {
+-	return &Digest{rate: rateK512, outputLen: 32, dsbyte: dsbyteSHA3}
+-}
+-
+-func new384Generic() *Digest {
+-	return &Digest{rate: rateK768, outputLen: 48, dsbyte: dsbyteSHA3}
+-}
+-
+-func new512Generic() *Digest {
+-	return &Digest{rate: rateK1024, outputLen: 64, dsbyte: dsbyteSHA3}
+-}
+-
+ // NewLegacyKeccak256 returns a new Digest computing the legacy, non-standard
+ // Keccak-256 hash.
+ func NewLegacyKeccak256() *Digest {
+diff --git a/src/crypto/internal/fips/sha3/keccakf.go b/src/crypto/internal/fips/sha3/keccakf.go
+index ce48b1dd3e..ce3bffd6f0 100644
+--- a/src/crypto/internal/fips/sha3/keccakf.go
++++ b/src/crypto/internal/fips/sha3/keccakf.go
+@@ -2,11 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !amd64 || purego || !gc
+-
+ package sha3
+ 
+-import "math/bits"
++import (
++	"internal/byteorder"
++	"internal/goarch"
++	"math/bits"
++	"unsafe"
++)
+ 
+ // rc stores the round constants for use in the ι step.
+ var rc = [24]uint64{
+@@ -36,9 +39,23 @@ var rc = [24]uint64{
+ 	0x8000000080008008,
+ }
+ 
+-// keccakF1600 applies the Keccak permutation to a 1600b-wide
+-// state represented as a slice of 25 uint64s.
+-func keccakF1600(a *[25]uint64) {
++// keccakF1600Generic applies the Keccak permutation.
++func keccakF1600Generic(da *[200]byte) {
++	var a *[25]uint64
++	if goarch.BigEndian {
++		a = new([25]uint64)
++		for i := range a {
++			a[i] = byteorder.LeUint64(da[i*8:])
++		}
++		defer func() {
++			for i := range a {
++				byteorder.LePutUint64(da[i*8:], a[i])
++			}
++		}()
++	} else {
++		a = (*[25]uint64)(unsafe.Pointer(da))
++	}
++
+ 	// Implementation translated from Keccak-inplace.c
+ 	// in the keccak reference code.
+ 	var t, bc0, bc1, bc2, bc3, bc4, d0, d1, d2, d3, d4 uint64
+diff --git a/src/crypto/internal/fips/sha3/keccakf_amd64.go b/src/crypto/internal/fips/sha3/keccakf_amd64.go
+deleted file mode 100644
+index b908696be5..0000000000
+--- a/src/crypto/internal/fips/sha3/keccakf_amd64.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build amd64 && !purego && gc
+-
+-package sha3
+-
+-// This function is implemented in keccakf_amd64.s.
+-
+-//go:noescape
+-
+-func keccakF1600(a *[25]uint64)
+diff --git a/src/crypto/internal/fips/sha3/sha3.go b/src/crypto/internal/fips/sha3/sha3.go
+index 8f80839ec6..3c00f18411 100644
+--- a/src/crypto/internal/fips/sha3/sha3.go
++++ b/src/crypto/internal/fips/sha3/sha3.go
+@@ -13,9 +13,6 @@ package sha3
+ import (
+ 	"crypto/internal/fips/subtle"
+ 	"errors"
+-	"internal/byteorder"
+-	"internal/goarch"
+-	"unsafe"
+ )
+ 
+ // spongeDirection indicates the direction bytes are flowing through the sponge.
+@@ -77,24 +74,8 @@ func (d *Digest) Clone() *Digest {
+ 
+ // permute applies the KeccakF-1600 permutation.
+ func (d *Digest) permute() {
+-	var a *[25]uint64
+-	if goarch.BigEndian {
+-		a = new([25]uint64)
+-		for i := range a {
+-			a[i] = byteorder.LeUint64(d.a[i*8:])
+-		}
+-	} else {
+-		a = (*[25]uint64)(unsafe.Pointer(&d.a))
+-	}
+-
+-	keccakF1600(a)
++	keccakF1600(&d.a)
+ 	d.n = 0
+-
+-	if goarch.BigEndian {
+-		for i := range a {
+-			byteorder.LePutUint64(d.a[i*8:], a[i])
+-		}
+-	}
+ }
+ 
+ // padAndPermute appends the domain separation bits in dsbyte, applies
+@@ -115,7 +96,8 @@ func (d *Digest) padAndPermute() {
+ }
+ 
+ // Write absorbs more data into the hash's state.
+-func (d *Digest) Write(p []byte) (n int, err error) {
++func (d *Digest) Write(p []byte) (n int, err error) { return d.write(p) }
++func (d *Digest) writeGeneric(p []byte) (n int, err error) {
+ 	if d.state != spongeAbsorbing {
+ 		panic("sha3: Write after Read")
+ 	}
+@@ -137,7 +119,7 @@ func (d *Digest) Write(p []byte) (n int, err error) {
+ }
+ 
+ // read squeezes an arbitrary number of bytes from the sponge.
+-func (d *Digest) read(out []byte) (n int, err error) {
++func (d *Digest) readGeneric(out []byte) (n int, err error) {
+ 	// If we're still absorbing, pad and apply the permutation.
+ 	if d.state == spongeAbsorbing {
+ 		d.padAndPermute()
+@@ -162,7 +144,8 @@ func (d *Digest) read(out []byte) (n int, err error) {
+ 
+ // Sum appends the current hash to b and returns the resulting slice.
+ // It does not change the underlying hash state.
+-func (d *Digest) Sum(b []byte) []byte {
++func (d *Digest) Sum(b []byte) []byte { return d.sum(b) }
++func (d *Digest) sumGeneric(b []byte) []byte {
+ 	if d.state != spongeAbsorbing {
+ 		panic("sha3: Sum after Read")
+ 	}
+diff --git a/src/crypto/internal/fips/sha3/sha3_amd64.go b/src/crypto/internal/fips/sha3/sha3_amd64.go
+new file mode 100644
+index 0000000000..d986e3f7b3
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/sha3_amd64.go
+@@ -0,0 +1,20 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++package sha3
++
++//go:noescape
++func keccakF1600(a *[200]byte)
++
++func (d *Digest) write(p []byte) (n int, err error) {
++	return d.writeGeneric(p)
++}
++func (d *Digest) read(out []byte) (n int, err error) {
++	return d.readGeneric(out)
++}
++func (d *Digest) sum(b []byte) []byte {
++	return d.sumGeneric(b)
++}
+diff --git a/src/crypto/internal/fips/sha3/keccakf_amd64.s b/src/crypto/internal/fips/sha3/sha3_amd64.s
+similarity index 99%
+rename from src/crypto/internal/fips/sha3/keccakf_amd64.s
+rename to src/crypto/internal/fips/sha3/sha3_amd64.s
+index 99e2f16e97..7f9a315157 100644
+--- a/src/crypto/internal/fips/sha3/keccakf_amd64.s
++++ b/src/crypto/internal/fips/sha3/sha3_amd64.s
+@@ -1,8 +1,8 @@
+ // Code generated by command: go run keccakf_amd64_asm.go -out ../keccakf_amd64.s -pkg sha3. DO NOT EDIT.
+ 
+-//go:build amd64 && !purego && gc
++//go:build !purego
+ 
+-// func keccakF1600(a *[25]uint64)
++// func keccakF1600(a *[200]byte)
+ TEXT ·keccakF1600(SB), $200-8
+ 	MOVQ a+0(FP), DI
+ 
+diff --git a/src/crypto/internal/fips/sha3/sha3_noasm.go b/src/crypto/internal/fips/sha3/sha3_noasm.go
+index aaee0d9742..0bcfc73d02 100644
+--- a/src/crypto/internal/fips/sha3/sha3_noasm.go
++++ b/src/crypto/internal/fips/sha3/sha3_noasm.go
+@@ -2,30 +2,20 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !gc || purego || !s390x || !ignore
++//go:build (!amd64 && !s390x) || purego
+ 
+ package sha3
+ 
+-func new224() *Digest {
+-	return new224Generic()
++func keccakF1600(a *[200]byte) {
++	keccakF1600Generic(a)
+ }
+ 
+-func new256() *Digest {
+-	return new256Generic()
++func (d *Digest) write(p []byte) (n int, err error) {
++	return d.writeGeneric(p)
+ }
+-
+-func new384() *Digest {
+-	return new384Generic()
+-}
+-
+-func new512() *Digest {
+-	return new512Generic()
++func (d *Digest) read(out []byte) (n int, err error) {
++	return d.readGeneric(out)
+ }
+-
+-func newShake128() *SHAKE {
+-	return newShake128Generic()
+-}
+-
+-func newShake256() *SHAKE {
+-	return newShake256Generic()
++func (d *Digest) sum(b []byte) []byte {
++	return d.sumGeneric(b)
+ }
+diff --git a/src/crypto/internal/fips/sha3/sha3_s390x.go b/src/crypto/internal/fips/sha3/sha3_s390x.go
+index d60acc349d..0a36d78b2c 100644
+--- a/src/crypto/internal/fips/sha3/sha3_s390x.go
++++ b/src/crypto/internal/fips/sha3/sha3_s390x.go
+@@ -2,298 +2,188 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build gc && !purego && ignore
++//go:build !purego
+ 
+ package sha3
+ 
++import (
++	"crypto/internal/fips/subtle"
++	"internal/cpu"
++)
++
+ // This file contains code for using the 'compute intermediate
+ // message digest' (KIMD) and 'compute last message digest' (KLMD)
+-// instructions to compute SHA-3 and SHAKE hashes on IBM Z.
++// instructions to compute SHA-3 and SHAKE hashes on IBM Z. See
++// [z/Architecture Principles of Operation, Fourteen Edition].
++//
++// [z/Architecture Principles of Operation, Fourteen Edition]: https://www.ibm.com/docs/en/module_1678991624569/pdf/SA22-7832-13.pdf
+ 
+-import "internal/cpu"
++func keccakF1600(a *[200]byte) {
++	keccakF1600Generic(a)
++}
+ 
+ // codes represent 7-bit KIMD/KLMD function codes as defined in
+ // the Principles of Operation.
+ type code uint64
+ 
+ const (
+-	// function codes for KIMD/KLMD
++	// Function codes for KIMD/KLMD, from Figure 7-207.
+ 	sha3_224  code = 32
+-	sha3_256       = 33
+-	sha3_384       = 34
+-	sha3_512       = 35
+-	shake_128      = 36
+-	shake_256      = 37
++	sha3_256  code = 33
++	sha3_384  code = 34
++	sha3_512  code = 35
++	shake_128 code = 36
++	shake_256 code = 37
+ 	nopad          = 0x100
+ )
+ 
+ // kimd is a wrapper for the 'compute intermediate message digest' instruction.
+-// src must be a multiple of the rate for the given function code.
++// src is absorbed into the sponge state a.
++// len(src) must be a multiple of the rate for the given function code.
+ //
+ //go:noescape
+-func kimd(function code, chain *[200]byte, src []byte)
++func kimd(function code, a *[200]byte, src []byte)
+ 
+ // klmd is a wrapper for the 'compute last message digest' instruction.
+-// src padding is handled by the instruction.
++// src is padded and absorbed into the sponge state a.
++//
++// If the function is a SHAKE XOF, the sponge is then optionally squeezed into
++// dst by first applying the permutation and then copying the output until dst
++// runs out. If len(dst) is a multiple of rate (including zero), the final
++// permutation is not applied. If the nopad bit of function is set and len(src)
++// is zero, only squeezing is performed.
+ //
+ //go:noescape
+-func klmd(function code, chain *[200]byte, dst, src []byte)
+-
+-type asmState struct {
+-	a         [200]byte       // 1600 bit state
+-	buf       []byte          // care must be taken to ensure cap(buf) is a multiple of rate
+-	rate      int             // equivalent to block size
+-	storage   [3072]byte      // underlying storage for buf
+-	outputLen int             // output length for full security
+-	function  code            // KIMD/KLMD function code
+-	state     spongeDirection // whether the sponge is absorbing or squeezing
+-}
+-
+-func newAsmState(function code) *asmState {
+-	var s asmState
+-	s.function = function
+-	switch function {
+-	case sha3_224:
+-		s.rate = 144
+-		s.outputLen = 28
+-	case sha3_256:
+-		s.rate = 136
+-		s.outputLen = 32
+-	case sha3_384:
+-		s.rate = 104
+-		s.outputLen = 48
+-	case sha3_512:
+-		s.rate = 72
+-		s.outputLen = 64
+-	case shake_128:
+-		s.rate = 168
+-		s.outputLen = 32
+-	case shake_256:
+-		s.rate = 136
+-		s.outputLen = 64
+-	default:
+-		panic("sha3: unrecognized function code")
+-	}
+-
+-	// limit s.buf size to a multiple of s.rate
+-	s.resetBuf()
+-	return &s
+-}
+-
+-func (s *asmState) clone() *asmState {
+-	c := *s
+-	c.buf = c.storage[:len(s.buf):cap(s.buf)]
+-	return &c
+-}
++func klmd(function code, a *[200]byte, dst, src []byte)
+ 
+-// copyIntoBuf copies b into buf. It will panic if there is not enough space to
+-// store all of b.
+-func (s *asmState) copyIntoBuf(b []byte) {
+-	bufLen := len(s.buf)
+-	s.buf = s.buf[:len(s.buf)+len(b)]
+-	copy(s.buf[bufLen:], b)
+-}
+-
+-// resetBuf points buf at storage, sets the length to 0 and sets cap to be a
+-// multiple of the rate.
+-func (s *asmState) resetBuf() {
+-	max := (cap(s.storage) / s.rate) * s.rate
+-	s.buf = s.storage[:0:max]
+-}
+-
+-// Write (via the embedded io.Writer interface) adds more data to the running hash.
+-// It never returns an error.
+-func (s *asmState) Write(b []byte) (int, error) {
+-	if s.state != spongeAbsorbing {
++func (d *Digest) write(p []byte) (n int, err error) {
++	if d.state != spongeAbsorbing {
+ 		panic("sha3: Write after Read")
+ 	}
+-	length := len(b)
+-	for len(b) > 0 {
+-		if len(s.buf) == 0 && len(b) >= cap(s.buf) {
+-			// Hash the data directly and push any remaining bytes
+-			// into the buffer.
+-			remainder := len(b) % s.rate
+-			kimd(s.function, &s.a, b[:len(b)-remainder])
+-			if remainder != 0 {
+-				s.copyIntoBuf(b[len(b)-remainder:])
+-			}
+-			return length, nil
+-		}
++	if !cpu.S390X.HasSHA3 {
++		return d.writeGeneric(p)
++	}
+ 
+-		if len(s.buf) == cap(s.buf) {
+-			// flush the buffer
+-			kimd(s.function, &s.a, s.buf)
+-			s.buf = s.buf[:0]
+-		}
++	n = len(p)
+ 
+-		// copy as much as we can into the buffer
+-		n := len(b)
+-		if len(b) > cap(s.buf)-len(s.buf) {
+-			n = cap(s.buf) - len(s.buf)
+-		}
+-		s.copyIntoBuf(b[:n])
+-		b = b[n:]
++	// If there is buffered input in the state, keep XOR'ing.
++	if d.n > 0 {
++		x := subtle.XORBytes(d.a[d.n:d.rate], d.a[d.n:d.rate], p)
++		d.n += x
++		p = p[x:]
+ 	}
+-	return length, nil
+-}
+ 
+-// Read squeezes an arbitrary number of bytes from the sponge.
+-func (s *asmState) Read(out []byte) (n int, err error) {
+-	// The 'compute last message digest' instruction only stores the digest
+-	// at the first operand (dst) for SHAKE functions.
+-	if s.function != shake_128 && s.function != shake_256 {
+-		panic("sha3: can only call Read for SHAKE functions")
++	// If the sponge is full, apply the permutation.
++	if d.n == d.rate {
++		// Absorbing a "rate"ful of zeroes effectively XORs the state with
++		// zeroes (a no-op) and then runs the permutation. The actual function
++		// doesn't matter, they all run the same permutation.
++		kimd(shake_128, &d.a, make([]byte, rateK256))
++		d.n = 0
+ 	}
+ 
+-	n = len(out)
+-
+-	// need to pad if we were absorbing
+-	if s.state == spongeAbsorbing {
+-		s.state = spongeSqueezing
+-
+-		// write hash directly into out if possible
+-		if len(out)%s.rate == 0 {
+-			klmd(s.function, &s.a, out, s.buf) // len(out) may be 0
+-			s.buf = s.buf[:0]
+-			return
+-		}
+-
+-		// write hash into buffer
+-		max := cap(s.buf)
+-		if max > len(out) {
+-			max = (len(out)/s.rate)*s.rate + s.rate
+-		}
+-		klmd(s.function, &s.a, s.buf[:max], s.buf)
+-		s.buf = s.buf[:max]
++	// Absorb full blocks with KIMD.
++	if len(p) >= d.rate {
++		wholeBlocks := len(p) / d.rate * d.rate
++		kimd(d.function(), &d.a, p[:wholeBlocks])
++		p = p[wholeBlocks:]
+ 	}
+ 
+-	for len(out) > 0 {
+-		// flush the buffer
+-		if len(s.buf) != 0 {
+-			c := copy(out, s.buf)
+-			out = out[c:]
+-			s.buf = s.buf[c:]
+-			continue
+-		}
+-
+-		// write hash directly into out if possible
+-		if len(out)%s.rate == 0 {
+-			klmd(s.function|nopad, &s.a, out, nil)
+-			return
+-		}
+-
+-		// write hash into buffer
+-		s.resetBuf()
+-		if cap(s.buf) > len(out) {
+-			s.buf = s.buf[:(len(out)/s.rate)*s.rate+s.rate]
+-		}
+-		klmd(s.function|nopad, &s.a, s.buf, nil)
++	// If there is any trailing input, XOR it into the state.
++	if len(p) > 0 {
++		d.n += subtle.XORBytes(d.a[d.n:d.rate], d.a[d.n:d.rate], p)
+ 	}
++
+ 	return
+ }
+ 
+-// Sum appends the current hash to b and returns the resulting slice.
+-// It does not change the underlying hash state.
+-func (s *asmState) Sum(b []byte) []byte {
+-	if s.state != spongeAbsorbing {
++func (d *Digest) sum(b []byte) []byte {
++	if d.state != spongeAbsorbing {
+ 		panic("sha3: Sum after Read")
+ 	}
++	if !cpu.S390X.HasSHA3 ||
++		d.dsbyte != dsbyteSHA3 && d.dsbyte != dsbyteShake {
++		return d.sumGeneric(b)
++	}
+ 
+ 	// Copy the state to preserve the original.
+-	a := s.a
++	a := d.a
+ 
+-	// Hash the buffer. Note that we don't clear it because we
+-	// aren't updating the state.
+-	switch s.function {
++	// We "absorb" a buffer of zeroes as long as the amount of input we already
++	// XOR'd into the sponge, to skip over it. The max cap is specified to avoid
++	// an allocation.
++	buf := make([]byte, d.n, rateK256)
++	function := d.function()
++	switch function {
+ 	case sha3_224, sha3_256, sha3_384, sha3_512:
+-		klmd(s.function, &a, nil, s.buf)
+-		return append(b, a[:s.outputLen]...)
++		klmd(function, &a, nil, buf)
++		return append(b, a[:d.outputLen]...)
+ 	case shake_128, shake_256:
+-		d := make([]byte, s.outputLen, 64)
+-		klmd(s.function, &a, d, s.buf)
+-		return append(b, d[:s.outputLen]...)
++		h := make([]byte, d.outputLen, 64)
++		klmd(function, &a, h, buf)
++		return append(b, h...)
+ 	default:
+ 		panic("sha3: unknown function")
+ 	}
+ }
+ 
+-// Reset resets the Hash to its initial state.
+-func (s *asmState) Reset() {
+-	for i := range s.a {
+-		s.a[i] = 0
++func (d *Digest) read(out []byte) (n int, err error) {
++	if !cpu.S390X.HasSHA3 || d.dsbyte != dsbyteShake {
++		return d.readGeneric(out)
+ 	}
+-	s.resetBuf()
+-	s.state = spongeAbsorbing
+-}
+-
+-// Size returns the number of bytes Sum will return.
+-func (s *asmState) Size() int {
+-	return s.outputLen
+-}
+-
+-// BlockSize returns the hash's underlying block size.
+-// The Write method must be able to accept any amount
+-// of data, but it may operate more efficiently if all writes
+-// are a multiple of the block size.
+-func (s *asmState) BlockSize() int {
+-	return s.rate
+-}
+-
+-// Clone returns a copy of the ShakeHash in its current state.
+-func (s *asmState) Clone() ShakeHash {
+-	return s.clone()
+-}
+ 
+-// new224 returns an assembly implementation of SHA3-224 if available,
+-// otherwise it returns a generic implementation.
+-func new224() *Digest {
+-	if cpu.S390X.HasSHA3 {
+-		return newAsmState(sha3_224)
+-	}
+-	return new224Generic()
+-}
++	n = len(out)
+ 
+-// new256 returns an assembly implementation of SHA3-256 if available,
+-// otherwise it returns a generic implementation.
+-func new256() *Digest {
+-	if cpu.S390X.HasSHA3 {
+-		return newAsmState(sha3_256)
+-	}
+-	return new256Generic()
+-}
++	if d.state == spongeAbsorbing {
++		d.state = spongeSqueezing
++
++		// We "absorb" a buffer of zeroes as long as the amount of input we
++		// already XOR'd into the sponge, to skip over it. The max cap is
++		// specified to avoid an allocation.
++		buf := make([]byte, d.n, rateK256)
++		klmd(d.function(), &d.a, out, buf)
++	} else {
++		// We have "buffered" output still to copy.
++		if d.n < d.rate {
++			x := copy(out, d.a[d.n:d.rate])
++			d.n += x
++			out = out[x:]
++		}
++		if len(out) == 0 {
++			return
++		}
+ 
+-// new384 returns an assembly implementation of SHA3-384 if available,
+-// otherwise it returns a generic implementation.
+-func new384() *Digest {
+-	if cpu.S390X.HasSHA3 {
+-		return newAsmState(sha3_384)
++		klmd(d.function()|nopad, &d.a, out, nil)
+ 	}
+-	return new384Generic()
+-}
+ 
+-// new512 returns an assembly implementation of SHA3-512 if available,
+-// otherwise it returns a generic implementation.
+-func new512() *Digest {
+-	if cpu.S390X.HasSHA3 {
+-		return newAsmState(sha3_512)
++	if len(out)%d.rate == 0 {
++		// The final permutation was not performed,
++		// so there is no "buffered" output.
++		d.n = d.rate
++	} else {
++		d.n = len(out) % d.rate
+ 	}
+-	return new512Generic()
+-}
+ 
+-// newShake128 returns an assembly implementation of SHAKE-128 if available,
+-// otherwise it returns a generic implementation.
+-func newShake128() ShakeHash {
+-	if cpu.S390X.HasSHA3 {
+-		return newAsmState(shake_128)
+-	}
+-	return newShake128Generic()
++	return
+ }
+ 
+-// newShake256 returns an assembly implementation of SHAKE-256 if available,
+-// otherwise it returns a generic implementation.
+-func newShake256() ShakeHash {
+-	if cpu.S390X.HasSHA3 {
+-		return newAsmState(shake_256)
++func (d *Digest) function() code {
++	switch d.rate {
++	case rateK256:
++		return shake_128
++	case rateK448:
++		return sha3_224
++	case rateK512:
++		if d.dsbyte == dsbyteSHA3 {
++			return sha3_256
++		} else {
++			return shake_256
++		}
++	case rateK768:
++		return sha3_384
++	case rateK1024:
++		return sha3_512
++	default:
++		panic("invalid rate")
+ 	}
+-	return newShake256Generic()
+ }
+diff --git a/src/crypto/internal/fips/sha3/sha3_s390x.s b/src/crypto/internal/fips/sha3/sha3_s390x.s
+index df51683097..c3944da628 100644
+--- a/src/crypto/internal/fips/sha3/sha3_s390x.s
++++ b/src/crypto/internal/fips/sha3/sha3_s390x.s
+@@ -2,14 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build gc && !purego && ignore
++//go:build !purego
+ 
+ #include "textflag.h"
+ 
+-// func kimd(function code, chain *[200]byte, src []byte)
++// func kimd(function code, a *[200]byte, src []byte)
+ TEXT ·kimd(SB), NOFRAME|NOSPLIT, $0-40
+ 	MOVD function+0(FP), R0
+-	MOVD chain+8(FP), R1
++	MOVD a+8(FP), R1
+ 	LMG  src+16(FP), R2, R3 // R2=base, R3=len
+ 
+ continue:
+@@ -18,11 +18,10 @@ continue:
+ 	MOVD $0, R0      // reset R0 for pre-go1.8 compilers
+ 	RET
+ 
+-// func klmd(function code, chain *[200]byte, dst, src []byte)
++// func klmd(function code, a *[200]byte, dst, src []byte)
+ TEXT ·klmd(SB), NOFRAME|NOSPLIT, $0-64
+-	// TODO: SHAKE support
+ 	MOVD function+0(FP), R0
+-	MOVD chain+8(FP), R1
++	MOVD a+8(FP), R1
+ 	LMG  dst+16(FP), R2, R3 // R2=base, R3=len
+ 	LMG  src+40(FP), R4, R5 // R4=base, R5=len
+ 
+diff --git a/src/crypto/internal/fips/sha3/sha3_test.go b/src/crypto/internal/fips/sha3/sha3_test.go
+index 486213ca34..73c9dfe9e3 100644
+--- a/src/crypto/internal/fips/sha3/sha3_test.go
++++ b/src/crypto/internal/fips/sha3/sha3_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"math/rand"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -262,6 +261,7 @@ func TestSqueezing(t *testing.T) {
+ 		d1.Write([]byte(testString))
+ 		var multiple []byte
+ 		for range ref {
++			d1.Read(make([]byte, 0))
+ 			one := make([]byte, 1)
+ 			d1.Read(one)
+ 			multiple = append(multiple, one...)
+@@ -338,14 +338,6 @@ var sink byte
+ 
+ func TestAllocations(t *testing.T) {
+ 	testenv.SkipIfOptimizationOff(t)
+-
+-	want := 0.0
+-
+-	if runtime.GOARCH == "s390x" {
+-		// On s390x the returned hash.Hash is conditional so it escapes.
+-		want = 3.0
+-	}
+-
+ 	t.Run("New", func(t *testing.T) {
+ 		if allocs := testing.AllocsPerRun(10, func() {
+ 			h := New256()
+@@ -354,7 +346,7 @@ func TestAllocations(t *testing.T) {
+ 			out := make([]byte, 0, 32)
+ 			out = h.Sum(out)
+ 			sink ^= out[0]
+-		}); allocs > want {
++		}); allocs > 0 {
+ 			t.Errorf("expected zero allocations, got %0.1f", allocs)
+ 		}
+ 	})
+@@ -368,7 +360,7 @@ func TestAllocations(t *testing.T) {
+ 			sink ^= out[0]
+ 			h.Read(out)
+ 			sink ^= out[0]
+-		}); allocs > want {
++		}); allocs > 0 {
+ 			t.Errorf("expected zero allocations, got %0.1f", allocs)
+ 		}
+ 	})
+@@ -377,7 +369,7 @@ func TestAllocations(t *testing.T) {
+ 			b := []byte("ABC")
+ 			out := Sum256(b)
+ 			sink ^= out[0]
+-		}); allocs > want {
++		}); allocs > 0 {
+ 			t.Errorf("expected zero allocations, got %0.1f", allocs)
+ 		}
+ 	})
+diff --git a/src/crypto/internal/fips/sha3/shake.go b/src/crypto/internal/fips/sha3/shake.go
+index 6e7292a006..b93fd5c559 100644
+--- a/src/crypto/internal/fips/sha3/shake.go
++++ b/src/crypto/internal/fips/sha3/shake.go
+@@ -116,19 +116,11 @@ func (s *SHAKE) UnmarshalBinary(b []byte) error {
+ 
+ // NewShake128 creates a new SHAKE128 XOF.
+ func NewShake128() *SHAKE {
+-	return newShake128()
++	return &SHAKE{d: Digest{rate: rateK256, outputLen: 32, dsbyte: dsbyteShake}}
+ }
+ 
+ // NewShake256 creates a new SHAKE256 XOF.
+ func NewShake256() *SHAKE {
+-	return newShake256()
+-}
+-
+-func newShake128Generic() *SHAKE {
+-	return &SHAKE{d: Digest{rate: rateK256, outputLen: 32, dsbyte: dsbyteShake}}
+-}
+-
+-func newShake256Generic() *SHAKE {
+ 	return &SHAKE{d: Digest{rate: rateK512, outputLen: 64, dsbyte: dsbyteShake}}
+ }
+ 

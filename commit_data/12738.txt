@@ -9,6 +9,20 @@ Date:   Sat Mar 24 08:16:57 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5853044
-
+---
  src/pkg/os/types.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index 01dddf50de..0c95c9cece 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -58,7 +58,7 @@ const (
+ 
+ func (m FileMode) String() string {
+ 	const str = "dalTLDpSugct"
+-	var buf [20]byte
++	var buf [32]byte // Mode is uint32.
+ 	w := 0
+ 	for i, c := range str {
+ 		if m&(1<<uint(32-1-i)) != 0 {

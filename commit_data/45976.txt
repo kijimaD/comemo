@@ -21,10 +21,81 @@ Date:   Fri Nov 27 13:55:27 2020 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Trust: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  doc/go1.16.html                                  | 6 ------
  src/cmd/go/testdata/script/mod_proxy_invalid.txt | 4 ++--
  src/cmd/go/testdata/script/mod_query_empty.txt   | 2 +-
  src/encoding/json/scanner.go                     | 2 +-
  src/html/template/escape_test.go                 | 2 +-
  5 files changed, 5 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 0c1fe5b381..ffdbc97c62 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -454,12 +454,6 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+   <dd>
+-    <p><!-- CL 263619 -->
+-      The error message for
+-      <a href="/pkg/encoding/json/#SyntaxError">SyntaxError</a>
+-      now begins with "json: ", matching the other errors in the package.
+-    </p>
+-
+     <p><!-- CL 234818 -->
+       TODO: <a href="https://golang.org/cl/234818">https://golang.org/cl/234818</a>: allow semicolon in field key / struct tag
+     </p>
+diff --git a/src/cmd/go/testdata/script/mod_proxy_invalid.txt b/src/cmd/go/testdata/script/mod_proxy_invalid.txt
+index b9418b4df1..6427cc1527 100644
+--- a/src/cmd/go/testdata/script/mod_proxy_invalid.txt
++++ b/src/cmd/go/testdata/script/mod_proxy_invalid.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=on
+ env GOPROXY=$GOPROXY/invalid
+ 
+ ! go list -m rsc.io/quote@latest
+-stderr '^go list -m: module rsc.io/quote: invalid response from proxy "'$GOPROXY'": json: invalid character ''i'' looking for beginning of value$'
++stderr '^go list -m: module rsc.io/quote: invalid response from proxy "'$GOPROXY'": invalid character ''i'' looking for beginning of value$'
+ 
+ ! go list -m rsc.io/quote@1.5.2
+-stderr '^go list -m: rsc.io/quote@1.5.2: invalid version: invalid response from proxy "'$GOPROXY'": json: invalid character ''i'' looking for beginning of value$'
++stderr '^go list -m: rsc.io/quote@1.5.2: invalid version: invalid response from proxy "'$GOPROXY'": invalid character ''i'' looking for beginning of value$'
+diff --git a/src/cmd/go/testdata/script/mod_query_empty.txt b/src/cmd/go/testdata/script/mod_query_empty.txt
+index 1f13d7ad69..f8b6e3e97e 100644
+--- a/src/cmd/go/testdata/script/mod_query_empty.txt
++++ b/src/cmd/go/testdata/script/mod_query_empty.txt
+@@ -40,7 +40,7 @@ env GOPROXY=file:///$WORK/gatekeeper
+ chmod 0000 $WORK/gatekeeper/example.com/join/subpkg/@latest
+ cp go.mod.orig go.mod
+ ! go get -d example.com/join/subpkg
+-stderr 'go get: module example.com/join/subpkg: (invalid response from proxy ".+": json: invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
++stderr 'go get: module example.com/join/subpkg: (invalid response from proxy ".+": invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
+ 
+ -- go.mod.orig --
+ module example.com/othermodule
+diff --git a/src/encoding/json/scanner.go b/src/encoding/json/scanner.go
+index c3f5f6372d..9dc1903e2d 100644
+--- a/src/encoding/json/scanner.go
++++ b/src/encoding/json/scanner.go
+@@ -47,7 +47,7 @@ type SyntaxError struct {
+ 	Offset int64  // error occurred after reading Offset bytes
+ }
+ 
+-func (e *SyntaxError) Error() string { return "json: " + e.msg }
++func (e *SyntaxError) Error() string { return e.msg }
+ 
+ // A scanner is a JSON scanning state machine.
+ // Callers call scan.reset and then pass bytes in one at a time
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index b6031ea60a..fbc84a7592 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -243,7 +243,7 @@ func TestEscape(t *testing.T) {
+ 		{
+ 			"badMarshaler",
+ 			`<button onclick='alert(1/{{.B}}in numbers)'>`,
+-			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: json: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
++			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
+ 		},
+ 		{
+ 			"jsMarshaler",

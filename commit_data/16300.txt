@@ -9,7 +9,131 @@ Date:   Wed May 15 01:25:20 2013 +0200
     R=golang-dev, daniel.morsing, dvyukov, r
     CC=golang-dev
     https://golang.org/cl/9033048
-
+---
  src/cmd/gc/racewalk.c                      | 33 ++++++++++++++++++
  src/pkg/runtime/race/testdata/comp_test.go | 54 ++++++++++++++++++++++++++++++
  2 files changed, 87 insertions(+)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 5d4f62e761..790c7efd7c 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -23,6 +23,7 @@ static void racewalklist(NodeList *l, NodeList **init);
+ static void racewalknode(Node **np, NodeList **init, int wr, int skip);
+ static int callinstr(Node **n, NodeList **init, int wr, int skip);
+ static Node* uintptraddr(Node *n);
++static void makeaddable(Node *n);
+ static Node* basenod(Node *n);
+ static void foreach(Node *n, void(*f)(Node*, void*), void *c);
+ static void hascallspred(Node *n, void *c);
+@@ -489,6 +490,7 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
+ 			*np = n;
+ 		}
+ 		n = treecopy(n);
++		makeaddable(n);
+ 		f = mkcall(wr ? "racewrite" : "raceread", T, init, uintptraddr(n));
+ 		*init = list(*init, f);
+ 		return 1;
+@@ -496,6 +498,37 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
+ 	return 0;
+ }
+ 
++// makeaddable returns a node whose memory location is the
++// same as n, but which is addressable in the Go language
++// sense.
++// This is different from functions like cheapexpr that may make
++// a copy of their argument.
++static void
++makeaddable(Node *n)
++{
++	// The arguments to uintptraddr technically have an address but
++	// may not be addressable in the Go sense: for example, in the case
++	// of T(v).Field where T is a struct type and v is
++	// an addressable value.
++	switch(n->op) {
++	case OINDEX:
++		if(isfixedarray(n->left->type))
++			makeaddable(n->left);
++		break;
++	case ODOT:
++	case OXDOT:
++		// Turn T(v).Field into v.Field
++		if(n->left->op == OCONVNOP)
++			n->left = n->left->left;
++		makeaddable(n->left);
++		break;
++	case ODOTPTR:
++	default:
++		// nothing to do
++		break;
++	}
++}
++
+ static Node*
+ uintptraddr(Node *n)
+ {
+diff --git a/src/pkg/runtime/race/testdata/comp_test.go b/src/pkg/runtime/race/testdata/comp_test.go
+index 754e4db6d4..27b2d0081d 100644
+--- a/src/pkg/runtime/race/testdata/comp_test.go
++++ b/src/pkg/runtime/race/testdata/comp_test.go
+@@ -83,6 +83,60 @@ func TestRaceCompArray(t *testing.T) {
+ 	<-c
+ }
+ 
++type P2 P
++type S2 S
++
++func TestRaceConv1(t *testing.T) {
++	c := make(chan bool, 1)
++	var p P2
++	go func() {
++		p.x = 1
++		c <- true
++	}()
++	_ = P(p).x
++	<-c
++}
++
++func TestRaceConv2(t *testing.T) {
++	c := make(chan bool, 1)
++	var p P2
++	go func() {
++		p.x = 1
++		c <- true
++	}()
++	ptr := &p
++	_ = P(*ptr).x
++	<-c
++}
++
++func TestRaceConv3(t *testing.T) {
++	c := make(chan bool, 1)
++	var s S2
++	go func() {
++		s.s1.x = 1
++		c <- true
++	}()
++	_ = P2(S(s).s1).x
++	<-c
++}
++
++type X struct {
++	V [4]P
++}
++
++type X2 X
++
++func TestRaceConv4(t *testing.T) {
++	c := make(chan bool, 1)
++	var x X2
++	go func() {
++		x.V[1].x = 1
++		c <- true
++	}()
++	_ = P2(X(x).V[1]).x
++	<-c
++}
++
+ type Ptr struct {
+ 	s1, s2 *P
+ }

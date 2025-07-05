@@ -21,7 +21,78 @@ Date:   Tue May 5 06:45:49 2015 +0000
     Change-Id: Id72236ba8f76a59fa284fe3d4c2cb073e50b51f1
     Reviewed-on: https://go-review.googlesource.com/9626
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/parse/parse.go      | 20 +++++++++++++++++---
  src/text/template/parse/parse_test.go | 14 ++++++++++++++
  2 files changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index 6eb303801b..88aacd1b72 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -413,9 +413,8 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 	for {
+ 		switch token := t.nextNonSpace(); token.typ {
+ 		case itemRightDelim, itemRightParen:
+-			if len(pipe.Cmds) == 0 {
+-				t.errorf("missing value for %s", context)
+-			}
++			// At this point, the pipeline is complete
++			t.checkPipeline(pipe, context)
+ 			if token.typ == itemRightParen {
+ 				t.backup()
+ 			}
+@@ -430,6 +429,21 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 	}
+ }
+ 
++func (t *Tree) checkPipeline(pipe *PipeNode, context string) {
++	// Reject empty pipelines
++	if len(pipe.Cmds) == 0 {
++		t.errorf("missing value for %s", context)
++	}
++	// Only the first command of a pipeline can start with a non executable operand
++	for i, c := range pipe.Cmds[1:] {
++		switch c.Args[0].Type() {
++		case NodeBool, NodeDot, NodeNil, NodeNumber, NodeString:
++			// With A|B|C, pipeline stage 2 is B
++			t.errorf("non executable command in pipeline stage %d", i+2)
++		}
++	}
++}
++
+ func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
+ 	defer t.popVars(len(t.vars))
+ 	line = t.lex.lineNumber()
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 808f9a0b5e..9e62bd2df6 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -269,6 +269,14 @@ var parseTests = []parseTest{
+ 	{"dot after string", `{{"hello".guys}}`, hasError, ""},
+ 	{"dot after dot", "{{..E}}", hasError, ""},
+ 	{"dot after nil", "{{nil.E}}", hasError, ""},
++	// Wrong pipeline
++	{"wrong pipeline dot", "{{12|.}}", hasError, ""},
++	{"wrong pipeline number", "{{.|12|printf}}", hasError, ""},
++	{"wrong pipeline string", "{{.|print|\"error\"}}", hasError, ""},
++	{"wrong pipeline char", "{{12|print|html|'e'}}", hasError, ""},
++	{"wrong pipeline boolean", "{{.|true}}", hasError, ""},
++	{"wrong pipeline nil", "{{'c'|nil}}", hasError, ""},
++	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},
+ }
+ 
+ var builtins = map[string]interface{}{
+@@ -422,6 +430,12 @@ var errorTests = []parseTest{
+ 	{"wrongdot",
+ 		"{{true.any}}",
+ 		hasError, `unexpected . after term`},
++	{"wrongpipeline",
++		"{{12|false}}",
++		hasError, `non executable command in pipeline`},
++	{"emptypipeline",
++		`{{ ( ) }}`,
++		hasError, `missing value for parenthesized pipeline`},
+ }
+ 
+ func TestErrors(t *testing.T) {

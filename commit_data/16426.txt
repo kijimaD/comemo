@@ -14,7 +14,7 @@ Date:   Tue May 28 17:59:10 2013 -0700
     R=golang-dev, bradfitz, daniel.morsing, dvyukov, khr, khr, iant, cshapiro
     CC=golang-dev
     https://golang.org/cl/9223046
-
+---
  src/cmd/5g/peep.c         |   4 ++
  src/cmd/5g/reg.c          |   2 +
  src/cmd/5l/5.out.h        |   2 +
@@ -41,3 +41,844 @@ Date:   Tue May 28 17:59:10 2013 -0700
  src/pkg/runtime/runtime.h |   2 +
  src/pkg/runtime/symtab.c  |  21 ++++++-
  25 files changed, 454 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index b6202a882c..9600d8c9c6 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -78,6 +78,8 @@ peep(void)
+ 		case ASIGNAME:
+ 		case ALOCALS:
+ 		case ATYPE:
++		case ANPTRS:
++		case APTRS:
+ 			p = p->link;
+ 		}
+ 	}
+@@ -1195,6 +1197,8 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 0;
+ 
+ 	case ALOCALS:	/* funny */
++	case ANPTRS:
++	case APTRS:
+ 		return 0;
+ 	}
+ }
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index eaaaf9be3a..c675c7d984 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -250,6 +250,8 @@ regopt(Prog *firstp)
+ 		case ASIGNAME:
+ 		case ALOCALS:
+ 		case ATYPE:
++		case ANPTRS:
++		case APTRS:
+ 			continue;
+ 		}
+ 		r = rega();
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 97a2421b38..95b751d948 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -199,6 +199,8 @@ enum	as
+ 	AUSEFIELD,
+ 	ALOCALS,
+ 	ATYPE,
++	ANPTRS,
++	APTRS,
+ 
+ 	ALAST,
+ };
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index e7794c7235..b826cd219f 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -154,6 +154,8 @@ struct	Sym
+ 	int32	elfsym;
+ 	int32	locals;	// size of stack frame locals area
+ 	int32	args;	// size of stack frame incoming arguments area
++	int32	nptrs;	// number of bits in the pointer map
++	uint32*	ptrs;	// pointer map data
+ 	uchar	special;
+ 	uchar	fnptr;	// used as fn ptr
+ 	uchar	stkcheck;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 24e6294a84..47831e39c6 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -627,6 +627,38 @@ loop:
+ 		pc++;
+ 		goto loop;
+ 
++	case ANPTRS:
++		if(skip)
++			goto casedef;
++		if(cursym->nptrs != -1) {
++			diag("ldobj1: multiple pointer maps defined for %s", cursym->name);
++			errorexit();
++		}
++		if(p->to.offset > cursym->args/PtrSize) {
++			diag("ldobj1: pointer map definition for %s exceeds its argument size", cursym->name);
++			errorexit();
++		}
++		cursym->nptrs = p->to.offset;
++		if(cursym->nptrs != 0)
++			cursym->ptrs = mal((rnd(cursym->nptrs, 32) / 32) * sizeof(*cursym->ptrs));
++		pc++;
++		goto loop;
++
++	case APTRS:
++		if(skip)
++			goto casedef;
++		if(cursym->nptrs == -1 || cursym->ptrs == NULL) {
++			diag("ldobj1: pointer map data provided for %s without a definition", cursym->name);
++			errorexit();
++		}
++		if(p->from.offset*32 >= rnd(cursym->nptrs, 32)) {
++			diag("ldobj1: excessive pointer map data provided for %s", cursym->name);
++			errorexit();
++		}
++		cursym->ptrs[p->from.offset] = p->to.offset;
++		pc++;
++		goto loop;
++
+ 	case ATEXT:
+ 		if(cursym != nil && cursym->text) {
+ 			histtoauto();
+@@ -670,6 +702,7 @@ loop:
+ 		s->text = p;
+ 		s->value = pc;
+ 		s->args = p->to.offset2;
++		s->nptrs = -1;
+ 		lastp = p;
+ 		p->pc = pc;
+ 		pc++;
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index bb24d41449..f9249e8094 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -134,6 +134,8 @@ peep(void)
+ 		case ASIGNAME:
+ 		case ALOCALS:
+ 		case ATYPE:
++		case ANPTRS:
++		case APTRS:
+ 			p = p->link;
+ 		}
+ 	}
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index ab826d431f..2cdf5f3e08 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -225,6 +225,8 @@ regopt(Prog *firstp)
+ 		case ASIGNAME:
+ 		case ALOCALS:
+ 		case ATYPE:
++		case ANPTRS:
++		case APTRS:
+ 			continue;
+ 		}
+ 		r = rega();
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 237a802cde..e0aeafa94f 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -763,6 +763,8 @@ enum	as
+ 	AUSEFIELD,
+ 	ALOCALS,
+ 	ATYPE,
++	ANPTRS,
++	APTRS,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 4d481c69d0..d40cc741b9 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -161,6 +161,8 @@ struct	Sym
+ 	int32	elfsym;
+ 	int32	locals;	// size of stack frame locals area
+ 	int32	args;	// size of stack frame incoming arguments area
++	int32	nptrs;	// number of bits in the pointer map
++	uint32*	ptrs;	// pointer map data
+ 	Sym*	hash;	// in hash table
+ 	Sym*	allsym;	// in all symbol list
+ 	Sym*	next;	// in text or data list
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index e98f91eeb7..b4e77388d5 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -616,6 +616,38 @@ loop:
+ 		pc++;
+ 		goto loop;
+ 
++	case ANPTRS:
++		if(skip)
++			goto casdef;
++		if(cursym->nptrs != -1) {
++			diag("ldobj1: multiple pointer maps defined for %s", cursym->name);
++			errorexit();
++		}
++		if(p->to.offset > cursym->args/PtrSize) {
++			diag("ldobj1: pointer map definition for %s exceeds its argument size", cursym->name);
++			errorexit();
++		}
++		cursym->nptrs = p->to.offset;
++		if(cursym->nptrs != 0)
++			cursym->ptrs = mal((rnd(cursym->nptrs, 32) / 32) * sizeof(*cursym->ptrs));
++		pc++;
++		goto loop;
++
++	case APTRS:
++		if(skip)
++			goto casdef;
++		if(cursym->nptrs == -1 || cursym->ptrs == NULL) {
++			diag("ldobj1: pointer map data provided for %s without a definition", cursym->name);
++			errorexit();
++		}
++		if(p->from.offset*32 >= rnd(cursym->nptrs, 32)) {
++			diag("ldobj1: excessive pointer map data provided for %s", cursym->name);
++			errorexit();
++		}
++		cursym->ptrs[p->from.offset] = p->to.offset;
++		pc++;
++		goto loop;
++
+ 	case ATEXT:
+ 		s = p->from.sym;
+ 		if(s->text != nil) {
+@@ -660,6 +692,7 @@ loop:
+ 		s->type = STEXT;
+ 		s->value = pc;
+ 		s->args = p->to.offset >> 32;
++		s->nptrs = -1;
+ 		lastp = p;
+ 		p->pc = pc++;
+ 		goto loop;
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index b0d5ca788e..34c8a0c129 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -1337,6 +1337,8 @@ Optab optab[] =
+ 	{ AUSEFIELD,	ynop,	Px, 0,0 },
+ 	{ ALOCALS },
+ 	{ ATYPE },
++	{ ANPTRS },
++	{ APTRS },
+ 
+ 	{ AEND },
+ 	0
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index e5a3149cf1..d21be759e1 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -128,6 +128,8 @@ peep(void)
+ 		case ASIGNAME:
+ 		case ALOCALS:
+ 		case ATYPE:
++		case ANPTRS:
++		case APTRS:
+ 			p = p->link;
+ 		}
+ 	}
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 985f6ccbc4..005f68da30 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -197,6 +197,8 @@ regopt(Prog *firstp)
+ 		case ASIGNAME:
+ 		case ALOCALS:
+ 		case ATYPE:
++		case ANPTRS:
++		case APTRS:
+ 			continue;
+ 		}
+ 		r = rega();
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index cf0bc9feed..f961a5bc7b 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -580,6 +580,8 @@ enum	as
+ 	AUSEFIELD,
+ 	ALOCALS,
+ 	ATYPE,
++	ANPTRS,
++	APTRS,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index ce12d59ba2..e67c6bcbda 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -145,6 +145,8 @@ struct	Sym
+ 	int32	elfsym;
+ 	int32	locals;	// size of stack frame locals area
+ 	int32	args;	// size of stack frame incoming arguments area
++	int32	nptrs;	// number of bits in the pointer map
++	uint32*	ptrs;	// pointer map data
+ 	Sym*	hash;	// in hash table
+ 	Sym*	allsym;	// in all symbol list
+ 	Sym*	next;	// in text or data list
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index c819b99368..b5fa256f2b 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -626,6 +626,38 @@ loop:
+ 		pc++;
+ 		goto loop;
+ 
++	case ANPTRS:
++		if(skip)
++			goto casdef;
++		if(cursym->nptrs != -1) {
++			diag("ldobj1: multiple pointer maps defined for %s", cursym->name);
++			errorexit();
++		}
++		if(p->to.offset > cursym->args/PtrSize) {
++			diag("ldobj1: pointer map definition for %s exceeds its argument size", cursym->name);
++			errorexit();
++		}
++		cursym->nptrs = p->to.offset;
++		if(cursym->nptrs != 0)
++			cursym->ptrs = mal((rnd(cursym->nptrs, 32) / 32) * sizeof(*cursym->ptrs));
++		pc++;
++		goto loop;
++
++	case APTRS:
++		if(skip)
++			goto casdef;
++		if(cursym->nptrs == -1 || cursym->ptrs == NULL) {
++			diag("ldobj1: pointer map data provided for %s without a definition", cursym->name);
++			errorexit();
++		}
++		if(p->from.offset*32 >= rnd(cursym->nptrs, 32)) {
++			diag("ldobj1: excessive pointer map data provided for %s", cursym->name);
++			errorexit();
++		}
++		cursym->ptrs[p->from.offset] = p->to.offset;
++		pc++;
++		goto loop;
++
+ 	case ATEXT:
+ 		s = p->from.sym;
+ 		if(s->text != nil) {
+@@ -665,6 +697,7 @@ loop:
+ 		s->type = STEXT;
+ 		s->value = pc;
+ 		s->args = p->to.offset2;
++		s->nptrs = -1;
+ 		lastp = p;
+ 		p->pc = pc++;
+ 		goto loop;
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 1d9d2f55f3..f7b44853d0 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -1001,6 +1001,8 @@ Optab optab[] =
+ 	{ AUSEFIELD,	ynop,	Px, 0,0 },
+ 	{ ALOCALS },
+ 	{ ATYPE },
++	{ ANPTRS },
++	{ APTRS },
+ 
+ 	0
+ };
+diff --git a/src/cmd/gc/bv.c b/src/cmd/gc/bv.c
+new file mode 100644
+index 0000000000..929834097f
+--- /dev/null
++++ b/src/cmd/gc/bv.c
+@@ -0,0 +1,95 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <u.h>
++#include <libc.h>
++#include "go.h"
++
++enum {
++	WORDSIZE = sizeof(uint32),
++	WORDBITS = 32,
++};
++
++uintptr
++bvsize(uintptr n)
++{
++	return ((n + WORDBITS - 1) / WORDBITS) * WORDSIZE;
++}
++
++Bvec*
++bvalloc(int32 n)
++{
++	Bvec *bv;
++	uintptr nbytes;
++
++	if(n < 0)
++		fatal("bvalloc: initial size is negative\n");
++	nbytes = sizeof(Bvec) + bvsize(n);
++	bv = malloc(nbytes);
++	if(bv == nil)
++		fatal("bvalloc: malloc failed\n");
++	memset(bv, 0, nbytes);
++	bv->n = n;
++	return bv;
++}
++
++void
++bvset(Bvec *bv, int32 i)
++{
++	uint32 mask;
++
++	if(i < 0 || i >= bv->n)
++		fatal("bvset: index %d is out of bounds with length %d\n", i, bv->n);
++	mask = 1 << (i % WORDBITS);
++	bv->b[i / WORDBITS] |= mask;
++}
++
++void
++bvres(Bvec *bv, int32 i)
++{
++	uint32 mask;
++
++	if(i < 0 || i >= bv->n)
++		fatal("bvres: index %d is out of bounds with length %d\n", i, bv->n);
++	mask = ~(1 << (i % WORDBITS));
++	bv->b[i / WORDBITS] &= mask;
++}
++
++int
++bvget(Bvec *bv, int32 i)
++{
++	uint32 mask, word;
++
++	if(i < 0 || i >= bv->n)
++		fatal("bvget: index %d is out of bounds with length %d\n", i, bv->n);
++	mask = 1 << (i % WORDBITS);
++	word = bv->b[i / WORDBITS] & mask;
++	return word ? 1 : 0;
++}
++
++int
++bvisempty(Bvec *bv)
++{
++	int32 i;
++
++	for(i = 0; i < bv->n; i += WORDBITS)
++		if(bv->b[i / WORDBITS] != 0)
++			return 0;
++	return 1;
++}
++
++int bvcmp(Bvec *bv1, Bvec *bv2)
++{
++	int32 i;
++
++	if(bv1->n != bv2->n) {
++		fatal("bvcmp: size %d != %d\n", bv1->n, bv2->n);
++	}
++	for(i = 0; i < bv1->n; i += WORDBITS) {
++		if(bv1->b[i / WORDBITS] != bv2->b[i / WORDBITS]) {
++			fatal("bvcmp: element %x != %x @ %d\n", bv1->b[i/WORDBITS], bv2->b[i/WORDBITS], i/WORDBITS);
++		}
++	}
++	return 0;
++}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 48bcf0233f..6a3a7d8cf6 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -127,6 +127,7 @@ struct	Val
+ 	} u;
+ };
+ 
++typedef	struct	Bvec	Bvec;
+ typedef	struct	Pkg Pkg;
+ typedef	struct	Sym	Sym;
+ typedef	struct	Node	Node;
+@@ -696,6 +697,12 @@ struct	Bits
+ 
+ EXTERN	Bits	zbits;
+ 
++struct Bvec
++{
++	int32	n;	// number of bits
++	uint32	b[];
++};
++
+ typedef	struct	Var	Var;
+ struct	Var
+ {
+@@ -985,6 +992,16 @@ int	bnum(Bits a);
+ Bits	bor(Bits a, Bits b);
+ int	bset(Bits a, uint n);
+ 
++/*
++ *	bv.c
++ */
++Bvec*	bvalloc(int32 n);
++void	bvset(Bvec *bv, int32 i);
++void	bvres(Bvec *bv, int32 i);
++int	bvget(Bvec *bv, int32 i);
++int	bvisempty(Bvec *bv);
++int	bvcmp(Bvec *bv1, Bvec *bv2);
++
+ /*
+  *	closure.c
+  */
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 82d8186b0d..7fcbf19b1e 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -8,6 +8,7 @@
+ #include	"opt.h"
+ 
+ static void allocauto(Prog* p);
++static void pointermap(Node* fn);
+ 
+ void
+ compile(Node *fn)
+@@ -108,6 +109,8 @@ compile(Node *fn)
+ 		}
+ 	}
+ 
++	pointermap(fn);
++
+ 	genlist(curfn->enter);
+ 
+ 	retpc = nil;
+@@ -168,6 +171,149 @@ ret:
+ 	lineno = lno;
+ }
+ 
++static void
++walktype1(Type *t, vlong *xoffset, Bvec *bv)
++{
++	vlong fieldoffset, i, o;
++	Type *t1;
++
++	if(t->align > 0 && (*xoffset % t->align) != 0)
++	 	fatal("walktype1: invalid initial alignment, %T", t);
++
++	switch(t->etype) {
++	case TINT8:
++	case TUINT8:
++	case TINT16:
++	case TUINT16:
++	case TINT32:
++	case TUINT32:
++	case TINT64:
++	case TUINT64:
++	case TINT:
++	case TUINT:
++	case TUINTPTR:
++	case TBOOL:
++	case TFLOAT32:
++	case TFLOAT64:
++	case TCOMPLEX64:
++	case TCOMPLEX128:
++		*xoffset += t->width;
++		break;
++
++	case TPTR32:
++	case TPTR64:
++	case TUNSAFEPTR:
++	case TFUNC:
++	case TCHAN:
++	case TMAP:
++		if(*xoffset % widthptr != 0)
++			fatal("walktype1: invalid alignment, %T", t);
++		bvset(bv, *xoffset / widthptr);
++		*xoffset += t->width;
++		break;
++
++	case TSTRING:
++		// struct { byte *str; intgo len; }
++		if(*xoffset % widthptr != 0)
++			fatal("walktype1: invalid alignment, %T", t);
++		bvset(bv, *xoffset / widthptr);
++		*xoffset += t->width;
++		break;
++
++	case TINTER:
++		// struct { Itab* tab;  union { void* ptr, uintptr val } data; }
++		// or, when isnilinter(t)==true:
++		// struct { Type* type; union { void* ptr, uintptr val } data; }
++		if(*xoffset % widthptr != 0)
++			fatal("walktype1: invalid alignment, %T", t);
++		bvset(bv, *xoffset / widthptr);
++		bvset(bv, (*xoffset + widthptr) / widthptr);
++		*xoffset += t->width;
++		break;
++
++	case TARRAY:
++		// The value of t->bound is -1 for slices types and >0 for
++		// for fixed array types.  All other values are invalid.
++		if(t->bound < -1)
++			fatal("walktype1: invalid bound, %T", t);
++		if(isslice(t)) {
++			// struct { byte* array; uintgo len; uintgo cap; }
++			if(*xoffset % widthptr != 0)
++				fatal("walktype1: invalid TARRAY alignment, %T", t);
++			bvset(bv, *xoffset / widthptr);
++			*xoffset += t->width;
++		} else if(!haspointers(t->type))
++				*xoffset += t->width;
++		else
++			for(i = 0; i < t->bound; ++i)
++				walktype1(t->type, xoffset, bv);
++		break;
++
++	case TSTRUCT:
++		o = 0;
++		for(t1 = t->type; t1 != T; t1 = t1->down) {
++			fieldoffset = t1->width;
++			*xoffset += fieldoffset - o;
++			walktype1(t1->type, xoffset, bv);
++			o = fieldoffset + t1->type->width;
++		}
++		*xoffset += t->width - o;
++		break;
++
++	default:
++		fatal("walktype1: unexpected type, %T", t);
++	}
++}
++
++static void
++walktype(Type *type, Bvec *bv)
++{
++	vlong xoffset;
++
++	// Start the walk at offset 0.  The correct offset will be
++	// filled in by the first type encountered during the walk.
++	xoffset = 0;
++	walktype1(type, &xoffset, bv);
++}
++
++// Compute a bit vector to describes the pointer containing locations
++// in the argument list.
++static void
++pointermap(Node *fn)
++{
++	Type *thistype, *inargtype, *outargtype;
++	Bvec *bv;
++	Prog *prog;
++	int32 i;
++
++	thistype = getthisx(fn->type);
++	inargtype = getinargx(fn->type);
++	outargtype = getoutargx(fn->type);
++	bv = bvalloc(fn->type->argwid / widthptr);
++	if(thistype != nil)
++		walktype(thistype, bv);
++	if(inargtype != nil)
++		walktype(inargtype, bv);
++	if(outargtype != nil)
++		walktype(outargtype, bv);
++	if(bvisempty(bv)) {
++		prog = gins(ANPTRS, N, N);
++		prog->to.type = D_CONST;
++		prog->to.offset = 0;
++	} else {
++		prog = gins(ANPTRS, N, N);
++		prog->to.type = D_CONST;
++		prog->to.offset = bv->n;
++		for(i = 0; i < bv->n; i += 32) {
++			prog = gins(APTRS, N, N);
++			prog->from.type = D_CONST;
++			prog->from.offset = i / 32;
++			prog->to.type = D_CONST;
++			prog->to.offset = bv->b[i / 32];
++		}
++	}
++	free(bv);
++}
+ 
+ // Sort the list of stack variables.  autos after anything else,
+ // within autos, unused after used, and within used on reverse alignment.
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 0a6bd3e8f2..42448fe09f 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1850,6 +1850,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 	Auto *a;
+ 	Sym *s;
+ 	int32 off;
++	int32 i;
+ 
+ 	// These symbols won't show up in the first loop below because we
+ 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
+@@ -1910,13 +1911,18 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 
+ 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
+ 
+-		/* frame, locals, args, auto and param after */
++		/* frame, locals, args, auto, param and pointers after */
+ 		put(nil, ".frame", 'm', (uint32)s->text->to.offset+PtrSize, 0, 0, 0);
+ 		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
+ 		if(s->text->textflag & NOSPLIT)
+ 			put(nil, ".args", 'm', ArgsSizeUnknown, 0, 0, 0);
+ 		else
+ 			put(nil, ".args", 'm', s->args, 0, 0, 0);
++		if(s->nptrs >= 0) {
++			put(nil, ".nptrs", 'm', s->nptrs, 0, 0, 0);
++			for(i = 0; i < s->nptrs; i += 32)
++				put(nil, ".ptrs", 'm', s->ptrs[i / 32], 0, 0, 0);
++		}
+ 
+ 		for(a=s->autom; a; a=a->link) {
+ 			// Emit a or p according to actual offset, even if label is wrong.
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 20f2342530..7c5eb5317b 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -85,9 +85,10 @@ type Func struct { // Keep in sync with runtime.h:struct Func
+ 	entry  uintptr // entry pc
+ 	pc0    uintptr // starting pc, ln for table
+ 	ln0    int32
+-	frame  int32 // stack frame size
+-	args   int32 // in/out args size
+-	locals int32 // locals size
++	frame  int32   // stack frame size
++	args   int32   // in/out args size
++	locals int32   // locals size
++	ptrs   []int32 // pointer map
+ }
+ 
+ // FuncForPC returns a *Func describing the function that contains the
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 9ea45d48c6..2dbb5868cc 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1391,25 +1391,53 @@ addroot(Obj obj)
+ 	work.nroot++;
+ }
+ 
+-// Scan a stack frame.  The doframe parameter is a signal that the previously
+-// scanned activation has an unknown argument size.  When *doframe is true the
+-// current activation must have its entire frame scanned.  Otherwise, only the
+-// locals need to be scanned.
++// Scan a stack frame.  Normally, this scans the locals area,
++// belonging to the current frame, and the arguments area, belonging
++// to the calling frame.  When the arguments area size is unknown, the
++// arguments area scanning is delayed and the doframe parameter
++// signals that the previously scanned activation has an unknown
++// argument size.  When *doframe is true, the possible arguments area
++// for the callee, located between the stack pointer and the bottom of
++// the locals area, is additionally scanned.  Otherwise, this area is
++// ignored, as it must have been scanned when the callee was scanned.
+ static void
+ addframeroots(Func *f, byte*, byte *sp, void *doframe)
+ {
++	byte *fp, *ap;
+ 	uintptr outs;
++	int32 i, j, rem;
++	uint32 w, b;
+ 
+ 	if(thechar == '5')
+ 		sp += sizeof(uintptr);
++	fp = sp + f->frame;
+ 	if(f->locals == 0 || *(bool*)doframe == true)
++		// Scan the entire stack frame.
+ 		addroot((Obj){sp, f->frame - sizeof(uintptr), 0});
+ 	else if(f->locals > 0) {
++		// Scan the locals area.
+ 		outs = f->frame - sizeof(uintptr) - f->locals;
+ 		addroot((Obj){sp + outs, f->locals, 0});
+ 	}
+-	if(f->args > 0)
+-		addroot((Obj){sp + f->frame, f->args, 0});
++	if(f->args > 0) {
++		// Scan the arguments area.
++		if(f->ptrs.array != nil) {
++			ap = fp;
++			rem = f->args / sizeof(uintptr);
++			for(i = 0; i < f->ptrs.len; i++) {
++				w = ((uint32*)f->ptrs.array)[i];
++				b = 1;
++				for((j = (rem < 32) ? rem : 32); j > 0; j--) {
++					if(w & b)
++						addroot((Obj){ap, sizeof(uintptr), 0});
++					b <<= 1;
++					ap += sizeof(uintptr);
++				}
++				rem -= 32;
++			}
++		} else
++			addroot((Obj){fp, f->args, 0});
++	}
+ 	*(bool*)doframe = (f->args == ArgsSizeUnknown);
+ }
+ 
+@@ -1469,7 +1497,7 @@ addstackroots(G *gp)
+ 			return;
+ 		}
+ 	}
+-	if (ScanStackByFrames) {
++	if(ScanStackByFrames) {
+ 		USED(stk);
+ 		USED(guard);
+ 		doframe = false;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 44cc0138c0..c7ade2beb5 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -412,6 +412,7 @@ struct	Func
+ 	int32	frame;	// stack frame size
+ 	int32	args;	// in/out args size
+ 	int32	locals;	// locals size
++	Slice	ptrs;	// pointer map
+ };
+ 
+ // layout of Itab known to compilers
+@@ -811,6 +812,7 @@ void	runtime·netpollready(G**, PollDesc*, int32);
+ void	runtime·crash(void);
+ 
+ #pragma	varargck	argpos	runtime·printf	1
++#pragma	varargck	type	"c"	int32
+ #pragma	varargck	type	"d"	int32
+ #pragma	varargck	type	"d"	uint32
+ #pragma	varargck	type	"D"	int64
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 597fa49b7c..be06d578d4 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -199,6 +199,7 @@ static void
+ dofunc(Sym *sym)
+ {
+ 	Func *f;
++	uintgo cap;
+ 	
+ 	switch(sym->symtype) {
+ 	case 't':
+@@ -231,8 +232,24 @@ dofunc(Sym *sym)
+ 			func[nfunc-1].locals = sym->value;
+ 		else if(runtime·strcmp(sym->name, (byte*)".args") == 0)
+ 			func[nfunc-1].args = sym->value;
+-		else {
+-			runtime·printf("invalid 'm' symbol named '%s'\n", sym->name);
++		else if(runtime·strcmp(sym->name, (byte*)".nptrs") == 0) {
++			// TODO(cshapiro): use a dense representation for gc information
++			if(sym->value > func[nfunc-1].args/sizeof(uintptr)) {
++				runtime·printf("more pointer map entries than argument words\n");
++				runtime·throw("mangled symbol table");
++			}
++			cap = ROUND(sym->value, 32) / 32;
++			func[nfunc-1].ptrs.array = runtime·mallocgc(cap*sizeof(uint32), FlagNoPointers|FlagNoGC, 0, 1);
++			func[nfunc-1].ptrs.len = 0;
++			func[nfunc-1].ptrs.cap = cap;
++		} else if(runtime·strcmp(sym->name, (byte*)".ptrs") == 0) {
++			if(func[nfunc-1].ptrs.len >= func[nfunc-1].ptrs.cap) {
++				runtime·printf("more pointer map entries read than argument words\n");
++				runtime·throw("mangled symbol table");
++			}
++			((uint32*)func[nfunc-1].ptrs.array)[func[nfunc-1].ptrs.len++] = sym->value;
++		} else {
++			runtime·printf("invalid '%c' symbol named '%s'\n", (int8)sym->symtype, sym->name);
+ 			runtime·throw("mangled symbol table");
+ 		}
+ 		break;

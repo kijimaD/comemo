@@ -12,7 +12,34 @@ Date:   Wed Apr 12 06:06:51 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/arm/obj5.go | 3 ++-
  src/cmd/internal/obj/link.go     | 1 -
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index bf4ad0a69b..cec7c212d4 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -537,7 +537,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
+ 				ctxt.Diag("cannot divide in NOSPLIT function")
+ 			}
+-			if ctxt.Debugdivmod {
++			const debugdivmod = false
++			if debugdivmod {
+ 				break
+ 			}
+ 			if p.From.Type != obj.TYPE_REG {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index ae67867e4b..0312408d92 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -715,7 +715,6 @@ type Link struct {
+ 	Arch          *LinkArch
+ 	Debugasm      bool
+ 	Debugvlog     bool
+-	Debugdivmod   bool
+ 	Debugpcln     string
+ 	Flag_shared   bool
+ 	Flag_dynlink  bool

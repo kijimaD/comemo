@@ -8,9 +8,709 @@ Date:   Tue Jun 30 15:37:46 2009 -0700
     DELTA=610  (597 added, 5 deleted, 8 changed)
     OCL=30934
     CL=30939
-
+---
  src/pkg/gob/codec_test.go | 352 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/gob/encode.go     | 245 ++++++++++++++++++++++++++++++++
  src/pkg/gob/type.go       |  12 +-
  src/pkg/gob/type_test.go  |   9 +-
  4 files changed, 605 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 9dca42a885..a35586e4ae 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"gob";
+ 	"os";
+ 	"testing";
++	"unsafe";
+ )
+ 
+ // Guarantee encoding format by comparing some encodings to hand-written values
+@@ -95,3 +96,354 @@ func TestIntCodec(t *testing.T) {
+ 	}
+ 	verifyInt(-1<<63, t);	// a tricky case
+ }
++
++
++// The result of encoding three true booleans with field numbers 0, 1, 2
++var boolResult = []byte{0x80, 0x81, 0x81, 0x81, 0x82, 0x81}
++// The result of encoding three numbers = 17 with field numbers 0, 1, 2
++var signedResult = []byte{0x80, 0xa2, 0x81, 0xa2, 0x82, 0xa2}
++var unsignedResult = []byte{0x80, 0x91, 0x81, 0x91, 0x82, 0x91}
++var floatResult = []byte{0x80, 0x40, 0xe2, 0x81, 0x40, 0xe2, 0x82, 0x40, 0xe2}
++
++// Test instruction execution for encoding.
++// Do not run the machine yet; instead do individual instructions crafted by hand.
++func TestScalarEncInstructions(t *testing.T) {
++	var b = new(bytes.Buffer);
++	var state encState;
++
++	// bool
++	{
++		b.Reset();
++		v := true;
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a bool; b *bool; c **bool }){ v, pv, ppv };
++		instr := &encInstr{ encBool, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(boolResult, b.Data()) {
++			t.Errorf("bool enc instructions: expected % x got % x", boolResult, b.Data())
++		}
++	}
++
++	// int
++	{
++		b.Reset();
++		v := 17;
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a int; b *int; c **int }){ v, pv, ppv };
++		instr := &encInstr{ encInt, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(signedResult, b.Data()) {
++			t.Errorf("int enc instructions: expected % x got % x", signedResult, b.Data())
++		}
++	}
++
++	// uint
++	{
++		b.Reset();
++		v := uint(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a uint; b *uint; c **uint }){ v, pv, ppv };
++		instr := &encInstr{ encUint, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(unsignedResult, b.Data()) {
++			t.Errorf("uint enc instructions: expected % x got % x", unsignedResult, b.Data())
++		}
++	}
++
++	// int8
++	{
++		b.Reset();
++		v := int8(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a int8; b *int8; c **int8 }){ v, pv, ppv };
++		instr := &encInstr{ encInt, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(signedResult, b.Data()) {
++			t.Errorf("int8 enc instructions: expected % x got % x", signedResult, b.Data())
++		}
++	}
++
++	// uint8
++	{
++		b.Reset();
++		v := uint8(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a uint8; b *uint8; c **uint8 }){ v, pv, ppv };
++		instr := &encInstr{ encUint, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(unsignedResult, b.Data()) {
++			t.Errorf("uint8 enc instructions: expected % x got % x", unsignedResult, b.Data())
++		}
++	}
++
++	// int16
++	{
++		b.Reset();
++		v := int16(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a int16; b *int16; c **int16 }){ v, pv, ppv };
++		instr := &encInstr{ encInt16, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(signedResult, b.Data()) {
++			t.Errorf("int16 enc instructions: expected % x got % x", signedResult, b.Data())
++		}
++	}
++
++	// uint16
++	{
++		b.Reset();
++		v := uint16(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a uint16; b *uint16; c **uint16 }){ v, pv, ppv };
++		instr := &encInstr{ encUint16, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(unsignedResult, b.Data()) {
++			t.Errorf("uint16 enc instructions: expected % x got % x", unsignedResult, b.Data())
++		}
++	}
++
++	// int32
++	{
++		b.Reset();
++		v := int32(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a int32; b *int32; c **int32 }){ v, pv, ppv };
++		instr := &encInstr{ encInt32, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(signedResult, b.Data()) {
++			t.Errorf("int32 enc instructions: expected % x got % x", signedResult, b.Data())
++		}
++	}
++
++	// uint32
++	{
++		b.Reset();
++		v := uint32(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a uint32; b *uint32; c **uint32 }){ v, pv, ppv };
++		instr := &encInstr{ encUint32, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(unsignedResult, b.Data()) {
++			t.Errorf("uint32 enc instructions: expected % x got % x", unsignedResult, b.Data())
++		}
++	}
++
++	// int64
++	{
++		b.Reset();
++		v := int64(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a int64; b *int64; c **int64 }){ v, pv, ppv };
++		instr := &encInstr{ encInt64, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(signedResult, b.Data()) {
++			t.Errorf("int64 enc instructions: expected % x got % x", signedResult, b.Data())
++		}
++	}
++
++	// uint64
++	{
++		b.Reset();
++		v := uint64(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a uint64; b *uint64; c **uint64 }){ v, pv, ppv };
++		instr := &encInstr{ encUint, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(unsignedResult, b.Data()) {
++			t.Errorf("uint64 enc instructions: expected % x got % x", unsignedResult, b.Data())
++		}
++	}
++
++	// float
++	{
++		b.Reset();
++		v := float(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a float; b *float; c **float }){ v, pv, ppv };
++		instr := &encInstr{ encFloat, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(floatResult, b.Data()) {
++			t.Errorf("float enc instructions: expected % x got % x", floatResult, b.Data())
++		}
++	}
++
++	// float32
++	{
++		b.Reset();
++		v := float32(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a float32; b *float32; c **float32 }){ v, pv, ppv };
++		instr := &encInstr{ encFloat32, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(floatResult, b.Data()) {
++			t.Errorf("float32 enc instructions: expected % x got % x", floatResult, b.Data())
++		}
++	}
++
++	// float64
++	{
++		b.Reset();
++		v := float64(17);
++		pv := &v;
++		ppv := &pv;
++		data := (struct { a float64; b *float64; c **float64 }){ v, pv, ppv };
++		instr := &encInstr{ encFloat64, 0, 0, 0 };
++		state.w = b;
++		state.base = uintptr(unsafe.Pointer(&data));
++		instr.op(instr, &state);
++		instr.field = 1;
++		instr.indir = 1;
++		instr.offset = uintptr(unsafe.Offsetof(data.b));
++		instr.op(instr, &state);
++		instr.field = 2;
++		instr.indir = 2;
++		instr.offset = uintptr(unsafe.Offsetof(data.c));
++		instr.op(instr, &state);
++		if !bytes.Equal(floatResult, b.Data()) {
++			t.Errorf("float64 enc instructions: expected % x got % x", floatResult, b.Data())
++		}
++	}
++}
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index ecddee23e8..83a4abb39f 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -6,7 +6,9 @@ package gob
+ 
+ import (
+ 	"io";
++	"math";
+ 	"os";
++	"unsafe";
+ )
+ 
+ // Integers encode as a variant of Google's protocol buffer varint (varvarint?).
+@@ -38,3 +40,246 @@ func EncodeInt(w io.Writer, i int64) os.Error {
+ 	}
+ 	return EncodeUint(w, uint64(x))
+ }
++
++// The global execution state of an instance of the encoder.
++type encState struct {
++	w	io.Writer;
++	base	uintptr;
++}
++
++// The 'instructions' of the encoding machine
++type encInstr struct {
++	op	func(i *encInstr, state *encState);
++	field		int;	// field number
++	indir	int;	// how many pointer indirections to reach the value in the struct
++	offset	uintptr;	// offset in the structure of the field to encode
++}
++
++func encBool(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	b := *(*bool)(p);
++	if b {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeUint(state.w, 1);
++	}
++}
++
++func encInt(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	v := int64(*(*int)(p));
++	if v != 0 {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeInt(state.w, v);
++	}
++}
++
++func encUint(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	v := uint64(*(*uint)(p));
++	if v != 0 {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeUint(state.w, v);
++	}
++}
++
++func encInt8(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	v := int64(*(*int8)(p));
++	if v != 0 {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeInt(state.w, v);
++	}
++}
++
++func encUint8(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	v := uint64(*(*uint8)(p));
++	if v != 0 {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeUint(state.w, v);
++	}
++}
++
++func encInt16(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	v := int64(*(*int16)(p));
++	if v != 0 {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeInt(state.w, v);
++	}
++}
++
++func encUint16(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	v := uint64(*(*uint16)(p));
++	if v != 0 {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeUint(state.w, v);
++	}
++}
++
++func encInt32(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	v := int64(*(*int32)(p));
++	if v != 0 {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeInt(state.w, v);
++	}
++}
++
++func encUint32(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	v := uint64(*(*uint32)(p));
++	if v != 0 {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeUint(state.w, v);
++	}
++}
++
++func encInt64(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	v := *(*int64)(p);
++	if v != 0 {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeInt(state.w, v);
++	}
++}
++
++func encUint64(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	v := *(*uint64)(p);
++	if v != 0 {
++		EncodeUint(state.w, uint64(i.field));
++		EncodeUint(state.w, v);
++	}
++}
++
++// Floating-point numbers are transmitted as uint64s holding the bits
++// of the underlying representation.  They are sent byte-reversed, with
++// the exponent end coming out first, so integer floating point numbers
++// (for example) transmit more compactly.  This routine does the
++// swizzling.
++func floatBits(f float64) uint64 {
++	u := math.Float64bits(f);
++	var v uint64;
++	for i := 0; i < 8; i++ {
++		v <<= 8;
++		v |= u & 0xFF;
++		u >>= 8;
++	}
++	return v;
++}
++
++func encFloat(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	f := float(*(*float)(p));
++	if f != 0 {
++		v := floatBits(float64(f));
++		EncodeUint(state.w, uint64(i.field));
++		EncodeUint(state.w, v);
++	}
++}
++
++func encFloat32(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	f := float32(*(*float32)(p));
++	if f != 0 {
++		v := floatBits(float64(f));
++		EncodeUint(state.w, uint64(i.field));
++		EncodeUint(state.w, v);
++	}
++}
++
++func encFloat64(i *encInstr, state *encState) {
++	p := unsafe.Pointer(state.base+i.offset);
++	for indir := i.indir; indir > 0; indir-- {
++		p = *(*unsafe.Pointer)(p);
++		if p == nil {
++			return
++		}
++	}
++	f := *(*float64)(p);
++	if f != 0 {
++		v := floatBits(f);
++		EncodeUint(state.w, uint64(i.field));
++		EncodeUint(state.w, v);
++	}
++}
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index c7687b0c14..a230551829 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -54,8 +54,7 @@ func (t *commonType) Name() string {
+ var tBool Type
+ var tInt Type
+ var tUint Type
+-var tFloat32 Type
+-var tFloat64 Type
++var tFloat Type
+ var tString Type
+ var tBytes Type
+ 
+@@ -151,10 +150,8 @@ func newTypeObject(name string, rt reflect.Type) Type {
+ 		return tInt
+ 	case reflect.UintKind, reflect.Uint32Kind, reflect.Uint64Kind:
+ 		return tUint
+-	case reflect.FloatKind, reflect.Float32Kind:
+-		return tFloat32
+-	case reflect.Float64Kind:
+-		return tFloat64
++	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind:
++		return tFloat
+ 	case reflect.StringKind:
+ 		return tString
+ 	case reflect.ArrayKind:
+@@ -238,8 +235,7 @@ func init() {
+ 	tBool= bootstrapType("bool", false);
+ 	tInt = bootstrapType("int", int(0));
+ 	tUint = bootstrapType("uint", uint(0));
+-	tFloat32 = bootstrapType("float32", float32(0));
+-	tFloat64 = bootstrapType("float64", float64(0));
++	tFloat = bootstrapType("float", float64(0));
+ 	// The string for tBytes is "bytes" not "[]byte" to signify its specialness.
+ 	tBytes = bootstrapType("bytes", make([]byte, 0));
+ 	tString= bootstrapType("string", "");
+diff --git a/src/pkg/gob/type_test.go b/src/pkg/gob/type_test.go
+index f07bdf36a6..e62bd6415a 100644
+--- a/src/pkg/gob/type_test.go
++++ b/src/pkg/gob/type_test.go
+@@ -18,8 +18,7 @@ var basicTypes = []typeT {
+ 	typeT { tBool, "bool" },
+ 	typeT { tInt, "int" },
+ 	typeT { tUint, "uint" },
+-	typeT { tFloat32, "float32" },
+-	typeT { tFloat64, "float64" },
++	typeT { tFloat, "float" },
+ 	typeT { tBytes, "bytes" },
+ 	typeT { tString, "string" },
+ }
+@@ -107,8 +106,8 @@ type Foo struct {
+ 	b int32;	// will become int
+ 	c string;
+ 	d []byte;
+-	e *float;	// will become float32
+-	f ****float64;	// will become float64
++	e *float;	// will become float
++	f ****float64;	// will become float
+ 	g *Bar;
+ 	h *Bar;	// should not interpolate the definition of Bar again
+ 	i *Foo;	// will not explode
+@@ -118,7 +117,7 @@ func TestStructType(t *testing.T) {
+ 	sstruct := GetType("Foo", Foo{});
+ 	str := sstruct.String();
+ 	// If we can print it correctly, we built it correctly.
+-	expected := "Foo = struct { a int; b int; c string; d bytes; e float32; f float64; g Bar = struct { x string; }; h Bar; i Foo; }";
++	expected := "Foo = struct { a int; b int; c string; d bytes; e float; f float; g Bar = struct { x string; }; h Bar; i Foo; }";
+ 	if str != expected {
+ 		t.Errorf("struct printed as %q; expected %q", str, expected);
+ 	}

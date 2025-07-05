@@ -7,6 +7,22 @@ Date:   Tue Mar 19 12:49:46 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7909043
-
+---
  misc/dashboard/README | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dashboard/README b/misc/dashboard/README
+index c00311ef76..d599f3d063 100644
+--- a/misc/dashboard/README
++++ b/misc/dashboard/README
+@@ -4,8 +4,8 @@
+ 
+ The files in this directory constitute the continuous builder:
+ 
+-godashboard/: an AppEngine server
+-builder/:     gobuilder, a Go continuous build client
++app/:     an AppEngine server
++builder/: gobuilder, a Go continuous build client
+ 
+ If you wish to run a Go builder, please email golang-dev@googlegroups.com
+ 

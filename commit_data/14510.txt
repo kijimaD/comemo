@@ -7,6 +7,34 @@ Date:   Tue Nov 27 21:59:08 2012 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6854103
-
+---
  src/pkg/runtime/race/testdata/mop_test.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index da428c8a24..fa92182fa2 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -1239,6 +1239,22 @@ func TestRaceSliceSlice2(t *testing.T) {
+ 	<-c
+ }
+ 
++// http://golang.org/issue/4453
++func TestRaceFailingSliceStruct(t *testing.T) {
++	type X struct {
++		x, y int
++	}
++	c := make(chan bool, 1)
++	x := make([]X, 10)
++	go func() {
++		y := make([]X, 10)
++		copy(y, x)
++		c <- true
++	}()
++	x[1].y = 42
++	<-c
++}
++
+ func TestRaceStructInd(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	type Item struct {

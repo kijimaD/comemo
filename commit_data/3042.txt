@@ -9,7 +9,32 @@ Date:   Fri Aug 21 10:53:31 2009 -0700
     DELTA=2  (2 added, 0 deleted, 0 changed)
     OCL=33640
     CL=33645
-
+---
  src/cmd/5l/pass.c | 1 +
  src/cmd/8l/pass.c | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index 852a62048e..0d30f82f69 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -138,6 +138,7 @@ dodata(void)
+ 
+ 	xdefine("setR12", SDATA, 0L+BIG);
+ 	xdefine("bdata", SDATA, 0L);
++	xdefine("data", SBSS, 0);
+ 	xdefine("edata", SDATA, datsize);
+ 	xdefine("end", SBSS, datsize+bsssize);
+ 	xdefine("etext", STEXT, 0L);
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index bf52b913a6..4dbd19309f 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -134,6 +134,7 @@ dodata(void)
+ 		s->value = bsssize + datsize;
+ 		bsssize += t;
+ 	}
++	xdefine("data", SBSS, 0);
+ 	xdefine("edata", SBSS, datsize);
+ 	xdefine("end", SBSS, bsssize + datsize);
+ }

@@ -13,6 +13,25 @@ Date:   Tue Apr 11 14:15:36 2023 +0000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/printer/printer.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index c90791556e..741e3f782c 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -878,12 +878,8 @@ func mayCombine(prev token.Token, next byte) (b bool) {
+ }
+ 
+ func (p *printer) setPos(pos token.Pos) {
+-	// If p.pos is already equivalent to pos,
+-	// we can avoid calling posFor again.
+ 	if pos.IsValid() {
+-		if file := p.fset.File(pos); file != nil && file.Offset(pos) != p.pos.Offset {
+-			p.pos = p.posFor(pos) // accurate position of next item
+-		}
++		p.pos = p.posFor(pos) // accurate position of next item
+ 	}
+ }
+ 

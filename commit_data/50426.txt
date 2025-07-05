@@ -16,7 +16,7 @@ Date:   Wed Jan 6 08:57:44 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/298612
     Trust: fannie zhang <Fannie.Zhang@arm.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                              |  7 +++--
  src/cmd/go/go_test.go                              |  2 ++
  src/cmd/go/internal/cfg/cfg.go                     |  1 +
@@ -29,3 +29,263 @@ Date:   Wed Jan 6 08:57:44 2021 +0000
  src/cmd/go/testdata/script/goflags.txt             |  2 +-
  .../script/install_msan_and_race_require_cgo.txt   |  6 +++--
  11 files changed, 55 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d04ba04a53..8178073103 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -121,6 +121,9 @@
+ // 		Supported only on linux/amd64, linux/arm64
+ // 		and only with Clang/LLVM as the host C compiler.
+ // 		On linux/arm64, pie build mode will be used.
++// 	-asan
++// 		enable interoperation with address sanitizer.
++// 		Supported only on linux/arm64, linux/amd64.
+ // 	-v
+ // 		print the names of packages as they are compiled.
+ // 	-work
+@@ -155,8 +158,8 @@
+ // 		in order to keep output separate from default builds.
+ // 		If using the -race flag, the install suffix is automatically set to race
+ // 		or, if set explicitly, has _race appended to it. Likewise for the -msan
+-// 		flag. Using a -buildmode option that requires non-default compile flags
+-// 		has a similar effect.
++// 		and -asan flags. Using a -buildmode option that requires non-default compile
++// 		flags has a similar effect.
+ // 	-ldflags '[pattern=]arg list'
+ // 		arguments to pass on each go tool link invocation.
+ // 	-linkshared
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d67d01aa1e..339014e94e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -46,6 +46,7 @@ var (
+ 	canRace = false // whether we can run the race detector
+ 	canCgo  = false // whether we can use cgo
+ 	canMSan = false // whether we can run the memory sanitizer
++	canASan = false // whether we can run the address sanitizer
+ )
+ 
+ var exeSuffix string = func() string {
+@@ -197,6 +198,7 @@ func TestMain(m *testing.M) {
+ 		testGOCACHE = strings.TrimSpace(string(out))
+ 
+ 		canMSan = canCgo && sys.MSanSupported(runtime.GOOS, runtime.GOARCH)
++		canASan = canCgo && sys.ASanSupported(runtime.GOOS, runtime.GOARCH)
+ 		canRace = canCgo && sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
+ 		// The race detector doesn't work on Alpine Linux:
+ 		// golang.org/issue/14481
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 37e9b2666e..351c3ee6a5 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -35,6 +35,7 @@ var (
+ 	BuildI                 bool                    // -i flag
+ 	BuildLinkshared        bool                    // -linkshared flag
+ 	BuildMSan              bool                    // -msan flag
++	BuildASan              bool                    // -asan flag
+ 	BuildN                 bool                    // -n flag
+ 	BuildO                 string                  // -o flag
+ 	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 99c4a9c62e..a5be48a49b 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1625,6 +1625,7 @@ var cgoSyscallExclude = map[string]bool{
+ 	"runtime/cgo":  true,
+ 	"runtime/race": true,
+ 	"runtime/msan": true,
++	"runtime/asan": true,
+ }
+ 
+ var foldPath = make(map[string]string)
+@@ -2415,6 +2416,10 @@ func LinkerDeps(p *Package) []string {
+ 	if cfg.BuildMSan {
+ 		deps = append(deps, "runtime/msan")
+ 	}
++	// Using address sanitizer forces an import of runtime/asan.
++	if cfg.BuildASan {
++		deps = append(deps, "runtime/asan")
++	}
+ 
+ 	return deps
+ }
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index e10f647a6d..ffe33bfa4d 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -75,6 +75,9 @@ and test commands:
+ 		Supported only on linux/amd64, linux/arm64
+ 		and only with Clang/LLVM as the host C compiler.
+ 		On linux/arm64, pie build mode will be used.
++	-asan
++		enable interoperation with address sanitizer.
++		Supported only on linux/arm64, linux/amd64.
+ 	-v
+ 		print the names of packages as they are compiled.
+ 	-work
+@@ -109,8 +112,8 @@ and test commands:
+ 		in order to keep output separate from default builds.
+ 		If using the -race flag, the install suffix is automatically set to race
+ 		or, if set explicitly, has _race appended to it. Likewise for the -msan
+-		flag. Using a -buildmode option that requires non-default compile flags
+-		has a similar effect.
++		and -asan flags. Using a -buildmode option that requires non-default compile
++		flags has a similar effect.
+ 	-ldflags '[pattern=]arg list'
+ 		arguments to pass on each go tool link invocation.
+ 	-linkshared
+@@ -309,6 +312,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
++	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "")
+ 	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
+ 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d4e24d4cd1..62d8143828 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2736,6 +2736,10 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 		cgoCFLAGS = append([]string{"-fsanitize=memory"}, cgoCFLAGS...)
+ 		cgoLDFLAGS = append([]string{"-fsanitize=memory"}, cgoLDFLAGS...)
+ 	}
++	if cfg.BuildASan {
++		cgoCFLAGS = append([]string{"-fsanitize=address"}, cgoCFLAGS...)
++		cgoLDFLAGS = append([]string{"-fsanitize=address"}, cgoLDFLAGS...)
++	}
+ 
+ 	// Allows including _cgo_export.h, as well as the user's .h files,
+ 	// from .[ch] files in the package.
+@@ -2757,7 +2761,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 	if p.Standard && p.ImportPath == "runtime/cgo" {
+ 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
+ 	}
+-	if p.Standard && (p.ImportPath == "runtime/race" || p.ImportPath == "runtime/msan" || p.ImportPath == "runtime/cgo") {
++	if p.Standard && (p.ImportPath == "runtime/race" || p.ImportPath == "runtime/msan" || p.ImportPath == "runtime/cgo" || p.ImportPath == "runtime/asan") {
+ 		cgoflags = append(cgoflags, "-import_syscall=false")
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 6a29abb03b..56e39f8c52 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -87,7 +87,7 @@ func fuzzInstrumentFlags() []string {
+ }
+ 
+ func instrumentInit() {
+-	if !cfg.BuildRace && !cfg.BuildMSan {
++	if !cfg.BuildRace && !cfg.BuildMSan && !cfg.BuildASan {
+ 		return
+ 	}
+ 	if cfg.BuildRace && cfg.BuildMSan {
+@@ -95,17 +95,30 @@ func instrumentInit() {
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
++	if cfg.BuildRace && cfg.BuildASan {
++		fmt.Fprintf(os.Stderr, "go: may not use -race and -asan simultaneously\n")
++		base.SetExitStatus(2)
++		base.Exit()
++	}
++	if cfg.BuildMSan && cfg.BuildASan {
++		fmt.Fprintf(os.Stderr, "go: may not use -msan and -asan simultaneously\n")
++		base.SetExitStatus(2)
++		base.Exit()
++	}
+ 	if cfg.BuildMSan && !sys.MSanSupported(cfg.Goos, cfg.Goarch) {
+ 		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
+-	if cfg.BuildRace {
+-		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+-			fmt.Fprintf(os.Stderr, "go: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, darwin/arm64, and windows/amd64\n")
+-			base.SetExitStatus(2)
+-			base.Exit()
+-		}
++	if cfg.BuildRace && !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
++		fmt.Fprintf(os.Stderr, "-race is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
++		base.SetExitStatus(2)
++		base.Exit()
++	}
++	if cfg.BuildASan && !sys.ASanSupported(cfg.Goos, cfg.Goarch) {
++		fmt.Fprintf(os.Stderr, "-asan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
++		base.SetExitStatus(2)
++		base.Exit()
+ 	}
+ 	mode := "race"
+ 	if cfg.BuildMSan {
+@@ -116,6 +129,9 @@ func instrumentInit() {
+ 			cfg.BuildBuildmode = "pie"
+ 		}
+ 	}
++	if cfg.BuildASan {
++		mode = "asan"
++	}
+ 	modeFlag := "-" + mode
+ 
+ 	if !cfg.BuildContext.CgoEnabled {
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index ac9764db94..acb1f91b44 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -353,6 +353,8 @@ Script:
+ 				ok = canCgo
+ 			case "msan":
+ 				ok = canMSan
++			case "asan":
++				ok = canASan
+ 			case "race":
+ 				ok = canRace
+ 			case "net":
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 48e4055b0b..2b88e880c9 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -79,7 +79,7 @@ should only run when the condition is satisfied. The available conditions are:
+  - Compiler names, like [gccgo], [gc].
+  - Test environment details:
+    - [short] for testing.Short()
+-   - [cgo], [msan], [race] for whether cgo, msan, and the race detector can be used
++   - [cgo], [msan], [asan], [race] for whether cgo, msan, asan, and the race detector can be used
+    - [net] for whether the external network can be used
+    - [link] for testenv.HasLink()
+    - [root] for os.Geteuid() == 0
+diff --git a/src/cmd/go/testdata/script/goflags.txt b/src/cmd/go/testdata/script/goflags.txt
+index 686d1138b8..f4872ffd35 100644
+--- a/src/cmd/go/testdata/script/goflags.txt
++++ b/src/cmd/go/testdata/script/goflags.txt
+@@ -9,7 +9,7 @@ stdout '[\\/]runtime$'
+ 
+ env GOFLAGS=-race OLDGOARCH=$GOARCH OLDGOOS=$GOOS GOARCH=386 GOOS=linux
+ ! go list runtime
+-stderr 'race is only supported on'
++stderr 'race is not supported on linux/386'
+ 
+ env GOARCH=$OLDGOARCH GOOS=$OLDGOOS
+ 
+diff --git a/src/cmd/go/testdata/script/install_msan_and_race_require_cgo.txt b/src/cmd/go/testdata/script/install_msan_and_race_require_cgo.txt
+index 7985cd2ab2..5e88f7b8db 100644
+--- a/src/cmd/go/testdata/script/install_msan_and_race_require_cgo.txt
++++ b/src/cmd/go/testdata/script/install_msan_and_race_require_cgo.txt
+@@ -1,7 +1,5 @@
+ # Tests Issue #21895
+ 
+-[!msan] [!race] skip 'skipping because both msan and the race detector are not supported'
+-
+ env CGO_ENABLED=0
+ 
+ [race] ! go install -race triv.go
+@@ -12,6 +10,10 @@ env CGO_ENABLED=0
+ [msan] stderr '-msan requires cgo'
+ [msan] ! stderr '-race'
+ 
++[asan] ! go install -asan triv.go
++[asan] stderr '-asan requires cgo'
++[asan] ! stderr '-msan'
++
+ -- triv.go --
+ package main
+ 

@@ -21,7 +21,111 @@ Date:   Thu Feb 2 00:14:25 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/36127
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/example_test.go | 29 -----------------------------
  src/net/url/url.go          | 21 ++++++++-------------
  2 files changed, 8 insertions(+), 42 deletions(-)
+
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index 4ae772426c..0b8b84af36 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -8,8 +8,6 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"log"
+-	"net/http"
+-	"net/http/httputil"
+ 	"net/url"
+ 	"strings"
+ )
+@@ -59,33 +57,6 @@ func ExampleURL_roundtrip() {
+ 	// https://example.com/foo%2fbar
+ }
+ 
+-func ExampleURL_opaque() {
+-	// Sending a literal '%' in an HTTP request's Path
+-	req := &http.Request{
+-		Method: "GET",
+-		Host:   "example.com", // takes precedence over URL.Host
+-		URL: &url.URL{
+-			Host:   "ignored",
+-			Scheme: "https",
+-			Opaque: "/%2f/",
+-		},
+-		Header: http.Header{
+-			"User-Agent": {"godoc-example/0.1"},
+-		},
+-	}
+-	out, err := httputil.DumpRequestOut(req, true)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	fmt.Println(strings.Replace(string(out), "\r", "", -1))
+-	// Output:
+-	// GET /%2f/ HTTP/1.1
+-	// Host: example.com
+-	// User-Agent: godoc-example/0.1
+-	// Accept-Encoding: gzip
+-	//
+-}
+-
+ func ExampleURL_ResolveReference() {
+ 	u, err := url.Parse("../../..//search?q=dotnet")
+ 	if err != nil {
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 7670ab6c35..2ac2472569 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -309,9 +309,10 @@ func escape(s string, mode encoding) string {
+ }
+ 
+ // A URL represents a parsed URL (technically, a URI reference).
++//
+ // The general form represented is:
+ //
+-//	scheme://[userinfo@]host/path[?query][#fragment]
++//	[scheme:][//[userinfo@]host][/]path[?query][#fragment]
+ //
+ // URLs that do not start with a slash after the scheme are interpreted as:
+ //
+@@ -321,26 +322,19 @@ func escape(s string, mode encoding) string {
+ // A consequence is that it is impossible to tell which slashes in the Path were
+ // slashes in the raw URL and which were %2f. This distinction is rarely important,
+ // but when it is, code must not use Path directly.
+-//
+-// Go 1.5 introduced the RawPath field to hold the encoded form of Path.
+ // The Parse function sets both Path and RawPath in the URL it returns,
+ // and URL's String method uses RawPath if it is a valid encoding of Path,
+ // by calling the EscapedPath method.
+-//
+-// In earlier versions of Go, the more indirect workarounds were that an
+-// HTTP server could consult req.RequestURI and an HTTP client could
+-// construct a URL struct directly and set the Opaque field instead of Path.
+-// These still work as well.
+ type URL struct {
+ 	Scheme     string
+ 	Opaque     string    // encoded opaque data
+ 	User       *Userinfo // username and password information
+ 	Host       string    // host or host:port
+-	Path       string
+-	RawPath    string // encoded path hint (Go 1.5 and later only; see EscapedPath method)
+-	ForceQuery bool   // append a query ('?') even if RawQuery is empty
+-	RawQuery   string // encoded query values, without '?'
+-	Fragment   string // fragment for references, without '#'
++	Path       string    // path (relative paths may omit leading slash)
++	RawPath    string    // encoded path hint (see EscapedPath method)
++	ForceQuery bool      // append a query ('?') even if RawQuery is empty
++	RawQuery   string    // encoded query values, without '?'
++	Fragment   string    // fragment for references, without '#'
+ }
+ 
+ // User returns a Userinfo containing the provided username
+@@ -351,6 +345,7 @@ func User(username string) *Userinfo {
+ 
+ // UserPassword returns a Userinfo containing the provided username
+ // and password.
++//
+ // This functionality should only be used with legacy web sites.
+ // RFC 2396 warns that interpreting Userinfo this way
+ // ``is NOT RECOMMENDED, because the passing of authentication

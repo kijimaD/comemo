@@ -10,8 +10,119 @@ Date:   Mon May 4 21:43:30 2015 -0400
     Change-Id: I098fdcc8afc947d6c02c41c6e6de24624cc1c8ff
     Reviewed-on: https://go-review.googlesource.com/9700
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/gc/reflect.go | 12 ++++++------
  src/reflect/type.go            | 12 ++++++------
  src/runtime/type.go            |  2 +-
  3 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 346c8246bb..9979fe85fd 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -685,9 +685,9 @@ func haspointers(t *Type) bool {
+ 	return ret
+ }
+ 
+-// typeptrsize returns the length in bytes of the prefix of t
++// typeptrdata returns the length in bytes of the prefix of t
+ // containing pointer data. Anything after this offset is scalar data.
+-func typeptrsize(t *Type) uint64 {
++func typeptrdata(t *Type) uint64 {
+ 	if !haspointers(t) {
+ 		return 0
+ 	}
+@@ -716,7 +716,7 @@ func typeptrsize(t *Type) uint64 {
+ 			return uint64(Widthptr)
+ 		}
+ 		// haspointers already eliminated t.Bound == 0.
+-		return uint64(t.Bound-1)*uint64(t.Type.Width) + typeptrsize(t.Type)
++		return uint64(t.Bound-1)*uint64(t.Type.Width) + typeptrdata(t.Type)
+ 
+ 	case TSTRUCT:
+ 		// Find the last field that has pointers.
+@@ -726,10 +726,10 @@ func typeptrsize(t *Type) uint64 {
+ 				lastPtrField = t1
+ 			}
+ 		}
+-		return uint64(lastPtrField.Width) + typeptrsize(lastPtrField.Type)
++		return uint64(lastPtrField.Width) + typeptrdata(lastPtrField.Type)
+ 
+ 	default:
+-		Fatal("typeptrsize: unexpected type, %v", t)
++		Fatal("typeptrdata: unexpected type, %v", t)
+ 		return 0
+ 	}
+ }
+@@ -794,7 +794,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	//		zero          unsafe.Pointer
+ 	//	}
+ 	ot = duintptr(s, ot, uint64(t.Width))
+-	ot = duintptr(s, ot, typeptrsize(t))
++	ot = duintptr(s, ot, typeptrdata(t))
+ 
+ 	ot = duint32(s, ot, typehash(t))
+ 	ot = duint8(s, ot, 0) // unused
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index c0a5616166..5315bd3971 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -246,7 +246,7 @@ const (
+ // so that code cannot convert from, say, *arrayType to *ptrType.
+ type rtype struct {
+ 	size          uintptr
+-	ptrsize       uintptr
++	ptrdata       uintptr
+ 	hash          uint32            // hash of type; avoids computation in hash tables
+ 	_             uint8             // unused/padding
+ 	align         uint8             // alignment of variable with this type
+@@ -1826,14 +1826,14 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	}
+ 	// overflow
+ 	gc.append(bitsPointer)
+-	tptrsize := gc.size
++	ptrdata := gc.size
+ 	if runtime.GOARCH == "amd64p32" {
+ 		gc.append(bitsScalar)
+ 	}
+ 
+ 	b := new(rtype)
+ 	b.size = gc.size
+-	b.ptrsize = tptrsize
++	b.ptrdata = ptrdata
+ 	b.kind = kind
+ 	b.gc[0], _ = gc.finalize()
+ 	s := "bucket(" + *ktyp.string + "," + *etyp.string + ")"
+@@ -1920,8 +1920,8 @@ func ArrayOf(count int, elem Type) Type {
+ 		panic("reflect.ArrayOf: array size would exceed virtual address space")
+ 	}
+ 	array.size = typ.size * uintptr(count)
+-	if count > 0 && typ.ptrsize != 0 {
+-		array.ptrsize = typ.size*uintptr(count-1) + typ.ptrsize
++	if count > 0 && typ.ptrdata != 0 {
++		array.ptrdata = typ.size*uintptr(count-1) + typ.ptrdata
+ 	}
+ 	array.align = typ.align
+ 	array.fieldAlign = typ.fieldAlign
+@@ -2090,7 +2090,7 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
+ 	// build dummy rtype holding gc program
+ 	x := new(rtype)
+ 	x.size = gc.size
+-	x.ptrsize = gc.size // over-approximation
++	x.ptrdata = gc.size // over-approximation
+ 	var hasPtr bool
+ 	x.gc[0], hasPtr = gc.finalize()
+ 	if !hasPtr {
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 9d61c47dda..48df2a4382 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -13,7 +13,7 @@ import "unsafe"
+ // ../reflect/type.go:/^type.rtype.
+ type _type struct {
+ 	size       uintptr
+-	ptrsize    uintptr // Bytes of prefix containing pointer slots.
++	ptrdata    uintptr // size of memory prefix holding all pointers
+ 	hash       uint32
+ 	_unused    uint8
+ 	align      uint8

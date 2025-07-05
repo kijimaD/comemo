@@ -13,6 +13,20 @@ Date:   Fri May 6 15:09:57 2016 +0200
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index c0c45398cd..0174e31015 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -79,8 +79,6 @@ func init() {
+ 	}
+ 
+ 	if GOOS == "darwin" {
+-		cc = append(cc, "-Wl,-no_pie")
+-
+ 		// For Darwin/ARM.
+ 		// TODO(crawshaw): can we do better?
+ 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)

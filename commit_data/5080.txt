@@ -7,8 +7,148 @@ Date:   Fri Mar 19 15:14:46 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/650042
-
+---
  src/Make.cmd    | 21 ++++++++++-----------
  src/Make.common | 26 ++++++++++++++++++++++++++
  src/Make.pkg    | 21 +++++++--------------
  3 files changed, 43 insertions(+), 25 deletions(-)
+
+diff --git a/src/Make.cmd b/src/Make.cmd
+index 268fd5ea70..97df328700 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -2,22 +2,22 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# GNU Make syntax:
+-ifndef GOBIN
+-GOBIN=$(HOME)/bin
+-endif
+ 
+-# ugly hack to deal with whitespaces in $GOBIN
++# ugly hack to deal with whitespaces in $GOROOT
+ nullstring :=
+ space := $(nullstring) # a space at the end
+-QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
++QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
++
++include $(QUOTED_GOROOT)/src/Make.common
++
++PREREQ+=$(patsubst %,%.make,$(DEPS))
+ 
+ all: $(TARG)
+ 
+ $(TARG): _go_.$O $(OFILES)
+ 	$(QUOTED_GOBIN)/$(LD) -o $@ _go_.$O $(OFILES)
+ 
+-_go_.$O: $(GOFILES)
++_go_.$O: $(GOFILES) $(PREREQ)
+ 	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES)
+ 
+ install: $(QUOTED_GOBIN)/$(TARG)
+@@ -25,8 +25,7 @@ install: $(QUOTED_GOBIN)/$(TARG)
+ $(QUOTED_GOBIN)/$(TARG): $(TARG)
+ 	cp -f $(TARG) $(QUOTED_GOBIN)
+ 
+-clean:
+-	rm -f *.[$(OS)] $(TARG) $(CLEANFILES)
++CLEANFILES+=$(TARG)
+ 
+-nuke:
+-	rm -f *.[$(OS)] $(TARG) $(CLEANFILES) $(QUOTED_GOBIN)/$(TARG)
++nuke: clean
++	rm -f $(QUOTED_GOBIN)/$(TARG)
+diff --git a/src/Make.common b/src/Make.common
+new file mode 100644
+index 0000000000..42bb64e84f
+--- /dev/null
++++ b/src/Make.common
+@@ -0,0 +1,26 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# GNU Make syntax:
++ifndef GOBIN
++GOBIN=$(HOME)/bin
++endif
++
++# ugly hack to deal with whitespaces in $GOBIN
++nullstring :=
++space := $(nullstring) # a space at the end
++ifndef GOBIN
++QUOTED_HOME=$(subst $(space),\ ,$(HOME))
++GOBIN=$(QUOTED_HOME)/bin
++endif
++QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
++
++# ugly hack to deal with whitespaces in $GOROOT
++QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
++
++clean:
++	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
++
++%.make:
++	(cd $* && $(QUOTED_GOBIN)/gomake install)
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 5d956c05a4..6f4cf07bfe 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -6,13 +6,12 @@ all: package
+ package: _obj/$(TARG).a
+ testpackage: _test/$(TARG).a
+ 
++# ugly hack to deal with whitespaces in $GOROOT
+ nullstring :=
+ space := $(nullstring) # a space at the end
+-ifndef GOBIN
+-QUOTED_HOME=$(subst $(space),\ ,$(HOME))
+-GOBIN=$(QUOTED_HOME)/bin
+-endif
+-QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
++QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
++
++include $(QUOTED_GOROOT)/src/Make.common
+ 
+ # GNU Make 3.80 has a bug in lastword
+ # elem=$(lastword $(subst /, ,$(TARG)))
+@@ -25,9 +24,6 @@ else
+ dir=$(patsubst %/$(elem),%,$(TARG))
+ endif
+ 
+-# ugly hack to deal with whitespaces in $GOROOT
+-QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
+-
+ pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
+ 
+ INSTALLFILES+=$(pkgdir)/$(TARG).a
+@@ -40,15 +36,15 @@ GOFILES+=_cgo_gotypes.go
+ OFILES+=_cgo_defun.$O
+ GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
+ INSTALLFILES+=$(pkgdir)/$(TARG).so
+-PREREQ+=$(patsubst %,%.make,$(DEPS))
+ endif
+ 
++PREREQ+=$(patsubst %,%.make,$(DEPS))
++
+ coverage:
+ 	$(QUOTED_GOBIN)/gotest
+ 	$(QUOTED_GOBIN)/6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+ 
+-clean:
+-	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go *.so _obj _test _testmain.go $(CLEANFILES)
++CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go *.so _obj _test _testmain.go
+ 
+ test:
+ 	$(QUOTED_GOBIN)/gotest
+@@ -90,9 +86,6 @@ importpath:
+ dir:
+ 	@echo $(dir)
+ 
+-%.make:
+-	(cd $* && $(QUOTED_GOBIN)/gomake)
+-
+ # To use cgo in a Go package, add a line
+ #
+ #	CGOFILES=x.go y.go

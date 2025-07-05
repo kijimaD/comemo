@@ -13,6 +13,21 @@ Date:   Mon Jun 14 23:47:10 2021 +1000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/327652
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.17.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 4fa38921f0..35d0f97450 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -106,8 +106,7 @@ Do not send CLs removing the interior tags from such phrases.
+   of directly using machine instructions. In Go 1.17, this is also
+   done on the 32-bit x86 and 32-bit ARM architectures on OpenBSD
+   (the <code>openbsd/386</code> and <code>openbsd/arm</code> ports).
+-  This ensures forward-compatibility with future versions of
+-  OpenBSD, in particular, with OpenBSD 6.9 onwards, which requires
++  This ensures compatibility with OpenBSD 6.9 onwards, which require
+   system calls to be made through <code>libc</code> for non-static
+   Go binaries.
+ </p>

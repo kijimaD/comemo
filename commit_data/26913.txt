@@ -14,7 +14,7 @@ Date:   Wed Mar 2 18:03:50 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/amd64/galign.go  | 14 -----------
  src/cmd/compile/internal/arm/galign.go    | 11 ---------
  src/cmd/compile/internal/arm64/galign.go  | 11 ---------
@@ -25,3 +25,316 @@ Date:   Wed Mar 2 18:03:50 2016 -0800
  src/cmd/compile/internal/ppc64/galign.go  | 11 ---------
  src/cmd/compile/internal/x86/galign.go    | 11 ---------
  9 files changed, 35 insertions(+), 115 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 9837ea6160..376fdf9f0a 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -34,16 +34,6 @@ var (
+ 	cmpptr int = x86.ACMPQ
+ )
+ 
+-/*
+- * go declares several platform-specific type aliases:
+- * int, uint, and uintptr
+- */
+-var typedefs = []gc.Typedef{
+-	{"int", gc.TINT, gc.TINT64},
+-	{"uint", gc.TUINT, gc.TUINT64},
+-	{"uintptr", gc.TUINTPTR, gc.TUINT64},
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+@@ -55,9 +45,6 @@ func betypeinit() {
+ 		movptr = x86.AMOVL
+ 		leaptr = x86.ALEAL
+ 		cmpptr = x86.ACMPL
+-		typedefs[0].Sameas = gc.TINT32
+-		typedefs[1].Sameas = gc.TUINT32
+-		typedefs[2].Sameas = gc.TUINT32
+ 	}
+ 
+ 	if gc.Ctxt.Flag_dynlink {
+@@ -75,7 +62,6 @@ func Main() {
+ 	gc.Thearch.Thechar = thechar
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+-	gc.Thearch.Typedefs = typedefs
+ 	gc.Thearch.REGSP = x86.REGSP
+ 	gc.Thearch.REGCTXT = x86.REGCTXT
+ 	gc.Thearch.REGCALLX = x86.REG_BX
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 58c7f7b959..6490191e40 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -21,16 +21,6 @@ func linkarchinit() {
+ 
+ var MAXWIDTH int64 = (1 << 32) - 1
+ 
+-/*
+- * go declares several platform-specific type aliases:
+- * int, uint, and uintptr
+- */
+-var typedefs = []gc.Typedef{
+-	{"int", gc.TINT, gc.TINT32},
+-	{"uint", gc.TUINT, gc.TUINT32},
+-	{"uintptr", gc.TUINTPTR, gc.TUINT32},
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 4
+ 	gc.Widthint = 4
+@@ -41,7 +31,6 @@ func Main() {
+ 	gc.Thearch.Thechar = thechar
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+-	gc.Thearch.Typedefs = typedefs
+ 	gc.Thearch.REGSP = arm.REGSP
+ 	gc.Thearch.REGCTXT = arm.REGCTXT
+ 	gc.Thearch.REGCALLX = arm.REG_R1
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index d61fd3cb95..93b1443bf2 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -21,16 +21,6 @@ func linkarchinit() {
+ 
+ var MAXWIDTH int64 = 1 << 50
+ 
+-/*
+- * go declares several platform-specific type aliases:
+- * int, uint, and uintptr
+- */
+-var typedefs = []gc.Typedef{
+-	{"int", gc.TINT, gc.TINT64},
+-	{"uint", gc.TUINT, gc.TUINT64},
+-	{"uintptr", gc.TUINTPTR, gc.TUINT64},
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+@@ -41,7 +31,6 @@ func Main() {
+ 	gc.Thearch.Thechar = thechar
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+-	gc.Thearch.Typedefs = typedefs
+ 	gc.Thearch.REGSP = arm64.REGSP
+ 	gc.Thearch.REGCTXT = arm64.REGCTXT
+ 	gc.Thearch.REGCALLX = arm64.REGRT1
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index f0122aff97..3d2d12ec31 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -618,39 +618,6 @@ func typeinit() {
+ 	Simtype[TFUNC] = Tptr
+ 	Simtype[TUNSAFEPTR] = Tptr
+ 
+-	// pick up the backend thearch.typedefs
+-	for i = range Thearch.Typedefs {
+-		s := Lookup(Thearch.Typedefs[i].Name)
+-		s1 := Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
+-
+-		etype := Thearch.Typedefs[i].Etype
+-		if int(etype) >= len(Types) {
+-			Fatalf("typeinit: %s bad etype", s.Name)
+-		}
+-		sameas := Thearch.Typedefs[i].Sameas
+-		if int(sameas) >= len(Types) {
+-			Fatalf("typeinit: %s bad sameas", s.Name)
+-		}
+-		Simtype[etype] = sameas
+-		minfltval[etype] = minfltval[sameas]
+-		maxfltval[etype] = maxfltval[sameas]
+-		Minintval[etype] = Minintval[sameas]
+-		Maxintval[etype] = Maxintval[sameas]
+-
+-		t = Types[etype]
+-		if t != nil {
+-			Fatalf("typeinit: %s already defined", s.Name)
+-		}
+-
+-		t = typ(etype)
+-		t.Sym = s1
+-
+-		dowidth(t)
+-		Types[etype] = t
+-		s1.Def = typenod(t)
+-		s1.Def.Name = new(Name)
+-	}
+-
+ 	Array_array = int(Rnd(0, int64(Widthptr)))
+ 	Array_nel = int(Rnd(int64(Array_array)+int64(Widthptr), int64(Widthint)))
+ 	Array_cap = int(Rnd(int64(Array_nel)+int64(Widthint), int64(Widthint)))
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index e4fb1bcf00..43158e0604 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -305,12 +305,6 @@ const (
+ 	Ecomplit  = 1 << 11 // type in composite literal
+ )
+ 
+-type Typedef struct {
+-	Name   string
+-	Etype  EType
+-	Sameas EType
+-}
+-
+ type Sig struct {
+ 	name   string
+ 	pkg    *Pkg
+@@ -670,7 +664,6 @@ type Arch struct {
+ 	Thechar      int
+ 	Thestring    string
+ 	Thelinkarch  *obj.LinkArch
+-	Typedefs     []Typedef
+ 	REGSP        int
+ 	REGCTXT      int
+ 	REGCALLX     int // BX
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 6405dff681..153928ec06 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -2077,6 +2077,18 @@ var basicTypes = [...]struct {
+ 	{"any", TANY},
+ }
+ 
++var typedefs = [...]struct {
++	name     string
++	etype    EType
++	width    *int
++	sameas32 EType
++	sameas64 EType
++}{
++	{"int", TINT, &Widthint, TINT32, TINT64},
++	{"uint", TUINT, &Widthint, TUINT32, TUINT64},
++	{"uintptr", TUINTPTR, &Widthptr, TUINT32, TUINT64},
++}
++
+ var builtinFuncs = [...]struct {
+ 	name string
+ 	op   Op
+@@ -2223,12 +2235,29 @@ func lexinit1() {
+ 	s.Def = typenod(runetype)
+ 	s.Def.Name = new(Name)
+ 
+-	// backend-specific builtin types (e.g. int).
+-	for i := range Thearch.Typedefs {
+-		s := Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
+-		s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
+-		s.Def.Name = new(Name)
+-		s.Origpkg = builtinpkg
++	// backend-dependent builtin types (e.g. int).
++	for _, s := range typedefs {
++		s1 := Pkglookup(s.name, builtinpkg)
++
++		sameas := s.sameas32
++		if *s.width == 8 {
++			sameas = s.sameas64
++		}
++
++		Simtype[s.etype] = sameas
++		minfltval[s.etype] = minfltval[sameas]
++		maxfltval[s.etype] = maxfltval[sameas]
++		Minintval[s.etype] = Minintval[sameas]
++		Maxintval[s.etype] = Maxintval[sameas]
++
++		t := typ(s.etype)
++		t.Sym = s1
++		Types[s.etype] = t
++		s1.Def = typenod(t)
++		s1.Def.Name = new(Name)
++		s1.Origpkg = builtinpkg
++
++		dowidth(t)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index 00ffe17016..4f0d28e175 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -29,16 +29,6 @@ func linkarchinit() {
+ 
+ var MAXWIDTH int64 = 1 << 50
+ 
+-/*
+- * go declares several platform-specific type aliases:
+- * int, uint, and uintptr
+- */
+-var typedefs = []gc.Typedef{
+-	{"int", gc.TINT, gc.TINT64},
+-	{"uint", gc.TUINT, gc.TUINT64},
+-	{"uintptr", gc.TUINTPTR, gc.TUINT64},
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+@@ -49,7 +39,6 @@ func Main() {
+ 	gc.Thearch.Thechar = thechar
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+-	gc.Thearch.Typedefs = typedefs
+ 	gc.Thearch.REGSP = mips.REGSP
+ 	gc.Thearch.REGCTXT = mips.REGCTXT
+ 	gc.Thearch.REGCALLX = mips.REG_R1
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 2bd49fd375..9a8773ddd1 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -29,16 +29,6 @@ func linkarchinit() {
+ 
+ var MAXWIDTH int64 = 1 << 50
+ 
+-/*
+- * go declares several platform-specific type aliases:
+- * int, uint, and uintptr
+- */
+-var typedefs = []gc.Typedef{
+-	{"int", gc.TINT, gc.TINT64},
+-	{"uint", gc.TUINT, gc.TUINT64},
+-	{"uintptr", gc.TUINTPTR, gc.TUINT64},
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+@@ -54,7 +44,6 @@ func Main() {
+ 	gc.Thearch.Thechar = thechar
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+-	gc.Thearch.Typedefs = typedefs
+ 	gc.Thearch.REGSP = ppc64.REGSP
+ 	gc.Thearch.REGCTXT = ppc64.REGCTXT
+ 	gc.Thearch.REGCALLX = ppc64.REG_R3
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 2535e3e165..c871043bc8 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -23,16 +23,6 @@ func linkarchinit() {
+ 
+ var MAXWIDTH int64 = (1 << 32) - 1
+ 
+-/*
+- * go declares several platform-specific type aliases:
+- * int, uint, and uintptr
+- */
+-var typedefs = []gc.Typedef{
+-	{"int", gc.TINT, gc.TINT32},
+-	{"uint", gc.TUINT, gc.TUINT32},
+-	{"uintptr", gc.TUINTPTR, gc.TUINT32},
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 4
+ 	gc.Widthint = 4
+@@ -43,7 +33,6 @@ func Main() {
+ 	gc.Thearch.Thechar = thechar
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+-	gc.Thearch.Typedefs = typedefs
+ 	gc.Thearch.REGSP = x86.REGSP
+ 	gc.Thearch.REGCTXT = x86.REGCTXT
+ 	gc.Thearch.REGCALLX = x86.REG_BX

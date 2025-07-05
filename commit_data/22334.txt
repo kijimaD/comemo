@@ -12,8 +12,75 @@ Date:   Thu Mar 5 16:04:17 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6960
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go      | 15 +++++++++++----
  src/runtime/mgcsweep.go |  8 +++++++-
  src/runtime/proc.go     |  2 +-
  3 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index af1615376e..e8fd80c091 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -176,6 +176,16 @@ func gcinit() {
+ 	memstats.next_gc = heapminimum
+ }
+ 
++// gcenable is called after the bulk of the runtime initialization,
++// just before we're about to start letting user code run.
++// It kicks off the background sweeper goroutine and enables GC.
++func gcenable() {
++	c := make(chan int, 1)
++	go bgsweep(c)
++	<-c
++	memstats.enablegc = true // now that runtime is initialized, GC is okay
++}
++
+ func setGCPercent(in int32) (out int32) {
+ 	lock(&mheap_.lock)
+ 	out = gcpercent
+@@ -568,10 +578,7 @@ func gcSweep(mode int) {
+ 
+ 	// Background sweep.
+ 	lock(&sweep.lock)
+-	if !sweep.started {
+-		go bgsweep()
+-		sweep.started = true
+-	} else if sweep.parked {
++	if sweep.parked {
+ 		sweep.parked = false
+ 		ready(sweep.g)
+ 	}
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 8a1ced9f28..18b19f30b4 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -42,8 +42,14 @@ func finishsweep_m() {
+ 	}
+ }
+ 
+-func bgsweep() {
++func bgsweep(c chan int) {
+ 	sweep.g = getg()
++
++	lock(&sweep.lock)
++	sweep.parked = true
++	c <- 1
++	goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock)
++
+ 	for {
+ 		for gosweepone() != ^uintptr(0) {
+ 			sweep.nbgsweep++
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ae52826993..5763b3d066 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -58,7 +58,7 @@ func main() {
+ 		}
+ 	}()
+ 
+-	memstats.enablegc = true // now that runtime is initialized, GC is okay
++	gcenable()
+ 
+ 	if iscgo {
+ 		if _cgo_thread_start == nil {

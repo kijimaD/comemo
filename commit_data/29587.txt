@@ -13,7 +13,7 @@ Date:   Mon Sep 26 11:14:41 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os3_solaris.go  | 16 +++++-----------
  src/runtime/os_darwin.go    | 17 +++++------------
  src/runtime/os_dragonfly.go | 18 ++++++------------
@@ -23,3 +23,306 @@ Date:   Mon Sep 26 11:14:41 2016 -0700
  src/runtime/os_openbsd.go   | 18 ++++++------------
  src/runtime/signal_unix.go  | 25 +++++++++++++++++++++++++
  8 files changed, 60 insertions(+), 83 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index dc300cbc94..715fb60c96 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -207,19 +207,9 @@ func miniterrno()
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+-	_g_ := getg()
+ 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
+ 
+-	minitSignalStack()
+-
+-	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := _g_.m.sigmask
+-	for i := range sigtable {
+-		if sigtable[i].flags&_SigUnblock != 0 {
+-			nmask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+-		}
+-	}
+-	sigprocmask(_SIG_SETMASK, &nmask, nil)
++	minitSignals()
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -318,6 +308,10 @@ func sigmaskToSigset(m sigmask) sigset {
+ 	return set
+ }
+ 
++func sigdelset(mask *sigset, i int) {
++	mask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++}
++
+ func (c *sigctxt) fixsigcode(sig uint32) {
+ }
+ 
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 9c00b02341..2ac57d3753 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -176,24 +176,13 @@ func mpreinit(mp *m) {
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+-	// Initialize signal handling.
+-	_g_ := getg()
+-
+ 	// The alternate signal stack is buggy on arm and arm64.
+ 	// The signal handler handles it directly.
+ 	// The sigaltstack assembly function does nothing.
+ 	if GOARCH != "arm" && GOARCH != "arm64" {
+ 		minitSignalStack()
+ 	}
+-
+-	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := _g_.m.sigmask
+-	for i := range sigtable {
+-		if sigtable[i].flags&_SigUnblock != 0 {
+-			nmask &^= 1 << (uint32(i) - 1)
+-		}
+-	}
+-	sigprocmask(_SIG_SETMASK, &nmask, nil)
++	minitSignalMask()
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -560,3 +549,7 @@ func setSignalstackSP(s *stackt, sp uintptr) {
+ func sigmaskToSigset(m sigmask) sigset {
+ 	return sigset(m[0])
+ }
++
++func sigdelset(mask *sigset, i int) {
++	*mask &^= 1 << (uint32(i) - 1)
++}
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 96e6cb9c31..f55b93e67e 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -180,21 +180,11 @@ func mpreinit(mp *m) {
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+-	_g_ := getg()
+-
+ 	// m.procid is a uint64, but lwp_start writes an int32. Fix it up.
++	_g_ := getg()
+ 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
+ 
+-	minitSignalStack()
+-
+-	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := _g_.m.sigmask
+-	for i := range sigtable {
+-		if sigtable[i].flags&_SigUnblock != 0 {
+-			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+-		}
+-	}
+-	sigprocmask(_SIG_SETMASK, &nmask, nil)
++	minitSignals()
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -291,5 +281,9 @@ func sigmaskToSigset(m sigmask) sigset {
+ 	return set
+ }
+ 
++func sigdelset(mask *sigset, i int) {
++	mask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++}
++
+ func (c *sigctxt) fixsigcode(sig uint32) {
+ }
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index fade93acd9..7c533d4f34 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -167,24 +167,14 @@ func mpreinit(mp *m) {
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+-	_g_ := getg()
+-
+ 	// m.procid is a uint64, but thr_new writes a uint32 on 32-bit systems.
+ 	// Fix it up. (Only matters on big-endian, but be clean anyway.)
+ 	if sys.PtrSize == 4 {
++		_g_ := getg()
+ 		_g_.m.procid = uint64(*(*uint32)(unsafe.Pointer(&_g_.m.procid)))
+ 	}
+ 
+-	minitSignalStack()
+-
+-	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := _g_.m.sigmask
+-	for i := range sigtable {
+-		if sigtable[i].flags&_SigUnblock != 0 {
+-			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+-		}
+-	}
+-	sigprocmask(_SIG_SETMASK, &nmask, nil)
++	minitSignals()
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -281,5 +271,9 @@ func sigmaskToSigset(m sigmask) sigset {
+ 	return set
+ }
+ 
++func sigdelset(mask *sigset, i int) {
++	mask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++}
++
+ func (c *sigctxt) fixsigcode(sig uint32) {
+ }
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index bc0d9f2027..92c3db8616 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -257,22 +257,10 @@ func gettid() uint32
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+-	// Initialize signal handling.
+-	_g_ := getg()
+-
+-	minitSignalStack()
++	minitSignals()
+ 
+ 	// for debuggers, in case cgo created the thread
+-	_g_.m.procid = uint64(gettid())
+-
+-	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := _g_.m.sigmask
+-	for i := range sigtable {
+-		if sigtable[i].flags&_SigUnblock != 0 {
+-			sigdelset(&nmask, i)
+-		}
+-	}
+-	sigprocmask(_SIG_SETMASK, &nmask, nil)
++	getg().m.procid = uint64(gettid())
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 79d684217a..27c1932fd4 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -228,8 +228,6 @@ func minit() {
+ 	_g_ := getg()
+ 	_g_.m.procid = uint64(lwp_self())
+ 
+-	// Initialize signal handling.
+-
+ 	// On NetBSD a thread created by pthread_create inherits the
+ 	// signal stack of the creating thread. We always create a
+ 	// new signal stack here, to avoid having two Go threads using
+@@ -240,14 +238,7 @@ func minit() {
+ 	signalstack(&_g_.m.gsignal.stack)
+ 	_g_.m.newSigstack = true
+ 
+-	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := _g_.m.sigmask
+-	for i := range sigtable {
+-		if sigtable[i].flags&_SigUnblock != 0 {
+-			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+-		}
+-	}
+-	sigprocmask(_SIG_SETMASK, &nmask, nil)
++	minitSignalMask()
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -317,5 +308,9 @@ func sigmaskToSigset(m sigmask) sigset {
+ 	return set
+ }
+ 
++func sigdelset(mask *sigset, i int) {
++	mask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++}
++
+ func (c *sigctxt) fixsigcode(sig uint32) {
+ }
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 19055bd9c3..b16b524ab9 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -213,21 +213,11 @@ func mpreinit(mp *m) {
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+-	_g_ := getg()
+-
+ 	// m.procid is a uint64, but tfork writes an int32. Fix it up.
++	_g_ := getg()
+ 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
+ 
+-	minitSignalStack()
+-
+-	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := _g_.m.sigmask
+-	for i := range sigtable {
+-		if sigtable[i].flags&_SigUnblock != 0 {
+-			nmask &^= 1 << (uint32(i) - 1)
+-		}
+-	}
+-	sigprocmask(_SIG_SETMASK, &nmask, nil)
++	minitSignals()
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -295,5 +285,9 @@ func sigmaskToSigset(m sigmask) sigset {
+ 	return sigset(m[0])
+ }
+ 
++func sigdelset(mask *sigset, i int) {
++	*mask &^= 1 << (uint32(i) - 1)
++}
++
+ func (c *sigctxt) fixsigcode(sig uint32) {
+ }
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 013271ba43..3e7c49934b 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -573,6 +573,13 @@ func unblocksig(sig int32) {
+ 	sigprocmask(_SIG_UNBLOCK, &set, nil)
+ }
+ 
++// minitSignals is called when initializing a new m to set the
++// thread's alternate signal stack and signal mask.
++func minitSignals() {
++	minitSignalStack()
++	minitSignalMask()
++}
++
+ // minitSignalStack is called when initializing a new m to set the
+ // alternate signal stack. If the alternate signal stack is not set
+ // for the thread (the normal case) then set the alternate signal
+@@ -594,6 +601,24 @@ func minitSignalStack() {
+ 	}
+ }
+ 
++// minitSignalMask is called when initializing a new m to set the
++// thread's signal mask. When this is called all signals have been
++// blocked for the thread.  This starts with m.sigmask, which was set
++// either from initSigmask for a newly created thread or by calling
++// msigsave if this is a non-Go thread calling a Go function. It
++// removes all essential signals from the mask, thus causing those
++// signals to not be blocked. Then it sets the thread's signal mask.
++// After this is called the thread can receive signals.
++func minitSignalMask() {
++	nmask := getg().m.sigmask
++	for i := range sigtable {
++		if sigtable[i].flags&_SigUnblock != 0 {
++			sigdelset(&nmask, i)
++		}
++	}
++	sigprocmask(_SIG_SETMASK, &nmask, nil)
++}
++
+ // setGsignalStack sets the gsignal stack of the current m to an
+ // alternate signal stack returned from the sigaltstack system call.
+ // This is used when handling a signal if non-Go code has set the

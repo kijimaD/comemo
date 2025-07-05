@@ -7,6 +7,20 @@ Date:   Fri Nov 6 17:08:47 2009 -0800
     
     R=r, rsc
     http://go/go-review/1024012
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index e2df8bb3d5..890df3dac7 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -250,7 +250,7 @@ you can use it to sign in to the code review server.)
+ 
+ <pre>
+ $ cd $GOROOT
+-$ hg codereview-login
++$ hg code-login
+ Email (login for uploading to codereview.appspot.com): rsc@golang.org
+ Password for rsc@golang.org:
+ 

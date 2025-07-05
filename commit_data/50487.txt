@@ -25,7 +25,7 @@ Date:   Mon Jun 29 14:29:09 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/fix/buildtag.go        | 51 ++++++++++++++++++++++++++++++++++++++++++
  src/cmd/fix/buildtag_test.go   | 34 ++++++++++++++++++++++++++++
  src/cmd/fix/fix.go             |  9 ++++++++
@@ -34,3 +34,326 @@ Date:   Mon Jun 29 14:29:09 2020 -0400
  src/cmd/go/alldocs.go          |  8 +++++--
  src/cmd/go/internal/fix/fix.go | 30 +++++++++++++++++++++----
  7 files changed, 171 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/fix/buildtag.go b/src/cmd/fix/buildtag.go
+new file mode 100644
+index 0000000000..5f4fbfef16
+--- /dev/null
++++ b/src/cmd/fix/buildtag.go
+@@ -0,0 +1,51 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++	"strings"
++)
++
++func init() {
++	register(buildtagFix)
++}
++
++const buildtagGoVersionCutoff = 1_18
++
++var buildtagFix = fix{
++	name: "buildtag",
++	date: "2021-08-25",
++	f:    buildtag,
++	desc: `Remove +build comments from modules using Go 1.18 or later`,
++}
++
++func buildtag(f *ast.File) bool {
++	if goVersion < buildtagGoVersionCutoff {
++		return false
++	}
++
++	// File is already gofmt-ed, so we know that if there are +build lines,
++	// they are in a comment group that starts with a //go:build line followed
++	// by a blank line. While we cannot delete comments from an AST and
++	// expect consistent output in general, this specific case - deleting only
++	// some lines from a comment block - does format correctly.
++	fixed := false
++	for _, g := range f.Comments {
++		sawGoBuild := false
++		for i, c := range g.List {
++			if strings.HasPrefix(c.Text, "//go:build ") {
++				sawGoBuild = true
++			}
++			if sawGoBuild && strings.HasPrefix(c.Text, "// +build ") {
++				g.List = g.List[:i]
++				fixed = true
++				break
++			}
++		}
++	}
++
++	return fixed
++}
+diff --git a/src/cmd/fix/buildtag_test.go b/src/cmd/fix/buildtag_test.go
+new file mode 100644
+index 0000000000..1c6efbe9e0
+--- /dev/null
++++ b/src/cmd/fix/buildtag_test.go
+@@ -0,0 +1,34 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(buildtagTests, buildtag)
++}
++
++var buildtagTests = []testCase{
++	{
++		Name:    "buildtag.oldGo",
++		Version: 1_10,
++		In: `//go:build yes
++// +build yes
++
++package main
++`,
++	},
++	{
++		Name:    "buildtag.new",
++		Version: 1_99,
++		In: `//go:build yes
++// +build yes
++
++package main
++`,
++		Out: `//go:build yes
++
++package main
++`,
++	},
++}
+diff --git a/src/cmd/fix/fix.go b/src/cmd/fix/fix.go
+index b49db37571..b9980c17b9 100644
+--- a/src/cmd/fix/fix.go
++++ b/src/cmd/fix/fix.go
+@@ -125,6 +125,9 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+ 	case *ast.IndexExpr:
+ 		walkBeforeAfter(&n.X, before, after)
+ 		walkBeforeAfter(&n.Index, before, after)
++	case *ast.IndexListExpr:
++		walkBeforeAfter(&n.X, before, after)
++		walkBeforeAfter(&n.Indices, before, after)
+ 	case *ast.SliceExpr:
+ 		walkBeforeAfter(&n.X, before, after)
+ 		if n.Low != nil {
+@@ -156,6 +159,9 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+ 	case *ast.StructType:
+ 		walkBeforeAfter(&n.Fields, before, after)
+ 	case *ast.FuncType:
++		if n.TypeParams != nil {
++			walkBeforeAfter(&n.TypeParams, before, after)
++		}
+ 		walkBeforeAfter(&n.Params, before, after)
+ 		if n.Results != nil {
+ 			walkBeforeAfter(&n.Results, before, after)
+@@ -231,6 +237,9 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+ 		walkBeforeAfter(&n.Values, before, after)
+ 		walkBeforeAfter(&n.Names, before, after)
+ 	case *ast.TypeSpec:
++		if n.TypeParams != nil {
++			walkBeforeAfter(&n.TypeParams, before, after)
++		}
+ 		walkBeforeAfter(&n.Type, before, after)
+ 
+ 	case *ast.BadDecl:
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index d055929aac..b5f7b901d6 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -18,6 +18,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 
+ 	"cmd/internal/diff"
+@@ -36,7 +37,12 @@ var forceRewrites = flag.String("force", "",
+ 
+ var allowed, force map[string]bool
+ 
+-var doDiff = flag.Bool("diff", false, "display diffs instead of rewriting files")
++var (
++	doDiff       = flag.Bool("diff", false, "display diffs instead of rewriting files")
++	goVersionStr = flag.String("go", "", "go language version for files")
++
++	goVersion int // 115 for go1.15
++)
+ 
+ // enable for debugging fix failures
+ const debug = false // display incorrectly reformatted source and exit
+@@ -63,6 +69,26 @@ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
++	if *goVersionStr != "" {
++		if !strings.HasPrefix(*goVersionStr, "go") {
++			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
++			os.Exit(exitCode)
++		}
++		majorStr := (*goVersionStr)[len("go"):]
++		minorStr := "0"
++		if i := strings.Index(majorStr, "."); i >= 0 {
++			majorStr, minorStr = majorStr[:i], majorStr[i+len("."):]
++		}
++		major, err1 := strconv.Atoi(majorStr)
++		minor, err2 := strconv.Atoi(minorStr)
++		if err1 != nil || err2 != nil || major < 0 || major >= 100 || minor < 0 || minor >= 100 {
++			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
++			os.Exit(exitCode)
++		}
++
++		goVersion = major*100 + minor
++	}
++
+ 	sort.Sort(byDate(fixes))
+ 
+ 	if *allowedRewrites != "" {
+diff --git a/src/cmd/fix/main_test.go b/src/cmd/fix/main_test.go
+index af16bcaa31..1baa95c545 100644
+--- a/src/cmd/fix/main_test.go
++++ b/src/cmd/fix/main_test.go
+@@ -14,10 +14,11 @@ import (
+ )
+ 
+ type testCase struct {
+-	Name string
+-	Fn   func(*ast.File) bool
+-	In   string
+-	Out  string
++	Name    string
++	Fn      func(*ast.File) bool
++	Version int
++	In      string
++	Out     string
+ }
+ 
+ var testCases []testCase
+@@ -78,7 +79,16 @@ func TestRewrite(t *testing.T) {
+ 	for _, tt := range testCases {
+ 		tt := tt
+ 		t.Run(tt.Name, func(t *testing.T) {
+-			t.Parallel()
++			if tt.Version == 0 {
++				t.Parallel()
++			} else {
++				old := goVersion
++				goVersion = tt.Version
++				defer func() {
++					goVersion = old
++				}()
++			}
++
+ 			// Apply fix: should get tt.Out.
+ 			out, fixed, ok := parseFixPrint(t, tt.Fn, tt.Name, tt.In, true)
+ 			if !ok {
+@@ -91,6 +101,9 @@ func TestRewrite(t *testing.T) {
+ 				return
+ 			}
+ 
++			if tt.Out == "" {
++				tt.Out = tt.In
++			}
+ 			if out != tt.Out {
+ 				t.Errorf("incorrect output.\n")
+ 				if !strings.HasPrefix(tt.Name, "testdata/") {
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 685ccac826..537f800944 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -464,14 +464,18 @@
+ //
+ // Usage:
+ //
+-// 	go fix [packages]
++// 	go fix [-fix list] [packages]
+ //
+ // Fix runs the Go fix command on the packages named by the import paths.
+ //
++// The -fix flag sets a comma-separated list of fixes to run.
++// The default is all known fixes.
++// (Its value is passed to 'go tool fix -r'.)
++//
+ // For more about fix, see 'go doc cmd/fix'.
+ // For more about specifying packages, see 'go help packages'.
+ //
+-// To run fix with specific options, run 'go tool fix'.
++// To run fix with other options, run 'go tool fix'.
+ //
+ // See also: go fmt, go vet.
+ //
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index 988d45e71c..d8ba353de6 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -11,27 +11,39 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/work"
+ 	"context"
+ 	"fmt"
++	"go/build"
+ 	"os"
+ )
+ 
+ var CmdFix = &base.Command{
+-	Run:       runFix,
+-	UsageLine: "go fix [packages]",
++	UsageLine: "go fix [-fix list] [packages]",
+ 	Short:     "update packages to use new APIs",
+ 	Long: `
+ Fix runs the Go fix command on the packages named by the import paths.
+ 
++The -fix flag sets a comma-separated list of fixes to run.
++The default is all known fixes.
++(Its value is passed to 'go tool fix -r'.)
++
+ For more about fix, see 'go doc cmd/fix'.
+ For more about specifying packages, see 'go help packages'.
+ 
+-To run fix with specific options, run 'go tool fix'.
++To run fix with other options, run 'go tool fix'.
+ 
+ See also: go fmt, go vet.
+ 	`,
+ }
+ 
++var fixes = CmdFix.Flag.String("fix", "", "comma-separated list of fixes to apply")
++
++func init() {
++	work.AddBuildFlags(CmdFix, work.DefaultBuildFlags)
++	CmdFix.Run = runFix // fix cycle
++}
++
+ func runFix(ctx context.Context, cmd *base.Command, args []string) {
+ 	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
+ 	w := 0
+@@ -58,6 +70,16 @@ func runFix(ctx context.Context, cmd *base.Command, args []string) {
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+ 		files := base.RelPaths(pkg.InternalAllGoFiles())
+-		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), files))
++		goVersion := ""
++		if pkg.Module != nil {
++			goVersion = "go" + pkg.Module.GoVersion
++		} else if pkg.Standard {
++			goVersion = build.Default.ReleaseTags[len(build.Default.ReleaseTags)-1]
++		}
++		var fixArg []string
++		if *fixes != "" {
++			fixArg = []string{"-r=" + *fixes}
++		}
++		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), "-go="+goVersion, fixArg, files))
+ 	}
+ }

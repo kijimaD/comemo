@@ -10,6 +10,38 @@ Date:   Tue Feb 28 18:12:32 2017 +0000
     Change-Id: I0893f5051ec90e7a6adcb89904ba08cd2d590549
     Reviewed-on: https://go-review.googlesource.com/37572
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/dist/test.go | 20 ++++++++++----------
  1 file changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index ef884625a6..227199ca22 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -338,16 +338,16 @@ var stdOutErrAreTerminals func() bool
+ func (t *tester) registerTests() {
+ 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-vetall") {
+ 		// Run vet over std and cmd and call it quits.
+-		t.tests = append(t.tests, distTest{
+-			name:    "vet/all",
+-			heading: "go vet std cmd",
+-			fn: func(dt *distTest) error {
+-				// This runs vet/all for the current platform.
+-				// TODO: on a fast builder or builders, run over all platforms.
+-				t.addCmd(dt, "src/cmd/vet/all", "go", "run", "main.go", "-all")
+-				return nil
+-			},
+-		})
++		for osarch := range cgoEnabled {
++			t.tests = append(t.tests, distTest{
++				name:    "vet/" + osarch,
++				heading: "go vet std cmd",
++				fn: func(dt *distTest) error {
++					t.addCmd(dt, "src/cmd/vet/all", "go", "run", "main.go", "-p="+osarch)
++					return nil
++				},
++			})
++		}
+ 		return
+ 	}
+ 

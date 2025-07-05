@@ -50,7 +50,7 @@ Date:   Wed Sep 7 14:04:31 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/fuse.go         |   4 +-
  src/cmd/compile/internal/ssa/lca.go          | 123 +++++++++++++++++++++
  src/cmd/compile/internal/ssa/lca_test.go     | 103 +++++++++++++++++
@@ -59,3 +59,494 @@ Date:   Wed Sep 7 14:04:31 2016 -0700
  src/cmd/compile/internal/ssa/tighten.go      | 159 +++++++++++++++++----------
  src/cmd/compile/internal/ssa/trim.go         |   1 +
  7 files changed, 336 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index afb8bb21f8..d5940da439 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -135,9 +135,11 @@ func fuseBlockPlain(b *Block) bool {
+ 		p := e.b
+ 		p.Succs[e.i] = Edge{c, i}
+ 	}
+-	if f := b.Func; f.Entry == b {
++	f := b.Func
++	if f.Entry == b {
+ 		f.Entry = c
+ 	}
++	f.invalidateCFG()
+ 
+ 	// trash b, just in case
+ 	b.Kind = BlockInvalid
+diff --git a/src/cmd/compile/internal/ssa/lca.go b/src/cmd/compile/internal/ssa/lca.go
+new file mode 100644
+index 0000000000..ca9470302b
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/lca.go
+@@ -0,0 +1,123 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// Code to compute lowest common ancestors in the dominator tree.
++// https://en.wikipedia.org/wiki/Lowest_common_ancestor
++// https://en.wikipedia.org/wiki/Range_minimum_query#Solution_using_constant_time_and_linearithmic_space
++
++// lcaRange is a data structure that can compute lowest common ancestor queries
++// in O(n lg n) precomputed space and O(1) time per query.
++type lcaRange struct {
++	// Additional information about each block (indexed by block ID).
++	blocks []lcaRangeBlock
++
++	// Data structure for range minimum queries.
++	// rangeMin[k][i] contains the ID of the minimum depth block
++	// in the Euler tour from positions i to i+1<<k-1, inclusive.
++	rangeMin [][]ID
++}
++
++type lcaRangeBlock struct {
++	b          *Block
++	parent     ID    // parent in dominator tree.  0 = no parent (entry or unreachable)
++	firstChild ID    // first child in dominator tree
++	sibling    ID    // next child of parent
++	pos        int32 // an index in the Euler tour where this block appears (any one of its occurrences)
++	depth      int32 // depth in dominator tree (root=0, its children=1, etc.)
++}
++
++func makeLCArange(f *Func) *lcaRange {
++	dom := f.idom()
++
++	// Build tree
++	blocks := make([]lcaRangeBlock, f.NumBlocks())
++	for _, b := range f.Blocks {
++		blocks[b.ID].b = b
++		if dom[b.ID] == nil {
++			continue // entry or unreachable
++		}
++		parent := dom[b.ID].ID
++		blocks[b.ID].parent = parent
++		blocks[b.ID].sibling = blocks[parent].firstChild
++		blocks[parent].firstChild = b.ID
++	}
++
++	// Compute euler tour ordering.
++	// Each reachable block will appear #children+1 times in the tour.
++	tour := make([]ID, 0, f.NumBlocks()*2-1)
++	type queueEntry struct {
++		bid ID // block to work on
++		cid ID // child we're already working on (0 = haven't started yet)
++	}
++	q := []queueEntry{{f.Entry.ID, 0}}
++	for len(q) > 0 {
++		n := len(q) - 1
++		bid := q[n].bid
++		cid := q[n].cid
++		q = q[:n]
++
++		// Add block to tour.
++		blocks[bid].pos = int32(len(tour))
++		tour = append(tour, bid)
++
++		// Proceed down next child edge (if any).
++		if cid == 0 {
++			// This is our first visit to b. Set its depth.
++			blocks[bid].depth = blocks[blocks[bid].parent].depth + 1
++			// Then explore its first child.
++			cid = blocks[bid].firstChild
++		} else {
++			// We've seen b before. Explore the next child.
++			cid = blocks[cid].sibling
++		}
++		if cid != 0 {
++			q = append(q, queueEntry{bid, cid}, queueEntry{cid, 0})
++		}
++	}
++
++	// Compute fast range-minimum query data structure
++	var rangeMin [][]ID
++	rangeMin = append(rangeMin, tour) // 1-size windows are just the tour itself.
++	for logS, s := 1, 2; s < len(tour); logS, s = logS+1, s*2 {
++		r := make([]ID, len(tour)-s+1)
++		for i := 0; i < len(tour)-s+1; i++ {
++			bid := rangeMin[logS-1][i]
++			bid2 := rangeMin[logS-1][i+s/2]
++			if blocks[bid2].depth < blocks[bid].depth {
++				bid = bid2
++			}
++			r[i] = bid
++		}
++		rangeMin = append(rangeMin, r)
++	}
++
++	return &lcaRange{blocks: blocks, rangeMin: rangeMin}
++}
++
++// find returns the lowest common ancestor of a and b.
++func (lca *lcaRange) find(a, b *Block) *Block {
++	if a == b {
++		return a
++	}
++	// Find the positions of a and bin the Euler tour.
++	p1 := lca.blocks[a.ID].pos
++	p2 := lca.blocks[b.ID].pos
++	if p1 > p2 {
++		p1, p2 = p2, p1
++	}
++
++	// The lowest common ancestor is the minimum depth block
++	// on the tour from p1 to p2.  We've precomputed minimum
++	// depth blocks for powers-of-two subsequences of the tour.
++	// Combine the right two precomputed values to get the answer.
++	logS := uint(log2(int64(p2 - p1)))
++	bid1 := lca.rangeMin[logS][p1]
++	bid2 := lca.rangeMin[logS][p2-1<<logS+1]
++	if lca.blocks[bid1].depth < lca.blocks[bid2].depth {
++		return lca.blocks[bid1].b
++	}
++	return lca.blocks[bid2].b
++}
+diff --git a/src/cmd/compile/internal/ssa/lca_test.go b/src/cmd/compile/internal/ssa/lca_test.go
+new file mode 100644
+index 0000000000..beb33e066e
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/lca_test.go
+@@ -0,0 +1,103 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "testing"
++
++type lca interface {
++	find(a, b *Block) *Block
++}
++
++func lcaEqual(f *Func, lca1, lca2 lca) bool {
++	for _, b := range f.Blocks {
++		for _, c := range f.Blocks {
++			if lca1.find(b, c) != lca2.find(b, c) {
++				return false
++			}
++		}
++	}
++	return true
++}
++
++func testLCAgen(t *testing.T, bg blockGen, size int) {
++	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
++	fun := Fun(c, "entry", bg(size)...)
++	CheckFunc(fun.f)
++	if size == 4 {
++		t.Logf(fun.f.String())
++	}
++	lca1 := makeLCArange(fun.f)
++	lca2 := makeLCAeasy(fun.f)
++	for _, b := range fun.f.Blocks {
++		for _, c := range fun.f.Blocks {
++			l1 := lca1.find(b, c)
++			l2 := lca2.find(b, c)
++			if l1 != l2 {
++				t.Errorf("lca(%s,%s)=%s, want %s", b, c, l1, l2)
++			}
++		}
++	}
++}
++
++func TestLCALinear(t *testing.T) {
++	testLCAgen(t, genLinear, 10)
++	testLCAgen(t, genLinear, 100)
++}
++
++func TestLCAFwdBack(t *testing.T) {
++	testLCAgen(t, genFwdBack, 10)
++	testLCAgen(t, genFwdBack, 100)
++}
++
++func TestLCAManyPred(t *testing.T) {
++	testLCAgen(t, genManyPred, 10)
++	testLCAgen(t, genManyPred, 100)
++}
++
++func TestLCAMaxPred(t *testing.T) {
++	testLCAgen(t, genMaxPred, 10)
++	testLCAgen(t, genMaxPred, 100)
++}
++
++func TestLCAMaxPredValue(t *testing.T) {
++	testLCAgen(t, genMaxPredValue, 10)
++	testLCAgen(t, genMaxPredValue, 100)
++}
++
++// Simple implementation of LCA to compare against.
++type lcaEasy struct {
++	parent []*Block
++}
++
++func makeLCAeasy(f *Func) *lcaEasy {
++	return &lcaEasy{parent: dominators(f)}
++}
++
++func (lca *lcaEasy) find(a, b *Block) *Block {
++	da := lca.depth(a)
++	db := lca.depth(b)
++	for da > db {
++		da--
++		a = lca.parent[a.ID]
++	}
++	for da < db {
++		db--
++		b = lca.parent[b.ID]
++	}
++	for a != b {
++		a = lca.parent[a.ID]
++		b = lca.parent[b.ID]
++	}
++	return a
++}
++
++func (lca *lcaEasy) depth(b *Block) int {
++	n := 0
++	for b != nil {
++		b = lca.parent[b.ID]
++		n++
++	}
++	return n
++}
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 89b3d706dc..5af58d6ad8 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -189,6 +189,7 @@ func nto(x int64) int64 {
+ }
+ 
+ // log2 returns logarithm in base of uint64(n), with log2(0) = -1.
++// Rounds down.
+ func log2(n int64) (l int64) {
+ 	l = -1
+ 	x := uint64(n)
+diff --git a/src/cmd/compile/internal/ssa/rewrite_test.go b/src/cmd/compile/internal/ssa/rewrite_test.go
+index b786df887b..7bd32ff1b2 100644
+--- a/src/cmd/compile/internal/ssa/rewrite_test.go
++++ b/src/cmd/compile/internal/ssa/rewrite_test.go
+@@ -92,6 +92,9 @@ func TestLog2(t *testing.T) {
+ 		{1, 0},
+ 		{2, 1},
+ 		{4, 2},
++		{7, 2},
++		{8, 3},
++		{9, 3},
+ 		{1024, 10}}
+ 
+ 	for _, tc := range log2Tests {
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index 07f0375889..bed1704dc3 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -7,90 +7,135 @@ package ssa
+ // tighten moves Values closer to the Blocks in which they are used.
+ // This can reduce the amount of register spilling required,
+ // if it doesn't also create more live values.
+-// For now, it handles only the trivial case in which a
+-// Value with one or fewer args is only used in a single Block,
+-// and not in a phi value.
+-// TODO: Do something smarter.
+ // A Value can be moved to any block that
+ // dominates all blocks in which it is used.
+-// Figure out when that will be an improvement.
+ func tighten(f *Func) {
+-	// For each value, the number of blocks in which it is used.
+-	uses := make([]int32, f.NumValues())
++	canMove := make([]bool, f.NumValues())
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			switch v.Op {
++			case OpPhi, OpGetClosurePtr, OpArg, OpSelect0, OpSelect1:
++				// Phis need to stay in their block.
++				// GetClosurePtr & Arg must stay in the entry block.
++				// Tuple selectors must stay with the tuple generator.
++				continue
++			}
++			if len(v.Args) > 0 && v.Args[len(v.Args)-1].Type.IsMemory() {
++				// We can't move values which have a memory arg - it might
++				// make two memory values live across a block boundary.
++				continue
++			}
++			// Count arguments which will need a register.
++			narg := 0
++			for _, a := range v.Args {
++				switch a.Op {
++				case OpConst8, OpConst16, OpConst32, OpConst64, OpAddr:
++					// Probably foldable into v, don't count as an argument needing a register.
++					// TODO: move tighten to a machine-dependent phase and use v.rematerializeable()?
++				default:
++					narg++
++				}
++			}
++			if narg >= 2 && !v.Type.IsBoolean() {
++				// Don't move values with more than one input, as that may
++				// increase register pressure.
++				// We make an exception for boolean-typed values, as they will
++				// likely be converted to flags, and we want flag generators
++				// moved next to uses (because we only have 1 flag register).
++				continue
++			}
++			canMove[v.ID] = true
++		}
++	}
++
++	// Build data structure for fast least-common-ancestor queries.
++	lca := makeLCArange(f)
+ 
+-	// For each value, whether that value is ever an arg to a phi value.
+-	phi := make([]bool, f.NumValues())
++	// For each moveable value, record the block that dominates all uses found so far.
++	target := make([]*Block, f.NumValues())
+ 
+-	// For each value, one block in which that value is used.
+-	home := make([]*Block, f.NumValues())
++	// Grab loop information.
++	// We use this to make sure we don't tighten a value into a (deeper) loop.
++	idom := f.idom()
++	loops := f.loopnest()
++	loops.calculateDepths()
+ 
+ 	changed := true
+ 	for changed {
+ 		changed = false
+ 
+-		// Reset uses
+-		for i := range uses {
+-			uses[i] = 0
++		// Reset target
++		for i := range target {
++			target[i] = nil
+ 		}
+-		// No need to reset home; any relevant values will be written anew anyway.
+-		// No need to reset phi; once used in a phi, always used in a phi.
+ 
++		// Compute target locations (for moveable values only).
++		// target location = the least common ancestor of all uses in the dominator tree.
+ 		for _, b := range f.Blocks {
+ 			for _, v := range b.Values {
+-				for _, w := range v.Args {
++				for i, a := range v.Args {
++					if !canMove[a.ID] {
++						continue
++					}
++					use := b
+ 					if v.Op == OpPhi {
+-						phi[w.ID] = true
++						use = b.Preds[i].b
++					}
++					if target[a.ID] == nil {
++						target[a.ID] = use
++					} else {
++						target[a.ID] = lca.find(target[a.ID], use)
+ 					}
+-					uses[w.ID]++
+-					home[w.ID] = b
+ 				}
+ 			}
+-			if b.Control != nil {
+-				uses[b.Control.ID]++
+-				home[b.Control.ID] = b
++			if c := b.Control; c != nil {
++				if !canMove[c.ID] {
++					continue
++				}
++				if target[c.ID] == nil {
++					target[c.ID] = b
++				} else {
++					target[c.ID] = lca.find(target[c.ID], b)
++				}
+ 			}
+ 		}
+ 
++		// If the target location is inside a loop,
++		// move the target location up to just before the loop head.
+ 		for _, b := range f.Blocks {
+-			for i := 0; i < len(b.Values); i++ {
+-				v := b.Values[i]
+-				switch v.Op {
+-				case OpPhi, OpGetClosurePtr, OpConvert, OpArg:
+-					// GetClosurePtr & Arg must stay in entry block.
+-					// OpConvert must not float over call sites.
+-					// TODO do we instead need a dependence edge of some sort for OpConvert?
+-					// Would memory do the trick, or do we need something else that relates
+-					// to safe point operations?
++			origloop := loops.b2l[b.ID]
++			for _, v := range b.Values {
++				t := target[v.ID]
++				if t == nil {
+ 					continue
+-				default:
+ 				}
+-				if v.Op == OpSelect0 || v.Op == OpSelect1 {
+-					// tuple selector must stay with tuple generator
+-					continue
++				targetloop := loops.b2l[t.ID]
++				for targetloop != nil && (origloop == nil || targetloop.depth > origloop.depth) {
++					t = idom[targetloop.header.ID]
++					target[v.ID] = t
++					targetloop = loops.b2l[t.ID]
+ 				}
+-				if len(v.Args) > 0 && v.Args[len(v.Args)-1].Type.IsMemory() {
+-					// We can't move values which have a memory arg - it might
+-					// make two memory values live across a block boundary.
++			}
++		}
++
++		// Move values to target locations.
++		for _, b := range f.Blocks {
++			for i := 0; i < len(b.Values); i++ {
++				v := b.Values[i]
++				t := target[v.ID]
++				if t == nil || t == b {
++					// v is not moveable, or is already in correct place.
+ 					continue
+ 				}
+-				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && (len(v.Args) < 2 || v.Type.IsBoolean()) {
+-					// v is used in exactly one block, and it is not b.
+-					// Furthermore, it takes at most one input,
+-					// so moving it will not increase the
+-					// number of live values anywhere.
+-					// Move v to that block.
+-					// Also move bool generators even if they have more than 1 input.
+-					// They will likely be converted to flags, and we want flag
+-					// generators moved next to uses (because we only have 1 flag register).
+-					c := home[v.ID]
+-					c.Values = append(c.Values, v)
+-					v.Block = c
+-					last := len(b.Values) - 1
+-					b.Values[i] = b.Values[last]
+-					b.Values[last] = nil
+-					b.Values = b.Values[:last]
+-					changed = true
+-				}
++				// Move v to the block which dominates its uses.
++				t.Values = append(t.Values, v)
++				v.Block = t
++				last := len(b.Values) - 1
++				b.Values[i] = b.Values[last]
++				b.Values[last] = nil
++				b.Values = b.Values[:last]
++				changed = true
++				i--
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/trim.go b/src/cmd/compile/internal/ssa/trim.go
+index 8ffb459074..9b57b5a31e 100644
+--- a/src/cmd/compile/internal/ssa/trim.go
++++ b/src/cmd/compile/internal/ssa/trim.go
+@@ -23,6 +23,7 @@ func trim(f *Func) {
+ 		j := b.Succs[0].i
+ 		p.Succs[i] = Edge{s, j}
+ 		s.Preds[j] = Edge{p, i}
++		f.invalidateCFG()
+ 	}
+ 	tail := f.Blocks[n:]
+ 	for i := range tail {

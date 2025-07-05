@@ -28,7 +28,7 @@ Date:   Wed Apr 20 14:29:30 2016 -0300
     Change-Id: I1c82a423d6bd429fb991c9ca964c9d26c96fd3c5
     Reviewed-on: https://go-review.googlesource.com/22341
     Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 97 ++++++++++++++++++++++
  src/cmd/go/test.go                                 | 23 +++--
  src/cmd/go/testdata/standalone_benchmark_test.go   |  6 ++
@@ -39,3 +39,395 @@ Date:   Wed Apr 20 14:29:30 2016 -0300
  src/testing/example.go                             | 10 ++-
  src/testing/testing.go                             | 41 +++++++--
  9 files changed, 194 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 96cc197e09..4a82fdef6c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3020,3 +3020,100 @@ func TestGoEnv(t *testing.T) {
+ 	tg.run("env", "CGO_CFLAGS")
+ 	tg.grepStdout("^-foobar$", "CGO_CFLAGS not honored")
+ }
++
++const (
++	noMatchesPattern = `(?m)^ok.*\[no tests to run\]`
++	okPattern        = `(?m)^ok`
++)
++
++func TestMatchesNoTests(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-run", "ThisWillNotMatch", "testdata/standalone_test.go")
++	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
++}
++
++func TestMatchesNoTestsDoesNotOverrideBuildFailure(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.runFail("test", "-run", "ThisWillNotMatch", "syntaxerror")
++	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
++	tg.grepBoth("FAIL", "go test did not say FAIL")
++}
++
++func TestMatchesNoBenchmarks(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-bench", "ThisWillNotMatch", "testdata/standalone_benchmark_test.go")
++	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
++}
++
++func TestMatchesOnlyExampleIsOK(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-run", "Example", "testdata/example1_test.go")
++	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
++	tg.grepBoth(okPattern, "go test did not say ok")
++}
++
++func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-bench", ".", "testdata/standalone_test.go")
++	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
++	tg.grepBoth(okPattern, "go test did not say ok")
++}
++
++func TestMatchesOnlyTestIsOK(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-run", "Test", "testdata/standalone_test.go")
++	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
++	tg.grepBoth(okPattern, "go test did not say ok")
++}
++
++func TestMatchesNoTestsWithSubtests(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-run", "ThisWillNotMatch", "testdata/standalone_sub_test.go")
++	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
++}
++
++func TestMatchesNoSubtestsMatch(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-run", "Test/ThisWillNotMatch", "testdata/standalone_sub_test.go")
++	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
++}
++
++func TestMatchesNoSubtestsDoesNotOverrideFailure(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.runFail("test", "-run", "TestThatFails/ThisWillNotMatch", "testdata/standalone_fail_sub_test.go")
++	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
++	tg.grepBoth("FAIL", "go test did not say FAIL")
++}
++
++func TestMatchesOnlySubtestIsOK(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-run", "Test/Sub", "testdata/standalone_sub_test.go")
++	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
++	tg.grepBoth(okPattern, "go test did not say ok")
++}
++
++func TestMatchesNoSubtestsParallel(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-run", "Test/Sub/ThisWillNotMatch", "testdata/standalone_parallel_sub_test.go")
++	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
++}
++
++func TestMatchesOnlySubtestParallelIsOK(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-run", "Test/Sub/Nested", "testdata/standalone_parallel_sub_test.go")
++	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
++	tg.grepBoth(okPattern, "go test did not say ok")
++}
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 015355d3d7..63597778c1 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/doc"
+ 	"go/parser"
+ 	"go/token"
++	"io"
+ 	"os"
+ 	"os/exec"
+ 	"path"
+@@ -1085,6 +1086,8 @@ func declareCoverVars(importPath string, files ...string) map[string]*CoverVar {
+ 	return coverVars
+ }
+ 
++var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
++
+ // runTest is the action for running a test binary.
+ func (b *builder) runTest(a *action) error {
+ 	args := stringList(findExecCmd(), a.deps[0].target, testArgs)
+@@ -1110,8 +1113,12 @@ func (b *builder) runTest(a *action) error {
+ 	cmd.Env = envForDir(cmd.Dir, origEnv)
+ 	var buf bytes.Buffer
+ 	if testStreamOutput {
+-		cmd.Stdout = os.Stdout
+-		cmd.Stderr = os.Stderr
++		// The only way to keep the ordering of the messages and still
++		// intercept its contents. os/exec will share the same Pipe for
++		// both Stdout and Stderr when running the test program.
++		mw := io.MultiWriter(os.Stdout, &buf)
++		cmd.Stdout = mw
++		cmd.Stderr = mw
+ 	} else {
+ 		cmd.Stdout = &buf
+ 		cmd.Stderr = &buf
+@@ -1175,16 +1182,22 @@ func (b *builder) runTest(a *action) error {
+ 	out := buf.Bytes()
+ 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
+ 	if err == nil {
+-		if testShowPass {
++		norun := ""
++		if testShowPass && !testStreamOutput {
+ 			a.testOutput.Write(out)
+ 		}
+-		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s\n", a.p.ImportPath, t, coveragePercentage(out))
++		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
++			norun = " [no tests to run]"
++		}
++		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s%s\n", a.p.ImportPath, t, coveragePercentage(out), norun)
+ 		return nil
+ 	}
+ 
+ 	setExitStatus(1)
+ 	if len(out) > 0 {
+-		a.testOutput.Write(out)
++		if !testStreamOutput {
++			a.testOutput.Write(out)
++		}
+ 		// assume printing the test binary's exit status is superfluous
+ 	} else {
+ 		fmt.Fprintf(a.testOutput, "%s\n", err)
+diff --git a/src/cmd/go/testdata/standalone_benchmark_test.go b/src/cmd/go/testdata/standalone_benchmark_test.go
+new file mode 100644
+index 0000000000..4850f98d80
+--- /dev/null
++++ b/src/cmd/go/testdata/standalone_benchmark_test.go
+@@ -0,0 +1,6 @@
++package standalone_benchmark
++
++import "testing"
++
++func Benchmark(b *testing.B) {
++}
+diff --git a/src/cmd/go/testdata/standalone_fail_sub_test.go b/src/cmd/go/testdata/standalone_fail_sub_test.go
+new file mode 100644
+index 0000000000..ac483f9e0c
+--- /dev/null
++++ b/src/cmd/go/testdata/standalone_fail_sub_test.go
+@@ -0,0 +1,8 @@
++package standalone_fail_sub_test
++
++import "testing"
++
++func TestThatFails(t *testing.T) {
++	t.Run("Sub", func(t *testing.T) {})
++	t.Fail()
++}
+diff --git a/src/cmd/go/testdata/standalone_parallel_sub_test.go b/src/cmd/go/testdata/standalone_parallel_sub_test.go
+new file mode 100644
+index 0000000000..d326de0a5a
+--- /dev/null
++++ b/src/cmd/go/testdata/standalone_parallel_sub_test.go
+@@ -0,0 +1,14 @@
++package standalone_parallel_sub_test
++
++import "testing"
++
++func Test(t *testing.T) {
++	ch := make(chan bool, 1)
++	t.Run("Sub", func(t *testing.T) {
++		t.Parallel()
++		<-ch
++		t.Run("Nested", func(t *testing.T) {})
++	})
++	// Ensures that Sub will finish after its t.Run call already returned.
++	ch <- true
++}
+diff --git a/src/cmd/go/testdata/standalone_sub_test.go b/src/cmd/go/testdata/standalone_sub_test.go
+new file mode 100644
+index 0000000000..f6c31db9c8
+--- /dev/null
++++ b/src/cmd/go/testdata/standalone_sub_test.go
+@@ -0,0 +1,7 @@
++package standalone_sub_test
++
++import "testing"
++
++func Test(t *testing.T) {
++	t.Run("Sub", func(t *testing.T) {})
++}
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index b1ecd5aaf4..53d43a39d5 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -56,7 +56,6 @@ type B struct {
+ 	missingBytes     bool // one of the subbenchmarks does not have bytes set.
+ 	timerOn          bool
+ 	showAllocResult  bool
+-	hasSub           bool
+ 	result           BenchmarkResult
+ 	parallelism      int // RunParallel creates parallelism*GOMAXPROCS goroutines
+ 	// The initial states of memStats.Mallocs and memStats.TotalAlloc.
+@@ -358,10 +357,10 @@ type benchContext struct {
+ // An internal function but exported because it is cross-package; part of the implementation
+ // of the "go test" command.
+ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
+-	runBenchmarksInternal(matchString, benchmarks)
++	runBenchmarks(matchString, benchmarks)
+ }
+ 
+-func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
++func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
+ 	// If no flag was specified, don't run benchmarks.
+ 	if len(*matchBenchmarks) == 0 {
+ 		return true
+diff --git a/src/testing/example.go b/src/testing/example.go
+index fd8343f3bf..e5bce7af4e 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -21,7 +21,14 @@ type InternalExample struct {
+ 	Unordered bool
+ }
+ 
++// An internal function but exported because it is cross-package; part of the implementation
++// of the "go test" command.
+ func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
++	_, ok = runExamples(matchString, examples)
++	return ok
++}
++
++func runExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ran, ok bool) {
+ 	ok = true
+ 
+ 	var eg InternalExample
+@@ -35,12 +42,13 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
+ 		if !matched {
+ 			continue
+ 		}
++		ran = true
+ 		if !runExample(eg) {
+ 			ok = false
+ 		}
+ 	}
+ 
+-	return
++	return ran, ok
+ }
+ 
+ func sortLines(output string) string {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 16354ae95f..0b991b244e 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -259,10 +259,12 @@ type common struct {
+ 	output   []byte       // Output generated by test or benchmark.
+ 	w        io.Writer    // For flushToParent.
+ 	chatty   bool         // A copy of the chatty flag.
++	ran      bool         // Test or benchmark (or one of its subtests) was executed.
+ 	failed   bool         // Test or benchmark has failed.
+ 	skipped  bool         // Test of benchmark has been skipped.
+ 	finished bool         // Test function has completed.
+ 	done     bool         // Test is finished and all subtests have completed.
++	hasSub   bool
+ 
+ 	parent   *common
+ 	level    int       // Nesting depth of test or benchmark.
+@@ -410,6 +412,15 @@ func (c *common) Name() string {
+ 	return c.name
+ }
+ 
++func (c *common) setRan() {
++	if c.parent != nil {
++		c.parent.setRan()
++	}
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	c.ran = true
++}
++
+ // Fail marks the function as having failed but continues execution.
+ func (c *common) Fail() {
+ 	if c.parent != nil {
+@@ -616,6 +627,9 @@ func tRunner(t *T, fn func(t *T)) {
+ 		// Do not lock t.done to allow race detector to detect race in case
+ 		// the user does not appropriately synchronizes a goroutine.
+ 		t.done = true
++		if t.parent != nil && !t.hasSub {
++			t.setRan()
++		}
+ 		t.signal <- true
+ 	}()
+ 
+@@ -627,6 +641,7 @@ func tRunner(t *T, fn func(t *T)) {
+ // Run runs f as a subtest of t called name. It reports whether f succeeded.
+ // Run will block until all its parallel subtests have completed.
+ func (t *T) Run(name string, f func(t *T)) bool {
++	t.hasSub = true
+ 	testName, ok := t.context.match.fullName(&t.common, name)
+ 	if !ok {
+ 		return true
+@@ -753,14 +768,17 @@ func (m *M) Run() int {
+ 	before()
+ 	startAlarm()
+ 	haveExamples = len(m.examples) > 0
+-	testOk := RunTests(m.matchString, m.tests)
+-	exampleOk := RunExamples(m.matchString, m.examples)
+-	stopAlarm()
+-	if !testOk || !exampleOk || !runBenchmarksInternal(m.matchString, m.benchmarks) {
++	testRan, testOk := runTests(m.matchString, m.tests)
++	exampleRan, exampleOk := runExamples(m.matchString, m.examples)
++	if !testRan && !exampleRan {
++		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
++	}
++	if !testOk || !exampleOk || !runBenchmarks(m.matchString, m.benchmarks) {
+ 		fmt.Println("FAIL")
+ 		after()
+ 		return 1
+ 	}
++
+ 	fmt.Println("PASS")
+ 	after()
+ 	return 0
+@@ -783,12 +801,18 @@ func (t *T) report() {
+ 	}
+ }
+ 
++// An internal function but exported because it is cross-package; part of the implementation
++// of the "go test" command.
+ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
+-	ok = true
+-	if len(tests) == 0 && !haveExamples {
++	ran, ok := runTests(matchString, tests)
++	if !ran && !haveExamples {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+-		return
+ 	}
++	return ok
++}
++
++func runTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ran, ok bool) {
++	ok = true
+ 	for _, procs := range cpuList {
+ 		runtime.GOMAXPROCS(procs)
+ 		ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
+@@ -811,8 +835,9 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 			go func() { <-t.signal }()
+ 		})
+ 		ok = ok && !t.Failed()
++		ran = ran || t.ran
+ 	}
+-	return
++	return ran, ok
+ }
+ 
+ // before runs before all testing.

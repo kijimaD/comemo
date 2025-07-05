@@ -24,7 +24,7 @@ Date:   Wed Mar 9 09:41:01 2011 -0800
     R=rsc
     CC=gburd, golang-dev
     https://golang.org/cl/4239076
-
+---
  src/cmd/godoc/godoc.go              |  2 +-
  src/cmd/godoc/main.go               |  2 +-
  src/pkg/expvar/expvar.go            |  2 +-
@@ -42,3 +42,664 @@ Date:   Wed Mar 9 09:41:01 2011 -0800
  src/pkg/http/triv.go                |  4 +-
  src/pkg/rpc/server.go               |  2 +-
  16 files changed, 107 insertions(+), 110 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 9dce5edf94..41bd37ad66 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -702,7 +702,7 @@ func servePage(w http.ResponseWriter, title, subtitle, query string, content []b
+ 
+ 
+ func serveText(w http.ResponseWriter, text []byte) {
+-	w.SetHeader("Content-Type", "text/plain; charset=utf-8")
++	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 	w.Write(text)
+ }
+ 
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 1ebb802790..f32a5b9145 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -111,7 +111,7 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
+ 		os.Stderr.Write(buf.Bytes())
+ 	}
+ 	if rw != nil {
+-		rw.SetHeader("content-type", "text/plain; charset=utf-8")
++		rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 		rw.Write(buf.Bytes())
+ 	}
+ 
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index b1f0f6c1b8..ed6cff78db 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -269,7 +269,7 @@ func Iter() <-chan KeyValue {
+ }
+ 
+ func expvarHandler(w http.ResponseWriter, r *http.Request) {
+-	w.SetHeader("content-type", "application/json; charset=utf-8")
++	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+ 	fmt.Fprintf(w, "{\n")
+ 	first := true
+ 	for name, value := range vars {
+diff --git a/src/pkg/http/cgi/child.go b/src/pkg/http/cgi/child.go
+index 50f90e5263..e410c0aa23 100644
+--- a/src/pkg/http/cgi/child.go
++++ b/src/pkg/http/cgi/child.go
+@@ -149,12 +149,8 @@ func (r *response) RemoteAddr() string {
+ 	return os.Getenv("REMOTE_ADDR")
+ }
+ 
+-func (r *response) SetHeader(k, v string) {
+-	if v == "" {
+-		r.header.Del(k)
+-	} else {
+-		r.header.Set(k, v)
+-	}
++func (r *response) Header() http.Header {
++	return r.header
+ }
+ 
+ func (r *response) Write(p []byte) (n int, err os.Error) {
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 4a2efc7818..d6c8ab22a1 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -139,7 +139,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	linebody := line.NewReader(cmd.Stdout, 1024)
+-	headers := make(map[string]string)
++	headers := rw.Header()
+ 	statusCode := http.StatusOK
+ 	for {
+ 		line, isPrefix, err := linebody.ReadLine()
+@@ -181,12 +181,9 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 			}
+ 			statusCode = code
+ 		default:
+-			headers[header] = val
++			headers.Add(header, val)
+ 		}
+ 	}
+-	for h, v := range headers {
+-		rw.SetHeader(h, v)
+-	}
+ 	rw.WriteHeader(statusCode)
+ 
+ 	_, err = io.Copy(rw, linebody)
+diff --git a/src/pkg/http/cgi/host_test.go b/src/pkg/http/cgi/host_test.go
+index 3362ae5805..2db08d5429 100644
+--- a/src/pkg/http/cgi/host_test.go
++++ b/src/pkg/http/cgi/host_test.go
+@@ -111,10 +111,10 @@ func TestCGIBasicGet(t *testing.T) {
+ 	}
+ 	replay := runCgiTest(t, h, "GET /test.cgi?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
+ 
+-	if expected, got := "text/html", replay.Header.Get("Content-Type"); got != expected {
++	if expected, got := "text/html", replay.Header().Get("Content-Type"); got != expected {
+ 		t.Errorf("got a Content-Type of %q; expected %q", got, expected)
+ 	}
+-	if expected, got := "X-Test-Value", replay.Header.Get("X-Test-Header"); got != expected {
++	if expected, got := "X-Test-Value", replay.Header().Get("X-Test-Header"); got != expected {
+ 		t.Errorf("got a X-Test-Header of %q; expected %q", got, expected)
+ 	}
+ }
+diff --git a/src/pkg/http/cgi/matryoshka_test.go b/src/pkg/http/cgi/matryoshka_test.go
+index 4bf9c19cb7..3e4a6addfa 100644
+--- a/src/pkg/http/cgi/matryoshka_test.go
++++ b/src/pkg/http/cgi/matryoshka_test.go
+@@ -43,10 +43,10 @@ func TestHostingOurselves(t *testing.T) {
+ 	}
+ 	replay := runCgiTest(t, h, "GET /test.go?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
+ 
+-	if expected, got := "text/html; charset=utf-8", replay.Header.Get("Content-Type"); got != expected {
++	if expected, got := "text/html; charset=utf-8", replay.Header().Get("Content-Type"); got != expected {
+ 		t.Errorf("got a Content-Type of %q; expected %q", got, expected)
+ 	}
+-	if expected, got := "X-Test-Value", replay.Header.Get("X-Test-Header"); got != expected {
++	if expected, got := "X-Test-Value", replay.Header().Get("X-Test-Header"); got != expected {
+ 		t.Errorf("got a X-Test-Header of %q; expected %q", got, expected)
+ 	}
+ }
+@@ -58,7 +58,7 @@ func TestBeChildCGIProcess(t *testing.T) {
+ 		return
+ 	}
+ 	Serve(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+-		rw.SetHeader("X-Test-Header", "X-Test-Value")
++		rw.Header().Set("X-Test-Header", "X-Test-Value")
+ 		fmt.Fprintf(rw, "test=Hello CGI-in-CGI\n")
+ 		req.ParseForm()
+ 		for k, vv := range req.Form {
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index a4cd7072e1..4ad680ccc3 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -108,7 +108,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 		w.WriteHeader(StatusNotModified)
+ 		return
+ 	}
+-	w.SetHeader("Last-Modified", time.SecondsToUTC(d.Mtime_ns/1e9).Format(TimeFormat))
++	w.Header().Set("Last-Modified", time.SecondsToUTC(d.Mtime_ns/1e9).Format(TimeFormat))
+ 
+ 	// use contents of index.html for directory, if present
+ 	if d.IsDirectory() {
+@@ -137,16 +137,16 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 	// use extension to find content type.
+ 	ext := filepath.Ext(name)
+ 	if ctype := mime.TypeByExtension(ext); ctype != "" {
+-		w.SetHeader("Content-Type", ctype)
++		w.Header().Set("Content-Type", ctype)
+ 	} else {
+ 		// read first chunk to decide between utf-8 text and binary
+ 		var buf [1024]byte
+ 		n, _ := io.ReadFull(f, buf[:])
+ 		b := buf[:n]
+ 		if isText(b) {
+-			w.SetHeader("Content-Type", "text-plain; charset=utf-8")
++			w.Header().Set("Content-Type", "text-plain; charset=utf-8")
+ 		} else {
+-			w.SetHeader("Content-Type", "application/octet-stream") // generic binary
++			w.Header().Set("Content-Type", "application/octet-stream") // generic binary
+ 		}
+ 		f.Seek(0, 0) // rewind to output whole file
+ 	}
+@@ -166,11 +166,11 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 		}
+ 		size = ra.length
+ 		code = StatusPartialContent
+-		w.SetHeader("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, d.Size))
++		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, d.Size))
+ 	}
+ 
+-	w.SetHeader("Accept-Ranges", "bytes")
+-	w.SetHeader("Content-Length", strconv.Itoa64(size))
++	w.Header().Set("Accept-Ranges", "bytes")
++	w.Header().Set("Content-Length", strconv.Itoa64(size))
+ 
+ 	w.WriteHeader(code)
+ 
+diff --git a/src/pkg/http/httptest/recorder.go b/src/pkg/http/httptest/recorder.go
+index ec7bde8aae..22827a31db 100644
+--- a/src/pkg/http/httptest/recorder.go
++++ b/src/pkg/http/httptest/recorder.go
+@@ -14,11 +14,10 @@ import (
+ // ResponseRecorder is an implementation of http.ResponseWriter that
+ // records its mutations for later inspection in tests.
+ type ResponseRecorder struct {
+-	Code    int           // the HTTP response code from WriteHeader
+-	Header  http.Header   // if non-nil, the headers to populate
+-	Body    *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
+-	Flushed bool
+-
++	Code           int           // the HTTP response code from WriteHeader
++	HeaderMap      http.Header   // the HTTP response headers
++	Body           *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
++	Flushed        bool
+ 	FakeRemoteAddr string // the fake RemoteAddr to return, or "" for DefaultRemoteAddr
+ 	FakeUsingTLS   bool   // whether to return true from the UsingTLS method
+ }
+@@ -26,8 +25,8 @@ type ResponseRecorder struct {
+ // NewRecorder returns an initialized ResponseRecorder.
+ func NewRecorder() *ResponseRecorder {
+ 	return &ResponseRecorder{
+-		Header: http.Header(make(map[string][]string)),
+-		Body:   new(bytes.Buffer),
++		HeaderMap: make(http.Header),
++		Body:      new(bytes.Buffer),
+ 	}
+ }
+ 
+@@ -49,15 +48,9 @@ func (rw *ResponseRecorder) UsingTLS() bool {
+ 	return rw.FakeUsingTLS
+ }
+ 
+-// SetHeader populates rw.Header, if non-nil.
+-func (rw *ResponseRecorder) SetHeader(k, v string) {
+-	if rw.Header != nil {
+-		if v == "" {
+-			rw.Header.Del(k)
+-		} else {
+-			rw.Header.Set(k, v)
+-		}
+-	}
++// Header returns the response headers.
++func (rw *ResponseRecorder) Header() http.Header {
++	return rw.HeaderMap
+ }
+ 
+ // Write always succeeds and writes to rw.Body, if not nil.
+diff --git a/src/pkg/http/pprof/pprof.go b/src/pkg/http/pprof/pprof.go
+index f7db9aab93..0bac26687d 100644
+--- a/src/pkg/http/pprof/pprof.go
++++ b/src/pkg/http/pprof/pprof.go
+@@ -41,14 +41,14 @@ func init() {
+ // command line, with arguments separated by NUL bytes.
+ // The package initialization registers it as /debug/pprof/cmdline.
+ func Cmdline(w http.ResponseWriter, r *http.Request) {
+-	w.SetHeader("content-type", "text/plain; charset=utf-8")
++	w.Header().Set("content-type", "text/plain; charset=utf-8")
+ 	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
+ }
+ 
+ // Heap responds with the pprof-formatted heap profile.
+ // The package initialization registers it as /debug/pprof/heap.
+ func Heap(w http.ResponseWriter, r *http.Request) {
+-	w.SetHeader("content-type", "text/plain; charset=utf-8")
++	w.Header().Set("content-type", "text/plain; charset=utf-8")
+ 	pprof.WriteHeapProfile(w)
+ }
+ 
+@@ -56,7 +56,7 @@ func Heap(w http.ResponseWriter, r *http.Request) {
+ // responding with a table mapping program counters to function names.
+ // The package initialization registers it as /debug/pprof/symbol.
+ func Symbol(w http.ResponseWriter, r *http.Request) {
+-	w.SetHeader("content-type", "text/plain; charset=utf-8")
++	w.Header().Set("content-type", "text/plain; charset=utf-8")
+ 
+ 	// We don't know how many symbols we have, but we
+ 	// do have symbol information.  Pprof only cares whether
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index 3d77c55551..7ac7fb81f3 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -217,13 +217,16 @@ func (resp *Response) Write(w io.Writer) os.Error {
+ func writeSortedHeader(w io.Writer, h Header, exclude map[string]bool) os.Error {
+ 	keys := make([]string, 0, len(h))
+ 	for k := range h {
+-		if !exclude[k] {
++		if exclude == nil || !exclude[k] {
+ 			keys = append(keys, k)
+ 		}
+ 	}
+ 	sort.SortStrings(keys)
+ 	for _, k := range keys {
+ 		for _, v := range h[k] {
++			v = strings.TrimSpace(v)
++			v = strings.Replace(v, "\n", " ", -1)
++			v = strings.Replace(v, "\r", " ", -1)
+ 			if _, err := fmt.Fprintf(w, "%s: %s\r\n", k, v); err != nil {
+ 				return err
+ 			}
+diff --git a/src/pkg/http/responsewrite_test.go b/src/pkg/http/responsewrite_test.go
+index 228ed5f7d1..0ef7f041e9 100644
+--- a/src/pkg/http/responsewrite_test.go
++++ b/src/pkg/http/responsewrite_test.go
+@@ -65,6 +65,29 @@ var respWriteTests = []respWriteTest{
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			"6\r\nabcdef\r\n0\r\n\r\n",
+ 	},
++
++	// Header value with a newline character (Issue 914).
++	// Also tests removal of leading and trailing whitespace.
++	{
++		Response{
++			StatusCode:    204,
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			RequestMethod: "GET",
++			Header: Header{
++				"Foo": []string{" Bar\nBaz "},
++			},
++			Body:             nil,
++			ContentLength:    0,
++			TransferEncoding: []string{"chunked"},
++			Close:            true,
++		},
++
++		"HTTP/1.1 204 No Content\r\n" +
++			"Connection: close\r\n" +
++			"Foo: Bar Baz\r\n" +
++			"\r\n",
++	},
+ }
+ 
+ func TestResponseWrite(t *testing.T) {
+@@ -78,7 +101,7 @@ func TestResponseWrite(t *testing.T) {
+ 		}
+ 		sraw := braw.String()
+ 		if sraw != tt.Raw {
+-			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, sraw)
++			t.Errorf("Test %d, expecting:\n%q\nGot:\n%q\n", i, tt.Raw, sraw)
+ 			continue
+ 		}
+ 	}
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 40ad68151e..a6d3cab09d 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -144,7 +144,7 @@ func TestConsumingBodyOnNextConn(t *testing.T) {
+ type stringHandler string
+ 
+ func (s stringHandler) ServeHTTP(w ResponseWriter, r *Request) {
+-	w.SetHeader("Result", string(s))
++	w.Header().Set("Result", string(s))
+ }
+ 
+ var handlers = []struct {
+@@ -216,7 +216,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ 
+ 		mux.ServeHTTP(resp, req)
+ 
+-		if loc, expected := resp.Header.Get("Location"), "/foo.txt"; loc != expected {
++		if loc, expected := resp.Header().Get("Location"), "/foo.txt"; loc != expected {
+ 			t.Errorf("Expected Location header set to %q; got %q", expected, loc)
+ 			return
+ 		}
+@@ -294,8 +294,8 @@ func TestServerTimeouts(t *testing.T) {
+ // TestIdentityResponse verifies that a handler can unset 
+ func TestIdentityResponse(t *testing.T) {
+ 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
+-		rw.SetHeader("Content-Length", "3")
+-		rw.SetHeader("Transfer-Encoding", req.FormValue("te"))
++		rw.Header().Set("Content-Length", "3")
++		rw.Header().Set("Transfer-Encoding", req.FormValue("te"))
+ 		switch {
+ 		case req.FormValue("overwrite") == "1":
+ 			_, err := rw.Write([]byte("foo TOO LONG"))
+@@ -303,7 +303,7 @@ func TestIdentityResponse(t *testing.T) {
+ 				t.Errorf("expected ErrContentLength; got %v", err)
+ 			}
+ 		case req.FormValue("underwrite") == "1":
+-			rw.SetHeader("Content-Length", "500")
++			rw.Header().Set("Content-Length", "500")
+ 			rw.Write([]byte("too short"))
+ 		default:
+ 			rw.Write([]byte("foo"))
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index c48aa8d67d..8a8cdd9332 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -54,17 +54,10 @@ type ResponseWriter interface {
+ 	// UsingTLS returns true if the client is connected using TLS
+ 	UsingTLS() bool
+ 
+-	// SetHeader sets a header line in the eventual response.
+-	// For example, SetHeader("Content-Type", "text/html; charset=utf-8")
+-	// will result in the header line
+-	//
+-	//	Content-Type: text/html; charset=utf-8
+-	//
+-	// being sent. UTF-8 encoded HTML is the default setting for
+-	// Content-Type in this library, so users need not make that
+-	// particular call. Calls to SetHeader after WriteHeader (or Write)
+-	// are ignored. An empty value removes the header if previously set.
+-	SetHeader(string, string)
++	// Header returns the header map that will be sent by WriteHeader.
++	// Changing the header after a call to WriteHeader (or Write) has
++	// no effect.
++	Header() Header
+ 
+ 	// Write writes the data to the connection as part of an HTTP reply.
+ 	// If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
+@@ -106,14 +99,14 @@ type conn struct {
+ // A response represents the server side of an HTTP response.
+ type response struct {
+ 	conn          *conn
+-	req           *Request          // request for this response
+-	chunking      bool              // using chunked transfer encoding for reply body
+-	wroteHeader   bool              // reply header has been written
+-	wroteContinue bool              // 100 Continue response was written
+-	header        map[string]string // reply header parameters
+-	written       int64             // number of bytes written in body
+-	contentLength int64             // explicitly-declared Content-Length; or -1
+-	status        int               // status code passed to WriteHeader
++	req           *Request // request for this response
++	chunking      bool     // using chunked transfer encoding for reply body
++	wroteHeader   bool     // reply header has been written
++	wroteContinue bool     // 100 Continue response was written
++	header        Header   // reply header parameters
++	written       int64    // number of bytes written in body
++	contentLength int64    // explicitly-declared Content-Length; or -1
++	status        int      // status code passed to WriteHeader
+ 
+ 	// close connection after this reply.  set on request and
+ 	// updated after response from handler if there's a
+@@ -174,7 +167,7 @@ func (c *conn) readRequest() (w *response, err os.Error) {
+ 	w = new(response)
+ 	w.conn = c
+ 	w.req = req
+-	w.header = make(map[string]string)
++	w.header = make(Header)
+ 	w.contentLength = -1
+ 
+ 	// Expect 100 Continue support
+@@ -185,21 +178,16 @@ func (c *conn) readRequest() (w *response, err os.Error) {
+ 	return w, nil
+ }
+ 
+-// UsingTLS implements the ResponseWriter.UsingTLS
+ func (w *response) UsingTLS() bool {
+ 	return w.conn.usingTLS
+ }
+ 
+-// RemoteAddr implements the ResponseWriter.RemoteAddr method
+ func (w *response) RemoteAddr() string { return w.conn.remoteAddr }
+ 
+-// SetHeader implements the ResponseWriter.SetHeader method
+-// An empty value removes the header from the map.
+-func (w *response) SetHeader(hdr, val string) {
+-	w.header[CanonicalHeaderKey(hdr)] = val, val != ""
++func (w *response) Header() Header {
++	return w.header
+ }
+ 
+-// WriteHeader implements the ResponseWriter.WriteHeader method
+ func (w *response) WriteHeader(code int) {
+ 	if w.conn.hijacked {
+ 		log.Print("http: response.WriteHeader on hijacked connection")
+@@ -214,46 +202,47 @@ func (w *response) WriteHeader(code int) {
+ 	if code == StatusNotModified {
+ 		// Must not have body.
+ 		for _, header := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
+-			if w.header[header] != "" {
++			if w.header.Get(header) != "" {
+ 				// TODO: return an error if WriteHeader gets a return parameter
+ 				// or set a flag on w to make future Writes() write an error page?
+ 				// for now just log and drop the header.
+ 				log.Printf("http: StatusNotModified response with header %q defined", header)
+-				w.header[header] = "", false
++				w.header.Del(header)
+ 			}
+ 		}
+ 	} else {
+ 		// Default output is HTML encoded in UTF-8.
+-		if w.header["Content-Type"] == "" {
+-			w.SetHeader("Content-Type", "text/html; charset=utf-8")
++		if w.header.Get("Content-Type") == "" {
++			w.header.Set("Content-Type", "text/html; charset=utf-8")
+ 		}
+ 	}
+ 
+-	if w.header["Date"] == "" {
+-		w.SetHeader("Date", time.UTC().Format(TimeFormat))
++	if w.header.Get("Date") == "" {
++		w.Header().Set("Date", time.UTC().Format(TimeFormat))
+ 	}
+ 
+ 	// Check for a explicit (and valid) Content-Length header.
+ 	var hasCL bool
+ 	var contentLength int64
+-	if clenStr, ok := w.header["Content-Length"]; ok {
++	if clenStr := w.header.Get("Content-Length"); clenStr != "" {
+ 		var err os.Error
+ 		contentLength, err = strconv.Atoi64(clenStr)
+ 		if err == nil {
+ 			hasCL = true
+ 		} else {
+ 			log.Printf("http: invalid Content-Length of %q sent", clenStr)
+-			w.SetHeader("Content-Length", "")
++			w.header.Set("Content-Length", "")
+ 		}
+ 	}
+ 
+-	te, hasTE := w.header["Transfer-Encoding"]
++	te := w.header.Get("Transfer-Encoding")
++	hasTE := te != ""
+ 	if hasCL && hasTE && te != "identity" {
+ 		// TODO: return an error if WriteHeader gets a return parameter
+ 		// For now just ignore the Content-Length.
+ 		log.Printf("http: WriteHeader called with both Transfer-Encoding of %q and a Content-Length of %d",
+ 			te, contentLength)
+-		w.SetHeader("Content-Length", "")
++		w.header.Set("Content-Length", "")
+ 		hasCL = false
+ 	}
+ 
+@@ -262,7 +251,7 @@ func (w *response) WriteHeader(code int) {
+ 	} else if hasCL {
+ 		w.chunking = false
+ 		w.contentLength = contentLength
+-		w.SetHeader("Transfer-Encoding", "")
++		w.header.Del("Transfer-Encoding")
+ 	} else if w.req.ProtoAtLeast(1, 1) {
+ 		// HTTP/1.1 or greater: use chunked transfer encoding
+ 		// to avoid closing the connection at EOF.
+@@ -270,20 +259,20 @@ func (w *response) WriteHeader(code int) {
+ 		// might have set.  Deal with that as need arises once we have a valid
+ 		// use case.
+ 		w.chunking = true
+-		w.SetHeader("Transfer-Encoding", "chunked")
++		w.header.Set("Transfer-Encoding", "chunked")
+ 	} else {
+ 		// HTTP version < 1.1: cannot do chunked transfer
+ 		// encoding and we don't know the Content-Length so
+ 		// signal EOF by closing connection.
+ 		w.closeAfterReply = true
+-		w.chunking = false                   // redundant
+-		w.SetHeader("Transfer-Encoding", "") // in case already set
++		w.chunking = false                // redundant
++		w.header.Del("Transfer-Encoding") // in case already set
+ 	}
+ 
+ 	if w.req.wantsHttp10KeepAlive() && (w.req.Method == "HEAD" || hasCL) {
+ 		_, connectionHeaderSet := w.header["Connection"]
+ 		if !connectionHeaderSet {
+-			w.SetHeader("Connection", "keep-alive")
++			w.header.Set("Connection", "keep-alive")
+ 		}
+ 	} else if !w.req.ProtoAtLeast(1, 1) {
+ 		// Client did not ask to keep connection alive.
+@@ -292,7 +281,7 @@ func (w *response) WriteHeader(code int) {
+ 
+ 	// Cannot use Content-Length with non-identity Transfer-Encoding.
+ 	if w.chunking {
+-		w.SetHeader("Content-Length", "")
++		w.header.Set("Content-Length", "")
+ 	}
+ 	if !w.req.ProtoAtLeast(1, 0) {
+ 		return
+@@ -307,13 +296,10 @@ func (w *response) WriteHeader(code int) {
+ 		text = "status code " + codestring
+ 	}
+ 	io.WriteString(w.conn.buf, proto+" "+codestring+" "+text+"\r\n")
+-	for k, v := range w.header {
+-		io.WriteString(w.conn.buf, k+": "+v+"\r\n")
+-	}
++	writeSortedHeader(w.conn.buf, w.header, nil)
+ 	io.WriteString(w.conn.buf, "\r\n")
+ }
+ 
+-// Write implements the ResponseWriter.Write method
+ func (w *response) Write(data []byte) (n int, err os.Error) {
+ 	if w.conn.hijacked {
+ 		log.Print("http: response.Write on hijacked connection")
+@@ -388,7 +374,7 @@ func errorKludge(w *response) {
+ 	msg += " would ignore this error page if this text weren't here.\n"
+ 
+ 	// Is it text?  ("Content-Type" is always in the map)
+-	baseType := strings.Split(w.header["Content-Type"], ";", 2)[0]
++	baseType := strings.Split(w.header.Get("Content-Type"), ";", 2)[0]
+ 	switch baseType {
+ 	case "text/html":
+ 		io.WriteString(w, "<!-- ")
+@@ -408,8 +394,8 @@ func (w *response) finishRequest() {
+ 	// If this was an HTTP/1.0 request with keep-alive and we sent a Content-Length
+ 	// back, we can make this a keep-alive response ...
+ 	if w.req.wantsHttp10KeepAlive() {
+-		_, sentLength := w.header["Content-Length"]
+-		if sentLength && w.header["Connection"] == "keep-alive" {
++		sentLength := w.header.Get("Content-Length") != ""
++		if sentLength && w.header.Get("Connection") == "keep-alive" {
+ 			w.closeAfterReply = false
+ 		}
+ 	}
+@@ -431,7 +417,6 @@ func (w *response) finishRequest() {
+ 	}
+ }
+ 
+-// Flush implements the ResponseWriter.Flush method.
+ func (w *response) Flush() {
+ 	if !w.wroteHeader {
+ 		w.WriteHeader(StatusOK)
+@@ -504,7 +489,7 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
+ 
+ // Error replies to the request with the specified error message and HTTP code.
+ func Error(w ResponseWriter, error string, code int) {
+-	w.SetHeader("Content-Type", "text/plain; charset=utf-8")
++	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 	w.WriteHeader(code)
+ 	fmt.Fprintln(w, error)
+ }
+@@ -557,7 +542,7 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+ 		}
+ 	}
+ 
+-	w.SetHeader("Location", url)
++	w.Header().Set("Location", url)
+ 	w.WriteHeader(code)
+ 
+ 	// RFC2616 recommends that a short note "SHOULD" be included in the
+@@ -680,7 +665,7 @@ func (mux *ServeMux) match(path string) Handler {
+ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
+ 	// Clean path to canonical form and redirect.
+ 	if p := cleanPath(r.URL.Path); p != r.URL.Path {
+-		w.SetHeader("Location", p)
++		w.Header().Set("Location", p)
+ 		w.WriteHeader(StatusMovedPermanently)
+ 		return
+ 	}
+@@ -833,7 +818,7 @@ func ListenAndServe(addr string, handler Handler) os.Error {
+ //	)
+ //
+ //	func handler(w http.ResponseWriter, req *http.Request) {
+-//		w.SetHeader("Content-Type", "text/plain")
++//		w.Header().Set("Content-Type", "text/plain")
+ //		w.Write([]byte("This is an example server.\n"))
+ //	}
+ //
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index 52d521d3db..47257e3c23 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -56,7 +56,7 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ var booleanflag = flag.Bool("boolean", true, "another flag for testing")
+ 
+ func FlagServer(w http.ResponseWriter, req *http.Request) {
+-	w.SetHeader("content-type", "text/plain; charset=utf-8")
++	w.Header.Set("Content-Type", "text/plain; charset=utf-8")
+ 	fmt.Fprint(w, "Flags:\n")
+ 	flag.VisitAll(func(f *flag.Flag) {
+ 		if f.Value.String() != f.DefValue {
+@@ -93,7 +93,7 @@ func (ch Chan) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 
+ // exec a program, redirecting output
+ func DateServer(rw http.ResponseWriter, req *http.Request) {
+-	rw.SetHeader("content-type", "text/plain; charset=utf-8")
++	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 	r, w, err := os.Pipe()
+ 	if err != nil {
+ 		fmt.Fprintf(rw, "pipe: %s\n", err)
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index aa51f452f2..90ee25343c 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -509,7 +509,7 @@ var connected = "200 Connected to Go RPC"
+ // ServeHTTP implements an http.Handler that answers RPC requests.
+ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 	if req.Method != "CONNECT" {
+-		w.SetHeader("Content-Type", "text/plain; charset=utf-8")
++		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 		w.WriteHeader(http.StatusMethodNotAllowed)
+ 		io.WriteString(w, "405 must CONNECT\n")
+ 		return

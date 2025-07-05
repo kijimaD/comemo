@@ -19,7 +19,57 @@ Date:   Tue Nov 21 17:23:43 2023 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/trace/v2/event.go                | 6 ++++++
  src/internal/trace/v2/testtrace/validation.go | 5 +++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/internal/trace/v2/event.go b/src/internal/trace/v2/event.go
+index 7ec4698d88..3700cbcc2f 100644
+--- a/src/internal/trace/v2/event.go
++++ b/src/internal/trace/v2/event.go
+@@ -568,22 +568,28 @@ func (e Event) StateTransition() StateTransition {
+ 		s = goStateTransition(GoID(e.base.args[0]), GoRunnable, GoRunning)
+ 	case go122.EvGoDestroy:
+ 		s = goStateTransition(e.ctx.G, GoRunning, GoNotExist)
++		s.Stack = e.Stack() // This event references the resource the event happened on.
+ 	case go122.EvGoDestroySyscall:
+ 		s = goStateTransition(e.ctx.G, GoSyscall, GoNotExist)
+ 	case go122.EvGoStop:
+ 		s = goStateTransition(e.ctx.G, GoRunning, GoRunnable)
+ 		s.Reason = e.table.strings.mustGet(stringID(e.base.args[0]))
++		s.Stack = e.Stack() // This event references the resource the event happened on.
+ 	case go122.EvGoBlock:
+ 		s = goStateTransition(e.ctx.G, GoRunning, GoWaiting)
+ 		s.Reason = e.table.strings.mustGet(stringID(e.base.args[0]))
++		s.Stack = e.Stack() // This event references the resource the event happened on.
+ 	case go122.EvGoUnblock:
+ 		s = goStateTransition(GoID(e.base.args[0]), GoWaiting, GoRunnable)
+ 	case go122.EvGoSyscallBegin:
+ 		s = goStateTransition(e.ctx.G, GoRunning, GoSyscall)
++		s.Stack = e.Stack() // This event references the resource the event happened on.
+ 	case go122.EvGoSyscallEnd:
+ 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunning)
++		s.Stack = e.Stack() // This event references the resource the event happened on.
+ 	case go122.EvGoSyscallEndBlocked:
+ 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunnable)
++		s.Stack = e.Stack() // This event references the resource the event happened on.
+ 	case go122.EvGoStatus:
+ 		// N.B. ordering.advance populates e.base.extra.
+ 		s = goStateTransition(GoID(e.base.args[0]), GoState(e.base.extra(version.Go122)[0]), go122GoStatus2GoState[e.base.args[2]])
+diff --git a/src/internal/trace/v2/testtrace/validation.go b/src/internal/trace/v2/testtrace/validation.go
+index fcbc10801b..a2654a10e4 100644
+--- a/src/internal/trace/v2/testtrace/validation.go
++++ b/src/internal/trace/v2/testtrace/validation.go
+@@ -169,6 +169,11 @@ func (v *Validator) Event(ev trace.Event) error {
+ 					state.binding = ctx
+ 				}
+ 			} else if old.Executing() && !new.Executing() {
++				if tr.Stack != ev.Stack() {
++					// This is a case where the transition is happening to a goroutine that is also executing, so
++					// these two stacks should always match.
++					e.Errorf("StateTransition.Stack doesn't match Event.Stack")
++				}
+ 				ctx := state.binding
+ 				if ctx != nil {
+ 					if ctx.G != id {

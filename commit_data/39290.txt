@@ -11,6 +11,28 @@ Date:   Tue Feb 19 13:53:39 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/nm/nm_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 1b5bd21ad5..8176ddd7f4 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -222,12 +222,16 @@ func testGoLib(t *testing.T, iscgo bool) {
+ 	if e := file.Close(); err == nil {
+ 		err = e
+ 	}
++	if err == nil {
++		err = ioutil.WriteFile(filepath.Join(libpath, "go.mod"), []byte("module mylib\n"), 0666)
++	}
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+ 	args := []string{"install", "mylib"}
+ 	cmd := exec.Command(testenv.GoToolPath(t), args...)
++	cmd.Dir = libpath
+ 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {

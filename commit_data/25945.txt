@@ -22,6 +22,24 @@ Date:   Fri Dec 4 16:10:15 2015 -0500
     Change-Id: I0a6ed0afb8a8f50aa1b2486f32b4ae470ab47dbf
     Reviewed-on: https://go-review.googlesource.com/17452
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_solaris_amd64.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/cgo/gcc_solaris_amd64.c b/src/runtime/cgo/gcc_solaris_amd64.c
+index 72ace56c07..98a1a8be53 100644
+--- a/src/runtime/cgo/gcc_solaris_amd64.c
++++ b/src/runtime/cgo/gcc_solaris_amd64.c
+@@ -20,6 +20,12 @@ x_cgo_init(G *g, void (*setg)(void*))
+ 	if (getcontext(&ctx) != 0)
+ 		perror("runtime/cgo: getcontext failed");
+ 	g->stacklo = (uintptr_t)ctx.uc_stack.ss_sp;
++
++	// Solaris processes report a tiny stack when run with "ulimit -s unlimited".
++	// Correct that as best we can: assume it's at least 1 MB.
++	// See golang.org/issue/12210.
++	if(ctx.uc_stack.ss_size < 1024*1024)
++		g->stacklo -= 1024*1024 - ctx.uc_stack.ss_size;
+ }
+ 
+ void

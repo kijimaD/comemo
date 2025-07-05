@@ -10,6 +10,21 @@ Date:   Fri Sep 3 15:37:57 2010 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/2036045
-
+---
  src/Make.ccmd | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/Make.ccmd b/src/Make.ccmd
+index 3797fae6c0..e22e256f00 100644
+--- a/src/Make.ccmd
++++ b/src/Make.ccmd
+@@ -12,7 +12,9 @@ $(OFILES): $(HFILES)
+ clean:
+ 	rm -f *.$(HOST_O) $(TARG) $(CLEANFILES)
+ 
++ifneq ($(NOINSTALL),1)
+ install: $(QUOTED_GOBIN)/$(TARG)
++endif
+ 
+ $(QUOTED_GOBIN)/$(TARG): $(TARG)
+ 	cp $(TARG) "$(GOBIN)"/$(TARG)

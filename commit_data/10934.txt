@@ -7,6 +7,20 @@ Date:   Wed Dec 21 21:47:59 2011 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5500059
-
+---
  misc/dashboard/app/build/ui.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/app/build/ui.html b/misc/dashboard/app/build/ui.html
+index a241a94ea5..429b6ff057 100644
+--- a/misc/dashboard/app/build/ui.html
++++ b/misc/dashboard/app/build/ui.html
+@@ -40,7 +40,7 @@
+       .build .time {
+         color: #666;
+       }
+-      .build .descr, .build .time, .build .user {
++      .build .desc, .build .time, .build .user {
+         white-space: nowrap;
+       }
+       .paginate {

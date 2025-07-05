@@ -9,6 +9,20 @@ Date:   Tue Mar 6 10:16:13 2018 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm7.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index b0831d43a0..72c0948d0e 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3160,7 +3160,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if p.As == ASTXP || p.As == ASTXPW || p.As == ASTLXP || p.As == ASTLXPW {
+ 			o1 |= uint32(p.From.Offset&31) << 10
+ 		}
+-		o1 |= uint32(p.To.Reg&31) << 5 | uint32(p.From.Reg & 31)
++		o1 |= uint32(p.To.Reg&31)<<5 | uint32(p.From.Reg&31)
+ 
+ 	case 60: /* adrp label,r */
+ 		d := c.brdist(p, 12, 21, 0)

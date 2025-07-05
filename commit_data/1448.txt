@@ -8,8 +8,53 @@ Date:   Thu Jan 8 20:06:37 2009 -0800
     DELTA=72  (30 added, 42 deleted, 0 changed)
     OCL=22373
     CL=22378
-
+---
  test/{bugs => fixedbugs}/bug046.go |  0
  test/{bugs => fixedbugs}/bug080.go |  0
  test/golden.out                    | 12 ------------
  3 files changed, 12 deletions(-)
+
+diff --git a/test/bugs/bug046.go b/test/fixedbugs/bug046.go
+similarity index 100%
+rename from test/bugs/bug046.go
+rename to test/fixedbugs/bug046.go
+diff --git a/test/bugs/bug080.go b/test/fixedbugs/bug080.go
+similarity index 100%
+rename from test/bugs/bug080.go
+rename to test/fixedbugs/bug080.go
+diff --git a/test/golden.out b/test/golden.out
+index 8ee55ef353..132286615f 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -34,9 +34,6 @@ Faulting address: 0x0
+ pc: xxx
+ 
+ 
+-=========== ./method2.go
+-BUG: errchk: command succeeded unexpectedly:  6g ./method2.go
+-
+ =========== ./peano.go
+ 0! = 1
+ 1! = 1
+@@ -87,21 +84,12 @@ PASS
+ =========== bugs/bug041.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug046.go
+-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug046.go
+-
+ =========== bugs/bug064.go
+ bugs/bug064.go:15: illegal types for operand: CALL
+ 	int
+ 	struct { u int; v int }
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug080.go
+-bugs/bug080.go:12: illegal types for operand: CALL
+-	int
+-	struct { x int; y float }
+-BUG: fails incorrectly
+-
+ =========== bugs/bug085.go
+ bugs/bug085.go:8: P: undefined
+ BUG: fails incorrectly

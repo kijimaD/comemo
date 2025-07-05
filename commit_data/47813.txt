@@ -10,7 +10,377 @@ Date:   Fri Apr 9 16:01:26 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  .../go/testdata/script/test_fuzz_mutate_crash.txt  | 120 +++++++++++++---
  src/internal/fuzz/mutator.go                       | 151 ++++++++++++++++++---
  2 files changed, 237 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index f8ee63b109..76e7907bf1 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -22,18 +22,6 @@ go run check_testdata.go FuzzWithBug
+ # the target, and should fail when run without fuzzing.
+ ! go test
+ 
+-# Running the fuzzer should find a crashing input quickly for fuzzing two types.
+-! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=100x
+-stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
+-stdout 'these inputs caused a crash!'
+-go run check_testdata.go FuzzWithTwoTypes
+-
+-# Running the fuzzer should find a crashing input quickly for an integer
+-! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=100x
+-stdout 'testdata[/\\]corpus[/\\]FuzzInt[/\\]'
+-stdout 'this input caused a crash!'
+-go run check_testdata.go FuzzInt
+-
+ ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
+ stdout 'runtime.Goexit'
+@@ -63,6 +51,53 @@ stdout 'testdata[/\\]corpus[/\\]FuzzWithBadExit[/\\]'
+ stdout 'unexpectedly'
+ go run check_testdata.go FuzzWithBadExit
+ 
++# Running the fuzzer should find a crashing input quickly for fuzzing two types.
++! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=100x
++stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
++stdout 'these inputs caused a crash!'
++go run check_testdata.go FuzzWithTwoTypes
++
++# Running the fuzzer should find a crashing input quickly for an integer.
++! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=100x
++stdout 'testdata[/\\]corpus[/\\]FuzzInt[/\\]'
++stdout 'this input caused a crash!'
++go run check_testdata.go FuzzInt
++
++! go test -run=FuzzUint -fuzz=FuzzUint -fuzztime=100x
++stdout 'testdata[/\\]corpus[/\\]FuzzUint[/\\]'
++stdout 'this input caused a crash!'
++go run check_testdata.go FuzzUint
++
++# Running the fuzzer should find a crashing input quickly for a bool.
++! go test -run=FuzzBool -fuzz=FuzzBool -fuzztime=100x
++stdout 'testdata[/\\]corpus[/\\]FuzzBool[/\\]'
++stdout 'this input caused a crash!'
++go run check_testdata.go FuzzBool
++
++# Running the fuzzer should find a crashing input quickly for a float.
++! go test -run=FuzzFloat -fuzz=FuzzFloat -fuzztime=100x
++stdout 'testdata[/\\]corpus[/\\]FuzzFloat[/\\]'
++stdout 'this input caused a crash!'
++go run check_testdata.go FuzzFloat
++
++# Running the fuzzer should find a crashing input quickly for a byte.
++! go test -run=FuzzByte -fuzz=FuzzByte -fuzztime=100x
++stdout 'testdata[/\\]corpus[/\\]FuzzByte[/\\]'
++stdout 'this input caused a crash!'
++go run check_testdata.go FuzzByte
++
++# Running the fuzzer should find a crashing input quickly for a rune.
++! go test -run=FuzzRune -fuzz=FuzzRune -fuzztime=100x
++stdout 'testdata[/\\]corpus[/\\]FuzzRune[/\\]'
++stdout 'this input caused a crash!'
++go run check_testdata.go FuzzRune
++
++# Running the fuzzer should find a crashing input quickly for a string.
++! go test -run=FuzzString -fuzz=FuzzString -fuzztime=100x
++stdout 'testdata[/\\]corpus[/\\]FuzzString[/\\]'
++stdout 'this input caused a crash!'
++go run check_testdata.go FuzzString
++
+ -- go.mod --
+ module m
+ 
+@@ -130,6 +165,15 @@ func FuzzWithFatalf(f *testing.F) {
+ 	})
+ }
+ 
++func FuzzWithBadExit(f *testing.F) {
++	f.Add([]byte("aa"))
++	f.Fuzz(func(t *testing.T, b []byte) {
++		if string(b) != "aa" {
++			os.Exit(1)
++		}
++	})
++}
++
+ func FuzzWithTwoTypes(f *testing.F) {
+ 	f.Fuzz(func(t *testing.T, a, b []byte) {
+ 		if len(a) > 0 && len(b) > 0 {
+@@ -140,17 +184,57 @@ func FuzzWithTwoTypes(f *testing.F) {
+ 
+ func FuzzInt(f *testing.F) {
+ 	f.Fuzz(func(t *testing.T, a int) {
+-		if 200 > a && a < 250 {
++		if a > 200 && a < 250 {
+ 			panic("this input caused a crash!")
+ 		}
+ 	})
+ }
+ 
+-func FuzzWithBadExit(f *testing.F) {
+-	f.Add([]byte("aa"))
+-	f.Fuzz(func(t *testing.T, b []byte) {
+-		if string(b) != "aa" {
+-			os.Exit(1)
++func FuzzUint(f *testing.F) {
++	f.Fuzz(func(t *testing.T, a uint) {
++		if a > 200 && a < 250 {
++			panic("this input caused a crash!")
++		}
++	})
++}
++
++func FuzzBool(f *testing.F) {
++	f.Fuzz(func(t *testing.T, a bool) {
++		if a {
++			panic("this input caused a crash!")
++		}
++	})
++}
++
++func FuzzFloat(f *testing.F) {
++	f.Fuzz(func(t *testing.T, a float64) {
++		if a != float64(int64(a)) {
++			// It has a decimal, so it was mutated by division
++			panic("this input caused a crash!")
++		}
++	})
++}
++
++func FuzzByte(f *testing.F) {
++	f.Fuzz(func(t *testing.T, a byte) {
++		if a > 50 {
++			panic("this input caused a crash!")
++		}
++	})
++}
++
++func FuzzRune(f *testing.F) {
++	f.Fuzz(func(t *testing.T, a rune) {
++		if a > 50 {
++			panic("this input caused a crash!")
++		}
++	})
++}
++
++func FuzzString(f *testing.F) {
++	f.Fuzz(func(t *testing.T, a string) {
++		if a != "" {
++			panic("this input caused a crash!")
+ 		}
+ 	})
+ }
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index e4ee2f44ea..88cb7b4e03 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -55,7 +55,7 @@ func min(a, b int) int {
+ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
+ 	// TODO(katiehockman): pull some of these functions into helper methods and
+ 	// test that each case is working as expected.
+-	// TODO(katiehockman): perform more types of mutations.
++	// TODO(katiehockman): perform more types of mutations for []byte.
+ 
+ 	// maxPerVal will represent the maximum number of bytes that each value be
+ 	// allowed after mutating, giving an equal amount of capacity to each line.
+@@ -65,8 +65,48 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
+ 	// Pick a random value to mutate.
+ 	// TODO: consider mutating more than one value at a time.
+ 	i := m.rand(len(vals))
+-	// TODO(katiehockman): support mutating other types
+ 	switch v := vals[i].(type) {
++	case int:
++		vals[i] = int(m.mutateInt(int64(v), maxInt))
++	case int8:
++		vals[i] = int8(m.mutateInt(int64(v), math.MaxInt8))
++	case int16:
++		vals[i] = int16(m.mutateInt(int64(v), math.MaxInt16))
++	case int64:
++		vals[i] = m.mutateInt(v, maxInt)
++	case uint:
++		vals[i] = uint(m.mutateUInt(uint64(v), maxUint))
++	case uint16:
++		vals[i] = uint16(m.mutateUInt(uint64(v), math.MaxUint16))
++	case uint32:
++		vals[i] = uint32(m.mutateUInt(uint64(v), math.MaxUint32))
++	case uint64:
++		vals[i] = m.mutateUInt(uint64(v), maxUint)
++	case float32:
++		vals[i] = float32(m.mutateFloat(float64(v), math.MaxFloat32))
++	case float64:
++		vals[i] = m.mutateFloat(v, math.MaxFloat64)
++	case bool:
++		if m.rand(2) == 1 {
++			vals[i] = !v // 50% chance of flipping the bool
++		}
++	case rune: // int32
++		vals[i] = rune(m.mutateInt(int64(v), math.MaxInt32))
++	case byte: // uint8
++		vals[i] = byte(m.mutateUInt(uint64(v), math.MaxUint8))
++	case string:
++		// TODO(jayconrod,katiehockman): Keep a []byte somewhere (maybe in
++		// mutator) that we mutate repeatedly to avoid re-allocating the data
++		// every time.
++		if len(v) > maxPerVal {
++			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
++		}
++		b := []byte(v)
++		if cap(b) < maxPerVal {
++			b = append(make([]byte, 0, maxPerVal), b...)
++		}
++		m.mutateBytes(&b)
++		vals[i] = string(b)
+ 	case []byte:
+ 		if len(v) > maxPerVal {
+ 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
+@@ -76,16 +116,6 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
+ 		}
+ 		m.mutateBytes(&v)
+ 		vals[i] = v
+-	case int8:
+-		vals[i] = int8(m.mutateInt(int64(v), math.MaxInt8))
+-	case int16:
+-		vals[i] = int16(m.mutateInt(int64(v), math.MaxInt16))
+-	case int32:
+-		vals[i] = int32(m.mutateInt(int64(v), math.MaxInt32))
+-	case int64:
+-		vals[i] = m.mutateInt(v, int64(maxInt))
+-	case int:
+-		vals[i] = int(m.mutateInt(int64(v), int64(maxInt)))
+ 	default:
+ 		panic(fmt.Sprintf("type not supported for mutating: %T", vals[i]))
+ 	}
+@@ -95,10 +125,78 @@ func (m *mutator) mutateInt(v, maxValue int64) int64 {
+ 	numIters := 1 + m.r.exp2()
+ 	var max int64
+ 	for iter := 0; iter < numIters; iter++ {
++		max = 100
++		switch m.rand(2) {
++		case 0:
++			// Add a random number
++			if v >= maxValue {
++				iter--
++				continue
++			}
++			if v > 0 && maxValue-v < max {
++				// Don't let v exceed maxValue
++				max = maxValue - v
++			}
++			v += int64(1 + m.rand(int(max)))
++		case 1:
++			// Subtract a random number
++			if v <= -maxValue {
++				iter--
++				continue
++			}
++			if v < 0 && maxValue+v < max {
++				// Don't let v drop below -maxValue
++				max = maxValue + v
++			}
++			v -= int64(1 + m.rand(int(max)))
++		}
++	}
++	return v
++}
++
++func (m *mutator) mutateUInt(v, maxValue uint64) uint64 {
++	numIters := 1 + m.r.exp2()
++	var max uint64
++	for iter := 0; iter < numIters; iter++ {
++		max = 100
+ 		switch m.rand(2) {
+ 		case 0:
+ 			// Add a random number
+ 			if v >= maxValue {
++				iter--
++				continue
++			}
++			if v > 0 && maxValue-v < max {
++				// Don't let v exceed maxValue
++				max = maxValue - v
++			}
++
++			v += uint64(1 + m.rand(int(max)))
++		case 1:
++			// Subtract a random number
++			if v <= 0 {
++				iter--
++				continue
++			}
++			if v < max {
++				// Don't let v drop below 0
++				max = v
++			}
++			v -= uint64(1 + m.rand(int(max)))
++		}
++	}
++	return v
++}
++
++func (m *mutator) mutateFloat(v, maxValue float64) float64 {
++	numIters := 1 + m.r.exp2()
++	var max float64
++	for iter := 0; iter < numIters; iter++ {
++		switch m.rand(4) {
++		case 0:
++			// Add a random number
++			if v >= maxValue {
++				iter--
+ 				continue
+ 			}
+ 			max = 100
+@@ -106,10 +204,11 @@ func (m *mutator) mutateInt(v, maxValue int64) int64 {
+ 				// Don't let v exceed maxValue
+ 				max = maxValue - v
+ 			}
+-			v += int64(m.rand(int(max)))
++			v += float64(1 + m.rand(int(max)))
+ 		case 1:
+ 			// Subtract a random number
+ 			if v <= -maxValue {
++				iter--
+ 				continue
+ 			}
+ 			max = 100
+@@ -117,7 +216,27 @@ func (m *mutator) mutateInt(v, maxValue int64) int64 {
+ 				// Don't let v drop below -maxValue
+ 				max = maxValue + v
+ 			}
+-			v -= int64(m.rand(int(max)))
++			v -= float64(1 + m.rand(int(max)))
++		case 2:
++			// Multiply by a random number
++			absV := math.Abs(v)
++			if v == 0 || absV >= maxValue {
++				iter--
++				continue
++			}
++			max = 10
++			if maxValue/absV < max {
++				// Don't let v go beyond the minimum or maximum value
++				max = maxValue / absV
++			}
++			v *= float64(1 + m.rand(int(max)))
++		case 3:
++			// Divide by a random number
++			if v == 0 {
++				iter--
++				continue
++			}
++			v /= float64(1 + m.rand(10))
+ 		}
+ 	}
+ 	return v
+@@ -311,8 +430,8 @@ var (
+ )
+ 
+ const (
+-	maxUint = ^uint(0)
+-	maxInt  = maxUint >> 1
++	maxUint = uint64(^uint(0))
++	maxInt  = int64(maxUint >> 1)
+ )
+ 
+ func init() {

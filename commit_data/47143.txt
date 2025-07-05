@@ -17,10 +17,136 @@ Date:   Thu Feb 25 20:01:53 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/testplugin/plugin_test.go             | 13 +++++------
  misc/cgo/testplugin/testdata/method2/main.go   | 32 ++++++++++++++++++++++++++
  misc/cgo/testplugin/testdata/method2/p/p.go    |  9 ++++++++
  misc/cgo/testplugin/testdata/method2/plugin.go | 11 +++++++++
  src/cmd/link/internal/ld/deadcode.go           |  7 ++++++
  5 files changed, 65 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index 9055dbda04..2d991012c8 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -201,12 +201,11 @@ func TestMethod(t *testing.T) {
+ 	// Exported symbol's method must be live.
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./method/plugin.go")
+ 	goCmd(t, "build", "-o", "method.exe", "./method/main.go")
++	run(t, "./method.exe")
++}
+ 
+-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+-	defer cancel()
+-	cmd := exec.CommandContext(ctx, "./method.exe")
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
+-	}
++func TestMethod2(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-o", "method2.so", "./method2/plugin.go")
++	goCmd(t, "build", "-o", "method2.exe", "./method2/main.go")
++	run(t, "./method2.exe")
+ }
+diff --git a/misc/cgo/testplugin/testdata/method2/main.go b/misc/cgo/testplugin/testdata/method2/main.go
+new file mode 100644
+index 0000000000..6a87e7b6a0
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/method2/main.go
+@@ -0,0 +1,32 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// A type can be passed to a plugin and converted to interface
++// there. So its methods need to be live.
++
++package main
++
++import (
++	"plugin"
++
++	"testplugin/method2/p"
++)
++
++var t p.T
++
++type I interface { M() }
++
++func main() {
++	pl, err := plugin.Open("method2.so")
++	if err != nil {
++		panic(err)
++	}
++
++	f, err := pl.Lookup("F")
++	if err != nil {
++		panic(err)
++	}
++
++	f.(func(p.T) interface{})(t).(I).M()
++}
+diff --git a/misc/cgo/testplugin/testdata/method2/p/p.go b/misc/cgo/testplugin/testdata/method2/p/p.go
+new file mode 100644
+index 0000000000..acb526acec
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/method2/p/p.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T int
++
++func (T) M() { println("M") }
+diff --git a/misc/cgo/testplugin/testdata/method2/plugin.go b/misc/cgo/testplugin/testdata/method2/plugin.go
+new file mode 100644
+index 0000000000..6198e7648e
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/method2/plugin.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "testplugin/method2/p"
++
++func main() {}
++
++func F(t p.T) interface{} { return t }
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 1874103b93..ebde41499e 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -24,6 +24,7 @@ type deadcodePass struct {
+ 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
+ 	markableMethods []methodref        // methods of reached types
+ 	reflectSeen     bool               // whether we have seen a reflect method call
++	dynlink         bool
+ 
+ 	methodsigstmp []methodsig // scratch buffer for decoding method signatures
+ }
+@@ -34,6 +35,7 @@ func (d *deadcodePass) init() {
+ 	if objabi.Fieldtrack_enabled != 0 {
+ 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
+ 	}
++	d.dynlink = d.ctxt.DynlinkingGo()
+ 
+ 	if d.ctxt.BuildMode == BuildModeShared {
+ 		// Mark all symbols defined in this library as reachable when
+@@ -115,6 +117,11 @@ func (d *deadcodePass) flood() {
+ 		var usedInIface bool
+ 
+ 		if isgotype {
++			if d.dynlink {
++				// When dynaamic linking, a type may be passed across DSO
++				// boundary and get converted to interface at the other side.
++				d.ldr.SetAttrUsedInIface(symIdx, true)
++			}
+ 			usedInIface = d.ldr.AttrUsedInIface(symIdx)
+ 		}
+ 

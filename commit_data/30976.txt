@@ -7,6 +7,27 @@ Date:   Thu Jan 5 18:35:06 2017 +0000
     Change-Id: I184c86edaaaa71c26bc7360c8b995015f30fe137
     Reviewed-on: https://go-review.googlesource.com/34819
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.8.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index de92e92355..2ac478632e 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -391,6 +391,15 @@ version of gccgo.
+   <code>%USERPROFILE%/go</code> on Windows.
+ </p>
+ 
++<h3 id="go_get">Go get</h3>
++
++<p> <!-- CL 34818 -->
++  The “<code>go</code> <code>get</code>” command now always respects
++  HTTP proxy environment variables, regardless of whether
++  the <code style='white-space:nowrap'>-insecure</code> flag is used. In previous releases, the
++  <code style='white-space:nowrap'>-insecure</code> flag had the side effect of not using proxies.
++</p>
++
+ <h3 id="go_bug">Go bug</h3>
+ 
+ <p>

@@ -20,6 +20,51 @@ Date:   Mon Feb 26 20:36:29 2024 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/trace2.go | 25 +++++++++++++++----------
  1 file changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index 2ac58405a3..6d6d4363a9 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -565,7 +565,22 @@ func traceAdvance(stopTrace bool) {
+ 		unlock(&trace.lock)
+ 	})
+ 
++	// Perform status reset on dead Ps because they just appear as idle.
++	//
++	// Preventing preemption is sufficient to access allp safely. allp is only
++	// mutated by GOMAXPROCS calls, which require a STW.
++	//
++	// TODO(mknyszek): Consider explicitly emitting ProcCreate and ProcDestroy
++	// events to indicate whether a P exists, rather than just making its
++	// existence implicit.
++	mp = acquirem()
++	for _, pp := range allp[len(allp):cap(allp)] {
++		pp.trace.readyNextGen(traceNextGen(gen))
++	}
++	releasem(mp)
++
+ 	if stopTrace {
++		// Acquire the shutdown sema to begin the shutdown process.
+ 		semacquire(&traceShutdownSema)
+ 
+ 		// Finish off CPU profile reading.
+@@ -586,16 +601,6 @@ func traceAdvance(stopTrace bool) {
+ 			}
+ 			traceRelease(tl)
+ 		})
+-		// Perform status reset on dead Ps because they just appear as idle.
+-		//
+-		// Holding worldsema prevents allp from changing.
+-		//
+-		// TODO(mknyszek): Consider explicitly emitting ProcCreate and ProcDestroy
+-		// events to indicate whether a P exists, rather than just making its
+-		// existence implicit.
+-		for _, pp := range allp[len(allp):cap(allp)] {
+-			pp.trace.readyNextGen(traceNextGen(gen))
+-		}
+ 		semrelease(&worldsema)
+ 	}
+ 

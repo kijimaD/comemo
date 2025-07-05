@@ -45,6 +45,29 @@ Date:   Wed May 6 12:30:59 2015 -0400
     Change-Id: I0ec5baff41f5d282307137ce0d927e6301e4fa10
     Reviewed-on: https://go-review.googlesource.com/9811
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/gc/cgen.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 501cdcb1c8..6f8187d953 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -1062,7 +1062,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 						Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT32]), &n4, &n2)
+ 						Regfree(&n4)
+ 						p1 := Gbranch(Thearch.Optoas(OGT, Types[TUINT32]), nil, +1)
+-						Ginscall(Panicindex, 0)
++						Ginscall(Panicindex, -1)
+ 						Patch(p1, Pc)
+ 					}
+ 
+@@ -1108,7 +1108,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				if p2 != nil {
+ 					Patch(p2, Pc)
+ 				}
+-				Ginscall(Panicindex, 0)
++				Ginscall(Panicindex, -1)
+ 				Patch(p1, Pc)
+ 			}
+ 

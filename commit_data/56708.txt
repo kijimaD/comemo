@@ -15,6 +15,19 @@ Date:   Mon May 22 23:28:50 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/env_write.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index 2e8b439113..5d40949cdd 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -173,6 +173,7 @@ go env -w GOOS=linux GOARCH=mips
+ env GOOS=windows
+ ! go env -u GOOS
+ stderr 'unsupported GOOS/GOARCH.*windows/mips$'
++env GOOS=
+ 
+ # go env -w should reject relative paths in GOMODCACHE environment.
+ ! go env -w GOMODCACHE=~/test

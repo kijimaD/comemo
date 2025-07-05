@@ -15,7 +15,180 @@ Date:   Fri Jan 6 12:25:32 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/addrselect.go      | 51 +++-------------------------
  src/net/addrselect_test.go | 85 ----------------------------------------------
  2 files changed, 5 insertions(+), 131 deletions(-)
+
+diff --git a/src/net/addrselect.go b/src/net/addrselect.go
+index 0b9d160fd4..1ab9fc5326 100644
+--- a/src/net/addrselect.go
++++ b/src/net/addrselect.go
+@@ -188,33 +188,17 @@ func (s *byRFC6724) Less(i, j int) bool {
+ 
+ 	// Rule 9: Use longest matching prefix.
+ 	// When DA and DB belong to the same address family (both are IPv6 or
+-	// both are IPv4): If CommonPrefixLen(Source(DA), DA) >
++	// both are IPv4 [but see below]): If CommonPrefixLen(Source(DA), DA) >
+ 	// CommonPrefixLen(Source(DB), DB), then prefer DA.  Similarly, if
+ 	// CommonPrefixLen(Source(DA), DA) < CommonPrefixLen(Source(DB), DB),
+ 	// then prefer DB.
+-	da4 := DA.To4() != nil
+-	db4 := DB.To4() != nil
+-	if da4 == db4 {
++	//
++	// However, applying this rule to IPv4 addresses causes
++	// problems (see issues 13283 and 18518), so limit to IPv6.
++	if DA.To4() == nil && DB.To4() == nil {
+ 		commonA := commonPrefixLen(SourceDA, DA)
+ 		commonB := commonPrefixLen(SourceDB, DB)
+ 
+-		// CommonPrefixLen doesn't really make sense for IPv4, and even
+-		// causes problems for common load balancing practices
+-		// (e.g., https://golang.org/issue/13283).  Glibc instead only
+-		// uses CommonPrefixLen for IPv4 when the source and destination
+-		// addresses are on the same subnet, but that requires extra
+-		// work to find the netmask for our source addresses. As a
+-		// simpler heuristic, we limit its use to when the source and
+-		// destination belong to the same special purpose block.
+-		if da4 {
+-			if !sameIPv4SpecialPurposeBlock(SourceDA, DA) {
+-				commonA = 0
+-			}
+-			if !sameIPv4SpecialPurposeBlock(SourceDB, DB) {
+-				commonB = 0
+-			}
+-		}
+-
+ 		if commonA > commonB {
+ 			return preferDA
+ 		}
+@@ -404,28 +388,3 @@ func commonPrefixLen(a, b IP) (cpl int) {
+ 	}
+ 	return
+ }
+-
+-// sameIPv4SpecialPurposeBlock reports whether a and b belong to the same
+-// address block reserved by the IANA IPv4 Special-Purpose Address Registry:
+-// http://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml
+-func sameIPv4SpecialPurposeBlock(a, b IP) bool {
+-	a, b = a.To4(), b.To4()
+-	if a == nil || b == nil || a[0] != b[0] {
+-		return false
+-	}
+-	// IANA defines more special-purpose blocks, but these are the only
+-	// ones likely to be relevant to typical Go systems.
+-	switch a[0] {
+-	case 10: // 10.0.0.0/8: Private-Use
+-		return true
+-	case 127: // 127.0.0.0/8: Loopback
+-		return true
+-	case 169: // 169.254.0.0/16: Link Local
+-		return a[1] == 254 && b[1] == 254
+-	case 172: // 172.16.0.0/12: Private-Use
+-		return a[1]&0xf0 == 16 && b[1]&0xf0 == 16
+-	case 192: // 192.168.0.0/16: Private-Use
+-		return a[1] == 168 && b[1] == 168
+-	}
+-	return false
+-}
+diff --git a/src/net/addrselect_test.go b/src/net/addrselect_test.go
+index 80aa4eb195..d6e0e63c3b 100644
+--- a/src/net/addrselect_test.go
++++ b/src/net/addrselect_test.go
+@@ -117,27 +117,6 @@ func TestSortByRFC6724(t *testing.T) {
+ 			},
+ 			reverse: false,
+ 		},
+-
+-		// Prefer longer common prefixes, but only for IPv4 address
+-		// pairs in the same special-purpose block.
+-		{
+-			in: []IPAddr{
+-				{IP: ParseIP("1.2.3.4")},
+-				{IP: ParseIP("10.55.0.1")},
+-				{IP: ParseIP("10.66.0.1")},
+-			},
+-			srcs: []IP{
+-				ParseIP("1.2.3.5"),
+-				ParseIP("10.66.1.2"),
+-				ParseIP("10.66.1.2"),
+-			},
+-			want: []IPAddr{
+-				{IP: ParseIP("10.66.0.1")},
+-				{IP: ParseIP("10.55.0.1")},
+-				{IP: ParseIP("1.2.3.4")},
+-			},
+-			reverse: true,
+-		},
+ 	}
+ 	for i, tt := range tests {
+ 		inCopy := make([]IPAddr, len(tt.in))
+@@ -268,67 +247,3 @@ func TestRFC6724CommonPrefixLength(t *testing.T) {
+ 	}
+ 
+ }
+-
+-func mustParseCIDRs(t *testing.T, blocks ...string) []*IPNet {
+-	res := make([]*IPNet, len(blocks))
+-	for i, block := range blocks {
+-		var err error
+-		_, res[i], err = ParseCIDR(block)
+-		if err != nil {
+-			t.Fatalf("ParseCIDR(%s) failed: %v", block, err)
+-		}
+-	}
+-	return res
+-}
+-
+-func TestSameIPv4SpecialPurposeBlock(t *testing.T) {
+-	blocks := mustParseCIDRs(t,
+-		"10.0.0.0/8",
+-		"127.0.0.0/8",
+-		"169.254.0.0/16",
+-		"172.16.0.0/12",
+-		"192.168.0.0/16",
+-	)
+-
+-	addrs := []struct {
+-		ip    IP
+-		block int // index or -1
+-	}{
+-		{IP{1, 2, 3, 4}, -1},
+-		{IP{2, 3, 4, 5}, -1},
+-		{IP{10, 2, 3, 4}, 0},
+-		{IP{10, 6, 7, 8}, 0},
+-		{IP{127, 0, 0, 1}, 1},
+-		{IP{127, 255, 255, 255}, 1},
+-		{IP{169, 254, 77, 99}, 2},
+-		{IP{169, 254, 44, 22}, 2},
+-		{IP{169, 255, 0, 1}, -1},
+-		{IP{172, 15, 5, 6}, -1},
+-		{IP{172, 16, 32, 41}, 3},
+-		{IP{172, 31, 128, 9}, 3},
+-		{IP{172, 32, 88, 100}, -1},
+-		{IP{192, 168, 1, 1}, 4},
+-		{IP{192, 168, 128, 42}, 4},
+-		{IP{192, 169, 1, 1}, -1},
+-	}
+-
+-	for i, addr := range addrs {
+-		for j, block := range blocks {
+-			got := block.Contains(addr.ip)
+-			want := addr.block == j
+-			if got != want {
+-				t.Errorf("%d/%d. %s.Contains(%s): got %v, want %v", i, j, block, addr.ip, got, want)
+-			}
+-		}
+-	}
+-
+-	for i, addr1 := range addrs {
+-		for j, addr2 := range addrs {
+-			got := sameIPv4SpecialPurposeBlock(addr1.ip, addr2.ip)
+-			want := addr1.block >= 0 && addr1.block == addr2.block
+-			if got != want {
+-				t.Errorf("%d/%d. sameIPv4SpecialPurposeBlock(%s, %s): got %v, want %v", i, j, addr1.ip, addr2.ip, got, want)
+-			}
+-		}
+-	}
+-}

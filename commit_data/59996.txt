@@ -22,7 +22,7 @@ Date:   Tue Apr 2 11:12:44 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go     |  1 +
  src/cmd/compile/internal/base/flag.go      |  1 +
  src/cmd/compile/internal/gc/compile.go     |  5 +-
@@ -38,3 +38,706 @@ Date:   Tue Apr 2 11:12:44 2024 -0400
  src/cmd/internal/obj/util.go               | 61 ++++++++++++++++++++
  src/cmd/internal/obj/x86/asm6.go           | 30 ++++------
  14 files changed, 221 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 672e3909e4..c1b62f27ca 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -16,6 +16,7 @@ var Debug DebugFlags
+ // The -d option takes a comma-separated list of settings.
+ // Each setting is name=value; for ints, name is short for name=1.
+ type DebugFlags struct {
++	AlignHot              int    `help:"enable hot block alignment (currently requires -pgo)" concurrent:"ok"`
+ 	Append                int    `help:"print information about append compilation"`
+ 	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
+ 	Closure               int    `help:"print information about closure compilation"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 0d3c7c2226..f514ce104a 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -178,6 +178,7 @@ func ParseFlags() {
+ 
+ 	Debug.ConcurrentOk = true
+ 	Debug.MaxShapeLen = 500
++	Debug.AlignHot = 1
+ 	Debug.InlFuncsWithClosures = 1
+ 	Debug.InlStaticInit = 1
+ 	Debug.PGOInline = 1
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index 0f57f8ca82..159fd29c48 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/liveness"
+ 	"cmd/compile/internal/objw"
++	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/types"
+@@ -112,7 +113,7 @@ func prepareFunc(fn *ir.Func) {
+ // compileFunctions compiles all functions in compilequeue.
+ // It fans out nBackendWorkers to do the work
+ // and waits for them to complete.
+-func compileFunctions() {
++func compileFunctions(profile *pgoir.Profile) {
+ 	if race.Enabled {
+ 		// Randomize compilation order to try to shake out races.
+ 		tmp := make([]*ir.Func, len(compilequeue))
+@@ -179,7 +180,7 @@ func compileFunctions() {
+ 		for _, fn := range fns {
+ 			fn := fn
+ 			queue(func(worker int) {
+-				ssagen.Compile(fn, worker)
++				ssagen.Compile(fn, worker, profile)
+ 				compile(fn.Closures)
+ 				wg.Done()
+ 			})
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 7ab64f4748..41f5e43ec6 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -303,7 +303,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		// as late as possible to maximize how much work we can batch and
+ 		// process concurrently.
+ 		if len(compilequeue) != 0 {
+-			compileFunctions()
++			compileFunctions(profile)
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 931f79552a..ed3d3d4eaf 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -61,6 +61,9 @@ var (
+ 	// TODO(prattmic): Make this non-global.
+ 	candHotCalleeMap = make(map[*pgoir.IRNode]struct{})
+ 
++	// Set of functions that contain hot call sites.
++	hasHotCall = make(map[*ir.Func]struct{})
++
+ 	// List of all hot call sites. CallSiteInfo.Callee is always nil.
+ 	// TODO(prattmic): Make this non-global.
+ 	candHotEdgeMap = make(map[pgoir.CallSiteInfo]struct{})
+@@ -78,6 +81,22 @@ var (
+ 	inlineHotMaxBudget int32 = 2000
+ )
+ 
++func IsPgoHotFunc(fn *ir.Func, profile *pgoir.Profile) bool {
++	if profile == nil {
++		return false
++	}
++	if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
++		_, ok := candHotCalleeMap[n]
++		return ok
++	}
++	return false
++}
++
++func HasPgoHotInline(fn *ir.Func) bool {
++	_, has := hasHotCall[fn]
++	return has
++}
++
+ // PGOInlinePrologue records the hot callsites from ir-graph.
+ func PGOInlinePrologue(p *pgoir.Profile) {
+ 	if base.Debug.PGOInlineCDFThreshold != "" {
+@@ -228,14 +247,10 @@ func GarbageCollectUnreferencedHiddenClosures() {
+ func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose bool) int32 {
+ 	// Update the budget for profile-guided inlining.
+ 	budget := int32(inlineMaxBudget)
+-	if profile != nil {
+-		if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
+-			if _, ok := candHotCalleeMap[n]; ok {
+-				budget = inlineHotMaxBudget
+-				if verbose {
+-					fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
+-				}
+-			}
++	if IsPgoHotFunc(fn, profile) {
++		budget = inlineHotMaxBudget
++		if verbose {
++			fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
+ 		}
+ 	}
+ 	if relaxed {
+@@ -580,7 +595,7 @@ opSwitch:
+ 			// Check whether we'd actually inline this call. Set
+ 			// log == false since we aren't actually doing inlining
+ 			// yet.
+-			if ok, _ := canInlineCallExpr(v.curFunc, n, callee, v.isBigFunc, false); ok {
++			if ok, _, _ := canInlineCallExpr(v.curFunc, n, callee, v.isBigFunc, false); ok {
+ 				// mkinlcall would inline this call [1], so use
+ 				// the cost of the inline body as the cost of
+ 				// the call, as that is what will actually
+@@ -873,10 +888,11 @@ var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInde
+ // inlineCostOK returns true if call n from caller to callee is cheap enough to
+ // inline. bigCaller indicates that caller is a big function.
+ //
+-// In addition to the "cost OK" boolean, it also returns the "max
+-// cost" limit used to make the decision (which may differ depending
+-// on func size), and the score assigned to this specific callsite.
+-func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool, int32, int32) {
++// In addition to the "cost OK" boolean, it also returns
++//   - the "max cost" limit used to make the decision (which may differ depending on func size)
++//   - the score assigned to this specific callsite
++//   - whether the inlined function is "hot" according to PGO.
++func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool, int32, int32, bool) {
+ 	maxCost := int32(inlineMaxBudget)
+ 	if bigCaller {
+ 		// We use this to restrict inlining into very big functions.
+@@ -892,19 +908,21 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ 		}
+ 	}
+ 
++	lineOffset := pgoir.NodeLineOffset(n, caller)
++	csi := pgoir.CallSiteInfo{LineOffset: lineOffset, Caller: caller}
++	_, hot := candHotEdgeMap[csi]
++
+ 	if metric <= maxCost {
+ 		// Simple case. Function is already cheap enough.
+-		return true, 0, metric
++		return true, 0, metric, hot
+ 	}
+ 
+ 	// We'll also allow inlining of hot functions below inlineHotMaxBudget,
+ 	// but only in small functions.
+ 
+-	lineOffset := pgoir.NodeLineOffset(n, caller)
+-	csi := pgoir.CallSiteInfo{LineOffset: lineOffset, Caller: caller}
+-	if _, ok := candHotEdgeMap[csi]; !ok {
++	if !hot {
+ 		// Cold
+-		return false, maxCost, metric
++		return false, maxCost, metric, false
+ 	}
+ 
+ 	// Hot
+@@ -913,49 +931,50 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ 		if base.Debug.PGODebug > 0 {
+ 			fmt.Printf("hot-big check disallows inlining for call %s (cost %d) at %v in big function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
+ 		}
+-		return false, maxCost, metric
++		return false, maxCost, metric, false
+ 	}
+ 
+ 	if metric > inlineHotMaxBudget {
+-		return false, inlineHotMaxBudget, metric
++		return false, inlineHotMaxBudget, metric, false
+ 	}
+ 
+ 	if !base.PGOHash.MatchPosWithInfo(n.Pos(), "inline", nil) {
+ 		// De-selected by PGO Hash.
+-		return false, maxCost, metric
++		return false, maxCost, metric, false
+ 	}
+ 
+ 	if base.Debug.PGODebug > 0 {
+ 		fmt.Printf("hot-budget check allows inlining for call %s (cost %d) at %v in function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
+ 	}
+ 
+-	return true, 0, metric
++	return true, 0, metric, hot
+ }
+ 
+ // canInlineCallExpr returns true if the call n from caller to callee
+-// can be inlined, plus the score computed for the call expr in
+-// question. bigCaller indicates that caller is a big function. log
++// can be inlined, plus the score computed for the call expr in question,
++// and whether the callee is hot according to PGO.
++// bigCaller indicates that caller is a big function. log
+ // indicates that the 'cannot inline' reason should be logged.
+ //
+ // Preconditions: CanInline(callee) has already been called.
+-func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCaller bool, log bool) (bool, int32) {
++func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCaller bool, log bool) (bool, int32, bool) {
+ 	if callee.Inl == nil {
+ 		// callee is never inlinable.
+ 		if log && logopt.Enabled() {
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
+ 				fmt.Sprintf("%s cannot be inlined", ir.PkgFuncName(callee)))
+ 		}
+-		return false, 0
++		return false, 0, false
+ 	}
+ 
+-	ok, maxCost, callSiteScore := inlineCostOK(n, callerfn, callee, bigCaller)
++	ok, maxCost, callSiteScore, hot := inlineCostOK(n, callerfn, callee, bigCaller)
+ 	if !ok {
+ 		// callee cost too high for this call site.
+ 		if log && logopt.Enabled() {
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
+ 				fmt.Sprintf("cost %d of %s exceeds max caller cost %d", callee.Inl.Cost, ir.PkgFuncName(callee), maxCost))
+ 		}
+-		return false, 0
++		return false, 0, false
+ 	}
+ 
+ 	if callee == callerfn {
+@@ -963,7 +982,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ 		if log && logopt.Enabled() {
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(callerfn)))
+ 		}
+-		return false, 0
++		return false, 0, false
+ 	}
+ 
+ 	if base.Flag.Cfg.Instrumenting && types.IsNoInstrumentPkg(callee.Sym().Pkg) {
+@@ -977,7 +996,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
+ 				fmt.Sprintf("call to runtime function %s in instrumented build", ir.PkgFuncName(callee)))
+ 		}
+-		return false, 0
++		return false, 0, false
+ 	}
+ 
+ 	if base.Flag.Race && types.IsNoRacePkg(callee.Sym().Pkg) {
+@@ -985,7 +1004,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
+ 				fmt.Sprintf(`call to into "no-race" package function %s in race build`, ir.PkgFuncName(callee)))
+ 		}
+-		return false, 0
++		return false, 0, false
+ 	}
+ 
+ 	// Check if we've already inlined this function at this particular
+@@ -1008,11 +1027,11 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ 						fmt.Sprintf("repeated recursive cycle to %s", ir.PkgFuncName(callee)))
+ 				}
+ 			}
+-			return false, 0
++			return false, 0, false
+ 		}
+ 	}
+ 
+-	return true, callSiteScore
++	return true, callSiteScore, hot
+ }
+ 
+ // mkinlcall returns an OINLCALL node that can replace OCALLFUNC n, or
+@@ -1023,10 +1042,13 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ //
+ //	n.Left = mkinlcall(n.Left, fn, isddd)
+ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *ir.InlinedCallExpr {
+-	ok, score := canInlineCallExpr(callerfn, n, fn, bigCaller, true)
++	ok, score, hot := canInlineCallExpr(callerfn, n, fn, bigCaller, true)
+ 	if !ok {
+ 		return nil
+ 	}
++	if hot {
++		hasHotCall[callerfn] = struct{}{}
++	}
+ 	typecheck.AssertFixedCall(n)
+ 
+ 	parent := base.Ctxt.PosTable.Pos(n.Pos()).Base().InliningIndex()
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 26af10b59c..02733eaf16 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -31,6 +31,9 @@ type Block struct {
+ 	// After flagalloc, records whether flags are live at the end of the block.
+ 	FlagsLiveAtEnd bool
+ 
++	// A block that would be good to align (according to the optimizer's guesses)
++	Hotness Hotness
++
+ 	// Subsequent blocks, if any. The number and order depend on the block kind.
+ 	Succs []Edge
+ 
+@@ -112,7 +115,7 @@ func (e Edge) String() string {
+ }
+ 
+ // BlockKind is the kind of SSA block.
+-type BlockKind int16
++type BlockKind uint8
+ 
+ // short form print
+ func (b *Block) String() string {
+@@ -426,3 +429,17 @@ const (
+ 	BranchUnknown  = BranchPrediction(0)
+ 	BranchLikely   = BranchPrediction(+1)
+ )
++
++type Hotness int8 // Could use negative numbers for specifically non-hot blocks, but don't, yet.
++const (
++	// These values are arranged in what seems to be order of increasing alignment importance.
++	// Currently only a few are relevant.  Implicitly, they are all in a loop.
++	HotNotFlowIn Hotness = 1 << iota // This block is only reached by branches
++	HotInitial                       // In the block order, the first one for a given loop.  Not necessarily topological header.
++	HotPgo                           // By PGO-based heuristics, this block occurs in a hot loop
++
++	HotNot                 = 0
++	HotInitialNotFlowIn    = HotInitial | HotNotFlowIn          // typically first block of a rotated loop, loop is entered with a branch (not to this block).  No PGO
++	HotPgoInitial          = HotPgo | HotInitial                // special case; single block loop, initial block is header block has a flow-in entry, but PGO says it is hot
++	HotPgoInitialNotFLowIn = HotPgo | HotInitial | HotNotFlowIn // PGO says it is hot, and the loop is rotated so flow enters loop with a branch
++)
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 38b459a2ff..2bb34a41cb 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -45,6 +45,7 @@ type Func struct {
+ 	laidout     bool  // Blocks are ordered
+ 	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
+ 	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
++	IsPgoHot    bool
+ 
+ 	// when register allocation is done, maps value ids to locations
+ 	RegAlloc []Location
+diff --git a/src/cmd/compile/internal/ssa/looprotate.go b/src/cmd/compile/internal/ssa/looprotate.go
+index 844a8f7124..f32125576f 100644
+--- a/src/cmd/compile/internal/ssa/looprotate.go
++++ b/src/cmd/compile/internal/ssa/looprotate.go
+@@ -56,9 +56,20 @@ func loopRotate(f *Func) {
+ 			}
+ 			p = e.b
+ 		}
+-		if p == nil || p == b {
++		if p == nil {
+ 			continue
+ 		}
++		p.Hotness |= HotInitial
++		if f.IsPgoHot {
++			p.Hotness |= HotPgo
++		}
++		// blocks will be arranged so that p is ordered first, if it isn't already.
++		if p == b { // p is header, already first (and also, only block in the loop)
++			continue
++		}
++		p.Hotness |= HotNotFlowIn
++
++		// the loop header b follows p
+ 		after[p.ID] = []*Block{b}
+ 		for {
+ 			nextIdx := idToIdx[b.ID] + 1
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 5b57c8a825..e666c22a7d 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -12,9 +12,11 @@ import (
+ 	"sync"
+ 
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/liveness"
+ 	"cmd/compile/internal/objw"
++	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -296,8 +298,8 @@ const maxStackSize = 1 << 30
+ // uses it to generate a plist,
+ // and flushes that plist to machine code.
+ // worker indicates which of the backend workers is doing the processing.
+-func Compile(fn *ir.Func, worker int) {
+-	f := buildssa(fn, worker)
++func Compile(fn *ir.Func, worker int, profile *pgoir.Profile) {
++	f := buildssa(fn, worker, inline.IsPgoHotFunc(fn, profile) || inline.HasPgoHotInline(fn))
+ 	// Note: check arg size to fix issue 25507.
+ 	if f.Frontend().(*ssafn).stksize >= maxStackSize || f.OwnAux.ArgWidth() >= maxStackSize {
+ 		largeStackFramesMu.Lock()
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 9e384fe016..9b23935df7 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -291,7 +291,7 @@ func (s *state) emitOpenDeferInfo() {
+ 
+ // buildssa builds an SSA function for fn.
+ // worker indicates which of the backend workers is doing the processing.
+-func buildssa(fn *ir.Func, worker int) *ssa.Func {
++func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
+ 	name := ir.FuncName(fn)
+ 
+ 	abiSelf := abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1)
+@@ -373,6 +373,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	// Allocate starting block
+ 	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
+ 	s.f.Entry.Pos = fn.Pos()
++	s.f.IsPgoHot = isPgoHot
+ 
+ 	if printssa {
+ 		ssaDF := ssaDumpFile
+@@ -7302,12 +7303,47 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 
+ 	var argLiveIdx int = -1 // argument liveness info index
+ 
++	// These control cache line alignment; if the required portion of
++	// a cache line is not available, then pad to obtain cache line
++	// alignment.  Not implemented on all architectures, may not be
++	// useful on all architectures.
++	var hotAlign, hotRequire int64
++
++	if base.Debug.AlignHot > 0 {
++		switch base.Ctxt.Arch.Name {
++		// enable this on a case-by-case basis, with benchmarking.
++		// currently shown:
++		//   good for amd64
++		//   not helpful for Apple Silicon
++		//
++		case "amd64", "386":
++			// Align to 64 if 31 or fewer bytes remain in a cache line
++			// benchmarks a little better than always aligning, and also
++			// adds slightly less to the (PGO-compiled) binary size.
++			hotAlign = 64
++			hotRequire = 31
++		}
++	}
++
+ 	// Emit basic blocks
+ 	for i, b := range f.Blocks {
+-		s.bstart[b.ID] = s.pp.Next
++
+ 		s.lineRunStart = nil
+ 		s.SetPos(s.pp.Pos.WithNotStmt()) // It needs a non-empty Pos, but cannot be a statement boundary (yet).
+ 
++		if hotAlign > 0 && b.Hotness&ssa.HotPgoInitial == ssa.HotPgoInitial {
++			// So far this has only been shown profitable for PGO-hot loop headers.
++			// The Hotness values allows distinctions betwen initial blocks that are "hot" or not, and "flow-in" or not.
++			// Currently only the initial blocks of loops are tagged in this way;
++			// there are no blocks tagged "pgo-hot" that are not also tagged "initial".
++			// TODO more heuristics, more architectures.
++			p := s.pp.Prog(obj.APCALIGNMAX)
++			p.From.SetConst(hotAlign)
++			p.To.SetConst(hotRequire)
++		}
++
++		s.bstart[b.ID] = s.pp.Next
++
+ 		if idx, ok := argLiveBlockMap[b.ID]; ok && idx != argLiveIdx {
+ 			argLiveIdx = idx
+ 			p := s.pp.Prog(obj.APCDATA)
+@@ -7466,7 +7502,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		// going to emit anyway, and use those instructions instead of the
+ 		// inline marks.
+ 		for p := s.pp.Text; p != nil; p = p.Link {
+-			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.APCALIGN || Arch.LinkArch.Family == sys.Wasm {
++			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT ||
++				p.As == obj.APCALIGN || p.As == obj.APCALIGNMAX || Arch.LinkArch.Family == sys.Wasm {
+ 				// Don't use 0-sized instructions as inline marks, because we need
+ 				// to identify inline mark instructions by pc offset.
+ 				// (Some of these instructions are sometimes zero-sized, sometimes not.
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 03f0fb06da..c6601cb49e 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -889,9 +889,10 @@ var optab = []Optab{
+ 	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
+ 	{obj.ANOP, C_ZREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+ 	{obj.ANOP, C_VREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+-	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0}, // same as AB/ABL
+-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0}, // same as AB/ABL
+-	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},  // align code
++	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},   // same as AB/ABL
++	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},   // same as AB/ABL
++	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},    // align code
++	{obj.APCALIGNMAX, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0, 0}, // align code, conditional
+ }
+ 
+ // Valid pstate field values, and value to use in instruction.
+@@ -1109,13 +1110,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		m = o.size(c.ctxt, p)
+ 		if m == 0 {
+ 			switch p.As {
+-			case obj.APCALIGN:
+-				alignedValue := p.From.Offset
+-				m = pcAlignPadLength(ctxt, pc, alignedValue)
+-				// Update the current text symbol alignment value.
+-				if int32(alignedValue) > cursym.Func().Align {
+-					cursym.Func().Align = int32(alignedValue)
+-				}
++			case obj.APCALIGN, obj.APCALIGNMAX:
++				m = obj.AlignmentPadding(int32(pc), p, ctxt, cursym)
+ 				break
+ 			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+ 				continue
+@@ -1181,9 +1177,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 			if m == 0 {
+ 				switch p.As {
+-				case obj.APCALIGN:
+-					alignedValue := p.From.Offset
+-					m = pcAlignPadLength(ctxt, pc, alignedValue)
++				case obj.APCALIGN, obj.APCALIGNMAX:
++					m = obj.AlignmentPaddingLength(int32(pc), p, ctxt)
+ 					break
+ 				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+ 					continue
+@@ -1214,9 +1209,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		if sz > 4*len(out) {
+ 			log.Fatalf("out array in span7 is too small, need at least %d for %v", sz/4, p)
+ 		}
+-		if p.As == obj.APCALIGN {
+-			alignedValue := p.From.Offset
+-			v := pcAlignPadLength(c.ctxt, p.Pc, alignedValue)
++		if p.As == obj.APCALIGN || p.As == obj.APCALIGNMAX {
++			v := obj.AlignmentPaddingLength(int32(p.Pc), p, c.ctxt)
+ 			for i = 0; i < int(v/4); i++ {
+ 				// emit ANOOP instruction by the padding size
+ 				c.ctxt.Arch.ByteOrder.PutUint32(bp, OP_NOOP)
+@@ -3316,6 +3310,7 @@ func buildop(ctxt *obj.Link) {
+ 			obj.AUNDEF,
+ 			obj.AFUNCDATA,
+ 			obj.APCALIGN,
++			obj.APCALIGNMAX,
+ 			obj.APCDATA,
+ 			obj.ADUFFZERO,
+ 			obj.ADUFFCOPY:
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 3ebaa2aa5c..38869f0f47 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -416,6 +416,7 @@ const (
+ 	AJMP
+ 	ANOP
+ 	APCALIGN
++	APCALIGNMAX // currently x86, amd64 and arm64
+ 	APCDATA
+ 	ARET
+ 	AGETCALLERPC
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 3a071c21d4..0512d78ca0 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -6,6 +6,7 @@ package obj
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/objabi"
+ 	"fmt"
+ 	"internal/abi"
+ 	"internal/buildcfg"
+@@ -642,6 +643,7 @@ var Anames = []string{
+ 	"JMP",
+ 	"NOP",
+ 	"PCALIGN",
++	"PCALIGNMAX",
+ 	"PCDATA",
+ 	"RET",
+ 	"GETCALLERPC",
+@@ -667,3 +669,62 @@ func abiDecorate(a *Addr, abiDetail bool) string {
+ 	}
+ 	return fmt.Sprintf("<%s>", a.Sym.ABI())
+ }
++
++// AlignmentPadding bytes to add to align code as requested.
++// Alignment is restricted to powers of 2 between 8 and 2048 inclusive.
++//
++// pc_: current offset in function, in bytes
++// p:  a PCALIGN or PCALIGNMAX prog
++// ctxt: the context, for current function
++// cursym: current function being assembled
++// returns number of bytes of padding needed,
++// updates minimum alignment for the function.
++func AlignmentPadding(pc int32, p *Prog, ctxt *Link, cursym *LSym) int {
++	v := AlignmentPaddingLength(pc, p, ctxt)
++	requireAlignment(p.From.Offset, ctxt, cursym)
++	return v
++}
++
++// AlignmentPaddingLength is the number of bytes to add to align code as requested.
++// Alignment is restricted to powers of 2 between 8 and 2048 inclusive.
++// This only computes the length and does not update the (missing parameter)
++// current function's own required alignment.
++//
++// pc: current offset in function, in bytes
++// p:  a PCALIGN or PCALIGNMAX prog
++// ctxt: the context, for current function
++// returns number of bytes of padding needed,
++func AlignmentPaddingLength(pc int32, p *Prog, ctxt *Link) int {
++	a := p.From.Offset
++	if !((a&(a-1) == 0) && 8 <= a && a <= 2048) {
++		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", a)
++		return 0
++	}
++	pc64 := int64(pc)
++	lob := pc64 & (a - 1) // Low Order Bits -- if not zero, then not aligned
++	if p.As == APCALIGN {
++		if lob != 0 {
++			return int(a - lob)
++		}
++		return 0
++	}
++	// emit as many as s bytes of padding to obtain alignment
++	s := p.To.Offset
++	if s < 0 || s >= a {
++		ctxt.Diag("PCALIGNMAX 'amount' %d must be non-negative and smaller than the aligment %d\n", s, a)
++		return 0
++	}
++	if s >= a-lob {
++		return int(a - lob)
++	}
++	return 0
++}
++
++// requireAlignment ensures that the function is aligned enough to support
++// the required code alignment
++func requireAlignment(a int64, ctxt *Link, cursym *LSym) {
++	// TODO remove explicit knowledge about AIX.
++	if ctxt.Headtype != objabi.Haix && cursym.Func().Align < int32(a) {
++		cursym.Func().Align = int32(a)
++	}
++}
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index bdd75b4ef8..dc38069edc 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2036,29 +2036,21 @@ type nopPad struct {
+ 	n int32     // Size of the pad
+ }
+ 
+-// Padding bytes to add to align code as requested.
+-// Alignment is restricted to powers of 2 between 8 and 2048 inclusive.
++// requireAlignment ensures that the function alignment is at
++// least as high as a, which should be a power of two
++// and between 8 and 2048, inclusive.
+ //
+-// pc: current offset in function, in bytes
+-// a: requested alignment, in bytes
+-// cursym: current function being assembled
+-// returns number of bytes of padding needed
+-func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
++// the boolean result indicates whether the alignment meets those constraints
++func requireAlignment(a int64, ctxt *obj.Link, cursym *obj.LSym) bool {
+ 	if !((a&(a-1) == 0) && 8 <= a && a <= 2048) {
+ 		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", a)
+-		return 0
++		return false
+ 	}
+-
+ 	// By default function alignment is 32 bytes for amd64
+ 	if cursym.Func().Align < int32(a) {
+ 		cursym.Func().Align = int32(a)
+ 	}
+-
+-	if pc&(a-1) != 0 {
+-		return int(a - (pc & (a - 1)))
+-	}
+-
+-	return 0
++	return true
+ }
+ 
+ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+@@ -2144,17 +2136,17 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			c0 := c
+ 			c = pjc.padJump(ctxt, s, p, c)
+ 
+-			if p.As == obj.APCALIGN {
+-				aln := p.From.Offset
+-				v := addpad(int64(c), aln, ctxt, s)
++			if p.As == obj.APCALIGN || p.As == obj.APCALIGNMAX {
++				v := obj.AlignmentPadding(c, p, ctxt, s)
+ 				if v > 0 {
+ 					s.Grow(int64(c) + int64(v))
+ 					fillnop(s.P[c:], int(v))
+ 				}
+-
++				p.Pc = int64(c)
+ 				c += int32(v)
+ 				pPrev = p
+ 				continue
++
+ 			}
+ 
+ 			if maxLoopPad > 0 && p.Back&branchLoopHead != 0 && c&(loopAlign-1) != 0 {

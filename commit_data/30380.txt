@@ -20,7 +20,38 @@ Date:   Wed Nov 2 17:55:29 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/32585
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 3 +++
  src/cmd/compile/internal/gc/ssa_test.go | 2 ++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index b0635cd308..58cdb9da7d 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -21,6 +21,9 @@ import (
+ // TestAssembly checks to make sure the assembly generated for
+ // functions contains certain expected instructions.
+ func TestAssembly(t *testing.T) {
++	if testing.Short() {
++		t.Skip("slow test; skipping")
++	}
+ 	testenv.MustHaveGoBuild(t)
+ 	if runtime.GOOS == "windows" {
+ 		// TODO: remove if we can get "go tool compile -S" to work on windows.
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index debdc4386b..1aebd90311 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -16,9 +16,11 @@ import (
+ // TODO: move all these tests elsewhere?
+ // Perhaps teach test/run.go how to run them with a new action verb.
+ func runTest(t *testing.T, filename string) {
++	t.Parallel()
+ 	doTest(t, filename, "run")
+ }
+ func buildTest(t *testing.T, filename string) {
++	t.Parallel()
+ 	doTest(t, filename, "build")
+ }
+ func doTest(t *testing.T, filename string, kind string) {

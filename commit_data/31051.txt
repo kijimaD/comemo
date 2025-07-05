@@ -17,10 +17,122 @@ Date:   Wed Jan 11 15:14:06 2017 -0800
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  .../issue18676/dynamodbstreamsevt/definition.go    | 13 +++++++++
  misc/cgo/testplugin/src/issue18676/main.go         | 31 ++++++++++++++++++++++
  misc/cgo/testplugin/src/issue18676/plugin.go       | 11 ++++++++
  misc/cgo/testplugin/test.bash                      |  8 +++++-
  src/runtime/plugin.go                              |  4 ++-
  5 files changed, 65 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/issue18676/dynamodbstreamsevt/definition.go b/misc/cgo/testplugin/src/issue18676/dynamodbstreamsevt/definition.go
+new file mode 100644
+index 0000000000..70fd054d08
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue18676/dynamodbstreamsevt/definition.go
+@@ -0,0 +1,13 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package dynamodbstreamsevt
++
++import "encoding/json"
++
++var foo json.RawMessage
++
++type Event struct{}
++
++func (e *Event) Dummy() {}
+diff --git a/misc/cgo/testplugin/src/issue18676/main.go b/misc/cgo/testplugin/src/issue18676/main.go
+new file mode 100644
+index 0000000000..c75409dafe
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue18676/main.go
+@@ -0,0 +1,31 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The bug happened like this:
++// 1) The main binary adds an itab for *json.UnsupportedValueError / error
++//    (concrete type / interface type).  This itab goes in hash bucket 0x111.
++// 2) The plugin adds that same itab again.  That makes a cycle in the itab
++//    chain rooted at hash bucket 0x111.
++// 3) The main binary then asks for the itab for *dynamodbstreamsevt.Event /
++//    json.Unmarshaler.  This itab happens to also live in bucket 0x111.
++//    The lookup code goes into an infinite loop searching for this itab.
++// The code is carefully crafted so that the two itabs are both from the
++// same bucket, and so that the second itab doesn't exist in
++// the itab hashmap yet (so the entire linked list must be searched).
++package main
++
++import (
++	"encoding/json"
++	"issue18676/dynamodbstreamsevt"
++	"plugin"
++)
++
++func main() {
++	plugin.Open("plugin.so")
++
++	var x interface{} = (*dynamodbstreamsevt.Event)(nil)
++	if _, ok := x.(json.Unmarshaler); !ok {
++		println("something")
++	}
++}
+diff --git a/misc/cgo/testplugin/src/issue18676/plugin.go b/misc/cgo/testplugin/src/issue18676/plugin.go
+new file mode 100644
+index 0000000000..8a3b85a75c
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue18676/plugin.go
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++
++import "issue18676/dynamodbstreamsevt"
++
++func F(evt *dynamodbstreamsevt.Event) {}
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index 584b83c744..ab7430acc3 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -16,7 +16,7 @@ goarch=$(go env GOARCH)
+ 
+ function cleanup() {
+ 	rm -f plugin*.so unnamed*.so iface*.so
+-	rm -rf host pkg sub iface
++	rm -rf host pkg sub iface issue18676
+ }
+ trap cleanup EXIT
+ 
+@@ -38,3 +38,9 @@ GOPATH=$(pwd) go build -buildmode=plugin iface_a
+ GOPATH=$(pwd) go build -buildmode=plugin iface_b
+ GOPATH=$(pwd) go build iface
+ LD_LIBRARY_PATH=$(pwd) ./iface
++
++# Test for issue 18676 - make sure we don't add the same itab twice.
++# The buggy code hangs forever, so use a timeout to check for that.
++GOPATH=$(pwd) go build -buildmode=plugin -o plugin.so src/issue18676/plugin.go
++GOPATH=$(pwd) go build -o issue18676 src/issue18676/main.go
++timeout 10s ./issue18676
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 80869e1b1c..8edb29c9fe 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -56,7 +56,9 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
+ 
+ 	lock(&ifaceLock)
+ 	for _, i := range md.itablinks {
+-		additab(i, true, false)
++		if i.inhash == 0 {
++			additab(i, true, false)
++		}
+ 	}
+ 	unlock(&ifaceLock)
+ 

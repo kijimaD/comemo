@@ -7,6 +7,21 @@ Date:   Wed Jul 18 16:49:23 2018 -0400
     Change-Id: I3e2a19fe90334f0c1ed1593c7a9a3a458f15d8e8
     Reviewed-on: https://go-review.googlesource.com/124799
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.11.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 72d35250ea..274b6f114c 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -463,7 +463,8 @@ for k := range m {
+ <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
+   <dd>
+     <p><!-- CL 110561 -->
+-      <code>Marshal</code> and <code>Unmarshal</code> now support private class annotations for fields.
++      <code>Marshal</code> and <code><a href="/pkg/encoding/asn1/#Unmarshal">Unmarshal</a></code>
++      now support "private" class annotations for fields.
+     </p>
+ 
+ </dl><!-- encoding/asn1 -->

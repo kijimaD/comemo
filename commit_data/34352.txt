@@ -11,6 +11,20 @@ Date:   Thu Oct 19 17:47:07 2017 -0400
     Change-Id: I431be03f179aafacaf1fd3c62a6337e8b5bd18fb
     Reviewed-on: https://go-review.googlesource.com/71970
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/trace/trace.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 784e413335..7178287751 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -114,7 +114,7 @@ var templTrace = `
+     viewer.viewTitle = "trace";
+   }
+ 
+-  function onImportFail() {
++  function onImportFail(err) {
+     var overlay = new tr.ui.b.Overlay();
+     overlay.textContent = tr.b.normalizeException(err).message;
+     overlay.title = 'Import error';

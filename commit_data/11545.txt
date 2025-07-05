@@ -9,7 +9,32 @@ Date:   Thu Feb 2 08:52:22 2012 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5610046
-
+---
  src/pkg/go/build/Makefile   | 1 +
  src/pkg/go/build/syslist.go | 4 +---
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/build/Makefile b/src/pkg/go/build/Makefile
+index c7ef6542e5..3bb3912cbb 100644
+--- a/src/pkg/go/build/Makefile
++++ b/src/pkg/go/build/Makefile
+@@ -4,6 +4,7 @@
+ 
+ syslist.go: ../../../Make.inc Makefile
+ 	echo '// Generated automatically by make.' >$@
++	echo >>$@
+ 	echo 'package build' >>$@
+ 	echo >>$@
+ 	echo 'const goosList = "$(GOOS_LIST)"' >>$@
+diff --git a/src/pkg/go/build/syslist.go b/src/pkg/go/build/syslist.go
+index ea21f3c74b..8a2db8fa33 100644
+--- a/src/pkg/go/build/syslist.go
++++ b/src/pkg/go/build/syslist.go
+@@ -1,6 +1,4 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
++// Generated automatically by make.
+ 
+ package build
+ 

@@ -23,6 +23,41 @@ Date:   Thu Apr 8 16:57:57 2021 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/proc.go | 16 +++++++++-------
  1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ef3b373b1c..b3f113f6ab 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2810,13 +2810,7 @@ top:
+ 		goto top
+ 	}
+ 
+-	// Similar to above, check for timer creation or expiry concurrently with
+-	// transitioning from spinning to non-spinning. Note that we cannot use
+-	// checkTimers here because it calls adjusttimers which may need to allocate
+-	// memory, and that isn't allowed when we don't have an active P.
+-	pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
+-
+-	// Finally, check for idle-priority GC work.
++	// Check for idle-priority GC work again.
+ 	_p_, gp = checkIdleGCNoP()
+ 	if _p_ != nil {
+ 		acquirep(_p_)
+@@ -2834,6 +2828,14 @@ top:
+ 		return gp, false
+ 	}
+ 
++	// Finally, check for timer creation or expiry concurrently with
++	// transitioning from spinning to non-spinning.
++	//
++	// Note that we cannot use checkTimers here because it calls
++	// adjusttimers which may need to allocate memory, and that isn't
++	// allowed when we don't have an active P.
++	pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
++
+ 	// Poll network until next timer.
+ 	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
+ 		atomic.Store64(&sched.pollUntil, uint64(pollUntil))

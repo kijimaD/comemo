@@ -13,6 +13,20 @@ Date:   Wed Apr 25 12:50:58 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/109359
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  misc/cgo/test/sigprocmask.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/sigprocmask.go b/misc/cgo/test/sigprocmask.go
+index 39b658e96c..e2b939f05e 100644
+--- a/misc/cgo/test/sigprocmask.go
++++ b/misc/cgo/test/sigprocmask.go
+@@ -32,7 +32,7 @@ func IntoGoAndBack() {
+ 
+ func testSigprocmask(t *testing.T) {
+ 	if r := C.RunSigThread(); r != 0 {
+-		t.Error("pthread_create/pthread_join failed")
++		t.Errorf("pthread_create/pthread_join failed: %d", r)
+ 	}
+ 	if !blocked {
+ 		t.Error("Go runtime unblocked SIGIO")

@@ -9,8 +9,255 @@ Date:   Sun Jan 12 12:20:16 2014 +1100
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/49490043
-
+---
  src/pkg/net/fd_windows.go         |  48 ++++++++++---
  src/pkg/net/net_windows_test.go   | 146 ++++++++++++++++++++++++++++++++++++++
  src/pkg/syscall/ztypes_windows.go |   2 +
  3 files changed, 188 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 64d56c73e0..630fc5e6f7 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -513,12 +513,7 @@ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	})
+ }
+ 
+-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+-	if err := fd.readLock(); err != nil {
+-		return nil, err
+-	}
+-	defer fd.readUnlock()
+-
++func (fd *netFD) acceptOne(toAddr func(syscall.Sockaddr) Addr, rawsa []syscall.RawSockaddrAny, o *operation) (*netFD, error) {
+ 	// Get new socket.
+ 	s, err := sysSocket(fd.family, fd.sotype, 0)
+ 	if err != nil {
+@@ -537,9 +532,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	}
+ 
+ 	// Submit accept request.
+-	o := &fd.rop
+ 	o.handle = s
+-	var rawsa [2]syscall.RawSockaddrAny
+ 	o.rsan = int32(unsafe.Sizeof(rawsa[0]))
+ 	_, err = rsrv.ExecIO(o, "AcceptEx", func(o *operation) error {
+ 		return syscall.AcceptEx(o.fd.sysfd, o.handle, (*byte)(unsafe.Pointer(&rawsa[0])), 0, uint32(o.rsan), uint32(o.rsan), &o.qty, &o.o)
+@@ -556,6 +549,45 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 		return nil, &OpError{"Setsockopt", fd.net, fd.laddr, err}
+ 	}
+ 
++	return netfd, nil
++}
++
++func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
++	if err := fd.readLock(); err != nil {
++		return nil, err
++	}
++	defer fd.readUnlock()
++
++	o := &fd.rop
++	var netfd *netFD
++	var err error
++	var rawsa [2]syscall.RawSockaddrAny
++	for {
++		netfd, err = fd.acceptOne(toAddr, rawsa[:], o)
++		if err == nil {
++			break
++		}
++		// Sometimes we see WSAECONNRESET and ERROR_NETNAME_DELETED is
++		// returned here. These happen if connection reset is received
++		// before AcceptEx could complete. These errors relate to new
++		// connection, not to AcceptEx, so ignore broken connection and
++		// try AcceptEx again for more connections.
++		operr, ok := err.(*OpError)
++		if !ok {
++			return nil, err
++		}
++		errno, ok := operr.Err.(syscall.Errno)
++		if !ok {
++			return nil, err
++		}
++		switch errno {
++		case syscall.ERROR_NETNAME_DELETED, syscall.WSAECONNRESET:
++			// ignore these and try again
++		default:
++			return nil, err
++		}
++	}
++
+ 	// Get local and peer addr out of AcceptEx buffer.
+ 	var lrsa, rrsa *syscall.RawSockaddrAny
+ 	var llen, rlen int32
+diff --git a/src/pkg/net/net_windows_test.go b/src/pkg/net/net_windows_test.go
+new file mode 100644
+index 0000000000..8b1c9cdc57
+--- /dev/null
++++ b/src/pkg/net/net_windows_test.go
+@@ -0,0 +1,146 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"bufio"
++	"fmt"
++	"io"
++	"os"
++	"os/exec"
++	"syscall"
++	"testing"
++	"time"
++)
++
++func TestAcceptIgnoreSomeErrors(t *testing.T) {
++	recv := func(ln Listener) (string, error) {
++		c, err := ln.Accept()
++		if err != nil {
++			// Display windows errno in error message.
++			operr, ok := err.(*OpError)
++			if !ok {
++				return "", err
++			}
++			errno, ok := operr.Err.(syscall.Errno)
++			if !ok {
++				return "", err
++			}
++			return "", fmt.Errorf("%v (windows errno=%d)", err, errno)
++		}
++		defer c.Close()
++
++		b := make([]byte, 100)
++		n, err := c.Read(b)
++		if err != nil && err != io.EOF {
++			return "", err
++		}
++		return string(b[:n]), nil
++	}
++
++	send := func(addr string, data string) error {
++		c, err := Dial("tcp", addr)
++		if err != nil {
++			return err
++		}
++		defer c.Close()
++
++		b := []byte(data)
++		n, err := c.Write(b)
++		if err != nil {
++			return err
++		}
++		if n != len(b) {
++			return fmt.Errorf(`Only %d chars of string "%s" sent`, n, data)
++		}
++		return nil
++	}
++
++	if envaddr := os.Getenv("GOTEST_DIAL_ADDR"); envaddr != "" {
++		// In child process.
++		c, err := Dial("tcp", envaddr)
++		if err != nil {
++			t.Fatalf("Dial failed: %v", err)
++		}
++		fmt.Printf("sleeping\n")
++		time.Sleep(time.Minute) // process will be killed here
++		c.Close()
++	}
++
++	ln, err := Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatalf("Listen failed: %v", err)
++	}
++	defer ln.Close()
++
++	// Start child process that connects to our listener.
++	cmd := exec.Command(os.Args[0], "-test.run=TestAcceptIgnoreSomeErrors")
++	cmd.Env = append(os.Environ(), "GOTEST_DIAL_ADDR="+ln.Addr().String())
++	stdout, err := cmd.StdoutPipe()
++	if err != nil {
++		t.Fatalf("cmd.StdoutPipe failed: %v", err)
++	}
++	err = cmd.Start()
++	if err != nil {
++		t.Fatalf("cmd.Start failed: %v\n%s\n", err)
++	}
++	outReader := bufio.NewReader(stdout)
++	for {
++		s, err := outReader.ReadString('\n')
++		if err != nil {
++			t.Fatalf("reading stdout failed: %v", err)
++		}
++		if s == "sleeping\n" {
++			break
++		}
++	}
++	defer cmd.Wait() // ignore error - we know it is getting killed
++
++	const alittle = 100 * time.Millisecond
++	time.Sleep(alittle)
++	cmd.Process.Kill() // the only way to trigger the errors
++	time.Sleep(alittle)
++
++	// Send second connection data (with delay in a separate goroutine).
++	result := make(chan error)
++	go func() {
++		time.Sleep(alittle)
++		err = send(ln.Addr().String(), "abc")
++		if err != nil {
++			result <- err
++		}
++		result <- nil
++	}()
++	defer func() {
++		err := <-result
++		if err != nil {
++			t.Fatalf("send failed: %v", err)
++		}
++	}()
++
++	// Receive first or second connection.
++	s, err := recv(ln)
++	if err != nil {
++		t.Fatalf("recv failed: %v", err)
++	}
++	switch s {
++	case "":
++		// First connection data is received, lets get second connection data.
++	case "abc":
++		// First connection is lost forever, but that is ok.
++		return
++	default:
++		t.Fatalf(`"%s" received from recv, but "" or "abc" expected`, s)
++	}
++
++	// Get second connection data.
++	s, err = recv(ln)
++	if err != nil {
++		t.Fatalf("recv failed: %v", err)
++	}
++	if s != "abc" {
++		t.Fatalf(`"%s" received from recv, but "abc" expected`, s)
++	}
++}
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 28cd3f6169..63c4944da7 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -11,6 +11,7 @@ const (
+ 	ERROR_ACCESS_DENIED       Errno = 5
+ 	ERROR_NO_MORE_FILES       Errno = 18
+ 	ERROR_HANDLE_EOF          Errno = 38
++	ERROR_NETNAME_DELETED     Errno = 64
+ 	ERROR_FILE_EXISTS         Errno = 80
+ 	ERROR_BROKEN_PIPE         Errno = 109
+ 	ERROR_BUFFER_OVERFLOW     Errno = 111
+@@ -23,6 +24,7 @@ const (
+ 	ERROR_IO_PENDING          Errno = 997
+ 	ERROR_NOT_FOUND           Errno = 1168
+ 	WSAEACCES                 Errno = 10013
++	WSAECONNRESET             Errno = 10054
+ )
+ 
+ const (

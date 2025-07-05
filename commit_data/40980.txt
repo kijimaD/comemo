@@ -12,6 +12,58 @@ Date:   Tue Aug 20 02:29:26 2019 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  test/fixedbugs/issue27718.go | 30 ++++++++++++++++++++++++++++++
  1 file changed, 30 insertions(+)
+
+diff --git a/test/fixedbugs/issue27718.go b/test/fixedbugs/issue27718.go
+index f7794182f5..ff616fb0f2 100644
+--- a/test/fixedbugs/issue27718.go
++++ b/test/fixedbugs/issue27718.go
+@@ -36,6 +36,20 @@ func testSub64() {
+ 	}
+ }
+ 
++//go:noinline
++func neg64(x float64) float64 {
++	return -x
++}
++
++func testNeg64() {
++	var zero float64
++	inf := 1.0 / zero
++	negZero := -1 / inf
++	if 1/neg64(negZero) != inf {
++		panic("-negZero != posZero (64 bit)")
++	}
++}
++
+ //go:noinline
+ func add32(x float32) float32 {
+ 	return x + 0
+@@ -64,9 +78,25 @@ func testSub32() {
+ 	}
+ }
+ 
++//go:noinline
++func neg32(x float32) float32 {
++	return -x
++}
++
++func testNeg32() {
++	var zero float32
++	inf := 1.0 / zero
++	negZero := -1 / inf
++	if 1/neg32(negZero) != inf {
++		panic("-negZero != posZero (32 bit)")
++	}
++}
++
+ func main() {
+ 	testAdd64()
+ 	testSub64()
++	testNeg64()
+ 	testAdd32()
+ 	testSub32()
++	testNeg32()
+ }

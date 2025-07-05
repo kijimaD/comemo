@@ -10,7 +10,33 @@ Date:   Mon Nov 7 11:55:33 2011 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5365041
-
+---
  src/pkg/net/http/sniff.go      | 2 +-
  src/pkg/net/http/sniff_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/sniff.go b/src/pkg/net/http/sniff.go
+index 690b1ac9fb..5707c7f057 100644
+--- a/src/pkg/net/http/sniff.go
++++ b/src/pkg/net/http/sniff.go
+@@ -38,7 +38,7 @@ func DetectContentType(data []byte) string {
+ }
+ 
+ func isWS(b byte) bool {
+-	return bytes.IndexByte([]byte("\t\n\x0C\n "), b) != -1
++	return bytes.IndexByte([]byte("\t\n\x0C\r "), b) != -1
+ }
+ 
+ type sniffSig interface {
+diff --git a/src/pkg/net/http/sniff_test.go b/src/pkg/net/http/sniff_test.go
+index faf05e405a..e9195a5e16 100644
+--- a/src/pkg/net/http/sniff_test.go
++++ b/src/pkg/net/http/sniff_test.go
+@@ -26,6 +26,7 @@ var sniffTests = []struct {
+ 	{"HTML document #1", []byte(`<HtMl><bOdY>blah blah blah</body></html>`), "text/html; charset=utf-8"},
+ 	{"HTML document #2", []byte(`<HTML></HTML>`), "text/html; charset=utf-8"},
+ 	{"HTML document #3 (leading whitespace)", []byte(`   <!DOCTYPE HTML>...`), "text/html; charset=utf-8"},
++	{"HTML document #4 (leading CRLF)", []byte("\r\n<html>..."), "text/html; charset=utf-8"},
+ 
+ 	{"Plain text", []byte(`This is not HTML. It has ☃ though.`), "text/plain; charset=utf-8"},
+ 

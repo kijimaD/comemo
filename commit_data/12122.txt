@@ -7,6 +7,21 @@ Date:   Wed Feb 22 12:45:01 2012 +1100
     R=gri, dsymonds
     CC=golang-dev
     https://golang.org/cl/5687071
-
+---
  doc/style.css | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/style.css b/doc/style.css
+index 13a0e04ee4..c53f93dd05 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -7,6 +7,9 @@ pre, code {
+ 	font-family: Menlo, monospace;
+ 	font-size: 14px;
+ }
++pre {
++	line-height: 18px;
++}
+ pre .comment {
+ 	color: #375EAB;
+ }

@@ -65,7 +65,7 @@ Date:   Wed Dec 23 00:39:45 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/amd64/ggen.go             |  15 +-
  src/cmd/compile/internal/amd64/ssa.go              |   4 +-
  src/cmd/compile/internal/arm/ggen.go               |   9 +-
@@ -105,3 +105,2610 @@ Date:   Wed Dec 23 00:39:45 2020 -0500
  src/cmd/compile/internal/types/utils.go            |   2 -
  src/cmd/compile/internal/x86/ggen.go               |  11 +-
  38 files changed, 439 insertions(+), 431 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 0bb0627f92..48b00b3da9 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/gc"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"cmd/internal/objabi"
+@@ -63,9 +64,9 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
+ 		return p
+ 	}
+ 
+-	if cnt%int64(gc.Widthreg) != 0 {
++	if cnt%int64(types.RegSize) != 0 {
+ 		// should only happen with nacl
+-		if cnt%int64(gc.Widthptr) != 0 {
++		if cnt%int64(types.PtrSize) != 0 {
+ 			base.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
+ 		}
+ 		if *state&ax == 0 {
+@@ -73,8 +74,8 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
+ 			*state |= ax
+ 		}
+ 		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
+-		off += int64(gc.Widthptr)
+-		cnt -= int64(gc.Widthptr)
++		off += int64(types.PtrSize)
++		cnt -= int64(types.PtrSize)
+ 	}
+ 
+ 	if cnt == 8 {
+@@ -83,7 +84,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
+ 			*state |= ax
+ 		}
+ 		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
+-	} else if !isPlan9 && cnt <= int64(8*gc.Widthreg) {
++	} else if !isPlan9 && cnt <= int64(8*types.RegSize) {
+ 		if *state&x0 == 0 {
+ 			p = pp.Appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
+ 			*state |= x0
+@@ -96,7 +97,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
+ 		if cnt%16 != 0 {
+ 			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
+ 		}
+-	} else if !isPlan9 && (cnt <= int64(128*gc.Widthreg)) {
++	} else if !isPlan9 && (cnt <= int64(128*types.RegSize)) {
+ 		if *state&x0 == 0 {
+ 			p = pp.Appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
+ 			*state |= x0
+@@ -114,7 +115,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
+ 			*state |= ax
+ 		}
+ 
+-		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
++		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(types.RegSize), obj.TYPE_REG, x86.REG_CX, 0)
+ 		p = pp.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = pp.Appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+ 		p = pp.Appendpp(p, x86.ASTOSQ, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 055d1894d4..0150bd296a 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1014,7 +1014,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpAMD64LoweredGetCallerSP:
+ 		// caller's SP is the address of the first arg
+ 		mov := x86.AMOVQ
+-		if gc.Widthptr == 4 {
++		if types.PtrSize == 4 {
+ 			mov = x86.AMOVL
+ 		}
+ 		p := s.Prog(mov)
+@@ -1036,7 +1036,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+-		s.UseArgs(int64(2 * gc.Widthptr)) // space used in callee args area by assembly stubs
++		s.UseArgs(int64(2 * types.PtrSize)) // space used in callee args area by assembly stubs
+ 
+ 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL,
+ 		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 2e4de9893b..2363d76346 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -7,6 +7,7 @@ package arm
+ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+@@ -20,17 +21,17 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, r0 *uint32) *obj.Prog
+ 		*r0 = 1
+ 	}
+ 
+-	if cnt < int64(4*gc.Widthptr) {
+-		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
++	if cnt < int64(4*types.PtrSize) {
++		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+ 			p = pp.Appendpp(p, arm.AMOVW, obj.TYPE_REG, arm.REG_R0, 0, obj.TYPE_MEM, arm.REGSP, 4+off+i)
+ 		}
+-	} else if cnt <= int64(128*gc.Widthptr) {
++	} else if cnt <= int64(128*types.PtrSize) {
+ 		p = pp.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+off, obj.TYPE_REG, arm.REG_R1, 0)
+ 		p.Reg = arm.REGSP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = ir.Syms.Duffzero
+-		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
++		p.To.Offset = 4 * (128 - cnt/int64(types.PtrSize))
+ 	} else {
+ 		p = pp.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+off, obj.TYPE_REG, arm.REG_R1, 0)
+ 		p.Reg = arm.REGSP
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 6c280267b6..37f11e0ff6 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -7,6 +7,7 @@ package arm64
+ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+ 	"cmd/internal/objabi"
+@@ -27,15 +28,15 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	if cnt == 0 {
+ 		return p
+ 	}
+-	if cnt < int64(4*gc.Widthptr) {
+-		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
++	if cnt < int64(4*types.PtrSize) {
++		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+ 			p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+off+i)
+ 		}
+-	} else if cnt <= int64(128*gc.Widthptr) && !darwin { // darwin ld64 cannot handle BR26 reloc with non-zero addend
+-		if cnt%(2*int64(gc.Widthptr)) != 0 {
++	} else if cnt <= int64(128*types.PtrSize) && !darwin { // darwin ld64 cannot handle BR26 reloc with non-zero addend
++		if cnt%(2*int64(types.PtrSize)) != 0 {
+ 			p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+off)
+-			off += int64(gc.Widthptr)
+-			cnt -= int64(gc.Widthptr)
++			off += int64(types.PtrSize)
++			cnt -= int64(types.PtrSize)
+ 		}
+ 		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REG_R20, 0)
+ 		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+off, obj.TYPE_REG, arm64.REG_R20, 0)
+@@ -43,7 +44,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = ir.Syms.Duffzero
+-		p.To.Offset = 4 * (64 - cnt/(2*int64(gc.Widthptr)))
++		p.To.Offset = 4 * (64 - cnt/(2*int64(types.PtrSize)))
+ 	} else {
+ 		// Not using REGTMP, so this is async preemptible (async preemption clobbers REGTMP).
+ 		// We are at the function entry, where no register is live, so it is okay to clobber
+@@ -56,7 +57,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, rtmp, 0)
+ 		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_REG, rtmp, 0, obj.TYPE_REG, arm64.REGRT2, 0)
+ 		p.Reg = arm64.REGRT1
+-		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGRT1, int64(gc.Widthptr))
++		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGRT1, int64(types.PtrSize))
+ 		p.Scond = arm64.C_XPRE
+ 		p1 := p
+ 		p = pp.Appendpp(p, arm64.ACMP, obj.TYPE_REG, arm64.REGRT1, 0, obj.TYPE_NONE, 0, 0)
+diff --git a/src/cmd/compile/internal/gc/abiutils.go b/src/cmd/compile/internal/gc/abiutils.go
+index 19de14d48c..5822c088f9 100644
+--- a/src/cmd/compile/internal/gc/abiutils.go
++++ b/src/cmd/compile/internal/gc/abiutils.go
+@@ -91,7 +91,7 @@ func ABIAnalyze(t *types.Type, config ABIConfig) ABIParamResultInfo {
+ 		result.inparams = append(result.inparams,
+ 			s.assignParamOrReturn(f.Type))
+ 	}
+-	s.stackOffset = Rnd(s.stackOffset, int64(Widthreg))
++	s.stackOffset = types.Rnd(s.stackOffset, int64(types.RegSize))
+ 
+ 	// Record number of spill slots needed.
+ 	result.intSpillSlots = s.rUsed.intRegs
+@@ -160,7 +160,7 @@ type assignState struct {
+ // specified type.
+ func (state *assignState) stackSlot(t *types.Type) int64 {
+ 	if t.Align > 0 {
+-		state.stackOffset = Rnd(state.stackOffset, int64(t.Align))
++		state.stackOffset = types.Rnd(state.stackOffset, int64(t.Align))
+ 	}
+ 	rv := state.stackOffset
+ 	state.stackOffset += t.Width
+@@ -226,7 +226,7 @@ func (state *assignState) floatUsed() int {
+ // can register allocate, FALSE otherwise (and updates state
+ // accordingly).
+ func (state *assignState) regassignIntegral(t *types.Type) bool {
+-	regsNeeded := int(Rnd(t.Width, int64(Widthptr)) / int64(Widthptr))
++	regsNeeded := int(types.Rnd(t.Width, int64(types.PtrSize)) / int64(types.PtrSize))
+ 
+ 	// Floating point and complex.
+ 	if t.IsFloat() || t.IsComplex() {
+diff --git a/src/cmd/compile/internal/gc/abiutils_test.go b/src/cmd/compile/internal/gc/abiutils_test.go
+index 6ed27d794f..5a88332de8 100644
+--- a/src/cmd/compile/internal/gc/abiutils_test.go
++++ b/src/cmd/compile/internal/gc/abiutils_test.go
+@@ -29,13 +29,13 @@ func TestMain(m *testing.M) {
+ 	thearch.LinkArch = &x86.Linkamd64
+ 	thearch.REGSP = x86.REGSP
+ 	thearch.MAXWIDTH = 1 << 50
+-	MaxWidth = thearch.MAXWIDTH
++	types.MaxWidth = thearch.MAXWIDTH
+ 	base.Ctxt = obj.Linknew(thearch.LinkArch)
+ 	base.Ctxt.DiagFunc = base.Errorf
+ 	base.Ctxt.DiagFlush = base.FlushErrors
+ 	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
+-	Widthptr = thearch.LinkArch.PtrSize
+-	Widthreg = thearch.LinkArch.RegSize
++	types.PtrSize = thearch.LinkArch.PtrSize
++	types.RegSize = thearch.LinkArch.RegSize
+ 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+ 		return typenamesym(t).Linksym()
+ 	}
+diff --git a/src/cmd/compile/internal/gc/abiutilsaux_test.go b/src/cmd/compile/internal/gc/abiutilsaux_test.go
+index de35e8edd6..8585ab9a30 100644
+--- a/src/cmd/compile/internal/gc/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/gc/abiutilsaux_test.go
+@@ -106,7 +106,7 @@ func difftokens(atoks []string, etoks []string) string {
+ 
+ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
+ 
+-	dowidth(ft)
++	types.CalcSize(ft)
+ 
+ 	// Analyze with full set of registers.
+ 	regRes := ABIAnalyze(ft, configAMD64)
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index d21b0d492c..dab27b4929 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -253,7 +253,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 	// Build closure. It doesn't close over any variables, so
+ 	// it contains just the function pointer.
+ 	dsymptr(closure, 0, sym.Linksym(), 0)
+-	ggloblsym(closure, int32(Widthptr), obj.DUPOK|obj.RODATA)
++	ggloblsym(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
+ 
+ 	return closure
+ }
+@@ -302,7 +302,7 @@ func sysClosure(name string) *obj.LSym {
+ 	if len(s.P) == 0 {
+ 		f := sysfunc(name)
+ 		dsymptr(s, 0, f, 0)
+-		ggloblsym(s, int32(Widthptr), obj.DUPOK|obj.RODATA)
++		ggloblsym(s, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
+ 	}
+ 	return s
+ }
+@@ -632,7 +632,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 
+ 	// Generate a closure which points at the function we just generated.
+ 	dsymptr(closure, 0, sym.Linksym(), 0)
+-	ggloblsym(closure, int32(Widthptr), obj.DUPOK|obj.RODATA)
++	ggloblsym(closure, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
+ 	return closure
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index e758cf86d4..454d97e17f 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -188,7 +188,7 @@ func capturevars(fn *ir.Func) {
+ 
+ 		// type check the & of closed variables outside the closure,
+ 		// so that the outer frame also grabs them and knows they escape.
+-		dowidth(v.Type())
++		types.CalcSize(v.Type())
+ 
+ 		var outer ir.Node
+ 		outer = v.Outer
+@@ -276,23 +276,23 @@ func transformclosure(fn *ir.Func) {
+ 			fn.Dcl = append(decls, fn.Dcl...)
+ 		}
+ 
+-		dowidth(f.Type())
++		types.CalcSize(f.Type())
+ 		fn.SetType(f.Type()) // update type of ODCLFUNC
+ 	} else {
+ 		// The closure is not called, so it is going to stay as closure.
+ 		var body []ir.Node
+-		offset := int64(Widthptr)
++		offset := int64(types.PtrSize)
+ 		for _, v := range fn.ClosureVars {
+ 			// cv refers to the field inside of closure OSTRUCTLIT.
+ 			typ := v.Type()
+ 			if !v.Byval() {
+ 				typ = types.NewPtr(typ)
+ 			}
+-			offset = Rnd(offset, int64(typ.Align))
++			offset = types.Rnd(offset, int64(typ.Align))
+ 			cr := ir.NewClosureRead(typ, offset)
+ 			offset += typ.Width
+ 
+-			if v.Byval() && v.Type().Width <= int64(2*Widthptr) {
++			if v.Byval() && v.Type().Width <= int64(2*types.PtrSize) {
+ 				// If it is a small variable captured by value, downgrade it to PAUTO.
+ 				v.Class_ = ir.PAUTO
+ 				fn.Dcl = append(fn.Dcl, v)
+@@ -466,7 +466,7 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
+ 	fn.SetNeedctxt(true)
+ 
+ 	// Declare and initialize variable holding receiver.
+-	cr := ir.NewClosureRead(rcvrtype, Rnd(int64(Widthptr), int64(rcvrtype.Align)))
++	cr := ir.NewClosureRead(rcvrtype, types.Rnd(int64(types.PtrSize), int64(rcvrtype.Align)))
+ 	ptr := NewName(lookup(".this"))
+ 	declare(ptr, ir.PAUTO)
+ 	ptr.SetUsed(true)
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+index ea23e26069..70c5c2a25a 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -215,7 +215,7 @@ func initEmbed(v *ir.Name) {
+ 		slicedata := base.Ctxt.Lookup(`"".` + v.Sym().Name + `.files`)
+ 		off := 0
+ 		// []files pointed at by Files
+-		off = dsymptr(slicedata, off, slicedata, 3*Widthptr) // []file, pointing just past slice
++		off = dsymptr(slicedata, off, slicedata, 3*types.PtrSize) // []file, pointing just past slice
+ 		off = duintptr(slicedata, off, uint64(len(files)))
+ 		off = duintptr(slicedata, off, uint64(len(files)))
+ 
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 53298c878d..1084ff883f 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -66,7 +66,7 @@ func tempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
+ 	n.SetAutoTemp(true)
+ 	curfn.Dcl = append(curfn.Dcl, n)
+ 
+-	dowidth(t)
++	types.CalcSize(t)
+ 
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 4370a06839..a2587b3361 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -12,31 +12,6 @@ import (
+ 	"sync"
+ )
+ 
+-// Slices in the runtime are represented by three components:
+-//
+-// type slice struct {
+-// 	ptr unsafe.Pointer
+-// 	len int
+-// 	cap int
+-// }
+-//
+-// Strings in the runtime are represented by two components:
+-//
+-// type string struct {
+-// 	ptr unsafe.Pointer
+-// 	len int
+-// }
+-//
+-// These variables are the offsets of fields and sizes of these structs.
+-var (
+-	slicePtrOffset int64
+-	sliceLenOffset int64
+-	sliceCapOffset int64
+-
+-	sizeofSlice  int64
+-	sizeofString int64
+-)
+-
+ var pragcgobuf [][]string
+ 
+ var decldepth int32
+@@ -68,10 +43,6 @@ var (
+ 
+ var dclcontext ir.Class // PEXTERN/PAUTO
+ 
+-var Widthptr int
+-
+-var Widthreg int
+-
+ var typecheckok bool
+ 
+ // interface to back end
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index d04c432e5e..e9dc2a3248 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -308,10 +308,10 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 
+ 		// We also need to defer width calculations until
+ 		// after the underlying type has been assigned.
+-		defercheckwidth()
++		types.DeferCheckSize()
+ 		underlying := r.typ()
+ 		t.SetUnderlying(underlying)
+-		resumecheckwidth()
++		types.ResumeCheckSize()
+ 
+ 		if underlying.IsInterface() {
+ 			r.typeExt(t)
+@@ -565,7 +565,7 @@ func (r *importReader) typ1() *types.Type {
+ 		t := types.NewInterface(r.currPkg, append(embeddeds, methods...))
+ 
+ 		// Ensure we expand the interface in the frontend (#25055).
+-		checkwidth(t)
++		types.CheckSize(t)
+ 		return t
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index f21494b291..b9e19da43f 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1315,7 +1315,7 @@ func devirtualizeCall(call *ir.CallExpr) {
+ 	// Receiver parameter size may have changed; need to update
+ 	// call.Type to get correct stack offsets for result
+ 	// parameters.
+-	checkwidth(x.Type())
++	types.CheckSize(x.Type())
+ 	switch ft := x.Type(); ft.NumResults() {
+ 	case 0:
+ 	case 1:
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index d55a8b0a7c..69ec5c8f2f 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -190,9 +190,9 @@ func Main(archInit func(*Arch)) {
+ 	initSSAEnv()
+ 	initSSATables()
+ 
+-	Widthptr = thearch.LinkArch.PtrSize
+-	Widthreg = thearch.LinkArch.RegSize
+-	MaxWidth = thearch.MAXWIDTH
++	types.PtrSize = thearch.LinkArch.PtrSize
++	types.RegSize = thearch.LinkArch.RegSize
++	types.MaxWidth = thearch.MAXWIDTH
+ 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+ 		return typenamesym(t).Linksym()
+ 	}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index e56e34a7a1..372277552f 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -234,7 +234,7 @@ func dumpGlobal(n *ir.Name) {
+ 	if n.Sym().Pkg != types.LocalPkg {
+ 		return
+ 	}
+-	dowidth(n.Type())
++	types.CalcSize(n.Type())
+ 	ggloblnod(n)
+ }
+ 
+@@ -281,7 +281,7 @@ func dumpfuncsyms() {
+ 	for _, s := range funcsyms {
+ 		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
+ 		dsymptr(sf, 0, s.Linksym(), 0)
+-		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
++		ggloblsym(sf, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
+ 	}
+ }
+ 
+@@ -332,7 +332,7 @@ func duint32(s *obj.LSym, off int, v uint32) int {
+ }
+ 
+ func duintptr(s *obj.LSym, off int, v uint64) int {
+-	return duintxx(s, off, v, Widthptr)
++	return duintxx(s, off, v, types.PtrSize)
+ }
+ 
+ func dbvec(s *obj.LSym, off int, bv bvec) int {
+@@ -505,9 +505,9 @@ func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int
+ }
+ 
+ func dsymptr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+-	off = int(Rnd(int64(off), int64(Widthptr)))
+-	s.WriteAddr(base.Ctxt, int64(off), Widthptr, x, int64(xoff))
+-	off += Widthptr
++	off = int(types.Rnd(int64(off), int64(types.PtrSize)))
++	s.WriteAddr(base.Ctxt, int64(off), types.PtrSize, x, int64(xoff))
++	off += types.PtrSize
+ 	return off
+ }
+ 
+@@ -530,9 +530,9 @@ func slicesym(n *ir.Name, noff int64, arr *ir.Name, lencap int64) {
+ 	if arr.Op() != ir.ONAME {
+ 		base.Fatalf("slicesym non-name arr %v", arr)
+ 	}
+-	s.WriteAddr(base.Ctxt, noff, Widthptr, arr.Sym().Linksym(), 0)
+-	s.WriteInt(base.Ctxt, noff+sliceLenOffset, Widthptr, lencap)
+-	s.WriteInt(base.Ctxt, noff+sliceCapOffset, Widthptr, lencap)
++	s.WriteAddr(base.Ctxt, noff, types.PtrSize, arr.Sym().Linksym(), 0)
++	s.WriteInt(base.Ctxt, noff+types.SliceLenOffset, types.PtrSize, lencap)
++	s.WriteInt(base.Ctxt, noff+types.SliceCapOffset, types.PtrSize, lencap)
+ }
+ 
+ // addrsym writes the static address of a to n. a must be an ONAME.
+@@ -548,7 +548,7 @@ func addrsym(n *ir.Name, noff int64, a *ir.Name, aoff int64) {
+ 		base.Fatalf("addrsym a op %v", a.Op())
+ 	}
+ 	s := n.Sym().Linksym()
+-	s.WriteAddr(base.Ctxt, noff, Widthptr, a.Sym().Linksym(), aoff)
++	s.WriteAddr(base.Ctxt, noff, types.PtrSize, a.Sym().Linksym(), aoff)
+ }
+ 
+ // pfuncsym writes the static address of f to n. f must be a global function.
+@@ -564,7 +564,7 @@ func pfuncsym(n *ir.Name, noff int64, f *ir.Name) {
+ 		base.Fatalf("pfuncsym class not PFUNC %d", f.Class_)
+ 	}
+ 	s := n.Sym().Linksym()
+-	s.WriteAddr(base.Ctxt, noff, Widthptr, funcsym(f.Sym()).Linksym(), 0)
++	s.WriteAddr(base.Ctxt, noff, types.PtrSize, funcsym(f.Sym()).Linksym(), 0)
+ }
+ 
+ // litsym writes the static literal c to n.
+@@ -615,8 +615,8 @@ func litsym(n *ir.Name, noff int64, c ir.Node, wid int) {
+ 	case constant.String:
+ 		i := constant.StringVal(u)
+ 		symdata := stringsym(n.Pos(), i)
+-		s.WriteAddr(base.Ctxt, noff, Widthptr, symdata, 0)
+-		s.WriteInt(base.Ctxt, noff+int64(Widthptr), Widthptr, int64(len(i)))
++		s.WriteAddr(base.Ctxt, noff, types.PtrSize, symdata, 0)
++		s.WriteInt(base.Ctxt, noff+int64(types.PtrSize), types.PtrSize, int64(len(i)))
+ 
+ 	default:
+ 		base.Fatalf("litsym unhandled OLITERAL %v", c)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 1cd33b2cb5..3d35094a58 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -242,7 +242,7 @@ func (o *Order) addrTemp(n ir.Node) ir.Node {
+ 	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
+ 		// TODO: expand this to all static composite literal nodes?
+ 		n = defaultlit(n, nil)
+-		dowidth(n.Type())
++		types.CalcSize(n.Type())
+ 		vstat := readonlystaticname(n.Type())
+ 		var s InitSchedule
+ 		s.staticassign(vstat, 0, n, n.Type())
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 44b614ba70..337556ea41 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -32,7 +32,7 @@ func emitptrargsmap(fn *ir.Func) {
+ 		return
+ 	}
+ 	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
+-	nptr := int(fn.Type().ArgWidth() / int64(Widthptr))
++	nptr := int(fn.Type().ArgWidth() / int64(types.PtrSize))
+ 	bv := bvalloc(int32(nptr) * 2)
+ 	nbitmap := 1
+ 	if fn.Type().NumResults() > 0 {
+@@ -162,9 +162,9 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 			break
+ 		}
+ 
+-		dowidth(n.Type())
++		types.CalcSize(n.Type())
+ 		w := n.Type().Width
+-		if w >= MaxWidth || w < 0 {
++		if w >= types.MaxWidth || w < 0 {
+ 			base.Fatalf("bad width")
+ 		}
+ 		if w == 0 && lastHasPtr {
+@@ -175,7 +175,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 			w = 1
+ 		}
+ 		s.stksize += w
+-		s.stksize = Rnd(s.stksize, int64(n.Type().Align))
++		s.stksize = types.Rnd(s.stksize, int64(n.Type().Align))
+ 		if n.Type().HasPointers() {
+ 			s.stkptrsize = s.stksize
+ 			lastHasPtr = true
+@@ -183,13 +183,13 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 			lastHasPtr = false
+ 		}
+ 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
+-			s.stksize = Rnd(s.stksize, int64(Widthptr))
++			s.stksize = types.Rnd(s.stksize, int64(types.PtrSize))
+ 		}
+ 		n.SetFrameOffset(-s.stksize)
+ 	}
+ 
+-	s.stksize = Rnd(s.stksize, int64(Widthreg))
+-	s.stkptrsize = Rnd(s.stkptrsize, int64(Widthreg))
++	s.stksize = types.Rnd(s.stksize, int64(types.RegSize))
++	s.stkptrsize = types.Rnd(s.stkptrsize, int64(types.RegSize))
+ }
+ 
+ func funccompile(fn *ir.Func) {
+@@ -205,7 +205,7 @@ func funccompile(fn *ir.Func) {
+ 	}
+ 
+ 	// assign parameter offsets
+-	dowidth(fn.Type())
++	types.CalcSize(fn.Type())
+ 
+ 	if len(fn.Body) == 0 {
+ 		// Initialize ABI wrappers if necessary.
+@@ -346,7 +346,7 @@ func init() {
+ // and waits for them to complete.
+ func compileFunctions() {
+ 	if len(compilequeue) != 0 {
+-		sizeCalculationDisabled = true // not safe to calculate sizes concurrently
++		types.CalcSizeDisabled = true // not safe to calculate sizes concurrently
+ 		if race.Enabled {
+ 			// Randomize compilation order to try to shake out races.
+ 			tmp := make([]*ir.Func, len(compilequeue))
+@@ -382,7 +382,7 @@ func compileFunctions() {
+ 		compilequeue = nil
+ 		wg.Wait()
+ 		base.Ctxt.InParallel = false
+-		sizeCalculationDisabled = false
++		types.CalcSizeDisabled = false
+ 	}
+ }
+ 
+@@ -538,11 +538,11 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 		offs = n.FrameOffset()
+ 		abbrev = dwarf.DW_ABRV_AUTO
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+-			offs -= int64(Widthptr)
++			offs -= int64(types.PtrSize)
+ 		}
+ 		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
+ 			// There is a word space for FP on ARM64 even if the frame pointer is disabled
+-			offs -= int64(Widthptr)
++			offs -= int64(types.PtrSize)
+ 		}
+ 
+ 	case ir.PPARAM, ir.PPARAMOUT:
+@@ -735,11 +735,11 @@ func stackOffset(slot ssa.LocalSlot) int32 {
+ 	case ir.PAUTO:
+ 		off = n.FrameOffset()
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+-			off -= int64(Widthptr)
++			off -= int64(types.PtrSize)
+ 		}
+ 		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
+ 			// There is a word space for FP on ARM64 even if the frame pointer is disabled
+-			off -= int64(Widthptr)
++			off -= int64(types.PtrSize)
+ 		}
+ 	case ir.PPARAM, ir.PPARAMOUT:
+ 		off = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index f13889efda..ac3b4bcd31 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -423,23 +423,23 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
+ 
+ 	switch t.Kind() {
+ 	case types.TPTR, types.TUNSAFEPTR, types.TFUNC, types.TCHAN, types.TMAP:
+-		if off&int64(Widthptr-1) != 0 {
++		if off&int64(types.PtrSize-1) != 0 {
+ 			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+-		bv.Set(int32(off / int64(Widthptr))) // pointer
++		bv.Set(int32(off / int64(types.PtrSize))) // pointer
+ 
+ 	case types.TSTRING:
+ 		// struct { byte *str; intgo len; }
+-		if off&int64(Widthptr-1) != 0 {
++		if off&int64(types.PtrSize-1) != 0 {
+ 			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+-		bv.Set(int32(off / int64(Widthptr))) //pointer in first slot
++		bv.Set(int32(off / int64(types.PtrSize))) //pointer in first slot
+ 
+ 	case types.TINTER:
+ 		// struct { Itab *tab;	void *data; }
+ 		// or, when isnilinter(t)==true:
+ 		// struct { Type *type; void *data; }
+-		if off&int64(Widthptr-1) != 0 {
++		if off&int64(types.PtrSize-1) != 0 {
+ 			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+ 		// The first word of an interface is a pointer, but we don't
+@@ -454,14 +454,14 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
+ 		//      the underlying type so it won't be GCd.
+ 		// If we ever have a moving GC, we need to change this for 2b (as
+ 		// well as scan itabs to update their itab._type fields).
+-		bv.Set(int32(off/int64(Widthptr) + 1)) // pointer in second slot
++		bv.Set(int32(off/int64(types.PtrSize) + 1)) // pointer in second slot
+ 
+ 	case types.TSLICE:
+ 		// struct { byte *array; uintgo len; uintgo cap; }
+-		if off&int64(Widthptr-1) != 0 {
++		if off&int64(types.PtrSize-1) != 0 {
+ 			base.Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
+ 		}
+-		bv.Set(int32(off / int64(Widthptr))) // pointer in first slot (BitsPointer)
++		bv.Set(int32(off / int64(types.PtrSize))) // pointer in first slot (BitsPointer)
+ 
+ 	case types.TARRAY:
+ 		elt := t.Elem()
+@@ -1181,7 +1181,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
+ 	// Next, find the offset of the largest pointer in the largest node.
+ 	var maxArgs int64
+ 	if maxArgNode != nil {
+-		maxArgs = maxArgNode.FrameOffset() + typeptrdata(maxArgNode.Type())
++		maxArgs = maxArgNode.FrameOffset() + types.PtrDataSize(maxArgNode.Type())
+ 	}
+ 
+ 	// Size locals bitmaps to be stkptrsize sized.
+@@ -1196,11 +1196,11 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
+ 	// Temporary symbols for encoding bitmaps.
+ 	var argsSymTmp, liveSymTmp obj.LSym
+ 
+-	args := bvalloc(int32(maxArgs / int64(Widthptr)))
++	args := bvalloc(int32(maxArgs / int64(types.PtrSize)))
+ 	aoff := duint32(&argsSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+ 	aoff = duint32(&argsSymTmp, aoff, uint32(args.n))          // number of bits in each bitmap
+ 
+-	locals := bvalloc(int32(maxLocals / int64(Widthptr)))
++	locals := bvalloc(int32(maxLocals / int64(types.PtrSize)))
+ 	loff := duint32(&liveSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+ 	loff = duint32(&liveSymTmp, loff, uint32(locals.n))        // number of bits in each bitmap
+ 
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index e73e7fbbe1..1ad3b9b422 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -37,7 +37,7 @@ func instrument(fn *ir.Func) {
+ 			// race in the future.
+ 			nodpc := ir.RegFP.CloneName()
+ 			nodpc.SetType(types.Types[types.TUINTPTR])
+-			nodpc.SetFrameOffset(int64(-Widthptr))
++			nodpc.SetFrameOffset(int64(-types.PtrSize))
+ 			fn.Dcl = append(fn.Dcl, nodpc)
+ 			fn.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
+ 			fn.Exit.Append(mkcall("racefuncexit", nil, nil))
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 8b393a8979..987b2d6ee2 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -67,9 +67,9 @@ const (
+ 	MAXELEMSIZE = 128
+ )
+ 
+-func structfieldSize() int { return 3 * Widthptr }       // Sizeof(runtime.structfield{})
+-func imethodSize() int     { return 4 + 4 }              // Sizeof(runtime.imethod{})
+-func commonSize() int      { return 4*Widthptr + 8 + 8 } // Sizeof(runtime._type{})
++func structfieldSize() int { return 3 * types.PtrSize }       // Sizeof(runtime.structfield{})
++func imethodSize() int     { return 4 + 4 }                   // Sizeof(runtime.imethod{})
++func commonSize() int      { return 4*types.PtrSize + 8 + 8 } // Sizeof(runtime._type{})
+ 
+ func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
+ 	if t.Sym() == nil && len(methods(t)) == 0 {
+@@ -91,8 +91,8 @@ func bmap(t *types.Type) *types.Type {
+ 
+ 	keytype := t.Key()
+ 	elemtype := t.Elem()
+-	dowidth(keytype)
+-	dowidth(elemtype)
++	types.CalcSize(keytype)
++	types.CalcSize(elemtype)
+ 	if keytype.Width > MAXKEYSIZE {
+ 		keytype = types.NewPtr(keytype)
+ 	}
+@@ -132,7 +132,7 @@ func bmap(t *types.Type) *types.Type {
+ 	// link up fields
+ 	bucket := types.NewStruct(types.NoPkg, field[:])
+ 	bucket.SetNoalg(true)
+-	dowidth(bucket)
++	types.CalcSize(bucket)
+ 
+ 	// Check invariants that map code depends on.
+ 	if !types.IsComparable(t.Key()) {
+@@ -180,7 +180,7 @@ func bmap(t *types.Type) *types.Type {
+ 
+ 	// Double-check that overflow field is final memory in struct,
+ 	// with no padding at end.
+-	if overflow.Offset != bucket.Width-int64(Widthptr) {
++	if overflow.Offset != bucket.Width-int64(types.PtrSize) {
+ 		base.Fatalf("bad offset of overflow in bmap for %v", t)
+ 	}
+ 
+@@ -226,11 +226,11 @@ func hmap(t *types.Type) *types.Type {
+ 
+ 	hmap := types.NewStruct(types.NoPkg, fields)
+ 	hmap.SetNoalg(true)
+-	dowidth(hmap)
++	types.CalcSize(hmap)
+ 
+ 	// The size of hmap should be 48 bytes on 64 bit
+ 	// and 28 bytes on 32 bit platforms.
+-	if size := int64(8 + 5*Widthptr); hmap.Width != size {
++	if size := int64(8 + 5*types.PtrSize); hmap.Width != size {
+ 		base.Fatalf("hmap size not correct: got %d, want %d", hmap.Width, size)
+ 	}
+ 
+@@ -289,9 +289,9 @@ func hiter(t *types.Type) *types.Type {
+ 	// build iterator struct holding the above fields
+ 	hiter := types.NewStruct(types.NoPkg, fields)
+ 	hiter.SetNoalg(true)
+-	dowidth(hiter)
+-	if hiter.Width != int64(12*Widthptr) {
+-		base.Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*Widthptr)
++	types.CalcSize(hiter)
++	if hiter.Width != int64(12*types.PtrSize) {
++		base.Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*types.PtrSize)
+ 	}
+ 	t.MapType().Hiter = hiter
+ 	hiter.StructType().Map = t
+@@ -335,7 +335,7 @@ func deferstruct(stksize int64) *types.Type {
+ 	// build struct holding the above fields
+ 	s := types.NewStruct(types.NoPkg, fields)
+ 	s.SetNoalg(true)
+-	CalcStructSize(s)
++	types.CalcStructSize(s)
+ 	return s
+ }
+ 
+@@ -642,7 +642,7 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
+ 	if t.Sym() == nil && len(m) == 0 {
+ 		return ot
+ 	}
+-	noff := int(Rnd(int64(ot), int64(Widthptr)))
++	noff := int(types.Rnd(int64(ot), int64(types.PtrSize)))
+ 	if noff != ot {
+ 		base.Fatalf("unexpected alignment in dextratype for %v", t)
+ 	}
+@@ -745,55 +745,6 @@ var kinds = []int{
+ 	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
+ }
+ 
+-// typeptrdata returns the length in bytes of the prefix of t
+-// containing pointer data. Anything after this offset is scalar data.
+-func typeptrdata(t *types.Type) int64 {
+-	if !t.HasPointers() {
+-		return 0
+-	}
+-
+-	switch t.Kind() {
+-	case types.TPTR,
+-		types.TUNSAFEPTR,
+-		types.TFUNC,
+-		types.TCHAN,
+-		types.TMAP:
+-		return int64(Widthptr)
+-
+-	case types.TSTRING:
+-		// struct { byte *str; intgo len; }
+-		return int64(Widthptr)
+-
+-	case types.TINTER:
+-		// struct { Itab *tab;	void *data; } or
+-		// struct { Type *type; void *data; }
+-		// Note: see comment in plive.go:onebitwalktype1.
+-		return 2 * int64(Widthptr)
+-
+-	case types.TSLICE:
+-		// struct { byte *array; uintgo len; uintgo cap; }
+-		return int64(Widthptr)
+-
+-	case types.TARRAY:
+-		// haspointers already eliminated t.NumElem() == 0.
+-		return (t.NumElem()-1)*t.Elem().Width + typeptrdata(t.Elem())
+-
+-	case types.TSTRUCT:
+-		// Find the last field that has pointers.
+-		var lastPtrField *types.Field
+-		for _, t1 := range t.Fields().Slice() {
+-			if t1.Type.HasPointers() {
+-				lastPtrField = t1
+-			}
+-		}
+-		return lastPtrField.Offset + typeptrdata(lastPtrField.Type)
+-
+-	default:
+-		base.Fatalf("typeptrdata: unexpected type, %v", t)
+-		return 0
+-	}
+-}
+-
+ // tflag is documented in reflect/type.go.
+ //
+ // tflag values must be kept in sync with copies in:
+@@ -815,7 +766,7 @@ var (
+ 
+ // dcommontype dumps the contents of a reflect.rtype (runtime._type).
+ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+-	dowidth(t)
++	types.CalcSize(t)
+ 	eqfunc := geneq(t)
+ 
+ 	sptrWeak := true
+@@ -1148,11 +1099,11 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		}
+ 		ot = duint16(lsym, ot, uint16(inCount))
+ 		ot = duint16(lsym, ot, uint16(outCount))
+-		if Widthptr == 8 {
++		if types.PtrSize == 8 {
+ 			ot += 4 // align for *rtype
+ 		}
+ 
+-		dataAdd := (inCount + t.NumResults()) * Widthptr
++		dataAdd := (inCount + t.NumResults()) * types.PtrSize
+ 		ot = dextratype(lsym, ot, t, dataAdd)
+ 
+ 		// Array of rtype pointers follows funcType.
+@@ -1182,7 +1133,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		}
+ 		ot = dgopkgpath(lsym, ot, tpkg)
+ 
+-		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
++		ot = dsymptr(lsym, ot, lsym, ot+3*types.PtrSize+uncommonSize(t))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 		dataAdd := imethodSize() * n
+@@ -1217,14 +1168,14 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		// Note: flags must match maptype accessors in ../../../../runtime/type.go
+ 		// and maptype builder in ../../../../reflect/type.go:MapOf.
+ 		if t.Key().Width > MAXKEYSIZE {
+-			ot = duint8(lsym, ot, uint8(Widthptr))
++			ot = duint8(lsym, ot, uint8(types.PtrSize))
+ 			flags |= 1 // indirect key
+ 		} else {
+ 			ot = duint8(lsym, ot, uint8(t.Key().Width))
+ 		}
+ 
+ 		if t.Elem().Width > MAXELEMSIZE {
+-			ot = duint8(lsym, ot, uint8(Widthptr))
++			ot = duint8(lsym, ot, uint8(types.PtrSize))
+ 			flags |= 2 // indirect value
+ 		} else {
+ 			ot = duint8(lsym, ot, uint8(t.Elem().Width))
+@@ -1281,7 +1232,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 
+ 		ot = dcommontype(lsym, t)
+ 		ot = dgopkgpath(lsym, ot, spkg)
+-		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
++		ot = dsymptr(lsym, ot, lsym, ot+3*types.PtrSize+uncommonSize(t))
+ 		ot = duintptr(lsym, ot, uint64(len(fields)))
+ 		ot = duintptr(lsym, ot, uint64(len(fields)))
+ 
+@@ -1343,7 +1294,7 @@ func ifaceMethodOffset(ityp *types.Type, i int64) int64 {
+ 	//   [...]imethod
+ 	// }
+ 	// The size of imethod is 8.
+-	return int64(commonSize()+4*Widthptr+uncommonSize(ityp)) + i*8
++	return int64(commonSize()+4*types.PtrSize+uncommonSize(ityp)) + i*8
+ }
+ 
+ // for each itabEntry, gather the methods on
+@@ -1416,7 +1367,7 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
+ 	}
+ 
+ 	// keep this arithmetic in sync with *itab layout
+-	methodnum := int((offset - 2*int64(Widthptr) - 8) / int64(Widthptr))
++	methodnum := int((offset - 2*int64(types.PtrSize) - 8) / int64(types.PtrSize))
+ 	if methodnum >= len(syms) {
+ 		return nil
+ 	}
+@@ -1625,8 +1576,8 @@ const maxPtrmaskBytes = 2048
+ // along with a boolean reporting whether the UseGCProg bit should be set in
+ // the type kind, and the ptrdata field to record in the reflect type information.
+ func dgcsym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
+-	ptrdata = typeptrdata(t)
+-	if ptrdata/int64(Widthptr) <= maxPtrmaskBytes*8 {
++	ptrdata = types.PtrDataSize(t)
++	if ptrdata/int64(types.PtrSize) <= maxPtrmaskBytes*8 {
+ 		lsym = dgcptrmask(t)
+ 		return
+ 	}
+@@ -1638,7 +1589,7 @@ func dgcsym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
+ 
+ // dgcptrmask emits and returns the symbol containing a pointer mask for type t.
+ func dgcptrmask(t *types.Type) *obj.LSym {
+-	ptrmask := make([]byte, (typeptrdata(t)/int64(Widthptr)+7)/8)
++	ptrmask := make([]byte, (types.PtrDataSize(t)/int64(types.PtrSize)+7)/8)
+ 	fillptrmask(t, ptrmask)
+ 	p := fmt.Sprintf("gcbits.%x", ptrmask)
+ 
+@@ -1669,7 +1620,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
+ 	vec := bvalloc(8 * int32(len(ptrmask)))
+ 	onebitwalktype1(t, 0, vec)
+ 
+-	nptr := typeptrdata(t) / int64(Widthptr)
++	nptr := types.PtrDataSize(t) / int64(types.PtrSize)
+ 	for i := int64(0); i < nptr; i++ {
+ 		if vec.Get(int32(i)) {
+ 			ptrmask[i/8] |= 1 << (uint(i) % 8)
+@@ -1682,7 +1633,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
+ // In practice, the size is typeptrdata(t) except for non-trivial arrays.
+ // For non-trivial arrays, the program describes the full t.Width size.
+ func dgcprog(t *types.Type) (*obj.LSym, int64) {
+-	dowidth(t)
++	types.CalcSize(t)
+ 	if t.Width == types.BADWIDTH {
+ 		base.Fatalf("dgcprog: %v badwidth", t)
+ 	}
+@@ -1690,9 +1641,9 @@ func dgcprog(t *types.Type) (*obj.LSym, int64) {
+ 	var p GCProg
+ 	p.init(lsym)
+ 	p.emit(t, 0)
+-	offset := p.w.BitIndex() * int64(Widthptr)
++	offset := p.w.BitIndex() * int64(types.PtrSize)
+ 	p.end()
+-	if ptrdata := typeptrdata(t); offset < ptrdata || offset > t.Width {
++	if ptrdata := types.PtrDataSize(t); offset < ptrdata || offset > t.Width {
+ 		base.Fatalf("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Width)
+ 	}
+ 	return lsym, offset
+@@ -1728,12 +1679,12 @@ func (p *GCProg) end() {
+ }
+ 
+ func (p *GCProg) emit(t *types.Type, offset int64) {
+-	dowidth(t)
++	types.CalcSize(t)
+ 	if !t.HasPointers() {
+ 		return
+ 	}
+-	if t.Width == int64(Widthptr) {
+-		p.w.Ptr(offset / int64(Widthptr))
++	if t.Width == int64(types.PtrSize) {
++		p.w.Ptr(offset / int64(types.PtrSize))
+ 		return
+ 	}
+ 	switch t.Kind() {
+@@ -1741,14 +1692,14 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
+ 		base.Fatalf("GCProg.emit: unexpected type %v", t)
+ 
+ 	case types.TSTRING:
+-		p.w.Ptr(offset / int64(Widthptr))
++		p.w.Ptr(offset / int64(types.PtrSize))
+ 
+ 	case types.TINTER:
+ 		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
+-		p.w.Ptr(offset/int64(Widthptr) + 1)
++		p.w.Ptr(offset/int64(types.PtrSize) + 1)
+ 
+ 	case types.TSLICE:
+-		p.w.Ptr(offset / int64(Widthptr))
++		p.w.Ptr(offset / int64(types.PtrSize))
+ 
+ 	case types.TARRAY:
+ 		if t.NumElem() == 0 {
+@@ -1764,7 +1715,7 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
+ 			elem = elem.Elem()
+ 		}
+ 
+-		if !p.w.ShouldRepeat(elem.Width/int64(Widthptr), count) {
++		if !p.w.ShouldRepeat(elem.Width/int64(types.PtrSize), count) {
+ 			// Cheaper to just emit the bits.
+ 			for i := int64(0); i < count; i++ {
+ 				p.emit(elem, offset+i*elem.Width)
+@@ -1772,8 +1723,8 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
+ 			return
+ 		}
+ 		p.emit(elem, offset)
+-		p.w.ZeroUntil((offset + elem.Width) / int64(Widthptr))
+-		p.w.Repeat(elem.Width/int64(Widthptr), count-1)
++		p.w.ZeroUntil((offset + elem.Width) / int64(types.PtrSize))
++		p.w.Repeat(elem.Width/int64(types.PtrSize), count-1)
+ 
+ 	case types.TSTRUCT:
+ 		for _, t1 := range t.Fields().Slice() {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 936edb3d70..e9a4590043 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -330,8 +330,8 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 			}
+ 			// Copy val directly into n.
+ 			ir.SetPos(val)
+-			if !s.staticassign(l, loff+int64(Widthptr), val, val.Type()) {
+-				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(Widthptr), val.Type())
++			if !s.staticassign(l, loff+int64(types.PtrSize), val, val.Type()) {
++				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(types.PtrSize), val.Type())
+ 				s.append(ir.NewAssignStmt(base.Pos, a, val))
+ 			}
+ 		} else {
+@@ -341,7 +341,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 			if !s.staticassign(a, 0, val, val.Type()) {
+ 				s.append(ir.NewAssignStmt(base.Pos, a, val))
+ 			}
+-			addrsym(l, loff+int64(Widthptr), a, 0)
++			addrsym(l, loff+int64(types.PtrSize), a, 0)
+ 		}
+ 
+ 		return true
+@@ -622,7 +622,7 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
+ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
+ 	// make an array type corresponding the number of elements we have
+ 	t := types.NewArray(n.Type().Elem(), n.Len)
+-	dowidth(t)
++	types.CalcSize(t)
+ 
+ 	if ctxt == inNonInitFunction {
+ 		// put everything into static array
+@@ -801,8 +801,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 		tk.SetNoalg(true)
+ 		te.SetNoalg(true)
+ 
+-		dowidth(tk)
+-		dowidth(te)
++		types.CalcSize(tk)
++		types.CalcSize(te)
+ 
+ 		// make and initialize static arrays
+ 		vstatk := readonlystaticname(tk)
+@@ -1034,7 +1034,7 @@ func stataddr(n ir.Node) (name *ir.Name, offset int64, ok bool) {
+ 		}
+ 
+ 		// Check for overflow.
+-		if n.Type().Width != 0 && MaxWidth/n.Type().Width <= int64(l) {
++		if n.Type().Width != 0 && types.MaxWidth/n.Type().Width <= int64(l) {
+ 			break
+ 		}
+ 		offset += int64(l) * n.Type().Width
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f879d8b86d..21925a0d65 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2248,8 +2248,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 			return v
+ 		}
+ 
+-		dowidth(from)
+-		dowidth(to)
++		types.CalcSize(from)
++		types.CalcSize(to)
+ 		if from.Width != to.Width {
+ 			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Width, to, to.Width)
+ 			return nil
+@@ -3016,7 +3016,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
+ 			}
+ 		}
+-		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, sliceCapOffset, addr)
++		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, types.SliceCapOffset, addr)
+ 		s.store(types.Types[types.TINT], capaddr, r[2])
+ 		s.store(pt, addr, r[0])
+ 		// load the value we just stored to avoid having to spill it
+@@ -3037,7 +3037,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 	if inplace {
+ 		l = s.variable(lenVar, types.Types[types.TINT]) // generates phi for len
+ 		nl = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, s.constInt(types.Types[types.TINT], nargs))
+-		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, sliceLenOffset, addr)
++		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, types.SliceLenOffset, addr)
+ 		s.store(types.Types[types.TINT], lenaddr, nl)
+ 	}
+ 
+@@ -3153,7 +3153,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
+ 		return
+ 	}
+ 	t := left.Type()
+-	dowidth(t)
++	types.CalcSize(t)
+ 	if s.canSSA(left) {
+ 		if deref {
+ 			s.Fatalf("can SSA LHS %v but not RHS %s", left, right)
+@@ -4706,7 +4706,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			closure = iclosure
+ 		}
+ 	}
+-	dowidth(fn.Type())
++	types.CalcSize(fn.Type())
+ 	stksize := fn.Type().ArgWidth() // includes receiver, args, and results
+ 
+ 	// Run all assignments of temps.
+@@ -4778,11 +4778,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			s.store(types.Types[types.TUINTPTR], arg0, addr)
+ 			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
+ 		}
+-		if stksize < int64(Widthptr) {
++		if stksize < int64(types.PtrSize) {
+ 			// We need room for both the call to deferprocStack and the call to
+ 			// the deferred function.
+ 			// TODO Revisit this if/when we pass args in registers.
+-			stksize = int64(Widthptr)
++			stksize = int64(types.PtrSize)
+ 		}
+ 		call.AuxInt = stksize
+ 	} else {
+@@ -4800,15 +4800,15 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 				addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
+ 				s.store(types.Types[types.TUINT32], addr, argsize)
+ 			}
+-			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart) + int32(Widthptr)})
++			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart) + int32(types.PtrSize)})
+ 			if testLateExpansion {
+ 				callArgs = append(callArgs, closure)
+ 			} else {
+-				addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
++				addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(types.PtrSize))
+ 				s.store(types.Types[types.TUINTPTR], addr, closure)
+ 			}
+-			stksize += 2 * int64(Widthptr)
+-			argStart += 2 * int64(Widthptr)
++			stksize += 2 * int64(types.PtrSize)
++			argStart += 2 * int64(types.PtrSize)
+ 		}
+ 
+ 		// Set receiver (for interface calls).
+@@ -4970,7 +4970,7 @@ func (s *state) getClosureAndRcvr(fn *ir.SelectorExpr) (*ssa.Value, *ssa.Value)
+ 	i := s.expr(fn.X)
+ 	itab := s.newValue1(ssa.OpITab, types.Types[types.TUINTPTR], i)
+ 	s.nilCheck(itab)
+-	itabidx := fn.Offset + 2*int64(Widthptr) + 8 // offset of fun field in runtime.itab
++	itabidx := fn.Offset + 2*int64(types.PtrSize) + 8 // offset of fun field in runtime.itab
+ 	closure := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
+ 	rcvr := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, i)
+ 	return closure, rcvr
+@@ -5177,8 +5177,8 @@ func (s *state) canSSAName(name *ir.Name) bool {
+ 
+ // canSSA reports whether variables of type t are SSA-able.
+ func canSSAType(t *types.Type) bool {
+-	dowidth(t)
+-	if t.Width > int64(4*Widthptr) {
++	types.CalcSize(t)
++	if t.Width > int64(4*types.PtrSize) {
+ 		// 4*Widthptr is an arbitrary constant. We want it
+ 		// to be at least 3*Widthptr so slices can be registerized.
+ 		// Too big and we'll introduce too much register pressure.
+@@ -5379,7 +5379,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 
+ 	for _, arg := range args {
+ 		t := arg.Type
+-		off = Rnd(off, t.Alignment())
++		off = types.Rnd(off, t.Alignment())
+ 		size := t.Size()
+ 		ACArgs = append(ACArgs, ssa.Param{Type: t, Offset: int32(off)})
+ 		if testLateExpansion {
+@@ -5390,12 +5390,12 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 		}
+ 		off += size
+ 	}
+-	off = Rnd(off, int64(Widthreg))
++	off = types.Rnd(off, int64(types.RegSize))
+ 
+ 	// Accumulate results types and offsets
+ 	offR := off
+ 	for _, t := range results {
+-		offR = Rnd(offR, t.Alignment())
++		offR = types.Rnd(offR, t.Alignment())
+ 		ACResults = append(ACResults, ssa.Param{Type: t, Offset: int32(offR)})
+ 		offR += t.Size()
+ 	}
+@@ -5429,7 +5429,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	res := make([]*ssa.Value, len(results))
+ 	if testLateExpansion {
+ 		for i, t := range results {
+-			off = Rnd(off, t.Alignment())
++			off = types.Rnd(off, t.Alignment())
+ 			if canSSAType(t) {
+ 				res[i] = s.newValue1I(ssa.OpSelectN, t, int64(i), call)
+ 			} else {
+@@ -5440,13 +5440,13 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 		}
+ 	} else {
+ 		for i, t := range results {
+-			off = Rnd(off, t.Alignment())
++			off = types.Rnd(off, t.Alignment())
+ 			ptr := s.constOffPtrSP(types.NewPtr(t), off)
+ 			res[i] = s.load(t, ptr)
+ 			off += t.Size()
+ 		}
+ 	}
+-	off = Rnd(off, int64(Widthptr))
++	off = types.Rnd(off, int64(types.PtrSize))
+ 
+ 	// Remember how much callee stack space we needed.
+ 	call.AuxInt = off
+@@ -6072,7 +6072,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 					return
+ 				}
+ 				// Load type out of itab, build interface with existing idata.
+-				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), itab)
++				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)
+ 				typ := s.load(byteptr, off)
+ 				idata := s.newValue1(ssa.OpIData, byteptr, iface)
+ 				res = s.newValue2(ssa.OpIMake, n.Type(), typ, idata)
+@@ -6082,7 +6082,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 			s.startBlock(bOk)
+ 			// nonempty -> empty
+ 			// Need to load type from itab
+-			off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), itab)
++			off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)
+ 			s.vars[typVar] = s.load(byteptr, off)
+ 			s.endBlock()
+ 
+@@ -6764,14 +6764,14 @@ func genssa(f *ssa.Func, pp *Progs) {
+ func defframe(s *SSAGenState, e *ssafn) {
+ 	pp := s.pp
+ 
+-	frame := Rnd(s.maxarg+e.stksize, int64(Widthreg))
++	frame := types.Rnd(s.maxarg+e.stksize, int64(types.RegSize))
+ 	if thearch.PadFrame != nil {
+ 		frame = thearch.PadFrame(frame)
+ 	}
+ 
+ 	// Fill in argument and frame size.
+ 	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-	pp.Text.To.Val = int32(Rnd(e.curfn.Type().ArgWidth(), int64(Widthreg)))
++	pp.Text.To.Val = int32(types.Rnd(e.curfn.Type().ArgWidth(), int64(types.RegSize)))
+ 	pp.Text.To.Offset = frame
+ 
+ 	// Insert code to zero ambiguously live variables so that the
+@@ -6792,11 +6792,11 @@ func defframe(s *SSAGenState, e *ssafn) {
+ 		if n.Class_ != ir.PAUTO {
+ 			e.Fatalf(n.Pos(), "needzero class %d", n.Class_)
+ 		}
+-		if n.Type().Size()%int64(Widthptr) != 0 || n.FrameOffset()%int64(Widthptr) != 0 || n.Type().Size() == 0 {
++		if n.Type().Size()%int64(types.PtrSize) != 0 || n.FrameOffset()%int64(types.PtrSize) != 0 || n.Type().Size() == 0 {
+ 			e.Fatalf(n.Pos(), "var %L has size %d offset %d", n, n.Type().Size(), n.Offset_)
+ 		}
+ 
+-		if lo != hi && n.FrameOffset()+n.Type().Size() >= lo-int64(2*Widthreg) {
++		if lo != hi && n.FrameOffset()+n.Type().Size() >= lo-int64(2*types.RegSize) {
+ 			// Merge with range we already have.
+ 			lo = n.FrameOffset()
+ 			continue
+@@ -7274,7 +7274,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t
+ 	n.SetEsc(ir.EscNever)
+ 	n.Curfn = e.curfn
+ 	e.curfn.Dcl = append(e.curfn.Dcl, n)
+-	dowidth(t)
++	types.CalcSize(t)
+ 	return ssa.LocalSlot{N: n, Type: t, Off: 0, SplitOf: parent, SplitOffset: offset}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index bcf17e42d6..d4c7c6db1a 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1377,8 +1377,8 @@ func itabType(itab ir.Node) ir.Node {
+ 	typ := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
+ 	typ.SetType(types.NewPtr(types.Types[types.TUINT8]))
+ 	typ.SetTypecheck(1)
+-	typ.Offset = int64(Widthptr) // offset of _type in runtime.itab
+-	typ.SetBounded(true)         // guaranteed not to fault
++	typ.Offset = int64(types.PtrSize) // offset of _type in runtime.itab
++	typ.SetBounded(true)              // guaranteed not to fault
+ 	return typ
+ }
+ 
+@@ -1403,13 +1403,3 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
+ 	ind.SetBounded(true)
+ 	return ind
+ }
+-
+-// typePos returns the position associated with t.
+-// This is where t was declared or where it appeared as a type expression.
+-func typePos(t *types.Type) src.XPos {
+-	if pos := t.Pos(); pos.IsKnown() {
+-		return pos
+-	}
+-	base.Fatalf("bad type: %v", t)
+-	panic("unreachable")
+-}
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 5bbc91fcc1..4e7ff00434 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -535,9 +535,9 @@ func walkTypeSwitch(sw *ir.SwitchStmt) {
+ 	dotHash.SetType(types.Types[types.TUINT32])
+ 	dotHash.SetTypecheck(1)
+ 	if s.facename.Type().IsEmptyInterface() {
+-		dotHash.Offset = int64(2 * Widthptr) // offset of hash in runtime._type
++		dotHash.Offset = int64(2 * types.PtrSize) // offset of hash in runtime._type
+ 	} else {
+-		dotHash.Offset = int64(2 * Widthptr) // offset of hash in runtime.itab
++		dotHash.Offset = int64(2 * types.PtrSize) // offset of hash in runtime.itab
+ 	}
+ 	dotHash.SetBounded(true) // guaranteed not to fault
+ 	s.hashname = copyexpr(dotHash, dotHash.Type(), &sw.Compiled)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0beb5712d4..0552dd180f 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -21,8 +21,6 @@ var (
+ )
+ 
+ func TypecheckInit() {
+-	types.Widthptr = Widthptr
+-	types.Dowidth = dowidth
+ 	initUniverse()
+ 	dclcontext = ir.PEXTERN
+ 	base.Timer.Start("fe", "loadsys")
+@@ -163,7 +161,6 @@ func TypecheckImports() {
+ }
+ 
+ var traceIndent []byte
+-var skipDowidthForTracing bool
+ 
+ func tracePrint(title string, n ir.Node) func(np *ir.Node) {
+ 	indent := traceIndent
+@@ -177,8 +174,8 @@ func tracePrint(title string, n ir.Node) func(np *ir.Node) {
+ 		tc = n.Typecheck()
+ 	}
+ 
+-	skipDowidthForTracing = true
+-	defer func() { skipDowidthForTracing = false }()
++	types.SkipSizeForTracing = true
++	defer func() { types.SkipSizeForTracing = false }()
+ 	fmt.Printf("%s: %s%s %p %s %v tc=%d\n", pos, indent, title, n, op, n, tc)
+ 	traceIndent = append(traceIndent, ". "...)
+ 
+@@ -201,8 +198,8 @@ func tracePrint(title string, n ir.Node) func(np *ir.Node) {
+ 			typ = n.Type()
+ 		}
+ 
+-		skipDowidthForTracing = true
+-		defer func() { skipDowidthForTracing = false }()
++		types.SkipSizeForTracing = true
++		defer func() { types.SkipSizeForTracing = false }()
+ 		fmt.Printf("%s: %s=> %p %s %v tc=%d type=%L\n", pos, indent, n, op, n, tc, typ)
+ 	}
+ }
+@@ -503,7 +500,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ 			break
+ 
+ 		default:
+-			checkwidth(t)
++			types.CheckSize(t)
+ 		}
+ 	}
+ 	if t != nil {
+@@ -651,7 +648,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 		}
+ 		t := types.NewSlice(n.Elem.Type())
+ 		n.SetOTYPE(t)
+-		checkwidth(t)
++		types.CheckSize(t)
+ 		return n
+ 
+ 	case ir.OTARRAY:
+@@ -695,7 +692,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 		bound, _ := constant.Int64Val(v)
+ 		t := types.NewArray(n.Elem.Type(), bound)
+ 		n.SetOTYPE(t)
+-		checkwidth(t)
++		types.CheckSize(t)
+ 		return n
+ 
+ 	case ir.OTMAP:
+@@ -758,7 +755,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 		if l.Op() == ir.OTYPE {
+ 			n.SetOTYPE(types.NewPtr(l.Type()))
+ 			// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
+-			checkwidth(l.Type())
++			types.CheckSize(l.Type())
+ 			return n
+ 		}
+ 
+@@ -910,7 +907,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 						return n
+ 					}
+ 
+-					dowidth(l.Type())
++					types.CalcSize(l.Type())
+ 					if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Width >= 1<<16 {
+ 						l = ir.NewConvExpr(base.Pos, aop, r.Type(), l)
+ 						l.SetTypecheck(1)
+@@ -931,7 +928,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 						return n
+ 					}
+ 
+-					dowidth(r.Type())
++					types.CalcSize(r.Type())
+ 					if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Width >= 1<<16 {
+ 						r = ir.NewConvExpr(base.Pos, aop, l.Type(), r)
+ 						r.SetTypecheck(1)
+@@ -1139,7 +1136,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 				return n
+ 			}
+ 			n.SetOp(ir.ODOTPTR)
+-			checkwidth(t)
++			types.CheckSize(t)
+ 		}
+ 
+ 		if n.Sel.IsBlank() {
+@@ -1464,7 +1461,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 		} else if t.IsPtr() && t.Elem().IsArray() {
+ 			tp = t.Elem()
+ 			n.SetType(types.NewSlice(tp.Elem()))
+-			dowidth(n.Type())
++			types.CalcSize(n.Type())
+ 			if hasmax {
+ 				n.SetOp(ir.OSLICE3ARR)
+ 			} else {
+@@ -1581,7 +1578,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 			n.SetType(nil)
+ 			return n
+ 		}
+-		checkwidth(t)
++		types.CheckSize(t)
+ 
+ 		switch l.Op() {
+ 		case ir.ODOTINTER:
+@@ -1860,7 +1857,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 				continue
+ 			}
+ 			as[i] = assignconv(n, t.Elem(), "append")
+-			checkwidth(as[i].Type()) // ensure width is calculated for backend
++			types.CheckSize(as[i].Type()) // ensure width is calculated for backend
+ 		}
+ 		return n
+ 
+@@ -1907,7 +1904,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 
+ 	case ir.OCONV:
+ 		n := n.(*ir.ConvExpr)
+-		checkwidth(n.Type()) // ensure width is calculated for backend
++		types.CheckSize(n.Type()) // ensure width is calculated for backend
+ 		n.X = typecheck(n.X, ctxExpr)
+ 		n.X = convlit1(n.X, n.Type(), true, nil)
+ 		t := n.X.Type()
+@@ -2303,7 +2300,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 	case ir.ODCLTYPE:
+ 		n := n.(*ir.Decl)
+ 		n.X = typecheck(n.X, ctxType)
+-		checkwidth(n.X.Type())
++		types.CheckSize(n.X.Type())
+ 		return n
+ 	}
+ 
+@@ -2626,7 +2623,7 @@ func derefall(t *types.Type) *types.Type {
+ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
+ 	s := n.Sel
+ 
+-	dowidth(t)
++	types.CalcSize(t)
+ 	var f1 *types.Field
+ 	if t.IsStruct() || t.IsInterface() {
+ 		f1 = lookdot1(n, s, t, t.Fields(), dostrcmp)
+@@ -2672,7 +2669,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
+ 			return f2
+ 		}
+ 		tt := n.X.Type()
+-		dowidth(tt)
++		types.CalcSize(tt)
+ 		rcvr := f2.Type.Recv().Type
+ 		if !types.Identical(rcvr, tt) {
+ 			if rcvr.IsPtr() && types.Identical(rcvr.Elem(), tt) {
+@@ -3067,7 +3064,7 @@ func typecheckcomplit(n *ir.CompLitExpr) (res ir.Node) {
+ 
+ 	case types.TSTRUCT:
+ 		// Need valid field offsets for Xoffset below.
+-		dowidth(t)
++		types.CalcSize(t)
+ 
+ 		errored := false
+ 		if len(n.List) != 0 && nokeys(n.List) {
+@@ -3366,7 +3363,7 @@ func typecheckas(n *ir.AssignStmt) {
+ 		n.X = typecheck(n.X, ctxExpr|ctxAssign)
+ 	}
+ 	if !ir.IsBlank(n.X) {
+-		checkwidth(n.X.Type()) // ensure width is calculated for backend
++		types.CheckSize(n.X.Type()) // ensure width is calculated for backend
+ 	}
+ }
+ 
+@@ -3590,7 +3587,7 @@ func typecheckdeftype(n *ir.Name) {
+ 	n.SetTypecheck(1)
+ 	n.SetWalkdef(1)
+ 
+-	defercheckwidth()
++	types.DeferCheckSize()
+ 	errorsBefore := base.Errors()
+ 	n.Ntype = typecheckNtype(n.Ntype)
+ 	if underlying := n.Ntype.Type(); underlying != nil {
+@@ -3604,7 +3601,7 @@ func typecheckdeftype(n *ir.Name) {
+ 		// but it was reported. Silence future errors.
+ 		t.SetBroke(true)
+ 	}
+-	resumecheckwidth()
++	types.ResumeCheckSize()
+ }
+ 
+ func typecheckdef(n ir.Node) {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index b7472ede0f..5d59fdbbc5 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -77,17 +77,17 @@ var unsafeFuncs = [...]struct {
+ 
+ // initUniverse initializes the universe block.
+ func initUniverse() {
+-	if Widthptr == 0 {
++	if types.PtrSize == 0 {
+ 		base.Fatalf("typeinit before betypeinit")
+ 	}
+ 
+-	slicePtrOffset = 0
+-	sliceLenOffset = Rnd(slicePtrOffset+int64(Widthptr), int64(Widthptr))
+-	sliceCapOffset = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
+-	sizeofSlice = Rnd(sliceCapOffset+int64(Widthptr), int64(Widthptr))
++	types.SlicePtrOffset = 0
++	types.SliceLenOffset = types.Rnd(types.SlicePtrOffset+int64(types.PtrSize), int64(types.PtrSize))
++	types.SliceCapOffset = types.Rnd(types.SliceLenOffset+int64(types.PtrSize), int64(types.PtrSize))
++	types.SliceSize = types.Rnd(types.SliceCapOffset+int64(types.PtrSize), int64(types.PtrSize))
+ 
+ 	// string is same as slice wo the cap
+-	sizeofString = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
++	types.StringSize = types.Rnd(types.SliceLenOffset+int64(types.PtrSize), int64(types.PtrSize))
+ 
+ 	for et := types.Kind(0); et < types.NTYPE; et++ {
+ 		types.SimType[et] = et
+@@ -103,7 +103,7 @@ func initUniverse() {
+ 		n.SetType(t)
+ 		sym.Def = n
+ 		if kind != types.TANY {
+-			dowidth(t)
++			types.CalcSize(t)
+ 		}
+ 		return t
+ 	}
+@@ -114,7 +114,7 @@ func initUniverse() {
+ 
+ 	for _, s := range &typedefs {
+ 		sameas := s.sameas32
+-		if Widthptr == 8 {
++		if types.PtrSize == 8 {
+ 			sameas = s.sameas64
+ 		}
+ 		types.SimType[s.etype] = sameas
+@@ -139,7 +139,7 @@ func initUniverse() {
+ 	types.ErrorType.SetUnderlying(makeErrorInterface())
+ 	n.SetType(types.ErrorType)
+ 	s.Def = n
+-	dowidth(types.ErrorType)
++	types.CalcSize(types.ErrorType)
+ 
+ 	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, ir.Pkgs.Unsafe, "Pointer")
+ 
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index cecc8720a9..d37ebfff31 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
+ )
+ 
+ // evalunsafe evaluates a package unsafe operation and returns the result.
+@@ -20,7 +21,7 @@ func evalunsafe(n ir.Node) int64 {
+ 		if tr == nil {
+ 			return 0
+ 		}
+-		dowidth(tr)
++		types.CalcSize(tr)
+ 		if n.Op() == ir.OALIGNOF {
+ 			return int64(tr.Align)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index dd376a8835..764c5c41b0 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -470,7 +470,7 @@ func walkexpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 		switch n.Type().Kind() {
+ 		case types.TBLANK, types.TNIL, types.TIDEAL:
+ 		default:
+-			checkwidth(n.Type())
++			types.CheckSize(n.Type())
+ 		}
+ 	}
+ 
+@@ -1031,9 +1031,9 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 			// ptr = convT2X(val)
+ 			// e = iface{typ/tab, ptr}
+ 			fn := syslook(fnname)
+-			dowidth(fromType)
++			types.CalcSize(fromType)
+ 			fn = substArgTypes(fn, fromType)
+-			dowidth(fn.Type())
++			types.CalcSize(fn.Type())
+ 			call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
+ 			call.Args = []ir.Node{n.X}
+ 			e := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), safeexpr(walkexpr(typecheck(call, ctxExpr), init), init))
+@@ -1065,10 +1065,10 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 			v = nodAddr(v)
+ 		}
+ 
+-		dowidth(fromType)
++		types.CalcSize(fromType)
+ 		fn := syslook(fnname)
+ 		fn = substArgTypes(fn, fromType, toType)
+-		dowidth(fn.Type())
++		types.CalcSize(fn.Type())
+ 		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
+ 		call.Args = []ir.Node{tab, v}
+ 		return walkexpr(typecheck(call, ctxExpr), init)
+@@ -1116,7 +1116,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		// rewrite 64-bit div and mod on 32-bit architectures.
+ 		// TODO: Remove this code once we can introduce
+ 		// runtime calls late in SSA processing.
+-		if Widthreg < 8 && (et == types.TINT64 || et == types.TUINT64) {
++		if types.RegSize < 8 && (et == types.TINT64 || et == types.TUINT64) {
+ 			if n.Y.Op() == ir.OLITERAL {
+ 				// Leave div/mod by constant powers of 2 or small 16-bit constants.
+ 				// The SSA backend will handle those.
+@@ -1724,7 +1724,7 @@ func markUsedIfaceMethod(n *ir.CallExpr) {
+ 	r.Sym = tsym
+ 	// dot.Xoffset is the method index * Widthptr (the offset of code pointer
+ 	// in itab).
+-	midx := dot.Offset / int64(Widthptr)
++	midx := dot.Offset / int64(types.PtrSize)
+ 	r.Add = ifaceMethodOffset(ityp, midx)
+ 	r.Type = objabi.R_USEIFACEMETHOD
+ }
+@@ -2133,7 +2133,7 @@ func walkprint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ }
+ 
+ func callnew(t *types.Type) ir.Node {
+-	dowidth(t)
++	types.CalcSize(t)
+ 	n := ir.NewUnaryExpr(base.Pos, ir.ONEWOBJ, typename(t))
+ 	n.SetType(types.NewPtr(t))
+ 	n.SetTypecheck(1)
+@@ -2168,7 +2168,7 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
+ 		n.Y = assignconv(n.Y, lt, "assignment")
+ 		n.Y = walkexpr(n.Y, init)
+ 	}
+-	dowidth(n.Y.Type())
++	types.CalcSize(n.Y.Type())
+ 
+ 	return n
+ }
+@@ -2655,7 +2655,7 @@ func mapfast(t *types.Type) int {
+ 		if !t.Key().HasPointers() {
+ 			return mapfast32
+ 		}
+-		if Widthptr == 4 {
++		if types.PtrSize == 4 {
+ 			return mapfast32ptr
+ 		}
+ 		base.Fatalf("small pointer %v", t.Key())
+@@ -2663,7 +2663,7 @@ func mapfast(t *types.Type) int {
+ 		if !t.Key().HasPointers() {
+ 			return mapfast64
+ 		}
+-		if Widthptr == 8 {
++		if types.PtrSize == 8 {
+ 			return mapfast64ptr
+ 		}
+ 		// Two-word object, at least one of which is a pointer.
+@@ -3408,7 +3408,7 @@ func walkcompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 	} else {
+ 		step := int64(1)
+ 		remains := t.NumElem() * t.Elem().Width
+-		combine64bit := unalignedLoad && Widthreg == 8 && t.Elem().Width <= 4 && t.Elem().IsInteger()
++		combine64bit := unalignedLoad && types.RegSize == 8 && t.Elem().Width <= 4 && t.Elem().IsInteger()
+ 		combine32bit := unalignedLoad && t.Elem().Width <= 2 && t.Elem().IsInteger()
+ 		combine16bit := unalignedLoad && t.Elem().Width == 1 && t.Elem().IsInteger()
+ 		for i := int64(0); remains > 0; {
+@@ -3973,7 +3973,7 @@ func substArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
+ 	n := old.CloneName()
+ 
+ 	for _, t := range types_ {
+-		dowidth(t)
++		types.CalcSize(t)
+ 	}
+ 	n.SetType(types.SubstAny(n.Type(), &types_))
+ 	if len(types_) > 0 {
+diff --git a/src/cmd/compile/internal/mips/ggen.go b/src/cmd/compile/internal/mips/ggen.go
+index 2356267df7..9cce68821b 100644
+--- a/src/cmd/compile/internal/mips/ggen.go
++++ b/src/cmd/compile/internal/mips/ggen.go
+@@ -7,6 +7,7 @@ package mips
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/mips"
+ )
+@@ -17,8 +18,8 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	if cnt == 0 {
+ 		return p
+ 	}
+-	if cnt < int64(4*gc.Widthptr) {
+-		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
++	if cnt < int64(4*types.PtrSize) {
++		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+ 			p = pp.Appendpp(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, base.Ctxt.FixedFrameSize()+off+i)
+ 		}
+ 	} else {
+@@ -33,9 +34,9 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 		p.Reg = mips.REGSP
+ 		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, mips.REGRT2, 0)
+ 		p.Reg = mips.REGRT1
+-		p = pp.Appendpp(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGRT1, int64(gc.Widthptr))
++		p = pp.Appendpp(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGRT1, int64(types.PtrSize))
+ 		p1 := p
+-		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, int64(gc.Widthptr), obj.TYPE_REG, mips.REGRT1, 0)
++		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, int64(types.PtrSize), obj.TYPE_REG, mips.REGRT1, 0)
+ 		p = pp.Appendpp(p, mips.ABNE, obj.TYPE_REG, mips.REGRT1, 0, obj.TYPE_BRANCH, 0, 0)
+ 		p.Reg = mips.REGRT2
+ 		gc.Patch(p, p1)
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 4be5bc6f6e..dc5f95960d 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -7,6 +7,7 @@ package mips64
+ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/mips"
+ )
+@@ -15,17 +16,17 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	if cnt == 0 {
+ 		return p
+ 	}
+-	if cnt < int64(4*gc.Widthptr) {
+-		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
++	if cnt < int64(4*types.PtrSize) {
++		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+ 			p = pp.Appendpp(p, mips.AMOVV, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, 8+off+i)
+ 		}
+-	} else if cnt <= int64(128*gc.Widthptr) {
++	} else if cnt <= int64(128*types.PtrSize) {
+ 		p = pp.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, mips.REGRT1, 0)
+ 		p.Reg = mips.REGSP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = ir.Syms.Duffzero
+-		p.To.Offset = 8 * (128 - cnt/int64(gc.Widthptr))
++		p.To.Offset = 8 * (128 - cnt/int64(types.PtrSize))
+ 	} else {
+ 		//	ADDV	$(8+frame+lo-8), SP, r1
+ 		//	ADDV	$cnt, r1, r2
+@@ -37,9 +38,9 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 		p.Reg = mips.REGSP
+ 		p = pp.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, mips.REGRT2, 0)
+ 		p.Reg = mips.REGRT1
+-		p = pp.Appendpp(p, mips.AMOVV, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGRT1, int64(gc.Widthptr))
++		p = pp.Appendpp(p, mips.AMOVV, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGRT1, int64(types.PtrSize))
+ 		p1 := p
+-		p = pp.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, int64(gc.Widthptr), obj.TYPE_REG, mips.REGRT1, 0)
++		p = pp.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, int64(types.PtrSize), obj.TYPE_REG, mips.REGRT1, 0)
+ 		p = pp.Appendpp(p, mips.ABNE, obj.TYPE_REG, mips.REGRT1, 0, obj.TYPE_BRANCH, 0, 0)
+ 		p.Reg = mips.REGRT2
+ 		gc.Patch(p, p1)
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 29376badf9..9e57231863 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/gc"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ )
+@@ -16,17 +17,17 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	if cnt == 0 {
+ 		return p
+ 	}
+-	if cnt < int64(4*gc.Widthptr) {
+-		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
++	if cnt < int64(4*types.PtrSize) {
++		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+ 			p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, base.Ctxt.FixedFrameSize()+off+i)
+ 		}
+-	} else if cnt <= int64(128*gc.Widthptr) {
++	} else if cnt <= int64(128*types.PtrSize) {
+ 		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGRT1, 0)
+ 		p.Reg = ppc64.REGSP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = ir.Syms.Duffzero
+-		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
++		p.To.Offset = 4 * (128 - cnt/int64(types.PtrSize))
+ 	} else {
+ 		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGTMP, 0)
+ 		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT1, 0)
+@@ -34,7 +35,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, ppc64.REGTMP, 0)
+ 		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT2, 0)
+ 		p.Reg = ppc64.REGRT1
+-		p = pp.Appendpp(p, ppc64.AMOVDU, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGRT1, int64(gc.Widthptr))
++		p = pp.Appendpp(p, ppc64.AMOVDU, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGRT1, int64(types.PtrSize))
+ 		p1 := p
+ 		p = pp.Appendpp(p, ppc64.ACMP, obj.TYPE_REG, ppc64.REGRT1, 0, obj.TYPE_REG, ppc64.REGRT2, 0)
+ 		p = pp.Appendpp(p, ppc64.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
+diff --git a/src/cmd/compile/internal/riscv64/ggen.go b/src/cmd/compile/internal/riscv64/ggen.go
+index c77640765f..d18644bb1b 100644
+--- a/src/cmd/compile/internal/riscv64/ggen.go
++++ b/src/cmd/compile/internal/riscv64/ggen.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/gc"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/riscv"
+ )
+@@ -20,20 +21,20 @@ func zeroRange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	// Adjust the frame to account for LR.
+ 	off += base.Ctxt.FixedFrameSize()
+ 
+-	if cnt < int64(4*gc.Widthptr) {
+-		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
++	if cnt < int64(4*types.PtrSize) {
++		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+ 			p = pp.Appendpp(p, riscv.AMOV, obj.TYPE_REG, riscv.REG_ZERO, 0, obj.TYPE_MEM, riscv.REG_SP, off+i)
+ 		}
+ 		return p
+ 	}
+ 
+-	if cnt <= int64(128*gc.Widthptr) {
++	if cnt <= int64(128*types.PtrSize) {
+ 		p = pp.Appendpp(p, riscv.AADDI, obj.TYPE_CONST, 0, off, obj.TYPE_REG, riscv.REG_A0, 0)
+ 		p.Reg = riscv.REG_SP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = ir.Syms.Duffzero
+-		p.To.Offset = 8 * (128 - cnt/int64(gc.Widthptr))
++		p.To.Offset = 8 * (128 - cnt/int64(types.PtrSize))
+ 		return p
+ 	}
+ 
+@@ -50,7 +51,7 @@ func zeroRange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	p.Reg = riscv.REG_T0
+ 	p = pp.Appendpp(p, riscv.AMOV, obj.TYPE_REG, riscv.REG_ZERO, 0, obj.TYPE_MEM, riscv.REG_T0, 0)
+ 	loop := p
+-	p = pp.Appendpp(p, riscv.AADD, obj.TYPE_CONST, 0, int64(gc.Widthptr), obj.TYPE_REG, riscv.REG_T0, 0)
++	p = pp.Appendpp(p, riscv.AADD, obj.TYPE_CONST, 0, int64(types.PtrSize), obj.TYPE_REG, riscv.REG_T0, 0)
+ 	p = pp.Appendpp(p, riscv.ABNE, obj.TYPE_REG, riscv.REG_T0, 0, obj.TYPE_BRANCH, 0, 0)
+ 	p.Reg = riscv.REG_T1
+ 	gc.Patch(p, loop)
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 644baa8548..8712ff78c1 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -137,7 +137,6 @@ func init() {
+ 	// Initialize just enough of the universe and the types package to make our tests function.
+ 	// TODO(josharian): move universe initialization to the types package,
+ 	// so this test setup can share it.
+-	types.Dowidth = func(t *types.Type) {}
+ 
+ 	for _, typ := range [...]struct {
+ 		width int64
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/types/size.go
+similarity index 66%
+rename from src/cmd/compile/internal/gc/align.go
+rename to src/cmd/compile/internal/types/size.go
+index 92826d003b..a54c086ded 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -2,22 +2,64 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package types
+ 
+ import (
+ 	"bytes"
+-	"cmd/compile/internal/base"
+-	"cmd/compile/internal/types"
+ 	"fmt"
+ 	"sort"
++
++	"cmd/compile/internal/base"
++	"cmd/internal/src"
+ )
+ 
++var PtrSize int
++
++var RegSize int
++
++// Slices in the runtime are represented by three components:
++//
++// type slice struct {
++// 	ptr unsafe.Pointer
++// 	len int
++// 	cap int
++// }
++//
++// Strings in the runtime are represented by two components:
++//
++// type string struct {
++// 	ptr unsafe.Pointer
++// 	len int
++// }
++//
++// These variables are the offsets of fields and sizes of these structs.
++var (
++	SlicePtrOffset int64
++	SliceLenOffset int64
++	SliceCapOffset int64
++
++	SliceSize  int64
++	StringSize int64
++)
++
++var SkipSizeForTracing bool
++
++// typePos returns the position associated with t.
++// This is where t was declared or where it appeared as a type expression.
++func typePos(t *Type) src.XPos {
++	if pos := t.Pos(); pos.IsKnown() {
++		return pos
++	}
++	base.Fatalf("bad type: %v", t)
++	panic("unreachable")
++}
++
+ // MaxWidth is the maximum size of a value on the target architecture.
+ var MaxWidth int64
+ 
+-// sizeCalculationDisabled indicates whether it is safe
++// CalcSizeDisabled indicates whether it is safe
+ // to calculate Types' widths and alignments. See dowidth.
+-var sizeCalculationDisabled bool
++var CalcSizeDisabled bool
+ 
+ // machine size and rounding alignment is dictated around
+ // the size of a pointer, set in betypeinit (see ../amd64/galign.go).
+@@ -32,15 +74,15 @@ func Rnd(o int64, r int64) int64 {
+ 
+ // expandiface computes the method set for interface type t by
+ // expanding embedded interfaces.
+-func expandiface(t *types.Type) {
+-	seen := make(map[*types.Sym]*types.Field)
+-	var methods []*types.Field
++func expandiface(t *Type) {
++	seen := make(map[*Sym]*Field)
++	var methods []*Field
+ 
+-	addMethod := func(m *types.Field, explicit bool) {
++	addMethod := func(m *Field, explicit bool) {
+ 		switch prev := seen[m.Sym]; {
+ 		case prev == nil:
+ 			seen[m.Sym] = m
+-		case types.AllowsGoVersion(t.Pkg(), 1, 14) && !explicit && types.Identical(m.Type, prev.Type):
++		case AllowsGoVersion(t.Pkg(), 1, 14) && !explicit && Identical(m.Type, prev.Type):
+ 			return
+ 		default:
+ 			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
+@@ -53,7 +95,7 @@ func expandiface(t *types.Type) {
+ 			continue
+ 		}
+ 
+-		checkwidth(m.Type)
++		CheckSize(m.Type)
+ 		addMethod(m, true)
+ 	}
+ 
+@@ -79,26 +121,26 @@ func expandiface(t *types.Type) {
+ 		// method set.
+ 		for _, t1 := range m.Type.Fields().Slice() {
+ 			// Use m.Pos rather than t1.Pos to preserve embedding position.
+-			f := types.NewField(m.Pos, t1.Sym, t1.Type)
++			f := NewField(m.Pos, t1.Sym, t1.Type)
+ 			addMethod(f, false)
+ 		}
+ 	}
+ 
+-	sort.Sort(types.MethodsByName(methods))
++	sort.Sort(MethodsByName(methods))
+ 
+-	if int64(len(methods)) >= MaxWidth/int64(Widthptr) {
++	if int64(len(methods)) >= MaxWidth/int64(PtrSize) {
+ 		base.ErrorfAt(typePos(t), "interface too large")
+ 	}
+ 	for i, m := range methods {
+-		m.Offset = int64(i) * int64(Widthptr)
++		m.Offset = int64(i) * int64(PtrSize)
+ 	}
+ 
+ 	// Access fields directly to avoid recursively calling dowidth
+ 	// within Type.Fields().
+-	t.Extra.(*types.Interface).Fields.Set(methods)
++	t.Extra.(*Interface).Fields.Set(methods)
+ }
+ 
+-func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
++func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 	starto := o
+ 	maxalign := int32(flag)
+ 	if maxalign < 1 {
+@@ -112,7 +154,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 			continue
+ 		}
+ 
+-		dowidth(f.Type)
++		CalcSize(f.Type)
+ 		if int32(f.Type.Align) > maxalign {
+ 			maxalign = int32(f.Type.Align)
+ 		}
+@@ -128,7 +170,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 			// NOTE(rsc): This comment may be stale.
+ 			// It's possible the ordering has changed and this is
+ 			// now the common case. I'm not sure.
+-			f.Nname.(types.VarObject).RecordFrameOffset(o)
++			f.Nname.(VarObject).RecordFrameOffset(o)
+ 		}
+ 
+ 		w := f.Type.Width
+@@ -178,7 +220,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ // path points to a slice used for tracking the sequence of types
+ // visited. Using a pointer to a slice allows the slice capacity to
+ // grow and limit reallocations.
+-func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
++func findTypeLoop(t *Type, path *[]*Type) bool {
+ 	// We implement a simple DFS loop-finding algorithm. This
+ 	// could be faster, but type cycles are rare.
+ 
+@@ -190,7 +232,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
+ 		// Type imported from package, so it can't be part of
+ 		// a type loop (otherwise that package should have
+ 		// failed to compile).
+-		if t.Sym().Pkg != types.LocalPkg {
++		if t.Sym().Pkg != LocalPkg {
+ 			return false
+ 		}
+ 
+@@ -202,7 +244,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
+ 		}
+ 
+ 		*path = append(*path, t)
+-		if findTypeLoop(t.Obj().(types.TypeObject).TypeDefn(), path) {
++		if findTypeLoop(t.Obj().(TypeObject).TypeDefn(), path) {
+ 			return true
+ 		}
+ 		*path = (*path)[:len(*path)-1]
+@@ -210,17 +252,17 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
+ 		// Anonymous type. Recurse on contained types.
+ 
+ 		switch t.Kind() {
+-		case types.TARRAY:
++		case TARRAY:
+ 			if findTypeLoop(t.Elem(), path) {
+ 				return true
+ 			}
+-		case types.TSTRUCT:
++		case TSTRUCT:
+ 			for _, f := range t.Fields().Slice() {
+ 				if findTypeLoop(f.Type, path) {
+ 					return true
+ 				}
+ 			}
+-		case types.TINTER:
++		case TINTER:
+ 			for _, m := range t.Methods().Slice() {
+ 				if m.Type.IsInterface() { // embedded interface
+ 					if findTypeLoop(m.Type, path) {
+@@ -234,12 +276,12 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
+ 	return false
+ }
+ 
+-func reportTypeLoop(t *types.Type) {
++func reportTypeLoop(t *Type) {
+ 	if t.Broke() {
+ 		return
+ 	}
+ 
+-	var l []*types.Type
++	var l []*Type
+ 	if !findTypeLoop(t, &l) {
+ 		base.Fatalf("failed to find type loop for: %v", t)
+ 	}
+@@ -263,18 +305,20 @@ func reportTypeLoop(t *types.Type) {
+ 	base.ErrorfAt(typePos(l[0]), msg.String())
+ }
+ 
+-// dowidth calculates and stores the size and alignment for t.
++// CalcSize calculates and stores the size and alignment for t.
+ // If sizeCalculationDisabled is set, and the size/alignment
+ // have not already been calculated, it calls Fatal.
+ // This is used to prevent data races in the back end.
+-func dowidth(t *types.Type) {
++func CalcSize(t *Type) {
+ 	// Calling dowidth when typecheck tracing enabled is not safe.
+ 	// See issue #33658.
+-	if base.EnableTrace && skipDowidthForTracing {
++	if base.EnableTrace && SkipSizeForTracing {
+ 		return
+ 	}
+-	if Widthptr == 0 {
+-		base.Fatalf("dowidth without betypeinit")
++	if PtrSize == 0 {
++
++		// Assume this is a test.
++		return
+ 	}
+ 
+ 	if t == nil {
+@@ -292,7 +336,7 @@ func dowidth(t *types.Type) {
+ 		return
+ 	}
+ 
+-	if sizeCalculationDisabled {
++	if CalcSizeDisabled {
+ 		if t.Broke() {
+ 			// break infinite recursion from Fatal call below
+ 			return
+@@ -308,7 +352,7 @@ func dowidth(t *types.Type) {
+ 	}
+ 
+ 	// defer checkwidth calls until after we're done
+-	defercheckwidth()
++	DeferCheckSize()
+ 
+ 	lno := base.Pos
+ 	if pos := t.Pos(); pos.IsKnown() {
+@@ -320,13 +364,13 @@ func dowidth(t *types.Type) {
+ 
+ 	et := t.Kind()
+ 	switch et {
+-	case types.TFUNC, types.TCHAN, types.TMAP, types.TSTRING:
++	case TFUNC, TCHAN, TMAP, TSTRING:
+ 		break
+ 
+ 	// simtype == 0 during bootstrap
+ 	default:
+-		if types.SimType[t.Kind()] != 0 {
+-			et = types.SimType[t.Kind()]
++		if SimType[t.Kind()] != 0 {
++			et = SimType[t.Kind()]
+ 		}
+ 	}
+ 
+@@ -336,84 +380,84 @@ func dowidth(t *types.Type) {
+ 		base.Fatalf("dowidth: unknown type: %v", t)
+ 
+ 	// compiler-specific stuff
+-	case types.TINT8, types.TUINT8, types.TBOOL:
++	case TINT8, TUINT8, TBOOL:
+ 		// bool is int8
+ 		w = 1
+ 
+-	case types.TINT16, types.TUINT16:
++	case TINT16, TUINT16:
+ 		w = 2
+ 
+-	case types.TINT32, types.TUINT32, types.TFLOAT32:
++	case TINT32, TUINT32, TFLOAT32:
+ 		w = 4
+ 
+-	case types.TINT64, types.TUINT64, types.TFLOAT64:
++	case TINT64, TUINT64, TFLOAT64:
+ 		w = 8
+-		t.Align = uint8(Widthreg)
++		t.Align = uint8(RegSize)
+ 
+-	case types.TCOMPLEX64:
++	case TCOMPLEX64:
+ 		w = 8
+ 		t.Align = 4
+ 
+-	case types.TCOMPLEX128:
++	case TCOMPLEX128:
+ 		w = 16
+-		t.Align = uint8(Widthreg)
++		t.Align = uint8(RegSize)
+ 
+-	case types.TPTR:
+-		w = int64(Widthptr)
+-		checkwidth(t.Elem())
++	case TPTR:
++		w = int64(PtrSize)
++		CheckSize(t.Elem())
+ 
+-	case types.TUNSAFEPTR:
+-		w = int64(Widthptr)
++	case TUNSAFEPTR:
++		w = int64(PtrSize)
+ 
+-	case types.TINTER: // implemented as 2 pointers
+-		w = 2 * int64(Widthptr)
+-		t.Align = uint8(Widthptr)
++	case TINTER: // implemented as 2 pointers
++		w = 2 * int64(PtrSize)
++		t.Align = uint8(PtrSize)
+ 		expandiface(t)
+ 
+-	case types.TCHAN: // implemented as pointer
+-		w = int64(Widthptr)
++	case TCHAN: // implemented as pointer
++		w = int64(PtrSize)
+ 
+-		checkwidth(t.Elem())
++		CheckSize(t.Elem())
+ 
+ 		// make fake type to check later to
+ 		// trigger channel argument check.
+-		t1 := types.NewChanArgs(t)
+-		checkwidth(t1)
++		t1 := NewChanArgs(t)
++		CheckSize(t1)
+ 
+-	case types.TCHANARGS:
++	case TCHANARGS:
+ 		t1 := t.ChanArgs()
+-		dowidth(t1) // just in case
++		CalcSize(t1) // just in case
+ 		if t1.Elem().Width >= 1<<16 {
+ 			base.ErrorfAt(typePos(t1), "channel element type too large (>64kB)")
+ 		}
+ 		w = 1 // anything will do
+ 
+-	case types.TMAP: // implemented as pointer
+-		w = int64(Widthptr)
+-		checkwidth(t.Elem())
+-		checkwidth(t.Key())
++	case TMAP: // implemented as pointer
++		w = int64(PtrSize)
++		CheckSize(t.Elem())
++		CheckSize(t.Key())
+ 
+-	case types.TFORW: // should have been filled in
++	case TFORW: // should have been filled in
+ 		reportTypeLoop(t)
+ 		w = 1 // anything will do
+ 
+-	case types.TANY:
++	case TANY:
+ 		// not a real type; should be replaced before use.
+ 		base.Fatalf("dowidth any")
+ 
+-	case types.TSTRING:
+-		if sizeofString == 0 {
++	case TSTRING:
++		if StringSize == 0 {
+ 			base.Fatalf("early dowidth string")
+ 		}
+-		w = sizeofString
+-		t.Align = uint8(Widthptr)
++		w = StringSize
++		t.Align = uint8(PtrSize)
+ 
+-	case types.TARRAY:
++	case TARRAY:
+ 		if t.Elem() == nil {
+ 			break
+ 		}
+ 
+-		dowidth(t.Elem())
++		CalcSize(t.Elem())
+ 		if t.Elem().Width != 0 {
+ 			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().Width)
+ 			if uint64(t.NumElem()) > cap {
+@@ -423,42 +467,42 @@ func dowidth(t *types.Type) {
+ 		w = t.NumElem() * t.Elem().Width
+ 		t.Align = t.Elem().Align
+ 
+-	case types.TSLICE:
++	case TSLICE:
+ 		if t.Elem() == nil {
+ 			break
+ 		}
+-		w = sizeofSlice
+-		checkwidth(t.Elem())
+-		t.Align = uint8(Widthptr)
++		w = SliceSize
++		CheckSize(t.Elem())
++		t.Align = uint8(PtrSize)
+ 
+-	case types.TSTRUCT:
++	case TSTRUCT:
+ 		if t.IsFuncArgStruct() {
+ 			base.Fatalf("dowidth fn struct %v", t)
+ 		}
+-		w = widstruct(t, t, 0, 1)
++		w = calcStructOffset(t, t, 0, 1)
+ 
+ 	// make fake type to check later to
+ 	// trigger function argument computation.
+-	case types.TFUNC:
+-		t1 := types.NewFuncArgs(t)
+-		checkwidth(t1)
+-		w = int64(Widthptr) // width of func type is pointer
++	case TFUNC:
++		t1 := NewFuncArgs(t)
++		CheckSize(t1)
++		w = int64(PtrSize) // width of func type is pointer
+ 
+ 	// function is 3 cated structures;
+ 	// compute their widths as side-effect.
+-	case types.TFUNCARGS:
++	case TFUNCARGS:
+ 		t1 := t.FuncArgs()
+-		w = widstruct(t1, t1.Recvs(), 0, 0)
+-		w = widstruct(t1, t1.Params(), w, Widthreg)
+-		w = widstruct(t1, t1.Results(), w, Widthreg)
+-		t1.Extra.(*types.Func).Argwid = w
+-		if w%int64(Widthreg) != 0 {
++		w = calcStructOffset(t1, t1.Recvs(), 0, 0)
++		w = calcStructOffset(t1, t1.Params(), w, RegSize)
++		w = calcStructOffset(t1, t1.Results(), w, RegSize)
++		t1.Extra.(*Func).Argwid = w
++		if w%int64(RegSize) != 0 {
+ 			base.Warn("bad type %v %d\n", t1, w)
+ 		}
+ 		t.Align = 1
+ 	}
+ 
+-	if Widthptr == 4 && w != int64(int32(w)) {
++	if PtrSize == 4 && w != int64(int32(w)) {
+ 		base.ErrorfAt(typePos(t), "type %v too large", t)
+ 	}
+ 
+@@ -472,14 +516,14 @@ func dowidth(t *types.Type) {
+ 
+ 	base.Pos = lno
+ 
+-	resumecheckwidth()
++	ResumeCheckSize()
+ }
+ 
+ // CalcStructSize calculates the size of s,
+ // filling in s.Width and s.Align,
+ // even if size calculation is otherwise disabled.
+-func CalcStructSize(s *types.Type) {
+-	s.Width = widstruct(s, s, 0, 1) // sets align
++func CalcStructSize(s *Type) {
++	s.Width = calcStructOffset(s, s, 0, 1) // sets align
+ }
+ 
+ // when a type's width should be known, we call checkwidth
+@@ -498,9 +542,9 @@ func CalcStructSize(s *types.Type) {
+ // is needed immediately.  checkwidth makes sure the
+ // size is evaluated eventually.
+ 
+-var deferredTypeStack []*types.Type
++var deferredTypeStack []*Type
+ 
+-func checkwidth(t *types.Type) {
++func CheckSize(t *Type) {
+ 	if t == nil {
+ 		return
+ 	}
+@@ -512,7 +556,7 @@ func checkwidth(t *types.Type) {
+ 	}
+ 
+ 	if defercalc == 0 {
+-		dowidth(t)
++		CalcSize(t)
+ 		return
+ 	}
+ 
+@@ -523,19 +567,68 @@ func checkwidth(t *types.Type) {
+ 	}
+ }
+ 
+-func defercheckwidth() {
++func DeferCheckSize() {
+ 	defercalc++
+ }
+ 
+-func resumecheckwidth() {
++func ResumeCheckSize() {
+ 	if defercalc == 1 {
+ 		for len(deferredTypeStack) > 0 {
+ 			t := deferredTypeStack[len(deferredTypeStack)-1]
+ 			deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
+ 			t.SetDeferwidth(false)
+-			dowidth(t)
++			CalcSize(t)
+ 		}
+ 	}
+ 
+ 	defercalc--
+ }
++
++// PtrDataSize returns the length in bytes of the prefix of t
++// containing pointer data. Anything after this offset is scalar data.
++func PtrDataSize(t *Type) int64 {
++	if !t.HasPointers() {
++		return 0
++	}
++
++	switch t.Kind() {
++	case TPTR,
++		TUNSAFEPTR,
++		TFUNC,
++		TCHAN,
++		TMAP:
++		return int64(PtrSize)
++
++	case TSTRING:
++		// struct { byte *str; intgo len; }
++		return int64(PtrSize)
++
++	case TINTER:
++		// struct { Itab *tab;	void *data; } or
++		// struct { Type *type; void *data; }
++		// Note: see comment in plive.go:onebitwalktype1.
++		return 2 * int64(PtrSize)
++
++	case TSLICE:
++		// struct { byte *array; uintgo len; uintgo cap; }
++		return int64(PtrSize)
++
++	case TARRAY:
++		// haspointers already eliminated t.NumElem() == 0.
++		return (t.NumElem()-1)*t.Elem().Width + PtrDataSize(t.Elem())
++
++	case TSTRUCT:
++		// Find the last field that has pointers.
++		var lastPtrField *Field
++		for _, t1 := range t.Fields().Slice() {
++			if t1.Type.HasPointers() {
++				lastPtrField = t1
++			}
++		}
++		return lastPtrField.Offset + PtrDataSize(lastPtrField.Type)
++
++	default:
++		base.Fatalf("typeptrdata: unexpected type, %v", t)
++		return 0
++	}
++}
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 21d96c430a..b5557b492e 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -596,8 +596,8 @@ func NewPtr(elem *Type) *Type {
+ 
+ 	t := New(TPTR)
+ 	t.Extra = Ptr{Elem: elem}
+-	t.Width = int64(Widthptr)
+-	t.Align = uint8(Widthptr)
++	t.Width = int64(PtrSize)
++	t.Align = uint8(PtrSize)
+ 	if NewPtrCacheEnabled {
+ 		elem.cache.ptr = t
+ 	}
+@@ -862,7 +862,7 @@ func (t *Type) Fields() *Fields {
+ 	case TSTRUCT:
+ 		return &t.Extra.(*Struct).fields
+ 	case TINTER:
+-		Dowidth(t)
++		CalcSize(t)
+ 		return &t.Extra.(*Interface).Fields
+ 	}
+ 	base.Fatalf("Fields: type %v does not have fields", t)
+@@ -929,12 +929,12 @@ func (t *Type) Size() int64 {
+ 		}
+ 		return 0
+ 	}
+-	Dowidth(t)
++	CalcSize(t)
+ 	return t.Width
+ }
+ 
+ func (t *Type) Alignment() int64 {
+-	Dowidth(t)
++	CalcSize(t)
+ 	return int64(t.Align)
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/utils.go b/src/cmd/compile/internal/types/utils.go
+index 531f3ea1ca..2477f1da66 100644
+--- a/src/cmd/compile/internal/types/utils.go
++++ b/src/cmd/compile/internal/types/utils.go
+@@ -14,8 +14,6 @@ const BADWIDTH = -1000000000
+ // They are here to break import cycles.
+ // TODO(gri) eliminate these dependencies.
+ var (
+-	Widthptr    int
+-	Dowidth     func(*Type)
+ 	TypeLinkSym func(*Type) *obj.LSym
+ )
+ 
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index f5d08a68ed..de43594e88 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -7,6 +7,7 @@ package x86
+ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+@@ -20,16 +21,16 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, ax *uint32) *obj.Prog
+ 		*ax = 1
+ 	}
+ 
+-	if cnt <= int64(4*gc.Widthreg) {
+-		for i := int64(0); i < cnt; i += int64(gc.Widthreg) {
++	if cnt <= int64(4*types.RegSize) {
++		for i := int64(0); i < cnt; i += int64(types.RegSize) {
+ 			p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off+i)
+ 		}
+-	} else if cnt <= int64(128*gc.Widthreg) {
++	} else if cnt <= int64(128*types.RegSize) {
+ 		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
+-		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(gc.Widthreg)))
++		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(types.RegSize)))
+ 		p.To.Sym = ir.Syms.Duffzero
+ 	} else {
+-		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
++		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, cnt/int64(types.RegSize), obj.TYPE_REG, x86.REG_CX, 0)
+ 		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = pp.Appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+ 		p = pp.Appendpp(p, x86.ASTOSL, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)

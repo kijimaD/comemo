@@ -12,8 +12,78 @@ Date:   Mon Apr 5 22:05:05 2021 +0300
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/time/export_test.go |  2 ++
  src/time/format.go      | 11 ++++++++++-
  src/time/format_test.go | 22 ++++++++++++++++++++++
  3 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index 0f2d21053a..9baad60a92 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -129,3 +129,5 @@ var StdChunkNames = map[int]string{
+ 	stdFracSecond9 | 8<<stdArgShift: ".99999999",
+ 	stdFracSecond9 | 9<<stdArgShift: ".999999999",
+ }
++
++var Quote = quote
+diff --git a/src/time/format.go b/src/time/format.go
+index 7586035872..9624752fb4 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -689,7 +689,16 @@ type ParseError struct {
+ }
+ 
+ func quote(s string) string {
+-	return "\"" + s + "\""
++	buf := make([]byte, 0, len(s)+2) // +2 for surrounding quotes
++	buf = append(buf, '"')
++	for _, c := range s {
++		if c == '"' || c == '\\' {
++			buf = append(buf, '\\')
++		}
++		buf = append(buf, string(c)...)
++	}
++	buf = append(buf, '"')
++	return string(buf)
+ }
+ 
+ // Error returns the string representation of a ParseError.
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 9e96d4a295..09d3f842e3 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -563,6 +563,10 @@ var parseErrorTests = []ParseErrorTest{
+ 	// invalid or mismatched day-of-year
+ 	{"Jan _2 002 2006", "Feb  4 034 2006", "day-of-year does not match day"},
+ 	{"Jan _2 002 2006", "Feb  4 004 2006", "day-of-year does not match month"},
++
++	// issue 45391.
++	{`"2006-01-02T15:04:05Z07:00"`, "0", `parsing time "0" as "\"2006-01-02T15:04:05Z07:00\"": cannot parse "0" as "\""`},
++	{RFC3339, "\"", `parsing time "\"" as "2006-01-02T15:04:05Z07:00": cannot parse "\"" as "2006"`},
+ }
+ 
+ func TestParseErrors(t *testing.T) {
+@@ -782,3 +786,21 @@ func TestParseYday(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue 45391.
++func TestQuote(t *testing.T) {
++	tests := []struct {
++		s, want string
++	}{
++		{`"`, `"\""`},
++		{`abc"xyz"`, `"abc\"xyz\""`},
++		{"", `""`},
++		{"abc", `"abc"`},
++	}
++	for _, tt := range tests {
++		if q := Quote(tt.s); q != tt.want {
++			t.Errorf("Quote(%q) = %q, want %q", tt.s, q, tt.want)
++		}
++	}
++
++}

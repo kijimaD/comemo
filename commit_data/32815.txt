@@ -9,7 +9,44 @@ Date:   Wed May 31 11:47:33 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 7 ++++---
  src/cmd/go/internal/test/test.go | 7 ++++---
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 6a2f35d39b..3dcaf47ed1 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1436,9 +1436,10 @@
+ //
+ // 	-cover
+ // 	    Enable coverage analysis.
+-//
+-// 	    BUG: If a compilation or test fails with coverage enabled,
+-// 	    the reported line numbers may be incorrect.
++// 	    Note that because coverage works by annotating the source
++// 	    code before compilation, compilation and test failures with
++// 	    coverage enabled may report line numbers that don't correspond
++// 	    to the original sources.
+ //
+ // 	-covermode set,count,atomic
+ // 	    Set the mode for coverage analysis for the package[s]
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index f362984d29..dc9bf379ee 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -161,9 +161,10 @@ const testFlag2 = `
+ 
+ 	-cover
+ 	    Enable coverage analysis.
+-
+-	    BUG: If a compilation or test fails with coverage enabled,
+-	    the reported line numbers may be incorrect.
++	    Note that because coverage works by annotating the source
++	    code before compilation, compilation and test failures with
++	    coverage enabled may report line numbers that don't correspond
++	    to the original sources.
+ 
+ 	-covermode set,count,atomic
+ 	    Set the mode for coverage analysis for the package[s]

@@ -22,6 +22,20 @@ Date:   Wed Mar 5 14:40:55 2014 -0500
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/70710043
-
+---
  src/cmd/ld/elf.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 4c0d071733..3b0f578814 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -355,7 +355,7 @@ elfnote(ElfShdr *sh, uint64 startva, uint64 resoff, int sz)
+ 	sh->addralign = 4;
+ 	sh->addr = startva + resoff - n;
+ 	sh->off = resoff - n;
+-	sh->size = n;
++	sh->size = n - resoff % 4;
+ 
+ 	return n;
+ }

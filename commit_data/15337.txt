@@ -9,7 +9,32 @@ Date:   Wed Feb 20 14:40:41 2013 -0800
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7400045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 32ea281b8d..43881c8306 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -203,6 +203,7 @@ Nigel Kerr <nigel.kerr@gmail.com>
+ Oling Cat <olingcat@gmail.com>
+ Olivier Antoine <olivier.antoine@gmail.com>
+ Olivier Duperray <duperray.olivier@gmail.com>
++Olivier Saingre <osaingre@gmail.com>
+ Padraig Kitterick <padraigkitterick@gmail.com>
+ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Pascal S. de Kloe <pascal@quies.net>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6576e3aa76..17983b4c92 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -298,6 +298,7 @@ Nigel Tao <nigeltao@golang.org>
+ Oling Cat <olingcat@gmail.com>
+ Olivier Antoine <olivier.antoine@gmail.com>
+ Olivier Duperray <duperray.olivier@gmail.com>
++Olivier Saingre <osaingre@gmail.com>
+ Padraig Kitterick <padraigkitterick@gmail.com>
+ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Pascal S. de Kloe <pascal@quies.net>

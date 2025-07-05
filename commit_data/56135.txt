@@ -30,6 +30,19 @@ Date:   Sat Apr 1 18:36:57 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_linux.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 2a1f7ef1a7..feb1e26432 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -203,6 +203,7 @@ type cloneArgs struct {
+ //
+ //go:noinline
+ //go:norace
++//go:nocheckptr
+ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid uintptr, err1 Errno, mapPipe [2]int, locked bool) {
+ 	// Defined in linux/prctl.h starting with Linux 4.3.
+ 	const (

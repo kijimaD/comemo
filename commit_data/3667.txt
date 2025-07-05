@@ -10,7 +10,43 @@ Date:   Wed Oct 28 14:03:16 2009 -0700
     
     R=r
     http://go/go-review/1013018
-
+---
  src/pkg/runtime/Makefile  | 8 ++++----
  src/pkg/runtime/mkasmh.sh | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 1708b86b2a..f66d4c2a58 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -82,9 +82,9 @@ include $(GOROOT)/src/Make.pkg
+ clean: clean-local
+ 
+ clean-local:
+-	rm -f cgo2c */asm.h
++	rm -f cgo2c */asm.h runtime.acid.*
+ 
+-$(GOARCH)/asm.h: mkasmh.sh runtime.acid
++$(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
+ 	./mkasmh.sh >$@.x
+ 	mv -f $@.x $@
+ 
+@@ -111,5 +111,5 @@ cgo2c: cgo2c.c
+ 	$(AS) $<
+ 
+ # for discovering offsets inside structs when debugging
+-runtime.acid: runtime.h proc.c
+-	$(CC) -a proc.c >runtime.acid
++runtime.acid.$(GOARCH): runtime.h proc.c
++	$(CC) -a proc.c >$@
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index 291ee042dd..cb4b6d214f 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -55,5 +55,5 @@ aggr != "" && /^	/ {
+ 	offset=$(NF-1);
+ 	printf("#define %s_%s %s\n", aggr, name, offset);
+ }
+-' runtime.acid
++' runtime.acid.$GOARCH
+ 

@@ -14,6 +14,20 @@ Date:   Mon Dec 5 14:10:46 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/issue18146.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue18146.go b/misc/cgo/test/issue18146.go
+index 5ced6ecc22..f3b1f4c176 100644
+--- a/misc/cgo/test/issue18146.go
++++ b/misc/cgo/test/issue18146.go
+@@ -67,7 +67,7 @@ func test18146(t *testing.T) {
+ 			if pe, ok := err.(*os.PathError); ok {
+ 				err = pe.Err
+ 			}
+-			if se, ok := err.(syscall.Errno); ok && se == syscall.EAGAIN {
++			if se, ok := err.(syscall.Errno); ok && (se == syscall.EAGAIN || se == syscall.EMFILE) {
+ 				time.Sleep(time.Millisecond)
+ 				continue
+ 			}

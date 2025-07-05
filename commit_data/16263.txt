@@ -8,9 +8,72 @@ Date:   Fri May 3 16:33:21 2013 +0800
     R=iant, r
     CC=golang-dev
     https://golang.org/cl/9119043
-
+---
  src/cmd/ld/elf.c                | 9 ++++++++-
  src/pkg/runtime/cgo/gcc_386.S   | 3 +++
  src/pkg/runtime/cgo/gcc_amd64.S | 4 ++++
  src/pkg/runtime/cgo/gcc_arm.S   | 3 +++
  4 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 0d1b712ce8..daef5793ff 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -930,6 +930,8 @@ doelf(void)
+ 			addstring(shstrtab, ".rel.noptrdata");
+ 			addstring(shstrtab, ".rel.data");
+ 		}
++		// add a .note.GNU-stack section to mark the stack as non-executable
++		addstring(shstrtab, ".note.GNU-stack");
+ 	}
+ 
+ 	if(!debug['s']) {
+@@ -1403,8 +1405,13 @@ elfobj:
+ 			elfshreloc(sect);
+ 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
+ 			elfshreloc(sect);
++		// add a .note.GNU-stack section to mark the stack as non-executable
++		sh = elfshname(".note.GNU-stack");
++		sh->type = SHT_PROGBITS;
++		sh->addralign = 1;
++		sh->flags = 0;
+ 	}
+-		
++
+ 	if(!debug['s']) {
+ 		sh = elfshname(".symtab");
+ 		sh->type = SHT_SYMTAB;
+diff --git a/src/pkg/runtime/cgo/gcc_386.S b/src/pkg/runtime/cgo/gcc_386.S
+index 94ba5842f1..bf4142793c 100644
+--- a/src/pkg/runtime/cgo/gcc_386.S
++++ b/src/pkg/runtime/cgo/gcc_386.S
+@@ -40,3 +40,6 @@ EXT(__stack_chk_fail_local):
+ 1:
+ 	jmp 1b
+ 
++#ifdef __ELF__
++.section .note.GNU-stack,"",@progbits
++#endif
+diff --git a/src/pkg/runtime/cgo/gcc_amd64.S b/src/pkg/runtime/cgo/gcc_amd64.S
+index 81b270195d..32d0200cf7 100644
+--- a/src/pkg/runtime/cgo/gcc_amd64.S
++++ b/src/pkg/runtime/cgo/gcc_amd64.S
+@@ -42,3 +42,7 @@ EXT(crosscall_amd64):
+ 	popq %rbp
+ 	popq %rbx
+ 	ret
++
++#ifdef __ELF__
++.section .note.GNU-stack,"",@progbits
++#endif
+diff --git a/src/pkg/runtime/cgo/gcc_arm.S b/src/pkg/runtime/cgo/gcc_arm.S
+index 809fcb9a06..3bc5bd338f 100644
+--- a/src/pkg/runtime/cgo/gcc_arm.S
++++ b/src/pkg/runtime/cgo/gcc_arm.S
+@@ -34,3 +34,6 @@ EXT(__stack_chk_fail_local):
+ 1:
+ 	b 1b
+ 
++#ifdef __ELF__
++.section .note.GNU-stack,"",@progbits
++#endif

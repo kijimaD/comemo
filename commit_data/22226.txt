@@ -17,7 +17,7 @@ Date:   Sat Feb 28 14:24:28 2015 -0500
     Change-Id: I98748a7ddb34cc7f1b151c2ef421d3656821f5c2
     Reviewed-on: https://go-review.googlesource.com/6366
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/dist/build.go           | 10 +++++-----
  src/cmd/dist/buildtool.go       |  8 ++++----
  src/cmd/go/build.go             |  2 +-
@@ -36,3 +36,179 @@ Date:   Sat Feb 28 14:24:28 2015 -0500
  src/cmd/{9a => old9a}/y.go      |  0
  src/debug/gosym/pclntab_test.go |  2 +-
  17 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index c13bace360..0b5519696b 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -689,7 +689,7 @@ func install(dir string) {
+ 		var compile []string
+ 		// Assembly file for a Go package.
+ 		compile = []string{
+-			pathf("%s/%sa", tooldir, gochar),
++			pathf("%s/asm", tooldir),
+ 			"-I", workdir,
+ 			"-I", pathf("%s/pkg/%s_%s", goroot, goos, goarch),
+ 			"-D", "GOOS_" + goos,
+@@ -904,19 +904,19 @@ var buildorder = []string{
+ // compilers but build only the $GOARCH ones.
+ var cleantab = []string{
+ 	// Commands and C libraries.
+-	"cmd/5a",
+ 	"cmd/5g",
+ 	"cmd/5l",
+-	"cmd/6a",
+ 	"cmd/6g",
+ 	"cmd/6l",
+-	"cmd/8a",
+ 	"cmd/8g",
+ 	"cmd/8l",
+-	"cmd/9a",
+ 	"cmd/9g",
+ 	"cmd/9l",
+ 	"cmd/go",
++	"cmd/old5a",
++	"cmd/old6a",
++	"cmd/old8a",
++	"cmd/old9a",
+ 
+ 	// Go packages.
+ 	"bufio",
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index d8192f6736..b8e46df4c7 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -23,16 +23,12 @@ import (
+ // which are commands, and entries beginning with internal/, which are
+ // packages supporting the commands.
+ var bootstrapDirs = []string{
+-	"5a",
+ 	"5g",
+ 	"5l",
+-	"6a",
+ 	"6g",
+ 	"6l",
+-	"8a",
+ 	"8g",
+ 	"8l",
+-	"9a",
+ 	"9g",
+ 	"9l",
+ 	"asm",
+@@ -48,6 +44,10 @@ var bootstrapDirs = []string{
+ 	"internal/obj/i386",
+ 	"internal/obj/ppc64",
+ 	"internal/obj/x86",
++	"old5a",
++	"old6a",
++	"old8a",
++	"old9a",
+ }
+ 
+ func bootstrapBuildTools() {
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 292bc73003..5e4d4886ad 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1716,7 +1716,7 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 		return err
+ 	}
+ 	if verifyAsm {
+-		if err := toolVerify(b, p, archChar+"a", ofile, args); err != nil {
++		if err := toolVerify(b, p, "old"+archChar+"a", ofile, args); err != nil {
+ 			return err
+ 		}
+ 	}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index d303d7f811..57f997f18a 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -391,16 +391,12 @@ const (
+ 
+ // goTools is a map of Go program import path to install target directory.
+ var goTools = map[string]targetDir{
+-	"cmd/5a":                               toTool,
+ 	"cmd/5g":                               toTool,
+ 	"cmd/5l":                               toTool,
+-	"cmd/6a":                               toTool,
+ 	"cmd/6g":                               toTool,
+ 	"cmd/6l":                               toTool,
+-	"cmd/8a":                               toTool,
+ 	"cmd/8g":                               toTool,
+ 	"cmd/8l":                               toTool,
+-	"cmd/9a":                               toTool,
+ 	"cmd/9g":                               toTool,
+ 	"cmd/9l":                               toTool,
+ 	"cmd/addr2line":                        toTool,
+@@ -412,6 +408,10 @@ var goTools = map[string]targetDir{
+ 	"cmd/link":                             toTool,
+ 	"cmd/nm":                               toTool,
+ 	"cmd/objdump":                          toTool,
++	"cmd/old5a":                            toTool,
++	"cmd/old6a":                            toTool,
++	"cmd/old8a":                            toTool,
++	"cmd/old9a":                            toTool,
+ 	"cmd/pack":                             toTool,
+ 	"cmd/pprof":                            toTool,
+ 	"cmd/trace":                            toTool,
+diff --git a/src/cmd/5a/a.y b/src/cmd/old5a/a.y
+similarity index 100%
+rename from src/cmd/5a/a.y
+rename to src/cmd/old5a/a.y
+diff --git a/src/cmd/5a/lex.go b/src/cmd/old5a/lex.go
+similarity index 100%
+rename from src/cmd/5a/lex.go
+rename to src/cmd/old5a/lex.go
+diff --git a/src/cmd/5a/y.go b/src/cmd/old5a/y.go
+similarity index 100%
+rename from src/cmd/5a/y.go
+rename to src/cmd/old5a/y.go
+diff --git a/src/cmd/6a/a.y b/src/cmd/old6a/a.y
+similarity index 100%
+rename from src/cmd/6a/a.y
+rename to src/cmd/old6a/a.y
+diff --git a/src/cmd/6a/lex.go b/src/cmd/old6a/lex.go
+similarity index 100%
+rename from src/cmd/6a/lex.go
+rename to src/cmd/old6a/lex.go
+diff --git a/src/cmd/6a/y.go b/src/cmd/old6a/y.go
+similarity index 100%
+rename from src/cmd/6a/y.go
+rename to src/cmd/old6a/y.go
+diff --git a/src/cmd/8a/a.y b/src/cmd/old8a/a.y
+similarity index 100%
+rename from src/cmd/8a/a.y
+rename to src/cmd/old8a/a.y
+diff --git a/src/cmd/8a/lex.go b/src/cmd/old8a/lex.go
+similarity index 100%
+rename from src/cmd/8a/lex.go
+rename to src/cmd/old8a/lex.go
+diff --git a/src/cmd/8a/y.go b/src/cmd/old8a/y.go
+similarity index 100%
+rename from src/cmd/8a/y.go
+rename to src/cmd/old8a/y.go
+diff --git a/src/cmd/9a/a.y b/src/cmd/old9a/a.y
+similarity index 100%
+rename from src/cmd/9a/a.y
+rename to src/cmd/old9a/a.y
+diff --git a/src/cmd/9a/lex.go b/src/cmd/old9a/lex.go
+similarity index 100%
+rename from src/cmd/9a/lex.go
+rename to src/cmd/old9a/lex.go
+diff --git a/src/cmd/9a/y.go b/src/cmd/old9a/y.go
+similarity index 100%
+rename from src/cmd/9a/y.go
+rename to src/cmd/old9a/y.go
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index 35502e8c39..1415fac276 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -49,7 +49,7 @@ func dotest(self bool) bool {
+ 	// the resulting binary looks like it was built from pclinetest.s,
+ 	// but we have renamed it to keep it away from the go tool.
+ 	pclinetestBinary = filepath.Join(pclineTempDir, "pclinetest")
+-	command := fmt.Sprintf("go tool 6a -o %s.6 pclinetest.asm && go tool 6l -H linux -E main -o %s %s.6",
++	command := fmt.Sprintf("go tool asm -o %s.6 pclinetest.asm && go tool 6l -H linux -E main -o %s %s.6",
+ 		pclinetestBinary, pclinetestBinary, pclinetestBinary)
+ 	cmd := exec.Command("sh", "-c", command)
+ 	cmd.Stdout = os.Stdout

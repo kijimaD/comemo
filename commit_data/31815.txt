@@ -12,9 +12,81 @@ Date:   Fri Mar 17 08:58:36 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38329
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go  | 1 -
  src/cmd/compile/internal/gc/go.go   | 2 --
  src/cmd/compile/internal/gc/init.go | 2 --
  src/cmd/compile/internal/gc/ssa.go  | 8 +++++---
  4 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index d994914843..e47cf194a1 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1200,7 +1200,6 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
+ 
+ func funccompile(n *Node) {
+ 	Stksize = BADWIDTH
+-	Maxarg = 0
+ 
+ 	if n.Type == nil {
+ 		if nerrors == 0 {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index fe9411066a..57408e665d 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -245,8 +245,6 @@ var dclcontext Class // PEXTERN/PAUTO
+ 
+ var statuniqgen int // name generator for static temps
+ 
+-var Maxarg int64
+-
+ var Stksize int64 // stack size for current frame
+ 
+ var stkptrsize int64 // prefix of stack containing pointers
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index d2fba7bb59..500def7658 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -90,8 +90,6 @@ func fninit(n []*Node) {
+ 	addvar(gatevar, Types[TUINT8], PEXTERN)
+ 
+ 	// (2)
+-	Maxarg = 0
+-
+ 	fn := nod(ODCLFUNC, nil, nil)
+ 	initsym := lookup("init")
+ 	fn.Func.Nname = newname(initsym)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index dc8eb02c21..29a2728caf 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4204,6 +4204,8 @@ type SSAGenState struct {
+ 	SSEto387 map[int16]int16
+ 	// Some architectures require a 64-bit temporary for FP-related register shuffling. Examples include x86-387, PPC, and Sparc V8.
+ 	ScratchFpMem *Node
++
++	maxarg int64 // largest frame size for arguments to calls made by the function
+ }
+ 
+ // Pc returns the current Prog.
+@@ -4355,7 +4357,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	liveness(e.curfn, ptxt, gcargs, gclocals)
+ 
+ 	// Add frame prologue. Zero ambiguously live variables.
+-	thearch.Defframe(ptxt, e.curfn, Stksize+Maxarg)
++	thearch.Defframe(ptxt, e.curfn, Stksize+s.maxarg)
+ 	if Debug['f'] != 0 {
+ 		frame(0)
+ 	}
+@@ -4631,8 +4633,8 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+ 		}
+ 		p.To.Reg = v.Args[0].Reg()
+ 	}
+-	if Maxarg < v.AuxInt {
+-		Maxarg = v.AuxInt
++	if s.maxarg < v.AuxInt {
++		s.maxarg = v.AuxInt
+ 	}
+ 	return p
+ }

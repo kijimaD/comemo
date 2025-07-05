@@ -11,7 +11,63 @@ Date:   Wed Apr 6 09:59:32 2016 +0200
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/sub_test.go | 24 ++++++++++++++++++++++++
  src/testing/testing.go  |  2 +-
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index e053a3c348..7fe0fffd8f 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -178,6 +178,22 @@ func TestTRun(t *T) {
+ === RUN   skipping without message, chatty
+ --- SKIP: skipping without message, chatty (0.00s)`,
+ 		f: func(t *T) { t.SkipNow() },
++	}, {
++		desc:   "chatty with recursion",
++		ok:     true,
++		chatty: true,
++		output: `
++=== RUN   chatty with recursion
++=== RUN   chatty with recursion/#00
++=== RUN   chatty with recursion/#00/#00
++--- PASS: chatty with recursion (0.00s)
++    --- PASS: chatty with recursion/#00 (0.00s)
++        --- PASS: chatty with recursion/#00/#00 (0.00s)`,
++		f: func(t *T) {
++			t.Run("", func(t *T) {
++				t.Run("", func(t *T) {})
++			})
++		},
+ 	}, {
+ 		desc: "skipping without message, not chatty",
+ 		ok:   true,
+@@ -435,6 +451,14 @@ func TestBRun(t *T) {
+ --- SKIP: root
+ 	sub_test.go:: skipping`,
+ 		f: func(b *B) { b.Skip("skipping") },
++	}, {
++		desc:   "chatty with recursion",
++		chatty: true,
++		f: func(b *B) {
++			b.Run("", func(b *B) {
++				b.Run("", func(b *B) {})
++			})
++		},
+ 	}, {
+ 		desc: "skipping without message, not chatty",
+ 		f:    func(b *B) { b.SkipNow() },
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 8e16db321d..3a7a135a3c 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -571,7 +571,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 	if t.chatty {
+ 		// Print directly to root's io.Writer so there is no delay.
+ 		root := t.parent
+-		for ; root.parent != nil; root = t.parent {
++		for ; root.parent != nil; root = root.parent {
+ 		}
+ 		fmt.Fprintf(root.w, "=== RUN   %s\n", t.name)
+ 	}

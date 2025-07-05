@@ -13,6 +13,20 @@ Date:   Thu Dec 2 13:41:37 2021 -0500
     Trust: Jeremy Faller <jeremy@golang.org>
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.18.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 82facf3845..818f7c7dcb 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -769,7 +769,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
+   <dd>
+     <p><!-- CL 356430 -->
+-      TODO: <a href="https://golang.org/cl/356430">https://golang.org/cl/356430</a>: remove Wrapper interface
++      <code>Wrapper</code> interface has been removed.
+     </p>
+   </dd>
+ </dl><!-- syscall/js -->

@@ -9,6 +9,22 @@ Date:   Wed Nov 28 07:17:40 2018 -0800
     Change-Id: I38360501c772ddf7cc4bd1b5d7b0225387ead535
     Reviewed-on: https://go-review.googlesource.com/c/151361
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  doc/go1.12.html | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index d2aa2f6cda..821d9086d4 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -47,7 +47,9 @@ Do not send CLs removing the interior tags from such phrases.
+   12.0+.
+ </p>
+ 
+-<p id="darwin">
++<h3 id="darwin">Darwin</h3>
++
++<p>
+ Go 1.12 is the last release that will run on macOS 10.10 Yosemite.
+ Go 1.13 will require macOS 10.11 El Capitan or later.
+ </p>

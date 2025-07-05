@@ -14,7 +14,77 @@ Date:   Wed Apr 8 13:41:59 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go   | 10 ++++++++++
  src/cmd/compile/internal/gc/sinit.go | 23 +++--------------------
  2 files changed, 13 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index a3e82cf699..d555fcf21f 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -417,6 +417,16 @@ func dsymptrWeakOff(s *obj.LSym, off int, x *obj.LSym) int {
+ 	return off
+ }
+ 
++// slicesym writes a static slice symbol {&arr, lencap, lencap} to n.
++func slicesym(n, arr, lencap *Node) {
++	base := n.Xoffset
++	gdata(n, nod(OADDR, arr, nil), Widthptr)
++	n.Xoffset = base + sliceLenOffset
++	gdata(n, lencap, Widthptr)
++	n.Xoffset = base + sliceCapOffset
++	gdata(n, lencap, Widthptr)
++}
++
+ func gdata(nam *Node, nr *Node, wid int) {
+ 	if nam.Op != ONAME {
+ 		Fatalf("gdata nam op %v", nam.Op)
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 446bd8ab17..d0239b359e 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -130,12 +130,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
+ 		a := s.inittemps[r]
+ 
+ 		n := l.copy()
+-		n.Xoffset = l.Xoffset + slicePtrOffset
+-		gdata(n, nod(OADDR, a, nil), Widthptr)
+-		n.Xoffset = l.Xoffset + sliceLenOffset
+-		gdata(n, r.Right, Widthptr)
+-		n.Xoffset = l.Xoffset + sliceCapOffset
+-		gdata(n, r.Right, Widthptr)
++		slicesym(n, a, r.Right)
+ 		return true
+ 
+ 	case OARRAYLIT, OSTRUCTLIT:
+@@ -227,12 +222,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 		a := staticname(ta)
+ 		s.inittemps[r] = a
+ 		n := l.copy()
+-		n.Xoffset = l.Xoffset + slicePtrOffset
+-		gdata(n, nod(OADDR, a, nil), Widthptr)
+-		n.Xoffset = l.Xoffset + sliceLenOffset
+-		gdata(n, r.Right, Widthptr)
+-		n.Xoffset = l.Xoffset + sliceCapOffset
+-		gdata(n, r.Right, Widthptr)
++		slicesym(n, a, r.Right)
+ 
+ 		// Fall through to init underlying array.
+ 		l = a
+@@ -614,14 +604,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 		var v Node
+ 		v.Type = types.Types[TINT]
+ 		setintconst(&v, t.NumElem())
+-
+-		nam.Xoffset += slicePtrOffset
+-		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)
+-		nam.Xoffset += sliceLenOffset - slicePtrOffset
+-		gdata(&nam, &v, Widthptr)
+-		nam.Xoffset += sliceCapOffset - sliceLenOffset
+-		gdata(&nam, &v, Widthptr)
+-
++		slicesym(&nam, vstat, &v)
+ 		return
+ 	}
+ 

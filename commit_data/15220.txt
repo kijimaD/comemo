@@ -7,6 +7,24 @@ Date:   Wed Feb 13 16:43:55 2013 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7225080
-
+---
  doc/effective_go.html | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 1363f092f1..a373776892 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -167,10 +167,9 @@ should set up the detailed documentation that follows.
+ 
+ <pre>
+ /*
+-    Package regexp implements a simple library for
+-    regular expressions.
++Package regexp implements a simple library for regular expressions.
+ 
+-    The syntax of the regular expressions accepted is:
++The syntax of the regular expressions accepted is:
+ 
+     regexp:
+         concatenation { '|' concatenation }

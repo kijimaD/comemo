@@ -12,6 +12,22 @@ Date:   Wed Oct 21 11:42:09 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=35957
     CL=35960
-
+---
  test/fixedbugs/bug205.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/bug205.go b/test/fixedbugs/bug205.go
+index 5fb0a0d16b..4262ec10dc 100644
+--- a/test/fixedbugs/bug205.go
++++ b/test/fixedbugs/bug205.go
+@@ -11,8 +11,8 @@ var s string;
+ var m map[string]int;
+ 
+ func main() {
+-	println(t["hi"]);	// ERROR "non-integer"
+-	println(s["hi"]);	// ERROR "non-integer"
++	println(t["hi"]);	// ERROR "integer"
++	println(s["hi"]);	// ERROR "integer"
+ 	println(m[0]);	// ERROR "map index"
+ }
+ 

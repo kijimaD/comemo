@@ -14,7 +14,7 @@ Date:   Wed Sep 21 15:54:33 2022 -0400
     Change-Id: I726e974ccd66a055bb5a94497b36b8d68d47cad1
     Reviewed-on: https://go-review.googlesource.com/c/go/+/432757
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    |   3 +-
  src/cmd/go/internal/load/search.go                 |   5 +-
  src/cmd/go/internal/modget/query.go                |   5 +-
@@ -25,3 +25,588 @@ Date:   Wed Sep 21 15:54:33 2022 -0400
  .../pkgpattern/pat_test.go}                        |  70 ++++++++---
  src/cmd/internal/pkgpattern/pkgpattern.go          | 137 +++++++++++++++++++++
  9 files changed, 208 insertions(+), 131 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index cebec51d42..522c372f10 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -41,6 +41,7 @@ import (
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/vcs"
++	"cmd/internal/pkgpattern"
+ 	"cmd/internal/sys"
+ 
+ 	"golang.org/x/mod/modfile"
+@@ -3201,7 +3202,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args
+ 	matchers := make([]func(string) bool, len(patterns))
+ 	for i, p := range patterns {
+ 		if strings.Contains(p, "...") {
+-			matchers[i] = search.MatchPattern(p)
++			matchers[i] = pkgpattern.MatchPattern(p)
+ 		}
+ 	}
+ 	return pkgs, nil
+diff --git a/src/cmd/go/internal/load/search.go b/src/cmd/go/internal/load/search.go
+index cf09c7b0a8..565996a21f 100644
+--- a/src/cmd/go/internal/load/search.go
++++ b/src/cmd/go/internal/load/search.go
+@@ -9,6 +9,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/search"
++	"cmd/internal/pkgpattern"
+ )
+ 
+ // MatchPackage(pattern, cwd)(p) reports whether package p matches pattern in the working directory cwd.
+@@ -29,7 +30,7 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
+ 		if pattern == "" {
+ 			return func(p *Package) bool { return p.Dir == dir }
+ 		}
+-		matchPath := search.MatchPattern(pattern)
++		matchPath := pkgpattern.MatchPattern(pattern)
+ 		return func(p *Package) bool {
+ 			// Compute relative path to dir and see if it matches the pattern.
+ 			rel, err := filepath.Rel(dir, p.Dir)
+@@ -50,7 +51,7 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
+ 	case pattern == "cmd":
+ 		return func(p *Package) bool { return p.Standard && strings.HasPrefix(p.ImportPath, "cmd/") }
+ 	default:
+-		matchPath := search.MatchPattern(pattern)
++		matchPath := pkgpattern.MatchPattern(pattern)
+ 		return func(p *Package) bool { return matchPath(p.ImportPath) }
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index 887cb51b31..8fffb3354c 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -15,6 +15,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
++	"cmd/internal/pkgpattern"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -165,8 +166,8 @@ func newQuery(raw string) (*query, error) {
+ 		version:        version,
+ 	}
+ 	if strings.Contains(q.pattern, "...") {
+-		q.matchWildcard = search.MatchPattern(q.pattern)
+-		q.canMatchWildcardInModule = search.TreeCanMatchPattern(q.pattern)
++		q.matchWildcard = pkgpattern.MatchPattern(q.pattern)
++		q.canMatchWildcardInModule = pkgpattern.TreeCanMatchPattern(q.pattern)
+ 	}
+ 	if err := q.validate(); err != nil {
+ 		return q, err
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index e822d06504..6586309291 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -20,6 +20,7 @@ import (
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/search"
++	"cmd/internal/pkgpattern"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -225,7 +226,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
+ 		if arg == "all" {
+ 			match = func(string) bool { return true }
+ 		} else if strings.Contains(arg, "...") {
+-			match = search.MatchPattern(arg)
++			match = pkgpattern.MatchPattern(arg)
+ 		} else {
+ 			var v string
+ 			if mg == nil {
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 9f9674c26b..e981c2f026 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -25,6 +25,7 @@ import (
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/pkgpattern"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+@@ -624,7 +625,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
+ 	}
+ 
+ 	var match func(mod module.Version, roots []string, isLocal bool) *search.Match
+-	matchPattern := search.MatchPattern(pattern)
++	matchPattern := pkgpattern.MatchPattern(pattern)
+ 
+ 	if i := strings.Index(pattern, "..."); i >= 0 {
+ 		base = pathpkg.Dir(pattern[:i+3])
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index b2ac7f22b1..7fc7aa4dd7 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -24,6 +24,7 @@ import (
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/pkgpattern"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -47,8 +48,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 	isMatch := func(string) bool { return true }
+ 	treeCanMatch := func(string) bool { return true }
+ 	if !m.IsMeta() {
+-		isMatch = search.MatchPattern(m.Pattern())
+-		treeCanMatch = search.TreeCanMatchPattern(m.Pattern())
++		isMatch = pkgpattern.MatchPattern(m.Pattern())
++		treeCanMatch = pkgpattern.TreeCanMatchPattern(m.Pattern())
+ 	}
+ 
+ 	var mu sync.Mutex
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index ebd4990a68..c107a02c24 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -8,13 +8,13 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
++	"cmd/internal/pkgpattern"
+ 	"fmt"
+ 	"go/build"
+ 	"io/fs"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+-	"regexp"
+ 	"strings"
+ )
+ 
+@@ -109,8 +109,8 @@ func (m *Match) MatchPackages() {
+ 	match := func(string) bool { return true }
+ 	treeCanMatch := func(string) bool { return true }
+ 	if !m.IsMeta() {
+-		match = MatchPattern(m.pattern)
+-		treeCanMatch = TreeCanMatchPattern(m.pattern)
++		match = pkgpattern.MatchPattern(m.pattern)
++		treeCanMatch = pkgpattern.TreeCanMatchPattern(m.pattern)
+ 	}
+ 
+ 	have := map[string]bool{
+@@ -233,7 +233,7 @@ func (m *Match) MatchDirs(modRoots []string) {
+ 		cleanPattern = "." + string(os.PathSeparator) + cleanPattern
+ 	}
+ 	slashPattern := filepath.ToSlash(cleanPattern)
+-	match := MatchPattern(slashPattern)
++	match := pkgpattern.MatchPattern(slashPattern)
+ 
+ 	// Find directory to begin the scan.
+ 	// Could be smarter but this one optimization
+@@ -332,90 +332,6 @@ func (m *Match) MatchDirs(modRoots []string) {
+ 	}
+ }
+ 
+-// TreeCanMatchPattern(pattern)(name) reports whether
+-// name or children of name can possibly match pattern.
+-// Pattern is the same limited glob accepted by matchPattern.
+-func TreeCanMatchPattern(pattern string) func(name string) bool {
+-	wildCard := false
+-	if i := strings.Index(pattern, "..."); i >= 0 {
+-		wildCard = true
+-		pattern = pattern[:i]
+-	}
+-	return func(name string) bool {
+-		return len(name) <= len(pattern) && hasPathPrefix(pattern, name) ||
+-			wildCard && strings.HasPrefix(name, pattern)
+-	}
+-}
+-
+-// MatchPattern(pattern)(name) reports whether
+-// name matches pattern. Pattern is a limited glob
+-// pattern in which '...' means 'any string' and there
+-// is no other special syntax.
+-// Unfortunately, there are two special cases. Quoting "go help packages":
+-//
+-// First, /... at the end of the pattern can match an empty string,
+-// so that net/... matches both net and packages in its subdirectories, like net/http.
+-// Second, any slash-separated pattern element containing a wildcard never
+-// participates in a match of the "vendor" element in the path of a vendored
+-// package, so that ./... does not match packages in subdirectories of
+-// ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
+-// Note, however, that a directory named vendor that itself contains code
+-// is not a vendored package: cmd/vendor would be a command named vendor,
+-// and the pattern cmd/... matches it.
+-func MatchPattern(pattern string) func(name string) bool {
+-	// Convert pattern to regular expression.
+-	// The strategy for the trailing /... is to nest it in an explicit ? expression.
+-	// The strategy for the vendor exclusion is to change the unmatchable
+-	// vendor strings to a disallowed code point (vendorChar) and to use
+-	// "(anything but that codepoint)*" as the implementation of the ... wildcard.
+-	// This is a bit complicated but the obvious alternative,
+-	// namely a hand-written search like in most shell glob matchers,
+-	// is too easy to make accidentally exponential.
+-	// Using package regexp guarantees linear-time matching.
+-
+-	const vendorChar = "\x00"
+-
+-	if strings.Contains(pattern, vendorChar) {
+-		return func(name string) bool { return false }
+-	}
+-
+-	re := regexp.QuoteMeta(pattern)
+-	re = replaceVendor(re, vendorChar)
+-	switch {
+-	case strings.HasSuffix(re, `/`+vendorChar+`/\.\.\.`):
+-		re = strings.TrimSuffix(re, `/`+vendorChar+`/\.\.\.`) + `(/vendor|/` + vendorChar + `/\.\.\.)`
+-	case re == vendorChar+`/\.\.\.`:
+-		re = `(/vendor|/` + vendorChar + `/\.\.\.)`
+-	case strings.HasSuffix(re, `/\.\.\.`):
+-		re = strings.TrimSuffix(re, `/\.\.\.`) + `(/\.\.\.)?`
+-	}
+-	re = strings.ReplaceAll(re, `\.\.\.`, `[^`+vendorChar+`]*`)
+-
+-	reg := regexp.MustCompile(`^` + re + `$`)
+-
+-	return func(name string) bool {
+-		if strings.Contains(name, vendorChar) {
+-			return false
+-		}
+-		return reg.MatchString(replaceVendor(name, vendorChar))
+-	}
+-}
+-
+-// replaceVendor returns the result of replacing
+-// non-trailing vendor path elements in x with repl.
+-func replaceVendor(x, repl string) string {
+-	if !strings.Contains(x, "vendor") {
+-		return x
+-	}
+-	elem := strings.Split(x, "/")
+-	for i := 0; i < len(elem)-1; i++ {
+-		if elem[i] == "vendor" {
+-			elem[i] = repl
+-		}
+-	}
+-	return strings.Join(elem, "/")
+-}
+-
+ // WarnUnmatched warns about patterns that didn't match any packages.
+ func WarnUnmatched(matches []*Match) {
+ 	for _, m := range matches {
+@@ -512,22 +428,6 @@ func CleanPatterns(patterns []string) []string {
+ 	return out
+ }
+ 
+-// hasPathPrefix reports whether the path s begins with the
+-// elements in prefix.
+-func hasPathPrefix(s, prefix string) bool {
+-	switch {
+-	default:
+-		return false
+-	case len(s) == len(prefix):
+-		return s == prefix
+-	case len(s) > len(prefix):
+-		if prefix != "" && prefix[len(prefix)-1] == '/' {
+-			return strings.HasPrefix(s, prefix)
+-		}
+-		return s[len(prefix)] == '/' && s[:len(prefix)] == prefix
+-	}
+-}
+-
+ // hasFilepathPrefix reports whether the path s begins with the
+ // elements in prefix.
+ func hasFilepathPrefix(s, prefix string) bool {
+diff --git a/src/cmd/go/internal/search/search_test.go b/src/cmd/internal/pkgpattern/pat_test.go
+similarity index 82%
+rename from src/cmd/go/internal/search/search_test.go
+rename to src/cmd/internal/pkgpattern/pat_test.go
+index 5f27daf3fb..0a1157064b 100644
+--- a/src/cmd/go/internal/search/search_test.go
++++ b/src/cmd/internal/pkgpattern/pat_test.go
+@@ -1,8 +1,8 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
++// Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package search
++package pkgpattern
+ 
+ import (
+ 	"strings"
+@@ -12,19 +12,19 @@ import (
+ var matchPatternTests = `
+ 	pattern ...
+ 	match foo
+-	
++
+ 	pattern net
+ 	match net
+ 	not net/http
+-	
++
+ 	pattern net/http
+ 	match net/http
+ 	not net
+-	
++
+ 	pattern net...
+ 	match net net/http netchan
+ 	not not/http not/net/http
+-	
++
+ 	# Special cases. Quoting docs:
+ 
+ 	# First, /... at the end of the pattern can match an empty string,
+@@ -43,23 +43,23 @@ var matchPatternTests = `
+ 	pattern ./...
+ 	match ./vendor ./mycode/vendor
+ 	not ./vendor/foo ./mycode/vendor/foo
+-	
++
+ 	pattern ./vendor/...
+ 	match ./vendor/foo ./vendor/foo/vendor
+ 	not ./vendor/foo/vendor/bar
+-	
++
+ 	pattern mycode/vendor/...
+ 	match mycode/vendor mycode/vendor/foo mycode/vendor/foo/vendor
+ 	not mycode/vendor/foo/vendor/bar
+-	
++
+ 	pattern x/vendor/y
+ 	match x/vendor/y
+ 	not x/vendor
+-	
++
+ 	pattern x/vendor/y/...
+ 	match x/vendor/y x/vendor/y/z x/vendor/y/vendor x/vendor/y/z/vendor
+ 	not x/vendor/y/vendor/z
+-	
++
+ 	pattern .../vendor/...
+ 	match x/vendor/y x/vendor/y/z x/vendor/y/vendor x/vendor/y/z/vendor
+ `
+@@ -70,17 +70,51 @@ func TestMatchPattern(t *testing.T) {
+ 	})
+ }
+ 
++var matchSimplePatternTests = `
++	pattern ...
++	match foo
++
++	pattern .../bar/.../baz
++	match foo/bar/abc/baz
++
++	pattern net
++	match net
++	not net/http
++
++	pattern net/http
++	match net/http
++	not net
++
++	pattern net...
++	match net net/http netchan
++	not not/http not/net/http
++
++	# Special cases. Quoting docs:
++
++	# First, /... at the end of the pattern can match an empty string,
++	# so that net/... matches both net and packages in its subdirectories, like net/http.
++	pattern net/...
++	match net net/http
++	not not/http not/net/http netchan
++`
++
++func TestSimpleMatchPattern(t *testing.T) {
++	testPatterns(t, "MatchSimplePattern", matchSimplePatternTests, func(pattern, name string) bool {
++		return MatchSimplePattern(pattern)(name)
++	})
++}
++
+ var treeCanMatchPatternTests = `
+ 	pattern ...
+ 	match foo
+-	
++
+ 	pattern net
+ 	match net
+ 	not net/http
+-	
++
+ 	pattern net/http
+ 	match net net/http
+-	
++
+ 	pattern net...
+ 	match net netchan net/http
+ 	not not/http not/net/http
+@@ -88,18 +122,18 @@ var treeCanMatchPatternTests = `
+ 	pattern net/...
+ 	match net net/http
+ 	not not/http netchan
+-	
++
+ 	pattern abc.../def
+ 	match abcxyz
+ 	not xyzabc
+-	
++
+ 	pattern x/y/z/...
+ 	match x x/y x/y/z x/y/z/w
+-	
++
+ 	pattern x/y/z
+ 	match x x/y x/y/z
+ 	not x/y/z/w
+-	
++
+ 	pattern x/.../y/z
+ 	match x/a/b/c
+ 	not y/x/a/b/c
+diff --git a/src/cmd/internal/pkgpattern/pkgpattern.go b/src/cmd/internal/pkgpattern/pkgpattern.go
+new file mode 100644
+index 0000000000..1496eebb3e
+--- /dev/null
++++ b/src/cmd/internal/pkgpattern/pkgpattern.go
+@@ -0,0 +1,137 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkgpattern
++
++import (
++	"regexp"
++	"strings"
++)
++
++// Note: most of this code was originally part of the cmd/go/internal/search
++// package; it was migrated here in order to support the use case of
++// commands other than cmd/go that need to accept package pattern args.
++
++// TreeCanMatchPattern(pattern)(name) reports whether
++// name or children of name can possibly match pattern.
++// Pattern is the same limited glob accepted by MatchPattern.
++func TreeCanMatchPattern(pattern string) func(name string) bool {
++	wildCard := false
++	if i := strings.Index(pattern, "..."); i >= 0 {
++		wildCard = true
++		pattern = pattern[:i]
++	}
++	return func(name string) bool {
++		return len(name) <= len(pattern) && hasPathPrefix(pattern, name) ||
++			wildCard && strings.HasPrefix(name, pattern)
++	}
++}
++
++// MatchPattern(pattern)(name) reports whether
++// name matches pattern. Pattern is a limited glob
++// pattern in which '...' means 'any string' and there
++// is no other special syntax.
++// Unfortunately, there are two special cases. Quoting "go help packages":
++//
++// First, /... at the end of the pattern can match an empty string,
++// so that net/... matches both net and packages in its subdirectories, like net/http.
++// Second, any slash-separated pattern element containing a wildcard never
++// participates in a match of the "vendor" element in the path of a vendored
++// package, so that ./... does not match packages in subdirectories of
++// ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
++// Note, however, that a directory named vendor that itself contains code
++// is not a vendored package: cmd/vendor would be a command named vendor,
++// and the pattern cmd/... matches it.
++func MatchPattern(pattern string) func(name string) bool {
++	return matchPatternInternal(pattern, true)
++}
++
++// MatchSimplePattern returns a function that can be used to check
++// whether a given name matches a pattern, where pattern is a limited
++// glob pattern in which '...' means 'any string', with no other
++// special syntax. There is one special case for MatchPatternSimple:
++// according to the rules in "go help packages": a /... at the end of
++// the pattern can match an empty string, so that net/... matches both
++// net and packages in its subdirectories, like net/http.
++func MatchSimplePattern(pattern string) func(name string) bool {
++	return matchPatternInternal(pattern, false)
++}
++
++func matchPatternInternal(pattern string, vendorExclude bool) func(name string) bool {
++	// Convert pattern to regular expression.
++	// The strategy for the trailing /... is to nest it in an explicit ? expression.
++	// The strategy for the vendor exclusion is to change the unmatchable
++	// vendor strings to a disallowed code point (vendorChar) and to use
++	// "(anything but that codepoint)*" as the implementation of the ... wildcard.
++	// This is a bit complicated but the obvious alternative,
++	// namely a hand-written search like in most shell glob matchers,
++	// is too easy to make accidentally exponential.
++	// Using package regexp guarantees linear-time matching.
++
++	const vendorChar = "\x00"
++
++	if vendorExclude && strings.Contains(pattern, vendorChar) {
++		return func(name string) bool { return false }
++	}
++
++	re := regexp.QuoteMeta(pattern)
++	wild := `.*`
++	if vendorExclude {
++		wild = `[^` + vendorChar + `]*`
++		re = replaceVendor(re, vendorChar)
++		switch {
++		case strings.HasSuffix(re, `/`+vendorChar+`/\.\.\.`):
++			re = strings.TrimSuffix(re, `/`+vendorChar+`/\.\.\.`) + `(/vendor|/` + vendorChar + `/\.\.\.)`
++		case re == vendorChar+`/\.\.\.`:
++			re = `(/vendor|/` + vendorChar + `/\.\.\.)`
++		}
++	}
++	if strings.HasSuffix(re, `/\.\.\.`) {
++		re = strings.TrimSuffix(re, `/\.\.\.`) + `(/\.\.\.)?`
++	}
++	re = strings.ReplaceAll(re, `\.\.\.`, wild)
++
++	reg := regexp.MustCompile(`^` + re + `$`)
++
++	return func(name string) bool {
++		if vendorExclude {
++			if strings.Contains(name, vendorChar) {
++				return false
++			}
++			name = replaceVendor(name, vendorChar)
++		}
++		return reg.MatchString(name)
++	}
++}
++
++// hasPathPrefix reports whether the path s begins with the
++// elements in prefix.
++func hasPathPrefix(s, prefix string) bool {
++	switch {
++	default:
++		return false
++	case len(s) == len(prefix):
++		return s == prefix
++	case len(s) > len(prefix):
++		if prefix != "" && prefix[len(prefix)-1] == '/' {
++			return strings.HasPrefix(s, prefix)
++		}
++		return s[len(prefix)] == '/' && s[:len(prefix)] == prefix
++	}
++}
++
++// replaceVendor returns the result of replacing
++// non-trailing vendor path elements in x with repl.
++func replaceVendor(x, repl string) string {
++	if !strings.Contains(x, "vendor") {
++		return x
++	}
++	elem := strings.Split(x, "/")
++	for i := 0; i < len(elem)-1; i++ {
++		if elem[i] == "vendor" {
++			elem[i] = repl
++		}
++	}
++	return strings.Join(elem, "/")
++}

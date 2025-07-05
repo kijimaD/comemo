@@ -12,6 +12,24 @@ Date:   Fri Oct 12 15:39:30 2018 -0400
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/docs.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 955eb3044e..8f79d3a770 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -50,10 +50,10 @@ learned. You can {{if not $.GoogleCN}}<a href="//tour.golang.org/">take the tour
+ online</a> or{{end}} install it locally with:
+ </p>
+ <pre>
+-$ go get golang.org/x/tour/gotour
++$ go get golang.org/x/tour
+ </pre>
+ <p>
+-This will place the <code>gotour</code> binary in your workspace's <code>bin</code> directory.
++This will place the <code>tour</code> binary in your workspace's <code>bin</code> directory.
+ </p>
+ 
+ <h3 id="code"><a href="code.html">How to write Go code</a></h3>

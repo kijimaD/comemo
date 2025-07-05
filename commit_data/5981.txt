@@ -8,6 +8,29 @@ Date:   Mon Aug 9 10:45:20 2010 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/1902049
-
+---
  src/cmd/goinstall/doc.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/goinstall/doc.go b/src/cmd/goinstall/doc.go
+index 80b30d5ac0..81b8a4316a 100644
+--- a/src/cmd/goinstall/doc.go
++++ b/src/cmd/goinstall/doc.go
+@@ -44,12 +44,12 @@ if necessary.  The recognized code hosting sites are:
+ 
+ 	Launchpad
+ 
+-		import "launchpad.net/project
+-		import "launchpad.net/project/series
+-		import "launchpad.net/project/series/sub/directory
++		import "launchpad.net/project"
++		import "launchpad.net/project/series"
++		import "launchpad.net/project/series/sub/directory"
+ 
+-		import "launchpad.net/~user/project/branch
+-		import "launchpad.net/~user/project/branch/sub/directory
++		import "launchpad.net/~user/project/branch"
++		import "launchpad.net/~user/project/branch/sub/directory"
+ 
+ 
+ If the destination directory (e.g., $GOROOT/src/pkg/bitbucket.org/user/project)

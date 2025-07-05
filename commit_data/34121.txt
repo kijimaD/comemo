@@ -32,7 +32,113 @@ Date:   Wed Oct 4 13:24:49 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/68210
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  src/net/smtp/auth.go      | 33 ++++++++++++++++++---------------
  src/net/smtp/smtp_test.go | 32 ++++++++++++++++++++++----------
  2 files changed, 40 insertions(+), 25 deletions(-)
+
+diff --git a/src/net/smtp/auth.go b/src/net/smtp/auth.go
+index 3f1339ebc5..fd1a472f93 100644
+--- a/src/net/smtp/auth.go
++++ b/src/net/smtp/auth.go
+@@ -44,26 +44,29 @@ type plainAuth struct {
+ }
+ 
+ // PlainAuth returns an Auth that implements the PLAIN authentication
+-// mechanism as defined in RFC 4616.
+-// The returned Auth uses the given username and password to authenticate
+-// on TLS connections to host and act as identity. Usually identity will be
+-// left blank to act as username.
++// mechanism as defined in RFC 4616. The returned Auth uses the given
++// username and password to authenticate to host and act as identity.
++// Usually identity should be the empty string, to act as username.
++//
++// PlainAuth will only send the credentials if the connection is using TLS
++// or is connected to localhost. Otherwise authentication will fail with an
++// error, without sending the credentials.
+ func PlainAuth(identity, username, password, host string) Auth {
+ 	return &plainAuth{identity, username, password, host}
+ }
+ 
++func isLocalhost(name string) bool {
++	return name == "localhost" || name == "127.0.0.1" || name == "::1"
++}
++
+ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
+-	if !server.TLS {
+-		advertised := false
+-		for _, mechanism := range server.Auth {
+-			if mechanism == "PLAIN" {
+-				advertised = true
+-				break
+-			}
+-		}
+-		if !advertised {
+-			return "", nil, errors.New("unencrypted connection")
+-		}
++	// Must have TLS, or else localhost server.
++	// Note: If TLS is not true, then we can't trust ANYTHING in ServerInfo.
++	// In particular, it doesn't matter if the server advertises PLAIN auth.
++	// That might just be the attacker saying
++	// "it's ok, you can trust me with your password."
++	if !server.TLS && !isLocalhost(server.Name) {
++		return "", nil, errors.New("unencrypted connection")
+ 	}
+ 	if server.Name != a.host {
+ 		return "", nil, errors.New("wrong host name")
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index 9dbe3eb9ec..ff6585e69b 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -62,29 +62,41 @@ testLoop:
+ }
+ 
+ func TestAuthPlain(t *testing.T) {
+-	auth := PlainAuth("foo", "bar", "baz", "servername")
+ 
+ 	tests := []struct {
+-		server *ServerInfo
+-		err    string
++		authName string
++		server   *ServerInfo
++		err      string
+ 	}{
+ 		{
+-			server: &ServerInfo{Name: "servername", TLS: true},
++			authName: "servername",
++			server:   &ServerInfo{Name: "servername", TLS: true},
+ 		},
+ 		{
+-			// Okay; explicitly advertised by server.
+-			server: &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
++			// OK to use PlainAuth on localhost without TLS
++			authName: "localhost",
++			server:   &ServerInfo{Name: "localhost", TLS: false},
+ 		},
+ 		{
+-			server: &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
+-			err:    "unencrypted connection",
++			// NOT OK on non-localhost, even if server says PLAIN is OK.
++			// (We don't know that the server is the real server.)
++			authName: "servername",
++			server:   &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
++			err:      "unencrypted connection",
+ 		},
+ 		{
+-			server: &ServerInfo{Name: "attacker", TLS: true},
+-			err:    "wrong host name",
++			authName: "servername",
++			server:   &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
++			err:      "unencrypted connection",
++		},
++		{
++			authName: "servername",
++			server:   &ServerInfo{Name: "attacker", TLS: true},
++			err:      "wrong host name",
+ 		},
+ 	}
+ 	for i, tt := range tests {
++		auth := PlainAuth("foo", "bar", "baz", tt.authName)
+ 		_, _, err := auth.Start(tt.server)
+ 		got := ""
+ 		if err != nil {

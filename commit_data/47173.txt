@@ -21,8 +21,106 @@ Date:   Fri Feb 19 14:03:45 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/mvs/mvs.go                     | 35 ++++++++++++++++++++++
  src/cmd/go/internal/mvs/mvs_test.go                |  7 +++--
  .../script/mod_get_downup_pseudo_artifact.txt      |  9 ++----
  3 files changed, 42 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index ff2c5f963c..e30a40c97e 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -492,6 +492,41 @@ List:
+ 		downgraded = append(downgraded, r)
+ 	}
+ 
++	// The downgrades we computed above only downgrade to versions enumerated by
++	// reqs.Previous. However, reqs.Previous omits some versions — such as
++	// pseudo-versions and retracted versions — that may be selected as transitive
++	// requirements of other modules.
++	//
++	// If one of those requirements pulls the version back up above the version
++	// identified by reqs.Previous, then the transitive dependencies of that that
++	// initially-downgraded version should no longer matter — in particular, we
++	// should not add new dependencies on module paths that nothing else in the
++	// updated module graph even requires.
++	//
++	// In order to eliminate those spurious dependencies, we recompute the build
++	// list with the actual versions of the downgraded modules as selected by MVS,
++	// instead of our initial downgrades.
++	// (See the downhiddenartifact and downhiddencross test cases).
++	actual, err := BuildList(target, &override{
++		target: target,
++		list:   downgraded,
++		Reqs:   reqs,
++	})
++	if err != nil {
++		return nil, err
++	}
++	actualVersion := make(map[string]string, len(actual))
++	for _, m := range actual {
++		actualVersion[m.Path] = m.Version
++	}
++
++	downgraded = downgraded[:0]
++	for _, m := range list {
++		if v, ok := actualVersion[m.Path]; ok {
++			downgraded = append(downgraded, module.Version{Path: m.Path, Version: v})
++		}
++	}
++
+ 	return BuildList(target, &override{
+ 		target: target,
+ 		list:   downgraded,
+diff --git a/src/cmd/go/internal/mvs/mvs_test.go b/src/cmd/go/internal/mvs/mvs_test.go
+index 661f68be08..598ed66688 100644
+--- a/src/cmd/go/internal/mvs/mvs_test.go
++++ b/src/cmd/go/internal/mvs/mvs_test.go
+@@ -282,8 +282,9 @@ downgrade A B1: A B1
+ # And C1 requires B2.hidden, and B2.hidden also meets our requirements:
+ # it is compatible with D1 and a strict downgrade from B3.
+ #
+-# BUG(?): B2.hidden does not require E1, so there is no need for E1
+-# to appear in the final build list. Nonetheless, there it is.
++# Since neither the initial nor the final build list includes B1,
++# and the nothing in the final downgraded build list requires E at all,
++# no dependency on E1 (required by only B1) should be introduced.
+ #
+ name: downhiddenartifact
+ A: B3 C2
+@@ -298,7 +299,7 @@ D2:
+ build A1: A1 B3 D2
+ downgrade A1 D1: A1 B1 D1 E1
+ build A: A B3 C2 D2
+-downgrade A D1: A B2.hidden C1 D1 E1
++downgrade A D1: A B2.hidden C1 D1
+ 
+ # Both B3 and C3 require D2.
+ # If we downgrade D to D1, then in isolation B3 would downgrade to B1,
+diff --git a/src/cmd/go/testdata/script/mod_get_downup_pseudo_artifact.txt b/src/cmd/go/testdata/script/mod_get_downup_pseudo_artifact.txt
+index d773f6bd4d..c49615cecb 100644
+--- a/src/cmd/go/testdata/script/mod_get_downup_pseudo_artifact.txt
++++ b/src/cmd/go/testdata/script/mod_get_downup_pseudo_artifact.txt
+@@ -26,18 +26,15 @@ cp go.mod go.mod.orig
+ go mod tidy
+ cmp go.mod.orig go.mod
+ 
++# When we downgrade d.2 to d.1, no dependency on e should be added
++# because nothing else in the module or import graph requires it.
+ go get -d example.net/d@v0.1.0
+ 
+ go list -m all
+ stdout '^example.net/b v0.2.1-0.20210219000000-000000000000 '
+ stdout '^example.net/c v0.1.0 '
+ stdout '^example.net/d v0.1.0 '
+-
+-	# BUG: A dependency on e is added even though nothing requires it.
+-stdout '^example.net/e '
+-
+-go mod why -m example.net/e
+-stdout '^\(main module does not need module example.net/e\)'
++! stdout '^example.net/e '
+ 
+ -- go.mod --
+ module example.net/a

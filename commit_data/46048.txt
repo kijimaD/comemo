@@ -16,9 +16,261 @@ Date:   Thu Dec 3 14:06:41 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go    |   1 +
  src/cmd/compile/internal/gc/inl.go       | 103 +++++++++----------------------
  src/cmd/compile/internal/gc/typecheck.go |   5 ++
  src/cmd/compile/internal/ir/expr.go      |  12 ++++
  4 files changed, 46 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 622edb9820..32bc7b297b 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -803,6 +803,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
+ 
+ 	switch call.Op() {
+ 	default:
++		ir.Dump("esc", call)
+ 		base.Fatalf("unexpected call op: %v", call.Op())
+ 
+ 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 09ec0b6f99..8402852424 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -483,10 +483,11 @@ func inlcalls(fn *ir.Func) {
+ 	// Most likely, the inlining will stop before we even hit the beginning of
+ 	// the cycle again, but the map catches the unusual case.
+ 	inlMap := make(map[*ir.Func]bool)
+-	fn = inlnode(fn, maxCost, inlMap).(*ir.Func)
+-	if fn != Curfn {
+-		base.Fatalf("inlnode replaced curfn")
++	var edit func(ir.Node) ir.Node
++	edit = func(n ir.Node) ir.Node {
++		return inlnode(n, maxCost, inlMap, edit)
+ 	}
++	ir.EditChildren(fn, edit)
+ 	Curfn = savefn
+ }
+ 
+@@ -521,13 +522,6 @@ func inlconv2list(n ir.Node) []ir.Node {
+ 	return s
+ }
+ 
+-func inlnodelist(l ir.Nodes, maxCost int32, inlMap map[*ir.Func]bool) {
+-	s := l.Slice()
+-	for i := range s {
+-		s[i] = inlnode(s[i], maxCost, inlMap)
+-	}
+-}
+-
+ // inlnode recurses over the tree to find inlineable calls, which will
+ // be turned into OINLCALLs by mkinlcall. When the recursion comes
+ // back up will examine left, right, list, rlist, ninit, ntest, nincr,
+@@ -541,7 +535,7 @@ func inlnodelist(l ir.Nodes, maxCost int32, inlMap map[*ir.Func]bool) {
+ // shorter and less complicated.
+ // The result of inlnode MUST be assigned back to n, e.g.
+ // 	n.Left = inlnode(n.Left)
+-func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
++func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.Node) ir.Node) ir.Node {
+ 	if n == nil {
+ 		return n
+ 	}
+@@ -567,49 +561,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
+ 
+ 	lno := setlineno(n)
+ 
+-	inlnodelist(n.Init(), maxCost, inlMap)
+-	init := n.Init().Slice()
+-	for i, n1 := range init {
+-		if n1.Op() == ir.OINLCALL {
+-			init[i] = inlconv2stmt(n1)
+-		}
+-	}
+-
+-	n.SetLeft(inlnode(n.Left(), maxCost, inlMap))
+-	if n.Left() != nil && n.Left().Op() == ir.OINLCALL {
+-		n.SetLeft(inlconv2expr(n.Left()))
+-	}
+-
+-	n.SetRight(inlnode(n.Right(), maxCost, inlMap))
+-	if n.Right() != nil && n.Right().Op() == ir.OINLCALL {
+-		if n.Op() == ir.OFOR || n.Op() == ir.OFORUNTIL {
+-			n.SetRight(inlconv2stmt(n.Right()))
+-		} else {
+-			n.SetRight(inlconv2expr(n.Right()))
+-		}
+-	}
+-
+-	inlnodelist(n.List(), maxCost, inlMap)
+-	s := n.List().Slice()
+-	convert := inlconv2expr
+-	if n.Op() == ir.OBLOCK {
+-		convert = inlconv2stmt
+-	}
+-	for i, n1 := range s {
+-		if n1 != nil && n1.Op() == ir.OINLCALL {
+-			s[i] = convert(n1)
+-		}
+-	}
+-
+-	inlnodelist(n.Body(), maxCost, inlMap)
+-	s = n.Body().Slice()
+-	for i, n1 := range s {
+-		if n1.Op() == ir.OINLCALL {
+-			s[i] = inlconv2stmt(n1)
+-		}
+-	}
+-
+-	inlnodelist(n.Rlist(), maxCost, inlMap)
++	ir.EditChildren(n, edit)
+ 
+ 	if n.Op() == ir.OAS2FUNC && n.Rlist().First().Op() == ir.OINLCALL {
+ 		n.PtrRlist().Set(inlconv2list(n.Rlist().First()))
+@@ -618,17 +570,6 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
+ 		n = typecheck(n, ctxStmt)
+ 	}
+ 
+-	s = n.Rlist().Slice()
+-	for i, n1 := range s {
+-		if n1.Op() == ir.OINLCALL {
+-			if n.Op() == ir.OIF {
+-				s[i] = inlconv2stmt(n1)
+-			} else {
+-				s[i] = inlconv2expr(n1)
+-			}
+-		}
+-	}
+-
+ 	// with all the branches out of the way, it is now time to
+ 	// transmogrify this node itself unless inhibited by the
+ 	// switch at the top of this function.
+@@ -639,8 +580,10 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
+ 		}
+ 	}
+ 
++	var call ir.Node
+ 	switch n.Op() {
+ 	case ir.OCALLFUNC:
++		call = n
+ 		if base.Flag.LowerM > 3 {
+ 			fmt.Printf("%v:call to func %+v\n", ir.Line(n), n.Left())
+ 		}
+@@ -648,10 +591,11 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
+ 			break
+ 		}
+ 		if fn := inlCallee(n.Left()); fn != nil && fn.Inl != nil {
+-			n = mkinlcall(n, fn, maxCost, inlMap)
++			n = mkinlcall(n, fn, maxCost, inlMap, edit)
+ 		}
+ 
+ 	case ir.OCALLMETH:
++		call = n
+ 		if base.Flag.LowerM > 3 {
+ 			fmt.Printf("%v:call to meth %L\n", ir.Line(n), n.Left().Right())
+ 		}
+@@ -661,10 +605,25 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
+ 			base.Fatalf("no function type for [%p] %+v\n", n.Left(), n.Left())
+ 		}
+ 
+-		n = mkinlcall(n, methodExprName(n.Left()).Func(), maxCost, inlMap)
++		n = mkinlcall(n, methodExprName(n.Left()).Func(), maxCost, inlMap, edit)
+ 	}
+ 
+ 	base.Pos = lno
++
++	if n.Op() == ir.OINLCALL {
++		switch call.(*ir.CallExpr).Use {
++		default:
++			ir.Dump("call", call)
++			base.Fatalf("call missing use")
++		case ir.CallUseExpr:
++			n = inlconv2expr(n)
++		case ir.CallUseStmt:
++			n = inlconv2stmt(n)
++		case ir.CallUseList:
++			// leave for caller to convert
++		}
++	}
++
+ 	return n
+ }
+ 
+@@ -805,7 +764,7 @@ var inlgen int
+ // parameters.
+ // The result of mkinlcall MUST be assigned back to n, e.g.
+ // 	n.Left = mkinlcall(n.Left, fn, isddd)
+-func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
++func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.Node) ir.Node) ir.Node {
+ 	if fn.Inl == nil {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(Curfn),
+@@ -1131,13 +1090,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool)
+ 	// instead we emit the things that the body needs
+ 	// and each use must redo the inlining.
+ 	// luckily these are small.
+-	inlnodelist(call.Body(), maxCost, inlMap)
+-	s := call.Body().Slice()
+-	for i, n1 := range s {
+-		if n1.Op() == ir.OINLCALL {
+-			s[i] = inlconv2stmt(n1)
+-		}
+-	}
++	ir.EditChildren(call, edit)
+ 
+ 	if base.Flag.LowerM > 2 {
+ 		fmt.Printf("%v: After inlining %+v\n\n", ir.Line(call), call)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index a8acd468c9..65c5f2abce 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1280,6 +1280,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 
+ 	// call and call like
+ 	case ir.OCALL:
++		n.(*ir.CallExpr).Use = ir.CallUseExpr
++		if top == ctxStmt {
++			n.(*ir.CallExpr).Use = ir.CallUseStmt
++		}
+ 		typecheckslice(n.Init().Slice(), ctxStmt) // imported rewritten f(g()) calls (#30907)
+ 		n.SetLeft(typecheck(n.Left(), ctxExpr|ctxType|ctxCallee))
+ 		if n.Left().Diag() {
+@@ -3294,6 +3298,7 @@ func typecheckas2(n ir.Node) {
+ 			if cr != cl {
+ 				goto mismatch
+ 			}
++			r.(*ir.CallExpr).Use = ir.CallUseList
+ 			n.SetOp(ir.OAS2FUNC)
+ 			for i, l := range n.List().Slice() {
+ 				f := r.Type().Field(i)
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 49543f4286..9600d13d8e 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -148,6 +148,17 @@ func (n *BinaryExpr) SetOp(op Op) {
+ 	}
+ }
+ 
++// A CallUse records how the result of the call is used:
++type CallUse int
++
++const (
++	_ CallUse = iota
++
++	CallUseExpr // single expression result is used
++	CallUseList // list of results are used
++	CallUseStmt // results not used - call is a statement
++)
++
+ // A CallExpr is a function call X(Args).
+ type CallExpr struct {
+ 	miniExpr
+@@ -157,6 +168,7 @@ type CallExpr struct {
+ 	Rargs    Nodes // TODO(rsc): Delete.
+ 	body     Nodes // TODO(rsc): Delete.
+ 	DDD      bool
++	Use      CallUse
+ 	noInline bool
+ }
+ 

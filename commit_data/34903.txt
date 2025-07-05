@@ -9,6 +9,20 @@ Date:   Sun Nov 26 11:30:39 2017 -0500
     Change-Id: I88a1d8693ef9d1e4758719603ce1f3c3f6b920bc
     Reviewed-on: https://go-review.googlesource.com/79936
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/install-source.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 7baaaba110..17b6ed3ea1 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -143,7 +143,7 @@ packaged Go distribution.
+ <p>
+ To build a bootstrap tool chain from source, use
+ either the git branch <code>release-branch.go1.4</code> or
+-<a href="https://storage.googleapis.com/golang/go1.4-bootstrap-20171003.tar.gz">go1.4-bootstrap-20171003.tar.gz</a>,
++<a href="https://dl.google.com/go/go1.4-bootstrap-20171003.tar.gz">go1.4-bootstrap-20171003.tar.gz</a>,
+ which contains the Go 1.4 source code plus accumulated fixes
+ to keep the tools running on newer operating systems.
+ (Go 1.4 was the last distribution in which the tool chain was written in C.)

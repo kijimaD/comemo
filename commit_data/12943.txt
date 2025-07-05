@@ -9,7 +9,35 @@ Date:   Tue Apr 24 13:17:05 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6112044
-
+---
  src/pkg/path/filepath/path.go | 3 +++
  src/pkg/path/path.go          | 2 ++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 1e74872636..a4e429baec 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -30,6 +30,9 @@ const (
+ //	   that is, replace "/.." by "/" at the beginning of a path,
+ //         assuming Separator is '/'.
+ //
++// The returned path ends in a slash only if it represents a root directory,
++// such as "/" on Unix or `C:\` on Windows.
++//
+ // If the result of this process is an empty string, Clean
+ // returns the string ".".
+ //
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 13abed0b09..a7e0415689 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -21,6 +21,8 @@ import (
+ //	4. Eliminate .. elements that begin a rooted path:
+ //	   that is, replace "/.." by "/" at the beginning of a path.
+ //
++// The returned path ends in a slash only if it is the root "/".
++//
+ // If the result of this process is an empty string, Clean
+ // returns the string ".".
+ //

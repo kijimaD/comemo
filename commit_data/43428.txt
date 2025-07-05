@@ -11,7 +11,7 @@ Date:   Wed Apr 1 10:43:57 2020 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go      |  2 +-
  src/io/ioutil/export_test.go   |  7 ++++++
  src/io/ioutil/ioutil_test.go   |  3 ++-
@@ -19,3 +19,224 @@ Date:   Wed Apr 1 10:43:57 2020 -0700
  src/testing/testing.go         | 30 ++++++++++++++++++++++++++
  src/testing/testing_test.go    | 48 ++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 94 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 9ef85dbf1b..91ecae836a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -199,7 +199,7 @@ var pkgDeps = map[string][]string{
+ 	"runtime/trace":  {"L0", "context", "fmt"},
+ 	"text/tabwriter": {"L2"},
+ 
+-	"testing":                  {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
++	"testing":                  {"L2", "flag", "fmt", "internal/race", "io/ioutil", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":           {"L2", "log"},
+ 	"testing/quick":            {"L2", "flag", "fmt", "reflect", "time"},
+ 	"internal/obscuretestdata": {"L2", "OS", "encoding/base64"},
+diff --git a/src/io/ioutil/export_test.go b/src/io/ioutil/export_test.go
+new file mode 100644
+index 0000000000..dff55f07e2
+--- /dev/null
++++ b/src/io/ioutil/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ioutil
++
++var ErrPatternHasSeparator = errPatternHasSeparator
+diff --git a/src/io/ioutil/ioutil_test.go b/src/io/ioutil/ioutil_test.go
+index ef3c6d7975..db85755bdb 100644
+--- a/src/io/ioutil/ioutil_test.go
++++ b/src/io/ioutil/ioutil_test.go
+@@ -2,10 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package ioutil
++package ioutil_test
+ 
+ import (
+ 	"bytes"
++	. "io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+diff --git a/src/io/ioutil/tempfile_test.go b/src/io/ioutil/tempfile_test.go
+index 469d2c98b3..fcc5101fcc 100644
+--- a/src/io/ioutil/tempfile_test.go
++++ b/src/io/ioutil/tempfile_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package ioutil
++package ioutil_test
+ 
+ import (
++	. "io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -59,7 +60,7 @@ func TestTempFile_BadPattern(t *testing.T) {
+ 	tests := []struct {
+ 		pattern string
+ 		wantErr bool
+-	} {
++	}{
+ 		{"ioutil*test", false},
+ 		{"ioutil_test*foo", false},
+ 		{"ioutil_test" + sep + "foo", true},
+@@ -80,7 +81,7 @@ func TestTempFile_BadPattern(t *testing.T) {
+ 				if err == nil {
+ 					t.Errorf("Expected an error for pattern %q", tt.pattern)
+ 				}
+-				if g, w := err, errPatternHasSeparator; g != w {
++				if g, w := err, ErrPatternHasSeparator; g != w {
+ 					t.Errorf("Error mismatch: got %#v, want %#v for pattern %q", g, w, tt.pattern)
+ 				}
+ 			} else if err != nil {
+@@ -166,7 +167,7 @@ func TestTempDir_BadPattern(t *testing.T) {
+ 	tests := []struct {
+ 		pattern string
+ 		wantErr bool
+-	} {
++	}{
+ 		{"ioutil*test", false},
+ 		{"ioutil_test*foo", false},
+ 		{"ioutil_test" + sep + "foo", true},
+@@ -182,7 +183,7 @@ func TestTempDir_BadPattern(t *testing.T) {
+ 				if err == nil {
+ 					t.Errorf("Expected an error for pattern %q", tt.pattern)
+ 				}
+-				if g, w := err, errPatternHasSeparator; g != w {
++				if g, w := err, ErrPatternHasSeparator; g != w {
+ 					t.Errorf("Error mismatch: got %#v, want %#v for pattern %q", g, w, tt.pattern)
+ 				}
+ 			} else if err != nil {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 85a92c9384..d546f56478 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -239,6 +239,7 @@ import (
+ 	"fmt"
+ 	"internal/race"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"runtime"
+ 	"runtime/debug"
+@@ -362,6 +363,10 @@ type common struct {
+ 	barrier  chan bool // To signal parallel subtests they may start.
+ 	signal   chan bool // To signal a test is done.
+ 	sub      []*T      // Queue of subtests to be run in parallel.
++
++	tempDirOnce sync.Once
++	tempDir     string
++	tempDirErr  error
+ }
+ 
+ // Short reports whether the -test.short flag is set.
+@@ -561,6 +566,7 @@ type TB interface {
+ 	SkipNow()
+ 	Skipf(format string, args ...interface{})
+ 	Skipped() bool
++	TempDir() string
+ 
+ 	// A private method to prevent users implementing the
+ 	// interface and so future additions to it will not
+@@ -791,6 +797,30 @@ func (c *common) Cleanup(f func()) {
+ 	}
+ }
+ 
++// TempDir returns a temporary directory for the test to use.
++// It is lazily created on first access, and calls t.Fatal if the directory
++// creation fails.
++// Subsequent calls to t.TempDir return the same directory.
++// The directory is automatically removed by Cleanup when the test and
++// all its subtests complete.
++func (c *common) TempDir() string {
++	c.tempDirOnce.Do(func() {
++		c.Helper()
++		c.tempDir, c.tempDirErr = ioutil.TempDir("", c.Name())
++		if c.tempDirErr == nil {
++			c.Cleanup(func() {
++				if err := os.RemoveAll(c.tempDir); err != nil {
++					c.Errorf("TempDir RemoveAll cleanup: %v", err)
++				}
++			})
++		}
++	})
++	if c.tempDirErr != nil {
++		c.Fatalf("TempDir: %v", c.tempDirErr)
++	}
++	return c.tempDir
++}
++
+ // panicHanding is an argument to runCleanup.
+ type panicHandling int
+ 
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 45e44683b4..afb35a96d4 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -5,6 +5,7 @@
+ package testing_test
+ 
+ import (
++	"io/ioutil"
+ 	"os"
+ 	"testing"
+ )
+@@ -16,3 +17,50 @@ import (
+ func TestMain(m *testing.M) {
+ 	os.Exit(m.Run())
+ }
++
++func TestTempDir(t *testing.T) {
++	dirCh := make(chan string, 1)
++	t.Cleanup(func() {
++		// Verify directory has been removed.
++		select {
++		case dir := <-dirCh:
++			fi, err := os.Stat(dir)
++			if os.IsNotExist(err) {
++				// All good
++				return
++			}
++			if err != nil {
++				t.Fatal(err)
++			}
++			t.Errorf("directory %q stil exists: %v, isDir=%v", dir, fi, fi.IsDir())
++		default:
++			if !t.Failed() {
++				t.Fatal("never received dir channel")
++			}
++		}
++	})
++
++	dir := t.TempDir()
++	if dir == "" {
++		t.Fatal("expected dir")
++	}
++	dir2 := t.TempDir()
++	if dir != dir2 {
++		t.Fatal("directory changed between calls")
++	}
++	dirCh <- dir
++	fi, err := os.Stat(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !fi.IsDir() {
++		t.Errorf("dir %q is not a dir", dir)
++	}
++	fis, err := ioutil.ReadDir(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(fis) > 0 {
++		t.Errorf("unexpected %d files in TempDir: %v", len(fis), fis)
++	}
++}

@@ -21,7 +21,7 @@ Date:   Mon Dec 7 09:14:44 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  17 +--
  src/cmd/compile/internal/gc/universe.go  |   3 +-
  src/cmd/compile/internal/ir/expr.go      | 186 ++++++++++++++++++-------------
@@ -31,3 +31,974 @@ Date:   Mon Dec 7 09:14:44 2020 -0500
  src/cmd/compile/internal/ir/stmt.go      | 139 +++++++++++------------
  src/cmd/compile/internal/ir/val.go       |   2 +-
  8 files changed, 266 insertions(+), 216 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 990921189a..36526d4c2d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2010,18 +2010,13 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 		}
+ 		return n
+ 
+-	case ir.ODEFER:
++	case ir.ODEFER, ir.OGO:
+ 		n.SetLeft(typecheck(n.Left(), ctxStmt|ctxExpr))
+ 		if !n.Left().Diag() {
+ 			checkdefergo(n)
+ 		}
+ 		return n
+ 
+-	case ir.OGO:
+-		n.SetLeft(typecheck(n.Left(), ctxStmt|ctxExpr))
+-		checkdefergo(n)
+-		return n
+-
+ 	case ir.OFOR, ir.OFORUNTIL:
+ 		typecheckslice(n.Init().Slice(), ctxStmt)
+ 		decldepth++
+@@ -2885,9 +2880,9 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
+ 				if l.Op() == ir.OKEY {
+ 					key := l.Left()
+ 
+-					l.SetOp(ir.OSTRUCTKEY)
+-					l.SetLeft(l.Right())
+-					l.SetRight(nil)
++					sk := ir.NewStructKeyExpr(l.Pos(), nil, l.Right())
++					ls[i] = sk
++					l = sk
+ 
+ 					// An OXDOT uses the Sym field to hold
+ 					// the field to the right of the dot,
+@@ -2895,7 +2890,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
+ 					// is never a valid struct literal key.
+ 					if key.Sym() == nil || key.Op() == ir.OXDOT || key.Sym().IsBlank() {
+ 						base.Errorf("invalid field name %v in struct initializer", key)
+-						l.SetLeft(typecheck(l.Left(), ctxExpr))
++						sk.SetLeft(typecheck(sk.Left(), ctxExpr))
+ 						continue
+ 					}
+ 
+@@ -2909,7 +2904,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
+ 							s = s1
+ 						}
+ 					}
+-					l.SetSym(s)
++					sk.SetSym(s)
+ 				}
+ 
+ 				if l.Op() != ir.OSTRUCTKEY {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 42b996d88d..c592e37497 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -202,8 +202,7 @@ func initUniverse() {
+ 	ir.AsNode(s.Def).SetSym(s)
+ 
+ 	s = types.BuiltinPkg.Lookup("iota")
+-	s.Def = ir.Nod(ir.OIOTA, nil, nil)
+-	ir.AsNode(s.Def).SetSym(s)
++	s.Def = ir.NewIota(base.Pos, s)
+ 
+ 	for et := types.TINT8; et <= types.TUINT64; et++ {
+ 		isInt[et] = true
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index a74e0712b9..8ea31c1929 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -159,8 +159,8 @@ func (n *BinaryExpr) SetOp(op Op) {
+ 	switch op {
+ 	default:
+ 		panic(n.no("SetOp " + op.String()))
+-	case OADD, OADDSTR, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
+-		OLSH, OLT, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSUB, OXOR,
++	case OADD, OADDSTR, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
++		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
+ 		OCOPY, OCOMPLEX,
+ 		OEFACE:
+ 		n.op = op
+@@ -181,21 +181,21 @@ const (
+ // A CallExpr is a function call X(Args).
+ type CallExpr struct {
+ 	miniExpr
+-	orig     Node
+-	X        Node
+-	Args     Nodes
+-	Rargs    Nodes // TODO(rsc): Delete.
+-	Body_    Nodes // TODO(rsc): Delete.
+-	DDD      bool
+-	Use      CallUse
+-	noInline bool
++	orig      Node
++	X         Node
++	Args      Nodes
++	Rargs     Nodes // TODO(rsc): Delete.
++	Body_     Nodes // TODO(rsc): Delete.
++	DDD       bool
++	Use       CallUse
++	NoInline_ bool
+ }
+ 
+-func NewCallExpr(pos src.XPos, fun Node, args []Node) *CallExpr {
++func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
+ 	n := &CallExpr{X: fun}
+ 	n.pos = pos
+ 	n.orig = n
+-	n.op = OCALL
++	n.SetOp(op)
+ 	n.Args.Set(args)
+ 	return n
+ }
+@@ -214,8 +214,8 @@ func (n *CallExpr) PtrRlist() *Nodes   { return &n.Rargs }
+ func (n *CallExpr) SetRlist(x Nodes)   { n.Rargs = x }
+ func (n *CallExpr) IsDDD() bool        { return n.DDD }
+ func (n *CallExpr) SetIsDDD(x bool)    { n.DDD = x }
+-func (n *CallExpr) NoInline() bool     { return n.noInline }
+-func (n *CallExpr) SetNoInline(x bool) { n.noInline = x }
++func (n *CallExpr) NoInline() bool     { return n.NoInline_ }
++func (n *CallExpr) SetNoInline(x bool) { n.NoInline_ = x }
+ func (n *CallExpr) Body() Nodes        { return n.Body_ }
+ func (n *CallExpr) PtrBody() *Nodes    { return &n.Body_ }
+ func (n *CallExpr) SetBody(x Nodes)    { n.Body_ = x }
+@@ -233,21 +233,21 @@ func (n *CallExpr) SetOp(op Op) {
+ // A CallPartExpr is a method expression X.Method (uncalled).
+ type CallPartExpr struct {
+ 	miniExpr
+-	fn     *Func
++	Func_  *Func
+ 	X      Node
+ 	Method *types.Field
+ }
+ 
+ func NewCallPartExpr(pos src.XPos, x Node, method *types.Field, fn *Func) *CallPartExpr {
+-	n := &CallPartExpr{fn: fn, X: x, Method: method}
++	n := &CallPartExpr{Func_: fn, X: x, Method: method}
+ 	n.op = OCALLPART
+ 	n.pos = pos
+ 	n.typ = fn.Type()
+-	n.fn = fn
++	n.Func_ = fn
+ 	return n
+ }
+ 
+-func (n *CallPartExpr) Func() *Func     { return n.fn }
++func (n *CallPartExpr) Func() *Func     { return n.Func_ }
+ func (n *CallPartExpr) Left() Node      { return n.X }
+ func (n *CallPartExpr) Sym() *types.Sym { return n.Method.Sym }
+ func (n *CallPartExpr) SetLeft(x Node)  { n.X = x }
+@@ -268,20 +268,20 @@ func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
+ func (n *ClosureExpr) Func() *Func { return n.Func_ }
+ 
+ // A ClosureRead denotes reading a variable stored within a closure struct.
+-type ClosureRead struct {
++type ClosureReadExpr struct {
+ 	miniExpr
+-	offset int64
++	Offset_ int64
+ }
+ 
+-func NewClosureRead(typ *types.Type, offset int64) *ClosureRead {
+-	n := &ClosureRead{offset: offset}
++func NewClosureRead(typ *types.Type, offset int64) *ClosureReadExpr {
++	n := &ClosureReadExpr{Offset_: offset}
+ 	n.typ = typ
+ 	n.op = OCLOSUREREAD
+ 	return n
+ }
+ 
+-func (n *ClosureRead) Type() *types.Type { return n.typ }
+-func (n *ClosureRead) Offset() int64     { return n.offset }
++func (n *ClosureReadExpr) Type() *types.Type { return n.typ }
++func (n *ClosureReadExpr) Offset() int64     { return n.Offset_ }
+ 
+ // A CompLitExpr is a composite literal Type{Vals}.
+ // Before type-checking, the type is Ntype.
+@@ -292,10 +292,10 @@ type CompLitExpr struct {
+ 	List_ Nodes // initialized values
+ }
+ 
+-func NewCompLitExpr(pos src.XPos, typ Ntype, list []Node) *CompLitExpr {
++func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
+ 	n := &CompLitExpr{Ntype: typ}
+ 	n.pos = pos
+-	n.op = OCOMPLIT
++	n.SetOp(op)
+ 	n.List_.Set(list)
+ 	n.orig = n
+ 	return n
+@@ -397,42 +397,48 @@ func (n *IndexExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-// A KeyExpr is an X:Y composite literal key.
+-// After type-checking, a key for a struct sets Sym to the field.
++// A KeyExpr is a Key: Value composite literal key.
+ type KeyExpr struct {
+ 	miniExpr
+-	Key    Node
+-	sym    *types.Sym
+-	Value  Node
+-	offset int64
++	Key   Node
++	Value Node
+ }
+ 
+ func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
+ 	n := &KeyExpr{Key: key, Value: value}
+ 	n.pos = pos
+ 	n.op = OKEY
+-	n.offset = types.BADWIDTH
+ 	return n
+ }
+ 
+-func (n *KeyExpr) Left() Node          { return n.Key }
+-func (n *KeyExpr) SetLeft(x Node)      { n.Key = x }
+-func (n *KeyExpr) Right() Node         { return n.Value }
+-func (n *KeyExpr) SetRight(y Node)     { n.Value = y }
+-func (n *KeyExpr) Sym() *types.Sym     { return n.sym }
+-func (n *KeyExpr) SetSym(x *types.Sym) { n.sym = x }
+-func (n *KeyExpr) Offset() int64       { return n.offset }
+-func (n *KeyExpr) SetOffset(x int64)   { n.offset = x }
++func (n *KeyExpr) Left() Node      { return n.Key }
++func (n *KeyExpr) SetLeft(x Node)  { n.Key = x }
++func (n *KeyExpr) Right() Node     { return n.Value }
++func (n *KeyExpr) SetRight(y Node) { n.Value = y }
+ 
+-func (n *KeyExpr) SetOp(op Op) {
+-	switch op {
+-	default:
+-		panic(n.no("SetOp " + op.String()))
+-	case OKEY, OSTRUCTKEY:
+-		n.op = op
+-	}
++// A StructKeyExpr is an Field: Value composite literal key.
++type StructKeyExpr struct {
++	miniExpr
++	Field   *types.Sym
++	Value   Node
++	Offset_ int64
++}
++
++func NewStructKeyExpr(pos src.XPos, field *types.Sym, value Node) *StructKeyExpr {
++	n := &StructKeyExpr{Field: field, Value: value}
++	n.pos = pos
++	n.op = OSTRUCTKEY
++	n.Offset_ = types.BADWIDTH
++	return n
+ }
+ 
++func (n *StructKeyExpr) Sym() *types.Sym     { return n.Field }
++func (n *StructKeyExpr) SetSym(x *types.Sym) { n.Field = x }
++func (n *StructKeyExpr) Left() Node          { return n.Value }
++func (n *StructKeyExpr) SetLeft(x Node)      { n.Value = x }
++func (n *StructKeyExpr) Offset() int64       { return n.Offset_ }
++func (n *StructKeyExpr) SetOffset(x int64)   { n.Offset_ = x }
++
+ // An InlinedCallExpr is an inlined function call.
+ type InlinedCallExpr struct {
+ 	miniExpr
+@@ -456,6 +462,36 @@ func (n *InlinedCallExpr) Rlist() Nodes     { return n.ReturnVars }
+ func (n *InlinedCallExpr) PtrRlist() *Nodes { return &n.ReturnVars }
+ func (n *InlinedCallExpr) SetRlist(x Nodes) { n.ReturnVars = x }
+ 
++// A LogicalExpr is a expression X Op Y where Op is && or ||.
++// It is separate from BinaryExpr to make room for statements
++// that must be executed before Y but after X.
++type LogicalExpr struct {
++	miniExpr
++	X Node
++	Y Node
++}
++
++func NewLogicalExpr(pos src.XPos, op Op, x, y Node) *LogicalExpr {
++	n := &LogicalExpr{X: x, Y: y}
++	n.pos = pos
++	n.SetOp(op)
++	return n
++}
++
++func (n *LogicalExpr) Left() Node      { return n.X }
++func (n *LogicalExpr) SetLeft(x Node)  { n.X = x }
++func (n *LogicalExpr) Right() Node     { return n.Y }
++func (n *LogicalExpr) SetRight(y Node) { n.Y = y }
++
++func (n *LogicalExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case OANDAND, OOROR:
++		n.op = op
++	}
++}
++
+ // A MakeExpr is a make expression: make(Type[, Len[, Cap]]).
+ // Op is OMAKECHAN, OMAKEMAP, OMAKESLICE, or OMAKESLICECOPY,
+ // but *not* OMAKE (that's a pre-typechecking CallExpr).
+@@ -489,19 +525,19 @@ func (n *MakeExpr) SetOp(op Op) {
+ // A MethodExpr is a method value X.M (where X is an expression, not a type).
+ type MethodExpr struct {
+ 	miniExpr
+-	X      Node
+-	M      Node
+-	sym    *types.Sym
+-	offset int64
+-	class  Class
+-	Method *types.Field
++	X       Node
++	M       Node
++	Sym_    *types.Sym
++	Offset_ int64
++	Class_  Class
++	Method  *types.Field
+ }
+ 
+-func NewMethodExpr(pos src.XPos, op Op, x, m Node) *MethodExpr {
++func NewMethodExpr(pos src.XPos, x, m Node) *MethodExpr {
+ 	n := &MethodExpr{X: x, M: m}
+ 	n.pos = pos
+ 	n.op = OMETHEXPR
+-	n.offset = types.BADWIDTH
++	n.Offset_ = types.BADWIDTH
+ 	return n
+ }
+ 
+@@ -509,18 +545,18 @@ func (n *MethodExpr) Left() Node          { return n.X }
+ func (n *MethodExpr) SetLeft(x Node)      { n.X = x }
+ func (n *MethodExpr) Right() Node         { return n.M }
+ func (n *MethodExpr) SetRight(y Node)     { n.M = y }
+-func (n *MethodExpr) Sym() *types.Sym     { return n.sym }
+-func (n *MethodExpr) SetSym(x *types.Sym) { n.sym = x }
+-func (n *MethodExpr) Offset() int64       { return n.offset }
+-func (n *MethodExpr) SetOffset(x int64)   { n.offset = x }
+-func (n *MethodExpr) Class() Class        { return n.class }
+-func (n *MethodExpr) SetClass(x Class)    { n.class = x }
++func (n *MethodExpr) Sym() *types.Sym     { return n.Sym_ }
++func (n *MethodExpr) SetSym(x *types.Sym) { n.Sym_ = x }
++func (n *MethodExpr) Offset() int64       { return n.Offset_ }
++func (n *MethodExpr) SetOffset(x int64)   { n.Offset_ = x }
++func (n *MethodExpr) Class() Class        { return n.Class_ }
++func (n *MethodExpr) SetClass(x Class)    { n.Class_ = x }
+ 
+ // A NilExpr represents the predefined untyped constant nil.
+ // (It may be copied and assigned a type, though.)
+ type NilExpr struct {
+ 	miniExpr
+-	sym *types.Sym // TODO: Remove
++	Sym_ *types.Sym // TODO: Remove
+ }
+ 
+ func NewNilExpr(pos src.XPos) *NilExpr {
+@@ -530,8 +566,8 @@ func NewNilExpr(pos src.XPos) *NilExpr {
+ 	return n
+ }
+ 
+-func (n *NilExpr) Sym() *types.Sym     { return n.sym }
+-func (n *NilExpr) SetSym(x *types.Sym) { n.sym = x }
++func (n *NilExpr) Sym() *types.Sym     { return n.Sym_ }
++func (n *NilExpr) SetSym(x *types.Sym) { n.Sym_ = x }
+ 
+ // A ParenExpr is a parenthesized expression (X).
+ // It may end up being a value or a type.
+@@ -563,34 +599,34 @@ func (n *ParenExpr) SetOTYPE(t *types.Type) {
+ // A ResultExpr represents a direct access to a result slot on the stack frame.
+ type ResultExpr struct {
+ 	miniExpr
+-	offset int64
++	Offset_ int64
+ }
+ 
+ func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
+-	n := &ResultExpr{offset: offset}
++	n := &ResultExpr{Offset_: offset}
+ 	n.pos = pos
+ 	n.op = ORESULT
+ 	n.typ = typ
+ 	return n
+ }
+ 
+-func (n *ResultExpr) Offset() int64     { return n.offset }
+-func (n *ResultExpr) SetOffset(x int64) { n.offset = x }
++func (n *ResultExpr) Offset() int64     { return n.Offset_ }
++func (n *ResultExpr) SetOffset(x int64) { n.Offset_ = x }
+ 
+ // A SelectorExpr is a selector expression X.Sym.
+ type SelectorExpr struct {
+ 	miniExpr
+ 	X         Node
+ 	Sel       *types.Sym
+-	offset    int64
++	Offset_   int64
+ 	Selection *types.Field
+ }
+ 
+-func NewSelectorExpr(pos src.XPos, x Node, sel *types.Sym) *SelectorExpr {
++func NewSelectorExpr(pos src.XPos, op Op, x Node, sel *types.Sym) *SelectorExpr {
+ 	n := &SelectorExpr{X: x, Sel: sel}
+ 	n.pos = pos
+-	n.op = OXDOT
+-	n.offset = types.BADWIDTH
++	n.Offset_ = types.BADWIDTH
++	n.SetOp(op)
+ 	return n
+ }
+ 
+@@ -607,8 +643,8 @@ func (n *SelectorExpr) Left() Node          { return n.X }
+ func (n *SelectorExpr) SetLeft(x Node)      { n.X = x }
+ func (n *SelectorExpr) Sym() *types.Sym     { return n.Sel }
+ func (n *SelectorExpr) SetSym(x *types.Sym) { n.Sel = x }
+-func (n *SelectorExpr) Offset() int64       { return n.offset }
+-func (n *SelectorExpr) SetOffset(x int64)   { n.offset = x }
++func (n *SelectorExpr) Offset() int64       { return n.Offset_ }
++func (n *SelectorExpr) SetOffset(x int64)   { n.Offset_ = x }
+ 
+ // Before type-checking, bytes.Buffer is a SelectorExpr.
+ // After type-checking it becomes a Name.
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 319c40e4e9..4cf12f2c5d 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -132,6 +132,14 @@ func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
+ 	return newNameAt(pos, ONAME, sym)
+ }
+ 
++// NewIota returns a new OIOTA Node.
++func NewIota(pos src.XPos, sym *types.Sym) *Name {
++	if sym == nil {
++		base.Fatalf("NewIota nil")
++	}
++	return newNameAt(pos, OIOTA, sym)
++}
++
+ // NewDeclNameAt returns a new ONONAME Node associated with symbol s at position pos.
+ // The caller is responsible for setting Curfn.
+ func NewDeclNameAt(pos src.XPos, sym *types.Sym) *Name {
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index d6dab0b9e2..0191014133 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -681,30 +681,31 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 	switch op {
+ 	default:
+ 		panic("NodAt " + op.String())
+-	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
+-		OLSH, OLT, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSUB, OXOR,
++	case OADD, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
++		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
+ 		OCOPY, OCOMPLEX,
+ 		OEFACE:
+ 		return NewBinaryExpr(pos, op, nleft, nright)
+-	case OADDR, OPTRLIT:
++	case OADDR:
+ 		return NewAddrExpr(pos, nleft)
+ 	case OADDSTR:
+ 		return NewAddStringExpr(pos, nil)
++	case OANDAND, OOROR:
++		return NewLogicalExpr(pos, op, nleft, nright)
+ 	case OARRAYLIT, OCOMPLIT, OMAPLIT, OSTRUCTLIT, OSLICELIT:
+ 		var typ Ntype
+ 		if nright != nil {
+ 			typ = nright.(Ntype)
+ 		}
+-		n := NewCompLitExpr(pos, typ, nil)
+-		n.SetOp(op)
+-		return n
++		return NewCompLitExpr(pos, op, typ, nil)
+ 	case OAS, OSELRECV:
+ 		n := NewAssignStmt(pos, nleft, nright)
+-		n.SetOp(op)
++		if op != OAS {
++			n.SetOp(op)
++		}
+ 		return n
+ 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV, OSELRECV2:
+-		n := NewAssignListStmt(pos, nil, nil)
+-		n.SetOp(op)
++		n := NewAssignListStmt(pos, op, nil, nil)
+ 		return n
+ 	case OASOP:
+ 		return NewAssignOpStmt(pos, OXXX, nleft, nright)
+@@ -722,9 +723,7 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 		return NewBranchStmt(pos, op, nil)
+ 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
+ 		OAPPEND, ODELETE, OGETG, OMAKE, OPRINT, OPRINTN, ORECOVER:
+-		n := NewCallExpr(pos, nleft, nil)
+-		n.SetOp(op)
+-		return n
++		return NewCallExpr(pos, op, nleft, nil)
+ 	case OCASE:
+ 		return NewCaseStmt(pos, nil, nil)
+ 	case OCONV, OCONVIFACE, OCONVNOP, ORUNESTR:
+@@ -733,38 +732,38 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 		return NewDecl(pos, op, nleft)
+ 	case ODCLFUNC:
+ 		return NewFunc(pos)
+-	case ODEFER:
+-		return NewDeferStmt(pos, nleft)
++	case ODEFER, OGO:
++		return NewGoDeferStmt(pos, op, nleft)
+ 	case ODEREF:
+ 		return NewStarExpr(pos, nleft)
+ 	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
+-		n := NewSelectorExpr(pos, nleft, nil)
+-		n.SetOp(op)
+-		return n
++		return NewSelectorExpr(pos, op, nleft, nil)
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		var typ Ntype
+ 		if nright != nil {
+ 			typ = nright.(Ntype)
+ 		}
+ 		n := NewTypeAssertExpr(pos, nleft, typ)
+-		n.SetOp(op)
++		if op != ODOTTYPE {
++			n.SetOp(op)
++		}
+ 		return n
+ 	case OFOR:
+ 		return NewForStmt(pos, nil, nleft, nright, nil)
+-	case OGO:
+-		return NewGoStmt(pos, nleft)
+ 	case OIF:
+ 		return NewIfStmt(pos, nleft, nil, nil)
+ 	case OINDEX, OINDEXMAP:
+ 		n := NewIndexExpr(pos, nleft, nright)
+-		n.SetOp(op)
++		if op != OINDEX {
++			n.SetOp(op)
++		}
+ 		return n
+ 	case OINLMARK:
+ 		return NewInlineMarkStmt(pos, types.BADWIDTH)
+-	case OKEY, OSTRUCTKEY:
+-		n := NewKeyExpr(pos, nleft, nright)
+-		n.SetOp(op)
+-		return n
++	case OKEY:
++		return NewKeyExpr(pos, nleft, nright)
++	case OSTRUCTKEY:
++		return NewStructKeyExpr(pos, nil, nleft)
+ 	case OLABEL:
+ 		return NewLabelStmt(pos, nil)
+ 	case OLITERAL, OTYPE, OIOTA:
+@@ -772,7 +771,7 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
+ 		return NewMakeExpr(pos, op, nleft, nright)
+ 	case OMETHEXPR:
+-		return NewMethodExpr(pos, op, nleft, nright)
++		return NewMethodExpr(pos, nleft, nright)
+ 	case ONIL:
+ 		return NewNilExpr(pos)
+ 	case OPACK:
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index b3fd89c367..4eedcfdd29 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -280,19 +280,19 @@ func (n *ClosureExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ }
+ 
+-func (n *ClosureRead) String() string                { return fmt.Sprint(n) }
+-func (n *ClosureRead) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *ClosureRead) copy() Node {
++func (n *ClosureReadExpr) String() string                { return fmt.Sprint(n) }
++func (n *ClosureReadExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *ClosureReadExpr) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
+-func (n *ClosureRead) doChildren(do func(Node) error) error {
++func (n *ClosureReadExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	return err
+ }
+-func (n *ClosureRead) editChildren(edit func(Node) Node) {
++func (n *ClosureReadExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ }
+ 
+@@ -366,24 +366,6 @@ func (n *Decl) editChildren(edit func(Node) Node) {
+ 	n.X = maybeEdit(n.X, edit)
+ }
+ 
+-func (n *DeferStmt) String() string                { return fmt.Sprint(n) }
+-func (n *DeferStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *DeferStmt) copy() Node {
+-	c := *n
+-	c.init = c.init.Copy()
+-	return &c
+-}
+-func (n *DeferStmt) doChildren(do func(Node) error) error {
+-	var err error
+-	err = maybeDoList(n.init, err, do)
+-	err = maybeDo(n.Call, err, do)
+-	return err
+-}
+-func (n *DeferStmt) editChildren(edit func(Node) Node) {
+-	editList(n.init, edit)
+-	n.Call = maybeEdit(n.Call, edit)
+-}
+-
+ func (n *ForStmt) String() string                { return fmt.Sprint(n) }
+ func (n *ForStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *ForStmt) copy() Node {
+@@ -450,20 +432,20 @@ func (n *FuncType) editChildren(edit func(Node) Node) {
+ 	editFields(n.Results, edit)
+ }
+ 
+-func (n *GoStmt) String() string                { return fmt.Sprint(n) }
+-func (n *GoStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *GoStmt) copy() Node {
++func (n *GoDeferStmt) String() string                { return fmt.Sprint(n) }
++func (n *GoDeferStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *GoDeferStmt) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
+-func (n *GoStmt) doChildren(do func(Node) error) error {
++func (n *GoDeferStmt) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.Call, err, do)
+ 	return err
+ }
+-func (n *GoStmt) editChildren(edit func(Node) Node) {
++func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.Call = maybeEdit(n.Call, edit)
+ }
+@@ -602,6 +584,26 @@ func (n *LabelStmt) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ }
+ 
++func (n *LogicalExpr) String() string                { return fmt.Sprint(n) }
++func (n *LogicalExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *LogicalExpr) copy() Node {
++	c := *n
++	c.init = c.init.Copy()
++	return &c
++}
++func (n *LogicalExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	err = maybeDo(n.Y, err, do)
++	return err
++}
++func (n *LogicalExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++	n.Y = maybeEdit(n.Y, edit)
++}
++
+ func (n *MakeExpr) String() string                { return fmt.Sprint(n) }
+ func (n *MakeExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *MakeExpr) copy() Node {
+@@ -913,6 +915,24 @@ func (n *StarExpr) editChildren(edit func(Node) Node) {
+ 	n.X = maybeEdit(n.X, edit)
+ }
+ 
++func (n *StructKeyExpr) String() string                { return fmt.Sprint(n) }
++func (n *StructKeyExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *StructKeyExpr) copy() Node {
++	c := *n
++	c.init = c.init.Copy()
++	return &c
++}
++func (n *StructKeyExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Value, err, do)
++	return err
++}
++func (n *StructKeyExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Value = maybeEdit(n.Value, edit)
++}
++
+ func (n *StructType) String() string                { return fmt.Sprint(n) }
+ func (n *StructType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *StructType) copy() Node {
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 68f9b0bd7c..28c40c0781 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -63,19 +63,19 @@ func (n *miniStmt) SetHasCall(b bool) { n.bits.set(miniHasCall, b) }
+ // If Def is true, the assignment is a :=.
+ type AssignListStmt struct {
+ 	miniStmt
+-	Lhs    Nodes
+-	Def    bool
+-	Rhs    Nodes
+-	offset int64 // for initorder
++	Lhs     Nodes
++	Def     bool
++	Rhs     Nodes
++	Offset_ int64 // for initorder
+ }
+ 
+-func NewAssignListStmt(pos src.XPos, lhs, rhs []Node) *AssignListStmt {
++func NewAssignListStmt(pos src.XPos, op Op, lhs, rhs []Node) *AssignListStmt {
+ 	n := &AssignListStmt{}
+ 	n.pos = pos
+-	n.op = OAS2
++	n.SetOp(op)
+ 	n.Lhs.Set(lhs)
+ 	n.Rhs.Set(rhs)
+-	n.offset = types.BADWIDTH
++	n.Offset_ = types.BADWIDTH
+ 	return n
+ }
+ 
+@@ -87,8 +87,8 @@ func (n *AssignListStmt) PtrRlist() *Nodes  { return &n.Rhs }
+ func (n *AssignListStmt) SetRlist(x Nodes)  { n.Rhs = x }
+ func (n *AssignListStmt) Colas() bool       { return n.Def }
+ func (n *AssignListStmt) SetColas(x bool)   { n.Def = x }
+-func (n *AssignListStmt) Offset() int64     { return n.offset }
+-func (n *AssignListStmt) SetOffset(x int64) { n.offset = x }
++func (n *AssignListStmt) Offset() int64     { return n.Offset_ }
++func (n *AssignListStmt) SetOffset(x int64) { n.Offset_ = x }
+ 
+ func (n *AssignListStmt) SetOp(op Op) {
+ 	switch op {
+@@ -103,17 +103,17 @@ func (n *AssignListStmt) SetOp(op Op) {
+ // If Def is true, the assignment is a :=.
+ type AssignStmt struct {
+ 	miniStmt
+-	X      Node
+-	Def    bool
+-	Y      Node
+-	offset int64 // for initorder
++	X       Node
++	Def     bool
++	Y       Node
++	Offset_ int64 // for initorder
+ }
+ 
+ func NewAssignStmt(pos src.XPos, x, y Node) *AssignStmt {
+ 	n := &AssignStmt{X: x, Y: y}
+ 	n.pos = pos
+ 	n.op = OAS
+-	n.offset = types.BADWIDTH
++	n.Offset_ = types.BADWIDTH
+ 	return n
+ }
+ 
+@@ -123,8 +123,8 @@ func (n *AssignStmt) Right() Node       { return n.Y }
+ func (n *AssignStmt) SetRight(y Node)   { n.Y = y }
+ func (n *AssignStmt) Colas() bool       { return n.Def }
+ func (n *AssignStmt) SetColas(x bool)   { n.Def = x }
+-func (n *AssignStmt) Offset() int64     { return n.offset }
+-func (n *AssignStmt) SetOffset(x int64) { n.offset = x }
++func (n *AssignStmt) Offset() int64     { return n.Offset_ }
++func (n *AssignStmt) SetOffset(x int64) { n.Offset_ = x }
+ 
+ func (n *AssignStmt) SetOp(op Op) {
+ 	switch op {
+@@ -236,32 +236,16 @@ func (n *CaseStmt) SetRlist(x Nodes) { n.Vars = x }
+ func (n *CaseStmt) Left() Node       { return n.Comm }
+ func (n *CaseStmt) SetLeft(x Node)   { n.Comm = x }
+ 
+-// A DeferStmt is a defer statement: defer Call.
+-type DeferStmt struct {
+-	miniStmt
+-	Call Node
+-}
+-
+-func NewDeferStmt(pos src.XPos, call Node) *DeferStmt {
+-	n := &DeferStmt{Call: call}
+-	n.pos = pos
+-	n.op = ODEFER
+-	return n
+-}
+-
+-func (n *DeferStmt) Left() Node     { return n.Call }
+-func (n *DeferStmt) SetLeft(x Node) { n.Call = x }
+-
+ // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
+ // Op can be OFOR or OFORUNTIL (!Cond).
+ type ForStmt struct {
+ 	miniStmt
+-	Label    *types.Sym
+-	Cond     Node
+-	Late     Nodes
+-	Post     Node
+-	Body_    Nodes
+-	hasBreak bool
++	Label     *types.Sym
++	Cond      Node
++	Late      Nodes
++	Post      Node
++	Body_     Nodes
++	HasBreak_ bool
+ }
+ 
+ func NewForStmt(pos src.XPos, init []Node, cond, post Node, body []Node) *ForStmt {
+@@ -285,8 +269,8 @@ func (n *ForStmt) SetBody(x Nodes)     { n.Body_ = x }
+ func (n *ForStmt) List() Nodes         { return n.Late }
+ func (n *ForStmt) PtrList() *Nodes     { return &n.Late }
+ func (n *ForStmt) SetList(x Nodes)     { n.Late = x }
+-func (n *ForStmt) HasBreak() bool      { return n.hasBreak }
+-func (n *ForStmt) SetHasBreak(b bool)  { n.hasBreak = b }
++func (n *ForStmt) HasBreak() bool      { return n.HasBreak_ }
++func (n *ForStmt) SetHasBreak(b bool)  { n.HasBreak_ = b }
+ 
+ func (n *ForStmt) SetOp(op Op) {
+ 	if op != OFOR && op != OFORUNTIL {
+@@ -295,29 +279,38 @@ func (n *ForStmt) SetOp(op Op) {
+ 	n.op = op
+ }
+ 
+-// A GoStmt is a go statement: go Call.
+-type GoStmt struct {
++// A GoDeferStmt is a go or defer statement: go Call / defer Call.
++//
++// The two opcodes use a signle syntax because the implementations
++// are very similar: both are concerned with saving Call and running it
++// in a different context (a separate goroutine or a later time).
++type GoDeferStmt struct {
+ 	miniStmt
+ 	Call Node
+ }
+ 
+-func NewGoStmt(pos src.XPos, call Node) *GoStmt {
+-	n := &GoStmt{Call: call}
++func NewGoDeferStmt(pos src.XPos, op Op, call Node) *GoDeferStmt {
++	n := &GoDeferStmt{Call: call}
+ 	n.pos = pos
+-	n.op = OGO
++	switch op {
++	case ODEFER, OGO:
++		n.op = op
++	default:
++		panic("NewGoDeferStmt " + op.String())
++	}
+ 	return n
+ }
+ 
+-func (n *GoStmt) Left() Node     { return n.Call }
+-func (n *GoStmt) SetLeft(x Node) { n.Call = x }
++func (n *GoDeferStmt) Left() Node     { return n.Call }
++func (n *GoDeferStmt) SetLeft(x Node) { n.Call = x }
+ 
+ // A IfStmt is a return statement: if Init; Cond { Then } else { Else }.
+ type IfStmt struct {
+ 	miniStmt
+-	Cond   Node
+-	Body_  Nodes
+-	Else   Nodes
+-	likely bool // code layout hint
++	Cond    Node
++	Body_   Nodes
++	Else    Nodes
++	Likely_ bool // code layout hint
+ }
+ 
+ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
+@@ -337,8 +330,8 @@ func (n *IfStmt) SetBody(x Nodes)  { n.Body_ = x }
+ func (n *IfStmt) Rlist() Nodes     { return n.Else }
+ func (n *IfStmt) PtrRlist() *Nodes { return &n.Else }
+ func (n *IfStmt) SetRlist(x Nodes) { n.Else = x }
+-func (n *IfStmt) Likely() bool     { return n.likely }
+-func (n *IfStmt) SetLikely(x bool) { n.likely = x }
++func (n *IfStmt) Likely() bool     { return n.Likely_ }
++func (n *IfStmt) SetLikely(x bool) { n.Likely_ = x }
+ 
+ // An InlineMarkStmt is a marker placed just before an inlined body.
+ type InlineMarkStmt struct {
+@@ -376,13 +369,13 @@ func (n *LabelStmt) SetSym(x *types.Sym) { n.Label = x }
+ // Op can be OFOR or OFORUNTIL (!Cond).
+ type RangeStmt struct {
+ 	miniStmt
+-	Label    *types.Sym
+-	Vars     Nodes // TODO(rsc): Replace with Key, Value Node
+-	Def      bool
+-	X        Node
+-	Body_    Nodes
+-	hasBreak bool
+-	typ      *types.Type // TODO(rsc): Remove - use X.Type() instead
++	Label     *types.Sym
++	Vars      Nodes // TODO(rsc): Replace with Key, Value Node
++	Def       bool
++	X         Node
++	Body_     Nodes
++	HasBreak_ bool
++	typ       *types.Type // TODO(rsc): Remove - use X.Type() instead
+ }
+ 
+ func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {
+@@ -404,8 +397,8 @@ func (n *RangeStmt) SetBody(x Nodes)       { n.Body_ = x }
+ func (n *RangeStmt) List() Nodes           { return n.Vars }
+ func (n *RangeStmt) PtrList() *Nodes       { return &n.Vars }
+ func (n *RangeStmt) SetList(x Nodes)       { n.Vars = x }
+-func (n *RangeStmt) HasBreak() bool        { return n.hasBreak }
+-func (n *RangeStmt) SetHasBreak(b bool)    { n.hasBreak = b }
++func (n *RangeStmt) HasBreak() bool        { return n.HasBreak_ }
++func (n *RangeStmt) SetHasBreak(b bool)    { n.HasBreak_ = b }
+ func (n *RangeStmt) Colas() bool           { return n.Def }
+ func (n *RangeStmt) SetColas(b bool)       { n.Def = b }
+ func (n *RangeStmt) Type() *types.Type     { return n.typ }
+@@ -437,9 +430,9 @@ func (n *ReturnStmt) IsDDD() bool     { return false } // typecheckargs asks
+ // A SelectStmt is a block: { Cases }.
+ type SelectStmt struct {
+ 	miniStmt
+-	Label    *types.Sym
+-	Cases    Nodes
+-	hasBreak bool
++	Label     *types.Sym
++	Cases     Nodes
++	HasBreak_ bool
+ 
+ 	// TODO(rsc): Instead of recording here, replace with a block?
+ 	Compiled Nodes // compiled form, after walkswitch
+@@ -458,8 +451,8 @@ func (n *SelectStmt) PtrList() *Nodes     { return &n.Cases }
+ func (n *SelectStmt) SetList(x Nodes)     { n.Cases = x }
+ func (n *SelectStmt) Sym() *types.Sym     { return n.Label }
+ func (n *SelectStmt) SetSym(x *types.Sym) { n.Label = x }
+-func (n *SelectStmt) HasBreak() bool      { return n.hasBreak }
+-func (n *SelectStmt) SetHasBreak(x bool)  { n.hasBreak = x }
++func (n *SelectStmt) HasBreak() bool      { return n.HasBreak_ }
++func (n *SelectStmt) SetHasBreak(x bool)  { n.HasBreak_ = x }
+ func (n *SelectStmt) Body() Nodes         { return n.Compiled }
+ func (n *SelectStmt) PtrBody() *Nodes     { return &n.Compiled }
+ func (n *SelectStmt) SetBody(x Nodes)     { n.Compiled = x }
+@@ -486,10 +479,10 @@ func (n *SendStmt) SetRight(y Node) { n.Value = y }
+ // A SwitchStmt is a switch statement: switch Init; Expr { Cases }.
+ type SwitchStmt struct {
+ 	miniStmt
+-	Tag      Node
+-	Cases    Nodes // list of *CaseStmt
+-	Label    *types.Sym
+-	hasBreak bool
++	Tag       Node
++	Cases     Nodes // list of *CaseStmt
++	Label     *types.Sym
++	HasBreak_ bool
+ 
+ 	// TODO(rsc): Instead of recording here, replace with a block?
+ 	Compiled Nodes // compiled form, after walkswitch
+@@ -513,8 +506,8 @@ func (n *SwitchStmt) PtrBody() *Nodes     { return &n.Compiled }
+ func (n *SwitchStmt) SetBody(x Nodes)     { n.Compiled = x }
+ func (n *SwitchStmt) Sym() *types.Sym     { return n.Label }
+ func (n *SwitchStmt) SetSym(x *types.Sym) { n.Label = x }
+-func (n *SwitchStmt) HasBreak() bool      { return n.hasBreak }
+-func (n *SwitchStmt) SetHasBreak(x bool)  { n.hasBreak = x }
++func (n *SwitchStmt) HasBreak() bool      { return n.HasBreak_ }
++func (n *SwitchStmt) SetHasBreak(x bool)  { n.HasBreak_ = x }
+ 
+ // A TypeSwitchGuard is the [Name :=] X.(type) in a type switch.
+ type TypeSwitchGuard struct {
+diff --git a/src/cmd/compile/internal/ir/val.go b/src/cmd/compile/internal/ir/val.go
+index ad0df5508d..5b0506c0d0 100644
+--- a/src/cmd/compile/internal/ir/val.go
++++ b/src/cmd/compile/internal/ir/val.go
+@@ -92,7 +92,7 @@ func ValidTypeForConst(t *types.Type, v constant.Value) bool {
+ 
+ // nodlit returns a new untyped constant with value v.
+ func NewLiteral(v constant.Value) Node {
+-	n := Nod(OLITERAL, nil, nil)
++	n := newNameAt(base.Pos, OLITERAL, nil)
+ 	if k := v.Kind(); k != constant.Unknown {
+ 		n.SetType(idealType(k))
+ 		n.SetVal(v)

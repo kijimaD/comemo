@@ -11,7 +11,74 @@ Date:   Fri Dec 20 09:38:35 2013 -0800
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/44060044
-
+---
  src/pkg/io/ioutil/blackhole.go | 23 -----------------------
  src/pkg/io/ioutil/ioutil.go    | 14 +++++++++++---
  2 files changed, 11 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/io/ioutil/blackhole.go b/src/pkg/io/ioutil/blackhole.go
+deleted file mode 100644
+index 101d2c1215..0000000000
+--- a/src/pkg/io/ioutil/blackhole.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ioutil
+-
+-var blackHoleBuf = make(chan []byte, 1)
+-
+-func blackHole() []byte {
+-	select {
+-	case b := <-blackHoleBuf:
+-		return b
+-	default:
+-	}
+-	return make([]byte, 8192)
+-}
+-
+-func blackHolePut(p []byte) {
+-	select {
+-	case blackHoleBuf <- p:
+-	default:
+-	}
+-}
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index b2508b7899..909a815632 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -10,6 +10,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"sort"
++	"sync"
+ )
+ 
+ // readAll reads from r until an error or EOF and returns the data it read
+@@ -136,14 +137,21 @@ func (devNull) WriteString(s string) (int, error) {
+ 	return len(s), nil
+ }
+ 
++var blackHolePool = sync.Pool{
++	New: func() interface{} {
++		b := make([]byte, 8192)
++		return &b
++	},
++}
++
+ func (devNull) ReadFrom(r io.Reader) (n int64, err error) {
+-	buf := blackHole()
+-	defer blackHolePut(buf)
++	bufp := blackHolePool.Get().(*[]byte)
+ 	readSize := 0
+ 	for {
+-		readSize, err = r.Read(buf)
++		readSize, err = r.Read(*bufp)
+ 		n += int64(readSize)
+ 		if err != nil {
++			blackHolePool.Put(bufp)
+ 			if err == io.EOF {
+ 				return n, nil
+ 			}

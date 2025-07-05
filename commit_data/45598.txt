@@ -28,7 +28,7 @@ Date:   Wed Oct 14 08:36:11 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go   | 86 ++++++++++++++++----------------
  src/cmd/internal/obj/wasm/wasmobj.go |  6 +--
  src/cmd/internal/obj/x86/obj6.go     |  4 +-
@@ -50,3 +50,719 @@ Date:   Wed Oct 14 08:36:11 2020 -0400
  src/runtime/race_amd64.s             | 12 +++--
  src/runtime/sys_linux_amd64.s        | 13 +++--
  20 files changed, 156 insertions(+), 114 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 45d628cc5e..7388e4e3e8 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -72,9 +72,9 @@ func initssaconfig() {
+ 	deferproc = sysfunc("deferproc")
+ 	deferprocStack = sysfunc("deferprocStack")
+ 	Deferreturn = sysfunc("deferreturn")
+-	Duffcopy = sysvar("duffcopy")             // asm func with special ABI
+-	Duffzero = sysvar("duffzero")             // asm func with special ABI
+-	gcWriteBarrier = sysvar("gcWriteBarrier") // asm func with special ABI
++	Duffcopy = sysfunc("duffcopy")
++	Duffzero = sysfunc("duffzero")
++	gcWriteBarrier = sysfunc("gcWriteBarrier")
+ 	goschedguarded = sysfunc("goschedguarded")
+ 	growslice = sysfunc("growslice")
+ 	msanread = sysfunc("msanread")
+@@ -105,51 +105,51 @@ func initssaconfig() {
+ 	// asm funcs with special ABI
+ 	if thearch.LinkArch.Name == "amd64" {
+ 		GCWriteBarrierReg = map[int16]*obj.LSym{
+-			x86.REG_AX: sysvar("gcWriteBarrier"),
+-			x86.REG_CX: sysvar("gcWriteBarrierCX"),
+-			x86.REG_DX: sysvar("gcWriteBarrierDX"),
+-			x86.REG_BX: sysvar("gcWriteBarrierBX"),
+-			x86.REG_BP: sysvar("gcWriteBarrierBP"),
+-			x86.REG_SI: sysvar("gcWriteBarrierSI"),
+-			x86.REG_R8: sysvar("gcWriteBarrierR8"),
+-			x86.REG_R9: sysvar("gcWriteBarrierR9"),
++			x86.REG_AX: sysfunc("gcWriteBarrier"),
++			x86.REG_CX: sysfunc("gcWriteBarrierCX"),
++			x86.REG_DX: sysfunc("gcWriteBarrierDX"),
++			x86.REG_BX: sysfunc("gcWriteBarrierBX"),
++			x86.REG_BP: sysfunc("gcWriteBarrierBP"),
++			x86.REG_SI: sysfunc("gcWriteBarrierSI"),
++			x86.REG_R8: sysfunc("gcWriteBarrierR8"),
++			x86.REG_R9: sysfunc("gcWriteBarrierR9"),
+ 		}
+ 	}
+ 
+ 	if thearch.LinkArch.Family == sys.Wasm {
+-		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("goPanicIndex")
+-		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("goPanicIndexU")
+-		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysvar("goPanicSliceAlen")
+-		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysvar("goPanicSliceAlenU")
+-		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysvar("goPanicSliceAcap")
+-		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysvar("goPanicSliceAcapU")
+-		BoundsCheckFunc[ssa.BoundsSliceB] = sysvar("goPanicSliceB")
+-		BoundsCheckFunc[ssa.BoundsSliceBU] = sysvar("goPanicSliceBU")
+-		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysvar("goPanicSlice3Alen")
+-		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("goPanicSlice3AlenU")
+-		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysvar("goPanicSlice3Acap")
+-		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("goPanicSlice3AcapU")
+-		BoundsCheckFunc[ssa.BoundsSlice3B] = sysvar("goPanicSlice3B")
+-		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysvar("goPanicSlice3BU")
+-		BoundsCheckFunc[ssa.BoundsSlice3C] = sysvar("goPanicSlice3C")
+-		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysvar("goPanicSlice3CU")
++		BoundsCheckFunc[ssa.BoundsIndex] = sysfunc("goPanicIndex")
++		BoundsCheckFunc[ssa.BoundsIndexU] = sysfunc("goPanicIndexU")
++		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysfunc("goPanicSliceAlen")
++		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysfunc("goPanicSliceAlenU")
++		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysfunc("goPanicSliceAcap")
++		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysfunc("goPanicSliceAcapU")
++		BoundsCheckFunc[ssa.BoundsSliceB] = sysfunc("goPanicSliceB")
++		BoundsCheckFunc[ssa.BoundsSliceBU] = sysfunc("goPanicSliceBU")
++		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysfunc("goPanicSlice3Alen")
++		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysfunc("goPanicSlice3AlenU")
++		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysfunc("goPanicSlice3Acap")
++		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysfunc("goPanicSlice3AcapU")
++		BoundsCheckFunc[ssa.BoundsSlice3B] = sysfunc("goPanicSlice3B")
++		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysfunc("goPanicSlice3BU")
++		BoundsCheckFunc[ssa.BoundsSlice3C] = sysfunc("goPanicSlice3C")
++		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysfunc("goPanicSlice3CU")
+ 	} else {
+-		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("panicIndex")
+-		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("panicIndexU")
+-		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysvar("panicSliceAlen")
+-		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysvar("panicSliceAlenU")
+-		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysvar("panicSliceAcap")
+-		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysvar("panicSliceAcapU")
+-		BoundsCheckFunc[ssa.BoundsSliceB] = sysvar("panicSliceB")
+-		BoundsCheckFunc[ssa.BoundsSliceBU] = sysvar("panicSliceBU")
+-		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysvar("panicSlice3Alen")
+-		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("panicSlice3AlenU")
+-		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysvar("panicSlice3Acap")
+-		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("panicSlice3AcapU")
+-		BoundsCheckFunc[ssa.BoundsSlice3B] = sysvar("panicSlice3B")
+-		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysvar("panicSlice3BU")
+-		BoundsCheckFunc[ssa.BoundsSlice3C] = sysvar("panicSlice3C")
+-		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysvar("panicSlice3CU")
++		BoundsCheckFunc[ssa.BoundsIndex] = sysfunc("panicIndex")
++		BoundsCheckFunc[ssa.BoundsIndexU] = sysfunc("panicIndexU")
++		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysfunc("panicSliceAlen")
++		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysfunc("panicSliceAlenU")
++		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysfunc("panicSliceAcap")
++		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysfunc("panicSliceAcapU")
++		BoundsCheckFunc[ssa.BoundsSliceB] = sysfunc("panicSliceB")
++		BoundsCheckFunc[ssa.BoundsSliceBU] = sysfunc("panicSliceBU")
++		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysfunc("panicSlice3Alen")
++		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysfunc("panicSlice3AlenU")
++		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysfunc("panicSlice3Acap")
++		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysfunc("panicSlice3AcapU")
++		BoundsCheckFunc[ssa.BoundsSlice3B] = sysfunc("panicSlice3B")
++		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysfunc("panicSlice3BU")
++		BoundsCheckFunc[ssa.BoundsSlice3C] = sysfunc("panicSlice3C")
++		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysfunc("panicSlice3CU")
+ 	}
+ 	if thearch.LinkArch.PtrSize == 4 {
+ 		ExtendCheckFunc[ssa.BoundsIndex] = sysvar("panicExtendIndex")
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index f7f66a1255..2e9890d86c 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -129,7 +129,6 @@ var (
+ 	morestackNoCtxt *obj.LSym
+ 	gcWriteBarrier  *obj.LSym
+ 	sigpanic        *obj.LSym
+-	sigpanic0       *obj.LSym
+ 	deferreturn     *obj.LSym
+ 	jmpdefer        *obj.LSym
+ )
+@@ -142,9 +141,8 @@ const (
+ func instinit(ctxt *obj.Link) {
+ 	morestack = ctxt.Lookup("runtime.morestack")
+ 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
+-	gcWriteBarrier = ctxt.Lookup("runtime.gcWriteBarrier")
++	gcWriteBarrier = ctxt.LookupABI("runtime.gcWriteBarrier", obj.ABIInternal)
+ 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
+-	sigpanic0 = ctxt.LookupABI("runtime.sigpanic", 0) // sigpanic called from assembly, which has ABI0
+ 	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
+ 	// jmpdefer is defined in assembly as ABI0, but what we're
+ 	// looking for is the *call* to jmpdefer from the Go function
+@@ -493,7 +491,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			}
+ 
+ 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
+-			if call.As == ACALLNORESUME && call.To.Sym != sigpanic && call.To.Sym != sigpanic0 { // sigpanic unwinds the stack, but it never resumes
++			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
+ 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
+ 				p = appendp(p, AIf)
+ 				p = appendp(p, obj.AUNDEF)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index e11fa13f65..184fb4308b 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -324,9 +324,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		// flags and duffzero on 386 does not otherwise do so).
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+-			sym = ctxt.Lookup("runtime.duffzero")
++			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
+ 		} else {
+-			sym = ctxt.Lookup("runtime.duffcopy")
++			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
+ 		}
+ 		offset := p.To.Offset
+ 		p.As = mov
+diff --git a/src/reflect/asm_amd64.s b/src/reflect/asm_amd64.s
+index fb28ab87f1..5c8e56558c 100644
+--- a/src/reflect/asm_amd64.s
++++ b/src/reflect/asm_amd64.s
+@@ -9,7 +9,9 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
++// makeFuncStub must be ABIInternal because it is placed directly
++// in function values.
++TEXT ·makeFuncStub<ABIInternal>(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 	MOVQ	DX, 0(SP)
+ 	LEAQ	argframe+0(FP), CX
+@@ -17,14 +19,16 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ 	MOVB	$0, 24(SP)
+ 	LEAQ	24(SP), AX
+ 	MOVQ	AX, 16(SP)
+-	CALL	·callReflect(SB)
++	CALL	·callReflect<ABIInternal>(SB)
+ 	RET
+ 
+ // methodValueCall is the code half of the function returned by makeMethodValue.
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
++// methodValueCall must be ABIInternal because it is placed directly
++// in function values.
++TEXT ·methodValueCall<ABIInternal>(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 	MOVQ	DX, 0(SP)
+ 	LEAQ	argframe+0(FP), CX
+@@ -32,5 +36,5 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+ 	MOVB	$0, 24(SP)
+ 	LEAQ	24(SP), AX
+ 	MOVQ	AX, 16(SP)
+-	CALL	·callMethod(SB)
++	CALL	·callMethod<ABIInternal>(SB)
+ 	RET
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 19a3bb2d7d..196252e1dd 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -84,7 +84,9 @@ GLOBL _rt0_amd64_lib_argc<>(SB),NOPTR, $8
+ DATA _rt0_amd64_lib_argv<>(SB)/8, $0
+ GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
+ 
+-TEXT runtime·rt0_go(SB),NOSPLIT,$0
++// Defined as ABIInternal since it does not use the stack-based Go ABI (and
++// in addition there are no calls to this entry point from Go code).
++TEXT runtime·rt0_go<ABIInternal>(SB),NOSPLIT,$0
+ 	// copy arguments forward on an even stack
+ 	MOVQ	DI, AX		// argc
+ 	MOVQ	SI, BX		// argv
+@@ -229,10 +231,13 @@ ok:
+ 
+ 	// Prevent dead-code elimination of debugCallV1, which is
+ 	// intended to be called by debuggers.
+-	MOVQ	$runtime·debugCallV1(SB), AX
++	MOVQ	$runtime·debugCallV1<ABIInternal>(SB), AX
+ 	RET
+ 
+-DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
++// mainPC is a function value for runtime.main, to be passed to newproc.
++// The reference to runtime.main is made via ABIInternal, since the
++// actual function (not the ABI0 wrapper) is needed by newproc.
++DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)
+ GLOBL	runtime·mainPC(SB),RODATA,$8
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
+@@ -468,7 +473,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT ·reflectcall(SB), NOSPLIT, $0-32
++TEXT ·reflectcall<ABIInternal>(SB), NOSPLIT, $0-32
+ 	MOVLQZX argsize+24(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+@@ -1354,8 +1359,11 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ 	RET
+ 
+ // The top-most function running on a goroutine
+-// returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT,$0-0
++// returns to goexit+PCQuantum. Defined as ABIInternal
++// so as to make it identifiable to traceback (this
++// function it used as a sentinel; traceback wants to
++// see the func PC, not a wrapper PC).
++TEXT runtime·goexit<ABIInternal>(SB),NOSPLIT,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+@@ -1377,7 +1385,8 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ // - AX is the value being written at DI
+ // It clobbers FLAGS. It does not clobber any general-purpose registers,
+ // but may clobber others (e.g., SSE registers).
+-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$120
++// Defined as ABIInternal since it does not use the stack-based Go ABI.
++TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$120
+ 	// Save the registers clobbered by the fast path. This is slightly
+ 	// faster than having the caller spill these.
+ 	MOVQ	R14, 104(SP)
+@@ -1461,51 +1470,58 @@ flush:
+ 	JMP	ret
+ 
+ // gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.
+-TEXT runtime·gcWriteBarrierCX(SB),NOSPLIT,$0
++// Defined as ABIInternal since it does not use the stable Go ABI.
++TEXT runtime·gcWriteBarrierCX<ABIInternal>(SB),NOSPLIT,$0
+ 	XCHGQ CX, AX
+-	CALL runtime·gcWriteBarrier(SB)
++	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ CX, AX
+ 	RET
+ 
+ // gcWriteBarrierDX is gcWriteBarrier, but with args in DI and DX.
+-TEXT runtime·gcWriteBarrierDX(SB),NOSPLIT,$0
++// Defined as ABIInternal since it does not use the stable Go ABI.
++TEXT runtime·gcWriteBarrierDX<ABIInternal>(SB),NOSPLIT,$0
+ 	XCHGQ DX, AX
+-	CALL runtime·gcWriteBarrier(SB)
++	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ DX, AX
+ 	RET
+ 
+ // gcWriteBarrierBX is gcWriteBarrier, but with args in DI and BX.
+-TEXT runtime·gcWriteBarrierBX(SB),NOSPLIT,$0
++// Defined as ABIInternal since it does not use the stable Go ABI.
++TEXT runtime·gcWriteBarrierBX<ABIInternal>(SB),NOSPLIT,$0
+ 	XCHGQ BX, AX
+-	CALL runtime·gcWriteBarrier(SB)
++	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ BX, AX
+ 	RET
+ 
+ // gcWriteBarrierBP is gcWriteBarrier, but with args in DI and BP.
+-TEXT runtime·gcWriteBarrierBP(SB),NOSPLIT,$0
++// Defined as ABIInternal since it does not use the stable Go ABI.
++TEXT runtime·gcWriteBarrierBP<ABIInternal>(SB),NOSPLIT,$0
+ 	XCHGQ BP, AX
+-	CALL runtime·gcWriteBarrier(SB)
++	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ BP, AX
+ 	RET
+ 
+ // gcWriteBarrierSI is gcWriteBarrier, but with args in DI and SI.
+-TEXT runtime·gcWriteBarrierSI(SB),NOSPLIT,$0
++// Defined as ABIInternal since it does not use the stable Go ABI.
++TEXT runtime·gcWriteBarrierSI<ABIInternal>(SB),NOSPLIT,$0
+ 	XCHGQ SI, AX
+-	CALL runtime·gcWriteBarrier(SB)
++	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ SI, AX
+ 	RET
+ 
+ // gcWriteBarrierR8 is gcWriteBarrier, but with args in DI and R8.
+-TEXT runtime·gcWriteBarrierR8(SB),NOSPLIT,$0
++// Defined as ABIInternal since it does not use the stable Go ABI.
++TEXT runtime·gcWriteBarrierR8<ABIInternal>(SB),NOSPLIT,$0
+ 	XCHGQ R8, AX
+-	CALL runtime·gcWriteBarrier(SB)
++	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ R8, AX
+ 	RET
+ 
+ // gcWriteBarrierR9 is gcWriteBarrier, but with args in DI and R9.
+-TEXT runtime·gcWriteBarrierR9(SB),NOSPLIT,$0
++// Defined as ABIInternal since it does not use the stable Go ABI.
++TEXT runtime·gcWriteBarrierR9<ABIInternal>(SB),NOSPLIT,$0
+ 	XCHGQ R9, AX
+-	CALL runtime·gcWriteBarrier(SB)
++	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ R9, AX
+ 	RET
+ 
+@@ -1544,7 +1560,10 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+ // obey escape analysis requirements. Specifically, it must not pass
+ // a stack pointer to an escaping argument. debugCallV1 cannot check
+ // this invariant.
+-TEXT runtime·debugCallV1(SB),NOSPLIT,$152-0
++//
++// This is ABIInternal because Go code injects its PC directly into new
++// goroutine stacks.
++TEXT runtime·debugCallV1<ABIInternal>(SB),NOSPLIT,$152-0
+ 	// Save all registers that may contain pointers so they can be
+ 	// conservatively scanned.
+ 	//
+@@ -1705,67 +1724,68 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
+ // in the caller's stack frame. These stubs write the args into that stack space and
+ // then tail call to the corresponding runtime handler.
+ // The tail call makes these stubs disappear in backtraces.
+-TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
++// Defined as ABIInternal since they do not use the stack-based Go ABI.
++TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	AX, x+0(FP)
+ 	MOVQ	CX, y+8(FP)
+ 	JMP	runtime·goPanicIndex(SB)
+-TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
++TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	AX, x+0(FP)
+ 	MOVQ	CX, y+8(FP)
+ 	JMP	runtime·goPanicIndexU(SB)
+-TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
++TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	CX, x+0(FP)
+ 	MOVQ	DX, y+8(FP)
+ 	JMP	runtime·goPanicSliceAlen(SB)
+-TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
++TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	CX, x+0(FP)
+ 	MOVQ	DX, y+8(FP)
+ 	JMP	runtime·goPanicSliceAlenU(SB)
+-TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
++TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	CX, x+0(FP)
+ 	MOVQ	DX, y+8(FP)
+ 	JMP	runtime·goPanicSliceAcap(SB)
+-TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
++TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	CX, x+0(FP)
+ 	MOVQ	DX, y+8(FP)
+ 	JMP	runtime·goPanicSliceAcapU(SB)
+-TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
++TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	AX, x+0(FP)
+ 	MOVQ	CX, y+8(FP)
+ 	JMP	runtime·goPanicSliceB(SB)
+-TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
++TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	AX, x+0(FP)
+ 	MOVQ	CX, y+8(FP)
+ 	JMP	runtime·goPanicSliceBU(SB)
+-TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
++TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	DX, x+0(FP)
+ 	MOVQ	BX, y+8(FP)
+ 	JMP	runtime·goPanicSlice3Alen(SB)
+-TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
++TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	DX, x+0(FP)
+ 	MOVQ	BX, y+8(FP)
+ 	JMP	runtime·goPanicSlice3AlenU(SB)
+-TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
++TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	DX, x+0(FP)
+ 	MOVQ	BX, y+8(FP)
+ 	JMP	runtime·goPanicSlice3Acap(SB)
+-TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
++TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	DX, x+0(FP)
+ 	MOVQ	BX, y+8(FP)
+ 	JMP	runtime·goPanicSlice3AcapU(SB)
+-TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
++TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	CX, x+0(FP)
+ 	MOVQ	DX, y+8(FP)
+ 	JMP	runtime·goPanicSlice3B(SB)
+-TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
++TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	CX, x+0(FP)
+ 	MOVQ	DX, y+8(FP)
+ 	JMP	runtime·goPanicSlice3BU(SB)
+-TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
++TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	AX, x+0(FP)
+ 	MOVQ	CX, y+8(FP)
+ 	JMP	runtime·goPanicSlice3C(SB)
+-TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
++TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVQ	AX, x+0(FP)
+ 	MOVQ	CX, y+8(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 67e81adf0b..fcb780f1dc 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -196,7 +196,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+ 	Get CTXT
+ 	I64Eqz
+ 	If
+-		CALLNORESUME runtime·sigpanic(SB)
++		CALLNORESUME runtime·sigpanic<ABIInternal>(SB)
+ 	End
+ 
+ 	// caller sp after CALL
+@@ -300,7 +300,7 @@ TEXT ·reflectcall(SB), NOSPLIT, $0-32
+ 	I64Load fn+8(FP)
+ 	I64Eqz
+ 	If
+-		CALLNORESUME runtime·sigpanic(SB)
++		CALLNORESUME runtime·sigpanic<ABIInternal>(SB)
+ 	End
+ 
+ 	MOVW argsize+24(FP), R0
+diff --git a/src/runtime/duff_amd64.s b/src/runtime/duff_amd64.s
+index 44dc75d297..2ff5bf6dbc 100644
+--- a/src/runtime/duff_amd64.s
++++ b/src/runtime/duff_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT runtime·duffzero(SB), NOSPLIT, $0-0
++TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT, $0-0
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+@@ -103,7 +103,7 @@ TEXT runtime·duffzero(SB), NOSPLIT, $0-0
+ 
+ 	RET
+ 
+-TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
++TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT, $0-0
+ 	MOVUPS	(SI), X0
+ 	ADDQ	$16, SI
+ 	MOVUPS	X0, (DI)
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 286f81489a..1d614dd003 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -126,7 +126,8 @@ func header(arch string) {
+ 	}
+ 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
+ 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")
+-	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
++	fmt.Fprintf(out, "// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.\n")
++	fmt.Fprintf(out, "TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0\n")
+ }
+ 
+ func p(f string, args ...interface{}) {
+diff --git a/src/runtime/preempt_386.s b/src/runtime/preempt_386.s
+index c3a5fa1f36..a803b24dc6 100644
+--- a/src/runtime/preempt_386.s
++++ b/src/runtime/preempt_386.s
+@@ -3,7 +3,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
++// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
++TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	PUSHFL
+ 	ADJSP $156
+ 	NOP SP
+diff --git a/src/runtime/preempt_amd64.s b/src/runtime/preempt_amd64.s
+index 4765e9f448..92c664d79a 100644
+--- a/src/runtime/preempt_amd64.s
++++ b/src/runtime/preempt_amd64.s
+@@ -3,7 +3,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
++// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
++TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	PUSHQ BP
+ 	MOVQ SP, BP
+ 	// Save flags before clobbering them
+diff --git a/src/runtime/preempt_arm.s b/src/runtime/preempt_arm.s
+index 8f243c0dcd..bbc9fbb1ea 100644
+--- a/src/runtime/preempt_arm.s
++++ b/src/runtime/preempt_arm.s
+@@ -3,7 +3,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
++// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
++TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW.W R14, -188(R13)
+ 	MOVW R0, 4(R13)
+ 	MOVW R1, 8(R13)
+diff --git a/src/runtime/preempt_arm64.s b/src/runtime/preempt_arm64.s
+index 36ee13282c..2b70a28479 100644
+--- a/src/runtime/preempt_arm64.s
++++ b/src/runtime/preempt_arm64.s
+@@ -3,7 +3,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
++// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
++TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD R30, -496(RSP)
+ 	SUB $496, RSP
+ 	#ifdef GOOS_linux
+diff --git a/src/runtime/preempt_mips64x.s b/src/runtime/preempt_mips64x.s
+index 1e123e8077..0d0c157c36 100644
+--- a/src/runtime/preempt_mips64x.s
++++ b/src/runtime/preempt_mips64x.s
+@@ -5,7 +5,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
++// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
++TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVV R31, -488(R29)
+ 	SUBV $488, R29
+ 	MOVV R1, 8(R29)
+diff --git a/src/runtime/preempt_mipsx.s b/src/runtime/preempt_mipsx.s
+index afac33e0a0..86d3a918d3 100644
+--- a/src/runtime/preempt_mipsx.s
++++ b/src/runtime/preempt_mipsx.s
+@@ -5,7 +5,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
++// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
++TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW R31, -244(R29)
+ 	SUB $244, R29
+ 	MOVW R1, 4(R29)
+diff --git a/src/runtime/preempt_ppc64x.s b/src/runtime/preempt_ppc64x.s
+index b2d7e30ec7..90634386db 100644
+--- a/src/runtime/preempt_ppc64x.s
++++ b/src/runtime/preempt_ppc64x.s
+@@ -5,7 +5,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
++// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
++TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD R31, -488(R1)
+ 	MOVD LR, R31
+ 	MOVDU R31, -520(R1)
+diff --git a/src/runtime/preempt_riscv64.s b/src/runtime/preempt_riscv64.s
+index eb68dcba2b..d4f9cc277f 100644
+--- a/src/runtime/preempt_riscv64.s
++++ b/src/runtime/preempt_riscv64.s
+@@ -3,7 +3,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
++// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
++TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOV X1, -472(X2)
+ 	ADD $-472, X2
+ 	MOV X3, 8(X2)
+diff --git a/src/runtime/preempt_s390x.s b/src/runtime/preempt_s390x.s
+index ca9e47cde1..c6f11571df 100644
+--- a/src/runtime/preempt_s390x.s
++++ b/src/runtime/preempt_s390x.s
+@@ -3,7 +3,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
++// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
++TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	IPM R10
+ 	MOVD R14, -248(R15)
+ 	ADD $-248, R15
+diff --git a/src/runtime/preempt_wasm.s b/src/runtime/preempt_wasm.s
+index 0cf57d3d22..da90e8aa6d 100644
+--- a/src/runtime/preempt_wasm.s
++++ b/src/runtime/preempt_wasm.s
+@@ -3,6 +3,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
++// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
++TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	// No async preemption on wasm
+ 	UNDEF
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 758d543203..4a86b3371a 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -41,7 +41,9 @@
+ 
+ // func runtime·raceread(addr uintptr)
+ // Called from instrumented code.
+-TEXT	runtime·raceread(SB), NOSPLIT, $0-8
++// Defined as ABIInternal so as to avoid introducing a wrapper,
++// which would render runtime.getcallerpc ineffective.
++TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
+ 	MOVQ	addr+0(FP), RARG1
+ 	MOVQ	(SP), RARG2
+ 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
+@@ -65,7 +67,9 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
+ 
+ // func runtime·racewrite(addr uintptr)
+ // Called from instrumented code.
+-TEXT	runtime·racewrite(SB), NOSPLIT, $0-8
++// Defined as ABIInternal so as to avoid introducing a wrapper,
++// which would render runtime.getcallerpc ineffective.
++TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
+ 	MOVQ	addr+0(FP), RARG1
+ 	MOVQ	(SP), RARG2
+ 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
+@@ -114,7 +118,9 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
+ 
+ // func runtime·racewriterange(addr, size uintptr)
+ // Called from instrumented code.
+-TEXT	runtime·racewriterange(SB), NOSPLIT, $0-16
++// Defined as ABIInternal so as to avoid introducing a wrapper,
++// which would render runtime.getcallerpc ineffective.
++TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
+ 	MOVQ	addr+0(FP), RARG1
+ 	MOVQ	size+8(FP), RARG2
+ 	MOVQ	(SP), RARG3
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 681cd20274..37cb8dad03 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -380,7 +380,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$72
++// Defined as ABIInternal since it does not use the stack-based Go ABI.
++TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$72
+ 	// Save callee-saved C registers, since the caller may be a C signal handler.
+ 	MOVQ	BX,  bx-8(SP)
+ 	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+@@ -407,7 +408,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$72
+ 
+ // Used instead of sigtramp in programs that use cgo.
+ // Arguments from kernel are in DI, SI, DX.
+-TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++// Defined as ABIInternal since it does not use the stack-based Go ABI.
++TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
+ 	// If no traceback function, do usual sigtramp.
+ 	MOVQ	runtime·cgoTraceback(SB), AX
+ 	TESTQ	AX, AX
+@@ -450,12 +452,12 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	// The first three arguments, and the fifth, are already in registers.
+ 	// Set the two remaining arguments now.
+ 	MOVQ	runtime·cgoTraceback(SB), CX
+-	MOVQ	$runtime·sigtramp(SB), R9
++	MOVQ	$runtime·sigtramp<ABIInternal>(SB), R9
+ 	MOVQ	_cgo_callers(SB), AX
+ 	JMP	AX
+ 
+ sigtramp:
+-	JMP	runtime·sigtramp(SB)
++	JMP	runtime·sigtramp<ABIInternal>(SB)
+ 
+ sigtrampnog:
+ 	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+@@ -486,7 +488,8 @@ sigtrampnog:
+ // https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/sigaction.c
+ // The code that cares about the precise instructions used is:
+ // https://gcc.gnu.org/viewcvs/gcc/trunk/libgcc/config/i386/linux-unwind.h?revision=219188&view=markup
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0
++// Defined as ABIInternal since it does not use the stack-based Go ABI.
++TEXT runtime·sigreturn<ABIInternal>(SB),NOSPLIT,$0
+ 	MOVQ	$SYS_rt_sigreturn, AX
+ 	SYSCALL
+ 	INT $3	// not reached

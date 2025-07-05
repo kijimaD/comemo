@@ -8,6 +8,22 @@ Date:   Wed Jul 14 10:11:12 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1838041
-
+---
  src/pkg/exp/eval/Makefile | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/eval/Makefile b/src/pkg/exp/eval/Makefile
+index 4accbb26da..50d8a175ed 100644
+--- a/src/pkg/exp/eval/Makefile
++++ b/src/pkg/exp/eval/Makefile
+@@ -30,8 +30,8 @@ eval: main.$O
+ gen.$O: gen.go
+ 	$(QUOTED_GOBIN)/$(GC) $<
+ 
+-expr1.go: gen.$O
+-	$(QUOTED_GOBIN)/$(LD) -o generate $<;\
++generate: gen.$O $(pkgdir)/$(TARG).a
++	$(QUOTED_GOBIN)/$(LD) -o $@ $<;\
+ 	./generate > expr1.go;\
+ 	gofmt -w expr1.go
+ 

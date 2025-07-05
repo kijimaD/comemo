@@ -8,6 +8,20 @@ Date:   Mon Sep 13 13:19:25 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2140048
-
+---
  test/arm-pass.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 0752260815..36852ed4c0 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -116,7 +116,7 @@
+ ./varerr.go
+ ./varinit.go
+ ./vectors.go
+-./zerodivide.go
++# ./zerodivide.go # regalloc fails
+ ken/array.go
+ ken/chan.go
+ ken/chan1.go

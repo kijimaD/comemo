@@ -13,7 +13,52 @@ Date:   Tue Oct 15 19:30:54 2019 -0400
     Change-Id: Icdbbfed5da87fe3757be40dfd23182b37ec62d58
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201317
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa_s390x.go | 6 +++---
  src/crypto/ecdsa/ecdsa_s390x.s  | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa_s390x.go b/src/crypto/ecdsa/ecdsa_s390x.go
+index f07c3bf50c..485f5fe971 100644
+--- a/src/crypto/ecdsa/ecdsa_s390x.go
++++ b/src/crypto/ecdsa/ecdsa_s390x.go
+@@ -15,7 +15,7 @@ import (
+ 
+ // s390x accelerated signatures
+ //go:noescape
+-func kdsaSig(fc uint64, block *[1720]byte) (errn uint64)
++func kdsaSig(fc uint64, block *[4096]byte) (errn uint64)
+ 
+ type signverify int
+ 
+@@ -109,7 +109,7 @@ func zeroExtendAndCopy(dst, src []byte, size int) {
+ func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, e *big.Int) (r, s *big.Int, err error) {
+ 	var bo bufferOffsets
+ 	if canUseKDSA(signing, c, &bo) && e.Sign() != 0 {
+-		var buffer [1720]byte
++		var buffer [4096]byte
+ 		for {
+ 			var k *big.Int
+ 			k, err = randFieldElement(c, csprng)
+@@ -140,7 +140,7 @@ func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, e *bi
+ func verify(pub *PublicKey, c elliptic.Curve, e, r, s *big.Int) bool {
+ 	var bo bufferOffsets
+ 	if canUseKDSA(verifying, c, &bo) && e.Sign() != 0 {
+-		var buffer [1720]byte
++		var buffer [4096]byte
+ 		zeroExtendAndCopy(buffer[bo.offsetR:], r.Bytes(), bo.baseSize)
+ 		zeroExtendAndCopy(buffer[bo.offsetS:], s.Bytes(), bo.baseSize)
+ 		zeroExtendAndCopy(buffer[bo.offsetHash:], e.Bytes(), bo.hashSize)
+diff --git a/src/crypto/ecdsa/ecdsa_s390x.s b/src/crypto/ecdsa/ecdsa_s390x.s
+index 6ee00ce79c..c064400709 100644
+--- a/src/crypto/ecdsa/ecdsa_s390x.s
++++ b/src/crypto/ecdsa/ecdsa_s390x.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// func kdsaSig(fc uint64, block *[1720]byte) (errn uint64)
++// func kdsaSig(fc uint64, block *[4096]byte) (errn uint64)
+ TEXT ·kdsaSig(SB), NOSPLIT|NOFRAME, $0-24
+ 	MOVD fc+0(FP), R0    // function code
+ 	MOVD block+8(FP), R1 // address parameter block

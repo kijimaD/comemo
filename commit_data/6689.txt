@@ -7,6 +7,20 @@ Date:   Mon Nov 1 15:25:39 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2820041
-
+---
  src/pkg/go/printer/testdata/statements.golden | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index 02ac8a5497..5eceb7dd55 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -237,6 +237,8 @@ func _() {
+ 
+ 	if struct{ x bool }{false}.x {
+ 	}
++	if (struct{ x bool }{false}.x) == false {
++	}
+ 	if struct{ x bool }{false}.x == false {
+ 	}
+ }

@@ -15,9 +15,70 @@ Date:   Tue Sep 10 14:43:57 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13431044
-
+---
  src/cmd/go/test.bash                          | 13 +++++++++++++
  src/cmd/go/test.go                            |  6 ++++--
  src/cmd/go/testdata/src/syntaxerror/x.go      |  1 +
  src/cmd/go/testdata/src/syntaxerror/x_test.go |  4 ++++
  4 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index b55989c207..52d2f08337 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -104,6 +104,19 @@ cp -R testdata/local "testdata/$bad"
+ testlocal "$bad" 'with bad characters in path'
+ rm -rf "testdata/$bad"
+ 
++TEST error message for syntax error in test go file says FAIL
++export GOPATH=$(pwd)/testdata
++if ./testgo test syntaxerror 2>testdata/err; then
++	echo 'go test syntaxerror succeeded'
++	ok=false
++elif ! grep FAIL testdata/err >/dev/null; then
++	echo 'go test did not say FAIL:'
++	cat testdata/err
++	ok=false
++fi
++rm -f ./testdata/err
++unset GOPATH
++
+ # Test tests with relative imports.
+ TEST relative imports '(go test)'
+ if ! ./testgo test ./testdata/testimport; then
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index ebc9d28548..eab075db7c 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -423,10 +423,12 @@ func runTest(cmd *Command, args []string) {
+ 			if strings.HasPrefix(str, "\n") {
+ 				str = str[1:]
+ 			}
++			failed := fmt.Sprintf("FAIL\t%s [setup failed]\n", p.ImportPath)
++
+ 			if p.ImportPath != "" {
+-				errorf("# %s\n%s", p.ImportPath, str)
++				errorf("# %s\n%s\n%s", p.ImportPath, str, failed)
+ 			} else {
+-				errorf("%s", str)
++				errorf("%s\n%s", str, failed)
+ 			}
+ 			continue
+ 		}
+diff --git a/src/cmd/go/testdata/src/syntaxerror/x.go b/src/cmd/go/testdata/src/syntaxerror/x.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/syntaxerror/x.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/syntaxerror/x_test.go b/src/cmd/go/testdata/src/syntaxerror/x_test.go
+new file mode 100644
+index 0000000000..2460743e50
+--- /dev/null
++++ b/src/cmd/go/testdata/src/syntaxerror/x_test.go
+@@ -0,0 +1,4 @@
++package p
++
++func f() (x.y, z int) {
++}

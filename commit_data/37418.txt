@@ -16,6 +16,20 @@ Date:   Sat Jul 28 10:16:40 2018 +0200
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_windows_test.go b/src/cmd/go/go_windows_test.go
+index f278741c8b..99af3d43dc 100644
+--- a/src/cmd/go/go_windows_test.go
++++ b/src/cmd/go/go_windows_test.go
+@@ -97,7 +97,7 @@ func TestACL(t *testing.T) {
+ 	// will make all files created in TestACL/tmp have different
+ 	// security attributes to the files created in TestACL.
+ 	runIcacls(t, newtmpdir,
+-		"/grant", "guest:(oi)(ci)f", // add Guest user to have full access
++		"/grant", "*S-1-5-32-546:(oi)(ci)f", // add Guests group to have full access
+ 	)
+ 
+ 	src := filepath.Join(tmpdir, "main.go")

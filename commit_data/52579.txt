@@ -25,6 +25,37 @@ Date:   Wed May 11 10:42:39 2022 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/script_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 6254cf97c1..33bad4d741 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -81,6 +81,7 @@ func TestScript(t *testing.T) {
+ 		t.Run(name, func(t *testing.T) {
+ 			t.Parallel()
+ 			ctx, cancel := context.WithCancel(ctx)
++			defer cancel()
+ 			ts := &testScript{
+ 				t:           t,
+ 				ctx:         ctx,
+@@ -94,7 +95,6 @@ func TestScript(t *testing.T) {
+ 				defer removeAll(ts.workdir)
+ 			}
+ 			ts.run()
+-			cancel()
+ 		})
+ 	}
+ }
+@@ -210,6 +210,9 @@ func (ts *testScript) setup() {
+ 			ts.envMap[kv[:i]] = kv[i+1:]
+ 		}
+ 	}
++
++	fmt.Fprintf(&ts.log, "# (%s)\n", time.Now().UTC().Format(time.RFC3339))
++	ts.mark = ts.log.Len()
+ }
+ 
+ // goVersion returns the current Go version.

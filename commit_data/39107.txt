@@ -11,8 +11,63 @@ Date:   Wed Jan 2 18:47:06 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/extern.go    | 5 +++++
  src/runtime/mem_linux.go | 7 ++++++-
  src/runtime/runtime1.go  | 2 ++
  3 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 5e11eadb92..af858a331f 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -89,6 +89,11 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 		released: #  MB released to the system
+ 		consumed: #  MB allocated from the system
+ 
++	madvdontneed: setting madvdontneed=1 will use MADV_DONTNEED
++	instead of MADV_FREE on Linux when returning memory to the
++	kernel. This is less efficient, but causes RSS numbers to drop
++	more quickly.
++
+ 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
+ 	When set to 0 memory profiling is disabled.  Refer to the description of
+ 	MemProfileRate for the default value.
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 845f72ded2..1e45ed6301 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -105,7 +105,12 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 		throw("unaligned sysUnused")
+ 	}
+ 
+-	advise := atomic.Load(&adviseUnused)
++	var advise uint32
++	if debug.madvdontneed != 0 {
++		advise = _MADV_DONTNEED
++	} else {
++		advise = atomic.Load(&adviseUnused)
++	}
+ 	if errno := madvise(v, n, int32(advise)); advise == _MADV_FREE && errno != 0 {
+ 		// MADV_FREE was added in Linux 4.5. Fall back to MADV_DONTNEED if it is
+ 		// not supported.
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 8b8f4dcb1e..c5667e73ad 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -308,6 +308,7 @@ var debug struct {
+ 	gcstoptheworld     int32
+ 	gctrace            int32
+ 	invalidptr         int32
++	madvdontneed       int32 // for Linux; issue 28466
+ 	sbrk               int32
+ 	scavenge           int32
+ 	scheddetail        int32
+@@ -325,6 +326,7 @@ var dbgvars = []dbgVar{
+ 	{"gcstoptheworld", &debug.gcstoptheworld},
+ 	{"gctrace", &debug.gctrace},
+ 	{"invalidptr", &debug.invalidptr},
++	{"madvdontneed", &debug.madvdontneed},
+ 	{"sbrk", &debug.sbrk},
+ 	{"scavenge", &debug.scavenge},
+ 	{"scheddetail", &debug.scheddetail},

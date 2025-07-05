@@ -22,7 +22,43 @@ Date:   Thu Mar 23 11:40:47 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go | 4 ----
  src/cmd/compile/internal/gc/type.go    | 9 +++++++++
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 42543312f9..bd2ab1dc45 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -364,10 +364,6 @@ func transformclosure(xfunc *Node) {
+ 			xfunc.Func.Dcl = append(decls, xfunc.Func.Dcl...)
+ 		}
+ 
+-		// Recalculate param offsets.
+-		if f.Type.Width > 0 {
+-			Fatalf("transformclosure: width is already calculated")
+-		}
+ 		dowidth(f.Type)
+ 		xfunc.Type = f.Type // update type of ODCLFUNC
+ 	} else {
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 476a80b1b9..7f4796d60c 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -864,6 +864,15 @@ func (t *Type) FieldSlice() []*Field {
+ 
+ // SetFields sets struct/interface type t's fields/methods to fields.
+ func (t *Type) SetFields(fields []*Field) {
++	// If we've calculated the width of t before,
++	// then some other type such as a function signature
++	// might now have the wrong type.
++	// Rather than try to track and invalidate those,
++	// enforce that SetFields cannot be called once
++	// t's width has been calculated.
++	if t.WidthCalculated() {
++		Fatalf("SetFields of %v: width previously calculated", t)
++	}
+ 	t.wantEtype(TSTRUCT)
+ 	for _, f := range fields {
+ 		// If type T contains a field F with a go:notinheap

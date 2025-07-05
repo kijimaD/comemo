@@ -9,6 +9,38 @@ Date:   Thu May 21 13:40:17 2015 -0400
     Change-Id: Iae4b8f59c8392f6abd841490e56922738089f8d4
     Reviewed-on: https://go-review.googlesource.com/10297
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/pkg.go | 12 ++----------
  1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 41e66ef9c9..7a71471340 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -394,24 +394,16 @@ const (
+ 
+ // goTools is a map of Go program import path to install target directory.
+ var goTools = map[string]targetDir{
+-	"cmd/5g":                               toTool,
+-	"cmd/5l":                               toTool,
+-	"cmd/6g":                               toTool,
+-	"cmd/6l":                               toTool,
+-	"cmd/7g":                               toTool,
+-	"cmd/7l":                               toTool,
+-	"cmd/8g":                               toTool,
+-	"cmd/8l":                               toTool,
+-	"cmd/9g":                               toTool,
+-	"cmd/9l":                               toTool,
+ 	"cmd/addr2line":                        toTool,
+ 	"cmd/api":                              toTool,
+ 	"cmd/asm":                              toTool,
++	"cmd/compile":                          toTool,
+ 	"cmd/cgo":                              toTool,
+ 	"cmd/cover":                            toTool,
+ 	"cmd/dist":                             toTool,
+ 	"cmd/doc":                              toTool,
+ 	"cmd/fix":                              toTool,
++	"cmd/link":                             toTool,
+ 	"cmd/newlink":                          toTool,
+ 	"cmd/nm":                               toTool,
+ 	"cmd/objdump":                          toTool,

@@ -29,7 +29,47 @@ Date:   Thu Mar 26 15:10:21 2020 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 12 ++++++++++++
  src/runtime/pprof/proto.go      |  5 ++++-
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 5bfc3b6134..83b3152d68 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1171,6 +1171,18 @@ func TestTryAdd(t *testing.T) {
+ 			{Value: []int64{10, 10 * period}, Location: []*profile.Location{{ID: 1}, {ID: 1}}},
+ 			{Value: []int64{20, 20 * period}, Location: []*profile.Location{{ID: 1}}},
+ 		},
++	}, {
++		name: "bug38096",
++		input: []uint64{
++			3, 0, 500, // hz = 500. Must match the period.
++			// count (data[2]) == 0 && len(stk) == 1 is an overflow
++			// entry. The "stk" entry is actually the count.
++			4, 0, 0, 4242,
++		},
++		wantLocs: [][]string{{"runtime/pprof.lostProfileEvent"}},
++		wantSamples: []*profile.Sample{
++			{Value: []int64{4242, 4242 * period}, Location: []*profile.Location{{ID: 1}}},
++		},
+ 	}, {
+ 		// If a function is called recursively then it must not be
+ 		// inlined in the caller.
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 416ace7ab2..bb63153a70 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -322,7 +322,10 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error
+ 			// overflow record
+ 			count = uint64(stk[0])
+ 			stk = []uint64{
+-				uint64(funcPC(lostProfileEvent)),
++				// gentraceback guarantees that PCs in the
++				// stack can be unconditionally decremented and
++				// still be valid, so we must do the same.
++				uint64(funcPC(lostProfileEvent)+1),
+ 			}
+ 		}
+ 		b.m.lookup(stk, tag).count += int64(count)

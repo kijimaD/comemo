@@ -14,7 +14,7 @@ Date:   Sun Mar 4 13:38:57 2018 +0100
     Change-Id: Iba7f7158356b816c9ad03ca9223903a41a024da6
     Reviewed-on: https://go-review.googlesource.com/103915
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/bytealg/compare_generic.go   |   2 +-
  src/internal/bytealg/compare_native.go    |   2 +-
  src/internal/bytealg/compare_wasm.s       | 126 ++++++++++++++++
@@ -23,3 +23,560 @@ Date:   Sun Mar 4 13:38:57 2018 +0100
  src/internal/bytealg/indexbyte_native.go  |   2 +-
  src/internal/bytealg/indexbyte_wasm.s     | 243 ++++++++++++++++++++++++++++++
  7 files changed, 490 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/bytealg/compare_generic.go b/src/internal/bytealg/compare_generic.go
+index 69610517b2..5c35a1ac4a 100644
+--- a/src/internal/bytealg/compare_generic.go
++++ b/src/internal/bytealg/compare_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !386,!amd64,!amd64p32,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle
++// +build !386,!amd64,!amd64p32,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!wasm
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/compare_native.go b/src/internal/bytealg/compare_native.go
+index 8ffade55be..d4ff61938c 100644
+--- a/src/internal/bytealg/compare_native.go
++++ b/src/internal/bytealg/compare_native.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 amd64p32 s390x arm arm64 ppc64 ppc64le mips mipsle
++// +build 386 amd64 amd64p32 s390x arm arm64 ppc64 ppc64le mips mipsle wasm
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/compare_wasm.s b/src/internal/bytealg/compare_wasm.s
+new file mode 100644
+index 0000000000..39bc0fc37a
+--- /dev/null
++++ b/src/internal/bytealg/compare_wasm.s
+@@ -0,0 +1,126 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Compare(SB), NOSPLIT, $0-56
++	Get SP
++	I64Load s1_base+0(FP)
++	I64Load s1_len+8(FP)
++	I64Load s2_base+24(FP)
++	I64Load s2_len+32(FP)
++	Call cmpbody<>(SB)
++	I64Store ret+48(FP)
++	RET
++
++TEXT bytes·Compare(SB), NOSPLIT, $0-56
++	Get SP
++	I64Load s1_base+0(FP)
++	I64Load s1_len+8(FP)
++	I64Load s2_base+24(FP)
++	I64Load s2_len+32(FP)
++	Call cmpbody<>(SB)
++	I64Store ret+48(FP)
++	RET
++
++TEXT runtime·cmpstring(SB), NOSPLIT, $0-40
++	Get SP
++	I64Load s1_base+0(FP)
++	I64Load s1_len+8(FP)
++	I64Load s2_base+16(FP)
++	I64Load s2_len+24(FP)
++	Call cmpbody<>(SB)
++	I64Store ret+32(FP)
++	RET
++
++// params: a, alen, b, blen
++// ret: -1/0/1
++TEXT cmpbody<>(SB), NOSPLIT, $0-0
++	// len = min(alen, blen)
++	Get R1
++	Get R3
++	Get R1
++	Get R3
++	I64LtU
++	Select
++	Set R4
++
++	Get R0
++	I32WrapI64
++	Get R2
++	I32WrapI64
++	Get R4
++	I32WrapI64
++	Call memcmp<>(SB)
++	I64ExtendSI32
++	Set R5
++
++	Get R5
++	I64Eqz
++	If
++		// check length
++		Get R1
++		Get R3
++		I64Sub
++		Set R5
++	End
++
++	I64Const $0
++	I64Const $-1
++	I64Const $1
++	Get R5
++	I64Const $0
++	I64LtS
++	Select
++	Get R5
++	I64Eqz
++	Select
++	Return
++
++// compiled with emscripten
++// params: a, b, len
++// ret: <0/0/>0
++TEXT memcmp<>(SB), NOSPLIT, $0-0
++	Get R2
++	If $1
++	Loop
++	Get R0
++	I32Load8S $0
++	Tee R3
++	Get R1
++	I32Load8S $0
++	Tee R4
++	I32Eq
++	If
++	Get R0
++	I32Const $1
++	I32Add
++	Set R0
++	Get R1
++	I32Const $1
++	I32Add
++	Set R1
++	I32Const $0
++	Get R2
++	I32Const $-1
++	I32Add
++	Tee R2
++	I32Eqz
++	BrIf $3
++	Drop
++	Br $1
++	End
++	End
++	Get R3
++	I32Const $255
++	I32And
++	Get R4
++	I32Const $255
++	I32And
++	I32Sub
++	Else
++	I32Const $0
++	End
++	Return
+diff --git a/src/internal/bytealg/equal_wasm.s b/src/internal/bytealg/equal_wasm.s
+new file mode 100644
+index 0000000000..f0199ab7ee
+--- /dev/null
++++ b/src/internal/bytealg/equal_wasm.s
+@@ -0,0 +1,117 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Equal(SB), NOSPLIT, $0-49
++	MOVD a_len+8(FP), R0
++	MOVD b_len+32(FP), R1
++	Get R0
++	Get R1
++	I64Eq
++	If
++		Get SP
++		I64Load a+0(FP)
++		I64Load b+24(FP)
++		Get R0
++		Call memeqbody<>(SB)
++		I64Store8 ret+48(FP)
++	Else
++		Get SP
++		I64Const $0
++		I64Store8 ret+48(FP)
++	End
++	RET
++
++TEXT bytes·Equal(SB), NOSPLIT, $0-49
++	MOVD a_len+8(FP), R0
++	MOVD b_len+32(FP), R1
++	Get R0
++	Get R1
++	I64Eq
++	If
++		Get SP
++		I64Load a+0(FP)
++		I64Load b+24(FP)
++		Get R0
++		Call memeqbody<>(SB)
++		I64Store8 ret+48(FP)
++	Else
++		Get SP
++		I64Const $0
++		I64Store8 ret+48(FP)
++	End
++	RET
++
++// memequal(p, q unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB), NOSPLIT, $0-25
++	Get SP
++	I64Load a+0(FP)
++	I64Load b+8(FP)
++	I64Load size+16(FP)
++	Call memeqbody<>(SB)
++	I64Store8 ret+24(FP)
++	RET
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB), NOSPLIT, $0-17
++	Get SP
++	I64Load a+0(FP)
++	I64Load b+8(FP)
++	I64Load 8(CTXT) // compiler stores size at offset 8 in the closure
++	Call memeqbody<>(SB)
++	I64Store8 ret+16(FP)
++	RET
++
++// params: a, b, len
++// ret: 0/1
++TEXT memeqbody<>(SB), NOSPLIT, $0-0
++	Get R0
++	Get R1
++	I64Eq
++	If
++		I64Const $1
++		Return
++	End
++
++loop:
++	Loop
++		Get R2
++		I64Eqz
++		If
++			I64Const $1
++			Return
++		End
++
++		Get R0
++		I32WrapI64
++		I64Load8U $0
++		Get R1
++		I32WrapI64
++		I64Load8U $0
++		I64Ne
++		If
++			I64Const $0
++			Return
++		End
++
++		Get R0
++		I64Const $1
++		I64Add
++		Set R0
++
++		Get R1
++		I64Const $1
++		I64Add
++		Set R1
++
++		Get R2
++		I64Const $1
++		I64Sub
++		Set R2
++
++		Br loop
++	End
++	UNDEF
+diff --git a/src/internal/bytealg/indexbyte_generic.go b/src/internal/bytealg/indexbyte_generic.go
+index e767211e84..ef7801e5e1 100644
+--- a/src/internal/bytealg/indexbyte_generic.go
++++ b/src/internal/bytealg/indexbyte_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !386,!amd64,!amd64p32,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!mips64,!mips64le
++// +build !386,!amd64,!amd64p32,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!mips64,!mips64le,!wasm
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/indexbyte_native.go b/src/internal/bytealg/indexbyte_native.go
+index 8e000da4b8..b4ddc86ea9 100644
+--- a/src/internal/bytealg/indexbyte_native.go
++++ b/src/internal/bytealg/indexbyte_native.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 amd64p32 s390x arm arm64 ppc64 ppc64le mips mipsle mips64 mips64le
++// +build 386 amd64 amd64p32 s390x arm arm64 ppc64 ppc64le mips mipsle mips64 mips64le wasm
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/indexbyte_wasm.s b/src/internal/bytealg/indexbyte_wasm.s
+new file mode 100644
+index 0000000000..113c7a0a6f
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_wasm.s
+@@ -0,0 +1,243 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·IndexByte(SB), NOSPLIT, $0-40
++	I64Load s+0(FP)
++	I32WrapI64
++	I32Load8U c+24(FP)
++	I64Load s_len+8(FP)
++	I32WrapI64
++	Call memchr<>(SB)
++	I64ExtendSI32
++	Set R0
++
++	Get SP
++	I64Const $-1
++	Get R0
++	I64Load s+0(FP)
++	I64Sub
++	Get R0
++	I64Eqz $0
++	Select
++	I64Store ret+32(FP)
++
++	RET
++
++TEXT ·IndexByteString(SB), NOSPLIT, $0-32
++	Get SP
++	I64Load s+0(FP)
++	I32WrapI64
++	I32Load8U c+16(FP)
++	I64Load s_len+8(FP)
++	I32WrapI64
++	Call memchr<>(SB)
++	I64ExtendSI32
++	Set R0
++
++	I64Const $-1
++	Get R0
++	I64Load s+0(FP)
++	I64Sub
++	Get R0
++	I64Eqz $0
++	Select
++	I64Store ret+24(FP)
++
++	RET
++
++TEXT bytes·IndexByte(SB), NOSPLIT, $0-40
++	Get SP
++	I64Load s+0(FP)
++	I32WrapI64
++	I32Load8U c+24(FP)
++	I64Load s_len+8(FP)
++	I32WrapI64
++	Call memchr<>(SB)
++	I64ExtendSI32
++	Set R0
++
++	I64Const $-1
++	Get R0
++	I64Load s+0(FP)
++	I64Sub
++	Get R0
++	I64Eqz $0
++	Select
++	I64Store ret+32(FP)
++
++	RET
++
++TEXT strings·IndexByte(SB), NOSPLIT, $0-32
++	Get SP
++	I64Load s+0(FP)
++	I32WrapI64
++	I32Load8U c+16(FP)
++	I64Load s_len+8(FP)
++	I32WrapI64
++	Call memchr<>(SB)
++	I64ExtendSI32
++	Set R0
++
++	I64Const $-1
++	Get R0
++	I64Load s+0(FP)
++	I64Sub
++	Get R0
++	I64Eqz $0
++	Select
++	I64Store ret+24(FP)
++	RET
++
++// compiled with emscripten
++// params: s, c, len
++// ret: index
++TEXT memchr<>(SB), NOSPLIT, $0
++	Get R1
++	I32Const $255
++	I32And
++	Set R4
++	Block
++	Block
++	Get R2
++	I32Const $0
++	I32Ne
++	Tee R3
++	Get R0
++	I32Const $3
++	I32And
++	I32Const $0
++	I32Ne
++	I32And
++	If
++	Get R1
++	I32Const $255
++	I32And
++	Set R5
++	Loop
++	Get R0
++	I32Load8U $0
++	Get R5
++	I32Eq
++	BrIf $2
++	Get R2
++	I32Const $-1
++	I32Add
++	Tee R2
++	I32Const $0
++	I32Ne
++	Tee R3
++	Get R0
++	I32Const $1
++	I32Add
++	Tee R0
++	I32Const $3
++	I32And
++	I32Const $0
++	I32Ne
++	I32And
++	BrIf $0
++	End
++	End
++	Get R3
++	BrIf $0
++	I32Const $0
++	Set R1
++	Br $1
++	End
++	Get R0
++	I32Load8U $0
++	Get R1
++	I32Const $255
++	I32And
++	Tee R3
++	I32Eq
++	If
++	Get R2
++	Set R1
++	Else
++	Get R4
++	I32Const $16843009
++	I32Mul
++	Set R4
++	Block
++	Block
++	Get R2
++	I32Const $3
++	I32GtU
++	If
++	Get R2
++	Set R1
++	Loop
++	Get R0
++	I32Load $0
++	Get R4
++	I32Xor
++	Tee R2
++	I32Const $-2139062144
++	I32And
++	I32Const $-2139062144
++	I32Xor
++	Get R2
++	I32Const $-16843009
++	I32Add
++	I32And
++	I32Eqz
++	If
++	Get R0
++	I32Const $4
++	I32Add
++	Set R0
++	Get R1
++	I32Const $-4
++	I32Add
++	Tee R1
++	I32Const $3
++	I32GtU
++	BrIf $1
++	Br $3
++	End
++	End
++	Else
++	Get R2
++	Set R1
++	Br $1
++	End
++	Br $1
++	End
++	Get R1
++	I32Eqz
++	If
++	I32Const $0
++	Set R1
++	Br $3
++	End
++	End
++	Loop
++	Get R0
++	I32Load8U $0
++	Get R3
++	I32Eq
++	BrIf $2
++	Get R0
++	I32Const $1
++	I32Add
++	Set R0
++	Get R1
++	I32Const $-1
++	I32Add
++	Tee R1
++	BrIf $0
++	I32Const $0
++	Set R1
++	End
++	End
++	End
++	Get R0
++	I32Const $0
++	Get R1
++	Select
++	Return

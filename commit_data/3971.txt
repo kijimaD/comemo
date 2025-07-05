@@ -7,6 +7,34 @@ Date:   Tue Nov 10 19:20:34 2009 -0800
     R=agl1
     CC=golang-dev
     https://golang.org/cl/152056
-
+---
  src/make.bash | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 6135bef043..f152a74519 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -36,14 +36,19 @@ darwin | linux | nacl)
+ 	exit 1
+ esac
+ 
+-
+-bash clean.bash
+-
+ rm -f $GOBIN/quietgcc
+ CC=${CC:-gcc}
+ sed -e "s|@CC@|$CC|" < quietgcc.bash > $GOBIN/quietgcc
+ chmod +x $GOBIN/quietgcc
+ 
++if ! (cd lib9 && which quietgcc) >/dev/null 2>&1; then
++	echo "installed quietgcc as $GOBIN/quietgcc but 'which quietgcc' fails" 1>&2
++	echo "double-check that $GOBIN is in your "'$PATH' 1>&2
++	exit 1
++fi
++
++bash clean.bash
++
+ for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
+ do
+ 	case "$i-$GOOS" in

@@ -8,9 +8,88 @@ Date:   Thu Jun 4 15:00:15 2009 -0700
     DELTA=38  (38 added, 0 deleted, 0 changed)
     OCL=29895
     CL=29895
-
+---
  src/lib/Make.deps           |  1 +
  src/lib/Makefile            |  1 +
  src/lib/bytes/bytes.go      |  9 +++++++++
  src/lib/bytes/bytes_test.go | 27 +++++++++++++++++++++++++++
  4 files changed, 38 insertions(+)
+
+diff --git a/src/lib/Make.deps b/src/lib/Make.deps
+index 538e17039b..50ba9c9e5e 100644
+--- a/src/lib/Make.deps
++++ b/src/lib/Make.deps
+@@ -1,5 +1,6 @@
+ bignum.install: fmt.install
+ bufio.install: io.install os.install utf8.install
++bytes.install: utf8.install
+ container/list.install:
+ container/vector.install:
+ crypto/aes.install: os.install
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 0f76507a4c..bdcfa0194e 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -16,6 +16,7 @@ GC=6g
+ DIRS=\
+ 	bignum\
+ 	bufio\
++	bytes\
+ 	container/list\
+ 	container/vector\
+ 	crypto/aes\
+diff --git a/src/lib/bytes/bytes.go b/src/lib/bytes/bytes.go
+index fe97b04958..a64b07b74f 100644
+--- a/src/lib/bytes/bytes.go
++++ b/src/lib/bytes/bytes.go
+@@ -41,6 +41,15 @@ func Equal(a, b []byte) bool {
+ 	return true
+ }
+ 
++// Copy copies the source to the destination, stopping when the source
++// is all transferred.  The caller must guarantee that there is enough
++// room in the destination.
++func Copy(dst, src []byte) {
++	for i, x := range src {
++		dst[i] = x
++	}
++}
++
+ // Explode splits s into an array of UTF-8 sequences, one per Unicode character (still arrays of bytes).
+ // Invalid UTF-8 sequences become correct encodings of U+FFF8.
+ func Explode(s []byte) [][]byte {
+diff --git a/src/lib/bytes/bytes_test.go b/src/lib/bytes/bytes_test.go
+index 26b3fc21d0..4e7cdfad65 100644
+--- a/src/lib/bytes/bytes_test.go
++++ b/src/lib/bytes/bytes_test.go
+@@ -128,3 +128,30 @@ func TestSplit(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type CopyTest struct {
++	a	string;
++	b	string;
++	res	string;
++}
++var copytests = []CopyTest {
++	CopyTest{ "", "", "" },
++	CopyTest{ "a", "", "a" },
++	CopyTest{ "a", "a", "a" },
++	CopyTest{ "a", "b", "b" },
++	CopyTest{ "xyz", "abc", "abc" },
++	CopyTest{ "wxyz", "abc", "abcz" },
++}
++
++func TestCopy(t *testing.T) {
++	for i := 0; i < len(copytests); i++ {
++		tt := copytests[i];
++		dst := io.StringBytes(tt.a);
++		Copy(dst, io.StringBytes(tt.b));
++		result := string(dst);
++		if result != tt.res {
++			t.Errorf(`Copy("%s", "%s") = "%s"; want "%s"`, tt.a, tt.b, result, tt.res);
++			continue;
++		}
++	}
++}

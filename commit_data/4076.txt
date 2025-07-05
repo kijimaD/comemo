@@ -7,7 +7,105 @@ Date:   Mon Nov 16 15:25:16 2009 -0800
     
     R=rsc
     https://golang.org/cl/154167
-
+---
  lib/godoc/package.html | 16 ++++++++--------
  lib/godoc/search.html  |  8 ++++----
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 29b62dfea8..99e588cfd5 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -23,14 +23,14 @@
+ 		{.end}
+ 	{.end}
+ 	{.section Consts}
+-		<h2>Constants</h2>
++		<h2 id="Constants">Constants</h2>
+ 		{.repeated section @}
+ 			{Doc|html-comment}
+ 			<pre>{Decl|html}</pre>
+ 		{.end}
+ 	{.end}
+ 	{.section Vars}
+-		<h2>Variables</h2>
++		<h2 id="Variables">Variables</h2>
+ 		{.repeated section @}
+ 			{Doc|html-comment}
+ 			<pre>{Decl|html}</pre>
+@@ -38,14 +38,14 @@
+ 	{.end}
+ 	{.section Funcs}
+ 		{.repeated section @}
+-			<h2>func <a href="{Decl|link}">{Name|html}</a></h2>
++			<h2 id="{Name|html}">func <a href="{Decl|link}">{Name|html}</a></h2>
+ 			<p><code>{Decl|html}</code></p>
+ 			{Doc|html-comment}
+ 		{.end}
+ 	{.end}
+ 	{.section Types}
+ 		{.repeated section @}
+-			<h2>type <a href="{Decl|link}">{Type.Name|html}</a></h2>
++			<h2 id="{Type.Name|html}">type <a href="{Decl|link}">{Type.Name|html}</a></h2>
+ 			{Doc|html-comment}
+ 			<p><pre>{Decl|html}</pre></p>
+ 			{.repeated section Consts}
+@@ -57,26 +57,26 @@
+ 				<pre>{Decl|html}</pre>
+ 			{.end}
+ 			{.repeated section Factories}
+-				<h3>func <a href="{Decl|link}">{Name|html}</a></h3>
++				<h3 id="{Type.Name|html}.{Name|html}">func <a href="{Decl|link}">{Name|html}</a></h3>
+ 				<p><code>{Decl|html}</code></p>
+ 				{Doc|html-comment}
+ 			{.end}
+ 			{.repeated section Methods}
+-				<h3>func ({Recv|html}) <a href="{Decl|link}">{Name|html}</a></h3>
++				<h3 id="{Type.Name|html}.{Name|html}">func ({Recv|html}) <a href="{Decl|link}">{Name|html}</a></h3>
+ 				<p><code>{Decl|html}</code></p>
+ 				{Doc|html-comment}
+ 			{.end}
+ 		{.end}
+ 	{.end}
+ 	{.section Bugs}
+-		<h2>Bugs</h2>
++		<h2 id="Bugs">Bugs</h2>
+ 		{.repeated section @}
+ 		{@|html-comment}
+ 		{.end}
+ 	{.end}
+ {.end}
+ {.section Dirs}
+-	<h2>Subdirectories</h2>
++	<h2 id="Subdirectories">Subdirectories</h2>
+ 	<p>
+ 	<table class="layout">
+ 	<tr>
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index 43904213e6..d82e52e8af 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -20,9 +20,9 @@
+ {.end}
+ {.section Hit}
+ 	{.section Decls}
+-		<h2>Package-level declarations</h2>
++		<h2 id="Global">Package-level declarations</h2>
+ 		{.repeated section @}
+-			<h3>package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
++			<h3 id="Global_{Pak.Path|path}">package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
+ 			{.repeated section Files}
+ 				{.repeated section Groups}
+ 					{.repeated section Infos}
+@@ -34,9 +34,9 @@
+ 		{.end}
+ 	{.end}
+ 	{.section Others}
+-		<h2>Local declarations and uses</h2>
++		<h2 id="Local">Local declarations and uses</h2>
+ 		{.repeated section @}
+-			<h3>package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
++			<h3 id="Local_{Pak.Path|path}">package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
+ 			{.repeated section Files}
+ 				<a href="{File.Path|html}?h={Query|html}">{File.Path|html}</a>
+ 				<table class="layout">

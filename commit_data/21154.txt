@@ -8,7 +8,7 @@ Date:   Thu Nov 20 12:08:13 2014 -0500
     R=rsc
     CC=golang-codereviews, rsc
     https://golang.org/cl/179000043
-
+---
  src/runtime/heapdump.go |  4 ++--
  src/runtime/malloc.go   | 14 +++++++-------
  src/runtime/malloc2.go  | 39 ++++++++++++++++++++++++++++++++-------
@@ -18,3 +18,487 @@ Date:   Thu Nov 20 12:08:13 2014 -0500
  src/runtime/mheap.go    |  6 +++---
  src/runtime/stack1.go   | 44 ++++++++++++++++++++++----------------------
  8 files changed, 98 insertions(+), 63 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index c942e01639..c6f97025f4 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -464,8 +464,8 @@ func dumpobjs() {
+ 		if n > uintptr(len(freemark)) {
+ 			gothrow("freemark array doesn't have enough entries")
+ 		}
+-		for l := s.freelist; l != nil; l = l.next {
+-			freemark[(uintptr(unsafe.Pointer(l))-p)/size] = true
++		for l := s.freelist; l.ptr() != nil; l = l.ptr().next {
++			freemark[(uintptr(l)-p)/size] = true
+ 		}
+ 		for j := uintptr(0); j < n; j, p = j+1, p+size {
+ 			if freemark[j] {
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index f90a8f84a3..86e20b2490 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -140,14 +140,14 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 			// Allocate a new maxTinySize block.
+ 			s = c.alloc[tinySizeClass]
+ 			v := s.freelist
+-			if v == nil {
++			if v.ptr() == nil {
+ 				systemstack(func() {
+ 					mCache_Refill(c, tinySizeClass)
+ 				})
+ 				s = c.alloc[tinySizeClass]
+ 				v = s.freelist
+ 			}
+-			s.freelist = v.next
++			s.freelist = v.ptr().next
+ 			s.ref++
+ 			//TODO: prefetch v.next
+ 			x = unsafe.Pointer(v)
+@@ -170,19 +170,19 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 			size = uintptr(class_to_size[sizeclass])
+ 			s = c.alloc[sizeclass]
+ 			v := s.freelist
+-			if v == nil {
++			if v.ptr() == nil {
+ 				systemstack(func() {
+ 					mCache_Refill(c, int32(sizeclass))
+ 				})
+ 				s = c.alloc[sizeclass]
+ 				v = s.freelist
+ 			}
+-			s.freelist = v.next
++			s.freelist = v.ptr().next
+ 			s.ref++
+ 			//TODO: prefetch
+ 			x = unsafe.Pointer(v)
+ 			if flags&flagNoZero == 0 {
+-				v.next = nil
++				v.ptr().next = 0
+ 				if size > 2*ptrSize && ((*[2]uintptr)(x))[1] != 0 {
+ 					memclr(unsafe.Pointer(v), size)
+ 				}
+@@ -341,7 +341,7 @@ marked:
+ 		}
+ 	}
+ 
+-	if memstats.heap_alloc >= memstats.next_gc {
++	if memstats.heap_alloc >= memstats.next_gc/2 {
+ 		gogc(0)
+ 	}
+ 
+@@ -475,7 +475,7 @@ func gogc(force int32) {
+ 
+ 	systemstack(stoptheworld)
+ 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
+-	if false {                 // To turn on concurrent scan and mark set to true...
++	if true {                  // To turn on concurrent scan and mark set to true...
+ 		systemstack(starttheworld)
+ 		// Do a concurrent heap scan before we stop the world.
+ 		systemstack(gcscan_m)
+diff --git a/src/runtime/malloc2.go b/src/runtime/malloc2.go
+index 4ac0207b1e..511638d3d3 100644
+--- a/src/runtime/malloc2.go
++++ b/src/runtime/malloc2.go
+@@ -139,10 +139,35 @@ const (
+ )
+ 
+ // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
++// Since assignments to mlink.next will result in a write barrier being preformed
++// this can not be used by some of the internal GC structures. For example when
++// the sweeper is placing an unmarked object on the free list it does not want the
++// write barrier to be called since that could result in the object being reachable.
+ type mlink struct {
+ 	next *mlink
+ }
+ 
++// A gclink is a node in a linked list of blocks, like mlink,
++// but it is opaque to the garbage collector.
++// The GC does not trace the pointers during collection,
++// and the compiler does not emit write barriers for assignments
++// of gclinkptr values. Code should store references to gclinks
++// as gclinkptr, not as *gclink.
++type gclink struct {
++	next gclinkptr
++}
++
++// A gclinkptr is a pointer to a gclink, but it is opaque
++// to the garbage collector.
++type gclinkptr uintptr
++
++// ptr returns the *gclink form of p.
++// The result should be used for accessing fields, not stored
++// in other data structures.
++func (p gclinkptr) ptr() *gclink {
++	return (*gclink)(unsafe.Pointer(p))
++}
++
+ // sysAlloc obtains a large chunk of zeroed memory from the
+ // operating system, typically on the order of a hundred kilobytes
+ // or a megabyte.
+@@ -275,8 +300,8 @@ type mcachelist struct {
+ }
+ 
+ type stackfreelist struct {
+-	list *mlink  // linked list of free stacks
+-	size uintptr // total size of stacks in list
++	list gclinkptr // linked list of free stacks
++	size uintptr   // total size of stacks in list
+ }
+ 
+ // Per-thread (in Go, per-P) cache for small objects.
+@@ -346,11 +371,11 @@ const (
+ )
+ 
+ type mspan struct {
+-	next     *mspan  // in a span linked list
+-	prev     *mspan  // in a span linked list
+-	start    pageID  // starting page number
+-	npages   uintptr // number of pages in span
+-	freelist *mlink  // list of free objects
++	next     *mspan    // in a span linked list
++	prev     *mspan    // in a span linked list
++	start    pageID    // starting page number
++	npages   uintptr   // number of pages in span
++	freelist gclinkptr // list of free objects
+ 	// sweep generation:
+ 	// if sweepgen == h->sweepgen - 2, the span needs sweeping
+ 	// if sweepgen == h->sweepgen - 1, the span is currently being swept
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 08b1bc3597..f8389c5cb0 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -59,7 +59,7 @@ func mCache_Refill(c *mcache, sizeclass int32) *mspan {
+ 	_g_.m.locks++
+ 	// Return the current cached span to the central lists.
+ 	s := c.alloc[sizeclass]
+-	if s.freelist != nil {
++	if s.freelist.ptr() != nil {
+ 		gothrow("refill on a nonempty span")
+ 	}
+ 	if s != &emptymspan {
+@@ -71,7 +71,7 @@ func mCache_Refill(c *mcache, sizeclass int32) *mspan {
+ 	if s == nil {
+ 		gothrow("out of memory")
+ 	}
+-	if s.freelist == nil {
++	if s.freelist.ptr() == nil {
+ 		println(s.ref, (s.npages<<_PageShift)/s.elemsize)
+ 		gothrow("empty span")
+ 	}
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 0d172a08bd..ae5c6f1d54 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -55,7 +55,7 @@ retry:
+ 			mSpanList_InsertBack(&c.empty, s)
+ 			unlock(&c.lock)
+ 			mSpan_Sweep(s, true)
+-			if s.freelist != nil {
++			if s.freelist.ptr() != nil {
+ 				goto havespan
+ 			}
+ 			lock(&c.lock)
+@@ -90,7 +90,7 @@ havespan:
+ 	if n == 0 {
+ 		gothrow("empty span")
+ 	}
+-	if s.freelist == nil {
++	if s.freelist.ptr() == nil {
+ 		gothrow("freelist empty")
+ 	}
+ 	s.incache = true
+@@ -122,14 +122,14 @@ func mCentral_UncacheSpan(c *mcentral, s *mspan) {
+ // the latest generation.
+ // If preserve=true, don't return the span to heap nor relink in MCentral lists;
+ // caller takes care of it.
+-func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start *mlink, end *mlink, preserve bool) bool {
++func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gclinkptr, preserve bool) bool {
+ 	if s.incache {
+ 		gothrow("freespan into cached span")
+ 	}
+ 
+ 	// Add the objects back to s's free list.
+-	wasempty := s.freelist == nil
+-	end.next = s.freelist
++	wasempty := s.freelist.ptr() == nil
++	end.ptr().next = s.freelist
+ 	s.freelist = start
+ 	s.ref -= uint16(n)
+ 
+@@ -165,7 +165,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start *mlink, end *mlink,
+ 	// s is completely freed, return it to the heap.
+ 	mSpanList_Remove(s)
+ 	s.needzero = 1
+-	s.freelist = nil
++	s.freelist = 0
+ 	unlock(&c.lock)
+ 	unmarkspan(uintptr(s.start)<<_PageShift, s.npages<<_PageShift)
+ 	mHeap_Free(&mheap_, s, 0)
+@@ -183,17 +183,21 @@ func mCentral_Grow(c *mcentral) *mspan {
+ 		return nil
+ 	}
+ 
+-	// Carve span into sequence of blocks.
+-	tailp := &s.freelist
+ 	p := uintptr(s.start << _PageShift)
+ 	s.limit = p + size*n
+-	for i := uintptr(0); i < n; i++ {
+-		v := (*mlink)(unsafe.Pointer(p))
+-		*tailp = v
+-		tailp = &v.next
++	head := gclinkptr(p)
++	tail := gclinkptr(p)
++	// i==0 iteration already done
++	for i := uintptr(1); i < n; i++ {
+ 		p += size
++		tail.ptr().next = gclinkptr(p)
++		tail = gclinkptr(p)
+ 	}
+-	*tailp = nil
++	if s.freelist.ptr() != nil {
++		gothrow("freelist not empty")
++	}
++	tail.ptr().next = 0
++	s.freelist = head
+ 	markspan(unsafe.Pointer(uintptr(s.start)<<_PageShift), size, n, size*n < s.npages<<_PageShift)
+ 	return s
+ }
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 57bd8b3563..0bf618d064 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -312,7 +312,7 @@ func objectstart(b uintptr, mbits *markbits) uintptr {
+ 			p = p + idx*size
+ 		}
+ 		if p == obj {
+-			print("runtime: failed to find block beginning for ", hex(p), " s=", hex(s.start*_PageSize), " s.limit=", s.limit, "\n")
++			print("runtime: failed to find block beginning for ", hex(p), " s=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), "\n")
+ 			gothrow("failed to find block beginning")
+ 		}
+ 		obj = p
+@@ -1201,13 +1201,14 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 	}
+ 	res := false
+ 	nfree := 0
+-	var head mlink
+-	end := &head
++
++	var head, end gclinkptr
++
+ 	c := _g_.m.mcache
+ 	sweepgenset := false
+ 
+ 	// Mark any free objects in this span so we don't collect them.
+-	for link := s.freelist; link != nil; link = link.next {
++	for link := s.freelist; link.ptr() != nil; link = link.ptr().next {
+ 		off := (uintptr(unsafe.Pointer(link)) - arena_start) / ptrSize
+ 		bitp := arena_start - off/wordsPerBitmapByte - 1
+ 		shift := (off % wordsPerBitmapByte) * gcBits
+@@ -1328,8 +1329,13 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 			} else if size > ptrSize {
+ 				*(*uintptr)(unsafe.Pointer(p + ptrSize)) = 0
+ 			}
+-			end.next = (*mlink)(unsafe.Pointer(p))
+-			end = end.next
++			if head.ptr() == nil {
++				head = gclinkptr(p)
++			} else {
++				end.ptr().next = gclinkptr(p)
++			}
++			end = gclinkptr(p)
++			end.ptr().next = gclinkptr(0xbaddadae5)
+ 			nfree++
+ 		}
+ 	}
+@@ -1352,7 +1358,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 		c.local_nsmallfree[cl] += uintptr(nfree)
+ 		c.local_cachealloc -= intptr(uintptr(nfree) * size)
+ 		xadd64(&memstats.next_gc, -int64(nfree)*int64(size)*int64(gcpercent+100)/100)
+-		res = mCentral_FreeSpan(&mheap_.central[cl].mcentral, s, int32(nfree), head.next, end, preserve)
++		res = mCentral_FreeSpan(&mheap_.central[cl].mcentral, s, int32(nfree), head, end, preserve)
+ 		// MCentral_FreeSpan updates sweepgen
+ 	}
+ 	return res
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index fedcd69c5a..30205d68da 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -196,7 +196,7 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan
+ 		// able to map interior pointer to containing span.
+ 		atomicstore(&s.sweepgen, h.sweepgen)
+ 		s.state = _MSpanInUse
+-		s.freelist = nil
++		s.freelist = 0
+ 		s.ref = 0
+ 		s.sizeclass = uint8(sizeclass)
+ 		if sizeclass == 0 {
+@@ -248,7 +248,7 @@ func mHeap_AllocStack(h *mheap, npage uintptr) *mspan {
+ 	s := mHeap_AllocSpanLocked(h, npage)
+ 	if s != nil {
+ 		s.state = _MSpanStack
+-		s.freelist = nil
++		s.freelist = 0
+ 		s.ref = 0
+ 		memstats.stacks_inuse += uint64(s.npages << _PageShift)
+ 	}
+@@ -571,7 +571,7 @@ func mSpan_Init(span *mspan, start pageID, npages uintptr) {
+ 	span.prev = nil
+ 	span.start = start
+ 	span.npages = npages
+-	span.freelist = nil
++	span.freelist = 0
+ 	span.ref = 0
+ 	span.sizeclass = 0
+ 	span.incache = false
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 963f4fa731..78bcccc41b 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -58,7 +58,7 @@ func stackinit() {
+ 
+ // Allocates a stack from the free pool.  Must be called with
+ // stackpoolmu held.
+-func stackpoolalloc(order uint8) *mlink {
++func stackpoolalloc(order uint8) gclinkptr {
+ 	list := &stackpool[order]
+ 	s := list.next
+ 	if s == list {
+@@ -70,23 +70,23 @@ func stackpoolalloc(order uint8) *mlink {
+ 		if s.ref != 0 {
+ 			gothrow("bad ref")
+ 		}
+-		if s.freelist != nil {
++		if s.freelist.ptr() != nil {
+ 			gothrow("bad freelist")
+ 		}
+ 		for i := uintptr(0); i < _StackCacheSize; i += _FixedStack << order {
+-			x := (*mlink)(unsafe.Pointer(uintptr(s.start)<<_PageShift + i))
+-			x.next = s.freelist
++			x := gclinkptr(uintptr(s.start)<<_PageShift + i)
++			x.ptr().next = s.freelist
+ 			s.freelist = x
+ 		}
+ 		mSpanList_Insert(list, s)
+ 	}
+ 	x := s.freelist
+-	if x == nil {
++	if x.ptr() == nil {
+ 		gothrow("span has no free stacks")
+ 	}
+-	s.freelist = x.next
++	s.freelist = x.ptr().next
+ 	s.ref++
+-	if s.freelist == nil {
++	if s.freelist.ptr() == nil {
+ 		// all stacks in s are allocated.
+ 		mSpanList_Remove(s)
+ 	}
+@@ -94,22 +94,22 @@ func stackpoolalloc(order uint8) *mlink {
+ }
+ 
+ // Adds stack x to the free pool.  Must be called with stackpoolmu held.
+-func stackpoolfree(x *mlink, order uint8) {
++func stackpoolfree(x gclinkptr, order uint8) {
+ 	s := mHeap_Lookup(&mheap_, (unsafe.Pointer)(x))
+ 	if s.state != _MSpanStack {
+ 		gothrow("freeing stack not in a stack span")
+ 	}
+-	if s.freelist == nil {
++	if s.freelist.ptr() == nil {
+ 		// s will now have a free stack
+ 		mSpanList_Insert(&stackpool[order], s)
+ 	}
+-	x.next = s.freelist
++	x.ptr().next = s.freelist
+ 	s.freelist = x
+ 	s.ref--
+ 	if s.ref == 0 {
+ 		// span is completely free - return to heap
+ 		mSpanList_Remove(s)
+-		s.freelist = nil
++		s.freelist = 0
+ 		mHeap_FreeStack(&mheap_, s)
+ 	}
+ }
+@@ -123,12 +123,12 @@ func stackcacherefill(c *mcache, order uint8) {
+ 
+ 	// Grab some stacks from the global cache.
+ 	// Grab half of the allowed capacity (to prevent thrashing).
+-	var list *mlink
++	var list gclinkptr
+ 	var size uintptr
+ 	lock(&stackpoolmu)
+ 	for size < _StackCacheSize/2 {
+ 		x := stackpoolalloc(order)
+-		x.next = list
++		x.ptr().next = list
+ 		list = x
+ 		size += _FixedStack << order
+ 	}
+@@ -145,7 +145,7 @@ func stackcacherelease(c *mcache, order uint8) {
+ 	size := c.stackcache[order].size
+ 	lock(&stackpoolmu)
+ 	for size > _StackCacheSize/2 {
+-		y := x.next
++		y := x.ptr().next
+ 		stackpoolfree(x, order)
+ 		x = y
+ 		size -= _FixedStack << order
+@@ -162,12 +162,12 @@ func stackcache_clear(c *mcache) {
+ 	lock(&stackpoolmu)
+ 	for order := uint8(0); order < _NumStackOrders; order++ {
+ 		x := c.stackcache[order].list
+-		for x != nil {
+-			y := x.next
++		for x.ptr() != nil {
++			y := x.ptr().next
+ 			stackpoolfree(x, order)
+ 			x = y
+ 		}
+-		c.stackcache[order].list = nil
++		c.stackcache[order].list = 0
+ 		c.stackcache[order].size = 0
+ 	}
+ 	unlock(&stackpoolmu)
+@@ -207,7 +207,7 @@ func stackalloc(n uint32) stack {
+ 			order++
+ 			n2 >>= 1
+ 		}
+-		var x *mlink
++		var x gclinkptr
+ 		c := thisg.m.mcache
+ 		if c == nil || thisg.m.gcing != 0 || thisg.m.helpgc != 0 {
+ 			// c == nil can happen in the guts of exitsyscall or
+@@ -219,11 +219,11 @@ func stackalloc(n uint32) stack {
+ 			unlock(&stackpoolmu)
+ 		} else {
+ 			x = c.stackcache[order].list
+-			if x == nil {
++			if x.ptr() == nil {
+ 				stackcacherefill(c, order)
+ 				x = c.stackcache[order].list
+ 			}
+-			c.stackcache[order].list = x.next
++			c.stackcache[order].list = x.ptr().next
+ 			c.stackcache[order].size -= uintptr(n)
+ 		}
+ 		v = (unsafe.Pointer)(x)
+@@ -270,7 +270,7 @@ func stackfree(stk stack) {
+ 			order++
+ 			n2 >>= 1
+ 		}
+-		x := (*mlink)(v)
++		x := gclinkptr(v)
+ 		c := gp.m.mcache
+ 		if c == nil || gp.m.gcing != 0 || gp.m.helpgc != 0 {
+ 			lock(&stackpoolmu)
+@@ -280,7 +280,7 @@ func stackfree(stk stack) {
+ 			if c.stackcache[order].size >= _StackCacheSize {
+ 				stackcacherelease(c, order)
+ 			}
+-			x.next = c.stackcache[order].list
++			x.ptr().next = c.stackcache[order].list
+ 			c.stackcache[order].list = x
+ 			c.stackcache[order].size += n
+ 		}

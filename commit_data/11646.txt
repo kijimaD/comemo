@@ -9,9 +9,91 @@ Date:   Mon Feb 6 16:38:59 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5637047
-
+---
  src/cmd/gc/fmt.c                 | 10 ++++++++++
  test/fixedbugs/bug407.dir/one.go | 20 ++++++++++++++++++++
  test/fixedbugs/bug407.dir/two.go | 15 +++++++++++++++
  test/fixedbugs/bug407.go         |  7 +++++++
  4 files changed, 52 insertions(+)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 35d33bce87..5437dac1db 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1097,6 +1097,16 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		return fmtprint(f, "%V", &n->val);
+ 
+ 	case ONAME:
++		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
++		// but for export, this should be rendered as (*pkg.T).meth.
++		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
++		if(fmtmode == FExp && n->left && n->left->op == OTYPE && n->right && n->right->op == ONAME) {
++			if(isptr[n->left->type->etype])
++				return fmtprint(f, "(%T).%hhS", n->left->type, n->right->sym);
++			else
++				return fmtprint(f, "%T.%hhS", n->left->type, n->right->sym);
++		}
++		//fallthrough
+ 	case OPACK:
+ 	case ONONAME:
+ 		return fmtprint(f, "%S", n->sym);
+diff --git a/test/fixedbugs/bug407.dir/one.go b/test/fixedbugs/bug407.dir/one.go
+new file mode 100644
+index 0000000000..a91d904333
+--- /dev/null
++++ b/test/fixedbugs/bug407.dir/one.go
+@@ -0,0 +1,20 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package one
++
++// Issue 2877
++type T struct {
++	f func(t *T, arg int)
++	g func(t T, arg int)
++}
++
++func (t *T) foo(arg int) {}
++func (t T) goo(arg int) {}
++
++func (t *T) F() { t.f = (*T).foo }
++func (t *T) G() { t.g = T.goo }
++
++
++
+diff --git a/test/fixedbugs/bug407.dir/two.go b/test/fixedbugs/bug407.dir/two.go
+new file mode 100644
+index 0000000000..67e1852ea0
+--- /dev/null
++++ b/test/fixedbugs/bug407.dir/two.go
+@@ -0,0 +1,15 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Use the functions in one.go so that the inlined
++// forms get type-checked.
++
++package two
++
++import "./one"
++
++func use() {
++	var r one.T
++	r.F()
++}
+diff --git a/test/fixedbugs/bug407.go b/test/fixedbugs/bug407.go
+new file mode 100644
+index 0000000000..50af6006fb
+--- /dev/null
++++ b/test/fixedbugs/bug407.go
+@@ -0,0 +1,7 @@
++// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

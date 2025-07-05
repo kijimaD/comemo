@@ -14,10 +14,135 @@ Date:   Mon Mar 28 12:39:09 2011 -0700
     R=rsc, iant2
     CC=golang-dev
     https://golang.org/cl/4284069
-
+---
  src/pkg/net/fd.go            |  6 +++++-
  src/pkg/net/fd_darwin.go     | 10 +++++-----
  src/pkg/net/fd_freebsd.go    | 10 +++++-----
  src/pkg/net/fd_linux.go      |  6 +++---
  src/pkg/net/newpollserver.go |  2 +-
  5 files changed, 19 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index fa163ebe07..df4dbce1cf 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -122,9 +122,13 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
+ 		doWakeup = true
+ 	}
+ 
+-	if err := s.poll.AddFD(intfd, mode, false); err != nil {
++	wake, err := s.poll.AddFD(intfd, mode, false)
++	if err != nil {
+ 		panic("pollServer AddFD " + err.String())
+ 	}
++	if wake {
++		doWakeup = true
++	}
+ 
+ 	s.Unlock()
+ 
+diff --git a/src/pkg/net/fd_darwin.go b/src/pkg/net/fd_darwin.go
+index 6ed196324d..00a049bfd1 100644
+--- a/src/pkg/net/fd_darwin.go
++++ b/src/pkg/net/fd_darwin.go
+@@ -31,7 +31,7 @@ func newpollster() (p *pollster, err os.Error) {
+ 	return p, nil
+ }
+ 
+-func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
++func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, os.Error) {
+ 	// pollServer is locked.
+ 
+ 	var kmode int
+@@ -53,15 +53,15 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 
+ 	n, e := syscall.Kevent(p.kq, p.kbuf[0:], p.kbuf[0:], nil)
+ 	if e != 0 {
+-		return os.NewSyscallError("kevent", e)
++		return false, os.NewSyscallError("kevent", e)
+ 	}
+ 	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
+-		return os.ErrorString("kqueue phase error")
++		return false, os.ErrorString("kqueue phase error")
+ 	}
+ 	if ev.Data != 0 {
+-		return os.Errno(int(ev.Data))
++		return false, os.Errno(int(ev.Data))
+ 	}
+-	return nil
++	return false, nil
+ }
+ 
+ func (p *pollster) DelFD(fd int, mode int) {
+diff --git a/src/pkg/net/fd_freebsd.go b/src/pkg/net/fd_freebsd.go
+index feea92588a..e50883e940 100644
+--- a/src/pkg/net/fd_freebsd.go
++++ b/src/pkg/net/fd_freebsd.go
+@@ -31,7 +31,7 @@ func newpollster() (p *pollster, err os.Error) {
+ 	return p, nil
+ }
+ 
+-func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
++func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, os.Error) {
+ 	// pollServer is locked.
+ 
+ 	var kmode int
+@@ -51,15 +51,15 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 
+ 	n, e := syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
+ 	if e != 0 {
+-		return os.NewSyscallError("kevent", e)
++		return false, os.NewSyscallError("kevent", e)
+ 	}
+ 	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
+-		return os.NewSyscallError("kqueue phase error", e)
++		return false, os.NewSyscallError("kqueue phase error", e)
+ 	}
+ 	if ev.Data != 0 {
+-		return os.Errno(int(ev.Data))
++		return false, os.Errno(int(ev.Data))
+ 	}
+-	return nil
++	return false, nil
+ }
+ 
+ func (p *pollster) DelFD(fd int, mode int) {
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index 69fbc02c0c..dcf65c014d 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -47,7 +47,7 @@ func newpollster() (p *pollster, err os.Error) {
+ 	return p, nil
+ }
+ 
+-func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
++func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, os.Error) {
+ 	// pollServer is locked.
+ 
+ 	var already bool
+@@ -69,10 +69,10 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 		op = syscall.EPOLL_CTL_ADD
+ 	}
+ 	if e := syscall.EpollCtl(p.epfd, op, fd, &p.ctlEvent); e != 0 {
+-		return os.NewSyscallError("epoll_ctl", e)
++		return false, os.NewSyscallError("epoll_ctl", e)
+ 	}
+ 	p.events[fd] = p.ctlEvent.Events
+-	return nil
++	return false, nil
+ }
+ 
+ func (p *pollster) StopWaiting(fd int, bits uint) {
+diff --git a/src/pkg/net/newpollserver.go b/src/pkg/net/newpollserver.go
+index 820e70b46f..fff54dba71 100644
+--- a/src/pkg/net/newpollserver.go
++++ b/src/pkg/net/newpollserver.go
+@@ -31,7 +31,7 @@ func newPollServer() (s *pollServer, err os.Error) {
+ 	if s.poll, err = newpollster(); err != nil {
+ 		goto Error
+ 	}
+-	if err = s.poll.AddFD(s.pr.Fd(), 'r', true); err != nil {
++	if _, err = s.poll.AddFD(s.pr.Fd(), 'r', true); err != nil {
+ 		s.poll.Close()
+ 		goto Error
+ 	}

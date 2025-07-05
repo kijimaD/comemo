@@ -8,8 +8,245 @@ Date:   Mon Oct 19 11:48:04 2009 -0700
     DELTA=193  (191 added, 0 deleted, 2 changed)
     OCL=35849
     CL=35877
-
+---
  src/pkg/Make.deps         |   2 +-
  src/pkg/path/path.go      |  54 +++++++++++++++++-
  src/pkg/path/path_test.go | 139 ++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 193 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index ed560d8958..9d091ea96e 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -52,7 +52,7 @@ math.install:
+ net.install: fmt.install io.install once.install os.install reflect.install strconv.install strings.install sync.install syscall.install
+ once.install: sync.install
+ os.install: once.install syscall.install
+-path.install: strings.install
++path.install: io.install os.install strings.install
+ rand.install: math.install
+ reflect.install: runtime.install strconv.install
+ regexp.install: bytes.install container/vector.install io.install os.install runtime.install utf8.install
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 7fa8b863ba..97245213ea 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -6,7 +6,11 @@
+ // slash-separated filename paths.
+ package path
+ 
+-import "strings"
++import (
++	"io";
++	"os";
++	"strings";
++)
+ 
+ // Clean returns the shortest path name equivalent to path
+ // by purely lexical processing.  It applies the following rules
+@@ -132,3 +136,51 @@ func Ext(path string) string {
+ 	}
+ 	return "";
+ }
++
++// Visitor methods are invoked for corresponding file tree entries
++// visited by Walk. The parameter path is the full path of d relative
++// to root.
++type Visitor interface {
++	VisitDir(path string, d *os.Dir) bool;
++	VisitFile(path string, d *os.Dir);
++}
++
++func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
++	if !d.IsDirectory() {
++		v.VisitFile(path, d);
++		return;
++	}
++
++	if !v.VisitDir(path, d) {
++		return;  // skip directory entries
++	}
++
++	list, err := io.ReadDir(path);
++	if err != nil {
++		if errors != nil {
++			errors <- err;
++		}
++	}
++
++	for _, e := range list {
++		walk(Join(path, e.Name), e, v, errors);
++	}
++}
++
++// Walk walks the file tree rooted at root, calling v.VisitDir or
++// v.VisitFile for each directory or file in the tree, including root.
++// If v.VisitDir returns false, Walk skips the directory's entries;
++// otherwise it invokes itself for each directory entry in sorted order.
++// An error reading a directory does not abort the Walk.
++// If errors != nil, Walk sends each directory read error
++// to the channel.  Otherwise Walk discards the error.
++func Walk(root string, v Visitor, errors chan<- os.Error) {
++	d, err := os.Lstat(root);
++	if err != nil {
++		if errors != nil {
++			errors <- err;
++		}
++		return;  // can't progress
++	}
++	walk(root, d, v, errors);
++}
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index c6f18e595e..c895effe75 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -5,6 +5,7 @@
+ package path
+ 
+ import (
++	"os";
+ 	"testing";
+ )
+ 
+@@ -131,3 +132,141 @@ func TestExt(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type Node struct {
++	name string;
++	entries []*Node;  // nil if the entry is a file
++	mark int;
++}
++
++var tree = &Node{
++	"testdata",
++	[]*Node{
++		&Node{"a", nil, 0},
++		&Node{"b", []*Node{}, 0},
++		&Node{"c", nil, 0},
++		&Node{
++			"d",
++			[]*Node{
++				&Node{"x", nil, 0},
++				&Node{"y", []*Node{}, 0},
++				&Node{
++					"z",
++					[]*Node{
++						&Node{"u", nil, 0},
++						&Node{"v", nil, 0},
++					},
++					0
++				}
++			},
++			0
++		}
++	},
++	0
++}
++
++func walkTree(n *Node, path string, f func(path string, n *Node)) {
++	f(path, n);
++	for _, e := range n.entries {
++		walkTree(e, Join(path, e.name), f);
++	}
++}
++
++func makeTree(t *testing.T) {
++	walkTree(tree, tree.name, func(path string, n *Node) {
++		if n.entries == nil {
++			fd, err := os.Open(path, os.O_CREAT, 0660);
++			if err != nil {
++				t.Errorf("makeTree: %v", err);
++			}
++			fd.Close();
++		} else {
++			os.Mkdir(path, 0770);
++		}
++	});
++}
++
++func markTree(n *Node) {
++	walkTree(n, "", func(path string, n *Node) {
++		n.mark++;
++	});
++}
++
++func checkMarks(t *testing.T) {
++	walkTree(tree, tree.name, func(path string, n *Node) {
++		if n.mark != 1 {
++			t.Errorf("node %s mark = %d; expected 1", path, n.mark);
++		}
++		n.mark = 0;
++	});
++}
++
++// Assumes that each node name is unique. Good enough for a test.
++func mark(name string) {
++	walkTree(tree, tree.name, func(path string, n *Node) {
++		if n.name == name {
++			n.mark++;
++		}
++	});
++}
++
++type TestVisitor struct {}
++
++func (v *TestVisitor) VisitDir(path string, d *os.Dir) bool {
++	mark(d.Name);
++	return true;
++}
++
++func (v *TestVisitor) VisitFile(path string, d *os.Dir) {
++	mark(d.Name);
++}
++
++func TestWalk(t *testing.T) {
++	makeTree(t);
++
++	// 1) ignore error handling, expect none
++	v := &TestVisitor{};
++	Walk(tree.name, v, nil);
++	checkMarks(t);
++
++	// 2) handle errors, expect none
++	errors := make(chan os.Error, 64);
++	Walk(tree.name, v, errors);
++	if err, ok := <-errors; ok {
++		t.Errorf("no error expected, found: s", err);
++	}
++	checkMarks(t);
++
++	// introduce 2 errors: chmod top-level directories to 0
++	os.Chmod(Join(tree.name, tree.entries[1].name), 0);
++	os.Chmod(Join(tree.name, tree.entries[3].name), 0);
++	// mark respective subtrees manually
++	markTree(tree.entries[1]);
++	markTree(tree.entries[3]);
++	// correct double-marking of directory itself
++	tree.entries[1].mark--;
++	tree.entries[3].mark--;
++
++	// 3) handle errors, expect two
++	errors = make(chan os.Error, 64);
++	os.Chmod(Join(tree.name, tree.entries[1].name), 0);
++	Walk(tree.name, v, errors);
++	for i := 1; i <= 2; i++ {
++		if _, ok := <-errors; !ok {
++			t.Errorf("%d. error expected, none found", i);
++			break;
++		}
++	}
++	if err, ok := <-errors; ok {
++		t.Errorf("only two errors expected, found 3rd: %v", err);
++	}
++	// the inaccessible subtrees were marked manually
++	checkMarks(t);
++
++	// cleanup
++	os.Chmod(Join(tree.name, tree.entries[1].name), 0770);
++	os.Chmod(Join(tree.name, tree.entries[3].name), 0770);
++	if err := os.RemoveAll(tree.name); err != nil {
++		t.Errorf("removeTree: %v", err);
++	}
++}

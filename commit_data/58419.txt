@@ -15,7 +15,33 @@ Date:   Tue Oct 31 00:17:18 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/url/url.go      | 2 +-
  src/net/url/url_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 2d40a58673..902310c244 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -970,7 +970,7 @@ func parseQuery(m Values, query string) (err error) {
+ // Encode encodes the values into “URL encoded” form
+ // ("bar=baz&foo=quux") sorted by key.
+ func (v Values) Encode() string {
+-	if v == nil {
++	if len(v) == 0 {
+ 		return ""
+ 	}
+ 	var buf strings.Builder
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 23c5c581c5..4aa20bb95f 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -1072,6 +1072,7 @@ type EncodeQueryTest struct {
+ 
+ var encodeQueryTests = []EncodeQueryTest{
+ 	{nil, ""},
++	{Values{}, ""},
+ 	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "oe=utf8&q=puppies"},
+ 	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7"},
+ 	{Values{

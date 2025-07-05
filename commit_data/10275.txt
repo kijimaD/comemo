@@ -9,9 +9,98 @@ Date:   Mon Nov 7 13:15:16 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5363043
-
+---
  include/libc.h      |  2 ++
  src/cmd/gopack/ar.c |  7 ++-----
  src/lib9/Makefile   |  1 +
  src/lib9/ctime.c    | 28 ++++++++++++++++++++++++++++
  4 files changed, 33 insertions(+), 5 deletions(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index f9ad963345..0b50eb3c5f 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -95,6 +95,7 @@ extern	void	perror(const char*);
+ extern	int	postnote(int, int, char *);
+ extern	double	p9pow10(int);
+ extern	char*	searchpath(char*);
++extern	char*	p9ctime(long);
+ #define p9setjmp(b)	sigsetjmp((void*)(b), 1)
+ 
+ extern	void	sysfatal(char*, ...);
+@@ -115,6 +116,7 @@ extern	void	sysfatal(char*, ...);
+ #undef  strtod
+ #define strtod		fmtstrtod
+ #define charstod	fmtcharstod
++#define ctime	p9ctime
+ #endif
+ 
+ /*
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index 9125f2987e..bd3bcefeb5 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -1420,15 +1420,12 @@ void
+ longt(Armember *bp)
+ {
+ 	char *cp;
+-	time_t date;
+ 
+ 	pmode(strtoul(bp->hdr.mode, 0, 8));
+ 	Bprint(&bout, "%3ld/%1ld", strtol(bp->hdr.uid, 0, 0), strtol(bp->hdr.gid, 0, 0));
+ 	Bprint(&bout, "%7ld", bp->size);
+-	date = bp->date;
+-	cp = ctime(&date);
+-	/* using unix ctime, not plan 9 time, so cp+20 for year, not cp+24 */
+-	Bprint(&bout, " %-12.12s %-4.4s ", cp+4, cp+20);
++	cp = ctime(bp->date);
++	Bprint(&bout, " %-12.12s %-4.4s ", cp+4, cp+24);
+ }
+ 
+ int	m1[] = { 1, ROWN, 'r', '-' };
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index 28c97c9b45..31f22c41e9 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -57,6 +57,7 @@ LIB9OFILES=\
+ 	atoi.$O\
+ 	cleanname.$O\
+ 	create.$O\
++	ctime.$O\
+ 	dirfstat.$O\
+ 	dirfwstat.$O\
+ 	dirstat.$O\
+diff --git a/src/lib9/ctime.c b/src/lib9/ctime.c
+new file mode 100644
+index 0000000000..d4ab6b21ae
+--- /dev/null
++++ b/src/lib9/ctime.c
+@@ -0,0 +1,28 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define NOPLAN9DEFINES
++#include <u.h>
++#include <libc.h>
++
++char*
++p9ctime(long t)
++{
++	static char buf[100];
++	time_t tt;
++	struct tm *tm;
++	
++	tt = t;
++	tm = localtime(&tt);
++	snprint(buf, sizeof buf, "%3.3s %3.3s %02d %02d:%02d:%02d %3.3s %d\n",
++		"SunMonTueWedThuFriSat"+(tm->tm_wday*3),
++		"JanFebMarAprMayJunJulAugSepOctNovDec"+(tm->tm_mon*3),
++		tm->tm_mday,
++		tm->tm_hour,
++		tm->tm_min,
++		tm->tm_sec,
++		tm->tm_zone,
++		tm->tm_year + 1900);
++	return buf;
++}

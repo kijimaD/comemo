@@ -17,8 +17,155 @@ Date:   Thu Aug 18 13:47:43 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go     | 17 ++++++
  src/go/internal/gcimporter/testdata/issue57015.go | 16 ++++++
  src/go/internal/gcimporter/ureader.go             | 68 ++++++++---------------
  3 files changed, 56 insertions(+), 45 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 675bf222ce..f2202ab478 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -787,6 +787,23 @@ func TestIssue25596(t *testing.T) {
+ 	compileAndImportPkg(t, "issue25596")
+ }
+ 
++func TestIssue57015(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
++	}
++
++	// On windows, we have to set the -D option for the compiler to avoid having a drive
++	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
++	if runtime.GOOS == "windows" {
++		t.Skip("avoid dealing with relative paths/drive letters on windows")
++	}
++
++	compileAndImportPkg(t, "issue57015")
++}
++
+ func importPkg(t *testing.T, path, srcDir string) *types.Package {
+ 	fset := token.NewFileSet()
+ 	pkg, err := Import(fset, make(map[string]*types.Package), path, srcDir, nil)
+diff --git a/src/go/internal/gcimporter/testdata/issue57015.go b/src/go/internal/gcimporter/testdata/issue57015.go
+new file mode 100644
+index 0000000000..b6be81191f
+--- /dev/null
++++ b/src/go/internal/gcimporter/testdata/issue57015.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue57015
++
++type E error
++
++type X[T any] struct {}
++
++func F() X[interface {
++	E
++}] {
++	panic(0)
++}
++
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index c2b9a58ee7..ffd8402202 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -29,8 +29,6 @@ type pkgReader struct {
+ 	// laterFns holds functions that need to be invoked at the end of
+ 	// import reading.
+ 	laterFns []func()
+-	// laterFors is used in case of 'type A B' to ensure that B is processed before A.
+-	laterFors map[types.Type]int
+ 
+ 	// ifaces holds a list of constructed Interfaces, which need to have
+ 	// Complete called after importing is done.
+@@ -42,15 +40,6 @@ func (pr *pkgReader) later(fn func()) {
+ 	pr.laterFns = append(pr.laterFns, fn)
+ }
+ 
+-// laterFor adds a function to be invoked at the end of import reading, and records the type that function is finishing.
+-func (pr *pkgReader) laterFor(t types.Type, fn func()) {
+-	if pr.laterFors == nil {
+-		pr.laterFors = make(map[types.Type]int)
+-	}
+-	pr.laterFors[t] = len(pr.laterFns)
+-	pr.laterFns = append(pr.laterFns, fn)
+-}
+-
+ // readUnifiedPackage reads a package description from the given
+ // unified IR export data decoder.
+ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[string]*types.Package, input pkgbits.PkgDecoder) *types.Package {
+@@ -538,43 +527,32 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 
+ 			named.SetTypeParams(r.typeParamNames())
+ 
+-			rhs := r.typ()
+-			pk := r.p
+-			pk.laterFor(named, func() {
+-				// First be sure that the rhs is initialized, if it needs to be initialized.
+-				delete(pk.laterFors, named) // prevent cycles
+-				if i, ok := pk.laterFors[rhs]; ok {
+-					f := pk.laterFns[i]
+-					pk.laterFns[i] = func() {} // function is running now, so replace it with a no-op
+-					f()                        // initialize RHS
++			underlying := r.typ().Underlying()
++
++			// If the underlying type is an interface, we need to
++			// duplicate its methods so we can replace the receiver
++			// parameter's type (#49906).
++			if iface, ok := underlying.(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
++				methods := make([]*types.Func, iface.NumExplicitMethods())
++				for i := range methods {
++					fn := iface.ExplicitMethod(i)
++					sig := fn.Type().(*types.Signature)
++
++					recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
++					methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
+ 				}
+-				underlying := rhs.Underlying()
+-
+-				// If the underlying type is an interface, we need to
+-				// duplicate its methods so we can replace the receiver
+-				// parameter's type (#49906).
+-				if iface, ok := underlying.(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
+-					methods := make([]*types.Func, iface.NumExplicitMethods())
+-					for i := range methods {
+-						fn := iface.ExplicitMethod(i)
+-						sig := fn.Type().(*types.Signature)
+-
+-						recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
+-						methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
+-					}
+-
+-					embeds := make([]types.Type, iface.NumEmbeddeds())
+-					for i := range embeds {
+-						embeds[i] = iface.EmbeddedType(i)
+-					}
+-
+-					newIface := types.NewInterfaceType(methods, embeds)
+-					r.p.ifaces = append(r.p.ifaces, newIface)
+-					underlying = newIface
++
++				embeds := make([]types.Type, iface.NumEmbeddeds())
++				for i := range embeds {
++					embeds[i] = iface.EmbeddedType(i)
+ 				}
+ 
+-				named.SetUnderlying(underlying)
+-			})
++				newIface := types.NewInterfaceType(methods, embeds)
++				r.p.ifaces = append(r.p.ifaces, newIface)
++				underlying = newIface
++			}
++
++			named.SetUnderlying(underlying)
+ 
+ 			for i, n := 0, r.Len(); i < n; i++ {
+ 				named.AddMethod(r.method())

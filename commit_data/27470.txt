@@ -7,9 +7,258 @@ Date:   Fri Mar 18 17:24:18 2016 -0400
     Change-Id: I8440f69c7f99d65b2f69035c26b4a62104f22bd3
     Reviewed-on: https://go-review.googlesource.com/20874
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/debug/elf/elf.go                               | 134 +++++++++++++++++++++
  src/debug/elf/file.go                              |  51 ++++++++
  src/debug/elf/file_test.go                         |  19 +++
  .../testdata/go-relocation-test-gcc531-s390x.obj   | Bin 0 -> 3864 bytes
  4 files changed, 204 insertions(+)
+
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index 613b8c501d..d30e60afce 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -1725,6 +1725,140 @@ var rppc64Strings = []intName{
+ func (i R_PPC64) String() string   { return stringName(uint32(i), rppc64Strings, false) }
+ func (i R_PPC64) GoString() string { return stringName(uint32(i), rppc64Strings, true) }
+ 
++// Relocation types for s390x processors.
++type R_390 int
++
++const (
++	R_390_NONE        R_390 = 0
++	R_390_8           R_390 = 1
++	R_390_12          R_390 = 2
++	R_390_16          R_390 = 3
++	R_390_32          R_390 = 4
++	R_390_PC32        R_390 = 5
++	R_390_GOT12       R_390 = 6
++	R_390_GOT32       R_390 = 7
++	R_390_PLT32       R_390 = 8
++	R_390_COPY        R_390 = 9
++	R_390_GLOB_DAT    R_390 = 10
++	R_390_JMP_SLOT    R_390 = 11
++	R_390_RELATIVE    R_390 = 12
++	R_390_GOTOFF      R_390 = 13
++	R_390_GOTPC       R_390 = 14
++	R_390_GOT16       R_390 = 15
++	R_390_PC16        R_390 = 16
++	R_390_PC16DBL     R_390 = 17
++	R_390_PLT16DBL    R_390 = 18
++	R_390_PC32DBL     R_390 = 19
++	R_390_PLT32DBL    R_390 = 20
++	R_390_GOTPCDBL    R_390 = 21
++	R_390_64          R_390 = 22
++	R_390_PC64        R_390 = 23
++	R_390_GOT64       R_390 = 24
++	R_390_PLT64       R_390 = 25
++	R_390_GOTENT      R_390 = 26
++	R_390_GOTOFF16    R_390 = 27
++	R_390_GOTOFF64    R_390 = 28
++	R_390_GOTPLT12    R_390 = 29
++	R_390_GOTPLT16    R_390 = 30
++	R_390_GOTPLT32    R_390 = 31
++	R_390_GOTPLT64    R_390 = 32
++	R_390_GOTPLTENT   R_390 = 33
++	R_390_GOTPLTOFF16 R_390 = 34
++	R_390_GOTPLTOFF32 R_390 = 35
++	R_390_GOTPLTOFF64 R_390 = 36
++	R_390_TLS_LOAD    R_390 = 37
++	R_390_TLS_GDCALL  R_390 = 38
++	R_390_TLS_LDCALL  R_390 = 39
++	R_390_TLS_GD32    R_390 = 40
++	R_390_TLS_GD64    R_390 = 41
++	R_390_TLS_GOTIE12 R_390 = 42
++	R_390_TLS_GOTIE32 R_390 = 43
++	R_390_TLS_GOTIE64 R_390 = 44
++	R_390_TLS_LDM32   R_390 = 45
++	R_390_TLS_LDM64   R_390 = 46
++	R_390_TLS_IE32    R_390 = 47
++	R_390_TLS_IE64    R_390 = 48
++	R_390_TLS_IEENT   R_390 = 49
++	R_390_TLS_LE32    R_390 = 50
++	R_390_TLS_LE64    R_390 = 51
++	R_390_TLS_LDO32   R_390 = 52
++	R_390_TLS_LDO64   R_390 = 53
++	R_390_TLS_DTPMOD  R_390 = 54
++	R_390_TLS_DTPOFF  R_390 = 55
++	R_390_TLS_TPOFF   R_390 = 56
++	R_390_20          R_390 = 57
++	R_390_GOT20       R_390 = 58
++	R_390_GOTPLT20    R_390 = 59
++	R_390_TLS_GOTIE20 R_390 = 60
++)
++
++var r390Strings = []intName{
++	{0, "R_390_NONE"},
++	{1, "R_390_8"},
++	{2, "R_390_12"},
++	{3, "R_390_16"},
++	{4, "R_390_32"},
++	{5, "R_390_PC32"},
++	{6, "R_390_GOT12"},
++	{7, "R_390_GOT32"},
++	{8, "R_390_PLT32"},
++	{9, "R_390_COPY"},
++	{10, "R_390_GLOB_DAT"},
++	{11, "R_390_JMP_SLOT"},
++	{12, "R_390_RELATIVE"},
++	{13, "R_390_GOTOFF"},
++	{14, "R_390_GOTPC"},
++	{15, "R_390_GOT16"},
++	{16, "R_390_PC16"},
++	{17, "R_390_PC16DBL"},
++	{18, "R_390_PLT16DBL"},
++	{19, "R_390_PC32DBL"},
++	{20, "R_390_PLT32DBL"},
++	{21, "R_390_GOTPCDBL"},
++	{22, "R_390_64"},
++	{23, "R_390_PC64"},
++	{24, "R_390_GOT64"},
++	{25, "R_390_PLT64"},
++	{26, "R_390_GOTENT"},
++	{27, "R_390_GOTOFF16"},
++	{28, "R_390_GOTOFF64"},
++	{29, "R_390_GOTPLT12"},
++	{30, "R_390_GOTPLT16"},
++	{31, "R_390_GOTPLT32"},
++	{32, "R_390_GOTPLT64"},
++	{33, "R_390_GOTPLTENT"},
++	{34, "R_390_GOTPLTOFF16"},
++	{35, "R_390_GOTPLTOFF32"},
++	{36, "R_390_GOTPLTOFF64"},
++	{37, "R_390_TLS_LOAD"},
++	{38, "R_390_TLS_GDCALL"},
++	{39, "R_390_TLS_LDCALL"},
++	{40, "R_390_TLS_GD32"},
++	{41, "R_390_TLS_GD64"},
++	{42, "R_390_TLS_GOTIE12"},
++	{43, "R_390_TLS_GOTIE32"},
++	{44, "R_390_TLS_GOTIE64"},
++	{45, "R_390_TLS_LDM32"},
++	{46, "R_390_TLS_LDM64"},
++	{47, "R_390_TLS_IE32"},
++	{48, "R_390_TLS_IE64"},
++	{49, "R_390_TLS_IEENT"},
++	{50, "R_390_TLS_LE32"},
++	{51, "R_390_TLS_LE64"},
++	{52, "R_390_TLS_LDO32"},
++	{53, "R_390_TLS_LDO64"},
++	{54, "R_390_TLS_DTPMOD"},
++	{55, "R_390_TLS_DTPOFF"},
++	{56, "R_390_TLS_TPOFF"},
++	{57, "R_390_20"},
++	{58, "R_390_GOT20"},
++	{59, "R_390_GOTPLT20"},
++	{60, "R_390_TLS_GOTIE20"},
++}
++
++func (i R_390) String() string   { return stringName(uint32(i), r390Strings, false) }
++func (i R_390) GoString() string { return stringName(uint32(i), r390Strings, true) }
++
+ // Relocation types for SPARC.
+ type R_SPARC int
+ 
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 72796d535f..c28a964b73 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -596,6 +596,8 @@ func (f *File) applyRelocations(dst []byte, rels []byte) error {
+ 		return f.applyRelocationsPPC64(dst, rels)
+ 	case f.Class == ELFCLASS64 && f.Machine == EM_MIPS:
+ 		return f.applyRelocationsMIPS64(dst, rels)
++	case f.Class == ELFCLASS64 && f.Machine == EM_S390:
++		return f.applyRelocationss390x(dst, rels)
+ 	default:
+ 		return errors.New("applyRelocations: not implemented")
+ 	}
+@@ -911,6 +913,55 @@ func (f *File) applyRelocationsMIPS64(dst []byte, rels []byte) error {
+ 	return nil
+ }
+ 
++func (f *File) applyRelocationss390x(dst []byte, rels []byte) error {
++	// 24 is the size of Rela64.
++	if len(rels)%24 != 0 {
++		return errors.New("length of relocation section is not a multiple of 24")
++	}
++
++	symbols, _, err := f.getSymbols(SHT_SYMTAB)
++	if err != nil {
++		return err
++	}
++
++	b := bytes.NewReader(rels)
++	var rela Rela64
++
++	for b.Len() > 0 {
++		binary.Read(b, f.ByteOrder, &rela)
++		symNo := rela.Info >> 32
++		t := R_390(rela.Info & 0xffff)
++
++		if symNo == 0 || symNo > uint64(len(symbols)) {
++			continue
++		}
++		sym := &symbols[symNo-1]
++		switch SymType(sym.Info & 0xf) {
++		case STT_SECTION, STT_NOTYPE:
++			break
++		default:
++			continue
++		}
++
++		switch t {
++		case R_390_64:
++			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
++				continue
++			}
++			val := sym.Value + uint64(rela.Addend)
++			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], val)
++		case R_390_32:
++			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
++				continue
++			}
++			val := uint32(sym.Value) + uint32(rela.Addend)
++			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], val)
++		}
++	}
++
++	return nil
++}
++
+ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// sectionData gets the data for s, checks its size, and
+ 	// applies any applicable relations.
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 462d9227a1..42caefa4cf 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -472,6 +472,25 @@ var relocationTests = []relocationTest{
+ 			}},
+ 		},
+ 	},
++	{
++		"testdata/go-relocation-test-gcc531-s390x.obj",
++		[]relocationTestEntry{
++			{0, &dwarf.Entry{
++				Offset:   0xb,
++				Tag:      dwarf.TagCompileUnit,
++				Children: true,
++				Field: []dwarf.Field{
++					{Attr: dwarf.AttrProducer, Val: "GNU C11 5.3.1 20160316 -march=zEC12 -m64 -mzarch -g -fstack-protector-strong", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
++					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
++					{Attr: dwarf.AttrHighpc, Val: int64(58), Class: dwarf.ClassConstant},
++					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
++				},
++			}},
++		},
++	},
+ 	{
+ 		"testdata/go-relocation-test-gcc493-mips64le.obj",
+ 		[]relocationTestEntry{
+diff --git a/src/debug/elf/testdata/go-relocation-test-gcc531-s390x.obj b/src/debug/elf/testdata/go-relocation-test-gcc531-s390x.obj
+new file mode 100644
+index 0000000000..caacb9b90a
+Binary files /dev/null and b/src/debug/elf/testdata/go-relocation-test-gcc531-s390x.obj differ

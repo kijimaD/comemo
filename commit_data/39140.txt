@@ -11,7 +11,26 @@ Date:   Mon Jan 7 11:54:35 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  lib/time/update.bash  |   4 ++--
  lib/time/zoneinfo.zip | Bin 363811 -> 365447 bytes
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index 8b1f453fb5..8d6785b9af 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -8,8 +8,8 @@
+ # Consult https://www.iana.org/time-zones for the latest versions.
+ 
+ # Versions to use.
+-CODE=2018g
+-DATA=2018g
++CODE=2018i
++DATA=2018i
+ 
+ set -e
+ rm -rf work
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+index 99d5ee1213..bacb724322 100644
+Binary files a/lib/time/zoneinfo.zip and b/lib/time/zoneinfo.zip differ

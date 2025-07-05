@@ -15,7 +15,82 @@ Date:   Wed Oct 2 09:30:51 2019 -0600
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix.go      |  8 +++++++
  src/net/dnsclient_unix_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 55 insertions(+)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index e0a7ef8552..c90892b833 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -765,6 +765,14 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string) ([]string, erro
+ 			}
+ 		}
+ 		if h.Type != dnsmessage.TypePTR {
++			err := p.SkipAnswer()
++			if err != nil {
++				return nil, &DNSError{
++					Err:    "cannot marshal DNS message",
++					Name:   addr,
++					Server: server,
++				}
++			}
+ 			continue
+ 		}
+ 		ptr, err := p.PTRResource()
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 98304d36ea..31cb6f721a 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -1753,3 +1753,50 @@ func TestDNSUseTCP(t *testing.T) {
+ 		t.Fatal("exchange failed:", err)
+ 	}
+ }
++
++// Issue 34660: PTR response with non-PTR answers should ignore non-PTR
++func TestPTRandNonPTR(t *testing.T) {
++	fake := fakeDNSServer{
++		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
++			r := dnsmessage.Message{
++				Header: dnsmessage.Header{
++					ID:       q.Header.ID,
++					Response: true,
++					RCode:    dnsmessage.RCodeSuccess,
++				},
++				Questions: q.Questions,
++				Answers: []dnsmessage.Resource{
++					{
++						Header: dnsmessage.ResourceHeader{
++							Name:  q.Questions[0].Name,
++							Type:  dnsmessage.TypePTR,
++							Class: dnsmessage.ClassINET,
++						},
++						Body: &dnsmessage.PTRResource{
++							PTR: dnsmessage.MustNewName("golang.org."),
++						},
++					},
++					{
++						Header: dnsmessage.ResourceHeader{
++							Name:  q.Questions[0].Name,
++							Type:  dnsmessage.TypeTXT,
++							Class: dnsmessage.ClassINET,
++						},
++						Body: &dnsmessage.TXTResource{
++							TXT: []string{"PTR 8 6 60 ..."}, // fake RRSIG
++						},
++					},
++				},
++			}
++			return r, nil
++		},
++	}
++	r := Resolver{PreferGo: true, Dial: fake.DialContext}
++	names, err := r.lookupAddr(context.Background(), "192.0.2.123")
++	if err != nil {
++		t.Fatalf("LookupAddr: %v", err)
++	}
++	if want := []string{"golang.org."}; !reflect.DeepEqual(names, want) {
++		t.Errorf("names = %q; want %q", names, want)
++	}
++}

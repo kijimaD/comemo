@@ -7,7 +7,38 @@ Date:   Wed May 18 10:51:45 2011 -0400
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/4553042
-
+---
  src/pkg/syscall/ztypes_darwin_386.go   | 4 ++++
  src/pkg/syscall/ztypes_darwin_amd64.go | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/pkg/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+index b3541778e0..1f378427f6 100644
+--- a/src/pkg/syscall/ztypes_darwin_386.go
++++ b/src/pkg/syscall/ztypes_darwin_386.go
+@@ -2,6 +2,10 @@
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
++// Manual corrections: TODO: need to fix godefs (issue 1466)
++//	change Msghdr field to Iov *Iovec (was uint32/64)
++//	change BpfProgram field to Insns *BpfInsn (was uint32/64)
++
+ package syscall
+ 
+ // Constants
+diff --git a/src/pkg/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+index d61c8b8de3..5fa27bdd75 100644
+--- a/src/pkg/syscall/ztypes_darwin_amd64.go
++++ b/src/pkg/syscall/ztypes_darwin_amd64.go
+@@ -2,6 +2,10 @@
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
++// Manual corrections: TODO: need to fix godefs (issue 1466)
++//	change Msghdr field to Iov *Iovec (was uint32/64)
++//	change BpfProgram field to Insns *BpfInsn (was uint32/64)
++
+ package syscall
+ 
+ // Constants

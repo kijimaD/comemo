@@ -7,7 +7,32 @@ Date:   Sun Feb 3 11:42:51 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7292043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 625a77fa8f..949a060120 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -279,6 +279,7 @@ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+ Yissakhar Z. Beck <yissakhar.beck@gmail.com>
+ Yongjian Xu <i3dmaster@gmail.com>
+ Yoshiyuki Kanno <nekotaroh@gmail.com> <yoshiyuki.kanno@stoic.co.jp>
++Yusuke Kagiwada <block.rxckin.beats@gmail.com>
+ Yuusei Kuwana <kuwana@kumama.org>
+ Yuval Pavel Zholkover <paulzhol@gmail.com>
+ Ziad Hatahet <hatahet@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 42e600ccfd..7e1ca5bb56 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -392,6 +392,7 @@ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+ Yissakhar Z. Beck <yissakhar.beck@gmail.com>
+ Yongjian Xu <i3dmaster@gmail.com>
+ Yoshiyuki Kanno <nekotaroh@gmail.com> <yoshiyuki.kanno@stoic.co.jp>
++Yusuke Kagiwada <block.rxckin.beats@gmail.com>
+ Yuusei Kuwana <kuwana@kumama.org>
+ Yuval Pavel Zholkover <paulzhol@gmail.com>
+ Yves Junqueira <yves.junqueira@gmail.com>

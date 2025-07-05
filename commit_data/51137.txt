@@ -10,10 +10,146 @@ Date:   Tue Dec 7 17:50:50 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/370139
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Trust: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/go/alldocs.go                                | 10 +++++-----
  src/cmd/go/internal/modload/init.go                  |  2 +-
  src/cmd/go/internal/workcmd/edit.go                  | 10 +++++-----
  src/cmd/go/internal/workcmd/init.go                  |  6 +++---
  src/cmd/go/testdata/script/work_replace_conflict.txt |  2 +-
  5 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b9fca791be..f9a2b59c05 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1407,10 +1407,10 @@
+ //
+ // 	go work edit [editing flags] [go.work]
+ //
+-// Editwork provides a command-line interface for editing go.work,
++// Edit provides a command-line interface for editing go.work,
+ // for use primarily by tools or scripts. It only reads go.work;
+ // it does not look up information about the modules involved.
+-// If no file is specified, editwork looks for a go.work file in the current
++// If no file is specified, Edit looks for a go.work file in the current
+ // directory and its parent directories
+ //
+ // The editing flags specify a sequence of editing operations.
+@@ -1418,7 +1418,7 @@
+ // The -fmt flag reformats the go.work file without making other changes.
+ // This reformatting is also implied by any other modifications that use or
+ // rewrite the go.mod file. The only time this flag is needed is if no other
+-// flags are specified, as in 'go mod editwork -fmt'.
++// flags are specified, as in 'go work edit -fmt'.
+ //
+ // The -use=path and -dropuse=path flags
+ // add and drop a use directive from the go.work file's set of module directories.
+@@ -1478,10 +1478,10 @@
+ //
+ // 	go work init [moddirs]
+ //
+-// go mod initwork initializes and writes a new go.work file in the current
++// Init initializes and writes a new go.work file in the current
+ // directory, in effect creating a new workspace at the current directory.
+ //
+-// go mod initwork optionally accepts paths to the workspace modules as arguments.
++// go work init optionally accepts paths to the workspace modules as arguments.
+ // If the argument is omitted, an empty workspace with no modules will be created.
+ //
+ // See the workspaces design proposal at
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 943547e71b..854c17d776 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1019,7 +1019,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 				if replacedByWorkFile[r.Old.Path] {
+ 					continue
+ 				} else if prev, ok := replacements[r.Old]; ok && !curModuleReplaces[r.Old] && prev != r.New {
+-					base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v\nuse \"go mod editwork -replace %v=[override]\" to resolve", r.Old, prev, r.New, r.Old)
++					base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v\nuse \"go work edit -replace %v=[override]\" to resolve", r.Old, prev, r.New, r.Old)
+ 				}
+ 				curModuleReplaces[r.Old] = true
+ 				replacements[r.Old] = r.New
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index 03a27f2bc6..c42000710e 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -24,10 +24,10 @@ import (
+ var cmdEdit = &base.Command{
+ 	UsageLine: "go work edit [editing flags] [go.work]",
+ 	Short:     "edit go.work from tools or scripts",
+-	Long: `Editwork provides a command-line interface for editing go.work,
++	Long: `Edit provides a command-line interface for editing go.work,
+ for use primarily by tools or scripts. It only reads go.work;
+ it does not look up information about the modules involved.
+-If no file is specified, editwork looks for a go.work file in the current
++If no file is specified, Edit looks for a go.work file in the current
+ directory and its parent directories
+ 
+ The editing flags specify a sequence of editing operations.
+@@ -35,7 +35,7 @@ The editing flags specify a sequence of editing operations.
+ The -fmt flag reformats the go.work file without making other changes.
+ This reformatting is also implied by any other modifications that use or
+ rewrite the go.mod file. The only time this flag is needed is if no other
+-flags are specified, as in 'go mod editwork -fmt'.
++flags are specified, as in 'go work edit -fmt'.
+ 
+ The -use=path and -dropuse=path flags
+ add and drop a use directive from the go.work file's set of module directories.
+@@ -123,7 +123,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 			len(workedits) > 0
+ 
+ 	if !anyFlags {
+-		base.Fatalf("go: no flags specified (see 'go help mod editwork').")
++		base.Fatalf("go: no flags specified (see 'go help work edit').")
+ 	}
+ 
+ 	if *editJSON && *editPrint {
+@@ -131,7 +131,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	if len(args) > 1 {
+-		base.Fatalf("go: 'go mod editwork' accepts at most one argument")
++		base.Fatalf("go: 'go help work edit' accepts at most one argument")
+ 	}
+ 	var gowork string
+ 	if len(args) == 1 {
+diff --git a/src/cmd/go/internal/workcmd/init.go b/src/cmd/go/internal/workcmd/init.go
+index fde1483efb..2297ac20d0 100644
+--- a/src/cmd/go/internal/workcmd/init.go
++++ b/src/cmd/go/internal/workcmd/init.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// go mod initwork
++// go work init
+ 
+ package workcmd
+ 
+@@ -20,10 +20,10 @@ import (
+ var cmdInit = &base.Command{
+ 	UsageLine: "go work init [moddirs]",
+ 	Short:     "initialize workspace file",
+-	Long: `go mod initwork initializes and writes a new go.work file in the current
++	Long: `Init initializes and writes a new go.work file in the current
+ directory, in effect creating a new workspace at the current directory.
+ 
+-go mod initwork optionally accepts paths to the workspace modules as arguments.
++go work init optionally accepts paths to the workspace modules as arguments.
+ If the argument is omitted, an empty workspace with no modules will be created.
+ 
+ See the workspaces design proposal at
+diff --git a/src/cmd/go/testdata/script/work_replace_conflict.txt b/src/cmd/go/testdata/script/work_replace_conflict.txt
+index e5677b21d7..81d1fcb043 100644
+--- a/src/cmd/go/testdata/script/work_replace_conflict.txt
++++ b/src/cmd/go/testdata/script/work_replace_conflict.txt
+@@ -2,7 +2,7 @@
+ # overriding it in the go.work file.
+ 
+ ! go list -m example.com/dep
+-stderr 'go: conflicting replacements for example.com/dep@v1.0.0:\n\t./dep1\n\t./dep2\nuse "go mod editwork -replace example.com/dep@v1.0.0=\[override\]" to resolve'
++stderr 'go: conflicting replacements for example.com/dep@v1.0.0:\n\t./dep1\n\t./dep2\nuse "go work edit -replace example.com/dep@v1.0.0=\[override\]" to resolve'
+ go work edit -replace example.com/dep@v1.0.0=./dep1
+ go list -m example.com/dep
+ stdout 'example.com/dep v1.0.0 => ./dep1'

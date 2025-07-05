@@ -11,6 +11,22 @@ Date:   Sun Mar 20 19:35:59 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/20963
     Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/nilptr3.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index 1ba774d839..817d2aec74 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -1,8 +1,8 @@
+ // errorcheck -0 -d=nil
+ // Fails on ppc64x because of incomplete optimization.
+ // See issues 9058.
+-// Same reason for mips64x.
+-// +build !ppc64,!ppc64le,!mips64,!mips64le,!amd64
++// Same reason for mips64x and s390x.
++// +build !ppc64,!ppc64le,!mips64,!mips64le,!amd64,!s390x
+ 
+ // Copyright 2013 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style

@@ -8,6 +8,21 @@ Date:   Wed Nov 10 09:39:26 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/3016041
-
+---
  src/pkg/testing/benchmark.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index 7c30e4e4ea..d82007e2ce 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -189,7 +189,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
+ 
+ // Benchmark benchmarks a single function. Useful for creating
+ // custom benchmarks that do not use gotest.
+-func Benchmark(name string, f func(b *B)) BenchmarkResult {
+-	b := &B{benchmark: InternalBenchmark{name, f}}
++func Benchmark(f func(b *B)) BenchmarkResult {
++	b := &B{benchmark: InternalBenchmark{"", f}}
+ 	return b.run()
+ }

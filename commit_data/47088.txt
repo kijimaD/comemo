@@ -11,7 +11,34 @@ Date:   Tue Nov 10 17:56:33 2020 +0800
     Trust: Nigel Tao <nigeltao@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Trust: Rob Pike <r@golang.org>
-
+---
  src/image/jpeg/reader.go | 3 ---
  src/image/png/writer.go  | 1 +
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index 4a4706ffe7..b34072396c 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -14,9 +14,6 @@ import (
+ 	"io"
+ )
+ 
+-// TODO(nigeltao): fix up the doc comment style so that sentences start with
+-// the name of the type or function that they annotate.
+-
+ // A FormatError reports that the input is not a valid JPEG.
+ type FormatError string
+ 
+diff --git a/src/image/png/writer.go b/src/image/png/writer.go
+index 53adc1633c..cbcdb9e798 100644
+--- a/src/image/png/writer.go
++++ b/src/image/png/writer.go
+@@ -51,6 +51,7 @@ type encoder struct {
+ 	bw      *bufio.Writer
+ }
+ 
++// CompressionLevel indicates the compression level.
+ type CompressionLevel int
+ 
+ const (

@@ -13,7 +13,34 @@ Date:   Wed Oct 17 22:32:27 2018 +1100
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/doc/doc_test.go | 3 +++
  src/cmd/doc/pkg.go      | 1 +
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 80fdb5c72e..ec3a50d87d 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -733,6 +733,9 @@ func TestDoc(t *testing.T) {
+ 				failed = true
+ 			}
+ 		}
++		if bytes.Count(output, []byte("TYPES\n")) > 1 {
++			t.Fatalf("%s: repeating headers", test.name)
++		}
+ 		if failed {
+ 			t.Logf("\n%s", output)
+ 		}
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index bb1b998537..680f555f59 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -426,6 +426,7 @@ func (pkg *Package) allDoc() {
+ 	printHdr := func(s string) {
+ 		if hdr != s {
+ 			pkg.Printf("\n%s\n\n", s)
++			hdr = s
+ 		}
+ 	}
+ 

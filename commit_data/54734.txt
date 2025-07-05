@@ -17,8 +17,141 @@ Date:   Thu Nov 10 11:33:00 2022 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go        | 70 +++++++++++++--------------
  src/cmd/compile/internal/inline/inl.go        | 10 ++--
  src/cmd/compile/internal/test/pgo_inl_test.go |  5 +-
  3 files changed, 43 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 7e4adef706..ca3552733d 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -16,41 +16,41 @@ var Debug DebugFlags
+ // The -d option takes a comma-separated list of settings.
+ // Each setting is name=value; for ints, name is short for name=1.
+ type DebugFlags struct {
+-	Append                        int    `help:"print information about append compilation"`
+-	Checkptr                      int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
+-	Closure                       int    `help:"print information about closure compilation"`
+-	DclStack                      int    `help:"run internal dclstack check"`
+-	Defer                         int    `help:"print information about defer compilation"`
+-	DisableNil                    int    `help:"disable nil checks" concurrent:"ok"`
+-	DumpPtrs                      int    `help:"show Node pointers values in dump output"`
+-	DwarfInl                      int    `help:"print information about DWARF inlined function creation"`
+-	Export                        int    `help:"print export data"`
+-	Fmahash                       string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
+-	GCAdjust                      int    `help:"log adjustments to GOGC" concurrent:"ok"`
+-	GCProg                        int    `help:"print dump of GC programs"`
+-	Gossahash                     string `help:"hash value for use in debugging the compiler"`
+-	InlFuncsWithClosures          int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
+-	Libfuzzer                     int    `help:"enable coverage instrumentation for libfuzzer"`
+-	LocationLists                 int    `help:"print information about DWARF location list creation"`
+-	Nil                           int    `help:"print information about nil checks"`
+-	NoOpenDefer                   int    `help:"disable open-coded defers" concurrent:"ok"`
+-	NoRefName                     int    `help:"do not include referenced symbol names in object file" concurrent:"ok"`
+-	PCTab                         string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
+-	Panic                         int    `help:"show all compiler panics"`
+-	Reshape                       int    `help:"print information about expression reshaping"`
+-	Shapify                       int    `help:"print information about shaping recursive types"`
+-	Slice                         int    `help:"print information about slice compilation"`
+-	SoftFloat                     int    `help:"force compiler to emit soft-float code" concurrent:"ok"`
+-	SyncFrames                    int    `help:"how many writer stack frames to include at sync points in unified export data"`
+-	TypeAssert                    int    `help:"print information about type assertion inlining"`
+-	TypecheckInl                  int    `help:"eager typechecking of inline function bodies" concurrent:"ok"`
+-	Unified                       int    `help:"enable unified IR construction"`
+-	WB                            int    `help:"print information about write barriers"`
+-	ABIWrap                       int    `help:"print information about ABI wrapper generation"`
+-	MayMoreStack                  string `help:"call named function before all stack growth checks" concurrent:"ok"`
+-	InlineHotCallSiteCDFThreshold string `help:"cummulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
+-	InlineHotBudget               int    `help:"inline budget for hot functions" concurrent:"ok"`
+-	PGOInline                     int    `help:"debug profile-guided inlining"`
++	Append                int    `help:"print information about append compilation"`
++	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
++	Closure               int    `help:"print information about closure compilation"`
++	DclStack              int    `help:"run internal dclstack check"`
++	Defer                 int    `help:"print information about defer compilation"`
++	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
++	DumpPtrs              int    `help:"show Node pointers values in dump output"`
++	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
++	Export                int    `help:"print export data"`
++	Fmahash               string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
++	GCAdjust              int    `help:"log adjustments to GOGC" concurrent:"ok"`
++	GCProg                int    `help:"print dump of GC programs"`
++	Gossahash             string `help:"hash value for use in debugging the compiler"`
++	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
++	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
++	LocationLists         int    `help:"print information about DWARF location list creation"`
++	Nil                   int    `help:"print information about nil checks"`
++	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`
++	NoRefName             int    `help:"do not include referenced symbol names in object file" concurrent:"ok"`
++	PCTab                 string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
++	Panic                 int    `help:"show all compiler panics"`
++	Reshape               int    `help:"print information about expression reshaping"`
++	Shapify               int    `help:"print information about shaping recursive types"`
++	Slice                 int    `help:"print information about slice compilation"`
++	SoftFloat             int    `help:"force compiler to emit soft-float code" concurrent:"ok"`
++	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data"`
++	TypeAssert            int    `help:"print information about type assertion inlining"`
++	TypecheckInl          int    `help:"eager typechecking of inline function bodies" concurrent:"ok"`
++	Unified               int    `help:"enable unified IR construction"`
++	WB                    int    `help:"print information about write barriers"`
++	ABIWrap               int    `help:"print information about ABI wrapper generation"`
++	MayMoreStack          string `help:"call named function before all stack growth checks" concurrent:"ok"`
++	PGOInlineCDFThreshold string `help:"cummulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
++	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
++	PGOInline             int    `help:"debug profile-guided inlining"`
+ 
+ 	ConcurrentOk bool // true if only concurrentOk flags seen
+ }
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index aebe32869a..028b6c0e83 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -76,15 +76,15 @@ var (
+ 	// that is, for a threshold of X the hottest callsites that
+ 	// make up the top X% of total edge weight will be
+ 	// considered hot for inlining candidates.
+-	inlineCDFHotCallSiteThresholdPercent = float64(95)
++	inlineCDFHotCallSiteThresholdPercent = float64(99)
+ 
+ 	// Budget increased due to hotness.
+-	inlineHotMaxBudget int32 = 160
++	inlineHotMaxBudget int32 = 2000
+ )
+ 
+ // pgoInlinePrologue records the hot callsites from ir-graph.
+ func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
+-	if s, err := strconv.ParseFloat(base.Debug.InlineHotCallSiteCDFThreshold, 64); err == nil {
++	if s, err := strconv.ParseFloat(base.Debug.PGOInlineCDFThreshold, 64); err == nil {
+ 		inlineCDFHotCallSiteThresholdPercent = s
+ 	}
+ 	var hotCallsites []pgo.NodeMapKey
+@@ -93,8 +93,8 @@ func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
+ 		fmt.Printf("hot-callsite-thres-from-CDF=%v\n", inlineHotCallSiteThresholdPercent)
+ 	}
+ 
+-	if base.Debug.InlineHotBudget != 0 {
+-		inlineHotMaxBudget = int32(base.Debug.InlineHotBudget)
++	if x := base.Debug.PGOInlineBudget; x != 0 {
++		inlineHotMaxBudget = int32(x)
+ 	}
+ 
+ 	// mark inlineable callees from hot edges
+diff --git a/src/cmd/compile/internal/test/pgo_inl_test.go b/src/cmd/compile/internal/test/pgo_inl_test.go
+index d0737f76a1..ea2e00ce38 100644
+--- a/src/cmd/compile/internal/test/pgo_inl_test.go
++++ b/src/cmd/compile/internal/test/pgo_inl_test.go
+@@ -67,9 +67,10 @@ go 1.19
+ 		expectedNotInlinedList[fullName] = struct{}{}
+ 	}
+ 
+-	// go test -c -o /tmp/test.exe -cpuprofile inline_hot.pprof
++	// Build the test with the profile. Use a smaller threshold to test.
++	// TODO: maybe adjust the test to work with default threshold.
+ 	pprof := filepath.Join(dir, "inline_hot.pprof")
+-	gcflag := fmt.Sprintf("-gcflags=-m -m -pgoprofile %s", pprof)
++	gcflag := fmt.Sprintf("-gcflags=-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", pprof)
+ 	out := filepath.Join(dir, "test.exe")
+ 	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", out, gcflag, "."))
+ 	cmd.Dir = dir

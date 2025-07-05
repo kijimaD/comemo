@@ -9,7 +9,51 @@ Date:   Thu May 3 17:35:44 2012 -0400
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/6035050
-
+---
  src/pkg/encoding/json/decode.go      |  5 +++++
  src/pkg/encoding/json/decode_test.go | 19 +++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 701cba9bd0..0018e534cc 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -593,6 +593,11 @@ func (d *decodeState) literal(v reflect.Value) {
+ // produce more helpful error messages.
+ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool) {
+ 	// Check for unmarshaler.
++	if len(item) == 0 {
++		//Empty string given
++		d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
++		return
++	}
+ 	wantptr := item[0] == 'n' // null
+ 	unmarshaler, pv := d.indirect(v, wantptr)
+ 	if unmarshaler != nil {
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 78768c8ba1..4f6a9b64ef 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -646,3 +646,22 @@ func TestAnonymous(t *testing.T) {
+ 		t.Fatal("Unmarshal: did set T.Y")
+ 	}
+ }
++
++// Test that the empty string doesn't panic decoding when ,string is specified
++// Issue 3450
++func TestEmptyString(t *testing.T) {
++	type T2 struct {
++		Number1 int `json:",string"`
++		Number2 int `json:",string"`
++	}
++	data := `{"Number1":"1", "Number2":""}`
++	dec := NewDecoder(strings.NewReader(data))
++	var t2 T2
++	err := dec.Decode(&t2)
++	if err == nil {
++		t.Fatal("Decode: did not return error")
++	}
++	if t2.Number1 != 1 {
++		t.Fatal("Decode: did not set Number1")
++	}
++}

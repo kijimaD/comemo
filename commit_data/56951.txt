@@ -14,7 +14,54 @@ Date:   Thu Jun 1 14:11:27 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/gover/gover.go | 20 ++++++++++++++++++++
  src/cmd/go/internal/modget/get.go  |  4 ++--
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/gover/gover.go b/src/cmd/go/internal/gover/gover.go
+index fbea612227..247717125b 100644
+--- a/src/cmd/go/internal/gover/gover.go
++++ b/src/cmd/go/internal/gover/gover.go
+@@ -55,6 +55,26 @@ func Compare(x, y string) int {
+ 	return 0
+ }
+ 
++// Max returns the maximum of x and y interpreted as toolchain versions,
++// compared using Compare.
++// If x and y compare equal, Max returns x.
++func Max(x, y string) string {
++	if Compare(x, y) < 0 {
++		return y
++	}
++	return x
++}
++
++// Toolchain returns the maximum of x and y interpreted as toolchain names,
++// compared using Compare(FromToolchain(x), FromToolchain(y)).
++// If x and y compare equal, Max returns x.
++func ToolchainMax(x, y string) string {
++	if Compare(FromToolchain(x), FromToolchain(y)) < 0 {
++		return y
++	}
++	return x
++}
++
+ // IsLang reports whether v denotes the overall Go language version
+ // and not a specific release. Starting with the Go 1.21 release, "1.x" denotes
+ // the overall language version; the first release is "1.x.0".
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 0cf3c1dc84..8a8b8dea22 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -1233,8 +1233,8 @@ func (r *resolver) resolveQueries(ctx context.Context, queries []*query) (change
+ 		goVers := ""
+ 		for _, q := range queries {
+ 			for _, cs := range q.candidates {
+-				if e := (*gover.TooNewError)(nil); errors.As(cs.err, &e) && gover.Compare(goVers, e.GoVersion) < 0 {
+-					goVers = e.GoVersion
++				if e := (*gover.TooNewError)(nil); errors.As(cs.err, &e) {
++					goVers = gover.Max(goVers, e.GoVersion)
+ 				}
+ 			}
+ 		}

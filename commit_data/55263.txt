@@ -17,7 +17,7 @@ Date:   Fri Dec 23 13:22:00 2022 +0100
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/internal/obj/x86/obj6.go |  3 +-
  src/runtime/asm_amd64.s          | 64 ++++++++++++++++++++--------------------
  src/runtime/cgo/asm_amd64.s      |  2 +-
@@ -29,3 +29,483 @@ Date:   Fri Dec 23 13:22:00 2022 +0100
  src/runtime/wincallback.go       |  4 ++-
  src/runtime/zcallback_windows.s  |  4 ++-
  10 files changed, 63 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index a071762681..aa4cc225c6 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -614,13 +614,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var bpsize int
+ 	if ctxt.Arch.Family == sys.AMD64 &&
+ 		!p.From.Sym.NoFrame() && // (1) below
+-		!(autoffset == 0 && p.From.Sym.NoSplit()) && // (2) below
++		!(autoffset == 0 && p.From.Sym.NoSplit() && ctxt.Headtype != objabi.Hwindows) && // (2) below
+ 		!(autoffset == 0 && !hasCall) { // (3) below
+ 		// Make room to save a base pointer.
+ 		// There are 2 cases we must avoid:
+ 		// 1) If noframe is set (which we do for functions which tail call).
+ 		// 2) Scary runtime internals which would be all messed up by frame pointers.
+ 		//    We detect these using a heuristic: frameless nosplit functions.
++		//    Windows does not use this heuristic anymore.
+ 		//    TODO: Maybe someday we label them all with NOFRAME and get rid of this heuristic.
+ 		// For performance, we also want to avoid:
+ 		// 3) Frameless leaf functions
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 0e72b540be..6720c20f15 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -29,7 +29,7 @@ TEXT main(SB),NOSPLIT,$-8
+ // c-archive) or when the shared library is loaded (for c-shared).
+ // We expect argc and argv to be passed in the usual C ABI registers
+ // DI and SI.
+-TEXT _rt0_amd64_lib(SB),NOSPLIT,$0
++TEXT _rt0_amd64_lib(SB),NOSPLIT|NOFRAME,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+@@ -390,7 +390,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ 	// No per-thread init.
+ 	RET
+ 
+-TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME|NOFRAME,$0
+ 	CALL	runtime·mstart0(SB)
+ 	RET // not reached
+ 
+@@ -425,7 +425,7 @@ TEXT gogo<>(SB), NOSPLIT, $0
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return. It should gogo(&g->sched)
+ // to keep running g.
+-TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT, $0-8
++TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
+ 	MOVQ	AX, DX	// DX = fn
+ 
+ 	// save state in g->sched
+@@ -463,7 +463,7 @@ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+ 	RET
+ 
+ // func systemstack(fn func())
+-TEXT runtime·systemstack(SB), NOSPLIT, $0-8
++TEXT runtime·systemstack(SB), NOSPLIT|NOFRAME, $0-8
+ 	MOVQ	fn+0(FP), DI	// DI = fn
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX	// AX = g
+@@ -530,7 +530,7 @@ bad:
+ // the top of a stack (for example, morestack calling newstack
+ // calling the scheduler calling newm calling gc), so we must
+ // record an argument size. For that purpose, it has no arguments.
+-TEXT runtime·morestack(SB),NOSPLIT,$0-0
++TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	// Cannot grow scheduler stack (m->g0).
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+@@ -772,7 +772,7 @@ TEXT ·publicationBarrier<ABIInternal>(SB),NOSPLIT,$0-0
+ // Must only be called from functions with no locals ($0)
+ // or else unwinding from systemstack_switch is incorrect.
+ // Smashes R9.
+-TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
++TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	$runtime·systemstack_switch(SB), R9
+ 	MOVQ	R9, (g_sched+gobuf_pc)(R14)
+ 	LEAQ	8(SP), R9
+@@ -789,7 +789,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
+ // func asmcgocall_no_g(fn, arg unsafe.Pointer)
+ // Call fn(arg) aligned appropriately for the gcc ABI.
+ // Called on a system stack, and there may be no g yet (during needm).
+-TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
++TEXT ·asmcgocall_no_g(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVQ	fn+0(FP), AX
+ 	MOVQ	arg+8(FP), BX
+ 	MOVQ	SP, DX
+@@ -807,7 +807,7 @@ TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+ // See cgocall.go for more details.
+-TEXT ·asmcgocall(SB),NOSPLIT,$0-20
++TEXT ·asmcgocall(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVQ	fn+0(FP), AX
+ 	MOVQ	arg+8(FP), BX
+ 
+@@ -1063,7 +1063,7 @@ loop:
+ 	JMP	loop
+ 
+ // check that SP is in range [g->stack.lo, g->stack.hi)
+-TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
++TEXT runtime·stackcheck(SB), NOSPLIT|NOFRAME, $0-0
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+ 	CMPQ	(g_stack+stack_hi)(AX), SP
+@@ -1594,7 +1594,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT|TOPFRAME,$0-0
++TEXT runtime·goexit(SB),NOSPLIT|TOPFRAME|NOFRAME,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+@@ -1711,7 +1711,7 @@ flush:
+ 
+ // gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.
+ // Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierCX<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·gcWriteBarrierCX<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	XCHGQ CX, AX
+ 	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ CX, AX
+@@ -1719,7 +1719,7 @@ TEXT runtime·gcWriteBarrierCX<ABIInternal>(SB),NOSPLIT,$0
+ 
+ // gcWriteBarrierDX is gcWriteBarrier, but with args in DI and DX.
+ // Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierDX<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·gcWriteBarrierDX<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	XCHGQ DX, AX
+ 	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ DX, AX
+@@ -1727,7 +1727,7 @@ TEXT runtime·gcWriteBarrierDX<ABIInternal>(SB),NOSPLIT,$0
+ 
+ // gcWriteBarrierBX is gcWriteBarrier, but with args in DI and BX.
+ // Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierBX<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·gcWriteBarrierBX<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	XCHGQ BX, AX
+ 	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ BX, AX
+@@ -1735,7 +1735,7 @@ TEXT runtime·gcWriteBarrierBX<ABIInternal>(SB),NOSPLIT,$0
+ 
+ // gcWriteBarrierBP is gcWriteBarrier, but with args in DI and BP.
+ // Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierBP<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·gcWriteBarrierBP<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	XCHGQ BP, AX
+ 	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ BP, AX
+@@ -1743,7 +1743,7 @@ TEXT runtime·gcWriteBarrierBP<ABIInternal>(SB),NOSPLIT,$0
+ 
+ // gcWriteBarrierSI is gcWriteBarrier, but with args in DI and SI.
+ // Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierSI<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·gcWriteBarrierSI<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	XCHGQ SI, AX
+ 	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ SI, AX
+@@ -1751,7 +1751,7 @@ TEXT runtime·gcWriteBarrierSI<ABIInternal>(SB),NOSPLIT,$0
+ 
+ // gcWriteBarrierR8 is gcWriteBarrier, but with args in DI and R8.
+ // Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierR8<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·gcWriteBarrierR8<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	XCHGQ R8, AX
+ 	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ R8, AX
+@@ -1759,7 +1759,7 @@ TEXT runtime·gcWriteBarrierR8<ABIInternal>(SB),NOSPLIT,$0
+ 
+ // gcWriteBarrierR9 is gcWriteBarrier, but with args in DI and R9.
+ // Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierR9<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·gcWriteBarrierR9<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	XCHGQ R9, AX
+ 	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+ 	XCHGQ R9, AX
+@@ -2048,19 +2048,19 @@ GLOBL runtime·tls_g+0(SB), NOPTR, $8
+ 	                        BYTE $0x04|((reg&7)<<3); BYTE $0x24;			\
+ 	/*   RET */             BYTE $0xC3
+ 
+-TEXT runtime·retpolineAX(SB),NOSPLIT,$0; RETPOLINE(0)
+-TEXT runtime·retpolineCX(SB),NOSPLIT,$0; RETPOLINE(1)
+-TEXT runtime·retpolineDX(SB),NOSPLIT,$0; RETPOLINE(2)
+-TEXT runtime·retpolineBX(SB),NOSPLIT,$0; RETPOLINE(3)
++TEXT runtime·retpolineAX(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(0)
++TEXT runtime·retpolineCX(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(1)
++TEXT runtime·retpolineDX(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(2)
++TEXT runtime·retpolineBX(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(3)
+ /* SP is 4, can't happen / magic encodings */
+-TEXT runtime·retpolineBP(SB),NOSPLIT,$0; RETPOLINE(5)
+-TEXT runtime·retpolineSI(SB),NOSPLIT,$0; RETPOLINE(6)
+-TEXT runtime·retpolineDI(SB),NOSPLIT,$0; RETPOLINE(7)
+-TEXT runtime·retpolineR8(SB),NOSPLIT,$0; RETPOLINE(8)
+-TEXT runtime·retpolineR9(SB),NOSPLIT,$0; RETPOLINE(9)
+-TEXT runtime·retpolineR10(SB),NOSPLIT,$0; RETPOLINE(10)
+-TEXT runtime·retpolineR11(SB),NOSPLIT,$0; RETPOLINE(11)
+-TEXT runtime·retpolineR12(SB),NOSPLIT,$0; RETPOLINE(12)
+-TEXT runtime·retpolineR13(SB),NOSPLIT,$0; RETPOLINE(13)
+-TEXT runtime·retpolineR14(SB),NOSPLIT,$0; RETPOLINE(14)
+-TEXT runtime·retpolineR15(SB),NOSPLIT,$0; RETPOLINE(15)
++TEXT runtime·retpolineBP(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(5)
++TEXT runtime·retpolineSI(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(6)
++TEXT runtime·retpolineDI(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(7)
++TEXT runtime·retpolineR8(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(8)
++TEXT runtime·retpolineR9(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(9)
++TEXT runtime·retpolineR10(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(10)
++TEXT runtime·retpolineR11(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(11)
++TEXT runtime·retpolineR12(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(12)
++TEXT runtime·retpolineR13(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(13)
++TEXT runtime·retpolineR14(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(14)
++TEXT runtime·retpolineR15(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(15)
+diff --git a/src/runtime/cgo/asm_amd64.s b/src/runtime/cgo/asm_amd64.s
+index 386299c548..e223a6c870 100644
+--- a/src/runtime/cgo/asm_amd64.s
++++ b/src/runtime/cgo/asm_amd64.s
+@@ -10,7 +10,7 @@
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+ // fn is the PC of a func(a unsafe.Pointer) function.
+ // This signature is known to SWIG, so we can't change it.
+-TEXT crosscall2(SB),NOSPLIT,$0-0
++TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0-0
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+ 	// Make room for arguments to cgocallback.
+diff --git a/src/runtime/duff_amd64.s b/src/runtime/duff_amd64.s
+index df010f5853..69e9980a30 100644
+--- a/src/runtime/duff_amd64.s
++++ b/src/runtime/duff_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT, $0-0
++TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
+ 	MOVUPS	X15,(DI)
+ 	MOVUPS	X15,16(DI)
+ 	MOVUPS	X15,32(DI)
+@@ -103,7 +103,7 @@ TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT, $0-0
+ 
+ 	RET
+ 
+-TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT, $0-0
++TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
+ 	MOVUPS	(SI), X0
+ 	ADDQ	$16, SI
+ 	MOVUPS	X0, (DI)
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index 6b42b8524b..cc58558a56 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -66,7 +66,7 @@ func zeroAMD64(w io.Writer) {
+ 	// X15: zero
+ 	// DI: ptr to memory to be zeroed
+ 	// DI is updated as a side effect.
+-	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT, $0-0")
++	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
+ 	for i := 0; i < 16; i++ {
+ 		fmt.Fprintln(w, "\tMOVUPS\tX15,(DI)")
+ 		fmt.Fprintln(w, "\tMOVUPS\tX15,16(DI)")
+@@ -85,7 +85,7 @@ func copyAMD64(w io.Writer) {
+ 	//
+ 	// This is equivalent to a sequence of MOVSQ but
+ 	// for some reason that is 3.5x slower than this code.
+-	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT, $0-0")
++	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
+ 	for i := 0; i < 64; i++ {
+ 		fmt.Fprintln(w, "\tMOVUPS\t(SI), X0")
+ 		fmt.Fprintln(w, "\tADDQ\t$16, SI")
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index c679a876b8..0697be7180 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -174,7 +174,7 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+ 
+ // Common code for racefuncenter
+ // R11 = caller's return address
+-TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
++TEXT	racefuncenter<>(SB), NOSPLIT|NOFRAME, $0-0
+ 	MOVQ	DX, BX		// save function entry context (for closures)
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	MOVQ	R11, RARG1
+@@ -196,13 +196,13 @@ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
+ // Atomic operations for sync/atomic package.
+ 
+ // Load
+-TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT, $0-12
++TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT|NOFRAME, $0-12
+ 	GO_ARGS
+ 	MOVQ	$__tsan_go_atomic32_load(SB), AX
+ 	CALL	racecallatomic<>(SB)
+ 	RET
+ 
+-TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT, $0-16
++TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT|NOFRAME, $0-16
+ 	GO_ARGS
+ 	MOVQ	$__tsan_go_atomic64_load(SB), AX
+ 	CALL	racecallatomic<>(SB)
+@@ -225,13 +225,13 @@ TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0-16
+ 	JMP	sync∕atomic·LoadInt64(SB)
+ 
+ // Store
+-TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0-12
++TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT|NOFRAME, $0-12
+ 	GO_ARGS
+ 	MOVQ	$__tsan_go_atomic32_store(SB), AX
+ 	CALL	racecallatomic<>(SB)
+ 	RET
+ 
+-TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT, $0-16
++TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT|NOFRAME, $0-16
+ 	GO_ARGS
+ 	MOVQ	$__tsan_go_atomic64_store(SB), AX
+ 	CALL	racecallatomic<>(SB)
+@@ -250,13 +250,13 @@ TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0-16
+ 	JMP	sync∕atomic·StoreInt64(SB)
+ 
+ // Swap
+-TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0-20
++TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT|NOFRAME, $0-20
+ 	GO_ARGS
+ 	MOVQ	$__tsan_go_atomic32_exchange(SB), AX
+ 	CALL	racecallatomic<>(SB)
+ 	RET
+ 
+-TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT, $0-24
++TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT|NOFRAME, $0-24
+ 	GO_ARGS
+ 	MOVQ	$__tsan_go_atomic64_exchange(SB), AX
+ 	CALL	racecallatomic<>(SB)
+@@ -275,7 +275,7 @@ TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0-24
+ 	JMP	sync∕atomic·SwapInt64(SB)
+ 
+ // Add
+-TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-20
++TEXT	sync∕atomic·AddInt32(SB), NOSPLIT|NOFRAME, $0-20
+ 	GO_ARGS
+ 	MOVQ	$__tsan_go_atomic32_fetch_add(SB), AX
+ 	CALL	racecallatomic<>(SB)
+@@ -283,7 +283,7 @@ TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-20
+ 	ADDL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0-24
++TEXT	sync∕atomic·AddInt64(SB), NOSPLIT|NOFRAME, $0-24
+ 	GO_ARGS
+ 	MOVQ	$__tsan_go_atomic64_fetch_add(SB), AX
+ 	CALL	racecallatomic<>(SB)
+@@ -304,13 +304,13 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
+ 	JMP	sync∕atomic·AddInt64(SB)
+ 
+ // CompareAndSwap
+-TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-17
++TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT|NOFRAME, $0-17
+ 	GO_ARGS
+ 	MOVQ	$__tsan_go_atomic32_compare_exchange(SB), AX
+ 	CALL	racecallatomic<>(SB)
+ 	RET
+ 
+-TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT, $0-25
++TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT|NOFRAME, $0-25
+ 	GO_ARGS
+ 	MOVQ	$__tsan_go_atomic64_compare_exchange(SB), AX
+ 	CALL	racecallatomic<>(SB)
+@@ -330,7 +330,7 @@ TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
+ 
+ // Generic atomic operation implementation.
+ // AX already contains target function.
+-TEXT	racecallatomic<>(SB), NOSPLIT, $0-0
++TEXT	racecallatomic<>(SB), NOSPLIT|NOFRAME, $0-0
+ 	// Trigger SIGSEGV early.
+ 	MOVQ	16(SP), R12
+ 	MOVL	(R12), R13
+@@ -383,7 +383,7 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
+ 	JMP	racecall<>(SB)
+ 
+ // Switches SP to g0 stack and calls (AX). Arguments already set.
+-TEXT	racecall<>(SB), NOSPLIT, $0-0
++TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
+ 	MOVQ	g_m(R14), R13
+ 	// Switch to g0 stack.
+ 	MOVQ	SP, R12		// callee-saved, preserved across the CALL
+@@ -405,7 +405,7 @@ call:
+ // The overall effect of Go->C->Go call chain is similar to that of mcall.
+ // RARG0 contains command code. RARG1 contains command-specific context.
+ // See racecallback for command codes.
+-TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $0-0
++TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0-0
+ 	// Handle command raceGetProcCmd (0) here.
+ 	// First, code below assumes that we are on curg, while raceGetProcCmd
+ 	// can be executed on g0. Second, it is called frequently, so will
+diff --git a/src/runtime/rt0_windows_amd64.s b/src/runtime/rt0_windows_amd64.s
+index e60bf4c86d..9c60337ddc 100644
+--- a/src/runtime/rt0_windows_amd64.s
++++ b/src/runtime/rt0_windows_amd64.s
+@@ -16,7 +16,7 @@ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
+ // phase.
+ // Leave space for four pointers on the stack as required
+ // by the Windows amd64 calling convention.
+-TEXT _rt0_amd64_windows_lib(SB),NOSPLIT,$0x20
++TEXT _rt0_amd64_windows_lib(SB),NOSPLIT|NOFRAME,$0x20
+ 	// Create a new thread to do the runtime initialization and return.
+ 	MOVQ	_cgo_sys_thread_create(SB), AX
+ 	MOVQ	$_rt0_amd64_windows_lib_go(SB), CX
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 7cab08efa6..5734a3a555 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -142,7 +142,7 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $8
+ 
+-TEXT runtime·callbackasm1(SB),NOSPLIT,$0
++TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
+ 	// Construct args vector for cgocallback().
+ 	// By windows/amd64 calling convention first 4 args are in CX, DX, R8, R9
+ 	// args from the 5th on are on the stack.
+@@ -194,7 +194,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
++TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
+ 	// Switch from the host ABI to the Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+@@ -308,7 +308,7 @@ useQPC:
+ 
+ // func osSetupTLS(mp *m)
+ // Setup TLS. for use by needm on Windows.
+-TEXT runtime·osSetupTLS(SB),NOSPLIT,$0-8
++TEXT runtime·osSetupTLS(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOVQ	mp+0(FP), AX
+ 	LEAQ	m_tls(AX), DI
+ 	CALL	runtime·settls(SB)
+diff --git a/src/runtime/wincallback.go b/src/runtime/wincallback.go
+index 9ec2027f97..14847db3fd 100644
+--- a/src/runtime/wincallback.go
++++ b/src/runtime/wincallback.go
+@@ -23,6 +23,8 @@ func genasm386Amd64() {
+ 
+ //go:build 386 || amd64
+ 
++#include "textflag.h"
++
+ // runtime·callbackasm is called by external code to
+ // execute Go implemented callback function. It is not
+ // called from the start, instead runtime·compilecallback
+@@ -31,7 +33,7 @@ func genasm386Amd64() {
+ // CALL instruction in runtime·callbackasm. This determines
+ // which Go callback function is executed later on.
+ 
+-TEXT runtime·callbackasm(SB),7,$0
++TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
+ `)
+ 	for i := 0; i < maxCallback; i++ {
+ 		buf.WriteString("\tCALL\truntime·callbackasm1(SB)\n")
+diff --git a/src/runtime/zcallback_windows.s b/src/runtime/zcallback_windows.s
+index bd23d71333..86d70d61e3 100644
+--- a/src/runtime/zcallback_windows.s
++++ b/src/runtime/zcallback_windows.s
+@@ -2,6 +2,8 @@
+ 
+ //go:build 386 || amd64
+ 
++#include "textflag.h"
++
+ // runtime·callbackasm is called by external code to
+ // execute Go implemented callback function. It is not
+ // called from the start, instead runtime·compilecallback
+@@ -10,7 +12,7 @@
+ // CALL instruction in runtime·callbackasm. This determines
+ // which Go callback function is executed later on.
+ 
+-TEXT runtime·callbackasm(SB),7,$0
++TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
+ 	CALL	runtime·callbackasm1(SB)
+ 	CALL	runtime·callbackasm1(SB)
+ 	CALL	runtime·callbackasm1(SB)

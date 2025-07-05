@@ -15,7 +15,7 @@ Date:   Sun Mar 7 14:00:10 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/299570
     Trust: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go       | 77 +++++++++++++++++-------
  src/cmd/compile/internal/ssa/expand_calls.go   | 83 +++++++++++++-------------
  src/cmd/compile/internal/ssa/value.go          |  4 +-
@@ -23,3 +23,367 @@ Date:   Sun Mar 7 14:00:10 2021 -0500
  src/cmd/internal/obj/x86/asm6.go               |  2 +-
  test/abi/s_sif_sif.go                          | 37 ++++++++++++
  6 files changed, 142 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 7d5de1d528..ecde34313a 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -477,9 +477,9 @@ func (c *RegAmounts) regString(r RegIndex) string {
+ 	return fmt.Sprintf("<?>%d", r)
+ }
+ 
+-// toString method renders an ABIParamAssignment in human-readable
++// ToString method renders an ABIParamAssignment in human-readable
+ // form, suitable for debugging or unit testing.
+-func (ri *ABIParamAssignment) toString(config *ABIConfig) string {
++func (ri *ABIParamAssignment) ToString(config *ABIConfig, extra bool) string {
+ 	regs := "R{"
+ 	offname := "spilloffset" // offset is for spill for register(s)
+ 	if len(ri.Registers) == 0 {
+@@ -487,19 +487,25 @@ func (ri *ABIParamAssignment) toString(config *ABIConfig) string {
+ 	}
+ 	for _, r := range ri.Registers {
+ 		regs += " " + config.regAmounts.regString(r)
++		if extra {
++			regs += fmt.Sprintf("(%d)", r)
++		}
++	}
++	if extra {
++		regs += fmt.Sprintf(" | #I=%d, #F=%d", config.regAmounts.intRegs, config.regAmounts.floatRegs)
+ 	}
+ 	return fmt.Sprintf("%s } %s: %d typ: %v", regs, offname, ri.offset, ri.Type)
+ }
+ 
+-// toString method renders an ABIParamResultInfo in human-readable
++// String method renders an ABIParamResultInfo in human-readable
+ // form, suitable for debugging or unit testing.
+ func (ri *ABIParamResultInfo) String() string {
+ 	res := ""
+ 	for k, p := range ri.inparams {
+-		res += fmt.Sprintf("IN %d: %s\n", k, p.toString(ri.config))
++		res += fmt.Sprintf("IN %d: %s\n", k, p.ToString(ri.config, false))
+ 	}
+ 	for k, r := range ri.outparams {
+-		res += fmt.Sprintf("OUT %d: %s\n", k, r.toString(ri.config))
++		res += fmt.Sprintf("OUT %d: %s\n", k, r.ToString(ri.config, false))
+ 	}
+ 	res += fmt.Sprintf("offsetToSpillArea: %d spillAreaSize: %d",
+ 		ri.offsetToSpillArea, ri.spillAreaSize)
+@@ -537,25 +543,54 @@ func (state *assignState) stackSlot(t *types.Type) int64 {
+ 	return rv
+ }
+ 
+-// allocateRegs returns a set of register indices for a parameter or result
++// allocateRegs returns an ordered list of register indices for a parameter or result
+ // that we've just determined to be register-assignable. The number of registers
+ // needed is assumed to be stored in state.pUsed.
+-func (state *assignState) allocateRegs() []RegIndex {
+-	regs := []RegIndex{}
+-
+-	// integer
+-	for r := state.rUsed.intRegs; r < state.rUsed.intRegs+state.pUsed.intRegs; r++ {
+-		regs = append(regs, RegIndex(r))
++func (state *assignState) allocateRegs(regs []RegIndex, t *types.Type) []RegIndex {
++	if t.Width == 0 {
++		return regs
+ 	}
+-	state.rUsed.intRegs += state.pUsed.intRegs
+-
+-	// floating
+-	for r := state.rUsed.floatRegs; r < state.rUsed.floatRegs+state.pUsed.floatRegs; r++ {
+-		regs = append(regs, RegIndex(r+state.rTotal.intRegs))
++	ri := state.rUsed.intRegs
++	rf := state.rUsed.floatRegs
++	if t.IsScalar() || t.IsPtrShaped() {
++		if t.IsComplex() {
++			regs = append(regs, RegIndex(rf+state.rTotal.intRegs), RegIndex(rf+1+state.rTotal.intRegs))
++			rf += 2
++		} else if t.IsFloat() {
++			regs = append(regs, RegIndex(rf+state.rTotal.intRegs))
++			rf += 1
++		} else {
++			n := (int(t.Size()) + types.RegSize - 1) / types.RegSize
++			for i := 0; i < n; i++ { // looking ahead to really big integers
++				regs = append(regs, RegIndex(ri))
++				ri += 1
++			}
++		}
++		state.rUsed.intRegs = ri
++		state.rUsed.floatRegs = rf
++		return regs
++	} else {
++		typ := t.Kind()
++		switch typ {
++		case types.TARRAY:
++			for i := int64(0); i < t.NumElem(); i++ {
++				regs = state.allocateRegs(regs, t.Elem())
++			}
++			return regs
++		case types.TSTRUCT:
++			for _, f := range t.FieldSlice() {
++				regs = state.allocateRegs(regs, f.Type)
++			}
++			return regs
++		case types.TSLICE:
++			return state.allocateRegs(regs, synthSlice)
++		case types.TSTRING:
++			return state.allocateRegs(regs, synthString)
++		case types.TINTER:
++			return state.allocateRegs(regs, synthIface)
++		}
+ 	}
+-	state.rUsed.floatRegs += state.pUsed.floatRegs
+-
+-	return regs
++	panic(fmt.Errorf("Was not expecting type %s", t))
+ }
+ 
+ // regAllocate creates a register ABIParamAssignment object for a param
+@@ -571,7 +606,7 @@ func (state *assignState) regAllocate(t *types.Type, name types.Object, isReturn
+ 	return ABIParamAssignment{
+ 		Type:      t,
+ 		Name:      name,
+-		Registers: state.allocateRegs(),
++		Registers: state.allocateRegs([]RegIndex{}, t),
+ 		offset:    int32(spillLoc),
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index d7d7d3bc45..6e2004224f 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -303,7 +303,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 	if x.debug {
+ 		x.indent(3)
+ 		defer x.indent(-3)
+-		x.Printf("rewriteSelect(%s, %s, %d)\n", leaf.LongString(), selector.LongString(), offset)
++		x.Printf("rewriteSelect(%s; %s; memOff=%d; regOff=%d)\n", leaf.LongString(), selector.LongString(), offset, regOffset)
+ 	}
+ 	var locs []LocalSlot
+ 	leafType := leaf.Type
+@@ -581,7 +581,13 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
+ 		rts, offs := pa.RegisterTypesAndOffsets()
+ 		last := loadRegOffset + x.regWidth(t)
+ 		if offs[loadRegOffset] != 0 {
+-			panic(fmt.Errorf("offset %d of requested register %d should be zero", offs[loadRegOffset], loadRegOffset))
++			// Document the problem before panicking.
++			for i := 0; i < len(rts); i++ {
++				rt := rts[i]
++				off := offs[i]
++				fmt.Printf("rt=%s, off=%d, rt.Width=%d, rt.Align=%d\n", rt.String(), off, rt.Width, rt.Align)
++			}
++			panic(fmt.Errorf("offset %d of requested register %d should be zero, source=%s", offs[loadRegOffset], loadRegOffset, source.LongString()))
+ 		}
+ 		for i := loadRegOffset; i < last; i++ {
+ 			rt := rts[i]
+@@ -704,7 +710,7 @@ func storeOneArg(x *expandState, pos src.XPos, b *Block, source, mem *Value, t *
+ 	if x.debug {
+ 		x.indent(3)
+ 		defer x.indent(-3)
+-		fmt.Printf("storeOneArg(%s;  %s;  %s; aO=%d; sO=%d; lrO=%d; %s)\n", source.LongString(), mem.String(), t.String(), argOffset, storeOffset, loadRegOffset, storeRc.String())
++		x.Printf("storeOneArg(%s;  %s;  %s; aO=%d; sO=%d; lrO=%d; %s)\n", source.LongString(), mem.String(), t.String(), argOffset, storeOffset, loadRegOffset, storeRc.String())
+ 	}
+ 
+ 	w := x.commonArgs[selKey{source, argOffset, t.Width, t}]
+@@ -1388,14 +1394,8 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
+ 		}
+ 	case 1:
+ 		r := pa.Registers[0]
+-		i := x.f.ABISelf.FloatIndexFor(r)
+-		// TODO seems like this has implications for debugging. How does this affect the location?
+-		if i >= 0 { // float PR
+-			v.Op = OpArgFloatReg
+-		} else {
+-			v.Op = OpArgIntReg
+-			i = int64(r)
+-		}
++		var i int64
++		v.Op, i = ArgOpAndRegisterFor(r, x.f.ABISelf)
+ 		v.Aux = &AuxNameOffset{v.Aux.(*ir.Name), 0}
+ 		v.AuxInt = i
+ 
+@@ -1409,6 +1409,11 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
+ // or rewrites it into a copy of the appropriate OpArgXXX.  The actual OpArgXXX is determined by combining baseArg (an OpArg)
+ // with offset, regOffset, and t to determine which portion of it to reference (either all or a part, in memory or in registers).
+ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64, regOffset Abi1RO, t *types.Type, pos src.XPos) *Value {
++	if x.debug {
++		x.indent(3)
++		defer x.indent(-3)
++		x.Printf("newArgToMemOrRegs(base=%s; toReplace=%s; t=%s; memOff=%d; regOff=%d)\n", baseArg.String(), toReplace.LongString(), t, offset, regOffset)
++	}
+ 	key := selKey{baseArg, offset, t.Width, t}
+ 	w := x.commonArgs[key]
+ 	if w != nil {
+@@ -1432,28 +1437,27 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 			toReplace.Aux = aux
+ 			toReplace.AuxInt = auxInt
+ 			toReplace.Type = t
+-			x.commonArgs[key] = toReplace
+-			return toReplace
++			w = toReplace
+ 		} else {
+-			w := baseArg.Block.NewValue0IA(pos, OpArg, t, auxInt, aux)
+-			x.commonArgs[key] = w
+-			if x.debug {
+-				x.Printf("---new %s\n", w.LongString())
+-			}
+-			if toReplace != nil {
+-				toReplace.copyOf(w)
+-			}
+-			return w
++			w = baseArg.Block.NewValue0IA(pos, OpArg, t, auxInt, aux)
++		}
++		x.commonArgs[key] = w
++		if toReplace != nil {
++			toReplace.copyOf(w)
+ 		}
++		if x.debug {
++			x.Printf("-->%s\n", w.LongString())
++		}
++		return w
+ 	}
+ 	// Arg is in registers
+ 	r := pa.Registers[regOffset]
+-	auxInt := x.f.ABISelf.FloatIndexFor(r)
+-	op := OpArgFloatReg
+-	// TODO seems like this has implications for debugging. How does this affect the location?
+-	if auxInt < 0 { // int (not float) parameter register
+-		op = OpArgIntReg
+-		auxInt = int64(r)
++	op, auxInt := ArgOpAndRegisterFor(r, x.f.ABISelf)
++	if op == OpArgIntReg && t.IsFloat() || op == OpArgFloatReg && t.IsInteger() {
++		fmt.Printf("pa=%v\nx.f.OwnAux.abiInfo=%s\n",
++			pa.ToString(x.f.ABISelf, true),
++			x.f.OwnAux.abiInfo.String())
++		panic(fmt.Errorf("Op/Type mismatch, op=%s, type=%s", op.String(), t.String()))
+ 	}
+ 	aux := &AuxNameOffset{baseArg.Aux.(*ir.Name), baseArg.AuxInt + offset}
+ 	if toReplace != nil && toReplace.Block == baseArg.Block {
+@@ -1461,24 +1465,23 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 		toReplace.Aux = aux
+ 		toReplace.AuxInt = auxInt
+ 		toReplace.Type = t
+-		x.commonArgs[key] = toReplace
+-		return toReplace
++		w = toReplace
+ 	} else {
+-		w := baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
+-		if x.debug {
+-			x.Printf("---new %s\n", w.LongString())
+-		}
+-		x.commonArgs[key] = w
+-		if toReplace != nil {
+-			toReplace.copyOf(w)
+-		}
+-		return w
++		w = baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
++	}
++	x.commonArgs[key] = w
++	if toReplace != nil {
++		toReplace.copyOf(w)
+ 	}
++	if x.debug {
++		x.Printf("-->%s\n", w.LongString())
++	}
++	return w
++
+ }
+ 
+ // argOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
+ // arg register index.
+-// TODO could call this in at least two places earlier in this file.
+ func ArgOpAndRegisterFor(r abi.RegIndex, abiConfig *abi.ABIConfig) (Op, int64) {
+ 	i := abiConfig.FloatIndexFor(r)
+ 	if i >= 0 { // float PR
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 6cc2b2ab8b..5a9779dd1e 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -198,12 +198,12 @@ func (v *Value) auxString() string {
+ 		if v.Aux != nil {
+ 			return fmt.Sprintf(" {%v}", v.Aux)
+ 		}
+-	case auxSymOff, auxCallOff, auxTypSize:
++	case auxSymOff, auxCallOff, auxTypSize, auxNameOffsetInt8:
+ 		s := ""
+ 		if v.Aux != nil {
+ 			s = fmt.Sprintf(" {%v}", v.Aux)
+ 		}
+-		if v.AuxInt != 0 {
++		if v.AuxInt != 0 || opcodeTable[v.Op].auxType == auxNameOffsetInt8 {
+ 			s += fmt.Sprintf(" [%v]", v.AuxInt)
+ 		}
+ 		return s
+diff --git a/src/cmd/compile/internal/test/abiutils_test.go b/src/cmd/compile/internal/test/abiutils_test.go
+index 9a7d6d138c..f8d0af8d7a 100644
+--- a/src/cmd/compile/internal/test/abiutils_test.go
++++ b/src/cmd/compile/internal/test/abiutils_test.go
+@@ -170,9 +170,9 @@ func TestABIUtilsStruct2(t *testing.T) {
+ 	exp := makeExpectedDump(`
+         IN 0: R{ I0 } spilloffset: 0 typ: struct { int64; struct {} }
+         IN 1: R{ I1 } spilloffset: 16 typ: struct { int64; struct {} }
+-        IN 2: R{ I2 F0 } spilloffset: 32 typ: struct { float64; struct { int64; struct {} }; struct {} }
+-        OUT 0: R{ I0 F0 } spilloffset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
+-        OUT 1: R{ I1 F1 } spilloffset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
++        IN 2: R{ F0 I2 } spilloffset: 32 typ: struct { float64; struct { int64; struct {} }; struct {} }
++        OUT 0: R{ F0 I0 } spilloffset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
++        OUT 1: R{ F1 I1 } spilloffset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
+         offsetToSpillArea: 0 spillAreaSize: 64
+ `)
+ 
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index fa670d5c18..52ac567a36 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -5306,7 +5306,7 @@ bad:
+ 		}
+ 	}
+ 
+-	ctxt.Diag("invalid instruction: %v", p)
++	ctxt.Diag("%s: invalid instruction: %v", cursym.Name, p)
+ }
+ 
+ // byteswapreg returns a byte-addressable register (AX, BX, CX, DX)
+diff --git a/test/abi/s_sif_sif.go b/test/abi/s_sif_sif.go
+new file mode 100644
+index 0000000000..f05f26f29f
+--- /dev/null
++++ b/test/abi/s_sif_sif.go
+@@ -0,0 +1,37 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Test ensures that abi information producer and consumer agree about the
++// order of registers for inputs.  T's registers should be I0, F0, I1, F1.
++
++import "fmt"
++
++type P struct {
++	a int8
++	x float64
++}
++
++type T struct {
++	d, e P
++}
++
++//go:registerparams
++//go:noinline
++func G(t T) float64 {
++	return float64(t.d.a+t.e.a) + t.d.x + t.e.x
++}
++
++func main() {
++	x := G(T{P{10, 20}, P{30, 40}})
++	if x != 100.0 {
++		fmt.Printf("FAIL, Expected 100, got %f\n", x)
++	}
++}

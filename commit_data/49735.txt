@@ -22,9 +22,108 @@ Date:   Wed Sep 8 09:58:44 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/interface.go                      | 15 ++++++++++++---
  src/go/types/sizeof_test.go                    |  2 +-
  src/go/types/testdata/fixedbugs/issue48234.go2 | 10 ++++++++++
  src/go/types/universe.go                       |  4 ++--
  4 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 2211e37c59..c67aca7a20 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -14,6 +14,7 @@ import (
+ 
+ // An Interface represents an interface type.
+ type Interface struct {
++	check     *Checker     // for error reporting; nil once type set is computed
+ 	obj       *TypeName    // type name object defining this interface; or nil (for better error messages)
+ 	methods   []*Func      // ordered list of explicitly declared methods
+ 	embeddeds []Type       // ordered list of explicitly embedded elements
+@@ -24,7 +25,7 @@ type Interface struct {
+ }
+ 
+ // typeSet returns the type set for interface t.
+-func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(nil, token.NoPos, t) }
++func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check, token.NoPos, t) }
+ 
+ // emptyInterface represents the empty (completed) interface
+ var emptyInterface = Interface{complete: true, tset: &topTypeSet}
+@@ -220,7 +221,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	}
+ 
+ 	// All methods and embedded elements for this interface are collected;
+-	// i.e., this interface is may be used in a type set computation.
++	// i.e., this interface may be used in a type set computation.
+ 	ityp.complete = true
+ 
+ 	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
+@@ -236,7 +237,15 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	// Compute type set with a non-nil *Checker as soon as possible
+ 	// to report any errors. Subsequent uses of type sets will use
+ 	// this computed type set and won't need to pass in a *Checker.
+-	check.later(func() { computeInterfaceTypeSet(check, iface.Pos(), ityp) })
++	//
++	// Pin the checker to the interface type in the interim, in case the type set
++	// must be used before delayed funcs are processed (see issue #48234).
++	// TODO(rfindley): clean up use of *Checker with computeInterfaceTypeSet
++	ityp.check = check
++	check.later(func() {
++		computeInterfaceTypeSet(check, iface.Pos(), ityp)
++		ityp.check = nil
++	})
+ }
+ 
+ func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index c2f5b3c333..f64f732884 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -27,7 +27,7 @@ func TestSizeof(t *testing.T) {
+ 		{Tuple{}, 12, 24},
+ 		{Signature{}, 28, 56},
+ 		{Union{}, 16, 32},
+-		{Interface{}, 40, 80},
++		{Interface{}, 44, 88},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+ 		{Named{}, 72, 136},
+diff --git a/src/go/types/testdata/fixedbugs/issue48234.go2 b/src/go/types/testdata/fixedbugs/issue48234.go2
+new file mode 100644
+index 0000000000..e069930c42
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48234.go2
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ = interface{
++	m()
++	m /* ERROR "duplicate method" */ ()
++}(nil)
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index a2acfb5f69..6045c61c30 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -89,7 +89,7 @@ func defPredeclaredTypes() {
+ 		res := NewVar(token.NoPos, nil, "", Typ[String])
+ 		sig := NewSignature(nil, nil, NewTuple(res), false)
+ 		err := NewFunc(token.NoPos, nil, "Error", sig)
+-		ityp := &Interface{obj, []*Func{err}, nil, nil, true, nil}
++		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, true, nil}
+ 		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
+ 		typ := NewNamed(obj, ityp, nil)
+ 		sig.recv = NewVar(token.NoPos, nil, "", typ)
+@@ -100,7 +100,7 @@ func defPredeclaredTypes() {
+ 	{
+ 		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
+ 		obj.setColor(black)
+-		ityp := &Interface{obj, nil, nil, nil, true, &_TypeSet{true, nil, allTermlist}}
++		ityp := &Interface{nil, obj, nil, nil, nil, true, &_TypeSet{true, nil, allTermlist}}
+ 		NewNamed(obj, ityp, nil)
+ 		def(obj)
+ 	}

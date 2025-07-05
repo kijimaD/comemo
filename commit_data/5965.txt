@@ -8,7 +8,7 @@ Date:   Fri Aug 6 06:14:41 2010 +1000
     R=golang-dev, brainman
     CC=golang-dev
     https://golang.org/cl/1914046
-
+---
  src/pkg/crypto/tls/common.go        | 4 +++-
  src/pkg/mime/type.go                | 3 ++-
  src/pkg/net/dnsclient.go            | 8 +++++---
@@ -24,3 +24,408 @@ Date:   Fri Aug 6 06:14:41 2010 +1000
  src/pkg/time/zoneinfo_windows.go    | 7 ++++---
  src/pkg/websocket/websocket_test.go | 3 ++-
  14 files changed, 44 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 717ae0a815..18c572c018 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -9,7 +9,7 @@ import (
+ 	"crypto/rsa"
+ 	"io"
+ 	"io/ioutil"
+-	"once"
++	"sync"
+ 	"time"
+ )
+ 
+@@ -127,6 +127,8 @@ func mutualVersion(vers uint16) (uint16, bool) {
+ // The defaultConfig is used in place of a nil *Config in the TLS server and client.
+ var varDefaultConfig *Config
+ 
++var once sync.Once
++
+ func defaultConfig() *Config {
+ 	once.Do(initDefaultConfig)
+ 	return varDefaultConfig
+diff --git a/src/pkg/mime/type.go b/src/pkg/mime/type.go
+index 9202b85572..a10b780ae9 100644
+--- a/src/pkg/mime/type.go
++++ b/src/pkg/mime/type.go
+@@ -7,7 +7,6 @@ package mime
+ 
+ import (
+ 	"bufio"
+-	"once"
+ 	"os"
+ 	"strings"
+ 	"sync"
+@@ -69,6 +68,8 @@ func initMime() {
+ 	}
+ }
+ 
++var once sync.Once
++
+ // TypeByExtension returns the MIME type associated with the file extension ext.
+ // The extension ext should begin with a leading dot, as in ".html".
+ // When ext has no associated type, TypeByExtension returns "".
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index fe54f6b12a..619d9e2e03 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -15,9 +15,9 @@
+ package net
+ 
+ import (
+-	"once"
+ 	"os"
+ 	"rand"
++	"sync"
+ 	"time"
+ )
+ 
+@@ -235,11 +235,13 @@ func isDomainName(s string) bool {
+ 	return ok
+ }
+ 
++var onceLoadConfig sync.Once
++
+ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Error) {
+ 	if !isDomainName(name) {
+ 		return name, nil, &DNSError{Error: "invalid domain name", Name: name}
+ 	}
+-	once.Do(loadConfig)
++	onceLoadConfig.Do(loadConfig)
+ 	if dnserr != nil || cfg == nil {
+ 		err = dnserr
+ 		return
+@@ -293,7 +295,7 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
+ // It returns the canonical name for the host and an array of that
+ // host's addresses.
+ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+-	once.Do(loadConfig)
++	onceLoadConfig.Do(loadConfig)
+ 	if dnserr != nil || cfg == nil {
+ 		err = dnserr
+ 		return
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 4100f62575..7d3f227c1c 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -8,7 +8,6 @@ package net
+ 
+ import (
+ 	"io"
+-	"once"
+ 	"os"
+ 	"sync"
+ 	"syscall"
+@@ -258,6 +257,7 @@ func (s *pollServer) WaitWrite(fd *netFD) {
+ // All the network FDs use a single pollServer.
+ 
+ var pollserver *pollServer
++var onceStartServer sync.Once
+ 
+ func startServer() {
+ 	p, err := newPollServer()
+@@ -268,7 +268,7 @@ func startServer() {
+ }
+ 
+ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err os.Error) {
+-	once.Do(startServer)
++	onceStartServer.Do(startServer)
+ 	if e := syscall.SetNonblock(fd, true); e != 0 {
+ 		return nil, &OpError{"setnonblock", net, laddr, os.Errno(e)}
+ 	}
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index c287d71539..7a78391b06 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -5,13 +5,14 @@
+ package net
+ 
+ import (
+-	"once"
+ 	"os"
+ 	"sync"
+ 	"syscall"
+ 	"unsafe"
+ )
+ 
++var onceStartServer sync.Once
++
+ // BUG(brainman): The Windows implementation does not implement SetTimeout.
+ 
+ // IO completion result parameters.
+@@ -119,6 +120,7 @@ func (s *pollServer) Run() {
+ // All the network FDs use a single pollServer.
+ 
+ var pollserver *pollServer
++var onceStartServer sync.Once
+ 
+ func startServer() {
+ 	p, err := newPollServer()
+@@ -134,7 +136,7 @@ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err
+ 	if initErr != nil {
+ 		return nil, initErr
+ 	}
+-	once.Do(startServer)
++	onceStartServer.Do(startServer)
+ 	// Associate our socket with pollserver.iocp.
+ 	if _, e := syscall.CreateIoCompletionPort(int32(fd), pollserver.iocp, 0, 0); e != 0 {
+ 		return nil, &OpError{"CreateIoCompletionPort", net, laddr, os.Errno(e)}
+@@ -303,7 +305,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
+ 	syscall.ForkLock.RUnlock()
+ 
+ 	// Associate our new socket with IOCP.
+-	once.Do(startServer)
++	onceStartServer.Do(startServer)
+ 	if _, e = syscall.CreateIoCompletionPort(int32(s), pollserver.iocp, 0, 0); e != 0 {
+ 		return nil, &OpError{"CreateIoCompletionPort", fd.net, fd.laddr, os.Errno(e)}
+ 	}
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 6b48512e00..92c299e4fc 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -7,11 +7,13 @@
+ package net
+ 
+ import (
+-	"once"
+ 	"os"
++	"sync"
+ 	"syscall"
+ )
+ 
++var onceReadProtocols sync.Once
++
+ func sockaddrToIP(sa syscall.Sockaddr) Addr {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+@@ -284,7 +286,7 @@ func readProtocols() {
+ }
+ 
+ func netProtoSplit(netProto string) (net string, proto int, err os.Error) {
+-	once.Do(readProtocols)
++	onceReadProtocols.Do(readProtocols)
+ 	i := last(netProto, ':')
+ 	if i+1 >= len(netProto) { // no colon
+ 		return "", 0, os.ErrorString("no IP protocol specified")
+diff --git a/src/pkg/net/port.go b/src/pkg/net/port.go
+index 5f182d0d1a..cd18d2b42a 100644
+--- a/src/pkg/net/port.go
++++ b/src/pkg/net/port.go
+@@ -7,12 +7,13 @@
+ package net
+ 
+ import (
+-	"once"
+ 	"os"
++	"sync"
+ )
+ 
+ var services map[string]map[string]int
+ var servicesError os.Error
++var onceReadServices sync.Once
+ 
+ func readServices() {
+ 	services = make(map[string]map[string]int)
+@@ -49,7 +50,7 @@ func readServices() {
+ 
+ // LookupPort looks up the port for the given network and service.
+ func LookupPort(network, service string) (port int, err os.Error) {
+-	once.Do(readServices)
++	onceReadServices.Do(readServices)
+ 
+ 	switch network {
+ 	case "tcp4", "tcp6":
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index bdd2ac293c..3ce84b5cba 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -7,13 +7,14 @@
+ package os
+ 
+ import (
+-	"once"
++	"sync"
+ )
+ 
+ // ENOENV is the Error indicating that an environment variable does not exist.
+ var ENOENV = NewError("no such environment variable")
+ 
+ var env map[string]string
++var once sync.Once
+ 
+ 
+ func copyenv() {
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index e502db4e31..9ece79b347 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -9,14 +9,15 @@ import (
+ 	"http"
+ 	"log"
+ 	"net"
+-	"once"
+ 	"os"
+ 	"strings"
++	"sync"
+ 	"testing"
+ )
+ 
+ var serverAddr string
+ var httpServerAddr string
++var once sync.Once
+ 
+ const second = 1e9
+ 
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index 05023d4d00..9fb308396e 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -5,7 +5,7 @@
+ package time
+ 
+ import (
+-	"once"
++	"sync"
+ )
+ 
+ // A Ticker holds a synchronous channel that delivers `ticks' of a clock
+@@ -156,6 +156,8 @@ func tickerLoop() {
+ 	}
+ }
+ 
++var onceStartTickerLoop sync.Once
++
+ // NewTicker returns a new Ticker containing a channel that will
+ // send the time, in nanoseconds, every ns nanoseconds.  It adjusts the
+ // intervals to make up for pauses in delivery of the ticks.
+@@ -165,7 +167,7 @@ func NewTicker(ns int64) *Ticker {
+ 	}
+ 	c := make(chan int64, 1) //  See comment on send in tickerLoop
+ 	t := &Ticker{c, c, ns, false, Nanoseconds() + ns, nil}
+-	once.Do(startTickerLoop)
++	onceStartTickerLoop.Do(startTickerLoop)
+ 	// must be run in background so global Tickers can be created
+ 	go func() { newTicker <- t }()
+ 	return t
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index 7884898f72..6e5b2efb76 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -203,6 +203,7 @@ func readinfofile(name string) ([]zonetime, bool) {
+ }
+ 
+ var zones []zonetime
++var onceSetupZone sync.Once
+ 
+ func setupZone() {
+ 	// consult $TZ to find the time zone to use.
+@@ -223,7 +224,7 @@ func setupZone() {
+ 
+ // Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
+ func lookupTimezone(sec int64) (zone string, offset int) {
+-	once.Do(setupZone)
++	onceSetupZone.Do(setupZone)
+ 	if len(zones) == 0 {
+ 		return "UTC", 0
+ 	}
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+index 5a8c94aaf7..26c86ab038 100644
+--- a/src/pkg/time/zoneinfo_unix.go
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -11,8 +11,8 @@ package time
+ 
+ import (
+ 	"io/ioutil"
+-	"once"
+ 	"os"
++	"sync"
+ )
+ 
+ const (
+@@ -203,6 +203,7 @@ func readinfofile(name string) ([]zonetime, bool) {
+ }
+ 
+ var zones []zonetime
++var onceSetupZone sync.Once
+ 
+ func setupZone() {
+ 	// consult $TZ to find the time zone to use.
+@@ -223,7 +224,7 @@ func setupZone() {
+ 
+ // Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
+ func lookupTimezone(sec int64) (zone string, offset int) {
+-	once.Do(setupZone)
++	onceSetupZone.Do(setupZone)
+ 	if len(zones) == 0 {
+ 		return "UTC", 0
+ 	}
+@@ -251,7 +252,7 @@ func lookupTimezone(sec int64) (zone string, offset int) {
+ // For a system in Sydney, "EST" and "EDT", though they have
+ // different meanings than they do in New York.
+ func lookupByName(name string) (off int, found bool) {
+-	once.Do(setupZone)
++	onceSetupZone.Do(setupZone)
+ 	for _, z := range zones {
+ 		if name == z.zone.name {
+ 			return z.zone.utcoff, true
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index d249165c11..d9112598f2 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -6,8 +6,8 @@ package time
+ 
+ import (
+ 	"syscall"
+-	"os"
+ 	"once"
++	"os"
+ )
+ 
+ // BUG(brainman): The Windows implementation assumes that
+@@ -121,6 +121,7 @@ func (zi *zoneinfo) pickZone(t *Time) *zone {
+ 
+ var tz zoneinfo
+ var initError os.Error
++var onceSetupZone sync.Once
+ 
+ func setupZone() {
+ 	var i syscall.Timezoneinformation
+@@ -145,7 +146,7 @@ func setupZone() {
+ 
+ // Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
+ func lookupTimezone(sec int64) (zone string, offset int) {
+-	once.Do(setupZone)
++	onceSetupZone.Do(setupZone)
+ 	if initError != nil {
+ 		return "", 0
+ 	}
+@@ -174,7 +175,7 @@ func lookupTimezone(sec int64) (zone string, offset int) {
+ // time zone with the given abbreviation. It only considers
+ // time zones that apply to the current system.
+ func lookupByName(name string) (off int, found bool) {
+-	once.Do(setupZone)
++	onceSetupZone.Do(setupZone)
+ 	if initError != nil {
+ 		return 0, false
+ 	}
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 1932aca113..22aa1fa5be 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -11,11 +11,12 @@ import (
+ 	"io"
+ 	"log"
+ 	"net"
+-	"once"
++	"sync"
+ 	"testing"
+ )
+ 
+ var serverAddr string
++var once sync.Once
+ 
+ func echoServer(ws *Conn) { io.Copy(ws, ws) }
+ 

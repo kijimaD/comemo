@@ -18,9 +18,123 @@ Date:   Wed Apr 18 16:34:45 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  misc/cgo/testshared/shared_test.go  |  1 +
  src/cmd/go/go_test.go               | 22 ++++++++++++++++++++++
  src/cmd/go/internal/work/buildid.go | 23 +++++++++++++----------
  src/cmd/go/internal/work/exec.go    |  2 +-
  4 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index cf049ec35b..a296005780 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -790,6 +790,7 @@ func TestRebuilding(t *testing.T) {
+ 	// If the .a file is newer than the .so, the .so is rebuilt (but not the .a)
+ 	t.Run("newarchive", func(t *testing.T) {
+ 		resetFileStamps()
++		AssertNotRebuilt(t, "new .a file before build", filepath.Join(gopathInstallDir, "depBase.a"))
+ 		goCmd(t, "list", "-linkshared", "-f={{.ImportPath}} {{.Stale}} {{.StaleReason}} {{.Target}}", "depBase")
+ 		AssertNotRebuilt(t, "new .a file before build", filepath.Join(gopathInstallDir, "depBase.a"))
+ 		cleanup := touch(t, filepath.Join(gopathInstallDir, "depBase.a"))
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b724460a86..0fee5e0bc0 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5121,6 +5121,28 @@ func TestCacheOutput(t *testing.T) {
+ 	}
+ }
+ 
++func TestCacheListStale(t *testing.T) {
++	tooSlow(t)
++	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
++		t.Skip("GODEBUG gocacheverify")
++	}
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOCACHE", tg.path("cache"))
++	tg.tempFile("gopath/src/p/p.go", "package p; import _ \"q\"; func F(){}\n")
++	tg.tempFile("gopath/src/q/q.go", "package q; func F(){}\n")
++	tg.tempFile("gopath/src/m/m.go", "package main; import _ \"q\"; func main(){}\n")
++
++	tg.setenv("GOPATH", tg.path("gopath"))
++	tg.run("install", "p", "m")
++	tg.run("list", "-f={{.ImportPath}} {{.Stale}}", "m", "q", "p")
++	tg.grepStdout("^m false", "m should not be stale")
++	tg.grepStdout("^q true", "q should be stale")
++	tg.grepStdout("^p false", "p should not be stale")
++}
++
+ func TestCacheCoverage(t *testing.T) {
+ 	tooSlow(t)
+ 
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 39ca20ee4f..bf63b8f472 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -397,15 +397,7 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 	// If so, it's up to date and we can reuse it instead of rebuilding it.
+ 	var buildID string
+ 	if target != "" && !cfg.BuildA {
+-		var err error
+-		buildID, err = buildid.ReadFile(target)
+-		if err != nil && b.ComputeStaleOnly {
+-			if p != nil && !p.Stale {
+-				p.Stale = true
+-				p.StaleReason = "target missing"
+-			}
+-			return true
+-		}
++		buildID, _ = buildid.ReadFile(target)
+ 		if strings.HasPrefix(buildID, actionID+buildIDSeparator) {
+ 			a.buildID = buildID
+ 			a.built = target
+@@ -482,7 +474,10 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 				}
+ 			}
+ 		}
+-		return true
++
++		// Fall through to update a.buildID from the build artifact cache,
++		// which will affect the computation of buildIDs for targets
++		// higher up in the dependency graph.
+ 	}
+ 
+ 	// Check the build artifact cache.
+@@ -510,6 +505,10 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 						a.built = file
+ 						a.Target = "DO NOT USE - using cache"
+ 						a.buildID = buildID
++						if p := a.Package; p != nil {
++							// Clearer than explaining that something else is stale.
++							p.StaleReason = "not installed but available in build cache"
++						}
+ 						return true
+ 					}
+ 				}
+@@ -520,6 +519,10 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 		a.output = []byte{}
+ 	}
+ 
++	if b.ComputeStaleOnly {
++		return true
++	}
++
+ 	return false
+ }
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 5420dc2872..8c451aae52 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1124,7 +1124,7 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
+ 		// We want to hide that awful detail as much as possible, so don't
+ 		// advertise it by touching the mtimes (usually the libraries are up
+ 		// to date).
+-		if !a.buggyInstall {
++		if !a.buggyInstall && !b.ComputeStaleOnly {
+ 			now := time.Now()
+ 			os.Chtimes(a.Target, now, now)
+ 		}

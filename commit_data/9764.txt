@@ -7,7 +7,63 @@ Date:   Tue Sep 20 22:55:14 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5080042
-
+---
  src/pkg/exp/template/html/escape.go      | 13 +++++++++++--
  src/pkg/exp/template/html/escape_test.go | 20 ++++++++++++++++++++
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index 6490c5f9e0..050746c1b2 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -551,8 +551,17 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
+ 	for i != len(s) {
+ 		c1, nread := contextAfterText(c, s[i:])
+ 		i1 := i + nread
+-		if c.state == c1.state && (c.state == stateText || c.state == stateRCDATA) {
+-			for j := i; j < i1; j++ {
++		if c.state == stateText || c.state == stateRCDATA {
++			end := i1
++			if c1.state != c.state {
++				for j := end - 1; j >= i; j-- {
++					if s[j] == '<' {
++						end = j
++						break
++					}
++				}
++			}
++			for j := i; j < end; j++ {
+ 				if s[j] == '<' {
+ 					b.Write(s[written:j])
+ 					b.WriteString("&lt;")
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 594a9606d7..cf1c828002 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -366,6 +366,26 @@ func TestEscape(t *testing.T) {
+ 			// TODO: Elide comment.
+ 			"<b>Hello, <!-- name of world -->&lt;Cincinatti&gt;</b>",
+ 		},
++		{
++			"HTML comment not first < in text node.",
++			"<<!-- -->!--",
++			"&lt;<!-- -->!--",
++		},
++		{
++			"HTML normalization 1",
++			"a < b",
++			"a &lt; b",
++		},
++		{
++			"HTML normalization 2",
++			"a << b",
++			"a &lt;&lt; b",
++		},
++		{
++			"HTML normalization 3",
++			"a<<!-- --><!-- -->b",
++			"a&lt;<!-- --><!-- -->b",
++		},
+ 		{
+ 			"Split HTML comment",
+ 			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",

@@ -9,7 +9,187 @@ Date:   Mon Dec 12 16:08:29 2011 -0500
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5448114
-
+---
  src/pkg/time/time.go      | 80 +++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/time/time_test.go | 70 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 150 insertions(+)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 9bd58aeb8a..e58099676f 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -736,6 +736,86 @@ func (t Time) UnixNano() int64 {
+ 	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
+ }
+ 
++type gobError string
++
++func (g gobError) Error() string { return string(g) }
++
++const timeGobVersion byte = 1
++
++// GobEncode implements the gob.GobEncoder interface.
++func (t Time) GobEncode() ([]byte, error) {
++	var offsetMin int16 // minutes east of UTC. -1 is UTC.
++
++	if t.Location() == &utcLoc {
++		offsetMin = -1
++	} else {
++		_, offset := t.Zone()
++		if offset%60 != 0 {
++			return nil, gobError("Time.GobEncode: zone offset has fractional minute")
++		}
++		offset /= 60
++		if offset < -32768 || offset == -1 || offset > 32767 {
++			return nil, gobError("Time.GobEncode: unexpected zone offset")
++		}
++		offsetMin = int16(offset)
++	}
++
++	enc := []byte{
++		timeGobVersion,    // byte 0 : version
++		byte(t.sec >> 56), // bytes 1-8: seconds
++		byte(t.sec >> 48),
++		byte(t.sec >> 40),
++		byte(t.sec >> 32),
++		byte(t.sec >> 24),
++		byte(t.sec >> 16),
++		byte(t.sec >> 8),
++		byte(t.sec),
++		byte(t.nsec >> 24), // bytes 9-12: nanoseconds
++		byte(t.nsec >> 16),
++		byte(t.nsec >> 8),
++		byte(t.nsec),
++		byte(offsetMin >> 8), // bytes 13-14: zone offset in minutes
++		byte(offsetMin),
++	}
++
++	return enc, nil
++}
++
++// GobDecode implements the gob.GobDecoder interface.
++func (t *Time) GobDecode(buf []byte) error {
++	if len(buf) == 0 {
++		return gobError("Time.GobDecode: no data")
++	}
++
++	if buf[0] != timeGobVersion {
++		return gobError("Time.GobDecode: unsupported version")
++	}
++
++	if len(buf) != /*version*/ 1+ /*sec*/ 8+ /*nsec*/ 4+ /*zone offset*/ 2 {
++		return gobError("Time.GobDecode: invalid length")
++	}
++
++	buf = buf[1:]
++	t.sec = int64(buf[7]) | int64(buf[6])<<8 | int64(buf[5])<<16 | int64(buf[4])<<24 |
++		int64(buf[3])<<32 | int64(buf[2])<<40 | int64(buf[1])<<48 | int64(buf[0])<<56
++
++	buf = buf[8:]
++	t.nsec = int32(buf[3]) | int32(buf[2])<<8 | int32(buf[1])<<16 | int32(buf[0])<<24
++
++	buf = buf[4:]
++	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
++
++	if offset == -1*60 {
++		t.loc = &utcLoc
++	} else if _, localoff, _, _, _ := Local.lookup(t.sec + internalToUnix); offset == localoff {
++		t.loc = Local
++	} else {
++		t.loc = FixedZone("", offset)
++	}
++
++	return nil
++}
++
+ // Unix returns the local Time corresponding to the given Unix time,
+ // sec seconds and nsec nanoseconds since January 1, 1970 UTC.
+ // It is valid to pass nsec outside the range [0, 999999999].
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index ada3625078..2a22e7b274 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -5,6 +5,8 @@
+ package time_test
+ 
+ import (
++	"bytes"
++	"encoding/gob"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -666,6 +668,74 @@ func TestAddToExactSecond(t *testing.T) {
+ 	}
+ }
+ 
++var gobTests = []Time{
++	Date(0, 1, 2, 3, 4, 5, 6, UTC),
++	Date(7, 8, 9, 10, 11, 12, 13, FixedZone("", 0)),
++	Unix(81985467080890095, 0x76543210), // Time.sec: 0x0123456789ABCDEF
++	Time{},                              // nil location
++	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", 32767*60)),
++	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", -32768*60)),
++}
++
++func TestTimeGob(t *testing.T) {
++	var b bytes.Buffer
++	enc := gob.NewEncoder(&b)
++	dec := gob.NewDecoder(&b)
++	for _, tt := range gobTests {
++		var gobtt Time
++		if err := enc.Encode(&tt); err != nil {
++			t.Errorf("%v gob Encode error = %q, want nil", tt, err)
++		} else if err := dec.Decode(&gobtt); err != nil {
++			t.Errorf("%v gob Decode error = %q, want nil", tt, err)
++		} else {
++			gobname, goboffset := gobtt.Zone()
++			name, offset := tt.Zone()
++			if !gobtt.Equal(tt) || goboffset != offset || gobname != name {
++				t.Errorf("Decoded time = %v, want %v", gobtt, tt)
++			}
++		}
++		b.Reset()
++	}
++}
++
++var invalidEncodingTests = []struct {
++	bytes []byte
++	want  string
++}{
++	{[]byte{}, "Time.GobDecode: no data"},
++	{[]byte{0, 2, 3}, "Time.GobDecode: unsupported version"},
++	{[]byte{1, 2, 3}, "Time.GobDecode: invalid length"},
++}
++
++func TestInvalidTimeGob(t *testing.T) {
++	for _, tt := range invalidEncodingTests {
++		var ignored Time
++		err := ignored.GobDecode(tt.bytes)
++		if err == nil || err.Error() != tt.want {
++			t.Errorf("time.GobDecode(%#v) error = %v, want %v", tt.bytes, err, tt.want)
++		}
++	}
++}
++
++var notEncodableTimes = []struct {
++	time Time
++	want string
++}{
++	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 1)), "Time.GobEncode: zone offset has fractional minute"},
++	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -1*60)), "Time.GobEncode: unexpected zone offset"},
++	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -32769*60)), "Time.GobEncode: unexpected zone offset"},
++	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 32768*60)), "Time.GobEncode: unexpected zone offset"},
++}
++
++func TestNotGobEncodableTime(t *testing.T) {
++	for _, tt := range notEncodableTimes {
++		_, err := tt.time.GobEncode()
++		if err == nil || err.Error() != tt.want {
++			t.Errorf("%v GobEncode error = %v, want %v", tt.time, err, tt.want)
++		}
++	}
++}
++
+ func BenchmarkNow(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Now()

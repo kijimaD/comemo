@@ -8,8 +8,224 @@ Date:   Mon Nov 23 15:44:27 2009 -0800
     R=gri, r
     CC=golang-dev
     https://golang.org/cl/157119
-
+---
  src/cmd/gofmt/doc.go        | 27 +++++++++++++++++++++++++++
  src/cmd/gofmt/rewrite.go    | 33 +++++++++++++++++----------------
  src/pkg/go/printer/nodes.go | 36 +++++++++++++++++++++++-------------
  3 files changed, 67 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index b0ba5e5f2c..fcaf9e7039 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -18,6 +18,8 @@ The flags are:
+ 	-l
+ 		just list files whose formatting differs from gofmt's; generate no other output
+ 		unless -w is also set.
++	-r rule
++		apply the rewrite rule to the source before reformatting.
+ 	-w
+ 		if set, overwrite each input file with its output.
+ 	-spaces
+@@ -32,5 +34,30 @@ Debugging flags:
+ 	-comments=true
+ 		print comments; if false, all comments are elided from the output.
+ 
++The rewrite rule specified with the -r flag must be a string of the form:
++
++	pattern -> replacement
++
++Both pattern and replacement must be valid Go expressions.
++In the pattern, single-character lowercase identifers serve as
++wildcards matching arbitrary subexpressions; those expressions
++will be substituted for the same identifiers in the replacement.
++
++
++Examples
++
++To check files for unnecessary parentheses:
++
++	gofmt -r '(a) -> a' -l *.go
++
++To remove the parentheses:
++
++	gofmt -r '(a) -> a' -w *.go
++
++To convert the package tree from explicit slice upper bounds to implicit ones:
++
++	gofmt -r 'α[β:len(α)] -> α[β:]' -w $GOROOT/src/pkg
+ */
+ package documentation
++
++// BUG(rsc): The implementation of -r is a bit slow.
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 9399bcd49f..ccbfe1d7fd 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -65,23 +65,23 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
+ 		for k := range m {
+ 			m[k] = nil, false
+ 		}
++		val = apply(f, val);
+ 		if match(m, pat, val) {
+-			return subst(m, repl)
++			val = subst(m, repl, reflect.NewValue(val.Interface().(ast.Node).Pos()))
+ 		}
+-		return apply(f, val);
++		return val;
+ 	};
+ 	return apply(f, reflect.NewValue(p)).Interface().(*ast.File);
+ }
+ 
+ 
+ var positionType = reflect.Typeof(token.Position{})
+-var zeroPosition = reflect.NewValue(token.Position{})
+ var identType = reflect.Typeof((*ast.Ident)(nil))
+ 
+ 
+ func isWildcard(s string) bool {
+-	rune, _ := utf8.DecodeRuneInString(s);
+-	return unicode.Is(unicode.Greek, rune) && unicode.IsLower(rune);
++	rune, size := utf8.DecodeRuneInString(s);
++	return size == len(s) && unicode.IsLower(rune);
+ }
+ 
+ 
+@@ -173,10 +173,11 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ }
+ 
+ 
+-// subst returns a copy of pattern with values from m substituted in place of wildcards.
+-// if m == nil, subst returns a copy of pattern.
+-// Either way, the returned value has no valid line number information.
+-func subst(m map[string]reflect.Value, pattern reflect.Value) reflect.Value {
++// subst returns a copy of pattern with values from m substituted in place
++// of wildcards and pos used as the position of tokens from the pattern.
++// if m == nil, subst returns a copy of pattern and doesn't change the line
++// number information.
++func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value) reflect.Value {
+ 	if pattern == nil {
+ 		return nil
+ 	}
+@@ -186,13 +187,13 @@ func subst(m map[string]reflect.Value, pattern reflect.Value) reflect.Value {
+ 		name := pattern.Interface().(*ast.Ident).Value;
+ 		if isWildcard(name) {
+ 			if old, ok := m[name]; ok {
+-				return subst(nil, old)
++				return subst(nil, old, nil)
+ 			}
+ 		}
+ 	}
+ 
+-	if pattern.Type() == positionType {
+-		return zeroPosition
++	if pos != nil && pattern.Type() == positionType {
++		return pos
+ 	}
+ 
+ 	// Otherwise copy.
+@@ -200,25 +201,25 @@ func subst(m map[string]reflect.Value, pattern reflect.Value) reflect.Value {
+ 	case *reflect.SliceValue:
+ 		v := reflect.MakeSlice(p.Type().(*reflect.SliceType), p.Len(), p.Len());
+ 		for i := 0; i < p.Len(); i++ {
+-			v.Elem(i).SetValue(subst(m, p.Elem(i)))
++			v.Elem(i).SetValue(subst(m, p.Elem(i), pos))
+ 		}
+ 		return v;
+ 
+ 	case *reflect.StructValue:
+ 		v := reflect.MakeZero(p.Type()).(*reflect.StructValue);
+ 		for i := 0; i < p.NumField(); i++ {
+-			v.Field(i).SetValue(subst(m, p.Field(i)))
++			v.Field(i).SetValue(subst(m, p.Field(i), pos))
+ 		}
+ 		return v;
+ 
+ 	case *reflect.PtrValue:
+ 		v := reflect.MakeZero(p.Type()).(*reflect.PtrValue);
+-		v.PointTo(subst(m, p.Elem()));
++		v.PointTo(subst(m, p.Elem(), pos));
+ 		return v;
+ 
+ 	case *reflect.InterfaceValue:
+ 		v := reflect.MakeZero(p.Type()).(*reflect.InterfaceValue);
+-		v.SetValue(subst(m, p.Elem()));
++		v.SetValue(subst(m, p.Elem(), pos));
+ 		return v;
+ 	}
+ 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 1c7460313a..efb61a75cd 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -53,16 +53,6 @@ func (p *printer) linebreak(line, min, max int, ws whiteSpace, newSection bool)
+ 		n = max
+ 	}
+ 
+-	// TODO(gri): try to avoid direct manipulation of p.pos
+-	// demo of why this is necessary: run gofmt -r 'i < i -> i < j' x.go on this x.go:
+-	//	package main
+-	//	func main() {
+-	//		i < i;
+-	//		j < 10;
+-	//	}
+-	//
+-	p.pos.Line += n;
+-
+ 	if n > 0 {
+ 		p.print(ws);
+ 		if newSection {
+@@ -455,6 +445,11 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
+ 
+ 	switch l := e.X.(type) {
+ 	case *ast.BinaryExpr:
++		if l.Op.Precedence() < e.Op.Precedence() {
++			// parens will be inserted.
++			// pretend this is an *ast.ParenExpr and do nothing.
++			break
++		}
+ 		h5, h6, mp := walkBinary(l);
+ 		has5 = has5 || h5;
+ 		has6 = has6 || h6;
+@@ -465,6 +460,11 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
+ 
+ 	switch r := e.Y.(type) {
+ 	case *ast.BinaryExpr:
++		if r.Op.Precedence() <= e.Op.Precedence() {
++			// parens will be inserted.
++			// pretend this is an *ast.ParenExpr and do nothing.
++			break
++		}
+ 		h5, h6, mp := walkBinary(r);
+ 		has5 = has5 || h5;
+ 		has6 = has6 || h6;
+@@ -587,7 +587,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
+ 	if printBlank {
+ 		p.print(blank)
+ 	}
+-	p.expr1(x.Y, prec, depth+1, 0, multiLine);
++	p.expr1(x.Y, prec+1, depth+1, 0, multiLine);
+ 	if ws == ignore {
+ 		p.print(unindent)
+ 	}
+@@ -625,8 +625,18 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		p.expr(x.Value, multiLine);
+ 
+ 	case *ast.StarExpr:
+-		p.print(token.MUL);
+-		optSemi = p.expr(x.X, multiLine);
++		const prec = token.UnaryPrec;
++		if prec < prec1 {
++			// parenthesis needed
++			p.print(token.LPAREN);
++			p.print(token.MUL);
++			optSemi = p.expr(x.X, multiLine);
++			p.print(token.RPAREN);
++		} else {
++			// no parenthesis needed
++			p.print(token.MUL);
++			optSemi = p.expr(x.X, multiLine);
++		}
+ 
+ 	case *ast.UnaryExpr:
+ 		const prec = token.UnaryPrec;

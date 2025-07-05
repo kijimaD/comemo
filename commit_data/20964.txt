@@ -26,7 +26,7 @@ Date:   Thu Oct 30 10:16:03 2014 -0400
     R=rlh
     CC=golang-codereviews
     https://golang.org/cl/168770043
-
+---
  src/cmd/api/goapi.go           |   1 +
  src/cmd/gc/builtin.c           |  29 ++++++-
  src/cmd/gc/runtime.go          |  31 ++++++-
@@ -40,3 +40,709 @@ Date:   Thu Oct 30 10:16:03 2014 -0400
  src/runtime/wbfat_gen.go       |  41 +++++++++
  src/sync/atomic/atomic_test.go |   8 +-
  12 files changed, 447 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 5a8c876033..e49ba33bbf 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -405,6 +405,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			" note struct{};" +
+ 			" p struct{};" +
+ 			" parfor struct{};" +
++			" slice struct{};" +
+ 			" slicetype struct{};" +
+ 			" stkframe struct{};" +
+ 			" sudog struct{};" +
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index fbca4ee5f6..bd3fca167f 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -86,10 +86,33 @@ char *runtimeimport =
+ 	"func @\"\".writebarrierstring (@\"\".dst·1 *any, @\"\".src·2 any)\n"
+ 	"func @\"\".writebarrierslice (@\"\".dst·1 *any, @\"\".src·2 any)\n"
+ 	"func @\"\".writebarrieriface (@\"\".dst·1 *any, @\"\".src·2 any)\n"
+-	"func @\"\".writebarrierfat2 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
+-	"func @\"\".writebarrierfat3 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
+-	"func @\"\".writebarrierfat4 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat01 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat10 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat11 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat001 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat010 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat011 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat100 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat101 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat110 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat111 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat0001 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat0010 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat0011 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat0100 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat0101 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat0110 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat0111 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat1000 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat1001 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat1010 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat1011 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat1100 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat1101 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat1110 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
++	"func @\"\".writebarrierfat1111 (@\"\".dst·1 *any, _ *byte, @\"\".src·3 any)\n"
+ 	"func @\"\".writebarrierfat (@\"\".typ·1 *byte, @\"\".dst·2 *any, @\"\".src·3 *any)\n"
++	"func @\"\".writebarriercopy (@\"\".typ·2 *byte, @\"\".dst·3 any, @\"\".src·4 any) (? int)\n"
+ 	"func @\"\".selectnbsend (@\"\".chanType·2 *byte, @\"\".hchan·3 chan<- any, @\"\".elem·4 *any) (? bool)\n"
+ 	"func @\"\".selectnbrecv (@\"\".chanType·2 *byte, @\"\".elem·3 *any, @\"\".hchan·4 <-chan any) (? bool)\n"
+ 	"func @\"\".selectnbrecv2 (@\"\".chanType·2 *byte, @\"\".elem·3 *any, @\"\".received·4 *bool, @\"\".hchan·5 <-chan any) (? bool)\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 0fb15c2651..38bf6abb60 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -115,10 +115,35 @@ func writebarrieriface(dst *any, src any)
+ // The unused *byte argument makes sure that src is 2-pointer-aligned,
+ // which is the maximum alignment on NaCl amd64p32
+ // (and possibly on 32-bit systems if we start 64-bit aligning uint64s).
+-func writebarrierfat2(dst *any, _ *byte, src any)
+-func writebarrierfat3(dst *any, _ *byte, src any)
+-func writebarrierfat4(dst *any, _ *byte, src any)
++// The bitmap in the name tells which words being copied are pointers.
++func writebarrierfat01(dst *any, _ *byte, src any)
++func writebarrierfat10(dst *any, _ *byte, src any)
++func writebarrierfat11(dst *any, _ *byte, src any)
++func writebarrierfat001(dst *any, _ *byte, src any)
++func writebarrierfat010(dst *any, _ *byte, src any)
++func writebarrierfat011(dst *any, _ *byte, src any)
++func writebarrierfat100(dst *any, _ *byte, src any)
++func writebarrierfat101(dst *any, _ *byte, src any)
++func writebarrierfat110(dst *any, _ *byte, src any)
++func writebarrierfat111(dst *any, _ *byte, src any)
++func writebarrierfat0001(dst *any, _ *byte, src any)
++func writebarrierfat0010(dst *any, _ *byte, src any)
++func writebarrierfat0011(dst *any, _ *byte, src any)
++func writebarrierfat0100(dst *any, _ *byte, src any)
++func writebarrierfat0101(dst *any, _ *byte, src any)
++func writebarrierfat0110(dst *any, _ *byte, src any)
++func writebarrierfat0111(dst *any, _ *byte, src any)
++func writebarrierfat1000(dst *any, _ *byte, src any)
++func writebarrierfat1001(dst *any, _ *byte, src any)
++func writebarrierfat1010(dst *any, _ *byte, src any)
++func writebarrierfat1011(dst *any, _ *byte, src any)
++func writebarrierfat1100(dst *any, _ *byte, src any)
++func writebarrierfat1101(dst *any, _ *byte, src any)
++func writebarrierfat1110(dst *any, _ *byte, src any)
++func writebarrierfat1111(dst *any, _ *byte, src any)
++
+ func writebarrierfat(typ *byte, dst *any, src *any)
++func writebarriercopy(typ *byte, dst any, src any) int
+ 
+ func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
+ func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 714c662681..f05d8022d0 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2891,7 +2891,8 @@ typecheckas(Node *n)
+ 		case OSLICE3:
+ 		case OSLICESTR:
+ 			// For x = x[0:y], x can be updated in place, without touching pointer.
+-			if(samesafeexpr(n->left, n->right->left) && (n->right->right->left == N || iszero(n->right->right->left)))
++			// TODO(rsc): Reenable once it is actually updated in place without touching the pointer.
++			if(0 && samesafeexpr(n->left, n->right->left) && (n->right->right->left == N || iszero(n->right->right->left)))
+ 				n->right->reslice = 1;
+ 			break;
+ 		
+@@ -2899,7 +2900,8 @@ typecheckas(Node *n)
+ 			// For x = append(x, ...), x can be updated in place when there is capacity,
+ 			// without touching the pointer; otherwise the emitted code to growslice
+ 			// can take care of updating the pointer, and only in that case.
+-			if(n->right->list != nil && samesafeexpr(n->left, n->right->list->n))
++			// TODO(rsc): Reenable once the emitted code does update the pointer.
++			if(0 && n->right->list != nil && samesafeexpr(n->left, n->right->list->n))
+ 				n->right->reslice = 1;
+ 			break;
+ 		}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index d4d0f449c3..7b502eb60c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -6,6 +6,7 @@
+ #include	<libc.h>
+ #include	"go.h"
+ #include	"../ld/textflag.h"
++#include	"../../runtime/mgc0.h"
+ 
+ static	Node*	walkprint(Node*, NodeList**);
+ static	Node*	writebarrierfn(char*, Type*, Type*);
+@@ -1988,14 +1989,15 @@ applywritebarrier(Node *n, NodeList **init)
+ {
+ 	Node *l, *r;
+ 	Type *t;
++	vlong x;
++	static Bvec *bv;
++	char name[32];
+ 
+ 	if(n->left && n->right && needwritebarrier(n->left, n->right)) {
+ 		t = n->left->type;
+ 		l = nod(OADDR, n->left, N);
+ 		l->etype = 1; // addr does not escape
+ 		if(t->width == widthptr) {
+-			n = mkcall1(writebarrierfn("writebarrierptr", t, n->right->type), T, init,
+-				l, n->right);
+ 		} else if(t->etype == TSTRING) {
+ 			n = mkcall1(writebarrierfn("writebarrierstring", t, n->right->type), T, init,
+ 				l, n->right);
+@@ -2005,14 +2007,33 @@ applywritebarrier(Node *n, NodeList **init)
+ 		} else if(isinter(t)) {
+ 			n = mkcall1(writebarrierfn("writebarrieriface", t, n->right->type), T, init,
+ 				l, n->right);
+-		} else if(t->width == 2*widthptr) {
+-			n = mkcall1(writebarrierfn("writebarrierfat2", t, n->right->type), T, init,
+-				l, nodnil(), n->right);
+-		} else if(t->width == 3*widthptr) {
+-			n = mkcall1(writebarrierfn("writebarrierfat3", t, n->right->type), T, init,
+-				l, nodnil(), n->right);
+-		} else if(t->width == 4*widthptr) {
+-			n = mkcall1(writebarrierfn("writebarrierfat4", t, n->right->type), T, init,
++		} else if(t->width <= 4*widthptr) {
++			x = 0;
++			if(bv == nil)
++				bv = bvalloc(BitsPerPointer*4);
++			bvresetall(bv);
++			twobitwalktype1(t, &x, bv);
++			// The bvgets are looking for BitsPointer in successive slots.
++			enum {
++				PtrBit = 1,
++			};
++			if(BitsPointer != (1<<PtrBit))
++				fatal("wrong PtrBit");
++			switch(t->width/widthptr) {
++			case 2:
++				snprint(name, sizeof name, "writebarrierfat%d%d",
++					bvget(bv, PtrBit), bvget(bv, BitsPerPointer+PtrBit));
++				break;
++			case 3:
++				snprint(name, sizeof name, "writebarrierfat%d%d%d",
++					bvget(bv, PtrBit), bvget(bv, BitsPerPointer+PtrBit), bvget(bv, 2*BitsPerPointer+PtrBit));
++				break;
++			case 4:
++				snprint(name, sizeof name, "writebarrierfat%d%d%d%d",
++					bvget(bv, PtrBit), bvget(bv, BitsPerPointer+PtrBit), bvget(bv, 2*BitsPerPointer+PtrBit), bvget(bv, 3*BitsPerPointer+PtrBit));
++				break;
++			}
++			n = mkcall1(writebarrierfn(name, t, n->right->type), T, init,
+ 				l, nodnil(), n->right);
+ 		} else {
+ 			r = n->right;
+@@ -2874,6 +2895,11 @@ copyany(Node *n, NodeList **init, int runtimecall)
+ {
+ 	Node *nl, *nr, *nfrm, *nto, *nif, *nlen, *nwid, *fn;
+ 	NodeList *l;
++	
++	if(haspointers(n->left->type->type)) {
++		fn = writebarrierfn("writebarriercopy", n->left->type, n->right->type);
++		return mkcall1(fn, n->type, init, typename(n->left->type->type), n->left, n->right);
++	}
+ 
+ 	if(runtimecall) {
+ 		if(n->right->type->etype == TSTRING)
+diff --git a/src/run.bash b/src/run.bash
+index 3c9430c87e..91f12a174b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -66,7 +66,8 @@ go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
+ 
+ # Race detector only supported on Linux, FreeBSD and OS X,
+ # and only on amd64, and only when cgo is enabled.
+-case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
++# DISABLED until we get garbage collection working.
++case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED-XXX-DISABLED" in
+ linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
+ 	echo
+ 	echo '# Testing race detector.'
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 020f87a7a6..56f4f7cd79 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -245,6 +245,8 @@ func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 			masksize = masksize * pointersPerByte / 8 // 4 bits per word
+ 			masksize++                                // unroll flag in the beginning
+ 			if masksize > maxGCMask && typ.gc[1] != 0 {
++				// write barriers have not been updated to deal with this case yet.
++				gothrow("maxGCMask too small for now")
+ 				// If the mask is too large, unroll the program directly
+ 				// into the GC bitmap. It's 7 times slower than copying
+ 				// from the pre-unrolled mask, but saves 1/16 of type size
+@@ -344,6 +346,37 @@ marked:
+ 	return x
+ }
+ 
++func loadPtrMask(typ *_type) []uint8 {
++	var ptrmask *uint8
++	nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
++	if typ.kind&kindGCProg != 0 {
++		masksize := nptr
++		if masksize%2 != 0 {
++			masksize *= 2 // repeated
++		}
++		masksize = masksize * pointersPerByte / 8 // 4 bits per word
++		masksize++                                // unroll flag in the beginning
++		if masksize > maxGCMask && typ.gc[1] != 0 {
++			// write barriers have not been updated to deal with this case yet.
++			gothrow("maxGCMask too small for now")
++		}
++		ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
++		// Check whether the program is already unrolled
++		// by checking if the unroll flag byte is set
++		maskword := uintptr(atomicloadp(unsafe.Pointer(ptrmask)))
++		if *(*uint8)(unsafe.Pointer(&maskword)) == 0 {
++			mp := acquirem()
++			mp.ptrarg[0] = unsafe.Pointer(typ)
++			onM(unrollgcprog_m)
++			releasem(mp)
++		}
++		ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
++	} else {
++		ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
++	}
++	return (*[1 << 30]byte)(unsafe.Pointer(ptrmask))[:(nptr+1)/2]
++}
++
+ // implementation of new builtin
+ func newobject(typ *_type) unsafe.Pointer {
+ 	flags := 0
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 3a7204b54f..75678c5224 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -83,54 +83,112 @@ func bgsweep() {
+ 	}
+ }
+ 
++const (
++	_PoisonGC    = 0xf969696969696969 & ^uintptr(0)
++	_PoisonStack = 0x6868686868686868 & ^uintptr(0)
++)
++
+ // NOTE: Really dst *unsafe.Pointer, src unsafe.Pointer,
+ // but if we do that, Go inserts a write barrier on *dst = src.
+ //go:nosplit
+ func writebarrierptr(dst *uintptr, src uintptr) {
++	if src != 0 && (src < _PageSize || src == _PoisonGC || src == _PoisonStack) {
++		onM(func() { gothrow("bad pointer in write barrier") })
++	}
+ 	*dst = src
+ }
+ 
+ //go:nosplit
+ func writebarrierstring(dst *[2]uintptr, src [2]uintptr) {
+-	dst[0] = src[0]
++	writebarrierptr(&dst[0], src[0])
+ 	dst[1] = src[1]
+ }
+ 
+ //go:nosplit
+ func writebarrierslice(dst *[3]uintptr, src [3]uintptr) {
+-	dst[0] = src[0]
++	writebarrierptr(&dst[0], src[0])
+ 	dst[1] = src[1]
+ 	dst[2] = src[2]
+ }
+ 
+ //go:nosplit
+ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
+-	dst[0] = src[0]
+-	dst[1] = src[1]
++	writebarrierptr(&dst[0], src[0])
++	writebarrierptr(&dst[1], src[1])
+ }
+ 
+-//go:nosplit
+-func writebarrierfat2(dst *[2]uintptr, _ *byte, src [2]uintptr) {
+-	dst[0] = src[0]
+-	dst[1] = src[1]
+-}
++//go:generate go run wbfat_gen.go -- wbfat.go
++//
++// The above line generates multiword write barriers for
++// all the combinations of ptr+scalar up to four words.
++// The implementations are written to wbfat.go.
+ 
+ //go:nosplit
+-func writebarrierfat3(dst *[3]uintptr, _ *byte, src [3]uintptr) {
+-	dst[0] = src[0]
+-	dst[1] = src[1]
+-	dst[2] = src[2]
+-}
+-
+-//go:nosplit
+-func writebarrierfat4(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+-	dst[0] = src[0]
+-	dst[1] = src[1]
+-	dst[2] = src[2]
+-	dst[3] = src[3]
++func writebarrierfat(typ *_type, dst, src unsafe.Pointer) {
++	mask := loadPtrMask(typ)
++	nptr := typ.size / ptrSize
++	for i := uintptr(0); i < nptr; i += 2 {
++		bits := mask[i/2]
++		if (bits>>2)&_BitsMask == _BitsPointer {
++			writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
++		} else {
++			*(*uintptr)(dst) = *(*uintptr)(src)
++		}
++		dst = add(dst, ptrSize)
++		src = add(src, ptrSize)
++		if i+1 == nptr {
++			break
++		}
++		bits >>= 4
++		if (bits>>2)&_BitsMask == _BitsPointer {
++			writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
++		} else {
++			*(*uintptr)(dst) = *(*uintptr)(src)
++		}
++		dst = add(dst, ptrSize)
++		src = add(src, ptrSize)
++	}
+ }
+ 
+ //go:nosplit
+-func writebarrierfat(typ *_type, dst, src unsafe.Pointer) {
+-	memmove(dst, src, typ.size)
++func writebarriercopy(typ *_type, dst, src slice) int {
++	n := dst.len
++	if n > src.len {
++		n = src.len
++	}
++	if n == 0 {
++		return 0
++	}
++	dstp := unsafe.Pointer(dst.array)
++	srcp := unsafe.Pointer(src.array)
++
++	if uintptr(srcp) < uintptr(dstp) && uintptr(srcp)+uintptr(n)*typ.size > uintptr(dstp) {
++		// Overlap with src before dst.
++		// Copy backward, being careful not to move dstp/srcp
++		// out of the array they point into.
++		dstp = add(dstp, uintptr(n-1)*typ.size)
++		srcp = add(srcp, uintptr(n-1)*typ.size)
++		i := uint(0)
++		for {
++			writebarrierfat(typ, dstp, srcp)
++			if i++; i >= n {
++				break
++			}
++			dstp = add(dstp, -typ.size)
++			srcp = add(srcp, -typ.size)
++		}
++	} else {
++		// Copy forward, being careful not to move dstp/srcp
++		// out of the array they point into.
++		i := uint(0)
++		for {
++			writebarrierfat(typ, dstp, srcp)
++			if i++; i >= n {
++				break
++			}
++			dstp = add(dstp, typ.size)
++			srcp = add(srcp, typ.size)
++		}
++	}
++	return int(n)
+ }
+diff --git a/src/runtime/mgc0.h b/src/runtime/mgc0.h
+index 64f8189143..16fbe4665b 100644
+--- a/src/runtime/mgc0.h
++++ b/src/runtime/mgc0.h
+@@ -56,7 +56,7 @@ enum {
+ 	BitsEface	= 3,
+ 
+ 	// 64 bytes cover objects of size 1024/512 on 64/32 bits, respectively.
+-	MaxGCMask	= 64,
++	MaxGCMask	= 65536, // TODO(rsc): change back to 64
+ };
+ 
+ // Bits in per-word bitmap.
+diff --git a/src/runtime/wbfat.go b/src/runtime/wbfat.go
+new file mode 100644
+index 0000000000..75c58b26bd
+--- /dev/null
++++ b/src/runtime/wbfat.go
+@@ -0,0 +1,190 @@
++// generated by wbfat_gen.go; use go generate
++
++package runtime
++
++//go:nosplit
++func writebarrierfat01(dst *[2]uintptr, _ *byte, src [2]uintptr) {
++	dst[0] = src[0]
++	writebarrierptr(&dst[1], src[1])
++}
++
++//go:nosplit
++func writebarrierfat10(dst *[2]uintptr, _ *byte, src [2]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	dst[1] = src[1]
++}
++
++//go:nosplit
++func writebarrierfat11(dst *[2]uintptr, _ *byte, src [2]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	writebarrierptr(&dst[1], src[1])
++}
++
++//go:nosplit
++func writebarrierfat001(dst *[3]uintptr, _ *byte, src [3]uintptr) {
++	dst[0] = src[0]
++	dst[1] = src[1]
++	writebarrierptr(&dst[2], src[2])
++}
++
++//go:nosplit
++func writebarrierfat010(dst *[3]uintptr, _ *byte, src [3]uintptr) {
++	dst[0] = src[0]
++	writebarrierptr(&dst[1], src[1])
++	dst[2] = src[2]
++}
++
++//go:nosplit
++func writebarrierfat011(dst *[3]uintptr, _ *byte, src [3]uintptr) {
++	dst[0] = src[0]
++	writebarrierptr(&dst[1], src[1])
++	writebarrierptr(&dst[2], src[2])
++}
++
++//go:nosplit
++func writebarrierfat100(dst *[3]uintptr, _ *byte, src [3]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	dst[1] = src[1]
++	dst[2] = src[2]
++}
++
++//go:nosplit
++func writebarrierfat101(dst *[3]uintptr, _ *byte, src [3]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	dst[1] = src[1]
++	writebarrierptr(&dst[2], src[2])
++}
++
++//go:nosplit
++func writebarrierfat110(dst *[3]uintptr, _ *byte, src [3]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	writebarrierptr(&dst[1], src[1])
++	dst[2] = src[2]
++}
++
++//go:nosplit
++func writebarrierfat111(dst *[3]uintptr, _ *byte, src [3]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	writebarrierptr(&dst[1], src[1])
++	writebarrierptr(&dst[2], src[2])
++}
++
++//go:nosplit
++func writebarrierfat0001(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	dst[0] = src[0]
++	dst[1] = src[1]
++	dst[2] = src[2]
++	writebarrierptr(&dst[3], src[3])
++}
++
++//go:nosplit
++func writebarrierfat0010(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	dst[0] = src[0]
++	dst[1] = src[1]
++	writebarrierptr(&dst[2], src[2])
++	dst[3] = src[3]
++}
++
++//go:nosplit
++func writebarrierfat0011(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	dst[0] = src[0]
++	dst[1] = src[1]
++	writebarrierptr(&dst[2], src[2])
++	writebarrierptr(&dst[3], src[3])
++}
++
++//go:nosplit
++func writebarrierfat0100(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	dst[0] = src[0]
++	writebarrierptr(&dst[1], src[1])
++	dst[2] = src[2]
++	dst[3] = src[3]
++}
++
++//go:nosplit
++func writebarrierfat0101(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	dst[0] = src[0]
++	writebarrierptr(&dst[1], src[1])
++	dst[2] = src[2]
++	writebarrierptr(&dst[3], src[3])
++}
++
++//go:nosplit
++func writebarrierfat0110(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	dst[0] = src[0]
++	writebarrierptr(&dst[1], src[1])
++	writebarrierptr(&dst[2], src[2])
++	dst[3] = src[3]
++}
++
++//go:nosplit
++func writebarrierfat0111(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	dst[0] = src[0]
++	writebarrierptr(&dst[1], src[1])
++	writebarrierptr(&dst[2], src[2])
++	writebarrierptr(&dst[3], src[3])
++}
++
++//go:nosplit
++func writebarrierfat1000(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	dst[1] = src[1]
++	dst[2] = src[2]
++	dst[3] = src[3]
++}
++
++//go:nosplit
++func writebarrierfat1001(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	dst[1] = src[1]
++	dst[2] = src[2]
++	writebarrierptr(&dst[3], src[3])
++}
++
++//go:nosplit
++func writebarrierfat1010(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	dst[1] = src[1]
++	writebarrierptr(&dst[2], src[2])
++	dst[3] = src[3]
++}
++
++//go:nosplit
++func writebarrierfat1011(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	dst[1] = src[1]
++	writebarrierptr(&dst[2], src[2])
++	writebarrierptr(&dst[3], src[3])
++}
++
++//go:nosplit
++func writebarrierfat1100(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	writebarrierptr(&dst[1], src[1])
++	dst[2] = src[2]
++	dst[3] = src[3]
++}
++
++//go:nosplit
++func writebarrierfat1101(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	writebarrierptr(&dst[1], src[1])
++	dst[2] = src[2]
++	writebarrierptr(&dst[3], src[3])
++}
++
++//go:nosplit
++func writebarrierfat1110(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	writebarrierptr(&dst[1], src[1])
++	writebarrierptr(&dst[2], src[2])
++	dst[3] = src[3]
++}
++
++//go:nosplit
++func writebarrierfat1111(dst *[4]uintptr, _ *byte, src [4]uintptr) {
++	writebarrierptr(&dst[0], src[0])
++	writebarrierptr(&dst[1], src[1])
++	writebarrierptr(&dst[2], src[2])
++	writebarrierptr(&dst[3], src[3])
++}
+diff --git a/src/runtime/wbfat_gen.go b/src/runtime/wbfat_gen.go
+new file mode 100644
+index 0000000000..78d5b6271f
+--- /dev/null
++++ b/src/runtime/wbfat_gen.go
+@@ -0,0 +1,41 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"log"
++	"os"
++)
++
++func main() {
++	flag.Parse()
++	if flag.NArg() > 0 {
++		f, err := os.Create(flag.Arg(0))
++		if err != nil {
++			log.Fatal(err)
++		}
++		os.Stdout = f
++	}
++	fmt.Printf("// generated by wbfat_gen.go; use go generate\n\n")
++	fmt.Printf("package runtime\n")
++	for i := uint(2); i <= 4; i++ {
++		for j := 1; j < 1<<i; j++ {
++			fmt.Printf("\n//go:nosplit\n")
++			fmt.Printf("func writebarrierfat%0*b(dst *[%d]uintptr, _ *byte, src [%d]uintptr) {\n", int(i), j, i, i)
++			for k := uint(0); k < i; k++ {
++				if j&(1<<(i-1-k)) != 0 {
++					fmt.Printf("\twritebarrierptr(&dst[%d], src[%d])\n", k, k)
++				} else {
++					fmt.Printf("\tdst[%d] = src[%d]\n", k, k)
++				}
++			}
++			fmt.Printf("}\n")
++		}
++	}
++}
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index 9f13af48b0..ec573aa8cf 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -164,7 +164,7 @@ func TestSwapPointer(t *testing.T) {
+ 	x.before = magicptr
+ 	x.after = magicptr
+ 	var j uintptr
+-	for delta := uintptr(1); delta+delta > delta; delta += delta {
++	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
+ 		k := SwapPointer(&x.i, unsafe.Pointer(delta))
+ 		if uintptr(x.i) != delta || uintptr(k) != j {
+ 			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
+@@ -456,7 +456,7 @@ func TestCompareAndSwapPointer(t *testing.T) {
+ 	magicptr := uintptr(m)
+ 	x.before = magicptr
+ 	x.after = magicptr
+-	for val := uintptr(1); val+val > val; val += val {
++	for val := uintptr(1 << 16); val+val > val; val += val {
+ 		x.i = unsafe.Pointer(val)
+ 		if !CompareAndSwapPointer(&x.i, unsafe.Pointer(val), unsafe.Pointer(val+1)) {
+ 			t.Fatalf("should have swapped %#x %#x", val, val+1)
+@@ -595,7 +595,7 @@ func TestLoadPointer(t *testing.T) {
+ 	magicptr := uintptr(m)
+ 	x.before = magicptr
+ 	x.after = magicptr
+-	for delta := uintptr(1); delta+delta > delta; delta += delta {
++	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
+ 		k := LoadPointer(&x.i)
+ 		if k != x.i {
+ 			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
+@@ -731,7 +731,7 @@ func TestStorePointer(t *testing.T) {
+ 	x.before = magicptr
+ 	x.after = magicptr
+ 	v := unsafe.Pointer(uintptr(0))
+-	for delta := uintptr(1); delta+delta > delta; delta += delta {
++	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
+ 		StorePointer(&x.i, unsafe.Pointer(v))
+ 		if x.i != v {
+ 			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)

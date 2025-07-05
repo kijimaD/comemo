@@ -43,6 +43,28 @@ Date:   Mon Oct 8 17:43:26 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index f188c9a9cd..e364104a46 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -404,16 +404,6 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 	}
+ 
+ 	v.budget--
+-	// TODO(mdempsky/josharian): Hacks to appease toolstash; remove.
+-	// See issue 17566 and CL 31674 for discussion.
+-	switch n.Op {
+-	case OSTRUCTKEY:
+-		v.budget--
+-	case OSLICE, OSLICEARR, OSLICESTR:
+-		v.budget--
+-	case OSLICE3, OSLICE3ARR:
+-		v.budget -= 2
+-	}
+ 
+ 	// When debugging, don't stop early, to get full cost of inlining this function
+ 	if v.budget < 0 && Debug['m'] < 2 {

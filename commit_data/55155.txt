@@ -14,6 +14,20 @@ Date:   Wed Jan 11 15:03:18 2023 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/typeset.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 35fb155bfa..64b9734dcd 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -381,7 +381,7 @@ func assertSortedMethods(list []*Func) {
+ type byUniqueMethodName []*Func
+ 
+ func (a byUniqueMethodName) Len() int           { return len(a) }
+-func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
++func (a byUniqueMethodName) Less(i, j int) bool { return a[i].less(&a[j].object) }
+ func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+ 
+ // invalidTypeSet is a singleton type set to signal an invalid type set

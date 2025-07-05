@@ -79,7 +79,192 @@ Date:   Tue Jan 6 22:10:24 2015 -0800
     Change-Id: Ie7e04057a3a26e6becb80e845ecb5004bb482745
     Reviewed-on: https://go-review.googlesource.com/2422
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go      | 59 +++++++++++++++++++++++++++++++++-
  src/crypto/ecdsa/ecdsa_test.go | 72 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 130 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index d6135531bf..59902014df 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -4,6 +4,10 @@
+ 
+ // Package ecdsa implements the Elliptic Curve Digital Signature Algorithm, as
+ // defined in FIPS 186-3.
++//
++// This implementation  derives the nonce from an AES-CTR CSPRNG keyed by
++// ChopMD(256, SHA2-512(priv.D || entropy || hash)). The CSPRNG key is IRO by
++// a result of Coron; the AES-CTR stream is IRO under standard assumptions.
+ package ecdsa
+ 
+ // References:
+@@ -14,12 +18,19 @@ package ecdsa
+ 
+ import (
+ 	"crypto"
++	"crypto/aes"
++	"crypto/cipher"
+ 	"crypto/elliptic"
++	"crypto/sha512"
+ 	"encoding/asn1"
+ 	"io"
+ 	"math/big"
+ )
+ 
++const (
++	aesIV = "IV for ECDSA CTR"
++)
++
+ // PublicKey represents an ECDSA public key.
+ type PublicKey struct {
+ 	elliptic.Curve
+@@ -123,6 +134,38 @@ func fermatInverse(k, N *big.Int) *big.Int {
+ // pair of integers. The security of the private key depends on the entropy of
+ // rand.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
++	// Get max(log2(q) / 2, 256) bits of entropy from rand.
++	entropylen := (priv.Curve.Params().BitSize + 7) / 16
++	if entropylen > 32 {
++		entropylen = 32
++	}
++	entropy := make([]byte, entropylen)
++	_, err = rand.Read(entropy)
++	if err != nil {
++		return
++	}
++
++	// Initialize an SHA-512 hash context; digest ...
++	md := sha512.New()
++	md.Write(priv.D.Bytes()) // the private key,
++	md.Write(entropy)        // the entropy,
++	md.Write(hash)           // and the input hash;
++	key := md.Sum(nil)[:32]  // and compute ChopMD-256(SHA-512),
++	// which is an indifferentiable MAC.
++
++	// Create an AES-CTR instance to use as a CSPRNG.
++	block, err := aes.NewCipher(key)
++	if err != nil {
++		return nil, nil, err
++	}
++
++	// Create a CSPRNG that xors a stream of zeros with
++	// the output of the AES-CTR instance.
++	csprng := cipher.StreamReader{
++		R: zeroReader,
++		S: cipher.NewCTR(block, []byte(aesIV)),
++	}
++
+ 	// See [NSA] 3.4.1
+ 	c := priv.PublicKey.Curve
+ 	N := c.Params().N
+@@ -130,7 +173,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 	var k, kInv *big.Int
+ 	for {
+ 		for {
+-			k, err = randFieldElement(c, rand)
++			k, err = randFieldElement(c, csprng)
+ 			if err != nil {
+ 				r = nil
+ 				return
+@@ -187,3 +230,17 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ 	x.Mod(x, N)
+ 	return x.Cmp(r) == 0
+ }
++
++type zr struct {
++	io.Reader
++}
++
++// Read replaces the contents of dst with zeros.
++func (z *zr) Read(dst []byte) (n int, err error) {
++	for i := range dst {
++		dst[i] = 0
++	}
++	return len(dst), nil
++}
++
++var zeroReader = &zr{}
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 0c06431932..169944dfb2 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -72,6 +72,78 @@ func TestSignAndVerify(t *testing.T) {
+ 	testSignAndVerify(t, elliptic.P521(), "p521")
+ }
+ 
++func testNonceSafety(t *testing.T, c elliptic.Curve, tag string) {
++	priv, _ := GenerateKey(c, rand.Reader)
++
++	hashed := []byte("testing")
++	r0, s0, err := Sign(zeroReader, priv, hashed)
++	if err != nil {
++		t.Errorf("%s: error signing: %s", tag, err)
++		return
++	}
++
++	hashed = []byte("testing...")
++	r1, s1, err := Sign(zeroReader, priv, hashed)
++	if err != nil {
++		t.Errorf("%s: error signing: %s", tag, err)
++		return
++	}
++
++	if s0.Cmp(s1) == 0 {
++		// This should never happen.
++		t.Errorf("%s: the signatures on two different messages were the same")
++	}
++
++	if r0.Cmp(r1) == 0 {
++		t.Errorf("%s: the nonce used for two diferent messages was the same")
++	}
++}
++
++func TestNonceSafety(t *testing.T) {
++	testNonceSafety(t, elliptic.P224(), "p224")
++	if testing.Short() {
++		return
++	}
++	testNonceSafety(t, elliptic.P256(), "p256")
++	testNonceSafety(t, elliptic.P384(), "p384")
++	testNonceSafety(t, elliptic.P521(), "p521")
++}
++
++func testINDCCA(t *testing.T, c elliptic.Curve, tag string) {
++	priv, _ := GenerateKey(c, rand.Reader)
++
++	hashed := []byte("testing")
++	r0, s0, err := Sign(rand.Reader, priv, hashed)
++	if err != nil {
++		t.Errorf("%s: error signing: %s", tag, err)
++		return
++	}
++
++	r1, s1, err := Sign(rand.Reader, priv, hashed)
++	if err != nil {
++		t.Errorf("%s: error signing: %s", tag, err)
++		return
++	}
++
++	if s0.Cmp(s1) == 0 {
++		t.Errorf("%s: two signatures of the same message produced the same result")
++	}
++
++	if r0.Cmp(r1) == 0 {
++		t.Errorf("%s: two signatures of the same message produced the same nonce")
++	}
++}
++
++func TestINDCCA(t *testing.T) {
++	testINDCCA(t, elliptic.P224(), "p224")
++	if testing.Short() {
++		return
++	}
++	testINDCCA(t, elliptic.P256(), "p256")
++	testINDCCA(t, elliptic.P384(), "p384")
++	testINDCCA(t, elliptic.P521(), "p521")
++}
++
+ func fromHex(s string) *big.Int {
+ 	r, ok := new(big.Int).SetString(s, 16)
+ 	if !ok {

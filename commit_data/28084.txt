@@ -13,8 +13,129 @@ Date:   Thu Apr 28 09:41:32 2016 -0300
     Change-Id: Ib24c050b593b3109011e359f4ed837a3fb45dc65
     Reviewed-on: https://go-review.googlesource.com/22548
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix.go      |  3 +--
  src/net/dnsconfig_unix.go      | 24 ++++++++++++------------
  src/net/dnsconfig_unix_test.go | 12 ++++++------
  3 files changed, 19 insertions(+), 20 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 3e31056a93..1adfda7b06 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -180,8 +180,7 @@ func tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype uint16)
+ 		return "", nil, &DNSError{Err: "no DNS servers", Name: name}
+ 	}
+ 
+-	timeout := time.Duration(cfg.timeout) * time.Second
+-	deadline := time.Now().Add(timeout)
++	deadline := time.Now().Add(cfg.timeout)
+ 	if old, ok := ctx.Deadline(); !ok || deadline.Before(old) {
+ 		var cancel context.CancelFunc
+ 		ctx, cancel = context.WithDeadline(ctx, deadline)
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 9893cb7e63..68ed64e541 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -19,23 +19,23 @@ var (
+ )
+ 
+ type dnsConfig struct {
+-	servers    []string  // servers to use
+-	search     []string  // suffixes to append to local name
+-	ndots      int       // number of dots in name to trigger absolute lookup
+-	timeout    int       // seconds before giving up on packet
+-	attempts   int       // lost packets before giving up on server
+-	rotate     bool      // round robin among servers
+-	unknownOpt bool      // anything unknown was encountered
+-	lookup     []string  // OpenBSD top-level database "lookup" order
+-	err        error     // any error that occurs during open of resolv.conf
+-	mtime      time.Time // time of resolv.conf modification
++	servers    []string      // servers to use
++	search     []string      // suffixes to append to local name
++	ndots      int           // number of dots in name to trigger absolute lookup
++	timeout    time.Duration // wait before giving up on a query, including retries
++	attempts   int           // lost packets before giving up on server
++	rotate     bool          // round robin among servers
++	unknownOpt bool          // anything unknown was encountered
++	lookup     []string      // OpenBSD top-level database "lookup" order
++	err        error         // any error that occurs during open of resolv.conf
++	mtime      time.Time     // time of resolv.conf modification
+ }
+ 
+ // See resolv.conf(5) on a Linux machine.
+ func dnsReadConfig(filename string) *dnsConfig {
+ 	conf := &dnsConfig{
+ 		ndots:    1,
+-		timeout:  5,
++		timeout:  5 * time.Second,
+ 		attempts: 2,
+ 	}
+ 	file, err := open(filename)
+@@ -101,7 +101,7 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 					if n < 1 {
+ 						n = 1
+ 					}
+-					conf.timeout = n
++					conf.timeout = time.Duration(n) * time.Second
+ 				case hasPrefix(s, "attempts:"):
+ 					n, _, _ := dtoi(s, 9)
+ 					if n < 1 {
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index f9ef79cba8..17b344b704 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -24,7 +24,7 @@ var dnsReadConfigTests = []struct {
+ 			servers:    []string{"8.8.8.8", "2001:4860:4860::8888", "fe80::1%lo0"},
+ 			search:     []string{"localdomain"},
+ 			ndots:      5,
+-			timeout:    10,
++			timeout:    10 * time.Second,
+ 			attempts:   3,
+ 			rotate:     true,
+ 			unknownOpt: true, // the "options attempts 3" line
+@@ -36,7 +36,7 @@ var dnsReadConfigTests = []struct {
+ 			servers:  []string{"8.8.8.8"},
+ 			search:   []string{"localdomain"},
+ 			ndots:    1,
+-			timeout:  5,
++			timeout:  5 * time.Second,
+ 			attempts: 2,
+ 		},
+ 	},
+@@ -46,7 +46,7 @@ var dnsReadConfigTests = []struct {
+ 			servers:  []string{"8.8.8.8"},
+ 			search:   []string{"test", "invalid"},
+ 			ndots:    1,
+-			timeout:  5,
++			timeout:  5 * time.Second,
+ 			attempts: 2,
+ 		},
+ 	},
+@@ -55,7 +55,7 @@ var dnsReadConfigTests = []struct {
+ 		want: &dnsConfig{
+ 			servers:  defaultNS,
+ 			ndots:    1,
+-			timeout:  5,
++			timeout:  5 * time.Second,
+ 			attempts: 2,
+ 			search:   []string{"domain.local"},
+ 		},
+@@ -64,7 +64,7 @@ var dnsReadConfigTests = []struct {
+ 		name: "testdata/openbsd-resolv.conf",
+ 		want: &dnsConfig{
+ 			ndots:    1,
+-			timeout:  5,
++			timeout:  5 * time.Second,
+ 			attempts: 2,
+ 			lookup:   []string{"file", "bind"},
+ 			servers:  []string{"169.254.169.254", "10.240.0.1"},
+@@ -103,7 +103,7 @@ func TestDNSReadMissingFile(t *testing.T) {
+ 	want := &dnsConfig{
+ 		servers:  defaultNS,
+ 		ndots:    1,
+-		timeout:  5,
++		timeout:  5 * time.Second,
+ 		attempts: 2,
+ 		search:   []string{"domain.local"},
+ 	}

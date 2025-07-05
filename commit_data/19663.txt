@@ -13,6 +13,29 @@ Date:   Thu Jul 3 12:08:24 2014 +0400
     R=golang-codereviews, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/108400044
-
+---
  src/pkg/crypto/x509/pem_decrypt_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/pem_decrypt_test.go b/src/pkg/crypto/x509/pem_decrypt_test.go
+index 59ba6f9001..13e4700bdd 100644
+--- a/src/pkg/crypto/x509/pem_decrypt_test.go
++++ b/src/pkg/crypto/x509/pem_decrypt_test.go
+@@ -14,7 +14,7 @@ import (
+ 
+ func TestDecrypt(t *testing.T) {
+ 	for i, data := range testData {
+-		t.Logf("test %d. %s", i, data.kind)
++		t.Logf("test %v. %v", i, data.kind)
+ 		block, rest := pem.Decode(data.pemData)
+ 		if len(rest) > 0 {
+ 			t.Error("extra data")
+@@ -39,7 +39,7 @@ func TestDecrypt(t *testing.T) {
+ 
+ func TestEncrypt(t *testing.T) {
+ 	for i, data := range testData {
+-		t.Logf("test %d. %s", i, data.kind)
++		t.Logf("test %v. %v", i, data.kind)
+ 		plainDER, err := base64.StdEncoding.DecodeString(data.plainDER)
+ 		if err != nil {
+ 			t.Fatal("cannot decode test DER data: ", err)

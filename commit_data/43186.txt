@@ -10,9 +10,80 @@ Date:   Tue Mar 3 03:41:43 2020 +1100
     Change-Id: I2c1ec1e75611c234c5ee8e39390dd188f8e42bae
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221689
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscvenc.s |  8 +++++++-
  src/cmd/internal/obj/riscv/anames.go         |  2 ++
  src/cmd/internal/obj/riscv/cpu.go            |  2 ++
  src/cmd/internal/obj/riscv/obj.go            | 11 +++++++++++
  4 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+index 6ccac42d68..74bc43d727 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscvenc.s
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -309,10 +309,16 @@ start:
+ 	NOT	X5					// 93c2f2ff
+ 	NOT	X5, X6					// 13c3f2ff
+ 
++	// NEG/NEGW pseudo-instructions
++	NEG	X5					// b3025040
++	NEG	X5, X6					// 33035040
++	NEGW	X5					// bb025040
++	NEGW	X5, X6					// 3b035040
++
+ 	// These jumps can get printed as jumps to 2 because they go to the
+ 	// second instruction in the function (the first instruction is an
+ 	// invisible stack pointer adjustment).
+-	JMP	start		// JMP	2		// 6ff01fc6
++	JMP	start		// JMP	2		// 6ff01fc5
+ 	JMP	(X5)					// 67800200
+ 	JMP	4(X5)					// 67804200
+ 
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index 9edf8f0e65..fa236d81e5 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -239,6 +239,8 @@ var Anames = []string{
+ 	"MOVHU",
+ 	"MOVW",
+ 	"MOVWU",
++	"NEG",
++	"NEGW",
+ 	"NOT",
+ 	"SEQZ",
+ 	"SNEZ",
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index c1fc67f4ab..632b3e6690 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -589,6 +589,8 @@ const (
+ 	AMOVHU
+ 	AMOVW
+ 	AMOVWU
++	ANEG
++	ANEGW
+ 	ANOT
+ 	ASEQZ
+ 	ASNEZ
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index e003584dad..ed5d533402 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1849,6 +1849,17 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.rs1 = uint32(p.From.Reg)
+ 		ins.rs2 = REG_F0
+ 
++	case ANEG, ANEGW:
++		// NEG rs, rd -> SUB rs, X0, rd
++		ins.as = ASUB
++		if p.As == ANEGW {
++			ins.as = ASUBW
++		}
++		ins.rs1 = REG_ZERO
++		if ins.rd == obj.REG_NONE {
++			ins.rd = ins.rs2
++		}
++
+ 	case ANOT:
+ 		// NOT rs, rd -> XORI $-1, rs, rd
+ 		ins.as = AXORI

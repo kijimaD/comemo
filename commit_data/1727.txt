@@ -7,6 +7,27 @@ Date:   Mon Mar 2 20:17:12 2009 -0800
     R=rsc
     OCL=25614
     CL=25614
-
+---
  doc/go_spec.html | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index dade367047..2ec8094a9c 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1014,11 +1014,13 @@ make([]T, length, capacity)
+ </pre>
+ 
+ <p>
+-produces the same slice as allocating an array and slicing it:
++produces the same slice as allocating an array and slicing it, so these two examples
++produce the same slice:
+ </p>
+ 
+ <pre>
+-make([]T, capacity)[0 : length]
++make([]int, 50, 100)
++new([100]int)[0:50]
+ </pre>
+ 
+ 

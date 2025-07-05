@@ -7,6 +7,20 @@ Date:   Fri Apr 23 10:02:10 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/962043
-
+---
  doc/go_faq.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 56f4bd9fa3..4f11baa80e 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -363,7 +363,7 @@ indicate.
+ 
+ <p>
+ Still, there is room for improvement. The compilers are good but could be
+-better, many librarise need major performance work, and the garbage collector
++better, many libraries need major performance work, and the garbage collector
+ isn't fast enough yet (even if it were, taking care not to generate unnecessary 
+ garbage can have a huge effect).
+ </p>

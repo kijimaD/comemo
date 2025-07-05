@@ -12,7 +12,85 @@ Date:   Wed Apr 3 17:12:27 2019 -0700
     Change-Id: I063081f0e54097c499988d268a23813746592654
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170641
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/math/big/ratconv.go      | 31 +++++++++++++------------------
  src/math/big/ratconv_test.go | 15 +++++++++++++++
  2 files changed, 28 insertions(+), 18 deletions(-)
+
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 3ea03d5c61..f29ec98cdc 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -162,36 +162,31 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	}
+ 	// exp consumed - not needed anymore
+ 
+-	// compute pow5 if needed
+-	pow5 := z.b.abs
++	// apply exp5 contributions
++	// (start with exp5 so the numbers to multiply are smaller)
+ 	if exp5 != 0 {
+ 		n := exp5
+ 		if n < 0 {
+ 			n = -n
+ 		}
+-		pow5 = pow5.expNN(natFive, nat(nil).setWord(Word(n)), nil)
++		pow5 := z.b.abs.expNN(natFive, nat(nil).setWord(Word(n)), nil) // use underlying array of z.b.abs
++		if exp5 > 0 {
++			z.a.abs = z.a.abs.mul(z.a.abs, pow5)
++			z.b.abs = z.b.abs.setWord(1)
++		} else {
++			z.b.abs = pow5
++		}
++	} else {
++		z.b.abs = z.b.abs.setWord(1)
+ 	}
+ 
+-	// apply dividend contributions of exponents
+-	// (start with exp5 so the numbers to multiply are smaller)
+-	if exp5 > 0 {
+-		z.a.abs = z.a.abs.mul(z.a.abs, pow5)
+-		exp5 = 0
+-	}
++	// apply exp2 contributions
+ 	if exp2 > 0 {
+ 		if int64(uint(exp2)) != exp2 {
+ 			panic("exponent too large")
+ 		}
+ 		z.a.abs = z.a.abs.shl(z.a.abs, uint(exp2))
+-		exp2 = 0
+-	}
+-
+-	// apply divisor contributions of exponents
+-	z.b.abs = z.b.abs.setWord(1)
+-	if exp5 < 0 {
+-		z.b.abs = pow5
+-	}
+-	if exp2 < 0 {
++	} else if exp2 < 0 {
+ 		if int64(uint(-exp2)) != -exp2 {
+ 			panic("exponent too large")
+ 		}
+diff --git a/src/math/big/ratconv_test.go b/src/math/big/ratconv_test.go
+index 87ee9fa972..ba0d1ba9e1 100644
+--- a/src/math/big/ratconv_test.go
++++ b/src/math/big/ratconv_test.go
+@@ -574,3 +574,18 @@ func TestFloat64SpecialCases(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue31184(t *testing.T) {
++	var x Rat
++	for _, want := range []string{
++		"-213.090",
++		"8.192",
++		"16.000",
++	} {
++		x.SetString(want)
++		got := x.FloatString(3)
++		if got != want {
++			t.Errorf("got %s, want %s", got, want)
++		}
++	}
++}

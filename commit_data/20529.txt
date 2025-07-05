@@ -11,7 +11,43 @@ Date:   Tue Sep 16 13:16:43 2014 -0400
     R=iant, dave, minux
     CC=golang-codereviews
     https://golang.org/cl/140660043
-
+---
  src/cmd/5g/gsubr.c | 4 ++--
  src/cmd/8g/gsubr.c | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 93bfafef66..06e274e14d 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -361,7 +361,7 @@ regalloc(Node *n, Type *t, Node *o)
+ 		print("registers allocated at\n");
+ 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
+ 			print("%d %p\n", i, regpc[i]);
+-		yyerror("out of fixed registers");
++		fatal("out of fixed registers");
+ 		goto err;
+ 
+ 	case TFLOAT32:
+@@ -374,7 +374,7 @@ regalloc(Node *n, Type *t, Node *o)
+ 		for(i=REGALLOC_F0; i<=REGALLOC_FMAX; i++)
+ 			if(reg[i] == 0)
+ 				goto out;
+-		yyerror("out of floating point registers");
++		fatal("out of floating point registers");
+ 		goto err;
+ 
+ 	case TCOMPLEX64:
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index a83d048f40..3077e0ad9c 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -938,7 +938,7 @@ regalloc(Node *n, Type *t, Node *o)
+ 		fprint(2, "registers allocated at\n");
+ 		for(i=D_AX; i<=D_DI; i++)
+ 			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
+-		yyerror("out of fixed registers");
++		fatal("out of fixed registers");
+ 		goto err;
+ 
+ 	case TFLOAT32:

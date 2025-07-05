@@ -13,6 +13,40 @@ Date:   Mon Jan 26 17:28:54 2015 +0300
     Change-Id: Iaa89992bd57f86dafa16b092b53fdc0606213acb
     Reviewed-on: https://go-review.googlesource.com/3286
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mbarrier.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 6c1ebd5c64..c9ed035dab 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -105,7 +105,7 @@ func writebarrierptr(dst *uintptr, src uintptr) {
+ 		return
+ 	}
+ 
+-	if src != 0 && (src < _PageSize || src == poisonStack) {
++	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
+ 		systemstack(func() { throw("bad pointer in write barrier") })
+ 	}
+ 
+@@ -140,7 +140,7 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+ 		return
+ 	}
+ 
+-	if src != 0 && (src < _PageSize || src == poisonStack) {
++	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
+ 		systemstack(func() { throw("bad pointer in write barrier") })
+ 	}
+ 
+@@ -422,8 +422,8 @@ func wbshadowinit() {
+ 	if end < uintptr(unsafe.Pointer(&ebss)) {
+ 		end = uintptr(unsafe.Pointer(&ebss))
+ 	}
+-	start &^= _PageSize - 1
+-	end = round(end, _PageSize)
++	start &^= _PhysPageSize - 1
++	end = round(end, _PhysPageSize)
+ 	mheap_.data_start = start
+ 	mheap_.data_end = end
+ 	reserved = false

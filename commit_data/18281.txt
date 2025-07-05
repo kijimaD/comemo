@@ -9,7 +9,32 @@ Date:   Fri Jan 17 11:26:42 2014 -0500
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/53730043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 5cede291a0..f8e7690ab3 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -234,6 +234,7 @@ Matt Joiner <anacrolix@gmail.com>
+ Matt Reiferson <mreiferson@gmail.com>
+ Matthew Cottingham <mattcottingham@gmail.com>
+ Matthew Horsnell <matthew.horsnell@gmail.com>
++Maxim Khitrov <max@mxcrypt.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Chaten <mchaten@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f32d6975b3..f2650eb4ac 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -341,6 +341,7 @@ Matt Reiferson <mreiferson@gmail.com>
+ Matthew Cottingham <mattcottingham@gmail.com>
+ Matthew Dempsky <mdempsky@google.com>
+ Matthew Horsnell <matthew.horsnell@gmail.com>
++Maxim Khitrov <max@mxcrypt.com>
+ Maxim Pimenov <mpimenov@google.com>
+ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>

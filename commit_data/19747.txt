@@ -10,7 +10,39 @@ Date:   Wed Jul 16 13:06:11 2014 -0700
     R=golang-codereviews, gobot, r
     CC=golang-codereviews
     https://golang.org/cl/112310043
-
+---
  src/pkg/strconv/quote.go      | 5 ++++-
  src/pkg/strconv/quote_test.go | 4 ++--
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index 89dda99750..8cdfc472f3 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -147,7 +147,10 @@ func CanBackquote(s string) bool {
+ 		r, wid := utf8.DecodeRuneInString(s)
+ 		s = s[wid:]
+ 		if wid > 1 {
+-			continue // All multibyte runes are correctly encoded and assumed printable.
++			if r == '\ufeff' {
++				return false // BOMs are invisible and should not be quoted.
++			}
++			continue // All other multibyte runes are correctly encoded and assumed printable.
+ 		}
+ 		if r == utf8.RuneError {
+ 			return false
+diff --git a/src/pkg/strconv/quote_test.go b/src/pkg/strconv/quote_test.go
+index 24998191d7..3bf162f987 100644
+--- a/src/pkg/strconv/quote_test.go
++++ b/src/pkg/strconv/quote_test.go
+@@ -148,8 +148,8 @@ var canbackquotetests = []canBackquoteTest{
+ 	{`☺`, true},
+ 	{"\x80", false},
+ 	{"a\xe0\xa0z", false},
+-	{"\ufeffabc", true},
+-	{"a\ufeffz", true},
++	{"\ufeffabc", false},
++	{"a\ufeffz", false},
+ }
+ 
+ func TestCanBackquote(t *testing.T) {

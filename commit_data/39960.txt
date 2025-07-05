@@ -15,6 +15,28 @@ Date:   Fri Apr 5 09:03:46 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/syscall_darwin.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 59669a473d..7ceceff2c1 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -368,10 +368,15 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
+ 	const ptrSize = unsafe.Sizeof(uintptr(0))
+-	d, err := fdopendir(fd)
++	fd2, err := Dup(fd)
+ 	if err != nil {
+ 		return 0, err
+ 	}
++	d, err := fdopendir(fd2)
++	if err != nil {
++		Close(fd2)
++		return 0, err
++	}
+ 	defer closedir(d)
+ 	// We keep the number of records already returned in *basep.
+ 	// It's not the full required semantics, but should handle the case

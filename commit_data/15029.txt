@@ -13,7 +13,44 @@ Date:   Wed Jan 30 08:29:33 2013 -0800
     R=minux.ma, adg, rsc
     CC=golang-dev
     https://golang.org/cl/7047043
-
+---
  src/cmd/cgo/out.go | 5 +++--
  src/cmd/ld/go.c    | 2 +-
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index ef1d06978c..2b48ce2b4a 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -176,7 +176,7 @@ func dynimport(obj string) {
+ 		for _, s := range sym {
+ 			targ := s.Name
+ 			if s.Version != "" {
+-				targ += "@" + s.Version
++				targ += "#" + s.Version
+ 			}
+ 			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", s.Name, targ, s.Library)
+ 		}
+@@ -218,7 +218,8 @@ func dynimport(obj string) {
+ 		}
+ 		for _, s := range sym {
+ 			ss := strings.Split(s, ":")
+-			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", ss[0], ss[0], strings.ToLower(ss[1]))
++			name := strings.Split(ss[0], "@")[0]
++			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", name, ss[0], strings.ToLower(ss[1]))
+ 		}
+ 		return
+ 	}
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index ab19d7c009..b2c5243dfd 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -506,7 +506,7 @@ loaddynimport(char *file, char *pkg, char *p, int n)
+ 		}
+ 
+ 		name = expandpkg(name, pkg);
+-		q = strchr(def, '@');
++		q = strchr(def, '#');
+ 		if(q)
+ 			*q++ = '\0';
+ 		s = lookup(name, 0);

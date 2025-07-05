@@ -19,7 +19,7 @@ Date:   Fri Apr 12 16:08:22 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/578322
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/os/dir_darwin.go   | 16 ++++++++++++----
  src/os/dir_plan9.go    | 10 +++++++---
  src/os/dir_unix.go     | 14 +++++++++-----
@@ -30,3 +30,338 @@ Date:   Fri Apr 12 16:08:22 2024 -0400
  src/os/file_windows.go | 15 +++++++--------
  src/os/types.go        |  2 ++
  9 files changed, 82 insertions(+), 45 deletions(-)
+
+diff --git a/src/os/dir_darwin.go b/src/os/dir_darwin.go
+index e6d5bda24b..91b67d8d61 100644
+--- a/src/os/dir_darwin.go
++++ b/src/os/dir_darwin.go
+@@ -25,16 +25,24 @@ func (d *dirInfo) close() {
+ }
+ 
+ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+-	if f.dirinfo == nil {
++	// If this file has no dirinfo, create one.
++	var d *dirInfo
++	for {
++		d = f.dirinfo.Load()
++		if d != nil {
++			break
++		}
+ 		dir, call, errno := f.pfd.OpenDir()
+ 		if errno != nil {
+ 			return nil, nil, nil, &PathError{Op: call, Path: f.name, Err: errno}
+ 		}
+-		f.dirinfo = &dirInfo{
+-			dir: dir,
++		d = &dirInfo{dir: dir}
++		if f.dirinfo.CompareAndSwap(nil, d) {
++			break
+ 		}
++		// We lost the race: try again.
++		d.close()
+ 	}
+-	d := f.dirinfo
+ 
+ 	size := n
+ 	if size <= 0 {
+diff --git a/src/os/dir_plan9.go b/src/os/dir_plan9.go
+index 6ea5940e71..ab5c1efce5 100644
+--- a/src/os/dir_plan9.go
++++ b/src/os/dir_plan9.go
+@@ -12,10 +12,14 @@ import (
+ 
+ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+ 	// If this file has no dirinfo, create one.
+-	if file.dirinfo == nil {
+-		file.dirinfo = new(dirInfo)
++	d := file.dirinfo.Load()
++	if d == nil {
++		d = new(dirInfo)
++		file.dirinfo.Store(d)
+ 	}
+-	d := file.dirinfo
++	d.mu.Lock()
++	defer d.mu.Unlock()
++
+ 	size := n
+ 	if size <= 0 {
+ 		size = 100
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index e14edc13dc..7680be7799 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -17,6 +17,7 @@ import (
+ 
+ // Auxiliary information if the File describes a directory
+ type dirInfo struct {
++	mu   sync.Mutex
+ 	buf  *[]byte // buffer for directory I/O
+ 	nbuf int     // length of buf; return value from Getdirentries
+ 	bufp int     // location of next record in buf.
+@@ -43,13 +44,16 @@ func (d *dirInfo) close() {
+ }
+ 
+ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+-	// If this file has no dirinfo, create one.
+-	if f.dirinfo == nil {
+-		f.dirinfo = new(dirInfo)
++	// If this file has no dirInfo, create one.
++	d := f.dirinfo.Load()
++	if d == nil {
++		d = new(dirInfo)
++		f.dirinfo.Store(d)
+ 	}
+-	d := f.dirinfo
++	d.mu.Lock()
++	defer d.mu.Unlock()
+ 	if d.buf == nil {
+-		f.dirinfo.buf = dirBufPool.Get().(*[]byte)
++		d.buf = dirBufPool.Get().(*[]byte)
+ 	}
+ 
+ 	// Change the meaning of n for the implementation below.
+diff --git a/src/os/dir_windows.go b/src/os/dir_windows.go
+index 0dbc3aec3e..52d5acda2a 100644
+--- a/src/os/dir_windows.go
++++ b/src/os/dir_windows.go
+@@ -16,6 +16,7 @@ import (
+ 
+ // Auxiliary information if the File describes a directory
+ type dirInfo struct {
++	mu sync.Mutex
+ 	// buf is a slice pointer so the slice header
+ 	// does not escape to the heap when returning
+ 	// buf to dirBufPool.
+@@ -93,14 +94,27 @@ func (d *dirInfo) init(h syscall.Handle) {
+ }
+ 
+ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+-	if file.dirinfo == nil {
+-		file.dirinfo = new(dirInfo)
+-		file.dirinfo.init(file.pfd.Sysfd)
++	// If this file has no dirInfo, create one.
++	var d *dirInfo
++	for {
++		d = file.dirinfo.Load()
++		if d != nil {
++			break
++		}
++		d = new(dirInfo)
++		d.init(file.pfd.Sysfd)
++		if file.dirinfo.CompareAndSwap(nil, d) {
++			break
++		}
++		// We lost the race: try again.
++		d.close()
+ 	}
+-	d := file.dirinfo
++	d.mu.Lock()
++	defer d.mu.Unlock()
+ 	if d.buf == nil {
+ 		d.buf = dirBufPool.Get().(*[]byte)
+ 	}
++
+ 	wantAll := n <= 0
+ 	if wantAll {
+ 		n = -1
+diff --git a/src/os/file.go b/src/os/file.go
+index a41aac9bb3..ec8ad70660 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -34,9 +34,13 @@
+ //	}
+ //	fmt.Printf("read %d bytes: %q\n", count, data[:count])
+ //
+-// Note: The maximum number of concurrent operations on a File may be limited by
+-// the OS or the system. The number should be high, but exceeding it may degrade
+-// performance or cause other issues.
++// # Concurrency
++//
++// The methods of [File] correspond to file system operations. All are
++// safe for concurrent use. The maximum number of concurrent
++// operations on a File may be limited by the OS or the system. The
++// number should be high, but exceeding it may degrade performance or
++// cause other issues.
+ package os
+ 
+ import (
+@@ -53,6 +57,8 @@ import (
+ )
+ 
+ // Name returns the name of the file as presented to Open.
++//
++// It is safe to call Name after [Close].
+ func (f *File) Name() string { return f.name }
+ 
+ // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
+@@ -279,7 +285,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+ 		return 0, err
+ 	}
+ 	r, e := f.seek(offset, whence)
+-	if e == nil && f.dirinfo != nil && r != 0 {
++	if e == nil && f.dirinfo.Load() != nil && r != 0 {
+ 		e = syscall.EISDIR
+ 	}
+ 	if e != nil {
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 477674b80a..fc9c89f09a 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -9,6 +9,8 @@ import (
+ 	"internal/poll"
+ 	"io"
+ 	"runtime"
++	"sync"
++	"sync/atomic"
+ 	"syscall"
+ 	"time"
+ )
+@@ -26,8 +28,8 @@ type file struct {
+ 	fdmu       poll.FDMutex
+ 	fd         int
+ 	name       string
+-	dirinfo    *dirInfo // nil unless directory being read
+-	appendMode bool     // whether file is opened for appending
++	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
++	appendMode bool                    // whether file is opened for appending
+ }
+ 
+ // Fd returns the integer Plan 9 file descriptor referencing the open file.
+@@ -60,6 +62,7 @@ func NewFile(fd uintptr, name string) *File {
+ 
+ // Auxiliary information if the File describes a directory
+ type dirInfo struct {
++	mu   sync.Mutex
+ 	buf  [syscall.STATMAX]byte // buffer for directory I/O
+ 	nbuf int                   // length of buf; return value from Read
+ 	bufp int                   // location of next record in buf.
+@@ -349,11 +352,9 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+ 		return 0, err
+ 	}
+ 	defer f.decref()
+-	if f.dirinfo != nil {
+-		// Free cached dirinfo, so we allocate a new one if we
+-		// access this file as a directory again. See #35767 and #37161.
+-		f.dirinfo = nil
+-	}
++	// Free cached dirinfo, so we allocate a new one if we
++	// access this file as a directory again. See #35767 and #37161.
++	f.dirinfo.Store(nil)
+ 	return syscall.Seek(f.fd, offset, whence)
+ }
+ 
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index f36028bfcb..8ecbffa81f 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/syscall/unix"
+ 	"io/fs"
+ 	"runtime"
++	"sync/atomic"
+ 	"syscall"
+ 	_ "unsafe" // for go:linkname
+ )
+@@ -58,10 +59,10 @@ func rename(oldname, newname string) error {
+ type file struct {
+ 	pfd         poll.FD
+ 	name        string
+-	dirinfo     *dirInfo // nil unless directory being read
+-	nonblock    bool     // whether we set nonblocking mode
+-	stdoutOrErr bool     // whether this is stdout or stderr
+-	appendMode  bool     // whether file is opened for appending
++	dirinfo     atomic.Pointer[dirInfo] // nil unless directory being read
++	nonblock    bool                    // whether we set nonblocking mode
++	stdoutOrErr bool                    // whether this is stdout or stderr
++	appendMode  bool                    // whether file is opened for appending
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.
+@@ -325,9 +326,8 @@ func (file *file) close() error {
+ 	if file == nil {
+ 		return syscall.EINVAL
+ 	}
+-	if file.dirinfo != nil {
+-		file.dirinfo.close()
+-		file.dirinfo = nil
++	if info := file.dirinfo.Swap(nil); info != nil {
++		info.close()
+ 	}
+ 	var err error
+ 	if e := file.pfd.Close(); e != nil {
+@@ -347,11 +347,10 @@ func (file *file) close() error {
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an error, if any.
+ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+-	if f.dirinfo != nil {
++	if info := f.dirinfo.Swap(nil); info != nil {
+ 		// Free cached dirinfo, so we allocate a new one if we
+ 		// access this file as a directory again. See #35767 and #37161.
+-		f.dirinfo.close()
+-		f.dirinfo = nil
++		info.close()
+ 	}
+ 	ret, err = f.pfd.Seek(offset, whence)
+ 	runtime.KeepAlive(f)
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 6ee15eb993..d883eb5cb2 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/syscall/windows"
+ 	"runtime"
+ 	"sync"
++	"sync/atomic"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -25,8 +26,8 @@ const _UTIME_OMIT = -1
+ type file struct {
+ 	pfd        poll.FD
+ 	name       string
+-	dirinfo    *dirInfo // nil unless directory being read
+-	appendMode bool     // whether file is opened for appending
++	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
++	appendMode bool                    // whether file is opened for appending
+ }
+ 
+ // Fd returns the Windows handle referencing the open file.
+@@ -127,9 +128,8 @@ func (file *file) close() error {
+ 	if file == nil {
+ 		return syscall.EINVAL
+ 	}
+-	if file.dirinfo != nil {
+-		file.dirinfo.close()
+-		file.dirinfo = nil
++	if info := file.dirinfo.Swap(nil); info != nil {
++		info.close()
+ 	}
+ 	var err error
+ 	if e := file.pfd.Close(); e != nil {
+@@ -149,11 +149,10 @@ func (file *file) close() error {
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an error, if any.
+ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+-	if f.dirinfo != nil {
++	if info := f.dirinfo.Swap(nil); info != nil {
+ 		// Free cached dirinfo, so we allocate a new one if we
+ 		// access this file as a directory again. See #35767 and #37161.
+-		f.dirinfo.close()
+-		f.dirinfo = nil
++		info.close()
+ 	}
+ 	ret, err = f.pfd.Seek(offset, whence)
+ 	runtime.KeepAlive(f)
+diff --git a/src/os/types.go b/src/os/types.go
+index 66eb8bc8cb..d51a458f44 100644
+--- a/src/os/types.go
++++ b/src/os/types.go
+@@ -13,6 +13,8 @@ import (
+ func Getpagesize() int { return syscall.Getpagesize() }
+ 
+ // File represents an open file descriptor.
++//
++// The methods of File are safe for concurrent use.
+ type File struct {
+ 	*file // os specific
+ }

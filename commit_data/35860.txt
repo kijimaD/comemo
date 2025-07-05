@@ -9,6 +9,20 @@ Date:   Tue Mar 13 14:49:00 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/runtime-gdb.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index cd16a6cbab..64e37903eb 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -445,7 +445,7 @@ class GoroutinesCmd(gdb.Command):
+ def find_goroutine(goid):
+ 	"""
+ 	find_goroutine attempts to find the goroutine identified by goid.
+-	It returns a touple of gdv.Value's representing the stack pointer
++	It returns a tuple of gdv.Value's representing the stack pointer
+ 	and program counter pointer for the goroutine.
+ 
+ 	@param int goid

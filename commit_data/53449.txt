@@ -13,6 +13,37 @@ Date:   Wed Aug 17 14:34:46 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/mheap.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 12307594f0..00d445c1fa 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -363,19 +363,19 @@ var mSpanStateNames = []string{
+ 	"mSpanFree",
+ }
+ 
+-// mSpanStateBox holds an mSpanState and provides atomic operations on
+-// it. This is a separate type to disallow accidental comparison or
+-// assignment with mSpanState.
++// mSpanStateBox holds an atomic.Uint8 to provide atomic operations on
++// an mSpanState. This is a separate type to disallow accidental comparison
++// or assignment with mSpanState.
+ type mSpanStateBox struct {
+-	s mSpanState
++	s atomic.Uint8
+ }
+ 
+ func (b *mSpanStateBox) set(s mSpanState) {
+-	atomic.Store8((*uint8)(&b.s), uint8(s))
++	b.s.Store(uint8(s))
+ }
+ 
+ func (b *mSpanStateBox) get() mSpanState {
+-	return mSpanState(atomic.Load8((*uint8)(&b.s)))
++	return mSpanState(b.s.Load())
+ }
+ 
+ // mSpanList heads a linked list of spans.

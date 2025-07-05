@@ -19,8 +19,196 @@ Date:   Sat Apr 29 20:29:41 2023 +1000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s    | 30 +++++++++++++-------------
  src/cmd/internal/obj/arm64/asm7.go           | 19 +++++++++++------
  src/cmd/internal/obj/arm64/asm_arm64_test.go | 32 +++++++++++-----------------
  3 files changed, 41 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 1aa74caa26..46ea6645af 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -592,43 +592,43 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	MOVB	R1, 0x1001(R2) 		// MOVB		R1, 4097(R2)		// 5b04409161070039
+ 	MOVB	R1, 0xffffff(R2)	// MOVB		R1, 16777215(R2)	// 5bfc7f9161ff3f39
+ 	MOVH	R1, 0x2002(R2)		// MOVH		R1, 8194(R2)		// 5b08409161070079
+-	MOVH	R1, 0xfffffe(R2)	// MOVH		R1, 16777214(R2)	// 5bf87f9161ff3f79
++	MOVH	R1, 0x1000ffe(R2)	// MOVH		R1, 16781310(R2)	// 5bfc7f9161ff3f79
+ 	MOVW	R1, 0x4004(R2)		// MOVW		R1, 16388(R2)		// 5b104091610700b9
+-	MOVW	R1, 0xfffffc(R2)	// MOVW		R1, 16777212(R2)	// 5bf07f9161ff3fb9
++	MOVW	R1, 0x1002ffc(R2)	// MOVW		R1, 16789500(R2)	// 5bfc7f9161ff3fb9
+ 	MOVD	R1, 0x8008(R2)		// MOVD		R1, 32776(R2)		// 5b204091610700f9
+-	MOVD	R1, 0xfffff8(R2)	// MOVD		R1, 16777208(R2)	// 5be07f9161ff3ff9
++	MOVD	R1, 0x1006ff8(R2)	// MOVD		R1, 16805880(R2)	// 5bfc7f9161ff3ff9
+ 	FMOVS	F1, 0x4004(R2)		// FMOVS	F1, 16388(R2)		// 5b104091610700bd
+-	FMOVS	F1, 0xfffffc(R2)	// FMOVS	F1, 16777212(R2)	// 5bf07f9161ff3fbd
++	FMOVS	F1, 0x1002ffc(R2)	// FMOVS	F1, 16789500(R2)	// 5bfc7f9161ff3fbd
+ 	FMOVD	F1, 0x8008(R2)		// FMOVD	F1, 32776(R2)		// 5b204091610700fd
+-	FMOVD	F1, 0xfffff8(R2)	// FMOVD	F1, 16777208(R2)	// 5be07f9161ff3ffd
++	FMOVD	F1, 0x1006ff8(R2)	// FMOVD	F1, 16805880(R2)	// 5bfc7f9161ff3ffd
+ 
+ 	MOVB	0x1001(R1), R2 		// MOVB		4097(R1), R2		// 3b04409162078039
+ 	MOVB	0xffffff(R1), R2	// MOVB		16777215(R1), R2	// 3bfc7f9162ffbf39
+ 	MOVH	0x2002(R1), R2		// MOVH		8194(R1), R2		// 3b08409162078079
+-	MOVH	0xfffffe(R1), R2	// MOVH		16777214(R1), R2	// 3bf87f9162ffbf79
++	MOVH	0x1000ffe(R1), R2	// MOVH		16781310(R1), R2	// 3bfc7f9162ffbf79
+ 	MOVW	0x4004(R1), R2		// MOVW		16388(R1), R2		// 3b104091620780b9
+-	MOVW	0xfffffc(R1), R2	// MOVW		16777212(R1), R2	// 3bf07f9162ffbfb9
++	MOVW	0x1002ffc(R1), R2	// MOVW		16789500(R1), R2	// 3bfc7f9162ffbfb9
+ 	MOVD	0x8008(R1), R2		// MOVD		32776(R1), R2		// 3b204091620740f9
+-	MOVD	0xfffff8(R1), R2	// MOVD		16777208(R1), R2	// 3be07f9162ff7ff9
++	MOVD	0x1006ff8(R1), R2	// MOVD		16805880(R1), R2	// 3bfc7f9162ff7ff9
+ 	FMOVS	0x4004(R1), F2		// FMOVS	16388(R1), F2		// 3b104091620740bd
+-	FMOVS	0xfffffc(R1), F2	// FMOVS	16777212(R1), F2	// 3bf07f9162ff7fbd
++	FMOVS	0x1002ffc(R1), F2	// FMOVS	16789500(R1), F2	// 3bfc7f9162ff7fbd
+ 	FMOVD	0x8008(R1), F2		// FMOVD	32776(R1), F2		// 3b204091620740fd
+-	FMOVD	0xfffff8(R1), F2	// FMOVD	16777208(R1), F2	// 3be07f9162ff7ffd
++	FMOVD	0x1006ff8(R1), F2	// FMOVD	16805880(R1), F2	// 3bfc7f9162ff7ffd
+ 
+ // very large or unaligned offset uses constant pool.
+ // the encoding cannot be checked as the address of the constant pool is unknown.
+ // here we only test that they can be assembled.
+ 	MOVB	R1, 0x1000000(R2)	// MOVB		R1, 16777216(R2)
+ 	MOVB	R1, 0x44332211(R2)	// MOVB		R1, 1144201745(R2)
+-	MOVH	R1, 0x1000000(R2)	// MOVH		R1, 16777216(R2)
++	MOVH	R1, 0x1001000(R2)	// MOVH		R1, 16781312(R2)
+ 	MOVH	R1, 0x44332211(R2)	// MOVH		R1, 1144201745(R2)
+-	MOVW	R1, 0x1000000(R2)	// MOVW		R1, 16777216(R2)
++	MOVW	R1, 0x1003000(R2)	// MOVW		R1, 16789504(R2)
+ 	MOVW	R1, 0x44332211(R2)	// MOVW		R1, 1144201745(R2)
+-	MOVD	R1, 0x1000000(R2)	// MOVD		R1, 16777216(R2)
++	MOVD	R1, 0x1007000(R2)	// MOVD		R1, 16805888(R2)
+ 	MOVD	R1, 0x44332211(R2)	// MOVD		R1, 1144201745(R2)
+-	FMOVS	F1, 0x1000000(R2)	// FMOVS	F1, 16777216(R2)
++	FMOVS	F1, 0x1003000(R2)	// FMOVS	F1, 16789504(R2)
+ 	FMOVS	F1, 0x44332211(R2)	// FMOVS	F1, 1144201745(R2)
+-	FMOVD	F1, 0x1000000(R2)	// FMOVD	F1, 16777216(R2)
++	FMOVD	F1, 0x1007000(R2)	// FMOVD	F1, 16805888(R2)
+ 	FMOVD	F1, 0x44332211(R2)	// FMOVD	F1, 1144201745(R2)
+ 
+ 	MOVB	0x1000000(R1), R2	// MOVB		16777216(R1), R2
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 05cf62773e..ea53a838e3 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1420,13 +1420,20 @@ func splitImm24uScaled(v int32, shift int) (int32, int32, error) {
+ 	if v < 0 {
+ 		return 0, 0, fmt.Errorf("%d is not a 24 bit unsigned immediate", v)
+ 	}
++	if v > 0xfff000+0xfff<<shift {
++		return 0, 0, fmt.Errorf("%d is too large for a scaled 24 bit unsigned immediate", v)
++	}
+ 	if v&((1<<shift)-1) != 0 {
+ 		return 0, 0, fmt.Errorf("%d is not a multiple of %d", v, 1<<shift)
+ 	}
+ 	lo := (v >> shift) & 0xfff
+ 	hi := v - (lo << shift)
+-	if hi&^0xfff000 != 0 {
+-		return 0, 0, fmt.Errorf("%d is too large for a scaled 24 bit unsigned immediate %x %x", v, lo, hi)
++	if hi > 0xfff000 {
++		hi = 0xfff000
++		lo = (v - hi) >> shift
++	}
++	if hi & ^0xfff000 != 0 {
++		panic(fmt.Sprintf("bad split for %x with shift %v (%x, %x)", v, shift, hi, lo))
+ 	}
+ 	return hi, lo, nil
+ }
+@@ -1975,28 +1982,28 @@ func (c *ctxt7) loadStoreClass(p *obj.Prog, lsc int, v int64) int {
+ 		if cmp(C_UAUTO8K, lsc) || cmp(C_UOREG8K, lsc) {
+ 			return lsc
+ 		}
+-		if v >= 0 && v <= 0xfffffe && v&1 == 0 {
++		if v >= 0 && v <= 0xfff000+0xfff<<1 && v&1 == 0 {
+ 			needsPool = false
+ 		}
+ 	case AMOVW, AMOVWU, AFMOVS:
+ 		if cmp(C_UAUTO16K, lsc) || cmp(C_UOREG16K, lsc) {
+ 			return lsc
+ 		}
+-		if v >= 0 && v <= 0xfffffc && v&3 == 0 {
++		if v >= 0 && v <= 0xfff000+0xfff<<2 && v&3 == 0 {
+ 			needsPool = false
+ 		}
+ 	case AMOVD, AFMOVD:
+ 		if cmp(C_UAUTO32K, lsc) || cmp(C_UOREG32K, lsc) {
+ 			return lsc
+ 		}
+-		if v >= 0 && v <= 0xfffff8 && v&7 == 0 {
++		if v >= 0 && v <= 0xfff000+0xfff<<3 && v&7 == 0 {
+ 			needsPool = false
+ 		}
+ 	case AFMOVQ:
+ 		if cmp(C_UAUTO64K, lsc) || cmp(C_UOREG64K, lsc) {
+ 			return lsc
+ 		}
+-		if v >= 0 && v <= 0xfffff0 && v&15 == 0 {
++		if v >= 0 && v <= 0xfff000+0xfff<<4 && v&15 == 0 {
+ 			needsPool = false
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/arm64/asm_arm64_test.go b/src/cmd/internal/obj/arm64/asm_arm64_test.go
+index d13946f7eb..7d28f97388 100644
+--- a/src/cmd/internal/obj/arm64/asm_arm64_test.go
++++ b/src/cmd/internal/obj/arm64/asm_arm64_test.go
+@@ -70,12 +70,10 @@ func TestSplitImm24uScaled(t *testing.T) {
+ 			wantLo: 0xfff,
+ 		},
+ 		{
+-			// TODO(jsing): Fix splitting to make this fit.
+-			v:       0x1000ffe,
+-			shift:   1,
+-			wantErr: true,
+-			wantHi:  0xfff000,
+-			wantLo:  0xfff,
++			v:      0x1000ffe,
++			shift:  1,
++			wantHi: 0xfff000,
++			wantLo: 0xfff,
+ 		},
+ 		{
+ 			v:       0x1001000,
+@@ -100,12 +98,10 @@ func TestSplitImm24uScaled(t *testing.T) {
+ 			wantLo: 0xfff,
+ 		},
+ 		{
+-			// TODO(jsing): Fix splitting to make this fit.
+-			v:       0x1002ffc,
+-			shift:   2,
+-			wantErr: true,
+-			wantHi:  0xfff000,
+-			wantLo:  0xfff,
++			v:      0x1002ffc,
++			shift:  2,
++			wantHi: 0xfff000,
++			wantLo: 0xfff,
+ 		},
+ 		{
+ 			v:       0x1003000,
+@@ -130,12 +126,10 @@ func TestSplitImm24uScaled(t *testing.T) {
+ 			wantLo: 0xfff,
+ 		},
+ 		{
+-			// TODO(jsing): Fix splitting to make this fit.
+-			v:       0x1006ff8,
+-			shift:   3,
+-			wantErr: true,
+-			wantHi:  0xfff000,
+-			wantLo:  0xfff,
++			v:      0x1006ff8,
++			shift:  3,
++			wantHi: 0xfff000,
++			wantLo: 0xfff,
+ 		},
+ 		{
+ 			v:       0x1007000,
+@@ -160,7 +154,7 @@ func TestSplitImm24uScaled(t *testing.T) {
+ 		}
+ 	}
+ 	for shift := 0; shift <= 3; shift++ {
+-		for v := int32(0); v < 0xfff000|0xfff<<shift; v = v + 1<<shift {
++		for v := int32(0); v < 0xfff000+0xfff<<shift; v = v + 1<<shift {
+ 			hi, lo, err := splitImm24uScaled(v, shift)
+ 			if err != nil {
+ 				t.Fatalf("splitImm24uScaled(%x, %x) failed: %v", v, shift, err)

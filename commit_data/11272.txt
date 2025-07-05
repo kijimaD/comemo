@@ -11,6 +11,24 @@ Date:   Thu Jan 19 13:54:31 2012 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/5536071
-
+---
  src/pkg/go/parser/interface.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 2ce3df8df7..4b72f38518 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -135,8 +135,10 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
+ // 
+ func ParseExpr(x string) (ast.Expr, error) {
+ 	// parse x within the context of a complete package for correct scopes;
+-	// use //line directive for correct positions in error messages
+-	file, err := ParseFile(token.NewFileSet(), "", "package p;func _(){_=\n//line :1\n"+x+";}", 0)
++	// use //line directive for correct positions in error messages and put
++	// x alone on a separate line (handles line comments), followed by a ';'
++	// to force an error if the expression is incomplete
++	file, err := ParseFile(token.NewFileSet(), "", "package p;func _(){_=\n//line :1\n"+x+"\n;}", 0)
+ 	if err != nil {
+ 		return nil, err
+ 	}

@@ -8,6 +8,19 @@ Date:   Mon Feb 10 08:25:47 2014 +1100
     R=dave, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/61310043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0883038331..e5313529d6 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -444,6 +444,7 @@ Robert Figueiredo <robfig@gmail.com>
+ Robert Griesemer <gri@golang.org>
+ Robert Hencke <robert.hencke@gmail.com>
+ Robert Obryk <robryk@gmail.com>
++Robert Sesek <rsesek@google.com>
+ Robert Snedegar <roberts@google.com>
+ Robin Eklind <r.eklind.87@gmail.com>
+ Rodrigo Moraes de Oliveira <rodrigo.moraes@gmail.com>

@@ -12,9 +12,78 @@ Date:   Fri Apr 14 06:44:30 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go | 2 +-
  src/cmd/internal/obj/line_test.go    | 2 +-
  src/cmd/internal/obj/link.go         | 2 +-
  src/cmd/internal/obj/sym.go          | 6 +++---
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 8e1c80a9ce..dfc3785a75 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1135,7 +1135,7 @@ func livenessemit(lv *Liveness, argssym, livesym *obj.LSym) {
+ 	// so that they can be de-duplicated.
+ 	// This provides significant binary size savings.
+ 	// It is safe to rename these LSyms because
+-	// they are tracked separately from ctxt.Hash.
++	// they are tracked separately from ctxt.hash.
+ 	argssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(argssym.P))
+ 	livesym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(livesym.P))
+ }
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index af595fd6a6..956302f8f1 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -12,7 +12,7 @@ import (
+ 
+ func TestLinkgetlineFromPos(t *testing.T) {
+ 	ctxt := new(Link)
+-	ctxt.Hash = make(map[SymVer]*LSym)
++	ctxt.hash = make(map[SymVer]*LSym)
+ 
+ 	afile := src.NewFileBase("a.go", "a.go")
+ 	bfile := src.NewFileBase("b.go", "/foo/bar/b.go")
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index cc59d1f5b1..be411d8c78 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -761,7 +761,7 @@ type Link struct {
+ 	Flag_optimize bool
+ 	Bso           *bufio.Writer
+ 	Pathname      string
+-	Hash          map[SymVer]*LSym
++	hash          map[SymVer]*LSym
+ 	PosTable      src.PosTable
+ 	InlTree       InlTree // global inlining tree used by gc/inl.go
+ 	Imports       []string
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 6a44c2215f..bb844cdb0d 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -53,7 +53,7 @@ func WorkingDir() string {
+ 
+ func Linknew(arch *LinkArch) *Link {
+ 	ctxt := new(Link)
+-	ctxt.Hash = make(map[SymVer]*LSym)
++	ctxt.hash = make(map[SymVer]*LSym)
+ 	ctxt.Arch = arch
+ 	ctxt.Pathname = WorkingDir()
+ 
+@@ -76,13 +76,13 @@ func (ctxt *Link) Lookup(name string, v int) *LSym {
+ // LookupInit looks up the symbol with name name and version v.
+ // If it does not exist, it creates it and passes it to initfn for one-time initialization.
+ func (ctxt *Link) LookupInit(name string, v int, init func(s *LSym)) *LSym {
+-	s := ctxt.Hash[SymVer{name, v}]
++	s := ctxt.hash[SymVer{name, v}]
+ 	if s != nil {
+ 		return s
+ 	}
+ 
+ 	s = &LSym{Name: name, Version: int16(v)}
+-	ctxt.Hash[SymVer{name, v}] = s
++	ctxt.hash[SymVer{name, v}] = s
+ 	if init != nil {
+ 		init(s)
+ 	}

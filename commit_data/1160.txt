@@ -8,6 +8,20 @@ Date:   Tue Nov 18 15:58:43 2008 -0800
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=19460
     CL=19500
-
+---
  test/bugs/bug125.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/bugs/bug125.go b/test/bugs/bug125.go
+index e2be1645bc..c8c5f7dfa3 100644
+--- a/test/bugs/bug125.go
++++ b/test/bugs/bug125.go
+@@ -8,7 +8,7 @@ package main
+ 
+ import (
+ 	OS "os"  // should require semicolon here; this is no different from other decls
+-	IO "io"
++	IO "io"  // ERROR "missing"
+ )
+ 
+ func main() {

@@ -9,7 +9,47 @@ Date:   Wed Dec 12 12:23:01 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6931052
-
+---
  src/pkg/net/http/transport.go      |  3 +++
  src/pkg/net/http/transport_test.go | 14 ++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 7b4afeb8ef..1dd5cc5308 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -144,6 +144,9 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
+ 		}
+ 		return rt.RoundTrip(req)
+ 	}
++	if req.URL.Host == "" {
++		return nil, errors.New("http: no Host in request URL")
++	}
+ 	treq := &transportRequest{Request: req}
+ 	cm, err := t.connectMethodForRequest(treq)
+ 	if err != nil {
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index f1d415888c..4647d20fb3 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -1062,6 +1062,20 @@ func TestTransportAltProto(t *testing.T) {
+ 	}
+ }
+ 
++func TestTransportNoHost(t *testing.T) {
++	tr := &Transport{}
++	_, err := tr.RoundTrip(&Request{
++		Header: make(Header),
++		URL: &url.URL{
++			Scheme: "http",
++		},
++	})
++	want := "http: no Host in request URL"
++	if got := fmt.Sprint(err); got != want {
++		t.Errorf("error = %v; want %q", err, want)
++	}
++}
++
+ var proxyFromEnvTests = []struct {
+ 	env     string
+ 	wanturl string

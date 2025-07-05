@@ -10,6 +10,24 @@ Date:   Wed Mar 3 17:30:29 2010 -0800
     R=scotts
     CC=golang-dev
     https://golang.org/cl/225042
-
+---
  src/pkg/net/timeout_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index f5ec5730f7..be36bcb41f 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -12,10 +12,11 @@ import (
+ 
+ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
+ 	fd, err := Dial(network, "", addr)
+-	defer fd.Close()
+ 	if err != nil {
+ 		t.Errorf("dial %s %s failed: %v", network, addr, err)
++		return
+ 	}
++	defer fd.Close()
+ 	t0 := time.Nanoseconds()
+ 	fd.SetReadTimeout(1e8) // 100ms
+ 	var b [100]byte

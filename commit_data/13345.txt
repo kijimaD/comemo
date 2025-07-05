@@ -9,7 +9,83 @@ Date:   Wed Jun 13 13:32:59 2012 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6305069
-
+---
  src/cmd/godoc/godoc.go | 17 +++++++++++++++--
  src/cmd/godoc/main.go  |  9 +++++++--
  2 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index c3a6c0f16a..b7e7c39952 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -866,6 +866,19 @@ func inList(name string, list []string) bool {
+ 	return false
+ }
+ 
++// packageExports is a local implementation of ast.PackageExports
++// which correctly updates each package file's comment list.
++// (The ast.PackageExports signature is frozen, hence the local
++// implementation).
++//
++func packageExports(fset *token.FileSet, pkg *ast.Package) {
++	for _, src := range pkg.Files {
++		cmap := ast.NewCommentMap(fset, src)
++		ast.FileExports(src)
++		src.Comments = cmap.Filter(src).Comments()
++	}
++}
++
+ // getPageInfo returns the PageInfo for a package directory abspath. If the
+ // parameter genAST is set, an AST containing only the package exports is
+ // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
+@@ -1012,9 +1025,9 @@ func (h *docServer) getPageInfo(abspath, relpath, pkgname string, mode PageInfoM
+ 			// TODO(gri) Consider eliminating export filtering in this mode,
+ 			//           or perhaps eliminating the mode altogether.
+ 			if mode&noFiltering == 0 {
+-				ast.PackageExports(pkg)
++				packageExports(fset, pkg)
+ 			}
+-			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
++			past = ast.MergePackageFiles(pkg, 0)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 3efa349b51..da20731961 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -36,6 +36,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/build"
++	"go/printer"
+ 	"io"
+ 	"log"
+ 	"net/http"
+@@ -424,20 +425,24 @@ func main() {
+ 		filter := func(s string) bool { return rx.MatchString(s) }
+ 		switch {
+ 		case info.PAst != nil:
++			cmap := ast.NewCommentMap(info.FSet, info.PAst)
+ 			ast.FilterFile(info.PAst, filter)
+ 			// Special case: Don't use templates for printing
+ 			// so we only get the filtered declarations without
+ 			// package clause or extra whitespace.
+ 			for i, d := range info.PAst.Decls {
++				// determine the comments associated with d only
++				comments := cmap.Filter(d).Comments()
++				cn := &printer.CommentedNode{Node: d, Comments: comments}
+ 				if i > 0 {
+ 					fmt.Println()
+ 				}
+ 				if *html {
+ 					var buf bytes.Buffer
+-					writeNode(&buf, info.FSet, d)
++					writeNode(&buf, info.FSet, cn)
+ 					FormatText(os.Stdout, buf.Bytes(), -1, true, "", nil)
+ 				} else {
+-					writeNode(os.Stdout, info.FSet, d)
++					writeNode(os.Stdout, info.FSet, cn)
+ 				}
+ 				fmt.Println()
+ 			}

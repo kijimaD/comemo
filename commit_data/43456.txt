@@ -16,7 +16,82 @@ Date:   Wed Apr 1 13:08:41 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go           | 21 ++++++++++++---------
  src/cmd/go/testdata/script/mod_get_main.txt | 15 ++++++++++++---
  2 files changed, 24 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 8ff442ac73..6ef64cb981 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -326,15 +326,18 @@ func runGet(cmd *base.Command, args []string) {
+ 		// patterns like golang.org/x/tools/..., which can't be expanded
+ 		// during package loading until they're in the build list.
+ 		switch {
+-		case search.IsRelativePath(path):
+-			// Relative paths like ../../foo or ../../foo... are restricted to
+-			// matching packages in the main module. If the path is explicit and
+-			// contains no wildcards (...), check that it is a package in
+-			// the main module. If the path contains wildcards but matches no
+-			// packages, we'll warn after package loading.
++		case filepath.IsAbs(path) || search.IsRelativePath(path):
++			// Absolute paths like C:\foo and relative paths like ../foo...
++			// are restricted to matching packages in the main module. If the path
++			// is explicit and contains no wildcards (...), check that it is a
++			// package in the main module. If the path contains wildcards but
++			// matches no packages, we'll warn after package loading.
+ 			if !strings.Contains(path, "...") {
+-				pkgPath := modload.DirImportPath(filepath.FromSlash(path))
+-				if pkgs := modload.TargetPackages(pkgPath); len(pkgs) == 0 {
++				var pkgs []string
++				if pkgPath := modload.DirImportPath(path); pkgPath != "." {
++					pkgs = modload.TargetPackages(pkgPath)
++				}
++				if len(pkgs) == 0 {
+ 					abs, err := filepath.Abs(path)
+ 					if err != nil {
+ 						abs = path
+@@ -520,7 +523,7 @@ func runGet(cmd *base.Command, args []string) {
+ 					// If the pattern did not match any packages, look up a new module.
+ 					// If the pattern doesn't match anything on the last iteration,
+ 					// we'll print a warning after the outer loop.
+-					if !search.IsRelativePath(arg.path) && !match.IsLiteral() && arg.path != "all" {
++					if !match.IsLocal() && !match.IsLiteral() && arg.path != "all" {
+ 						addQuery(&query{querySpec: querySpec{path: arg.path, vers: arg.vers}, arg: arg.raw})
+ 					} else {
+ 						for _, err := range match.Errs {
+diff --git a/src/cmd/go/testdata/script/mod_get_main.txt b/src/cmd/go/testdata/script/mod_get_main.txt
+index 403abcd28b..408a5b51c8 100644
+--- a/src/cmd/go/testdata/script/mod_get_main.txt
++++ b/src/cmd/go/testdata/script/mod_get_main.txt
+@@ -1,9 +1,18 @@
+ env GO111MODULE=on
+-[short] skip
++cp go.mod.orig go.mod
++
++# relative and absolute paths must be within the main module.
++! go get -d ..
++stderr '^go get \.\.: path '$WORK'[/\\]gopath is not a package in module rooted at '$WORK'[/\\]gopath[/\\]src$'
++! go get -d $WORK
++stderr '^go get '$WORK': path '$WORK' is not a package in module rooted at '$WORK'[/\\]gopath[/\\]src$'
++! go get -d ../...
++stderr '^go get: pattern \.\./\.\.\.: directory prefix \.\. outside available modules$'
++! go get -d $WORK/...
++stderr '^go get: pattern '$WORK'[/\\]\.\.\.: directory prefix \.\.[/\\]\.\. outside available modules$'
+ 
+ # @patch and @latest within the main module refer to the current version.
+ # The main module won't be upgraded, but missing dependencies will be added.
+-cp go.mod.orig go.mod
+ go get -d rsc.io/x
+ grep 'rsc.io/quote v1.5.2' go.mod
+ go get -d rsc.io/x@upgrade
+@@ -18,7 +27,7 @@ cp go.mod.orig go.mod
+ stderr '^go get rsc.io/x@latest: can.t request explicit version of path in main module$'
+ 
+ # The main module cannot be updated to a specific version.
+-! go get rsc.io/x@v0.1.0
++! go get -d rsc.io/x@v0.1.0
+ stderr '^go get rsc.io/x@v0.1.0: can.t request explicit version of path in main module$'
+ ! go get -d rsc.io/x@v0.1.0
+ stderr '^go get rsc.io/x@v0.1.0: can.t request explicit version of path in main module$'

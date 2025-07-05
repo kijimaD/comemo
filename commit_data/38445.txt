@@ -29,6 +29,21 @@ Date:   Tue Oct 30 07:58:59 2018 +0000
     GitHub-Pull-Request: golang/go#28367
     Reviewed-on: https://go-review.googlesource.com/c/144387
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/common.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 50db88eb60..ba47d565a0 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -424,7 +424,8 @@ type Config struct {
+ 	// If RootCAs is nil, TLS uses the host's root CA set.
+ 	RootCAs *x509.CertPool
+ 
+-	// NextProtos is a list of supported, application level protocols.
++	// NextProtos is a list of supported application level protocols, in
++	// order of preference.
+ 	NextProtos []string
+ 
+ 	// ServerName is used to verify the hostname on the returned

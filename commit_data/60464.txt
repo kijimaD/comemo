@@ -48,7 +48,55 @@ Date:   Mon May 27 16:55:02 2024 +0000
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/regexp/onepass.go      | 12 ++++++++++--
  src/regexp/onepass_test.go |  2 ++
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index 53cbd95839..96e360661b 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -465,12 +465,20 @@ func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
+ 		syntax.EmptyOp(prog.Inst[prog.Start].Arg)&syntax.EmptyBeginText != syntax.EmptyBeginText {
+ 		return nil
+ 	}
+-	// every instruction leading to InstMatch must be EmptyEndText
++	hasAlt := false
++	for _, inst := range prog.Inst {
++		if inst.Op == syntax.InstAlt || inst.Op == syntax.InstAltMatch {
++			hasAlt = true
++			break
++		}
++	}
++	// If we have alternates, every instruction leading to InstMatch must be EmptyEndText.
++	// Also, any match on empty text must be $.
+ 	for _, inst := range prog.Inst {
+ 		opOut := prog.Inst[inst.Out].Op
+ 		switch inst.Op {
+ 		default:
+-			if opOut == syntax.InstMatch {
++			if opOut == syntax.InstMatch && hasAlt {
+ 				return nil
+ 			}
+ 		case syntax.InstAlt, syntax.InstAltMatch:
+diff --git a/src/regexp/onepass_test.go b/src/regexp/onepass_test.go
+index 3f44dc7b15..70eba1f577 100644
+--- a/src/regexp/onepass_test.go
++++ b/src/regexp/onepass_test.go
+@@ -142,6 +142,7 @@ var onePassTests = []struct {
+ 	{`^(?:(a)|(?:a*))$`, false},
+ 	{`^(?:(?:(?:.(?:$))?))$`, true},
+ 	{`^abcd$`, true},
++	{`^abcd`, true},
+ 	{`^(?:(?:a{0,})*?)$`, false},
+ 	{`^(?:(?:a+)*)$`, true},
+ 	{`^(?:(?:a|(?:aa)))$`, true},
+@@ -154,6 +155,7 @@ var onePassTests = []struct {
+ 	{`^(?:(?:aa)|a)$`, true},
+ 	{`^[a-c]*`, false},
+ 	{`^...$`, true},
++	{`^...`, true},
+ 	{`^(?:a|(?:aa))$`, true},
+ 	{`^a((b))c$`, true},
+ 	{`^a.[l-nA-Cg-j]?e$`, true},

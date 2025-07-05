@@ -10,6 +10,22 @@ Date:   Thu Jul 6 03:39:58 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/47552
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/time/format.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 852138977b..8c16e873f6 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -430,6 +430,10 @@ func formatNano(b []byte, nanosec uint, n int, trim bool) []byte {
+ // If the time has a monotonic clock reading, the returned string
+ // includes a final field "m=±<value>", where value is the monotonic
+ // clock reading formatted as a decimal number of seconds.
++//
++// The returned string is meant for debugging; for a stable serialized
++// representation, use t.MarshalText, t.MarshalBinary, or t.Format
++// with an explicit format string.
+ func (t Time) String() string {
+ 	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
+ 

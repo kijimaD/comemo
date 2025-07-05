@@ -16,7 +16,7 @@ Date:   Thu Dec 15 14:21:13 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/34501
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsanitizers/tsan9.go  | 11 +++++++++--
  src/runtime/sys_dragonfly_amd64.s | 25 +++++++++++++++++++++----
  src/runtime/sys_freebsd_amd64.s   | 25 +++++++++++++++++++++----
@@ -27,3 +27,330 @@ Date:   Thu Dec 15 14:21:13 2016 -0800
  src/runtime/sys_openbsd_386.s     | 15 ++++++++++++++-
  src/runtime/sys_openbsd_amd64.s   | 25 +++++++++++++++++++++----
  9 files changed, 156 insertions(+), 27 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/tsan9.go b/misc/cgo/testsanitizers/tsan9.go
+index 7cd0ac7dd6..f166d8b495 100644
+--- a/misc/cgo/testsanitizers/tsan9.go
++++ b/misc/cgo/testsanitizers/tsan9.go
+@@ -6,7 +6,8 @@ package main
+ 
+ // This program failed when run under the C/C++ ThreadSanitizer. The
+ // TSAN library was not keeping track of whether signals should be
+-// delivered on the alternate signal stack.
++// delivered on the alternate signal stack, and the Go signal handler
++// was not preserving callee-saved registers from C callers.
+ 
+ /*
+ #cgo CFLAGS: -g -fsanitize=thread
+@@ -19,10 +20,14 @@ void spin() {
+ 	size_t n;
+ 	struct timeval tvstart, tvnow;
+ 	int diff;
++	void *prev = NULL, *cur;
+ 
+ 	gettimeofday(&tvstart, NULL);
+ 	for (n = 0; n < 1<<20; n++) {
+-		free(malloc(n));
++		cur = malloc(n);
++		free(prev);
++		prev = cur;
++
+ 		gettimeofday(&tvnow, NULL);
+ 		diff = (tvnow.tv_sec - tvstart.tv_sec) * 1000 * 1000 + (tvnow.tv_usec - tvstart.tv_usec);
+ 
+@@ -32,6 +37,8 @@ void spin() {
+ 			break;
+ 		}
+ 	}
++
++	free(prev);
+ }
+ */
+ import "C"
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 88c7f9dd8a..b950b69fe0 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -200,11 +200,28 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+-	MOVQ	DI, 0(SP)
+-	MOVQ	SI, 8(SP)
+-	MOVQ	DX, 16(SP)
++TEXT runtime·sigtramp(SB),NOSPLIT,$72
++	// Save callee-saved C registers, since the caller may be a C signal handler.
++	MOVQ	BX,  bx-8(SP)
++	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
++	MOVQ	R12, r12-24(SP)
++	MOVQ	R13, r13-32(SP)
++	MOVQ	R14, r14-40(SP)
++	MOVQ	R15, r15-48(SP)
++	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
++	// modify them.
++
++	MOVQ	DX, ctx-56(SP)
++	MOVQ	SI, info-64(SP)
++	MOVQ	DI, signum-72(SP)
+ 	CALL	runtime·sigtrampgo(SB)
++
++	MOVQ	r15-48(SP), R15
++	MOVQ	r14-40(SP), R14
++	MOVQ	r13-32(SP), R13
++	MOVQ	r12-24(SP), R12
++	MOVQ	bp-16(SP),  BP
++	MOVQ	bx-8(SP),   BX
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 19007dc401..158a60dec2 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -196,11 +196,28 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+-	MOVQ	DI, 0(SP)
+-	MOVQ	SI, 8(SP)
+-	MOVQ	DX, 16(SP)
++TEXT runtime·sigtramp(SB),NOSPLIT,$72
++	// Save callee-saved C registers, since the caller may be a C signal handler.
++	MOVQ	BX, bx-8(SP)
++	MOVQ	BP, bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
++	MOVQ	R12, r12-24(SP)
++	MOVQ	R13, r13-32(SP)
++	MOVQ	R14, r14-40(SP)
++	MOVQ	R15, r15-48(SP)
++	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
++	// modify them.
++
++	MOVQ	DX, ctx-56(SP)
++	MOVQ	SI, info-64(SP)
++	MOVQ	DI, signum-72(SP)
+ 	CALL	runtime·sigtrampgo(SB)
++
++	MOVQ	r15-48(SP), R15
++	MOVQ	r14-40(SP), R14
++	MOVQ	r13-32(SP), R13
++	MOVQ	r12-24(SP), R12
++	MOVQ	bp-16(SP),  BP
++	MOVQ	bx-8(SP),   BX
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 1d798c741e..45320c068a 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -228,7 +228,15 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+ 	MOVL	AX, SP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$12
++TEXT runtime·sigtramp(SB),NOSPLIT,$28
++	// Save callee-saved C registers, since the caller may be a C signal handler.
++	MOVL	BX, bx-4(SP)
++	MOVL	BP, bp-8(SP)
++	MOVL	SI, si-12(SP)
++	MOVL	DI, di-16(SP)
++	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
++	// modify them.
++
+ 	MOVL	sig+0(FP), BX
+ 	MOVL	BX, 0(SP)
+ 	MOVL	info+4(FP), BX
+@@ -236,6 +244,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVL	ctx+8(FP), BX
+ 	MOVL	BX, 8(SP)
+ 	CALL	runtime·sigtrampgo(SB)
++
++	MOVL	di-16(SP), DI
++	MOVL	si-12(SP), SI
++	MOVL	bp-8(SP),  BP
++	MOVL	bx-4(SP),  BX
+ 	RET
+ 
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 832b98b674..839df16406 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -244,12 +244,29 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+-	MOVQ	DI, 0(SP)   // signum
+-	MOVQ	SI, 8(SP)   // info
+-	MOVQ	DX, 16(SP)  // ctx
++TEXT runtime·sigtramp(SB),NOSPLIT,$72
++	// Save callee-saved C registers, since the caller may be a C signal handler.
++	MOVQ	BX,  bx-8(SP)
++	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
++	MOVQ	R12, r12-24(SP)
++	MOVQ	R13, r13-32(SP)
++	MOVQ	R14, r14-40(SP)
++	MOVQ	R15, r15-48(SP)
++	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
++	// modify them.
++
++	MOVQ	DX, ctx-56(SP)
++	MOVQ	SI, info-64(SP)
++	MOVQ	DI, signum-72(SP)
+ 	MOVQ	$runtime·sigtrampgo(SB), AX
+ 	CALL AX
++
++	MOVQ	r15-48(SP), R15
++	MOVQ	r14-40(SP), R14
++	MOVQ	r13-32(SP), R13
++	MOVQ	r12-24(SP), R12
++	MOVQ	bp-16(SP),  BP
++	MOVQ	bx-8(SP),   BX
+ 	RET
+ 
+ // Used instead of sigtramp in programs that use cgo.
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 50d35e5b5c..8c4f004a4b 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -232,7 +232,15 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+ 	MOVL	AX, SP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$12
++TEXT runtime·sigtramp(SB),NOSPLIT,$28
++	// Save callee-saved C registers, since the caller may be a C signal handler.
++	MOVL	BX, bx-4(SP)
++	MOVL	BP, bp-8(SP)
++	MOVL	SI, si-12(SP)
++	MOVL	DI, di-16(SP)
++	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
++	// modify them.
++
+ 	MOVL	signo+0(FP), BX
+ 	MOVL	BX, 0(SP)
+ 	MOVL	info+4(FP), BX
+@@ -240,6 +248,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVL	context+8(FP), BX
+ 	MOVL	BX, 8(SP)
+ 	CALL	runtime·sigtrampgo(SB)
++
++	MOVL	di-16(SP), DI
++	MOVL	si-12(SP), SI
++	MOVL	bp-8(SP),  BP
++	MOVL	bx-4(SP),  BX
+ 	RET
+ 
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid);
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 2c50adb123..7c7771bcba 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -250,13 +250,28 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$32
+-	MOVQ	DI, 0(SP)   // signum
+-	MOVQ	SI, 8(SP)   // info
+-	MOVQ	DX, 16(SP)  // ctx
+-	MOVQ	R15, 24(SP) // for sigreturn
++TEXT runtime·sigtramp(SB),NOSPLIT,$72
++	// Save callee-saved C registers, since the caller may be a C signal handler.
++	MOVQ	BX,  bx-8(SP)
++	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
++	MOVQ	R12, r12-24(SP)
++	MOVQ	R13, r13-32(SP)
++	MOVQ	R14, r14-40(SP)
++	MOVQ	R15, r15-48(SP)
++	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
++	// modify them.
++
++	MOVQ	DX, ctx-56(SP)
++	MOVQ	SI, info-64(SP)
++	MOVQ	DI, signum-72(SP)
+ 	CALL	runtime·sigtrampgo(SB)
+-	MOVQ	24(SP), R15
++
++	MOVQ	r15-48(SP), R15
++	MOVQ	r14-40(SP), R14
++	MOVQ	r13-32(SP), R13
++	MOVQ	r12-24(SP), R12
++	MOVQ	bp-16(SP),  BP
++	MOVQ	bx-8(SP),   BX
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 997c07fe17..76d22b0131 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -213,7 +213,15 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+ 	MOVL	AX, SP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$12
++TEXT runtime·sigtramp(SB),NOSPLIT,$28
++	// Save callee-saved C registers, since the caller may be a C signal handler.
++	MOVL	BX, bx-4(SP)
++	MOVL	BP, bp-8(SP)
++	MOVL	SI, si-12(SP)
++	MOVL	DI, di-16(SP)
++	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
++	// modify them.
++
+ 	MOVL	signo+0(FP), BX
+ 	MOVL	BX, 0(SP)
+ 	MOVL	info+4(FP), BX
+@@ -221,6 +229,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVL	context+8(FP), BX
+ 	MOVL	BX, 8(SP)
+ 	CALL	runtime·sigtrampgo(SB)
++
++	MOVL	di-16(SP), DI
++	MOVL	si-12(SP), SI
++	MOVL	bp-8(SP),  BP
++	MOVL	bx-4(SP),  BX
+ 	RET
+ 
+ // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 6ca5a81d2a..cf7a3fb7a9 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -242,11 +242,28 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+-	MOVQ	DI, 0(SP)
+-	MOVQ	SI, 8(SP)
+-	MOVQ	DX, 16(SP)
++TEXT runtime·sigtramp(SB),NOSPLIT,$72
++	// Save callee-saved C registers, since the caller may be a C signal handler.
++	MOVQ	BX,  bx-8(SP)
++	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
++	MOVQ	R12, r12-24(SP)
++	MOVQ	R13, r13-32(SP)
++	MOVQ	R14, r14-40(SP)
++	MOVQ	R15, r15-48(SP)
++	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
++	// modify them.
++
++	MOVQ	DX, ctx-56(SP)
++	MOVQ	SI, info-64(SP)
++	MOVQ	DI, signum-72(SP)
+ 	CALL	runtime·sigtrampgo(SB)
++
++	MOVQ	r15-48(SP), R15
++	MOVQ	r14-40(SP), R14
++	MOVQ	r13-32(SP), R13
++	MOVQ	r12-24(SP), R12
++	MOVQ	bp-16(SP),  BP
++	MOVQ	bx-8(SP),   BX
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0

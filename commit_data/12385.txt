@@ -9,7 +9,79 @@ Date:   Mon Mar 5 11:43:28 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5728065
-
+---
  src/pkg/net/mac.go      | 20 +++++++++++---------
  src/pkg/net/mac_test.go | 16 ++++++++++++++--
  2 files changed, 25 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/net/mac.go b/src/pkg/net/mac.go
+index e0637d00b7..d616b1f689 100644
+--- a/src/pkg/net/mac.go
++++ b/src/pkg/net/mac.go
+@@ -6,24 +6,26 @@
+ 
+ package net
+ 
+-import (
+-	"bytes"
+-	"errors"
+-	"fmt"
+-)
++import "errors"
++
++const hexDigit = "0123456789abcdef"
+ 
+ // A HardwareAddr represents a physical hardware address.
+ type HardwareAddr []byte
+ 
+ func (a HardwareAddr) String() string {
+-	var buf bytes.Buffer
++	if len(a) == 0 {
++		return ""
++	}
++	buf := make([]byte, 0, len(a)*3-1)
+ 	for i, b := range a {
+ 		if i > 0 {
+-			buf.WriteByte(':')
++			buf = append(buf, ':')
+ 		}
+-		fmt.Fprintf(&buf, "%02x", b)
++		buf = append(buf, hexDigit[b>>4])
++		buf = append(buf, hexDigit[b&0xF])
+ 	}
+-	return buf.String()
++	return string(buf)
+ }
+ 
+ // ParseMAC parses s as an IEEE 802 MAC-48, EUI-48, or EUI-64 using one of the
+diff --git a/src/pkg/net/mac_test.go b/src/pkg/net/mac_test.go
+index 3837e740cf..8f9dc6685f 100644
+--- a/src/pkg/net/mac_test.go
++++ b/src/pkg/net/mac_test.go
+@@ -43,12 +43,24 @@ func match(err error, s string) bool {
+ 	return err != nil && strings.Contains(err.Error(), s)
+ }
+ 
+-func TestParseMAC(t *testing.T) {
+-	for _, tt := range mactests {
++func TestMACParseString(t *testing.T) {
++	for i, tt := range mactests {
+ 		out, err := ParseMAC(tt.in)
+ 		if !reflect.DeepEqual(out, tt.out) || !match(err, tt.err) {
+ 			t.Errorf("ParseMAC(%q) = %v, %v, want %v, %v", tt.in, out, err, tt.out,
+ 				tt.err)
+ 		}
++		if tt.err == "" {
++			// Verify that serialization works too, and that it round-trips.
++			s := out.String()
++			out2, err := ParseMAC(s)
++			if err != nil {
++				t.Errorf("%d. ParseMAC(%q) = %v", i, s, err)
++				continue
++			}
++			if !reflect.DeepEqual(out2, out) {
++				t.Errorf("%d. ParseMAC(%q) = %v, want %v", i, s, out2, out)
++			}
++		}
+ 	}
+ }

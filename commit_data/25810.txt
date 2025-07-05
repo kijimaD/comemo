@@ -11,7 +11,159 @@ Date:   Mon Nov 23 16:48:31 2015 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go    | 85 ++---------------------------------
  src/cmd/compile/internal/gc/parser.go |  1 -
  2 files changed, 3 insertions(+), 83 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 07d0bb8257..6e8745caa5 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -21,10 +21,6 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-var yyprev int
+-
+-var yylast int
+-
+ var imported_unsafe bool
+ 
+ var (
+@@ -308,7 +304,6 @@ func Main() {
+ 	lexinit()
+ 	typeinit()
+ 	lexinit1()
+-	// TODO(rsc): Restore yytinit?
+ 
+ 	blockgen = 1
+ 	dclcontext = PEXTERN
+@@ -347,7 +342,7 @@ func Main() {
+ 
+ 		imported_unsafe = false
+ 
+-		yyparse()
++		parse_file()
+ 		if nsyntaxerrors != 0 {
+ 			errorexit()
+ 		}
+@@ -972,7 +967,6 @@ const (
+ 	LVAR
+ 	LANDAND
+ 	LANDNOT
+-	LBODY
+ 	LCOMM
+ 	LDEC
+ 	LEQ
+@@ -1898,26 +1892,8 @@ func pragcgo(text string) {
+ 	}
+ }
+ 
+-type yy struct{}
+-
+-func (yy) Lex(v *yySymType) int {
+-	return int(yylex(v))
+-}
+-
+-func (yy) Error(msg string) {
+-	Yyerror("%s", msg)
+-}
+-
+-var parsing bool
+-
+-func yyparse() {
+-	parsing = true
+-	parse_file()
+-	parsing = false
+-}
+-
+ func yylex(yylval *yySymType) int32 {
+-	lx := int(_yylex(yylval))
++	lx := _yylex(yylval)
+ 
+ 	if curio.nlsemi && lx == EOF {
+ 		// Treat EOF as "end of line" for the purposes
+@@ -1943,11 +1919,7 @@ func yylex(yylval *yySymType) int32 {
+ 		curio.nlsemi = false
+ 	}
+ 
+-	// Track last two tokens returned by yylex.
+-	yyprev = yylast
+-
+-	yylast = lx
+-	return int32(lx)
++	return lx
+ }
+ 
+ func getc() int {
+@@ -2533,57 +2505,6 @@ func lexname(lex int) string {
+ 	return fmt.Sprintf("LEX-%d", lex)
+ }
+ 
+-var yytfix = map[string]string{
+-	"$end":       "EOF",
+-	"LASOP":      "op=",
+-	"LBREAK":     "break",
+-	"LCASE":      "case",
+-	"LCHAN":      "chan",
+-	"LCOLAS":     ":=",
+-	"LCONST":     "const",
+-	"LCONTINUE":  "continue",
+-	"LDDD":       "...",
+-	"LDEFAULT":   "default",
+-	"LDEFER":     "defer",
+-	"LELSE":      "else",
+-	"LFALL":      "fallthrough",
+-	"LFOR":       "for",
+-	"LFUNC":      "func",
+-	"LGO":        "go",
+-	"LGOTO":      "goto",
+-	"LIF":        "if",
+-	"LIMPORT":    "import",
+-	"LINTERFACE": "interface",
+-	"LMAP":       "map",
+-	"LNAME":      "name",
+-	"LPACKAGE":   "package",
+-	"LRANGE":     "range",
+-	"LRETURN":    "return",
+-	"LSELECT":    "select",
+-	"LSTRUCT":    "struct",
+-	"LSWITCH":    "switch",
+-	"LTYPE":      "type",
+-	"LVAR":       "var",
+-	"LANDAND":    "&&",
+-	"LANDNOT":    "&^",
+-	"LBODY":      "{",
+-	"LCOMM":      "<-",
+-	"LDEC":       "--",
+-	"LINC":       "++",
+-	"LEQ":        "==",
+-	"LGE":        ">=",
+-	"LGT":        ">",
+-	"LLE":        "<=",
+-	"LLT":        "<",
+-	"LLSH":       "<<",
+-	"LRSH":       ">>",
+-	"LOROR":      "||",
+-	"LNE":        "!=",
+-	// spell out to avoid confusion with punctuation in error messages
+-	"';'": "semicolon or newline",
+-	"','": "comma",
+-}
+-
+ func pkgnotused(lineno int, path string, name string) {
+ 	// If the package was imported with a name other than the final
+ 	// import path element, show it explicitly in the error message.
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 5d2e4c3114..338985100a 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -261,7 +261,6 @@ var tokstrings = map[int32]string{
+ 	LVAR:       "var",
+ 	LANDAND:    "&&",
+ 	LANDNOT:    "&^",
+-	LBODY:      "LBODY", // we should never see this one
+ 	LCOMM:      "<-",
+ 	LDEC:       "--",
+ 	LEQ:        "==",

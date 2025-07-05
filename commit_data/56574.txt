@@ -34,7 +34,7 @@ Date:   Tue May 9 12:38:40 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go        |  35 ++++-
  src/cmd/compile/internal/types2/builtins.go        |   2 +-
  src/cmd/compile/internal/types2/call.go            | 162 +++++++++++++++------
@@ -44,3 +44,666 @@ Date:   Tue May 9 12:38:40 2023 -0700
  src/internal/types/testdata/examples/inference2.go |  10 ++
  .../types/testdata/fixedbugs/issue59958.go         |  22 +++
  8 files changed, 328 insertions(+), 102 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 3fa8782930..f19b962116 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -381,6 +381,26 @@ func TestTypesInfo(t *testing.T) {
+ 		{`package u3c; type _ interface{int | string | ~bool}`, `int | string`, `int | string`},
+ 		{`package u3c; type _ interface{int | string | ~bool}`, `~bool`, `~bool`},
+ 		{`package u3c; type _ interface{int | string | ~float64|~bool}`, `int | string | ~float64`, `int | string | ~float64`},
++
++		// reverse type inference
++		{`package r1; var _ func(int) = g; func g[P any](P) {}`, `g`, `func(int)`},
++		{`package r2; var _ func(int) = g[int]; func g[P any](P) {}`, `g`, `func[P any](P)`}, // go.dev/issues/60212
++		{`package r3; var _ func(int) = g[int]; func g[P any](P) {}`, `g[int]`, `func(int)`},
++		{`package r4; var _ func(int, string) = g; func g[P, Q any](P, Q) {}`, `g`, `func(int, string)`},
++		{`package r5; var _ func(int, string) = g[int]; func g[P, Q any](P, Q) {}`, `g`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
++		{`package r6; var _ func(int, string) = g[int]; func g[P, Q any](P, Q) {}`, `g[int]`, `func(int, string)`},
++
++		{`package s1; func _() { f(g) }; func f(func(int)) {}; func g[P any](P) {}`, `g`, `func(int)`},
++		{`package s2; func _() { f(g[int]) }; func f(func(int)) {}; func g[P any](P) {}`, `g`, `func[P any](P)`}, // go.dev/issues/60212
++		{`package s3; func _() { f(g[int]) }; func f(func(int)) {}; func g[P any](P) {}`, `g[int]`, `func(int)`},
++		{`package s4; func _() { f(g) }; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}`, `g`, `func(int, string)`},
++		{`package s5; func _() { f(g[int]) }; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}`, `g`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
++		{`package s6; func _() { f(g[int]) }; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}`, `g[int]`, `func(int, string)`},
++
++		{`package s7; func _() { f(g, h) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `g`, `func(int, int)`},
++		{`package s8; func _() { f(g, h) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h`, `func(int, string)`},
++		{`package s9; func _() { f(g, h[int]) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
++		{`package s10; func _() { f(g, h[int]) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h[int]`, `func(int, string)`},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -414,7 +434,7 @@ func TestTypesInfo(t *testing.T) {
+ 
+ 		// check that type is correct
+ 		if got := typ.String(); got != test.typ {
+-			t.Errorf("package %s: got %s; want %s", name, got, test.typ)
++			t.Errorf("package %s: expr = %s: got %s; want %s", name, test.expr, got, test.typ)
+ 		}
+ 	}
+ }
+@@ -551,18 +571,21 @@ type T[P any] []P
+ 			[]testInst{{`foo`, []string{`int`}, `func(int)`}},
+ 		},
+ 
+-		// reverse type parameter inference
++		// reverse type inference
+ 		{`package reverse1a; var f func(int) = g; func g[P any](P) {}`,
+ 			[]testInst{{`g`, []string{`int`}, `func(int)`}},
+ 		},
+ 		{`package reverse1b; func f(func(int)) {}; func g[P any](P) {}; func _() { f(g) }`,
+ 			[]testInst{{`g`, []string{`int`}, `func(int)`}},
+ 		},
+-		{`package reverse2a; var f func(int) string = g; func g[P, Q any](P) Q { var q Q; return q }`,
+-			[]testInst{{`g`, []string{`int`, `string`}, `func(int) string`}},
++		{`package reverse2a; var f func(int, string) = g; func g[P, Q any](P, Q) {}`,
++			[]testInst{{`g`, []string{`int`, `string`}, `func(int, string)`}},
++		},
++		{`package reverse2b; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}; func _() { f(g) }`,
++			[]testInst{{`g`, []string{`int`, `string`}, `func(int, string)`}},
+ 		},
+-		{`package reverse2b; func f(func(int) string) {}; func g[P, Q any](P) Q { var q Q; return q }; func _() { f(g) }`,
+-			[]testInst{{`g`, []string{`int`, `string`}, `func(int) string`}},
++		{`package reverse2c; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}; func _() { f(g[int]) }`,
++			[]testInst{{`g`, []string{`int`, `string`}, `func(int, string)`}},
+ 		},
+ 		// reverse3a not possible (cannot assign to generic function outside of argument passing)
+ 		{`package reverse3b; func f[R any](func(int) R) {}; func g[P any](P) string { return "" }; func _() { f(g) }`,
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 15769ead4b..13736ec113 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -143,7 +143,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			arg(&x, i)
+ 			alist2 = append(alist2, &x)
+ 		}
+-		check.arguments(call, sig, nil, nil, alist2) // discard result (we know the result type)
++		check.arguments(call, sig, nil, nil, alist2, nil, nil) // discard result (we know the result type)
+ 		// ok to continue even if check.arguments reported errors
+ 
+ 		x.mode = value
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 834d2f467f..0e8ace3325 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -321,8 +321,8 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	}
+ 
+ 	// evaluate arguments
+-	args := check.genericExprList(call.ArgList)
+-	sig = check.arguments(call, sig, targs, xlist, args)
++	args, atargs, atxlist := check.genericExprList(call.ArgList)
++	sig = check.arguments(call, sig, targs, xlist, args, atargs, atxlist)
+ 
+ 	if wasGeneric && sig.TypeParams().Len() == 0 {
+ 		// update the recorded type of call.Fun to its instantiated type
+@@ -358,65 +358,123 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 
+ // exprList evaluates a list of expressions and returns the corresponding operands.
+ // A single-element expression list may evaluate to multiple operands.
+-func (check *Checker) exprList(elist []syntax.Expr) []*operand {
+-	switch len(elist) {
+-	case 0:
+-		return nil
+-
+-	case 1:
+-		xlist, _ := check.multiExpr(elist[0], false)
+-		return xlist
+-
+-	default:
++func (check *Checker) exprList(elist []syntax.Expr) (xlist []*operand) {
++	if n := len(elist); n == 1 {
++		xlist, _ = check.multiExpr(elist[0], false)
++	} else if n > 1 {
+ 		// multiple (possibly invalid) values
+-		xlist := make([]*operand, len(elist))
++		xlist = make([]*operand, n)
+ 		for i, e := range elist {
+ 			var x operand
+ 			check.expr(nil, &x, e)
+ 			xlist[i] = &x
+ 		}
+-		return xlist
+ 	}
++	return
+ }
+ 
+-// genericExprList is like exprList but result operands may be generic (not fully instantiated).
+-func (check *Checker) genericExprList(elist []syntax.Expr) []*operand {
+-	switch len(elist) {
+-	case 0:
+-		return nil
++// genericExprList is like exprList but result operands may be uninstantiated or partially
++// instantiated generic functions.
++// For each non-generic or uninstantiated generic operand, the corresponding targsList and
++// xlistList elements do not exist (targsList and xlistList are nil) or the elements are nil.
++// For each partially instantiated generic function operand, the corresponding targsList and
++// xlistList elements are the operand's partial type arguments and type expression lists.
++func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, targsList [][]Type, xlistList [][]syntax.Expr) {
++	if debug {
++		defer func() {
++			// targsList and xlistList must have matching lengths
++			assert(len(targsList) == len(xlistList))
++			// type arguments must only exist for partially instantiated functions
++			for i, x := range resList {
++				if i < len(targsList) {
++					if n := len(targsList[i]); n > 0 {
++						// x must be a partially instantiated function
++						assert(n < x.typ.(*Signature).TypeParams().Len())
++					}
++				}
++			}
++		}()
++	}
+ 
+-	case 1:
++	if n := len(elist); n == 1 {
++		// single value (possibly a partially instantiated function), or a multi-valued expression
+ 		e := elist[0]
+ 		var x operand
+-		check.rawExpr(nil, &x, e, nil, true)
+-		check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
+-
+-		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
+-			// multiple values - cannot be generic
+-			xlist := make([]*operand, t.Len())
+-			for i, v := range t.vars {
+-				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
++		if inst, _ := e.(*syntax.IndexExpr); inst != nil && check.indexExpr(&x, inst) {
++			// x is a generic function.
++			targs, xlist := check.funcInst(nil, x.Pos(), &x, inst, false)
++			if targs != nil {
++				// x was not instantiated: collect the (partial) type arguments.
++				targsList = [][]Type{targs}
++				xlistList = [][]syntax.Expr{xlist}
++				// Update x.expr so that we can record the partially instantiated function.
++				x.expr = inst
++			} else {
++				// x was instantiated: we must record it here because we didn't
++				// use the usual expression evaluators.
++				check.record(&x)
++			}
++			resList = []*operand{&x}
++		} else {
++			// x is not a function instantiation (it may still be a generic function).
++			check.rawExpr(nil, &x, e, nil, true)
++			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
++			if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
++				// x is a function call returning multiple values; it cannot be generic.
++				resList = make([]*operand, t.Len())
++				for i, v := range t.vars {
++					resList[i] = &operand{mode: value, expr: e, typ: v.typ}
++				}
++			} else {
++				// x is exactly one value (possibly invalid or uninstantiated generic function).
++				resList = []*operand{&x}
+ 			}
+-			return xlist
+ 		}
+-
+-		// exactly one (possible invalid or generic) value
+-		return []*operand{&x}
+-
+-	default:
+-		// multiple (possibly invalid) values
+-		xlist := make([]*operand, len(elist))
++	} else if n > 1 {
++		// multiple values
++		resList = make([]*operand, n)
++		targsList = make([][]Type, n)
++		xlistList = make([][]syntax.Expr, n)
+ 		for i, e := range elist {
+ 			var x operand
+-			check.genericExpr(&x, e)
+-			xlist[i] = &x
++			if inst, _ := e.(*syntax.IndexExpr); inst != nil && check.indexExpr(&x, inst) {
++				// x is a generic function.
++				targs, xlist := check.funcInst(nil, x.Pos(), &x, inst, false)
++				if targs != nil {
++					// x was not instantiated: collect the (partial) type arguments.
++					targsList[i] = targs
++					xlistList[i] = xlist
++					// Update x.expr so that we can record the partially instantiated function.
++					x.expr = inst
++				} else {
++					// x was instantiated: we must record it here because we didn't
++					// use the usual expression evaluators.
++					check.record(&x)
++				}
++			} else {
++				// x is exactly one value (possibly invalid or uninstantiated generic function).
++				check.genericExpr(&x, e)
++			}
++			resList[i] = &x
+ 		}
+-		return xlist
+ 	}
++
++	return
+ }
+ 
+-// xlist is the list of type argument expressions supplied in the source code.
+-func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, xlist []syntax.Expr, args []*operand) (rsig *Signature) {
++// arguments type-checks arguments passed to a function call with the given signature.
++// The function and its arguments may be generic, and possibly partially instantiated.
++// targs and xlist are the function's type arguments (and corresponding expressions).
++// args are the function arguments. If an argument args[i] is a partially instantiated
++// generic function, atargs[i] and atxlist[i] are the corresponding type arguments
++// (and corresponding expressions).
++// If the callee is variadic, arguments adjusts its signature to match the provided
++// arguments. The type parameters and arguments of the callee and all its arguments
++// are used together to infer any missing type arguments, and the callee and argument
++// functions are instantiated as necessary.
++// The result signature is the (possibly adjusted and instantiated) function signature.
++// If an error occured, the result signature is the incoming sig.
++func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, xlist []syntax.Expr, args []*operand, atargs [][]Type, atxlist [][]syntax.Expr) (rsig *Signature) {
+ 	rsig = sig
+ 
+ 	// Function call argument/parameter count requirements
+@@ -516,7 +574,12 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 		var tmp Type
+ 		tparams, tmp = check.renameTParams(call.Pos(), sig.TypeParams().list(), sigParams)
+ 		sigParams = tmp.(*Tuple)
++		// make sure targs and tparams have the same length
++		for len(targs) < len(tparams) {
++			targs = append(targs, nil)
++		}
+ 	}
++	assert(len(tparams) == len(targs))
+ 
+ 	// collect type parameters from generic function arguments
+ 	var genericArgs []int // indices of generic function arguments
+@@ -533,10 +596,20 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 				asig.tparams = &TypeParamList{atparams} // renameTParams doesn't touch associated type parameters
+ 				arg.typ = asig                          // new type identity for the function argument
+ 				tparams = append(tparams, atparams...)
++				// add partial list of type arguments, if any
++				if i < len(atargs) {
++					targs = append(targs, atargs[i]...)
++				}
++				// make sure targs and tparams have the same length
++				for len(targs) < len(tparams) {
++					targs = append(targs, nil)
++				}
+ 				genericArgs = append(genericArgs, i)
+ 			}
+ 		}
+ 	}
++	assert(len(tparams) == len(targs))
++
+ 	// at the moment we only support implicit instantiations of argument functions
+ 	_ = len(genericArgs) > 0 && check.verifyVersionf(check.pkg, args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
+ 
+@@ -574,11 +647,12 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 		// compute argument signatures: instantiate if needed
+ 		j := n
+ 		for _, i := range genericArgs {
+-			asig := args[i].typ.(*Signature)
++			arg := args[i]
++			asig := arg.typ.(*Signature)
+ 			k := j + asig.TypeParams().Len()
+ 			// targs[j:k] are the inferred type arguments for asig
+-			asig = check.instantiateSignature(call.Pos(), args[i].expr, asig, targs[j:k], nil) // TODO(gri) provide xlist if possible (partial instantiations)
+-			args[i].typ = asig
++			arg.typ = check.instantiateSignature(call.Pos(), arg.expr, asig, targs[j:k], nil) // TODO(gri) provide xlist if possible (partial instantiations)
++			check.record(arg)                                                                 // record here because we didn't use the usual expr evaluators
+ 			j = k
+ 		}
+ 	}
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 86ed4b1165..36d562a406 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -381,6 +381,26 @@ func TestTypesInfo(t *testing.T) {
+ 		{`package u3c; type _ interface{int | string | ~bool}`, `int | string`, `int | string`},
+ 		{`package u3c; type _ interface{int | string | ~bool}`, `~bool`, `~bool`},
+ 		{`package u3c; type _ interface{int | string | ~float64|~bool}`, `int | string | ~float64`, `int | string | ~float64`},
++
++		// reverse type inference
++		{`package r1; var _ func(int) = g; func g[P any](P) {}`, `g`, `func(int)`},
++		{`package r2; var _ func(int) = g[int]; func g[P any](P) {}`, `g`, `func[P any](P)`}, // go.dev/issues/60212
++		{`package r3; var _ func(int) = g[int]; func g[P any](P) {}`, `g[int]`, `func(int)`},
++		{`package r4; var _ func(int, string) = g; func g[P, Q any](P, Q) {}`, `g`, `func(int, string)`},
++		{`package r5; var _ func(int, string) = g[int]; func g[P, Q any](P, Q) {}`, `g`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
++		{`package r6; var _ func(int, string) = g[int]; func g[P, Q any](P, Q) {}`, `g[int]`, `func(int, string)`},
++
++		{`package s1; func _() { f(g) }; func f(func(int)) {}; func g[P any](P) {}`, `g`, `func(int)`},
++		{`package s2; func _() { f(g[int]) }; func f(func(int)) {}; func g[P any](P) {}`, `g`, `func[P any](P)`}, // go.dev/issues/60212
++		{`package s3; func _() { f(g[int]) }; func f(func(int)) {}; func g[P any](P) {}`, `g[int]`, `func(int)`},
++		{`package s4; func _() { f(g) }; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}`, `g`, `func(int, string)`},
++		{`package s5; func _() { f(g[int]) }; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}`, `g`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
++		{`package s6; func _() { f(g[int]) }; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}`, `g[int]`, `func(int, string)`},
++
++		{`package s7; func _() { f(g, h) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `g`, `func(int, int)`},
++		{`package s8; func _() { f(g, h) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h`, `func(int, string)`},
++		{`package s9; func _() { f(g, h[int]) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
++		{`package s10; func _() { f(g, h[int]) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h[int]`, `func(int, string)`},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -414,7 +434,7 @@ func TestTypesInfo(t *testing.T) {
+ 
+ 		// check that type is correct
+ 		if got := typ.String(); got != test.typ {
+-			t.Errorf("package %s: got %s; want %s", name, got, test.typ)
++			t.Errorf("package %s: expr = %s: got %s; want %s", name, test.expr, got, test.typ)
+ 		}
+ 	}
+ }
+@@ -551,18 +571,21 @@ type T[P any] []P
+ 			[]testInst{{`foo`, []string{`int`}, `func(int)`}},
+ 		},
+ 
+-		// reverse type parameter inference
++		// reverse type inference
+ 		{`package reverse1a; var f func(int) = g; func g[P any](P) {}`,
+ 			[]testInst{{`g`, []string{`int`}, `func(int)`}},
+ 		},
+ 		{`package reverse1b; func f(func(int)) {}; func g[P any](P) {}; func _() { f(g) }`,
+ 			[]testInst{{`g`, []string{`int`}, `func(int)`}},
+ 		},
+-		{`package reverse2a; var f func(int) string = g; func g[P, Q any](P) Q { var q Q; return q }`,
+-			[]testInst{{`g`, []string{`int`, `string`}, `func(int) string`}},
++		{`package reverse2a; var f func(int, string) = g; func g[P, Q any](P, Q) {}`,
++			[]testInst{{`g`, []string{`int`, `string`}, `func(int, string)`}},
++		},
++		{`package reverse2b; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}; func _() { f(g) }`,
++			[]testInst{{`g`, []string{`int`, `string`}, `func(int, string)`}},
+ 		},
+-		{`package reverse2b; func f(func(int) string) {}; func g[P, Q any](P) Q { var q Q; return q }; func _() { f(g) }`,
+-			[]testInst{{`g`, []string{`int`, `string`}, `func(int) string`}},
++		{`package reverse2c; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}; func _() { f(g[int]) }`,
++			[]testInst{{`g`, []string{`int`, `string`}, `func(int, string)`}},
+ 		},
+ 		// reverse3a not possible (cannot assign to generic function outside of argument passing)
+ 		{`package reverse3b; func f[R any](func(int) R) {}; func g[P any](P) string { return "" }; func _() { f(g) }`,
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index e4b00cd757..150613eee3 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -144,7 +144,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			arg(&x, i)
+ 			alist2 = append(alist2, &x)
+ 		}
+-		check.arguments(call, sig, nil, nil, alist2) // discard result (we know the result type)
++		check.arguments(call, sig, nil, nil, alist2, nil, nil) // discard result (we know the result type)
+ 		// ok to continue even if check.arguments reported errors
+ 
+ 		x.mode = value
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 3fa8cbb16c..b7bdb5a098 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -326,8 +326,8 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 	}
+ 
+ 	// evaluate arguments
+-	args := check.genericExprList(call.Args)
+-	sig = check.arguments(call, sig, targs, xlist, args)
++	args, atargs, atxlist := check.genericExprList(call.Args)
++	sig = check.arguments(call, sig, targs, xlist, args, atargs, atxlist)
+ 
+ 	if wasGeneric && sig.TypeParams().Len() == 0 {
+ 		// Update the recorded type of call.Fun to its instantiated type.
+@@ -363,65 +363,123 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 
+ // exprList evaluates a list of expressions and returns the corresponding operands.
+ // A single-element expression list may evaluate to multiple operands.
+-func (check *Checker) exprList(elist []ast.Expr) []*operand {
+-	switch len(elist) {
+-	case 0:
+-		return nil
+-
+-	case 1:
+-		xlist, _ := check.multiExpr(elist[0], false)
+-		return xlist
+-
+-	default:
++func (check *Checker) exprList(elist []ast.Expr) (xlist []*operand) {
++	if n := len(elist); n == 1 {
++		xlist, _ = check.multiExpr(elist[0], false)
++	} else if n > 1 {
+ 		// multiple (possibly invalid) values
+-		xlist := make([]*operand, len(elist))
++		xlist = make([]*operand, n)
+ 		for i, e := range elist {
+ 			var x operand
+ 			check.expr(nil, &x, e)
+ 			xlist[i] = &x
+ 		}
+-		return xlist
+ 	}
++	return
+ }
+ 
+-// genericExprList is like exprList but result operands may be generic (not fully instantiated).
+-func (check *Checker) genericExprList(elist []ast.Expr) []*operand {
+-	switch len(elist) {
+-	case 0:
+-		return nil
++// genericExprList is like exprList but result operands may be uninstantiated or partially
++// instantiated generic functions.
++// For each non-generic or uninstantiated generic operand, the corresponding targsList and
++// xlistList elements do not exist (targsList and xlistList are nil) or the elements are nil.
++// For each partially instantiated generic function operand, the corresponding targsList and
++// xlistList elements are the operand's partial type arguments and type expression lists.
++func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, targsList [][]Type, xlistList [][]ast.Expr) {
++	if debug {
++		defer func() {
++			// targsList and xlistList must have matching lengths
++			assert(len(targsList) == len(xlistList))
++			// type arguments must only exist for partially instantiated functions
++			for i, x := range resList {
++				if i < len(targsList) {
++					if n := len(targsList[i]); n > 0 {
++						// x must be a partially instantiated function
++						assert(n < x.typ.(*Signature).TypeParams().Len())
++					}
++				}
++			}
++		}()
++	}
+ 
+-	case 1:
++	if n := len(elist); n == 1 {
++		// single value (possibly a partially instantiated function), or a multi-valued expression
+ 		e := elist[0]
+ 		var x operand
+-		check.rawExpr(nil, &x, e, nil, true)
+-		check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
+-
+-		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
+-			// multiple values - cannot be generic
+-			xlist := make([]*operand, t.Len())
+-			for i, v := range t.vars {
+-				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
++		if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
++			// x is a generic function.
++			targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, false)
++			if targs != nil {
++				// x was not instantiated: collect the (partial) type arguments.
++				targsList = [][]Type{targs}
++				xlistList = [][]ast.Expr{xlist}
++				// Update x.expr so that we can record the partially instantiated function.
++				x.expr = ix.Orig
++			} else {
++				// x was instantiated: we must record it here because we didn't
++				// use the usual expression evaluators.
++				check.record(&x)
++			}
++			resList = []*operand{&x}
++		} else {
++			// x is not a function instantiation (it may still be a generic function).
++			check.rawExpr(nil, &x, e, nil, true)
++			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
++			if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
++				// x is a function call returning multiple values; it cannot be generic.
++				resList = make([]*operand, t.Len())
++				for i, v := range t.vars {
++					resList[i] = &operand{mode: value, expr: e, typ: v.typ}
++				}
++			} else {
++				// x is exactly one value (possibly invalid or uninstantiated generic function).
++				resList = []*operand{&x}
+ 			}
+-			return xlist
+ 		}
+-
+-		// exactly one (possible invalid or generic) value
+-		return []*operand{&x}
+-
+-	default:
+-		// multiple (possibly invalid) values
+-		xlist := make([]*operand, len(elist))
++	} else if n > 1 {
++		// multiple values
++		resList = make([]*operand, n)
++		targsList = make([][]Type, n)
++		xlistList = make([][]ast.Expr, n)
+ 		for i, e := range elist {
+ 			var x operand
+-			check.genericExpr(&x, e)
+-			xlist[i] = &x
++			if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
++				// x is a generic function.
++				targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, false)
++				if targs != nil {
++					// x was not instantiated: collect the (partial) type arguments.
++					targsList[i] = targs
++					xlistList[i] = xlist
++					// Update x.expr so that we can record the partially instantiated function.
++					x.expr = ix.Orig
++				} else {
++					// x was instantiated: we must record it here because we didn't
++					// use the usual expression evaluators.
++					check.record(&x)
++				}
++			} else {
++				// x is exactly one value (possibly invalid or uninstantiated generic function).
++				check.genericExpr(&x, e)
++			}
++			resList[i] = &x
+ 		}
+-		return xlist
+ 	}
++
++	return
+ }
+ 
+-// xlist is the list of type argument expressions supplied in the source code.
+-func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type, xlist []ast.Expr, args []*operand) (rsig *Signature) {
++// arguments type-checks arguments passed to a function call with the given signature.
++// The function and its arguments may be generic, and possibly partially instantiated.
++// targs and xlist are the function's type arguments (and corresponding expressions).
++// args are the function arguments. If an argument args[i] is a partially instantiated
++// generic function, atargs[i] and atxlist[i] are the corresponding type arguments
++// (and corresponding expressions).
++// If the callee is variadic, arguments adjusts its signature to match the provided
++// arguments. The type parameters and arguments of the callee and all its arguments
++// are used together to infer any missing type arguments, and the callee and argument
++// functions are instantiated as necessary.
++// The result signature is the (possibly adjusted and instantiated) function signature.
++// If an error occured, the result signature is the incoming sig.
++func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type, xlist []ast.Expr, args []*operand, atargs [][]Type, atxlist [][]ast.Expr) (rsig *Signature) {
+ 	rsig = sig
+ 
+ 	// Function call argument/parameter count requirements
+@@ -519,7 +577,12 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 		var tmp Type
+ 		tparams, tmp = check.renameTParams(call.Pos(), sig.TypeParams().list(), sigParams)
+ 		sigParams = tmp.(*Tuple)
++		// make sure targs and tparams have the same length
++		for len(targs) < len(tparams) {
++			targs = append(targs, nil)
++		}
+ 	}
++	assert(len(tparams) == len(targs))
+ 
+ 	// collect type parameters from generic function arguments
+ 	var genericArgs []int // indices of generic function arguments
+@@ -536,10 +599,20 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 				asig.tparams = &TypeParamList{atparams} // renameTParams doesn't touch associated type parameters
+ 				arg.typ = asig                          // new type identity for the function argument
+ 				tparams = append(tparams, atparams...)
++				// add partial list of type arguments, if any
++				if i < len(atargs) {
++					targs = append(targs, atargs[i]...)
++				}
++				// make sure targs and tparams have the same length
++				for len(targs) < len(tparams) {
++					targs = append(targs, nil)
++				}
+ 				genericArgs = append(genericArgs, i)
+ 			}
+ 		}
+ 	}
++	assert(len(tparams) == len(targs))
++
+ 	// at the moment we only support implicit instantiations of argument functions
+ 	_ = len(genericArgs) > 0 && check.verifyVersionf(check.pkg, args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
+ 
+@@ -577,11 +650,12 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 		// compute argument signatures: instantiate if needed
+ 		j := n
+ 		for _, i := range genericArgs {
+-			asig := args[i].typ.(*Signature)
++			arg := args[i]
++			asig := arg.typ.(*Signature)
+ 			k := j + asig.TypeParams().Len()
+ 			// targs[j:k] are the inferred type arguments for asig
+-			asig = check.instantiateSignature(call.Pos(), args[i].expr, asig, targs[j:k], nil) // TODO(gri) provide xlist if possible (partial instantiations)
+-			args[i].typ = asig
++			arg.typ = check.instantiateSignature(call.Pos(), arg.expr, asig, targs[j:k], nil) // TODO(gri) provide xlist if possible (partial instantiations)
++			check.record(arg)                                                                 // record here because we didn't use the usual expr evaluators
+ 			j = k
+ 		}
+ 	}
+diff --git a/src/internal/types/testdata/examples/inference2.go b/src/internal/types/testdata/examples/inference2.go
+index 4eeb6d1b05..aa2475b741 100644
+--- a/src/internal/types/testdata/examples/inference2.go
++++ b/src/internal/types/testdata/examples/inference2.go
+@@ -88,3 +88,13 @@ func _() {
+ 	g5(f6, f7)
+ 	g6(f1, f1)
+ }
++
++// Argument passing of partially instantiated functions
++func h(func(int, string), func(string, int)) {}
++
++func p[P, Q any](P, Q) {}
++
++func _() {
++	h(p, p)
++	h(p[int], p[string])
++}
+diff --git a/src/internal/types/testdata/fixedbugs/issue59958.go b/src/internal/types/testdata/fixedbugs/issue59958.go
+new file mode 100644
+index 0000000000..4a4b4dc921
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue59958.go
+@@ -0,0 +1,22 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(func(int) string) {}
++
++func g2[P, Q any](P) Q    { var q Q; return q }
++func g3[P, Q, R any](P) R { var r R; return r }
++
++func _() {
++	f(g2)
++	f(g2[int])
++	f(g2[int, string])
++
++	f(g3[int, bool])
++	f(g3[int, bool, string])
++
++	var _ func(int) string = g2
++	var _ func(int) string = g2[int]
++}

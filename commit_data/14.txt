@@ -5,6 +5,20 @@ Date:   Thu Mar 6 21:50:28 2008 -0800
     - more grammar fixes
     
     SVN=111688
-
+---
  doc/go_lang.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index ed44eb4a00..b0558f8f4f 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -816,7 +816,7 @@ Literals
+ ----
+ 
+   Literal = BasicLit | CompoundLit .
+-  BasicLit = CharLit | StringLit | IntLit | FloatLit .
++  BasicLit = char_lit | string_lit | int_lit | float_lit .
+   CompoundLit = ArrayLit | MapLit | StructLit | FunctionLit .
+ 
+ 

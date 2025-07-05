@@ -5,7 +5,7 @@ Date:   Thu Jun 26 17:54:44 2008 -0700
     better line numbers
     
     SVN=125018
-
+---
  src/cmd/6g/cgen.c   | 30 +++++++++---------
  src/cmd/6g/gen.c    | 89 +++++++++++++++++++++++++++++++++++++++++------------
  src/cmd/6g/gsubr.c  |  2 +-
@@ -14,3 +14,727 @@ Date:   Thu Jun 26 17:54:44 2008 -0700
  src/cmd/gc/subr.c   | 47 ++++++++++++++++------------
  src/cmd/gc/walk.c   | 19 ++++++------
  7 files changed, 126 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 6b820c5234..4611a5f00f 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -20,9 +20,7 @@ cgen(Node *n, Node *res)
+ 	if(n == N || n->type == T)
+ 		return;
+ 
+-	lno = dynlineno;
+-	if(n->op != ONAME)
+-		dynlineno = n->lineno;	// for diagnostics
++	lno = setlineno(n);
+ 
+ 	if(res == N || res->type == T)
+ 		fatal("cgen: res nil");
+@@ -236,7 +234,7 @@ uop:	// unary
+ 	goto ret;
+ 
+ ret:
+-	dynlineno = lno;
++	lineno = lno;
+ }
+ 
+ void
+@@ -244,9 +242,9 @@ agen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr;
+ 	Node n1, n2, n3, tmp;
+-	ulong w, lno;
++	ulong w;
+ 	Type *t;
+-
++	long lno;
+ 
+ 	if(debug['g']) {
+ 		dump("\nagen-res", res);
+@@ -255,13 +253,11 @@ agen(Node *n, Node *res)
+ 	if(n == N || n->type == T)
+ 		return;
+ 
++	lno = setlineno(n);
++
+ 	if(!isptr[res->type->etype])
+ 		fatal("agen: not tptr: %T", res->type);
+ 
+-	lno = dynlineno;
+-	if(n->op != ONAME)
+-		dynlineno = n->lineno;	// for diagnostics
+-
+ 	if(n->addable) {
+ 		regalloc(&n1, types[tptr], res);
+ 		gins(ALEAQ, n, &n1);
+@@ -390,7 +386,7 @@ agen(Node *n, Node *res)
+ 	}
+ 
+ ret:
+-	dynlineno = lno;
++	lineno = lno;
+ }
+ 
+ vlong
+@@ -427,9 +423,7 @@ bgen(Node *n, int true, Prog *to)
+ 	if(n == N)
+ 		n = booltrue;
+ 
+-	lno = dynlineno;
+-	if(n->op != ONAME)
+-		dynlineno = n->lineno;	// for diagnostics
++	lno = setlineno(n);
+ 
+ 	nl = n->left;
+ 	nr = n->right;
+@@ -581,14 +575,16 @@ bgen(Node *n, int true, Prog *to)
+ 	goto ret;
+ 
+ ret:
+-	dynlineno = lno;
++	lineno = lno;
+ }
+ 
+ void
+ sgen(Node *n, Node *ns, ulong w)
+ {
+ 	Node nodl, nodr;
+-	long c;
++	long c, lno;
++
++	lno = setlineno(n);
+ 
+ 	if(debug['g']) {
+ 		dump("\nsgen-res", ns);
+@@ -625,4 +621,6 @@ sgen(Node *n, Node *ns, ulong w)
+ 		gins(AREP, N, N);	// repeat
+ 		gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
+ 	}
++
++	lineno = lno;
+ }
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 9ec6fe0e14..36e0ea9060 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -26,15 +26,15 @@ compile(Node *fn)
+ 
+ 	if(fn->nbody == N)
+ 		return;
+-	lno = dynlineno;
++	lno = setlineno(fn);
+ 
+ 	curfn = fn;
+-	dynlineno = curfn->lineno;	// for diagnostics
++	lineno = curfn->lineno;	// for diagnostics
+ 	dowidth(curfn->type);
+ 
+ 	walk(curfn);
+ 	if(nerrors != 0)
+-		return;
++		goto ret;
+ 
+ 	allocparams();
+ 
+@@ -65,7 +65,8 @@ compile(Node *fn)
+ 	if(debug['f'])
+ 		frame(0);
+ 
+-	dynlineno = lno;;
++ret:
++	lineno = lno;
+ }
+ 
+ void
+@@ -139,12 +140,12 @@ gen(Node *n)
+ 	Prog *p1, *p2, *p3;
+ 	Sym *s;
+ 
+-	lno = dynlineno;
++	lno = setlineno(n);
+ 
+ loop:
+ 	if(n == N)
+ 		goto ret;
+-	dynlineno = n->lineno;	// for diagnostics
++	setlineno(n);
+ 
+ 	switch(n->op) {
+ 	default:
+@@ -295,7 +296,7 @@ loop:
+ 	}
+ 
+ ret:
+-	dynlineno = lno;
++	lineno = lno;
+ }
+ 
+ void
+@@ -304,7 +305,9 @@ agen_inter(Node *n, Node *res)
+ 	Node nodo, nodr, nodt;
+ 	Sym *s;
+ 	char *e;
+-	long o;
++	long o,lno;
++
++	lno = setlineno(n);
+ 
+ 	// stack offset
+ 	memset(&nodo, 0, sizeof(nodo));
+@@ -408,6 +411,7 @@ agen_inter(Node *n, Node *res)
+ 	gins(ALEAQ, &nodo, res);
+ 
+ 	regfree(&nodr);
++	lineno = lno;
+ }
+ 
+ void
+@@ -425,7 +429,7 @@ swgen(Node *n)
+ // walk. gen binary search for
+ // sequence of constant cases
+ 
+-	lno = dynlineno;
++	lno = setlineno(n);
+ 
+ 	p1 = gbranch(AJMP, T);
+ 	s0 = C;
+@@ -438,7 +442,7 @@ swgen(Node *n)
+ 	dflt = P;
+ 	c1 = listfirst(&save1, &n->nbody);
+ 	while(c1 != N) {
+-		dynlineno = c1->lineno;	// for diagnostics
++		lineno = c1->lineno;	// for diagnostics
+ 		if(c1->op != OCASE) {
+ 			if(s0 == C && dflt == P)
+ 				yyerror("unreachable statements in a switch");
+@@ -502,7 +506,7 @@ swgen(Node *n)
+ 	patch(gbranch(AJMP, T), breakpc);
+ 
+ ret:
+-	dynlineno = lno;
++	lineno = lno;
+ }
+ 
+ void
+@@ -530,6 +534,9 @@ cgen_callinter(Node *n, Node *res)
+ {
+ 	Node *i, *f;
+ 	Node tmpi, nodo, nodr, nodsp;
++	long lno;
++
++	lno = setlineno(n);
+ 
+ 	i = n->left;
+ 	if(i->op != ODOTINTER)
+@@ -573,16 +580,20 @@ cgen_callinter(Node *n, Node *res)
+ 	regfree(&nodr);
+ 
+ 	setmaxarg(n->left->type);
++	lineno = lno;
+ }
+ 
+ void
+ cgen_callmeth(Node *n)
+ {
+ 	Node *l;
++	long lno;
+ 
+ 	// generate a rewrite for method call
+ 	// (p.f)(...) goes to (f)(p,...)
+ 
++	lno = setlineno(n);
++
+ 	l = n->left;
+ 	if(l->op != ODOTMETH)
+ 		fatal("cgen_callmeth: not dotmethod: %N");
+@@ -594,6 +605,7 @@ cgen_callmeth(Node *n)
+ 	if(n->left->op == ONAME)
+ 		n->left->class = PEXTERN;
+ 	cgen_call(n);
++	lineno = lno;
+ }
+ 
+ void
+@@ -601,10 +613,13 @@ cgen_call(Node *n)
+ {
+ 	Type *t;
+ 	Node nod, afun;
++	long lno;
+ 
+ 	if(n == N)
+ 		return;
+ 
++	lno = setlineno(n);
++
+ 	if(n->left->ullman >= UINF) {
+ 		// if name involves a fn call
+ 		// precompute the address of the fn
+@@ -628,7 +643,7 @@ cgen_call(Node *n)
+ 		cgen_as(&nod, &afun, 0);
+ 		gins(ACALL, N, &nod);
+ 		regfree(&nod);
+-		return;
++		goto ret;
+ 	}
+ 
+ 	// call pointer
+@@ -637,12 +652,15 @@ cgen_call(Node *n)
+ 		cgen_as(&nod, n->left, 0);
+ 		gins(ACALL, N, &nod);
+ 		regfree(&nod);
+-		return;
++		goto ret;
+ 	}
+ 
+ 	// call direct
+ 	n->left->method = 1;
+ 	gins(ACALL, N, n->left);
++
++ret:
++	lineno = lno;
+ }
+ 
+ void
+@@ -651,6 +669,9 @@ cgen_callret(Node *n, Node *res)
+ 	Node nod;
+ 	Type *fp, *t;
+ 	Iter flist;
++	long lno;
++
++	lno = setlineno(n);
+ 
+ 	t = n->left->type;
+ 	if(t->etype == TPTR32 || t->etype == TPTR64)
+@@ -668,6 +689,7 @@ cgen_callret(Node *n, Node *res)
+ 	nod.xoffset = fp->width;
+ 	nod.type = fp->type;
+ 	cgen_as(res, &nod, 0);
++	lineno = lno;
+ }
+ 
+ void
+@@ -676,6 +698,9 @@ cgen_aret(Node *n, Node *res)
+ 	Node nod1, nod2;
+ 	Type *fp, *t;
+ 	Iter flist;
++	long lno;
++
++	lno = setlineno(n);
+ 
+ 	t = n->left->type;
+ 	if(isptr[t->etype])
+@@ -694,13 +719,18 @@ cgen_aret(Node *n, Node *res)
+ 	nod1.type = fp->type;
+ 
+ 	gins(ALEAQ, &nod1, res);
++	lineno = lno;
+ }
+ 
+ void
+ cgen_ret(Node *n)
+ {
++	long lno;
++
++	lno = setlineno(n);
+ 	gen(n->left);	// copy out args
+ 	gins(ARET, N, N);
++	lineno = lno;
+ }
+ 
+ void
+@@ -708,6 +738,9 @@ cgen_asop(Node *n)
+ {
+ 	Node n1, n2, n3, n4;
+ 	Node *nl, *nr;
++	long lno;
++
++	lno = setlineno(n);
+ 
+ 	nl = n->left;
+ 	nr = n->right;
+@@ -738,6 +771,7 @@ cgen_asop(Node *n)
+ 	regfree(&n1);
+ 	regfree(&n2);
+ 	regfree(&n4);
++	lineno = lno;
+ }
+ 
+ void
+@@ -746,6 +780,7 @@ cgen_as(Node *nl, Node *nr, int op)
+ 	Node nc, n1;
+ 	Type *tl;
+ 	ulong w, c;
++	long lno;
+ 
+ 	if(nl == N)
+ 		return;
+@@ -754,6 +789,8 @@ cgen_as(Node *nl, Node *nr, int op)
+ 	if(tl == T)
+ 		return;
+ 
++	lno = setlineno(nl);
++
+ 	if(nr == N || isnil(nr)) {
+ 		if(isfat(tl)) {
+ 			/* clear a fat object */
+@@ -783,7 +820,7 @@ cgen_as(Node *nl, Node *nr, int op)
+ 				gins(AREP, N, N);	// repeat
+ 				gins(ASTOSB, N, N);	// STOB AL,*(DI)+
+ 			}
+-			return;
++			goto ret;
+ 		}
+ 
+ 		/* invent a "zero" for the rhs */
+@@ -835,7 +872,7 @@ cgen_as(Node *nl, Node *nr, int op)
+ //			gins(AMOVQ, &nc, &n1);
+ //			n1.xoffset += widthptr;
+ //			gins(AMOVQ, &nc, &n1);
+-//			return;
++//			goto ret;
+ 
+ 		}
+ 		nr->op = OLITERAL;
+@@ -848,6 +885,9 @@ cgen_as(Node *nl, Node *nr, int op)
+ 		fatal("cgen_as both sides call");
+ 	}
+ 	cgen(nr, nl);
++
++ret:
++	lineno = lno;
+ }
+ 
+ int
+@@ -872,7 +912,9 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ {
+ 	Node n1, n2, n3;
+ 	int a, rax, rdx;
++	long lno;
+ 
++	lno = setlineno(nl);
+ 
+ 	rax = reg[D_AX];
+ 	rdx = reg[D_DX];
+@@ -895,7 +937,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 
+ 		gins(AMOVQ, &n3, &n1);
+ 		regfree(&n3);
+-		return;
++		goto ret;
+ 	}
+ 
+ 	// clean out the DX register
+@@ -911,7 +953,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 
+ 		gins(AMOVQ, &n3, &n2);
+ 		regfree(&n3);
+-		return;
++		goto ret;
+ 	}
+ 
+ 	a = optoas(op, nl->type);
+@@ -944,6 +986,9 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 
+ 	regfree(&n1);
+ 	regfree(&n2);
++
++ret:
++	lineno = lno;
+ }
+ 
+ /*
+@@ -956,6 +1001,9 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ {
+ 	Node n1, n2;
+ 	int a, rcl;
++	long lno;
++
++	lno = setlineno(nl);
+ 
+ 	a = optoas(op, nl->type);
+ 
+@@ -965,7 +1013,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 		gins(a, nr, &n1);
+ 		gmove(&n1, res);
+ 		regfree(&n1);
+-		return;
++		goto ret;
+ 	}
+ 
+ 	rcl = reg[D_CX];
+@@ -985,7 +1033,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 
+ 		gins(AMOVQ, &n2, &n1);
+ 		regfree(&n2);
+-		return;
++		goto ret;
+ 	}
+ 
+ 	regalloc(&n2, nl->type, res);	// can one shift the CL register?
+@@ -1001,4 +1049,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 
+ 	regfree(&n1);
+ 	regfree(&n2);
++
++ret:
++	lineno = lno;
+ }
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index a35c786a8b..5ede57bd92 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -53,7 +53,7 @@ prog(int as)
+ 	clearp(pc);
+ 
+ 	p->as = as;
+-	p->lineno = dynlineno;
++	p->lineno = lineno;
+ 	p->link = pc;
+ 	return p;
+ }
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 21ed985e03..8dcf12170f 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -260,7 +260,7 @@ dumpexport(void)
+ 	Dcl *d;
+ 	long lno;
+ 
+-	lno = dynlineno;
++	lno = lineno;
+ 
+ 	Bprint(bout, "   import\n");
+ 	Bprint(bout, "   ((\n");
+@@ -269,13 +269,13 @@ dumpexport(void)
+ 
+ 	// print it depth first
+ 	for(d=exportlist->forw; d!=D; d=d->forw) {
+-		dynlineno = d->lineno;
++		lineno = d->lineno;
+ 		dumpe(d->dsym);
+ 	}
+ 
+ 	Bprint(bout, "   ))\n");
+ 
+-	dynlineno = lno;
++	lineno = lno;
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1321badb45..12d57ec9b1 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -361,7 +361,6 @@ EXTERN	Biobuf*	bout;
+ EXTERN	int	nerrors;
+ EXTERN	char	namebuf[NSYMB];
+ EXTERN	char	debug[256];
+-EXTERN	long	dynlineno;
+ EXTERN	Sym*	hash[NHASH];
+ EXTERN	Sym*	dclstack;
+ EXTERN	Sym*	b0stack;
+@@ -453,6 +452,7 @@ void	yyerror(char*, ...);
+ void	warn(char*, ...);
+ void	fatal(char*, ...);
+ void	linehist(char*, long);
++long	setlineno(Node*);
+ Node*	nod(int, Node*, Node*);
+ Node*	list(Node*, Node*);
+ Type*	typ(int);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index aed40b5956..9b20ee4f6f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -18,7 +18,7 @@ yyerror(char *fmt, ...)
+ {
+ 	va_list arg;
+ 
+-	print("%L: ");
++	print("%L: ", lineno);
+ 	va_start(arg, fmt);
+ 	vfprint(1, fmt, arg);
+ 	va_end(arg);
+@@ -36,7 +36,7 @@ warn(char *fmt, ...)
+ {
+ 	va_list arg;
+ 
+-	print("%L: ");
++	print("%L: ", lineno);
+ 	va_start(arg, fmt);
+ 	vfprint(1, fmt, arg);
+ 	va_end(arg);
+@@ -50,7 +50,7 @@ fatal(char *fmt, ...)
+ {
+ 	va_list arg;
+ 
+-	print("%L: fatal error: ");
++	print("%L: fatal error: ", lineno);
+ 	va_start(arg, fmt);
+ 	vfprint(1, fmt, arg);
+ 	va_end(arg);
+@@ -66,14 +66,15 @@ linehist(char *file, long off)
+ 	Hist *h;
+ 	char *cp;
+ 
+-	if(debug['i'])
+-	if(file != nil) {
+-		if(off < 0)
+-			print("%L: pragma %s\n", file);
+-		else
+-			print("%L: import %s\n", file);
+-	} else
+-		print("%L: <eof>\n");
++	if(debug['i']) {
++		if(file != nil) {
++			if(off < 0)
++				print("pragma %s at line %L\n", file, lineno);
++			else
++				print("import %s at line %L\n", file, lineno);
++		} else
++			print("end of import at line %L\n", lineno);
++	}
+ 
+ 	if(off < 0 && file[0] != '/') {
+ 		cp = mal(strlen(file) + strlen(pathname) + 2);
+@@ -95,6 +96,17 @@ linehist(char *file, long off)
+ 	ehist = h;
+ }
+ 
++long
++setlineno(Node *n)
++{
++	long lno;
++
++	lno = lineno;
++	if(n != N && n->op != ONAME)
++		lineno = n->lineno;
++	return lno;
++}
++
+ ulong
+ stringhash(char *p)
+ {
+@@ -245,7 +257,7 @@ dcl(void)
+ 	Dcl *d;
+ 
+ 	d = mal(sizeof(*d));
+-	d->lineno = dynlineno;
++	d->lineno = lineno;
+ 	return d;
+ }
+ 
+@@ -258,9 +270,7 @@ nod(int op, Node *nleft, Node *nright)
+ 	n->op = op;
+ 	n->left = nleft;
+ 	n->right = nright;
+-	n->lineno = dynlineno;
+-	if(dynlineno == 0)
+-		n->lineno = lineno;
++	n->lineno = lineno;
+ 	return n;
+ }
+ 
+@@ -686,9 +696,7 @@ Lconv(Fmt *fp)
+ 	int i, n;
+ 	Hist *h;
+ 
+-	lno = dynlineno;
+-	if(lno == 0)
+-		lno = lineno;
++	lno = va_arg(fp->args, long);
+ 
+ 	n = 0;
+ 	for(h=hist; h!=H; h=h->link) {
+@@ -734,8 +742,9 @@ Lconv(Fmt *fp)
+ 		lno = a[i].incl->line - 1;	/* now print out start of this file */
+ 	}
+ 	if(n == 0)
+-		strcat(str, "<eof>");
++		strcat(str, "<epoch>");
+ 
++ret:
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index bd2e8d97aa..3261d77823 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -35,7 +35,7 @@ walktype(Node *n, int top)
+ 	 * compile-time constants are evaluated.
+ 	 */
+ 
+-	lno = dynlineno;
++	lno = setlineno(n);
+ 	if(top == Exxx || top == Eyyy) {
+ 		dump("", n);
+ 		fatal("walktype: bad top=%d", top);
+@@ -44,8 +44,7 @@ walktype(Node *n, int top)
+ loop:
+ 	if(n == N)
+ 		goto ret;
+-	if(n->op != ONAME)
+-		dynlineno = n->lineno;	// for diagnostics
++	setlineno(n);
+ 
+ 	if(debug['w'] > 1 && top == Etop && n->op != OLIST)
+ 		dump("walk-before", n);
+@@ -719,7 +718,7 @@ ret:
+ 		dump("walk", n);
+ 
+ 	ullmancalc(n);
+-	dynlineno = lno;
++	lineno = lno;
+ }
+ 
+ /*
+@@ -1219,8 +1218,7 @@ stringop(Node *n, int top)
+ 	Node *r, *c, *on;
+ 	long lno, l;
+ 
+-	lno = dynlineno;
+-	dynlineno = n->lineno;
++	lno = setlineno(n);
+ 
+ 	switch(n->op) {
+ 	default:
+@@ -1312,7 +1310,7 @@ stringop(Node *n, int top)
+ 	}
+ 
+ 	walktype(r, top);
+-	dynlineno = lno;
++	lineno = lno;
+ 	return r;
+ }
+ 
+@@ -1374,8 +1372,7 @@ mapop(Node *n, int top)
+ 	Node *on;
+ 	int alg1, alg2, cl, cr;
+ 
+-	lno = dynlineno;
+-	dynlineno = n->lineno;
++	lno = setlineno(n);
+ 
+ //dump("mapop", n);
+ 
+@@ -1556,17 +1553,19 @@ mapop(Node *n, int top)
+ 		break;
+ 
+ 	}
+-	dynlineno = lno;
++	lineno = lno;
+ 	return r;
+ 
+ shape:
+ 	dump("shape", n);
+ 	fatal("mapop: cl=%d cr=%d, %O", top, n->op);
++	lineno = lno;
+ 	return N;
+ 
+ nottop:
+ 	dump("bad top", n);
+ 	fatal("mapop: top=%d %O", top, n->op);
++	lineno = lno;
+ 	return N;
+ }
+ 

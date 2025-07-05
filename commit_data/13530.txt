@@ -9,6 +9,41 @@ Date:   Mon Jul 30 00:22:42 2012 -0400
     R=golang-dev, patrick, dave, iant
     CC=golang-dev, patrick
     https://golang.org/cl/6446064
-
+---
  src/cmd/go/env.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index d5b0348096..3e51674f75 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"fmt"
++	"os"
+ 	"runtime"
+ 	"strings"
+ )
+@@ -33,16 +34,17 @@ func mkEnv() []envVar {
+ 	b.init()
+ 
+ 	env := []envVar{
+-		{"GOROOT", goroot},
+-		{"GOBIN", gobin},
+ 		{"GOARCH", goarch},
++		{"GOBIN", gobin},
+ 		{"GOCHAR", archChar},
+-		{"GOOS", goos},
+ 		{"GOEXE", exeSuffix},
++		{"GOGCCFLAGS", strings.Join(b.gccCmd(".")[3:], " ")},
+ 		{"GOHOSTARCH", runtime.GOARCH},
+ 		{"GOHOSTOS", runtime.GOOS},
++		{"GOOS", goos},
++		{"GOPATH", os.Getenv("GOPATH")},
++		{"GOROOT", goroot},
+ 		{"GOTOOLDIR", toolDir},
+-		{"GOGCCFLAGS", strings.Join(b.gccCmd(".")[3:], " ")},
+ 	}
+ 
+ 	if buildContext.CgoEnabled {

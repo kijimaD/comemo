@@ -13,6 +13,22 @@ Date:   Wed Oct 2 11:25:24 2019 +0200
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/outbuf_windows.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/outbuf_windows.go b/src/cmd/link/internal/ld/outbuf_windows.go
+index 4366a83c33..1cb05c301f 100644
+--- a/src/cmd/link/internal/ld/outbuf_windows.go
++++ b/src/cmd/link/internal/ld/outbuf_windows.go
+@@ -42,6 +42,8 @@ func (out *OutBuf) Munmap() {
+ }
+ 
+ func (out *OutBuf) Msync() error {
+-	// does nothing on windows
+-	return nil
++	if out.buf == nil {
++		return nil
++	}
++	return syscall.FlushViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])), 0)
+ }

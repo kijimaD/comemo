@@ -7,6 +7,23 @@ Date:   Thu Jan 19 20:17:46 2012 -0200
     R=golang-dev, bsiegert, r
     CC=golang-dev
     https://golang.org/cl/5549043
-
+---
  src/pkg/os/exec/lp_unix.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/exec/lp_unix.go b/src/pkg/os/exec/lp_unix.go
+index a221137230..2d3a919dc6 100644
+--- a/src/pkg/os/exec/lp_unix.go
++++ b/src/pkg/os/exec/lp_unix.go
+@@ -47,8 +47,9 @@ func LookPath(file string) (string, error) {
+ 			// Unix shell semantics: path element "" means "."
+ 			dir = "."
+ 		}
+-		if err := findExecutable(dir + "/" + file); err == nil {
+-			return dir + "/" + file, nil
++		path := dir + "/" + file
++		if err := findExecutable(path); err == nil {
++			return path, nil
+ 		}
+ 	}
+ 	return "", &Error{file, ErrNotFound}

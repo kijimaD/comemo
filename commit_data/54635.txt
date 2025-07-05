@@ -11,7 +11,7 @@ Date:   Fri Nov 4 10:45:43 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/debug/plan9obj/file.go     | 2 +-
  src/net/addrselect.go          | 2 +-
  src/net/http/httputil/dump.go  | 2 +-
@@ -19,3 +19,82 @@ Date:   Fri Nov 4 10:45:43 2022 +0800
  src/reflect/value.go           | 2 +-
  src/text/template/parse/lex.go | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/debug/plan9obj/file.go b/src/debug/plan9obj/file.go
+index 81ece2c3e0..ad74c72eea 100644
+--- a/src/debug/plan9obj/file.go
++++ b/src/debug/plan9obj/file.go
+@@ -260,7 +260,7 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
+ 	return nil
+ }
+ 
+-// NewTable decodes the Go symbol table in data,
++// newTable decodes the Go symbol table in data,
+ // returning an in-memory representation.
+ func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
+ 	var n int
+diff --git a/src/net/addrselect.go b/src/net/addrselect.go
+index b76183a34c..4f07032c4a 100644
+--- a/src/net/addrselect.go
++++ b/src/net/addrselect.go
+@@ -37,7 +37,7 @@ func sortByRFC6724withSrcs(addrs []IPAddr, srcs []netip.Addr) {
+ 	})
+ }
+ 
+-// srcsAddrs tries to UDP-connect to each address to see if it has a
++// srcAddrs tries to UDP-connect to each address to see if it has a
+ // route. (This doesn't send any packets). The destination port
+ // number is irrelevant.
+ func srcAddrs(addrs []IPAddr) []netip.Addr {
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index 6f5fa0d01d..7affe5e61a 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -59,7 +59,7 @@ func (b neverEnding) Read(p []byte) (n int, err error) {
+ 	return len(p), nil
+ }
+ 
+-// outGoingLength is a copy of the unexported
++// outgoingLength is a copy of the unexported
+ // (*http.Request).outgoingLength method.
+ func outgoingLength(req *http.Request) int64 {
+ 	if req.Body == nil || req.Body == http.NoBody {
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 7a4a562783..6e05df160e 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -381,7 +381,7 @@ func Remove(name string) error {
+ 	return nil
+ }
+ 
+-// HasPrefix from the strings package.
++// hasPrefix from the strings package.
+ func hasPrefix(s, prefix string) bool {
+ 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
+ }
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 448ffa2058..7fa45b62e9 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3468,7 +3468,7 @@ func makeFloat(f flag, v float64, t Type) Value {
+ 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
+ }
+ 
+-// makeFloat returns a Value of type t equal to v, where t is a float32 type.
++// makeFloat32 returns a Value of type t equal to v, where t is a float32 type.
+ func makeFloat32(f flag, v float32, t Type) Value {
+ 	typ := t.common()
+ 	ptr := unsafe_New(typ)
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 3e60a1ecef..70fc86b63c 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -520,7 +520,7 @@ func lexVariable(l *lexer) stateFn {
+ 	return lexFieldOrVariable(l, itemVariable)
+ }
+ 
+-// lexVariable scans a field or variable: [.$]Alphanumeric.
++// lexFieldOrVariable scans a field or variable: [.$]Alphanumeric.
+ // The . or $ has been scanned.
+ func lexFieldOrVariable(l *lexer, typ itemType) stateFn {
+ 	if l.atTerminator() { // Nothing interesting follows -> "." or "$".

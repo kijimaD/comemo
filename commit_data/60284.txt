@@ -65,7 +65,7 @@ Date:   Fri May 24 11:16:30 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/588675
     Reviewed-by: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/os/exec.go              | 245 ++++++++++++++++++++++++++++++++++++++++++--
  src/os/exec_linux.go        |  13 +++
  src/os/exec_nohandle.go     |   9 ++
@@ -79,3 +79,975 @@ Date:   Fri May 24 11:16:30 2024 -0400
  src/os/pidfd_linux_test.go  |   4 +-
  src/os/pidfd_other.go       |  10 +-
  12 files changed, 536 insertions(+), 116 deletions(-)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index 7a66d06ea0..1220761df5 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -17,27 +17,234 @@ import (
+ // ErrProcessDone indicates a [Process] has finished.
+ var ErrProcessDone = errors.New("os: process already finished")
+ 
++type processMode uint8
++
++const (
++	// modePID means that Process operations such use the raw PID from the
++	// Pid field. handle is not used.
++	//
++	// This may be due to the host not supporting handles, or because
++	// Process was created as a literal, leaving handle unset.
++	//
++	// This must be the zero value so Process literals get modePID.
++	modePID processMode = iota
++
++	// modeHandle means that Process operations use handle, which is
++	// initialized with an OS process handle.
++	//
++	// Note that Release and Wait will deactivate and eventually close the
++	// handle, so acquire may fail, indicating the reason.
++	modeHandle
++)
++
++type processStatus uint64
++
++const (
++	// PID/handle OK to use.
++	statusOK processStatus = 0
++
++	// statusDone indicates that the PID/handle should not be used because
++	// the process is done (has been successfully Wait'd on).
++	statusDone processStatus = 1 << 62
++
++	// statusReleased indicates that the PID/handle should not be used
++	// because the process is released.
++	statusReleased processStatus = 1 << 63
++
++	processStatusMask = 0x3 << 62
++)
++
+ // Process stores the information about a process created by [StartProcess].
+ type Process struct {
+-	Pid    int
+-	handle atomic.Uintptr // Process handle for Windows, pidfd for Linux.
+-	isdone atomic.Bool    // process has been successfully waited on
+-	sigMu  sync.RWMutex   // avoid race between wait and signal
++	Pid int
++
++	mode processMode
++
++	// State contains the atomic process state.
++	//
++	// In modePID, this consists only of the processStatus fields, which
++	// indicate if the process is done/released.
++	//
++	// In modeHandle, the lower bits also contain a reference count for the
++	// handle field.
++	//
++	// The Process itself initially holds 1 persistent reference. Any
++	// operation that uses the handle with a system call temporarily holds
++	// an additional transient reference. This prevents the handle from
++	// being closed prematurely, which could result in the OS allocating a
++	// different handle with the same value, leading to Process' methods
++	// operating on the wrong process.
++	//
++	// Release and Wait both drop the Process' persistent reference, but
++	// other concurrent references may delay actually closing the handle
++	// because they hold a transient reference.
++	//
++	// Regardless, we want new method calls to immediately treat the handle
++	// as unavailable after Release or Wait to avoid extending this delay.
++	// This is achieved by setting either processStatus flag when the
++	// Process' persistent reference is dropped. The only difference in the
++	// flags is the reason the handle is unavailable, which affects the
++	// errors returned by concurrent calls.
++	state atomic.Uint64
++
++	// Used only in modePID.
++	sigMu sync.RWMutex // avoid race between wait and signal
++
++	// handle is the OS handle for process actions, used only in
++	// modeHandle.
++	//
++	// handle must be accessed only via the handleTransientAcquire method
++	// (or during closeHandle), not directly! handle is immutable.
++	//
++	// On Windows, it is a handle from OpenProcess.
++	// On Linux, it is a pidfd.
++	// It is unused on other GOOSes.
++	handle uintptr
++}
++
++func newPIDProcess(pid int) *Process {
++	p := &Process{
++		Pid:  pid,
++		mode: modePID,
++	}
++	runtime.SetFinalizer(p, (*Process).Release)
++	return p
++}
++
++func newHandleProcess(pid int, handle uintptr) *Process {
++	p := &Process{
++		Pid:    pid,
++		mode:   modeHandle,
++		handle: handle,
++	}
++	p.state.Store(1) // 1 persistent reference
++	runtime.SetFinalizer(p, (*Process).Release)
++	return p
+ }
+ 
+-func newProcess(pid int, handle uintptr) *Process {
+-	p := &Process{Pid: pid}
+-	p.handle.Store(handle)
++func newDoneProcess(pid int) *Process {
++	p := &Process{
++		Pid:  pid,
++		mode: modeHandle,
++		// N.B Since we set statusDone, handle will never actually be
++		// used, so its value doesn't matter.
++	}
++	p.state.Store(uint64(statusDone)) // No persistent reference, as there is no handle.
+ 	runtime.SetFinalizer(p, (*Process).Release)
+ 	return p
+ }
+ 
+-func (p *Process) setDone() {
+-	p.isdone.Store(true)
++func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
++	if p.mode != modeHandle {
++		panic("handleTransientAcquire called in invalid mode")
++	}
++
++	for {
++		refs := p.state.Load()
++		if refs&processStatusMask != 0 {
++			return 0, processStatus(refs & processStatusMask)
++		}
++		new := refs + 1
++		if !p.state.CompareAndSwap(refs, new) {
++			continue
++		}
++		return p.handle, statusOK
++	}
++}
++
++func (p *Process) handleTransientRelease() {
++	if p.mode != modeHandle {
++		panic("handleTransientRelease called in invalid mode")
++	}
++
++	for {
++		state := p.state.Load()
++		refs := state &^ processStatusMask
++		status := processStatus(state & processStatusMask)
++		if refs == 0 {
++			// This should never happen because
++			// handleTransientRelease is always paired with
++			// handleTransientAcquire.
++			panic("release of handle with refcount 0")
++		}
++		if refs == 1 && status == statusOK {
++			// Process holds a persistent reference and always sets
++			// a status when releasing that reference
++			// (handlePersistentRelease). Thus something has gone
++			// wrong if this is the last release but a status has
++			// not always been set.
++			panic("final release of handle without processStatus")
++		}
++		new := state - 1
++		if !p.state.CompareAndSwap(state, new) {
++			continue
++		}
++		if new&^processStatusMask == 0 {
++			p.closeHandle()
++		}
++		return
++	}
+ }
+ 
+-func (p *Process) done() bool {
+-	return p.isdone.Load()
++// Drop the Process' persistent reference on the handle, deactivating future
++// Wait/Signal calls with the passed reason.
++//
++// Returns the status prior to this call. If this is not statusOK, then the
++// reference was not dropped or status changed.
++func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
++	if p.mode != modeHandle {
++		panic("handlePersistentRelease called in invalid mode")
++	}
++
++	for {
++		refs := p.state.Load()
++		status := processStatus(refs & processStatusMask)
++		if status != statusOK {
++			// Both Release and successful Wait will drop the
++			// Process' persistent reference on the handle. We
++			// can't allow concurrent calls to drop the reference
++			// twice, so we use the status as a guard to ensure the
++			// reference is dropped exactly once.
++			return status
++		}
++		if refs == 0 {
++			// This should never happen because dropping the
++			// persistent reference always sets a status.
++			panic("release of handle with refcount 0")
++		}
++		new := (refs - 1) | uint64(reason)
++		if !p.state.CompareAndSwap(refs, new) {
++			continue
++		}
++		if new&^processStatusMask == 0 {
++			p.closeHandle()
++		}
++		return status
++	}
++}
++
++func (p *Process) pidStatus() processStatus {
++	if p.mode != modePID {
++		panic("pidStatus called in invalid mode")
++	}
++
++	return processStatus(p.state.Load())
++}
++
++func (p *Process) pidDeactivate(reason processStatus) {
++	if p.mode != modePID {
++		panic("pidDeactivate called in invalid mode")
++	}
++
++	// Both Release and successful Wait will deactivate the PID. Only one
++	// of those should win, so nothing left to do here if the compare
++	// fails.
++	//
++	// N.B. This means that results can be inconsistent. e.g., with a
++	// racing Release and Wait, Wait may successfully wait on the process,
++	// returning the wait status, while future calls error with "process
++	// released" rather than "process done".
++	p.state.CompareAndSwap(0, uint64(reason))
+ }
+ 
+ // ProcAttr holds the attributes that will be applied to a new process
+@@ -116,6 +323,22 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (*Process, error)
+ // rendering it unusable in the future.
+ // Release only needs to be called if [Process.Wait] is not.
+ func (p *Process) Release() error {
++	// Note to future authors: the Release API is cursed.
++	//
++	// On Unix and Plan 9, Release sets p.Pid = -1. This is the only part of the
++	// Process API that is not thread-safe, but it can't be changed now.
++	//
++	// On Windows, Release does _not_ modify p.Pid.
++	//
++	// On Windows, Wait calls Release after successfully waiting to
++	// proactively clean up resources.
++	//
++	// On Unix and Plan 9, Wait also proactively cleans up resources, but
++	// can not call Release, as Wait does not set p.Pid = -1.
++	//
++	// On Unix and Plan 9, calling Release a second time has no effect.
++	//
++	// On Windows, calling Release a second time returns EINVAL.
+ 	return p.release()
+ }
+ 
+diff --git a/src/os/exec_linux.go b/src/os/exec_linux.go
+new file mode 100644
+index 0000000000..b47c6cb191
+--- /dev/null
++++ b/src/os/exec_linux.go
+@@ -0,0 +1,13 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++)
++
++func (p *Process) closeHandle() {
++	syscall.Close(int(p.handle))
++}
+diff --git a/src/os/exec_nohandle.go b/src/os/exec_nohandle.go
+new file mode 100644
+index 0000000000..d06f4091c3
+--- /dev/null
++++ b/src/os/exec_nohandle.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !linux && !windows
++
++package os
++
++func (p *Process) closeHandle() {}
+diff --git a/src/os/exec_plan9.go b/src/os/exec_plan9.go
+index a1e74df8a5..bc7a9cdcbc 100644
+--- a/src/os/exec_plan9.go
++++ b/src/os/exec_plan9.go
+@@ -32,12 +32,12 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 		sysattr.Files = append(sysattr.Files, f.Fd())
+ 	}
+ 
+-	pid, h, e := syscall.StartProcess(name, argv, sysattr)
++	pid, _, e := syscall.StartProcess(name, argv, sysattr)
+ 	if e != nil {
+ 		return nil, &PathError{Op: "fork/exec", Path: name, Err: e}
+ 	}
+ 
+-	return newProcess(pid, h), nil
++	return newPIDProcess(pid), nil
+ }
+ 
+ func (p *Process) writeProcFile(file string, data string) error {
+@@ -51,9 +51,13 @@ func (p *Process) writeProcFile(file string, data string) error {
+ }
+ 
+ func (p *Process) signal(sig Signal) error {
+-	if p.done() {
++	switch p.pidStatus() {
++	case statusDone:
+ 		return ErrProcessDone
++	case statusReleased:
++		return syscall.ENOENT
+ 	}
++
+ 	if e := p.writeProcFile("note", sig.String()); e != nil {
+ 		return NewSyscallError("signal", e)
+ 	}
+@@ -67,15 +71,17 @@ func (p *Process) kill() error {
+ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	var waitmsg syscall.Waitmsg
+ 
+-	if p.Pid == -1 {
++	switch p.pidStatus() {
++	case statusReleased:
+ 		return nil, ErrInvalid
+ 	}
++
+ 	err = syscall.WaitProcess(p.Pid, &waitmsg)
+ 	if err != nil {
+ 		return nil, NewSyscallError("wait", err)
+ 	}
+ 
+-	p.setDone()
++	p.pidDeactivate(statusDone)
+ 	ps = &ProcessState{
+ 		pid:    waitmsg.Pid,
+ 		status: &waitmsg,
+@@ -84,8 +90,11 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ }
+ 
+ func (p *Process) release() error {
+-	// NOOP for Plan 9.
+ 	p.Pid = -1
++
++	// Just mark the PID unusable.
++	p.pidDeactivate(statusReleased)
++
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(p, nil)
+ 	return nil
+@@ -93,7 +102,7 @@ func (p *Process) release() error {
+ 
+ func findProcess(pid int) (p *Process, err error) {
+ 	// NOOP for Plan 9.
+-	return newProcess(pid, 0), nil
++	return newPIDProcess(pid), nil
+ }
+ 
+ // ProcessState stores information about a process, as reported by Wait.
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index 74d4fe610e..cba2e15167 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -13,10 +13,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// unsetHandle is a value for Process.handle used when the handle is not set.
+-// Same as syscall.InvalidHandle for Windows.
+-const unsetHandle = ^uintptr(0)
+-
+ // The only signal values guaranteed to be present in the os package on all
+ // systems are os.Interrupt (send the process an interrupt) and os.Kill (force
+ // the process to exit). On Windows, sending os.Interrupt to a process with
+@@ -66,10 +62,14 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 
+ 	// For Windows, syscall.StartProcess above already returned a process handle.
+ 	if runtime.GOOS != "windows" {
+-		h = getPidfd(sysattr.Sys)
++		var ok bool
++		h, ok = getPidfd(sysattr.Sys)
++		if !ok {
++			return newPIDProcess(pid), nil
++		}
+ 	}
+ 
+-	return newProcess(pid, h), nil
++	return newHandleProcess(pid, h), nil
+ }
+ 
+ func (p *Process) kill() error {
+diff --git a/src/os/exec_test.go b/src/os/exec_test.go
+new file mode 100644
+index 0000000000..b49dd0dd91
+--- /dev/null
++++ b/src/os/exec_test.go
+@@ -0,0 +1,103 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os_test
++
++import (
++	"internal/testenv"
++	"math"
++	"os"
++	"os/signal"
++	"runtime"
++	"syscall"
++	"testing"
++	"time"
++)
++
++func TestProcessLiteral(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("Process literals do not work on Windows. FindProcess/etc must initialize the process handle")
++	}
++	if runtime.GOARCH == "wasm" {
++		t.Skip("Signals send + notify not fully supported om wasm port")
++	}
++
++	c := make(chan os.Signal, 1)
++	signal.Notify(c, os.Interrupt)
++	defer signal.Stop(c)
++
++	p := &os.Process{Pid: os.Getpid()}
++	if err := p.Signal(os.Interrupt); err != nil {
++		t.Fatalf("Signal got err %v, want nil", err)
++	}
++
++	// Verify we actually received the signal.
++	select {
++	case <-time.After(1 * time.Second):
++		t.Error("timeout waiting for signal")
++	case <-c:
++		// Good
++	}
++}
++
++func TestProcessReleaseTwice(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++
++	r, w, err := os.Pipe()
++	if err != nil {
++		t.Fatalf("Pipe() got err %v, want nil", err)
++	}
++	defer r.Close()
++	defer w.Close()
++
++	p, err := os.StartProcess(testenv.GoToolPath(t), []string{"go"}, &os.ProcAttr{
++		// N.B. On Windows, StartProcess requires exactly 3 Files. Pass
++		// in a dummy pipe to avoid irrelevant output on the test stdout.
++		Files: []*os.File{r, w, w},
++	})
++	if err != nil {
++		t.Fatalf("starting test process: %v", err)
++	}
++	if err := p.Release(); err != nil {
++		t.Fatalf("first Release: got err %v, want nil", err)
++	}
++
++	err = p.Release()
++
++	// We want EINVAL from a second Release call only on Windows.
++	var want error
++	if runtime.GOOS == "windows" {
++		want = syscall.EINVAL
++	}
++
++	if err != want {
++		t.Fatalf("second Release: got err %v, want %v", err, want)
++	}
++}
++
++// Lookup of a process that does not exist at time of lookup.
++func TestProcessAlreadyDone(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("Windows does not support lookup of non-existant process")
++	}
++	if runtime.GOARCH == "wasm" {
++		t.Skip("Wait not supported om wasm port")
++	}
++
++	// Theoretically MaxInt32 is a valid PID, but the chance of it actually
++	// being used is extremely unlikely.
++	p, err := os.FindProcess(math.MaxInt32)
++	if err != nil {
++		t.Fatalf("FindProcess(math.MaxInt32) got err %v, want nil", err)
++	}
++
++	if ps, err := p.Wait(); err != os.ErrProcessDone {
++		t.Errorf("Wait() got err %v (ps %+v), want ErrProcessDone", err, ps)
++	}
++
++	if err := p.Release(); err != nil {
++		t.Errorf("Release() got err %v, want nil", err)
++	}
++}
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 5ac89d17aa..8d99b55342 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -17,25 +17,32 @@ const (
+ 	// Special values for Process.Pid.
+ 	pidUnset    = 0
+ 	pidReleased = -1
+-	pidDone     = -2
+ )
+ 
+ func (p *Process) wait() (ps *ProcessState, err error) {
+-	switch p.Pid {
+-	case pidDone:
+-		return nil, ErrProcessDone
+-	case pidReleased:
+-		// Process already released.
+-		return nil, syscall.EINVAL
++	// Which type of Process do we have?
++	switch p.mode {
++	case modeHandle:
++		// pidfd
++		return p.pidfdWait()
++	case modePID:
++		// Regular PID
++		return p.pidWait()
++	default:
++		panic("unreachable")
+ 	}
+-	// Wait on pidfd if possible; fallback to using pid on ENOSYS.
++}
++
++func (p *Process) pidWait() (*ProcessState, error) {
++	// TODO(go.dev/issue/67642): When there are concurrent Wait calls, one
++	// may wait on the wrong process if the PID is reused after the
++	// completes its wait.
+ 	//
+-	// When pidfd is used, there is no wait/kill race (described in CL 23967)
+-	// because PID recycle issue doesn't exist (IOW, pidfd, unlike PID, is
+-	// guaranteed to refer to one particular process). Thus, there is no
+-	// need for the workaround (blockUntilWaitable + sigMu) below.
+-	if ps, e := p.pidfdWait(); e != syscall.ENOSYS {
+-		return ps, NewSyscallError("waitid", e)
++	// Checking for statusDone here would not be a complete fix, as the PID
++	// could still be waited on and reused prior to blockUntilWaitable.
++	switch p.pidStatus() {
++	case statusReleased:
++		return nil, syscall.EINVAL
+ 	}
+ 
+ 	// If we can block until Wait4 will succeed immediately, do so.
+@@ -45,8 +52,8 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	}
+ 	if ready {
+ 		// Mark the process done now, before the call to Wait4,
+-		// so that Process.signal will not send a signal.
+-		p.setDone()
++		// so that Process.pidSignal will not send a signal.
++		p.pidDeactivate(statusDone)
+ 		// Acquire a write lock on sigMu to wait for any
+ 		// active call to the signal method to complete.
+ 		p.sigMu.Lock()
+@@ -68,37 +75,48 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	if e != nil {
+ 		return nil, NewSyscallError("wait", e)
+ 	}
+-	p.setDone()
+-	ps = &ProcessState{
++	p.pidDeactivate(statusDone)
++	return &ProcessState{
+ 		pid:    pid1,
+ 		status: status,
+ 		rusage: &rusage,
+-	}
+-	return ps, nil
++	}, nil
+ }
+ 
+ func (p *Process) signal(sig Signal) error {
+-	switch p.Pid {
+-	case pidDone:
+-		return ErrProcessDone
+-	case pidReleased:
+-		return errors.New("os: process already released")
+-	case pidUnset:
+-		return errors.New("os: process not initialized")
+-	}
+ 	s, ok := sig.(syscall.Signal)
+ 	if !ok {
+ 		return errors.New("os: unsupported signal type")
+ 	}
+-	// Use pidfd if possible; fallback on ENOSYS.
+-	if err := p.pidfdSendSignal(s); err != syscall.ENOSYS {
+-		return err
++
++	// Which type of Process do we have?
++	switch p.mode {
++	case modeHandle:
++		// pidfd
++		return p.pidfdSendSignal(s)
++	case modePID:
++		// Regular PID
++		return p.pidSignal(s)
++	default:
++		panic("unreachable")
++	}
++}
++
++func (p *Process) pidSignal(s syscall.Signal) error {
++	if p.Pid == pidUnset {
++		return errors.New("os: process not initialized")
+ 	}
++
+ 	p.sigMu.RLock()
+ 	defer p.sigMu.RUnlock()
+-	if p.done() {
++
++	switch p.pidStatus() {
++	case statusDone:
+ 		return ErrProcessDone
++	case statusReleased:
++		return errors.New("os: process already released")
+ 	}
++
+ 	return convertESRCH(syscall.Kill(p.Pid, s))
+ }
+ 
+@@ -110,8 +128,23 @@ func convertESRCH(err error) error {
+ }
+ 
+ func (p *Process) release() error {
+-	p.pidfdRelease()
++	// We clear the Pid field only for API compatibility. On Unix, Release
++	// has always set Pid to -1. Internally, the implementation relies
++	// solely on statusReleased to determine that the Process is released.
+ 	p.Pid = pidReleased
++
++	switch p.mode {
++	case modeHandle:
++		// Drop the Process' reference and mark handle unusable for
++		// future calls.
++		//
++		// Ignore the return value: we don't care if this was a no-op
++		// racing with Wait, or a double Release.
++		p.handlePersistentRelease(statusReleased)
++	case modePID:
++		// Just mark the PID unusable.
++		p.pidDeactivate(statusReleased)
++	}
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(p, nil)
+ 	return nil
+@@ -120,14 +153,17 @@ func (p *Process) release() error {
+ func findProcess(pid int) (p *Process, err error) {
+ 	h, err := pidfdFind(pid)
+ 	if err == ErrProcessDone {
+-		// Can't return an error here since users are not expecting it.
+-		// Instead, return a process with Pid=pidDone and let a
+-		// subsequent Signal or Wait call catch that.
+-		return newProcess(pidDone, unsetHandle), nil
++		// We can't return an error here since users are not expecting
++		// it. Instead, return a process with a "done" state already
++		// and let a subsequent Signal or Wait call catch that.
++		return newDoneProcess(pid), nil
++	} else if err != nil {
++		// Ignore other errors from pidfdFind, as the callers
++		// do not expect them. Fall back to using the PID.
++		return newPIDProcess(pid), nil
+ 	}
+-	// Ignore all other errors from pidfdFind, as the callers
+-	// do not expect them, and we can use pid anyway.
+-	return newProcess(pid, h), nil
++	// Use the handle.
++	return newHandleProcess(pid, h), nil
+ }
+ 
+ func (p *ProcessState) userTime() time.Duration {
+diff --git a/src/os/exec_windows.go b/src/os/exec_windows.go
+index 9aa5b147c9..ab2dae1d71 100644
+--- a/src/os/exec_windows.go
++++ b/src/os/exec_windows.go
+@@ -12,8 +12,19 @@ import (
+ 	"time"
+ )
+ 
++// Note that Process.mode is always modeHandle because Windows always requires
++// a handle. A manually-created Process literal is not valid.
++
+ func (p *Process) wait() (ps *ProcessState, err error) {
+-	handle := p.handle.Load()
++	handle, status := p.handleTransientAcquire()
++	switch status {
++	case statusDone:
++		return nil, ErrProcessDone
++	case statusReleased:
++		return nil, syscall.EINVAL
++	}
++	defer p.handleTransientRelease()
++
+ 	s, e := syscall.WaitForSingleObject(syscall.Handle(handle), syscall.INFINITE)
+ 	switch s {
+ 	case syscall.WAIT_OBJECT_0:
+@@ -33,19 +44,20 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	if e != nil {
+ 		return nil, NewSyscallError("GetProcessTimes", e)
+ 	}
+-	p.setDone()
+ 	defer p.Release()
+ 	return &ProcessState{p.Pid, syscall.WaitStatus{ExitCode: ec}, &u}, nil
+ }
+ 
+ func (p *Process) signal(sig Signal) error {
+-	handle := p.handle.Load()
+-	if handle == uintptr(syscall.InvalidHandle) {
+-		return syscall.EINVAL
+-	}
+-	if p.done() {
++	handle, status := p.handleTransientAcquire()
++	switch status {
++	case statusDone:
+ 		return ErrProcessDone
++	case statusReleased:
++		return syscall.EINVAL
+ 	}
++	defer p.handleTransientRelease()
++
+ 	if sig == Kill {
+ 		var terminationHandle syscall.Handle
+ 		e := syscall.DuplicateHandle(^syscall.Handle(0), syscall.Handle(handle), ^syscall.Handle(0), &terminationHandle, syscall.PROCESS_TERMINATE, false, 0)
+@@ -62,19 +74,24 @@ func (p *Process) signal(sig Signal) error {
+ }
+ 
+ func (p *Process) release() error {
+-	handle := p.handle.Swap(uintptr(syscall.InvalidHandle))
+-	if handle == uintptr(syscall.InvalidHandle) {
++	// Drop the Process' reference and mark handle unusable for
++	// future calls.
++	//
++	// The API on Windows expects EINVAL if Release is called multiple
++	// times.
++	if old := p.handlePersistentRelease(statusReleased); old == statusReleased {
+ 		return syscall.EINVAL
+ 	}
+-	e := syscall.CloseHandle(syscall.Handle(handle))
+-	if e != nil {
+-		return NewSyscallError("CloseHandle", e)
+-	}
++
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(p, nil)
+ 	return nil
+ }
+ 
++func (p *Process) closeHandle() {
++	syscall.CloseHandle(syscall.Handle(p.handle))
++}
++
+ func findProcess(pid int) (p *Process, err error) {
+ 	const da = syscall.STANDARD_RIGHTS_READ |
+ 		syscall.PROCESS_QUERY_INFORMATION | syscall.SYNCHRONIZE
+@@ -82,7 +99,7 @@ func findProcess(pid int) (p *Process, err error) {
+ 	if e != nil {
+ 		return nil, NewSyscallError("OpenProcess", e)
+ 	}
+-	return newProcess(pid, uintptr(h)), nil
++	return newHandleProcess(pid, uintptr(h)), nil
+ }
+ 
+ func init() {
+diff --git a/src/os/export_linux_test.go b/src/os/export_linux_test.go
+index 1395f52037..12434cb426 100644
+--- a/src/os/export_linux_test.go
++++ b/src/os/export_linux_test.go
+@@ -9,5 +9,10 @@ var (
+ 	PollSpliceFile      = &pollSplice
+ 	GetPollFDAndNetwork = getPollFDAndNetwork
+ 	CheckPidfdOnce      = checkPidfdOnce
+-	PidDone             = pidDone
+ )
++
++const StatusDone = statusDone
++
++func (p *Process) Status() processStatus {
++	return processStatus(p.state.Load() & processStatusMask)
++}
+diff --git a/src/os/pidfd_linux.go b/src/os/pidfd_linux.go
+index 5a830dadb2..c71c366de6 100644
+--- a/src/os/pidfd_linux.go
++++ b/src/os/pidfd_linux.go
+@@ -12,6 +12,7 @@
+ package os
+ 
+ import (
++	"errors"
+ 	"internal/syscall/unix"
+ 	"sync"
+ 	"syscall"
+@@ -39,42 +40,46 @@ func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
+ 	return sysAttr
+ }
+ 
+-func getPidfd(sysAttr *syscall.SysProcAttr) uintptr {
++func getPidfd(sysAttr *syscall.SysProcAttr) (uintptr, bool) {
+ 	if !pidfdWorks() {
+-		return unsetHandle
++		return 0, false
+ 	}
+ 
+-	return uintptr(*sysAttr.PidFD)
++	return uintptr(*sysAttr.PidFD), true
+ }
+ 
+ func pidfdFind(pid int) (uintptr, error) {
+ 	if !pidfdWorks() {
+-		return unsetHandle, syscall.ENOSYS
++		return 0, syscall.ENOSYS
+ 	}
+ 
+ 	h, err := unix.PidFDOpen(pid, 0)
+-	if err == nil {
+-		return h, nil
+-	}
+-	return unsetHandle, convertESRCH(err)
+-}
+-
+-func (p *Process) pidfdRelease() {
+-	// Release pidfd unconditionally.
+-	handle := p.handle.Swap(unsetHandle)
+-	if handle != unsetHandle {
+-		syscall.Close(int(handle))
++	if err != nil {
++		return 0, convertESRCH(err)
+ 	}
++	return h, nil
+ }
+ 
+ // _P_PIDFD is used as idtype argument to waitid syscall.
+ const _P_PIDFD = 3
+ 
+ func (p *Process) pidfdWait() (*ProcessState, error) {
+-	handle := p.handle.Load()
+-	if handle == unsetHandle || !pidfdWorks() {
+-		return nil, syscall.ENOSYS
++	// When pidfd is used, there is no wait/kill race (described in CL 23967)
++	// because the PID recycle issue doesn't exist (IOW, pidfd, unlike PID,
++	// is guaranteed to refer to one particular process). Thus, there is no
++	// need for the workaround (blockUntilWaitable + sigMu) from pidWait.
++	//
++	// We _do_ need to be careful about reuse of the pidfd FD number when
++	// closing the pidfd. See handle for more details.
++	handle, status := p.handleTransientAcquire()
++	switch status {
++	case statusDone:
++		return nil, ErrProcessDone
++	case statusReleased:
++		return nil, syscall.EINVAL
+ 	}
++	defer p.handleTransientRelease()
++
+ 	var (
+ 		info   unix.SiginfoChild
+ 		rusage syscall.Rusage
+@@ -87,16 +92,11 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
+ 		}
+ 	}
+ 	if e != 0 {
+-		if e == syscall.EINVAL {
+-			// This is either invalid option value (which should not happen
+-			// as we only use WEXITED), or missing P_PIDFD support (Linux
+-			// kernel < 5.4), meaning pidfd support is not implemented.
+-			e = syscall.ENOSYS
+-		}
+-		return nil, e
++		return nil, NewSyscallError("waitid", e)
+ 	}
+-	p.setDone()
+-	p.pidfdRelease()
++	// Release the Process' handle reference, in addition to the reference
++	// we took above.
++	p.handlePersistentRelease(statusDone)
+ 	return &ProcessState{
+ 		pid:    int(info.Pid),
+ 		status: info.WaitStatus(),
+@@ -105,10 +105,15 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
+ }
+ 
+ func (p *Process) pidfdSendSignal(s syscall.Signal) error {
+-	handle := p.handle.Load()
+-	if handle == unsetHandle || !pidfdWorks() {
+-		return syscall.ENOSYS
++	handle, status := p.handleTransientAcquire()
++	switch status {
++	case statusDone:
++		return ErrProcessDone
++	case statusReleased:
++		return errors.New("os: process already released")
+ 	}
++	defer p.handleTransientRelease()
++
+ 	return convertESRCH(unix.PidFDSendSignal(handle, s))
+ }
+ 
+diff --git a/src/os/pidfd_linux_test.go b/src/os/pidfd_linux_test.go
+index 2db127b604..2f567eed40 100644
+--- a/src/os/pidfd_linux_test.go
++++ b/src/os/pidfd_linux_test.go
+@@ -35,8 +35,8 @@ func TestFindProcessViaPidfd(t *testing.T) {
+ 	if proc == nil {
+ 		t.Fatal("FindProcess: got nil, want non-nil")
+ 	}
+-	if proc.Pid != os.PidDone {
+-		t.Fatalf("got pid: %v, want %d", proc.Pid, os.PidDone)
++	if proc.Status() != os.StatusDone {
++		t.Fatalf("got process status: %v, want %d", proc.Status(), os.StatusDone)
+ 	}
+ 
+ 	// Check that all Process' public methods work as expected with
+diff --git a/src/os/pidfd_other.go b/src/os/pidfd_other.go
+index bb38c72404..dda4bd0fec 100644
+--- a/src/os/pidfd_other.go
++++ b/src/os/pidfd_other.go
+@@ -12,20 +12,20 @@ func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
+ 	return sysAttr
+ }
+ 
+-func getPidfd(_ *syscall.SysProcAttr) uintptr {
+-	return unsetHandle
++func getPidfd(_ *syscall.SysProcAttr) (uintptr, bool) {
++	return 0, false
+ }
+ 
+ func pidfdFind(_ int) (uintptr, error) {
+-	return unsetHandle, syscall.ENOSYS
++	return 0, syscall.ENOSYS
+ }
+ 
+ func (p *Process) pidfdRelease() {}
+ 
+ func (_ *Process) pidfdWait() (*ProcessState, error) {
+-	return nil, syscall.ENOSYS
++	panic("unreachable")
+ }
+ 
+ func (_ *Process) pidfdSendSignal(_ syscall.Signal) error {
+-	return syscall.ENOSYS
++	panic("unreachable")
+ }

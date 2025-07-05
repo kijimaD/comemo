@@ -55,7 +55,7 @@ Date:   Mon May 11 09:44:48 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Michael Munday <mike.munday@ibm.com>
-
+---
  src/cmd/compile/internal/s390x/ssa.go        |  14 +-
  src/cmd/compile/internal/ssa/gen/S390X.rules | 162 ++++-
  src/cmd/compile/internal/ssa/gen/S390XOps.go |  20 +-
@@ -69,3 +69,2129 @@ Date:   Mon May 11 09:44:48 2020 -0700
  test/codegen/rotate.go                       |   6 +-
  test/codegen/shift.go                        |  33 +-
  12 files changed, 1007 insertions(+), 333 deletions(-)
+
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 84b9f491e4..8037357131 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -188,6 +188,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			{Type: obj.TYPE_REG, Reg: r2},
+ 		})
+ 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: r1}
++	case ssa.OpS390XRISBGZ:
++		r1 := v.Reg()
++		r2 := v.Args[0].Reg()
++		i := v.Aux.(s390x.RotateParams)
++		p := s.Prog(v.Op.Asm())
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(i.Start)}
++		p.SetRestArgs([]obj.Addr{
++			{Type: obj.TYPE_CONST, Offset: int64(i.End)},
++			{Type: obj.TYPE_CONST, Offset: int64(i.Amount)},
++			{Type: obj.TYPE_REG, Reg: r2},
++		})
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: r1}
+ 	case ssa.OpS390XADD, ssa.OpS390XADDW,
+ 		ssa.OpS390XSUB, ssa.OpS390XSUBW,
+ 		ssa.OpS390XAND, ssa.OpS390XANDW,
+@@ -360,7 +372,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpS390XSLDconst, ssa.OpS390XSLWconst,
+ 		ssa.OpS390XSRDconst, ssa.OpS390XSRWconst,
+ 		ssa.OpS390XSRADconst, ssa.OpS390XSRAWconst,
+-		ssa.OpS390XRLLGconst, ssa.OpS390XRLLconst:
++		ssa.OpS390XRLLconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 1b56361c00..39949edbc2 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -643,8 +643,18 @@
+ // equivalent to the leftmost 32 bits being set.
+ // TODO(mundaym): modify the assembler to accept 64-bit values
+ // and use isU32Bit(^c).
+-(AND x (MOVDconst [c])) && is32Bit(c) && c < 0 => (ANDconst [c] x)
+-(AND x (MOVDconst [c])) && is32Bit(c) && c >= 0 => (MOVWZreg (ANDWconst <typ.UInt32> [int32(c)] x))
++(AND x (MOVDconst [c]))
++  && s390x.NewRotateParams(0, 63, 0).OutMerge(uint64(c)) != nil
++  => (RISBGZ x {*s390x.NewRotateParams(0, 63, 0).OutMerge(uint64(c))})
++(AND x (MOVDconst [c]))
++  && is32Bit(c)
++  && c < 0
++  => (ANDconst [c] x)
++(AND x (MOVDconst [c]))
++  && is32Bit(c)
++  && c >= 0
++  => (MOVWZreg (ANDWconst <typ.UInt32> [int32(c)] x))
++
+ (ANDW x (MOVDconst [c])) => (ANDWconst [int32(c)] x)
+ 
+ ((AND|ANDW)const [c] ((AND|ANDW)const [d] x)) => ((AND|ANDW)const [c&d] x)
+@@ -653,14 +663,20 @@
+ ((OR|XOR)W x (MOVDconst [c])) => ((OR|XOR)Wconst [int32(c)] x)
+ 
+ // Constant shifts.
+-(S(LD|RD|RAD|LW|RW|RAW) x (MOVDconst [c]))
+-	=> (S(LD|RD|RAD|LW|RW|RAW)const x [int8(c&63)])
++(S(LD|RD|RAD) x (MOVDconst [c])) => (S(LD|RD|RAD)const x [int8(c&63)])
++(S(LW|RW|RAW) x (MOVDconst [c])) && c&32 == 0 => (S(LW|RW|RAW)const x [int8(c&31)])
++(S(LW|RW)     _ (MOVDconst [c])) && c&32 != 0 => (MOVDconst [0])
++(SRAW         x (MOVDconst [c])) && c&32 != 0 => (SRAWconst x [31])
+ 
+ // Shifts only use the rightmost 6 bits of the shift value.
++(S(LD|RD|RAD|LW|RW|RAW) x (RISBGZ y {r}))
++  && r.Amount == 0
++  && r.OutMask()&63 == 63
++  => (S(LD|RD|RAD|LW|RW|RAW) x y)
+ (S(LD|RD|RAD|LW|RW|RAW) x (AND (MOVDconst [c]) y))
+-	=> (S(LD|RD|RAD|LW|RW|RAW) x (ANDWconst <typ.UInt32> [int32(c&63)] y))
++  => (S(LD|RD|RAD|LW|RW|RAW) x (ANDWconst <typ.UInt32> [int32(c&63)] y))
+ (S(LD|RD|RAD|LW|RW|RAW) x (ANDWconst [c] y)) && c&63 == 63
+-	=> (S(LD|RD|RAD|LW|RW|RAW) x y)
++  => (S(LD|RD|RAD|LW|RW|RAW) x y)
+ (SLD  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SLD  x y)
+ (SRD  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SRD  x y)
+ (SRAD x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SRAD x y)
+@@ -668,17 +684,13 @@
+ (SRW  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SRW  x y)
+ (SRAW x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SRAW x y)
+ 
+-// Constant rotate generation
+-(RLL  x (MOVDconst [c])) => (RLLconst  x [int8(c&31)])
+-(RLLG x (MOVDconst [c])) => (RLLGconst x [int8(c&63)])
+-
+-(ADD (SLDconst x [c]) (SRDconst x [d])) && d == 64-c => (RLLGconst [c] x)
+-( OR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c => (RLLGconst [c] x)
+-(XOR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c => (RLLGconst [c] x)
++// Match rotate by constant.
++(RLLG x (MOVDconst [c])) => (RISBGZ x {s390x.NewRotateParams(0, 63, int8(c&63))})
++(RLL  x (MOVDconst [c])) => (RLLconst x [int8(c&31)])
+ 
+-(ADDW (SLWconst x [c]) (SRWconst x [d])) && d == 32-c => (RLLconst [c] x)
+-( ORW (SLWconst x [c]) (SRWconst x [d])) && d == 32-c => (RLLconst [c] x)
+-(XORW (SLWconst x [c]) (SRWconst x [d])) && d == 32-c => (RLLconst [c] x)
++// Match rotate by constant pattern.
++((ADD|OR|XOR)  (SLDconst x [c]) (SRDconst x [64-c])) => (RISBGZ x {s390x.NewRotateParams(0, 63, c)})
++((ADD|OR|XOR)W (SLWconst x [c]) (SRWconst x [32-c])) => (RLLconst x [c])
+ 
+ // Signed 64-bit comparison with immediate.
+ (CMP x (MOVDconst [c])) && is32Bit(c) => (CMPconst x [int32(c)])
+@@ -692,15 +704,97 @@
+ (CMP(W|WU) x (MOVDconst [c])) => (CMP(W|WU)const x [int32(c)])
+ (CMP(W|WU) (MOVDconst [c]) x) => (InvertFlags (CMP(W|WU)const x [int32(c)]))
+ 
++// Match (x >> c) << d to 'rotate then insert selected bits [into zero]'.
++(SLDconst (SRDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(max8(0, c-d), 63-d, (d-c)&63)})
++
++// Match (x << c) >> d to 'rotate then insert selected bits [into zero]'.
++(SRDconst (SLDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(d, min8(63, 63-c+d), (c-d)&63)})
++
++// Absorb input zero extension into 'rotate then insert selected bits [into zero]'.
++(RISBGZ (MOVWZreg x) {r}) && r.InMerge(0xffffffff) != nil => (RISBGZ x {*r.InMerge(0xffffffff)})
++(RISBGZ (MOVHZreg x) {r}) && r.InMerge(0x0000ffff) != nil => (RISBGZ x {*r.InMerge(0x0000ffff)})
++(RISBGZ (MOVBZreg x) {r}) && r.InMerge(0x000000ff) != nil => (RISBGZ x {*r.InMerge(0x000000ff)})
++
++// Absorb 'rotate then insert selected bits [into zero]' into zero extension.
++(MOVWZreg (RISBGZ x {r})) && r.OutMerge(0xffffffff) != nil => (RISBGZ x {*r.OutMerge(0xffffffff)})
++(MOVHZreg (RISBGZ x {r})) && r.OutMerge(0x0000ffff) != nil => (RISBGZ x {*r.OutMerge(0x0000ffff)})
++(MOVBZreg (RISBGZ x {r})) && r.OutMerge(0x000000ff) != nil => (RISBGZ x {*r.OutMerge(0x000000ff)})
++
++// Absorb shift into 'rotate then insert selected bits [into zero]'.
++//
++// Any unsigned shift can be represented as a rotate and mask operation:
++//
++//   x << c => RotateLeft64(x, c) & (^uint64(0) << c)
++//   x >> c => RotateLeft64(x, -c) & (^uint64(0) >> c)
++//
++// Therefore when a shift is used as the input to a rotate then insert
++// selected bits instruction we can merge the two together. We just have
++// to be careful that the resultant mask is representable (non-zero and
++// contiguous). For example, assuming that x is variable and c, y and m
++// are constants, a shift followed by a rotate then insert selected bits
++// could be represented as:
++//
++//   RotateLeft64(RotateLeft64(x, c) & (^uint64(0) << c), y) & m
++//
++// We can split the rotation by y into two, one rotate for x and one for
++// the mask:
++//
++//   RotateLeft64(RotateLeft64(x, c), y) & (RotateLeft64(^uint64(0) << c, y)) & m
++//
++// The rotations of x by c followed by y can then be combined:
++//
++//   RotateLeft64(x, c+y) & (RotateLeft64(^uint64(0) << c, y)) & m
++//   ^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++//          rotate                          mask
++//
++// To perform this optimization we therefore just need to check that it
++// is valid to merge the shift mask (^(uint64(0)<<c)) into the selected
++// bits mask (i.e. that the resultant mask is non-zero and contiguous).
++//
++(RISBGZ (SLDconst x [c]) {r}) && r.InMerge(^uint64(0)<<c) != nil => (RISBGZ x {(*r.InMerge(^uint64(0)<<c)).RotateLeft(c)})
++(RISBGZ (SRDconst x [c]) {r}) && r.InMerge(^uint64(0)>>c) != nil => (RISBGZ x {(*r.InMerge(^uint64(0)>>c)).RotateLeft(-c)})
++
++// Absorb 'rotate then insert selected bits [into zero]' into left shift.
++(SLDconst (RISBGZ x {r}) [c])
++  && s390x.NewRotateParams(0, 63-c, c).InMerge(r.OutMask()) != nil
++  => (RISBGZ x {(*s390x.NewRotateParams(0, 63-c, c).InMerge(r.OutMask())).RotateLeft(r.Amount)})
++
++// Absorb 'rotate then insert selected bits [into zero]' into right shift.
++(SRDconst (RISBGZ x {r}) [c])
++  && s390x.NewRotateParams(c, 63, -c&63).InMerge(r.OutMask()) != nil
++  => (RISBGZ x {(*s390x.NewRotateParams(c, 63, -c&63).InMerge(r.OutMask())).RotateLeft(r.Amount)})
++
++// Merge 'rotate then insert selected bits [into zero]' instructions together.
++(RISBGZ (RISBGZ x {y}) {z})
++  && z.InMerge(y.OutMask()) != nil
++  => (RISBGZ x {(*z.InMerge(y.OutMask())).RotateLeft(y.Amount)})
++
++// Convert RISBGZ into 64-bit shift (helps CSE).
++(RISBGZ x {r}) && r.End == 63 && r.Start == -r.Amount&63 => (SRDconst x [-r.Amount&63])
++(RISBGZ x {r}) && r.Start == 0 && r.End == 63-r.Amount => (SLDconst x [r.Amount])
++
++// Optimize single bit isolation when it is known to be equivalent to
++// the most significant bit due to mask produced by arithmetic shift.
++// Simply isolate the most significant bit itself and place it in the
++// correct position.
++//
++// Example: (int64(x) >> 63) & 0x8 -> RISBGZ $60, $60, $4, Rsrc, Rdst
++(RISBGZ (SRADconst x [c]) {r})
++  && r.Start == r.End           // single bit selected
++  && (r.Start+r.Amount)&63 <= c // equivalent to most significant bit of x
++  => (RISBGZ x {s390x.NewRotateParams(r.Start, r.Start, -r.Start&63)})
++
+ // Canonicalize the order of arguments to comparisons - helps with CSE.
+ ((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
+ 
+-// Using MOV{W,H,B}Zreg instead of AND is cheaper.
+-(AND x (MOVDconst [0xFF])) => (MOVBZreg x)
+-(AND x (MOVDconst [0xFFFF])) => (MOVHZreg x)
+-(AND x (MOVDconst [0xFFFFFFFF])) => (MOVWZreg x)
+-(ANDWconst [0xFF] x) => (MOVBZreg x)
+-(ANDWconst [0xFFFF] x) => (MOVHZreg x)
++// Use sign/zero extend instead of RISBGZ.
++(RISBGZ x {r}) && r == s390x.NewRotateParams(56, 63, 0) => (MOVBZreg x)
++(RISBGZ x {r}) && r == s390x.NewRotateParams(48, 63, 0) => (MOVHZreg x)
++(RISBGZ x {r}) && r == s390x.NewRotateParams(32, 63, 0) => (MOVWZreg x)
++
++// Use sign/zero extend instead of ANDW.
++(ANDWconst [0x00ff] x) => (MOVBZreg x)
++(ANDWconst [0xffff] x) => (MOVHZreg x)
+ 
+ // Strength reduce multiplication to the sum (or difference) of two powers of two.
+ //
+@@ -773,21 +867,22 @@
+ 
+ // detect attempts to set/clear the sign bit
+ // may need to be reworked when NIHH/OIHH are added
+-(SRDconst [1] (SLDconst [1] (LGDR <t> x))) => (LGDR <t> (LPDFR <x.Type> x))
+-(LDGR <t> (SRDconst [1] (SLDconst [1] x))) => (LPDFR (LDGR <t> x))
+-(AND (MOVDconst [^(-1<<63)]) (LGDR <t> x)) => (LGDR <t> (LPDFR <x.Type> x))
+-(LDGR <t> (AND (MOVDconst [^(-1<<63)]) x)) => (LPDFR (LDGR <t> x))
+-(OR (MOVDconst [-1<<63]) (LGDR <t> x))     => (LGDR <t> (LNDFR <x.Type> x))
+-(LDGR <t> (OR (MOVDconst [-1<<63]) x))     => (LNDFR (LDGR <t> x))
++(RISBGZ (LGDR <t> x) {r}) && r == s390x.NewRotateParams(1, 63, 0) => (LGDR <t> (LPDFR <x.Type> x))
++(LDGR <t> (RISBGZ x {r})) && r == s390x.NewRotateParams(1, 63, 0) => (LPDFR (LDGR <t> x))
++(OR (MOVDconst [-1<<63]) (LGDR <t> x)) => (LGDR <t> (LNDFR <x.Type> x))
++(LDGR <t> (OR (MOVDconst [-1<<63]) x)) => (LNDFR (LDGR <t> x))
+ 
+ // detect attempts to set the sign bit with load
+ (LDGR <t> x:(ORload <t1> [off] {sym} (MOVDconst [-1<<63]) ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (LNDFR <t> (LDGR <t> (MOVDload <t1> [off] {sym} ptr mem)))
+ 
+ // detect copysign
+-(OR (SLDconst [63] (SRDconst [63] (LGDR x))) (LGDR (LPDFR <t> y))) => (LGDR (CPSDR <t> y x))
+-(OR (SLDconst [63] (SRDconst [63] (LGDR x))) (MOVDconst [c])) && c & -1<<63 == 0 => (LGDR (CPSDR <x.Type> (FMOVDconst <x.Type> [math.Float64frombits(uint64(c))]) x))
+-(OR (AND (MOVDconst [-1<<63]) (LGDR x)) (LGDR (LPDFR <t> y))) => (LGDR (CPSDR <t> y x))
+-(OR (AND (MOVDconst [-1<<63]) (LGDR x)) (MOVDconst [c])) && c & -1<<63 == 0 => (LGDR (CPSDR <x.Type> (FMOVDconst <x.Type> [math.Float64frombits(uint64(c))]) x))
++(OR (RISBGZ (LGDR x) {r}) (LGDR (LPDFR <t> y)))
++  && r == s390x.NewRotateParams(0, 0, 0)
++  => (LGDR (CPSDR <t> y x))
++(OR (RISBGZ (LGDR x) {r}) (MOVDconst [c]))
++  && c >= 0
++  && r == s390x.NewRotateParams(0, 0, 0)
++  => (LGDR (CPSDR <x.Type> (FMOVDconst <x.Type> [math.Float64frombits(uint64(c))]) x))
+ (CPSDR y (FMOVDconst [c])) && !math.Signbit(c) => (LPDFR y)
+ (CPSDR y (FMOVDconst [c])) && math.Signbit(c)  => (LNDFR y)
+ 
+@@ -966,6 +1061,9 @@
+ (CMPWconst  (ANDWconst _ [m]) [n]) && int32(m) >= 0 &&  int32(m) <  int32(n) => (FlagLT)
+ (CMPWUconst (ANDWconst _ [m]) [n]) && uint32(m) < uint32(n) => (FlagLT)
+ 
++(CMPconst  (RISBGZ x {r}) [c]) && c > 0 && r.OutMask() < uint64(c) => (FlagLT)
++(CMPUconst (RISBGZ x {r}) [c]) && r.OutMask() < uint64(uint32(c)) => (FlagLT)
++
+ // Constant compare-and-branch with immediate.
+ (CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   != 0 &&  int64(x) ==  int64(y) => (First yes no)
+ (CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    != 0 &&  int64(x) <   int64(y) => (First yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 728cfb5508..f0cf2f2f6e 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -331,25 +331,26 @@ func init() {
+ 		{name: "LTEBR", argLength: 1, reg: fp1flags, asm: "LTEBR", typ: "Flags"}, // arg0 compare to 0, f32
+ 
+ 		{name: "SLD", argLength: 2, reg: sh21, asm: "SLD"},                   // arg0 << arg1, shift amount is mod 64
+-		{name: "SLW", argLength: 2, reg: sh21, asm: "SLW"},                   // arg0 << arg1, shift amount is mod 32
++		{name: "SLW", argLength: 2, reg: sh21, asm: "SLW"},                   // arg0 << arg1, shift amount is mod 64
+ 		{name: "SLDconst", argLength: 1, reg: gp11, asm: "SLD", aux: "Int8"}, // arg0 << auxint, shift amount 0-63
+ 		{name: "SLWconst", argLength: 1, reg: gp11, asm: "SLW", aux: "Int8"}, // arg0 << auxint, shift amount 0-31
+ 
+ 		{name: "SRD", argLength: 2, reg: sh21, asm: "SRD"},                   // unsigned arg0 >> arg1, shift amount is mod 64
+-		{name: "SRW", argLength: 2, reg: sh21, asm: "SRW"},                   // unsigned uint32(arg0) >> arg1, shift amount is mod 32
++		{name: "SRW", argLength: 2, reg: sh21, asm: "SRW"},                   // unsigned uint32(arg0) >> arg1, shift amount is mod 64
+ 		{name: "SRDconst", argLength: 1, reg: gp11, asm: "SRD", aux: "Int8"}, // unsigned arg0 >> auxint, shift amount 0-63
+ 		{name: "SRWconst", argLength: 1, reg: gp11, asm: "SRW", aux: "Int8"}, // unsigned uint32(arg0) >> auxint, shift amount 0-31
+ 
+ 		// Arithmetic shifts clobber flags.
+ 		{name: "SRAD", argLength: 2, reg: sh21, asm: "SRAD", clobberFlags: true},                   // signed arg0 >> arg1, shift amount is mod 64
+-		{name: "SRAW", argLength: 2, reg: sh21, asm: "SRAW", clobberFlags: true},                   // signed int32(arg0) >> arg1, shift amount is mod 32
++		{name: "SRAW", argLength: 2, reg: sh21, asm: "SRAW", clobberFlags: true},                   // signed int32(arg0) >> arg1, shift amount is mod 64
+ 		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int8", clobberFlags: true}, // signed arg0 >> auxint, shift amount 0-63
+ 		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int8", clobberFlags: true}, // signed int32(arg0) >> auxint, shift amount 0-31
+ 
+-		{name: "RLLG", argLength: 2, reg: sh21, asm: "RLLG"},                   // arg0 rotate left arg1, rotate amount 0-63
+-		{name: "RLL", argLength: 2, reg: sh21, asm: "RLL"},                     // arg0 rotate left arg1, rotate amount 0-31
+-		{name: "RLLGconst", argLength: 1, reg: gp11, asm: "RLLG", aux: "Int8"}, // arg0 rotate left auxint, rotate amount 0-63
+-		{name: "RLLconst", argLength: 1, reg: gp11, asm: "RLL", aux: "Int8"},   // arg0 rotate left auxint, rotate amount 0-31
++		// Rotate instructions.
++		// Note: no RLLGconst - use RISBGZ instead.
++		{name: "RLLG", argLength: 2, reg: sh21, asm: "RLLG"},                 // arg0 rotate left arg1, rotate amount 0-63
++		{name: "RLL", argLength: 2, reg: sh21, asm: "RLL"},                   // arg0 rotate left arg1, rotate amount 0-31
++		{name: "RLLconst", argLength: 1, reg: gp11, asm: "RLL", aux: "Int8"}, // arg0 rotate left auxint, rotate amount 0-31
+ 
+ 		// Rotate then (and|or|xor|insert) selected bits instructions.
+ 		//
+@@ -371,6 +372,7 @@ func init() {
+ 		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
+ 		//
+ 		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "S390XRotateParams", clobberFlags: true}, // rotate then xor selected bits
++		{name: "RISBGZ", argLength: 1, reg: gp11, asm: "RISBGZ", aux: "S390XRotateParams", clobberFlags: true},                   // rotate then insert selected bits [into zero]
+ 
+ 		// unary ops
+ 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG", clobberFlags: true},   // -arg0
+@@ -547,9 +549,9 @@ func init() {
+ 		// Atomic bitwise operations.
+ 		// Note: 'floor' operations round the pointer down to the nearest word boundary
+ 		// which reflects how they are used in the runtime.
+-		{name: "LAN", argLength: 3, reg: gpstore, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *arg0 &= arg1. arg2 = mem.
++		{name: "LAN", argLength: 3, reg: gpstore, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true},         // *arg0 &= arg1. arg2 = mem.
+ 		{name: "LANfloor", argLength: 3, reg: gpstorelab, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) &= arg1. arg2 = mem.
+-		{name: "LAO", argLength: 3, reg: gpstore, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *arg0 |= arg1. arg2 = mem.
++		{name: "LAO", argLength: 3, reg: gpstore, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true},         // *arg0 |= arg1. arg2 = mem.
+ 		{name: "LAOfloor", argLength: 3, reg: gpstorelab, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) |= arg1. arg2 = mem.
+ 
+ 		// Compare and swap.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index c0b663cd8f..eceef1d91a 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2285,9 +2285,9 @@ const (
+ 	OpS390XSRAWconst
+ 	OpS390XRLLG
+ 	OpS390XRLL
+-	OpS390XRLLGconst
+ 	OpS390XRLLconst
+ 	OpS390XRXSBG
++	OpS390XRISBGZ
+ 	OpS390XNEG
+ 	OpS390XNEGW
+ 	OpS390XNOT
+@@ -30740,10 +30740,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "RLLGconst",
++		name:    "RLLconst",
+ 		auxType: auxInt8,
+ 		argLen:  1,
+-		asm:     s390x.ARLLG,
++		asm:     s390x.ARLL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+@@ -30754,13 +30754,16 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "RLLconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     s390x.ARLL,
++		name:         "RXSBG",
++		auxType:      auxS390XRotateParams,
++		argLen:       2,
++		resultInArg0: true,
++		clobberFlags: true,
++		asm:          s390x.ARXSBG,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+@@ -30768,16 +30771,14 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "RXSBG",
++		name:         "RISBGZ",
+ 		auxType:      auxS390XRotateParams,
+-		argLen:       2,
+-		resultInArg0: true,
++		argLen:       1,
+ 		clobberFlags: true,
+-		asm:          s390x.ARXSBG,
++		asm:          s390x.ARISBGZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+-				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 8c3c61d584..d66113d111 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -699,6 +699,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpS390XORconst(v)
+ 	case OpS390XORload:
+ 		return rewriteValueS390X_OpS390XORload(v)
++	case OpS390XRISBGZ:
++		return rewriteValueS390X_OpS390XRISBGZ(v)
+ 	case OpS390XRLL:
+ 		return rewriteValueS390X_OpS390XRLL(v)
+ 	case OpS390XRLLG:
+@@ -5272,9 +5274,8 @@ func rewriteValueS390X_OpS390XADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ADD (SLDconst x [c]) (SRDconst x [d]))
+-	// cond: d == 64-c
+-	// result: (RLLGconst [c] x)
++	// match: (ADD (SLDconst x [c]) (SRDconst x [64-c]))
++	// result: (RISBGZ x {s390x.NewRotateParams(0, 63, c)})
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpS390XSLDconst {
+@@ -5282,15 +5283,11 @@ func rewriteValueS390X_OpS390XADD(v *Value) bool {
+ 			}
+ 			c := auxIntToInt8(v_0.AuxInt)
+ 			x := v_0.Args[0]
+-			if v_1.Op != OpS390XSRDconst {
++			if v_1.Op != OpS390XSRDconst || auxIntToInt8(v_1.AuxInt) != 64-c || x != v_1.Args[0] {
+ 				continue
+ 			}
+-			d := auxIntToInt8(v_1.AuxInt)
+-			if x != v_1.Args[0] || !(d == 64-c) {
+-				continue
+-			}
+-			v.reset(OpS390XRLLGconst)
+-			v.AuxInt = int8ToAuxInt(c)
++			v.reset(OpS390XRISBGZ)
++			v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(0, 63, c))
+ 			v.AddArg(x)
+ 			return true
+ 		}
+@@ -5470,9 +5467,8 @@ func rewriteValueS390X_OpS390XADDW(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ADDW (SLWconst x [c]) (SRWconst x [d]))
+-	// cond: d == 32-c
+-	// result: (RLLconst [c] x)
++	// match: (ADDW (SLWconst x [c]) (SRWconst x [32-c]))
++	// result: (RLLconst x [c])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpS390XSLWconst {
+@@ -5480,11 +5476,7 @@ func rewriteValueS390X_OpS390XADDW(v *Value) bool {
+ 			}
+ 			c := auxIntToInt8(v_0.AuxInt)
+ 			x := v_0.Args[0]
+-			if v_1.Op != OpS390XSRWconst {
+-				continue
+-			}
+-			d := auxIntToInt8(v_1.AuxInt)
+-			if x != v_1.Args[0] || !(d == 32-c) {
++			if v_1.Op != OpS390XSRWconst || auxIntToInt8(v_1.AuxInt) != 32-c || x != v_1.Args[0] {
+ 				continue
+ 			}
+ 			v.reset(OpS390XRLLconst)
+@@ -5844,8 +5836,8 @@ func rewriteValueS390X_OpS390XAND(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (AND x (MOVDconst [c]))
+-	// cond: is32Bit(c) && c < 0
+-	// result: (ANDconst [c] x)
++	// cond: s390x.NewRotateParams(0, 63, 0).OutMerge(uint64(c)) != nil
++	// result: (RISBGZ x {*s390x.NewRotateParams(0, 63, 0).OutMerge(uint64(c))})
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			x := v_0
+@@ -5853,19 +5845,19 @@ func rewriteValueS390X_OpS390XAND(v *Value) bool {
+ 				continue
+ 			}
+ 			c := auxIntToInt64(v_1.AuxInt)
+-			if !(is32Bit(c) && c < 0) {
++			if !(s390x.NewRotateParams(0, 63, 0).OutMerge(uint64(c)) != nil) {
+ 				continue
+ 			}
+-			v.reset(OpS390XANDconst)
+-			v.AuxInt = int64ToAuxInt(c)
++			v.reset(OpS390XRISBGZ)
++			v.Aux = s390xRotateParamsToAux(*s390x.NewRotateParams(0, 63, 0).OutMerge(uint64(c)))
+ 			v.AddArg(x)
+ 			return true
+ 		}
+ 		break
+ 	}
+ 	// match: (AND x (MOVDconst [c]))
+-	// cond: is32Bit(c) && c >= 0
+-	// result: (MOVWZreg (ANDWconst <typ.UInt32> [int32(c)] x))
++	// cond: is32Bit(c) && c < 0
++	// result: (ANDconst [c] x)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			x := v_0
+@@ -5873,72 +5865,32 @@ func rewriteValueS390X_OpS390XAND(v *Value) bool {
+ 				continue
+ 			}
+ 			c := auxIntToInt64(v_1.AuxInt)
+-			if !(is32Bit(c) && c >= 0) {
+-				continue
+-			}
+-			v.reset(OpS390XMOVWZreg)
+-			v0 := b.NewValue0(v.Pos, OpS390XANDWconst, typ.UInt32)
+-			v0.AuxInt = int32ToAuxInt(int32(c))
+-			v0.AddArg(x)
+-			v.AddArg(v0)
+-			return true
+-		}
+-		break
+-	}
+-	// match: (AND x (MOVDconst [0xFF]))
+-	// result: (MOVBZreg x)
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			x := v_0
+-			if v_1.Op != OpS390XMOVDconst || auxIntToInt64(v_1.AuxInt) != 0xFF {
++			if !(is32Bit(c) && c < 0) {
+ 				continue
+ 			}
+-			v.reset(OpS390XMOVBZreg)
++			v.reset(OpS390XANDconst)
++			v.AuxInt = int64ToAuxInt(c)
+ 			v.AddArg(x)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (AND x (MOVDconst [0xFFFF]))
+-	// result: (MOVHZreg x)
++	// match: (AND x (MOVDconst [c]))
++	// cond: is32Bit(c) && c >= 0
++	// result: (MOVWZreg (ANDWconst <typ.UInt32> [int32(c)] x))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			x := v_0
+-			if v_1.Op != OpS390XMOVDconst || auxIntToInt64(v_1.AuxInt) != 0xFFFF {
++			if v_1.Op != OpS390XMOVDconst {
+ 				continue
+ 			}
+-			v.reset(OpS390XMOVHZreg)
+-			v.AddArg(x)
+-			return true
+-		}
+-		break
+-	}
+-	// match: (AND x (MOVDconst [0xFFFFFFFF]))
+-	// result: (MOVWZreg x)
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			x := v_0
+-			if v_1.Op != OpS390XMOVDconst || auxIntToInt64(v_1.AuxInt) != 0xFFFFFFFF {
++			c := auxIntToInt64(v_1.AuxInt)
++			if !(is32Bit(c) && c >= 0) {
+ 				continue
+ 			}
+ 			v.reset(OpS390XMOVWZreg)
+-			v.AddArg(x)
+-			return true
+-		}
+-		break
+-	}
+-	// match: (AND (MOVDconst [^(-1<<63)]) (LGDR <t> x))
+-	// result: (LGDR <t> (LPDFR <x.Type> x))
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			if v_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0.AuxInt) != ^(-1<<63) || v_1.Op != OpS390XLGDR {
+-				continue
+-			}
+-			t := v_1.Type
+-			x := v_1.Args[0]
+-			v.reset(OpS390XLGDR)
+-			v.Type = t
+-			v0 := b.NewValue0(v.Pos, OpS390XLPDFR, x.Type)
++			v0 := b.NewValue0(v.Pos, OpS390XANDWconst, typ.UInt32)
++			v0.AuxInt = int32ToAuxInt(int32(c))
+ 			v0.AddArg(x)
+ 			v.AddArg(v0)
+ 			return true
+@@ -6103,10 +6055,10 @@ func rewriteValueS390X_OpS390XANDWconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (ANDWconst [0xFF] x)
++	// match: (ANDWconst [0x00ff] x)
+ 	// result: (MOVBZreg x)
+ 	for {
+-		if auxIntToInt32(v.AuxInt) != 0xFF {
++		if auxIntToInt32(v.AuxInt) != 0x00ff {
+ 			break
+ 		}
+ 		x := v_0
+@@ -6114,10 +6066,10 @@ func rewriteValueS390X_OpS390XANDWconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (ANDWconst [0xFFFF] x)
++	// match: (ANDWconst [0xffff] x)
+ 	// result: (MOVHZreg x)
+ 	for {
+-		if auxIntToInt32(v.AuxInt) != 0xFFFF {
++		if auxIntToInt32(v.AuxInt) != 0xffff {
+ 			break
+ 		}
+ 		x := v_0
+@@ -6515,6 +6467,21 @@ func rewriteValueS390X_OpS390XCMPUconst(v *Value) bool {
+ 		v.reset(OpS390XFlagLT)
+ 		return true
+ 	}
++	// match: (CMPUconst (RISBGZ x {r}) [c])
++	// cond: r.OutMask() < uint64(uint32(c))
++	// result: (FlagLT)
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		if v_0.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_0.Aux)
++		if !(r.OutMask() < uint64(uint32(c))) {
++			break
++		}
++		v.reset(OpS390XFlagLT)
++		return true
++	}
+ 	// match: (CMPUconst (MOVWZreg x) [c])
+ 	// result: (CMPWUconst x [c])
+ 	for {
+@@ -7152,6 +7119,21 @@ func rewriteValueS390X_OpS390XCMPconst(v *Value) bool {
+ 		v.reset(OpS390XFlagGT)
+ 		return true
+ 	}
++	// match: (CMPconst (RISBGZ x {r}) [c])
++	// cond: c > 0 && r.OutMask() < uint64(c)
++	// result: (FlagLT)
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		if v_0.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_0.Aux)
++		if !(c > 0 && r.OutMask() < uint64(c)) {
++			break
++		}
++		v.reset(OpS390XFlagLT)
++		return true
++	}
+ 	// match: (CMPconst (MOVWreg x) [c])
+ 	// result: (CMPWconst x [c])
+ 	for {
+@@ -7684,47 +7666,25 @@ func rewriteValueS390X_OpS390XFNEGS(v *Value) bool {
+ func rewriteValueS390X_OpS390XLDGR(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	// match: (LDGR <t> (SRDconst [1] (SLDconst [1] x)))
++	// match: (LDGR <t> (RISBGZ x {r}))
++	// cond: r == s390x.NewRotateParams(1, 63, 0)
+ 	// result: (LPDFR (LDGR <t> x))
+ 	for {
+ 		t := v.Type
+-		if v_0.Op != OpS390XSRDconst || auxIntToInt8(v_0.AuxInt) != 1 {
++		if v_0.Op != OpS390XRISBGZ {
+ 			break
+ 		}
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpS390XSLDconst || auxIntToInt8(v_0_0.AuxInt) != 1 {
++		r := auxToS390xRotateParams(v_0.Aux)
++		x := v_0.Args[0]
++		if !(r == s390x.NewRotateParams(1, 63, 0)) {
+ 			break
+ 		}
+-		x := v_0_0.Args[0]
+ 		v.reset(OpS390XLPDFR)
+ 		v0 := b.NewValue0(v.Pos, OpS390XLDGR, t)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (LDGR <t> (AND (MOVDconst [^(-1<<63)]) x))
+-	// result: (LPDFR (LDGR <t> x))
+-	for {
+-		t := v.Type
+-		if v_0.Op != OpS390XAND {
+-			break
+-		}
+-		_ = v_0.Args[1]
+-		v_0_0 := v_0.Args[0]
+-		v_0_1 := v_0.Args[1]
+-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+-			if v_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0.AuxInt) != ^(-1<<63) {
+-				continue
+-			}
+-			x := v_0_1
+-			v.reset(OpS390XLPDFR)
+-			v0 := b.NewValue0(v.Pos, OpS390XLDGR, t)
+-			v0.AddArg(x)
+-			v.AddArg(v0)
+-			return true
+-		}
+-		break
+-	}
+ 	// match: (LDGR <t> (OR (MOVDconst [-1<<63]) x))
+ 	// result: (LNDFR (LDGR <t> x))
+ 	for {
+@@ -8309,6 +8269,23 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (MOVBZreg (RISBGZ x {r}))
++	// cond: r.OutMerge(0x000000ff) != nil
++	// result: (RISBGZ x {*r.OutMerge(0x000000ff)})
++	for {
++		if v_0.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_0.Aux)
++		x := v_0.Args[0]
++		if !(r.OutMerge(0x000000ff) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux(*r.OutMerge(0x000000ff))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVBZreg (ANDWconst [m] x))
+ 	// result: (MOVWZreg (ANDWconst <typ.UInt32> [int32( uint8(m))] x))
+ 	for {
+@@ -9697,6 +9674,23 @@ func rewriteValueS390X_OpS390XMOVHZreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(uint16(c)))
+ 		return true
+ 	}
++	// match: (MOVHZreg (RISBGZ x {r}))
++	// cond: r.OutMerge(0x0000ffff) != nil
++	// result: (RISBGZ x {*r.OutMerge(0x0000ffff)})
++	for {
++		if v_0.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_0.Aux)
++		x := v_0.Args[0]
++		if !(r.OutMerge(0x0000ffff) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux(*r.OutMerge(0x0000ffff))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVHZreg (ANDWconst [m] x))
+ 	// result: (MOVWZreg (ANDWconst <typ.UInt32> [int32(uint16(m))] x))
+ 	for {
+@@ -10547,6 +10541,23 @@ func rewriteValueS390X_OpS390XMOVWZreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(uint32(c)))
+ 		return true
+ 	}
++	// match: (MOVWZreg (RISBGZ x {r}))
++	// cond: r.OutMerge(0xffffffff) != nil
++	// result: (RISBGZ x {*r.OutMerge(0xffffffff)})
++	for {
++		if v_0.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_0.Aux)
++		x := v_0.Args[0]
++		if !(r.OutMerge(0xffffffff) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux(*r.OutMerge(0xffffffff))
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XMOVWload(v *Value) bool {
+@@ -11622,9 +11633,8 @@ func rewriteValueS390X_OpS390XOR(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: ( OR (SLDconst x [c]) (SRDconst x [d]))
+-	// cond: d == 64-c
+-	// result: (RLLGconst [c] x)
++	// match: (OR (SLDconst x [c]) (SRDconst x [64-c]))
++	// result: (RISBGZ x {s390x.NewRotateParams(0, 63, c)})
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpS390XSLDconst {
+@@ -11632,15 +11642,11 @@ func rewriteValueS390X_OpS390XOR(v *Value) bool {
+ 			}
+ 			c := auxIntToInt8(v_0.AuxInt)
+ 			x := v_0.Args[0]
+-			if v_1.Op != OpS390XSRDconst {
+-				continue
+-			}
+-			d := auxIntToInt8(v_1.AuxInt)
+-			if x != v_1.Args[0] || !(d == 64-c) {
++			if v_1.Op != OpS390XSRDconst || auxIntToInt8(v_1.AuxInt) != 64-c || x != v_1.Args[0] {
+ 				continue
+ 			}
+-			v.reset(OpS390XRLLGconst)
+-			v.AuxInt = int8ToAuxInt(c)
++			v.reset(OpS390XRISBGZ)
++			v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(0, 63, c))
+ 			v.AddArg(x)
+ 			return true
+ 		}
+@@ -11664,22 +11670,20 @@ func rewriteValueS390X_OpS390XOR(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (OR (SLDconst [63] (SRDconst [63] (LGDR x))) (LGDR (LPDFR <t> y)))
++	// match: (OR (RISBGZ (LGDR x) {r}) (LGDR (LPDFR <t> y)))
++	// cond: r == s390x.NewRotateParams(0, 0, 0)
+ 	// result: (LGDR (CPSDR <t> y x))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			if v_0.Op != OpS390XSLDconst || auxIntToInt8(v_0.AuxInt) != 63 {
++			if v_0.Op != OpS390XRISBGZ {
+ 				continue
+ 			}
++			r := auxToS390xRotateParams(v_0.Aux)
+ 			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpS390XSRDconst || auxIntToInt8(v_0_0.AuxInt) != 63 {
+-				continue
+-			}
+-			v_0_0_0 := v_0_0.Args[0]
+-			if v_0_0_0.Op != OpS390XLGDR {
++			if v_0_0.Op != OpS390XLGDR {
+ 				continue
+ 			}
+-			x := v_0_0_0.Args[0]
++			x := v_0_0.Args[0]
+ 			if v_1.Op != OpS390XLGDR {
+ 				continue
+ 			}
+@@ -11689,6 +11693,9 @@ func rewriteValueS390X_OpS390XOR(v *Value) bool {
+ 			}
+ 			t := v_1_0.Type
+ 			y := v_1_0.Args[0]
++			if !(r == s390x.NewRotateParams(0, 0, 0)) {
++				continue
++			}
+ 			v.reset(OpS390XLGDR)
+ 			v0 := b.NewValue0(v.Pos, OpS390XCPSDR, t)
+ 			v0.AddArg2(y, x)
+@@ -11697,28 +11704,25 @@ func rewriteValueS390X_OpS390XOR(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (OR (SLDconst [63] (SRDconst [63] (LGDR x))) (MOVDconst [c]))
+-	// cond: c & -1<<63 == 0
++	// match: (OR (RISBGZ (LGDR x) {r}) (MOVDconst [c]))
++	// cond: c >= 0 && r == s390x.NewRotateParams(0, 0, 0)
+ 	// result: (LGDR (CPSDR <x.Type> (FMOVDconst <x.Type> [math.Float64frombits(uint64(c))]) x))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			if v_0.Op != OpS390XSLDconst || auxIntToInt8(v_0.AuxInt) != 63 {
++			if v_0.Op != OpS390XRISBGZ {
+ 				continue
+ 			}
++			r := auxToS390xRotateParams(v_0.Aux)
+ 			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpS390XSRDconst || auxIntToInt8(v_0_0.AuxInt) != 63 {
++			if v_0_0.Op != OpS390XLGDR {
+ 				continue
+ 			}
+-			v_0_0_0 := v_0_0.Args[0]
+-			if v_0_0_0.Op != OpS390XLGDR {
+-				continue
+-			}
+-			x := v_0_0_0.Args[0]
++			x := v_0_0.Args[0]
+ 			if v_1.Op != OpS390XMOVDconst {
+ 				continue
+ 			}
+ 			c := auxIntToInt64(v_1.AuxInt)
+-			if !(c&-1<<63 == 0) {
++			if !(c >= 0 && r == s390x.NewRotateParams(0, 0, 0)) {
+ 				continue
+ 			}
+ 			v.reset(OpS390XLGDR)
+@@ -11731,73 +11735,6 @@ func rewriteValueS390X_OpS390XOR(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (OR (AND (MOVDconst [-1<<63]) (LGDR x)) (LGDR (LPDFR <t> y)))
+-	// result: (LGDR (CPSDR <t> y x))
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			if v_0.Op != OpS390XAND {
+-				continue
+-			}
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+-				if v_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0.AuxInt) != -1<<63 || v_0_1.Op != OpS390XLGDR {
+-					continue
+-				}
+-				x := v_0_1.Args[0]
+-				if v_1.Op != OpS390XLGDR {
+-					continue
+-				}
+-				v_1_0 := v_1.Args[0]
+-				if v_1_0.Op != OpS390XLPDFR {
+-					continue
+-				}
+-				t := v_1_0.Type
+-				y := v_1_0.Args[0]
+-				v.reset(OpS390XLGDR)
+-				v0 := b.NewValue0(v.Pos, OpS390XCPSDR, t)
+-				v0.AddArg2(y, x)
+-				v.AddArg(v0)
+-				return true
+-			}
+-		}
+-		break
+-	}
+-	// match: (OR (AND (MOVDconst [-1<<63]) (LGDR x)) (MOVDconst [c]))
+-	// cond: c & -1<<63 == 0
+-	// result: (LGDR (CPSDR <x.Type> (FMOVDconst <x.Type> [math.Float64frombits(uint64(c))]) x))
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			if v_0.Op != OpS390XAND {
+-				continue
+-			}
+-			_ = v_0.Args[1]
+-			v_0_0 := v_0.Args[0]
+-			v_0_1 := v_0.Args[1]
+-			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+-				if v_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0.AuxInt) != -1<<63 || v_0_1.Op != OpS390XLGDR {
+-					continue
+-				}
+-				x := v_0_1.Args[0]
+-				if v_1.Op != OpS390XMOVDconst {
+-					continue
+-				}
+-				c := auxIntToInt64(v_1.AuxInt)
+-				if !(c&-1<<63 == 0) {
+-					continue
+-				}
+-				v.reset(OpS390XLGDR)
+-				v0 := b.NewValue0(v.Pos, OpS390XCPSDR, x.Type)
+-				v1 := b.NewValue0(v.Pos, OpS390XFMOVDconst, x.Type)
+-				v1.AuxInt = float64ToAuxInt(math.Float64frombits(uint64(c)))
+-				v0.AddArg2(v1, x)
+-				v.AddArg(v0)
+-				return true
+-			}
+-		}
+-		break
+-	}
+ 	// match: (OR (MOVDconst [c]) (MOVDconst [d]))
+ 	// result: (MOVDconst [c|d])
+ 	for {
+@@ -12394,9 +12331,8 @@ func rewriteValueS390X_OpS390XORW(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: ( ORW (SLWconst x [c]) (SRWconst x [d]))
+-	// cond: d == 32-c
+-	// result: (RLLconst [c] x)
++	// match: (ORW (SLWconst x [c]) (SRWconst x [32-c]))
++	// result: (RLLconst x [c])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpS390XSLWconst {
+@@ -12404,11 +12340,7 @@ func rewriteValueS390X_OpS390XORW(v *Value) bool {
+ 			}
+ 			c := auxIntToInt8(v_0.AuxInt)
+ 			x := v_0.Args[0]
+-			if v_1.Op != OpS390XSRWconst {
+-				continue
+-			}
+-			d := auxIntToInt8(v_1.AuxInt)
+-			if x != v_1.Args[0] || !(d == 32-c) {
++			if v_1.Op != OpS390XSRWconst || auxIntToInt8(v_1.AuxInt) != 32-c || x != v_1.Args[0] {
+ 				continue
+ 			}
+ 			v.reset(OpS390XRLLconst)
+@@ -12980,6 +12912,221 @@ func rewriteValueS390X_OpS390XORload(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueS390X_OpS390XRISBGZ(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (RISBGZ (MOVWZreg x) {r})
++	// cond: r.InMerge(0xffffffff) != nil
++	// result: (RISBGZ x {*r.InMerge(0xffffffff)})
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		if v_0.Op != OpS390XMOVWZreg {
++			break
++		}
++		x := v_0.Args[0]
++		if !(r.InMerge(0xffffffff) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux(*r.InMerge(0xffffffff))
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ (MOVHZreg x) {r})
++	// cond: r.InMerge(0x0000ffff) != nil
++	// result: (RISBGZ x {*r.InMerge(0x0000ffff)})
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		if v_0.Op != OpS390XMOVHZreg {
++			break
++		}
++		x := v_0.Args[0]
++		if !(r.InMerge(0x0000ffff) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux(*r.InMerge(0x0000ffff))
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ (MOVBZreg x) {r})
++	// cond: r.InMerge(0x000000ff) != nil
++	// result: (RISBGZ x {*r.InMerge(0x000000ff)})
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		if v_0.Op != OpS390XMOVBZreg {
++			break
++		}
++		x := v_0.Args[0]
++		if !(r.InMerge(0x000000ff) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux(*r.InMerge(0x000000ff))
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ (SLDconst x [c]) {r})
++	// cond: r.InMerge(^uint64(0)<<c) != nil
++	// result: (RISBGZ x {(*r.InMerge(^uint64(0)<<c)).RotateLeft(c)})
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		if v_0.Op != OpS390XSLDconst {
++			break
++		}
++		c := auxIntToInt8(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(r.InMerge(^uint64(0)<<c) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux((*r.InMerge(^uint64(0) << c)).RotateLeft(c))
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ (SRDconst x [c]) {r})
++	// cond: r.InMerge(^uint64(0)>>c) != nil
++	// result: (RISBGZ x {(*r.InMerge(^uint64(0)>>c)).RotateLeft(-c)})
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		if v_0.Op != OpS390XSRDconst {
++			break
++		}
++		c := auxIntToInt8(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(r.InMerge(^uint64(0)>>c) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux((*r.InMerge(^uint64(0) >> c)).RotateLeft(-c))
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ (RISBGZ x {y}) {z})
++	// cond: z.InMerge(y.OutMask()) != nil
++	// result: (RISBGZ x {(*z.InMerge(y.OutMask())).RotateLeft(y.Amount)})
++	for {
++		z := auxToS390xRotateParams(v.Aux)
++		if v_0.Op != OpS390XRISBGZ {
++			break
++		}
++		y := auxToS390xRotateParams(v_0.Aux)
++		x := v_0.Args[0]
++		if !(z.InMerge(y.OutMask()) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux((*z.InMerge(y.OutMask())).RotateLeft(y.Amount))
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ x {r})
++	// cond: r.End == 63 && r.Start == -r.Amount&63
++	// result: (SRDconst x [-r.Amount&63])
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		x := v_0
++		if !(r.End == 63 && r.Start == -r.Amount&63) {
++			break
++		}
++		v.reset(OpS390XSRDconst)
++		v.AuxInt = int8ToAuxInt(-r.Amount & 63)
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ x {r})
++	// cond: r.Start == 0 && r.End == 63-r.Amount
++	// result: (SLDconst x [r.Amount])
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		x := v_0
++		if !(r.Start == 0 && r.End == 63-r.Amount) {
++			break
++		}
++		v.reset(OpS390XSLDconst)
++		v.AuxInt = int8ToAuxInt(r.Amount)
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ (SRADconst x [c]) {r})
++	// cond: r.Start == r.End && (r.Start+r.Amount)&63 <= c
++	// result: (RISBGZ x {s390x.NewRotateParams(r.Start, r.Start, -r.Start&63)})
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		if v_0.Op != OpS390XSRADconst {
++			break
++		}
++		c := auxIntToInt8(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(r.Start == r.End && (r.Start+r.Amount)&63 <= c) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(r.Start, r.Start, -r.Start&63))
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ x {r})
++	// cond: r == s390x.NewRotateParams(56, 63, 0)
++	// result: (MOVBZreg x)
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		x := v_0
++		if !(r == s390x.NewRotateParams(56, 63, 0)) {
++			break
++		}
++		v.reset(OpS390XMOVBZreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ x {r})
++	// cond: r == s390x.NewRotateParams(48, 63, 0)
++	// result: (MOVHZreg x)
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		x := v_0
++		if !(r == s390x.NewRotateParams(48, 63, 0)) {
++			break
++		}
++		v.reset(OpS390XMOVHZreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ x {r})
++	// cond: r == s390x.NewRotateParams(32, 63, 0)
++	// result: (MOVWZreg x)
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		x := v_0
++		if !(r == s390x.NewRotateParams(32, 63, 0)) {
++			break
++		}
++		v.reset(OpS390XMOVWZreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (RISBGZ (LGDR <t> x) {r})
++	// cond: r == s390x.NewRotateParams(1, 63, 0)
++	// result: (LGDR <t> (LPDFR <x.Type> x))
++	for {
++		r := auxToS390xRotateParams(v.Aux)
++		if v_0.Op != OpS390XLGDR {
++			break
++		}
++		t := v_0.Type
++		x := v_0.Args[0]
++		if !(r == s390x.NewRotateParams(1, 63, 0)) {
++			break
++		}
++		v.reset(OpS390XLGDR)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpS390XLPDFR, x.Type)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValueS390X_OpS390XRLL(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -13002,15 +13149,15 @@ func rewriteValueS390X_OpS390XRLLG(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (RLLG x (MOVDconst [c]))
+-	// result: (RLLGconst x [int8(c&63)])
++	// result: (RISBGZ x {s390x.NewRotateParams(0, 63, int8(c&63))})
+ 	for {
+ 		x := v_0
+ 		if v_1.Op != OpS390XMOVDconst {
+ 			break
+ 		}
+ 		c := auxIntToInt64(v_1.AuxInt)
+-		v.reset(OpS390XRLLGconst)
+-		v.AuxInt = int8ToAuxInt(int8(c & 63))
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(0, 63, int8(c&63)))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -13034,6 +13181,23 @@ func rewriteValueS390X_OpS390XSLD(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SLD x (RISBGZ y {r}))
++	// cond: r.Amount == 0 && r.OutMask()&63 == 63
++	// result: (SLD x y)
++	for {
++		x := v_0
++		if v_1.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_1.Aux)
++		y := v_1.Args[0]
++		if !(r.Amount == 0 && r.OutMask()&63 == 63) {
++			break
++		}
++		v.reset(OpS390XSLD)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (SLD x (AND (MOVDconst [c]) y))
+ 	// result: (SLD x (ANDWconst <typ.UInt32> [int32(c&63)] y))
+ 	for {
+@@ -13152,6 +13316,38 @@ func rewriteValueS390X_OpS390XSLD(v *Value) bool {
+ }
+ func rewriteValueS390X_OpS390XSLDconst(v *Value) bool {
+ 	v_0 := v.Args[0]
++	// match: (SLDconst (SRDconst x [c]) [d])
++	// result: (RISBGZ x {s390x.NewRotateParams(max8(0, c-d), 63-d, (d-c)&63)})
++	for {
++		d := auxIntToInt8(v.AuxInt)
++		if v_0.Op != OpS390XSRDconst {
++			break
++		}
++		c := auxIntToInt8(v_0.AuxInt)
++		x := v_0.Args[0]
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(max8(0, c-d), 63-d, (d-c)&63))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLDconst (RISBGZ x {r}) [c])
++	// cond: s390x.NewRotateParams(0, 63-c, c).InMerge(r.OutMask()) != nil
++	// result: (RISBGZ x {(*s390x.NewRotateParams(0, 63-c, c).InMerge(r.OutMask())).RotateLeft(r.Amount)})
++	for {
++		c := auxIntToInt8(v.AuxInt)
++		if v_0.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_0.Aux)
++		x := v_0.Args[0]
++		if !(s390x.NewRotateParams(0, 63-c, c).InMerge(r.OutMask()) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux((*s390x.NewRotateParams(0, 63-c, c).InMerge(r.OutMask())).RotateLeft(r.Amount))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (SLDconst x [0])
+ 	// result: x
+ 	for {
+@@ -13170,18 +13366,54 @@ func rewriteValueS390X_OpS390XSLW(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (SLW x (MOVDconst [c]))
+-	// result: (SLWconst x [int8(c&63)])
++	// cond: c&32 == 0
++	// result: (SLWconst x [int8(c&31)])
+ 	for {
+ 		x := v_0
+ 		if v_1.Op != OpS390XMOVDconst {
+ 			break
+ 		}
+ 		c := auxIntToInt64(v_1.AuxInt)
++		if !(c&32 == 0) {
++			break
++		}
+ 		v.reset(OpS390XSLWconst)
+-		v.AuxInt = int8ToAuxInt(int8(c & 63))
++		v.AuxInt = int8ToAuxInt(int8(c & 31))
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SLW _ (MOVDconst [c]))
++	// cond: c&32 != 0
++	// result: (MOVDconst [0])
++	for {
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		c := auxIntToInt64(v_1.AuxInt)
++		if !(c&32 != 0) {
++			break
++		}
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++	// match: (SLW x (RISBGZ y {r}))
++	// cond: r.Amount == 0 && r.OutMask()&63 == 63
++	// result: (SLW x y)
++	for {
++		x := v_0
++		if v_1.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_1.Aux)
++		y := v_1.Args[0]
++		if !(r.Amount == 0 && r.OutMask()&63 == 63) {
++			break
++		}
++		v.reset(OpS390XSLW)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (SLW x (AND (MOVDconst [c]) y))
+ 	// result: (SLW x (ANDWconst <typ.UInt32> [int32(c&63)] y))
+ 	for {
+@@ -13330,6 +13562,23 @@ func rewriteValueS390X_OpS390XSRAD(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SRAD x (RISBGZ y {r}))
++	// cond: r.Amount == 0 && r.OutMask()&63 == 63
++	// result: (SRAD x y)
++	for {
++		x := v_0
++		if v_1.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_1.Aux)
++		y := v_1.Args[0]
++		if !(r.Amount == 0 && r.OutMask()&63 == 63) {
++			break
++		}
++		v.reset(OpS390XSRAD)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (SRAD x (AND (MOVDconst [c]) y))
+ 	// result: (SRAD x (ANDWconst <typ.UInt32> [int32(c&63)] y))
+ 	for {
+@@ -13478,18 +13727,56 @@ func rewriteValueS390X_OpS390XSRAW(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (SRAW x (MOVDconst [c]))
+-	// result: (SRAWconst x [int8(c&63)])
++	// cond: c&32 == 0
++	// result: (SRAWconst x [int8(c&31)])
+ 	for {
+ 		x := v_0
+ 		if v_1.Op != OpS390XMOVDconst {
+ 			break
+ 		}
+ 		c := auxIntToInt64(v_1.AuxInt)
++		if !(c&32 == 0) {
++			break
++		}
+ 		v.reset(OpS390XSRAWconst)
+-		v.AuxInt = int8ToAuxInt(int8(c & 63))
++		v.AuxInt = int8ToAuxInt(int8(c & 31))
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SRAW x (MOVDconst [c]))
++	// cond: c&32 != 0
++	// result: (SRAWconst x [31])
++	for {
++		x := v_0
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		c := auxIntToInt64(v_1.AuxInt)
++		if !(c&32 != 0) {
++			break
++		}
++		v.reset(OpS390XSRAWconst)
++		v.AuxInt = int8ToAuxInt(31)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRAW x (RISBGZ y {r}))
++	// cond: r.Amount == 0 && r.OutMask()&63 == 63
++	// result: (SRAW x y)
++	for {
++		x := v_0
++		if v_1.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_1.Aux)
++		y := v_1.Args[0]
++		if !(r.Amount == 0 && r.OutMask()&63 == 63) {
++			break
++		}
++		v.reset(OpS390XSRAW)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (SRAW x (AND (MOVDconst [c]) y))
+ 	// result: (SRAW x (ANDWconst <typ.UInt32> [int32(c&63)] y))
+ 	for {
+@@ -13650,6 +13937,23 @@ func rewriteValueS390X_OpS390XSRD(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SRD x (RISBGZ y {r}))
++	// cond: r.Amount == 0 && r.OutMask()&63 == 63
++	// result: (SRD x y)
++	for {
++		x := v_0
++		if v_1.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_1.Aux)
++		y := v_1.Args[0]
++		if !(r.Amount == 0 && r.OutMask()&63 == 63) {
++			break
++		}
++		v.reset(OpS390XSRD)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (SRD x (AND (MOVDconst [c]) y))
+ 	// result: (SRD x (ANDWconst <typ.UInt32> [int32(c&63)] y))
+ 	for {
+@@ -13768,24 +14072,36 @@ func rewriteValueS390X_OpS390XSRD(v *Value) bool {
+ }
+ func rewriteValueS390X_OpS390XSRDconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	// match: (SRDconst [1] (SLDconst [1] (LGDR <t> x)))
+-	// result: (LGDR <t> (LPDFR <x.Type> x))
++	// match: (SRDconst (SLDconst x [c]) [d])
++	// result: (RISBGZ x {s390x.NewRotateParams(d, min8(63, 63-c+d), (c-d)&63)})
+ 	for {
+-		if auxIntToInt8(v.AuxInt) != 1 || v_0.Op != OpS390XSLDconst || auxIntToInt8(v_0.AuxInt) != 1 {
++		d := auxIntToInt8(v.AuxInt)
++		if v_0.Op != OpS390XSLDconst {
+ 			break
+ 		}
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpS390XLGDR {
++		c := auxIntToInt8(v_0.AuxInt)
++		x := v_0.Args[0]
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(d, min8(63, 63-c+d), (c-d)&63))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRDconst (RISBGZ x {r}) [c])
++	// cond: s390x.NewRotateParams(c, 63, -c&63).InMerge(r.OutMask()) != nil
++	// result: (RISBGZ x {(*s390x.NewRotateParams(c, 63, -c&63).InMerge(r.OutMask())).RotateLeft(r.Amount)})
++	for {
++		c := auxIntToInt8(v.AuxInt)
++		if v_0.Op != OpS390XRISBGZ {
+ 			break
+ 		}
+-		t := v_0_0.Type
+-		x := v_0_0.Args[0]
+-		v.reset(OpS390XLGDR)
+-		v.Type = t
+-		v0 := b.NewValue0(v.Pos, OpS390XLPDFR, x.Type)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		r := auxToS390xRotateParams(v_0.Aux)
++		x := v_0.Args[0]
++		if !(s390x.NewRotateParams(c, 63, -c&63).InMerge(r.OutMask()) != nil) {
++			break
++		}
++		v.reset(OpS390XRISBGZ)
++		v.Aux = s390xRotateParamsToAux((*s390x.NewRotateParams(c, 63, -c&63).InMerge(r.OutMask())).RotateLeft(r.Amount))
++		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (SRDconst x [0])
+@@ -13806,18 +14122,54 @@ func rewriteValueS390X_OpS390XSRW(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (SRW x (MOVDconst [c]))
+-	// result: (SRWconst x [int8(c&63)])
++	// cond: c&32 == 0
++	// result: (SRWconst x [int8(c&31)])
+ 	for {
+ 		x := v_0
+ 		if v_1.Op != OpS390XMOVDconst {
+ 			break
+ 		}
+ 		c := auxIntToInt64(v_1.AuxInt)
++		if !(c&32 == 0) {
++			break
++		}
+ 		v.reset(OpS390XSRWconst)
+-		v.AuxInt = int8ToAuxInt(int8(c & 63))
++		v.AuxInt = int8ToAuxInt(int8(c & 31))
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SRW _ (MOVDconst [c]))
++	// cond: c&32 != 0
++	// result: (MOVDconst [0])
++	for {
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		c := auxIntToInt64(v_1.AuxInt)
++		if !(c&32 != 0) {
++			break
++		}
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++	// match: (SRW x (RISBGZ y {r}))
++	// cond: r.Amount == 0 && r.OutMask()&63 == 63
++	// result: (SRW x y)
++	for {
++		x := v_0
++		if v_1.Op != OpS390XRISBGZ {
++			break
++		}
++		r := auxToS390xRotateParams(v_1.Aux)
++		y := v_1.Args[0]
++		if !(r.Amount == 0 && r.OutMask()&63 == 63) {
++			break
++		}
++		v.reset(OpS390XSRW)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (SRW x (AND (MOVDconst [c]) y))
+ 	// result: (SRW x (ANDWconst <typ.UInt32> [int32(c&63)] y))
+ 	for {
+@@ -14564,9 +14916,8 @@ func rewriteValueS390X_OpS390XXOR(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (XOR (SLDconst x [c]) (SRDconst x [d]))
+-	// cond: d == 64-c
+-	// result: (RLLGconst [c] x)
++	// match: (XOR (SLDconst x [c]) (SRDconst x [64-c]))
++	// result: (RISBGZ x {s390x.NewRotateParams(0, 63, c)})
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpS390XSLDconst {
+@@ -14574,15 +14925,11 @@ func rewriteValueS390X_OpS390XXOR(v *Value) bool {
+ 			}
+ 			c := auxIntToInt8(v_0.AuxInt)
+ 			x := v_0.Args[0]
+-			if v_1.Op != OpS390XSRDconst {
+-				continue
+-			}
+-			d := auxIntToInt8(v_1.AuxInt)
+-			if x != v_1.Args[0] || !(d == 64-c) {
++			if v_1.Op != OpS390XSRDconst || auxIntToInt8(v_1.AuxInt) != 64-c || x != v_1.Args[0] {
+ 				continue
+ 			}
+-			v.reset(OpS390XRLLGconst)
+-			v.AuxInt = int8ToAuxInt(c)
++			v.reset(OpS390XRISBGZ)
++			v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(0, 63, c))
+ 			v.AddArg(x)
+ 			return true
+ 		}
+@@ -14665,9 +15012,8 @@ func rewriteValueS390X_OpS390XXORW(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (XORW (SLWconst x [c]) (SRWconst x [d]))
+-	// cond: d == 32-c
+-	// result: (RLLconst [c] x)
++	// match: (XORW (SLWconst x [c]) (SRWconst x [32-c]))
++	// result: (RLLconst x [c])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpS390XSLWconst {
+@@ -14675,11 +15021,7 @@ func rewriteValueS390X_OpS390XXORW(v *Value) bool {
+ 			}
+ 			c := auxIntToInt8(v_0.AuxInt)
+ 			x := v_0.Args[0]
+-			if v_1.Op != OpS390XSRWconst {
+-				continue
+-			}
+-			d := auxIntToInt8(v_1.AuxInt)
+-			if x != v_1.Args[0] || !(d == 32-c) {
++			if v_1.Op != OpS390XSRWconst || auxIntToInt8(v_1.AuxInt) != 32-c || x != v_1.Args[0] {
+ 				continue
+ 			}
+ 			v.reset(OpS390XRLLconst)
+diff --git a/src/cmd/internal/obj/s390x/rotate.go b/src/cmd/internal/obj/s390x/rotate.go
+index fd2d5482db..7dbc45e648 100644
+--- a/src/cmd/internal/obj/s390x/rotate.go
++++ b/src/cmd/internal/obj/s390x/rotate.go
+@@ -4,6 +4,10 @@
+ 
+ package s390x
+ 
++import (
++	"math/bits"
++)
++
+ // RotateParams represents the immediates required for a "rotate
+ // then ... selected bits instruction".
+ //
+@@ -24,12 +28,18 @@ package s390x
+ // input left by. Note that this rotation is performed
+ // before the masked region is used.
+ type RotateParams struct {
+-	Start  uint8 // big-endian start bit index [0..63]
+-	End    uint8 // big-endian end bit index [0..63]
+-	Amount uint8 // amount to rotate left
++	Start  int8 // big-endian start bit index [0..63]
++	End    int8 // big-endian end bit index [0..63]
++	Amount int8 // amount to rotate left
+ }
+ 
+-func NewRotateParams(start, end, amount int64) RotateParams {
++// NewRotateParams creates a set of parameters representing a
++// rotation left by the amount provided and a selection of the bits
++// between the provided start and end indexes (inclusive).
++//
++// The start and end indexes and the rotation amount must all
++// be in the range 0-63 inclusive or this function will panic.
++func NewRotateParams(start, end, amount int8) RotateParams {
+ 	if start&^63 != 0 {
+ 		panic("start out of bounds")
+ 	}
+@@ -40,8 +50,66 @@ func NewRotateParams(start, end, amount int64) RotateParams {
+ 		panic("amount out of bounds")
+ 	}
+ 	return RotateParams{
+-		Start:  uint8(start),
+-		End:    uint8(end),
+-		Amount: uint8(amount),
++		Start:  start,
++		End:    end,
++		Amount: amount,
+ 	}
+ }
++
++// RotateLeft generates a new set of parameters with the rotation amount
++// increased by the given value. The selected bits are left unchanged.
++func (r RotateParams) RotateLeft(amount int8) RotateParams {
++	r.Amount += amount
++	r.Amount &= 63
++	return r
++}
++
++// OutMask provides a mask representing the selected bits.
++func (r RotateParams) OutMask() uint64 {
++	// Note: z must be unsigned for bootstrap compiler
++	z := uint8(63-r.End+r.Start) & 63 // number of zero bits in mask
++	return bits.RotateLeft64(^uint64(0)<<z, -int(r.Start))
++}
++
++// InMask provides a mask representing the selected bits relative
++// to the source value (i.e. pre-rotation).
++func (r RotateParams) InMask() uint64 {
++	return bits.RotateLeft64(r.OutMask(), -int(r.Amount))
++}
++
++// OutMerge tries to generate a new set of parameters representing
++// the intersection between the selected bits and the provided mask.
++// If the intersection is unrepresentable (0 or not contiguous) nil
++// will be returned.
++func (r RotateParams) OutMerge(mask uint64) *RotateParams {
++	mask &= r.OutMask()
++	if mask == 0 {
++		return nil
++	}
++
++	// normalize the mask so that the set bits are left aligned
++	o := bits.LeadingZeros64(^mask)
++	mask = bits.RotateLeft64(mask, o)
++	z := bits.LeadingZeros64(mask)
++	mask = bits.RotateLeft64(mask, z)
++
++	// check that the normalized mask is contiguous
++	l := bits.LeadingZeros64(^mask)
++	if l+bits.TrailingZeros64(mask) != 64 {
++		return nil
++	}
++
++	// update start and end positions (rotation amount remains the same)
++	r.Start = int8(o+z) & 63
++	r.End = (r.Start + int8(l) - 1) & 63
++	return &r
++}
++
++// InMerge tries to generate a new set of parameters representing
++// the intersection between the selected bits and the provided mask
++// as applied to the source value (i.e. pre-rotation).
++// If the intersection is unrepresentable (0 or not contiguous) nil
++// will be returned.
++func (r RotateParams) InMerge(mask uint64) *RotateParams {
++	return r.OutMerge(bits.RotateLeft64(mask, int(r.Amount)))
++}
+diff --git a/src/cmd/internal/obj/s390x/rotate_test.go b/src/cmd/internal/obj/s390x/rotate_test.go
+new file mode 100644
+index 0000000000..fa5b5bdecd
+--- /dev/null
++++ b/src/cmd/internal/obj/s390x/rotate_test.go
+@@ -0,0 +1,122 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package s390x
++
++import (
++	"testing"
++)
++
++func TestRotateParamsMask(t *testing.T) {
++	tests := []struct {
++		start, end, amount int8
++		inMask, outMask    uint64
++	}{
++		// start before end, no rotation
++		{start: 0, end: 63, amount: 0, inMask: ^uint64(0), outMask: ^uint64(0)},
++		{start: 1, end: 63, amount: 0, inMask: ^uint64(0) >> 1, outMask: ^uint64(0) >> 1},
++		{start: 0, end: 62, amount: 0, inMask: ^uint64(1), outMask: ^uint64(1)},
++		{start: 1, end: 62, amount: 0, inMask: ^uint64(3) >> 1, outMask: ^uint64(3) >> 1},
++
++		// end before start, no rotation
++		{start: 63, end: 0, amount: 0, inMask: 1<<63 | 1, outMask: 1<<63 | 1},
++		{start: 62, end: 0, amount: 0, inMask: 1<<63 | 3, outMask: 1<<63 | 3},
++		{start: 63, end: 1, amount: 0, inMask: 3<<62 | 1, outMask: 3<<62 | 1},
++		{start: 62, end: 1, amount: 0, inMask: 3<<62 | 3, outMask: 3<<62 | 3},
++
++		// rotation
++		{start: 32, end: 63, amount: 32, inMask: 0xffffffff00000000, outMask: 0x00000000ffffffff},
++		{start: 48, end: 15, amount: 16, inMask: 0xffffffff00000000, outMask: 0xffff00000000ffff},
++		{start: 0, end: 7, amount: -8 & 63, inMask: 0xff, outMask: 0xff << 56},
++	}
++	for i, test := range tests {
++		r := NewRotateParams(test.start, test.end, test.amount)
++		if m := r.OutMask(); m != test.outMask {
++			t.Errorf("out mask %v: want %#x, got %#x", i, test.outMask, m)
++		}
++		if m := r.InMask(); m != test.inMask {
++			t.Errorf("in mask %v: want %#x, got %#x", i, test.inMask, m)
++		}
++	}
++}
++
++func TestRotateParamsMerge(t *testing.T) {
++	tests := []struct {
++		// inputs
++		src  RotateParams
++		mask uint64
++
++		// results
++		in  *RotateParams
++		out *RotateParams
++	}{
++		{
++			src:  RotateParams{Start: 48, End: 15, Amount: 16},
++			mask: 0xffffffffffffffff,
++			in:   &RotateParams{Start: 48, End: 15, Amount: 16},
++			out:  &RotateParams{Start: 48, End: 15, Amount: 16},
++		},
++		{
++			src:  RotateParams{Start: 16, End: 47, Amount: 0},
++			mask: 0x00000000ffffffff,
++			in:   &RotateParams{Start: 32, End: 47, Amount: 0},
++			out:  &RotateParams{Start: 32, End: 47, Amount: 0},
++		},
++		{
++			src:  RotateParams{Start: 16, End: 47, Amount: 0},
++			mask: 0xffff00000000ffff,
++			in:   nil,
++			out:  nil,
++		},
++		{
++			src:  RotateParams{Start: 0, End: 63, Amount: 0},
++			mask: 0xf7f0000000000000,
++			in:   nil,
++			out:  nil,
++		},
++		{
++			src:  RotateParams{Start: 0, End: 63, Amount: 1},
++			mask: 0x000000000000ff00,
++			in:   &RotateParams{Start: 47, End: 54, Amount: 1},
++			out:  &RotateParams{Start: 48, End: 55, Amount: 1},
++		},
++		{
++			src:  RotateParams{Start: 32, End: 63, Amount: 32},
++			mask: 0xffff00000000ffff,
++			in:   &RotateParams{Start: 32, End: 47, Amount: 32},
++			out:  &RotateParams{Start: 48, End: 63, Amount: 32},
++		},
++		{
++			src:  RotateParams{Start: 0, End: 31, Amount: 32},
++			mask: 0x8000000000000000,
++			in:   nil,
++			out:  &RotateParams{Start: 0, End: 0, Amount: 32},
++		},
++		{
++			src:  RotateParams{Start: 0, End: 31, Amount: 32},
++			mask: 0x0000000080000000,
++			in:   &RotateParams{Start: 0, End: 0, Amount: 32},
++			out:  nil,
++		},
++	}
++
++	eq := func(x, y *RotateParams) bool {
++		if x == nil && y == nil {
++			return true
++		}
++		if x == nil || y == nil {
++			return false
++		}
++		return *x == *y
++	}
++
++	for _, test := range tests {
++		if r := test.src.InMerge(test.mask); !eq(r, test.in) {
++			t.Errorf("%v merged with %#x (input): want %v, got %v", test.src, test.mask, test.in, r)
++		}
++		if r := test.src.OutMerge(test.mask); !eq(r, test.out) {
++			t.Errorf("%v merged with %#x (output): want %v, got %v", test.src, test.mask, test.out, r)
++		}
++	}
++}
+diff --git a/test/codegen/bitfield.go b/test/codegen/bitfield.go
+index 08788f1447..7abc1c2783 100644
+--- a/test/codegen/bitfield.go
++++ b/test/codegen/bitfield.go
+@@ -127,11 +127,13 @@ func sbfx6(x int32) int32 {
+ // ubfiz
+ func ubfiz1(x uint64) uint64 {
+ 	// arm64:"UBFIZ\t[$]3, R[0-9]+, [$]12",-"LSL",-"AND"
++	// s390x:"RISBGZ\t[$]49, [$]60, [$]3,",-"SLD",-"AND"
+ 	return (x & 0xfff) << 3
+ }
+ 
+ func ubfiz2(x uint64) uint64 {
+ 	// arm64:"UBFIZ\t[$]4, R[0-9]+, [$]12",-"LSL",-"AND"
++	// s390x:"RISBGZ\t[$]48, [$]59, [$]4,",-"SLD",-"AND"
+ 	return (x << 4) & 0xfff0
+ }
+ 
+@@ -149,6 +151,7 @@ func ubfiz5(x uint8) uint64 {
+ 
+ func ubfiz6(x uint64) uint64 {
+ 	// arm64:"UBFIZ\t[$]1, R[0-9]+, [$]60",-"LSL",-"LSR"
++	// s390x:"RISBGZ\t[$]3, [$]62, [$]1, ",-"SLD",-"SRD"
+ 	return (x << 4) >> 3
+ }
+ 
+@@ -159,6 +162,7 @@ func ubfiz7(x uint32) uint32 {
+ 
+ func ubfiz8(x uint64) uint64 {
+ 	// arm64:"UBFIZ\t[$]1, R[0-9]+, [$]20",-"LSL",-"LSR"
++	// s390x:"RISBGZ\t[$]43, [$]62, [$]1, ",-"SLD",-"SRD",-"AND"
+ 	return ((x & 0xfffff) << 4) >> 3
+ }
+ 
+@@ -169,17 +173,20 @@ func ubfiz9(x uint64) uint64 {
+ 
+ func ubfiz10(x uint64) uint64 {
+ 	// arm64:"UBFIZ\t[$]7, R[0-9]+, [$]12",-"LSL",-"LSR",-"AND"
++	// s390x:"RISBGZ\t[$]45, [$]56, [$]7, ",-"SLD",-"SRD",-"AND"
+ 	return ((x << 5) & (0xfff << 5)) << 2
+ }
+ 
+ // ubfx
+ func ubfx1(x uint64) uint64 {
+ 	// arm64:"UBFX\t[$]25, R[0-9]+, [$]10",-"LSR",-"AND"
++	// s390x:"RISBGZ\t[$]54, [$]63, [$]39, ",-"SRD",-"AND"
+ 	return (x >> 25) & 1023
+ }
+ 
+ func ubfx2(x uint64) uint64 {
+ 	// arm64:"UBFX\t[$]4, R[0-9]+, [$]8",-"LSR",-"AND"
++	// s390x:"RISBGZ\t[$]56, [$]63, [$]60, ",-"SRD",-"AND"
+ 	return (x & 0x0ff0) >> 4
+ }
+ 
+@@ -196,30 +203,37 @@ func ubfx5(x uint8) uint64 {
+ }
+ 
+ func ubfx6(x uint64) uint64 {
+-	return (x << 1) >> 2 // arm64:"UBFX\t[$]1, R[0-9]+, [$]62",-"LSL",-"LSR"
++	// arm64:"UBFX\t[$]1, R[0-9]+, [$]62",-"LSL",-"LSR"
++	// s390x:"RISBGZ\t[$]2, [$]63, [$]63,",-"SLD",-"SRD"
++	return (x << 1) >> 2
+ }
+ 
+ func ubfx7(x uint32) uint32 {
+-	return (x << 1) >> 2 // arm64:"UBFX\t[$]1, R[0-9]+, [$]30",-"LSL",-"LSR"
++	// arm64:"UBFX\t[$]1, R[0-9]+, [$]30",-"LSL",-"LSR"
++	return (x << 1) >> 2
+ }
+ 
+ func ubfx8(x uint64) uint64 {
+ 	// arm64:"UBFX\t[$]1, R[0-9]+, [$]12",-"LSL",-"LSR",-"AND"
++	// s390x:"RISBGZ\t[$]52, [$]63, [$]63,",-"SLD",-"SRD",-"AND"
+ 	return ((x << 1) >> 2) & 0xfff
+ }
+ 
+ func ubfx9(x uint64) uint64 {
+ 	// arm64:"UBFX\t[$]4, R[0-9]+, [$]11",-"LSL",-"LSR",-"AND"
++	// s390x:"RISBGZ\t[$]53, [$]63, [$]60, ",-"SLD",-"SRD",-"AND"
+ 	return ((x >> 3) & 0xfff) >> 1
+ }
+ 
+ func ubfx10(x uint64) uint64 {
+ 	// arm64:"UBFX\t[$]5, R[0-9]+, [$]56",-"LSL",-"LSR"
++	// s390x:"RISBGZ\t[$]8, [$]63, [$]59, ",-"SLD",-"SRD"
+ 	return ((x >> 2) << 5) >> 8
+ }
+ 
+ func ubfx11(x uint64) uint64 {
+ 	// arm64:"UBFX\t[$]1, R[0-9]+, [$]19",-"LSL",-"LSR"
++	// s390x:"RISBGZ\t[$]45, [$]63, [$]63, ",-"SLD",-"SRD",-"AND"
+ 	return ((x & 0xfffff) << 3) >> 4
+ }
+ 
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 398dd84e9e..56e0f3474e 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -340,3 +340,15 @@ func bitSetTest(x int) bool {
+ 	// amd64:"CMPQ\tAX, [$]9"
+ 	return x&9 == 9
+ }
++
++// mask contiguous one bits
++func cont1Mask64U(x uint64) uint64 {
++	// s390x:"RISBGZ\t[$]16, [$]47, [$]0,"
++	return x&0x0000ffffffff0000
++}
++
++// mask contiguous zero bits
++func cont0Mask64U(x uint64) uint64 {
++	// s390x:"RISBGZ\t[$]48, [$]15, [$]0,"
++	return x&0xffff00000000ffff
++}
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 4c35f26997..fff6639546 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -213,7 +213,7 @@ func RotateLeft64(n uint64) uint64 {
+ 	// arm64:"ROR"
+ 	// ppc64:"ROTL"
+ 	// ppc64le:"ROTL"
+-	// s390x:"RLLG"
++	// s390x:"RISBGZ\t[$]0, [$]63, [$]37, "
+ 	// wasm:"I64Rotl"
+ 	return bits.RotateLeft64(n, 37)
+ }
+diff --git a/test/codegen/rotate.go b/test/codegen/rotate.go
+index 0c8b030970..e0bcd0abbc 100644
+--- a/test/codegen/rotate.go
++++ b/test/codegen/rotate.go
+@@ -17,21 +17,21 @@ func rot64(x uint64) uint64 {
+ 
+ 	// amd64:"ROLQ\t[$]7"
+ 	// arm64:"ROR\t[$]57"
+-	// s390x:"RLLG\t[$]7"
++	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
+ 	// ppc64:"ROTL\t[$]7"
+ 	// ppc64le:"ROTL\t[$]7"
+ 	a += x<<7 | x>>57
+ 
+ 	// amd64:"ROLQ\t[$]8"
+ 	// arm64:"ROR\t[$]56"
+-	// s390x:"RLLG\t[$]8"
++	// s390x:"RISBGZ\t[$]0, [$]63, [$]8, "
+ 	// ppc64:"ROTL\t[$]8"
+ 	// ppc64le:"ROTL\t[$]8"
+ 	a += x<<8 + x>>56
+ 
+ 	// amd64:"ROLQ\t[$]9"
+ 	// arm64:"ROR\t[$]55"
+-	// s390x:"RLLG\t[$]9"
++	// s390x:"RISBGZ\t[$]0, [$]63, [$]9, "
+ 	// ppc64:"ROTL\t[$]9"
+ 	// ppc64le:"ROTL\t[$]9"
+ 	a += x<<9 ^ x>>55
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index a45f27c9cf..d19a1984c1 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -11,84 +11,84 @@ package codegen
+ // ------------------ //
+ 
+ func lshMask64x64(v int64, s uint64) int64 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+ 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+ 	return v << (s & 63)
+ }
+ 
+ func rshMask64Ux64(v uint64, s uint64) uint64 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+ 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+ 	return v >> (s & 63)
+ }
+ 
+ func rshMask64x64(v int64, s uint64) int64 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ANDCC",-ORN",-"ISEL"
+ 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+ 	return v >> (s & 63)
+ }
+ 
+ func lshMask32x64(v int32, s uint64) int32 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ISEL",-"ORN"
+ 	// ppc64:"ISEL",-"ORN"
+ 	return v << (s & 63)
+ }
+ 
+ func rshMask32Ux64(v uint32, s uint64) uint32 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ISEL",-"ORN"
+ 	// ppc64:"ISEL",-"ORN"
+ 	return v >> (s & 63)
+ }
+ 
+ func rshMask32x64(v int32, s uint64) int32 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ISEL",-"ORN"
+ 	// ppc64:"ISEL",-"ORN"
+ 	return v >> (s & 63)
+ }
+ 
+ func lshMask64x32(v int64, s uint32) int64 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ANDCC",-"ORN"
+ 	// ppc64:"ANDCC",-"ORN"
+ 	return v << (s & 63)
+ }
+ 
+ func rshMask64Ux32(v uint64, s uint32) uint64 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ANDCC",-"ORN"
+ 	// ppc64:"ANDCC",-"ORN"
+ 	return v >> (s & 63)
+ }
+ 
+ func rshMask64x32(v int64, s uint32) int64 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+ 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+ 	return v >> (s & 63)
+ }
+ 
+ func lshMask64x32Ext(v int64, s int32) int64 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+ 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+ 	return v << uint(s&63)
+ }
+ 
+ func rshMask64Ux32Ext(v uint64, s int32) uint64 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+ 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+ 	return v >> uint(s&63)
+ }
+ 
+ func rshMask64x32Ext(v int64, s int32) int64 {
+-	// s390x:-".*AND",-".*MOVDGE"
++	// s390x:-"RISBGZ",-"AND",-"LOCGR"
+ 	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+ 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+ 	return v >> uint(s&63)
+@@ -128,7 +128,8 @@ func lshSignedMasked(v8 int8, v16 int16, v32 int32, v64 int64, x int) {
+ 
+ func rshGuarded64(v int64, s uint) int64 {
+ 	if s < 64 {
+-		// s390x:-".*AND",-".*MOVDGE" wasm:-"Select",-".*LtU"
++		// s390x:-"RISBGZ",-"AND",-"LOCGR"
++		// wasm:-"Select",-".*LtU"
+ 		return v >> s
+ 	}
+ 	panic("shift too large")
+@@ -136,7 +137,8 @@ func rshGuarded64(v int64, s uint) int64 {
+ 
+ func rshGuarded64U(v uint64, s uint) uint64 {
+ 	if s < 64 {
+-		// s390x:-".*AND",-".*MOVDGE" wasm:-"Select",-".*LtU"
++		// s390x:-"RISBGZ",-"AND",-"LOCGR"
++		// wasm:-"Select",-".*LtU"
+ 		return v >> s
+ 	}
+ 	panic("shift too large")
+@@ -144,7 +146,8 @@ func rshGuarded64U(v uint64, s uint) uint64 {
+ 
+ func lshGuarded64(v int64, s uint) int64 {
+ 	if s < 64 {
+-		// s390x:-".*AND",-".*MOVDGE" wasm:-"Select",-".*LtU"
++		// s390x:-"RISBGZ",-"AND",-"LOCGR"
++		// wasm:-"Select",-".*LtU"
+ 		return v << s
+ 	}
+ 	panic("shift too large")

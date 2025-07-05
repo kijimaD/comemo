@@ -11,6 +11,20 @@ Date:   Thu Jan 30 11:34:24 2020 -0800
     Change-Id: I693a9eb05c6f1f42721a92fda46a4f3449defa24
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index b62fb9e161..790a8de447 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -499,7 +499,7 @@ TODO
+ <dl id="math/big"><dt><a href="/pkg/math/big">math/big</a></dt>
+   <dd>
+     <p><!-- CL 164972 -->
+-      The <a href="/pkg/math/big#GCD"><code>GCD</code></a> function
++      The <a href="/pkg/math/big/#GCD"><code>GCD</code></a> function
+       now allows the inputs <code>a</code> and <code>b</code> to be
+       zero or negative.
+     </p>

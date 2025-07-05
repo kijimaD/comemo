@@ -12,7 +12,37 @@ Date:   Sat Jul 27 09:15:31 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/textproto/reader.go    | 4 ++--
  src/net/textproto/textproto.go | 3 +++
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index f98e05bd1d..d375340121 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -642,8 +642,8 @@ func (r *Reader) upcomingHeaderKeys() (n int) {
+ // the rest are converted to lowercase. For example, the
+ // canonical key for "accept-encoding" is "Accept-Encoding".
+ // MIME header keys are assumed to be ASCII only.
+-// If s contains a space or invalid header field bytes, it is
+-// returned without modifications.
++// If s contains a space or invalid header field bytes as
++// defined by RFC 9112, it is returned without modifications.
+ func CanonicalMIMEHeaderKey(s string) string {
+ 	// Quick check for canonical encoding.
+ 	upper := true
+diff --git a/src/net/textproto/textproto.go b/src/net/textproto/textproto.go
+index 4ae3ecff74..00dc8cbee5 100644
+--- a/src/net/textproto/textproto.go
++++ b/src/net/textproto/textproto.go
+@@ -5,6 +5,9 @@
+ // Package textproto implements generic support for text-based request/response
+ // protocols in the style of HTTP, NNTP, and SMTP.
+ //
++// This package enforces the HTTP/1.1 character set defined by
++// RFC 9112 for header keys and values.
++//
+ // The package provides:
+ //
+ // [Error], which represents a numeric error response from

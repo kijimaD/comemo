@@ -30,6 +30,53 @@ Date:   Thu Jun 11 13:56:28 2015 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/popt.go | 21 ++++++++++++++++++++-
  1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+index 4d71ab643d..b708222845 100644
+--- a/src/cmd/compile/internal/gc/popt.go
++++ b/src/cmd/compile/internal/gc/popt.go
+@@ -241,6 +241,19 @@ var flowmark int
+ // will not have flow graphs and consequently will not be optimized.
+ const MaxFlowProg = 50000
+ 
++var ffcache []Flow // reusable []Flow, to reduce allocation
++
++func growffcache(n int) {
++	if n > cap(ffcache) {
++		n = (n * 5) / 4
++		if n > MaxFlowProg {
++			n = MaxFlowProg
++		}
++		ffcache = make([]Flow, n)
++	}
++	ffcache = ffcache[:n]
++}
++
+ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+ 	// Count and mark instructions to annotate.
+ 	nf := 0
+@@ -268,7 +281,9 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+ 
+ 	// Allocate annotations and assign to instructions.
+ 	graph := new(Graph)
+-	ff := make([]Flow, nf)
++
++	growffcache(nf)
++	ff := ffcache
+ 	start := &ff[0]
+ 	id := 0
+ 	var last *Flow
+@@ -331,6 +346,10 @@ func Flowend(graph *Graph) {
+ 		f.Prog.Info.Flags = 0 // drop cached proginfo
+ 		f.Prog.Opt = nil
+ 	}
++	clear := ffcache[:graph.Num]
++	for i := range clear {
++		clear[i] = Flow{}
++	}
+ }
+ 
+ // find looping structure

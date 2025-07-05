@@ -9,6 +9,59 @@ Date:   Thu Apr 5 11:39:12 2012 +1000
     R=adg, dsymonds
     CC=golang-dev
     https://golang.org/cl/5969071
-
+---
  misc/dist/bindist.go | 16 ++++++++++------
  1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index b533956279..77b7218ba0 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -574,9 +574,6 @@ func makeTar(targ, workdir string) error {
+ 		if *verbose {
+ 			log.Printf("adding to tar: %s", name)
+ 		}
+-		if fi.IsDir() {
+-			return nil
+-		}
+ 		hdr, err := tarFileInfoHeader(fi, path)
+ 		if err != nil {
+ 			return err
+@@ -598,6 +595,9 @@ func makeTar(targ, workdir string) error {
+ 		if err != nil {
+ 			return fmt.Errorf("Error writing file %q: %v", name, err)
+ 		}
++		if fi.IsDir() {
++			return nil
++		}
+ 		r, err := os.Open(path)
+ 		if err != nil {
+ 			return err
+@@ -626,9 +626,6 @@ func makeZip(targ, workdir string) error {
+ 	zw := zip.NewWriter(f)
+ 
+ 	err = filepath.Walk(workdir, func(path string, fi os.FileInfo, err error) error {
+-		if fi.IsDir() {
+-			return nil
+-		}
+ 		if !strings.HasPrefix(path, workdir) {
+ 			log.Panicf("walked filename %q doesn't begin with workdir %q", path, workdir)
+ 		}
+@@ -655,10 +652,17 @@ func makeZip(targ, workdir string) error {
+ 		}
+ 		fh.Name = name
+ 		fh.Method = zip.Deflate
++		if fi.IsDir() {
++			fh.Name += "/"        // append trailing slash
++			fh.Method = zip.Store // no need to deflate 0 byte files
++		}
+ 		w, err := zw.CreateHeader(fh)
+ 		if err != nil {
+ 			return err
+ 		}
++		if fi.IsDir() {
++			return nil
++		}
+ 		r, err := os.Open(path)
+ 		if err != nil {
+ 			return err

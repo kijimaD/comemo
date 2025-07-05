@@ -13,6 +13,20 @@ Date:   Thu May 9 15:28:23 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 453b37285f..62f9693210 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -113,6 +113,8 @@ var ignoreSuffixes = []string{
+ 	// with PGO. And as it is not a text file the import path
+ 	// rewrite will break it.
+ 	".pgo",
++	// Skip editor backup files.
++	"~",
+ }
+ 
+ var tryDirs = []string{

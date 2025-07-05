@@ -7,6 +7,20 @@ Date:   Wed Jul 3 08:16:08 2013 +1000
     R=gri, r
     CC=golang-dev
     https://golang.org/cl/10679047
-
+---
  src/pkg/go/ast/ast.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index c68f94d17b..efa0f04936 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -920,7 +920,7 @@ type (
+ 		Doc  *CommentGroup // associated documentation; or nil
+ 		Recv *FieldList    // receiver (methods); or nil (functions)
+ 		Name *Ident        // function/method name
+-		Type *FuncType     // position of Func keyword, parameters and results
++		Type *FuncType     // function signature: parameters, results, and position of "func" keyword
+ 		Body *BlockStmt    // function body; or nil (forward declaration)
+ 	}
+ )

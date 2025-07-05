@@ -14,7 +14,72 @@ Date:   Thu Nov 3 14:13:39 2011 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5318072
-
+---
  src/pkg/websocket/server.go         |  6 ++++++
  src/pkg/websocket/websocket_test.go | 19 +++++++++----------
  2 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 9420c47191..8f16517c03 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -20,6 +20,7 @@ func newServerConn(rwc io.ReadWriteCloser, buf *bufio.ReadWriter, req *http.Requ
+ 		fmt.Fprintf(buf, "Sec-WebSocket-Version: %s\r\n", SupportedProtocolVersion)
+ 		buf.WriteString("\r\n")
+ 		buf.WriteString(err.Error())
++		buf.Flush()
+ 		return
+ 	}
+ 	if err != nil {
+@@ -34,12 +35,17 @@ func newServerConn(rwc io.ReadWriteCloser, buf *bufio.ReadWriter, req *http.Requ
+ 		fmt.Fprintf(buf, "HTTP/1.1 %03d %s\r\n", code, http.StatusText(code))
+ 		buf.WriteString("\r\n")
+ 		buf.WriteString(err.Error())
++		buf.Flush()
+ 		return
+ 	}
+ 	config.Protocol = nil
+ 
+ 	err = hs.AcceptHandshake(buf.Writer)
+ 	if err != nil {
++		code = http.StatusBadRequest
++		fmt.Fprintf(buf, "HTTP/1.1 %03d %s\r\n", code, http.StatusText(code))
++		buf.WriteString("\r\n")
++		buf.Flush()
+ 		return
+ 	}
+ 	conn = hs.NewServerConn(buf, rwc, req)
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 69b5335cfa..25fe264673 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -200,20 +200,19 @@ func TestHTTP(t *testing.T) {
+ 	once.Do(startServer)
+ 
+ 	// If the client did not send a handshake that matches the protocol
+-	// specification, the server should abort the WebSocket connection.
+-	_, err := http.Get(fmt.Sprintf("http://%s/echo", serverAddr))
+-	if err == nil {
+-		t.Error("Get: unexpected success")
++	// specification, the server MUST return an HTTP respose with an
++	// appropriate error code (such as 400 Bad Request)
++	resp, err := http.Get(fmt.Sprintf("http://%s/echo", serverAddr))
++	if err != nil {
++		t.Errorf("Get: error %#v", err)
+ 		return
+ 	}
+-	urlerr, ok := err.(*url.Error)
+-	if !ok {
+-		t.Errorf("Get: not url.Error %#v", err)
++	if resp == nil {
++		t.Error("Get: resp is null")
+ 		return
+ 	}
+-	if urlerr.Err != io.ErrUnexpectedEOF {
+-		t.Errorf("Get: error %#v", err)
+-		return
++	if resp.StatusCode != http.StatusBadRequest {
++		t.Errorf("Get: expected %q got %q", http.StatusBadRequest, resp.StatusCode)
+ 	}
+ }
+ 

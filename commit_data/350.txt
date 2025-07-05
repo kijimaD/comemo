@@ -5,6 +5,40 @@ Date:   Mon Jul 14 16:26:41 2008 -0700
     - filed 6g crash bug
     
     SVN=127093
-
+---
  test/bugs/bug066.go | 27 +++++++++++++++++++++++++++
  1 file changed, 27 insertions(+)
+
+diff --git a/test/bugs/bug066.go b/test/bugs/bug066.go
+new file mode 100644
+index 0000000000..792e265f60
+--- /dev/null
++++ b/test/bugs/bug066.go
+@@ -0,0 +1,27 @@
++// $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++
++type Scope struct {
++	entries *map[string] *Object;
++}
++
++
++type Type struct {
++	scope *Scope;
++}
++
++
++type Object struct {
++	typ *Type;
++}
++
++
++func Lookup(scope *Scope) *Object {
++	return scope.entries["foo"];
++}

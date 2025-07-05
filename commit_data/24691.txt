@@ -9,6 +9,20 @@ Date:   Sun Aug 23 19:51:24 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/internal/gcimporter/exportdata.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gcimporter/exportdata.go b/src/go/internal/gcimporter/exportdata.go
+index 657742bb6d..047203fe3b 100644
+--- a/src/go/internal/gcimporter/exportdata.go
++++ b/src/go/internal/gcimporter/exportdata.go
+@@ -71,7 +71,7 @@ func FindExportData(r *bufio.Reader) (err error) {
+ 				size -= n
+ 			}
+ 
+-			if name, size, err = readGopackHeader(r); err != nil {
++			if name, _, err = readGopackHeader(r); err != nil {
+ 				return
+ 			}
+ 		}

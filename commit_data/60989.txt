@@ -14,6 +14,23 @@ Date:   Sun Sep 15 15:21:43 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/os_test.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 6a92132845..ad024b6fd0 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2639,11 +2639,6 @@ func TestPipeThreads(t *testing.T) {
+ 
+ 	threads := 100
+ 
+-	// OpenBSD has a low default for max number of files.
+-	if runtime.GOOS == "openbsd" {
+-		threads = 50
+-	}
+-
+ 	r := make([]*File, threads)
+ 	w := make([]*File, threads)
+ 	for i := 0; i < threads; i++ {

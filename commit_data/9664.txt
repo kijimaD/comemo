@@ -9,9 +9,111 @@ Date:   Tue Sep 13 13:05:33 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4996048
-
+---
  src/pkg/net/lookup_plan9.go   |  5 +++++
  src/pkg/net/lookup_test.go    | 18 ++++++++++++++++++
  src/pkg/net/lookup_unix.go    | 21 +++++++++++++++++----
  src/pkg/net/lookup_windows.go |  4 ++++
  4 files changed, 44 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/lookup_plan9.go b/src/pkg/net/lookup_plan9.go
+index 37d6b8e315..ee0c9e879e 100644
+--- a/src/pkg/net/lookup_plan9.go
++++ b/src/pkg/net/lookup_plan9.go
+@@ -204,6 +204,11 @@ func LookupMX(name string) (mx []*MX, err os.Error) {
+ 	return
+ }
+ 
++// LookupTXT returns the DNS TXT records for the given domain name.
++func LookupTXT(name string) (txt []string, err os.Error) {
++	return nil, os.NewError("net.LookupTXT is not implemented on Plan 9")
++}
++
+ // LookupAddr performs a reverse lookup for the given address, returning a list
+ // of names mapping to that address.
+ func LookupAddr(addr string) (name []string, err os.Error) {
+diff --git a/src/pkg/net/lookup_test.go b/src/pkg/net/lookup_test.go
+index 995ab03d09..41066fe480 100644
+--- a/src/pkg/net/lookup_test.go
++++ b/src/pkg/net/lookup_test.go
+@@ -42,6 +42,24 @@ func TestGmailMX(t *testing.T) {
+ 	}
+ }
+ 
++func TestGmailTXT(t *testing.T) {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++		t.Logf("LookupTXT is not implemented on Windows or Plan 9")
++		return
++	}
++	if testing.Short() || avoidMacFirewall {
++		t.Logf("skipping test to avoid external network")
++		return
++	}
++	txt, err := LookupTXT("gmail.com")
++	if err != nil {
++		t.Errorf("failed: %s", err)
++	}
++	if len(txt) == 0 || len(txt[0]) == 0 {
++		t.Errorf("no results")
++	}
++}
++
+ func TestGoogleDNSAddr(t *testing.T) {
+ 	if testing.Short() || avoidMacFirewall {
+ 		t.Logf("skipping test to avoid external network")
+diff --git a/src/pkg/net/lookup_unix.go b/src/pkg/net/lookup_unix.go
+index 8f5e66212b..309f14ec30 100644
+--- a/src/pkg/net/lookup_unix.go
++++ b/src/pkg/net/lookup_unix.go
+@@ -72,19 +72,32 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
+ 
+ // LookupMX returns the DNS MX records for the given domain name sorted by preference.
+ func LookupMX(name string) (mx []*MX, err os.Error) {
+-	_, rr, err := lookup(name, dnsTypeMX)
++	_, records, err := lookup(name, dnsTypeMX)
+ 	if err != nil {
+ 		return
+ 	}
+-	mx = make([]*MX, len(rr))
+-	for i := range rr {
+-		r := rr[i].(*dnsRR_MX)
++	mx = make([]*MX, len(records))
++	for i, rr := range records {
++		r := rr.(*dnsRR_MX)
+ 		mx[i] = &MX{r.Mx, r.Pref}
+ 	}
+ 	byPref(mx).sort()
+ 	return
+ }
+ 
++// LookupTXT returns the DNS TXT records for the given domain name.
++func LookupTXT(name string) (txt []string, err os.Error) {
++	_, records, err := lookup(name, dnsTypeTXT)
++	if err != nil {
++		return
++	}
++	txt = make([]string, len(records))
++	for i, r := range records {
++		txt[i] = r.(*dnsRR_TXT).Txt
++	}
++	return
++}
++
+ // LookupAddr performs a reverse lookup for the given address, returning a list
+ // of names mapping to that address.
+ func LookupAddr(addr string) (name []string, err os.Error) {
+diff --git a/src/pkg/net/lookup_windows.go b/src/pkg/net/lookup_windows.go
+index fa3ad7c7f4..b33c7f949e 100644
+--- a/src/pkg/net/lookup_windows.go
++++ b/src/pkg/net/lookup_windows.go
+@@ -110,6 +110,10 @@ func LookupMX(name string) (mx []*MX, err os.Error) {
+ 	return mx, nil
+ }
+ 
++func LookupTXT(name string) (txt []string, err os.Error) {
++	return nil, os.NewError("net.LookupTXT is not implemented on Windows")
++}
++
+ func LookupAddr(addr string) (name []string, err os.Error) {
+ 	arpa, err := reverseaddr(addr)
+ 	if err != nil {

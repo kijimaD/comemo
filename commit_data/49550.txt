@@ -17,7 +17,40 @@ Date:   Thu Aug 26 20:26:32 2021 -0700
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/encoding/gob/decode.go      | 2 +-
  src/encoding/gob/timing_test.go | 8 ++++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index d2f6c749b1..4ef9ef7243 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -376,7 +376,7 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
+ 	if value.Cap() < n {
+ 		value.Set(reflect.MakeSlice(value.Type(), n, n))
+ 	} else {
+-		value.Set(value.Slice(0, n))
++		value.SetLen(n)
+ 	}
+ 	if _, err := state.b.Read(value.Bytes()); err != nil {
+ 		errorf("error decoding []byte: %s", err)
+diff --git a/src/encoding/gob/timing_test.go b/src/encoding/gob/timing_test.go
+index 3478bd247e..ceb21c4107 100644
+--- a/src/encoding/gob/timing_test.go
++++ b/src/encoding/gob/timing_test.go
+@@ -280,6 +280,14 @@ func BenchmarkDecodeStringSlice(b *testing.B) {
+ 	benchmarkDecodeSlice(b, a)
+ }
+ 
++func BenchmarkDecodeBytesSlice(b *testing.B) {
++	a := make([][]byte, 1000)
++	for i := range a {
++		a[i] = []byte("now is the time")
++	}
++	benchmarkDecodeSlice(b, a)
++}
++
+ func BenchmarkDecodeInterfaceSlice(b *testing.B) {
+ 	a := make([]interface{}, 1000)
+ 	for i := range a {

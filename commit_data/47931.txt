@@ -18,6 +18,22 @@ Date:   Tue Feb 16 16:47:34 2021 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/proc.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 3ee5805aef..f479967d41 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3136,7 +3136,9 @@ top:
+ 	}
+ 	if gp == nil && gcBlackenEnabled != 0 {
+ 		gp = gcController.findRunnableGCWorker(_g_.m.p.ptr())
+-		tryWakeP = tryWakeP || gp != nil
++		if gp != nil {
++			tryWakeP = true
++		}
+ 	}
+ 	if gp == nil {
+ 		// Check the global runnable queue once in a while to ensure fairness.

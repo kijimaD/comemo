@@ -19,7 +19,7 @@ Date:   Mon Aug 2 16:02:45 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go      |  2 +-
  src/cmd/go/internal/modcmd/vendor.go   |  2 +-
  src/cmd/go/internal/modget/get.go      | 14 ++++++++--
@@ -30,3 +30,305 @@ Date:   Mon Aug 2 16:02:45 2021 -0400
  src/cmd/go/internal/modload/modfile.go |  2 +-
  src/cmd/go/internal/modload/vendor.go  |  6 ++---
  9 files changed, 56 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 5c45e34330..d23d539141 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -148,7 +148,7 @@ func ExtraEnvVars() []cfg.EnvVar {
+ 	gomod := ""
+ 	modload.Init()
+ 	if modload.HasModRoot() {
+-		gomod = filepath.Join(modload.ModRoot(), "go.mod")
++		gomod = modload.ModFilePath()
+ 	} else if modload.Enabled() {
+ 		gomod = os.DevNull
+ 	}
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 774fc3052f..a51ac21751 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -74,7 +74,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
+ 
+-	vdir := filepath.Join(modload.ModRoot(), "vendor")
++	vdir := filepath.Join(modload.VendorDir())
+ 	if err := os.RemoveAll(vdir); err != nil {
+ 		base.Fatalf("go mod vendor: %v", err)
+ 	}
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 6eae44f1a4..3d831a14d8 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -724,7 +724,16 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
+ 			// restricted to matching packages in the main module.
+ 			pkgPattern, mainModule := modload.MainModules.DirImportPath(ctx, q.pattern)
+ 			if pkgPattern == "." {
+-				return errSet(fmt.Errorf("%s%s is not within module rooted at %s", q.pattern, absDetail, modload.ModRoot()))
++				modload.MustHaveModRoot()
++				var modRoots []string
++				for _, m := range modload.MainModules.Versions() {
++					modRoots = append(modRoots, modload.MainModules.ModRoot(m))
++				}
++				var plural string
++				if len(modRoots) != 1 {
++					plural = "s"
++				}
++				return errSet(fmt.Errorf("%s%s is not within module%s rooted at %s", q.pattern, absDetail, plural, strings.Join(modRoots, ", ")))
+ 			}
+ 
+ 			match := modload.MatchInModule(ctx, pkgPattern, mainModule, imports.AnyTags())
+@@ -737,7 +746,8 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
+ 					return errSet(fmt.Errorf("no package in current directory"))
+ 				}
+ 				if !q.isWildcard() {
+-					return errSet(fmt.Errorf("%s%s is not a package in module rooted at %s", q.pattern, absDetail, modload.ModRoot()))
++					modload.MustHaveModRoot()
++					return errSet(fmt.Errorf("%s%s is not a package in module rooted at %s", q.pattern, absDetail, modload.MainModules.ModRoot(mainModule)))
+ 				}
+ 				search.WarnUnmatched([]*search.Match{match})
+ 				return pathSet{}
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 2973586479..3f2160d52d 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -323,7 +323,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 		if filepath.IsAbs(r.Path) {
+ 			info.Replace.Dir = r.Path
+ 		} else {
+-			info.Replace.Dir = filepath.Join(ModRoot(), r.Path)
++			info.Replace.Dir = filepath.Join(replacedFrom, r.Path)
+ 		}
+ 		info.Replace.GoMod = filepath.Join(info.Replace.Dir, "go.mod")
+ 	}
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 5741299281..de47974b9b 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -294,7 +294,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 		if mainErr != nil {
+ 			return module.Version{}, "", mainErr
+ 		}
+-		readVendorList()
++		readVendorList(mainModule)
+ 		return vendorPkgModule[path], vendorDir, nil
+ 	}
+ 
+@@ -653,11 +653,11 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
+ 	if modRoot := MainModules.ModRoot(mod); modRoot != "" {
+ 		return modRoot, true, nil
+ 	}
+-	if r, _ := Replacement(mod); r.Path != "" {
++	if r, replacedFrom := Replacement(mod); r.Path != "" {
+ 		if r.Version == "" {
+ 			dir = r.Path
+ 			if !filepath.IsAbs(dir) {
+-				dir = filepath.Join(ModRoot(), dir)
++				dir = filepath.Join(replacedFrom, dir)
+ 			}
+ 			// Ensure that the replacement directory actually exists:
+ 			// dirInModule does not report errors for missing modules,
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 5dd946215b..1a91b83148 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -374,7 +374,6 @@ func Init() {
+ 	}
+ 
+ 	if inWorkspaceMode() {
+-
+ 		_ = TODOWorkspaces("go.work.sum, and also allow modfetch to fall back to individual go.sums")
+ 		_ = TODOWorkspaces("replaces")
+ 		var err error
+@@ -403,8 +402,7 @@ func Init() {
+ 		//
+ 		// See golang.org/issue/32027.
+ 	} else {
+-		_ = TODOWorkspaces("Instead of modfile path, find modfile OR workfile path depending on mode")
+-		modfetch.GoSumFile = strings.TrimSuffix(ModFilePath(), ".mod") + ".sum"
++		modfetch.GoSumFile = strings.TrimSuffix(modFilePath(modRoots[0]), ".mod") + ".sum"
+ 	}
+ }
+ 
+@@ -463,21 +461,8 @@ func Enabled() bool {
+ 	return modRoots != nil || cfg.ModulesEnabled
+ }
+ 
+-// ModRoot returns the root of the main module.
+-// It calls base.Fatalf if there is no main module.
+-func ModRoot() string {
+-	if !HasModRoot() {
+-		die()
+-	}
+-	if inWorkspaceMode() {
+-		panic("ModRoot called in workspace mode")
+-	}
+-	// This is similar to MustGetSingleMainModule but we can't call that
+-	// because MainModules may not yet exist when ModRoot is called.
+-	if len(modRoots) != 1 {
+-		panic("not in workspace mode but there are multiple ModRoots")
+-	}
+-	return modRoots[0]
++func VendorDir() string {
++	return filepath.Join(MainModules.ModRoot(MainModules.mustGetSingleMainModule()), "vendor")
+ }
+ 
+ func inWorkspaceMode() bool {
+@@ -495,12 +480,21 @@ func HasModRoot() bool {
+ 	return modRoots != nil
+ }
+ 
+-// ModFilePath returns the effective path of the go.mod file. Normally, this
+-// "go.mod" in the directory returned by ModRoot, but the -modfile flag may
+-// change its location. ModFilePath calls base.Fatalf if there is no main
++// MustHaveModRoot checks that a main module or main modules are present,
++// and calls base.Fatalf if there are no main modules.
++func MustHaveModRoot() {
++	Init()
++	if !HasModRoot() {
++		die()
++	}
++}
++
++// ModFilePath returns the path that would be used for the go.mod
++// file, if in module mode. ModFilePath calls base.Fatalf if there is no main
+ // module, even if -modfile is set.
+ func ModFilePath() string {
+-	return modFilePath(ModRoot())
++	MustHaveModRoot()
++	return modFilePath(findModuleRoot(base.Cwd()))
+ }
+ 
+ func modFilePath(modRoot string) string {
+@@ -674,7 +668,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 	mainModule := MainModules.mustGetSingleMainModule()
+ 
+ 	if cfg.BuildMod == "vendor" {
+-		readVendorList()
++		readVendorList(mainModule)
+ 		index := MainModules.Index(mainModule)
+ 		modFile := MainModules.ModFile(mainModule)
+ 		checkVendorConsistency(index, modFile)
+@@ -719,7 +713,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	modRoot := base.Cwd()
+ 	modRoots = []string{modRoot}
+ 	Init()
+-	modFilePath := ModFilePath()
++	modFilePath := modFilePath(modRoot)
+ 	if _, err := fsys.Stat(modFilePath); err == nil {
+ 		base.Fatalf("go: %s already exists", modFilePath)
+ 	}
+@@ -1344,6 +1338,7 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
+ 		return
+ 	}
+ 	mainModule := MainModules.Versions()[0]
++	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
+ 	modFile := MainModules.ModFile(mainModule)
+ 
+ 	var list []*modfile.Require
+@@ -1383,8 +1378,7 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
+ 		}
+ 		return
+ 	}
+-	gomod := ModFilePath()
+-	if _, ok := fsys.OverlayPath(gomod); ok {
++	if _, ok := fsys.OverlayPath(modFilePath); ok {
+ 		if dirty {
+ 			base.Fatalf("go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay")
+ 		}
+@@ -1422,7 +1416,7 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
+ 
+ 	errNoChange := errors.New("no update needed")
+ 
+-	err = lockedfile.Transform(ModFilePath(), func(old []byte) ([]byte, error) {
++	err = lockedfile.Transform(modFilePath, func(old []byte) ([]byte, error) {
+ 		if bytes.Equal(old, new) {
+ 			// The go.mod file is already equal to new, possibly as the result of some
+ 			// other process.
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index dd69e2afbf..cb5a2d7a35 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -440,7 +440,16 @@ func matchLocalDirs(ctx context.Context, m *search.Match, rs *Requirements) {
+ 		if !filepath.IsAbs(dir) {
+ 			absDir = filepath.Join(base.Cwd(), dir)
+ 		}
+-		if search.InDir(absDir, cfg.GOROOTsrc) == "" && search.InDir(absDir, ModRoot()) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
++
++		modRoot := findModuleRoot(absDir)
++		found := false
++		for _, mod := range MainModules.Versions() {
++			if MainModules.ModRoot(mod) == modRoot {
++				found = true
++				break
++			}
++		}
++		if !found && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
+ 			m.Dirs = []string{}
+ 			m.AddError(fmt.Errorf("directory prefix %s outside available modules", base.ShortPath(absDir)))
+ 			return
+@@ -513,7 +522,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
+ 					return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
+ 				}
+ 
+-				readVendorList()
++				readVendorList(mainModule)
+ 				pkg := strings.TrimPrefix(suffix, "/vendor/")
+ 				if _, ok := vendorPkgModule[pkg]; !ok {
+ 					return "", fmt.Errorf("directory %s is not a package listed in vendor/modules.txt", absDir)
+@@ -582,10 +591,10 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
+ 	tryMod := func(m module.Version) (string, bool) {
+ 		var root string
+ 		var err error
+-		if repl, _ := Replacement(m); repl.Path != "" && repl.Version == "" {
++		if repl, replModRoot := Replacement(m); repl.Path != "" && repl.Version == "" {
+ 			root = repl.Path
+ 			if !filepath.IsAbs(root) {
+-				root = filepath.Join(ModRoot(), root)
++				root = filepath.Join(replModRoot, root)
+ 			}
+ 		} else if repl.Path != "" {
+ 			root, err = modfetch.DownloadDir(repl)
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index bc5c83dffc..664fc0f91b 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -528,7 +528,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 
+ 		// For every module other than the target,
+ 		// return the full list of modules from modules.txt.
+-		readVendorList()
++		readVendorList(MainModules.mustGetSingleMainModule())
+ 
+ 		// We don't know what versions the vendored module actually relies on,
+ 		// so assume that it requires everything.
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index b2da3783ea..daa5888075 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -36,13 +36,13 @@ type vendorMetadata struct {
+ }
+ 
+ // readVendorList reads the list of vendored modules from vendor/modules.txt.
+-func readVendorList() {
++func readVendorList(mainModule module.Version) {
+ 	vendorOnce.Do(func() {
+ 		vendorList = nil
+ 		vendorPkgModule = make(map[string]module.Version)
+ 		vendorVersion = make(map[string]string)
+ 		vendorMeta = make(map[module.Version]vendorMetadata)
+-		data, err := os.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
++		data, err := os.ReadFile(filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt"))
+ 		if err != nil {
+ 			if !errors.Is(err, fs.ErrNotExist) {
+ 				base.Fatalf("go: %s", err)
+@@ -136,7 +136,7 @@ func readVendorList() {
+ // go 1.14) or at least does not contradict (go 1.13 or earlier) the
+ // requirements and replacements listed in the main module's go.mod file.
+ func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
+-	readVendorList()
++	readVendorList(MainModules.mustGetSingleMainModule())
+ 
+ 	pre114 := false
+ 	if semver.Compare(index.goVersionV, "v1.14") < 0 {

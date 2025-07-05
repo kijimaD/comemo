@@ -42,10 +42,434 @@ Date:   Thu Nov 17 16:00:57 2022 -0500
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Caleb Spare <cespare@gmail.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  api/next/56102.txt                        |   3 +
  doc/go1.21.html                           |  12 ++
  src/cmd/compile/internal/test/inl_test.go |   9 +
  src/sync/oncefunc.go                      |  97 +++++++++++
  src/sync/oncefunc_test.go                 | 265 ++++++++++++++++++++++++++++++
  5 files changed, 386 insertions(+)
+
+diff --git a/api/next/56102.txt b/api/next/56102.txt
+new file mode 100644
+index 0000000000..00e7252df8
+--- /dev/null
++++ b/api/next/56102.txt
+@@ -0,0 +1,3 @@
++pkg sync, func OnceFunc(func()) func() #56102
++pkg sync, func OnceValue[$0 interface{}](func() $0) func() $0 #56102
++pkg sync, func OnceValues[$0 interface{}, $1 interface{}](func() ($0, $1)) func() ($0, $1) #56102
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 38678a93c2..911a8ddd19 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -83,3 +83,15 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   TODO: complete this section
+ </p>
++
++<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
++  <dd>
++    <p><!-- https://go.dev/issue/56102, CL 451356 -->
++      The new <a href="/pkg/sync/#OnceFunc"><code>OnceFunc</code></a>,
++      <a href="/pkg/sync/#OnceValue"><code>OnceValue</code></a>, and
++      <a href="/pkg/sync/#OnceValues"><code>OnceValues</code></a>
++      functions capture a common use of <a href="/pkg/sync/#Once">Once</a> to
++      lazily initialize a value on first use.
++    </p>
++  </dd>
++</dl>
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 96dd0bf935..205b746dd8 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -180,6 +180,15 @@ func TestIntendedInlining(t *testing.T) {
+ 		"net": {
+ 			"(*UDPConn).ReadFromUDP",
+ 		},
++		"sync": {
++			// Both OnceFunc and its returned closure need to be inlinable so
++			// that the returned closure can be inlined into the caller of OnceFunc.
++			"OnceFunc",
++			"OnceFunc.func2", // The returned closure.
++			// TODO(austin): It would be good to check OnceValue and OnceValues,
++			// too, but currently they aren't reported because they have type
++			// parameters and aren't instantiated in sync.
++		},
+ 		"sync/atomic": {
+ 			// (*Bool).CompareAndSwap handled below.
+ 			"(*Bool).Load",
+diff --git a/src/sync/oncefunc.go b/src/sync/oncefunc.go
+new file mode 100644
+index 0000000000..9ef8344132
+--- /dev/null
++++ b/src/sync/oncefunc.go
+@@ -0,0 +1,97 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync
++
++// OnceFunc returns a function that invokes f only once. The returned function
++// may be called concurrently.
++//
++// If f panics, the returned function will panic with the same value on every call.
++func OnceFunc(f func()) func() {
++	var (
++		once  Once
++		valid bool
++		p     any
++	)
++	// Construct the inner closure just once to reduce costs on the fast path.
++	g := func() {
++		defer func() {
++			p = recover()
++			if !valid {
++				// Re-panic immediately so on the first call the user gets a
++				// complete stack trace into f.
++				panic(p)
++			}
++		}()
++		f()
++		valid = true // Set only if f does not panic
++	}
++	return func() {
++		once.Do(g)
++		if !valid {
++			panic(p)
++		}
++	}
++}
++
++// OnceValue returns a function that invokes f only once and returns the value
++// returned by f. The returned function may be called concurrently.
++//
++// If f panics, the returned function will panic with the same value on every call.
++func OnceValue[T any](f func() T) func() T {
++	var (
++		once   Once
++		valid  bool
++		p      any
++		result T
++	)
++	g := func() {
++		defer func() {
++			p = recover()
++			if !valid {
++				panic(p)
++			}
++		}()
++		result = f()
++		valid = true
++	}
++	return func() T {
++		once.Do(g)
++		if !valid {
++			panic(p)
++		}
++		return result
++	}
++}
++
++// OnceValues returns a function that invokes f only once and returns the values
++// returned by f. The returned function may be called concurrently.
++//
++// If f panics, the returned function will panic with the same value on every call.
++func OnceValues[T1, T2 any](f func() (T1, T2)) func() (T1, T2) {
++	var (
++		once  Once
++		valid bool
++		p     any
++		r1    T1
++		r2    T2
++	)
++	g := func() {
++		defer func() {
++			p = recover()
++			if !valid {
++				panic(p)
++			}
++		}()
++		r1, r2 = f()
++		valid = true
++	}
++	return func() (T1, T2) {
++		once.Do(g)
++		if !valid {
++			panic(p)
++		}
++		return r1, r2
++	}
++}
+diff --git a/src/sync/oncefunc_test.go b/src/sync/oncefunc_test.go
+new file mode 100644
+index 0000000000..3c523a5b62
+--- /dev/null
++++ b/src/sync/oncefunc_test.go
+@@ -0,0 +1,265 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync_test
++
++import (
++	"bytes"
++	"runtime"
++	"runtime/debug"
++	"sync"
++	"testing"
++)
++
++// We assume that the Once.Do tests have already covered parallelism.
++
++func TestOnceFunc(t *testing.T) {
++	calls := 0
++	f := sync.OnceFunc(func() { calls++ })
++	allocs := testing.AllocsPerRun(10, f)
++	if calls != 1 {
++		t.Errorf("want calls==1, got %d", calls)
++	}
++	if allocs != 0 {
++		t.Errorf("want 0 allocations per call, got %v", allocs)
++	}
++}
++
++func TestOnceValue(t *testing.T) {
++	calls := 0
++	f := sync.OnceValue(func() int {
++		calls++
++		return calls
++	})
++	allocs := testing.AllocsPerRun(10, func() { f() })
++	value := f()
++	if calls != 1 {
++		t.Errorf("want calls==1, got %d", calls)
++	}
++	if value != 1 {
++		t.Errorf("want value==1, got %d", value)
++	}
++	if allocs != 0 {
++		t.Errorf("want 0 allocations per call, got %v", allocs)
++	}
++}
++
++func TestOnceValues(t *testing.T) {
++	calls := 0
++	f := sync.OnceValues(func() (int, int) {
++		calls++
++		return calls, calls + 1
++	})
++	allocs := testing.AllocsPerRun(10, func() { f() })
++	v1, v2 := f()
++	if calls != 1 {
++		t.Errorf("want calls==1, got %d", calls)
++	}
++	if v1 != 1 || v2 != 2 {
++		t.Errorf("want v1==1 and v2==2, got %d and %d", v1, v2)
++	}
++	if allocs != 0 {
++		t.Errorf("want 0 allocations per call, got %v", allocs)
++	}
++}
++
++func testOncePanicX(t *testing.T, calls *int, f func()) {
++	testOncePanicWith(t, calls, f, func(label string, p any) {
++		if p != "x" {
++			t.Fatalf("%s: want panic %v, got %v", label, "x", p)
++		}
++	})
++}
++
++func testOncePanicWith(t *testing.T, calls *int, f func(), check func(label string, p any)) {
++	// Check that the each call to f panics with the same value, but the
++	// underlying function is only called once.
++	for _, label := range []string{"first time", "second time"} {
++		var p any
++		panicked := true
++		func() {
++			defer func() {
++				p = recover()
++			}()
++			f()
++			panicked = false
++		}()
++		if !panicked {
++			t.Fatalf("%s: f did not panic", label)
++		}
++		check(label, p)
++	}
++	if *calls != 1 {
++		t.Errorf("want calls==1, got %d", *calls)
++	}
++}
++
++func TestOnceFuncPanic(t *testing.T) {
++	calls := 0
++	f := sync.OnceFunc(func() {
++		calls++
++		panic("x")
++	})
++	testOncePanicX(t, &calls, f)
++}
++
++func TestOnceValuePanic(t *testing.T) {
++	calls := 0
++	f := sync.OnceValue(func() int {
++		calls++
++		panic("x")
++	})
++	testOncePanicX(t, &calls, func() { f() })
++}
++
++func TestOnceValuesPanic(t *testing.T) {
++	calls := 0
++	f := sync.OnceValues(func() (int, int) {
++		calls++
++		panic("x")
++	})
++	testOncePanicX(t, &calls, func() { f() })
++}
++
++func TestOnceFuncPanicNil(t *testing.T) {
++	calls := 0
++	f := sync.OnceFunc(func() {
++		calls++
++		panic(nil)
++	})
++	testOncePanicWith(t, &calls, f, func(label string, p any) {
++		switch p.(type) {
++		case nil, *runtime.PanicNilError:
++			return
++		}
++		t.Fatalf("%s: want nil panic, got %v", label, p)
++	})
++}
++
++func TestOnceFuncGoexit(t *testing.T) {
++	// If f calls Goexit, the results are unspecified. But check that f doesn't
++	// get called twice.
++	calls := 0
++	f := sync.OnceFunc(func() {
++		calls++
++		runtime.Goexit()
++	})
++	var wg sync.WaitGroup
++	for i := 0; i < 2; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			defer func() { recover() }()
++			f()
++		}()
++		wg.Wait()
++	}
++	if calls != 1 {
++		t.Errorf("want calls==1, got %d", calls)
++	}
++}
++
++func TestOnceFuncPanicTraceback(t *testing.T) {
++	// Test that on the first invocation of a OnceFunc, the stack trace goes all
++	// the way to the origin of the panic.
++	f := sync.OnceFunc(onceFuncPanic)
++
++	defer func() {
++		if p := recover(); p != "x" {
++			t.Fatalf("want panic %v, got %v", "x", p)
++		}
++		stack := debug.Stack()
++		want := "sync_test.onceFuncPanic"
++		if !bytes.Contains(stack, []byte(want)) {
++			t.Fatalf("want stack containing %v, got:\n%s", want, string(stack))
++		}
++	}()
++	f()
++}
++
++func onceFuncPanic() {
++	panic("x")
++}
++
++var (
++	onceFunc = sync.OnceFunc(func() {})
++
++	onceFuncOnce sync.Once
++)
++
++func doOnceFunc() {
++	onceFuncOnce.Do(func() {})
++}
++
++func BenchmarkOnceFunc(b *testing.B) {
++	b.Run("v=Once", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			// The baseline is direct use of sync.Once.
++			doOnceFunc()
++		}
++	})
++	b.Run("v=Global", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			// As of 3/2023, the compiler doesn't recognize that onceFunc is
++			// never mutated and is a closure that could be inlined.
++			// Too bad, because this is how OnceFunc will usually be used.
++			onceFunc()
++		}
++	})
++	b.Run("v=Local", func(b *testing.B) {
++		b.ReportAllocs()
++		// As of 3/2023, the compiler *does* recognize this local binding as an
++		// inlinable closure. This is the best case for OnceFunc, but probably
++		// not typical usage.
++		f := sync.OnceFunc(func() {})
++		for i := 0; i < b.N; i++ {
++			f()
++		}
++	})
++}
++
++var (
++	onceValue = sync.OnceValue(func() int { return 42 })
++
++	onceValueOnce  sync.Once
++	onceValueValue int
++)
++
++func doOnceValue() int {
++	onceValueOnce.Do(func() {
++		onceValueValue = 42
++	})
++	return onceValueValue
++}
++
++func BenchmarkOnceValue(b *testing.B) {
++	// See BenchmarkOnceFunc
++	b.Run("v=Once", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			if want, got := 42, doOnceValue(); want != got {
++				b.Fatalf("want %d, got %d", want, got)
++			}
++		}
++	})
++	b.Run("v=Global", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			if want, got := 42, onceValue(); want != got {
++				b.Fatalf("want %d, got %d", want, got)
++			}
++		}
++	})
++	b.Run("v=Local", func(b *testing.B) {
++		b.ReportAllocs()
++		onceValue := sync.OnceValue(func() int { return 42 })
++		for i := 0; i < b.N; i++ {
++			if want, got := 42, onceValue(); want != got {
++				b.Fatalf("want %d, got %d", want, got)
++			}
++		}
++	})
++}

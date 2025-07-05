@@ -83,6 +83,28 @@ Date:   Mon Apr 10 21:09:13 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/40291
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Sameer Ajmani <sameer@golang.org>
-
+---
  src/context/context.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index cfd1c09fcc..892ff27c65 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -96,11 +96,11 @@ type Context interface {
+ 	// a Done channel for cancelation.
+ 	Done() <-chan struct{}
+ 
+-	// Err returns a non-nil error value after Done is closed. Err returns
+-	// Canceled if the context was canceled or DeadlineExceeded if the
+-	// context's deadline passed. No other values for Err are defined.
+-	// After Done is closed, successive calls to Err return the same value.
+-	// Err's return value is unspecified before Done is closed.
++	// If Done is not yet closed, Err returns nil.
++	// If Done is closed, Err returns a non-nil error explaining why:
++	// Canceled if the context was canceled
++	// or DeadlineExceeded if the context's deadline passed.
++	// After Err returns a non-nil error, successive calls to Err return the same error.
+ 	Err() error
+ 
+ 	// Value returns the value associated with this context for key, or nil

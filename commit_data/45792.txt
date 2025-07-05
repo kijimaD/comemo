@@ -15,6 +15,31 @@ Date:   Tue Nov 17 16:47:08 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Michael Pratt <mpratt@google.com>
-
+---
  src/sync/rwmutex.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index dc0faf6a60..3012b5548e 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -35,6 +35,19 @@ type RWMutex struct {
+ 
+ const rwmutexMaxReaders = 1 << 30
+ 
++// Happens-before relationships are indicated to the race detector via:
++// - Unlock  -> Lock:  readerSem
++// - Unlock  -> RLock: readerSem
++// - RUnlock -> Lock:  writerSem
++//
++// The methods below temporarily disable handling of race synchronization
++// events in order to provide the more precise model above to the race
++// detector.
++//
++// For example, atomic.AddInt32 in RLock should not appear to provide
++// acquire-release semantics, which would incorrectly synchronize racing
++// readers, thus potentially missing races.
++
+ // RLock locks rw for reading.
+ //
+ // It should not be used for recursive read locking; a blocked Lock

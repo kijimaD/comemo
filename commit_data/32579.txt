@@ -10,6 +10,20 @@ Date:   Wed May 3 14:08:43 2017 +0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/env_posix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index da344257ae..6b45a43f74 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -13,7 +13,7 @@ func gogetenv(key string) string {
+ 	if env == nil {
+ 		throw("getenv before env init")
+ 	}
+-	for _, s := range environ() {
++	for _, s := range env {
+ 		if len(s) > len(key) && s[len(key)] == '=' && s[:len(key)] == key {
+ 			return s[len(key)+1:]
+ 		}

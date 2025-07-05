@@ -11,7 +11,52 @@ Date:   Sun Apr 17 15:33:07 2016 -0700
     Change-Id: I1d67f5c9de38e899ab2d6c8986fabd6f197df23a
     Reviewed-on: https://go-review.googlesource.com/22162
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  7 ++++++-
  test/fixedbugs/issue15311.go             | 20 ++++++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 6067677738..328737ee14 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3099,7 +3099,12 @@ func typecheckcomplit(n *Node) *Node {
+ 				}
+ 
+ 				s := l.Left.Sym
+-				if s == nil {
++
++				// An OXDOT uses the Sym field to hold
++				// the field to the right of the dot,
++				// so s will be non-nil, but an OXDOT
++				// is never a valid struct literal key.
++				if s == nil || l.Left.Op == OXDOT {
+ 					Yyerror("invalid field name %v in struct initializer", l.Left)
+ 					l.Right = typecheck(l.Right, Erv)
+ 					continue
+diff --git a/test/fixedbugs/issue15311.go b/test/fixedbugs/issue15311.go
+new file mode 100644
+index 0000000000..81fa541325
+--- /dev/null
++++ b/test/fixedbugs/issue15311.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The compiler was failing to correctly report an error when a dot
++// expression was used a struct literal key.
++
++package p
++
++type T struct {
++        toInt    map[string]int
++        toString map[int]string
++}
++
++var t = T{
++        foo.toInt:    make(map[string]int), // ERROR "field name"
++        bar.toString: make(map[int]string), // ERROR "field name"
++}

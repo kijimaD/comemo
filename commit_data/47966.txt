@@ -10,6 +10,22 @@ Date:   Mon Apr 19 17:49:30 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/lookup.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index cadaf05ca8..78299502e9 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -206,8 +206,8 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 				}
+ 				if obj == nil {
+ 					// At this point we're not (yet) looking into methods
+-					// that any underlyng type of the types in the type list
+-					// migth have.
++					// that any underlying type of the types in the type list
++					// might have.
+ 					// TODO(gri) Do we want to specify the language that way?
+ 				}
+ 			}

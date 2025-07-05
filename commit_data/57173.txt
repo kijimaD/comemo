@@ -22,10 +22,218 @@ Date:   Fri Jul 7 11:20:16 2023 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/types2/check.go        | 38 +++++++++++++------
  src/cmd/compile/internal/types2/version_test.go | 24 ++++++++++++
  src/go/types/check.go                           | 49 ++++++++++++++-----------
  src/go/types/generate_test.go                   |  1 +
  src/go/types/version_test.go                    |  2 +
  5 files changed, 82 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index b2a9eb0dbc..0a2a49062b 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/constant"
++	"internal/goversion"
+ 	. "internal/types/errors"
+ )
+ 
+@@ -231,19 +232,19 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 		info = new(Info)
+ 	}
+ 
+-	version, err := parseGoVersion(conf.GoVersion)
+-	if err != nil {
+-		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
+-	}
++	// Note: clients may call NewChecker with the Unsafe package, which is
++	// globally shared and must not be mutated. Therefore NewChecker must not
++	// mutate *pkg.
++	//
++	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
+ 
+ 	return &Checker{
+-		conf:    conf,
+-		ctxt:    conf.Context,
+-		pkg:     pkg,
+-		Info:    info,
+-		version: version,
+-		objMap:  make(map[Object]*declInfo),
+-		impMap:  make(map[importKey]*Package),
++		conf:   conf,
++		ctxt:   conf.Context,
++		pkg:    pkg,
++		Info:   info,
++		objMap: make(map[Object]*declInfo),
++		impMap: make(map[importKey]*Package),
+ 	}
+ }
+ 
+@@ -333,6 +334,20 @@ func (check *Checker) Files(files []*syntax.File) error { return check.checkFile
+ var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
+ 
+ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
++	if check.pkg == Unsafe {
++		// Defensive handling for Unsafe, which cannot be type checked, and must
++		// not be mutated. See https://go.dev/issue/61212 for an example of where
++		// Unsafe is passed to NewChecker.
++		return nil
++	}
++
++	check.version, err = parseGoVersion(check.conf.GoVersion)
++	if err != nil {
++		return err
++	}
++	if check.version.after(version{1, goversion.Version}) {
++		return fmt.Errorf("package requires newer Go version %v", check.version)
++	}
+ 	if check.conf.FakeImportC && check.conf.go115UsesCgo {
+ 		return errBadCgo
+ 	}
+@@ -377,6 +392,7 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+ 		check.monomorph()
+ 	}
+ 
++	check.pkg.goVersion = check.conf.GoVersion
+ 	check.pkg.complete = true
+ 
+ 	// no longer needed - release memory
+diff --git a/src/cmd/compile/internal/types2/version_test.go b/src/cmd/compile/internal/types2/version_test.go
+new file mode 100644
+index 0000000000..651758e1b0
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/version_test.go
+@@ -0,0 +1,24 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types2
++
++import "testing"
++
++var parseGoVersionTests = []struct {
++	in  string
++	out version
++}{
++	{"go1.21", version{1, 21}},
++	{"go1.21.0", version{1, 21}},
++	{"go1.21rc2", version{1, 21}},
++}
++
++func TestParseGoVersion(t *testing.T) {
++	for _, tt := range parseGoVersionTests {
++		if out, err := parseGoVersion(tt.in); out != tt.out || err != nil {
++			t.Errorf("parseGoVersion(%q) = %v, %v, want %v, nil", tt.in, out, err, tt.out)
++		}
++	}
++}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 591de5f329..3b0f5e4fdf 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -99,12 +99,11 @@ type Checker struct {
+ 	fset *token.FileSet
+ 	pkg  *Package
+ 	*Info
+-	version    version                // accepted language version
+-	versionErr error                  // version error, delayed from NewChecker
+-	nextID     uint64                 // unique Id for type parameters (first valid Id is 1)
+-	objMap     map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+-	impMap     map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+-	valids     instanceLookup         // valid *Named (incl. instantiated) types per the validType check
++	version version                // accepted language version
++	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
++	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
++	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
++	valids  instanceLookup         // valid *Named (incl. instantiated) types per the validType check
+ 
+ 	// pkgPathMap maps package names to the set of distinct import paths we've
+ 	// seen for that name, anywhere in the import graph. It is used for
+@@ -235,21 +234,20 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		info = new(Info)
+ 	}
+ 
+-	version, versionErr := parseGoVersion(conf.GoVersion)
+-	if pkg != nil {
+-		pkg.goVersion = conf.GoVersion
+-	}
++	// Note: clients may call NewChecker with the Unsafe package, which is
++	// globally shared and must not be mutated. Therefore NewChecker must not
++	// mutate *pkg.
++	//
++	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
+ 
+ 	return &Checker{
+-		conf:       conf,
+-		ctxt:       conf.Context,
+-		fset:       fset,
+-		pkg:        pkg,
+-		Info:       info,
+-		version:    version,
+-		versionErr: versionErr,
+-		objMap:     make(map[Object]*declInfo),
+-		impMap:     make(map[importKey]*Package),
++		conf:   conf,
++		ctxt:   conf.Context,
++		fset:   fset,
++		pkg:    pkg,
++		Info:   info,
++		objMap: make(map[Object]*declInfo),
++		impMap: make(map[importKey]*Package),
+ 	}
+ }
+ 
+@@ -345,8 +343,16 @@ func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(f
+ var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
+ 
+ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+-	if check.versionErr != nil {
+-		return check.versionErr
++	if check.pkg == Unsafe {
++		// Defensive handling for Unsafe, which cannot be type checked, and must
++		// not be mutated. See https://go.dev/issue/61212 for an example of where
++		// Unsafe is passed to NewChecker.
++		return nil
++	}
++
++	check.version, err = parseGoVersion(check.conf.GoVersion)
++	if err != nil {
++		return err
+ 	}
+ 	if check.version.after(version{1, goversion.Version}) {
+ 		return fmt.Errorf("package requires newer Go version %v", check.version)
+@@ -395,6 +401,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 		check.monomorph()
+ 	}
+ 
++	check.pkg.goVersion = check.conf.GoVersion
+ 	check.pkg.complete = true
+ 
+ 	// no longer needed - release memory
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index 05a848be31..75fda025ee 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -141,6 +141,7 @@ var filemap = map[string]action{
+ 	"universe.go":      fixGlobalTypVarDecl,
+ 	"util_test.go":     fixTokenPos,
+ 	"validtype.go":     nil,
++	"version_test.go":  nil,
+ }
+ 
+ // TODO(gri) We should be able to make these rewriters more configurable/composable.
+diff --git a/src/go/types/version_test.go b/src/go/types/version_test.go
+index dc9becf9e1..d25f7f5e67 100644
+--- a/src/go/types/version_test.go
++++ b/src/go/types/version_test.go
+@@ -1,3 +1,5 @@
++// Code generated by "go test -run=Generate -write=all"; DO NOT EDIT.
++
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

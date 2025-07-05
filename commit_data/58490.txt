@@ -13,6 +13,30 @@ Date:   Tue Nov 14 02:52:31 2023 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/iface.go | 12 +++++-------
  1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index d5a181cae1..4563809a9d 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -225,13 +225,11 @@ imethods:
+ 					pkgPath = rtyp.nameOff(x.PkgPath).Name()
+ 				}
+ 				if tname.IsExported() || pkgPath == ipkg {
+-					if m != nil {
+-						ifn := rtyp.textOff(t.Ifn)
+-						if k == 0 {
+-							fun0 = ifn // we'll set m.fun[0] at the end
+-						} else {
+-							methods[k] = ifn
+-						}
++					ifn := rtyp.textOff(t.Ifn)
++					if k == 0 {
++						fun0 = ifn // we'll set m.fun[0] at the end
++					} else {
++						methods[k] = ifn
+ 					}
+ 					continue imethods
+ 				}

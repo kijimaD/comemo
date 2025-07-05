@@ -8,7 +8,14 @@ Date:   Fri Dec 14 13:23:43 2012 +0400
     R=golang-dev, bradfitz, rsc, remyoudompheng, minux.ma
     CC=golang-dev
     https://golang.org/cl/6947046
-
+---
  src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 145460 -> 180892 bytes
  src/pkg/runtime/race/race_windows_amd64.syso | Bin 123196 -> 121144 bytes
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/runtime/race/race_darwin_amd64.syso b/src/pkg/runtime/race/race_darwin_amd64.syso
+index 0caa119303..b147940ebd 100644
+Binary files a/src/pkg/runtime/race/race_darwin_amd64.syso and b/src/pkg/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_windows_amd64.syso b/src/pkg/runtime/race/race_windows_amd64.syso
+index df693d9b7b..4936dc5e18 100644
+Binary files a/src/pkg/runtime/race/race_windows_amd64.syso and b/src/pkg/runtime/race/race_windows_amd64.syso differ

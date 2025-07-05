@@ -14,6 +14,24 @@ Date:   Wed Jul 17 14:03:27 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/11433045
-
+---
  src/pkg/runtime/proc.c | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3ce281fc77..74e92a63fa 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2175,12 +2175,6 @@ preemptone(P *p)
+ 	M *mp;
+ 	G *gp;
+ 
+-// Preemption requires more robust traceback routines.
+-// For now, disable.
+-// The if(1) silences a compiler warning about the rest of the
+-// function being unreachable.
+-if(1) return;
+-
+ 	mp = p->m;
+ 	if(mp == nil || mp == m)
+ 		return;

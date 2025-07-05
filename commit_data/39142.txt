@@ -12,6 +12,20 @@ Date:   Mon Jan 7 13:35:53 2019 -0800
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/module/module.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index 8afd2739b8..481a90b1c4 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -226,7 +226,7 @@ func checkElem(elem string, fileName bool) error {
+ 	}
+ 	for _, bad := range badWindowsNames {
+ 		if strings.EqualFold(bad, short) {
+-			return fmt.Errorf("disallowed path element %q", elem)
++			return fmt.Errorf("%q disallowed as path element component on Windows", short)
+ 		}
+ 	}
+ 	return nil

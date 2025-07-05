@@ -25,7 +25,7 @@ Date:   Fri Mar 15 05:10:08 2019 +0900
     Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/error_test.go |  6 ++++
  src/internal/poll/read_test.go  | 62 +++++++++++++++++++++++++++++++++++++++++
  src/runtime/netpoll_aix.go      |  2 +-
@@ -33,3 +33,148 @@ Date:   Fri Mar 15 05:10:08 2019 +0900
  src/runtime/netpoll_kqueue.go   |  2 +-
  src/runtime/netpoll_solaris.go  |  2 +-
  6 files changed, 72 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/poll/error_test.go b/src/internal/poll/error_test.go
+index 89c6e384c5..06b96f635a 100644
+--- a/src/internal/poll/error_test.go
++++ b/src/internal/poll/error_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"net"
+ 	"os"
+ 	"testing"
++	"time"
+ )
+ 
+ func TestReadError(t *testing.T) {
+@@ -18,6 +19,11 @@ func TestReadError(t *testing.T) {
+ 			t.Skip(err)
+ 		}
+ 		defer f.Close()
++
++		// Give scheduler a chance to have two separated
++		// goroutines: an event poller and an event waiter.
++		time.Sleep(100 * time.Millisecond)
++
+ 		var b [1]byte
+ 		_, err = f.Read(b[:])
+ 		if perr := parseReadError(err, isBadStateFileError); perr != nil {
+diff --git a/src/internal/poll/read_test.go b/src/internal/poll/read_test.go
+new file mode 100644
+index 0000000000..b4f5236d3e
+--- /dev/null
++++ b/src/internal/poll/read_test.go
+@@ -0,0 +1,62 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package poll_test
++
++import (
++	"io/ioutil"
++	"os"
++	"runtime"
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestRead(t *testing.T) {
++	t.Run("SpecialFile", func(t *testing.T) {
++		var wg sync.WaitGroup
++		for _, p := range specialFiles() {
++			for i := 0; i < 4; i++ {
++				wg.Add(1)
++				go func(p string) {
++					defer wg.Done()
++					for i := 0; i < 100; i++ {
++						if _, err := ioutil.ReadFile(p); err != nil {
++							t.Error(err)
++							return
++						}
++						time.Sleep(time.Nanosecond)
++					}
++				}(p)
++			}
++		}
++		wg.Wait()
++	})
++}
++
++func specialFiles() []string {
++	var ps []string
++	switch runtime.GOOS {
++	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
++		ps = []string{
++			"/dev/null",
++		}
++	case "linux":
++		ps = []string{
++			"/dev/null",
++			"/proc/stat",
++			"/sys/devices/system/cpu/online",
++		}
++	}
++	nps := ps[:0]
++	for _, p := range ps {
++		f, err := os.Open(p)
++		if err != nil {
++			continue
++		}
++		f.Close()
++		nps = append(nps, p)
++	}
++	return nps
++}
+diff --git a/src/runtime/netpoll_aix.go b/src/runtime/netpoll_aix.go
+index b4d7de8c2a..0ad8718fe0 100644
+--- a/src/runtime/netpoll_aix.go
++++ b/src/runtime/netpoll_aix.go
+@@ -233,7 +233,7 @@ retry:
+ 				println("*** netpollready i=", i, "revents=", pfd.revents, "events=", pfd.events, "pd=", pds[i])
+ 			}
+ 			pds[i].everr = false
+-			if pfd.revents&_POLLERR != 0 {
++			if pfd.revents == _POLLERR {
+ 				pds[i].everr = true
+ 			}
+ 			netpollready(&toRun, pds[i], mode)
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index 7dc8301acd..8f49309865 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -92,7 +92,7 @@ retry:
+ 		if mode != 0 {
+ 			pd := *(**pollDesc)(unsafe.Pointer(&ev.data))
+ 			pd.everr = false
+-			if ev.events&_EPOLLERR != 0 {
++			if ev.events == _EPOLLERR {
+ 				pd.everr = true
+ 			}
+ 			netpollready(&toRun, pd, mode)
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 1de484978a..a8880e82a5 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -104,7 +104,7 @@ retry:
+ 		if mode != 0 {
+ 			pd := (*pollDesc)(unsafe.Pointer(ev.udata))
+ 			pd.everr = false
+-			if ev.flags&_EV_ERROR != 0 {
++			if ev.flags == _EV_ERROR {
+ 				pd.everr = true
+ 			}
+ 			netpollready(&toRun, pd, mode)
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index 7ae8a2aba1..b4bb40ed9b 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -234,7 +234,7 @@ retry:
+ 
+ 		if mode != 0 {
+ 			pd.everr = false
+-			if ev.portev_events&_POLLERR != 0 {
++			if ev.portev_events == _POLLERR {
+ 				pd.everr = true
+ 			}
+ 			netpollready(&toRun, pd, mode)

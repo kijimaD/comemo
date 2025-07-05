@@ -183,3 +183,36 @@ Date:   Tue Jun 14 07:33:48 2016 -0700
  test/switch5.go                                    |   81 +
  test/switch6.go                                    |   32 +
  175 files changed, 12302 insertions(+), 2798 deletions(-)
+
+diff --cc src/cmd/compile/internal/gc/ssa.go
+index 3bf60ef778,c0e6045216..f479900939
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@@ -2579,8 -2573,11 +2589,11 @@@ func (s *state) call(n *Node, k callKin
+  		}
+  		i := s.expr(fn.Left)
+  		itab := s.newValue1(ssa.OpITab, Types[TUINTPTR], i)
++ 		if k != callNormal {
++ 			s.nilCheck(itab)
++ 		}
+  		itabidx := fn.Xoffset + 3*int64(Widthptr) + 8 // offset of fun field in runtime.itab
+ -		itab = s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], itabidx, itab)
+ +		itab = s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), itabidx, itab)
+  		if k == callNormal {
+  			codeptr = s.newValue2(ssa.OpLoad, Types[TUINTPTR], itab, s.mem())
+  		} else {
+@@@ -2763,11 -2760,11 +2778,11 @@@ func (s *state) addr(n *Node, bounded b
+  				s.boundsCheck(i, len)
+  			}
+  			p := s.newValue1(ssa.OpSlicePtr, t, a)
+- 			return s.newValue2(ssa.OpPtrIndex, t, p, i)
++ 			return s.newValue2(ssa.OpPtrIndex, t, p, i), false
+  		} else { // array
+- 			a := s.addr(n.Left, bounded)
++ 			a, isVolatile := s.addr(n.Left, bounded)
+  			i := s.expr(n.Right)
+ -			i = s.extendIndex(i)
+ +			i = s.extendIndex(i, Panicindex)
+  			len := s.constInt(Types[TINT], n.Left.Type.NumElem())
+  			if !n.Bounded {
+  				s.boundsCheck(i, len)

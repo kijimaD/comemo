@@ -18,7 +18,109 @@ Date:   Sat May 5 17:03:21 2018 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup_test.go    | 40 ++++++++++++++++++++++++++++++++++++++++
  src/net/lookup_windows.go | 25 ++++++++++++++++---------
  2 files changed, 56 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 469901e448..521c5720ba 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -911,3 +911,43 @@ func TestNilResolverLookup(t *testing.T) {
+ 	r.LookupSRV(ctx, "service", "proto", "name")
+ 	r.LookupTXT(ctx, "gmail.com")
+ }
++
++// TestLookupHostCancel verifies that lookup works even after many
++// canceled lookups (see golang.org/issue/24178 for details).
++func TestLookupHostCancel(t *testing.T) {
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
++	}
++	if runtime.GOOS == "nacl" {
++		t.Skip("skip on nacl")
++	}
++
++	const (
++		google        = "www.google.com"
++		invalidDomain = "nonexistentdomain.golang.org"
++		n             = 600 // this needs to be larger than threadLimit size
++	)
++
++	_, err := LookupHost(google)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	ctx, cancel := context.WithCancel(context.Background())
++	cancel()
++	for i := 0; i < n; i++ {
++		addr, err := DefaultResolver.LookupHost(ctx, invalidDomain)
++		if err == nil {
++			t.Fatalf("LookupHost(%q): returns %v, but should fail", invalidDomain, addr)
++		}
++		if !strings.Contains(err.Error(), "canceled") {
++			t.Fatalf("LookupHost(%q): failed with unexpected error: %v", invalidDomain, err)
++		}
++		time.Sleep(time.Millisecond * 1)
++	}
++
++	_, err = LookupHost(google)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 2e6f40d048..e1a811ce39 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -79,12 +79,7 @@ func (r *Resolver) lookupHost(ctx context.Context, name string) ([]string, error
+ func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error) {
+ 	// TODO(bradfitz,brainman): use ctx more. See TODO below.
+ 
+-	type ret struct {
+-		addrs []IPAddr
+-		err   error
+-	}
+-	ch := make(chan ret, 1)
+-	go func() {
++	getaddr := func() ([]IPAddr, error) {
+ 		acquireThread()
+ 		defer releaseThread()
+ 		hints := syscall.AddrinfoW{
+@@ -95,7 +90,7 @@ func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error)
+ 		var result *syscall.AddrinfoW
+ 		e := syscall.GetAddrInfoW(syscall.StringToUTF16Ptr(name), nil, &hints, &result)
+ 		if e != nil {
+-			ch <- ret{err: &DNSError{Err: winError("getaddrinfow", e).Error(), Name: name}}
++			return nil, &DNSError{Err: winError("getaddrinfow", e).Error(), Name: name}
+ 		}
+ 		defer syscall.FreeAddrInfoW(result)
+ 		addrs := make([]IPAddr, 0, 5)
+@@ -110,11 +105,23 @@ func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error)
+ 				zone := zoneCache.name(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
+ 				addrs = append(addrs, IPAddr{IP: IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]}, Zone: zone})
+ 			default:
+-				ch <- ret{err: &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}}
++				return nil, &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}
+ 			}
+ 		}
+-		ch <- ret{addrs: addrs}
++		return addrs, nil
++	}
++
++	type ret struct {
++		addrs []IPAddr
++		err   error
++	}
++
++	ch := make(chan ret, 1)
++	go func() {
++		addr, err := getaddr()
++		ch <- ret{addrs: addr, err: err}
+ 	}()
++
+ 	select {
+ 	case r := <-ch:
+ 		return r.addrs, r.err

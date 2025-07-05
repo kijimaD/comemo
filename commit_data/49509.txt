@@ -19,10 +19,128 @@ Date:   Fri Aug 20 11:38:54 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go      |  9 +++++----
  src/cmd/compile/internal/ssagen/ssa.go   |  3 +++
  src/cmd/compile/internal/walk/convert.go | 13 +++++++++++--
  src/cmd/compile/internal/walk/expr.go    |  2 +-
  test/fixedbugs/issue46938.go             | 29 +++++++++++++++++++++++++++++
  5 files changed, 49 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index f526d987a7..41de6bd61b 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -570,10 +570,11 @@ func (*SelectorExpr) CanBeNtype() {}
+ // A SliceExpr is a slice expression X[Low:High] or X[Low:High:Max].
+ type SliceExpr struct {
+ 	miniExpr
+-	X    Node
+-	Low  Node
+-	High Node
+-	Max  Node
++	X            Node
++	Low          Node
++	High         Node
++	Max          Node
++	CheckPtrCall *CallExpr
+ }
+ 
+ func NewSliceExpr(pos src.XPos, op Op, x, low, high, max Node) *SliceExpr {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 39d3b206ac..0a48f6b704 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3090,6 +3090,9 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 			k = s.expr(n.Max)
+ 		}
+ 		p, l, c := s.slice(v, i, j, k, n.Bounded())
++		if n.CheckPtrCall != nil {
++			s.stmt(n.CheckPtrCall)
++		}
+ 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
+ 
+ 	case ir.OSLICESTR:
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 27a07ce4b6..f724ca7cae 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -413,11 +413,15 @@ func byteindex(n ir.Node) ir.Node {
+ 	return n
+ }
+ 
+-func walkCheckPtrAlignment(n *ir.ConvExpr, init *ir.Nodes, count ir.Node) ir.Node {
++func walkCheckPtrAlignment(n *ir.ConvExpr, init *ir.Nodes, se *ir.SliceExpr) ir.Node {
+ 	if !n.Type().IsPtr() {
+ 		base.Fatalf("expected pointer type: %v", n.Type())
+ 	}
+ 	elem := n.Type().Elem()
++	var count ir.Node
++	if se != nil {
++		count = se.Max
++	}
+ 	if count != nil {
+ 		if !elem.IsArray() {
+ 			base.Fatalf("expected array type: %v", elem)
+@@ -435,7 +439,12 @@ func walkCheckPtrAlignment(n *ir.ConvExpr, init *ir.Nodes, count ir.Node) ir.Nod
+ 	}
+ 
+ 	n.X = cheapExpr(n.X, init)
+-	init.Append(mkcall("checkptrAlignment", nil, init, typecheck.ConvNop(n.X, types.Types[types.TUNSAFEPTR]), reflectdata.TypePtr(elem), typecheck.Conv(count, types.Types[types.TUINTPTR])))
++	checkPtrCall := mkcall("checkptrAlignment", nil, init, typecheck.ConvNop(n.X, types.Types[types.TUNSAFEPTR]), reflectdata.TypePtr(elem), typecheck.Conv(count, types.Types[types.TUINTPTR]))
++	if se != nil {
++		se.CheckPtrCall = checkPtrCall
++	} else {
++		init.Append(checkPtrCall)
++	}
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 26e225440a..c04998137b 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -824,7 +824,7 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
+ 	n.High = walkExpr(n.High, init)
+ 	n.Max = walkExpr(n.Max, init)
+ 	if checkSlice {
+-		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, n.Max)
++		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, n)
+ 	}
+ 
+ 	if n.Op().IsSlice3() {
+diff --git a/test/fixedbugs/issue46938.go b/test/fixedbugs/issue46938.go
+new file mode 100644
+index 0000000000..87532d4769
+--- /dev/null
++++ b/test/fixedbugs/issue46938.go
+@@ -0,0 +1,29 @@
++// run -gcflags="-d=checkptr"
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"strings"
++	"unsafe"
++)
++
++func main() {
++	defer func() {
++		err := recover()
++		if err == nil {
++			panic("expected panic")
++		}
++		if got := err.(error).Error(); !strings.Contains(got, "slice bounds out of range") {
++			panic("expected panic slice out of bound, got " + got)
++		}
++	}()
++	s := make([]int64, 100)
++	p := unsafe.Pointer(&s[0])
++	n := 1000
++
++	_ = (*[10]int64)(p)[:n:n]
++}

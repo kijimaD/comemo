@@ -14,6 +14,22 @@ Date:   Wed Feb 27 12:14:59 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/164117
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/dist/test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 6f2eee19df..025da74a15 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -674,8 +674,8 @@ func (t *tester) registerTests() {
+ 	// recompile the entire standard library. If make.bash ran with
+ 	// special -gcflags, that's not true.
+ 	if t.cgoEnabled && gogcflags == "" {
+-		t.registerHostTest("testso", "../misc/cgo/testso", "misc/cgo/testso", ".")
+-		t.registerHostTest("testsovar", "../misc/cgo/testsovar", "misc/cgo/testsovar", ".")
++		t.registerTest("testso", "../misc/cgo/testso", t.goTest(), t.timeout(600))
++		t.registerTest("testsovar", "../misc/cgo/testsovar", t.goTest(), t.timeout(600))
+ 		if t.supportedBuildmode("c-archive") {
+ 			t.registerHostTest("testcarchive", "../misc/cgo/testcarchive", "misc/cgo/testcarchive", ".")
+ 		}

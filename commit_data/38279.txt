@@ -23,8 +23,127 @@ Date:   Tue Oct 16 13:01:07 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/fmt/fmt_test.go |  7 +++----
  src/fmt/format.go   | 41 +++++++++++++++--------------------------
  test/switch5.go     |  8 ++++----
  3 files changed, 22 insertions(+), 34 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index d63271a805..e97372225c 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -686,11 +686,10 @@ var fmtTests = []struct {
+ 	{"%#v", 1.2345678, "1.2345678"},
+ 	{"%#v", float32(1.2345678), "1.2345678"},
+ 
+-	// Whole number floats should have a single trailing zero added, but not
+-	// for exponent notation.
+-	{"%#v", 1.0, "1.0"},
++	// Whole number floats are printed without decimals. See Issue 27634.
++	{"%#v", 1.0, "1"},
+ 	{"%#v", 1000000.0, "1e+06"},
+-	{"%#v", float32(1.0), "1.0"},
++	{"%#v", float32(1.0), "1"},
+ 	{"%#v", float32(1000000.0), "1e+06"},
+ 
+ 	// Only print []byte and []uint8 as type []byte if they appear at the top level.
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 3a3cd8d1a1..91103f2c07 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -481,19 +481,15 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
+ 		return
+ 	}
+ 	// The sharp flag forces printing a decimal point for non-binary formats
+-	// and retains trailing zeros, which we may need to restore. For the sharpV
+-	// flag, we ensure a single trailing zero is present if the output is not
+-	// in exponent notation.
+-	if f.sharpV || (f.sharp && verb != 'b') {
++	// and retains trailing zeros, which we may need to restore.
++	if f.sharp && verb != 'b' {
+ 		digits := 0
+-		if !f.sharpV {
+-			switch verb {
+-			case 'g', 'G':
+-				digits = prec
+-				// If no precision is set explicitly use a precision of 6.
+-				if digits == -1 {
+-					digits = 6
+-				}
++		switch verb {
++		case 'v', 'g', 'G':
++			digits = prec
++			// If no precision is set explicitly use a precision of 6.
++			if digits == -1 {
++				digits = 6
+ 			}
+ 		}
+ 
+@@ -502,32 +498,25 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
+ 		var tailBuf [5]byte
+ 		tail := tailBuf[:0]
+ 
+-		var hasDecimalPoint, hasExponent bool
++		hasDecimalPoint := false
+ 		// Starting from i = 1 to skip sign at num[0].
+ 		for i := 1; i < len(num); i++ {
+ 			switch num[i] {
+ 			case '.':
+ 				hasDecimalPoint = true
+ 			case 'e', 'E':
+-				hasExponent = true
+ 				tail = append(tail, num[i:]...)
+ 				num = num[:i]
+ 			default:
+ 				digits--
+ 			}
+ 		}
+-		if f.sharpV {
+-			if !hasDecimalPoint && !hasExponent {
+-				num = append(num, '.', '0')
+-			}
+-		} else {
+-			if !hasDecimalPoint {
+-				num = append(num, '.')
+-			}
+-			for digits > 0 {
+-				num = append(num, '0')
+-				digits--
+-			}
++		if !hasDecimalPoint {
++			num = append(num, '.')
++		}
++		for digits > 0 {
++			num = append(num, '0')
++			digits--
+ 		}
+ 		num = append(num, tail...)
+ 	}
+diff --git a/test/switch5.go b/test/switch5.go
+index 6641d582bc..ce95bf8d7b 100644
+--- a/test/switch5.go
++++ b/test/switch5.go
+@@ -24,8 +24,8 @@ func f0(x int) {
+ func f1(x float32) {
+ 	switch x {
+ 	case 5:
+-	case 5: // ERROR "duplicate case 5 .value 5\.0. in switch"
+-	case 5.0: // ERROR "duplicate case 5 .value 5\.0. in switch"
++	case 5: // ERROR "duplicate case 5 in switch"
++	case 5.0: // ERROR "duplicate case 5 in switch"
+ 	}
+ }
+ 
+@@ -44,9 +44,9 @@ func f3(e interface{}) {
+ 	case 0: // ERROR "duplicate case 0 in switch"
+ 	case int64(0):
+ 	case float32(10):
+-	case float32(10): // ERROR "duplicate case float32\(10\) .value 10\.0. in switch"
++	case float32(10): // ERROR "duplicate case float32\(10\) .value 10. in switch"
+ 	case float64(10):
+-	case float64(10): // ERROR "duplicate case float64\(10\) .value 10\.0. in switch"
++	case float64(10): // ERROR "duplicate case float64\(10\) .value 10. in switch"
+ 	}
+ }
+ 

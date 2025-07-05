@@ -15,7 +15,7 @@ Date:   Sat Nov 28 16:01:58 2020 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go          |  1 +
  src/cmd/compile/internal/ir/name.go             | 21 ++++++++---
  src/cmd/compile/internal/typecheck/func.go      | 16 +++++++++
@@ -23,3 +23,227 @@ Date:   Sat Nov 28 16:01:58 2020 -0800
  src/cmd/compile/internal/typecheck/typecheck.go | 24 ++++++++++---
  src/cmd/compile/internal/walk/order.go          |  3 +-
  6 files changed, 104 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 126871b805..7324369ced 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1013,6 +1013,7 @@ func inlvar(var_ ir.Node) ir.Node {
+ 	n.SetUsed(true)
+ 	n.Curfn = ir.CurFunc // the calling function, not the called one
+ 	n.SetAddrtaken(var_.Name().Addrtaken())
++	n.SetAddrtaken2(var_.Name().Addrtaken())
+ 
+ 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
+ 	return n
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 7958391435..8b1084deeb 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -35,10 +35,10 @@ func (*Ident) CanBeNtype() {}
+ // Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
+ type Name struct {
+ 	miniExpr
+-	BuiltinOp Op    // uint8
+-	Class_    Class // uint8
+-	flags     bitset16
++	BuiltinOp Op         // uint8
++	Class_    Class      // uint8
+ 	pragma    PragmaFlag // int16
++	flags     bitset32
+ 	sym       *types.Sym
+ 	Func      *Func
+ 	Offset_   int64
+@@ -273,6 +273,7 @@ const (
+ 	nameOpenDeferSlot         // if temporary var storing info for open-coded defers
+ 	nameLibfuzzerExtraCounter // if PEXTERN should be assigned to __libfuzzer_extra_counters section
+ 	nameAlias                 // is type name an alias
++	nameAddrtaken2
+ )
+ 
+ func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
+@@ -284,7 +285,7 @@ func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
+ func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
+ func (n *Name) IsOutputParamHeapAddr() bool { return n.flags&nameIsOutputParamHeapAddr != 0 }
+ func (n *Name) Assigned() bool              { return n.flags&nameAssigned != 0 }
+-func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken != 0 }
++func (n *Name) Addrtaken() bool             { return n.checkAddrtaken() && n.flags&nameAddrtaken != 0 }
+ func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
+ func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
+ func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
+@@ -300,11 +301,23 @@ func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar,
+ func (n *Name) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nameIsOutputParamHeapAddr, b) }
+ func (n *Name) SetAssigned(b bool)              { n.flags.set(nameAssigned, b) }
+ func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b) }
++func (n *Name) SetAddrtaken2(b bool)            { n.flags.set(nameAddrtaken2, b) }
+ func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
+ func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
+ func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
+ func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
+ 
++func (n *Name) checkAddrtaken() bool {
++	// The two different ways of computing addrtaken bits might diverge during computation,
++	// but any time we look at them, they should be identical.
++	x := n.flags&nameAddrtaken != 0
++	y := n.flags&nameAddrtaken2 != 0
++	if x != y {
++		panic("inconsistent addrtaken")
++	}
++	return true
++}
++
+ // MarkReadonly indicates that n is an ONAME with readonly contents.
+ func (n *Name) MarkReadonly() {
+ 	if n.Op() != ONAME {
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 060024951e..ce6f4027da 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -135,6 +135,7 @@ func CaptureVars(fn *ir.Func) {
+ 			v.SetByval(true)
+ 		} else {
+ 			outermost.Name().SetAddrtaken(true)
++			outermost.Name().SetAddrtaken2(true)
+ 			outer = NodAddr(outer)
+ 		}
+ 
+@@ -163,6 +164,21 @@ func CaptureVars(fn *ir.Func) {
+ func ImportedBody(fn *ir.Func) {
+ 	lno := ir.SetPos(fn.Nname)
+ 
++	// When we load an inlined body, we need to allow OADDR
++	// operations on untyped expressions. We will fix the
++	// addrtaken flags on all the arguments of the OADDR with the
++	// computeAddrtaken call below (after we typecheck the body).
++	// TODO: export/import types and addrtaken marks along with inlined bodies,
++	// so this will be unnecessary.
++	incrementalAddrtaken = false
++	defer func() {
++		if dirtyAddrtaken {
++			computeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
++			dirtyAddrtaken = false
++		}
++		incrementalAddrtaken = true
++	}()
++
+ 	ImportBody(fn)
+ 
+ 	// typecheckinl is only for imported functions;
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 178eba4484..8d31fea9ec 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -67,9 +67,57 @@ func NodAddr(n ir.Node) *ir.AddrExpr {
+ 
+ // nodAddrPos returns a node representing &n at position pos.
+ func NodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
++	n = markAddrOf(n)
+ 	return ir.NewAddrExpr(pos, n)
+ }
+ 
++func markAddrOf(n ir.Node) ir.Node {
++	if incrementalAddrtaken {
++		// We can only do incremental addrtaken computation when it is ok
++		// to typecheck the argument of the OADDR. That's only safe after the
++		// main typecheck has completed.
++		// The argument to OADDR needs to be typechecked because &x[i] takes
++		// the address of x if x is an array, but not if x is a slice.
++		// Note: outervalue doesn't work correctly until n is typechecked.
++		n = typecheck(n, ctxExpr)
++		if x := ir.OuterValue(n); x.Op() == ir.ONAME {
++			x.Name().SetAddrtaken2(true)
++		}
++	} else {
++		// Remember that we built an OADDR without computing the Addrtaken bit for
++		// its argument. We'll do that later in bulk using computeAddrtaken.
++		dirtyAddrtaken = true
++	}
++	return n
++}
++
++// If incrementalAddrtaken is false, we do not compute Addrtaken for an OADDR Node
++// when it is built. The Addrtaken bits are set in bulk by computeAddrtaken.
++// If incrementalAddrtaken is true, then when an OADDR Node is built the Addrtaken
++// field of its argument is updated immediately.
++var incrementalAddrtaken = false
++
++// If dirtyAddrtaken is true, then there are OADDR whose corresponding arguments
++// have not yet been marked as Addrtaken.
++var dirtyAddrtaken = false
++
++func computeAddrtaken(top []ir.Node) {
++	for _, n := range top {
++		ir.Visit(n, func(n ir.Node) {
++			if n.Op() == ir.OADDR {
++				if x := ir.OuterValue(n.(*ir.AddrExpr).X); x.Op() == ir.ONAME {
++					x.Name().SetAddrtaken2(true)
++					if x.Name().IsClosureVar() {
++						// Mark the original variable as Addrtaken so that capturevars
++						// knows not to pass it by value.
++						x.Name().Defn.Name().SetAddrtaken2(true)
++					}
++				}
++			}
++		})
++	}
++}
++
+ func NodNil() ir.Node {
+ 	n := ir.NewNilExpr(base.Pos)
+ 	n.SetType(types.Types[types.TNIL])
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index e29d58cefa..335e1b53ce 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -99,7 +99,26 @@ func Package() {
+ 	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
+ 	CheckMapKeys()
+ 
+-	// Phase 6: Decide how to capture closed variables.
++	// Phase 6: Compute Addrtaken for names.
++	// We need to wait until typechecking is done so that when we see &x[i]
++	// we know that x has its address taken if x is an array, but not if x is a slice.
++	// We compute Addrtaken in bulk here.
++	// After this phase, we maintain Addrtaken incrementally.
++	if dirtyAddrtaken {
++		computeAddrtaken(Target.Decls)
++		dirtyAddrtaken = false
++	}
++	incrementalAddrtaken = true
++
++	// Phase 7: Eliminate some obviously dead code.
++	// Must happen after typechecking.
++	for _, n := range Target.Decls {
++		if n.Op() == ir.ODCLFUNC {
++			deadcode(n.(*ir.Func))
++		}
++	}
++
++	// Phase 8: Decide how to capture closed variables.
+ 	// This needs to run before escape analysis,
+ 	// because variables captured by value do not escape.
+ 	base.Timer.Start("fe", "capturevars")
+@@ -156,9 +175,6 @@ func FuncBody(n *ir.Func) {
+ 	if base.Errors() > errorsBefore {
+ 		n.Body.Set(nil) // type errors; do not compile
+ 	}
+-	// Now that we've checked whether n terminates,
+-	// we can eliminate some obviously dead code.
+-	deadcode(n)
+ }
+ 
+ var importlist []*ir.Func
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 0dd76ccee9..82180c113e 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -517,7 +517,8 @@ func (o *orderState) call(nn ir.Node) {
+ 			if arg.X.Type().IsUnsafePtr() {
+ 				x := o.copyExpr(arg.X)
+ 				arg.X = x
+-				x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
++				x.Name().SetAddrtaken(true)  // ensure SSA keeps the x variable
++				x.Name().SetAddrtaken2(true) // ensure SSA keeps the x variable
+ 				n.Body.Append(typecheck.Stmt(ir.NewUnaryExpr(base.Pos, ir.OVARLIVE, x)))
+ 			}
+ 		}

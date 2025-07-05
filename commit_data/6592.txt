@@ -9,6 +9,24 @@ Date:   Thu Oct 21 08:40:33 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2622041
-
+---
  src/pkg/go/parser/interface.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 39476f0720..e451a4fe3d 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -69,7 +69,11 @@ func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
+ 
+ 	var p parser
+ 	p.init(filename, data, 0)
+-	return p.parseExpr(), p.parseEOF()
++	x := p.parseExpr()
++	if p.tok == token.SEMICOLON {
++		p.next() // consume automatically inserted semicolon, if any
++	}
++	return x, p.parseEOF()
+ }
+ 
+ 

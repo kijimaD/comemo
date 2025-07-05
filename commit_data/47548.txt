@@ -18,9 +18,191 @@ Date:   Thu Mar 25 21:26:18 2021 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |  4 +-
  src/cmd/pprof/readlineui.go                        | 20 +++---
  .../golang.org/x/crypto/ssh/terminal/terminal.go   | 76 ----------------------
  src/cmd/vendor/modules.txt                         |  1 -
  4 files changed, 12 insertions(+), 89 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 9b08040433..5fbcf642f4 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,9 +5,9 @@ go 1.17
+ require (
+ 	github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
+ 	golang.org/x/arch v0.0.0-20210308155006-05f8f0431f72
+-	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
++	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect
+ 	golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740
+ 	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 // indirect
+-	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
++	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+ 	golang.org/x/tools v0.1.1-0.20210312185553-8e4f4c86593a
+ )
+diff --git a/src/cmd/pprof/readlineui.go b/src/cmd/pprof/readlineui.go
+index dbbb9c2787..f46e934e0f 100644
+--- a/src/cmd/pprof/readlineui.go
++++ b/src/cmd/pprof/readlineui.go
+@@ -19,7 +19,7 @@ import (
+ 	"strings"
+ 
+ 	"github.com/google/pprof/driver"
+-	"golang.org/x/crypto/ssh/terminal"
++	"golang.org/x/term"
+ )
+ 
+ func init() {
+@@ -27,11 +27,11 @@ func init() {
+ }
+ 
+ // readlineUI implements driver.UI interface using the
+-// golang.org/x/crypto/ssh/terminal package.
++// golang.org/x/term package.
+ // The upstream pprof command implements the same functionality
+ // using the github.com/chzyer/readline package.
+ type readlineUI struct {
+-	term *terminal.Terminal
++	term *term.Terminal
+ }
+ 
+ func newReadlineUI() driver.UI {
+@@ -39,19 +39,19 @@ func newReadlineUI() driver.UI {
+ 	if v := strings.ToLower(os.Getenv("TERM")); v == "" || v == "dumb" {
+ 		return nil
+ 	}
+-	// test if we can use terminal.ReadLine
++	// test if we can use term.ReadLine
+ 	// that assumes operation in the raw mode.
+-	oldState, err := terminal.MakeRaw(0)
++	oldState, err := term.MakeRaw(0)
+ 	if err != nil {
+ 		return nil
+ 	}
+-	terminal.Restore(0, oldState)
++	term.Restore(0, oldState)
+ 
+ 	rw := struct {
+ 		io.Reader
+ 		io.Writer
+ 	}{os.Stdin, os.Stderr}
+-	return &readlineUI{term: terminal.NewTerminal(rw, "")}
++	return &readlineUI{term: term.NewTerminal(rw, "")}
+ }
+ 
+ // Read returns a line of text (a command) read from the user.
+@@ -61,8 +61,8 @@ func (r *readlineUI) ReadLine(prompt string) (string, error) {
+ 
+ 	// skip error checking because we tested it
+ 	// when creating this readlineUI initially.
+-	oldState, _ := terminal.MakeRaw(0)
+-	defer terminal.Restore(0, oldState)
++	oldState, _ := term.MakeRaw(0)
++	defer term.Restore(0, oldState)
+ 
+ 	s, err := r.term.ReadLine()
+ 	return s, err
+@@ -106,7 +106,7 @@ func colorize(msg string) string {
+ // interactive terminal (as opposed to being redirected to a file).
+ func (r *readlineUI) IsTerminal() bool {
+ 	const stdout = 1
+-	return terminal.IsTerminal(stdout)
++	return term.IsTerminal(stdout)
+ }
+ 
+ // WantBrowser indicates whether browser should be opened with the -http option.
+diff --git a/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go b/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go
+deleted file mode 100644
+index a4d1919a9e..0000000000
+--- a/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go
++++ /dev/null
+@@ -1,76 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package terminal provides support functions for dealing with terminals, as
+-// commonly found on UNIX systems.
+-//
+-// Deprecated: this package moved to golang.org/x/term.
+-package terminal
+-
+-import (
+-	"io"
+-
+-	"golang.org/x/term"
+-)
+-
+-// EscapeCodes contains escape sequences that can be written to the terminal in
+-// order to achieve different styles of text.
+-type EscapeCodes = term.EscapeCodes
+-
+-// Terminal contains the state for running a VT100 terminal that is capable of
+-// reading lines of input.
+-type Terminal = term.Terminal
+-
+-// NewTerminal runs a VT100 terminal on the given ReadWriter. If the ReadWriter is
+-// a local terminal, that terminal must first have been put into raw mode.
+-// prompt is a string that is written at the start of each input line (i.e.
+-// "> ").
+-func NewTerminal(c io.ReadWriter, prompt string) *Terminal {
+-	return term.NewTerminal(c, prompt)
+-}
+-
+-// ErrPasteIndicator may be returned from ReadLine as the error, in addition
+-// to valid line data. It indicates that bracketed paste mode is enabled and
+-// that the returned line consists only of pasted data. Programs may wish to
+-// interpret pasted data more literally than typed data.
+-var ErrPasteIndicator = term.ErrPasteIndicator
+-
+-// State contains the state of a terminal.
+-type State = term.State
+-
+-// IsTerminal returns whether the given file descriptor is a terminal.
+-func IsTerminal(fd int) bool {
+-	return term.IsTerminal(fd)
+-}
+-
+-// ReadPassword reads a line of input from a terminal without local echo.  This
+-// is commonly used for inputting passwords and other sensitive data. The slice
+-// returned does not include the \n.
+-func ReadPassword(fd int) ([]byte, error) {
+-	return term.ReadPassword(fd)
+-}
+-
+-// MakeRaw puts the terminal connected to the given file descriptor into raw
+-// mode and returns the previous state of the terminal so that it can be
+-// restored.
+-func MakeRaw(fd int) (*State, error) {
+-	return term.MakeRaw(fd)
+-}
+-
+-// Restore restores the terminal connected to the given file descriptor to a
+-// previous state.
+-func Restore(fd int, oldState *State) error {
+-	return term.Restore(fd, oldState)
+-}
+-
+-// GetState returns the current state of a terminal which may be useful to
+-// restore the terminal after a signal.
+-func GetState(fd int) (*State, error) {
+-	return term.GetState(fd)
+-}
+-
+-// GetSize returns the dimensions of the given terminal.
+-func GetSize(fd int) (width, height int, err error) {
+-	return term.GetSize(fd)
+-}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 6960ff1c7e..4a128c7933 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -27,7 +27,6 @@ golang.org/x/arch/x86/x86asm
+ ## explicit
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+-golang.org/x/crypto/ssh/terminal
+ # golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp

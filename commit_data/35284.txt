@@ -11,7 +11,72 @@ Date:   Wed Jan 31 10:02:01 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go                | 20 ++++++++++++++++++++
  src/cmd/go/internal/cache/default.go |  8 +++++---
  2 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 08384825ca..b2053f553c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5373,6 +5373,26 @@ func TestTestCacheInputs(t *testing.T) {
+ 	}
+ }
+ 
++func TestNoCache(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows":
++		t.Skipf("no unwritable directories on %s", runtime.GOOS)
++	}
++	if os.Getuid() == 0 {
++		t.Skip("skipping test because running as root")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("triv.go", `package main; func main() {}`)
++	tg.must(os.MkdirAll(tg.path("unwritable"), 0555))
++	tg.setenv("HOME", tg.path(filepath.Join("unwritable", "home")))
++	tg.unsetenv("GOCACHE")
++	tg.run("build", "-o", tg.path("triv"), tg.path("triv.go"))
++	tg.grepStderr("disabling cache", "did not disable cache")
++}
++
+ func TestTestVet(t *testing.T) {
+ 	tooSlow(t)
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 8285f787d4..9728376225 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -5,7 +5,7 @@
+ package cache
+ 
+ import (
+-	"cmd/go/internal/base"
++	"fmt"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -40,7 +40,8 @@ func initDefaultCache() {
+ 		return
+ 	}
+ 	if err := os.MkdirAll(dir, 0777); err != nil {
+-		base.Fatalf("initializing cache in $GOCACHE: %s", err)
++		fmt.Fprintf(os.Stderr, "go: disabling cache (%s) due to initialization failure: %s\n", dir, err)
++		return
+ 	}
+ 	if _, err := os.Stat(filepath.Join(dir, "README")); err != nil {
+ 		// Best effort.
+@@ -49,7 +50,8 @@ func initDefaultCache() {
+ 
+ 	c, err := Open(dir)
+ 	if err != nil {
+-		base.Fatalf("initializing cache in $GOCACHE: %s", err)
++		fmt.Fprintf(os.Stderr, "go: disabling cache (%s) due to initialization failure: %s\n", dir, err)
++		return
+ 	}
+ 	defaultCache = c
+ }

@@ -7,9 +7,67 @@ Date:   Thu Jan 15 08:26:01 2015 -0800
     Change-Id: Ibf05e55ffe3bb454809cd3450b790e44061511c7
     Reviewed-on: https://go-review.googlesource.com/2890
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/bytes/bytes_decl.go     | 2 +-
  src/runtime/malloc2.go      | 4 ++--
  src/runtime/noasm.go        | 1 -
  src/syscall/exec_solaris.go | 2 +-
  4 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/bytes/bytes_decl.go b/src/bytes/bytes_decl.go
+index 617d7489a6..b453f21aa4 100644
+--- a/src/bytes/bytes_decl.go
++++ b/src/bytes/bytes_decl.go
+@@ -21,4 +21,4 @@ func Equal(a, b []byte) bool // ../runtime/asm_$GOARCH.s
+ // Compare returns an integer comparing two byte slices lexicographically.
+ // The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+ // A nil argument is equivalent to an empty slice.
+-func Compare(a, b []byte) int // ../runtime/noasm_arm.goc or ../runtime/asm_{386,amd64}.s
++func Compare(a, b []byte) int // ../runtime/noasm.go or ../runtime/asm_{386,amd64}.s
+diff --git a/src/runtime/malloc2.go b/src/runtime/malloc2.go
+index 91309fd849..eb1c759c0b 100644
+--- a/src/runtime/malloc2.go
++++ b/src/runtime/malloc2.go
+@@ -104,7 +104,7 @@ const (
+ 	// Tunable constants.
+ 	_MaxSmallSize = 32 << 10
+ 
+-	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.goc.
++	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.go.
+ 	_TinySize      = 16
+ 	_TinySizeClass = 2
+ 
+@@ -322,7 +322,7 @@ type mcache struct {
+ 	next_sample      int32  // trigger heap sample after allocating this many bytes
+ 	local_cachealloc intptr // bytes allocated (or freed) from cache since last lock of heap
+ 	// Allocator cache for tiny objects w/o pointers.
+-	// See "Tiny allocator" comment in malloc.goc.
++	// See "Tiny allocator" comment in malloc.go.
+ 	tiny             unsafe.Pointer
+ 	tinyoffset       uintptr
+ 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index c5ef672432..7ffde37992 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Routines that are implemented in assembly in asm_{amd64,386}.s
+-// but are implemented in Go for arm.
+ 
+ // +build arm ppc64 ppc64le
+ 
+diff --git a/src/syscall/exec_solaris.go b/src/syscall/exec_solaris.go
+index 97de6ca003..2052a66528 100644
+--- a/src/syscall/exec_solaris.go
++++ b/src/syscall/exec_solaris.go
+@@ -44,7 +44,7 @@ func write1(fd uintptr, buf uintptr, nbyte uintptr) (n uintptr, err Errno)
+ // no rescheduling, no malloc calls, and no new stack segments.
+ //
+ // We call hand-crafted syscalls, implemented in
+-// ../runtime/syscall_solaris.goc, rather than generated libc wrappers
++// ../runtime/syscall_solaris.go, rather than generated libc wrappers
+ // because we need to avoid lazy-loading the functions (might malloc,
+ // split the stack, or acquire mutexes). We can't call RawSyscall
+ // because it's not safe even for BSD-subsystem calls.

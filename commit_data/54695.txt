@@ -41,9 +41,418 @@ Date:   Wed Oct 19 14:41:03 2022 -0700
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/path/filepath/path.go              |   4 +-
  src/path/filepath/path_test.go         |  83 +++++++++++++++++--------
  src/path/filepath/path_windows.go      | 110 ++++++++++++++++++++++-----------
  src/path/filepath/path_windows_test.go |  20 ++++++
  4 files changed, 153 insertions(+), 64 deletions(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 64f443a4f7..c5c54fc9a5 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -91,7 +91,7 @@ func Clean(path string) string {
+ 	volLen := volumeNameLen(path)
+ 	path = path[volLen:]
+ 	if path == "" {
+-		if volLen > 1 && originalPath[1] != ':' {
++		if volLen > 1 && os.IsPathSeparator(originalPath[0]) && os.IsPathSeparator(originalPath[1]) {
+ 			// should be UNC
+ 			return FromSlash(originalPath)
+ 		}
+@@ -621,5 +621,5 @@ func Dir(path string) string {
+ // Given "\\host\share\foo" it returns "\\host\share".
+ // On other platforms it returns "".
+ func VolumeName(path string) string {
+-	return path[:volumeNameLen(path)]
++	return FromSlash(path[:volumeNameLen(path)])
+ }
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 9bdc58ea35..473a89b9c5 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -49,9 +49,6 @@ var cleantests = []PathTest{
+ 
+ 	// Remove doubled slash
+ 	{"abc//def//ghi", "abc/def/ghi"},
+-	{"//abc", "/abc"},
+-	{"///abc", "/abc"},
+-	{"//abc//", "/abc"},
+ 	{"abc//", "abc"},
+ 
+ 	// Remove . elements
+@@ -76,6 +73,13 @@ var cleantests = []PathTest{
+ 	{"abc/../../././../def", "../../def"},
+ }
+ 
++var nonwincleantests = []PathTest{
++	// Remove leading doubled slash
++	{"//abc", "/abc"},
++	{"///abc", "/abc"},
++	{"//abc//", "/abc"},
++}
++
+ var wincleantests = []PathTest{
+ 	{`c:`, `c:.`},
+ 	{`c:\`, `c:\`},
+@@ -86,16 +90,22 @@ var wincleantests = []PathTest{
+ 	{`c:..\abc`, `c:..\abc`},
+ 	{`\`, `\`},
+ 	{`/`, `\`},
+-	{`\\i\..\c$`, `\c$`},
+-	{`\\i\..\i\c$`, `\i\c$`},
+-	{`\\i\..\I\c$`, `\I\c$`},
++	{`\\i\..\c$`, `\\i\..\c$`},
++	{`\\i\..\i\c$`, `\\i\..\i\c$`},
++	{`\\i\..\I\c$`, `\\i\..\I\c$`},
+ 	{`\\host\share\foo\..\bar`, `\\host\share\bar`},
+ 	{`//host/share/foo/../baz`, `\\host\share\baz`},
++	{`\\host\share\foo\..\..\..\..\bar`, `\\host\share\bar`},
++	{`\\.\C:\a\..\..\..\..\bar`, `\\.\C:\bar`},
++	{`\\.\C:\\\\a`, `\\.\C:\a`},
+ 	{`\\a\b\..\c`, `\\a\b\c`},
+ 	{`\\a\b`, `\\a\b`},
+ 	{`.\c:`, `.\c:`},
+ 	{`.\c:\foo`, `.\c:\foo`},
+ 	{`.\c:foo`, `.\c:foo`},
++	{`//abc`, `\\abc`},
++	{`///abc`, `\\\abc`},
++	{`//abc//`, `\\abc\\`},
+ }
+ 
+ func TestClean(t *testing.T) {
+@@ -105,6 +115,8 @@ func TestClean(t *testing.T) {
+ 			tests[i].result = filepath.FromSlash(tests[i].result)
+ 		}
+ 		tests = append(tests, wincleantests...)
++	} else {
++		tests = append(tests, nonwincleantests...)
+ 	}
+ 	for _, test := range tests {
+ 		if s := filepath.Clean(test.path); s != test.result {
+@@ -257,8 +269,9 @@ var jointests = []JoinTest{
+ 	{[]string{"/", "a"}, "/a"},
+ 	{[]string{"/", "a/b"}, "/a/b"},
+ 	{[]string{"/", ""}, "/"},
+-	{[]string{"//", "a"}, "/a"},
+ 	{[]string{"/a", "b"}, "/a/b"},
++	{[]string{"a", "/b"}, "a/b"},
++	{[]string{"/a", "/b"}, "/a/b"},
+ 	{[]string{"a/", "b"}, "a/b"},
+ 	{[]string{"a/", ""}, "a"},
+ 	{[]string{"", ""}, ""},
+@@ -267,6 +280,10 @@ var jointests = []JoinTest{
+ 	{[]string{"/", "a", "b"}, "/a/b"},
+ }
+ 
++var nonwinjointests = []JoinTest{
++	{[]string{"//", "a"}, "/a"},
++}
++
+ var winjointests = []JoinTest{
+ 	{[]string{`directory`, `file`}, `directory\file`},
+ 	{[]string{`C:\Windows\`, `System32`}, `C:\Windows\System32`},
+@@ -279,6 +296,7 @@ var winjointests = []JoinTest{
+ 	{[]string{`C:`, ``, ``, `b`}, `C:b`},
+ 	{[]string{`C:`, ``}, `C:.`},
+ 	{[]string{`C:`, ``, ``}, `C:.`},
++	{[]string{`C:`, ``, `\a`}, `C:a`},
+ 	{[]string{`C:.`, `a`}, `C:a`},
+ 	{[]string{`C:a`, `b`}, `C:a\b`},
+ 	{[]string{`C:a`, `b`, `d`}, `C:a\b\d`},
+@@ -288,17 +306,20 @@ var winjointests = []JoinTest{
+ 	{[]string{`\`}, `\`},
+ 	{[]string{`\`, ``}, `\`},
+ 	{[]string{`\`, `a`}, `\a`},
+-	{[]string{`\\`, `a`}, `\a`},
++	{[]string{`\\`, `a`}, `\\a`},
+ 	{[]string{`\`, `a`, `b`}, `\a\b`},
+-	{[]string{`\\`, `a`, `b`}, `\a\b`},
++	{[]string{`\\`, `a`, `b`}, `\\a\b`},
+ 	{[]string{`\`, `\\a\b`, `c`}, `\a\b\c`},
+-	{[]string{`\\a`, `b`, `c`}, `\a\b\c`},
+-	{[]string{`\\a\`, `b`, `c`}, `\a\b\c`},
++	{[]string{`\\a`, `b`, `c`}, `\\a\b\c`},
++	{[]string{`\\a\`, `b`, `c`}, `\\a\b\c`},
++	{[]string{`//`, `a`}, `\\a`},
+ }
+ 
+ func TestJoin(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		jointests = append(jointests, winjointests...)
++	} else {
++		jointests = append(jointests, nonwinjointests...)
+ 	}
+ 	for _, test := range jointests {
+ 		expected := filepath.FromSlash(test.path)
+@@ -786,7 +807,6 @@ var dirtests = []PathTest{
+ 	{".", "."},
+ 	{"/.", "/"},
+ 	{"/", "/"},
+-	{"////", "/"},
+ 	{"/foo", "/"},
+ 	{"x/", "x"},
+ 	{"abc", "."},
+@@ -796,6 +816,10 @@ var dirtests = []PathTest{
+ 	{"a/b/c.x", "a/b"},
+ }
+ 
++var nonwindirtests = []PathTest{
++	{"////", "/"},
++}
++
+ var windirtests = []PathTest{
+ 	{`c:\`, `c:\`},
+ 	{`c:.`, `c:.`},
+@@ -806,6 +830,7 @@ var windirtests = []PathTest{
+ 	{`\\host\share\`, `\\host\share\`},
+ 	{`\\host\share\a`, `\\host\share\`},
+ 	{`\\host\share\a\b`, `\\host\share\a`},
++	{`\\\\`, `\\\\`},
+ }
+ 
+ func TestDir(t *testing.T) {
+@@ -817,6 +842,8 @@ func TestDir(t *testing.T) {
+ 		}
+ 		// add windows specific tests
+ 		tests = append(tests, windirtests...)
++	} else {
++		tests = append(tests, nonwindirtests...)
+ 	}
+ 	for _, test := range tests {
+ 		if s := filepath.Dir(test.path); s != test.result {
+@@ -1332,24 +1359,30 @@ var volumenametests = []VolumeNameTest{
+ 	{`c:`, `c:`},
+ 	{`2:`, ``},
+ 	{``, ``},
+-	{`\\\host`, ``},
+-	{`\\\host\`, ``},
+-	{`\\\host\share`, ``},
+-	{`\\\host\\share`, ``},
+-	{`\\host`, ``},
+-	{`//host`, ``},
+-	{`\\host\`, ``},
+-	{`//host/`, ``},
++	{`\\\host`, `\\\host`},
++	{`\\\host\`, `\\\host`},
++	{`\\\host\share`, `\\\host`},
++	{`\\\host\\share`, `\\\host`},
++	{`\\host`, `\\host`},
++	{`//host`, `\\host`},
++	{`\\host\`, `\\host\`},
++	{`//host/`, `\\host\`},
+ 	{`\\host\share`, `\\host\share`},
+-	{`//host/share`, `//host/share`},
++	{`//host/share`, `\\host\share`},
+ 	{`\\host\share\`, `\\host\share`},
+-	{`//host/share/`, `//host/share`},
++	{`//host/share/`, `\\host\share`},
+ 	{`\\host\share\foo`, `\\host\share`},
+-	{`//host/share/foo`, `//host/share`},
++	{`//host/share/foo`, `\\host\share`},
+ 	{`\\host\share\\foo\\\bar\\\\baz`, `\\host\share`},
+-	{`//host/share//foo///bar////baz`, `//host/share`},
++	{`//host/share//foo///bar////baz`, `\\host\share`},
+ 	{`\\host\share\foo\..\bar`, `\\host\share`},
+-	{`//host/share/foo/../bar`, `//host/share`},
++	{`//host/share/foo/../bar`, `\\host\share`},
++	{`//./NUL`, `\\.\NUL`},
++	{`//?/NUL`, `\\?\NUL`},
++	{`//./C:`, `\\.\C:`},
++	{`//./C:/a/b/c`, `\\.\C:`},
++	{`//./UNC/host/share/a/b/c`, `\\.\UNC\host\share`},
++	{`//./UNC/host`, `\\.\UNC\host`},
+ }
+ 
+ func TestVolumeName(t *testing.T) {
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index 80998decc6..1ca59190d5 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -13,16 +13,15 @@ func isSlash(c uint8) bool {
+ 	return c == '\\' || c == '/'
+ }
+ 
+-// isReservedName returns true, if path is Windows reserved name.
+-// See reservedNames for the full list.
+-func isReservedName(path string) bool {
+-	toUpper := func(c byte) byte {
+-		if 'a' <= c && c <= 'z' {
+-			return c - ('a' - 'A')
+-		}
+-		return c
++func toUpper(c byte) byte {
++	if 'a' <= c && c <= 'z' {
++		return c - ('a' - 'A')
+ 	}
++	return c
++}
+ 
++// isReservedName returns true if path is a Windows reserved name.
++func isReservedName(path string) bool {
+ 	// For details, search for PRN in
+ 	// https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file.
+ 	if 3 <= len(path) && len(path) <= 4 {
+@@ -45,7 +44,7 @@ func IsAbs(path string) (b bool) {
+ 	if l == 0 {
+ 		return false
+ 	}
+-	// If the volume name starts with a double slash, this is a UNC path.
++	// If the volume name starts with a double slash, this is an absolute path.
+ 	if isSlash(path[0]) && isSlash(path[1]) {
+ 		return true
+ 	}
+@@ -58,6 +57,8 @@ func IsAbs(path string) (b bool) {
+ 
+ // volumeNameLen returns length of the leading volume name on Windows.
+ // It returns 0 elsewhere.
++//
++// See: https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats
+ func volumeNameLen(path string) int {
+ 	if len(path) < 2 {
+ 		return 0
+@@ -67,31 +68,40 @@ func volumeNameLen(path string) int {
+ 	if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
+ 		return 2
+ 	}
+-	// is it UNC? https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
+-	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
+-		!isSlash(path[2]) && path[2] != '.' {
+-		// first, leading `\\` and next shouldn't be `\`. its server name.
+-		for n := 3; n < l-1; n++ {
+-			// second, next '\' shouldn't be repeated.
+-			if isSlash(path[n]) {
+-				n++
+-				// third, following something characters. its share name.
+-				if !isSlash(path[n]) {
+-					if path[n] == '.' {
+-						break
+-					}
+-					for ; n < l; n++ {
+-						if isSlash(path[n]) {
+-							break
+-						}
+-					}
+-					return n
+-				}
+-				break
+-			}
++	// UNC and DOS device paths start with two slashes.
++	if !isSlash(path[0]) || !isSlash(path[1]) {
++		return 0
++	}
++	rest := path[2:]
++	p1, rest, _ := cutPath(rest)
++	p2, rest, ok := cutPath(rest)
++	if !ok {
++		return len(path)
++	}
++	if p1 != "." && p1 != "?" {
++		// This is a UNC path: \\${HOST}\${SHARE}\
++		return len(path) - len(rest) - 1
++	}
++	// This is a DOS device path.
++	if len(p2) == 3 && toUpper(p2[0]) == 'U' && toUpper(p2[1]) == 'N' && toUpper(p2[2]) == 'C' {
++		// This is a DOS device path that links to a UNC: \\.\UNC\${HOST}\${SHARE}\
++		_, rest, _ = cutPath(rest)  // host
++		_, rest, ok = cutPath(rest) // share
++		if !ok {
++			return len(path)
+ 		}
+ 	}
+-	return 0
++	return len(path) - len(rest) - 1
++}
++
++// cutPath slices path around the first path separator.
++func cutPath(path string) (before, after string, found bool) {
++	for i := range path {
++		if isSlash(path[i]) {
++			return path[:i], path[i+1:], true
++		}
++	}
++	return path, "", false
+ }
+ 
+ // HasPrefix exists for historical compatibility and should not be used.
+@@ -151,12 +161,38 @@ func abs(path string) (string, error) {
+ }
+ 
+ func join(elem []string) string {
+-	for i, e := range elem {
+-		if e != "" {
+-			return joinNonEmpty(elem[i:])
++	var b strings.Builder
++	appendSep := false
++	for _, e := range elem {
++		// Strip leading slashes from everything after the first element,
++		// to avoid creating a UNC path (any path starting with "\\") from
++		// non-UNC elements.
++		//
++		// The correct behavior for Join when the first element is an incomplete UNC
++		// path (for example, "\\") is underspecified. We currently join subsequent
++		// elements so Join("\\", "host", "share") produces "\\host\share".
++		for b.Len() > 0 && len(e) > 0 && isSlash(e[0]) {
++			e = e[1:]
+ 		}
++		if e == "" {
++			continue
++		}
++		if appendSep {
++			b.WriteByte('\\')
++		}
++		b.WriteString(e)
++		appendSep = !isSlash(e[len(e)-1])
++		if b.Len() == 2 && volumeNameLen(b.String()) == 2 {
++			// If the string is two characters long and consists of nothing but
++			// a volume name, this is either a drive ("C:") or the start of an
++			// incomplete UNC path ("\\"). In either case, don't append a separator.
++			appendSep = false
++		}
++	}
++	if b.Len() == 0 {
++		return ""
+ 	}
+-	return ""
++	return Clean(b.String())
+ }
+ 
+ // joinNonEmpty is like join, but it assumes that the first element is non-empty.
+@@ -196,7 +232,7 @@ func joinNonEmpty(elem []string) string {
+ 
+ // isUNC reports whether path is a UNC path.
+ func isUNC(path string) bool {
+-	return volumeNameLen(path) > 2
++	return len(path) > 1 && isSlash(path[0]) && isSlash(path[1])
+ }
+ 
+ func sameWord(a, b string) bool {
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 9e6c0ec81d..e37dddcead 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -560,3 +560,23 @@ func TestIssue52476(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestAbsWindows(t *testing.T) {
++	for _, test := range []struct {
++		path string
++		want string
++	}{
++		{`C:\foo`, `C:\foo`},
++		{`\\host\share\foo`, `\\host\share\foo`},
++		{`\\host`, `\\host`},
++		{`\\.\NUL`, `\\.\NUL`},
++		{`NUL`, `\\.\NUL`},
++		{`COM1`, `\\.\COM1`},
++		{`a/NUL`, `\\.\NUL`},
++	} {
++		got, err := filepath.Abs(test.path)
++		if err != nil || got != test.want {
++			t.Errorf("Abs(%q) = %q, %v; want %q, nil", test.path, got, err, test.want)
++		}
++	}
++}

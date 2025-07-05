@@ -7,7 +7,41 @@ Date:   Thu Feb 5 14:49:53 2009 -0800
     R=ken
     OCL=24455
     CL=24455
-
+---
  src/cmd/gc/dcl.c       | 5 +++++
  src/cmd/gc/sysimport.c | 2 --
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 1ca2d501b7..c13f78e5a2 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1050,6 +1050,11 @@ fninit(Node *n)
+ 	uint32 h;
+ 	Sym *s;
+ 
++	if(strcmp(package, "PACKAGE") == 0) {
++		// sys.go or unsafe.go during compiler build
++		return;
++	}
++
+ 	r = N;
+ 
+ 	// (1)
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 08b9adfb7f..af4b2df776 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -59,12 +59,10 @@ char *sysimport =
+ 	"func sys.Goexit ()\n"
+ 	"func sys.Exit (? int)\n"
+ 	"func sys.Caller (n int) (pc uint64, file string, line int, ok bool)\n"
+-	"func sys.Init·sys ()\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+ 	"package unsafe\n"
+ 	"type unsafe.Pointer *any\n"
+-	"func unsafe.Init·unsafe ()\n"
+ 	"\n"
+ 	"$$\n";

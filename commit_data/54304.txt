@@ -13,8 +13,122 @@ Date:   Thu Sep 29 08:40:37 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/os/exec/dot_test.go  |  2 +-
  src/os/exec/exec.go      | 42 ++++++++++++++++++++++++++++++++++++++++++
  src/os/exec/exec_test.go | 15 +++++++++++++++
  3 files changed, 58 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/exec/dot_test.go b/src/os/exec/dot_test.go
+index 306f98cbaa..eeb59f13ef 100644
+--- a/src/os/exec/dot_test.go
++++ b/src/os/exec/dot_test.go
+@@ -58,7 +58,7 @@ func TestLookPath(t *testing.T) {
+ 	// And try to trick it with "../testdir" too.
+ 	for _, errdot := range []string{"1", "0"} {
+ 		t.Run("GODEBUG=execerrdot="+errdot, func(t *testing.T) {
+-			t.Setenv("GODEBUG", "execerrdot="+errdot)
++			t.Setenv("GODEBUG", "execerrdot="+errdot+",execwait=2")
+ 			for _, dir := range []string{".", "../testdir"} {
+ 				t.Run(pathVar+"="+dir, func(t *testing.T) {
+ 					t.Setenv(pathVar, dir+string(filepath.ListSeparator)+origPath)
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 8e6f709a2f..e891ddca5a 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -94,6 +94,7 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"errors"
++	"internal/godebug"
+ 	"internal/syscall/execenv"
+ 	"io"
+ 	"os"
+@@ -243,6 +244,10 @@ type Cmd struct {
+ 
+ 	ctxErr <-chan error // if non nil, receives the error from watchCtx exactly once
+ 
++	// The stack saved when the Command was created, if GODEBUG contains
++	// execwait=2. Used for debugging leaks.
++	createdByStack []byte
++
+ 	// For a security release long ago, we created x/sys/execabs,
+ 	// which manipulated the unexported lookPathErr error field
+ 	// in this struct. For Go 1.19 we exported the field as Err error,
+@@ -290,6 +295,43 @@ func Command(name string, arg ...string) *Cmd {
+ 		Path: name,
+ 		Args: append([]string{name}, arg...),
+ 	}
++
++	if execwait := godebug.Get("execwait"); execwait != "" {
++		if execwait == "2" {
++			// Obtain the caller stack. (This is equivalent to runtime/debug.Stack,
++			// copied to avoid importing the whole package.)
++			stack := make([]byte, 1024)
++			for {
++				n := runtime.Stack(stack, false)
++				if n < len(stack) {
++					stack = stack[:n]
++					break
++				}
++				stack = make([]byte, 2*len(stack))
++			}
++
++			if i := bytes.Index(stack, []byte("\nos/exec.Command(")); i >= 0 {
++				stack = stack[i+1:]
++			}
++			cmd.createdByStack = stack
++		}
++
++		runtime.SetFinalizer(cmd, func(c *Cmd) {
++			if c.Process != nil && c.ProcessState == nil {
++				debugHint := ""
++				if c.createdByStack == nil {
++					debugHint = " (set GODEBUG=execwait=2 to capture stacks for debugging)"
++				} else {
++					os.Stderr.WriteString("GODEBUG=execwait=2 detected a leaked exec.Cmd created by:\n")
++					os.Stderr.Write(c.createdByStack)
++					os.Stderr.WriteString("\n")
++					debugHint = ""
++				}
++				panic("exec: Cmd started a Process but leaked without a call to Wait" + debugHint)
++			}
++		})
++	}
++
+ 	if filepath.Base(name) == name {
+ 		lp, err := LookPath(name)
+ 		if lp != "" {
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 822f606d66..13715fecac 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -38,6 +38,13 @@ import (
+ var haveUnexpectedFDs bool
+ 
+ func init() {
++	godebug := os.Getenv("GODEBUG")
++	if godebug != "" {
++		godebug += ","
++	}
++	godebug += "execwait=2"
++	os.Setenv("GODEBUG", godebug)
++
+ 	if os.Getenv("GO_EXEC_TEST_PID") != "" {
+ 		return
+ 	}
+@@ -76,6 +83,14 @@ func TestMain(m *testing.M) {
+ 				}
+ 			}
+ 		}
++
++		if !testing.Short() {
++			// Run a couple of GC cycles to increase the odds of detecting
++			// process leaks using the finalizers installed by GODEBUG=execwait=2.
++			runtime.GC()
++			runtime.GC()
++		}
++
+ 		os.Exit(code)
+ 	}
+ 

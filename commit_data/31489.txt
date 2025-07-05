@@ -15,7 +15,7 @@ Date:   Thu Feb 16 15:04:33 2017 -0800
     Change-Id: I1218aa8a1df0cc9783583b090a4bb5a8a145c4a2
     Reviewed-on: https://go-review.googlesource.com/37141
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/buildtool.go |  1 +
  src/go/build/deps_test.go |  2 +-
  src/math/big/arith.go     | 41 ++++++++++++++---------------------------
@@ -23,3 +23,237 @@ Date:   Thu Feb 16 15:04:33 2017 -0800
  src/math/big/nat_test.go  | 30 ------------------------------
  src/math/big/natconv.go   |  3 ++-
  6 files changed, 20 insertions(+), 98 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 2f8136600f..f547a5af9e 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -68,6 +68,7 @@ var bootstrapDirs = []string{
+ 	"cmd/link/internal/x86",
+ 	"debug/pe",
+ 	"math/big",
++	"math/bits",
+ }
+ 
+ // File prefixes that are ignored by go/build anyway, and cause
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e6804e7ef5..c93c04a2c1 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -260,7 +260,7 @@ var pkgDeps = map[string][]string{
+ 	"internal/singleflight":     {"sync"},
+ 	"internal/trace":            {"L4", "OS"},
+ 	"internal/pprof/profile":    {"L4", "OS", "compress/gzip", "regexp"},
+-	"math/big":                  {"L4"},
++	"math/big":                  {"L4", "math/bits"},
+ 	"mime":                      {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+ 	"mime/quotedprintable":      {"L4"},
+ 	"net/internal/socktest":     {"L4", "OS", "syscall"},
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index 1101451f98..8cc0fb6497 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -8,18 +8,17 @@
+ 
+ package big
+ 
++import "math/bits"
++
+ // A Word represents a single digit of a multi-precision unsigned integer.
+ type Word uint
+ 
+ const (
+-	// Compute the size _S of a Word in bytes.
+-	_m    = ^Word(0)
+-	_logS = _m>>8&1 + _m>>16&1 + _m>>32&1
+-	_S    = 1 << _logS
++	_S = _W / 8 // word size in bytes
+ 
+-	_W = _S << 3 // word size in bits
+-	_B = 1 << _W // digit base
+-	_M = _B - 1  // digit mask
++	_W = bits.UintSize // word size in bits
++	_B = 1 << _W       // digit base
++	_M = _B - 1        // digit mask
+ 
+ 	_W2 = _W / 2   // half word size in bits
+ 	_B2 = 1 << _W2 // half digit base
+@@ -78,42 +77,30 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+ }
+ 
+ // Length of x in bits.
+-func bitLen_g(x Word) (n int) {
+-	for ; x >= 0x8000; x >>= 16 {
+-		n += 16
+-	}
+-	if x >= 0x80 {
+-		x >>= 8
+-		n += 8
+-	}
+-	if x >= 0x8 {
+-		x >>= 4
+-		n += 4
+-	}
+-	if x >= 0x2 {
+-		x >>= 2
+-		n += 2
+-	}
+-	if x >= 0x1 {
+-		n++
+-	}
+-	return
++func bitLen_g(x Word) int {
++	return bits.Len(uint(x))
+ }
+ 
+ // log2 computes the integer binary logarithm of x.
+ // The result is the integer n for which 2^n <= x < 2^(n+1).
+ // If x == 0, the result is -1.
+ func log2(x Word) int {
++	// TODO(gri) Replace with call to bits.Len once we have a fast
++	// implementation for the same platforms currently supporting math/big.
+ 	return bitLen(x) - 1
+ }
+ 
+ // nlz returns the number of leading zeros in x.
+ func nlz(x Word) uint {
++	// TODO(gri) Replace with call to bits.LeadingZeros once we have a fast
++	// implementation for the same platforms currently supporting math/big.
+ 	return uint(_W - bitLen(x))
+ }
+ 
+ // nlz64 returns the number of leading zeros in x.
+ func nlz64(x uint64) uint {
++	// TODO(gri) Replace with call to bits.LeadingZeros64 once we have a fast
++	// implementation for the same platforms currently supporting math/big.
+ 	switch _W {
+ 	case 32:
+ 		w := x >> 32
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 9b1a626c4c..1e6f7ae8a8 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -9,6 +9,7 @@
+ package big
+ 
+ import (
++	"math/bits"
+ 	"math/rand"
+ 	"sync"
+ )
+@@ -658,44 +659,6 @@ func (x nat) bitLen() int {
+ 	return 0
+ }
+ 
+-const deBruijn32 = 0x077CB531
+-
+-var deBruijn32Lookup = [...]byte{
+-	0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+-	31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9,
+-}
+-
+-const deBruijn64 = 0x03f79d71b4ca8b09
+-
+-var deBruijn64Lookup = [...]byte{
+-	0, 1, 56, 2, 57, 49, 28, 3, 61, 58, 42, 50, 38, 29, 17, 4,
+-	62, 47, 59, 36, 45, 43, 51, 22, 53, 39, 33, 30, 24, 18, 12, 5,
+-	63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11,
+-	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
+-}
+-
+-// trailingZeroBits returns the number of consecutive least significant zero
+-// bits of x.
+-func trailingZeroBits(x Word) uint {
+-	// x & -x leaves only the right-most bit set in the word. Let k be the
+-	// index of that bit. Since only a single bit is set, the value is two
+-	// to the power of k. Multiplying by a power of two is equivalent to
+-	// left shifting, in this case by k bits. The de Bruijn constant is
+-	// such that all six bit, consecutive substrings are distinct.
+-	// Therefore, if we have a left shifted version of this constant we can
+-	// find by how many bits it was shifted by looking at which six bit
+-	// substring ended up at the top of the word.
+-	// (Knuth, volume 4, section 7.3.1)
+-	switch _W {
+-	case 32:
+-		return uint(deBruijn32Lookup[((x&-x)*deBruijn32)>>27])
+-	case 64:
+-		return uint(deBruijn64Lookup[((x&-x)*(deBruijn64&_M))>>58])
+-	default:
+-		panic("unknown word size")
+-	}
+-}
+-
+ // trailingZeroBits returns the number of consecutive least significant zero
+ // bits of x.
+ func (x nat) trailingZeroBits() uint {
+@@ -707,7 +670,7 @@ func (x nat) trailingZeroBits() uint {
+ 		i++
+ 	}
+ 	// x[i] != 0
+-	return i*_W + trailingZeroBits(x[i])
++	return i*_W + uint(bits.TrailingZeros(uint(x[i])))
+ }
+ 
+ // z = x << s
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index ebb2985654..200a247f51 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -303,36 +303,6 @@ func TestModW(t *testing.T) {
+ 	}
+ }
+ 
+-func TestTrailingZeroBits(t *testing.T) {
+-	// test 0 case explicitly
+-	if n := trailingZeroBits(0); n != 0 {
+-		t.Errorf("got trailingZeroBits(0) = %d; want 0", n)
+-	}
+-
+-	x := Word(1)
+-	for i := uint(0); i < _W; i++ {
+-		n := trailingZeroBits(x)
+-		if n != i {
+-			t.Errorf("got trailingZeroBits(%#x) = %d; want %d", x, n, i%_W)
+-		}
+-		x <<= 1
+-	}
+-
+-	// test 0 case explicitly
+-	if n := nat(nil).trailingZeroBits(); n != 0 {
+-		t.Errorf("got nat(nil).trailingZeroBits() = %d; want 0", n)
+-	}
+-
+-	y := nat(nil).set(natOne)
+-	for i := uint(0); i <= 3*_W; i++ {
+-		n := y.trailingZeroBits()
+-		if n != i {
+-			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.utoa(16), n, i)
+-		}
+-		y = y.shl(y, 1)
+-	}
+-}
+-
+ var montgomeryTests = []struct {
+ 	x, y, m      string
+ 	k0           uint64
+diff --git a/src/math/big/natconv.go b/src/math/big/natconv.go
+index 44547842c1..25a345ef0e 100644
+--- a/src/math/big/natconv.go
++++ b/src/math/big/natconv.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"math"
++	"math/bits"
+ 	"sync"
+ )
+ 
+@@ -262,7 +263,7 @@ func (x nat) itoa(neg bool, base int) []byte {
+ 	// convert power of two and non power of two bases separately
+ 	if b := Word(base); b == b&-b {
+ 		// shift is base b digit size in bits
+-		shift := trailingZeroBits(b) // shift > 0 because b >= 2
++		shift := uint(bits.TrailingZeros(uint(b))) // shift > 0 because b >= 2
+ 		mask := Word(1<<shift - 1)
+ 		w := x[0]         // current word
+ 		nbits := uint(_W) // number of unprocessed bits in w

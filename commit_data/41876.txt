@@ -11,6 +11,23 @@ Date:   Tue Oct 29 13:50:31 2019 +0800
     Change-Id: Ib060d109f46f79a364a5c8aa33c4f625fe849264
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203997
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/mpfloat.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index d15f26784e..401aef319d 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -179,11 +179,6 @@ func (a *Mpflt) Neg() {
+ }
+ 
+ func (a *Mpflt) SetString(as string) {
+-	// TODO(gri) why is this needed?
+-	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
+-		as = as[1:]
+-	}
+-
+ 	f, _, err := a.Val.Parse(as, 0)
+ 	if err != nil {
+ 		yyerror("malformed constant: %s (%v)", as, err)

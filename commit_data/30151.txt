@@ -13,6 +13,29 @@ Date:   Wed Oct 26 08:50:23 2016 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/rpc/client_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/net/rpc/client_test.go b/src/net/rpc/client_test.go
+index ba11ff8586..d116d2acc9 100644
+--- a/src/net/rpc/client_test.go
++++ b/src/net/rpc/client_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"net"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -53,9 +52,6 @@ func (s *S) Recv(nul *struct{}, reply *R) error {
+ }
+ 
+ func TestGobError(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see https://golang.org/issue/8908")
+-	}
+ 	defer func() {
+ 		err := recover()
+ 		if err == nil {

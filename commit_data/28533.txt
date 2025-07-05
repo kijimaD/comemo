@@ -11,7 +11,7 @@ Date:   Wed Jun 1 13:46:49 2016 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go            | 16 ++++++++++++++-
  src/cmd/compile/internal/gc/universe.go           | 14 +++++++++----
  src/go/internal/gcimporter/gcimporter_test.go     | 25 +++++++++++++++++++++++
@@ -20,3 +20,164 @@ Date:   Wed Jun 1 13:46:49 2016 -0700
  test/fixedbugs/issue15920.dir/b.go                |  7 +++++++
  test/fixedbugs/issue15920.go                      |  7 +++++++
  7 files changed, 84 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index f533053cd7..c7be2deaa2 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -622,6 +622,8 @@ func isInlineable(n *Node) bool {
+ 	return false
+ }
+ 
++var errorInterface *Type // lazily initialized
++
+ func (p *exporter) typ(t *Type) {
+ 	if t == nil {
+ 		Fatalf("exporter: nil type")
+@@ -673,7 +675,19 @@ func (p *exporter) typ(t *Type) {
+ 		p.qualifiedName(tsym)
+ 
+ 		// write underlying type
+-		p.typ(t.Orig)
++		orig := t.Orig
++		if orig == errortype {
++			// The error type is the only predeclared type which has
++			// a composite underlying type. When we encode that type,
++			// make sure to encode the underlying interface rather than
++			// the named type again. See also the comment in universe.go
++			// regarding the errortype and issue #15920.
++			if errorInterface == nil {
++				errorInterface = makeErrorInterface()
++			}
++			orig = errorInterface
++		}
++		p.typ(orig)
+ 
+ 		// interfaces don't have associated methods
+ 		if t.Orig.IsInterface() {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index b55af7e25a..270d4c3770 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -358,9 +358,7 @@ func typeinit() {
+ 	itable = typPtr(Types[TUINT8])
+ }
+ 
+-func lexinit1() {
+-	// t = interface { Error() string }
+-
++func makeErrorInterface() *Type {
+ 	rcvr := typ(TSTRUCT)
+ 	rcvr.StructType().Funarg = FunargRcvr
+ 	field := newField()
+@@ -387,10 +385,18 @@ func lexinit1() {
+ 	field.Type = f
+ 	t.SetFields([]*Field{field})
+ 
++	return t
++}
++
++func lexinit1() {
+ 	// error type
+ 	s := Pkglookup("error", builtinpkg)
+-	errortype = t
++	errortype = makeErrorInterface()
+ 	errortype.Sym = s
++	// TODO: If we can prove that it's safe to set errortype.Orig here
++	// than we don't need the special errortype/errorInterface case in
++	// bexport.go. See also issue #15920.
++	// errortype.Orig = makeErrorInterface()
+ 	s.Def = typenod(errortype)
+ 
+ 	// byte alias
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 8de36c713c..d8c5bcfb1c 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -400,3 +400,28 @@ func TestIssue15517(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue15920(t *testing.T) {
++	skipSpecialPlatforms(t)
++
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
++		return
++	}
++
++	// On windows, we have to set the -D option for the compiler to avoid having a drive
++	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
++	if runtime.GOOS == "windows" {
++		t.Skip("avoid dealing with relative paths/drive letters on windows")
++	}
++
++	if f := compile(t, "testdata", "issue15920.go"); f != "" {
++		defer os.Remove(f)
++	}
++
++	imports := make(map[string]*types.Package)
++	if _, err := Import(imports, "./testdata/issue15920", "."); err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/go/internal/gcimporter/testdata/issue15920.go b/src/go/internal/gcimporter/testdata/issue15920.go
+new file mode 100644
+index 0000000000..c70f7d8267
+--- /dev/null
++++ b/src/go/internal/gcimporter/testdata/issue15920.go
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// The underlying type of Error is the underlying type of error.
++// Make sure we can import this again without problems.
++type Error error
++
++func F() Error { return nil }
+diff --git a/test/fixedbugs/issue15920.dir/a.go b/test/fixedbugs/issue15920.dir/a.go
+new file mode 100644
+index 0000000000..15f92355f7
+--- /dev/null
++++ b/test/fixedbugs/issue15920.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Error error
++
++func F() Error { return nil }
+diff --git a/test/fixedbugs/issue15920.dir/b.go b/test/fixedbugs/issue15920.dir/b.go
+new file mode 100644
+index 0000000000..0a36c5c6ab
+--- /dev/null
++++ b/test/fixedbugs/issue15920.dir/b.go
+@@ -0,0 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import _ "./a"
+diff --git a/test/fixedbugs/issue15920.go b/test/fixedbugs/issue15920.go
+new file mode 100644
+index 0000000000..4d2844dbb9
+--- /dev/null
++++ b/test/fixedbugs/issue15920.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

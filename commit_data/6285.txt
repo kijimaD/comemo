@@ -7,7 +7,34 @@ Date:   Wed Sep 15 15:38:16 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/2225041
-
+---
  src/pkg/os/file_unix.go    | 2 +-
  src/pkg/os/file_windows.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 5d53770532..9bd75bce01 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -70,7 +70,7 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
+ 
+ // Readdir reads the contents of the directory associated with file and
+ // returns an array of up to count FileInfo structures, as would be returned
+-// by Stat, in directory order.  Subsequent calls on the same file will yield
++// by Lstat, in directory order.  Subsequent calls on the same file will yield
+ // further FileInfos.
+ // A negative count means to read until EOF.
+ // Readdir returns the array and an Error, if any.
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index cb2ac987cf..e26c138c38 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -110,7 +110,7 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
+ 
+ // Readdir reads the contents of the directory associated with file and
+ // returns an array of up to count FileInfo structures, as would be returned
+-// by Stat, in directory order.  Subsequent calls on the same file will yield
++// by Lstat, in directory order.  Subsequent calls on the same file will yield
+ // further FileInfos.
+ // A negative count means to read until EOF.
+ // Readdir returns the array and an Error, if any.

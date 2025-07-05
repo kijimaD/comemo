@@ -11,6 +11,21 @@ Date:   Mon Nov 30 09:34:34 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/274116
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 7bad05265d..718239484b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -43,6 +43,9 @@ func hidePanic() {
+ 		// about a panic too; let the user clean up
+ 		// the code and try again.
+ 		if err := recover(); err != nil {
++			if err == "-h" {
++				panic(err)
++			}
+ 			base.ErrorExit()
+ 		}
+ 	}

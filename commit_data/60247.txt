@@ -19,6 +19,22 @@ Date:   Sun Jun 2 22:06:38 2024 +0200
     TryBot-Bypass: David du Colombier <0intro@gmail.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/lookup_plan9.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 5c869374f6..e3e371611f 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -257,7 +257,9 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string,
+ 
+ 	lines, err := queryDNS(ctx, name, "cname")
+ 	if err != nil {
+-		if stringslite.HasSuffix(err.Error(), "dns failure") || stringslite.HasSuffix(err.Error(), "resource does not exist; negrcode 0") {
++		if stringslite.HasSuffix(err.Error(), "dns failure") ||
++			stringslite.HasSuffix(err.Error(), "resource does not exist; negrcode 0") ||
++			stringslite.HasSuffix(err.Error(), "resource does not exist; negrcode") {
+ 			return absDomainName(name), nil
+ 		}
+ 		return "", handlePlan9DNSError(err, cname)

@@ -13,6 +13,29 @@ Date:   Thu Mar 1 01:55:33 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/97817
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  test/run.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/test/run.go b/test/run.go
+index 271a6f8014..8f2ec7e2f9 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1307,7 +1307,16 @@ func (t *test) wantedAsmOpcodes(fn string) (map[string]map[string][]wantedAsmOpc
+ 				if err != nil {
+ 					log.Fatalf("%s:%d: error unquoting string: %v", t.goFileName(), i+1, err)
+ 				}
+-				oprx, err := regexp.Compile(rxsrc)
++
++				// Compile the checks as regular expressions. Notice that we
++				// consider checks as matching from the beginning of the actual
++				// assembler source (that is, what is left on each line of the
++				// compile -S output after we strip file/line info) to avoid
++				// trivial bugs such as "ADD" matching "FADD". This
++				// doesn't remove genericity: it's still possible to write
++				// something like "F?ADD", but we make common cases simpler
++				// to get right.
++				oprx, err := regexp.Compile("^" + rxsrc)
+ 				if err != nil {
+ 					log.Fatalf("%s:%d: %v", t.goFileName(), i+1, err)
+ 				}

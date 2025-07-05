@@ -18,6 +18,27 @@ Date:   Mon Sep 9 12:47:33 2024 -0400
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/testdata/script/telemetry.txt | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/telemetry.txt b/src/cmd/go/testdata/script/telemetry.txt
+index 7edbe66b5f..52bf8dee64 100644
+--- a/src/cmd/go/testdata/script/telemetry.txt
++++ b/src/cmd/go/testdata/script/telemetry.txt
+@@ -52,7 +52,8 @@ stderr '^go: GOTELEMETRYDIR cannot be modified$'
+ 
+ # Test issue #69269: 'go telemetry off' should not increment counters.
+ # Establish that previous commands did write telemetry files.
+-exists $userconfig/go/telemetry/local
++# Only check for the existence of telemetry data on supported platforms.
++[!GOOS:openbsd] [!GOOS:solaris] [!GOOS:android] [!GOOS:illumos] [!GOOS:js] [!GOOS:wasip1] [!GOOS:plan9] [!GOARCH:mips] [!GOARCH:mipsle] exists $userconfig/go/telemetry/local
+ # Now check for go telemetry off behavior.
+ rm $userconfig/go/telemetry/local
+ go telemetry off
+@@ -66,4 +67,4 @@ go telemetry -C=$WORK off
+ ! exists $userconfig/go/telemetry/local
+ go telemetry local
+ go help telemetry
+-exists $userconfig/go/telemetry/local
++[!GOOS:openbsd] [!GOOS:solaris] [!GOOS:android] [!GOOS:illumos] [!GOOS:js] [!GOOS:wasip1] [!GOOS:plan9] [!GOARCH:mips] [!GOARCH:mipsle] exists $userconfig/go/telemetry/local

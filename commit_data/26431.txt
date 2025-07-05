@@ -12,7 +12,58 @@ Date:   Thu Jan 21 22:48:29 2016 -0500
     Change-Id: I0fab17d4078f93c5a0d6d1217d8d9a63ac789696
     Reviewed-on: https://go-review.googlesource.com/18845
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/asm/main.go              | 13 ++++++++++---
  src/cmd/internal/obj/x86/asm6.go |  3 ++-
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index db0e28e2e5..528481c132 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -47,21 +47,28 @@ func main() {
+ 	}
+ 	ctxt.Bso = obj.Binitw(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+-	ctxt.Diag = log.Fatalf
+ 	output := obj.Binitw(fd)
+ 	fmt.Fprintf(output, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
+ 	fmt.Fprintf(output, "!\n")
+ 
+ 	lexer := lex.NewLexer(flag.Arg(0), ctxt)
+ 	parser := asm.NewParser(ctxt, architecture, lexer)
++	diag := false
++	ctxt.Diag = func(format string, args ...interface{}) {
++		diag = true
++		log.Printf(format, args...)
++	}
+ 	pList := obj.Linknewplist(ctxt)
+ 	var ok bool
+ 	pList.Firstpc, ok = parser.Parse()
+-	if !ok {
++	if ok {
++		// reports errors to parser.Errorf
++		obj.Writeobjdirect(ctxt, output)
++	}
++	if !ok || diag {
+ 		log.Printf("asm: assembly of %s failed", flag.Arg(0))
+ 		os.Remove(*flags.OutputFile)
+ 		os.Exit(1)
+ 	}
+-	obj.Writeobjdirect(ctxt, output)
+ 	output.Flush()
+ }
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 164dbd6064..d5d52bb055 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -4274,7 +4274,8 @@ bad:
+ 		}
+ 	}
+ 
+-	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
++	ctxt.Diag("invalid instruction: %v", p)
++	//	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
+ 	return
+ }
+ 

@@ -7,6 +7,19 @@ Date:   Mon Feb 4 14:34:35 2013 +1100
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/7278050
-
+---
  src/pkg/archive/tar/example_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/archive/tar/example_test.go b/src/pkg/archive/tar/example_test.go
+index a5aaadc91d..351eaa0e6c 100644
+--- a/src/pkg/archive/tar/example_test.go
++++ b/src/pkg/archive/tar/example_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package tar_test
+ 
+ import (

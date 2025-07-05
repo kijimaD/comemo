@@ -7,7 +7,43 @@ Date:   Fri Dec 3 14:37:55 2010 +1100
     R=bradfitz, dangabrad
     CC=golang-dev
     https://golang.org/cl/3433042
-
+---
  doc/all.css          | 3 +++
  lib/godoc/godoc.html | 6 +++---
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/doc/all.css b/doc/all.css
+index a0af424fa2..92be26c31e 100644
+--- a/doc/all.css
++++ b/doc/all.css
+@@ -92,6 +92,9 @@ h1#title {
+ #nav-main .quickref {
+   color: #444;
+ }
++#nav-main .quickref .sep {
++  color: #999;
++}
+ #search {
+   width: 100px;
+   margin-left: 0.5em;
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index b6f77fcdb3..f1d9c2ad9c 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -25,13 +25,13 @@
+         <form method="GET" action="/search">
+         {.section PkgRoots}
+         {.repeated section PkgRoots}
+-        <a href="/pkg/{@|html-esc}">{@|html-esc}</a>
++        <a href="/pkg/{@|html-esc}">{@|html-esc}</a> <span class="sep">|</span>
+         {.end}
+         {.or}
+         References:
+         {.end}
+-        <a href="/pkg/">Packages</a>
+-        <a href="/cmd/">Commands</a>
++        <a href="/pkg/">Packages</a> <span class="sep">|</span>
++        <a href="/cmd/">Commands</a> <span class="sep">|</span>
+         <a href="/doc/go_spec.html">Specification</a>
+         <input id="search" type="text" name="q" value="{.section Query}{Query|html-esc}{.or}code search{.end}" class="{.section Query}{.or}inactive{.end}" />
+         </form>

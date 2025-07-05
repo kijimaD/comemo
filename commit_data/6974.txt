@@ -9,6 +9,20 @@ Date:   Thu Dec 16 10:46:25 2010 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/3584042
-
+---
  src/pkg/deps.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index 3a29188ce5..a8e3dfc3a1 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -14,7 +14,7 @@ if [ -f $OUT ] && ! [ -w $OUT ]; then
+ fi
+ 
+ # Get list of directories from Makefile
+-dirs=$(gomake echo-dirs)
++dirs=$(gomake --no-print-directory echo-dirs)
+ dirpat=$(echo $dirs C | sed 's/ /|/g; s/.*/^(&)$/')
+ 
+ for dir in $dirs; do (

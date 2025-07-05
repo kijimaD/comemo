@@ -12,7 +12,44 @@ Date:   Mon Sep 16 19:03:19 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/13735043
-
+---
  src/pkg/runtime/runtime.h | 1 +
  src/pkg/runtime/symtab.c  | 6 +++---
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 920e86c312..66e87d5c27 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -802,6 +802,7 @@ int32	runtime·funcline(Func*, uintptr, String*);
+ int32	runtime·funcarglen(Func*, uintptr);
+ int32	runtime·funcspdelta(Func*, uintptr);
+ int8*	runtime·funcname(Func*);
++int32	runtime·pcdatavalue(Func*, int32, uintptr);
+ void*	runtime·stackalloc(uint32);
+ void	runtime·stackfree(void*, uintptr);
+ MCache*	runtime·allocmcache(void);
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index bdf96a1b6e..dd0015aeec 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -208,8 +208,8 @@ runtime·funcspdelta(Func *f, uintptr targetpc)
+ 	return x;
+ }
+ 
+-static int32
+-pcdatavalue(Func *f, int32 table, uintptr targetpc)
++int32
++runtime·pcdatavalue(Func *f, int32 table, uintptr targetpc)
+ {
+ 	if(table < 0 || table >= f->npcdata)
+ 		return -1;
+@@ -221,7 +221,7 @@ runtime·funcarglen(Func *f, uintptr targetpc)
+ {
+ 	if(targetpc == f->entry)
+ 		return 0;
+-	return pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
++	return runtime·pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
+ }
+ 
+ void

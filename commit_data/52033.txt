@@ -14,7 +14,7 @@ Date:   Tue Mar 15 00:23:26 2022 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/malloc.go      |  69 --------------------------
  src/runtime/mem.go         | 119 +++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/mem_aix.go     |  21 +++-----
@@ -25,3 +25,669 @@ Date:   Tue Mar 15 00:23:26 2022 +0000
  src/runtime/mem_plan9.go   |  23 +++------
  src/runtime/mem_windows.go |  21 ++++----
  9 files changed, 179 insertions(+), 158 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index a22bef821a..a00878a11c 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -354,75 +354,6 @@ var (
+ 	physHugePageShift uint
+ )
+ 
+-// OS memory management abstraction layer
+-//
+-// Regions of the address space managed by the runtime may be in one of four
+-// states at any given time:
+-// 1) None - Unreserved and unmapped, the default state of any region.
+-// 2) Reserved - Owned by the runtime, but accessing it would cause a fault.
+-//               Does not count against the process' memory footprint.
+-// 3) Prepared - Reserved, intended not to be backed by physical memory (though
+-//               an OS may implement this lazily). Can transition efficiently to
+-//               Ready. Accessing memory in such a region is undefined (may
+-//               fault, may give back unexpected zeroes, etc.).
+-// 4) Ready - may be accessed safely.
+-//
+-// This set of states is more than is strictly necessary to support all the
+-// currently supported platforms. One could get by with just None, Reserved, and
+-// Ready. However, the Prepared state gives us flexibility for performance
+-// purposes. For example, on POSIX-y operating systems, Reserved is usually a
+-// private anonymous mmap'd region with PROT_NONE set, and to transition
+-// to Ready would require setting PROT_READ|PROT_WRITE. However the
+-// underspecification of Prepared lets us use just MADV_FREE to transition from
+-// Ready to Prepared. Thus with the Prepared state we can set the permission
+-// bits just once early on, we can efficiently tell the OS that it's free to
+-// take pages away from us when we don't strictly need them.
+-//
+-// For each OS there is a common set of helpers defined that transition
+-// memory regions between these states. The helpers are as follows:
+-//
+-// sysAlloc transitions an OS-chosen region of memory from None to Ready.
+-// More specifically, it obtains a large chunk of zeroed memory from the
+-// operating system, typically on the order of a hundred kilobytes
+-// or a megabyte. This memory is always immediately available for use.
+-//
+-// sysFree transitions a memory region from any state to None. Therefore, it
+-// returns memory unconditionally. It is used if an out-of-memory error has been
+-// detected midway through an allocation or to carve out an aligned section of
+-// the address space. It is okay if sysFree is a no-op only if sysReserve always
+-// returns a memory region aligned to the heap allocator's alignment
+-// restrictions.
+-//
+-// sysReserve transitions a memory region from None to Reserved. It reserves
+-// address space in such a way that it would cause a fatal fault upon access
+-// (either via permissions or not committing the memory). Such a reservation is
+-// thus never backed by physical memory.
+-// If the pointer passed to it is non-nil, the caller wants the
+-// reservation there, but sysReserve can still choose another
+-// location if that one is unavailable.
+-// NOTE: sysReserve returns OS-aligned memory, but the heap allocator
+-// may use larger alignment, so the caller must be careful to realign the
+-// memory obtained by sysReserve.
+-//
+-// sysMap transitions a memory region from Reserved to Prepared. It ensures the
+-// memory region can be efficiently transitioned to Ready.
+-//
+-// sysUsed transitions a memory region from Prepared to Ready. It notifies the
+-// operating system that the memory region is needed and ensures that the region
+-// may be safely accessed. This is typically a no-op on systems that don't have
+-// an explicit commit step and hard over-commit limits, but is critical on
+-// Windows, for example.
+-//
+-// sysUnused transitions a memory region from Ready to Prepared. It notifies the
+-// operating system that the physical pages backing this memory region are no
+-// longer needed and can be reused for other purposes. The contents of a
+-// sysUnused memory region are considered forfeit and the region must not be
+-// accessed again until sysUsed is called.
+-//
+-// sysFault transitions a memory region from Ready or Prepared to Reserved. It
+-// marks a region such that it will always fault if accessed. Used only for
+-// debugging the runtime.
+-
+ func mallocinit() {
+ 	if class_to_size[_TinySizeClass] != _TinySize {
+ 		throw("bad TinySizeClass")
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+new file mode 100644
+index 0000000000..67af9c057f
+--- /dev/null
++++ b/src/runtime/mem.go
+@@ -0,0 +1,119 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// OS memory management abstraction layer
++//
++// Regions of the address space managed by the runtime may be in one of four
++// states at any given time:
++// 1) None - Unreserved and unmapped, the default state of any region.
++// 2) Reserved - Owned by the runtime, but accessing it would cause a fault.
++//               Does not count against the process' memory footprint.
++// 3) Prepared - Reserved, intended not to be backed by physical memory (though
++//               an OS may implement this lazily). Can transition efficiently to
++//               Ready. Accessing memory in such a region is undefined (may
++//               fault, may give back unexpected zeroes, etc.).
++// 4) Ready - may be accessed safely.
++//
++// This set of states is more than is strictly necessary to support all the
++// currently supported platforms. One could get by with just None, Reserved, and
++// Ready. However, the Prepared state gives us flexibility for performance
++// purposes. For example, on POSIX-y operating systems, Reserved is usually a
++// private anonymous mmap'd region with PROT_NONE set, and to transition
++// to Ready would require setting PROT_READ|PROT_WRITE. However the
++// underspecification of Prepared lets us use just MADV_FREE to transition from
++// Ready to Prepared. Thus with the Prepared state we can set the permission
++// bits just once early on, we can efficiently tell the OS that it's free to
++// take pages away from us when we don't strictly need them.
++//
++// This file defines a cross-OS interface for a common set of helpers
++// that transition memory regions between these states. The helpers call into
++// OS-specific implementations that handle errors, while the interface boundary
++// implements cross-OS functionality, like updating runtime accounting.
++
++// sysAlloc transitions an OS-chosen region of memory from None to Ready.
++// More specifically, it obtains a large chunk of zeroed memory from the
++// operating system, typically on the order of a hundred kilobytes
++// or a megabyte. This memory is always immediately available for use.
++//
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
++//go:nosplit
++func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
++	sysStat.add(int64(n))
++	return sysAllocOS(n)
++}
++
++// sysUnused transitions a memory region from Ready to Prepared. It notifies the
++// operating system that the physical pages backing this memory region are no
++// longer needed and can be reused for other purposes. The contents of a
++// sysUnused memory region are considered forfeit and the region must not be
++// accessed again until sysUsed is called.
++func sysUnused(v unsafe.Pointer, n uintptr) {
++	sysUnusedOS(v, n)
++}
++
++// sysUsed transitions a memory region from Prepared to Ready. It notifies the
++// operating system that the memory region is needed and ensures that the region
++// may be safely accessed. This is typically a no-op on systems that don't have
++// an explicit commit step and hard over-commit limits, but is critical on
++// Windows, for example.
++func sysUsed(v unsafe.Pointer, n uintptr) {
++	sysUsedOS(v, n)
++}
++
++// sysHugePage does not transition memory regions, but instead provides a
++// hint to the OS that it would be more efficient to back this memory region
++// with pages of a larger size transparently.
++func sysHugePage(v unsafe.Pointer, n uintptr) {
++	sysHugePageOS(v, n)
++}
++
++// sysFree transitions a memory region from any state to None. Therefore, it
++// returns memory unconditionally. It is used if an out-of-memory error has been
++// detected midway through an allocation or to carve out an aligned section of
++// the address space. It is okay if sysFree is a no-op only if sysReserve always
++// returns a memory region aligned to the heap allocator's alignment
++// restrictions.
++//
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
++//go:nosplit
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(-int64(n))
++	sysFreeOS(v, n)
++}
++
++// sysFault transitions a memory region from Ready or Prepared to Reserved. It
++// marks a region such that it will always fault if accessed. Used only for
++// debugging the runtime.
++func sysFault(v unsafe.Pointer, n uintptr) {
++	sysFaultOS(v, n)
++}
++
++// sysReserve transitions a memory region from None to Reserved. It reserves
++// address space in such a way that it would cause a fatal fault upon access
++// (either via permissions or not committing the memory). Such a reservation is
++// thus never backed by physical memory.
++//
++// If the pointer passed to it is non-nil, the caller wants the
++// reservation there, but sysReserve can still choose another
++// location if that one is unavailable.
++//
++// NOTE: sysReserve returns OS-aligned memory, but the heap allocator
++// may use larger alignment, so the caller must be careful to realign the
++// memory obtained by sysReserve.
++func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
++	return sysReserveOS(v, n)
++}
++
++// sysMap transitions a memory region from Reserved to Prepared. It ensures the
++// memory region can be efficiently transitioned to Ready.
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(int64(n))
++	sysMapOS(v, n)
++}
+diff --git a/src/runtime/mem_aix.go b/src/runtime/mem_aix.go
+index 489d7928e1..d6a181ad4d 100644
+--- a/src/runtime/mem_aix.go
++++ b/src/runtime/mem_aix.go
+@@ -11,7 +11,7 @@ import (
+ // Don't split the stack as this method may be invoked without a valid G, which
+ // prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
++func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		if err == _EACCES {
+@@ -24,34 +24,31 @@ func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 		}
+ 		return nil
+ 	}
+-	sysStat.add(int64(n))
+ 	return p
+ }
+ 
+-func sysUnused(v unsafe.Pointer, n uintptr) {
++func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+ 	madvise(v, n, _MADV_DONTNEED)
+ }
+ 
+-func sysUsed(v unsafe.Pointer, n uintptr) {
++func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysHugePage(v unsafe.Pointer, n uintptr) {
++func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(-int64(n))
++func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	munmap(v, n)
+-
+ }
+ 
+-func sysFault(v unsafe.Pointer, n uintptr) {
++func sysFaultOS(v unsafe.Pointer, n uintptr) {
+ 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+ }
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
++func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+@@ -59,9 +56,7 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	return p
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(int64(n))
+-
++func sysMapOS(v unsafe.Pointer, n uintptr) {
+ 	// AIX does not allow mapping a range that is already mapped.
+ 	// So, call mprotect to change permissions.
+ 	// Note that sysMap is always called with a non-nil pointer
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index 49337eafbf..e83145e86b 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -13,41 +13,39 @@ import (
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
++func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+ 	}
+-	sysStat.add(int64(n))
+ 	return v
+ }
+ 
+-func sysUnused(v unsafe.Pointer, n uintptr) {
++func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+ 	madvise(v, n, _MADV_FREE)
+ }
+ 
+-func sysUsed(v unsafe.Pointer, n uintptr) {
++func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysHugePage(v unsafe.Pointer, n uintptr) {
++func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(-int64(n))
++func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	munmap(v, n)
+ }
+ 
+-func sysFault(v unsafe.Pointer, n uintptr) {
++func sysFaultOS(v unsafe.Pointer, n uintptr) {
+ 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+ }
+ 
+ // Indicates not to reserve swap space for the mapping.
+ const _sunosMAP_NORESERVE = 0x40
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
++func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	flags := int32(_MAP_ANON | _MAP_PRIVATE)
+ 	if GOOS == "solaris" || GOOS == "illumos" {
+ 		// Be explicit that we don't want to reserve swap space
+@@ -65,9 +63,7 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ const _sunosEAGAIN = 11
+ const _ENOMEM = 12
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(int64(n))
+-
++func sysMapOS(v unsafe.Pointer, n uintptr) {
+ 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if err == _ENOMEM || ((GOOS == "solaris" || GOOS == "illumos") && err == _sunosEAGAIN) {
+ 		throw("runtime: out of memory")
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index 9f836c0818..d63b5559aa 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -11,44 +11,42 @@ import (
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
++func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+ 	}
+-	sysStat.add(int64(n))
+ 	return v
+ }
+ 
+-func sysUnused(v unsafe.Pointer, n uintptr) {
++func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+ 	// MADV_FREE_REUSABLE is like MADV_FREE except it also propagates
+ 	// accounting information about the process to task_info.
+ 	madvise(v, n, _MADV_FREE_REUSABLE)
+ }
+ 
+-func sysUsed(v unsafe.Pointer, n uintptr) {
++func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ 	// MADV_FREE_REUSE is necessary to keep the kernel's accounting
+ 	// accurate. If called on any memory region that hasn't been
+ 	// MADV_FREE_REUSABLE'd, it's a no-op.
+ 	madvise(v, n, _MADV_FREE_REUSE)
+ }
+ 
+-func sysHugePage(v unsafe.Pointer, n uintptr) {
++func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(-int64(n))
++func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	munmap(v, n)
+ }
+ 
+-func sysFault(v unsafe.Pointer, n uintptr) {
++func sysFaultOS(v unsafe.Pointer, n uintptr) {
+ 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+ }
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
++func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+@@ -58,9 +56,7 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 
+ const _ENOMEM = 12
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(int64(n))
+-
++func sysMapOS(v unsafe.Pointer, n uintptr) {
+ 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if err == _ENOMEM {
+ 		throw("runtime: out of memory")
+diff --git a/src/runtime/mem_js.go b/src/runtime/mem_js.go
+index 4ca486ac4b..c66b91eedd 100644
+--- a/src/runtime/mem_js.go
++++ b/src/runtime/mem_js.go
+@@ -13,34 +13,33 @@ import (
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+-	p := sysReserve(nil, n)
+-	sysMap(p, n, sysStat)
++func sysAllocOS(n uintptr) unsafe.Pointer {
++	p := sysReserveOS(nil, n)
++	sysMapOS(p, n)
+ 	return p
+ }
+ 
+-func sysUnused(v unsafe.Pointer, n uintptr) {
++func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysUsed(v unsafe.Pointer, n uintptr) {
++func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysHugePage(v unsafe.Pointer, n uintptr) {
++func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(-int64(n))
++func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysFault(v unsafe.Pointer, n uintptr) {
++func sysFaultOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ var reserveEnd uintptr
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
++func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	// TODO(neelance): maybe unify with mem_plan9.go, depending on how https://github.com/WebAssembly/design/blob/master/FutureFeatures.md#finer-grained-control-over-memory turns out
+ 
+ 	if v != nil {
+@@ -80,6 +79,5 @@ func growMemory(pages int32) int32
+ // This allows the front-end to replace the old DataView object with a new one.
+ func resetMemoryDataView()
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(int64(n))
++func sysMapOS(v unsafe.Pointer, n uintptr) {
+ }
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index f8333014c2..980f7bb53d 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -17,7 +17,7 @@ const (
+ // Don't split the stack as this method may be invoked without a valid G, which
+ // prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
++func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		if err == _EACCES {
+@@ -30,13 +30,12 @@ func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 		}
+ 		return nil
+ 	}
+-	sysStat.add(int64(n))
+ 	return p
+ }
+ 
+ var adviseUnused = uint32(_MADV_FREE)
+ 
+-func sysUnused(v unsafe.Pointer, n uintptr) {
++func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+ 	// By default, Linux's "transparent huge page" support will
+ 	// merge pages into a huge page if there's even a single
+ 	// present regular page, undoing the effects of madvise(adviseUnused)
+@@ -123,7 +122,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 	}
+ }
+ 
+-func sysUsed(v unsafe.Pointer, n uintptr) {
++func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ 	if debug.harddecommit > 0 {
+ 		p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 		if err == _ENOMEM {
+@@ -145,10 +144,10 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 	// the end points as well, but it's probably not worth
+ 	// the cost because when neighboring allocations are
+ 	// freed sysUnused will just set NOHUGEPAGE again.
+-	sysHugePage(v, n)
++	sysHugePageOS(v, n)
+ }
+ 
+-func sysHugePage(v unsafe.Pointer, n uintptr) {
++func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ 	if physHugePageSize != 0 {
+ 		// Round v up to a huge page boundary.
+ 		beg := alignUp(uintptr(v), physHugePageSize)
+@@ -164,16 +163,15 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(-int64(n))
++func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	munmap(v, n)
+ }
+ 
+-func sysFault(v unsafe.Pointer, n uintptr) {
++func sysFaultOS(v unsafe.Pointer, n uintptr) {
+ 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+ }
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
++func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+@@ -181,9 +179,7 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	return p
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(int64(n))
+-
++func sysMapOS(v unsafe.Pointer, n uintptr) {
+ 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if err == _ENOMEM {
+ 		throw("runtime: out of memory")
+diff --git a/src/runtime/mem_plan9.go b/src/runtime/mem_plan9.go
+index 53d8e6dffa..0e8bf74746 100644
+--- a/src/runtime/mem_plan9.go
++++ b/src/runtime/mem_plan9.go
+@@ -140,19 +140,15 @@ func sbrk(n uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(bl)
+ }
+ 
+-func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
++func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	lock(&memlock)
+ 	p := memAlloc(n)
+ 	memCheck()
+ 	unlock(&memlock)
+-	if p != nil {
+-		sysStat.add(int64(n))
+-	}
+ 	return p
+ }
+ 
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(-int64(n))
++func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	lock(&memlock)
+ 	if uintptr(v)+n == bloc {
+ 		// Address range being freed is at the end of memory,
+@@ -167,25 +163,22 @@ func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+ 	unlock(&memlock)
+ }
+ 
+-func sysUnused(v unsafe.Pointer, n uintptr) {
++func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysUsed(v unsafe.Pointer, n uintptr) {
++func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysHugePage(v unsafe.Pointer, n uintptr) {
++func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	// sysReserve has already allocated all heap memory,
+-	// but has not adjusted stats.
+-	sysStat.add(int64(n))
++func sysMapOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysFault(v unsafe.Pointer, n uintptr) {
++func sysFaultOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
++func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	lock(&memlock)
+ 	var p unsafe.Pointer
+ 	if uintptr(v) == bloc {
+diff --git a/src/runtime/mem_windows.go b/src/runtime/mem_windows.go
+index 3a805b9767..c8f039f50b 100644
+--- a/src/runtime/mem_windows.go
++++ b/src/runtime/mem_windows.go
+@@ -24,12 +24,11 @@ const (
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+-	sysStat.add(int64(n))
++func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
+ }
+ 
+-func sysUnused(v unsafe.Pointer, n uintptr) {
++func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+ 	r := stdcall3(_VirtualFree, uintptr(v), n, _MEM_DECOMMIT)
+ 	if r != 0 {
+ 		return
+@@ -59,7 +58,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 	}
+ }
+ 
+-func sysUsed(v unsafe.Pointer, n uintptr) {
++func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ 	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
+ 	if p == uintptr(v) {
+ 		return
+@@ -91,14 +90,13 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 	}
+ }
+ 
+-func sysHugePage(v unsafe.Pointer, n uintptr) {
++func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(-int64(n))
++func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
+ 	if r == 0 {
+ 		print("runtime: VirtualFree of ", n, " bytes failed with errno=", getlasterror(), "\n")
+@@ -106,12 +104,12 @@ func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+ 	}
+ }
+ 
+-func sysFault(v unsafe.Pointer, n uintptr) {
++func sysFaultOS(v unsafe.Pointer, n uintptr) {
+ 	// SysUnused makes the memory inaccessible and prevents its reuse
+-	sysUnused(v, n)
++	sysUnusedOS(v, n)
+ }
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
++func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	// v is just a hint.
+ 	// First try at v.
+ 	// This will fail if any of [v, v+n) is already reserved.
+@@ -124,6 +122,5 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+-	sysStat.add(int64(n))
++func sysMapOS(v unsafe.Pointer, n uintptr) {
+ }

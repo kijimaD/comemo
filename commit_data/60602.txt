@@ -22,6 +22,22 @@ Date:   Mon Jul 22 13:27:09 2024 -0700
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/internal/testdir/testdir_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index e64451b743..c494f2c4c0 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -219,7 +219,9 @@ var stdlibImportcfgString string
+ 
+ func stdlibImportcfg() string {
+ 	stdlibImportcfgStringOnce.Do(func() {
+-		output, err := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std").Output()
++		cmd := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std")
++		cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=")
++		output, err := cmd.Output()
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}

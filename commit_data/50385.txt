@@ -20,10 +20,98 @@ Date:   Thu Oct 21 14:31:40 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/crawler.go |  8 +++++++-
  test/fixedbugs/issue49094.dir/a.go            | 11 +++++++++++
  test/fixedbugs/issue49094.dir/b.go            | 11 +++++++++++
  test/fixedbugs/issue49094.dir/p.go            | 15 +++++++++++++++
  test/fixedbugs/issue49094.go                  |  7 +++++++
  5 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index b214ef2279..e1489ceedd 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -217,7 +217,13 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ 				//
+ 				// We generate the wrapper for "struct{ t }".M, and inline call
+ 				// to "struct{ t }".M, which makes "t.M" reachable.
+-				p.markEmbed(t)
++				if t.IsStruct() {
++					for _, f := range t.FieldSlice() {
++						if f.Embedded != 0 {
++							p.markEmbed(f.Type)
++						}
++					}
++				}
+ 			}
+ 		}
+ 
+diff --git a/test/fixedbugs/issue49094.dir/a.go b/test/fixedbugs/issue49094.dir/a.go
+new file mode 100644
+index 0000000000..9ec0fd9f93
+--- /dev/null
++++ b/test/fixedbugs/issue49094.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type A struct{}
++
++func (a *A) f() bool {
++	return true
++}
+diff --git a/test/fixedbugs/issue49094.dir/b.go b/test/fixedbugs/issue49094.dir/b.go
+new file mode 100644
+index 0000000000..f2361958ac
+--- /dev/null
++++ b/test/fixedbugs/issue49094.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func M(r *a.A) string {
++	return ""
++}
+diff --git a/test/fixedbugs/issue49094.dir/p.go b/test/fixedbugs/issue49094.dir/p.go
+new file mode 100644
+index 0000000000..581faf19ac
+--- /dev/null
++++ b/test/fixedbugs/issue49094.dir/p.go
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	"./b"
++)
++
++type S struct{}
++
++func (S) M() {
++	b.M(nil)
++}
+diff --git a/test/fixedbugs/issue49094.go b/test/fixedbugs/issue49094.go
+new file mode 100644
+index 0000000000..b83fbd7af1
+--- /dev/null
++++ b/test/fixedbugs/issue49094.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

@@ -7,6 +7,21 @@ Date:   Mon Apr 27 19:28:16 2015 -0400
     Change-Id: I43a40f0c10472b3126c06b0d4268b32b54665f12
     Reviewed-on: https://go-review.googlesource.com/9349
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 238e2b56b9..c6e0938a54 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -13,6 +13,9 @@ darwin/arm, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ...,
+ darwin/arm64
+ linux/arm64 (cgo is supported, but only with external linking)
+ 
++Runtime:
++goroutine scheduling order changed; never guaranteed by language, but can break tests that implicitly assume a specific execution order
++
+ Removed Ports:
+ dragonfly/386 (https://golang.org/cl/7543)
+ 

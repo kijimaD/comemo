@@ -9,8 +9,100 @@ Date:   Thu Aug 29 10:00:58 2013 +0200
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/13083043
-
+---
  src/cmd/gc/closure.c        | 14 ++++++++++++--
  test/fixedbugs/issue6140.go | 31 +++++++++++++++++++++++++++++++
  test/method2.go             |  5 +++--
  3 files changed, 46 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 8c40cb8d95..5a84dfb1be 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -285,6 +285,8 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
+ 	NodeList *body, *l, *callargs, *retargs;
+ 	char *p;
+ 	Sym *sym;
++	Pkg *spkg;
++	static Pkg* gopkg;
+ 	int i, ddd;
+ 
+ 	// TODO: names are not right
+@@ -296,10 +298,18 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
+ 	basetype = rcvrtype;
+ 	if(isptr[rcvrtype->etype])
+ 		basetype = basetype->type;
+-	if(basetype->sym == S)
++	if(basetype->etype != TINTER && basetype->sym == S)
+ 		fatal("missing base type for %T", rcvrtype);
+ 
+-	sym = pkglookup(p, basetype->sym->pkg);
++	spkg = nil;
++	if(basetype->sym != S)
++		spkg = basetype->sym->pkg;
++	if(spkg == nil) {
++		if(gopkg == nil)
++			gopkg = mkpkg(strlit("go"));
++		spkg = gopkg;
++	}
++	sym = pkglookup(p, spkg);
+ 	free(p);
+ 	if(sym->flags & SymUniq)
+ 		return sym->def;
+diff --git a/test/fixedbugs/issue6140.go b/test/fixedbugs/issue6140.go
+new file mode 100644
+index 0000000000..d494933b2e
+--- /dev/null
++++ b/test/fixedbugs/issue6140.go
+@@ -0,0 +1,31 @@
++// compile
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 6140: compiler incorrectly rejects method values
++// whose receiver has an unnamed interface type.
++
++package p
++
++type T *interface {
++	m() int
++}
++
++var x T
++
++var _ = (*x).m
++
++var y interface {
++	m() int
++}
++
++var _ = y.m
++
++type I interface {
++	String() string
++}
++
++var z *struct{ I }
++var _ = z.String
+diff --git a/test/method2.go b/test/method2.go
+index b63da10dc6..aaa850e719 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -21,7 +21,7 @@ func (p *P1) val() int { return 1 } // ERROR "receiver.* pointer|invalid pointer
+ type I interface{}
+ type I1 interface{}
+ 
+-func (p I) val() int { return 1 } // ERROR "receiver.*interface|invalid pointer or interface receiver"
++func (p I) val() int   { return 1 } // ERROR "receiver.*interface|invalid pointer or interface receiver"
+ func (p *I1) val() int { return 1 } // ERROR "receiver.*interface|invalid pointer or interface receiver"
+ 
+ type Val interface {
+@@ -33,4 +33,5 @@ var _ = (*Val).val // ERROR "method"
+ var v Val
+ var pv = &v
+ 
+-var _ = pv.val()	// ERROR "method"
++var _ = pv.val() // ERROR "method"
++var _ = pv.val   // ERROR "method"

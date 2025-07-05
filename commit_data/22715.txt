@@ -7,6 +7,27 @@ Date:   Fri Apr 3 16:51:08 2015 -0700
     Change-Id: I8e2177ffdb4b75e7f3687109311306fc02fcc8e3
     Reviewed-on: https://go-review.googlesource.com/8468
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 2a8ad2116e..d9fe86e6fe 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -19,6 +19,7 @@ API additions and behavior changes:
+ 
+ archive/zip: add (*Writer).SetOffset method (https://golang.org/cl/7445)
+ bufio: add Reader.Discard (https://golang.org/cl/2260)
++bytes: add Buffer.Cap (https://golang.org/cl/8342)
+ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+@@ -41,6 +42,7 @@ strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://
+ syscall: Add Foreground and Pgid to SysProcAttr (https://golang.org/cl/5130)
+ syscall: add missing Syscall9 for darwin/amd64 (https://golang.org/cl/6555)
+ testing/quick: support generation of arrays (https://golang.org/cl/3865)
++text/template: add Options method (https://golang.org/cl/8462)
+ 
+ Tools:
+ 

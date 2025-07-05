@@ -6,7 +6,35 @@ Date:   Wed Jun 25 21:31:17 2008 -0700
     6l needs to know that there is no rt_amd64.6
     
     SVN=124766
-
+---
  src/cmd/6l/obj.c     | 4 ----
  src/runtime/Makefile | 1 +
  2 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index ac8999d69b..49fd5956c4 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -363,10 +363,6 @@ main(int argc, char *argv[])
+ 		objfile(*argv++);
+ 
+ 	if(!debug['l']) {
+-		loadlib();
+-		a = mal(strlen(goroot)+strlen(goarch)+20);
+-		sprint(a, "%s/lib/rt_%s.6", goroot, goarch);
+-		objfile(a);
+ 		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
+ 		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
+ 		objfile(a);
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index 52741c1257..11e39cc6ce 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -15,6 +15,7 @@ RT0OFILES=\
+ LIBOFILES=\
+ 	rt1_$(GOARCH)_$(GOOS).$O\
+ 	rt2_$(GOARCH).$O\
++	runtime.$O\
+ 
+ OFILES=$(RT0OFILES) $(LIBOFILES)
+ HFILES=

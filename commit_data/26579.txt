@@ -17,6 +17,37 @@ Date:   Tue Feb 9 14:39:52 2016 +0100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/net_windows_test.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index 095a339e02..c26c6a77c9 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -487,8 +487,13 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
+ 	//
+ 	//Connection Name:  Bluetooth Network Connection
+ 	//Network Adapter:  Bluetooth Device (Personal Area Network)
+-	//Physical Address: XX-XX-XX-XX-XX-XX
+-	//Transport Name:   Media disconnected
++	//Physical Address: N/A
++	//Transport Name:   Hardware not present
++	//
++	//Connection Name:  VMware Network Adapter VMnet8
++	//Network Adapter:  VMware Virtual Ethernet Adapter for VMnet8
++	//Physical Address: Disabled
++	//Transport Name:   Disconnected
+ 	//
+ 	want := make(map[string]string)
+ 	var name string
+@@ -516,6 +521,9 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
+ 			if addr == "" {
+ 				t.Fatal("empty address on \"Physical Address\" line: %q", line)
+ 			}
++			if addr == "disabled" || addr == "n/a" {
++				continue
++			}
+ 			addr = strings.Replace(addr, "-", ":", -1)
+ 			want[name] = addr
+ 			name = ""

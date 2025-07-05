@@ -23,9 +23,132 @@ Date:   Mon Apr 6 21:28:04 2009 -0700
     DELTA=44  (22 added, 16 deleted, 6 changed)
     OCL=27139
     CL=27141
-
+---
  src/lib/fmt/fmt_test.go     | 22 ++++------------------
  src/lib/fmt/print.go        |  7 +++----
  src/lib/reflect/all_test.go | 10 ++++++++++
  src/lib/reflect/value.go    | 11 +++++++++++
  4 files changed, 28 insertions(+), 22 deletions(-)
+
+diff --git a/src/lib/fmt/fmt_test.go b/src/lib/fmt/fmt_test.go
+index 34acab08be..e4158624b0 100644
+--- a/src/lib/fmt/fmt_test.go
++++ b/src/lib/fmt/fmt_test.go
+@@ -29,7 +29,7 @@ type fmtTest struct {
+ const b32 uint32 = 1<<32 - 1
+ const b64 uint64 = 1<<64 - 1
+ var array = []int{1, 2, 3, 4, 5}
+-
++var iarray = []interface{}{1, "hello", 2.5, nil}
+ 
+ var fmttests = []fmtTest{
+ 	// basic string
+@@ -80,10 +80,10 @@ var fmttests = []fmtTest{
+ 	fmtTest{ "% d",		-12345,	"-12345" },
+ 
+ 	// arrays
+-	// TODO: when arrays work in interfaces, enable this line
+-	// and delete the TestArrayPrinter routine below
+-	// fmtTest{ "%v",		array,			"[1 2 3 4 5]" },
++	fmtTest{ "%v",		array,			"[1 2 3 4 5]" },
++	fmtTest{ "%v",		iarray,			"[1 hello 2.5 <nil>]" },
+ 	fmtTest{ "%v",		&array,			"&[1 2 3 4 5]" },
++	fmtTest{ "%v",		&iarray,			"&[1 hello 2.5 <nil>]" },
+ 
+ 	// old test/fmt_test.go
+ 	fmtTest{ "%d",		1234,			"1234" },
+@@ -240,17 +240,3 @@ func TestStructPrinter(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func TestArrayPrinter(t *testing.T) {
+-	a := []int{1, 2, 3, 4, 5};
+-	want := "[1 2 3 4 5]";
+-	out := fmt.Sprintf("%v", a);
+-	if out != want {
+-		t.Errorf("Sprintf(%%v, array) = %q, want %q", out, want);
+-	}
+-	want = "&" + want;
+-	out = fmt.Sprintf("%v", &a);
+-	if out != want {
+-		t.Errorf("Sprintf(%%v, &array) = %q, want %q", out, want);
+-	}
+-}
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index ca5bec9341..5fd230f2ce 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -451,12 +451,11 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
+ 		}
+ 		p.add('}');
+ 	case reflect.InterfaceKind:
+-		inter := field.(reflect.InterfaceValue).Get();
+-		if inter == nil {
++		value := field.(reflect.InterfaceValue).Value();
++		if value == nil {
+ 			s = "<nil>"
+ 		} else {
+-			// should never happen since a non-nil interface always has a type
+-			s = "<non-nil interface>";
++			return p.printField(value);
+ 		}
+ 	default:
+ 		s = "?" + field.Type().String() + "?";
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index 166b20702f..e3f6b9b506 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -301,6 +301,16 @@ func TestInterfaceGet(t *testing.T) {
+ 	assert(v3.Type().String(), "float");
+ }
+ 
++func TestInterfaceValue(t *testing.T) {
++	var inter struct { e interface{ } };
++	inter.e = 123.456;
++	v1 := reflect.NewValue(&inter);
++	v2 := v1.(reflect.PtrValue).Sub().(reflect.StructValue).Field(0);
++	assert(v2.Type().String(), "interface { }");
++	v3 := v2.(reflect.InterfaceValue).Value();
++	assert(v3.Type().String(), "float");
++}
++
+ func TestCopyArray(t *testing.T) {
+ 	a := []int{ 1, 2, 3, 4, 10, 9, 8, 7 };
+ 	b := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 7bd6f3b153..ad0cd46556 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -34,6 +34,8 @@ type Value interface {
+ 	Interface()	interface {};
+ }
+ 
++func NewValue(e interface{}) Value;
++
+ // commonValue fields and functionality for all values
+ 
+ type commonValue struct {
+@@ -744,6 +746,7 @@ func structCreator(typ Type, addr Addr) Value {
+ type InterfaceValue interface {
+ 	Value;
+ 	Get()	interface {};	// Get the underlying interface{} value.
++	Value() Value;
+ }
+ 
+ type interfaceValueStruct struct {
+@@ -754,6 +757,14 @@ func (v *interfaceValueStruct) Get() interface{} {
+ 	return *(*interface{})(v.addr)
+ }
+ 
++func (v *interfaceValueStruct) Value() Value {
++	i := v.Get();
++	if i == nil {
++		return nil;
++	}
++	return NewValue(i);
++}
++
+ func interfaceCreator(typ Type, addr Addr) Value {
+ 	return &interfaceValueStruct{ commonValue{InterfaceKind, typ, addr} }
+ }

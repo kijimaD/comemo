@@ -14,7 +14,76 @@ Date:   Tue Aug 30 18:59:53 2022 +1000
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Meng Zhuo <mzh@golangcn.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++--
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 24 ++++++++++++++++++++----
  2 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index c2f1c16b6b..5c3c862571 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -534,8 +534,8 @@
+ // Boolean ops; 0=false, 1=true
+ (AndB ...) => (AND ...)
+ (OrB  ...) => (OR  ...)
+-(EqB  x y) => (SEQZ (XOR <typ.Bool> x y))
+-(NeqB ...) => (XOR ...)
++(EqB  x y) => (SEQZ (SUB <typ.Bool> x y))
++(NeqB x y) => (SNEZ (SUB <typ.Bool> x y))
+ (Not  ...) => (SEQZ ...)
+ 
+ // Lowering pointer arithmetic
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 097232ab18..05c646e4a6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -406,8 +406,7 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpNeq8:
+ 		return rewriteValueRISCV64_OpNeq8(v)
+ 	case OpNeqB:
+-		v.Op = OpRISCV64XOR
+-		return true
++		return rewriteValueRISCV64_OpNeqB(v)
+ 	case OpNeqPtr:
+ 		return rewriteValueRISCV64_OpNeqPtr(v)
+ 	case OpNilCheck:
+@@ -1121,12 +1120,12 @@ func rewriteValueRISCV64_OpEqB(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (EqB x y)
+-	// result: (SEQZ (XOR <typ.Bool> x y))
++	// result: (SEQZ (SUB <typ.Bool> x y))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+ 		v.reset(OpRISCV64SEQZ)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64XOR, typ.Bool)
++		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, typ.Bool)
+ 		v0.AddArg2(x, y)
+ 		v.AddArg(v0)
+ 		return true
+@@ -2970,6 +2969,23 @@ func rewriteValueRISCV64_OpNeq8(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueRISCV64_OpNeqB(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (NeqB x y)
++	// result: (SNEZ (SUB <typ.Bool> x y))
++	for {
++		x := v_0
++		y := v_1
++		v.reset(OpRISCV64SNEZ)
++		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, typ.Bool)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueRISCV64_OpNeqPtr(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]

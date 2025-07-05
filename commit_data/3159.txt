@@ -8,8 +8,73 @@ Date:   Mon Aug 31 16:48:56 2009 -0700
     DELTA=9  (0 added, 0 deleted, 9 changed)
     OCL=34148
     CL=34151
-
+---
  src/pkg/unicode/maketables.go  | 6 +++---
  src/pkg/unicode/script_test.go | 8 ++++----
  src/pkg/unicode/tables.go      | 4 ++--
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index cdc088c06b..cd3f38105a 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -558,7 +558,7 @@ func printScriptOrProperty(doProps bool) {
+ 		flaglist = *proplist;
+ 		file = "PropList.txt";
+ 		table = props;
+-		installed = unicode.Props;
++		installed = unicode.Properties;
+ 	}
+ 	if flaglist == "" {
+ 		return
+@@ -608,8 +608,8 @@ func printScriptOrProperty(doProps bool) {
+ 	);
+ 	if flaglist == "all" {
+ 		if doProps {
+-			fmt.Println("// Props is the set of Unicode property tables.");
+-			fmt.Println("var Props = map[string] []Range {");
++			fmt.Println("// Properties is the set of Unicode property tables.");
++			fmt.Println("var Properties = map[string] []Range {");
+ 		} else {
+ 			fmt.Println("// Scripts is the set of Unicode script tables.");
+ 			fmt.Println("var Scripts = map[string] []Range {");
+diff --git a/src/pkg/unicode/script_test.go b/src/pkg/unicode/script_test.go
+index 6c7934ec87..613b569ea1 100644
+--- a/src/pkg/unicode/script_test.go
++++ b/src/pkg/unicode/script_test.go
+@@ -212,16 +212,16 @@ func TestCategories(t *testing.T) {
+ 	}
+ }
+ 
+-func TestProps(t *testing.T) {
++func TestProperties(t *testing.T) {
+ 	notTested := make(map[string] bool);
+-	for k := range Props {
++	for k := range Properties {
+ 		notTested[k] = true
+ 	}
+ 	for i, test := range inPropTest {
+-		if _, ok := Props[test.script]; !ok {
++		if _, ok := Properties[test.script]; !ok {
+ 			t.Fatal(test.script, "not a known prop")
+ 		}
+-		if !Is(Props[test.script], test.rune) {
++		if !Is(Properties[test.script], test.rune) {
+ 			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script);
+ 		}
+ 		notTested[test.script] = false, false
+diff --git a/src/pkg/unicode/tables.go b/src/pkg/unicode/tables.go
+index c5ce78783f..d3af40d8de 100644
+--- a/src/pkg/unicode/tables.go
++++ b/src/pkg/unicode/tables.go
+@@ -2792,8 +2792,8 @@ var (
+ //	maketables --props=all --url=http://www.unicode.org/Public/5.1.0/ucd/
+ // DO NOT EDIT
+ 
+-// Props is the set of Unicode property tables.
+-var Props = map[string] []Range {
++// Properties is the set of Unicode property tables.
++var Properties = map[string] []Range {
+ 	"Pattern_Syntax": Pattern_Syntax,
+ 	"Other_ID_Start": Other_ID_Start,
+ 	"Pattern_White_Space": Pattern_White_Space,

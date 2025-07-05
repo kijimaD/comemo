@@ -6,7 +6,7 @@ Date:   Sun Dec 13 12:39:20 2009 -0800
     
     R=rsc
     https://golang.org/cl/166080
-
+---
  src/cmd/8l/Makefile |   2 +
  src/cmd/8l/asm.c    |   9 +++
  src/cmd/8l/obj.c    |  31 ++++++++++-
@@ -15,3 +15,488 @@ Date:   Sun Dec 13 12:39:20 2009 -0800
  src/cmd/ld/pe.c     | 157 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/ld/pe.h     |  91 ++++++++++++++++++++++++++++++
  7 files changed, 329 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/8l/Makefile b/src/cmd/8l/Makefile
+index 52bd021c30..88c7c512bb 100644
+--- a/src/cmd/8l/Makefile
++++ b/src/cmd/8l/Makefile
+@@ -17,6 +17,7 @@ OFILES=\
+ 	obj.$O\
+ 	optab.$O\
+ 	pass.$O\
++	pe.$O\
+ 	span.$O\
+ 	go.$O\
+ 
+@@ -25,6 +26,7 @@ HFILES=\
+ 	../8l/8.out.h\
+ 	../ld/elf.h\
+ 	../ld/macho.h\
++	../ld/pe.h\
+ 
+ 
+ $(TARG): $(OFILES)
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 00e9e69257..73ceeba6ef 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -32,6 +32,7 @@
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
+ #include	"../ld/macho.h"
++#include	"../ld/pe.h"
+ 
+ #define	Dbufslop	100
+ 
+@@ -531,6 +532,7 @@ asmb(void)
+ 	case 7:
+ 	case 8:
+ 	case 9:
++	case 10:
+ 		v = rnd(HEADR+textsize, INITRND);
+ 		seek(cout, v, 0);
+ 		break;
+@@ -588,6 +590,7 @@ asmb(void)
+ 		case 7:
+ 		case 8:
+ 		case 9:
++		case 10:
+ 			symo = rnd(HEADR+textsize, INITRND)+datsize;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+@@ -605,6 +608,8 @@ asmb(void)
+ 			asmlc();
+ 		if(dlm)
+ 			asmdyn();
++		if(HEADTYPE == 10)
++			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
+ 		cflush();
+ 		seek(cout, symo, 0);
+ 		lputl(symsize);
+@@ -1018,6 +1023,10 @@ asmb(void)
+ 		if(a+elfwriteinterp() > ELFRESERVE)
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
++
++	case 10:
++		asmbpe();
++		break;
+ 	}
+ 	cflush();
+ }
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index dc66e6ee3f..89ddf0313e 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -33,6 +33,7 @@
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
+ #include	"../ld/macho.h"
++#include	"../ld/pe.h"
+ #include	<ar.h>
+ 
+ #ifndef	DEFAULT
+@@ -94,7 +95,7 @@ main(int argc, char *argv[])
+ 	listinit();
+ 	memset(debug, 0, sizeof(debug));
+ 	nerrors = 0;
+-	outfile = "8.out";
++	outfile = nil;
+ 	HEADTYPE = -1;
+ 	INITTEXT = -1;
+ 	INITDAT = -1;
+@@ -145,7 +146,7 @@ main(int argc, char *argv[])
+ 	if(*argv == 0)
+ 		usage();
+ 
+-	libinit();
++	mywhatsys();	// get goos
+ 
+ 	if(HEADTYPE == -1) {
+ 		HEADTYPE = 2;
+@@ -161,9 +162,21 @@ main(int argc, char *argv[])
+ 		if(strcmp(goos, "freebsd") == 0)
+ 			HEADTYPE = 9;
+ 		else
+-			print("goos is not known: %sn", goos);
++		if(strcmp(goos, "mingw") == 0)
++			HEADTYPE = 10;
++		else
++			print("goos is not known: %s\n", goos);
++	}
++
++	if(outfile == nil) {
++		if(HEADTYPE == 10)
++			outfile = "8.out.exe";
++		else
++			outfile = "8.out";
+ 	}
+ 
++	libinit();
++
+ 	switch(HEADTYPE) {
+ 	default:
+ 		diag("unknown -H option");
+@@ -260,6 +273,16 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
++	case 10: /* PE executable */
++		peinit();
++		HEADR = PERESERVE;
++		if(INITTEXT == -1)
++			INITTEXT = PEBASE+0x1000;
++		if(INITDAT == -1)
++			INITDAT = 0;
++		if(INITRND == -1)
++			INITRND = PEALIGN;
++		break;
+ 	}
+ 	if(INITDAT != 0 && INITRND != 0)
+ 		print("warning: -D0x%lux is ignored because of -R0x%lux\n",
+@@ -387,6 +410,8 @@ main(int argc, char *argv[])
+ 			doprof2();
+ 	span();
+ 	doinit();
++	if(HEADTYPE == 10)
++		dope();
+ 	asmb();
+ 	undef();
+ 	if(debug['v']) {
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 16f5a1b5e1..6cf2f5d9a8 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -358,6 +358,27 @@ patch(void)
+ 	s = lookup("exit", 0);
+ 	vexit = s->value;
+ 	for(p = firstp; p != P; p = p->link) {
++		if(HEADTYPE == 10) {
++			// Convert
++			//   op   n(GS), reg
++			// to
++			//   MOVL 0x2C(FS), reg
++			//   op   n(reg), reg
++			// The purpose of this patch is to fix some accesses
++			// to extern register variables (TLS) on Windows, as
++			// a different method is used to access them.
++			if(p->from.type == D_INDIR+D_GS
++			&& p->to.type >= D_AX && p->to.type <= D_DI) {
++				q = appendp(p);
++				q->from = p->from;
++				q->from.type += p->to.type-D_GS;
++				q->to = p->to;
++				q->as = p->as;
++				p->as = AMOVL;
++				p->from.type = D_INDIR+D_FS;
++				p->from.offset = 0x2C;
++			}
++		}
+ 		if(p->as == ATEXT)
+ 			curtext = p;
+ 		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
+@@ -575,10 +596,23 @@ dostkoff(void)
+ 			if(pmorestack != P)
+ 			if(!(p->from.scale & NOSPLIT)) {
+ 				p = appendp(p);	// load g into CX
+-				p->as = AMOVL;
+-				p->from.type = D_INDIR+D_GS;
+-				p->from.offset = tlsoffset + 0;
+-				p->to.type = D_CX;
++				if(HEADTYPE == 10) {
++					p->as = AMOVL;
++					p->from.type = D_INDIR+D_FS;
++					p->from.offset = 0x2c;
++					p->to.type = D_CX;
++
++					p = appendp(p);
++					p->as = AMOVL;
++					p->from.type = D_INDIR+D_CX;
++					p->from.offset = 0;
++					p->to.type = D_CX;
++				} else {
++					p->as = AMOVL;
++					p->from.type = D_INDIR+D_GS;
++					p->from.offset = tlsoffset + 0;
++					p->to.type = D_CX;
++				}
+ 
+ 				if(debug['K']) {
+ 					// 8l -K means check not only for stack
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 118efd2311..e357d07c47 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -38,8 +38,11 @@
+ int
+ systemtype(int sys)
+ {
+-
++#ifdef __MINGW32__
++	return sys&Windows;
++#else
+ 	return sys&Plan9;
++#endif
+ }
+ 
+ int
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+new file mode 100644
+index 0000000000..c225d0cd4e
+--- /dev/null
++++ b/src/cmd/ld/pe.c
+@@ -0,0 +1,157 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PE (Portable Executable) file writing
++// http://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
++
++#include <time.h>
++
++#include "l.h"
++#include "../ld/lib.h"
++#include "../ld/pe.h"
++
++static int pe64;
++static int nsect;
++static int sect_virt_begin;
++static int sect_raw_begin = PERESERVE;
++
++static IMAGE_FILE_HEADER fh;
++static IMAGE_OPTIONAL_HEADER oh;
++static IMAGE_SECTION_HEADER sh[16];
++static IMAGE_SECTION_HEADER *textsect, *datsect, *bsssect;
++
++static IMAGE_SECTION_HEADER*
++new_section(char *name, int size, int noraw)
++{
++	IMAGE_SECTION_HEADER *h;
++
++	if(nsect == 16) {
++		diag("too many sections");
++		errorexit();
++	}
++	h = &sh[nsect++];
++	strncpy(h->Name, name, sizeof(h->Name));
++	h->VirtualSize = size;
++	if(!sect_virt_begin)
++		sect_virt_begin = 0x1000;
++	h->VirtualAddress = sect_virt_begin;
++	sect_virt_begin = rnd(sect_virt_begin+size, 0x1000);
++	if(!noraw) {
++		h->SizeOfRawData = rnd(size, PEALIGN);
++		h->PointerToRawData = sect_raw_begin;
++		sect_raw_begin += h->SizeOfRawData;
++	}
++	return h;
++}
++
++void
++peinit(void)
++{
++	switch(thechar) {
++	// 64-bit architectures
++	case '6':
++		pe64 = 1;
++		break;
++	// 32-bit architectures
++	default:
++		break;
++	}
++}
++
++static void
++pewrite(void)
++{
++	int i, j;
++
++	strnput("MZ", 0x3c);
++	LPUT(0x40);	// file offset to PE header
++	strnput("PE", 4);
++
++	for (i=0; i<sizeof(fh); i++)
++		cput(((char*)&fh)[i]);
++	for (i=0; i<sizeof(oh); i++)
++		cput(((char*)&oh)[i]);
++	for (i=0; i<nsect; i++)
++		for (j=0; j<sizeof(sh[i]); j++)
++			cput(((char*)&sh[i])[j]);
++}
++
++void
++dope(void)
++{
++	textsect = new_section(".text", textsize, 0);
++	textsect->Characteristics = IMAGE_SCN_CNT_CODE|
++		IMAGE_SCN_CNT_INITIALIZED_DATA|
++		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
++
++	datsect = new_section(".data", datsize, 0);
++	datsect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
++		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
++	INITDAT = PEBASE+datsect->VirtualAddress;
++
++	bsssect = new_section(".bss", bsssize, 1);
++	bsssect->Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA|
++		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
++}
++
++void
++asmbpe(void)
++{
++	switch(thechar) {
++	default:
++		diag("unknown PE architecture");
++		errorexit();
++	case '6':
++		fh.Machine = IMAGE_FILE_MACHINE_AMD64;
++		break;
++	case '8':
++		fh.Machine = IMAGE_FILE_MACHINE_I386;
++		break;
++	}
++
++	if(!debug['s']) {
++		IMAGE_SECTION_HEADER *symsect;
++		symsect = new_section(".symdat", 8+symsize+lcsize, 0);
++		symsect->Characteristics = IMAGE_SCN_MEM_READ|
++			IMAGE_SCN_CNT_INITIALIZED_DATA;
++	}
++
++	fh.NumberOfSections = nsect;
++	fh.TimeDateStamp = time(0);
++	fh.SizeOfOptionalHeader = sizeof(oh);
++	fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED|
++		IMAGE_FILE_EXECUTABLE_IMAGE|IMAGE_FILE_DEBUG_STRIPPED;
++	if(thechar == '8')
++		fh.Characteristics |= IMAGE_FILE_32BIT_MACHINE;
++
++	oh.Magic = 0x10b;	// PE32
++	oh.MajorLinkerVersion = 1;
++	oh.MinorLinkerVersion = 0;
++	oh.SizeOfCode = textsect->SizeOfRawData;
++	oh.SizeOfInitializedData = datsect->SizeOfRawData;
++	oh.SizeOfUninitializedData = bsssect->SizeOfRawData;
++	oh.AddressOfEntryPoint = entryvalue()-PEBASE;
++	oh.BaseOfCode = textsect->VirtualAddress;
++	oh.BaseOfData = datsect->VirtualAddress;
++
++	oh.ImageBase = PEBASE;
++	oh.SectionAlignment = 0x00001000;
++	oh.FileAlignment = PEALIGN;
++	oh.MajorOperatingSystemVersion = 4;
++	oh.MinorOperatingSystemVersion = 0;
++	oh.MajorImageVersion = 1;
++	oh.MinorImageVersion = 0;
++	oh.MajorSubsystemVersion = 4;
++	oh.MinorSubsystemVersion = 0;
++	oh.SizeOfImage = sect_virt_begin;
++	oh.SizeOfHeaders = PERESERVE;
++	oh.Subsystem = 3;	// WINDOWS_CUI
++	oh.SizeOfStackReserve = 0x00200000;
++	oh.SizeOfStackCommit = 0x00001000;
++	oh.SizeOfHeapReserve = 0x00100000;
++	oh.SizeOfHeapCommit = 0x00001000;
++	oh.NumberOfRvaAndSizes = 16;
++
++	pewrite();
++}
+diff --git a/src/cmd/ld/pe.h b/src/cmd/ld/pe.h
+new file mode 100644
+index 0000000000..e7e2f9f08b
+--- /dev/null
++++ b/src/cmd/ld/pe.h
+@@ -0,0 +1,91 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++typedef struct {
++	uint16 Machine;
++	uint16 NumberOfSections;
++	uint32 TimeDateStamp;
++	uint32 PointerToSymbolTable;
++	uint32 NumberOfSymbols;
++	uint16 SizeOfOptionalHeader;
++	uint16 Characteristics;
++} IMAGE_FILE_HEADER;
++
++typedef struct {
++	uint32 VirtualAddress;
++	uint32 Size;
++} IMAGE_DATA_DIRECTORY;
++
++typedef struct {
++	uint16 Magic;
++	uint8  MajorLinkerVersion;
++	uint8  MinorLinkerVersion;
++	uint32 SizeOfCode;
++	uint32 SizeOfInitializedData;
++	uint32 SizeOfUninitializedData;
++	uint32 AddressOfEntryPoint;
++	uint32 BaseOfCode;
++	uint32 BaseOfData;
++	uint32 ImageBase;
++	uint32 SectionAlignment;
++	uint32 FileAlignment;
++	uint16 MajorOperatingSystemVersion;
++	uint16 MinorOperatingSystemVersion;
++	uint16 MajorImageVersion;
++	uint16 MinorImageVersion;
++	uint16 MajorSubsystemVersion;
++	uint16 MinorSubsystemVersion;
++	uint32 Win32VersionValue;
++	uint32 SizeOfImage;
++	uint32 SizeOfHeaders;
++	uint32 CheckSum;
++	uint16 Subsystem;
++	uint16 DllCharacteristics;
++	uint32 SizeOfStackReserve;
++	uint32 SizeOfStackCommit;
++	uint32 SizeOfHeapReserve;
++	uint32 SizeOfHeapCommit;
++	uint32 LoaderFlags;
++	uint32 NumberOfRvaAndSizes;
++	IMAGE_DATA_DIRECTORY DataDirectory[16];
++} IMAGE_OPTIONAL_HEADER;
++
++typedef struct {
++	uint8  Name[8];
++	uint32 VirtualSize;
++	uint32 VirtualAddress;
++	uint32 SizeOfRawData;
++	uint32 PointerToRawData;
++	uint32 PointerToRelocations;
++	uint32 PointerToLineNumbers;
++	uint16 NumberOfRelocations;
++	uint16 NumberOfLineNumbers;
++	uint32 Characteristics;
++} IMAGE_SECTION_HEADER;
++
++#define PERESERVE	0x400
++#define PEALIGN		0x200
++#define PEBASE		0x00400000
++
++enum {
++	IMAGE_FILE_MACHINE_I386 = 0x14c,
++	IMAGE_FILE_MACHINE_AMD64 = 0x8664,
++
++	IMAGE_FILE_RELOCS_STRIPPED = 0x0001,
++	IMAGE_FILE_EXECUTABLE_IMAGE = 0x0002,
++	IMAGE_FILE_LARGE_ADDRESS_AWARE = 0x0020,
++	IMAGE_FILE_32BIT_MACHINE = 0x0100,
++	IMAGE_FILE_DEBUG_STRIPPED = 0x0200,
++
++	IMAGE_SCN_CNT_CODE = 0x00000020,
++	IMAGE_SCN_CNT_INITIALIZED_DATA = 0x00000040,
++	IMAGE_SCN_CNT_UNINITIALIZED_DATA = 0x00000080,
++	IMAGE_SCN_MEM_EXECUTE = 0x20000000,
++	IMAGE_SCN_MEM_READ = 0x40000000,
++	IMAGE_SCN_MEM_WRITE = 0x80000000,
++};
++
++void peinit(void);
++void dope(void);
++void asmbpe(void);

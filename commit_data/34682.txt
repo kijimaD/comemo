@@ -12,7 +12,7 @@ Date:   Tue Nov 7 12:09:59 2017 +1100
     Change-Id: Ibc5407a234a1f49804de15a24b27c8e6a6eba7e0
     Reviewed-on: https://go-review.googlesource.com/76314
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/windows/exec_windows_test.go | 11 +++++------
  src/internal/syscall/windows/security_windows.go  |  4 ++--
  src/internal/syscall/windows/zsyscall_windows.go  |  4 ++--
@@ -20,3 +20,123 @@ Date:   Tue Nov 7 12:09:59 2017 +1100
  src/syscall/syscall_windows.go                    |  2 +-
  src/syscall/zsyscall_windows.go                   |  2 +-
  6 files changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/src/internal/syscall/windows/exec_windows_test.go b/src/internal/syscall/windows/exec_windows_test.go
+index b1edb4d6af..94fd95b2bc 100644
+--- a/src/internal/syscall/windows/exec_windows_test.go
++++ b/src/internal/syscall/windows/exec_windows_test.go
+@@ -40,7 +40,7 @@ func TestRunAtLowIntegrity(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	defer syscall.CloseHandle(token)
++	defer token.Close()
+ 
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+ 		Token: token,
+@@ -105,9 +105,8 @@ func tokenGetInfo(t syscall.Token, class uint32, initSize int) (unsafe.Pointer,
+ 	}
+ }
+ 
+-func getIntegrityLevelToken(wns string) (syscall.Handle, error) {
+-	var token syscall.Handle
+-	var procToken syscall.Token
++func getIntegrityLevelToken(wns string) (syscall.Token, error) {
++	var procToken, token syscall.Token
+ 
+ 	proc, err := syscall.GetCurrentProcess()
+ 	if err != nil {
+@@ -135,7 +134,7 @@ func getIntegrityLevelToken(wns string) (syscall.Handle, error) {
+ 	tml.Label.Attributes = windows.SE_GROUP_INTEGRITY
+ 	tml.Label.Sid = sid
+ 
+-	err = windows.DuplicateTokenEx(syscall.Handle(procToken), 0, nil, windows.SecurityImpersonation,
++	err = windows.DuplicateTokenEx(procToken, 0, nil, windows.SecurityImpersonation,
+ 		windows.TokenPrimary, &token)
+ 	if err != nil {
+ 		return 0, err
+@@ -146,7 +145,7 @@ func getIntegrityLevelToken(wns string) (syscall.Handle, error) {
+ 		uintptr(unsafe.Pointer(tml)),
+ 		tml.Size())
+ 	if err != nil {
+-		syscall.CloseHandle(token)
++		token.Close()
+ 		return 0, err
+ 	}
+ 	return token, nil
+diff --git a/src/internal/syscall/windows/security_windows.go b/src/internal/syscall/windows/security_windows.go
+index 2e34ea72e1..14ea425c05 100644
+--- a/src/internal/syscall/windows/security_windows.go
++++ b/src/internal/syscall/windows/security_windows.go
+@@ -57,8 +57,8 @@ func AdjustTokenPrivileges(token syscall.Token, disableAllPrivileges bool, newst
+ 	return err
+ }
+ 
+-//sys DuplicateTokenEx(hExistingToken syscall.Handle, dwDesiredAccess uint32, lpTokenAttributes *syscall.SecurityAttributes, impersonationLevel uint32, tokenType TokenType, phNewToken *syscall.Handle) (err error) = advapi32.DuplicateTokenEx
+-//sys SetTokenInformation(tokenHandle syscall.Handle, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) = advapi32.SetTokenInformation
++//sys DuplicateTokenEx(hExistingToken syscall.Token, dwDesiredAccess uint32, lpTokenAttributes *syscall.SecurityAttributes, impersonationLevel uint32, tokenType TokenType, phNewToken *syscall.Token) (err error) = advapi32.DuplicateTokenEx
++//sys SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) = advapi32.SetTokenInformation
+ 
+ type SID_AND_ATTRIBUTES struct {
+ 	Sid        *syscall.SID
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index d745fe11a5..bdca80c60d 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -263,7 +263,7 @@ func adjustTokenPrivileges(token syscall.Token, disableAllPrivileges bool, newst
+ 	return
+ }
+ 
+-func DuplicateTokenEx(hExistingToken syscall.Handle, dwDesiredAccess uint32, lpTokenAttributes *syscall.SecurityAttributes, impersonationLevel uint32, tokenType TokenType, phNewToken *syscall.Handle) (err error) {
++func DuplicateTokenEx(hExistingToken syscall.Token, dwDesiredAccess uint32, lpTokenAttributes *syscall.SecurityAttributes, impersonationLevel uint32, tokenType TokenType, phNewToken *syscall.Token) (err error) {
+ 	r1, _, e1 := syscall.Syscall6(procDuplicateTokenEx.Addr(), 6, uintptr(hExistingToken), uintptr(dwDesiredAccess), uintptr(unsafe.Pointer(lpTokenAttributes)), uintptr(impersonationLevel), uintptr(tokenType), uintptr(unsafe.Pointer(phNewToken)))
+ 	if r1 == 0 {
+ 		if e1 != 0 {
+@@ -275,7 +275,7 @@ func DuplicateTokenEx(hExistingToken syscall.Handle, dwDesiredAccess uint32, lpT
+ 	return
+ }
+ 
+-func SetTokenInformation(tokenHandle syscall.Handle, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) {
++func SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall6(procSetTokenInformation.Addr(), 4, uintptr(tokenHandle), uintptr(tokenInformationClass), uintptr(tokenInformation), uintptr(tokenInformationLength), 0, 0)
+ 	if r1 == 0 {
+ 		if e1 != 0 {
+diff --git a/src/syscall/exec_windows.go b/src/syscall/exec_windows.go
+index d5b4a013ef..91b0e84857 100644
+--- a/src/syscall/exec_windows.go
++++ b/src/syscall/exec_windows.go
+@@ -222,7 +222,7 @@ type SysProcAttr struct {
+ 	HideWindow    bool
+ 	CmdLine       string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
+ 	CreationFlags uint32
+-	Token         Handle // if set, runs new process in the security context represented by the token
++	Token         Token // if set, runs new process in the security context represented by the token
+ }
+ 
+ var zeroProcAttr ProcAttr
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 84d5528e20..21d5ecfcb3 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -169,7 +169,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	CancelIo(s Handle) (err error)
+ //sys	CancelIoEx(s Handle, o *Overlapped) (err error)
+ //sys	CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) = CreateProcessW
+-//sys	CreateProcessAsUser(token Handle, appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) = advapi32.CreateProcessAsUserW
++//sys	CreateProcessAsUser(token Token, appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) = advapi32.CreateProcessAsUserW
+ //sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err error)
+ //sys	TerminateProcess(handle Handle, exitcode uint32) (err error)
+ //sys	GetExitCodeProcess(handle Handle, exitcode *uint32) (err error)
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 2c13b68cb2..1626c305fc 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -617,7 +617,7 @@ func CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityA
+ 	return
+ }
+ 
+-func CreateProcessAsUser(token Handle, appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) {
++func CreateProcessAsUser(token Token, appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) {
+ 	var _p0 uint32
+ 	if inheritHandles {
+ 		_p0 = 1

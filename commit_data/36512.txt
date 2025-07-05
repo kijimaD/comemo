@@ -16,7 +16,7 @@ Date:   Sun Apr 8 07:32:43 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go              |  2 +-
  src/cmd/go/alldocs.go             |  2 +-
  src/cmd/go/internal/work/build.go |  2 +-
@@ -35,3 +35,404 @@ Date:   Sun Apr 8 07:32:43 2018 +0000
  src/runtime/sigaction.go          |  2 +-
  src/runtime/sys_linux_arm64.s     | 37 +++++++++++++++++++++--
  17 files changed, 146 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 948c6f890f..393af1ecd1 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -676,7 +676,7 @@ func (t *tester) registerTests() {
+ 		if gohostos == "linux" && goarch == "amd64" {
+ 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
+ 		}
+-		if goos == "linux" && goarch == "amd64" {
++		if goos == "linux" && (goarch == "amd64" || goarch == "arm64") {
+ 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+ 		}
+ 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index fa8c02cc4b..d50eb1fc08 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -105,7 +105,7 @@
+ // 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+ // 	-msan
+ // 		enable interoperation with memory sanitizer.
+-// 		Supported only on linux/amd64,
++// 		Supported only on linux/amd64, linux/arm64
+ // 		and only with Clang/LLVM as the host C compiler.
+ // 	-v
+ // 		print the names of packages as they are compiled.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 57b7b00879..86972cb61b 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -65,7 +65,7 @@ and test commands:
+ 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+ 	-msan
+ 		enable interoperation with memory sanitizer.
+-		Supported only on linux/amd64,
++		Supported only on linux/amd64, linux/arm64
+ 		and only with Clang/LLVM as the host C compiler.
+ 	-v
+ 		print the names of packages as they are compiled.
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index c820e0bec0..3eb98381bd 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -39,12 +39,12 @@ func instrumentInit() {
+ 		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
+ 		os.Exit(2)
+ 	}
+-	if cfg.BuildMSan && (cfg.Goos != "linux" || cfg.Goarch != "amd64") {
++	if cfg.BuildMSan && (cfg.Goos != "linux" || cfg.Goarch != "amd64" && cfg.Goarch != "arm64") {
+ 		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+ 		os.Exit(2)
+ 	}
+-	if cfg.Goarch != "amd64" || cfg.Goos != "linux" && cfg.Goos != "freebsd" && cfg.Goos != "darwin" && cfg.Goos != "windows" {
+-		fmt.Fprintf(os.Stderr, "go %s: -race and -msan are only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
++	if cfg.BuildRace && (cfg.Goarch != "amd64" || cfg.Goos != "linux" && cfg.Goos != "freebsd" && cfg.Goos != "darwin" && cfg.Goos != "windows") {
++		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+ 		os.Exit(2)
+ 	}
+ 
+diff --git a/src/runtime/cgo/gcc_linux_arm64.c b/src/runtime/cgo/gcc_linux_arm64.c
+index b328407f39..8630f2f03e 100644
+--- a/src/runtime/cgo/gcc_linux_arm64.c
++++ b/src/runtime/cgo/gcc_linux_arm64.c
+@@ -3,8 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include <pthread.h>
++#include <errno.h>
+ #include <string.h>
+ #include <signal.h>
++#include <stdlib.h>
+ #include "libcgo.h"
+ #include "libcgo_unix.h"
+ 
+@@ -59,14 +61,34 @@ threadentry(void *v)
+ void
+ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ {
+-	pthread_attr_t attr;
++	pthread_attr_t *attr;
+ 	size_t size;
+ 
++	/* The memory sanitizer distributed with versions of clang
++	   before 3.8 has a bug: if you call mmap before malloc, mmap
++	   may return an address that is later overwritten by the msan
++	   library.  Avoid this problem by forcing a call to malloc
++	   here, before we ever call malloc.
++
++	   This is only required for the memory sanitizer, so it's
++	   unfortunate that we always run it.  It should be possible
++	   to remove this when we no longer care about versions of
++	   clang before 3.8.  The test for this is
++	   misc/cgo/testsanitizers.
++
++	   GCC works hard to eliminate a seemingly unnecessary call to
++	   malloc, so we actually use the memory we allocate.  */
++
+ 	setg_gcc = setg;
+-	pthread_attr_init(&attr);
+-	pthread_attr_getstacksize(&attr, &size);
+-	g->stacklo = (uintptr)&attr - size + 4096;
+-	pthread_attr_destroy(&attr);
++	attr = (pthread_attr_t*)malloc(sizeof *attr);
++	if (attr == NULL) {
++		fatalf("malloc failed: %s", strerror(errno));
++	}
++	pthread_attr_init(attr);
++	pthread_attr_getstacksize(attr, &size);
++	g->stacklo = (uintptr)&size - size + 4096;
++	pthread_attr_destroy(attr);
++	free(attr);
+ 
+ 	if (x_cgo_inittls) {
+ 		x_cgo_inittls(tlsg, tlsbase);
+diff --git a/src/runtime/cgo/gcc_mmap.c b/src/runtime/cgo/gcc_mmap.c
+index 5cf6bdf8cf..e6a621d5a3 100644
+--- a/src/runtime/cgo/gcc_mmap.c
++++ b/src/runtime/cgo/gcc_mmap.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
++// +build linux,amd64 linux,arm64
+ 
+ #include <errno.h>
+ #include <stdint.h>
+diff --git a/src/runtime/cgo/gcc_sigaction.c b/src/runtime/cgo/gcc_sigaction.c
+index 72fb08d720..05dee2affe 100644
+--- a/src/runtime/cgo/gcc_sigaction.c
++++ b/src/runtime/cgo/gcc_sigaction.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
++// +build linux,amd64 linux,arm64
+ 
+ #include <errno.h>
+ #include <stddef.h>
+diff --git a/src/runtime/cgo/mmap.go b/src/runtime/cgo/mmap.go
+index ad5f6df70a..00fb7fced6 100644
+--- a/src/runtime/cgo/mmap.go
++++ b/src/runtime/cgo/mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
++// +build linux,amd64 linux,arm64
+ 
+ package cgo
+ 
+diff --git a/src/runtime/cgo/sigaction.go b/src/runtime/cgo/sigaction.go
+index e25f4ff2f3..076fbc1a0a 100644
+--- a/src/runtime/cgo/sigaction.go
++++ b/src/runtime/cgo/sigaction.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64 freebsd,amd64
++// +build linux,amd64 freebsd,amd64 linux,arm64
+ 
+ package cgo
+ 
+diff --git a/src/runtime/cgo_mmap.go b/src/runtime/cgo_mmap.go
+index b7c70c6fff..048621f306 100644
+--- a/src/runtime/cgo_mmap.go
++++ b/src/runtime/cgo_mmap.go
+@@ -4,7 +4,7 @@
+ 
+ // Support for memory sanitizer. See runtime/cgo/mmap.go.
+ 
+-// +build linux,amd64
++// +build linux,amd64 linux,arm64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/cgo_sigaction.go b/src/runtime/cgo_sigaction.go
+index 9832d35f03..3ef6800cd9 100644
+--- a/src/runtime/cgo_sigaction.go
++++ b/src/runtime/cgo_sigaction.go
+@@ -4,7 +4,7 @@
+ 
+ // Support for memory sanitizer. See runtime/cgo/sigaction.go.
+ 
+-// +build linux,amd64 freebsd,amd64
++// +build linux,amd64 freebsd,amd64 linux,arm64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/mmap.go b/src/runtime/mmap.go
+index e1333c62fe..152cbcdae5 100644
+--- a/src/runtime/mmap.go
++++ b/src/runtime/mmap.go
+@@ -7,6 +7,7 @@
+ // +build !windows
+ // +build !nacl
+ // +build !linux !amd64
++// +build !linux !arm64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/msan/msan.go b/src/runtime/msan/msan.go
+index b6ea3f0d16..c81577ddda 100644
+--- a/src/runtime/msan/msan.go
++++ b/src/runtime/msan/msan.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build msan,linux,amd64
++// +build msan,linux
++// +build amd64 arm64
+ 
+ package msan
+ 
+diff --git a/src/runtime/msan_arm64.s b/src/runtime/msan_arm64.s
+new file mode 100644
+index 0000000000..4dfe5e3133
+--- /dev/null
++++ b/src/runtime/msan_arm64.s
+@@ -0,0 +1,62 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build msan
++
++#include "go_asm.h"
++#include "textflag.h"
++
++#define RARG0 R0
++#define RARG1 R1
++#define FARG R3
++
++// func runtime·domsanread(addr unsafe.Pointer, sz uintptr)
++// Called from msanread.
++TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), RARG0
++	MOVD	size+8(FP), RARG1
++	// void __msan_read_go(void *addr, uintptr_t sz);
++	MOVD	$__msan_read_go(SB), FARG
++	JMP	msancall<>(SB)
++
++// func runtime·msanwrite(addr unsafe.Pointer, sz uintptr)
++// Called from instrumented code.
++TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), RARG0
++	MOVD	size+8(FP), RARG1
++	// void __msan_write_go(void *addr, uintptr_t sz);
++	MOVD	$__msan_write_go(SB), FARG
++	JMP	msancall<>(SB)
++
++// func runtime·msanmalloc(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), RARG0
++	MOVD	size+8(FP), RARG1
++	// void __msan_malloc_go(void *addr, uintptr_t sz);
++	MOVD	$__msan_malloc_go(SB), FARG
++	JMP	msancall<>(SB)
++
++// func runtime·msanfree(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), RARG0
++	MOVD	size+8(FP), RARG1
++	// void __msan_free_go(void *addr, uintptr_t sz);
++	MOVD	$__msan_free_go(SB), FARG
++	JMP	msancall<>(SB)
++
++// Switches SP to g0 stack and calls (FARG). Arguments already set.
++TEXT	msancall<>(SB), NOSPLIT, $0-0
++	MOVD	g_m(g), R10
++	MOVD	m_g0(R10), R11
++	MOVD	RSP, R19	// callee-saved
++	CMP	R11, g
++	BEQ	g0stack
++
++	MOVD	(g_sched+gobuf_sp)(R11), R4
++	MOVD	R4, RSP
++
++g0stack:
++	BL	(FARG)
++	MOVD	R19, RSP
++	RET
+diff --git a/src/runtime/rt0_linux_arm64.s b/src/runtime/rt0_linux_arm64.s
+index e81e598d3a..458f082159 100644
+--- a/src/runtime/rt0_linux_arm64.s
++++ b/src/runtime/rt0_linux_arm64.s
+@@ -11,7 +11,7 @@ TEXT _rt0_arm64_linux(SB),NOSPLIT|NOFRAME,$0
+ 
+ // When building with -buildmode=c-shared, this symbol is called when the shared
+ // library is loaded.
+-TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$168
++TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$184
+ 	// Preserve callee-save registers.
+ 	MOVD R19, 24(RSP)
+ 	MOVD R20, 32(RSP)
+@@ -30,6 +30,10 @@ TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$168
+ 	FMOVD F13, 136(RSP)
+ 	FMOVD F14, 144(RSP)
+ 	FMOVD F15, 152(RSP)
++	MOVD g, 160(RSP)
++
++	// Initialize g as null in case of using g later e.g. sigaction in cgo_sigaction.go
++	MOVD	ZR, g
+ 
+ 	MOVD	R0, _rt0_arm64_linux_lib_argc<>(SB)
+ 	MOVD	R1, _rt0_arm64_linux_lib_argv<>(SB)
+@@ -74,6 +78,7 @@ restore:
+ 	FMOVD 136(RSP), F13
+ 	FMOVD 144(RSP), F14
+ 	FMOVD 152(RSP), F15
++	MOVD 160(RSP), g
+ 	RET
+ 
+ TEXT _rt0_arm64_linux_lib_go(SB),NOSPLIT,$0
+diff --git a/src/runtime/sigaction.go b/src/runtime/sigaction.go
+index eb454f9327..3c888579d0 100644
+--- a/src/runtime/sigaction.go
++++ b/src/runtime/sigaction.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,!amd64 freebsd,!amd64
++// +build linux,!amd64,!arm64 freebsd,!amd64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index f930d1f044..c6afd76a65 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -292,6 +292,16 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
+ 	MOVW	R0, ret+32(FP)
+ 	RET
+ 
++// Call the function stored in _cgo_sigaction using the GCC calling convention.
++TEXT runtime·callCgoSigaction(SB),NOSPLIT,$0
++	MOVD	sig+0(FP), R0
++	MOVD	new+8(FP), R1
++	MOVD	old+16(FP), R2
++	MOVD	 _cgo_sigaction(SB), R3
++	BL	R3
++	MOVW	R0, ret+24(FP)
++	RET
++
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVW	sig+8(FP), R0
+ 	MOVD	info+16(FP), R1
+@@ -320,7 +330,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	MOVD	$runtime·sigtramp(SB), R3
+ 	B	(R3)
+ 
+-TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·sysMmap(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	addr+0(FP), R0
+ 	MOVD	n+8(FP), R1
+ 	MOVW	prot+16(FP), R2
+@@ -341,7 +351,21 @@ ok:
+ 	MOVD	$0, err+40(FP)
+ 	RET
+ 
+-TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
++// Call the function stored in _cgo_mmap using the GCC calling convention.
++// This must be called on the system stack.
++TEXT runtime·callCgoMmap(SB),NOSPLIT,$0
++	MOVD	addr+0(FP), R0
++	MOVD	n+8(FP), R1
++	MOVW	prot+16(FP), R2
++	MOVW	flags+20(FP), R3
++	MOVW	fd+24(FP), R4
++	MOVW	off+28(FP), R5
++	MOVD	_cgo_mmap(SB), R9
++	BL	R9
++	MOVD	R0, ret+32(FP)
++	RET
++
++TEXT runtime·sysMunmap(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	addr+0(FP), R0
+ 	MOVD	n+8(FP), R1
+ 	MOVD	$SYS_munmap, R8
+@@ -352,6 +376,15 @@ TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
+ cool:
+ 	RET
+ 
++// Call the function stored in _cgo_munmap using the GCC calling convention.
++// This must be called on the system stack.
++TEXT runtime·callCgoMunmap(SB),NOSPLIT,$0
++	MOVD	addr+0(FP), R0
++	MOVD	n+8(FP), R1
++	MOVD	_cgo_munmap(SB), R9
++	BL	R9
++	RET
++
+ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	addr+0(FP), R0
+ 	MOVD	n+8(FP), R1

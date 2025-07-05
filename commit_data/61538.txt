@@ -12,6 +12,19 @@ Date:   Wed Nov 13 18:54:54 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/httputil/reverseproxy.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 04248d5f53..d64d2fc3a1 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -739,6 +739,7 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
+ 	resUpType := upgradeType(res.Header)
+ 	if !ascii.IsPrint(resUpType) { // We know reqUpType is ASCII, it's checked by the caller.
+ 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch to invalid protocol %q", resUpType))
++		return
+ 	}
+ 	if !ascii.EqualFold(reqUpType, resUpType) {
+ 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch protocol %q when %q was requested", resUpType, reqUpType))

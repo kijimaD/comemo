@@ -15,6 +15,32 @@ Date:   Thu May 9 18:34:29 2019 -0400
     Change-Id: I3efff5e3011956341e1b26223a4847a8a91a0453
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176397
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/duff_s390x.s | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/runtime/duff_s390x.s b/src/runtime/duff_s390x.s
+new file mode 100644
+index 0000000000..95d492a879
+--- /dev/null
++++ b/src/runtime/duff_s390x.s
+@@ -0,0 +1,19 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "textflag.h"
++
++// s390x can copy/zero 1-256 bytes with a single instruction,
++// so there's no need for these, except to satisfy the prototypes
++// in stubs.go.
++
++TEXT runtime·duffzero(SB),NOSPLIT|NOFRAME,$0-0
++	MOVD	$0, 2(R0)
++	RET
++
++TEXT runtime·duffcopy(SB),NOSPLIT|NOFRAME,$0-0
++	MOVD	$0, 2(R0)
++	RET

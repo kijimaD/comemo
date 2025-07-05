@@ -21,6 +21,22 @@ Date:   Tue Oct 17 00:31:56 2017 +0200
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4133b23584..48ce7d6248 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2671,7 +2671,9 @@ func goexit0(gp *g) {
+ 
+ 		// Return to mstart, which will release the P and exit
+ 		// the thread.
+-		gogo(&_g_.m.g0.sched)
++		if GOOS != "plan9" { // See golang.org/issue/22227.
++			gogo(&_g_.m.g0.sched)
++		}
+ 	}
+ 	schedule()
+ }

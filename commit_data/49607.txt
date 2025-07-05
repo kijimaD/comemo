@@ -12,7 +12,128 @@ Date:   Tue Aug 31 14:57:53 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/typeset.go      | 12 ++++----
  src/go/types/typeset_test.go | 68 +++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 72 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 293b6d0d44..648d3c7bf3 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -75,26 +75,24 @@ func (s *_TypeSet) String() string {
+ 	var buf bytes.Buffer
+ 	buf.WriteByte('{')
+ 	if s.comparable {
+-		buf.WriteString(" comparable")
++		buf.WriteString("comparable")
+ 		if hasMethods || hasTerms {
+-			buf.WriteByte(';')
++			buf.WriteString("; ")
+ 		}
+ 	}
+ 	for i, m := range s.methods {
+ 		if i > 0 {
+-			buf.WriteByte(';')
++			buf.WriteString("; ")
+ 		}
+-		buf.WriteByte(' ')
+ 		buf.WriteString(m.String())
+ 	}
+ 	if hasMethods && hasTerms {
+-		buf.WriteByte(';')
++		buf.WriteString("; ")
+ 	}
+ 	if hasTerms {
+ 		buf.WriteString(s.terms.String())
+ 	}
+-	buf.WriteString(" }") // there was at least one method or term
+-
++	buf.WriteString("}")
+ 	return buf.String()
+ }
+ 
+diff --git a/src/go/types/typeset_test.go b/src/go/types/typeset_test.go
+index 4fd1aa247d..1c0eeceb8c 100644
+--- a/src/go/types/typeset_test.go
++++ b/src/go/types/typeset_test.go
+@@ -4,7 +4,12 @@
+ 
+ package types
+ 
+-import "testing"
++import (
++	"go/ast"
++	"go/parser"
++	"go/token"
++	"testing"
++)
+ 
+ func TestInvalidTypeSet(t *testing.T) {
+ 	if !invalidTypeSet.IsEmpty() {
+@@ -12,4 +17,65 @@ func TestInvalidTypeSet(t *testing.T) {
+ 	}
+ }
+ 
++func TestTypeSetString(t *testing.T) {
++	for body, want := range map[string]string{
++		"{}":            "𝓤",
++		"{int}":         "{int}",
++		"{~int}":        "{~int}",
++		"{int|string}":  "{int ∪ string}",
++		"{int; string}": "∅",
++
++		"{comparable}":              "{comparable}",
++		"{comparable; int}":         "{comparable; int}",
++		"{~int; comparable}":        "{comparable; ~int}",
++		"{int|string; comparable}":  "{comparable; int ∪ string}",
++		"{comparable; int; string}": "∅",
++
++		"{m()}":                         "{func (p.T).m()}",
++		"{m1(); m2() int }":             "{func (p.T).m1(); func (p.T).m2() int}",
++		"{error}":                       "{func (error).Error() string}",
++		"{m(); comparable}":             "{comparable; func (p.T).m()}",
++		"{m1(); comparable; m2() int }": "{comparable; func (p.T).m1(); func (p.T).m2() int}",
++		"{comparable; error}":           "{comparable; func (error).Error() string}",
++
++		"{m(); comparable; int|float32|string}": "{comparable; func (p.T).m(); int ∪ float32 ∪ string}",
++		"{m1(); int; m2(); comparable }":        "{comparable; func (p.T).m1(); func (p.T).m2(); int}",
++
++		"{E}; type E interface{}":           "𝓤",
++		"{E}; type E interface{int;string}": "∅",
++		"{E}; type E interface{comparable}": "{comparable}",
++	} {
++		// parse
++		src := "package p; type T interface" + body
++		fset := token.NewFileSet()
++		file, err := parser.ParseFile(fset, "p.go", src, parser.AllErrors)
++		if file == nil {
++			t.Fatalf("%s: %v (invalid test case)", body, err)
++		}
++
++		// type check
++		var conf Config
++		pkg, err := conf.Check(file.Name.Name, fset, []*ast.File{file}, nil)
++		if err != nil {
++			t.Fatalf("%s: %v (invalid test case)", body, err)
++		}
++
++		// lookup T
++		obj := pkg.scope.Lookup("T")
++		if obj == nil {
++			t.Fatalf("%s: T not found (invalid test case)", body)
++		}
++		T, ok := under(obj.Type()).(*Interface)
++		if !ok {
++			t.Fatalf("%s: %v is not an interface (invalid test case)", body, obj)
++		}
++
++		// verify test case
++		got := T.typeSet().String()
++		if got != want {
++			t.Errorf("%s: got %s; want %s", body, got, want)
++		}
++	}
++}
++
+ // TODO(gri) add more tests

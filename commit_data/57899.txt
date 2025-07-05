@@ -15,6 +15,27 @@ Date:   Fri Sep 8 23:07:12 2023 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/out.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index ac68b77d19..8e1b5d62fd 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -910,7 +910,6 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunknown-pragmas\"\n")
+ 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wpragmas\"\n")
+ 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Waddress-of-packed-member\"\n")
+-	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunaligned-access\"\n")
+ 
+ 	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *), void *, int, size_t);\n")
+ 	fmt.Fprintf(fgcc, "extern size_t _cgo_wait_runtime_init_done(void);\n")
+@@ -1523,7 +1522,6 @@ extern char* _cgo_topofstack(void);
+ #pragma GCC diagnostic ignored "-Wunknown-pragmas"
+ #pragma GCC diagnostic ignored "-Wpragmas"
+ #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+-#pragma GCC diagnostic ignored "-Wunaligned-access"
+ 
+ #include <errno.h>
+ #include <string.h>

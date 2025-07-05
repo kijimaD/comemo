@@ -7,6 +7,20 @@ Date:   Wed Aug 24 09:52:03 2011 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4937048
-
+---
  misc/dashboard/godashboard/package.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/godashboard/package.py b/misc/dashboard/godashboard/package.py
+index 5cc2d2404a..7feac8286b 100644
+--- a/misc/dashboard/godashboard/package.py
++++ b/misc/dashboard/godashboard/package.py
+@@ -211,7 +211,7 @@ class PackagePage(webapp.RequestHandler):
+             q = Package.all()
+             s = '{"packages": ['
+             sep = ''
+-            for r in q.fetch(1000):
++            for r in q:
+                 s += '%s\n\t{"path": "%s", "last_install": "%s", "count": "%s"}' % (sep, r.path, r.last_install, r.count)
+                 sep = ','
+             s += '\n]}\n'

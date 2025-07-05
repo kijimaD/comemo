@@ -55,7 +55,52 @@ Date:   Mon Apr 23 15:38:50 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 11 +++++------
  test/codegen/mathbits.go           |  4 ++--
  2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c0d58f76d4..b286470e2d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3163,12 +3163,11 @@ func init() {
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
+ 		},
+ 		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+-	// Note: disabled on AMD64 because the Go code is faster!
+-	// addF("math/bits", "Len8",
+-	// 	func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-	// 		return s.newValue1(ssa.OpBitLen8, types.Types[TINT], args[0])
+-	// 	},
+-	// 	sys.AMD64)
++	addF("math/bits", "Len8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpBitLen8, types.Types[TINT], args[0])
++		},
++		sys.AMD64)
+ 	addF("math/bits", "Len",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 39f46c70c8..55a2c943f6 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -45,7 +45,7 @@ func LeadingZeros16(n uint16) int {
+ }
+ 
+ func LeadingZeros8(n uint8) int {
+-	// amd64 LeadingZeros8 not intrinsified (see ssa.go)
++	// amd64:"BSRL","LEAL",-"CMOVQEQ"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+@@ -89,7 +89,7 @@ func Len16(n uint16) int {
+ }
+ 
+ func Len8(n uint8) int {
+-	// amd64 Len8 not intrisified (see ssa.go)
++	// amd64:"BSRL","LEAL",-"CMOVQEQ"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"

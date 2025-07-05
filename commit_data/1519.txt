@@ -7,6 +7,21 @@ Date:   Fri Jan 16 15:35:07 2009 -0800
     R=ken
     OCL=22999
     CL=22999
-
+---
  src/cmd/gc/dcl.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index d5ca7c4d73..e9e8f51aba 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -290,6 +290,9 @@ addmethod(Node *n, Type *t, int local)
+ 
+ 	pa = f;
+ 
++	if(pkgimportname != S && !exportname(sf->name))
++		sf = pkglookup(sf->name, pkgimportname->name);
++
+ 	n = nod(ODCLFIELD, newname(sf), N);
+ 	n->type = t;
+ 

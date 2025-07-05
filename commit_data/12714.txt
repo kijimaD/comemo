@@ -7,6 +7,20 @@ Date:   Wed Mar 21 14:55:05 2012 -0700
     R=golang-dev, r, dsymonds
     CC=golang-dev
     https://golang.org/cl/5874045
-
+---
  src/pkg/exp/norm/normalize.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/norm/normalize.go b/src/pkg/exp/norm/normalize.go
+index b5cd44abfa..c1d74f89d0 100644
+--- a/src/pkg/exp/norm/normalize.go
++++ b/src/pkg/exp/norm/normalize.go
+@@ -356,7 +356,7 @@ func lastBoundary(fd *formInfo, b []byte) int {
+ 		return -1
+ 	}
+ 	if info.size == 0 { // ends with incomplete rune
+-		if p == 0 { // starts wtih incomplete rune
++		if p == 0 { // starts with incomplete rune
+ 			return -1
+ 		}
+ 		i = p

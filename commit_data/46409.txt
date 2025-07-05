@@ -12,8 +12,69 @@ Date:   Sun Dec 27 11:45:57 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/name.go       | 3 ---
  src/cmd/compile/internal/noder/noder.go   | 1 -
  src/cmd/compile/internal/typecheck/dcl.go | 2 --
  3 files changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 93535f4cee..cc8e1b4cd1 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -268,7 +268,6 @@ const (
+ 	nameInlLocal              // PAUTO created by inliner, derived from callee local
+ 	nameOpenDeferSlot         // if temporary var storing info for open-coded defers
+ 	nameLibfuzzerExtraCounter // if PEXTERN should be assigned to __libfuzzer_extra_counters section
+-	nameIsDDD                 // is function argument a ...
+ 	nameAlias                 // is type name an alias
+ )
+ 
+@@ -286,7 +285,6 @@ func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0
+ func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
+ func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
+ func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraCounter != 0 }
+-func (n *Name) IsDDD() bool                 { return n.flags&nameIsDDD != 0 }
+ 
+ func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
+ func (n *Name) setReadonly(b bool)              { n.flags.set(nameReadonly, b) }
+@@ -302,7 +300,6 @@ func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b)
+ func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
+ func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
+ func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
+-func (n *Name) SetIsDDD(b bool)                 { n.flags.set(nameIsDDD, b) }
+ 
+ // MarkReadonly indicates that n is an ONAME with readonly contents.
+ func (n *Name) MarkReadonly() {
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 7c1f7595b3..920f4839ad 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1838,7 +1838,6 @@ func oldname(s *types.Sym) ir.Node {
+ 			c = typecheck.NewName(s)
+ 			c.Class_ = ir.PAUTOHEAP
+ 			c.SetIsClosureVar(true)
+-			c.SetIsDDD(n.IsDDD())
+ 			c.Defn = n
+ 
+ 			// Link into list of active closure variables.
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 0da0956c3a..36057ba2d1 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -447,7 +447,6 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
+ 	name := ir.NewNameAt(n.Pos, n.Sym)
+ 	n.Decl = name
+ 	name.Ntype = n.Ntype
+-	name.SetIsDDD(n.IsDDD)
+ 	Declare(name, ctxt)
+ 
+ 	vargen++
+@@ -461,7 +460,6 @@ func funcarg2(f *types.Field, ctxt ir.Class) {
+ 	n := ir.NewNameAt(f.Pos, f.Sym)
+ 	f.Nname = n
+ 	n.SetType(f.Type)
+-	n.SetIsDDD(f.IsDDD())
+ 	Declare(n, ctxt)
+ }
+ 

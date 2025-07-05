@@ -16,9 +16,22 @@ Date:   Mon Sep 27 08:59:46 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  .../internal/gccgoimporter/testdata/escapeinfo.gox  | Bin 824 -> 350 bytes
  src/go/internal/gccgoimporter/testdata/time.gox     | Bin 7977 -> 7499 bytes
  src/go/internal/gccgoimporter/testdata/unicode.gox  | Bin 7945 -> 7474 bytes
  .../internal/gccgoimporter/testdata/v1reflect.gox   | Bin 10872 -> 10546 bytes
  4 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/testdata/escapeinfo.gox b/src/go/internal/gccgoimporter/testdata/escapeinfo.gox
+index 1db81562c1..94ce0393fc 100644
+Binary files a/src/go/internal/gccgoimporter/testdata/escapeinfo.gox and b/src/go/internal/gccgoimporter/testdata/escapeinfo.gox differ
+diff --git a/src/go/internal/gccgoimporter/testdata/time.gox b/src/go/internal/gccgoimporter/testdata/time.gox
+index 80c2dbcb47..a6822ea198 100644
+Binary files a/src/go/internal/gccgoimporter/testdata/time.gox and b/src/go/internal/gccgoimporter/testdata/time.gox differ
+diff --git a/src/go/internal/gccgoimporter/testdata/unicode.gox b/src/go/internal/gccgoimporter/testdata/unicode.gox
+index e70e539655..ae1a6f758b 100644
+Binary files a/src/go/internal/gccgoimporter/testdata/unicode.gox and b/src/go/internal/gccgoimporter/testdata/unicode.gox differ
+diff --git a/src/go/internal/gccgoimporter/testdata/v1reflect.gox b/src/go/internal/gccgoimporter/testdata/v1reflect.gox
+index ea468414d9..d693fe631b 100644
+Binary files a/src/go/internal/gccgoimporter/testdata/v1reflect.gox and b/src/go/internal/gccgoimporter/testdata/v1reflect.gox differ

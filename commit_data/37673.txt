@@ -17,6 +17,20 @@ Date:   Tue Aug 21 05:09:24 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/out.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 89598c96e8..6217bb17a3 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1432,7 +1432,7 @@ void *CBytes(_GoBytes_);
+ void *_CMalloc(size_t);
+ 
+ __attribute__ ((unused))
+-static size_t _GoStringLen(_GoString_ s) { return s.n; }
++static size_t _GoStringLen(_GoString_ s) { return (size_t)s.n; }
+ 
+ __attribute__ ((unused))
+ static const char *_GoStringPtr(_GoString_ s) { return s.p; }

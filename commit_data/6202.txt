@@ -8,8 +8,123 @@ Date:   Wed Sep 8 22:20:29 2010 -0400
     R=gri, cw, r, rsc
     CC=golang-dev
     https://golang.org/cl/1957045
-
+---
  src/cmd/gc/go.y        |  4 ----
  src/cmd/gc/typecheck.c | 14 ++++++--------
  src/cmd/gc/walk.c      | 22 +++++++++++++++++-----
  3 files changed, 23 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 99ff40724b..48b8c711e1 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -845,10 +845,6 @@ pexpr_no_paren:
+ 	}
+ |	pexpr '[' oexpr ':' oexpr ']'
+ 	{
+-		if($3 == N) {
+-			yyerror("missing lower bound in slice expression");
+-			$3 = nodintconst(0);
+-		}
+ 		$$ = nod(OSLICE, $1, nod(OKEY, $3, $5));
+ 	}
+ |	pseudocall
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 4adbcabe41..dcf862a0fe 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -654,15 +654,13 @@ reswitch:
+ 			typecheck(&n->left, top);
+ 		}
+ 		implicitstar(&n->left);
+-		if(n->right->left == N) {
+-			yyerror("missing slice bounds?");
+-			goto error;
++		if(n->right->left != N) {
++			if((t = n->right->left->type) == T)
++				goto error;
++			if(!isint[t->etype]) {
++				yyerror("invalid slice index %#N (type %T)", n->right->left, t);
++				goto error;
+ 		}
+-		if((t = n->right->left->type) == T)
+-			goto error;
+-		if(!isint[t->etype]) {
+-			yyerror("invalid slice index %#N (type %T)", n->right->left, t);
+-			goto error;
+ 		}
+ 		if(n->right->right != N) {
+ 			if((t = n->right->right->type) == T)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 775bcec9c6..c22781c426 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1095,13 +1095,17 @@ walkexpr(Node **np, NodeList **init)
+ 		// sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
+ 		// sliceslice1(old []any, lb uint64, width uint64) (ary []any)
+ 		t = n->type;
++		if(n->right->left == N)
++			l = nodintconst(0);
++		else
++			l = conv(n->right->left, types[TUINT64]);
+ 		if(n->right->right != N) {
+ 			fn = syslook("sliceslice", 1);
+ 			argtype(fn, t->type);			// any-1
+ 			argtype(fn, t->type);			// any-2
+ 			n = mkcall1(fn, t, init,
+ 				n->left,
+-				conv(n->right->left, types[TUINT64]),
++				l,
+ 				conv(n->right->right, types[TUINT64]),
+ 				nodintconst(t->type->width));
+ 		} else {
+@@ -1110,7 +1114,7 @@ walkexpr(Node **np, NodeList **init)
+ 			argtype(fn, t->type);			// any-2
+ 			n = mkcall1(fn, t, init,
+ 				n->left,
+-				conv(n->right->left, types[TUINT64]),
++				l,
+ 				nodintconst(t->type->width));
+ 		}
+ 		goto ret;
+@@ -1122,13 +1126,17 @@ walkexpr(Node **np, NodeList **init)
+ 		fn = syslook("slicearray", 1);
+ 		argtype(fn, n->left->type);	// any-1
+ 		argtype(fn, t->type);			// any-2
++		if(n->right->left == N)
++			l = nodintconst(0);
++		else
++			l = conv(n->right->left, types[TUINT64]);
+ 		if(n->right->right == N)
+ 			r = nodintconst(n->left->type->bound);
+ 		else
+ 			r = conv(n->right->right, types[TUINT64]);
+ 		n = mkcall1(fn, t, init,
+ 			nod(OADDR, n->left, N), nodintconst(n->left->type->bound),
+-			conv(n->right->left, types[TUINT64]),
++			l,
+ 			r,
+ 			nodintconst(t->type->width));
+ 		goto ret;
+@@ -1213,15 +1221,19 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OSLICESTR:
+ 		// sys_slicestring(s, lb, hb)
++		if(n->right->left == N)
++			l = nodintconst(0);
++		else
++			l = conv(n->right->left, types[TINT]);
+ 		if(n->right->right) {
+ 			n = mkcall("slicestring", n->type, init,
+ 				conv(n->left, types[TSTRING]),
+-				conv(n->right->left, types[TINT]),
++				l,
+ 				conv(n->right->right, types[TINT]));
+ 		} else {
+ 			n = mkcall("slicestring1", n->type, init,
+ 				conv(n->left, types[TSTRING]),
+-				conv(n->right->left, types[TINT]));
++				l);
+ 		}
+ 		goto ret;
+ 

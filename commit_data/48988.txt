@@ -19,6 +19,22 @@ Date:   Fri Jul 2 08:01:20 2021 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/runtime/stack.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b21c9c9518..6e0d157630 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1064,7 +1064,9 @@ func newstack() {
+ 	// recheck the bounds on return.)
+ 	if f := findfunc(gp.sched.pc); f.valid() {
+ 		max := uintptr(funcMaxSPDelta(f))
+-		for newsize-gp.sched.sp < max+_StackGuard {
++		needed := max + _StackGuard
++		used := gp.stack.hi - gp.sched.sp
++		for newsize-used < needed {
+ 			newsize *= 2
+ 		}
+ 	}

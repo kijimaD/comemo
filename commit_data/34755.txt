@@ -12,6 +12,22 @@ Date:   Tue Nov 14 18:27:15 2017 +0000
     Change-Id: I1f30624e14f631a95f4eff5aae462f1091f723a2
     Reviewed-on: https://go-review.googlesource.com/77590
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/cpu/cpu_arm64.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index d3c6cc8305..4d071b3a4e 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -5,3 +5,10 @@
+ package cpu
+ 
+ const CacheLineSize = 64
++
++// TODO: delete this once https://go-review.googlesource.com/c/go/+/76490 lands.
++// These will just be false for now.
++var ARM64 struct {
++	HasSHA1 bool
++	HasSHA2 bool
++}

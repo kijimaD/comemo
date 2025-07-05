@@ -8,6 +8,22 @@ Date:   Tue Aug 12 22:07:15 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/126110043
-
+---
  src/cmd/gc/walk.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index cb1873f853..cf25a3eac7 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3345,6 +3345,10 @@ walkdiv(Node **np, NodeList **init)
+ 	Type *twide;
+ 	Magic m;
+ 
++	// TODO(minux)
++	if(thechar == '9')
++		return;
++
+ 	n = *np;
+ 	if(n->right->op != OLITERAL)
+ 		return;

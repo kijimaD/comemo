@@ -14,7 +14,7 @@ Date:   Mon Nov 14 13:07:36 2022 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     | 13 ++-
  src/cmd/go.sum                                     | 18 ++--
  src/cmd/vendor/golang.org/x/crypto/LICENSE         | 27 ------
@@ -35,3 +35,748 @@ Date:   Mon Nov 14 13:07:36 2022 -0800
  src/go.sum                                         |  4 +-
  src/vendor/modules.txt                             |  2 +-
  19 files changed, 228 insertions(+), 189 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 117c44cc50..73bbec1de0 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,14 +5,11 @@ go 1.20
+ require (
+ 	github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1
+ 	golang.org/x/arch v0.0.0-20220722155209-00200b7164a7
+-	golang.org/x/mod v0.6.0
+-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+-	golang.org/x/sys v0.1.0
++	golang.org/x/mod v0.7.0
++	golang.org/x/sync v0.1.0
++	golang.org/x/sys v0.2.0
+ 	golang.org/x/term v0.1.0
+-	golang.org/x/tools v0.2.1-0.20221024034430-8166dca1cec9
++	golang.org/x/tools v0.3.0
+ )
+ 
+-require (
+-	github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
+-	golang.org/x/crypto v0.1.0 // indirect
+-)
++require github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index a866d5bb41..29538553bb 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -4,15 +4,13 @@ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLh
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+ golang.org/x/arch v0.0.0-20220722155209-00200b7164a7 h1:VBQqJMNMRfQsWSiCTLgz9XjAfWlgnJAPv8nsp1HF8Tw=
+ golang.org/x/arch v0.0.0-20220722155209-00200b7164a7/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+-golang.org/x/crypto v0.1.0 h1:MDRAIl0xIo9Io2xV565hzXHw3zVseKrJKodhohM5CjU=
+-golang.org/x/crypto v0.1.0/go.mod h1:RecgLatLF4+eUMCP1PoPZQb+cVrJcOPbHkTkbkB9sbw=
+-golang.org/x/mod v0.6.0 h1:b9gGHsz9/HhJ3HF5DHQytPpuwocVTChQJK3AvoLRD5I=
+-golang.org/x/mod v0.6.0/go.mod h1:4mET923SAdbXp2ki8ey+zGs1SLqsuM2Y0uvdZR/fUNI=
+-golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 h1:uVc8UZUe6tr40fFVnUP5Oj+veunVezqYl9z7DYw9xzw=
+-golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+-golang.org/x/sys v0.1.0 h1:kunALQeHf1/185U1i0GOB/fy1IPRDDpuoOOqRReG57U=
+-golang.org/x/sys v0.1.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/mod v0.7.0 h1:LapD9S96VoQRhi/GrNTqeBJFrUjs5UHCAtTlgwA5oZA=
++golang.org/x/mod v0.7.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
++golang.org/x/sync v0.1.0 h1:wsuoTGHzEhffawBOhz5CYhcrV4IdKZbEyZjBMuTp12o=
++golang.org/x/sync v0.1.0/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sys v0.2.0 h1:ljd4t30dBnAvMZaQCevtY0xLLD0A+bRZXbgLMLU1F/A=
++golang.org/x/sys v0.2.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.1.0 h1:g6Z6vPFA9dYBAF7DWcH6sCcOntplXsDKcliusYijMlw=
+ golang.org/x/term v0.1.0/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.2.1-0.20221024034430-8166dca1cec9 h1:uC8cLv+mrDxbYxlsUyMtqiGLBMBuAbx4Z9TtVPk8ig8=
+-golang.org/x/tools v0.2.1-0.20221024034430-8166dca1cec9/go.mod h1:y4OqIKeOV/fWJetJ8bXPU1sEVniLMIyDAZWeHdV+NTA=
++golang.org/x/tools v0.3.0 h1:SrNbZl6ECOS1qFzgTdQfWXZM9XBkiA6tkFrH9YSTPHM=
++golang.org/x/tools v0.3.0/go.mod h1:/rWhSS2+zyEVwoJf8YAX6L2f0ntZ7Kn/mGgAWcipA5k=
+diff --git a/src/cmd/vendor/golang.org/x/crypto/LICENSE b/src/cmd/vendor/golang.org/x/crypto/LICENSE
+deleted file mode 100644
+index 6a66aea5ea..0000000000
+--- a/src/cmd/vendor/golang.org/x/crypto/LICENSE
++++ /dev/null
+@@ -1,27 +0,0 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
+-
+-Redistribution and use in source and binary forms, with or without
+-modification, are permitted provided that the following conditions are
+-met:
+-
+-   * Redistributions of source code must retain the above copyright
+-notice, this list of conditions and the following disclaimer.
+-   * Redistributions in binary form must reproduce the above
+-copyright notice, this list of conditions and the following disclaimer
+-in the documentation and/or other materials provided with the
+-distribution.
+-   * Neither the name of Google Inc. nor the names of its
+-contributors may be used to endorse or promote products derived from
+-this software without specific prior written permission.
+-
+-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+diff --git a/src/cmd/vendor/golang.org/x/crypto/PATENTS b/src/cmd/vendor/golang.org/x/crypto/PATENTS
+deleted file mode 100644
+index 733099041f..0000000000
+--- a/src/cmd/vendor/golang.org/x/crypto/PATENTS
++++ /dev/null
+@@ -1,22 +0,0 @@
+-Additional IP Rights Grant (Patents)
+-
+-"This implementation" means the copyrightable works distributed by
+-Google as part of the Go project.
+-
+-Google hereby grants to You a perpetual, worldwide, non-exclusive,
+-no-charge, royalty-free, irrevocable (except as stated in this section)
+-patent license to make, have made, use, offer to sell, sell, import,
+-transfer and otherwise run, modify and propagate the contents of this
+-implementation of Go, where such license applies only to those patent
+-claims, both currently owned or controlled by Google and acquired in
+-the future, licensable by Google that are necessarily infringed by this
+-implementation of Go.  This grant does not include claims that would be
+-infringed only as a consequence of further modification of this
+-implementation.  If you or your agent or exclusive licensee institute or
+-order or agree to the institution of patent litigation against any
+-entity (including a cross-claim or counterclaim in a lawsuit) alleging
+-that this implementation of Go or any code incorporated within this
+-implementation of Go constitutes direct or contributory patent
+-infringement, or inducement of patent infringement, then any patent
+-rights granted to you under this License for this implementation of Go
+-shall terminate as of the date such litigation is filed.
+diff --git a/src/cmd/vendor/golang.org/x/crypto/ed25519/ed25519.go b/src/cmd/vendor/golang.org/x/crypto/ed25519/ed25519.go
+deleted file mode 100644
+index a7828345fc..0000000000
+--- a/src/cmd/vendor/golang.org/x/crypto/ed25519/ed25519.go
++++ /dev/null
+@@ -1,71 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package ed25519 implements the Ed25519 signature algorithm. See
+-// https://ed25519.cr.yp.to/.
+-//
+-// These functions are also compatible with the “Ed25519” function defined in
+-// RFC 8032. However, unlike RFC 8032's formulation, this package's private key
+-// representation includes a public key suffix to make multiple signing
+-// operations with the same key more efficient. This package refers to the RFC
+-// 8032 private key as the “seed”.
+-//
+-// Beginning with Go 1.13, the functionality of this package was moved to the
+-// standard library as crypto/ed25519. This package only acts as a compatibility
+-// wrapper.
+-package ed25519
+-
+-import (
+-	"crypto/ed25519"
+-	"io"
+-)
+-
+-const (
+-	// PublicKeySize is the size, in bytes, of public keys as used in this package.
+-	PublicKeySize = 32
+-	// PrivateKeySize is the size, in bytes, of private keys as used in this package.
+-	PrivateKeySize = 64
+-	// SignatureSize is the size, in bytes, of signatures generated and verified by this package.
+-	SignatureSize = 64
+-	// SeedSize is the size, in bytes, of private key seeds. These are the private key representations used by RFC 8032.
+-	SeedSize = 32
+-)
+-
+-// PublicKey is the type of Ed25519 public keys.
+-//
+-// This type is an alias for crypto/ed25519's PublicKey type.
+-// See the crypto/ed25519 package for the methods on this type.
+-type PublicKey = ed25519.PublicKey
+-
+-// PrivateKey is the type of Ed25519 private keys. It implements crypto.Signer.
+-//
+-// This type is an alias for crypto/ed25519's PrivateKey type.
+-// See the crypto/ed25519 package for the methods on this type.
+-type PrivateKey = ed25519.PrivateKey
+-
+-// GenerateKey generates a public/private key pair using entropy from rand.
+-// If rand is nil, crypto/rand.Reader will be used.
+-func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) {
+-	return ed25519.GenerateKey(rand)
+-}
+-
+-// NewKeyFromSeed calculates a private key from a seed. It will panic if
+-// len(seed) is not SeedSize. This function is provided for interoperability
+-// with RFC 8032. RFC 8032's private keys correspond to seeds in this
+-// package.
+-func NewKeyFromSeed(seed []byte) PrivateKey {
+-	return ed25519.NewKeyFromSeed(seed)
+-}
+-
+-// Sign signs the message with privateKey and returns a signature. It will
+-// panic if len(privateKey) is not PrivateKeySize.
+-func Sign(privateKey PrivateKey, message []byte) []byte {
+-	return ed25519.Sign(privateKey, message)
+-}
+-
+-// Verify reports whether sig is a valid signature of message by publicKey. It
+-// will panic if len(publicKey) is not PublicKeySize.
+-func Verify(publicKey PublicKey, message, sig []byte) bool {
+-	return ed25519.Verify(publicKey, message, sig)
+-}
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go b/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
+index 4d86eef440..140b937005 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
+@@ -175,6 +175,7 @@ package note
+ 
+ import (
+ 	"bytes"
++	"crypto/ed25519"
+ 	"crypto/sha256"
+ 	"encoding/base64"
+ 	"encoding/binary"
+@@ -185,8 +186,6 @@ import (
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+-
+-	"golang.org/x/crypto/ed25519"
+ )
+ 
+ // A Verifier verifies messages signed with a specific key.
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+index 453a942c5d..3865943f6e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+@@ -52,6 +52,20 @@ func ParseSocketControlMessage(b []byte) ([]SocketControlMessage, error) {
+ 	return msgs, nil
+ }
+ 
++// ParseOneSocketControlMessage parses a single socket control message from b, returning the message header,
++// message data (a slice of b), and the remainder of b after that single message.
++// When there are no remaining messages, len(remainder) == 0.
++func ParseOneSocketControlMessage(b []byte) (hdr Cmsghdr, data []byte, remainder []byte, err error) {
++	h, dbuf, err := socketControlMessageHeaderAndData(b)
++	if err != nil {
++		return Cmsghdr{}, nil, nil, err
++	}
++	if i := cmsgAlignOf(int(h.Len)); i < len(b) {
++		remainder = b[i:]
++	}
++	return *h, dbuf, remainder, nil
++}
++
+ func socketControlMessageHeaderAndData(b []byte) (*Cmsghdr, []byte, error) {
+ 	h := (*Cmsghdr)(unsafe.Pointer(&b[0]))
+ 	if h.Len < SizeofCmsghdr || uint64(h.Len) > uint64(len(b)) {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index e044d5b546..c5a98440ec 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -1554,6 +1554,7 @@ func sendmsgN(fd int, iov []Iovec, oob []byte, ptr unsafe.Pointer, salen _Sockle
+ 				var iova [1]Iovec
+ 				iova[0].Base = &dummy
+ 				iova[0].SetLen(1)
++				iov = iova[:]
+ 			}
+ 		}
+ 		msg.Control = &oob[0]
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+index 35fe15c9a2..bb0715c02b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+@@ -14,7 +14,6 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/types/typeutil"
+-	"golang.org/x/tools/internal/analysisinternal"
+ )
+ 
+ const Doc = `check references to loop variables from within nested functions
+@@ -24,10 +23,11 @@ literal inside the loop body. It checks for patterns where access to a loop
+ variable is known to escape the current loop iteration:
+  1. a call to go or defer at the end of the loop body
+  2. a call to golang.org/x/sync/errgroup.Group.Go at the end of the loop body
++ 3. a call testing.T.Run where the subtest body invokes t.Parallel()
+ 
+-The analyzer only considers references in the last statement of the loop body
+-as it is not deep enough to understand the effects of subsequent statements
+-which might render the reference benign.
++In the case of (1) and (2), the analyzer only considers references in the last
++statement of the loop body as it is not deep enough to understand the effects
++of subsequent statements which might render the reference benign.
+ 
+ For example:
+ 
+@@ -39,10 +39,6 @@ For example:
+ 
+ See: https://golang.org/doc/go_faq.html#closures_and_goroutines`
+ 
+-// TODO(rfindley): enable support for checking parallel subtests, pending
+-// investigation, adding:
+-// 3. a call testing.T.Run where the subtest body invokes t.Parallel()
+-
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "loopclosure",
+ 	Doc:      Doc,
+@@ -121,7 +117,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 					if i == lastStmt {
+ 						stmts = litStmts(goInvoke(pass.TypesInfo, call))
+ 					}
+-					if stmts == nil && analysisinternal.LoopclosureParallelSubtests {
++					if stmts == nil {
+ 						stmts = parallelSubtest(pass.TypesInfo, call)
+ 					}
+ 				}
+@@ -178,15 +174,19 @@ func goInvoke(info *types.Info, call *ast.CallExpr) ast.Expr {
+ 	return call.Args[0]
+ }
+ 
+-// parallelSubtest returns statements that would would be executed
+-// asynchronously via the go test runner, as t.Run has been invoked with a
++// parallelSubtest returns statements that can be easily proven to execute
++// concurrently via the go test runner, as t.Run has been invoked with a
+ // function literal that calls t.Parallel.
+ //
+ // In practice, users rely on the fact that statements before the call to
+ // t.Parallel are synchronous. For example by declaring test := test inside the
+ // function literal, but before the call to t.Parallel.
+ //
+-// Therefore, we only flag references that occur after the call to t.Parallel:
++// Therefore, we only flag references in statements that are obviously
++// dominated by a call to t.Parallel. As a simple heuristic, we only consider
++// statements following the final labeled statement in the function body, to
++// avoid scenarios where a jump would cause either the call to t.Parallel or
++// the problematic reference to be skipped.
+ //
+ //	import "testing"
+ //
+@@ -210,17 +210,81 @@ func parallelSubtest(info *types.Info, call *ast.CallExpr) []ast.Stmt {
+ 		return nil
+ 	}
+ 
+-	for i, stmt := range lit.Body.List {
++	// Capture the *testing.T object for the first argument to the function
++	// literal.
++	if len(lit.Type.Params.List[0].Names) == 0 {
++		return nil
++	}
++
++	tObj := info.Defs[lit.Type.Params.List[0].Names[0]]
++	if tObj == nil {
++		return nil
++	}
++
++	// Match statements that occur after a call to t.Parallel following the final
++	// labeled statement in the function body.
++	//
++	// We iterate over lit.Body.List to have a simple, fast and "frequent enough"
++	// dominance relationship for t.Parallel(): lit.Body.List[i] dominates
++	// lit.Body.List[j] for i < j unless there is a jump.
++	var stmts []ast.Stmt
++	afterParallel := false
++	for _, stmt := range lit.Body.List {
++		stmt, labeled := unlabel(stmt)
++		if labeled {
++			// Reset: naively we don't know if a jump could have caused the
++			// previously considered statements to be skipped.
++			stmts = nil
++			afterParallel = false
++		}
++
++		if afterParallel {
++			stmts = append(stmts, stmt)
++			continue
++		}
++
++		// Check if stmt is a call to t.Parallel(), for the correct t.
+ 		exprStmt, ok := stmt.(*ast.ExprStmt)
+ 		if !ok {
+ 			continue
+ 		}
+-		if isMethodCall(info, exprStmt.X, "testing", "T", "Parallel") {
+-			return lit.Body.List[i+1:]
++		expr := exprStmt.X
++		if isMethodCall(info, expr, "testing", "T", "Parallel") {
++			call, _ := expr.(*ast.CallExpr)
++			if call == nil {
++				continue
++			}
++			x, _ := call.Fun.(*ast.SelectorExpr)
++			if x == nil {
++				continue
++			}
++			id, _ := x.X.(*ast.Ident)
++			if id == nil {
++				continue
++			}
++			if info.Uses[id] == tObj {
++				afterParallel = true
++			}
+ 		}
+ 	}
+ 
+-	return nil
++	return stmts
++}
++
++// unlabel returns the inner statement for the possibly labeled statement stmt,
++// stripping any (possibly nested) *ast.LabeledStmt wrapper.
++//
++// The second result reports whether stmt was an *ast.LabeledStmt.
++func unlabel(stmt ast.Stmt) (ast.Stmt, bool) {
++	labeled := false
++	for {
++		labelStmt, ok := stmt.(*ast.LabeledStmt)
++		if !ok {
++			return stmt, labeled
++		}
++		labeled = true
++		stmt = labelStmt.Stmt
++	}
+ }
+ 
+ // isMethodCall reports whether expr is a method call of
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+index cab2fa20fa..935aad00c9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+@@ -269,7 +269,9 @@ func isTestingType(typ types.Type, testingType string) bool {
+ 	if !ok {
+ 		return false
+ 	}
+-	return named.Obj().Pkg().Path() == "testing" && named.Obj().Name() == testingType
++	obj := named.Obj()
++	// obj.Pkg is nil for the error type.
++	return obj != nil && obj.Pkg() != nil && obj.Pkg().Path() == "testing" && obj.Name() == testingType
+ }
+ 
+ // Validate that fuzz target function's arguments are of accepted types.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 9827b57f52..d9c8f11cdd 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -50,7 +50,7 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/internal/analysisflags"
+-	"golang.org/x/tools/go/analysis/internal/facts"
++	"golang.org/x/tools/internal/facts"
+ 	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+@@ -287,13 +287,13 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 	analyzers = filtered
+ 
+ 	// Read facts from imported packages.
+-	read := func(path string) ([]byte, error) {
+-		if vetx, ok := cfg.PackageVetx[path]; ok {
++	read := func(imp *types.Package) ([]byte, error) {
++		if vetx, ok := cfg.PackageVetx[imp.Path()]; ok {
+ 			return ioutil.ReadFile(vetx)
+ 		}
+ 		return nil, nil // no .vetx file, no facts
+ 	}
+-	facts, err := facts.Decode(pkg, read)
++	facts, err := facts.NewDecoder(pkg).Decode(read)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+index dcc029b873..7bd2fdb38b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+@@ -332,7 +332,9 @@ func (h Hasher) hashFor(t types.Type) uint32 {
+ 			// Method order is not significant.
+ 			// Ignore m.Pkg().
+ 			m := t.Method(i)
+-			hash += 3*hashString(m.Name()) + 5*h.Hash(m.Type())
++			// Use shallow hash on method signature to
++			// avoid anonymous interface cycles.
++			hash += 3*hashString(m.Name()) + 5*h.shallowHash(m.Type())
+ 		}
+ 
+ 		// Hash type restrictions.
+@@ -434,3 +436,76 @@ func (h Hasher) hashPtr(ptr interface{}) uint32 {
+ 	h.ptrMap[ptr] = hash
+ 	return hash
+ }
++
++// shallowHash computes a hash of t without looking at any of its
++// element Types, to avoid potential anonymous cycles in the types of
++// interface methods.
++//
++// When an unnamed non-empty interface type appears anywhere among the
++// arguments or results of an interface method, there is a potential
++// for endless recursion. Consider:
++//
++//	type X interface { m() []*interface { X } }
++//
++// The problem is that the Methods of the interface in m's result type
++// include m itself; there is no mention of the named type X that
++// might help us break the cycle.
++// (See comment in go/types.identical, case *Interface, for more.)
++func (h Hasher) shallowHash(t types.Type) uint32 {
++	// t is the type of an interface method (Signature),
++	// its params or results (Tuples), or their immediate
++	// elements (mostly Slice, Pointer, Basic, Named),
++	// so there's no need to optimize anything else.
++	switch t := t.(type) {
++	case *types.Signature:
++		var hash uint32 = 604171
++		if t.Variadic() {
++			hash *= 971767
++		}
++		// The Signature/Tuple recursion is always finite
++		// and invariably shallow.
++		return hash + 1062599*h.shallowHash(t.Params()) + 1282529*h.shallowHash(t.Results())
++
++	case *types.Tuple:
++		n := t.Len()
++		hash := 9137 + 2*uint32(n)
++		for i := 0; i < n; i++ {
++			hash += 53471161 * h.shallowHash(t.At(i).Type())
++		}
++		return hash
++
++	case *types.Basic:
++		return 45212177 * uint32(t.Kind())
++
++	case *types.Array:
++		return 1524181 + 2*uint32(t.Len())
++
++	case *types.Slice:
++		return 2690201
++
++	case *types.Struct:
++		return 3326489
++
++	case *types.Pointer:
++		return 4393139
++
++	case *typeparams.Union:
++		return 562448657
++
++	case *types.Interface:
++		return 2124679 // no recursion here
++
++	case *types.Map:
++		return 9109
++
++	case *types.Chan:
++		return 9127
++
++	case *types.Named:
++		return h.hashPtr(t.Obj())
++
++	case *typeparams.TypeParam:
++		return h.hashPtr(t.Obj())
++	}
++	panic(fmt.Sprintf("shallowHash: %T: %v", t, t))
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index 3b983ccf7d..6fceef5e72 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -18,10 +18,6 @@ import (
+ // in Go 1.18+.
+ var DiagnoseFuzzTests bool = false
+ 
+-// LoopclosureParallelSubtests controls whether the 'loopclosure' analyzer
+-// diagnoses loop variables references in parallel subtests.
+-var LoopclosureParallelSubtests = false
+-
+ var (
+ 	GetTypeErrors func(p interface{}) []types.Error
+ 	SetTypeErrors func(p interface{}, errors []types.Error)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+similarity index 91%
+rename from src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
+rename to src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+index 006abab84e..81df45161a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+@@ -152,6 +152,23 @@ type gobFact struct {
+ 	Fact    analysis.Fact   // type and value of user-defined Fact
+ }
+ 
++// A Decoder decodes the facts from the direct imports of the package
++// provided to NewEncoder. A single decoder may be used to decode
++// multiple fact sets (e.g. each for a different set of fact types)
++// for the same package. Each call to Decode returns an independent
++// fact set.
++type Decoder struct {
++	pkg      *types.Package
++	packages map[string]*types.Package
++}
++
++// NewDecoder returns a fact decoder for the specified package.
++func NewDecoder(pkg *types.Package) *Decoder {
++	// Compute the import map for this package.
++	// See the package doc comment.
++	return &Decoder{pkg, importMap(pkg.Imports())}
++}
++
+ // Decode decodes all the facts relevant to the analysis of package pkg.
+ // The read function reads serialized fact data from an external source
+ // for one of of pkg's direct imports. The empty file is a valid
+@@ -159,28 +176,24 @@ type gobFact struct {
+ //
+ // It is the caller's responsibility to call gob.Register on all
+ // necessary fact types.
+-func Decode(pkg *types.Package, read func(packagePath string) ([]byte, error)) (*Set, error) {
+-	// Compute the import map for this package.
+-	// See the package doc comment.
+-	packages := importMap(pkg.Imports())
+-
++func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error) {
+ 	// Read facts from imported packages.
+ 	// Facts may describe indirectly imported packages, or their objects.
+ 	m := make(map[key]analysis.Fact) // one big bucket
+-	for _, imp := range pkg.Imports() {
++	for _, imp := range d.pkg.Imports() {
+ 		logf := func(format string, args ...interface{}) {
+ 			if debug {
+ 				prefix := fmt.Sprintf("in %s, importing %s: ",
+-					pkg.Path(), imp.Path())
++					d.pkg.Path(), imp.Path())
+ 				log.Print(prefix, fmt.Sprintf(format, args...))
+ 			}
+ 		}
+ 
+ 		// Read the gob-encoded facts.
+-		data, err := read(imp.Path())
++		data, err := read(imp)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("in %s, can't import facts for package %q: %v",
+-				pkg.Path(), imp.Path(), err)
++				d.pkg.Path(), imp.Path(), err)
+ 		}
+ 		if len(data) == 0 {
+ 			continue // no facts
+@@ -195,7 +208,7 @@ func Decode(pkg *types.Package, read func(packagePath string) ([]byte, error)) (
+ 
+ 		// Parse each one into a key and a Fact.
+ 		for _, f := range gobFacts {
+-			factPkg := packages[f.PkgPath]
++			factPkg := d.packages[f.PkgPath]
+ 			if factPkg == nil {
+ 				// Fact relates to a dependency that was
+ 				// unused in this translation unit. Skip.
+@@ -222,7 +235,7 @@ func Decode(pkg *types.Package, read func(packagePath string) ([]byte, error)) (
+ 		}
+ 	}
+ 
+-	return &Set{pkg: pkg, m: m}, nil
++	return &Set{pkg: d.pkg, m: m}, nil
+ }
+ 
+ // Encode encodes a set of facts to a memory buffer.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+similarity index 95%
+rename from src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go
+rename to src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+index 8a5553e2e9..a3aa90dd1c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+@@ -20,6 +20,9 @@ import (
+ //
+ // Packages in the map that are only indirectly imported may be
+ // incomplete (!pkg.Complete()).
++//
++// TODO(adonovan): opt: compute this information more efficiently
++// by obtaining it from the internals of the gcexportdata decoder.
+ func importMap(imports []*types.Package) map[string]*types.Package {
+ 	objects := make(map[types.Object]bool)
+ 	packages := make(map[string]*types.Package)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 8b20347a73..2c3fc0647d 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -23,10 +23,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/crypto v0.1.0
+-## explicit; go 1.17
+-golang.org/x/crypto/ed25519
+-# golang.org/x/mod v0.6.0
++# golang.org/x/mod v0.7.0
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -37,10 +34,10 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
++# golang.org/x/sync v0.1.0
+ ## explicit
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.1.0
++# golang.org/x/sys v0.2.0
+ ## explicit; go 1.17
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+@@ -49,12 +46,11 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.1.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.2.1-0.20221024034430-8166dca1cec9
++# golang.org/x/tools v0.3.0
+ ## explicit; go 1.18
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+-golang.org/x/tools/go/analysis/internal/facts
+ golang.org/x/tools/go/analysis/passes/asmdecl
+ golang.org/x/tools/go/analysis/passes/assign
+ golang.org/x/tools/go/analysis/passes/atomic
+@@ -92,4 +88,5 @@ golang.org/x/tools/go/cfg
+ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/analysisinternal
++golang.org/x/tools/internal/facts
+ golang.org/x/tools/internal/typeparams
+diff --git a/src/go.mod b/src/go.mod
+index 881f705a5f..faa57c0abf 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -8,6 +8,6 @@ require (
+ )
+ 
+ require (
+-	golang.org/x/sys v0.1.0 // indirect
++	golang.org/x/sys v0.2.0 // indirect
+ 	golang.org/x/text v0.4.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index ad8a14c48f..4e589f9c43 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,7 +2,7 @@ golang.org/x/crypto v0.1.0 h1:MDRAIl0xIo9Io2xV565hzXHw3zVseKrJKodhohM5CjU=
+ golang.org/x/crypto v0.1.0/go.mod h1:RecgLatLF4+eUMCP1PoPZQb+cVrJcOPbHkTkbkB9sbw=
+ golang.org/x/net v0.1.0 h1:hZ/3BUoy5aId7sCpA/Tc5lt8DkFgdVS2onTpJsZ/fl0=
+ golang.org/x/net v0.1.0/go.mod h1:Cx3nUiGt4eDBEyega/BKRp+/AlGL8hYe7U9odMt2Cco=
+-golang.org/x/sys v0.1.0 h1:kunALQeHf1/185U1i0GOB/fy1IPRDDpuoOOqRReG57U=
+-golang.org/x/sys v0.1.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/sys v0.2.0 h1:ljd4t30dBnAvMZaQCevtY0xLLD0A+bRZXbgLMLU1F/A=
++golang.org/x/sys v0.2.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.4.0 h1:BrVqGRd7+k1DiOgtnFvAkoQEWQvBc25ouMJM6429SFg=
+ golang.org/x/text v0.4.0/go.mod h1:mrYo+phRRbMaCq/xk9113O4dZlRixOauAjOtrjsXDZ8=
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 78461d7486..229113a694 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -17,7 +17,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.1.0
++# golang.org/x/sys v0.2.0
+ ## explicit; go 1.17
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.4.0

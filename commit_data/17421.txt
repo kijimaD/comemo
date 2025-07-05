@@ -7,6 +7,30 @@ Date:   Thu Aug 29 17:14:57 2013 +1000
     R=r, dvyukov
     CC=golang-dev
     https://golang.org/cl/13348045
-
+---
  src/pkg/net/net.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index c918e96b43..4f177c64ed 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -442,10 +442,16 @@ func (d *deadline) setTime(t time.Time) {
+ 
+ var threadLimit = make(chan struct{}, 500)
+ 
++func init() {
++	for i := 0; i < cap(threadLimit); i++ {
++		threadLimit <- struct{}{}
++	}
++}
++
+ func acquireThread() {
+-	threadLimit <- struct{}{}
++	<-threadLimit
+ }
+ 
+ func releaseThread() {
+-	<-threadLimit
++	threadLimit <- struct{}{}
+ }

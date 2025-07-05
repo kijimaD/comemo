@@ -22,7 +22,68 @@ Date:   Mon Mar 21 17:29:29 2016 +1300
     Reviewed-on: https://go-review.googlesource.com/20972
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/objfile.go | 10 +++++-----
  src/cmd/link/internal/ld/sym.go     |  6 +-----
  2 files changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index a049fcfe4a..6e5bf37b60 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -175,6 +175,8 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	}
+ }
+ 
++var dupSym = &LSym{Name: ".dup"}
++
+ func readsym(ctxt *Link, f *obj.Biobuf, buf *[]byte, pkg string, pn string) {
+ 	if obj.Bgetc(f) != 0xfe {
+ 		log.Fatalf("readsym out of sync")
+@@ -209,7 +211,7 @@ func readsym(ctxt *Link, f *obj.Biobuf, buf *[]byte, pkg string, pn string) {
+ 		}
+ 		if len(s.P) > 0 {
+ 			dup = s
+-			s = linknewsym(ctxt, ".dup", -1)
++			s = dupSym
+ 		}
+ 	}
+ 
+@@ -232,17 +234,15 @@ overwrite:
+ 		s.Size = int64(size)
+ 	}
+ 	s.Attr.Set(AttrLocal, local)
+-	if typ != nil { // if bss sym defined multiple times, take type from any one def
++	if typ != nil {
+ 		s.Gotype = typ
+ 	}
+-	if dup != nil && typ != nil {
++	if dup != nil && typ != nil { // if bss sym defined multiple times, take type from any one def
+ 		dup.Gotype = typ
+ 	}
+ 	s.P = data
+-	s.P = s.P[:len(data)]
+ 	if nreloc > 0 {
+ 		s.R = make([]Reloc, nreloc)
+-		s.R = s.R[:nreloc]
+ 		var r *Reloc
+ 		for i := 0; i < nreloc; i++ {
+ 			r = &s.R[i]
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index e4fce6a5db..86e0544f0d 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -172,12 +172,8 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
+ 	s.Name = symb
+ 	s.Version = int16(v)
+ 	ctxt.Nsymbol++
++	ctxt.Allsym = append(ctxt.Allsym, s)
+ 
+-	if v != -1 {
+-		ctxt.Allsym = append(ctxt.Allsym, s)
+-	} else if v < -1 {
+-		ctxt.Diag("invalid version %d in linknewsym", v)
+-	}
+ 	return s
+ }
+ 

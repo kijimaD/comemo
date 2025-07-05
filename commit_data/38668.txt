@@ -19,8 +19,171 @@ Date:   Sat Aug 25 11:33:12 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/c/148919
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/vet/all/whitelist/all.txt | 10 +++----
  src/cmd/vet/method.go             | 57 ++++++++++-----------------------------
  src/cmd/vet/testdata/method.go    |  4 +--
  3 files changed, 21 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 761f4ced4e..38caac3c3b 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -57,11 +57,11 @@ runtime/pprof/pprof.go: method WriteTo(w io.Writer, debug int) error should have
+ // vet doesn't know it because they are *in* the encoding/xml package.
+ // It's not worth teaching vet about the distinction, so whitelist them.
+ encoding/gob/encode.go: method WriteByte(c byte) should have signature WriteByte(byte) error
+-encoding/xml/marshal.go: method MarshalXML(e *Encoder, start StartElement) error should have signature MarshalXML(*xml.Encoder, xml.StartElement) error
+-encoding/xml/marshal_test.go: method MarshalXML(e *Encoder, start StartElement) error should have signature MarshalXML(*xml.Encoder, xml.StartElement) error
+-encoding/xml/read.go: method UnmarshalXML(d *Decoder, start StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
+-encoding/xml/read_test.go: method UnmarshalXML(d *Decoder, start StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
+-encoding/xml/xml_test.go: method UnmarshalXML(*Decoder, StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
++encoding/xml/marshal.go: method MarshalXML(e *xml.Encoder, start xml.StartElement) error should have signature MarshalXML(*xml.Encoder, xml.StartElement) error
++encoding/xml/marshal_test.go: method MarshalXML(e *xml.Encoder, start xml.StartElement) error should have signature MarshalXML(*xml.Encoder, xml.StartElement) error
++encoding/xml/read.go: method UnmarshalXML(d *xml.Decoder, start xml.StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
++encoding/xml/read_test.go: method UnmarshalXML(d *xml.Decoder, start xml.StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
++encoding/xml/xml_test.go: method UnmarshalXML(*xml.Decoder, xml.StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
+ 
+ // Long struct tags used to test reflect internals
+ cmd/link/link_test.go: struct field tag "\n\tLondon. Michaelmas term lately over, and the Lord Chancellor sitting in Lincoln’s Inn Hall. Implacable November weather. As much mud in the streets as if the waters had but newly retired from the face of the earth, and it would not be wonderful to meet a Megalosaurus, forty feet long or so, waddling like an elephantine lizard up Holborn Hill. Smoke lowering down from chimney-pots, making a soft black drizzle, with flakes of soot in it as big as full-grown snowflakes—gone into mourning, one might imagine, for the death of the sun. Dogs, undistinguishable in mire. Horses, scarcely better; splashed to their very blinkers. Foot passengers, jostling one another’s umbrellas in a general infection of ill temper, and losing their foot-hold at street-corners, where tens of thousands of other foot passengers have been slipping and sliding since the day broke (if this day ever broke), adding new deposits to the crust upon crust of mud, sticking at those points tenaciously to the pavement, and accumulating at compound interest.\n\n\tFog everywhere. Fog up the river, where it flows among green aits and meadows; fog down the river, where it rolls defiled among the tiers of shipping and the waterside pollutions of a great (and dirty) city. Fog on the Essex marshes, fog on the Kentish heights. Fog creeping into the cabooses of collier-brigs; fog lying out on the yards and hovering in the rigging of great ships; fog drooping on the gunwales of barges and small boats. Fog in the eyes and throats of ancient Greenwich pensioners, wheezing by the firesides of their wards; fog in the stem and bowl of the afternoon pipe of the wrathful skipper, down in his close cabin; fog cruelly pinching the toes and fingers of his shivering little ‘prentice boy on deck. Chance people on the bridges peeping over the parapets into a nether sky of fog, with fog all round them, as if they were up in a balloon and hanging in the misty clouds.\n\n\tGas looming through the fog in divers places in the streets, much as the sun may, from the spongey fields, be seen to loom by husbandman and ploughboy. Most of the shops lighted two hours before their time—as the gas seems to know, for it has a haggard and unwilling look.\n\n\tThe raw afternoon is rawest, and the dense fog is densest, and the muddy streets are muddiest near that leaden-headed old obstruction, appropriate ornament for the threshold of a leaden-headed old corporation, Temple Bar. And hard by Temple Bar, in Lincoln’s Inn Hall, at the very heart of the fog, sits the Lord High Chancellor in his High Court of Chancery." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+diff --git a/src/cmd/vet/method.go b/src/cmd/vet/method.go
+index 5783278d2c..8b404e0697 100644
+--- a/src/cmd/vet/method.go
++++ b/src/cmd/vet/method.go
+@@ -7,9 +7,8 @@
+ package main
+ 
+ import (
+-	"fmt"
+ 	"go/ast"
+-	"go/printer"
++	"go/types"
+ 	"strings"
+ )
+ 
+@@ -65,30 +64,26 @@ func checkCanonicalMethod(f *File, node ast.Node) {
+ 	switch n := node.(type) {
+ 	case *ast.FuncDecl:
+ 		if n.Recv != nil {
+-			canonicalMethod(f, n.Name, n.Type)
++			canonicalMethod(f, n.Name)
+ 		}
+ 	case *ast.InterfaceType:
+ 		for _, field := range n.Methods.List {
+ 			for _, id := range field.Names {
+-				canonicalMethod(f, id, field.Type.(*ast.FuncType))
++				canonicalMethod(f, id)
+ 			}
+ 		}
+ 	}
+ }
+ 
+-func canonicalMethod(f *File, id *ast.Ident, t *ast.FuncType) {
++func canonicalMethod(f *File, id *ast.Ident) {
+ 	// Expected input/output.
+ 	expect, ok := canonicalMethods[id.Name]
+ 	if !ok {
+ 		return
+ 	}
+-
+-	// Actual input/output
+-	args := typeFlatten(t.Params.List)
+-	var results []ast.Expr
+-	if t.Results != nil {
+-		results = typeFlatten(t.Results.List)
+-	}
++	sign := f.pkg.defs[id].Type().(*types.Signature)
++	args := sign.Params()
++	results := sign.Results()
+ 
+ 	// Do the =s (if any) all match?
+ 	if !f.matchParams(expect.args, args, "=") || !f.matchParams(expect.results, results, "=") {
+@@ -104,11 +99,7 @@ func canonicalMethod(f *File, id *ast.Ident, t *ast.FuncType) {
+ 			expectFmt += " (" + argjoin(expect.results) + ")"
+ 		}
+ 
+-		f.b.Reset()
+-		if err := printer.Fprint(&f.b, f.fset, t); err != nil {
+-			fmt.Fprintf(&f.b, "<%s>", err)
+-		}
+-		actual := f.b.String()
++		actual := sign.String()
+ 		actual = strings.TrimPrefix(actual, "func")
+ 		actual = id.Name + actual
+ 
+@@ -127,45 +118,27 @@ func argjoin(x []string) string {
+ 	return strings.Join(y, ", ")
+ }
+ 
+-// Turn parameter list into slice of types
+-// (in the ast, types are Exprs).
+-// Have to handle f(int, bool) and f(x, y, z int)
+-// so not a simple 1-to-1 conversion.
+-func typeFlatten(l []*ast.Field) []ast.Expr {
+-	var t []ast.Expr
+-	for _, f := range l {
+-		if len(f.Names) == 0 {
+-			t = append(t, f.Type)
+-			continue
+-		}
+-		for range f.Names {
+-			t = append(t, f.Type)
+-		}
+-	}
+-	return t
+-}
+-
+ // Does each type in expect with the given prefix match the corresponding type in actual?
+-func (f *File) matchParams(expect []string, actual []ast.Expr, prefix string) bool {
++func (f *File) matchParams(expect []string, actual *types.Tuple, prefix string) bool {
+ 	for i, x := range expect {
+ 		if !strings.HasPrefix(x, prefix) {
+ 			continue
+ 		}
+-		if i >= len(actual) {
++		if i >= actual.Len() {
+ 			return false
+ 		}
+-		if !f.matchParamType(x, actual[i]) {
++		if !f.matchParamType(x, actual.At(i).Type()) {
+ 			return false
+ 		}
+ 	}
+-	if prefix == "" && len(actual) > len(expect) {
++	if prefix == "" && actual.Len() > len(expect) {
+ 		return false
+ 	}
+ 	return true
+ }
+ 
+ // Does this one type match?
+-func (f *File) matchParamType(expect string, actual ast.Expr) bool {
++func (f *File) matchParamType(expect string, actual types.Type) bool {
+ 	expect = strings.TrimPrefix(expect, "=")
+ 	// Strip package name if we're in that package.
+ 	if n := len(f.file.Name.Name); len(expect) > n && expect[:n] == f.file.Name.Name && expect[n] == '.' {
+@@ -173,7 +146,5 @@ func (f *File) matchParamType(expect string, actual ast.Expr) bool {
+ 	}
+ 
+ 	// Overkill but easy.
+-	f.b.Reset()
+-	printer.Fprint(&f.b, f.fset, actual)
+-	return f.b.String() == expect
++	return actual.String() == expect
+ }
+diff --git a/src/cmd/vet/testdata/method.go b/src/cmd/vet/testdata/method.go
+index 52b500df27..978527d090 100644
+--- a/src/cmd/vet/testdata/method.go
++++ b/src/cmd/vet/testdata/method.go
+@@ -14,9 +14,9 @@ import (
+ 
+ type MethodTest int
+ 
+-func (t *MethodTest) Scan(x fmt.ScanState, c byte) { // ERROR "should have signature Scan"
++func (t *MethodTest) Scan(x fmt.ScanState, c byte) { // ERROR "should have signature Scan\(fmt\.ScanState, rune\) error"
+ }
+ 
+ type MethodTestInterface interface {
+-	ReadByte() byte // ERROR "should have signature ReadByte"
++	ReadByte() byte // ERROR "should have signature ReadByte\(\) \(byte, error\)"
+ }

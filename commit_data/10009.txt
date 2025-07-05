@@ -7,6 +7,22 @@ Date:   Mon Oct 17 18:23:59 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5286049
-
+---
  src/pkg/exp/template/html/context.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/exp/template/html/context.go b/src/pkg/exp/template/html/context.go
+index de073f134a..c44df4debc 100644
+--- a/src/pkg/exp/template/html/context.go
++++ b/src/pkg/exp/template/html/context.go
+@@ -25,6 +25,10 @@ type context struct {
+ 	err     *Error
+ }
+ 
++func (c context) String() string {
++	return fmt.Sprintf("{%v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.attr, c.element, c.err)
++}
++
+ // eq returns whether two contexts are equal.
+ func (c context) eq(d context) bool {
+ 	return c.state == d.state &&

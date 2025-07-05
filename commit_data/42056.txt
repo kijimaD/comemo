@@ -19,8 +19,202 @@ Date:   Mon Oct 21 14:08:11 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm7.go | 47 ++++++++++++++++++++-------
  src/cmd/internal/obj/arm64/obj7.go |  6 ++++
  src/cmd/internal/obj/plist.go      | 65 ++++++++++++++++++++++++++++++++++++++
  3 files changed, 106 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index ff53738d81..971e1bdd64 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -258,8 +258,10 @@ func MOVCONST(d int64, s int, rt int) uint32 {
+ }
+ 
+ const (
+-	LFROM = 1 << 0
+-	LTO   = 1 << 1
++	// Optab.flag
++	LFROM     = 1 << 0 // p.From uses constant pool
++	LTO       = 1 << 1 // p.To uses constant pool
++	NOTUSETMP = 1 << 2 // p expands to multiple instructions, but does NOT use REGTMP
+ )
+ 
+ var optab = []Optab{
+@@ -383,10 +385,10 @@ var optab = []Optab{
+ 	{AMOVD, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
+ 	{AMOVW, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
+ 	{AMOVD, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
+-	{AMOVW, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, 0, 0},
+-	{AMOVD, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, 0, 0},
+-	{AMOVD, C_MOVCON3, C_NONE, C_NONE, C_REG, 12, 12, 0, 0, 0},
+-	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 16, 0, 0, 0},
++	{AMOVW, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, NOTUSETMP, 0},
++	{AMOVD, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, NOTUSETMP, 0},
++	{AMOVD, C_MOVCON3, C_NONE, C_NONE, C_REG, 12, 12, 0, NOTUSETMP, 0},
++	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 16, 0, NOTUSETMP, 0},
+ 
+ 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
+ 	{AMOVD, C_AACON, C_NONE, C_NONE, C_REG, 4, 4, REGFROM, 0, 0},
+@@ -420,15 +422,15 @@ var optab = []Optab{
+ 	{ALSL, C_REG, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
+ 	{ASVC, C_VCON, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
+ 	{ASVC, C_NONE, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
+-	{ADWORD, C_NONE, C_NONE, C_NONE, C_VCON, 11, 8, 0, 0, 0},
+-	{ADWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 11, 8, 0, 0, 0},
+-	{ADWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 11, 8, 0, 0, 0},
+-	{ADWORD, C_NONE, C_NONE, C_NONE, C_LACON, 11, 8, 0, 0, 0},
++	{ADWORD, C_NONE, C_NONE, C_NONE, C_VCON, 11, 8, 0, NOTUSETMP, 0},
++	{ADWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 11, 8, 0, NOTUSETMP, 0},
++	{ADWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 11, 8, 0, NOTUSETMP, 0},
++	{ADWORD, C_NONE, C_NONE, C_NONE, C_LACON, 11, 8, 0, NOTUSETMP, 0},
+ 	{AWORD, C_NONE, C_NONE, C_NONE, C_LCON, 14, 4, 0, 0, 0},
+ 	{AWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 14, 4, 0, 0, 0},
+ 	{AWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 14, 4, 0, 0, 0},
+-	{AMOVW, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, 0, 0},
+-	{AMOVD, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, 0, 0},
++	{AMOVW, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, NOTUSETMP, 0},
++	{AMOVD, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, NOTUSETMP, 0},
+ 	{AMOVB, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
+ 	{AMOVBU, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
+ 	{AMOVH, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
+@@ -1022,6 +1024,23 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			psz += 4
+ 		}
+ 	}
++
++	// Mark nonpreemptible instruction sequences.
++	// We use REGTMP as a scratch register during call injection,
++	// so instruction sequences that use REGTMP are unsafe to
++	// preempt asynchronously.
++	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
++}
++
++// Return whether p is an unsafe point.
++func (c *ctxt7) isUnsafePoint(p *obj.Prog) bool {
++	if p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP {
++		return true
++	}
++	// Most of the multi-instruction sequence uses REGTMP, except
++	// ones marked safe.
++	o := c.oplook(p)
++	return o.size > 4 && o.flag&NOTUSETMP == 0
+ }
+ 
+ /*
+@@ -3069,6 +3088,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 
+ 	case 12: /* movT $vcon, reg */
++		// NOTE: this case does not use REGTMP. If it ever does,
++		// remove the NOTUSETMP flag in optab.
+ 		num := c.omovlconst(p.As, p, &p.From, int(p.To.Reg), os[:])
+ 		if num == 0 {
+ 			c.ctxt.Diag("invalid constant: %v", p)
+@@ -4017,6 +4038,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = c.opldpstp(p, o, v, uint32(r), uint32(p.From.Reg), uint32(p.From.Offset), 0)
+ 
+ 	case 68: /* movT $vconaddr(SB), reg -> adrp + add + reloc */
++		// NOTE: this case does not use REGTMP. If it ever does,
++		// remove the NOTUSETMP flag in optab.
+ 		if p.As == AMOVW {
+ 			c.ctxt.Diag("invalid load of 32-bit address: %v", p)
+ 		}
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index e47857ab5f..464cbb4b50 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -599,6 +599,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				// Store link register before decrementing SP, so if a signal comes
+ 				// during the execution of the function prologue, the traceback
+ 				// code will not see a half-updated stack frame.
++				// This sequence is not async preemptible, as if we open a frame
++				// at the current SP, it will clobber the saved LR.
++				q = c.ctxt.StartUnsafePoint(q, c.newprog)
++
+ 				q = obj.Appendp(q, c.newprog)
+ 				q.Pos = p.Pos
+ 				q.As = ASUB
+@@ -624,6 +628,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q1.To.Type = obj.TYPE_REG
+ 				q1.To.Reg = REGSP
+ 				q1.Spadj = c.autosize
++
++				q1 = c.ctxt.EndUnsafePoint(q1, c.newprog, -1)
+ 			} else {
+ 				// small frame, update SP and save LR in a single MOVD.W instruction
+ 				q1 = obj.Appendp(q, c.newprog)
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index d41364996d..fb592011e1 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -206,3 +206,68 @@ func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+ 
+ 	return pcdata
+ }
++
++// StartUnsafePoint generates PCDATA Progs after p to mark the
++// beginning of an unsafe point. The unsafe point starts immediately
++// after p.
++// It returns the last Prog generated.
++func (ctxt *Link) StartUnsafePoint(p *Prog, newprog ProgAlloc) *Prog {
++	pcdata := Appendp(p, newprog)
++	pcdata.As = APCDATA
++	pcdata.From.Type = TYPE_CONST
++	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
++	pcdata.To.Type = TYPE_CONST
++	pcdata.To.Offset = -2 // pcdata -2 marks unsafe point
++
++	// TODO: register map?
++
++	return pcdata
++}
++
++// EndUnsafePoint generates PCDATA Progs after p to mark the end of an
++// unsafe point, restoring the stack map index to oldval.
++// The unsafe point ends right after p.
++// It returns the last Prog generated.
++func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog {
++	pcdata := Appendp(p, newprog)
++	pcdata.As = APCDATA
++	pcdata.From.Type = TYPE_CONST
++	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
++	pcdata.To.Type = TYPE_CONST
++	pcdata.To.Offset = oldval
++
++	// TODO: register map?
++
++	return pcdata
++}
++
++// MarkUnsafePoints inserts PCDATAs to mark nonpreemptible instruction
++// sequences, based on isUnsafePoint predicate. p0 is the start of the
++// instruction stream.
++func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint func(*Prog) bool) {
++	prev := p0
++	oldval := int64(-1) // entry pcdata
++	for p := prev.Link; p != nil; p, prev = p.Link, p {
++		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_StackMapIndex {
++			oldval = p.To.Offset
++			continue
++		}
++		if oldval == -2 {
++			continue // already unsafe
++		}
++		if isUnsafePoint(p) {
++			q := ctxt.StartUnsafePoint(prev, newprog)
++			q.Pc = p.Pc
++			q.Link = p
++			// Advance to the end of unsafe point.
++			for p.Link != nil && isUnsafePoint(p.Link) {
++				p = p.Link
++			}
++			if p.Link == nil {
++				break // Reached the end, don't bother marking the end
++			}
++			p = ctxt.EndUnsafePoint(p, newprog, oldval)
++			p.Pc = p.Link.Pc
++		}
++	}
++}

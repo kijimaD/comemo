@@ -12,6 +12,29 @@ Date:   Sat Dec 5 14:43:53 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275592
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/internal/cpu/cpu_arm64.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index 4e9ea8ca96..a8f7b2b458 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -36,7 +36,7 @@ func doinit() {
+ 
+ 	switch GOOS {
+ 	case "linux", "android":
+-		// HWCap was populated by the runtime from the auxillary vector.
++		// HWCap was populated by the runtime from the auxiliary vector.
+ 		// Use HWCap information since reading aarch64 system registers
+ 		// is not supported in user space on older linux kernels.
+ 		ARM64.HasAES = isSet(HWCap, hwcap_AES)
+@@ -103,7 +103,7 @@ func doinit() {
+ 			ARM64.HasATOMICS = true
+ 		}
+ 	default:
+-		// Other operating systems do not support reading HWCap from auxillary vector
++		// Other operating systems do not support reading HWCap from auxiliary vector
+ 		// or reading privileged aarch64 system registers in user space.
+ 	}
+ }

@@ -12,6 +12,25 @@ Date:   Fri May 19 18:49:28 2017 +0900
     Reviewed-on: https://go-review.googlesource.com/43692
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_windows.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 5c55c948c2..9f40886d08 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -837,7 +837,12 @@ func (fd *FD) GetFileInformationByHandle(data *syscall.ByHandleFileInformation)
+ // RawControl invokes the user-defined function f for a non-IO
+ // operation.
+ func (fd *FD) RawControl(f func(uintptr)) error {
+-	return errors.New("not implemented")
++	if err := fd.incref(); err != nil {
++		return err
++	}
++	defer fd.decref()
++	f(uintptr(fd.Sysfd))
++	return nil
+ }
+ 
+ // RawRead invokes the user-defined function f for a read operation.

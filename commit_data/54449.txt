@@ -29,7 +29,7 @@ Date:   Tue Oct 18 12:01:18 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/os3_solaris.go         |  3 ++-
  src/runtime/os_aix.go              |  3 ++-
  src/runtime/os_js.go               |  3 ++-
@@ -63,3 +63,567 @@ Date:   Tue Oct 18 12:01:18 2022 -0400
  src/runtime/sys_openbsd2.go        |  3 ++-
  src/runtime/sys_openbsd_mips64.s   |  2 +-
  32 files changed, 78 insertions(+), 54 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 76cf59772b..dcdfe666ac 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -7,6 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -182,7 +183,7 @@ func newosproc(mp *m) {
+ 	}
+ }
+ 
+-func exitThread(wait *uint32) {
++func exitThread(wait *atomic.Uint32) {
+ 	// We should never reach exitThread on Solaris because we let
+ 	// libc clean up threads.
+ 	throw("exitThread")
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 15e4929779..104c397e8c 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -8,6 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -233,7 +234,7 @@ func newosproc(mp *m) {
+ 
+ }
+ 
+-func exitThread(wait *uint32) {
++func exitThread(wait *atomic.Uint32) {
+ 	// We should never reach exitThread on AIX because we let
+ 	// libc clean up threads.
+ 	throw("exitThread")
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 7ae0e8d3ec..7481fb92bf 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -7,6 +7,7 @@
+ package runtime
+ 
+ import (
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -35,7 +36,7 @@ func usleep_no_g(usec uint32) {
+ 	usleep(usec)
+ }
+ 
+-func exitThread(wait *uint32)
++func exitThread(wait *atomic.Uint32)
+ 
+ type mOS struct{}
+ 
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+index e4c9d2fe89..ab6b181828 100644
+--- a/src/runtime/os_openbsd_syscall2.go
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -7,6 +7,7 @@
+ package runtime
+ 
+ import (
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -49,11 +50,11 @@ func open(name *byte, mode, perm int32) int32
+ // return value is only set on linux to be used in osinit()
+ func madvise(addr unsafe.Pointer, n uintptr, flags int32) int32
+ 
+-// exitThread terminates the current thread, writing *wait = 0 when
++// exitThread terminates the current thread, writing *wait = freeMStack when
+ // the stack is safe to reclaim.
+ //
+ //go:noescape
+-func exitThread(wait *uint32)
++func exitThread(wait *atomic.Uint32)
+ 
+ //go:noescape
+ func obsdsigprocmask(how int32, new sigset) sigset
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 2836ad9c67..5e5a63dcbf 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -468,7 +468,7 @@ func newosproc(mp *m) {
+ 	}
+ }
+ 
+-func exitThread(wait *uint32) {
++func exitThread(wait *atomic.Uint32) {
+ 	// We should never reach exitThread on Plan 9 because we let
+ 	// the OS clean up threads.
+ 	throw("exitThread")
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 54261d6fc0..44718f1d21 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -941,7 +941,7 @@ func newosproc0(mp *m, stk unsafe.Pointer) {
+ 	throw("bad newosproc0")
+ }
+ 
+-func exitThread(wait *uint32) {
++func exitThread(wait *atomic.Uint32) {
+ 	// We should never reach exitThread on Windows because we let
+ 	// the OS clean up threads.
+ 	throw("exitThread")
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 02390375b5..4285ff6b7c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1582,19 +1582,18 @@ func mexit(osStack bool) {
+ 	}
+ 	throw("m not found in allm")
+ found:
+-	if !osStack {
+-		// Delay reaping m until it's done with the stack.
+-		//
+-		// If this is using an OS stack, the OS will free it
+-		// so there's no need for reaping.
+-		atomic.Store(&mp.freeWait, 1)
+-		// Put m on the free list, though it will not be reaped until
+-		// freeWait is 0. Note that the free list must not be linked
+-		// through alllink because some functions walk allm without
+-		// locking, so may be using alllink.
+-		mp.freelink = sched.freem
+-		sched.freem = mp
+-	}
++	// Delay reaping m until it's done with the stack.
++	//
++	// Put mp on the free list, though it will not be reaped while freeWait
++	// is freeMWait. mp is no longer reachable via allm, so even if it is
++	// on an OS stack, we must keep a reference to mp alive so that the GC
++	// doesn't free mp while we are still using it.
++	//
++	// Note that the free list must not be linked through alllink because
++	// some functions walk allm without locking, so may be using alllink.
++	mp.freeWait.Store(freeMWait)
++	mp.freelink = sched.freem
++	sched.freem = mp
+ 	unlock(&sched.lock)
+ 
+ 	atomic.Xadd64(&ncgocall, int64(mp.ncgocall))
+@@ -1624,6 +1623,9 @@ found:
+ 	mdestroy(mp)
+ 
+ 	if osStack {
++		// No more uses of mp, so it is safe to drop the reference.
++		mp.freeWait.Store(freeMRef)
++
+ 		// Return from mstart and let the system thread
+ 		// library free the g0 stack and terminate the thread.
+ 		return
+@@ -1795,19 +1797,25 @@ func allocm(pp *p, fn func(), id int64) *m {
+ 		lock(&sched.lock)
+ 		var newList *m
+ 		for freem := sched.freem; freem != nil; {
+-			if freem.freeWait != 0 {
++			wait := freem.freeWait.Load()
++			if wait == freeMWait {
+ 				next := freem.freelink
+ 				freem.freelink = newList
+ 				newList = freem
+ 				freem = next
+ 				continue
+ 			}
+-			// stackfree must be on the system stack, but allocm is
+-			// reachable off the system stack transitively from
+-			// startm.
+-			systemstack(func() {
+-				stackfree(freem.g0.stack)
+-			})
++			// Free the stack if needed. For freeMRef, there is
++			// nothing to do except drop freem from the sched.freem
++			// list.
++			if wait == freeMStack {
++				// stackfree must be on the system stack, but allocm is
++				// reachable off the system stack transitively from
++				// startm.
++				systemstack(func() {
++					stackfree(freem.g0.stack)
++				})
++			}
+ 			freem = freem.freelink
+ 		}
+ 		sched.freem = newList
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 5b55b55ce1..0392f2968f 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -516,6 +516,13 @@ const (
+ 	tlsSize  = tlsSlots * goarch.PtrSize
+ )
+ 
++// Values for m.freeWait.
++const (
++	freeMStack = 0  // M done, free stack and reference.
++	freeMRef   = 1  // M done, free reference.
++	freeMWait  = 2  // M still in use.
++)
++
+ type m struct {
+ 	g0      *g     // goroutine with scheduling stack
+ 	morebuf gobuf  // gobuf arg to morestack
+@@ -547,7 +554,7 @@ type m struct {
+ 	printlock     int8
+ 	incgo         bool   // m is executing a cgo call
+ 	isextra       bool   // m is an extra m
+-	freeWait      uint32 // if == 0, safe to free g0 and delete m (atomic)
++	freeWait      atomic.Uint32 // Whether it is safe to free g0 and delete m (one of freeMRef, freeMStack, freeMWait)
+ 	fastrand      uint64
+ 	needextram    bool
+ 	traceback     uint8
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 94a888dec6..d2ad8d4ec8 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -6,7 +6,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"runtime/internal/atomic"
++	"unsafe"
++)
+ 
+ // read calls the read system call.
+ // It returns a non-negative number of bytes written or a negative errno value.
+@@ -34,8 +37,8 @@ func open(name *byte, mode, perm int32) int32
+ // return value is only set on linux to be used in osinit()
+ func madvise(addr unsafe.Pointer, n uintptr, flags int32) int32
+ 
+-// exitThread terminates the current thread, writing *wait = 0 when
++// exitThread terminates the current thread, writing *wait = freeMStack when
+ // the stack is safe to reclaim.
+ //
+ //go:noescape
+-func exitThread(wait *uint32)
++func exitThread(wait *atomic.Uint32)
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 1547fdceb0..88af894409 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -474,7 +475,7 @@ func pthread_cond_signal(c *pthreadcond) int32 {
+ func pthread_cond_signal_trampoline()
+ 
+ // Not used on Darwin, but must be defined.
+-func exitThread(wait *uint32) {
++func exitThread(wait *atomic.Uint32) {
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 602d5e9b76..0cf98219fb 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -65,7 +65,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+ 	MOVQ	wait+0(FP), AX
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index f919c5a000..4e0bc9b08c 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -99,7 +99,7 @@ GLOBL exitStack<>(SB),RODATA,$8
+ DATA exitStack<>+0x00(SB)/4, $0
+ DATA exitStack<>+0x04(SB)/4, $0
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVL	wait+0(FP), AX
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index c266d73ea2..374e0ab769 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -96,7 +96,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+ 	MOVQ	wait+0(FP), AX
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 89a8d2bfac..a3fee1426c 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -85,7 +85,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVW	wait+0(FP), R0
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_freebsd_arm64.s b/src/runtime/sys_freebsd_arm64.s
+index 4f24da62ef..29866cb4ca 100644
+--- a/src/runtime/sys_freebsd_arm64.s
++++ b/src/runtime/sys_freebsd_arm64.s
+@@ -99,7 +99,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVD	$0, R0
+ 	MOVD	R0, (R0)
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOVD	wait+0(FP), R0
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_freebsd_riscv64.s b/src/runtime/sys_freebsd_riscv64.s
+index 3c1b966348..4b8699e2bf 100644
+--- a/src/runtime/sys_freebsd_riscv64.s
++++ b/src/runtime/sys_freebsd_riscv64.s
+@@ -96,7 +96,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	ECALL
+ 	WORD	$0	// crash
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOV	wait+0(FP), A0
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 4f5b34b996..12a294153d 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -72,7 +72,7 @@ TEXT exit1<>(SB),NOSPLIT,$0
+ 	INT $3	// not reached
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVL	wait+0(FP), AX
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index d91f9bd31f..c7a89ba536 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -54,7 +54,7 @@ TEXT runtime·exit(SB),NOSPLIT,$0-4
+ 	SYSCALL
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+ 	MOVQ	wait+0(FP), AX
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 1bc9e86d6d..7b8c4f0e04 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -117,7 +117,7 @@ TEXT exit1<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$1003, R1
+ 	MOVW	R0, (R1)	// fail hard
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVW	wait+0(FP), R0
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 04a2cd2da1..38ff6ac330 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -56,7 +56,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	SVC
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOVD	wait+0(FP), R0
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_linux_loong64.s b/src/runtime/sys_linux_loong64.s
+index 5705c37496..9ce5e72256 100644
+--- a/src/runtime/sys_linux_loong64.s
++++ b/src/runtime/sys_linux_loong64.s
+@@ -49,7 +49,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	SYSCALL
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOVV	wait+0(FP), R19
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 5d11339584..47f2da524d 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -51,7 +51,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	SYSCALL
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOVV	wait+0(FP), R1
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index c4507c6098..5e6b6c1504 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -50,7 +50,7 @@ TEXT runtime·exit(SB),NOSPLIT,$0-4
+ 	UNDEF
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVW	wait+0(FP), R1
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 853008d5fe..49974c6bf6 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -49,7 +49,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	SYSCALL	$SYS_exit_group
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOVD	wait+0(FP), R1
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_linux_riscv64.s b/src/runtime/sys_linux_riscv64.s
+index f4fb1c124b..d1558fd6f7 100644
+--- a/src/runtime/sys_linux_riscv64.s
++++ b/src/runtime/sys_linux_riscv64.s
+@@ -57,7 +57,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	ECALL
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOV	wait+0(FP), A0
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 777a4747d4..1448670b91 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -46,7 +46,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	SYSCALL
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOVD	wait+0(FP), R1
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 581b4fc9b6..7be18c61d8 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -53,7 +53,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVL	wait+0(FP), AX
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index ab11f6ff66..30f3f380b6 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -122,7 +122,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+ 	MOVQ	wait+0(FP), AX
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index dbe3dbcffc..62fa852add 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -56,7 +56,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVW wait+0(FP), R0
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index fc126cad7d..d57959f8d7 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -115,7 +115,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
+ 	MOVD	$0, R0			// If we're still running,
+ 	MOVD	R0, (R0)		// crash
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+ 	MOVD	wait+0(FP), R0
+ 	// We're done using the stack.
+diff --git a/src/runtime/sys_openbsd2.go b/src/runtime/sys_openbsd2.go
+index f936e0cfc3..f755cd528c 100644
+--- a/src/runtime/sys_openbsd2.go
++++ b/src/runtime/sys_openbsd2.go
+@@ -8,6 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -248,7 +249,7 @@ func sigaltstack(new *stackt, old *stackt) {
+ func sigaltstack_trampoline()
+ 
+ // Not used on OpenBSD, but must be defined.
+-func exitThread(wait *uint32) {
++func exitThread(wait *atomic.Uint32) {
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/sys_openbsd_mips64.s b/src/runtime/sys_openbsd_mips64.s
+index c2b2092053..cc37e52e16 100644
+--- a/src/runtime/sys_openbsd_mips64.s
++++ b/src/runtime/sys_openbsd_mips64.s
+@@ -24,7 +24,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	R2, (R2)
+ 	RET
+ 
+-// func exitThread(wait *uint32)
++// func exitThread(wait *atomic.Uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0
+ 	MOVV	wait+0(FP), R4		// arg 1 - notdead
+ 	MOVV	$302, R2		// sys___threxit

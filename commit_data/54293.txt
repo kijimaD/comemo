@@ -17,8 +17,104 @@ Date:   Mon Oct 3 09:19:32 2022 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/x509/internal/macos/security.go | 22 ++++++++++------------
  src/crypto/x509/internal/macos/security.s  |  2 --
  src/crypto/x509/root_darwin.go             | 10 ++++++++--
  3 files changed, 18 insertions(+), 16 deletions(-)
+
+diff --git a/src/crypto/x509/internal/macos/security.go b/src/crypto/x509/internal/macos/security.go
+index d8147ba8ba..0fc218c552 100644
+--- a/src/crypto/x509/internal/macos/security.go
++++ b/src/crypto/x509/internal/macos/security.go
+@@ -109,14 +109,6 @@ func SecTrustSettingsCopyTrustSettings(cert CFRef, domain SecTrustSettingsDomain
+ }
+ func x509_SecTrustSettingsCopyTrustSettings_trampoline()
+ 
+-//go:cgo_import_dynamic x509_SecPolicyCopyProperties SecPolicyCopyProperties "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+-
+-func SecPolicyCopyProperties(policy CFRef) CFRef {
+-	ret := syscall(abi.FuncPCABI0(x509_SecPolicyCopyProperties_trampoline), uintptr(policy), 0, 0, 0, 0, 0)
+-	return CFRef(ret)
+-}
+-func x509_SecPolicyCopyProperties_trampoline()
+-
+ //go:cgo_import_dynamic x509_SecTrustCreateWithCertificates SecTrustCreateWithCertificates "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+ 
+ func SecTrustCreateWithCertificates(certs CFRef, policies CFRef) (CFRef, error) {
+@@ -147,14 +139,17 @@ func x509_SecCertificateCreateWithData_trampoline()
+ 
+ //go:cgo_import_dynamic x509_SecPolicyCreateSSL SecPolicyCreateSSL "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+ 
+-func SecPolicyCreateSSL(name string) CFRef {
++func SecPolicyCreateSSL(name string) (CFRef, error) {
+ 	var hostname CFString
+ 	if name != "" {
+ 		hostname = StringToCFString(name)
+ 		defer CFRelease(CFRef(hostname))
+ 	}
+ 	ret := syscall(abi.FuncPCABI0(x509_SecPolicyCreateSSL_trampoline), 1 /* true */, uintptr(hostname), 0, 0, 0, 0)
+-	return CFRef(ret)
++	if ret == 0 {
++		return 0, OSStatus{"SecPolicyCreateSSL", int32(ret)}
++	}
++	return CFRef(ret), nil
+ }
+ func x509_SecPolicyCreateSSL_trampoline()
+ 
+@@ -220,9 +215,12 @@ func x509_SecTrustGetCertificateCount_trampoline()
+ 
+ //go:cgo_import_dynamic x509_SecTrustGetCertificateAtIndex SecTrustGetCertificateAtIndex "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+ 
+-func SecTrustGetCertificateAtIndex(trustObj CFRef, i int) CFRef {
++func SecTrustGetCertificateAtIndex(trustObj CFRef, i int) (CFRef, error) {
+ 	ret := syscall(abi.FuncPCABI0(x509_SecTrustGetCertificateAtIndex_trampoline), uintptr(trustObj), uintptr(i), 0, 0, 0, 0)
+-	return CFRef(ret)
++	if ret == 0 {
++		return 0, OSStatus{"SecTrustGetCertificateAtIndex", int32(ret)}
++	}
++	return CFRef(ret), nil
+ }
+ func x509_SecTrustGetCertificateAtIndex_trampoline()
+ 
+diff --git a/src/crypto/x509/internal/macos/security.s b/src/crypto/x509/internal/macos/security.s
+index 36f814f3cd..ed726f1127 100644
+--- a/src/crypto/x509/internal/macos/security.s
++++ b/src/crypto/x509/internal/macos/security.s
+@@ -13,8 +13,6 @@ TEXT ·x509_SecTrustSettingsCopyCertificates_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	x509_SecTrustSettingsCopyCertificates(SB)
+ TEXT ·x509_SecTrustSettingsCopyTrustSettings_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	x509_SecTrustSettingsCopyTrustSettings(SB)
+-TEXT ·x509_SecPolicyCopyProperties_trampoline(SB),NOSPLIT,$0-0
+-	JMP	x509_SecPolicyCopyProperties(SB)
+ TEXT ·x509_SecTrustCreateWithCertificates_trampoline(SB),NOSPLIT,$0-0
+ 	JMP x509_SecTrustCreateWithCertificates(SB)
+ TEXT ·x509_SecCertificateCreateWithData_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/crypto/x509/root_darwin.go b/src/crypto/x509/root_darwin.go
+index 4759462653..20f627c277 100644
+--- a/src/crypto/x509/root_darwin.go
++++ b/src/crypto/x509/root_darwin.go
+@@ -32,7 +32,10 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ 
+ 	policies := macOS.CFArrayCreateMutable()
+ 	defer macOS.ReleaseCFArray(policies)
+-	sslPolicy := macOS.SecPolicyCreateSSL(opts.DNSName)
++	sslPolicy, err := macOS.SecPolicyCreateSSL(opts.DNSName)
++	if err != nil {
++		return nil, err
++	}
+ 	macOS.CFArrayAppendValue(policies, sslPolicy)
+ 
+ 	trustObj, err := macOS.SecTrustCreateWithCertificates(certs, policies)
+@@ -61,7 +64,10 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ 	chain := [][]*Certificate{{}}
+ 	numCerts := macOS.SecTrustGetCertificateCount(trustObj)
+ 	for i := 0; i < numCerts; i++ {
+-		certRef := macOS.SecTrustGetCertificateAtIndex(trustObj, i)
++		certRef, err := macOS.SecTrustGetCertificateAtIndex(trustObj, i)
++		if err != nil {
++			return nil, err
++		}
+ 		cert, err := exportCertificate(certRef)
+ 		if err != nil {
+ 			return nil, err

@@ -19,6 +19,33 @@ Date:   Sat Jun 25 15:28:15 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/debug/plan9obj/file.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/debug/plan9obj/file.go b/src/debug/plan9obj/file.go
+index aa03429624..aa25809148 100644
+--- a/src/debug/plan9obj/file.go
++++ b/src/debug/plan9obj/file.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
++	"internal/saferio"
+ 	"io"
+ 	"os"
+ )
+@@ -55,12 +56,7 @@ type Section struct {
+ 
+ // Data reads and returns the contents of the Plan 9 a.out section.
+ func (s *Section) Data() ([]byte, error) {
+-	dat := make([]byte, s.sr.Size())
+-	n, err := s.sr.ReadAt(dat, 0)
+-	if n == len(dat) {
+-		err = nil
+-	}
+-	return dat[0:n], err
++	return saferio.ReadDataAt(s.sr, uint64(s.Size), 0)
+ }
+ 
+ // Open returns a new ReadSeeker reading the Plan 9 a.out section.

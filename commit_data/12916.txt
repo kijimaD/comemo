@@ -8,6 +8,20 @@ Date:   Fri Apr 20 00:41:10 2012 +0800
     R=golang-dev, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/6032052
-
+---
  src/pkg/net/http/example_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/net/http/example_test.go b/src/pkg/net/http/example_test.go
+index 2584afc439..ec814407dd 100644
+--- a/src/pkg/net/http/example_test.go
++++ b/src/pkg/net/http/example_test.go
+@@ -49,3 +49,8 @@ func ExampleGet() {
+ 	res.Body.Close()
+ 	fmt.Printf("%s", robots)
+ }
++
++func ExampleFileServer() {
++	// we use StripPrefix so that /tmpfiles/somefile will access /tmp/somefile
++	http.Handle("/tmpfiles/", http.StripPrefix("/tmpfiles/", http.FileServer(http.Dir("/tmp"))))
++}

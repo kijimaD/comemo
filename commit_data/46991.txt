@@ -16,6 +16,21 @@ Date:   Wed Jan 27 01:01:18 2021 -0500
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  test/nilptr.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/nilptr.go b/test/nilptr.go
+index c9a044dd36..b296c88c99 100644
+--- a/test/nilptr.go
++++ b/test/nilptr.go
+@@ -9,7 +9,8 @@
+ 
+ // +build !aix
+ // +build !darwin !arm64
+-// Address space starts at 1<<32 on AIX and on darwin/arm64, so dummy is too far.
++// +build !windows !arm64
++// Address space starts at 1<<32 on AIX and on darwin/arm64 and on windows/arm64, so dummy is too far.
+ 
+ package main
+ 

@@ -7,7 +7,7 @@ Date:   Fri Jun 17 06:07:13 2011 -0400
     R=gri
     CC=golang-dev
     https://golang.org/cl/4625044
-
+---
  src/cmd/hgpatch/main.go                    | 14 ++++------
  src/pkg/crypto/openpgp/packet/signature.go | 12 +++++---
  src/pkg/crypto/tls/key_agreement.go        | 15 +++++-----
@@ -26,3 +26,609 @@ Date:   Fri Jun 17 06:07:13 2011 -0400
  test/fixedbugs/bug140.go                   |  4 +--
  test/fixedbugs/bug178.go                   | 12 ++++----
  17 files changed, 110 insertions(+), 94 deletions(-)
+
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index 8ee3422e29..1f3e5e7365 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -329,15 +329,14 @@ var lookPathCache = make(map[string]string)
+ // It provides input on standard input to the command.
+ func run(argv []string, input []byte) (out string, err os.Error) {
+ 	if len(argv) < 1 {
+-		err = os.EINVAL
+-		goto Error
++		return "", &runError{dup(argv), os.EINVAL}
+ 	}
+ 
+ 	prog, ok := lookPathCache[argv[0]]
+ 	if !ok {
+ 		prog, err = exec.LookPath(argv[0])
+ 		if err != nil {
+-			goto Error
++			return "", &runError{dup(argv), err}
+ 		}
+ 		lookPathCache[argv[0]] = prog
+ 	}
+@@ -347,13 +346,10 @@ func run(argv []string, input []byte) (out string, err os.Error) {
+ 		cmd.Stdin = bytes.NewBuffer(input)
+ 	}
+ 	bs, err := cmd.CombinedOutput()
+-	if err == nil {
+-		return string(bs), nil
++	if err != nil {
++		return "", &runError{dup(argv), err}
+ 	}
+-
+-Error:
+-	err = &runError{dup(argv), err}
+-	return
++	return string(bs), nil
+ }
+ 
+ // A runError represents an error that occurred while running a command.
+diff --git a/src/pkg/crypto/openpgp/packet/signature.go b/src/pkg/crypto/openpgp/packet/signature.go
+index 3169bac1e6..123c99fb23 100644
+--- a/src/pkg/crypto/openpgp/packet/signature.go
++++ b/src/pkg/crypto/openpgp/packet/signature.go
+@@ -177,7 +177,11 @@ const (
+ // parseSignatureSubpacket parses a single subpacket. len(subpacket) is >= 1.
+ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (rest []byte, err os.Error) {
+ 	// RFC 4880, section 5.2.3.1
+-	var length uint32
++	var (
++		length     uint32
++		packetType byte
++		isCritical bool
++	)
+ 	switch {
+ 	case subpacket[0] < 192:
+ 		length = uint32(subpacket[0])
+@@ -207,8 +211,8 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
+ 		err = error.StructuralError("zero length signature subpacket")
+ 		return
+ 	}
+-	packetType := subpacket[0] & 0x7f
+-	isCritial := subpacket[0]&0x80 == 0x80
++	packetType = subpacket[0] & 0x7f
++	isCritical = subpacket[0]&0x80 == 0x80
+ 	subpacket = subpacket[1:]
+ 	switch signatureSubpacketType(packetType) {
+ 	case creationTimeSubpacket:
+@@ -309,7 +313,7 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
+ 		}
+ 
+ 	default:
+-		if isCritial {
++		if isCritical {
+ 			err = error.UnsupportedError("unknown critical signature subpacket type " + strconv.Itoa(int(packetType)))
+ 			return
+ 		}
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index 84f90c45a0..c83ef3f09d 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -176,9 +176,11 @@ func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *cl
+ 	return preMasterSecret, nil
+ }
+ 
++var errServerKeyExchange = os.ErrorString("invalid ServerKeyExchange")
++
+ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) os.Error {
+ 	if len(skx.key) < 4 {
+-		goto Error
++		return errServerKeyExchange
+ 	}
+ 	if skx.key[0] != 3 { // named curve
+ 		return os.ErrorString("server selected unsupported curve")
+@@ -198,29 +200,26 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
+ 
+ 	publicLen := int(skx.key[3])
+ 	if publicLen+4 > len(skx.key) {
+-		goto Error
++		return errServerKeyExchange
+ 	}
+ 	ka.x, ka.y = ka.curve.Unmarshal(skx.key[4 : 4+publicLen])
+ 	if ka.x == nil {
+-		goto Error
++		return errServerKeyExchange
+ 	}
+ 	serverECDHParams := skx.key[:4+publicLen]
+ 
+ 	sig := skx.key[4+publicLen:]
+ 	if len(sig) < 2 {
+-		goto Error
++		return errServerKeyExchange
+ 	}
+ 	sigLen := int(sig[0])<<8 | int(sig[1])
+ 	if sigLen+2 != len(sig) {
+-		goto Error
++		return errServerKeyExchange
+ 	}
+ 	sig = sig[2:]
+ 
+ 	md5sha1 := md5SHA1Hash(clientHello.random, serverHello.random, serverECDHParams)
+ 	return rsa.VerifyPKCS1v15(cert.PublicKey.(*rsa.PublicKey), crypto.MD5SHA1, md5sha1, sig)
+-
+-Error:
+-	return os.ErrorString("invalid ServerKeyExchange")
+ }
+ 
+ func (ka *ecdheRSAKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, os.Error) {
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index a33785b049..f35365ebeb 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -566,12 +566,13 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
+ 		goto Error
+ 	}
+ 
+-	b, ok := e.Val(AttrByteSize).(int64)
+-	if !ok {
+-		b = -1
++	{
++		b, ok := e.Val(AttrByteSize).(int64)
++		if !ok {
++			b = -1
++		}
++		typ.Common().ByteSize = b
+ 	}
+-	typ.Common().ByteSize = b
+-
+ 	return typ, nil
+ 
+ Error:
+diff --git a/src/pkg/encoding/pem/pem.go b/src/pkg/encoding/pem/pem.go
+index c2398807fc..ebe57edc0e 100644
+--- a/src/pkg/encoding/pem/pem.go
++++ b/src/pkg/encoding/pem/pem.go
+@@ -86,7 +86,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
+ 
+ 	typeLine, rest := getLine(rest)
+ 	if !bytes.HasSuffix(typeLine, pemEndOfLine) {
+-		goto Error
++		return decodeError(data, rest)
+ 	}
+ 	typeLine = typeLine[0 : len(typeLine)-len(pemEndOfLine)]
+ 
+@@ -118,22 +118,23 @@ func Decode(data []byte) (p *Block, rest []byte) {
+ 
+ 	i := bytes.Index(rest, pemEnd)
+ 	if i < 0 {
+-		goto Error
++		return decodeError(data, rest)
+ 	}
+ 	base64Data := removeWhitespace(rest[0:i])
+ 
+ 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
+ 	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
+ 	if err != nil {
+-		goto Error
++		return decodeError(data, rest)
+ 	}
+ 	p.Bytes = p.Bytes[0:n]
+ 
+ 	_, rest = getLine(rest[i+len(pemEnd):])
+ 
+ 	return
++}
+ 
+-Error:
++func decodeError(data, rest []byte) (*Block, []byte) {
+ 	// If we get here then we have rejected a likely looking, but
+ 	// ultimately invalid PEM block. We need to start over from a new
+ 	// position.  We have consumed the preamble line and will have consumed
+@@ -154,11 +155,11 @@ Error:
+ 	//
+ 	// we've failed to parse using the first BEGIN line
+ 	// and now will try again, using the second BEGIN line.
+-	p, rest = Decode(rest)
++	p, rest := Decode(rest)
+ 	if p == nil {
+ 		rest = data
+ 	}
+-	return
++	return p, rest
+ }
+ 
+ const pemLineLength = 64
+diff --git a/src/pkg/exp/regexp/syntax/parse.go b/src/pkg/exp/regexp/syntax/parse.go
+index 0a0422246c..d04f25097e 100644
+--- a/src/pkg/exp/regexp/syntax/parse.go
++++ b/src/pkg/exp/regexp/syntax/parse.go
+@@ -120,10 +120,23 @@ func (p *parser) op(op Op) *Regexp {
+ 
+ // repeat replaces the top stack element with itself repeated
+ // according to op.
+-func (p *parser) repeat(op Op, min, max int, flags Flags, opstr string) os.Error {
++func (p *parser) repeat(op Op, min, max int, opstr, t, lastRepeat string) (string, os.Error) {
++	flags := p.flags
++	if p.flags&PerlX != 0 {
++		if len(t) > 0 && t[0] == '?' {
++			t = t[1:]
++			flags ^= NonGreedy
++		}
++		if lastRepeat != "" {
++			// In Perl it is not allowed to stack repetition operators:
++			// a** is a syntax error, not a doubled star, and a++ means
++			// something else entirely, which we don't support!
++			return "", &Error{ErrInvalidRepeatOp, lastRepeat[:len(lastRepeat)-len(t)]}
++		}
++	}
+ 	n := len(p.stack)
+ 	if n == 0 {
+-		return &Error{ErrMissingRepeatArgument, opstr}
++		return "", &Error{ErrMissingRepeatArgument, opstr}
+ 	}
+ 	sub := p.stack[n-1]
+ 	re := &Regexp{
+@@ -135,7 +148,7 @@ func (p *parser) repeat(op Op, min, max int, flags Flags, opstr string) os.Error
+ 	re.Sub = re.Sub0[:1]
+ 	re.Sub[0] = sub
+ 	p.stack[n-1] = re
+-	return nil
++	return t, nil
+ }
+ 
+ // concat replaces the top of the stack (above the topmost '|' or '(') with its concatenation.
+@@ -295,35 +308,19 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
+ 			case '?':
+ 				op = OpQuest
+ 			}
+-			repeat = t
+-			t = t[1:]
+-			goto Repeat
++			if t, err = p.repeat(op, min, max, t[:1], t[1:], lastRepeat); err != nil {
++				return nil, err
++			}
+ 		case '{':
+ 			op = OpRepeat
+-			n, m, tt, ok := p.parseRepeat(t)
++			min, max, tt, ok := p.parseRepeat(t)
+ 			if !ok {
+ 				// If the repeat cannot be parsed, { is a literal.
+ 				p.literal('{')
+ 				t = t[1:]
+ 				break
+ 			}
+-			repeat, t = t, tt
+-			min, max = n, m
+-		Repeat:
+-			flags := p.flags
+-			if p.flags&PerlX != 0 {
+-				if len(t) > 0 && t[0] == '?' {
+-					t = t[1:]
+-					flags ^= NonGreedy
+-				}
+-				if lastRepeat != "" {
+-					// In Perl it is not allowed to stack repetition operators:
+-					// a** is a syntax error, not a doubled star, and a++ means
+-					// something else entirely, which we don't support!
+-					return nil, &Error{ErrInvalidRepeatOp, lastRepeat[:len(lastRepeat)-len(t)]}
+-				}
+-			}
+-			if err = p.repeat(op, min, max, flags, repeat[:len(repeat)-len(t)]); err != nil {
++			if t, err = p.repeat(op, min, max, t[:len(t)-len(tt)], tt, lastRepeat); err != nil {
+ 				return nil, err
+ 			}
+ 		case '\\':
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index dd8548ceb7..b111288235 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -945,7 +945,7 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 			// For now, can only handle (renamed) []byte.
+ 			typ := v.Type()
+ 			if typ.Elem().Kind() != reflect.Uint8 {
+-				goto CantHandle
++				s.errorString("Scan: can't handle type: " + val.Type().String())
+ 			}
+ 			str := s.convertString(verb)
+ 			v.Set(reflect.MakeSlice(typ, len(str), len(str)))
+@@ -959,7 +959,6 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 		case reflect.Complex64, reflect.Complex128:
+ 			v.SetComplex(s.scanComplex(verb, v.Type().Bits()))
+ 		default:
+-		CantHandle:
+ 			s.errorString("Scan: can't handle type: " + val.Type().String())
+ 		}
+ 	}
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 05b1662d38..394c87d083 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -348,6 +348,11 @@ func ParseRequestURL(rawurl string) (url *URL, err os.Error) {
+ // in which case only absolute URLs or path-absolute relative URLs are allowed.
+ // If viaRequest is false, all forms of relative URLs are allowed.
+ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
++	var (
++		leadingSlash bool
++		path         string
++	)
++
+ 	if rawurl == "" {
+ 		err = os.ErrorString("empty url")
+ 		goto Error
+@@ -357,12 +362,10 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+ 
+ 	// Split off possible leading "http:", "mailto:", etc.
+ 	// Cannot contain escaped characters.
+-	var path string
+ 	if url.Scheme, path, err = getscheme(rawurl); err != nil {
+ 		goto Error
+ 	}
+-
+-	leadingSlash := strings.HasPrefix(path, "/")
++	leadingSlash = strings.HasPrefix(path, "/")
+ 
+ 	if url.Scheme != "" && !leadingSlash {
+ 		// RFC 2396:
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index 0ba69a0ce9..ade1bb3a97 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -394,7 +394,6 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
+ 		f := val.Type().Field(i)
+ 		switch fv := val.Field(i); fv.Kind() {
+ 		default:
+-		BadType:
+ 			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+ 			return len(msg), false
+ 		case reflect.Struct:
+@@ -419,7 +418,8 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
+ 			off += 4
+ 		case reflect.Array:
+ 			if fv.Type().Elem().Kind() != reflect.Uint8 {
+-				goto BadType
++				fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
++				return len(msg), false
+ 			}
+ 			n := fv.Len()
+ 			if off+n > len(msg) {
+@@ -471,7 +471,6 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
+ 		f := val.Type().Field(i)
+ 		switch fv := val.Field(i); fv.Kind() {
+ 		default:
+-		BadType:
+ 			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+ 			return len(msg), false
+ 		case reflect.Struct:
+@@ -492,7 +491,8 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
+ 			off += 4
+ 		case reflect.Array:
+ 			if fv.Type().Elem().Kind() != reflect.Uint8 {
+-				goto BadType
++				fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
++				return len(msg), false
+ 			}
+ 			n := fv.Len()
+ 			if off+n > len(msg) {
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 0b8c388f15..5d56520a91 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -270,12 +270,16 @@ func JoinHostPort(host, port string) string {
+ 
+ // Convert "host:port" into IP address and port.
+ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
++	var (
++		addr IP
++		p, i int
++		ok   bool
++	)
+ 	host, port, err := SplitHostPort(hostport)
+ 	if err != nil {
+ 		goto Error
+ 	}
+ 
+-	var addr IP
+ 	if host != "" {
+ 		// Try as an IP address.
+ 		addr = ParseIP(host)
+@@ -302,7 +306,7 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+ 		}
+ 	}
+ 
+-	p, i, ok := dtoi(port, 0)
++	p, i, ok = dtoi(port, 0)
+ 	if !ok || i != len(port) {
+ 		p, err = LookupPort(net, port)
+ 		if err != nil {
+diff --git a/src/pkg/net/newpollserver.go b/src/pkg/net/newpollserver.go
+index fff54dba71..427208701b 100644
+--- a/src/pkg/net/newpollserver.go
++++ b/src/pkg/net/newpollserver.go
+@@ -18,12 +18,7 @@ func newPollServer() (s *pollServer, err os.Error) {
+ 	}
+ 	var e int
+ 	if e = syscall.SetNonblock(s.pr.Fd(), true); e != 0 {
+-	Errno:
+-		err = &os.PathError{"setnonblock", s.pr.Name(), os.Errno(e)}
+-	Error:
+-		s.pr.Close()
+-		s.pw.Close()
+-		return nil, err
++		goto Errno
+ 	}
+ 	if e = syscall.SetNonblock(s.pw.Fd(), true); e != 0 {
+ 		goto Errno
+@@ -38,4 +33,11 @@ func newPollServer() (s *pollServer, err os.Error) {
+ 	s.pending = make(map[int]*netFD)
+ 	go s.Run()
+ 	return s, nil
++
++Errno:
++	err = &os.PathError{"setnonblock", s.pr.Name(), os.Errno(e)}
++Error:
++	s.pr.Close()
++	s.pw.Close()
++	return nil, err
+ }
+diff --git a/src/pkg/patch/textdiff.go b/src/pkg/patch/textdiff.go
+index c7e693fc66..482bd67816 100644
+--- a/src/pkg/patch/textdiff.go
++++ b/src/pkg/patch/textdiff.go
+@@ -17,6 +17,8 @@ type TextChunk struct {
+ }
+ 
+ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
++	var chunkHeader []byte
++
+ 	// Copy raw so it is safe to keep references to slices.
+ 	_, chunks := sections(raw, "@@ -")
+ 	delta := 0
+@@ -26,13 +28,12 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
+ 
+ 		// Parse start line: @@ -oldLine,oldCount +newLine,newCount @@ junk
+ 		chunk := splitLines(raw)
+-		chunkHeader := chunk[0]
++		chunkHeader = chunk[0]
+ 		var ok bool
+ 		var oldLine, oldCount, newLine, newCount int
+ 		s := chunkHeader
+ 		if oldLine, s, ok = atoi(s, "@@ -", 10); !ok {
+-		ErrChunkHdr:
+-			return nil, SyntaxError("unexpected chunk header line: " + string(chunkHeader))
++			goto ErrChunkHdr
+ 		}
+ 		if len(s) == 0 || s[0] != ',' {
+ 			oldCount = 1
+@@ -145,6 +146,9 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
+ 		}
+ 	}
+ 	return diff, nil
++
++ErrChunkHdr:
++	return nil, SyntaxError("unexpected chunk header line: " + string(chunkHeader))
+ }
+ 
+ var ErrPatchFailure = os.NewError("patch did not apply cleanly")
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index f7b8456725..1dfaaa6b51 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -42,6 +42,8 @@ func cutoff64(base int) uint64 {
+ // digits, err.Error = os.EINVAL; if the value corresponding
+ // to s cannot be represented by a uint64, err.Error = os.ERANGE.
+ func Btoui64(s string, b int) (n uint64, err os.Error) {
++	var cutoff uint64
++
+ 	s0 := s
+ 	switch {
+ 	case len(s) < 1:
+@@ -73,7 +75,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 	}
+ 
+ 	n = 0
+-	cutoff := cutoff64(b)
++	cutoff = cutoff64(b)
+ 
+ 	for i := 0; i < len(s); i++ {
+ 		var v byte
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index 98b19d3a2b..05e49d32dd 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -24,7 +24,10 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
+ 			rune, width = utf8.DecodeRuneInString(s)
+ 		}
+ 		if width == 1 && rune == utf8.RuneError {
+-			goto printEscX
++			buf.WriteString(`\x`)
++			buf.WriteByte(lowerhex[s[0]>>4])
++			buf.WriteByte(lowerhex[s[0]&0xF])
++			continue
+ 		}
+ 		if rune == int(quote) || rune == '\\' { // always backslashed
+ 			buf.WriteByte('\\')
+@@ -58,7 +61,6 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
+ 		default:
+ 			switch {
+ 			case rune < ' ':
+-			printEscX:
+ 				buf.WriteString(`\x`)
+ 				buf.WriteByte(lowerhex[s[0]>>4])
+ 				buf.WriteByte(lowerhex[s[0]&0xF])
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index 31bed926a3..a6ac3983df 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -337,13 +337,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
+ 	// Kick off child.
+ 	pid, err = forkAndExecInChild(argv0p, argvp, envvp, chroot, dir, attr, sys, p[1])
+ 	if err != 0 {
+-	error:
+-		if p[0] >= 0 {
+-			Close(p[0])
+-			Close(p[1])
+-		}
+-		ForkLock.Unlock()
+-		return 0, err
++		goto error
+ 	}
+ 	ForkLock.Unlock()
+ 
+@@ -370,6 +364,14 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
+ 
+ 	// Read got EOF, so pipe closed on exec, so exec succeeded.
+ 	return pid, 0
++
++error:
++	if p[0] >= 0 {
++		Close(p[0])
++		Close(p[1])
++	}
++	ForkLock.Unlock()
++	return 0, err
+ }
+ 
+ // Combination of fork and exec, careful to be thread safe.
+diff --git a/test/fixedbugs/bug140.go b/test/fixedbugs/bug140.go
+index e27b370e76..441c57a485 100644
+--- a/test/fixedbugs/bug140.go
++++ b/test/fixedbugs/bug140.go
+@@ -10,14 +10,14 @@ func main() {
+ 	if true {
+ 	} else {
+ 	L1:
++		goto L1
+ 	}
+ 	if true {
+ 	} else {
++		goto L2
+ 	L2:
+ 		main()
+ 	}
+-	goto L1
+-	goto L2
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug178.go b/test/fixedbugs/bug178.go
+index 2059610244..a7ff09daee 100644
+--- a/test/fixedbugs/bug178.go
++++ b/test/fixedbugs/bug178.go
+@@ -14,6 +14,9 @@ L:
+ 			break L
+ 		}
+ 		panic("BUG: not reached - break")
++		if false {
++			goto L1
++		}
+ 	}
+ 
+ L2:
+@@ -23,11 +26,8 @@ L2:
+ 			continue L2
+ 		}
+ 		panic("BUG: not reached - continue")
+-	}
+-	if false {
+-		goto L1
+-	}
+-	if false {
+-		goto L3
++		if false {
++			goto L3
++		}
+ 	}
+ }

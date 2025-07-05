@@ -9,6 +9,38 @@ Date:   Wed Dec 13 12:46:39 2023 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/reflect/value.go | 13 +++----------
  1 file changed, 3 insertions(+), 10 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 60ba79a6e6..87e595155b 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -208,14 +208,7 @@ type emptyInterface struct {
+ 
+ // nonEmptyInterface is the header for an interface value with methods.
+ type nonEmptyInterface struct {
+-	// see ../runtime/iface.go:/Itab
+-	itab *struct {
+-		ityp *abi.Type // static interface type
+-		typ  *abi.Type // dynamic concrete type
+-		hash uint32    // copy of typ.hash
+-		_    [4]byte
+-		fun  [100000]unsafe.Pointer // method table
+-	}
++	itab *abi.ITab
+ 	word unsafe.Pointer
+ }
+ 
+@@ -897,8 +890,8 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *abi.Type, t
+ 		if iface.itab == nil {
+ 			panic("reflect: " + op + " of method on nil interface value")
+ 		}
+-		rcvrtype = iface.itab.typ
+-		fn = unsafe.Pointer(&iface.itab.fun[i])
++		rcvrtype = iface.itab.Type
++		fn = unsafe.Pointer(&unsafe.Slice(&iface.itab.Fun[0], i+1)[i])
+ 		t = (*funcType)(unsafe.Pointer(tt.typeOff(m.Typ)))
+ 	} else {
+ 		rcvrtype = v.typ()

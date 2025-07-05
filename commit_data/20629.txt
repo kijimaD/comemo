@@ -10,10 +10,103 @@ Date:   Thu Sep 25 08:37:04 2014 -0700
     TBR=rsc
     CC=golang-codereviews
     https://golang.org/cl/150940044
-
+---
  src/cmd/cgo/out.go          | 8 ++++----
  src/runtime/asm_386.s       | 2 +-
  src/runtime/asm_amd64.s     | 2 +-
  src/runtime/asm_arm.s       | 3 ++-
  src/runtime/cgo/callbacks.c | 4 ++--
  5 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 4e5b3a2454..d92bed9bf0 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -44,7 +44,7 @@ func (p *Package) writeDefs() {
+ 	fmt.Fprintf(fm, "int main() { return 0; }\n")
+ 	if *importRuntimeCgo {
+ 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
+-		fmt.Fprintf(fm, "char* cgo_topofstack(void) { return (char*)0; }\n")
++		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
+ 	} else {
+ 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
+ 		// which provides crosscall2.  We just need a prototype.
+@@ -522,7 +522,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
+ 	if n.FuncType.Result != nil {
+ 		// Save the stack top for use below.
+-		fmt.Fprintf(fgcc, "\tchar *stktop = cgo_topofstack();\n")
++		fmt.Fprintf(fgcc, "\tchar *stktop = _cgo_topofstack();\n")
+ 	}
+ 	fmt.Fprintf(fgcc, "\t")
+ 	if t := n.FuncType.Result; t != nil {
+@@ -552,7 +552,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	if n.FuncType.Result != nil {
+ 		// The cgo call may have caused a stack copy (via a callback).
+ 		// Adjust the return value pointer appropriately.
+-		fmt.Fprintf(fgcc, "\ta = (void*)((char*)a + (cgo_topofstack() - stktop));\n")
++		fmt.Fprintf(fgcc, "\ta = (void*)((char*)a + (_cgo_topofstack() - stktop));\n")
+ 		// Save the return value.
+ 		fmt.Fprintf(fgcc, "\ta->r = r;\n")
+ 	}
+@@ -1143,7 +1143,7 @@ __cgo_size_assert(__cgo_long_long, 8)
+ __cgo_size_assert(float, 4)
+ __cgo_size_assert(double, 8)
+ 
+-extern char* cgo_topofstack(void);
++extern char* _cgo_topofstack(void);
+ 
+ #include <errno.h>
+ #include <string.h>
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index f1b3346e83..1495246a25 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -2278,7 +2278,7 @@ TEXT runtime·return0(SB), NOSPLIT, $0
+ 
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+-TEXT cgo_topofstack(SB),NOSPLIT,$0
++TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+ 	MOVL	g_m(AX), AX
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index b4c6c6bdca..3f7f608410 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2224,7 +2224,7 @@ TEXT runtime·return0(SB), NOSPLIT, $0
+ 
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+-TEXT cgo_topofstack(SB),NOSPLIT,$0
++TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+ 	MOVQ	g_m(AX), AX
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 2c5de8afb1..06bd0751db 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -1303,7 +1303,8 @@ yieldloop:
+ 
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+-TEXT cgo_topofstack(SB),NOSPLIT,$0
++TEXT _cgo_topofstack(SB),NOSPLIT,$0
++	BL	runtime·load_g(SB)
+ 	MOVW	g_m(g), R0
+ 	MOVW	m_curg(R0), R0
+ 	MOVW	(g_stack+stack_hi)(R0), R0
+diff --git a/src/runtime/cgo/callbacks.c b/src/runtime/cgo/callbacks.c
+index cea9b1667f..282beeea88 100644
+--- a/src/runtime/cgo/callbacks.c
++++ b/src/runtime/cgo/callbacks.c
+@@ -79,5 +79,5 @@ void (*_cgo_free)(void*) = x_cgo_free;
+ extern void x_cgo_thread_start(void*);
+ void (*_cgo_thread_start)(void*) = x_cgo_thread_start;
+ 
+-#pragma cgo_export_static cgo_topofstack
+-#pragma cgo_export_dynamic cgo_topofstack
++#pragma cgo_export_static _cgo_topofstack
++#pragma cgo_export_dynamic _cgo_topofstack

@@ -23,7 +23,7 @@ Date:   Wed Jan 26 10:09:39 2022 -0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/lookup.go          | 20 ++++++++--------
  .../internal/types2/testdata/check/issues.src      |  2 +-
  .../types2/testdata/fixedbugs/issue50816.go2       | 23 ++++++++++++++++++
@@ -31,3 +31,191 @@ Date:   Wed Jan 26 10:09:39 2022 -0800
  src/go/types/testdata/fixedbugs/issue50816.go2     | 23 ++++++++++++++++++
  test/fixedbugs/issue48471.go                       | 27 +++++++++++++++++-----
  6 files changed, 88 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 408832846d..a71dd409e1 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -403,20 +403,18 @@ func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string
+ 		mname = "method " + m.Name()
+ 	}
+ 	if wrongType != nil {
+-		if Identical(m.typ, wrongType.typ) {
+-			if m.Name() == wrongType.Name() {
+-				r = check.sprintf("(%s has pointer receiver) at %s", mname, wrongType.Pos())
+-			} else {
+-				r = check.sprintf("(missing %s)\n\t\thave %s^^%s at %s\n\t\twant %s^^%s",
+-					mname, wrongType.Name(), wrongType.typ, wrongType.Pos(), m.Name(), m.typ)
+-			}
++		if m.Name() != wrongType.Name() {
++			r = check.sprintf("(missing %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
++				mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
++		} else if Identical(m.typ, wrongType.typ) {
++			r = check.sprintf("(%s has pointer receiver)", mname)
+ 		} else {
+ 			if check.conf.CompilerErrorMessages {
+-				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s at %s\n\t\twant %s^^%s",
+-					mname, wrongType.Name(), wrongType.typ, wrongType.Pos(), m.Name(), m.typ)
++				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
++					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
+ 			} else {
+-				r = check.sprintf("(wrong type for %s)\n\thave %s at %s\n\twant %s",
+-					mname, wrongType.typ, wrongType.Pos(), m.typ)
++				r = check.sprintf("(wrong type for %s)\n\thave %s\n\twant %s",
++					mname, wrongType.typ, m.typ)
+ 			}
+ 		}
+ 		// This is a hack to print the function type without the leading
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.src b/src/cmd/compile/internal/types2/testdata/check/issues.src
+index fb7d89fb68..a19f99b31a 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.src
+@@ -137,7 +137,7 @@ func issue10260() {
+ 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+ 	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
+ 
+-	_ = i2. /* ERROR impossible type assertion: i2.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\thave func\(\) at \w+.+\d+.\d+\n\twant func\(x int\) */ (*T1)
++	_ = i2. /* ERROR impossible type assertion: i2.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\thave func\(\)\n\twant func\(x int\) */ (*T1)
+ 
+ 	i1 = i0 /* ERROR cannot use .* missing method foo */
+ 	i1 = t0 /* ERROR cannot use .* missing method foo */
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50816.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50816.go2
+new file mode 100644
+index 0000000000..b2bcb45248
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50816.go2
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkg
++
++type I interface {
++	Foo()
++}
++
++type T1 struct{}
++
++func (T1) foo() {}
++
++type T2 struct{}
++
++func (T2) foo() string { return "" }
++
++func _() {
++	var i I
++	_ = i./* ERROR impossible type assertion: i.\(T1\)\n\tT1 does not implement I \(missing method Foo\)\n\t\thave foo\(\)\n\t\twant Foo\(\) */ (T1)
++	_ = i./* ERROR impossible type assertion: i.\(T2\)\n\tT2 does not implement I \(missing method Foo\)\n\t\thave foo\(\) string\n\t\twant Foo\(\) */ (T2)
++}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 8198b058bd..bee76ccb55 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -390,21 +390,20 @@ func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string
+ 		mname = "method " + m.Name()
+ 	}
+ 	if wrongType != nil {
+-		pos := check.fset.Position(wrongType.Pos())
+-		if Identical(m.typ, wrongType.typ) {
+-			if m.Name() == wrongType.Name() {
+-				r = check.sprintf("(%s has pointer receiver) at %s", mname, pos)
+-			} else {
+-				r = check.sprintf("(missing %s)\n\t\thave %s^^%s at %s\n\t\twant %s^^%s",
+-					mname, wrongType.Name(), wrongType.typ, pos, m.Name(), m.typ)
+-			}
++		if m.Name() != wrongType.Name() {
++			// Note: this case can't happen because we don't look for alternative
++			// method spellings, unlike types2. Keep for symmetry with types2.
++			r = check.sprintf("(missing %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
++				mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
++		} else if Identical(m.typ, wrongType.typ) {
++			r = check.sprintf("(%s has pointer receiver)", mname)
+ 		} else {
+ 			if compilerErrorMessages {
+-				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s at %s\n\t\twant %s^^%s",
+-					mname, wrongType.Name(), wrongType.typ, pos, m.Name(), m.typ)
++				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
++					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
+ 			} else {
+-				r = check.sprintf("(wrong type for %s)\n\thave %s at %s\nwant %s",
+-					mname, wrongType.typ, pos, m.typ)
++				r = check.sprintf("(wrong type for %s)\n\thave %s\n\twant %s",
++					mname, wrongType.typ, m.typ)
+ 			}
+ 		}
+ 		// This is a hack to print the function type without the leading
+diff --git a/src/go/types/testdata/fixedbugs/issue50816.go2 b/src/go/types/testdata/fixedbugs/issue50816.go2
+new file mode 100644
+index 0000000000..a5eecc551b
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50816.go2
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkg
++
++type I interface {
++	Foo()
++}
++
++type T1 struct{}
++
++func (T1) foo() {}
++
++type T2 struct{}
++
++func (T2) foo() string { return "" }
++
++func _() {
++	var i I
++	_ = i/* ERROR i \(variable of type I\) cannot have dynamic type T1 \(missing method Foo\) */.(T1)
++	_ = i/* ERROR i \(variable of type I\) cannot have dynamic type T2 \(missing method Foo\) */.(T2)
++}
+diff --git a/test/fixedbugs/issue48471.go b/test/fixedbugs/issue48471.go
+index 8c5d3d4efa..eaf8a9412c 100644
+--- a/test/fixedbugs/issue48471.go
++++ b/test/fixedbugs/issue48471.go
+@@ -22,19 +22,34 @@ type T4 struct{}
+ 
+ func (*T4) M(int)
+ 
++type T5 struct{}
++
++func (T5) m(int) {}
++
++type T6 struct{}
++
++func (T6) m(int) string { return "" }
++
+ func f(I)
+ 
+ func g() {
+ 	f(new(T)) // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in argument to f:\n\t\*T does not implement I \(missing M method\)"
++
+ 	var i I
+ 	i = new(T)    // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in assignment:\n\t\*T does not implement I \(missing M method\)"
+ 	i = I(new(T)) // ERROR "cannot convert new\(T\) \(.*type \*T\) to type I:\n\t\*T does not implement I \(missing M method\)"
+-	i = new(T2)   // ERROR "cannot use new\(T2\) \(.*type \*T2\) as type I in assignment:\n\t\*T2 does not implement I \(missing M method\)\n\t\thave m\(int\) at \w+.+\d.\d+\n\t\twant M\(int\)"
+-	i = new(T3)   // ERROR "cannot use new\(T3\) \(.*type \*T3\) as type I in assignment:\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\) at \w+.+\d.\d+\n\t\twant M\(int\)"
+-	i = T4{}      // ERROR "cannot use T4\{\} \(.*type T4\) as type I in assignment:\n\tT4 does not implement I \(M method has pointer receiver\)"
+-	i = new(I)    // ERROR "cannot use new\(I\) \(.*type \*I\) as type I in assignment:\n\t\*I does not implement I \(type \*I is pointer to interface, not interface\)"
+-	_ = i.(*T2)   // ERROR "impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing M method\)\n\t\thave m\(int\) at \w+.+\d.\d+\n\t\twant M\(int\)"
+-	_ = i.(*T3)   // ERROR "impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\) at \w+.+\d.\d+\n\t\twant M\(int\)"
++	i = new(T2)   // ERROR "cannot use new\(T2\) \(.*type \*T2\) as type I in assignment:\n\t\*T2 does not implement I \(missing M method\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
++
++	i = new(T3) // ERROR "cannot use new\(T3\) \(.*type \*T3\) as type I in assignment:\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
++
++	i = T4{}   // ERROR "cannot use T4\{\} \(.*type T4\) as type I in assignment:\n\tT4 does not implement I \(M method has pointer receiver\)"
++	i = new(I) // ERROR "cannot use new\(I\) \(.*type \*I\) as type I in assignment:\n\t\*I does not implement I \(type \*I is pointer to interface, not interface\)"
++
++	_ = i.(*T2) // ERROR "impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing M method\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
++	_ = i.(*T3) // ERROR "impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
++	_ = i.(T5)  // ERROR ""impossible type assertion: i.\(T5\)\n\tT5 does not implement I \(missing M method\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
++	_ = i.(T6)  // ERROR "impossible type assertion: i.\(T6\)\n\tT6 does not implement I \(missing M method\)\n\t\thave m\(int\) string\n\t\twant M\(int\)"
++
+ 	var t *T4
+ 	t = i // ERROR "cannot use i \(variable of type I\) as type \*T4 in assignment:\n\tneed type assertion"
+ 	_ = i

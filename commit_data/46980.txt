@@ -19,8 +19,114 @@ Date:   Thu Jan 28 09:23:35 2021 -0500
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/os_windows.go      | 12 ++++++++----
  src/runtime/signal_windows.go  | 13 ++++++-------
  src/runtime/syscall_windows.go |  3 ++-
  3 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index a8406460e2..375c34ed99 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -236,6 +236,8 @@ func windowsLoadSystemLib(name []byte) uintptr {
+ 	}
+ }
+ 
++const haveCputicksAsm = GOARCH == "386" || GOARCH == "amd64"
++
+ func loadOptionalSyscalls() {
+ 	var kernel32dll = []byte("kernel32.dll\000")
+ 	k32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32dll[0])))
+@@ -262,7 +264,7 @@ func loadOptionalSyscalls() {
+ 	}
+ 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
+ 
+-	if GOARCH == "arm" {
++	if !haveCputicksAsm {
+ 		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
+ 		if _QueryPerformanceCounter == nil {
+ 			throw("could not find QPC syscalls")
+@@ -452,8 +454,10 @@ func createHighResTimer() uintptr {
+ 		_SYNCHRONIZE|_TIMER_QUERY_STATE|_TIMER_MODIFY_STATE)
+ }
+ 
++const highResTimerSupported = GOARCH == "386" || GOARCH == "amd64"
++
+ func initHighResTimer() {
+-	if GOARCH == "arm" {
++	if !highResTimerSupported {
+ 		// TODO: Not yet implemented.
+ 		return
+ 	}
+@@ -1217,14 +1221,14 @@ func setThreadCPUProfiler(hz int32) {
+ 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
+ }
+ 
+-const preemptMSupported = GOARCH != "arm"
++const preemptMSupported = GOARCH == "386" || GOARCH == "amd64"
+ 
+ // suspendLock protects simultaneous SuspendThread operations from
+ // suspending each other.
+ var suspendLock mutex
+ 
+ func preemptM(mp *m) {
+-	if GOARCH == "arm" {
++	if !preemptMSupported {
+ 		// TODO: Implement call injection
+ 		return
+ 	}
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 18834b0ec5..cb1fbe9f81 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -132,16 +133,14 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	// overwrite the PC. (See issue #35773)
+ 	if r.ip() != 0 && r.ip() != funcPC(asyncPreempt) {
+ 		sp := unsafe.Pointer(r.sp())
+-		sp = add(sp, ^(unsafe.Sizeof(uintptr(0)) - 1)) // sp--
++		delta := uintptr(sys.StackAlign)
++		sp = add(sp, -delta)
+ 		r.set_sp(uintptr(sp))
+-		switch GOARCH {
+-		default:
+-			panic("unsupported architecture")
+-		case "386", "amd64":
+-			*((*uintptr)(sp)) = r.ip()
+-		case "arm":
++		if usesLR {
+ 			*((*uintptr)(sp)) = r.lr()
+ 			r.set_lr(r.ip())
++		} else {
++			*((*uintptr)(sp)) = r.ip()
+ 		}
+ 	}
+ 	r.set_ip(funcPC(sigpanic))
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index add40bb0b3..6052cc333c 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -116,13 +116,14 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
+ 			// registers and the stack.
+ 			panic("compileCallback: argument size is larger than uintptr")
+ 		}
+-		if k := t.kind & kindMask; (GOARCH == "amd64" || GOARCH == "arm") && (k == kindFloat32 || k == kindFloat64) {
++		if k := t.kind & kindMask; GOARCH != "386" && (k == kindFloat32 || k == kindFloat64) {
+ 			// In fastcall, floating-point arguments in
+ 			// the first four positions are passed in
+ 			// floating-point registers, which we don't
+ 			// currently spill. arm passes floating-point
+ 			// arguments in VFP registers, which we also
+ 			// don't support.
++			// So basically we only support 386.
+ 			panic("compileCallback: float arguments not supported")
+ 		}
+ 

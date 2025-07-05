@@ -14,6 +14,40 @@ Date:   Sun Feb 26 22:27:13 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
-
+---
  src/os/os_test.go | 20 ++++++++++++++------
  1 file changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 840139c308..a03aeb84dc 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1057,14 +1057,22 @@ func testChtimes(t *testing.T, name string) {
+ 	}
+ 	postStat := st
+ 
+-	/* Plan 9, NaCl:
+-		Mtime is the time of the last change of content.  Similarly, atime is set whenever the
+-	    contents are accessed; also, it is set whenever mtime is set.
+-	*/
+ 	pat := Atime(postStat)
+ 	pmt := postStat.ModTime()
+-	if !pat.Before(at) && runtime.GOOS != "plan9" && runtime.GOOS != "nacl" {
+-		t.Errorf("AccessTime didn't go backwards; was=%d, after=%d", at, pat)
++	if !pat.Before(at) {
++		switch runtime.GOOS {
++		case "plan9", "nacl":
++			// Ignore.
++			// Plan 9, NaCl:
++			// Mtime is the time of the last change of
++			// content.  Similarly, atime is set whenever
++			// the contents are accessed; also, it is set
++			// whenever mtime is set.
++		case "netbsd":
++			t.Logf("AccessTime didn't go backwards; was=%d, after=%d (Ignoring. See NetBSD issue golang.org/issue/19293)", at, pat)
++		default:
++			t.Errorf("AccessTime didn't go backwards; was=%d, after=%d", at, pat)
++		}
+ 	}
+ 
+ 	if !pmt.Before(mt) {

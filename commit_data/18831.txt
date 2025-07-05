@@ -15,9 +15,137 @@ Date:   Wed Mar 12 10:32:46 2014 +0900
     R=golang-codereviews, aram, gobot, iant
     CC=golang-codereviews
     https://golang.org/cl/73920043
-
+---
  src/pkg/net/sockoptip_bsd.go       |  2 +-
  src/pkg/net/sockoptip_posix.go     |  2 +-
  src/pkg/net/sockoptip_stub.go      | 39 ++++++++++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_solaris.go | 26 ++-----------------------
  4 files changed, 43 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/net/sockoptip_bsd.go b/src/pkg/net/sockoptip_bsd.go
+index c6b339fa5a..87132f0f46 100644
+--- a/src/pkg/net/sockoptip_bsd.go
++++ b/src/pkg/net/sockoptip_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd nacl netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sockoptip_posix.go b/src/pkg/net/sockoptip_posix.go
+index 2aea6830b1..b5c80e4490 100644
+--- a/src/pkg/net/sockoptip_posix.go
++++ b/src/pkg/net/sockoptip_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sockoptip_stub.go b/src/pkg/net/sockoptip_stub.go
+new file mode 100644
+index 0000000000..dcd3a22b57
+--- /dev/null
++++ b/src/pkg/net/sockoptip_stub.go
+@@ -0,0 +1,39 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build solaris
++
++package net
++
++import "syscall"
++
++func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
++	// See golang.org/issue/7399.
++	return syscall.EINVAL
++}
++
++func setIPv4MulticastLoopback(fd *netFD, v bool) error {
++	// See golang.org/issue/7399.
++	return syscall.EINVAL
++}
++
++func joinIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
++	// See golang.org/issue/7399.
++	return syscall.EINVAL
++}
++
++func setIPv6MulticastInterface(fd *netFD, ifi *Interface) error {
++	// See golang.org/issue/7399.
++	return syscall.EINVAL
++}
++
++func setIPv6MulticastLoopback(fd *netFD, v bool) error {
++	// See golang.org/issue/7399.
++	return syscall.EINVAL
++}
++
++func joinIPv6Group(fd *netFD, ifi *Interface, ip IP) error {
++	// See golang.org/issue/7399.
++	return syscall.EINVAL
++}
+diff --git a/src/pkg/syscall/syscall_solaris.go b/src/pkg/syscall/syscall_solaris.go
+index 2e3f8bac2b..947874ee1f 100644
+--- a/src/pkg/syscall/syscall_solaris.go
++++ b/src/pkg/syscall/syscall_solaris.go
+@@ -15,14 +15,13 @@ package syscall
+ import "unsafe"
+ 
+ type SockaddrDatalink struct {
+-	Len    uint8
+-	Family uint8
++	Family uint16
+ 	Index  uint16
+ 	Type   uint8
+ 	Nlen   uint8
+ 	Alen   uint8
+ 	Slen   uint8
+-	Data   [46]int8
++	Data   [244]int8
+ 	raw    RawSockaddrDatalink
+ }
+ 
+@@ -77,12 +76,6 @@ func Pipe(p []int) (err error) {
+ 	return
+ }
+ 
+-type IPMreqn struct {
+-	Multiaddr [4]byte /* in_addr */
+-	Address   [4]byte /* in_addr */
+-	Ifindex   int32
+-}
+-
+ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if sa.Port < 0 || sa.Port > 0xFFFF {
+ 		return nil, 0, EINVAL
+@@ -145,21 +138,6 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
+ 	return anyToSockaddr(&rsa)
+ }
+ 
+-func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, err error) {
+-	vallen := _Socklen(4)
+-	err = getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
+-	return value, err
+-}
+-
+-func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
+-	// TODO(dfc)
+-	return nil, EINVAL
+-}
+-
+-func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
+-	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
+-}
+-
+ // The const provides a compile-time constant so clients
+ // can adjust to whether there is a working Getwd and avoid
+ // even linking this function into the binary.  See ../os/getwd.go.

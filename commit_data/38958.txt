@@ -15,6 +15,39 @@ Date:   Tue Dec 11 18:06:50 2018 -0500
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/web2/web.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/web2/web.go b/src/cmd/go/internal/web2/web.go
+index f3900379e1..64934f1d50 100644
+--- a/src/cmd/go/internal/web2/web.go
++++ b/src/cmd/go/internal/web2/web.go
+@@ -7,11 +7,13 @@ package web2
+ import (
+ 	"bytes"
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
++	"log"
+ 	"net/http"
+ 	"os"
+ 	"path/filepath"
+@@ -187,10 +189,10 @@ func SetHTTPDoForTesting(do func(*http.Request) (*http.Response, error)) {
+ }
+ 
+ func Get(url string, options ...Option) error {
+-	if TraceGET || webstack {
+-		println("GET", url)
++	if TraceGET || webstack || cfg.BuildV {
++		log.Printf("Fetching %s", url)
+ 		if webstack {
+-			println(string(debug.Stack()))
++			log.Println(string(debug.Stack()))
+ 		}
+ 	}
+ 

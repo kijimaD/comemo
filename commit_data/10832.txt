@@ -13,6 +13,20 @@ Date:   Thu Dec 15 18:21:38 2011 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5491058
-
+---
  src/pkg/os/exec/exec_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index 8f63653c01..d26127c7af 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ func helperCommand(s ...string) *Cmd {
+-	cs := []string{"-test.run=exec.TestHelperProcess", "--"}
++	cs := []string{"-test.run=TestHelperProcess", "--"}
+ 	cs = append(cs, s...)
+ 	cmd := Command(os.Args[0], cs...)
+ 	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)

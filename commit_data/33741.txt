@@ -23,8 +23,136 @@ Date:   Thu Aug 31 17:41:51 2017 +0200
     Change-Id: I12a37dab85c531911c9363ec3d58daa095c7eb24
     Reviewed-on: https://go-review.googlesource.com/60672
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api.go      | 28 ++++++++++++------------
  src/go/types/api_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/go/types/resolver.go |  1 -
  3 files changed, 71 insertions(+), 15 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 11e76867a1..81b83da221 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -176,11 +176,11 @@ type Info struct {
+ 	// Implicits maps nodes to their implicitly declared objects, if any.
+ 	// The following node and object types may appear:
+ 	//
+-	//	node               declared object
++	//     node               declared object
+ 	//
+-	//	*ast.ImportSpec    *PkgName for dot-imports and imports without renames
+-	//	*ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
+-	//      *ast.Field         anonymous parameter *Var
++	//     *ast.ImportSpec    *PkgName for imports without renames
++	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
++	//     *ast.Field         anonymous parameter *Var
+ 	//
+ 	Implicits map[ast.Node]Object
+ 
+@@ -200,16 +200,16 @@ type Info struct {
+ 	//
+ 	// The following node types may appear in Scopes:
+ 	//
+-	//	*ast.File
+-	//	*ast.FuncType
+-	//	*ast.BlockStmt
+-	//	*ast.IfStmt
+-	//	*ast.SwitchStmt
+-	//	*ast.TypeSwitchStmt
+-	//	*ast.CaseClause
+-	//	*ast.CommClause
+-	//	*ast.ForStmt
+-	//	*ast.RangeStmt
++	//     *ast.File
++	//     *ast.FuncType
++	//     *ast.BlockStmt
++	//     *ast.IfStmt
++	//     *ast.SwitchStmt
++	//     *ast.TypeSwitchStmt
++	//     *ast.CaseClause
++	//     *ast.CommClause
++	//     *ast.ForStmt
++	//     *ast.RangeStmt
+ 	//
+ 	Scopes map[ast.Node]*Scope
+ 
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index d4f3f35717..ab08a2669d 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -257,6 +257,63 @@ func TestTypesInfo(t *testing.T) {
+ 	}
+ }
+ 
++func TestImplicitsInfo(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	var tests = []struct {
++		src  string
++		want string
++	}{
++		{`package p2; import . "fmt"; var _ = Println`, ""},           // no Implicits entry
++		{`package p0; import local "fmt"; var _ = local.Println`, ""}, // no Implicits entry
++		{`package p1; import "fmt"; var _ = fmt.Println`, "importSpec: package fmt"},
++
++		{`package p3; func f(x interface{}) { switch x.(type) { case int: } }`, ""}, // no Implicits entry
++		{`package p4; func f(x interface{}) { switch t := x.(type) { case int: _ = t } }`, "caseClause: var t int"},
++		{`package p5; func f(x interface{}) { switch t := x.(type) { case int, uint: _ = t } }`, "caseClause: var t interface{}"},
++		{`package p6; func f(x interface{}) { switch t := x.(type) { default: _ = t } }`, "caseClause: var t interface{}"},
++
++		{`package p7; func f(x int) {}`, ""}, // no Implicits entry
++		{`package p8; func f(int) {}`, "field: var  int"},
++		{`package p9; func f() (complex64) { return 0 }`, "field: var  complex64"},
++		{`package p10; type T struct{}; func (*T) f() {}`, "field: var  *p10.T"},
++	}
++
++	for _, test := range tests {
++		info := Info{
++			Implicits: make(map[ast.Node]Object),
++		}
++		name := mustTypecheck(t, "ImplicitsInfo", test.src, &info)
++
++		// the test cases expect at most one Implicits entry
++		if len(info.Implicits) > 1 {
++			t.Errorf("package %s: %d Implicits entries found", name, len(info.Implicits))
++			continue
++		}
++
++		// extract Implicits entry, if any
++		var got string
++		for n, obj := range info.Implicits {
++			switch x := n.(type) {
++			case *ast.ImportSpec:
++				got = "importSpec"
++			case *ast.CaseClause:
++				got = "caseClause"
++			case *ast.Field:
++				got = "field"
++			default:
++				t.Fatalf("package %s: unexpected %T", name, x)
++			}
++			got += ": " + obj.String()
++		}
++
++		// verify entry
++		if got != test.want {
++			t.Errorf("package %s: got %q; want %q", name, got, test.want)
++		}
++	}
++}
++
+ func predString(tv TypeAndValue) string {
+ 	var buf bytes.Buffer
+ 	pred := func(b bool, s string) {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 05603b3442..ba75a0dc23 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -303,7 +303,6 @@ func (check *Checker) collectObjects() {
+ 									// via Config.Packages - may be dot-imported in
+ 									// another package!)
+ 									check.declare(fileScope, nil, obj, token.NoPos)
+-									check.recordImplicit(s, obj)
+ 								}
+ 							}
+ 							// add position to set of dot-import positions for this file

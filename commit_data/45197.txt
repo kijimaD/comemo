@@ -10,6 +10,25 @@ Date:   Mon Oct 12 15:48:53 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/macho.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 2c7f6111de..eab6537c75 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -832,12 +832,10 @@ func collectmachosyms(ctxt *Link) {
+ 					switch objabi.GOARCH {
+ 					case "amd64":
+ 						ldr.SetSymExtname(s, n+"$INODE64")
+-					case "386":
+-						ldr.SetSymExtname(s, n+"$INODE64$UNIX2003")
+ 					}
+ 				case "readdir_r", "getfsstat":
+ 					switch objabi.GOARCH {
+-					case "amd64", "386":
++					case "amd64":
+ 						ldr.SetSymExtname(s, n+"$INODE64")
+ 					}
+ 				}

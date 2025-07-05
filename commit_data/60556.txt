@@ -13,6 +13,20 @@ Date:   Wed Jul 31 14:55:51 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/602095
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/testdata/script/test_buildinfo_godebug_issue68053.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_buildinfo_godebug_issue68053.txt b/src/cmd/go/testdata/script/test_buildinfo_godebug_issue68053.txt
+index 1257f7352a..e8b8ca2158 100644
+--- a/src/cmd/go/testdata/script/test_buildinfo_godebug_issue68053.txt
++++ b/src/cmd/go/testdata/script/test_buildinfo_godebug_issue68053.txt
+@@ -4,7 +4,7 @@ go list -test -f '{{.ImportPath}} {{.DefaultGODEBUG}}'
+ stdout 'example.com/foo\.test.*panicnil=1.*'
+ 
+ go test -c
+-go version -m ./foo.test
++go version -m ./foo.test$GOEXE
+ stdout 'build\tDefaultGODEBUG=.*panicnil=1.*'
+ 
+ -- go.mod --

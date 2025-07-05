@@ -15,7 +15,48 @@ Date:   Thu Dec 15 10:45:19 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5482074
-
+---
  src/pkg/html/parse.go      | 7 ++++---
  src/pkg/html/parse_test.go | 2 +-
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 6618600a15..4cb246969e 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -1166,8 +1166,8 @@ func inColumnGroupIM(p *parser) bool {
+ 		case "colgroup":
+ 			if p.oe.top().Data != "html" {
+ 				p.oe.pop()
++				p.im = inTableIM
+ 			}
+-			p.im = inTableIM
+ 			return true
+ 		case "col":
+ 			// Ignore the token.
+@@ -1176,9 +1176,10 @@ func inColumnGroupIM(p *parser) bool {
+ 	}
+ 	if p.oe.top().Data != "html" {
+ 		p.oe.pop()
++		p.im = inTableIM
++		return false
+ 	}
+-	p.im = inTableIM
+-	return false
++	return true
+ }
+ 
+ // Section 12.2.5.4.13.
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index f44bf6304b..e887631c63 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -172,7 +172,7 @@ func TestParser(t *testing.T) {
+ 		{"tests3.dat", -1},
+ 		{"tests4.dat", -1},
+ 		{"tests5.dat", -1},
+-		{"tests6.dat", 26},
++		{"tests6.dat", 36},
+ 	}
+ 	for _, tf := range testFiles {
+ 		f, err := os.Open("testdata/webkit/" + tf.filename)

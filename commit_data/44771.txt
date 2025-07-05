@@ -19,8 +19,80 @@ Date:   Wed Aug 26 23:17:53 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modfetch/fetch.go            | 14 ++++++++++++--
  src/cmd/go/testdata/script/mod_download_json.txt |  2 +-
  src/cmd/go/testdata/script/mod_sumdb.txt         |  6 ++++++
  3 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index e29eb0a942..01d8f007ac 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -503,6 +503,9 @@ func checkGoMod(path, version string, data []byte) error {
+ }
+ 
+ // checkModSum checks that the recorded checksum for mod is h.
++//
++// mod.Version may have the additional suffix "/go.mod" to request the checksum
++// for the module's go.mod file only.
+ func checkModSum(mod module.Version, h string) error {
+ 	// We lock goSum when manipulating it,
+ 	// but we arrange to release the lock when calling checkSumDB,
+@@ -579,9 +582,16 @@ func addModSumLocked(mod module.Version, h string) {
+ // checkSumDB checks the mod, h pair against the Go checksum database.
+ // It calls base.Fatalf if the hash is to be rejected.
+ func checkSumDB(mod module.Version, h string) error {
++	modWithoutSuffix := mod
++	noun := "module"
++	if strings.HasSuffix(mod.Version, "/go.mod") {
++		noun = "go.mod"
++		modWithoutSuffix.Version = strings.TrimSuffix(mod.Version, "/go.mod")
++	}
++
+ 	db, lines, err := lookupSumDB(mod)
+ 	if err != nil {
+-		return module.VersionError(mod, fmt.Errorf("verifying module: %v", err))
++		return module.VersionError(modWithoutSuffix, fmt.Errorf("verifying %s: %v", noun, err))
+ 	}
+ 
+ 	have := mod.Path + " " + mod.Version + " " + h
+@@ -591,7 +601,7 @@ func checkSumDB(mod module.Version, h string) error {
+ 			return nil
+ 		}
+ 		if strings.HasPrefix(line, prefix) {
+-			return module.VersionError(mod, fmt.Errorf("verifying module: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, h, db, line[len(prefix)-len("h1:"):]))
++			return module.VersionError(modWithoutSuffix, fmt.Errorf("verifying %s: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, noun, h, db, line[len(prefix)-len("h1:"):]))
+ 		}
+ 	}
+ 	return nil
+diff --git a/src/cmd/go/testdata/script/mod_download_json.txt b/src/cmd/go/testdata/script/mod_download_json.txt
+index 26291681ce..9555adf8c4 100644
+--- a/src/cmd/go/testdata/script/mod_download_json.txt
++++ b/src/cmd/go/testdata/script/mod_download_json.txt
+@@ -3,7 +3,7 @@ env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+ 
+ # download -json with version should print JSON on sumdb failure
+ ! go mod download -json 'rsc.io/quote@<=v1.5.0'
+-stdout '"Error": ".*verifying module'
++stdout '"Error": ".*verifying (module|go.mod)'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_sumdb.txt b/src/cmd/go/testdata/script/mod_sumdb.txt
+index caf97e9699..68bbd9c274 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb.txt
+@@ -15,6 +15,12 @@ stderr 'localhost.localdev/sumdb: h1:wrong'
+ stderr 'SECURITY ERROR\nThis download does NOT match the one reported by the checksum server.'
+ ! go get -d rsc.io/sampler
+ ! go get -d golang.org/x/text
++
++go mod edit -require rsc.io/quote@v1.5.2
++! go list all
++stderr 'go: rsc.io/quote@v1.5.2: verifying go.mod: checksum mismatch'
++stderr 'SECURITY ERROR\n'
++
+ rm go.sum
+ 
+ # switching to truthful sumdb detects timeline inconsistency

@@ -11,6 +11,22 @@ Date:   Wed May 23 20:03:27 2018 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8022071bd8..967b2c67b3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6247,6 +6247,10 @@ func TestNoRelativeTmpdir(t *testing.T) {
+ 
+ // Issue 24704.
+ func TestLinkerTmpDirIsDeleted(t *testing.T) {
++	if !canCgo {
++		t.Skip("skipping because cgo not enabled")
++	}
++
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()

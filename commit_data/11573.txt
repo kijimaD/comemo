@@ -9,10 +9,106 @@ Date:   Thu Feb 2 19:42:02 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5620054
-
+---
  src/pkg/syscall/types_darwin.go  | 4 ++--
  src/pkg/syscall/types_freebsd.go | 4 ++--
  src/pkg/syscall/types_linux.go   | 6 ++++--
  src/pkg/syscall/types_netbsd.go  | 4 ++--
  src/pkg/syscall/types_openbsd.go | 4 ++--
  5 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/syscall/types_darwin.go b/src/pkg/syscall/types_darwin.go
+index 424f94e690..b9c65e3c78 100644
+--- a/src/pkg/syscall/types_darwin.go
++++ b/src/pkg/syscall/types_darwin.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
+ */
+ 
+-// +build ignore
+-
+ // +godefs map struct_in_addr [4]byte /* in_addr */
+ // +godefs map struct_in6_addr [16]byte /* in6_addr */
+ 
+diff --git a/src/pkg/syscall/types_freebsd.go b/src/pkg/syscall/types_freebsd.go
+index f54b6c4e6c..6e1dd4310a 100644
+--- a/src/pkg/syscall/types_freebsd.go
++++ b/src/pkg/syscall/types_freebsd.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
+ */
+ 
+-// +build ignore
+-
+ // +godefs map struct_in_addr [4]byte /* in_addr */
+ // +godefs map struct_in6_addr [16]byte /* in6_addr */
+ 
+diff --git a/src/pkg/syscall/types_linux.go b/src/pkg/syscall/types_linux.go
+index 395162f128..0030960b5c 100644
+--- a/src/pkg/syscall/types_linux.go
++++ b/src/pkg/syscall/types_linux.go
+@@ -2,10 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
+-
+ // +build ignore
+ 
++/*
++Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
++*/
++
+ // +godefs map struct_in_addr [4]byte /* in_addr */
+ // +godefs map struct_in6_addr [16]byte /* in6_addr */
+ 
+diff --git a/src/pkg/syscall/types_netbsd.go b/src/pkg/syscall/types_netbsd.go
+index 6f7ef3529f..518688833b 100644
+--- a/src/pkg/syscall/types_netbsd.go
++++ b/src/pkg/syscall/types_netbsd.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
+ */
+ 
+-// +build ignore
+-
+ // +godefs map struct_in_addr [4]byte /* in_addr */
+ // +godefs map struct_in6_addr [16]byte /* in6_addr */
+ 
+diff --git a/src/pkg/syscall/types_openbsd.go b/src/pkg/syscall/types_openbsd.go
+index 6f7ef3529f..518688833b 100644
+--- a/src/pkg/syscall/types_openbsd.go
++++ b/src/pkg/syscall/types_openbsd.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
+ */
+ 
+-// +build ignore
+-
+ // +godefs map struct_in_addr [4]byte /* in_addr */
+ // +godefs map struct_in6_addr [16]byte /* in6_addr */
+ 

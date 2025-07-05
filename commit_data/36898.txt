@@ -14,7 +14,34 @@ Date:   Thu Jun 7 12:50:21 2018 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go            | 1 -
  src/cmd/go/internal/work/exec.go | 3 +++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index dbb3ddedfe..f1fbf6cb69 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4217,7 +4217,6 @@ func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
+ }
+ 
+ func TestBinaryOnlyPackages(t *testing.T) {
+-	t.Skip("known failing test; see golang.org/issue/25784")
+ 	tooSlow(t)
+ 
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 00ac90d1eb..5fd2f66b86 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -405,6 +405,9 @@ func (b *Builder) build(a *Action) (err error) {
+ 		}
+ 		a.Package.Stale = true
+ 		a.Package.StaleReason = "missing or invalid binary-only package"
++		if b.IsCmdList {
++			return nil
++		}
+ 		return fmt.Errorf("missing or invalid binary-only package")
+ 	}
+ 

@@ -33,3 +33,103 @@ Date:   Wed Nov 14 15:30:03 2018 -0500
  .../testdata/Client-TLSv13-RenegotiationRejected   | 107 +++++
  src/crypto/tls/testdata/Client-TLSv13-X25519-ECDHE |  89 +++++
  25 files changed, 2061 insertions(+), 349 deletions(-)
+
+diff --cc src/crypto/tls/handshake_client.go
+index 995fd0c5b6,076a525bf8..08682c7401
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@@ -99,13 -113,25 +113,28 @@@ NextCipherSuite
+  	}
+  
+  	if hello.vers >= VersionTLS12 {
+ -		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+ +		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+ +	}
+ +	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
+ +		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
+  	}
+  
+- 	return hello, nil
++ 	var params ecdheParameters
++ 	if hello.supportedVersions[0] == VersionTLS13 {
++ 		hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13()...)
++ 
++ 		curveID := config.curvePreferences()[0]
++ 		if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
++ 			return nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
++ 		}
++ 		params, err = generateECDHEParameters(config.rand(), curveID)
++ 		if err != nil {
++ 			return nil, nil, err
++ 		}
++ 		hello.keyShares = []keyShare{{group: curveID, data: params.PublicKey()}}
++ 	}
++ 
++ 	return hello, params, nil
+  }
+  
+  func (c *Conn) clientHandshake() error {
+@@@ -736,6 -727,61 +730,63 @@@ func (hs *clientHandshakeState) sendFin
+  	return nil
+  }
+  
++ // verifyServerCertificate parses and verifies the provided chain, setting
++ // c.verifiedChains and c.peerCertificates or sending the appropriate alert.
++ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
++ 	certs := make([]*x509.Certificate, len(certificates))
++ 	for i, asn1Data := range certificates {
++ 		cert, err := x509.ParseCertificate(asn1Data)
++ 		if err != nil {
++ 			c.sendAlert(alertBadCertificate)
++ 			return errors.New("tls: failed to parse certificate from server: " + err.Error())
++ 		}
++ 		certs[i] = cert
++ 	}
++ 
++ 	if !c.config.InsecureSkipVerify {
++ 		opts := x509.VerifyOptions{
+++			IsBoring: isBoringCertificate,
+++
++ 			Roots:         c.config.RootCAs,
++ 			CurrentTime:   c.config.time(),
++ 			DNSName:       c.config.ServerName,
++ 			Intermediates: x509.NewCertPool(),
++ 		}
++ 
++ 		for i, cert := range certs {
++ 			if i == 0 {
++ 				continue
++ 			}
++ 			opts.Intermediates.AddCert(cert)
++ 		}
++ 		var err error
++ 		c.verifiedChains, err = certs[0].Verify(opts)
++ 		if err != nil {
++ 			c.sendAlert(alertBadCertificate)
++ 			return err
++ 		}
++ 	}
++ 
++ 	if c.config.VerifyPeerCertificate != nil {
++ 		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {
++ 			c.sendAlert(alertBadCertificate)
++ 			return err
++ 		}
++ 	}
++ 
++ 	switch certs[0].PublicKey.(type) {
++ 	case *rsa.PublicKey, *ecdsa.PublicKey:
++ 		break
++ 	default:
++ 		c.sendAlert(alertUnsupportedCertificate)
++ 		return fmt.Errorf("tls: server's certificate contains an unsupported type of public key: %T", certs[0].PublicKey)
++ 	}
++ 
++ 	c.peerCertificates = certs
++ 
++ 	return nil
++ }
++ 
+  // tls11SignatureSchemes contains the signature schemes that we synthesise for
+  // a TLS <= 1.1 connection, based on the supported certificate types.
+  var tls11SignatureSchemes = []SignatureScheme{ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512, PKCS1WithSHA1}

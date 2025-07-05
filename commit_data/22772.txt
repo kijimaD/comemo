@@ -10,6 +10,24 @@ Date:   Fri Apr 3 04:37:25 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/8452
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/internal/ld/lib.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 1b4d651068..94c0562b0f 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -369,6 +369,12 @@ func loadlib() {
+ 		}
+ 	}
+ 
++	// cmd/7l doesn't support cgo internal linking
++	// This is https://golang.org/issue/10373.
++	if iscgo && goarch == "arm64" {
++		Linkmode = LinkExternal
++	}
++
+ 	if Linkmode == LinkExternal && !iscgo {
+ 		// This indicates a user requested -linkmode=external.
+ 		// The startup code uses an import of runtime/cgo to decide

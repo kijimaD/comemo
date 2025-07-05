@@ -23,8 +23,86 @@ Date:   Tue Sep 21 18:15:25 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go         | 11 ++++-------
  src/go/types/api_test.go    | 11 ++++++++---
  src/go/types/instantiate.go |  6 +++---
  3 files changed, 15 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 4cf0eb123f..0bbd940d07 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -64,15 +64,12 @@ func (err Error) Error() string {
+ 
+ // An ArgumentError holds an error associated with an argument index.
+ type ArgumentError struct {
+-	index int
+-	error
++	Index int
++	Err   error
+ }
+ 
+-// Index returns the positional index of the argument associated with the
+-// error.
+-func (e ArgumentError) Index() int {
+-	return e.index
+-}
++func (e *ArgumentError) Error() string { return e.Err.Error() }
++func (e *ArgumentError) Unwrap() error { return e.Err }
+ 
+ // An Importer resolves import paths to Packages.
+ //
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 9b584f390c..d59d3d8923 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -6,6 +6,7 @@ package types_test
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/importer"
+@@ -2000,9 +2001,13 @@ func TestInstantiateErrors(t *testing.T) {
+ 			t.Fatalf("Instantiate(%v, %v) returned nil error, want non-nil", T, test.targs)
+ 		}
+ 
+-		gotAt := err.(ArgumentError).Index()
+-		if gotAt != test.wantAt {
+-			t.Errorf("Instantate(%v, %v): error at index %d, want index %d", T, test.targs, gotAt, test.wantAt)
++		var argErr *ArgumentError
++		if !errors.As(err, &argErr) {
++			t.Fatalf("Instantiate(%v, %v): error is not an *ArgumentError", T, test.targs)
++		}
++
++		if argErr.Index != test.wantAt {
++			t.Errorf("Instantate(%v, %v): error at index %d, want index %d", T, test.targs, argErr.Index, test.wantAt)
+ 		}
+ 	}
+ }
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index b178d1eb3f..6cafc2fbed 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -25,8 +25,8 @@ import (
+ // unimplemented.
+ //
+ // If verify is set and constraint satisfaction fails, the returned error may
+-// be of dynamic type ArgumentError indicating which type argument did not
+-// satisfy its corresponding type parameter constraint, and why.
++// wrap an *ArgumentError indicating which type argument did not satisfy its
++// corresponding type parameter constraint, and why.
+ //
+ // TODO(rfindley): change this function to also return an error if lengths of
+ // tparams and targs do not match.
+@@ -43,7 +43,7 @@ func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type,
+ 			tparams = t.TypeParams().list()
+ 		}
+ 		if i, err := (*Checker)(nil).verify(token.NoPos, tparams, targs); err != nil {
+-			return inst, ArgumentError{i, err}
++			return inst, &ArgumentError{i, err}
+ 		}
+ 	}
+ 

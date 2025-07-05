@@ -15,6 +15,36 @@ Date:   Fri Sep 8 23:05:19 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go | 11 +++++------
  1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 1e76fc590c..4f47838cd4 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -296,11 +296,6 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
+ 		hint = 0
+ 	}
+ 
+-	if evacuatedX+1 != evacuatedY {
+-		// evacuate relies on this relationship
+-		throw("bad evacuatedN")
+-	}
+-
+ 	// initialize Hmap
+ 	if h == nil {
+ 		h = (*hmap)(newobject(t.hmap))
+@@ -1061,7 +1056,11 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 					}
+ 				}
+ 
+-				b.tophash[i] = evacuatedX + useY // evacuatedX + 1 == evacuatedY, enforced in makemap
++				if evacuatedX+1 != evacuatedY {
++					throw("bad evacuatedN")
++				}
++
++				b.tophash[i] = evacuatedX + useY // evacuatedX + 1 == evacuatedY
+ 				dst := &xy[useY]                 // evacuation destination
+ 
+ 				if dst.i == bucketCnt {

@@ -11,10 +11,175 @@ Date:   Fri Jun 14 11:14:45 2013 +0200
     R=golang-dev, dvyukov, r
     CC=golang-dev
     https://golang.org/cl/8053044
-
+---
  src/cmd/gc/builtin.c                      |  2 ++
  src/cmd/gc/racewalk.c                     | 37 ++++++-------------------------
  src/cmd/gc/runtime.go                     |  2 ++
  src/pkg/runtime/race.c                    | 22 ++++++++++++++++++
  src/pkg/runtime/race/testdata/mop_test.go | 21 ++++++++++++++++--
  5 files changed, 52 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 9053dfe108..baa7d7845a 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -113,6 +113,8 @@ char *runtimeimport =
+ 	"func @\"\".racefuncexit ()\n"
+ 	"func @\"\".raceread (? uintptr)\n"
+ 	"func @\"\".racewrite (? uintptr)\n"
++	"func @\"\".racereadrange (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n"
++	"func @\"\".racewriterange (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 74d8522580..0c847d8bb8 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -439,8 +439,8 @@ static int
+ callinstr(Node **np, NodeList **init, int wr, int skip)
+ {
+ 	Node *f, *b, *n;
+-	Type *t, *t1;
+-	int class, res, hascalls;
++	Type *t;
++	int class, hascalls;
+ 
+ 	n = *np;
+ 	//print("callinstr for %+N [ %O ] etype=%E class=%d\n",
+@@ -451,33 +451,6 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
+ 	t = n->type;
+ 	if(isartificial(n))
+ 		return 0;
+-	if(t->etype == TSTRUCT) {
+-		// TODO: instrument arrays similarly.
+-		// PARAMs w/o PHEAP are not interesting.
+-		if(n->class == PPARAM || n->class == PPARAMOUT)
+-			return 0;
+-		res = 0;
+-		hascalls = 0;
+-		foreach(n, hascallspred, &hascalls);
+-		if(hascalls) {
+-			n = detachexpr(n, init);
+-			*np = n;
+-		}
+-		for(t1=t->type; t1; t1=t1->down) {
+-			if(t1->sym && strcmp(t1->sym->name, "_")) {
+-				n = treecopy(n);
+-				f = nod(OXDOT, n, newname(t1->sym));
+-				f->type = t1;
+-				if(f->type->etype == TFIELD)
+-					f->type = f->type->type;
+-				if(callinstr(&f, init, wr, 0)) {
+-					typecheck(&f, Erv);
+-					res = 1;
+-				}
+-			}
+-		}
+-		return res;
+-	}
+ 
+ 	b = basenod(n);
+ 	// it skips e.g. stores to ... parameter array
+@@ -498,7 +471,11 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
+ 		}
+ 		n = treecopy(n);
+ 		makeaddable(n);
+-		f = mkcall(wr ? "racewrite" : "raceread", T, init, uintptraddr(n));
++		if(t->etype == TSTRUCT || isfixedarray(t)) {
++			f = mkcall(wr ? "racewriterange" : "racereadrange", T, init, uintptraddr(n),
++					nodintconst(t->width));
++		} else
++			f = mkcall(wr ? "racewrite" : "raceread", T, init, uintptraddr(n));
+ 		*init = list(*init, f);
+ 		return 1;
+ 	}
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 2139a95d93..d7032957b1 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -149,3 +149,5 @@ func racefuncenter(uintptr)
+ func racefuncexit()
+ func raceread(uintptr)
+ func racewrite(uintptr)
++func racereadrange(addr, size uintptr)
++func racewriterange(addr, size uintptr)
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 765a4b5502..557da6f8e3 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -77,6 +77,17 @@ runtime·racewrite(uintptr addr)
+ 	}
+ }
+ 
++#pragma textflag 7
++void
++runtime·racewriterange(uintptr addr, uintptr sz)
++{
++	if(!onstack(addr)) {
++		m->racecall = true;
++		runtime∕race·WriteRange(g->racectx, (void*)addr, sz, runtime·getcallerpc(&addr));
++		m->racecall = false;
++	}
++}
++
+ // Called from instrumented code.
+ // If we split stack, getcallerpc() can return runtime·lessstack().
+ #pragma textflag 7
+@@ -90,6 +101,17 @@ runtime·raceread(uintptr addr)
+ 	}
+ }
+ 
++#pragma textflag 7
++void
++runtime·racereadrange(uintptr addr, uintptr sz)
++{
++	if(!onstack(addr)) {
++		m->racecall = true;
++		runtime∕race·ReadRange(g->racectx, (void*)addr, sz, runtime·getcallerpc(&addr));
++		m->racecall = false;
++	}
++}
++
+ // Called from runtime·racefuncenter (assembly).
+ #pragma textflag 7
+ void
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index 620b7ab6e4..9a0cb81f53 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -600,8 +600,7 @@ func TestRaceSprint(t *testing.T) {
+ 	<-ch
+ }
+ 
+-// Not implemented.
+-func TestRaceFailingArrayCopy(t *testing.T) {
++func TestRaceArrayCopy(t *testing.T) {
+ 	ch := make(chan bool, 1)
+ 	var a [5]int
+ 	go func() {
+@@ -612,6 +611,24 @@ func TestRaceFailingArrayCopy(t *testing.T) {
+ 	<-ch
+ }
+ 
++// Blows up a naive compiler.
++func TestRaceNestedArrayCopy(t *testing.T) {
++	ch := make(chan bool, 1)
++	type (
++		Point32   [2][2][2][2][2]Point
++		Point1024 [2][2][2][2][2]Point32
++		Point32k  [2][2][2][2][2]Point1024
++		Point1M   [2][2][2][2][2]Point32k
++	)
++	var a, b Point1M
++	go func() {
++		a[0][1][0][1][0][1][0][1][0][1][0][1][0][1][0][1][0][1][0][1].y = 1
++		ch <- true
++	}()
++	a = b
++	<-ch
++}
++
+ func TestRaceStructRW(t *testing.T) {
+ 	p := Point{0, 0}
+ 	ch := make(chan bool, 1)

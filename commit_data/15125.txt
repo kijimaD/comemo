@@ -9,6 +9,20 @@ Date:   Mon Feb 4 15:57:32 2013 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7229084
-
+---
  src/pkg/regexp/regexp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index c0ecc01c35..3aa16dec60 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -130,7 +130,7 @@ func CompilePOSIX(expr string) (*Regexp, error) {
+ 	return compile(expr, syntax.POSIX, true)
+ }
+ 
+-// Longest sets the match semantics of the regexp to leftmost-longest.
++// Longest makes future searches prefer the leftmost-longest match.
+ // That is, when matching against text, the regexp returns a match that
+ // begins as early as possible in the input (leftmost), and among those
+ // it chooses a match that is as long as possible.

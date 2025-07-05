@@ -14,6 +14,20 @@ Date:   Thu Mar 7 09:19:51 2024 +0000
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-
+---
  src/cmd/go/internal/base/tool.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/base/tool.go b/src/cmd/go/internal/base/tool.go
+index ab623da426..a60bf9d6d3 100644
+--- a/src/cmd/go/internal/base/tool.go
++++ b/src/cmd/go/internal/base/tool.go
+@@ -27,7 +27,7 @@ func Tool(toolName string) string {
+ 	return toolPath
+ }
+ 
+-// Tool returns the path at which we expect to find the named tool
++// ToolPath returns the path at which we expect to find the named tool
+ // (for example, "vet"), and the error (if any) from statting that path.
+ func ToolPath(toolName string) (string, error) {
+ 	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()

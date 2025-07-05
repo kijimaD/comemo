@@ -18,7 +18,7 @@ Date:   Wed Dec 7 09:18:11 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/internal/syscall/unix/user_darwin.go | 20 ++++++++++++--------
  src/os/user/cgo_lookup_unix.go           |  2 +-
  src/os/user/lookup_plan9.go              |  7 +++++++
@@ -26,3 +26,172 @@ Date:   Wed Dec 7 09:18:11 2022 -0500
  src/os/user/lookup_windows.go            |  7 +++++++
  src/os/user/user_test.go                 | 10 ++++++++++
  6 files changed, 44 insertions(+), 9 deletions(-)
+
+diff --git a/src/internal/syscall/unix/user_darwin.go b/src/internal/syscall/unix/user_darwin.go
+index cfbc02917d..d05acdaa49 100644
+--- a/src/internal/syscall/unix/user_darwin.go
++++ b/src/internal/syscall/unix/user_darwin.go
+@@ -52,56 +52,60 @@ type Group struct {
+ func libc_getpwnam_r_trampoline()
+ 
+ func Getpwnam(name *byte, pwd *Passwd, buf *byte, size uintptr, result **Passwd) syscall.Errno {
+-	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_getpwnam_r_trampoline),
++	// Note: Returns an errno as its actual result, not in global errno.
++	errno, _, _ := syscall_syscall6(abi.FuncPCABI0(libc_getpwnam_r_trampoline),
+ 		uintptr(unsafe.Pointer(name)),
+ 		uintptr(unsafe.Pointer(pwd)),
+ 		uintptr(unsafe.Pointer(buf)),
+ 		size,
+ 		uintptr(unsafe.Pointer(result)),
+ 		0)
+-	return errno
++	return syscall.Errno(errno)
+ }
+ 
+ //go:cgo_import_dynamic libc_getpwuid_r getpwuid_r  "/usr/lib/libSystem.B.dylib"
+ func libc_getpwuid_r_trampoline()
+ 
+ func Getpwuid(uid uint32, pwd *Passwd, buf *byte, size uintptr, result **Passwd) syscall.Errno {
+-	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_getpwuid_r_trampoline),
++	// Note: Returns an errno as its actual result, not in global errno.
++	errno, _, _ := syscall_syscall6(abi.FuncPCABI0(libc_getpwuid_r_trampoline),
+ 		uintptr(uid),
+ 		uintptr(unsafe.Pointer(pwd)),
+ 		uintptr(unsafe.Pointer(buf)),
+ 		size,
+ 		uintptr(unsafe.Pointer(result)),
+ 		0)
+-	return errno
++	return syscall.Errno(errno)
+ }
+ 
+ //go:cgo_import_dynamic libc_getgrnam_r getgrnam_r  "/usr/lib/libSystem.B.dylib"
+ func libc_getgrnam_r_trampoline()
+ 
+ func Getgrnam(name *byte, grp *Group, buf *byte, size uintptr, result **Group) syscall.Errno {
+-	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_getgrnam_r_trampoline),
++	// Note: Returns an errno as its actual result, not in global errno.
++	errno, _, _ := syscall_syscall6(abi.FuncPCABI0(libc_getgrnam_r_trampoline),
+ 		uintptr(unsafe.Pointer(name)),
+ 		uintptr(unsafe.Pointer(grp)),
+ 		uintptr(unsafe.Pointer(buf)),
+ 		size,
+ 		uintptr(unsafe.Pointer(result)),
+ 		0)
+-	return errno
++	return syscall.Errno(errno)
+ }
+ 
+ //go:cgo_import_dynamic libc_getgrgid_r getgrgid_r  "/usr/lib/libSystem.B.dylib"
+ func libc_getgrgid_r_trampoline()
+ 
+ func Getgrgid(gid uint32, grp *Group, buf *byte, size uintptr, result **Group) syscall.Errno {
+-	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_getgrgid_r_trampoline),
++	// Note: Returns an errno as its actual result, not in global errno.
++	errno, _, _ := syscall_syscall6(abi.FuncPCABI0(libc_getgrgid_r_trampoline),
+ 		uintptr(gid),
+ 		uintptr(unsafe.Pointer(grp)),
+ 		uintptr(unsafe.Pointer(buf)),
+ 		size,
+ 		uintptr(unsafe.Pointer(result)),
+ 		0)
+-	return errno
++	return syscall.Errno(errno)
+ }
+ 
+ //go:cgo_import_dynamic libc_sysconf sysconf "/usr/lib/libSystem.B.dylib"
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index 81787fee2b..b745ffd9cf 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -141,7 +141,7 @@ func buildGroup(grp *_C_struct_group) *Group {
+ 
+ type bufferKind _C_int
+ 
+-const (
++var (
+ 	userBuffer  = bufferKind(_C__SC_GETPW_R_SIZE_MAX)
+ 	groupBuffer = bufferKind(_C__SC_GETGR_R_SIZE_MAX)
+ )
+diff --git a/src/os/user/lookup_plan9.go b/src/os/user/lookup_plan9.go
+index dcc9319268..c2aabd504c 100644
+--- a/src/os/user/lookup_plan9.go
++++ b/src/os/user/lookup_plan9.go
+@@ -20,6 +20,13 @@ func init() {
+ 	groupListImplemented = false
+ }
+ 
++var (
++	// unused variables (in this implementation)
++	// modified during test to exercise code paths in the cgo implementation.
++	userBuffer  = 0
++	groupBuffer = 0
++)
++
+ func current() (*User, error) {
+ 	ubytes, err := os.ReadFile("/dev/user")
+ 	if err != nil {
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index b02c1ffa28..89dfe455b5 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -13,6 +13,13 @@ import (
+ 	"strconv"
+ )
+ 
++var (
++	// unused variables (in this implementation)
++	// modified during test to exercise code paths in the cgo implementation.
++	userBuffer  = 0
++	groupBuffer = 0
++)
++
+ func current() (*User, error) {
+ 	uid := currentUID()
+ 	// $USER and /etc/passwd may disagree; prefer the latter if we can get it.
+diff --git a/src/os/user/lookup_windows.go b/src/os/user/lookup_windows.go
+index f65773ced3..e64b8ae028 100644
+--- a/src/os/user/lookup_windows.go
++++ b/src/os/user/lookup_windows.go
+@@ -192,6 +192,13 @@ func newUser(uid, gid, dir, username, domain string) (*User, error) {
+ 	return u, nil
+ }
+ 
++var (
++	// unused variables (in this implementation)
++	// modified during test to exercise code paths in the cgo implementation.
++	userBuffer  = 0
++	groupBuffer = 0
++)
++
+ func current() (*User, error) {
+ 	t, e := syscall.OpenCurrentProcessToken()
+ 	if e != nil {
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 80251749a7..0fa963dae0 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -16,6 +16,11 @@ func checkUser(t *testing.T) {
+ }
+ 
+ func TestCurrent(t *testing.T) {
++	old := userBuffer
++	defer func() {
++		userBuffer = old
++	}()
++	userBuffer = 1 // force use of retry code
+ 	u, err := Current()
+ 	if err != nil {
+ 		t.Fatalf("Current: %v (got %#v)", err, u)
+@@ -91,6 +96,11 @@ func checkGroup(t *testing.T) {
+ }
+ 
+ func TestLookupGroup(t *testing.T) {
++	old := groupBuffer
++	defer func() {
++		groupBuffer = old
++	}()
++	groupBuffer = 1 // force use of retry code
+ 	checkGroup(t)
+ 	user, err := Current()
+ 	if err != nil {

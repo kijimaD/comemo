@@ -16,7 +16,88 @@ Date:   Wed Dec 9 06:10:52 2020 -0500
     Trust: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/issues_test.go | 26 ++++++++++++++++++++++++++
  src/go/types/predicates.go  | 16 ++++++++++++++--
  2 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index f59f905397..34850eb034 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/ast"
+ 	"go/importer"
+ 	"go/parser"
++	"go/token"
+ 	"internal/testenv"
+ 	"sort"
+ 	"strings"
+@@ -523,3 +524,28 @@ func TestIssue34921(t *testing.T) {
+ 		pkg = res // res is imported by the next package in this test
+ 	}
+ }
++
++func TestIssue43088(t *testing.T) {
++	// type T1 struct {
++	//         _ T2
++	// }
++	//
++	// type T2 struct {
++	//         _ struct {
++	//                 _ T2
++	//         }
++	// }
++	n1 := NewTypeName(token.NoPos, nil, "T1", nil)
++	T1 := NewNamed(n1, nil, nil)
++	n2 := NewTypeName(token.NoPos, nil, "T2", nil)
++	T2 := NewNamed(n2, nil, nil)
++	s1 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
++	T1.SetUnderlying(s1)
++	s2 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
++	s3 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", s2, false)}, nil)
++	T2.SetUnderlying(s3)
++
++	// These calls must terminate (no endless recursion).
++	Comparable(T1)
++	Comparable(T2)
++}
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 057908eacd..148edbfb76 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -79,6 +79,18 @@ func IsInterface(typ Type) bool {
+ 
+ // Comparable reports whether values of type T are comparable.
+ func Comparable(T Type) bool {
++	return comparable(T, nil)
++}
++
++func comparable(T Type, seen map[Type]bool) bool {
++	if seen[T] {
++		return true
++	}
++	if seen == nil {
++		seen = make(map[Type]bool)
++	}
++	seen[T] = true
++
+ 	switch t := T.Underlying().(type) {
+ 	case *Basic:
+ 		// assume invalid types to be comparable
+@@ -88,13 +100,13 @@ func Comparable(T Type) bool {
+ 		return true
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if !Comparable(f.typ) {
++			if !comparable(f.typ, seen) {
+ 				return false
+ 			}
+ 		}
+ 		return true
+ 	case *Array:
+-		return Comparable(t.elem)
++		return comparable(t.elem, seen)
+ 	}
+ 	return false
+ }

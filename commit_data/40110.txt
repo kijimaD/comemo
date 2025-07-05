@@ -14,6 +14,31 @@ Date:   Thu Apr 18 10:05:33 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 5e74bee031..55b96e5c9b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -347,13 +347,13 @@ func newnamel(pos src.XPos, s *types.Sym) *Node {
+ 	}
+ 
+ 	var x struct {
+-		Node
+-		Name
+-		Param
++		n Node
++		m Name
++		p Param
+ 	}
+-	n := &x.Node
+-	n.Name = &x.Name
+-	n.Name.Param = &x.Param
++	n := &x.n
++	n.Name = &x.m
++	n.Name.Param = &x.p
+ 
+ 	n.Op = ONAME
+ 	n.Pos = pos

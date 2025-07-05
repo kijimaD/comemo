@@ -14,7 +14,84 @@ Date:   Tue Apr 23 18:57:16 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgclarge.go   | 25 ++++++++++++++-----------
  src/runtime/treap_test.go | 12 +++++-------
  2 files changed, 19 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/mgclarge.go b/src/runtime/mgclarge.go
+index d816183c0c..f33ba23450 100644
+--- a/src/runtime/mgclarge.go
++++ b/src/runtime/mgclarge.go
+@@ -301,27 +301,30 @@ func (root *mTreap) removeNode(t *treapNode) {
+ // find searches for, finds, and returns the treap iterator representing
+ // the position of the smallest span that can hold npages. If no span has
+ // at least npages it returns an invalid iterator.
+-// This is slightly more complicated than a simple binary tree search
+-// since if an exact match is not found the next larger node is
+-// returned.
+-// TODO(mknyszek): It turns out this routine does not actually find the
+-// best-fit span, so either fix that or move to something else first, and
+-// evaluate the performance implications of doing so.
++// This is a simple binary tree search that tracks the best-fit node found
++// so far. The best-fit node is guaranteed to be on the path to a
++// (maybe non-existent) lowest-base exact match.
+ func (root *mTreap) find(npages uintptr) treapIter {
++	var best *treapNode
+ 	t := root.treap
+ 	for t != nil {
+ 		if t.spanKey == nil {
+ 			throw("treap node with nil spanKey found")
+ 		}
+-		if t.npagesKey < npages {
+-			t = t.right
+-		} else if t.left != nil && t.left.npagesKey >= npages {
++		// If we found an exact match, try to go left anyway. There could be
++		// a span there with a lower base address.
++		//
++		// Don't bother checking nil-ness of left and right here; even if t
++		// becomes nil, we already know the other path had nothing better for
++		// us anyway.
++		if t.npagesKey >= npages {
++			best = t
+ 			t = t.left
+ 		} else {
+-			return treapIter{t}
++			t = t.right
+ 		}
+ 	}
+-	return treapIter{}
++	return treapIter{best}
+ }
+ 
+ // removeSpan searches for, finds, deletes span along with
+diff --git a/src/runtime/treap_test.go b/src/runtime/treap_test.go
+index 49d97699ca..76e4829d99 100644
+--- a/src/runtime/treap_test.go
++++ b/src/runtime/treap_test.go
+@@ -58,11 +58,7 @@ func TestTreap(t *testing.T) {
+ 		}
+ 		tr.RemoveSpan(spans[0])
+ 	})
+-	t.Run("Find", func(t *testing.T) {
+-		// Note that Find doesn't actually find the best-fit
+-		// element, so just make sure it always returns an element
+-		// that is at least large enough to satisfy the request.
+-		//
++	t.Run("FindBestFit", func(t *testing.T) {
+ 		// Run this 10 times, recreating the treap each time.
+ 		// Because of the non-deterministic structure of a treap,
+ 		// we'll be able to test different structures this way.
+@@ -72,8 +68,10 @@ func TestTreap(t *testing.T) {
+ 				tr.Insert(s)
+ 			}
+ 			i := tr.Find(5)
+-			if i.Span().Pages() < 5 {
+-				t.Fatalf("expected span of size at least 5, got size %d", i.Span().Pages())
++			if i.Span().Pages() != 5 {
++				t.Fatalf("expected span of size 5, got span of size %d", i.Span().Pages())
++			} else if i.Span().Base() != 0xc0040000 {
++				t.Fatalf("expected span to have the lowest base address, instead got base %x", i.Span().Base())
+ 			}
+ 			for _, s := range spans {
+ 				tr.RemoveSpan(s)

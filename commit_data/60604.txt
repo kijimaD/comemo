@@ -16,6 +16,30 @@ Date:   Mon Aug 5 11:54:51 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
-
+---
  test/fixedbugs/issue68734.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/test/fixedbugs/issue68734.go b/test/fixedbugs/issue68734.go
+new file mode 100644
+index 0000000000..e60dbc5482
+--- /dev/null
++++ b/test/fixedbugs/issue68734.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The gofrontend had a bug handling panic of an untyped constant expression.
++
++package issue68734
++
++func F1() {
++	panic(1 + 2)
++}
++
++func F2() {
++	panic("a" + "b")
++}

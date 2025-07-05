@@ -8,6 +8,20 @@ Date:   Fri Apr 5 10:05:57 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170799
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Sebastien Binet <seb.binet@gmail.com>
-
+---
  src/runtime/debuglog.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 3f8481270a..100f2d370a 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -25,7 +25,7 @@ import (
+ // heap size.
+ const debugLogBytes = 16 << 10
+ 
+-// debugLogStringLimit the the maximum number of bytes in a string.
++// debugLogStringLimit is the maximum number of bytes in a string.
+ // Above this, the string will be truncated with "..(n more bytes).."
+ const debugLogStringLimit = debugLogBytes / 8
+ 

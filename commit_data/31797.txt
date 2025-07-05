@@ -34,7 +34,7 @@ Date:   Wed Mar 15 11:15:13 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go           |  5 ++
  src/cmd/compile/internal/gc/pgen.go           |  1 -
  src/cmd/compile/internal/gc/ssa.go            | 38 ++++++-------
@@ -52,3 +52,689 @@ Date:   Wed Mar 15 11:15:13 2017 -0700
  src/cmd/compile/internal/ssa/shift_test.go    | 12 ++--
  src/cmd/compile/internal/ssa/stackalloc.go    |  4 +-
  16 files changed, 114 insertions(+), 151 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index b5478ebb7c..addecbf168 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -483,6 +483,11 @@ func Main() {
+ 			}
+ 		}
+ 
++		// Prepare for SSA compilation.
++		// This must be before peekitabs, because peekitabs
++		// can trigger function compilation.
++		initssaconfig()
++
+ 		// Just before compilation, compile itabs found on
+ 		// the right side of OCONVIFACE so that methods
+ 		// can be de-virtualized during compilation.
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index d5978bb239..4b29bb83ae 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -411,7 +411,6 @@ func compile(fn *Node) {
+ 	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
+ 
+ 	genssa(ssafn, ptxt, gcargs, gclocals)
+-	ssafn.Free()
+ 
+ 	obj.Flushplist(Ctxt, plist) // convert from Prog list to machine code
+ 	ptxt = nil                  // nil to prevent misuse; Prog may have been freed by Flushplist
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4aca79307a..bd04ff536e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -20,16 +20,14 @@ import (
+ 
+ var ssaConfig *ssa.Config
+ var ssaExp ssaExport
++var ssaCache *ssa.Cache
+ 
+-func initssa() *ssa.Config {
+-	if ssaConfig == nil {
+-		ssaConfig = ssa.NewConfig(Thearch.LinkArch.Name, &ssaExp, Ctxt, Debug['N'] == 0)
+-		if Thearch.LinkArch.Name == "386" {
+-			ssaConfig.Set387(Thearch.Use387)
+-		}
++func initssaconfig() {
++	ssaConfig = ssa.NewConfig(Thearch.LinkArch.Name, &ssaExp, Ctxt, Debug['N'] == 0)
++	if Thearch.LinkArch.Name == "386" {
++		ssaConfig.Set387(Thearch.Use387)
+ 	}
+-	ssaConfig.HTML = nil
+-	return ssaConfig
++	ssaCache = new(ssa.Cache)
+ }
+ 
+ // buildssa builds an SSA function.
+@@ -51,12 +49,15 @@ func buildssa(fn *Node) *ssa.Func {
+ 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
+ 		s.cgoUnsafeArgs = true
+ 	}
+-	// TODO(khr): build config just once at the start of the compiler binary
+ 
+ 	ssaExp.log = printssa
+ 
+-	s.config = initssa()
+-	s.f = s.config.NewFunc()
++	s.f = ssa.NewFunc()
++	s.config = ssaConfig
++	s.f.Config = ssaConfig
++	s.f.Cache = ssaCache
++	s.f.Cache.Reset()
++	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH", name)
+ 	s.f.Name = name
+ 	if fn.Func.Pragma&Nosplit != 0 {
+ 		s.f.NoSplit = true
+@@ -71,12 +72,9 @@ func buildssa(fn *Node) *ssa.Func {
+ 	}()
+ 	s.exitCode = fn.Func.Exit
+ 	s.panics = map[funcLine]*ssa.Block{}
+-	s.config.DebugTest = s.config.DebugHashMatch("GOSSAHASH", name)
+ 
+ 	if name == os.Getenv("GOSSAFUNC") {
+-		// TODO: tempfile? it is handy to have the location
+-		// of this file be stable, so you can just reload in the browser.
+-		s.config.HTML = ssa.NewHTMLWriter("ssa.html", s.config, name)
++		s.f.HTMLWriter = ssa.NewHTMLWriter("ssa.html", ssaConfig, name)
+ 		// TODO: generate and print a mapping from nodes to values and blocks
+ 	}
+ 
+@@ -140,7 +138,6 @@ func buildssa(fn *Node) *ssa.Func {
+ 	}
+ 
+ 	if nerrors > 0 {
+-		s.f.Free()
+ 		return nil
+ 	}
+ 
+@@ -152,7 +149,6 @@ func buildssa(fn *Node) *ssa.Func {
+ 	// Main call to ssa package to compile function
+ 	ssa.Compile(s.f)
+ 	if nerrors > 0 {
+-		s.f.Free()
+ 		return nil
+ 	}
+ 
+@@ -4287,7 +4283,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 			}
+ 			f.Logf("%s\t%s\n", s, p)
+ 		}
+-		if f.Config.HTML != nil {
++		if f.HTMLWriter != nil {
+ 			// LineHist is defunct now - this code won't do
+ 			// anything.
+ 			// TODO: fix this (ideally without a global variable)
+@@ -4311,7 +4307,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 			}
+ 			buf.WriteString("</dl>")
+ 			buf.WriteString("</code>")
+-			f.Config.HTML.WriteColumn("genssa", buf.String())
++			f.HTMLWriter.WriteColumn("genssa", buf.String())
+ 			// ptxt.Ctxt.LineHist.PrintFilenameOnly = saved
+ 		}
+ 	}
+@@ -4328,8 +4324,8 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	// Remove leftover instrumentation from the instruction stream.
+ 	removevardef(ptxt)
+ 
+-	f.Config.HTML.Close()
+-	f.Config.HTML = nil
++	f.HTMLWriter.Close()
++	f.HTMLWriter = nil
+ }
+ 
+ type FloatingEQNEJump struct {
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index 64f9659520..f1018da497 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -4,7 +4,38 @@
+ 
+ package ssa
+ 
++import "sort"
++
+ // A Cache holds reusable compiler state.
+ // It is intended to be re-used for multiple Func compilations.
+ type Cache struct {
++	// Storage for low-numbered values and blocks.
++	values [2000]Value
++	blocks [200]Block
++	locs   [2000]Location
++
++	// Reusable stackAllocState.
++	// See stackalloc.go's {new,put}StackAllocState.
++	stackAllocState *stackAllocState
++
++	domblockstore []ID         // scratch space for computing dominators
++	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
++}
++
++func (c *Cache) Reset() {
++	nv := sort.Search(len(c.values), func(i int) bool { return c.values[i].ID == 0 })
++	xv := c.values[:nv]
++	for i := range xv {
++		xv[i] = Value{}
++	}
++	nb := sort.Search(len(c.blocks), func(i int) bool { return c.blocks[i].ID == 0 })
++	xb := c.blocks[:nb]
++	for i := range xb {
++		xb[i] = Block{}
++	}
++	nl := sort.Search(len(c.locs), func(i int) bool { return c.locs[i] == nil })
++	xl := c.locs[:nl]
++	for i := range xl {
++		xl[i] = nil
++	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index c03436cdf0..4f62250dc5 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -43,7 +43,7 @@ func Compile(f *Func) {
+ 
+ 	// Run all the passes
+ 	printFunc(f)
+-	f.Config.HTML.WriteFunc("start", f)
++	f.HTMLWriter.WriteFunc("start", f)
+ 	if BuildDump != "" && BuildDump == f.Name {
+ 		f.dumpFile("build")
+ 	}
+@@ -71,7 +71,7 @@ func Compile(f *Func) {
+ 		tEnd := time.Now()
+ 
+ 		// Need something less crude than "Log the whole intermediate result".
+-		if f.Log() || f.Config.HTML != nil {
++		if f.Log() || f.HTMLWriter != nil {
+ 			time := tEnd.Sub(tStart).Nanoseconds()
+ 			var stats string
+ 			if logMemStats {
+@@ -86,7 +86,7 @@ func Compile(f *Func) {
+ 
+ 			f.Logf("  pass %s end %s\n", p.name, stats)
+ 			printFunc(f)
+-			f.Config.HTML.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
++			f.HTMLWriter.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
+ 		}
+ 		if p.time || p.mem {
+ 			// Surround timing information w/ enough context to allow comparisons.
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index ce7adaf3d5..589b7c9b1e 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -32,7 +32,6 @@ type Config struct {
+ 	LinkReg         int8                       // register number of link register if it is a general purpose register, -1 if not used
+ 	hasGReg         bool                       // has hardware g register
+ 	fe              Frontend                   // callbacks into compiler frontend
+-	HTML            *HTMLWriter                // html writer, for debugging
+ 	ctxt            *obj.Link                  // Generic arch information
+ 	optimize        bool                       // Do optimization
+ 	noDuffDevice    bool                       // Don't use Duff's device
+@@ -41,27 +40,7 @@ type Config struct {
+ 	OldArch         bool                       // True for older versions of architecture, e.g. true for PPC64BE, false for PPC64LE
+ 	NeedsFpScratch  bool                       // No direct move between GP and FP register sets
+ 	BigEndian       bool                       //
+-	DebugTest       bool                       // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+ 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
+-	curFunc         *Func
+-
+-	// TODO: more stuff. Compiler flags of interest, ...
+-
+-	// Given an environment variable used for debug hash match,
+-	// what file (if any) receives the yes/no logging?
+-	logfiles map[string]*os.File
+-
+-	// Storage for low-numbered values and blocks.
+-	values [2000]Value
+-	blocks [200]Block
+-	locs   [2000]Location
+-
+-	// Reusable stackAllocState.
+-	// See stackalloc.go's {new,put}StackAllocState.
+-	stackAllocState *stackAllocState
+-
+-	domblockstore []ID         // scratch space for computing dominators
+-	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
+ }
+ 
+ type TypeSource interface {
+@@ -304,16 +283,6 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		opcodeTable[OpARMCALLudiv].reg.clobbers |= 1 << 12 // R12
+ 	}
+ 
+-	// Assign IDs to preallocated values/blocks.
+-	for i := range c.values {
+-		c.values[i].ID = ID(i)
+-	}
+-	for i := range c.blocks {
+-		c.blocks[i].ID = ID(i)
+-	}
+-
+-	c.logfiles = make(map[string]*os.File)
+-
+ 	// cutoff is compared with product of numblocks and numvalues,
+ 	// if product is smaller than cutoff, use old non-sparse method.
+ 	// cutoff == 0 implies all sparse.
+@@ -342,18 +311,6 @@ func (c *Config) Frontend() Frontend      { return c.fe }
+ func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
+ func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
+ 
+-// NewFunc returns a new, empty function object.
+-// Caller must call f.Free() before calling NewFunc again.
+-func (c *Config) NewFunc() *Func {
+-	// TODO(khr): should this function take name, type, etc. as arguments?
+-	if c.curFunc != nil {
+-		c.Fatalf(src.NoXPos, "NewFunc called without previous Free")
+-	}
+-	f := &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
+-	c.curFunc = f
+-	return f
+-}
+-
+ func (c *Config) Logf(msg string, args ...interface{})                 { c.fe.Logf(msg, args...) }
+ func (c *Config) Log() bool                                            { return c.fe.Log() }
+ func (c *Config) Fatalf(pos src.XPos, msg string, args ...interface{}) { c.fe.Fatalf(pos, msg, args...) }
+@@ -362,8 +319,11 @@ func (c *Config) Warnl(pos src.XPos, msg string, args ...interface{})  { c.fe.Wa
+ func (c *Config) Debug_checknil() bool                                 { return c.fe.Debug_checknil() }
+ func (c *Config) Debug_wb() bool                                       { return c.fe.Debug_wb() }
+ 
+-func (c *Config) logDebugHashMatch(evname, name string) {
+-	file := c.logfiles[evname]
++func (f *Func) logDebugHashMatch(evname, name string) {
++	if f.logfiles == nil {
++		f.logfiles = make(map[string]*os.File)
++	}
++	file := f.logfiles[evname]
+ 	if file == nil {
+ 		file = os.Stdout
+ 		tmpfile := os.Getenv("GSHS_LOGFILE")
+@@ -371,10 +331,10 @@ func (c *Config) logDebugHashMatch(evname, name string) {
+ 			var ok error
+ 			file, ok = os.Create(tmpfile)
+ 			if ok != nil {
+-				c.Fatalf(src.NoXPos, "Could not open hash-testing logfile %s", tmpfile)
++				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
+ 			}
+ 		}
+-		c.logfiles[evname] = file
++		f.logfiles[evname] = file
+ 	}
+ 	s := fmt.Sprintf("%s triggered %s\n", evname, name)
+ 	file.WriteString(s)
+@@ -395,14 +355,13 @@ func (c *Config) logDebugHashMatch(evname, name string) {
+ //  GSHS_LOGFILE
+ // or standard out if that is empty or there is an error
+ // opening the file.
+-
+-func (c *Config) DebugHashMatch(evname, name string) bool {
++func (f *Func) DebugHashMatch(evname, name string) bool {
+ 	evhash := os.Getenv(evname)
+ 	if evhash == "" {
+ 		return true // default behavior with no EV is "on"
+ 	}
+ 	if evhash == "y" || evhash == "Y" {
+-		c.logDebugHashMatch(evname, name)
++		f.logDebugHashMatch(evname, name)
+ 		return true
+ 	}
+ 	if evhash == "n" || evhash == "N" {
+@@ -417,7 +376,7 @@ func (c *Config) DebugHashMatch(evname, name string) bool {
+ 	}
+ 
+ 	if strings.HasSuffix(hstr, evhash) {
+-		c.logDebugHashMatch(evname, name)
++		f.logDebugHashMatch(evname, name)
+ 		return true
+ 	}
+ 
+@@ -430,13 +389,13 @@ func (c *Config) DebugHashMatch(evname, name string) bool {
+ 			break
+ 		}
+ 		if strings.HasSuffix(hstr, evv) {
+-			c.logDebugHashMatch(ev, name)
++			f.logDebugHashMatch(ev, name)
+ 			return true
+ 		}
+ 	}
+ 	return false
+ }
+ 
+-func (c *Config) DebugNameMatch(evname, name string) bool {
++func DebugNameMatch(evname, name string) bool {
+ 	return os.Getenv(evname) == name
+ }
+diff --git a/src/cmd/compile/internal/ssa/copyelim_test.go b/src/cmd/compile/internal/ssa/copyelim_test.go
+index 96f5846850..34c548a48b 100644
+--- a/src/cmd/compile/internal/ssa/copyelim_test.go
++++ b/src/cmd/compile/internal/ssa/copyelim_test.go
+@@ -36,6 +36,5 @@ func benchmarkCopyElim(b *testing.B, n int) {
+ 	for i := 0; i < b.N; i++ {
+ 		fun := Fun(c, "entry", Bloc("entry", values...))
+ 		Copyelim(fun.f)
+-		fun.f.Free()
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/deadcode_test.go b/src/cmd/compile/internal/ssa/deadcode_test.go
+index b1d8d0fff0..c8ee3662fd 100644
+--- a/src/cmd/compile/internal/ssa/deadcode_test.go
++++ b/src/cmd/compile/internal/ssa/deadcode_test.go
+@@ -154,7 +154,6 @@ func BenchmarkDeadCode(b *testing.B) {
+ 			for i := 0; i < b.N; i++ {
+ 				fun := Fun(c, "entry", blocks...)
+ 				Deadcode(fun.f)
+-				fun.f.Free()
+ 			}
+ 		})
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index 3dae5fbf07..89347be54f 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -70,9 +70,9 @@ const nscratchslices = 7
+ // in make.bash.
+ const minscratchblocks = 512
+ 
+-func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID) {
++func (cache *Cache) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID) {
+ 	tot := maxBlockID * nscratchslices
+-	scratch := cfg.domblockstore
++	scratch := cache.domblockstore
+ 	if len(scratch) < tot {
+ 		// req = min(1.5*tot, nscratchslices*minscratchblocks)
+ 		// 50% padding allows for graph growth in later phases.
+@@ -81,7 +81,7 @@ func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID
+ 			req = nscratchslices * minscratchblocks
+ 		}
+ 		scratch = make([]ID, req)
+-		cfg.domblockstore = scratch
++		cache.domblockstore = scratch
+ 	} else {
+ 		// Clear as much of scratch as we will (re)use
+ 		scratch = scratch[0:tot]
+@@ -117,7 +117,7 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
+ 	// Adapted directly from the original TOPLAS article's "simple" algorithm
+ 
+ 	maxBlockID := entry.Func.NumBlocks()
+-	semi, vertex, label, parent, ancestor, bucketHead, bucketLink := f.Config.scratchBlocksForDom(maxBlockID)
++	semi, vertex, label, parent, ancestor, bucketHead, bucketLink := f.Cache.scratchBlocksForDom(maxBlockID)
+ 
+ 	// This version uses integers for most of the computation,
+ 	// to make the work arrays smaller and pointer-free.
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index a26c92ef87..8682467053 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
++	"os"
+ 	"strings"
+ )
+ 
+@@ -16,6 +17,7 @@ import (
+ // Funcs are single-use; a new Func must be created for every compiled function.
+ type Func struct {
+ 	Config *Config  // architecture information
++	Cache  *Cache   // re-usable cache
+ 	pass   *pass    // current pass information (name, options, etc.)
+ 	Name   string   // e.g. bytes·Compare
+ 	Type   Type     // type signature of the function.
+@@ -24,6 +26,12 @@ type Func struct {
+ 	bid    idAlloc  // block ID allocator
+ 	vid    idAlloc  // value ID allocator
+ 
++	// Given an environment variable used for debug hash match,
++	// what file (if any) receives the yes/no logging?
++	logfiles   map[string]*os.File
++	HTMLWriter *HTMLWriter // html writer, for debugging
++	DebugTest  bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
++
+ 	scheduled bool // Values in Blocks are in final order
+ 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
+ 
+@@ -52,6 +60,12 @@ type Func struct {
+ 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
+ }
+ 
++// NewFunc returns a new, empty function object.
++// Caller must set f.Config and f.Cache before using f.
++func NewFunc() *Func {
++	return &Func{NamedValues: make(map[LocalSlot][]*Value)}
++}
++
+ // NumBlocks returns an integer larger than the id of any Block in the Func.
+ func (f *Func) NumBlocks() int {
+ 	return f.bid.num()
+@@ -64,9 +78,9 @@ func (f *Func) NumValues() int {
+ 
+ // newSparseSet returns a sparse set that can store at least up to n integers.
+ func (f *Func) newSparseSet(n int) *sparseSet {
+-	for i, scr := range f.Config.scrSparse {
++	for i, scr := range f.Cache.scrSparse {
+ 		if scr != nil && scr.cap() >= n {
+-			f.Config.scrSparse[i] = nil
++			f.Cache.scrSparse[i] = nil
+ 			scr.clear()
+ 			return scr
+ 		}
+@@ -76,13 +90,13 @@ func (f *Func) newSparseSet(n int) *sparseSet {
+ 
+ // retSparseSet returns a sparse set to the config's cache of sparse sets to be reused by f.newSparseSet.
+ func (f *Func) retSparseSet(ss *sparseSet) {
+-	for i, scr := range f.Config.scrSparse {
++	for i, scr := range f.Cache.scrSparse {
+ 		if scr == nil {
+-			f.Config.scrSparse[i] = ss
++			f.Cache.scrSparse[i] = ss
+ 			return
+ 		}
+ 	}
+-	f.Config.scrSparse = append(f.Config.scrSparse, ss)
++	f.Cache.scrSparse = append(f.Cache.scrSparse, ss)
+ }
+ 
+ // newValue allocates a new Value with the given fields and places it at the end of b.Values.
+@@ -94,8 +108,9 @@ func (f *Func) newValue(op Op, t Type, b *Block, pos src.XPos) *Value {
+ 		v.argstorage[0] = nil
+ 	} else {
+ 		ID := f.vid.get()
+-		if int(ID) < len(f.Config.values) {
+-			v = &f.Config.values[ID]
++		if int(ID) < len(f.Cache.values) {
++			v = &f.Cache.values[ID]
++			v.ID = ID
+ 		} else {
+ 			v = &Value{ID: ID}
+ 		}
+@@ -120,8 +135,9 @@ func (f *Func) newValueNoBlock(op Op, t Type, pos src.XPos) *Value {
+ 		v.argstorage[0] = nil
+ 	} else {
+ 		ID := f.vid.get()
+-		if int(ID) < len(f.Config.values) {
+-			v = &f.Config.values[ID]
++		if int(ID) < len(f.Cache.values) {
++			v = &f.Cache.values[ID]
++			v.ID = ID
+ 		} else {
+ 			v = &Value{ID: ID}
+ 		}
+@@ -190,8 +206,9 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
+ 		b.succstorage[0].b = nil
+ 	} else {
+ 		ID := f.bid.get()
+-		if int(ID) < len(f.Config.blocks) {
+-			b = &f.Config.blocks[ID]
++		if int(ID) < len(f.Cache.blocks) {
++			b = &f.Cache.blocks[ID]
++			b.ID = ID
+ 		} else {
+ 			b = &Block{ID: ID}
+ 		}
+@@ -468,48 +485,6 @@ func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args
+ func (f *Func) Log() bool                              { return f.Config.Log() }
+ func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Pos, msg, args...) }
+ 
+-func (f *Func) Free() {
+-	// Clear cached CFG info.
+-	f.invalidateCFG()
+-
+-	// Clear values.
+-	n := f.vid.num()
+-	if n > len(f.Config.values) {
+-		n = len(f.Config.values)
+-	}
+-	for i := 1; i < n; i++ {
+-		f.Config.values[i] = Value{}
+-		f.Config.values[i].ID = ID(i)
+-	}
+-
+-	// Clear blocks.
+-	n = f.bid.num()
+-	if n > len(f.Config.blocks) {
+-		n = len(f.Config.blocks)
+-	}
+-	for i := 1; i < n; i++ {
+-		f.Config.blocks[i] = Block{}
+-		f.Config.blocks[i].ID = ID(i)
+-	}
+-
+-	// Clear locs.
+-	n = len(f.RegAlloc)
+-	if n > len(f.Config.locs) {
+-		n = len(f.Config.locs)
+-	}
+-	head := f.Config.locs[:n]
+-	for i := range head {
+-		head[i] = nil
+-	}
+-
+-	// Unregister from config.
+-	if f.Config.curFunc != f {
+-		f.Fatalf("free of function which isn't the last one allocated")
+-	}
+-	f.Config.curFunc = nil
+-	*f = Func{} // just in case
+-}
+-
+ // postorder returns the reachable blocks in f in a postorder traversal.
+ func (f *Func) postorder() []*Block {
+ 	if f.cachedPostorder == nil {
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 580f67717a..b14da75b1a 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -144,7 +144,12 @@ var emptyPass pass = pass{
+ // supplied to one of the Bloc functions. Each of the bloc names and
+ // valu names should be unique across the Fun.
+ func Fun(c *Config, entry string, blocs ...bloc) fun {
+-	f := c.NewFunc()
++	f := NewFunc()
++	f.Config = c
++	// TODO: Either mark some SSA tests as t.Parallel,
++	// or set up a shared Cache and Reset it between tests.
++	// But not both.
++	f.Cache = new(Cache)
+ 	f.pass = &emptyPass
+ 
+ 	blocks := make(map[string]*Block)
+diff --git a/src/cmd/compile/internal/ssa/fuse_test.go b/src/cmd/compile/internal/ssa/fuse_test.go
+index b316a48261..cf21ac468f 100644
+--- a/src/cmd/compile/internal/ssa/fuse_test.go
++++ b/src/cmd/compile/internal/ssa/fuse_test.go
+@@ -162,7 +162,6 @@ func BenchmarkFuse(b *testing.B) {
+ 			for i := 0; i < b.N; i++ {
+ 				fun := Fun(c, "entry", blocks...)
+ 				fuse(fun.f)
+-				fun.f.Free()
+ 			}
+ 		})
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/loop_test.go b/src/cmd/compile/internal/ssa/loop_test.go
+index 901ca5cf04..ddd14c2c01 100644
+--- a/src/cmd/compile/internal/ssa/loop_test.go
++++ b/src/cmd/compile/internal/ssa/loop_test.go
+@@ -82,6 +82,4 @@ func TestLoopConditionS390X(t *testing.T) {
+ 		OpS390XCMP:       1,
+ 		OpS390XCMPWconst: 0,
+ 	})
+-
+-	fun.f.Free()
+ }
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 95f2f7c91a..cf305b027e 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -495,7 +495,7 @@ func isLeaf(f *Func) bool {
+ 
+ func (s *regAllocState) init(f *Func) {
+ 	s.f = f
+-	s.f.RegAlloc = s.f.Config.locs[:0]
++	s.f.RegAlloc = s.f.Cache.locs[:0]
+ 	s.registers = f.Config.registers
+ 	if nr := len(s.registers); nr == 0 || nr > int(noRegister) || nr > int(unsafe.Sizeof(regMask(0))*8) {
+ 		s.f.Fatalf("bad number of registers: %d", nr)
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index 8a3a429e18..de4d25a93f 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -12,22 +12,21 @@ func TestShiftConstAMD64(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := makeConstShiftFunc(c, 18, OpLsh64x64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
+-	fun.f.Free()
++
+ 	fun = makeConstShiftFunc(c, 66, OpLsh64x64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
+-	fun.f.Free()
++
+ 	fun = makeConstShiftFunc(c, 18, OpRsh64Ux64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
+-	fun.f.Free()
++
+ 	fun = makeConstShiftFunc(c, 66, OpRsh64Ux64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
+-	fun.f.Free()
++
+ 	fun = makeConstShiftFunc(c, 18, OpRsh64x64, TypeInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
+-	fun.f.Free()
++
+ 	fun = makeConstShiftFunc(c, 66, OpRsh64x64, TypeInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
+-	fun.f.Free()
+ }
+ 
+ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
+@@ -80,7 +79,6 @@ func TestShiftToExtensionAMD64(t *testing.T) {
+ 	for _, tc := range tests {
+ 		fun := makeShiftExtensionFunc(c, tc.amount, tc.left, tc.right, tc.typ)
+ 		checkOpcodeCounts(t, fun.f, ops)
+-		fun.f.Free()
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index cdc40e5a35..40edfc55c6 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -35,7 +35,7 @@ type stackAllocState struct {
+ }
+ 
+ func newStackAllocState(f *Func) *stackAllocState {
+-	s := f.Config.stackAllocState
++	s := f.Cache.stackAllocState
+ 	if s == nil {
+ 		return new(stackAllocState)
+ 	}
+@@ -61,7 +61,7 @@ func putStackAllocState(s *stackAllocState) {
+ 	for i := range s.used {
+ 		s.used[i] = false
+ 	}
+-	s.f.Config.stackAllocState = s
++	s.f.Cache.stackAllocState = s
+ 	s.f = nil
+ 	s.live = nil
+ 	s.nArgSlot, s.nNotNeed, s.nNamedSlot, s.nReuse, s.nAuto, s.nSelfInterfere = 0, 0, 0, 0, 0, 0

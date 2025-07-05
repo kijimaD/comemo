@@ -11,7 +11,7 @@ Date:   Wed Mar 9 05:45:08 2011 -0800
     R=golang-dev, bradfitzgo, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4256060
-
+---
  src/pkg/syscall/mkerrors.sh             |  3 +++
  src/pkg/syscall/syscall_linux.go        |  6 +++++-
  src/pkg/syscall/zerrors_linux_386.go    | 10 ++++++++++
@@ -21,3 +21,169 @@ Date:   Wed Mar 9 05:45:08 2011 -0800
  src/pkg/syscall/zsyscall_linux_amd64.go |  8 ++++++++
  src/pkg/syscall/zsyscall_linux_arm.go   |  8 ++++++++
  8 files changed, 62 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index d40d1f6b3d..7329a90c98 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -30,6 +30,7 @@ includes_Linux='
+ #include <linux/ptrace.h>
+ #include <linux/wait.h>
+ #include <linux/if_tun.h>
++#include <linux/reboot.h>
+ #include <net/if.h>
+ #include <netpacket/packet.h>
+ '
+@@ -124,6 +125,8 @@ done
+ 		$2 == "CTL_MAXNAME" ||
+ 		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
+ 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
++		$2 ~ /^LINUX_REBOOT_CMD_/ ||
++		$2 ~ /^LINUX_REBOOT_MAGIC[12]$/ ||
+ 		$2 ~ /^SIOC/ ||
+ 		$2 !~ "WMESGLEN" &&
+ 		$2 ~ /^W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", $2, $2)}
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 30ad896461..550a377b89 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -667,6 +667,11 @@ func PtraceAttach(pid int) (errno int) { return ptrace(PTRACE_ATTACH, pid, 0, 0)
+ 
+ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0) }
+ 
++//sys	reboot(magic1 uint, magic2 uint, cmd int, arg string) (errno int)
++func Reboot(cmd int) (errno int) {
++	return reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, "")
++}
++
+ // Sendto
+ // Recvfrom
+ // Socketpair
+@@ -842,7 +847,6 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
+ // Quotactl
+ // Readahead
+ // Readv
+-// Reboot
+ // RemapFilePages
+ // Removexattr
+ // RequestKey
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index a73a949617..198e713692 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -408,6 +408,16 @@ const (
+ 	IP_TOS                           = 0x1
+ 	IP_TTL                           = 0x2
+ 	IP_UNBLOCK_SOURCE                = 0x25
++	LINUX_REBOOT_CMD_CAD_OFF         = 0
++	LINUX_REBOOT_CMD_CAD_ON          = 0x89abcdef
++	LINUX_REBOOT_CMD_HALT            = 0xcdef0123
++	LINUX_REBOOT_CMD_KEXEC           = 0x45584543
++	LINUX_REBOOT_CMD_POWER_OFF       = 0x4321fedc
++	LINUX_REBOOT_CMD_RESTART         = 0x1234567
++	LINUX_REBOOT_CMD_RESTART2        = 0xa1b2c3d4
++	LINUX_REBOOT_CMD_SW_SUSPEND      = 0xd000fce2
++	LINUX_REBOOT_MAGIC1              = 0xfee1dead
++	LINUX_REBOOT_MAGIC2              = 0x28121969
+ 	MAP_32BIT                        = 0x40
+ 	MAP_ANON                         = 0x20
+ 	MAP_ANONYMOUS                    = 0x20
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index eea55a2753..675bc95499 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -408,6 +408,16 @@ const (
+ 	IP_TOS                           = 0x1
+ 	IP_TTL                           = 0x2
+ 	IP_UNBLOCK_SOURCE                = 0x25
++	LINUX_REBOOT_CMD_CAD_OFF         = 0
++	LINUX_REBOOT_CMD_CAD_ON          = 0x89abcdef
++	LINUX_REBOOT_CMD_HALT            = 0xcdef0123
++	LINUX_REBOOT_CMD_KEXEC           = 0x45584543
++	LINUX_REBOOT_CMD_POWER_OFF       = 0x4321fedc
++	LINUX_REBOOT_CMD_RESTART         = 0x1234567
++	LINUX_REBOOT_CMD_RESTART2        = 0xa1b2c3d4
++	LINUX_REBOOT_CMD_SW_SUSPEND      = 0xd000fce2
++	LINUX_REBOOT_MAGIC1              = 0xfee1dead
++	LINUX_REBOOT_MAGIC2              = 0x28121969
+ 	MAP_32BIT                        = 0x40
+ 	MAP_ANON                         = 0x20
+ 	MAP_ANONYMOUS                    = 0x20
+diff --git a/src/pkg/syscall/zerrors_linux_arm.go b/src/pkg/syscall/zerrors_linux_arm.go
+index 1f8b1830b3..adbbc774f7 100644
+--- a/src/pkg/syscall/zerrors_linux_arm.go
++++ b/src/pkg/syscall/zerrors_linux_arm.go
+@@ -379,6 +379,16 @@ const (
+ 	IP_TOS                           = 0x1
+ 	IP_TTL                           = 0x2
+ 	IP_UNBLOCK_SOURCE                = 0x25
++	LINUX_REBOOT_CMD_CAD_OFF         = 0
++	LINUX_REBOOT_CMD_CAD_ON          = 0x89abcdef
++	LINUX_REBOOT_CMD_HALT            = 0xcdef0123
++	LINUX_REBOOT_CMD_KEXEC           = 0x45584543
++	LINUX_REBOOT_CMD_POWER_OFF       = 0x4321fedc
++	LINUX_REBOOT_CMD_RESTART         = 0x1234567
++	LINUX_REBOOT_CMD_RESTART2        = 0xa1b2c3d4
++	LINUX_REBOOT_CMD_SW_SUSPEND      = 0xd000fce2
++	LINUX_REBOOT_MAGIC1              = 0xfee1dead
++	LINUX_REBOOT_MAGIC2              = 0x28121969
+ 	NAME_MAX                         = 0xff
+ 	O_ACCMODE                        = 0x3
+ 	O_APPEND                         = 0x400
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index 005cc1542a..746fee8a67 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -81,6 +81,14 @@ func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func reboot(magic1 uint, magic2 uint, cmd int, arg string) (errno int) {
++	_, _, e1 := Syscall6(SYS_REBOOT, uintptr(magic1), uintptr(magic2), uintptr(cmd), uintptr(unsafe.Pointer(StringBytePtr(arg))), 0, 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Access(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index d449a3bfed..b688ecf022 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -81,6 +81,14 @@ func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func reboot(magic1 uint, magic2 uint, cmd int, arg string) (errno int) {
++	_, _, e1 := Syscall6(SYS_REBOOT, uintptr(magic1), uintptr(magic2), uintptr(cmd), uintptr(unsafe.Pointer(StringBytePtr(arg))), 0, 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Access(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 22b736bfaa..fc4ef9fd50 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -81,6 +81,14 @@ func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func reboot(magic1 uint, magic2 uint, cmd int, arg string) (errno int) {
++	_, _, e1 := Syscall6(SYS_REBOOT, uintptr(magic1), uintptr(magic2), uintptr(cmd), uintptr(unsafe.Pointer(StringBytePtr(arg))), 0, 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Access(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)

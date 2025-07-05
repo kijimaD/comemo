@@ -14,6 +14,21 @@ Date:   Mon Nov 16 20:14:50 2015 -0800
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
-
+---
  test/run.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index 6e1cde9390..22cec9b992 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -132,9 +132,6 @@ func main() {
+ 			failed = true
+ 		}
+ 		resCount[status]++
+-		if status == "skip" && !*verbose && !*showSkips {
+-			continue
+-		}
+ 		dt := fmt.Sprintf("%.3fs", test.dt.Seconds())
+ 		if status == "FAIL" {
+ 			fmt.Printf("# go run run.go -- %s\n%s\nFAIL\t%s\t%s\n",

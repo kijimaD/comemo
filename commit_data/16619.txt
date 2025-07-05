@@ -9,6 +9,11 @@ Date:   Mon Jun 24 11:23:37 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/10320043
-
+---
  src/pkg/os/{error_posix.go => error_unix.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_unix.go
+similarity index 100%
+rename from src/pkg/os/error_posix.go
+rename to src/pkg/os/error_unix.go

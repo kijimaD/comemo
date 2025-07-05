@@ -25,6 +25,27 @@ Date:   Tue Sep 1 11:21:50 2020 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/go/internal/work/gc.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index f1d08e0268..6031897f88 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -259,6 +259,15 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
+ 			}
+ 		}
+ 	}
++	if p.ImportPath == "runtime" && objabi.Regabi_enabled != 0 {
++		// In order to make it easier to port runtime assembly
++		// to the register ABI, we introduce a macro
++		// indicating the experiment is enabled.
++		//
++		// TODO(austin): Remove this once we commit to the
++		// register ABI (#40724).
++		args = append(args, "-D=GOEXPERIMENT_REGABI=1")
++	}
+ 
+ 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {
+ 		// Define GOMIPS_value from cfg.GOMIPS.

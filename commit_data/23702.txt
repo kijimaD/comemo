@@ -7,6 +7,19 @@ Date:   Fri Jun 5 01:31:52 2015 -0400
     Change-Id: I1d7b728bd161da7bd6dd460862d8be072921e8b9
     Reviewed-on: https://go-review.googlesource.com/10763
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index eb70529d51..faaf64c56e 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -102,6 +102,7 @@ cmd/go: add -buildmode build option
+ cmd/gc: add -dynlink option (for amd64 only)
+ cmd/ld: add -buildmode option
+ cmd/trace: new command to view traces (https://golang.org/cl/3601)
++cmd/go, testing: add go test -count (https://golang.org/cl/10669)
+ 
+ Performance:
+ 

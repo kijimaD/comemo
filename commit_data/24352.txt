@@ -7,6 +7,20 @@ Date:   Fri Jul 24 14:55:07 2015 -0700
     Change-Id: I102901e3df76830ccd5ab74d757203d103eef9e8
     Reviewed-on: https://go-review.googlesource.com/12657
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 6025f32d33..e362657a00 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -119,7 +119,7 @@ preempted.
+ 
+ 	//go:linkname localname importpath.name
+ 
+-The //go:linkname directive instructs the compiler to use ``importpath.name' as the
++The //go:linkname directive instructs the compiler to use ``importpath.name'' as the
+ object file symbol name for the variable or function declared as ``localname'' in the
+ source code. Because this directive can subvert the type system and package
+ modularity, it is only enabled in files that have imported "unsafe".

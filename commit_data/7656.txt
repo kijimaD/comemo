@@ -27,8 +27,326 @@ Date:   Sun Mar 6 18:05:57 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4244052
-
+---
  src/cmd/cgo/gcc.go  | 63 ++++++++++++++++++++++++++++++++++++++---------------
  src/cmd/cgo/main.go |  8 ++++++-
  src/cmd/cgo/out.go  | 62 ++++++++++++++++++++++++++++------------------------
  3 files changed, 85 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index cc570f9cf3..f7ecc9e14e 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -776,6 +776,32 @@ var dwarfToName = map[string]string{
+ 
+ const signedDelta = 64
+ 
++// String returns the current type representation.  Format arguments
++// are assembled within this method so that any changes in mutable
++// values are taken into account.
++func (tr *TypeRepr) String() string {
++	if len(tr.Repr) == 0 {
++		return ""
++	}
++	if len(tr.FormatArgs) == 0 {
++		return tr.Repr
++	}
++	return fmt.Sprintf(tr.Repr, tr.FormatArgs...)
++}
++
++// Empty returns true if the result of String would be "".
++func (tr *TypeRepr) Empty() bool {
++	return len(tr.Repr) == 0
++}
++
++// Set modifies the type representation.
++// If fargs are provided, repr is used as a format for fmt.Sprintf.
++// Otherwise, repr is used unprocessed as the type representation.
++func (tr *TypeRepr) Set(repr string, fargs ...interface{}) {
++	tr.Repr = repr
++	tr.FormatArgs = fargs
++}
++
+ // Type returns a *Type with the same memory layout as
+ // dtype when used as the type of a variable or a struct field.
+ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+@@ -789,16 +815,15 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 	t := new(Type)
+ 	t.Size = dtype.Size()
+ 	t.Align = -1
+-	t.C = dtype.Common().Name
+-	t.EnumValues = nil
++	t.C = &TypeRepr{Repr: dtype.Common().Name}
+ 	c.m[dtype] = t
+ 
+ 	if t.Size < 0 {
+ 		// Unsized types are [0]byte
+ 		t.Size = 0
+ 		t.Go = c.Opaque(0)
+-		if t.C == "" {
+-			t.C = "void"
++		if t.C.Empty() {
++			t.C.Set("void")
+ 		}
+ 		return t
+ 	}
+@@ -827,7 +852,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		sub := c.Type(dt.Type)
+ 		t.Align = sub.Align
+ 		gt.Elt = sub.Go
+-		t.C = fmt.Sprintf("typeof(%s[%d])", sub.C, dt.Count)
++		t.C.Set("typeof(%s[%d])", sub.C, dt.Count)
+ 
+ 	case *dwarf.BoolType:
+ 		t.Go = c.bool
+@@ -844,7 +869,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		if t.Align = t.Size; t.Align >= c.ptrSize {
+ 			t.Align = c.ptrSize
+ 		}
+-		t.C = "enum " + dt.EnumName
++		t.C.Set("enum " + dt.EnumName)
+ 		signed := 0
+ 		t.EnumValues = make(map[string]int64)
+ 		for _, ev := range dt.Val {
+@@ -932,7 +957,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		// Translate void* as unsafe.Pointer
+ 		if _, ok := base(dt.Type).(*dwarf.VoidType); ok {
+ 			t.Go = c.unsafePointer
+-			t.C = "void*"
++			t.C.Set("void*")
+ 			break
+ 		}
+ 
+@@ -940,7 +965,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		t.Go = gt // publish before recursive call
+ 		sub := c.Type(dt.Type)
+ 		gt.X = sub.Go
+-		t.C = sub.C + "*"
++		t.C.Set("%s*", sub.C)
+ 
+ 	case *dwarf.QualType:
+ 		// Ignore qualifier.
+@@ -955,21 +980,21 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		if tag == "" {
+ 			tag = "__" + strconv.Itoa(tagGen)
+ 			tagGen++
+-		} else if t.C == "" {
+-			t.C = dt.Kind + " " + tag
++		} else if t.C.Empty() {
++			t.C.Set(dt.Kind + " " + tag)
+ 		}
+ 		name := c.Ident("_Ctype_" + dt.Kind + "_" + tag)
+ 		t.Go = name // publish before recursive calls
+ 		switch dt.Kind {
+ 		case "union", "class":
+ 			typedef[name.Name] = c.Opaque(t.Size)
+-			if t.C == "" {
+-				t.C = fmt.Sprintf("typeof(unsigned char[%d])", t.Size)
++			if t.C.Empty() {
++				t.C.Set("typeof(unsigned char[%d])", t.Size)
+ 			}
+ 		case "struct":
+ 			g, csyntax, align := c.Struct(dt)
+-			if t.C == "" {
+-				t.C = csyntax
++			if t.C.Empty() {
++				t.C.Set(csyntax)
+ 			}
+ 			t.Align = align
+ 			typedef[name.Name] = g
+@@ -1024,7 +1049,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 
+ 	case *dwarf.VoidType:
+ 		t.Go = c.void
+-		t.C = "void"
++		t.C.Set("void")
+ 	}
+ 
+ 	switch dtype.(type) {
+@@ -1041,7 +1066,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		}
+ 	}
+ 
+-	if t.C == "" {
++	if t.C.Empty() {
+ 		fatal("internal error: did not create C name for %s", dtype)
+ 	}
+ 
+@@ -1056,11 +1081,13 @@ func (c *typeConv) FuncArg(dtype dwarf.Type) *Type {
+ 	case *dwarf.ArrayType:
+ 		// Arrays are passed implicitly as pointers in C.
+ 		// In Go, we must be explicit.
++		tr := &TypeRepr{}
++		tr.Set("%s*", t.C)
+ 		return &Type{
+ 			Size:  c.ptrSize,
+ 			Align: c.ptrSize,
+ 			Go:    &ast.StarExpr{X: t.Go},
+-			C:     t.C + "*",
++			C:     tr,
+ 		}
+ 	case *dwarf.TypedefType:
+ 		// C has much more relaxed rules than Go for
+@@ -1189,7 +1216,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
+ 
+ 		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(ident[f.Name])}, Type: t.Go}
+ 		off += t.Size
+-		buf.WriteString(t.C)
++		buf.WriteString(t.C.String())
+ 		buf.WriteString(" ")
+ 		buf.WriteString(f.Name)
+ 		buf.WriteString("; ")
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index dbf0664dce..2dc662de54 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -82,11 +82,17 @@ type ExpFunc struct {
+ 	ExpName string // name to use from C
+ }
+ 
++// A TypeRepr contains the string representation of a type.
++type TypeRepr struct {
++	Repr       string
++	FormatArgs []interface{}
++}
++
+ // A Type collects information about a type in both the C and Go worlds.
+ type Type struct {
+ 	Size       int64
+ 	Align      int64
+-	C          string
++	C          *TypeRepr
+ 	Go         ast.Expr
+ 	EnumValues map[string]int64
+ }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 4d903dbeeb..4a5fa6a73f 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -163,7 +163,7 @@ func (p *Package) structType(n *Name) (string, int64) {
+ 			off += pad
+ 		}
+ 		qual := ""
+-		if t.C[len(t.C)-1] == '*' {
++		if c := t.C.String(); c[len(c)-1] == '*' {
+ 			qual = "const "
+ 		}
+ 		fmt.Fprintf(&buf, "\t\t%s%s r;\n", qual, t.C)
+@@ -403,7 +403,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 		if fntype.Results == nil || len(fntype.Results.List) == 0 {
+ 			gccResult = "void"
+ 		} else if len(fntype.Results.List) == 1 && len(fntype.Results.List[0].Names) <= 1 {
+-			gccResult = p.cgoType(fntype.Results.List[0].Type).C
++			gccResult = p.cgoType(fntype.Results.List[0].Type).C.String()
+ 		} else {
+ 			fmt.Fprintf(fgcch, "\n/* Return type for %s */\n", exp.ExpName)
+ 			fmt.Fprintf(fgcch, "struct %s_return {\n", exp.ExpName)
+@@ -418,7 +418,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 		// Build the wrapper function compiled by gcc.
+ 		s := fmt.Sprintf("%s %s(", gccResult, exp.ExpName)
+ 		if fn.Recv != nil {
+-			s += p.cgoType(fn.Recv.List[0].Type).C
++			s += p.cgoType(fn.Recv.List[0].Type).C.String()
+ 			s += " recv"
+ 		}
+ 		forFieldList(fntype.Params,
+@@ -534,24 +534,28 @@ func forFieldList(fl *ast.FieldList, fn func(int, ast.Expr)) {
+ 	}
+ }
+ 
++func c(repr string, args ...interface{}) *TypeRepr {
++	return &TypeRepr{repr, args}
++}
++
+ // Map predeclared Go types to Type.
+ var goTypes = map[string]*Type{
+-	"int":        &Type{Size: 4, Align: 4, C: "int"},
+-	"uint":       &Type{Size: 4, Align: 4, C: "uint"},
+-	"int8":       &Type{Size: 1, Align: 1, C: "schar"},
+-	"uint8":      &Type{Size: 1, Align: 1, C: "uchar"},
+-	"int16":      &Type{Size: 2, Align: 2, C: "short"},
+-	"uint16":     &Type{Size: 2, Align: 2, C: "ushort"},
+-	"int32":      &Type{Size: 4, Align: 4, C: "int"},
+-	"uint32":     &Type{Size: 4, Align: 4, C: "uint"},
+-	"int64":      &Type{Size: 8, Align: 8, C: "int64"},
+-	"uint64":     &Type{Size: 8, Align: 8, C: "uint64"},
+-	"float":      &Type{Size: 4, Align: 4, C: "float"},
+-	"float32":    &Type{Size: 4, Align: 4, C: "float"},
+-	"float64":    &Type{Size: 8, Align: 8, C: "double"},
+-	"complex":    &Type{Size: 8, Align: 8, C: "__complex float"},
+-	"complex64":  &Type{Size: 8, Align: 8, C: "__complex float"},
+-	"complex128": &Type{Size: 16, Align: 16, C: "__complex double"},
++	"int":        &Type{Size: 4, Align: 4, C: c("int")},
++	"uint":       &Type{Size: 4, Align: 4, C: c("uint")},
++	"int8":       &Type{Size: 1, Align: 1, C: c("schar")},
++	"uint8":      &Type{Size: 1, Align: 1, C: c("uchar")},
++	"int16":      &Type{Size: 2, Align: 2, C: c("short")},
++	"uint16":     &Type{Size: 2, Align: 2, C: c("ushort")},
++	"int32":      &Type{Size: 4, Align: 4, C: c("int")},
++	"uint32":     &Type{Size: 4, Align: 4, C: c("uint")},
++	"int64":      &Type{Size: 8, Align: 8, C: c("int64")},
++	"uint64":     &Type{Size: 8, Align: 8, C: c("uint64")},
++	"float":      &Type{Size: 4, Align: 4, C: c("float")},
++	"float32":    &Type{Size: 4, Align: 4, C: c("float")},
++	"float64":    &Type{Size: 8, Align: 8, C: c("double")},
++	"complex":    &Type{Size: 8, Align: 8, C: c("__complex float")},
++	"complex64":  &Type{Size: 8, Align: 8, C: c("__complex float")},
++	"complex128": &Type{Size: 16, Align: 16, C: c("__complex double")},
+ }
+ 
+ // Map an ast type to a Type.
+@@ -559,21 +563,21 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 	switch t := e.(type) {
+ 	case *ast.StarExpr:
+ 		x := p.cgoType(t.X)
+-		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: x.C + "*"}
++		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("%s*", x.C)}
+ 	case *ast.ArrayType:
+ 		if t.Len == nil {
+-			return &Type{Size: p.PtrSize + 8, Align: p.PtrSize, C: "GoSlice"}
++			return &Type{Size: p.PtrSize + 8, Align: p.PtrSize, C: c("GoSlice")}
+ 		}
+ 	case *ast.StructType:
+ 		// TODO
+ 	case *ast.FuncType:
+-		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "void*"}
++		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
+ 	case *ast.InterfaceType:
+-		return &Type{Size: 3 * p.PtrSize, Align: p.PtrSize, C: "GoInterface"}
++		return &Type{Size: 3 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
+ 	case *ast.MapType:
+-		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "GoMap"}
++		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoMap")}
+ 	case *ast.ChanType:
+-		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "GoChan"}
++		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoChan")}
+ 	case *ast.Ident:
+ 		// Look up the type in the top level declarations.
+ 		// TODO: Handle types defined within a function.
+@@ -598,10 +602,10 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 			}
+ 		}
+ 		if t.Name == "uintptr" {
+-			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "uintptr"}
++			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("uintptr")}
+ 		}
+ 		if t.Name == "string" {
+-			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: "GoString"}
++			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: c("GoString")}
+ 		}
+ 		if r, ok := goTypes[t.Name]; ok {
+ 			if r.Align > p.PtrSize {
+@@ -612,11 +616,11 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 	case *ast.SelectorExpr:
+ 		id, ok := t.X.(*ast.Ident)
+ 		if ok && id.Name == "unsafe" && t.Sel.Name == "Pointer" {
+-			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "void*"}
++			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
+ 		}
+ 	}
+ 	error(e.Pos(), "unrecognized Go type %T", e)
+-	return &Type{Size: 4, Align: 4, C: "int"}
++	return &Type{Size: 4, Align: 4, C: c("int")}
+ }
+ 
+ const gccProlog = `

@@ -12,6 +12,19 @@ Date:   Tue Jul 30 13:47:58 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/601755
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/coverage/pkid.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/coverage/pkid.go b/src/internal/coverage/pkid.go
+index 46de9fd0ce..d2449a65ac 100644
+--- a/src/internal/coverage/pkid.go
++++ b/src/internal/coverage/pkid.go
+@@ -56,6 +56,7 @@ var rtPkgs = [...]string{
+ 	"internal/bytealg",
+ 	"internal/goexperiment",
+ 	"internal/runtime/syscall",
++	"internal/stringslite",
+ 	"runtime",
+ }
+ 

@@ -60,10 +60,165 @@ Date:   Tue Oct 18 10:26:28 2016 -0400
     Change-Id: I1899f8e35662971e24bf692b517dfbe2b533c00c
     Reviewed-on: https://go-review.googlesource.com/31572
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go |  2 +-
  src/cmd/compile/internal/gc/sinit.go |  7 +++++-
  src/cmd/compile/internal/gc/walk.go  | 44 ++++++++++++++----------------------
  test/fixedbugs/issue15747.go         |  2 +-
  test/writebarrier.go                 |  9 ++++----
  5 files changed, 30 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 6d23566782..0a273556cd 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -423,7 +423,7 @@ func ordermapassign(n *Node, order *Order) {
+ 		// We call writebarrierfat only for values > 4 pointers long. See walk.go.
+ 		// TODO(mdempsky): writebarrierfat doesn't exist anymore, but removing that
+ 		// logic causes net/http's tests to become flaky; see CL 21242.
+-		if needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr) && !isaddrokay(n.Right) {
++		if needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr) && n.Right != nil && !isaddrokay(n.Right) {
+ 			m := n.Left
+ 			n.Left = ordertemp(m.Type, order, false)
+ 			a := nod(OAS, m, n.Left)
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 620d7c4b89..61b4245062 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -750,8 +750,13 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 		switch kind {
+ 		case initKindStatic:
+ 			a = walkexpr(a, init) // add any assignments in r to top
++			if a.Op == OASWB {
++				// Static initialization never needs
++				// write barriers.
++				a.Op = OAS
++			}
+ 			if a.Op != OAS {
+-				Fatalf("fixedlit: not as")
++				Fatalf("fixedlit: not as, is %v", a)
+ 			}
+ 			a.IsStatic = true
+ 		case initKindDynamic, initKindLocalCode:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f0f4a99892..143a2b08c6 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -721,7 +721,8 @@ opswitch:
+ 			break
+ 		}
+ 
+-		if n.Right == nil || iszero(n.Right) && !instrumenting {
++		if n.Right == nil {
++			// TODO(austin): Check all "implicit zeroing"
+ 			break
+ 		}
+ 
+@@ -2255,17 +2256,20 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 		return false
+ 	}
+ 
+-	// No write barrier for implicit zeroing.
+-	if r == nil {
+-		return false
+-	}
+-
+ 	// No write barrier if this is a pointer to a go:notinheap
+ 	// type, since the write barrier's inheap(ptr) check will fail.
+ 	if l.Type.IsPtr() && l.Type.Elem().NotInHeap {
+ 		return false
+ 	}
+ 
++	// Implicit zeroing is still zeroing, so it needs write
++	// barriers. In practice, these are all to stack variables
++	// (even if isstack isn't smart enough to figure that out), so
++	// they'll be eliminated by the backend.
++	if r == nil {
++		return true
++	}
++
+ 	// Ignore no-op conversions when making decision.
+ 	// Ensures that xp = unsafe.Pointer(&x) is treated
+ 	// the same as xp = &x.
+@@ -2273,15 +2277,13 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 		r = r.Left
+ 	}
+ 
+-	// No write barrier for zeroing or initialization to constant.
+-	if iszero(r) || r.Op == OLITERAL {
+-		return false
+-	}
+-
+-	// No write barrier for storing static (read-only) data.
+-	if r.Op == ONAME && strings.HasPrefix(r.Sym.Name, "statictmp_") {
+-		return false
+-	}
++	// TODO: We can eliminate write barriers if we know *both* the
++	// current and new content of the slot must already be shaded.
++	// We know a pointer is shaded if it's nil, or points to
++	// static data, a global (variable or function), or the stack.
++	// The nil optimization could be particularly useful for
++	// writes to just-allocated objects. Unfortunately, knowing
++	// the "current" value of the slot requires flow analysis.
+ 
+ 	// No write barrier for storing address of stack values,
+ 	// which are guaranteed only to be written to the stack.
+@@ -2289,18 +2291,6 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 		return false
+ 	}
+ 
+-	// No write barrier for storing address of global, which
+-	// is live no matter what.
+-	if r.Op == OADDR && r.Left.isGlobal() {
+-		return false
+-	}
+-
+-	// No write barrier for storing global function, which is live
+-	// no matter what.
+-	if r.Op == ONAME && r.Class == PFUNC {
+-		return false
+-	}
+-
+ 	// Otherwise, be conservative and use write barrier.
+ 	return true
+ }
+diff --git a/test/fixedbugs/issue15747.go b/test/fixedbugs/issue15747.go
+index 08aa09cbd7..c0209fbf63 100644
+--- a/test/fixedbugs/issue15747.go
++++ b/test/fixedbugs/issue15747.go
+@@ -34,7 +34,7 @@ func f1(q *Q, xx []byte) interface{} { // ERROR "live at entry to f1: xx" "live
+ //go:noinline
+ func f2(d []byte, n int) (odata, res []byte, e interface{}) { // ERROR "live at entry to f2: d"
+ 	if n > len(d) {
+-		return d, nil, &T{M: "hello"} // ERROR "live at call to newobject: d"
++		return d, nil, &T{M: "hello"} // ERROR "live at call to newobject: d" "live at call to writebarrierptr: d"
+ 	}
+ 	res = d[:n]
+ 	odata = d[n:]
+diff --git a/test/writebarrier.go b/test/writebarrier.go
+index 6fb9cd7cfe..6460a6f9da 100644
+--- a/test/writebarrier.go
++++ b/test/writebarrier.go
+@@ -164,8 +164,9 @@ type T17 struct {
+ }
+ 
+ func f17(x *T17) {
+-	// See golang.org/issue/13901
+-	x.f = f17                      // no barrier
++	// Originally from golang.org/issue/13901, but the hybrid
++	// barrier requires both to have barriers.
++	x.f = f17                      // ERROR "write barrier"
+ 	x.f = func(y *T17) { *y = *x } // ERROR "write barrier"
+ }
+ 
+@@ -207,8 +208,8 @@ func f21(x *int) {
+ 	// Global -> heap pointer updates must have write barriers.
+ 	x21 = x                   // ERROR "write barrier"
+ 	y21.x = x                 // ERROR "write barrier"
+-	x21 = &z21                // no barrier
+-	y21.x = &z21              // no barrier
++	x21 = &z21                // ERROR "write barrier"
++	y21.x = &z21              // ERROR "write barrier"
+ 	y21 = struct{ x *int }{x} // ERROR "write barrier"
+ }
+ 

@@ -21,7 +21,7 @@ Date:   Tue Nov 23 13:54:02 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/366757
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        |  2 +-
  src/cmd/compile/internal/types2/call.go            | 32 +++++++++-------------
  src/cmd/compile/internal/types2/mono.go            |  6 ++--
@@ -29,3 +29,227 @@ Date:   Tue Nov 23 13:54:02 2021 -0800
  .../types2/testdata/fixedbugs/issue49179.go2       | 19 +++++++++++++
  src/cmd/compile/internal/types2/typexpr.go         | 20 +++++---------
  6 files changed, 44 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 53d834507a..fcf02a6975 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -129,7 +129,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			arg(&x, i)
+ 			xlist = append(xlist, &x)
+ 		}
+-		check.arguments(call, sig, nil, xlist) // discard result (we know the result type)
++		check.arguments(call, sig, nil, xlist, nil) // discard result (we know the result type)
+ 		// ok to continue even if check.arguments reported errors
+ 
+ 		x.mode = value
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 91e2a8f783..ed8b67c607 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -50,14 +50,8 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
+ 	}
+ 	assert(got == want)
+ 
+-	// determine argument positions (for error reporting)
+-	poslist := make([]syntax.Pos, len(xlist))
+-	for i, x := range xlist {
+-		poslist[i] = syntax.StartPos(x)
+-	}
+-
+ 	// instantiate function signature
+-	res := check.instantiateSignature(x.Pos(), sig, targs, poslist)
++	res := check.instantiateSignature(x.Pos(), sig, targs, xlist)
+ 	assert(res.TypeParams().Len() == 0) // signature is not generic anymore
+ 	check.recordInstance(inst.X, targs, res)
+ 	x.typ = res
+@@ -65,7 +59,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
+ 	x.expr = inst
+ }
+ 
+-func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs []Type, posList []syntax.Pos) (res *Signature) {
++func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs []Type, xlist []syntax.Expr) (res *Signature) {
+ 	assert(check != nil)
+ 	assert(len(targs) == typ.TypeParams().Len())
+ 
+@@ -79,17 +73,17 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
+ 	}
+ 
+ 	inst := check.instance(pos, typ, targs, check.bestContext(nil)).(*Signature)
+-	assert(len(posList) <= len(targs))
++	assert(len(xlist) <= len(targs))
+ 	tparams := typ.TypeParams().list()
+ 	if i, err := check.verify(pos, tparams, targs); err != nil {
+ 		// best position for error reporting
+ 		pos := pos
+-		if i < len(posList) {
+-			pos = posList[i]
++		if i < len(xlist) {
++			pos = syntax.StartPos(xlist[i])
+ 		}
+-		check.softErrorf(pos, err.Error())
++		check.softErrorf(pos, "%s", err)
+ 	} else {
+-		check.mono.recordInstance(check.pkg, pos, tparams, targs, posList)
++		check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
+ 	}
+ 
+ 	return inst
+@@ -179,9 +173,10 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	}
+ 
+ 	// evaluate type arguments, if any
++	var xlist []syntax.Expr
+ 	var targs []Type
+ 	if inst != nil {
+-		xlist := unpackExpr(inst.Index)
++		xlist = unpackExpr(inst.Index)
+ 		targs = check.typeList(xlist)
+ 		if targs == nil {
+ 			check.use(call.ArgList...)
+@@ -205,7 +200,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	// evaluate arguments
+ 	args, _ := check.exprList(call.ArgList, false)
+ 	isGeneric := sig.TypeParams().Len() > 0
+-	sig = check.arguments(call, sig, targs, args)
++	sig = check.arguments(call, sig, targs, args, xlist)
+ 
+ 	if isGeneric && sig.TypeParams().Len() == 0 {
+ 		// update the recorded type of call.Fun to its instantiated type
+@@ -279,7 +274,8 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
+ 	return
+ }
+ 
+-func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, args []*operand) (rsig *Signature) {
++// xlist is the list of type argument expressions supplied in the source code.
++func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, args []*operand, xlist []syntax.Expr) (rsig *Signature) {
+ 	rsig = sig
+ 
+ 	// TODO(gri) try to eliminate this extra verification loop
+@@ -381,15 +377,13 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 				check.versionErrorf(call.Pos(), "go1.18", "implicit function instantiation")
+ 			}
+ 		}
+-		// TODO(gri) provide position information for targs so we can feed
+-		//           it to the instantiate call for better error reporting
+ 		targs := check.infer(call.Pos(), sig.TypeParams().list(), targs, sigParams, args)
+ 		if targs == nil {
+ 			return // error already reported
+ 		}
+ 
+ 		// compute result signature
+-		rsig = check.instantiateSignature(call.Pos(), sig, targs, nil)
++		rsig = check.instantiateSignature(call.Pos(), sig, targs, xlist)
+ 		assert(rsig.TypeParams().Len() == 0) // signature is not generic anymore
+ 		check.recordInstance(call.Fun, targs, rsig)
+ 
+diff --git a/src/cmd/compile/internal/types2/mono.go b/src/cmd/compile/internal/types2/mono.go
+index 39c4d4fbef..7bd79f4282 100644
+--- a/src/cmd/compile/internal/types2/mono.go
++++ b/src/cmd/compile/internal/types2/mono.go
+@@ -168,11 +168,11 @@ func (w *monoGraph) recordCanon(mpar, tpar *TypeParam) {
+ 
+ // recordInstance records that the given type parameters were
+ // instantiated with the corresponding type arguments.
+-func (w *monoGraph) recordInstance(pkg *Package, pos syntax.Pos, tparams []*TypeParam, targs []Type, posList []syntax.Pos) {
++func (w *monoGraph) recordInstance(pkg *Package, pos syntax.Pos, tparams []*TypeParam, targs []Type, xlist []syntax.Expr) {
+ 	for i, tpar := range tparams {
+ 		pos := pos
+-		if i < len(posList) {
+-			pos = posList[i]
++		if i < len(xlist) {
++			pos = syntax.StartPos(xlist[i])
+ 		}
+ 		w.assign(pkg, pos, tpar, targs[i])
+ 	}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39754.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39754.go2
+index a88f4cf2f1..9edd239d7d 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39754.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39754.go2
+@@ -17,7 +17,5 @@ func f[V interface{}, A, B Box[V]]() {}
+ func _() {
+ 	f[int, Optional[int], Optional[int]]()
+ 	_ = f[int, Optional[int], Optional /* ERROR does not implement Box */ [string]]
+-	// TODO(gri) Provide better position information here.
+-	//           See TODO in call.go, Checker.arguments.
+-	f[int, Optional[int], Optional[string]]( /* ERROR does not implement Box */ )
++	_ = f[int, Optional[int], Optional /* ERROR Optional.* does not implement Box.* */ [string]]
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49179.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49179.go2
+new file mode 100644
+index 0000000000..7cba52aa25
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49179.go2
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type SliceConstraint[T any] interface {
++	[]T
++}
++
++func Map[S SliceConstraint[E], E any](s S, f func(E) E) S {
++	return s
++}
++
++type MySlice []int
++
++func f(s MySlice) {
++	Map[MySlice /* ERROR MySlice does not implement SliceConstraint\[int\] */, int](s, nil)
++}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 862a31544a..56a7dcd203 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -402,9 +402,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 	return typ
+ }
+ 
+-func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def *Named) (res Type) {
++func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *Named) (res Type) {
+ 	if check.conf.Trace {
+-		check.trace(x.Pos(), "-- instantiating %s with %s", x, targsx)
++		check.trace(x.Pos(), "-- instantiating %s with %s", x, xlist)
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+@@ -424,18 +424,12 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 	}
+ 
+ 	// evaluate arguments
+-	targs := check.typeList(targsx)
++	targs := check.typeList(xlist)
+ 	if targs == nil {
+ 		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
+ 		return Typ[Invalid]
+ 	}
+ 
+-	// determine argument positions
+-	posList := make([]syntax.Pos, len(targs))
+-	for i, arg := range targsx {
+-		posList[i] = arg.Pos()
+-	}
+-
+ 	// create the instance
+ 	ctxt := check.bestContext(nil)
+ 	h := ctxt.instanceHash(orig, targs)
+@@ -484,12 +478,12 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 			if i, err := check.verify(x.Pos(), inst.tparams.list(), inst.targs.list()); err != nil {
+ 				// best position for error reporting
+ 				pos := x.Pos()
+-				if i < len(posList) {
+-					pos = posList[i]
++				if i < len(xlist) {
++					pos = syntax.StartPos(xlist[i])
+ 				}
+-				check.softErrorf(pos, err.Error())
++				check.softErrorf(pos, "%s", err)
+ 			} else {
+-				check.mono.recordInstance(check.pkg, x.Pos(), inst.tparams.list(), inst.targs.list(), posList)
++				check.mono.recordInstance(check.pkg, x.Pos(), inst.tparams.list(), inst.targs.list(), xlist)
+ 			}
+ 		}
+ 

@@ -11,6 +11,20 @@ Date:   Wed Aug 9 23:00:39 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/54570
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 8c16e873f6..b0f8806984 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -732,7 +732,7 @@ func skip(value, prefix string) (string, error) {
+ }
+ 
+ // Parse parses a formatted string and returns the time value it represents.
+-// The layout  defines the format by showing how the reference time,
++// The layout defines the format by showing how the reference time,
+ // defined to be
+ //	Mon Jan 2 15:04:05 -0700 MST 2006
+ // would be interpreted if it were the value; it serves as an example of

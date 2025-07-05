@@ -10,6 +10,27 @@ Date:   Sun Jun 20 22:17:19 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index ad3cc25fd0..4fc9e7a777 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -741,8 +741,13 @@ func (r *reader) funcExt(name *ir.Name) {
+ 		fn.SetPos(name.Pos())
+ 	}
+ 
+-	// TODO(mdempsky): Remember why I wrote this code. I think it has to
+-	// do with how ir.VisitFuncsBottomUp works?
++	// Normally, we only compile local functions, which saves redundant compilation work.
++	// n.Defn is not nil for local functions, and is nil for imported function. But for
++	// generic functions, we might have an instantiation that no other package has seen before.
++	// So we need to be conservative and compile it again.
++	//
++	// That's why name.Defn is set here, so ir.VisitFuncsBottomUp can analyze function.
++	// TODO(mdempsky,cuonglm): find a cleaner way to handle this.
+ 	if name.Sym().Pkg == types.LocalPkg || r.hasTypeParams() {
+ 		name.Defn = fn
+ 	}

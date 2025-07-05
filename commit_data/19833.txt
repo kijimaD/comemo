@@ -19,8 +19,111 @@ Date:   Tue Jul 29 16:48:11 2014 +0900
     R=dvyukov, golang-codereviews, adg, dave, iant, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/120820043
-
+---
  src/pkg/net/fd_unix.go    | 18 ++++++++++++++----
  src/pkg/net/fd_windows.go |  9 ++++++++-
  src/pkg/net/sock_posix.go | 22 ++++++++--------------
  3 files changed, 30 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index b82ecd11c1..e22861abbd 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -68,16 +68,19 @@ func (fd *netFD) name() string {
+ 	return fd.net + ":" + ls + "->" + rs
+ }
+ 
+-func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
++func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 	// Do not need to call fd.writeLock here,
+ 	// because fd is not yet accessible to user,
+ 	// so no concurrent operations are possible.
+-	if err := fd.pd.PrepareWrite(); err != nil {
+-		return err
+-	}
+ 	switch err := syscall.Connect(fd.sysfd, ra); err {
+ 	case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
+ 	case nil, syscall.EISCONN:
++		if !deadline.IsZero() && deadline.Before(time.Now()) {
++			return errTimeout
++		}
++		if err := fd.init(); err != nil {
++			return err
++		}
+ 		return nil
+ 	case syscall.EINVAL:
+ 		// On Solaris we can see EINVAL if the socket has
+@@ -92,6 +95,13 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
+ 	default:
+ 		return err
+ 	}
++	if err := fd.init(); err != nil {
++		return err
++	}
++	if !deadline.IsZero() {
++		fd.setWriteDeadline(deadline)
++		defer fd.setWriteDeadline(noDeadline)
++	}
+ 	for {
+ 		// Performing multiple connect system calls on a
+ 		// non-blocking socket under Unix variants does not
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index a1f6bc5f81..d1129dccc4 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -313,10 +313,17 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
+ 	runtime.SetFinalizer(fd, (*netFD).Close)
+ }
+ 
+-func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
++func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 	// Do not need to call fd.writeLock here,
+ 	// because fd is not yet accessible to user,
+ 	// so no concurrent operations are possible.
++	if err := fd.init(); err != nil {
++		return err
++	}
++	if !deadline.IsZero() {
++		fd.setWriteDeadline(deadline)
++		defer fd.setWriteDeadline(noDeadline)
++	}
+ 	if !canUseConnectEx(fd.net) {
+ 		return syscall.Connect(fd.sysfd, ra)
+ 	}
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index a6ef874c9f..c80c7d6a2f 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -107,24 +107,18 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(sys
+ 			}
+ 		}
+ 	}
+-	if err := fd.init(); err != nil {
+-		return err
+-	}
+ 	var rsa syscall.Sockaddr
+ 	if raddr != nil {
+ 		if rsa, err = raddr.sockaddr(fd.family); err != nil {
+ 			return err
+-		} else if rsa != nil {
+-			if !deadline.IsZero() {
+-				fd.setWriteDeadline(deadline)
+-			}
+-			if err := fd.connect(lsa, rsa); err != nil {
+-				return err
+-			}
+-			fd.isConnected = true
+-			if !deadline.IsZero() {
+-				fd.setWriteDeadline(noDeadline)
+-			}
++		}
++		if err := fd.connect(lsa, rsa, deadline); err != nil {
++			return err
++		}
++		fd.isConnected = true
++	} else {
++		if err := fd.init(); err != nil {
++			return err
+ 		}
+ 	}
+ 	lsa, _ = syscall.Getsockname(fd.sysfd)

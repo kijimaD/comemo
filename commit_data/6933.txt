@@ -9,7 +9,36 @@ Date:   Mon Dec 13 13:42:51 2010 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3575042
-
+---
  src/cmd/gc/const.c | 2 +-
  test/const3.go     | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index a3405e078c..5a7c548942 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -101,7 +101,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 		break;
+ 	case OLSH:
+ 	case ORSH:
+-		convlit1(&n->left, t, explicit);
++		convlit1(&n->left, t, explicit && isideal(n->left->type));
+ 		t = n->left->type;
+ 		if(t != T && !isint[t->etype]) {
+ 			yyerror("invalid operation: %#N (shift of type %T)", n, t);
+diff --git a/test/const3.go b/test/const3.go
+index dd5c88958d..9bba6ced0b 100644
+--- a/test/const3.go
++++ b/test/const3.go
+@@ -26,4 +26,10 @@ func main() {
+ 		println("type info didn't propagate in const: got", s)
+ 		panic("fail")
+ 	}
++	x := uint(5)
++	y := float64(uint64(1)<<x)	// used to fail to compile
++	if y != 32 {
++		println("wrong y", y)
++		panic("fail")
++	}
+ }

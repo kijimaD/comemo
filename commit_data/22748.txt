@@ -18,7 +18,285 @@ Date:   Wed Jan 7 12:44:28 2015 +0900
     Change-Id: I2936ea65c1446994770cf2ee2c28a1c73faaa0ca
     Reviewed-on: https://go-review.googlesource.com/2431
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go      |  85 ++++++++++++++++++++++++++++++++------
  src/net/url/url_test.go | 106 +++++++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 178 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 0ad68ccc2b..917dcb0bf9 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -51,6 +51,7 @@ type encoding int
+ 
+ const (
+ 	encodePath encoding = 1 + iota
++	encodeHost
+ 	encodeUserPassword
+ 	encodeQueryComponent
+ 	encodeFragment
+@@ -64,6 +65,9 @@ func (e EscapeError) Error() string {
+ 
+ // Return true if the specified character should be escaped when
+ // appearing in a URL string, according to RFC 3986.
++//
++// Please be informed that for now shouldEscape does not check all
++// reserved characters correctly. See golang.org/issue/5684.
+ func shouldEscape(c byte, mode encoding) bool {
+ 	// §2.3 Unreserved characters (alphanum)
+ 	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
+@@ -92,6 +96,10 @@ func shouldEscape(c byte, mode encoding) bool {
+ 			// that too.
+ 			return c == '@' || c == '/' || c == '?' || c == ':'
+ 
++		case encodeHost: // §3.2.1
++			// The RFC allows ':'.
++			return c != ':'
++
+ 		case encodeQueryComponent: // §3.4
+ 			// The RFC reserves (so we must escape) everything.
+ 			return true
+@@ -101,6 +109,13 @@ func shouldEscape(c byte, mode encoding) bool {
+ 			// everything, so escape nothing.
+ 			return false
+ 		}
++
++	case '[', ']': // §2.2 Reserved characters (reserved)
++		switch mode {
++		case encodeHost: // §3.2.1
++			// The RFC allows '[', ']'.
++			return false
++		}
+ 	}
+ 
+ 	// Everything else must be escaped.
+@@ -401,10 +416,6 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
+ 		if err != nil {
+ 			goto Error
+ 		}
+-		if strings.Contains(url.Host, "%") {
+-			err = errors.New("hexadecimal escape in host")
+-			goto Error
+-		}
+ 	}
+ 	if url.Path, err = unescape(rest, encodePath); err != nil {
+ 		goto Error
+@@ -418,26 +429,76 @@ Error:
+ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+ 	i := strings.LastIndex(authority, "@")
+ 	if i < 0 {
+-		host = authority
+-		return
++		host, err = parseHost(authority)
++	} else {
++		host, err = parseHost(authority[i+1:])
+ 	}
+-	userinfo, host := authority[:i], authority[i+1:]
++	if err != nil {
++		return nil, "", err
++	}
++	if i < 0 {
++		return nil, host, nil
++	}
++	userinfo := authority[:i]
+ 	if strings.Index(userinfo, ":") < 0 {
+ 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
+-			return
++			return nil, "", err
+ 		}
+ 		user = User(userinfo)
+ 	} else {
+ 		username, password := split(userinfo, ":", true)
+ 		if username, err = unescape(username, encodeUserPassword); err != nil {
+-			return
++			return nil, "", err
+ 		}
+ 		if password, err = unescape(password, encodeUserPassword); err != nil {
+-			return
++			return nil, "", err
+ 		}
+ 		user = UserPassword(username, password)
+ 	}
+-	return
++	return user, host, nil
++}
++
++// parseHost parses host as an authority without user information.
++func parseHost(host string) (string, error) {
++	litOrName := host
++	if strings.HasPrefix(host, "[") {
++		// Parse an IP-Literal in RFC 3986 and RFC 6874.
++		// E.g., "[fe80::1], "[fe80::1%25en0]"
++		//
++		// RFC 4007 defines "%" as a delimiter character in
++		// the textual representation of IPv6 addresses.
++		// Per RFC 6874, in URIs that "%" is encoded as "%25".
++		i := strings.LastIndex(host[1:], "]")
++		if i < 0 {
++			return "", errors.New("missing ']' in host")
++		}
++		// Parse a host subcomponent without a ZoneID in RFC
++		// 6874 because the ZoneID is allowed to use the
++		// percent encoded form.
++		j := strings.Index(host[1:1+i], "%25")
++		if j < 0 {
++			litOrName = host[1 : 1+i]
++		} else {
++			litOrName = host[1 : 1+j]
++		}
++	}
++	// A URI containing an IP-Literal without a ZoneID or
++	// IPv4address in RFC 3986 and RFC 6847 must not be
++	// percent-encoded.
++	//
++	// A URI containing a DNS registered name in RFC 3986 is
++	// allowed to be percent-encoded, though we don't use it for
++	// now to avoid messing up with the gap between allowed
++	// characters in URI and allowed characters in DNS.
++	// See golang.org/issue/7991.
++	if strings.Contains(litOrName, "%") {
++		return "", errors.New("percent-encoded characters in host")
++	}
++	var err error
++	if host, err = unescape(host, encodeHost); err != nil {
++		return "", err
++	}
++	return host, nil
+ }
+ 
+ // String reassembles the URL into a valid URL string.
+@@ -475,7 +536,7 @@ func (u *URL) String() string {
+ 				buf.WriteByte('@')
+ 			}
+ 			if h := u.Host; h != "" {
+-				buf.WriteString(h)
++				buf.WriteString(escape(h, encodeHost))
+ 			}
+ 		}
+ 		if u.Path != "" && u.Path[0] != '/' && u.Host != "" {
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index d8b19d805d..a2a8fe0702 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -289,6 +289,86 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
++	// host subcomponent; IPv4 address in RFC 3986
++	{
++		"http://192.168.0.1/",
++		&URL{
++			Scheme: "http",
++			Host:   "192.168.0.1",
++			Path:   "/",
++		},
++		"",
++	},
++	// host and port subcomponents; IPv4 address in RFC 3986
++	{
++		"http://192.168.0.1:8080/",
++		&URL{
++			Scheme: "http",
++			Host:   "192.168.0.1:8080",
++			Path:   "/",
++		},
++		"",
++	},
++	// host subcomponent; IPv6 address in RFC 3986
++	{
++		"http://[fe80::1]/",
++		&URL{
++			Scheme: "http",
++			Host:   "[fe80::1]",
++			Path:   "/",
++		},
++		"",
++	},
++	// host and port subcomponents; IPv6 address in RFC 3986
++	{
++		"http://[fe80::1]:8080/",
++		&URL{
++			Scheme: "http",
++			Host:   "[fe80::1]:8080",
++			Path:   "/",
++		},
++		"",
++	},
++	// host subcomponent; IPv6 address with zone identifier in RFC 6847
++	{
++		"http://[fe80::1%25en0]/", // alphanum zone identifier
++		&URL{
++			Scheme: "http",
++			Host:   "[fe80::1%en0]",
++			Path:   "/",
++		},
++		"",
++	},
++	// host and port subcomponents; IPv6 address with zone identifier in RFC 6847
++	{
++		"http://[fe80::1%25en0]:8080/", // alphanum zone identifier
++		&URL{
++			Scheme: "http",
++			Host:   "[fe80::1%en0]:8080",
++			Path:   "/",
++		},
++		"",
++	},
++	// host subcomponent; IPv6 address with zone identifier in RFC 6847
++	{
++		"http://[fe80::1%25%65%6e%301-._~]/", // percent-encoded+unreserved zone identifier
++		&URL{
++			Scheme: "http",
++			Host:   "[fe80::1%en01-._~]",
++			Path:   "/",
++		},
++		"http://[fe80::1%25en01-._~]/",
++	},
++	// host and port subcomponents; IPv6 address with zone identifier in RFC 6847
++	{
++		"http://[fe80::1%25%65%6e%301-._~]:8080/", // percent-encoded+unreserved zone identifier
++		&URL{
++			Scheme: "http",
++			Host:   "[fe80::1%en01-._~]:8080",
++			Path:   "/",
++		},
++		"http://[fe80::1%25en01-._~]:8080/",
++	},
+ }
+ 
+ // more useful string for debugging than fmt's struct printer
+@@ -358,9 +438,33 @@ var parseRequestURLTests = []struct {
+ 	{"/", true},
+ 	{pathThatLooksSchemeRelative, true},
+ 	{"//not.a.user@%66%6f%6f.com/just/a/path/also", true},
++	{"*", true},
++	{"http://192.168.0.1/", true},
++	{"http://192.168.0.1:8080/", true},
++	{"http://[fe80::1]/", true},
++	{"http://[fe80::1]:8080/", true},
++
++	// Tests exercising RFC 6874 compliance:
++	{"http://[fe80::1%25en0]/", true},                 // with alphanum zone identifier
++	{"http://[fe80::1%25en0]:8080/", true},            // with alphanum zone identifier
++	{"http://[fe80::1%25%65%6e%301-._~]/", true},      // with percent-encoded+unreserved zone identifier
++	{"http://[fe80::1%25%65%6e%301-._~]:8080/", true}, // with percent-encoded+unreserved zone identifier
++
+ 	{"foo.html", false},
+ 	{"../dir/", false},
+-	{"*", true},
++	{"http://192.168.0.%31/", false},
++	{"http://192.168.0.%31:8080/", false},
++	{"http://[fe80::%31]/", false},
++	{"http://[fe80::%31]:8080/", false},
++	{"http://[fe80::%31%25en0]/", false},
++	{"http://[fe80::%31%25en0]:8080/", false},
++
++	// These two cases are valid as textual representations as
++	// described in RFC 4007, but are not valid as address
++	// literals with IPv6 zone identifiers in URIs as described in
++	// RFC 6874.
++	{"http://[fe80::1%en0]/", false},
++	{"http://[fe80::1%en0]:8080/", false},
+ }
+ 
+ func TestParseRequestURI(t *testing.T) {

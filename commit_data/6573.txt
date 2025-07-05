@@ -9,6 +9,24 @@ Date:   Wed Oct 20 15:54:17 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2612041
-
+---
  src/pkg/runtime/chan.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 436f8b1401..d01159923f 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -620,6 +620,12 @@ selunlock(Select *sel)
+ }
+ 
+ // selectgo(sel *byte);
++//
++// overwrites return pc on stack to signal which case of the select
++// to run, so cannot appear at the top of a split stack.
++// frame has 6 pointers and 4 int32 so 64 bytes max.
++// that's less than StackGuard-StackSmall, so okay.
++#pragma textflag 7
+ void
+ ·selectgo(Select *sel)
+ {

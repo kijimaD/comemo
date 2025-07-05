@@ -7,7 +7,7 @@ Date:   Thu Dec 16 12:18:18 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3702041
-
+---
  src/pkg/os/env_windows.go               | 15 +++++++++
  src/pkg/runtime/runtime.c               |  4 +++
  src/pkg/runtime/runtime.h               |  2 --
@@ -18,3 +18,422 @@ Date:   Thu Dec 16 12:18:18 2010 +1100
  src/pkg/syscall/syscall_windows.go      | 49 +++++++++++++++--------------
  src/pkg/syscall/zsyscall_windows_386.go | 40 +++++++++++++++++++++++
  9 files changed, 94 insertions(+), 123 deletions(-)
+
+diff --git a/src/pkg/os/env_windows.go b/src/pkg/os/env_windows.go
+index 6908a9ca85..ad50610ee6 100644
+--- a/src/pkg/os/env_windows.go
++++ b/src/pkg/os/env_windows.go
+@@ -111,3 +111,18 @@ func TempDir() string {
+ 	}
+ 	return string(utf16.Decode(dirw[0:n]))
+ }
++
++func init() {
++	var argc int32
++	Envs = Environ()
++	cmd := syscall.GetCommandLine()
++	argv, e := syscall.CommandLineToArgv(cmd, &argc)
++	if e != 0 {
++		return
++	}
++	defer syscall.LocalFree(uint32(uintptr(unsafe.Pointer(argv))))
++	Args = make([]string, argc)
++	for i, v := range (*argv)[:argc] {
++		Args[i] = string(syscall.UTF16ToString((*v)[:]))
++	}
++}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index ad5e97f497..dbdc0f2ac6 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -156,6 +156,10 @@ runtime·goargs(void)
+ 	String *genvv;
+ 	int32 i, envc;
+ 	
++	// for windows implementation see "os" package
++	if(Windows)
++		return;
++
+ 	if(runtime·isplan9)
+ 		envc=0;
+ 	else
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index a0b03545e6..e53855e3ca 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -370,7 +370,6 @@ extern	bool	runtime·iscgo;
+  */
+ int32	runtime·strcmp(byte*, byte*);
+ int32	runtime·findnull(byte*);
+-int32	runtime·findnullw(uint16*);
+ void	runtime·dump(byte*, int32);
+ int32	runtime·runetochar(byte*, int32);
+ int32	runtime·charntorune(int32*, uint8*, int32);
+@@ -400,7 +399,6 @@ String	runtime·catstring(String, String);
+ String	runtime·gostring(byte*);
+ String  runtime·gostringn(byte*, int32);
+ String	runtime·gostringnocopy(byte*);
+-String	runtime·gostringw(uint16*);
+ void	runtime·initsig(int32);
+ int32	runtime·gotraceback(void);
+ void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 916559eb2d..6752f31ccb 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -20,18 +20,6 @@ runtime·findnull(byte *s)
+ 	return l;
+ }
+ 
+-int32
+-runtime·findnullw(uint16 *s)
+-{
+-	int32 l;
+-
+-	if(s == nil)
+-		return 0;
+-	for(l=0; s[l]!=0; l++)
+-		;
+-	return l;
+-}
+-
+ int32 runtime·maxstring = 256;
+ 
+ String
+@@ -80,24 +68,6 @@ runtime·gostringnocopy(byte *str)
+ 	return s;
+ }
+ 
+-String
+-runtime·gostringw(uint16 *str)
+-{
+-	int32 n, i;
+-	byte buf[8];
+-	String s;
+-
+-	n = 0;
+-	for(i=0; str[i]; i++)
+-		n += runtime·runetochar(buf, str[i]);
+-	s = runtime·gostringsize(n+4);
+-	n = 0;
+-	for(i=0; str[i]; i++)
+-		n += runtime·runetochar(s.str+n, str[i]);
+-	s.len = n;
+-	return s;
+-}
+-
+ String
+ runtime·catstring(String s1, String s2)
+ {
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/windows/os.h
+index 3e071ea6b4..77d0d32a0c 100644
+--- a/src/pkg/runtime/windows/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -6,9 +6,6 @@ extern void *runtime·LoadLibraryEx;
+ extern void *runtime·GetProcAddress;
+ extern void *runtime·GetLastError;
+ 
+-#define runtime·goargs runtime·windows_goargs
+-void runtime·windows_goargs(void);
+-
+ // Get start address of symbol data in memory.
+ void *runtime·get_symdat_addr(void);
+ 
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 5623efdae5..00cd0e8bdc 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -28,12 +28,10 @@ extern void *runtime·SetLastError;
+ 
+ #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
+ #pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
+-#pragma dynimport runtime·GetModuleHandle GetModuleHandleA "kernel32.dll"
+ #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
+ 
+ extern void *runtime·CreateEvent;
+ extern void *runtime·CreateThread;
+-extern void *runtime·GetModuleHandle;
+ extern void *runtime·WaitForSingleObject;
+ 
+ void
+@@ -41,60 +39,6 @@ runtime·osinit(void)
+ {
+ }
+ 
+-#pragma dynimport runtime·GetCommandLine GetCommandLineW  "kernel32.dll"
+-#pragma dynimport runtime·CommandLineToArgv CommandLineToArgvW  "shell32.dll"
+-#pragma dynimport runtime·GetEnvironmentStrings GetEnvironmentStringsW  "kernel32.dll"
+-#pragma dynimport runtime·FreeEnvironmentStrings FreeEnvironmentStringsW  "kernel32.dll"
+-#pragma dynimport runtime·LocalFree LocalFree "kernel32.dll"
+-
+-extern void *runtime·GetCommandLine;
+-extern void *runtime·CommandLineToArgv;
+-extern void *runtime·GetEnvironmentStrings;
+-extern void *runtime·FreeEnvironmentStrings;
+-extern void *runtime·LocalFree;
+-
+-void
+-runtime·windows_goargs(void)
+-{
+-	extern Slice os·Args;
+-	extern Slice os·Envs;
+-
+-	uint16 *cmd, *env, **argv;
+-	String *gargv;
+-	String *genvv;
+-	int32 i, argc, envc;
+-	uint16 *envp;
+-
+-	cmd = runtime·stdcall(runtime·GetCommandLine, 0);
+-	env = runtime·stdcall(runtime·GetEnvironmentStrings, 0);
+-	argv = runtime·stdcall(runtime·CommandLineToArgv, 2, cmd, &argc);
+-
+-	envc = 0;
+-	for(envp=env; *envp; envc++)
+-		envp += runtime·findnullw(envp)+1;
+-
+-	gargv = runtime·malloc(argc*sizeof gargv[0]);
+-	genvv = runtime·malloc(envc*sizeof genvv[0]);
+-
+-	for(i=0; i<argc; i++)
+-		gargv[i] = runtime·gostringw(argv[i]);
+-	os·Args.array = (byte*)gargv;
+-	os·Args.len = argc;
+-	os·Args.cap = argc;
+-
+-	envp = env;
+-	for(i=0; i<envc; i++) {
+-		genvv[i] = runtime·gostringw(envp);
+-		envp += runtime·findnullw(envp)+1;
+-	}
+-	os·Envs.array = (byte*)genvv;
+-	os·Envs.len = envc;
+-	os·Envs.cap = envc;
+-
+-	runtime·stdcall(runtime·LocalFree, 1, argv);
+-	runtime·stdcall(runtime·FreeEnvironmentStrings, 1, env);
+-}
+-
+ void
+ runtime·exit(int32 code)
+ {
+diff --git a/src/pkg/syscall/mksyscall_windows.sh b/src/pkg/syscall/mksyscall_windows.sh
+index 769c707672..9695d3f22c 100755
+--- a/src/pkg/syscall/mksyscall_windows.sh
++++ b/src/pkg/syscall/mksyscall_windows.sh
+@@ -15,13 +15,13 @@
+ #	* If go func name needs to be different from it's winapi dll name,
+ #	  the winapi name could be specified at the end, after "=" sign, like
+ #	  //sys LoadLibrary(libname string) (handle uint32, errno int) = LoadLibraryA
+-#	* Each function, that returns errno, needs to supply a number,
++#	* Each function, that returns errno, needs to supply a condition,
+ #	  that return value of winapi will be tested against to
+ #	  detect failure. This would set errno to windows "last-error",
+ #	  otherwise it will be 0. The value can be provided
+ #	  at end of //sys declaration, like
+-#	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval=-1] = LoadLibraryA
+-#	  and is 0 by default.
++#	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval==-1] = LoadLibraryA
++#	  and is [failretval==0] by default.
+ 
+ $cmdline = "mksyscall_windows.sh " . join(' ', @ARGV);
+ $errors = 0;
+@@ -74,12 +74,12 @@ while(<>) {
+ 	# Line must be of the form
+ 	#	func Open(path string, mode int, perm int) (fd int, errno int)
+ 	# Split into name, in params, out params.
+-	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval=(.*)\])?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$/) {
++	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval(.*)\])?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$/) {
+ 		print STDERR "$ARGV:$.: malformed //sys declaration\n";
+ 		$errors = 1;
+ 		next;
+ 	}
+-	my ($func, $in, $out, $failretval, $modname, $sysname) = ($1, $2, $3, $4, $5, $6);
++	my ($func, $in, $out, $failcond, $modname, $sysname) = ($1, $2, $3, $4, $5, $6);
+ 
+ 	# Split argument lists on comma.
+ 	my @in = parseparamlist($in);
+@@ -104,8 +104,8 @@ while(<>) {
+ 	$sysvarname = "proc$sysname";
+ 
+ 	# Returned value when failed
+-	if($failretval eq "") {
+-		$failretval = "0";
++	if($failcond eq "") {
++		$failcond = "==0";
+ 	}
+ 
+ 	# Decide which version of api is used: ascii or unicode.
+@@ -226,9 +226,9 @@ while(<>) {
+ 				$failexpr = "!$name";
+ 			} elsif($name eq "errno") {
+ 				$ret[$i] = "r1";
+-				$failexpr = "int(r1) == $failretval";
++				$failexpr = "int(r1) $failcond";
+ 			} else {
+-				$failexpr = "$name == $failretval";
++				$failexpr = "$name $failcond";
+ 			}
+ 		}
+ 		if($name eq "errno") {
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 38bd063b0a..b425337bf5 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -103,13 +103,13 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	GetVersion() (ver uint32, errno int)
+ //sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
+ //sys	ExitProcess(exitcode uint32)
+-//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) [failretval=-1] = CreateFileW
++//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) [failretval==-1] = CreateFileW
+ //sys	ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
+ //sys	WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
+-//sys	SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval=0xffffffff]
++//sys	SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval==0xffffffff]
+ //sys	CloseHandle(handle int32) (ok bool, errno int)
+-//sys	GetStdHandle(stdhandle int32) (handle int32, errno int) [failretval=-1]
+-//sys	FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) [failretval=-1] = FindFirstFileW
++//sys	GetStdHandle(stdhandle int32) (handle int32, errno int) [failretval==-1]
++//sys	FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) [failretval==-1] = FindFirstFileW
+ //sys	FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) = FindNextFileW
+ //sys	FindClose(handle int32) (ok bool, errno int)
+ //sys	GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok bool, errno int)
+@@ -123,14 +123,14 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	SetEndOfFile(handle int32) (ok bool, errno int)
+ //sys	GetSystemTimeAsFileTime(time *Filetime)
+ //sys	sleep(msec uint32) = Sleep
+-//sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval=0xffffffff]
++//sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval==0xffffffff]
+ //sys	CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int)
+ //sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int)
+ //sys	CreateProcess(appName *int16, commandLine *uint16, procSecurity *int16, threadSecurity *int16, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation)  (ok bool, errno int) = CreateProcessW
+ //sys	GetStartupInfo(startupInfo *StartupInfo)  (ok bool, errno int) = GetStartupInfoW
+ //sys	GetCurrentProcess() (pseudoHandle int32, errno int)
+ //sys	DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetProcessHandle int32, lpTargetHandle *int32, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (ok bool, errno int)
+-//sys	WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, errno int) [failretval=0xffffffff]
++//sys	WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, errno int) [failretval==0xffffffff]
+ //sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) = GetTempPathW
+ //sys	CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int)
+ //sys	GetFileType(filehandle uint32) (n uint32, errno int)
+@@ -139,12 +139,15 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) = advapi32.CryptGenRandom
+ //sys OpenProcess(da uint32,b int, pid uint32) (handle uint32, errno int)
+ //sys GetExitCodeProcess(h uint32, c *uint32) (ok bool, errno int)
+-//sys	GetEnvironmentStrings() (envs *uint16, errno int) [failretval=nil] = kernel32.GetEnvironmentStringsW
++//sys	GetEnvironmentStrings() (envs *uint16, errno int) [failretval==nil] = kernel32.GetEnvironmentStringsW
+ //sys	FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) = kernel32.FreeEnvironmentStringsW
+ //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
+ //sys	SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) = kernel32.SetEnvironmentVariableW
+ //sys	SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (ok bool, errno int)
+-//sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval=INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
++//sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval==INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
++//sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
++//sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) [failretval==nil] = shell32.CommandLineToArgvW
++//sys	LocalFree(hmem uint32) (handle uint32, errno int) [failretval!=0]
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -457,23 +460,23 @@ func Utimes(path string, tv []Timeval) (errno int) {
+ // net api calls
+ 
+ //sys	WSAStartup(verreq uint32, data *WSAData) (sockerrno int) = wsock32.WSAStartup
+-//sys	WSACleanup() (errno int) [failretval=-1] = wsock32.WSACleanup
+-//sys	socket(af int32, typ int32, protocol int32) (handle int32, errno int) [failretval=-1] = wsock32.socket
+-//sys	setsockopt(s int32, level int32, optname int32, optval *byte, optlen int32) (errno int) [failretval=-1] = wsock32.setsockopt
+-//sys	bind(s int32, name uintptr, namelen int32) (errno int) [failretval=-1] = wsock32.bind
+-//sys	connect(s int32, name uintptr, namelen int32) (errno int) [failretval=-1] = wsock32.connect
+-//sys	getsockname(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval=-1] = wsock32.getsockname
+-//sys	getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval=-1] = wsock32.getpeername
+-//sys	listen(s int32, backlog int32) (errno int) [failretval=-1] = wsock32.listen
+-//sys	shutdown(s int32, how int32) (errno int) [failretval=-1] = wsock32.shutdown
++//sys	WSACleanup() (errno int) [failretval==-1] = wsock32.WSACleanup
++//sys	socket(af int32, typ int32, protocol int32) (handle int32, errno int) [failretval==-1] = wsock32.socket
++//sys	setsockopt(s int32, level int32, optname int32, optval *byte, optlen int32) (errno int) [failretval==-1] = wsock32.setsockopt
++//sys	bind(s int32, name uintptr, namelen int32) (errno int) [failretval==-1] = wsock32.bind
++//sys	connect(s int32, name uintptr, namelen int32) (errno int) [failretval==-1] = wsock32.connect
++//sys	getsockname(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = wsock32.getsockname
++//sys	getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = wsock32.getpeername
++//sys	listen(s int32, backlog int32) (errno int) [failretval==-1] = wsock32.listen
++//sys	shutdown(s int32, how int32) (errno int) [failretval==-1] = wsock32.shutdown
+ //sys	AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (ok bool, errno int) = wsock32.AcceptEx
+ //sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = wsock32.GetAcceptExSockaddrs
+-//sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSARecv
+-//sys	WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSASend
+-//sys	WSARecvFrom(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32,  from *RawSockaddrAny, fromlen *int32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSARecvFrom
+-//sys	WSASendTo(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *RawSockaddrAny, tolen int32,  overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSASendTo
+-//sys	GetHostByName(name string) (h *Hostent, errno int) [failretval=nil] = ws2_32.gethostbyname
+-//sys	GetServByName(name string, proto string) (s *Servent, errno int) [failretval=nil] = ws2_32.getservbyname
++//sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSARecv
++//sys	WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSASend
++//sys	WSARecvFrom(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32,  from *RawSockaddrAny, fromlen *int32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSARecvFrom
++//sys	WSASendTo(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *RawSockaddrAny, tolen int32,  overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSASendTo
++//sys	GetHostByName(name string) (h *Hostent, errno int) [failretval==nil] = ws2_32.gethostbyname
++//sys	GetServByName(name string, proto string) (s *Servent, errno int) [failretval==nil] = ws2_32.getservbyname
+ //sys	Ntohs(netshort uint16) (u uint16) = ws2_32.ntohs
+ //sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) = dnsapi.DnsQuery_W
+ //sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 6fcad87c9c..09ed6c4318 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -8,6 +8,7 @@ import "unsafe"
+ var (
+ 	modkernel32 = loadDll("kernel32.dll")
+ 	modadvapi32 = loadDll("advapi32.dll")
++	modshell32  = loadDll("shell32.dll")
+ 	modwsock32  = loadDll("wsock32.dll")
+ 	modws2_32   = loadDll("ws2_32.dll")
+ 	moddnsapi   = loadDll("dnsapi.dll")
+@@ -61,6 +62,9 @@ var (
+ 	procSetEnvironmentVariableW    = getSysProcAddr(modkernel32, "SetEnvironmentVariableW")
+ 	procSetFileTime                = getSysProcAddr(modkernel32, "SetFileTime")
+ 	procGetFileAttributesW         = getSysProcAddr(modkernel32, "GetFileAttributesW")
++	procGetCommandLineW            = getSysProcAddr(modkernel32, "GetCommandLineW")
++	procCommandLineToArgvW         = getSysProcAddr(modshell32, "CommandLineToArgvW")
++	procLocalFree                  = getSysProcAddr(modkernel32, "LocalFree")
+ 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
+ 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
+ 	procsocket                     = getSysProcAddr(modwsock32, "socket")
+@@ -804,6 +808,42 @@ func GetFileAttributes(name *uint16) (attrs uint32, errno int) {
+ 	return
+ }
+ 
++func GetCommandLine() (cmd *uint16) {
++	r0, _, _ := Syscall(procGetCommandLineW, 0, 0, 0)
++	cmd = (*uint16)(unsafe.Pointer(r0))
++	return
++}
++
++func CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) {
++	r0, _, e1 := Syscall(procCommandLineToArgvW, uintptr(unsafe.Pointer(cmd)), uintptr(unsafe.Pointer(argc)), 0)
++	argv = (*[8192]*[8192]uint16)(unsafe.Pointer(r0))
++	if argv == nil {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func LocalFree(hmem uint32) (handle uint32, errno int) {
++	r0, _, e1 := Syscall(procLocalFree, uintptr(hmem), 0, 0)
++	handle = uint32(r0)
++	if handle != 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerrno int) {
+ 	r0, _, _ := Syscall(procWSAStartup, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	sockerrno = int(r0)

@@ -14,7 +14,108 @@ Date:   Thu Mar 10 17:36:49 2016 +0100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 33 +++++++++++++++++++--------------
  src/fmt/print.go    | 10 ++++++----
  2 files changed, 25 insertions(+), 18 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 5b197d8a39..16f0aabcd2 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -122,9 +122,11 @@ var bslice = barray[:]
+ 
+ type byteStringer byte
+ 
+-func (byteStringer) String() string { return "X" }
++func (byteStringer) String() string {
++	return "X"
++}
+ 
+-var byteStringerSlice = []byteStringer{97, 98, 99, 100}
++var byteStringerSlice = []byteStringer{'h', 'e', 'l', 'l', 'o'}
+ 
+ type byteFormatter byte
+ 
+@@ -132,7 +134,7 @@ func (byteFormatter) Format(f State, _ rune) {
+ 	Fprint(f, "X")
+ }
+ 
+-var byteFormatterSlice = []byteFormatter{97, 98, 99, 100}
++var byteFormatterSlice = []byteFormatter{'h', 'e', 'l', 'l', 'o'}
+ 
+ var fmtTests = []struct {
+ 	fmt string
+@@ -706,7 +708,8 @@ var fmtTests = []struct {
+ 	{"%x", renamedString("thing"), "7468696e67"},
+ 	{"%d", renamedBytes([]byte{1, 2, 15}), `[1 2 15]`},
+ 	{"%q", renamedBytes([]byte("hello")), `"hello"`},
+-	{"%x", []renamedUint8{'a', 'b', 'c'}, "616263"},
++	{"%x", []renamedUint8{'h', 'e', 'l', 'l', 'o'}, "68656c6c6f"},
++	{"%X", []renamedUint8{'h', 'e', 'l', 'l', 'o'}, "68656C6C6F"},
+ 	{"%s", []renamedUint8{'h', 'e', 'l', 'l', 'o'}, "hello"},
+ 	{"%q", []renamedUint8{'h', 'e', 'l', 'l', 'o'}, `"hello"`},
+ 	{"%v", renamedFloat32(22), "22"},
+@@ -933,19 +936,21 @@ var fmtTests = []struct {
+ 	{"%+010.2f", -104.66 - 440.51i, "(-000104.66-000440.51i)"},
+ 
+ 	// []T where type T is a byte with a Stringer method.
+-	{"%v", byteStringerSlice, "[X X X X]"},
+-	{"%s", byteStringerSlice, "abcd"},
+-	{"%q", byteStringerSlice, "\"abcd\""},
+-	{"%x", byteStringerSlice, "61626364"},
+-	{"%#v", byteStringerSlice, "[]fmt_test.byteStringer{0x61, 0x62, 0x63, 0x64}"},
++	{"%v", byteStringerSlice, "[X X X X X]"},
++	{"%s", byteStringerSlice, "hello"},
++	{"%q", byteStringerSlice, "\"hello\""},
++	{"%x", byteStringerSlice, "68656c6c6f"},
++	{"%X", byteStringerSlice, "68656C6C6F"},
++	{"%#v", byteStringerSlice, "[]fmt_test.byteStringer{0x68, 0x65, 0x6c, 0x6c, 0x6f}"},
+ 
+ 	// And the same for Formatter.
+-	{"%v", byteFormatterSlice, "[X X X X]"},
+-	{"%s", byteFormatterSlice, "abcd"},
+-	{"%q", byteFormatterSlice, "\"abcd\""},
+-	{"%x", byteFormatterSlice, "61626364"},
++	{"%v", byteFormatterSlice, "[X X X X X]"},
++	{"%s", byteFormatterSlice, "hello"},
++	{"%q", byteFormatterSlice, "\"hello\""},
++	{"%x", byteFormatterSlice, "68656c6c6f"},
++	{"%X", byteFormatterSlice, "68656C6C6F"},
+ 	// This next case seems wrong, but the docs say the Formatter wins here.
+-	{"%#v", byteFormatterSlice, "[]fmt_test.byteFormatter{X, X, X, X}"},
++	{"%#v", byteFormatterSlice, "[]fmt_test.byteFormatter{X, X, X, X, X}"},
+ 
+ 	// reflect.Value handled specially in Go 1.5, making it possible to
+ 	// see inside non-exported fields (which cannot be accessed with Interface()).
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 1402695536..b7d24a8c47 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -894,12 +894,14 @@ BigSwitch:
+ 			p.printValue(value, verb, depth+1)
+ 		}
+ 	case reflect.Array, reflect.Slice:
+-		// Byte slices are special:
++		// Byte arrays and slices are special:
+ 		// - Handle []byte (== []uint8) with fmtBytes.
+ 		// - Handle []T, where T is a named byte type, with fmtBytes only
+-		//   for the s, q, an x verbs. For other verbs, T might be a
++		//   for the s, q, x and X verbs. For other verbs, T might be a
+ 		//   Stringer, so we use printValue to print each element.
+-		if typ := f.Type(); typ.Elem().Kind() == reflect.Uint8 && (typ.Elem() == byteType || verb == 's' || verb == 'q' || verb == 'x') {
++		typ := f.Type()
++		if typ.Elem().Kind() == reflect.Uint8 &&
++			(typ.Elem() == byteType || verb == 's' || verb == 'q' || verb == 'x' || verb == 'X') {
+ 			var bytes []byte
+ 			if f.Kind() == reflect.Slice {
+ 				bytes = f.Bytes()
+@@ -918,7 +920,7 @@ BigSwitch:
+ 			break
+ 		}
+ 		if p.fmt.sharpV {
+-			p.buf.WriteString(value.Type().String())
++			p.buf.WriteString(typ.String())
+ 			if f.Kind() == reflect.Slice && f.IsNil() {
+ 				p.buf.WriteString(nilParenString)
+ 				break

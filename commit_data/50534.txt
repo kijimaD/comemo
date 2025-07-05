@@ -11,6 +11,20 @@ Date:   Sun Oct 31 17:50:22 2021 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Martin Möhrmann <martin@golang.org>
-
+---
  src/bytes/bytes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 926f65cc8f..529d95a888 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -699,7 +699,7 @@ func ToValidUTF8(s, replacement []byte) []byte {
+ 		if c < utf8.RuneSelf {
+ 			i++
+ 			invalid = false
+-			b = append(b, byte(c))
++			b = append(b, c)
+ 			continue
+ 		}
+ 		_, wid := utf8.DecodeRune(s[i:])

@@ -9,10 +9,1508 @@ Date:   Tue Oct 13 14:37:48 2009 -0700
     DELTA=1459  (1459 added, 0 deleted, 0 changed)
     OCL=35389
     CL=35681
-
+---
  src/pkg/Make.deps         |   1 +
  src/pkg/Makefile          |   1 +
  src/pkg/asn1/Makefile     |  11 +
  src/pkg/asn1/asn1.go      | 884 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/asn1/asn1_test.go | 562 +++++++++++++++++++++++++++++
  5 files changed, 1459 insertions(+)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 1f3978d33a..99c9755232 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -1,4 +1,5 @@
+ archive/tar.install: bytes.install io.install os.install strconv.install strings.install
++asn1.install: fmt.install os.install reflect.install strconv.install strings.install time.install
+ base64.install: bytes.install io.install os.install strconv.install
+ big.install:
+ bignum.install: fmt.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 13899671d5..9f9e0e2b05 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -13,6 +13,7 @@ all: install
+ 
+ DIRS=\
+ 	archive/tar\
++	asn1\
+ 	base64\
+ 	big\
+ 	bignum\
+diff --git a/src/pkg/asn1/Makefile b/src/pkg/asn1/Makefile
+new file mode 100644
+index 0000000000..8ad3fb78da
+--- /dev/null
++++ b/src/pkg/asn1/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=asn1
++GOFILES=\
++	asn1.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+new file mode 100644
+index 0000000000..f3de79612a
+--- /dev/null
++++ b/src/pkg/asn1/asn1.go
+@@ -0,0 +1,884 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package implements parsing of DER-encoded ASN.1 data structures,
++// as defined in ITU-T Rec. X.690.
++//
++// See also ``A Layman's Guide to a Subset of ASN.1, BER, and DER,''
++// http://luca.ntop.org/Teaching/Appunti/asn1.html.
++package asn1
++
++// ASN.1 is a syntax for specifying abstract objects and BER, DER, PER, XER etc
++// are different encoding formats for those objects. Here, we'll be dealing
++// with DER, the Distinguished Encoding Rules. DER is used in X.509 because
++// it's fast to parse and, unlike BER, has a unique encoding for every object.
++// When calculating hashes over objects, it's important that the resulting
++// bytes be the same at both ends and DER removes this margin of error.
++//
++// ASN.1 is very complex and this package doesn't attempt to implement
++// everything by any means.
++
++import (
++	"fmt";
++	"os";
++	"reflect";
++	"strconv";
++	"strings";
++	"time";
++)
++
++// A StructuralError suggests that the ASN.1 data is valid, but the Go type
++// which is receiving it doesn't match.
++type StructuralError struct {
++	Msg	string;
++}
++
++func (e StructuralError) String() string {
++	return "ASN.1 structure error: " + e.Msg;
++}
++
++// A SyntaxError suggests that the ASN.1 data is invalid.
++type SyntaxError struct {
++	Msg	string;
++}
++
++func (e SyntaxError) String() string {
++	return "ASN.1 syntax error: " + e.Msg;
++}
++
++// We start by dealing with each of the primitive types in turn.
++
++// BOOLEAN
++
++func parseBool(bytes []byte) (ret bool, err os.Error) {
++	if len(bytes) != 1 {
++		err = SyntaxError{"invalid boolean"};
++		return;
++	}
++
++	return bytes[0] != 0, nil;
++}
++
++// INTEGER
++
++// parseInt64 treats the given bytes as a big-endian, signed integer and
++// returns the result.
++func parseInt64(bytes []byte) (ret int64, err os.Error) {
++	if len(bytes) > 8 {
++		// We'll overflow an int64 in this case.
++		err = StructuralError{"integer too large"};
++		return;
++	}
++	for bytesRead := 0; bytesRead < len(bytes); bytesRead++ {
++		ret <<= 8;
++		ret |= int64(bytes[bytesRead]);
++	}
++
++	// Shift up and down in order to sign extend the result.
++	ret <<= 64 - uint8(len(bytes))*8;
++	ret >>= 64 - uint8(len(bytes))*8;
++	return;
++}
++
++// parseInt treats the given bytes as a big-endian, signed integer and returns
++// the result.
++func parseInt(bytes []byte) (int, os.Error) {
++	ret64, err := parseInt64(bytes);
++	if err != nil {
++		return 0, err;
++	}
++	if ret64 != int64(int(ret64)) {
++		return 0, StructuralError{"integer too large"};
++	}
++	return int(ret64), nil;
++}
++
++// BIT STRING
++
++// BitString is the structure to use when you want an ASN.1 BIT STRING type. A
++// bit string is padded up to the nearest byte in memory and the number of
++// valid bits is recorded. Padding bits will be zero.
++type BitString struct {
++	Bytes		[]byte;	// bits packed into bytes.
++	BitLength	int;	// length in bits.
++}
++
++// At returns the bit at the given index. If the index is out of range it
++// returns false.
++func (b BitString) At(i int) int {
++	if i < 0 || i >= b.BitLength {
++		return 0;
++	}
++	x := i / 8;
++	y := 7 - uint(i % 8);
++	return int(b.Bytes[x] >> y) & 1;
++}
++
++// parseBitString parses an ASN.1 bit string from the given byte array and returns it.
++func parseBitString(bytes []byte) (ret BitString, err os.Error) {
++	if len(bytes) == 0 {
++		err = SyntaxError{"zero length BIT STRING"};
++		return;
++	}
++	paddingBits := int(bytes[0]);
++	if paddingBits > 7 ||
++	   len(bytes) == 1 && paddingBits > 0 ||
++	   bytes[len(bytes)-1] & ((1 << bytes[0])-1) != 0 {
++		err = SyntaxError{"invalid padding bits in BIT STRING"};
++		return;
++	}
++	ret.BitLength = (len(bytes)-1)*8 - paddingBits;
++	ret.Bytes = bytes[1:len(bytes)];
++	return;
++}
++
++// OBJECT IDENTIFIER
++
++// An ObjectIdentifier represents an ASN.1 OBJECT IDENTIFIER.
++type ObjectIdentifier []int
++
++// parseObjectIdentifier parses an OBJECT IDENTIFER from the given bytes and
++// returns it. An object identifer is a sequence of variable length integers
++// that are assigned in a hierarachy.
++func parseObjectIdentifier(bytes []byte) (s []int, err os.Error) {
++	if len(bytes) == 0 {
++		err = SyntaxError{"zero length OBJECT IDENTIFIER"};
++		return;
++	}
++
++	// In the worst case, we get two elements from the first byte (which is
++	// encoded differently) and then every varint is a single byte long.
++	s = make([]int, len(bytes)+1);
++
++	// The first byte is 40*value1 + value2:
++	s[0] = int(bytes[0]) / 40;
++	s[1] = int(bytes[0]) % 40;
++	i := 2;
++	for offset := 1; offset < len(bytes); i++ {
++		var v int;
++		v, offset, err = parseBase128Int(bytes, offset);
++		if err != nil {
++			return;
++		}
++		s[i] = v;
++	}
++	s = s[0:i];
++	return;
++}
++
++// parseBase128Int parses a base-128 encoded int from the given offset in the
++// given byte array. It returns the value and the new offset.
++func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err os.Error) {
++	offset = initOffset;
++	for shifted := 0; offset < len(bytes); shifted++ {
++		if shifted > 4 {
++			err = StructuralError{"base 128 integer too large"};
++			return;
++		}
++		ret <<= 7;
++		b := bytes[offset];
++		ret |= int(b&0x7f);
++		offset++;
++		if b&0x80 == 0 {
++			return;
++		}
++	}
++	err = SyntaxError{"truncated base 128 integer"};
++	return;
++}
++
++// UTCTime
++
++func isDigit(b byte) bool {
++	return '0' <= b && b <= '9';
++}
++
++// twoDigits returns the value of two, base 10 digits.
++func twoDigits(bytes []byte, max int) (int, bool) {
++	for i := 0; i < 2; i++ {
++		if !isDigit(bytes[i]) {
++			return 0, false;
++		}
++	}
++	value := (int(bytes[0]) - '0')*10 + int(bytes[1] - '0');
++	if value > max {
++		return 0, false;
++	}
++	return value, true;
++}
++
++// parseUTCTime parses the UTCTime from the given byte array and returns the
++// resulting time.
++func parseUTCTime(bytes []byte) (ret time.Time, err os.Error) {
++	// A UTCTime can take the following formats:
++	//
++	//             1111111
++	//   01234567890123456
++	//
++	//   YYMMDDhhmmZ
++	//   YYMMDDhhmm+hhmm
++	//   YYMMDDhhmm-hhmm
++	//   YYMMDDhhmmssZ
++	//   YYMMDDhhmmss+hhmm
++	//   YYMMDDhhmmss-hhmm
++	if len(bytes) < 11 {
++		err = SyntaxError{"UTCTime too short"};
++		return;
++	}
++	var ok1, ok2, ok3, ok4, ok5 bool;
++	year, ok1 := twoDigits(bytes[0:2], 99);
++	// RFC 5280, section 5.1.2.4 says that years 2050 or later use another date
++	// scheme.
++	if year > 50 {
++		ret.Year = 1900+int64(year);
++	} else {
++		ret.Year = 2000+int64(year);
++	}
++	ret.Month, ok2 = twoDigits(bytes[2:4], 12);
++	ret.Day, ok3 = twoDigits(bytes[4:6], 31);
++	ret.Hour, ok4 = twoDigits(bytes[6:8], 23);
++	ret.Minute, ok5 = twoDigits(bytes[8:10], 59);
++	if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 {
++		goto Error;
++	}
++	bytes = bytes[10:len(bytes)];
++	switch bytes[0] {
++	case '0', '1', '2', '3', '4', '5', '6':
++		if len(bytes) < 3 {
++			goto Error;
++		}
++		ret.Second, ok1 = twoDigits(bytes[0:2], 60);	// 60, not 59, because of leap seconds.
++		if !ok1 {
++			goto Error;
++		}
++		bytes = bytes[2:len(bytes)];
++	}
++	if len(bytes) == 0 {
++		goto Error;
++	}
++	switch bytes[0] {
++	case 'Z':
++		if len(bytes) != 1 {
++			goto Error;
++		}
++		return;
++	case '-', '+':
++		if len(bytes) != 5 {
++			goto Error;
++		}
++		hours, ok1 := twoDigits(bytes[1:3], 12);
++		minutes, ok2 := twoDigits(bytes[3:5], 59);
++		if !ok1 || !ok2 {
++			goto Error;
++		}
++		sign := 1;
++		if bytes[0] == '-' {
++			sign = -1;
++		}
++		ret.ZoneOffset = sign*(60*(hours*60 + minutes));
++	default:
++		goto Error;
++	}
++	return;
++
++Error:
++	err = SyntaxError{"invalid UTCTime"};
++	return;
++}
++
++// PrintableString
++
++// parsePrintableString parses a ASN.1 PrintableString from the given byte
++// array and returns it.
++func parsePrintableString(bytes []byte) (ret string, err os.Error) {
++	for _, b := range bytes {
++		if !isPrintable(b) {
++			err = SyntaxError{"PrintableString contains invalid character"};
++			return;
++		}
++	}
++	ret = string(bytes);
++	return;
++}
++
++// isPrintable returns true iff the given b is in the ASN.1 PrintableString set.
++func isPrintable(b byte) bool {
++	return 'a' <= b && b <= 'z' ||
++	       'A' <= b && b <= 'Z' ||
++	       '0' <= b && b <= '9' ||
++	       '\'' <= b && b <= ')' ||
++	       '+' <= b && b <= '/' ||
++	       b == ' ' ||
++	       b == ':' ||
++	       b == '=' ||
++	       b == '?';
++}
++
++// IA5String
++
++// parseIA5String parses a ASN.1 IA5String (ASCII string) from the given
++// byte array and returns it.
++func parseIA5String(bytes []byte) (ret string, err os.Error) {
++	for _, b := range bytes {
++		if b >= 0x80 {
++			err = SyntaxError{"IA5String contains invalid character"};
++			return;
++		}
++	}
++	ret = string(bytes);
++	return;
++}
++
++// A RawValue represents an undecoded ASN.1 object.
++type RawValue struct {
++	Class, Tag	int;
++	IsCompound	bool;
++	Bytes		[]byte;
++}
++
++// Tagging
++
++// ASN.1 objects have metadata preceeding them:
++//   the tag: the type of the object
++//   a flag denoting if this object is compound or not
++//   the class type: the namespace of the tag
++//   the length of the object, in bytes
++
++// Here are some standard tags and classes
++
++const (
++	tagBoolean		= 1;
++	tagInteger		= 2;
++	tagBitString		= 3;
++	tagOctetString		= 4;
++	tagOID			= 6;
++	tagSequence		= 16;
++	tagSet			= 17;
++	tagPrintableString	= 19;
++	tagIA5String		= 22;
++	tagUTCTime		= 23;
++)
++
++const (
++	classUniversal		= 0;
++	classApplication	= 1;
++	classContextSpecific	= 2;
++	classPrivate		= 3;
++)
++
++type tagAndLength struct {
++	class, tag, length	int;
++	isCompound		bool;
++}
++
++// parseTagAndLength parses an ASN.1 tag and length pair from the given offset
++// into a byte array. It returns the parsed data and the new offset. SET and
++// SET OF (tag 17) are mapped to SEQUENCE and SEQUENCE OF (tag 16) since we
++// don't distinguish between ordered and unordered objects in this code.
++func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset int, err os.Error) {
++	offset = initOffset;
++	b := bytes[offset];
++	offset++;
++	ret.class = int(b>>6);
++	ret.isCompound = b&0x20 == 0x20;
++	ret.tag = int(b&0x1f);
++
++	// If the bottom five bits are set, then the tag number is actually base 128
++	// encoded afterwards
++	if ret.tag == 0x1f {
++		ret.tag, offset, err = parseBase128Int(bytes, offset);
++		if err != nil {
++			return;
++		}
++	}
++	if offset >= len(bytes) {
++		err = SyntaxError{"truncated tag or length"};
++		return;
++	}
++	b = bytes[offset];
++	offset++;
++	if b&0x80 == 0 {
++		// The length is encoded in the bottom 7 bits.
++		ret.length = int(b&0x7f);
++	} else {
++		// Bottom 7 bits give the number of length bytes to follow.
++		numBytes := int(b&0x7f);
++		// We risk overflowing a signed 32-bit number if we accept more than 3 bytes.
++		if numBytes > 3 {
++			err = StructuralError{"length too large"};
++			return;
++		}
++		if numBytes == 0 {
++			err = SyntaxError{"indefinite length found (not DER)"};
++			return;
++		}
++		ret.length = 0;
++		for i := 0; i < numBytes; i++ {
++			if offset >= len(bytes) {
++				err = SyntaxError{"truncated tag or length"};
++				return;
++			}
++			b = bytes[offset];
++			offset++;
++			ret.length <<= 8;
++			ret.length |= int(b);
++		}
++	}
++
++	// We magically map SET and SET OF to SEQUENCE and SEQUENCE OF
++	// because we treat everything as ordered.
++	if ret.tag == tagSet {
++		ret.tag = tagSequence;
++	}
++	return;
++}
++
++// ASN.1 has IMPLICIT and EXPLICIT tags, which can be translated as "instead
++// of" and "in addition to". When not specified, every primitive type has a
++// default tag in the UNIVERSAL class.
++//
++// For example: a BIT STRING is tagged [UNIVERSAL 3] by default (although ASN.1
++// doesn't actually have a UNIVERSAL keyword). However, by saying [IMPLICIT
++// CONTEXT-SPECIFIC 42], that means that the tag is replaced by another.
++//
++// On the other hand, if it said [EXPLICIT CONTEXT-SPECIFIC 10], then an
++// /additional/ tag would wrap the default tag. This explicit tag will have the
++// compound flag set.
++//
++// (This is used in order to remove ambiguity with optional elements.)
++//
++// You can layer EXPLICIT and IMPLICIT tags to an arbitary depth, however we
++// don't support that here. We support a single layer of EXPLICIT or IMPLICIT
++// tagging with tag strings on the fields of a structure.
++
++// fieldParameters is the parsed representation of tag string from a structure field.
++type fieldParameters struct {
++	optional	bool;	// true iff the field is OPTIONAL
++	explicit	bool;	// true iff and EXPLICIT tag is in use.
++	defaultValue	*int64;	// a default value for INTEGER typed fields (maybe nil).
++	tag		*int;	// the EXPLICIT or IMPLICIT tag (maybe nil).
++
++// Invariants:
++//   if explicit is set, tag is non-nil.
++}
++
++// Given a tag string with the format specified in the package comment,
++// parseFieldParameters will parse it into a fieldParameters structure,
++// ignoring unknown parts of the string.
++func parseFieldParameters(str string) (ret fieldParameters) {
++	for _, part := range strings.Split(str, ",", 0) {
++		switch {
++		case part == "optional":
++			ret.optional = true;
++		case part == "explicit":
++			ret.explicit = true;
++			if ret.tag == nil {
++				ret.tag = new(int);
++				*ret.tag = 0;
++			}
++		case strings.HasPrefix(part, "default:"):
++			i, err := strconv.Atoi64(part[8:len(part)]);
++			if err == nil {
++				ret.defaultValue = new(int64);
++				*ret.defaultValue = i;
++			}
++		case strings.HasPrefix(part, "tag:"):
++			i, err := strconv.Atoi(part[4:len(part)]);
++			if err == nil {
++				ret.tag = new(int);
++				*ret.tag = i;
++			}
++		}
++	}
++	return;
++}
++
++// Given a reflected Go type, getUniversalType returns the default tag number
++// and expected compound flag.
++func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
++	switch t {
++	case objectIdentifierType:
++		return tagOID, false, true;
++	case bitStringType:
++		return tagBitString, false, true;
++	case timeType:
++		return tagUTCTime, false, true;
++	}
++	switch i := t.(type) {
++	case *reflect.BoolType:
++		return tagBoolean, false, true;
++	case *reflect.IntType:
++		return tagInteger, false, true;
++	case *reflect.Int64Type:
++		return tagInteger, false, true;
++	case *reflect.StructType:
++		return tagSequence, true, true;
++	case *reflect.SliceType:
++		if _, ok := t.(*reflect.SliceType).Elem().(*reflect.Uint8Type); ok {
++			return tagOctetString, false, true;
++		}
++		return tagSequence, true, true;
++	case *reflect.StringType:
++		return tagPrintableString, false, true;
++	}
++	return 0, false, false;
++}
++
++// parseSequenceOf is used for SEQUENCE OF and SET OF values. It tries to parse
++// a number of ASN.1 values from the given byte array and returns them as a
++// slice of Go values of the given type.
++func parseSequenceOf(bytes []byte, sliceType *reflect.SliceType, elemType reflect.Type) (ret *reflect.SliceValue, err os.Error) {
++	expectedTag, compoundType, ok := getUniversalType(elemType);
++	if !ok {
++		err = StructuralError{"unknown Go type for slice"};
++		return;
++	}
++
++	// First we iterate over the input and count the number of elements,
++	// checking that the types are correct in each case.
++	numElements := 0;
++	for offset := 0; offset < len(bytes); {
++		var t tagAndLength;
++		t, offset, err = parseTagAndLength(bytes, offset);
++		if err != nil {
++			return;
++		}
++		if t.class != classUniversal || t.isCompound != compoundType || t.tag != expectedTag {
++			err = StructuralError{"sequence tag mismatch"};
++			return;
++		}
++		if invalidLength(offset, t.length, len(bytes)) {
++			err = SyntaxError{"truncated sequence"};
++			return;
++		}
++		offset += t.length;
++		numElements++;
++	}
++	ret = reflect.MakeSlice(sliceType, numElements, numElements);
++	params := fieldParameters{};
++	offset := 0;
++	for i := 0; i < numElements; i++ {
++		offset, err = parseField(ret.Elem(i), bytes, offset, params);
++		if err != nil {
++			return;
++		}
++	}
++	return;
++}
++
++var (
++	bitStringType		= reflect.Typeof(BitString{});
++	objectIdentifierType	= reflect.Typeof(ObjectIdentifier{});
++	timeType		= reflect.Typeof(time.Time{});
++	rawValueType		= reflect.Typeof(RawValue{});
++)
++
++// invalidLength returns true iff offset + length > sliceLength, or if the
++// addition would overflow.
++func invalidLength(offset, length, sliceLength int) bool {
++	return offset+length < offset || offset+length > sliceLength;
++}
++
++// parseField is the main parsing function. Given a byte array and an offset
++// into the array, it will try to parse a suitable ASN.1 value out and store it
++// in the given Value.
++func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParameters) (offset int, err os.Error) {
++	offset = initOffset;
++	fieldType := v.Type();
++
++	// If we have run out of data, it may be that there are optional elements at the end.
++	if offset == len(bytes) {
++		if !setDefaultValue(v, params) {
++			err = SyntaxError{"sequence truncated"};
++		}
++		return;
++	}
++
++	// Deal with raw values.
++	if fieldType == rawValueType {
++		var t tagAndLength;
++		t, offset, err = parseTagAndLength(bytes, offset);
++		if err != nil {
++			return;
++		}
++		if invalidLength(offset, t.length, len(bytes)) {
++			err = SyntaxError{"data truncated"};
++			return;
++		}
++		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset + t.length]};
++		offset += t.length;
++		v.(*reflect.StructValue).Set(reflect.NewValue(result).(*reflect.StructValue));
++		return;
++	}
++
++	// Deal with the ANY type.
++	if ifaceType, ok := fieldType.(*reflect.InterfaceType); ok && ifaceType.NumMethod() == 0 {
++		ifaceValue := v.(*reflect.InterfaceValue);
++		var t tagAndLength;
++		t, offset, err = parseTagAndLength(bytes, offset);
++		if err != nil {
++			return;
++		}
++		if invalidLength(offset, t.length, len(bytes)) {
++			err = SyntaxError{"data truncated"};
++			return;
++		}
++		var result interface{}
++		if !t.isCompound && t.class == classUniversal {
++			innerBytes := bytes[offset : offset + t.length];
++			switch t.tag {
++			case tagPrintableString:
++				result, err = parsePrintableString(innerBytes);
++			case tagIA5String:
++				result, err = parseIA5String(innerBytes);
++			case tagInteger:
++				result, err = parseInt64(innerBytes);
++			case tagBitString:
++				result, err = parseBitString(innerBytes);
++			case tagOID:
++				result, err = parseObjectIdentifier(innerBytes);
++			case tagUTCTime:
++				result, err = parseUTCTime(innerBytes);
++			case tagOctetString:
++				result = innerBytes;
++			default:
++			// If we don't know how to handle the type, we just leave Value as nil.
++			}
++		}
++		offset += t.length;
++		if err != nil {
++			return;
++		}
++		if result != nil {
++			ifaceValue.Set(reflect.NewValue(result));
++		}
++		return;
++	}
++	universalTag, compoundType, ok1 := getUniversalType(fieldType);
++	if !ok1 {
++		err = StructuralError{fmt.Sprintf("unknown Go type: %v", fieldType)};
++		return;
++	}
++
++	t, offset, err := parseTagAndLength(bytes, offset);
++	if err != nil {
++		return;
++	}
++	if params.explicit {
++		if t.class == classContextSpecific && t.tag == *params.tag && t.isCompound {
++			t, offset, err = parseTagAndLength(bytes, offset);
++			if err != nil {
++				return;
++			}
++		} else {
++			// The tags didn't match, it might be an optional element.
++			ok := setDefaultValue(v, params);
++			if ok {
++				offset = initOffset;
++			} else {
++				err = StructuralError{"explicitly tagged member didn't match"};
++			}
++			return;
++		}
++	}
++
++	// Special case for strings: PrintableString and IA5String both map to
++	// the Go type string. getUniversalType returns the tag for
++	// PrintableString when it sees a string so, if we see an IA5String on
++	// the wire, we change the universal type to match.
++	if universalTag == tagPrintableString && t.tag == tagIA5String {
++		universalTag = tagIA5String;
++	}
++
++	expectedClass := classUniversal;
++	expectedTag := universalTag;
++
++	if !params.explicit && params.tag != nil {
++		expectedClass = classContextSpecific;
++		expectedTag = *params.tag;
++	}
++
++	// We have unwrapped any explicit tagging at this point.
++	if t.class != expectedClass || t.tag != expectedTag || t.isCompound != compoundType {
++		// Tags don't match. Again, it could be an optional element.
++		ok := setDefaultValue(v, params);
++		if ok {
++			offset = initOffset;
++		} else {
++			err = StructuralError{fmt.Sprintf("tags don't match (%d vs %+v) %+v %s %#v", expectedTag, t, params, fieldType.Name(), bytes[offset:len(bytes)])};
++		}
++		return;
++	}
++	if invalidLength(offset, t.length, len(bytes)) {
++		err = SyntaxError{"data truncated"};
++		return;
++	}
++	innerBytes := bytes[offset : offset + t.length];
++
++	// We deal with the structures defined in this package first.
++	switch fieldType {
++	case objectIdentifierType:
++		newSlice, err1 := parseObjectIdentifier(innerBytes);
++		sliceValue := v.(*reflect.SliceValue);
++		sliceValue.Set(reflect.MakeSlice(sliceValue.Type().(*reflect.SliceType), len(newSlice), len(newSlice)));
++		if err1 == nil {
++			reflect.ArrayCopy(sliceValue, reflect.NewValue(newSlice).(reflect.ArrayOrSliceValue));
++		}
++		offset += t.length;
++		err = err1;
++		return;
++	case bitStringType:
++		structValue := v.(*reflect.StructValue);
++		bs, err1 := parseBitString(innerBytes);
++		offset += t.length;
++		if err1 == nil {
++			structValue.Set(reflect.NewValue(bs).(*reflect.StructValue));
++		}
++		err = err1;
++		return;
++	case timeType:
++		structValue := v.(*reflect.StructValue);
++		time, err1 := parseUTCTime(innerBytes);
++		offset += t.length;
++		if err1 == nil {
++			structValue.Set(reflect.NewValue(time).(*reflect.StructValue));
++		}
++		err = err1;
++		return;
++	}
++	switch val := v.(type) {
++	case *reflect.BoolValue:
++		parsedBool, err1 := parseBool(innerBytes);
++		offset += t.length;
++		if err1 == nil {
++			val.Set(parsedBool);
++		}
++		err = err1;
++		return;
++	case *reflect.IntValue:
++		parsedInt, err1 := parseInt(innerBytes);
++		offset += t.length;
++		if err1 == nil {
++			val.Set(parsedInt);
++		}
++		err = err1;
++		return;
++	case *reflect.Int64Value:
++		parsedInt, err1 := parseInt64(innerBytes);
++		offset += t.length;
++		if err1 == nil {
++			val.Set(parsedInt);
++		}
++		err = err1;
++		return;
++	case *reflect.StructValue:
++		structType := fieldType.(*reflect.StructType);
++		innerOffset := 0;
++		for i := 0; i < structType.NumField(); i++ {
++			field := structType.Field(i);
++			innerOffset, err = parseField(val.Field(i), innerBytes, innerOffset, parseFieldParameters(field.Tag));
++			if err != nil {
++				return;
++			}
++		}
++		offset += t.length;
++		// We allow extra bytes at the end of the SEQUENCE because
++		// adding elements to the end has been used in X.509 as the
++		// version numbers have increased.
++		return;
++	case *reflect.SliceValue:
++		sliceType := fieldType.(*reflect.SliceType);
++		if _, ok := sliceType.Elem().(*reflect.Uint8Type); ok {
++			val.Set(reflect.MakeSlice(sliceType, len(innerBytes), len(innerBytes)));
++			reflect.ArrayCopy(val, reflect.NewValue(innerBytes).(reflect.ArrayOrSliceValue));
++			return;
++		}
++		newSlice, err1 := parseSequenceOf(innerBytes, sliceType, sliceType.Elem());
++		offset += t.length;
++		if err1 == nil {
++			val.Set(newSlice);
++		}
++		err = err1;
++		return;
++	case *reflect.StringValue:
++		var v string;
++		switch universalTag {
++		case tagPrintableString:
++			v, err = parsePrintableString(innerBytes);
++		case tagIA5String:
++			v, err = parseIA5String(innerBytes);
++		default:
++			err = SyntaxError{fmt.Sprintf("internal error: unknown string type %d", universalTag)};
++		}
++		if err == nil {
++			val.Set(v);
++		}
++		return;
++	}
++	err = StructuralError{"unknown Go type"};
++	return;
++}
++
++// setDefaultValue is used to install a default value, from a tag string, into
++// a Value. It is successful is the field was optional, even if a default value
++// wasn't provided or it failed to install it into the Value.
++func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
++	if !params.optional {
++		return;
++	}
++	ok = true;
++	if params.defaultValue == nil {
++		return;
++	}
++	switch val := v.(type) {
++	case *reflect.IntValue:
++		val.Set(int(*params.defaultValue));
++	case *reflect.Int64Value:
++		val.Set(int64(*params.defaultValue));
++	}
++	return;
++}
++
++// Unmarshal parses the DER-encoded ASN.1 data structure b
++// and uses the reflect package to fill in an arbitrary value pointed at by val.
++// Because Unmarshal uses the reflect package, the structs
++// being written to must use upper case field names.
++//
++// An ASN.1 INTEGER can be written to an int or int64.
++// If the encoded value does not fit in the Go type,
++// Unmarshal returns a parse error.
++//
++// An ASN.1 BIT STRING can be written to a BitString.
++//
++// An ASN.1 OCTET STRING can be written to a []byte.
++//
++// An ASN.1 OBJECT IDENTIFIER can be written to an
++// ObjectIdentifier.
++//
++// An ASN.1 PrintableString or IA5String can be written to a string.
++//
++// Any of the above ASN.1 values can be written to an interface{}.
++// The value stored in the interface has the corresponding Go type.
++// For integers, that type is int64.
++//
++// An ASN.1 SEQUENCE OF x or SET OF x can be written
++// to a slice if an x can be written to the slice's element type.
++//
++// An ASN.1 SEQUENCE or SET can be written to a struct
++// if each of the elements in the sequence can be
++// written to the corresponding element in the struct.
++//
++// The following tags on struct fields have special meaning to Unmarshal:
++//
++//	optional		marks the field as ASN.1 OPTIONAL
++//	[explicit] tag:x	specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
++//	default:x		sets the default value for optional integer fields
++//
++// Other ASN.1 types are not supported; if it encounters them,
++// Unmarshal returns a parse error.
++func Unmarshal(val interface{}, b []byte) os.Error {
++	v := reflect.NewValue(val).(*reflect.PtrValue).Elem();
++	_, err := parseField(v, b, 0, fieldParameters{});
++	return err;
++}
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+new file mode 100644
+index 0000000000..c3e1a13c9b
+--- /dev/null
++++ b/src/pkg/asn1/asn1_test.go
+@@ -0,0 +1,562 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asn1
++
++import (
++	"bytes";
++	"reflect";
++	"strings";
++	"testing";
++	"time";
++)
++
++type int64Test struct {
++	in	[]byte;
++	ok	bool;
++	out	int64;
++}
++
++var int64TestData = []int64Test{
++	int64Test{[]byte{0x00}, true, 0},
++	int64Test{[]byte{0x7f}, true, 127},
++	int64Test{[]byte{0x00, 0x80}, true, 128},
++	int64Test{[]byte{0x01, 0x00}, true, 256},
++	int64Test{[]byte{0x80}, true, -128},
++	int64Test{[]byte{0xff, 0x7f}, true, -129},
++	int64Test{[]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true, -1},
++	int64Test{[]byte{0xff}, true, -1},
++	int64Test{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, true, -9223372036854775808},
++	int64Test{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false, 0},
++}
++
++func TestParseInt64(t *testing.T) {
++	for i, test := range int64TestData {
++		ret, err := parseInt64(test.in);
++		if (err == nil) != test.ok {
++			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok);
++		}
++		if test.ok && ret != test.out {
++			t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out);
++		}
++	}
++}
++
++type bitStringTest struct {
++	in		[]byte;
++	ok		bool;
++	out		[]byte;
++	bitLength	int;
++}
++
++var bitStringTestData = []bitStringTest{
++	bitStringTest{[]byte{}, false, []byte{}, 0},
++	bitStringTest{[]byte{0x00}, true, []byte{}, 0},
++	bitStringTest{[]byte{0x07, 0x00}, true, []byte{0x00}, 1},
++	bitStringTest{[]byte{0x07, 0x01}, false, []byte{}, 0},
++	bitStringTest{[]byte{0x07, 0x40}, false, []byte{}, 0},
++	bitStringTest{[]byte{0x08, 0x00}, false, []byte{}, 0},
++}
++
++func TestBitString(t *testing.T) {
++	for i, test := range bitStringTestData {
++		ret, err := parseBitString(test.in);
++		if (err == nil) != test.ok {
++			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok);
++		}
++		if err == nil {
++			if test.bitLength != ret.BitLength || bytes.Compare(ret.Bytes, test.out) != 0 {
++				t.Errorf("#%d: Bad result: %v (expected %v %v)", i, ret, test.out, test.bitLength);
++			}
++		}
++	}
++}
++
++func TestBitStringAt(t *testing.T) {
++	bs := BitString{[]byte{0x82, 0x40}, 16};
++	if bs.At(0) != 1 {
++		t.Error("#1: Failed");
++	}
++	if bs.At(1) != 0 {
++		t.Error("#2: Failed");
++	}
++	if bs.At(6) != 1 {
++		t.Error("#3: Failed");
++	}
++	if bs.At(9) != 1 {
++		t.Error("#4: Failed");
++	}
++}
++
++type objectIdentifierTest struct {
++	in	[]byte;
++	ok	bool;
++	out	[]int;
++}
++
++var objectIdentifierTestData = []objectIdentifierTest{
++	objectIdentifierTest{[]byte{}, false, []int{}},
++	objectIdentifierTest{[]byte{85}, true, []int{2, 5}},
++	objectIdentifierTest{[]byte{85, 0x02}, true, []int{2, 5, 2}},
++	objectIdentifierTest{[]byte{85, 0x02, 0xc0, 0x00}, true, []int{2, 5, 2, 0x2000}},
++	objectIdentifierTest{[]byte{85, 0x02, 0xc0, 0x80, 0x80, 0x80, 0x80}, false, []int{}},
++}
++
++func TestObjectIdentifier(t *testing.T) {
++	for i, test := range objectIdentifierTestData {
++		ret, err := parseObjectIdentifier(test.in);
++		if (err == nil) != test.ok {
++			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok);
++		}
++		if err == nil {
++			if !reflect.DeepEqual(test.out, ret) {
++				t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out);
++			}
++		}
++	}
++}
++
++type timeTest struct {
++	in	string;
++	ok	bool;
++	out	time.Time;
++}
++
++var timeTestData = []timeTest{
++	timeTest{"910506164540-0700", true, time.Time{1991, 05, 06, 16, 45, 40, 0, -7 * 60 * 60, ""}},
++	timeTest{"910506164540+0730", true, time.Time{1991, 05, 06, 16, 45, 40, 0, 7*60*60 + 30*60, ""}},
++	timeTest{"910506234540Z", true, time.Time{1991, 05, 06, 23, 45, 40, 0, 0, ""}},
++	timeTest{"9105062345Z", true, time.Time{1991, 05, 06, 23, 45, 0, 0, 0, ""}},
++	timeTest{"a10506234540Z", false, time.Time{}},
++	timeTest{"91a506234540Z", false, time.Time{}},
++	timeTest{"9105a6234540Z", false, time.Time{}},
++	timeTest{"910506a34540Z", false, time.Time{}},
++	timeTest{"910506334a40Z", false, time.Time{}},
++	timeTest{"91050633444aZ", false, time.Time{}},
++	timeTest{"910506334461Z", false, time.Time{}},
++	timeTest{"910506334400Za", false, time.Time{}},
++}
++
++func TestTime(t *testing.T) {
++	for i, test := range timeTestData {
++		ret, err := parseUTCTime(strings.Bytes(test.in));
++		if (err == nil) != test.ok {
++			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok);
++		}
++		if err == nil {
++			if !reflect.DeepEqual(test.out, ret) {
++				t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out);
++			}
++		}
++	}
++}
++
++type tagAndLengthTest struct {
++	in	[]byte;
++	ok	bool;
++	out	tagAndLength;
++}
++
++var tagAndLengthData = []tagAndLengthTest{
++	tagAndLengthTest{[]byte{0x80, 0x01}, true, tagAndLength{2, 0, 1, false}},
++	tagAndLengthTest{[]byte{0xa0, 0x01}, true, tagAndLength{2, 0, 1, true}},
++	tagAndLengthTest{[]byte{0x02, 0x00}, true, tagAndLength{0, 2, 0, false}},
++	tagAndLengthTest{[]byte{0xfe, 0x00}, true, tagAndLength{3, 30, 0, true}},
++	tagAndLengthTest{[]byte{0x1f, 0x01, 0x00}, true, tagAndLength{0, 1, 0, false}},
++	tagAndLengthTest{[]byte{0x1f, 0x81, 0x00, 0x00}, true, tagAndLength{0, 128, 0, false}},
++	tagAndLengthTest{[]byte{0x1f, 0x81, 0x80, 0x01, 0x00}, true, tagAndLength{0, 0x4001, 0, false}},
++	tagAndLengthTest{[]byte{0x00, 0x81, 0x01}, true, tagAndLength{0, 0, 1, false}},
++	tagAndLengthTest{[]byte{0x00, 0x82, 0x01, 0x00}, true, tagAndLength{0, 0, 256, false}},
++	tagAndLengthTest{[]byte{0x00, 0x83, 0x01, 0x00}, false, tagAndLength{}},
++	tagAndLengthTest{[]byte{0x1f, 0x85}, false, tagAndLength{}},
++	tagAndLengthTest{[]byte{0x30, 0x80}, false, tagAndLength{}},
++}
++
++func TestParseTagAndLength(t *testing.T) {
++	for i, test := range tagAndLengthData {
++		tagAndLength, _, err := parseTagAndLength(test.in, 0);
++		if (err == nil) != test.ok {
++			t.Errorf("#%d: Incorrect error result (did pass? %v, expected: %v)", i, err == nil, test.ok);
++		}
++		if err == nil && !reflect.DeepEqual(test.out, tagAndLength) {
++			t.Errorf("#%d: Bad result: %v (expected %v)", i, tagAndLength, test.out);
++		}
++	}
++}
++
++type parseFieldParametersTest struct {
++	in	string;
++	out	fieldParameters;
++}
++
++func newInt(n int) *int {
++	return &n;
++}
++
++func newInt64(n int64) *int64 {
++	return &n;
++}
++
++func newString(s string) *string {
++	return &s;
++}
++
++func newBool(b bool) *bool {
++	return &b;
++}
++
++var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParametersTest{
++	parseFieldParametersTest{"", fieldParameters{false, false, nil, nil}},
++	parseFieldParametersTest{"optional", fieldParameters{true, false, nil, nil}},
++	parseFieldParametersTest{"explicit", fieldParameters{false, true, nil, new(int)}},
++	parseFieldParametersTest{"optional,explicit", fieldParameters{true, true, nil, new(int)}},
++	parseFieldParametersTest{"default:42", fieldParameters{false, false, newInt64(42), nil}},
++	parseFieldParametersTest{"tag:17", fieldParameters{false, false, nil, newInt(17)}},
++	parseFieldParametersTest{"optional,explicit,default:42,tag:17", fieldParameters{true, true, newInt64(42), newInt(17)}},
++	parseFieldParametersTest{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, newInt64(42), newInt(17)}},
++}
++
++func TestParseFieldParameters(t *testing.T) {
++	for i, test := range parseFieldParametersTestData {
++		f := parseFieldParameters(test.in);
++		if !reflect.DeepEqual(f, test.out) {
++			t.Errorf("#%d: Bad result: %v (expected %v)", i, f, test.out);
++		}
++	}
++}
++
++type unmarshalTest struct {
++	in	[]byte;
++	out	interface{};
++}
++
++type TestObjectIdentifierStruct struct {
++	OID ObjectIdentifier;
++}
++
++type TestContextSpecificTags struct {
++	A	int	"tag:1";
++}
++
++type TestContextSpecificTags2 struct {
++	A	int	"explicit,tag:1";
++	B	int;
++}
++
++var unmarshalTestData []unmarshalTest = []unmarshalTest{
++	unmarshalTest{[]byte{0x02, 0x01, 0x42}, newInt(0x42)},
++	unmarshalTest{[]byte{0x30, 0x08, 0x06, 0x06, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d}, &TestObjectIdentifierStruct{[]int{1, 2, 840, 113549}}},
++	unmarshalTest{[]byte{0x03, 0x04, 0x06, 0x6e, 0x5d, 0xc0}, &BitString{[]byte{110, 93, 192}, 18}},
++	unmarshalTest{[]byte{0x30, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &[]int{1, 2, 3}},
++	unmarshalTest{[]byte{0x02, 0x01, 0x10}, newInt(16)},
++	unmarshalTest{[]byte{0x13, 0x04, 't', 'e', 's', 't'}, newString("test")},
++	unmarshalTest{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, newString("test")},
++	unmarshalTest{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, &RawValue{0, 22, false, []byte{'t', 'e', 's', 't'}}},
++	unmarshalTest{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}}},
++	unmarshalTest{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
++	unmarshalTest{[]byte{0x30, 0x08, 0xa1, 0x03, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02}, &TestContextSpecificTags2{1,2}},
++	unmarshalTest{[]byte{0x01, 0x01, 0x00}, newBool(false)},
++	unmarshalTest{[]byte{0x01, 0x01, 0x01}, newBool(true)},
++}
++
++func TestUnmarshal(t *testing.T) {
++	for i, test := range unmarshalTestData {
++		pv := reflect.MakeZero(reflect.NewValue(test.out).Type());
++		zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem());
++		pv.(*reflect.PtrValue).PointTo(zv);
++		val := pv.Interface();
++		err := Unmarshal(val, test.in);
++		if err != nil {
++			t.Errorf("Unmarshal failed at index %d %v", i, err);
++		}
++		if !reflect.DeepEqual(val, test.out) {
++			t.Errorf("#%d:\nhave %#v\nwant %#v", i, val, test.out);
++		}
++	}
++}
++
++type Certificate struct {
++	TBSCertificate		TBSCertificate;
++	SignatureAlgorithm	AlgorithmIdentifier;
++	SignatureValue		BitString;
++}
++
++type TBSCertificate struct {
++	Version			int	"optional,explicit,default:0,tag:0";
++	SerialNumber		RawValue;
++	SignatureAlgorithm	AlgorithmIdentifier;
++	Issuer			RDNSequence;
++	Validity		Validity;
++	Subject			RDNSequence;
++	PublicKey		PublicKeyInfo;
++}
++
++type AlgorithmIdentifier struct {
++	Algorithm ObjectIdentifier;
++}
++
++type RDNSequence []RelativeDistinguishedName
++
++type RelativeDistinguishedName []AttributeTypeAndValue
++
++type AttributeTypeAndValue struct {
++	Type	ObjectIdentifier;
++	Value	interface{};
++}
++
++type Validity struct {
++	NotBefore, NotAfter time.Time;
++}
++
++type PublicKeyInfo struct {
++	Algorithm	AlgorithmIdentifier;
++	PublicKey	BitString;
++}
++
++func TestCertificate(t *testing.T) {
++	// This is a minimal, self-signed certificate that should parse correctly.
++	var cert Certificate;
++	if err := Unmarshal(&cert, derEncodedSelfSignedCertBytes); err != nil {
++		t.Errorf("Unmarshal failed: %v", err);
++	}
++	if !reflect.DeepEqual(cert, derEncodedSelfSignedCert) {
++		t.Errorf("Bad result:\ngot: %+v\nwant: %+v\n", cert, derEncodedSelfSignedCert);
++	}
++}
++
++func TestCertificateWithNUL(t *testing.T) {
++	// This is the paypal NUL-hack certificate. It should fail to parse because
++	// NUL isn't a permitted character in a PrintableString.
++
++	var cert Certificate;
++	if err := Unmarshal(&cert, derEncodedPaypalNULCertBytes); err == nil {
++		t.Error("Unmarshal succeeded, should not have");
++	}
++}
++
++var derEncodedSelfSignedCert = Certificate{
++	TBSCertificate: TBSCertificate{
++		Version: 0,
++		SerialNumber: RawValue{Class: 0, Tag: 2, IsCompound: false, Bytes: []uint8{0x0, 0x8c, 0xc3, 0x37, 0x92, 0x10, 0xec, 0x2c, 0x98}},
++		SignatureAlgorithm: AlgorithmIdentifier{Algorithm: ObjectIdentifier{1, 2, 840, 113549, 1, 1, 5}},
++		Issuer: RDNSequence{
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 8}, Value: "Some-State"}},
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 7}, Value: "City"}},
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 10}, Value: "Internet Widgits Pty Ltd"}},
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 3}, Value: "false.example.com"}},
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "false@example.com"}},
++		},
++		Validity: Validity{NotBefore: time.Time{Year: 2009, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, Weekday: 0, ZoneOffset: 0, Zone: ""}, NotAfter: time.Time{Year: 2010, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, Weekday: 0, ZoneOffset: 0, Zone: ""}},
++		Subject: RDNSequence{
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 8}, Value: "Some-State"}},
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 7}, Value: "City"}},
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 10}, Value: "Internet Widgits Pty Ltd"}},
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 3}, Value: "false.example.com"}},
++			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "false@example.com"}},
++		},
++		PublicKey: PublicKeyInfo{
++			Algorithm: AlgorithmIdentifier{Algorithm: ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}},
++			PublicKey: BitString{
++				Bytes: []uint8{
++					0x30, 0x48, 0x2, 0x41, 0x0, 0xcd, 0xb7,
++					0x63, 0x9c, 0x32, 0x78, 0xf0, 0x6, 0xaa, 0x27, 0x7f, 0x6e, 0xaf, 0x42,
++					0x90, 0x2b, 0x59, 0x2d, 0x8c, 0xbc, 0xbe, 0x38, 0xa1, 0xc9, 0x2b, 0xa4,
++					0x69, 0x5a, 0x33, 0x1b, 0x1d, 0xea, 0xde, 0xad, 0xd8, 0xe9, 0xa5, 0xc2,
++					0x7e, 0x8c, 0x4c, 0x2f, 0xd0, 0xa8, 0x88, 0x96, 0x57, 0x72, 0x2a, 0x4f,
++					0x2a, 0xf7, 0x58, 0x9c, 0xf2, 0xc7, 0x70, 0x45, 0xdc, 0x8f, 0xde, 0xec,
++					0x35, 0x7d, 0x2, 0x3, 0x1, 0x0, 0x1,
++				},
++				BitLength: 592,
++			},
++		},
++	},
++	SignatureAlgorithm: AlgorithmIdentifier{Algorithm: ObjectIdentifier{1, 2, 840, 113549, 1, 1, 5}},
++	SignatureValue: BitString{
++		Bytes: []uint8{
++			0xa6, 0x7b, 0x6, 0xec, 0x5e, 0xce,
++			0x92, 0x77, 0x2c, 0xa4, 0x13, 0xcb, 0xa3, 0xca, 0x12, 0x56, 0x8f, 0xdc, 0x6c,
++			0x7b, 0x45, 0x11, 0xcd, 0x40, 0xa7, 0xf6, 0x59, 0x98, 0x4, 0x2, 0xdf, 0x2b,
++			0x99, 0x8b, 0xb9, 0xa4, 0xa8, 0xcb, 0xeb, 0x34, 0xc0, 0xf0, 0xa7, 0x8c, 0xf8,
++			0xd9, 0x1e, 0xde, 0x14, 0xa5, 0xed, 0x76, 0xbf, 0x11, 0x6f, 0xe3, 0x60, 0xaa,
++			0xfa, 0x88, 0x21, 0x49, 0x4, 0x35,
++		},
++		BitLength: 512,
++	},
++}
++
++var derEncodedSelfSignedCertBytes = []byte{
++	0x30, 0x82, 0x02, 0x18, 0x30,
++	0x82, 0x01, 0xc2, 0x02, 0x09, 0x00, 0x8c, 0xc3, 0x37, 0x92, 0x10, 0xec, 0x2c,
++	0x98, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
++	0x05, 0x05, 0x00, 0x30, 0x81, 0x92, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55,
++	0x04, 0x06, 0x13, 0x02, 0x58, 0x58, 0x31, 0x13, 0x30, 0x11, 0x06, 0x03, 0x55,
++	0x04, 0x08, 0x13, 0x0a, 0x53, 0x6f, 0x6d, 0x65, 0x2d, 0x53, 0x74, 0x61, 0x74,
++	0x65, 0x31, 0x0d, 0x30, 0x0b, 0x06, 0x03, 0x55, 0x04, 0x07, 0x13, 0x04, 0x43,
++	0x69, 0x74, 0x79, 0x31, 0x21, 0x30, 0x1f, 0x06, 0x03, 0x55, 0x04, 0x0a, 0x13,
++	0x18, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x65, 0x74, 0x20, 0x57, 0x69, 0x64,
++	0x67, 0x69, 0x74, 0x73, 0x20, 0x50, 0x74, 0x79, 0x20, 0x4c, 0x74, 0x64, 0x31,
++	0x1a, 0x30, 0x18, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13, 0x11, 0x66, 0x61, 0x6c,
++	0x73, 0x65, 0x2e, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x2e, 0x63, 0x6f,
++	0x6d, 0x31, 0x20, 0x30, 0x1e, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
++	0x01, 0x09, 0x01, 0x16, 0x11, 0x66, 0x61, 0x6c, 0x73, 0x65, 0x40, 0x65, 0x78,
++	0x61, 0x6d, 0x70, 0x6c, 0x65, 0x2e, 0x63, 0x6f, 0x6d, 0x30, 0x1e, 0x17, 0x0d,
++	0x30, 0x39, 0x31, 0x30, 0x30, 0x38, 0x30, 0x30, 0x32, 0x35, 0x35, 0x33, 0x5a,
++	0x17, 0x0d, 0x31, 0x30, 0x31, 0x30, 0x30, 0x38, 0x30, 0x30, 0x32, 0x35, 0x35,
++	0x33, 0x5a, 0x30, 0x81, 0x92, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04,
++	0x06, 0x13, 0x02, 0x58, 0x58, 0x31, 0x13, 0x30, 0x11, 0x06, 0x03, 0x55, 0x04,
++	0x08, 0x13, 0x0a, 0x53, 0x6f, 0x6d, 0x65, 0x2d, 0x53, 0x74, 0x61, 0x74, 0x65,
++	0x31, 0x0d, 0x30, 0x0b, 0x06, 0x03, 0x55, 0x04, 0x07, 0x13, 0x04, 0x43, 0x69,
++	0x74, 0x79, 0x31, 0x21, 0x30, 0x1f, 0x06, 0x03, 0x55, 0x04, 0x0a, 0x13, 0x18,
++	0x49, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x65, 0x74, 0x20, 0x57, 0x69, 0x64, 0x67,
++	0x69, 0x74, 0x73, 0x20, 0x50, 0x74, 0x79, 0x20, 0x4c, 0x74, 0x64, 0x31, 0x1a,
++	0x30, 0x18, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13, 0x11, 0x66, 0x61, 0x6c, 0x73,
++	0x65, 0x2e, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x2e, 0x63, 0x6f, 0x6d,
++	0x31, 0x20, 0x30, 0x1e, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
++	0x09, 0x01, 0x16, 0x11, 0x66, 0x61, 0x6c, 0x73, 0x65, 0x40, 0x65, 0x78, 0x61,
++	0x6d, 0x70, 0x6c, 0x65, 0x2e, 0x63, 0x6f, 0x6d, 0x30, 0x5c, 0x30, 0x0d, 0x06,
++	0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03,
++	0x4b, 0x00, 0x30, 0x48, 0x02, 0x41, 0x00, 0xcd, 0xb7, 0x63, 0x9c, 0x32, 0x78,
++	0xf0, 0x06, 0xaa, 0x27, 0x7f, 0x6e, 0xaf, 0x42, 0x90, 0x2b, 0x59, 0x2d, 0x8c,
++	0xbc, 0xbe, 0x38, 0xa1, 0xc9, 0x2b, 0xa4, 0x69, 0x5a, 0x33, 0x1b, 0x1d, 0xea,
++	0xde, 0xad, 0xd8, 0xe9, 0xa5, 0xc2, 0x7e, 0x8c, 0x4c, 0x2f, 0xd0, 0xa8, 0x88,
++	0x96, 0x57, 0x72, 0x2a, 0x4f, 0x2a, 0xf7, 0x58, 0x9c, 0xf2, 0xc7, 0x70, 0x45,
++	0xdc, 0x8f, 0xde, 0xec, 0x35, 0x7d, 0x02, 0x03, 0x01, 0x00, 0x01, 0x30, 0x0d,
++	0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x05, 0x05, 0x00,
++	0x03, 0x41, 0x00, 0xa6, 0x7b, 0x06, 0xec, 0x5e, 0xce, 0x92, 0x77, 0x2c, 0xa4,
++	0x13, 0xcb, 0xa3, 0xca, 0x12, 0x56, 0x8f, 0xdc, 0x6c, 0x7b, 0x45, 0x11, 0xcd,
++	0x40, 0xa7, 0xf6, 0x59, 0x98, 0x04, 0x02, 0xdf, 0x2b, 0x99, 0x8b, 0xb9, 0xa4,
++	0xa8, 0xcb, 0xeb, 0x34, 0xc0, 0xf0, 0xa7, 0x8c, 0xf8, 0xd9, 0x1e, 0xde, 0x14,
++	0xa5, 0xed, 0x76, 0xbf, 0x11, 0x6f, 0xe3, 0x60, 0xaa, 0xfa, 0x88, 0x21, 0x49,
++	0x04, 0x35,
++}
++
++var derEncodedPaypalNULCertBytes = []byte{
++	0x30, 0x82, 0x06, 0x44, 0x30,
++	0x82, 0x05, 0xad, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x03, 0x00, 0xf0, 0x9b,
++	0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x05,
++	0x05, 0x00, 0x30, 0x82, 0x01, 0x12, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55,
++	0x04, 0x06, 0x13, 0x02, 0x45, 0x53, 0x31, 0x12, 0x30, 0x10, 0x06, 0x03, 0x55,
++	0x04, 0x08, 0x13, 0x09, 0x42, 0x61, 0x72, 0x63, 0x65, 0x6c, 0x6f, 0x6e, 0x61,
++	0x31, 0x12, 0x30, 0x10, 0x06, 0x03, 0x55, 0x04, 0x07, 0x13, 0x09, 0x42, 0x61,
++	0x72, 0x63, 0x65, 0x6c, 0x6f, 0x6e, 0x61, 0x31, 0x29, 0x30, 0x27, 0x06, 0x03,
++	0x55, 0x04, 0x0a, 0x13, 0x20, 0x49, 0x50, 0x53, 0x20, 0x43, 0x65, 0x72, 0x74,
++	0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x20, 0x41, 0x75, 0x74,
++	0x68, 0x6f, 0x72, 0x69, 0x74, 0x79, 0x20, 0x73, 0x2e, 0x6c, 0x2e, 0x31, 0x2e,
++	0x30, 0x2c, 0x06, 0x03, 0x55, 0x04, 0x0a, 0x14, 0x25, 0x67, 0x65, 0x6e, 0x65,
++	0x72, 0x61, 0x6c, 0x40, 0x69, 0x70, 0x73, 0x63, 0x61, 0x2e, 0x63, 0x6f, 0x6d,
++	0x20, 0x43, 0x2e, 0x49, 0x2e, 0x46, 0x2e, 0x20, 0x20, 0x42, 0x2d, 0x42, 0x36,
++	0x32, 0x32, 0x31, 0x30, 0x36, 0x39, 0x35, 0x31, 0x2e, 0x30, 0x2c, 0x06, 0x03,
++	0x55, 0x04, 0x0b, 0x13, 0x25, 0x69, 0x70, 0x73, 0x43, 0x41, 0x20, 0x43, 0x4c,
++	0x41, 0x53, 0x45, 0x41, 0x31, 0x20, 0x43, 0x65, 0x72, 0x74, 0x69, 0x66, 0x69,
++	0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x20, 0x41, 0x75, 0x74, 0x68, 0x6f, 0x72,
++	0x69, 0x74, 0x79, 0x31, 0x2e, 0x30, 0x2c, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13,
++	0x25, 0x69, 0x70, 0x73, 0x43, 0x41, 0x20, 0x43, 0x4c, 0x41, 0x53, 0x45, 0x41,
++	0x31, 0x20, 0x43, 0x65, 0x72, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69,
++	0x6f, 0x6e, 0x20, 0x41, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74, 0x79, 0x31,
++	0x20, 0x30, 0x1e, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09,
++	0x01, 0x16, 0x11, 0x67, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x6c, 0x40, 0x69, 0x70,
++	0x73, 0x63, 0x61, 0x2e, 0x63, 0x6f, 0x6d, 0x30, 0x1e, 0x17, 0x0d, 0x30, 0x39,
++	0x30, 0x32, 0x32, 0x34, 0x32, 0x33, 0x30, 0x34, 0x31, 0x37, 0x5a, 0x17, 0x0d,
++	0x31, 0x31, 0x30, 0x32, 0x32, 0x34, 0x32, 0x33, 0x30, 0x34, 0x31, 0x37, 0x5a,
++	0x30, 0x81, 0x94, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13,
++	0x02, 0x55, 0x53, 0x31, 0x13, 0x30, 0x11, 0x06, 0x03, 0x55, 0x04, 0x08, 0x13,
++	0x0a, 0x43, 0x61, 0x6c, 0x69, 0x66, 0x6f, 0x72, 0x6e, 0x69, 0x61, 0x31, 0x16,
++	0x30, 0x14, 0x06, 0x03, 0x55, 0x04, 0x07, 0x13, 0x0d, 0x53, 0x61, 0x6e, 0x20,
++	0x46, 0x72, 0x61, 0x6e, 0x63, 0x69, 0x73, 0x63, 0x6f, 0x31, 0x11, 0x30, 0x0f,
++	0x06, 0x03, 0x55, 0x04, 0x0a, 0x13, 0x08, 0x53, 0x65, 0x63, 0x75, 0x72, 0x69,
++	0x74, 0x79, 0x31, 0x14, 0x30, 0x12, 0x06, 0x03, 0x55, 0x04, 0x0b, 0x13, 0x0b,
++	0x53, 0x65, 0x63, 0x75, 0x72, 0x65, 0x20, 0x55, 0x6e, 0x69, 0x74, 0x31, 0x2f,
++	0x30, 0x2d, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13, 0x26, 0x77, 0x77, 0x77, 0x2e,
++	0x70, 0x61, 0x79, 0x70, 0x61, 0x6c, 0x2e, 0x63, 0x6f, 0x6d, 0x00, 0x73, 0x73,
++	0x6c, 0x2e, 0x73, 0x65, 0x63, 0x75, 0x72, 0x65, 0x63, 0x6f, 0x6e, 0x6e, 0x65,
++	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x63, 0x63, 0x30, 0x81, 0x9f, 0x30, 0x0d,
++	0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00,
++	0x03, 0x81, 0x8d, 0x00, 0x30, 0x81, 0x89, 0x02, 0x81, 0x81, 0x00, 0xd2, 0x69,
++	0xfa, 0x6f, 0x3a, 0x00, 0xb4, 0x21, 0x1b, 0xc8, 0xb1, 0x02, 0xd7, 0x3f, 0x19,
++	0xb2, 0xc4, 0x6d, 0xb4, 0x54, 0xf8, 0x8b, 0x8a, 0xcc, 0xdb, 0x72, 0xc2, 0x9e,
++	0x3c, 0x60, 0xb9, 0xc6, 0x91, 0x3d, 0x82, 0xb7, 0x7d, 0x99, 0xff, 0xd1, 0x29,
++	0x84, 0xc1, 0x73, 0x53, 0x9c, 0x82, 0xdd, 0xfc, 0x24, 0x8c, 0x77, 0xd5, 0x41,
++	0xf3, 0xe8, 0x1e, 0x42, 0xa1, 0xad, 0x2d, 0x9e, 0xff, 0x5b, 0x10, 0x26, 0xce,
++	0x9d, 0x57, 0x17, 0x73, 0x16, 0x23, 0x38, 0xc8, 0xd6, 0xf1, 0xba, 0xa3, 0x96,
++	0x5b, 0x16, 0x67, 0x4a, 0x4f, 0x73, 0x97, 0x3a, 0x4d, 0x14, 0xa4, 0xf4, 0xe2,
++	0x3f, 0x8b, 0x05, 0x83, 0x42, 0xd1, 0xd0, 0xdc, 0x2f, 0x7a, 0xe5, 0xb6, 0x10,
++	0xb2, 0x11, 0xc0, 0xdc, 0x21, 0x2a, 0x90, 0xff, 0xae, 0x97, 0x71, 0x5a, 0x49,
++	0x81, 0xac, 0x40, 0xf3, 0x3b, 0xb8, 0x59, 0xb2, 0x4f, 0x02, 0x03, 0x01, 0x00,
++	0x01, 0xa3, 0x82, 0x03, 0x21, 0x30, 0x82, 0x03, 0x1d, 0x30, 0x09, 0x06, 0x03,
++	0x55, 0x1d, 0x13, 0x04, 0x02, 0x30, 0x00, 0x30, 0x11, 0x06, 0x09, 0x60, 0x86,
++	0x48, 0x01, 0x86, 0xf8, 0x42, 0x01, 0x01, 0x04, 0x04, 0x03, 0x02, 0x06, 0x40,
++	0x30, 0x0b, 0x06, 0x03, 0x55, 0x1d, 0x0f, 0x04, 0x04, 0x03, 0x02, 0x03, 0xf8,
++	0x30, 0x13, 0x06, 0x03, 0x55, 0x1d, 0x25, 0x04, 0x0c, 0x30, 0x0a, 0x06, 0x08,
++	0x2b, 0x06, 0x01, 0x05, 0x05, 0x07, 0x03, 0x01, 0x30, 0x1d, 0x06, 0x03, 0x55,
++	0x1d, 0x0e, 0x04, 0x16, 0x04, 0x14, 0x61, 0x8f, 0x61, 0x34, 0x43, 0x55, 0x14,
++	0x7f, 0x27, 0x09, 0xce, 0x4c, 0x8b, 0xea, 0x9b, 0x7b, 0x19, 0x25, 0xbc, 0x6e,
++	0x30, 0x1f, 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04, 0x18, 0x30, 0x16, 0x80, 0x14,
++	0x0e, 0x07, 0x60, 0xd4, 0x39, 0xc9, 0x1b, 0x5b, 0x5d, 0x90, 0x7b, 0x23, 0xc8,
++	0xd2, 0x34, 0x9d, 0x4a, 0x9a, 0x46, 0x39, 0x30, 0x09, 0x06, 0x03, 0x55, 0x1d,
++	0x11, 0x04, 0x02, 0x30, 0x00, 0x30, 0x1c, 0x06, 0x03, 0x55, 0x1d, 0x12, 0x04,
++	0x15, 0x30, 0x13, 0x81, 0x11, 0x67, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x6c, 0x40,
++	0x69, 0x70, 0x73, 0x63, 0x61, 0x2e, 0x63, 0x6f, 0x6d, 0x30, 0x72, 0x06, 0x09,
++	0x60, 0x86, 0x48, 0x01, 0x86, 0xf8, 0x42, 0x01, 0x0d, 0x04, 0x65, 0x16, 0x63,
++	0x4f, 0x72, 0x67, 0x61, 0x6e, 0x69, 0x7a, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x20,
++	0x49, 0x6e, 0x66, 0x6f, 0x72, 0x6d, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x20, 0x4e,
++	0x4f, 0x54, 0x20, 0x56, 0x41, 0x4c, 0x49, 0x44, 0x41, 0x54, 0x45, 0x44, 0x2e,
++	0x20, 0x43, 0x4c, 0x41, 0x53, 0x45, 0x41, 0x31, 0x20, 0x53, 0x65, 0x72, 0x76,
++	0x65, 0x72, 0x20, 0x43, 0x65, 0x72, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74,
++	0x65, 0x20, 0x69, 0x73, 0x73, 0x75, 0x65, 0x64, 0x20, 0x62, 0x79, 0x20, 0x68,
++	0x74, 0x74, 0x70, 0x73, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x69, 0x70,
++	0x73, 0x63, 0x61, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x30, 0x2f, 0x06, 0x09, 0x60,
++	0x86, 0x48, 0x01, 0x86, 0xf8, 0x42, 0x01, 0x02, 0x04, 0x22, 0x16, 0x20, 0x68,
++	0x74, 0x74, 0x70, 0x73, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x69, 0x70,
++	0x73, 0x63, 0x61, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x70, 0x73, 0x63, 0x61,
++	0x32, 0x30, 0x30, 0x32, 0x2f, 0x30, 0x43, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
++	0x86, 0xf8, 0x42, 0x01, 0x04, 0x04, 0x36, 0x16, 0x34, 0x68, 0x74, 0x74, 0x70,
++	0x73, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x69, 0x70, 0x73, 0x63, 0x61,
++	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x70, 0x73, 0x63, 0x61, 0x32, 0x30, 0x30,
++	0x32, 0x2f, 0x69, 0x70, 0x73, 0x63, 0x61, 0x32, 0x30, 0x30, 0x32, 0x43, 0x4c,
++	0x41, 0x53, 0x45, 0x41, 0x31, 0x2e, 0x63, 0x72, 0x6c, 0x30, 0x46, 0x06, 0x09,
++	0x60, 0x86, 0x48, 0x01, 0x86, 0xf8, 0x42, 0x01, 0x03, 0x04, 0x39, 0x16, 0x37,
++	0x68, 0x74, 0x74, 0x70, 0x73, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x69,
++	0x70, 0x73, 0x63, 0x61, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x70, 0x73, 0x63,
++	0x61, 0x32, 0x30, 0x30, 0x32, 0x2f, 0x72, 0x65, 0x76, 0x6f, 0x63, 0x61, 0x74,
++	0x69, 0x6f, 0x6e, 0x43, 0x4c, 0x41, 0x53, 0x45, 0x41, 0x31, 0x2e, 0x68, 0x74,
++	0x6d, 0x6c, 0x3f, 0x30, 0x43, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x86, 0xf8,
++	0x42, 0x01, 0x07, 0x04, 0x36, 0x16, 0x34, 0x68, 0x74, 0x74, 0x70, 0x73, 0x3a,
++	0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x69, 0x70, 0x73, 0x63, 0x61, 0x2e, 0x63,
++	0x6f, 0x6d, 0x2f, 0x69, 0x70, 0x73, 0x63, 0x61, 0x32, 0x30, 0x30, 0x32, 0x2f,
++	0x72, 0x65, 0x6e, 0x65, 0x77, 0x61, 0x6c, 0x43, 0x4c, 0x41, 0x53, 0x45, 0x41,
++	0x31, 0x2e, 0x68, 0x74, 0x6d, 0x6c, 0x3f, 0x30, 0x41, 0x06, 0x09, 0x60, 0x86,
++	0x48, 0x01, 0x86, 0xf8, 0x42, 0x01, 0x08, 0x04, 0x34, 0x16, 0x32, 0x68, 0x74,
++	0x74, 0x70, 0x73, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x2e, 0x69, 0x70, 0x73,
++	0x63, 0x61, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x70, 0x73, 0x63, 0x61, 0x32,
++	0x30, 0x30, 0x32, 0x2f, 0x70, 0x6f, 0x6c, 0x69, 0x63, 0x79, 0x43, 0x4c, 0x41,
++	0x53, 0x45, 0x41, 0x31, 0x2e, 0x68, 0x74, 0x6d, 0x6c, 0x30, 0x81, 0x83, 0x06,
++	0x03, 0x55, 0x1d, 0x1f, 0x04, 0x7c, 0x30, 0x7a, 0x30, 0x39, 0xa0, 0x37, 0xa0,
++	0x35, 0x86, 0x33, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77,
++	0x2e, 0x69, 0x70, 0x73, 0x63, 0x61, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x70,
++	0x73, 0x63, 0x61, 0x32, 0x30, 0x30, 0x32, 0x2f, 0x69, 0x70, 0x73, 0x63, 0x61,
++	0x32, 0x30, 0x30, 0x32, 0x43, 0x4c, 0x41, 0x53, 0x45, 0x41, 0x31, 0x2e, 0x63,
++	0x72, 0x6c, 0x30, 0x3d, 0xa0, 0x3b, 0xa0, 0x39, 0x86, 0x37, 0x68, 0x74, 0x74,
++	0x70, 0x3a, 0x2f, 0x2f, 0x77, 0x77, 0x77, 0x62, 0x61, 0x63, 0x6b, 0x2e, 0x69,
++	0x70, 0x73, 0x63, 0x61, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x70, 0x73, 0x63,
++	0x61, 0x32, 0x30, 0x30, 0x32, 0x2f, 0x69, 0x70, 0x73, 0x63, 0x61, 0x32, 0x30,
++	0x30, 0x32, 0x43, 0x4c, 0x41, 0x53, 0x45, 0x41, 0x31, 0x2e, 0x63, 0x72, 0x6c,
++	0x30, 0x32, 0x06, 0x08, 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07, 0x01, 0x01, 0x04,
++	0x26, 0x30, 0x24, 0x30, 0x22, 0x06, 0x08, 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07,
++	0x30, 0x01, 0x86, 0x16, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x6f, 0x63,
++	0x73, 0x70, 0x2e, 0x69, 0x70, 0x73, 0x63, 0x61, 0x2e, 0x63, 0x6f, 0x6d, 0x2f,
++	0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x05,
++	0x05, 0x00, 0x03, 0x81, 0x81, 0x00, 0x68, 0xee, 0x79, 0x97, 0x97, 0xdd, 0x3b,
++	0xef, 0x16, 0x6a, 0x06, 0xf2, 0x14, 0x9a, 0x6e, 0xcd, 0x9e, 0x12, 0xf7, 0xaa,
++	0x83, 0x10, 0xbd, 0xd1, 0x7c, 0x98, 0xfa, 0xc7, 0xae, 0xd4, 0x0e, 0x2c, 0x9e,
++	0x38, 0x05, 0x9d, 0x52, 0x60, 0xa9, 0x99, 0x0a, 0x81, 0xb4, 0x98, 0x90, 0x1d,
++	0xae, 0xbb, 0x4a, 0xd7, 0xb9, 0xdc, 0x88, 0x9e, 0x37, 0x78, 0x41, 0x5b, 0xf7,
++	0x82, 0xa5, 0xf2, 0xba, 0x41, 0x25, 0x5a, 0x90, 0x1a, 0x1e, 0x45, 0x38, 0xa1,
++	0x52, 0x58, 0x75, 0x94, 0x26, 0x44, 0xfb, 0x20, 0x07, 0xba, 0x44, 0xcc, 0xe5,
++	0x4a, 0x2d, 0x72, 0x3f, 0x98, 0x47, 0xf6, 0x26, 0xdc, 0x05, 0x46, 0x05, 0x07,
++	0x63, 0x21, 0xab, 0x46, 0x9b, 0x9c, 0x78, 0xd5, 0x54, 0x5b, 0x3d, 0x0c, 0x1e,
++	0xc8, 0x64, 0x8c, 0xb5, 0x50, 0x23, 0x82, 0x6f, 0xdb, 0xb8, 0x22, 0x1c, 0x43,
++	0x96, 0x07, 0xa8, 0xbb,
++}

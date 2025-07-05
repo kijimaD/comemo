@@ -12,6 +12,26 @@ Date:   Mon Apr 23 16:20:32 2018 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/md5/md5.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index 7aeee603f7..fb2cbf4011 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -160,10 +160,10 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d0 *digest) Sum(in []byte) []byte {
+-	// Make a copy of d0 so that caller can keep writing and summing.
+-	d := *d0
+-	hash := d.checkSum()
++func (d *digest) Sum(in []byte) []byte {
++	// Make a copy of d so that caller can keep writing and summing.
++	d0 := *d
++	hash := d0.checkSum()
+ 	return append(in, hash[:]...)
+ }
+ 

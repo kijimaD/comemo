@@ -12,6 +12,69 @@ Date:   Wed Jun 25 03:06:07 2014 +1000
     R=ruiu, r
     CC=golang-codereviews
     https://golang.org/cl/109170043
-
+---
  src/pkg/strings/replace_test.go | 42 +++++++++++++++++++++++++++++------------
  1 file changed, 30 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/strings/replace_test.go b/src/pkg/strings/replace_test.go
+index 2cb318b69d..77e48b988b 100644
+--- a/src/pkg/strings/replace_test.go
++++ b/src/pkg/strings/replace_test.go
+@@ -308,20 +308,21 @@ func TestReplacer(t *testing.T) {
+ 	}
+ }
+ 
++var algorithmTestCases = []struct {
++	r    *Replacer
++	want string
++}{
++	{capitalLetters, "*strings.byteReplacer"},
++	{htmlEscaper, "*strings.byteStringReplacer"},
++	{NewReplacer("12", "123"), "*strings.singleStringReplacer"},
++	{NewReplacer("1", "12"), "*strings.byteStringReplacer"},
++	{NewReplacer("", "X"), "*strings.genericReplacer"},
++	{NewReplacer("a", "1", "b", "12", "cde", "123"), "*strings.genericReplacer"},
++}
++
+ // TestPickAlgorithm tests that NewReplacer picks the correct algorithm.
+ func TestPickAlgorithm(t *testing.T) {
+-	testCases := []struct {
+-		r    *Replacer
+-		want string
+-	}{
+-		{capitalLetters, "*strings.byteReplacer"},
+-		{htmlEscaper, "*strings.byteStringReplacer"},
+-		{NewReplacer("12", "123"), "*strings.singleStringReplacer"},
+-		{NewReplacer("1", "12"), "*strings.byteStringReplacer"},
+-		{NewReplacer("", "X"), "*strings.genericReplacer"},
+-		{NewReplacer("a", "1", "b", "12", "cde", "123"), "*strings.genericReplacer"},
+-	}
+-	for i, tc := range testCases {
++	for i, tc := range algorithmTestCases {
+ 		got := fmt.Sprintf("%T", tc.r.Replacer())
+ 		if got != tc.want {
+ 			t.Errorf("%d. algorithm = %s, want %s", i, got, tc.want)
+@@ -329,6 +330,23 @@ func TestPickAlgorithm(t *testing.T) {
+ 	}
+ }
+ 
++type errWriter struct{}
++
++func (errWriter) Write(p []byte) (n int, err error) {
++	return 0, fmt.Errorf("unwritable")
++}
++
++// TestWriteStringError tests that WriteString returns an error
++// received from the underlying io.Writer.
++func TestWriteStringError(t *testing.T) {
++	for i, tc := range algorithmTestCases {
++		n, err := tc.r.WriteString(errWriter{}, "abc")
++		if n != 0 || err == nil || err.Error() != "unwritable" {
++			t.Errorf("%d. WriteStringError = %d, %v, want 0, unwritable", i, n, err)
++		}
++	}
++}
++
+ // TestGenericTrieBuilding verifies the structure of the generated trie. There
+ // is one node per line, and the key ending with the current line is in the
+ // trie if it ends with a "+".

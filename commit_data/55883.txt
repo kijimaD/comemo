@@ -15,6 +15,40 @@ Date:   Tue Mar 21 18:33:46 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/text_handler.go | 18 +++---------------
  1 file changed, 3 insertions(+), 15 deletions(-)
+
+diff --git a/src/log/slog/text_handler.go b/src/log/slog/text_handler.go
+index 0faa367040..307d5c9d75 100644
+--- a/src/log/slog/text_handler.go
++++ b/src/log/slog/text_handler.go
+@@ -137,7 +137,9 @@ func needsQuoting(s string) bool {
+ 	for i := 0; i < len(s); {
+ 		b := s[i]
+ 		if b < utf8.RuneSelf {
+-			if needsQuotingSet[b] {
++			// Quote anything except a backslash that would need quoting in a
++			// JSON string, as well as space and '='
++			if b != '\\' && (b == ' ' || b == '=' || !safeSet[b]) {
+ 				return true
+ 			}
+ 			i++
+@@ -151,17 +153,3 @@ func needsQuoting(s string) bool {
+ 	}
+ 	return false
+ }
+-
+-var needsQuotingSet = [utf8.RuneSelf]bool{
+-	'"': true,
+-	'=': true,
+-}
+-
+-func init() {
+-	for i := 0; i < utf8.RuneSelf; i++ {
+-		r := rune(i)
+-		if unicode.IsSpace(r) || !unicode.IsPrint(r) {
+-			needsQuotingSet[i] = true
+-		}
+-	}
+-}

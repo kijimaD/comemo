@@ -24,8 +24,63 @@ Date:   Wed Jan 17 10:38:10 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/fix/cftype.go    | 10 ++++------
  src/cmd/fix/jnitype.go   |  3 +--
  src/cmd/fix/typecheck.go |  1 +
  3 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/fix/cftype.go b/src/cmd/fix/cftype.go
+index 5e742a4fdf..3341348272 100644
+--- a/src/cmd/fix/cftype.go
++++ b/src/cmd/fix/cftype.go
+@@ -30,19 +30,17 @@ var cftypeFix = fix{
+ // and similar for other *Ref types.
+ // This fix finds nils initializing these types and replaces the nils with 0s.
+ func cftypefix(f *ast.File) bool {
+-	var tc TypeConfig
+-	return typefix(f, &tc, func(s string) bool {
+-		return strings.HasPrefix(s, "C.") && strings.HasSuffix(s, "Ref") &&
+-			(s == "C.CFTypeRef" || tc.External[s[:len(s)-3]+"GetTypeID"] == "func() C.CFTypeID")
++	return typefix(f, func(s string) bool {
++		return strings.HasPrefix(s, "C.") && strings.HasSuffix(s, "Ref") && s != "C.CFAllocatorRef"
+ 	})
+ }
+ 
+ // typefix replaces nil with 0 for all nils whose type, when passed to badType, returns true.
+-func typefix(f *ast.File, tc *TypeConfig, badType func(string) bool) bool {
++func typefix(f *ast.File, badType func(string) bool) bool {
+ 	if !imports(f, "C") {
+ 		return false
+ 	}
+-	typeof, _ := typecheck(tc, f)
++	typeof, _ := typecheck(&TypeConfig{}, f)
+ 
+ 	// step 1: Find all the nils with the offending types.
+ 	// Compute their replacement.
+diff --git a/src/cmd/fix/jnitype.go b/src/cmd/fix/jnitype.go
+index 75ae570c4d..29abe0f007 100644
+--- a/src/cmd/fix/jnitype.go
++++ b/src/cmd/fix/jnitype.go
+@@ -27,8 +27,7 @@ var jniFix = fix{
+ // and similar for subtypes of jobject.
+ // This fix finds nils initializing these types and replaces the nils with 0s.
+ func jnifix(f *ast.File) bool {
+-	var tc TypeConfig
+-	return typefix(f, &tc, func(s string) bool {
++	return typefix(f, func(s string) bool {
+ 		switch s {
+ 		case "C.jobject":
+ 			return true
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index a52a54202d..c5900d8dcd 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -152,6 +152,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
+ 
+ 	// If we import "C", add types of cgo objects.
+ 	cfg.External = map[string]string{}
++	cfg1.External = cfg.External
+ 	if imports(f, "C") {
+ 		// Run cgo on gofmtFile(f)
+ 		// Parse, extract decls from _cgo_gotypes.go

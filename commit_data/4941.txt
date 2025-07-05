@@ -10,7 +10,53 @@ Date:   Wed Feb 24 17:00:25 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/224045
-
+---
  src/Make.pkg             | 4 ++--
  src/pkg/runtime/Makefile | 7 +++++++
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 3dd57b7104..5d956c05a4 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -30,7 +30,7 @@ QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
+ 
+ pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
+ 
+-INSTALLFILES=$(pkgdir)/$(TARG).a
++INSTALLFILES+=$(pkgdir)/$(TARG).a
+ 
+ # The rest of the cgo rules are below, but these variable updates
+ # must be done here so they apply to the main rules.
+@@ -150,7 +150,7 @@ _cgo_.so: $(GCC_OFILES)
+ 	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
+ 
+ $(pkgdir)/$(TARG).so: _cgo_.so
+-	@test -d $(QUOTED_GOROOT/pkg && mkdir -p $(pkgdir)/$(dir)
++	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+ 	cp _cgo_.so "$@"
+ 
+ # Generic build rules.
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index b6e4eed708..7674720635 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -92,11 +92,18 @@ HFILES=\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
++# For use by cgo.
++INSTALLFILES=$(pkgdir)/runtime.h $(pkgdir)/cgocall.h
++
+ # special, out of the way compiler flag that means "add runtime metadata to output"
+ GC+= -+
+ 
+ include ../../Make.pkg
+ 
++$(pkgdir)/%.h: %.h
++	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
++	cp $< $@
++
+ clean: clean-local
+ 
+ clean-local:

@@ -7,7 +7,34 @@ Date:   Tue Feb 17 16:48:31 2015 +1100
     Change-Id: Ia47e1e387acd30f30559d766aa6fca18cbb098f9
     Reviewed-on: https://go-review.googlesource.com/5010
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_windows_386.s   | 2 +-
  src/runtime/sys_windows_amd64.s | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 9c2692b93d..5f4a63bcdd 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -248,7 +248,7 @@ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
+ 	SUBL	$runtime·callbackasm(SB), AX
+ 	MOVL	$0, DX
+ 	MOVL	$5, BX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
+-	DIVL	BX,
++	DIVL	BX
+ 
+ 	// find correspondent runtime·cbctxts table entry
+ 	MOVL	runtime·cbctxts(SB), BX
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 27e48bf9c2..dd81ce055a 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -287,7 +287,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	SUBQ	DX, AX
+ 	MOVQ	$0, DX
+ 	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
+-	DIVL	CX,
++	DIVL	CX
+ 
+ 	// find correspondent runtime·cbctxts table entry
+ 	MOVQ	runtime·cbctxts(SB), CX

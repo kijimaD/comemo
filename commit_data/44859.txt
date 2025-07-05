@@ -20,10 +20,147 @@ Date:   Fri Aug 28 21:32:05 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/import.go              | 26 ++++++++++----------
  ...xample.com_split-incompatible_subpkg_v0.1.0.txt | 14 +++++++++++
  ....com_split-incompatible_v2.0.0+incompatible.txt | 10 ++++++++
  ..._split-incompatible_v2.1.0-pre+incompatible.txt | 10 ++++++++
  .../go/testdata/script/mod_import_issue41113.txt   | 28 ++++++++++++++++++++++
  5 files changed, 76 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index e04d66c5b1..c625184b8b 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -312,10 +312,10 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 		}
+ 	}
+ 
+-	m := candidates[0].Mod
+-	newMissingVersion := ""
+-	for _, c := range candidates {
++	candidate0MissingVersion := ""
++	for i, c := range candidates {
+ 		cm := c.Mod
++		canAdd := true
+ 		for _, bm := range buildList {
+ 			if bm.Path == cm.Path && semver.Compare(bm.Version, cm.Version) > 0 {
+ 				// QueryPackage proposed that we add module cm to provide the package,
+@@ -326,20 +326,22 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 				// version (e.g., v1.0.0) of a module, but we have a newer version
+ 				// of the same module in the build list (e.g., v1.0.1-beta), and
+ 				// the package is not present there.
+-				//
+-				// TODO(#41113): This is probably incorrect when there are multiple
+-				// candidates, such as when a nested module is split out but only one
+-				// half of the split is tagged.
+-				m = cm
+-				newMissingVersion = bm.Version
++				canAdd = false
++				if i == 0 {
++					candidate0MissingVersion = bm.Version
++				}
+ 				break
+ 			}
+ 		}
++		if canAdd {
++			return cm, nil
++		}
+ 	}
+-	if newMissingVersion != "" {
+-		return m, &ImportMissingError{Path: path, Module: m, newMissingVersion: newMissingVersion}
++	return module.Version{}, &ImportMissingError{
++		Path:              path,
++		Module:            candidates[0].Mod,
++		newMissingVersion: candidate0MissingVersion,
+ 	}
+-	return m, nil
+ }
+ 
+ // maybeInModule reports whether, syntactically,
+diff --git a/src/cmd/go/testdata/mod/example.com_split-incompatible_subpkg_v0.1.0.txt b/src/cmd/go/testdata/mod/example.com_split-incompatible_subpkg_v0.1.0.txt
+new file mode 100644
+index 0000000000..8f9e49176c
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_split-incompatible_subpkg_v0.1.0.txt
+@@ -0,0 +1,14 @@
++Written by hand.
++Test case for getting a package that has been moved to a nested module,
++with a +incompatible verison (and thus no go.mod file) at the root module.
++
++-- .mod --
++module example.com/split-incompatible/subpkg
++-- .info --
++{"Version": "v0.1.0"}
++-- go.mod --
++module example.com/split-incompatible/subpkg
++
++go 1.16
++-- subpkg.go --
++package subpkg
+diff --git a/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.0.0+incompatible.txt b/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.0.0+incompatible.txt
+new file mode 100644
+index 0000000000..35c3f27710
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.0.0+incompatible.txt
+@@ -0,0 +1,10 @@
++Written by hand.
++Test case for getting a package that has been moved to a nested module,
++with a +incompatible verison (and thus no go.mod file) at the root module.
++
++-- .mod --
++module example.com/split-incompatible
++-- .info --
++{"Version": "v2.0.0+incompatible"}
++-- subpkg/subpkg.go --
++package subpkg
+diff --git a/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.1.0-pre+incompatible.txt b/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.1.0-pre+incompatible.txt
+new file mode 100644
+index 0000000000..917fc0f559
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.1.0-pre+incompatible.txt
+@@ -0,0 +1,10 @@
++Written by hand.
++Test case for getting a package that has been moved to a nested module,
++with a +incompatible verison (and thus no go.mod file) at the root module.
++
++-- .mod --
++module example.com/split-incompatible
++-- .info --
++{"Version": "v2.1.0-pre+incompatible"}
++-- README.txt --
++subpkg has moved to module example.com/split-incompatible/subpkg
+diff --git a/src/cmd/go/testdata/script/mod_import_issue41113.txt b/src/cmd/go/testdata/script/mod_import_issue41113.txt
+new file mode 100644
+index 0000000000..e98ac63d48
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_import_issue41113.txt
+@@ -0,0 +1,28 @@
++# Regression test for https://golang.org/issue/41113.
++#
++# When resolving a missing import path, the inability to add the package from
++# one module path should not interfere with adding a nested path.
++
++# Initially, our module depends on split-incompatible v2.1.0-pre+incompatible,
++# from which an imported package has been removed (and relocated to the nested
++# split-incompatible/subpkg module). modload.QueryPackage will suggest
++# split-incompatible v2.0.0+incompatible, which we cannot use (because it would
++# be an implicit downgrade), and split-incompatible/subpkg v0.1.0, which we
++# *should* use.
++
++go mod tidy
++
++go list -m all
++stdout '^example.com/split-incompatible/subpkg v0\.1\.0$'
++! stdout '^example.com/split-incompatible .*'
++
++-- go.mod --
++module golang.org/issue/41113
++
++go 1.16
++
++require example.com/split-incompatible v2.1.0-pre+incompatible
++-- x.go --
++package issue41113
++
++import _ "example.com/split-incompatible/subpkg"

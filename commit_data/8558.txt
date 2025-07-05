@@ -9,8 +9,67 @@ Date:   Tue May 31 15:05:40 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4524084
-
+---
  src/cmd/gc/const.c |  4 ++++
  test/golden.out    | 15 ---------------
  test/shift2.go     |  2 +-
  3 files changed, 5 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index a36ec68c0a..8fe9072b23 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -103,6 +103,8 @@ convlit1(Node **np, Type *t, int explicit)
+ 	case ORSH:
+ 		convlit1(&n->left, t, explicit && isideal(n->left->type));
+ 		t = n->left->type;
++		if(t != T && t->etype == TIDEAL && n->val.ctype != CTINT)
++			n->val = toint(n->val);
+ 		if(t != T && !isint[t->etype]) {
+ 			yyerror("invalid operation: %#N (shift of type %T)", n, t);
+ 			t = T;
+@@ -514,6 +516,8 @@ evconst(Node *n)
+ 		n->right = nr;
+ 		if(nr->type && (issigned[nr->type->etype] || !isint[nr->type->etype]))
+ 			goto illegal;
++		nl->val = toint(nl->val);
++		nr->val = toint(nr->val);
+ 		break;
+ 	}
+ 
+diff --git a/test/golden.out b/test/golden.out
+index ba60fbfed1..4400e41dd1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -40,21 +40,6 @@ hello, world
+ -9223372036854775808
+ 9223372036854775807
+ 
+-=========== ./shift1.go
+-BUG: errchk: ./shift1.go:33: error message does not match 'overflow'
+-errchk: ./shift1.go:34: error message does not match 'overflow'
+-errchk: ./shift1.go:35: error message does not match 'overflow'
+-
+-=========== ./shift2.go
+-./shift2.go:22: illegal constant expression: ideal LSH uint
+-./shift2.go:35: illegal constant expression: ideal LSH uint
+-./shift2.go:36: illegal constant expression: ideal LSH uint
+-./shift2.go:36: invalid operation: 2 << c (shift of type float64)
+-./shift2.go:39: illegal constant expression: ideal LSH uint
+-./shift2.go:40: illegal constant expression: ideal LSH uint
+-./shift2.go:40: invalid operation: 2 << c (shift of type float64)
+-./shift2.go:40: cannot use 2 << c as type interface { } in function argument
+-
+ =========== ./sigchld.go
+ survived SIGCHLD
+ 
+diff --git a/test/shift2.go b/test/shift2.go
+index b08b37b7f9..ec4c7addc2 100644
+--- a/test/shift2.go
++++ b/test/shift2.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// $G $D/$F.go || echo BUG: shift2
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style

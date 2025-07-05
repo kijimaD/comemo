@@ -14,7 +14,7 @@ Date:   Tue Feb 28 16:07:36 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../vendor/github.com/google/pprof/doc/pprof.md    |  9 ++++----
  .../github.com/google/pprof/driver/driver.go       | 12 +++++------
  .../google/pprof/internal/binutils/addr2liner.go   |  5 ++++-
@@ -30,3 +30,325 @@ Date:   Tue Feb 28 16:07:36 2017 -0800
  .../pprof/internal/symbolizer/symbolizer_test.go   | 17 ++++++++++-----
  src/cmd/vendor/vendor.json                         |  4 ++--
  14 files changed, 66 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/vendor/github.com/google/pprof/doc/pprof.md b/src/cmd/vendor/github.com/google/pprof/doc/pprof.md
+index e5340f05c2..d2c7e26e31 100644
+--- a/src/cmd/vendor/github.com/google/pprof/doc/pprof.md
++++ b/src/cmd/vendor/github.com/google/pprof/doc/pprof.md
+@@ -84,7 +84,7 @@ pprof text reports show the location hierarchy in text format.
+ 
+ * **-text:** Prints the location entries, one per line, including the flat and cum
+   values.
+-* **-tree:** Prints each location entry with its predecessors and successors. 
++* **-tree:** Prints each location entry with its predecessors and successors.
+ * **-peek= _regex_:** Print the location entry with all its predecessors and
+   successors, without trimming any entries.
+ * **-traces:** Prints each sample with a location per line.
+@@ -120,9 +120,10 @@ profile must contain data with the appropriate level of detail.
+ 
+ pprof will look for source files on its current working directory and all its
+ ancestors. pprof will look for binaries on the directories specified in the
+-`$PPROF_BINARY_PATH` environment variable, by default `$HOME/pprof/binaries`. It
+-will look binaries up by name, and if the profile includes linker build ids, it
+-will also search for them in a directory named as the build id.
++`$PPROF_BINARY_PATH` environment variable, by default `$HOME/pprof/binaries`
++(`%USERPROFILE%\pprof\binaries` on Windows). It will look binaries up by name,
++and if the profile includes linker build ids, it will also search for them in
++a directory named as the build id.
+ 
+ pprof uses the binutils tools to examine and disassemble the binaries. By
+ default it will search for those tools in the current path, but it can also
+diff --git a/src/cmd/vendor/github.com/google/pprof/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+index 82c2e2a7cd..d01d0fa344 100644
+--- a/src/cmd/vendor/github.com/google/pprof/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+@@ -42,12 +42,12 @@ func (o *Options) InternalOptions() *plugin.Options {
+ 		sym = &internalSymbolizer{o.Sym}
+ 	}
+ 	return &plugin.Options{
+-		o.Writer,
+-		o.Flagset,
+-		o.Fetch,
+-		sym,
+-		obj,
+-		o.UI,
++		Writer:  o.Writer,
++		Flagset: o.Flagset,
++		Fetch:   o.Fetch,
++		Sym:     sym,
++		Obj:     obj,
++		UI:      o.UI,
+ 	}
+ }
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
+index 6b9e6abb22..e3a7777253 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
+@@ -164,7 +164,10 @@ func (d *addr2Liner) readFrame() (plugin.Frame, bool) {
+ 		}
+ 	}
+ 
+-	return plugin.Frame{funcname, fileline, linenumber}, false
++	return plugin.Frame{
++		Func: funcname,
++		File: fileline,
++		Line: linenumber}, false
+ }
+ 
+ // addrInfo returns the stack frame information for a specific program
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
+index 17ff5fd836..7692b0a5cb 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
+@@ -121,7 +121,7 @@ func (d *llvmSymbolizer) readFrame() (plugin.Frame, bool) {
+ 
+ 	fileline, err := d.readString()
+ 	if err != nil {
+-		return plugin.Frame{funcname, "", 0}, true
++		return plugin.Frame{Func: funcname}, true
+ 	}
+ 
+ 	linenumber := 0
+@@ -144,7 +144,7 @@ func (d *llvmSymbolizer) readFrame() (plugin.Frame, bool) {
+ 		}
+ 	}
+ 
+-	return plugin.Frame{funcname, fileline, linenumber}, false
++	return plugin.Frame{Func: funcname, File: fileline, Line: linenumber}, false
+ }
+ 
+ // addrInfo returns the stack frame information for a specific program
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
+index b7190e7ae2..b0ba5f67a8 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
+@@ -49,7 +49,7 @@ func TestAddr2Liner(t *testing.T) {
+ 		}
+ 		for l, f := range s {
+ 			level := (len(s) - l) * 1000
+-			want := plugin.Frame{functionName(level), fmt.Sprintf("file%d", level), level}
++			want := plugin.Frame{Func: functionName(level), File: fmt.Sprintf("file%d", level), Line: level}
+ 
+ 			if f != want {
+ 				t.Errorf("AddrInfo(%#x)[%d]: = %+v, want %+v", addr, l, f, want)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go
+index fcdc555dc1..1a3b6f8d6a 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go
+@@ -46,7 +46,7 @@ func findSymbols(syms []byte, file string, r *regexp.Regexp, address uint64) ([]
+ 			continue
+ 		}
+ 		if match := matchSymbol(names, start, symAddr-1, r, address); match != nil {
+-			symbols = append(symbols, &plugin.Sym{match, file, start, symAddr - 1})
++			symbols = append(symbols, &plugin.Sym{Name: match, File: file, Start: start, End: symAddr - 1})
+ 		}
+ 		names, start = []string{name}, symAddr
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm_test.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm_test.go
+index bb08023884..7fc25741ce 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm_test.go
+@@ -46,16 +46,16 @@ func TestFindSymbols(t *testing.T) {
+ 			"line.*[AC]",
+ 			testsyms,
+ 			[]plugin.Sym{
+-				{[]string{"lineA001"}, "object.o", 0x1000, 0x1FFF},
+-				{[]string{"line200A"}, "object.o", 0x2000, 0x2FFF},
+-				{[]string{"lineB00C"}, "object.o", 0x3000, 0x3FFF},
++				{Name: []string{"lineA001"}, File: "object.o", Start: 0x1000, End: 0x1FFF},
++				{Name: []string{"line200A"}, File: "object.o", Start: 0x2000, End: 0x2FFF},
++				{Name: []string{"lineB00C"}, File: "object.o", Start: 0x3000, End: 0x3FFF},
+ 			},
+ 		},
+ 		{
+ 			"Dumb::operator",
+ 			testsyms,
+ 			[]plugin.Sym{
+-				{[]string{"Dumb::operator()(char const*) const"}, "object.o", 0x3000, 0x3FFF},
++				{Name: []string{"Dumb::operator()(char const*) const"}, File: "object.o", Start: 0x3000, End: 0x3FFF},
+ 			},
+ 		},
+ 	}
+@@ -109,7 +109,7 @@ func TestFunctionAssembly(t *testing.T) {
+ 	}
+ 	testcases := []testcase{
+ 		{
+-			plugin.Sym{[]string{"symbol1"}, "", 0x1000, 0x1FFF},
++			plugin.Sym{Name: []string{"symbol1"}, Start: 0x1000, End: 0x1FFF},
+ 			`  1000: instruction one
+   1001: instruction two
+   1002: instruction three
+@@ -123,7 +123,7 @@ func TestFunctionAssembly(t *testing.T) {
+ 			},
+ 		},
+ 		{
+-			plugin.Sym{[]string{"symbol2"}, "", 0x2000, 0x2FFF},
++			plugin.Sym{Name: []string{"symbol2"}, Start: 0x2000, End: 0x2FFF},
+ 			`  2000: instruction one
+   2001: instruction two
+ `,
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+index 093cdbbe04..0005ead70b 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+@@ -268,4 +268,5 @@ var usageMsgVars = "\n\n" +
+ 	"   PPROF_TOOLS        Search path for object-level tools\n" +
+ 	"   PPROF_BINARY_PATH  Search path for local binary files\n" +
+ 	"                      default: $HOME/pprof/binaries\n" +
+-	"                      finds binaries by $name and $buildid/$name\n"
++	"                      finds binaries by $name and $buildid/$name\n" +
++	"   * On Windows, %USERPROFILE% is used instead of $HOME"
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+index 9c6acc0ec9..f9e8231419 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+@@ -25,6 +25,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -214,13 +215,24 @@ type profileSource struct {
+ 	err    error
+ }
+ 
++func homeEnv() string {
++	switch runtime.GOOS {
++	case "windows":
++		return "USERPROFILE"
++	case "plan9":
++		return "home"
++	default:
++		return "HOME"
++	}
++}
++
+ // setTmpDir prepares the directory to use to save profiles retrieved
+ // remotely. It is selected from PPROF_TMPDIR, defaults to $HOME/pprof.
+ func setTmpDir(ui plugin.UI) (string, error) {
+ 	if profileDir := os.Getenv("PPROF_TMPDIR"); profileDir != "" {
+ 		return profileDir, nil
+ 	}
+-	for _, tmpDir := range []string{os.Getenv("HOME") + "/pprof", os.TempDir()} {
++	for _, tmpDir := range []string{os.Getenv(homeEnv()) + "/pprof", os.TempDir()} {
+ 		if err := os.MkdirAll(tmpDir, 0755); err != nil {
+ 			ui.PrintErr("Could not use temp dir ", tmpDir, ": ", err.Error())
+ 			continue
+@@ -315,7 +327,7 @@ func locateBinaries(p *profile.Profile, s *source, obj plugin.ObjTool, ui plugin
+ 	searchPath := os.Getenv("PPROF_BINARY_PATH")
+ 	if searchPath == "" {
+ 		// Use $HOME/pprof/binaries as default directory for local symbolization binaries
+-		searchPath = filepath.Join(os.Getenv("HOME"), "pprof", "binaries")
++		searchPath = filepath.Join(os.Getenv(homeEnv()), "pprof", "binaries")
+ 	}
+ mapping:
+ 	for _, m := range p.Mapping {
+@@ -332,8 +344,13 @@ mapping:
+ 					fileNames = append(fileNames, matches...)
+ 				}
+ 			}
+-			if baseName != "" {
+-				fileNames = append(fileNames, filepath.Join(path, baseName))
++			if m.File != "" {
++				// Try both the basename and the full path, to support the same directory
++				// structure as the perf symfs option.
++				if baseName != "" {
++					fileNames = append(fileNames, filepath.Join(path, baseName))
++				}
++				fileNames = append(fileNames, filepath.Join(path, m.File))
+ 			}
+ 			for _, name := range fileNames {
+ 				if f, err := obj.Open(name, m.Start, m.Limit, m.Offset); err == nil {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+index f03f28417a..e592b77cc8 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+@@ -57,6 +57,7 @@ func TestSymbolizationPath(t *testing.T) {
+ 	}{
+ 		{"", "/usr/bin/binary", "", "/usr/bin/binary", 0},
+ 		{"", "/usr/bin/binary", "fedcb10000", "/usr/bin/binary", 0},
++		{"/usr", "/bin/binary", "", "/usr/bin/binary", 0},
+ 		{"", "/prod/path/binary", "abcde10001", filepath.Join(tempdir, "pprof/binaries/abcde10001/binary"), 0},
+ 		{"/alternate/architecture", "/usr/bin/binary", "", "/alternate/architecture/binary", 0},
+ 		{"/alternate/architecture", "/usr/bin/binary", "abcde10001", "/alternate/architecture/binary", 0},
+@@ -104,7 +105,7 @@ func TestCollectMappingSources(t *testing.T) {
+ 		}
+ 		got := collectMappingSources(p, url)
+ 		if !reflect.DeepEqual(got, tc.want) {
+-			t.Errorf("%s:%s, want %s, got %s", tc.file, tc.buildID, tc.want, got)
++			t.Errorf("%s:%s, want %v, got %v", tc.file, tc.buildID, tc.want, got)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go
+index 73681d2823..cb20e948b4 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go
+@@ -47,7 +47,7 @@ func setDefaults(o *plugin.Options) *plugin.Options {
+ 		d.UI = &stdUI{r: bufio.NewReader(os.Stdin)}
+ 	}
+ 	if d.Sym == nil {
+-		d.Sym = &symbolizer.Symbolizer{d.Obj, d.UI}
++		d.Sym = &symbolizer.Symbolizer{Obj: d.Obj, UI: d.UI}
+ 	}
+ 	return d
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report_test.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report_test.go
+index 38678d92dd..28cf6b4ce3 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report_test.go
+@@ -230,7 +230,7 @@ func TestDisambiguation(t *testing.T) {
+ 		sibling: "sibling",
+ 	}
+ 
+-	g := &graph.Graph{n}
++	g := &graph.Graph{Nodes: n}
+ 
+ 	names := getDisambiguatedNames(g)
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go
+index 66fbece399..66cad3eaa1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go
+@@ -207,11 +207,18 @@ func checkSymbolizedLocation(a uint64, got []profile.Line) error {
+ }
+ 
+ var mockAddresses = map[uint64][]plugin.Frame{
+-	1000: []plugin.Frame{{"fun11", "file11.src", 10}},
+-	2000: []plugin.Frame{{"fun21", "file21.src", 20}, {"fun22", "file22.src", 20}},
+-	3000: []plugin.Frame{{"fun31", "file31.src", 30}, {"fun32", "file32.src", 30}, {"fun33", "file33.src", 30}},
+-	4000: []plugin.Frame{{"fun41", "file41.src", 40}, {"fun42", "file42.src", 40}, {"fun43", "file43.src", 40}, {"fun44", "file44.src", 40}},
+-	5000: []plugin.Frame{{"fun51", "file51.src", 50}, {"fun52", "file52.src", 50}, {"fun53", "file53.src", 50}, {"fun54", "file54.src", 50}, {"fun55", "file55.src", 50}},
++	1000: []plugin.Frame{frame("fun11", "file11.src", 10)},
++	2000: []plugin.Frame{frame("fun21", "file21.src", 20), frame("fun22", "file22.src", 20)},
++	3000: []plugin.Frame{frame("fun31", "file31.src", 30), frame("fun32", "file32.src", 30), frame("fun33", "file33.src", 30)},
++	4000: []plugin.Frame{frame("fun41", "file41.src", 40), frame("fun42", "file42.src", 40), frame("fun43", "file43.src", 40), frame("fun44", "file44.src", 40)},
++	5000: []plugin.Frame{frame("fun51", "file51.src", 50), frame("fun52", "file52.src", 50), frame("fun53", "file53.src", 50), frame("fun54", "file54.src", 50), frame("fun55", "file55.src", 50)},
++}
++
++func frame(fname, file string, line int) plugin.Frame {
++	return plugin.Frame{
++		Func: fname,
++		File: file,
++		Line: line}
+ }
+ 
+ type mockObjTool struct{}
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index 3c86dea3a3..71b2905d87 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -9,8 +9,8 @@
+ 		{
+ 			"canonical": "github.com/google/pprof",
+ 			"local": "github.com/google/pprof",
+-			"revision": "8b5491579fe32b2af1befa740ac5e6114cbd3e56",
+-			"revisionTime": "2017-02-17T22:14:04Z",
++			"revision": "e41fb7133e7ebb84ba6af2f6443032c728db26d3",
++			"revisionTime": "2017-03-01T00:04:42Z",
+ 		},
+ 		{
+ 			"canonical": "golang.org/x/arch/x86/x86asm",

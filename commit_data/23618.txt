@@ -7,8 +7,322 @@ Date:   Thu May 28 18:17:38 2015 -0700
     Change-Id: I22fdba8ecaecf4e9201b845e65d982cac09f254a
     Reviewed-on: https://go-review.googlesource.com/10499
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/floatconv_test.go    | 141 ++++++++++++++++++++++++++++++++++++++
  src/math/big/floatexample_test.go |   8 +--
  src/math/big/ftoa.go              |  98 +++++++++++++++++++++++++-
  3 files changed, 240 insertions(+), 7 deletions(-)
+
+diff --git a/src/math/big/floatconv_test.go b/src/math/big/floatconv_test.go
+index 656d28c975..4f239534a1 100644
+--- a/src/math/big/floatconv_test.go
++++ b/src/math/big/floatconv_test.go
+@@ -5,6 +5,7 @@
+ package big
+ 
+ import (
++	"fmt"
+ 	"math"
+ 	"strconv"
+ 	"testing"
+@@ -430,3 +431,143 @@ func TestFloatText(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestFloatFormat(t *testing.T) {
++	for _, test := range []struct {
++		format string
++		value  interface{} // float32, float64, or string (== 512bit *Float)
++		want   string
++	}{
++		// TODO(gri) uncomment the disabled 'g'/'G' formats
++		// 	     below once (*Float).Text supports prec < 0
++
++		// from fmt/fmt_test.go
++		{"%+.3e", 0.0, "+0.000e+00"},
++		{"%+.3e", 1.0, "+1.000e+00"},
++		{"%+.3f", -1.0, "-1.000"},
++		{"%+.3F", -1.0, "-1.000"},
++		{"%+.3F", float32(-1.0), "-1.000"},
++		{"%+07.2f", 1.0, "+001.00"},
++		{"%+07.2f", -1.0, "-001.00"},
++		{"%+10.2f", +1.0, "     +1.00"},
++		{"%+10.2f", -1.0, "     -1.00"},
++		{"% .3E", -1.0, "-1.000E+00"},
++		{"% .3e", 1.0, " 1.000e+00"},
++		{"%+.3g", 0.0, "+0"},
++		{"%+.3g", 1.0, "+1"},
++		{"%+.3g", -1.0, "-1"},
++		{"% .3g", -1.0, "-1"},
++		{"% .3g", 1.0, " 1"},
++		{"%b", float32(1.0), "8388608p-23"},
++		{"%b", 1.0, "4503599627370496p-52"},
++
++		// from fmt/fmt_test.go: old test/fmt_test.go
++		{"%e", 1.0, "1.000000e+00"},
++		{"%e", 1234.5678e3, "1.234568e+06"},
++		{"%e", 1234.5678e-8, "1.234568e-05"},
++		{"%e", -7.0, "-7.000000e+00"},
++		{"%e", -1e-9, "-1.000000e-09"},
++		{"%f", 1234.5678e3, "1234567.800000"},
++		{"%f", 1234.5678e-8, "0.000012"},
++		{"%f", -7.0, "-7.000000"},
++		{"%f", -1e-9, "-0.000000"},
++		// {"%g", 1234.5678e3, "1.2345678e+06"},
++		// {"%g", float32(1234.5678e3), "1.2345678e+06"},
++		// {"%g", 1234.5678e-8, "1.2345678e-05"},
++		{"%g", -7.0, "-7"},
++		{"%g", -1e-9, "-1e-09"},
++		{"%g", float32(-1e-9), "-1e-09"},
++		{"%E", 1.0, "1.000000E+00"},
++		{"%E", 1234.5678e3, "1.234568E+06"},
++		{"%E", 1234.5678e-8, "1.234568E-05"},
++		{"%E", -7.0, "-7.000000E+00"},
++		{"%E", -1e-9, "-1.000000E-09"},
++		// {"%G", 1234.5678e3, "1.2345678E+06"},
++		// {"%G", float32(1234.5678e3), "1.2345678E+06"},
++		// {"%G", 1234.5678e-8, "1.2345678E-05"},
++		{"%G", -7.0, "-7"},
++		{"%G", -1e-9, "-1E-09"},
++		{"%G", float32(-1e-9), "-1E-09"},
++
++		{"%20.6e", 1.2345e3, "        1.234500e+03"},
++		{"%20.6e", 1.2345e-3, "        1.234500e-03"},
++		{"%20e", 1.2345e3, "        1.234500e+03"},
++		{"%20e", 1.2345e-3, "        1.234500e-03"},
++		{"%20.8e", 1.2345e3, "      1.23450000e+03"},
++		{"%20f", 1.23456789e3, "         1234.567890"},
++		{"%20f", 1.23456789e-3, "            0.001235"},
++		{"%20f", 12345678901.23456789, "  12345678901.234568"},
++		{"%-20f", 1.23456789e3, "1234.567890         "},
++		{"%20.8f", 1.23456789e3, "       1234.56789000"},
++		{"%20.8f", 1.23456789e-3, "          0.00123457"},
++		// {"%g", 1.23456789e3, "1234.56789"},
++		// {"%g", 1.23456789e-3, "0.00123456789"},
++		// {"%g", 1.23456789e20, "1.23456789e+20"},
++		{"%20e", math.Inf(1), "                +Inf"},
++		{"%-20f", math.Inf(-1), "-Inf                "},
++
++		// from fmt/fmt_test.go: comparison of padding rules with C printf
++		{"%.2f", 1.0, "1.00"},
++		{"%.2f", -1.0, "-1.00"},
++		{"% .2f", 1.0, " 1.00"},
++		{"% .2f", -1.0, "-1.00"},
++		{"%+.2f", 1.0, "+1.00"},
++		{"%+.2f", -1.0, "-1.00"},
++		{"%7.2f", 1.0, "   1.00"},
++		{"%7.2f", -1.0, "  -1.00"},
++		{"% 7.2f", 1.0, "   1.00"},
++		{"% 7.2f", -1.0, "  -1.00"},
++		{"%+7.2f", 1.0, "  +1.00"},
++		{"%+7.2f", -1.0, "  -1.00"},
++		{"%07.2f", 1.0, "0001.00"},
++		{"%07.2f", -1.0, "-001.00"},
++		{"% 07.2f", 1.0, " 001.00"},
++		{"% 07.2f", -1.0, "-001.00"},
++		{"%+07.2f", 1.0, "+001.00"},
++		{"%+07.2f", -1.0, "-001.00"},
++
++		// from fmt/fmt_test.go: zero padding does not apply to infinities
++		{"%020f", math.Inf(-1), "                -Inf"},
++		{"%020f", math.Inf(+1), "                +Inf"},
++		{"% 020f", math.Inf(-1), "                -Inf"},
++		{"% 020f", math.Inf(+1), "                 Inf"},
++		{"%+020f", math.Inf(-1), "                -Inf"},
++		{"%+020f", math.Inf(+1), "                +Inf"},
++		{"%20f", -1.0, "           -1.000000"},
++
++		// handle %v like %g
++		{"%v", 0.0, "0"},
++		{"%v", -7.0, "-7"},
++		{"%v", -1e-9, "-1e-09"},
++		{"%v", float32(-1e-9), "-1e-09"},
++		{"%010v", 0.0, "0000000000"},
++		{"%010v", 0.0, "0000000000"},
++
++		// *Float cases
++		{"%.20f", "1e-20", "0.00000000000000000001"},
++		{"%.20f", "-1e-20", "-0.00000000000000000001"},
++		{"%30.20f", "-1e-20", "       -0.00000000000000000001"},
++		{"%030.20f", "-1e-20", "-00000000.00000000000000000001"},
++		{"%030.20f", "+1e-20", "000000000.00000000000000000001"},
++		{"% 030.20f", "+1e-20", " 00000000.00000000000000000001"},
++
++		// erroneous formats
++		{"%s", 1.0, "%!s(*big.Float=1)"},
++	} {
++		value := new(Float)
++		switch v := test.value.(type) {
++		case float32:
++			value.SetPrec(24).SetFloat64(float64(v))
++		case float64:
++			value.SetPrec(53).SetFloat64(v)
++		case string:
++			value.SetPrec(512).Parse(v, 0)
++		default:
++			t.Fatalf("unsupported test value: %v (%T)", v, v)
++		}
++
++		if got := fmt.Sprintf(test.format, value); got != test.want {
++			t.Errorf("%v: got %q; want %q", test, got, test.want)
++		}
++	}
++}
+diff --git a/src/math/big/floatexample_test.go b/src/math/big/floatexample_test.go
+index d9662fcd15..358776e948 100644
+--- a/src/math/big/floatexample_test.go
++++ b/src/math/big/floatexample_test.go
+@@ -17,9 +17,9 @@ func ExampleFloat_Add() {
+ 	y.SetFloat64(2.718281828) // y is automatically set to 53bit precision
+ 	z.SetPrec(32)
+ 	z.Add(&x, &y)
+-	fmt.Printf("x = %s (%s, prec = %d, acc = %s)\n", &x, x.Text('p', 0), x.Prec(), x.Acc())
+-	fmt.Printf("y = %s (%s, prec = %d, acc = %s)\n", &y, y.Text('p', 0), y.Prec(), y.Acc())
+-	fmt.Printf("z = %s (%s, prec = %d, acc = %s)\n", &z, z.Text('p', 0), z.Prec(), z.Acc())
++	fmt.Printf("x = %.10g (%s, prec = %d, acc = %s)\n", &x, x.Text('p', 0), x.Prec(), x.Acc())
++	fmt.Printf("y = %.10g (%s, prec = %d, acc = %s)\n", &y, y.Text('p', 0), y.Prec(), y.Acc())
++	fmt.Printf("z = %.10g (%s, prec = %d, acc = %s)\n", &z, z.Text('p', 0), z.Prec(), z.Acc())
+ 	// Output:
+ 	// x = 1000 (0x.fap+10, prec = 64, acc = Exact)
+ 	// y = 2.718281828 (0x.adf85458248cd8p+2, prec = 53, acc = Exact)
+@@ -59,7 +59,7 @@ func ExampleFloat_Cmp() {
+ 		x := big.NewFloat(x64)
+ 		for _, y64 := range operands {
+ 			y := big.NewFloat(y64)
+-			fmt.Printf("%4s  %4s  %3d\n", x, y, x.Cmp(y))
++			fmt.Printf("%4g  %4g  %3d\n", x, y, x.Cmp(y))
+ 		}
+ 		fmt.Println()
+ 	}
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index 502e6fd909..13bb26f0d2 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -9,12 +9,13 @@
+ package big
+ 
+ import (
++	"fmt"
+ 	"strconv"
+ 	"strings"
+ )
+ 
+ // Text converts the floating-point number x to a string according
+-// to the given format and precision prec. The format must be one of:
++// to the given format and precision prec. The format is one of:
+ //
+ //	'e'	-d.dddde±dd, decimal exponent, at least two (possibly 0) exponent digits
+ //	'E'	-d.ddddE±dd, decimal exponent, at least two (possibly 0) exponent digits
+@@ -29,14 +30,17 @@ import (
+ //	'b'	decimal integer mantissa using x.Prec() bits, or -0
+ //	'p'	hexadecimal fraction with 0.5 <= 0.mantissa < 1.0, or -0
+ //
++// If format is a different character, Text returns a "%" followed by the
++// unrecognized format character.
++//
+ // The precision prec controls the number of digits (excluding the exponent)
+ // printed by the 'e', 'E', 'f', 'g', and 'G' formats. For 'e', 'E', and 'f'
+ // it is the number of digits after the decimal point. For 'g' and 'G' it is
+ // the total number of digits. A negative precision selects the smallest
+-// number of digits necessary such that ParseFloat will return f exactly.
++// number of digits necessary to identify the value x uniquely.
+ // The prec value is ignored for the 'b' or 'p' format.
+ //
+-// BUG(gri) Float.Format does not accept negative precisions.
++// BUG(gri) Float.Text does not accept negative precisions (issue #10991).
+ func (x *Float) Text(format byte, prec int) string {
+ 	const extra = 10 // TODO(gri) determine a good/better value here
+ 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
+@@ -299,3 +303,91 @@ func min(x, y int) int {
+ 	}
+ 	return y
+ }
++
++// Format implements fmt.Formatter. It accepts all the regular
++// formats for floating-point numbers ('e', 'E', 'f', 'F', 'g',
++// 'G') as well as 'b', 'p', and 'v'. See (*Float).Text for the
++// interpretation of 'b' and 'p'. The 'v' format is handled like
++// 'g'.
++// Format also supports specification of the minimum precision
++// in digits, the output field width, as well as the format verbs
++// '+' and ' ' for sign control, '0' for space or zero padding,
++// and '-' for left or right justification. See the fmt package
++// for details.
++//
++// BUG(gri) A missing precision for the 'g' format, or a negative
++//          (via '*') precision is not yet supported. Instead the
++//          default precision (6) is used in that case (issue #10991).
++func (x *Float) Format(s fmt.State, format rune) {
++	prec, hasPrec := s.Precision()
++	if !hasPrec {
++		prec = 6 // default precision for 'e', 'f'
++	}
++
++	switch format {
++	case 'e', 'E', 'f', 'b', 'p':
++		// nothing to do
++	case 'F':
++		// (*Float).Text doesn't support 'F'; handle like 'f'
++		format = 'f'
++	case 'v':
++		// handle like 'g'
++		format = 'g'
++		fallthrough
++	case 'g', 'G':
++		if !hasPrec {
++			// TODO(gri) uncomment once (*Float).Text handles prec < 0
++			// prec = -1 // default precision for 'g', 'G'
++		}
++	default:
++		fmt.Fprintf(s, "%%!%c(*big.Float=%s)", format, x.String())
++		return
++	}
++	var buf []byte
++	buf = x.Append(buf, byte(format), prec)
++	if len(buf) == 0 {
++		buf = []byte("?") // should never happen, but don't crash
++	}
++	// len(buf) > 0
++
++	var sign string
++	switch {
++	case buf[0] == '-':
++		sign = "-"
++		buf = buf[1:]
++	case buf[0] == '+':
++		// +Inf
++		sign = "+"
++		if s.Flag(' ') {
++			sign = " "
++		}
++		buf = buf[1:]
++	case s.Flag('+'):
++		sign = "+"
++	case s.Flag(' '):
++		sign = " "
++	}
++
++	var padding int
++	if width, hasWidth := s.Width(); hasWidth && width > len(sign)+len(buf) {
++		padding = width - len(sign) - len(buf)
++	}
++
++	switch {
++	case s.Flag('0') && !x.IsInf():
++		// 0-padding on left
++		writeMultiple(s, sign, 1)
++		writeMultiple(s, "0", padding)
++		s.Write(buf)
++	case s.Flag('-'):
++		// padding on right
++		writeMultiple(s, sign, 1)
++		s.Write(buf)
++		writeMultiple(s, " ", padding)
++	default:
++		// padding on left
++		writeMultiple(s, " ", padding)
++		writeMultiple(s, sign, 1)
++		s.Write(buf)
++	}
++}

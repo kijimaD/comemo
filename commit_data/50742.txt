@@ -12,6 +12,31 @@ Date:   Mon Nov 8 13:13:30 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  test/typeparam/issue48711.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/test/typeparam/issue48711.go b/test/typeparam/issue48711.go
+new file mode 100644
+index 0000000000..d09a72e576
+--- /dev/null
++++ b/test/typeparam/issue48711.go
+@@ -0,0 +1,18 @@
++// errorcheck -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f[T interface{ ~[]P }, P any](t T) { // ERROR "instantiation cycle"
++	if t == nil {
++		return
++	}
++	f[[]T, T]([]T{t})
++}
++
++func main() {
++	f[[]int](nil)
++}

@@ -7,6 +7,20 @@ Date:   Sat Apr 2 22:23:34 2011 -0700
     R=r, peterGo
     CC=golang-dev
     https://golang.org/cl/4344053
-
+---
  src/Make.pkg | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 99bea67b27..f871cf9398 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -61,7 +61,7 @@ test:
+ 	gotest
+ 
+ testshort:
+-	gotest -test.short -test.timeout=60
++	gotest -test.short -test.timeout=120
+ 
+ bench:
+ 	gotest -test.bench=. -test.run="Do not run tests"

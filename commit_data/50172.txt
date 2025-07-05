@@ -19,7 +19,94 @@ Date:   Tue Oct 5 11:26:25 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/symtab.go | 29 ++++++++++++++---------------
  src/runtime/symtab.go              | 14 ++++++--------
  2 files changed, 20 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 8eca250131..4be2634f44 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -406,22 +406,21 @@ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
+ 		if sect.Name != ".text" {
+ 			break
+ 		}
+-		off = t.SetUint(ctxt.Arch, off, sect.Vaddr-textbase)
+-		off = t.SetUint(ctxt.Arch, off, sect.Length)
+-		if n == 0 {
+-			s := ldr.Lookup("runtime.text", 0)
+-			if s == 0 {
+-				ctxt.Errorf(s, "Unable to find symbol runtime.text\n")
+-			}
+-			off = t.SetAddr(ctxt.Arch, off, s)
+-
+-		} else {
+-			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n), 0)
+-			if s == 0 {
+-				ctxt.Errorf(s, "Unable to find symbol runtime.text.%d\n", n)
+-			}
+-			off = t.SetAddr(ctxt.Arch, off, s)
++		// The fields written should match runtime/symtab.go:textsect.
++		// They are designed to minimize runtime calculations.
++		vaddr := sect.Vaddr - textbase
++		off = t.SetUint(ctxt.Arch, off, vaddr) // field vaddr
++		end := vaddr + sect.Length
++		off = t.SetUint(ctxt.Arch, off, end) // field end
++		name := "runtime.text"
++		if n != 0 {
++			name = fmt.Sprintf("runtime.text.%d", n)
++		}
++		s := ldr.Lookup(name, 0)
++		if s == 0 {
++			ctxt.Errorf(s, "Unable to find symbol %s\n", name)
+ 		}
++		off = t.SetAddr(ctxt.Arch, off, s) // field baseaddr
+ 		n++
+ 	}
+ 	return t.Sym(), uint32(n)
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index e26c05bc0c..37abdb6dfa 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -561,7 +561,7 @@ type functab struct {
+ 
+ type textsect struct {
+ 	vaddr    uintptr // prelinked section vaddr
+-	length   uintptr // section length
++	end      uintptr // vaddr + section length
+ 	baseaddr uintptr // relocated section address
+ }
+ 
+@@ -650,9 +650,9 @@ func moduledataverify1(datap *moduledata) {
+ // To resolve the large text issue, the text is split into multiple text sections
+ // to allow the linker to generate long calls when necessary.
+ // When this happens, the vaddr for each text section is set to its offset within the text.
+-// Each function's offset is compared against the section vaddrs and sizes to determine the containing section.
++// Each function's offset is compared against the section vaddrs and ends to determine the containing section.
+ // Then the section relative offset is added to the section's
+-// relocated baseaddr to compute the function addess.
++// relocated baseaddr to compute the function address.
+ //
+ // It is nosplit because it is part of the findfunc implementation.
+ //go:nosplit
+@@ -660,16 +660,14 @@ func (md *moduledata) textAddr(off uintptr) uintptr {
+ 	var res uintptr
+ 	if len(md.textsectmap) > 1 {
+ 		for i := range md.textsectmap {
+-			sectaddr := md.textsectmap[i].vaddr
+-			sectlen := md.textsectmap[i].length
+-			if uintptr(off) >= sectaddr && uintptr(off) < sectaddr+sectlen {
+-				res = md.textsectmap[i].baseaddr + uintptr(off) - uintptr(md.textsectmap[i].vaddr)
++			if off >= md.textsectmap[i].vaddr && off < md.textsectmap[i].end {
++				res = md.textsectmap[i].baseaddr + off - md.textsectmap[i].vaddr
+ 				break
+ 			}
+ 		}
+ 	} else {
+ 		// single text section
+-		res = md.text + uintptr(off)
++		res = md.text + off
+ 	}
+ 	if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
+ 		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))

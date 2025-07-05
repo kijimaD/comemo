@@ -16,6 +16,22 @@ Date:   Wed Aug 9 02:48:54 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index a528d7aa76..0c2f51029a 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -85,10 +85,8 @@ var bootstrapDirs = []string{
+ 	"internal/unsafeheader",
+ 	"internal/xcoff",
+ 	"internal/zstd",
+-	"math/big",
+ 	"math/bits",
+ 	"sort",
+-	"strconv",
+ }
+ 
+ // File prefixes that are ignored by go/build anyway, and cause

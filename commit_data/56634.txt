@@ -14,6 +14,41 @@ Date:   Wed May 17 15:10:51 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 132542cde1..fe818036b5 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1096,7 +1096,11 @@ func (t *tester) registerCgoTests(heading string) {
+ 			variant:   variant,
+ 			pkg:       "cmd/cgo/internal/" + subdir,
+ 			buildmode: buildmode,
+-			ldflags:   "-linkmode=" + linkmode,
++		}
++		var ldflags []string
++		if linkmode != "auto" {
++			// "auto" is the default, so avoid cluttering the command line for "auto"
++			ldflags = append(ldflags, "-linkmode="+linkmode)
+ 		}
+ 
+ 		if linkmode == "internal" {
+@@ -1110,7 +1114,7 @@ func (t *tester) registerCgoTests(heading string) {
+ 			// cgoTest we want static linking.
+ 			gt.buildmode = ""
+ 			if linkmode == "external" {
+-				gt.ldflags += ` -extldflags "-static -pthread"`
++				ldflags = append(ldflags, `-extldflags "-static -pthread"`)
+ 			} else if linkmode == "auto" {
+ 				gt.env = append(gt.env, "CGO_LDFLAGS=-static -pthread")
+ 			} else {
+@@ -1118,6 +1122,7 @@ func (t *tester) registerCgoTests(heading string) {
+ 			}
+ 			gt.tags = append(gt.tags, "static")
+ 		}
++		gt.ldflags = strings.Join(ldflags, " ")
+ 
+ 		t.registerTest("cgo:"+subdir+":"+variant, heading, gt, opts...)
+ 		return gt

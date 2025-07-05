@@ -10,7 +10,90 @@ Date:   Tue Jun 17 08:58:08 2014 -0700
     R=golang-codereviews, wandakkelly, gordon.klaus, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/106010046
-
+---
  src/pkg/go/parser/interface.go   |  2 +-
  src/pkg/go/parser/parser_test.go | 38 ++++++++++++++++++++++++++++----------
  2 files changed, 29 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 57da4ddcd9..49103058b5 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -184,7 +184,7 @@ func ParseExpr(x string) (ast.Expr, error) {
+ 
+ 	// If a semicolon was inserted, consume it;
+ 	// report an error if there's more tokens.
+-	if p.tok == token.SEMICOLON {
++	if p.tok == token.SEMICOLON && p.lit == "\n" {
+ 		p.next()
+ 	}
+ 	p.expect(token.EOF)
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 2797ea518b..85065fd182 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -74,36 +74,54 @@ func TestParseExpr(t *testing.T) {
+ 	src := "a + b"
+ 	x, err := ParseExpr(src)
+ 	if err != nil {
+-		t.Fatalf("ParseExpr(%s): %v", src, err)
++		t.Errorf("ParseExpr(%q): %v", src, err)
+ 	}
+ 	// sanity check
+ 	if _, ok := x.(*ast.BinaryExpr); !ok {
+-		t.Errorf("ParseExpr(%s): got %T, want *ast.BinaryExpr", src, x)
++		t.Errorf("ParseExpr(%q): got %T, want *ast.BinaryExpr", src, x)
+ 	}
+ 
+ 	// a valid type expression
+ 	src = "struct{x *int}"
+ 	x, err = ParseExpr(src)
+ 	if err != nil {
+-		t.Fatalf("ParseExpr(%s): %v", src, err)
++		t.Errorf("ParseExpr(%q): %v", src, err)
+ 	}
+ 	// sanity check
+ 	if _, ok := x.(*ast.StructType); !ok {
+-		t.Errorf("ParseExpr(%s): got %T, want *ast.StructType", src, x)
++		t.Errorf("ParseExpr(%q): got %T, want *ast.StructType", src, x)
+ 	}
+ 
+ 	// an invalid expression
+ 	src = "a + *"
+-	_, err = ParseExpr(src)
+-	if err == nil {
+-		t.Fatalf("ParseExpr(%s): got no error", src)
++	if _, err := ParseExpr(src); err == nil {
++		t.Errorf("ParseExpr(%q): got no error", src)
+ 	}
+ 
+ 	// a valid expression followed by extra tokens is invalid
+ 	src = "a[i] := x"
+-	_, err = ParseExpr(src)
+-	if err == nil {
+-		t.Fatalf("ParseExpr(%s): got no error", src)
++	if _, err := ParseExpr(src); err == nil {
++		t.Errorf("ParseExpr(%q): got no error", src)
++	}
++
++	// a semicolon is not permitted unless automatically inserted
++	src = "a + b\n"
++	if _, err := ParseExpr(src); err != nil {
++		t.Errorf("ParseExpr(%q): got error %s", src, err)
++	}
++	src = "a + b;"
++	if _, err := ParseExpr(src); err == nil {
++		t.Errorf("ParseExpr(%q): got no error", src)
++	}
++
++	// various other stuff following a valid expression
++	const validExpr = "a + b"
++	const anything = "dh3*#D)#_"
++	for _, c := range "!)]};," {
++		src := validExpr + string(c) + anything
++		if _, err := ParseExpr(src); err == nil {
++			t.Errorf("ParseExpr(%q): got no error", src)
++		}
+ 	}
+ 
+ 	// ParseExpr must not crash

@@ -20,7 +20,7 @@ Date:   Mon Aug 12 15:18:45 2024 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go                 |  7 ++++
  src/cmd/asm/internal/asm/testdata/loong64enc1.s | 14 +++++++
  src/cmd/internal/obj/loong64/a.out.go           |  8 ++++
@@ -28,3 +28,194 @@ Date:   Mon Aug 12 15:18:45 2024 +0800
  src/cmd/internal/obj/loong64/asm.go             | 52 +++++++++++++++++++++++++
  src/cmd/internal/obj/loong64/doc.go             |  8 +++-
  6 files changed, 92 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index bdbb3e17e0..b960d8f022 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -822,6 +822,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			prog.To = a[3]
+ 			break
+ 		}
++		if p.arch.Family == sys.Loong64 {
++			prog.From = a[0]
++			prog.Reg = p.getRegister(prog, op, &a[1])
++			prog.AddRestSource(a[2])
++			prog.To = a[3]
++			break
++		}
+ 		if p.arch.Family == sys.PPC64 {
+ 			prog.From = a[0]
+ 			prog.To = a[3]
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index b24aa2fe7c..8d4231fa6c 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -332,3 +332,17 @@ lable2:
+ 	// FSTX.{S,D} instructions
+ 	MOVF		F2, (R14)(R13)	// c2353838
+ 	MOVD		F2, (R14)(R13)	// c2353c38
++
++	BSTRINSW	$0, R4, $0, R5	// 85006000
++	BSTRINSW	$31, R4, $0, R5	// 85007f00
++	BSTRINSW	$15, R4, $6, R5	// 85186f00
++	BSTRINSV	$0, R4, $0, R5	// 85008000
++	BSTRINSV	$63, R4, $0, R5	// 8500bf00
++	BSTRINSV	$15, R4, $6, R5	// 85188f00
++
++	BSTRPICKW	$0, R4, $0, R5	// 85806000
++	BSTRPICKW	$31, R4, $0, R5	// 85807f00
++	BSTRPICKW	$15, R4, $6, R5	// 85986f00
++	BSTRPICKV	$0, R4, $0, R5	// 8500c000
++	BSTRPICKV	$63, R4, $0, R5	// 8500ff00
++	BSTRPICKV	$15, R4, $6, R5	// 8518cf00
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index d1cd35b878..7c20df3b2d 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -435,6 +435,14 @@ const (
+ 	AAMMINDBWU
+ 	AAMMINDBVU
+ 
++	// 2.2.3.8
++	ABSTRINSW
++	ABSTRINSV
++
++	// 2.2.3.9
++	ABSTRPICKW
++	ABSTRPICKV
++
+ 	// 2.2.10. Other Miscellaneous Instructions
+ 	ARDTIMELW
+ 	ARDTIMEHW
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 0749db8312..ed3d5b25ce 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -175,6 +175,10 @@ var Anames = []string{
+ 	"AMMAXDBVU",
+ 	"AMMINDBWU",
+ 	"AMMINDBVU",
++	"BSTRINSW",
++	"BSTRINSV",
++	"BSTRPICKW",
++	"BSTRPICKV",
+ 	"RDTIMELW",
+ 	"RDTIMEHW",
+ 	"RDTIMED",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 52fe7b2c89..d78e594fc9 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -217,6 +217,10 @@ var optab = []Optab{
+ 	{ASLLV, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
+ 	{ASLLV, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
+ 
++	{ABSTRPICKW, C_SCON, C_REG, C_SCON, C_REG, C_NONE, 17, 4, 0, 0},
++	{ABSTRPICKW, C_SCON, C_REG, C_ZCON, C_REG, C_NONE, 17, 4, 0, 0},
++	{ABSTRPICKW, C_ZCON, C_REG, C_ZCON, C_REG, C_NONE, 17, 4, 0, 0},
++
+ 	{ASYSCALL, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
+ 	{ASYSCALL, C_ANDCON, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
+ 
+@@ -1159,6 +1163,11 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ASRLV, r0)
+ 			opset(AROTRV, r0)
+ 
++		case ABSTRPICKW:
++			opset(ABSTRPICKV, r0)
++			opset(ABSTRINSW, r0)
++			opset(ABSTRINSV, r0)
++
+ 		case ASUB:
+ 			opset(ASUBU, r0)
+ 			opset(ANOR, r0)
+@@ -1265,6 +1274,14 @@ func OP_15I(op uint32, i uint32) uint32 {
+ 	return op | (i&0x7FFF)<<0
+ }
+ 
++// i1 -> msb
++// r2 -> rj
++// i3 -> lsb
++// r4 -> rd
++func OP_IRIR(op uint32, i1 uint32, r2 uint32, i3 uint32, r4 uint32) uint32 {
++	return op | (i1 << 16) | (r2&0x1F)<<5 | (i3 << 10) | (r4&0x1F)<<0
++}
++
+ // Encoding for the 'b' or 'bl' instruction.
+ func OP_B_BL(op uint32, i uint32) uint32 {
+ 	return op | ((i & 0xFFFF) << 10) | ((i >> 16) & 0x3FF)
+@@ -1478,6 +1495,26 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 = OP_16IRR(c.opirr(p.As), uint32(v)&0x1f, uint32(r), uint32(p.To.Reg))
+ 		}
+ 
++	case 17: // bstrpickw $msbw, r1, $lsbw, r2
++		rd, rj := p.To.Reg, p.Reg
++		if rj == obj.REG_NONE {
++			rj = rd
++		}
++		msb, lsb := p.From.Offset, p.GetFrom3().Offset
++
++		// check the range of msb and lsb
++		var b uint32
++		if p.As == ABSTRPICKW || p.As == ABSTRINSW {
++			b = 32
++		} else {
++			b = 64
++		}
++		if lsb < 0 || uint32(lsb) >= b || msb < 0 || uint32(msb) >= b || uint32(lsb) > uint32(msb) {
++			c.ctxt.Diag("illegal bit number\n%v", p)
++		}
++
++		o1 = OP_IRIR(c.opirir(p.As), uint32(msb), uint32(rj), uint32(lsb), uint32(rd))
++
+ 	case 18: // jmp [r1],0(r2)
+ 		r := int(p.Reg)
+ 		if r == 0 {
+@@ -2250,6 +2287,21 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
+ 	return 0
+ }
+ 
++func (c *ctxt0) opirir(a obj.As) uint32 {
++	switch a {
++	case ABSTRINSW:
++		return 0x3<<21 | 0x0<<15 // bstrins.w
++	case ABSTRINSV:
++		return 0x2 << 22 // bstrins.d
++	case ABSTRPICKW:
++		return 0x3<<21 | 0x1<<15 // bstrpick.w
++	case ABSTRPICKV:
++		return 0x3 << 22 // bstrpick.d
++	}
++
++	return 0
++}
++
+ func (c *ctxt0) specailFpMovInst(a obj.As, fclass int, tclass int) uint32 {
+ 	switch a {
+ 	case AMOVV:
+diff --git a/src/cmd/internal/obj/loong64/doc.go b/src/cmd/internal/obj/loong64/doc.go
+index c46d31d2c2..6ec53e7a17 100644
+--- a/src/cmd/internal/obj/loong64/doc.go
++++ b/src/cmd/internal/obj/loong64/doc.go
+@@ -63,13 +63,19 @@ Examples:
+ 	OR	R5, R6        <=> or R6, R6, R5
+ 
+ Special Cases.
+-Argument order is the same as in the GNU Loong64 syntax: jump instructions,
++(1) Argument order is the same as in the GNU Loong64 syntax: jump instructions,
+ 
+ Examples:
+ 
+ 	BEQ	R0, R4, lable1  <=>  beq R0, R4, lable1
+ 	JMP	lable1          <=>  b lable1
+ 
++(2) BSTRINSW, BSTRINSV, BSTRPICKW, BSTRPICKV $<msb>, <Rj>, $<lsb>, <Rd>
++
++Examples:
++
++	BSTRPICKW $15, R4, $6, R5  <=>  bstrpick.w r5, r4, 15, 6
++
+ 2. Expressions for special arguments.
+ 
+ Memory references: a base register and an offset register is written as (Rbase)(Roff).

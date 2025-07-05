@@ -16,6 +16,21 @@ Date:   Mon Dec 14 15:38:12 2015 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 756d74e4fd..01b72eea54 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -202,6 +202,9 @@ func setGCPercent(in int32) (out int32) {
+ 	}
+ 	gcpercent = in
+ 	heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
++	if gcController.triggerRatio > float64(gcpercent)/100 {
++		gcController.triggerRatio = float64(gcpercent) / 100
++	}
+ 	unlock(&mheap_.lock)
+ 	return out
+ }

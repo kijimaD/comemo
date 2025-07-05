@@ -7,6 +7,25 @@ Date:   Thu Feb 9 16:48:52 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5642068
-
+---
  src/pkg/runtime/malloc.goc | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 885ab0395a..4d5c80c727 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -262,6 +262,13 @@ runtime·mallocinit(void)
+ 	byte *want;
+ 
+ 	p = nil;
++	arena_size = 0;
++	bitmap_size = 0;
++	
++	// for 64-bit build
++	USED(p);
++	USED(arena_size);
++	USED(bitmap_size);
+ 
+ 	runtime·InitSizes();
+ 

@@ -10,6 +10,26 @@ Date:   Sat Jul 27 13:56:22 2019 -0700
     Change-Id: I33065aa78a8470c4e9490aac830aa6f5963c61cb
     Reviewed-on: https://go-review.googlesource.com/c/go/+/187821
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/request.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index fa63175c20..e53dde16b4 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -237,12 +237,12 @@ type Request struct {
+ 	Host string
+ 
+ 	// Form contains the parsed form data, including both the URL
+-	// field's query parameters and the POST or PUT form data.
++	// field's query parameters and the PATCH, POST, or PUT form data.
+ 	// This field is only available after ParseForm is called.
+ 	// The HTTP client ignores Form and uses Body instead.
+ 	Form url.Values
+ 
+-	// PostForm contains the parsed form data from POST, PATCH,
++	// PostForm contains the parsed form data from PATCH, POST
+ 	// or PUT body parameters.
+ 	//
+ 	// This field is only available after ParseForm is called.

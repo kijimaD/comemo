@@ -7,6 +7,19 @@ Date:   Mon Jul 9 09:37:56 2012 -0700
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/6343084
-
+---
  src/pkg/syscall/syscall_freebsd.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 903e5b6d1c..147f552570 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -326,7 +326,6 @@ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
+ // __pthread_canceled
+ // __semwait_signal
+ // Proc_info
+-// Sendfile
+ // Stat64_extended
+ // Lstat64_extended
+ // Fstat64_extended

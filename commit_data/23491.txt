@@ -18,6 +18,30 @@ Date:   Fri May 15 13:30:42 2015 -0700
     Change-Id: I560f992601ccbe2293c347fa1b1018a3f5346c82
     Reviewed-on: https://go-review.googlesource.com/10160
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/doc/pkg.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index ed4b0b82db..5c8976b663 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -115,7 +115,7 @@ func (pkg *Package) emit(comment string, node ast.Node) {
+ 			log.Fatal(err)
+ 		}
+ 		if comment != "" {
+-			pkg.newlines(1)
++			pkg.newlines(2) // Guarantee blank line before comment.
+ 			doc.ToText(&pkg.buf, comment, "    ", "\t", 80)
+ 		}
+ 		pkg.newlines(1)
+@@ -352,6 +352,9 @@ func (pkg *Package) symbolDoc(symbol string) {
+ 		}
+ 		pkg.emit(typ.Doc, decl)
+ 		// Show associated methods, constants, etc.
++		if len(typ.Consts) > 0 || len(typ.Vars) > 0 || len(typ.Funcs) > 0 || len(typ.Methods) > 0 {
++			pkg.Printf("\n")
++		}
+ 		pkg.valueSummary(typ.Consts)
+ 		pkg.valueSummary(typ.Vars)
+ 		pkg.funcSummary(typ.Funcs)

@@ -14,7 +14,45 @@ Date:   Tue Jun 16 13:23:42 2009 -0700
     DELTA=15  (15 added, 0 deleted, 0 changed)
     OCL=30354
     CL=30356
-
+---
  src/pkg/http/url.go      |  4 ++++
  src/pkg/http/url_test.go | 11 +++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 0325b04eed..bd2bfcf936 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -180,6 +180,10 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
+ 				return "", "", BadURL{"missing protocol scheme"}
+ 			}
+ 			return rawurl[0:i], rawurl[i+1:len(rawurl)], nil
++		default:
++			// we have encountered an invalid character,
++			// so there is no valid scheme
++			return "", rawurl, nil
+ 		}
+ 	}
+ 	return "", rawurl, nil
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index 8d8fabad5f..ea05ed3e83 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -134,6 +134,17 @@ var urltests = []URLTest {
+ 		},
+ 		""
+ 	},
++	// unescaped :// in query should not create a scheme
++	URLTest{
++		"/foo?query=http://bad",
++		&URL{
++			"/foo?query=http://bad",
++			"", "/foo?query=http://bad",
++			"", "", "",
++			"/foo", "query=http://bad", ""
++		},
++		""
++	},
+ }
+ 
+ var urlnofragtests = []URLTest {

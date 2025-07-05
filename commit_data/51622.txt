@@ -15,7 +15,7 @@ Date:   Wed Feb 23 17:57:09 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/387814
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  test/typeparam/issue51219.dir/a.go                 | 39 ----------------------
  test/typeparam/issue51219.dir/main.go              |  4 +--
  test/typeparam/issue51219.out                      |  2 +-
@@ -24,3 +24,173 @@ Date:   Wed Feb 23 17:57:09 2022 -0800
  test/typeparam/issue51219b.dir/p.go                | 14 ++++++++
  test/typeparam/issue51219b.go                      |  7 ++++
  7 files changed, 64 insertions(+), 44 deletions(-)
+
+diff --git a/test/typeparam/issue51219.dir/a.go b/test/typeparam/issue51219.dir/a.go
+index 3ed4322dbf..29670df0d3 100644
+--- a/test/typeparam/issue51219.dir/a.go
++++ b/test/typeparam/issue51219.dir/a.go
+@@ -18,42 +18,3 @@ type IConstraint interface {
+ 
+ type I[T IConstraint] struct {
+ }
+-
+-// The following types form an even more complex recursion (through two type
+-// constraints), and model the actual types in the issue (#51219) more closely.
+-// However, they don't reveal any new issue. But it seems useful to leave this
+-// complex set of types in a test in case it might be broken by future changes.
+-
+-type Message struct {
+-	Interaction *Interaction[JsonRaw] `json:"interaction,omitempty"`
+-}
+-
+-type ResolvedDataConstraint interface {
+-	User | Message
+-}
+-
+-type Snowflake uint64
+-
+-type ResolvedData[T ResolvedDataConstraint] map[Snowflake]T
+-
+-type User struct {
+-}
+-
+-type Resolved struct {
+-	Users ResolvedData[User] `json:"users,omitempty"`
+-}
+-
+-type resolvedInteractionWithOptions struct {
+-	Resolved Resolved `json:"resolved,omitempty"`
+-}
+-
+-type UserCommandInteractionData struct {
+-	resolvedInteractionWithOptions
+-}
+-
+-type InteractionDataConstraint interface {
+-	JsonRaw | UserCommandInteractionData
+-}
+-
+-type Interaction[DataT InteractionDataConstraint] struct {
+-}
+diff --git a/test/typeparam/issue51219.dir/main.go b/test/typeparam/issue51219.dir/main.go
+index c5cffd111c..999b4a96a1 100644
+--- a/test/typeparam/issue51219.dir/main.go
++++ b/test/typeparam/issue51219.dir/main.go
+@@ -6,13 +6,11 @@ package main
+ 
+ import (
+ 	"a"
+-	"b"
+ 	"fmt"
+ )
+ 
+ func main() {
+ 	var x a.I[a.JsonRaw]
+-	var y b.InteractionRequest[a.JsonRaw]
+ 
+-	fmt.Printf("%v %v\n", x, y)
++	fmt.Printf("%v\n", x)
+ }
+diff --git a/test/typeparam/issue51219.out b/test/typeparam/issue51219.out
+index 99c5b9aa9b..0967ef424b 100644
+--- a/test/typeparam/issue51219.out
++++ b/test/typeparam/issue51219.out
+@@ -1 +1 @@
+-{} {{}}
++{}
+diff --git a/test/typeparam/issue51219b.dir/a.go b/test/typeparam/issue51219b.dir/a.go
+new file mode 100644
+index 0000000000..19049406a6
+--- /dev/null
++++ b/test/typeparam/issue51219b.dir/a.go
+@@ -0,0 +1,37 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Interaction[DataT InteractionDataConstraint] struct {
++}
++
++type InteractionDataConstraint interface {
++	[]byte |
++		UserCommandInteractionData
++}
++
++type UserCommandInteractionData struct {
++	resolvedInteractionWithOptions
++}
++
++type resolvedInteractionWithOptions struct {
++	Resolved Resolved `json:"resolved,omitempty"`
++}
++
++type Resolved struct {
++	Users ResolvedData[User] `json:"users,omitempty"`
++}
++
++type ResolvedData[T ResolvedDataConstraint] map[uint64]T
++
++type ResolvedDataConstraint interface {
++	User | Message
++}
++
++type User struct{}
++
++type Message struct {
++	Interaction *Interaction[[]byte] `json:"interaction,omitempty"`
++}
+diff --git a/test/typeparam/issue51219.dir/b.go b/test/typeparam/issue51219b.dir/b.go
+similarity index 77%
+rename from test/typeparam/issue51219.dir/b.go
+rename to test/typeparam/issue51219b.dir/b.go
+index c1590725b0..8413d666b7 100644
+--- a/test/typeparam/issue51219.dir/b.go
++++ b/test/typeparam/issue51219b.dir/b.go
+@@ -4,8 +4,11 @@
+ 
+ package b
+ 
+-import "a"
++import (
++	"./a"
++)
+ 
++// InteractionRequest is an incoming request Interaction
+ type InteractionRequest[T a.InteractionDataConstraint] struct {
+ 	a.Interaction[T]
+ }
+diff --git a/test/typeparam/issue51219b.dir/p.go b/test/typeparam/issue51219b.dir/p.go
+new file mode 100644
+index 0000000000..9f8b840d48
+--- /dev/null
++++ b/test/typeparam/issue51219b.dir/p.go
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	"./b"
++)
++
++// ResponseWriterMock mocks corde's ResponseWriter interface
++type ResponseWriterMock struct {
++	x b.InteractionRequest[[]byte]
++}
+diff --git a/test/typeparam/issue51219b.go b/test/typeparam/issue51219b.go
+new file mode 100644
+index 0000000000..060a1214cc
+--- /dev/null
++++ b/test/typeparam/issue51219b.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

@@ -16,7 +16,7 @@ Date:   Wed Jul 27 14:36:05 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/go/build/deps_test.go |  8 +++--
  src/os/exec/dot_test.go   | 86 ++++++++++++++++++++++++++++-------------------
  src/os/exec/exec.go       |  5 +++
@@ -24,3 +24,216 @@ Date:   Wed Jul 27 14:36:05 2022 -0400
  src/os/exec/lp_unix.go    |  3 +-
  src/os/exec/lp_windows.go |  6 +++-
  6 files changed, 71 insertions(+), 40 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 84cc9de8e7..141fdb9fbd 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -177,7 +177,11 @@ var depsRules = `
+ 
+ 	os/signal, STR
+ 	< path/filepath
+-	< io/ioutil, os/exec;
++	< io/ioutil;
++
++	os < internal/godebug;
++
++	path/filepath, internal/godebug < os/exec;
+ 
+ 	io/ioutil, os/exec, os/signal
+ 	< OS;
+@@ -187,8 +191,6 @@ var depsRules = `
+ 	OS
+ 	< golang.org/x/sys/cpu;
+ 
+-	os < internal/godebug;
+-
+ 	# FMT is OS (which includes string routines) plus reflect and fmt.
+ 	# It does not include package log, which should be avoided in core packages.
+ 	strconv, unicode
+diff --git a/src/os/exec/dot_test.go b/src/os/exec/dot_test.go
+index e2d2dba7a5..306f98cbaa 100644
+--- a/src/os/exec/dot_test.go
++++ b/src/os/exec/dot_test.go
+@@ -56,40 +56,58 @@ func TestLookPath(t *testing.T) {
+ 
+ 	// Add "." to PATH so that exec.LookPath looks in the current directory on all systems.
+ 	// And try to trick it with "../testdir" too.
+-	for _, dir := range []string{".", "../testdir"} {
+-		t.Run(pathVar+"="+dir, func(t *testing.T) {
+-			t.Setenv(pathVar, dir+string(filepath.ListSeparator)+origPath)
+-			good := dir + "/execabs-test"
+-			if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
+-				t.Fatalf(`LookPath(%#q) = %#q, %v, want "%s...", nil`, good, found, err, good)
+-			}
+-			if runtime.GOOS == "windows" {
+-				good = dir + `\execabs-test`
+-				if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
+-					t.Fatalf(`LookPath(%#q) = %#q, %v, want "%s...", nil`, good, found, err, good)
+-				}
+-			}
+-
+-			if _, err := LookPath("execabs-test"); err == nil {
+-				t.Fatalf("LookPath didn't fail when finding a non-relative path")
+-			} else if !errors.Is(err, ErrDot) {
+-				t.Fatalf("LookPath returned unexpected error: want Is ErrDot, got %q", err)
+-			}
+-
+-			cmd := Command("execabs-test")
+-			if cmd.Err == nil {
+-				t.Fatalf("Command didn't fail when finding a non-relative path")
+-			} else if !errors.Is(cmd.Err, ErrDot) {
+-				t.Fatalf("Command returned unexpected error: want Is ErrDot, got %q", cmd.Err)
+-			}
+-			cmd.Err = nil
+-
+-			// Clearing cmd.Err should let the execution proceed,
+-			// and it should fail because it's not a valid binary.
+-			if err := cmd.Run(); err == nil {
+-				t.Fatalf("Run did not fail: expected exec error")
+-			} else if errors.Is(err, ErrDot) {
+-				t.Fatalf("Run returned unexpected error ErrDot: want error like ENOEXEC: %q", err)
++	for _, errdot := range []string{"1", "0"} {
++		t.Run("GODEBUG=execerrdot="+errdot, func(t *testing.T) {
++			t.Setenv("GODEBUG", "execerrdot="+errdot)
++			for _, dir := range []string{".", "../testdir"} {
++				t.Run(pathVar+"="+dir, func(t *testing.T) {
++					t.Setenv(pathVar, dir+string(filepath.ListSeparator)+origPath)
++					good := dir + "/execabs-test"
++					if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
++						t.Fatalf(`LookPath(%#q) = %#q, %v, want "%s...", nil`, good, found, err, good)
++					}
++					if runtime.GOOS == "windows" {
++						good = dir + `\execabs-test`
++						if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
++							t.Fatalf(`LookPath(%#q) = %#q, %v, want "%s...", nil`, good, found, err, good)
++						}
++					}
++
++					_, err := LookPath("execabs-test")
++					if errdot == "1" {
++						if err == nil {
++							t.Fatalf("LookPath didn't fail when finding a non-relative path")
++						} else if !errors.Is(err, ErrDot) {
++							t.Fatalf("LookPath returned unexpected error: want Is ErrDot, got %q", err)
++						}
++					} else {
++						if err != nil {
++							t.Fatalf("LookPath failed unexpectedly: %v", err)
++						}
++					}
++
++					cmd := Command("execabs-test")
++					if errdot == "1" {
++						if cmd.Err == nil {
++							t.Fatalf("Command didn't fail when finding a non-relative path")
++						} else if !errors.Is(cmd.Err, ErrDot) {
++							t.Fatalf("Command returned unexpected error: want Is ErrDot, got %q", cmd.Err)
++						}
++						cmd.Err = nil
++					} else {
++						if cmd.Err != nil {
++							t.Fatalf("Command failed unexpectedly: %v", err)
++						}
++					}
++
++					// Clearing cmd.Err should let the execution proceed,
++					// and it should fail because it's not a valid binary.
++					if err := cmd.Run(); err == nil {
++						t.Fatalf("Run did not fail: expected exec error")
++					} else if errors.Is(err, ErrDot) {
++						t.Fatalf("Run returned unexpected error ErrDot: want error like ENOEXEC: %q", err)
++					}
++				})
+ 			}
+ 		})
+ 	}
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 57d18420bb..737aaab6a7 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -80,6 +80,11 @@
+ //		log.Fatal(err)
+ //	}
+ //
++// Setting the environment variable GODEBUG=execerrdot=0
++// disables generation of ErrDot entirely, temporarily restoring the pre-Go 1.19
++// behavior for programs that are unable to apply more targeted fixes.
++// A future version of Go may remove support for this variable.
++//
+ // Before adding such overrides, make sure you understand the
+ // security implications of doing so.
+ // See https://go.dev/blog/path-security for more information.
+diff --git a/src/os/exec/lp_plan9.go b/src/os/exec/lp_plan9.go
+index 68224814d1..092684f03a 100644
+--- a/src/os/exec/lp_plan9.go
++++ b/src/os/exec/lp_plan9.go
+@@ -6,6 +6,7 @@ package exec
+ 
+ import (
+ 	"errors"
++	"internal/godebug"
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+@@ -53,7 +54,7 @@ func LookPath(file string) (string, error) {
+ 	for _, dir := range filepath.SplitList(path) {
+ 		path := filepath.Join(dir, file)
+ 		if err := findExecutable(path); err == nil {
+-			if !filepath.IsAbs(path) {
++			if !filepath.IsAbs(path) && godebug.Get("execerrdot") != "0" {
+ 				return path, &Error{file, ErrDot}
+ 			}
+ 			return path, nil
+diff --git a/src/os/exec/lp_unix.go b/src/os/exec/lp_unix.go
+index 9833205663..b2b412c96b 100644
+--- a/src/os/exec/lp_unix.go
++++ b/src/os/exec/lp_unix.go
+@@ -8,6 +8,7 @@ package exec
+ 
+ import (
+ 	"errors"
++	"internal/godebug"
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+@@ -56,7 +57,7 @@ func LookPath(file string) (string, error) {
+ 		}
+ 		path := filepath.Join(dir, file)
+ 		if err := findExecutable(path); err == nil {
+-			if !filepath.IsAbs(path) {
++			if !filepath.IsAbs(path) && godebug.Get("execerrdot") != "0" {
+ 				return path, &Error{file, ErrDot}
+ 			}
+ 			return path, nil
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index da047585eb..ec45db7459 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -6,6 +6,7 @@ package exec
+ 
+ import (
+ 	"errors"
++	"internal/godebug"
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+@@ -102,6 +103,9 @@ func LookPath(file string) (string, error) {
+ 	)
+ 	if _, found := syscall.Getenv("NoDefaultCurrentDirectoryInExePath"); !found {
+ 		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
++			if godebug.Get("execerrdot") == "0" {
++				return f, nil
++			}
+ 			dotf, dotErr = f, &Error{file, ErrDot}
+ 		}
+ 	}
+@@ -124,7 +128,7 @@ func LookPath(file string) (string, error) {
+ 				}
+ 			}
+ 
+-			if !filepath.IsAbs(f) {
++			if !filepath.IsAbs(f) && godebug.Get("execerrdot") != "0" {
+ 				return f, &Error{file, ErrDot}
+ 			}
+ 			return f, nil

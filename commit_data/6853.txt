@@ -7,7 +7,7 @@ Date:   Tue Dec 7 15:28:33 2010 -0500
     R=rsc, brainman, Joe Poirier, mattn
     CC=golang-dev
     https://golang.org/cl/2166041
-
+---
  src/cmd/8l/asm.c                  |   1 +
  src/cmd/8l/l.h                    |   1 +
  src/cmd/8l/obj.c                  |   2 +
@@ -18,3 +18,529 @@ Date:   Tue Dec 7 15:28:33 2010 -0500
  src/pkg/runtime/windows/os.h      |   8 --
  src/pkg/runtime/windows/thread.c  | 103 +++++++------------
  9 files changed, 207 insertions(+), 132 deletions(-)
+
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 3900dd2a1f..956a2fe6e4 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -820,6 +820,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 			case SDATA:
+ 			case SELFDATA:
+ 			case SMACHO:
++			case SWINDOWS:
+ 				if(!s->reachable)
+ 					continue;
+ 				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index fd0b642448..a14a2bf2a6 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -168,6 +168,7 @@ enum
+ 	SRODATA,
+ 	SDATA,
+ 	SMACHO,	/* Mach-O __nl_symbol_ptr */
++	SWINDOWS,
+ 	SBSS,
+ 
+ 	SXREF,
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 1c3407206d..b6ebc1a9bf 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -320,6 +320,8 @@ main(int argc, char *argv[])
+ 	doelf();
+ 	if(HEADTYPE == 6)
+ 		domacho();
++	if(HEADTYPE == 10)
++		dope();
+ 	dostkoff();
+ 	if(debug['p'])
+ 		if(debug['1'])
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 953611969d..82c6941f25 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -45,6 +45,25 @@ static IMAGE_FILE_HEADER fh;
+ static IMAGE_OPTIONAL_HEADER oh;
+ static IMAGE_SECTION_HEADER sh[16];
+ 
++typedef struct Imp Imp;
++struct Imp {
++	Sym* s;
++	long va;
++	long vb;
++	Imp* next;
++};
++
++typedef struct Dll Dll;
++struct Dll {
++	char* name;
++	int count;
++	Imp* ms;
++	Dll* next;
++};
++
++static Dll* dr;
++static int ndll, nimp, nsize;
++
+ static IMAGE_SECTION_HEADER*
+ addpesection(char *name, int sectsize, int filesize, Segment *s)
+ {
+@@ -122,66 +141,160 @@ strput(char *s)
+ 	cput('\0');
+ }
+ 
+-static void
+-addimports(vlong fileoff)
++static Dll* 
++initdynimport(void)
+ {
+-	IMAGE_IMPORT_DESCRIPTOR ds[2], *d;
+-	char *dllname = "kernel32.dll";
+-	struct {
+-		char *name;
+-		uint32 thunk;
+-	} *f, fs[] = {
+-		{ "GetProcAddress", 0 },
+-		{ "LoadLibraryExA", 0 },
+-		{ 0, 0 }
+-	};
+-
+-	uint32 size = 0;
+-	memset(ds, 0, sizeof(ds));
+-	size += sizeof(ds);
+-	ds[0].Name = size;
+-	size += strlen(dllname) + 1;
+-	for(f=fs; f->name; f++) {
+-		f->thunk = size;
+-		size += sizeof(uint16) + strlen(f->name) + 1;
++	Imp *m;
++	Dll *d;
++	Sym *s;
++	int i;
++	Sym *dynamic;
++
++	dr = nil;
++	ndll = 0;
++	nimp = 0;
++	nsize = 0;
++	
++	for(i=0; i<NHASH; i++)
++	for(s = hash[i]; s != S; s = s->hash) {
++		if(!s->reachable || !s->dynimpname)
++			continue;
++		nimp++;
++		for(d = dr; d != nil; d = d->next) {
++			if(strcmp(d->name,s->dynimplib) == 0) {
++				m = mal(sizeof *m);
++				m->s = s;
++				m->next = d->ms;
++				d->ms = m;
++				d->count++;
++				nsize += strlen(s->dynimpname)+2+1;
++				break;
++			}
++		}
++		if(d == nil) {
++			d = mal(sizeof *d);
++			d->name = s->dynimplib;
++			d->count = 1;
++			d->next = dr;
++			dr = d;
++			m = mal(sizeof *m);
++			m->s = s;
++			m->next = 0;
++			d->ms = m;
++			ndll++;
++			nsize += strlen(s->dynimpname)+2+1;
++			nsize += strlen(s->dynimplib)+1;
++		}
++	}
++	
++	nsize += 20*ndll + 20;
++	nsize += 4*nimp + 4*ndll;
++	
++	dynamic = lookup(".windynamic", 0);
++	dynamic->reachable = 1;
++	dynamic->type = SWINDOWS;
++	for(d = dr; d != nil; d = d->next) {
++		for(m = d->ms; m != nil; m = m->next) {
++			m->s->type = SWINDOWS | SSUB;
++			m->s->sub = dynamic->sub;
++			dynamic->sub = m->s;
++			m->s->value = dynamic->size;
++			dynamic->size += 4;
++		}
++		dynamic->size += 4;
+ 	}
+-	ds[0].FirstThunk = size;
+-	for(f=fs; f->name; f++)
+-		size += sizeof(fs[0].thunk);
++		
++	return dr;
++}
+ 
++static void
++addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
++{
+ 	IMAGE_SECTION_HEADER *isect;
+-	isect = addpesection(".idata", size, size, 0);
++	uint32 va;
++	int noff, aoff, o, last_fn, last_name_off, iat_off;
++	Imp *m;
++	Dll *d;
++	Sym* dynamic;
++	
++	isect = addpesection(".idata", nsize, nsize, 0);
+ 	isect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
+ 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
+-	
+-	uint32 va = isect->VirtualAddress;
++	va = isect->VirtualAddress;
+ 	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = va;
+ 	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect->VirtualSize;
+ 
+-	ds[0].Name += va;
+-	ds[0].FirstThunk += va;
+-	for(f=fs; f->name; f++)
+-		f->thunk += va;
+-
+ 	seek(cout, fileoff, 0);
+-	for(d=ds; ; d++) {
+-		lputl(d->OriginalFirstThunk);
+-		lputl(d->TimeDateStamp);
+-		lputl(d->ForwarderChain);
+-		lputl(d->Name);
+-		lputl(d->FirstThunk);
+-		if(!d->Name) 
+-			break;
++
++	dynamic = lookup(".windynamic", 0);
++	iat_off = dynamic->value - PEBASE; // FirstThunk allocated in .data
++	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = iat_off;
++	oh.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].Size = dynamic->size;
++
++	noff = va + 20*ndll + 20;
++	aoff = noff + 4*nimp + 4*ndll;
++	last_fn = 0;
++	last_name_off = aoff;
++	for(d = dr; d != nil; d = d->next) {
++		lputl(noff);
++		lputl(0);
++		lputl(0);
++		lputl(last_name_off);
++		lputl(iat_off);
++		last_fn = d->count;
++		noff += 4*last_fn + 4;
++		aoff += 4*last_fn + 4;
++		iat_off += 4*last_fn + 4;
++		last_name_off += strlen(d->name)+1;
++	}
++	lputl(0); //end
++	lputl(0);
++	lputl(0);
++	lputl(0);
++	lputl(0);
++	
++	// put OriginalFirstThunk
++	o = last_name_off;
++	for(d = dr; d != nil; d = d->next) {
++		for(m = d->ms; m != nil; m = m->next) {
++			lputl(o);
++			o += 2 + strlen(m->s->dynimpname) + 1;
++		}
++		lputl(0);
++	}
++	// put names
++	for(d = dr; d != nil; d = d->next) {
++		strput(d->name);
++	}
++	// put hint+name
++	for(d = dr; d != nil; d = d->next) {
++		for(m = d->ms; m != nil; m = m->next) {
++			wputl(0);
++			strput(m->s->dynimpname);
++		}
+ 	}
+-	strput(dllname);
+-	for(f=fs; f->name; f++) {
+-		wputl(0);
+-		strput(f->name);
++	
++	strnput("", isect->SizeOfRawData - nsize);
++	cflush();
++
++	// put FirstThunk
++	o = last_name_off;
++	seek(cout, datsect->PointerToRawData + dynamic->value - PEBASE - datsect->VirtualAddress, 0);
++	for(d = dr; d != nil; d = d->next) {
++		for(m = d->ms; m != nil; m = m->next) {
++			lputl(o);
++			o += 2 + strlen(m->s->dynimpname) + 1;
++		}
++		lputl(0);
+ 	}
+-	for(f=fs; f->name; f++)
+-		lputl(f->thunk);
+-	strnput("", isect->SizeOfRawData - size);
+ 	cflush();
++	seek(cout, 0, 2);
++}
++
++void
++dope(void)
++{
++	initdynimport();
+ }
+ 
+ void
+@@ -210,7 +323,7 @@ asmbpe(void)
+ 	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
+ 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
+ 
+-	addimports(nextfileoff);
++	addimports(nextfileoff, d);
+ 
+ 	fh.NumberOfSections = nsect;
+ 	fh.TimeDateStamp = time(0);
+diff --git a/src/cmd/ld/pe.h b/src/cmd/ld/pe.h
+index 38180052f9..f8161cc4a6 100644
+--- a/src/cmd/ld/pe.h
++++ b/src/cmd/ld/pe.h
+@@ -120,3 +120,5 @@ enum {
+ 
+ void peinit(void);
+ void asmbpe(void);
++void dope(void);
++
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+index c191feb61d..7f99b34de8 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/windows/386/sys.s
+@@ -4,14 +4,6 @@
+ 
+ #include "386/asm.h"
+ 
+-TEXT runtime·get_kernel_module(SB),7,$0
+-	MOVL	0x30(FS), AX		// get PEB
+-	MOVL	0x0c(AX), AX		// get PEB_LDR_DATA
+-	MOVL	0x1c(AX), AX		// get init order module list
+-	MOVL	(AX), AX		// get next entry (kernel module)
+-	MOVL	0x08(AX), AX		// get base of module
+-	RET
+-
+ // void *stdcall_raw(void *fn, int32 count, uintptr *args)
+ TEXT runtime·stdcall_raw(SB),7,$4
+ 	// Copy arguments from stack.
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/windows/mem.c
+index c113c40c32..15ccd9551d 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/windows/mem.c
+@@ -25,6 +25,11 @@ abort(int8 *name)
+ 	runtime·throw(name);
+ }
+ 
++#pragma dynimport runtime·VirtualAlloc VirtualAlloc "kernel32.dll"
++#pragma dynimport runtime·VirtualFree VirtualFree "kernel32.dll"
++void *runtime·VirtualAlloc;
++void *runtime·VirtualFree;
++
+ void*
+ runtime·SysAlloc(uintptr n)
+ {
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/windows/os.h
+index f247ce9966..445e5b5f45 100644
+--- a/src/pkg/runtime/windows/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -2,16 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The following function allows one to dynamically
+-// resolve DLL function names.
+-// The arguments are strings.
+-void *runtime·get_proc_addr(void *library, void *name);
+-
+-extern void *runtime·VirtualAlloc;
+-extern void *runtime·VirtualFree;
+ extern void *runtime·LoadLibraryEx;
+ extern void *runtime·GetProcAddress;
+-extern void *runtime·GetLastError;
+ 
+ #define runtime·goargs runtime·windows_goargs
+ void runtime·windows_goargs(void);
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 6d961beea1..9a6f121aba 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -5,7 +5,15 @@
+ #include "runtime.h"
+ #include "os.h"
+ 
+-extern void *runtime·get_kernel_module(void);
++#pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
++#pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
++#pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
++#pragma dynimport runtime·ExitProcess ExitProcess "kernel32.dll"
++#pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
++#pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
++#pragma dynimport runtime·WriteFile WriteFile "kernel32.dll"
++#pragma dynimport runtime·GetLastError GetLastError "kernel32.dll"
++#pragma dynimport runtime·SetLastError SetLastError "kernel32.dll"
+ 
+ // Also referenced by external packages
+ void *runtime·CloseHandle;
+@@ -13,71 +21,37 @@ void *runtime·ExitProcess;
+ void *runtime·GetStdHandle;
+ void *runtime·SetEvent;
+ void *runtime·WriteFile;
+-void *runtime·VirtualAlloc;
+-void *runtime·VirtualFree;
+ void *runtime·LoadLibraryEx;
+ void *runtime·GetProcAddress;
+ void *runtime·GetLastError;
+ void *runtime·SetLastError;
+ 
+-static void *CreateEvent;
+-static void *CreateThread;
+-static void *WaitForSingleObject;
++#pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
++#pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
++#pragma dynimport runtime·GetModuleHandle GetModuleHandleA "kernel32.dll"
++#pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
+ 
+-static void*
+-get_proc_addr2(byte *base, byte *name)
+-{
+-	byte *pe_header, *exports;
+-	uint32 entries, *addr, *names, i;
+-	uint16 *ordinals;
+-
+-	pe_header = base+*(uint32*)(base+0x3c);
+-	exports = base+*(uint32*)(pe_header+0x78);
+-	entries = *(uint32*)(exports+0x18);
+-	addr = (uint32*)(base+*(uint32*)(exports+0x1c));
+-	names = (uint32*)(base+*(uint32*)(exports+0x20));
+-	ordinals = (uint16*)(base+*(uint32*)(exports+0x24));
+-	for(i=0; i<entries; i++) {
+-		byte *s = base+names[i];
+-		if(runtime·strcmp(name, s) == 0)
+-			break;
+-	}
+-	if(i == entries)
+-		return 0;
+-	return base+addr[ordinals[i]];
+-}
++void *runtime·CreateEvent;
++void *runtime·CreateThread;
++void *runtime·GetModuleHandle;
++void *runtime·WaitForSingleObject;
+ 
+ void
+ runtime·osinit(void)
+ {
+-	void *base;
+-
+-	base = runtime·get_kernel_module();
+-	runtime·GetProcAddress = get_proc_addr2(base, (byte*)"GetProcAddress");
+-	runtime·LoadLibraryEx = get_proc_addr2(base, (byte*)"LoadLibraryExA");
+-	runtime·CloseHandle = runtime·get_proc_addr("kernel32.dll", "CloseHandle");
+-	CreateEvent = runtime·get_proc_addr("kernel32.dll", "CreateEventA");
+-	CreateThread = runtime·get_proc_addr("kernel32.dll", "CreateThread");
+-	runtime·ExitProcess = runtime·get_proc_addr("kernel32.dll", "ExitProcess");
+-	runtime·GetStdHandle = runtime·get_proc_addr("kernel32.dll", "GetStdHandle");
+-	runtime·SetEvent = runtime·get_proc_addr("kernel32.dll", "SetEvent");
+-	runtime·VirtualAlloc = runtime·get_proc_addr("kernel32.dll", "VirtualAlloc");
+-	runtime·VirtualFree = runtime·get_proc_addr("kernel32.dll", "VirtualFree");
+-	WaitForSingleObject = runtime·get_proc_addr("kernel32.dll", "WaitForSingleObject");
+-	runtime·WriteFile = runtime·get_proc_addr("kernel32.dll", "WriteFile");
+-	runtime·GetLastError = runtime·get_proc_addr("kernel32.dll", "GetLastError");
+-	runtime·SetLastError = runtime·get_proc_addr("kernel32.dll", "SetLastError");
+ }
+ 
+-// The arguments are strings.
+-void*
+-runtime·get_proc_addr(void *library, void *name)
+-{
+-	void *base;
++#pragma dynimport runtime·GetCommandLine GetCommandLineW  "kernel32.dll"
++#pragma dynimport runtime·CommandLineToArgv CommandLineToArgvW  "shell32.dll"
++#pragma dynimport runtime·GetEnvironmentStrings GetEnvironmentStringsW  "kernel32.dll"
++#pragma dynimport runtime·FreeEnvironmentStrings FreeEnvironmentStringsW  "kernel32.dll"
++#pragma dynimport runtime·LocalFree LocalFree "kernel32.dll"
+ 
+-	base = runtime·stdcall(runtime·LoadLibraryEx, 3, library, 0, 0);
+-	return runtime·stdcall(runtime·GetProcAddress, 2, base, name);
+-}
++void *runtime·GetCommandLine;
++void *runtime·CommandLineToArgv;
++void *runtime·GetEnvironmentStrings;
++void *runtime·FreeEnvironmentStrings;
++void *runtime·LocalFree;
+ 
+ void
+ runtime·windows_goargs(void)
+@@ -85,22 +59,15 @@ runtime·windows_goargs(void)
+ 	extern Slice os·Args;
+ 	extern Slice os·Envs;
+ 
+-	void *gcl, *clta, *ges, *fes, *lf;
+ 	uint16 *cmd, *env, **argv;
+ 	String *gargv;
+ 	String *genvv;
+ 	int32 i, argc, envc;
+ 	uint16 *envp;
+ 
+-	gcl = runtime·get_proc_addr("kernel32.dll", "GetCommandLineW");
+-	clta = runtime·get_proc_addr("shell32.dll", "CommandLineToArgvW");
+-	ges = runtime·get_proc_addr("kernel32.dll", "GetEnvironmentStringsW");
+-	lf = runtime·get_proc_addr("kernel32.dll", "LocalFree");
+-	fes = runtime·get_proc_addr("kernel32.dll", "FreeEnvironmentStringsW");
+-
+-	cmd = runtime·stdcall(gcl, 0);
+-	env = runtime·stdcall(ges, 0);
+-	argv = runtime·stdcall(clta, 2, cmd, &argc);
++	cmd = runtime·stdcall(runtime·GetCommandLine, 0);
++	env = runtime·stdcall(runtime·GetEnvironmentStrings, 0);
++	argv = runtime·stdcall(runtime·CommandLineToArgv, 2, cmd, &argc);
+ 
+ 	envc = 0;
+ 	for(envp=env; *envp; envc++)
+@@ -124,8 +91,8 @@ runtime·windows_goargs(void)
+ 	os·Envs.len = envc;
+ 	os·Envs.cap = envc;
+ 
+-	runtime·stdcall(lf, 1, argv);
+-	runtime·stdcall(fes, 1, env);
++	runtime·stdcall(runtime·LocalFree, 1, argv);
++	runtime·stdcall(runtime·FreeEnvironmentStrings, 1, env);
+ }
+ 
+ void
+@@ -161,7 +128,7 @@ initevent(void **pevent)
+ {
+ 	void *event;
+ 
+-	event = runtime·stdcall(CreateEvent, 4, 0, 0, 0, 0);
++	event = runtime·stdcall(runtime·CreateEvent, 4, 0, 0, 0, 0);
+ 	if(!runtime·casp(pevent, 0, event)) {
+ 		// Someone else filled it in.  Use theirs.
+ 		runtime·stdcall(runtime·CloseHandle, 1, event);
+@@ -176,7 +143,7 @@ eventlock(Lock *l)
+ 		initevent(&l->event);
+ 
+ 	if(runtime·xadd(&l->key, 1) > 1)	// someone else has it; wait
+-		runtime·stdcall(WaitForSingleObject, 2, l->event, -1);
++		runtime·stdcall(runtime·WaitForSingleObject, 2, l->event, -1);
+ }
+ 
+ static void
+@@ -237,7 +204,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 	USED(g);	// assuming g = m->g0
+ 	USED(fn);	// assuming fn = mstart
+ 
+-	runtime·stdcall(CreateThread, 6, 0, 0, runtime·tstart_stdcall, m, 0, 0);
++	runtime·stdcall(runtime·CreateThread, 6, 0, 0, runtime·tstart_stdcall, m, 0, 0);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).

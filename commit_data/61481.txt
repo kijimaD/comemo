@@ -14,9 +14,198 @@ Date:   Wed Jul 3 13:58:29 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/dist/buildruntime.go               | 16 ++++++++--------
  src/cmd/go/internal/cfg/cfg.go             | 16 ++++++++--------
  src/cmd/go/testdata/script/env_changed.txt |  6 ++++++
  src/internal/buildcfg/cfg.go               | 28 ++++++++++++++--------------
  4 files changed, 36 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 7095f43772..3eec9133fd 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -51,14 +51,14 @@ func mkbuildcfg(file string) {
+ 	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "import \"runtime\"\n")
+ 	fmt.Fprintln(&buf)
+-	fmt.Fprintf(&buf, "const defaultGO386 = `%s`\n", go386)
+-	fmt.Fprintf(&buf, "const defaultGOAMD64 = `%s`\n", goamd64)
+-	fmt.Fprintf(&buf, "const defaultGOARM = `%s`\n", goarm)
+-	fmt.Fprintf(&buf, "const defaultGOARM64 = `%s`\n", goarm64)
+-	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
+-	fmt.Fprintf(&buf, "const defaultGOMIPS64 = `%s`\n", gomips64)
+-	fmt.Fprintf(&buf, "const defaultGOPPC64 = `%s`\n", goppc64)
+-	fmt.Fprintf(&buf, "const defaultGORISCV64 = `%s`\n", goriscv64)
++	fmt.Fprintf(&buf, "const DefaultGO386 = `%s`\n", go386)
++	fmt.Fprintf(&buf, "const DefaultGOAMD64 = `%s`\n", goamd64)
++	fmt.Fprintf(&buf, "const DefaultGOARM = `%s`\n", goarm)
++	fmt.Fprintf(&buf, "const DefaultGOARM64 = `%s`\n", goarm64)
++	fmt.Fprintf(&buf, "const DefaultGOMIPS = `%s`\n", gomips)
++	fmt.Fprintf(&buf, "const DefaultGOMIPS64 = `%s`\n", gomips64)
++	fmt.Fprintf(&buf, "const DefaultGOPPC64 = `%s`\n", goppc64)
++	fmt.Fprintf(&buf, "const DefaultGORISCV64 = `%s`\n", goriscv64)
+ 	fmt.Fprintf(&buf, "const defaultGOEXPERIMENT = `%s`\n", goexperiment)
+ 	fmt.Fprintf(&buf, "const defaultGO_EXTLINK_ENABLED = `%s`\n", goextlinkenabled)
+ 	fmt.Fprintf(&buf, "const defaultGO_LDSO = `%s`\n", defaultldso)
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 56b3a1677d..a81219d396 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -416,14 +416,14 @@ var (
+ 	GOMODCACHE, GOMODCACHEChanged = EnvOrAndChanged("GOMODCACHE", gopathDir("pkg/mod"))
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+-	GOARM64, goARM64Changed     = EnvOrAndChanged("GOARM64", fmt.Sprint(buildcfg.GOARM64))
+-	GOARM, goARMChanged         = EnvOrAndChanged("GOARM", fmt.Sprint(buildcfg.GOARM))
+-	GO386, go386Changed         = EnvOrAndChanged("GO386", buildcfg.GO386)
+-	GOAMD64, goAMD64Changed     = EnvOrAndChanged("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
+-	GOMIPS, goMIPSChanged       = EnvOrAndChanged("GOMIPS", buildcfg.GOMIPS)
+-	GOMIPS64, goMIPS64Changed   = EnvOrAndChanged("GOMIPS64", buildcfg.GOMIPS64)
+-	GOPPC64, goPPC64Changed     = EnvOrAndChanged("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
+-	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
++	GOARM64, goARM64Changed     = EnvOrAndChanged("GOARM64", buildcfg.DefaultGOARM64)
++	GOARM, goARMChanged         = EnvOrAndChanged("GOARM", buildcfg.DefaultGOARM)
++	GO386, go386Changed         = EnvOrAndChanged("GO386", buildcfg.DefaultGO386)
++	GOAMD64, goAMD64Changed     = EnvOrAndChanged("GOAMD64", buildcfg.DefaultGOAMD64)
++	GOMIPS, goMIPSChanged       = EnvOrAndChanged("GOMIPS", buildcfg.DefaultGOMIPS)
++	GOMIPS64, goMIPS64Changed   = EnvOrAndChanged("GOMIPS64", buildcfg.DefaultGOMIPS64)
++	GOPPC64, goPPC64Changed     = EnvOrAndChanged("GOPPC64", buildcfg.DefaultGOPPC64)
++	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", buildcfg.DefaultGORISCV64)
+ 	GOWASM, goWASMChanged       = EnvOrAndChanged("GOWASM", fmt.Sprint(buildcfg.GOWASM))
+ 
+ 	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", "")
+diff --git a/src/cmd/go/testdata/script/env_changed.txt b/src/cmd/go/testdata/script/env_changed.txt
+index 37d6571938..571d754a16 100644
+--- a/src/cmd/go/testdata/script/env_changed.txt
++++ b/src/cmd/go/testdata/script/env_changed.txt
+@@ -45,6 +45,11 @@ go env -changed -json GOARCH
+ [GOARCH:amd64] stdout '"GOARCH": "arm64"'
+ [!GOARCH:amd64] stdout '"GOARCH": "amd64"'
+ 
++env GOARCH=amd64
++env GOAMD64=v3
++go env -changed
++stdout 'GOAMD64=''?v3''?'
++
+ env GOPROXY=s
+ go env -changed GOPROXY
+ ! stdout 'GOPROXY'
+@@ -58,6 +63,7 @@ go env -changed
+ 
+ --  a/go.env --
+ GOPROXY=s
++GOAMD64=v1
+ 
+ --  b/go.env --
+ GOTOOLCHAIN=local
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index d6fa83c71b..76b74aa61b 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -23,7 +23,7 @@ var (
+ 	GOROOT    = os.Getenv("GOROOT") // cached for efficiency
+ 	GOARCH    = envOr("GOARCH", defaultGOARCH)
+ 	GOOS      = envOr("GOOS", defaultGOOS)
+-	GO386     = envOr("GO386", defaultGO386)
++	GO386     = envOr("GO386", DefaultGO386)
+ 	GOAMD64   = goamd64()
+ 	GOARM     = goarm()
+ 	GOARM64   = goarm64()
+@@ -56,7 +56,7 @@ func envOr(key, value string) string {
+ }
+ 
+ func goamd64() int {
+-	switch v := envOr("GOAMD64", defaultGOAMD64); v {
++	switch v := envOr("GOAMD64", DefaultGOAMD64); v {
+ 	case "v1":
+ 		return 1
+ 	case "v2":
+@@ -67,7 +67,7 @@ func goamd64() int {
+ 		return 4
+ 	}
+ 	Error = fmt.Errorf("invalid GOAMD64: must be v1, v2, v3, v4")
+-	return int(defaultGOAMD64[len("v")] - '0')
++	return int(DefaultGOAMD64[len("v")] - '0')
+ }
+ 
+ type GoarmFeatures struct {
+@@ -90,7 +90,7 @@ func goarm() (g GoarmFeatures) {
+ 		softFloatOpt = ",softfloat"
+ 		hardFloatOpt = ",hardfloat"
+ 	)
+-	def := defaultGOARM
++	def := DefaultGOARM
+ 	if GOOS == "android" && GOARCH == "arm" {
+ 		// Android arm devices always support GOARM=7.
+ 		def = "7"
+@@ -186,14 +186,14 @@ func ParseGoarm64(v string) (g Goarm64Features, e error) {
+ 	default:
+ 		e = fmt.Errorf("invalid GOARM64: must start with v8.{0-9} or v9.{0-5} and may optionally end in %q and/or %q",
+ 			lseOpt, cryptoOpt)
+-		g.Version = defaultGOARM64
++		g.Version = DefaultGOARM64
+ 	}
+ 
+ 	return
+ }
+ 
+ func goarm64() (g Goarm64Features) {
+-	g, Error = ParseGoarm64(envOr("GOARM64", defaultGOARM64))
++	g, Error = ParseGoarm64(envOr("GOARM64", DefaultGOARM64))
+ 	return
+ }
+ 
+@@ -229,25 +229,25 @@ func (g Goarm64Features) Supports(s string) bool {
+ }
+ 
+ func gomips() string {
+-	switch v := envOr("GOMIPS", defaultGOMIPS); v {
++	switch v := envOr("GOMIPS", DefaultGOMIPS); v {
+ 	case "hardfloat", "softfloat":
+ 		return v
+ 	}
+ 	Error = fmt.Errorf("invalid GOMIPS: must be hardfloat, softfloat")
+-	return defaultGOMIPS
++	return DefaultGOMIPS
+ }
+ 
+ func gomips64() string {
+-	switch v := envOr("GOMIPS64", defaultGOMIPS64); v {
++	switch v := envOr("GOMIPS64", DefaultGOMIPS64); v {
+ 	case "hardfloat", "softfloat":
+ 		return v
+ 	}
+ 	Error = fmt.Errorf("invalid GOMIPS64: must be hardfloat, softfloat")
+-	return defaultGOMIPS64
++	return DefaultGOMIPS64
+ }
+ 
+ func goppc64() int {
+-	switch v := envOr("GOPPC64", defaultGOPPC64); v {
++	switch v := envOr("GOPPC64", DefaultGOPPC64); v {
+ 	case "power8":
+ 		return 8
+ 	case "power9":
+@@ -256,18 +256,18 @@ func goppc64() int {
+ 		return 10
+ 	}
+ 	Error = fmt.Errorf("invalid GOPPC64: must be power8, power9, power10")
+-	return int(defaultGOPPC64[len("power")] - '0')
++	return int(DefaultGOPPC64[len("power")] - '0')
+ }
+ 
+ func goriscv64() int {
+-	switch v := envOr("GORISCV64", defaultGORISCV64); v {
++	switch v := envOr("GORISCV64", DefaultGORISCV64); v {
+ 	case "rva20u64":
+ 		return 20
+ 	case "rva22u64":
+ 		return 22
+ 	}
+ 	Error = fmt.Errorf("invalid GORISCV64: must be rva20u64, rva22u64")
+-	v := defaultGORISCV64[len("rva"):]
++	v := DefaultGORISCV64[len("rva"):]
+ 	i := strings.IndexFunc(v, func(r rune) bool {
+ 		return r < '0' || r > '9'
+ 	})

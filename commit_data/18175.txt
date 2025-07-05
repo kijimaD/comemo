@@ -14,7 +14,71 @@ Date:   Mon Jan 6 10:36:04 2014 -0800
     R=golang-codereviews, dave, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/46750043
-
+---
  src/pkg/net/http/request.go      |  2 +-
  src/pkg/net/http/request_test.go | 36 ++++++++++++++++++++++++++++++------
  2 files changed, 31 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 6ed21af568..7a97770314 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -708,7 +708,7 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
+ 		// orders to call too many functions here.
+ 		// Clean this up and write more tests.
+ 		// request_test.go contains the start of this,
+-		// in TestRequestMultipartCallOrder.
++		// in TestParseMultipartFormOrder and others.
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 17af781c9d..0c1e16b8d5 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -199,15 +199,39 @@ func TestEmptyMultipartRequest(t *testing.T) {
+ 	testMissingFile(t, req)
+ }
+ 
+-func TestRequestMultipartCallOrder(t *testing.T) {
++// Test that ParseMultipartForm errors if called
++// after MultipartReader on the same request.
++func TestParseMultipartFormOrder(t *testing.T) {
+ 	req := newTestMultipartRequest(t)
+-	_, err := req.MultipartReader()
+-	if err != nil {
++	if _, err := req.MultipartReader(); err != nil {
++		t.Fatalf("MultipartReader: %v", err)
++	}
++	if err := req.ParseMultipartForm(1024); err == nil {
++		t.Fatal("expected an error from ParseMultipartForm after call to MultipartReader")
++	}
++}
++
++// Test that MultipartReader errors if called
++// after ParseMultipartForm on the same request.
++func TestMultipartReaderOrder(t *testing.T) {
++	req := newTestMultipartRequest(t)
++	if err := req.ParseMultipartForm(25); err != nil {
++		t.Fatalf("ParseMultipartForm: %v", err)
++	}
++	if _, err := req.MultipartReader(); err == nil {
++		t.Fatal("expected an error from MultipartReader after call to ParseMultipartForm")
++	}
++}
++
++// Test that FormFile errors if called after
++// MultipartReader on the same request.
++func TestFormFileOrder(t *testing.T) {
++	req := newTestMultipartRequest(t)
++	if _, err := req.MultipartReader(); err != nil {
+ 		t.Fatalf("MultipartReader: %v", err)
+ 	}
+-	err = req.ParseMultipartForm(1024)
+-	if err == nil {
+-		t.Errorf("expected an error from ParseMultipartForm after call to MultipartReader")
++	if _, _, err := req.FormFile(""); err == nil {
++		t.Fatal("expected an error from FormFile after call to MultipartReader")
+ 	}
+ }
+ 

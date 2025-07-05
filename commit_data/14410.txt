@@ -14,8 +14,62 @@ Date:   Thu Nov 15 11:40:10 2012 +1100
     R=fullung, minux.ma, r
     CC=golang-dev
     https://golang.org/cl/6847050
-
+---
  src/run.bash | 2 +-
  src/run.bat  | 7 +++++++
  src/run.rc   | 2 +-
  3 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 0de36feca4..a8ab189474 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -115,7 +115,7 @@ echo '#' ../test/bench/go1
+ go test ../test/bench/go1
+ 
+ (xcd ../test
+-time go run run.go
++GOMAXPROCS= time go run run.go
+ ) || exit $?
+ 
+ echo
+diff --git a/src/run.bat b/src/run.bat
+index 275107bf53..3f950f5414 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -96,15 +96,22 @@ echo.
+ 
+ :: TODO: The other tests in run.bash.
+ 
++
++set OLDGOMAXPROCS=%GOMAXPROCS%
++
+ echo # ..\test
+ cd ..\test
+ set FAIL=0
++set GOMAXPROCS=
+ go run run.go
+ if errorlevel 1 set FAIL=1
+ cd ..\src
+ echo.
+ if %FAIL%==1 goto fail
+ 
++set GOMAXPROCS=%OLDGOMAXPROCS%
++set OLDGOMAXPROCS=
++
+ echo # Checking API compatibility.
+ go tool api -c ..\api\go1.txt -next ..\api\next.txt -except ..\api\except.txt
+ if errorlevel 1 goto fail
+diff --git a/src/run.rc b/src/run.rc
+index af49297766..e70f5c6966 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -43,7 +43,7 @@ go test ../test/bench/go1
+ 
+ @{
+ 	xcd ../test
+-	time go run run.go
++	GOMAXPROCS='' time go run run.go
+ }
+ 
+ echo

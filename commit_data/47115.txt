@@ -15,9 +15,112 @@ Date:   Wed Feb 24 13:03:17 2021 -0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go | 45 +++++++++++++++++-----------------
  src/cmd/compile/internal/inline/inl.go | 12 ++++-----
  test/closure3.go                       |  2 +-
  test/inline.go                         |  2 +-
  4 files changed, 31 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 164941bb26..b9fa3d882e 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -29,28 +29,29 @@ var Debug = DebugFlags{
+ // The -d option takes a comma-separated list of settings.
+ // Each setting is name=value; for ints, name is short for name=1.
+ type DebugFlags struct {
+-	Append        int    `help:"print information about append compilation"`
+-	Checkptr      int    `help:"instrument unsafe pointer conversions"`
+-	Closure       int    `help:"print information about closure compilation"`
+-	DclStack      int    `help:"run internal dclstack check"`
+-	Defer         int    `help:"print information about defer compilation"`
+-	DisableNil    int    `help:"disable nil checks"`
+-	DumpPtrs      int    `help:"show Node pointers values in dump output"`
+-	DwarfInl      int    `help:"print information about DWARF inlined function creation"`
+-	Export        int    `help:"print export data"`
+-	Fieldtrack    *int   `help:"enable field tracking"`
+-	GCProg        int    `help:"print dump of GC programs"`
+-	Libfuzzer     int    `help:"enable coverage instrumentation for libfuzzer"`
+-	LocationLists int    `help:"print information about DWARF location list creation"`
+-	Nil           int    `help:"print information about nil checks"`
+-	PCTab         string `help:"print named pc-value table"`
+-	Panic         int    `help:"show all compiler panics"`
+-	Slice         int    `help:"print information about slice compilation"`
+-	SoftFloat     int    `help:"force compiler to emit soft-float code"`
+-	TypeAssert    int    `help:"print information about type assertion inlining"`
+-	TypecheckInl  int    `help:"eager typechecking of inline function bodies"`
+-	WB            int    `help:"print information about write barriers"`
+-	ABIWrap       int    `help:"print information about ABI wrapper generation"`
++	Append               int    `help:"print information about append compilation"`
++	Checkptr             int    `help:"instrument unsafe pointer conversions"`
++	Closure              int    `help:"print information about closure compilation"`
++	DclStack             int    `help:"run internal dclstack check"`
++	Defer                int    `help:"print information about defer compilation"`
++	DisableNil           int    `help:"disable nil checks"`
++	DumpPtrs             int    `help:"show Node pointers values in dump output"`
++	DwarfInl             int    `help:"print information about DWARF inlined function creation"`
++	Export               int    `help:"print export data"`
++	Fieldtrack           *int   `help:"enable field tracking"`
++	GCProg               int    `help:"print dump of GC programs"`
++	InlFuncsWithClosures int    `help:"allow functions with closures to be inlined"`
++	Libfuzzer            int    `help:"enable coverage instrumentation for libfuzzer"`
++	LocationLists        int    `help:"print information about DWARF location list creation"`
++	Nil                  int    `help:"print information about nil checks"`
++	PCTab                string `help:"print named pc-value table"`
++	Panic                int    `help:"show all compiler panics"`
++	Slice                int    `help:"print information about slice compilation"`
++	SoftFloat            int    `help:"force compiler to emit soft-float code"`
++	TypeAssert           int    `help:"print information about type assertion inlining"`
++	TypecheckInl         int    `help:"eager typechecking of inline function bodies"`
++	WB                   int    `help:"print information about write barriers"`
++	ABIWrap              int    `help:"print information about ABI wrapper generation"`
+ 
+ 	any bool // set when any of the values have been set
+ }
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 0e57c17667..fe6509e4c9 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -354,15 +354,15 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		return true
+ 
+ 	case ir.OCLOSURE:
+-		// TODO(danscales,mdempsky): Get working with -G.
+-		// Probably after #43818 is fixed.
+-		if base.Flag.G > 0 {
+-			v.reason = "inlining closures not yet working with -G"
++		if base.Debug.InlFuncsWithClosures == 0 {
++			// TODO(danscales): change default of InlFuncsWithClosures
++			// to 1 when #44370 is fixed
++			v.reason = "not inlining functions with closures"
+ 			return true
+ 		}
+ 
+-		// TODO(danscales) - fix some bugs when budget is lowered below 15
+-		// Maybe make budget proportional to number of closure variables, e.g.:
++		// TODO(danscales): Maybe make budget proportional to number of closure
++		// variables, e.g.:
+ 		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
+ 		v.budget -= 15
+ 		// Scan body of closure (which DoChildren doesn't automatically
+diff --git a/test/closure3.go b/test/closure3.go
+index 37b548d6dc..452a52720a 100644
+--- a/test/closure3.go
++++ b/test/closure3.go
+@@ -1,4 +1,4 @@
+-// errorcheckandrundir -0 -m
++// errorcheckandrundir -0 -m -d=inlfuncswithclosures=1
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/inline.go b/test/inline.go
+index a79f5589fb..44c746b282 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -1,4 +1,4 @@
+-// errorcheck -0 -m
++// errorcheck -0 -m -d=inlfuncswithclosures=1
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

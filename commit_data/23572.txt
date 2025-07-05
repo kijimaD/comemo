@@ -10,7 +10,62 @@ Date:   Wed May 27 10:49:25 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/10421
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/archive/zip/reader.go      |  4 ++++
  src/archive/zip/reader_test.go | 17 +++++++++++++----
  2 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 10d9d5e5bf..f68ab09723 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"encoding/binary"
+ 	"errors"
++	"fmt"
+ 	"hash"
+ 	"hash/crc32"
+ 	"io"
+@@ -77,6 +78,9 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 	if err != nil {
+ 		return err
+ 	}
++	if end.directoryRecords > uint64(size)/fileHeaderLen {
++		return fmt.Errorf("archive/zip: TOC declares impossible %d files in %d byte zip", end.directoryRecords, size)
++	}
+ 	z.r = r
+ 	z.File = make([]*File, 0, end.directoryRecords)
+ 	z.Comment = end.comment
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 6a8cab34cd..4806b89458 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -551,10 +551,7 @@ func TestIssue10957(t *testing.T) {
+ 		"\v\x00\x00\x00\x00\x00")
+ 	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
+ 	if err != nil {
+-		if z != nil {
+-			panic("non nil z")
+-		}
+-		return
++		t.Fatal(err)
+ 	}
+ 	for i, f := range z.File {
+ 		r, err := f.Open()
+@@ -573,3 +570,15 @@ func TestIssue10957(t *testing.T) {
+ 		r.Close()
+ 	}
+ }
++
++// Verify the number of files is sane.
++func TestIssue10956(t *testing.T) {
++	data := []byte("PK\x06\x06PK\x06\a0000\x00\x00\x00\x00\x00\x00\x00\x00" +
++		"0000PK\x05\x06000000000000" +
++		"0000\v\x00000\x00\x00\x00\x00\x00\x00\x000")
++	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
++	const want = "TOC declares impossible 3472328296227680304 files in 57 byte"
++	if err == nil && !strings.Contains(err.Error(), want) {
++		t.Errorf("error = %v; want %q", err, want)
++	}
++}

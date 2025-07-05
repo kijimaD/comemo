@@ -14,7 +14,7 @@ Date:   Thu Jan 29 20:19:07 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3577
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  include/link.h          | 44 +++++++++++++++++++++++++++++---------------
  src/cmd/5g/galign.c     | 16 ----------------
  src/cmd/5g/opt.h        |  7 -------
@@ -45,3 +45,1651 @@ Date:   Thu Jan 29 20:19:07 2015 -0500
  src/liblink/pass.c      |  6 ++++--
  src/liblink/pcln.c      | 14 +++++++-------
  29 files changed, 144 insertions(+), 446 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 481ea9fbb4..d210e06e55 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -249,6 +249,35 @@ struct	Prog
+ 
+ extern Prog zprog; // zeroed Prog
+ 
++// Prog.as opcodes.
++// These are the portable opcodes, common to all architectures.
++// Each architecture defines many more arch-specific opcodes,
++// with values starting at A_ARCHSPECIFIC.
++enum {
++	AXXX = 0,
++
++	ACALL,
++	ACHECKNIL,
++	ADATA,
++	ADUFFCOPY,
++	ADUFFZERO,
++	AEND,
++	AFUNCDATA,
++	AGLOBL,
++	AJMP,
++	ANOP,
++	APCDATA,
++	ARET,
++	ATEXT,
++	ATYPE,
++	AUNDEF,
++	AUSEFIELD,
++	AVARDEF,
++	AVARKILL,
++	
++	A_ARCHSPECIFIC, // first architecture-specific opcode value
++};
++
+ // prevent incompatible type signatures between liblink and 8l on Plan 9
+ #pragma incomplete struct Section
+ 
+@@ -599,26 +628,11 @@ struct LinkArch
+ 	void	(*preprocess)(Link*, LSym*);
+ 	void	(*assemble)(Link*, LSym*);
+ 	void	(*follow)(Link*, LSym*);
+-	int	(*iscall)(Prog*);
+-	int	(*isdata)(Prog*);
+ 	void	(*progedit)(Link*, Prog*);
+ 
+ 	int	minlc;
+ 	int	ptrsize;
+ 	int	regsize;
+-	
+-	int	ACALL;
+-	int	ADATA;
+-	int	AEND;
+-	int	AFUNCDATA;
+-	int	AGLOBL;
+-	int	AJMP;
+-	int	ANOP;
+-	int	APCDATA;
+-	int	ARET;
+-	int	ATEXT;
+-	int	ATYPE;
+-	int	AUSEFIELD;
+ };
+ 
+ /* executable header types */
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index f2cba77eb6..85ad347833 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -46,22 +46,6 @@ main(int argc, char **argv)
+ 	arch.thestring = thestring;
+ 	arch.thelinkarch = thelinkarch;
+ 	arch.typedefs = typedefs;
+-	arch.ACALL = ABL;
+-	arch.ACHECKNIL = ACHECKNIL;
+-	arch.ADATA = ADATA;
+-	arch.AFUNCDATA = AFUNCDATA;
+-	arch.AGLOBL = AGLOBL;
+-	arch.AJMP = AB;
+-	arch.ANAME = ANAME;
+-	arch.ANOP = ANOP;
+-	arch.APCDATA = APCDATA;
+-	arch.ARET = ARET;
+-	arch.ASIGNAME = ASIGNAME;
+-	arch.ATEXT = ATEXT;
+-	arch.ATYPE = ATYPE;
+-	arch.AUNDEF = AUNDEF;
+-	arch.AVARDEF = AVARDEF;
+-	arch.AVARKILL = AVARKILL;
+ 	arch.MAXWIDTH = MAXWIDTH;
+ 	arch.afunclit = afunclit;
+ 	arch.anyregalloc = anyregalloc;
+diff --git a/src/cmd/5g/opt.h b/src/cmd/5g/opt.h
+index 08ac4ec3f7..524607419d 100644
+--- a/src/cmd/5g/opt.h
++++ b/src/cmd/5g/opt.h
+@@ -177,10 +177,3 @@ int	BtoF(uint32);
+  * prog.c
+  */
+ void proginfo(ProgInfo*, Prog*);
+-
+-// To allow use of AJMP and ACALL in ../gc/popt.c.
+-enum
+-{
+-	AJMP = AB,
+-	ACALL = ABL,
+-};
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index a96d1f93dc..ce82e4c1ec 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1385,9 +1385,6 @@ predicable(Prog *p)
+ 	case AXXX:
+ 	case ADATA:
+ 	case AGLOBL:
+-	case AHISTORY:
+-	case ANAME:
+-	case ASIGNAME:
+ 	case ATEXT:
+ 	case AWORD:
+ 	case ABCASE:
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 2dcb0ec2b7..fa1dcc34e8 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -158,9 +158,7 @@ enum
+ 
+ enum
+ {
+-	AXXX,
+-
+-	AAND,
++	AAND = A_ARCHSPECIFIC,
+ 	AEOR,
+ 	ASUB,
+ 	ARSB,
+@@ -177,9 +175,6 @@ enum
+ 
+ 	AMVN,
+ 
+-	AB,
+-	ABL,
+-
+ /*
+  * Do not reorder or fragment the conditional branch
+  * opcodes, or the predication code will break
+@@ -246,24 +241,14 @@ enum
+ 	ASWPBU,
+ 	ASWPW,
+ 
+-	ANOP,
+ 	ARFE,
+ 	ASWI,
+ 	AMULA,
+ 
+-	ADATA,
+-	AGLOBL,
+-	AHISTORY,
+-	ANAME,
+-	ARET,
+-	ATEXT,
+ 	AWORD,
+-	ADYNT_,
+-	AINIT_,
+ 	ABCASE,
+ 	ACASE,
+ 
+-	AEND,
+ 
+ 	AMULL,
+ 	AMULAL,
+@@ -274,7 +259,6 @@ enum
+ 	ABXRET,
+ 	ADWORD,
+ 
+-	ASIGNAME,
+ 
+ 	ALDREX,
+ 	ASTREX,
+@@ -284,7 +268,6 @@ enum
+ 
+ 	APLD,
+ 
+-	AUNDEF,
+ 
+ 	ACLZ,
+ 
+@@ -293,21 +276,16 @@ enum
+ 	AMULAWT,
+ 	AMULAWB,
+ 	
+-	AUSEFIELD,
+-	ATYPE,
+-	AFUNCDATA,
+-	APCDATA,
+-	ACHECKNIL,
+-	AVARDEF,
+-	AVARKILL,
+-	ADUFFCOPY,
+-	ADUFFZERO,
+ 	ADATABUNDLE,
+ 	ADATABUNDLEEND,
+ 
+ 	AMRC, // MRC/MCR
+ 
+ 	ALAST,
++	
++	// aliases
++	AB = AJMP,
++	ABL = ACALL,
+ };
+ 
+ /* scond byte */
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index fc97d62d9b..83833e189b 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -69,22 +69,6 @@ main(int argc, char **argv)
+ 	arch.thestring = thestring;
+ 	arch.thelinkarch = thelinkarch;
+ 	arch.typedefs = typedefs;
+-	arch.ACALL = ACALL;
+-	arch.ACHECKNIL = ACHECKNIL;
+-	arch.ADATA = ADATA;
+-	arch.AFUNCDATA = AFUNCDATA;
+-	arch.AGLOBL = AGLOBL;
+-	arch.AJMP = AJMP;
+-	arch.ANAME = ANAME;
+-	arch.ANOP = ANOP;
+-	arch.APCDATA = APCDATA;
+-	arch.ARET = ARET;
+-	arch.ASIGNAME = ASIGNAME;
+-	arch.ATEXT = ATEXT;
+-	arch.ATYPE = ATYPE;
+-	arch.AUNDEF = AUNDEF;
+-	arch.AVARDEF = AVARDEF;
+-	arch.AVARKILL = AVARKILL;
+ 	arch.MAXWIDTH = MAXWIDTH;
+ 	arch.afunclit = afunclit;
+ 	arch.anyregalloc = anyregalloc;
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index b40c6b994b..01d9bb7535 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -38,8 +38,7 @@
+ 
+ enum
+ {
+-	AXXX,
+-	AAAA,
++	AAAA = A_ARCHSPECIFIC,
+ 	AAAD,
+ 	AAAM,
+ 	AAAS,
+@@ -69,7 +68,6 @@ enum
+ 	ABTSL,
+ 	ABTSW,
+ 	ABYTE,
+-	ACALL,
+ 	ACLC,
+ 	ACLD,
+ 	ACLI,
+@@ -83,7 +81,6 @@ enum
+ 	ACMPSW,
+ 	ADAA,
+ 	ADAS,
+-	ADATA,
+ 	ADECB,
+ 	ADECL,
+ 	ADECQ,
+@@ -92,8 +89,6 @@ enum
+ 	ADIVL,
+ 	ADIVW,
+ 	AENTER,
+-	AGLOBL,
+-	AHISTORY,
+ 	AHLT,
+ 	AIDIVB,
+ 	AIDIVL,
+@@ -126,7 +121,6 @@ enum
+ 	AJLS,
+ 	AJLT,
+ 	AJMI,
+-	AJMP,
+ 	AJNE,
+ 	AJOC,
+ 	AJOS,
+@@ -169,11 +163,9 @@ enum
+ 	AMULB,
+ 	AMULL,
+ 	AMULW,
+-	ANAME,
+ 	ANEGB,
+ 	ANEGL,
+ 	ANEGW,
+-	ANOP,
+ 	ANOTB,
+ 	ANOTL,
+ 	ANOTW,
+@@ -207,7 +199,6 @@ enum
+ 	ARCRW,
+ 	AREP,
+ 	AREPN,
+-	ARET,
+ 	AROLB,
+ 	AROLL,
+ 	AROLW,
+@@ -264,7 +255,6 @@ enum
+ 	ATESTB,
+ 	ATESTL,
+ 	ATESTW,
+-	ATEXT,
+ 	AVERR,
+ 	AVERW,
+ 	AWAIT,
+@@ -385,12 +375,8 @@ enum
+ 	AFYL2X,
+ 	AFYL2XP1,
+ 
+-	AEND,
+ 
+-	ADYNT_,
+-	AINIT_,
+ 
+-	ASIGNAME,
+ 
+ 	/* extra 32-bit operations */
+ 	ACMPXCHGB,
+@@ -744,7 +730,6 @@ enum
+ 	ABSWAPL,
+ 	ABSWAPQ,
+ 	
+-	AUNDEF,
+ 
+ 	AAESENC,
+ 	AAESENCLAST,
+@@ -756,15 +741,6 @@ enum
+ 	APSHUFD,
+ 	APCLMULQDQ,
+ 	
+-	AUSEFIELD,
+-	ATYPE,
+-	AFUNCDATA,
+-	APCDATA,
+-	ACHECKNIL,
+-	AVARDEF,
+-	AVARKILL,
+-	ADUFFCOPY,
+-	ADUFFZERO,
+ 	
+ 	ALAST
+ };
+diff --git a/src/cmd/8g/galign.c b/src/cmd/8g/galign.c
+index 0fdf19dfe8..83c323516d 100644
+--- a/src/cmd/8g/galign.c
++++ b/src/cmd/8g/galign.c
+@@ -46,22 +46,6 @@ main(int argc, char **argv)
+ 	arch.thestring = thestring;
+ 	arch.thelinkarch = thelinkarch;
+ 	arch.typedefs = typedefs;
+-	arch.ACALL = ACALL;
+-	arch.ACHECKNIL = ACHECKNIL;
+-	arch.ADATA = ADATA;
+-	arch.AFUNCDATA = AFUNCDATA;
+-	arch.AGLOBL = AGLOBL;
+-	arch.AJMP = AJMP;
+-	arch.ANAME = ANAME;
+-	arch.ANOP = ANOP;
+-	arch.APCDATA = APCDATA;
+-	arch.ARET = ARET;
+-	arch.ASIGNAME = ASIGNAME;
+-	arch.ATEXT = ATEXT;
+-	arch.ATYPE = ATYPE;
+-	arch.AUNDEF = AUNDEF;
+-	arch.AVARDEF = AVARDEF;
+-	arch.AVARKILL = AVARKILL;
+ 	arch.MAXWIDTH = MAXWIDTH;
+ 	arch.afunclit = afunclit;
+ 	arch.anyregalloc = anyregalloc;
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index f88b48259c..28d7dab7fb 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -34,8 +34,7 @@
+ 
+ enum
+ {
+-	AXXX,
+-	AAAA,
++	AAAA = A_ARCHSPECIFIC,
+ 	AAAD,
+ 	AAAM,
+ 	AAAS,
+@@ -65,7 +64,6 @@ enum
+ 	ABTSL,
+ 	ABTSW,
+ 	ABYTE,
+-	ACALL,
+ 	ACLC,
+ 	ACLD,
+ 	ACLI,
+@@ -79,7 +77,6 @@ enum
+ 	ACMPSW,
+ 	ADAA,
+ 	ADAS,
+-	ADATA,
+ 	ADECB,
+ 	ADECL,
+ 	ADECW,
+@@ -87,8 +84,6 @@ enum
+ 	ADIVL,
+ 	ADIVW,
+ 	AENTER,
+-	AGLOBL,
+-	AHISTORY,
+ 	AHLT,
+ 	AIDIVB,
+ 	AIDIVL,
+@@ -121,7 +116,6 @@ enum
+ 	AJLS,
+ 	AJLT,
+ 	AJMI,
+-	AJMP,
+ 	AJNE,
+ 	AJOC,
+ 	AJOS,
+@@ -161,11 +155,9 @@ enum
+ 	AMULB,
+ 	AMULL,
+ 	AMULW,
+-	ANAME,
+ 	ANEGB,
+ 	ANEGL,
+ 	ANEGW,
+-	ANOP,
+ 	ANOTB,
+ 	ANOTL,
+ 	ANOTW,
+@@ -199,7 +191,6 @@ enum
+ 	ARCRW,
+ 	AREP,
+ 	AREPN,
+-	ARET,
+ 	AROLB,
+ 	AROLL,
+ 	AROLW,
+@@ -256,7 +247,6 @@ enum
+ 	ATESTB,
+ 	ATESTL,
+ 	ATESTW,
+-	ATEXT,
+ 	AVERR,
+ 	AVERW,
+ 	AWAIT,
+@@ -381,12 +371,8 @@ enum
+ 	AFYL2X,
+ 	AFYL2XP1,
+ 
+-	AEND,
+ 
+-	ADYNT_,
+-	AINIT_,
+ 
+-	ASIGNAME,
+ 
+ 	ACMPXCHGB,
+ 	ACMPXCHGL,
+@@ -456,7 +442,6 @@ enum
+ 	
+ 	ABSWAPL,
+ 	
+-	AUNDEF,
+ 
+ 	// SSE2
+ 	AADDPD,
+@@ -576,15 +561,6 @@ enum
+ 	APINSRD,
+ 	APSHUFB,
+ 
+-	AUSEFIELD,
+-	ATYPE,
+-	AFUNCDATA,
+-	APCDATA,
+-	ACHECKNIL,
+-	AVARDEF,
+-	AVARKILL,
+-	ADUFFCOPY,
+-	ADUFFZERO,
+ 	
+ 	ALAST
+ };
+diff --git a/src/cmd/9g/galign.c b/src/cmd/9g/galign.c
+index 86509dcc50..df4291e90e 100644
+--- a/src/cmd/9g/galign.c
++++ b/src/cmd/9g/galign.c
+@@ -53,22 +53,6 @@ main(int argc, char **argv)
+ 	arch.thestring = thestring;
+ 	arch.thelinkarch = thelinkarch;
+ 	arch.typedefs = typedefs;
+-	arch.ACALL = ABL;
+-	arch.ACHECKNIL = ACHECKNIL;
+-	arch.ADATA = ADATA;
+-	arch.AFUNCDATA = AFUNCDATA;
+-	arch.AGLOBL = AGLOBL;
+-	arch.AJMP = ABR;
+-	arch.ANAME = ANAME;
+-	arch.ANOP = ANOP;
+-	arch.APCDATA = APCDATA;
+-	arch.ARET = ARETURN;
+-	arch.ASIGNAME = ASIGNAME;
+-	arch.ATEXT = ATEXT;
+-	arch.ATYPE = ATYPE;
+-	arch.AUNDEF = AUNDEF;
+-	arch.AVARDEF = AVARDEF;
+-	arch.AVARKILL = AVARKILL;
+ 	arch.MAXWIDTH = MAXWIDTH;
+ 	arch.afunclit = afunclit;
+ 	arch.anyregalloc = anyregalloc;
+diff --git a/src/cmd/9g/opt.h b/src/cmd/9g/opt.h
+index ab586434cc..25b6703279 100644
+--- a/src/cmd/9g/opt.h
++++ b/src/cmd/9g/opt.h
+@@ -180,11 +180,3 @@ enum {
+ 
+ int as2variant(int);
+ int variant2as(int, int);
+-
+-// To allow use of AJMP, ACALL, ARET in ../gc/popt.c.
+-enum
+-{
+-	AJMP = ABR,
+-	ACALL = ABL,
+-	ARET = ARETURN,
+-};
+diff --git a/src/cmd/9l/9.out.h b/src/cmd/9l/9.out.h
+index a9748b719f..b99e7e6f4d 100644
+--- a/src/cmd/9l/9.out.h
++++ b/src/cmd/9l/9.out.h
+@@ -293,8 +293,7 @@ enum
+ 
+ enum
+ {
+-	AXXX,
+-	AADD,
++	AADD = A_ARCHSPECIFIC,
+ 	AADDCC,
+ 	AADDV,
+ 	AADDVCC,
+@@ -323,11 +322,9 @@ enum
+ 	ABEQ,
+ 	ABGE,
+ 	ABGT,
+-	ABL,
+ 	ABLE,
+ 	ABLT,
+ 	ABNE,
+-	ABR,
+ 	ABVC,
+ 	ABVS,
+ 	ACMP,
+@@ -511,18 +508,7 @@ enum
+ 	ATW,
+ 
+ 	ASYSCALL,
+-	ADATA,
+-	AGLOBL,
+-	AHISTORY,
+-	ANAME,
+-	ANOP,
+-	ARETURN,
+-	ATEXT,
+ 	AWORD,
+-	AEND,
+-	ADYNT,
+-	AINIT,
+-	ASIGNAME,
+ 
+ 	ARFCI,
+ 
+@@ -611,18 +597,12 @@ enum
+ 	/* more 64-bit operations */
+ 	AHRFID,
+ 
+-	AUNDEF,
+-	AUSEFIELD,
+-	ATYPE,
+-	AFUNCDATA,
+-	APCDATA,
+-	ACHECKNIL,
+-	AVARDEF,
+-	AVARKILL,
+-	ADUFFCOPY,
+-	ADUFFZERO,
+-
+-	ALAST
++	ALAST,
++	
++	// aliases
++	ABR = AJMP,
++	ABL = ACALL,
++	ARETURN = ARET,
+ };
+ 
+ /*
+diff --git a/src/cmd/dist/buildgc.go b/src/cmd/dist/buildgc.go
+index 967fc842c3..bc1898e04e 100644
+--- a/src/cmd/dist/buildgc.go
++++ b/src/cmd/dist/buildgc.go
+@@ -53,7 +53,7 @@ func gcopnames(dir, file string) {
+ func mkanames(dir, file string) {
+ 	ch := file[len(file)-3]
+ 	targ := pathf("%s/../cmd/%cl/%c.out.h", dir, ch, ch)
+-	in := readfile(targ)
++	in := readfile(pathf("%s/../../include/link.h", dir)) + readfile(targ)
+ 	lines := splitlines(in)
+ 
+ 	// Include link.h so that the extern declaration there is
+@@ -69,10 +69,20 @@ func mkanames(dir, file string) {
+ 
+ 	fmt.Fprintf(&out, "char*	anames%c[] = {\n", ch)
+ 	for _, line := range lines {
+-		if strings.HasPrefix(line, "\tA") {
++		// Use all A names found in the headers,
++		// except don't use A_ARCHSPECIFIC (left to arch to define),
++		// and don't use any aliases (= A...),
++		// except do use the arch-defined alias for A_ARCHSPECIFIC.
++		if strings.Contains(line, ";") {
++			continue
++		}
++		if strings.HasPrefix(line, "\tA") && !strings.Contains(line, "\tA_") && (!strings.Contains(line, "= A") || strings.Contains(line, "= A_ARCHSPECIFIC")) {
+ 			if i := strings.Index(line, ","); i >= 0 {
+ 				line = line[:i]
+ 			}
++			if i := strings.Index(line, "="); i >= 0 {
++				line = line[:i]
++			}
+ 			if i := strings.Index(line, "\n"); i >= 0 {
+ 				line = line[:i]
+ 			}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index fe74f3484d..da1fd64e86 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1657,23 +1657,7 @@ struct Arch
+ 	char *thestring;
+ 	LinkArch *thelinkarch;
+ 	Typedef *typedefs;
+-	
+-	int ACALL;
+-	int ACHECKNIL;
+-	int ADATA;
+-	int AFUNCDATA;
+-	int AGLOBL;
+-	int AJMP;
+-	int ANAME;
+-	int ANOP;
+-	int APCDATA;
+-	int ARET;
+-	int ASIGNAME;
+-	int ATEXT;
+-	int ATYPE;
+-	int AUNDEF;
+-	int AVARDEF;
+-	int AVARKILL;
++
+ 	vlong MAXWIDTH;
+ 
+ 	void (*afunclit)(Addr*, Node*);
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 183bd71426..ec1628651e 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -30,7 +30,7 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
+ 	pnod = newname(sym);
+ 	pnod->class = PEXTERN;
+ 	nodconst(&nod, types[TINT32], funcdatakind);
+-	arch.gins(arch.AFUNCDATA, &nod, pnod);
++	arch.gins(AFUNCDATA, &nod, pnod);
+ 	return sym;
+ }
+ 
+@@ -110,13 +110,13 @@ gvardefx(Node *n, int as)
+ void
+ gvardef(Node *n)
+ {
+-	gvardefx(n, arch.AVARDEF);
++	gvardefx(n, AVARDEF);
+ }
+ 
+ void
+ gvarkill(Node *n)
+ {
+-	gvardefx(n, arch.AVARKILL);
++	gvardefx(n, AVARKILL);
+ }
+ 
+ static void
+@@ -125,10 +125,10 @@ removevardef(Prog *firstp)
+ 	Prog *p;
+ 
+ 	for(p = firstp; p != P; p = p->link) {
+-		while(p->link != P && (p->link->as == arch.AVARDEF || p->link->as == arch.AVARKILL))
++		while(p->link != P && (p->link->as == AVARDEF || p->link->as == AVARKILL))
+ 			p->link = p->link->link;
+ 		if(p->to.type == TYPE_BRANCH)
+-			while(p->to.u.branch != P && (p->to.u.branch->as == arch.AVARDEF || p->to.u.branch->as == arch.AVARKILL))
++			while(p->to.u.branch != P && (p->to.u.branch->as == AVARDEF || p->to.u.branch->as == AVARKILL))
+ 				p->to.u.branch = p->to.u.branch->link;
+ 	}
+ }
+@@ -229,7 +229,7 @@ compile(Node *fn)
+ 	setlineno(curfn);
+ 
+ 	nodconst(&nod1, types[TINT32], 0);
+-	ptxt = arch.gins(arch.ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
++	ptxt = arch.gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
+ 	if(fn->dupok)
+ 		ptxt->from3.offset |= DUPOK;
+ 	if(fn->wrapper)
+@@ -266,7 +266,7 @@ compile(Node *fn)
+ 		case PPARAM:
+ 		case PPARAMOUT:
+ 			nodconst(&nod1, types[TUINTPTR], l->n->type->width);
+-			p = arch.gins(arch.ATYPE, l->n, &nod1);
++			p = arch.gins(ATYPE, l->n, &nod1);
+ 			p->from.gotype = linksym(ngotype(l->n));
+ 			break;
+ 		}
+@@ -297,7 +297,7 @@ compile(Node *fn)
+ 	if(nerrors != 0)
+ 		goto ret;
+ 
+-	pc->as = arch.ARET;	// overwrite AEND
++	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+ 	fixjmp(ptxt);
+@@ -535,9 +535,9 @@ cgen_checknil(Node *n)
+ 	if(((arch.thechar == '5' || arch.thechar == '9') && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
+ 		arch.regalloc(&reg, types[tptr], n);
+ 		arch.cgen(n, &reg);
+-		arch.gins(arch.ACHECKNIL, &reg, N);
++		arch.gins(ACHECKNIL, &reg, N);
+ 		arch.regfree(&reg);
+ 		return;
+ 	}
+-	arch.gins(arch.ACHECKNIL, n, N);
++	arch.gins(ACHECKNIL, n, N);
+ }
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index ba98a9772f..0461085b5b 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -371,7 +371,7 @@ iscall(Prog *prog, LSym *name)
+ 		fatal("iscall: prog is nil");
+ 	if(name == nil)
+ 		fatal("iscall: function name is nil");
+-	if(prog->as != arch.ACALL)
++	if(prog->as != ACALL)
+ 		return 0;
+ 	return name == prog->to.sym;
+ }
+@@ -519,7 +519,7 @@ newcfg(Prog *firstp)
+ 				p->to.u.branch->opt = newblock(p->to.u.branch);
+ 				arrayadd(cfg, &p->to.u.branch->opt);
+ 			}
+-			if(p->as != arch.AJMP && p->link != nil && p->link->opt == nil) {
++			if(p->as != AJMP && p->link != nil && p->link->opt == nil) {
+ 				p->link->opt = newblock(p->link);
+ 				arrayadd(cfg, &p->link->opt);
+ 			}
+@@ -544,7 +544,7 @@ newcfg(Prog *firstp)
+ 
+ 			// Stop before an unreachable RET, to avoid creating
+ 			// unreachable control flow nodes.
+-			if(p->link != nil && p->link->as == arch.ARET && p->link->mode == 1)
++			if(p->link != nil && p->link->as == ARET && p->link->mode == 1)
+ 				break;
+ 
+ 			// Collect basic blocks with selectgo calls.
+@@ -556,7 +556,7 @@ newcfg(Prog *firstp)
+ 		if(bb->last->link != nil) {
+ 			// Add a fall-through when the instruction is
+ 			// not an unconditional control transfer.
+-			if(bb->last->as != arch.AJMP && bb->last->as != arch.ARET && bb->last->as != arch.AUNDEF)
++			if(bb->last->as != AJMP && bb->last->as != ARET && bb->last->as != AUNDEF)
+ 				addedge(bb, bb->last->link->opt);
+ 		}
+ 	}
+@@ -678,7 +678,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 	bvresetall(avarinit);
+ 
+ 	arch.proginfo(&info, prog);
+-	if(prog->as == arch.ARET) {
++	if(prog->as == ARET) {
+ 		// Return instructions implicitly read all the arguments.  For
+ 		// the sake of correctness, out arguments must be read.  For the
+ 		// sake of backtrace quality, we read in arguments as well.
+@@ -711,7 +711,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 		}
+ 		return;
+ 	}
+-	if(prog->as == arch.ATEXT) {
++	if(prog->as == ATEXT) {
+ 		// A text instruction marks the entry point to a function and
+ 		// the definition point of all in arguments.
+ 		for(i = 0; i < arraylength(vars); i++) {
+@@ -764,9 +764,9 @@ Next:
+ 				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != to->node)
+ 					fatal("bad bookkeeping in liveness %N %d", to->node, pos);
+ 				if(((Node*)(to->node))->addrtaken) {
+-					if(prog->as != arch.AVARKILL)
++					if(prog->as != AVARKILL)
+ 						bvset(avarinit, pos);
+-					if(prog->as == arch.AVARDEF || prog->as == arch.AVARKILL)
++					if(prog->as == AVARDEF || prog->as == AVARKILL)
+ 						bvset(varkill, pos);
+ 				} else {
+ 					// RightRead is a read, obviously.
+@@ -780,7 +780,7 @@ Next:
+ 					if((info.flags & RightRead) || (info.flags & (RightAddr|RightWrite)) == RightAddr)
+ 						bvset(uevar, pos);
+ 					if(info.flags & RightWrite)
+-						if(to->node != nil && (!arch.isfat(((Node*)(to->node))->type) || prog->as == arch.AVARDEF))
++						if(to->node != nil && (!arch.isfat(((Node*)(to->node))->type) || prog->as == AVARDEF))
+ 							bvset(varkill, pos);
+ 				}
+ 			}
+@@ -952,7 +952,7 @@ livenessprintblock(Liveness *lv, BasicBlock *bb)
+ 	print("\tprog:\n");
+ 	for(prog = bb->first;; prog = prog->link) {
+ 		print("\t\t%P", prog);
+-		if(prog->as == arch.APCDATA && prog->from.offset == PCDATA_StackMapIndex) {
++		if(prog->as == APCDATA && prog->from.offset == PCDATA_StackMapIndex) {
+ 			pos = prog->to.offset;
+ 			live = *(Bvec**)arrayget(lv->livepointers, pos);
+ 			print(" ");
+@@ -1048,7 +1048,7 @@ checkptxt(Node *fn, Prog *firstp)
+ 	for(p = firstp; p != P; p = p->link) {
+ 		if(0)
+ 			print("analyzing '%P'\n", p);
+-		if(p->as != arch.ADATA && p->as != arch.AGLOBL && p->as != arch.ANAME && p->as != arch.ASIGNAME && p->as != arch.ATYPE)
++		if(p->as != ADATA && p->as != AGLOBL && p->as != ATYPE)
+ 			checkprog(fn, p);
+ 	}
+ }
+@@ -1233,7 +1233,7 @@ newpcdataprog(Prog *prog, int32 index)
+ 
+ 	nodconst(&from, types[TINT32], PCDATA_StackMapIndex);
+ 	nodconst(&to, types[TINT32], index);
+-	pcdata = unlinkedprog(arch.APCDATA);
++	pcdata = unlinkedprog(APCDATA);
+ 	pcdata->lineno = prog->lineno;
+ 	arch.naddr(&from, &pcdata->from, 0);
+ 	arch.naddr(&to, &pcdata->to, 0);
+@@ -1245,7 +1245,7 @@ newpcdataprog(Prog *prog, int32 index)
+ static int
+ issafepoint(Prog *prog)
+ {
+-	return prog->as == arch.ATEXT || prog->as == arch.ACALL;
++	return prog->as == ATEXT || prog->as == ACALL;
+ }
+ 
+ // Initializes the sets for solving the live variables.  Visits all the
+@@ -1542,7 +1542,7 @@ livenessepilogue(Liveness *lv)
+ 		// walk backward, emit pcdata and populate the maps
+ 		pos = bb->lastbitmapindex;
+ 		if(pos < 0) {
+-			// the first block we encounter should have the arch.ATEXT so
++			// the first block we encounter should have the ATEXT so
+ 			// at no point should pos ever be less than zero.
+ 			fatal("livenessepilogue");
+ 		}
+@@ -1569,7 +1569,7 @@ livenessepilogue(Liveness *lv)
+ 				// Useful sanity check: on entry to the function,
+ 				// the only things that can possibly be live are the
+ 				// input parameters.
+-				if(p->as == arch.ATEXT) {
++				if(p->as == ATEXT) {
+ 					for(j = 0; j < liveout->n; j++) {
+ 						if(!bvget(liveout, j))
+ 							continue;
+@@ -1587,7 +1587,7 @@ livenessepilogue(Liveness *lv)
+ 				// Ambiguously live variables are zeroed immediately after
+ 				// function entry. Mark them live for all the non-entry bitmaps
+ 				// so that GODEBUG=gcdead=1 mode does not poison them.
+-				if(p->as == arch.ACALL)
++				if(p->as == ACALL)
+ 					bvor(locals, locals, ambig);
+ 
+ 				// Show live pointer bitmaps.
+@@ -1597,9 +1597,9 @@ livenessepilogue(Liveness *lv)
+ 				if(msg != nil) {
+ 					fmtstrinit(&fmt);
+ 					fmtprint(&fmt, "%L: live at ", p->lineno);
+-					if(p->as == arch.ACALL && p->to.node)
++					if(p->as == ACALL && p->to.node)
+ 						fmtprint(&fmt, "call to %s:", ((Node*)(p->to.node))->sym->name);
+-					else if(p->as == arch.ACALL)
++					else if(p->as == ACALL)
+ 						fmtprint(&fmt, "indirect call:");
+ 					else
+ 						fmtprint(&fmt, "entry to %s:", ((Node*)(p->from.node))->sym->name);
+@@ -1620,7 +1620,7 @@ livenessepilogue(Liveness *lv)
+ 
+ 				// Only CALL instructions need a PCDATA annotation.
+ 				// The TEXT instruction annotation is implicit.
+-				if(p->as == arch.ACALL) {
++				if(p->as == ACALL) {
+ 					if(isdeferreturn(p)) {
+ 						// runtime.deferreturn modifies its return address to return
+ 						// back to the CALL, not to the subsequent instruction.
+@@ -1768,7 +1768,7 @@ livenesscompact(Liveness *lv)
+ 	
+ 	// Rewrite PCDATA instructions to use new numbering.
+ 	for(p=lv->ptxt; p != P; p=p->link) {
+-		if(p->as == arch.APCDATA && p->from.offset == PCDATA_StackMapIndex) {
++		if(p->as == APCDATA && p->from.offset == PCDATA_StackMapIndex) {
+ 			i = p->to.offset;
+ 			if(i >= 0)
+ 				p->to.offset = remap[i];
+@@ -1855,7 +1855,7 @@ livenessprintdebug(Liveness *lv)
+ 		// program listing, with individual effects listed
+ 		for(p = bb->first;; p = p->link) {
+ 			print("%P\n", p);
+-			if(p->as == arch.APCDATA && p->from.offset == PCDATA_StackMapIndex)
++			if(p->as == APCDATA && p->from.offset == PCDATA_StackMapIndex)
+ 				pcdata = p->to.offset;
+ 			progeffects(p, lv->vars, uevar, varkill, avarinit);
+ 			printed = 0;
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index a86d3dfa15..f71702431a 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -81,7 +81,7 @@ chasejmp(Prog *p, int *jmploop)
+ 	int n;
+ 
+ 	n = 0;
+-	while(p != P && p->as == arch.AJMP && p->to.type == TYPE_BRANCH) {
++	while(p != P && p->as == AJMP && p->to.type == TYPE_BRANCH) {
+ 		if(++n > 10) {
+ 			*jmploop = 1;
+ 			break;
+@@ -112,9 +112,9 @@ mark(Prog *firstp)
+ 		if(p->opt != dead)
+ 			break;
+ 		p->opt = alive;
+-		if(p->as != arch.ACALL && p->to.type == TYPE_BRANCH && p->to.u.branch)
++		if(p->as != ACALL && p->to.type == TYPE_BRANCH && p->to.u.branch)
+ 			mark(p->to.u.branch);
+-		if(p->as == arch.AJMP || p->as == arch.ARET || p->as == arch.AUNDEF)
++		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
+ 			break;
+ 	}
+ }
+@@ -133,7 +133,7 @@ fixjmp(Prog *firstp)
+ 	for(p=firstp; p; p=p->link) {
+ 		if(debug['R'] && debug['v'])
+ 			print("%P\n", p);
+-		if(p->as != arch.ACALL && p->to.type == TYPE_BRANCH && p->to.u.branch && p->to.u.branch->as == arch.AJMP) {
++		if(p->as != ACALL && p->to.type == TYPE_BRANCH && p->to.u.branch && p->to.u.branch->as == AJMP) {
+ 			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
+ 			if(debug['R'] && debug['v'])
+ 				print("->%P\n", p);
+@@ -150,8 +150,8 @@ fixjmp(Prog *firstp)
+ 	last = nil;
+ 	for(p=firstp; p; p=p->link) {
+ 		if(p->opt == dead) {
+-			if(p->link == P && p->as == arch.ARET && last && last->as != arch.ARET) {
+-				// This is the final arch.ARET, and the code so far doesn't have one.
++			if(p->link == P && p->as == ARET && last && last->as != ARET) {
++				// This is the final ARET, and the code so far doesn't have one.
+ 				// Let it stay. The register allocator assumes that all live code in
+ 				// the function can be traversed by starting at all the RET instructions
+ 				// and following predecessor links. If we remove the final RET,
+@@ -176,7 +176,7 @@ fixjmp(Prog *firstp)
+ 	if(!jmploop) {
+ 		last = nil;
+ 		for(p=firstp; p; p=p->link) {
+-			if(p->as == arch.AJMP && p->to.type == TYPE_BRANCH && p->to.u.branch == p->link) {
++			if(p->as == AJMP && p->to.type == TYPE_BRANCH && p->to.u.branch == p->link) {
+ 				if(debug['R'] && debug['v'])
+ 					print("del %P\n", p);
+ 				continue;
+@@ -620,7 +620,7 @@ mergetemp(Prog *firstp)
+ 			p = r->f.prog;
+ 			arch.proginfo(&info, p);
+ 			if(p->to.node == v->node && (info.flags & RightWrite) && !(info.flags & RightRead)) {
+-				p->as = arch.ANOP;
++				p->as = ANOP;
+ 				p->to = zprog.to;
+ 				v->removed = 1;
+ 				if(Debug)
+@@ -813,7 +813,7 @@ varkillwalk(TempVar *v, TempFlow *r0, uint32 gen)
+ 			v->end = p->pc;
+ 		if(v->start > p->pc)
+ 			v->start = p->pc;
+-		if(p->as == arch.ARET || (p->as == arch.AVARKILL && p->to.node == v->node))
++		if(p->as == ARET || (p->as == AVARKILL && p->to.node == v->node))
+ 			break;
+ 	}
+ 	
+@@ -865,7 +865,7 @@ nilopt(Prog *firstp)
+ 	nkill = 0;
+ 	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
+ 		p = r->f.prog;
+-		if(p->as != arch.ACHECKNIL || !arch.regtyp(&p->from))
++		if(p->as != ACHECKNIL || !arch.regtyp(&p->from))
+ 			continue;
+ 		ncheck++;
+ 		if(arch.stackaddr(&p->from)) {
+@@ -916,7 +916,7 @@ nilwalkback(NilFlow *rcheck)
+ 			// without first finding the check, so this one is unchecked.
+ 			return;
+ 		}
+-		if(r != rcheck && p->as == arch.ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from)) {
++		if(r != rcheck && p->as == ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from)) {
+ 			rcheck->kill = 1;
+ 			return;
+ 		}
+@@ -937,7 +937,7 @@ nilwalkback(NilFlow *rcheck)
+ 		
+ 		// If same check, stop this loop but still check
+ 		// alternate predecessors up to this point.
+-		if(r1 != rcheck && p->as == arch.ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from))
++		if(r1 != rcheck && p->as == ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from))
+ 			break;
+ 
+ 		arch.proginfo(&info, p);
+@@ -993,7 +993,7 @@ nilwalkfwd(NilFlow *rcheck)
+ 		}
+ 		
+ 		// Stop if another nil check happens.
+-		if(p->as == arch.ACHECKNIL)
++		if(p->as == ACHECKNIL)
+ 			return;
+ 		// Stop if value is lost.
+ 		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from))
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 9ae041eeb8..5be4a87d7d 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -2187,13 +2187,13 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 		o1 = oprrr(ctxt, p->as, p->scond);
+ 		o1 |= ((p->from.reg&15)<<0);
+ 		o1 |= ((FREGTMP&15)<<12);
+-		o2 = oprrr(ctxt, AMOVFW+AEND, p->scond);
++		o2 = oprrr(ctxt, AMOVFW+ALAST, p->scond);
+ 		o2 |= ((FREGTMP&15)<<16);
+ 		o2 |= ((p->to.reg&15)<<12);
+ 		break;
+ 	case 87:	/* movwf reg,freg - fix-to-float */
+ 		// macro for movw reg,FTMP; movwf FTMP,freg
+-		o1 = oprrr(ctxt, AMOVWF+AEND, p->scond);
++		o1 = oprrr(ctxt, AMOVWF+ALAST, p->scond);
+ 		o1 |= ((p->from.reg&15)<<12);
+ 		o1 |= ((FREGTMP&15)<<16);
+ 		o2 = oprrr(ctxt, p->as, p->scond);
+@@ -2201,17 +2201,17 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 		o2 |= ((p->to.reg&15)<<12);
+ 		break;
+ 	case 88:	/* movw reg,freg  */
+-		o1 = oprrr(ctxt, AMOVWF+AEND, p->scond);
++		o1 = oprrr(ctxt, AMOVWF+ALAST, p->scond);
+ 		o1 |= ((p->from.reg&15)<<12);
+ 		o1 |= ((p->to.reg&15)<<16);
+ 		break;
+ 	case 89:	/* movw freg,reg  */
+-		o1 = oprrr(ctxt, AMOVFW+AEND, p->scond);
++		o1 = oprrr(ctxt, AMOVFW+ALAST, p->scond);
+ 		o1 |= ((p->from.reg&15)<<16);
+ 		o1 |= ((p->to.reg&15)<<12);
+ 		break;
+ 	case 90:	/* tst reg  */
+-		o1 = oprrr(ctxt, ACMP+AEND, p->scond);
++		o1 = oprrr(ctxt, ACMP+ALAST, p->scond);
+ 		o1 |= (p->from.reg&15)<<16;
+ 		break;
+ 	case 91:	/* ldrexd oreg,reg */
+@@ -2416,11 +2416,11 @@ oprrr(Link *ctxt, int a, int sc)
+ 			return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+ 				(1<<18) | (1<<8) | (1<<7);	// toint, double, trunc
+ 
+-	case AMOVWF+AEND:	// copy WtoF
++	case AMOVWF+ALAST:	// copy WtoF
+ 		return o | (0xe<<24) | (0x0<<20) | (0xb<<8) | (1<<4);
+-	case AMOVFW+AEND:	// copy FtoW
++	case AMOVFW+ALAST:	// copy FtoW
+ 		return o | (0xe<<24) | (0x1<<20) | (0xb<<8) | (1<<4);
+-	case ACMP+AEND:	// cmp imm
++	case ACMP+ALAST:	// cmp imm
+ 		return o | (0x3<<24) | (0x5<<20);
+ 
+ 	case ACLZ:
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index b3a19dc9fb..bc66c0b9a8 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -990,7 +990,6 @@ static Optab optab[] =
+ 	{ AFXRSTOR64,	ysvrs,	Pw, {0x0f,0xae,(01),0x0f,0xae,(01)} },
+ 	{ AFXSAVE64,	ysvrs,	Pw, {0x0f,0xae,(00),0x0f,0xae,(00)} },
+ 	{ AGLOBL },
+-	{ AHISTORY },
+ 	{ AHLT,		ynone,	Px, {0xf4} },
+ 	{ AIDIVB,	ydivb,	Pb, {0xf6,(07)} },
+ 	{ AIDIVL,	ydivl,	Px, {0xf7,(07)} },
+@@ -1115,7 +1114,6 @@ static Optab optab[] =
+ 	{ AMULSD,	yxm,	Pf2, {0x59} },
+ 	{ AMULSS,	yxm,	Pf3, {0x59} },
+ 	{ AMULW,	ydivl,	Pe, {0xf7,(04)} },
+-	{ ANAME },
+ 	{ ANEGB,	yscond,	Pb, {0xf6,(03)} },
+ 	{ ANEGL,	yscond,	Px, {0xf7,(03)} },
+ 	{ ANEGQ,	yscond,	Pw, {0xf7,(03)} },
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index c982ca98b7..1678958f2f 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -53,6 +53,8 @@ struct	Optab
+ 	uchar	op[13];
+ };
+ 
++static Optab*	opindex[ALAST+1];
++
+ enum
+ {
+ 	Yxxx		= 0,
+@@ -675,7 +677,6 @@ static Optab optab[] =
+ 	{ ADIVW,	ydivl,	Pe, {0xf7,(06)} },
+ 	{ AENTER },				/* botch */
+ 	{ AGLOBL },
+-	{ AHISTORY },
+ 	{ AHLT,		ynone,	Px, {0xf4} },
+ 	{ AIDIVB,	ydivb,	Pb, {0xf6,(07)} },
+ 	{ AIDIVL,	ydivl,	Px, {0xf7,(07)} },
+@@ -748,7 +749,6 @@ static Optab optab[] =
+ 	{ AMULB,	ydivb,	Pb, {0xf6,(04)} },
+ 	{ AMULL,	ydivl,	Px, {0xf7,(04)} },
+ 	{ AMULW,	ydivl,	Pe, {0xf7,(04)} },
+-	{ ANAME },
+ 	{ ANEGB,	yscond,	Px, {0xf6,(03)} },
+ 	{ ANEGL,	yscond,	Px, {0xf7,(03)} }, // TODO(rsc): yscond is wrong here.
+ 	{ ANEGW,	yscond,	Pe, {0xf7,(03)} }, // TODO(rsc): yscond is wrong here.
+@@ -967,9 +967,6 @@ static Optab optab[] =
+ 	{ AFYL2X,	ynone,	Px, {0xd9, 0xf1} },
+ 	{ AFYL2XP1,	ynone,	Px, {0xd9, 0xf9} },
+ 	{ AEND },
+-	{ ADYNT_ },
+-	{ AINIT_ },
+-	{ ASIGNAME },
+ 	{ ACMPXCHGB,	yrb_mb,	Pm, {0xb0} },
+ 	{ ACMPXCHGL,	yrl_ml,	Pm, {0xb1} },
+ 	{ ACMPXCHGW,	yrl_ml,	Pm, {0xb1} },
+@@ -1379,11 +1376,14 @@ span8(Link *ctxt, LSym *s)
+ static void
+ instinit(void)
+ {
+-	int i;
++	int i, c;
+ 
+-	for(i=1; optab[i].as; i++)
+-		if(i != optab[i].as)
+-			sysfatal("phase error in optab: at %A found %A", i, optab[i].as);
++	for(i=1; optab[i].as; i++) {
++		c = optab[i].as;
++		if(opindex[c] != nil)
++			sysfatal("phase error in optab: %d (%A)", i, c);
++		opindex[c] = &optab[i];
++	}
+ 
+ 	for(i=0; i<Ymax; i++)
+ 		ycover[i*Ymax + i] = 1;
+@@ -2198,7 +2198,7 @@ doasm(Link *ctxt, Prog *p)
+ 
+ 	ft = p->ft * Ymax;
+ 	tt = p->tt * Ymax;
+-	o = &optab[p->as];
++	o = opindex[p->as];
+ 	t = o->ytab;
+ 	if(t == 0) {
+ 		ctxt->diag("asmins: noproto %P", p);
+diff --git a/src/liblink/asm9.c b/src/liblink/asm9.c
+index f1c7625747..84aa14e7f5 100644
+--- a/src/liblink/asm9.c
++++ b/src/liblink/asm9.c
+@@ -1788,7 +1788,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
+ 			r = p->to.reg;
+ 		if(p->as == AADD && (!r0iszero && p->reg == 0 || r0iszero && p->to.reg == 0))
+ 			ctxt->diag("literal operation on R0\n%P", p);
+-		o1 = AOP_IRR(opirr(ctxt, p->as+AEND), p->to.reg, r, v>>16);
++		o1 = AOP_IRR(opirr(ctxt, p->as+ALAST), p->to.reg, r, v>>16);
+ 		break;
+ 
+ 	case 22:	/* add $lcon,r1,r2 ==> cau+or+add */	/* could do add/sub more efficiently */
+@@ -2157,7 +2157,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
+ 		r = p->reg;
+ 		if(r == 0)
+ 			r = p->to.reg;
+-		o1 = LOP_IRR(opirr(ctxt, p->as+AEND), p->to.reg, r, v>>16);	/* oris, xoris, andis */
++		o1 = LOP_IRR(opirr(ctxt, p->as+ALAST), p->to.reg, r, v>>16);	/* oris, xoris, andis */
+ 		break;
+ 
+ 	case 60:	/* tw to,a,b */
+@@ -2632,10 +2632,10 @@ opirr(Link *ctxt, int a)
+ 	case AADD:	return OPVCC(14,0,0,0);
+ 	case AADDC:	return OPVCC(12,0,0,0);
+ 	case AADDCCC:	return OPVCC(13,0,0,0);
+-	case AADD+AEND:	return OPVCC(15,0,0,0);		/* ADDIS/CAU */
++	case AADD+ALAST:	return OPVCC(15,0,0,0);		/* ADDIS/CAU */
+ 
+ 	case AANDCC:	return OPVCC(28,0,0,0);
+-	case AANDCC+AEND:	return OPVCC(29,0,0,0);		/* ANDIS./ANDIU. */
++	case AANDCC+ALAST:	return OPVCC(29,0,0,0);		/* ANDIS./ANDIU. */
+ 
+ 	case ABR:	return OPVCC(18,0,0,0);
+ 	case ABL:	return OPVCC(18,0,0,0) | 1;
+@@ -2662,7 +2662,7 @@ opirr(Link *ctxt, int a)
+ 	case AMULLW:	return OPVCC(7,0,0,0);
+ 
+ 	case AOR:	return OPVCC(24,0,0,0);
+-	case AOR+AEND:	return OPVCC(25,0,0,0);		/* ORIS/ORIU */
++	case AOR+ALAST:	return OPVCC(25,0,0,0);		/* ORIS/ORIU */
+ 
+ 	case ARLWMI:	return OPVCC(20,0,0,0);		/* rlwimi */
+ 	case ARLWMICC:	return OPVCC(20,0,0,1);
+@@ -2692,7 +2692,7 @@ opirr(Link *ctxt, int a)
+ 	case ATD:	return OPVCC(2,0,0,0);
+ 
+ 	case AXOR:	return OPVCC(26,0,0,0);		/* XORIL */
+-	case AXOR+AEND:	return OPVCC(27,0,0,0);		/* XORIU */
++	case AXOR+ALAST:	return OPVCC(27,0,0,0);		/* XORIU */
+ 	}
+ 	ctxt->diag("bad opcode i/r %A", a);
+ 	return 0;
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index 522d3305d8..1cd0cdb353 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -93,7 +93,7 @@ Pconv(Fmt *fp)
+ 	a = p->as;
+ 
+ 	str[0] = 0;
+-	if(a == ADATA || a == AINIT || a == ADYNT)
++	if(a == ADATA)
+ 		sprint(str, "%.5lld (%L)	%A	%D/%lld,%D", p->pc, p->lineno, a, &p->from, p->from3.offset, &p->to);
+ 	else if(a == ATEXT || a == AGLOBL) {
+ 		if(p->from3.offset != 0)
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index 2f7562d53b..805b2b921d 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -35,18 +35,6 @@
+ #include "../cmd/5l/5.out.h"
+ #include "../runtime/stack.h"
+ 
+-static int
+-isdata(Prog *p)
+-{
+-	return p->as == ADATA || p->as == AGLOBL;
+-}
+-
+-static int
+-iscall(Prog *p)
+-{
+-	return p->as == ABL;
+-}
+-
+ static void
+ progedit(Link *ctxt, Prog *p)
+ {
+@@ -1010,24 +998,9 @@ LinkArch linkarm = {
+ 	.preprocess = preprocess,
+ 	.assemble = span5,
+ 	.follow = follow,
+-	.iscall = iscall,
+-	.isdata = isdata,
+ 	.progedit = progedit,
+ 
+ 	.minlc = 4,
+ 	.ptrsize = 4,
+ 	.regsize = 4,
+-
+-	.ACALL = ABL,
+-	.ADATA = ADATA,
+-	.AEND = AEND,
+-	.AFUNCDATA = AFUNCDATA,
+-	.AGLOBL = AGLOBL,
+-	.AJMP = AB,
+-	.ANOP = ANOP,
+-	.APCDATA = APCDATA,
+-	.ARET = ARET,
+-	.ATEXT = ATEXT,
+-	.ATYPE = ATYPE,
+-	.AUSEFIELD = AUSEFIELD,
+ };
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index faa3de7f48..cddc723bf2 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -47,18 +47,6 @@ nopout(Prog *p)
+ 	p->to.name = 0;
+ }
+ 
+-static int
+-isdata(Prog *p)
+-{
+-	return p->as == ADATA || p->as == AGLOBL;
+-}
+-
+-static int
+-iscall(Prog *p)
+-{
+-	return p->as == ACALL;
+-}
+-
+ static void nacladdr(Link*, Prog*, Addr*);
+ 
+ static int
+@@ -1047,26 +1035,11 @@ LinkArch linkamd64 = {
+ 	.preprocess = preprocess,
+ 	.assemble = span6,
+ 	.follow = follow,
+-	.iscall = iscall,
+-	.isdata = isdata,
+ 	.progedit = progedit,
+ 
+ 	.minlc = 1,
+ 	.ptrsize = 8,
+ 	.regsize = 8,
+-
+-	.ACALL = ACALL,
+-	.ADATA = ADATA,
+-	.AEND = AEND,
+-	.AFUNCDATA = AFUNCDATA,
+-	.AGLOBL = AGLOBL,
+-	.AJMP = AJMP,
+-	.ANOP = ANOP,
+-	.APCDATA = APCDATA,
+-	.ARET = ARET,
+-	.ATEXT = ATEXT,
+-	.ATYPE = ATYPE,
+-	.AUSEFIELD = AUSEFIELD,
+ };
+ 
+ LinkArch linkamd64p32 = {
+@@ -1077,24 +1050,9 @@ LinkArch linkamd64p32 = {
+ 	.preprocess = preprocess,
+ 	.assemble = span6,
+ 	.follow = follow,
+-	.iscall = iscall,
+-	.isdata = isdata,
+ 	.progedit = progedit,
+ 
+ 	.minlc = 1,
+ 	.ptrsize = 4,
+ 	.regsize = 8,
+-
+-	.ACALL = ACALL,
+-	.ADATA = ADATA,
+-	.AEND = AEND,
+-	.AFUNCDATA = AFUNCDATA,
+-	.AGLOBL = AGLOBL,
+-	.AJMP = AJMP,
+-	.ANOP = ANOP,
+-	.APCDATA = APCDATA,
+-	.ARET = ARET,
+-	.ATEXT = ATEXT,
+-	.ATYPE = ATYPE,
+-	.AUSEFIELD = AUSEFIELD,
+ };
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index 6565489c1c..eb8e318762 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -35,18 +35,6 @@
+ #include "../cmd/8l/8.out.h"
+ #include "../runtime/stack.h"
+ 
+-static int
+-isdata(Prog *p)
+-{
+-	return p->as == ADATA || p->as == AGLOBL;
+-}
+-
+-static int
+-iscall(Prog *p)
+-{
+-	return p->as == ACALL;
+-}
+-
+ static int
+ canuselocaltls(Link *ctxt)
+ {
+@@ -846,24 +834,9 @@ LinkArch link386 = {
+ 	.preprocess = preprocess,
+ 	.assemble = span8,
+ 	.follow = follow,
+-	.iscall = iscall,
+-	.isdata = isdata,
+ 	.progedit = progedit,
+ 
+ 	.minlc = 1,
+ 	.ptrsize = 4,
+ 	.regsize = 4,
+-
+-	.ACALL = ACALL,
+-	.ADATA = ADATA,
+-	.AEND = AEND,
+-	.AFUNCDATA = AFUNCDATA,
+-	.AGLOBL = AGLOBL,
+-	.AJMP = AJMP,
+-	.ANOP = ANOP,
+-	.APCDATA = APCDATA,
+-	.ARET = ARET,
+-	.ATEXT = ATEXT,
+-	.ATYPE = ATYPE,
+-	.AUSEFIELD = AUSEFIELD,
+ };
+diff --git a/src/liblink/obj9.c b/src/liblink/obj9.c
+index 58b6cf72c8..450ed00306 100644
+--- a/src/liblink/obj9.c
++++ b/src/liblink/obj9.c
+@@ -35,18 +35,6 @@
+ #include "../runtime/stack.h"
+ #include "../runtime/funcdata.h"
+ 
+-static int
+-isdata(Prog *p)
+-{
+-	return p->as == ADATA || p->as == AGLOBL;
+-}
+-
+-static int
+-iscall(Prog *p)
+-{
+-	return p->as == ABL;
+-}
+-
+ static void
+ progedit(Link *ctxt, Prog *p)
+ {
+@@ -933,26 +921,11 @@ LinkArch linkppc64 = {
+ 	.preprocess = preprocess,
+ 	.assemble = span9,
+ 	.follow = follow,
+-	.iscall = iscall,
+-	.isdata = isdata,
+ 	.progedit = progedit,
+ 
+ 	.minlc = 4,
+ 	.ptrsize = 8,
+ 	.regsize = 8,
+-
+-	.ACALL = ABL,
+-	.ADATA = ADATA,
+-	.AEND = AEND,
+-	.AFUNCDATA = AFUNCDATA,
+-	.AGLOBL = AGLOBL,
+-	.AJMP = ABR,
+-	.ANOP = ANOP,
+-	.APCDATA = APCDATA,
+-	.ARET = ARETURN,
+-	.ATEXT = ATEXT,
+-	.ATYPE = ATYPE,
+-	.AUSEFIELD = AUSEFIELD,
+ };
+ 
+ LinkArch linkppc64le = {
+@@ -963,24 +936,9 @@ LinkArch linkppc64le = {
+ 	.preprocess = preprocess,
+ 	.assemble = span9,
+ 	.follow = follow,
+-	.iscall = iscall,
+-	.isdata = isdata,
+ 	.progedit = progedit,
+ 
+ 	.minlc = 4,
+ 	.ptrsize = 8,
+ 	.regsize = 8,
+-
+-	.ACALL = ABL,
+-	.ADATA = ADATA,
+-	.AEND = AEND,
+-	.AFUNCDATA = AFUNCDATA,
+-	.AGLOBL = AGLOBL,
+-	.AJMP = ABR,
+-	.ANOP = ANOP,
+-	.APCDATA = APCDATA,
+-	.ARET = ARETURN,
+-	.ATEXT = ATEXT,
+-	.ATYPE = ATYPE,
+-	.AUSEFIELD = AUSEFIELD,
+ };
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 79a88db0bf..c01160af7e 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -147,10 +147,10 @@ writeobj(Link *ctxt, Biobuf *b)
+ 			plink = p->link;
+ 			p->link = nil;
+ 
+-			if(p->as == ctxt->arch->AEND)
++			if(p->as == AEND)
+ 				continue;
+ 
+-			if(p->as == ctxt->arch->ATYPE) {
++			if(p->as == ATYPE) {
+ 				// Assume each TYPE instruction describes
+ 				// a different local variable or parameter,
+ 				// so no dedup.
+@@ -174,7 +174,7 @@ writeobj(Link *ctxt, Biobuf *b)
+ 				continue;
+ 			}
+ 
+-			if(p->as == ctxt->arch->AGLOBL) {
++			if(p->as == AGLOBL) {
+ 				s = p->from.sym;
+ 				if(s->seenglobl++)
+ 					print("duplicate %P\n", p);
+@@ -200,12 +200,12 @@ writeobj(Link *ctxt, Biobuf *b)
+ 				continue;
+ 			}
+ 
+-			if(p->as == ctxt->arch->ADATA) {
++			if(p->as == ADATA) {
+ 				savedata(ctxt, p->from.sym, p, "<input>");
+ 				continue;
+ 			}
+ 
+-			if(p->as == ctxt->arch->ATEXT) {
++			if(p->as == ATEXT) {
+ 				s = p->from.sym;
+ 				if(s == nil) {
+ 					// func _() { }
+@@ -235,7 +235,7 @@ writeobj(Link *ctxt, Biobuf *b)
+ 				continue;
+ 			}
+ 			
+-			if(p->as == ctxt->arch->AFUNCDATA) {
++			if(p->as == AFUNCDATA) {
+ 				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
+ 				if(curtext == nil) // func _() {}
+ 					continue;
+@@ -260,14 +260,14 @@ writeobj(Link *ctxt, Biobuf *b)
+ 			continue;
+ 		found = 0;
+ 		for(p = s->text; p != nil; p = p->link) {
+-			if(p->as == ctxt->arch->AFUNCDATA && p->from.type == TYPE_CONST && p->from.offset == FUNCDATA_ArgsPointerMaps) {
++			if(p->as == AFUNCDATA && p->from.type == TYPE_CONST && p->from.offset == FUNCDATA_ArgsPointerMaps) {
+ 				found = 1;
+ 				break;
+ 			}
+ 		}
+ 		if(!found) {
+ 			p = appendp(ctxt, s->text);
+-			p->as = ctxt->arch->AFUNCDATA;
++			p->as = AFUNCDATA;
+ 			p->from.type = TYPE_CONST;
+ 			p->from.offset = FUNCDATA_ArgsPointerMaps;
+ 			p->to.type = TYPE_MEM;
+diff --git a/src/liblink/pass.c b/src/liblink/pass.c
+index edc4d9ba73..a8bf76f4d6 100644
+--- a/src/liblink/pass.c
++++ b/src/liblink/pass.c
+@@ -40,8 +40,9 @@ brchain(Link *ctxt, Prog *p)
+ {
+ 	int i;
+ 
++	USED(ctxt);
+ 	for(i=0; i<20; i++) {
+-		if(p == nil || p->as != ctxt->arch->AJMP || p->pcond == nil)
++		if(p == nil || p->as != AJMP || p->pcond == nil)
+ 			return p;
+ 		p = p->pcond;
+ 	}
+@@ -54,9 +55,10 @@ brloop(Link *ctxt, Prog *p)
+ 	int c;
+ 	Prog *q;
+ 
++	USED(ctxt);
+ 	c = 0;
+ 	for(q = p; q != nil; q = q->pcond) {
+-		if(q->as != ctxt->arch->AJMP || q->pcond == nil)
++		if(q->as != AJMP || q->pcond == nil)
+ 			break;
+ 		c++;
+ 		if(c >= 5000)
+diff --git a/src/liblink/pcln.c b/src/liblink/pcln.c
+index 0ab1581e1d..93e4127a1e 100644
+--- a/src/liblink/pcln.c
++++ b/src/liblink/pcln.c
+@@ -160,7 +160,7 @@ pctofileline(Link *ctxt, LSym *sym, int32 oldval, Prog *p, int32 phase, void *ar
+ 
+ 	USED(sym);
+ 
+-	if(p->as == ctxt->arch->ATEXT || p->as == ctxt->arch->ANOP || p->as == ctxt->arch->AUSEFIELD || p->lineno == 0 || phase == 1)
++	if(p->as == ATEXT || p->as == ANOP || p->as == AUSEFIELD || p->lineno == 0 || phase == 1)
+ 		return oldval;
+ 	linkgetline(ctxt, p->lineno, &f, &l);
+ 	if(f == nil) {
+@@ -223,7 +223,7 @@ pctopcdata(Link *ctxt, LSym *sym, int32 oldval, Prog *p, int32 phase, void *arg)
+ {
+ 	USED(sym);
+ 
+-	if(phase == 0 || p->as != ctxt->arch->APCDATA || p->from.offset != (uintptr)arg)
++	if(phase == 0 || p->as != APCDATA || p->from.offset != (uintptr)arg)
+ 		return oldval;
+ 	if((int32)p->to.offset != p->to.offset) {
+ 		ctxt->diag("overflow in PCDATA instruction: %P", p);
+@@ -248,9 +248,9 @@ linkpcln(Link *ctxt, LSym *cursym)
+ 	npcdata = 0;
+ 	nfuncdata = 0;
+ 	for(p = cursym->text; p != nil; p = p->link) {
+-		if(p->as == ctxt->arch->APCDATA && p->from.offset >= npcdata)
++		if(p->as == APCDATA && p->from.offset >= npcdata)
+ 			npcdata = p->from.offset+1;
+-		if(p->as == ctxt->arch->AFUNCDATA && p->from.offset >= nfuncdata)
++		if(p->as == AFUNCDATA && p->from.offset >= nfuncdata)
+ 			nfuncdata = p->from.offset+1;
+ 	}
+ 
+@@ -269,12 +269,12 @@ linkpcln(Link *ctxt, LSym *cursym)
+ 	havepc = emallocz(n);
+ 	havefunc = havepc + (npcdata+31)/32;
+ 	for(p = cursym->text; p != nil; p = p->link) {
+-		if(p->as == ctxt->arch->AFUNCDATA) {
++		if(p->as == AFUNCDATA) {
+ 			if((havefunc[p->from.offset/32]>>(p->from.offset%32))&1)
+ 				ctxt->diag("multiple definitions for FUNCDATA $%d", p->from.offset);
+ 			havefunc[p->from.offset/32] |= 1<<(p->from.offset%32);
+ 		}
+-		if(p->as == ctxt->arch->APCDATA)
++		if(p->as == APCDATA)
+ 			havepc[p->from.offset/32] |= 1<<(p->from.offset%32);
+ 	}
+ 	// pcdata.
+@@ -288,7 +288,7 @@ linkpcln(Link *ctxt, LSym *cursym)
+ 	// funcdata
+ 	if(nfuncdata > 0) {
+ 		for(p = cursym->text; p != nil; p = p->link) {
+-			if(p->as == ctxt->arch->AFUNCDATA) {
++			if(p->as == AFUNCDATA) {
+ 				i = p->from.offset;
+ 				pcln->funcdataoff[i] = p->to.offset;
+ 				if(p->to.type != TYPE_CONST) {

@@ -12,6 +12,20 @@ Date:   Sun Apr 28 03:08:37 2019 +1000
     Change-Id: I52ad31ed5afaf43ccc3d934025288216e8052528
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174124
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_openbsd_arm64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_openbsd_arm64.s b/src/runtime/sys_openbsd_arm64.s
+index 407c819b21..ded916a026 100644
+--- a/src/runtime/sys_openbsd_arm64.s
++++ b/src/runtime/sys_openbsd_arm64.s
+@@ -25,7 +25,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
+ 
+ // func exitThread(wait *uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+-	MOVW	wait+0(FP), R0		// arg 1 - notdead
++	MOVD	wait+0(FP), R0		// arg 1 - notdead
+ 	MOVD	$302, R8		// sys___threxit
+ 	SVC
+ 	MOVD	$0, R0			// crash on syscall failure

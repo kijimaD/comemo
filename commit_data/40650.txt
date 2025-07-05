@@ -12,7 +12,7 @@ Date:   Mon Jun 10 11:04:29 2019 -0400
     Change-Id: I4205b4fb2b685dfac1cff3c999f954bff7b0f3c1
     Reviewed-on: https://go-review.googlesource.com/c/go/+/181538
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 92 ++++++++++++----------
  src/cmd/go/internal/modfetch/coderepo_test.go      | 57 +++++++++++++-
  src/cmd/go/internal/modload/import_test.go         |  1 +
@@ -26,3 +26,871 @@ Date:   Mon Jun 10 11:04:29 2019 -0400
  src/cmd/go/vendor_test.go                          |  9 +++
  src/internal/testenv/testenv.go                    | 19 +++++
  12 files changed, 141 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 3fc147e146..8a6beb8aee 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1222,10 +1222,12 @@ func TestInternalCache(t *testing.T) {
+ }
+ 
+ func TestMoveGit(t *testing.T) {
++	testenv.MustHaveExecPath(t, "git")
+ 	testMove(t, "git", "rsc.io/pdf", "pdf", "rsc.io/pdf/.git/config")
+ }
+ 
+ func TestMoveHG(t *testing.T) {
++	testenv.MustHaveExecPath(t, "hg")
+ 	testMove(t, "hg", "vcs-test.golang.org/go/custom-hg-hello", "custom-hg-hello", "vcs-test.golang.org/go/custom-hg-hello/.hg/hgrc")
+ }
+ 
+@@ -1287,9 +1289,7 @@ func TestImportCycle(t *testing.T) {
+ // cmd/go: custom import path checking should not apply to Go packages without import comment.
+ func TestIssue10952(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+-	if _, err := exec.LookPath("git"); err != nil {
+-		t.Skip("skipping because git binary not found")
+-	}
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -1305,9 +1305,7 @@ func TestIssue10952(t *testing.T) {
+ 
+ func TestIssue16471(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+-	if _, err := exec.LookPath("git"); err != nil {
+-		t.Skip("skipping because git binary not found")
+-	}
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -1323,9 +1321,7 @@ func TestIssue16471(t *testing.T) {
+ // Test git clone URL that uses SCP-like syntax and custom import path checking.
+ func TestIssue11457(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+-	if _, err := exec.LookPath("git"); err != nil {
+-		t.Skip("skipping because git binary not found")
+-	}
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -1350,9 +1346,7 @@ func TestIssue11457(t *testing.T) {
+ 
+ func TestGetGitDefaultBranch(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+-	if _, err := exec.LookPath("git"); err != nil {
+-		t.Skip("skipping because git binary not found")
+-	}
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -1378,9 +1372,7 @@ func TestGetGitDefaultBranch(t *testing.T) {
+ // Security issue. Don't disable. See golang.org/issue/22125.
+ func TestAccidentalGitCheckout(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+-	if _, err := exec.LookPath("git"); err != nil {
+-		t.Skip("skipping because git binary not found")
+-	}
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -1653,6 +1645,7 @@ func TestInstallToGOBINCommandLinePackage(t *testing.T) {
+ 
+ func TestGoGetNonPkg(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -1669,6 +1662,7 @@ func TestGoGetNonPkg(t *testing.T) {
+ 
+ func TestGoGetTestOnlyPkg(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -2058,6 +2052,7 @@ func TestDefaultGOPATH(t *testing.T) {
+ 
+ func TestDefaultGOPATHGet(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -2439,6 +2434,7 @@ func TestSymlinkWarning(t *testing.T) {
+ // Issue 8181.
+ func TestGoGetDashTIssue8181(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -2453,6 +2449,7 @@ func TestGoGetDashTIssue8181(t *testing.T) {
+ func TestIssue11307(t *testing.T) {
+ 	// go get -u was not working except in checkout directory
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -2931,6 +2928,7 @@ func TestCgoPkgConfig(t *testing.T) {
+ 
+ 	tg.run("env", "PKG_CONFIG")
+ 	pkgConfig := strings.TrimSpace(tg.getStdout())
++	testenv.MustHaveExecPath(t, pkgConfig)
+ 	if out, err := exec.Command(pkgConfig, "--atleast-pkgconfig-version", "0.24").CombinedOutput(); err != nil {
+ 		t.Skipf("%s --atleast-pkgconfig-version 0.24: %v\n%s", pkgConfig, err, out)
+ 	}
+@@ -3033,9 +3031,7 @@ func TestIssue7573(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("skipping because cgo not enabled")
+ 	}
+-	if _, err := exec.LookPath("gccgo"); err != nil {
+-		t.Skip("skipping because no gccgo compiler found")
+-	}
++	testenv.MustHaveExecPath(t, "gccgo")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3324,6 +3320,7 @@ func TestGoGenerateBadImports(t *testing.T) {
+ 
+ func TestGoGetCustomDomainWildcard(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3335,6 +3332,7 @@ func TestGoGetCustomDomainWildcard(t *testing.T) {
+ 
+ func TestGoGetInternalWildcard(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3407,6 +3405,7 @@ func TestVetWithOnlyCgoFiles(t *testing.T) {
+ // Issue 9767, 19769.
+ func TestGoGetDotSlashDownload(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3662,6 +3661,7 @@ func TestImportLocal(t *testing.T) {
+ func TestGoGetInsecure(t *testing.T) {
+ 	test := func(t *testing.T, modules bool) {
+ 		testenv.MustHaveExternalNetwork(t)
++		testenv.MustHaveExecPath(t, "git")
+ 
+ 		tg := testgo(t)
+ 		defer tg.cleanup()
+@@ -3702,6 +3702,7 @@ func TestGoGetInsecure(t *testing.T) {
+ 
+ func TestGoGetUpdateInsecure(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3726,6 +3727,7 @@ func TestGoGetUpdateInsecure(t *testing.T) {
+ 
+ func TestGoGetUpdateUnknownProtocol(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3760,6 +3762,7 @@ func TestGoGetUpdateUnknownProtocol(t *testing.T) {
+ 
+ func TestGoGetInsecureCustomDomain(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3862,6 +3865,7 @@ func TestGoGetUpdate(t *testing.T) {
+ 	// former dependencies, not current ones.
+ 
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3889,6 +3893,7 @@ func TestGoGetUpdate(t *testing.T) {
+ // Issue #20512.
+ func TestGoGetRace(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 	if !canRace {
+ 		t.Skip("skipping because race detector not supported")
+ 	}
+@@ -3905,6 +3910,7 @@ func TestGoGetDomainRoot(t *testing.T) {
+ 	// go get foo.io (not foo.io/subdir) was not working consistently.
+ 
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -4295,6 +4301,7 @@ func TestGenerateUsesBuildContext(t *testing.T) {
+ // Issue 14450: go get -u .../ tried to import not downloaded package
+ func TestGoGetUpdateWithWildcard(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -5043,9 +5050,8 @@ func TestExecBuildX(t *testing.T) {
+ 		t.Skip("skipping because cgo not enabled")
+ 	}
+ 
+-	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+-		t.Skipf("skipping because unix shell is not supported on %s", runtime.GOOS)
+-	}
++	testenv.MustHaveExecPath(t, "/usr/bin/env")
++	testenv.MustHaveExecPath(t, "bash")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -5126,9 +5132,10 @@ func TestUpxCompression(t *testing.T) {
+ 		t.Skipf("skipping upx test on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
++	testenv.MustHaveExecPath(t, "upx")
+ 	out, err := exec.Command("upx", "--version").CombinedOutput()
+ 	if err != nil {
+-		t.Skip("skipping because upx is not available")
++		t.Fatalf("upx --version failed: %v", err)
+ 	}
+ 
+ 	// upx --version prints `upx <version>` in the first line of output:
+@@ -5137,13 +5144,13 @@ func TestUpxCompression(t *testing.T) {
+ 	re := regexp.MustCompile(`([[:digit:]]+)\.([[:digit:]]+)`)
+ 	upxVersion := re.FindStringSubmatch(string(out))
+ 	if len(upxVersion) != 3 {
+-		t.Errorf("bad upx version string: %s", upxVersion)
++		t.Fatalf("bad upx version string: %s", upxVersion)
+ 	}
+ 
+ 	major, err1 := strconv.Atoi(upxVersion[1])
+ 	minor, err2 := strconv.Atoi(upxVersion[2])
+ 	if err1 != nil || err2 != nil {
+-		t.Errorf("bad upx version string: %s", upxVersion[0])
++		t.Fatalf("bad upx version string: %s", upxVersion[0])
+ 	}
+ 
+ 	// Anything below 3.94 is known not to work with go binaries
+@@ -5196,26 +5203,29 @@ func TestQEMUUserMode(t *testing.T) {
+ 	src, obj := tg.path("main.go"), tg.path("main")
+ 
+ 	for _, arch := range testArchs {
+-		out, err := exec.Command("qemu-"+arch.qemu, "--version").CombinedOutput()
+-		if err != nil {
+-			t.Logf("Skipping %s test (qemu-%s not available)", arch.g, arch.qemu)
+-			continue
+-		}
++		arch := arch
++		t.Run(arch.g, func(t *testing.T) {
++			qemu := "qemu-" + arch.qemu
++			testenv.MustHaveExecPath(t, qemu)
++
++			out, err := exec.Command(qemu, "--version").CombinedOutput()
++			if err != nil {
++				t.Fatalf("%s --version failed: %v", qemu, err)
++			}
+ 
+-		tg.setenv("GOARCH", arch.g)
+-		tg.run("build", "-o", obj, src)
++			tg.setenv("GOARCH", arch.g)
++			tg.run("build", "-o", obj, src)
+ 
+-		out, err = exec.Command("qemu-"+arch.qemu, obj).CombinedOutput()
+-		if err != nil {
+-			t.Logf("qemu-%s output:\n%s\n", arch.qemu, out)
+-			t.Errorf("qemu-%s failed with %v", arch.qemu, err)
+-			continue
+-		}
+-		if want := "hello qemu-user"; string(out) != want {
+-			t.Errorf("bad output from qemu-%s:\ngot %s; want %s", arch.qemu, out, want)
+-		}
++			out, err = exec.Command(qemu, obj).CombinedOutput()
++			if err != nil {
++				t.Logf("%s output:\n%s\n", qemu, out)
++				t.Fatalf("%s failed with %v", qemu, err)
++			}
++			if want := "hello qemu-user"; string(out) != want {
++				t.Errorf("bad output from %s:\ngot %s; want %s", qemu, out, want)
++			}
++		})
+ 	}
+-
+ }
+ 
+ func TestCacheListStale(t *testing.T) {
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 1f2a33a3d9..2cf6f81122 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -48,11 +48,12 @@ const (
+ 	vgotest1hg  = "vcs-test.golang.org/hg/vgotest1.hg"
+ )
+ 
+-var altVgotests = []string{
+-	vgotest1hg,
++var altVgotests = map[string]string{
++	"hg": vgotest1hg,
+ }
+ 
+ type codeRepoTest struct {
++	vcs      string
+ 	path     string
+ 	lookerr  string
+ 	mpath    string
+@@ -70,6 +71,7 @@ type codeRepoTest struct {
+ 
+ var codeRepoTests = []codeRepoTest{
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1",
+ 		rev:     "v0.0.0",
+ 		version: "v0.0.0",
+@@ -83,6 +85,7 @@ var codeRepoTests = []codeRepoTest{
+ 		},
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1",
+ 		rev:     "v1.0.0",
+ 		version: "v1.0.0",
+@@ -96,6 +99,7 @@ var codeRepoTests = []codeRepoTest{
+ 		},
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1/v2",
+ 		rev:     "v2.0.0",
+ 		version: "v2.0.0",
+@@ -105,6 +109,7 @@ var codeRepoTests = []codeRepoTest{
+ 		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1",
+ 		rev:     "80d85c5",
+ 		version: "v1.0.0",
+@@ -118,6 +123,7 @@ var codeRepoTests = []codeRepoTest{
+ 		},
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1",
+ 		rev:     "mytag",
+ 		version: "v1.0.0",
+@@ -131,6 +137,7 @@ var codeRepoTests = []codeRepoTest{
+ 		},
+ 	},
+ 	{
++		vcs:      "git",
+ 		path:     "github.com/rsc/vgotest1/v2",
+ 		rev:      "45f53230a",
+ 		version:  "v2.0.0",
+@@ -141,6 +148,7 @@ var codeRepoTests = []codeRepoTest{
+ 		ziperr:   "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1/v54321",
+ 		rev:     "80d85c5",
+ 		version: "v54321.0.0-20180219231006-80d85c5d4d17",
+@@ -150,16 +158,19 @@ var codeRepoTests = []codeRepoTest{
+ 		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v54321/go.mod at revision 80d85c5d4d17",
+ 	},
+ 	{
++		vcs:  "git",
+ 		path: "github.com/rsc/vgotest1/submod",
+ 		rev:  "v1.0.0",
+ 		err:  "unknown revision submod/v1.0.0",
+ 	},
+ 	{
++		vcs:  "git",
+ 		path: "github.com/rsc/vgotest1/submod",
+ 		rev:  "v1.0.3",
+ 		err:  "unknown revision submod/v1.0.3",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1/submod",
+ 		rev:     "v1.0.4",
+ 		version: "v1.0.4",
+@@ -174,6 +185,7 @@ var codeRepoTests = []codeRepoTest{
+ 		},
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1",
+ 		rev:     "v1.1.0",
+ 		version: "v1.1.0",
+@@ -189,6 +201,7 @@ var codeRepoTests = []codeRepoTest{
+ 		},
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1/v2",
+ 		rev:     "v2.0.1",
+ 		version: "v2.0.1",
+@@ -198,6 +211,7 @@ var codeRepoTests = []codeRepoTest{
+ 		gomod:   "module \"github.com/rsc/vgotest1/v2\" // root go.mod\n",
+ 	},
+ 	{
++		vcs:      "git",
+ 		path:     "github.com/rsc/vgotest1/v2",
+ 		rev:      "v2.0.3",
+ 		version:  "v2.0.3",
+@@ -207,6 +221,7 @@ var codeRepoTests = []codeRepoTest{
+ 		gomoderr: "github.com/rsc/vgotest1/v2/go.mod has non-.../v2 module path \"github.com/rsc/vgotest\" at revision v2.0.3",
+ 	},
+ 	{
++		vcs:      "git",
+ 		path:     "github.com/rsc/vgotest1/v2",
+ 		rev:      "v2.0.4",
+ 		version:  "v2.0.4",
+@@ -216,6 +231,7 @@ var codeRepoTests = []codeRepoTest{
+ 		gomoderr: "github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision v2.0.4",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1/v2",
+ 		rev:     "v2.0.5",
+ 		version: "v2.0.5",
+@@ -226,6 +242,7 @@ var codeRepoTests = []codeRepoTest{
+ 	},
+ 	{
+ 		// redirect to github
++		vcs:     "git",
+ 		path:    "rsc.io/quote",
+ 		rev:     "v1.0.0",
+ 		version: "v1.0.0",
+@@ -236,6 +253,7 @@ var codeRepoTests = []codeRepoTest{
+ 	},
+ 	{
+ 		// redirect to static hosting proxy
++		vcs:     "mod",
+ 		path:    "swtch.com/testmod",
+ 		rev:     "v1.0.0",
+ 		version: "v1.0.0",
+@@ -245,6 +263,7 @@ var codeRepoTests = []codeRepoTest{
+ 	},
+ 	{
+ 		// redirect to googlesource
++		vcs:     "git",
+ 		path:    "golang.org/x/text",
+ 		rev:     "4e4a3210bb",
+ 		version: "v0.3.1-0.20180208041248-4e4a3210bb54",
+@@ -253,6 +272,7 @@ var codeRepoTests = []codeRepoTest{
+ 		time:    time.Date(2018, 2, 8, 4, 12, 48, 0, time.UTC),
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/pkg/errors",
+ 		rev:     "v0.8.0",
+ 		version: "v0.8.0",
+@@ -264,17 +284,20 @@ var codeRepoTests = []codeRepoTest{
+ 		// package in subdirectory - custom domain
+ 		// In general we can't reject these definitively in Lookup,
+ 		// but gopkg.in is special.
++		vcs:     "git",
+ 		path:    "gopkg.in/yaml.v2/abc",
+ 		lookerr: "invalid module path \"gopkg.in/yaml.v2/abc\"",
+ 	},
+ 	{
+ 		// package in subdirectory - github
+ 		// Because it's a package, Stat should fail entirely.
++		vcs:  "git",
+ 		path: "github.com/rsc/quote/buggy",
+ 		rev:  "c4d4236f",
+ 		err:  "missing github.com/rsc/quote/buggy/go.mod at revision c4d4236f9242",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "gopkg.in/yaml.v2",
+ 		rev:     "d670f940",
+ 		version: "v2.0.0",
+@@ -284,6 +307,7 @@ var codeRepoTests = []codeRepoTest{
+ 		gomod:   "module gopkg.in/yaml.v2\n",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "gopkg.in/check.v1",
+ 		rev:     "20d25e280405",
+ 		version: "v1.0.0-20161208181325-20d25e280405",
+@@ -293,6 +317,7 @@ var codeRepoTests = []codeRepoTest{
+ 		gomod:   "module gopkg.in/check.v1\n",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "gopkg.in/yaml.v2",
+ 		rev:     "v2",
+ 		version: "v2.2.3-0.20190319135612-7b8349ac747c",
+@@ -302,6 +327,7 @@ var codeRepoTests = []codeRepoTest{
+ 		gomod:   "module \"gopkg.in/yaml.v2\"\n\nrequire (\n\t\"gopkg.in/check.v1\" v0.0.0-20161208181325-20d25e280405\n)\n",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "vcs-test.golang.org/go/mod/gitrepo1",
+ 		rev:     "master",
+ 		version: "v1.2.4-annotated",
+@@ -311,6 +337,7 @@ var codeRepoTests = []codeRepoTest{
+ 		gomod:   "module vcs-test.golang.org/go/mod/gitrepo1\n",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "gopkg.in/natefinch/lumberjack.v2",
+ 		rev:     "latest",
+ 		version: "v2.0.0-20170531160350-a96e63847dc3",
+@@ -320,6 +347,7 @@ var codeRepoTests = []codeRepoTest{
+ 		gomod:   "module gopkg.in/natefinch/lumberjack.v2\n",
+ 	},
+ 	{
++		vcs:  "git",
+ 		path: "gopkg.in/natefinch/lumberjack.v2",
+ 		// This repo has a v2.1 tag.
+ 		// We only allow semver references to tags that are fully qualified, as in v2.1.0.
+@@ -335,6 +363,7 @@ var codeRepoTests = []codeRepoTest{
+ 		gomod:   "module gopkg.in/natefinch/lumberjack.v2\n",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "vcs-test.golang.org/go/v2module/v2",
+ 		rev:     "v2.0.0",
+ 		version: "v2.0.0",
+@@ -359,6 +388,9 @@ func TestCodeRepo(t *testing.T) {
+ 			f := func(tt codeRepoTest) func(t *testing.T) {
+ 				return func(t *testing.T) {
+ 					t.Parallel()
++					if tt.vcs != "mod" {
++						testenv.MustHaveExecPath(t, tt.vcs)
++					}
+ 
+ 					repo, err := Lookup("direct", tt.path)
+ 					if tt.lookerr != "" {
+@@ -457,9 +489,10 @@ func TestCodeRepo(t *testing.T) {
+ 			}
+ 			t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f(tt))
+ 			if strings.HasPrefix(tt.path, vgotest1git) {
+-				for _, alt := range altVgotests {
++				for vcs, alt := range altVgotests {
+ 					// Note: Communicating with f through tt; should be cleaned up.
+ 					old := tt
++					tt.vcs = vcs
+ 					tt.path = alt + strings.TrimPrefix(tt.path, vgotest1git)
+ 					if strings.HasPrefix(tt.mpath, vgotest1git) {
+ 						tt.mpath = alt + strings.TrimPrefix(tt.mpath, vgotest1git)
+@@ -515,32 +548,39 @@ func remap(name string, m map[string]string) string {
+ }
+ 
+ var codeRepoVersionsTests = []struct {
++	vcs      string
+ 	path     string
+ 	prefix   string
+ 	versions []string
+ }{
+ 	{
++		vcs:      "git",
+ 		path:     "github.com/rsc/vgotest1",
+ 		versions: []string{"v0.0.0", "v0.0.1", "v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3", "v1.1.0", "v2.0.0+incompatible"},
+ 	},
+ 	{
++		vcs:      "git",
+ 		path:     "github.com/rsc/vgotest1",
+ 		prefix:   "v1.0",
+ 		versions: []string{"v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3"},
+ 	},
+ 	{
++		vcs:      "git",
+ 		path:     "github.com/rsc/vgotest1/v2",
+ 		versions: []string{"v2.0.0", "v2.0.1", "v2.0.2", "v2.0.3", "v2.0.4", "v2.0.5", "v2.0.6"},
+ 	},
+ 	{
++		vcs:      "mod",
+ 		path:     "swtch.com/testmod",
+ 		versions: []string{"v1.0.0", "v1.1.1"},
+ 	},
+ 	{
++		vcs:      "git",
+ 		path:     "gopkg.in/russross/blackfriday.v2",
+ 		versions: []string{"v2.0.0", "v2.0.1"},
+ 	},
+ 	{
++		vcs:      "git",
+ 		path:     "gopkg.in/natefinch/lumberjack.v2",
+ 		versions: []string{"v2.0.0"},
+ 	},
+@@ -560,6 +600,9 @@ func TestCodeRepoVersions(t *testing.T) {
+ 			t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+ 				tt := tt
+ 				t.Parallel()
++				if tt.vcs != "mod" {
++					testenv.MustHaveExecPath(t, tt.vcs)
++				}
+ 
+ 				repo, err := Lookup("direct", tt.path)
+ 				if err != nil {
+@@ -578,23 +621,28 @@ func TestCodeRepoVersions(t *testing.T) {
+ }
+ 
+ var latestTests = []struct {
++	vcs     string
+ 	path    string
+ 	version string
+ 	err     string
+ }{
+ 	{
++		vcs:  "git",
+ 		path: "github.com/rsc/empty",
+ 		err:  "no commits",
+ 	},
+ 	{
++		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1",
+ 		version: "v0.0.0-20180219223237-a08abb797a67",
+ 	},
+ 	{
++		vcs:  "git",
+ 		path: "github.com/rsc/vgotest1/subdir",
+ 		err:  "missing github.com/rsc/vgotest1/subdir/go.mod at revision a08abb797a67",
+ 	},
+ 	{
++		vcs:     "mod",
+ 		path:    "swtch.com/testmod",
+ 		version: "v1.1.1",
+ 	},
+@@ -615,6 +663,9 @@ func TestLatest(t *testing.T) {
+ 			t.Run(name, func(t *testing.T) {
+ 				tt := tt
+ 				t.Parallel()
++				if tt.vcs != "mod" {
++					testenv.MustHaveExecPath(t, tt.vcs)
++				}
+ 
+ 				repo, err := Lookup("direct", tt.path)
+ 				if err != nil {
+diff --git a/src/cmd/go/internal/modload/import_test.go b/src/cmd/go/internal/modload/import_test.go
+index 98d50b2f58..c6ade5d17f 100644
+--- a/src/cmd/go/internal/modload/import_test.go
++++ b/src/cmd/go/internal/modload/import_test.go
+@@ -43,6 +43,7 @@ var importTests = []struct {
+ 
+ func TestImport(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	for _, tt := range importTests {
+ 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index 1f67adca98..bfb93b809f 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -136,6 +136,7 @@ var queryTests = []struct {
+ 
+ func TestQuery(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	for _, tt := range queryTests {
+ 		allow := tt.allow
+diff --git a/src/cmd/go/testdata/script/get_404_meta.txt b/src/cmd/go/testdata/script/get_404_meta.txt
+index 32f13c9367..b71cc7fe01 100644
+--- a/src/cmd/go/testdata/script/get_404_meta.txt
++++ b/src/cmd/go/testdata/script/get_404_meta.txt
+@@ -1,6 +1,7 @@
+ # golang.org/issue/13037: 'go get' was not parsing <meta> tags in 404 served over HTTPS.
+ 
+ [!net] skip
++[!exec:git] skip
+ 
+ env GO111MODULE=off
+ go get -d -insecure bazil.org/fuse/fs/fstestutil
+diff --git a/src/cmd/go/testdata/script/get_insecure_redirect.txt b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+index b69eb949e4..a83b17672d 100644
+--- a/src/cmd/go/testdata/script/get_insecure_redirect.txt
++++ b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+@@ -1,6 +1,7 @@
+ # golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure.
+ 
+ [!net] skip
++[!exec:git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_get_hash.txt b/src/cmd/go/testdata/script/mod_get_hash.txt
+index d35ad362c0..3bb3ee7880 100644
+--- a/src/cmd/go/testdata/script/mod_get_hash.txt
++++ b/src/cmd/go/testdata/script/mod_get_hash.txt
+@@ -2,6 +2,7 @@ env GO111MODULE=on
+ env GOPROXY=direct
+ env GOSUMDB=off
+ [!net] skip
++[!exec:git] skip
+ 
+ # fetch commit hash reachable from refs/heads/* and refs/tags/* is OK
+ go list -m golang.org/x/time@8be79e1e0910c292df4e79c241bb7e8f7e725959 # on master branch
+@@ -16,4 +17,3 @@ stderr 'unknown revision'
+ 
+ -- go.mod --
+ module m
+-
+diff --git a/src/cmd/go/testdata/script/mod_gonoproxy.txt b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+index f038112bf1..f2eb4efb6b 100644
+--- a/src/cmd/go/testdata/script/mod_gonoproxy.txt
++++ b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+@@ -16,6 +16,7 @@ go get rsc.io/quote
+ 
+ # and GONOPROXY bypasses proxy
+ [!net] skip
++[!exec:git] skip
+ env GONOPROXY='*/fortune'
+ ! go get rsc.io/fortune # does not exist in real world, only on test proxy
+ stderr 'git ls-remote'
+diff --git a/src/cmd/go/testdata/script/mod_gopkg_unstable.txt b/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
+index b39bdd18bb..9d288a64d4 100644
+--- a/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
++++ b/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
+@@ -8,6 +8,7 @@ cp go.mod.empty go.mod
+ go list
+ 
+ [!net] skip
++[!exec:git] skip
+ 
+ env GOPROXY=direct
+ env GOSUMDB=off
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_golang.txt b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+index d81d7edba4..964501f2ee 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_golang.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+@@ -11,6 +11,7 @@ stdout '^sum.golang.org$'
+ 
+ # download direct from github
+ [!net] skip
++[!exec:git] skip
+ env GOSUMDB=sum.golang.org
+ env GOPROXY=direct
+ go get -d rsc.io/quote
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index c302d7e9b5..8b67de06ca 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -181,6 +181,7 @@ func TestVendorGet(t *testing.T) {
+ 
+ func TestVendorGetUpdate(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -192,6 +193,7 @@ func TestVendorGetUpdate(t *testing.T) {
+ 
+ func TestVendorGetU(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -202,6 +204,7 @@ func TestVendorGetU(t *testing.T) {
+ 
+ func TestVendorGetTU(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -212,6 +215,7 @@ func TestVendorGetTU(t *testing.T) {
+ 
+ func TestVendorGetBadVendor(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	for _, suffix := range []string{"bad/imp", "bad/imp2", "bad/imp3", "..."} {
+ 		t.Run(suffix, func(t *testing.T) {
+@@ -228,6 +232,7 @@ func TestVendorGetBadVendor(t *testing.T) {
+ 
+ func TestGetSubmodules(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -248,6 +253,7 @@ func TestVendorCache(t *testing.T) {
+ 
+ func TestVendorTest2(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -273,6 +279,7 @@ func TestVendorTest2(t *testing.T) {
+ 
+ func TestVendorTest3(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -299,6 +306,7 @@ func TestVendorTest3(t *testing.T) {
+ 
+ func TestVendorList(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -349,6 +357,7 @@ func TestLegacyMod(t *testing.T) {
+ 
+ func TestLegacyModGet(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveExecPath(t, "git")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 8f69fe0da5..c27fcfa208 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -19,6 +19,7 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -146,6 +147,24 @@ func MustHaveExec(t testing.TB) {
+ 	}
+ }
+ 
++var execPaths sync.Map // path -> error
++
++// MustHaveExecPath checks that the current system can start the named executable
++// using os.StartProcess or (more commonly) exec.Command.
++// If not, MustHaveExecPath calls t.Skip with an explanation.
++func MustHaveExecPath(t testing.TB, path string) {
++	MustHaveExec(t)
++
++	err, found := execPaths.Load(path)
++	if !found {
++		_, err = exec.LookPath(path)
++		err, _ = execPaths.LoadOrStore(path, err)
++	}
++	if err != nil {
++		t.Skipf("skipping test: %s: %s", path, err)
++	}
++}
++
+ // HasExternalNetwork reports whether the current system can use
+ // external (non-localhost) networks.
+ func HasExternalNetwork() bool {

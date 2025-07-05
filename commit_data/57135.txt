@@ -13,8 +13,60 @@ Date:   Sun Jun 25 22:59:33 2023 +0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go |  5 +++++
  src/go/types/builtins.go                    |  5 +++++
  test/fixedbugs/issue60991.go                | 13 +++++++++++++
  3 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index a3e1981af6..f3763862ec 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -578,6 +578,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			x.mode = value
+ 		}
+ 
++		// Use the final type computed above for all arguments.
++		for _, a := range args {
++			check.updateExprType(a.expr, x.typ, true)
++		}
++
+ 		if check.recordTypes() && x.mode != constant_ {
+ 			types := make([]Type, nargs)
+ 			for i := range types {
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 837a9b5e14..7795f2552d 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -577,6 +577,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			x.mode = value
+ 		}
+ 
++		// Use the final type computed above for all arguments.
++		for _, a := range args {
++			check.updateExprType(a.expr, x.typ, true)
++		}
++
+ 		if check.recordTypes() && x.mode != constant_ {
+ 			types := make([]Type, nargs)
+ 			for i := range types {
+diff --git a/test/fixedbugs/issue60991.go b/test/fixedbugs/issue60991.go
+new file mode 100644
+index 0000000000..e1d51e4300
+--- /dev/null
++++ b/test/fixedbugs/issue60991.go
+@@ -0,0 +1,13 @@
++// build
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "math"
++
++func f() {
++	_ = min(0.1, 0.2, math.Sqrt(1))
++}

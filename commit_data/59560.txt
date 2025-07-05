@@ -13,7 +13,7 @@ Date:   Thu Feb 1 10:21:14 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ibrahim Bazoka <ibrahimbazoka729@gmail.com>
     Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/genericOps.go    |   4 +-
  src/cmd/compile/internal/ssagen/ssa.go             | 216 ++++++++++-----------
  src/cmd/compile/internal/test/inl_test.go          |   2 +-
@@ -144,3 +144,2090 @@ Date:   Thu Feb 1 10:21:14 2024 +0800
  src/sync/pool.go                                   |   6 +-
  test/escape_runtime_atomic.go                      |   4 +-
  129 files changed, 253 insertions(+), 253 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 69eb48ce44..637e7b617c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -587,7 +587,7 @@ var genericOps = []opData{
+ 	{name: "MakeResult", argLength: -1},               // arg0 .. are components of a "Result" (like the result from a Call). The last arg should be memory (like the result from a call).
+ 
+ 	// Atomic operations used for semantically inlining sync/atomic and
+-	// runtime/internal/atomic. Atomic loads return a new memory so that
++	// internal/runtime/atomic. Atomic loads return a new memory so that
+ 	// the loads are properly ordered with respect to other loads and
+ 	// stores.
+ 	{name: "AtomicLoad8", argLength: 2, typ: "(UInt8,Mem)"},                                    // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+@@ -650,7 +650,7 @@ var genericOps = []opData{
+ //       If   [boolean Value]      [then, else]
+ //    First                []   [always, never]
+ //    Defer             [mem]  [nopanic, panic]                  (control opcode should be OpStaticCall to runtime.deferproc)
+-//JumpTable   [integer Value]  [succ1,succ2,..]
++// JumpTable   [integer Value]  [succ1,succ2,..]
+ 
+ var genericBlocks = []blockData{
+ 	{name: "Plain"},                  // a single successor
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 5174cf123c..37d6165e42 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2008,7 +2008,7 @@ func (s *state) stmt(n ir.Node) {
+ 		if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Name) {
+ 			// Note: we can only use the cache if we have the right atomic load instruction.
+ 			// Double-check that here.
+-			if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "runtime/internal/atomic", "Loadp"}]; !ok {
++			if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp"}]; !ok {
+ 				s.Fatalf("atomic load not available")
+ 			}
+ 			merge = s.f.NewBlock(ssa.BlockPlain)
+@@ -4286,43 +4286,43 @@ func InitTables() {
+ 	addF("runtime/internal/sys", "PrefetchStreamed", makePrefetchFunc(ssa.OpPrefetchCacheStreamed),
+ 		sys.AMD64, sys.ARM64, sys.PPC64)
+ 
+-	/******** runtime/internal/atomic ********/
+-	addF("runtime/internal/atomic", "Load",
++	/******** internal/runtime/atomic ********/
++	addF("internal/runtime/atomic", "Load",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "Load8",
++	addF("internal/runtime/atomic", "Load8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad8, types.NewTuple(types.Types[types.TUINT8], types.TypeMem), args[0], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT8], v)
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "Load64",
++	addF("internal/runtime/atomic", "Load64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT64], v)
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "LoadAcq",
++	addF("internal/runtime/atomic", "LoadAcq",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoadAcq32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
+ 		},
+ 		sys.PPC64, sys.S390X)
+-	addF("runtime/internal/atomic", "LoadAcq64",
++	addF("internal/runtime/atomic", "LoadAcq64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoadAcq64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT64], v)
+ 		},
+ 		sys.PPC64)
+-	addF("runtime/internal/atomic", "Loadp",
++	addF("internal/runtime/atomic", "Loadp",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoadPtr, types.NewTuple(s.f.Config.Types.BytePtr, types.TypeMem), args[0], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+@@ -4330,51 +4330,51 @@ func InitTables() {
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 
+-	addF("runtime/internal/atomic", "Store",
++	addF("internal/runtime/atomic", "Store",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStore32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "Store8",
++	addF("internal/runtime/atomic", "Store8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStore8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "Store64",
++	addF("internal/runtime/atomic", "Store64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStore64, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "StorepNoWB",
++	addF("internal/runtime/atomic", "StorepNoWB",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStorePtrNoWB, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "StoreRel",
++	addF("internal/runtime/atomic", "StoreRel",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStoreRel32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+ 		sys.PPC64, sys.S390X)
+-	addF("runtime/internal/atomic", "StoreRel64",
++	addF("internal/runtime/atomic", "StoreRel64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStoreRel64, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+ 		sys.PPC64)
+ 
+-	addF("runtime/internal/atomic", "Xchg",
++	addF("internal/runtime/atomic", "Xchg",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicExchange32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
+ 		},
+ 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "Xchg64",
++	addF("internal/runtime/atomic", "Xchg64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicExchange64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+@@ -4429,21 +4429,21 @@ func InitTables() {
+ 		s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 		s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
+ 	}
+-	addF("runtime/internal/atomic", "Xchg",
++	addF("internal/runtime/atomic", "Xchg",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange32, ssa.OpAtomicExchange32Variant, types.TUINT32, types.TUINT32, atomicXchgXaddEmitterARM64),
+ 		sys.ARM64)
+-	addF("runtime/internal/atomic", "Xchg64",
++	addF("internal/runtime/atomic", "Xchg64",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange64, ssa.OpAtomicExchange64Variant, types.TUINT64, types.TUINT64, atomicXchgXaddEmitterARM64),
+ 		sys.ARM64)
+ 
+-	addF("runtime/internal/atomic", "Xadd",
++	addF("internal/runtime/atomic", "Xadd",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAdd32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
+ 		},
+ 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "Xadd64",
++	addF("internal/runtime/atomic", "Xadd64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAdd64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+@@ -4451,28 +4451,28 @@ func InitTables() {
+ 		},
+ 		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 
+-	addF("runtime/internal/atomic", "Xadd",
++	addF("internal/runtime/atomic", "Xadd",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd32, ssa.OpAtomicAdd32Variant, types.TUINT32, types.TUINT32, atomicXchgXaddEmitterARM64),
+ 		sys.ARM64)
+-	addF("runtime/internal/atomic", "Xadd64",
++	addF("internal/runtime/atomic", "Xadd64",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd64, ssa.OpAtomicAdd64Variant, types.TUINT64, types.TUINT64, atomicXchgXaddEmitterARM64),
+ 		sys.ARM64)
+ 
+-	addF("runtime/internal/atomic", "Cas",
++	addF("internal/runtime/atomic", "Cas",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
+ 		},
+ 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "Cas64",
++	addF("internal/runtime/atomic", "Cas64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
+ 		},
+ 		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "CasRel",
++	addF("internal/runtime/atomic", "CasRel",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+@@ -4486,32 +4486,32 @@ func InitTables() {
+ 		s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
+ 	}
+ 
+-	addF("runtime/internal/atomic", "Cas",
++	addF("internal/runtime/atomic", "Cas",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap32, ssa.OpAtomicCompareAndSwap32Variant, types.TUINT32, types.TBOOL, atomicCasEmitterARM64),
+ 		sys.ARM64)
+-	addF("runtime/internal/atomic", "Cas64",
++	addF("internal/runtime/atomic", "Cas64",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, types.TUINT64, types.TBOOL, atomicCasEmitterARM64),
+ 		sys.ARM64)
+ 
+-	addF("runtime/internal/atomic", "And8",
++	addF("internal/runtime/atomic", "And8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+ 		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "And",
++	addF("internal/runtime/atomic", "And",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+ 		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "Or8",
++	addF("internal/runtime/atomic", "Or8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+-	addF("runtime/internal/atomic", "Or",
++	addF("internal/runtime/atomic", "Or",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+@@ -4522,65 +4522,65 @@ func InitTables() {
+ 		s.vars[memVar] = s.newValue3(op, types.TypeMem, args[0], args[1], s.mem())
+ 	}
+ 
+-	addF("runtime/internal/atomic", "And8",
++	addF("internal/runtime/atomic", "And8",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd8, ssa.OpAtomicAnd8Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+ 		sys.ARM64)
+-	addF("runtime/internal/atomic", "And",
++	addF("internal/runtime/atomic", "And",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd32, ssa.OpAtomicAnd32Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+ 		sys.ARM64)
+-	addF("runtime/internal/atomic", "Or8",
++	addF("internal/runtime/atomic", "Or8",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr8, ssa.OpAtomicOr8Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+ 		sys.ARM64)
+-	addF("runtime/internal/atomic", "Or",
++	addF("internal/runtime/atomic", "Or",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+ 		sys.ARM64)
+ 
+ 	// Aliases for atomic load operations
+-	alias("runtime/internal/atomic", "Loadint32", "runtime/internal/atomic", "Load", all...)
+-	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
+-	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load", p4...)
+-	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load64", p8...)
+-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", p4...)
+-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", p8...)
+-	alias("runtime/internal/atomic", "LoadAcq", "runtime/internal/atomic", "Load", lwatomics...)
+-	alias("runtime/internal/atomic", "LoadAcq64", "runtime/internal/atomic", "Load64", lwatomics...)
+-	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...)
+-	alias("sync", "runtime_LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...) // linknamed
+-	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...)
+-	alias("sync", "runtime_LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...) // linknamed
++	alias("internal/runtime/atomic", "Loadint32", "internal/runtime/atomic", "Load", all...)
++	alias("internal/runtime/atomic", "Loadint64", "internal/runtime/atomic", "Load64", all...)
++	alias("internal/runtime/atomic", "Loaduintptr", "internal/runtime/atomic", "Load", p4...)
++	alias("internal/runtime/atomic", "Loaduintptr", "internal/runtime/atomic", "Load64", p8...)
++	alias("internal/runtime/atomic", "Loaduint", "internal/runtime/atomic", "Load", p4...)
++	alias("internal/runtime/atomic", "Loaduint", "internal/runtime/atomic", "Load64", p8...)
++	alias("internal/runtime/atomic", "LoadAcq", "internal/runtime/atomic", "Load", lwatomics...)
++	alias("internal/runtime/atomic", "LoadAcq64", "internal/runtime/atomic", "Load64", lwatomics...)
++	alias("internal/runtime/atomic", "LoadAcquintptr", "internal/runtime/atomic", "LoadAcq", p4...)
++	alias("sync", "runtime_LoadAcquintptr", "internal/runtime/atomic", "LoadAcq", p4...) // linknamed
++	alias("internal/runtime/atomic", "LoadAcquintptr", "internal/runtime/atomic", "LoadAcq64", p8...)
++	alias("sync", "runtime_LoadAcquintptr", "internal/runtime/atomic", "LoadAcq64", p8...) // linknamed
+ 
+ 	// Aliases for atomic store operations
+-	alias("runtime/internal/atomic", "Storeint32", "runtime/internal/atomic", "Store", all...)
+-	alias("runtime/internal/atomic", "Storeint64", "runtime/internal/atomic", "Store64", all...)
+-	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store", p4...)
+-	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store64", p8...)
+-	alias("runtime/internal/atomic", "StoreRel", "runtime/internal/atomic", "Store", lwatomics...)
+-	alias("runtime/internal/atomic", "StoreRel64", "runtime/internal/atomic", "Store64", lwatomics...)
+-	alias("runtime/internal/atomic", "StoreReluintptr", "runtime/internal/atomic", "StoreRel", p4...)
+-	alias("sync", "runtime_StoreReluintptr", "runtime/internal/atomic", "StoreRel", p4...) // linknamed
+-	alias("runtime/internal/atomic", "StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...)
+-	alias("sync", "runtime_StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...) // linknamed
++	alias("internal/runtime/atomic", "Storeint32", "internal/runtime/atomic", "Store", all...)
++	alias("internal/runtime/atomic", "Storeint64", "internal/runtime/atomic", "Store64", all...)
++	alias("internal/runtime/atomic", "Storeuintptr", "internal/runtime/atomic", "Store", p4...)
++	alias("internal/runtime/atomic", "Storeuintptr", "internal/runtime/atomic", "Store64", p8...)
++	alias("internal/runtime/atomic", "StoreRel", "internal/runtime/atomic", "Store", lwatomics...)
++	alias("internal/runtime/atomic", "StoreRel64", "internal/runtime/atomic", "Store64", lwatomics...)
++	alias("internal/runtime/atomic", "StoreReluintptr", "internal/runtime/atomic", "StoreRel", p4...)
++	alias("sync", "runtime_StoreReluintptr", "internal/runtime/atomic", "StoreRel", p4...) // linknamed
++	alias("internal/runtime/atomic", "StoreReluintptr", "internal/runtime/atomic", "StoreRel64", p8...)
++	alias("sync", "runtime_StoreReluintptr", "internal/runtime/atomic", "StoreRel64", p8...) // linknamed
+ 
+ 	// Aliases for atomic swap operations
+-	alias("runtime/internal/atomic", "Xchgint32", "runtime/internal/atomic", "Xchg", all...)
+-	alias("runtime/internal/atomic", "Xchgint64", "runtime/internal/atomic", "Xchg64", all...)
+-	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg", p4...)
+-	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg64", p8...)
++	alias("internal/runtime/atomic", "Xchgint32", "internal/runtime/atomic", "Xchg", all...)
++	alias("internal/runtime/atomic", "Xchgint64", "internal/runtime/atomic", "Xchg64", all...)
++	alias("internal/runtime/atomic", "Xchguintptr", "internal/runtime/atomic", "Xchg", p4...)
++	alias("internal/runtime/atomic", "Xchguintptr", "internal/runtime/atomic", "Xchg64", p8...)
+ 
+ 	// Aliases for atomic add operations
+-	alias("runtime/internal/atomic", "Xaddint32", "runtime/internal/atomic", "Xadd", all...)
+-	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
+-	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd", p4...)
+-	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd64", p8...)
++	alias("internal/runtime/atomic", "Xaddint32", "internal/runtime/atomic", "Xadd", all...)
++	alias("internal/runtime/atomic", "Xaddint64", "internal/runtime/atomic", "Xadd64", all...)
++	alias("internal/runtime/atomic", "Xadduintptr", "internal/runtime/atomic", "Xadd", p4...)
++	alias("internal/runtime/atomic", "Xadduintptr", "internal/runtime/atomic", "Xadd64", p8...)
+ 
+ 	// Aliases for atomic CAS operations
+-	alias("runtime/internal/atomic", "Casint32", "runtime/internal/atomic", "Cas", all...)
+-	alias("runtime/internal/atomic", "Casint64", "runtime/internal/atomic", "Cas64", all...)
+-	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas", p4...)
+-	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas64", p8...)
+-	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas", p4...)
+-	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas64", p8...)
+-	alias("runtime/internal/atomic", "CasRel", "runtime/internal/atomic", "Cas", lwatomics...)
++	alias("internal/runtime/atomic", "Casint32", "internal/runtime/atomic", "Cas", all...)
++	alias("internal/runtime/atomic", "Casint64", "internal/runtime/atomic", "Cas64", all...)
++	alias("internal/runtime/atomic", "Casuintptr", "internal/runtime/atomic", "Cas", p4...)
++	alias("internal/runtime/atomic", "Casuintptr", "internal/runtime/atomic", "Cas64", p8...)
++	alias("internal/runtime/atomic", "Casp1", "internal/runtime/atomic", "Cas", p4...)
++	alias("internal/runtime/atomic", "Casp1", "internal/runtime/atomic", "Cas64", p8...)
++	alias("internal/runtime/atomic", "CasRel", "internal/runtime/atomic", "Cas", lwatomics...)
+ 
+ 	/******** math ********/
+ 	addF("math", "sqrt",
+@@ -5021,42 +5021,42 @@ func InitTables() {
+ 	/******** sync/atomic ********/
+ 
+ 	// Note: these are disabled by flag_race in findIntrinsic below.
+-	alias("sync/atomic", "LoadInt32", "runtime/internal/atomic", "Load", all...)
+-	alias("sync/atomic", "LoadInt64", "runtime/internal/atomic", "Load64", all...)
+-	alias("sync/atomic", "LoadPointer", "runtime/internal/atomic", "Loadp", all...)
+-	alias("sync/atomic", "LoadUint32", "runtime/internal/atomic", "Load", all...)
+-	alias("sync/atomic", "LoadUint64", "runtime/internal/atomic", "Load64", all...)
+-	alias("sync/atomic", "LoadUintptr", "runtime/internal/atomic", "Load", p4...)
+-	alias("sync/atomic", "LoadUintptr", "runtime/internal/atomic", "Load64", p8...)
+-
+-	alias("sync/atomic", "StoreInt32", "runtime/internal/atomic", "Store", all...)
+-	alias("sync/atomic", "StoreInt64", "runtime/internal/atomic", "Store64", all...)
++	alias("sync/atomic", "LoadInt32", "internal/runtime/atomic", "Load", all...)
++	alias("sync/atomic", "LoadInt64", "internal/runtime/atomic", "Load64", all...)
++	alias("sync/atomic", "LoadPointer", "internal/runtime/atomic", "Loadp", all...)
++	alias("sync/atomic", "LoadUint32", "internal/runtime/atomic", "Load", all...)
++	alias("sync/atomic", "LoadUint64", "internal/runtime/atomic", "Load64", all...)
++	alias("sync/atomic", "LoadUintptr", "internal/runtime/atomic", "Load", p4...)
++	alias("sync/atomic", "LoadUintptr", "internal/runtime/atomic", "Load64", p8...)
++
++	alias("sync/atomic", "StoreInt32", "internal/runtime/atomic", "Store", all...)
++	alias("sync/atomic", "StoreInt64", "internal/runtime/atomic", "Store64", all...)
+ 	// Note: not StorePointer, that needs a write barrier.  Same below for {CompareAnd}Swap.
+-	alias("sync/atomic", "StoreUint32", "runtime/internal/atomic", "Store", all...)
+-	alias("sync/atomic", "StoreUint64", "runtime/internal/atomic", "Store64", all...)
+-	alias("sync/atomic", "StoreUintptr", "runtime/internal/atomic", "Store", p4...)
+-	alias("sync/atomic", "StoreUintptr", "runtime/internal/atomic", "Store64", p8...)
+-
+-	alias("sync/atomic", "SwapInt32", "runtime/internal/atomic", "Xchg", all...)
+-	alias("sync/atomic", "SwapInt64", "runtime/internal/atomic", "Xchg64", all...)
+-	alias("sync/atomic", "SwapUint32", "runtime/internal/atomic", "Xchg", all...)
+-	alias("sync/atomic", "SwapUint64", "runtime/internal/atomic", "Xchg64", all...)
+-	alias("sync/atomic", "SwapUintptr", "runtime/internal/atomic", "Xchg", p4...)
+-	alias("sync/atomic", "SwapUintptr", "runtime/internal/atomic", "Xchg64", p8...)
+-
+-	alias("sync/atomic", "CompareAndSwapInt32", "runtime/internal/atomic", "Cas", all...)
+-	alias("sync/atomic", "CompareAndSwapInt64", "runtime/internal/atomic", "Cas64", all...)
+-	alias("sync/atomic", "CompareAndSwapUint32", "runtime/internal/atomic", "Cas", all...)
+-	alias("sync/atomic", "CompareAndSwapUint64", "runtime/internal/atomic", "Cas64", all...)
+-	alias("sync/atomic", "CompareAndSwapUintptr", "runtime/internal/atomic", "Cas", p4...)
+-	alias("sync/atomic", "CompareAndSwapUintptr", "runtime/internal/atomic", "Cas64", p8...)
+-
+-	alias("sync/atomic", "AddInt32", "runtime/internal/atomic", "Xadd", all...)
+-	alias("sync/atomic", "AddInt64", "runtime/internal/atomic", "Xadd64", all...)
+-	alias("sync/atomic", "AddUint32", "runtime/internal/atomic", "Xadd", all...)
+-	alias("sync/atomic", "AddUint64", "runtime/internal/atomic", "Xadd64", all...)
+-	alias("sync/atomic", "AddUintptr", "runtime/internal/atomic", "Xadd", p4...)
+-	alias("sync/atomic", "AddUintptr", "runtime/internal/atomic", "Xadd64", p8...)
++	alias("sync/atomic", "StoreUint32", "internal/runtime/atomic", "Store", all...)
++	alias("sync/atomic", "StoreUint64", "internal/runtime/atomic", "Store64", all...)
++	alias("sync/atomic", "StoreUintptr", "internal/runtime/atomic", "Store", p4...)
++	alias("sync/atomic", "StoreUintptr", "internal/runtime/atomic", "Store64", p8...)
++
++	alias("sync/atomic", "SwapInt32", "internal/runtime/atomic", "Xchg", all...)
++	alias("sync/atomic", "SwapInt64", "internal/runtime/atomic", "Xchg64", all...)
++	alias("sync/atomic", "SwapUint32", "internal/runtime/atomic", "Xchg", all...)
++	alias("sync/atomic", "SwapUint64", "internal/runtime/atomic", "Xchg64", all...)
++	alias("sync/atomic", "SwapUintptr", "internal/runtime/atomic", "Xchg", p4...)
++	alias("sync/atomic", "SwapUintptr", "internal/runtime/atomic", "Xchg64", p8...)
++
++	alias("sync/atomic", "CompareAndSwapInt32", "internal/runtime/atomic", "Cas", all...)
++	alias("sync/atomic", "CompareAndSwapInt64", "internal/runtime/atomic", "Cas64", all...)
++	alias("sync/atomic", "CompareAndSwapUint32", "internal/runtime/atomic", "Cas", all...)
++	alias("sync/atomic", "CompareAndSwapUint64", "internal/runtime/atomic", "Cas64", all...)
++	alias("sync/atomic", "CompareAndSwapUintptr", "internal/runtime/atomic", "Cas", p4...)
++	alias("sync/atomic", "CompareAndSwapUintptr", "internal/runtime/atomic", "Cas64", p8...)
++
++	alias("sync/atomic", "AddInt32", "internal/runtime/atomic", "Xadd", all...)
++	alias("sync/atomic", "AddInt64", "internal/runtime/atomic", "Xadd64", all...)
++	alias("sync/atomic", "AddUint32", "internal/runtime/atomic", "Xadd", all...)
++	alias("sync/atomic", "AddUint64", "internal/runtime/atomic", "Xadd64", all...)
++	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd", p4...)
++	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd64", p8...)
+ 
+ 	/******** math/big ********/
+ 	alias("math/big", "mulWW", "math/bits", "Mul64", p8...)
+@@ -6663,7 +6663,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
+ 			if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Name) {
+ 				// Note: we can only use the cache if we have the right atomic load instruction.
+ 				// Double-check that here.
+-				if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "runtime/internal/atomic", "Loadp"}]; !ok {
++				if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp"}]; !ok {
+ 					s.Fatalf("atomic load not available")
+ 				}
+ 				// Pick right size ops.
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 0ccc7b3761..271834a595 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -254,7 +254,7 @@ func TestIntendedInlining(t *testing.T) {
+ 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
+ 	}
+ 	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" || runtime.GOARCH == "loong64" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "riscv64" || runtime.GOARCH == "s390x" {
+-		// runtime/internal/atomic.Loaduintptr is only intrinsified on these platforms.
++		// internal/runtime/atomic.Loaduintptr is only intrinsified on these platforms.
+ 		want["runtime"] = append(want["runtime"], "traceAcquire")
+ 	}
+ 	if bits.UintSize == 64 {
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 1ae8b6988a..00707fc86e 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -199,7 +199,7 @@ func isAtomicStdPkg(p *Pkg) bool {
+ 	if p.Prefix == `""` {
+ 		panic("bad package prefix")
+ 	}
+-	return p.Prefix == "sync/atomic" || p.Prefix == "runtime/internal/atomic"
++	return p.Prefix == "sync/atomic" || p.Prefix == "internal/runtime/atomic"
+ }
+ 
+ // CalcSize calculates and stores the size, alignment, eq/hash algorithm,
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index 7d20c97010..7b1c00b40a 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -120,7 +120,7 @@ func IsSyncAtomicAlign64(T Type) bool {
+ 	return obj.Name() == "align64" &&
+ 		obj.Pkg() != nil &&
+ 		(obj.Pkg().Path() == "sync/atomic" ||
+-			obj.Pkg().Path() == "runtime/internal/atomic")
++			obj.Pkg().Path() == "internal/runtime/atomic")
+ }
+ 
+ func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index ba7694b3af..d4e529bcde 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -405,7 +405,7 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 		//
+ 		// Note that in the current implementation (Go 1.20) both
+ 		// routines are assembly stubs that forward calls to the
+-		// runtime/internal/atomic equivalents, hence the infinite
++		// internal/runtime/atomic equivalents, hence the infinite
+ 		// loop scenario is purely theoretical (maybe if in some
+ 		// future implementation one of these functions might be
+ 		// written in Go). See #57445 for more details.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index fd599b5189..f241e93ee8 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -3480,11 +3480,11 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
+ 		}
+ 
+ 		// Silently ignore attempts to run coverage on sync/atomic
+-		// and/or runtime/internal/atomic when using atomic coverage
++		// and/or internal/runtime/atomic when using atomic coverage
+ 		// mode. Atomic coverage mode uses sync/atomic, so we can't
+ 		// also do coverage on it.
+ 		if cfg.BuildCoverMode == "atomic" && p.Standard &&
+-			(p.ImportPath == "sync/atomic" || p.ImportPath == "runtime/internal/atomic") {
++			(p.ImportPath == "sync/atomic" || p.ImportPath == "internal/runtime/atomic") {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 6c1f460f07..44f26024f7 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -43,7 +43,7 @@ type PkgSpecial struct {
+ var runtimePkgs = []string{
+ 	"runtime",
+ 
+-	"runtime/internal/atomic",
++	"internal/runtime/atomic",
+ 	"runtime/internal/math",
+ 	"runtime/internal/sys",
+ 	"internal/runtime/syscall",
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 427f5a96b5..59c0fdde55 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -70,7 +70,7 @@ var depsRules = `
+ 	< internal/unsafeheader
+ 	< runtime/internal/sys
+ 	< internal/runtime/syscall
+-	< runtime/internal/atomic
++	< internal/runtime/atomic
+ 	< runtime/internal/math
+ 	< runtime
+ 	< sync/atomic
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index b7a2bea0e8..9e377fe2df 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -122,7 +122,7 @@ func _IsSyncAtomicAlign64(T Type) bool {
+ 	return obj.Name() == "align64" &&
+ 		obj.Pkg() != nil &&
+ 		(obj.Pkg().Path() == "sync/atomic" ||
+-			obj.Pkg().Path() == "runtime/internal/atomic")
++			obj.Pkg().Path() == "internal/runtime/atomic")
+ }
+ 
+ func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
+diff --git a/src/internal/coverage/pkid.go b/src/internal/coverage/pkid.go
+index a7a89c03ee..86ff302507 100644
+--- a/src/internal/coverage/pkid.go
++++ b/src/internal/coverage/pkid.go
+@@ -24,7 +24,7 @@ package coverage
+ //    registered list:
+ //    slot: 0 path='internal/cpu'  hard-coded id: 1
+ //    slot: 1 path='internal/goarch'  hard-coded id: 2
+-//    slot: 2 path='runtime/internal/atomic'  hard-coded id: 3
++//    slot: 2 path='internal/runtime/atomic'  hard-coded id: 3
+ //    slot: 3 path='internal/goos'
+ //    slot: 4 path='runtime/internal/sys'  hard-coded id: 5
+ //    slot: 5 path='internal/abi'  hard-coded id: 4
+@@ -47,7 +47,7 @@ package coverage
+ var rtPkgs = [...]string{
+ 	"internal/cpu",
+ 	"internal/goarch",
+-	"runtime/internal/atomic",
++	"internal/runtime/atomic",
+ 	"internal/goos",
+ 	"internal/chacha8rand",
+ 	"runtime/internal/sys",
+diff --git a/src/runtime/internal/atomic/atomic_386.go b/src/internal/runtime/atomic/atomic_386.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_386.go
+rename to src/internal/runtime/atomic/atomic_386.go
+diff --git a/src/runtime/internal/atomic/atomic_386.s b/src/internal/runtime/atomic/atomic_386.s
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_386.s
+rename to src/internal/runtime/atomic/atomic_386.s
+diff --git a/src/runtime/internal/atomic/atomic_amd64.go b/src/internal/runtime/atomic/atomic_amd64.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_amd64.go
+rename to src/internal/runtime/atomic/atomic_amd64.go
+diff --git a/src/runtime/internal/atomic/atomic_amd64.s b/src/internal/runtime/atomic/atomic_amd64.s
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_amd64.s
+rename to src/internal/runtime/atomic/atomic_amd64.s
+diff --git a/src/runtime/internal/atomic/atomic_andor_generic.go b/src/internal/runtime/atomic/atomic_andor_generic.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_andor_generic.go
+rename to src/internal/runtime/atomic/atomic_andor_generic.go
+diff --git a/src/runtime/internal/atomic/atomic_andor_test.go b/src/internal/runtime/atomic/atomic_andor_test.go
+similarity index 99%
+rename from src/runtime/internal/atomic/atomic_andor_test.go
+rename to src/internal/runtime/atomic/atomic_andor_test.go
+index a2f3b6f3a9..631a6e637d 100644
+--- a/src/runtime/internal/atomic/atomic_andor_test.go
++++ b/src/internal/runtime/atomic/atomic_andor_test.go
+@@ -7,7 +7,7 @@
+ package atomic_test
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"testing"
+ )
+ 
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/internal/runtime/atomic/atomic_arm.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_arm.go
+rename to src/internal/runtime/atomic/atomic_arm.go
+diff --git a/src/runtime/internal/atomic/atomic_arm.s b/src/internal/runtime/atomic/atomic_arm.s
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_arm.s
+rename to src/internal/runtime/atomic/atomic_arm.s
+diff --git a/src/runtime/internal/atomic/atomic_arm64.go b/src/internal/runtime/atomic/atomic_arm64.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_arm64.go
+rename to src/internal/runtime/atomic/atomic_arm64.go
+diff --git a/src/runtime/internal/atomic/atomic_arm64.s b/src/internal/runtime/atomic/atomic_arm64.s
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_arm64.s
+rename to src/internal/runtime/atomic/atomic_arm64.s
+diff --git a/src/runtime/internal/atomic/atomic_loong64.go b/src/internal/runtime/atomic/atomic_loong64.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_loong64.go
+rename to src/internal/runtime/atomic/atomic_loong64.go
+diff --git a/src/runtime/internal/atomic/atomic_loong64.s b/src/internal/runtime/atomic/atomic_loong64.s
+similarity index 95%
+rename from src/runtime/internal/atomic/atomic_loong64.s
+rename to src/internal/runtime/atomic/atomic_loong64.s
+index c7452d2e11..1812cb95fd 100644
+--- a/src/runtime/internal/atomic/atomic_loong64.s
++++ b/src/internal/runtime/atomic/atomic_loong64.s
+@@ -316,7 +316,7 @@ TEXT ·Anduintptr(SB), NOSPLIT, $0-24
+ TEXT ·Oruintptr(SB), NOSPLIT, $0-24
+ 	JMP	·Or64(SB)
+ 
+-// uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
++// uint32 internal∕runtime∕atomic·Load(uint32 volatile* ptr)
+ TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVV	ptr+0(FP), R19
+ 	DBAR
+@@ -325,7 +325,7 @@ TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVW	R19, ret+8(FP)
+ 	RET
+ 
+-// uint8 runtime∕internal∕atomic·Load8(uint8 volatile* ptr)
++// uint8 internal∕runtime∕atomic·Load8(uint8 volatile* ptr)
+ TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
+ 	MOVV	ptr+0(FP), R19
+ 	DBAR
+@@ -334,7 +334,7 @@ TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
+ 	MOVB	R19, ret+8(FP)
+ 	RET
+ 
+-// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* ptr)
++// uint64 internal∕runtime∕atomic·Load64(uint64 volatile* ptr)
+ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	ptr+0(FP), R19
+ 	DBAR
+@@ -343,7 +343,7 @@ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	R19, ret+8(FP)
+ 	RET
+ 
+-// void *runtime∕internal∕atomic·Loadp(void *volatile *ptr)
++// void *internal∕runtime∕atomic·Loadp(void *volatile *ptr)
+ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	ptr+0(FP), R19
+ 	DBAR
+@@ -352,7 +352,7 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	R19, ret+8(FP)
+ 	RET
+ 
+-// uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
++// uint32 internal∕runtime∕atomic·LoadAcq(uint32 volatile* ptr)
+ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
+ 	JMP	·Load(SB)
+ 
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.go b/src/internal/runtime/atomic/atomic_mips64x.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_mips64x.go
+rename to src/internal/runtime/atomic/atomic_mips64x.go
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.s b/src/internal/runtime/atomic/atomic_mips64x.s
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_mips64x.s
+rename to src/internal/runtime/atomic/atomic_mips64x.s
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/internal/runtime/atomic/atomic_mipsx.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_mipsx.go
+rename to src/internal/runtime/atomic/atomic_mipsx.go
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.s b/src/internal/runtime/atomic/atomic_mipsx.s
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_mipsx.s
+rename to src/internal/runtime/atomic/atomic_mipsx.s
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.go b/src/internal/runtime/atomic/atomic_ppc64x.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_ppc64x.go
+rename to src/internal/runtime/atomic/atomic_ppc64x.go
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.s b/src/internal/runtime/atomic/atomic_ppc64x.s
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_ppc64x.s
+rename to src/internal/runtime/atomic/atomic_ppc64x.s
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.go b/src/internal/runtime/atomic/atomic_riscv64.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_riscv64.go
+rename to src/internal/runtime/atomic/atomic_riscv64.go
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.s b/src/internal/runtime/atomic/atomic_riscv64.s
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_riscv64.s
+rename to src/internal/runtime/atomic/atomic_riscv64.s
+diff --git a/src/runtime/internal/atomic/atomic_s390x.go b/src/internal/runtime/atomic/atomic_s390x.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_s390x.go
+rename to src/internal/runtime/atomic/atomic_s390x.go
+diff --git a/src/runtime/internal/atomic/atomic_s390x.s b/src/internal/runtime/atomic/atomic_s390x.s
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_s390x.s
+rename to src/internal/runtime/atomic/atomic_s390x.s
+diff --git a/src/runtime/internal/atomic/atomic_test.go b/src/internal/runtime/atomic/atomic_test.go
+similarity index 99%
+rename from src/runtime/internal/atomic/atomic_test.go
+rename to src/internal/runtime/atomic/atomic_test.go
+index 2427bfd211..f28213c3ce 100644
+--- a/src/runtime/internal/atomic/atomic_test.go
++++ b/src/internal/runtime/atomic/atomic_test.go
+@@ -6,8 +6,8 @@ package atomic_test
+ 
+ import (
+ 	"internal/goarch"
++	"internal/runtime/atomic"
+ 	"runtime"
+-	"runtime/internal/atomic"
+ 	"testing"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/internal/runtime/atomic/atomic_wasm.go
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_wasm.go
+rename to src/internal/runtime/atomic/atomic_wasm.go
+diff --git a/src/runtime/internal/atomic/atomic_wasm.s b/src/internal/runtime/atomic/atomic_wasm.s
+similarity index 100%
+rename from src/runtime/internal/atomic/atomic_wasm.s
+rename to src/internal/runtime/atomic/atomic_wasm.s
+diff --git a/src/runtime/internal/atomic/bench_test.go b/src/internal/runtime/atomic/bench_test.go
+similarity index 99%
+rename from src/runtime/internal/atomic/bench_test.go
+rename to src/internal/runtime/atomic/bench_test.go
+index efc0531a0d..798431cf72 100644
+--- a/src/runtime/internal/atomic/bench_test.go
++++ b/src/internal/runtime/atomic/bench_test.go
+@@ -5,7 +5,7 @@
+ package atomic_test
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"testing"
+ )
+ 
+diff --git a/src/runtime/internal/atomic/doc.go b/src/internal/runtime/atomic/doc.go
+similarity index 100%
+rename from src/runtime/internal/atomic/doc.go
+rename to src/internal/runtime/atomic/doc.go
+diff --git a/src/runtime/internal/atomic/stubs.go b/src/internal/runtime/atomic/stubs.go
+similarity index 100%
+rename from src/runtime/internal/atomic/stubs.go
+rename to src/internal/runtime/atomic/stubs.go
+diff --git a/src/runtime/internal/atomic/sys_linux_arm.s b/src/internal/runtime/atomic/sys_linux_arm.s
+similarity index 100%
+rename from src/runtime/internal/atomic/sys_linux_arm.s
+rename to src/internal/runtime/atomic/sys_linux_arm.s
+diff --git a/src/runtime/internal/atomic/sys_nonlinux_arm.s b/src/internal/runtime/atomic/sys_nonlinux_arm.s
+similarity index 100%
+rename from src/runtime/internal/atomic/sys_nonlinux_arm.s
+rename to src/internal/runtime/atomic/sys_nonlinux_arm.s
+diff --git a/src/runtime/internal/atomic/types.go b/src/internal/runtime/atomic/types.go
+similarity index 100%
+rename from src/runtime/internal/atomic/types.go
+rename to src/internal/runtime/atomic/types.go
+diff --git a/src/runtime/internal/atomic/types_64bit.go b/src/internal/runtime/atomic/types_64bit.go
+similarity index 100%
+rename from src/runtime/internal/atomic/types_64bit.go
+rename to src/internal/runtime/atomic/types_64bit.go
+diff --git a/src/runtime/internal/atomic/unaligned.go b/src/internal/runtime/atomic/unaligned.go
+similarity index 100%
+rename from src/runtime/internal/atomic/unaligned.go
+rename to src/internal/runtime/atomic/unaligned.go
+diff --git a/src/runtime/HACKING.md b/src/runtime/HACKING.md
+index ce0b42a354..e1a43ba88e 100644
+--- a/src/runtime/HACKING.md
++++ b/src/runtime/HACKING.md
+@@ -173,7 +173,7 @@ In summary,
+ Atomics
+ =======
+ 
+-The runtime uses its own atomics package at `runtime/internal/atomic`.
++The runtime uses its own atomics package at `internal/runtime/atomic`.
+ This corresponds to `sync/atomic`, but functions have different names
+ for historical reasons and there are a few additional functions needed
+ by the runtime.
+diff --git a/src/runtime/abi_test.go b/src/runtime/abi_test.go
+index 4caee597c5..d2e79c6dc4 100644
+--- a/src/runtime/abi_test.go
++++ b/src/runtime/abi_test.go
+@@ -11,11 +11,11 @@ package runtime_test
+ 
+ import (
+ 	"internal/abi"
++	"internal/runtime/atomic"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"runtime"
+-	"runtime/internal/atomic"
+ 	"strings"
+ 	"testing"
+ 	"time"
+diff --git a/src/runtime/align_runtime_test.go b/src/runtime/align_runtime_test.go
+index d78b0b2d39..6d77e0d3d4 100644
+--- a/src/runtime/align_runtime_test.go
++++ b/src/runtime/align_runtime_test.go
+@@ -11,7 +11,7 @@ package runtime
+ import "unsafe"
+ 
+ // AtomicFields is the set of fields on which we perform 64-bit atomic
+-// operations (all the *64 operations in runtime/internal/atomic).
++// operations (all the *64 operations in internal/runtime/atomic).
+ var AtomicFields = []uintptr{
+ 	unsafe.Offsetof(m{}.procid),
+ 	unsafe.Offsetof(p{}.gcFractionalMarkTime),
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index 3fdd4cbdd6..5c3350aabf 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -85,7 +85,7 @@ package runtime
+ import (
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/math"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/arena_test.go b/src/runtime/arena_test.go
+index 018c423712..ca5223b59c 100644
+--- a/src/runtime/arena_test.go
++++ b/src/runtime/arena_test.go
+@@ -6,10 +6,10 @@ package runtime_test
+ 
+ import (
+ 	"internal/goarch"
++	"internal/runtime/atomic"
+ 	"reflect"
+ 	. "runtime"
+ 	"runtime/debug"
+-	"runtime/internal/atomic"
+ 	"testing"
+ 	"time"
+ 	"unsafe"
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index b61bf0b8b2..e3d17b5cf8 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/goexperiment"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -43,7 +43,7 @@ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
+ // (like StoreNoWB but with the write barrier).
+ //
+ //go:nosplit
+-//go:linkname atomic_storePointer runtime/internal/atomic.storePointer
++//go:linkname atomic_storePointer internal/runtime/atomic.storePointer
+ func atomic_storePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
+ 	atomicstorep(unsafe.Pointer(ptr), new)
+ }
+@@ -52,7 +52,7 @@ func atomic_storePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
+ // (like CompareAndSwapNoWB but with the write barrier).
+ //
+ //go:nosplit
+-//go:linkname atomic_casPointer runtime/internal/atomic.casPointer
++//go:linkname atomic_casPointer internal/runtime/atomic.casPointer
+ func atomic_casPointer(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
+ 	if writeBarrier.enabled {
+ 		atomicwb(ptr, new)
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 8aca024c4c..6ce824f62c 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -19,7 +19,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/math"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/coverage/testsupport.go b/src/runtime/coverage/testsupport.go
+index f169580618..a12b8589f0 100644
+--- a/src/runtime/coverage/testsupport.go
++++ b/src/runtime/coverage/testsupport.go
+@@ -14,10 +14,10 @@ import (
+ 	"internal/coverage/decodecounter"
+ 	"internal/coverage/decodemeta"
+ 	"internal/coverage/pods"
++	"internal/runtime/atomic"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+-	"runtime/internal/atomic"
+ 	"strings"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 3233ce8ee7..184e4127c3 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 873f1b45bd..545fde2b24 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -16,7 +16,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index fe79497e7f..e71f4766c6 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+ 	"internal/goos"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/histogram.go b/src/runtime/histogram.go
+index f243667b55..95230d1f39 100644
+--- a/src/runtime/histogram.go
++++ b/src/runtime/histogram.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 99e9a367f5..e280180665 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+index a91ae64e53..cbec6e8447 100644
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 867e2b34d0..58690e45e4 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 073e7d410e..32d2235ad3 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/lockrank_on.go b/src/runtime/lockrank_on.go
+index b1d9999794..e95190f0b2 100644
+--- a/src/runtime/lockrank_on.go
++++ b/src/runtime/lockrank_on.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 271e4c43db..b531eb7168 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -104,7 +104,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+ 	"internal/goos"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/math"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index bb3ac39e94..6a9345e0b4 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -56,7 +56,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/math"
+ 	"unsafe"
+ )
+@@ -1498,7 +1498,7 @@ func mapclone2(t *maptype, src *hmap) *hmap {
+ 	dst := makemap(t, src.count, nil)
+ 	dst.hash0 = src.hash0
+ 	dst.nevacuate = 0
+-	//flags do not need to be copied here, just like a new map has no flags.
++	// flags do not need to be copied here, just like a new map has no flags.
+ 
+ 	if src.count == 0 {
+ 		return dst
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index cdd1c5fc3b..61530bbe7f 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index d4b6eef13a..e8da133a69 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index e190b56c86..bf597e1936 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -13,7 +13,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ )
+ 
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index 581a5de955..258f889272 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -14,7 +14,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 15a406d97a..9aaa57ac9e 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index ea3d8a4579..7820f50e51 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -10,7 +10,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index efadcdbc4e..da86fd517f 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -130,7 +130,7 @@ package runtime
+ 
+ import (
+ 	"internal/cpu"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mgclimit.go b/src/runtime/mgclimit.go
+index ef3cc081ce..bd6dc37e04 100644
+--- a/src/runtime/mgclimit.go
++++ b/src/runtime/mgclimit.go
+@@ -4,7 +4,7 @@
+ 
+ package runtime
+ 
+-import "runtime/internal/atomic"
++import "internal/runtime/atomic"
+ 
+ // gcCPULimiter is a mechanism to limit GC CPU utilization in situations
+ // where it might become excessive and inhibit application progress (e.g.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index e118ba69af..7622d1e0d8 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -10,7 +10,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index e9af3d60cd..cda87fe948 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/cpu"
+ 	"internal/goexperiment"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	_ "unsafe" // for go:linkname
+ )
+ 
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 9c76f8dd23..dede4a1ad3 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -92,7 +92,7 @@ package runtime
+ 
+ import (
+ 	"internal/goos"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/mgcscavenge_test.go b/src/runtime/mgcscavenge_test.go
+index d7624d6d72..9c4cf1f277 100644
+--- a/src/runtime/mgcscavenge_test.go
++++ b/src/runtime/mgcscavenge_test.go
+@@ -7,10 +7,10 @@ package runtime_test
+ import (
+ 	"fmt"
+ 	"internal/goos"
++	"internal/runtime/atomic"
+ 	"math"
+ 	"math/rand"
+ 	. "runtime"
+-	"runtime/internal/atomic"
+ 	"testing"
+ 	"time"
+ )
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 3dbe9bcec7..bd53ed1fe1 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -27,7 +27,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goexperiment"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 7ab89754d4..b91a6bd464 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 0069328346..0d8f9d5ddd 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -12,7 +12,7 @@ import (
+ 	"internal/cpu"
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 7c117b0a9b..46d3ebacaf 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -48,7 +48,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index c0836afa8b..87eed8d1dd 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -9,7 +9,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/mranges.go b/src/runtime/mranges.go
+index 6dd1a75247..85795a9418 100644
+--- a/src/runtime/mranges.go
++++ b/src/runtime/mranges.go
+@@ -11,7 +11,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mspanset.go b/src/runtime/mspanset.go
+index 5687627e3a..3aa2b5b393 100644
+--- a/src/runtime/mspanset.go
++++ b/src/runtime/mspanset.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/cpu"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 87afec47c8..1b634bd81e 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 7419bd291d..b998d2b2bd 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -24,7 +24,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 2c5c262c58..6a73f70988 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/netpoll_aix.go b/src/runtime/netpoll_aix.go
+index a34b4d8bcf..2df5a57111 100644
+--- a/src/runtime/netpoll_aix.go
++++ b/src/runtime/netpoll_aix.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index 63b42a0014..ff6e0b5f89 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -7,8 +7,8 @@
+ package runtime
+ 
+ import (
++	"internal/runtime/atomic"
+ 	"internal/runtime/syscall"
+-	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index d774dce303..32c21a2b2b 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -10,7 +10,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index 41f145c866..fddc29000b 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/netpoll_stub.go b/src/runtime/netpoll_stub.go
+index d950661acf..c1bda3fa8b 100644
+--- a/src/runtime/netpoll_stub.go
++++ b/src/runtime/netpoll_stub.go
+@@ -6,7 +6,7 @@
+ 
+ package runtime
+ 
+-import "runtime/internal/atomic"
++import "internal/runtime/atomic"
+ 
+ var netpollInited atomic.Uint32
+ 
+diff --git a/src/runtime/netpoll_windows.go b/src/runtime/netpoll_windows.go
+index b01f5ba725..3f70429497 100644
+--- a/src/runtime/netpoll_windows.go
++++ b/src/runtime/netpoll_windows.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 92daf13b1a..cf163a6bf4 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 3a5078a64c..93464cb997 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index c4f503c8c9..6ce656c70e 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -7,8 +7,8 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/runtime/atomic"
+ 	"internal/runtime/syscall"
+-	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -402,9 +402,9 @@ func unminit() {
+ func mdestroy(mp *m) {
+ }
+ 
+-//#ifdef GOARCH_386
+-//#define sa_handler k_sa_handler
+-//#endif
++// #ifdef GOARCH_386
++// #define sa_handler k_sa_handler
++// #endif
+ 
+ func sigreturn__sigaction()
+ func sigtramp() // Called via C ABI
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 8abb688aae..735ace25ad 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 856979910a..9a21d6a8d0 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+index 0b796ade43..072f53320d 100644
+--- a/src/runtime/os_openbsd_syscall2.go
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 77446d09d3..5e355f1664 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os_wasm.go b/src/runtime/os_wasm.go
+index ce260de67e..fbafc319b9 100644
+--- a/src/runtime/os_wasm.go
++++ b/src/runtime/os_wasm.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 244ab23dad..0074b9358a 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 99eb1c3e23..51b57520c1 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/pinner.go b/src/runtime/pinner.go
+index 1ede1113ee..f9efe237c1 100644
+--- a/src/runtime/pinner.go
++++ b/src/runtime/pinner.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 7f70100538..3b7d4f4d5d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -10,7 +10,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+ 	"internal/goos"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -5269,22 +5269,22 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	}
+ 
+ 	// On mips{,le}/arm, 64bit atomics are emulated with spinlocks, in
+-	// runtime/internal/atomic. If SIGPROF arrives while the program is inside
++	// internal/runtime/atomic. If SIGPROF arrives while the program is inside
+ 	// the critical section, it creates a deadlock (when writing the sample).
+ 	// As a workaround, create a counter of SIGPROFs while in critical section
+ 	// to store the count, and pass it to sigprof.add() later when SIGPROF is
+ 	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
+ 	if GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm" {
+ 		if f := findfunc(pc); f.valid() {
+-			if hasPrefix(funcname(f), "runtime/internal/atomic") {
++			if hasPrefix(funcname(f), "internal/runtime/atomic") {
+ 				cpuprof.lostAtomic++
+ 				return
+ 			}
+ 		}
+ 		if GOARCH == "arm" && goarm < 7 && GOOS == "linux" && pc&0xffff0000 == 0xffff0000 {
+-			// runtime/internal/atomic functions call into kernel
++			// internal/runtime/atomic functions call into kernel
+ 			// helpers on arm < 7. See
+-			// runtime/internal/atomic/sys_linux_arm.s.
++			// internal/runtime/atomic/sys_linux_arm.s.
+ 			cpuprof.lostAtomic++
+ 			return
+ 		}
+diff --git a/src/runtime/profbuf.go b/src/runtime/profbuf.go
+index 4be4bc9208..8ae626b1b0 100644
+--- a/src/runtime/profbuf.go
++++ b/src/runtime/profbuf.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 05a2098fcd..cc6f03d2a0 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 8c8b20aa57..48603da600 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/bytealg"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index c03e7050a2..4a7ad27172 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -8,7 +8,7 @@ import (
+ 	"internal/abi"
+ 	"internal/chacha8rand"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/rwmutex.go b/src/runtime/rwmutex.go
+index bf3b9a1cae..5833d59576 100644
+--- a/src/runtime/rwmutex.go
++++ b/src/runtime/rwmutex.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ )
+ 
+ // This is a copy of sync/rwmutex.go rewritten to work in the runtime.
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index c87fc7658e..f86a19f705 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -21,7 +21,7 @@ package runtime
+ 
+ import (
+ 	"internal/cpu"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 84391d58ed..6ca87561e8 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index 51e424d55b..62a8e8a702 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -33,7 +33,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	_ "unsafe" // for go:linkname
+ )
+ 
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 61cd0a0fdd..8acc5e9f98 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -9,7 +9,7 @@ import (
+ 	"internal/cpu"
+ 	"internal/goarch"
+ 	"internal/goos"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 9637347a35..39bde15b1c 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 8b9977f428..bfe415360e 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 45175d8663..8e728b9d17 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/sys_openbsd2.go b/src/runtime/sys_openbsd2.go
+index b38e49ee6f..8f5242018d 100644
+--- a/src/runtime/sys_openbsd2.go
++++ b/src/runtime/sys_openbsd2.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/testdata/testprognet/waiters.go b/src/runtime/testdata/testprognet/waiters.go
+index a65c40bfbe..42d51ddbd4 100644
+--- a/src/runtime/testdata/testprognet/waiters.go
++++ b/src/runtime/testdata/testprognet/waiters.go
+@@ -9,7 +9,7 @@ import (
+ 	"io"
+ 	"log"
+ 	"net"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"sync"
+ 	"time"
+ 	_ "unsafe" // for go:linkname
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 06a56bf7ae..7846542a80 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 8d7bf088dd..c641e2ba9f 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -18,7 +18,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/goos"
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index 48f969129a..a5ea9b4aa1 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -22,7 +22,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/trace2map.go b/src/runtime/trace2map.go
+index 195ec0bbe7..fc41d4f3c8 100644
+--- a/src/runtime/trace2map.go
++++ b/src/runtime/trace2map.go
+@@ -18,7 +18,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/trace2runtime.go b/src/runtime/trace2runtime.go
+index b391fd79ff..3e55226f28 100644
+--- a/src/runtime/trace2runtime.go
++++ b/src/runtime/trace2runtime.go
+@@ -9,7 +9,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	_ "unsafe" // for go:linkname
+ )
+ 
+diff --git a/src/runtime/trace2status.go b/src/runtime/trace2status.go
+index 5016e08656..34f2e4c06f 100644
+--- a/src/runtime/trace2status.go
++++ b/src/runtime/trace2status.go
+@@ -8,7 +8,7 @@
+ 
+ package runtime
+ 
+-import "runtime/internal/atomic"
++import "internal/runtime/atomic"
+ 
+ // traceGoStatus is the status of a goroutine.
+ //
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index bfdf70af9a..100662f274 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -182,8 +182,8 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
+ 		}
+ 	}
+ 
+-	// runtime/internal/atomic functions call into kernel helpers on
+-	// arm < 7. See runtime/internal/atomic/sys_linux_arm.s.
++	// internal/runtime/atomic functions call into kernel helpers on
++	// arm < 7. See internal/runtime/atomic/sys_linux_arm.s.
+ 	//
+ 	// Start in the caller's frame.
+ 	if GOARCH == "arm" && goarm < 7 && GOOS == "linux" && frame.pc&0xffff0000 == 0xffff0000 {
+diff --git a/src/runtime/vdso_freebsd.go b/src/runtime/vdso_freebsd.go
+index 0fe21cf647..feecada035 100644
+--- a/src/runtime/vdso_freebsd.go
++++ b/src/runtime/vdso_freebsd.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/vdso_freebsd_x86.go b/src/runtime/vdso_freebsd_x86.go
+index 66d1c65488..7ac09cb9f1 100644
+--- a/src/runtime/vdso_freebsd_x86.go
++++ b/src/runtime/vdso_freebsd_x86.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/sync/atomic/asm.s b/src/sync/atomic/asm.s
+index 2022304665..b9318fe8b7 100644
+--- a/src/sync/atomic/asm.s
++++ b/src/sync/atomic/asm.s
+@@ -7,79 +7,79 @@
+ #include "textflag.h"
+ 
+ TEXT ·SwapInt32(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Xchg(SB)
++	JMP	internal∕runtime∕atomic·Xchg(SB)
+ 
+ TEXT ·SwapUint32(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Xchg(SB)
++	JMP	internal∕runtime∕atomic·Xchg(SB)
+ 
+ TEXT ·SwapInt64(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Xchg64(SB)
++	JMP	internal∕runtime∕atomic·Xchg64(SB)
+ 
+ TEXT ·SwapUint64(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Xchg64(SB)
++	JMP	internal∕runtime∕atomic·Xchg64(SB)
+ 
+ TEXT ·SwapUintptr(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Xchguintptr(SB)
++	JMP	internal∕runtime∕atomic·Xchguintptr(SB)
+ 
+ TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Cas(SB)
++	JMP	internal∕runtime∕atomic·Cas(SB)
+ 
+ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Cas(SB)
++	JMP	internal∕runtime∕atomic·Cas(SB)
+ 
+ TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Casuintptr(SB)
++	JMP	internal∕runtime∕atomic·Casuintptr(SB)
+ 
+ TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Cas64(SB)
++	JMP	internal∕runtime∕atomic·Cas64(SB)
+ 
+ TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Cas64(SB)
++	JMP	internal∕runtime∕atomic·Cas64(SB)
+ 
+ TEXT ·AddInt32(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Xadd(SB)
++	JMP	internal∕runtime∕atomic·Xadd(SB)
+ 
+ TEXT ·AddUint32(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Xadd(SB)
++	JMP	internal∕runtime∕atomic·Xadd(SB)
+ 
+ TEXT ·AddUintptr(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Xadduintptr(SB)
++	JMP	internal∕runtime∕atomic·Xadduintptr(SB)
+ 
+ TEXT ·AddInt64(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Xadd64(SB)
++	JMP	internal∕runtime∕atomic·Xadd64(SB)
+ 
+ TEXT ·AddUint64(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Xadd64(SB)
++	JMP	internal∕runtime∕atomic·Xadd64(SB)
+ 
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Load(SB)
++	JMP	internal∕runtime∕atomic·Load(SB)
+ 
+ TEXT ·LoadUint32(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Load(SB)
++	JMP	internal∕runtime∕atomic·Load(SB)
+ 
+ TEXT ·LoadInt64(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Load64(SB)
++	JMP	internal∕runtime∕atomic·Load64(SB)
+ 
+ TEXT ·LoadUint64(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Load64(SB)
++	JMP	internal∕runtime∕atomic·Load64(SB)
+ 
+ TEXT ·LoadUintptr(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Loaduintptr(SB)
++	JMP	internal∕runtime∕atomic·Loaduintptr(SB)
+ 
+ TEXT ·LoadPointer(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Loadp(SB)
++	JMP	internal∕runtime∕atomic·Loadp(SB)
+ 
+ TEXT ·StoreInt32(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Store(SB)
++	JMP	internal∕runtime∕atomic·Store(SB)
+ 
+ TEXT ·StoreUint32(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Store(SB)
++	JMP	internal∕runtime∕atomic·Store(SB)
+ 
+ TEXT ·StoreInt64(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Store64(SB)
++	JMP	internal∕runtime∕atomic·Store64(SB)
+ 
+ TEXT ·StoreUint64(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Store64(SB)
++	JMP	internal∕runtime∕atomic·Store64(SB)
+ 
+ TEXT ·StoreUintptr(SB),NOSPLIT,$0
+-	JMP	runtime∕internal∕atomic·Storeuintptr(SB)
++	JMP	internal∕runtime∕atomic·Storeuintptr(SB)
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index e094849974..9214bf6e34 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -295,12 +295,12 @@ func runtime_registerPoolCleanup(cleanup func())
+ func runtime_procPin() int
+ func runtime_procUnpin()
+ 
+-// The below are implemented in runtime/internal/atomic and the
++// The below are implemented in internal/runtime/atomic and the
+ // compiler also knows to intrinsify the symbol we linkname into this
+ // package.
+ 
+-//go:linkname runtime_LoadAcquintptr runtime/internal/atomic.LoadAcquintptr
++//go:linkname runtime_LoadAcquintptr internal/runtime/atomic.LoadAcquintptr
+ func runtime_LoadAcquintptr(ptr *uintptr) uintptr
+ 
+-//go:linkname runtime_StoreReluintptr runtime/internal/atomic.StoreReluintptr
++//go:linkname runtime_StoreReluintptr internal/runtime/atomic.StoreReluintptr
+ func runtime_StoreReluintptr(ptr *uintptr, val uintptr) uintptr
+diff --git a/test/escape_runtime_atomic.go b/test/escape_runtime_atomic.go
+index 30d1d0c0c1..39fd13d62b 100644
+--- a/test/escape_runtime_atomic.go
++++ b/test/escape_runtime_atomic.go
+@@ -4,12 +4,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test escape analysis for runtime/internal/atomic.
++// Test escape analysis for internal/runtime/atomic.
+ 
+ package escape
+ 
+ import (
+-	"runtime/internal/atomic"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 

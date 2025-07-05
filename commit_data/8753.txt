@@ -14,9 +14,148 @@ Date:   Thu Jun 16 08:55:53 2011 -0700
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/4602063
-
+---
  src/pkg/http/request.go                  |  4 ++--
  src/pkg/mime/multipart/formdata.go       |  2 +-
  src/pkg/mime/multipart/multipart.go      | 36 +++++++++++---------------------
  src/pkg/mime/multipart/multipart_test.go |  2 +-
  4 files changed, 16 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index bdc3a7e4fb..9ed051b13b 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -188,7 +188,7 @@ var multipartByReader = &multipart.Form{
+ // multipart/form-data POST request, else returns nil and an error.
+ // Use this function instead of ParseMultipartForm to
+ // process the request body as a stream.
+-func (r *Request) MultipartReader() (multipart.Reader, os.Error) {
++func (r *Request) MultipartReader() (*multipart.Reader, os.Error) {
+ 	if r.MultipartForm == multipartByReader {
+ 		return nil, os.NewError("http: MultipartReader called twice")
+ 	}
+@@ -199,7 +199,7 @@ func (r *Request) MultipartReader() (multipart.Reader, os.Error) {
+ 	return r.multipartReader()
+ }
+ 
+-func (r *Request) multipartReader() (multipart.Reader, os.Error) {
++func (r *Request) multipartReader() (*multipart.Reader, os.Error) {
+ 	v := r.Header.Get("Content-Type")
+ 	if v == "" {
+ 		return nil, ErrNotMultipart
+diff --git a/src/pkg/mime/multipart/formdata.go b/src/pkg/mime/multipart/formdata.go
+index 5f32865659..91404d6f41 100644
+--- a/src/pkg/mime/multipart/formdata.go
++++ b/src/pkg/mime/multipart/formdata.go
+@@ -19,7 +19,7 @@ import (
+ // a Content-Disposition of "form-data".
+ // It stores up to maxMemory bytes of the file parts in memory
+ // and the remainder on disk in temporary files.
+-func (r *multiReader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
++func (r *Reader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
+ 	form := &Form{make(map[string][]string), make(map[string][]*FileHeader)}
+ 	defer func() {
+ 		if err != nil {
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index 9affa11261..5c173f2283 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -28,21 +28,6 @@ var headerRegexp *regexp.Regexp = regexp.MustCompile("^([a-zA-Z0-9\\-]+): *([^\r
+ 
+ var emptyParams = make(map[string]string)
+ 
+-// Reader is an iterator over parts in a MIME multipart body.
+-// Reader's underlying parser consumes its input as needed.  Seeking
+-// isn't supported.
+-type Reader interface {
+-	// NextPart returns the next part in the multipart or an error.
+-	// When there are no more parts, the error os.EOF is returned.
+-	NextPart() (*Part, os.Error)
+-
+-	// ReadForm parses an entire multipart message whose parts have
+-	// a Content-Disposition of "form-data".
+-	// It stores up to maxMemory bytes of the file parts in memory
+-	// and the remainder on disk in temporary files.
+-	ReadForm(maxMemory int64) (*Form, os.Error)
+-}
+-
+ // A Part represents a single part in a multipart body.
+ type Part struct {
+ 	// The headers of the body, if any, with the keys canonicalized
+@@ -51,7 +36,7 @@ type Part struct {
+ 	Header textproto.MIMEHeader
+ 
+ 	buffer *bytes.Buffer
+-	mr     *multiReader
++	mr     *Reader
+ 
+ 	disposition       string
+ 	dispositionParams map[string]string
+@@ -91,9 +76,9 @@ func (p *Part) parseContentDisposition() {
+ 
+ // NewReader creates a new multipart Reader reading from r using the
+ // given MIME boundary.
+-func NewReader(reader io.Reader, boundary string) Reader {
++func NewReader(reader io.Reader, boundary string) *Reader {
+ 	b := []byte("\r\n--" + boundary + "--")
+-	return &multiReader{
++	return &Reader{
+ 		bufReader: bufio.NewReader(reader),
+ 
+ 		nlDashBoundary:   b[:len(b)-2],
+@@ -102,9 +87,7 @@ func NewReader(reader io.Reader, boundary string) Reader {
+ 	}
+ }
+ 
+-// Implementation ....
+-
+-func newPart(mr *multiReader) (*Part, os.Error) {
++func newPart(mr *Reader) (*Part, os.Error) {
+ 	bp := &Part{
+ 		Header: make(map[string][]string),
+ 		mr:     mr,
+@@ -188,7 +171,10 @@ func (bp *Part) Close() os.Error {
+ 	return nil
+ }
+ 
+-type multiReader struct {
++// Reader is an iterator over parts in a MIME multipart body.
++// Reader's underlying parser consumes its input as needed.  Seeking
++// isn't supported.
++type Reader struct {
+ 	bufReader *bufio.Reader
+ 
+ 	currentPart *Part
+@@ -197,7 +183,9 @@ type multiReader struct {
+ 	nlDashBoundary, dashBoundaryDash, dashBoundary []byte
+ }
+ 
+-func (mr *multiReader) NextPart() (*Part, os.Error) {
++// NextPart returns the next part in the multipart or an error.
++// When there are no more parts, the error os.EOF is returned.
++func (mr *Reader) NextPart() (*Part, os.Error) {
+ 	if mr.currentPart != nil {
+ 		mr.currentPart.Close()
+ 	}
+@@ -247,7 +235,7 @@ func (mr *multiReader) NextPart() (*Part, os.Error) {
+ 	panic("unreachable")
+ }
+ 
+-func (mr *multiReader) isBoundaryDelimiterLine(line []byte) bool {
++func (mr *Reader) isBoundaryDelimiterLine(line []byte) bool {
+ 	// http://tools.ietf.org/html/rfc2046#section-5.1
+ 	//   The boundary delimiter line is then defined as a line
+ 	//   consisting entirely of two hyphen characters ("-",
+diff --git a/src/pkg/mime/multipart/multipart_test.go b/src/pkg/mime/multipart/multipart_test.go
+index 4ec3d30bdd..8bc16bbf72 100644
+--- a/src/pkg/mime/multipart/multipart_test.go
++++ b/src/pkg/mime/multipart/multipart_test.go
+@@ -25,7 +25,7 @@ func TestHorizontalWhitespace(t *testing.T) {
+ }
+ 
+ func TestBoundaryLine(t *testing.T) {
+-	mr := NewReader(strings.NewReader(""), "myBoundary").(*multiReader)
++	mr := NewReader(strings.NewReader(""), "myBoundary")
+ 	if !mr.isBoundaryDelimiterLine([]byte("--myBoundary\r\n")) {
+ 		t.Error("expected")
+ 	}

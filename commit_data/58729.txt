@@ -21,6 +21,25 @@ Date:   Mon Nov 27 12:24:59 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/545235
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/cover_statements.txt | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/cover_statements.txt b/src/cmd/go/testdata/script/cover_statements.txt
+index 24b5751154..030177cb8b 100644
+--- a/src/cmd/go/testdata/script/cover_statements.txt
++++ b/src/cmd/go/testdata/script/cover_statements.txt
+@@ -1,5 +1,13 @@
+ [short] skip
+ 
++# Workaround for issue 64014 -- for the portion of this test that
++# verifies that caching works correctly, the cache should theoretically
++# always behave reliably/deterministically, however if other tests are
++# concurrently accessing the cache while this test is running, it can
++# lead to cache lookup failures, which manifest as test failures here.
++# To avoid such flakes, use a separate isolated GOCACHE for this test.
++env GOCACHE=$WORK/cache
++
+ # Initial run with simple coverage.
+ go test -cover ./pkg1 ./pkg2 ./pkg3 ./pkg4
+ [!GOEXPERIMENT:coverageredesign] stdout 'pkg1	\[no test files\]'

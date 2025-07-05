@@ -8,6 +8,24 @@ Date:   Thu Jun 26 13:00:47 2014 -0700
     R=golang-codereviews, ruiu
     CC=golang-codereviews
     https://golang.org/cl/108150043
-
+---
  src/pkg/strings/strings_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 95102b56fa..27c0314fe8 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -1069,8 +1069,11 @@ func makeBenchInputHard() string {
+ 		"hello", "world",
+ 	}
+ 	x := make([]byte, 0, 1<<20)
+-	for len(x) < 1<<20 {
++	for {
+ 		i := rand.Intn(len(tokens))
++		if len(x)+len(tokens[i]) >= 1<<20 {
++			break
++		}
+ 		x = append(x, tokens[i]...)
+ 	}
+ 	return string(x)

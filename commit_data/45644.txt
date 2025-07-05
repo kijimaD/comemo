@@ -18,9 +18,80 @@ Date:   Sun Nov 1 04:43:20 2020 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/os/exec.go         | 4 ++++
  src/os/exec_plan9.go   | 3 +--
  src/os/exec_unix.go    | 3 ---
  src/os/exec_windows.go | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index cab6a73d94..edb773a092 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"errors"
+ 	"internal/testlog"
+ 	"runtime"
+ 	"sync"
+@@ -13,6 +14,9 @@ import (
+ 	"time"
+ )
+ 
++// ErrProcessDone indicates a Process has finished.
++var ErrProcessDone = errors.New("os: process already finished")
++
+ // Process stores the information about a process created by StartProcess.
+ type Process struct {
+ 	Pid    int
+diff --git a/src/os/exec_plan9.go b/src/os/exec_plan9.go
+index ef8dad11b6..8580153911 100644
+--- a/src/os/exec_plan9.go
++++ b/src/os/exec_plan9.go
+@@ -5,7 +5,6 @@
+ package os
+ 
+ import (
+-	"errors"
+ 	"runtime"
+ 	"syscall"
+ 	"time"
+@@ -52,7 +51,7 @@ func (p *Process) writeProcFile(file string, data string) error {
+ 
+ func (p *Process) signal(sig Signal) error {
+ 	if p.done() {
+-		return errors.New("os: process already finished")
++		return ErrProcessDone
+ 	}
+ 	if e := p.writeProcFile("note", sig.String()); e != nil {
+ 		return NewSyscallError("signal", e)
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 624061297b..a1703a1259 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -59,9 +59,6 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	return ps, nil
+ }
+ 
+-// ErrProcessDone indicates a Process has finished.
+-var ErrProcessDone = errors.New("os: process already finished")
+-
+ func (p *Process) signal(sig Signal) error {
+ 	if p.Pid == -1 {
+ 		return errors.New("os: process already released")
+diff --git a/src/os/exec_windows.go b/src/os/exec_windows.go
+index 24ddf89bb6..5710401acd 100644
+--- a/src/os/exec_windows.go
++++ b/src/os/exec_windows.go
+@@ -61,7 +61,7 @@ func (p *Process) signal(sig Signal) error {
+ 		return syscall.EINVAL
+ 	}
+ 	if p.done() {
+-		return errors.New("os: process already finished")
++		return ErrProcessDone
+ 	}
+ 	if sig == Kill {
+ 		err := terminateProcess(p.Pid, 1)

@@ -15,9 +15,101 @@ Date:   Mon Oct 16 11:18:50 2023 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s | 6 +++---
  src/cmd/internal/obj/s390x/asmz.go        | 7 ++-----
  src/crypto/aes/asm_s390x.s                | 4 ++--
  src/internal/cpu/cpu_s390x.s              | 4 ++--
  4 files changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 82aa445356..977190678f 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -419,9 +419,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	KMC	R2, R6                 // b92f0026
+ 	KLMD	R2, R8                 // b93f0028
+ 	KIMD	R0, R4                 // b93e0004
+-	KDSA    R0, R8                 // b93a0008
+-	KMA	R6, R2, R4		// b9296024
+-	KMCTR	R6, R2, R4		// b92d6024
++	KDSA	R0, R8                 // b93a0008
++	KMA	R2, R6, R4              // b9296024
++	KMCTR   R2, R6, R4              // b92d6024
+ 
+ 	// vector add and sub instructions
+ 	VAB	V3, V4, V4              // e743400000f3
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index bf6d48e305..7b560e0053 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -4434,7 +4434,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		}
+ 		zRRE(op_KDSA, uint32(p.From.Reg), uint32(p.To.Reg), asm)
+ 
+-	case 126: // KMA and KMCTR - CIPHER MESSAGE WITH AUTHENTICATION; CIPHER MESSAGE WITH
++	case 126: // KMA and KMCTR - CIPHER MESSAGE WITH AUTHENTICATION; CIPHER MESSAGE WITH COUNTER
+ 		var opcode uint32
+ 		switch p.As {
+ 		default:
+@@ -4458,16 +4458,13 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			if p.Reg&1 != 0 {
+ 				c.ctxt.Diag("third argument must be even register in %v", p)
+ 			}
+-			if p.Reg == p.To.Reg || p.Reg == p.From.Reg {
+-				c.ctxt.Diag("third argument must not be input or output argument registers in %v", p)
+-			}
+ 			if p.As == AKMA {
+ 				opcode = op_KMA
+ 			} else if p.As == AKMCTR {
+ 				opcode = op_KMCTR
+ 			}
+ 		}
+-		zRRF(opcode, uint32(p.From.Reg), 0, uint32(p.Reg), uint32(p.To.Reg), asm)
++		zRRF(opcode, uint32(p.Reg), 0, uint32(p.From.Reg), uint32(p.To.Reg), asm)
+ 	}
+ }
+ 
+diff --git a/src/crypto/aes/asm_s390x.s b/src/crypto/aes/asm_s390x.s
+index efcce3a0d9..a233714fb8 100644
+--- a/src/crypto/aes/asm_s390x.s
++++ b/src/crypto/aes/asm_s390x.s
+@@ -127,7 +127,7 @@ crypt:
+ 	MOVD	src_base+56(FP), R6 // src
+ 	MOVD	src_len+64(FP), R7  // len
+ loop:
+-	KMCTR	R6, R2, R4          // cipher message with counter (KMCTR)
++	KMCTR	R4, R2, R6          // cipher message with counter (KMCTR)
+ 	BVS	loop                // branch back if interrupted
+ 	RET
+ crash:
+@@ -180,7 +180,7 @@ TEXT ·kmaGCM(SB),NOSPLIT,$112-120
+ 	MVC	$8, 24(R8), 104(R1)
+ 
+ kma:
+-	KMA	R6, R2, R4	 // Cipher Message with Authentication
++	KMA	R2, R6, R4       // Cipher Message with Authentication
+ 	BVS	kma
+ 
+ 	MOVD	tag+104(FP), R2
+diff --git a/src/internal/cpu/cpu_s390x.s b/src/internal/cpu/cpu_s390x.s
+index c55a4c725d..4ffbbde38d 100644
+--- a/src/internal/cpu/cpu_s390x.s
++++ b/src/internal/cpu/cpu_s390x.s
+@@ -30,14 +30,14 @@ TEXT ·kmcQuery(SB), NOSPLIT|NOFRAME, $0-16
+ TEXT ·kmctrQuery(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD $0, R0         // set function code to 0 (KMCTR-Query)
+ 	MOVD $ret+0(FP), R1 // address of 16-byte return value
+-	KMCTR R6, R2, R4    // cipher message with counter (KMCTR)
++	KMCTR R2, R4, R4    // cipher message with counter (KMCTR)
+ 	RET
+ 
+ // func kmaQuery() queryResult
+ TEXT ·kmaQuery(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD $0, R0         // set function code to 0 (KMA-Query)
+ 	MOVD $ret+0(FP), R1 // address of 16-byte return value
+-	KMA  R6, R2, R4     // cipher message with authentication (KMA)
++	KMA  R2, R6, R4     // cipher message with authentication (KMA)
+ 	RET
+ 
+ // func kimdQuery() queryResult

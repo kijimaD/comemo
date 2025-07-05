@@ -11,7 +11,46 @@ Date:   Mon Aug 14 17:26:22 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/macho/file_test.go |  9 +++++++++
  src/debug/macho/macho.go     | 10 ++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/debug/macho/file_test.go b/src/debug/macho/file_test.go
+index 71896d1b2e..fa84064fa9 100644
+--- a/src/debug/macho/file_test.go
++++ b/src/debug/macho/file_test.go
+@@ -217,3 +217,12 @@ func TestRelocTypeString(t *testing.T) {
+ 		t.Errorf("got %v, want %v", X86_64_RELOC_BRANCH.GoString(), "macho.X86_64_RELOC_BRANCH")
+ 	}
+ }
++
++func TestTypeString(t *testing.T) {
++	if TypeExec.String() != "Exec" {
++		t.Errorf("got %v, want %v", TypeExec.String(), "Exec")
++	}
++	if TypeExec.GoString() != "macho.Exec" {
++		t.Errorf("got %v, want %v", TypeExec.GoString(), "macho.Exec")
++	}
++}
+diff --git a/src/debug/macho/macho.go b/src/debug/macho/macho.go
+index 366ce205df..6535ba787b 100644
+--- a/src/debug/macho/macho.go
++++ b/src/debug/macho/macho.go
+@@ -41,6 +41,16 @@ const (
+ 	TypeBundle Type = 8
+ )
+ 
++var typeStrings = []intName{
++	{uint32(TypeObj), "Obj"},
++	{uint32(TypeExec), "Exec"},
++	{uint32(TypeDylib), "Dylib"},
++	{uint32(TypeBundle), "Bundle"},
++}
++
++func (t Type) String() string   { return stringName(uint32(t), typeStrings, false) }
++func (t Type) GoString() string { return stringName(uint32(t), typeStrings, true) }
++
+ // A Cpu is a Mach-O cpu type.
+ type Cpu uint32
+ 

@@ -24,7 +24,7 @@ Date:   Fri Jan 22 17:06:20 2010 -0800
     R=ken2, r, ken3
     CC=golang-dev
     https://golang.org/cl/186263
-
+---
  src/cmd/5g/ggen.c                   |   2 +-
  src/cmd/5g/gobj.c                   |   4 +-
  src/cmd/5g/gsubr.c                  |   4 +-
@@ -63,3 +63,2476 @@ Date:   Fri Jan 22 17:06:20 2010 -0800
  src/cmd/ld/lib.h                    |  23 +++--
  src/pkg/debug/gosym/pclntab_test.go |   2 +-
  37 files changed, 673 insertions(+), 422 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index e859f0578c..3f32e601b3 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -810,7 +810,7 @@ cgen_inline(Node *n, Node *res)
+ 		goto no;
+ 	if(!n->left->addable)
+ 		goto no;
+-	if(strcmp(n->left->sym->package, "runtime") != 0)
++	if(n->left->sym->pkg != runtimepkg)
+ 		goto no;
+ 	if(strcmp(n->left->sym->name, "slicearray") == 0)
+ 		goto slicearray;
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 33cd123a4c..fffba011d0 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -354,7 +354,7 @@ datastring(char *s, int len, Addr *a)
+ 		tmp.lit.s[len] = '\0';
+ 		len++;
+ 		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp.lit);
+-		ao.sym = pkglookup(namebuf, "string");
++		ao.sym = pkglookup(namebuf, stringpkg);
+ 		ao.name = D_EXTERN;
+ 	}
+ 	*a = ao;
+@@ -436,7 +436,7 @@ datagostring(Strlit *sval, Addr *a)
+ 		// so that multiple modules using the same string
+ 		// can share it.
+ 		snprint(namebuf, sizeof(namebuf), "\"%Z\"", sval);
+-		ao.sym = pkglookup(namebuf, "go.string");
++		ao.sym = pkglookup(namebuf, gostringpkg);
+ 		ao.name = D_EXTERN;
+ 	}
+ 
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 5357d06fa0..561d2ccceb 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1074,8 +1074,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		if(n->method) {
+ 			if(n->type != T)
+ 			if(n->type->sym != S)
+-			if(n->type->sym->package != nil)
+-				a->sym = pkglookup(a->sym->name, n->type->sym->package);
++			if(n->type->sym->pkg != nil)
++				a->sym = pkglookup(a->sym->name, n->type->sym->pkg);
+ 		}
+ 
+ 		a->type = D_OREG;
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index ba2de0a0f2..8c00f11c1c 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -479,11 +479,4 @@ void	linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
+ 	vlong size, uint32 link, uint32 info, vlong align, vlong entsize);
+ int	linuxstrtable(void);
+ 
+-/*
+- *	go.c
+- */
+-void	deadcode(void);
+-char*	gotypefor(char *name);
+-void	ldpkg(Biobuf *f, int64 len, char *filename);
+-
+ #endif
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index c1fdc7731b..9cfa0c45f4 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -259,7 +259,7 @@ main(int argc, char *argv[])
+ 	lastp = firstp;
+ 
+ 	while(*argv)
+-		objfile(*argv++);
++		objfile(*argv++, "main");
+ 	if(!debug['l'])
+ 		loadlib();
+ 
+@@ -435,7 +435,7 @@ nopout(Prog *p)
+ static void puntfp(Prog *);
+ 
+ void
+-ldobj1(Biobuf *f, int64 len, char *pn)
++ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ {
+ 	int32 ipc;
+ 	Prog *p, *t;
+@@ -445,7 +445,7 @@ ldobj1(Biobuf *f, int64 len, char *pn)
+ 	char *name;
+ 	int ntext;
+ 	int32 eof;
+-	char src[1024];
++	char src[1024], *x;
+ 
+ 	ntext = 0;
+ 	eof = Boffset(f) + len;
+@@ -488,7 +488,11 @@ loop:
+ 			}
+ 			goto eof;
+ 		}
+-		s = lookup(name, r);
++		x = expandpkg(name, pkg);
++		s = lookup(x, r);
++		if(x != name)
++			free(x);
++		name = nil;
+ 
+ 		if(sig != 0){
+ 			if(s->sig != 0 && s->sig != sig)
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 5b42d0f1ae..731e922bb6 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1138,7 +1138,7 @@ cgen_inline(Node *n, Node *res)
+ 		goto no;
+ 	if(!n->left->addable)
+ 		goto no;
+-	if(strcmp(n->left->sym->package, "runtime") != 0)
++	if(n->left->sym->pkg != runtimepkg)
+ 		goto no;
+ 	if(strcmp(n->left->sym->name, "slicearray") == 0)
+ 		goto slicearray;
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index ead0def1bc..0d97c610db 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -364,7 +364,7 @@ datastring(char *s, int len, Addr *a)
+ 		tmp.lit.s[len] = '\0';
+ 		len++;
+ 		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp.lit);
+-		ao.sym = pkglookup(namebuf, "string");
++		ao.sym = pkglookup(namebuf, stringpkg);
+ 		ao.type = D_EXTERN;
+ 	}
+ 	*a = ao;
+@@ -445,7 +445,7 @@ datagostring(Strlit *sval, Addr *a)
+ 		// so that multiple modules using the same string
+ 		// can share it.
+ 		snprint(namebuf, sizeof(namebuf), "\"%Z\"", sval);
+-		ao.sym = pkglookup(namebuf, "go.string");
++		ao.sym = pkglookup(namebuf, gostringpkg);
+ 		ao.type = D_EXTERN;
+ 	}
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index aad5ff03f1..07471ffa7c 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -977,8 +977,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		if(n->method) {
+ 			if(n->type != T)
+ 			if(n->type->sym != S)
+-			if(n->type->sym->package != nil)
+-				a->sym = pkglookup(a->sym->name, n->type->sym->package);
++			if(n->type->sym->pkg != nil)
++				a->sym = pkglookup(a->sym->name, n->type->sym->pkg);
+ 		}
+ 
+ 		switch(n->class) {
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 9475f5943e..c8dd9a3ee1 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1555,10 +1555,10 @@ noreturn(Prog *p)
+ 	int i;
+ 
+ 	if(symlist[0] == S) {
+-		symlist[0] = pkglookup("throwindex", "runtime");
+-		symlist[1] = pkglookup("throwslice", "runtime");
+-		symlist[2] = pkglookup("throwinit", "runtime");
+-		symlist[3] = pkglookup("panicl", "runtime");
++		symlist[0] = pkglookup("throwindex", runtimepkg);
++		symlist[1] = pkglookup("throwslice", runtimepkg);
++		symlist[2] = pkglookup("throwinit", runtimepkg);
++		symlist[3] = pkglookup("panicl", runtimepkg);
+ 	}
+ 
+ 	s = p->to.sym;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 9ecdf6ee81..e29cdb9472 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -347,7 +347,7 @@ main(int argc, char *argv[])
+ 	lastp = firstp;
+ 
+ 	while(*argv)
+-		objfile(*argv++);
++		objfile(*argv++, "main");
+ 
+ 	if(!debug['l'])
+ 		loadlib();
+@@ -485,14 +485,14 @@ nopout(Prog *p)
+ }
+ 
+ void
+-ldobj1(Biobuf *f, int64 len, char *pn)
++ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ {
+ 	vlong ipc;
+ 	Prog *p, *t;
+ 	int v, o, r, skip, mode;
+ 	Sym *h[NSYM], *s, *di;
+ 	uint32 sig;
+-	char *name;
++	char *name, *x;
+ 	int ntext;
+ 	vlong eof;
+ 	char src[1024];
+@@ -542,7 +542,11 @@ loop:
+ 			}
+ 			goto eof;
+ 		}
+-		s = lookup(name, r);
++		x = expandpkg(name, pkg);
++		s = lookup(x, r);
++		if(x != name)
++			free(x);
++		name = nil;
+ 
+ 		if(debug['S'] && r == 0)
+ 			sig = 1729;
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 2e8837267c..63a6b6f622 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -836,7 +836,7 @@ cgen_inline(Node *n, Node *res)
+ 		goto no;
+ 	if(!n->left->addable)
+ 		goto no;
+-	if(strcmp(n->left->sym->package, "runtime") != 0)
++	if(n->left->sym->pkg != runtimepkg)
+ 		goto no;
+ 	if(strcmp(n->left->sym->name, "slicearray") == 0)
+ 		goto slicearray;
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 698ebeeb6d..68ebd3d160 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -362,7 +362,7 @@ datastring(char *s, int len, Addr *a)
+ 		tmp.lit.s[len] = '\0';
+ 		len++;
+ 		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp.lit);
+-		ao.sym = pkglookup(namebuf, "string");
++		ao.sym = pkglookup(namebuf, stringpkg);
+ 		ao.type = D_EXTERN;
+ 	}
+ 	*a = ao;
+@@ -443,7 +443,7 @@ datagostring(Strlit *sval, Addr *a)
+ 		// so that multiple modules using the same string
+ 		// can share it.
+ 		snprint(namebuf, sizeof(namebuf), "\"%Z\"", sval);
+-		ao.sym = pkglookup(namebuf, "go.string");
++		ao.sym = pkglookup(namebuf, gostringpkg);
+ 		ao.type = D_EXTERN;
+ 	}
+ 
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 2b94824996..e09ba7b20d 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1691,8 +1691,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		if(n->method) {
+ 			if(n->type != T)
+ 			if(n->type->sym != S)
+-			if(n->type->sym->package != nil)
+-				a->sym = pkglookup(a->sym->name, n->type->sym->package);
++			if(n->type->sym->pkg != nil)
++				a->sym = pkglookup(a->sym->name, n->type->sym->pkg);
+ 		}
+ 
+ 		switch(n->class) {
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 66e1bc2f36..50f47d9ca2 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -1447,10 +1447,10 @@ noreturn(Prog *p)
+ 	int i;
+ 
+ 	if(symlist[0] == S) {
+-		symlist[0] = pkglookup("throwindex", "runtime");
+-		symlist[1] = pkglookup("throwslice", "runtime");
+-		symlist[2] = pkglookup("throwinit", "runtime");
+-		symlist[3] = pkglookup("panicl", "runtime");
++		symlist[0] = pkglookup("throwindex", runtimepkg);
++		symlist[1] = pkglookup("throwslice", runtimepkg);
++		symlist[2] = pkglookup("throwinit", runtimepkg);
++		symlist[3] = pkglookup("panicl", runtimepkg);
+ 	}
+ 
+ 	s = p->to.sym;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 5918b0e801..0d950748b6 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -385,7 +385,7 @@ main(int argc, char *argv[])
+ 	lastp = firstp;
+ 
+ 	while(*argv)
+-		objfile(*argv++);
++		objfile(*argv++, "main");
+ 
+ 	if(!debug['l'])
+ 		loadlib();
+@@ -523,7 +523,7 @@ nopout(Prog *p)
+ }
+ 
+ void
+-ldobj1(Biobuf *f, int64 len, char *pn)
++ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ {
+ 	int32 ipc;
+ 	Prog *p, *t;
+@@ -532,7 +532,7 @@ ldobj1(Biobuf *f, int64 len, char *pn)
+ 	uint32 sig;
+ 	int ntext;
+ 	int32 eof;
+-	char *name;
++	char *name, *x;
+ 	char src[1024];
+ 
+ 	ntext = 0;
+@@ -580,7 +580,11 @@ loop:
+ 			}
+ 			goto eof;
+ 		}
+-		s = lookup(name, r);
++		x = expandpkg(name, pkg);
++		s = lookup(x, r);
++		if(x != name)
++			free(x);
++		name = nil;
+ 
+ 		if(debug['S'] && r == 0)
+ 			sig = 1729;
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 5a56518520..857b15206f 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -405,6 +405,13 @@ lookup(void)
+ 	int c, n;
+ 	char *r, *w;
+ 
++	if(symb[0] == 0xc2 && symb[1] == 0xb7) {
++		// turn leading · into ""·
++		memmove(symb+2, symb, w-symb);
++		symb[0] = '"';
++		symb[1] = '"';
++	}
++
+ 	// turn · into .
+ 	for(r=w=symb; *r; r++) {
+ 		if((uchar)*r == 0xc2 && (uchar)*(r+1) == 0xb7) {
+@@ -413,7 +420,7 @@ lookup(void)
+ 		}else
+ 			*w++ = *r;
+ 	}
+-	*w = '\0';
++	*w++ = '\0';
+ 
+ 	h = 0;
+ 	for(p=symb; *p;) {
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index c3b2d45294..7c726b3f5e 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -231,7 +231,13 @@ lookup(void)
+ 		}else
+ 			*w++ = *r;
+ 	}
+-	*w = '\0';
++	*w++ = '\0';
++	if(symb[0] == '.') {
++		// turn leading . into "".
++		memmove(symb+2, symb, w-symb);
++		symb[0] = '"';
++		symb[1] = '"';
++	}
+ 
+ 	h = 0;
+ 	for(p=symb; c = *p; p++)
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index cf08516465..ba84c4377f 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -531,7 +531,7 @@ typeinit(void)
+ 	/* pick up the backend typedefs */
+ 	for(i=0; typedefs[i].name; i++) {
+ 		s = lookup(typedefs[i].name);
+-		s1 = pkglookup(typedefs[i].name, "/builtin/");
++		s1 = pkglookup(typedefs[i].name, builtinpkg);
+ 
+ 		etype = typedefs[i].etype;
+ 		if(etype < 0 || etype >= nelem(types))
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index d2aec4e2af..3fb75f8649 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -1,92 +1,92 @@
+ char *runtimeimport =
+ 	"package runtime\n"
+-	"func \"runtime\".mal (? int32) (? *any)\n"
+-	"func \"runtime\".throwindex ()\n"
+-	"func \"runtime\".throwreturn ()\n"
+-	"func \"runtime\".throwinit ()\n"
+-	"func \"runtime\".panicl ()\n"
+-	"func \"runtime\".printbool (? bool)\n"
+-	"func \"runtime\".printfloat (? float64)\n"
+-	"func \"runtime\".printint (? int64)\n"
+-	"func \"runtime\".printuint (? uint64)\n"
+-	"func \"runtime\".printstring (? string)\n"
+-	"func \"runtime\".printpointer (? any)\n"
+-	"func \"runtime\".printiface (? any)\n"
+-	"func \"runtime\".printeface (? any)\n"
+-	"func \"runtime\".printslice (? any)\n"
+-	"func \"runtime\".printnl ()\n"
+-	"func \"runtime\".printsp ()\n"
+-	"func \"runtime\".catstring (? string, ? string) (? string)\n"
+-	"func \"runtime\".cmpstring (? string, ? string) (? int)\n"
+-	"func \"runtime\".slicestring (? string, ? int, ? int) (? string)\n"
+-	"func \"runtime\".slicestring1 (? string, ? int) (? string)\n"
+-	"func \"runtime\".indexstring (? string, ? int) (? uint8)\n"
+-	"func \"runtime\".intstring (? int64) (? string)\n"
+-	"func \"runtime\".slicebytetostring (? []uint8) (? string)\n"
+-	"func \"runtime\".sliceinttostring (? []int) (? string)\n"
+-	"func \"runtime\".stringiter (? string, ? int) (? int)\n"
+-	"func \"runtime\".stringiter2 (? string, ? int) (retk int, retv int)\n"
+-	"func \"runtime\".slicecopy (to any, fr any, wid uint32) (? int)\n"
+-	"func \"runtime\".ifaceI2E (iface any) (ret any)\n"
+-	"func \"runtime\".ifaceE2I (typ *uint8, iface any) (ret any)\n"
+-	"func \"runtime\".ifaceT2E (typ *uint8, elem any) (ret any)\n"
+-	"func \"runtime\".ifaceE2T (typ *uint8, elem any) (ret any)\n"
+-	"func \"runtime\".ifaceE2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func \"runtime\".ifaceE2T2 (typ *uint8, elem any) (ret any, ok bool)\n"
+-	"func \"runtime\".ifaceT2I (typ1 *uint8, typ2 *uint8, elem any) (ret any)\n"
+-	"func \"runtime\".ifaceI2T (typ *uint8, iface any) (ret any)\n"
+-	"func \"runtime\".ifaceI2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func \"runtime\".ifaceI2I (typ *uint8, iface any) (ret any)\n"
+-	"func \"runtime\".ifaceI2Ix (typ *uint8, iface any) (ret any)\n"
+-	"func \"runtime\".ifaceI2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func \"runtime\".ifaceeq (i1 any, i2 any) (ret bool)\n"
+-	"func \"runtime\".efaceeq (i1 any, i2 any) (ret bool)\n"
+-	"func \"runtime\".ifacethash (i1 any) (ret uint32)\n"
+-	"func \"runtime\".efacethash (i1 any) (ret uint32)\n"
+-	"func \"runtime\".makemap (key *uint8, val *uint8, hint int) (hmap map[any] any)\n"
+-	"func \"runtime\".mapaccess1 (hmap map[any] any, key any) (val any)\n"
+-	"func \"runtime\".mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
+-	"func \"runtime\".mapassign1 (hmap map[any] any, key any, val any)\n"
+-	"func \"runtime\".mapassign2 (hmap map[any] any, key any, val any, pres bool)\n"
+-	"func \"runtime\".mapiterinit (hmap map[any] any, hiter *any)\n"
+-	"func \"runtime\".mapiternext (hiter *any)\n"
+-	"func \"runtime\".mapiter1 (hiter *any) (key any)\n"
+-	"func \"runtime\".mapiter2 (hiter *any) (key any, val any)\n"
+-	"func \"runtime\".makechan (elem *uint8, hint int) (hchan chan any)\n"
+-	"func \"runtime\".chanrecv1 (hchan <-chan any) (elem any)\n"
+-	"func \"runtime\".chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
+-	"func \"runtime\".chansend1 (hchan chan<- any, elem any)\n"
+-	"func \"runtime\".chansend2 (hchan chan<- any, elem any) (pres bool)\n"
+-	"func \"runtime\".closechan (hchan any)\n"
+-	"func \"runtime\".closedchan (hchan any) (? bool)\n"
+-	"func \"runtime\".newselect (size int) (sel *uint8)\n"
+-	"func \"runtime\".selectsend (sel *uint8, hchan chan<- any, elem any) (selected bool)\n"
+-	"func \"runtime\".selectrecv (sel *uint8, hchan <-chan any, elem *any) (selected bool)\n"
+-	"func \"runtime\".selectdefault (sel *uint8) (selected bool)\n"
+-	"func \"runtime\".selectgo (sel *uint8)\n"
+-	"func \"runtime\".makeslice (typ *uint8, nel int, cap int) (ary []any)\n"
+-	"func \"runtime\".sliceslice1 (old []any, lb int, width int) (ary []any)\n"
+-	"func \"runtime\".sliceslice (old []any, lb int, hb int, width int) (ary []any)\n"
+-	"func \"runtime\".slicearray (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
+-	"func \"runtime\".closure ()\n"
+-	"func \"runtime\".int64div (? int64, ? int64) (? int64)\n"
+-	"func \"runtime\".uint64div (? uint64, ? uint64) (? uint64)\n"
+-	"func \"runtime\".int64mod (? int64, ? int64) (? int64)\n"
+-	"func \"runtime\".uint64mod (? uint64, ? uint64) (? uint64)\n"
+-	"func \"runtime\".float64toint64 (? float64) (? int64)\n"
+-	"func \"runtime\".int64tofloat64 (? int64) (? float64)\n"
++	"func \"\".mal (? int32) (? *any)\n"
++	"func \"\".throwindex ()\n"
++	"func \"\".throwreturn ()\n"
++	"func \"\".throwinit ()\n"
++	"func \"\".panicl ()\n"
++	"func \"\".printbool (? bool)\n"
++	"func \"\".printfloat (? float64)\n"
++	"func \"\".printint (? int64)\n"
++	"func \"\".printuint (? uint64)\n"
++	"func \"\".printstring (? string)\n"
++	"func \"\".printpointer (? any)\n"
++	"func \"\".printiface (? any)\n"
++	"func \"\".printeface (? any)\n"
++	"func \"\".printslice (? any)\n"
++	"func \"\".printnl ()\n"
++	"func \"\".printsp ()\n"
++	"func \"\".catstring (? string, ? string) (? string)\n"
++	"func \"\".cmpstring (? string, ? string) (? int)\n"
++	"func \"\".slicestring (? string, ? int, ? int) (? string)\n"
++	"func \"\".slicestring1 (? string, ? int) (? string)\n"
++	"func \"\".indexstring (? string, ? int) (? uint8)\n"
++	"func \"\".intstring (? int64) (? string)\n"
++	"func \"\".slicebytetostring (? []uint8) (? string)\n"
++	"func \"\".sliceinttostring (? []int) (? string)\n"
++	"func \"\".stringiter (? string, ? int) (? int)\n"
++	"func \"\".stringiter2 (? string, ? int) (retk int, retv int)\n"
++	"func \"\".slicecopy (to any, fr any, wid uint32) (? int)\n"
++	"func \"\".ifaceI2E (iface any) (ret any)\n"
++	"func \"\".ifaceE2I (typ *uint8, iface any) (ret any)\n"
++	"func \"\".ifaceT2E (typ *uint8, elem any) (ret any)\n"
++	"func \"\".ifaceE2T (typ *uint8, elem any) (ret any)\n"
++	"func \"\".ifaceE2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"\".ifaceE2T2 (typ *uint8, elem any) (ret any, ok bool)\n"
++	"func \"\".ifaceT2I (typ1 *uint8, typ2 *uint8, elem any) (ret any)\n"
++	"func \"\".ifaceI2T (typ *uint8, iface any) (ret any)\n"
++	"func \"\".ifaceI2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"\".ifaceI2I (typ *uint8, iface any) (ret any)\n"
++	"func \"\".ifaceI2Ix (typ *uint8, iface any) (ret any)\n"
++	"func \"\".ifaceI2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"\".ifaceeq (i1 any, i2 any) (ret bool)\n"
++	"func \"\".efaceeq (i1 any, i2 any) (ret bool)\n"
++	"func \"\".ifacethash (i1 any) (ret uint32)\n"
++	"func \"\".efacethash (i1 any) (ret uint32)\n"
++	"func \"\".makemap (key *uint8, val *uint8, hint int) (hmap map[any] any)\n"
++	"func \"\".mapaccess1 (hmap map[any] any, key any) (val any)\n"
++	"func \"\".mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
++	"func \"\".mapassign1 (hmap map[any] any, key any, val any)\n"
++	"func \"\".mapassign2 (hmap map[any] any, key any, val any, pres bool)\n"
++	"func \"\".mapiterinit (hmap map[any] any, hiter *any)\n"
++	"func \"\".mapiternext (hiter *any)\n"
++	"func \"\".mapiter1 (hiter *any) (key any)\n"
++	"func \"\".mapiter2 (hiter *any) (key any, val any)\n"
++	"func \"\".makechan (elem *uint8, hint int) (hchan chan any)\n"
++	"func \"\".chanrecv1 (hchan <-chan any) (elem any)\n"
++	"func \"\".chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
++	"func \"\".chansend1 (hchan chan<- any, elem any)\n"
++	"func \"\".chansend2 (hchan chan<- any, elem any) (pres bool)\n"
++	"func \"\".closechan (hchan any)\n"
++	"func \"\".closedchan (hchan any) (? bool)\n"
++	"func \"\".newselect (size int) (sel *uint8)\n"
++	"func \"\".selectsend (sel *uint8, hchan chan<- any, elem any) (selected bool)\n"
++	"func \"\".selectrecv (sel *uint8, hchan <-chan any, elem *any) (selected bool)\n"
++	"func \"\".selectdefault (sel *uint8) (selected bool)\n"
++	"func \"\".selectgo (sel *uint8)\n"
++	"func \"\".makeslice (typ *uint8, nel int, cap int) (ary []any)\n"
++	"func \"\".sliceslice1 (old []any, lb int, width int) (ary []any)\n"
++	"func \"\".sliceslice (old []any, lb int, hb int, width int) (ary []any)\n"
++	"func \"\".slicearray (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
++	"func \"\".closure ()\n"
++	"func \"\".int64div (? int64, ? int64) (? int64)\n"
++	"func \"\".uint64div (? uint64, ? uint64) (? uint64)\n"
++	"func \"\".int64mod (? int64, ? int64) (? int64)\n"
++	"func \"\".uint64mod (? uint64, ? uint64) (? uint64)\n"
++	"func \"\".float64toint64 (? float64) (? int64)\n"
++	"func \"\".int64tofloat64 (? int64) (? float64)\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+ 	"package unsafe\n"
+-	"type \"unsafe\".Pointer *any\n"
+-	"func \"unsafe\".Offsetof (? any) (? int)\n"
+-	"func \"unsafe\".Sizeof (? any) (? int)\n"
+-	"func \"unsafe\".Alignof (? any) (? int)\n"
+-	"func \"unsafe\".Typeof (i interface { }) (typ interface { })\n"
+-	"func \"unsafe\".Reflect (i interface { }) (typ interface { }, addr \"unsafe\".Pointer)\n"
+-	"func \"unsafe\".Unreflect (typ interface { }, addr \"unsafe\".Pointer) (ret interface { })\n"
+-	"func \"unsafe\".New (typ interface { }) (? \"unsafe\".Pointer)\n"
+-	"func \"unsafe\".NewArray (typ interface { }, n int) (? \"unsafe\".Pointer)\n"
++	"type \"\".Pointer *any\n"
++	"func \"\".Offsetof (? any) (? int)\n"
++	"func \"\".Sizeof (? any) (? int)\n"
++	"func \"\".Alignof (? any) (? int)\n"
++	"func \"\".Typeof (i interface { }) (typ interface { })\n"
++	"func \"\".Reflect (i interface { }) (typ interface { }, addr \"\".Pointer)\n"
++	"func \"\".Unreflect (typ interface { }, addr \"\".Pointer) (ret interface { })\n"
++	"func \"\".New (typ interface { }) (? \"\".Pointer)\n"
++	"func \"\".NewArray (typ interface { }, n int) (? \"\".Pointer)\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 24c28b1f18..4639eda8d2 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -27,8 +27,7 @@ static	Sym*	dclstack;
+ void
+ dcopy(Sym *a, Sym *b)
+ {
+-	a->packagename = b->packagename;
+-	a->package = b->package;
++	a->pkg = b->pkg;
+ 	a->name = b->name;
+ 	a->def = b->def;
+ 	a->block = b->block;
+@@ -69,7 +68,7 @@ popdcl(void)
+ 	for(d=dclstack; d!=S; d=d->link) {
+ 		if(d->name == nil)
+ 			break;
+-		s = pkglookup(d->name, d->package);
++		s = pkglookup(d->name, d->pkg);
+ 		dcopy(s, d);
+ 		if(dflag())
+ 			print("\t%L pop %S %p\n", lineno, s, s->def);
+@@ -88,7 +87,7 @@ poptodcl(void)
+ 	for(d=dclstack; d!=S; d=d->link) {
+ 		if(d->name == nil)
+ 			break;
+-		s = pkglookup(d->name, d->package);
++		s = pkglookup(d->name, d->pkg);
+ 		dcopy(s, d);
+ 		if(dflag())
+ 			print("\t%L pop %S\n", lineno, s);
+@@ -129,7 +128,7 @@ dumpdcl(char *st)
+ 			continue;
+ 		}
+ 		print(" '%s'", d->name);
+-		s = pkglookup(d->name, d->package);
++		s = pkglookup(d->name, d->pkg);
+ 		print(" %lS\n", s);
+ 	}
+ }
+@@ -883,7 +882,7 @@ stotype(NodeList *l, int et, Type **t)
+ 			f->nname = n->left;
+ 			f->embedded = n->embedded;
+ 			f->sym = f->nname->sym;
+-			if(pkgimportname != S && !exportname(f->sym->name))
++			if(importpkg && !exportname(f->sym->name))
+ 				f->sym = pkglookup(f->sym->name, structpkg);
+ 			if(f->sym && !isblank(f->nname)) {
+ 				for(t1=*t0; t1!=T; t1=t1->down) {
+@@ -1151,7 +1150,7 @@ methodsym(Sym *nsym, Type *t0)
+ 		t0 = ptrto(t);
+ 
+ 	snprint(buf, sizeof(buf), "%#hT·%s", t0, nsym->name);
+-	return pkglookup(buf, s->package);
++	return pkglookup(buf, s->pkg);
+ 
+ bad:
+ 	yyerror("illegal receiver type: %T", t0);
+@@ -1183,7 +1182,7 @@ methodname1(Node *n, Node *t)
+ 	if(t->sym == S || isblank(n))
+ 		return newname(n->sym);
+ 	snprint(buf, sizeof(buf), "%s%S·%S", star, t->sym, n->sym);
+-	return newname(pkglookup(buf, t->sym->package));
++	return newname(pkglookup(buf, t->sym->pkg));
+ }
+ 
+ /*
+@@ -1217,8 +1216,8 @@ addmethod(Sym *sf, Type *t, int local)
+ 	}
+ 
+ 	pa = f;
+-	if(pkgimportname != S && !exportname(sf->name))
+-		sf = pkglookup(sf->name, pkgimportname->name);
++	if(importpkg && !exportname(sf->name))
++		sf = pkglookup(sf->name, importpkg);
+ 
+ 	n = nod(ODCLFIELD, newname(sf), N);
+ 	n->type = t;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index ad013ed667..16e6097953 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -69,6 +69,15 @@ autoexport(Node *n, int ctxt)
+ 		packagesym(n);
+ }
+ 
++void
++dumppkg(Pkg *p)
++{
++	if(p == nil || p == localpkg || p->exported)
++		return;
++	p->exported = 1;
++	Bprint(bout, "\timport %s \"%Z\"\n", p->name, p->path);
++}
++
+ void
+ dumpprereq(Type *t)
+ {
+@@ -79,8 +88,11 @@ dumpprereq(Type *t)
+ 		return;
+ 	t->printed = 1;
+ 
+-	if(t->sym != S && t->etype != TFIELD)
+-		dumpsym(t->sym);
++	if(t->sym != S) {
++		dumppkg(t->sym->pkg);
++		if(t->etype != TFIELD)
++			dumpsym(t->sym);
++	}
+ 	dumpprereq(t->type);
+ 	dumpprereq(t->down);
+ }
+@@ -101,7 +113,7 @@ dumpexportconst(Sym *s)
+ 		dumpprereq(t);
+ 
+ 	Bprint(bout, "\t");
+-	Bprint(bout, "const %lS", s);
++	Bprint(bout, "const %#S", s);
+ 	if(t != T && !isideal(t))
+ 		Bprint(bout, " %#T", t);
+ 	Bprint(bout, " = ");
+@@ -145,9 +157,9 @@ dumpexportvar(Sym *s)
+ 
+ 	Bprint(bout, "\t");
+ 	if(t->etype == TFUNC && n->class == PFUNC)
+-		Bprint(bout, "func %lS %#hhT", s, t);
++		Bprint(bout, "func %#S %#hhT", s, t);
+ 	else
+-		Bprint(bout, "var %lS %#T", s, t);
++		Bprint(bout, "var %#S %#T", s, t);
+ 	Bprint(bout, "\n");
+ }
+ 
+@@ -180,6 +192,9 @@ dumpsym(Sym *s)
+ 		yyerror("unknown export symbol: %S", s);
+ 		return;
+ 	}
++	
++	dumppkg(s->pkg);
++
+ 	switch(s->def->op) {
+ 	default:
+ 		yyerror("unexpected export symbol: %O %S", s->def->op, s);
+@@ -227,10 +242,9 @@ dumpexport(void)
+ 	lno = lineno;
+ 
+ 	packagequotes = 1;
+-	Bprint(bout, "   import\n");
+ 	Bprint(bout, "\n$$  // exports\n");
+ 
+-	Bprint(bout, "    package %s\n", package);
++	Bprint(bout, "    package %s\n", localpkg->name);
+ 
+ 	for(l=exportlist; l; l=l->next) {
+ 		lineno = l->n->lineno;
+@@ -269,7 +283,6 @@ importsym(Sym *s, int op)
+ 			s->flags |= SymExport;
+ 		else
+ 			s->flags |= SymPackage;	// package scope
+-		s->flags |= SymImported;
+ 	}
+ 	return s;
+ }
+@@ -298,8 +311,7 @@ mypackage(Sym *s)
+ {
+ 	// we import all definitions for runtime.
+ 	// lowercase ones can only be used by the compiler.
+-	return strcmp(s->package, package) == 0
+-		|| strcmp(s->package, "runtime") == 0;
++	return s->pkg == localpkg || s->pkg == runtimepkg;
+ }
+ 
+ void
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 56dd752fb7..279cad998f 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -14,7 +14,7 @@ sysfunc(char *name)
+ {
+ 	Node *n;
+ 
+-	n = newname(pkglookup(name, "runtime"));
++	n = newname(pkglookup(name, runtimepkg));
+ 	n->class = PFUNC;
+ 	return n;
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index fea438fd13..cb0b1a119e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -136,6 +136,7 @@ struct	Val
+ 	} u;
+ };
+ 
++typedef	struct	Pkg Pkg;
+ typedef	struct	Sym	Sym;
+ typedef	struct	Node	Node;
+ typedef	struct	NodeList	NodeList;
+@@ -258,6 +259,9 @@ struct	Node
+ 	Node*	outer;	// outer PPARAMREF in nested closure
+ 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
+ 
++	// OPACK
++	Pkg*	pkg;
++
+ 	Sym*	sym;		// various
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+ 	int32	lineno;
+@@ -278,9 +282,8 @@ enum
+ 	SymExport	= 1<<0,
+ 	SymPackage	= 1<<1,
+ 	SymExported	= 1<<2,
+-	SymImported	= 1<<3,
+-	SymUniq		= 1<<4,
+-	SymSiggen	= 1<<5,
++	SymUniq		= 1<<3,
++	SymSiggen	= 1<<4,
+ };
+ 
+ struct	Sym
+@@ -291,8 +294,7 @@ struct	Sym
+ 	Sym*	link;
+ 
+ 	// saved and restored by dcopy
+-	char*	packagename;	// package name
+-	char*	package;	// import path
++	Pkg*	pkg;
+ 	char*	name;		// variable name
+ 	Node*	def;		// definition: ONAME OTYPE OPACK or OLITERAL
+ 	int32	block;		// blocknumber to catch redeclaration
+@@ -300,6 +302,15 @@ struct	Sym
+ };
+ #define	S	((Sym*)0)
+ 
++struct	Pkg
++{
++	char*	name;
++	Strlit*	path;
++	char*	prefix;
++	Pkg*	link;
++	int	exported;
++};
++
+ typedef	struct	Iter	Iter;
+ struct	Iter
+ {
+@@ -530,10 +541,10 @@ struct	Typedef
+ extern	Typedef	typedefs[];
+ 
+ typedef	struct	Sig	Sig;
+-struct Sig
++struct	Sig
+ {
+ 	char*	name;
+-	char*	package;
++	Pkg*	pkg;
+ 	Sym*	isym;
+ 	Sym*	tsym;
+ 	Type*	type;
+@@ -631,7 +642,6 @@ EXTERN	Hist*	ehist;
+ 
+ EXTERN	char*	infile;
+ EXTERN	char*	outfile;
+-EXTERN	char*	package;
+ EXTERN	Biobuf*	bout;
+ EXTERN	int	nerrors;
+ EXTERN	int	nsyntaxerrors;
+@@ -639,8 +649,16 @@ EXTERN	char	namebuf[NSYMB];
+ EXTERN	char	lexbuf[NSYMB];
+ EXTERN	char	debug[256];
+ EXTERN	Sym*	hash[NHASH];
+-EXTERN	Sym*	pkgmyname;	// my name for package
+-EXTERN	Sym*	pkgimportname;	// package name from imported package
++EXTERN	Sym*	importmyname;	// my name for package
++EXTERN	Pkg*	localpkg;	// package being compiled
++EXTERN	Pkg*	importpkg;	// package being imported
++EXTERN	Pkg*	structpkg;	// package that declared struct, during import
++EXTERN	Pkg*	builtinpkg;	// fake package for builtins
++EXTERN	Pkg*	gostringpkg;	// fake pkg for Go strings
++EXTERN	Pkg*	runtimepkg;	// package runtime
++EXTERN	Pkg*	stringpkg;	// fake package for C strings
++EXTERN	Pkg*	typepkg;	// fake package for runtime type info
++EXTERN	Pkg*	unsafepkg;	// package unsafe
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	runtimeimport;
+ extern	char*	unsafeimport;
+@@ -701,7 +719,6 @@ EXTERN	int	widthptr;
+ EXTERN	Node*	typesw;
+ EXTERN	Node*	nblank;
+ 
+-EXTERN	char*	structpkg;
+ extern	int	thechar;
+ extern	char*	thestring;
+ EXTERN	char*	hunk;
+@@ -805,9 +822,11 @@ void*	remal(void*, int32, int32);
+ void	errorexit(void);
+ uint32	stringhash(char*);
+ Sym*	lookup(char*);
+-Sym*	pkglookup(char*, char*);
+-Sym*	restrictlookup(char*, char*);
+-void	importdot(Sym*, Node*);
++Sym*	pkglookup(char*, Pkg*);
++Sym*	restrictlookup(char*, Pkg*);
++Pkg*	mkpkg(Strlit*);
++Strlit*	strlit(char*);
++void	importdot(Pkg*, Node*);
+ void	yyerror(char*, ...);
+ void	yyerrorl(int, char*, ...);
+ void	flusherrors(void);
+@@ -915,7 +934,6 @@ void	umagic(Magic*);
+ void	redeclare(Sym*, char*);
+ Sym*	ngotype(Node*);
+ 
+-char*	toimportpath(Strlit*);
+ 
+ /*
+  *	dcl.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 93adf1c1af..bc543d5e34 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -142,6 +142,8 @@ package:
+  */
+ loadsys:
+ 	{
++		importpkg = runtimepkg;
++
+ 		if(debug['A'])
+ 			cannedimports("runtime.builtin", "package runtime\n\n$$\n\n");
+ 		else
+@@ -150,7 +152,7 @@ loadsys:
+ 	import_package
+ 	import_there
+ 	{
+-		pkgimportname = S;
++		importpkg = nil;
+ 	}
+ 
+ imports:
+@@ -164,25 +166,25 @@ import:
+ import_stmt:
+ 	import_here import_package import_there
+ 	{
+-		Sym *import, *my;
++		Pkg *ipkg;
++		Sym *my;
+ 		Node *pack;
++		
++		ipkg = importpkg;
++		my = importmyname;
++		importpkg = nil;
++		importmyname = S;
+ 
+-		import = pkgimportname;
+-		my = pkgmyname;
+-		pkgmyname = S;
+-		pkgimportname = S;
+-
+-		if(import == S)
+-			break;
++		if(my == nil)
++			my = lookup(ipkg->name);
+ 
+ 		pack = nod(OPACK, N, N);
+-		pack->sym = import;
++		pack->sym = my;
++		pack->pkg = ipkg;
+ 		pack->lineno = $1;
+ 
+-		if(my == S)
+-			my = import;
+ 		if(my->name[0] == '.') {
+-			importdot(import, pack);
++			importdot(ipkg, pack);
+ 			break;
+ 		}
+ 		if(my->name[0] == '_' && my->name[1] == '\0')
+@@ -211,36 +213,36 @@ import_here:
+ 	{
+ 		// import with original name
+ 		$$ = parserline();
+-		pkgimportname = S;
+-		pkgmyname = S;
++		importmyname = S;
+ 		importfile(&$1, $$);
+ 	}
+ |	sym LLITERAL
+ 	{
+ 		// import with given name
+ 		$$ = parserline();
+-		pkgimportname = S;
+-		pkgmyname = $1;
++		importmyname = $1;
+ 		importfile(&$2, $$);
+ 	}
+ |	'.' LLITERAL
+ 	{
+ 		// import into my name space
+ 		$$ = parserline();
+-		pkgmyname = lookup(".");
++		importmyname = lookup(".");
+ 		importfile(&$2, $$);
+ 	}
+ 
+ import_package:
+ 	LPACKAGE sym ';'
+ 	{
+-		pkgimportname = $2;
++		importpkg->name = $2->name;
++
++		// PGNS: fixme
+ 		if(strcmp($2->name, "main") == 0)
+ 			yyerror("cannot import package main");
+ 
+-		// TODO(rsc): This should go away once we get
++		// PGNS: This should go away once we get
+ 		// rid of the global package name space.
+-		if(strcmp($2->name, package) == 0 && strcmp(package, "runtime") != 0)
++		if(localpkg->name && strcmp($2->name, localpkg->name) == 0 && strcmp($2->name, "runtime") != 0)
+ 			yyerror("package cannot import itself");
+ 	}
+ 
+@@ -254,16 +256,6 @@ import_there:
+ 		checkimports();
+ 		unimportfile();
+ 	}
+-|	LIMPORT '$' '$'
+-	{
+-		defercheckwidth();
+-	}
+-	hidden_import_list '$' '$'
+-	{
+-		resumecheckwidth();
+-		checkimports();
+-		unimportfile();
+-	}
+ 
+ /*
+  * declarations
+@@ -786,7 +778,7 @@ pexpr:
+ 	{
+ 		if($1->op == OPACK) {
+ 			Sym *s;
+-			s = restrictlookup($3->name, $1->sym->name);
++			s = restrictlookup($3->name, $1->pkg);
+ 			$1->used = 1;
+ 			$$ = oldname(s);
+ 			break;
+@@ -977,7 +969,7 @@ dotname:
+ 	{
+ 		if($1->op == OPACK) {
+ 			Sym *s;
+-			s = restrictlookup($3->name, $1->sym->name);
++			s = restrictlookup($3->name, $1->pkg);
+ 			$1->used = 1;
+ 			$$ = oldname(s);
+ 			break;
+@@ -1256,14 +1248,14 @@ packname:
+ 	}
+ |	LNAME '.' sym
+ 	{
+-		char *pkg;
++		Pkg *pkg;
+ 
+ 		if($1->def == N || $1->def->op != OPACK) {
+ 			yyerror("%S is not a package", $1);
+-			pkg = $1->name;
++			pkg = localpkg;
+ 		} else {
+ 			$1->def->used = 1;
+-			pkg = $1->def->sym->name;
++			pkg = $1->def->pkg;
+ 		}
+ 		$$ = restrictlookup($3->name, pkg);
+ 	}
+@@ -1549,16 +1541,15 @@ oliteral:
+  * an output package
+  */
+ hidden_import:
+-	LIMPORT sym LLITERAL
++	LIMPORT sym LLITERAL ';'
+ 	{
+ 		// Informational: record package name
+ 		// associated with import path, for use in
+ 		// human-readable messages.
++		Pkg *p;
+ 
+-		Sym *s;
+-
+-		s = pkglookup("", toimportpath($3.u.sval));
+-		s->packagename = $2->name;
++		p = mkpkg($3.u.sval);
++		p->name = $2->name;
+ 	}
+ |	LVAR hidden_pkg_importsym hidden_type ';'
+ 	{
+@@ -1617,7 +1608,7 @@ hidden_type_misc:
+ |	LNAME
+ 	{
+ 		// predefined name like uint8
+-		$1 = pkglookup($1->name, "/builtin/");
++		$1 = pkglookup($1->name, builtinpkg);
+ 		if($1->def == N || $1->def->op != OTYPE) {
+ 			yyerror("%s is not a type", $1->name);
+ 			$$ = T;
+@@ -1709,7 +1700,7 @@ hidden_structdcl:
+ 		s = $2->sym;
+ 		if(s == S && isptr[$2->etype])
+ 			s = $2->type->sym;
+-		if(s && strcmp(s->package, "/builtin/") == 0)
++		if(s && s->pkg == builtinpkg)
+ 			s = lookup(s->name);
+ 		$$ = embedded(s);
+ 		$$->right = typenod($2);
+@@ -1759,7 +1750,7 @@ hidden_constant:
+ 	}
+ |	sym
+ 	{
+-		$$ = oldname(pkglookup($1->name, "/builtin/"));
++		$$ = oldname(pkglookup($1->name, builtinpkg));
+ 		if($$->op != OLITERAL)
+ 			yyerror("bad constant %S", $$->sym);
+ 	}
+@@ -1767,14 +1758,20 @@ hidden_constant:
+ hidden_importsym:
+ 	LLITERAL '.' sym
+ 	{
+-		$$ = pkglookup($3->name, toimportpath($1.u.sval));
++		Pkg *p;
++
++		if($1.u.sval->len == 0)
++			p = importpkg;
++		else
++			p = mkpkg($1.u.sval);
++		$$ = pkglookup($3->name, p);
+ 	}
+ 
+ hidden_pkg_importsym:
+ 	hidden_importsym
+ 	{
+ 		$$ = $1;
+-		structpkg = $$->package;
++		structpkg = $$->pkg;
+ 	}
+ 
+ hidden_import_list:
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index ef97459eb3..3c2ecf27ff 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -70,7 +70,7 @@ anyinit(NodeList *n)
+ 	}
+ 
+ 	// is this main
+-	if(strcmp(package, "main") == 0)
++	if(strcmp(localpkg->name, "main") == 0)
+ 		return 1;
+ 
+ 	// is there an explicit init function
+@@ -103,7 +103,7 @@ fninit(NodeList *n)
+ 	uint32 h;
+ 	Sym *s, *initsym;
+ 
+-	if(strcmp(package, "PACKAGE") == 0) {
++	if(debug['A']) {
+ 		// sys.go or unsafe.go during compiler build
+ 		return;
+ 	}
+@@ -126,7 +126,7 @@ fninit(NodeList *n)
+ 
+ 	// this is a botch since we need a known name to
+ 	// call the top level init function out of rt0
+-	if(strcmp(package, "main") == 0)
++	if(strcmp(localpkg->name, "main") == 0)
+ 		snprint(namebuf, sizeof(namebuf), "init");
+ 
+ 	fn = nod(ODCLFUNC, N, N);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 84e6a2e97b..efbb11631d 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -8,8 +8,8 @@
+ #include <ar.h>
+ 
+ extern int yychar;
+-char nopackage[] = "____";
+ void lexfini(void);
++static char *goos, *goarch, *goroot;
+ 
+ #define	DBG	if(!debug['x']);else print
+ enum
+@@ -23,8 +23,22 @@ main(int argc, char *argv[])
+ 	int i, c;
+ 	NodeList *l;
+ 
++	localpkg = mkpkg(strlit(""));
++	localpkg->prefix = "\"\"";
++
++	builtinpkg = mkpkg(strlit("go.builtin"));
++	gostringpkg = mkpkg(strlit("go.string"));
++	gostringpkg->prefix = "go.string";
++	runtimepkg = mkpkg(strlit("runtime"));
++	stringpkg = mkpkg(strlit("string"));
++	typepkg = mkpkg(strlit("type"));
++	unsafepkg = mkpkg(strlit("unsafe"));
++
++	goroot = getgoroot();
++	goos = getgoos();
++	goarch = thestring;
++
+ 	outfile = nil;
+-	package = nopackage;
+ 	ARGBEGIN {
+ 	default:
+ 		c = ARGC();
+@@ -36,10 +50,6 @@ main(int argc, char *argv[])
+ 		outfile = ARGF();
+ 		break;
+ 
+-	case 'k':
+-		package = ARGF();
+-		break;
+-
+ 	case 'I':
+ 		addidir(ARGF());
+ 		break;
+@@ -98,7 +108,7 @@ main(int argc, char *argv[])
+ 			Bterm(curio.bin);
+ 	}
+ 	testdclstack();
+-	mkpackage(package);	// final import not used checks
++	mkpackage(localpkg->name);	// final import not used checks
+ 	lexfini();
+ 
+ 	typecheckok = 1;
+@@ -140,7 +150,6 @@ usage:
+ 	print("  -e no limit on number of errors printed\n");
+ 	print("  -f print stack frame structure\n");
+ 	print("  -h panic on an error\n");
+-	print("  -k name specify package name\n");
+ 	print("  -o file specify output file\n");
+ 	print("  -S print the assembly language\n");
+ 	print("  -w print the parse tree after typing\n");
+@@ -219,15 +228,8 @@ islocalname(Strlit *name)
+ int
+ findpkg(Strlit *name)
+ {
+-	static char *goroot, *goos, *goarch;
+ 	Idir *p;
+ 
+-	if(goroot == nil) {
+-		goroot = getgoroot();
+-		goos = getgoos();
+-		goarch = thestring;
+-	}
+-
+ 	if(islocalname(name)) {
+ 		// try .a before .6.  important for building libraries:
+ 		// if there is an array.6 in the array.a library,
+@@ -267,21 +269,39 @@ importfile(Val *f, int line)
+ 	char *file, *p;
+ 	int32 c;
+ 	int len;
++	Strlit *path;
++	char cleanbuf[1024];
+ 
+ 	// TODO(rsc): don't bother reloading imports more than once
+ 
++	// PGNS: canonicalize import path for ./ imports in findpkg.
++
+ 	if(f->ctype != CTSTR) {
+ 		yyerror("import statement not a string");
+ 		return;
+ 	}
+ 
++	if(strlen(f->u.sval->s) != f->u.sval->len)
++		fatal("import path contains NUL");
++
+ 	if(strcmp(f->u.sval->s, "unsafe") == 0) {
++		importpkg = mkpkg(f->u.sval);
+ 		cannedimports("unsafe.6", unsafeimport);
+ 		return;
+ 	}
+ 
+ 	if(!findpkg(f->u.sval))
+ 		fatal("can't find import: %Z", f->u.sval);
++
++	path = f->u.sval;
++	if(islocalname(path)) {
++		snprint(cleanbuf, sizeof cleanbuf, "%s/%s", pathname, path->s);
++		cleanname(cleanbuf);
++		path = strlit(cleanbuf);
++	}
++
++	importpkg = mkpkg(path);
++
+ 	imp = Bopen(namebuf, OREAD);
+ 	if(imp == nil)
+ 		fatal("can't open import: %Z", f->u.sval);
+@@ -1286,7 +1306,7 @@ lexinit(void)
+ 					dowidth(t);
+ 				types[etype] = t;
+ 			}
+-			s1 = pkglookup(syms[i].name, "/builtin/");	// impossible pkg name for builtins
++			s1 = pkglookup(syms[i].name, builtinpkg);
+ 			s1->lexical = LNAME;
+ 			s1->def = typenod(t);
+ 			continue;
+@@ -1307,12 +1327,12 @@ lexinit(void)
+ 	idealstring = typ(TSTRING);
+ 	idealbool = typ(TBOOL);
+ 
+-	s = pkglookup("true", "/builtin/");
++	s = pkglookup("true", builtinpkg);
+ 	s->def = nodbool(1);
+ 	s->def->sym = lookup("true");
+ 	s->def->type = idealbool;
+ 
+-	s = pkglookup("false", "/builtin/");
++	s = pkglookup("false", builtinpkg);
+ 	s->def = nodbool(0);
+ 	s->def->sym = lookup("false");
+ 	s->def->type = idealbool;
+@@ -1444,28 +1464,22 @@ lexname(int lex)
+ }
+ 
+ void
+-mkpackage(char* pkg)
++mkpackage(char* pkgname)
+ {
+ 	Sym *s;
+ 	int32 h;
+ 	char *p;
+ 
+-	if(package == nopackage) {
+-		if(strcmp(pkg, "_") == 0)
++	if(localpkg->name == nil) {
++		if(strcmp(pkgname, "_") == 0)
+ 			yyerror("invalid package name _");
+-
+-		// redefine all names to be this package.
+-		for(h=0; h<NHASH; h++)
+-			for(s = hash[h]; s != S; s = s->link)
+-				if(s->package == nopackage)
+-					s->package = pkg;
+-		package = pkg;
++		localpkg->name = pkgname;
+ 	} else {
+-		if(strcmp(pkg, package) != 0)
+-			yyerror("package %s; expected %s", pkg, package);
++		if(strcmp(pkgname, localpkg->name) != 0)
++			yyerror("package %s; expected %s", pkgname, localpkg->name);
+ 		for(h=0; h<NHASH; h++) {
+ 			for(s = hash[h]; s != S; s = s->link) {
+-				if(s->def == N || s->package != package)
++				if(s->def == N || s->pkg != localpkg)
+ 					continue;
+ 				if(s->def->op == OPACK) {
+ 					// throw away top-level package name leftover
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index e2343021b1..12054645f1 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -17,7 +17,7 @@ dumpobj(void)
+ 
+ 	Bprint(bout, "%s\n", thestring);
+ 	Bprint(bout, "  exports automatically generated from\n");
+-	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, package);
++	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, localpkg->name);
+ 	dumpexport();
+ 	Bprint(bout, "\n!\n");
+ 
+@@ -51,7 +51,7 @@ dumpglobls(void)
+ 			fatal("external %#N nil type\n", n);
+ 		if(n->class == PFUNC)
+ 			continue;
+-		if(n->sym->package != package)
++		if(n->sym->pkg != localpkg)
+ 			continue;
+ 		dowidth(n->type);
+ 
+@@ -63,9 +63,7 @@ dumpglobls(void)
+ void
+ Bputname(Biobuf *b, Sym *s)
+ {
+-// PGNS: Uncomment next line.
+-//	if(strcmp(s->package, package) != 0)
+-		Bwrite(b, s->package, strlen(s->package));
++	Bprint(b, "%s", s->pkg->prefix);
+ 	Bputc(b, '.');
+ 	Bwrite(b, s->name, strlen(s->name)+1);
+ }
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 85d4ad6d68..0e9ece92f5 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -174,8 +174,8 @@ methods(Type *t)
+ 		a->name = method->name;
+ 		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type);
+ 		if(!exportname(a->name)) {
+-			a->package = method->package;
+-			a->hash += PRIME10*stringhash(a->package);
++			a->pkg = method->pkg;
++			a->hash += PRIME10*stringhash(a->pkg->name);
+ 		}
+ 		a->perm = o++;
+ 		a->isym = methodsym(method, it);
+@@ -250,8 +250,8 @@ imethods(Type *t)
+ 		a->name = f->sym->name;
+ 		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type);
+ 		if(!exportname(a->name)) {
+-			a->package = f->sym->package;
+-			a->hash += PRIME10*stringhash(a->package);
++			a->pkg = f->sym->pkg;
++			a->hash += PRIME10*stringhash(a->pkg->name);
+ 		}
+ 		a->perm = o++;
+ 		a->offset = 0;
+@@ -261,6 +261,19 @@ imethods(Type *t)
+ 	return lsort(a, sigcmp);
+ }
+ 
++static int
++dgopkgpath(Sym *s, int ot, Pkg *pkg)
++{
++	if(pkg == nil)
++		return dgostringptr(s, ot, nil);
++
++	// PGNS: This needs to be import path instead of pkg->name,
++	// but we need to figure out how to fill it in during 6l when
++	// trying to refer to localpkg.
++	return dgostringptr(s, ot, pkg->name);
++}
++
++
+ /*
+  * uncommonType
+  * ../../pkg/runtime/type.go:/uncommonType
+@@ -283,13 +296,13 @@ dextratype(Type *t)
+ 		n++;
+ 	}
+ 
+-	p = smprint("%#-T", t);
+-	s = pkglookup(p, "extratype");
++	p = smprint("_.%#T", t);
++	s = pkglookup(p, typepkg);
+ 	ot = 0;
+ 	if(t->sym) {
+ 		ot = dgostringptr(s, ot, t->sym->name);
+ 		if(t != types[t->etype])
+-			ot = dgostringptr(s, ot, t->sym->package);
++			ot = dgopkgpath(s, ot, t->sym->pkg);
+ 		else
+ 			ot = dgostringptr(s, ot, nil);
+ 	} else {
+@@ -309,7 +322,7 @@ dextratype(Type *t)
+ 		ot = duint32(s, ot, a->hash);
+ 		ot = rnd(ot, widthptr);
+ 		ot = dgostringptr(s, ot, a->name);
+-		ot = dgostringptr(s, ot, a->package);
++		ot = dgopkgpath(s, ot, a->pkg);
+ 		ot = dsymptr(s, ot, dtypesym(a->type), 0);
+ 		if(a->isym)
+ 			ot = dsymptr(s, ot, a->isym, 0);
+@@ -435,7 +448,7 @@ typestruct(Type *t)
+ 	if(isptr[et] && t->type->etype == TANY)
+ 		name = "*runtime.UnsafePointerType";
+ 
+-	return pkglookup(name, "type");
++	return pkglookup(name, typepkg);
+ }
+ 
+ static int
+@@ -550,7 +563,7 @@ typesym(Type *t)
+ 	Sym *s;
+ 
+ 	p = smprint("%#-T", t);
+-	s = pkglookup(p, "type");
++	s = pkglookup(p, typepkg);
+ 	free(p);
+ 	return s;
+ }
+@@ -613,7 +626,8 @@ dtypesym(Type *t)
+ 	else
+ 		tsym = t->sym;
+ 
+-	if(strcmp(package, "runtime") == 0) {
++	// PGNS: Fixme
++	if(strcmp(localpkg->name, "runtime") == 0) {
+ 		if(t == types[t->etype])
+ 			goto ok;
+ 		if(t1 && t1 == types[t1->etype])
+@@ -702,7 +716,7 @@ ok:
+ 			ot = duint32(s, ot, a->hash);
+ 			ot = duint32(s, ot, a->perm);
+ 			ot = dgostringptr(s, ot, a->name);
+-			ot = dgostringptr(s, ot, a->package);
++			ot = dgopkgpath(s, ot, a->pkg);
+ 			ot = dsymptr(s, ot, dtypesym(a->type), 0);
+ 		}
+ 		break;
+@@ -747,7 +761,7 @@ ok:
+ 				if(exportname(t1->sym->name))
+ 					ot = dgostringptr(s, ot, nil);
+ 				else
+-					ot = dgostringptr(s, ot, t1->sym->package);
++					ot = dgopkgpath(s, ot, t1->sym->pkg);
+ 			} else {
+ 				ot = dgostringptr(s, ot, nil);
+ 				ot = dgostringptr(s, ot, nil);
+@@ -796,11 +810,11 @@ dumptypestructs(void)
+ 	// so this is as good as any.
+ 	// another possible choice would be package main,
+ 	// but using runtime means fewer copies in .6 files.
+-	if(strcmp(package, "runtime") == 0) {
++	if(strcmp(localpkg->name, "runtime") == 0) {	// PGNS: fixme
+ 		for(i=1; i<=TBOOL; i++)
+ 			dtypesym(ptrto(types[i]));
+ 		dtypesym(ptrto(types[TSTRING]));
+ 		dtypesym(typ(TDDD));
+-		dtypesym(ptrto(pkglookup("Pointer", "unsafe")->def->type));
++		dtypesym(ptrto(pkglookup("Pointer", unsafepkg)->def->type));
+ 	}
+ }
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 411000b0c4..c15bdd0ffd 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -256,11 +256,11 @@ stringhash(char *p)
+ Sym*
+ lookup(char *name)
+ {
+-	return pkglookup(name, package);
++	return pkglookup(name, localpkg);
+ }
+ 
+ Sym*
+-pkglookup(char *name, char *pkg)
++pkglookup(char *name, Pkg *pkg)
+ {
+ 	Sym *s;
+ 	uint32 h;
+@@ -269,26 +269,17 @@ pkglookup(char *name, char *pkg)
+ 	h = stringhash(name) % NHASH;
+ 	c = name[0];
+ 	for(s = hash[h]; s != S; s = s->link) {
+-		if(s->name[0] != c)
++		if(s->name[0] != c || s->pkg != pkg)
+ 			continue;
+ 		if(strcmp(s->name, name) == 0)
+-			if(s->package && strcmp(s->package, pkg) == 0)
+-				return s;
++			return s;
+ 	}
+ 
+ 	s = mal(sizeof(*s));
+ 	s->name = mal(strlen(name)+1);
+ 	strcpy(s->name, name);
+ 
+-	// botch - should probably try to reuse the pkg string
+-	if(pkg == package)
+-		s->package = package;
+-	else {
+-		s->package = mal(strlen(pkg)+1);
+-		strcpy(s->package, pkg);
+-	}
+-
+-	s->packagename = s->package;
++	s->pkg = pkg;
+ 
+ 	s->link = hash[h];
+ 	hash[h] = s;
+@@ -298,9 +289,9 @@ pkglookup(char *name, char *pkg)
+ }
+ 
+ Sym*
+-restrictlookup(char *name, char *pkg)
++restrictlookup(char *name, Pkg *pkg)
+ {
+-	if(!exportname(name) && strcmp(pkg, package) != 0)
++	if(!exportname(name) && pkg != localpkg)
+ 		yyerror("cannot refer to unexported name %s.%s", pkg, name);
+ 	return pkglookup(name, pkg);
+ }
+@@ -309,25 +300,19 @@ restrictlookup(char *name, char *pkg)
+ // find all the exported symbols in package opkg
+ // and make them available in the current package
+ void
+-importdot(Sym *opkg, Node *pack)
++importdot(Pkg *opkg, Node *pack)
+ {
+ 	Sym *s, *s1;
+ 	uint32 h;
+-	int c, n;
+-
+-	if(strcmp(opkg->name, package) == 0)
+-		return;
++	int n;
+ 
+ 	n = 0;
+-	c = opkg->name[0];
+ 	for(h=0; h<NHASH; h++) {
+ 		for(s = hash[h]; s != S; s = s->link) {
+-			if(s->package[0] != c)
++			if(s->pkg != opkg)
+ 				continue;
+ 			if(!exportname(s->name) || utfrune(s->name, 0xb7))	// 0xb7 = center dot
+ 				continue;
+-			if(strcmp(s->package, opkg->name) != 0)
+-				continue;
+ 			s1 = lookup(s->name);
+ 			if(s1->def != N) {
+ 				redeclare(s1, "during import");
+@@ -983,27 +968,41 @@ int
+ Sconv(Fmt *fp)
+ {
+ 	Sym *s;
+-	char *pkg, *nam;
+ 
+ 	s = va_arg(fp->args, Sym*);
+ 	if(s == S) {
+ 		fmtstrcpy(fp, "<S>");
+ 		return 0;
+ 	}
++	
++	if(fp->flags & FmtShort)
++		goto shrt;
+ 
+-	pkg = "<nil>";
+-	nam = pkg;
++	if(exporting || (fp->flags & FmtSharp)) {
++		if(packagequotes)
++			fmtprint(fp, "\"%Z\"", s->pkg->path);
++		else {
++			// PGNS: Should be s->pkg->prefix
++			fmtprint(fp, "%s", s->pkg->name);
++		}
++		fmtprint(fp, ".%s", s->name);
++		return 0;
++	}
+ 
+-	if(s->packagename != nil)
+-		pkg = s->packagename;
+-	else
+-		abort();
+-	if(s->name != nil)
+-		nam = s->name;
++	if(s->pkg != localpkg || (fp->flags & FmtLong)) {
++		fmtprint(fp, "%s.%s", s->pkg->name, s->name);
++		return 0;
++	}
++
++shrt:
++	fmtstrcpy(fp, s->name);
++	return 0;
++
++	/*
+ 
+ 	if(!(fp->flags & FmtShort)) {
+ 		if((fp->flags & FmtLong) && packagequotes) {
+-			fmtprint(fp, "\"%s\".%s", s->package, nam);
++			fmtprint(fp, "\"%Z\".%s", s->pkg->path, nam);
+ 			return 0;
+ 		}
+ 		if((fp->flags & FmtLong) || strcmp(s->package, package) != 0) {
+@@ -1012,6 +1011,7 @@ Sconv(Fmt *fp)
+ 		}
+ 	}
+ 	fmtstrcpy(fp, nam);
++	*/
+ 	return 0;
+ }
+ 
+@@ -1057,10 +1057,8 @@ Tpretty(Fmt *fp, Type *t)
+ 			if(fp->flags & FmtShort)
+ 				fmtprint(fp, "%hS", s);
+ 			else
+-				fmtprint(fp, "%lS", s);
+-			if(strcmp(s->package, package) != 0)
+-				return 0;
+-			if(s->flags & SymImported)
++				fmtprint(fp, "%S", s);
++			if(s->pkg != localpkg)
+ 				return 0;
+ 			if(t->vargen)
+ 				fmtprint(fp, "·%d", t->vargen);
+@@ -1537,13 +1535,13 @@ isselect(Node *n)
+ 	if(n == N)
+ 		return 0;
+ 	n = n->left;
+-	s = pkglookup("selectsend", "runtime");
++	s = pkglookup("selectsend", runtimepkg);
+ 	if(s == n->sym)
+ 		return 1;
+-	s = pkglookup("selectrecv", "runtime");
++	s = pkglookup("selectrecv", runtimepkg);
+ 	if(s == n->sym)
+ 		return 1;
+-	s = pkglookup("selectdefault", "runtime");
++	s = pkglookup("selectdefault", runtimepkg);
+ 	if(s == n->sym)
+ 		return 1;
+ 	return 0;
+@@ -1959,7 +1957,7 @@ syslook(char *name, int copy)
+ 	Sym *s;
+ 	Node *n;
+ 
+-	s = pkglookup(name, "runtime");
++	s = pkglookup(name, runtimepkg);
+ 	if(s == S || s->def == N)
+ 		fatal("looksys: cant find runtime.%s", name);
+ 
+@@ -2585,7 +2583,7 @@ expand0(Type *t, int followptr)
+ 
+ 	if(u->etype == TINTER) {
+ 		for(f=u->type; f!=T; f=f->down) {
+-			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
++			if(!exportname(f->sym->name) && f->sym->pkg != localpkg)
+ 				continue;
+ 			if(f->sym->flags & SymUniq)
+ 				continue;
+@@ -2602,7 +2600,7 @@ expand0(Type *t, int followptr)
+ 	u = methtype(t);
+ 	if(u != T) {
+ 		for(f=u->method; f!=T; f=f->down) {
+-			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
++			if(!exportname(f->sym->name) && f->sym->pkg != localpkg)
+ 				continue;
+ 			if(f->sym->flags & SymUniq)
+ 				continue;
+@@ -3379,15 +3377,74 @@ ngotype(Node *n)
+ 	return S;
+ }
+ 
+-char*
+-toimportpath(Strlit *s)
++/*
++ * Convert raw string to the prefix that will be used in the symbol table.
++ * Invalid bytes turn into %xx.  Right now the only bytes that need
++ * escaping are %, ., and ", but we escape all control characters too.
++ */
++static char*
++pathtoprefix(char *s)
+ {
+-	char *p;
++	static char hex[] = "0123456789abcdef";
++	char *p, *r, *w;
++	int n;
+ 
+-//PGNS: Do better once these are import paths
+-// rather than package names in disguise.
+-	p = mal(s->len+1);
+-	memmove(p, s->s, s->len);
+-	p[s->len] = '\0';
++	// check for chars that need escaping
++	n = 0;
++	for(r=s; *r; r++)
++		if(*r <= ' ' || *r == '.' || *r == '%' || *r == '"')
++			n++;
++
++	// quick exit
++	if(n == 0)
++		return s;
++
++	// escape
++	p = mal((r-s)+1+2*n);
++	for(r=s, w=p; *r; r++) {
++		if(*r <= ' ' || *r == '.' || *r == '%' || *r == '"') {
++			*w++ = '%';
++			*w++ = hex[(*r>>4)&0xF];
++			*w++ = hex[*r&0xF];
++		} else
++			*w++ = *r;
++	}
++	*w = '\0';
+ 	return p;
+ }
++
++static Pkg *phash[128];
++
++Pkg*
++mkpkg(Strlit *path)
++{
++	Pkg *p;
++	int h;
++	
++	if(strlen(path->s) != path->len)
++		fatal("import path contains NUL byte");
++	
++	h = stringhash(path->s) & (nelem(phash)-1);
++	for(p=phash[h]; p; p=p->link)
++		if(p->path->len == path->len && memcmp(path->s, p->path->s, path->len) == 0)
++			return p;
++
++	p = mal(sizeof *p);
++	p->path = path;
++	p->prefix = pathtoprefix(path->s);
++	p->link = phash[h];
++	phash[h] = p;
++	return p;
++}
++
++Strlit*
++strlit(char *s)
++{
++	Strlit *t;
++	
++	t = mal(sizeof *t + strlen(s));
++	strcpy(t->s, s);
++	t->len = strlen(s);
++	return t;
++}
++
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index f0866ae3bb..abadbfa219 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1567,7 +1567,7 @@ exportassignok(Type *t, char *desc)
+ 			s = f->sym;
+ 			// s == nil doesn't happen for embedded fields (they get the type symbol).
+ 			// it only happens for fields in a ... struct.
+-			if(s != nil && !exportname(s->name) && strcmp(package, s->package) != 0) {
++			if(s != nil && !exportname(s->name) && s->pkg != localpkg) {
+ 				char *prefix;
+ 				
+ 				prefix = "";
+@@ -1800,7 +1800,7 @@ typecheckcomplit(Node **np)
+ 					continue;
+ 				}
+ 				s = f->sym;
+-				if(s != nil && !exportname(s->name) && strcmp(package, s->package) != 0)
++				if(s != nil && !exportname(s->name) && s->pkg != localpkg)
+ 					yyerror("implicit assignment of %T field '%s' in struct literal", t, s->name);
+ 				ll->n = typecheckconv(nil, ll->n, f->type, 0, "field value");
+ 				ll->n = nod(OKEY, newname(f->sym), ll->n);
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index f94e1c78c9..5d27dd648d 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -21,7 +21,7 @@ unsafenmagic(Node *fn, NodeList *args)
+ 
+ 	if(fn == N || fn->op != ONAME || (s = fn->sym) == S)
+ 		goto no;
+-	if(strcmp(s->package, "unsafe") != 0)
++	if(s->pkg != unsafepkg)
+ 		goto no;
+ 
+ 	if(args == nil) {
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index dfe2024922..ff7f298187 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -1500,40 +1500,34 @@ ilookup(char *name)
+ 	return x;
+ }
+ 
+-/*
+- * a and b don't match.
+- * is one a forward declaration and the other a valid completion?
+- * if so, return the one to keep.
+- */
+-char*
+-forwardfix(char *a, char *b)
+-{
+-	char *t;
+-
+-	if(strlen(a) > strlen(b)) {
+-		t = a;
+-		a = b;
+-		b = t;
+-	}
+-	if(strcmp(a, "struct") == 0 && strncmp(b, "struct ", 7) == 0)
+-		return b;
+-	if(strcmp(a, "interface") == 0 && strncmp(b, "interface ", 10) == 0)
+-		return b;
+-	return nil;
+-}
+-
+ int parsemethod(char**, char*, char**);
+ int parsepkgdata(char**, char*, char**, char**, char**);
+ 
+ void
+ loadpkgdata(char *data, int len)
+ {
+-	char *p, *ep, *prefix, *name, *def, *ndef;
++	char *p, *ep, *prefix, *name, *def;
+ 	Import *x;
+ 
+ 	p = data;
+ 	ep = data + len;
+ 	while(parsepkgdata(&p, ep, &prefix, &name, &def) > 0) {
++		if(strcmp(prefix, "import") == 0) {
++			// backwards from the rest: def is unique, name is not.
++			x = ilookup(def);
++			if(x->prefix == nil) {
++				x->prefix = prefix;
++				x->def = name;
++				x->file = file;
++			} else if(strcmp(x->def, name) != 0) {
++				fprint(2, "gopack: conflicting package names for %s\n", def);
++				fprint(2, "%s:\t%s\n", x->file, x->def);
++				fprint(2, "%s:\t%s\n", file, name);
++				errors++;
++			}
++			continue;
++		}
++				
+ 		x = ilookup(name);
+ 		if(x->prefix == nil) {
+ 			x->prefix = prefix;
+@@ -1544,11 +1538,7 @@ loadpkgdata(char *data, int len)
+ 			fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
+ 			fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
+ 			errors++;
+-		} else if(strcmp(x->def, def) == 0) {
+-			// fine
+-		} else if((ndef = forwardfix(x->def, def)) != nil) {
+-			x->def = ndef;
+-		} else {
++		} else if(strcmp(x->def, def) != 0) {
+ 			fprint(2, "gopack: conflicting definitions for %s\n", name);
+ 			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
+ 			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
+@@ -1574,7 +1564,7 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
+ 	prefix = p;
+ 
+ 	prefix = p;
+-	if(p + 6 > ep)
++	if(p + 7 > ep)
+ 		return -1;
+ 	if(strncmp(p, "var ", 4) == 0)
+ 		p += 4;
+@@ -1584,6 +1574,8 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
+ 		p += 5;
+ 	else if(strncmp(p, "const ", 6) == 0)
+ 		p += 6;
++	else if(strncmp(p, "import ", 7) == 0)
++		p += 7;
+ 	else {
+ 		fprint(2, "gopack: confused in pkg data near <<%.20s>>\n", p);
+ 		errors++;
+@@ -1745,6 +1737,16 @@ getpkgdef(char **datap, int *lenp)
+ 	p = strappend(p, "\n");
+ 	for(i=0; i<nimport; i++) {
+ 		x = all[i];
++		if(strcmp(x->prefix, "import") == 0) {
++			// prefix def name\n
++			p = strappend(p, x->prefix);
++			p = strappend(p, " ");
++			p = strappend(p, x->def);
++			p = strappend(p, " ");
++			p = strappend(p, x->name);
++			p = strappend(p, "\n");
++			continue;
++		}
+ 		// prefix name def\n
+ 		p = strappend(p, x->prefix);
+ 		p = strappend(p, " ");
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index cb0a2cdd9a..b975513095 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -109,20 +109,41 @@ trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+ MAKEFLAGS=
+ MAKELEVEL=
+ 
++# usage: nmgrep pattern file...
++nmgrep() {
++	pat="$1"
++	shift
++	for i
++	do
++		# Package symbol "".Foo is pkg.Foo when imported in Go.
++		# Figure out pkg.
++		case "$i" in
++		*.a)
++			pkg=$(gopack p $i __.PKGDEF | sed -n 's/^package //p' | sed 1q)
++			;;
++		*)
++			pkg=$(sed -n 's/^ .* in package "\(.*\)".*/\1/p' $i | sed 1q)
++			;;
++		esac
++		"$GOBIN"/6nm -s "$i" | egrep ' T .*\.'"$pat"'$' |
++		sed 's/.* //; /\..*\./d; s/""\./'"$pkg"'./g'
++	done
++}
++
+ importpath=$("$GOBIN"/gomake -s importpath)
+ {
+ 	# test functions are named TestFoo
+ 	# the grep -v eliminates methods and other special names
+ 	# that have multiple dots.
+ 	pattern='Test([^a-z].*)?'
+-	tests=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*\.'$pattern'$' | sed 's/.* //; /\..*\./d')
++	tests=$(nmgrep $pattern _test/$importpath.a $xofile)
+ 	if [ "x$tests" = x ]; then
+ 		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
+ 		exit 2
+ 	fi
+ 	# benchmarks are named BenchmarkFoo.
+ 	pattern='Benchmark([^a-z].*)?'
+-	benchmarks=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*\.'$pattern'$' | sed 's/.* //; /\..*\./d')
++	benchmarks=$(nmgrep $pattern _test/$importpath.a $xofile)
+ 
+ 	# package spec
+ 	echo 'package main'
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 8f9d198bc2..1797f34d30 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -65,13 +65,13 @@ ilookup(char *name)
+ 	return x;
+ }
+ 
+-static void loadpkgdata(char*, char*, int);
++static void loadpkgdata(char*, char*, char*, int);
+ static void loaddynld(char*, char*, int);
+ static int parsemethod(char**, char*, char**);
+-static int parsepkgdata(char*, char**, char*, char**, char**, char**);
++static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
+ 
+ void
+-ldpkg(Biobuf *f, int64 len, char *filename)
++ldpkg(Biobuf *f, char *pkg, int64 len, char *filename)
+ {
+ 	char *data, *p0, *p1;
+ 
+@@ -115,8 +115,7 @@ ldpkg(Biobuf *f, int64 len, char *filename)
+ 			p0++;
+ 		while(*p0 != ' ' && *p0 != '\t' && *p0 != '\n')
+ 			p0++;
+-
+-		loadpkgdata(filename, p0, p1 - p0);
++		loadpkgdata(filename, pkg, p0, p1 - p0);
+ 	}
+ 
+ 	// local types begin where exports end.
+@@ -132,7 +131,8 @@ ldpkg(Biobuf *f, int64 len, char *filename)
+ 		return;
+ 	}
+ 
+-	loadpkgdata(filename, p0, p1 - p0);
++	// PGNS: Should be using import path, not pkg.
++	loadpkgdata(filename, pkg, p0, p1 - p0);
+ 
+ 	// look for dynld section
+ 	p0 = strstr(p1, "\n$$  // dynld");
+@@ -153,38 +153,16 @@ ldpkg(Biobuf *f, int64 len, char *filename)
+ 	}
+ }
+ 
+-/*
+- * a and b don't match.
+- * is one a forward declaration and the other a valid completion?
+- * if so, return the one to keep.
+- */
+-char*
+-forwardfix(char *a, char *b)
+-{
+-	char *t;
+-
+-	if(strlen(a) > strlen(b)) {
+-		t = a;
+-		a = b;
+-		b = t;
+-	}
+-	if(strcmp(a, "struct") == 0 && strncmp(b, "struct ", 7) == 0)
+-		return b;
+-	if(strcmp(a, "interface") == 0 && strncmp(b, "interface ", 10) == 0)
+-		return b;
+-	return nil;
+-}
+-
+ static void
+-loadpkgdata(char *file, char *data, int len)
++loadpkgdata(char *file, char *pkg, char *data, int len)
+ {
+-	char *p, *ep, *prefix, *name, *def, *ndef;
++	char *p, *ep, *prefix, *name, *def;
+ 	Import *x;
+ 
+ 	file = strdup(file);
+ 	p = data;
+ 	ep = data + len;
+-	while(parsepkgdata(file, &p, ep, &prefix, &name, &def) > 0) {
++	while(parsepkgdata(file, pkg, &p, ep, &prefix, &name, &def) > 0) {
+ 		x = ilookup(name);
+ 		if(x->prefix == nil) {
+ 			x->prefix = prefix;
+@@ -195,11 +173,7 @@ loadpkgdata(char *file, char *data, int len)
+ 			fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
+ 			fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
+ 			nerrors++;
+-		} else if(strcmp(x->def, def) == 0) {
+-			// fine
+-		} else if((ndef = forwardfix(x->def, def)) != nil) {
+-			x->def = ndef;
+-		} else {
++		} else if(strcmp(x->def, def) != 0) {
+ 			fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
+ 			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
+ 			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
+@@ -208,14 +182,44 @@ loadpkgdata(char *file, char *data, int len)
+ 	}
+ }
+ 
++// replace all "". with pkg.
++char*
++expandpkg(char *t0, char *pkg)
++{
++	int n;
++	char *p;
++	char *w, *w0, *t;
++	
++	n = 0;
++	for(p=t0; (p=strstr(p, "\"\".")) != nil; p+=3)
++		n++;
++
++	if(n == 0)
++		return t0;
++
++	// use malloc, not mal, so that caller can free
++	w0 = malloc(strlen(t0) + strlen(pkg)*n);
++	w = w0;
++	for(p=t=t0; (p=strstr(p, "\"\".")) != nil; p=t) {
++		memmove(w, t, p - t);
++		w += p-t;
++		strcpy(w, pkg);
++		w += strlen(pkg);
++		t = p+2;
++	}
++	strcpy(w, t);
++	return w0;
++}
++
+ static int
+-parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char **defp)
++parsepkgdata(char *file, char *pkg, char **pp, char *ep, char **prefixp, char **namep, char **defp)
+ {
+ 	char *p, *prefix, *name, *def, *edef, *meth;
+ 	int n;
+ 
+ 	// skip white space
+ 	p = *pp;
++loop:
+ 	while(p < ep && (*p == ' ' || *p == '\t' || *p == '\n'))
+ 		p++;
+ 	if(p == ep || strncmp(p, "$$\n", 3) == 0)
+@@ -223,7 +227,7 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
+ 
+ 	// prefix: (var|type|func|const)
+ 	prefix = p;
+-	if(p + 6 > ep)
++	if(p + 7 > ep)
+ 		return -1;
+ 	if(strncmp(p, "var ", 4) == 0)
+ 		p += 4;
+@@ -233,6 +237,12 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
+ 		p += 5;
+ 	else if(strncmp(p, "const ", 6) == 0)
+ 		p += 6;
++	else if(strncmp(p, "import ", 7) == 0) {
++		p += 7;
++		while(p < ep && *p != '\n')
++			p++;
++		goto loop;
++	}
+ 	else {
+ 		fprint(2, "%s: confused in pkg data near <<%.40s>>\n", argv0, prefix);
+ 		nerrors++;
+@@ -277,6 +287,9 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
+ 		memmove(edef, meth, n);
+ 		edef += n;
+ 	}
++	
++	name = expandpkg(name, pkg);
++	def = expandpkg(def, pkg);
+ 
+ 	// done
+ 	*pp = p;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 8039bf8ee0..7ede8c89e1 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -32,6 +32,8 @@
+ #include	"lib.h"
+ #include	<ar.h>
+ 
++int iconv(Fmt*);
++
+ char	symname[]	= SYMDEF;
+ char*	libdir[16] = { "." };
+ int	nlibdir = 1;
+@@ -54,6 +56,7 @@ Lflag(char *arg)
+ void
+ libinit(void)
+ {
++	fmtinstall('i', iconv);
+ 	mywhatsys();	// get goroot, goarch, goos
+ 	if(strcmp(goarch, thestring) != 0)
+ 		print("goarch is not known: %s\n", goarch);
+@@ -91,6 +94,7 @@ addlib(char *src, char *obj)
+ {
+ 	char name[1024], pname[1024], comp[256], *p;
+ 	int i, search;
++	Library *l;
+ 
+ 	if(histfrogp <= 0)
+ 		return;
+@@ -133,9 +137,11 @@ addlib(char *src, char *obj)
+ 			diag("library component too long");
+ 			return;
+ 		}
+-		strcat(name, "/");
++		if(i > 0 || !search)
++			strcat(name, "/");
+ 		strcat(name, comp);
+ 	}
++	cleanname(name);
+ 
+ 	if(search) {
+ 		// try dot, -L "libdir", and then goroot.
+@@ -144,28 +150,42 @@ addlib(char *src, char *obj)
+ 			if(access(pname, AEXIST) >= 0)
+ 				break;
+ 		}
+-		strcpy(name, pname);
+-	}
+-	cleanname(name);
++	}else
++		strcpy(pname, name);
++	cleanname(pname);
++	
++	/* runtime.a -> runtime */
++	if(strlen(name) > 2 && name[strlen(name)-2] == '.')
++		name[strlen(name)-2] = '\0';
++
+ 	if(debug['v'])
+-		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
++		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, pname);
+ 
+ 	for(i=0; i<libraryp; i++)
+-		if(strcmp(name, library[i]) == 0)
++		if(strcmp(pname, library[i].file) == 0)
+ 			return;
+ 	if(libraryp == nlibrary){
+ 		nlibrary = 50 + 2*libraryp;
+ 		library = realloc(library, sizeof library[0] * nlibrary);
+-		libraryobj = realloc(libraryobj, sizeof libraryobj[0] * nlibrary);
+ 	}
+ 
+-	p = mal(strlen(name) + 1);
+-	strcpy(p, name);
+-	library[libraryp] = p;
++	l = &library[libraryp++];
++
+ 	p = mal(strlen(obj) + 1);
+ 	strcpy(p, obj);
+-	libraryobj[libraryp] = p;
+-	libraryp++;
++	l->objref = p;
++
++	p = mal(strlen(src) + 1);
++	strcpy(p, src);
++	l->srcref = p;
++
++	p = mal(strlen(pname) + 1);
++	strcpy(p, pname);
++	l->file = p;
++
++	p = mal(strlen(name) + 1);
++	strcpy(p, name);
++	l->pkg = p;
+ }
+ 
+ void
+@@ -180,8 +200,8 @@ loop:
+ 	xrefresolv = 0;
+ 	for(i=0; i<libraryp; i++) {
+ 		if(debug['v'])
+-			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i], libraryobj[i]);
+-		objfile(library[i]);
++			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i].file, library[i].objref);
++		objfile(library[i].file, library[i].pkg);
+ 	}
+ 	if(xrefresolv)
+ 	for(h=0; h<nelem(hash); h++)
+@@ -192,11 +212,11 @@ loop:
+ 	i = strlen(goroot)+strlen(goarch)+strlen(goos)+20;
+ 	a = mal(i);
+ 	snprint(a, i, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
+-	objfile(a);
++	objfile(a, "runtime");
+ }
+ 
+ void
+-objfile(char *file)
++objfile(char *file, char *pkg)
+ {
+ 	int32 off, esym, cnt, l;
+ 	int work;
+@@ -205,7 +225,9 @@ objfile(char *file)
+ 	char magbuf[SARMAG];
+ 	char name[100], pname[150];
+ 	struct ar_hdr arhdr;
+-	char *e, *start, *stop;
++	char *e, *start, *stop, *x;
++	
++	pkg = smprint("%i", pkg);
+ 
+ 	if(file[0] == '-' && file[1] == 'l') {	// TODO: fix this
+ 		if(debug['9'])
+@@ -217,7 +239,7 @@ objfile(char *file)
+ 		file = name;
+ 	}
+ 	if(debug['v'])
+-		Bprint(&bso, "%5.2f ldobj: %s\n", cputime(), file);
++		Bprint(&bso, "%5.2f ldobj: %s (%s)\n", cputime(), file, pkg);
+ 	Bflush(&bso);
+ 	f = Bopen(file, 0);
+ 	if(f == nil) {
+@@ -229,7 +251,7 @@ objfile(char *file)
+ 		/* load it as a regular file */
+ 		l = Bseek(f, 0L, 2);
+ 		Bseek(f, 0L, 0);
+-		ldobj(f, l, file);
++		ldobj(f, pkg, l, file);
+ 		Bterm(f);
+ 		return;
+ 	}
+@@ -268,7 +290,10 @@ objfile(char *file)
+ 		Bflush(&bso);
+ 		work = 0;
+ 		for(e = start; e < stop; e = strchr(e+5, 0) + 1) {
+-			s = lookup(e+5, 0);
++			x = expandpkg(e+5, pkg);
++			s = lookup(x, 0);
++			if(x != e+5)
++				free(x);
+ 			if(s->type != SXREF)
+ 				continue;
+ 			sprint(pname, "%s(%s)", file, s->name);
+@@ -290,7 +315,7 @@ objfile(char *file)
+ 				l--;
+ 			sprint(pname, "%s(%.*s)", file, l, arhdr.name);
+ 			l = atolwhex(arhdr.size);
+-			ldobj(f, l, pname);
++			ldobj(f, pkg, l, pname);
+ 			if(s->type == SXREF) {
+ 				diag("%s: failed to load: %s", file, s->name);
+ 				errorexit();
+@@ -308,7 +333,7 @@ out:
+ }
+ 
+ void
+-ldobj(Biobuf *f, int64 len, char *pn)
++ldobj(Biobuf *f, char *pkg, int64 len, char *pn)
+ {
+ 	static int files;
+ 	static char **filen;
+@@ -362,10 +387,11 @@ ldobj(Biobuf *f, int64 len, char *pn)
+ 	import1 = Boffset(f);
+ 
+ 	Bseek(f, import0, 0);
+-	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
++	ldpkg(f, pkg, import1 - import0 - 2, pn);	// -2 for !\n
+ 	Bseek(f, import1, 0);
+ 
+-	ldobj1(f, eof - Boffset(f), pn);
++	// PGNS: Should be using import path, not pkg.
++	ldobj1(f, pkg, eof - Boffset(f), pn);
+ 	return;
+ 
+ eof:
+@@ -757,3 +783,56 @@ mal(uint32 n)
+ 	memset(v, 0, n);
+ 	return v;
+ }
++
++// Copied from ../gc/subr.c:/^pathtoprefix; must stay in sync.
++/*
++ * Convert raw string to the prefix that will be used in the symbol table.
++ * Invalid bytes turn into %xx.  Right now the only bytes that need
++ * escaping are %, ., and ", but we escape all control characters too.
++ */
++static char*
++pathtoprefix(char *s)
++{
++	static char hex[] = "0123456789abcdef";
++	char *p, *r, *w;
++	int n;
++
++	// check for chars that need escaping
++	n = 0;
++	for(r=s; *r; r++)
++		if(*r <= ' ' || *r == '.' || *r == '%' || *r == '"')
++			n++;
++
++	// quick exit
++	if(n == 0)
++		return s;
++
++	// escape
++	p = mal((r-s)+1+2*n);
++	for(r=s, w=p; *r; r++) {
++		if(*r <= ' ' || *r == '.' || *r == '%' || *r == '"') {
++			*w++ = '%';
++			*w++ = hex[(*r>>4)&0xF];
++			*w++ = hex[*r&0xF];
++		} else
++			*w++ = *r;
++	}
++	*w = '\0';
++	return p;
++}
++
++int
++iconv(Fmt *fp)
++{
++	char *p;
++
++	p = va_arg(fp->args, char*);
++	if(p == nil) {
++		fmtstrcpy(fp, "<nil>");
++		return 0;
++	}
++	p = pathtoprefix(p);
++	fmtstrcpy(fp, p);
++	return 0;
++}
++
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index bf26ae87d8..8943b05aa6 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -28,6 +28,15 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++typedef struct Library Library;
++struct Library
++{
++	char *objref;	// object where we found the reference
++	char *srcref;	// src file where we found the reference
++	char *file;		// object file
++	char *pkg;	// import path
++};
++
+ extern	char	symname[];
+ extern	char	*libdir[];
+ extern	int	nlibdir;
+@@ -36,8 +45,7 @@ extern	int	cout;
+ EXTERN	char*	INITENTRY;
+ EXTERN	char	thechar;
+ EXTERN	char*	thestring;
+-EXTERN	char**	library;
+-EXTERN	char**	libraryobj;
++EXTERN	Library*	library;
+ EXTERN	int	libraryp;
+ EXTERN	int	nlibrary;
+ EXTERN	Sym*	hash[NHASH];
+@@ -71,15 +79,16 @@ void	readundefs(char *f, int t);
+ int32	Bget4(Biobuf *f);
+ void	loadlib(void);
+ void	errorexit(void);
+-void	objfile(char *file);
++void	objfile(char *file, char *pkg);
+ void	libinit(void);
+ void	Lflag(char *arg);
+ void	usage(void);
+-void	ldobj1(Biobuf *f, int64 len, char *pn);
+-void	ldobj(Biobuf*, int64, char*);
+-void	ldpkg(Biobuf*, int64, char*);
++void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
++void	ldobj(Biobuf*, char*, int64, char*);
++void	ldpkg(Biobuf*, char*, int64, char*);
+ void	mark(Sym *s);
+-
++char*	expandpkg(char*, char*);
++void	deadcode(void);
+ 
+ int	pathchar(void);
+ void*	mal(uint32);
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index 9ab493d596..84e952f8a8 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -63,7 +63,7 @@ func TestLineFromAline(t *testing.T) {
+ 	tab := getTable(t)
+ 
+ 	// Find the sym package
+-	pkg := tab.LookupFunc("gosym.TestLineFromAline").Obj
++	pkg := tab.LookupFunc("debug/gosym.TestLineFromAline").Obj
+ 	if pkg == nil {
+ 		t.Fatalf("nil pkg")
+ 	}

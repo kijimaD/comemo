@@ -7,7 +7,34 @@ Date:   Wed May 18 11:34:19 2011 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/4556041
-
+---
  src/pkg/fmt/doc.go   | 2 +-
  src/pkg/fmt/print.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index e4d4f18442..56036325c6 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -27,7 +27,7 @@
+ 		%o	base 8
+ 		%x	base 16, with lower-case letters for a-f
+ 		%X	base 16, with upper-case letters for A-F
+-		%U	Unicode format: U+1234; same as "U+%0.4X"
++		%U	Unicode format: U+1234; same as "U+%04X"
+ 	Floating-point and complex constituents:
+ 		%b	decimalless scientific notation with exponent a power
+ 			of two, in the manner of strconv.Ftoa32, e.g. -123456p-78
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 10e0fe7c85..8885cebdf8 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -41,7 +41,7 @@ type State interface {
+ 	Precision() (prec int, ok bool)
+ 
+ 	// Flag returns whether the flag c, a character, has been set.
+-	Flag(int) bool
++	Flag(c int) bool
+ }
+ 
+ // Formatter is the interface implemented by values with a custom formatter.

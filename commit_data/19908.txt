@@ -9,6 +9,20 @@ Date:   Wed Aug 6 19:33:15 2014 +0400
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/125730043
-
+---
  src/pkg/runtime/mcentral.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index 5699d11ee6..3f64b5ed23 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -169,7 +169,7 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
+ static bool
+ MCentral_Grow(MCentral *c)
+ {
+-	uintptr size, npages, cap, i, n;
++	uintptr size, npages, i, n;
+ 	MLink **tailp, *v;
+ 	byte *p;
+ 	MSpan *s;

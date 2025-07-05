@@ -10,6 +10,19 @@ Date:   Fri Oct 12 14:55:17 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/c/141646
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 68f6294724..02aec32685 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -207,7 +207,6 @@ func Main(archInit func(*Arch)) {
+ 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
+ 	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
+ 	objabi.Flagcount("h", "halt on error", &Debug['h'])
+-	objabi.Flagcount("i", "debug line number stack", &Debug['i'])
+ 	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
+ 	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
+ 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")

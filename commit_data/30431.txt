@@ -20,7 +20,109 @@ Date:   Thu Nov 3 20:53:05 2016 +0000
     Change-Id: I183570f7346917828a4b6f7f1773094122a30406
     Reviewed-on: https://go-review.googlesource.com/32595
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go      | 28 +++++++++++++++++++++++++
  src/net/http/client_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 79 insertions(+)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 1814946430..6780e3ee7a 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -537,6 +537,34 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 
+ 		var shouldRedirect bool
+ 		redirectMethod, shouldRedirect = redirectBehavior(req.Method, resp.StatusCode)
++
++		// Treat 307 and 308 specially, since they're new in
++		// Go 1.8, and they also require re-sending the
++		// request body.
++		//
++		// TODO: move this logic into func redirectBehavior?
++		// It would need to take a bunch more things then.
++		switch resp.StatusCode {
++		case 307, 308:
++			loc := resp.Header.Get("Location")
++			if loc == "" {
++				// 308s have been observed in the wild being served
++				// without Location headers. Since Go 1.7 and earlier
++				// didn't follow these codes, just stop here instead
++				// of returning an error.
++				shouldRedirect = false
++				break
++			}
++			ireq := reqs[0]
++			if ireq.GetBody == nil && ireq.outgoingLength() != 0 {
++				// We had a request body, and 307/308 require
++				// re-sending it, but GetBody is not defined. So just
++				// return this response to the user instead of an
++				// error, like we did in Go 1.7 and earlier.
++				shouldRedirect = false
++			}
++		}
++
+ 		if !shouldRedirect {
+ 			return resp, nil
+ 		}
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index f60c9a5a7f..59603def67 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -499,6 +499,57 @@ func TestClientRedirectUseResponse(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 17773: don't follow a 308 (or 307) if the response doesn't
++// have a Location header.
++func TestClientRedirect308NoLocation(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Foo", "Bar")
++		w.WriteHeader(308)
++	}))
++	defer ts.Close()
++	res, err := Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++	if res.StatusCode != 308 {
++		t.Errorf("status = %d; want %d", res.StatusCode, 308)
++	}
++	if got := res.Header.Get("Foo"); got != "Bar" {
++		t.Errorf("Foo header = %q; want Bar", got)
++	}
++}
++
++// Don't follow a 307/308 if we can't resent the request body.
++func TestClientRedirect308NoGetBody(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++	const fakeURL = "https://localhost:1234/" // won't be hit
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Location", fakeURL)
++		w.WriteHeader(308)
++	}))
++	defer ts.Close()
++	req, err := NewRequest("POST", ts.URL, strings.NewReader("some body"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	req.GetBody = nil // so it can't rewind.
++	res, err := DefaultClient.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++	if res.StatusCode != 308 {
++		t.Errorf("status = %d; want %d", res.StatusCode, 308)
++	}
++	if got := res.Header.Get("Location"); got != fakeURL {
++		t.Errorf("Location header = %q; want %q", got, fakeURL)
++	}
++}
++
+ var expectedCookies = []*Cookie{
+ 	{Name: "ChocolateChip", Value: "tasty"},
+ 	{Name: "First", Value: "Hit"},

@@ -109,8 +109,97 @@ Date:   Mon Dec 1 16:32:06 2014 -0500
     R=austin, rlh
     CC=dvyukov, golang-codereviews, iant, khr, r
     https://golang.org/cl/179680043
-
+---
  src/runtime/proc.c    | 32 ++++++++++++++++++++++++++++++++
  src/runtime/runtime.h |  2 ++
  src/runtime/stack.c   |  7 +------
  3 files changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 91e3fe16d6..8462c4b1d6 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -402,6 +402,7 @@ runtime·castogscanstatus(G *gp, uint32 oldval, uint32 newval)
+ 
+ static void badcasgstatus(void);
+ static void helpcasgstatus(void);
++static void badgstatusrunnable(void);
+ 
+ // If asked to move to or from a Gscanstatus this will throw. Use the castogscanstatus
+ // and casfromgscanstatus instead.
+@@ -423,6 +424,10 @@ runtime·casgstatus(G *gp, uint32 oldval, uint32 newval)
+ 	// loop if gp->atomicstatus is in a scan state giving
+ 	// GC time to finish and change the state to oldval.
+ 	while(!runtime·cas(&gp->atomicstatus, oldval, newval)) {
++		if(oldval == Gwaiting && gp->atomicstatus == Grunnable) {
++			fn = badgstatusrunnable;
++			runtime·onM(&fn);
++		}
+ 		// Help GC if needed. 
+ 		if(gp->preemptscan && !gp->gcworkdone && (oldval == Grunning || oldval == Gsyscall)) {
+ 			gp->preemptscan = false;
+@@ -433,6 +438,33 @@ runtime·casgstatus(G *gp, uint32 oldval, uint32 newval)
+ 	}	
+ }
+ 
++static void
++badgstatusrunnable(void)
++{
++	runtime·throw("casgstatus: waiting for Gwaiting but is Grunnable");
++}
++
++// casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
++// Returns old status. Cannot call casgstatus directly, because we are racing with an
++// async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
++// it might have become Grunnable by the time we get to the cas. If we called casgstatus,
++// it would loop waiting for the status to go back to Gwaiting, which it never will.
++#pragma textflag NOSPLIT
++uint32
++runtime·casgcopystack(G *gp)
++{
++	uint32 oldstatus;
++
++	for(;;) {
++		oldstatus = runtime·readgstatus(gp) & ~Gscan;
++		if(oldstatus != Gwaiting && oldstatus != Grunnable)
++			runtime·throw("copystack: bad status, not Gwaiting or Grunnable");
++		if(runtime·cas(&gp->atomicstatus, oldstatus, Gcopystack))
++			break;
++	}
++	return oldstatus;
++}
++
+ static void
+ badcasgstatus(void)
+ {
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 977c4547df..177a1287ec 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -666,6 +666,8 @@ enum {
+ 
+ uint32  runtime·readgstatus(G*);
+ void    runtime·casgstatus(G*, uint32, uint32);
++void    runtime·casgstatus(G*, uint32, uint32);
++uint32	runtime·casgcopystack(G*);
+ void    runtime·quiesce(G*);
+ bool    runtime·stopg(G*);
+ void    runtime·restartg(G*);
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index 072bc242bc..cb9557243b 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -637,12 +637,7 @@ copystack(G *gp, uintptr newsize)
+ 	}
+ 	runtime·memmove((byte*)new.hi - used, (byte*)old.hi - used, used);
+ 
+-	oldstatus = runtime·readgstatus(gp);
+-	oldstatus &= ~Gscan;
+-	if(oldstatus == Gwaiting || oldstatus == Grunnable)
+-		runtime·casgstatus(gp, oldstatus, Gcopystack); // oldstatus is Gwaiting or Grunnable
+-	else
+-		runtime·throw("copystack: bad status, not Gwaiting or Grunnable");
++	oldstatus = runtime·casgcopystack(gp); // cas from Gwaiting or Grunnable to Gcopystack, return old status
+ 
+ 	// Swap out old stack for new one
+ 	gp->stack = new;

@@ -14,7 +14,60 @@ Date:   Wed Jun 23 12:59:48 2021 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/time/format.go    | 18 +++++++++++++++---
  src/time/time_test.go |  5 +++++
  2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 6040ed5aeb..bb173a21c2 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -751,8 +751,11 @@ type ParseError struct {
+ 
+ // These are borrowed from unicode/utf8 and strconv and replicate behavior in
+ // that package, since we can't take a dependency on either.
+-const runeSelf = 0x80
+-const lowerhex = "0123456789abcdef"
++const (
++	lowerhex  = "0123456789abcdef"
++	runeSelf  = 0x80
++	runeError = '\uFFFD'
++)
+ 
+ func quote(s string) string {
+ 	buf := make([]byte, 1, len(s)+2) // slice will be at least len(s) + quotes
+@@ -765,7 +768,16 @@ func quote(s string) string {
+ 			// reproduce strconv.Quote's behavior with full fidelity but
+ 			// given how rarely we expect to hit these edge cases, speed and
+ 			// conciseness are better.
+-			for j := 0; j < len(string(c)) && j < len(s); j++ {
++			var width int
++			if c == runeError {
++				width = 1
++				if i+2 < len(s) && s[i:i+3] == string(runeError) {
++					width = 3
++				}
++			} else {
++				width = len(string(c))
++			}
++			for j := 0; j < width; j++ {
+ 				buf = append(buf, `\x`...)
+ 				buf = append(buf, lowerhex[s[i+j]>>4])
+ 				buf = append(buf, lowerhex[s[i+j]&0xF])
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index f272bbd558..cea5f2d3f5 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -917,6 +917,11 @@ var parseDurationErrorTests = []struct {
+ 	{".s", `".s"`},
+ 	{"+.s", `"+.s"`},
+ 	{"1d", `"1d"`},
++	{"\x85\x85", `"\x85\x85"`},
++	{"\xffff", `"\xffff"`},
++	{"hello \xffff world", `"hello \xffff world"`},
++	{"\uFFFD", `"\xef\xbf\xbd"`},                                             // utf8.RuneError
++	{"\uFFFD hello \uFFFD world", `"\xef\xbf\xbd hello \xef\xbf\xbd world"`}, // utf8.RuneError
+ 	// overflow
+ 	{"9223372036854775810ns", `"9223372036854775810ns"`},
+ 	{"9223372036854775808ns", `"9223372036854775808ns"`},

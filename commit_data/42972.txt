@@ -16,7 +16,147 @@ Date:   Thu Jan 9 18:05:38 2020 -0500
     Change-Id: If2168fac040d78fd0ec3dcbdef2affd2a8f48f6d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214158
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/mod_get_legacy.txt | 57 ++++++++++++++++++++++
  src/cmd/go/vendor_test.go                     | 69 ---------------------------
  2 files changed, 57 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_get_legacy.txt b/src/cmd/go/testdata/script/mod_get_legacy.txt
+new file mode 100644
+index 0000000000..28a820e97b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_legacy.txt
+@@ -0,0 +1,57 @@
++# This test was converted from a test in vendor_test.go (which no longer exists).
++# That seems to imply that it's about vendoring semantics, but the test doesn't
++# use 'go -mod=vendor' (and none of the fetched repos have vendor folders).
++# The test still seems to be useful as a test of direct-mode go get.
++
++[short] skip
++[!exec:git] skip
++
++env GOPATH=$WORK/tmp/d1
++go get vcs-test.golang.org/git/modlegacy1-old.git/p1
++go list -f '{{.Deps}}' vcs-test.golang.org/git/modlegacy1-old.git/p1
++stdout 'new.git/p2' # old/p1 should depend on new/p2
++! stdout new.git/v2/p2 # old/p1 should NOT depend on new/v2/p2
++go build vcs-test.golang.org/git/modlegacy1-old.git/p1 vcs-test.golang.org/git/modlegacy1-new.git/p1
++! stdout .
++
++env GOPATH=$WORK/tmp/d2
++
++rm $GOPATH
++go get github.com/rsc/vgotest5
++go get github.com/rsc/vgotest4
++go get github.com/myitcv/vgo_example_compat
++
++rm $GOPATH
++go get github.com/rsc/vgotest4
++go get github.com/rsc/vgotest5
++go get github.com/myitcv/vgo_example_compat
++
++rm $GOPATH
++go get github.com/rsc/vgotest4 github.com/rsc/vgotest5
++go get github.com/myitcv/vgo_example_compat
++
++rm $GOPATH
++go get github.com/rsc/vgotest5 github.com/rsc/vgotest4
++go get github.com/myitcv/vgo_example_compat
++
++rm $GOPATH
++go get github.com/myitcv/vgo_example_compat
++go get github.com/rsc/vgotest5 github.com/rsc/vgotest4
++
++rm $GOPATH
++go get github.com/myitcv/vgo_example_compat github.com/rsc/vgotest4 github.com/rsc/vgotest5
++
++rm $GOPATH
++go get github.com/myitcv/vgo_example_compat github.com/rsc/vgotest5 github.com/rsc/vgotest4
++
++rm $GOPATH
++go get github.com/rsc/vgotest4 github.com/myitcv/vgo_example_compat github.com/rsc/vgotest5
++
++rm $GOPATH
++go get github.com/rsc/vgotest4 github.com/rsc/vgotest5 github.com/myitcv/vgo_example_compat
++
++rm $GOPATH
++go get github.com/rsc/vgotest5 github.com/myitcv/vgo_example_compat github.com/rsc/vgotest4
++
++rm $GOPATH
++go get github.com/rsc/vgotest5 github.com/rsc/vgotest4 github.com/myitcv/vgo_example_compat
+\ No newline at end of file
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+deleted file mode 100644
+index 9d568b906a..0000000000
+--- a/src/cmd/go/vendor_test.go
++++ /dev/null
+@@ -1,69 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Tests for vendoring semantics.
+-
+-package main_test
+-
+-import (
+-	"internal/testenv"
+-	"os"
+-	"testing"
+-)
+-
+-func TestLegacyModGet(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-	testenv.MustHaveExecPath(t, "git")
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("d1"))
+-	tg.run("get", "vcs-test.golang.org/git/modlegacy1-old.git/p1")
+-	tg.run("list", "-f", "{{.Deps}}", "vcs-test.golang.org/git/modlegacy1-old.git/p1")
+-	tg.grepStdout("new.git/p2", "old/p1 should depend on new/p2")
+-	tg.grepStdoutNot("new.git/v2/p2", "old/p1 should NOT depend on new/v2/p2")
+-	tg.run("build", "vcs-test.golang.org/git/modlegacy1-old.git/p1", "vcs-test.golang.org/git/modlegacy1-new.git/p1")
+-
+-	tg.setenv("GOPATH", tg.path("d2"))
+-
+-	tg.must(os.RemoveAll(tg.path("d2")))
+-	tg.run("get", "github.com/rsc/vgotest5")
+-	tg.run("get", "github.com/rsc/vgotest4")
+-	tg.run("get", "github.com/myitcv/vgo_example_compat")
+-
+-	if testing.Short() {
+-		return
+-	}
+-
+-	tg.must(os.RemoveAll(tg.path("d2")))
+-	tg.run("get", "github.com/rsc/vgotest4")
+-	tg.run("get", "github.com/rsc/vgotest5")
+-	tg.run("get", "github.com/myitcv/vgo_example_compat")
+-
+-	tg.must(os.RemoveAll(tg.path("d2")))
+-	tg.run("get", "github.com/rsc/vgotest4", "github.com/rsc/vgotest5")
+-	tg.run("get", "github.com/myitcv/vgo_example_compat")
+-
+-	tg.must(os.RemoveAll(tg.path("d2")))
+-	tg.run("get", "github.com/rsc/vgotest5", "github.com/rsc/vgotest4")
+-	tg.run("get", "github.com/myitcv/vgo_example_compat")
+-
+-	tg.must(os.RemoveAll(tg.path("d2")))
+-	tg.run("get", "github.com/myitcv/vgo_example_compat")
+-	tg.run("get", "github.com/rsc/vgotest4", "github.com/rsc/vgotest5")
+-
+-	pkgs := []string{"github.com/myitcv/vgo_example_compat", "github.com/rsc/vgotest4", "github.com/rsc/vgotest5"}
+-	for i := 0; i < 3; i++ {
+-		for j := 0; j < 3; j++ {
+-			for k := 0; k < 3; k++ {
+-				if i == j || i == k || k == j {
+-					continue
+-				}
+-				tg.must(os.RemoveAll(tg.path("d2")))
+-				tg.run("get", pkgs[i], pkgs[j], pkgs[k])
+-			}
+-		}
+-	}
+-}

@@ -19,6 +19,30 @@ Date:   Thu Aug 17 23:13:57 2017 -0700
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Avelino <t@avelino.xxx>
-
+---
  src/runtime/hashmap.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 28ea376cf4..f39fb7d3bf 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -1119,12 +1119,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 					typedmemmove(t.elem, dst.v, v)
+ 				}
+ 				dst.i++
+-				// If we're at the end of the bucket, don't update k/v,
+-				// to avoid pointers pointing past the end of the bucket.
+-				if dst.i < bucketCnt {
+-					dst.k = add(dst.k, uintptr(t.keysize))
+-					dst.v = add(dst.v, uintptr(t.valuesize))
+-				}
++				// These updates might push these pointers past the end of the
++				// key or value arrays.  That's ok, as we have the overflow pointer
++				// at the end of the bucket to protect against pointing past the
++				// end of the bucket.
++				dst.k = add(dst.k, uintptr(t.keysize))
++				dst.v = add(dst.v, uintptr(t.valuesize))
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/value to help GC.

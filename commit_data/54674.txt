@@ -13,6 +13,25 @@ Date:   Wed Jul 27 09:02:17 2022 +0200
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/mgcsweep.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 6da6dbea20..4b92ef938c 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -33,10 +33,9 @@ var sweep sweepdata
+ 
+ // State of background sweep.
+ type sweepdata struct {
+-	lock    mutex
+-	g       *g
+-	parked  bool
+-	started bool
++	lock   mutex
++	g      *g
++	parked bool
+ 
+ 	nbgsweep    uint32
+ 	npausesweep uint32

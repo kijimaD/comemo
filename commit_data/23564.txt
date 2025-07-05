@@ -9,6 +9,30 @@ Date:   Wed May 27 10:30:55 2015 +1200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index fd577b03b5..c7f998c5c0 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -47,10 +47,17 @@ func goCmd(t *testing.T, args ...string) {
+ 	}
+ 	newargs = append(newargs, args[1:]...)
+ 	c := exec.Command("go", newargs...)
++	var output []byte
++	var err error
+ 	if testing.Verbose() {
+ 		fmt.Printf("+ go %s\n", strings.Join(newargs, " "))
++		c.Stdout = os.Stdout
++		c.Stderr = os.Stderr
++		err = c.Run()
++	} else {
++		output, err = c.CombinedOutput()
+ 	}
+-	if output, err := c.CombinedOutput(); err != nil {
++	if err != nil {
+ 		if t != nil {
+ 			t.Errorf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
+ 		} else {

@@ -18,6 +18,10 @@ Date:   Sun Nov 9 21:14:36 2014 -0500
     R=r
     CC=golang-codereviews
     https://golang.org/cl/174760043
-
+---
  dev.cc | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/dev.cc b/dev.cc
+new file mode 100644
+index 0000000000..e69de29bb2

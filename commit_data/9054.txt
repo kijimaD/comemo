@@ -7,7 +7,32 @@ Date:   Wed Jul 13 12:33:03 2011 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/4700044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f449c37296..e64d98ce90 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -101,6 +101,7 @@ Luit van Drongelen <luitvd@gmail.com>
+ Markus Duft <markus.duft@salomon.at>
+ Martin Neubauer <m.ne@gmx.net>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
++Matthew Horsnell <matthew.horsnell@gmail.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a6dfc41d3d..010b81829c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -157,6 +157,7 @@ Markus Duft <markus.duft@salomon.at>
+ Martin Neubauer <m.ne@gmx.net>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Matt Jones <mrjones@google.com>
++Matthew Horsnell <matthew.horsnell@gmail.com>
+ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>

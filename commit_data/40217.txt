@@ -16,7 +16,7 @@ Date:   Thu Apr 25 20:48:08 2019 -0400
     Change-Id: I4585e6dc5daa423e4ca9669195d41e58e7c8c275
     Reviewed-on: https://go-review.googlesource.com/c/go/+/173950
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/note/example_test.go  | 128 ++++++
  src/cmd/go/internal/note/note.go          | 684 ++++++++++++++++++++++++++++++
  src/cmd/go/internal/note/note_test.go     | 473 +++++++++++++++++++++
@@ -35,3 +35,4769 @@ Date:   Thu Apr 25 20:48:08 2019 -0400
  src/cmd/go/internal/tlog/tlog.go          | 601 ++++++++++++++++++++++++++
  src/cmd/go/internal/tlog/tlog_test.go     | 269 ++++++++++++
  17 files changed, 4654 insertions(+)
+
+diff --git a/src/cmd/go/internal/note/example_test.go b/src/cmd/go/internal/note/example_test.go
+new file mode 100644
+index 0000000000..53554b4c23
+--- /dev/null
++++ b/src/cmd/go/internal/note/example_test.go
+@@ -0,0 +1,128 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package note_test
++
++import (
++	"fmt"
++	"io"
++	"os"
++
++	"cmd/go/internal/note"
++)
++
++func ExampleSign() {
++	skey := "PRIVATE+KEY+PeterNeumann+c74f20a3+AYEKFALVFGyNhPJEMzD1QIDr+Y7hfZx09iUvxdXHKDFz"
++	text := "If you think cryptography is the answer to your problem,\n" +
++		"then you don't know what your problem is.\n"
++
++	signer, err := note.NewSigner(skey)
++	if err != nil {
++		fmt.Println(err)
++		return
++	}
++
++	msg, err := note.Sign(&note.Note{Text: text}, signer)
++	if err != nil {
++		fmt.Println(err)
++		return
++	}
++	os.Stdout.Write(msg)
++
++	// Output:
++	// If you think cryptography is the answer to your problem,
++	// then you don't know what your problem is.
++	//
++	// — PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=
++}
++
++func ExampleOpen() {
++	vkey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
++	msg := []byte("If you think cryptography is the answer to your problem,\n" +
++		"then you don't know what your problem is.\n" +
++		"\n" +
++		"— PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=\n")
++
++	verifier, err := note.NewVerifier(vkey)
++	if err != nil {
++		fmt.Println(err)
++		return
++	}
++	verifiers := note.VerifierList(verifier)
++
++	n, err := note.Open(msg, verifiers)
++	if err != nil {
++		fmt.Println(err)
++		return
++	}
++	fmt.Printf("%s (%08x):\n%s", n.Sigs[0].Name, n.Sigs[0].Hash, n.Text)
++
++	// Output:
++	// PeterNeumann (c74f20a3):
++	// If you think cryptography is the answer to your problem,
++	// then you don't know what your problem is.
++}
++
++var rand = struct {
++	Reader io.Reader
++}{
++	zeroReader{},
++}
++
++type zeroReader struct{}
++
++func (zeroReader) Read(buf []byte) (int, error) {
++	for i := range buf {
++		buf[i] = 0
++	}
++	return len(buf), nil
++}
++
++func ExampleSign_add_signatures() {
++	vkey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
++	msg := []byte("If you think cryptography is the answer to your problem,\n" +
++		"then you don't know what your problem is.\n" +
++		"\n" +
++		"— PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=\n")
++
++	verifier, err := note.NewVerifier(vkey)
++	if err != nil {
++		fmt.Println(err)
++		return
++	}
++	verifiers := note.VerifierList(verifier)
++
++	n, err := note.Open([]byte(msg), verifiers)
++	if err != nil {
++		fmt.Println(err)
++		return
++	}
++
++	skey, vkey, err := note.GenerateKey(rand.Reader, "EnochRoot")
++	if err != nil {
++		fmt.Println(err)
++		return
++	}
++	_ = vkey // give to verifiers
++
++	me, err := note.NewSigner(skey)
++	if err != nil {
++		fmt.Println(err)
++		return
++	}
++
++	msg, err = note.Sign(n, me)
++	if err != nil {
++		fmt.Println(err)
++		return
++	}
++	os.Stdout.Write(msg)
++
++	// Output:
++	// If you think cryptography is the answer to your problem,
++	// then you don't know what your problem is.
++	//
++	// — PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=
++	// — EnochRoot rwz+eBzmZa0SO3NbfRGzPCpDckykFXSdeX+MNtCOXm2/5n2tiOHp+vAF1aGrQ5ovTG01oOTGwnWLox33WWd1RvMc+QQ=
++}
+diff --git a/src/cmd/go/internal/note/note.go b/src/cmd/go/internal/note/note.go
+new file mode 100644
+index 0000000000..4b257739cc
+--- /dev/null
++++ b/src/cmd/go/internal/note/note.go
+@@ -0,0 +1,684 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package note defines the notes signed by the Go module database server.
++//
++// This package is part of a DRAFT of what the Go module database server will look like.
++// Do not assume the details here are final!
++//
++// A note is text signed by one or more server keys.
++// The text should be ignored unless the note is signed by
++// a trusted server key and the signature has been verified
++// using the server's public key.
++//
++// A server's public key is identified by a name, typically the "host[/path]"
++// giving the base URL of the server's transparency log.
++// The syntactic restrictions on a name are that it be non-empty,
++// well-formed UTF-8 containing neither Unicode spaces nor plus (U+002B).
++//
++// A Go module database server signs texts using public key cryptography.
++// A given server may have multiple public keys, each
++// identified by the first 32 bits of the SHA-256 hash of
++// the concatenation of the server name, a newline, and
++// the encoded public key.
++//
++// Verifying Notes
++//
++// A Verifier allows verification of signatures by one server public key.
++// It can report the name of the server and the uint32 hash of the key,
++// and it can verify a purported signature by that key.
++//
++// The standard implementation of a Verifier is constructed
++// by NewVerifier starting from a verifier key, which is a
++// plain text string of the form "<name>+<hash>+<keydata>".
++//
++// A Verifiers allows looking up a Verifier by the combination
++// of server name and key hash.
++//
++// The standard implementation of a Verifiers is constructed
++// by VerifierList from a list of known verifiers.
++//
++// A Note represents a text with one or more signatures.
++// An implementation can reject a note with too many signatures
++// (for example, more than 100 signatures).
++//
++// A Signature represents a signature on a note, verified or not.
++//
++// The Open function takes as input a signed message
++// and a set of known verifiers. It decodes and verifies
++// the message signatures and returns a Note structure
++// containing the message text and (verified or unverified) signatures.
++//
++// Signing Notes
++//
++// A Signer allows signing a text with a given key.
++// It can report the name of the server and the hash of the key
++// and can sign a raw text using that key.
++//
++// The standard implementation of a Signer is constructed
++// by NewSigner starting from an encoded signer key, which is a
++// plain text string of the form "PRIVATE+KEY+<name>+<hash>+<keydata>".
++// Anyone with an encoded signer key can sign messages using that key,
++// so it must be kept secret. The encoding begins with the literal text
++// "PRIVATE+KEY" to avoid confusion with the public server key.
++//
++// The Sign function takes as input a Note and a list of Signers
++// and returns an encoded, signed message.
++//
++// Signed Note Format
++//
++// A signed note consists of a text ending in newline (U+000A),
++// followed by a blank line (only a newline),
++// followed by one or more signature lines of this form:
++// em dash (U+2014), space (U+0020),
++// server name, space, base64-encoded signature, newline.
++//
++// Signed notes must be valid UTF-8 and must not contain any
++// ASCII control characters (those below U+0020) other than newline.
++//
++// A signature is a base64 encoding of 4+n bytes.
++//
++// The first four bytes in the signature are the uint32 key hash
++// stored in big-endian order, which is to say they are the first
++// four bytes of the truncated SHA-256 used to derive the key hash
++// in the first place.
++//
++// The remaining n bytes are the result of using the specified key
++// to sign the note text (including the final newline but not the
++// separating blank line).
++//
++// Generating Keys
++//
++// There is only one key type, Ed25519 with algorithm identifier 1.
++// New key types may be introduced in the future as needed,
++// although doing so will require deploying the new algorithms to all clients
++// before starting to depend on them for signatures.
++//
++// The GenerateKey function generates and returns a new signer
++// and corresponding verifier.
++//
++// Example
++//
++// Here is a well-formed signed note:
++//
++//	If you think cryptography is the answer to your problem,
++//	then you don't know what your problem is.
++//
++//	— PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=
++//
++// It can be constructed and displayed using:
++//
++//	skey := "PRIVATE+KEY+PeterNeumann+c74f20a3+AYEKFALVFGyNhPJEMzD1QIDr+Y7hfZx09iUvxdXHKDFz"
++//	text := "If you think cryptography is the answer to your problem,\n" +
++//		"then you don't know what your problem is.\n"
++//
++//	signer, err := note.NewSigner(skey)
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//
++//	msg, err := note.Sign(&note.Note{Text: text}, signer)
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//	os.Stdout.Write(msg)
++//
++// The note's text is two lines, including the final newline,
++// and the text is purportedly signed by a server named
++// "PeterNeumann". (Although server names are canonically
++// base URLs, the only syntactic requirement is that they
++// not contain spaces or newlines).
++//
++// If Open is given access to a Verifiers including the
++// Verifier for this key, then it will succeed at verifiying
++// the encoded message and returning the parsed Note:
++//
++//	vkey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
++//	msg := []byte("If you think cryptography is the answer to your problem,\n" +
++//		"then you don't know what your problem is.\n" +
++//		"\n" +
++//		"— PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=\n")
++//
++//	verifier, err := note.NewVerifier(vkey)
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//	verifiers := note.VerifierList(verifier)
++//
++//	n, err := note.Open([]byte(msg), verifiers)
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//	fmt.Printf("%s (%08x):\n%s", n.Sigs[0].Name, n.Sigs[0].Hash, n.Text)
++//
++// You can add your own signature to this message by re-signing the note:
++//
++//	skey, vkey, err := note.GenerateKey(rand.Reader, "EnochRoot")
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//	_ = vkey // give to verifiers
++//
++//	me, err := note.NewSigner(skey)
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//
++//	msg, err := note.Sign(n, me)
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//	os.Stdout.Write(msg)
++//
++// This will print a doubly-signed message, like:
++//
++//	If you think cryptography is the answer to your problem,
++//	then you don't know what your problem is.
++//
++//	— PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=
++//	— EnochRoot rwz+eBzmZa0SO3NbfRGzPCpDckykFXSdeX+MNtCOXm2/5n2tiOHp+vAF1aGrQ5ovTG01oOTGwnWLox33WWd1RvMc+QQ=
++//
++package note
++
++import (
++	"bytes"
++	"crypto/sha256"
++	"encoding/base64"
++	"encoding/binary"
++	"errors"
++	"fmt"
++	"io"
++	"strconv"
++	"strings"
++	"unicode"
++	"unicode/utf8"
++
++	"golang.org/x/crypto/ed25519"
++)
++
++// A Verifier verifies messages signed with a specific key.
++type Verifier interface {
++	// Name returns the server name associated with the key.
++	Name() string
++
++	// KeyHash returns the key hash.
++	KeyHash() uint32
++
++	// Verify reports whether sig is a valid signature of msg.
++	Verify(msg, sig []byte) bool
++}
++
++// A Signer signs messages using a specific key.
++type Signer interface {
++	// Name returns the server name associated with the key.
++	Name() string
++
++	// KeyHash returns the key hash.
++	KeyHash() uint32
++
++	// Sign returns a signature for the given message.
++	Sign(msg []byte) ([]byte, error)
++}
++
++// keyHash computes the key hash for the given server name and encoded public key.
++func keyHash(name string, key []byte) uint32 {
++	h := sha256.New()
++	h.Write([]byte(name))
++	h.Write([]byte("\n"))
++	h.Write(key)
++	sum := h.Sum(nil)
++	return binary.BigEndian.Uint32(sum)
++}
++
++var (
++	errVerifierID   = errors.New("malformed verifier id")
++	errVerifierAlg  = errors.New("unknown verifier algorithm")
++	errVerifierHash = errors.New("invalid verifier hash")
++)
++
++const (
++	algEd25519 = 1
++)
++
++// isValidName reports whether name is valid.
++// It must be non-empty and not have any Unicode spaces or pluses.
++func isValidName(name string) bool {
++	return name != "" && utf8.ValidString(name) && strings.IndexFunc(name, unicode.IsSpace) < 0 && !strings.Contains(name, "+")
++}
++
++// NewVerifier construct a new Verifier from an encoded verifier key.
++func NewVerifier(vkey string) (Verifier, error) {
++	name, vkey := chop(vkey, "+")
++	hash16, key64 := chop(vkey, "+")
++	hash, err1 := strconv.ParseUint(hash16, 16, 32)
++	key, err2 := base64.StdEncoding.DecodeString(key64)
++	if len(hash16) != 8 || err1 != nil || err2 != nil || !isValidName(name) || len(key) == 0 {
++		return nil, errVerifierID
++	}
++	if uint32(hash) != keyHash(name, key) {
++		return nil, errVerifierHash
++	}
++
++	v := &verifier{
++		name: name,
++		hash: uint32(hash),
++	}
++
++	alg, key := key[0], key[1:]
++	switch alg {
++	default:
++		return nil, errVerifierAlg
++
++	case algEd25519:
++		if len(key) != 32 {
++			return nil, errVerifierID
++		}
++		v.verify = func(msg, sig []byte) bool {
++			return ed25519.Verify(key, msg, sig)
++		}
++	}
++
++	return v, nil
++}
++
++// chop chops s at the first instance of sep, if any,
++// and returns the text before and after sep.
++// If sep is not present, chop returns before is s and after is empty.
++func chop(s, sep string) (before, after string) {
++	i := strings.Index(s, sep)
++	if i < 0 {
++		return s, ""
++	}
++	return s[:i], s[i+len(sep):]
++}
++
++// verifier is a trivial Verifier implementation.
++type verifier struct {
++	name   string
++	hash   uint32
++	verify func([]byte, []byte) bool
++}
++
++func (v *verifier) Name() string                { return v.name }
++func (v *verifier) KeyHash() uint32             { return v.hash }
++func (v *verifier) Verify(msg, sig []byte) bool { return v.verify(msg, sig) }
++
++// NewSigner constructs a new Signer from an encoded signer key.
++func NewSigner(skey string) (Signer, error) {
++	priv1, skey := chop(skey, "+")
++	priv2, skey := chop(skey, "+")
++	name, skey := chop(skey, "+")
++	hash16, key64 := chop(skey, "+")
++	hash, err1 := strconv.ParseUint(hash16, 16, 32)
++	key, err2 := base64.StdEncoding.DecodeString(key64)
++	if priv1 != "PRIVATE" || priv2 != "KEY" || len(hash16) != 8 || err1 != nil || err2 != nil || !isValidName(name) || len(key) == 0 {
++		return nil, errSignerID
++	}
++
++	// Note: hash is the hash of the public key and we have the private key.
++	// Must verify hash after deriving public key.
++
++	s := &signer{
++		name: name,
++		hash: uint32(hash),
++	}
++
++	var pubkey []byte
++
++	alg, key := key[0], key[1:]
++	switch alg {
++	default:
++		return nil, errSignerAlg
++
++	case algEd25519:
++		if len(key) != 32 {
++			return nil, errSignerID
++		}
++		key = ed25519.NewKeyFromSeed(key)
++		pubkey = append([]byte{algEd25519}, key[32:]...)
++		s.sign = func(msg []byte) ([]byte, error) {
++			return ed25519.Sign(key, msg), nil
++		}
++	}
++
++	if uint32(hash) != keyHash(name, pubkey) {
++		return nil, errSignerHash
++	}
++
++	return s, nil
++}
++
++var (
++	errSignerID   = errors.New("malformed verifier id")
++	errSignerAlg  = errors.New("unknown verifier algorithm")
++	errSignerHash = errors.New("invalid verifier hash")
++)
++
++// signer is a trivial Signer implementation.
++type signer struct {
++	name string
++	hash uint32
++	sign func([]byte) ([]byte, error)
++}
++
++func (s *signer) Name() string                    { return s.name }
++func (s *signer) KeyHash() uint32                 { return s.hash }
++func (s *signer) Sign(msg []byte) ([]byte, error) { return s.sign(msg) }
++
++// GenerateKey generates a signer and verifier key pair for a named server.
++// The signer key skey is private and must be kept secret.
++func GenerateKey(rand io.Reader, name string) (skey, vkey string, err error) {
++	pub, priv, err := ed25519.GenerateKey(rand)
++	if err != nil {
++		return "", "", err
++	}
++	pubkey := append([]byte{algEd25519}, pub...)
++	privkey := append([]byte{algEd25519}, priv.Seed()...)
++	h := keyHash(name, pubkey)
++
++	skey = fmt.Sprintf("PRIVATE+KEY+%s+%08x+%s", name, h, base64.StdEncoding.EncodeToString(privkey))
++	vkey = fmt.Sprintf("%s+%08x+%s", name, h, base64.StdEncoding.EncodeToString(pubkey))
++	return skey, vkey, nil
++}
++
++// NewEd25519VerifierKey returns an encoded verifier key using the given name
++// and Ed25519 public key.
++func NewEd25519VerifierKey(name string, key ed25519.PublicKey) (string, error) {
++	if len(key) != ed25519.PublicKeySize {
++		return "", fmt.Errorf("invalid public key size %d, expected %d", len(key), ed25519.PublicKeySize)
++	}
++
++	pubkey := append([]byte{algEd25519}, key...)
++	hash := keyHash(name, pubkey)
++
++	b64Key := base64.StdEncoding.EncodeToString(pubkey)
++	return fmt.Sprintf("%s+%08x+%s", name, hash, b64Key), nil
++}
++
++// A Verifiers is a collection of known verifier keys.
++type Verifiers interface {
++	// Verifier returns the Verifier associated with the key
++	// identified by the name and hash.
++	// If the name, hash pair is unknown, Verifier should return
++	// an UnknownVerifierError.
++	Verifier(name string, hash uint32) (Verifier, error)
++}
++
++// An UnknownVerifierError indicates that the given key is not known.
++// The Open function records signatures without associated verifiers as
++// unverified signatures.
++type UnknownVerifierError struct {
++	Name    string
++	KeyHash uint32
++}
++
++func (e *UnknownVerifierError) Error() string {
++	return fmt.Sprintf("unknown key %s+%08x", e.Name, e.KeyHash)
++}
++
++// An ambiguousVerifierError indicates that the given name and hash
++// match multiple keys passed to VerifierList.
++// (If this happens, some malicious actor has taken control of the
++// verifier list, at which point we may as well give up entirely,
++// but we diagnose the problem instead.)
++type ambiguousVerifierError struct {
++	name string
++	hash uint32
++}
++
++func (e *ambiguousVerifierError) Error() string {
++	return fmt.Sprintf("ambiguous key %s+%08x", e.name, e.hash)
++}
++
++// VerifierList returns a Verifiers implementation that uses the given list of verifiers.
++func VerifierList(list ...Verifier) Verifiers {
++	m := make(verifierMap)
++	for _, v := range list {
++		k := nameHash{v.Name(), v.KeyHash()}
++		m[k] = append(m[k], v)
++	}
++	return m
++}
++
++type nameHash struct {
++	name string
++	hash uint32
++}
++
++type verifierMap map[nameHash][]Verifier
++
++func (m verifierMap) Verifier(name string, hash uint32) (Verifier, error) {
++	v, ok := m[nameHash{name, hash}]
++	if !ok {
++		return nil, &UnknownVerifierError{name, hash}
++	}
++	if len(v) > 1 {
++		return nil, &ambiguousVerifierError{name, hash}
++	}
++	return v[0], nil
++}
++
++// A Note is a text and signatures.
++type Note struct {
++	Text           string      // text of note
++	Sigs           []Signature // verified signatures
++	UnverifiedSigs []Signature // unverified signatures
++}
++
++// A Signature is a single signature found in a note.
++type Signature struct {
++	// Name and Hash give the name and key hash
++	// for the key that generated the signature.
++	Name string
++	Hash uint32
++
++	// Base64 records the base64-encoded signature bytes.
++	Base64 string
++}
++
++// An UnverifiedNoteError indicates that the note
++// successfully parsed but had no verifiable signatures.
++type UnverifiedNoteError struct {
++	Note *Note
++}
++
++func (e *UnverifiedNoteError) Error() string {
++	return "note has no verifiable signatures"
++}
++
++// An InvalidSignatureError indicates that the given key was known
++// and the associated Verifier rejected the signature.
++type InvalidSignatureError struct {
++	Name string
++	Hash uint32
++}
++
++func (e *InvalidSignatureError) Error() string {
++	return fmt.Sprintf("invalid signature for key %s+%08x", e.Name, e.Hash)
++}
++
++var (
++	errMalformedNote = errors.New("malformed note")
++	errInvalidSigner = errors.New("invalid signer")
++
++	sigSplit  = []byte("\n\n")
++	sigPrefix = []byte("— ")
++)
++
++// Open opens and parses the message msg, checking signatures from the known verifiers.
++//
++// For each signature in the message, Open calls known.Verifier to find a verifier.
++// If known.Verifier returns a verifier and the verifier accepts the signature,
++// Open records the signature in the returned note's Sigs field.
++// If known.Verifier returns a verifier but the verifier rejects the signature,
++// Open returns an InvalidSignatureError.
++// If known.Verifier returns an UnknownVerifierError,
++// Open records the signature in the returned note's UnverifiedSigs field.
++// If known.Verifier returns any other error, Open returns that error.
++//
++// If no known verifier has signed an otherwise valid note,
++// Open returns an UnverifiedNoteError.
++// In this case, the unverified note can be fetched from inside the error.
++func Open(msg []byte, known Verifiers) (*Note, error) {
++	if known == nil {
++		// Treat nil Verifiers as empty list, to produce useful error instead of crash.
++		known = VerifierList()
++	}
++
++	// Must have valid UTF-8 with no non-newline ASCII control characters.
++	for i := 0; i < len(msg); {
++		r, size := utf8.DecodeRune(msg[i:])
++		if r < 0x20 && r != '\n' || r == utf8.RuneError && size == 1 {
++			return nil, errMalformedNote
++		}
++		i += size
++	}
++
++	// Must end with signature block preceded by blank line.
++	split := bytes.LastIndex(msg, sigSplit)
++	if split < 0 {
++		return nil, errMalformedNote
++	}
++	text, sigs := msg[:split+1], msg[split+2:]
++	if len(sigs) == 0 || sigs[len(sigs)-1] != '\n' {
++		return nil, errMalformedNote
++	}
++
++	n := &Note{
++		Text: string(text),
++	}
++
++	var buf bytes.Buffer
++	buf.Write(text)
++
++	// Parse and verify signatures.
++	// Ignore duplicate signatures.
++	seen := make(map[nameHash]bool)
++	seenUnverified := make(map[string]bool)
++	numSig := 0
++	for len(sigs) > 0 {
++		// Pull out next signature line.
++		// We know sigs[len(sigs)-1] == '\n', so IndexByte always finds one.
++		i := bytes.IndexByte(sigs, '\n')
++		line := sigs[:i]
++		sigs = sigs[i+1:]
++
++		if !bytes.HasPrefix(line, sigPrefix) {
++			return nil, errMalformedNote
++		}
++		line = line[len(sigPrefix):]
++		name, b64 := chop(string(line), " ")
++		sig, err := base64.StdEncoding.DecodeString(b64)
++		if err != nil || !isValidName(name) || b64 == "" || len(sig) < 5 {
++			return nil, errMalformedNote
++		}
++		hash := binary.BigEndian.Uint32(sig[0:4])
++		sig = sig[4:]
++
++		if numSig++; numSig > 100 {
++			// Avoid spending forever parsing a note with many signatures.
++			return nil, errMalformedNote
++		}
++
++		v, err := known.Verifier(name, hash)
++		if _, ok := err.(*UnknownVerifierError); ok {
++			// Drop repeated identical unverified signatures.
++			if seenUnverified[string(line)] {
++				continue
++			}
++			seenUnverified[string(line)] = true
++			n.UnverifiedSigs = append(n.UnverifiedSigs, Signature{Name: name, Hash: hash, Base64: b64})
++			continue
++		}
++		if err != nil {
++			return nil, err
++		}
++
++		// Drop repeated signatures by a single verifier.
++		if seen[nameHash{name, hash}] {
++			continue
++		}
++		seen[nameHash{name, hash}] = true
++
++		ok := v.Verify(text, sig)
++		if !ok {
++			return nil, &InvalidSignatureError{name, hash}
++		}
++
++		n.Sigs = append(n.Sigs, Signature{Name: name, Hash: hash, Base64: b64})
++	}
++
++	// Parsed and verified all the signatures.
++	if len(n.Sigs) == 0 {
++		return nil, &UnverifiedNoteError{n}
++	}
++	return n, nil
++}
++
++// Sign signs the note with the given signers and returns the encoded message.
++// The new signatures from signers are listed in the encoded message after
++// the existing signatures already present in n.Sigs.
++// If any signer uses the same key as an existing signature,
++// the existing signature is elided from the output.
++func Sign(n *Note, signers ...Signer) ([]byte, error) {
++	var buf bytes.Buffer
++	if !strings.HasSuffix(n.Text, "\n") {
++		return nil, errMalformedNote
++	}
++	buf.WriteString(n.Text)
++
++	// Prepare signatures.
++	var sigs bytes.Buffer
++	have := make(map[nameHash]bool)
++	for _, s := range signers {
++		name := s.Name()
++		hash := s.KeyHash()
++		have[nameHash{name, hash}] = true
++		if !isValidName(name) {
++			return nil, errInvalidSigner
++		}
++
++		sig, err := s.Sign(buf.Bytes()) // buf holds n.Text
++		if err != nil {
++			return nil, err
++		}
++
++		var hbuf [4]byte
++		binary.BigEndian.PutUint32(hbuf[:], hash)
++		b64 := base64.StdEncoding.EncodeToString(append(hbuf[:], sig...))
++		sigs.WriteString("— ")
++		sigs.WriteString(name)
++		sigs.WriteString(" ")
++		sigs.WriteString(b64)
++		sigs.WriteString("\n")
++	}
++
++	buf.WriteString("\n")
++
++	// Emit existing signatures not replaced by new ones.
++	for _, list := range [][]Signature{n.Sigs, n.UnverifiedSigs} {
++		for _, sig := range list {
++			name, hash := sig.Name, sig.Hash
++			if !isValidName(name) {
++				return nil, errMalformedNote
++			}
++			if have[nameHash{name, hash}] {
++				continue
++			}
++			// Double-check hash against base64.
++			raw, err := base64.StdEncoding.DecodeString(sig.Base64)
++			if err != nil || len(raw) < 4 || binary.BigEndian.Uint32(raw) != hash {
++				return nil, errMalformedNote
++			}
++			buf.WriteString("— ")
++			buf.WriteString(sig.Name)
++			buf.WriteString(" ")
++			buf.WriteString(sig.Base64)
++			buf.WriteString("\n")
++		}
++	}
++	buf.Write(sigs.Bytes())
++
++	return buf.Bytes(), nil
++}
+diff --git a/src/cmd/go/internal/note/note_test.go b/src/cmd/go/internal/note/note_test.go
+new file mode 100644
+index 0000000000..96c8c91aa9
+--- /dev/null
++++ b/src/cmd/go/internal/note/note_test.go
+@@ -0,0 +1,473 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package note
++
++import (
++	"crypto/rand"
++	"errors"
++	"strings"
++	"testing"
++	"testing/iotest"
++
++	"golang.org/x/crypto/ed25519"
++)
++
++func TestNewVerifier(t *testing.T) {
++	vkey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
++	_, err := NewVerifier(vkey)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Check various manglings are not accepted.
++	badKey := func(k string) {
++		_, err := NewVerifier(k)
++		if err == nil {
++			t.Errorf("NewVerifier(%q) succeeded, should have failed", k)
++		}
++	}
++
++	b := []byte(vkey)
++	for i := 0; i <= len(b); i++ {
++		for j := i + 1; j <= len(b); j++ {
++			if i != 0 || j != len(b) {
++				badKey(string(b[i:j]))
++			}
++		}
++	}
++	for i := 0; i < len(b); i++ {
++		b[i]++
++		badKey(string(b))
++		b[i]--
++	}
++
++	badKey("PeterNeumann+cc469956+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TWBADKEY==") // wrong length key, with adjusted key hash
++	badKey("PeterNeumann+173116ae+ZRpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW")         // unknown algorithm, with adjusted key hash
++}
++
++func TestNewSigner(t *testing.T) {
++	skey := "PRIVATE+KEY+PeterNeumann+c74f20a3+AYEKFALVFGyNhPJEMzD1QIDr+Y7hfZx09iUvxdXHKDFz"
++	_, err := NewSigner(skey)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Check various manglings are not accepted.
++	b := []byte(skey)
++	for i := 0; i <= len(b); i++ {
++		for j := i + 1; j <= len(b); j++ {
++			if i == 0 && j == len(b) {
++				continue
++			}
++			_, err := NewSigner(string(b[i:j]))
++			if err == nil {
++				t.Errorf("NewSigner(%q) succeeded, should have failed", b[i:j])
++			}
++		}
++	}
++	for i := 0; i < len(b); i++ {
++		b[i]++
++		_, err := NewSigner(string(b))
++		if err == nil {
++			t.Errorf("NewSigner(%q) succeeded, should have failed", b)
++		}
++		b[i]--
++	}
++}
++
++func testSignerAndVerifier(t *testing.T, Name string, signer Signer, verifier Verifier) {
++	if name := signer.Name(); name != Name {
++		t.Errorf("signer.Name() = %q, want %q", name, Name)
++	}
++	if name := verifier.Name(); name != Name {
++		t.Errorf("verifier.Name() = %q, want %q", name, Name)
++	}
++	shash := signer.KeyHash()
++	vhash := verifier.KeyHash()
++	if shash != vhash {
++		t.Errorf("signer.KeyHash() = %#08x != verifier.KeyHash() = %#08x", shash, vhash)
++	}
++
++	msg := []byte("hi")
++	sig, err := signer.Sign(msg)
++	if err != nil {
++		t.Fatalf("signer.Sign: %v", err)
++	}
++	if !verifier.Verify(msg, sig) {
++		t.Fatalf("verifier.Verify failed on signature returned by signer.Sign")
++	}
++	sig[0]++
++	if verifier.Verify(msg, sig) {
++		t.Fatalf("verifier.Verify succceeded on corrupt signature")
++	}
++	sig[0]--
++	msg[0]++
++	if verifier.Verify(msg, sig) {
++		t.Fatalf("verifier.Verify succceeded on corrupt message")
++	}
++}
++
++func TestGenerateKey(t *testing.T) {
++	// Generate key pair, make sure it is all self-consistent.
++	const Name = "EnochRoot"
++
++	skey, vkey, err := GenerateKey(rand.Reader, Name)
++	if err != nil {
++		t.Fatalf("GenerateKey: %v", err)
++	}
++	signer, err := NewSigner(skey)
++	if err != nil {
++		t.Fatalf("NewSigner: %v", err)
++	}
++	verifier, err := NewVerifier(vkey)
++	if err != nil {
++		t.Fatalf("NewVerifier: %v", err)
++	}
++
++	testSignerAndVerifier(t, Name, signer, verifier)
++
++	// Check that GenerateKey returns error from rand reader.
++	_, _, err = GenerateKey(iotest.TimeoutReader(iotest.OneByteReader(rand.Reader)), Name)
++	if err == nil {
++		t.Fatalf("GenerateKey succeeded with error-returning rand reader")
++	}
++}
++
++func TestFromEd25519(t *testing.T) {
++	const Name = "EnochRoot"
++
++	pub, priv, err := ed25519.GenerateKey(rand.Reader)
++	if err != nil {
++		t.Fatalf("GenerateKey: %v", err)
++	}
++	signer, err := newSignerFromEd25519Seed(Name, priv.Seed())
++	if err != nil {
++		t.Fatalf("newSignerFromEd25519Seed: %v", err)
++	}
++	vkey, err := NewEd25519VerifierKey(Name, pub)
++	if err != nil {
++		t.Fatalf("NewEd25519VerifierKey: %v", err)
++	}
++	verifier, err := NewVerifier(vkey)
++	if err != nil {
++		t.Fatalf("NewVerifier: %v", err)
++	}
++
++	testSignerAndVerifier(t, Name, signer, verifier)
++
++	// Check that wrong key sizes return errors.
++	_, err = NewEd25519VerifierKey(Name, pub[:len(pub)-1])
++	if err == nil {
++		t.Errorf("NewEd25519VerifierKey succeeded with a seed of the wrong size")
++	}
++}
++
++// newSignerFromEd25519Seed constructs a new signer from a verifier name and a
++// golang.org/x/crypto/ed25519 private key seed.
++func newSignerFromEd25519Seed(name string, seed []byte) (Signer, error) {
++	if len(seed) != ed25519.SeedSize {
++		return nil, errors.New("invalid seed size")
++	}
++	priv := ed25519.NewKeyFromSeed(seed)
++	pub := priv[32:]
++
++	pubkey := append([]byte{algEd25519}, pub...)
++	hash := keyHash(name, pubkey)
++
++	s := &signer{
++		name: name,
++		hash: uint32(hash),
++		sign: func(msg []byte) ([]byte, error) {
++			return ed25519.Sign(priv, msg), nil
++		},
++	}
++	return s, nil
++}
++
++func TestSign(t *testing.T) {
++	skey := "PRIVATE+KEY+PeterNeumann+c74f20a3+AYEKFALVFGyNhPJEMzD1QIDr+Y7hfZx09iUvxdXHKDFz"
++	text := "If you think cryptography is the answer to your problem,\n" +
++		"then you don't know what your problem is.\n"
++
++	signer, err := NewSigner(skey)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	msg, err := Sign(&Note{Text: text}, signer)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	want := `If you think cryptography is the answer to your problem,
++then you don't know what your problem is.
++
++— PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=
++`
++	if string(msg) != want {
++		t.Errorf("Sign: wrong output\nhave:\n%s\nwant:\n%s", msg, want)
++	}
++
++	// Check that existing signature is replaced by new one.
++	msg, err = Sign(&Note{Text: text, Sigs: []Signature{{Name: "PeterNeumann", Hash: 0xc74f20a3, Base64: "BADSIGN="}}}, signer)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if string(msg) != want {
++		t.Errorf("Sign replacing signature: wrong output\nhave:\n%s\nwant:\n%s", msg, want)
++	}
++
++	// Check various bad inputs.
++	_, err = Sign(&Note{Text: "abc"}, signer)
++	if err == nil || err.Error() != "malformed note" {
++		t.Fatalf("Sign with short text: %v, want malformed note error", err)
++	}
++
++	_, err = Sign(&Note{Text: text, Sigs: []Signature{{Name: "a+b", Base64: "ABCD"}}})
++	if err == nil || err.Error() != "malformed note" {
++		t.Fatalf("Sign with bad name: %v, want malformed note error", err)
++	}
++
++	_, err = Sign(&Note{Text: text, Sigs: []Signature{{Name: "PeterNeumann", Hash: 0xc74f20a3, Base64: "BADHASH="}}})
++	if err == nil || err.Error() != "malformed note" {
++		t.Fatalf("Sign with bad pre-filled signature: %v, want malformed note error", err)
++	}
++
++	_, err = Sign(&Note{Text: text}, &badSigner{signer})
++	if err == nil || err.Error() != "invalid signer" {
++		t.Fatalf("Sign with bad signer: %v, want invalid signer error", err)
++	}
++
++	_, err = Sign(&Note{Text: text}, &errSigner{signer})
++	if err != errSurprise {
++		t.Fatalf("Sign with failing signer: %v, want errSurprise", err)
++	}
++}
++
++func TestVerifierList(t *testing.T) {
++	peterKey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
++	peterVerifier, err := NewVerifier(peterKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	enochKey := "EnochRoot+af0cfe78+ATtqJ7zOtqQtYqOo0CpvDXNlMhV3HeJDpjrASKGLWdop"
++	enochVerifier, err := NewVerifier(enochKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	list := VerifierList(peterVerifier, enochVerifier, enochVerifier)
++	v, err := list.Verifier("PeterNeumann", 0xc74f20a3)
++	if v != peterVerifier || err != nil {
++		t.Fatalf("list.Verifier(peter) = %v, %v, want %v, nil", v, err, peterVerifier)
++	}
++	v, err = list.Verifier("PeterNeumann", 0xc74f20a4)
++	if v != nil || err == nil || err.Error() != "unknown key PeterNeumann+c74f20a4" {
++		t.Fatalf("list.Verifier(peter bad hash) = %v, %v, want nil, unknown key error", v, err)
++	}
++
++	v, err = list.Verifier("PeterNeuman", 0xc74f20a3)
++	if v != nil || err == nil || err.Error() != "unknown key PeterNeuman+c74f20a3" {
++		t.Fatalf("list.Verifier(peter bad name) = %v, %v, want nil, unknown key error", v, err)
++	}
++	v, err = list.Verifier("EnochRoot", 0xaf0cfe78)
++	if v != nil || err == nil || err.Error() != "ambiguous key EnochRoot+af0cfe78" {
++		t.Fatalf("list.Verifier(enoch) = %v, %v, want nil, ambiguous key error", v, err)
++	}
++}
++
++type badSigner struct {
++	Signer
++}
++
++func (b *badSigner) Name() string {
++	return "bad name"
++}
++
++var errSurprise = errors.New("surprise!")
++
++type errSigner struct {
++	Signer
++}
++
++func (e *errSigner) Sign([]byte) ([]byte, error) {
++	return nil, errSurprise
++}
++
++func TestOpen(t *testing.T) {
++	peterKey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
++	peterVerifier, err := NewVerifier(peterKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	enochKey := "EnochRoot+af0cfe78+ATtqJ7zOtqQtYqOo0CpvDXNlMhV3HeJDpjrASKGLWdop"
++	enochVerifier, err := NewVerifier(enochKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	text := `If you think cryptography is the answer to your problem,
++then you don't know what your problem is.
++`
++	peterSig := "— PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=\n"
++	enochSig := "— EnochRoot rwz+eBzmZa0SO3NbfRGzPCpDckykFXSdeX+MNtCOXm2/5n2tiOHp+vAF1aGrQ5ovTG01oOTGwnWLox33WWd1RvMc+QQ=\n"
++
++	peter := Signature{"PeterNeumann", 0xc74f20a3, "x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM="}
++	enoch := Signature{"EnochRoot", 0xaf0cfe78, "rwz+eBzmZa0SO3NbfRGzPCpDckykFXSdeX+MNtCOXm2/5n2tiOHp+vAF1aGrQ5ovTG01oOTGwnWLox33WWd1RvMc+QQ="}
++
++	// Check one signature verified, one not.
++	n, err := Open([]byte(text+"\n"+peterSig+enochSig), VerifierList(peterVerifier))
++	if err != nil {
++		t.Fatal(err)
++	}
++	if n.Text != text {
++		t.Errorf("n.Text = %q, want %q", n.Text, text)
++	}
++	if len(n.Sigs) != 1 || n.Sigs[0] != peter {
++		t.Errorf("n.Sigs:\nhave %v\nwant %v", n.Sigs, []Signature{peter})
++	}
++	if len(n.UnverifiedSigs) != 1 || n.UnverifiedSigs[0] != enoch {
++		t.Errorf("n.UnverifiedSigs:\nhave %v\nwant %v", n.Sigs, []Signature{peter})
++	}
++
++	// Check both verified.
++	n, err = Open([]byte(text+"\n"+peterSig+enochSig), VerifierList(peterVerifier, enochVerifier))
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(n.Sigs) != 2 || n.Sigs[0] != peter || n.Sigs[1] != enoch {
++		t.Errorf("n.Sigs:\nhave %v\nwant %v", n.Sigs, []Signature{peter, enoch})
++	}
++	if len(n.UnverifiedSigs) != 0 {
++		t.Errorf("n.UnverifiedSigs:\nhave %v\nwant %v", n.Sigs, []Signature{})
++	}
++
++	// Check both unverified.
++	n, err = Open([]byte(text+"\n"+peterSig+enochSig), VerifierList())
++	if n != nil || err == nil {
++		t.Fatalf("Open unverified = %v, %v, want nil, error", n, err)
++	}
++	e, ok := err.(*UnverifiedNoteError)
++	if !ok {
++		t.Fatalf("Open unverified: err is %T, want *UnverifiedNoteError", err)
++	}
++	if err.Error() != "note has no verifiable signatures" {
++		t.Fatalf("Open unverified: err.Error() = %q, want %q", err.Error(), "note has no verifiable signatures")
++	}
++
++	n = e.Note
++	if n == nil {
++		t.Fatalf("Open unverified: missing note in UnverifiedNoteError")
++	}
++	if len(n.Sigs) != 0 {
++		t.Errorf("n.Sigs:\nhave %v\nwant %v", n.Sigs, []Signature{})
++	}
++	if len(n.UnverifiedSigs) != 2 || n.UnverifiedSigs[0] != peter || n.UnverifiedSigs[1] != enoch {
++		t.Errorf("n.UnverifiedSigs:\nhave %v\nwant %v", n.Sigs, []Signature{peter, enoch})
++	}
++
++	// Check duplicated verifier.
++	_, err = Open([]byte(text+"\n"+enochSig), VerifierList(enochVerifier, peterVerifier, enochVerifier))
++	if err == nil || err.Error() != "ambiguous key EnochRoot+af0cfe78" {
++		t.Fatalf("Open with duplicated verifier: err=%v, want ambiguous key", err)
++	}
++
++	// Check unused duplicated verifier.
++	_, err = Open([]byte(text+"\n"+peterSig), VerifierList(enochVerifier, peterVerifier, enochVerifier))
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Check too many signatures.
++	n, err = Open([]byte(text+"\n"+strings.Repeat(peterSig, 101)), VerifierList(peterVerifier))
++	if n != nil || err == nil || err.Error() != "malformed note" {
++		t.Fatalf("Open too many verified signatures = %v, %v, want nil, malformed note error", n, err)
++	}
++	n, err = Open([]byte(text+"\n"+strings.Repeat(peterSig, 101)), VerifierList())
++	if n != nil || err == nil || err.Error() != "malformed note" {
++		t.Fatalf("Open too many verified signatures = %v, %v, want nil, malformed note error", n, err)
++	}
++
++	// Invalid signature.
++	n, err = Open([]byte(text+"\n"+peterSig[:60]+"ABCD"+peterSig[60:]), VerifierList(peterVerifier))
++	if n != nil || err == nil || err.Error() != "invalid signature for key PeterNeumann+c74f20a3" {
++		t.Fatalf("Open too many verified signatures = %v, %v, want nil, invalid signature error", n, err)
++	}
++
++	// Duplicated verified and unverified signatures.
++	enochABCD := Signature{"EnochRoot", 0xaf0cfe78, "rwz+eBzmZa0SO3NbfRGzPCpDckykFXSdeX+MNtCOXm2/5n" + "ABCD" + "2tiOHp+vAF1aGrQ5ovTG01oOTGwnWLox33WWd1RvMc+QQ="}
++	n, err = Open([]byte(text+"\n"+peterSig+peterSig+enochSig+enochSig+enochSig[:60]+"ABCD"+enochSig[60:]), VerifierList(peterVerifier))
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(n.Sigs) != 1 || n.Sigs[0] != peter {
++		t.Errorf("n.Sigs:\nhave %v\nwant %v", n.Sigs, []Signature{peter})
++	}
++	if len(n.UnverifiedSigs) != 2 || n.UnverifiedSigs[0] != enoch || n.UnverifiedSigs[1] != enochABCD {
++		t.Errorf("n.UnverifiedSigs:\nhave %v\nwant %v", n.UnverifiedSigs, []Signature{enoch, enochABCD})
++	}
++
++	// Invalid encoded message syntax.
++	badMsgs := []string{
++		text,
++		text + "\n",
++		text + "\n" + peterSig[:len(peterSig)-1],
++		"\x01" + text + "\n" + peterSig,
++		"\xff" + text + "\n" + peterSig,
++		text + "\n" + "— Bad Name x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=",
++		text + "\n" + peterSig + "Unexpected line.\n",
++	}
++	for _, msg := range badMsgs {
++		n, err := Open([]byte(msg), VerifierList(peterVerifier))
++		if n != nil || err == nil || err.Error() != "malformed note" {
++			t.Fatalf("Open bad msg = %v, %v, want nil, malformed note error\nmsg:\n%s", n, err, msg)
++		}
++	}
++}
++
++func BenchmarkOpen(b *testing.B) {
++	vkey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
++	msg := []byte("If you think cryptography is the answer to your problem,\n" +
++		"then you don't know what your problem is.\n" +
++		"\n" +
++		"— PeterNeumann x08go/ZJkuBS9UG/SffcvIAQxVBtiFupLLr8pAcElZInNIuGUgYN1FFYC2pZSNXgKvqfqdngotpRZb6KE6RyyBwJnAM=\n")
++
++	verifier, err := NewVerifier(vkey)
++	if err != nil {
++		b.Fatal(err)
++	}
++	verifiers := VerifierList(verifier)
++	verifiers0 := VerifierList()
++
++	// Try with 0 signatures and 1 signature so we can tell how much each signature adds.
++
++	b.Run("Sig0", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			_, err := Open(msg, verifiers0)
++			e, ok := err.(*UnverifiedNoteError)
++			if !ok {
++				b.Fatal("expected UnverifiedNoteError")
++			}
++			n := e.Note
++			if len(n.Sigs) != 0 || len(n.UnverifiedSigs) != 1 {
++				b.Fatal("wrong signature count")
++			}
++		}
++	})
++
++	b.Run("Sig1", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			n, err := Open(msg, verifiers)
++			if err != nil {
++				b.Fatal(err)
++			}
++			if len(n.Sigs) != 1 || len(n.UnverifiedSigs) != 0 {
++				b.Fatal("wrong signature count")
++			}
++		}
++	})
++}
+diff --git a/src/cmd/go/internal/str/path.go b/src/cmd/go/internal/str/path.go
+index a9b4d759a6..a4ffc5f131 100644
+--- a/src/cmd/go/internal/str/path.go
++++ b/src/cmd/go/internal/str/path.go
+@@ -5,6 +5,7 @@
+ package str
+ 
+ import (
++	"path"
+ 	"path/filepath"
+ 	"strings"
+ )
+@@ -49,3 +50,47 @@ func HasFilePathPrefix(s, prefix string) bool {
+ 		return s[len(prefix)] == filepath.Separator && s[:len(prefix)] == prefix
+ 	}
+ }
++
++// GlobsMatchPath reports whether any path prefix of target
++// matches one of the glob patterns (as defined by path.Match)
++// in the comma-separated globs list.
++// It ignores any empty or malformed patterns in the list.
++func GlobsMatchPath(globs, target string) bool {
++	for globs != "" {
++		// Extract next non-empty glob in comma-separated list.
++		var glob string
++		if i := strings.Index(globs, ","); i >= 0 {
++			glob, globs = globs[:i], globs[i+1:]
++		} else {
++			glob, globs = globs, ""
++		}
++		if glob == "" {
++			continue
++		}
++
++		// A glob with N+1 path elements (N slashes) needs to be matched
++		// against the first N+1 path elements of target,
++		// which end just before the N+1'th slash.
++		n := strings.Count(glob, "/")
++		prefix := target
++		// Walk target, counting slashes, truncating at the N+1'th slash.
++		for i := 0; i < len(target); i++ {
++			if target[i] == '/' {
++				if n == 0 {
++					prefix = target[:i]
++					break
++				}
++				n--
++			}
++		}
++		if n > 0 {
++			// Not enough prefix elements.
++			continue
++		}
++		matched, _ := path.Match(glob, prefix)
++		if matched {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/go/internal/sumweb/cache.go b/src/cmd/go/internal/sumweb/cache.go
+new file mode 100644
+index 0000000000..a8117a71b7
+--- /dev/null
++++ b/src/cmd/go/internal/sumweb/cache.go
+@@ -0,0 +1,59 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parallel cache.
++// This file is copied from cmd/go/internal/par.
++
++package sumweb
++
++import (
++	"sync"
++	"sync/atomic"
++)
++
++// parCache runs an action once per key and caches the result.
++type parCache struct {
++	m sync.Map
++}
++
++type cacheEntry struct {
++	done   uint32
++	mu     sync.Mutex
++	result interface{}
++}
++
++// Do calls the function f if and only if Do is being called for the first time with this key.
++// No call to Do with a given key returns until the one call to f returns.
++// Do returns the value returned by the one call to f.
++func (c *parCache) Do(key interface{}, f func() interface{}) interface{} {
++	entryIface, ok := c.m.Load(key)
++	if !ok {
++		entryIface, _ = c.m.LoadOrStore(key, new(cacheEntry))
++	}
++	e := entryIface.(*cacheEntry)
++	if atomic.LoadUint32(&e.done) == 0 {
++		e.mu.Lock()
++		if atomic.LoadUint32(&e.done) == 0 {
++			e.result = f()
++			atomic.StoreUint32(&e.done, 1)
++		}
++		e.mu.Unlock()
++	}
++	return e.result
++}
++
++// Get returns the cached result associated with key.
++// It returns nil if there is no such result.
++// If the result for key is being computed, Get does not wait for the computation to finish.
++func (c *parCache) Get(key interface{}) interface{} {
++	entryIface, ok := c.m.Load(key)
++	if !ok {
++		return nil
++	}
++	e := entryIface.(*cacheEntry)
++	if atomic.LoadUint32(&e.done) == 0 {
++		return nil
++	}
++	return e.result
++}
+diff --git a/src/cmd/go/internal/sumweb/client.go b/src/cmd/go/internal/sumweb/client.go
+new file mode 100644
+index 0000000000..6973e5ac17
+--- /dev/null
++++ b/src/cmd/go/internal/sumweb/client.go
+@@ -0,0 +1,619 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sumweb
++
++import (
++	"bytes"
++	"errors"
++	"fmt"
++	"strings"
++	"sync"
++	"sync/atomic"
++
++	"cmd/go/internal/note"
++	"cmd/go/internal/str"
++	"cmd/go/internal/tlog"
++)
++
++// A Client provides the external operations
++// (file caching, HTTP fetches, and so on)
++// needed to implement the HTTP client Conn.
++// The methods must be safe for concurrent use by multiple goroutines.
++type Client interface {
++	// ReadRemote reads and returns the content served at the given path
++	// on the remote database server. The path begins with "/lookup" or "/tile/".
++	// It is the implementation's responsibility to turn that path into a full URL
++	// and make the HTTP request. ReadRemote should return an error for
++	// any non-200 HTTP response status.
++	ReadRemote(path string) ([]byte, error)
++
++	// ReadConfig reads and returns the content of the named configuration file.
++	// There are only a fixed set of configuration files.
++	//
++	// "key" returns a file containing the verifier key for the server.
++	//
++	// serverName + "/latest" returns a file containing the latest known
++	// signed tree from the server. It is read and written (using WriteConfig).
++	// To signal that the client wishes to start with an "empty" signed tree,
++	// ReadConfig can return a successful empty result (0 bytes of data).
++	ReadConfig(file string) ([]byte, error)
++
++	// WriteConfig updates the content of the named configuration file,
++	// changing it from the old []byte to the new []byte.
++	// If the old []byte does not match the stored configuration,
++	// WriteConfig must return ErrWriteConflict.
++	// Otherwise, WriteConfig should atomically replace old with new.
++	WriteConfig(file string, old, new []byte) error
++
++	// ReadCache reads and returns the content of the named cache file.
++	// Any returned error will be treated as equivalent to the file not existing.
++	// There can be arbitrarily many cache files, such as:
++	//	serverName/lookup/pkg@version
++	//	serverName/tile/8/1/x123/456
++	ReadCache(file string) ([]byte, error)
++
++	// WriteCache writes the named cache file.
++	WriteCache(file string, data []byte)
++
++	// Log prints the given log message (such as with log.Print)
++	Log(msg string)
++
++	// SecurityError prints the given security error log message.
++	// The Conn returns ErrSecurity from any operation that invokes SecurityError,
++	// but the return value is mainly for testing. In a real program,
++	// SecurityError should typically print the message and call log.Fatal or os.Exit.
++	SecurityError(msg string)
++}
++
++// ErrWriteConflict signals a write conflict during Client.WriteConfig.
++var ErrWriteConflict = errors.New("write conflict")
++
++// ErrSecurity is returned by Conn operations that invoke Client.SecurityError.
++var ErrSecurity = errors.New("security error: misbehaving server")
++
++// A Conn is a client connection to a go.sum database.
++// All the methods are safe for simultaneous use by multiple goroutines.
++type Conn struct {
++	client Client // client-provided external world
++
++	didLookup uint32
++
++	// one-time initialized data
++	initOnce   sync.Once
++	initErr    error          // init error, if any
++	name       string         // name of accepted verifier
++	verifiers  note.Verifiers // accepted verifiers (just one, but Verifiers for note.Open)
++	tileReader tileReader
++	tileHeight int
++	nosumdb    string
++
++	record    parCache // cache of record lookup, keyed by path@vers
++	tileCache parCache // cache of c.readTile, keyed by tile
++
++	latestMu  sync.Mutex
++	latest    tlog.Tree // latest known tree head
++	latestMsg []byte    // encoded signed note for latest
++
++	tileSavedMu sync.Mutex
++	tileSaved   map[tlog.Tile]bool // which tiles have been saved using c.client.WriteCache already
++}
++
++// NewConn returns a new Conn using the given Client.
++func NewConn(client Client) *Conn {
++	return &Conn{
++		client: client,
++	}
++}
++
++// init initiailzes the conn (if not already initialized)
++// and returns any initialization error.
++func (c *Conn) init() error {
++	c.initOnce.Do(c.initWork)
++	return c.initErr
++}
++
++// initWork does the actual initialization work.
++func (c *Conn) initWork() {
++	defer func() {
++		if c.initErr != nil {
++			c.initErr = fmt.Errorf("initializing sumweb.Conn: %v", c.initErr)
++		}
++	}()
++
++	c.tileReader.c = c
++	if c.tileHeight == 0 {
++		c.tileHeight = 8
++	}
++	c.tileSaved = make(map[tlog.Tile]bool)
++
++	vkey, err := c.client.ReadConfig("key")
++	if err != nil {
++		c.initErr = err
++		return
++	}
++	verifier, err := note.NewVerifier(strings.TrimSpace(string(vkey)))
++	if err != nil {
++		c.initErr = err
++		return
++	}
++	c.verifiers = note.VerifierList(verifier)
++	c.name = verifier.Name()
++
++	data, err := c.client.ReadConfig(c.name + "/latest")
++	if err != nil {
++		c.initErr = err
++		return
++	}
++	if err := c.mergeLatest(data); err != nil {
++		c.initErr = err
++		return
++	}
++}
++
++// SetTileHeight sets the tile height for the Conn.
++// Any call to SetTileHeight must happen before the first call to Lookup.
++// If SetTileHeight is not called, the Conn defaults to tile height 8.
++func (c *Conn) SetTileHeight(height int) {
++	if atomic.LoadUint32(&c.didLookup) != 0 {
++		panic("SetTileHeight used after Lookup")
++	}
++	if c.tileHeight != 0 {
++		panic("multiple calls to SetTileHeight")
++	}
++	c.tileHeight = height
++}
++
++// SetGONOSUMDB sets the list of comma-separated GONOSUMDB patterns for the Conn.
++// For any module path matching one of the patterns,
++// Lookup will return ErrGONOSUMDB.
++// Any call to SetGONOSUMDB must happen before the first call to Lookup.
++func (c *Conn) SetGONOSUMDB(list string) {
++	if atomic.LoadUint32(&c.didLookup) != 0 {
++		panic("SetGONOSUMDB used after Lookup")
++	}
++	if c.nosumdb != "" {
++		panic("multiple calls to SetGONOSUMDB")
++	}
++	c.nosumdb = list
++}
++
++// ErrGONOSUMDB is returned by Lookup for paths that match
++// a pattern listed in the GONOSUMDB list (set by SetGONOSUMDB,
++// usually from the environment variable).
++var ErrGONOSUMDB = errors.New("skipped (listed in GONOSUMDB)")
++
++func (c *Conn) skip(target string) bool {
++	return str.GlobsMatchPath(c.nosumdb, target)
++}
++
++// Lookup returns the go.sum lines for the given module path and version.
++// The version may end in a /go.mod suffix, in which case Lookup returns
++// the go.sum lines for the module's go.mod-only hash.
++func (c *Conn) Lookup(path, vers string) (lines []string, err error) {
++	atomic.StoreUint32(&c.didLookup, 1)
++
++	if c.skip(path) {
++		return nil, ErrGONOSUMDB
++	}
++
++	defer func() {
++		if err != nil {
++			err = fmt.Errorf("%s@%s: %v", path, vers, err)
++		}
++	}()
++
++	if err := c.init(); err != nil {
++		return nil, err
++	}
++
++	// Prepare encoded cache filename / URL.
++	epath, err := encodePath(path)
++	if err != nil {
++		return nil, err
++	}
++	evers, err := encodeVersion(strings.TrimSuffix(vers, "/go.mod"))
++	if err != nil {
++		return nil, err
++	}
++	file := c.name + "/lookup/" + epath + "@" + evers
++	remotePath := "/lookup/" + epath + "@" + evers
++
++	// Fetch the data.
++	// The lookupCache avoids redundant ReadCache/GetURL operations
++	// (especially since go.sum lines tend to come in pairs for a given
++	// path and version) and also avoids having multiple of the same
++	// request in flight at once.
++	type cached struct {
++		data []byte
++		err  error
++	}
++	result := c.record.Do(file, func() interface{} {
++		// Try the on-disk cache, or else get from web.
++		writeCache := false
++		data, err := c.client.ReadCache(file)
++		if err != nil {
++			data, err = c.client.ReadRemote(remotePath)
++			if err != nil {
++				return cached{nil, err}
++			}
++			writeCache = true
++		}
++
++		// Validate the record before using it for anything.
++		id, text, treeMsg, err := tlog.ParseRecord(data)
++		if err != nil {
++			return cached{nil, err}
++		}
++		if err := c.mergeLatest(treeMsg); err != nil {
++			return cached{nil, err}
++		}
++		if err := c.checkRecord(id, text); err != nil {
++			return cached{nil, err}
++		}
++
++		// Now that we've validated the record,
++		// save it to the on-disk cache (unless that's where it came from).
++		if writeCache {
++			c.client.WriteCache(file, data)
++		}
++
++		return cached{data, nil}
++	}).(cached)
++	if result.err != nil {
++		return nil, result.err
++	}
++
++	// Extract the lines for the specific version we want
++	// (with or without /go.mod).
++	prefix := path + " " + vers + " "
++	var hashes []string
++	for _, line := range strings.Split(string(result.data), "\n") {
++		if strings.HasPrefix(line, prefix) {
++			hashes = append(hashes, line)
++		}
++	}
++	return hashes, nil
++}
++
++// mergeLatest merges the tree head in msg
++// with the Conn's current latest tree head,
++// ensuring the result is a consistent timeline.
++// If the result is inconsistent, mergeLatest calls c.client.SecurityError
++// with a detailed security error message and then
++// (only if c.client.SecurityError does not exit the program) returns ErrSecurity.
++// If the Conn's current latest tree head moves forward,
++// mergeLatest updates the underlying configuration file as well,
++// taking care to merge any independent updates to that configuration.
++func (c *Conn) mergeLatest(msg []byte) error {
++	// Merge msg into our in-memory copy of the latest tree head.
++	when, err := c.mergeLatestMem(msg)
++	if err != nil {
++		return err
++	}
++	if when != msgFuture {
++		// msg matched our present or was in the past.
++		// No change to our present, so no update of config file.
++		return nil
++	}
++
++	// Flush our extended timeline back out to the configuration file.
++	// If the configuration file has been updated in the interim,
++	// we need to merge any updates made there as well.
++	// Note that writeConfig is an atomic compare-and-swap.
++	for {
++		msg, err := c.client.ReadConfig(c.name + "/latest")
++		if err != nil {
++			return err
++		}
++		when, err := c.mergeLatestMem(msg)
++		if err != nil {
++			return err
++		}
++		if when != msgPast {
++			// msg matched our present or was from the future,
++			// and now our in-memory copy matches.
++			return nil
++		}
++
++		// msg (== config) is in the past, so we need to update it.
++		c.latestMu.Lock()
++		latestMsg := c.latestMsg
++		c.latestMu.Unlock()
++		if err := c.client.WriteConfig(c.name+"/latest", msg, latestMsg); err != ErrWriteConflict {
++			// Success or a non-write-conflict error.
++			return err
++		}
++	}
++}
++
++const (
++	msgPast = 1 + iota
++	msgNow
++	msgFuture
++)
++
++// mergeLatestMem is like mergeLatest but is only concerned with
++// updating the in-memory copy of the latest tree head (c.latest)
++// not the configuration file.
++// The when result explains when msg happened relative to our
++// previous idea of c.latest:
++// msgPast means msg was from before c.latest,
++// msgNow means msg was exactly c.latest, and
++// msgFuture means msg was from after c.latest, which has now been updated.
++func (c *Conn) mergeLatestMem(msg []byte) (when int, err error) {
++	if len(msg) == 0 {
++		// Accept empty msg as the unsigned, empty timeline.
++		c.latestMu.Lock()
++		latest := c.latest
++		c.latestMu.Unlock()
++		if latest.N == 0 {
++			return msgNow, nil
++		}
++		return msgPast, nil
++	}
++
++	note, err := note.Open(msg, c.verifiers)
++	if err != nil {
++		return 0, fmt.Errorf("reading tree note: %v\nnote:\n%s", err, msg)
++	}
++	tree, err := tlog.ParseTree([]byte(note.Text))
++	if err != nil {
++		return 0, fmt.Errorf("reading tree: %v\ntree:\n%s", err, note.Text)
++	}
++
++	// Other lookups may be calling mergeLatest with other heads,
++	// so c.latest is changing underfoot. We don't want to hold the
++	// c.mu lock during tile fetches, so loop trying to update c.latest.
++	c.latestMu.Lock()
++	latest := c.latest
++	latestMsg := c.latestMsg
++	c.latestMu.Unlock()
++
++	for {
++		// If the tree head looks old, check that it is on our timeline.
++		if tree.N <= latest.N {
++			if err := c.checkTrees(tree, msg, latest, latestMsg); err != nil {
++				return 0, err
++			}
++			if tree.N < latest.N {
++				return msgPast, nil
++			}
++			return msgNow, nil
++		}
++
++		// The tree head looks new. Check that we are on its timeline and try to move our timeline forward.
++		if err := c.checkTrees(latest, latestMsg, tree, msg); err != nil {
++			return 0, err
++		}
++
++		// Install our msg if possible.
++		// Otherwise we will go around again.
++		c.latestMu.Lock()
++		installed := false
++		if c.latest == latest {
++			installed = true
++			c.latest = tree
++			c.latestMsg = msg
++		} else {
++			latest = c.latest
++			latestMsg = c.latestMsg
++		}
++		c.latestMu.Unlock()
++
++		if installed {
++			return msgFuture, nil
++		}
++	}
++}
++
++// checkTrees checks that older (from olderNote) is contained in newer (from newerNote).
++// If an error occurs, such as malformed data or a network problem, checkTrees returns that error.
++// If on the other hand checkTrees finds evidence of misbehavior, it prepares a detailed
++// message and calls log.Fatal.
++func (c *Conn) checkTrees(older tlog.Tree, olderNote []byte, newer tlog.Tree, newerNote []byte) error {
++	thr := tlog.TileHashReader(newer, &c.tileReader)
++	h, err := tlog.TreeHash(older.N, thr)
++	if err != nil {
++		if older.N == newer.N {
++			return fmt.Errorf("checking tree#%d: %v", older.N, err)
++		}
++		return fmt.Errorf("checking tree#%d against tree#%d: %v", older.N, newer.N, err)
++	}
++	if h == older.Hash {
++		return nil
++	}
++
++	// Detected a fork in the tree timeline.
++	// Start by reporting the inconsistent signed tree notes.
++	var buf bytes.Buffer
++	fmt.Fprintf(&buf, "SECURITY ERROR\n")
++	fmt.Fprintf(&buf, "go.sum database server misbehavior detected!\n\n")
++	indent := func(b []byte) []byte {
++		return bytes.Replace(b, []byte("\n"), []byte("\n\t"), -1)
++	}
++	fmt.Fprintf(&buf, "old database:\n\t%s\n", indent(olderNote))
++	fmt.Fprintf(&buf, "new database:\n\t%s\n", indent(newerNote))
++
++	// The notes alone are not enough to prove the inconsistency.
++	// We also need to show that the newer note's tree hash for older.N
++	// does not match older.Hash. The consumer of this report could
++	// of course consult the server to try to verify the inconsistency,
++	// but we are holding all the bits we need to prove it right now,
++	// so we might as well print them and make the report not depend
++	// on the continued availability of the misbehaving server.
++	// Preparing this data only reuses the tiled hashes needed for
++	// tlog.TreeHash(older.N, thr) above, so assuming thr is caching tiles,
++	// there are no new access to the server here, and these operations cannot fail.
++	fmt.Fprintf(&buf, "proof of misbehavior:\n\t%v", h)
++	if p, err := tlog.ProveTree(newer.N, older.N, thr); err != nil {
++		fmt.Fprintf(&buf, "\tinternal error: %v\n", err)
++	} else if err := tlog.CheckTree(p, newer.N, newer.Hash, older.N, h); err != nil {
++		fmt.Fprintf(&buf, "\tinternal error: generated inconsistent proof\n")
++	} else {
++		for _, h := range p {
++			fmt.Fprintf(&buf, "\n\t%v", h)
++		}
++	}
++	c.client.SecurityError(buf.String())
++	return ErrSecurity
++}
++
++// checkRecord checks that record #id's hash matches data.
++func (c *Conn) checkRecord(id int64, data []byte) error {
++	c.latestMu.Lock()
++	latest := c.latest
++	c.latestMu.Unlock()
++
++	if id >= latest.N {
++		return fmt.Errorf("cannot validate record %d in tree of size %d", id, latest.N)
++	}
++	hashes, err := tlog.TileHashReader(latest, &c.tileReader).ReadHashes([]int64{tlog.StoredHashIndex(0, id)})
++	if err != nil {
++		return err
++	}
++	if hashes[0] == tlog.RecordHash(data) {
++		return nil
++	}
++	return fmt.Errorf("cannot authenticate record data in server response")
++}
++
++// tileReader is a *Conn wrapper that implements tlog.TileReader.
++// The separate type avoids exposing the ReadTiles and SaveTiles
++// methods on Conn itself.
++type tileReader struct {
++	c *Conn
++}
++
++func (r *tileReader) Height() int {
++	return r.c.tileHeight
++}
++
++// ReadTiles reads and returns the requested tiles,
++// either from the on-disk cache or the server.
++func (r *tileReader) ReadTiles(tiles []tlog.Tile) ([][]byte, error) {
++	// Read all the tiles in parallel.
++	data := make([][]byte, len(tiles))
++	errs := make([]error, len(tiles))
++	var wg sync.WaitGroup
++	for i, tile := range tiles {
++		wg.Add(1)
++		go func(i int, tile tlog.Tile) {
++			defer wg.Done()
++			data[i], errs[i] = r.c.readTile(tile)
++		}(i, tile)
++	}
++	wg.Wait()
++
++	for _, err := range errs {
++		if err != nil {
++			return nil, err
++		}
++	}
++
++	return data, nil
++}
++
++// tileCacheKey returns the cache key for the tile.
++func (c *Conn) tileCacheKey(tile tlog.Tile) string {
++	return c.name + "/" + tile.Path()
++}
++
++// tileRemotePath returns the remote path for the tile.
++func (c *Conn) tileRemotePath(tile tlog.Tile) string {
++	return "/" + tile.Path()
++}
++
++// readTile reads a single tile, either from the on-disk cache or the server.
++func (c *Conn) readTile(tile tlog.Tile) ([]byte, error) {
++	type cached struct {
++		data []byte
++		err  error
++	}
++
++	result := c.tileCache.Do(tile, func() interface{} {
++		// Try the requested tile in on-disk cache.
++		data, err := c.client.ReadCache(c.tileCacheKey(tile))
++		if err == nil {
++			c.markTileSaved(tile)
++			return cached{data, nil}
++		}
++
++		// Try the full tile in on-disk cache (if requested tile not already full).
++		// We only save authenticated tiles to the on-disk cache,
++		// so the recreated prefix is equally authenticated.
++		full := tile
++		full.W = 1 << tile.H
++		if tile != full {
++			data, err := c.client.ReadCache(c.tileCacheKey(full))
++			if err == nil {
++				c.markTileSaved(tile) // don't save tile later; we already have full
++				return cached{data[:len(data)/full.W*tile.W], nil}
++			}
++		}
++
++		// Try requested tile from server.
++		data, err = c.client.ReadRemote(c.tileRemotePath(tile))
++		if err == nil {
++			return cached{data, nil}
++		}
++
++		// Try full tile on server.
++		// If the partial tile does not exist, it should be because
++		// the tile has been completed and only the complete one
++		// is available.
++		if tile != full {
++			data, err := c.client.ReadRemote(c.tileRemotePath(full))
++			if err == nil {
++				// Note: We could save the full tile in the on-disk cache here,
++				// but we don't know if it is valid yet, and we will only find out
++				// about the partial data, not the full data. So let SaveTiles
++				// save the partial tile, and we'll just refetch the full tile later
++				// once we can validate more (or all) of it.
++				return cached{data[:len(data)/full.W*tile.W], nil}
++			}
++		}
++
++		// Nothing worked.
++		// Return the error from the server fetch for the requested (not full) tile.
++		return cached{nil, err}
++	}).(cached)
++
++	return result.data, result.err
++}
++
++// markTileSaved records that tile is already present in the on-disk cache,
++// so that a future SaveTiles for that tile can be ignored.
++func (c *Conn) markTileSaved(tile tlog.Tile) {
++	c.tileSavedMu.Lock()
++	c.tileSaved[tile] = true
++	c.tileSavedMu.Unlock()
++}
++
++// SaveTiles saves the now validated tiles.
++func (r *tileReader) SaveTiles(tiles []tlog.Tile, data [][]byte) {
++	c := r.c
++
++	// Determine which tiles need saving.
++	// (Tiles that came from the cache need not be saved back.)
++	save := make([]bool, len(tiles))
++	c.tileSavedMu.Lock()
++	for i, tile := range tiles {
++		if !c.tileSaved[tile] {
++			save[i] = true
++			c.tileSaved[tile] = true
++		}
++	}
++	c.tileSavedMu.Unlock()
++
++	for i, tile := range tiles {
++		if save[i] {
++			// If WriteCache fails here (out of disk space? i/o error?),
++			// c.tileSaved[tile] is still true and we will not try to write it again.
++			// Next time we run maybe we'll redownload it again and be
++			// more successful.
++			c.client.WriteCache(c.name+"/"+tile.Path(), data[i])
++		}
++	}
++}
+diff --git a/src/cmd/go/internal/sumweb/client_test.go b/src/cmd/go/internal/sumweb/client_test.go
+new file mode 100644
+index 0000000000..83a182adc5
+--- /dev/null
++++ b/src/cmd/go/internal/sumweb/client_test.go
+@@ -0,0 +1,460 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sumweb
++
++import (
++	"bytes"
++	"fmt"
++	"strings"
++	"sync"
++	"testing"
++
++	"cmd/go/internal/note"
++	"cmd/go/internal/tlog"
++)
++
++const (
++	testName        = "localhost.localdev/sumdb"
++	testVerifierKey = "localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6"
++	testSignerKey   = "PRIVATE+KEY+localhost.localdev/sumdb+00000c67+AXu6+oaVaOYuQOFrf1V59JK1owcFlJcHwwXHDfDGxSPk"
++)
++
++func TestConnLookup(t *testing.T) {
++	tc := newTestClient(t)
++	tc.mustHaveLatest(1)
++
++	// Basic lookup.
++	tc.mustLookup("rsc.io/sampler", "v1.3.0", "rsc.io/sampler v1.3.0 h1:7uVkIFmeBqHfdjD+gZwtXXI+RODJ2Wc4O7MPEh/QiW4=")
++	tc.mustHaveLatest(3)
++
++	// Everything should now be cached, both for the original package and its /go.mod.
++	tc.getOK = false
++	tc.mustLookup("rsc.io/sampler", "v1.3.0", "rsc.io/sampler v1.3.0 h1:7uVkIFmeBqHfdjD+gZwtXXI+RODJ2Wc4O7MPEh/QiW4=")
++	tc.mustLookup("rsc.io/sampler", "v1.3.0/go.mod", "rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=")
++	tc.mustHaveLatest(3)
++	tc.getOK = true
++	tc.getTileOK = false // the cache has what we need
++
++	// Lookup with multiple returned lines.
++	tc.mustLookup("rsc.io/quote", "v1.5.2", "rsc.io/quote v1.5.2 h1:w5fcysjrx7yqtD/aO+QwRjYZOKnaM9Uh2b40tElTs3Y=\nrsc.io/quote v1.5.2 h2:xyzzy")
++	tc.mustHaveLatest(3)
++
++	// Lookup with need for !-encoding.
++	// rsc.io/Quote is the only record written after rsc.io/samper,
++	// so it is the only one that should need more tiles.
++	tc.getTileOK = true
++	tc.mustLookup("rsc.io/Quote", "v1.5.2", "rsc.io/Quote v1.5.2 h1:uppercase!=")
++	tc.mustHaveLatest(4)
++}
++
++func TestConnBadTiles(t *testing.T) {
++	tc := newTestClient(t)
++
++	flipBits := func() {
++		for url, data := range tc.remote {
++			if strings.Contains(url, "/tile/") {
++				for i := range data {
++					data[i] ^= 0x80
++				}
++			}
++		}
++	}
++
++	// Bad tiles in initial download.
++	tc.mustHaveLatest(1)
++	flipBits()
++	_, err := tc.conn.Lookup("rsc.io/sampler", "v1.3.0")
++	tc.mustError(err, "rsc.io/sampler@v1.3.0: initializing sumweb.Conn: checking tree#1: downloaded inconsistent tile")
++	flipBits()
++	tc.newConn()
++	tc.mustLookup("rsc.io/sampler", "v1.3.0", "rsc.io/sampler v1.3.0 h1:7uVkIFmeBqHfdjD+gZwtXXI+RODJ2Wc4O7MPEh/QiW4=")
++
++	// Bad tiles after initial download.
++	flipBits()
++	_, err = tc.conn.Lookup("rsc.io/Quote", "v1.5.2")
++	tc.mustError(err, "rsc.io/Quote@v1.5.2: checking tree#3 against tree#4: downloaded inconsistent tile")
++	flipBits()
++	tc.newConn()
++	tc.mustLookup("rsc.io/Quote", "v1.5.2", "rsc.io/Quote v1.5.2 h1:uppercase!=")
++
++	// Bad starting tree hash looks like bad tiles.
++	tc.newConn()
++	text := tlog.FormatTree(tlog.Tree{N: 1, Hash: tlog.Hash{}})
++	data, err := note.Sign(&note.Note{Text: string(text)}, tc.signer)
++	if err != nil {
++		tc.t.Fatal(err)
++	}
++	tc.config[testName+"/latest"] = data
++	_, err = tc.conn.Lookup("rsc.io/sampler", "v1.3.0")
++	tc.mustError(err, "rsc.io/sampler@v1.3.0: initializing sumweb.Conn: checking tree#1: downloaded inconsistent tile")
++}
++
++func TestConnFork(t *testing.T) {
++	tc := newTestClient(t)
++	tc2 := tc.fork()
++
++	tc.addRecord("rsc.io/pkg1@v1.5.2", `rsc.io/pkg1 v1.5.2 h1:hash!=
++`)
++	tc.addRecord("rsc.io/pkg1@v1.5.4", `rsc.io/pkg1 v1.5.4 h1:hash!=
++`)
++	tc.mustLookup("rsc.io/pkg1", "v1.5.2", "rsc.io/pkg1 v1.5.2 h1:hash!=")
++
++	tc2.addRecord("rsc.io/pkg1@v1.5.3", `rsc.io/pkg1 v1.5.3 h1:hash!=
++`)
++	tc2.addRecord("rsc.io/pkg1@v1.5.4", `rsc.io/pkg1 v1.5.4 h1:hash!=
++`)
++	tc2.mustLookup("rsc.io/pkg1", "v1.5.4", "rsc.io/pkg1 v1.5.4 h1:hash!=")
++
++	key := "/lookup/rsc.io/pkg1@v1.5.2"
++	tc2.remote[key] = tc.remote[key]
++	_, err := tc2.conn.Lookup("rsc.io/pkg1", "v1.5.2")
++	tc2.mustError(err, ErrSecurity.Error())
++
++	/*
++	   SECURITY ERROR
++	   go.sum database server misbehavior detected!
++
++	   old database:
++	   	go.sum database tree!
++	   	5
++	   	nWzN20+pwMt62p7jbv1/NlN95ePTlHijabv5zO/s36w=
++
++	   	— localhost.localdev/sumdb AAAMZ5/2FVAdMH58kmnz/0h299pwyskEbzDzoa2/YaPdhvLya4YWDFQQxu2TQb5GpwAH4NdWnTwuhILafisyf3CNbgg=
++
++	   new database:
++	   	go.sum database tree
++	   	6
++	   	wc4SkQt52o5W2nQ8To2ARs+mWuUJjss+sdleoiqxMmM=
++
++	   	— localhost.localdev/sumdb AAAMZ6oRNswlEZ6ZZhxrCvgl1MBy+nusq4JU+TG6Fe2NihWLqOzb+y2c2kzRLoCr4tvw9o36ucQEnhc20e4nA4Qc/wc=
++
++	   proof of misbehavior:
++	   	T7i+H/8ER4nXOiw4Bj0koZOkGjkxoNvlI34GpvhHhQg=
++	   	Nsuejv72de9hYNM5bqFv8rv3gm3zJQwv/DT/WNbLDLA=
++	   	mOmqqZ1aI/lzS94oq/JSbj7pD8Rv9S+xDyi12BtVSHo=
++	   	/7Aw5jVSMM9sFjQhaMg+iiDYPMk6decH7QLOGrL9Lx0=
++	*/
++
++	wants := []string{
++		"SECURITY ERROR",
++		"go.sum database server misbehavior detected!",
++		"old database:\n\tgo.sum database tree\n\t5\n",
++		"— localhost.localdev/sumdb AAAMZ5/2FVAd",
++		"new database:\n\tgo.sum database tree\n\t6\n",
++		"— localhost.localdev/sumdb AAAMZ6oRNswl",
++		"proof of misbehavior:\n\tT7i+H/8ER4nXOiw4Bj0k",
++	}
++	text := tc2.security.String()
++	for _, want := range wants {
++		if !strings.Contains(text, want) {
++			t.Fatalf("cannot find %q in security text:\n%s", want, text)
++		}
++	}
++}
++
++func TestConnGONOSUMDB(t *testing.T) {
++	tc := newTestClient(t)
++	tc.conn.SetGONOSUMDB("p,*/q")
++	tc.conn.Lookup("rsc.io/sampler", "v1.3.0") // initialize before we turn off network
++	tc.getOK = false
++
++	ok := []string{
++		"abc",
++		"a/p",
++		"pq",
++		"q",
++		"n/o/p/q",
++	}
++	skip := []string{
++		"p",
++		"p/x",
++		"x/q",
++		"x/q/z",
++	}
++
++	for _, path := range ok {
++		_, err := tc.conn.Lookup(path, "v1.0.0")
++		if err == ErrGONOSUMDB {
++			t.Errorf("Lookup(%q): ErrGONOSUMDB, wanted failed actual lookup", path)
++		}
++	}
++	for _, path := range skip {
++		_, err := tc.conn.Lookup(path, "v1.0.0")
++		if err != ErrGONOSUMDB {
++			t.Errorf("Lookup(%q): %v, wanted ErrGONOSUMDB", path, err)
++		}
++	}
++}
++
++// A testClient is a self-contained client-side testing environment.
++type testClient struct {
++	t          *testing.T // active test
++	conn       *Conn      // conn being tested
++	tileHeight int        // tile height to use (default 2)
++	getOK      bool       // should tc.GetURL succeed?
++	getTileOK  bool       // should tc.GetURL of tiles succeed?
++	treeSize   int64
++	hashes     []tlog.Hash
++	remote     map[string][]byte
++	signer     note.Signer
++
++	// mu protects config, cache, log, security
++	// during concurrent use of the exported methods
++	// by the conn itself (testClient is the Conn's Client,
++	// and the Client methods can both read and write these fields).
++	// Unexported methods invoked directly by the test
++	// (for example, addRecord) need not hold the mutex:
++	// for proper test execution those methods should only
++	// be called when the Conn is idle and not using its Client.
++	// Not holding the mutex in those methods ensures
++	// that if a mistake is made, go test -race will report it.
++	// (Holding the mutex would eliminate the race report but
++	// not the underlying problem.)
++	// Similarly, the get map is not protected by the mutex,
++	// because the Client methods only read it.
++	mu       sync.Mutex // prot
++	config   map[string][]byte
++	cache    map[string][]byte
++	security bytes.Buffer
++}
++
++// newTestClient returns a new testClient that will call t.Fatal on error
++// and has a few records already available on the remote server.
++func newTestClient(t *testing.T) *testClient {
++	tc := &testClient{
++		t:          t,
++		tileHeight: 2,
++		getOK:      true,
++		getTileOK:  true,
++		config:     make(map[string][]byte),
++		cache:      make(map[string][]byte),
++		remote:     make(map[string][]byte),
++	}
++
++	tc.config["key"] = []byte(testVerifierKey + "\n")
++	var err error
++	tc.signer, err = note.NewSigner(testSignerKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	tc.newConn()
++
++	tc.addRecord("rsc.io/quote@v1.5.2", `rsc.io/quote v1.5.2 h1:w5fcysjrx7yqtD/aO+QwRjYZOKnaM9Uh2b40tElTs3Y=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/quote v1.5.2 h2:xyzzy
++`)
++
++	tc.addRecord("golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c", `golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:qgOY6WgZOaTkIIMiVjBQcw93ERBE4m30iBm00nkL0i8=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++`)
++	tc.addRecord("rsc.io/sampler@v1.3.0", `rsc.io/sampler v1.3.0 h1:7uVkIFmeBqHfdjD+gZwtXXI+RODJ2Wc4O7MPEh/QiW4=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++`)
++	tc.config[testName+"/latest"] = tc.signTree(1)
++
++	tc.addRecord("rsc.io/!quote@v1.5.2", `rsc.io/Quote v1.5.2 h1:uppercase!=
++`)
++	return tc
++}
++
++// newConn resets the Conn associated with tc.
++// This clears any in-memory cache from the Conn
++// but not tc's on-disk cache.
++func (tc *testClient) newConn() {
++	tc.conn = NewConn(tc)
++	tc.conn.SetTileHeight(tc.tileHeight)
++}
++
++// mustLookup does a lookup for path@vers and checks that the lines that come back match want.
++func (tc *testClient) mustLookup(path, vers, want string) {
++	tc.t.Helper()
++	lines, err := tc.conn.Lookup(path, vers)
++	if err != nil {
++		tc.t.Fatal(err)
++	}
++	if strings.Join(lines, "\n") != want {
++		tc.t.Fatalf("Lookup(%q, %q):\n\t%s\nwant:\n\t%s", path, vers, strings.Join(lines, "\n\t"), strings.Replace(want, "\n", "\n\t", -1))
++	}
++}
++
++// mustHaveLatest checks that the on-disk configuration
++// for latest is a tree of size n.
++func (tc *testClient) mustHaveLatest(n int64) {
++	tc.t.Helper()
++
++	latest := tc.config[testName+"/latest"]
++	lines := strings.Split(string(latest), "\n")
++	if len(lines) < 2 || lines[1] != fmt.Sprint(n) {
++		tc.t.Fatalf("/latest should have tree %d, but has:\n%s", n, latest)
++	}
++}
++
++// mustError checks that err's error string contains the text.
++func (tc *testClient) mustError(err error, text string) {
++	tc.t.Helper()
++	if err == nil || !strings.Contains(err.Error(), text) {
++		tc.t.Fatalf("err = %v, want %q", err, text)
++	}
++}
++
++// fork returns a copy of tc.
++// Changes made to the new copy or to tc are not reflected in the other.
++func (tc *testClient) fork() *testClient {
++	tc2 := &testClient{
++		t:          tc.t,
++		getOK:      tc.getOK,
++		getTileOK:  tc.getTileOK,
++		tileHeight: tc.tileHeight,
++		treeSize:   tc.treeSize,
++		hashes:     append([]tlog.Hash{}, tc.hashes...),
++		signer:     tc.signer,
++		config:     copyMap(tc.config),
++		cache:      copyMap(tc.cache),
++		remote:     copyMap(tc.remote),
++	}
++	tc2.newConn()
++	return tc2
++}
++
++func copyMap(m map[string][]byte) map[string][]byte {
++	m2 := make(map[string][]byte)
++	for k, v := range m {
++		m2[k] = v
++	}
++	return m2
++}
++
++// ReadHashes is tc's implementation of tlog.HashReader, for use with
++// tlog.TreeHash and so on.
++func (tc *testClient) ReadHashes(indexes []int64) ([]tlog.Hash, error) {
++	var list []tlog.Hash
++	for _, id := range indexes {
++		list = append(list, tc.hashes[id])
++	}
++	return list, nil
++}
++
++// addRecord adds a log record using the given (!-encoded) key and data.
++func (tc *testClient) addRecord(key, data string) {
++	tc.t.Helper()
++
++	// Create record, add hashes to log tree.
++	id := tc.treeSize
++	tc.treeSize++
++	rec, err := tlog.FormatRecord(id, []byte(data))
++	if err != nil {
++		tc.t.Fatal(err)
++	}
++	hashes, err := tlog.StoredHashesForRecordHash(id, tlog.RecordHash([]byte(data)), tc)
++	if err != nil {
++		tc.t.Fatal(err)
++	}
++	tc.hashes = append(tc.hashes, hashes...)
++
++	// Create lookup result.
++	tc.remote["/lookup/"+key] = append(rec, tc.signTree(tc.treeSize)...)
++
++	// Create new tiles.
++	tiles := tlog.NewTiles(tc.tileHeight, id, tc.treeSize)
++	for _, tile := range tiles {
++		data, err := tlog.ReadTileData(tile, tc)
++		if err != nil {
++			tc.t.Fatal(err)
++		}
++		tc.remote["/"+tile.Path()] = data
++		// TODO delete old partial tiles
++	}
++}
++
++// signTree returns the signed head for the tree of the given size.
++func (tc *testClient) signTree(size int64) []byte {
++	h, err := tlog.TreeHash(size, tc)
++	if err != nil {
++		tc.t.Fatal(err)
++	}
++	text := tlog.FormatTree(tlog.Tree{N: size, Hash: h})
++	data, err := note.Sign(&note.Note{Text: string(text)}, tc.signer)
++	if err != nil {
++		tc.t.Fatal(err)
++	}
++	return data
++}
++
++// ReadRemote is for tc's implementation of Client.
++func (tc *testClient) ReadRemote(path string) ([]byte, error) {
++	// No mutex here because only the Client should be running
++	// and the Client cannot change tc.get.
++	if !tc.getOK {
++		return nil, fmt.Errorf("disallowed remote read %s", path)
++	}
++	if strings.Contains(path, "/tile/") && !tc.getTileOK {
++		return nil, fmt.Errorf("disallowed remote tile read %s", path)
++	}
++
++	data, ok := tc.remote[path]
++	if !ok {
++		return nil, fmt.Errorf("no remote path %s", path)
++	}
++	return data, nil
++}
++
++// ReadConfig is for tc's implementation of Client.
++func (tc *testClient) ReadConfig(file string) ([]byte, error) {
++	tc.mu.Lock()
++	defer tc.mu.Unlock()
++
++	data, ok := tc.config[file]
++	if !ok {
++		return nil, fmt.Errorf("no config %s", file)
++	}
++	return data, nil
++}
++
++// WriteConfig is for tc's implementation of Client.
++func (tc *testClient) WriteConfig(file string, old, new []byte) error {
++	tc.mu.Lock()
++	defer tc.mu.Unlock()
++
++	data := tc.config[file]
++	if !bytes.Equal(old, data) {
++		return ErrWriteConflict
++	}
++	tc.config[file] = new
++	return nil
++}
++
++// ReadCache is for tc's implementation of Client.
++func (tc *testClient) ReadCache(file string) ([]byte, error) {
++	tc.mu.Lock()
++	defer tc.mu.Unlock()
++
++	data, ok := tc.cache[file]
++	if !ok {
++		return nil, fmt.Errorf("no cache %s", file)
++	}
++	return data, nil
++}
++
++// WriteCache is for tc's implementation of Client.
++func (tc *testClient) WriteCache(file string, data []byte) {
++	tc.mu.Lock()
++	defer tc.mu.Unlock()
++
++	tc.cache[file] = data
++}
++
++// Log is for tc's implementation of Client.
++func (tc *testClient) Log(msg string) {
++	tc.t.Log(msg)
++}
++
++// SecurityError is for tc's implementation of Client.
++func (tc *testClient) SecurityError(msg string) {
++	tc.mu.Lock()
++	defer tc.mu.Unlock()
++
++	fmt.Fprintf(&tc.security, "%s\n", strings.TrimRight(msg, "\n"))
++}
+diff --git a/src/cmd/go/internal/sumweb/encode.go b/src/cmd/go/internal/sumweb/encode.go
+new file mode 100644
+index 0000000000..d044a84f3a
+--- /dev/null
++++ b/src/cmd/go/internal/sumweb/encode.go
+@@ -0,0 +1,167 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// FS-safe encoding of module paths and versions.
++// Copied from cmd/go/internal/module and unexported.
++
++package sumweb
++
++import (
++	"fmt"
++	"unicode/utf8"
++)
++
++// Safe encodings
++//
++// Module paths appear as substrings of file system paths
++// (in the download cache) and of web server URLs in the proxy protocol.
++// In general we cannot rely on file systems to be case-sensitive,
++// nor can we rely on web servers, since they read from file systems.
++// That is, we cannot rely on the file system to keep rsc.io/QUOTE
++// and rsc.io/quote separate. Windows and macOS don't.
++// Instead, we must never require two different casings of a file path.
++// Because we want the download cache to match the proxy protocol,
++// and because we want the proxy protocol to be possible to serve
++// from a tree of static files (which might be stored on a case-insensitive
++// file system), the proxy protocol must never require two different casings
++// of a URL path either.
++//
++// One possibility would be to make the safe encoding be the lowercase
++// hexadecimal encoding of the actual path bytes. This would avoid ever
++// needing different casings of a file path, but it would be fairly illegible
++// to most programmers when those paths appeared in the file system
++// (including in file paths in compiler errors and stack traces)
++// in web server logs, and so on. Instead, we want a safe encoding that
++// leaves most paths unaltered.
++//
++// The safe encoding is this:
++// replace every uppercase letter with an exclamation mark
++// followed by the letter's lowercase equivalent.
++//
++// For example,
++// github.com/Azure/azure-sdk-for-go ->  github.com/!azure/azure-sdk-for-go.
++// github.com/GoogleCloudPlatform/cloudsql-proxy -> github.com/!google!cloud!platform/cloudsql-proxy
++// github.com/Sirupsen/logrus -> github.com/!sirupsen/logrus.
++//
++// Import paths that avoid upper-case letters are left unchanged.
++// Note that because import paths are ASCII-only and avoid various
++// problematic punctuation (like : < and >), the safe encoding is also ASCII-only
++// and avoids the same problematic punctuation.
++//
++// Import paths have never allowed exclamation marks, so there is no
++// need to define how to encode a literal !.
++//
++// Although paths are disallowed from using Unicode (see pathOK above),
++// the eventual plan is to allow Unicode letters as well, to assume that
++// file systems and URLs are Unicode-safe (storing UTF-8), and apply
++// the !-for-uppercase convention. Note however that not all runes that
++// are different but case-fold equivalent are an upper/lower pair.
++// For example, U+004B ('K'), U+006B ('k'), and U+212A ('K' for Kelvin)
++// are considered to case-fold to each other. When we do add Unicode
++// letters, we must not assume that upper/lower are the only case-equivalent pairs.
++// Perhaps the Kelvin symbol would be disallowed entirely, for example.
++// Or perhaps it would encode as "!!k", or perhaps as "(212A)".
++//
++// Also, it would be nice to allow Unicode marks as well as letters,
++// but marks include combining marks, and then we must deal not
++// only with case folding but also normalization: both U+00E9 ('é')
++// and U+0065 U+0301 ('e' followed by combining acute accent)
++// look the same on the page and are treated by some file systems
++// as the same path. If we do allow Unicode marks in paths, there
++// must be some kind of normalization to allow only one canonical
++// encoding of any character used in an import path.
++
++// encodePath returns the safe encoding of the given module path.
++// It fails if the module path is invalid.
++func encodePath(path string) (encoding string, err error) {
++	return encodeString(path)
++}
++
++// encodeVersion returns the safe encoding of the given module version.
++// Versions are allowed to be in non-semver form but must be valid file names
++// and not contain exclamation marks.
++func encodeVersion(v string) (encoding string, err error) {
++	return encodeString(v)
++}
++
++func encodeString(s string) (encoding string, err error) {
++	haveUpper := false
++	for _, r := range s {
++		if r == '!' || r >= utf8.RuneSelf {
++			// This should be disallowed by CheckPath, but diagnose anyway.
++			// The correctness of the encoding loop below depends on it.
++			return "", fmt.Errorf("internal error: inconsistency in EncodePath")
++		}
++		if 'A' <= r && r <= 'Z' {
++			haveUpper = true
++		}
++	}
++
++	if !haveUpper {
++		return s, nil
++	}
++
++	var buf []byte
++	for _, r := range s {
++		if 'A' <= r && r <= 'Z' {
++			buf = append(buf, '!', byte(r+'a'-'A'))
++		} else {
++			buf = append(buf, byte(r))
++		}
++	}
++	return string(buf), nil
++}
++
++// decodePath returns the module path of the given safe encoding.
++// It fails if the encoding is invalid or encodes an invalid path.
++func decodePath(encoding string) (path string, err error) {
++	path, ok := decodeString(encoding)
++	if !ok {
++		return "", fmt.Errorf("invalid module path encoding %q", encoding)
++	}
++	return path, nil
++}
++
++// decodeVersion returns the version string for the given safe encoding.
++// It fails if the encoding is invalid or encodes an invalid version.
++// Versions are allowed to be in non-semver form but must be valid file names
++// and not contain exclamation marks.
++func decodeVersion(encoding string) (v string, err error) {
++	v, ok := decodeString(encoding)
++	if !ok {
++		return "", fmt.Errorf("invalid version encoding %q", encoding)
++	}
++	return v, nil
++}
++
++func decodeString(encoding string) (string, bool) {
++	var buf []byte
++
++	bang := false
++	for _, r := range encoding {
++		if r >= utf8.RuneSelf {
++			return "", false
++		}
++		if bang {
++			bang = false
++			if r < 'a' || 'z' < r {
++				return "", false
++			}
++			buf = append(buf, byte(r+'A'-'a'))
++			continue
++		}
++		if r == '!' {
++			bang = true
++			continue
++		}
++		if 'A' <= r && r <= 'Z' {
++			return "", false
++		}
++		buf = append(buf, byte(r))
++	}
++	if bang {
++		return "", false
++	}
++	return string(buf), true
++}
+diff --git a/src/cmd/go/internal/sumweb/encode_test.go b/src/cmd/go/internal/sumweb/encode_test.go
+new file mode 100644
+index 0000000000..9ed5e4a9a0
+--- /dev/null
++++ b/src/cmd/go/internal/sumweb/encode_test.go
+@@ -0,0 +1,67 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sumweb
++
++import "testing"
++
++var encodeTests = []struct {
++	path string
++	enc  string // empty means same as path
++}{
++	{path: "ascii.com/abcdefghijklmnopqrstuvwxyz.-+/~_0123456789"},
++	{path: "github.com/GoogleCloudPlatform/omega", enc: "github.com/!google!cloud!platform/omega"},
++}
++
++func TestEncodePath(t *testing.T) {
++	// Check encodings.
++	for _, tt := range encodeTests {
++		enc, err := encodePath(tt.path)
++		if err != nil {
++			t.Errorf("encodePath(%q): unexpected error: %v", tt.path, err)
++			continue
++		}
++		want := tt.enc
++		if want == "" {
++			want = tt.path
++		}
++		if enc != want {
++			t.Errorf("encodePath(%q) = %q, want %q", tt.path, enc, want)
++		}
++	}
++}
++
++var badDecode = []string{
++	"github.com/GoogleCloudPlatform/omega",
++	"github.com/!google!cloud!platform!/omega",
++	"github.com/!0google!cloud!platform/omega",
++	"github.com/!_google!cloud!platform/omega",
++	"github.com/!!google!cloud!platform/omega",
++}
++
++func TestDecodePath(t *testing.T) {
++	// Check invalid decodings.
++	for _, bad := range badDecode {
++		_, err := decodePath(bad)
++		if err == nil {
++			t.Errorf("DecodePath(%q): succeeded, want error (invalid decoding)", bad)
++		}
++	}
++
++	// Check encodings.
++	for _, tt := range encodeTests {
++		enc := tt.enc
++		if enc == "" {
++			enc = tt.path
++		}
++		path, err := decodePath(enc)
++		if err != nil {
++			t.Errorf("decodePath(%q): unexpected error: %v", enc, err)
++			continue
++		}
++		if path != tt.path {
++			t.Errorf("decodePath(%q) = %q, want %q", enc, path, tt.path)
++		}
++	}
++}
+diff --git a/src/cmd/go/internal/sumweb/server.go b/src/cmd/go/internal/sumweb/server.go
+new file mode 100644
+index 0000000000..ca16bdc77e
+--- /dev/null
++++ b/src/cmd/go/internal/sumweb/server.go
+@@ -0,0 +1,183 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package sumweb implements the HTTP protocols for serving or accessing a go.sum database.
++package sumweb
++
++import (
++	"context"
++	"net/http"
++	"os"
++	"regexp"
++	"strings"
++
++	"cmd/go/internal/tlog"
++)
++
++// A Server provides the external operations
++// (underlying database access and so on)
++// needed to implement the HTTP server Handler.
++type Server interface {
++	// NewContext returns the context to use for the request r.
++	NewContext(r *http.Request) (context.Context, error)
++
++	// Signed returns the signed hash of the latest tree.
++	Signed(ctx context.Context) ([]byte, error)
++
++	// ReadRecords returns the content for the n records id through id+n-1.
++	ReadRecords(ctx context.Context, id, n int64) ([][]byte, error)
++
++	// Lookup looks up a record by its associated key ("module@version"),
++	// returning the record ID.
++	Lookup(ctx context.Context, key string) (int64, error)
++
++	// ReadTileData reads the content of tile t.
++	// It is only invoked for hash tiles (t.L ≥ 0).
++	ReadTileData(ctx context.Context, t tlog.Tile) ([]byte, error)
++}
++
++// A Handler is the go.sum database server handler,
++// which should be invoked to serve the paths listed in Paths.
++// The calling code is responsible for initializing Server.
++type Handler struct {
++	Server Server
++}
++
++// Paths are the URL paths for which Handler should be invoked.
++//
++// Typically a server will do:
++//
++//	handler := &sumweb.Handler{Server: srv}
++//	for _, path := range sumweb.Paths {
++//		http.HandleFunc(path, handler)
++//	}
++//
++var Paths = []string{
++	"/lookup/",
++	"/latest",
++	"/tile/",
++}
++
++var modVerRE = regexp.MustCompile(`^[^@]+@v[0-9]+\.[0-9]+\.[0-9]+(-[^@]*)?$`)
++
++func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
++	ctx, err := h.Server.NewContext(r)
++	if err != nil {
++		http.Error(w, err.Error(), 500)
++		return
++	}
++
++	switch {
++	default:
++		http.NotFound(w, r)
++
++	case strings.HasPrefix(r.URL.Path, "/lookup/"):
++		mod := strings.TrimPrefix(r.URL.Path, "/lookup/")
++		if !modVerRE.MatchString(mod) {
++			http.Error(w, "invalid module@version syntax", http.StatusBadRequest)
++			return
++		}
++		i := strings.Index(mod, "@")
++		encPath, encVers := mod[:i], mod[i+1:]
++		path, err := decodePath(encPath)
++		if err != nil {
++			reportError(w, r, err)
++			return
++		}
++		vers, err := decodeVersion(encVers)
++		if err != nil {
++			reportError(w, r, err)
++			return
++		}
++		id, err := h.Server.Lookup(ctx, path+"@"+vers)
++		if err != nil {
++			reportError(w, r, err)
++			return
++		}
++		records, err := h.Server.ReadRecords(ctx, id, 1)
++		if err != nil {
++			// This should never happen - the lookup says the record exists.
++			http.Error(w, err.Error(), http.StatusInternalServerError)
++			return
++		}
++		if len(records) != 1 {
++			http.Error(w, "invalid record count returned by ReadRecords", http.StatusInternalServerError)
++			return
++		}
++		msg, err := tlog.FormatRecord(id, records[0])
++		if err != nil {
++			http.Error(w, err.Error(), http.StatusInternalServerError)
++			return
++		}
++		signed, err := h.Server.Signed(ctx)
++		if err != nil {
++			http.Error(w, err.Error(), http.StatusInternalServerError)
++			return
++		}
++		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
++		w.Write(msg)
++		w.Write(signed)
++
++	case r.URL.Path == "/latest":
++		data, err := h.Server.Signed(ctx)
++		if err != nil {
++			http.Error(w, err.Error(), http.StatusInternalServerError)
++			return
++		}
++		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
++		w.Write(data)
++
++	case strings.HasPrefix(r.URL.Path, "/tile/"):
++		t, err := tlog.ParseTilePath(r.URL.Path[1:])
++		if err != nil {
++			http.Error(w, "invalid tile syntax", http.StatusBadRequest)
++			return
++		}
++		if t.L == -1 {
++			// Record data.
++			start := t.N << uint(t.H)
++			records, err := h.Server.ReadRecords(ctx, start, int64(t.W))
++			if err != nil {
++				reportError(w, r, err)
++				return
++			}
++			if len(records) != t.W {
++				http.Error(w, "invalid record count returned by ReadRecords", http.StatusInternalServerError)
++				return
++			}
++			var data []byte
++			for i, text := range records {
++				msg, err := tlog.FormatRecord(start+int64(i), text)
++				if err != nil {
++					http.Error(w, err.Error(), http.StatusInternalServerError)
++				}
++				data = append(data, msg...)
++			}
++			w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
++			w.Write(data)
++			return
++		}
++
++		data, err := h.Server.ReadTileData(ctx, t)
++		if err != nil {
++			reportError(w, r, err)
++			return
++		}
++		w.Header().Set("Content-Type", "application/octet-stream")
++		w.Write(data)
++	}
++}
++
++// reportError reports err to w.
++// If it's a not-found, the reported error is 404.
++// Otherwise it is an internal server error.
++// The caller must only call reportError in contexts where
++// a not-found err should be reported as 404.
++func reportError(w http.ResponseWriter, r *http.Request, err error) {
++	if os.IsNotExist(err) {
++		http.Error(w, err.Error(), http.StatusNotFound)
++		return
++	}
++	http.Error(w, err.Error(), http.StatusInternalServerError)
++}
+diff --git a/src/cmd/go/internal/sumweb/test.go b/src/cmd/go/internal/sumweb/test.go
+new file mode 100644
+index 0000000000..cce86e7e9a
+--- /dev/null
++++ b/src/cmd/go/internal/sumweb/test.go
+@@ -0,0 +1,133 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sumweb
++
++import (
++	"context"
++	"fmt"
++	"net/http"
++	"strings"
++	"sync"
++
++	"cmd/go/internal/note"
++	"cmd/go/internal/tlog"
++)
++
++// NewTestServer constructs a new TestServer
++// that will sign its tree with the given signer key
++// (see cmd/go/internal/note)
++// and fetch new records as needed by calling gosum.
++func NewTestServer(signer string, gosum func(path, vers string) ([]byte, error)) *TestServer {
++	return &TestServer{signer: signer, gosum: gosum}
++}
++
++// A TestServer is an in-memory implementation of Server for testing.
++type TestServer struct {
++	signer string
++	gosum  func(path, vers string) ([]byte, error)
++
++	mu      sync.Mutex
++	hashes  testHashes
++	records [][]byte
++	lookup  map[string]int64
++}
++
++// testHashes implements tlog.HashReader, reading from a slice.
++type testHashes []tlog.Hash
++
++func (h testHashes) ReadHashes(indexes []int64) ([]tlog.Hash, error) {
++	var list []tlog.Hash
++	for _, id := range indexes {
++		list = append(list, h[id])
++	}
++	return list, nil
++}
++
++func (s *TestServer) NewContext(r *http.Request) (context.Context, error) {
++	return nil, nil
++}
++
++func (s *TestServer) Signed(ctx context.Context) ([]byte, error) {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++
++	size := int64(len(s.records))
++	h, err := tlog.TreeHash(size, s.hashes)
++	if err != nil {
++		return nil, err
++	}
++	text := tlog.FormatTree(tlog.Tree{N: size, Hash: h})
++	signer, err := note.NewSigner(s.signer)
++	if err != nil {
++		return nil, err
++	}
++	return note.Sign(&note.Note{Text: string(text)}, signer)
++}
++
++func (s *TestServer) ReadRecords(ctx context.Context, id, n int64) ([][]byte, error) {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++
++	var list [][]byte
++	for i := int64(0); i < n; i++ {
++		if id+i >= int64(len(s.records)) {
++			return nil, fmt.Errorf("missing records")
++		}
++		list = append(list, s.records[id+i])
++	}
++	return list, nil
++}
++
++func (s *TestServer) Lookup(ctx context.Context, key string) (int64, error) {
++	s.mu.Lock()
++	id, ok := s.lookup[key]
++	s.mu.Unlock()
++	if ok {
++		return id, nil
++	}
++
++	// Look up module and compute go.sum lines.
++	i := strings.Index(key, "@")
++	if i < 0 {
++		return 0, fmt.Errorf("invalid lookup key %q", key)
++	}
++	path, vers := key[:i], key[i+1:]
++	data, err := s.gosum(path, vers)
++	if err != nil {
++		return 0, err
++	}
++
++	s.mu.Lock()
++	defer s.mu.Unlock()
++
++	// We ran the fetch without the lock.
++	// If another fetch happened and committed, use it instead.
++	id, ok = s.lookup[key]
++	if ok {
++		return id, nil
++	}
++
++	// Add record.
++	id = int64(len(s.records))
++	s.records = append(s.records, data)
++	if s.lookup == nil {
++		s.lookup = make(map[string]int64)
++	}
++	s.lookup[key] = id
++	hashes, err := tlog.StoredHashesForRecordHash(id, tlog.RecordHash([]byte(data)), s.hashes)
++	if err != nil {
++		panic(err)
++	}
++	s.hashes = append(s.hashes, hashes...)
++
++	return id, nil
++}
++
++func (s *TestServer) ReadTileData(ctx context.Context, t tlog.Tile) ([]byte, error) {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++
++	return tlog.ReadTileData(t, s.hashes)
++}
+diff --git a/src/cmd/go/internal/tlog/ct_test.go b/src/cmd/go/internal/tlog/ct_test.go
+new file mode 100644
+index 0000000000..c2d9aebe79
+--- /dev/null
++++ b/src/cmd/go/internal/tlog/ct_test.go
+@@ -0,0 +1,96 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tlog
++
++import (
++	"encoding/json"
++	"fmt"
++	"io/ioutil"
++	"net/http"
++	"net/url"
++	"os"
++	"testing"
++)
++
++func TestCertificateTransparency(t *testing.T) {
++	// Test that we can verify actual Certificate Transparency proofs.
++	// (The other tests check that we can verify our own proofs;
++	// this is a test that the two are compatible.)
++
++	if testing.Short() {
++		t.Skip("skipping in -short mode")
++	}
++
++	var root ctTree
++	httpGET(t, "http://ct.googleapis.com/logs/argon2020/ct/v1/get-sth", &root)
++
++	var leaf ctEntries
++	httpGET(t, "http://ct.googleapis.com/logs/argon2020/ct/v1/get-entries?start=10000&end=10000", &leaf)
++	hash := RecordHash(leaf.Entries[0].Data)
++
++	var rp ctRecordProof
++	httpGET(t, "http://ct.googleapis.com/logs/argon2020/ct/v1/get-proof-by-hash?tree_size="+fmt.Sprint(root.Size)+"&hash="+url.QueryEscape(hash.String()), &rp)
++
++	err := CheckRecord(rp.Proof, root.Size, root.Hash, 10000, hash)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var tp ctTreeProof
++	httpGET(t, "http://ct.googleapis.com/logs/argon2020/ct/v1/get-sth-consistency?first=3654490&second="+fmt.Sprint(root.Size), &tp)
++
++	oh, _ := ParseHash("AuIZ5V6sDUj1vn3Y1K85oOaQ7y+FJJKtyRTl1edIKBQ=")
++	err = CheckTree(tp.Proof, root.Size, root.Hash, 3654490, oh)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
++type ctTree struct {
++	Size int64 `json:"tree_size"`
++	Hash Hash  `json:"sha256_root_hash"`
++}
++
++type ctEntries struct {
++	Entries []*ctEntry
++}
++
++type ctEntry struct {
++	Data []byte `json:"leaf_input"`
++}
++
++type ctRecordProof struct {
++	Index int64       `json:"leaf_index"`
++	Proof RecordProof `json:"audit_path"`
++}
++
++type ctTreeProof struct {
++	Proof TreeProof `json:"consistency"`
++}
++
++func httpGET(t *testing.T, url string, targ interface{}) {
++	if testing.Verbose() {
++		println()
++		println(url)
++	}
++	resp, err := http.Get(url)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer resp.Body.Close()
++	data, err := ioutil.ReadAll(resp.Body)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if testing.Verbose() {
++		os.Stdout.Write(data)
++	}
++	err = json.Unmarshal(data, targ)
++	if err != nil {
++		println(url)
++		os.Stdout.Write(data)
++		t.Fatal(err)
++	}
++}
+diff --git a/src/cmd/go/internal/tlog/note.go b/src/cmd/go/internal/tlog/note.go
+new file mode 100644
+index 0000000000..65c71644ba
+--- /dev/null
++++ b/src/cmd/go/internal/tlog/note.go
+@@ -0,0 +1,135 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tlog
++
++import (
++	"bytes"
++	"encoding/base64"
++	"errors"
++	"fmt"
++	"strconv"
++	"strings"
++	"unicode/utf8"
++)
++
++// A Tree is a tree description, to be signed by a go.sum database server.
++type Tree struct {
++	N    int64
++	Hash Hash
++}
++
++// FormatTree formats a tree description for inclusion in a note.
++//
++// The encoded form is three lines, each ending in a newline (U+000A):
++//
++//	go.sum database tree
++//	N
++//	Hash
++//
++// where N is in decimal and Hash is in base64.
++//
++// A future backwards-compatible encoding may add additional lines,
++// which the parser can ignore.
++// A future backwards-incompatible encoding would use a different
++// first line (for example, "go.sum database tree v2").
++func FormatTree(tree Tree) []byte {
++	return []byte(fmt.Sprintf("go.sum database tree\n%d\n%s\n", tree.N, tree.Hash))
++}
++
++var errMalformedTree = errors.New("malformed tree note")
++var treePrefix = []byte("go.sum database tree\n")
++
++// ParseTree parses a tree root description.
++func ParseTree(text []byte) (tree Tree, err error) {
++	// The message looks like:
++	//
++	//	go.sum database tree
++	//	2
++	//	nND/nri/U0xuHUrYSy0HtMeal2vzD9V4k/BO79C+QeI=
++	//
++	// For forwards compatibility, extra text lines after the encoding are ignored.
++	if !bytes.HasPrefix(text, treePrefix) || bytes.Count(text, []byte("\n")) < 3 || len(text) > 1e6 {
++		return Tree{}, errMalformedTree
++	}
++
++	lines := strings.SplitN(string(text), "\n", 4)
++	n, err := strconv.ParseInt(lines[1], 10, 64)
++	if err != nil || n < 0 || lines[1] != strconv.FormatInt(n, 10) {
++		return Tree{}, errMalformedTree
++	}
++
++	h, err := base64.StdEncoding.DecodeString(lines[2])
++	if err != nil || len(h) != HashSize {
++		return Tree{}, errMalformedTree
++	}
++
++	var hash Hash
++	copy(hash[:], h)
++	return Tree{n, hash}, nil
++}
++
++var errMalformedRecord = errors.New("malformed record data")
++
++// FormatRecord formats a record for serving to a client
++// in a lookup response or data tile.
++//
++// The encoded form is the record ID as a single number,
++// then the text of the record, and then a terminating blank line.
++// Record text must be valid UTF-8 and must not contain any ASCII control
++// characters (those below U+0020) other than newline (U+000A).
++// It must end in a terminating newline and not contain any blank lines.
++func FormatRecord(id int64, text []byte) (msg []byte, err error) {
++	if !isValidRecordText(text) {
++		return nil, errMalformedRecord
++	}
++	msg = []byte(fmt.Sprintf("%d\n", id))
++	msg = append(msg, text...)
++	msg = append(msg, '\n')
++	return msg, nil
++}
++
++// isValidRecordText reports whether text is syntactically valid record text.
++func isValidRecordText(text []byte) bool {
++	var last rune
++	for i := 0; i < len(text); {
++		r, size := utf8.DecodeRune(text[i:])
++		if r < 0x20 && r != '\n' || r == utf8.RuneError && size == 1 || last == '\n' && r == '\n' {
++			return false
++		}
++		i += size
++		last = r
++	}
++	if last != '\n' {
++		return false
++	}
++	return true
++}
++
++// ParseRecord parses a record description at the start of text,
++// stopping immediately after the terminating blank line.
++// It returns the record id, the record text, and the remainder of text.
++func ParseRecord(msg []byte) (id int64, text, rest []byte, err error) {
++	// Leading record id.
++	i := bytes.IndexByte(msg, '\n')
++	if i < 0 {
++		return 0, nil, nil, errMalformedRecord
++	}
++	id, err = strconv.ParseInt(string(msg[:i]), 10, 64)
++	if err != nil {
++		return 0, nil, nil, errMalformedRecord
++	}
++	msg = msg[i+1:]
++
++	// Record text.
++	i = bytes.Index(msg, []byte("\n\n"))
++	if i < 0 {
++		return 0, nil, nil, errMalformedRecord
++	}
++	text, rest = msg[:i+1], msg[i+2:]
++	if !isValidRecordText(text) {
++		return 0, nil, nil, errMalformedRecord
++	}
++	return id, text, rest, nil
++}
+diff --git a/src/cmd/go/internal/tlog/note_test.go b/src/cmd/go/internal/tlog/note_test.go
+new file mode 100644
+index 0000000000..a32d6d2143
+--- /dev/null
++++ b/src/cmd/go/internal/tlog/note_test.go
+@@ -0,0 +1,117 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tlog
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestFormatTree(t *testing.T) {
++	n := int64(123456789012)
++	h := RecordHash([]byte("hello world"))
++	golden := "go.sum database tree\n123456789012\nTszzRgjTG6xce+z2AG31kAXYKBgQVtCSCE40HmuwBb0=\n"
++	b := FormatTree(Tree{n, h})
++	if string(b) != golden {
++		t.Errorf("FormatTree(...) = %q, want %q", b, golden)
++	}
++}
++
++func TestParseTree(t *testing.T) {
++	in := "go.sum database tree\n123456789012\nTszzRgjTG6xce+z2AG31kAXYKBgQVtCSCE40HmuwBb0=\n"
++	goldH := RecordHash([]byte("hello world"))
++	goldN := int64(123456789012)
++	tree, err := ParseTree([]byte(in))
++	if tree.N != goldN || tree.Hash != goldH || err != nil {
++		t.Fatalf("ParseTree(...) = Tree{%d, %v}, %v, want Tree{%d, %v}, nil", tree.N, tree.Hash, err, goldN, goldH)
++	}
++
++	// Check invalid trees.
++	var badTrees = []string{
++		"not-" + in,
++		"go.sum database tree\n0xabcdef\nTszzRgjTG6xce+z2AG31kAXYKBgQVtCSCE40HmuwBb0=\n",
++		"go.sum database tree\n123456789012\nTszzRgjTG6xce+z2AG31kAXYKBgQVtCSCE40HmuwBTOOBIG=\n",
++	}
++	for _, bad := range badTrees {
++		_, err := ParseTree([]byte(bad))
++		if err == nil {
++			t.Fatalf("ParseTree(%q) succeeded, want failure", in)
++		}
++	}
++
++	// Check junk on end is ignored.
++	var goodTrees = []string{
++		in + "JOE",
++		in + "JOE\n",
++		in + strings.Repeat("JOE\n", 1000),
++	}
++	for _, good := range goodTrees {
++		_, err := ParseTree([]byte(good))
++		if tree.N != goldN || tree.Hash != goldH || err != nil {
++			t.Fatalf("ParseTree(...+%q) = Tree{%d, %v}, %v, want Tree{%d, %v}, nil", good[len(in):], tree.N, tree.Hash, err, goldN, goldH)
++		}
++	}
++}
++
++func TestFormatRecord(t *testing.T) {
++	id := int64(123456789012)
++	text := "hello, world\n"
++	golden := "123456789012\nhello, world\n\n"
++	msg, err := FormatRecord(id, []byte(text))
++	if err != nil {
++		t.Fatalf("FormatRecord: %v", err)
++	}
++	if string(msg) != golden {
++		t.Fatalf("FormatRecord(...) = %q, want %q", msg, golden)
++	}
++
++	var badTexts = []string{
++		"",
++		"hello\nworld",
++		"hello\n\nworld\n",
++		"hello\x01world\n",
++	}
++	for _, bad := range badTexts {
++		msg, err := FormatRecord(id, []byte(bad))
++		if err == nil {
++			t.Errorf("FormatRecord(id, %q) = %q, want error", bad, msg)
++		}
++	}
++}
++
++func TestParseRecord(t *testing.T) {
++	in := "123456789012\nhello, world\n\njunk on end\x01\xff"
++	goldID := int64(123456789012)
++	goldText := "hello, world\n"
++	goldRest := "junk on end\x01\xff"
++	id, text, rest, err := ParseRecord([]byte(in))
++	if id != goldID || string(text) != goldText || string(rest) != goldRest || err != nil {
++		t.Fatalf("ParseRecord(%q) = %d, %q, %q, %v, want %d, %q, %q, nil", in, id, text, rest, err, goldID, goldText, goldRest)
++	}
++
++	in = "123456789012\nhello, world\n\n"
++	id, text, rest, err = ParseRecord([]byte(in))
++	if id != goldID || string(text) != goldText || len(rest) != 0 || err != nil {
++		t.Fatalf("ParseRecord(%q) = %d, %q, %q, %v, want %d, %q, %q, nil", in, id, text, rest, err, goldID, goldText, "")
++	}
++	if rest == nil {
++		t.Fatalf("ParseRecord(%q): rest = []byte(nil), want []byte{}", in)
++	}
++
++	// Check invalid records.
++	var badRecords = []string{
++		"not-" + in,
++		"123\nhello\x01world\n\n",
++		"123\nhello\xffworld\n\n",
++		"123\nhello world\n",
++		"0x123\nhello world\n\n",
++	}
++	for _, bad := range badRecords {
++		id, text, rest, err := ParseRecord([]byte(bad))
++		if err == nil {
++			t.Fatalf("ParseRecord(%q) = %d, %q, %q, nil, want error", in, id, text, rest)
++		}
++	}
++}
+diff --git a/src/cmd/go/internal/tlog/tile.go b/src/cmd/go/internal/tlog/tile.go
+new file mode 100644
+index 0000000000..694d89cdf2
+--- /dev/null
++++ b/src/cmd/go/internal/tlog/tile.go
+@@ -0,0 +1,418 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tlog
++
++import (
++	"fmt"
++	"strconv"
++	"strings"
++)
++
++// A Tile is a description of a transparency log tile.
++// A tile of height H at level L offset N lists W consecutive hashes
++// at level H*L of the tree starting at offset N*(2**H).
++// A complete tile lists 2**H hashes; a partial tile lists fewer.
++// Note that a tile represents the entire subtree of height H
++// with those hashes as the leaves. The levels above H*L
++// can be reconstructed by hashing the leaves.
++//
++// Each Tile can be encoded as a “tile coordinate path”
++// of the form tile/H/L/NNN[.p/W].
++// The .p/W suffix is present only for partial tiles, meaning W < 2**H.
++// The NNN element is an encoding of N into 3-digit path elements.
++// All but the last path element begins with an "x".
++// For example,
++// Tile{H: 3, L: 4, N: 1234067, W: 1}'s path
++// is tile/3/4/x001/x234/067.p/1, and
++// Tile{H: 3, L: 4, N: 1234067, W: 8}'s path
++// is tile/3/4/x001/x234/067.
++// See Tile's Path method and the ParseTilePath function.
++//
++// The special level L=-1 holds raw record data instead of hashes.
++// In this case, the level encodes into a tile path as the path element
++// "data" instead of "-1".
++type Tile struct {
++	H int   // height of tile (1 ≤ H ≤ 30)
++	L int   // level in tiling (-1 ≤ L ≤ 63)
++	N int64 // number within level (0 ≤ N, unbounded)
++	W int   // width of tile (1 ≤ W ≤ 2**H; 2**H is complete tile)
++}
++
++// TileForIndex returns the tile of height h ≥ 1
++// and least width storing the given hash storage index.
++func TileForIndex(h int, index int64) Tile {
++	if h < 1 {
++		panic("TileForIndex: invalid height")
++	}
++	t, _, _ := tileForIndex(h, index)
++	return t
++}
++
++// tileForIndex returns the tile of height h ≥ 1
++// storing the given hash index, which can be
++// reconstructed using tileHash(data[start:end]).
++func tileForIndex(h int, index int64) (t Tile, start, end int) {
++	level, n := SplitStoredHashIndex(index)
++	t.H = h
++	t.L = level / h
++	level -= t.L * h // now level within tile
++	t.N = n << uint(level) >> uint(t.H)
++	n -= t.N << uint(t.H) >> uint(level) // now n within tile at level
++	t.W = int((n + 1) << uint(level))
++	return t, int(n<<uint(level)) * HashSize, int((n+1)<<uint(level)) * HashSize
++}
++
++// HashFromTile returns the hash at the given storage index,
++// provided that t == TileForIndex(t.H, index) or a wider version,
++// and data is t's tile data (of length at least t.W*HashSize).
++func HashFromTile(t Tile, data []byte, index int64) (Hash, error) {
++	if t.H < 1 || t.H > 30 || t.L < 0 || t.L >= 64 || t.W < 1 || t.W > 1<<uint(t.H) {
++		return Hash{}, fmt.Errorf("invalid tile %v", t.Path())
++	}
++	if len(data) < t.W*HashSize {
++		return Hash{}, fmt.Errorf("data len %d too short for tile %v", len(data), t.Path())
++	}
++	t1, start, end := tileForIndex(t.H, index)
++	if t.L != t1.L || t.N != t1.N || t.W < t1.W {
++		return Hash{}, fmt.Errorf("index %v is in %v not %v", index, t1.Path(), t.Path())
++	}
++	return tileHash(data[start:end]), nil
++}
++
++// tileHash computes the subtree hash corresponding to the (2^K)-1 hashes in data.
++func tileHash(data []byte) Hash {
++	if len(data) == 0 {
++		panic("bad math in tileHash")
++	}
++	if len(data) == HashSize {
++		var h Hash
++		copy(h[:], data)
++		return h
++	}
++	n := len(data) / 2
++	return NodeHash(tileHash(data[:n]), tileHash(data[n:]))
++}
++
++// NewTiles returns the coordinates of the tiles of height h ≥ 1
++// that must be published when publishing from a tree of
++// size newTreeSize to replace a tree of size oldTreeSize.
++// (No tiles need to be published for a tree of size zero.)
++func NewTiles(h int, oldTreeSize, newTreeSize int64) []Tile {
++	if h < 1 {
++		panic(fmt.Sprintf("NewTiles: invalid height %d", h))
++	}
++	H := uint(h)
++	var tiles []Tile
++	for level := uint(0); newTreeSize>>(H*level) > 0; level++ {
++		oldN := oldTreeSize >> (H * level)
++		newN := newTreeSize >> (H * level)
++		for n := oldN >> H; n < newN>>H; n++ {
++			tiles = append(tiles, Tile{H: h, L: int(level), N: n, W: 1 << H})
++		}
++		n := newN >> H
++		maxW := int(newN - n<<H)
++		minW := 1
++		if oldN > n<<H {
++			minW = int(oldN - n<<H)
++		}
++		for w := minW; w <= maxW; w++ {
++			tiles = append(tiles, Tile{H: h, L: int(level), N: n, W: w})
++		}
++	}
++	return tiles
++}
++
++// ReadTileData reads the hashes for tile t from r
++// and returns the corresponding tile data.
++func ReadTileData(t Tile, r HashReader) ([]byte, error) {
++	size := t.W
++	if size == 0 {
++		size = 1 << uint(t.H)
++	}
++	start := t.N << uint(t.H)
++	indexes := make([]int64, size)
++	for i := 0; i < size; i++ {
++		indexes[i] = StoredHashIndex(t.H*t.L, start+int64(i))
++	}
++
++	hashes, err := r.ReadHashes(indexes)
++	if err != nil {
++		return nil, err
++	}
++	if len(hashes) != len(indexes) {
++		return nil, fmt.Errorf("tlog: ReadHashes(%d indexes) = %d hashes", len(indexes), len(hashes))
++	}
++
++	tile := make([]byte, size*HashSize)
++	for i := 0; i < size; i++ {
++		copy(tile[i*HashSize:], hashes[i][:])
++	}
++	return tile, nil
++}
++
++// To limit the size of any particular directory listing,
++// we encode the (possibly very large) number N
++// by encoding three digits at a time.
++// For example, 123456789 encodes as x123/x456/789.
++// Each directory has at most 1000 each xNNN, NNN, and NNN.p children,
++// so there are at most 3000 entries in any one directory.
++const pathBase = 1000
++
++// Path returns a tile coordinate path describing t.
++func (t Tile) Path() string {
++	n := t.N
++	nStr := fmt.Sprintf("%03d", n%pathBase)
++	for n >= pathBase {
++		n /= pathBase
++		nStr = fmt.Sprintf("x%03d/%s", n%pathBase, nStr)
++	}
++	pStr := ""
++	if t.W != 1<<uint(t.H) {
++		pStr = fmt.Sprintf(".p/%d", t.W)
++	}
++	var L string
++	if t.L == -1 {
++		L = "data"
++	} else {
++		L = fmt.Sprintf("%d", t.L)
++	}
++	return fmt.Sprintf("tile/%d/%s/%s%s", t.H, L, nStr, pStr)
++}
++
++// ParseTilePath parses a tile coordinate path.
++func ParseTilePath(path string) (Tile, error) {
++	f := strings.Split(path, "/")
++	if len(f) < 4 || f[0] != "tile" {
++		return Tile{}, &badPathError{path}
++	}
++	h, err1 := strconv.Atoi(f[1])
++	isData := false
++	if f[2] == "data" {
++		isData = true
++		f[2] = "0"
++	}
++	l, err2 := strconv.Atoi(f[2])
++	if err1 != nil || err2 != nil || h < 1 || l < 0 || h > 30 {
++		return Tile{}, &badPathError{path}
++	}
++	w := 1 << uint(h)
++	if dotP := f[len(f)-2]; strings.HasSuffix(dotP, ".p") {
++		ww, err := strconv.Atoi(f[len(f)-1])
++		if err != nil || ww <= 0 || ww >= w {
++			return Tile{}, &badPathError{path}
++		}
++		w = ww
++		f[len(f)-2] = dotP[:len(dotP)-len(".p")]
++		f = f[:len(f)-1]
++	}
++	f = f[3:]
++	n := int64(0)
++	for _, s := range f {
++		nn, err := strconv.Atoi(strings.TrimPrefix(s, "x"))
++		if err != nil || nn < 0 || nn >= pathBase {
++			return Tile{}, &badPathError{path}
++		}
++		n = n*pathBase + int64(nn)
++	}
++	if isData {
++		l = -1
++	}
++	t := Tile{H: h, L: l, N: n, W: w}
++	if path != t.Path() {
++		return Tile{}, &badPathError{path}
++	}
++	return t, nil
++}
++
++type badPathError struct {
++	path string
++}
++
++func (e *badPathError) Error() string {
++	return fmt.Sprintf("malformed tile path %q", e.path)
++}
++
++// A TileReader reads tiles from a go.sum database log.
++type TileReader interface {
++	// Height returns the height of the available tiles.
++	Height() int
++
++	// ReadTiles returns the data for each requested tile.
++	// If ReadTiles returns err == nil, it must also return
++	// a data record for each tile (len(data) == len(tiles))
++	// and each data record must be the correct length
++	// (len(data[i]) == tiles[i].W*HashSize).
++	ReadTiles(tiles []Tile) (data [][]byte, err error)
++
++	// SaveTiles informs the TileReader that the tile data
++	// returned by ReadTiles has been confirmed as valid
++	// and can be saved in persistent storage (on disk).
++	SaveTiles(tiles []Tile, data [][]byte)
++}
++
++// TileHashReader returns a HashReader that satisfies requests
++// by loading tiles of the given tree.
++//
++// The returned HashReader checks that loaded tiles are
++// valid for the given tree. Therefore, any hashes returned
++// by the HashReader are already proven to be in the tree.
++func TileHashReader(tree Tree, tr TileReader) HashReader {
++	return &tileHashReader{tree: tree, tr: tr}
++}
++
++type tileHashReader struct {
++	tree Tree
++	tr   TileReader
++}
++
++// tileParent returns t's k'th tile parent in the tiles for a tree of size n.
++// If there is no such parent, tileParent returns Tile{}.
++func tileParent(t Tile, k int, n int64) Tile {
++	t.L += k
++	t.N >>= uint(k * t.H)
++	t.W = 1 << uint(t.H)
++	if max := n >> uint(t.L*t.H); t.N<<uint(t.H)+int64(t.W) >= max {
++		if t.N<<uint(t.H) >= max {
++			return Tile{}
++		}
++		t.W = int(max - t.N<<uint(t.H))
++	}
++	return t
++}
++
++func (r *tileHashReader) ReadHashes(indexes []int64) ([]Hash, error) {
++	h := r.tr.Height()
++
++	tileOrder := make(map[Tile]int) // tileOrder[tileKey(tiles[i])] = i
++	var tiles []Tile
++
++	// Plan to fetch tiles necessary to recompute tree hash.
++	// If it matches, those tiles are authenticated.
++	stx := subTreeIndex(0, r.tree.N, nil)
++	stxTileOrder := make([]int, len(stx))
++	for i, x := range stx {
++		tile, _, _ := tileForIndex(h, x)
++		tile = tileParent(tile, 0, r.tree.N)
++		if j, ok := tileOrder[tile]; ok {
++			stxTileOrder[i] = j
++			continue
++		}
++		stxTileOrder[i] = len(tiles)
++		tileOrder[tile] = len(tiles)
++		tiles = append(tiles, tile)
++	}
++
++	// Plan to fetch tiles containing the indexes,
++	// along with any parent tiles needed
++	// for authentication. For most calls,
++	// the parents are being fetched anyway.
++	indexTileOrder := make([]int, len(indexes))
++	for i, x := range indexes {
++		if x >= StoredHashIndex(0, r.tree.N) {
++			return nil, fmt.Errorf("indexes not in tree")
++		}
++
++		tile, _, _ := tileForIndex(h, x)
++
++		// Walk up parent tiles until we find one we've requested.
++		// That one will be authenticated.
++		k := 0
++		for ; ; k++ {
++			p := tileParent(tile, k, r.tree.N)
++			if j, ok := tileOrder[p]; ok {
++				if k == 0 {
++					indexTileOrder[i] = j
++				}
++				break
++			}
++		}
++
++		// Walk back down recording child tiles after parents.
++		// This loop ends by revisiting the tile for this index
++		// (tileParent(tile, 0, r.tree.N)) unless k == 0, in which
++		// case the previous loop did it.
++		for k--; k >= 0; k-- {
++			p := tileParent(tile, k, r.tree.N)
++			if p.W != 1<<uint(p.H) {
++				// Only full tiles have parents.
++				// This tile has a parent, so it must be full.
++				return nil, fmt.Errorf("bad math in tileHashReader: %d %d %v", r.tree.N, x, p)
++			}
++			tileOrder[p] = len(tiles)
++			if k == 0 {
++				indexTileOrder[i] = len(tiles)
++			}
++			tiles = append(tiles, p)
++		}
++	}
++
++	// Fetch all the tile data.
++	data, err := r.tr.ReadTiles(tiles)
++	if err != nil {
++		return nil, err
++	}
++	if len(data) != len(tiles) {
++		return nil, fmt.Errorf("TileReader returned bad result slice (len=%d, want %d)", len(data), len(tiles))
++	}
++	for i, tile := range tiles {
++		if len(data[i]) != tile.W*HashSize {
++			return nil, fmt.Errorf("TileReader returned bad result slice (%v len=%d, want %d)", tile.Path(), len(data[i]), tile.W*HashSize)
++		}
++	}
++
++	// Authenticate the initial tiles against the tree hash.
++	// They are arranged so that parents are authenticated before children.
++	// First the tiles needed for the tree hash.
++	th, err := HashFromTile(tiles[stxTileOrder[len(stx)-1]], data[stxTileOrder[len(stx)-1]], stx[len(stx)-1])
++	if err != nil {
++		return nil, err
++	}
++	for i := len(stx) - 2; i >= 0; i-- {
++		h, err := HashFromTile(tiles[stxTileOrder[i]], data[stxTileOrder[i]], stx[i])
++		if err != nil {
++			return nil, err
++		}
++		th = NodeHash(h, th)
++	}
++	if th != r.tree.Hash {
++		// The tiles do not support the tree hash.
++		// We know at least one is wrong, but not which one.
++		return nil, fmt.Errorf("downloaded inconsistent tile")
++	}
++
++	// Authenticate full tiles against their parents.
++	for i := len(stx); i < len(tiles); i++ {
++		tile := tiles[i]
++		p := tileParent(tile, 1, r.tree.N)
++		j, ok := tileOrder[p]
++		if !ok {
++			return nil, fmt.Errorf("bad math in tileHashReader %d %v: lost parent of %v", r.tree.N, indexes, tile)
++		}
++		h, err := HashFromTile(p, data[j], StoredHashIndex(p.L*p.H, tile.N))
++		if err != nil {
++			return nil, fmt.Errorf("bad math in tileHashReader %d %v: lost hash of %v: %v", r.tree.N, indexes, tile, err)
++		}
++		if h != tileHash(data[i]) {
++			return nil, fmt.Errorf("downloaded inconsistent tile")
++		}
++	}
++
++	// Now we have all the tiles needed for the requested hashes,
++	// and we've authenticated the full tile set against the trusted tree hash.
++	r.tr.SaveTiles(tiles, data)
++
++	// Pull out the requested hashes.
++	hashes := make([]Hash, len(indexes))
++	for i, x := range indexes {
++		j := indexTileOrder[i]
++		h, err := HashFromTile(tiles[j], data[j], x)
++		if err != nil {
++			return nil, fmt.Errorf("bad math in tileHashReader %d %v: lost hash %v: %v", r.tree.N, indexes, x, err)
++		}
++		hashes[i] = h
++	}
++
++	return hashes, nil
++}
+diff --git a/src/cmd/go/internal/tlog/tlog.go b/src/cmd/go/internal/tlog/tlog.go
+new file mode 100644
+index 0000000000..6703656b19
+--- /dev/null
++++ b/src/cmd/go/internal/tlog/tlog.go
+@@ -0,0 +1,601 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package tlog implements a tamper-evident log
++// used in the Go module go.sum database server.
++//
++// This package is part of a DRAFT of what the go.sum database server will look like.
++// Do not assume the details here are final!
++//
++// This package follows the design of Certificate Transparency (RFC 6962)
++// and its proofs are compatible with that system.
++// See TestCertificateTransparency.
++//
++package tlog
++
++import (
++	"crypto/sha256"
++	"encoding/base64"
++	"errors"
++	"fmt"
++	"math/bits"
++)
++
++// A Hash is a hash identifying a log record or tree root.
++type Hash [HashSize]byte
++
++// HashSize is the size of a Hash in bytes.
++const HashSize = 32
++
++// String returns a base64 representation of the hash for printing.
++func (h Hash) String() string {
++	return base64.StdEncoding.EncodeToString(h[:])
++}
++
++// MarshalJSON marshals the hash as a JSON string containing the base64-encoded hash.
++func (h Hash) MarshalJSON() ([]byte, error) {
++	return []byte(`"` + h.String() + `"`), nil
++}
++
++// UnmarshalJSON unmarshals a hash from JSON string containing the a base64-encoded hash.
++func (h *Hash) UnmarshalJSON(data []byte) error {
++	if len(data) != 1+44+1 || data[0] != '"' || data[len(data)-2] != '=' || data[len(data)-1] != '"' {
++		return errors.New("cannot decode hash")
++	}
++
++	// As of Go 1.12, base64.StdEncoding.Decode insists on
++	// slicing into target[33:] even when it only writes 32 bytes.
++	// Since we already checked that the hash ends in = above,
++	// we can use base64.RawStdEncoding with the = removed;
++	// RawStdEncoding does not exhibit the same bug.
++	// We decode into a temporary to avoid writing anything to *h
++	// unless the entire input is well-formed.
++	var tmp Hash
++	n, err := base64.RawStdEncoding.Decode(tmp[:], data[1:len(data)-2])
++	if err != nil || n != HashSize {
++		return errors.New("cannot decode hash")
++	}
++	*h = tmp
++	return nil
++}
++
++// ParseHash parses the base64-encoded string form of a hash.
++func ParseHash(s string) (Hash, error) {
++	data, err := base64.StdEncoding.DecodeString(s)
++	if err != nil || len(data) != HashSize {
++		return Hash{}, fmt.Errorf("malformed hash")
++	}
++	var h Hash
++	copy(h[:], data)
++	return h, nil
++}
++
++// maxpow2 returns k, the maximum power of 2 smaller than n,
++// as well as l = log₂ k (so k = 1<<l).
++func maxpow2(n int64) (k int64, l int) {
++	l = 0
++	for 1<<uint(l+1) < n {
++		l++
++	}
++	return 1 << uint(l), l
++}
++
++var zeroPrefix = []byte{0x00}
++
++// RecordHash returns the content hash for the given record data.
++func RecordHash(data []byte) Hash {
++	// SHA256(0x00 || data)
++	// https://tools.ietf.org/html/rfc6962#section-2.1
++	h := sha256.New()
++	h.Write(zeroPrefix)
++	h.Write(data)
++	var h1 Hash
++	h.Sum(h1[:0])
++	return h1
++}
++
++// NodeHash returns the hash for an interior tree node with the given left and right hashes.
++func NodeHash(left, right Hash) Hash {
++	// SHA256(0x01 || left || right)
++	// https://tools.ietf.org/html/rfc6962#section-2.1
++	// We use a stack buffer to assemble the hash input
++	// to avoid allocating a hash struct with sha256.New.
++	var buf [1 + HashSize + HashSize]byte
++	buf[0] = 0x01
++	copy(buf[1:], left[:])
++	copy(buf[1+HashSize:], right[:])
++	return sha256.Sum256(buf[:])
++}
++
++// For information about the stored hash index ordering,
++// see section 3.3 of Crosby and Wallach's paper
++// "Efficient Data Structures for Tamper-Evident Logging".
++// https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf
++
++// StoredHashIndex maps the tree coordinates (level, n)
++// to a dense linear ordering that can be used for hash storage.
++// Hash storage implementations that store hashes in sequential
++// storage can use this function to compute where to read or write
++// a given hash.
++func StoredHashIndex(level int, n int64) int64 {
++	// Level L's n'th hash is written right after level L+1's 2n+1'th hash.
++	// Work our way down to the level 0 ordering.
++	// We'll add back the orignal level count at the end.
++	for l := level; l > 0; l-- {
++		n = 2*n + 1
++	}
++
++	// Level 0's n'th hash is written at n+n/2+n/4+... (eventually n/2ⁱ hits zero).
++	i := int64(0)
++	for ; n > 0; n >>= 1 {
++		i += n
++	}
++
++	return i + int64(level)
++}
++
++// SplitStoredHashIndex is the inverse of StoredHashIndex.
++// That is, SplitStoredHashIndex(StoredHashIndex(level, n)) == level, n.
++func SplitStoredHashIndex(index int64) (level int, n int64) {
++	// Determine level 0 record before index.
++	// StoredHashIndex(0, n) < 2*n,
++	// so the n we want is in [index/2, index/2+log₂(index)].
++	n = index / 2
++	indexN := StoredHashIndex(0, n)
++	if indexN > index {
++		panic("bad math")
++	}
++	for {
++		// Each new record n adds 1 + trailingZeros(n) hashes.
++		x := indexN + 1 + int64(bits.TrailingZeros64(uint64(n+1)))
++		if x > index {
++			break
++		}
++		n++
++		indexN = x
++	}
++	// The hash we want was commited with record n,
++	// meaning it is one of (0, n), (1, n/2), (2, n/4), ...
++	level = int(index - indexN)
++	return level, n >> uint(level)
++}
++
++// StoredHashCount returns the number of stored hashes
++// that are expected for a tree with n records.
++func StoredHashCount(n int64) int64 {
++	if n == 0 {
++		return 0
++	}
++	// The tree will have the hashes up to the last leaf hash.
++	numHash := StoredHashIndex(0, n-1) + 1
++	// And it will have any hashes for subtrees completed by that leaf.
++	for i := uint64(n - 1); i&1 != 0; i >>= 1 {
++		numHash++
++	}
++	return numHash
++}
++
++// StoredHashes returns the hashes that must be stored when writing
++// record n with the given data. The hashes should be stored starting
++// at StoredHashIndex(0, n). The result will have at most 1 + log₂ n hashes,
++// but it will average just under two per call for a sequence of calls for n=1..k.
++//
++// StoredHashes may read up to log n earlier hashes from r
++// in order to compute hashes for completed subtrees.
++func StoredHashes(n int64, data []byte, r HashReader) ([]Hash, error) {
++	return StoredHashesForRecordHash(n, RecordHash(data), r)
++}
++
++// StoredHashesForRecordHash is like StoredHashes but takes
++// as its second argument RecordHash(data) instead of data itself.
++func StoredHashesForRecordHash(n int64, h Hash, r HashReader) ([]Hash, error) {
++	// Start with the record hash.
++	hashes := []Hash{h}
++
++	// Build list of indexes needed for hashes for completed subtrees.
++	// Each trailing 1 bit in the binary representation of n completes a subtree
++	// and consumes a hash from an adjacent subtree.
++	m := int(bits.TrailingZeros64(uint64(n + 1)))
++	indexes := make([]int64, m)
++	for i := 0; i < m; i++ {
++		// We arrange indexes in sorted order.
++		// Note that n>>i is always odd.
++		indexes[m-1-i] = StoredHashIndex(i, n>>uint(i)-1)
++	}
++
++	// Fetch hashes.
++	old, err := r.ReadHashes(indexes)
++	if err != nil {
++		return nil, err
++	}
++	if len(old) != len(indexes) {
++		return nil, fmt.Errorf("tlog: ReadHashes(%d indexes) = %d hashes", len(indexes), len(old))
++	}
++
++	// Build new hashes.
++	for i := 0; i < m; i++ {
++		h = NodeHash(old[m-1-i], h)
++		hashes = append(hashes, h)
++	}
++	return hashes, nil
++}
++
++// A HashReader can read hashes for nodes in the log's tree structure.
++type HashReader interface {
++	// ReadHashes returns the hashes with the given stored hash indexes
++	// (see StoredHashIndex and SplitStoredHashIndex).
++	// ReadHashes must return a slice of hashes the same length as indexes,
++	// or else it must return a non-nil error.
++	// ReadHashes may run faster if indexes is sorted in increasing order.
++	ReadHashes(indexes []int64) ([]Hash, error)
++}
++
++// A HashReaderFunc is a function implementing HashReader.
++type HashReaderFunc func([]int64) ([]Hash, error)
++
++func (f HashReaderFunc) ReadHashes(indexes []int64) ([]Hash, error) {
++	return f(indexes)
++}
++
++// TreeHash computes the hash for the root of the tree with n records,
++// using the HashReader to obtain previously stored hashes
++// (those returned by StoredHashes during the writes of those n records).
++// TreeHash makes a single call to ReadHash requesting at most 1 + log₂ n hashes.
++// The tree of size zero is defined to have an all-zero Hash.
++func TreeHash(n int64, r HashReader) (Hash, error) {
++	if n == 0 {
++		return Hash{}, nil
++	}
++	indexes := subTreeIndex(0, n, nil)
++	hashes, err := r.ReadHashes(indexes)
++	if err != nil {
++		return Hash{}, err
++	}
++	if len(hashes) != len(indexes) {
++		return Hash{}, fmt.Errorf("tlog: ReadHashes(%d indexes) = %d hashes", len(indexes), len(hashes))
++	}
++	hash, hashes := subTreeHash(0, n, hashes)
++	if len(hashes) != 0 {
++		panic("tlog: bad index math in TreeHash")
++	}
++	return hash, nil
++}
++
++// subTreeIndex returns the storage indexes needed to compute
++// the hash for the subtree containing records [lo, hi),
++// appending them to need and returning the result.
++// See https://tools.ietf.org/html/rfc6962#section-2.1
++func subTreeIndex(lo, hi int64, need []int64) []int64 {
++	// See subTreeHash below for commentary.
++	for lo < hi {
++		k, level := maxpow2(hi - lo + 1)
++		if lo&(k-1) != 0 {
++			panic("tlog: bad math in subTreeIndex")
++		}
++		need = append(need, StoredHashIndex(level, lo>>uint(level)))
++		lo += k
++	}
++	return need
++}
++
++// subTreeHash computes the hash for the subtree containing records [lo, hi),
++// assuming that hashes are the hashes corresponding to the indexes
++// returned by subTreeIndex(lo, hi).
++// It returns any leftover hashes.
++func subTreeHash(lo, hi int64, hashes []Hash) (Hash, []Hash) {
++	// Repeatedly partition the tree into a left side with 2^level nodes,
++	// for as large a level as possible, and a right side with the fringe.
++	// The left hash is stored directly and can be read from storage.
++	// The right side needs further computation.
++	numTree := 0
++	for lo < hi {
++		k, _ := maxpow2(hi - lo + 1)
++		if lo&(k-1) != 0 || lo >= hi {
++			panic("tlog: bad math in subTreeHash")
++		}
++		numTree++
++		lo += k
++	}
++
++	if len(hashes) < numTree {
++		panic("tlog: bad index math in subTreeHash")
++	}
++
++	// Reconstruct hash.
++	h := hashes[numTree-1]
++	for i := numTree - 2; i >= 0; i-- {
++		h = NodeHash(hashes[i], h)
++	}
++	return h, hashes[numTree:]
++}
++
++// A RecordProof is a verifiable proof that a particular log root contains a particular record.
++// RFC 6962 calls this a “Merkle audit path.”
++type RecordProof []Hash
++
++// ProveRecord returns the proof that the tree of size t contains the record with index n.
++func ProveRecord(t, n int64, r HashReader) (RecordProof, error) {
++	if t < 0 || n < 0 || n >= t {
++		return nil, fmt.Errorf("tlog: invalid inputs in ProveRecord")
++	}
++	indexes := leafProofIndex(0, t, n, nil)
++	if len(indexes) == 0 {
++		return RecordProof{}, nil
++	}
++	hashes, err := r.ReadHashes(indexes)
++	if err != nil {
++		return nil, err
++	}
++	if len(hashes) != len(indexes) {
++		return nil, fmt.Errorf("tlog: ReadHashes(%d indexes) = %d hashes", len(indexes), len(hashes))
++	}
++
++	p, hashes := leafProof(0, t, n, hashes)
++	if len(hashes) != 0 {
++		panic("tlog: bad index math in ProveRecord")
++	}
++	return p, nil
++}
++
++// leafProofIndex builds the list of indexes needed to construct the proof
++// that leaf n is contained in the subtree with leaves [lo, hi).
++// It appends those indexes to need and returns the result.
++// See https://tools.ietf.org/html/rfc6962#section-2.1.1
++func leafProofIndex(lo, hi, n int64, need []int64) []int64 {
++	// See leafProof below for commentary.
++	if !(lo <= n && n < hi) {
++		panic("tlog: bad math in leafProofIndex")
++	}
++	if lo+1 == hi {
++		return need
++	}
++	if k, _ := maxpow2(hi - lo); n < lo+k {
++		need = leafProofIndex(lo, lo+k, n, need)
++		need = subTreeIndex(lo+k, hi, need)
++	} else {
++		need = subTreeIndex(lo, lo+k, need)
++		need = leafProofIndex(lo+k, hi, n, need)
++	}
++	return need
++}
++
++// leafProof constructs the proof that leaf n is contained in the subtree with leaves [lo, hi).
++// It returns any leftover hashes as well.
++// See https://tools.ietf.org/html/rfc6962#section-2.1.1
++func leafProof(lo, hi, n int64, hashes []Hash) (RecordProof, []Hash) {
++	// We must have lo <= n < hi or else the code here has a bug.
++	if !(lo <= n && n < hi) {
++		panic("tlog: bad math in leafProof")
++	}
++
++	if lo+1 == hi { // n == lo
++		// Reached the leaf node.
++		// The verifier knows what the leaf hash is, so we don't need to send it.
++		return RecordProof{}, hashes
++	}
++
++	// Walk down the tree toward n.
++	// Record the hash of the path not taken (needed for verifying the proof).
++	var p RecordProof
++	var th Hash
++	if k, _ := maxpow2(hi - lo); n < lo+k {
++		// n is on left side
++		p, hashes = leafProof(lo, lo+k, n, hashes)
++		th, hashes = subTreeHash(lo+k, hi, hashes)
++	} else {
++		// n is on right side
++		th, hashes = subTreeHash(lo, lo+k, hashes)
++		p, hashes = leafProof(lo+k, hi, n, hashes)
++	}
++	return append(p, th), hashes
++}
++
++var errProofFailed = errors.New("invalid transparency proof")
++
++// CheckRecord verifies that p is a valid proof that the tree of size t
++// with hash th has an n'th record with hash h.
++func CheckRecord(p RecordProof, t int64, th Hash, n int64, h Hash) error {
++	if t < 0 || n < 0 || n >= t {
++		return fmt.Errorf("tlog: invalid inputs in CheckRecord")
++	}
++	th2, err := runRecordProof(p, 0, t, n, h)
++	if err != nil {
++		return err
++	}
++	if th2 == th {
++		return nil
++	}
++	return errProofFailed
++}
++
++// runRecordProof runs the proof p that leaf n is contained in the subtree with leaves [lo, hi).
++// Running the proof means constructing and returning the implied hash of that
++// subtree.
++func runRecordProof(p RecordProof, lo, hi, n int64, leafHash Hash) (Hash, error) {
++	// We must have lo <= n < hi or else the code here has a bug.
++	if !(lo <= n && n < hi) {
++		panic("tlog: bad math in runRecordProof")
++	}
++
++	if lo+1 == hi { // m == lo
++		// Reached the leaf node.
++		// The proof must not have any unnecessary hashes.
++		if len(p) != 0 {
++			return Hash{}, errProofFailed
++		}
++		return leafHash, nil
++	}
++
++	if len(p) == 0 {
++		return Hash{}, errProofFailed
++	}
++
++	k, _ := maxpow2(hi - lo)
++	if n < lo+k {
++		th, err := runRecordProof(p[:len(p)-1], lo, lo+k, n, leafHash)
++		if err != nil {
++			return Hash{}, err
++		}
++		return NodeHash(th, p[len(p)-1]), nil
++	} else {
++		th, err := runRecordProof(p[:len(p)-1], lo+k, hi, n, leafHash)
++		if err != nil {
++			return Hash{}, err
++		}
++		return NodeHash(p[len(p)-1], th), nil
++	}
++}
++
++// A TreeProof is a verifiable proof that a particular log tree contains
++// as a prefix all records present in an earlier tree.
++// RFC 6962 calls this a “Merkle consistency proof.”
++type TreeProof []Hash
++
++// ProveTree returns the proof that the tree of size t contains
++// as a prefix all the records from the tree of smaller size n.
++func ProveTree(t, n int64, h HashReader) (TreeProof, error) {
++	if t < 1 || n < 1 || n > t {
++		return nil, fmt.Errorf("tlog: invalid inputs in ProveTree")
++	}
++	indexes := treeProofIndex(0, t, n, nil)
++	if len(indexes) == 0 {
++		return TreeProof{}, nil
++	}
++	hashes, err := h.ReadHashes(indexes)
++	if err != nil {
++		return nil, err
++	}
++	if len(hashes) != len(indexes) {
++		return nil, fmt.Errorf("tlog: ReadHashes(%d indexes) = %d hashes", len(indexes), len(hashes))
++	}
++
++	p, hashes := treeProof(0, t, n, hashes)
++	if len(hashes) != 0 {
++		panic("tlog: bad index math in ProveTree")
++	}
++	return p, nil
++}
++
++// treeProofIndex builds the list of indexes needed to construct
++// the sub-proof related to the subtree containing records [lo, hi).
++// See https://tools.ietf.org/html/rfc6962#section-2.1.2.
++func treeProofIndex(lo, hi, n int64, need []int64) []int64 {
++	// See treeProof below for commentary.
++	if !(lo < n && n <= hi) {
++		panic("tlog: bad math in treeProofIndex")
++	}
++
++	if n == hi {
++		if lo == 0 {
++			return need
++		}
++		return subTreeIndex(lo, hi, need)
++	}
++
++	if k, _ := maxpow2(hi - lo); n <= lo+k {
++		need = treeProofIndex(lo, lo+k, n, need)
++		need = subTreeIndex(lo+k, hi, need)
++	} else {
++		need = subTreeIndex(lo, lo+k, need)
++		need = treeProofIndex(lo+k, hi, n, need)
++	}
++	return need
++}
++
++// treeProof constructs the sub-proof related to the subtree containing records [lo, hi).
++// It returns any leftover hashes as well.
++// See https://tools.ietf.org/html/rfc6962#section-2.1.2.
++func treeProof(lo, hi, n int64, hashes []Hash) (TreeProof, []Hash) {
++	// We must have lo < n <= hi or else the code here has a bug.
++	if !(lo < n && n <= hi) {
++		panic("tlog: bad math in treeProof")
++	}
++
++	// Reached common ground.
++	if n == hi {
++		if lo == 0 {
++			// This subtree corresponds exactly to the old tree.
++			// The verifier knows that hash, so we don't need to send it.
++			return TreeProof{}, hashes
++		}
++		th, hashes := subTreeHash(lo, hi, hashes)
++		return TreeProof{th}, hashes
++	}
++
++	// Interior node for the proof.
++	// Decide whether to walk down the left or right side.
++	var p TreeProof
++	var th Hash
++	if k, _ := maxpow2(hi - lo); n <= lo+k {
++		// m is on left side
++		p, hashes = treeProof(lo, lo+k, n, hashes)
++		th, hashes = subTreeHash(lo+k, hi, hashes)
++	} else {
++		// m is on right side
++		th, hashes = subTreeHash(lo, lo+k, hashes)
++		p, hashes = treeProof(lo+k, hi, n, hashes)
++	}
++	return append(p, th), hashes
++}
++
++// CheckTree verifies that p is a valid proof that the tree of size t with hash th
++// contains as a prefix the tree of size n with hash h.
++func CheckTree(p TreeProof, t int64, th Hash, n int64, h Hash) error {
++	if t < 1 || n < 1 || n > t {
++		return fmt.Errorf("tlog: invalid inputs in CheckTree")
++	}
++	h2, th2, err := runTreeProof(p, 0, t, n, h)
++	if err != nil {
++		return err
++	}
++	if th2 == th && h2 == h {
++		return nil
++	}
++	return errProofFailed
++}
++
++// runTreeProof runs the sub-proof p related to the subtree containing records [lo, hi),
++// where old is the hash of the old tree with n records.
++// Running the proof means constructing and returning the implied hashes of that
++// subtree in both the old and new tree.
++func runTreeProof(p TreeProof, lo, hi, n int64, old Hash) (Hash, Hash, error) {
++	// We must have lo < n <= hi or else the code here has a bug.
++	if !(lo < n && n <= hi) {
++		panic("tlog: bad math in runTreeProof")
++	}
++
++	// Reached common ground.
++	if n == hi {
++		if lo == 0 {
++			if len(p) != 0 {
++				return Hash{}, Hash{}, errProofFailed
++			}
++			return old, old, nil
++		}
++		if len(p) != 1 {
++			return Hash{}, Hash{}, errProofFailed
++		}
++		return p[0], p[0], nil
++	}
++
++	if len(p) == 0 {
++		return Hash{}, Hash{}, errProofFailed
++	}
++
++	// Interior node for the proof.
++	k, _ := maxpow2(hi - lo)
++	if n <= lo+k {
++		oh, th, err := runTreeProof(p[:len(p)-1], lo, lo+k, n, old)
++		if err != nil {
++			return Hash{}, Hash{}, err
++		}
++		return oh, NodeHash(th, p[len(p)-1]), nil
++	} else {
++		oh, th, err := runTreeProof(p[:len(p)-1], lo+k, hi, n, old)
++		if err != nil {
++			return Hash{}, Hash{}, err
++		}
++		return NodeHash(p[len(p)-1], oh), NodeHash(p[len(p)-1], th), nil
++	}
++}
+diff --git a/src/cmd/go/internal/tlog/tlog_test.go b/src/cmd/go/internal/tlog/tlog_test.go
+new file mode 100644
+index 0000000000..584e728c1b
+--- /dev/null
++++ b/src/cmd/go/internal/tlog/tlog_test.go
+@@ -0,0 +1,269 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tlog
++
++import (
++	"bytes"
++	"fmt"
++	"testing"
++)
++
++type testHashStorage []Hash
++
++func (t testHashStorage) ReadHash(level int, n int64) (Hash, error) {
++	return t[StoredHashIndex(level, n)], nil
++}
++
++func (t testHashStorage) ReadHashes(index []int64) ([]Hash, error) {
++	// It's not required by HashReader that indexes be in increasing order,
++	// but check that the functions we are testing only ever ask for
++	// indexes in increasing order.
++	for i := 1; i < len(index); i++ {
++		if index[i-1] >= index[i] {
++			panic("indexes out of order")
++		}
++	}
++
++	out := make([]Hash, len(index))
++	for i, x := range index {
++		out[i] = t[x]
++	}
++	return out, nil
++}
++
++type testTilesStorage struct {
++	unsaved int
++	m       map[Tile][]byte
++}
++
++func (t testTilesStorage) Height() int {
++	return 2
++}
++
++func (t *testTilesStorage) SaveTiles(tiles []Tile, data [][]byte) {
++	t.unsaved -= len(tiles)
++}
++
++func (t *testTilesStorage) ReadTiles(tiles []Tile) ([][]byte, error) {
++	out := make([][]byte, len(tiles))
++	for i, tile := range tiles {
++		out[i] = t.m[tile]
++	}
++	t.unsaved += len(tiles)
++	return out, nil
++}
++
++func TestTree(t *testing.T) {
++	var trees []Hash
++	var leafhashes []Hash
++	var storage testHashStorage
++	tiles := make(map[Tile][]byte)
++	const testH = 2
++	for i := int64(0); i < 100; i++ {
++		data := []byte(fmt.Sprintf("leaf %d", i))
++		hashes, err := StoredHashes(i, data, storage)
++		if err != nil {
++			t.Fatal(err)
++		}
++		leafhashes = append(leafhashes, RecordHash(data))
++		oldStorage := len(storage)
++		storage = append(storage, hashes...)
++		if count := StoredHashCount(i + 1); count != int64(len(storage)) {
++			t.Errorf("StoredHashCount(%d) = %d, have %d StoredHashes", i+1, count, len(storage))
++		}
++		th, err := TreeHash(i+1, storage)
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		for _, tile := range NewTiles(testH, i, i+1) {
++			data, err := ReadTileData(tile, storage)
++			if err != nil {
++				t.Fatal(err)
++			}
++			old := Tile{H: tile.H, L: tile.L, N: tile.N, W: tile.W - 1}
++			oldData := tiles[old]
++			if len(oldData) != len(data)-HashSize || !bytes.Equal(oldData, data[:len(oldData)]) {
++				t.Fatalf("tile %v not extending earlier tile %v", tile.Path(), old.Path())
++			}
++			tiles[tile] = data
++		}
++		for _, tile := range NewTiles(testH, 0, i+1) {
++			data, err := ReadTileData(tile, storage)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if !bytes.Equal(tiles[tile], data) {
++				t.Fatalf("mismatch at %+v", tile)
++			}
++		}
++		for _, tile := range NewTiles(testH, i/2, i+1) {
++			data, err := ReadTileData(tile, storage)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if !bytes.Equal(tiles[tile], data) {
++				t.Fatalf("mismatch at %+v", tile)
++			}
++		}
++
++		// Check that all the new hashes are readable from their tiles.
++		for j := oldStorage; j < len(storage); j++ {
++			tile := TileForIndex(testH, int64(j))
++			data, ok := tiles[tile]
++			if !ok {
++				t.Log(NewTiles(testH, 0, i+1))
++				t.Fatalf("TileForIndex(%d, %d) = %v, not yet stored (i=%d, stored %d)", testH, j, tile.Path(), i, len(storage))
++				continue
++			}
++			h, err := HashFromTile(tile, data, int64(j))
++			if err != nil {
++				t.Fatal(err)
++			}
++			if h != storage[j] {
++				t.Errorf("HashFromTile(%v, %d) = %v, want %v", tile.Path(), int64(j), h, storage[j])
++			}
++		}
++
++		trees = append(trees, th)
++
++		// Check that leaf proofs work, for all trees and leaves so far.
++		for j := int64(0); j <= i; j++ {
++			p, err := ProveRecord(i+1, j, storage)
++			if err != nil {
++				t.Fatalf("ProveRecord(%d, %d): %v", i+1, j, err)
++			}
++			if err := CheckRecord(p, i+1, th, j, leafhashes[j]); err != nil {
++				t.Fatalf("CheckRecord(%d, %d): %v", i+1, j, err)
++			}
++			for k := range p {
++				p[k][0] ^= 1
++				if err := CheckRecord(p, i+1, th, j, leafhashes[j]); err == nil {
++					t.Fatalf("CheckRecord(%d, %d) succeeded with corrupt proof hash #%d!", i+1, j, k)
++				}
++				p[k][0] ^= 1
++			}
++		}
++
++		// Check that leaf proofs work using TileReader.
++		// To prove a leaf that way, all you have to do is read and verify its hash.
++		storage := &testTilesStorage{m: tiles}
++		thr := TileHashReader(Tree{i + 1, th}, storage)
++		for j := int64(0); j <= i; j++ {
++			h, err := thr.ReadHashes([]int64{StoredHashIndex(0, j)})
++			if err != nil {
++				t.Fatalf("TileHashReader(%d).ReadHashes(%d): %v", i+1, j, err)
++			}
++			if h[0] != leafhashes[j] {
++				t.Fatalf("TileHashReader(%d).ReadHashes(%d) returned wrong hash", i+1, j)
++			}
++
++			// Even though reading the hash suffices,
++			// check we can generate the proof too.
++			p, err := ProveRecord(i+1, j, thr)
++			if err != nil {
++				t.Fatalf("ProveRecord(%d, %d, TileHashReader(%d)): %v", i+1, j, i+1, err)
++			}
++			if err := CheckRecord(p, i+1, th, j, leafhashes[j]); err != nil {
++				t.Fatalf("CheckRecord(%d, %d, TileHashReader(%d)): %v", i+1, j, i+1, err)
++			}
++		}
++		if storage.unsaved != 0 {
++			t.Fatalf("TileHashReader(%d) did not save %d tiles", i+1, storage.unsaved)
++		}
++
++		// Check that ReadHashes will give an error if the index is not in the tree.
++		if _, err := thr.ReadHashes([]int64{(i + 1) * 2}); err == nil {
++			t.Fatalf("TileHashReader(%d).ReadHashes(%d) for index not in tree <nil>, want err", i, i+1)
++		}
++		if storage.unsaved != 0 {
++			t.Fatalf("TileHashReader(%d) did not save %d tiles", i+1, storage.unsaved)
++		}
++
++		// Check that tree proofs work, for all trees so far, using TileReader.
++		// To prove a tree that way, all you have to do is compute and verify its hash.
++		for j := int64(0); j <= i; j++ {
++			h, err := TreeHash(j+1, thr)
++			if err != nil {
++				t.Fatalf("TreeHash(%d, TileHashReader(%d)): %v", j, i+1, err)
++			}
++			if h != trees[j] {
++				t.Fatalf("TreeHash(%d, TileHashReader(%d)) = %x, want %x (%v)", j, i+1, h[:], trees[j][:], trees[j])
++			}
++
++			// Even though computing the subtree hash suffices,
++			// check that we can generate the proof too.
++			p, err := ProveTree(i+1, j+1, thr)
++			if err != nil {
++				t.Fatalf("ProveTree(%d, %d): %v", i+1, j+1, err)
++			}
++			if err := CheckTree(p, i+1, th, j+1, trees[j]); err != nil {
++				t.Fatalf("CheckTree(%d, %d): %v [%v]", i+1, j+1, err, p)
++			}
++			for k := range p {
++				p[k][0] ^= 1
++				if err := CheckTree(p, i+1, th, j+1, trees[j]); err == nil {
++					t.Fatalf("CheckTree(%d, %d) succeeded with corrupt proof hash #%d!", i+1, j+1, k)
++				}
++				p[k][0] ^= 1
++			}
++		}
++		if storage.unsaved != 0 {
++			t.Fatalf("TileHashReader(%d) did not save %d tiles", i+1, storage.unsaved)
++		}
++	}
++}
++
++func TestSplitStoredHashIndex(t *testing.T) {
++	for l := 0; l < 10; l++ {
++		for n := int64(0); n < 100; n++ {
++			x := StoredHashIndex(l, n)
++			l1, n1 := SplitStoredHashIndex(x)
++			if l1 != l || n1 != n {
++				t.Fatalf("StoredHashIndex(%d, %d) = %d, but SplitStoredHashIndex(%d) = %d, %d", l, n, x, x, l1, n1)
++			}
++		}
++	}
++}
++
++// TODO(rsc): Test invalid paths too, like "tile/3/5/123/456/078".
++var tilePaths = []struct {
++	path string
++	tile Tile
++}{
++	{"tile/4/0/001", Tile{4, 0, 1, 16}},
++	{"tile/4/0/001.p/5", Tile{4, 0, 1, 5}},
++	{"tile/3/5/x123/x456/078", Tile{3, 5, 123456078, 8}},
++	{"tile/3/5/x123/x456/078.p/2", Tile{3, 5, 123456078, 2}},
++	{"tile/1/0/x003/x057/500", Tile{1, 0, 3057500, 2}},
++	{"tile/3/5/123/456/078", Tile{}},
++	{"tile/3/-1/123/456/078", Tile{}},
++	{"tile/1/data/x003/x057/500", Tile{1, -1, 3057500, 2}},
++}
++
++func TestTilePath(t *testing.T) {
++	for _, tt := range tilePaths {
++		if tt.tile.H > 0 {
++			p := tt.tile.Path()
++			if p != tt.path {
++				t.Errorf("%+v.Path() = %q, want %q", tt.tile, p, tt.path)
++			}
++		}
++		tile, err := ParseTilePath(tt.path)
++		if err != nil {
++			if tt.tile.H == 0 {
++				// Expected error.
++				continue
++			}
++			t.Errorf("ParseTilePath(%q): %v", tt.path, err)
++		} else if tile != tt.tile {
++			if tt.tile.H == 0 {
++				t.Errorf("ParseTilePath(%q): expected error, got %+v", tt.path, tt.tile)
++				continue
++			}
++			t.Errorf("ParseTilePath(%q) = %+v, want %+v", tt.path, tile, tt.tile)
++		}
++	}
++}

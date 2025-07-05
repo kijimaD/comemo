@@ -14,7 +14,48 @@ Date:   Wed May 11 10:23:37 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/pprof/commands/commands.go | 1 +
  src/cmd/internal/pprof/tempfile/tempfile.go | 9 +++++----
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/pprof/commands/commands.go b/src/cmd/internal/pprof/commands/commands.go
+index 5018c02af1..5dfbbd4a5d 100644
+--- a/src/cmd/internal/pprof/commands/commands.go
++++ b/src/cmd/internal/pprof/commands/commands.go
+@@ -197,6 +197,7 @@ func makeVizTmpDir() error {
+ 	if err != nil {
+ 		return err
+ 	}
++	tempfile.DeferDelete(name)
+ 	vizTmpDir = name
+ 	return nil
+ }
+diff --git a/src/cmd/internal/pprof/tempfile/tempfile.go b/src/cmd/internal/pprof/tempfile/tempfile.go
+index 31c117690a..a5706345e4 100644
+--- a/src/cmd/internal/pprof/tempfile/tempfile.go
++++ b/src/cmd/internal/pprof/tempfile/tempfile.go
+@@ -27,18 +27,19 @@ func New(dir, prefix, suffix string) (*os.File, error) {
+ var tempFiles []string
+ var tempFilesMu = sync.Mutex{}
+ 
+-// DeferDelete marks a file to be deleted by next call to Cleanup()
++// DeferDelete marks a file or directory to be deleted by next call to Cleanup.
+ func DeferDelete(path string) {
+ 	tempFilesMu.Lock()
+ 	tempFiles = append(tempFiles, path)
+ 	tempFilesMu.Unlock()
+ }
+ 
+-// Cleanup removes any temporary files selected for deferred cleaning.
++// Cleanup removes any temporary files or directories selected for deferred cleaning.
++// Similar to defer semantics, the nodes are deleted in LIFO order.
+ func Cleanup() {
+ 	tempFilesMu.Lock()
+-	for _, f := range tempFiles {
+-		os.Remove(f)
++	for i := len(tempFiles) - 1; i >= 0; i-- {
++		os.Remove(tempFiles[i])
+ 	}
+ 	tempFiles = nil
+ 	tempFilesMu.Unlock()

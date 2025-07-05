@@ -9,9 +9,188 @@ Date:   Thu Apr 30 13:32:39 2009 -0700
     DELTA=42  (8 added, 12 deleted, 22 changed)
     OCL=28101
     CL=28115
-
+---
  src/cmd/6l/l.h        |  2 +-
  src/cmd/6l/obj.c      | 46 +++++++++++++++++++++-------------------------
  src/cmd/6l/span.c     | 14 +++++++-------
  src/cmd/gotest/gotest |  2 +-
  4 files changed, 30 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 8479156463..3e6892c47e 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -288,7 +288,7 @@ EXTERN	vlong	INITDAT;
+ EXTERN	int32	INITRND;
+ EXTERN	vlong	INITTEXT;
+ EXTERN	char*	INITENTRY;		/* entry point */
+-EXTERN	char*	PKGDIR;
++EXTERN	char*	LIBDIR;
+ EXTERN	Biobuf	bso;
+ EXTERN	int32	bsssize;
+ EXTERN	int	cbc;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index b65c7f313b..31fb978e16 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -70,6 +70,13 @@ isobjfile(char *f)
+ 	return v;
+ }
+ 
++void
++usage(void)
++{
++	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] files...\n");
++	exits("usage");
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+@@ -87,7 +94,7 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
+-	PKGDIR = nil;
++	LIBDIR = nil;
+ 
+ 	ARGBEGIN {
+ 	default:
+@@ -96,37 +103,26 @@ main(int argc, char *argv[])
+ 			debug[c]++;
+ 		break;
+ 	case 'o': /* output to (next arg) */
+-		outfile = ARGF();
++		outfile = EARGF(usage());
+ 		break;
+ 	case 'E':
+-		a = ARGF();
+-		if(a)
+-			INITENTRY = a;
++		INITENTRY = EARGF(usage());
+ 		break;
+ 	case 'H':
+-		a = ARGF();
+-		if(a)
+-			HEADTYPE = atolwhex(a);
++		HEADTYPE = atolwhex(EARGF(usage()));
++		break;
++	case 'L':
++		LIBDIR = EARGF(usage());
+ 		break;
+ 	case 'T':
+-		a = ARGF();
+-		if(a)
+-			INITTEXT = atolwhex(a);
++		INITTEXT = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'D':
+-		a = ARGF();
+-		if(a)
+-			INITDAT = atolwhex(a);
++		INITDAT = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'R':
+-		a = ARGF();
+-		if(a)
+-			INITRND = atolwhex(a);
++		INITRND = atolwhex(EARGF(usage()));
+ 		break;
+-	case 'P':
+-		a = ARGF();
+-		if(a)
+-			PKGDIR = a;
+ 		break;
+ 	case 'x':	/* produce export table */
+ 		doexp = 1;
+@@ -690,10 +686,10 @@ addlib(char *src, char *obj)
+ 	}
+ 
+ 	if(search) {
+-		// try dot, -P "pkgdir", and then goroot.
+-		snprint(pname, sizeof pname, ".%s", name);
+-		if(access(pname, AEXIST) < 0 && PKGDIR != nil)
+-			snprint(pname, sizeof pname, "%s/%s", PKGDIR, name);
++		// try dot, -L "libdir", and then goroot.
++		snprint(pname, sizeof pname, "./%s", name);
++		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
++			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
+ 		if(access(pname, AEXIST) < 0)
+ 			snprint(pname, sizeof pname, "%s/pkg/%s", goroot, name);
+ 		strcpy(name, pname);
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index fea4979e42..97d4910e25 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -282,12 +282,12 @@ asmlc(void)
+ 		if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
+ 			if(p->as == ATEXT)
+ 				curtext = p;
+-			if(debug['L'])
++			if(debug['O'])
+ 				Bprint(&bso, "%6llux %P\n",
+ 					p->pc, p);
+ 			continue;
+ 		}
+-		if(debug['L'])
++		if(debug['O'])
+ 			Bprint(&bso, "\t\t%6ld", lcsize);
+ 		v = (p->pc - oldpc) / MINLC;
+ 		while(v) {
+@@ -295,7 +295,7 @@ asmlc(void)
+ 			if(v < 127)
+ 				s = v;
+ 			cput(s+128);	/* 129-255 +pc */
+-			if(debug['L'])
++			if(debug['O'])
+ 				Bprint(&bso, " pc+%ld*%d(%ld)", s, MINLC, s+128);
+ 			v -= s;
+ 			lcsize++;
+@@ -309,7 +309,7 @@ asmlc(void)
+ 			cput(s>>16);
+ 			cput(s>>8);
+ 			cput(s);
+-			if(debug['L']) {
++			if(debug['O']) {
+ 				if(s > 0)
+ 					Bprint(&bso, " lc+%ld(%d,%ld)\n",
+ 						s, 0, s);
+@@ -324,14 +324,14 @@ asmlc(void)
+ 		}
+ 		if(s > 0) {
+ 			cput(0+s);	/* 1-64 +lc */
+-			if(debug['L']) {
++			if(debug['O']) {
+ 				Bprint(&bso, " lc+%ld(%ld)\n", s, 0+s);
+ 				Bprint(&bso, "%6llux %P\n",
+ 					p->pc, p);
+ 			}
+ 		} else {
+ 			cput(64-s);	/* 65-128 -lc */
+-			if(debug['L']) {
++			if(debug['O']) {
+ 				Bprint(&bso, " lc%ld(%ld)\n", s, 64-s);
+ 				Bprint(&bso, "%6llux %P\n",
+ 					p->pc, p);
+@@ -344,7 +344,7 @@ asmlc(void)
+ 		cput(s);
+ 		lcsize++;
+ 	}
+-	if(debug['v'] || debug['L'])
++	if(debug['v'] || debug['O'])
+ 		Bprint(&bso, "lcsize = %ld\n", lcsize);
+ 	Bflush(&bso);
+ }
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 12db03bf30..3f2b04abfd 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -13,7 +13,7 @@ GC=${GC:-${O}g}
+ GL=${GL:-${O}l}
+ export GC GL
+ GC="$GC -I _obj"
+-GL="$GL -P _obj"
++GL="$GL -L _obj"
+ 
+ gofiles=""
+ loop=true

@@ -9,6 +9,45 @@ Date:   Mon Apr 27 17:54:51 2015 +0000
     Change-Id: I3c5e459f1030e36bc249910facdae12303a44151
     Reviewed-on: https://go-review.googlesource.com/9394
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/dist/test.go | 27 +++++++++++++++------------
  1 file changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 7ffe5d6f62..112e40a0f3 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -199,18 +199,21 @@ func (t *tester) registerTests() {
+ 	}
+ 
+ 	// Runtime CPU tests.
+-	testName := "runtime:cpu124"
+-	t.tests = append(t.tests, distTest{
+-		name:    testName,
+-		heading: "GOMAXPROCS=2 runtime -cpu=1,2,4",
+-		fn: func() error {
+-			cmd := t.dirCmd("src", "go", "test", "-short", t.timeout(300), "runtime", "-cpu=1,2,4")
+-			// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+-			// creation of first goroutines and first garbage collections in the parallel setting.
+-			cmd.Env = mergeEnvLists([]string{"GOMAXPROCS=2"}, os.Environ())
+-			return cmd.Run()
+-		},
+-	})
++	for _, cpu := range []string{"1", "2", "4"} {
++		cpu := cpu
++		testName := "runtime:cpu" + cpu
++		t.tests = append(t.tests, distTest{
++			name:    testName,
++			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4",
++			fn: func() error {
++				cmd := t.dirCmd("src", "go", "test", "-short", t.timeout(300), "runtime", "-cpu="+cpu)
++				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
++				// creation of first goroutines and first garbage collections in the parallel setting.
++				cmd.Env = mergeEnvLists([]string{"GOMAXPROCS=2"}, os.Environ())
++				return cmd.Run()
++			},
++		})
++	}
+ 
+ 	// sync tests
+ 	t.tests = append(t.tests, distTest{

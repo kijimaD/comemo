@@ -9,8 +9,87 @@ Date:   Sun Mar 27 12:30:16 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 8 +++-----
  src/cmd/compile/internal/gc/bimport.go | 6 +++---
  src/cmd/compile/internal/gc/type.go    | 6 ++++--
  3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 4457ff31ba..03f2cf48df 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -512,8 +512,8 @@ func (p *exporter) typ(t *Type) {
+ 		}
+ 		p.typ(t.Type)
+ 
+-	case T_old_DARRAY:
+-		// see p.param use of T_old_DARRAY
++	case TDDDFIELD:
++		// see p.param use of TDDDFIELD
+ 		p.tag(dddTag)
+ 		p.typ(t.Type)
+ 
+@@ -664,9 +664,7 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
+ 	t := q.Type
+ 	if q.Isddd {
+ 		// create a fake type to encode ... just for the p.typ call
+-		// (T_old_DARRAY is not used anywhere else in the compiler,
+-		// we use it here to communicate between p.param and p.typ.)
+-		t = &Type{Etype: T_old_DARRAY, Type: t.Type}
++		t = &Type{Etype: TDDDFIELD, Type: t.Type}
+ 	}
+ 	p.typ(t)
+ 	if n > 0 {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 9ba7cf1202..6a4caeca98 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -284,7 +284,7 @@ func (p *importer) typ() *Type {
+ 		t.Type = p.typ()
+ 
+ 	case dddTag:
+-		t = p.newtyp(T_old_DARRAY)
++		t = p.newtyp(TDDDFIELD)
+ 		t.Bound = -1
+ 		t.Type = p.typ()
+ 
+@@ -447,8 +447,8 @@ func (p *importer) param(named bool) *Node {
+ 	typ := p.typ()
+ 
+ 	isddd := false
+-	if typ.Etype == T_old_DARRAY {
+-		// T_old_DARRAY indicates ... type
++	if typ.Etype == TDDDFIELD {
++		// TDDDFIELD indicates ... type
+ 		// TODO(mdempsky): Fix Type rekinding.
+ 		typ.Etype = TARRAY
+ 		isddd = true
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 709506db07..dbd3f78557 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -45,7 +45,6 @@ const (
+ 
+ 	TFUNC
+ 	TARRAY
+-	T_old_DARRAY // Doesn't seem to be used in existing code. Used now for Isddd export (see bexport.go). TODO(gri) rename.
+ 	TSTRUCT
+ 	TCHAN
+ 	TMAP
+@@ -60,11 +59,14 @@ const (
+ 	TNIL
+ 	TBLANK
+ 
+-	// pseudo-type for frame layout
++	// pseudo-types for frame layout
+ 	TFUNCARGS
+ 	TCHANARGS
+ 	TINTERMETH
+ 
++	// pseudo-types for import/export
++	TDDDFIELD // wrapper: contained type is a ... field
++
+ 	NTYPE
+ )
+ 

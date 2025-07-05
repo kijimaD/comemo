@@ -10,7 +10,36 @@ Date:   Thu Mar 18 15:10:44 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/303090
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/testdata/issues.src | 6 ++++++
  src/go/types/testdata/issues.src                    | 6 ++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/issues.src b/src/cmd/compile/internal/types2/testdata/issues.src
+index 940d204084..21aa208cc7 100644
+--- a/src/cmd/compile/internal/types2/testdata/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/issues.src
+@@ -363,3 +363,9 @@ func issue35895() {
+ 	// qualify packages with full path name in this case.
+ 	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type "html/template".Template\) as "text/template".Template */ .Template{}
+ }
++
++func issue42989(s uint) {
++	var m map[int]string
++	delete(m, 1<<s)
++	delete(m, 1.<<s)
++}
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index db415eadfb..e2ac06759b 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -363,3 +363,9 @@ func issue35895() {
+ 	// qualify packages with full path name in this case.
+ 	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type "html/template".Template\) as "text/template".Template */ .Template{}
+ }
++
++func issue42989(s uint) {
++	var m map[int]string
++	delete(m, 1<<s)
++	delete(m, 1.<<s)
++}

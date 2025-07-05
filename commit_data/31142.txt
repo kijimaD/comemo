@@ -26,7 +26,80 @@ Date:   Sun Nov 27 10:41:37 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/cse.go | 14 ++++++++++----
  test/prove.go                       | 15 ++++++++++++++-
  2 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 4e07c89b88..39861b6e2a 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -39,10 +39,6 @@ func cse(f *Func) {
+ 			if v.Type.IsMemory() {
+ 				continue // memory values can never cse
+ 			}
+-			if opcodeTable[v.Op].commutative && len(v.Args) == 2 && v.Args[1].ID < v.Args[0].ID {
+-				// Order the arguments of binary commutative operations.
+-				v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
+-			}
+ 			a = append(a, v)
+ 		}
+ 	}
+@@ -92,6 +88,15 @@ func cse(f *Func) {
+ 		for i := 0; i < len(partition); i++ {
+ 			e := partition[i]
+ 
++			if opcodeTable[e[0].Op].commutative {
++				// Order the first two args before comparison.
++				for _, v := range e {
++					if valueEqClass[v.Args[0].ID] > valueEqClass[v.Args[1].ID] {
++						v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
++					}
++				}
++			}
++
+ 			// Sort by eq class of arguments.
+ 			byArgClass.a = e
+ 			byArgClass.eqClass = valueEqClass
+@@ -101,6 +106,7 @@ func cse(f *Func) {
+ 			splitPoints = append(splitPoints[:0], 0)
+ 			for j := 1; j < len(e); j++ {
+ 				v, w := e[j-1], e[j]
++				// Note: commutative args already correctly ordered by byArgClass.
+ 				eqArgs := true
+ 				for k, a := range v.Args {
+ 					b := w.Args[k]
+diff --git a/test/prove.go b/test/prove.go
+index 9ced6166e0..9ef8949e1c 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -273,7 +273,7 @@ func f11c(a []int, i int) {
+ 
+ func f11d(a []int, i int) {
+ 	useInt(a[2*i+7])
+-	useInt(a[2*i+7])
++	useInt(a[2*i+7]) // ERROR "Proved boolean IsInBounds$"
+ }
+ 
+ func f12(a []int, b int) {
+@@ -438,6 +438,19 @@ func f13i(a uint) int {
+ 	return 3
+ }
+ 
++func f14(p, q *int, a []int) {
++	// This crazy ordering usually gives i1 the lowest value ID,
++	// j the middle value ID, and i2 the highest value ID.
++	// That used to confuse CSE because it ordered the args
++	// of the two + ops below differently.
++	// That in turn foiled bounds check elimination.
++	i1 := *p
++	j := *q
++	i2 := *p
++	useInt(a[i1+j])
++	useInt(a[i2+j]) // ERROR "Proved boolean IsInBounds$"
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

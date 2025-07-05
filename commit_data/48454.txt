@@ -11,7 +11,7 @@ Date:   Sun May 9 11:38:34 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/321749
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 20 ++++++++++++
  src/cmd/compile/internal/typecheck/iimport.go | 20 ++++++++++++
  test/typeparam/combine.go                     | 28 ++++++++--------
@@ -24,3 +24,401 @@ Date:   Sun May 9 11:38:34 2021 -0700
  test/typeparam/listimp.dir/main.go            |  4 +++
  test/typeparam/lockable.go                    | 16 +++++-----
  11 files changed, 142 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index e6813adbf9..d125dadd88 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1920,6 +1920,26 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		// if exporting, DCLCONST should just be removed as its usage
+ 		// has already been replaced with literals
+ 
++	case ir.OFUNCINST:
++		n := n.(*ir.InstExpr)
++		w.op(ir.OFUNCINST)
++		w.pos(n.Pos())
++		w.expr(n.X)
++		w.uint64(uint64(len(n.Targs)))
++		for _, targ := range n.Targs {
++			w.typ(targ.Type())
++		}
++		if go117ExportTypes {
++			w.typ(n.Type())
++		}
++
++	case ir.OSELRECV2:
++		n := n.(*ir.AssignListStmt)
++		w.op(ir.OSELRECV2)
++		w.pos(n.Pos())
++		w.exprList(n.Lhs)
++		w.exprList(n.Rhs)
++
+ 	default:
+ 		base.Fatalf("cannot export %v (%d) node\n"+
+ 			"\t==> please file an issue and assign to gri@", n.Op(), int(n.Op()))
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 778ce4be12..3b725a226c 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1582,6 +1582,26 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OEND:
+ 		return nil
+ 
++	case ir.OFUNCINST:
++		pos := r.pos()
++		x := r.expr()
++		ntargs := r.uint64()
++		var targs []ir.Node
++		if ntargs > 0 {
++			targs = make([]ir.Node, ntargs)
++			for i := range targs {
++				targs[i] = ir.TypeNode(r.typ())
++			}
++		}
++		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
++		if go117ExportTypes {
++			n.SetType(r.typ())
++		}
++		return n
++
++	case ir.OSELRECV2:
++		return ir.NewAssignListStmt(r.pos(), ir.OSELRECV2, r.exprList(), r.exprList())
++
+ 	default:
+ 		base.Fatalf("cannot import %v (%d) node\n"+
+ 			"\t==> please file an issue and assign to gri@", op, int(op))
+diff --git a/test/typeparam/combine.go b/test/typeparam/combine.go
+index d4a2988a7b..0e120cf242 100644
+--- a/test/typeparam/combine.go
++++ b/test/typeparam/combine.go
+@@ -10,9 +10,9 @@ import (
+ 	"fmt"
+ )
+ 
+-type _Gen[A any] func() (A, bool)
++type Gen[A any] func() (A, bool)
+ 
+-func combine[T1, T2, T any](g1 _Gen[T1], g2 _Gen[T2], join func(T1, T2) T) _Gen[T] {
++func Combine[T1, T2, T any](g1 Gen[T1], g2 Gen[T2], join func(T1, T2) T) Gen[T] {
+     return func() (T, bool) {
+         var t T
+         t1, ok := g1()
+@@ -27,38 +27,38 @@ func combine[T1, T2, T any](g1 _Gen[T1], g2 _Gen[T2], join func(T1, T2) T) _Gen[
+     }
+ }
+ 
+-type _Pair[A, B any] struct {
++type Pair[A, B any] struct {
+ 	A A
+ 	B B
+ }
+ 
+-func _NewPair[A, B any](a A, b B) _Pair[A, B] {
+-	return _Pair[A, B]{a, b}
++func _NewPair[A, B any](a A, b B) Pair[A, B] {
++	return Pair[A, B]{a, b}
+ }
+ 
+-func _Combine2[A, B any](ga _Gen[A], gb _Gen[B]) _Gen[_Pair[A, B]] {
+-    return combine(ga, gb, _NewPair[A, B])
++func Combine2[A, B any](ga Gen[A], gb Gen[B]) Gen[Pair[A, B]] {
++    return Combine(ga, gb, _NewPair[A, B])
+ }
+ 
+ func main() {
+-	var g1 _Gen[int] = func() (int, bool) { return 3, true }
+-	var g2 _Gen[string] = func() (string, bool) { return "x", false }
+-	var g3 _Gen[string] = func() (string, bool) { return "y", true }
++	var g1 Gen[int] = func() (int, bool) { return 3, true }
++	var g2 Gen[string] = func() (string, bool) { return "x", false }
++	var g3 Gen[string] = func() (string, bool) { return "y", true }
+ 
+-	gc := combine(g1, g2, _NewPair[int, string])
++	gc := Combine(g1, g2, _NewPair[int, string])
+ 	if got, ok := gc(); ok {
+ 		panic(fmt.Sprintf("got %v, %v, wanted -/false", got, ok))
+ 	}
+-	gc2 := _Combine2(g1, g2)
++	gc2 := Combine2(g1, g2)
+ 	if got, ok := gc2(); ok {
+ 		panic(fmt.Sprintf("got %v, %v, wanted -/false", got, ok))
+ 	}
+ 
+-	gc3 := combine(g1, g3, _NewPair[int, string])
++	gc3 := Combine(g1, g3, _NewPair[int, string])
+ 	if got, ok := gc3(); !ok || got.A != 3 || got.B != "y" {
+ 		panic(fmt.Sprintf("got %v, %v, wanted {3, y}, true", got, ok))
+ 	}
+-	gc4 := _Combine2(g1, g3)
++	gc4 := Combine2(g1, g3)
+ 	if got, ok := gc4(); !ok || got.A != 3 || got.B != "y" {
+ 		panic (fmt.Sprintf("got %v, %v, wanted {3, y}, true", got, ok))
+ 	}
+diff --git a/test/typeparam/cons.go b/test/typeparam/cons.go
+index 8d255ebdb8..f20514fb66 100644
+--- a/test/typeparam/cons.go
++++ b/test/typeparam/cons.go
+@@ -12,7 +12,7 @@ import "fmt"
+ // argument
+ type any interface{}
+ 
+-type _Function[a, b any] interface {
++type Function[a, b any] interface {
+ 	Apply(x a) b
+ }
+ 
+@@ -29,8 +29,8 @@ func (this pos) Apply(x int) bool {
+ }
+ 
+ type compose[a, b, c any] struct {
+-	f _Function[a, b]
+-	g _Function[b, c]
++	f Function[a, b]
++	g Function[b, c]
+ }
+ 
+ func (this compose[a, b, c]) Apply(x a) c {
+@@ -47,52 +47,52 @@ func (this Int) Equal(that int) bool {
+ 	return int(this) == that
+ }
+ 
+-type _List[a any] interface {
+-	Match(casenil _Function[_Nil[a], any], casecons _Function[_Cons[a], any]) any
++type List[a any] interface {
++	Match(casenil Function[Nil[a], any], casecons Function[Cons[a], any]) any
+ }
+ 
+-type _Nil[a any] struct{
++type Nil[a any] struct{
+ }
+ 
+-func (xs _Nil[a]) Match(casenil _Function[_Nil[a], any], casecons _Function[_Cons[a], any]) any {
++func (xs Nil[a]) Match(casenil Function[Nil[a], any], casecons Function[Cons[a], any]) any {
+ 	return casenil.Apply(xs)
+ }
+ 
+-type _Cons[a any] struct {
++type Cons[a any] struct {
+ 	Head a
+-	Tail _List[a]
++	Tail List[a]
+ }
+ 
+-func (xs _Cons[a]) Match(casenil _Function[_Nil[a], any], casecons _Function[_Cons[a], any]) any {
++func (xs Cons[a]) Match(casenil Function[Nil[a], any], casecons Function[Cons[a], any]) any {
+ 	return casecons.Apply(xs)
+ }
+ 
+ type mapNil[a, b any] struct{
+ }
+ 
+-func (m mapNil[a, b]) Apply(_ _Nil[a]) any {
+-	return _Nil[b]{}
++func (m mapNil[a, b]) Apply(_ Nil[a]) any {
++	return Nil[b]{}
+ }
+ 
+ type mapCons[a, b any] struct {
+-	f _Function[a, b]
++	f Function[a, b]
+ }
+ 
+-func (m mapCons[a, b]) Apply(xs _Cons[a]) any {
+-	return _Cons[b]{m.f.Apply(xs.Head), _Map[a, b](m.f, xs.Tail)}
++func (m mapCons[a, b]) Apply(xs Cons[a]) any {
++	return Cons[b]{m.f.Apply(xs.Head), Map[a, b](m.f, xs.Tail)}
+ }
+ 
+-func _Map[a, b any](f _Function[a, b], xs _List[a]) _List[b] {
+-	return xs.Match(mapNil[a, b]{}, mapCons[a, b]{f}).(_List[b])
++func Map[a, b any](f Function[a, b], xs List[a]) List[b] {
++	return xs.Match(mapNil[a, b]{}, mapCons[a, b]{f}).(List[b])
+ }
+ 
+ func main() {
+-	var xs _List[int] = _Cons[int]{3, _Cons[int]{6, _Nil[int]{}}}
+-	var ys _List[int] = _Map[int, int](incr{-5}, xs)
+-	var xz _List[bool] = _Map[int, bool](pos{}, ys)
+-	cs1 := xz.(_Cons[bool])
+-	cs2 := cs1.Tail.(_Cons[bool])
+-	_, ok := cs2.Tail.(_Nil[bool])
++	var xs List[int] = Cons[int]{3, Cons[int]{6, Nil[int]{}}}
++	var ys List[int] = Map[int, int](incr{-5}, xs)
++	var xz List[bool] = Map[int, bool](pos{}, ys)
++	cs1 := xz.(Cons[bool])
++	cs2 := cs1.Tail.(Cons[bool])
++	_, ok := cs2.Tail.(Nil[bool])
+ 	if cs1.Head != false || cs2.Head != true || !ok {
+ 		panic(fmt.Sprintf("got %v, %v, %v, expected false, true, true",
+ 			cs1.Head, cs2.Head, ok))
+diff --git a/test/typeparam/factimp.dir/a.go b/test/typeparam/factimp.dir/a.go
+new file mode 100644
+index 0000000000..e11575e66e
+--- /dev/null
++++ b/test/typeparam/factimp.dir/a.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func Fact[T interface { type int, int64, float64 }](n T) T {
++	if n == T(1) {
++		return T(1)
++	}
++	return n * Fact(n - T(1))
++}
+diff --git a/test/typeparam/factimp.dir/main.go b/test/typeparam/factimp.dir/main.go
+new file mode 100644
+index 0000000000..c2238002ae
+--- /dev/null
++++ b/test/typeparam/factimp.dir/main.go
+@@ -0,0 +1,26 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"fmt"
++)
++
++func main() {
++	const want = 120
++
++	if got := a.Fact(5); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	if got := a.Fact[int64](5); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	if got := a.Fact(5.0); got != want {
++		panic(fmt.Sprintf("got %f, want %f", got, want))
++	}
++}
+diff --git a/test/typeparam/factimp.go b/test/typeparam/factimp.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/factimp.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/index.go b/test/typeparam/index.go
+index 83e65acdd0..cb9b2613c3 100644
+--- a/test/typeparam/index.go
++++ b/test/typeparam/index.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ // Index returns the index of x in s, or -1 if not found.
+-func index[T comparable](s []T, x T) int {
++func Index[T comparable](s []T, x T) int {
+ 	for i, v := range s {
+ 		// v and x are type T, which has the comparable
+ 		// constraint, so we can use == here.
+@@ -30,17 +30,17 @@ func main() {
+ 	want := 2
+ 
+ 	vec1 := []string{"ab", "cd", "ef"}
+-	if got := index(vec1, "ef"); got != want {
++	if got := Index(vec1, "ef"); got != want {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 
+ 	vec2 := []byte{'c', '6', '@'}
+-	if got := index(vec2, '@'); got != want {
++	if got := Index(vec2, '@'); got != want {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 
+ 	vec3 := []*obj{&obj{2}, &obj{42}, &obj{1}}
+-	if got := index(vec3, vec3[2]); got != want {
++	if got := Index(vec3, vec3[2]); got != want {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ }
+diff --git a/test/typeparam/listimp.dir/a.go b/test/typeparam/listimp.dir/a.go
+index ea569751a6..a4118a0e81 100644
+--- a/test/typeparam/listimp.dir/a.go
++++ b/test/typeparam/listimp.dir/a.go
+@@ -1,3 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package a
+ 
+ type Ordered interface {
+diff --git a/test/typeparam/listimp.dir/main.go b/test/typeparam/listimp.dir/main.go
+index 4c1aa3e493..d43ad508be 100644
+--- a/test/typeparam/listimp.dir/main.go
++++ b/test/typeparam/listimp.dir/main.go
+@@ -1,3 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/test/typeparam/lockable.go b/test/typeparam/lockable.go
+index d53817521f..3a03652cd8 100644
+--- a/test/typeparam/lockable.go
++++ b/test/typeparam/lockable.go
+@@ -8,29 +8,29 @@ package main
+ 
+ import "sync"
+ 
+-// A _Lockable is a value that may be safely simultaneously accessed
++// A Lockable is a value that may be safely simultaneously accessed
+ // from multiple goroutines via the Get and Set methods.
+-type _Lockable[T any] struct {
++type Lockable[T any] struct {
+ 	T
+ 	mu sync.Mutex
+ }
+ 
+-// Get returns the value stored in a _Lockable.
+-func (l *_Lockable[T]) get() T {
++// Get returns the value stored in a Lockable.
++func (l *Lockable[T]) get() T {
+ 	l.mu.Lock()
+ 	defer l.mu.Unlock()
+ 	return l.T
+ }
+ 
+-// set sets the value in a _Lockable.
+-func (l *_Lockable[T]) set(v T) {
++// set sets the value in a Lockable.
++func (l *Lockable[T]) set(v T) {
+ 	l.mu.Lock()
+ 	defer l.mu.Unlock()
+ 	l.T = v
+ }
+ 
+ func main() {
+-	sl := _Lockable[string]{T: "a"}
++	sl := Lockable[string]{T: "a"}
+ 	if got := sl.get(); got != "a" {
+ 		panic(got)
+ 	}
+@@ -39,7 +39,7 @@ func main() {
+ 		panic(got)
+ 	}
+ 
+-	il := _Lockable[int]{T: 1}
++	il := Lockable[int]{T: 1}
+ 	if got := il.get(); got != 1 {
+ 		panic(got)
+ 	}

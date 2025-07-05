@@ -14,6 +14,29 @@ Date:   Wed Oct 27 15:06:23 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/mod_vendor_goversion.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_vendor_goversion.txt b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+index b4489dae7e..a92eb73d27 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_goversion.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+@@ -3,7 +3,6 @@
+ 
+ [short] skip
+ 
+-
+ # Control case: without a vendor directory, need117 builds and bad114 doesn't.
+ 
+ go build example.net/need117
+@@ -26,7 +25,8 @@ go mod vendor
+ 
+ ! grep 1.17 vendor/modules.txt
+ ! go build example.net/need117
+-stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:1[89]:.*\n\tconversion of slices to array pointers only supported as of -lang=go1\.17'
++stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:1[89]:'
++stderr 'conversion of slices to array pointers only supported as of -lang=go1\.17'
+ 
+ ! grep 1.13 vendor/modules.txt
+ go build example.net/bad114

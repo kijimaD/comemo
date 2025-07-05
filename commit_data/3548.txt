@@ -8,6 +8,20 @@ Date:   Thu Oct 15 00:27:40 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=35743
     CL=35762
-
+---
  src/pkg/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index e131213df5..079af706b8 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -29,7 +29,7 @@ var (
+ 	ErrHijacked		= os.NewError("Conn has been hijacked");
+ )
+ 
+-// Objects implemeting the Handler interface can be
++// Objects implementing the Handler interface can be
+ // registered to serve a particular path or subtree
+ // in the HTTP server.
+ type Handler interface {

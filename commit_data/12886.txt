@@ -53,8 +53,149 @@ Date:   Thu Apr 12 12:01:24 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5991049
-
+---
  src/pkg/runtime/malloc.h   |  3 ++-
  src/pkg/runtime/mcentral.c | 39 ++++++++++++++++++++++++++++++++++++---
  src/pkg/runtime/mgc0.c     | 27 ++++++++++++++++++++++-----
  3 files changed, 60 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 52997bac6c..66919c911e 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -125,7 +125,7 @@ enum
+ 	// 2, 3, and 4 are all plausible maximums depending
+ 	// on the hardware details of the machine.  The garbage
+ 	// collector scales well to 4 cpus.
+-	MaxGcproc = 4,
++	MaxGcproc = 16,
+ };
+ 
+ // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
+@@ -341,6 +341,7 @@ struct MCentral
+ void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
+ int32	runtime·MCentral_AllocList(MCentral *c, int32 n, MLink **first);
+ void	runtime·MCentral_FreeList(MCentral *c, int32 n, MLink *first);
++void	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
+ 
+ // Main malloc heap.
+ // The heap itself is the "free[]" and "large" arrays,
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index ff0c2d11ad..6fc95aec7b 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -88,9 +88,6 @@ MCentral_Alloc(MCentral *c)
+ }
+ 
+ // Free n objects back into the central free list.
+-// Return the number of objects allocated.
+-// The objects are linked together by their first words.
+-// On return, *pstart points at the first object and *pend at the last.
+ void
+ runtime·MCentral_FreeList(MCentral *c, int32 n, MLink *start)
+ {
+@@ -148,6 +145,42 @@ MCentral_Free(MCentral *c, void *v)
+ 	}
+ }
+ 
++// Free n objects from a span s back into the central free list c.
++// Called from GC.
++void
++runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end)
++{
++	int32 size;
++
++	runtime·lock(c);
++
++	// Move to nonempty if necessary.
++	if(s->freelist == nil) {
++		runtime·MSpanList_Remove(s);
++		runtime·MSpanList_Insert(&c->nonempty, s);
++	}
++
++	// Add the objects back to s's free list.
++	end->next = s->freelist;
++	s->freelist = start;
++	s->ref -= n;
++	c->nfree += n;
++
++	// If s is completely freed, return it to the heap.
++	if(s->ref == 0) {
++		size = runtime·class_to_size[c->sizeclass];
++		runtime·MSpanList_Remove(s);
++		*(uintptr*)(s->start<<PageShift) = 1;  // needs zeroing
++		s->freelist = nil;
++		c->nfree -= (s->npages << PageShift) / size;
++		runtime·unlock(c);
++		runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
++		runtime·MHeap_Free(&runtime·mheap, s, 0);
++	} else {
++		runtime·unlock(c);
++	}
++}
++
+ void
+ runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *sizep, int32 *npagesp, int32 *nobj)
+ {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 76b460d134..3c0d4e80d6 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -761,6 +761,8 @@ sweepspan(MSpan *s)
+ 	byte *p;
+ 	MCache *c;
+ 	byte *arena_start;
++	MLink *start, *end;
++	int32 nfree;
+ 
+ 	arena_start = runtime·mheap.arena_start;
+ 	p = (byte*)(s->start << PageShift);
+@@ -774,6 +776,9 @@ sweepspan(MSpan *s)
+ 		npages = runtime·class_to_allocnpages[cl];
+ 		n = (npages << PageShift) / size;
+ 	}
++	nfree = 0;
++	start = end = nil;
++	c = m->mcache;
+ 
+ 	// Sweep through n objects of given size starting at p.
+ 	// This thread owns the span now, so it can manipulate
+@@ -810,21 +815,33 @@ sweepspan(MSpan *s)
+ 		// Mark freed; restore block boundary bit.
+ 		*bitp = (*bitp & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
+ 
+-		c = m->mcache;
+ 		if(s->sizeclass == 0) {
+ 			// Free large span.
+ 			runtime·unmarkspan(p, 1<<PageShift);
+ 			*(uintptr*)p = 1;	// needs zeroing
+ 			runtime·MHeap_Free(&runtime·mheap, s, 1);
++			c->local_alloc -= size;
++			c->local_nfree++;
+ 		} else {
+ 			// Free small object.
+ 			if(size > sizeof(uintptr))
+ 				((uintptr*)p)[1] = 1;	// mark as "needs to be zeroed"
+-			c->local_by_size[s->sizeclass].nfree++;
+-			runtime·MCache_Free(c, p, s->sizeclass, size);
++			if(nfree)
++				end->next = (MLink*)p;
++			else
++				start = (MLink*)p;
++			end = (MLink*)p;
++			nfree++;
+ 		}
+-		c->local_alloc -= size;
+-		c->local_nfree++;
++	}
++
++	if(nfree) {
++		c->local_by_size[s->sizeclass].nfree += nfree;
++		c->local_alloc -= size * nfree;
++		c->local_nfree += nfree;
++		c->local_cachealloc -= nfree * size;
++		c->local_objects -= nfree;
++		runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, start, end);
+ 	}
+ }
+ 

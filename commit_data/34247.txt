@@ -21,7 +21,42 @@ Date:   Wed Oct 11 17:04:26 2017 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go        | 8 +++++++-
  src/runtime/signal_unix.go | 4 ++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 165b04eb43..d096df547e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1268,7 +1268,13 @@ func mexit(osStack bool) {
+ 	unminit()
+ 
+ 	// Free the gsignal stack.
+-	if m.gsignal != nil {
++	//
++	// If the signal stack was created outside Go, then gsignal
++	// will be non-nil, but unminitSignals set stack.lo to 0
++	// (e.g., Android's libc creates all threads with a signal
++	// stack, so it's possible for Go to exit them but not control
++	// the signal stack).
++	if m.gsignal != nil && m.gsignal.stack.lo != 0 {
+ 		stackfree(m.gsignal.stack)
+ 	}
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 5ea4b9f631..a616d46bac 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -744,6 +744,10 @@ func unminitSignals() {
+ 	if getg().m.newSigstack {
+ 		st := stackt{ss_flags: _SS_DISABLE}
+ 		sigaltstack(&st, nil)
++	} else {
++		// We got the signal stack from someone else. Clear it
++		// so we don't get confused.
++		getg().m.gsignal.stack = stack{}
+ 	}
+ }
+ 

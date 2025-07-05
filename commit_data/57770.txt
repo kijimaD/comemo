@@ -12,6 +12,25 @@ Date:   Sun Aug 27 14:42:26 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/abi.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index a5f1a2db60..f65fe497ec 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -41,12 +41,8 @@ func NewSymABIs() *SymABIs {
+ // both to use the full path, which matches compiler-generated linker
+ // symbol names.
+ func (s *SymABIs) canonicalize(linksym string) string {
+-	// If the symbol is already prefixed with "", rewrite it to start
+-	// with LocalPkg.Prefix.
+-	//
+-	// TODO(mdempsky): Have cmd/asm stop writing out symbols like this.
+ 	if strings.HasPrefix(linksym, `"".`) {
+-		return types.LocalPkg.Prefix + linksym[2:]
++		panic("non-canonical symbol name: " + linksym)
+ 	}
+ 	return linksym
+ }

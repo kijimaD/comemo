@@ -11,7 +11,34 @@ Date:   Mon Jul 23 16:19:12 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6405078
-
+---
  src/pkg/text/template/exec_test.go | 2 +-
  src/pkg/text/template/funcs.go     | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index c8a3013977..4efe2d1b38 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -390,7 +390,7 @@ var execTests = []execTest{
+ 	{"slice[WRONG]", "{{index .SI `hello`}}", "", tVal, false},
+ 	{"map[one]", "{{index .MSI `one`}}", "1", tVal, true},
+ 	{"map[two]", "{{index .MSI `two`}}", "2", tVal, true},
+-	{"map[NO]", "{{index .MSI `XXX`}}", "", tVal, true},
++	{"map[NO]", "{{index .MSI `XXX`}}", "0", tVal, true},
+ 	{"map[WRONG]", "{{index .MSI 10}}", "", tVal, false},
+ 	{"double index", "{{index .SMSI 1 `eleven`}}", "11", tVal, true},
+ 
+diff --git a/src/pkg/text/template/funcs.go b/src/pkg/text/template/funcs.go
+index 90fb9c52c0..e6fa0fb5f2 100644
+--- a/src/pkg/text/template/funcs.go
++++ b/src/pkg/text/template/funcs.go
+@@ -128,7 +128,7 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
+ 			if x := v.MapIndex(index); x.IsValid() {
+ 				v = x
+ 			} else {
+-				v = reflect.Zero(v.Type().Key())
++				v = reflect.Zero(v.Type().Elem())
+ 			}
+ 		default:
+ 			return nil, fmt.Errorf("can't index item of type %s", index.Type())

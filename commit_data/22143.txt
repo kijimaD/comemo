@@ -24,7 +24,7 @@ Date:   Wed Feb 25 09:07:02 2015 -0800
     Change-Id: I6e3310bc19814c0c784ff0b960a154521acd9532
     Reviewed-on: https://go-review.googlesource.com/5920
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go           |  12 +-
  src/cmd/asm/internal/asm/asm.go             |  24 ++--
  src/cmd/asm/internal/asm/operand_test.go    | 104 ++++++++---------
@@ -47,3 +47,1721 @@ Date:   Wed Feb 25 09:07:02 2015 -0800
  src/cmd/internal/obj/x86/list6.go           | 111 ++----------------
  src/cmd/internal/obj/x86/obj6.go            |   2 -
  21 files changed, 348 insertions(+), 634 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index e24226817f..3b69ebe87d 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -38,8 +38,8 @@ type Arch struct {
+ 	IsJump func(word string) bool
+ 	// Aconv pretty-prints an instruction opcode for this architecture.
+ 	Aconv func(int) string
+-	// Dconv pretty-prints an address for this architecture.
+-	Dconv func(p *obj.Prog, flag int, a *obj.Addr) string
++	// Rconv pretty-prints a register for this architecture.
++	Rconv func(int) string
+ }
+ 
+ // nilRegisterNumber is the register number function for architectures
+@@ -188,7 +188,7 @@ func arch386() *Arch {
+ 		UnaryDestination: unaryDestination,
+ 		IsJump:           jump386,
+ 		Aconv:            i386.Aconv,
+-		Dconv:            i386.Dconv,
++		Rconv:            i386.Rconv,
+ 	}
+ }
+ 
+@@ -309,7 +309,7 @@ func archAmd64() *Arch {
+ 		UnaryDestination: unaryDestination,
+ 		IsJump:           jump386,
+ 		Aconv:            x86.Aconv,
+-		Dconv:            x86.Dconv,
++		Rconv:            x86.Rconv,
+ 	}
+ }
+ 
+@@ -362,7 +362,7 @@ func archArm() *Arch {
+ 		UnaryDestination: unaryDestination,
+ 		IsJump:           jumpArm,
+ 		Aconv:            arm.Aconv,
+-		Dconv:            arm.Dconv,
++		Rconv:            arm.Rconv,
+ 	}
+ }
+ 
+@@ -422,6 +422,6 @@ func archPPC64() *Arch {
+ 		UnaryDestination: nil,
+ 		IsJump:           jumpPPC64,
+ 		Aconv:            ppc64.Aconv,
+-		Dconv:            ppc64.Dconv,
++		Rconv:            ppc64.Rconv,
+ 	}
+ }
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index f6a2501ca2..5682bd0df3 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -73,7 +73,7 @@ func (p *Parser) evalInteger(pseudo string, operands []lex.Token) int64 {
+ // validateImmediate checks that addr represents an immediate constant.
+ func (p *Parser) validateImmediate(pseudo string, addr *obj.Addr) {
+ 	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
+-		p.errorf("%s: expected immediate constant; found %s", pseudo, p.arch.Dconv(&emptyProg, 0, addr))
++		p.errorf("%s: expected immediate constant; found %s", pseudo, obj.Dconv(&emptyProg, p.arch.Rconv, addr))
+ 	}
+ }
+ 
+@@ -138,7 +138,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 		argSize = p.positiveAtoi(op[1].String())
+ 	}
+ 	prog := &obj.Prog{
+-		Ctxt:   p.linkCtxt,
++		Ctxt:   p.ctxt,
+ 		As:     obj.ATEXT,
+ 		Lineno: p.histLineNum,
+ 		From:   nameAddr,
+@@ -191,7 +191,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
+ 	p.dataAddr[name] = nameAddr.Offset + int64(scale)
+ 
+ 	prog := &obj.Prog{
+-		Ctxt:   p.linkCtxt,
++		Ctxt:   p.ctxt,
+ 		As:     obj.ADATA,
+ 		Lineno: p.histLineNum,
+ 		From:   nameAddr,
+@@ -230,7 +230,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
+ 
+ 	// log.Printf("GLOBL %s %d, $%d", name, flag, size)
+ 	prog := &obj.Prog{
+-		Ctxt:   p.linkCtxt,
++		Ctxt:   p.ctxt,
+ 		As:     obj.AGLOBL,
+ 		Lineno: p.histLineNum,
+ 		From:   nameAddr,
+@@ -259,7 +259,7 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
+ 
+ 	// log.Printf("PCDATA $%d, $%d", key.Offset, value.Offset)
+ 	prog := &obj.Prog{
+-		Ctxt:   p.linkCtxt,
++		Ctxt:   p.ctxt,
+ 		As:     obj.APCDATA,
+ 		Lineno: p.histLineNum,
+ 		From:   key,
+@@ -284,7 +284,7 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ 	p.validateSymbol("FUNCDATA", &nameAddr, true)
+ 
+ 	prog := &obj.Prog{
+-		Ctxt:   p.linkCtxt,
++		Ctxt:   p.ctxt,
+ 		As:     obj.AFUNCDATA,
+ 		Lineno: p.histLineNum,
+ 		From:   valueAddr,
+@@ -300,7 +300,7 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 	var target *obj.Addr
+ 	prog := &obj.Prog{
+-		Ctxt:   p.linkCtxt,
++		Ctxt:   p.ctxt,
+ 		Lineno: p.histLineNum,
+ 		As:     int16(op),
+ 	}
+@@ -404,7 +404,7 @@ func (p *Parser) branch(jmp, target *obj.Prog) {
+ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 	// fmt.Printf("%s %+v\n", p.arch.Aconv(op), a)
+ 	prog := &obj.Prog{
+-		Ctxt:   p.linkCtxt,
++		Ctxt:   p.ctxt,
+ 		Lineno: p.histLineNum,
+ 		As:     int16(op),
+ 	}
+@@ -642,7 +642,7 @@ var emptyProg obj.Prog
+ // getConstantPseudo checks that addr represents a plain constant and returns its value.
+ func (p *Parser) getConstantPseudo(pseudo string, addr *obj.Addr) int64 {
+ 	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
+-		p.errorf("%s: expected integer constant; found %s", pseudo, p.arch.Dconv(&emptyProg, 0, addr))
++		p.errorf("%s: expected integer constant; found %s", pseudo, obj.Dconv(&emptyProg, p.arch.Rconv, addr))
+ 	}
+ 	return addr.Offset
+ }
+@@ -650,7 +650,7 @@ func (p *Parser) getConstantPseudo(pseudo string, addr *obj.Addr) int64 {
+ // getConstant checks that addr represents a plain constant and returns its value.
+ func (p *Parser) getConstant(prog *obj.Prog, op int, addr *obj.Addr) int64 {
+ 	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
+-		p.errorf("%s: expected integer constant; found %s", p.arch.Aconv(op), p.arch.Dconv(prog, 0, addr))
++		p.errorf("%s: expected integer constant; found %s", p.arch.Aconv(op), obj.Dconv(prog, p.arch.Rconv, addr))
+ 	}
+ 	return addr.Offset
+ }
+@@ -658,7 +658,7 @@ func (p *Parser) getConstant(prog *obj.Prog, op int, addr *obj.Addr) int64 {
+ // getImmediate checks that addr represents an immediate constant and returns its value.
+ func (p *Parser) getImmediate(prog *obj.Prog, op int, addr *obj.Addr) int64 {
+ 	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
+-		p.errorf("%s: expected immediate constant; found %s", p.arch.Aconv(op), p.arch.Dconv(prog, 0, addr))
++		p.errorf("%s: expected immediate constant; found %s", p.arch.Aconv(op), obj.Dconv(prog, p.arch.Rconv, addr))
+ 	}
+ 	return addr.Offset
+ }
+@@ -666,7 +666,7 @@ func (p *Parser) getImmediate(prog *obj.Prog, op int, addr *obj.Addr) int64 {
+ // getRegister checks that addr represents a register and returns its value.
+ func (p *Parser) getRegister(prog *obj.Prog, op int, addr *obj.Addr) int16 {
+ 	if addr.Type != obj.TYPE_REG || addr.Offset != 0 || addr.Name != 0 || addr.Index != 0 {
+-		p.errorf("%s: expected register; found %s", p.arch.Aconv(op), p.arch.Dconv(prog, 0, addr))
++		p.errorf("%s: expected register; found %s", p.arch.Aconv(op), obj.Dconv(prog, p.arch.Rconv, addr))
+ 	}
+ 	return addr.Reg
+ }
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index c99bcd6c3d..a02e5bfdb3 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -34,7 +34,7 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
+ 		parser.start(lex.Tokenize(test.input))
+ 		addr := obj.Addr{}
+ 		parser.operand(&addr)
+-		result := parser.arch.Dconv(&emptyProg, 0, &addr)
++		result := obj.Dconv(&emptyProg, parser.arch.Rconv, &addr)
+ 		if result != test.output {
+ 			t.Errorf("fail at %s: got %s; expected %s\n", test.input, result, test.output)
+ 		}
+@@ -64,7 +64,7 @@ func testX86RegisterPair(t *testing.T, parser *Parser) {
+ 		Type:   obj.TYPE_MEM,
+ 		Name:   obj.NAME_EXTERN,
+ 		Offset: 4,
+-		Sym:    obj.Linklookup(parser.linkCtxt, "foo", 0),
++		Sym:    obj.Linklookup(parser.ctxt, "foo", 0),
+ 		Class:  int8(parser.arch.Register["AX"]), // TODO: clean up how this is encoded in parse.go
+ 	}
+ 	if want != addr {
+@@ -114,8 +114,8 @@ type operandTest struct {
+ 
+ var amd64OperandTests = []operandTest{
+ 	// {"AX:DX", "AX:DX"}, Handled in TestAMD64OperandParser directly.
+-	{"$(-1.0)", "$(-1)"}, // TODO: Should print as a float.
+-	{"$(0.0)", "$(0)"},   // TODO: Should print as a float.
++	{"$(-1.0)", "$(-1.0)"},
++	{"$(0.0)", "$(0.0)"},
+ 	{"$(0x2000000+116)", "$33554548"},
+ 	{"$(0x3F<<7)", "$8064"},
+ 	{"$(112+8)", "$120"},
+@@ -132,16 +132,16 @@ var amd64OperandTests = []operandTest{
+ 	{"$0x7fffffe00000", "$140737486258176"},
+ 	{"$0xfffffffffffff001", "$-4095"},
+ 	{"$1", "$1"},
+-	{"$1.0", "$(1)"}, // TODO: should print as float.
++	{"$1.0", "$(1.0)"},
+ 	{"$10", "$10"},
+ 	{"$1000", "$1000"},
+ 	{"$1000000", "$1000000"},
+ 	{"$1000000000", "$1000000000"},
+-	{"$__tsan_func_enter(SB)", "$__tsan_func_enter+0(SB)"},
+-	{"$main(SB)", "$main+0(SB)"},
+-	{"$masks<>(SB)", "$masks<>+0(SB)"},
+-	{"$setg_gcc<>(SB)", "$setg_gcc<>+0(SB)"},
+-	{"$shifts<>(SB)", "$shifts<>+0(SB)"},
++	{"$__tsan_func_enter(SB)", "$__tsan_func_enter(SB)"},
++	{"$main(SB)", "$main(SB)"},
++	{"$masks<>(SB)", "$masks<>(SB)"},
++	{"$setg_gcc<>(SB)", "$setg_gcc<>(SB)"},
++	{"$shifts<>(SB)", "$shifts<>(SB)"},
+ 	{"$~(1<<63)", "$9223372036854775807"},
+ 	{"$~0x3F", "$-64"},
+ 	{"$~15", "$-16"},
+@@ -203,28 +203,28 @@ var amd64OperandTests = []operandTest{
+ 	{"X7", "X7"},
+ 	{"X8", "X8"},
+ 	{"X9", "X9"},
+-	{"_expand_key_128<>(SB)", "_expand_key_128<>+0(SB)"},
+-	{"_seek<>(SB)", "_seek<>+0(SB)"},
++	{"_expand_key_128<>(SB)", "_expand_key_128<>(SB)"},
++	{"_seek<>(SB)", "_seek<>(SB)"},
+ 	{"a2+16(FP)", "a2+16(FP)"},
+ 	{"addr2+24(FP)", "addr2+24(FP)"},
+-	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
++	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
+ 	{"b+24(FP)", "b+24(FP)"},
+ 	{"b_len+32(FP)", "b_len+32(FP)"},
+-	{"racecall<>(SB)", "racecall<>+0(SB)"},
++	{"racecall<>(SB)", "racecall<>(SB)"},
+ 	{"rcv_name+20(FP)", "rcv_name+20(FP)"},
+ 	{"retoffset+28(FP)", "retoffset+28(FP)"},
+-	{"runtime·_GetStdHandle(SB)", "runtime._GetStdHandle+0(SB)"},
+-	{"sync\u2215atomic·AddInt64(SB)", "sync/atomic.AddInt64+0(SB)"},
++	{"runtime·_GetStdHandle(SB)", "runtime._GetStdHandle(SB)"},
++	{"sync\u2215atomic·AddInt64(SB)", "sync/atomic.AddInt64(SB)"},
+ 	{"timeout+20(FP)", "timeout+20(FP)"},
+ 	{"ts+16(FP)", "ts+16(FP)"},
+ 	{"x+24(FP)", "x+24(FP)"},
+-	{"x·y(SB)", "x.y+0(SB)"},
+-	{"x·y(SP)", "x.y+0(SP)"},
++	{"x·y(SB)", "x.y(SB)"},
++	{"x·y(SP)", "x.y(SP)"},
+ 	{"x·y+8(SB)", "x.y+8(SB)"},
+ 	{"x·y+8(SP)", "x.y+8(SP)"},
+ 	{"y+56(FP)", "y+56(FP)"},
+-	{"·AddUint32(SB", "\"\".AddUint32+0(SB)"},
+-	{"·callReflect(SB)", "\"\".callReflect+0(SB)"},
++	{"·AddUint32(SB", "\"\".AddUint32(SB)"},
++	{"·callReflect(SB)", "\"\".callReflect(SB)"},
+ }
+ 
+ var x86OperandTests = []operandTest{
+@@ -232,8 +232,8 @@ var x86OperandTests = []operandTest{
+ 	{"$-1", "$-1"},
+ 	{"$0", "$0"},
+ 	{"$0x00000000", "$0"},
+-	{"$runtime·badmcall(SB)", "$runtime.badmcall+0(SB)"},
+-	{"$setg_gcc<>(SB)", "$setg_gcc<>+0(SB)"},
++	{"$runtime·badmcall(SB)", "$runtime.badmcall(SB)"},
++	{"$setg_gcc<>(SB)", "$setg_gcc<>(SB)"},
+ 	{"$~15", "$-16"},
+ 	{"(-64*1024+104)(SP)", "-65432(SP)"},
+ 	{"(0*4)(BP)", "(BP)"},
+@@ -241,7 +241,7 @@ var x86OperandTests = []operandTest{
+ 	{"(4*4)(BP)", "16(BP)"},
+ 	{"(AX)", "(AX)"},
+ 	{"(BP)(CX*4)", "(BP)(CX*4)"},
+-	{"(BP*8)", "(NONE)(BP*8)"}, // TODO: odd printout.
++	{"(BP*8)", "0(BP*8)"},
+ 	{"(BX)", "(BX)"},
+ 	{"(SP)", "(SP)"},
+ 	{"*AX", "AX"},                             // TODO: Should make * illegal here; a simple alias for JMP AX.
+@@ -272,24 +272,24 @@ var x86OperandTests = []operandTest{
+ 	{"X5", "X5"},
+ 	{"X6", "X6"},
+ 	{"X7", "X7"},
+-	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
++	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
+ 	{"ax+4(FP)", "ax+4(FP)"},
+-	{"ptime-12(SP)", "ptime+-12(SP)"},
+-	{"runtime·_NtWaitForSingleObject(SB)", "runtime._NtWaitForSingleObject+0(SB)"},
+-	{"s(FP)", "s+0(FP)"},
++	{"ptime-12(SP)", "ptime-12(SP)"},
++	{"runtime·_NtWaitForSingleObject(SB)", "runtime._NtWaitForSingleObject(SB)"},
++	{"s(FP)", "s(FP)"},
+ 	{"sec+4(FP)", "sec+4(FP)"},
+-	{"shifts<>(SB)(CX*8)", "shifts<>+0(SB)(CX*8)"},
++	{"shifts<>(SB)(CX*8)", "shifts<>(SB)(CX*8)"},
+ 	{"x+4(FP)", "x+4(FP)"},
+-	{"·AddUint32(SB)", "\"\".AddUint32+0(SB)"},
+-	{"·reflectcall(SB)", "\"\".reflectcall+0(SB)"},
++	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
++	{"·reflectcall(SB)", "\"\".reflectcall(SB)"},
+ }
+ 
+ var armOperandTests = []operandTest{
+ 	{"$0", "$0"},
+ 	{"$256", "$256"},
+-	{"(R0)", "0(R0)"},
+-	{"(R11)", "0(R11)"},
+-	{"(g)", "0(R10)"}, // TODO: Should print 0(g).
++	{"(R0)", "(R0)"},
++	{"(R11)", "(R11)"},
++	{"(g)", "(R10)"}, // TODO: Should print 0(g).
+ 	{"-12(R4)", "-12(R4)"},
+ 	{"0(PC)", "0(PC)"},
+ 	{"1024", "1024"},
+@@ -322,44 +322,44 @@ var armOperandTests = []operandTest{
+ 	{"[R(0)-R(7)]", "$255"},
+ 	{"[R0]", "$1"},
+ 	{"[R1-R12]", "$8190"},
+-	{"armCAS64(SB)", "armCAS64+0(SB)"},
+-	{"asmcgocall<>(SB)", "asmcgocall<>+0(SB)"},
++	{"armCAS64(SB)", "armCAS64(SB)"},
++	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
+ 	{"c+28(FP)", "c+28(FP)"},
+ 	{"g", "R10"}, // TODO: Should print g.
+-	{"gosave<>(SB)", "gosave<>+0(SB)"},
++	{"gosave<>(SB)", "gosave<>(SB)"},
+ 	{"retlo+12(FP)", "retlo+12(FP)"},
+-	{"runtime·_sfloat2(SB)", "runtime._sfloat2+0(SB)"},
+-	{"·AddUint32(SB)", "\"\".AddUint32+0(SB)"},
++	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
++	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+ }
+ 
+ var ppc64OperandTests = []operandTest{
+-	{"$((1<<63)-1)", "$0x7fffffffffffffff"},
++	{"$((1<<63)-1)", "$9223372036854775807"},
+ 	{"$(-64*1024)", "$-65536"},
+ 	{"$(1024 * 8)", "$8192"},
+ 	{"$-1", "$-1"},
+ 	{"$-24(R4)", "$-24(R4)"},
+ 	{"$0", "$0"},
+-	{"$0(R1)", "$0(R1)"},
+-	{"$0.5", "$0.5"},
++	{"$0(R1)", "$(R1)"},
++	{"$0.5", "$(0.5)"},
+ 	{"$0x7000", "$28672"},
+-	{"$0x88888eef", "$0x88888eef"},
++	{"$0x88888eef", "$2290650863"},
+ 	{"$1", "$1"},
+-	{"$_main<>(SB)", "$_main<>+0(SB)"},
+-	{"$argframe+0(FP)", "$argframe+0(FP)"},
++	{"$_main<>(SB)", "$_main<>(SB)"},
++	{"$argframe(FP)", "$argframe(FP)"},
+ 	{"$runtime·tlsg(SB)", "$runtime.tlsg(SB)"},
+ 	{"$~3", "$-4"},
+ 	{"(-288-3*8)(R1)", "-312(R1)"},
+ 	{"(16)(R7)", "16(R7)"},
+ 	{"(8)(g)", "8(R30)"}, // TODO: Should print 8(g)
+-	{"(CTR)", "0(CTR)"},
+-	{"(R0)", "0(R0)"},
+-	{"(R3)", "0(R3)"},
+-	{"(R4)", "0(R4)"},
+-	{"(R5)", "0(R5)"},
++	{"(CTR)", "(CTR)"},
++	{"(R0)", "(R0)"},
++	{"(R3)", "(R3)"},
++	{"(R4)", "(R4)"},
++	{"(R5)", "(R5)"},
+ 	{"-1(R4)", "-1(R4)"},
+ 	{"-1(R5)", "-1(R5)"},
+-	{"6(PC)", "6(APC)"}, // TODO: Should print 6(PC).
+-	{"CR7", "C7"},       // TODO: Should print CR7.
++	{"6(PC)", "6(PC)"},
++	{"CR7", "C7"}, // TODO: Should print CR7.
+ 	{"CTR", "CTR"},
+ 	{"F14", "F14"},
+ 	{"F15", "F15"},
+@@ -411,7 +411,7 @@ var ppc64OperandTests = []operandTest{
+ 	{"R8", "R8"},
+ 	{"R9", "R9"},
+ 	{"SPR(269)", "SPR(269)"},
+-	{"a+0(FP)", "a+0(FP)"},
++	{"a(FP)", "a(FP)"},
+ 	{"g", "R30"}, // TODO: Should print g.
+ 	{"ret+8(FP)", "ret+8(FP)"},
+ 	{"runtime·abort(SB)", "runtime.abort(SB)"},
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 26a39defcc..9cacffc84d 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -33,7 +33,7 @@ type Parser struct {
+ 	toPatch       []Patch
+ 	addr          []obj.Addr
+ 	arch          *arch.Arch
+-	linkCtxt      *obj.Link
++	ctxt          *obj.Link
+ 	firstProg     *obj.Prog
+ 	lastProg      *obj.Prog
+ 	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
+@@ -46,7 +46,7 @@ type Patch struct {
+ 
+ func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
+ 	return &Parser{
+-		linkCtxt: ctxt,
++		ctxt:     ctxt,
+ 		arch:     ar,
+ 		lex:      lexer,
+ 		labels:   make(map[string]*obj.Prog),
+@@ -255,7 +255,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
+ 		// We have a symbol. Parse $sym±offset(symkind)
+ 		p.symbolReference(a, name, prefix)
+-		// fmt.Printf("SYM %s\n", p.arch.Dconv(&emptyProg, 0, a))
++		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
+ 		if p.peek() == scanner.EOF {
+ 			return true
+ 		}
+@@ -300,7 +300,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 				a.Class = int8(r2)
+ 			}
+ 		}
+-		// fmt.Printf("REG %s\n", p.arch.Dconv(&emptyProg, 0, a))
++		// fmt.Printf("REG %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
+ 		p.expect(scanner.EOF)
+ 		return true
+ 	}
+@@ -327,7 +327,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 			}
+ 			a.Type = obj.TYPE_FCONST
+ 			a.U.Dval = p.floatExpr()
+-			// fmt.Printf("FCONST %s\n", p.arch.Dconv(&emptyProg, 0, a))
++			// fmt.Printf("FCONST %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
+ 			p.expect(scanner.EOF)
+ 			return true
+ 		}
+@@ -341,7 +341,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 			}
+ 			a.Type = obj.TYPE_SCONST
+ 			a.U.Sval = str
+-			// fmt.Printf("SCONST %s\n", p.arch.Dconv(&emptyProg, 0, a))
++			// fmt.Printf("SCONST %s\n", obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
+ 			p.expect(scanner.EOF)
+ 			return true
+ 		}
+@@ -355,7 +355,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 			default:
+ 				a.Type = obj.TYPE_MEM
+ 			}
+-			// fmt.Printf("CONST %d %s\n", a.Offset, p.arch.Dconv(&emptyProg, 0, a))
++			// fmt.Printf("CONST %d %s\n", a.Offset, obj.Dconv(&emptyProg, 0, p.arch.Rconv, a))
+ 			p.expect(scanner.EOF)
+ 			return true
+ 		}
+@@ -554,7 +554,7 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
+ 	if p.peek() == '+' || p.peek() == '-' {
+ 		a.Offset = int64(p.expr())
+ 	}
+-	a.Sym = obj.Linklookup(p.linkCtxt, name, isStatic)
++	a.Sym = obj.Linklookup(p.ctxt, name, isStatic)
+ 	if p.peek() == scanner.EOF {
+ 		if prefix != 0 {
+ 			p.errorf("illegal addressing mode for symbol %s", name)
+diff --git a/src/cmd/asm/internal/asm/testdata/386.out b/src/cmd/asm/internal/asm/testdata/386.out
+index 3dd98cc463..6578f3e2b6 100644
+--- a/src/cmd/asm/internal/asm/testdata/386.out
++++ b/src/cmd/asm/internal/asm/testdata/386.out
+@@ -1,4 +1,4 @@
+-5 00001 (testdata/386.s:5)	TEXT	foo+0(SB),$0
++5 00001 (testdata/386.s:5)	TEXT	foo(SB),$0
+ 8 00002 (testdata/386.s:8)	SETCC	,AX
+ 9 00003 (testdata/386.s:9)	SETCC	,foo+4(SB)
+ 12 00004 (testdata/386.s:12)	DIVB	AX,
+@@ -20,7 +20,7 @@
+ 37 00020 (testdata/386.s:37)	CALL	,type=16
+ 38 00021 (testdata/386.s:38)	JMP	,$4
+ 39 00022 (testdata/386.s:39)	JMP	,16
+-40 00023 (testdata/386.s:40)	CALL	,foo+0(SB)
++40 00023 (testdata/386.s:40)	CALL	,foo(SB)
+ 42 00024 (testdata/386.s:42)	CALL	,foo+4(SB)(AX*4)
+ 43 00025 (testdata/386.s:43)	CALL	,4(SP)
+ 44 00026 (testdata/386.s:44)	CALL	,(AX)
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64.out b/src/cmd/asm/internal/asm/testdata/amd64.out
+index 725c3dfa5d..a17ae0f472 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64.out
++++ b/src/cmd/asm/internal/asm/testdata/amd64.out
+@@ -1,4 +1,4 @@
+-5 00001 (testdata/amd64.s:5)	TEXT	foo+0(SB),$0
++5 00001 (testdata/amd64.s:5)	TEXT	foo(SB),$0
+ 8 00002 (testdata/amd64.s:8)	NEGQ	,R11
+ 9 00003 (testdata/amd64.s:9)	NEGQ	,4(R11)
+ 10 00004 (testdata/amd64.s:10)	NEGQ	,foo+4(SB)
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.out b/src/cmd/asm/internal/asm/testdata/arm.out
+index 7728e09a45..1c4c7e79f6 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.out
++++ b/src/cmd/asm/internal/asm/testdata/arm.out
+@@ -1,4 +1,4 @@
+-5 00001 (testdata/arm.s:5)	TEXT	foo+0(SB),0,$0
++5 00001 (testdata/arm.s:5)	TEXT	foo(SB),0,$0
+ 14 00002 (testdata/arm.s:14)	ADD	$1,R2,R3
+ 15 00003 (testdata/arm.s:15)	ADD	R1<<R2,R3,R4
+ 16 00004 (testdata/arm.s:16)	ADD	R1>>R2,R3,R4
+@@ -17,37 +17,37 @@
+ 54 00017 (testdata/arm.s:54)	MOVW.S	$1,R2
+ 55 00018 (testdata/arm.s:55)	MOVW.S	R1<<R2,R3
+ 64 00019 (testdata/arm.s:64)	JMP.S	,20(PC)
+-70 00020 (testdata/arm.s:70)	JMP.S	,0(R2)
+-71 00021 (testdata/arm.s:71)	JMP.S	,foo+0(SB)
+-72 00022 (testdata/arm.s:72)	JMP.S	,bar<>+0(SB)
+-81 00023 (testdata/arm.s:81)	BX	0(R2),
++70 00020 (testdata/arm.s:70)	JMP.S	,(R2)
++71 00021 (testdata/arm.s:71)	JMP.S	,foo(SB)
++72 00022 (testdata/arm.s:72)	JMP.S	,bar<>(SB)
++81 00023 (testdata/arm.s:81)	BX	(R2),
+ 90 00024 (testdata/arm.s:90)	BEQ	,25(PC)
+ 99 00025 (testdata/arm.s:99)	SWI.S	,R1
+-100 00026 (testdata/arm.s:100)	SWI.S	,0(R1)
+-101 00027 (testdata/arm.s:101)	SWI.S	,foo+0(SB)
++100 00026 (testdata/arm.s:100)	SWI.S	,(R1)
++101 00027 (testdata/arm.s:101)	SWI.S	,foo(SB)
+ 110 00028 (testdata/arm.s:110)	CMP.S	$1,R2,
+ 111 00029 (testdata/arm.s:111)	CMP.S	R1<<R2,R3,
+ 112 00030 (testdata/arm.s:112)	CMP.S	R1,R2,
+-126 00031 (testdata/arm.s:126)	MOVM	0(R1),[R2,R5,R8,R10]
+-127 00032 (testdata/arm.s:127)	MOVM	0(R1),[R2,R3,R4,R5]
+-128 00033 (testdata/arm.s:128)	MOVM.S	0(R1),[R2]
+-139 00034 (testdata/arm.s:139)	MOVM	[R2,R5,R8,R10],0(R1)
+-140 00035 (testdata/arm.s:140)	MOVM	[R2,R3,R4,R5],0(R1)
+-141 00036 (testdata/arm.s:141)	MOVM.S	[R2],0(R1)
+-150 00037 (testdata/arm.s:150)	STREX.S	0(R2),R1,R3
+-156 00038 (testdata/arm.s:156)	STREX.S	0(R2),R1,R1
+-162 00039 (testdata/arm.s:162)	STREX.S	0(R2),R3,R3
++126 00031 (testdata/arm.s:126)	MOVM	(R1),[R2,R5,R8,R10]
++127 00032 (testdata/arm.s:127)	MOVM	(R1),[R2,R3,R4,R5]
++128 00033 (testdata/arm.s:128)	MOVM.S	(R1),[R2]
++139 00034 (testdata/arm.s:139)	MOVM	[R2,R5,R8,R10],(R1)
++140 00035 (testdata/arm.s:140)	MOVM	[R2,R3,R4,R5],(R1)
++141 00036 (testdata/arm.s:141)	MOVM.S	[R2],(R1)
++150 00037 (testdata/arm.s:150)	STREX.S	(R2),R1,R3
++156 00038 (testdata/arm.s:156)	STREX.S	(R2),R1,R1
++162 00039 (testdata/arm.s:162)	STREX.S	(R2),R3,R3
+ 170 00040 (testdata/arm.s:170)	CASE.S	R1,
+ 179 00041 (testdata/arm.s:179)	WORD	,$1234
+ 188 00042 (testdata/arm.s:188)	ABSF.S	F1,F2
+ 194 00043 (testdata/arm.s:194)	ADDD.S	F1,F2
+-195 00044 (testdata/arm.s:195)	ADDD.S	$0.5,F2
++195 00044 (testdata/arm.s:195)	ADDD.S	$(0.5),F2
+ 201 00045 (testdata/arm.s:201)	ADDD.S	F1,F2,F3
+-202 00046 (testdata/arm.s:202)	ADDD.S	$0.5,F2,F3
++202 00046 (testdata/arm.s:202)	ADDD.S	$(0.5),F2,F3
+ 208 00047 (testdata/arm.s:208)	CMPD.S	F1,F2
+ 242 00048 (testdata/arm.s:242)	MULL	R1,R2,(R3, R4)
+ 254 00049 (testdata/arm.s:254)	MULAWT	R1,R2,R3, R4
+-262 00050 (testdata/arm.s:262)	PLD	0(R1),
++262 00050 (testdata/arm.s:262)	PLD	(R1),
+ 263 00051 (testdata/arm.s:263)	PLD	4(R1),
+ 272 00052 (testdata/arm.s:272)	RET	,
+ 281 00053 (testdata/arm.s:281)	END	,
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.out b/src/cmd/asm/internal/asm/testdata/ppc64.out
+index 50bca559e5..863dfbfa4d 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.out
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.out
+@@ -2,32 +2,32 @@
+ 15 00002 (testdata/ppc64.s:15)	MOVW	R1,R2
+ 21 00003 (testdata/ppc64.s:21)	MOVW	foo<>+3(SB),R2
+ 22 00004 (testdata/ppc64.s:22)	MOVW	16(R1),R2
+-28 00005 (testdata/ppc64.s:28)	MOVW	0(R1),R2
+-29 00006 (testdata/ppc64.s:29)	MOVW	0(R1+R2),R3
++28 00005 (testdata/ppc64.s:28)	MOVW	(R1),R2
++29 00006 (testdata/ppc64.s:29)	MOVW	(R1+R2),R3
+ 35 00007 (testdata/ppc64.s:35)	MOVW	R1,R2
+ 41 00008 (testdata/ppc64.s:41)	MOVB	foo<>+3(SB),R2
+ 42 00009 (testdata/ppc64.s:42)	MOVB	16(R1),R2
+-48 00010 (testdata/ppc64.s:48)	MOVB	0(R1),R2
+-49 00011 (testdata/ppc64.s:49)	MOVB	0(R1+R2),R3
++48 00010 (testdata/ppc64.s:48)	MOVB	(R1),R2
++49 00011 (testdata/ppc64.s:49)	MOVB	(R1+R2),R3
+ 58 00012 (testdata/ppc64.s:58)	FMOVD	foo<>+3(SB),F2
+ 59 00013 (testdata/ppc64.s:59)	FMOVD	16(R1),F2
+-65 00014 (testdata/ppc64.s:65)	FMOVD	0(R1),F2
+-71 00015 (testdata/ppc64.s:71)	FMOVD	$0.10000000000000001,F2
++65 00014 (testdata/ppc64.s:65)	FMOVD	(R1),F2
++71 00015 (testdata/ppc64.s:71)	FMOVD	$(0.10000000000000001),F2
+ 77 00016 (testdata/ppc64.s:77)	FMOVD	F1,F2
+ 83 00017 (testdata/ppc64.s:83)	FMOVD	F2,foo<>+3(SB)
+ 84 00018 (testdata/ppc64.s:84)	FMOVD	F2,16(R1)
+-90 00019 (testdata/ppc64.s:90)	FMOVD	F2,0(R1)
++90 00019 (testdata/ppc64.s:90)	FMOVD	F2,(R1)
+ 99 00020 (testdata/ppc64.s:99)	MOVW	R1,foo<>+3(SB)
+ 100 00021 (testdata/ppc64.s:100)	MOVW	R1,16(R2)
+-106 00022 (testdata/ppc64.s:106)	MOVW	R1,0(R1)
+-107 00023 (testdata/ppc64.s:107)	MOVW	R1,0(R2+R3)
++106 00022 (testdata/ppc64.s:106)	MOVW	R1,(R1)
++107 00023 (testdata/ppc64.s:107)	MOVW	R1,(R2+R3)
+ 113 00024 (testdata/ppc64.s:113)	MOVB	R1,foo<>+3(SB)
+ 114 00025 (testdata/ppc64.s:114)	MOVB	R1,16(R2)
+-120 00026 (testdata/ppc64.s:120)	MOVB	R1,0(R1)
+-121 00027 (testdata/ppc64.s:121)	MOVB	R1,0(R2+R3)
++120 00026 (testdata/ppc64.s:120)	MOVB	R1,(R1)
++121 00027 (testdata/ppc64.s:121)	MOVB	R1,(R2+R3)
+ 129 00028 (testdata/ppc64.s:129)	FMOVD	F1,foo<>+3(SB)
+ 130 00029 (testdata/ppc64.s:130)	FMOVD	F1,16(R2)
+-136 00030 (testdata/ppc64.s:136)	FMOVD	F1,0(R1)
++136 00030 (testdata/ppc64.s:136)	FMOVD	F1,(R1)
+ 145 00031 (testdata/ppc64.s:145)	MOVFL	FPSCR,F1
+ 151 00032 (testdata/ppc64.s:151)	MOVFL	F1,FPSCR
+ 157 00033 (testdata/ppc64.s:157)	MOVFL	F1,$4,FPSCR
+@@ -58,12 +58,12 @@
+ 355 00058 (testdata/ppc64.s:355)	MOVW	R1,LR
+ 356 00059 (testdata/ppc64.s:356)	MOVW	R1,CTR
+ 368 00060 (testdata/ppc64.s:368)	MOVW	R1,SPR(7)
+-380 00061 (testdata/ppc64.s:380)	JMP	,62(APC)
++380 00061 (testdata/ppc64.s:380)	JMP	,62(PC)
+ 381 00062 (testdata/ppc64.s:381)	JMP	,61
+ 387 00063 (testdata/ppc64.s:387)	JMP	,4(R1)
+ 388 00064 (testdata/ppc64.s:388)	JMP	,foo(SB)
+ 394 00065 (testdata/ppc64.s:394)	JMP	,CTR
+-413 00066 (testdata/ppc64.s:413)	BEQ	C1,67(APC)
++413 00066 (testdata/ppc64.s:413)	BEQ	C1,67(PC)
+ 414 00067 (testdata/ppc64.s:414)	BEQ	C1,66
+ 440 00068 (testdata/ppc64.s:440)	BC	4,CTR
+ 450 00069 (testdata/ppc64.s:450)	BC	$3,R4,66
+@@ -86,20 +86,20 @@
+ 594 00086 (testdata/ppc64.s:594)	MOVMW	4(R1),R2
+ 600 00087 (testdata/ppc64.s:600)	MOVMW	R1,foo(SB)
+ 601 00088 (testdata/ppc64.s:601)	MOVMW	R1,4(R2)
+-611 00089 (testdata/ppc64.s:611)	LSW	0(R1),R2
+-612 00090 (testdata/ppc64.s:612)	LSW	0(R1+R2),R3
+-618 00091 (testdata/ppc64.s:618)	LSW	0(R1+NONE),R2
+-619 00092 (testdata/ppc64.s:619)	LSW	0(R1+NONE),R3
+-625 00093 (testdata/ppc64.s:625)	STSW	R1,0(R2)
+-626 00094 (testdata/ppc64.s:626)	STSW	R1,0(R2+R3)
+-632 00095 (testdata/ppc64.s:632)	STSW	R1,0(R2+NONE)
+-633 00096 (testdata/ppc64.s:633)	STSW	R1,0(R2+NONE)
+-639 00097 (testdata/ppc64.s:639)	MOVHBR	0(R1),R2
+-640 00098 (testdata/ppc64.s:640)	MOVHBR	0(R1+R2),R3
+-646 00099 (testdata/ppc64.s:646)	MOVHBR	R1,0(R2)
+-647 00100 (testdata/ppc64.s:647)	MOVHBR	R1,0(R2+R3)
+-653 00101 (testdata/ppc64.s:653)	DCBF	0(R1),
+-654 00102 (testdata/ppc64.s:654)	DCBF	0(R1),
++611 00089 (testdata/ppc64.s:611)	LSW	(R1),R2
++612 00090 (testdata/ppc64.s:612)	LSW	(R1+R2),R3
++618 00091 (testdata/ppc64.s:618)	LSW	(R1+NONE),R2
++619 00092 (testdata/ppc64.s:619)	LSW	(R1+NONE),R3
++625 00093 (testdata/ppc64.s:625)	STSW	R1,(R2)
++626 00094 (testdata/ppc64.s:626)	STSW	R1,(R2+R3)
++632 00095 (testdata/ppc64.s:632)	STSW	R1,(R2+NONE)
++633 00096 (testdata/ppc64.s:633)	STSW	R1,(R2+NONE)
++639 00097 (testdata/ppc64.s:639)	MOVHBR	(R1),R2
++640 00098 (testdata/ppc64.s:640)	MOVHBR	(R1+R2),R3
++646 00099 (testdata/ppc64.s:646)	MOVHBR	R1,(R2)
++647 00100 (testdata/ppc64.s:647)	MOVHBR	R1,(R2+R3)
++653 00101 (testdata/ppc64.s:653)	DCBF	(R1),
++654 00102 (testdata/ppc64.s:654)	DCBF	(R1),
+ 663 00103 (testdata/ppc64.s:663)	NOP	,
+ 669 00104 (testdata/ppc64.s:669)	NOP	R2,
+ 675 00105 (testdata/ppc64.s:675)	NOP	F2,
+diff --git a/src/cmd/internal/obj/arm/list5.go b/src/cmd/internal/obj/arm/list5.go
+index 6bd1ddf13c..c525a29f9b 100644
+--- a/src/cmd/internal/obj/arm/list5.go
++++ b/src/cmd/internal/obj/arm/list5.go
+@@ -85,20 +85,27 @@ func Pconv(p *obj.Prog) string {
+ 	}
+ 	if a == AMOVM {
+ 		if p.From.Type == obj.TYPE_CONST {
+-			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v", p.Pc, p.Line(), Aconv(a), sc, RAconv(&p.From), Dconv(p, 0, &p.To))
++			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
++				p.Pc, p.Line(), Aconv(a), sc, RAconv(&p.From), obj.Dconv(p, Rconv, &p.To))
+ 		} else if p.To.Type == obj.TYPE_CONST {
+-			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v", p.Pc, p.Line(), Aconv(a), sc, Dconv(p, 0, &p.From), RAconv(&p.To))
++			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
++				p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, Rconv, &p.From), RAconv(&p.To))
+ 		} else {
+-			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v", p.Pc, p.Line(), Aconv(a), sc, Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
++			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
++				p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+ 		}
+ 	} else if a == obj.ADATA {
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From), p.From3.Offset, Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
++			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+ 	} else if p.As == obj.ATEXT {
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From), p.From3.Offset, Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
++			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+ 	} else if p.Reg == 0 {
+-		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v", p.Pc, p.Line(), Aconv(a), sc, Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
++			p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+ 	} else {
+-		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v,%v", p.Pc, p.Line(), Aconv(a), sc, Dconv(p, 0, &p.From), Rconv(int(p.Reg)), Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v,%v",
++			p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, Rconv, &p.From), Rconv(int(p.Reg)), obj.Dconv(p, Rconv, &p.To))
+ 	}
+ 
+ 	fp += str
+@@ -117,91 +124,6 @@ func Aconv(a int) string {
+ 	return fp
+ }
+ 
+-func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
+-	var str string
+-	var fp string
+-
+-	var op string
+-	var v int
+-
+-	switch a.Type {
+-	default:
+-		str = fmt.Sprintf("GOK-type(%d)", a.Type)
+-
+-	case obj.TYPE_NONE:
+-		str = ""
+-		if a.Name != obj.TYPE_NONE || a.Reg != 0 || a.Sym != nil {
+-			str = fmt.Sprintf("%v(%v)(NONE)", Mconv(a), Rconv(int(a.Reg)))
+-		}
+-
+-	case obj.TYPE_CONST,
+-		obj.TYPE_ADDR:
+-		if a.Reg != 0 {
+-			str = fmt.Sprintf("$%v(%v)", Mconv(a), Rconv(int(a.Reg)))
+-		} else {
+-			str = fmt.Sprintf("$%v", Mconv(a))
+-		}
+-
+-	case obj.TYPE_TEXTSIZE:
+-		if a.U.Argsize == obj.ArgsSizeUnknown {
+-			str = fmt.Sprintf("$%d", a.Offset)
+-		} else {
+-			str = fmt.Sprintf("$%d-%d", a.Offset, a.U.Argsize)
+-		}
+-
+-	case obj.TYPE_SHIFT:
+-		v = int(a.Offset)
+-		op = string("<<>>->@>"[((v>>5)&3)<<1:])
+-		if v&(1<<4) != 0 {
+-			str = fmt.Sprintf("R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15)
+-		} else {
+-			str = fmt.Sprintf("R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31)
+-		}
+-		if a.Reg != 0 {
+-			str += fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
+-		}
+-
+-	case obj.TYPE_MEM:
+-		if a.Reg != 0 {
+-			str = fmt.Sprintf("%v(%v)", Mconv(a), Rconv(int(a.Reg)))
+-		} else {
+-			str = fmt.Sprintf("%v", Mconv(a))
+-		}
+-
+-	case obj.TYPE_REG:
+-		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
+-		if a.Name != obj.TYPE_NONE || a.Sym != nil {
+-			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
+-		}
+-
+-	case obj.TYPE_BRANCH:
+-		if a.Sym != nil {
+-			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
+-		} else if p != nil && p.Pcond != nil {
+-			str = fmt.Sprintf("%d", p.Pcond.Pc)
+-		} else if a.U.Branch != nil {
+-			str = fmt.Sprintf("%d", a.U.Branch.Pc)
+-		} else {
+-			str = fmt.Sprintf("%d(PC)", a.Offset) /*-pc*/
+-		}
+-
+-	case obj.TYPE_FCONST:
+-		str = fmt.Sprintf("$%.17g", a.U.Dval)
+-
+-	case obj.TYPE_SCONST:
+-		str = fmt.Sprintf("$%q", a.U.Sval)
+-
+-	case obj.TYPE_REGREG:
+-		str = fmt.Sprintf("(%v, %v)", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
+-
+-	case obj.TYPE_REGREG2:
+-		str = fmt.Sprintf("%v, %v", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
+-	}
+-
+-	fp += str
+-	return fp
+-}
+-
+ func RAconv(a *obj.Addr) string {
+ 	var str string
+ 	var fp string
+@@ -287,40 +209,3 @@ func DRconv(a int) string {
+ 	fp += s
+ 	return fp
+ }
+-
+-func Mconv(a *obj.Addr) string {
+-	var str string
+-	var fp string
+-
+-	var s *obj.LSym
+-
+-	s = a.Sym
+-	if s == nil {
+-		str = fmt.Sprintf("%d", int(a.Offset))
+-		goto out
+-	}
+-
+-	switch a.Name {
+-	default:
+-		str = fmt.Sprintf("GOK-name(%d)", a.Name)
+-
+-	case obj.NAME_NONE:
+-		str = fmt.Sprintf("%d", a.Offset)
+-
+-	case obj.NAME_EXTERN:
+-		str = fmt.Sprintf("%s+%d(SB)", s.Name, int(a.Offset))
+-
+-	case obj.NAME_STATIC:
+-		str = fmt.Sprintf("%s<>+%d(SB)", s.Name, int(a.Offset))
+-
+-	case obj.NAME_AUTO:
+-		str = fmt.Sprintf("%s-%d(SP)", s.Name, int(-a.Offset))
+-
+-	case obj.NAME_PARAM:
+-		str = fmt.Sprintf("%s+%d(FP)", s.Name, int(a.Offset))
+-	}
+-
+-out:
+-	fp += str
+-	return fp
+-}
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index ce75ab1fa7..67042c029a 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -1061,7 +1061,6 @@ loop:
+ }
+ 
+ var Linkarm = obj.LinkArch{
+-	Dconv:      Dconv,
+ 	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+ 	Pconv:      Pconv,
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 39e1ce527c..6321ca4f2a 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -43,7 +43,7 @@ func mangle(file string) {
+ func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
+ 	siz := int(lsiz)
+ 	if int64(siz) != lsiz {
+-		log.Fatal("Symgrow size %d too long", lsiz)
++		log.Fatalf("Symgrow size %d too long", lsiz)
+ 	}
+ 	if len(s.P) >= siz {
+ 		return
+diff --git a/src/cmd/internal/obj/i386/asm8.go b/src/cmd/internal/obj/i386/asm8.go
+index 11ae6e5f74..495c2dce82 100644
+--- a/src/cmd/internal/obj/i386/asm8.go
++++ b/src/cmd/internal/obj/i386/asm8.go
+@@ -1501,7 +1501,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		}
+ 
+ 		if a.Sym != nil || a.Name != obj.NAME_NONE {
+-			ctxt.Diag("unexpected addr: %v", Dconv(p, 0, a))
++			ctxt.Diag("unexpected addr: %v", obj.Dconv(p, Rconv, a))
+ 		}
+ 		fallthrough
+ 
+@@ -1509,7 +1509,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 
+ 	case obj.TYPE_CONST:
+ 		if a.Sym != nil {
+-			ctxt.Diag("TYPE_CONST with symbol: %v", Dconv(p, 0, a))
++			ctxt.Diag("TYPE_CONST with symbol: %v", obj.Dconv(p, Rconv, a))
+ 		}
+ 
+ 		v = int32(a.Offset)
+@@ -1529,7 +1529,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 	}
+ 
+ 	if a.Type != obj.TYPE_REG {
+-		ctxt.Diag("unexpected addr1: type=%d %v", a.Type, Dconv(p, 0, a))
++		ctxt.Diag("unexpected addr1: type=%d %v", a.Type, obj.Dconv(p, Rconv, a))
+ 		return Yxxx
+ 	}
+ 
+@@ -1772,7 +1772,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int32 {
+ 		s = a.Sym
+ 		if s != nil {
+ 			if r == nil {
+-				ctxt.Diag("need reloc for %v", Dconv(p, 0, a))
++				ctxt.Diag("need reloc for %v", obj.Dconv(p, Rconv, a))
+ 				log.Fatalf("bad code")
+ 			}
+ 
+@@ -1789,7 +1789,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int32 {
+ 
+ 	if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && a.Reg == REG_TLS {
+ 		if r == nil {
+-			ctxt.Diag("need reloc for %v", Dconv(p, 0, a))
++			ctxt.Diag("need reloc for %v", obj.Dconv(p, Rconv, a))
+ 			log.Fatalf("bad code")
+ 		}
+ 
+@@ -1972,7 +1972,7 @@ putrelv:
+ 	return
+ 
+ bad:
+-	ctxt.Diag("asmand: bad address %v", Dconv(p, 0, a))
++	ctxt.Diag("asmand: bad address %v", obj.Dconv(p, Rconv, a))
+ 	return
+ }
+ 
+diff --git a/src/cmd/internal/obj/i386/list8.go b/src/cmd/internal/obj/i386/list8.go
+index dcc76f7454..ad09679ae5 100644
+--- a/src/cmd/internal/obj/i386/list8.go
++++ b/src/cmd/internal/obj/i386/list8.go
+@@ -47,18 +47,22 @@ func Pconv(p *obj.Prog) string {
+ 
+ 	switch p.As {
+ 	case obj.ADATA:
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), p.From3.Offset, Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
++			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+ 
+ 	case obj.ATEXT:
+ 		if p.From3.Offset != 0 {
+-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), p.From3.Offset, Dconv(p, 0, &p.To))
++			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
++				p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+ 			break
+ 		}
+ 
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
++			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+ 
+ 	default:
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
++			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+ 
+ 		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+ 		//	SHRQ $32(DX*0), AX
+@@ -79,105 +83,6 @@ func Aconv(i int) string {
+ 	return fp
+ }
+ 
+-func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
+-	var str string
+-	var s string
+-	var fp string
+-
+-	switch a.Type {
+-	default:
+-		str = fmt.Sprintf("type=%d", a.Type)
+-
+-	case obj.TYPE_NONE:
+-		str = ""
+-
+-		// TODO(rsc): This special case is for instructions like
+-	//	PINSRQ	CX,$1,X6
+-	// where the $1 is included in the p->to Addr.
+-	// Move into a new field.
+-	case obj.TYPE_REG:
+-		if a.Offset != 0 {
+-			str = fmt.Sprintf("$%d,%v", a.Offset, Rconv(int(a.Reg)))
+-			break
+-		}
+-
+-		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
+-
+-	case obj.TYPE_BRANCH:
+-		if a.Sym != nil {
+-			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
+-		} else if p != nil && p.Pcond != nil {
+-			str = fmt.Sprintf("%d", p.Pcond.Pc)
+-		} else if a.U.Branch != nil {
+-			str = fmt.Sprintf("%d", a.U.Branch.Pc)
+-		} else {
+-			str = fmt.Sprintf("%d(PC)", a.Offset)
+-		}
+-
+-	case obj.TYPE_MEM:
+-		switch a.Name {
+-		default:
+-			str = fmt.Sprintf("name=%d", a.Name)
+-
+-		case obj.NAME_NONE:
+-			if a.Offset != 0 {
+-				str = fmt.Sprintf("%d(%v)", a.Offset, Rconv(int(a.Reg)))
+-			} else {
+-				str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
+-			}
+-
+-		case obj.NAME_EXTERN:
+-			str = fmt.Sprintf("%s+%d(SB)", a.Sym.Name, a.Offset)
+-
+-		case obj.NAME_STATIC:
+-			str = fmt.Sprintf("%s<>+%d(SB)", a.Sym.Name, a.Offset)
+-
+-		case obj.NAME_AUTO:
+-			if a.Sym != nil {
+-				str = fmt.Sprintf("%s+%d(SP)", a.Sym.Name, a.Offset)
+-			} else {
+-				str = fmt.Sprintf("%d(SP)", a.Offset)
+-			}
+-
+-		case obj.NAME_PARAM:
+-			if a.Sym != nil {
+-				str = fmt.Sprintf("%s+%d(FP)", a.Sym.Name, a.Offset)
+-			} else {
+-				str = fmt.Sprintf("%d(FP)", a.Offset)
+-			}
+-		}
+-
+-		if a.Index != REG_NONE {
+-			s = fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+-			str += s
+-		}
+-
+-	case obj.TYPE_CONST:
+-		str = fmt.Sprintf("$%d", a.Offset)
+-
+-	case obj.TYPE_TEXTSIZE:
+-		if a.U.Argsize == obj.ArgsSizeUnknown {
+-			str = fmt.Sprintf("$%d", a.Offset)
+-		} else {
+-			str = fmt.Sprintf("$%d-%d", a.Offset, a.U.Argsize)
+-		}
+-
+-	case obj.TYPE_FCONST:
+-		str = fmt.Sprintf("$(%.17g)", a.U.Dval)
+-
+-	case obj.TYPE_SCONST:
+-		str = fmt.Sprintf("$%q", a.U.Sval)
+-
+-	case obj.TYPE_ADDR:
+-		a.Type = obj.TYPE_MEM
+-		str = fmt.Sprintf("$%v", Dconv(p, 0, a))
+-		a.Type = obj.TYPE_ADDR
+-	}
+-
+-	fp += str
+-	return fp
+-}
+-
+ var Register = []string{
+ 	"AL", /* [REG_AL] */
+ 	"CL",
+diff --git a/src/cmd/internal/obj/i386/obj8.go b/src/cmd/internal/obj/i386/obj8.go
+index ffb7524aa3..44d27c29f2 100644
+--- a/src/cmd/internal/obj/i386/obj8.go
++++ b/src/cmd/internal/obj/i386/obj8.go
+@@ -909,7 +909,6 @@ loop:
+ }
+ 
+ var Link386 = obj.LinkArch{
+-	Dconv:      Dconv,
+ 	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+ 	Pconv:      Pconv,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 7daf12e8f2..f4b0b64931 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -241,7 +241,6 @@ type Plist struct {
+ 
+ type LinkArch struct {
+ 	Pconv      func(*Prog) string
+-	Dconv      func(*Prog, int, *Addr) string
+ 	Rconv      func(int) string
+ 	ByteOrder  binary.ByteOrder
+ 	Name       string
+diff --git a/src/cmd/internal/obj/ppc64/list9.go b/src/cmd/internal/obj/ppc64/list9.go
+index 8bd94839d4..171a47327f 100644
+--- a/src/cmd/internal/obj/ppc64/list9.go
++++ b/src/cmd/internal/obj/ppc64/list9.go
+@@ -63,32 +63,47 @@ func Pconv(p *obj.Prog) string {
+ 
+ 	str = ""
+ 	if a == obj.ADATA {
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From), p.From3.Offset, Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
++			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+ 	} else if a == obj.ATEXT || a == obj.AGLOBL {
+ 		if p.From3.Offset != 0 {
+-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From), p.From3.Offset, Dconv(p, 0, &p.To))
++			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
++				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+ 		} else {
+-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
++			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
++				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+ 		}
+ 	} else {
+ 		if p.Mark&NOSCHED != 0 {
+ 			str += fmt.Sprintf("*")
+ 		}
+ 		if p.Reg == 0 && p.From3.Type == obj.TYPE_NONE {
+-			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
++			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
++				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+ 		} else if a != obj.ATEXT && p.From.Type == obj.TYPE_MEM {
+-			str += fmt.Sprintf("%.5d (%v)\t%v\t%d(%v+%v),%v", p.Pc, p.Line(), Aconv(a), p.From.Offset, Rconv(int(p.From.Reg)), Rconv(int(p.Reg)), Dconv(p, 0, &p.To))
++			off := ""
++			if p.From.Offset != 0 {
++				off = fmt.Sprintf("%d", p.From.Offset)
++			}
++			str += fmt.Sprintf("%.5d (%v)\t%v\t%s(%v+%v),%v",
++				p.Pc, p.Line(), Aconv(a), off, Rconv(int(p.From.Reg)), Rconv(int(p.Reg)), obj.Dconv(p, Rconv, &p.To))
+ 		} else if p.To.Type == obj.TYPE_MEM {
+-			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%d(%v+%v)", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From), p.To.Offset, Rconv(int(p.To.Reg)), Rconv(int(p.Reg)))
++			off := ""
++			if p.From.Offset != 0 {
++				off = fmt.Sprintf("%d", p.From.Offset)
++			}
++			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%s(%v+%v)",
++				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From), off, Rconv(int(p.To.Reg)), Rconv(int(p.Reg)))
+ 		} else {
+-			str += fmt.Sprintf("%.5d (%v)\t%v\t%v", p.Pc, p.Line(), Aconv(a), Dconv(p, 0, &p.From))
++			str += fmt.Sprintf("%.5d (%v)\t%v\t%v",
++				p.Pc, p.Line(), Aconv(a), obj.Dconv(p, Rconv, &p.From))
+ 			if p.Reg != 0 {
+ 				str += fmt.Sprintf(",%v", Rconv(int(p.Reg)))
+ 			}
+ 			if p.From3.Type != obj.TYPE_NONE {
+-				str += fmt.Sprintf(",%v", Dconv(p, 0, &p.From3))
++				str += fmt.Sprintf(",%v", obj.Dconv(p, Rconv, &p.From3))
+ 			}
+-			str += fmt.Sprintf(",%v", Dconv(p, 0, &p.To))
++			str += fmt.Sprintf(",%v", obj.Dconv(p, Rconv, &p.To))
+ 		}
+ 
+ 		if p.Spadj != 0 {
+@@ -113,140 +128,6 @@ func Aconv(a int) string {
+ 	return fp
+ }
+ 
+-func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
+-	var str string
+-	var fp string
+-
+-	var v int32
+-
+-	switch a.Type {
+-	default:
+-		str = fmt.Sprintf("GOK-type(%d)", a.Type)
+-
+-	case obj.TYPE_NONE:
+-		str = ""
+-		if a.Name != obj.TYPE_NONE || a.Reg != 0 || a.Sym != nil {
+-			str = fmt.Sprintf("%v(%v)(NONE)", Mconv(a), Rconv(int(a.Reg)))
+-		}
+-
+-	case obj.TYPE_CONST,
+-		obj.TYPE_ADDR:
+-		if a.Reg != 0 {
+-			str = fmt.Sprintf("$%v(%v)", Mconv(a), Rconv(int(a.Reg)))
+-		} else {
+-			str = fmt.Sprintf("$%v", Mconv(a))
+-		}
+-
+-	case obj.TYPE_TEXTSIZE:
+-		if a.U.Argsize == obj.ArgsSizeUnknown {
+-			str = fmt.Sprintf("$%d", a.Offset)
+-		} else {
+-			str = fmt.Sprintf("$%d-%d", a.Offset, a.U.Argsize)
+-		}
+-
+-	case obj.TYPE_MEM:
+-		if a.Reg != 0 {
+-			str = fmt.Sprintf("%v(%v)", Mconv(a), Rconv(int(a.Reg)))
+-		} else {
+-			str = fmt.Sprintf("%v", Mconv(a))
+-		}
+-
+-	case obj.TYPE_REG:
+-		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
+-		if a.Name != obj.TYPE_NONE || a.Sym != nil {
+-			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
+-		}
+-
+-	case obj.TYPE_BRANCH:
+-		if p.Pcond != nil {
+-			v = int32(p.Pcond.Pc)
+-
+-			//if(v >= INITTEXT)
+-			//	v -= INITTEXT-HEADR;
+-			if a.Sym != nil {
+-				str = fmt.Sprintf("%s+%.5x(BRANCH)", a.Sym.Name, uint32(v))
+-			} else {
+-				str = fmt.Sprintf("%.5x(BRANCH)", uint32(v))
+-			}
+-		} else if a.U.Branch != nil {
+-			str = fmt.Sprintf("%d", a.U.Branch.Pc)
+-		} else if a.Sym != nil {
+-			str = fmt.Sprintf("%s+%d(APC)", a.Sym.Name, a.Offset)
+-		} else {
+-			str = fmt.Sprintf("%d(APC)", a.Offset)
+-		}
+-
+-		//sprint(str, "$%lux-%lux", a->ieee.h, a->ieee.l);
+-	case obj.TYPE_FCONST:
+-		str = fmt.Sprintf("$%.17g", a.U.Dval)
+-
+-	case obj.TYPE_SCONST:
+-		str = fmt.Sprintf("$%q", a.U.Sval)
+-	}
+-
+-	fp += str
+-	return fp
+-}
+-
+-func Mconv(a *obj.Addr) string {
+-	var str string
+-	var fp string
+-
+-	var s *obj.LSym
+-	var l int32
+-
+-	s = a.Sym
+-
+-	//if(s == nil) {
+-	//	l = a->offset;
+-	//	if((vlong)l != a->offset)
+-	//		sprint(str, "0x%llux", a->offset);
+-	//	else
+-	//		sprint(str, "%lld", a->offset);
+-	//	goto out;
+-	//}
+-	switch a.Name {
+-	default:
+-		str = fmt.Sprintf("GOK-name(%d)", a.Name)
+-
+-	case obj.TYPE_NONE:
+-		l = int32(a.Offset)
+-		if int64(l) != a.Offset {
+-			str = fmt.Sprintf("0x%x", uint64(a.Offset))
+-		} else {
+-			str = fmt.Sprintf("%d", a.Offset)
+-		}
+-
+-	case obj.NAME_EXTERN:
+-		if a.Offset != 0 {
+-			str = fmt.Sprintf("%s+%d(SB)", s.Name, a.Offset)
+-		} else {
+-			str = fmt.Sprintf("%s(SB)", s.Name)
+-		}
+-
+-	case obj.NAME_STATIC:
+-		str = fmt.Sprintf("%s<>+%d(SB)", s.Name, a.Offset)
+-
+-	case obj.NAME_AUTO:
+-		if s == nil {
+-			str = fmt.Sprintf("%d(SP)", -a.Offset)
+-		} else {
+-			str = fmt.Sprintf("%s-%d(SP)", s.Name, -a.Offset)
+-		}
+-
+-	case obj.NAME_PARAM:
+-		if s == nil {
+-			str = fmt.Sprintf("%d(FP)", a.Offset)
+-		} else {
+-			str = fmt.Sprintf("%s+%d(FP)", s.Name, a.Offset)
+-		}
+-	}
+-
+-	//out:
+-	fp += str
+-	return fp
+-}
+-
+ func Rconv(r int) string {
+ 	var fp string
+ 
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index a2c33f54bb..0c3298afc2 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -965,7 +965,6 @@ loop:
+ }
+ 
+ var Linkppc64 = obj.LinkArch{
+-	Dconv:      Dconv,
+ 	Rconv:      Rconv,
+ 	ByteOrder:  binary.BigEndian,
+ 	Pconv:      Pconv,
+@@ -982,7 +981,6 @@ var Linkppc64 = obj.LinkArch{
+ }
+ 
+ var Linkppc64le = obj.LinkArch{
+-	Dconv:      Dconv,
+ 	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+ 	Pconv:      Pconv,
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 60708fa558..740f664479 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -11,9 +11,12 @@ import (
+ 	"log"
+ 	"os"
+ 	"strconv"
++	"strings"
+ 	"time"
+ )
+ 
++const REG_NONE = 0
++
+ var start time.Time
+ 
+ func Cputime() float64 {
+@@ -63,7 +66,7 @@ func Bwritestring(b *Biobuf, p string) (int, error) {
+ func Bseek(b *Biobuf, offset int64, whence int) int64 {
+ 	if b.w != nil {
+ 		if err := b.w.Flush(); err != nil {
+-			log.Fatal("writing output: %v", err)
++			log.Fatalf("writing output: %v", err)
+ 		}
+ 	} else if b.r != nil {
+ 		if whence == 1 {
+@@ -72,7 +75,7 @@ func Bseek(b *Biobuf, offset int64, whence int) int64 {
+ 	}
+ 	off, err := b.f.Seek(offset, whence)
+ 	if err != nil {
+-		log.Fatal("seeking in output: %v", err)
++		log.Fatalf("seeking in output: %v", err)
+ 	}
+ 	if b.r != nil {
+ 		b.r.Reset(b.f)
+@@ -82,11 +85,11 @@ func Bseek(b *Biobuf, offset int64, whence int) int64 {
+ 
+ func Boffset(b *Biobuf) int64 {
+ 	if err := b.w.Flush(); err != nil {
+-		log.Fatal("writing output: %v", err)
++		log.Fatalf("writing output: %v", err)
+ 	}
+ 	off, err := b.f.Seek(0, 1)
+ 	if err != nil {
+-		log.Fatal("seeking in output: %v", err)
++		log.Fatalf("seeking in output: %v", err)
+ 	}
+ 	return off
+ }
+@@ -258,10 +261,6 @@ func (ctxt *Link) Line(n int) string {
+ 	return Linklinefmt(ctxt, n, false, false)
+ }
+ 
+-func (ctxt *Link) Dconv(a *Addr) string {
+-	return ctxt.Arch.Dconv(nil, 0, a)
+-}
+-
+ func (ctxt *Link) Rconv(reg int) string {
+ 	return ctxt.Arch.Rconv(reg)
+ }
+@@ -269,3 +268,149 @@ func (ctxt *Link) Rconv(reg int) string {
+ func Getcallerpc(interface{}) uintptr {
+ 	return 1
+ }
++
++func (ctxt *Link) Dconv(a *Addr) string {
++	return Dconv(nil, ctxt.Rconv, a)
++}
++
++func Dconv(p *Prog, Rconv func(int) string, a *Addr) string {
++	var str string
++
++	switch a.Type {
++	default:
++		str = fmt.Sprintf("type=%d", a.Type)
++
++	case TYPE_NONE:
++		str = ""
++		if a.Name != NAME_NONE || a.Reg != 0 || a.Sym != nil {
++			str = fmt.Sprintf("%v(%v)(NONE)", Mconv(Rconv, a), Rconv(int(a.Reg)))
++		}
++
++	case TYPE_REG:
++		// TODO(rsc): This special case is for x86 instructions like
++		//	PINSRQ	CX,$1,X6
++		// where the $1 is included in the p->to Addr.
++		// Move into a new field.
++		if a.Offset != 0 {
++			str = fmt.Sprintf("$%d,%v", a.Offset, Rconv(int(a.Reg)))
++			break
++		}
++
++		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
++		if a.Name != TYPE_NONE || a.Sym != nil {
++			str = fmt.Sprintf("%v(%v)(REG)", Mconv(Rconv, a), Rconv(int(a.Reg)))
++		}
++
++	case TYPE_BRANCH:
++		if a.Sym != nil {
++			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
++		} else if p != nil && p.Pcond != nil {
++			str = fmt.Sprintf("%d", p.Pcond.Pc)
++		} else if a.U.Branch != nil {
++			str = fmt.Sprintf("%d", a.U.Branch.Pc)
++		} else {
++			str = fmt.Sprintf("%d(PC)", a.Offset)
++		}
++
++	case TYPE_MEM:
++		str = Mconv(Rconv, a)
++		if a.Index != REG_NONE {
++			str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
++		}
++
++	case TYPE_CONST:
++		if a.Reg != 0 {
++			str = fmt.Sprintf("$%v(%v)", Mconv(Rconv, a), Rconv(int(a.Reg)))
++		} else {
++			str = fmt.Sprintf("$%v", Mconv(Rconv, a))
++		}
++
++	case TYPE_TEXTSIZE:
++		if a.U.Argsize == ArgsSizeUnknown {
++			str = fmt.Sprintf("$%d", a.Offset)
++		} else {
++			str = fmt.Sprintf("$%d-%d", a.Offset, a.U.Argsize)
++		}
++
++	case TYPE_FCONST:
++		str = fmt.Sprintf("%.17g", a.U.Dval)
++		// Make sure 1 prints as 1.0
++		if !strings.ContainsAny(str, ".e") {
++			str += ".0"
++		}
++		str = fmt.Sprintf("$(%s)", str)
++
++	case TYPE_SCONST:
++		str = fmt.Sprintf("$%q", a.U.Sval)
++
++	case TYPE_ADDR:
++		str = fmt.Sprintf("$%s", Mconv(Rconv, a))
++
++	case TYPE_SHIFT:
++		v := int(a.Offset)
++		op := string("<<>>->@>"[((v>>5)&3)<<1:])
++		if v&(1<<4) != 0 {
++			str = fmt.Sprintf("R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15)
++		} else {
++			str = fmt.Sprintf("R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31)
++		}
++		if a.Reg != 0 {
++			str += fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
++		}
++
++	case TYPE_REGREG:
++		str = fmt.Sprintf("(%v, %v)", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
++
++	case TYPE_REGREG2:
++		str = fmt.Sprintf("%v, %v", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
++	}
++
++	return str
++}
++
++func Mconv(Rconv func(int) string, a *Addr) string {
++	var str string
++
++	switch a.Name {
++	default:
++		str = fmt.Sprintf("name=%d", a.Name)
++
++	case NAME_NONE:
++		switch {
++		case a.Reg == REG_NONE:
++			str = fmt.Sprintf("%d", a.Offset)
++		case a.Offset == 0:
++			str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
++		case a.Offset != 0:
++			str = fmt.Sprintf("%d(%v)", a.Offset, Rconv(int(a.Reg)))
++		}
++
++	case NAME_EXTERN:
++		str = fmt.Sprintf("%s%s(SB)", a.Sym.Name, offConv(a.Offset))
++
++	case NAME_STATIC:
++		str = fmt.Sprintf("%s<>%s(SB)", a.Sym.Name, offConv(a.Offset))
++
++	case NAME_AUTO:
++		if a.Sym != nil {
++			str = fmt.Sprintf("%s%s(SP)", a.Sym.Name, offConv(a.Offset))
++		} else {
++			str = fmt.Sprintf("%s(SP)", offConv(a.Offset))
++		}
++
++	case NAME_PARAM:
++		if a.Sym != nil {
++			str = fmt.Sprintf("%s%s(FP)", a.Sym.Name, offConv(a.Offset))
++		} else {
++			str = fmt.Sprintf("%s(FP)", offConv(a.Offset))
++		}
++	}
++	return str
++}
++
++func offConv(off int64) string {
++	if off == 0 {
++		return ""
++	}
++	return fmt.Sprintf("%+d", off)
++}
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 94f1427281..37a5d18ea6 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1931,7 +1931,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		}
+ 
+ 		if a.Sym != nil || a.Name != obj.NAME_NONE {
+-			ctxt.Diag("unexpected addr: %v", Dconv(p, 0, a))
++			ctxt.Diag("unexpected addr: %v", obj.Dconv(p, Rconv, a))
+ 		}
+ 		fallthrough
+ 
+@@ -1939,7 +1939,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 
+ 	case obj.TYPE_CONST:
+ 		if a.Sym != nil {
+-			ctxt.Diag("TYPE_CONST with symbol: %v", Dconv(p, 0, a))
++			ctxt.Diag("TYPE_CONST with symbol: %v", obj.Dconv(p, Rconv, a))
+ 		}
+ 
+ 		v = a.Offset
+@@ -1966,7 +1966,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 	}
+ 
+ 	if a.Type != obj.TYPE_REG {
+-		ctxt.Diag("unexpected addr1: type=%d %v", a.Type, Dconv(p, 0, a))
++		ctxt.Diag("unexpected addr1: type=%d %v", a.Type, obj.Dconv(p, Rconv, a))
+ 		return Yxxx
+ 	}
+ 
+@@ -2317,7 +2317,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
+ 		obj.NAME_EXTERN:
+ 		s = a.Sym
+ 		if r == nil {
+-			ctxt.Diag("need reloc for %v", Dconv(p, 0, a))
++			ctxt.Diag("need reloc for %v", obj.Dconv(p, Rconv, a))
+ 			log.Fatalf("reloc")
+ 		}
+ 
+@@ -2343,7 +2343,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
+ 
+ 	if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && a.Reg == REG_TLS {
+ 		if r == nil {
+-			ctxt.Diag("need reloc for %v", Dconv(p, 0, a))
++			ctxt.Diag("need reloc for %v", obj.Dconv(p, Rconv, a))
+ 			log.Fatalf("reloc")
+ 		}
+ 
+@@ -2545,7 +2545,7 @@ putrelv:
+ 	return
+ 
+ bad:
+-	ctxt.Diag("asmand: bad address %v", Dconv(p, 0, a))
++	ctxt.Diag("asmand: bad address %v", obj.Dconv(p, Rconv, a))
+ 	return
+ }
+ 
+diff --git a/src/cmd/internal/obj/x86/list6.go b/src/cmd/internal/obj/x86/list6.go
+index e50de9508b..b628bb2a71 100644
+--- a/src/cmd/internal/obj/x86/list6.go
++++ b/src/cmd/internal/obj/x86/list6.go
+@@ -59,18 +59,22 @@ func Pconv(p *obj.Prog) string {
+ 
+ 	switch p.As {
+ 	case obj.ADATA:
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), p.From3.Offset, Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
++			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+ 
+ 	case obj.ATEXT:
+ 		if p.From3.Offset != 0 {
+-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), p.From3.Offset, Dconv(p, 0, &p.To))
++			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
++				p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), p.From3.Offset, obj.Dconv(p, Rconv, &p.To))
+ 			break
+ 		}
+ 
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
++			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+ 
+ 	default:
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
++		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
++			p.Pc, p.Line(), Aconv(int(p.As)), obj.Dconv(p, Rconv, &p.From), obj.Dconv(p, Rconv, &p.To))
+ 
+ 		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+ 		//	SHRQ $32(DX*0), AX
+@@ -91,105 +95,6 @@ func Aconv(i int) string {
+ 	return fp
+ }
+ 
+-func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
+-	var str string
+-	var s string
+-	var fp string
+-
+-	switch a.Type {
+-	default:
+-		str = fmt.Sprintf("type=%d", a.Type)
+-
+-	case obj.TYPE_NONE:
+-		str = ""
+-
+-		// TODO(rsc): This special case is for instructions like
+-	//	PINSRQ	CX,$1,X6
+-	// where the $1 is included in the p->to Addr.
+-	// Move into a new field.
+-	case obj.TYPE_REG:
+-		if a.Offset != 0 {
+-			str = fmt.Sprintf("$%d,%v", a.Offset, Rconv(int(a.Reg)))
+-			break
+-		}
+-
+-		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
+-
+-	case obj.TYPE_BRANCH:
+-		if a.Sym != nil {
+-			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
+-		} else if p != nil && p.Pcond != nil {
+-			str = fmt.Sprintf("%d", p.Pcond.Pc)
+-		} else if a.U.Branch != nil {
+-			str = fmt.Sprintf("%d", a.U.Branch.Pc)
+-		} else {
+-			str = fmt.Sprintf("%d(PC)", a.Offset)
+-		}
+-
+-	case obj.TYPE_MEM:
+-		switch a.Name {
+-		default:
+-			str = fmt.Sprintf("name=%d", a.Name)
+-
+-		case obj.NAME_NONE:
+-			if a.Offset != 0 {
+-				str = fmt.Sprintf("%d(%v)", a.Offset, Rconv(int(a.Reg)))
+-			} else {
+-				str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
+-			}
+-
+-		case obj.NAME_EXTERN:
+-			str = fmt.Sprintf("%s+%d(SB)", a.Sym.Name, a.Offset)
+-
+-		case obj.NAME_STATIC:
+-			str = fmt.Sprintf("%s<>+%d(SB)", a.Sym.Name, a.Offset)
+-
+-		case obj.NAME_AUTO:
+-			if a.Sym != nil {
+-				str = fmt.Sprintf("%s+%d(SP)", a.Sym.Name, a.Offset)
+-			} else {
+-				str = fmt.Sprintf("%d(SP)", a.Offset)
+-			}
+-
+-		case obj.NAME_PARAM:
+-			if a.Sym != nil {
+-				str = fmt.Sprintf("%s+%d(FP)", a.Sym.Name, a.Offset)
+-			} else {
+-				str = fmt.Sprintf("%d(FP)", a.Offset)
+-			}
+-		}
+-
+-		if a.Index != REG_NONE {
+-			s = fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+-			str += s
+-		}
+-
+-	case obj.TYPE_CONST:
+-		str = fmt.Sprintf("$%d", a.Offset)
+-
+-	case obj.TYPE_TEXTSIZE:
+-		if a.U.Argsize == obj.ArgsSizeUnknown {
+-			str = fmt.Sprintf("$%d", a.Offset)
+-		} else {
+-			str = fmt.Sprintf("$%d-%d", a.Offset, a.U.Argsize)
+-		}
+-
+-	case obj.TYPE_FCONST:
+-		str = fmt.Sprintf("$(%.17g)", a.U.Dval)
+-
+-	case obj.TYPE_SCONST:
+-		str = fmt.Sprintf("$%q", a.U.Sval)
+-
+-	case obj.TYPE_ADDR:
+-		a.Type = obj.TYPE_MEM
+-		str = fmt.Sprintf("$%v", Dconv(p, 0, a))
+-		a.Type = obj.TYPE_ADDR
+-	}
+-
+-	fp += str
+-	return fp
+-}
+-
+ var Register = []string{
+ 	"AL", /* [D_AL] */
+ 	"CL",
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 0dc4c3a57e..63a82b0f92 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1111,7 +1111,6 @@ loop:
+ }
+ 
+ var Linkamd64 = obj.LinkArch{
+-	Dconv:      Dconv,
+ 	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+ 	Pconv:      Pconv,
+@@ -1128,7 +1127,6 @@ var Linkamd64 = obj.LinkArch{
+ }
+ 
+ var Linkamd64p32 = obj.LinkArch{
+-	Dconv:      Dconv,
+ 	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+ 	Pconv:      Pconv,

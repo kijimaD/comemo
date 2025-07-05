@@ -11,6 +11,20 @@ Date:   Wed Mar 30 19:37:18 2016 +1030
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 23d8c3939c..6049057bae 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -445,7 +445,7 @@ func (t *tester) registerTests() {
+ 		if fortran == "" {
+ 			fortran, _ = exec.LookPath("gfortran")
+ 		}
+-		if fortran != "" && t.goos != "dragonfly" { // see golang.org/issue/14544
++		if t.hasBash() && fortran != "" && t.goos != "dragonfly" { // see golang.org/issue/14544
+ 			t.tests = append(t.tests, distTest{
+ 				name:    "cgo_fortran",
+ 				heading: "../misc/cgo/fortran",

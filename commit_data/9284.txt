@@ -7,7 +7,7 @@ Date:   Thu Aug 4 00:22:48 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4826056
-
+---
  src/pkg/syscall/Makefile                  |  2 +
  src/pkg/syscall/route_bsd.go              | 61 ++++++++++++++++---------------
  src/pkg/syscall/route_darwin.go           | 48 ++++++++++++++++++++++++
@@ -23,3 +23,559 @@ Date:   Thu Aug 4 00:22:48 2011 -0400
  src/pkg/syscall/ztypes_freebsd_386.go     | 11 ++++++
  src/pkg/syscall/ztypes_freebsd_amd64.go   | 11 ++++++
  14 files changed, 244 insertions(+), 69 deletions(-)
+
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index fa0fe8ba9f..f626d09987 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -20,6 +20,7 @@ GOFILES_freebsd=\
+ 	bpf_bsd.go\
+ 	exec_unix.go\
+ 	route_bsd.go\
++	route_freebsd.go\
+ 	sockcmsg_unix.go\
+ 	syscall_bsd.go\
+ 	syscall_unix.go\
+@@ -28,6 +29,7 @@ GOFILES_darwin=\
+ 	bpf_bsd.go\
+ 	exec_unix.go\
+ 	route_bsd.go\
++	route_darwin.go\
+ 	sockcmsg_unix.go\
+ 	syscall_bsd.go\
+ 	syscall_unix.go\
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index 7821a6d29b..e41667c140 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -65,32 +65,6 @@ type anyMessage struct {
+ 	Type    uint8
+ }
+ 
+-func (any *anyMessage) toRoutingMessage(buf []byte) RoutingMessage {
+-	switch any.Type {
+-	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
+-		p := (*RouteMessage)(unsafe.Pointer(any))
+-		rtm := &RouteMessage{}
+-		rtm.Header = p.Header
+-		rtm.Data = buf[SizeofRtMsghdr:any.Msglen]
+-		return rtm
+-	case RTM_IFINFO:
+-		p := (*InterfaceMessage)(unsafe.Pointer(any))
+-		ifm := &InterfaceMessage{}
+-		ifm.Header = p.Header
+-		ifm.Data = buf[SizeofIfMsghdr:any.Msglen]
+-		return ifm
+-	case RTM_NEWADDR, RTM_DELADDR:
+-		p := (*InterfaceAddrMessage)(unsafe.Pointer(any))
+-		ifam := &InterfaceAddrMessage{}
+-		ifam.Header = p.Header
+-		ifam.Data = buf[SizeofIfaMsghdr:any.Msglen]
+-		return ifam
+-	case RTM_NEWMADDR, RTM_DELMADDR:
+-		// TODO: implement this in the near future
+-	}
+-	return nil
+-}
+-
+ // RouteMessage represents a routing message containing routing
+ // entries.
+ type RouteMessage struct {
+@@ -128,16 +102,16 @@ type InterfaceAddrMessage struct {
+ 	Data   []byte
+ }
+ 
+-const rtaMask = RTA_IFA | RTA_NETMASK | RTA_BRD
++const rtaIfaMask = RTA_IFA | RTA_NETMASK | RTA_BRD
+ 
+ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+-	if m.Header.Addrs&rtaMask == 0 {
++	if m.Header.Addrs&rtaIfaMask == 0 {
+ 		return nil
+ 	}
+ 
+ 	buf := m.Data[:]
+ 	for i := uint(0); i < RTAX_MAX; i++ {
+-		if m.Header.Addrs&rtaMask&(1<<i) == 0 {
++		if m.Header.Addrs&rtaIfaMask&(1<<i) == 0 {
+ 			continue
+ 		}
+ 		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
+@@ -157,6 +131,35 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+ 	return sas
+ }
+ 
++const rtaIfmaMask = RTA_GATEWAY | RTA_IFP | RTA_IFA
++
++func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
++	if m.Header.Addrs&rtaIfmaMask == 0 {
++		return nil
++	}
++
++	buf := m.Data[:]
++	for i := uint(0); i < RTAX_MAX; i++ {
++		if m.Header.Addrs&rtaIfmaMask&(1<<i) == 0 {
++			continue
++		}
++		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
++		switch i {
++		case RTAX_IFA:
++			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
++			if e != 0 {
++				return nil
++			}
++			sas = append(sas, sa)
++		case RTAX_GATEWAY, RTAX_IFP:
++			// nothing to do
++		}
++		buf = buf[rsaAlignOf(int(rsa.Len)):]
++	}
++
++	return sas
++}
++
+ // ParseRoutingMessage parses buf as routing messages and returns
+ // the slice containing the RoutingMessage interfaces.
+ func ParseRoutingMessage(buf []byte) (msgs []RoutingMessage, errno int) {
+diff --git a/src/pkg/syscall/route_darwin.go b/src/pkg/syscall/route_darwin.go
+new file mode 100644
+index 0000000000..8f79b708d6
+--- /dev/null
++++ b/src/pkg/syscall/route_darwin.go
+@@ -0,0 +1,48 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Routing sockets and messages for Darwin
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++func (any *anyMessage) toRoutingMessage(buf []byte) RoutingMessage {
++	switch any.Type {
++	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
++		p := (*RouteMessage)(unsafe.Pointer(any))
++		rtm := &RouteMessage{}
++		rtm.Header = p.Header
++		rtm.Data = buf[SizeofRtMsghdr:any.Msglen]
++		return rtm
++	case RTM_IFINFO:
++		p := (*InterfaceMessage)(unsafe.Pointer(any))
++		ifm := &InterfaceMessage{}
++		ifm.Header = p.Header
++		ifm.Data = buf[SizeofIfMsghdr:any.Msglen]
++		return ifm
++	case RTM_NEWADDR, RTM_DELADDR:
++		p := (*InterfaceAddrMessage)(unsafe.Pointer(any))
++		ifam := &InterfaceAddrMessage{}
++		ifam.Header = p.Header
++		ifam.Data = buf[SizeofIfaMsghdr:any.Msglen]
++		return ifam
++	case RTM_NEWMADDR2, RTM_DELMADDR:
++		p := (*InterfaceMulticastAddrMessage)(unsafe.Pointer(any))
++		ifmam := &InterfaceMulticastAddrMessage{}
++		ifmam.Header = p.Header
++		ifmam.Data = buf[SizeofIfmaMsghdr2:any.Msglen]
++		return ifmam
++	}
++	return nil
++}
++
++// InterfaceMulticastAddrMessage represents a routing message
++// containing network interface address entries.
++type InterfaceMulticastAddrMessage struct {
++	Header IfmaMsghdr2
++	Data   []byte
++}
+diff --git a/src/pkg/syscall/route_freebsd.go b/src/pkg/syscall/route_freebsd.go
+new file mode 100644
+index 0000000000..128e93cf90
+--- /dev/null
++++ b/src/pkg/syscall/route_freebsd.go
+@@ -0,0 +1,48 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Routing sockets and messages for FreeBSD
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++func (any *anyMessage) toRoutingMessage(buf []byte) RoutingMessage {
++	switch any.Type {
++	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
++		p := (*RouteMessage)(unsafe.Pointer(any))
++		rtm := &RouteMessage{}
++		rtm.Header = p.Header
++		rtm.Data = buf[SizeofRtMsghdr:any.Msglen]
++		return rtm
++	case RTM_IFINFO:
++		p := (*InterfaceMessage)(unsafe.Pointer(any))
++		ifm := &InterfaceMessage{}
++		ifm.Header = p.Header
++		ifm.Data = buf[SizeofIfMsghdr:any.Msglen]
++		return ifm
++	case RTM_NEWADDR, RTM_DELADDR:
++		p := (*InterfaceAddrMessage)(unsafe.Pointer(any))
++		ifam := &InterfaceAddrMessage{}
++		ifam.Header = p.Header
++		ifam.Data = buf[SizeofIfaMsghdr:any.Msglen]
++		return ifam
++	case RTM_NEWMADDR, RTM_DELMADDR:
++		p := (*InterfaceMulticastAddrMessage)(unsafe.Pointer(any))
++		ifmam := &InterfaceMulticastAddrMessage{}
++		ifmam.Header = p.Header
++		ifmam.Data = buf[SizeofIfmaMsghdr:any.Msglen]
++		return ifmam
++	}
++	return nil
++}
++
++// InterfaceMulticastAddrMessage represents a routing message
++// containing network interface address entries.
++type InterfaceMulticastAddrMessage struct {
++	Header IfmaMsghdr
++	Data   []byte
++}
+diff --git a/src/pkg/syscall/types_darwin.c b/src/pkg/syscall/types_darwin.c
+index ecccd5bd92..730d7f7b66 100644
+--- a/src/pkg/syscall/types_darwin.c
++++ b/src/pkg/syscall/types_darwin.c
+@@ -149,6 +149,8 @@ enum {
+ 	$SizeofIfMsghdr = sizeof(struct if_msghdr),
+ 	$SizeofIfData = sizeof(struct if_data),
+ 	$SizeofIfaMsghdr = sizeof(struct ifa_msghdr),
++	$SizeofIfmaMsghdr = sizeof(struct ifma_msghdr),
++	$SizeofIfmaMsghdr2 = sizeof(struct ifma_msghdr2),
+ 	$SizeofRtMsghdr = sizeof(struct rt_msghdr),
+ 	$SizeofRtMetrics = sizeof(struct rt_metrics),
+ };
+@@ -156,6 +158,8 @@ enum {
+ typedef struct if_msghdr $IfMsghdr;
+ typedef struct if_data $IfData;
+ typedef struct ifa_msghdr $IfaMsghdr;
++typedef struct ifma_msghdr $IfmaMsghdr;
++typedef struct ifma_msghdr2 $IfmaMsghdr2;
+ typedef struct rt_msghdr $RtMsghdr;
+ typedef struct rt_metrics $RtMetrics;
+ 
+diff --git a/src/pkg/syscall/types_freebsd.c b/src/pkg/syscall/types_freebsd.c
+index 97636550ac..1494661cfe 100644
+--- a/src/pkg/syscall/types_freebsd.c
++++ b/src/pkg/syscall/types_freebsd.c
+@@ -157,6 +157,7 @@ enum {
+ 	$SizeofIfMsghdr = sizeof(struct if_msghdr),
+ 	$SizeofIfData = sizeof(struct if_data),
+ 	$SizeofIfaMsghdr = sizeof(struct ifa_msghdr),
++	$SizeofIfmaMsghdr = sizeof(struct ifma_msghdr),
+ 	$SizeofRtMsghdr = sizeof(struct rt_msghdr),
+ 	$SizeofRtMetrics = sizeof(struct rt_metrics),
+ };
+@@ -164,6 +165,7 @@ enum {
+ typedef struct if_msghdr $IfMsghdr;
+ typedef struct if_data $IfData;
+ typedef struct ifa_msghdr $IfaMsghdr;
++typedef struct ifma_msghdr $IfmaMsghdr;
+ typedef struct rt_msghdr $RtMsghdr;
+ typedef struct rt_metrics $RtMetrics;
+ 
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 436953ecaa..6d7c3da8a9 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -33,16 +33,6 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe() (r int, w int, errno int) {
+-	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+-	r = int(r0)
+-	w = int(r1)
+-	errno = int(e1)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -244,6 +234,16 @@ func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func pipe() (r int, w int, errno int) {
++	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
++	r = int(r0)
++	w = int(r1)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func kill(pid int, signum int, posix int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index 1ba4c3cfe5..25d8772862 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -33,16 +33,6 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe() (r int, w int, errno int) {
+-	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+-	r = int(r0)
+-	w = int(r1)
+-	errno = int(e1)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -244,6 +234,16 @@ func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func pipe() (r int, w int, errno int) {
++	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
++	r = int(r0)
++	w = int(r1)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func kill(pid int, signum int, posix int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index d152e43806..03c19ff651 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -33,16 +33,6 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe() (r int, w int, errno int) {
+-	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+-	r = int(r0)
+-	w = int(r1)
+-	errno = int(e1)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -236,6 +226,16 @@ func munmap(addr uintptr, length uintptr) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func pipe() (r int, w int, errno int) {
++	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
++	r = int(r0)
++	w = int(r1)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Access(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index 156b087e39..756c200af9 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -33,16 +33,6 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe() (r int, w int, errno int) {
+-	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+-	r = int(r0)
+-	w = int(r1)
+-	errno = int(e1)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -236,6 +226,16 @@ func munmap(addr uintptr, length uintptr) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func pipe() (r int, w int, errno int) {
++	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
++	r = int(r0)
++	w = int(r1)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Access(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+index ba6e590c4f..0ec74f3792 100644
+--- a/src/pkg/syscall/ztypes_darwin_386.go
++++ b/src/pkg/syscall/ztypes_darwin_386.go
+@@ -29,6 +29,8 @@ const (
+ 	SizeofIfMsghdr         = 0x70
+ 	SizeofIfData           = 0x60
+ 	SizeofIfaMsghdr        = 0x14
++	SizeofIfmaMsghdr       = 0x10
++	SizeofIfmaMsghdr2      = 0x14
+ 	SizeofRtMsghdr         = 0x5c
+ 	SizeofRtMetrics        = 0x38
+ 	SizeofBpfVersion       = 0x4
+@@ -322,6 +324,27 @@ type IfaMsghdr struct {
+ 	Metric       int32
+ }
+ 
++type IfmaMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++}
++
++type IfmaMsghdr2 struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Refcount     int32
++}
++
+ type RtMsghdr struct {
+ 	Msglen       uint16
+ 	Version      uint8
+diff --git a/src/pkg/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+index 59c832812b..f0e8a92489 100644
+--- a/src/pkg/syscall/ztypes_darwin_amd64.go
++++ b/src/pkg/syscall/ztypes_darwin_amd64.go
+@@ -29,6 +29,8 @@ const (
+ 	SizeofIfMsghdr         = 0x70
+ 	SizeofIfData           = 0x60
+ 	SizeofIfaMsghdr        = 0x14
++	SizeofIfmaMsghdr       = 0x10
++	SizeofIfmaMsghdr2      = 0x14
+ 	SizeofRtMsghdr         = 0x5c
+ 	SizeofRtMetrics        = 0x38
+ 	SizeofBpfVersion       = 0x4
+@@ -332,6 +334,27 @@ type IfaMsghdr struct {
+ 	Metric       int32
+ }
+ 
++type IfmaMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++}
++
++type IfmaMsghdr2 struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++	Refcount     int32
++}
++
+ type RtMsghdr struct {
+ 	Msglen       uint16
+ 	Version      uint8
+diff --git a/src/pkg/syscall/ztypes_freebsd_386.go b/src/pkg/syscall/ztypes_freebsd_386.go
+index 6304d3b813..01cf2fbda7 100644
+--- a/src/pkg/syscall/ztypes_freebsd_386.go
++++ b/src/pkg/syscall/ztypes_freebsd_386.go
+@@ -43,6 +43,7 @@ const (
+ 	SizeofIfMsghdr         = 0x60
+ 	SizeofIfData           = 0x50
+ 	SizeofIfaMsghdr        = 0x14
++	SizeofIfmaMsghdr       = 0x10
+ 	SizeofRtMsghdr         = 0x5c
+ 	SizeofRtMetrics        = 0x38
+ 	SizeofBpfVersion       = 0x4
+@@ -315,6 +316,16 @@ type IfaMsghdr struct {
+ 	Metric       int32
+ }
+ 
++type IfmaMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++}
++
+ type RtMsghdr struct {
+ 	Msglen       uint16
+ 	Version      uint8
+diff --git a/src/pkg/syscall/ztypes_freebsd_amd64.go b/src/pkg/syscall/ztypes_freebsd_amd64.go
+index ef5a51c4d8..d6a05ae68a 100644
+--- a/src/pkg/syscall/ztypes_freebsd_amd64.go
++++ b/src/pkg/syscall/ztypes_freebsd_amd64.go
+@@ -43,6 +43,7 @@ const (
+ 	SizeofIfMsghdr         = 0xa8
+ 	SizeofIfData           = 0x98
+ 	SizeofIfaMsghdr        = 0x14
++	SizeofIfmaMsghdr       = 0x10
+ 	SizeofRtMsghdr         = 0x98
+ 	SizeofRtMetrics        = 0x70
+ 	SizeofBpfVersion       = 0x4
+@@ -318,6 +319,16 @@ type IfaMsghdr struct {
+ 	Metric       int32
+ }
+ 
++type IfmaMsghdr struct {
++	Msglen       uint16
++	Version      uint8
++	Type         uint8
++	Addrs        int32
++	Flags        int32
++	Index        uint16
++	Pad_godefs_0 [2]byte
++}
++
+ type RtMsghdr struct {
+ 	Msglen       uint16
+ 	Version      uint8

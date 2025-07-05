@@ -7,7 +7,70 @@ Date:   Tue Jan 24 14:06:12 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5570056
-
+---
  src/pkg/net/sockopt.go      | 12 ++++++++++--
  src/pkg/net/timeout_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/sockopt.go b/src/pkg/net/sockopt.go
+index 59f9af5f30..3d0f8dd7a8 100644
+--- a/src/pkg/net/sockopt.go
++++ b/src/pkg/net/sockopt.go
+@@ -117,12 +117,20 @@ func setWriteBuffer(fd *netFD, bytes int) error {
+ }
+ 
+ func setReadDeadline(fd *netFD, t time.Time) error {
+-	fd.rdeadline = t.UnixNano()
++	if t.IsZero() {
++		fd.rdeadline = 0
++	} else {
++		fd.rdeadline = t.UnixNano()
++	}
+ 	return nil
+ }
+ 
+ func setWriteDeadline(fd *netFD, t time.Time) error {
+-	fd.wdeadline = t.UnixNano()
++	if t.IsZero() {
++		fd.wdeadline = 0
++	} else {
++		fd.wdeadline = t.UnixNano()
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 11db012ff5..bae37c86b2 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -77,3 +77,30 @@ func TestTimeoutTCP(t *testing.T) {
+ 	testTimeout(t, "tcp", addr, false)
+ 	<-done
+ }
++
++func TestDeadlineReset(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		return
++	}
++	ln, err := Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++	tl := ln.(*TCPListener)
++	tl.SetDeadline(time.Now().Add(1 * time.Minute))
++	tl.SetDeadline(time.Time{}) // reset it
++	errc := make(chan error, 1)
++	go func() {
++		_, err := ln.Accept()
++		errc <- err
++	}()
++	select {
++	case <-time.After(50 * time.Millisecond):
++		// Pass.
++	case err := <-errc:
++		// Accept should never return; we never
++		// connected to it.
++		t.Errorf("unexpected return from Accept; err=%v", err)
++	}
++}

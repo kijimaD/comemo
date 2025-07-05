@@ -17,6 +17,55 @@ Date:   Wed Sep 8 15:59:11 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go | 24 +++++++++++++++++++++---
  1 file changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 204d25bce8..b3cb10dadb 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/constant"
++	"internal/buildcfg"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+@@ -194,15 +195,32 @@ func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
+ 	r := pr.newReader(relocPosBase, idx, syncPosBase)
+ 	var b *src.PosBase
+ 
+-	filename := r.string()
++	absFilename := r.string()
++	filename := absFilename
++
++	// For build artifact stability, the export data format only
++	// contains the "absolute" filename as returned by objabi.AbsFile.
++	// However, some tests (e.g., test/run.go's asmcheck tests) expect
++	// to see the full, original filename printed out. Re-expanding
++	// "$GOROOT" to buildcfg.GOROOT is a close-enough approximation to
++	// satisfy this.
++	//
++	// TODO(mdempsky): De-duplicate this logic with similar logic in
++	// cmd/link/internal/ld's expandGoroot. However, this will probably
++	// require being more consistent about when we use native vs UNIX
++	// file paths.
++	const dollarGOROOT = "$GOROOT"
++	if strings.HasPrefix(filename, dollarGOROOT) {
++		filename = buildcfg.GOROOT + filename[len(dollarGOROOT):]
++	}
+ 
+ 	if r.bool() {
+-		b = src.NewFileBase(filename, filename)
++		b = src.NewFileBase(filename, absFilename)
+ 	} else {
+ 		pos := r.pos0()
+ 		line := r.uint()
+ 		col := r.uint()
+-		b = src.NewLinePragmaBase(pos, filename, filename, line, col)
++		b = src.NewLinePragmaBase(pos, filename, absFilename, line, col)
+ 	}
+ 
+ 	pr.posBases[idx] = b

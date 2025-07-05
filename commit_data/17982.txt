@@ -11,6 +11,19 @@ Date:   Thu Dec 12 18:55:05 2013 -0800
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/41620043
-
+---
  src/pkg/debug/dwarf/open.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/debug/dwarf/open.go b/src/pkg/debug/dwarf/open.go
+index 37a518b6d3..7579892529 100644
+--- a/src/pkg/debug/dwarf/open.go
++++ b/src/pkg/debug/dwarf/open.go
+@@ -24,7 +24,6 @@ type Data struct {
+ 
+ 	// parsed data
+ 	abbrevCache map[uint32]abbrevTable
+-	addrsize    int
+ 	order       binary.ByteOrder
+ 	typeCache   map[Offset]Type
+ 	unit        []unit

@@ -7,8 +7,64 @@ Date:   Mon Oct 31 11:16:15 2016 -0700
     Change-Id: I8a28a88a655d9929f8641f71573dc01dc53be00f
     Reviewed-on: https://go-review.googlesource.com/32443
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gcimporter/bimport.go |  2 +-
  src/go/types/object.go                | 13 +++++++------
  src/go/types/resolver.go              |  3 ++-
  3 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 60e8c22594..2d6133a31b 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -264,7 +264,7 @@ func (p *importer) obj(tag int) {
+ 	}
+ 
+ 	if aliasName != "" {
+-		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, 0, obj))
++		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, obj))
+ 	}
+ }
+ 
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 42f030df04..ec3fe3d170 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -218,16 +218,17 @@ func (*Func) isDependency()     {} // a function may be a dependency of an initi
+ // An Alias represents a declared alias.
+ type Alias struct {
+ 	object
+-	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC
+-	orig Object      // aliased constant, type, variable, or function
++	orig Object      // aliased constant, type, variable, or function; never an alias
++	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC (type-checking internal use only)
+ }
+ 
+-func NewAlias(pos token.Pos, pkg *Package, name string, kind token.Token, orig Object) *Alias {
+-	return &Alias{object{pos: pos, pkg: pkg, name: name}, kind, orig}
++func NewAlias(pos token.Pos, pkg *Package, name string, orig Object) *Alias {
++	return &Alias{object{pos: pos, pkg: pkg, name: name}, orig, token.ILLEGAL}
+ }
+ 
+-func (obj *Alias) Kind() token.Token { return obj.kind }
+-func (obj *Alias) Orig() Object      { return obj.orig }
++// Orig returns the aliased object, or nil if there was an error.
++// The returned object is never an Alias.
++func (obj *Alias) Orig() Object { return obj.orig }
+ 
+ // A Label represents a declared label.
+ type Label struct {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index b6a85fc02a..12ef4ad779 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -275,7 +275,8 @@ func (check *Checker) collectObjects() {
+ 						}
+ 
+ 					case *ast.AliasSpec:
+-						obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, d.Tok, nil)
++						obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, nil)
++						obj.kind = d.Tok
+ 						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, init: s.Orig})
+ 
+ 					case *ast.ValueSpec:

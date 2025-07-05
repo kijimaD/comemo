@@ -14,7 +14,7 @@ Date:   Sun Jul 19 00:30:12 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go      |  2 +-
  src/cmd/compile/internal/gc/dwinl.go |  4 +-
  src/cmd/compile/internal/gc/gsubr.go |  2 +-
@@ -46,3 +46,2071 @@ Date:   Sun Jul 19 00:30:12 2020 -0400
  src/cmd/internal/obj/x86/asm6.go     |  8 ++--
  src/cmd/internal/obj/x86/obj6.go     | 26 +++++------
  30 files changed, 304 insertions(+), 274 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 7878d74549..b9efa454ed 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -181,7 +181,7 @@ func (p *Parser) asmText(operands [][]lex.Token) {
+ 			// Argsize set below.
+ 		},
+ 	}
+-	nameAddr.Sym.Func.Text = prog
++	nameAddr.Sym.Func().Text = prog
+ 	prog.To.Val = int32(argSize)
+ 	p.append(prog, "", true)
+ }
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index 27e2cbcd98..5120fa1166 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -34,7 +34,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 
+ 	// Walk progs to build up the InlCalls data structure
+ 	var prevpos src.XPos
+-	for p := fnsym.Func.Text; p != nil; p = p.Link {
++	for p := fnsym.Func().Text; p != nil; p = p.Link {
+ 		if p.Pos == prevpos {
+ 			continue
+ 		}
+@@ -150,7 +150,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 	start := int64(-1)
+ 	curii := -1
+ 	var prevp *obj.Prog
+-	for p := fnsym.Func.Text; p != nil; prevp, p = p, p.Link {
++	for p := fnsym.Func().Text; p != nil; prevp, p = p, p.Link {
+ 		if prevp != nil && p.Pos == prevp.Pos {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 480d411f49..14c217ff3b 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -199,7 +199,7 @@ func (pp *Progs) settext(fn *Node) {
+ 	ptxt := pp.Prog(obj.ATEXT)
+ 	pp.Text = ptxt
+ 
+-	fn.Func.lsym.Func.Text = ptxt
++	fn.Func.lsym.Func().Text = ptxt
+ 	ptxt.From.Type = obj.TYPE_MEM
+ 	ptxt.From.Name = obj.NAME_EXTERN
+ 	ptxt.From.Sym = fn.Func.lsym
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index d7f4a94041..f6557e2d15 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -305,20 +305,21 @@ func dumpglobls() {
+ // global symbols can't be declared during parallel compilation.
+ func addGCLocals() {
+ 	for _, s := range Ctxt.Text {
+-		if s.Func == nil {
++		fn := s.Func()
++		if fn == nil {
+ 			continue
+ 		}
+-		for _, gcsym := range []*obj.LSym{s.Func.GCArgs, s.Func.GCLocals, s.Func.GCRegs} {
++		for _, gcsym := range []*obj.LSym{fn.GCArgs, fn.GCLocals, fn.GCRegs} {
+ 			if gcsym != nil && !gcsym.OnList() {
+ 				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
+ 			}
+ 		}
+-		if x := s.Func.StackObjects; x != nil {
++		if x := fn.StackObjects; x != nil {
+ 			attr := int16(obj.RODATA)
+ 			ggloblsym(x, int32(len(x.P)), attr)
+ 			x.Set(obj.AttrStatic, true)
+ 		}
+-		if x := s.Func.OpenCodedDeferInfo; x != nil {
++		if x := fn.OpenCodedDeferInfo; x != nil {
+ 			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 52b1ed351d..353f4b08c9 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -266,8 +266,8 @@ func compile(fn *Node) {
+ 				dtypesym(n.Type)
+ 				// Also make sure we allocate a linker symbol
+ 				// for the stack object data, for the same reason.
+-				if fn.Func.lsym.Func.StackObjects == nil {
+-					fn.Func.lsym.Func.StackObjects = Ctxt.Lookup(fn.Func.lsym.Name + ".stkobj")
++				if fn.Func.lsym.Func().StackObjects == nil {
++					fn.Func.lsym.Func().StackObjects = Ctxt.Lookup(fn.Func.lsym.Name + ".stkobj")
+ 				}
+ 			}
+ 		}
+@@ -415,7 +415,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 		case PAUTO:
+ 			if !n.Name.Used() {
+ 				// Text == nil -> generating abstract function
+-				if fnsym.Func.Text != nil {
++				if fnsym.Func().Text != nil {
+ 					Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
+ 				}
+ 				continue
+@@ -425,7 +425,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 			continue
+ 		}
+ 		apdecls = append(apdecls, n)
+-		fnsym.Func.RecordAutoType(ngotype(n).Linksym())
++		fnsym.Func().RecordAutoType(ngotype(n).Linksym())
+ 	}
+ 
+ 	decls, dwarfVars := createDwarfVars(fnsym, fn.Func, apdecls)
+@@ -435,7 +435,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 	// the function symbol to insure that the type included in DWARF
+ 	// processing during linking.
+ 	typesyms := []*obj.LSym{}
+-	for t, _ := range fnsym.Func.Autot {
++	for t, _ := range fnsym.Func().Autot {
+ 		typesyms = append(typesyms, t)
+ 	}
+ 	sort.Sort(obj.BySymName(typesyms))
+@@ -444,7 +444,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 		r.Sym = sym
+ 		r.Type = objabi.R_USETYPE
+ 	}
+-	fnsym.Func.Autot = nil
++	fnsym.Func().Autot = nil
+ 
+ 	var varScopes []ScopeID
+ 	for _, decl := range decls {
+@@ -522,7 +522,7 @@ func createSimpleVar(fnsym *obj.LSym, n *Node) *dwarf.Var {
+ 	}
+ 
+ 	typename := dwarf.InfoPrefix + typesymname(n.Type)
+-	delete(fnsym.Func.Autot, ngotype(n).Linksym())
++	delete(fnsym.Func().Autot, ngotype(n).Linksym())
+ 	inlIndex := 0
+ 	if genDwarfInline > 1 {
+ 		if n.Name.InlFormal() || n.Name.InlLocal() {
+@@ -667,7 +667,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dw
+ 			ChildIndex:    -1,
+ 		})
+ 		// Record go type of to insure that it gets emitted by the linker.
+-		fnsym.Func.RecordAutoType(ngotype(n).Linksym())
++		fnsym.Func().RecordAutoType(ngotype(n).Linksym())
+ 	}
+ 
+ 	return decls, vars
+@@ -731,7 +731,7 @@ func createComplexVar(fnsym *obj.LSym, fn *Func, varID ssa.VarID) *dwarf.Var {
+ 	}
+ 
+ 	gotype := ngotype(n).Linksym()
+-	delete(fnsym.Func.Autot, gotype)
++	delete(fnsym.Func().Autot, gotype)
+ 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+ 	inlIndex := 0
+ 	if genDwarfInline > 1 {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index a9ea37701e..b471accb65 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1552,26 +1552,27 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
+ 
+ 	// Emit the live pointer map data structures
+ 	ls := e.curfn.Func.lsym
+-	ls.Func.GCArgs, ls.Func.GCLocals, ls.Func.GCRegs = lv.emit()
++	fninfo := ls.Func()
++	fninfo.GCArgs, fninfo.GCLocals, fninfo.GCRegs = lv.emit()
+ 
+ 	p := pp.Prog(obj.AFUNCDATA)
+ 	Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
+ 	p.To.Type = obj.TYPE_MEM
+ 	p.To.Name = obj.NAME_EXTERN
+-	p.To.Sym = ls.Func.GCArgs
++	p.To.Sym = fninfo.GCArgs
+ 
+ 	p = pp.Prog(obj.AFUNCDATA)
+ 	Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
+ 	p.To.Type = obj.TYPE_MEM
+ 	p.To.Name = obj.NAME_EXTERN
+-	p.To.Sym = ls.Func.GCLocals
++	p.To.Sym = fninfo.GCLocals
+ 
+ 	if !go115ReduceLiveness {
+ 		p = pp.Prog(obj.AFUNCDATA)
+ 		Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = ls.Func.GCRegs
++		p.To.Sym = fninfo.GCRegs
+ 	}
+ 
+ 	return lv.livenessMap
+diff --git a/src/cmd/compile/internal/gc/scope.go b/src/cmd/compile/internal/gc/scope.go
+index d7239d5693..e66b859e10 100644
+--- a/src/cmd/compile/internal/gc/scope.go
++++ b/src/cmd/compile/internal/gc/scope.go
+@@ -62,9 +62,9 @@ func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
+ 	if len(marks) == 0 {
+ 		return
+ 	}
+-	p0 := fnsym.Func.Text
++	p0 := fnsym.Func().Text
+ 	scope := findScope(marks, p0.Pos)
+-	for p := fnsym.Func.Text; p != nil; p = p.Link {
++	for p := p0; p != nil; p = p.Link {
+ 		if p.Pos == p0.Pos {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3d5fa4cd0a..d8f627c213 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -240,7 +240,7 @@ func dvarint(x *obj.LSym, off int, v int64) int {
+ //      - Offset of where argument should be placed in the args frame when making call
+ func (s *state) emitOpenDeferInfo() {
+ 	x := Ctxt.Lookup(s.curfn.Func.lsym.Name + ".opendefer")
+-	s.curfn.Func.lsym.Func.OpenCodedDeferInfo = x
++	s.curfn.Func.lsym.Func().OpenCodedDeferInfo = x
+ 	off := 0
+ 
+ 	// Compute maxargsize (max size of arguments for all defers)
+@@ -6108,7 +6108,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
+ 
+ 	// Populate the stack object data.
+ 	// Format must match runtime/stack.go:stackObjectRecord.
+-	x := e.curfn.Func.lsym.Func.StackObjects
++	x := e.curfn.Func.lsym.Func().StackObjects
+ 	off := 0
+ 	off = duintptr(x, off, uint64(len(vars)))
+ 	for _, v := range vars {
+@@ -6145,7 +6145,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	s.livenessMap = liveness(e, f, pp)
+ 	emitStackObjects(e, pp)
+ 
+-	openDeferInfo := e.curfn.Func.lsym.Func.OpenCodedDeferInfo
++	openDeferInfo := e.curfn.Func.lsym.Func().OpenCodedDeferInfo
+ 	if openDeferInfo != nil {
+ 		// This function uses open-coded defers -- write out the funcdata
+ 		// info that we computed at the end of genssa.
+@@ -6350,7 +6350,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				// some of the inline marks.
+ 				// Use this instruction instead.
+ 				p.Pos = p.Pos.WithIsStmt() // promote position to a statement
+-				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[m])
++				pp.curfn.Func.lsym.Func().AddInlMark(p, inlMarks[m])
+ 				// Make the inline mark a real nop, so it doesn't generate any code.
+ 				m.As = obj.ANOP
+ 				m.Pos = src.NoXPos
+@@ -6362,7 +6362,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		// Any unmatched inline marks now need to be added to the inlining tree (and will generate a nop instruction).
+ 		for _, p := range inlMarkList {
+ 			if p.As != obj.ANOP {
+-				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[p])
++				pp.curfn.Func.lsym.Func().AddInlMark(p, inlMarks[p])
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 269a4223d5..ebb98b4859 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -390,7 +390,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var p *obj.Prog
+ 	var op *obj.Prog
+ 
+-	p = cursym.Func.Text
++	p = cursym.Func().Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+ 		return
+ 	}
+@@ -482,8 +482,8 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		bflag = 0
+ 		pc = 0
+ 		times++
+-		c.cursym.Func.Text.Pc = 0 // force re-layout the code.
+-		for p = c.cursym.Func.Text; p != nil; p = p.Link {
++		c.cursym.Func().Text.Pc = 0 // force re-layout the code.
++		for p = c.cursym.Func().Text; p != nil; p = p.Link {
+ 			o = c.oplook(p)
+ 			if int64(pc) > p.Pc {
+ 				p.Pc = int64(pc)
+@@ -558,7 +558,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	 * perhaps we'd be able to parallelize the span loop above.
+ 	 */
+ 
+-	p = c.cursym.Func.Text
++	p = c.cursym.Func().Text
+ 	c.autosize = p.To.Offset + 4
+ 	c.cursym.Grow(c.cursym.Size)
+ 
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 4d9187b530..f2bfb9679f 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -249,13 +249,13 @@ const (
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	autosize := int32(0)
+ 
+-	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
++	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
+ 		return
+ 	}
+ 
+ 	c := ctxt5{ctxt: ctxt, cursym: cursym, newprog: newprog}
+ 
+-	p := c.cursym.Func.Text
++	p := c.cursym.Func().Text
+ 	autoffset := int32(p.To.Offset)
+ 	if autoffset == -4 {
+ 		// Historical way to mark NOFRAME.
+@@ -271,30 +271,30 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	cursym.Func.Locals = autoffset
+-	cursym.Func.Args = p.To.Val.(int32)
++	cursym.Func().Locals = autoffset
++	cursym.Func().Args = p.To.Val.(int32)
+ 
+ 	/*
+ 	 * find leaf subroutines
+ 	 */
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case obj.ATEXT:
+ 			p.Mark |= LEAF
+ 
+ 		case ADIV, ADIVU, AMOD, AMODU:
+-			cursym.Func.Text.Mark &^= LEAF
++			cursym.Func().Text.Mark &^= LEAF
+ 
+ 		case ABL,
+ 			ABX,
+ 			obj.ADUFFZERO,
+ 			obj.ADUFFCOPY:
+-			cursym.Func.Text.Mark &^= LEAF
++			cursym.Func().Text.Mark &^= LEAF
+ 		}
+ 	}
+ 
+ 	var q2 *obj.Prog
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		o := p.As
+ 		switch o {
+ 		case obj.ATEXT:
+@@ -311,20 +311,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				autosize += 4
+ 			}
+ 
+-			if autosize == 0 && cursym.Func.Text.Mark&LEAF == 0 {
++			if autosize == 0 && cursym.Func().Text.Mark&LEAF == 0 {
+ 				// A very few functions that do not return to their caller
+ 				// are not identified as leaves but still have no frame.
+ 				if ctxt.Debugvlog {
+ 					ctxt.Logf("save suppressed in: %s\n", cursym.Name)
+ 				}
+ 
+-				cursym.Func.Text.Mark |= LEAF
++				cursym.Func().Text.Mark |= LEAF
+ 			}
+ 
+ 			// FP offsets need an updated p.To.Offset.
+ 			p.To.Offset = int64(autosize) - 4
+ 
+-			if cursym.Func.Text.Mark&LEAF != 0 {
++			if cursym.Func().Text.Mark&LEAF != 0 {
+ 				cursym.Set(obj.AttrLeaf, true)
+ 				if p.From.Sym.NoFrame() {
+ 					break
+@@ -347,7 +347,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			p.To.Reg = REGSP
+ 			p.Spadj = autosize
+ 
+-			if cursym.Func.Text.From.Sym.Wrapper() {
++			if cursym.Func().Text.From.Sym.Wrapper() {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 				//
+ 				//	MOVW g_panic(g), R1
+@@ -460,7 +460,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 		case obj.ARET:
+ 			nocache(p)
+-			if cursym.Func.Text.Mark&LEAF != 0 {
++			if cursym.Func().Text.Mark&LEAF != 0 {
+ 				if autosize == 0 {
+ 					p.As = AB
+ 					p.From = obj.Addr{}
+@@ -508,7 +508,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			}
+ 
+ 		case ADIV, ADIVU, AMOD, AMODU:
+-			if cursym.Func.Text.From.Sym.NoSplit() {
++			if cursym.Func().Text.From.Sym.NoSplit() {
+ 				ctxt.Diag("cannot divide in NOSPLIT function")
+ 			}
+ 			const debugdivmod = false
+@@ -720,7 +720,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	end := c.ctxt.EndUnsafePoint(bls, c.newprog, -1)
+ 
+ 	var last *obj.Prog
+-	for last = c.cursym.Func.Text; last.Link != nil; last = last.Link {
++	for last = c.cursym.Func().Text; last.Link != nil; last = last.Link {
+ 	}
+ 
+ 	// Now we are at the end of the function, but logically
+@@ -751,7 +751,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	switch {
+ 	case c.cursym.CFunc():
+ 		morestack = "runtime.morestackc"
+-	case !c.cursym.Func.Text.From.Sym.NeedCtxt():
++	case !c.cursym.Func().Text.From.Sym.NeedCtxt():
+ 		morestack = "runtime.morestack_noctxt"
+ 	}
+ 	call.To.Sym = c.ctxt.Lookup(morestack)
+@@ -762,7 +762,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	b := obj.Appendp(pcdata, c.newprog)
+ 	b.As = obj.AJMP
+ 	b.To.Type = obj.TYPE_BRANCH
+-	b.To.SetTarget(c.cursym.Func.Text.Link)
++	b.To.SetTarget(c.cursym.Func().Text.Link)
+ 	b.Spadj = +framesize
+ 
+ 	return end
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index c46066313e..6b9fe27c05 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -913,7 +913,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		ctxt.Retpoline = false // don't keep printing
+ 	}
+ 
+-	p := cursym.Func.Text
++	p := cursym.Func().Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+ 		return
+ 	}
+@@ -943,8 +943,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				alignedValue := p.From.Offset
+ 				m = pcAlignPadLength(pc, alignedValue, ctxt)
+ 				// Update the current text symbol alignment value.
+-				if int32(alignedValue) > cursym.Func.Align {
+-					cursym.Func.Align = int32(alignedValue)
++				if int32(alignedValue) > cursym.Func().Align {
++					cursym.Func().Align = int32(alignedValue)
+ 				}
+ 				break
+ 			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+@@ -983,7 +983,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	for bflag != 0 {
+ 		bflag = 0
+ 		pc = 0
+-		for p = c.cursym.Func.Text.Link; p != nil; p = p.Link {
++		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
+ 			if p.As == ADWORD && (pc&7) != 0 {
+ 				pc += 4
+ 			}
+@@ -1047,7 +1047,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	psz := int32(0)
+ 	var i int
+ 	var out [6]uint32
+-	for p := c.cursym.Func.Text.Link; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
+ 		c.pc = p.Pc
+ 		o = c.oplook(p)
+ 
+@@ -1088,7 +1088,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// We use REGTMP as a scratch register during call injection,
+ 	// so instruction sequences that use REGTMP are unsafe to
+ 	// preempt asynchronously.
+-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, c.isRestartable)
++	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
+ }
+ 
+ // isUnsafePoint returns whether p is an unsafe point.
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index f1bc2583cb..0baf51973a 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -166,7 +166,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	end := c.ctxt.EndUnsafePoint(bls, c.newprog, -1)
+ 
+ 	var last *obj.Prog
+-	for last = c.cursym.Func.Text; last.Link != nil; last = last.Link {
++	for last = c.cursym.Func().Text; last.Link != nil; last = last.Link {
+ 	}
+ 
+ 	// Now we are at the end of the function, but logically
+@@ -209,7 +209,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	switch {
+ 	case c.cursym.CFunc():
+ 		morestack = "runtime.morestackc"
+-	case !c.cursym.Func.Text.From.Sym.NeedCtxt():
++	case !c.cursym.Func().Text.From.Sym.NeedCtxt():
+ 		morestack = "runtime.morestack_noctxt"
+ 	}
+ 	call.To.Sym = c.ctxt.Lookup(morestack)
+@@ -220,7 +220,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	jmp := obj.Appendp(pcdata, c.newprog)
+ 	jmp.As = AB
+ 	jmp.To.Type = obj.TYPE_BRANCH
+-	jmp.To.SetTarget(c.cursym.Func.Text.Link)
++	jmp.To.SetTarget(c.cursym.Func().Text.Link)
+ 	jmp.Spadj = +framesize
+ 
+ 	return end
+@@ -441,13 +441,13 @@ func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
+ }
+ 
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+-	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
++	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
+ 		return
+ 	}
+ 
+ 	c := ctxt7{ctxt: ctxt, newprog: newprog, cursym: cursym}
+ 
+-	p := c.cursym.Func.Text
++	p := c.cursym.Func().Text
+ 	textstksiz := p.To.Offset
+ 	if textstksiz == -8 {
+ 		// Historical way to mark NOFRAME.
+@@ -463,13 +463,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	c.cursym.Func.Args = p.To.Val.(int32)
+-	c.cursym.Func.Locals = int32(textstksiz)
++	c.cursym.Func().Args = p.To.Val.(int32)
++	c.cursym.Func().Locals = int32(textstksiz)
+ 
+ 	/*
+ 	 * find leaf subroutines
+ 	 */
+-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case obj.ATEXT:
+ 			p.Mark |= LEAF
+@@ -477,18 +477,18 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		case ABL,
+ 			obj.ADUFFZERO,
+ 			obj.ADUFFCOPY:
+-			c.cursym.Func.Text.Mark &^= LEAF
++			c.cursym.Func().Text.Mark &^= LEAF
+ 		}
+ 	}
+ 
+ 	var q *obj.Prog
+ 	var q1 *obj.Prog
+ 	var retjmp *obj.LSym
+-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 		o := p.As
+ 		switch o {
+ 		case obj.ATEXT:
+-			c.cursym.Func.Text = p
++			c.cursym.Func().Text = p
+ 			c.autosize = int32(textstksiz)
+ 
+ 			if p.Mark&LEAF != 0 && c.autosize == 0 {
+@@ -514,7 +514,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					c.ctxt.Diag("%v: unaligned frame size %d - must be 16 aligned", p, c.autosize-8)
+ 				}
+ 				c.autosize += extrasize
+-				c.cursym.Func.Locals += extrasize
++				c.cursym.Func().Locals += extrasize
+ 
+ 				// low 32 bits for autosize
+ 				// high 32 bits for extrasize
+@@ -524,14 +524,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p.To.Offset = 0
+ 			}
+ 
+-			if c.autosize == 0 && c.cursym.Func.Text.Mark&LEAF == 0 {
++			if c.autosize == 0 && c.cursym.Func().Text.Mark&LEAF == 0 {
+ 				if c.ctxt.Debugvlog {
+-					c.ctxt.Logf("save suppressed in: %s\n", c.cursym.Func.Text.From.Sym.Name)
++					c.ctxt.Logf("save suppressed in: %s\n", c.cursym.Func().Text.From.Sym.Name)
+ 				}
+-				c.cursym.Func.Text.Mark |= LEAF
++				c.cursym.Func().Text.Mark |= LEAF
+ 			}
+ 
+-			if cursym.Func.Text.Mark&LEAF != 0 {
++			if cursym.Func().Text.Mark&LEAF != 0 {
+ 				cursym.Set(obj.AttrLeaf, true)
+ 				if p.From.Sym.NoFrame() {
+ 					break
+@@ -641,7 +641,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q1.To.Reg = REGFP
+ 			}
+ 
+-			if c.cursym.Func.Text.From.Sym.Wrapper() {
++			if c.cursym.Func().Text.From.Sym.Wrapper() {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 				//
+ 				//	MOV  g_panic(g), R1
+@@ -755,7 +755,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 			retjmp = p.To.Sym
+ 			p.To = obj.Addr{}
+-			if c.cursym.Func.Text.Mark&LEAF != 0 {
++			if c.cursym.Func().Text.Mark&LEAF != 0 {
+ 				if c.autosize != 0 {
+ 					p.As = AADD
+ 					p.From.Type = obj.TYPE_CONST
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 9abb31b558..328fb03b24 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -46,12 +46,12 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
+ 	// we expect at the start of a new sequence.
+ 	stmt := true
+ 	line := int64(1)
+-	pc := s.Func.Text.Pc
++	pc := s.Func().Text.Pc
+ 	var lastpc int64 // last PC written to line table, not last PC in func
+ 	name := ""
+ 	prologue, wrotePrologue := false, false
+ 	// Walk the progs, generating the DWARF table.
+-	for p := s.Func.Text; p != nil; p = p.Link {
++	for p := s.Func().Text; p != nil; p = p.Link {
+ 		prologue = prologue || (p.Pos.Xlogue() == src.PosPrologueEnd)
+ 		// If we're not at a real instruction, keep looping!
+ 		if p.Pos.Line() == 0 || (p.Link != nil && p.Link.Pc == p.Pc) {
+@@ -103,7 +103,7 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
+ 	// text address before the end sequence op. If this isn't done,
+ 	// GDB will assign a line number of zero the last row in the line
+ 	// table, which we don't want.
+-	lastlen := uint64(s.Size - (lastpc - s.Func.Text.Pc))
++	lastlen := uint64(s.Size - (lastpc - s.Func().Text.Pc))
+ 	putpclcdelta(ctxt, dctxt, lines, lastlen, 0)
+ 	dctxt.AddUint8(lines, 0) // start extended opcode
+ 	dwarf.Uleb128put(dctxt, lines, 1)
+@@ -301,26 +301,27 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym,
+ 	if s.Type != objabi.STEXT {
+ 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
+ 	}
+-	if s.Func.dwarfInfoSym == nil {
+-		s.Func.dwarfInfoSym = &LSym{
++	fn := s.Func()
++	if fn.dwarfInfoSym == nil {
++		fn.dwarfInfoSym = &LSym{
+ 			Type: objabi.SDWARFFCN,
+ 		}
+ 		if ctxt.Flag_locationlists {
+-			s.Func.dwarfLocSym = &LSym{
++			fn.dwarfLocSym = &LSym{
+ 				Type: objabi.SDWARFLOC,
+ 			}
+ 		}
+-		s.Func.dwarfRangesSym = &LSym{
++		fn.dwarfRangesSym = &LSym{
+ 			Type: objabi.SDWARFRANGE,
+ 		}
+-		s.Func.dwarfDebugLinesSym = &LSym{
++		fn.dwarfDebugLinesSym = &LSym{
+ 			Type: objabi.SDWARFLINES,
+ 		}
+ 		if s.WasInlined() {
+-			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
++			fn.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
+ 		}
+ 	}
+-	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfDebugLinesSym
++	return fn.dwarfInfoSym, fn.dwarfLocSym, fn.dwarfRangesSym, fn.dwarfAbsFnSym, fn.dwarfDebugLinesSym
+ }
+ 
+ func (s *LSym) Length(dwarfContext interface{}) int64 {
+@@ -331,7 +332,7 @@ func (s *LSym) Length(dwarfContext interface{}) int64 {
+ // first instruction (prog) of the specified function. This will
+ // presumably be the file in which the function is defined.
+ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
+-	p := fn.Func.Text
++	p := fn.Func().Text
+ 	if p != nil {
+ 		f, _ := linkgetlineFromPos(ctxt, p.Pos)
+ 		fsym := ctxt.Lookup(f)
+@@ -405,8 +406,8 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
+ 	if absfn.Size != 0 {
+ 		ctxt.Diag("internal error: DwarfAbstractFunc double process %v", s)
+ 	}
+-	if s.Func == nil {
+-		s.Func = new(FuncInfo)
++	if s.Func() == nil {
++		s.NewFuncInfo()
+ 	}
+ 	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
+ 	dwctxt := dwCtxt{ctxt}
+@@ -527,8 +528,8 @@ func (ft *DwarfFixupTable) SetPrecursorFunc(s *LSym, fn interface{}) {
+ 	// wrapper generation as opposed to the main inlining phase) it's
+ 	// possible that we didn't cache the abstract function sym for the
+ 	// text symbol -- do so now if needed. See issue 38068.
+-	if s.Func != nil && s.Func.dwarfAbsFnSym == nil {
+-		s.Func.dwarfAbsFnSym = absfn
++	if fn := s.Func(); fn != nil && fn.dwarfAbsFnSym == nil {
++		fn.dwarfAbsFnSym = absfn
+ 	}
+ 
+ 	ft.precursor[s] = fnState{precursor: fn, absfn: absfn}
+diff --git a/src/cmd/internal/obj/ld.go b/src/cmd/internal/obj/ld.go
+index 4ba52c7785..5d6c000dc6 100644
+--- a/src/cmd/internal/obj/ld.go
++++ b/src/cmd/internal/obj/ld.go
+@@ -59,7 +59,7 @@ func mkfwd(sym *LSym) {
+ 	}
+ 
+ 	i := 0
+-	for p := sym.Func.Text; p != nil && p.Link != nil; p = p.Link {
++	for p := sym.Func().Text; p != nil && p.Link != nil; p = p.Link {
+ 		i--
+ 		if i < 0 {
+ 			i = LOG - 1
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index f14b691802..ae85dbbe4e 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -38,6 +38,7 @@ import (
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"fmt"
++	"log"
+ 	"sync"
+ )
+ 
+@@ -400,7 +401,7 @@ type LSym struct {
+ 	P      []byte
+ 	R      []Reloc
+ 
+-	Func *FuncInfo
++	Extra *interface{} // *FuncInfo if present
+ 
+ 	Pkg    string
+ 	PkgIdx int32
+@@ -433,6 +434,26 @@ type FuncInfo struct {
+ 	FuncInfoSym *LSym
+ }
+ 
++// NewFuncInfo allocates and returns a FuncInfo for LSym.
++func (s *LSym) NewFuncInfo() *FuncInfo {
++	if s.Extra != nil {
++		log.Fatalf("invalid use of LSym - NewFuncInfo with Extra of type %T", *s.Extra)
++	}
++	f := new(FuncInfo)
++	s.Extra = new(interface{})
++	*s.Extra = f
++	return f
++}
++
++// Func returns the *FuncInfo associated with s, or else nil.
++func (s *LSym) Func() *FuncInfo {
++	if s.Extra == nil {
++		return nil
++	}
++	f, _ := (*s.Extra).(*FuncInfo)
++	return f
++}
++
+ type InlMark struct {
+ 	// When unwinding from an instruction in an inlined body, mark
+ 	// where we should unwind to.
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 6107974745..fd29f9fa21 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -410,7 +410,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		ctxt.Retpoline = false // don't keep printing
+ 	}
+ 
+-	p := cursym.Func.Text
++	p := cursym.Func().Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+ 		return
+ 	}
+@@ -455,7 +455,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	for bflag != 0 {
+ 		bflag = 0
+ 		pc = 0
+-		for p = c.cursym.Func.Text.Link; p != nil; p = p.Link {
++		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
+ 			p.Pc = pc
+ 			o = c.oplook(p)
+ 
+@@ -512,7 +512,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	bp := c.cursym.P
+ 	var i int32
+ 	var out [4]uint32
+-	for p := c.cursym.Func.Text.Link; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
+ 		c.pc = p.Pc
+ 		o = c.oplook(p)
+ 		if int(o.size) > 4*len(out) {
+@@ -529,7 +529,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// We use REGTMP as a scratch register during call injection,
+ 	// so instruction sequences that use REGTMP are unsafe to
+ 	// preempt asynchronously.
+-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, c.isRestartable)
++	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
+ }
+ 
+ // isUnsafePoint returns whether p is an unsafe point.
+@@ -1302,7 +1302,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 = OP_JMP(c.opirr(p.As), uint32(v))
+ 		if p.To.Sym == nil {
+-			p.To.Sym = c.cursym.Func.Text.From.Sym
++			p.To.Sym = c.cursym.Func().Text.From.Sym
+ 			p.To.Offset = p.To.Target().Pc
+ 		}
+ 		rel := obj.Addrel(c.cursym)
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index f19facc00c..135a8df3aa 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -133,11 +133,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// a switch for enabling/disabling instruction scheduling
+ 	nosched := true
+ 
+-	if c.cursym.Func.Text == nil || c.cursym.Func.Text.Link == nil {
++	if c.cursym.Func().Text == nil || c.cursym.Func().Text.Link == nil {
+ 		return
+ 	}
+ 
+-	p := c.cursym.Func.Text
++	p := c.cursym.Func().Text
+ 	textstksiz := p.To.Offset
+ 	if textstksiz == -ctxt.FixedFrameSize() {
+ 		// Historical way to mark NOFRAME.
+@@ -153,8 +153,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	c.cursym.Func.Args = p.To.Val.(int32)
+-	c.cursym.Func.Locals = int32(textstksiz)
++	c.cursym.Func().Args = p.To.Val.(int32)
++	c.cursym.Func().Locals = int32(textstksiz)
+ 
+ 	/*
+ 	 * find leaf subroutines
+@@ -162,7 +162,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	 * expand BECOME pseudo
+ 	 */
+ 
+-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		/* too hard, just leave alone */
+ 		case obj.ATEXT:
+@@ -203,7 +203,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			AJAL,
+ 			obj.ADUFFZERO,
+ 			obj.ADUFFCOPY:
+-			c.cursym.Func.Text.Mark &^= LEAF
++			c.cursym.Func().Text.Mark &^= LEAF
+ 			fallthrough
+ 
+ 		case AJMP,
+@@ -267,7 +267,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	autosize := int32(0)
+ 	var p1 *obj.Prog
+ 	var p2 *obj.Prog
+-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 		o := p.As
+ 		switch o {
+ 		case obj.ATEXT:
+@@ -288,19 +288,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				autosize += 4
+ 			}
+ 
+-			if autosize == 0 && c.cursym.Func.Text.Mark&LEAF == 0 {
+-				if c.cursym.Func.Text.From.Sym.NoSplit() {
++			if autosize == 0 && c.cursym.Func().Text.Mark&LEAF == 0 {
++				if c.cursym.Func().Text.From.Sym.NoSplit() {
+ 					if ctxt.Debugvlog {
+ 						ctxt.Logf("save suppressed in: %s\n", c.cursym.Name)
+ 					}
+ 
+-					c.cursym.Func.Text.Mark |= LEAF
++					c.cursym.Func().Text.Mark |= LEAF
+ 				}
+ 			}
+ 
+ 			p.To.Offset = int64(autosize) - ctxt.FixedFrameSize()
+ 
+-			if c.cursym.Func.Text.Mark&LEAF != 0 {
++			if c.cursym.Func().Text.Mark&LEAF != 0 {
+ 				c.cursym.Set(obj.AttrLeaf, true)
+ 				if p.From.Sym.NoFrame() {
+ 					break
+@@ -344,7 +344,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+ 			}
+ 
+-			if c.cursym.Func.Text.From.Sym.Wrapper() && c.cursym.Func.Text.Mark&LEAF == 0 {
++			if c.cursym.Func().Text.From.Sym.Wrapper() && c.cursym.Func().Text.Mark&LEAF == 0 {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 				//
+ 				//	MOV	g_panic(g), R1
+@@ -438,7 +438,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			p.To.Name = obj.NAME_NONE // clear fields as we may modify p to other instruction
+ 			p.To.Sym = nil
+ 
+-			if c.cursym.Func.Text.Mark&LEAF != 0 {
++			if c.cursym.Func().Text.Mark&LEAF != 0 {
+ 				if autosize == 0 {
+ 					p.As = AJMP
+ 					p.From = obj.Addr{}
+@@ -540,7 +540,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	if c.ctxt.Arch.Family == sys.MIPS {
+ 		// rewrite MOVD into two MOVF in 32-bit mode to avoid unaligned memory access
+-		for p = c.cursym.Func.Text; p != nil; p = p1 {
++		for p = c.cursym.Func().Text; p != nil; p = p1 {
+ 			p1 = p.Link
+ 
+ 			if p.As != AMOVD {
+@@ -580,7 +580,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	if nosched {
+ 		// if we don't do instruction scheduling, simply add
+ 		// NOP after each branch instruction.
+-		for p = c.cursym.Func.Text; p != nil; p = p.Link {
++		for p = c.cursym.Func().Text; p != nil; p = p.Link {
+ 			if p.Mark&BRANCH != 0 {
+ 				c.addnop(p)
+ 			}
+@@ -589,10 +589,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	// instruction scheduling
+-	q = nil                 // p - 1
+-	q1 = c.cursym.Func.Text // top of block
+-	o := 0                  // count of instructions
+-	for p = c.cursym.Func.Text; p != nil; p = p1 {
++	q = nil                   // p - 1
++	q1 = c.cursym.Func().Text // top of block
++	o := 0                    // count of instructions
++	for p = c.cursym.Func().Text; p != nil; p = p1 {
+ 		p1 = p.Link
+ 		o++
+ 		if p.Mark&NOSCHED != 0 {
+@@ -791,7 +791,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	if c.cursym.CFunc() {
+ 		p.To.Sym = c.ctxt.Lookup("runtime.morestackc")
+-	} else if !c.cursym.Func.Text.From.Sym.NeedCtxt() {
++	} else if !c.cursym.Func().Text.From.Sym.NeedCtxt() {
+ 		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt")
+ 	} else {
+ 		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
+@@ -805,7 +805,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 
+ 	p.As = AJMP
+ 	p.To.Type = obj.TYPE_BRANCH
+-	p.To.SetTarget(c.cursym.Func.Text.Link)
++	p.To.SetTarget(c.cursym.Func().Text.Link)
+ 	p.Mark |= BRANCH
+ 
+ 	// placeholder for q1's jump target
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index fa60c9ad6d..a08de891d3 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -189,8 +189,8 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 		// object file, and the Pcln variables haven't been filled in. As such, we
+ 		// need to check that Pcsp exists, and assume the other pcln variables exist
+ 		// as well. Tests like test/fixedbugs/issue22200.go demonstrate this issue.
+-		if s.Func != nil && s.Func.Pcln.Pcsp != nil {
+-			pc := &s.Func.Pcln
++		if fn := s.Func(); fn != nil && fn.Pcln.Pcsp != nil {
++			pc := &fn.Pcln
+ 			w.Bytes(pc.Pcsp.P)
+ 			w.Bytes(pc.Pcfile.P)
+ 			w.Bytes(pc.Pcline.P)
+@@ -303,8 +303,8 @@ func (w *writer) Sym(s *LSym) {
+ 		name = filepath.ToSlash(name)
+ 	}
+ 	var align uint32
+-	if s.Func != nil {
+-		align = uint32(s.Func.Align)
++	if fn := s.Func(); fn != nil {
++		align = uint32(fn.Align)
+ 	}
+ 	if s.ContentAddressable() {
+ 		// We generally assume data symbols are natually aligned,
+@@ -470,38 +470,38 @@ func (w *writer) Aux(s *LSym) {
+ 	if s.Gotype != nil {
+ 		w.aux1(goobj.AuxGotype, s.Gotype)
+ 	}
+-	if s.Func != nil {
+-		w.aux1(goobj.AuxFuncInfo, s.Func.FuncInfoSym)
++	if fn := s.Func(); fn != nil {
++		w.aux1(goobj.AuxFuncInfo, fn.FuncInfoSym)
+ 
+-		for _, d := range s.Func.Pcln.Funcdata {
++		for _, d := range fn.Pcln.Funcdata {
+ 			w.aux1(goobj.AuxFuncdata, d)
+ 		}
+ 
+-		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
+-			w.aux1(goobj.AuxDwarfInfo, s.Func.dwarfInfoSym)
++		if fn.dwarfInfoSym != nil && fn.dwarfInfoSym.Size != 0 {
++			w.aux1(goobj.AuxDwarfInfo, fn.dwarfInfoSym)
+ 		}
+-		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
+-			w.aux1(goobj.AuxDwarfLoc, s.Func.dwarfLocSym)
++		if fn.dwarfLocSym != nil && fn.dwarfLocSym.Size != 0 {
++			w.aux1(goobj.AuxDwarfLoc, fn.dwarfLocSym)
+ 		}
+-		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
+-			w.aux1(goobj.AuxDwarfRanges, s.Func.dwarfRangesSym)
++		if fn.dwarfRangesSym != nil && fn.dwarfRangesSym.Size != 0 {
++			w.aux1(goobj.AuxDwarfRanges, fn.dwarfRangesSym)
+ 		}
+-		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
+-			w.aux1(goobj.AuxDwarfLines, s.Func.dwarfDebugLinesSym)
++		if fn.dwarfDebugLinesSym != nil && fn.dwarfDebugLinesSym.Size != 0 {
++			w.aux1(goobj.AuxDwarfLines, fn.dwarfDebugLinesSym)
+ 		}
+-		if s.Func.Pcln.Pcsp != nil && s.Func.Pcln.Pcsp.Size != 0 {
+-			w.aux1(goobj.AuxPcsp, s.Func.Pcln.Pcsp)
++		if fn.Pcln.Pcsp != nil && fn.Pcln.Pcsp.Size != 0 {
++			w.aux1(goobj.AuxPcsp, fn.Pcln.Pcsp)
+ 		}
+-		if s.Func.Pcln.Pcfile != nil && s.Func.Pcln.Pcfile.Size != 0 {
+-			w.aux1(goobj.AuxPcfile, s.Func.Pcln.Pcfile)
++		if fn.Pcln.Pcfile != nil && fn.Pcln.Pcfile.Size != 0 {
++			w.aux1(goobj.AuxPcfile, fn.Pcln.Pcfile)
+ 		}
+-		if s.Func.Pcln.Pcline != nil && s.Func.Pcln.Pcline.Size != 0 {
+-			w.aux1(goobj.AuxPcline, s.Func.Pcln.Pcline)
++		if fn.Pcln.Pcline != nil && fn.Pcln.Pcline.Size != 0 {
++			w.aux1(goobj.AuxPcline, fn.Pcln.Pcline)
+ 		}
+-		if s.Func.Pcln.Pcinline != nil && s.Func.Pcln.Pcinline.Size != 0 {
+-			w.aux1(goobj.AuxPcinline, s.Func.Pcln.Pcinline)
++		if fn.Pcln.Pcinline != nil && fn.Pcln.Pcinline.Size != 0 {
++			w.aux1(goobj.AuxPcinline, fn.Pcln.Pcinline)
+ 		}
+-		for _, pcSym := range s.Func.Pcln.Pcdata {
++		for _, pcSym := range fn.Pcln.Pcdata {
+ 			w.aux1(goobj.AuxPcdata, pcSym)
+ 		}
+ 
+@@ -571,34 +571,34 @@ func nAuxSym(s *LSym) int {
+ 	if s.Gotype != nil {
+ 		n++
+ 	}
+-	if s.Func != nil {
++	if fn := s.Func(); fn != nil {
+ 		// FuncInfo is an aux symbol, each Funcdata is an aux symbol
+-		n += 1 + len(s.Func.Pcln.Funcdata)
+-		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
++		n += 1 + len(fn.Pcln.Funcdata)
++		if fn.dwarfInfoSym != nil && fn.dwarfInfoSym.Size != 0 {
+ 			n++
+ 		}
+-		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
++		if fn.dwarfLocSym != nil && fn.dwarfLocSym.Size != 0 {
+ 			n++
+ 		}
+-		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
++		if fn.dwarfRangesSym != nil && fn.dwarfRangesSym.Size != 0 {
+ 			n++
+ 		}
+-		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
++		if fn.dwarfDebugLinesSym != nil && fn.dwarfDebugLinesSym.Size != 0 {
+ 			n++
+ 		}
+-		if s.Func.Pcln.Pcsp != nil && s.Func.Pcln.Pcsp.Size != 0 {
++		if fn.Pcln.Pcsp != nil && fn.Pcln.Pcsp.Size != 0 {
+ 			n++
+ 		}
+-		if s.Func.Pcln.Pcfile != nil && s.Func.Pcln.Pcfile.Size != 0 {
++		if fn.Pcln.Pcfile != nil && fn.Pcln.Pcfile.Size != 0 {
+ 			n++
+ 		}
+-		if s.Func.Pcln.Pcline != nil && s.Func.Pcln.Pcline.Size != 0 {
++		if fn.Pcln.Pcline != nil && fn.Pcln.Pcline.Size != 0 {
+ 			n++
+ 		}
+-		if s.Func.Pcln.Pcinline != nil && s.Func.Pcln.Pcinline.Size != 0 {
++		if fn.Pcln.Pcinline != nil && fn.Pcln.Pcinline.Size != 0 {
+ 			n++
+ 		}
+-		n += len(s.Func.Pcln.Pcdata)
++		n += len(fn.Pcln.Pcdata)
+ 	}
+ 	return n
+ }
+@@ -620,15 +620,16 @@ func genFuncInfoSyms(ctxt *Link) {
+ 	var b bytes.Buffer
+ 	symidx := int32(len(ctxt.defs))
+ 	for _, s := range ctxt.Text {
+-		if s.Func == nil {
++		fn := s.Func()
++		if fn == nil {
+ 			continue
+ 		}
+ 		o := goobj.FuncInfo{
+-			Args:   uint32(s.Func.Args),
+-			Locals: uint32(s.Func.Locals),
+-			FuncID: objabi.FuncID(s.Func.FuncID),
++			Args:   uint32(fn.Args),
++			Locals: uint32(fn.Locals),
++			FuncID: objabi.FuncID(fn.FuncID),
+ 		}
+-		pc := &s.Func.Pcln
++		pc := &fn.Pcln
+ 		o.Pcsp = makeSymRef(preparePcSym(pc.Pcsp))
+ 		o.Pcfile = makeSymRef(preparePcSym(pc.Pcfile))
+ 		o.Pcline = makeSymRef(preparePcSym(pc.Pcline))
+@@ -670,10 +671,10 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		isym.Set(AttrIndexed, true)
+ 		symidx++
+ 		infosyms = append(infosyms, isym)
+-		s.Func.FuncInfoSym = isym
++		fn.FuncInfoSym = isym
+ 		b.Reset()
+ 
+-		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym, s.Func.dwarfDebugLinesSym, s.Func.dwarfInfoSym}
++		dwsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym}
+ 		for _, s := range dwsyms {
+ 			if s == nil || s.Size == 0 {
+ 				continue
+@@ -744,14 +745,15 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+ 	}
+ 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+ 	if s.Type == objabi.STEXT {
+-		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x", uint64(s.Func.Args), uint64(s.Func.Locals), uint64(s.Func.FuncID))
++		fn := s.Func()
++		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x", uint64(fn.Args), uint64(fn.Locals), uint64(fn.FuncID))
+ 		if s.Leaf() {
+ 			fmt.Fprintf(ctxt.Bso, " leaf")
+ 		}
+ 	}
+ 	fmt.Fprintf(ctxt.Bso, "\n")
+ 	if s.Type == objabi.STEXT {
+-		for p := s.Func.Text; p != nil; p = p.Link {
++		for p := s.Func().Text; p != nil; p = p.Link {
+ 			fmt.Fprintf(ctxt.Bso, "\t%#04x ", uint(int(p.Pc)))
+ 			if ctxt.Debugasm > 1 {
+ 				io.WriteString(ctxt.Bso, p.String())
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index 09d520b4e9..01657dd4f6 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -118,7 +118,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
+ }
+ 
+ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
+-	for p := sym.Func.Text; p != nil; p = p.Link {
++	for p := sym.Func().Text; p != nil; p = p.Link {
+ 		checkaddr(ctxt, p, &p.From)
+ 		if p.GetFrom3() != nil {
+ 			checkaddr(ctxt, p, p.GetFrom3())
+@@ -138,7 +138,7 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
+ 		if p.To.Sym != nil {
+ 			continue
+ 		}
+-		q := sym.Func.Text
++		q := sym.Func().Text
+ 		for q != nil && p.To.Offset != q.Pc {
+ 			if q.Forwd != nil && p.To.Offset >= q.Forwd.Pc {
+ 				q = q.Forwd
+@@ -164,7 +164,7 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
+ 	}
+ 
+ 	// Collapse series of jumps to jumps.
+-	for p := sym.Func.Text; p != nil; p = p.Link {
++	for p := sym.Func().Text; p != nil; p = p.Link {
+ 		if p.To.Target() == nil {
+ 			continue
+ 		}
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index ce0d3714c0..67c4f9a62b 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -35,20 +35,21 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym,
+ 
+ 	val := int32(-1)
+ 	oldval := val
+-	if func_.Func.Text == nil {
++	fn := func_.Func()
++	if fn.Text == nil {
+ 		// Return the emtpy symbol we've built so far.
+ 		return sym
+ 	}
+ 
+-	pc := func_.Func.Text.Pc
++	pc := fn.Text.Pc
+ 
+ 	if dbg {
+-		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Func.Text)
++		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, fn.Text)
+ 	}
+ 
+ 	buf := make([]byte, binary.MaxVarintLen32)
+ 	started := false
+-	for p := func_.Func.Text; p != nil; p = p.Link {
++	for p := fn.Text; p != nil; p = p.Link {
+ 		// Update val. If it's not changing, keep going.
+ 		val = valfunc(ctxt, func_, val, p, 0, arg)
+ 
+@@ -107,7 +108,7 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym,
+ 
+ 	if started {
+ 		if dbg {
+-			ctxt.Logf("%6x done\n", uint64(func_.Func.Text.Pc+func_.Size))
++			ctxt.Logf("%6x done\n", uint64(fn.Text.Pc+func_.Size))
+ 		}
+ 		v := (func_.Size - pc) / int64(ctxt.Arch.MinLC)
+ 		if v < 0 {
+@@ -257,12 +258,12 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
+ }
+ 
+ func linkpcln(ctxt *Link, cursym *LSym) {
+-	pcln := &cursym.Func.Pcln
++	pcln := &cursym.Func().Pcln
+ 	pcln.UsedFiles = make(map[goobj.CUFileIndex]struct{})
+ 
+ 	npcdata := 0
+ 	nfuncdata := 0
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		// Find the highest ID of any used PCDATA table. This ignores PCDATA table
+ 		// that consist entirely of "-1", since that's the assumed default value.
+ 		//   From.Offset is table ID
+@@ -288,11 +289,12 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 
+ 	// Check that all the Progs used as inline markers are still reachable.
+ 	// See issue #40473.
+-	inlMarkProgs := make(map[*Prog]struct{}, len(cursym.Func.InlMarks))
+-	for _, inlMark := range cursym.Func.InlMarks {
++	fn := cursym.Func()
++	inlMarkProgs := make(map[*Prog]struct{}, len(fn.InlMarks))
++	for _, inlMark := range fn.InlMarks {
+ 		inlMarkProgs[inlMark.p] = struct{}{}
+ 	}
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := fn.Text; p != nil; p = p.Link {
+ 		if _, ok := inlMarkProgs[p]; ok {
+ 			delete(inlMarkProgs, p)
+ 		}
+@@ -303,7 +305,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 
+ 	pcinlineState := new(pcinlineState)
+ 	pcln.Pcinline = funcpctab(ctxt, cursym, "pctoinline", pcinlineState.pctoinline, nil)
+-	for _, inlMark := range cursym.Func.InlMarks {
++	for _, inlMark := range fn.InlMarks {
+ 		pcinlineState.setParentPC(ctxt, int(inlMark.id), int32(inlMark.p.Pc))
+ 	}
+ 	pcln.InlTree = pcinlineState.localTree
+@@ -316,7 +318,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 	// tabulate which pc and func data we have.
+ 	havepc := make([]uint32, (npcdata+31)/32)
+ 	havefunc := make([]uint32, (nfuncdata+31)/32)
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := fn.Text; p != nil; p = p.Link {
+ 		if p.As == AFUNCDATA {
+ 			if (havefunc[p.From.Offset/32]>>uint64(p.From.Offset%32))&1 != 0 {
+ 				ctxt.Diag("multiple definitions for FUNCDATA $%d", p.From.Offset)
+@@ -344,7 +346,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 
+ 	// funcdata
+ 	if nfuncdata > 0 {
+-		for p := cursym.Func.Text; p != nil; p = p.Link {
++		for p := fn.Text; p != nil; p = p.Link {
+ 			if p.As != AFUNCDATA {
+ 				continue
+ 			}
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 6e33f29959..eb54c67f6a 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -81,7 +81,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
+ 			continue
+ 		}
+ 		found := false
+-		for p := s.Func.Text; p != nil; p = p.Link {
++		for p := s.Func().Text; p != nil; p = p.Link {
+ 			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
+ 				found = true
+ 				break
+@@ -89,7 +89,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
+ 		}
+ 
+ 		if !found {
+-			p := Appendp(s.Func.Text, newprog)
++			p := Appendp(s.Func().Text, newprog)
+ 			p.As = AFUNCDATA
+ 			p.From.Type = TYPE_CONST
+ 			p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
+@@ -120,15 +120,15 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 		// func _() { }
+ 		return
+ 	}
+-	if s.Func != nil {
++	if s.Func() != nil {
+ 		ctxt.Diag("InitTextSym double init for %s", s.Name)
+ 	}
+-	s.Func = new(FuncInfo)
++	s.NewFuncInfo()
+ 	if s.OnList() {
+ 		ctxt.Diag("symbol %s listed multiple times", s.Name)
+ 	}
+ 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
+-	s.Func.FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
++	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
+ 	s.Set(AttrOnList, true)
+ 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
+ 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
+@@ -185,7 +185,7 @@ func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+ // Similar to EmitEntryLiveness, but just emit stack map.
+ func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+ 	pcdata := Appendp(p, newprog)
+-	pcdata.Pos = s.Func.Text.Pos
++	pcdata.Pos = s.Func().Text.Pos
+ 	pcdata.As = APCDATA
+ 	pcdata.From.Type = TYPE_CONST
+ 	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+@@ -198,7 +198,7 @@ func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+ // Similar to EmitEntryLiveness, but just emit register map.
+ func (ctxt *Link) EmitEntryRegMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+ 	pcdata := Appendp(p, newprog)
+-	pcdata.Pos = s.Func.Text.Pos
++	pcdata.Pos = s.Func().Text.Pos
+ 	pcdata.As = APCDATA
+ 	pcdata.From.Type = TYPE_CONST
+ 	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index c2e8e9e9d0..dcabb3cd6a 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -663,8 +663,8 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
+ 		// the function alignment is not changed which might
+ 		// result in 16 byte alignment but that is still fine.
+ 		// TODO: alignment on AIX
+-		if ctxt.Headtype != objabi.Haix && cursym.Func.Align < 32 {
+-			cursym.Func.Align = 32
++		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < 32 {
++			cursym.Func().Align = 32
+ 		}
+ 	default:
+ 		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
+@@ -673,7 +673,7 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
+ }
+ 
+ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+-	p := cursym.Func.Text
++	p := cursym.Func().Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+ 		return
+ 	}
+@@ -722,7 +722,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	for bflag != 0 {
+ 		bflag = 0
+ 		pc = 0
+-		for p = c.cursym.Func.Text.Link; p != nil; p = p.Link {
++		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
+ 			p.Pc = pc
+ 			o = c.oplook(p)
+ 
+@@ -784,7 +784,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	bp := c.cursym.P
+ 	var i int32
+ 	var out [6]uint32
+-	for p := c.cursym.Func.Text.Link; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
+ 		c.pc = p.Pc
+ 		o = c.oplook(p)
+ 		if int(o.size) > 4*len(out) {
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index c012762a18..3ab19de602 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -402,13 +402,13 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
+ 
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// TODO(minux): add morestack short-cuts with small fixed frame-size.
+-	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
++	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
+ 		return
+ 	}
+ 
+ 	c := ctxt9{ctxt: ctxt, cursym: cursym, newprog: newprog}
+ 
+-	p := c.cursym.Func.Text
++	p := c.cursym.Func().Text
+ 	textstksiz := p.To.Offset
+ 	if textstksiz == -8 {
+ 		// Compatibility hack.
+@@ -424,8 +424,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	c.cursym.Func.Args = p.To.Val.(int32)
+-	c.cursym.Func.Locals = int32(textstksiz)
++	c.cursym.Func().Args = p.To.Val.(int32)
++	c.cursym.Func().Locals = int32(textstksiz)
+ 
+ 	/*
+ 	 * find leaf subroutines
+@@ -435,7 +435,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	var q *obj.Prog
+ 	var q1 *obj.Prog
+-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		/* too hard, just leave alone */
+ 		case obj.ATEXT:
+@@ -541,7 +541,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			ABCL,
+ 			obj.ADUFFZERO,
+ 			obj.ADUFFCOPY:
+-			c.cursym.Func.Text.Mark &^= LEAF
++			c.cursym.Func().Text.Mark &^= LEAF
+ 			fallthrough
+ 
+ 		case ABC,
+@@ -598,7 +598,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	autosize := int32(0)
+ 	var p1 *obj.Prog
+ 	var p2 *obj.Prog
+-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 		o := p.As
+ 		switch o {
+ 		case obj.ATEXT:
+@@ -664,7 +664,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				rel.Type = objabi.R_ADDRPOWER_PCREL
+ 			}
+ 
+-			if !c.cursym.Func.Text.From.Sym.NoSplit() {
++			if !c.cursym.Func().Text.From.Sym.NoSplit() {
+ 				q = c.stacksplit(q, autosize) // emit split check
+ 			}
+ 
+@@ -732,14 +732,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+ 
+ 				}
+-			} else if c.cursym.Func.Text.Mark&LEAF == 0 {
++			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
+ 				// A very few functions that do not return to their caller
+ 				// (e.g. gogo) are not identified as leaves but still have
+ 				// no frame.
+-				c.cursym.Func.Text.Mark |= LEAF
++				c.cursym.Func().Text.Mark |= LEAF
+ 			}
+ 
+-			if c.cursym.Func.Text.Mark&LEAF != 0 {
++			if c.cursym.Func().Text.Mark&LEAF != 0 {
+ 				c.cursym.Set(obj.AttrLeaf, true)
+ 				break
+ 			}
+@@ -755,7 +755,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q.To.Offset = 24
+ 			}
+ 
+-			if c.cursym.Func.Text.From.Sym.Wrapper() {
++			if c.cursym.Func().Text.From.Sym.Wrapper() {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 				//
+ 				//	MOVD g_panic(g), R3
+@@ -853,7 +853,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 			retTarget := p.To.Sym
+ 
+-			if c.cursym.Func.Text.Mark&LEAF != 0 {
++			if c.cursym.Func().Text.Mark&LEAF != 0 {
+ 				if autosize == 0 || c.cursym.Name == "runtime.racecallbackthunk" {
+ 					p.As = ABR
+ 					p.From = obj.Addr{}
+@@ -1161,7 +1161,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	var morestacksym *obj.LSym
+ 	if c.cursym.CFunc() {
+ 		morestacksym = c.ctxt.Lookup("runtime.morestackc")
+-	} else if !c.cursym.Func.Text.From.Sym.NeedCtxt() {
++	} else if !c.cursym.Func().Text.From.Sym.NeedCtxt() {
+ 		morestacksym = c.ctxt.Lookup("runtime.morestack_noctxt")
+ 	} else {
+ 		morestacksym = c.ctxt.Lookup("runtime.morestack")
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 841b30d85c..045c2250b5 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -427,7 +427,7 @@ func InvertBranch(as obj.As) obj.As {
+ // instruction. Must be called after progedit.
+ func containsCall(sym *obj.LSym) bool {
+ 	// CALLs are CALL or JAL(R) with link register LR.
+-	for p := sym.Func.Text; p != nil; p = p.Link {
++	for p := sym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case obj.ACALL:
+ 			return true
+@@ -499,12 +499,12 @@ func stackOffset(a *obj.Addr, stacksize int64) {
+ // concrete, real RISC-V instructions or directive pseudo-ops like TEXT,
+ // PCDATA, and FUNCDATA.
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+-	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
++	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
+ 		return
+ 	}
+ 
+ 	// Generate the prologue.
+-	text := cursym.Func.Text
++	text := cursym.Func().Text
+ 	if text.As != obj.ATEXT {
+ 		ctxt.Diag("preprocess: found symbol that does not start with TEXT directive")
+ 		return
+@@ -538,12 +538,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		stacksize += ctxt.FixedFrameSize()
+ 	}
+ 
+-	cursym.Func.Args = text.To.Val.(int32)
+-	cursym.Func.Locals = int32(stacksize)
++	cursym.Func().Args = text.To.Val.(int32)
++	cursym.Func().Locals = int32(stacksize)
+ 
+ 	prologue := text
+ 
+-	if !cursym.Func.Text.From.Sym.NoSplit() {
++	if !cursym.Func().Text.From.Sym.NoSplit() {
+ 		prologue = stacksplit(ctxt, prologue, cursym, newprog, stacksize) // emit split check
+ 	}
+ 
+@@ -567,7 +567,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		prologue = ctxt.EndUnsafePoint(prologue, newprog, -1)
+ 	}
+ 
+-	if cursym.Func.Text.From.Sym.Wrapper() {
++	if cursym.Func().Text.From.Sym.Wrapper() {
+ 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 		//
+ 		//   MOV g_panic(g), X11
+@@ -647,13 +647,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	// Update stack-based offsets.
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		stackOffset(&p.From, stacksize)
+ 		stackOffset(&p.To, stacksize)
+ 	}
+ 
+ 	// Additional instruction rewriting.
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case obj.AGETCALLERPC:
+ 			if cursym.Leaf() {
+@@ -733,7 +733,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// Rewrite MOV pseudo-instructions. This cannot be done in
+ 	// progedit, as SP offsets need to be applied before we split
+ 	// up some of the Addrs.
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+ 			rewriteMOV(ctxt, newprog, p)
+@@ -741,7 +741,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	// Split immediates larger than 12-bits.
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		// <opi> $imm, REG, TO
+ 		case AADDI, AANDI, AORI, AXORI:
+@@ -858,9 +858,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// a fixed point will be reached).  No attempt to handle functions > 2GiB.
+ 	for {
+ 		rescan := false
+-		setPCs(cursym.Func.Text, 0)
++		setPCs(cursym.Func().Text, 0)
+ 
+-		for p := cursym.Func.Text; p != nil; p = p.Link {
++		for p := cursym.Func().Text; p != nil; p = p.Link {
+ 			switch p.As {
+ 			case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
+ 				if p.To.Type != obj.TYPE_BRANCH {
+@@ -917,7 +917,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// Now that there are no long branches, resolve branch and jump targets.
+ 	// At this point, instruction rewriting which changes the number of
+ 	// instructions will break everything--don't do it!
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, AJAL:
+ 			switch p.To.Type {
+@@ -940,7 +940,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	// Validate all instructions - this provides nice error messages.
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		for _, ins := range instructionsForProg(p) {
+ 			ins.validate(ctxt)
+ 		}
+@@ -1068,7 +1068,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	if cursym.CFunc() {
+ 		p.To.Sym = ctxt.Lookup("runtime.morestackc")
+-	} else if !cursym.Func.Text.From.Sym.NeedCtxt() {
++	} else if !cursym.Func().Text.From.Sym.NeedCtxt() {
+ 		p.To.Sym = ctxt.Lookup("runtime.morestack_noctxt")
+ 	} else {
+ 		p.To.Sym = ctxt.Lookup("runtime.morestack")
+@@ -1083,7 +1083,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 	p.As = AJAL
+ 	p.To = obj.Addr{Type: obj.TYPE_BRANCH}
+ 	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+-	p.To.SetTarget(cursym.Func.Text.Link)
++	p.To.SetTarget(cursym.Func().Text.Link)
+ 
+ 	// placeholder for to_done's jump target
+ 	p = obj.Appendp(p, newprog)
+@@ -1926,7 +1926,7 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	var symcode []uint32
+-	for p := cursym.Func.Text; p != nil; p = p.Link {
++	for p := cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case AJALR:
+ 			if p.To.Sym != nil {
+@@ -1981,7 +1981,7 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		ctxt.Arch.ByteOrder.PutUint32(p, symcode[i])
+ 	}
+ 
+-	obj.MarkUnsafePoints(ctxt, cursym.Func.Text, newprog, isUnsafePoint, nil)
++	obj.MarkUnsafePoints(ctxt, cursym.Func().Text, newprog, isUnsafePoint, nil)
+ }
+ 
+ func isUnsafePoint(p *obj.Prog) bool {
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index cb3a2c3196..da14dd3c41 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -447,7 +447,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		ctxt.Retpoline = false // don't keep printing
+ 	}
+ 
+-	p := cursym.Func.Text
++	p := cursym.Func().Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+ 		return
+ 	}
+@@ -473,7 +473,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			c.cursym.R[nrelocs0+i] = obj.Reloc{}
+ 		}
+ 		c.cursym.R = c.cursym.R[:nrelocs0] // preserve marker relocations generated by the compiler
+-		for p := c.cursym.Func.Text; p != nil; p = p.Link {
++		for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 			pc := int64(len(buffer))
+ 			if pc != p.Pc {
+ 				changed = true
+@@ -504,7 +504,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// We use REGTMP as a scratch register during call injection,
+ 	// so instruction sequences that use REGTMP are unsafe to
+ 	// preempt asynchronously.
+-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, nil)
++	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, nil)
+ }
+ 
+ // Return whether p is an unsafe point.
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 625bb0f7b4..3af5425b36 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -205,13 +205,13 @@ func (c *ctxtz) rewriteToUseGot(p *obj.Prog) {
+ 
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// TODO(minux): add morestack short-cuts with small fixed frame-size.
+-	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
++	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
+ 		return
+ 	}
+ 
+ 	c := ctxtz{ctxt: ctxt, cursym: cursym, newprog: newprog}
+ 
+-	p := c.cursym.Func.Text
++	p := c.cursym.Func().Text
+ 	textstksiz := p.To.Offset
+ 	if textstksiz == -8 {
+ 		// Compatibility hack.
+@@ -227,8 +227,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	c.cursym.Func.Args = p.To.Val.(int32)
+-	c.cursym.Func.Locals = int32(textstksiz)
++	c.cursym.Func().Args = p.To.Val.(int32)
++	c.cursym.Func().Locals = int32(textstksiz)
+ 
+ 	/*
+ 	 * find leaf subroutines
+@@ -237,7 +237,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	 */
+ 
+ 	var q *obj.Prog
+-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case obj.ATEXT:
+ 			q = p
+@@ -245,7 +245,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 		case ABL, ABCL:
+ 			q = p
+-			c.cursym.Func.Text.Mark &^= LEAF
++			c.cursym.Func().Text.Mark &^= LEAF
+ 			fallthrough
+ 
+ 		case ABC,
+@@ -294,7 +294,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var pPre *obj.Prog
+ 	var pPreempt *obj.Prog
+ 	wasSplit := false
+-	for p := c.cursym.Func.Text; p != nil; p = p.Link {
++	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 		pLast = p
+ 		switch p.As {
+ 		case obj.ATEXT:
+@@ -356,19 +356,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q.Spadj = autosize
+ 
+ 				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+-			} else if c.cursym.Func.Text.Mark&LEAF == 0 {
++			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
+ 				// A very few functions that do not return to their caller
+ 				// (e.g. gogo) are not identified as leaves but still have
+ 				// no frame.
+-				c.cursym.Func.Text.Mark |= LEAF
++				c.cursym.Func().Text.Mark |= LEAF
+ 			}
+ 
+-			if c.cursym.Func.Text.Mark&LEAF != 0 {
++			if c.cursym.Func().Text.Mark&LEAF != 0 {
+ 				c.cursym.Set(obj.AttrLeaf, true)
+ 				break
+ 			}
+ 
+-			if c.cursym.Func.Text.From.Sym.Wrapper() {
++			if c.cursym.Func().Text.From.Sym.Wrapper() {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 				//
+ 				//	MOVD g_panic(g), R3
+@@ -461,7 +461,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		case obj.ARET:
+ 			retTarget := p.To.Sym
+ 
+-			if c.cursym.Func.Text.Mark&LEAF != 0 {
++			if c.cursym.Func().Text.Mark&LEAF != 0 {
+ 				if autosize == 0 {
+ 					p.As = ABR
+ 					p.From = obj.Addr{}
+@@ -696,7 +696,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog,
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	if c.cursym.CFunc() {
+ 		p.To.Sym = c.ctxt.Lookup("runtime.morestackc")
+-	} else if !c.cursym.Func.Text.From.Sym.NeedCtxt() {
++	} else if !c.cursym.Func().Text.From.Sym.NeedCtxt() {
+ 		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt")
+ 	} else {
+ 		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
+@@ -709,7 +709,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog,
+ 
+ 	p.As = ABR
+ 	p.To.Type = obj.TYPE_BRANCH
+-	p.To.SetTarget(c.cursym.Func.Text.Link)
++	p.To.SetTarget(c.cursym.Func().Text.Link)
+ 	return p
+ }
+ 
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index e5d7b2cbfd..0182773f8e 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -358,7 +358,8 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
+ }
+ 
+ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent *LSym, aux *LSym)) {
+-	pc := &fsym.Func.Pcln
++	fninfo := fsym.Func()
++	pc := &fninfo.Pcln
+ 	if flag&traverseAux == 0 {
+ 		// NB: should it become necessary to walk aux sym reloc references
+ 		// without walking the aux syms themselves, this can be changed.
+@@ -389,7 +390,8 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent
+ 			fn(fsym, filesym)
+ 		}
+ 	}
+-	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym, fsym.Func.dwarfDebugLinesSym, fsym.Func.dwarfInfoSym}
++
++	dwsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym}
+ 	for _, dws := range dwsyms {
+ 		if dws == nil || dws.Size == 0 {
+ 			continue
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index a9e093a8ad..f7f66a1255 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -182,14 +182,14 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		return p
+ 	}
+ 
+-	framesize := s.Func.Text.To.Offset
++	framesize := s.Func().Text.To.Offset
+ 	if framesize < 0 {
+ 		panic("bad framesize")
+ 	}
+-	s.Func.Args = s.Func.Text.To.Val.(int32)
+-	s.Func.Locals = int32(framesize)
++	s.Func().Args = s.Func().Text.To.Val.(int32)
++	s.Func().Locals = int32(framesize)
+ 
+-	if s.Func.Text.From.Sym.Wrapper() {
++	if s.Func().Text.From.Sym.Wrapper() {
+ 		// if g._panic != nil && g._panic.argp == FP {
+ 		//   g._panic.argp = bottom-of-frame
+ 		// }
+@@ -222,7 +222,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			Offset: 0, // panic.argp
+ 		}
+ 
+-		p := s.Func.Text
++		p := s.Func().Text
+ 		p = appendp(p, AMOVD, gpanic, regAddr(REG_R0))
+ 
+ 		p = appendp(p, AGet, regAddr(REG_R0))
+@@ -245,7 +245,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	if framesize > 0 {
+-		p := s.Func.Text
++		p := s.Func().Text
+ 		p = appendp(p, AGet, regAddr(REG_SP))
+ 		p = appendp(p, AI32Const, constAddr(framesize))
+ 		p = appendp(p, AI32Sub)
+@@ -260,8 +260,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	pc := int64(0) // pc is only incremented when necessary, this avoids bloat of the BrTable instruction
+ 	var tableIdxs []uint64
+ 	tablePC := int64(0)
+-	base := ctxt.PosTable.Pos(s.Func.Text.Pos).Base()
+-	for p := s.Func.Text; p != nil; p = p.Link {
++	base := ctxt.PosTable.Pos(s.Func().Text.Pos).Base()
++	for p := s.Func().Text; p != nil; p = p.Link {
+ 		prevBase := base
+ 		base = ctxt.PosTable.Pos(p.Pos).Base()
+ 		switch p.As {
+@@ -313,8 +313,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	tableIdxs = append(tableIdxs, uint64(numResumePoints))
+ 	s.Size = pc + 1
+ 
+-	if !s.Func.Text.From.Sym.NoSplit() {
+-		p := s.Func.Text
++	if !s.Func().Text.From.Sym.NoSplit() {
++		p := s.Func().Text
+ 
+ 		if framesize <= objabi.StackSmall {
+ 			// small stack: SP <= stackguard
+@@ -352,7 +352,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 		p = appendp(p, AIf)
+ 		p = appendp(p, obj.ACALL, constAddr(0))
+-		if s.Func.Text.From.Sym.NeedCtxt() {
++		if s.Func().Text.From.Sym.NeedCtxt() {
+ 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: morestack}
+ 		} else {
+ 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: morestackNoCtxt}
+@@ -365,7 +365,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	var entryPointLoopBranches []*obj.Prog
+ 	var unwindExitBranches []*obj.Prog
+ 	currentDepth := 0
+-	for p := s.Func.Text; p != nil; p = p.Link {
++	for p := s.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case ABlock, ALoop, AIf:
+ 			currentDepth++
+@@ -562,7 +562,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	for p := s.Func.Text; p != nil; p = p.Link {
++	for p := s.Func().Text; p != nil; p = p.Link {
+ 		switch p.From.Name {
+ 		case obj.NAME_AUTO:
+ 			p.From.Offset += int64(framesize)
+@@ -712,7 +712,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	{
+-		p := s.Func.Text
++		p := s.Func().Text
+ 		if len(unwindExitBranches) > 0 {
+ 			p = appendp(p, ABlock) // unwindExit, used to return 1 when unwinding the stack
+ 			for _, b := range unwindExitBranches {
+@@ -749,7 +749,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	currentDepth = 0
+ 	blockDepths := make(map[*obj.Prog]int)
+-	for p := s.Func.Text; p != nil; p = p.Link {
++	for p := s.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case ABlock, ALoop, AIf:
+ 			currentDepth++
+@@ -850,7 +850,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		hasLocalSP = true
+ 
+ 		var regUsed [MAXREG - MINREG]bool
+-		for p := s.Func.Text; p != nil; p = p.Link {
++		for p := s.Func().Text; p != nil; p = p.Link {
+ 			if p.From.Reg != 0 {
+ 				regUsed[p.From.Reg-MINREG] = true
+ 			}
+@@ -896,7 +896,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		updateLocalSP(w)
+ 	}
+ 
+-	for p := s.Func.Text; p != nil; p = p.Link {
++	for p := s.Func().Text; p != nil; p = p.Link {
+ 		switch p.As {
+ 		case AGet:
+ 			if p.From.Type != obj.TYPE_REG {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 4940c79eaa..c412f4945d 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2050,7 +2050,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		ctxt.Diag("x86 tables not initialized, call x86.instinit first")
+ 	}
+ 
+-	for p := s.Func.Text; p != nil; p = p.Link {
++	for p := s.Func().Text; p != nil; p = p.Link {
+ 		if p.To.Type == obj.TYPE_BRANCH && p.To.Target() == nil {
+ 			p.To.SetTarget(p)
+ 		}
+@@ -2085,7 +2085,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	var count int64 // rough count of number of instructions
+-	for p := s.Func.Text; p != nil; p = p.Link {
++	for p := s.Func().Text; p != nil; p = p.Link {
+ 		count++
+ 		p.Back = branchShort // use short branches first time through
+ 		if q := p.To.Target(); q != nil && (q.Back&branchShort != 0) {
+@@ -2113,7 +2113,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		c = 0
+ 		var pPrev *obj.Prog
+ 		nops = nops[:0]
+-		for p := s.Func.Text; p != nil; p = p.Link {
++		for p := s.Func().Text; p != nil; p = p.Link {
+ 			c0 := c
+ 			c = pjc.padJump(ctxt, s, p, c)
+ 
+@@ -2227,7 +2227,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			// the first instruction.)
+ 			return p.From.Index == REG_TLS
+ 		}
+-		obj.MarkUnsafePoints(ctxt, s.Func.Text, newprog, useTLS, nil)
++		obj.MarkUnsafePoints(ctxt, s.Func().Text, newprog, useTLS, nil)
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 18a6afcd77..e11fa13f65 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -563,11 +563,11 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ }
+ 
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+-	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
++	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
+ 		return
+ 	}
+ 
+-	p := cursym.Func.Text
++	p := cursym.Func().Text
+ 	autoffset := int32(p.To.Offset)
+ 	if autoffset < 0 {
+ 		autoffset = 0
+@@ -602,12 +602,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	textarg := int64(p.To.Val.(int32))
+-	cursym.Func.Args = int32(textarg)
+-	cursym.Func.Locals = int32(p.To.Offset)
++	cursym.Func().Args = int32(textarg)
++	cursym.Func().Locals = int32(p.To.Offset)
+ 
+ 	// TODO(rsc): Remove.
+-	if ctxt.Arch.Family == sys.I386 && cursym.Func.Locals < 0 {
+-		cursym.Func.Locals = 0
++	if ctxt.Arch.Family == sys.I386 && cursym.Func().Locals < 0 {
++		cursym.Func().Locals = 0
+ 	}
+ 
+ 	// TODO(rsc): Remove 'ctxt.Arch.Family == sys.AMD64 &&'.
+@@ -642,7 +642,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p = load_g_cx(ctxt, p, newprog) // load g into CX
+ 	}
+ 
+-	if !cursym.Func.Text.From.Sym.NoSplit() {
++	if !cursym.Func().Text.From.Sym.NoSplit() {
+ 		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg)) // emit split check
+ 	}
+ 
+@@ -690,7 +690,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p.To.Reg = REG_BP
+ 	}
+ 
+-	if cursym.Func.Text.From.Sym.Wrapper() {
++	if cursym.Func().Text.From.Sym.Wrapper() {
+ 		// if g._panic != nil && g._panic.argp == FP {
+ 		//   g._panic.argp = bottom-of-frame
+ 		// }
+@@ -808,7 +808,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	var deltasp int32
+-	for p = cursym.Func.Text; p != nil; p = p.Link {
++	for p = cursym.Func().Text; p != nil; p = p.Link {
+ 		pcsize := ctxt.Arch.RegSize
+ 		switch p.From.Name {
+ 		case obj.NAME_AUTO:
+@@ -1103,7 +1103,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	end := ctxt.EndUnsafePoint(jls, newprog, -1)
+ 
+ 	var last *obj.Prog
+-	for last = cursym.Func.Text; last.Link != nil; last = last.Link {
++	for last = cursym.Func().Text; last.Link != nil; last = last.Link {
+ 	}
+ 
+ 	// Now we are at the end of the function, but logically
+@@ -1117,7 +1117,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	pcdata = ctxt.StartUnsafePoint(pcdata, newprog)
+ 
+ 	call := obj.Appendp(pcdata, newprog)
+-	call.Pos = cursym.Func.Text.Pos
++	call.Pos = cursym.Func().Text.Pos
+ 	call.As = obj.ACALL
+ 	call.To.Type = obj.TYPE_BRANCH
+ 	call.To.Name = obj.NAME_EXTERN
+@@ -1125,7 +1125,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	switch {
+ 	case cursym.CFunc():
+ 		morestack = "runtime.morestackc"
+-	case !cursym.Func.Text.From.Sym.NeedCtxt():
++	case !cursym.Func().Text.From.Sym.NeedCtxt():
+ 		morestack = "runtime.morestack_noctxt"
+ 	}
+ 	call.To.Sym = ctxt.Lookup(morestack)
+@@ -1144,7 +1144,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	jmp := obj.Appendp(pcdata, newprog)
+ 	jmp.As = obj.AJMP
+ 	jmp.To.Type = obj.TYPE_BRANCH
+-	jmp.To.SetTarget(cursym.Func.Text.Link)
++	jmp.To.SetTarget(cursym.Func().Text.Link)
+ 	jmp.Spadj = +framesize
+ 
+ 	jls.To.SetTarget(call)

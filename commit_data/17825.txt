@@ -7,6 +7,20 @@ Date:   Mon Oct 21 17:32:45 2013 +1100
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/15510043
-
+---
  src/pkg/net/mail/message.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/mail/message.go b/src/pkg/net/mail/message.go
+index 3a4994804a..dc2ab44dab 100644
+--- a/src/pkg/net/mail/message.go
++++ b/src/pkg/net/mail/message.go
+@@ -521,7 +521,7 @@ func isAtext(c byte, dot bool) bool {
+ 	return bytes.IndexByte(atextChars, c) >= 0
+ }
+ 
+-// isQtext returns true if c is an RFC 5322 qtest character.
++// isQtext returns true if c is an RFC 5322 qtext character.
+ func isQtext(c byte) bool {
+ 	// Printable US-ASCII, excluding backslash or quote.
+ 	if c == '\\' || c == '"' {

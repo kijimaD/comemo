@@ -17,6 +17,41 @@ Date:   Fri Jul 24 12:33:23 2015 -0400
     Change-Id: I0e1bec1ca823d4a697a0831ec4c50f5dd3f2a893
     Reviewed-on: https://go-review.googlesource.com/12673
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgcmark.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 6b622511b5..f7ef41692c 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -644,8 +644,8 @@ func setNextBarrierPC(pc uintptr) {
+ // credit exceeds flushScanCredit.
+ //go:nowritebarrier
+ func gcDrain(gcw *gcWork, flushScanCredit int64) {
+-	if gcphase != _GCmark && gcphase != _GCmarktermination {
+-		throw("scanblock phase incorrect")
++	if !writeBarrierEnabled {
++		throw("gcDrain phase incorrect")
+ 	}
+ 
+ 	var lastScanFlush, nextScanFlush int64
+@@ -696,7 +696,7 @@ func gcDrain(gcw *gcWork, flushScanCredit int64) {
+ // get work, even though there may be more work in the system.
+ //go:nowritebarrier
+ func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
+-	if gcphase != _GCmark {
++	if !writeBarrierEnabled {
+ 		println("gcphase =", gcphase)
+ 		throw("gcDrainUntilPreempt phase incorrect")
+ 	}
+@@ -750,6 +750,9 @@ func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
+ // scanning is always done in whole object increments.
+ //go:nowritebarrier
+ func gcDrainN(gcw *gcWork, scanWork int64) {
++	if !writeBarrierEnabled {
++		throw("gcDrainN phase incorrect")
++	}
+ 	targetScanWork := gcw.scanWork + scanWork
+ 	for gcw.scanWork < targetScanWork {
+ 		// This might be a good place to add prefetch code...

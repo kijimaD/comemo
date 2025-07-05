@@ -22,8 +22,64 @@ Date:   Wed Aug 27 14:08:26 2014 -0400
     TBR=r
     CC=golang-codereviews, iant
     https://golang.org/cl/131450043
-
+---
  src/pkg/runtime/stack.h       |  2 +-
  src/pkg/runtime/stack_test.go |  3 ++-
  test/nosplit.go               | 10 +++++++++-
  3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index ee5fd351d5..b2de78d898 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -94,7 +94,7 @@ enum {
+ 	// After a stack split check the SP is allowed to be this
+ 	// many bytes below the stack guard.  This saves an instruction
+ 	// in the checking sequence for tiny frames.
+-	StackSmall = 128,
++	StackSmall = 96,
+ 
+ 	// The maximum number of bytes that a chain of NOSPLIT
+ 	// functions can use.
+diff --git a/src/pkg/runtime/stack_test.go b/src/pkg/runtime/stack_test.go
+index 08282afd42..956c282136 100644
+--- a/src/pkg/runtime/stack_test.go
++++ b/src/pkg/runtime/stack_test.go
+@@ -15,7 +15,8 @@ import (
+ // See stack.h.
+ const (
+ 	StackGuard = 256
+-	StackLimit = 128
++	StackSmall = 96
++	StackLimit = StackGuard - StackSmall
+ )
+ 
+ // Test stack split logic by calling functions of every frame size
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 35aa51017a..39bb3fcb47 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -242,7 +242,7 @@ TestCases:
+ 			if line == "" {
+ 				continue
+ 			}
+-			for _, subline := range strings.Split(line, ";") {
++			for i, subline := range strings.Split(line, ";") {
+ 				subline = strings.TrimSpace(subline)
+ 				if subline == "" {
+ 					continue
+@@ -255,6 +255,14 @@ TestCases:
+ 				}
+ 				name := m[1]
+ 				size, _ := strconv.Atoi(m[2])
++
++				// CL 131450043 raised the limit from 128 to 160.
++				// Instead of rewriting the test cases above, adjust
++				// the first stack frame to use up the extra 32 bytes.
++				if i == 0 {
++					size += 32
++				}
++
+ 				if goarch == "amd64" && size%8 == 4 {
+ 					continue TestCases
+ 				}

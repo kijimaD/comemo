@@ -10,8 +10,65 @@ Date:   Thu Feb 18 15:09:38 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go       | 6 +++---
  src/cmd/compile/internal/types2/selection.go | 8 ++++----
  src/cmd/compile/internal/types2/type.go      | 5 +++++
  3 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 2819c8252d..b166d34ead 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -237,15 +237,15 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 			}
+ 			recvType2Base := recvType2
+ 			if wantPtr {
+-				recvType2Base = recvType2.Pointer().Elem()
++				recvType2Base = types2.AsPointer(recvType2).Elem()
+ 			}
+-			if len(recvType2Base.Named().TParams()) > 0 {
++			if len(types2.AsNamed(recvType2Base).TParams()) > 0 {
+ 				// recvType2 is the original generic type that is
+ 				// instantiated for this method call.
+ 				// selinfo.Recv() is the instantiated type
+ 				recvType2 = recvType2Base
+ 				// method is the generic method associated with the gen type
+-				method := g.obj(recvType2.Named().Method(last))
++				method := g.obj(types2.AsNamed(recvType2).Method(last))
+ 				n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, method.Sym())
+ 				n.(*ir.SelectorExpr).Selection = types.NewField(pos, method.Sym(), method.Type())
+ 				n.(*ir.SelectorExpr).Selection.Nname = method
+diff --git a/src/cmd/compile/internal/types2/selection.go b/src/cmd/compile/internal/types2/selection.go
+index 4358458b88..67d1aa7e1d 100644
+--- a/src/cmd/compile/internal/types2/selection.go
++++ b/src/cmd/compile/internal/types2/selection.go
+@@ -55,11 +55,11 @@ func (s *Selection) Recv() Type { return s.recv }
+ // TODO(gri):  fix this bug.
+ func (s *Selection) TArgs() []Type {
+ 	r := s.recv
+-	if r.Pointer() != nil {
+-		r = r.Pointer().Elem()
++	if p := asPointer(r); p != nil {
++		r = p.Elem()
+ 	}
+-	if r.Named() != nil {
+-		return r.Named().TArgs()
++	if n := asNamed(r); n != nil {
++		return n.TArgs()
+ 	}
+ 	// The base type (after skipping any pointer) must be a Named type. The
+ 	// bug is that sometimes it can be an instance type (which is supposed to
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index a9ac90246d..1025c18b23 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -971,3 +971,8 @@ func asTypeParam(t Type) *TypeParam {
+ 	u, _ := under(t).(*TypeParam)
+ 	return u
+ }
++
++// Exported for the compiler.
++
++func AsPointer(t Type) *Pointer { return asPointer(t) }
++func AsNamed(t Type) *Named     { return asNamed(t) }

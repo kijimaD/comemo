@@ -14,8 +14,96 @@ Date:   Wed Jul 18 11:16:47 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 ++--
  src/cmd/compile/internal/ssa/rewriteARM64.go |  8 ++++----
  test/fixedbugs/issue26438.go                 | 26 ++++++++++++++++++++++++++
  3 files changed, 32 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index d9e614f61a..4c5f8c7502 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -574,8 +574,8 @@
+ 
+ (EQ (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TST x y) yes no)
+ (NE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TST x y) yes no)
+-(EQ (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TST x y) yes no)
+-(NE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TST x y) yes no)
++(EQ (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TSTW x y) yes no)
++(NE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TSTW x y) yes no)
+ 
+ (EQ (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (TSTconst [c] y) yes no)
+ (NE (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (NE (TSTconst [c] y) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index cea9d03a9d..0715a5347d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -32192,7 +32192,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (EQ (CMPWconst [0] z:(AND x y)) yes no)
+ 		// cond: z.Uses == 1
+-		// result: (EQ (TST x y) yes no)
++		// result: (EQ (TSTW x y) yes no)
+ 		for {
+ 			v := b.Control
+ 			if v.Op != OpARM64CMPWconst {
+@@ -32212,7 +32212,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				break
+ 			}
+ 			b.Kind = BlockARM64EQ
+-			v0 := b.NewValue0(v.Pos, OpARM64TST, types.TypeFlags)
++			v0 := b.NewValue0(v.Pos, OpARM64TSTW, types.TypeFlags)
+ 			v0.AddArg(x)
+ 			v0.AddArg(y)
+ 			b.SetControl(v0)
+@@ -33290,7 +33290,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (NE (CMPWconst [0] z:(AND x y)) yes no)
+ 		// cond: z.Uses == 1
+-		// result: (NE (TST x y) yes no)
++		// result: (NE (TSTW x y) yes no)
+ 		for {
+ 			v := b.Control
+ 			if v.Op != OpARM64CMPWconst {
+@@ -33310,7 +33310,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				break
+ 			}
+ 			b.Kind = BlockARM64NE
+-			v0 := b.NewValue0(v.Pos, OpARM64TST, types.TypeFlags)
++			v0 := b.NewValue0(v.Pos, OpARM64TSTW, types.TypeFlags)
+ 			v0.AddArg(x)
+ 			v0.AddArg(y)
+ 			b.SetControl(v0)
+diff --git a/test/fixedbugs/issue26438.go b/test/fixedbugs/issue26438.go
+new file mode 100644
+index 0000000000..d44da21eb0
+--- /dev/null
++++ b/test/fixedbugs/issue26438.go
+@@ -0,0 +1,26 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 26438: arm64 backend may use 64-bit TST for
++// "if uint32(a)&uint32(b) == 0", which should be
++// 32-bit TSTW
++
++package main
++
++//go:noinline
++func tstw(a, b uint64) uint64 {
++	if uint32(a)&uint32(b) == 0 {
++		return 100
++	} else {
++		return 200
++	}
++}
++
++func main() {
++	if tstw(0xff00000000, 0xaa00000000) == 200 {
++		panic("impossible")
++	}
++}

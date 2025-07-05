@@ -11,10 +11,130 @@ Date:   Thu Oct 31 10:10:08 2024 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/runtime/maps/map.go                   |  7 ++++---
  src/internal/runtime/maps/runtime_fast32_swiss.go  |  7 ++++---
  src/internal/runtime/maps/runtime_fast64_swiss.go  | 14 ++++++++------
  src/internal/runtime/maps/runtime_faststr_swiss.go |  7 ++++---
  src/internal/runtime/maps/table.go                 |  8 ++++----
  5 files changed, 24 insertions(+), 19 deletions(-)
+
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 262f20f5cb..4643960247 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -554,9 +554,10 @@ func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Point
+ 		match = match.removeFirst()
+ 	}
+ 
+-	// No need to look for deleted slots, small maps can't have them (see
+-	// deleteSmall).
+-	match = g.ctrls().matchEmpty()
++	// There can't be deleted slots, small maps can't have them
++	// (see deleteSmall). Use matchEmptyOrDeleted as it is a bit
++	// more efficient than matchEmpty.
++	match = g.ctrls().matchEmptyOrDeleted()
+ 	if match == 0 {
+ 		fatal("small map with no empty slot (concurrent map writes?)")
+ 	}
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+index 33de96b0dc..a61257d5de 100644
+--- a/src/internal/runtime/maps/runtime_fast32_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -160,9 +160,10 @@ func (m *Map) putSlotSmallFast32(typ *abi.SwissMapType, hash uintptr, key uint32
+ 		match = match.removeFirst()
+ 	}
+ 
+-	// No need to look for deleted slots, small maps can't have them (see
+-	// deleteSmall).
+-	match = g.ctrls().matchEmpty()
++	// There can't be deleted slots, small maps can't have them
++	// (see deleteSmall). Use matchEmptyOrDeleted as it is a bit
++	// more efficient than matchEmpty.
++	match = g.ctrls().matchEmptyOrDeleted()
+ 	if match == 0 {
+ 		fatal("small map with no empty slot (concurrent map writes?)")
+ 	}
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index 09a7692213..85e9b7a392 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -159,9 +159,10 @@ func (m *Map) putSlotSmallFast64(typ *abi.SwissMapType, hash uintptr, key uint64
+ 		match = match.removeFirst()
+ 	}
+ 
+-	// No need to look for deleted slots, small maps can't have them (see
+-	// deleteSmall).
+-	match = g.ctrls().matchEmpty()
++	// There can't be deleted slots, small maps can't have them
++	// (see deleteSmall). Use matchEmptyOrDeleted as it is a bit
++	// more efficient than matchEmpty.
++	match = g.ctrls().matchEmptyOrDeleted()
+ 	if match == 0 {
+ 		fatal("small map with no empty slot (concurrent map writes?)")
+ 	}
+@@ -336,9 +337,10 @@ func (m *Map) putSlotSmallFastPtr(typ *abi.SwissMapType, hash uintptr, key unsaf
+ 		match = match.removeFirst()
+ 	}
+ 
+-	// No need to look for deleted slots, small maps can't have them (see
+-	// deleteSmall).
+-	match = g.ctrls().matchEmpty()
++	// There can't be deleted slots, small maps can't have them
++	// (see deleteSmall). Use matchEmptyOrDeleted as it is a bit
++	// more efficient than matchEmpty.
++	match = g.ctrls().matchEmptyOrDeleted()
+ 	if match == 0 {
+ 		fatal("small map with no empty slot (concurrent map writes?)")
+ 	}
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index a103839cb6..b7f88ab1ef 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -176,9 +176,10 @@ func (m *Map) putSlotSmallFastStr(typ *abi.SwissMapType, hash uintptr, key strin
+ 		match = match.removeFirst()
+ 	}
+ 
+-	// No need to look for deleted slots, small maps can't have them (see
+-	// deleteSmall).
+-	match = g.ctrls().matchEmpty()
++	// There can't be deleted slots, small maps can't have them
++	// (see deleteSmall). Use matchEmptyOrDeleted as it is a bit
++	// more efficient than matchEmpty.
++	match = g.ctrls().matchEmptyOrDeleted()
+ 	if match == 0 {
+ 		fatal("small map with no empty slot (concurrent map writes?)")
+ 	}
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index d5ec24e7a6..8eb4a38c07 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -381,6 +381,8 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
+ // Requires that the entry does not exist in the table, and that the table has
+ // room for another element without rehashing.
+ //
++// Requires that there are no deleted entries in the table.
++//
+ // Never returns nil.
+ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+ 	if t.growthLeft == 0 {
+@@ -395,7 +397,7 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe
+ 	for ; ; seq = seq.next() {
+ 		g := t.groups.group(typ, seq.offset)
+ 
+-		match := g.ctrls().matchEmpty()
++		match := g.ctrls().matchEmptyOrDeleted()
+ 		if match != 0 {
+ 			i := match.first()
+ 
+@@ -414,9 +416,7 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe
+ 				slotElem = emem
+ 			}
+ 
+-			if g.ctrls().get(i) == ctrlEmpty {
+-				t.growthLeft--
+-			}
++			t.growthLeft--
+ 			g.ctrls().set(i, ctrl(h2(hash)))
+ 			return slotElem
+ 		}

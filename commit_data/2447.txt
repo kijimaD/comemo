@@ -7,6 +7,20 @@ Date:   Mon Jun 15 15:47:15 2009 -0700
     TBR=rsc
     OCL=30300
     CL=30300
-
+---
  src/pkg/go/parser/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 6179e07439..aabd2248b0 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -654,7 +654,7 @@ func (p *parser) parseResult() []*ast.Field {
+ 
+ 	var results []*ast.Field;
+ 	if p.tok == token.LPAREN {
+-		results = p.parseParameters(false);p
++		results = p.parseParameters(false);
+ 	} else if p.tok != token.FUNC {
+ 		typ := p.tryType();
+ 		if typ != nil {

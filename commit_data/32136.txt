@@ -9,8 +9,84 @@ Date:   Fri Apr 7 09:09:17 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go    |  9 +++++----
  src/cmd/compile/internal/gc/mpfloat.go  |  2 +-
  src/cmd/compile/internal/gc/swt_test.go | 10 +++++++---
  3 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 68d83bb962..e2193ea6ac 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -309,8 +309,9 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 		// if it is an unsafe.Pointer
+ 		case TUINTPTR:
+ 			if n.Type.Etype == TUNSAFEPTR {
+-				n.SetVal(Val{new(Mpint)})
+-				n.Val().U.(*Mpint).SetInt64(0)
++				i := new(Mpint)
++				i.SetInt64(0)
++				n.SetVal(Val{i})
+ 			} else {
+ 				goto bad
+ 			}
+@@ -458,7 +459,7 @@ func toint(v Val) Val {
+ 	case *Mpflt:
+ 		i := new(Mpint)
+ 		if !i.SetFloat(u) {
+-			if i.Ovf {
++			if i.checkOverflow(0) {
+ 				yyerror("integer too large")
+ 			} else {
+ 				// The value of u cannot be represented as an integer;
+@@ -1518,7 +1519,7 @@ func nonnegintconst(n *Node) int64 {
+ 	// Mpint, so we still have to guard the conversion.
+ 	v := toint(n.Val())
+ 	vi, ok := v.U.(*Mpint)
+-	if !ok || vi.Val.Sign() < 0 || vi.Cmp(maxintval[TINT32]) > 0 {
++	if !ok || vi.CmpInt64(0) < 0 || vi.Cmp(maxintval[TINT32]) > 0 {
+ 		return -1
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index 4ff7558357..a8a5335d36 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -38,7 +38,7 @@ func newMpflt() *Mpflt {
+ }
+ 
+ func (a *Mpflt) SetInt(b *Mpint) {
+-	if b.Ovf {
++	if b.checkOverflow(0) {
+ 		// sign doesn't really matter but copy anyway
+ 		a.Val.SetInf(b.Val.Sign() < 0)
+ 		return
+diff --git a/src/cmd/compile/internal/gc/swt_test.go b/src/cmd/compile/internal/gc/swt_test.go
+index 413989855c..74419596d2 100644
+--- a/src/cmd/compile/internal/gc/swt_test.go
++++ b/src/cmd/compile/internal/gc/swt_test.go
+@@ -5,16 +5,20 @@
+ package gc
+ 
+ import (
+-	"math/big"
+ 	"testing"
+ )
+ 
+ func nodrune(r rune) *Node {
+-	return nodlit(Val{&Mpint{Val: *big.NewInt(int64(r)), Rune: true}})
++	v := new(Mpint)
++	v.SetInt64(int64(r))
++	v.Rune = true
++	return nodlit(Val{v})
+ }
+ 
+ func nodflt(f float64) *Node {
+-	return nodlit(Val{&Mpflt{Val: *big.NewFloat(f)}})
++	v := new(Mpflt)
++	v.SetFloat64(f)
++	return nodlit(Val{v})
+ }
+ 
+ func TestCaseClauseByConstVal(t *testing.T) {

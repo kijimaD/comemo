@@ -22,7 +22,64 @@ Date:   Sat Jul 23 22:31:35 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  7 ++-----
  test/fixedbugs/issue53982.go              | 25 +++++++++++++++++++++++++
  2 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index d3f51e00cd..6fcb31b472 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -334,10 +334,6 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 	} else { // ir.OMETHEXPR or ir.METHVALUE
+ 		// Method expression T.M where T is a generic type.
+ 		se := x.(*ir.SelectorExpr)
+-		targs := deref(se.X.Type()).RParams()
+-		if len(targs) == 0 {
+-			panic("bad")
+-		}
+ 		if x.Op() == ir.OMETHVALUE {
+ 			rcvrValue = se.X
+ 		}
+@@ -348,7 +344,8 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 		// of se.Selection, since that will be the type that actually has
+ 		// the method.
+ 		recv := deref(se.Selection.Type.Recv().Type)
+-		if len(recv.RParams()) == 0 {
++		targs := recv.RParams()
++		if len(targs) == 0 {
+ 			// The embedded type that actually has the method is not
+ 			// actually generic, so no need to build a closure.
+ 			return x
+diff --git a/test/fixedbugs/issue53982.go b/test/fixedbugs/issue53982.go
+new file mode 100644
+index 0000000000..512b1af2bc
+--- /dev/null
++++ b/test/fixedbugs/issue53982.go
+@@ -0,0 +1,25 @@
++// build
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S[K, V any] struct {
++	E[V]
++}
++
++type E[K any] struct{}
++
++func (e E[K]) M() E[K] {
++	return e
++}
++
++func G[K, V any](V) {
++	_ = (*S[K, V]).M
++}
++
++func main() {
++	G[*int](new(int))
++}

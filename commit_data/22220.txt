@@ -12,6 +12,22 @@ Date:   Sun Mar 1 08:56:25 2015 -0800
     Change-Id: Id0f79dd0b3487f9d1c74a0856727bba5cc342be4
     Reviewed-on: https://go-review.googlesource.com/6410
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/fmt/doc.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 9dc2a0d75d..9ba11f4a2b 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -225,7 +225,9 @@
+ 		%!s(PANIC=bad)
+ 
+ 	The %!s just shows the print verb in use when the failure
+-	occurred.
++	occurred. If the panic is caused by a nil receiver to an Error
++	or String method, however, the output is the undecorated
++	string, "<nil>".
+ 
+ 	Scanning
+ 

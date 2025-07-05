@@ -13,6 +13,19 @@ Date:   Fri Nov 15 15:53:13 2024 -0800
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/crypto/internal/fips/check/check.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/crypto/internal/fips/check/check.go b/src/crypto/internal/fips/check/check.go
+index 9d1a88d78e..86801c4332 100644
+--- a/src/crypto/internal/fips/check/check.go
++++ b/src/crypto/internal/fips/check/check.go
+@@ -86,7 +86,6 @@ func init() {
+ 		// false negatives. For now, FIPS+ASAN doesn't need to work.
+ 		// If this is made to work, also re-enable the test in check_test.go.
+ 		panic("fips140: cannot verify in asan mode")
+-		return
+ 	}
+ 
+ 	switch v {

@@ -14,9 +14,147 @@ Date:   Fri Oct 18 15:52:00 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/sockcmsg_dragonfly.go  | 16 ++++++++++++++++
  src/syscall/sockcmsg_unix.go       | 26 --------------------------
  src/syscall/sockcmsg_unix_other.go | 38 ++++++++++++++++++++++++++++++++++++++
  src/syscall/syscall_dragonfly.go   | 20 +++++++++++++++++++-
  4 files changed, 73 insertions(+), 27 deletions(-)
+
+diff --git a/src/syscall/sockcmsg_dragonfly.go b/src/syscall/sockcmsg_dragonfly.go
+new file mode 100644
+index 0000000000..d217d9eed1
+--- /dev/null
++++ b/src/syscall/sockcmsg_dragonfly.go
+@@ -0,0 +1,16 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++// Round the length of a raw sockaddr up to align it properly.
++func cmsgAlignOf(salen int) int {
++	salign := sizeofPtr
++	if sizeofPtr == 8 && !supportsABI(_dragonflyABIChangeVersion) {
++		// 64-bit Dragonfly before the September 2019 ABI changes still requires
++		// 32-bit aligned access to network subsystem.
++		salign = 4
++	}
++	return (salen + salign - 1) & ^(salign - 1)
++}
+diff --git a/src/syscall/sockcmsg_unix.go b/src/syscall/sockcmsg_unix.go
+index 4eb0c0b748..1ff97a5ae1 100644
+--- a/src/syscall/sockcmsg_unix.go
++++ b/src/syscall/sockcmsg_unix.go
+@@ -9,35 +9,9 @@
+ package syscall
+ 
+ import (
+-	"runtime"
+ 	"unsafe"
+ )
+ 
+-// Round the length of a raw sockaddr up to align it properly.
+-func cmsgAlignOf(salen int) int {
+-	salign := sizeofPtr
+-
+-	switch runtime.GOOS {
+-	case "aix":
+-		// There is no alignment on AIX.
+-		salign = 1
+-	case "darwin", "dragonfly", "illumos", "solaris":
+-		// NOTE: It seems like 64-bit Darwin, DragonFly BSD and
+-		// Solaris kernels still require 32-bit aligned access to
+-		// network subsystem.
+-		if sizeofPtr == 8 {
+-			salign = 4
+-		}
+-	case "netbsd", "openbsd":
+-		// NetBSD and OpenBSD armv7 require 64-bit alignment.
+-		if runtime.GOARCH == "arm" {
+-			salign = 8
+-		}
+-	}
+-
+-	return (salen + salign - 1) & ^(salign - 1)
+-}
+-
+ // CmsgLen returns the value to store in the Len field of the Cmsghdr
+ // structure, taking into account any necessary alignment.
+ func CmsgLen(datalen int) int {
+diff --git a/src/syscall/sockcmsg_unix_other.go b/src/syscall/sockcmsg_unix_other.go
+new file mode 100644
+index 0000000000..fbafbf8341
+--- /dev/null
++++ b/src/syscall/sockcmsg_unix_other.go
+@@ -0,0 +1,38 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix darwin freebsd linux netbsd openbsd solaris
++
++package syscall
++
++import (
++	"runtime"
++)
++
++// Round the length of a raw sockaddr up to align it properly.
++func cmsgAlignOf(salen int) int {
++	salign := sizeofPtr
++
++	// dragonfly needs to check ABI version at runtime, see cmsgAlignOf in
++	// sockcmsg_dragonfly.go
++	switch runtime.GOOS {
++	case "aix":
++		// There is no alignment on AIX.
++		salign = 1
++	case "darwin", "illumos", "solaris":
++		// NOTE: It seems like 64-bit Darwin, Illumos and Solaris
++		// kernels still require 32-bit aligned access to network
++		// subsystem.
++		if sizeofPtr == 8 {
++			salign = 4
++		}
++	case "netbsd", "openbsd":
++		// NetBSD and OpenBSD armv7 require 64-bit alignment.
++		if runtime.GOARCH == "arm" {
++			salign = 8
++		}
++	}
++
++	return (salen + salign - 1) & ^(salign - 1)
++}
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 56dd0d76e9..0988fe4608 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -12,7 +12,25 @@
+ 
+ package syscall
+ 
+-import "unsafe"
++import (
++	"sync"
++	"unsafe"
++)
++
++// See version list in https://github.com/DragonFlyBSD/DragonFlyBSD/blob/master/sys/sys/param.h
++var (
++	osreldateOnce sync.Once
++	osreldate     uint32
++)
++
++// First __DragonFly_version after September 2019 ABI changes
++// http://lists.dragonflybsd.org/pipermail/users/2019-September/358280.html
++const _dragonflyABIChangeVersion = 500705
++
++func supportsABI(ver uint32) bool {
++	osreldateOnce.Do(func() { osreldate, _ = SysctlUint32("kern.osreldate") })
++	return osreldate >= ver
++}
+ 
+ type SockaddrDatalink struct {
+ 	Len    uint8

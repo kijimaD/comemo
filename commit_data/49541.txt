@@ -16,7 +16,61 @@ Date:   Thu Aug 26 12:27:06 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/345472
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types2/signature.go        |  8 +++++++-
  .../types2/testdata/fixedbugs/issue47968.go2        | 21 +++++++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index d28e7b8944..ddad1f0311 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -132,7 +132,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 				// Also: Don't report an error via genericType since it will be reported
+ 				//       again when we type-check the signature.
+ 				// TODO(gri) maybe the receiver should be marked as invalid instead?
+-				if recv := asNamed(check.genericType(rname, false)); recv != nil {
++				if recv, _ := check.genericType(rname, false).(*Named); recv != nil {
+ 					recvTParams = recv.TParams().list()
+ 				}
+ 			}
+@@ -211,6 +211,12 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 			switch T := rtyp.(type) {
+ 			case *Named:
+ 				T.expand(nil)
++				// The receiver type may be an instantiated type referred to
++				// by an alias (which cannot have receiver parameters for now).
++				if T.TArgs() != nil && sig.RParams() == nil {
++					check.errorf(recv.pos, "cannot define methods on instantiated type %s", recv.typ)
++					break
++				}
+ 				// spec: "The type denoted by T is called the receiver base type; it must not
+ 				// be a pointer or interface type and it must be declared in the same package
+ 				// as the method."
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go2
+new file mode 100644
+index 0000000000..bbbe6805f2
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go2
+@@ -0,0 +1,21 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T[P any] struct{}
++
++func (T[P]) m1()
++
++type A1 = T
++
++func (A1[P]) m2() {}
++
++type A2 = T[int]
++
++func (A2 /* ERROR cannot define methods on instantiated type T\[int\] */) m3()   {}
++func (_ /* ERROR cannot define methods on instantiated type T\[int\] */ A2) m4() {}
++
++func (T[int]) m5()                                     {} // int is the type parameter name, not an instantiation
++func (T[* /* ERROR must be an identifier */ int]) m6() {} // syntax error

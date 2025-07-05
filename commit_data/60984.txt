@@ -12,6 +12,19 @@ Date:   Mon Sep 16 10:41:28 2024 -0700
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Tim King <taking@google.com>
-
+---
  src/math/big/natdiv.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/math/big/natdiv.go b/src/math/big/natdiv.go
+index 084ac72658..2e66e3425c 100644
+--- a/src/math/big/natdiv.go
++++ b/src/math/big/natdiv.go
+@@ -643,6 +643,7 @@ func (q nat) divBasic(u, v nat) {
+ 	rec := reciprocalWord(vn1)
+ 
+ 	// Invent a leading 0 for u, for the first iteration.
++	// Invariant: ujn == u[j+n] in each iteration.
+ 	ujn := Word(0)
+ 
+ 	// Compute each digit of quotient.

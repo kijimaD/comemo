@@ -20,8 +20,54 @@ Date:   Thu Jan 4 13:25:31 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/86238
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/test2json/test2json.go             |  1 +
  src/cmd/internal/test2json/testdata/issue23036.json | 12 ++++++++++++
  src/cmd/internal/test2json/testdata/issue23036.test |  9 +++++++++
  3 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index 3e09c8d915..a113c2e0ee 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -226,6 +226,7 @@ func (c *converter) handleInputLine(line []byte) {
+ 		if len(c.report) < indent {
+ 			// Nested deeper than expected.
+ 			// Treat this line as plain output.
++			c.output.write(origLine)
+ 			return
+ 		}
+ 		// Flush reports at this indentation level or deeper.
+diff --git a/src/cmd/internal/test2json/testdata/issue23036.json b/src/cmd/internal/test2json/testdata/issue23036.json
+new file mode 100644
+index 0000000000..935c0c5fc0
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/issue23036.json
+@@ -0,0 +1,12 @@
++{"Action":"run","Test":"TestActualCase"}
++{"Action":"output","Test":"TestActualCase","Output":"=== RUN   TestActualCase\n"}
++{"Action":"output","Test":"TestActualCase","Output":"--- FAIL: TestActualCase (0.00s)\n"}
++{"Action":"output","Test":"TestActualCase","Output":"        foo_test.go:14: Differed.\n"}
++{"Action":"output","Test":"TestActualCase","Output":"                Expected: MyTest:\n"}
++{"Action":"output","Test":"TestActualCase","Output":"                --- FAIL: Test output from other tool\n"}
++{"Action":"output","Test":"TestActualCase","Output":"                Actual: not expected\n"}
++{"Action":"fail","Test":"TestActualCase"}
++{"Action":"output","Output":"FAIL\n"}
++{"Action":"output","Output":"exit status 1\n"}
++{"Action":"output","Output":"FAIL    github.com/org/project/badtest     0.049s\n"}
++{"Action":"fail"}
+diff --git a/src/cmd/internal/test2json/testdata/issue23036.test b/src/cmd/internal/test2json/testdata/issue23036.test
+new file mode 100644
+index 0000000000..fd4774f4b6
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/issue23036.test
+@@ -0,0 +1,9 @@
++=== RUN   TestActualCase
++--- FAIL: TestActualCase (0.00s)
++        foo_test.go:14: Differed.
++                Expected: MyTest:
++                --- FAIL: Test output from other tool
++                Actual: not expected
++FAIL
++exit status 1
++FAIL    github.com/org/project/badtest     0.049s

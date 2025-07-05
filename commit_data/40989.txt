@@ -11,7 +11,34 @@ Date:   Fri Aug 23 00:15:40 2019 +0700
     Change-Id: I6c5eece5221f524556ee55db80de0e4bdfaf166e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191357
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go   | 2 +-
  src/cmd/compile/internal/types/type.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 64716d8402..15850d72a1 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -64,7 +64,7 @@ func order(fn *Node) {
+ func (o *Order) newTemp(t *types.Type, clear bool) *Node {
+ 	var v *Node
+ 	// Note: LongString is close to the type equality we want,
+-	// but not exactly. We still need to double-check with eqtype.
++	// but not exactly. We still need to double-check with types.Identical.
+ 	key := t.LongString()
+ 	a := o.free[key]
+ 	for i, n := range a {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index e2f3e66d8b..e4ab40c4fd 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1013,7 +1013,7 @@ func (r *Sym) cmpsym(s *Sym) Cmp {
+ // TODO(josharian): make this safe for recursive interface types
+ // and use in signatlist sorting. See issue 19869.
+ func (t *Type) cmp(x *Type) Cmp {
+-	// This follows the structure of eqtype in subr.go
++	// This follows the structure of function identical in identity.go
+ 	// with two exceptions.
+ 	// 1. Symbols are compared more carefully because a <,=,> result is desired.
+ 	// 2. Maps are treated specially to avoid endless recursion -- maps

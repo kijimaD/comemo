@@ -12,7 +12,7 @@ Date:   Wed Aug 1 01:49:55 2018 +0800
     Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modconv/convert.go           | 32 ++++++----
  src/cmd/go/internal/modconv/dep.go               | 66 ++++++++++++++++++--
  src/cmd/go/internal/modconv/modconv_test.go      |  3 +
@@ -20,3 +20,330 @@ Date:   Wed Aug 1 01:49:55 2018 +0800
  src/cmd/go/internal/modconv/testdata/traefik.out | 14 +++++
  src/cmd/go/testdata/script/mod_init_dep.txt      | 23 +++++++
  6 files changed, 202 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/modconv/convert.go b/src/cmd/go/internal/modconv/convert.go
+index 6fc6718e47..558664a8b3 100644
+--- a/src/cmd/go/internal/modconv/convert.go
++++ b/src/cmd/go/internal/modconv/convert.go
+@@ -41,19 +41,29 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
+ 
+ 	// Convert requirements block, which may use raw SHA1 hashes as versions,
+ 	// to valid semver requirement list, respecting major versions.
+-	var work par.Work
++	var (
++		work    par.Work
++		mu      sync.Mutex
++		need    = make(map[string]string)
++		replace = make(map[string]*modfile.Replace)
++	)
++
++	for _, r := range mf.Replace {
++		replace[r.New.Path] = r
++		replace[r.Old.Path] = r
++	}
+ 	for _, r := range mf.Require {
+ 		m := r.Mod
+ 		if m.Path == "" {
+ 			continue
+ 		}
++		if re, ok := replace[m.Path]; ok {
++			work.Add(re.New)
++			continue
++		}
+ 		work.Add(r.Mod)
+ 	}
+ 
+-	var (
+-		mu   sync.Mutex
+-		need = make(map[string]string)
+-	)
+ 	work.Do(10, func(item interface{}) {
+ 		r := item.(module.Version)
+ 		repo, info, err := modfetch.ImportRepoRev(r.Path, r.Version)
+@@ -76,15 +86,15 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
+ 	}
+ 	sort.Strings(paths)
+ 	for _, path := range paths {
++		if re, ok := replace[path]; ok {
++			err := f.AddReplace(re.Old.Path, re.Old.Version, path, need[path])
++			if err != nil {
++				return fmt.Errorf("add replace: %v", err)
++			}
++		}
+ 		f.AddNewRequire(path, need[path], false)
+ 	}
+ 
+-	for _, r := range mf.Replace {
+-		err := f.AddReplace(r.Old.Path, r.Old.Version, r.New.Path, r.New.Version)
+-		if err != nil {
+-			return fmt.Errorf("add replace: %v", err)
+-		}
+-	}
+ 	f.Cleanup()
+ 	return nil
+ }
+diff --git a/src/cmd/go/internal/modconv/dep.go b/src/cmd/go/internal/modconv/dep.go
+index 690c206a13..f433300171 100644
+--- a/src/cmd/go/internal/modconv/dep.go
++++ b/src/cmd/go/internal/modconv/dep.go
+@@ -6,6 +6,9 @@ package modconv
+ 
+ import (
+ 	"fmt"
++	"net/url"
++	"path"
++	"regexp"
+ 	"strconv"
+ 	"strings"
+ 
+@@ -15,9 +18,14 @@ import (
+ )
+ 
+ func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {
++	type pkg struct {
++		Path    string
++		Version string
++		Source  string
++	}
+ 	mf := new(modfile.File)
+-	var list []module.Version
+-	var r *module.Version
++	var list []pkg
++	var r *pkg
+ 	for lineno, line := range strings.Split(string(data), "\n") {
+ 		lineno++
+ 		if i := strings.Index(line, "#"); i >= 0 {
+@@ -25,7 +33,7 @@ func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {
+ 		}
+ 		line = strings.TrimSpace(line)
+ 		if line == "[[projects]]" {
+-			list = append(list, module.Version{})
++			list = append(list, pkg{})
+ 			r = &list[len(list)-1]
+ 			continue
+ 		}
+@@ -52,6 +60,8 @@ func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {
+ 		switch key {
+ 		case "name":
+ 			r.Path = val
++		case "source":
++			r.Source = val
+ 		case "revision", "version":
+ 			// Note: key "version" should take priority over "revision",
+ 			// and it does, because dep writes toml keys in alphabetical order,
+@@ -68,7 +78,55 @@ func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {
+ 		if r.Path == "" || r.Version == "" {
+ 			return nil, fmt.Errorf("%s: empty [[projects]] stanza (%s)", file, r.Path)
+ 		}
+-		mf.Require = append(mf.Require, &modfile.Require{Mod: r})
++		mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: r.Path, Version: r.Version}})
++
++		if r.Source != "" {
++			// Convert "source" to import path, such as
++			// git@test.com:x/y.git and https://test.com/x/y.git.
++			// We get "test.com/x/y" at last.
++			source, err := decodeSource(r.Source)
++			if err != nil {
++				return nil, err
++			}
++			old := module.Version{Path: r.Path, Version: r.Version}
++			new := module.Version{Path: source, Version: r.Version}
++			mf.Replace = append(mf.Replace, &modfile.Replace{Old: old, New: new})
++		}
+ 	}
+ 	return mf, nil
+ }
++
++var scpSyntaxReg = regexp.MustCompile(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
++
++func decodeSource(source string) (string, error) {
++	var u *url.URL
++	var p string
++	if m := scpSyntaxReg.FindStringSubmatch(source); m != nil {
++		// Match SCP-like syntax and convert it to a URL.
++		// Eg, "git@github.com:user/repo" becomes
++		// "ssh://git@github.com/user/repo".
++		u = &url.URL{
++			Scheme: "ssh",
++			User:   url.User(m[1]),
++			Host:   m[2],
++			Path:   "/" + m[3],
++		}
++	} else {
++		var err error
++		u, err = url.Parse(source)
++		if err != nil {
++			return "", fmt.Errorf("%q is not a valid URI", source)
++		}
++	}
++
++	// If no scheme was passed, then the entire path will have been put into
++	// u.Path. Either way, construct the normalized path correctly.
++	if u.Host == "" {
++		p = source
++	} else {
++		p = path.Join(u.Host, u.Path)
++	}
++	p = strings.TrimSuffix(p, ".git")
++	p = strings.TrimSuffix(p, ".hg")
++	return p, nil
++}
+diff --git a/src/cmd/go/internal/modconv/modconv_test.go b/src/cmd/go/internal/modconv/modconv_test.go
+index 353161bc5a..ccc4f3d576 100644
+--- a/src/cmd/go/internal/modconv/modconv_test.go
++++ b/src/cmd/go/internal/modconv/modconv_test.go
+@@ -58,6 +58,9 @@ func Test(t *testing.T) {
+ 			for _, r := range out.Require {
+ 				fmt.Fprintf(&buf, "%s %s\n", r.Mod.Path, r.Mod.Version)
+ 			}
++			for _, r := range out.Replace {
++				fmt.Fprintf(&buf, "replace: %s %s %s %s\n", r.Old.Path, r.Old.Version, r.New.Path, r.New.Version)
++			}
+ 			if !bytes.Equal(buf.Bytes(), want) {
+ 				t.Errorf("have:\n%s\nwant:\n%s", buf.Bytes(), want)
+ 			}
+diff --git a/src/cmd/go/internal/modconv/testdata/traefik.dep b/src/cmd/go/internal/modconv/testdata/traefik.dep
+new file mode 100644
+index 0000000000..8510f0f849
+--- /dev/null
++++ b/src/cmd/go/internal/modconv/testdata/traefik.dep
+@@ -0,0 +1,79 @@
++# This file is autogenerated, do not edit; changes may be undone by the next 'dep ensure'.
++
++[[projects]]
++  name = "github.com/Nvveen/Gotty"
++  packages = ["."]
++  revision = "a8b993ba6abdb0e0c12b0125c603323a71c7790c"
++  source = "github.com/ijc25/Gotty"
++
++[[projects]]
++  branch = "master"
++  name = "github.com/OpenDNS/vegadns2client"
++  packages = ["."]
++  revision = "a3fa4a771d87bda2514a90a157e1fed1b6897d2e"
++
++[[projects]]
++  name = "github.com/PuerkitoBio/purell"
++  packages = ["."]
++  revision = "8a290539e2e8629dbc4e6bad948158f790ec31f4"
++  version = "v1.0.0"
++
++[[projects]]
++  name = "github.com/PuerkitoBio/urlesc"
++  packages = ["."]
++  revision = "5bd2802263f21d8788851d5305584c82a5c75d7e"
++
++[[projects]]
++  name = "github.com/Shopify/sarama"
++  packages = ["."]
++  revision = "70f6a705d4a17af059acbc6946fb2bd30762acd7"
++
++[[projects]]
++  name = "github.com/VividCortex/gohistogram"
++  packages = ["."]
++  revision = "51564d9861991fb0ad0f531c99ef602d0f9866e6"
++  version = "v1.0.0"
++
++[[projects]]
++  branch = "containous-fork"
++  name = "github.com/abbot/go-http-auth"
++  packages = ["."]
++  revision = "65b0cdae8d7fe5c05c7430e055938ef6d24a66c9"
++  source = "github.com/containous/go-http-auth"
++
++[[projects]]
++  branch = "master"
++  name = "github.com/abronan/valkeyrie"
++  packages = [
++    ".",
++    "store",
++    "store/boltdb",
++    "store/consul",
++    "store/etcd/v2",
++    "store/etcd/v3",
++    "store/zookeeper"
++  ]
++  revision = "063d875e3c5fd734fa2aa12fac83829f62acfc70"
++  
++[[projects]]
++  branch = "master"
++  name = "github.com/mesosphere/mesos-dns"
++  packages = [
++    "detect",
++    "errorutil",
++    "logging",
++    "models",
++    "records",
++    "records/labels",
++    "records/state",
++    "util"
++  ]
++  revision = "b47dc4c19f215e98da687b15b4c64e70f629bea5"
++  source = "git@github.com:containous/mesos-dns.git"
++
++  [[projects]]
++  name = "gopkg.in/fsnotify.v1"
++  packages = ["."]
++  revision = "629574ca2a5df945712d3079857300b5e4da0236"
++  source = "github.com/fsnotify/fsnotify"
++  version = "v1.4.2"
+\ No newline at end of file
+diff --git a/src/cmd/go/internal/modconv/testdata/traefik.out b/src/cmd/go/internal/modconv/testdata/traefik.out
+new file mode 100644
+index 0000000000..5054295383
+--- /dev/null
++++ b/src/cmd/go/internal/modconv/testdata/traefik.out
+@@ -0,0 +1,14 @@
++github.com/Nvveen/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c
++github.com/OpenDNS/vegadns2client a3fa4a771d87bda2514a90a157e1fed1b6897d2e
++github.com/PuerkitoBio/purell v1.0.0
++github.com/PuerkitoBio/urlesc 5bd2802263f21d8788851d5305584c82a5c75d7e
++github.com/Shopify/sarama 70f6a705d4a17af059acbc6946fb2bd30762acd7
++github.com/VividCortex/gohistogram v1.0.0
++github.com/abbot/go-http-auth 65b0cdae8d7fe5c05c7430e055938ef6d24a66c9
++github.com/abronan/valkeyrie 063d875e3c5fd734fa2aa12fac83829f62acfc70
++github.com/mesosphere/mesos-dns b47dc4c19f215e98da687b15b4c64e70f629bea5
++gopkg.in/fsnotify.v1 v1.4.2
++replace: github.com/Nvveen/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c github.com/ijc25/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c
++replace: github.com/abbot/go-http-auth 65b0cdae8d7fe5c05c7430e055938ef6d24a66c9 github.com/containous/go-http-auth 65b0cdae8d7fe5c05c7430e055938ef6d24a66c9
++replace: github.com/mesosphere/mesos-dns b47dc4c19f215e98da687b15b4c64e70f629bea5 github.com/containous/mesos-dns b47dc4c19f215e98da687b15b4c64e70f629bea5
++replace: gopkg.in/fsnotify.v1 v1.4.2 github.com/fsnotify/fsnotify v1.4.2
+diff --git a/src/cmd/go/testdata/script/mod_init_dep.txt b/src/cmd/go/testdata/script/mod_init_dep.txt
+index 29c840b383..8cb3fa836e 100644
+--- a/src/cmd/go/testdata/script/mod_init_dep.txt
++++ b/src/cmd/go/testdata/script/mod_init_dep.txt
+@@ -21,6 +21,11 @@ go list
+ go list -m all
+ stdout 'rsc.io/sampler v1.0.0'
+ 
++# test dep replacement
++cd y
++go mod init
++cmp go.mod go.mod.replace
++
+ -- go.mod1 --
+ module x
+ 
+@@ -32,3 +37,21 @@ package x
+   name = "rsc.io/sampler"
+   version = "v1.0.0"
+ 
++-- y/Gopkg.lock --
++[[projects]]
++  name = "z"
++  revision = "v1.0.0"
++  source = "rsc.io/quote"
++
++-- y/y.go --
++package y // import "y"
++import _ "z"
++
++-- y/go.mod.replace --
++module y
++
++go 1.13
++
++replace z v1.0.0 => rsc.io/quote v1.0.0
++
++require rsc.io/quote v1.0.0
+\ No newline at end of file

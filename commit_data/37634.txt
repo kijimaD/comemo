@@ -14,7 +14,81 @@ Date:   Mon Aug 20 21:42:02 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 30 ++++++++++++++++++++++--------
  src/cmd/go/internal/modload/help.go | 14 +++++++++++++-
  2 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 1585dd5b1f..0aa69a0aba 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -905,13 +905,15 @@
+ // corresponding to this Go struct:
+ //
+ //     type Module struct {
+-//         Path    string // module path
+-//         Version string // module version
+-//         Error   string // error loading module
+-//         Info    string // absolute path to cached .info file
+-//         GoMod   string // absolute path to cached .mod file
+-//         Zip     string // absolute path to cached .zip file
+-//         Dir     string // absolute path to cached source root directory
++//         Path     string // module path
++//         Version  string // module version
++//         Error    string // error loading module
++//         Info     string // absolute path to cached .info file
++//         GoMod    string // absolute path to cached .mod file
++//         Zip      string // absolute path to cached .zip file
++//         Dir      string // absolute path to cached source root directory
++//         Sum      string // checksum for path, version (as in go.sum)
++//         GoModSum string // checksum for go.mod (as in go.sum)
+ //     }
+ //
+ // See 'go help modules' for more about module queries.
+@@ -1617,7 +1619,19 @@
+ //
+ // The go command automatically updates go.mod each time it uses the
+ // module graph, to make sure go.mod always accurately reflects reality
+-// and is properly formatted.
++// and is properly formatted. For example, consider this go.mod file:
++//
++//         module M
++//
++//         require (
++//                 A v1
++//                 B v1.0.0
++//                 C v1.0.0
++//                 D v1.2.3
++//                 E dev
++//         )
++//
++//         exclude D v1.2.3
+ //
+ // The update rewrites non-canonical version identifiers to semver form,
+ // so A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index 9a12b24482..f2f3419724 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -420,7 +420,19 @@ See 'go help mod edit'.
+ 
+ The go command automatically updates go.mod each time it uses the
+ module graph, to make sure go.mod always accurately reflects reality
+-and is properly formatted.
++and is properly formatted. For example, consider this go.mod file:
++
++        module M
++
++        require (
++                A v1
++                B v1.0.0
++                C v1.0.0
++                D v1.2.3
++                E dev
++        )
++
++        exclude D v1.2.3
+ 
+ The update rewrites non-canonical version identifiers to semver form,
+ so A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the

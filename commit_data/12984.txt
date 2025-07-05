@@ -9,7 +9,7 @@ Date:   Fri Apr 27 16:36:02 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6134043
-
+---
  misc/dashboard/codereview/app.yaml               |  24 +++
  misc/dashboard/codereview/cron.yaml              |   4 +
  misc/dashboard/codereview/dashboard/cl.go        | 250 +++++++++++++++++++++++
@@ -22,3 +22,723 @@ Date:   Fri Apr 27 16:36:02 2012 +1000
  misc/dashboard/codereview/static/gopherstamp.jpg | Bin 0 -> 16996 bytes
  misc/dashboard/codereview/static/icon.png        | Bin 0 -> 4347 bytes
  11 files changed, 657 insertions(+)
+
+diff --git a/misc/dashboard/codereview/app.yaml b/misc/dashboard/codereview/app.yaml
+new file mode 100644
+index 0000000000..33592a45c4
+--- /dev/null
++++ b/misc/dashboard/codereview/app.yaml
+@@ -0,0 +1,24 @@
++application: gocodereview
++version: 1
++runtime: go
++api_version: go1
++
++inbound_services:
++- mail
++
++handlers:
++- url: /static/(.*)
++  static_files: static/\1
++  upload: static/.*
++- url: /_ah/mail/.*
++  script: _go_app
++  login: admin
++- url: /_ah/queue/go/delay
++  script: _go_app
++  login: admin
++- url: /update-cl
++  script: _go_app
++  login: admin
++- url: /.*
++  script: _go_app
++  login: required
+diff --git a/misc/dashboard/codereview/cron.yaml b/misc/dashboard/codereview/cron.yaml
+new file mode 100644
+index 0000000000..3d33d32b57
+--- /dev/null
++++ b/misc/dashboard/codereview/cron.yaml
+@@ -0,0 +1,4 @@
++cron:
++- description: GC
++  url: /gc
++  schedule: every 6 hours
+diff --git a/misc/dashboard/codereview/dashboard/cl.go b/misc/dashboard/codereview/dashboard/cl.go
+new file mode 100644
+index 0000000000..a023ff6ab8
+--- /dev/null
++++ b/misc/dashboard/codereview/dashboard/cl.go
+@@ -0,0 +1,250 @@
++package dashboard
++
++// This file handles operations on the CL entity kind.
++
++import (
++	"encoding/json"
++	"fmt"
++	"html/template"
++	"io"
++	"net/http"
++	"net/url"
++	"regexp"
++	"sort"
++	"strings"
++	"time"
++
++	"appengine"
++	"appengine/datastore"
++	"appengine/taskqueue"
++	"appengine/urlfetch"
++	"appengine/user"
++)
++
++func init() {
++	http.HandleFunc("/assign", handleAssign)
++	http.HandleFunc("/update-cl", handleUpdateCL)
++}
++
++const codereviewBase = "http://codereview.appspot.com"
++
++var clRegexp = regexp.MustCompile(`\d+`)
++
++// CL represents a code review.
++type CL struct {
++	Number string // e.g. "5903061"
++	Closed bool
++	Owner  string // email address
++
++	Created, Modified time.Time
++
++	Description []byte `datastore:",noindex"`
++	FirstLine   string `datastore:",noindex"`
++	LGTMs       []string
++
++	// These are person IDs (e.g. "rsc"); they may be empty
++	Author   string
++	Reviewer string
++}
++
++// ShortOwner returns the CL's owner, either as their email address
++// or the person ID if it's a reviewer. It is for display only.
++func (cl *CL) ShortOwner() string {
++	if p, ok := emailToPerson[cl.Owner]; ok {
++		return p
++	}
++	return cl.Owner
++}
++
++func (cl *CL) FirstLineHTML() template.HTML {
++	s := template.HTMLEscapeString(cl.FirstLine)
++	// Embolden the package name.
++	if i := strings.Index(s, ":"); i >= 0 {
++		s = "<b>" + s[:i] + "</b>" + s[i:]
++	}
++	return template.HTML(s)
++}
++
++func (cl *CL) LGTMHTML() template.HTML {
++	x := make([]string, len(cl.LGTMs))
++	for i, s := range cl.LGTMs {
++		s = template.HTMLEscapeString(s)
++		if !strings.Contains(s, "@") {
++			s = "<b>" + s + "</b>"
++		}
++		s = `<span class="email">` + s + "</span>"
++		x[i] = s
++	}
++	return template.HTML(strings.Join(x, ", "))
++}
++
++func (cl *CL) ModifiedAgo() string {
++	d := time.Now().Sub(cl.Modified)
++	d -= d % time.Minute // truncate to minute resolution
++	s := d.String()
++	if strings.HasSuffix(s, "0s") {
++		s = s[:len(s)-2]
++	}
++	return s
++}
++
++func handleAssign(w http.ResponseWriter, r *http.Request) {
++	c := appengine.NewContext(r)
++
++	if r.Method != "POST" {
++		http.Error(w, "Bad method "+r.Method, 400)
++		return
++	}
++
++	if _, ok := emailToPerson[user.Current(c).Email]; !ok {
++		http.Error(w, "Not allowed", http.StatusUnauthorized)
++		return
++	}
++
++	n, rev := r.FormValue("cl"), r.FormValue("r")
++	if !clRegexp.MatchString(n) {
++		c.Errorf("Bad CL %q", n)
++		http.Error(w, "Bad CL", 400)
++		return
++	}
++
++	key := datastore.NewKey(c, "CL", n, 0, nil)
++	err := datastore.RunInTransaction(c, func(c appengine.Context) error {
++		cl := new(CL)
++		err := datastore.Get(c, key, cl)
++		if err != nil {
++			return err
++		}
++		cl.Reviewer = rev
++		_, err = datastore.Put(c, key, cl)
++		return err
++	}, nil)
++	if err != nil {
++		msg := fmt.Sprintf("Assignment failed: %v", err)
++		c.Errorf("%s", msg)
++		http.Error(w, msg, 500)
++		return
++	}
++	c.Infof("Assigned CL %v to %v", n, rev)
++}
++
++func UpdateCLLater(c appengine.Context, n string, delay time.Duration) {
++	t := taskqueue.NewPOSTTask("/update-cl", url.Values{
++		"cl": []string{n},
++	})
++	t.Delay = delay
++	if _, err := taskqueue.Add(c, t, "update-cl"); err != nil {
++		c.Errorf("Failed adding task: %v", err)
++	}
++}
++
++func handleUpdateCL(w http.ResponseWriter, r *http.Request) {
++	c := appengine.NewContext(r)
++
++	n := r.FormValue("cl")
++	if !clRegexp.MatchString(n) {
++		c.Errorf("Bad CL %q", n)
++		http.Error(w, "Bad CL", 400)
++		return
++	}
++
++	if err := updateCL(c, n); err != nil {
++		c.Errorf("Failed updating CL %v: %v", n, err)
++		http.Error(w, "Failed update", 500)
++		return
++	}
++
++	io.WriteString(w, "OK")
++}
++
++// updateCL updates a single CL. If a retryable failure occurs, an error is returned.
++func updateCL(c appengine.Context, n string) error {
++	c.Debugf("Updating CL %v", n)
++
++	url := codereviewBase + "/api/" + n + "?messages=true"
++	resp, err := urlfetch.Client(c).Get(url)
++	if err != nil {
++		return err
++	}
++	defer resp.Body.Close()
++	if resp.StatusCode != 200 {
++		return fmt.Errorf("Update: got HTTP response %d", resp.StatusCode)
++	}
++
++	var apiResp struct {
++		Description string `json:"description"`
++		Created     string `json:"created"`
++		OwnerEmail  string `json:"owner_email"`
++		Modified    string `json:"modified"`
++		Closed      bool   `json:"closed"`
++		Messages    []struct {
++			Text     string `json:"text"`
++			Sender   string `json:"sender"`
++			Approval bool   `json:"approval"`
++		} `json:"messages"`
++	}
++	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
++		// probably can't be retried
++		c.Errorf("Malformed JSON from %v: %v", url, err)
++		return nil
++	}
++	//c.Infof("RAW: %+v", apiResp)
++
++	cl := &CL{
++		Number:      n,
++		Closed:      apiResp.Closed,
++		Owner:       apiResp.OwnerEmail,
++		Description: []byte(apiResp.Description),
++		FirstLine:   apiResp.Description,
++		Author:      emailToPerson[apiResp.OwnerEmail],
++	}
++	cl.Created, err = time.Parse("2006-01-02 15:04:05.000000", apiResp.Created)
++	if err != nil {
++		c.Errorf("Bad creation time %q: %v", apiResp.Created, err)
++	}
++	cl.Modified, err = time.Parse("2006-01-02 15:04:05.000000", apiResp.Modified)
++	if err != nil {
++		c.Errorf("Bad modification time %q: %v", apiResp.Modified, err)
++	}
++	if i := strings.Index(cl.FirstLine, "\n"); i >= 0 {
++		cl.FirstLine = cl.FirstLine[:i]
++	}
++	for _, msg := range apiResp.Messages {
++		s, rev := msg.Sender, false
++		if p, ok := emailToPerson[s]; ok {
++			s, rev = p, true
++		}
++
++		// CLs submitted by someone other than the CL owner do not immediately
++		// transition to "closed". Let's simulate the intention by treating
++		// messages starting with "*** Submitted as " from a reviewer as a
++		// signal that the CL is now closed.
++		if rev && strings.HasPrefix(msg.Text, "*** Submitted as ") {
++			cl.Closed = true
++		}
++
++		if msg.Approval {
++			cl.LGTMs = append(cl.LGTMs, s)
++		}
++	}
++	sort.Strings(cl.LGTMs)
++
++	key := datastore.NewKey(c, "CL", n, 0, nil)
++	err = datastore.RunInTransaction(c, func(c appengine.Context) error {
++		ocl := new(CL)
++		err := datastore.Get(c, key, ocl)
++		if err != nil && err != datastore.ErrNoSuchEntity {
++			return err
++		} else if err == nil {
++			// Reviewer is the only field that needs preserving.
++			cl.Reviewer = ocl.Reviewer
++		}
++		_, err = datastore.Put(c, key, cl)
++		return err
++	}, nil)
++	if err != nil {
++		return err
++	}
++	c.Infof("Updated CL %v", n)
++	return nil
++}
+diff --git a/misc/dashboard/codereview/dashboard/front.go b/misc/dashboard/codereview/dashboard/front.go
+new file mode 100644
+index 0000000000..efdfe29467
+--- /dev/null
++++ b/misc/dashboard/codereview/dashboard/front.go
+@@ -0,0 +1,240 @@
++package dashboard
++
++// This file handles the front page.
++
++import (
++	"bytes"
++	"html/template"
++	"io"
++	"net/http"
++	"sync"
++
++	"appengine"
++	"appengine/datastore"
++	"appengine/user"
++)
++
++func init() {
++	http.HandleFunc("/", handleFront)
++	http.HandleFunc("/favicon.ico", http.NotFound)
++}
++
++func handleFront(w http.ResponseWriter, r *http.Request) {
++	c := appengine.NewContext(r)
++
++	data := &frontPageData{
++		Reviewers: personList,
++	}
++	var currentPerson string
++	currentPerson, data.UserIsReviewer = emailToPerson[user.Current(c).Email]
++
++	var wg sync.WaitGroup
++	errc := make(chan error, 10)
++	activeCLs := datastore.NewQuery("CL").
++		Filter("Closed =", false).
++		Order("-Modified")
++
++	if data.UserIsReviewer {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			tbl := &data.Tables[0]
++			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(10)
++			tbl.Title = "CLs assigned to you for review"
++			tbl.Assignable = true
++			if _, err := q.GetAll(c, &tbl.CLs); err != nil {
++				errc <- err
++			}
++		}()
++	}
++
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		tbl := &data.Tables[1]
++		q := activeCLs.Filter("Author =", currentPerson).Limit(10)
++		tbl.Title = "CLs sent by you"
++		tbl.Assignable = true
++		if _, err := q.GetAll(c, &tbl.CLs); err != nil {
++			errc <- err
++		}
++	}()
++
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		tbl := &data.Tables[2]
++		q := activeCLs.Limit(50)
++		tbl.Title = "Other active CLs"
++		tbl.Assignable = true
++		if _, err := q.GetAll(c, &tbl.CLs); err != nil {
++			errc <- err
++			return
++		}
++		// filter
++		if data.UserIsReviewer {
++			for i := len(tbl.CLs) - 1; i >= 0; i-- {
++				cl := tbl.CLs[i]
++				if cl.Author == currentPerson || cl.Reviewer == currentPerson {
++					tbl.CLs[i] = tbl.CLs[len(tbl.CLs)-1]
++					tbl.CLs = tbl.CLs[:len(tbl.CLs)-1]
++				}
++			}
++		}
++	}()
++
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		tbl := &data.Tables[3]
++		q := datastore.NewQuery("CL").
++			Filter("Closed =", true).
++			Order("-Modified").
++			Limit(10)
++		tbl.Title = "Recently closed CLs"
++		tbl.Assignable = false
++		if _, err := q.GetAll(c, &tbl.CLs); err != nil {
++			errc <- err
++		}
++	}()
++
++	wg.Wait()
++
++	select {
++	case err := <-errc:
++		c.Errorf("%v", err)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
++		return
++	default:
++	}
++
++	var b bytes.Buffer
++	if err := frontPage.ExecuteTemplate(&b, "front", data); err != nil {
++		http.Error(w, err.Error(), http.StatusInternalServerError)
++		return
++	}
++
++	io.Copy(w, &b)
++}
++
++type frontPageData struct {
++	Tables [4]clTable
++
++	Reviewers      []string
++	UserIsReviewer bool
++}
++
++type clTable struct {
++	Title      string
++	Assignable bool
++	CLs        []*CL
++}
++
++var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
++	"selected": func(a, b string) string {
++		if a == b {
++			return "selected"
++		}
++		return ""
++	},
++}).Parse(`
++<!doctype html>
++<html>
++  <head>
++    <title>Go code reviews</title>
++    <link rel="icon" type="image/png" href="/static/icon.png" />
++    <style type="text/css">
++      body {
++        font-family: Helvetica, sans-serif;
++      }
++      img#gopherstamp {
++        float: right;
++	height: auto;
++	width: 250px;
++      }
++      h1, h2, h3 {
++        color: #777;
++	margin-bottom: 0;
++      }
++      td {
++        padding: 2px 5px;
++      }
++      tr.pending td {
++        background: #fc8;
++      }
++      tr.failed td {
++        background: #f88;
++      }
++      tr.saved td {
++        background: #8f8;
++      }
++      .cls {
++        margin-top: 0;
++      }
++      a {
++        color: blue;
++	text-decoration: none;  /* no link underline */
++      }
++      .email {
++        font-family: monospace;
++      }
++    </style>
++    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
++  <head>
++  <body>
++
++<img id="gopherstamp" src="/static/gopherstamp.jpg" />
++<h1>Go code reviews</h1>
++
++{{range $tbl := .Tables}}
++<h3>{{$tbl.Title}}</h3>
++{{if .CLs}}
++<table class="cls">
++{{range $cl := .CLs}}
++  <tr id="cl-{{$cl.Number}}">
++    <td class="email">{{$cl.ShortOwner}}</td>
++    {{if $tbl.Assignable}}
++    <td>
++    <select id="cl-rev-{{$cl.Number}}" {{if not $.UserIsReviewer}}disabled{{end}}>
++      <option></option>
++      {{range $.Reviewers}}
++      <option {{selected . $cl.Reviewer}}>{{.}}</option>
++      {{end}}
++    </select>
++    <script type="text/javascript">
++    $(function() {
++      $('#cl-rev-{{$cl.Number}}').change(function() {
++        var r = $(this).val();
++        var row = $('tr#cl-{{$cl.Number}}');
++        row.addClass('pending');
++        $.post('/assign', {
++          'cl': '{{$cl.Number}}',
++          'r': r
++        }).success(function() {
++          row.removeClass('pending');
++          row.addClass('saved');
++        }).error(function() {
++          row.removeClass('pending');
++          row.addClass('failed');
++        });
++      });
++    });
++    </script>
++    </td>
++    {{end}}
++    <td>
++      <a href="http://codereview.appspot.com/{{.Number}}/" title="{{ printf "%s" .Description}}">{{.Number}}: {{.FirstLineHTML}}</a>
++      {{if and .LGTMs $tbl.Assignable}}<br /><span style="font-size: smaller;">LGTMs: {{.LGTMHTML}}{{end}}</span>
++    </td>
++    <td title="Last modified">{{.ModifiedAgo}}</td>
++  </tr>
++{{end}}
++</table>
++{{else}}
++<em>none</em>
++{{end}}
++{{end}}
++
++  </body>
++</html>
++`))
+diff --git a/misc/dashboard/codereview/dashboard/gc.go b/misc/dashboard/codereview/dashboard/gc.go
+new file mode 100644
+index 0000000000..f8cb7fae76
+--- /dev/null
++++ b/misc/dashboard/codereview/dashboard/gc.go
+@@ -0,0 +1,43 @@
++package dashboard
++
++// This file handles garbage collection of old CLs.
++
++import (
++	"net/http"
++
++	"appengine"
++	"appengine/datastore"
++	"time"
++)
++
++func init() {
++	http.HandleFunc("/gc", handleGC)
++}
++
++func handleGC(w http.ResponseWriter, r *http.Request) {
++	c := appengine.NewContext(r)
++
++	// Delete closed CLs that haven't been modified in 168 hours (7 days).
++	cutoff := time.Now().Add(-168 * time.Hour)
++	q := datastore.NewQuery("CL").
++		Filter("Closed =", true).
++		Filter("Modified <", cutoff).
++		Limit(100).
++		KeysOnly()
++	keys, err := q.GetAll(c, nil)
++	if err != nil {
++		c.Errorf("GetAll failed for old CLs: %v", err)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
++		return
++	}
++	if len(keys) == 0 {
++		return
++	}
++
++	if err := datastore.DeleteMulti(c, keys); err != nil {
++		c.Errorf("DeleteMulti failed for old CLs: %v", err)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
++		return
++	}
++	c.Infof("Deleted %d old CLs", len(keys))
++}
+diff --git a/misc/dashboard/codereview/dashboard/mail.go b/misc/dashboard/codereview/dashboard/mail.go
+new file mode 100644
+index 0000000000..bd9ca19d48
+--- /dev/null
++++ b/misc/dashboard/codereview/dashboard/mail.go
+@@ -0,0 +1,40 @@
++package dashboard
++
++// This file handles receiving mail.
++
++import (
++	"net/http"
++	"net/mail"
++	"regexp"
++	"time"
++
++	"appengine"
++)
++
++func init() {
++	http.HandleFunc("/_ah/mail/", handleMail)
++}
++
++var subjectRegexp = regexp.MustCompile(`.*code review (\d+):.*`)
++
++func handleMail(w http.ResponseWriter, r *http.Request) {
++	c := appengine.NewContext(r)
++
++	defer r.Body.Close()
++	msg, err := mail.ReadMessage(r.Body)
++	if err != nil {
++		c.Errorf("mail.ReadMessage: %v", err)
++		return
++	}
++
++	subj := msg.Header.Get("Subject")
++	m := subjectRegexp.FindStringSubmatch(subj)
++	if len(m) != 2 {
++		c.Debugf("Subject %q did not match /%v/", subj, subjectRegexp)
++		return
++	}
++
++	c.Infof("Found issue %q", m[1])
++	// Update the CL after a delay to give Rietveld a chance to catch up.
++	UpdateCLLater(c, m[1], 10*time.Second)
++}
+diff --git a/misc/dashboard/codereview/dashboard/people.go b/misc/dashboard/codereview/dashboard/people.go
+new file mode 100644
+index 0000000000..a9a40c34d6
+--- /dev/null
++++ b/misc/dashboard/codereview/dashboard/people.go
+@@ -0,0 +1,33 @@
++package dashboard
++
++// This file handles identities of people.
++
++import (
++	"sort"
++)
++
++var (
++	emailToPerson = make(map[string]string)
++	personList    []string
++)
++
++func init() {
++	// People we assume have golang.org and google.com accounts.
++	gophers := [...]string{
++		"adg",
++		"bradfitz",
++		"dsymonds",
++		"gri",
++		"iant",
++		"nigeltao",
++		"r",
++		"rsc",
++	}
++	for _, p := range gophers {
++		personList = append(personList, p)
++		emailToPerson[p+"@golang.org"] = p
++		emailToPerson[p+"@google.com"] = p
++	}
++
++	sort.Strings(personList)
++}
+diff --git a/misc/dashboard/codereview/index.yaml b/misc/dashboard/codereview/index.yaml
+new file mode 100644
+index 0000000000..d47dd0829f
+--- /dev/null
++++ b/misc/dashboard/codereview/index.yaml
+@@ -0,0 +1,19 @@
++indexes:
++
++- kind: CL
++  properties:
++  - name: Author
++  - name: Modified
++    direction: desc
++
++- kind: CL
++  properties:
++  - name: Closed
++  - name: Modified
++    direction: desc
++
++- kind: CL
++  properties:
++  - name: Reviewer
++  - name: Modified
++    direction: desc
+diff --git a/misc/dashboard/codereview/queue.yaml b/misc/dashboard/codereview/queue.yaml
+new file mode 100644
+index 0000000000..1a35facaf1
+--- /dev/null
++++ b/misc/dashboard/codereview/queue.yaml
+@@ -0,0 +1,4 @@
++queue:
++- name: update-cl
++  rate: 12/m
++  bucket_size: 1
+diff --git a/misc/dashboard/codereview/static/gopherstamp.jpg b/misc/dashboard/codereview/static/gopherstamp.jpg
+new file mode 100644
+index 0000000000..b17f3c82a6
+Binary files /dev/null and b/misc/dashboard/codereview/static/gopherstamp.jpg differ
+diff --git a/misc/dashboard/codereview/static/icon.png b/misc/dashboard/codereview/static/icon.png
+new file mode 100644
+index 0000000000..8e0998f6e4
+Binary files /dev/null and b/misc/dashboard/codereview/static/icon.png differ

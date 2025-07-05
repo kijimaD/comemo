@@ -31,6 +31,20 @@ Date:   Wed Mar 13 17:57:03 2019 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/builtin/builtin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index c78fe09ea6..61ed6100b4 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -151,7 +151,7 @@ func delete(m map[Type]Type1, key Type)
+ //	Slice, or map: the number of elements in v; if v is nil, len(v) is zero.
+ //	String: the number of bytes in v.
+ //	Channel: the number of elements queued (unread) in the channel buffer;
+-//	if v is nil, len(v) is zero.
++//	         if v is nil, len(v) is zero.
+ // For some arguments, such as a string literal or a simple array expression, the
+ // result can be a constant. See the Go language specification's "Length and
+ // capacity" section for details.

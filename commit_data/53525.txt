@@ -20,8 +20,70 @@ Date:   Wed Aug 10 11:37:22 2022 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/lsf_linux.go          |  2 +-
  src/syscall/netlink_linux.go      |  2 +-
  src/syscall/sock_cloexec_linux.go | 29 -----------------------------
  3 files changed, 2 insertions(+), 31 deletions(-)
+
+diff --git a/src/syscall/lsf_linux.go b/src/syscall/lsf_linux.go
+index 28e96d54e6..838acc5fb1 100644
+--- a/src/syscall/lsf_linux.go
++++ b/src/syscall/lsf_linux.go
+@@ -48,7 +48,7 @@ type iflags struct {
+ 
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func SetLsfPromisc(name string, m bool) error {
+-	s, e := cloexecSocket(AF_INET, SOCK_DGRAM, 0)
++	s, e := Socket(AF_INET, SOCK_DGRAM|SOCK_CLOEXEC, 0)
+ 	if e != nil {
+ 		return e
+ 	}
+diff --git a/src/syscall/netlink_linux.go b/src/syscall/netlink_linux.go
+index 2d810705bf..e976c70ef1 100644
+--- a/src/syscall/netlink_linux.go
++++ b/src/syscall/netlink_linux.go
+@@ -50,7 +50,7 @@ func newNetlinkRouteRequest(proto, seq, family int) []byte {
+ // NetlinkRIB returns routing information base, as known as RIB, which
+ // consists of network facility information, states and parameters.
+ func NetlinkRIB(proto, family int) ([]byte, error) {
+-	s, err := cloexecSocket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)
++	s, err := Socket(AF_NETLINK, SOCK_RAW|SOCK_CLOEXEC, NETLINK_ROUTE)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/syscall/sock_cloexec_linux.go b/src/syscall/sock_cloexec_linux.go
+deleted file mode 100644
+index 600cf25c15..0000000000
+--- a/src/syscall/sock_cloexec_linux.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-
+-// This is a stripped down version of sysSocket from net/sock_cloexec.go.
+-func cloexecSocket(family, sotype, proto int) (int, error) {
+-	s, err := Socket(family, sotype|SOCK_CLOEXEC, proto)
+-	switch err {
+-	case nil:
+-		return s, nil
+-	default:
+-		return -1, err
+-	case EINVAL:
+-	}
+-
+-	ForkLock.RLock()
+-	s, err = Socket(family, sotype, proto)
+-	if err == nil {
+-		CloseOnExec(s)
+-	}
+-	ForkLock.RUnlock()
+-	if err != nil {
+-		Close(s)
+-		return -1, err
+-	}
+-	return s, nil
+-}

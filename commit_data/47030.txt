@@ -28,7 +28,68 @@ Date:   Fri Feb 19 10:09:15 2021 -0500
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwinl.go |  3 ++-
  test/fixedbugs/issue44378.go               | 40 ++++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwinl.go b/src/cmd/compile/internal/dwarfgen/dwinl.go
+index d5687cb1d7..8adb36fc88 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwinl.go
++++ b/src/cmd/compile/internal/dwarfgen/dwinl.go
+@@ -247,7 +247,8 @@ func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
+ 			DeclCol:  pos.Col(),
+ 		}
+ 		if _, found := m[vp]; found {
+-			base.Fatalf("child dcl collision on symbol %s within %v\n", n.Sym().Name, fnsym.Name)
++			// We can see collisions (variables with the same name/file/line/col) in obfuscated or machine-generated code -- see issue 44378 for an example. Skip duplicates in such cases, since it is unlikely that a human will be debugging such code.
++			continue
+ 		}
+ 		m[vp] = i
+ 	}
+diff --git a/test/fixedbugs/issue44378.go b/test/fixedbugs/issue44378.go
+new file mode 100644
+index 0000000000..58c88d573f
+--- /dev/null
++++ b/test/fixedbugs/issue44378.go
+@@ -0,0 +1,40 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test case caused a panic in the compiler's DWARF gen code.
++
++// Note to future maintainers of this code:
++//
++//    ** Do NOT run gofmt when editing this file **
++//
++// In order for the buggy behavior to be triggered in the compiler,
++// we need to have a the function of interest all on one gigantic line.
++
++package a
++
++type O interface{}
++type IO int
++type OS int
++
++type A struct {
++	x int
++}
++
++// original versions of the two function
++func (p *A) UO(o O) {
++	p.r(o, o)
++}
++func (p *A) r(o1, o2 O) {
++	switch x := o1.(type) {
++	case *IO:
++		p.x = int(*x)
++	case *OS:
++		p.x = int(*x + 2)
++	}
++}
++
++// see note above about the importance of all this code winding up on one line.
++var myverylongname0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789 int ; func (p *A) UO2(o O) { p.r2(o, o); }; func (p *A) r2(o1, o2 O) { switch x := o1.(type) { case *IO:	p.x = int(*x); 	case *OS: 	p.x = int(*x + 2); } }

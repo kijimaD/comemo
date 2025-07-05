@@ -12,9 +12,96 @@ Date:   Wed Mar 5 12:40:13 2014 -0800
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/71740043
-
+---
  doc/go1.3.txt                   | 1 +
  src/pkg/net/http/client_test.go | 7 +++----
  src/pkg/net/http/response.go    | 8 ++++----
  src/pkg/net/http/transport.go   | 8 +++++---
  4 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index a5ebb2b9c6..7828ea17f5 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -8,6 +8,7 @@ crypto/x509: support CSRs (CL 49830048)
+ liblink: pull linker i/o into separate liblink C library (CL 35790044)
+ misc/benchcmp: removed and replaced by go.tools/cmd/benchcmp (CL 47980043)
+ misc/dist: renamed misc/makerelease (CL 39920043)
++net/http: add Request.TLS (CL 52660047)
+ net/http: add Server.ErrorLog; log and test TLS handshake errors (CL 70250044)
+ net/http: add Server.SetKeepAlivesEnabled (CL 69670043)
+ net/http: add Transport.TLSHandshakeTimeout; set it by default (CL 68150045)
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 091fea04cb..bf5c776e3c 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -727,14 +727,13 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	defer res.Body.Close()
+ 	if res.TLS == nil {
+ 		t.Fatal("Response didn't set TLS Connection State.")
+ 	}
+-	if res.TLS.CipherSuite != tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA {
+-		t.Errorf("Unexpected TLS Cipher Suite: %d != %d",
+-			res.TLS.CipherSuite, tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA)
++	if got, want := res.TLS.CipherSuite, tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA; got != want {
++		t.Errorf("TLS Cipher Suite = %d; want %d", got, want)
+ 	}
+-	res.Body.Close()
+ }
+ 
+ // Verify Response.ContentLength is populated. http://golang.org/issue/4126
+diff --git a/src/pkg/net/http/response.go b/src/pkg/net/http/response.go
+index 42e01682c2..310c11c32a 100644
+--- a/src/pkg/net/http/response.go
++++ b/src/pkg/net/http/response.go
+@@ -76,10 +76,10 @@ type Response struct {
+ 	// This is only populated for Client requests.
+ 	Request *Request
+ 
+-	// TLS allows information about the TLS connection on which the
+-	// response was received. The Transport in this package sets the field
+-	// for TLS-enabled connections before returning the Response otherwise
+-	// it leaves the field nil.
++	// TLS contains information about the TLS connection on which the
++	// response was received. It is nil for unencrypted responses.
++	// The pointer is shared between responses and should not be
++	// modified.
+ 	TLS *tls.ConnectionState
+ }
+ 
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index f2896c4b02..bfdd01d0c0 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -583,6 +583,8 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
+ 				return nil, err
+ 			}
+ 		}
++		cs := tlsConn.ConnectionState()
++		pconn.tlsState = &cs
+ 		pconn.conn = tlsConn
+ 	}
+ 
+@@ -718,6 +720,7 @@ type persistConn struct {
+ 	t        *Transport
+ 	cacheKey connectMethodKey
+ 	conn     net.Conn
++	tlsState *tls.ConnectionState
+ 	closed   bool                // whether conn has been closed
+ 	br       *bufio.Reader       // from conn
+ 	bw       *bufio.Writer       // to conn
+@@ -792,9 +795,8 @@ func (pc *persistConn) readLoop() {
+ 			}
+ 		}
+ 
+-		if tlsConn, ok := pc.conn.(*tls.Conn); resp != nil && ok {
+-			resp.TLS = new(tls.ConnectionState)
+-			*resp.TLS = tlsConn.ConnectionState()
++		if resp != nil {
++			resp.TLS = pc.tlsState
+ 		}
+ 
+ 		hasBody := resp != nil && rc.req.Method != "HEAD" && resp.ContentLength != 0

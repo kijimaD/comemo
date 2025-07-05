@@ -14,7 +14,42 @@ Date:   Thu Apr 22 12:42:33 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/expr.go            | 11 ++++++++---
  src/go/types/testdata/expr3.src |  1 +
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index b4eea229b8..4023362a4e 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1020,9 +1020,14 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
+ 		return x.typ, -1
+ 	}
+ 
+-	v, valid := constant.Int64Val(constant.ToInt(x.val))
+-	if !valid || max >= 0 && v >= max {
+-		check.errorf(&x, _InvalidIndex, "index %s is out of bounds", &x)
++	if x.val.Kind() == constant.Unknown {
++		return
++	}
++
++	v, ok := constant.Int64Val(x.val)
++	assert(ok)
++	if max >= 0 && v >= max {
++		check.invalidArg(&x, _InvalidIndex, "index %s is out of bounds", &x)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/testdata/expr3.src b/src/go/types/testdata/expr3.src
+index c3158e6cf4..0525a5a33a 100644
+--- a/src/go/types/testdata/expr3.src
++++ b/src/go/types/testdata/expr3.src
+@@ -34,6 +34,7 @@ func indexes() {
+ 	_ = a[9]
+ 	_ = a[10 /* ERROR "index .* out of bounds" */ ]
+ 	_ = a[1 /* ERROR "overflows" */ <<100]
++	_ = a[1<< /* ERROR "constant shift overflow" */ 1000] // no out-of-bounds follow-on error
+ 	_ = a[10:]
+ 	_ = a[:10]
+ 	_ = a[10:10]

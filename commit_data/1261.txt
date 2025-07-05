@@ -10,6 +10,41 @@ Date:   Tue Dec 2 12:52:47 2008 -0800
     DELTA=10  (0 added, 8 deleted, 2 changed)
     OCL=20248
     CL=20257
-
+---
  usr/gri/pretty/Makefile.iant | 12 ++----------
  1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile.iant b/usr/gri/pretty/Makefile.iant
+index 3c952f0f7b..b6d794a272 100644
+--- a/usr/gri/pretty/Makefile.iant
++++ b/usr/gri/pretty/Makefile.iant
+@@ -11,14 +11,12 @@ LDFLAGS = -Wl,-R,/home/iant/go/lib
+ PRETTY_OBJS = \
+ 	ast.o \
+ 	pretty.o \
+-	compilation.go \
++	compilation.o \
+ 	parser.o \
+ 	platform.o \
+ 	printer.o \
+ 	scanner.o \
+-	utils.o \
+-	flag.o \
+-	fmt.o \
++	utils.o
+ 
+ pretty: $(PRETTY_OBJS)
+ 	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
+@@ -48,12 +46,6 @@ platform.o:	 utils.o
+ printer.o:	 scanner.o ast.o
+ 
+ 
+-flag.o:	fmt.o
+-	$(GO) -O2 -c -g $(GOROOT)/src/lib/flag.go
+-
+-fmt.o:
+-	$(GO) -O2 -c -g $(GOROOT)/src/lib/fmt.go
+-
+ .SUFFIXES:
+ .SUFFIXES: .go .o
+ 

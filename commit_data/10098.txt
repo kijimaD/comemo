@@ -7,6 +7,20 @@ Date:   Tue Oct 25 22:21:14 2011 -0700
     R=golang-dev, hectorchu
     CC=golang-dev
     https://golang.org/cl/5304044
-
+---
  src/pkg/exp/winfsnotify/winfsnotify_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/winfsnotify/winfsnotify_test.go b/src/pkg/exp/winfsnotify/winfsnotify_test.go
+index 8c53fc8de1..ff7735aa6a 100644
+--- a/src/pkg/exp/winfsnotify/winfsnotify_test.go
++++ b/src/pkg/exp/winfsnotify/winfsnotify_test.go
+@@ -40,7 +40,7 @@ func TestNotifyEvents(t *testing.T) {
+ 	// Add a watch for testDir
+ 	os.RemoveAll(testDir)
+ 	if err = os.Mkdir(testDir, 0777); err != nil {
+-		t.Fatalf("Failed to create test directory", err)
++		t.Fatalf("Failed to create test directory: %s", err)
+ 	}
+ 	defer os.RemoveAll(testDir)
+ 	err = watcher.AddWatch(testDir, mask)

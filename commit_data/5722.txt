@@ -9,7 +9,7 @@ Date:   Mon Jun 28 17:14:17 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1745041
-
+---
  src/pkg/runtime/darwin/386/signal.c    | 4 +++-
  src/pkg/runtime/darwin/amd64/signal.c  | 4 +++-
  src/pkg/runtime/freebsd/386/signal.c   | 4 +++-
@@ -24,3 +24,233 @@ Date:   Mon Jun 28 17:14:17 2010 -0700
  src/pkg/runtime/tiny/thread.c          | 2 +-
  src/pkg/runtime/windows/386/signal.c   | 2 +-
  13 files changed, 27 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index b4af42bb4f..f7ee3c448f 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -129,7 +129,7 @@ signalstack(byte *p, int32 n)
+ }
+ 
+ void
+-initsig(void)
++initsig(int32 queue)
+ {
+ 	int32 i;
+ 	static Sigaction sa;
+@@ -141,6 +141,8 @@ initsig(void)
+ 	sa.sa_tramp = sigtramp;	// sigtramp's job is to call into real handler
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
++			if((sigtab[i].flags & SigQueue) != queue)
++				continue;
+ 			if(sigtab[i].flags & (SigCatch | SigQueue)) {
+ 				sa.__sigaction_u.__sa_sigaction = sighandler;
+ 			} else {
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index b3fa8404f1..648ef207ca 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -138,7 +138,7 @@ signalstack(byte *p, int32 n)
+ }
+ 
+ void
+-initsig(void)
++initsig(int32 queue)
+ {
+ 	int32 i;
+ 	static Sigaction sa;
+@@ -150,6 +150,8 @@ initsig(void)
+ 	sa.sa_tramp = sigtramp;	// sigtramp's job is to call into real handler
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
++			if((sigtab[i].flags & SigQueue) != queue)
++				continue;
+ 			if(sigtab[i].flags & (SigCatch | SigQueue)) {
+ 				sa.__sigaction_u.__sa_sigaction = sighandler;
+ 			} else {
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 44a868e353..4fc6d9e12e 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -124,7 +124,7 @@ signalstack(byte *p, int32 n)
+ }
+ 
+ void
+-initsig(void)
++initsig(int32 queue)
+ {
+ 	static Sigaction sa;
+ 
+@@ -136,6 +136,8 @@ initsig(void)
+ 	
+ 	for(i = 0; i < NSIG; i++) {
+ 		if(sigtab[i].flags) {
++			if((sigtab[i].flags & SigQueue) != queue)
++				continue;
+ 			if(sigtab[i].flags & (SigCatch | SigQueue))
+ 				sa.__sigaction_u.__sa_sigaction = (void*) sigtramp;
+ 			else
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index e153752db7..57bfcfb55e 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -132,7 +132,7 @@ signalstack(byte *p, int32 n)
+ }
+ 
+ void
+-initsig(void)
++initsig(int32 queue)
+ {
+ 	static Sigaction sa;
+ 
+@@ -144,6 +144,8 @@ initsig(void)
+ 	
+ 	for(i = 0; i < NSIG; i++) {
+ 		if(sigtab[i].flags) {
++			if((sigtab[i].flags & SigQueue) != queue)
++				continue;
+ 			if(sigtab[i].flags & (SigCatch | SigQueue))
+ 				sa.__sigaction_u.__sa_sigaction = (void*) sigtramp;
+ 			else
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index 2d8ad57b2a..6bc95d0d79 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -116,7 +116,7 @@ signalstack(byte *p, int32 n)
+ }
+ 
+ void
+-initsig(void)
++initsig(int32 queue)
+ {
+ 	static Sigaction sa;
+ 
+@@ -128,6 +128,8 @@ initsig(void)
+ 	sa.sa_restorer = (void*)sigreturn;
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
++			if((sigtab[i].flags & SigQueue) != queue)
++				continue;
+ 			if(sigtab[i].flags & (SigCatch | SigQueue))
+ 				sa.k_sa_handler = (void*)sigtramp;
+ 			else
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index 1dfeb5f051..63c3a2e6ea 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -126,7 +126,7 @@ signalstack(byte *p, int32 n)
+ }
+ 
+ void
+-initsig(void)
++initsig(int32 queue)
+ {
+ 	static Sigaction sa;
+ 
+@@ -138,6 +138,8 @@ initsig(void)
+ 	sa.sa_restorer = (void*)sigreturn;
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
++			if((sigtab[i].flags & SigQueue) != queue)
++				continue;
+ 			if(sigtab[i].flags & (SigCatch | SigQueue))
+ 				sa.sa_handler = (void*)sigtramp;
+ 			else
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index 68d10ea65a..a9dccae4a9 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -120,7 +120,7 @@ signalstack(byte *p, int32 n)
+ }
+ 
+ void
+-initsig(void)
++initsig(int32 queue)
+ {
+ 	static Sigaction sa;
+ 
+@@ -133,6 +133,8 @@ initsig(void)
+ 	sa.sa_restorer = (void*)sigreturn;
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
++			if((sigtab[i].flags & SigQueue) != queue)
++				continue;
+ 			if(sigtab[i].flags & (SigCatch | SigQueue))
+ 				sa.sa_handler = (void*)sigtramp;
+ 			else
+diff --git a/src/pkg/runtime/nacl/386/signal.c b/src/pkg/runtime/nacl/386/signal.c
+index 79a760a360..4dda63fcf6 100644
+--- a/src/pkg/runtime/nacl/386/signal.c
++++ b/src/pkg/runtime/nacl/386/signal.c
+@@ -8,7 +8,7 @@
+ #include "os.h"
+ 
+ void
+-initsig(void)
++initsig(int32 queue)
+ {
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index e83006c19d..25a6f26bdf 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -278,7 +278,7 @@ check(void)
+ 	if(z != 4)
+ 		throw("cas4");
+ 
+-	initsig();
++	initsig(0);
+ }
+ 
+ /*
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 1bce98e256..a774d96d50 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -389,7 +389,7 @@ String	catstring(String, String);
+ String	gostring(byte*);
+ String	gostringnocopy(byte*);
+ String	gostringw(uint16*);
+-void	initsig(void);
++void	initsig(int32);
+ int32	gotraceback(void);
+ void	traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+ void	tracebackothers(G*);
+diff --git a/src/pkg/runtime/sigqueue.goc b/src/pkg/runtime/sigqueue.goc
+index 46a3b1274a..572daab525 100644
+--- a/src/pkg/runtime/sigqueue.goc
++++ b/src/pkg/runtime/sigqueue.goc
+@@ -94,5 +94,6 @@ func Signame(sig int32) (name String) {
+ }
+ 
+ func Siginit() {
++	initsig(SigQueue);
+ 	sig.inuse = true;	// enable reception of signals; cannot disable
+ }
+diff --git a/src/pkg/runtime/tiny/thread.c b/src/pkg/runtime/tiny/thread.c
+index e3e8a34b60..e4b58256f2 100644
+--- a/src/pkg/runtime/tiny/thread.c
++++ b/src/pkg/runtime/tiny/thread.c
+@@ -17,7 +17,7 @@ osinit(void)
+ }
+ 
+ void
+-initsig(void)
++initsig(int32 queue)
+ {
+ }
+ 
+diff --git a/src/pkg/runtime/windows/386/signal.c b/src/pkg/runtime/windows/386/signal.c
+index ba38823911..663ed874bd 100644
+--- a/src/pkg/runtime/windows/386/signal.c
++++ b/src/pkg/runtime/windows/386/signal.c
+@@ -3,6 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ void
+-initsig(void)
++initsig(int32 queue)
+ {
+ }

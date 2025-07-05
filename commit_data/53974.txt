@@ -15,6 +15,29 @@ Date:   Tue Sep 13 19:32:34 2022 +1000
     Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Jenny Rakoczy <jenny@golang.org>
-
+---
  src/cmd/internal/objabi/head.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/head.go b/src/cmd/internal/objabi/head.go
+index 48ff292307..763910fbd6 100644
+--- a/src/cmd/internal/objabi/head.go
++++ b/src/cmd/internal/objabi/head.go
+@@ -80,8 +80,8 @@ func (h *HeadType) Set(s string) error {
+ 	return nil
+ }
+ 
+-func (h *HeadType) String() string {
+-	switch *h {
++func (h HeadType) String() string {
++	switch h {
+ 	case Haix:
+ 		return "aix"
+ 	case Hdarwin:
+@@ -105,5 +105,5 @@ func (h *HeadType) String() string {
+ 	case Hwindows:
+ 		return "windows"
+ 	}
+-	return fmt.Sprintf("HeadType(%d)", *h)
++	return fmt.Sprintf("HeadType(%d)", h)
+ }

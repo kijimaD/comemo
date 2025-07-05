@@ -9,6 +9,24 @@ Date:   Fri Mar 15 12:39:14 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7546049
-
+---
  src/run.bash | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index f53236ae73..6c96d5ddd2 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -116,9 +116,12 @@ go build ../misc/dashboard/builder ../misc/goplay
+ ./timing.sh -test
+ ) || exit $?
+ 
++[ "$GOOS" == openbsd ] || # golang.org/issue/5057
++(
+ echo
+ echo '#' ../test/bench/go1
+ go test ../test/bench/go1
++) || exit $?
+ 
+ (xcd ../test
+ unset GOMAXPROCS

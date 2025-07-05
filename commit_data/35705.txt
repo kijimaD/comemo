@@ -13,6 +13,25 @@ Date:   Thu Mar 1 09:26:38 2018 -0500
     Change-Id: I6b7acd3970ceaff8da9216bfa0ae24aca5dee828
     Reviewed-on: https://go-review.googlesource.com/97856
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ab113daec4..f1ef2341ee 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3455,12 +3455,8 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ // 	n.Left = finishcompare(n.Left, x, r, init)
+ func finishcompare(n, r *Node, init *Nodes) *Node {
+ 	r = typecheck(r, Erv)
++	r = conv(r, n.Type)
+ 	r = walkexpr(r, init)
+-	if r.Type != n.Type {
+-		r = nod(OCONVNOP, r, nil)
+-		r.Type = n.Type
+-		r = typecheck(r, Erv)
+-	}
+ 	return r
+ }
+ 

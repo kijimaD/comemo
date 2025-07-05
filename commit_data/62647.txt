@@ -8,6 +8,20 @@ Date:   Thu Mar 20 15:03:43 2025 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/659735
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/race/race_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index 1c8bc949bf..9e651edd24 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -193,7 +193,7 @@ func runTests(t *testing.T) ([]byte, error) {
+ 	// A crash in the map concurrent access detector will cause other tests not to run.
+ 	// Perhaps we should run tests with concurrent map access separately to avoid this,
+ 	// but for the moment just skip the remaining tests.
+-	if mapFatals == 0 {
++	if mapFatals != 0 {
+ 		return out, nil
+ 	}
+ 	if !bytes.Contains(out, []byte("ALL TESTS COMPLETE")) {

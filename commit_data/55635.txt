@@ -23,10 +23,268 @@ Date:   Thu Aug 18 01:31:57 2022 +0000
     Run-TryBot: Eric Fang <eric.fang@arm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/ARM64.rules | 10 +++
  src/cmd/compile/internal/ssa/_gen/ARM64Ops.go |  1 +
  src/cmd/compile/internal/ssa/rewrite.go       |  4 ++
  src/cmd/compile/internal/ssa/rewriteARM64.go  | 68 +++++++++++++++++++
  test/codegen/noextend.go                      | 94 +++++++++++++++++++++++++++
  5 files changed, 177 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index cf43542615..34ee907e3a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -1665,6 +1665,16 @@
+ // zero upper bit of the register; no need to zero-extend
+ (MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => (MOVDreg x)
+ 
++// omit unsign extension
++
++(MOVWUreg x) && zeroUpper32Bits(x, 3) => x
++
++// omit sign extension
++
++(MOVWreg <t> (ANDconst x [c])) && uint64(c) & uint64(0xffffffff80000000) == 0 => (ANDconst <t> x [c])
++(MOVHreg <t> (ANDconst x [c])) && uint64(c) & uint64(0xffffffffffff8000) == 0 => (ANDconst <t> x [c])
++(MOVBreg <t> (ANDconst x [c])) && uint64(c) & uint64(0xffffffffffffff80) == 0 => (ANDconst <t> x [c])
++
+ // absorb flag constants into conditional instructions
+ (CSEL [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
+ (CSEL [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => y
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+index 2a9c2ae486..ca5b929ad7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+@@ -13,6 +13,7 @@ import "strings"
+ //  - *const instructions may use a constant larger than the instruction can encode.
+ //    In this case the assembler expands to multiple instructions and uses tmp
+ //    register (R27).
++//  - All 32-bit Ops will zero the upper 32 bits of the destination register.
+ 
+ // Suffixes encode the bit width of various instructions.
+ // D (double word) = 64 bit
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index c56447d336..54ea2d3f4f 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1298,6 +1298,10 @@ func zeroUpper32Bits(x *Value, depth int) bool {
+ 		OpAMD64SHRL, OpAMD64SHRLconst, OpAMD64SARL, OpAMD64SARLconst,
+ 		OpAMD64SHLL, OpAMD64SHLLconst:
+ 		return true
++	case OpARM64REV16W, OpARM64REVW, OpARM64RBITW, OpARM64CLZW, OpARM64EXTRWconst,
++		OpARM64MULW, OpARM64MNEGW, OpARM64UDIVW, OpARM64DIVW, OpARM64UMODW,
++		OpARM64MADDW, OpARM64MSUBW, OpARM64RORW, OpARM64RORWconst:
++		return true
+ 	case OpArg:
+ 		return x.Type.Size() == 4
+ 	case OpPhi, OpSelect0, OpSelect1:
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 7cc7a2a424..a43a366c67 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -8271,6 +8271,25 @@ func rewriteValueARM64_OpARM64MOVBreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(int8(c)))
+ 		return true
+ 	}
++	// match: (MOVBreg <t> (ANDconst x [c]))
++	// cond: uint64(c) & uint64(0xffffffffffffff80) == 0
++	// result: (ANDconst <t> x [c])
++	for {
++		t := v.Type
++		if v_0.Op != OpARM64ANDconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(uint64(c)&uint64(0xffffffffffffff80) == 0) {
++			break
++		}
++		v.reset(OpARM64ANDconst)
++		v.Type = t
++		v.AuxInt = int64ToAuxInt(c)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVBreg (SLLconst [lc] x))
+ 	// cond: lc < 8
+ 	// result: (SBFIZ [armBFAuxInt(lc, 8-lc)] x)
+@@ -11991,6 +12010,25 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(int16(c)))
+ 		return true
+ 	}
++	// match: (MOVHreg <t> (ANDconst x [c]))
++	// cond: uint64(c) & uint64(0xffffffffffff8000) == 0
++	// result: (ANDconst <t> x [c])
++	for {
++		t := v.Type
++		if v_0.Op != OpARM64ANDconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(uint64(c)&uint64(0xffffffffffff8000) == 0) {
++			break
++		}
++		v.reset(OpARM64ANDconst)
++		v.Type = t
++		v.AuxInt = int64ToAuxInt(c)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVHreg (SLLconst [lc] x))
+ 	// cond: lc < 16
+ 	// result: (SBFIZ [armBFAuxInt(lc, 16-lc)] x)
+@@ -13687,6 +13725,17 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(uint32(c)))
+ 		return true
+ 	}
++	// match: (MOVWUreg x)
++	// cond: zeroUpper32Bits(x, 3)
++	// result: x
++	for {
++		x := v_0
++		if !(zeroUpper32Bits(x, 3)) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	// match: (MOVWUreg (SLLconst [lc] x))
+ 	// cond: lc >= 32
+ 	// result: (MOVDconst [0])
+@@ -14189,6 +14238,25 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(int32(c)))
+ 		return true
+ 	}
++	// match: (MOVWreg <t> (ANDconst x [c]))
++	// cond: uint64(c) & uint64(0xffffffff80000000) == 0
++	// result: (ANDconst <t> x [c])
++	for {
++		t := v.Type
++		if v_0.Op != OpARM64ANDconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(uint64(c)&uint64(0xffffffff80000000) == 0) {
++			break
++		}
++		v.reset(OpARM64ANDconst)
++		v.Type = t
++		v.AuxInt = int64ToAuxInt(c)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVWreg (SLLconst [lc] x))
+ 	// cond: lc < 32
+ 	// result: (SBFIZ [armBFAuxInt(lc, 32-lc)] x)
+diff --git a/test/codegen/noextend.go b/test/codegen/noextend.go
+index e4081e3915..61c98a796a 100644
+--- a/test/codegen/noextend.go
++++ b/test/codegen/noextend.go
+@@ -6,6 +6,8 @@
+ 
+ package codegen
+ 
++import "math/bits"
++
+ var sval64 [8]int64
+ var sval32 [8]int32
+ var sval16 [8]int16
+@@ -185,3 +187,95 @@ func cmp64(u8 *uint8, x16 *int16, u16 *uint16, x32 *int32, u32 *uint32) bool {
+ 	}
+ 	return false
+ }
++
++// no unsign extension following 32 bits ops
++
++func noUnsignEXT(t1, t2, t3, t4 uint32, k int64) uint64 {
++	var ret uint64
++
++	// arm64:"RORW",-"MOVWU"
++	ret += uint64(bits.RotateLeft32(t1, 7))
++
++	// arm64:"MULW",-"MOVWU"
++	ret *= uint64(t1 * t2)
++
++	// arm64:"MNEGW",-"MOVWU"
++	ret += uint64(-t1 * t3)
++
++	// arm64:"UDIVW",-"MOVWU"
++	ret += uint64(t1 / t4)
++
++	// arm64:-"MOVWU"
++	ret += uint64(t2 % t3)
++
++	// arm64:"MSUBW",-"MOVWU"
++	ret += uint64(t1 - t2*t3)
++
++	// arm64:"MADDW",-"MOVWU"
++	ret += uint64(t3*t4 + t2)
++
++	// arm64:"REVW",-"MOVWU"
++	ret += uint64(bits.ReverseBytes32(t1))
++
++	// arm64:"RBITW",-"MOVWU"
++	ret += uint64(bits.Reverse32(t1))
++
++	// arm64:"CLZW",-"MOVWU"
++	ret += uint64(bits.LeadingZeros32(t1))
++
++	// arm64:"REV16W",-"MOVWU"
++	ret += uint64(((t1 & 0xff00ff00) >> 8) | ((t1 & 0x00ff00ff) << 8))
++
++	// arm64:"EXTRW",-"MOVWU"
++	ret += uint64((t1 << 25) | (t2 >> 7))
++
++	return ret
++}
++
++// no sign extension when the upper bits of the result are zero
++
++func noSignEXT(x int) int64 {
++	t1 := int32(x)
++
++	var ret int64
++
++	// arm64:-"MOVW"
++	ret += int64(t1 & 1)
++
++	// arm64:-"MOVW"
++	ret += int64(int32(x & 0x7fffffff))
++
++	// arm64:-"MOVH"
++	ret += int64(int16(x & 0x7fff))
++
++	// arm64:-"MOVB"
++	ret += int64(int8(x & 0x7f))
++
++	return ret
++}
++
++// corner cases that sign extension must not be omitted
++
++func shouldSignEXT(x int) int64 {
++	t1 := int32(x)
++
++	var ret int64
++
++	// arm64:"MOVW"
++	ret += int64(t1 & (-1))
++
++	// arm64:"MOVW"
++	ret += int64(int32(x & 0x80000000))
++
++	// arm64:"MOVW"
++	ret += int64(int32(x & 0x1100000011111111))
++
++	// arm64:"MOVH"
++	ret += int64(int16(x & 0x1100000000001111))
++
++	// arm64:"MOVB"
++	ret += int64(int8(x & 0x1100000000000011))
++
++	return ret
++
++}

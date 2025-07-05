@@ -12,7 +12,7 @@ Date:   Fri Aug 13 09:01:13 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/os_linux.go         |  6 ++----
  src/runtime/signal_unix.go      | 21 ++++++++++++++++-----
  src/runtime/sys_darwin_amd64.s  | 23 ++++++++++++++++++++---
@@ -20,3 +20,203 @@ Date:   Fri Aug 13 09:01:13 2021 -0700
  src/runtime/sys_linux_amd64.s   | 23 ++++++++++++++++++++---
  src/runtime/sys_linux_ppc64x.s  |  3 +++
  6 files changed, 81 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index a4646577cb..06773c2193 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -529,10 +529,8 @@ func signalM(mp *m, sig int) {
+ 	tgkill(getpid(), int(mp.procid), sig)
+ }
+ 
+-// go118UseTimerCreateProfiler enables the per-thread CPU profiler. Platforms
+-// with support for SetCgoTraceback do some signal handling in assembly; do not
+-// enable it for them until the changes to those code paths are in place.
+-const go118UseTimerCreateProfiler = GOARCH != "amd64" && GOARCH != "ppc64le"
++// go118UseTimerCreateProfiler enables the per-thread CPU profiler.
++const go118UseTimerCreateProfiler = true
+ 
+ // validSIGPROF compares this signal delivery's code against the signal sources
+ // that the profiler uses, returning whether the delivery should be processed.
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 0b32598d54..07f371cefe 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -480,15 +480,26 @@ var sigprofCallersUse uint32
+ // and the signal handler collected a stack trace in sigprofCallers.
+ // When this is called, sigprofCallersUse will be non-zero.
+ // g is nil, and what we can do is very limited.
++//
++// It is called from the signal handling functions written in assembly code that
++// are active for cgo programs, cgoSigtramp and sigprofNonGoWrapper, which have
++// not verified that the SIGPROF delivery corresponds to the best available
++// profiling source for this thread.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigprofNonGo() {
++func sigprofNonGo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	if prof.hz != 0 {
+-		n := 0
+-		for n < len(sigprofCallers) && sigprofCallers[n] != 0 {
+-			n++
++		c := &sigctxt{info, ctx}
++		// Some platforms (Linux) have per-thread timers, which we use in
++		// combination with the process-wide timer. Avoid double-counting.
++		if validSIGPROF(nil, c) {
++			n := 0
++			for n < len(sigprofCallers) && sigprofCallers[n] != 0 {
++				n++
++			}
++			cpuprof.addNonGo(sigprofCallers[:n])
+ 		}
+-		cpuprof.addNonGo(sigprofCallers[:n])
+ 	}
+ 
+ 	atomic.Store(&sigprofCallersUse, 0)
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 3bd027f982..5d89cda8e6 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -230,6 +230,23 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
++// Called using C ABI.
++TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
++
++	// Call into the Go signal handler
++	NOP	SP		// disable vet stack checking
++	ADJSP	$24
++	MOVL	DI, 0(SP)	// sig
++	MOVQ	SI, 8(SP)	// info
++	MOVQ	DX, 16(SP)	// ctx
++	CALL	·sigprofNonGo(SB)
++	ADJSP	$-24
++
++	POP_REGS_HOST_TO_ABI0()
++	RET
++
+ // Used instead of sigtramp in programs that use cgo.
+ // Arguments from kernel are in DI, SI, DX.
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+@@ -297,12 +314,12 @@ sigtrampnog:
+ 	JNZ	sigtramp  // Skip stack trace if already locked.
+ 
+ 	// Jump to the traceback function in runtime/cgo.
+-	// It will call back to sigprofNonGo, which will ignore the
+-	// arguments passed in registers.
++	// It will call back to sigprofNonGo, via sigprofNonGoWrapper, to convert
++	// the arguments to the Go calling convention.
+ 	// First three arguments to traceback function are in registers already.
+ 	MOVQ	runtime·cgoTraceback(SB), CX
+ 	MOVQ	$runtime·sigprofCallers(SB), R8
+-	MOVQ	$runtime·sigprofNonGo(SB), R9
++	MOVQ	$runtime·sigprofNonGoWrapper<>(SB), R9
+ 	MOVQ	_cgo_callers(SB), AX
+ 	JMP	AX
+ 
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 71a60cae65..165e97c60d 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -255,6 +255,23 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+         POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
++// Called using C ABI.
++TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
++
++	// Call into the Go signal handler
++	NOP	SP		// disable vet stack checking
++	ADJSP	$24
++	MOVL	DI, 0(SP)	// sig
++	MOVQ	SI, 8(SP)	// info
++	MOVQ	DX, 16(SP)	// ctx
++	CALL	·sigprofNonGo(SB)
++	ADJSP	$-24
++
++	POP_REGS_HOST_TO_ABI0()
++	RET
++
+ // Used instead of sigtramp in programs that use cgo.
+ // Arguments from kernel are in DI, SI, DX.
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+@@ -322,12 +339,12 @@ sigtrampnog:
+ 	JNZ	sigtramp  // Skip stack trace if already locked.
+ 
+ 	// Jump to the traceback function in runtime/cgo.
+-	// It will call back to sigprofNonGo, which will ignore the
+-	// arguments passed in registers.
++	// It will call back to sigprofNonGo, via sigprofNonGoWrapper, to convert
++	// the arguments to the Go calling convention.
+ 	// First three arguments to traceback function are in registers already.
+ 	MOVQ	runtime·cgoTraceback(SB), CX
+ 	MOVQ	$runtime·sigprofCallers(SB), R8
+-	MOVQ	$runtime·sigprofNonGo(SB), R9
++	MOVQ	$runtime·sigprofNonGoWrapper<>(SB), R9
+ 	MOVQ	_cgo_callers(SB), AX
+ 	JMP	AX
+ 
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 345dc90eb0..f0e58e11db 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -364,6 +364,23 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+         POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
++// Called using C ABI.
++TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
++
++	// Call into the Go signal handler
++	NOP	SP		// disable vet stack checking
++	ADJSP	$24
++	MOVL	DI, 0(SP)	// sig
++	MOVQ	SI, 8(SP)	// info
++	MOVQ	DX, 16(SP)	// ctx
++	CALL	·sigprofNonGo(SB)
++	ADJSP	$-24
++
++	POP_REGS_HOST_TO_ABI0()
++	RET
++
+ // Used instead of sigtramp in programs that use cgo.
+ // Arguments from kernel are in DI, SI, DX.
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+@@ -431,12 +448,12 @@ sigtrampnog:
+ 	JNZ	sigtramp  // Skip stack trace if already locked.
+ 
+ 	// Jump to the traceback function in runtime/cgo.
+-	// It will call back to sigprofNonGo, which will ignore the
+-	// arguments passed in registers.
++	// It will call back to sigprofNonGo, via sigprofNonGoWrapper, to convert
++	// the arguments to the Go calling convention.
+ 	// First three arguments to traceback function are in registers already.
+ 	MOVQ	runtime·cgoTraceback(SB), CX
+ 	MOVQ	$runtime·sigprofCallers(SB), R8
+-	MOVQ	$runtime·sigprofNonGo(SB), R9
++	MOVQ	$runtime·sigprofNonGoWrapper<>(SB), R9
+ 	MOVQ	_cgo_callers(SB), AX
+ 	JMP	AX
+ 
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 56d600b6ea..9347afaf19 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -743,6 +743,9 @@ TEXT cgoSigtramp<>(SB),NOSPLIT,$0
+ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
+ 	// We're coming from C code, set up essential register, then call sigprofNonGo.
+ 	CALL	runtime·reginit(SB)
++	MOVW	R3, FIXED_FRAME+0(R1)	// sig
++	MOVD	R4, FIXED_FRAME+8(R1)	// info
++	MOVD	R5, FIXED_FRAME+16(R1)	// ctx
+ 	CALL	runtime·sigprofNonGo(SB)
+ 	RET
+ 

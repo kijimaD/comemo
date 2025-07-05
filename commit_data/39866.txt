@@ -14,6 +14,19 @@ Date:   Wed Mar 27 17:30:32 2019 +0000
     GitHub-Pull-Request: golang/go#31071
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169502
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/type.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/mime/type.go b/src/mime/type.go
+index 64e26ffb7c..3a8fe4447f 100644
+--- a/src/mime/type.go
++++ b/src/mime/type.go
+@@ -68,6 +68,7 @@ var builtinTypesLower = map[string]string{
+ 	".png":  "image/png",
+ 	".svg":  "image/svg+xml",
+ 	".xml":  "text/xml; charset=utf-8",
++	".mjs":  "text/javascript",
+ }
+ 
+ var once sync.Once // guards initMime

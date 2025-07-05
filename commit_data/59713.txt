@@ -18,6 +18,22 @@ Date:   Sat Apr 13 14:24:11 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/io/io.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 7f16e18d7d..00edcde763 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -411,8 +411,8 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+ 		return wt.WriteTo(dst)
+ 	}
+ 	// Similarly, if the writer has a ReadFrom method, use it to do the copy.
+-	if rt, ok := dst.(ReaderFrom); ok {
+-		return rt.ReadFrom(src)
++	if rf, ok := dst.(ReaderFrom); ok {
++		return rf.ReadFrom(src)
+ 	}
+ 	if buf == nil {
+ 		size := 32 * 1024

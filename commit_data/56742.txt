@@ -13,8 +13,56 @@ Date:   Tue May 23 12:30:43 2023 +0200
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/metrics.go             | 6 ++++++
  src/runtime/metrics/description.go | 5 +++++
  src/runtime/metrics/doc.go         | 3 +++
  3 files changed, 14 insertions(+)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 4931a0ef8b..ffbb4e4d0f 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -300,6 +300,12 @@ func initMetrics() {
+ 				hist.counts[len(hist.counts)-1] = memstats.gcPauseDist.overflow.Load()
+ 			},
+ 		},
++		"/gc/scan/stack:bytes": {
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(gcController.lastStackScan.Load())
++			},
++		},
+ 		"/gc/stack/starting-size:bytes": {
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindUint64
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index e3eb87b353..8355fc5da0 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -294,6 +294,11 @@ var allDesc = []Description{
+ 		Kind:        KindFloat64Histogram,
+ 		Cumulative:  true,
+ 	},
++	{
++		Name:        "/gc/scan/stack:bytes",
++		Description: "The number of bytes of stack that were scanned last GC cycle.",
++		Kind:        KindUint64,
++	},
+ 	{
+ 		Name:        "/gc/stack/starting-size:bytes",
+ 		Description: "The stack size of new goroutines.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index f95177edc8..7f21278450 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -216,6 +216,9 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		Distribution of individual GC-related stop-the-world pause
+ 		latencies. Bucket counts increase monotonically.
+ 
++	/gc/scan/stack:bytes
++		The number of bytes of stack that were scanned last GC cycle.
++
+ 	/gc/stack/starting-size:bytes
+ 		The stack size of new goroutines.
+ 

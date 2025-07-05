@@ -9,8 +9,79 @@ Date:   Fri Nov 21 16:46:27 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/179160044
-
+---
  src/runtime/mgc.go    | 13 +++++--------
  src/runtime/proc1.go  | 11 ++++-------
  src/runtime/stack1.go |  5 +++++
  3 files changed, 14 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 5b0c9b9905..a13de0488c 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -923,14 +923,11 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
+ }
+ 
+ func scanstack(gp *g) {
+-	// TODO(rsc): Due to a precedence error, this was never checked in the original C version.
+-	// If you enable the check, the gothrow happens.
+-	/*
+-		if readgstatus(gp)&_Gscan == 0 {
+-			print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
+-			gothrow("mark - bad status")
+-		}
+-	*/
++
++	if readgstatus(gp)&_Gscan == 0 {
++		print("runtime:scanstack: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", hex(readgstatus(gp)), "\n")
++		gothrow("scanstack - bad status")
++	}
+ 
+ 	switch readgstatus(gp) &^ _Gscan {
+ 	default:
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 8c941dd35d..be01f26718 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -316,6 +316,10 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ 
+ 	// Check that transition is valid.
+ 	switch oldval {
++	default:
++		print("runtime: casfrom_Gscanstatus bad oldval gp=", gp, ", oldval=", hex(oldval), ", newval=", hex(newval), "\n")
++		dumpgstatus(gp)
++		gothrow("casfrom_Gscanstatus:top gp->status is not in scan state")
+ 	case _Gscanrunnable,
+ 		_Gscanwaiting,
+ 		_Gscanrunning,
+@@ -417,13 +421,6 @@ func stopg(gp *g) bool {
+ 			return false
+ 
+ 		case _Grunning:
+-			if gcphase == _GCscan {
+-				// Running routines not scanned during
+-				// GCscan phase, we only scan non-running routines.
+-				gp.gcworkdone = true
+-				return false
+-			}
+-
+ 			// Claim goroutine, so we aren't racing with a status
+ 			// transition away from Grunning.
+ 			if !castogscanstatus(gp, _Grunning, _Gscanrunning) {
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 78bcccc41b..57d0f8c65e 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -682,7 +682,12 @@ func newstack() {
+ 			gothrow("runtime: g is running but p is not")
+ 		}
+ 		if gp.preemptscan {
++			for !castogscanstatus(gp, _Gwaiting, _Gscanwaiting) {
++				// Likely to be racing with the GC as it sees a _Gwaiting and does the stack scan.
++				// If so this stack will be scanned twice which does not change correctness.
++			}
+ 			gcphasework(gp)
++			casfrom_Gscanstatus(gp, _Gscanwaiting, _Gwaiting)
+ 			casgstatus(gp, _Gwaiting, _Grunning)
+ 			gp.stackguard0 = gp.stack.lo + _StackGuard
+ 			gp.preempt = false

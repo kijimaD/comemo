@@ -18,6 +18,32 @@ Date:   Wed Oct 31 17:56:14 2018 +0100
     Change-Id: Ifce6f505b9e7ba3717bad8f454077a2e94ea6e75
     Reviewed-on: https://go-review.googlesource.com/c/146343
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/netpoll.go | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 34e7c902eb..f914844cdf 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -254,12 +254,14 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
+ 	}
+ 	// If we set the new deadline in the past, unblock currently pending IO if any.
+ 	var rg, wg *g
+-	atomicstorep(unsafe.Pointer(&wg), nil) // full memory barrier between stores to rd/wd and load of rg/wg in netpollunblock
+-	if pd.rd < 0 {
+-		rg = netpollunblock(pd, 'r', false)
+-	}
+-	if pd.wd < 0 {
+-		wg = netpollunblock(pd, 'w', false)
++	if pd.rd < 0 || pd.wd < 0 {
++		atomicstorep(unsafe.Pointer(&wg), nil) // full memory barrier between stores to rd/wd and load of rg/wg in netpollunblock
++		if pd.rd < 0 {
++			rg = netpollunblock(pd, 'r', false)
++		}
++		if pd.wd < 0 {
++			wg = netpollunblock(pd, 'w', false)
++		}
+ 	}
+ 	unlock(&pd.lock)
+ 	if rg != nil {

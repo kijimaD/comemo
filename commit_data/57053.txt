@@ -17,7 +17,54 @@ Date:   Mon Jun 12 18:58:50 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/crypto/ecdsa/ecdsa.go      |  2 +-
  src/crypto/ecdsa/ecdsa_test.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 1b04b2cb99..1c93cefdbf 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -380,7 +380,7 @@ func hashToNat[Point nistPoint[Point]](c *nistCurve[Point], e *bigmod.Nat, hash
+ 	// an integer modulo N. This is the absolute worst of all worlds: we still
+ 	// have to reduce, because the result might still overflow N, but to take
+ 	// the left-most bits for P-521 we have to do a right shift.
+-	if size := c.N.Size(); len(hash) > size {
++	if size := c.N.Size(); len(hash) >= size {
+ 		hash = hash[:size]
+ 		if excess := len(hash)*8 - c.N.BitLen(); excess > 0 {
+ 			hash = bytes.Clone(hash)
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 95c78c8e32..08a0903eb1 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"compress/bzip2"
+ 	"crypto/elliptic"
++	"crypto/internal/bigmod"
+ 	"crypto/rand"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+@@ -398,6 +399,20 @@ func testRandomPoint[Point nistPoint[Point]](t *testing.T, c *nistCurve[Point])
+ 	}
+ }
+ 
++func TestHashToNat(t *testing.T) {
++	t.Run("P-224", func(t *testing.T) { testHashToNat(t, p224()) })
++	t.Run("P-256", func(t *testing.T) { testHashToNat(t, p256()) })
++	t.Run("P-384", func(t *testing.T) { testHashToNat(t, p384()) })
++	t.Run("P-521", func(t *testing.T) { testHashToNat(t, p521()) })
++}
++
++func testHashToNat[Point nistPoint[Point]](t *testing.T, c *nistCurve[Point]) {
++	for l := 0; l < 600; l++ {
++		h := bytes.Repeat([]byte{0xff}, l)
++		hashToNat(c, bigmod.NewNat(), h)
++	}
++}
++
+ func TestZeroSignature(t *testing.T) {
+ 	testAllCurves(t, testZeroSignature)
+ }

@@ -9,6 +9,25 @@ Date:   Mon Aug 5 17:57:29 2019 +0200
     Change-Id: Iab69e69589f2e017f4cf9770858884b1a570c89e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188799
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.13.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index f38474b327..3b9da340aa 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -992,3 +992,13 @@ godoc
+ 
+ </dl><!-- time -->
+ 
++<dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
++  <dd>
++    <p>
++      The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
++      support throughout the system has been upgraded from Unicode 10.0 to
++      <a href="http://www.unicode.org/versions/Unicode11.0.0/">Unicode 11.0</a>,
++      which adds 684 new characters, including seven new scripts, and 66 new emoji.
++    </p>
++
++</dl><!-- unicode -->

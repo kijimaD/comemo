@@ -22,7 +22,70 @@ Date:   Mon May 23 12:28:56 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/json/stream.go      | 14 +++++++++-----
  src/encoding/json/stream_test.go |  5 ++++-
  2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/json/stream.go b/src/encoding/json/stream.go
+index dba978aa66..87f0e57c6c 100644
+--- a/src/encoding/json/stream.go
++++ b/src/encoding/json/stream.go
+@@ -204,7 +204,10 @@ func (enc *Encoder) Encode(v interface{}) error {
+ 	e.WriteByte('\n')
+ 
+ 	b := e.Bytes()
+-	if enc.indentBuf != nil {
++	if enc.indentPrefix != "" || enc.indentValue != "" {
++		if enc.indentBuf == nil {
++			enc.indentBuf = new(bytes.Buffer)
++		}
+ 		enc.indentBuf.Reset()
+ 		err = Indent(enc.indentBuf, b, enc.indentPrefix, enc.indentValue)
+ 		if err != nil {
+@@ -219,9 +222,10 @@ func (enc *Encoder) Encode(v interface{}) error {
+ 	return err
+ }
+ 
+-// Indent sets the encoder to format each encoded value with Indent.
+-func (enc *Encoder) Indent(prefix, indent string) {
+-	enc.indentBuf = new(bytes.Buffer)
++// SetIndent instructs the encoder to format each subsequent encoded
++// value as if indented by the package-level function Indent(dst, src, prefix, indent).
++// Calling SetIndent("", "") disables indentation.
++func (enc *Encoder) SetIndent(prefix, indent string) {
+ 	enc.indentPrefix = prefix
+ 	enc.indentValue = indent
+ }
+@@ -230,7 +234,7 @@ func (enc *Encoder) Indent(prefix, indent string) {
+ // should be escaped inside JSON quoted strings.
+ // The default behavior is to escape &, <, and > to \u0026, \u003c, and \u003e
+ // to avoid certain safety problems that can arise when embedding JSON in HTML.
+-// 
++//
+ // In non-HTML settings where the escaping interferes with the readability
+ // of the output, SetEscapeHTML(false) disables this behavior.
+ func (enc *Encoder) SetEscapeHTML(on bool) {
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index 0d578ce24d..84edeb187c 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -44,6 +44,9 @@ func TestEncoder(t *testing.T) {
+ 	for i := 0; i <= len(streamTest); i++ {
+ 		var buf bytes.Buffer
+ 		enc := NewEncoder(&buf)
++		// Check that enc.SetIndent("", "") turns off indentation.
++		enc.SetIndent(">", ".")
++		enc.SetIndent("", "")
+ 		for j, v := range streamTest[0:i] {
+ 			if err := enc.Encode(v); err != nil {
+ 				t.Fatalf("encode #%d: %v", j, err)
+@@ -77,7 +80,7 @@ false
+ func TestEncoderIndent(t *testing.T) {
+ 	var buf bytes.Buffer
+ 	enc := NewEncoder(&buf)
+-	enc.Indent(">", ".")
++	enc.SetIndent(">", ".")
+ 	for _, v := range streamTest {
+ 		enc.Encode(v)
+ 	}

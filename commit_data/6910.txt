@@ -9,7 +9,110 @@ Date:   Thu Dec 9 14:51:01 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2967041
-
+---
  src/pkg/xml/xml.go      | 28 ++++++++++++++++++++++++++++
  src/pkg/xml/xml_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 69 insertions(+)
+
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index eed9355547..4d9c672d27 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -16,6 +16,7 @@ package xml
+ import (
+ 	"bufio"
+ 	"bytes"
++	"fmt"
+ 	"io"
+ 	"os"
+ 	"strconv"
+@@ -871,6 +872,21 @@ Input:
+ 	data := p.buf.Bytes()
+ 	data = data[0 : len(data)-trunc]
+ 
++	// Inspect each rune for being a disallowed character.
++	buf := data
++	for len(buf) > 0 {
++		r, size := utf8.DecodeRune(buf)
++		if r == utf8.RuneError && size == 1 {
++			p.err = p.syntaxError("invalid UTF-8")
++			return nil
++		}
++		buf = buf[size:]
++		if !isInCharacterRange(r) {
++			p.err = p.syntaxError(fmt.Sprintf("illegal character code %U", r))
++			return nil
++		}
++	}
++
+ 	// Must rewrite \r and \r\n into \n.
+ 	w := 0
+ 	for r := 0; r < len(data); r++ {
+@@ -887,6 +903,18 @@ Input:
+ 	return data[0:w]
+ }
+ 
++// Decide whether the given rune is in the XML Character Range, per
++// the Char production of http://www.xml.com/axml/testaxml.htm,
++// Section 2.2 Characters.
++func isInCharacterRange(rune int) (inrange bool) {
++	return rune == 0x09 ||
++		rune == 0x0A ||
++		rune == 0x0D ||
++		rune >= 0x20 && rune <= 0xDF77 ||
++		rune >= 0xE000 && rune <= 0xFFFD ||
++		rune >= 0x10000 && rune <= 0x10FFFF
++}
++
+ // Get name space name: name with a : stuck in the middle.
+ // The part before the : is the name space identifier.
+ func (p *Parser) nsname() (name Name, ok bool) {
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index 2c73fcc803..9ab199a30e 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -398,3 +398,44 @@ func TestEntityInsideCDATA(t *testing.T) {
+ 		t.Fatalf("p.Token() = _, %v, want _, os.EOF", err)
+ 	}
+ }
++
++
++// The last three tests (respectively one for characters in attribute
++// names and two for character entities) pass not because of code
++// changed for issue 1259, but instead pass with the given messages
++// from other parts of xml.Parser.  I provide these to note the
++// current behavior of situations where one might think that character
++// range checking would detect the error, but it does not in fact.
++
++var characterTests = []struct {
++	in  string
++	err string
++}{
++	{"\x12<doc/>", "illegal character code U+0012"},
++	{"<?xml version=\"1.0\"?>\x0b<doc/>", "illegal character code U+000B"},
++	{"\xef\xbf\xbe<doc/>", "illegal character code U+FFFE"},
++	{"<?xml version=\"1.0\"?><doc>\r\n<hiya/>\x07<toots/></doc>", "illegal character code U+0007"},
++	{"<?xml version=\"1.0\"?><doc \x12='value'>what's up</doc>", "expected attribute name in element"},
++	{"<doc>&\x01;</doc>", "invalid character entity &;"},
++	{"<doc>&\xef\xbf\xbe;</doc>", "invalid character entity &;"},
++}
++
++
++func TestDisallowedCharacters(t *testing.T) {
++
++	for i, tt := range characterTests {
++		p := NewParser(StringReader(tt.in))
++		var err os.Error
++
++		for err == nil {
++			_, err = p.Token()
++		}
++		synerr, ok := err.(*SyntaxError)
++		if !ok {
++			t.Fatalf("input %d p.Token() = _, %v, want _, *SyntaxError", i, err)
++		}
++		if synerr.Msg != tt.err {
++			t.Fatalf("input %d synerr.Msg wrong: want '%s', got '%s'", i, tt.err, synerr.Msg)
++		}
++	}
++}

@@ -15,9 +15,168 @@ Date:   Wed Jan 20 14:26:42 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/walk/race.go   |  9 ++++-----
  src/cmd/compile/internal/walk/range.go  | 16 +++++++++-------
  src/cmd/compile/internal/walk/select.go |  8 +++++---
  src/cmd/compile/internal/walk/walk.go   | 17 +++++++++++++++++
  4 files changed, 35 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/race.go b/src/cmd/compile/internal/walk/race.go
+index 77cabe50c6..47cd2fdc22 100644
+--- a/src/cmd/compile/internal/walk/race.go
++++ b/src/cmd/compile/internal/walk/race.go
+@@ -26,10 +26,9 @@ func instrument(fn *ir.Func) {
+ 	if base.Flag.Race {
+ 		lno := base.Pos
+ 		base.Pos = src.NoXPos
+-
+ 		if ssagen.Arch.LinkArch.Arch.Family != sys.AMD64 {
+-			fn.Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
+-			fn.Exit.Append(mkcall("racefuncexit", nil, nil))
++			fn.Enter.Prepend(mkcallstmt("racefuncenterfp"))
++			fn.Exit.Append(mkcallstmt("racefuncexit"))
+ 		} else {
+ 
+ 			// nodpc is the PC of the caller as extracted by
+@@ -44,8 +43,8 @@ func instrument(fn *ir.Func) {
+ 			nodpc.SetType(types.Types[types.TUINTPTR])
+ 			nodpc.SetFrameOffset(int64(-types.PtrSize))
+ 			fn.Dcl = append(fn.Dcl, nodpc)
+-			fn.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
+-			fn.Exit.Append(mkcall("racefuncexit", nil, nil))
++			fn.Enter.Prepend(mkcallstmt("racefuncenter", nodpc))
++			fn.Exit.Append(mkcallstmt("racefuncexit"))
+ 		}
+ 		base.Pos = lno
+ 	}
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 2b28e7442d..5ab24b2188 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -174,12 +174,12 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		fn := typecheck.LookupRuntime("mapiterinit")
+ 
+ 		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), th)
+-		init = append(init, mkcall1(fn, nil, nil, reflectdata.TypePtr(t), ha, typecheck.NodAddr(hit)))
++		init = append(init, mkcallstmt1(fn, reflectdata.TypePtr(t), ha, typecheck.NodAddr(hit)))
+ 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
+ 
+ 		fn = typecheck.LookupRuntime("mapiternext")
+ 		fn = typecheck.SubstArgTypes(fn, th)
+-		nfor.Post = mkcall1(fn, nil, nil, typecheck.NodAddr(hit))
++		nfor.Post = mkcallstmt1(fn, typecheck.NodAddr(hit))
+ 
+ 		key := ir.NewStarExpr(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym))
+ 		if v1 == nil {
+@@ -269,12 +269,14 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 
+ 		// } else {
+ 		eif := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
+-		nif.Else = []ir.Node{eif}
+ 
+ 		// hv2, hv1 = decoderune(ha, hv1)
+ 		eif.Lhs = []ir.Node{hv2, hv1}
+ 		fn := typecheck.LookupRuntime("decoderune")
+-		eif.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), nil, ha, hv1)}
++		var fnInit ir.Nodes
++		eif.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), &fnInit, ha, hv1)}
++		fnInit.Append(eif)
++		nif.Else = fnInit
+ 
+ 		body = append(body, nif)
+ 
+@@ -374,7 +376,7 @@ func mapClear(m ir.Node) ir.Node {
+ 	// instantiate mapclear(typ *type, hmap map[any]any)
+ 	fn := typecheck.LookupRuntime("mapclear")
+ 	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
+-	n := mkcall1(fn, nil, nil, reflectdata.TypePtr(t), m)
++	n := mkcallstmt1(fn, reflectdata.TypePtr(t), m)
+ 	return walkStmt(typecheck.Stmt(n))
+ }
+ 
+@@ -449,10 +451,10 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
+ 	if a.Type().Elem().HasPointers() {
+ 		// memclrHasPointers(hp, hn)
+ 		ir.CurFunc.SetWBPos(stmt.Pos())
+-		fn = mkcall("memclrHasPointers", nil, nil, hp, hn)
++		fn = mkcallstmt("memclrHasPointers", hp, hn)
+ 	} else {
+ 		// memclrNoHeapPointers(hp, hn)
+-		fn = mkcall("memclrNoHeapPointers", nil, nil, hp, hn)
++		fn = mkcallstmt("memclrNoHeapPointers", hp, hn)
+ 	}
+ 
+ 	n.Body.Append(fn)
+diff --git a/src/cmd/compile/internal/walk/select.go b/src/cmd/compile/internal/walk/select.go
+index c6069d0ba2..873be289dc 100644
+--- a/src/cmd/compile/internal/walk/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -35,7 +35,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 
+ 	// optimization: zero-case select
+ 	if ncas == 0 {
+-		return []ir.Node{mkcall("block", nil, nil)}
++		return []ir.Node{mkcallstmt("block")}
+ 	}
+ 
+ 	// optimization: one-case select: single op.
+@@ -214,7 +214,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 		// TODO(mdempsky): There should be a cleaner way to
+ 		// handle this.
+ 		if base.Flag.Race {
+-			r := mkcall("selectsetpc", nil, nil, typecheck.NodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(int64(i)))))
++			r := mkcallstmt("selectsetpc", typecheck.NodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(int64(i)))))
+ 			init = append(init, r)
+ 		}
+ 	}
+@@ -229,7 +229,9 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 	r := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
+ 	r.Lhs = []ir.Node{chosen, recvOK}
+ 	fn := typecheck.LookupRuntime("selectgo")
+-	r.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, ir.NewInt(int64(nsends)), ir.NewInt(int64(nrecvs)), ir.NewBool(dflt == nil))}
++	var fnInit ir.Nodes
++	r.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), &fnInit, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, ir.NewInt(int64(nsends)), ir.NewInt(int64(nrecvs)), ir.NewBool(dflt == nil))}
++	init = append(init, fnInit...)
+ 	init = append(init, typecheck.Stmt(r))
+ 
+ 	// selv and order are no longer alive after selectgo.
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 399fb2462b..4273a62fe5 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -96,6 +96,9 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
+ var stop = errors.New("stop")
+ 
+ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallExpr {
++	if init == nil {
++		base.Fatalf("mkcall with nil init: %v", fn)
++	}
+ 	if fn.Type() == nil || fn.Type().Kind() != types.TFUNC {
+ 		base.Fatalf("mkcall %v %v", fn, fn.Type())
+ 	}
+@@ -115,10 +118,24 @@ func mkcall(name string, t *types.Type, init *ir.Nodes, args ...ir.Node) *ir.Cal
+ 	return vmkcall(typecheck.LookupRuntime(name), t, init, args)
+ }
+ 
++func mkcallstmt(name string, args ...ir.Node) ir.Node {
++	return mkcallstmt1(typecheck.LookupRuntime(name), args...)
++}
++
+ func mkcall1(fn ir.Node, t *types.Type, init *ir.Nodes, args ...ir.Node) *ir.CallExpr {
+ 	return vmkcall(fn, t, init, args)
+ }
+ 
++func mkcallstmt1(fn ir.Node, args ...ir.Node) ir.Node {
++	var init ir.Nodes
++	n := vmkcall(fn, nil, &init, args)
++	if len(init) == 0 {
++		return n
++	}
++	init.Append(n)
++	return ir.NewBlockStmt(n.Pos(), init)
++}
++
+ func chanfn(name string, n int, t *types.Type) ir.Node {
+ 	if !t.IsChan() {
+ 		base.Fatalf("chanfn %v", t)

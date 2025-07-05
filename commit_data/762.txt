@@ -13,8 +13,82 @@ Date:   Mon Sep 29 11:03:21 2008 -0700
     DELTA=23  (9 added, 14 deleted, 0 changed)
     OCL=16085
     CL=16088
-
+---
  test/bugs/bug108.go | 10 ++++++++++
  test/golden.out     | 12 ++++--------
  test/ken/shift.go   |  6 ------
  3 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/test/bugs/bug108.go b/test/bugs/bug108.go
+new file mode 100644
+index 0000000000..b7350e72cb
+--- /dev/null
++++ b/test/bugs/bug108.go
+@@ -0,0 +1,10 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++func f() {
++	v := 1 << 1025;		// ERROR "overflow"
++}
+diff --git a/test/golden.out b/test/golden.out
+index fa3b09d65b..196d854ac5 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -37,14 +37,6 @@ Hello World!
+ =========== ken/rob2.go
+ (defn foo (add 12 34))
+ 
+-=========== ken/shift.go
+-ken/shift.go:50: stupid shift: 1025
+-ken/shift.go:51: stupid shift: 1025
+-ken/shift.go:57: stupid shift: 1025
+-ken/shift.go:58: stupid shift: 1025
+-ken/shift.go:64: stupid shift: 1025
+-ken/shift.go:65: stupid shift: 1025
+-
+ =========== ken/simpprint.go
+ hello world
+ 
+@@ -172,6 +164,10 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
+ =========== bugs/bug107.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug107.go
+ 
++=========== bugs/bug108.go
++bugs/bug108.go:4: stupid shift: 1025
++BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
+ 
+diff --git a/test/ken/shift.go b/test/ken/shift.go
+index 0be8da51b6..379f53fa42 100644
+--- a/test/ken/shift.go
++++ b/test/ken/shift.go
+@@ -51,22 +51,16 @@ main()
+ 	testi( int(1234) >>    0, 0,0,1);
+ 	testi( int(1234) <<    5, 0,1,0);
+ 	testi( int(1234) >>    5, 0,1,1);
+-	testi( int(1234) << 1025, 0,2,0);
+-	testi( int(1234) >> 1025, 0,2,1);
+ 
+ 	testi(int(-1234) <<    0, 1,0,0);
+ 	testi(int(-1234) >>    0, 1,0,1);
+ 	testi(int(-1234) <<    5, 1,1,0);
+ 	testi(int(-1234) >>    5, 1,1,1);
+-	testi(int(-1234) << 1025, 1,2,0);
+-	testi(int(-1234) >> 1025, 1,2,1);
+ 
+ 	testu(uint(5678) <<    0, 2,0,0);
+ 	testu(uint(5678) >>    0, 2,0,1);
+ 	testu(uint(5678) <<    5, 2,1,0);
+ 	testu(uint(5678) >>    5, 2,1,1);
+-	testu(uint(5678) << 1025, 2,2,0);
+-	testu(uint(5678) >> 1025, 2,2,1);
+ 
+ 	/*
+ 	 * test variable evaluations

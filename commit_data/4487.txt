@@ -8,7 +8,122 @@ Date:   Thu Dec 24 07:41:56 2009 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/181044
-
+---
  src/pkg/template/template.go      | 46 +++++++++++++++++----------------------
  src/pkg/template/template_test.go | 18 ++++++++++++++-
  2 files changed, 37 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index b46d28613c..ef694b24b0 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -833,41 +833,35 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 	}
+ 	first := true
+ 
+-	if array, ok := field.(reflect.ArrayOrSliceValue); ok {
+-		for j := 0; j < array.Len(); j++ {
+-			newst := st.clone(array.Elem(j))
+-
+-			// .alternates between elements
+-			if !first && r.altstart >= 0 {
+-				for i := r.altstart; i < r.altend; {
+-					i = t.executeElement(i, newst)
+-				}
+-			}
+-			first = false
+-
+-			for i := start; i < end; {
++	// Code common to all the loops.
++	loopBody := func(newst *state) {
++		// .alternates between elements
++		if !first && r.altstart >= 0 {
++			for i := r.altstart; i < r.altend; {
+ 				i = t.executeElement(i, newst)
+ 			}
+ 		}
++		first = false
++		for i := start; i < end; {
++			i = t.executeElement(i, newst)
++		}
++	}
++
++	if array, ok := field.(reflect.ArrayOrSliceValue); ok {
++		for j := 0; j < array.Len(); j++ {
++			loopBody(st.clone(array.Elem(j)))
++		}
++	} else if m, ok := field.(*reflect.MapValue); ok {
++		for _, key := range m.Keys() {
++			loopBody(st.clone(m.Elem(key)))
++		}
+ 	} else if ch := iter(field); ch != nil {
+ 		for {
+ 			e := ch.Recv()
+ 			if ch.Closed() {
+ 				break
+ 			}
+-			newst := st.clone(e)
+-
+-			// .alternates between elements
+-			if !first && r.altstart >= 0 {
+-				for i := r.altstart; i < r.altend; {
+-					i = t.executeElement(i, newst)
+-				}
+-			}
+-			first = false
+-
+-			for i := start; i < end; {
+-				i = t.executeElement(i, newst)
+-			}
++			loopBody(st.clone(e))
+ 		}
+ 	} else {
+ 		t.execError(st, r.linenum, ".repeated: cannot repeat %s (type %s)",
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index c2bc5125fa..65dae3a490 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -42,6 +42,7 @@ type S struct {
+ 	false         bool
+ 	mp            map[string]string
+ 	innermap      U
++	stringmap     map[string]string
+ 	bytes         []byte
+ }
+ 
+@@ -314,12 +315,24 @@ var tests = []*Test{
+ 
+ 		out: "Ahoy!\n",
+ 	},
+-
+ 	&Test{
+ 		in: "{innermap.mp.innerkey}\n",
+ 
+ 		out: "55\n",
+ 	},
++	&Test{
++		in: "{stringmap.stringkey1}\n",
++
++		out: "stringresult\n",
++	},
++	&Test{
++		in: "{.repeated section stringmap}\n" +
++			"{@}\n" +
++			"{.end}",
++
++		out: "stringresult\n" +
++			"stringresult\n",
++	},
+ }
+ 
+ func TestAll(t *testing.T) {
+@@ -342,6 +355,9 @@ func TestAll(t *testing.T) {
+ 	s.mp["mapkey"] = "Ahoy!"
+ 	s.innermap.mp = make(map[string]int)
+ 	s.innermap.mp["innerkey"] = 55
++	s.stringmap = make(map[string]string)
++	s.stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
++	s.stringmap["stringkey2"] = "stringresult"
+ 	s.bytes = strings.Bytes("hello")
+ 
+ 	var buf bytes.Buffer

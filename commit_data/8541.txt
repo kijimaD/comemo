@@ -9,7 +9,7 @@ Date:   Mon May 30 18:02:59 2011 +1000
     R=golang-dev, dsymonds, mikioh.mikioh, r
     CC=golang-dev
     https://golang.org/cl/4517116
-
+---
  misc/dashboard/builder/main.go                |  4 ++--
  misc/dashboard/googlecode_upload.py           |  2 +-
  src/cmd/cgo/out.go                            |  2 +-
@@ -42,3 +42,554 @@ Date:   Mon May 30 18:02:59 2011 +1000
  src/pkg/websocket/server.go                   |  2 +-
  src/pkg/websocket/websocket.go                |  2 +-
  31 files changed, 48 insertions(+), 48 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 0eda8d204f..5ba5c11c34 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -495,7 +495,7 @@ func commitPoll(key string) {
+ 
+ 	// Pass 1.  Fill in parents and add new log entries to logsByHash.
+ 	// Empty parent means take parent from next log entry.
+-	// Non-empty parent has form 1234:hashhashhash; we weant full hash.
++	// Non-empty parent has form 1234:hashhashhash; we want full hash.
+ 	for i := range logs {
+ 		l := &logs[i]
+ 		log.Printf("hg log: %s < %s\n", l.Hash, l.Parent)
+@@ -556,7 +556,7 @@ func addCommit(hash, key string) bool {
+ 
+ 	// Create commit.
+ 	if err := postCommit(key, l); err != nil {
+-		log.Printf("faield to add %s to dashboard: %v", err)
++		log.Printf("failed to add %s to dashboard: %v", key, err)
+ 		return false
+ 	}
+ 	return true
+diff --git a/misc/dashboard/googlecode_upload.py b/misc/dashboard/googlecode_upload.py
+index 3b1d432fff..e87db884ad 100755
+--- a/misc/dashboard/googlecode_upload.py
++++ b/misc/dashboard/googlecode_upload.py
+@@ -70,7 +70,7 @@ def upload(file, project_name, user_name, password, summary, labels=None):
+ 
+   Returns: a tuple:
+     http_status: 201 if the upload succeeded, something else if an
+-                 error occured.
++                 error occurred.
+     http_reason: The human-readable string associated with http_status
+     file_url: If the upload succeeded, the URL of the file on Google
+               Code, None otherwise.
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 2ce4e97528..dbc7bcf695 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -142,7 +142,7 @@ func dynimport(obj string) {
+ 	if f, err := pe.Open(obj); err == nil {
+ 		sym, err := f.ImportedSymbols()
+ 		if err != nil {
+-			fatalf("cannot load imported symbols from PE file %s: v", obj, err)
++			fatalf("cannot load imported symbols from PE file %s: %v", obj, err)
+ 		}
+ 		for _, s := range sym {
+ 			ss := strings.Split(s, ":", -1)
+diff --git a/src/libmach/darwin.c b/src/libmach/darwin.c
+index d44fd5612c..c443a4fbab 100644
+--- a/src/libmach/darwin.c
++++ b/src/libmach/darwin.c
+@@ -170,7 +170,7 @@ me(kern_return_t r)
+ // handles to tasks (processes), and handles to threads within a
+ // process.  All of them are small integers.
+ //
+-// To accomodate Mach, we employ a clumsy hack: in this interface,
++// To accommodate Mach, we employ a clumsy hack: in this interface,
+ // if you pass in a positive number, that's a process id.
+ // If you pass in a negative number, that identifies a thread that
+ // has been previously returned by procthreadpids (it indexes
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index 4de18c323b..9f7296a98b 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -362,7 +362,7 @@ func (d *decoder) uninterlace(m *image.Paletted) {
+ 	dx := d.width
+ 	dy := d.height
+ 	nPix = make([]uint8, dx*dy)
+-	offset := 0 // steps through the input by sequentical scan lines.
++	offset := 0 // steps through the input by sequential scan lines.
+ 	for _, pass := range interlacing {
+ 		nOffset := pass.start * dx // steps through the output as defined by pass.
+ 		for y := pass.start; y < dy; y += pass.skip {
+diff --git a/src/pkg/index/suffixarray/suffixarray_test.go b/src/pkg/index/suffixarray/suffixarray_test.go
+index e85267f17f..b1499027ad 100644
+--- a/src/pkg/index/suffixarray/suffixarray_test.go
++++ b/src/pkg/index/suffixarray/suffixarray_test.go
+@@ -108,7 +108,7 @@ var testCases = []testCase{
+ }
+ 
+ 
+-// find all occurrences of s in source; report at most n occurences
++// find all occurrences of s in source; report at most n occurrences
+ func find(src, s string, n int) []int {
+ 	var res vector.IntVector
+ 	if s != "" && n != 0 {
+diff --git a/src/pkg/math/log.go b/src/pkg/math/log.go
+index 39d94512d3..a786c8ce3a 100644
+--- a/src/pkg/math/log.go
++++ b/src/pkg/math/log.go
+@@ -23,7 +23,7 @@ package math
+ // ====================================================
+ //
+ // __ieee754_log(x)
+-// Return the logrithm of x
++// Return the logarithm of x
+ //
+ // Method :
+ //   1. Argument Reduction: find k and f such that
+diff --git a/src/pkg/math/sqrt_port.go b/src/pkg/math/sqrt_port.go
+index 6f35a383d1..83af255bf1 100644
+--- a/src/pkg/math/sqrt_port.go
++++ b/src/pkg/math/sqrt_port.go
+@@ -50,7 +50,7 @@ package math
+ //      If (2) is false, then q   = q ; otherwise q   = q  + 2      .
+ //                             i+1   i             i+1   i
+ //
+-//      With some algebric manipulation, it is not difficult to see
++//      With some algebraic manipulation, it is not difficult to see
+ //      that (2) is equivalent to
+ //                             -(i+1)
+ //                      s  +  2       <= y                       (3)
+diff --git a/src/pkg/mime/multipart/multipart_test.go b/src/pkg/mime/multipart/multipart_test.go
+index ec564b1d98..4ec3d30bdd 100644
+--- a/src/pkg/mime/multipart/multipart_test.go
++++ b/src/pkg/mime/multipart/multipart_test.go
+@@ -203,7 +203,7 @@ func testMultipart(t *testing.T, r io.Reader) {
+ 		t.Error("Didn't expect a fifth part.")
+ 	}
+ 	if err != os.EOF {
+-		t.Errorf("On  fifth part expected os.EOF; got %v", err)
++		t.Errorf("On fifth part expected os.EOF; got %v", err)
+ 	}
+ }
+ 
+diff --git a/src/pkg/mime/multipart/writer.go b/src/pkg/mime/multipart/writer.go
+index 1fca73d5ad..b436dd0124 100644
+--- a/src/pkg/mime/multipart/writer.go
++++ b/src/pkg/mime/multipart/writer.go
+@@ -98,7 +98,7 @@ func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, os.Error
+ 	return w.CreatePart(h)
+ }
+ 
+-// CreateFormField calls calls CreatePart with a header using the
++// CreateFormField calls CreatePart with a header using the
+ // given field name.
+ func (w *Writer) CreateFormField(fieldname string) (io.Writer, os.Error) {
+ 	h := make(textproto.MIMEHeader)
+diff --git a/src/pkg/mime/multipart/writer_test.go b/src/pkg/mime/multipart/writer_test.go
+index 9935eead39..e6a04c3887 100644
+--- a/src/pkg/mime/multipart/writer_test.go
++++ b/src/pkg/mime/multipart/writer_test.go
+@@ -23,7 +23,7 @@ func TestWriter(t *testing.T) {
+ 		part.Write(fileContents)
+ 		err = w.WriteField("key", "val")
+ 		if err != nil {
+-			t.Fatalf("CreateFormFieldValue: %v", err)
++			t.Fatalf("WriteField: %v", err)
+ 		}
+ 		part.Write([]byte("val"))
+ 		err = w.Close()
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index c2f736cc12..9ed7801d27 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -84,7 +84,7 @@ func (o *bufOp) Init(fd *netFD, buf []byte) {
+ 	}
+ }
+ 
+-// resultSrv will retreive all io completion results from
++// resultSrv will retrieve all io completion results from
+ // iocp and send them to the correspondent waiting client
+ // goroutine via channel supplied in the request.
+ type resultSrv struct {
+@@ -513,7 +513,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
+ 	return nfd, nil
+ }
+ 
+-// Not implemeted functions.
++// Unimplemented functions.
+ 
+ func (fd *netFD) dup() (f *os.File, err os.Error) {
+ 	// TODO: Implement this
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index a3000af8ae..b0e2c42053 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -113,7 +113,7 @@ func (ip IP) IsInterfaceLocalMulticast() bool {
+ 	return len(ip) == IPv6len && ip[0] == 0xff && ip[1]&0x0f == 0x01
+ }
+ 
+-// IsLinkLinkLocalMulticast returns true if ip is a link-local
++// IsLinkLocalMulticast returns true if ip is a link-local
+ // multicast address.
+ func (ip IP) IsLinkLocalMulticast() bool {
+ 	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 224 && ip4[1] == 0 && ip4[2] == 0 {
+@@ -122,7 +122,7 @@ func (ip IP) IsLinkLocalMulticast() bool {
+ 	return ip[0] == 0xff && ip[1]&0x0f == 0x02
+ }
+ 
+-// IsLinkLinkLocalUnicast returns true if ip is a link-local
++// IsLinkLocalUnicast returns true if ip is a link-local
+ // unicast address.
+ func (ip IP) IsLinkLocalUnicast() bool {
+ 	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 169 && ip4[1] == 254 {
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index b83284d36a..0b8c388f15 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -62,7 +62,7 @@ var supportsIPv6, supportsIPv4map = probeIPv6Stack()
+ // favoriteAddrFamily returns the appropriate address family to
+ // the given net, raddr, laddr and mode.  At first it figures
+ // address family out from the net.  If mode indicates "listen"
+-// and laddr.(type).IP is nil, it assuumes that the user wants to
++// and laddr.(type).IP is nil, it assumes that the user wants to
+ // make a passive connection with wildcard address family, both
+ // INET and INET6, and wildcard address.  Otherwise guess: if the
+ // addresses are IPv4 then returns INET, or else returns INET6.
+@@ -145,7 +145,7 @@ func ipv6only(x IP) IP {
+ 	return nil
+ }
+ 
+-// TODO(rsc): if syscall.OS == "linux", we're supposd to read
++// TODO(rsc): if syscall.OS == "linux", we're supposed to read
+ // /proc/sys/net/core/somaxconn,
+ // to take advantage of kernels that have raised the limit.
+ func listenBacklog() int { return syscall.SOMAXCONN }
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index ac1278689a..e65374903a 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -237,7 +237,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err os.
+ // to a method on r.
+ //
+ // Dot encoding is a common framing used for data blocks
+-// in text protcols like SMTP.  The data consists of a sequence
++// in text protocols such as SMTP.  The data consists of a sequence
+ // of lines, each of which ends in "\r\n".  The sequence itself
+ // ends at a line containing just a dot: ".\r\n".  Lines beginning
+ // with a dot are escaped with an additional dot to avoid
+diff --git a/src/pkg/os/dir_plan9.go b/src/pkg/os/dir_plan9.go
+index d9514191d7..14decfce10 100644
+--- a/src/pkg/os/dir_plan9.go
++++ b/src/pkg/os/dir_plan9.go
+@@ -142,7 +142,7 @@ func pdir(b []byte, d *Dir) []byte {
+ 	return b
+ }
+ 
+-// UnmarshalDir reads a 9P Stat message from a 9P protocol message strored in b,
++// UnmarshalDir reads a 9P Stat message from a 9P protocol message stored in b,
+ // returning the corresponding Dir struct.
+ func UnmarshalDir(b []byte) (d *Dir, err Error) {
+ 	n := uint16(0)
+@@ -172,7 +172,7 @@ func UnmarshalDir(b []byte) (d *Dir, err Error) {
+ 	return d, nil
+ }
+ 
+-// gqid reads the qid part of a 9P Stat message from a 9P protocol message strored in b,
++// gqid reads the qid part of a 9P Stat message from a 9P protocol message stored in b,
+ // returning the corresponding Qid struct and the remaining slice of b.
+ func gqid(b []byte) (Qid, []byte) {
+ 	var q Qid
+@@ -190,25 +190,25 @@ func pqid(b []byte, q Qid) []byte {
+ 	return b
+ }
+ 
+-// gbit8 reads a byte-sized numeric value from a 9P protocol message strored in b,
++// gbit8 reads a byte-sized numeric value from a 9P protocol message stored in b,
+ // returning the value and the remaining slice of b.
+ func gbit8(b []byte) (uint8, []byte) {
+ 	return uint8(b[0]), b[1:]
+ }
+ 
+-// gbit16 reads a 16-bit numeric value from a 9P protocol message strored in b,
++// gbit16 reads a 16-bit numeric value from a 9P protocol message stored in b,
+ // returning the value and the remaining slice of b.
+ func gbit16(b []byte) (uint16, []byte) {
+ 	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
+ }
+ 
+-// gbit32 reads a 32-bit numeric value from a 9P protocol message strored in b,
++// gbit32 reads a 32-bit numeric value from a 9P protocol message stored in b,
+ // returning the value and the remaining slice of b.
+ func gbit32(b []byte) (uint32, []byte) {
+ 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24, b[4:]
+ }
+ 
+-// gbit64 reads a 64-bit numeric value from a 9P protocol message strored in b,
++// gbit64 reads a 64-bit numeric value from a 9P protocol message stored in b,
+ // returning the value and the remaining slice of b.
+ func gbit64(b []byte) (uint64, []byte) {
+ 	lo, b := gbit32(b)
+@@ -216,7 +216,7 @@ func gbit64(b []byte) (uint64, []byte) {
+ 	return uint64(hi)<<32 | uint64(lo), b
+ }
+ 
+-// gstring reads a string from a 9P protocol message strored in b,
++// gstring reads a string from a 9P protocol message stored in b,
+ // returning the value as a Go string and the remaining slice of b.
+ func gstring(b []byte) (string, []byte) {
+ 	n, b := gbit16(b)
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 2c2158a3cd..3abe13e04d 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -173,7 +173,7 @@ type nonEmptyInterface struct {
+ // Regarding the implementation of Value:
+ //
+ // The Internal interface is a true interface value in the Go sense,
+-// but it also serves as a (type, address) pair in whcih one cannot
++// but it also serves as a (type, address) pair in which one cannot
+ // be changed separately from the other.  That is, it serves as a way
+ // to prevent unsafe mutations of the Internal state even though
+ // we cannot (yet?) hide the field while preserving the ability for
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index c7ee4c8797..71edc4d18d 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -356,7 +356,7 @@ func BenchmarkMatchClass(b *testing.B) {
+ 
+ func BenchmarkMatchClass_InRange(b *testing.B) {
+ 	b.StopTimer()
+-	// 'b' is betwen 'a' and 'c', so the charclass
++	// 'b' is between 'a' and 'c', so the charclass
+ 	// range checking is no help here.
+ 	x := strings.Repeat("bbbb", 20) + "c"
+ 	re := MustCompile("[ac]")
+diff --git a/src/pkg/runtime/arm/vlop.s b/src/pkg/runtime/arm/vlop.s
+index 2c5d7ebe17..fc679f0eea 100644
+--- a/src/pkg/runtime/arm/vlop.s
++++ b/src/pkg/runtime/arm/vlop.s
+@@ -105,7 +105,7 @@ loop:
+ 
+ /*
+  * compare numerator to denominator
+- * if less, subtract and set quotent bit
++ * if less, subtract and set quotient bit
+  */
+ 	CMP	R(D), R(N)
+ 	ORR.HS  $1, R(Q)
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index 6c506236fb..7c7ca7b4e1 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -116,7 +116,7 @@ again:
+ 	//
+ 	// We only really care that (v&1) == 1 (the lock is held),
+ 	// and in fact there is a futex variant that could
+-	// accomodate that check, but let's not get carried away.)
++	// accommodate that check, but let's not get carried away.)
+ 	futexsleep(&l->key, v+2);
+ 
+ 	// We're awake: remove ourselves from the count.
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index aae3d183fe..517f96a319 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -113,7 +113,7 @@ static uintptr addrmem;
+ // hashMultiplier is the bottom 32 bits of int((sqrt(5)-1)/2 * (1<<32)).
+ // This is a good multiplier as suggested in CLR, Knuth.  The hash
+ // value is taken to be the top AddrHashBits bits of the bottom 32 bits
+-// of the muliplied value.
++// of the multiplied value.
+ enum {
+ 	HashMultiplier = 2654435769U
+ };
+diff --git a/src/pkg/runtime/runtime-gdb.py b/src/pkg/runtime/runtime-gdb.py
+index 3f767fbdd7..a96f3f3828 100644
+--- a/src/pkg/runtime/runtime-gdb.py
++++ b/src/pkg/runtime/runtime-gdb.py
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-"""GDB Pretty printers and convencience functions for Go's runtime structures.
++"""GDB Pretty printers and convenience functions for Go's runtime structures.
+ 
+ This script is loaded by GDB when it finds a .debug_gdb_scripts
+ section in the compiled binary.  The [68]l linkers emit this with a
+@@ -393,7 +393,7 @@ class GoIfaceCmd(gdb.Command):
+ # so Itype will start with a commontype which has kind = interface
+ 
+ #
+-# Register all convience functions and CLI commands
++# Register all convenience functions and CLI commands
+ #
+ for k in vars().values():
+ 	if hasattr(k, 'invoke'):
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f2f8dcd5b9..2b2b34a3ce 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -306,7 +306,7 @@ enum {
+ 
+ /*
+  * defined macros
+- *    you need super-goru privilege
++ *    you need super-gopher-guru privilege
+  *    to add this list.
+  */
+ #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index 3a5cf1ba68..783065bfbf 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -108,7 +108,7 @@ func newDecimal(i uint64) *decimal {
+ }
+ 
+ // Maximum shift that we can do in one pass without overflow.
+-// Signed int has 31 bits, and we have to be able to accomodate 9<<k.
++// Signed int has 31 bits, and we have to be able to accommodate 9<<k.
+ const maxShift = 27
+ 
+ // Binary shift right (* 2) by k bits.  k <= maxShift to avoid overflow.
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index f0366b0bff..79a8793d5e 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -12,7 +12,7 @@ import (
+ 
+ const darwinAMD64 = OS == "darwin" && ARCH == "amd64"
+ 
+-// Round the length of a raw sockaddr up to align it propery.
++// Round the length of a raw sockaddr up to align it properly.
+ func rsaAlignOf(salen int) int {
+ 	salign := sizeofPtr
+ 	// NOTE: It seems like 64-bit Darwin kernel still requires 32-bit
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index d91a07db24..b84c6ec79e 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -158,7 +158,7 @@ const (
+ 	TabIndent
+ 
+ 	// Print a vertical bar ('|') between columns (after formatting).
+-	// Discarded colums appear as zero-width columns ("||").
++	// Discarded columns appear as zero-width columns ("||").
+ 	Debug
+ )
+ 
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index 6c21bf19b9..dde18000d1 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -88,7 +88,7 @@ func wakeLoop(wakeMeAt chan int64, wakeUp chan bool) {
+ 
+ // A single tickerLoop serves all ticks to Tickers.  It waits for two events:
+ // either the creation of a new Ticker or a tick from the alarm,
+-// signalling a time to wake up one or more Tickers.
++// signaling a time to wake up one or more Tickers.
+ func tickerLoop() {
+ 	// Represents the next alarm to be delivered.
+ 	var alarm alarmer
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index c357eec62b..83afdfb02b 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -14,7 +14,7 @@ import (
+ // this year's rules for daylight savings time apply to all previous
+ // and future years as well.
+ 
+-// TODO(brainman): use GetDynamicTimeZoneInformation, whenever posible (Vista and up),
++// TODO(brainman): use GetDynamicTimeZoneInformation, whenever possible (Vista and up),
+ // to improve on situation described in the bug above.
+ 
+ type zone struct {
+@@ -46,7 +46,7 @@ func (z *zone) populate(bias, biasdelta int32, d *syscall.Systemtime, name []uin
+ 	return
+ }
+ 
+-// Pre-calculte cutoff time in seconds since the Unix epoch, if data is supplied in "absolute" format.
++// Pre-calculate cutoff time in seconds since the Unix epoch, if data is supplied in "absolute" format.
+ func (z *zone) preCalculateAbsSec() {
+ 	if z.year != 0 {
+ 		z.abssec = (&Time{z.year, int(z.month), int(z.day), int(z.hour), int(z.minute), int(z.second), 0, 0, ""}).Seconds()
+@@ -55,7 +55,7 @@ func (z *zone) preCalculateAbsSec() {
+ 	}
+ }
+ 
+-// Convert zone cutoff time to sec in number of seconds since the Unix epoch, given particualar year.
++// Convert zone cutoff time to sec in number of seconds since the Unix epoch, given particular year.
+ func (z *zone) cutoffSeconds(year int64) int64 {
+ 	// Windows specifies daylight savings information in "day in month" format:
+ 	// z.month is month number (1-12)
+@@ -96,7 +96,7 @@ func (z *zone) isBeforeCutoff(t *Time) bool {
+ }
+ 
+ type zoneinfo struct {
+-	disabled         bool // daylight saving time is not used localy
++	disabled         bool // daylight saving time is not used locally
+ 	offsetIfDisabled int
+ 	januaryIsStd     bool // is january 1 standard time?
+ 	std, dst         zone
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index 3712c2d1b8..e283821969 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -29,7 +29,7 @@ var (
+ 	ErrBadWebSocketOrigin   = &ProtocolError{"missing or bad WebSocket-Origin"}
+ 	ErrBadWebSocketLocation = &ProtocolError{"missing or bad WebSocket-Location"}
+ 	ErrBadWebSocketProtocol = &ProtocolError{"missing or bad WebSocket-Protocol"}
+-	ErrChallengeResponse    = &ProtocolError{"mismatch challange/response"}
++	ErrChallengeResponse    = &ProtocolError{"mismatch challenge/response"}
+ 	secKeyRandomChars       [0x30 - 0x21 + 0x7F - 0x3A]byte
+ )
+ 
+@@ -226,7 +226,7 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
+ 	// Step 25. send CRLF.
+ 	bw.WriteString("\r\n")
+ 
+-	// Step 26. genearte 8 bytes random key.
++	// Step 26. generate 8 bytes random key.
+ 	key3 := generateKey3()
+ 	// Step 27. send it out.
+ 	bw.Write(key3)
+@@ -262,7 +262,7 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
+ 		return ErrBadWebSocketProtocol
+ 	}
+ 
+-	// Step 42-43. get expected data from challange data.
++	// Step 42-43. get expected data from challenge data.
+ 	expected, err := getChallengeResponse(number1, number2, key3)
+ 	if err != nil {
+ 		return err
+@@ -283,7 +283,7 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
+ }
+ 
+ /*
+-Handhake described in (soon obsolete)
++Handshake described in (soon obsolete)
+ draft-hixie-thewebsocket-protocol-75.
+ */
+ func draft75handshake(resourceName, host, origin, location, protocol string, br *bufio.Reader, bw *bufio.Writer) (err os.Error) {
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 376265236e..165cbffee0 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -124,7 +124,7 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 	part1 := keyNumber1 / space1
+ 	part2 := keyNumber2 / space2
+ 
+-	// Step 8. let challenge to be concatination of part1, part2 and key3.
++	// Step 8. let challenge be concatenation of part1, part2 and key3.
+ 	// Step 9. get MD5 fingerprint of challenge.
+ 	response, err := getChallengeResponse(part1, part2, key3)
+ 	if err != nil {
+diff --git a/src/pkg/websocket/websocket.go b/src/pkg/websocket/websocket.go
+index edde61b4a7..7447cf8521 100644
+--- a/src/pkg/websocket/websocket.go
++++ b/src/pkg/websocket/websocket.go
+@@ -158,7 +158,7 @@ func (ws *Conn) SetReadTimeout(nsec int64) os.Error {
+ 	return os.EINVAL
+ }
+ 
+-// SetWritetTimeout sets the connection's network write timeout in nanoseconds.
++// SetWriteTimeout sets the connection's network write timeout in nanoseconds.
+ func (ws *Conn) SetWriteTimeout(nsec int64) os.Error {
+ 	if conn, ok := ws.rwc.(net.Conn); ok {
+ 		return conn.SetWriteTimeout(nsec)

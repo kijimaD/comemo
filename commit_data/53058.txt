@@ -18,10 +18,177 @@ Date:   Wed Jun 29 19:42:46 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/doc/comment/parse.go               |  7 ++++++
  src/go/doc/comment/testdata/linklist.txt  | 18 ++++++++++++++
  src/go/doc/comment/testdata/linklist2.txt | 39 +++++++++++++++++++++++++++++++
  src/go/doc/comment/testdata/linklist3.txt | 31 ++++++++++++++++++++++++
  src/go/doc/comment/testdata/linklist4.txt | 36 ++++++++++++++++++++++++++++
  5 files changed, 131 insertions(+)
+
+diff --git a/src/go/doc/comment/parse.go b/src/go/doc/comment/parse.go
+index 4de8ce710d..e8d844c491 100644
+--- a/src/go/doc/comment/parse.go
++++ b/src/go/doc/comment/parse.go
+@@ -326,6 +326,13 @@ func (p *Parser) Parse(text string) *Doc {
+ 		switch b := b.(type) {
+ 		case *Paragraph:
+ 			b.Text = d.parseLinkedText(string(b.Text[0].(Plain)))
++		case *List:
++			for _, i := range b.Items {
++				for _, c := range i.Content {
++					p := c.(*Paragraph)
++					p.Text = d.parseLinkedText(string(p.Text[0].(Plain)))
++				}
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/go/doc/comment/testdata/linklist.txt b/src/go/doc/comment/testdata/linklist.txt
+new file mode 100644
+index 0000000000..baf40624b3
+--- /dev/null
++++ b/src/go/doc/comment/testdata/linklist.txt
+@@ -0,0 +1,18 @@
++{"DocLinkBaseURL": "https://pkg.go.dev"}
++-- input --
++Did you know?
++
++  - [encoding/json.Marshal] is a doc link. So is [encoding/json.Unmarshal].
++-- text --
++Did you know?
++
++  - encoding/json.Marshal is a doc link. So is encoding/json.Unmarshal.
++-- markdown --
++Did you know?
++
++  - [encoding/json.Marshal](https://pkg.go.dev/encoding/json#Marshal) is a doc link. So is [encoding/json.Unmarshal](https://pkg.go.dev/encoding/json#Unmarshal).
++-- html --
++<p>Did you know?
++<ul>
++<li><a href="https://pkg.go.dev/encoding/json#Marshal">encoding/json.Marshal</a> is a doc link. So is <a href="https://pkg.go.dev/encoding/json#Unmarshal">encoding/json.Unmarshal</a>.
++</ul>
+diff --git a/src/go/doc/comment/testdata/linklist2.txt b/src/go/doc/comment/testdata/linklist2.txt
+new file mode 100644
+index 0000000000..81b306100f
+--- /dev/null
++++ b/src/go/doc/comment/testdata/linklist2.txt
+@@ -0,0 +1,39 @@
++{"DocLinkBaseURL": "https://pkg.go.dev"}
++-- input --
++Did you know?
++
++  - [testing.T] is one doc link.
++  - So is [testing.M].
++  - So is [testing.B].
++    This is the same list paragraph.
++
++    There is [testing.PB] in this list item, too!
++-- text --
++Did you know?
++
++  - testing.T is one doc link.
++
++  - So is testing.M.
++
++  - So is testing.B. This is the same list paragraph.
++
++    There is testing.PB in this list item, too!
++-- markdown --
++Did you know?
++
++  - [testing.T](https://pkg.go.dev/testing#T) is one doc link.
++
++  - So is [testing.M](https://pkg.go.dev/testing#M).
++
++  - So is [testing.B](https://pkg.go.dev/testing#B). This is the same list paragraph.
++
++    There is [testing.PB](https://pkg.go.dev/testing#PB) in this list item, too!
++-- html --
++<p>Did you know?
++<ul>
++<li><p><a href="https://pkg.go.dev/testing#T">testing.T</a> is one doc link.
++<li><p>So is <a href="https://pkg.go.dev/testing#M">testing.M</a>.
++<li><p>So is <a href="https://pkg.go.dev/testing#B">testing.B</a>.
++This is the same list paragraph.
++<p>There is <a href="https://pkg.go.dev/testing#PB">testing.PB</a> in this list item, too!
++</ul>
+diff --git a/src/go/doc/comment/testdata/linklist3.txt b/src/go/doc/comment/testdata/linklist3.txt
+new file mode 100644
+index 0000000000..701a54ecff
+--- /dev/null
++++ b/src/go/doc/comment/testdata/linklist3.txt
+@@ -0,0 +1,31 @@
++{"DocLinkBaseURL": "https://pkg.go.dev"}
++-- input --
++Cool things:
++
++  - Foo
++  - [Go]
++  - Bar
++
++[Go]: https://go.dev/
++-- text --
++Cool things:
++
++  - Foo
++  - Go
++  - Bar
++
++[Go]: https://go.dev/
++-- markdown --
++Cool things:
++
++  - Foo
++  - [Go](https://go.dev/)
++  - Bar
++
++-- html --
++<p>Cool things:
++<ul>
++<li>Foo
++<li><a href="https://go.dev/">Go</a>
++<li>Bar
++</ul>
+diff --git a/src/go/doc/comment/testdata/linklist4.txt b/src/go/doc/comment/testdata/linklist4.txt
+new file mode 100644
+index 0000000000..db39ec4ee1
+--- /dev/null
++++ b/src/go/doc/comment/testdata/linklist4.txt
+@@ -0,0 +1,36 @@
++{"DocLinkBaseURL": "https://pkg.go.dev"}
++-- input --
++Cool things:
++
++  - Foo
++  - [Go] is great
++    
++    [Go]: https://go.dev/
++  - Bar
++
++-- text --
++Cool things:
++
++  - Foo
++
++  - Go is great
++
++  - Bar
++
++[Go]: https://go.dev/
++-- markdown --
++Cool things:
++
++  - Foo
++
++  - [Go](https://go.dev/) is great
++
++  - Bar
++
++-- html --
++<p>Cool things:
++<ul>
++<li><p>Foo
++<li><p><a href="https://go.dev/">Go</a> is great
++<li><p>Bar
++</ul>

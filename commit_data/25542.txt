@@ -16,7 +16,43 @@ Date:   Tue Nov 10 00:56:14 2015 +0530
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 11 +++++++++++
  src/go/build/build.go |  2 +-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 43660d75cc..b07b746054 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1191,6 +1191,17 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
+ 	tg.run("test", "main_test")
+ }
+ 
++// Issue 12690
++func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	goroot := runtime.GOROOT()
++	tg.setenv("GOROOT", goroot+"/")
++	tg.wantNotStale("runtime", "with trailing slash in GOROOT, runtime listed as stale")
++	tg.wantNotStale("os", "with trailing slash in GOROOT, os listed as stale")
++	tg.wantNotStale("io", "with trailing slash in GOROOT, io listed as stale")
++}
++
+ // With $GOBIN set, binaries get installed to $GOBIN.
+ func TestInstallIntoGOBIN(t *testing.T) {
+ 	tg := testgo(t)
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index ce90f597fd..14a03fc0d4 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -289,7 +289,7 @@ func defaultContext() Context {
+ 
+ 	c.GOARCH = envOr("GOARCH", runtime.GOARCH)
+ 	c.GOOS = envOr("GOOS", runtime.GOOS)
+-	c.GOROOT = runtime.GOROOT()
++	c.GOROOT = pathpkg.Clean(runtime.GOROOT())
+ 	c.GOPATH = envOr("GOPATH", "")
+ 	c.Compiler = runtime.Compiler
+ 

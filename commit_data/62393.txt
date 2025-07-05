@@ -14,6 +14,27 @@ Date:   Tue Feb 25 21:44:25 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/macho_test.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho_test.go b/src/cmd/link/internal/ld/macho_test.go
+index 1a4ffd8eb8..253abd30a4 100644
+--- a/src/cmd/link/internal/ld/macho_test.go
++++ b/src/cmd/link/internal/ld/macho_test.go
+@@ -40,10 +40,11 @@ func TestMachoSectionsReadOnly(t *testing.T) {
+ 			wantSecsRO:       []string{"__nl_symbol_ptr", "__rodata", "__itablink", "__typelink", "__gosymtab", "__gopclntab"},
+ 		},
+ 		{
+-			name:       "linkmode-external",
+-			args:       []string{"-ldflags", "-linkmode=external"},
+-			prog:       prog,
+-			wantSecsRO: []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
++			name:        "linkmode-external",
++			args:        []string{"-ldflags", "-linkmode=external"},
++			prog:        prog,
++			mustHaveCGO: true,
++			wantSecsRO:  []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
+ 		},
+ 		{
+ 			name:             "cgo-linkmode-internal",

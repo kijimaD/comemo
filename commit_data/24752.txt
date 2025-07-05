@@ -11,9 +11,71 @@ Date:   Wed Aug 26 11:39:10 2015 -0400
     Change-Id: Ibdde1ba9c79eb792660dcb7aa6f186e4e4d559b3
     Reviewed-on: https://go-review.googlesource.com/13966
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc1.go     | 2 ++
  src/runtime/runtime2.go  | 1 +
  src/runtime/stack1.go    | 1 +
  src/runtime/traceback.go | 6 ++++++
  4 files changed, 10 insertions(+)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index a5708162de..35d9e86e8e 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -988,6 +988,7 @@ func newextram() {
+ 	gp.sched.g = guintptr(unsafe.Pointer(gp))
+ 	gp.syscallpc = gp.sched.pc
+ 	gp.syscallsp = gp.sched.sp
++	gp.stktopsp = gp.sched.sp
+ 	// malg returns status as Gidle, change to Gsyscall before adding to allg
+ 	// where GC will see it.
+ 	casgstatus(gp, _Gidle, _Gsyscall)
+@@ -2267,6 +2268,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 
+ 	memclr(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
+ 	newg.sched.sp = sp
++	newg.stktopsp = sp
+ 	newg.sched.pc = funcPC(goexit) + _PCQuantum // +PCQuantum so that previous instruction is in same function
+ 	newg.sched.g = guintptr(unsafe.Pointer(newg))
+ 	gostartcallfn(&newg.sched, fn)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index fbd43d21da..7d3c8f6aa2 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -229,6 +229,7 @@ type g struct {
+ 	syscallpc      uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
+ 	stkbar         []stkbar       // stack barriers, from low to high
+ 	stkbarPos      uintptr        // index of lowest stack barrier not hit
++	stktopsp       uintptr        // expected sp at top of stack, to check in traceback
+ 	param          unsafe.Pointer // passed parameter on wakeup
+ 	atomicstatus   uint32
+ 	stackLock      uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 9873bd860b..78d168bb5b 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -639,6 +639,7 @@ func copystack(gp *g, newsize uintptr) {
+ 	oldsize := gp.stackAlloc
+ 	gp.stackAlloc = newsize
+ 	gp.stkbar = newstkbar
++	gp.stktopsp += adjinfo.delta
+ 
+ 	// free old stack
+ 	if stackPoisonCopy != 0 {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 48ef6e5e27..1025032aee 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -479,6 +479,12 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		throw("traceback has leftover stack barriers")
+ 	}
+ 
++	if callback != nil && n < max && frame.sp != gp.stktopsp {
++		print("runtime: g", gp.goid, ": frame.sp=", hex(frame.sp), " top=", hex(gp.stktopsp), "\n")
++		print("\tstack=[", hex(gp.stack.lo), "-", hex(gp.stack.hi), "] n=", n, " max=", max, "\n")
++		throw("traceback did not unwind completely")
++	}
++
+ 	return n
+ }
+ 

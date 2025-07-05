@@ -14,6 +14,20 @@ Date:   Mon May 13 13:01:17 2024 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/netip/netip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index a6a8fcd423..4b0a61dd98 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -60,7 +60,7 @@ type Addr struct {
+ // addrDetail represents the details of an Addr, like address family and IPv6 zone.
+ type addrDetail struct {
+ 	IsV6   bool   // IPv4 is false, IPv6 is true.
+-	ZoneV6 string // != nil only if IsV6 is true.
++	ZoneV6 string // != "" only if IsV6 is true.
+ }
+ 
+ // z0, z4, and z6noz are sentinel Addr.z values.

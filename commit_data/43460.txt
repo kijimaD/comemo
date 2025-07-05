@@ -16,9 +16,260 @@ Date:   Wed Dec 11 13:16:35 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/base/base.go              | 25 --------
  src/cmd/go/internal/load/pkg.go               | 92 ++++++++++++++++++---------
  src/cmd/go/internal/load/test.go              |  7 +-
  src/cmd/go/testdata/script/list_parse_err.txt | 36 +++++++++--
  4 files changed, 99 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index 272da55681..ab2f1bb4e2 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -7,11 +7,8 @@
+ package base
+ 
+ import (
+-	"bytes"
+-	"errors"
+ 	"flag"
+ 	"fmt"
+-	"go/scanner"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -172,25 +169,3 @@ func RunStdin(cmdline []string) {
+ // Usage is the usage-reporting function, filled in by package main
+ // but here for reference by other packages.
+ var Usage func()
+-
+-// ExpandScanner expands a scanner.List error into all the errors in the list.
+-// The default Error method only shows the first error
+-// and does not shorten paths.
+-func ExpandScanner(err error) error {
+-	// Look for parser errors.
+-	if err, ok := err.(scanner.ErrorList); ok {
+-		// Prepare error with \n before each message.
+-		// When printed in something like context: %v
+-		// this will put the leading file positions each on
+-		// its own line. It will also show all the errors
+-		// instead of just the first, as err.Error does.
+-		var buf bytes.Buffer
+-		for _, e := range err {
+-			e.Pos.Filename = ShortPath(e.Pos.Filename)
+-			buf.WriteString("\n")
+-			buf.WriteString(e.Error())
+-		}
+-		return errors.New(buf.String())
+-	}
+-	return err
+-}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 6aea54340d..247f5ed506 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -210,21 +210,68 @@ func (e *NoGoError) Error() string {
+ 	return "no Go files in " + e.Package.Dir
+ }
+ 
+-// rewordError returns a version of err with trivial layers removed and
+-// (possibly-wrapped) instances of build.NoGoError replaced with load.NoGoError,
+-// which more clearly distinguishes sub-cases.
+-func (p *Package) rewordError(err error) error {
+-	if mErr, ok := err.(*search.MatchError); ok && mErr.Match.IsLiteral() {
+-		err = mErr.Err
+-	}
+-	var noGo *build.NoGoError
+-	if errors.As(err, &noGo) {
+-		if p.Dir == "" && noGo.Dir != "" {
+-			p.Dir = noGo.Dir
++// setLoadPackageDataError presents an error found when loading package data
++// as a *PackageError. It has special cases for some common errors to improve
++// messages shown to users and reduce redundancy.
++//
++// setLoadPackageDataError returns true if it's safe to load information about
++// imported packages, for example, if there was a parse error loading imports
++// in one file, but other files are okay.
++//
++// TODO(jayconrod): we should probably return nothing and always try to load
++// imported packages.
++func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportStack) (canLoadImports bool) {
++	// Include the path on the import stack unless the error includes it already.
++	errHasPath := false
++	if impErr, ok := err.(ImportPathError); ok && impErr.ImportPath() == path {
++		errHasPath = true
++	} else if matchErr, ok := err.(*search.MatchError); ok && matchErr.Match.Pattern() == path {
++		errHasPath = true
++		if matchErr.Match.IsLiteral() {
++			// The error has a pattern has a pattern similar to the import path.
++			// It may be slightly different (./foo matching example.com/foo),
++			// but close enough to seem redundant.
++			// Unwrap the error so we don't show the pattern.
++			err = matchErr.Err
++		}
++	}
++	var errStk []string
++	if errHasPath {
++		errStk = stk.Copy()
++	} else {
++		stk.Push(path)
++		errStk = stk.Copy()
++		stk.Pop()
++	}
++
++	// Replace (possibly wrapped) *build.NoGoError with *load.NoGoError.
++	// The latter is more specific about the cause.
++	var nogoErr *build.NoGoError
++	if errors.As(err, &nogoErr) {
++		if p.Dir == "" && nogoErr.Dir != "" {
++			p.Dir = nogoErr.Dir
+ 		}
+ 		err = &NoGoError{Package: p}
+ 	}
+-	return err
++
++	// Take only the first error from a scanner.ErrorList. PackageError only
++	// has room for one position, so we report the first error with a position
++	// instead of all of the errors without a position.
++	var pos string
++	if scanErr, ok := err.(scanner.ErrorList); ok && len(scanErr) > 0 {
++		scanPos := scanErr[0].Pos
++		scanPos.Filename = base.ShortPath(scanPos.Filename)
++		pos = scanPos.String()
++		err = errors.New(scanErr[0].Msg)
++		canLoadImports = true
++	}
++
++	p.Error = &PackageError{
++		ImportStack: errStk,
++		Pos:         pos,
++		Err:         err,
++	}
++	return canLoadImports
+ }
+ 
+ // Resolve returns the resolved version of imports,
+@@ -1554,21 +1601,10 @@ func (p *Package) load(path string, stk *ImportStack, bp *build.Package, err err
+ 
+ 	if err != nil {
+ 		p.Incomplete = true
+-		// Report path in error stack unless err is an ImportPathError with path already set.
+-		pushed := false
+-		if e, ok := err.(ImportPathError); !ok || e.ImportPath() != path {
+-			stk.Push(path)
+-			pushed = true // Remember to pop after setError.
+-		}
+-		setError(base.ExpandScanner(p.rewordError(err)))
+-		if pushed {
+-			stk.Pop()
+-		}
+-		if _, isScanErr := err.(scanner.ErrorList); !isScanErr {
++		canLoadImports := p.setLoadPackageDataError(err, path, stk)
++		if !canLoadImports {
+ 			return
+ 		}
+-		// Fall through if there was an error parsing a file. 'go list -e' should
+-		// still report imports and other metadata.
+ 	}
+ 
+ 	useBindir := p.Name == "main"
+@@ -2136,10 +2172,8 @@ func PackagesAndErrors(patterns []string) []*Package {
+ 			// Report it as a synthetic package.
+ 			p := new(Package)
+ 			p.ImportPath = m.Pattern()
+-			p.Error = &PackageError{
+-				ImportStack: nil, // The error arose from a pattern, not an import.
+-				Err:         p.rewordError(m.Errs[0]),
+-			}
++			var stk ImportStack // empty stack, since the error arose from a pattern, not an import
++			p.setLoadPackageDataError(m.Errs[0], m.Pattern(), &stk)
+ 			p.Incomplete = true
+ 			p.Match = append(p.Match, m.Pattern())
+ 			p.Internal.CmdlinePkg = true
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 6465f46f4e..1c0d01c16c 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -6,7 +6,6 @@ package load
+ 
+ import (
+ 	"bytes"
+-	"cmd/go/internal/base"
+ 	"cmd/go/internal/str"
+ 	"errors"
+ 	"fmt"
+@@ -271,7 +270,9 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 	// afterward that gathers t.Cover information.
+ 	t, err := loadTestFuncs(ptest)
+ 	if err != nil && pmain.Error == nil {
+-		pmain.Error = &PackageError{Err: err}
++		_ = pmain.setLoadPackageDataError(err, p.ImportPath, &stk)
++		// Ignore return value. None of the errors from loadTestFuncs should prevent
++		// us from loading information about imports.
+ 	}
+ 	t.Cover = cover
+ 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
+@@ -540,7 +541,7 @@ var testFileSet = token.NewFileSet()
+ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
+ 	if err != nil {
+-		return base.ExpandScanner(err)
++		return err
+ 	}
+ 	for _, d := range f.Decls {
+ 		n, ok := d.(*ast.FuncDecl)
+diff --git a/src/cmd/go/testdata/script/list_parse_err.txt b/src/cmd/go/testdata/script/list_parse_err.txt
+index 5aacaa88fa..3c5345801a 100644
+--- a/src/cmd/go/testdata/script/list_parse_err.txt
++++ b/src/cmd/go/testdata/script/list_parse_err.txt
+@@ -1,17 +1,45 @@
+-# 'go list' should report imports, even if some files have parse errors
++# 'go list' without -e should fail and print errors on stderr.
++! go list ./p
++stderr '^p[/\\]b.go:2:2: expected ''package'', found ''EOF''$'
++! go list -f '{{range .Imports}}{{.}} {{end}}' ./p
++stderr '^p[/\\]b.go:2:2: expected ''package'', found ''EOF''$'
++! go list -test ./t
++stderr '^can''t load test package: t[/\\]t_test.go:8:1: expected declaration, found ʕ'
++! go list -test -f '{{range .Imports}}{{.}} {{end}}' ./t
++stderr '^can''t load test package: t[/\\]t_test.go:8:1: expected declaration, found ʕ'
++
++# 'go list -e' should report imports, even if some files have parse errors
+ # before the import block.
+-go list -e -f '{{range .Imports}}{{.}} {{end}}'
++go list -e -f '{{range .Imports}}{{.}} {{end}}' ./p
+ stdout '^fmt '
+ 
++# 'go list' should report the position of the error if there's only one.
++go list -e -f '{{.Error.Pos}} => {{.Error.Err}}' ./p
++stdout 'b.go:[0-9:]+ => expected ''package'', found ''EOF'''
++
++# 'go test' should report the position of the error if there's only one.
++go list -e -test -f '{{if .Error}}{{.Error.Pos}} => {{.Error.Err}}{{end}}' ./t
++stdout 't_test.go:[0-9:]+ => expected declaration, found ʕ'
++
+ -- go.mod --
+ module m
+ 
+ go 1.13
+ 
+--- a.go --
++-- p/a.go --
+ package a
+ 
+ import "fmt"
+ 
+--- b.go --
++-- p/b.go --
+ // no package statement
++
++-- t/t_test.go --
++package t
++
++import "testing"
++
++func Test(t *testing.T) {}
++
++// scan error
++ʕ◔ϖ◔ʔ

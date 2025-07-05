@@ -20,7 +20,72 @@ Date:   Fri Sep 2 16:50:41 2022 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/pcln.go | 16 ++++++----------
  src/runtime/symtab.go            |  8 ++------
  2 files changed, 8 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 45a4e07fb7..9b743a8530 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -162,26 +162,22 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
+ 	ninl := fi.NumInlTree()
+ 	for i := 0; i < int(ninl); i++ {
+ 		call := fi.InlTree(i)
+-		val := call.File
+ 		nameoff, ok := nameOffsets[call.Func]
+ 		if !ok {
+ 			panic("couldn't find function name offset")
+ 		}
+ 
+-		inlTreeSym.SetUint16(arch, int64(i*20+0), uint16(call.Parent))
+ 		inlFunc := ldr.FuncInfo(call.Func)
+-
+ 		var funcID objabi.FuncID
+ 		if inlFunc.Valid() {
+ 			funcID = inlFunc.FuncID()
+ 		}
+-		inlTreeSym.SetUint8(arch, int64(i*20+2), uint8(funcID))
+-
+-		// byte 3 is unused
+-		inlTreeSym.SetUint32(arch, int64(i*20+4), uint32(val))
+-		inlTreeSym.SetUint32(arch, int64(i*20+8), uint32(call.Line))
+-		inlTreeSym.SetUint32(arch, int64(i*20+12), uint32(nameoff))
+-		inlTreeSym.SetUint32(arch, int64(i*20+16), uint32(call.ParentPC))
++		// Construct runtime.inlinedCall value.
++		const size = 12
++		inlTreeSym.SetUint8(arch, int64(i*size+0), uint8(funcID))
++		// Bytes 1-3 are unused.
++		inlTreeSym.SetUint32(arch, int64(i*size+4), uint32(nameoff))
++		inlTreeSym.SetUint32(arch, int64(i*size+8), uint32(call.ParentPC))
+ 	}
+ 	return its
+ }
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 69190233a2..a1a7eba83c 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -117,8 +117,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
+ 				f = nil
+ 				name = funcnameFromNameoff(funcInfo, inltree[ix].func_)
+-				// File/line is already correct.
+-				// TODO: remove file/line from InlinedCall?
++				// File/line from funcline1 below are already correct.
+ 			}
+ 		}
+ 		ci.frames = append(ci.frames, Frame{
+@@ -1173,11 +1172,8 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
+ 
+ // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
+ type inlinedCall struct {
+-	parent   int16  // index of parent in the inltree, or < 0
+ 	funcID   funcID // type of the called function
+-	_        byte
+-	file     int32 // perCU file index for inlined call. See cmd/link:pcln.go
+-	line     int32 // line number of the call site
++	_        [3]byte
+ 	func_    int32 // offset into pclntab for name of called function
+ 	parentPc int32 // position of an instruction whose source position is the call site (offset from entry)
+ }

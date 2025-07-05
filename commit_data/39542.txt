@@ -14,6 +14,31 @@ Date:   Sun Mar 3 16:38:04 2019 +0300
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/cookie_test.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index 022adaa90d..9536a69c20 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -385,6 +385,19 @@ var readCookiesTests = []struct {
+ 			{Name: "c2", Value: "v2"},
+ 		},
+ 	},
++	{
++		Header{"Cookie": {`Cookie-1="v$1"; c2=v2;`}},
++		"",
++		[]*Cookie{
++			{Name: "Cookie-1", Value: "v$1"},
++			{Name: "c2", Value: "v2"},
++		},
++	},
++	{
++		Header{"Cookie": {``}},
++		"",
++		[]*Cookie{},
++	},
+ }
+ 
+ func TestReadCookies(t *testing.T) {

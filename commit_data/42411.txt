@@ -23,7 +23,42 @@ Date:   Fri Dec 13 16:53:28 2019 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_bad_example.txt | 13 +++++++++++++
  src/go/doc/example.go                           |  3 +++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test_bad_example.txt b/src/cmd/go/testdata/script/test_bad_example.txt
+new file mode 100644
+index 0000000000..1d147b663f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_bad_example.txt
+@@ -0,0 +1,13 @@
++# Tests that invalid examples are ignored.
++# Verifies golang.org/issue/35284
++go test x_test.go
++
++-- x_test.go --
++package  x
++
++import "fmt"
++
++func ExampleThisShouldNotHaveAParameter(thisShouldntExist int) {
++	fmt.Println("X")
++	// Output:
++}
+\ No newline at end of file
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index f337f2c2d7..868db8a23f 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -62,6 +62,9 @@ func Examples(testFiles ...*ast.File) []*Example {
+ 			if !ok || f.Recv != nil {
+ 				continue
+ 			}
++			if params := f.Type.Params; params.List != nil {
++				continue // function has params; not a valid example
++			}
+ 			numDecl++
+ 			name := f.Name.Name
+ 			if isTest(name, "Test") || isTest(name, "Benchmark") {

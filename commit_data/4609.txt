@@ -7,6 +7,20 @@ Date:   Wed Jan 13 18:22:16 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/186148
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index df8a8ec969..f81bb88abb 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -5,7 +5,7 @@
+ <p>This page summarizes the changes between tagged releases of Go.
+ For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
+ 
+-<h3 id="2010-01-13">2010-01-13</h2>
++<h3 id="2010-01-13">2010-01-13</h3>
+ 
+ <pre>
+ build: $GOBIN should no longer be required in $PATH (thanks Devon H. O'Dell),

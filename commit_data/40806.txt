@@ -11,10 +11,167 @@ Date:   Tue Jun 25 14:43:06 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go                              |  1 +
  src/cmd/go/internal/modcmd/download.go             | 25 ++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_download.txt        |  4 +++-
  src/cmd/go/testdata/script/mod_download_latest.txt | 20 +++++++++++++++++
  src/cmd/go/testdata/script/mod_list_upgrade.txt    | 20 +++++++++++++++++
  5 files changed, 69 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 6541e085cc..44d07c1197 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1008,6 +1008,7 @@
+ //         Dir      string // absolute path to cached source root directory
+ //         Sum      string // checksum for path, version (as in go.sum)
+ //         GoModSum string // checksum for go.mod (as in go.sum)
++//         Latest   bool   // would @latest resolve to this version?
+ //     }
+ //
+ // See 'go help modules' for more about module queries.
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 71b660d6fd..1137982e47 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -43,6 +43,7 @@ corresponding to this Go struct:
+         Dir      string // absolute path to cached source root directory
+         Sum      string // checksum for path, version (as in go.sum)
+         GoModSum string // checksum for go.mod (as in go.sum)
++        Latest   bool   // would @latest resolve to this version?
+     }
+ 
+ See 'go help modules' for more about module queries.
+@@ -65,6 +66,7 @@ type moduleJSON struct {
+ 	Dir      string `json:",omitempty"`
+ 	Sum      string `json:",omitempty"`
+ 	GoModSum string `json:",omitempty"`
++	Latest   bool   `json:",omitempty"`
+ }
+ 
+ func runDownload(cmd *base.Command, args []string) {
+@@ -98,6 +100,26 @@ func runDownload(cmd *base.Command, args []string) {
+ 		work.Add(m)
+ 	}
+ 
++	latest := map[string]string{} // path → version
++	if *downloadJSON {
++		// We need to populate the Latest field, but if the main module depends on a
++		// version newer than latest — or if the version requested on the command
++		// line is itself newer than latest — that's not trivial to determine from
++		// the info returned by ListModules. Instead, we issue a separate
++		// ListModules request for "latest", which should be inexpensive relative to
++		// downloading the modules.
++		var latestArgs []string
++		for _, m := range mods {
++			latestArgs = append(latestArgs, m.Path+"@latest")
++		}
++
++		for _, info := range modload.ListModules(latestArgs, listU, listVersions) {
++			if info.Version != "" {
++				latest[info.Path] = info.Version
++			}
++		}
++	}
++
+ 	work.Do(10, func(item interface{}) {
+ 		m := item.(*moduleJSON)
+ 		var err error
+@@ -128,6 +150,9 @@ func runDownload(cmd *base.Command, args []string) {
+ 			m.Error = err.Error()
+ 			return
+ 		}
++		if latest[m.Path] == m.Version {
++			m.Latest = true
++		}
+ 	})
+ 
+ 	if *downloadJSON {
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index c6729c71a2..75e4acbab0 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -17,6 +17,7 @@ stderr 'this.domain.is.invalid'
+ stdout '"Error": ".*this.domain.is.invalid.*"'
+ 
+ # download -json with version should print JSON
++# and download the .info file for the 'latest' version.
+ go mod download -json 'rsc.io/quote@<=v1.5.0'
+ stdout '^\t"Path": "rsc.io/quote"'
+ stdout '^\t"Version": "v1.5.0"'
+@@ -27,13 +28,14 @@ stdout '^\t"Sum": "h1:6fJa6E\+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE="'  # hash of
+ stdout '^\t"GoModSum": "h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe\+TKr0="'
+ ! stdout '"Error"'
+ 
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++
+ # download queries above should not have added to go.mod.
+ go list -m all
+ ! stdout rsc.io
+ 
+ # add to go.mod so we can test non-query downloads
+ go mod edit -require rsc.io/quote@v1.5.2
+-! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+ 
+diff --git a/src/cmd/go/testdata/script/mod_download_latest.txt b/src/cmd/go/testdata/script/mod_download_latest.txt
+new file mode 100644
+index 0000000000..60d860e4da
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_download_latest.txt
+@@ -0,0 +1,20 @@
++env GO111MODULE=on
++
++# If the module is the latest version of itself,
++# the Latest field should be set.
++go mod download -json rsc.io/quote@v1.5.2
++stdout '"Latest":\s*true'
++
++# If the module is older than latest, the field should be unset.
++go mod download -json rsc.io/quote@v1.5.1
++! stdout '"Latest":'
++
++# If the module is newer than "latest", the field should be unset...
++go mod download -json rsc.io/quote@v1.5.3-pre1
++! stdout '"Latest":'
++
++# ...even if that version is also what is required by the main module.
++go mod init example.com
++go mod edit -require rsc.io/quote@v1.5.3-pre1
++go mod download -json rsc.io/quote@v1.5.3-pre1
++! stdout '"Latest":'
+diff --git a/src/cmd/go/testdata/script/mod_list_upgrade.txt b/src/cmd/go/testdata/script/mod_list_upgrade.txt
+index 474df0dc26..f2d0649092 100644
+--- a/src/cmd/go/testdata/script/mod_list_upgrade.txt
++++ b/src/cmd/go/testdata/script/mod_list_upgrade.txt
+@@ -1,8 +1,28 @@
+ env GO111MODULE=on
+ 
++# If the current version is not latest, 'go list -u' should include its upgrade.
+ go list -m -u all
+ stdout 'rsc.io/quote v1.2.0 \[v1\.5\.2\]'
+ 
++# If the current version is latest, 'go list -u' should omit the upgrade.
++go get -d rsc.io/quote@v1.5.2
++go list -m -u all
++stdout 'rsc.io/quote v1.5.2$'
++
++# If the current version is newer than latest, 'go list -u' should
++# omit the upgrade.
++go get -d rsc.io/quote@v1.5.3-pre1
++go list -m -u all
++stdout 'rsc.io/quote v1.5.3-pre1$'
++
++# If the current build list has a higher version and the user asks about
++# a lower one, -u should report the upgrade for the lower one
++# but leave the build list unchanged.
++go list -m -u rsc.io/quote@v1.5.1
++stdout 'rsc.io/quote v1.5.1 \[v1.5.2\]$'
++go list -m -u rsc.io/quote
++stdout 'rsc.io/quote v1.5.3-pre1$'
++
+ -- go.mod --
+ module x
+ require rsc.io/quote v1.2.0

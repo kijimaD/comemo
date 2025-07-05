@@ -6,6 +6,16 @@ Date:   Fri Nov 6 17:05:42 2009 -0800
     
     R=r, rsc
     http://go/go-review/1026012
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f7619779fa..850b0128ac 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -47,3 +47,4 @@ Russ Cox <rsc@golang.org>
+ Scott Schwartz <scotts@golang.org>
+ Stephen Ma <stephenm@golang.org>
+ Tom Szymanski <tgs@google.com>
++Vish Subramanian <vish@google.com>

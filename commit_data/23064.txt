@@ -12,7 +12,110 @@ Date:   Tue Apr 21 13:36:44 2015 -0700
     Change-Id: I5b08b471a9064c347510cfcf8557373704eef7c0
     Reviewed-on: https://go-review.googlesource.com/9200
     Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
-
+---
  src/net/http/fs.go      | 24 ++++++++++++++++++++----
  src/net/http/fs_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 4e69da8f7f..40bf1b3ef3 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -358,16 +358,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 
+ 	f, err := fs.Open(name)
+ 	if err != nil {
+-		// TODO expose actual error?
+-		NotFound(w, r)
++		msg, code := toHTTPError(err)
++		Error(w, msg, code)
+ 		return
+ 	}
+ 	defer f.Close()
+ 
+ 	d, err1 := f.Stat()
+ 	if err1 != nil {
+-		// TODO expose actual error?
+-		NotFound(w, r)
++		msg, code := toHTTPError(err)
++		Error(w, msg, code)
+ 		return
+ 	}
+ 
+@@ -417,6 +417,22 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 	serveContent(w, r, d.Name(), d.ModTime(), sizeFunc, f)
+ }
+ 
++// toHTTPError returns a non-specific HTTP error message and status code
++// for a given non-nil error value. It's important that toHTTPError does not
++// actually return err.Error(), since msg and httpStatus are returned to users,
++// and historically Go's ServeContent always returned just "404 Not Found" for
++// all errors. We don't want to start leaking information in error messages.
++func toHTTPError(err error) (msg string, httpStatus int) {
++	if os.IsNotExist(err) {
++		return "404 page not found", StatusNotFound
++	}
++	if os.IsPermission(err) {
++		return "403 Forbidden", StatusForbidden
++	}
++	// Default:
++	return "500 Internal Server Error", StatusInternalServerError
++}
++
+ // localRedirect gives a Moved Permanently response.
+ // It does not convert relative paths to absolute paths like Redirect does.
+ func localRedirect(w ResponseWriter, r *Request, newPath string) {
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index a8cfe5f4c9..794dabc40a 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -497,6 +497,7 @@ type fakeFileInfo struct {
+ 	modtime  time.Time
+ 	ents     []*fakeFileInfo
+ 	contents string
++	err      error
+ }
+ 
+ func (f *fakeFileInfo) Name() string       { return f.basename }
+@@ -549,6 +550,9 @@ func (fs fakeFS) Open(name string) (File, error) {
+ 	if !ok {
+ 		return nil, os.ErrNotExist
+ 	}
++	if f.err != nil {
++		return nil, f.err
++	}
+ 	return &fakeFile{ReadSeeker: strings.NewReader(f.contents), fi: f, path: name}, nil
+ }
+ 
+@@ -803,6 +807,31 @@ func TestServeContent(t *testing.T) {
+ 	}
+ }
+ 
++func TestServeContentErrorMessages(t *testing.T) {
++	defer afterTest(t)
++	fs := fakeFS{
++		"/500": &fakeFileInfo{
++			err: errors.New("random error"),
++		},
++		"/403": &fakeFileInfo{
++			err: &os.PathError{Err: os.ErrPermission},
++		},
++	}
++	ts := httptest.NewServer(FileServer(fs))
++	defer ts.Close()
++	for _, code := range []int{403, 404, 500} {
++		res, err := DefaultClient.Get(fmt.Sprintf("%s/%d", ts.URL, code))
++		if err != nil {
++			t.Errorf("Error fetching /%d: %v", code, err)
++			continue
++		}
++		if res.StatusCode != code {
++			t.Errorf("For /%d, status code = %d; want %d", code, res.StatusCode, code)
++		}
++		res.Body.Close()
++	}
++}
++
+ // verifies that sendfile is being used on Linux
+ func TestLinuxSendfile(t *testing.T) {
+ 	defer afterTest(t)

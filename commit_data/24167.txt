@@ -12,8 +12,55 @@ Date:   Fri Jul 10 16:11:06 2015 -0600
     Change-Id: I2ff387e4f9e8ab7cae35c4838350e0a1fce2e625
     Reviewed-on: https://go-review.googlesource.com/12045
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/operand.go          | 5 +++--
  src/go/types/testdata/decls0.src | 1 +
  src/go/types/testdata/shifts.src | 8 ++++++++
  3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index a7d3b0aaee..afa9206142 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -278,9 +278,10 @@ func (x *operand) assignableTo(conf *Config, T Type) bool {
+ 	return false
+ }
+ 
+-// isInteger reports whether x is a (typed or untyped) integer value.
++// isInteger reports whether x is value of integer type
++// or an untyped constant representable as an integer.
+ func (x *operand) isInteger() bool {
+ 	return x.mode == invalid ||
+ 		isInteger(x.typ) ||
+-		x.mode == constant && representableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
++		isUntyped(x.typ) && x.mode == constant && representableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
+ }
+diff --git a/src/go/types/testdata/decls0.src b/src/go/types/testdata/decls0.src
+index f1df3ea703..21baafe279 100644
+--- a/src/go/types/testdata/decls0.src
++++ b/src/go/types/testdata/decls0.src
+@@ -53,6 +53,7 @@ type (
+ 	iA1 [1 /* ERROR "invalid array length" */ <<100]int
+ 	iA2 [- /* ERROR "invalid array length" */ 1]complex128
+ 	iA3 ["foo" /* ERROR "must be integer" */ ]string
++	iA4 [float64 /* ERROR "must be integer" */ (0)]int
+ )
+ 
+ 
+diff --git a/src/go/types/testdata/shifts.src b/src/go/types/testdata/shifts.src
+index 2df2ccde0b..64865fc07b 100644
+--- a/src/go/types/testdata/shifts.src
++++ b/src/go/types/testdata/shifts.src
+@@ -331,3 +331,11 @@ func issue11325() {
+ 	_ = 1. >> 1.
+ 	_ = 1.1 /* ERROR "must be integer" */ >> 1
+ }
++
++func issue11594() {
++	var _ = complex64 /* ERROR "must be integer" */ (1) << 2 // example from issue 11594
++	_ = float32 /* ERROR "must be integer" */ (0) << 1
++	_ = float64 /* ERROR "must be integer" */ (0) >> 2
++	_ = complex64 /* ERROR "must be integer" */ (0) << 3
++	_ = complex64 /* ERROR "must be integer" */ (0) >> 4
++}
+\ No newline at end of file

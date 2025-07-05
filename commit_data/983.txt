@@ -7,6 +7,36 @@ Date:   Wed Oct 29 13:46:55 2008 -0700
     R=ken
     OCL=18031
     CL=18031
-
+---
  test/bugs/bug114.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/test/bugs/bug114.go b/test/bugs/bug114.go
+new file mode 100644
+index 0000000000..33330fff8e
+--- /dev/null
++++ b/test/bugs/bug114.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && (./$A.out || echo BUG: bug114 failed)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const B32 = 1<<32 - 1
++const C32 = (-1) & ((1<<32) - 1)
++const D32 = ^0
++
++func main() {
++	if B32 != 0xFFFFFFFF {
++		panicln("1<<32 - 1 is", B32, "should be", 0xFFFFFFFF)
++	}
++	if C32 != 0xFFFFFFFF {
++		panicln("(-1) & ((1<<32) - 1) is", C32, "should be", 0xFFFFFFFF)
++	}
++	if D32 != -1 {
++		panicln("^0 is", D32, "should be", -1)
++	}
++}

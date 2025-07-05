@@ -15,6 +15,31 @@ Date:   Wed Sep 16 17:08:55 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/export_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index e3d6441c18..f2fa11dc98 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -991,7 +991,9 @@ type MSpan mspan
+ func AllocMSpan() *MSpan {
+ 	var s *mspan
+ 	systemstack(func() {
++		lock(&mheap_.lock)
+ 		s = (*mspan)(mheap_.spanalloc.alloc())
++		unlock(&mheap_.lock)
+ 	})
+ 	return (*MSpan)(s)
+ }
+@@ -999,7 +1001,9 @@ func AllocMSpan() *MSpan {
+ // Free an allocated mspan.
+ func FreeMSpan(s *MSpan) {
+ 	systemstack(func() {
++		lock(&mheap_.lock)
+ 		mheap_.spanalloc.free(unsafe.Pointer(s))
++		unlock(&mheap_.lock)
+ 	})
+ }
+ 

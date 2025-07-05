@@ -16,7 +16,141 @@ Date:   Wed Mar 26 19:05:48 2014 +0400
     R=golang-codereviews
     CC=golang-codereviews, iant, khr, rsc
     https://golang.org/cl/76970043
-
+---
  src/pkg/runtime/chan.goc                   | 14 ++++++-
  src/pkg/runtime/race/testdata/chan_test.go | 65 +++++++++++++++++++++++++++++-
  2 files changed, 76 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.goc b/src/pkg/runtime/chan.goc
+index 7442715e78..185219640c 100644
+--- a/src/pkg/runtime/chan.goc
++++ b/src/pkg/runtime/chan.goc
+@@ -171,8 +171,11 @@ asynch:
+ 		goto asynch;
+ 	}
+ 
+-	if(raceenabled)
++	if(raceenabled) {
++		if(c->dataqsiz == 1)
++			runtime·raceacquire(chanbuf(c, c->sendx));
+ 		runtime·racerelease(chanbuf(c, c->sendx));
++	}
+ 
+ 	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
+ 	if(++c->sendx == c->dataqsiz)
+@@ -299,8 +302,11 @@ asynch:
+ 		goto asynch;
+ 	}
+ 
+-	if(raceenabled)
++	if(raceenabled) {
+ 		runtime·raceacquire(chanbuf(c, c->recvx));
++		if(c->dataqsiz == 1)
++			runtime·racerelease(chanbuf(c, c->recvx));
++	}
+ 
+ 	if(ep != nil)
+ 		c->elemtype->alg->copy(c->elemsize, ep, chanbuf(c, c->recvx));
+@@ -849,6 +855,8 @@ asyncrecv:
+ 		if(cas->sg.elem != nil)
+ 			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, chanrecv);
+ 		runtime·raceacquire(chanbuf(c, c->recvx));
++		if(c->dataqsiz == 1)
++			runtime·racerelease(chanbuf(c, c->recvx));
+ 	}
+ 	if(cas->receivedp != nil)
+ 		*cas->receivedp = true;
+@@ -873,6 +881,8 @@ asyncrecv:
+ asyncsend:
+ 	// can send to buffer
+ 	if(raceenabled) {
++		if(c->dataqsiz == 1)
++			runtime·raceacquire(chanbuf(c, c->sendx));
+ 		runtime·racerelease(chanbuf(c, c->sendx));
+ 		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, chansend);
+ 	}
+diff --git a/src/pkg/runtime/race/testdata/chan_test.go b/src/pkg/runtime/race/testdata/chan_test.go
+index d6a1f14db1..aab59a553d 100644
+--- a/src/pkg/runtime/race/testdata/chan_test.go
++++ b/src/pkg/runtime/race/testdata/chan_test.go
+@@ -568,12 +568,14 @@ func TestRaceChanCloseLen(t *testing.T) {
+ }
+ 
+ func TestRaceChanSameCell(t *testing.T) {
+-	c := make(chan int, 1)
++	c := make(chan int, 2)
+ 	v := 0
+ 	go func() {
+ 		v = 1
+ 		c <- 42
+ 		<-c
++		c <- 42
++		<-c
+ 	}()
+ 	time.Sleep(1e7)
+ 	c <- 43
+@@ -591,3 +593,64 @@ func TestRaceChanCloseSend(t *testing.T) {
+ 	c <- 0
+ 	<-compl
+ }
++
++func TestNoRaceChanMutex(t *testing.T) {
++	done := make(chan struct{})
++	mtx := make(chan struct{}, 1)
++	data := 0
++	go func() {
++		mtx <- struct{}{}
++		data = 42
++		<-mtx
++		done <- struct{}{}
++	}()
++	mtx <- struct{}{}
++	data = 43
++	<-mtx
++	<-done
++}
++
++func TestNoRaceSelectMutex(t *testing.T) {
++	done := make(chan struct{})
++	mtx := make(chan struct{}, 1)
++	aux := make(chan bool)
++	data := 0
++	go func() {
++		select {
++		case mtx <- struct{}{}:
++		case <-aux:
++		}
++		data = 42
++		select {
++		case <-mtx:
++		case <-aux:
++		}
++		done <- struct{}{}
++	}()
++	select {
++	case mtx <- struct{}{}:
++	case <-aux:
++	}
++	data = 43
++	select {
++	case <-mtx:
++	case <-aux:
++	}
++	<-done
++}
++
++func TestRaceChanSem(t *testing.T) {
++	done := make(chan struct{})
++	mtx := make(chan struct{}, 2)
++	data := 0
++	go func() {
++		mtx <- struct{}{}
++		data = 42
++		<-mtx
++		done <- struct{}{}
++	}()
++	mtx <- struct{}{}
++	data = 43
++	<-mtx
++	<-done
++}

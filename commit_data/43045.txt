@@ -9,6 +9,19 @@ Date:   Tue Mar 3 07:08:06 2020 -0600
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/hex/hex_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index dbb00b94ca..31e3f68936 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -267,7 +267,6 @@ func BenchmarkDecode(b *testing.B) {
+ func BenchmarkDump(b *testing.B) {
+ 	for _, size := range []int{256, 1024, 4096, 16384} {
+ 		src := bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8)
+-		sink = make([]byte, 2*size)
+ 
+ 		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
+ 			b.SetBytes(int64(size))

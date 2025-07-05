@@ -17,6 +17,19 @@ Date:   Wed May 31 11:57:07 2017 -0700
     Change-Id: I58ed2b31e6c98b584122bdaf844fee7268b58295
     Reviewed-on: https://go-review.googlesource.com/44475
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/runtime/iface.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index bac0b37b3a..665dbdbc16 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -222,6 +222,7 @@ imethods:
+ 		m.fun[0] = 0
+ 		return iname
+ 	}
++	m.hash = typ.hash
+ 	return ""
+ }
+ 

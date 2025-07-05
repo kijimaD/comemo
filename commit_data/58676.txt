@@ -15,6 +15,27 @@ Date:   Wed Nov 29 12:45:01 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/internal/moddeps/moddeps_test.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index ae890b66cb..3d4c99eecb 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -443,7 +443,14 @@ func findGorootModules(t *testing.T) []gorootModule {
+ 	goBin := testenv.GoToolPath(t)
+ 
+ 	goroot.once.Do(func() {
+-		goroot.err = filepath.WalkDir(testenv.GOROOT(t), func(path string, info fs.DirEntry, err error) error {
++		// If the root itself is a symlink to a directory,
++		// we want to follow it (see https://go.dev/issue/64375).
++		// Add a trailing separator to force that to happen.
++		root := testenv.GOROOT(t)
++		if !os.IsPathSeparator(root[len(root)-1]) {
++			root += string(filepath.Separator)
++		}
++		goroot.err = filepath.WalkDir(root, func(path string, info fs.DirEntry, err error) error {
+ 			if err != nil {
+ 				return err
+ 			}

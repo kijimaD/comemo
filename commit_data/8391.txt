@@ -7,7 +7,58 @@ Date:   Fri May 13 15:43:46 2011 -0700
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/4543050
-
+---
  src/pkg/http/request.go      | 13 +++++++++++++
  src/pkg/http/request_test.go |  8 ++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 8545d75660..353b1c62c9 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -12,6 +12,7 @@ import (
+ 	"bufio"
+ 	"crypto/tls"
+ 	"container/vector"
++	"encoding/base64"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -479,6 +480,18 @@ func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
+ 	return req, nil
+ }
+ 
++// SetBasicAuth sets the request's Authorization header to use HTTP
++// Basic Authentication with the provided username and password.
++//
++// With HTTP Basic Authentication the provided username and password
++// are not encrypted.
++func (r *Request) SetBasicAuth(username, password string) {
++	s := username + ":" + password
++	buf := make([]byte, base64.StdEncoding.EncodedLen(len(s)))
++	base64.StdEncoding.Encode(buf, []byte(s))
++	r.Header.Set("Authorization", "Basic "+string(buf))
++}
++
+ // ReadRequest reads and parses a request from b.
+ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index 466e47a1f8..8429e92eba 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -173,6 +173,14 @@ func TestRedirect(t *testing.T) {
+ 	}
+ }
+ 
++func TestSetBasicAuth(t *testing.T) {
++	r, _ := NewRequest("GET", "http://example.com/", nil)
++	r.SetBasicAuth("Aladdin", "open sesame")
++	if g, e := r.Header.Get("Authorization"), "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="; g != e {
++		t.Errorf("got header %q, want %q", g, e)
++	}
++}
++
+ func TestMultipartRequest(t *testing.T) {
+ 	// Test that we can read the values and files of a 
+ 	// multipart request with FormValue and FormFile,

@@ -18,6 +18,26 @@ Date:   Sat Jun 13 10:37:22 2020 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/roundtrip_js.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 509d229aad..b09923c386 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -98,9 +98,11 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 			return nil, err
+ 		}
+ 		req.Body.Close()
+-		buf := uint8Array.New(len(body))
+-		js.CopyBytesToJS(buf, body)
+-		opt.Set("body", buf)
++		if len(body) != 0 {
++			buf := uint8Array.New(len(body))
++			js.CopyBytesToJS(buf, body)
++			opt.Set("body", buf)
++		}
+ 	}
+ 
+ 	fetchPromise := js.Global().Call("fetch", req.URL.String(), opt)

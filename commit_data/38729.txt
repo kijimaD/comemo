@@ -13,6 +13,19 @@ Date:   Fri Nov 16 15:51:49 2018 -0800
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/go/internal/load/pkg.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 3d1b0e649d..ae738c6a12 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1343,6 +1343,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 
+ 	// SWIG adds imports of some standard packages.
+ 	if p.UsesSwig() {
++		addImport("unsafe", true)
+ 		if cfg.BuildContext.Compiler != "gccgo" {
+ 			addImport("runtime/cgo", true)
+ 		}

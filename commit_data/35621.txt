@@ -17,10 +17,82 @@ Date:   Mon Feb 26 11:15:41 2018 +0100
     Change-Id: I07efc3c3203537a4142707385f31b59dc0ecca42
     Reviewed-on: https://go-review.googlesource.com/97115
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/asm_linux_arm.s       | 2 --
  src/syscall/syscall_bsd.go        | 8 --------
  src/syscall/syscall_linux_test.go | 2 --
  src/syscall/syscall_netbsd.go     | 2 +-
  src/syscall/syscall_openbsd.go    | 2 +-
  5 files changed, 2 insertions(+), 14 deletions(-)
+
+diff --git a/src/syscall/asm_linux_arm.s b/src/syscall/asm_linux_arm.s
+index 4463a0f3e7..458e9cce79 100644
+--- a/src/syscall/asm_linux_arm.s
++++ b/src/syscall/asm_linux_arm.s
+@@ -9,8 +9,6 @@
+ // System calls for arm, Linux
+ //
+ 
+-// TODO(kaib): handle error returns
+-
+ // func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+ TEXT ·Syscall(SB),NOSPLIT,$0-28
+ 	BL	runtime·entersyscall(SB)
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index d141a7de9d..7337454abe 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -539,14 +539,6 @@ func Futimes(fd int, tv []Timeval) (err error) {
+ 
+ //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
+ 
+-// TODO: wrap
+-//	Acct(name nil-string) (err error)
+-//	Gethostuuid(uuid *byte, timeout *Timespec) (err error)
+-//	Madvise(addr *byte, len int, behav int) (err error)
+-//	Mprotect(addr *byte, len int, prot int) (err error)
+-//	Msync(addr *byte, len int, flags int) (err error)
+-//	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, err error)
+-
+ var mapper = &mmapper{
+ 	active: make(map[*byte][]byte),
+ 	mmap:   mmap,
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index becd267101..932ccee491 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -180,8 +180,6 @@ func TestSyscallNoError(t *testing.T) {
+ 		t.Skip("skipping on non-32bit architecture")
+ 	}
+ 
+-	// TODO(tklauser) is this check enough? Otherwise test for being in a non-k8s
+-	// Linux VM via testenv.Builder().
+ 	if os.Getuid() != 0 {
+ 		t.Skip("skipping root only test")
+ 	}
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index 06e41894b6..18ed885f14 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -142,7 +142,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 	return getdents(fd, buf)
+ }
+ 
+-// TODO
++// TODO, see golang.org/issue/5847
+ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	return -1, ENOSYS
+ }
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index 1a9b7644a9..db1e9a057f 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -98,7 +98,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 	return getdents(fd, buf)
+ }
+ 
+-// TODO
++// TODO, see golang.org/issue/5847
+ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	return -1, ENOSYS
+ }

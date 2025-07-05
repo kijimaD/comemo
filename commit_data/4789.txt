@@ -7,7 +7,63 @@ Date:   Thu Feb 4 13:09:02 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/202043
-
+---
  src/pkg/time/sleep.go      | 15 +++++++++++++--
  src/pkg/time/sleep_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index fe0ddce4a9..5de5374cea 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -11,5 +11,16 @@ import (
+ 
+ // Sleep pauses the current goroutine for at least ns nanoseconds. Higher resolution
+ // sleeping may be provided by syscall.Nanosleep on some operating systems.
+-// Sleep returns os.EINTR if interrupted.
+-func Sleep(ns int64) os.Error { return os.NewSyscallError("sleep", syscall.Sleep(ns)) }
++func Sleep(ns int64) os.Error {
++	// TODO(cw): use monotonic-time once it's available
++	t := Nanoseconds()
++	end := t + ns
++	for t < end {
++		errno := syscall.Sleep(end - t)
++		if errno != 0 && errno != syscall.EINTR {
++			return os.NewSyscallError("sleep", errno)
++		}
++		t = Nanoseconds()
++	}
++	return nil
++}
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+new file mode 100644
+index 0000000000..7ec6c49439
+--- /dev/null
++++ b/src/pkg/time/sleep_test.go
+@@ -0,0 +1,26 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time_test
++
++import (
++	"os"
++	"syscall"
++	"testing"
++	. "time"
++)
++
++func TestSleep(t *testing.T) {
++	const delay = int64(100e6)
++	go func() {
++		Sleep(delay / 2)
++		syscall.Kill(os.Getpid(), syscall.SIGCHLD)
++	}()
++	start := Nanoseconds()
++	Sleep(delay)
++	duration := Nanoseconds() - start
++	if duration < delay {
++		t.Fatalf("Sleep(%d) slept for only %d ns", delay, duration)
++	}
++}

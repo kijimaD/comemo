@@ -13,6 +13,52 @@ Date:   Tue Nov 13 15:15:02 2018 +0000
     Change-Id: I960f286ed66fec67aabd953e7b69993f60b00bca
     Reviewed-on: https://go-review.googlesource.com/c/149339
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/semver/semver.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/semver/semver.go b/src/cmd/go/internal/semver/semver.go
+index d61c6b476a..4af7118e55 100644
+--- a/src/cmd/go/internal/semver/semver.go
++++ b/src/cmd/go/internal/semver/semver.go
+@@ -312,8 +312,9 @@ func compareInt(x, y string) int {
+ 	}
+ 	if x < y {
+ 		return -1
++	} else {
++		return +1
+ 	}
+-	return +1
+ }
+ 
+ func comparePrerelease(x, y string) int {
+@@ -352,8 +353,9 @@ func comparePrerelease(x, y string) int {
+ 			if ix != iy {
+ 				if ix {
+ 					return -1
++				} else {
++					return +1
+ 				}
+-				return +1
+ 			}
+ 			if ix {
+ 				if len(dx) < len(dy) {
+@@ -365,14 +367,16 @@ func comparePrerelease(x, y string) int {
+ 			}
+ 			if dx < dy {
+ 				return -1
++			} else {
++				return +1
+ 			}
+-			return +1
+ 		}
+ 	}
+ 	if x == "" {
+ 		return -1
++	} else {
++		return +1
+ 	}
+-	return +1
+ }
+ 
+ func nextIdent(x string) (dx, rest string) {

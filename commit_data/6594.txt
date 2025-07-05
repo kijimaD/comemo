@@ -7,6 +7,18 @@ Date:   Thu Oct 21 13:03:59 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2649041
-
+---
  src/pkg/runtime/arm/asm.s | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 5ed16dee75..b9e7106d9c 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -270,3 +270,6 @@ TEXT abort(SB),7,$-4
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+ 
++TEXT	runcgocallback(SB),7,$0
++	MOVW	$0, R0
++	MOVW	(R0), R1

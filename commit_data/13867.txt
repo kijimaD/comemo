@@ -10,7 +10,54 @@ Date:   Wed Sep 19 01:05:25 2012 +0400
     R=rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/6488074
-
+---
  src/cmd/ld/doc.go | 2 ++
  src/cmd/ld/lib.c  | 9 ++++++++-
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index e99e504668..539448d276 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -56,5 +56,7 @@ Options new in this version:
+ 		Set the value of an otherwise uninitialized string variable.
+ 		The symbol name should be of the form importpath.name,
+ 		as displayed in the symbol table printed by "go tool nm".
++	-b
++		Link with race detection libraries.
+ */
+ package documentation
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 2026707c2f..135426473f 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -72,6 +72,8 @@ Lflag(char *arg)
+ void
+ libinit(void)
+ {
++	char *race;
++
+ 	fmtinstall('i', iconv);
+ 	fmtinstall('Y', Yconv);
+ 	fmtinstall('Z', Zconv);
+@@ -80,7 +82,10 @@ libinit(void)
+ 		print("goarch is not known: %s\n", goarch);
+ 
+ 	// add goroot to the end of the libdir list.
+-	Lflag(smprint("%s/pkg/%s_%s", goroot, goos, goarch));
++	race = "";
++	if(debug['b'])
++		race = "_race";
++	Lflag(smprint("%s/pkg/%s_%s%s", goroot, goos, goarch, race));
+ 
+ 	// Unix doesn't like it when we write to a running (or, sometimes,
+ 	// recently run) binary, so remove the output file before writing it.
+@@ -281,6 +286,8 @@ loadlib(void)
+ 	loadinternal("runtime");
+ 	if(thechar == '5')
+ 		loadinternal("math");
++	if(debug['b'])
++		loadinternal("runtime/race");
+ 
+ 	for(i=0; i<libraryp; i++) {
+ 		if(debug['v'])

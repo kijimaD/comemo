@@ -7,6 +7,43 @@ Date:   Tue Feb 21 10:24:15 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5688047
-
+---
  src/pkg/net/http/server.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index e715c73cb6..fa0df54a23 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -12,7 +12,6 @@ package http
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"crypto/rand"
+ 	"crypto/tls"
+ 	"errors"
+ 	"fmt"
+@@ -985,6 +984,7 @@ type Server struct {
+ 	ReadTimeout    time.Duration // maximum duration before timing out read of the request
+ 	WriteTimeout   time.Duration // maximum duration before timing out write of the response
+ 	MaxHeaderBytes int           // maximum size of request headers, DefaultMaxHeaderBytes if 0
++	TLSConfig      *tls.Config   // optional TLS config, used by ListenAndServeTLS
+ }
+ 
+ // ListenAndServe listens on the TCP network address srv.Addr and then
+@@ -1121,9 +1121,12 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 	if addr == "" {
+ 		addr = ":https"
+ 	}
+-	config := &tls.Config{
+-		Rand:       rand.Reader,
+-		NextProtos: []string{"http/1.1"},
++	config := &tls.Config{}
++	if srv.TLSConfig != nil {
++		*config = *srv.TLSConfig
++	}
++	if config.NextProtos == nil {
++		config.NextProtos = []string{"http/1.1"}
+ 	}
+ 
+ 	var err error

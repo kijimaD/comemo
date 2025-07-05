@@ -7,6 +7,10 @@ Date:   Mon Oct 18 16:05:50 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/2486043
-
+---
  doc/ExpressivenessOfGo.pdf | Bin 889867 -> 859406 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/ExpressivenessOfGo.pdf b/doc/ExpressivenessOfGo.pdf
+index 34c5ea3cb0..f1931d0818 100644
+Binary files a/doc/ExpressivenessOfGo.pdf and b/doc/ExpressivenessOfGo.pdf differ

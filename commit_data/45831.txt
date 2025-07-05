@@ -14,7 +14,58 @@ Date:   Mon Nov 23 15:48:37 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/conversions.go  | 16 ++++++++--------
  test/fixedbugs/issue42790.go |  9 +++++++++
  2 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 0955391d7b..1cab1cc70f 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -6,7 +6,10 @@
+ 
+ package types
+ 
+-import "go/constant"
++import (
++	"go/constant"
++	"unicode"
++)
+ 
+ // Conversion type-checks the conversion T(x).
+ // The result is in x.
+@@ -21,14 +24,11 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		case representableConst(x.val, check, t, &x.val):
+ 			ok = true
+ 		case isInteger(x.typ) && isString(t):
+-			codepoint := int64(-1)
+-			if i, ok := constant.Int64Val(x.val); ok {
+-				codepoint = i
++			codepoint := unicode.ReplacementChar
++			if i, ok := constant.Uint64Val(x.val); ok && i <= unicode.MaxRune {
++				codepoint = rune(i)
+ 			}
+-			// If codepoint < 0 the absolute value is too large (or unknown) for
+-			// conversion. This is the same as converting any other out-of-range
+-			// value - let string(codepoint) do the work.
+-			x.val = constant.MakeString(string(rune(codepoint)))
++			x.val = constant.MakeString(string(codepoint))
+ 			ok = true
+ 		}
+ 	case x.convertibleTo(check, T):
+diff --git a/test/fixedbugs/issue42790.go b/test/fixedbugs/issue42790.go
+new file mode 100644
+index 0000000000..d83a02247a
+--- /dev/null
++++ b/test/fixedbugs/issue42790.go
+@@ -0,0 +1,9 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++const _ = -uint(len(string(1<<32)) - len("\uFFFD"))

@@ -13,7 +13,71 @@ Date:   Fri Dec 18 11:29:49 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go  |  8 +++-----
  src/cmd/compile/internal/gc/select.go | 11 ++++++-----
  2 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 87d7cf3aa9..7915e4b2f7 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -892,12 +892,12 @@ func (o *Order) stmt(n ir.Node) {
+ 
+ 			case ir.OSELRECV2:
+ 				// case x, ok = <-c
++				r := r.(*ir.AssignListStmt)
+ 				recv := r.Rlist().First().(*ir.UnaryExpr)
+ 				recv.SetLeft(o.expr(recv.Left(), nil))
+ 				if recv.Left().Op() != ir.ONAME {
+ 					recv.SetLeft(o.copyExpr(recv.Left()))
+ 				}
+-				r := r.(*ir.AssignListStmt)
+ 				init := r.PtrInit().Slice()
+ 				r.PtrInit().Set(nil)
+ 
+@@ -915,13 +915,11 @@ func (o *Order) stmt(n ir.Node) {
+ 						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).Left() == n {
+ 							init = init[1:]
+ 						}
+-						dcl := ir.Nod(ir.ODCL, n, nil)
+-						dcl = typecheck(dcl, ctxStmt)
++						dcl := typecheck(ir.Nod(ir.ODCL, n, nil), ctxStmt)
+ 						ncas.PtrInit().Append(dcl)
+ 					}
+ 					tmp := o.newTemp(t, t.HasPointers())
+-					as := ir.Nod(ir.OAS, n, conv(tmp, n.Type()))
+-					as = typecheck(as, ctxStmt)
++					as := typecheck(ir.Nod(ir.OAS, n, conv(tmp, n.Type())), ctxStmt)
+ 					ncas.PtrInit().Append(as)
+ 					r.PtrList().SetIndex(i, tmp)
+ 				}
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index c017b8e29a..974c4b254e 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -207,8 +207,7 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
+ 			} else {
+ 				// TODO(cuonglm): make this use selectnbrecv()
+ 				// if selectnbrecv2(&v, &received, c) { body } else { default body }
+-				receivedp := ir.Nod(ir.OADDR, n.List().Second(), nil)
+-				receivedp = typecheck(receivedp, ctxExpr)
++				receivedp := typecheck(nodAddr(n.List().Second()), ctxExpr)
+ 				call = mkcall1(chanfn("selectnbrecv2", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, receivedp, ch)
+ 			}
+ 		}
+@@ -323,9 +322,11 @@ func walkselectcases(cases ir.Nodes) []ir.Node {
+ 
+ 		r := ir.Nod(ir.OIF, cond, nil)
+ 
+-		if n := cas.Left(); n != nil && n.Op() == ir.OSELRECV2 && !ir.IsBlank(n.List().Second()) {
+-			x := ir.Nod(ir.OAS, n.List().Second(), recvOK)
+-			r.PtrBody().Append(typecheck(x, ctxStmt))
++		if n := cas.Left(); n != nil && n.Op() == ir.OSELRECV2 {
++			if !ir.IsBlank(n.List().Second()) {
++				x := ir.Nod(ir.OAS, n.List().Second(), recvOK)
++				r.PtrBody().Append(typecheck(x, ctxStmt))
++			}
+ 		}
+ 
+ 		r.PtrBody().AppendNodes(cas.PtrBody())

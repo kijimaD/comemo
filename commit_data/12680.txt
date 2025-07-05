@@ -7,10 +7,88 @@ Date:   Mon Mar 19 08:26:36 2012 +1100
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5845059
-
+---
  doc/code.html               | 2 +-
  doc/debugging_with_gdb.html | 2 +-
  doc/gccgo_install.html      | 2 +-
  doc/go_mem.html             | 6 +++---
  doc/go_spec.html            | 2 +-
  5 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 768a9995a2..238cb06433 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -245,7 +245,7 @@ $ go install
+ </pre>
+ 
+ <p>
+-The resulting workspace directory tree (assuimg we're running Linux on a 64-bit
++The resulting workspace directory tree (assuming we're running Linux on a 64-bit
+ system) looks like this:
+ </p>
+ 
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index 43977b7772..51b650b18c 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -351,7 +351,7 @@ $3 = struct hchan<*testing.T>
+ </pre>
+ 
+ <p>
+-That <code>struct hchan<*testing.T></code> is the runtime-internal represntation of a channel.  It is currently empty, or gdb would have pretty-printed it's contents.
++That <code>struct hchan<*testing.T></code> is the runtime-internal representation of a channel.  It is currently empty, or gdb would have pretty-printed it's contents.
+ </p>
+ 
+ <p>
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index ae359437a6..e769c2211b 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -342,7 +342,7 @@ func c_open(name *byte, mode int, perm int) int __asm__ ("open");
+ </pre>
+ 
+ <p>
+-The C function naturally expects a nul terminated string, which in
++The C function naturally expects a NUL-terminated string, which in
+ Go is equivalent to a pointer to an array (not a slice!) of
+ <code>byte</code> with a terminating zero byte. So a sample call
+ from Go would look like (after importing the <code>os</code> package):
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index d4f3656bf0..ece230638e 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -283,7 +283,7 @@ The <code>sync</code> package implements two lock data types,
+ 
+ <p class="rule">
+ For any <code>sync.Mutex</code> or <code>sync.RWMutex</code> variable <code>l</code> and <i>n</i> &lt; <i>m</i>,
+-the <i>n</i>'th call to <code>l.Unlock()</code> happens before the <i>m</i>'th call to <code>l.Lock()</code> returns.
++call <i>n</i> of <code>l.Unlock()</code> happens before call <i>m</i> of <code>l.Lock()</code> returns.
+ </p>
+ 
+ <p>
+@@ -316,9 +316,9 @@ which happens before the <code>print</code>.
+ 
+ <p class="rule">
+ For any call to <code>l.RLock</code> on a <code>sync.RWMutex</code> variable <code>l</code>,
+-there is an <i>n</i> such that the <code>l.RLock</code> happens (returns) after the <i>n</i>'th call to
++there is an <i>n</i> such that the <code>l.RLock</code> happens (returns) after call <i>n</i> to
+ <code>l.Unlock</code> and the matching <code>l.RUnlock</code> happens
+-before the <i>n</i>+1'th call to <code>l.Lock</code>.
++before call <i>n</i>+1 to <code>l.Lock</code>.
+ </p>
+ 
+ <h3>Once</h3>
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9d3ff87b11..2c905c723b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -75,7 +75,7 @@ double quotes <code>""</code> or back quotes <code>``</code>.
+ <p>
+ The form <code>a … b</code> represents the set of characters from
+ <code>a</code> through <code>b</code> as alternatives. The horizontal
+-ellipis <code>…</code> is also used elsewhere in the spec to informally denote various
++ellipsis <code>…</code> is also used elsewhere in the spec to informally denote various
+ enumerations or code snippets that are not further specified. The character <code>…</code>
+ (as opposed to the three characters <code>...</code>) is not a token of the Go
+ language.

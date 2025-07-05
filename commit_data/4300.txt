@@ -8,9 +8,70 @@ Date:   Thu Dec 3 01:30:19 2009 -0800
     
     R=ken2
     https://golang.org/cl/163098
-
+---
  src/cmd/gc/select.c                |  2 +-
  test/{bugs => fixedbugs}/bug218.go |  0
  test/fixedbugs/bug225.go           | 22 ++++++++++++++++++++++
  test/golden.out                    |  4 ----
  4 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 3f28b1c563..9cba01fa51 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -118,7 +118,7 @@ walkselect(Node *sel)
+ 			else {
+ 				// introduce temporary until we're sure this will succeed.
+ 				tmp = nod(OXXX, N, N);
+-				tempname(tmp, n->left->type);
++				tempname(tmp, n->right->type->type);
+ 				a = nod(OADDR, tmp, N);
+ 			}
+ 			// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+diff --git a/test/bugs/bug218.go b/test/fixedbugs/bug218.go
+similarity index 100%
+rename from test/bugs/bug218.go
+rename to test/fixedbugs/bug218.go
+diff --git a/test/fixedbugs/bug225.go b/test/fixedbugs/bug225.go
+new file mode 100644
+index 0000000000..8acf66c4e4
+--- /dev/null
++++ b/test/fixedbugs/bug225.go
+@@ -0,0 +1,22 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {	
++	c := make(chan bool, 1);
++	select {
++	case _ = <-c:
++		panic("BUG: recv should not");
++	default:
++	}
++	c <- true;
++	select {
++	case _ = <-c:
++	default:
++		panic("BUG: recv should");
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index 64bfd6ecc7..9813c8313d 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -142,10 +142,6 @@ panic PC=xxx
+ 
+ == bugs/
+ 
+-=========== bugs/bug218.go
+-<epoch>: fatal error: dowidth: unknown type: blank
+-BUG: bug218
+-
+ =========== bugs/bug219.go
+ bugs/bug219.go:16: syntax error near if
+ BUG: bug219

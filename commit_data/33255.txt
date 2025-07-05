@@ -33,6 +33,31 @@ Date:   Wed Aug 2 18:22:21 2017 +0200
     Change-Id: I0a3e5f768e72b464474380cfffbf2b67396ac1b5
     Reviewed-on: https://go-review.googlesource.com/52770
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 11af926c80..02b2d730eb 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -512,7 +512,8 @@ func (c *common) Failed() bool {
+ 	return failed || c.raceErrors+race.Errors() > 0
+ }
+ 
+-// FailNow marks the function as having failed and stops its execution.
++// FailNow marks the function as having failed and stops its execution
++// by calling runtime.Goexit.
+ // Execution will continue at the next test or benchmark.
+ // FailNow must be called from the goroutine running the
+ // test or benchmark function, not from other goroutines
+@@ -600,7 +601,8 @@ func (c *common) Skipf(format string, args ...interface{}) {
+ 	c.SkipNow()
+ }
+ 
+-// SkipNow marks the test as having been skipped and stops its execution.
++// SkipNow marks the test as having been skipped and stops its execution
++// by calling runtime.Goexit.
+ // If a test fails (see Error, Errorf, Fail) and is then skipped,
+ // it is still considered to have failed.
+ // Execution will continue at the next test or benchmark. See also FailNow.

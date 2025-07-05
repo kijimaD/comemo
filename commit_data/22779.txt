@@ -69,6 +69,24 @@ Date:   Wed Apr 8 23:58:04 2015 +1000
     Change-Id: I0b7d95388d6920fcbd7fe305df0c7c630a407726
     Reviewed-on: https://go-review.googlesource.com/8636
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/7g/ggen.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/7g/ggen.go b/src/cmd/7g/ggen.go
+index 94685d7fce..86772d73ab 100644
+--- a/src/cmd/7g/ggen.go
++++ b/src/cmd/7g/ggen.go
+@@ -400,9 +400,9 @@ func clearfat(nl *gc.Node) {
+ 	w := uint64(uint64(nl.Type.Width))
+ 
+ 	// Avoid taking the address for simple enough types.
+-	//if gc.Componentgen(nil, nl) {
+-	//	return
+-	//}
++	if gc.Componentgen(nil, nl) {
++		return
++	}
+ 
+ 	c := uint64(w % 8) // bytes
+ 	q := uint64(w / 8) // dwords

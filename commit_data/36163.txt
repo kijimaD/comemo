@@ -14,6 +14,33 @@ Date:   Sat Apr 7 16:24:52 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  api/except.txt | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 94043718ba..e5cb7b8edb 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -362,21 +362,11 @@ pkg syscall (openbsd-386-cgo), const SYS_KILL = 37
+ pkg syscall (openbsd-amd64), const SYS_KILL = 37
+ pkg syscall (openbsd-amd64-cgo), const SYS_KILL = 37
+ pkg unicode, const Version = "9.0.0"
+-pkg text/template/parse, method (*AssignNode) Copy() Node
+-pkg text/template/parse, method (*AssignNode) String() string
+ pkg text/template/parse, method (*VariableNode) Copy() Node
+ pkg text/template/parse, method (*VariableNode) String() string
+-pkg text/template/parse, method (AssignNode) Position() Pos
+-pkg text/template/parse, method (AssignNode) Type() NodeType
+ pkg text/template/parse, method (VariableNode) Position() Pos
+ pkg text/template/parse, method (VariableNode) Type() NodeType
+-pkg text/template/parse, type AssignNode struct
+-pkg text/template/parse, type AssignNode struct, Ident []string
+-pkg text/template/parse, type AssignNode struct, embedded NodeType
+-pkg text/template/parse, type AssignNode struct, embedded Pos
+ pkg text/template/parse, type PipeNode struct, Decl []*VariableNode
+-pkg text/template/parse, type PipeNode struct, Decl bool
+-pkg text/template/parse, type PipeNode struct, Vars []*AssignNode
+ pkg text/template/parse, type VariableNode struct
+ pkg text/template/parse, type VariableNode struct, Ident []string
+ pkg text/template/parse, type VariableNode struct, embedded NodeType

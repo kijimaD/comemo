@@ -16,6 +16,32 @@ Date:   Mon Apr 5 20:41:56 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/func.go | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index ebbcea598b..819d7573d6 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -653,7 +653,19 @@ func (f *Func) Frontend() Frontend                                  { return f.f
+ func (f *Func) Warnl(pos src.XPos, msg string, args ...interface{}) { f.fe.Warnl(pos, msg, args...) }
+ func (f *Func) Logf(msg string, args ...interface{})                { f.fe.Logf(msg, args...) }
+ func (f *Func) Log() bool                                           { return f.fe.Log() }
+-func (f *Func) Fatalf(msg string, args ...interface{})              { f.fe.Fatalf(f.Entry.Pos, msg, args...) }
++
++func (f *Func) Fatalf(msg string, args ...interface{}) {
++	stats := "crashed"
++	if f.Log() {
++		f.Logf("  pass %s end %s\n", f.pass.name, stats)
++		printFunc(f)
++	}
++	if f.HTMLWriter != nil {
++		f.HTMLWriter.WritePhase(f.pass.name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", f.pass.name, stats))
++		f.HTMLWriter.flushPhases()
++	}
++	f.fe.Fatalf(f.Entry.Pos, msg, args...)
++}
+ 
+ // postorder returns the reachable blocks in f in a postorder traversal.
+ func (f *Func) postorder() []*Block {

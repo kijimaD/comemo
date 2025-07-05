@@ -7,6 +7,20 @@ Date:   Mon Mar 7 11:48:35 2011 -0500
     TBR=brainman
     CC=golang-dev
     https://golang.org/cl/4237060
-
+---
  src/pkg/runtime/windows/386/sys.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+index bca48febe7..15f7f95b88 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/windows/386/sys.s
+@@ -20,7 +20,7 @@ TEXT runtime·stdcall_raw(SB),7,$0
+ 	CMPL	g(DI), SI
+ 	MOVL	SP, BX
+ 	JEQ	2(PC)
+-	MOVL	(m_sched+gobuf_sp)(DX), SP
++	MOVL	(g_sched+gobuf_sp)(SI), SP
+ 	PUSHL	BX
+ 	PUSHL	g(DI)
+ 	MOVL	SI, g(DI)

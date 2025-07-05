@@ -23,7 +23,7 @@ Date:   Wed Jan 14 11:09:50 2015 -0500
     Change-Id: I4024853beefb9539949e5ca381adfdd9cfada544
     Reviewed-on: https://go-review.googlesource.com/2992
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/6g/gsubr.c         |  5 +++++
  src/cmd/6g/reg.c           |  3 +++
  src/liblink/go.c           |  2 +-
@@ -37,3 +37,384 @@ Date:   Wed Jan 14 11:09:50 2015 -0500
  src/runtime/traceback.go   |  6 ++++++
  test/nosplit.go            | 20 ++++++++++++++++++
  12 files changed, 134 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index ee6852d6f6..1e996ae162 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -285,6 +285,9 @@ ginit(void)
+ 	if(nacl) {
+ 		reg[REG_BP]++;
+ 		reg[REG_R15]++;
++	} else if(framepointer_enabled) {
++		// BP is part of the calling convention of framepointer_enabled.
++		reg[REG_BP]++;
+ 	}
+ }
+ 
+@@ -298,6 +301,8 @@ gclean(void)
+ 	if(nacl) {
+ 		reg[REG_BP]--;
+ 		reg[REG_R15]--;
++	} else if(framepointer_enabled) {
++		reg[REG_BP]--;
+ 	}
+ 
+ 
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 2581128b58..7db44245f1 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1186,6 +1186,9 @@ BtoR(uint32 b)
+ 	b &= 0xffffL;
+ 	if(nacl)
+ 		b &= ~((1<<(REG_BP-REG_AX)) | (1<<(REG_R15-REG_AX)));
++	else if(framepointer_enabled)
++		// BP is part of the calling convention if framepointer_enabled.
++		b &= ~(1<<(REG_BP-REG_AX));
+ 	if(b == 0)
+ 		return 0;
+ 	return bitno(b) + REG_AX;
+diff --git a/src/liblink/go.c b/src/liblink/go.c
+index e31c71ab92..3bc780b852 100644
+--- a/src/liblink/go.c
++++ b/src/liblink/go.c
+@@ -21,7 +21,7 @@ static struct {
+ 	int *val;
+ } exper[] = {
+ 	{"fieldtrack", &fieldtrack_enabled},
+-	{"basepointer", &framepointer_enabled}, 
++	{"framepointer", &framepointer_enabled},
+ };
+ 
+ static void
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 696026300c..0ccb03924f 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -379,7 +379,7 @@ preprocess(Link *ctxt, LSym *cursym)
+ {
+ 	Prog *p, *q, *p1, *p2;
+ 	int32 autoffset, deltasp;
+-	int a, pcsize;
++	int a, pcsize, bpsize;
+ 	vlong textstksiz, textarg;
+ 
+ 	if(ctxt->tlsg == nil)
+@@ -403,6 +403,18 @@ preprocess(Link *ctxt, LSym *cursym)
+ 	if(autoffset < 0)
+ 		autoffset = 0;
+ 	
++	if(framepointer_enabled && autoffset > 0) {
++		// Make room for to save a base pointer.  If autoffset == 0,
++		// this might do something special like a tail jump to
++		// another function, so in that case we omit this.
++		bpsize = ctxt->arch->ptrsize;
++		autoffset += bpsize;
++		textstksiz += bpsize;
++		p->to.offset = ((uint64)p->to.offset & (0xffffffffull<<32)) | (uint32)autoffset;
++	} else {
++		bpsize = 0;
++	}
++
+ 	cursym->args = p->to.offset>>32;
+ 	cursym->locals = textstksiz;
+ 
+@@ -447,6 +459,28 @@ preprocess(Link *ctxt, LSym *cursym)
+ 	if(q != nil)
+ 		q->pcond = p;
+ 	deltasp = autoffset;
++
++	if(bpsize > 0) {
++		// Save caller's BP
++		p = appendp(ctxt, p);
++		p->as = AMOVQ;
++		p->from.type = TYPE_REG;
++		p->from.reg = REG_BP;
++		p->to.type = TYPE_MEM;
++		p->to.reg = REG_SP;
++		p->to.scale = 1;
++		p->to.offset = autoffset - bpsize;
++
++		// Move current frame to BP
++		p = appendp(ctxt, p);
++		p->as = ALEAQ;
++		p->from.type = TYPE_MEM;
++		p->from.reg = REG_SP;
++		p->from.scale = 1;
++		p->from.offset = autoffset - bpsize;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_BP;
++	}
+ 	
+ 	if(cursym->text->from.scale & WRAPPER) {
+ 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+@@ -580,12 +614,12 @@ preprocess(Link *ctxt, LSym *cursym)
+ 		pcsize = p->mode/8;
+ 		a = p->from.name;
+ 		if(a == NAME_AUTO)
+-			p->from.offset += deltasp;
++			p->from.offset += deltasp - bpsize;
+ 		if(a == NAME_PARAM)
+ 			p->from.offset += deltasp + pcsize;
+ 		a = p->to.name;
+ 		if(a == NAME_AUTO)
+-			p->to.offset += deltasp;
++			p->to.offset += deltasp - bpsize;
+ 		if(a == NAME_PARAM)
+ 			p->to.offset += deltasp + pcsize;
+ 
+@@ -630,6 +664,18 @@ preprocess(Link *ctxt, LSym *cursym)
+ 			ctxt->diag("unbalanced PUSH/POP");
+ 
+ 		if(autoffset) {
++			if(bpsize > 0) {
++				// Restore caller's BP
++				p->as = AMOVQ;
++				p->from.type = TYPE_MEM;
++				p->from.reg = REG_SP;
++				p->from.scale = 1;
++				p->from.offset = autoffset - bpsize;
++				p->to.type = TYPE_REG;
++				p->to.reg = REG_BP;
++				p = appendp(ctxt, p);
++			}
++
+ 			p->as = AADJSP;
+ 			p->from.type = TYPE_CONST;
+ 			p->from.offset = -autoffset;
+diff --git a/src/runtime/arch1_amd64.go b/src/runtime/arch1_amd64.go
+index 794b7f65c4..7a7f3e75fc 100644
+--- a/src/runtime/arch1_amd64.go
++++ b/src/runtime/arch1_amd64.go
+@@ -8,7 +8,7 @@ const (
+ 	thechar           = '6'
+ 	_BigEndian        = 0
+ 	_CacheLineSize    = 64
+-	_RuntimeGogoBytes = 64 + (goos_plan9|goos_solaris|goos_windows)*16
++	_RuntimeGogoBytes = 80 + (goos_plan9|goos_solaris|goos_windows)*16
+ 	_PhysPageSize     = 4096
+ 	_PCQuantum        = 1
+ 	_Int64Align       = 8
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index b1bf4ca987..f09e5ae250 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -134,6 +134,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
+ 	MOVQ	BX, gobuf_pc(AX)
+ 	MOVQ	$0, gobuf_ret(AX)
+ 	MOVQ	$0, gobuf_ctxt(AX)
++	MOVQ	BP, gobuf_bp(AX)
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	BX, gobuf_g(AX)
+@@ -150,9 +151,11 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
+ 	MOVQ	gobuf_sp(BX), SP	// restore SP
+ 	MOVQ	gobuf_ret(BX), AX
+ 	MOVQ	gobuf_ctxt(BX), DX
++	MOVQ	gobuf_bp(BX), BP
+ 	MOVQ	$0, gobuf_sp(BX)	// clear to help garbage collector
+ 	MOVQ	$0, gobuf_ret(BX)
+ 	MOVQ	$0, gobuf_ctxt(BX)
++	MOVQ	$0, gobuf_bp(BX)
+ 	MOVQ	gobuf_pc(BX), BX
+ 	JMP	BX
+ 
+@@ -170,6 +173,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ 	LEAQ	fn+0(FP), BX	// caller's SP
+ 	MOVQ	BX, (g_sched+gobuf_sp)(AX)
+ 	MOVQ	AX, (g_sched+gobuf_g)(AX)
++	MOVQ	BP, (g_sched+gobuf_bp)(AX)
+ 
+ 	// switch to m->g0 & its stack, call fn
+ 	MOVQ	g(CX), BX
+@@ -228,6 +232,7 @@ switch:
+ 	MOVQ	SI, (g_sched+gobuf_pc)(AX)
+ 	MOVQ	SP, (g_sched+gobuf_sp)(AX)
+ 	MOVQ	AX, (g_sched+gobuf_g)(AX)
++	MOVQ	BP, (g_sched+gobuf_bp)(AX)
+ 
+ 	// switch to g0
+ 	MOVQ	DX, g(CX)
+@@ -303,6 +308,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	LEAQ	8(SP), AX // f's SP
+ 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
+ 	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
++	MOVQ	BP, (g_sched+gobuf_bp)(SI)
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVQ	m_g0(BX), BX
+@@ -592,6 +598,7 @@ TEXT gosave<>(SB),NOSPLIT,$0
+ 	MOVQ	R9, (g_sched+gobuf_sp)(R8)
+ 	MOVQ	$0, (g_sched+gobuf_ret)(R8)
+ 	MOVQ	$0, (g_sched+gobuf_ctxt)(R8)
++	MOVQ	BP, (g_sched+gobuf_bp)(R8)
+ 	RET
+ 
+ // asmcgocall(void(*fn)(void*), void *arg)
+@@ -747,17 +754,30 @@ havem:
+ 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
+ 	MOVQ	(g_sched+gobuf_pc)(SI), BX
+ 	MOVQ	BX, -8(DI)
+-	LEAQ	-(8+8)(DI), SP
++	// Compute the size of the frame, including return PC and, if
++	// GOEXPERIMENT=framepointer, the saved based pointer
++	LEAQ	x+0(FP), AX
++	SUBQ	SP, AX
++	SUBQ	AX, DI
++	MOVQ	DI, SP
++
+ 	MOVQ	R8, 0(SP)
+ 	CALL	runtime·cgocallbackg(SB)
+ 	MOVQ	0(SP), R8
+ 
++	// Compute the size of the frame again.  FP and SP have
++	// completely different values here than they did above,
++	// but only their difference matters.
++	LEAQ	x+0(FP), AX
++	SUBQ	SP, AX
++
+ 	// Restore g->sched (== m->curg->sched) from saved values.
+ 	get_tls(CX)
+ 	MOVQ	g(CX), SI
+-	MOVQ	8(SP), BX
++	MOVQ	SP, DI
++	ADDQ	AX, DI
++	MOVQ	-8(DI), BX
+ 	MOVQ	BX, (g_sched+gobuf_pc)(SI)
+-	LEAQ	(8+8)(SP), DI
+ 	MOVQ	DI, (g_sched+gobuf_sp)(SI)
+ 
+ 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 96873cc2da..e7aeb7bee3 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -225,6 +225,11 @@ func cgocallbackg1() {
+ 		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+ 	case "amd64":
+ 		// On amd64, stack frame is one word, plus caller PC.
++		if framepointer_enabled {
++			// In this case, there's also saved BP.
++			cb = (*args)(unsafe.Pointer(sp + 3*ptrSize))
++			break
++		}
+ 		cb = (*args)(unsafe.Pointer(sp + 2*ptrSize))
+ 	case "386":
+ 		// On 386, stack frame is three words, plus caller PC.
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 8f5aaa8630..31bbd0d366 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -113,6 +113,9 @@ func schedinit() {
+ 
+ 	sched.maxmcount = 10000
+ 
++	// Cache the framepointer experiment.  This affects stack unwinding.
++	framepointer_enabled = haveexperiment("framepointer")
++
+ 	tracebackinit()
+ 	symtabinit()
+ 	stackinit()
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index fd448901a6..e38d11a59d 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -125,6 +125,7 @@ type gobuf struct {
+ 	ctxt unsafe.Pointer // this has to be a pointer so that gc scans it
+ 	ret  uintreg
+ 	lr   uintptr
++	bp   uintptr // for GOEXPERIMENT=framepointer
+ }
+ 
+ // Known to compiler.
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 8ad331777c..1e9ccfebb5 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -46,6 +46,9 @@ var stackpoolmu mutex
+ 
+ var stackfreequeue stack
+ 
++// Cached value of haveexperiment("framepointer")
++var framepointer_enabled bool
++
+ func stackinit() {
+ 	if _StackCacheSize&_PageMask != 0 {
+ 		throw("cache size must be a multiple of page size")
+@@ -308,6 +311,8 @@ var mapnames = []string{
+ // | args from caller |
+ // +------------------+ <- frame->argp
+ // |  return address  |
++// +------------------+
++// |  caller's BP (*) | (*) if framepointer_enabled && varp < sp
+ // +------------------+ <- frame->varp
+ // |     locals       |
+ // +------------------+
+@@ -460,6 +465,18 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 		adjustpointers(unsafe.Pointer(frame.varp-size), &bv, adjinfo, f)
+ 	}
+ 
++	// Adjust saved base pointer if there is one.
++	if thechar == '6' && frame.argp-frame.varp == 2*ptrSize {
++		if !framepointer_enabled {
++			print("runtime: found space for saved base pointer, but no framepointer experiment")
++			throw("bad frame layout")
++		}
++		if stackDebug >= 3 {
++			print("      saved bp\n")
++		}
++		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
++	}
++
+ 	// Adjust arguments.
+ 	if frame.arglen > 0 {
+ 		var bv bitvector
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 499256f42d..c813453399 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -232,6 +232,12 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 			frame.varp -= regSize
+ 		}
+ 
++		// If framepointer_enabled and there's a frame, then
++		// there's a saved bp here.
++		if GOARCH == "amd64" && frame.varp > frame.sp && framepointer_enabled {
++			frame.varp -= ptrSize
++		}
++
+ 		// Derive size of arguments.
+ 		// Most functions have a fixed-size argument block,
+ 		// so we can use metadata about the function f.
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 93fb133ebb..a639150511 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -185,6 +185,26 @@ func main() {
+ 		goarch = runtime.GOARCH
+ 	}
+ 
++	thechar := ""
++	if gochar, err := exec.Command("go", "env", "GOCHAR").Output(); err != nil {
++		bug()
++		fmt.Printf("running go env GOCHAR: %v\n", err)
++		return
++	} else {
++		thechar = strings.TrimSpace(string(gochar))
++	}
++
++	version, err := exec.Command("go", "tool", thechar+"g", "-V").Output()
++	if err != nil {
++		bug()
++		fmt.Printf("running go tool %sg -V: %v\n", thechar, err)
++		return
++	}
++	if strings.Contains(string(version), "framepointer") {
++		// Skip this test if GOEXPERIMENT=framepointer
++		return
++	}
++
+ 	dir, err := ioutil.TempDir("", "go-test-nosplit")
+ 	if err != nil {
+ 		bug()

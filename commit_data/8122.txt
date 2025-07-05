@@ -7,8 +7,116 @@ Date:   Fri Apr 15 08:14:34 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4430043
-
+---
  src/pkg/json/decode_test.go |  6 +++---
  src/pkg/json/scanner.go     | 16 +++++++++++-----
  src/pkg/json/stream.go      |  5 +++--
  3 files changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 49135c4bfe..cf8f53bc4a 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -71,7 +71,7 @@ var unmarshalTests = []unmarshalTest{
+ 	{`{"X":"a", "y":"b", "Z":"c"}`, new(badTag), badTag{"a", "b", "c"}, nil},
+ 
+ 	// syntax errors
+-	{`{"X": "foo", "Y"}`, nil, nil, SyntaxError("invalid character '}' after object key")},
++	{`{"X": "foo", "Y"}`, nil, nil, &SyntaxError{"invalid character '}' after object key", 17}},
+ 
+ 	// composite tests
+ 	{allValueIndent, new(All), allValue, nil},
+@@ -125,12 +125,12 @@ func TestMarshalBadUTF8(t *testing.T) {
+ }
+ 
+ func TestUnmarshal(t *testing.T) {
+-	var scan scanner
+ 	for i, tt := range unmarshalTests {
++		var scan scanner
+ 		in := []byte(tt.in)
+ 		if err := checkValid(in, &scan); err != nil {
+ 			if !reflect.DeepEqual(err, tt.err) {
+-				t.Errorf("#%d: checkValid: %v", i, err)
++				t.Errorf("#%d: checkValid: %#v", i, err)
+ 				continue
+ 			}
+ 		}
+diff --git a/src/pkg/json/scanner.go b/src/pkg/json/scanner.go
+index e98ddef5cc..49c2edd545 100644
+--- a/src/pkg/json/scanner.go
++++ b/src/pkg/json/scanner.go
+@@ -23,6 +23,7 @@ import (
+ func checkValid(data []byte, scan *scanner) os.Error {
+ 	scan.reset()
+ 	for _, c := range data {
++		scan.bytes++
+ 		if scan.step(scan, int(c)) == scanError {
+ 			return scan.err
+ 		}
+@@ -56,10 +57,12 @@ func nextValue(data []byte, scan *scanner) (value, rest []byte, err os.Error) {
+ }
+ 
+ // A SyntaxError is a description of a JSON syntax error.
+-type SyntaxError string
+-
+-func (e SyntaxError) String() string { return string(e) }
++type SyntaxError struct {
++	msg    string // description of error
++	Offset int64  // error occurred after reading Offset bytes
++}
+ 
++func (e *SyntaxError) String() string { return e.msg }
+ 
+ // A scanner is a JSON scanning state machine.
+ // Callers call scan.reset() and then pass bytes in one at a time
+@@ -89,6 +92,9 @@ type scanner struct {
+ 	// 1-byte redo (see undo method)
+ 	redoCode  int
+ 	redoState func(*scanner, int) int
++
++	// total bytes consumed, updated by decoder.Decode
++	bytes int64
+ }
+ 
+ // These values are returned by the state transition functions
+@@ -148,7 +154,7 @@ func (s *scanner) eof() int {
+ 		return scanEnd
+ 	}
+ 	if s.err == nil {
+-		s.err = SyntaxError("unexpected end of JSON input")
++		s.err = &SyntaxError{"unexpected end of JSON input", s.bytes}
+ 	}
+ 	return scanError
+ }
+@@ -581,7 +587,7 @@ func stateError(s *scanner, c int) int {
+ // error records an error and switches to the error state.
+ func (s *scanner) error(c int, context string) int {
+ 	s.step = stateError
+-	s.err = SyntaxError("invalid character " + quoteChar(c) + " " + context)
++	s.err = &SyntaxError{"invalid character " + quoteChar(c) + " " + context, s.bytes}
+ 	return scanError
+ }
+ 
+diff --git a/src/pkg/json/stream.go b/src/pkg/json/stream.go
+index cb9b16559e..f143b3f0ad 100644
+--- a/src/pkg/json/stream.go
++++ b/src/pkg/json/stream.go
+@@ -23,8 +23,8 @@ func NewDecoder(r io.Reader) *Decoder {
+ 	return &Decoder{r: r}
+ }
+ 
+-// Decode reads the next JSON-encoded value from the
+-// connection and stores it in the value pointed to by v.
++// Decode reads the next JSON-encoded value from its
++// input and stores it in the value pointed to by v.
+ //
+ // See the documentation for Unmarshal for details about
+ // the conversion of JSON into a Go value.
+@@ -62,6 +62,7 @@ Input:
+ 	for {
+ 		// Look in the buffer for a new value.
+ 		for i, c := range dec.buf[scanp:] {
++			dec.scan.bytes++
+ 			v := dec.scan.step(&dec.scan, int(c))
+ 			if v == scanEnd {
+ 				scanp += i

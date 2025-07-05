@@ -10,6 +10,17 @@ Date:   Tue Sep 13 15:57:52 2016 -0400
     Change-Id: I23c1ad71724ff55f5808d5896b19b62c8ec5af76
     Reviewed-on: https://go-review.googlesource.com/28981
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/phiopt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/phiopt.go b/test/phiopt.go
+index e57ea94868..98a7b75d10 100644
+--- a/test/phiopt.go
++++ b/test/phiopt.go
+@@ -1,4 +1,4 @@
+-// +build amd64,s390x
++// +build amd64 s390x
+ // errorcheck -0 -d=ssa/phiopt/debug=3
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.

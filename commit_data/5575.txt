@@ -8,7 +8,48 @@ Date:   Mon May 31 14:57:32 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1434041
-
+---
  src/pkg/fmt/fmt_test.go |  1 +
  src/pkg/fmt/print.go    | 12 ++++--------
  2 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index dd5f2d5450..957ac041fe 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -265,6 +265,7 @@ var fmttests = []fmtTest{
+ 	fmtTest{"no args", "hello", "no args?(extra string=hello)"},
+ 	fmtTest{"%s", nil, "%s(<nil>)"},
+ 	fmtTest{"%T", nil, "<nil>"},
++	fmtTest{"%-1", 100, "%1(int=100)"},
+ }
+ 
+ func TestSprintf(t *testing.T) {
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 77af45a941..9ebd09d034 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -511,19 +511,15 @@ func getComplex128(a interface{}) (val complex128, ok bool) {
+ }
+ 
+ // Convert ASCII to integer.  n is 0 (and got is false) if no number present.
+-
+-func parsenum(s string, start, end int) (n int, got bool, newi int) {
++func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
+ 	if start >= end {
+ 		return 0, false, end
+ 	}
+-	isnum := false
+-	num := 0
+-	for '0' <= s[start] && s[start] <= '9' {
+-		num = num*10 + int(s[start]-'0')
+-		start++
++	for newi = start; newi < end && '0' <= s[newi] && s[newi] <= '9'; newi++ {
++		num = num*10 + int(s[newi]-'0')
+ 		isnum = true
+ 	}
+-	return num, isnum, start
++	return
+ }
+ 
+ type uintptrGetter interface {

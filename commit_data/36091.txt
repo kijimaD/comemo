@@ -10,7 +10,45 @@ Date:   Tue Apr 3 14:39:10 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/104616
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go |  3 ++-
  test/fixedbugs/issue23664.go              | 17 +++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 68d09ef697..e1cd8f9f5a 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1824,7 +1824,8 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 			semi.lit = p.lit
+ 			p.next()
+ 		} else {
+-			p.want(_Semi)
++			// asking for a '{' rather than a ';' here leads to a better error message
++			p.want(_Lbrace)
+ 		}
+ 		if keyword == _For {
+ 			if p.tok != _Semi {
+diff --git a/test/fixedbugs/issue23664.go b/test/fixedbugs/issue23664.go
+new file mode 100644
+index 0000000000..1925ebffe7
+--- /dev/null
++++ b/test/fixedbugs/issue23664.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify error messages for incorrect if/switch headers.
++
++package p
++
++func f() {
++	if f() true { // ERROR "unexpected true, expecting {"
++	}
++	
++	switch f() true { // ERROR "unexpected true, expecting {"
++	}
++}

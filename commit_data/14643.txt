@@ -15,7 +15,7 @@ Date:   Fri Dec 14 06:20:24 2012 +1100
     R=rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/6922048
-
+---
  src/cmd/5g/gg.h    | 17 ++++++++++-------
  src/cmd/5g/gobj.c  | 14 +++++++-------
  src/cmd/5g/gsubr.c | 10 +++++-----
@@ -34,3 +34,730 @@ Date:   Fri Dec 14 06:20:24 2012 +1100
  src/cmd/8g/peep.c  |  2 +-
  src/cmd/8g/reg.c   | 20 ++++++++++----------
  17 files changed, 103 insertions(+), 95 deletions(-)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 394ca4730b..fe427227c6 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -15,9 +15,13 @@ struct	Addr
+ {
+ 	int32	offset;
+ 	int32	offset2;
+-	double	dval;
+-	Prog*	branch;
+-	char	sval[NSNAME];
++
++	union {
++		double	dval;
++		vlong	vval;
++		Prog*	branch;
++		char	sval[NSNAME];
++	} u;
+ 
+ 	Sym*	sym;
+ 	Node*	node;
+@@ -25,22 +29,21 @@ struct	Addr
+ 	uchar	type;
+ 	char	name;
+ 	uchar	reg;
+-	char pun;
+ 	uchar	etype;
+ };
+ #define	A	((Addr*)0)
+ 
+ struct	Prog
+ {
+-	short	as;		// opcode
+ 	uint32	loc;		// pc offset in this func
+ 	uint32	lineno;		// source line that generated this
+-	Addr	from;		// src address
+-	Addr	to;		// dst address
+ 	Prog*	link;		// next instruction in this func
+ 	void*	regp;		// points to enclosing Reg struct
++	short	as;		// opcode
+ 	uchar	reg;		// doubles as width in DATA op
+ 	uchar	scond;
++	Addr	from;		// src address
++	Addr	to;		// dst address
+ };
+ 
+ #define TEXTFLAG reg
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 4c9d0b7a1c..78eadfadb5 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -128,9 +128,9 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 		break;
+ 
+ 	case D_BRANCH:
+-		if(a->branch == nil)
++		if(a->u.branch == nil)
+ 			fatal("unpatched branch");
+-		a->offset = a->branch->loc;
++		a->offset = a->u.branch->loc;
+ 		l = a->offset;
+ 		Bputc(b, l);
+ 		Bputc(b, l>>8);
+@@ -139,7 +139,7 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 		break;
+ 
+ 	case D_SCONST:
+-		n = a->sval;
++		n = a->u.sval;
+ 		for(i=0; i<NSNAME; i++) {
+ 			Bputc(b, *n);
+ 			n++;
+@@ -152,7 +152,7 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 		break;
+ 
+ 	case D_FCONST:
+-		ieeedtod(&e, a->dval);
++		ieeedtod(&e, a->u.dval);
+ 		l = e;
+ 		Bputc(b, l);
+ 		Bputc(b, l>>8);
+@@ -289,7 +289,7 @@ dsname(Sym *sym, int off, char *t, int n)
+ 	p->to.name = D_NONE;
+ 	p->to.reg = NREG;
+ 	p->to.offset = 0;
+-	memmove(p->to.sval, t, n);
++	memmove(p->to.u.sval, t, n);
+ 	return off + n;
+ }
+ 
+@@ -373,13 +373,13 @@ gdatacomplex(Node *nam, Mpcplx *cval)
+ 	p = gins(ADATA, nam, N);
+ 	p->reg = w;
+ 	p->to.type = D_FCONST;
+-	p->to.dval = mpgetflt(&cval->real);
++	p->to.u.dval = mpgetflt(&cval->real);
+ 
+ 	p = gins(ADATA, nam, N);
+ 	p->reg = w;
+ 	p->from.offset += w;
+ 	p->to.type = D_FCONST;
+-	p->to.dval = mpgetflt(&cval->imag);
++	p->to.u.dval = mpgetflt(&cval->imag);
+ }
+ 
+ void
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 0885601225..f023b269c8 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -123,7 +123,7 @@ gbranch(int as, Type *t, int likely)
+ 
+ 	p = prog(as);
+ 	p->to.type = D_BRANCH;
+-	p->to.branch = P;
++	p->to.u.branch = P;
+ 	return p;
+ }
+ 
+@@ -135,7 +135,7 @@ patch(Prog *p, Prog *to)
+ {
+ 	if(p->to.type != D_BRANCH)
+ 		fatal("patch: not a branch");
+-	p->to.branch = to;
++	p->to.u.branch = to;
+ 	p->to.offset = to->loc;
+ }
+ 
+@@ -146,8 +146,8 @@ unpatch(Prog *p)
+ 
+ 	if(p->to.type != D_BRANCH)
+ 		fatal("unpatch: not a branch");
+-	q = p->to.branch;
+-	p->to.branch = P;
++	q = p->to.u.branch;
++	p->to.u.branch = P;
+ 	p->to.offset = 0;
+ 	return q;
+ }
+@@ -1326,7 +1326,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case CTFLT:
+ 			a->type = D_FCONST;
+-			a->dval = mpgetflt(n->val.u.fval);
++			a->u.dval = mpgetflt(n->val.u.fval);
+ 			break;
+ 		case CTINT:
+ 		case CTRUNE:
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index 2596936956..9f67f79f43 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -166,24 +166,24 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_BRANCH:
+-		if(a->branch == P || a->branch->loc == 0) {
++		if(a->u.branch == P || a->u.branch->loc == 0) {
+ 			if(a->sym != S)
+ 				sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
+ 			else
+ 				sprint(str, "%d(APC)", a->offset);
+ 		} else
+ 			if(a->sym != S)
+-				sprint(str, "%s+%d(APC)", a->sym->name, a->branch->loc);
++				sprint(str, "%s+%d(APC)", a->sym->name, a->u.branch->loc);
+ 			else
+-				sprint(str, "%d(APC)", a->branch->loc);
++				sprint(str, "%d(APC)", a->u.branch->loc);
+ 		break;
+ 
+ 	case D_FCONST:
+-		snprint(str, sizeof(str), "$(%.17e)", a->dval);
++		snprint(str, sizeof(str), "$(%.17e)", a->u.dval);
+ 		break;
+ 
+ 	case D_SCONST:
+-		snprint(str, sizeof(str), "$\"%Y\"", a->sval);
++		snprint(str, sizeof(str), "$\"%Y\"", a->u.sval);
+ 		break;
+ 
+ 		// TODO(kaib): Add back
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 100cff2dee..14cda51488 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -437,9 +437,9 @@ regopt(Prog *firstp)
+ 	for(r=firstr; r!=R; r=r->link) {
+ 		p = r->prog;
+ 		if(p->to.type == D_BRANCH) {
+-			if(p->to.branch == P)
++			if(p->to.u.branch == P)
+ 				fatal("pnil %P", p);
+-			r1 = p->to.branch->regp;
++			r1 = p->to.u.branch->regp;
+ 			if(r1 == R)
+ 				fatal("rnil %P", p);
+ 			if(r1 == r) {
+@@ -704,8 +704,8 @@ brk:
+ 		while(p->link != P && p->link->as == ANOP)
+ 			p->link = p->link->link;
+ 		if(p->to.type == D_BRANCH)
+-			while(p->to.branch != P && p->to.branch->as == ANOP)
+-				p->to.branch = p->to.branch->link;
++			while(p->to.u.branch != P && p->to.u.branch->as == ANOP)
++				p->to.u.branch = p->to.u.branch->link;
+ 		if(p->as == AMOVW && p->to.reg == 13) {
+ 			if(p->scond & C_WBIT) {
+ 				vreg = -p->to.offset;		// in adjust region
+@@ -1687,7 +1687,7 @@ chasejmp(Prog *p, int *jmploop)
+ 			*jmploop = 1;
+ 			break;
+ 		}
+-		p = p->to.branch;
++		p = p->to.u.branch;
+ 	}
+ 	return p;
+ }
+@@ -1709,8 +1709,8 @@ mark(Prog *firstp)
+ 		if(p->regp != dead)
+ 			break;
+ 		p->regp = alive;
+-		if(p->as != ABL && p->to.type == D_BRANCH && p->to.branch)
+-			mark(p->to.branch);
++		if(p->as != ABL && p->to.type == D_BRANCH && p->to.u.branch)
++			mark(p->to.u.branch);
+ 		if(p->as == AB || p->as == ARET || (p->as == ABL && noreturn(p)))
+ 			break;
+ 	}
+@@ -1730,8 +1730,8 @@ fixjmp(Prog *firstp)
+ 	for(p=firstp; p; p=p->link) {
+ 		if(debug['R'] && debug['v'])
+ 			print("%P\n", p);
+-		if(p->as != ABL && p->to.type == D_BRANCH && p->to.branch && p->to.branch->as == AB) {
+-			p->to.branch = chasejmp(p->to.branch, &jmploop);
++		if(p->as != ABL && p->to.type == D_BRANCH && p->to.u.branch && p->to.u.branch->as == AB) {
++			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
+ 			if(debug['R'] && debug['v'])
+ 				print("->%P\n", p);
+ 		}
+@@ -1767,7 +1767,7 @@ fixjmp(Prog *firstp)
+ 	if(!jmploop) {
+ 		last = nil;
+ 		for(p=firstp; p; p=p->link) {
+-			if(p->as == AB && p->to.type == D_BRANCH && p->to.branch == p->link) {
++			if(p->as == AB && p->to.type == D_BRANCH && p->to.u.branch == p->link) {
+ 				if(debug['R'] && debug['v'])
+ 					print("del %P\n", p);
+ 				continue;
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 2806fbc932..df99c1a654 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -14,9 +14,13 @@ typedef	struct	Addr	Addr;
+ struct	Addr
+ {
+ 	vlong	offset;
+-	double	dval;
+-	Prog*	branch;
+-	char	sval[NSNAME];
++	
++	union {
++		double	dval;
++		vlong	vval;
++		Prog*	branch;
++		char	sval[NSNAME];
++	} u;
+ 
+ 	Sym*	gotype;
+ 	Sym*	sym;
+@@ -26,7 +30,6 @@ struct	Addr
+ 	uchar	index;
+ 	uchar	etype;
+ 	uchar	scale;	/* doubles as width in DATA op */
+-	uchar	pun;	/* dont register variable */
+ };
+ #define	A	((Addr*)0)
+ 
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 07ee32d6a2..508a3548ff 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -94,9 +94,9 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 	switch(a->type) {
+ 
+ 	case D_BRANCH:
+-		if(a->branch == nil)
++		if(a->u.branch == nil)
+ 			fatal("unpatched branch");
+-		a->offset = a->branch->loc;
++		a->offset = a->u.branch->loc;
+ 
+ 	default:
+ 		t |= T_TYPE;
+@@ -139,7 +139,7 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 	if(t & T_SYM)		/* implies sym */
+ 		Bputc(b, s);
+ 	if(t & T_FCONST) {
+-		ieeedtod(&e, a->dval);
++		ieeedtod(&e, a->u.dval);
+ 		l = e;
+ 		Bputc(b, l);
+ 		Bputc(b, l>>8);
+@@ -153,7 +153,7 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 		return;
+ 	}
+ 	if(t & T_SCONST) {
+-		n = a->sval;
++		n = a->u.sval;
+ 		for(i=0; i<NSNAME; i++) {
+ 			Bputc(b, *n);
+ 			n++;
+@@ -295,7 +295,7 @@ dsname(Sym *s, int off, char *t, int n)
+ 	
+ 	p->to.type = D_SCONST;
+ 	p->to.index = D_NONE;
+-	memmove(p->to.sval, t, n);
++	memmove(p->to.u.sval, t, n);
+ 	return off + n;
+ }
+ 
+@@ -364,13 +364,13 @@ gdatacomplex(Node *nam, Mpcplx *cval)
+ 	p = gins(ADATA, nam, N);
+ 	p->from.scale = w;
+ 	p->to.type = D_FCONST;
+-	p->to.dval = mpgetflt(&cval->real);
++	p->to.u.dval = mpgetflt(&cval->real);
+ 
+ 	p = gins(ADATA, nam, N);
+ 	p->from.scale = w;
+ 	p->from.offset += w;
+ 	p->to.type = D_FCONST;
+-	p->to.dval = mpgetflt(&cval->imag);
++	p->to.u.dval = mpgetflt(&cval->imag);
+ }
+ 
+ void
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 35f3c9d31f..65d5ad786f 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -117,7 +117,7 @@ gbranch(int as, Type *t, int likely)
+ 
+ 	p = prog(as);
+ 	p->to.type = D_BRANCH;
+-	p->to.branch = P;
++	p->to.u.branch = P;
+ 	if(as != AJMP && likely != 0) {
+ 		p->from.type = D_CONST;
+ 		p->from.offset = likely > 0;
+@@ -133,7 +133,7 @@ patch(Prog *p, Prog *to)
+ {
+ 	if(p->to.type != D_BRANCH)
+ 		fatal("patch: not a branch");
+-	p->to.branch = to;
++	p->to.u.branch = to;
+ 	p->to.offset = to->loc;
+ }
+ 
+@@ -144,8 +144,8 @@ unpatch(Prog *p)
+ 
+ 	if(p->to.type != D_BRANCH)
+ 		fatal("unpatch: not a branch");
+-	q = p->to.branch;
+-	p->to.branch = P;
++	q = p->to.u.branch;
++	p->to.u.branch = P;
+ 	p->to.offset = 0;
+ 	return q;
+ }
+@@ -1202,7 +1202,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case CTFLT:
+ 			a->type = D_FCONST;
+-			a->dval = mpgetflt(n->val.u.fval);
++			a->u.dval = mpgetflt(n->val.u.fval);
+ 			break;
+ 		case CTINT:
+ 		case CTRUNE:
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+index ad63f7d29e..d84cceffb8 100644
+--- a/src/cmd/6g/list.c
++++ b/src/cmd/6g/list.c
+@@ -107,10 +107,10 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_BRANCH:
+-		if(a->branch == nil)
++		if(a->u.branch == nil)
+ 			snprint(str, sizeof(str), "<nil>");
+ 		else
+-			snprint(str, sizeof(str), "%d", a->branch->loc);
++			snprint(str, sizeof(str), "%d", a->u.branch->loc);
+ 		break;
+ 
+ 	case D_EXTERN:
+@@ -140,11 +140,11 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_FCONST:
+-		snprint(str, sizeof(str), "$(%.17e)", a->dval);
++		snprint(str, sizeof(str), "$(%.17e)", a->u.dval);
+ 		break;
+ 
+ 	case D_SCONST:
+-		snprint(str, sizeof(str), "$\"%Y\"", a->sval);
++		snprint(str, sizeof(str), "$\"%Y\"", a->u.sval);
+ 		break;
+ 
+ 	case D_ADDR:
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index ec0a744b42..231ce5314a 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -1303,7 +1303,7 @@ loop:
+ 		if(p->from.node == p0->from.node)
+ 		if(p->from.offset == p0->from.offset)
+ 		if(p->from.scale == p0->from.scale)
+-		if(p->from.dval == p0->from.dval)
++		if(p->from.u.vval == p0->from.u.vval)
+ 		if(p->from.index == p0->from.index) {
+ 			excise(r);
+ 			goto loop;
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index c92630f07c..8d15bf9790 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -610,9 +610,9 @@ regopt(Prog *firstp)
+ 	for(r=firstr; r!=R; r=r->link) {
+ 		p = r->prog;
+ 		if(p->to.type == D_BRANCH) {
+-			if(p->to.branch == P)
++			if(p->to.u.branch == P)
+ 				fatal("pnil %P", p);
+-			r1 = p->to.branch->reg;
++			r1 = p->to.u.branch->reg;
+ 			if(r1 == R)
+ 				fatal("rnil %P", p);
+ 			if(r1 == r) {
+@@ -804,8 +804,8 @@ brk:
+ 		while(p->link != P && p->link->as == ANOP)
+ 			p->link = p->link->link;
+ 		if(p->to.type == D_BRANCH)
+-			while(p->to.branch != P && p->to.branch->as == ANOP)
+-				p->to.branch = p->to.branch->link;
++			while(p->to.u.branch != P && p->to.u.branch->as == ANOP)
++				p->to.u.branch = p->to.u.branch->link;
+ 	}
+ 
+ 	if(lastr != R) {
+@@ -1751,7 +1751,7 @@ chasejmp(Prog *p, int *jmploop)
+ 			*jmploop = 1;
+ 			break;
+ 		}
+-		p = p->to.branch;
++		p = p->to.u.branch;
+ 	}
+ 	return p;
+ }
+@@ -1773,8 +1773,8 @@ mark(Prog *firstp)
+ 		if(p->reg != dead)
+ 			break;
+ 		p->reg = alive;
+-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.branch)
+-			mark(p->to.branch);
++		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch)
++			mark(p->to.u.branch);
+ 		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
+ 			break;
+ 	}
+@@ -1794,8 +1794,8 @@ fixjmp(Prog *firstp)
+ 	for(p=firstp; p; p=p->link) {
+ 		if(debug['R'] && debug['v'])
+ 			print("%P\n", p);
+-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.branch && p->to.branch->as == AJMP) {
+-			p->to.branch = chasejmp(p->to.branch, &jmploop);
++		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch && p->to.u.branch->as == AJMP) {
++			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
+ 			if(debug['R'] && debug['v'])
+ 				print("->%P\n", p);
+ 		}
+@@ -1831,7 +1831,7 @@ fixjmp(Prog *firstp)
+ 	if(!jmploop) {
+ 		last = nil;
+ 		for(p=firstp; p; p=p->link) {
+-			if(p->as == AJMP && p->to.type == D_BRANCH && p->to.branch == p->link) {
++			if(p->as == AJMP && p->to.type == D_BRANCH && p->to.u.branch == p->link) {
+ 				if(debug['R'] && debug['v'])
+ 					print("del %P\n", p);
+ 				continue;
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 3d53601523..fed3093cc6 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -16,9 +16,12 @@ struct	Addr
+ 	int32	offset;
+ 	int32	offset2;
+ 
+-	double	dval;
+-	Prog*	branch;
+-	char	sval[NSNAME];
++	union {
++		double	dval;
++		vlong	vval;
++		Prog*	branch;
++		char	sval[NSNAME];
++	} u;
+ 
+ 	Sym*	gotype;
+ 	Sym*	sym;
+@@ -28,7 +31,6 @@ struct	Addr
+ 	uchar	index;
+ 	uchar	etype;
+ 	uchar	scale;	/* doubles as width in DATA op */
+-	uchar	pun;	/* dont register variable */
+ };
+ #define	A	((Addr*)0)
+ 
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index da0055cd9b..39717d5b1a 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -94,9 +94,9 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 	switch(a->type) {
+ 
+ 	case D_BRANCH:
+-		if(a->branch == nil)
++		if(a->u.branch == nil)
+ 			fatal("unpatched branch");
+-		a->offset = a->branch->loc;
++		a->offset = a->u.branch->loc;
+ 
+ 	default:
+ 		t |= T_TYPE;
+@@ -137,7 +137,7 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 	if(t & T_SYM)		/* implies sym */
+ 		Bputc(b, s);
+ 	if(t & T_FCONST) {
+-		ieeedtod(&e, a->dval);
++		ieeedtod(&e, a->u.dval);
+ 		l = e;
+ 		Bputc(b, l);
+ 		Bputc(b, l>>8);
+@@ -151,7 +151,7 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 		return;
+ 	}
+ 	if(t & T_SCONST) {
+-		n = a->sval;
++		n = a->u.sval;
+ 		for(i=0; i<NSNAME; i++) {
+ 			Bputc(b, *n);
+ 			n++;
+@@ -293,7 +293,7 @@ dsname(Sym *s, int off, char *t, int n)
+ 	
+ 	p->to.type = D_SCONST;
+ 	p->to.index = D_NONE;
+-	memmove(p->to.sval, t, n);
++	memmove(p->to.u.sval, t, n);
+ 	return off + n;
+ }
+ 
+@@ -373,13 +373,13 @@ gdatacomplex(Node *nam, Mpcplx *cval)
+ 	p = gins(ADATA, nam, N);
+ 	p->from.scale = w;
+ 	p->to.type = D_FCONST;
+-	p->to.dval = mpgetflt(&cval->real);
++	p->to.u.dval = mpgetflt(&cval->real);
+ 
+ 	p = gins(ADATA, nam, N);
+ 	p->from.scale = w;
+ 	p->from.offset += w;
+ 	p->to.type = D_FCONST;
+-	p->to.dval = mpgetflt(&cval->imag);
++	p->to.u.dval = mpgetflt(&cval->imag);
+ }
+ 
+ void
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 64aa1db93e..dbea45a201 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -118,7 +118,7 @@ gbranch(int as, Type *t, int likely)
+ 	USED(t);
+ 	p = prog(as);
+ 	p->to.type = D_BRANCH;
+-	p->to.branch = P;
++	p->to.u.branch = P;
+ 	if(likely != 0) {
+ 		p->from.type = D_CONST;
+ 		p->from.offset = likely > 0;
+@@ -134,7 +134,7 @@ patch(Prog *p, Prog *to)
+ {
+ 	if(p->to.type != D_BRANCH)
+ 		fatal("patch: not a branch");
+-	p->to.branch = to;
++	p->to.u.branch = to;
+ 	p->to.offset = to->loc;
+ }
+ 
+@@ -145,8 +145,8 @@ unpatch(Prog *p)
+ 
+ 	if(p->to.type != D_BRANCH)
+ 		fatal("unpatch: not a branch");
+-	q = p->to.branch;
+-	p->to.branch = P;
++	q = p->to.u.branch;
++	p->to.u.branch = P;
+ 	p->to.offset = 0;
+ 	return q;
+ }
+@@ -1932,7 +1932,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case CTFLT:
+ 			a->type = D_FCONST;
+-			a->dval = mpgetflt(n->val.u.fval);
++			a->u.dval = mpgetflt(n->val.u.fval);
+ 			break;
+ 		case CTINT:
+ 		case CTRUNE:
+diff --git a/src/cmd/8g/list.c b/src/cmd/8g/list.c
+index 88d3d5f7e3..6e511978d3 100644
+--- a/src/cmd/8g/list.c
++++ b/src/cmd/8g/list.c
+@@ -107,7 +107,7 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_BRANCH:
+-		snprint(str, sizeof(str), "%d", a->branch->loc);
++		snprint(str, sizeof(str), "%d", a->u.branch->loc);
+ 		break;
+ 
+ 	case D_EXTERN:
+@@ -137,11 +137,11 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_FCONST:
+-		snprint(str, sizeof(str), "$(%.17e)", a->dval);
++		snprint(str, sizeof(str), "$(%.17e)", a->u.dval);
+ 		break;
+ 
+ 	case D_SCONST:
+-		snprint(str, sizeof(str), "$\"%Y\"", a->sval);
++		snprint(str, sizeof(str), "$\"%Y\"", a->u.sval);
+ 		break;
+ 
+ 	case D_ADDR:
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 91e7bdecdd..31e871eeb8 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -961,7 +961,7 @@ loop:
+ 		if(p->from.node == p0->from.node)
+ 		if(p->from.offset == p0->from.offset)
+ 		if(p->from.scale == p0->from.scale)
+-		if(p->from.dval == p0->from.dval)
++		if(p->from.u.vval == p0->from.u.vval)
+ 		if(p->from.index == p0->from.index) {
+ 			excise(r);
+ 			goto loop;
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index aa2f6fde18..2c7553620c 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -507,9 +507,9 @@ regopt(Prog *firstp)
+ 	for(r=firstr; r!=R; r=r->link) {
+ 		p = r->prog;
+ 		if(p->to.type == D_BRANCH) {
+-			if(p->to.branch == P)
++			if(p->to.u.branch == P)
+ 				fatal("pnil %P", p);
+-			r1 = p->to.branch->reg;
++			r1 = p->to.u.branch->reg;
+ 			if(r1 == R)
+ 				fatal("rnil %P", p);
+ 			if(r1 == r) {
+@@ -690,8 +690,8 @@ brk:
+ 		while(p->link != P && p->link->as == ANOP)
+ 			p->link = p->link->link;
+ 		if(p->to.type == D_BRANCH)
+-			while(p->to.branch != P && p->to.branch->as == ANOP)
+-				p->to.branch = p->to.branch->link;
++			while(p->to.u.branch != P && p->to.u.branch->as == ANOP)
++				p->to.u.branch = p->to.u.branch->link;
+ 	}
+ 
+ 	if(lastr != R) {
+@@ -1600,7 +1600,7 @@ chasejmp(Prog *p, int *jmploop)
+ 			*jmploop = 1;
+ 			break;
+ 		}
+-		p = p->to.branch;
++		p = p->to.u.branch;
+ 	}
+ 	return p;
+ }
+@@ -1622,8 +1622,8 @@ mark(Prog *firstp)
+ 		if(p->reg != dead)
+ 			break;
+ 		p->reg = alive;
+-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.branch)
+-			mark(p->to.branch);
++		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch)
++			mark(p->to.u.branch);
+ 		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
+ 			break;
+ 	}
+@@ -1643,8 +1643,8 @@ fixjmp(Prog *firstp)
+ 	for(p=firstp; p; p=p->link) {
+ 		if(debug['R'] && debug['v'])
+ 			print("%P\n", p);
+-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.branch && p->to.branch->as == AJMP) {
+-			p->to.branch = chasejmp(p->to.branch, &jmploop);
++		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch && p->to.u.branch->as == AJMP) {
++			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
+ 			if(debug['R'] && debug['v'])
+ 				print("->%P\n", p);
+ 		}
+@@ -1680,7 +1680,7 @@ fixjmp(Prog *firstp)
+ 	if(!jmploop) {
+ 		last = nil;
+ 		for(p=firstp; p; p=p->link) {
+-			if(p->as == AJMP && p->to.type == D_BRANCH && p->to.branch == p->link) {
++			if(p->as == AJMP && p->to.type == D_BRANCH && p->to.u.branch == p->link) {
+ 				if(debug['R'] && debug['v'])
+ 					print("del %P\n", p);
+ 				continue;

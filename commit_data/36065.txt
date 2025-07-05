@@ -30,7 +30,97 @@ Date:   Sat Mar 31 21:51:00 2018 -0700
     Reviewed-by: Joe Tsai <joetsai@google.com>
     Run-TryBot: Joe Tsai <joetsai@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/gzip/gzip.go      | 10 +++++-----
  src/compress/gzip/gzip_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 5 deletions(-)
+
+diff --git a/src/compress/gzip/gzip.go b/src/compress/gzip/gzip.go
+index db9750dee2..eaeb185795 100644
+--- a/src/compress/gzip/gzip.go
++++ b/src/compress/gzip/gzip.go
+@@ -165,26 +165,26 @@ func (z *Writer) Write(p []byte) (int, error) {
+ 			z.buf[8] = 4
+ 		}
+ 		z.buf[9] = z.OS
+-		n, z.err = z.w.Write(z.buf[:10])
++		_, z.err = z.w.Write(z.buf[:10])
+ 		if z.err != nil {
+-			return n, z.err
++			return 0, z.err
+ 		}
+ 		if z.Extra != nil {
+ 			z.err = z.writeBytes(z.Extra)
+ 			if z.err != nil {
+-				return n, z.err
++				return 0, z.err
+ 			}
+ 		}
+ 		if z.Name != "" {
+ 			z.err = z.writeString(z.Name)
+ 			if z.err != nil {
+-				return n, z.err
++				return 0, z.err
+ 			}
+ 		}
+ 		if z.Comment != "" {
+ 			z.err = z.writeString(z.Comment)
+ 			if z.err != nil {
+-				return n, z.err
++				return 0, z.err
+ 			}
+ 		}
+ 		if z.compressor == nil {
+diff --git a/src/compress/gzip/gzip_test.go b/src/compress/gzip/gzip_test.go
+index 865c529f55..e16aba1572 100644
+--- a/src/compress/gzip/gzip_test.go
++++ b/src/compress/gzip/gzip_test.go
+@@ -7,6 +7,7 @@ package gzip
+ import (
+ 	"bufio"
+ 	"bytes"
++	"io"
+ 	"io/ioutil"
+ 	"reflect"
+ 	"testing"
+@@ -233,3 +234,40 @@ func TestWriterReset(t *testing.T) {
+ 		t.Errorf("buf2 %q != original buf of %q", buf2.String(), buf.String())
+ 	}
+ }
++
++type limitedWriter struct {
++	N int
++}
++
++func (l *limitedWriter) Write(p []byte) (n int, err error) {
++	if n := l.N; n < len(p) {
++		l.N = 0
++		return n, io.ErrShortWrite
++	}
++	l.N -= len(p)
++	return len(p), nil
++}
++
++// Write should never return more bytes than the input slice.
++func TestLimitedWrite(t *testing.T) {
++	msg := []byte("a")
++
++	for lim := 2; lim < 20; lim++ {
++		z := NewWriter(&limitedWriter{lim})
++		if n, _ := z.Write(msg); n > len(msg) {
++			t.Errorf("Write() = %d, want %d or less", n, len(msg))
++		}
++
++		z.Reset(&limitedWriter{lim})
++		z.Header = Header{
++			Comment: "comment",
++			Extra:   []byte("extra"),
++			ModTime: time.Now(),
++			Name:    "name",
++			OS:      1,
++		}
++		if n, _ := z.Write(msg); n > len(msg) {
++			t.Errorf("Write() = %d, want %d or less", n, len(msg))
++		}
++	}
++}

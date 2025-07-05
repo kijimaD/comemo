@@ -47,10 +47,189 @@ Date:   Sun Jan 3 19:49:49 2021 -0800
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 11 +++---
  src/cmd/compile/internal/walk/expr.go  | 10 ++----
  test/fixedbugs/issue20780.go           | 16 ++++++---
  test/fixedbugs/issue20780b.go          | 62 ++++++++++++++++++++++++++++++++++
  test/nilptr3.go                        |  8 -----
  5 files changed, 81 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 5998c42012..f48909e6be 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3222,8 +3222,8 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
+ 
+ 	// If this assignment clobbers an entire local variable, then emit
+ 	// OpVarDef so liveness analysis knows the variable is redefined.
+-	if base := clobberBase(left); base.Op() == ir.ONAME && base.(*ir.Name).Class != ir.PEXTERN && skip == 0 {
+-		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base.(*ir.Name), s.mem(), !ir.IsAutoTmp(base))
++	if base, ok := clobberBase(left).(*ir.Name); ok && base.Op() == ir.ONAME && base.Class != ir.PEXTERN && base.Class != ir.PAUTOHEAP && skip == 0 {
++		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
+ 	}
+ 
+ 	// Left is not ssa-able. Compute its address.
+@@ -4986,6 +4986,8 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 			// ensure that we reuse symbols for out parameters so
+ 			// that cse works on their addresses
+ 			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), true)
++		case ir.PAUTOHEAP:
++			return s.expr(n.Heapaddr)
+ 		default:
+ 			s.Fatalf("variable address class %v not implemented", n.Class)
+ 			return nil
+@@ -5096,11 +5098,8 @@ func (s *state) canSSAName(name *ir.Name) bool {
+ 	if ir.IsParamHeapCopy(name) {
+ 		return false
+ 	}
+-	if name.Class == ir.PAUTOHEAP {
+-		s.Fatalf("canSSA of PAUTOHEAP %v", name)
+-	}
+ 	switch name.Class {
+-	case ir.PEXTERN:
++	case ir.PEXTERN, ir.PAUTOHEAP:
+ 		return false
+ 	case ir.PPARAMOUT:
+ 		if s.hasdefer {
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 3dffb496e9..6fdb8f15f5 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -52,19 +52,15 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 		base.Fatalf("expression has untyped type: %+v", n)
+ 	}
+ 
+-	if n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PAUTOHEAP {
+-		n := n.(*ir.Name)
+-		nn := ir.NewStarExpr(base.Pos, n.Heapaddr)
+-		nn.X.MarkNonNil()
+-		return walkExpr(typecheck.Expr(nn), init)
+-	}
+-
+ 	n = walkExpr1(n, init)
+ 
+ 	// Eagerly compute sizes of all expressions for the back end.
+ 	if typ := n.Type(); typ != nil && typ.Kind() != types.TBLANK && !typ.IsFuncArgStruct() {
+ 		types.CheckSize(typ)
+ 	}
++	if n, ok := n.(*ir.Name); ok && n.Heapaddr != nil {
++		types.CheckSize(n.Heapaddr.Type())
++	}
+ 	if ir.IsConst(n, constant.String) {
+ 		// Emit string symbol now to avoid emitting
+ 		// any concurrently during the backend.
+diff --git a/test/fixedbugs/issue20780.go b/test/fixedbugs/issue20780.go
+index 53c4f615e1..f73e6d1f79 100644
+--- a/test/fixedbugs/issue20780.go
++++ b/test/fixedbugs/issue20780.go
+@@ -9,11 +9,17 @@
+ 
+ package main
+ 
++type Big = [400e6]byte
++
+ func f() { // GC_ERROR "stack frame too large"
+-	var x [800e6]byte
+-	g(x)
+-	return
++	// Note: This test relies on the fact that we currently always
++	// spill function-results to the stack, even if they're so
++	// large that we would normally heap allocate them. If we ever
++	// improve the backend to spill temporaries to the heap, this
++	// test will probably need updating to find some new way to
++	// construct an overly large stack frame.
++	g(h(), h())
+ }
+ 
+-//go:noinline
+-func g([800e6]byte) {}
++func g(Big, Big)
++func h() Big
+diff --git a/test/fixedbugs/issue20780b.go b/test/fixedbugs/issue20780b.go
+new file mode 100644
+index 0000000000..c8bf1f8349
+--- /dev/null
++++ b/test/fixedbugs/issue20780b.go
+@@ -0,0 +1,62 @@
++// +build cgo,linux,amd64
++// run -race
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that CL 281293 doesn't interfere with race detector
++// instrumentation.
++
++package main
++
++import "fmt"
++
++const N = 2e6
++
++type Big = [N]int
++
++var sink interface{}
++
++func main() {
++	g(0, f(0))
++
++	x1 := f(1)
++	sink = &x1
++	g(1, x1)
++	g(7, f(7))
++	g(1, x1)
++
++	x3 := f(3)
++	sink = &x3
++	g(1, x1)
++	g(3, x3)
++
++	h(f(0), x1, f(2), x3, f(4))
++}
++
++//go:noinline
++func f(k int) (x Big) {
++	for i := range x {
++		x[i] = k*N + i
++	}
++	return
++}
++
++//go:noinline
++func g(k int, x Big) {
++	for i := range x {
++		if x[i] != k*N+i {
++			panic(fmt.Sprintf("x%d[%d] = %d", k, i, x[i]))
++		}
++	}
++}
++
++//go:noinline
++func h(x0, x1, x2, x3, x4 Big) {
++	g(0, x0)
++	g(1, x1)
++	g(2, x2)
++	g(3, x3)
++	g(4, x4)
++}
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index e0f2ed9767..3345cfa5ab 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -214,14 +214,6 @@ func p1() byte {
+ 	return p[5] // ERROR "removed nil check"
+ }
+ 
+-// make sure not to do nil check for access of PAUTOHEAP
+-//go:noinline
+-func (p *Struct) m() {}
+-func c1() {
+-	var x Struct
+-	func() { x.m() }() // ERROR "removed nil check"
+-}
+-
+ type SS struct {
+ 	x byte
+ }

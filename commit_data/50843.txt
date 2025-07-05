@@ -53,7 +53,7 @@ Date:   Wed Nov 10 08:41:21 2021 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/assignments.go     |  6 ++-
  src/cmd/compile/internal/types2/conversions.go     | 16 ++++--
  src/cmd/compile/internal/types2/expr.go            | 21 +++-----
@@ -74,3 +74,462 @@ Date:   Wed Nov 10 08:41:21 2021 -0800
  test/interface/explicit.go                         |  2 +-
  test/run.go                                        |  3 --
  19 files changed, 174 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 609d7d0962..da7f7dfa5c 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -85,7 +85,11 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 	reason := ""
+ 	if ok, _ := x.assignableTo(check, T, &reason); !ok {
+ 		if check.conf.CompilerErrorMessages {
+-			check.errorf(x, "incompatible type: cannot use %s as %s value", x, T)
++			if reason != "" {
++				check.errorf(x, "cannot use %s as type %s in %s:\n\t%s", x, T, context, reason)
++			} else {
++				check.errorf(x, "cannot use %s as type %s in %s", x, T, context)
++			}
+ 		} else {
+ 			if reason != "" {
+ 				check.errorf(x, "cannot use %s as %s value in %s: %s", x, T, context, reason)
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 968ac4d39f..cc7b52099c 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -69,9 +69,19 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 
+ 	if !ok {
+ 		var err error_
+-		err.errorf(x, "cannot convert %s to %s", x, T)
+-		if cause != "" {
+-			err.errorf(nopos, cause)
++		if check.conf.CompilerErrorMessages {
++			if cause != "" {
++				// Add colon at end of line if we have a following cause.
++				err.errorf(x, "cannot convert %s to type %s:", x, T)
++				err.errorf(nopos, cause)
++			} else {
++				err.errorf(x, "cannot convert %s to type %s", x, T)
++			}
++		} else {
++			err.errorf(x, "cannot convert %s to %s", x, T)
++			if cause != "" {
++				err.errorf(nopos, cause)
++			}
+ 		}
+ 		check.report(&err)
+ 		x.mode = invalid
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 25e2060100..f86606375c 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1626,25 +1626,20 @@ func (check *Checker) typeAssertion(e syntax.Expr, x *operand, xtyp *Interface,
+ 		return
+ 	}
+ 
+-	var msg string
+-	if wrongType != nil {
+-		if Identical(method.typ, wrongType.typ) {
+-			msg = fmt.Sprintf("%s method has pointer receiver", method.name)
+-		} else {
+-			msg = fmt.Sprintf("wrong type for method %s: have %s, want %s", method.name, wrongType.typ, method.typ)
+-		}
+-	} else {
+-		msg = fmt.Sprintf("missing %s method", method.name)
+-	}
+-
+ 	var err error_
++	var msg string
+ 	if typeSwitch {
+ 		err.errorf(e.Pos(), "impossible type switch case: %s", e)
+-		err.errorf(nopos, "%s cannot have dynamic type %s (%s)", x, T, msg)
++		msg = check.sprintf("%s cannot have dynamic type %s %s", x, T,
++			check.missingMethodReason(T, x.typ, method, wrongType))
++
+ 	} else {
+ 		err.errorf(e.Pos(), "impossible type assertion: %s", e)
+-		err.errorf(nopos, "%s does not implement %s (%s)", T, x.typ, msg)
++		msg = check.sprintf("%s does not implement %s %s", T, x.typ,
++			check.missingMethodReason(T, x.typ, method, wrongType))
++
+ 	}
++	err.errorf(nopos, msg)
+ 	check.report(&err)
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 5da51a23ab..a05a5d6397 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -6,6 +6,11 @@
+ 
+ package types2
+ 
++import (
++	"fmt"
++	"strings"
++)
++
+ // Internal use of LookupFieldOrMethod: If the obj result is a method
+ // associated with a concrete (non-interface) type, the method's signature
+ // may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
+@@ -401,6 +406,59 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 	return
+ }
+ 
++// missingMethodReason returns a string giving the detailed reason for a missing method m,
++// where m is missing from V, but required by T. It puts the reason in parentheses,
++// and may include more have/want info after that. If non-nil, wrongType is a relevant
++// method that matches in some way. It may have the correct name, but wrong type, or
++// it may have a pointer receiver.
++func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string {
++	var r string
++	var mname string
++	if check.conf.CompilerErrorMessages {
++		mname = m.Name() + " method"
++	} else {
++		mname = "method " + m.Name()
++	}
++	if wrongType != nil {
++		if Identical(m.typ, wrongType.typ) {
++			if m.Name() == wrongType.Name() {
++				r = fmt.Sprintf("(%s has pointer receiver)", mname)
++			} else {
++				r = fmt.Sprintf("(missing %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
++					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
++			}
++		} else {
++			if check.conf.CompilerErrorMessages {
++				r = fmt.Sprintf("(wrong type for %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
++					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
++			} else {
++				r = fmt.Sprintf("(wrong type for %s: have %s, want %s)",
++					mname, wrongType.typ, m.typ)
++			}
++		}
++		// This is a hack to print the function type without the leading
++		// 'func' keyword in the have/want printouts. We could change to have
++		// an extra formatting option for types2.Type that doesn't print out
++		// 'func'.
++		r = strings.Replace(r, "^^func", "", -1)
++	} else if IsInterface(T) {
++		if isInterfacePtr(V) {
++			r = fmt.Sprintf("(%s is pointer to interface, not interface)", V)
++		}
++	} else if isInterfacePtr(T) {
++		r = fmt.Sprintf("(%s is pointer to interface, not interface)", T)
++	}
++	if r == "" {
++		r = fmt.Sprintf("(missing %s)", mname)
++	}
++	return r
++}
++
++func isInterfacePtr(T Type) bool {
++	p, _ := under(T).(*Pointer)
++	return p != nil && IsInterface(p.base)
++}
++
+ // assertableTo reports whether a value of type V can be asserted to have type T.
+ // It returns (nil, false) as affirmative answer. Otherwise it returns a missing
+ // method required by V and whether it is missing or just has the wrong type.
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 762a7543a9..fee154a6bb 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -289,18 +289,21 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	// T is an interface type and x implements T and T is not a type parameter
+ 	if Ti, ok := Tu.(*Interface); ok {
+-		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
++		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+ 			if reason != nil {
+-				// TODO(gri) the error messages here should follow the style in Checker.typeAssertion (factor!)
+-				if wrongType != nil {
+-					if Identical(m.typ, wrongType.typ) {
+-						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
++				if check.conf.CompilerErrorMessages {
++					*reason = check.sprintf("%s does not implement %s %s", x.typ, T,
++						check.missingMethodReason(x.typ, T, m, wrongType))
++				} else {
++					if wrongType != nil {
++						if Identical(m.typ, wrongType.typ) {
++							*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
++						} else {
++							*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
++						}
+ 					} else {
+-						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
++						*reason = "missing method " + m.Name()
+ 					}
+-
+-				} else {
+-					*reason = "missing method " + m.Name()
+ 				}
+ 			}
+ 			return false, _InvalidIfaceAssign
+@@ -308,6 +311,24 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 		return true, 0
+ 	}
+ 
++	// Provide extra detail in compiler error messages in some cases when T is
++	// not an interface.
++	if check != nil && check.conf.CompilerErrorMessages {
++		if isInterfacePtr(Tu) {
++			*reason = check.sprintf("%s does not implement %s (%s is pointer to interface, not interface)", x.typ, T, T)
++			return false, _InvalidIfaceAssign
++		}
++		if Vi, _ := Vu.(*Interface); Vi != nil {
++			if m, _ := check.missingMethod(T, Vi, true); m == nil {
++				// T implements Vi, so give hint about type assertion.
++				if reason != nil {
++					*reason = check.sprintf("need type assertion")
++				}
++				return false, _IncompatibleAssign
++			}
++		}
++	}
++
+ 	// x is a bidirectional channel value, T is a channel
+ 	// type, x's type V and T have identical element types,
+ 	// and at least one of V or T is not a named type.
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr3.src b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+index df4cf6a840..d1e1dba9f4 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr3.src
++++ b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+@@ -459,9 +459,9 @@ func type_asserts() {
+ 
+ 	var t I
+ 	_ = t /* ERROR "use of .* outside type switch" */ .(type)
+-	_ = t /* ERROR "m method has pointer receiver" */ .(T)
++	_ = t /* ERROR "method m has pointer receiver" */ .(T)
+ 	_ = t.(*T)
+-	_ = t /* ERROR "missing m method" */ .(T1)
++	_ = t /* ERROR "missing method m" */ .(T1)
+ 	_ = t /* ERROR "wrong type for method m" */ .(T2)
+ 	_ = t /* STRICT "wrong type for method m" */ .(I2) // only an error in strict mode (issue 8561)
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.src b/src/cmd/compile/internal/types2/testdata/check/issues.src
+index dfd51006b9..f4b6199b82 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.src
+@@ -132,7 +132,7 @@ func issue10260() {
+ 
+ 	var x I1
+ 	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
+-	_ = x. /* ERROR impossible type assertion: x.\(T1\)\n\tT1 does not implement I1 \(foo method has pointer receiver\) */ (T1)
++	_ = x. /* ERROR impossible type assertion: x.\(T1\)\n\tT1 does not implement I1 \(method foo has pointer receiver\) */ (T1)
+ 
+ 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+ 	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
+diff --git a/src/cmd/compile/internal/types2/testdata/check/stmt0.src b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+index 5ec37b4ace..d744f2ba81 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+@@ -715,7 +715,7 @@ func typeswitches() {
+ 	var t I
+ 	switch t.(type) {
+ 	case T:
+-	case T1 /* ERROR "missing m method" */ :
++	case T1 /* ERROR "missing method m" */ :
+ 	case T2 /* ERROR "wrong type for method m" */ :
+ 	case I2 /* STRICT "wrong type for method m" */ : // only an error in strict mode (issue 8561)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go
+index 6225e68488..f152e7f55c 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go
+@@ -23,12 +23,12 @@ type T2 interface{ M() }
+ 
+ func F2() T2
+ 
+-var _ = F2(). /* ERROR impossible type assertion: F2\(\).\(\*X2\)\n\t\*X2 does not implement T2 \(missing M method\) */ (*X2)
++var _ = F2(). /* ERROR impossible type assertion: F2\(\).\(\*X2\)\n\t\*X2 does not implement T2 \(missing method M\) */ (*X2)
+ 
+ type X2 struct{}
+ 
+ func _() {
+ 	switch F2().(type) {
+-	case * /* ERROR impossible type switch case: \*X2\n\tF2\(\) \(value of type T2\) cannot have dynamic type \*X2 \(missing M method\) */ X2:
++	case * /* ERROR impossible type switch case: \*X2\n\tF2\(\) \(value of type T2\) cannot have dynamic type \*X2 \(missing method M\) */ X2:
+ 	}
+ }
+diff --git a/test/alias2.go b/test/alias2.go
+index d7b5dccb68..61c7551f79 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -46,8 +46,8 @@ var _ A0 = T0{}
+ var _ T0 = A0{}
+ 
+ // But aliases and original types cannot be used with new types based on them.
+-var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
+-var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
++var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use T0{} \(value of type T0\) as type N0 in variable declaration"
++var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use A0{} \(value of type T0\) as type N0 in variable declaration"
+ 
+ var _ A5 = Value{}
+ 
+@@ -82,10 +82,10 @@ func _() {
+ 	var _ A0 = T0{}
+ 	var _ T0 = A0{}
+ 
+-	var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
+-	var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
++	var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use T0{} \(value of type T0\) as type N0 in variable declaration"
++	var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|cannot use A0{} \(value of type T0\) as type N0 in variable declaration"
+ 
+-	var _ A5 = Value{} // ERROR "cannot use reflect\.Value{} \(type reflect.Value\) as type A5 in assignment|incompatible type"
++	var _ A5 = Value{} // ERROR "cannot use reflect\.Value{} \(type reflect.Value\) as type A5 in assignment|cannot use Value{} \(value of type reflect.Value\) as type A5 in variable declaration"
+ }
+ 
+ // Invalid type alias declarations.
+diff --git a/test/append1.go b/test/append1.go
+index 9dab120b25..397be570d9 100644
+--- a/test/append1.go
++++ b/test/append1.go
+@@ -17,6 +17,6 @@ func main() {
+ 	_ = append(s...)       // ERROR "cannot use ... on first argument|not enough arguments in call to append"
+ 	_ = append(s, 2, s...) // ERROR "too many arguments to append|too many arguments in call to append"
+ 
+-	_ = append(s, make([]int, 0))     // ERROR "cannot use make.* as type int in append|cannot use make.* as int value"
++	_ = append(s, make([]int, 0))     // ERROR "cannot use make.* as type int in append|cannot use make.* \(value of type \[\]int\) as type int in argument to append"
+ 	_ = append(s, make([]int, -1)...) // ERROR "negative len argument in make|index -1.* must not be negative"
+ }
+diff --git a/test/ddd1.go b/test/ddd1.go
+index f7381b7c94..639b0bfdbd 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -19,7 +19,7 @@ var (
+ 	_ = sum(1.0, 2.0)
+ 	_ = sum(1.5)      // ERROR "1\.5 .untyped float constant. as int|integer"
+ 	_ = sum("hello")  // ERROR ".hello. (.untyped string constant. as int|.type untyped string. as type int)|incompatible"
+-	_ = sum([]int{1}) // ERROR "\[\]int{...}.*as type int|incompatible"
++	_ = sum([]int{1}) // ERROR "\[\]int{.*}.*as type int"
+ )
+ 
+ func sum3(int, int, int) int { return 0 }
+diff --git a/test/fixedbugs/bug389.go b/test/fixedbugs/bug389.go
+index 167e64e72c..209be8e6f7 100644
+--- a/test/fixedbugs/bug389.go
++++ b/test/fixedbugs/bug389.go
+@@ -9,4 +9,4 @@ package foo
+ 
+ func fn(a float32) {}
+ 
+-var f func(arg int) = fn  // ERROR "cannot use fn .type func.float32.. as type func.int. in assignment|different parameter types|incompatible type"
++var f func(arg int) = fn // ERROR "cannot use fn .type func.float32.. as type func.int. in assignment|different parameter types|cannot use fn .*type func.*float32.. as type func.*int. in variable declaration"
+diff --git a/test/fixedbugs/issue41247.go b/test/fixedbugs/issue41247.go
+index c5e495ba93..05889a9ce8 100644
+--- a/test/fixedbugs/issue41247.go
++++ b/test/fixedbugs/issue41247.go
+@@ -7,5 +7,5 @@
+ package p
+ 
+ func f() [2]int {
+-	return [...]int{2: 0} // ERROR "cannot use \[\.\.\.\]int{...} \(type \[3\]int\)|incompatible type"
++	return [...]int{2: 0} // ERROR "cannot use \[\.\.\.\]int{.*} \(.*type \[3\]int\)"
+ }
+diff --git a/test/fixedbugs/issue48471.go b/test/fixedbugs/issue48471.go
+new file mode 100644
+index 0000000000..0412d23b99
+--- /dev/null
++++ b/test/fixedbugs/issue48471.go
+@@ -0,0 +1,41 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I interface{ M(int) }
++
++type T struct{}
++
++type T2 struct{}
++
++func (*T2) m(int)
++
++type T3 struct{}
++
++func (*T3) M(string) {}
++
++type T4 struct{}
++
++func (*T4) M(int)
++
++func f(I)
++
++func g() {
++	f(new(T)) // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in argument to f:\n\t\*T does not implement I \(missing M method\)"
++	var i I
++	i = new(T)    // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in assignment:\n\t\*T does not implement I \(missing M method\)"
++	i = I(new(T)) // ERROR "cannot convert new\(T\) \(.*type \*T\) to type I:\n\t\*T does not implement I \(missing M method\)"
++	i = new(T2)   // ERROR "cannot use new\(T2\) \(.*type \*T2\) as type I in assignment:\n\t\*T2 does not implement I \(missing M method\)"
++	i = new(T3)   // ERROR "cannot use new\(T3\) \(.*type \*T3\) as type I in assignment:\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
++	i = T4{}      // ERROR "cannot use T4\{\} \(.*type T4\) as type I in assignment:\n\tT4 does not implement I \(M method has pointer receiver\)"
++	i = new(I)    // ERROR "cannot use new\(I\) \(.*type \*I\) as type I in assignment:\n\t\*I does not implement I \(\*I is pointer to interface, not interface\)"
++	_ = i.(*T2)   // ERROR "impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing M method\)"
++	_ = i.(*T3)   // ERROR "impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
++	var t *T4
++	t = i // ERROR "cannot use i \(variable of type I\) as type \*T4 in assignment:\n\tneed type assertion"
++	_ = i
++}
+diff --git a/test/fixedbugs/issue6572.go b/test/fixedbugs/issue6572.go
+index 9f4d2de0e3..d69bf5aee2 100644
+--- a/test/fixedbugs/issue6572.go
++++ b/test/fixedbugs/issue6572.go
+@@ -17,6 +17,6 @@ func bar() (T, string, T) { // ERROR "undefined"
+ func main() {
+ 	var x, y, z int
+ 	x, y = foo()
+-	x, y, z = bar() // ERROR "cannot (use type|assign) string|incompatible type"
++	x, y, z = bar() // ERROR "cannot (use type|assign|use.*type) string|"
+ 	_, _, _ = x, y, z
+ }
+diff --git a/test/fixedbugs/issue9521.go b/test/fixedbugs/issue9521.go
+index 1ad40bdfda..a029ec145e 100644
+--- a/test/fixedbugs/issue9521.go
++++ b/test/fixedbugs/issue9521.go
+@@ -13,6 +13,6 @@ func f() (_, _ []int)         { return }
+ func g() (x []int, y float64) { return }
+ 
+ func main() {
+-	_ = append(f()) // ERROR "cannot use \[\]int value as type int in append|incompatible type"
+-	_ = append(g()) // ERROR "cannot use float64 value as type int in append|incompatible type"
++	_ = append(f()) // ERROR "cannot use \[\]int value as type int in append|cannot use.*type \[\]int.*to append"
++	_ = append(g()) // ERROR "cannot use float64 value as type int in append|cannot use.*type float64.*to append"
+ }
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index f769f5878c..e18d6843ec 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -38,7 +38,7 @@ var e E
+ 
+ func main() {
+ 	e = t // ok
+-	t = e // ERROR "need explicit|need type assertion|incompatible type"
++	t = e // ERROR "need explicit|need type assertion"
+ 
+ 	// neither of these can work,
+ 	// because i has an extra method
+diff --git a/test/run.go b/test/run.go
+index 942fd032f2..ad64304ec8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2125,14 +2125,11 @@ var types2Failures = setOf(
+ 	"shift1.go",       // issue #42989
+ 	"typecheck.go",    // invalid function is not causing errors when called
+ 
+-	"interface/private.go", // types2 phrases errors differently (doesn't use non-spec "private" term)
+-
+ 	"fixedbugs/bug176.go", // types2 reports all errors (pref: types2)
+ 	"fixedbugs/bug195.go", // types2 reports slightly different (but correct) bugs
+ 	"fixedbugs/bug228.go", // types2 doesn't run when there are syntax errors
+ 	"fixedbugs/bug231.go", // types2 bug? (same error reported twice)
+ 	"fixedbugs/bug255.go", // types2 reports extra errors
+-	"fixedbugs/bug374.go", // types2 reports extra errors
+ 	"fixedbugs/bug388.go", // types2 not run due to syntax errors
+ 	"fixedbugs/bug412.go", // types2 produces a follow-on error
+ 

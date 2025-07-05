@@ -13,6 +13,31 @@ Date:   Thu Jun 10 15:35:05 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/os_darwin.go | 13 +++++++++----
  1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 00139351ab..079be107d7 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -118,10 +118,15 @@ func sigNoteWakeup(*note) {
+ 
+ // sigNoteSleep waits for a note created by sigNoteSetup to be woken.
+ func sigNoteSleep(*note) {
+-	entersyscallblock()
+-	var b byte
+-	read(sigNoteRead, unsafe.Pointer(&b), 1)
+-	exitsyscall()
++	for {
++		var b byte
++		entersyscallblock()
++		n := read(sigNoteRead, unsafe.Pointer(&b), 1)
++		exitsyscall()
++		if n != -_EINTR {
++			return
++		}
++	}
+ }
+ 
+ // BSD interface for threading.

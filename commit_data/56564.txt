@@ -22,7 +22,139 @@ Date:   Tue May 9 20:56:09 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/handler.go      | 31 ++++++++++++++++---------------
  src/log/slog/handler_test.go | 21 ++++++++++++++++++---
  2 files changed, 34 insertions(+), 18 deletions(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 47c7fd2782..cab0b5f088 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -110,7 +110,7 @@ func (h *defaultHandler) Handle(ctx context.Context, r Record) error {
+ 	buf.WriteString(r.Level.String())
+ 	buf.WriteByte(' ')
+ 	buf.WriteString(r.Message)
+-	state := h.ch.newHandleState(buf, true, " ", nil)
++	state := h.ch.newHandleState(buf, true, " ")
+ 	defer state.free()
+ 	state.appendNonBuiltIns(r)
+ 	return h.output(r.PC, *buf)
+@@ -186,11 +186,15 @@ type commonHandler struct {
+ 	json              bool // true => output JSON; false => output text
+ 	opts              HandlerOptions
+ 	preformattedAttrs []byte
+-	groupPrefix       string   // for text: prefix of groups opened in preformatting
+-	groups            []string // all groups started from WithGroup
+-	nOpenGroups       int      // the number of groups opened in preformattedAttrs
+-	mu                sync.Mutex
+-	w                 io.Writer
++	// groupPrefix is for the text handler only.
++	// It holds the prefix for groups that were already pre-formatted.
++	// A group will appear here when a call to WithGroup is followed by
++	// a call to WithAttrs.
++	groupPrefix string
++	groups      []string // all groups started from WithGroup
++	nOpenGroups int      // the number of groups opened in preformattedAttrs
++	mu          sync.Mutex
++	w           io.Writer
+ }
+ 
+ func (h *commonHandler) clone() *commonHandler {
+@@ -219,11 +223,9 @@ func (h *commonHandler) enabled(l Level) bool {
+ func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
+ 	h2 := h.clone()
+ 	// Pre-format the attributes as an optimization.
+-	prefix := buffer.New()
+-	defer prefix.Free()
+-	prefix.WriteString(h.groupPrefix)
+-	state := h2.newHandleState((*buffer.Buffer)(&h2.preformattedAttrs), false, "", prefix)
++	state := h2.newHandleState((*buffer.Buffer)(&h2.preformattedAttrs), false, "")
+ 	defer state.free()
++	state.prefix.WriteString(h.groupPrefix)
+ 	if len(h2.preformattedAttrs) > 0 {
+ 		state.sep = h.attrSep()
+ 	}
+@@ -249,7 +251,7 @@ func (h *commonHandler) withGroup(name string) *commonHandler {
+ }
+ 
+ func (h *commonHandler) handle(r Record) error {
+-	state := h.newHandleState(buffer.New(), true, "", nil)
++	state := h.newHandleState(buffer.New(), true, "")
+ 	defer state.free()
+ 	if h.json {
+ 		state.buf.WriteByte('{')
+@@ -309,8 +311,6 @@ func (s *handleState) appendNonBuiltIns(r Record) {
+ 	}
+ 	// Attrs in Record -- unlike the built-in ones, they are in groups started
+ 	// from WithGroup.
+-	s.prefix = buffer.New()
+-	defer s.prefix.Free()
+ 	s.prefix.WriteString(s.h.groupPrefix)
+ 	s.openGroups()
+ 	r.Attrs(func(a Attr) bool {
+@@ -352,13 +352,13 @@ var groupPool = sync.Pool{New: func() any {
+ 	return &s
+ }}
+ 
+-func (h *commonHandler) newHandleState(buf *buffer.Buffer, freeBuf bool, sep string, prefix *buffer.Buffer) handleState {
++func (h *commonHandler) newHandleState(buf *buffer.Buffer, freeBuf bool, sep string) handleState {
+ 	s := handleState{
+ 		h:       h,
+ 		buf:     buf,
+ 		freeBuf: freeBuf,
+ 		sep:     sep,
+-		prefix:  prefix,
++		prefix:  buffer.New(),
+ 	}
+ 	if h.opts.ReplaceAttr != nil {
+ 		s.groups = groupPool.Get().(*[]string)
+@@ -375,6 +375,7 @@ func (s *handleState) free() {
+ 		*gs = (*gs)[:0]
+ 		groupPool.Put(gs)
+ 	}
++	s.prefix.Free()
+ }
+ 
+ func (s *handleState) openGroups() {
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index fee611cf6a..741e86a826 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -262,11 +262,12 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 				return h.WithAttrs([]Attr{Int("p1", 1)}).
+ 					WithGroup("s1").
+ 					WithAttrs([]Attr{Int("p2", 2)}).
+-					WithGroup("s2")
++					WithGroup("s2").
++					WithAttrs([]Attr{Int("p3", 3)})
+ 			},
+ 			attrs:    attrs,
+-			wantText: "msg=message p1=1 s1.p2=2 s1.s2.a=one s1.s2.b=2",
+-			wantJSON: `{"msg":"message","p1":1,"s1":{"p2":2,"s2":{"a":"one","b":2}}}`,
++			wantText: "msg=message p1=1 s1.p2=2 s1.s2.p3=3 s1.s2.a=one s1.s2.b=2",
++			wantJSON: `{"msg":"message","p1":1,"s1":{"p2":2,"s2":{"p3":3,"a":"one","b":2}}}`,
+ 		},
+ 		{
+ 			name:    "two with-groups",
+@@ -326,6 +327,20 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			wantText:  `source=handler_test.go:$LINE msg=message`,
+ 			wantJSON:  `{"source":{"function":"log/slog.TestJSONAndTextHandlers","file":"handler_test.go","line":$LINE},"msg":"message"}`,
+ 		},
++		{
++			name: "replace built-in with group",
++			replace: func(_ []string, a Attr) Attr {
++				if a.Key == TimeKey {
++					return Group(TimeKey, "mins", 3, "secs", 2)
++				}
++				if a.Key == LevelKey {
++					return Attr{}
++				}
++				return a
++			},
++			wantText: `time.mins=3 time.secs=2 msg=message`,
++			wantJSON: `{"time":{"mins":3,"secs":2},"msg":"message"}`,
++		},
+ 	} {
+ 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
+ 		line := strconv.Itoa(r.source().Line)

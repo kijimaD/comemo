@@ -9,9 +9,345 @@ Date:   Wed Feb 15 14:41:47 2012 +1100
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5664046
-
+---
  doc/go1.html                  | 22 ++++++-----
  doc/go1.tmpl                  | 22 ++++++-----
  src/cmd/fix/newwriter.go      | 90 +++++++++++++++++++++++++++++++++++++++++++
  src/cmd/fix/newwriter_test.go | 83 +++++++++++++++++++++++++++++++++++++++
  4 files changed, 199 insertions(+), 18 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 9b62d1a1ad..a2cd0456a6 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -578,7 +578,7 @@ If they are installed, they now reside in <code>$GOROOT/bin/tool</code>.
+ <em>Updating</em>:
+ Code that uses packages in <code>exp</code> will need to be updated by hand,
+ or else compiled from an installation that has <code>exp</code> available.
+-The go fix tool or the compiler will complain about such uses.
++The <code>go fix</code> tool or the compiler will complain about such uses.
+ </p>
+ 
+ <h3 id="old">The package tree old</h3>
+@@ -603,7 +603,7 @@ The packages in their new locations are:
+ <em>Updating</em>:
+ Code that uses packages now in <code>old</code> will need to be updated by hand,
+ or else compiled from an installation that has <code>old</code> available.
+-The go fix tool will warn about such uses.
++The <code>go fix</code> tool will warn about such uses.
+ </p>
+ 
+ <h3 id="deleted">Deleted packages</h3>
+@@ -863,8 +863,8 @@ longer has a <code>Write</code> method. Its presence was a mistake.
+ </p>
+ 
+ <p>
+-<i>Updating:</i> What little code is affected will be caught by the compiler
+-and must be updated by hand. Such code is almost certainly incorrect.
++<em>Updating</em>:
++What little code is affected will be caught by the compiler and must be updated by hand.
+ </p>
+ 
+ <h3 id="bufio">The bufio package</h3>
+@@ -879,7 +879,8 @@ If the argument size is too small or invalid, it is adjusted.
+ 
+ <p>
+ <em>Updating</em>:
+-What little code is affected will be caught by the compiler and must be updated by hand.
++Running <code>go fix</code> will update calls that assign the error to _.
++Calls that aren't fixed will be caught by the compiler and must be updated by hand.
+ </p>
+ 
+ <h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
+@@ -898,7 +899,8 @@ to <code>Writer</code> and <code>Reader</code>. Package <code>flate</code>'s
+ 
+ <p>
+ <em>Updating</em>
+-What little code is affected will be caught by the compiler and must be updated by hand.
++Running <code>go fix</code> will update old names and calls that assign the error to _.
++Calls that aren't fixed will be caught by the compiler and must be updated by hand.
+ </p>
+ 
+ <h3 id="crypto_aes_des">The crypto/aes and crypto/des packages</h3>
+@@ -1425,8 +1427,10 @@ now takes a <code>uintptr</code> fd, instead of an <code>int</code>.
+ The <a href="/pkg/os/#File.Fd"><code>Fd</code></a> method on files now
+ also returns a <code>uintptr</code>.</p>
+ 
+-<p><em>Updating</em>: Code will fail to compile and must be updated
+-by hand.  </p>
++<p>
++<em>Updating</em>:
++What little code is affected will be caught by the compiler and must be updated by hand.
++</p>
+ 
+ <h4 id="os_fileinfo">The os.FileInfo type</h4>
+ 
+@@ -1669,7 +1673,7 @@ Running <code>go fix</code> will update almost all code affected by the change.
+ <br>
+ § <code>Atoi</code> persists but <code>Atoui</code> and <code>Atof32</code> do not, so
+ they may require
+-a cast that must be added by hand; the go fix tool will warn about it.
++a cast that must be added by hand; the <code>go fix</code> tool will warn about it.
+ </p>
+ 
+ 
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index efe43bc3bf..90bc9fc7f6 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -502,7 +502,7 @@ If they are installed, they now reside in <code>$GOROOT/bin/tool</code>.
+ <em>Updating</em>:
+ Code that uses packages in <code>exp</code> will need to be updated by hand,
+ or else compiled from an installation that has <code>exp</code> available.
+-The go fix tool or the compiler will complain about such uses.
++The <code>go fix</code> tool or the compiler will complain about such uses.
+ </p>
+ 
+ <h3 id="old">The package tree old</h3>
+@@ -527,7 +527,7 @@ The packages in their new locations are:
+ <em>Updating</em>:
+ Code that uses packages now in <code>old</code> will need to be updated by hand,
+ or else compiled from an installation that has <code>old</code> available.
+-The go fix tool will warn about such uses.
++The <code>go fix</code> tool will warn about such uses.
+ </p>
+ 
+ <h3 id="deleted">Deleted packages</h3>
+@@ -767,8 +767,8 @@ longer has a <code>Write</code> method. Its presence was a mistake.
+ </p>
+ 
+ <p>
+-<i>Updating:</i> What little code is affected will be caught by the compiler
+-and must be updated by hand. Such code is almost certainly incorrect.
++<em>Updating</em>:
++What little code is affected will be caught by the compiler and must be updated by hand.
+ </p>
+ 
+ <h3 id="bufio">The bufio package</h3>
+@@ -783,7 +783,8 @@ If the argument size is too small or invalid, it is adjusted.
+ 
+ <p>
+ <em>Updating</em>:
+-What little code is affected will be caught by the compiler and must be updated by hand.
++Running <code>go fix</code> will update calls that assign the error to _.
++Calls that aren't fixed will be caught by the compiler and must be updated by hand.
+ </p>
+ 
+ <h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
+@@ -802,7 +803,8 @@ to <code>Writer</code> and <code>Reader</code>. Package <code>flate</code>'s
+ 
+ <p>
+ <em>Updating</em>
+-What little code is affected will be caught by the compiler and must be updated by hand.
++Running <code>go fix</code> will update old names and calls that assign the error to _.
++Calls that aren't fixed will be caught by the compiler and must be updated by hand.
+ </p>
+ 
+ <h3 id="crypto_aes_des">The crypto/aes and crypto/des packages</h3>
+@@ -1328,8 +1330,10 @@ now takes a <code>uintptr</code> fd, instead of an <code>int</code>.
+ The <a href="/pkg/os/#File.Fd"><code>Fd</code></a> method on files now
+ also returns a <code>uintptr</code>.</p>
+ 
+-<p><em>Updating</em>: Code will fail to compile and must be updated
+-by hand.  </p>
++<p>
++<em>Updating</em>:
++What little code is affected will be caught by the compiler and must be updated by hand.
++</p>
+ 
+ <h4 id="os_fileinfo">The os.FileInfo type</h4>
+ 
+@@ -1572,7 +1576,7 @@ Running <code>go fix</code> will update almost all code affected by the change.
+ <br>
+ § <code>Atoi</code> persists but <code>Atoui</code> and <code>Atof32</code> do not, so
+ they may require
+-a cast that must be added by hand; the go fix tool will warn about it.
++a cast that must be added by hand; the <code>go fix</code> tool will warn about it.
+ </p>
+ 
+ 
+diff --git a/src/cmd/fix/newwriter.go b/src/cmd/fix/newwriter.go
+new file mode 100644
+index 0000000000..4befe24fb6
+--- /dev/null
++++ b/src/cmd/fix/newwriter.go
+@@ -0,0 +1,90 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++func init() {
++	register(newWriterFix)
++}
++
++var newWriterFix = fix{
++	"newWriter",
++	"2012-02-14",
++	newWriter,
++	`Adapt bufio, gzip and zlib NewWriterXxx calls for whether they return errors.
++
++Also rename gzip.Compressor and gzip.Decompressor to gzip.Writer and gzip.Reader.
++
++http://codereview.appspot.com/5639057 and
++http://codereview.appspot.com/5642054
++`,
++}
++
++func newWriter(f *ast.File) bool {
++	if !imports(f, "bufio") && !imports(f, "compress/gzip") && !imports(f, "compress/zlib") {
++		return false
++	}
++
++	fixed := false
++	walk(f, func(n interface{}) {
++		switch n := n.(type) {
++		case *ast.SelectorExpr:
++			if isTopName(n.X, "gzip") {
++				switch n.Sel.String() {
++				case "Compressor":
++					n.Sel = &ast.Ident{Name: "Writer"}
++					fixed = true
++				case "Decompressor":
++					n.Sel = &ast.Ident{Name: "Reader"}
++					fixed = true
++				}
++			} else if isTopName(n.X, "zlib") {
++				if n.Sel.String() == "NewWriterDict" {
++					n.Sel = &ast.Ident{Name: "NewWriterLevelDict"}
++					fixed = true
++				}
++			}
++
++		case *ast.AssignStmt:
++			// Drop the ", _" in assignments of the form:
++			//	w0, _ = gzip.NewWriter(w1)
++			if len(n.Lhs) != 2 || len(n.Rhs) != 1 {
++				return
++			}
++			i, ok := n.Lhs[1].(*ast.Ident)
++			if !ok {
++				return
++			}
++			if i.String() != "_" {
++				return
++			}
++			c, ok := n.Rhs[0].(*ast.CallExpr)
++			if !ok {
++				return
++			}
++			s, ok := c.Fun.(*ast.SelectorExpr)
++			if !ok {
++				return
++			}
++			sel := s.Sel.String()
++			switch {
++			case isTopName(s.X, "bufio") && (sel == "NewReaderSize" || sel == "NewWriterSize"):
++				// No-op.
++			case isTopName(s.X, "gzip") && sel == "NewWriter":
++				// No-op.
++			case isTopName(s.X, "zlib") && sel == "NewWriter":
++				// No-op.
++			default:
++				return
++			}
++			n.Lhs = n.Lhs[:1]
++			fixed = true
++		}
++	})
++	return fixed
++}
+diff --git a/src/cmd/fix/newwriter_test.go b/src/cmd/fix/newwriter_test.go
+new file mode 100644
+index 0000000000..1f59628a0d
+--- /dev/null
++++ b/src/cmd/fix/newwriter_test.go
+@@ -0,0 +1,83 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(newWriterTests, newWriter)
++}
++
++var newWriterTests = []testCase{
++	{
++		Name: "newWriter.0",
++		In: `package main
++
++import (
++	"bufio"
++	"compress/gzip"
++	"compress/zlib"
++	"io"
++
++	"foo"
++)
++
++func f() *gzip.Compressor {
++	var (
++		_ gzip.Compressor
++		_ *gzip.Decompressor
++		_ struct {
++			W *gzip.Compressor
++			R gzip.Decompressor
++		}
++	)
++
++	var w io.Writer
++	br := bufio.NewReader(nil)
++	br, _ = bufio.NewReaderSize(nil, 256)
++	bw, err := bufio.NewWriterSize(w, 256) // Unfixable, as it declares an err variable.
++	bw, _ = bufio.NewWriterSize(w, 256)
++	fw, _ := foo.NewWriter(w)
++	gw, _ := gzip.NewWriter(w)
++	gw, _ = gzip.NewWriter(w)
++	zw, _ := zlib.NewWriter(w)
++	_ = zlib.NewWriterDict(zw, 0, nil)
++	return gw
++}
++`,
++		Out: `package main
++
++import (
++	"bufio"
++	"compress/gzip"
++	"compress/zlib"
++	"io"
++
++	"foo"
++)
++
++func f() *gzip.Writer {
++	var (
++		_ gzip.Writer
++		_ *gzip.Reader
++		_ struct {
++			W *gzip.Writer
++			R gzip.Reader
++		}
++	)
++
++	var w io.Writer
++	br := bufio.NewReader(nil)
++	br = bufio.NewReaderSize(nil, 256)
++	bw, err := bufio.NewWriterSize(w, 256) // Unfixable, as it declares an err variable.
++	bw = bufio.NewWriterSize(w, 256)
++	fw, _ := foo.NewWriter(w)
++	gw := gzip.NewWriter(w)
++	gw = gzip.NewWriter(w)
++	zw := zlib.NewWriter(w)
++	_ = zlib.NewWriterLevelDict(zw, 0, nil)
++	return gw
++}
++`,
++	},
++}

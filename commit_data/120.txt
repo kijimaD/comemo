@@ -5,7 +5,56 @@ Date:   Fri Jun 6 17:50:46 2008 -0700
     - method forward decl. bug
     
     SVN=121563
-
+---
  test/bugs/bug044.go | 27 +++++++++++++++++++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 31 insertions(+)
+
+diff --git a/test/bugs/bug044.go b/test/bugs/bug044.go
+new file mode 100644
+index 0000000000..ea9ace38cf
+--- /dev/null
++++ b/test/bugs/bug044.go
+@@ -0,0 +1,27 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go || echo BUG: compilation should succeed
++
++package main
++
++type S struct {
++};
++
++func (p *S) M1a() ;
++
++func (p *S) M2a() {
++  p.M1a();
++}
++
++func (p *S) M1a() {}  // this works
++
++
++func (p *S) M1b() int;
++
++func (p *S) M2b() {
++  p.M1b();
++}
++
++func (p *S) M1b() int {}  // BUG this doesn't
+diff --git a/test/golden.out b/test/golden.out
+index 6cb8a09695..9b3db19747 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -274,6 +274,10 @@ bugs/bug043.go:14: error in shape across assignment
+ bugs/bug043.go:17: error in shape across assignment
+ BUG: compilation should succeed
+ 
++=========== bugs/bug044.go
++bugs/bug044.go:23: error in shape across assignment
++BUG: compilation should succeed
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug005.go

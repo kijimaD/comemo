@@ -7,6 +7,39 @@ Date:   Tue Apr 3 13:59:14 2018 -0700
     Change-Id: Ie84d0e61697922c1e808d815fb7d9aec694ee8e9
     Reviewed-on: https://go-review.googlesource.com/104615
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/nodes.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index c1da4adf52..6d468ed80e 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -280,8 +280,7 @@ type (
+ 
+ 	// map[Key]Value
+ 	MapType struct {
+-		Key   Expr
+-		Value Expr
++		Key, Value Expr
+ 		expr
+ 	}
+ 
+@@ -385,7 +384,7 @@ type (
+ 		Init SimpleStmt
+ 		Cond Expr
+ 		Then *BlockStmt
+-		Else Stmt // either *IfStmt or *BlockStmt
++		Else Stmt // either nil, *IfStmt, or *BlockStmt
+ 		stmt
+ 	}
+ 
+@@ -399,7 +398,7 @@ type (
+ 
+ 	SwitchStmt struct {
+ 		Init   SimpleStmt
+-		Tag    Expr
++		Tag    Expr // incl. *TypeSwitchGuard
+ 		Body   []*CaseClause
+ 		Rbrace Pos
+ 		stmt

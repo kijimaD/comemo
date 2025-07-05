@@ -10,8 +10,63 @@ Date:   Mon Apr 12 10:20:06 2010 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/891049
-
+---
  src/pkg/fmt/fmt_test.go |  1 +
  src/pkg/fmt/format.go   | 11 ++++-------
  src/pkg/fmt/print.go    |  8 ++++++--
  3 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index b601b6ef57..54006dff8b 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -162,6 +162,7 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%x", b64, "ffffffffffffffff"},
+ 	fmtTest{"%b", 7, "111"},
+ 	fmtTest{"%b", b64, "1111111111111111111111111111111111111111111111111111111111111111"},
++	fmtTest{"%b", -6, "-110"},
+ 	fmtTest{"%e", float64(1), "1.000000e+00"},
+ 	fmtTest{"%e", float64(1234.5678e3), "1.234568e+06"},
+ 	fmtTest{"%e", float64(1234.5678e-8), "1.234568e-05"},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 137c355bbb..2637eb4cd6 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -306,14 +306,11 @@ func (f *fmt) fmt_uo32(v uint32) { f.integer(int64(v), 8, unsigned, ldigits) }
+ // fmt_uo formats a uint in octal.
+ func (f *fmt) fmt_uo(v uint) { f.integer(int64(v), 8, unsigned, ldigits) }
+ 
+-// fmt_b64 formats a uint64 in binary.
+-func (f *fmt) fmt_b64(v uint64) { f.integer(int64(v), 2, unsigned, ldigits) }
++// fmt_b64 formats an int64 in binary.
++func (f *fmt) fmt_b64(v int64) { f.integer(v, 2, signed, ldigits) }
+ 
+-// fmt_b32 formats a uint32 in binary.
+-func (f *fmt) fmt_b32(v uint32) { f.integer(int64(v), 2, unsigned, ldigits) }
+-
+-// fmt_b formats a uint in binary.
+-func (f *fmt) fmt_b(v uint) { f.integer(int64(v), 2, unsigned, ldigits) }
++// fmt_ub64 formats a uint64 in binary.
++func (f *fmt) fmt_ub64(v uint64) { f.integer(int64(v), 2, unsigned, ldigits) }
+ 
+ // fmt_c formats a Unicode character.
+ func (f *fmt) fmt_c(v int) { f.padString(string(v)) }
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 71a4a662ab..c8d9e753a1 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -857,8 +857,12 @@ func (p *pp) doprintf(format string, a []interface{}) {
+ 
+ 		// int
+ 		case 'b':
+-			if v, _, ok := getInt(field); ok {
+-				p.fmt.fmt_b64(uint64(v)) // always unsigned
++			if v, signed, ok := getInt(field); ok {
++				if signed {
++					p.fmt.fmt_b64(v)
++				} else {
++					p.fmt.fmt_ub64(uint64(v))
++				}
+ 			} else if v, ok := getFloat32(field); ok {
+ 				p.fmt.fmt_fb32(v)
+ 			} else if v, ok := getFloat64(field); ok {

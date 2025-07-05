@@ -17,9 +17,503 @@ Date:   Thu Nov 6 19:56:55 2014 -0500
     R=r
     CC=golang-codereviews, iant
     https://golang.org/cl/167320043
-
+---
  src/cmd/internal/objfile/objfile.go |  14 ++-
  src/cmd/objdump/main.go             | 242 +++---------------------------------
  src/cmd/objdump/objdump_test.go     |  98 ---------------
  src/cmd/pprof/pprof.go              |  41 +++++-
  4 files changed, 69 insertions(+), 326 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/objfile.go b/src/cmd/internal/objfile/objfile.go
+index 3d4a5d27cd..9227ef387f 100644
+--- a/src/cmd/internal/objfile/objfile.go
++++ b/src/cmd/internal/objfile/objfile.go
+@@ -9,6 +9,7 @@ import (
+ 	"debug/gosym"
+ 	"fmt"
+ 	"os"
++	"sort"
+ )
+ 
+ type rawFile interface {
+@@ -62,9 +63,20 @@ func (f *File) Close() error {
+ }
+ 
+ func (f *File) Symbols() ([]Sym, error) {
+-	return f.raw.symbols()
++	syms, err := f.raw.symbols()
++	if err != nil {
++		return nil, err
++	}
++	sort.Sort(byAddr(syms))
++	return syms, nil
+ }
+ 
++type byAddr []Sym
++
++func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
++func (x byAddr) Len() int           { return len(x) }
++func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++
+ func (f *File) PCLineTable() (*gosym.Table, error) {
+ 	textStart, symtab, pclntab, err := f.raw.pcln()
+ 	if err != nil {
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 0f125c98bf..708a853702 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -32,24 +32,15 @@
+ package main
+ 
+ import (
+-	"bufio"
+-	"debug/gosym"
+-	"encoding/binary"
+ 	"flag"
+ 	"fmt"
+-	"io"
+ 	"log"
+ 	"os"
+ 	"regexp"
+-	"sort"
+ 	"strconv"
+ 	"strings"
+-	"text/tabwriter"
+ 
+ 	"cmd/internal/objfile"
+-
+-	"cmd/internal/rsc.io/arm/armasm"
+-	"cmd/internal/rsc.io/x86/x86asm"
+ )
+ 
+ var symregexp = flag.String("s", "", "only dump symbols matching this regexp")
+@@ -87,227 +78,30 @@ func main() {
+ 		log.Fatal(err)
+ 	}
+ 
+-	syms, err := f.Symbols()
++	dis, err := f.Disasm()
+ 	if err != nil {
+-		log.Fatalf("reading %s: %v", flag.Arg(0), err)
++		log.Fatal("disassemble %s: %v", flag.Arg(0), err)
+ 	}
+ 
+-	tab, err := f.PCLineTable()
+-	if err != nil {
+-		log.Fatalf("reading %s: %v", flag.Arg(0), err)
+-	}
+-
+-	textStart, textBytes, err := f.Text()
+-	if err != nil {
+-		log.Fatalf("reading %s: %v", flag.Arg(0), err)
+-	}
+-
+-	goarch := f.GOARCH()
+-
+-	disasm := disasms[goarch]
+-	if disasm == nil {
+-		log.Fatalf("reading %s: unknown architecture", flag.Arg(0))
+-	}
+-
+-	// Filter out section symbols, overwriting syms in place.
+-	keep := syms[:0]
+-	for _, sym := range syms {
+-		switch sym.Name {
+-		case "runtime.text", "text", "_text", "runtime.etext", "etext", "_etext":
+-			// drop
+-		default:
+-			keep = append(keep, sym)
+-		}
+-	}
+-	syms = keep
+-
+-	sort.Sort(ByAddr(syms))
+-	lookup := func(addr uint64) (string, uint64) {
+-		i := sort.Search(len(syms), func(i int) bool { return addr < syms[i].Addr })
+-		if i > 0 {
+-			s := syms[i-1]
+-			if s.Addr != 0 && s.Addr <= addr && addr < s.Addr+uint64(s.Size) {
+-				return s.Name, s.Addr
+-			}
+-		}
+-		return "", 0
+-	}
+-
+-	if flag.NArg() == 1 {
+-		// disassembly of entire object - our format
+-		dump(tab, lookup, disasm, goarch, syms, textBytes, textStart)
++	switch flag.NArg() {
++	default:
++		usage()
++	case 1:
++		// disassembly of entire object
++		dis.Print(os.Stdout, symRE, 0, ^uint64(0))
+ 		os.Exit(0)
+-	}
+-
+-	// disassembly of specific piece of object - gnu objdump format for pprof
+-	gnuDump(tab, lookup, disasm, textBytes, textStart)
+-	os.Exit(0)
+-}
+-
+-// base returns the final element in the path.
+-// It works on both Windows and Unix paths.
+-func base(path string) string {
+-	path = path[strings.LastIndex(path, "/")+1:]
+-	path = path[strings.LastIndex(path, `\`)+1:]
+-	return path
+-}
+-
+-func dump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, goarch string, syms []objfile.Sym, textData []byte, textStart uint64) {
+-	stdout := bufio.NewWriter(os.Stdout)
+-	defer stdout.Flush()
+-
+-	printed := false
+-	for _, sym := range syms {
+-		if (sym.Code != 'T' && sym.Code != 't') || sym.Size == 0 || sym.Addr < textStart || symRE != nil && !symRE.MatchString(sym.Name) {
+-			continue
+-		}
+-		if sym.Addr >= textStart+uint64(len(textData)) || sym.Addr+uint64(sym.Size) > textStart+uint64(len(textData)) {
+-			break
+-		}
+-		if printed {
+-			fmt.Fprintf(stdout, "\n")
+-		} else {
+-			printed = true
+-		}
+-		file, _, _ := tab.PCToLine(sym.Addr)
+-		fmt.Fprintf(stdout, "TEXT %s(SB) %s\n", sym.Name, file)
+-		tw := tabwriter.NewWriter(stdout, 1, 8, 1, '\t', 0)
+-		start := sym.Addr
+-		end := sym.Addr + uint64(sym.Size)
+-		for pc := start; pc < end; {
+-			i := pc - textStart
+-			text, size := disasm(textData[i:end-textStart], pc, lookup)
+-			file, line, _ := tab.PCToLine(pc)
+-
+-			// ARM is word-based, so show actual word hex, not byte hex.
+-			// Since ARM is little endian, they're different.
+-			if goarch == "arm" && size == 4 {
+-				fmt.Fprintf(tw, "\t%s:%d\t%#x\t%08x\t%s\n", base(file), line, pc, binary.LittleEndian.Uint32(textData[i:i+uint64(size)]), text)
+-			} else {
+-				fmt.Fprintf(tw, "\t%s:%d\t%#x\t%x\t%s\n", base(file), line, pc, textData[i:i+uint64(size)], text)
+-			}
+-			pc += uint64(size)
+-		}
+-		tw.Flush()
+-	}
+-}
+-
+-func disasm_386(code []byte, pc uint64, lookup lookupFunc) (string, int) {
+-	return disasm_x86(code, pc, lookup, 32)
+-}
+-
+-func disasm_amd64(code []byte, pc uint64, lookup lookupFunc) (string, int) {
+-	return disasm_x86(code, pc, lookup, 64)
+-}
+-
+-func disasm_x86(code []byte, pc uint64, lookup lookupFunc, arch int) (string, int) {
+-	inst, err := x86asm.Decode(code, 64)
+-	var text string
+-	size := inst.Len
+-	if err != nil || size == 0 || inst.Op == 0 {
+-		size = 1
+-		text = "?"
+-	} else {
+-		text = x86asm.Plan9Syntax(inst, pc, lookup)
+-	}
+-	return text, size
+-}
+-
+-type textReader struct {
+-	code []byte
+-	pc   uint64
+-}
+-
+-func (r textReader) ReadAt(data []byte, off int64) (n int, err error) {
+-	if off < 0 || uint64(off) < r.pc {
+-		return 0, io.EOF
+-	}
+-	d := uint64(off) - r.pc
+-	if d >= uint64(len(r.code)) {
+-		return 0, io.EOF
+-	}
+-	n = copy(data, r.code[d:])
+-	if n < len(data) {
+-		err = io.ErrUnexpectedEOF
+-	}
+-	return
+-}
+-
+-func disasm_arm(code []byte, pc uint64, lookup lookupFunc) (string, int) {
+-	inst, err := armasm.Decode(code, armasm.ModeARM)
+-	var text string
+-	size := inst.Len
+-	if err != nil || size == 0 || inst.Op == 0 {
+-		size = 4
+-		text = "?"
+-	} else {
+-		text = armasm.Plan9Syntax(inst, pc, lookup, textReader{code, pc})
+-	}
+-	return text, size
+-}
+-
+-var disasms = map[string]disasmFunc{
+-	"386":   disasm_386,
+-	"amd64": disasm_amd64,
+-	"arm":   disasm_arm,
+-}
+-
+-func gnuDump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, textData []byte, textStart uint64) {
+-	start, err := strconv.ParseUint(strings.TrimPrefix(flag.Arg(1), "0x"), 16, 64)
+-	if err != nil {
+-		log.Fatalf("invalid start PC: %v", err)
+-	}
+-	end, err := strconv.ParseUint(strings.TrimPrefix(flag.Arg(2), "0x"), 16, 64)
+-	if err != nil {
+-		log.Fatalf("invalid end PC: %v", err)
+-	}
+-	if start < textStart {
+-		start = textStart
+-	}
+-	if end < start {
+-		end = start
+-	}
+-	if end > textStart+uint64(len(textData)) {
+-		end = textStart + uint64(len(textData))
+-	}
+-
+-	stdout := bufio.NewWriter(os.Stdout)
+-	defer stdout.Flush()
+-
+-	// For now, find spans of same PC/line/fn and
+-	// emit them as having dummy instructions.
+-	var (
+-		spanPC   uint64
+-		spanFile string
+-		spanLine int
+-		spanFn   *gosym.Func
+-	)
+ 
+-	flush := func(endPC uint64) {
+-		if spanPC == 0 {
+-			return
+-		}
+-		fmt.Fprintf(stdout, "%s:%d\n", spanFile, spanLine)
+-		for pc := spanPC; pc < endPC; {
+-			text, size := disasm(textData[pc-textStart:], pc, lookup)
+-			fmt.Fprintf(stdout, " %x: %s\n", pc, text)
+-			pc += uint64(size)
++	case 3:
++		// disassembly of PC range
++		start, err := strconv.ParseUint(strings.TrimPrefix(flag.Arg(1), "0x"), 16, 64)
++		if err != nil {
++			log.Fatalf("invalid start PC: %v", err)
+ 		}
+-		spanPC = 0
+-	}
+-
+-	for pc := start; pc < end; pc++ {
+-		file, line, fn := tab.PCToLine(pc)
+-		if file != spanFile || line != spanLine || fn != spanFn {
+-			flush(pc)
+-			spanPC, spanFile, spanLine, spanFn = pc, file, line, fn
++		end, err := strconv.ParseUint(strings.TrimPrefix(flag.Arg(2), "0x"), 16, 64)
++		if err != nil {
++			log.Fatalf("invalid end PC: %v", err)
+ 		}
++		dis.Print(os.Stdout, symRE, start, end)
++		os.Exit(0)
+ 	}
+-	flush(end)
+ }
+-
+-type ByAddr []objfile.Sym
+-
+-func (x ByAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
+-func (x ByAddr) Len() int           { return len(x) }
+-func (x ByAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index ffaaa5b437..2bb74663c3 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -5,113 +5,15 @@
+ package main
+ 
+ import (
+-	"bufio"
+-	"bytes"
+-	"fmt"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+-	"strconv"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-func loadSyms(t *testing.T) map[string]string {
+-	switch runtime.GOOS {
+-	case "android", "nacl":
+-		t.Skipf("skipping on %s", runtime.GOOS)
+-	}
+-
+-	cmd := exec.Command("go", "tool", "nm", os.Args[0])
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("go tool nm %v: %v\n%s", os.Args[0], err, string(out))
+-	}
+-	syms := make(map[string]string)
+-	scanner := bufio.NewScanner(bytes.NewReader(out))
+-	for scanner.Scan() {
+-		f := strings.Fields(scanner.Text())
+-		if len(f) < 3 {
+-			continue
+-		}
+-		syms[f[2]] = f[0]
+-	}
+-	if err := scanner.Err(); err != nil {
+-		t.Fatalf("error reading symbols: %v", err)
+-	}
+-	return syms
+-}
+-
+-func runObjDump(t *testing.T, exe, startaddr, endaddr string) (path, lineno string) {
+-	switch runtime.GOOS {
+-	case "android", "nacl":
+-		t.Skipf("skipping on %s", runtime.GOOS)
+-	}
+-
+-	cmd := exec.Command(exe, os.Args[0], startaddr, endaddr)
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("go tool objdump %v: %v\n%s", os.Args[0], err, string(out))
+-	}
+-	f := strings.Split(string(out), "\n")
+-	if len(f) < 1 {
+-		t.Fatal("objdump output must have at least one line")
+-	}
+-	pathAndLineNo := f[0]
+-	f = strings.Split(pathAndLineNo, ":")
+-	if runtime.GOOS == "windows" {
+-		switch len(f) {
+-		case 2:
+-			return f[0], f[1]
+-		case 3:
+-			return f[0] + ":" + f[1], f[2]
+-		default:
+-			t.Fatalf("no line number found in %q", pathAndLineNo)
+-		}
+-	}
+-	if len(f) != 2 {
+-		t.Fatalf("no line number found in %q", pathAndLineNo)
+-	}
+-	return f[0], f[1]
+-}
+-
+-func testObjDump(t *testing.T, exe, startaddr, endaddr string, line int) {
+-	srcPath, srcLineNo := runObjDump(t, exe, startaddr, endaddr)
+-	fi1, err := os.Stat("objdump_test.go")
+-	if err != nil {
+-		t.Fatalf("Stat failed: %v", err)
+-	}
+-	fi2, err := os.Stat(srcPath)
+-	if err != nil {
+-		t.Fatalf("Stat failed: %v", err)
+-	}
+-	if !os.SameFile(fi1, fi2) {
+-		t.Fatalf("objdump_test.go and %s are not same file", srcPath)
+-	}
+-	if srcLineNo != fmt.Sprint(line) {
+-		t.Fatalf("line number = %v; want %d", srcLineNo, line)
+-	}
+-}
+-
+-func TestObjDump(t *testing.T) {
+-	_, _, line, _ := runtime.Caller(0)
+-	syms := loadSyms(t)
+-
+-	tmp, exe := buildObjdump(t)
+-	defer os.RemoveAll(tmp)
+-
+-	startaddr := syms["cmd/objdump.TestObjDump"]
+-	addr, err := strconv.ParseUint(startaddr, 16, 64)
+-	if err != nil {
+-		t.Fatalf("invalid start address %v: %v", startaddr, err)
+-	}
+-	endaddr := fmt.Sprintf("%x", addr+10)
+-	testObjDump(t, exe, startaddr, endaddr, line-1)
+-	testObjDump(t, exe, "0x"+startaddr, "0x"+endaddr, line-1)
+-}
+-
+ func buildObjdump(t *testing.T) (tmp, exe string) {
+ 	switch runtime.GOOS {
+ 	case "android", "nacl":
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 89a5bb7d22..44f4f6cb72 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -11,6 +11,7 @@ import (
+ 	"os"
+ 	"regexp"
+ 	"strings"
++	"sync"
+ 
+ 	"cmd/internal/objfile"
+ 	"cmd/pprof/internal/commands"
+@@ -100,7 +101,10 @@ func (flags) ExtraUsage() string {
+ 
+ // objTool implements plugin.ObjTool using Go libraries
+ // (instead of invoking GNU binutils).
+-type objTool struct{}
++type objTool struct {
++	mu          sync.Mutex
++	disasmCache map[string]*objfile.Disasm
++}
+ 
+ func (*objTool) Open(name string, start uint64) (plugin.ObjFile, error) {
+ 	of, err := objfile.Open(name)
+@@ -119,8 +123,39 @@ func (*objTool) Demangle(names []string) (map[string]string, error) {
+ 	return make(map[string]string), nil
+ }
+ 
+-func (*objTool) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
+-	return nil, fmt.Errorf("disassembly not supported")
++func (t *objTool) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
++	d, err := t.cachedDisasm(file)
++	if err != nil {
++		return nil, err
++	}
++	var asm []plugin.Inst
++	d.Decode(start, end, func(pc, size uint64, file string, line int, text string) {
++		asm = append(asm, plugin.Inst{Addr: pc, File: file, Line: line, Text: text})
++	})
++	return asm, nil
++}
++
++func (t *objTool) cachedDisasm(file string) (*objfile.Disasm, error) {
++	t.mu.Lock()
++	defer t.mu.Unlock()
++	if t.disasmCache == nil {
++		t.disasmCache = make(map[string]*objfile.Disasm)
++	}
++	d := t.disasmCache[file]
++	if d != nil {
++		return d, nil
++	}
++	f, err := objfile.Open(file)
++	if err != nil {
++		return nil, err
++	}
++	d, err = f.Disasm()
++	f.Close()
++	if err != nil {
++		return nil, err
++	}
++	t.disasmCache[file] = d
++	return d, nil
+ }
+ 
+ func (*objTool) SetConfig(config string) {

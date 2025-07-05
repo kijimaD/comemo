@@ -19,7 +19,62 @@ Date:   Thu Sep 1 14:06:55 2022 +0900
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/fmt/fmt_test.go | 15 ++++++++++-----
  src/fmt/print.go    | 14 ++++++++------
  2 files changed, 18 insertions(+), 11 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index aaeac3875a..d2fa81a7b3 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1429,11 +1429,16 @@ var mallocTest = []struct {
+ }{
+ 	{0, `Sprintf("")`, func() { Sprintf("") }},
+ 	{1, `Sprintf("xxx")`, func() { Sprintf("xxx") }},
+-	{2, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
+-	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
+-	{3, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
+-	{2, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }}, // TODO: Can this be 1?
+-	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
++	{0, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
++	{1, `Sprintf("%x")`, func() { Sprintf("%x", 1<<16) }},
++	{3, `Sprintf("%80000s")`, func() { Sprintf("%80000s", "hello") }}, // large buffer (>64KB)
++	{1, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
++	{1, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
++	{1, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }},
++	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
++	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 7) }},
++	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 1<<16) }},
++	{2, `Fprintf(buf, "%80000s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%80000s", "hello") }}, // large buffer (>64KB)
+ 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
+ 	{0, `Fprintf(buf, "%x %x %x")`, func() {
+ 		mallocBuf.Reset()
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 85f70439f3..8082d13874 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -172,15 +172,17 @@ func newPrinter() *pp {
+ func (p *pp) free() {
+ 	// Proper usage of a sync.Pool requires each entry to have approximately
+ 	// the same memory cost. To obtain this property when the stored type
+-	// contains a variably-sized buffer, we add a hard limit on the maximum buffer
+-	// to place back in the pool.
++	// contains a variably-sized buffer, we add a hard limit on the maximum
++	// buffer to place back in the pool. If the buffer is larger than the
++	// limit, we drop the buffer and recycle just the printer.
+ 	//
+-	// See https://golang.org/issue/23199
+-	if cap(p.buf) > 64<<10 {
+-		return
++	// See https://golang.org/issue/23199.
++	if cap(p.buf) > 64*1024 {
++		p.buf = nil
++	} else {
++		p.buf = p.buf[:0]
+ 	}
+ 
+-	p.buf = p.buf[:0]
+ 	p.arg = nil
+ 	p.value = reflect.Value{}
+ 	p.wrappedErr = nil

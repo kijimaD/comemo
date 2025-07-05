@@ -11,9 +11,479 @@ Date:   Mon Oct 3 12:12:20 2016 -0700
     Change-Id: I17bbbce38d98a169bc64e84983a7ebfe7142f6e9
     Reviewed-on: https://go-review.googlesource.com/30190
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/check_test.go             |   1 +
  src/go/types/conversions.go            |   9 +-
  src/go/types/predicates.go             |  31 ++--
  src/go/types/testdata/conversions2.src | 313 +++++++++++++++++++++++++++++++++
  4 files changed, 337 insertions(+), 17 deletions(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 5e2043be84..5a3032282f 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -80,6 +80,7 @@ var tests = [][]string{
+ 	{"testdata/shifts.src"},
+ 	{"testdata/builtins.src"},
+ 	{"testdata/conversions.src"},
++	{"testdata/conversions2.src"},
+ 	{"testdata/stmt0.src"},
+ 	{"testdata/stmt1.src"},
+ 	{"testdata/gotos.src"},
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index f98cc8d81a..9b6869c668 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -69,18 +69,19 @@ func (x *operand) convertibleTo(conf *Config, T Type) bool {
+ 		return true
+ 	}
+ 
+-	// "x's type and T have identical underlying types"
++	// "x's type and T have identical underlying types if tags are ignored"
+ 	V := x.typ
+ 	Vu := V.Underlying()
+ 	Tu := T.Underlying()
+-	if Identical(Vu, Tu) {
++	if IdenticalIgnoreTags(Vu, Tu) {
+ 		return true
+ 	}
+ 
+-	// "x's type and T are unnamed pointer types and their pointer base types have identical underlying types"
++	// "x's type and T are unnamed pointer types and their pointer base types
++	// have identical underlying types if tags are ignored"
+ 	if V, ok := V.(*Pointer); ok {
+ 		if T, ok := T.(*Pointer); ok {
+-			if Identical(V.base.Underlying(), T.base.Underlying()) {
++			if IdenticalIgnoreTags(V.base.Underlying(), T.base.Underlying()) {
+ 				return true
+ 			}
+ 		}
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 5509069fb6..c7e7660bd1 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -112,7 +112,12 @@ func hasNil(typ Type) bool {
+ 
+ // Identical reports whether x and y are identical.
+ func Identical(x, y Type) bool {
+-	return identical(x, y, nil)
++	return identical(x, y, true, nil)
++}
++
++// IdenticalIgnoreTags reports whether x and y are identical if tags are ignored.
++func IdenticalIgnoreTags(x, y Type) bool {
++	return identical(x, y, false, nil)
+ }
+ 
+ // An ifacePair is a node in a stack of interface type pairs compared for identity.
+@@ -125,7 +130,7 @@ func (p *ifacePair) identical(q *ifacePair) bool {
+ 	return p.x == q.x && p.y == q.y || p.x == q.y && p.y == q.x
+ }
+ 
+-func identical(x, y Type, p *ifacePair) bool {
++func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	if x == y {
+ 		return true
+ 	}
+@@ -143,13 +148,13 @@ func identical(x, y Type, p *ifacePair) bool {
+ 		// Two array types are identical if they have identical element types
+ 		// and the same array length.
+ 		if y, ok := y.(*Array); ok {
+-			return x.len == y.len && identical(x.elem, y.elem, p)
++			return x.len == y.len && identical(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Slice:
+ 		// Two slice types are identical if they have identical element types.
+ 		if y, ok := y.(*Slice); ok {
+-			return identical(x.elem, y.elem, p)
++			return identical(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Struct:
+@@ -162,9 +167,9 @@ func identical(x, y Type, p *ifacePair) bool {
+ 				for i, f := range x.fields {
+ 					g := y.fields[i]
+ 					if f.anonymous != g.anonymous ||
+-						x.Tag(i) != y.Tag(i) ||
++						cmpTags && x.Tag(i) != y.Tag(i) ||
+ 						!f.sameId(g.pkg, g.name) ||
+-						!identical(f.typ, g.typ, p) {
++						!identical(f.typ, g.typ, cmpTags, p) {
+ 						return false
+ 					}
+ 				}
+@@ -175,7 +180,7 @@ func identical(x, y Type, p *ifacePair) bool {
+ 	case *Pointer:
+ 		// Two pointer types are identical if they have identical base types.
+ 		if y, ok := y.(*Pointer); ok {
+-			return identical(x.base, y.base, p)
++			return identical(x.base, y.base, cmpTags, p)
+ 		}
+ 
+ 	case *Tuple:
+@@ -186,7 +191,7 @@ func identical(x, y Type, p *ifacePair) bool {
+ 				if x != nil {
+ 					for i, v := range x.vars {
+ 						w := y.vars[i]
+-						if !identical(v.typ, w.typ, p) {
++						if !identical(v.typ, w.typ, cmpTags, p) {
+ 							return false
+ 						}
+ 					}
+@@ -202,8 +207,8 @@ func identical(x, y Type, p *ifacePair) bool {
+ 		// names are not required to match.
+ 		if y, ok := y.(*Signature); ok {
+ 			return x.variadic == y.variadic &&
+-				identical(x.params, y.params, p) &&
+-				identical(x.results, y.results, p)
++				identical(x.params, y.params, cmpTags, p) &&
++				identical(x.results, y.results, cmpTags, p)
+ 		}
+ 
+ 	case *Interface:
+@@ -249,7 +254,7 @@ func identical(x, y Type, p *ifacePair) bool {
+ 				}
+ 				for i, f := range a {
+ 					g := b[i]
+-					if f.Id() != g.Id() || !identical(f.typ, g.typ, q) {
++					if f.Id() != g.Id() || !identical(f.typ, g.typ, cmpTags, q) {
+ 						return false
+ 					}
+ 				}
+@@ -260,14 +265,14 @@ func identical(x, y Type, p *ifacePair) bool {
+ 	case *Map:
+ 		// Two map types are identical if they have identical key and value types.
+ 		if y, ok := y.(*Map); ok {
+-			return identical(x.key, y.key, p) && identical(x.elem, y.elem, p)
++			return identical(x.key, y.key, cmpTags, p) && identical(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Chan:
+ 		// Two channel types are identical if they have identical value types
+ 		// and the same direction.
+ 		if y, ok := y.(*Chan); ok {
+-			return x.dir == y.dir && identical(x.elem, y.elem, p)
++			return x.dir == y.dir && identical(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Named:
+diff --git a/src/go/types/testdata/conversions2.src b/src/go/types/testdata/conversions2.src
+new file mode 100644
+index 0000000000..93a5f182fb
+--- /dev/null
++++ b/src/go/types/testdata/conversions2.src
+@@ -0,0 +1,313 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test various valid and invalid struct assignments and conversions.
++// Does not compile.
++
++package conversions2
++
++type I interface {
++	m()
++}
++
++// conversions between structs
++
++func _() {
++	type S struct{}
++	type T struct{}
++	var s S
++	var t T
++	var u struct{}
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u
++	s = S(s)
++	s = S(t)
++	s = S(u)
++	t = u
++	t = T(u)
++}
++
++func _() {
++	type S struct{ x int }
++	type T struct {
++		x int "foo"
++	}
++	var s S
++	var t T
++	var u struct {
++		x int "bar"
++	}
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = S(s)
++	s = S(t)
++	s = S(u)
++	t = u // ERROR "cannot use .* in assignment"
++	t = T(u)
++}
++
++func _() {
++	type E struct{ x int }
++	type S struct{ x E }
++	type T struct {
++		x E "foo"
++	}
++	var s S
++	var t T
++	var u struct {
++		x E "bar"
++	}
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = S(s)
++	s = S(t)
++	s = S(u)
++	t = u // ERROR "cannot use .* in assignment"
++	t = T(u)
++}
++
++func _() {
++	type S struct {
++		x struct {
++			x int "foo"
++		}
++	}
++	type T struct {
++		x struct {
++			x int "bar"
++		} "foo"
++	}
++	var s S
++	var t T
++	var u struct {
++		x struct {
++			x int "bar"
++		} "bar"
++	}
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = S(s)
++	s = S(t)
++	s = S(u)
++	t = u // ERROR "cannot use .* in assignment"
++	t = T(u)
++}
++
++func _() {
++	type E1 struct {
++		x int "foo"
++	}
++	type E2 struct {
++		x int "bar"
++	}
++	type S struct{ x E1 }
++	type T struct {
++		x E2 "foo"
++	}
++	var s S
++	var t T
++	var u struct {
++		x E2 "bar"
++	}
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = S(s)
++	s = S(t /* ERROR "cannot convert" */ )
++	s = S(u /* ERROR "cannot convert" */ )
++	t = u   // ERROR "cannot use .* in assignment"
++	t = T(u)
++}
++
++func _() {
++	type E struct{ x int }
++	type S struct {
++		f func(struct {
++			x int "foo"
++		})
++	}
++	type T struct {
++		f func(struct {
++			x int "bar"
++		})
++	}
++	var s S
++	var t T
++	var u struct{ f func(E) }
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = S(s)
++	s = S(t)
++	s = S(u /* ERROR "cannot convert" */ )
++	t = u   // ERROR "cannot use .* in assignment"
++	t = T(u /* ERROR "cannot convert" */ )
++}
++
++// conversions between pointers to structs
++
++func _() {
++	type S struct{}
++	type T struct{}
++	var s *S
++	var t *T
++	var u *struct{}
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = (*S)(s)
++	s = (*S)(t)
++	s = (*S)(u)
++	t = u // ERROR "cannot use .* in assignment"
++	t = (*T)(u)
++}
++
++func _() {
++	type S struct{ x int }
++	type T struct {
++		x int "foo"
++	}
++	var s *S
++	var t *T
++	var u *struct {
++		x int "bar"
++	}
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = (*S)(s)
++	s = (*S)(t)
++	s = (*S)(u)
++	t = u // ERROR "cannot use .* in assignment"
++	t = (*T)(u)
++}
++
++func _() {
++	type E struct{ x int }
++	type S struct{ x E }
++	type T struct {
++		x E "foo"
++	}
++	var s *S
++	var t *T
++	var u *struct {
++		x E "bar"
++	}
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = (*S)(s)
++	s = (*S)(t)
++	s = (*S)(u)
++	t = u // ERROR "cannot use .* in assignment"
++	t = (*T)(u)
++}
++
++func _() {
++	type S struct {
++		x struct {
++			x int "foo"
++		}
++	}
++	type T struct {
++		x struct {
++			x int "bar"
++		} "foo"
++	}
++	var s *S
++	var t *T
++	var u *struct {
++		x struct {
++			x int "bar"
++		} "bar"
++	}
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = (*S)(s)
++	s = (*S)(t)
++	s = (*S)(u)
++	t = u // ERROR "cannot use .* in assignment"
++	t = (*T)(u)
++}
++
++func _() {
++	type E1 struct {
++		x int "foo"
++	}
++	type E2 struct {
++		x int "bar"
++	}
++	type S struct{ x E1 }
++	type T struct {
++		x E2 "foo"
++	}
++	var s *S
++	var t *T
++	var u *struct {
++		x E2 "bar"
++	}
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = (*S)(s)
++	s = (*S)(t /* ERROR "cannot convert" */ )
++	s = (*S)(u /* ERROR "cannot convert" */ )
++	t = u      // ERROR "cannot use .* in assignment"
++	t = (*T)(u)
++}
++
++func _() {
++	type E struct{ x int }
++	type S struct {
++		f func(struct {
++			x int "foo"
++		})
++	}
++	type T struct {
++		f func(struct {
++			x int "bar"
++		})
++	}
++	var s *S
++	var t *T
++	var u *struct{ f func(E) }
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = (*S)(s)
++	s = (*S)(t)
++	s = (*S)(u /* ERROR "cannot convert" */ )
++	t = u      // ERROR "cannot use .* in assignment"
++	t = (*T)(u /* ERROR "cannot convert" */ )
++}
++
++func _() {
++	type E struct{ x int }
++	type S struct {
++		f func(*struct {
++			x int "foo"
++		})
++	}
++	type T struct {
++		f func(*struct {
++			x int "bar"
++		})
++	}
++	var s *S
++	var t *T
++	var u *struct{ f func(E) }
++	s = s
++	s = t // ERROR "cannot use .* in assignment"
++	s = u // ERROR "cannot use .* in assignment"
++	s = (*S)(s)
++	s = (*S)(t)
++	s = (*S)(u /* ERROR "cannot convert" */ )
++	t = u      // ERROR "cannot use .* in assignment"
++	t = (*T)(u /* ERROR "cannot convert" */ )
++}

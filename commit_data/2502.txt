@@ -8,8 +8,90 @@ Date:   Tue Jun 23 15:20:30 2009 -0700
     DELTA=9  (0 added, 0 deleted, 9 changed)
     OCL=30658
     CL=30658
-
+---
  src/pkg/bignum/bignum.go |  6 +++---
  src/pkg/fmt/fmt_test.go  |  2 +-
  src/pkg/fmt/print.go     | 10 +++++-----
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/bignum/bignum.go b/src/pkg/bignum/bignum.go
+index b9ea66587a..665ab9f06e 100755
+--- a/src/pkg/bignum/bignum.go
++++ b/src/pkg/bignum/bignum.go
+@@ -722,7 +722,7 @@ func fmtbase(c int) uint {
+ // Format is a support routine for fmt.Formatter. It accepts
+ // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
+ //
+-func (x Natural) Format(h fmt.Formatter, c int) {
++func (x Natural) Format(h fmt.State, c int) {
+ 	fmt.Fprintf(h, "%s", x.ToString(fmtbase(c)));
+ }
+ 
+@@ -1252,7 +1252,7 @@ func (x *Integer) String() string {
+ // Format is a support routine for fmt.Formatter. It accepts
+ // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
+ //
+-func (x *Integer) Format(h fmt.Formatter, c int) {
++func (x *Integer) Format(h fmt.State, c int) {
+ 	fmt.Fprintf(h, "%s", x.ToString(fmtbase(c)));
+ }
+ 
+@@ -1424,7 +1424,7 @@ func (x *Rational) String() string {
+ // Format is a support routine for fmt.Formatter. It accepts
+ // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
+ //
+-func (x *Rational) Format(h fmt.Formatter, c int) {
++func (x *Rational) Format(h fmt.State, c int) {
+ 	fmt.Fprintf(h, "%s", x.ToString(fmtbase(c)));
+ }
+ 
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index e8abc2f0d7..d530a0198b 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -172,7 +172,7 @@ func TestSprintf(t *testing.T) {
+ }
+ 
+ type flagPrinter struct { }
+-func (*flagPrinter) Format(f fmt.Formatter, c int) {
++func (*flagPrinter) Format(f fmt.State, c int) {
+ 	s := "%";
+ 	for i := 0; i < 128; i++ {
+ 		if f.Flag(i) {
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 7562ff1cd6..2c5b73949b 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -74,10 +74,10 @@ import (
+ 	"utf8";
+ )
+ 
+-// Formatter represents the printer state passed to custom formatters.
++// State represents the printer state passed to custom formatters.
+ // It provides access to the io.Writer interface plus information about
+ // the flags and options for the operand's format specifier.
+-type Formatter interface {
++type State interface {
+ 	// Write is the function to call to emit formatted output to be printed.
+ 	Write(b []byte) (ret int, err os.Error);
+ 	// Width returns the value of the width option and whether it has been set.
+@@ -92,8 +92,8 @@ type Formatter interface {
+ // Format is the interface implemented by objects with a custom formatter.
+ // The implementation of Format may call Sprintf or Fprintf(f) etc.
+ // to generate its output.
+-type Format interface {
+-	Format(f Formatter, c int);
++type Formatter interface {
++	Format(f State, c int);
+ }
+ 
+ // String represents any object being printed that has a String() method that
+@@ -565,7 +565,7 @@ func (p *pp) doprintf(format string, v reflect.StructValue) {
+ 		fieldnum++;
+ 		inter := field.Interface();
+ 		if inter != nil && c != 'T' {	// don't want thing to describe itself if we're asking for its type
+-			if formatter, ok := inter.(Format); ok {
++			if formatter, ok := inter.(Formatter); ok {
+ 				formatter.Format(p, c);
+ 				continue;
+ 			}

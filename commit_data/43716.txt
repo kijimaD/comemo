@@ -40,7 +40,7 @@ Date:   Mon Apr 20 11:14:36 2020 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go | 17 +++++++++++++++++
  src/cmd/compile/internal/gc/escape.go  | 22 +++++++++++++++++++---
  src/cmd/compile/internal/gc/scc.go     |  7 +++++++
@@ -49,3 +49,147 @@ Date:   Mon Apr 20 11:14:36 2020 -0700
  test/fixedbugs/issue21709.go           |  6 ++----
  test/fixedbugs/issue27557.go           |  3 +--
  7 files changed, 48 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index f00fd59f86..9d71c1e2ef 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -566,3 +566,20 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 
+ 	return walkexpr(clos, init)
+ }
++
++// callpartMethod returns the *types.Field representing the method
++// referenced by method value n.
++func callpartMethod(n *Node) *types.Field {
++	if n.Op != OCALLPART {
++		Fatalf("expected OCALLPART, got %v", n)
++	}
++
++	// TODO(mdempsky): Optimize this. If necessary,
++	// makepartialcall could save m for us somewhere.
++	var m *types.Field
++	if lookdot0(n.Right.Sym, n.Left.Type, &m, false) != 1 {
++		Fatalf("failed to find field for OCALLPART")
++	}
++
++	return m
++}
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 598750fd8d..ac6fe67e4b 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -522,10 +522,26 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 		// nop
+ 
+ 	case OCALLPART:
+-		e.spill(k, n)
++		// Flow the receiver argument to both the closure and
++		// to the receiver parameter.
++
++		closureK := e.spill(k, n)
++
++		m := callpartMethod(n)
++
++		// We don't know how the method value will be called
++		// later, so conservatively assume the result
++		// parameters all flow to the heap.
++		//
++		// TODO(mdempsky): Change ks into a callback, so that
++		// we don't have to create this dummy slice?
++		var ks []EscHole
++		for i := m.Type.NumResults(); i > 0; i-- {
++			ks = append(ks, e.heapHole())
++		}
++		paramK := e.tagHole(ks, asNode(m.Type.Nname()), m.Type.Recv())
+ 
+-		// TODO(mdempsky): We can do better here. See #27557.
+-		e.assignHeap(n.Left, "call part", n)
++		e.expr(e.teeHole(paramK, closureK), n.Left)
+ 
+ 	case OPTRLIT:
+ 		e.expr(e.spill(k, n), n.Left)
+diff --git a/src/cmd/compile/internal/gc/scc.go b/src/cmd/compile/internal/gc/scc.go
+index 0428a6af8d..60e0a9b8b5 100644
+--- a/src/cmd/compile/internal/gc/scc.go
++++ b/src/cmd/compile/internal/gc/scc.go
+@@ -82,6 +82,13 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+ 					min = m
+ 				}
+ 			}
++		case OCALLPART:
++			fn := asNode(callpartMethod(n).Type.Nname())
++			if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
++				if m := v.visit(fn.Name.Defn); m < min {
++					min = m
++				}
++			}
+ 		case OCLOSURE:
+ 			if m := v.visit(n.Func.Closure); m < min {
+ 				min = m
+diff --git a/test/escape2.go b/test/escape2.go
+index 4e30331380..cf24f4bebc 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1386,8 +1386,7 @@ func (t *Tm) M() { // ERROR "t does not escape$"
+ func foo141() {
+ 	var f func()
+ 
+-	// BAD: new(Tm) should not escape
+-	t := new(Tm) // ERROR "new\(Tm\) escapes to heap$"
++	t := new(Tm) // ERROR "new\(Tm\) does not escape$"
+ 	f = t.M      // ERROR "t.M does not escape$"
+ 	_ = f
+ }
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 26b0a1d8c5..f771e0aef2 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -1386,8 +1386,7 @@ func (t *Tm) M() { // ERROR "t does not escape$"
+ func foo141() {
+ 	var f func()
+ 
+-	// BAD: new(Tm) should not escape
+-	t := new(Tm) // ERROR "new\(Tm\) escapes to heap$"
++	t := new(Tm) // ERROR "new\(Tm\) does not escape$"
+ 	f = t.M      // ERROR "t.M does not escape$"
+ 	_ = f
+ }
+diff --git a/test/fixedbugs/issue21709.go b/test/fixedbugs/issue21709.go
+index abc9e767e5..cc5896ab53 100644
+--- a/test/fixedbugs/issue21709.go
++++ b/test/fixedbugs/issue21709.go
+@@ -14,8 +14,7 @@ func (s *S) Inc() {} // ERROR "s does not escape"
+ var N int
+ 
+ func F1() {
+-	// BAD: s should not escape
+-	var s S // ERROR "moved to heap: s"
++	var s S
+ 	for i := 0; i < N; i++ {
+ 		fs := []func(){ // ERROR "\[\]func\(\) literal does not escape"
+ 			s.Inc, // ERROR "s.Inc does not escape"
+@@ -27,8 +26,7 @@ func F1() {
+ }
+ 
+ func F2() {
+-	// BAD: s should not escape
+-	var s S // ERROR "moved to heap: s"
++	var s S
+ 	for i := 0; i < N; i++ {
+ 		for _, f := range []func(){ // ERROR "\[\]func\(\) literal does not escape"
+ 			s.Inc, // ERROR "s.Inc does not escape"
+diff --git a/test/fixedbugs/issue27557.go b/test/fixedbugs/issue27557.go
+index 11a23f6932..e35ab5a169 100644
+--- a/test/fixedbugs/issue27557.go
++++ b/test/fixedbugs/issue27557.go
+@@ -9,8 +9,7 @@ package p
+ var sink interface{}
+ 
+ func _() {
+-	// BAD: t should not escape
+-	var t T         // ERROR "moved to heap"
++	var t T
+ 	f := t.noescape // ERROR "t.noescape does not escape"
+ 	f()
+ }

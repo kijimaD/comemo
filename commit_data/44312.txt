@@ -17,6 +17,22 @@ Date:   Tue Jun 9 14:26:09 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237157
     Reviewed-by: Alexander Rakoczy <alex@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  doc/go1.15.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 7a49e1fa1f..fc8ee2d31f 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -374,10 +374,6 @@ Do not send CLs removing the interior tags from such phrases.
+   in mind.
+ </p>
+ 
+-<p>
+-TODO
+-</p>
+-
+ <dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+   <dd>
+     <p><!-- CL 222637 -->

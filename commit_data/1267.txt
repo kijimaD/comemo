@@ -8,7 +8,79 @@ Date:   Wed Dec 3 10:41:43 2008 -0800
     DELTA=32  (28 added, 3 deleted, 1 changed)
     OCL=20301
     CL=20340
-
+---
  test/bugs/bug128.go | 23 +++++++++++++++++++++++
  test/golden.out     | 14 ++++++++++----
  2 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/test/bugs/bug128.go b/test/bugs/bug128.go
+new file mode 100644
+index 0000000000..3fd647c004
+--- /dev/null
++++ b/test/bugs/bug128.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++func main() {
++	switch {
++		// empty switch is allowed according to syntax
++		// unclear why it shouldn't be allowed
++	}
++	switch tag := 0; tag {
++		// empty switch is allowed according to syntax
++		// unclear why it shouldn't be allowed
++	}
++}
++
++/*
++uetli:~/Source/go1/test/bugs gri$ 6g bug127.go 
++bug127.go:5: switch statement must have case labels
++bug127.go:9: switch statement must have case labels
++*/
+diff --git a/test/golden.out b/test/golden.out
+index fe10981df5..619cb1492d 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -11,10 +11,11 @@ errchk: ./convlit.go: unmatched error messages:
+ ==================================================
+ ./convlit.go:8: cannot convert non-integer constant to int
+ ./convlit.go:11: overflow converting constant to int
+-./convlit.go:12: overflow in float constant
++./convlit.go:12: overflow converting constant to float
+ ./convlit.go:8: cannot convert non-integer constant to int
+ ./convlit.go:9: cannot convert non-integer constant to int
+ ./convlit.go:11: overflow converting constant to int
++./convlit.go:12: overflow converting constant to float
+ ==================================================
+ 
+ =========== ./helloworld.go
+@@ -150,9 +151,6 @@ panic PC=xxx
+ BUG: should not fail
+ 
+ =========== bugs/bug120.go
+-Bad float64 const: 1e23+8.388608e6 want 1.0000000000000001e+23 got 1e+23
+-	want exact: 100000000000000008388608
+-	got exact:  99999999999999991611392
+ Bad float64 const: 1e23+1 want 1.0000000000000001e+23 got 1e+23
+ 	want exact: 100000000000000008388608
+ 	got exact:  99999999999999991611392
+@@ -176,6 +174,14 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
+ =========== bugs/bug126.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug126.go
+ 
++=========== bugs/bug127.go
++BUG: errchk: command succeeded unexpectedly:  6g bugs/bug127.go
++
++=========== bugs/bug128.go
++bugs/bug128.go:5: switch statement must have case labels
++bugs/bug128.go:9: switch statement must have case labels
++BUG: should compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

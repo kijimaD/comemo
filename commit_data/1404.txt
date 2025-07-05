@@ -8,10 +8,98 @@ Date:   Mon Jan 5 13:09:34 2009 -0800
     DELTA=10  (1 added, 2 deleted, 7 changed)
     OCL=22033
     CL=22033
-
+---
  test/fixedbugs/bug027.go | 5 ++---
  test/fixedbugs/bug045.go | 2 +-
  test/fixedbugs/bug054.go | 2 +-
  test/fixedbugs/bug097.go | 4 ++--
  test/fixedbugs/bug119.go | 4 ++--
  5 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/test/fixedbugs/bug027.go b/test/fixedbugs/bug027.go
+index d15da9cd42..428a4b6a88 100644
+--- a/test/fixedbugs/bug027.go
++++ b/test/fixedbugs/bug027.go
+@@ -17,7 +17,7 @@ type Vector struct {
+ func New() *Vector {
+ 	v := new(*Vector);
+ 	v.nelem = 0;
+-	v.elem = new([10]Element);
++	v.elem = new([]Element, 10);
+ 	return v;
+ }
+ 
+@@ -30,9 +30,8 @@ func (v *Vector) Insert(e Element) {
+ 	v.nelem++;
+ }
+ 
+-type I struct { val int; };  // BUG: can't be local;
+-
+ func main() {
++	type I struct { val int; };
+ 	i0 := new(*I); i0.val = 0;
+ 	i1 := new(*I); i1.val = 11;
+ 	i2 := new(*I); i2.val = 222;
+diff --git a/test/fixedbugs/bug045.go b/test/fixedbugs/bug045.go
+index d8a712c6da..37c17c13bb 100644
+--- a/test/fixedbugs/bug045.go
++++ b/test/fixedbugs/bug045.go
+@@ -13,7 +13,7 @@ type T struct {
+ func main() {
+ 	var ta []*T;
+ 
+-	ta = new([1]*T);
++	ta = *new(*[1]*T);	// TODO: the first * shouldn't be necessary
+ 	ta[0] = nil;
+ }
+ /*
+diff --git a/test/fixedbugs/bug054.go b/test/fixedbugs/bug054.go
+index 2caff0f0ca..c121fb5e76 100644
+--- a/test/fixedbugs/bug054.go
++++ b/test/fixedbugs/bug054.go
+@@ -31,7 +31,7 @@ func (s *TStruct) field(i int) *TStruct {
+ 
+ func main() {
+ 	v := new(*Vector);
+-	v.elem = new([10]Element);
++	v.elem = new([]Element, 10);
+ 	t := new(*TStruct);
+ 	t.name = "hi";
+ 	v.elem[0] = t;
+diff --git a/test/fixedbugs/bug097.go b/test/fixedbugs/bug097.go
+index 21376837e3..fe5fd4b87e 100644
+--- a/test/fixedbugs/bug097.go
++++ b/test/fixedbugs/bug097.go
+@@ -9,9 +9,9 @@ package main
+ type A []int;
+ 
+ func main() {
+-	var a [3]*A;
++	var a [3]A;
+ 	for i := 0; i < 3; i++ {
+-		a[i] = &A{i};
++		a[i] = A{i};
+ 	}
+ 	if a[0][0] != 0 { panic(); }
+ 	if a[1][0] != 1 { panic(); }
+diff --git a/test/fixedbugs/bug119.go b/test/fixedbugs/bug119.go
+index e565cffd4f..8e51ef2cec 100644
+--- a/test/fixedbugs/bug119.go
++++ b/test/fixedbugs/bug119.go
+@@ -7,14 +7,14 @@
+ package main
+ 
+ func foo(a []int) int {
+-	return (*a)[0]  // this seesm to do the wrong thing
++	return a[0]  // this seems to do the wrong thing
+ }
+ 
+ func main() {
+ 	a := &[]int{12};
+ 	if x := a[0]   ; x != 12 { panicln(1) }
+ 	if x := (*a)[0]; x != 12 { panicln(2) }
+-	if x := foo(a) ; x != 12 { panicln(3) }  // fails (x is incorrect)
++	if x := foo(*a) ; x != 12 { panicln(3) }  // fails (x is incorrect)
+ }
+ 
+ /*

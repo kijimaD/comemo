@@ -10,10 +10,651 @@ Date:   Tue Apr 17 02:35:41 2012 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6007050
-
+---
  src/pkg/runtime/defs_openbsd.go        |  15 +-
  src/pkg/runtime/defs_openbsd_386.h     | 246 +++++++++++++++---------------
  src/pkg/runtime/defs_openbsd_amd64.h   | 271 +++++++++++++++++----------------
  src/pkg/runtime/signal_openbsd_386.c   |   2 +-
  src/pkg/runtime/signal_openbsd_amd64.c |   2 +-
  5 files changed, 269 insertions(+), 267 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_openbsd.go b/src/pkg/runtime/defs_openbsd.go
+index 47c30cf101..d0be044806 100644
+--- a/src/pkg/runtime/defs_openbsd.go
++++ b/src/pkg/runtime/defs_openbsd.go
+@@ -7,8 +7,8 @@
+ /*
+ Input to cgo.
+ 
+-GOARCH=amd64 cgo -cdefs defs.go >amd64/defs.h
+-GOARCH=386 cgo -cdefs defs.go >386/defs.h
++GOARCH=amd64 go tool cgo -cdefs defs_openbsd.go >defs_openbsd_amd64.h
++GOARCH=386 go tool cgo -cdefs defs_openbsd.go >defs_openbsd_386.h
+ */
+ 
+ package runtime
+@@ -93,9 +93,12 @@ const (
+ 	ITIMER_PROF    = C.ITIMER_PROF
+ )
+ 
++type Tfork C.struct___tfork
++
+ type Sigaltstack C.struct_sigaltstack
+-type Sigset C.sigset_t
++type Sigcontext C.struct_sigcontext
+ type Siginfo C.siginfo_t
++type Sigset C.sigset_t
+ type Sigval C.union_sigval
+ 
+ type StackT C.stack_t
+@@ -103,9 +106,3 @@ type StackT C.stack_t
+ type Timespec C.struct_timespec
+ type Timeval C.struct_timeval
+ type Itimerval C.struct_itimerval
+-
+-// This is a hack to avoid pulling in machine/fpu.h.
+-type sfxsave64 struct{}
+-type usavefpu struct{}
+-
+-type Sigcontext C.struct_sigcontext
+diff --git a/src/pkg/runtime/defs_openbsd_386.h b/src/pkg/runtime/defs_openbsd_386.h
+index aff87fb3b1..0527ef1fc5 100644
+--- a/src/pkg/runtime/defs_openbsd_386.h
++++ b/src/pkg/runtime/defs_openbsd_386.h
+@@ -1,146 +1,148 @@
+-// godefs -f -m32 defs.c
++// Created by cgo -cdefs - DO NOT EDIT
++// cgo -cdefs defs_openbsd.go
+ 
+-// MACHINE GENERATED - DO NOT EDIT.
+ 
+-// Constants
+ enum {
+-	PROT_NONE = 0,
+-	PROT_READ = 0x1,
+-	PROT_WRITE = 0x2,
+-	PROT_EXEC = 0x4,
+-	MAP_ANON = 0x1000,
+-	MAP_PRIVATE = 0x2,
+-	MAP_FIXED = 0x10,
+-	SA_SIGINFO = 0x40,
+-	SA_RESTART = 0x2,
+-	SA_ONSTACK = 0x1,
+-	EINTR = 0x4,
+-	SIGHUP = 0x1,
+-	SIGINT = 0x2,
+-	SIGQUIT = 0x3,
+-	SIGILL = 0x4,
+-	SIGTRAP = 0x5,
+-	SIGABRT = 0x6,
+-	SIGEMT = 0x7,
+-	SIGFPE = 0x8,
+-	SIGKILL = 0x9,
+-	SIGBUS = 0xa,
+-	SIGSEGV = 0xb,
+-	SIGSYS = 0xc,
+-	SIGPIPE = 0xd,
+-	SIGALRM = 0xe,
+-	SIGTERM = 0xf,
+-	SIGURG = 0x10,
+-	SIGSTOP = 0x11,
+-	SIGTSTP = 0x12,
+-	SIGCONT = 0x13,
+-	SIGCHLD = 0x14,
+-	SIGTTIN = 0x15,
+-	SIGTTOU = 0x16,
+-	SIGIO = 0x17,
+-	SIGXCPU = 0x18,
+-	SIGXFSZ = 0x19,
+-	SIGVTALRM = 0x1a,
+-	SIGPROF = 0x1b,
+-	SIGWINCH = 0x1c,
+-	SIGINFO = 0x1d,
+-	SIGUSR1 = 0x1e,
+-	SIGUSR2 = 0x1f,
+-	FPE_INTDIV = 0x1,
+-	FPE_INTOVF = 0x2,
+-	FPE_FLTDIV = 0x3,
+-	FPE_FLTOVF = 0x4,
+-	FPE_FLTUND = 0x5,
+-	FPE_FLTRES = 0x6,
+-	FPE_FLTINV = 0x7,
+-	FPE_FLTSUB = 0x8,
+-	BUS_ADRALN = 0x1,
+-	BUS_ADRERR = 0x2,
+-	BUS_OBJERR = 0x3,
+-	SEGV_MAPERR = 0x1,
+-	SEGV_ACCERR = 0x2,
+-	ITIMER_REAL = 0,
+-	ITIMER_VIRTUAL = 0x1,
+-	ITIMER_PROF = 0x2,
+-};
++	PROT_NONE	= 0x0,
++	PROT_READ	= 0x1,
++	PROT_WRITE	= 0x2,
++	PROT_EXEC	= 0x4,
+ 
+-// Types
+-#pragma pack on
++	MAP_ANON	= 0x1000,
++	MAP_PRIVATE	= 0x2,
++	MAP_FIXED	= 0x10,
+ 
+-typedef struct Sigaltstack Sigaltstack;
+-struct Sigaltstack {
+-	void *ss_sp;
+-	uint32 ss_size;
+-	int32 ss_flags;
+-};
++	SA_SIGINFO	= 0x40,
++	SA_RESTART	= 0x2,
++	SA_ONSTACK	= 0x1,
++
++	EINTR	= 0x4,
++
++	SIGHUP		= 0x1,
++	SIGINT		= 0x2,
++	SIGQUIT		= 0x3,
++	SIGILL		= 0x4,
++	SIGTRAP		= 0x5,
++	SIGABRT		= 0x6,
++	SIGEMT		= 0x7,
++	SIGFPE		= 0x8,
++	SIGKILL		= 0x9,
++	SIGBUS		= 0xa,
++	SIGSEGV		= 0xb,
++	SIGSYS		= 0xc,
++	SIGPIPE		= 0xd,
++	SIGALRM		= 0xe,
++	SIGTERM		= 0xf,
++	SIGURG		= 0x10,
++	SIGSTOP		= 0x11,
++	SIGTSTP		= 0x12,
++	SIGCONT		= 0x13,
++	SIGCHLD		= 0x14,
++	SIGTTIN		= 0x15,
++	SIGTTOU		= 0x16,
++	SIGIO		= 0x17,
++	SIGXCPU		= 0x18,
++	SIGXFSZ		= 0x19,
++	SIGVTALRM	= 0x1a,
++	SIGPROF		= 0x1b,
++	SIGWINCH	= 0x1c,
++	SIGINFO		= 0x1d,
++	SIGUSR1		= 0x1e,
++	SIGUSR2		= 0x1f,
++
++	FPE_INTDIV	= 0x1,
++	FPE_INTOVF	= 0x2,
++	FPE_FLTDIV	= 0x3,
++	FPE_FLTOVF	= 0x4,
++	FPE_FLTUND	= 0x5,
++	FPE_FLTRES	= 0x6,
++	FPE_FLTINV	= 0x7,
++	FPE_FLTSUB	= 0x8,
++
++	BUS_ADRALN	= 0x1,
++	BUS_ADRERR	= 0x2,
++	BUS_OBJERR	= 0x3,
+ 
+-typedef uint32 Sigset;
++	SEGV_MAPERR	= 0x1,
++	SEGV_ACCERR	= 0x2,
+ 
++	ITIMER_REAL	= 0x0,
++	ITIMER_VIRTUAL	= 0x1,
++	ITIMER_PROF	= 0x2,
++};
++
++typedef struct Tfork Tfork;
++typedef struct Sigaltstack Sigaltstack;
++typedef struct Sigcontext Sigcontext;
+ typedef struct Siginfo Siginfo;
+-struct Siginfo {
+-	int32 si_signo;
+-	int32 si_code;
+-	int32 si_errno;
+-	byte _data[116];
++typedef struct StackT StackT;
++typedef struct Timespec Timespec;
++typedef struct Timeval Timeval;
++typedef struct Itimerval Itimerval;
++
++#pragma pack on
++
++struct Tfork {
++	byte	*tf_tcb;
++	int32	*tf_tid;
++	int32	tf_flags;
+ };
+ 
+-typedef union Sigval Sigval;
+-union Sigval {
+-	int32 sival_int;
+-	void *sival_ptr;
++struct Sigaltstack {
++	byte	*ss_sp;
++	uint32	ss_size;
++	int32	ss_flags;
+ };
++struct Sigcontext {
++	int32	sc_gs;
++	int32	sc_fs;
++	int32	sc_es;
++	int32	sc_ds;
++	int32	sc_edi;
++	int32	sc_esi;
++	int32	sc_ebp;
++	int32	sc_ebx;
++	int32	sc_edx;
++	int32	sc_ecx;
++	int32	sc_eax;
++	int32	sc_eip;
++	int32	sc_cs;
++	int32	sc_eflags;
++	int32	sc_esp;
++	int32	sc_ss;
++	int32	sc_onstack;
++	int32	sc_mask;
++	int32	sc_trapno;
++	int32	sc_err;
++	void	*sc_fpstate;
++};
++struct Siginfo {
++	int32	si_signo;
++	int32	si_code;
++	int32	si_errno;
++	byte	_data[116];
++};
++typedef	uint32	Sigset;
++typedef	byte	Sigval[4];
+ 
+-typedef struct StackT StackT;
+ struct StackT {
+-	void *ss_sp;
+-	uint32 ss_size;
+-	int32 ss_flags;
++	byte	*ss_sp;
++	uint32	ss_size;
++	int32	ss_flags;
+ };
+ 
+-typedef struct Timespec Timespec;
+ struct Timespec {
+-	int32 tv_sec;
+-	int32 tv_nsec;
++	int32	tv_sec;
++	int32	tv_nsec;
+ };
+-
+-typedef struct Timeval Timeval;
+ struct Timeval {
+-	int32 tv_sec;
+-	int32 tv_usec;
++	int32	tv_sec;
++	int32	tv_usec;
+ };
+-
+-typedef struct Itimerval Itimerval;
+ struct Itimerval {
+-	Timeval it_interval;
+-	Timeval it_value;
++	Timeval	it_interval;
++	Timeval	it_value;
+ };
+ 
+-typedef void sfxsave64;
+ 
+-typedef void usavefpu;
+-
+-typedef struct Sigcontext Sigcontext;
+-struct Sigcontext {
+-	int32 sc_gs;
+-	int32 sc_fs;
+-	int32 sc_es;
+-	int32 sc_ds;
+-	int32 sc_edi;
+-	int32 sc_esi;
+-	int32 sc_ebp;
+-	int32 sc_ebx;
+-	int32 sc_edx;
+-	int32 sc_ecx;
+-	int32 sc_eax;
+-	int32 sc_eip;
+-	int32 sc_cs;
+-	int32 sc_eflags;
+-	int32 sc_esp;
+-	int32 sc_ss;
+-	int32 sc_onstack;
+-	int32 sc_mask;
+-	int32 sc_trapno;
+-	int32 sc_err;
+-	usavefpu *sc_fpstate;
+-};
+ #pragma pack off
+diff --git a/src/pkg/runtime/defs_openbsd_amd64.h b/src/pkg/runtime/defs_openbsd_amd64.h
+index 27bf4b9d65..0a43349519 100644
+--- a/src/pkg/runtime/defs_openbsd_amd64.h
++++ b/src/pkg/runtime/defs_openbsd_amd64.h
+@@ -1,158 +1,161 @@
+-// godefs -f -m64 defs.c
++// Created by cgo -cdefs - DO NOT EDIT
++// cgo -cdefs defs_openbsd.go
+ 
+-// MACHINE GENERATED - DO NOT EDIT.
+ 
+-// Constants
+ enum {
+-	PROT_NONE = 0,
+-	PROT_READ = 0x1,
+-	PROT_WRITE = 0x2,
+-	PROT_EXEC = 0x4,
+-	MAP_ANON = 0x1000,
+-	MAP_PRIVATE = 0x2,
+-	MAP_FIXED = 0x10,
+-	SA_SIGINFO = 0x40,
+-	SA_RESTART = 0x2,
+-	SA_ONSTACK = 0x1,
+-	EINTR = 0x4,
+-	SIGHUP = 0x1,
+-	SIGINT = 0x2,
+-	SIGQUIT = 0x3,
+-	SIGILL = 0x4,
+-	SIGTRAP = 0x5,
+-	SIGABRT = 0x6,
+-	SIGEMT = 0x7,
+-	SIGFPE = 0x8,
+-	SIGKILL = 0x9,
+-	SIGBUS = 0xa,
+-	SIGSEGV = 0xb,
+-	SIGSYS = 0xc,
+-	SIGPIPE = 0xd,
+-	SIGALRM = 0xe,
+-	SIGTERM = 0xf,
+-	SIGURG = 0x10,
+-	SIGSTOP = 0x11,
+-	SIGTSTP = 0x12,
+-	SIGCONT = 0x13,
+-	SIGCHLD = 0x14,
+-	SIGTTIN = 0x15,
+-	SIGTTOU = 0x16,
+-	SIGIO = 0x17,
+-	SIGXCPU = 0x18,
+-	SIGXFSZ = 0x19,
+-	SIGVTALRM = 0x1a,
+-	SIGPROF = 0x1b,
+-	SIGWINCH = 0x1c,
+-	SIGINFO = 0x1d,
+-	SIGUSR1 = 0x1e,
+-	SIGUSR2 = 0x1f,
+-	FPE_INTDIV = 0x1,
+-	FPE_INTOVF = 0x2,
+-	FPE_FLTDIV = 0x3,
+-	FPE_FLTOVF = 0x4,
+-	FPE_FLTUND = 0x5,
+-	FPE_FLTRES = 0x6,
+-	FPE_FLTINV = 0x7,
+-	FPE_FLTSUB = 0x8,
+-	BUS_ADRALN = 0x1,
+-	BUS_ADRERR = 0x2,
+-	BUS_OBJERR = 0x3,
+-	SEGV_MAPERR = 0x1,
+-	SEGV_ACCERR = 0x2,
+-	ITIMER_REAL = 0,
+-	ITIMER_VIRTUAL = 0x1,
+-	ITIMER_PROF = 0x2,
+-};
++	PROT_NONE	= 0x0,
++	PROT_READ	= 0x1,
++	PROT_WRITE	= 0x2,
++	PROT_EXEC	= 0x4,
+ 
+-// Types
+-#pragma pack on
++	MAP_ANON	= 0x1000,
++	MAP_PRIVATE	= 0x2,
++	MAP_FIXED	= 0x10,
+ 
+-typedef struct Sigaltstack Sigaltstack;
+-struct Sigaltstack {
+-	void *ss_sp;
+-	uint64 ss_size;
+-	int32 ss_flags;
+-	byte pad_godefs_0[4];
+-};
++	SA_SIGINFO	= 0x40,
++	SA_RESTART	= 0x2,
++	SA_ONSTACK	= 0x1,
++
++	EINTR	= 0x4,
++
++	SIGHUP		= 0x1,
++	SIGINT		= 0x2,
++	SIGQUIT		= 0x3,
++	SIGILL		= 0x4,
++	SIGTRAP		= 0x5,
++	SIGABRT		= 0x6,
++	SIGEMT		= 0x7,
++	SIGFPE		= 0x8,
++	SIGKILL		= 0x9,
++	SIGBUS		= 0xa,
++	SIGSEGV		= 0xb,
++	SIGSYS		= 0xc,
++	SIGPIPE		= 0xd,
++	SIGALRM		= 0xe,
++	SIGTERM		= 0xf,
++	SIGURG		= 0x10,
++	SIGSTOP		= 0x11,
++	SIGTSTP		= 0x12,
++	SIGCONT		= 0x13,
++	SIGCHLD		= 0x14,
++	SIGTTIN		= 0x15,
++	SIGTTOU		= 0x16,
++	SIGIO		= 0x17,
++	SIGXCPU		= 0x18,
++	SIGXFSZ		= 0x19,
++	SIGVTALRM	= 0x1a,
++	SIGPROF		= 0x1b,
++	SIGWINCH	= 0x1c,
++	SIGINFO		= 0x1d,
++	SIGUSR1		= 0x1e,
++	SIGUSR2		= 0x1f,
++
++	FPE_INTDIV	= 0x1,
++	FPE_INTOVF	= 0x2,
++	FPE_FLTDIV	= 0x3,
++	FPE_FLTOVF	= 0x4,
++	FPE_FLTUND	= 0x5,
++	FPE_FLTRES	= 0x6,
++	FPE_FLTINV	= 0x7,
++	FPE_FLTSUB	= 0x8,
++
++	BUS_ADRALN	= 0x1,
++	BUS_ADRERR	= 0x2,
++	BUS_OBJERR	= 0x3,
+ 
+-typedef uint32 Sigset;
++	SEGV_MAPERR	= 0x1,
++	SEGV_ACCERR	= 0x2,
+ 
++	ITIMER_REAL	= 0x0,
++	ITIMER_VIRTUAL	= 0x1,
++	ITIMER_PROF	= 0x2,
++};
++
++typedef struct Tfork Tfork;
++typedef struct Sigaltstack Sigaltstack;
++typedef struct Sigcontext Sigcontext;
+ typedef struct Siginfo Siginfo;
+-struct Siginfo {
+-	int32 si_signo;
+-	int32 si_code;
+-	int32 si_errno;
+-	byte pad_godefs_0[4];
+-	byte _data[120];
++typedef struct StackT StackT;
++typedef struct Timespec Timespec;
++typedef struct Timeval Timeval;
++typedef struct Itimerval Itimerval;
++
++#pragma pack on
++
++struct Tfork {
++	byte	*tf_tcb;
++	int32	*tf_tid;
++	int32	tf_flags;
++	byte	Pad_cgo_0[4];
+ };
+ 
+-typedef union Sigval Sigval;
+-union Sigval {
+-	int32 sival_int;
+-	void *sival_ptr;
++struct Sigaltstack {
++	byte	*ss_sp;
++	uint64	ss_size;
++	int32	ss_flags;
++	byte	Pad_cgo_0[4];
+ };
++struct Sigcontext {
++	int64	sc_rdi;
++	int64	sc_rsi;
++	int64	sc_rdx;
++	int64	sc_rcx;
++	int64	sc_r8;
++	int64	sc_r9;
++	int64	sc_r10;
++	int64	sc_r11;
++	int64	sc_r12;
++	int64	sc_r13;
++	int64	sc_r14;
++	int64	sc_r15;
++	int64	sc_rbp;
++	int64	sc_rbx;
++	int64	sc_rax;
++	int64	sc_gs;
++	int64	sc_fs;
++	int64	sc_es;
++	int64	sc_ds;
++	int64	sc_trapno;
++	int64	sc_err;
++	int64	sc_rip;
++	int64	sc_cs;
++	int64	sc_rflags;
++	int64	sc_rsp;
++	int64	sc_ss;
++	void	*sc_fpstate;
++	int32	sc_onstack;
++	int32	sc_mask;
++};
++struct Siginfo {
++	int32	si_signo;
++	int32	si_code;
++	int32	si_errno;
++	byte	Pad_cgo_0[4];
++	byte	_data[120];
++};
++typedef	uint32	Sigset;
++typedef	byte	Sigval[8];
+ 
+-typedef struct StackT StackT;
+ struct StackT {
+-	void *ss_sp;
+-	uint64 ss_size;
+-	int32 ss_flags;
+-	byte pad_godefs_0[4];
++	byte	*ss_sp;
++	uint64	ss_size;
++	int32	ss_flags;
++	byte	Pad_cgo_0[4];
+ };
+ 
+-typedef struct Timespec Timespec;
+ struct Timespec {
+-	int32 tv_sec;
+-	byte pad_godefs_0[4];
+-	int64 tv_nsec;
++	int32	tv_sec;
++	byte	Pad_cgo_0[4];
++	int64	tv_nsec;
+ };
+-
+-typedef struct Timeval Timeval;
+ struct Timeval {
+-	int64 tv_sec;
+-	int64 tv_usec;
++	int64	tv_sec;
++	int64	tv_usec;
+ };
+-
+-typedef struct Itimerval Itimerval;
+ struct Itimerval {
+-	Timeval it_interval;
+-	Timeval it_value;
++	Timeval	it_interval;
++	Timeval	it_value;
+ };
+ 
+-typedef void sfxsave64;
+ 
+-typedef void usavefpu;
+-
+-typedef struct Sigcontext Sigcontext;
+-struct Sigcontext {
+-	int64 sc_rdi;
+-	int64 sc_rsi;
+-	int64 sc_rdx;
+-	int64 sc_rcx;
+-	int64 sc_r8;
+-	int64 sc_r9;
+-	int64 sc_r10;
+-	int64 sc_r11;
+-	int64 sc_r12;
+-	int64 sc_r13;
+-	int64 sc_r14;
+-	int64 sc_r15;
+-	int64 sc_rbp;
+-	int64 sc_rbx;
+-	int64 sc_rax;
+-	int64 sc_gs;
+-	int64 sc_fs;
+-	int64 sc_es;
+-	int64 sc_ds;
+-	int64 sc_trapno;
+-	int64 sc_err;
+-	int64 sc_rip;
+-	int64 sc_cs;
+-	int64 sc_rflags;
+-	int64 sc_rsp;
+-	int64 sc_ss;
+-	sfxsave64 *sc_fpstate;
+-	int32 sc_onstack;
+-	int32 sc_mask;
+-};
+ #pragma pack off
+diff --git a/src/pkg/runtime/signal_openbsd_386.c b/src/pkg/runtime/signal_openbsd_386.c
+index 39d829484d..dd2f7c9117 100644
+--- a/src/pkg/runtime/signal_openbsd_386.c
++++ b/src/pkg/runtime/signal_openbsd_386.c
+@@ -109,7 +109,7 @@ runtime·signalstack(byte *p, int32 n)
+ {
+ 	Sigaltstack st;
+ 
+-	st.ss_sp = (int8*)p;
++	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
+ 	runtime·sigaltstack(&st, nil);
+diff --git a/src/pkg/runtime/signal_openbsd_amd64.c b/src/pkg/runtime/signal_openbsd_amd64.c
+index 2f47ffc843..eb8f0e2edd 100644
+--- a/src/pkg/runtime/signal_openbsd_amd64.c
++++ b/src/pkg/runtime/signal_openbsd_amd64.c
+@@ -118,7 +118,7 @@ runtime·signalstack(byte *p, int32 n)
+ {
+ 	Sigaltstack st;
+ 
+-	st.ss_sp = (int8*)p;
++	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
+ 	runtime·sigaltstack(&st, nil);

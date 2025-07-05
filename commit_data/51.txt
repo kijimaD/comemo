@@ -8,7 +8,33 @@ Date:   Tue Apr 1 12:48:20 2008 -0700
     a function.
     
     SVN=114572
-
+---
  src/c/dcl.c | 1 -
  src/c/go.y  | 2 +-
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/c/dcl.c b/src/c/dcl.c
+index abf6b7ac73..3c89e75d33 100644
+--- a/src/c/dcl.c
++++ b/src/c/dcl.c
+@@ -297,7 +297,6 @@ funchdr(Node *n)
+ 		n->nname = on;
+ 		n->type = on->type;
+ 		n->sym = s;
+-		s->oname = n;
+ 		if(debug['d'])
+ 			print("forew  var-dcl %S %T\n", n->sym, n->type);
+ 	}
+diff --git a/src/c/go.y b/src/c/go.y
+index 9d4433cf9d..50fd4f5684 100644
+--- a/src/c/go.y
++++ b/src/c/go.y
+@@ -855,7 +855,7 @@ fntypeh:
+ 		$$ = functype(N, $3, $5);
+ 		funcnam($$, nil);
+ 	}
+-/* i dont believe that this form is useful for nothing */
++/* i dont believe that this form is useful for anything */
+ |	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' fnres
+ 	{
+ 		if($3 == N || $3->op == OLIST)

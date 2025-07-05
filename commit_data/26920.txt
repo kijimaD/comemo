@@ -25,7 +25,7 @@ Date:   Wed Mar 2 21:24:04 2016 -0500
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/l.go    |  1 +
  src/cmd/link/internal/amd64/obj.go  |  1 +
  src/cmd/link/internal/arm/l.go      |  1 +
@@ -41,3 +41,189 @@ Date:   Wed Mar 2 21:24:04 2016 -0500
  src/cmd/link/internal/x86/l.go      |  1 +
  src/cmd/link/internal/x86/obj.go    |  1 +
  14 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/l.go b/src/cmd/link/internal/amd64/l.go
+index 2537419eff..4ec8610afb 100644
+--- a/src/cmd/link/internal/amd64/l.go
++++ b/src/cmd/link/internal/amd64/l.go
+@@ -33,6 +33,7 @@ package amd64
+ const (
+ 	thechar   = '6'
+ 	MaxAlign  = 32 // max data alignment
++	MinAlign  = 1  // min data alignment
+ 	FuncAlign = 16
+ )
+ 
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 0167b69900..f5c2756fe7 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -57,6 +57,7 @@ func linkarchinit() {
+ 	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
+ 	ld.Thearch.Funcalign = FuncAlign
+ 	ld.Thearch.Maxalign = MaxAlign
++	ld.Thearch.Minalign = MinAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+diff --git a/src/cmd/link/internal/arm/l.go b/src/cmd/link/internal/arm/l.go
+index b6de5a0cc1..58aecc4b64 100644
+--- a/src/cmd/link/internal/arm/l.go
++++ b/src/cmd/link/internal/arm/l.go
+@@ -65,6 +65,7 @@ package arm
+ const (
+ 	thechar   = '5'
+ 	MaxAlign  = 8 // max data alignment
++	MinAlign  = 1 // min data alignment
+ 	FuncAlign = 4 // single-instruction alignment
+ 	MINLC     = 4
+ )
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 1a83c3ba4c..bcd61fda9b 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -54,6 +54,7 @@ func linkarchinit() {
+ 	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
+ 	ld.Thearch.Funcalign = FuncAlign
+ 	ld.Thearch.Maxalign = MaxAlign
++	ld.Thearch.Minalign = MinAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+diff --git a/src/cmd/link/internal/arm64/l.go b/src/cmd/link/internal/arm64/l.go
+index 62703d2b7d..b9b7ea50e3 100644
+--- a/src/cmd/link/internal/arm64/l.go
++++ b/src/cmd/link/internal/arm64/l.go
+@@ -64,6 +64,7 @@ package arm64
+ const (
+ 	thechar   = '7'
+ 	MaxAlign  = 32 // max data alignment
++	MinAlign  = 1  // min data alignment
+ 	FuncAlign = 8
+ 	MINLC     = 4
+ )
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 762809fd30..693e106ff1 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -54,6 +54,7 @@ func linkarchinit() {
+ 	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
+ 	ld.Thearch.Funcalign = FuncAlign
+ 	ld.Thearch.Maxalign = MaxAlign
++	ld.Thearch.Minalign = MinAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index cbaf15280d..bc7909d1ed 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1026,18 +1026,18 @@ func dosymtype() {
+ 	}
+ }
+ 
++// symalign returns the required alignment for the given symbol s.
+ func symalign(s *LSym) int32 {
+-	if s.Align != 0 {
++	min := int32(Thearch.Minalign)
++	if s.Align >= min {
+ 		return s.Align
++	} else if s.Align != 0 {
++		return min
+ 	}
+-
+ 	align := int32(Thearch.Maxalign)
+-	for int64(align) > s.Size && align > 1 {
++	for int64(align) > s.Size && align > min {
+ 		align >>= 1
+ 	}
+-	if align < s.Align {
+-		align = s.Align
+-	}
+ 	return align
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 4bc150ff4f..c5d736aaed 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -88,6 +88,7 @@ type Arch struct {
+ 	Regsize          int
+ 	Funcalign        int
+ 	Maxalign         int
++	Minalign         int
+ 	Minlc            int
+ 	Dwarfregsp       int
+ 	Dwarfreglr       int
+diff --git a/src/cmd/link/internal/mips64/l.go b/src/cmd/link/internal/mips64/l.go
+index 8ea1d8433c..003ee5ce71 100644
+--- a/src/cmd/link/internal/mips64/l.go
++++ b/src/cmd/link/internal/mips64/l.go
+@@ -64,6 +64,7 @@ package mips64
+ const (
+ 	thechar   = '0'
+ 	MaxAlign  = 32 // max data alignment
++	MinAlign  = 1  // min data alignment
+ 	FuncAlign = 8
+ 	MINLC     = 4
+ )
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 5ab5808047..57a1b2ab14 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -58,6 +58,7 @@ func linkarchinit() {
+ 	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
+ 	ld.Thearch.Funcalign = FuncAlign
+ 	ld.Thearch.Maxalign = MaxAlign
++	ld.Thearch.Minalign = MinAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+diff --git a/src/cmd/link/internal/ppc64/l.go b/src/cmd/link/internal/ppc64/l.go
+index 1c4a4a9c86..622d6bb12e 100644
+--- a/src/cmd/link/internal/ppc64/l.go
++++ b/src/cmd/link/internal/ppc64/l.go
+@@ -64,6 +64,7 @@ package ppc64
+ const (
+ 	thechar   = '9'
+ 	MaxAlign  = 32 // max data alignment
++	MinAlign  = 1  // min data alignment
+ 	FuncAlign = 8
+ 	MINLC     = 4
+ )
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 61b26799a1..539ab1ac02 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -58,6 +58,7 @@ func linkarchinit() {
+ 	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
+ 	ld.Thearch.Funcalign = FuncAlign
+ 	ld.Thearch.Maxalign = MaxAlign
++	ld.Thearch.Minalign = MinAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+diff --git a/src/cmd/link/internal/x86/l.go b/src/cmd/link/internal/x86/l.go
+index c067425ba5..068fed9c8d 100644
+--- a/src/cmd/link/internal/x86/l.go
++++ b/src/cmd/link/internal/x86/l.go
+@@ -34,6 +34,7 @@ const (
+ 	thechar   = '8'
+ 	PtrSize   = 4
+ 	MaxAlign  = 32 // max data alignment
++	MinAlign  = 1  // min data alignment
+ 	FuncAlign = 16
+ 	MINLC     = 1
+ )
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 00a825a7a3..4380c41ebb 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -54,6 +54,7 @@ func linkarchinit() {
+ 	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
+ 	ld.Thearch.Funcalign = FuncAlign
+ 	ld.Thearch.Maxalign = MaxAlign
++	ld.Thearch.Minalign = MinAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR

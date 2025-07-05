@@ -17,6 +17,29 @@ Date:   Fri Jan 14 13:11:36 2022 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/race/output_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index 46cdfcd0e9..0dcdabe641 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -207,7 +207,7 @@ func TestFail(t *testing.T) {
+ }
+ `, []string{`
+ ==================
+---- FAIL: TestFail \(0...s\)
++--- FAIL: TestFail \([0-9.]+s\)
+ .*main_test.go:14: true
+ .*testing.go:.*: race detected during execution of test
+ FAIL`}},
+@@ -363,7 +363,7 @@ func TestPass(t *testing.T) {
+ }
+ `, []string{`
+ ==================
+---- FAIL: TestFail \(0...s\)
++--- FAIL: TestFail \([0-9.]+s\)
+ .*testing.go:.*: race detected during execution of test
+ FAIL`}},
+ 	{"mutex", "run", "", "atexit_sleep_ms=0", `

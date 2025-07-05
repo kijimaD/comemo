@@ -12,6 +12,31 @@ Date:   Fri May 5 09:09:00 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/codehost/git_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git_test.go b/src/cmd/go/internal/modfetch/codehost/git_test.go
+index 084167e4df..cb0f501b9a 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git_test.go
++++ b/src/cmd/go/internal/modfetch/codehost/git_test.go
+@@ -234,6 +234,9 @@ func TestLatest(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 			if !reflect.DeepEqual(info, tt.info) {
++				if !reflect.DeepEqual(info.Tags, tt.info.Tags) {
++					testenv.SkipFlaky(t, 56881)
++				}
+ 				t.Errorf("Latest: incorrect info\nhave %+v (origin %+v)\nwant %+v (origin %+v)", info, info.Origin, tt.info, tt.info.Origin)
+ 			}
+ 		}
+@@ -609,6 +612,9 @@ func TestStat(t *testing.T) {
+ 			}
+ 			info.Origin = nil // TestLatest and ../../../testdata/script/reuse_git.txt test Origin well enough
+ 			if !reflect.DeepEqual(info, tt.info) {
++				if !reflect.DeepEqual(info.Tags, tt.info.Tags) {
++					testenv.SkipFlaky(t, 56881)
++				}
+ 				t.Errorf("Stat: incorrect info\nhave %+v\nwant %+v", *info, *tt.info)
+ 			}
+ 		}

@@ -20,6 +20,24 @@ Date:   Wed May 25 22:59:19 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index bf1a7e74c1..ca86e72d83 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1558,6 +1558,12 @@ func writelines(prev *LSym) *LSym {
+ 				if !haslinkregister() {
+ 					offs -= int64(SysArch.PtrSize)
+ 				}
++				if obj.Framepointer_enabled != 0 {
++					// The frame pointer is saved
++					// between the CFA and the
++					// autos.
++					offs -= int64(SysArch.PtrSize)
++				}
+ 
+ 			case obj.A_PARAM:
+ 				dt = DW_ABRV_PARAM

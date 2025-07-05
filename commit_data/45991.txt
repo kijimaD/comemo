@@ -25,6 +25,20 @@ Date:   Tue Dec 1 12:54:24 2020 +0700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/base/signal.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/base/signal.go b/src/cmd/go/internal/base/signal.go
+index 54d11876d0..05befcf7f0 100644
+--- a/src/cmd/go/internal/base/signal.go
++++ b/src/cmd/go/internal/base/signal.go
+@@ -15,7 +15,7 @@ var Interrupted = make(chan struct{})
+ 
+ // processSignals setups signal handler.
+ func processSignals() {
+-	sig := make(chan os.Signal)
++	sig := make(chan os.Signal, 1)
+ 	signal.Notify(sig, signalsToIgnore...)
+ 	go func() {
+ 		<-sig

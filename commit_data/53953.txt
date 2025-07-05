@@ -11,7 +11,58 @@ Date:   Wed Sep 7 09:51:35 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/syscall_unix.go    | 7 +------
  src/syscall/syscall_windows.go | 7 +------
  2 files changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index cf0e238e2f..3133becd7c 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -11,7 +11,6 @@ import (
+ 	"internal/itoa"
+ 	"internal/oserror"
+ 	"internal/race"
+-	"internal/unsafeheader"
+ 	"runtime"
+ 	"sync"
+ 	"unsafe"
+@@ -57,11 +56,7 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
+ 	}
+ 
+ 	// Use unsafe to turn addr into a []byte.
+-	var b []byte
+-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
+-	hdr.Data = unsafe.Pointer(addr)
+-	hdr.Cap = length
+-	hdr.Len = length
++	b := unsafe.Slice((*byte)(unsafe.Pointer(addr)), length)
+ 
+ 	// Register mapping in m and return it.
+ 	p := &b[cap(b)-1]
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index c58d972e61..76a2f5ad54 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -12,7 +12,6 @@ import (
+ 	"internal/itoa"
+ 	"internal/oserror"
+ 	"internal/race"
+-	"internal/unsafeheader"
+ 	"runtime"
+ 	"sync"
+ 	"unicode/utf16"
+@@ -78,11 +77,7 @@ func utf16PtrToString(p *uint16) string {
+ 		n++
+ 	}
+ 	// Turn *uint16 into []uint16.
+-	var s []uint16
+-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(p)
+-	hdr.Cap = n
+-	hdr.Len = n
++	s := unsafe.Slice((*uint16)(unsafe.Pointer(p)), n)
+ 	// Decode []uint16 into string.
+ 	return string(utf16.Decode(s))
+ }

@@ -19,7 +19,7 @@ Date:   Wed May 22 13:38:40 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/archive/tar/writer.go                      |  4 +-
  src/archive/tar/writer_test.go                 |  4 +-
  src/archive/zip/reader.go                      | 42 ++++++++++++++------
@@ -110,3 +110,3111 @@ Date:   Wed May 22 13:38:40 2024 -0700
  src/testing/testing.go                         |  4 +-
  src/time/genzabbrs.go                          |  7 ++--
  89 files changed, 499 insertions(+), 454 deletions(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 73bad3229a..2089f16ceb 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -10,7 +10,7 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"path"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"time"
+ )
+@@ -174,7 +174,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+ 		for k := range paxHdrs {
+ 			keys = append(keys, k)
+ 		}
+-		sort.Strings(keys)
++		slices.Sort(keys)
+ 
+ 		// Write each record to a buffer.
+ 		var buf strings.Builder
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 8b113a34e0..9c3bcea767 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -13,7 +13,7 @@ import (
+ 	"os"
+ 	"path"
+ 	"reflect"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"testing/fstest"
+@@ -749,7 +749,7 @@ func TestPaxHeadersSorted(t *testing.T) {
+ 		bytes.Index(buf.Bytes(), []byte("foo=foo")),
+ 		bytes.Index(buf.Bytes(), []byte("qux=qux")),
+ 	}
+-	if !sort.IntsAreSorted(indices) {
++	if !slices.IsSorted(indices) {
+ 		t.Fatal("PAX headers are not sorted")
+ 	}
+ }
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 60b34b76ee..fc9b1cf67c 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -16,7 +16,7 @@ import (
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"time"
+@@ -862,14 +862,19 @@ func (r *Reader) initFileList() {
+ 			}
+ 		}
+ 
+-		sort.Slice(r.fileList, func(i, j int) bool { return fileEntryLess(r.fileList[i].name, r.fileList[j].name) })
++		slices.SortFunc(r.fileList, func(a, b fileListEntry) int {
++			return fileEntryCompare(a.name, b.name)
++		})
+ 	})
+ }
+ 
+-func fileEntryLess(x, y string) bool {
++func fileEntryCompare(x, y string) int {
+ 	xdir, xelem, _ := split(x)
+ 	ydir, yelem, _ := split(y)
+-	return xdir < ydir || xdir == ydir && xelem < yelem
++	if xdir != ydir {
++		return strings.Compare(xdir, ydir)
++	}
++	return strings.Compare(xelem, yelem)
+ }
+ 
+ // Open opens the named file in the ZIP archive,
+@@ -920,9 +925,12 @@ func (r *Reader) openLookup(name string) *fileListEntry {
+ 
+ 	dir, elem, _ := split(name)
+ 	files := r.fileList
+-	i := sort.Search(len(files), func(i int) bool {
+-		idir, ielem, _ := split(files[i].name)
+-		return idir > dir || idir == dir && ielem >= elem
++	i, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) (ret int) {
++		idir, ielem, _ := split(a.name)
++		if dir != idir {
++			return strings.Compare(idir, dir)
++		}
++		return strings.Compare(ielem, elem)
+ 	})
+ 	if i < len(files) {
+ 		fname := files[i].name
+@@ -935,13 +943,21 @@ func (r *Reader) openLookup(name string) *fileListEntry {
+ 
+ func (r *Reader) openReadDir(dir string) []fileListEntry {
+ 	files := r.fileList
+-	i := sort.Search(len(files), func(i int) bool {
+-		idir, _, _ := split(files[i].name)
+-		return idir >= dir
++	i, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) int {
++		idir, _, _ := split(a.name)
++		if dir != idir {
++			return strings.Compare(idir, dir)
++		}
++		// find the first entry with dir
++		return +1
+ 	})
+-	j := sort.Search(len(files), func(j int) bool {
+-		jdir, _, _ := split(files[j].name)
+-		return jdir > dir
++	j, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) int {
++		jdir, _, _ := split(a.name)
++		if dir != jdir {
++			return strings.Compare(jdir, dir)
++		}
++		// find the last entry with dir
++		return -1
+ 	})
+ 	return files[i:j]
+ }
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index 5425f22033..5a6689a0eb 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -8,13 +8,14 @@ package zip
+ 
+ import (
+ 	"bytes"
++	"cmp"
+ 	"errors"
+ 	"fmt"
+ 	"hash"
+ 	"internal/testenv"
+ 	"io"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -214,9 +215,8 @@ func (r *rleBuffer) ReadAt(p []byte, off int64) (n int, err error) {
+ 	if len(p) == 0 {
+ 		return
+ 	}
+-	skipParts := sort.Search(len(r.buf), func(i int) bool {
+-		part := &r.buf[i]
+-		return part.off+part.n > off
++	skipParts, _ := slices.BinarySearchFunc(r.buf, off, func(rb repeatedByte, off int64) int {
++		return cmp.Compare(rb.off+rb.n, off)
+ 	})
+ 	parts := r.buf[skipParts:]
+ 	if len(parts) > 0 {
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 54df5f74e5..1cc0089e41 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"unicode"
+ )
+@@ -165,11 +165,8 @@ func ExampleCompare_search() {
+ 	// Binary search to find a matching byte slice.
+ 	var needle []byte
+ 	var haystack [][]byte // Assume sorted
+-	i := sort.Search(len(haystack), func(i int) bool {
+-		// Return haystack[i] >= needle.
+-		return bytes.Compare(haystack[i], needle) >= 0
+-	})
+-	if i < len(haystack) && bytes.Equal(haystack[i], needle) {
++	_, found := slices.BinarySearchFunc(haystack, needle, bytes.Compare)
++	if found {
+ 		// Found it!
+ 	}
+ }
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 3a3383b271..b45a905880 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1078,18 +1078,18 @@ func TestGoListTest(t *testing.T) {
+ 	tg.makeTempdir()
+ 	tg.setenv("GOCACHE", tg.tempdir)
+ 
+-	tg.run("list", "-test", "-deps", "sort")
+-	tg.grepStdout(`^sort.test$`, "missing test main")
+-	tg.grepStdout(`^sort$`, "missing real sort")
+-	tg.grepStdout(`^sort \[sort.test\]$`, "missing test copy of sort")
+-	tg.grepStdout(`^testing \[sort.test\]$`, "missing test copy of testing")
++	tg.run("list", "-test", "-deps", "bytes")
++	tg.grepStdout(`^bytes.test$`, "missing test main")
++	tg.grepStdout(`^bytes$`, "missing real bytes")
++	tg.grepStdout(`^bytes \[bytes.test\]$`, "missing test copy of bytes")
++	tg.grepStdout(`^testing \[bytes.test\]$`, "missing test copy of testing")
+ 	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
+ 
+-	tg.run("list", "-test", "sort")
+-	tg.grepStdout(`^sort.test$`, "missing test main")
+-	tg.grepStdout(`^sort$`, "missing real sort")
+-	tg.grepStdout(`^sort \[sort.test\]$`, "unexpected test copy of sort")
+-	tg.grepStdoutNot(`^testing \[sort.test\]$`, "unexpected test copy of testing")
++	tg.run("list", "-test", "bytes")
++	tg.grepStdout(`^bytes.test$`, "missing test main")
++	tg.grepStdout(`^bytes$`, "missing real bytes")
++	tg.grepStdout(`^bytes \[bytes.test\]$`, "unexpected test copy of bytes")
++	tg.grepStdoutNot(`^testing \[bytes.test\]$`, "unexpected test copy of testing")
+ 	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
+ 
+ 	tg.run("list", "-test", "cmd/buildid", "cmd/doc")
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 320ef7031e..fda3cd30db 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -26,7 +26,6 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"slices"
+-	"sort"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -1548,61 +1547,71 @@ func TestCipherSuites(t *testing.T) {
+ 		}
+ 
+ 		// Check that the list is sorted according to the documented criteria.
+-		isBetter := func(a, b int) bool {
+-			aSuite, bSuite := cipherSuiteByID(prefOrder[a]), cipherSuiteByID(prefOrder[b])
+-			aName, bName := CipherSuiteName(prefOrder[a]), CipherSuiteName(prefOrder[b])
++		isBetter := func(a, b uint16) int {
++			aSuite, bSuite := cipherSuiteByID(a), cipherSuiteByID(b)
++			aName, bName := CipherSuiteName(a), CipherSuiteName(b)
+ 			// * < RC4
+ 			if !strings.Contains(aName, "RC4") && strings.Contains(bName, "RC4") {
+-				return true
++				return -1
+ 			} else if strings.Contains(aName, "RC4") && !strings.Contains(bName, "RC4") {
+-				return false
++				return +1
+ 			}
+ 			// * < CBC_SHA256
+ 			if !strings.Contains(aName, "CBC_SHA256") && strings.Contains(bName, "CBC_SHA256") {
+-				return true
++				return -1
+ 			} else if strings.Contains(aName, "CBC_SHA256") && !strings.Contains(bName, "CBC_SHA256") {
+-				return false
++				return +1
+ 			}
+ 			// * < 3DES
+ 			if !strings.Contains(aName, "3DES") && strings.Contains(bName, "3DES") {
+-				return true
++				return -1
+ 			} else if strings.Contains(aName, "3DES") && !strings.Contains(bName, "3DES") {
+-				return false
++				return +1
+ 			}
+ 			// ECDHE < *
+ 			if aSuite.flags&suiteECDHE != 0 && bSuite.flags&suiteECDHE == 0 {
+-				return true
++				return -1
+ 			} else if aSuite.flags&suiteECDHE == 0 && bSuite.flags&suiteECDHE != 0 {
+-				return false
++				return +1
+ 			}
+ 			// AEAD < CBC
+ 			if aSuite.aead != nil && bSuite.aead == nil {
+-				return true
++				return -1
+ 			} else if aSuite.aead == nil && bSuite.aead != nil {
+-				return false
++				return +1
+ 			}
+ 			// AES < ChaCha20
+ 			if strings.Contains(aName, "AES") && strings.Contains(bName, "CHACHA20") {
+-				return i == 0 // true for cipherSuitesPreferenceOrder
++				// negative for cipherSuitesPreferenceOrder
++				if i == 0 {
++					return -1
++				} else {
++					return +1
++				}
+ 			} else if strings.Contains(aName, "CHACHA20") && strings.Contains(bName, "AES") {
+-				return i != 0 // true for cipherSuitesPreferenceOrderNoAES
++				// negative for cipherSuitesPreferenceOrderNoAES
++				if i != 0 {
++					return -1
++				} else {
++					return +1
++				}
+ 			}
+ 			// AES-128 < AES-256
+ 			if strings.Contains(aName, "AES_128") && strings.Contains(bName, "AES_256") {
+-				return true
++				return -1
+ 			} else if strings.Contains(aName, "AES_256") && strings.Contains(bName, "AES_128") {
+-				return false
++				return +1
+ 			}
+ 			// ECDSA < RSA
+ 			if aSuite.flags&suiteECSign != 0 && bSuite.flags&suiteECSign == 0 {
+-				return true
++				return -1
+ 			} else if aSuite.flags&suiteECSign == 0 && bSuite.flags&suiteECSign != 0 {
+-				return false
++				return +1
+ 			}
+ 			t.Fatalf("two ciphersuites are equal by all criteria: %v and %v", aName, bName)
+ 			panic("unreachable")
+ 		}
+-		if !sort.SliceIsSorted(prefOrder, isBetter) {
++		if !slices.IsSortedFunc(prefOrder, isBetter) {
+ 			t.Error("preference order is not sorted according to the rules")
+ 		}
+ 	}
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index ca330cac80..ca1c744b62 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -19,7 +19,7 @@ import (
+ 	"os/exec"
+ 	"reflect"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -2064,7 +2064,7 @@ func chainsToStrings(chains [][]*Certificate) []string {
+ 		}
+ 		chainStrings = append(chainStrings, strings.Join(names, " -> "))
+ 	}
+-	sort.Strings(chainStrings)
++	slices.Sort(chainStrings)
+ 	return chainStrings
+ }
+ 
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 69ab4f6f9e..b9c0b8bce0 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -10,7 +10,7 @@ import (
+ 	"fmt"
+ 	"math/big"
+ 	"reflect"
+-	"sort"
++	"slices"
+ 	"time"
+ 	"unicode/utf8"
+ )
+@@ -105,15 +105,13 @@ func (s setEncoder) Encode(dst []byte) {
+ 		e.Encode(l[i])
+ 	}
+ 
+-	sort.Slice(l, func(i, j int) bool {
+-		// Since we are using bytes.Compare to compare TLV encodings we
+-		// don't need to right pad s[i] and s[j] to the same length as
+-		// suggested in X690. If len(s[i]) < len(s[j]) the length octet of
+-		// s[i], which is the first determining byte, will inherently be
+-		// smaller than the length octet of s[j]. This lets us skip the
+-		// padding step.
+-		return bytes.Compare(l[i], l[j]) < 0
+-	})
++	// Since we are using bytes.Compare to compare TLV encodings we
++	// don't need to right pad s[i] and s[j] to the same length as
++	// suggested in X690. If len(s[i]) < len(s[j]) the length octet of
++	// s[i], which is the first determining byte, will inherently be
++	// smaller than the length octet of s[j]. This lets us skip the
++	// padding step.
++	slices.SortFunc(l, bytes.Compare)
+ 
+ 	var off int
+ 	for _, b := range l {
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index d99b0715f9..efb13bc83b 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -6,12 +6,13 @@ package gob
+ 
+ import (
+ 	"bytes"
++	"cmp"
+ 	"encoding/hex"
+ 	"fmt"
+ 	"io"
+ 	"math"
+ 	"reflect"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -1186,12 +1187,12 @@ func TestMarshalFloatMap(t *testing.T) {
+ 		for k, v := range m {
+ 			entries = append(entries, mapEntry{math.Float64bits(k), v})
+ 		}
+-		sort.Slice(entries, func(i, j int) bool {
+-			ei, ej := entries[i], entries[j]
+-			if ei.keyBits != ej.keyBits {
+-				return ei.keyBits < ej.keyBits
++		slices.SortFunc(entries, func(a, b mapEntry) int {
++			r := cmp.Compare(a.keyBits, b.keyBits)
++			if r != 0 {
++				return r
+ 			}
+-			return ei.value < ej.value
++			return cmp.Compare(a.value, b.value)
+ 		})
+ 		return entries
+ 	}
+diff --git a/src/encoding/pem/pem.go b/src/encoding/pem/pem.go
+index 4b4f749021..7a515fd363 100644
+--- a/src/encoding/pem/pem.go
++++ b/src/encoding/pem/pem.go
+@@ -12,7 +12,7 @@ import (
+ 	"encoding/base64"
+ 	"errors"
+ 	"io"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -274,7 +274,7 @@ func Encode(out io.Writer, b *Block) error {
+ 			}
+ 		}
+ 		// For consistency of output, write other headers sorted by key.
+-		sort.Strings(h)
++		slices.Sort(h)
+ 		for _, k := range h {
+ 			if err := writeHeader(out, k, b.Headers[k]); err != nil {
+ 				return err
+diff --git a/src/fmt/errors.go b/src/fmt/errors.go
+index 1fbd39f8f1..1ac83404bc 100644
+--- a/src/fmt/errors.go
++++ b/src/fmt/errors.go
+@@ -6,7 +6,7 @@ package fmt
+ 
+ import (
+ 	"errors"
+-	"sort"
++	"slices"
+ )
+ 
+ // Errorf formats according to a format specifier and returns the string as a
+@@ -34,7 +34,7 @@ func Errorf(format string, a ...any) error {
+ 		err = w
+ 	default:
+ 		if p.reordered {
+-			sort.Ints(p.wrappedErrs)
++			slices.Sort(p.wrappedErrs)
+ 		}
+ 		var errs []error
+ 		for i, argNum := range p.wrappedErrs {
+diff --git a/src/go/ast/commentmap.go b/src/go/ast/commentmap.go
+index a9488f5072..b62fe489e4 100644
+--- a/src/go/ast/commentmap.go
++++ b/src/go/ast/commentmap.go
+@@ -6,26 +6,18 @@ package ast
+ 
+ import (
+ 	"bytes"
++	"cmp"
+ 	"fmt"
+ 	"go/token"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+-type byPos []*CommentGroup
+-
+-func (a byPos) Len() int           { return len(a) }
+-func (a byPos) Less(i, j int) bool { return a[i].Pos() < a[j].Pos() }
+-func (a byPos) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-
+ // sortComments sorts the list of comment groups in source order.
+ func sortComments(list []*CommentGroup) {
+-	// TODO(gri): Does it make sense to check for sorted-ness
+-	//            first (because we know that sorted-ness is
+-	//            very likely)?
+-	if orderedList := byPos(list); !sort.IsSorted(orderedList) {
+-		sort.Sort(orderedList)
+-	}
++	slices.SortFunc(list, func(a, b *CommentGroup) int {
++		return cmp.Compare(a.Pos(), b.Pos())
++	})
+ }
+ 
+ // A CommentMap maps an AST node to a list of comment groups
+@@ -64,11 +56,19 @@ func nodeList(n Node) []Node {
+ 		list = append(list, n)
+ 		return true
+ 	})
++
+ 	// Note: The current implementation assumes that Inspect traverses the
+ 	//       AST in depth-first and thus _source_ order. If AST traversal
+ 	//       does not follow source order, the sorting call below will be
+ 	//       required.
+-	// sort.Sort(byInterval(list))
++	// slices.Sort(list, func(a, b Node) int {
++	//       r := cmp.Compare(a.Pos(), b.Pos())
++	//       if r != 0 {
++	//               return r
++	//       }
++	//       return cmp.Compare(a.End(), b.End())
++	// })
++
+ 	return list
+ }
+ 
+@@ -310,7 +310,13 @@ func (cmap CommentMap) String() string {
+ 	for node := range cmap {
+ 		nodes = append(nodes, node)
+ 	}
+-	sort.Sort(byInterval(nodes))
++	slices.SortFunc(nodes, func(a, b Node) int {
++		r := cmp.Compare(a.Pos(), b.Pos())
++		if r != 0 {
++			return r
++		}
++		return cmp.Compare(a.End(), b.End())
++	})
+ 
+ 	var buf strings.Builder
+ 	fmt.Fprintln(&buf, "CommentMap {")
+diff --git a/src/go/ast/filter.go b/src/go/ast/filter.go
+index 5c12ed1614..89682846df 100644
+--- a/src/go/ast/filter.go
++++ b/src/go/ast/filter.go
+@@ -6,7 +6,7 @@ package ast
+ 
+ import (
+ 	"go/token"
+-	"sort"
++	"slices"
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -357,7 +357,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 			maxPos = f.FileEnd
+ 		}
+ 	}
+-	sort.Strings(filenames)
++	slices.Sort(filenames)
+ 
+ 	// Collect package comments from all package files into a single
+ 	// CommentGroup - the collected package documentation. In general
+diff --git a/src/go/ast/import.go b/src/go/ast/import.go
+index 7fdf137d14..17f0db470f 100644
+--- a/src/go/ast/import.go
++++ b/src/go/ast/import.go
+@@ -5,8 +5,9 @@
+ package ast
+ 
+ import (
++	"cmp"
+ 	"go/token"
+-	"sort"
++	"slices"
+ 	"strconv"
+ )
+ 
+@@ -172,18 +173,20 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+ 	// Reassign the import paths to have the same position sequence.
+ 	// Reassign each comment to the spec on the same line.
+ 	// Sort the comments by new position.
+-	sort.Slice(specs, func(i, j int) bool {
+-		ipath := importPath(specs[i])
+-		jpath := importPath(specs[j])
+-		if ipath != jpath {
+-			return ipath < jpath
++	slices.SortFunc(specs, func(a, b Spec) int {
++		ipath := importPath(a)
++		jpath := importPath(b)
++		r := cmp.Compare(ipath, jpath)
++		if r != 0 {
++			return r
+ 		}
+-		iname := importName(specs[i])
+-		jname := importName(specs[j])
+-		if iname != jname {
+-			return iname < jname
++		iname := importName(a)
++		jname := importName(b)
++		r = cmp.Compare(iname, jname)
++		if r != 0 {
++			return r
+ 		}
+-		return importComment(specs[i]) < importComment(specs[j])
++		return cmp.Compare(importComment(a), importComment(b))
+ 	})
+ 
+ 	// Dedup. Thanks to our sorting, we can just consider
+@@ -222,8 +225,8 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+ 		}
+ 	}
+ 
+-	sort.Slice(comments, func(i, j int) bool {
+-		return comments[i].Pos() < comments[j].Pos()
++	slices.SortFunc(comments, func(a, b *CommentGroup) int {
++		return cmp.Compare(a.Pos(), b.Pos())
+ 	})
+ 
+ 	return specs
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 1fa03b0a36..297384d84c 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -24,7 +24,7 @@ import (
+ 	pathpkg "path"
+ 	"path/filepath"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -1051,7 +1051,7 @@ Found:
+ 	for tag := range allTags {
+ 		p.AllTags = append(p.AllTags, tag)
+ 	}
+-	sort.Strings(p.AllTags)
++	slices.Sort(p.AllTags)
+ 
+ 	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)
+ 	p.TestEmbedPatterns, p.TestEmbedPatternPos = cleanDecls(testEmbedPos)
+@@ -1066,10 +1066,10 @@ Found:
+ 	// The standard assemblers expect .s files.
+ 	if len(p.CgoFiles) > 0 {
+ 		p.SFiles = append(p.SFiles, Sfiles...)
+-		sort.Strings(p.SFiles)
++		slices.Sort(p.SFiles)
+ 	} else {
+ 		p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, Sfiles...)
+-		sort.Strings(p.IgnoredOtherFiles)
++		slices.Sort(p.IgnoredOtherFiles)
+ 	}
+ 
+ 	if badGoError != nil {
+@@ -1111,7 +1111,7 @@ func uniq(list []string) []string {
+ 	}
+ 	out := make([]string, len(list))
+ 	copy(out, list)
+-	sort.Strings(out)
++	slices.Sort(out)
+ 	uniq := out[:0]
+ 	for _, x := range out {
+ 		if len(uniq) == 0 || uniq[len(uniq)-1] != x {
+@@ -1525,7 +1525,7 @@ func cleanDecls(m map[string][]token.Position) ([]string, map[string][]token.Pos
+ 	for path := range m {
+ 		all = append(all, path)
+ 	}
+-	sort.Strings(all)
++	slices.Sort(all)
+ 	return all, m
+ }
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 5db7b25330..1aac76f6a2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -17,7 +17,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -140,7 +140,7 @@ var depsRules = `
+ 	< context
+ 	< TIME;
+ 
+-	TIME, io, path, sort
++	TIME, io, path, slices
+ 	< io/fs;
+ 
+ 	# MATH is RUNTIME plus the basic math packages.
+@@ -264,7 +264,7 @@ var depsRules = `
+ 	< math/big;
+ 
+ 	# compression
+-	FMT, encoding/binary, hash/adler32, hash/crc32
++	FMT, encoding/binary, hash/adler32, hash/crc32, sort
+ 	< compress/bzip2, compress/flate, compress/lzw, internal/zstd
+ 	< archive/zip, compress/gzip, compress/zlib;
+ 
+@@ -277,7 +277,7 @@ var depsRules = `
+ 	< internal/lazytemplate;
+ 
+ 	# regexp
+-	FMT
++	FMT, sort
+ 	< regexp/syntax
+ 	< regexp
+ 	< internal/lazyregexp;
+@@ -290,7 +290,7 @@ var depsRules = `
+ 	< index/suffixarray;
+ 
+ 	# executable parsing
+-	FMT, encoding/binary, compress/zlib, internal/saferio, internal/zstd
++	FMT, encoding/binary, compress/zlib, internal/saferio, internal/zstd, sort
+ 	< runtime/debug
+ 	< debug/dwarf
+ 	< debug/elf, debug/gosym, debug/macho, debug/pe, debug/plan9obj, internal/xcoff
+@@ -298,7 +298,7 @@ var depsRules = `
+ 	< DEBUG;
+ 
+ 	# go parser and friends.
+-	FMT
++	FMT, sort
+ 	< internal/gover
+ 	< go/version
+ 	< go/token
+@@ -307,7 +307,10 @@ var depsRules = `
+ 	< go/internal/typeparams;
+ 
+ 	FMT
+-	< go/build/constraint, go/doc/comment;
++	< go/build/constraint;
++
++	FMT, sort
++	< go/doc/comment;
+ 
+ 	go/internal/typeparams, go/build/constraint
+ 	< go/parser;
+@@ -384,7 +387,7 @@ var depsRules = `
+ 	  golang.org/x/net/lif,
+ 	  golang.org/x/net/route;
+ 
+-	internal/bytealg, internal/itoa, math/bits, sort, strconv, unique
++	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
+ 	< net/netip;
+ 
+ 	# net is unavoidable when doing any networking,
+@@ -400,7 +403,8 @@ var depsRules = `
+ 	internal/poll,
+ 	internal/singleflight,
+ 	net/netip,
+-	os
++	os,
++	sort
+ 	< net;
+ 
+ 	fmt, unicode !< net;
+@@ -580,7 +584,7 @@ var depsRules = `
+ 	< net/http/fcgi;
+ 
+ 	# Profiling
+-	FMT, compress/gzip, encoding/binary, text/tabwriter
++	FMT, compress/gzip, encoding/binary, sort, text/tabwriter
+ 	< runtime/pprof;
+ 
+ 	OS, compress/gzip, internal/lazyregexp
+@@ -631,8 +635,11 @@ var depsRules = `
+ 	syscall
+ 	< os/exec/internal/fdtest;
+ 
++	FMT, sort
++	< internal/diff;
++
+ 	FMT
+-	< internal/diff, internal/txtar;
++	< internal/txtar;
+ 
+ 	# v2 execution trace parser.
+ 	FMT
+@@ -750,7 +757,7 @@ func TestDependencies(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	sort.Strings(all)
++	slices.Sort(all)
+ 
+ 	sawImport := map[string]map[string]bool{} // from package => to package => true
+ 	policy := depsPolicy(t)
+@@ -831,7 +838,7 @@ func findImports(pkg string) ([]string, error) {
+ 			}
+ 		}
+ 	}
+-	sort.Strings(imports)
++	slices.Sort(imports)
+ 	return imports, nil
+ }
+ 
+diff --git a/src/go/constant/example_test.go b/src/go/constant/example_test.go
+index 6443ee6db8..d4f68c20a0 100644
+--- a/src/go/constant/example_test.go
++++ b/src/go/constant/example_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"go/constant"
+ 	"go/token"
+ 	"math"
+-	"sort"
++	"slices"
+ )
+ 
+ func Example_complexNumbers() {
+@@ -98,9 +98,14 @@ func ExampleCompare() {
+ 		constant.MakeFromLiteral(`"a"`, token.STRING, 0),
+ 	}
+ 
+-	sort.Slice(vs, func(i, j int) bool {
+-		// Equivalent to vs[i] <= vs[j].
+-		return constant.Compare(vs[i], token.LEQ, vs[j])
++	slices.SortFunc(vs, func(a, b constant.Value) int {
++		if constant.Compare(a, token.LSS, b) {
++			return -1
++		}
++		if constant.Compare(a, token.GTR, b) {
++			return +1
++		}
++		return 0
+ 	})
+ 
+ 	for _, v := range vs {
+diff --git a/src/go/doc/comment/std_test.go b/src/go/doc/comment/std_test.go
+index 89206e6bc8..bd0379856a 100644
+--- a/src/go/doc/comment/std_test.go
++++ b/src/go/doc/comment/std_test.go
+@@ -7,7 +7,7 @@ package comment
+ import (
+ 	"internal/diff"
+ 	"internal/testenv"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -24,7 +24,7 @@ func TestStd(t *testing.T) {
+ 			list = append(list, pkg)
+ 		}
+ 	}
+-	sort.Strings(list)
++	slices.Sort(list)
+ 
+ 	have := strings.Join(stdPkgs, "\n") + "\n"
+ 	want := strings.Join(list, "\n") + "\n"
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 684113d099..0618f2bd9b 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -7,11 +7,12 @@
+ package doc
+ 
+ import (
++	"cmp"
+ 	"go/ast"
+ 	"go/token"
+ 	"internal/lazyregexp"
+ 	"path"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -104,8 +105,8 @@ func Examples(testFiles ...*ast.File) []*Example {
+ 		list = append(list, flist...)
+ 	}
+ 	// sort by name
+-	sort.Slice(list, func(i, j int) bool {
+-		return list[i].Name < list[j].Name
++	slices.SortFunc(list, func(a, b *Example) int {
++		return cmp.Compare(a.Name, b.Name)
+ 	})
+ 	return list
+ }
+@@ -309,11 +310,11 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
+ 	decls = append(decls, depDecls...)
+ 	decls = append(decls, funcDecl)
+ 
+-	sort.Slice(decls, func(i, j int) bool {
+-		return decls[i].Pos() < decls[j].Pos()
++	slices.SortFunc(decls, func(a, b ast.Decl) int {
++		return cmp.Compare(a.Pos(), b.Pos())
+ 	})
+-	sort.Slice(comments, func(i, j int) bool {
+-		return comments[i].Pos() < comments[j].Pos()
++	slices.SortFunc(comments, func(a, b *ast.CommentGroup) int {
++		return cmp.Compare(a.Pos(), b.Pos())
+ 	})
+ 
+ 	// Synthesize file.
+@@ -520,7 +521,9 @@ func findImportGroupStarts1(origImps []*ast.ImportSpec) []*ast.ImportSpec {
+ 	imps := make([]*ast.ImportSpec, len(origImps))
+ 	copy(imps, origImps)
+ 	// Assume the imports are sorted by position.
+-	sort.Slice(imps, func(i, j int) bool { return imps[i].Pos() < imps[j].Pos() })
++	slices.SortFunc(imps, func(a, b *ast.ImportSpec) int {
++		return cmp.Compare(a.Pos(), b.Pos())
++	})
+ 	// Assume gofmt has been applied, so there is a blank line between adjacent imps
+ 	// if and only if they are more than 2 positions apart (newline, tab).
+ 	var groupStarts []*ast.ImportSpec
+@@ -675,8 +678,8 @@ func classifyExamples(p *Package, examples []*Example) {
+ 
+ 	// Sort list of example according to the user-specified suffix name.
+ 	for _, exs := range ids {
+-		sort.Slice((*exs), func(i, j int) bool {
+-			return (*exs)[i].Suffix < (*exs)[j].Suffix
++		slices.SortFunc(*exs, func(a, b *Example) int {
++			return cmp.Compare(a.Suffix, b.Suffix)
+ 		})
+ 	}
+ }
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index 8f9fda41ff..c87d7d2037 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -5,12 +5,13 @@
+ package doc
+ 
+ import (
++	"cmp"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ 	"internal/lazyregexp"
+ 	"path"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -663,7 +664,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
+ 		r.filenames[i] = filename
+ 		i++
+ 	}
+-	sort.Strings(r.filenames)
++	slices.Sort(r.filenames)
+ 
+ 	// process files in sorted order
+ 	for _, filename := range r.filenames {
+@@ -816,21 +817,6 @@ func (r *reader) cleanupTypes() {
+ // ----------------------------------------------------------------------------
+ // Sorting
+ 
+-type data struct {
+-	n    int
+-	swap func(i, j int)
+-	less func(i, j int) bool
+-}
+-
+-func (d *data) Len() int           { return d.n }
+-func (d *data) Swap(i, j int)      { d.swap(i, j) }
+-func (d *data) Less(i, j int) bool { return d.less(i, j) }
+-
+-// sortBy is a helper function for sorting.
+-func sortBy(less func(i, j int) bool, swap func(i, j int), n int) {
+-	sort.Sort(&data{n, swap, less})
+-}
+-
+ func sortedKeys(m map[string]int) []string {
+ 	list := make([]string, len(m))
+ 	i := 0
+@@ -838,7 +824,7 @@ func sortedKeys(m map[string]int) []string {
+ 		list[i] = key
+ 		i++
+ 	}
+-	sort.Strings(list)
++	slices.Sort(list)
+ 	return list
+ }
+ 
+@@ -863,16 +849,13 @@ func sortedValues(m []*Value, tok token.Token) []*Value {
+ 	}
+ 	list = list[0:i]
+ 
+-	sortBy(
+-		func(i, j int) bool {
+-			if ni, nj := sortingName(list[i].Decl), sortingName(list[j].Decl); ni != nj {
+-				return ni < nj
+-			}
+-			return list[i].order < list[j].order
+-		},
+-		func(i, j int) { list[i], list[j] = list[j], list[i] },
+-		len(list),
+-	)
++	slices.SortFunc(list, func(a, b *Value) int {
++		r := strings.Compare(sortingName(a.Decl), sortingName(b.Decl))
++		if r != 0 {
++			return r
++		}
++		return cmp.Compare(a.order, b.order)
++	})
+ 
+ 	return list
+ }
+@@ -893,11 +876,9 @@ func sortedTypes(m map[string]*namedType, allMethods bool) []*Type {
+ 		i++
+ 	}
+ 
+-	sortBy(
+-		func(i, j int) bool { return list[i].Name < list[j].Name },
+-		func(i, j int) { list[i], list[j] = list[j], list[i] },
+-		len(list),
+-	)
++	slices.SortFunc(list, func(a, b *Type) int {
++		return strings.Compare(a.Name, b.Name)
++	})
+ 
+ 	return list
+ }
+@@ -925,11 +906,9 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
+ 		}
+ 	}
+ 	list = list[0:i]
+-	sortBy(
+-		func(i, j int) bool { return list[i].Name < list[j].Name },
+-		func(i, j int) { list[i], list[j] = list[j], list[i] },
+-		len(list),
+-	)
++	slices.SortFunc(list, func(a, b *Func) int {
++		return strings.Compare(a.Name, b.Name)
++	})
+ 	return list
+ }
+ 
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 15ff93f1d9..ca424954d2 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -250,9 +250,3 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
+ 
+ 	return
+ }
+-
+-type byPath []*types.Package
+-
+-func (a byPath) Len() int           { return len(a) }
+-func (a byPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-func (a byPath) Less(i, j int) bool { return a[i].Path() < a[j].Path() }
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index 59cd411cee..e7750e5e51 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -19,7 +19,7 @@ import (
+ 	"io"
+ 	"math"
+ 	"math/big"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -185,7 +185,7 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
+ 	for name := range p.pkgIndex[localpkg] {
+ 		names = append(names, name)
+ 	}
+-	sort.Strings(names)
++	slices.Sort(names)
+ 	for _, name := range names {
+ 		p.doDecl(localpkg, name)
+ 	}
+@@ -205,7 +205,9 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
+ 
+ 	// record all referenced packages as imports
+ 	list := append(([]*types.Package)(nil), pkgList[1:]...)
+-	sort.Sort(byPath(list))
++	slices.SortFunc(list, func(a, b *types.Package) int {
++		return strings.Compare(a.Path(), b.Path())
++	})
+ 	localpkg.SetImports(list)
+ 
+ 	// package was imported completely and without errors
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 738dc54d9c..5353b244e2 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -9,7 +9,8 @@ import (
+ 	"go/types"
+ 	"internal/godebug"
+ 	"internal/pkgbits"
+-	"sort"
++	"slices"
++	"strings"
+ )
+ 
+ // A pkgReader holds the shared state for reading a unified IR package
+@@ -92,7 +93,9 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
+ 			imps = append(imps, imp)
+ 		}
+ 	}
+-	sort.Sort(byPath(imps))
++	slices.SortFunc(imps, func(a, b *types.Package) int {
++		return strings.Compare(a.Path(), b.Path())
++	})
+ 	pkg.SetImports(imps)
+ 
+ 	pkg.MarkComplete()
+diff --git a/src/go/printer/gobuild.go b/src/go/printer/gobuild.go
+index f00492d077..6f04cf6d6d 100644
+--- a/src/go/printer/gobuild.go
++++ b/src/go/printer/gobuild.go
+@@ -6,7 +6,7 @@ package printer
+ 
+ import (
+ 	"go/build/constraint"
+-	"sort"
++	"slices"
+ 	"text/tabwriter"
+ )
+ 
+@@ -108,7 +108,7 @@ func (p *printer) fixGoBuildLines() {
+ 
+ 	// Build sorted list of lines to delete from remainder of output.
+ 	toDelete := append(p.goBuild, p.plusBuild...)
+-	sort.Ints(toDelete)
++	slices.Sort(toDelete)
+ 
+ 	// Collect output after insertion point, with lines deleted, into after.
+ 	var after []byte
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 25fa945453..04dbca7124 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -5,8 +5,9 @@
+ package token
+ 
+ import (
++	"cmp"
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"sync"
+ 	"sync/atomic"
+@@ -322,7 +323,15 @@ func (f *File) Line(p Pos) int {
+ }
+ 
+ func searchLineInfos(a []lineInfo, x int) int {
+-	return sort.Search(len(a), func(i int) bool { return a[i].Offset > x }) - 1
++	i, found := slices.BinarySearchFunc(a, x, func(a lineInfo, x int) int {
++		return cmp.Compare(a.Offset, x)
++	})
++	if !found {
++		// We want the lineInfo containing x, but if we didn't
++		// find x then i is the next one.
++		i--
++	}
++	return i
+ }
+ 
+ // unpack returns the filename and line and column number for a file offset.
+@@ -516,7 +525,15 @@ func (s *FileSet) Iterate(f func(*File) bool) {
+ }
+ 
+ func searchFiles(a []*File, x int) int {
+-	return sort.Search(len(a), func(i int) bool { return a[i].base > x }) - 1
++	i, found := slices.BinarySearchFunc(a, x, func(a *File, x int) int {
++		return cmp.Compare(a.base, x)
++	})
++	if !found {
++		// We want the File containing x, but if we didn't
++		// find x then i is the next one.
++		i--
++	}
++	return i
+ }
+ 
+ func (s *FileSet) file(p Pos) *File {
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 38cd7f7ec2..beed94f355 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -15,7 +15,7 @@ import (
+ 	"internal/testenv"
+ 	"reflect"
+ 	"regexp"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -693,8 +693,8 @@ func sortedInstances(m map[*ast.Ident]Instance) (instances []recordedInstance) {
+ 	for id, inst := range m {
+ 		instances = append(instances, recordedInstance{id, inst})
+ 	}
+-	sort.Slice(instances, func(i, j int) bool {
+-		return CmpPos(instances[i].Ident.Pos(), instances[j].Ident.Pos()) < 0
++	slices.SortFunc(instances, func(a, b recordedInstance) int {
++		return CmpPos(a.Ident.Pos(), b.Ident.Pos())
+ 	})
+ 	return instances
+ }
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index 1ee47bc123..7dd1c75852 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -25,7 +25,7 @@ import (
+ 	"go/types"
+ 	"log"
+ 	"regexp"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -211,14 +211,14 @@ func fib(x int) int {
+ 	}
+ 	var items []string
+ 	for obj, uses := range usesByObj {
+-		sort.Strings(uses)
++		slices.Sort(uses)
+ 		item := fmt.Sprintf("%s:\n  defined at %s\n  used at %s",
+ 			types.ObjectString(obj, types.RelativeTo(pkg)),
+ 			fset.Position(obj.Pos()),
+ 			strings.Join(uses, ", "))
+ 		items = append(items, item)
+ 	}
+-	sort.Strings(items) // sort by line:col, in effect
++	slices.Sort(items) // sort by line:col, in effect
+ 	fmt.Println(strings.Join(items, "\n"))
+ 	fmt.Println()
+ 
+@@ -237,7 +237,7 @@ func fib(x int) int {
+ 			mode(tv), tvstr)
+ 		items = append(items, buf.String())
+ 	}
+-	sort.Strings(items)
++	slices.Sort(items)
+ 	fmt.Println(strings.Join(items, "\n"))
+ 
+ 	// Output:
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index d51dd94cf3..3b01478723 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -14,7 +14,7 @@ import (
+ 	"go/token"
+ 	"internal/testenv"
+ 	"regexp"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 
+@@ -172,7 +172,7 @@ L7 uses var z int`
+ 		fact := fmt.Sprintf("L%d uses %s", fset.Position(id.Pos()).Line, obj)
+ 		facts = append(facts, fact)
+ 	}
+-	sort.Strings(facts)
++	slices.Sort(facts)
+ 
+ 	got := strings.Join(facts, "\n")
+ 	if got != want {
+diff --git a/src/go/types/resolver_test.go b/src/go/types/resolver_test.go
+index e95af80585..a83f1344de 100644
+--- a/src/go/types/resolver_test.go
++++ b/src/go/types/resolver_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"go/importer"
+ 	"go/token"
+ 	"internal/testenv"
+-	"sort"
++	"slices"
+ 	"testing"
+ 
+ 	. "go/types"
+@@ -194,7 +194,7 @@ func TestResolveIdents(t *testing.T) {
+ 	}
+ 
+ 	// check the expected set of idents that are simultaneously uses and defs
+-	sort.Strings(both)
++	slices.Sort(both)
+ 	if got, want := fmt.Sprint(both), "[Mutex Stringer error]"; got != want {
+ 		t.Errorf("simultaneous uses/defs = %s, want %s", got, want)
+ 	}
+diff --git a/src/index/suffixarray/suffixarray.go b/src/index/suffixarray/suffixarray.go
+index 5c222a1217..2b96c8bf0b 100644
+--- a/src/index/suffixarray/suffixarray.go
++++ b/src/index/suffixarray/suffixarray.go
+@@ -22,6 +22,7 @@ import (
+ 	"io"
+ 	"math"
+ 	"regexp"
++	"slices"
+ 	"sort"
+ )
+ 
+@@ -308,7 +309,7 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
+ 			if len(indices) == 0 {
+ 				return
+ 			}
+-			sort.Ints(indices)
++			slices.Sort(indices)
+ 			pairs := make([]int, 2*len(indices))
+ 			result = make([][]int, len(indices))
+ 			count := 0
+@@ -352,7 +353,7 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
+ 		if len(indices) == 0 {
+ 			return
+ 		}
+-		sort.Ints(indices)
++		slices.Sort(indices)
+ 		result = result[0:0]
+ 		prev := 0
+ 		for _, i := range indices {
+diff --git a/src/index/suffixarray/suffixarray_test.go b/src/index/suffixarray/suffixarray_test.go
+index 44c5041535..da092a737e 100644
+--- a/src/index/suffixarray/suffixarray_test.go
++++ b/src/index/suffixarray/suffixarray_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -141,7 +142,7 @@ func testLookup(t *testing.T, tc *testCase, x *Index, s string, n int) {
+ 	// we cannot simply check that the res and exp lists are equal
+ 
+ 	// check that each result is in fact a correct match and there are no duplicates
+-	sort.Ints(res)
++	slices.Sort(res)
+ 	for i, r := range res {
+ 		if r < 0 || len(tc.source) <= r {
+ 			t.Errorf("test %q, lookup %q, result %d (n = %d): index %d out of range [0, %d[", tc.name, s, i, n, r, len(tc.source))
+diff --git a/src/internal/coverage/cformat/format.go b/src/internal/coverage/cformat/format.go
+index 7e7a2778c7..dcbe584c0b 100644
+--- a/src/internal/coverage/cformat/format.go
++++ b/src/internal/coverage/cformat/format.go
+@@ -31,11 +31,13 @@ package cformat
+ // emit coverage percentages.
+ 
+ import (
++	"cmp"
+ 	"fmt"
+ 	"internal/coverage"
+ 	"internal/coverage/cmerge"
+ 	"io"
+-	"sort"
++	"slices"
++	"strings"
+ 	"text/tabwriter"
+ )
+ 
+@@ -136,29 +138,27 @@ func (fm *Formatter) AddUnit(file string, fname string, isfnlit bool, unit cover
+ // include function name as part of the sorting criteria, the thinking
+ // being that is better to provide things in the original source order.
+ func (p *pstate) sortUnits(units []extcu) {
+-	sort.Slice(units, func(i, j int) bool {
+-		ui := units[i]
+-		uj := units[j]
++	slices.SortFunc(units, func(ui, uj extcu) int {
+ 		ifile := p.funcs[ui.fnfid].file
+ 		jfile := p.funcs[uj.fnfid].file
+-		if ifile != jfile {
+-			return ifile < jfile
++		if r := strings.Compare(ifile, jfile); r != 0 {
++			return r
+ 		}
+ 		// NB: not taking function literal flag into account here (no
+ 		// need, since other fields are guaranteed to be distinct).
+-		if units[i].StLine != units[j].StLine {
+-			return units[i].StLine < units[j].StLine
++		if r := cmp.Compare(ui.StLine, uj.StLine); r != 0 {
++			return r
+ 		}
+-		if units[i].EnLine != units[j].EnLine {
+-			return units[i].EnLine < units[j].EnLine
++		if r := cmp.Compare(ui.EnLine, uj.EnLine); r != 0 {
++			return r
+ 		}
+-		if units[i].StCol != units[j].StCol {
+-			return units[i].StCol < units[j].StCol
++		if r := cmp.Compare(ui.StCol, uj.StCol); r != 0 {
++			return r
+ 		}
+-		if units[i].EnCol != units[j].EnCol {
+-			return units[i].EnCol < units[j].EnCol
++		if r := cmp.Compare(ui.EnCol, uj.EnCol); r != 0 {
++			return r
+ 		}
+-		return units[i].NxStmts < units[j].NxStmts
++		return cmp.Compare(ui.NxStmts, uj.NxStmts)
+ 	})
+ }
+ 
+@@ -178,7 +178,7 @@ func (fm *Formatter) EmitTextual(w io.Writer) error {
+ 	for importpath := range fm.pm {
+ 		pkgs = append(pkgs, importpath)
+ 	}
+-	sort.Strings(pkgs)
++	slices.Sort(pkgs)
+ 	for _, importpath := range pkgs {
+ 		p := fm.pm[importpath]
+ 		units := make([]extcu, 0, len(p.unitTable))
+@@ -220,7 +220,7 @@ func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool, ag
+ 		return nil
+ 	}
+ 
+-	sort.Strings(pkgs)
++	slices.Sort(pkgs)
+ 	var totalStmts, coveredStmts uint64
+ 	for _, importpath := range pkgs {
+ 		p := fm.pm[importpath]
+@@ -278,7 +278,7 @@ func (fm *Formatter) EmitFuncs(w io.Writer) error {
+ 	for importpath := range fm.pm {
+ 		pkgs = append(pkgs, importpath)
+ 	}
+-	sort.Strings(pkgs)
++	slices.Sort(pkgs)
+ 
+ 	// Emit functions for each package, sorted by import path.
+ 	for _, importpath := range pkgs {
+diff --git a/src/internal/coverage/encodecounter/encode.go b/src/internal/coverage/encodecounter/encode.go
+index 59586730de..d50827014b 100644
+--- a/src/internal/coverage/encodecounter/encode.go
++++ b/src/internal/coverage/encodecounter/encode.go
+@@ -14,7 +14,7 @@ import (
+ 	"internal/coverage/uleb128"
+ 	"io"
+ 	"os"
+-	"sort"
++	"slices"
+ )
+ 
+ // This package contains APIs and helpers for encoding initial portions
+@@ -126,7 +126,7 @@ func (cfw *CoverageDataWriter) writeSegmentPreamble(args map[string]string, ws *
+ 	for k := range args {
+ 		akeys = append(akeys, k)
+ 	}
+-	sort.Strings(akeys)
++	slices.Sort(akeys)
+ 
+ 	wrULEB128 := func(v uint) error {
+ 		cfw.tmp = cfw.tmp[:0]
+diff --git a/src/internal/coverage/pods/pods.go b/src/internal/coverage/pods/pods.go
+index e08f82ec59..e6180fb241 100644
+--- a/src/internal/coverage/pods/pods.go
++++ b/src/internal/coverage/pods/pods.go
+@@ -5,13 +5,15 @@
+ package pods
+ 
+ import (
++	"cmp"
+ 	"fmt"
+ 	"internal/coverage"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+-	"sort"
++	"slices"
+ 	"strconv"
++	"strings"
+ )
+ 
+ // Pod encapsulates a set of files emitted during the executions of a
+@@ -165,11 +167,11 @@ func collectPodsImpl(files []string, dirIndices []int, warn bool) []Pod {
+ 	}
+ 	pods := make([]Pod, 0, len(mm))
+ 	for _, p := range mm {
+-		sort.Slice(p.elements, func(i, j int) bool {
+-			if p.elements[i].origin != p.elements[j].origin {
+-				return p.elements[i].origin < p.elements[j].origin
++		slices.SortFunc(p.elements, func(a, b fileWithAnnotations) int {
++			if r := cmp.Compare(a.origin, b.origin); r != 0 {
++				return r
+ 			}
+-			return p.elements[i].file < p.elements[j].file
++			return strings.Compare(a.file, b.file)
+ 		})
+ 		pod := Pod{
+ 			MetaFile:         p.mf,
+@@ -184,8 +186,8 @@ func collectPodsImpl(files []string, dirIndices []int, warn bool) []Pod {
+ 		}
+ 		pods = append(pods, pod)
+ 	}
+-	sort.Slice(pods, func(i, j int) bool {
+-		return pods[i].MetaFile < pods[j].MetaFile
++	slices.SortFunc(pods, func(a, b Pod) int {
++		return strings.Compare(a.MetaFile, b.MetaFile)
+ 	})
+ 	return pods
+ }
+diff --git a/src/internal/dag/parse.go b/src/internal/dag/parse.go
+index 9d5b918b11..409f0b887e 100644
+--- a/src/internal/dag/parse.go
++++ b/src/internal/dag/parse.go
+@@ -42,8 +42,9 @@
+ package dag
+ 
+ import (
++	"cmp"
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -84,7 +85,9 @@ func (g *Graph) Edges(from string) []string {
+ 	for k := range g.edges[from] {
+ 		edges = append(edges, k)
+ 	}
+-	sort.Slice(edges, func(i, j int) bool { return g.byLabel[edges[i]] < g.byLabel[edges[j]] })
++	slices.SortFunc(edges, func(a, b string) int {
++		return cmp.Compare(g.byLabel[a], g.byLabel[b])
++	})
+ 	return edges
+ }
+ 
+diff --git a/src/internal/fmtsort/sort_test.go b/src/internal/fmtsort/sort_test.go
+index d33bb6f7fd..3f2b8a1b83 100644
+--- a/src/internal/fmtsort/sort_test.go
++++ b/src/internal/fmtsort/sort_test.go
+@@ -5,12 +5,13 @@
+ package fmtsort_test
+ 
+ import (
++	"cmp"
+ 	"fmt"
+ 	"internal/fmtsort"
+ 	"math"
+ 	"reflect"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"unsafe"
+@@ -196,8 +197,8 @@ func makeChans() []chan int {
+ 	for i := range cs {
+ 		pin.Pin(reflect.ValueOf(cs[i]).UnsafePointer())
+ 	}
+-	sort.Slice(cs, func(i, j int) bool {
+-		return uintptr(reflect.ValueOf(cs[i]).UnsafePointer()) < uintptr(reflect.ValueOf(cs[j]).UnsafePointer())
++	slices.SortFunc(cs, func(a, b chan int) int {
++		return cmp.Compare(reflect.ValueOf(a).Pointer(), reflect.ValueOf(b).Pointer())
+ 	})
+ 	return cs
+ }
+diff --git a/src/internal/godebug/godebug_test.go b/src/internal/godebug/godebug_test.go
+index 1ed0a365ab..5d426fd52e 100644
+--- a/src/internal/godebug/godebug_test.go
++++ b/src/internal/godebug/godebug_test.go
+@@ -13,7 +13,7 @@ import (
+ 	"os/exec"
+ 	"reflect"
+ 	"runtime/metrics"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -115,7 +115,7 @@ func TestCmdBisect(t *testing.T) {
+ 			want = append(want, fmt.Sprintf("godebug_test.go:%d", i+1))
+ 		}
+ 	}
+-	sort.Strings(want)
++	slices.Sort(want)
+ 
+ 	var have []string
+ 	for _, line := range strings.Split(string(out), "\n") {
+@@ -123,7 +123,7 @@ func TestCmdBisect(t *testing.T) {
+ 			have = append(have, line[strings.LastIndex(line, "godebug_test.go:"):])
+ 		}
+ 	}
+-	sort.Strings(have)
++	slices.Sort(have)
+ 
+ 	if !reflect.DeepEqual(have, want) {
+ 		t.Errorf("bad bisect output:\nhave %v\nwant %v\ncomplete output:\n%s", have, want, string(out))
+diff --git a/src/internal/trace/internal/oldtrace/order.go b/src/internal/trace/internal/oldtrace/order.go
+index 4cd3def211..b9d63e2f0c 100644
+--- a/src/internal/trace/internal/oldtrace/order.go
++++ b/src/internal/trace/internal/oldtrace/order.go
+@@ -126,20 +126,6 @@ func (l *orderEventList) Less(i, j int) bool {
+ 	return (*l)[i].ev.Ts < (*l)[j].ev.Ts
+ }
+ 
+-type eventList []Event
+-
+-func (l *eventList) Len() int {
+-	return len(*l)
+-}
+-
+-func (l *eventList) Less(i, j int) bool {
+-	return (*l)[i].Ts < (*l)[j].Ts
+-}
+-
+-func (l *eventList) Swap(i, j int) {
+-	(*l)[i], (*l)[j] = (*l)[j], (*l)[i]
+-}
+-
+ func (h *orderEventList) Push(x orderEvent) {
+ 	*h = append(*h, x)
+ 	heapUp(h, len(*h)-1)
+diff --git a/src/internal/trace/internal/oldtrace/parser.go b/src/internal/trace/internal/oldtrace/parser.go
+index 3775c78f1a..7af690d7bb 100644
+--- a/src/internal/trace/internal/oldtrace/parser.go
++++ b/src/internal/trace/internal/oldtrace/parser.go
+@@ -13,6 +13,7 @@ package oldtrace
+ 
+ import (
+ 	"bytes"
++	"cmp"
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
+@@ -20,6 +21,7 @@ import (
+ 	"internal/trace/version"
+ 	"io"
+ 	"math"
++	"slices"
+ 	"sort"
+ )
+ 
+@@ -368,7 +370,9 @@ func (p *parser) parseEventBatches() (Events, error) {
+ 	// with original timestamps corresponding to when ReadTrace pulled the data
+ 	// off of the profBuf queue. Re-sort them by the timestamp we captured
+ 	// inside the signal handler.
+-	sort.Sort((*eventList)(&p.cpuSamples))
++	slices.SortFunc(p.cpuSamples, func(a, b Event) int {
++		return cmp.Compare(a.Ts, b.Ts)
++	})
+ 
+ 	allProcs := make([]proc, 0, len(p.batchOffsets))
+ 	for pid := range p.batchOffsets {
+diff --git a/src/internal/trace/mud.go b/src/internal/trace/mud.go
+index 88263060a0..5292de364e 100644
+--- a/src/internal/trace/mud.go
++++ b/src/internal/trace/mud.go
+@@ -5,8 +5,9 @@
+ package trace
+ 
+ import (
++	"cmp"
+ 	"math"
+-	"sort"
++	"slices"
+ )
+ 
+ // mud is an updatable mutator utilization distribution.
+@@ -166,8 +167,8 @@ func (d *mud) invCumulativeSum(y float64) (float64, bool) {
+ 
+ 	// Sort edges.
+ 	edges := d.unsorted
+-	sort.Slice(edges, func(i, j int) bool {
+-		return edges[i].x < edges[j].x
++	slices.SortFunc(edges, func(a, b edge) int {
++		return cmp.Compare(a.x, b.x)
+ 	})
+ 	// Merge with sorted edges.
+ 	d.unsorted = nil
+diff --git a/src/internal/trace/summary.go b/src/internal/trace/summary.go
+index 8dd2317d86..fa3e3359c7 100644
+--- a/src/internal/trace/summary.go
++++ b/src/internal/trace/summary.go
+@@ -5,7 +5,8 @@
+ package trace
+ 
+ import (
+-	"sort"
++	"cmp"
++	"slices"
+ 	"strings"
+ 	"time"
+ )
+@@ -593,16 +594,19 @@ func (s *Summarizer) Finalize() *Summary {
+ 		g.finalize(s.lastTs, nil)
+ 
+ 		// Sort based on region start time.
+-		sort.Slice(g.Regions, func(i, j int) bool {
+-			x := g.Regions[i].Start
+-			y := g.Regions[j].Start
++		slices.SortFunc(g.Regions, func(a, b *UserRegionSummary) int {
++			x := a.Start
++			y := b.Start
+ 			if x == nil {
+-				return true
++				if y == nil {
++					return 0
++				}
++				return -1
+ 			}
+ 			if y == nil {
+-				return false
++				return +1
+ 			}
+-			return x.Time() < y.Time()
++			return cmp.Compare(x.Time(), y.Time())
+ 		})
+ 		g.goroutineSummary = nil
+ 	}
+diff --git a/src/io/fs/readdir.go b/src/io/fs/readdir.go
+index 22ced48073..467d3bffee 100644
+--- a/src/io/fs/readdir.go
++++ b/src/io/fs/readdir.go
+@@ -6,7 +6,8 @@ package fs
+ 
+ import (
+ 	"errors"
+-	"sort"
++	"internal/bytealg"
++	"slices"
+ )
+ 
+ // ReadDirFS is the interface implemented by a file system
+@@ -42,7 +43,9 @@ func ReadDir(fsys FS, name string) ([]DirEntry, error) {
+ 	}
+ 
+ 	list, err := dir.ReadDir(-1)
+-	sort.Slice(list, func(i, j int) bool { return list[i].Name() < list[j].Name() })
++	slices.SortFunc(list, func(a, b DirEntry) int {
++		return bytealg.CompareString(a.Name(), b.Name())
++	})
+ 	return list, err
+ }
+ 
+diff --git a/src/io/ioutil/ioutil.go b/src/io/ioutil/ioutil.go
+index 67768e54cf..af8ebe3850 100644
+--- a/src/io/ioutil/ioutil.go
++++ b/src/io/ioutil/ioutil.go
+@@ -14,7 +14,8 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"os"
+-	"sort"
++	"slices"
++	"strings"
+ )
+ 
+ // ReadAll reads from r until an error or EOF and returns the data it read.
+@@ -76,7 +77,9 @@ func ReadDir(dirname string) ([]fs.FileInfo, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	sort.Slice(list, func(i, j int) bool { return list[i].Name() < list[j].Name() })
++	slices.SortFunc(list, func(a, b os.FileInfo) int {
++		return strings.Compare(a.Name(), b.Name())
++	})
+ 	return list, nil
+ }
+ 
+diff --git a/src/io/pipe_test.go b/src/io/pipe_test.go
+index c5fa017fa5..a8c4e306cc 100644
+--- a/src/io/pipe_test.go
++++ b/src/io/pipe_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	. "io"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -418,6 +418,6 @@ func sortBytesInGroups(b []byte, n int) []byte {
+ 		groups = append(groups, b[:n])
+ 		b = b[n:]
+ 	}
+-	sort.Slice(groups, func(i, j int) bool { return bytes.Compare(groups[i], groups[j]) < 0 })
++	slices.SortFunc(groups, bytes.Compare)
+ 	return bytes.Join(groups, nil)
+ }
+diff --git a/src/math/big/bits_test.go b/src/math/big/bits_test.go
+index 985b60bd4b..3197c11224 100644
+--- a/src/math/big/bits_test.go
++++ b/src/math/big/bits_test.go
+@@ -10,7 +10,7 @@ package big
+ 
+ import (
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"testing"
+ )
+ 
+@@ -78,7 +78,7 @@ func (x Bits) norm() Bits {
+ 			z = append(z, b)
+ 		}
+ 	}
+-	sort.Ints([]int(z))
++	slices.Sort([]int(z))
+ 	return z
+ }
+ 
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index 40d919e7a8..97f3563a2d 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -7,7 +7,7 @@ package mime
+ import (
+ 	"errors"
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"unicode"
+ )
+@@ -37,7 +37,7 @@ func FormatMediaType(t string, param map[string]string) string {
+ 	for a := range param {
+ 		attrs = append(attrs, a)
+ 	}
+-	sort.Strings(attrs)
++	slices.Sort(attrs)
+ 
+ 	for _, attribute := range attrs {
+ 		value := param[attribute]
+diff --git a/src/mime/multipart/writer.go b/src/mime/multipart/writer.go
+index a265c68fe0..5e589c499b 100644
+--- a/src/mime/multipart/writer.go
++++ b/src/mime/multipart/writer.go
+@@ -11,7 +11,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"net/textproto"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -111,7 +111,7 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
+ 	for k := range header {
+ 		keys = append(keys, k)
+ 	}
+-	sort.Strings(keys)
++	slices.Sort(keys)
+ 	for _, k := range keys {
+ 		for _, v := range header[k] {
+ 			fmt.Fprintf(&b, "%s: %s\r\n", k, v)
+diff --git a/src/mime/quotedprintable/reader_test.go b/src/mime/quotedprintable/reader_test.go
+index 0af1e5f0f7..504bd5ef29 100644
+--- a/src/mime/quotedprintable/reader_test.go
++++ b/src/mime/quotedprintable/reader_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"io"
+ 	"os/exec"
+ 	"regexp"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -197,7 +197,7 @@ func TestExhaustive(t *testing.T) {
+ 	for k, v := range res {
+ 		outcomes = append(outcomes, fmt.Sprintf("%v: %d", k, v))
+ 	}
+-	sort.Strings(outcomes)
++	slices.Sort(outcomes)
+ 	got := strings.Join(outcomes, "\n")
+ 	want := `OK: 28934
+ invalid bytes after =: 3949
+diff --git a/src/mime/type.go b/src/mime/type.go
+index 6d4266929c..c86ebd3442 100644
+--- a/src/mime/type.go
++++ b/src/mime/type.go
+@@ -7,7 +7,7 @@ package mime
+ 
+ import (
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ )
+@@ -150,7 +150,7 @@ func ExtensionsByType(typ string) ([]string, error) {
+ 		return nil, nil
+ 	}
+ 	ret := append([]string(nil), s.([]string)...)
+-	sort.Strings(ret)
++	slices.Sort(ret)
+ 	return ret, nil
+ }
+ 
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index 2b4cb4f3ba..7f279d0de4 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -5,9 +5,10 @@
+ package net
+ 
+ import (
++	"cmp"
+ 	"internal/bytealg"
+ 	"internal/itoa"
+-	"sort"
++	"slices"
+ 	_ "unsafe" // for go:linkname
+ 
+ 	"golang.org/x/net/dns/dnsmessage"
+@@ -160,12 +161,6 @@ type SRV struct {
+ // byPriorityWeight sorts SRV records by ascending priority and weight.
+ type byPriorityWeight []*SRV
+ 
+-func (s byPriorityWeight) Len() int { return len(s) }
+-func (s byPriorityWeight) Less(i, j int) bool {
+-	return s[i].Priority < s[j].Priority || (s[i].Priority == s[j].Priority && s[i].Weight < s[j].Weight)
+-}
+-func (s byPriorityWeight) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+-
+ // shuffleByWeight shuffles SRV records by weight using the algorithm
+ // described in RFC 2782.
+ func (addrs byPriorityWeight) shuffleByWeight() {
+@@ -192,7 +187,12 @@ func (addrs byPriorityWeight) shuffleByWeight() {
+ 
+ // sort reorders SRV records as specified in RFC 2782.
+ func (addrs byPriorityWeight) sort() {
+-	sort.Sort(addrs)
++	slices.SortFunc(addrs, func(a, b *SRV) int {
++		if r := cmp.Compare(a.Priority, b.Priority); r != 0 {
++			return r
++		}
++		return cmp.Compare(a.Weight, b.Weight)
++	})
+ 	i := 0
+ 	for j := 1; j < len(addrs); j++ {
+ 		if addrs[i].Priority != addrs[j].Priority {
+@@ -209,20 +209,18 @@ type MX struct {
+ 	Pref uint16
+ }
+ 
+-// byPref implements sort.Interface to sort MX records by preference
++// byPref sorts MX records by preference
+ type byPref []*MX
+ 
+-func (s byPref) Len() int           { return len(s) }
+-func (s byPref) Less(i, j int) bool { return s[i].Pref < s[j].Pref }
+-func (s byPref) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+-
+ // sort reorders MX records as specified in RFC 5321.
+ func (s byPref) sort() {
+ 	for i := range s {
+ 		j := randIntn(i + 1)
+ 		s[i], s[j] = s[j], s[i]
+ 	}
+-	sort.Sort(s)
++	slices.SortFunc(s, func(a, b *MX) int {
++		return cmp.Compare(a.Pref, b.Pref)
++	})
+ }
+ 
+ // An NS represents a single DNS NS record.
+diff --git a/src/net/http/cgi/cgi_main.go b/src/net/http/cgi/cgi_main.go
+index 8997d66a11..033036d07f 100644
+--- a/src/net/http/cgi/cgi_main.go
++++ b/src/net/http/cgi/cgi_main.go
+@@ -10,7 +10,7 @@ import (
+ 	"net/http"
+ 	"os"
+ 	"path"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"time"
+ )
+@@ -67,7 +67,7 @@ func testCGI() {
+ 	for k := range params {
+ 		keys = append(keys, k)
+ 	}
+-	sort.Strings(keys)
++	slices.Sort(keys)
+ 	for _, key := range keys {
+ 		fmt.Printf("param-%s=%s\r\n", key, params.Get(key))
+ 	}
+@@ -77,7 +77,7 @@ func testCGI() {
+ 	for k := range envs {
+ 		keys = append(keys, k)
+ 	}
+-	sort.Strings(keys)
++	slices.Sort(keys)
+ 	for _, key := range keys {
+ 		fmt.Printf("env-%s=%s\r\n", key, envs[key])
+ 	}
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 1fe4eed3f7..3dc440dde1 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -27,7 +27,7 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -693,7 +693,7 @@ func testTrailersClientToServer(t *testing.T, mode testMode) {
+ 		for k := range r.Trailer {
+ 			decl = append(decl, k)
+ 		}
+-		sort.Strings(decl)
++		slices.Sort(decl)
+ 
+ 		slurp, err := io.ReadAll(r.Body)
+ 		if err != nil {
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index b09dea2d44..2eec1a3e74 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -6,13 +6,14 @@
+ package cookiejar
+ 
+ import (
++	"cmp"
+ 	"errors"
+ 	"fmt"
+ 	"net"
+ 	"net/http"
+ 	"net/http/internal/ascii"
+ 	"net/url"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"time"
+@@ -210,15 +211,14 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
+ 
+ 	// sort according to RFC 6265 section 5.4 point 2: by longest
+ 	// path and then by earliest creation time.
+-	sort.Slice(selected, func(i, j int) bool {
+-		s := selected
+-		if len(s[i].Path) != len(s[j].Path) {
+-			return len(s[i].Path) > len(s[j].Path)
++	slices.SortFunc(selected, func(a, b entry) int {
++		if r := cmp.Compare(b.Path, a.Path); r != 0 {
++			return r
+ 		}
+-		if ret := s[i].Creation.Compare(s[j].Creation); ret != 0 {
+-			return ret < 0
++		if r := a.Creation.Compare(b.Creation); r != 0 {
++			return r
+ 		}
+-		return s[i].seqNum < s[j].seqNum
++		return cmp.Compare(a.seqNum, b.seqNum)
+ 	})
+ 	for _, e := range selected {
+ 		cookies = append(cookies, &http.Cookie{Name: e.Name, Value: e.Value, Quoted: e.Quoted})
+diff --git a/src/net/http/cookiejar/jar_test.go b/src/net/http/cookiejar/jar_test.go
+index 93b351889f..509560170a 100644
+--- a/src/net/http/cookiejar/jar_test.go
++++ b/src/net/http/cookiejar/jar_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"fmt"
+ 	"net/http"
+ 	"net/url"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -412,7 +412,7 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
+ 			cs = append(cs, cookie.Name+"="+v)
+ 		}
+ 	}
+-	sort.Strings(cs)
++	slices.Sort(cs)
+ 	got := strings.Join(cs, " ")
+ 
+ 	// Make sure jar content matches our expectations.
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 1bd64e65ba..eac8b7ec81 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -22,7 +22,7 @@ import (
+ 	"net/url"
+ 	"os"
+ 	"reflect"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -202,9 +202,9 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
+ 				}
+ 			}
+ 		}
+-		sort.Strings(cf)
++		slices.Sort(cf)
+ 		expectedValues := []string{"Upgrade", someConnHeader, fakeConnectionToken}
+-		sort.Strings(expectedValues)
++		slices.Sort(expectedValues)
+ 		if !reflect.DeepEqual(cf, expectedValues) {
+ 			t.Errorf("handler modified header %q = %q; want %q", "Connection", cf, expectedValues)
+ 		}
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 97b37f2841..7052f3c9fc 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"net/netip"
+ 	"reflect"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -428,7 +428,7 @@ func TestLookupLongTXT(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	sort.Strings(txts)
++	slices.Sort(txts)
+ 	want := []string{
+ 		strings.Repeat("abcdefghijklmnopqrstuvwxyABCDEFGHJIKLMNOPQRSTUVWXY", 10),
+ 		"gophers rule",
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index c618a05bb4..8f6e4b238f 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"cmp"
+ 	"context"
+ 	"encoding/json"
+ 	"errors"
+@@ -13,7 +14,7 @@ import (
+ 	"os/exec"
+ 	"reflect"
+ 	"regexp"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+@@ -65,8 +66,14 @@ func TestNSLookupMX(t *testing.T) {
+ 		if err != nil {
+ 			t.Skipf("skipping failed nslookup %s test: %s", server, err)
+ 		}
+-		sort.Sort(byPrefAndHost(expected))
+-		sort.Sort(byPrefAndHost(mx))
++		byPrefAndHost := func(a, b *MX) int {
++			if r := cmp.Compare(a.Pref, b.Pref); r != 0 {
++				return r
++			}
++			return strings.Compare(a.Host, b.Host)
++		}
++		slices.SortFunc(expected, byPrefAndHost)
++		slices.SortFunc(mx, byPrefAndHost)
+ 		if !reflect.DeepEqual(expected, mx) {
+ 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, toJson(expected), toJson(mx))
+ 		}
+@@ -109,8 +116,11 @@ func TestNSLookupNS(t *testing.T) {
+ 		if err != nil {
+ 			t.Skipf("skipping failed nslookup %s test: %s", server, err)
+ 		}
+-		sort.Sort(byHost(expected))
+-		sort.Sort(byHost(ns))
++		byHost := func(a, b *NS) int {
++			return strings.Compare(a.Host, b.Host)
++		}
++		slices.SortFunc(expected, byHost)
++		slices.SortFunc(ns, byHost)
+ 		if !reflect.DeepEqual(expected, ns) {
+ 			t.Errorf("different results %s:\texp:%v\tgot:%v", toJson(server), toJson(expected), ns)
+ 		}
+@@ -132,8 +142,8 @@ func TestNSLookupTXT(t *testing.T) {
+ 		if err != nil {
+ 			t.Skipf("skipping failed nslookup %s test: %s", server, err)
+ 		}
+-		sort.Strings(expected)
+-		sort.Strings(txt)
++		slices.Sort(expected)
++		slices.Sort(txt)
+ 		if !reflect.DeepEqual(expected, txt) {
+ 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, toJson(expected), toJson(txt))
+ 		}
+@@ -158,8 +168,8 @@ func TestLookupLocalPTR(t *testing.T) {
+ 	if err != nil {
+ 		t.Skipf("skipping failed lookup %s test: %s", addr.String(), err)
+ 	}
+-	sort.Strings(expected)
+-	sort.Strings(names)
++	slices.Sort(expected)
++	slices.Sort(names)
+ 	if !reflect.DeepEqual(expected, names) {
+ 		t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
+ 	}
+@@ -189,31 +199,14 @@ func TestLookupPTR(t *testing.T) {
+ 			t.Logf("skipping failed lookup %s test: %s", addr, err)
+ 			continue
+ 		}
+-		sort.Strings(expected)
+-		sort.Strings(names)
++		slices.Sort(expected)
++		slices.Sort(names)
+ 		if !reflect.DeepEqual(expected, names) {
+ 			t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
+ 		}
+ 	}
+ }
+ 
+-type byPrefAndHost []*MX
+-
+-func (s byPrefAndHost) Len() int { return len(s) }
+-func (s byPrefAndHost) Less(i, j int) bool {
+-	if s[i].Pref != s[j].Pref {
+-		return s[i].Pref < s[j].Pref
+-	}
+-	return s[i].Host < s[j].Host
+-}
+-func (s byPrefAndHost) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+-
+-type byHost []*NS
+-
+-func (s byHost) Len() int           { return len(s) }
+-func (s byHost) Less(i, j int) bool { return s[i].Host < s[j].Host }
+-func (s byHost) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+-
+ func nslookup(qtype, name string) (string, error) {
+ 	var out strings.Builder
+ 	var err strings.Builder
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 7dc1e3ee0d..e5767f7c7c 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"net/internal/socktest"
+ 	"os"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -193,7 +193,7 @@ func runningGoroutines() []string {
+ 		}
+ 		gss = append(gss, stack)
+ 	}
+-	sort.Strings(gss)
++	slices.Sort(gss)
+ 	return gss
+ }
+ 
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index 947dda56f2..50554c05c5 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -13,7 +13,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"regexp"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+@@ -286,7 +286,7 @@ func TestInterfacesWithNetsh(t *testing.T) {
+ 	for _, ifi := range ift {
+ 		have = append(have, toString(ifi.Name, ifi.Flags&FlagUp != 0))
+ 	}
+-	sort.Strings(have)
++	slices.Sort(have)
+ 
+ 	ifaces := make(map[string]bool)
+ 	err = netshInterfaceIPShowInterface("ipv6", ifaces)
+@@ -301,7 +301,7 @@ func TestInterfacesWithNetsh(t *testing.T) {
+ 	for name, isup := range ifaces {
+ 		want = append(want, toString(name, isup))
+ 	}
+-	sort.Strings(want)
++	slices.Sort(want)
+ 
+ 	if strings.Join(want, "/") != strings.Join(have, "/") {
+ 		t.Fatalf("unexpected interface list %q, want %q", have, want)
+@@ -483,12 +483,12 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
+ 				}
+ 			}
+ 		}
+-		sort.Strings(have)
++		slices.Sort(have)
+ 
+ 		want := netshInterfaceIPv4ShowAddress(ifi.Name, outIPV4)
+ 		wantIPv6 := netshInterfaceIPv6ShowAddress(ifi.Name, outIPV6)
+ 		want = append(want, wantIPv6...)
+-		sort.Strings(want)
++		slices.Sort(want)
+ 
+ 		if strings.Join(want, "/") != strings.Join(have, "/") {
+ 			t.Errorf("%s: unexpected addresses list %q, want %q", ifi.Name, have, want)
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index a52960038e..79e1a446d8 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -14,7 +14,6 @@ import (
+ 	. "net/netip"
+ 	"reflect"
+ 	"slices"
+-	"sort"
+ 	"strings"
+ 	"testing"
+ 	"unique"
+@@ -885,7 +884,7 @@ func TestAddrLessCompare(t *testing.T) {
+ 		mustIP("8.8.8.8"),
+ 		mustIP("::1%foo"),
+ 	}
+-	sort.Slice(values, func(i, j int) bool { return values[i].Less(values[j]) })
++	slices.SortFunc(values, Addr.Compare)
+ 	got := fmt.Sprintf("%s", values)
+ 	want := `[invalid IP 1.2.3.4 8.8.8.8 ::1 ::1%foo ::2]`
+ 	if got != want {
+@@ -936,7 +935,7 @@ func TestAddrPortCompare(t *testing.T) {
+ 		mustIPPort("8.8.8.8:8080"),
+ 		mustIPPort("[::1%foo]:1024"),
+ 	}
+-	slices.SortFunc(values, func(a, b AddrPort) int { return a.Compare(b) })
++	slices.SortFunc(values, AddrPort.Compare)
+ 	got := fmt.Sprintf("%s", values)
+ 	want := `[invalid AddrPort 1.2.3.4:443 8.8.8.8:8080 [::1]:80 [::1%foo]:1024 [::2]:80]`
+ 	if got != want {
+@@ -988,7 +987,7 @@ func TestPrefixCompare(t *testing.T) {
+ 		mustPrefix("fe80::/48"),
+ 		mustPrefix("1.2.0.0/24"),
+ 	}
+-	slices.SortFunc(values, func(a, b Prefix) int { return a.Compare(b) })
++	slices.SortFunc(values, Prefix.Compare)
+ 	got := fmt.Sprintf("%s", values)
+ 	want := `[invalid Prefix 1.2.0.0/16 1.2.0.0/24 1.2.3.0/24 fe80::/48 fe80::/64 fe90::/64]`
+ 	if got != want {
+diff --git a/src/net/resolverdialfunc_test.go b/src/net/resolverdialfunc_test.go
+index 1af4199269..9b45cdbcb0 100644
+--- a/src/net/resolverdialfunc_test.go
++++ b/src/net/resolverdialfunc_test.go
+@@ -13,7 +13,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"reflect"
+-	"sort"
++	"slices"
+ 	"testing"
+ 	"time"
+ 
+@@ -97,7 +97,7 @@ func sortedIPStrings(ips []IP) []string {
+ 	for i, ip := range ips {
+ 		ret[i] = ip.String()
+ 	}
+-	sort.Strings(ret)
++	slices.Sort(ret)
+ 	return ret
+ }
+ 
+diff --git a/src/net/rpc/debug.go b/src/net/rpc/debug.go
+index 9e499fd984..81d4ea3685 100644
+--- a/src/net/rpc/debug.go
++++ b/src/net/rpc/debug.go
+@@ -13,7 +13,8 @@ import (
+ 	"fmt"
+ 	"html/template"
+ 	"net/http"
+-	"sort"
++	"slices"
++	"strings"
+ )
+ 
+ const debugText = `<html>
+@@ -51,7 +52,7 @@ type methodArray []debugMethod
+ type debugService struct {
+ 	Service *service
+ 	Name    string
+-	Method  methodArray
++	Method  []debugMethod
+ }
+ 
+ type serviceArray []debugService
+@@ -74,15 +75,19 @@ func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 	var services serviceArray
+ 	server.serviceMap.Range(func(snamei, svci any) bool {
+ 		svc := svci.(*service)
+-		ds := debugService{svc, snamei.(string), make(methodArray, 0, len(svc.method))}
++		ds := debugService{svc, snamei.(string), make([]debugMethod, 0, len(svc.method))}
+ 		for mname, method := range svc.method {
+ 			ds.Method = append(ds.Method, debugMethod{method, mname})
+ 		}
+-		sort.Sort(ds.Method)
++		slices.SortFunc(ds.Method, func(a, b debugMethod) int {
++			return strings.Compare(a.Name, b.Name)
++		})
+ 		services = append(services, ds)
+ 		return true
+ 	})
+-	sort.Sort(services)
++	slices.SortFunc(services, func(a, b debugService) int {
++		return strings.Compare(a.Name, b.Name)
++	})
+ 	err := debug.Execute(w, services)
+ 	if err != nil {
+ 		fmt.Fprintln(w, "rpc: error executing template:", err.Error())
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 6c74f3fbf9..629b903f9b 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -14,7 +14,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"path"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -994,7 +994,7 @@ func (v Values) Encode() string {
+ 	for k := range v {
+ 		keys = append(keys, k)
+ 	}
+-	sort.Strings(keys)
++	slices.Sort(keys)
+ 	for _, k := range keys {
+ 		vs := v[k]
+ 		keyEscaped := QueryEscape(k)
+diff --git a/src/os/dir.go b/src/os/dir.go
+index d75ac17193..471a291345 100644
+--- a/src/os/dir.go
++++ b/src/os/dir.go
+@@ -5,10 +5,11 @@
+ package os
+ 
+ import (
++	"internal/bytealg"
+ 	"internal/filepathlite"
+ 	"io"
+ 	"io/fs"
+-	"sort"
++	"slices"
+ )
+ 
+ type readdirMode int
+@@ -122,7 +123,9 @@ func ReadDir(name string) ([]DirEntry, error) {
+ 	defer f.Close()
+ 
+ 	dirs, err := f.ReadDir(-1)
+-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
++	slices.SortFunc(dirs, func(a, b DirEntry) int {
++		return bytealg.CompareString(a.Name(), b.Name())
++	})
+ 	return dirs, err
+ }
+ 
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 68a3a03e2a..7348a9f01c 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -19,7 +19,7 @@ import (
+ 	"reflect"
+ 	"runtime"
+ 	"runtime/debug"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"syscall"
+@@ -808,7 +808,7 @@ func TestReaddirStatFailures(t *testing.T) {
+ 		for i, fi := range fis {
+ 			s[i] = fi.Name()
+ 		}
+-		sort.Strings(s)
++		slices.Sort(s)
+ 		return s
+ 	}
+ 
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index f4ee076b81..caff011122 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -20,7 +20,6 @@ import (
+ 	"reflect"
+ 	"runtime"
+ 	"slices"
+-	"sort"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+@@ -664,7 +663,7 @@ func TestOpenVolumeName(t *testing.T) {
+ 	chdir(t, tmpdir)
+ 
+ 	want := []string{"file1", "file2", "file3", "gopher.txt"}
+-	sort.Strings(want)
++	slices.Sort(want)
+ 	for _, name := range want {
+ 		err := os.WriteFile(filepath.Join(tmpdir, name), nil, 0777)
+ 		if err != nil {
+@@ -682,7 +681,7 @@ func TestOpenVolumeName(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	sort.Strings(have)
++	slices.Sort(have)
+ 
+ 	if strings.Join(want, "/") != strings.Join(have, "/") {
+ 		t.Fatalf("unexpected file list %q, want %q", have, want)
+diff --git a/src/os/user/listgroups_unix_test.go b/src/os/user/listgroups_unix_test.go
+index ae50319ec8..9619462cec 100644
+--- a/src/os/user/listgroups_unix_test.go
++++ b/src/os/user/listgroups_unix_test.go
+@@ -8,7 +8,7 @@ package user
+ 
+ import (
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -92,8 +92,8 @@ func checkSameIDs(t *testing.T, got, want []string) {
+ 		t.Errorf("ID list mismatch: got %v; want %v", got, want)
+ 		return
+ 	}
+-	sort.Strings(got)
+-	sort.Strings(want)
++	slices.Sort(got)
++	slices.Sort(want)
+ 	mismatch := -1
+ 	for i, g := range want {
+ 		if got[i] != g {
+diff --git a/src/path/filepath/match.go b/src/path/filepath/match.go
+index 67124796db..b93e89adb0 100644
+--- a/src/path/filepath/match.go
++++ b/src/path/filepath/match.go
+@@ -9,7 +9,7 @@ import (
+ 	"internal/filepathlite"
+ 	"os"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"unicode/utf8"
+ )
+@@ -345,7 +345,7 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
+ 	defer d.Close()
+ 
+ 	names, _ := d.Readdirnames(-1)
+-	sort.Strings(names)
++	slices.Sort(names)
+ 
+ 	for _, n := range names {
+ 		matched, err := Match(pattern, n)
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index b0f3cbbfe9..5ffd9f0b6c 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -17,7 +17,7 @@ import (
+ 	"internal/filepathlite"
+ 	"io/fs"
+ 	"os"
+-	"sort"
++	"slices"
+ )
+ 
+ const (
+@@ -444,7 +444,7 @@ func readDirNames(dirname string) ([]string, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	sort.Strings(names)
++	slices.Sort(names)
+ 	return names, nil
+ }
+ 
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index f2cb604bac..a57f17f8c3 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -22,7 +22,7 @@ import (
+ 	"reflect/internal/example1"
+ 	"reflect/internal/example2"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -6282,7 +6282,7 @@ func TestMapOfGCKeys(t *testing.T) {
+ 		for _, kv := range v.MapKeys() {
+ 			out = append(out, int(kv.Elem().Interface().(uintptr)))
+ 		}
+-		sort.Ints(out)
++		slices.Sort(out)
+ 		for j, k := range out {
+ 			if k != i*n+j {
+ 				t.Errorf("lost x[%d][%d] = %d, want %d", i, j, k, i*n+j)
+@@ -7861,7 +7861,7 @@ func iterateToString(it *MapIter) string {
+ 		line := fmt.Sprintf("%v: %v", it.Key(), it.Value())
+ 		got = append(got, line)
+ 	}
+-	sort.Strings(got)
++	slices.Sort(got)
+ 	return "[" + strings.Join(got, ", ") + "]"
+ }
+ 
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 4f11c58733..ec74ba0165 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -6,7 +6,7 @@ package debug
+ 
+ import (
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"time"
+ )
+ 
+@@ -69,7 +69,7 @@ func ReadGCStats(stats *GCStats) {
+ 			// See the allocation at the top of the function.
+ 			sorted := stats.Pause[n : n+n]
+ 			copy(sorted, stats.Pause)
+-			sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
++			slices.Sort(sorted)
+ 			nq := len(stats.PauseQuantiles) - 1
+ 			for i := 0; i < nq; i++ {
+ 				stats.PauseQuantiles[i] = sorted[len(sorted)*i/nq]
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 9451a1b608..968d5275c5 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"reflect"
+ 	"runtime"
+ 	"runtime/debug"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -548,9 +548,7 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
+ 	b.ReportMetric(0, "allocs/op")
+ 
+ 	// Sort latencies then report percentiles.
+-	sort.Slice(latencies, func(i, j int) bool {
+-		return latencies[i] < latencies[j]
+-	})
++	slices.Sort(latencies)
+ 	b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
+ 	b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
+ 	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index c29fb933ee..13624e0938 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -13,7 +13,7 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -388,8 +388,8 @@ func TestBigItems(t *testing.T) {
+ 		values[i] = v[37]
+ 		i++
+ 	}
+-	sort.Strings(keys[:])
+-	sort.Strings(values[:])
++	slices.Sort(keys[:])
++	slices.Sort(values[:])
+ 	for i := 0; i < 100; i++ {
+ 		if keys[i] != fmt.Sprintf("string%02d", i) {
+ 			t.Errorf("#%d: missing key: %v", i, keys[i])
+diff --git a/src/runtime/pprof/label.go b/src/runtime/pprof/label.go
+index 3684ae34e5..41eece2f74 100644
+--- a/src/runtime/pprof/label.go
++++ b/src/runtime/pprof/label.go
+@@ -7,7 +7,7 @@ package pprof
+ import (
+ 	"context"
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -49,7 +49,7 @@ func (l *labelMap) String() string {
+ 		keyVals = append(keyVals, fmt.Sprintf("%q:%q", k, v))
+ 	}
+ 
+-	sort.Strings(keyVals)
++	slices.Sort(keyVals)
+ 
+ 	return "{" + strings.Join(keyVals, ", ") + "}"
+ }
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 8931b2b579..b387397d42 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -74,11 +74,13 @@ package pprof
+ 
+ import (
+ 	"bufio"
++	"cmp"
+ 	"fmt"
+ 	"internal/abi"
+ 	"internal/profilerecord"
+ 	"io"
+ 	"runtime"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+@@ -273,7 +275,9 @@ func Profiles() []*Profile {
+ 		all = append(all, p)
+ 	}
+ 
+-	sort.Slice(all, func(i, j int) bool { return all[i].name < all[j].name })
++	slices.SortFunc(all, func(a, b *Profile) int {
++		return strings.Compare(a.name, b.name)
++	})
+ 	return all
+ }
+ 
+@@ -373,15 +377,7 @@ func (p *Profile) WriteTo(w io.Writer, debug int) error {
+ 	p.mu.Unlock()
+ 
+ 	// Map order is non-deterministic; make output deterministic.
+-	sort.Slice(all, func(i, j int) bool {
+-		t, u := all[i], all[j]
+-		for k := 0; k < len(t) && k < len(u); k++ {
+-			if t[k] != u[k] {
+-				return t[k] < u[k]
+-			}
+-		}
+-		return len(t) < len(u)
+-	})
++	slices.SortFunc(all, slices.Compare)
+ 
+ 	return printCountProfile(w, debug, p.name, stackProfile(all))
+ }
+@@ -609,7 +605,9 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
+ 		return writeHeapProto(w, p, int64(runtime.MemProfileRate), defaultSampleType)
+ 	}
+ 
+-	sort.Slice(p, func(i, j int) bool { return p[i].InUseBytes() > p[j].InUseBytes() })
++	slices.SortFunc(p, func(a, b profilerecord.MemProfileRecord) int {
++		return cmp.Compare(a.InUseBytes(), b.InUseBytes())
++	})
+ 
+ 	b := bufio.NewWriter(w)
+ 	tw := tabwriter.NewWriter(b, 1, 8, 1, '\t', 0)
+@@ -909,7 +907,9 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
+ 		}
+ 	}
+ 
+-	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
++	slices.SortFunc(p, func(a, b profilerecord.BlockProfileRecord) int {
++		return cmp.Compare(b.Cycles, a.Cycles)
++	})
+ 
+ 	if debug <= 0 {
+ 		return printCountCycleProfile(w, "contentions", "delay", p)
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 0839cd96b7..c1bf7f87db 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"io"
+ 	. "runtime"
+ 	"runtime/debug"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -382,9 +382,7 @@ func BenchmarkGoroutineProfile(b *testing.B) {
+ 			b.StopTimer()
+ 
+ 			// Sort latencies then report percentiles.
+-			sort.Slice(latencies, func(i, j int) bool {
+-				return latencies[i] < latencies[j]
+-			})
++			slices.Sort(latencies)
+ 			b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
+ 			b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
+ 			b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index 1b6746dbfb..b6ee983c29 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -11,7 +11,7 @@ package sync_test
+ import (
+ 	"runtime"
+ 	"runtime/debug"
+-	"sort"
++	"slices"
+ 	. "sync"
+ 	"sync/atomic"
+ 	"testing"
+@@ -338,7 +338,7 @@ func BenchmarkPoolSTW(b *testing.B) {
+ 	}
+ 
+ 	// Get pause time stats.
+-	sort.Slice(pauses, func(i, j int) bool { return pauses[i] < pauses[j] })
++	slices.Sort(pauses)
+ 	var total uint64
+ 	for _, ns := range pauses {
+ 		total += ns
+diff --git a/src/syscall/dirent_test.go b/src/syscall/dirent_test.go
+index befe78f1cf..cfa5478feb 100644
+--- a/src/syscall/dirent_test.go
++++ b/src/syscall/dirent_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"syscall"
+@@ -71,7 +71,7 @@ func TestDirent(t *testing.T) {
+ 		}
+ 	}
+ 
+-	sort.Strings(names)
++	slices.Sort(names)
+ 	t.Logf("names: %q", names)
+ 
+ 	if len(names) != 10 {
+@@ -138,8 +138,8 @@ func TestDirentRepeat(t *testing.T) {
+ 	}
+ 
+ 	// Check results
+-	sort.Strings(files)
+-	sort.Strings(files2)
++	slices.Sort(files)
++	slices.Sort(files2)
+ 	if strings.Join(files, "|") != strings.Join(files2, "|") {
+ 		t.Errorf("bad file list: want\n%q\ngot\n%q", files, files2)
+ 	}
+diff --git a/src/syscall/getdirentries_test.go b/src/syscall/getdirentries_test.go
+index ddd8208c15..5d401d8dd6 100644
+--- a/src/syscall/getdirentries_test.go
++++ b/src/syscall/getdirentries_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+@@ -76,8 +76,8 @@ func testGetdirentries(t *testing.T, count int) {
+ 	}
+ 
+ 	names = append(names, ".", "..") // Getdirentries returns these also
+-	sort.Strings(names)
+-	sort.Strings(names2)
++	slices.Sort(names)
++	slices.Sort(names2)
+ 	if strings.Join(names, ":") != strings.Join(names2, ":") {
+ 		t.Errorf("names don't match\n names: %q\nnames2: %q", names, names2)
+ 	}
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index 675406fba0..d7543ceb4b 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -13,7 +13,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -484,7 +484,7 @@ func compareStatus(filter, expect string) error {
+ 					// https://github.com/golang/go/issues/46145
+ 					// Containers don't reliably output this line in sorted order so manually sort and compare that.
+ 					a := strings.Split(line[8:], " ")
+-					sort.Strings(a)
++					slices.Sort(a)
+ 					got := strings.Join(a, " ")
+ 					if got == expected[8:] {
+ 						foundAThread = true
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index db91c1478e..80a1b7de77 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -12,7 +12,7 @@ import (
+ 	"math"
+ 	"os"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -443,7 +443,7 @@ func (r BenchmarkResult) String() string {
+ 		}
+ 		extraKeys = append(extraKeys, k)
+ 	}
+-	sort.Strings(extraKeys)
++	slices.Sort(extraKeys)
+ 	for _, k := range extraKeys {
+ 		buf.WriteByte('\t')
+ 		prettyPrint(buf, r.Extra[k], k)
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index 2987170827..66f555d1f1 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -6,8 +6,9 @@ package testing_test
+ 
+ import (
+ 	"bytes"
++	"cmp"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync/atomic"
+ 	"testing"
+@@ -168,9 +169,9 @@ func ExampleB_ReportMetric() {
+ 		var compares int64
+ 		for i := 0; i < b.N; i++ {
+ 			s := []int{5, 4, 3, 2, 1}
+-			sort.Slice(s, func(i, j int) bool {
++			slices.SortFunc(s, func(a, b int) int {
+ 				compares++
+-				return s[i] < s[j]
++				return cmp.Compare(a, b)
+ 			})
+ 		}
+ 		// This metric is per-operation, so divide by b.N and
+@@ -190,12 +191,12 @@ func ExampleB_ReportMetric_parallel() {
+ 		b.RunParallel(func(pb *testing.PB) {
+ 			for pb.Next() {
+ 				s := []int{5, 4, 3, 2, 1}
+-				sort.Slice(s, func(i, j int) bool {
++				slices.SortFunc(s, func(a, b int) int {
+ 					// Because RunParallel runs the function many
+ 					// times in parallel, we must increment the
+ 					// counter atomically to avoid racing writes.
+ 					compares.Add(1)
+-					return s[i] < s[j]
++					return cmp.Compare(a, b)
+ 				})
+ 			}
+ 		})
+diff --git a/src/testing/example.go b/src/testing/example.go
+index 07aa5cb66c..b14477a406 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -6,7 +6,7 @@ package testing
+ 
+ import (
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"time"
+ )
+@@ -47,7 +47,7 @@ func runExamples(matchString func(pat, str string) (bool, error), examples []Int
+ 
+ func sortLines(output string) string {
+ 	lines := strings.Split(output, "\n")
+-	sort.Strings(lines)
++	slices.Sort(lines)
+ 	return strings.Join(lines, "\n")
+ }
+ 
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index f7f8ccd9ec..5e3720b0ed 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -8,7 +8,7 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"path"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"time"
+ )
+@@ -100,8 +100,8 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
+ 	for name := range need {
+ 		list = append(list, mapFileInfo{name, &MapFile{Mode: fs.ModeDir | 0555}})
+ 	}
+-	sort.Slice(list, func(i, j int) bool {
+-		return list[i].name < list[j].name
++	slices.SortFunc(list, func(a, b mapFileInfo) int {
++		return strings.Compare(a.name, b.name)
+ 	})
+ 
+ 	if file == nil {
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 0fd7d4806f..080bcdd65f 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -12,7 +12,7 @@ import (
+ 	"io/fs"
+ 	"path"
+ 	"reflect"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing/iotest"
+ )
+@@ -78,7 +78,7 @@ func testFS(fsys fs.FS, expected ...string) error {
+ 				list = append(list, k)
+ 			}
+ 		}
+-		sort.Strings(list)
++		slices.Sort(list)
+ 		if len(list) > 15 {
+ 			list = append(list[:10], "...")
+ 		}
+@@ -362,9 +362,9 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
+ 		return
+ 	}
+ 
+-	if !sort.StringsAreSorted(names) {
++	if !slices.IsSorted(names) {
+ 		t.errorf("%s: Glob(%#q): unsorted output:\n%s", dir, glob, strings.Join(names, "\n"))
+-		sort.Strings(names)
++		slices.Sort(names)
+ 	}
+ 
+ 	var problems []string
+@@ -488,11 +488,11 @@ func (t *fsTester) checkDirList(dir, desc string, list1, list2 []fs.DirEntry) {
+ 		return
+ 	}
+ 
+-	sort.Slice(diffs, func(i, j int) bool {
+-		fi := strings.Fields(diffs[i])
+-		fj := strings.Fields(diffs[j])
++	slices.SortFunc(diffs, func(a, b string) int {
++		fa := strings.Fields(a)
++		fb := strings.Fields(b)
+ 		// sort by name (i < j) and then +/- (j < i, because + < -)
+-		return fi[1]+" "+fj[0] < fj[1]+" "+fi[0]
++		return strings.Compare(fa[1]+" "+fb[0], fb[1]+" "+fa[0])
+ 	})
+ 
+ 	t.errorf("%s: diff %s:\n\t%s", dir, desc, strings.Join(diffs, "\n\t"))
+diff --git a/src/testing/fstest/testfs_test.go b/src/testing/fstest/testfs_test.go
+index b9f10c613a..2ef1053a01 100644
+--- a/src/testing/fstest/testfs_test.go
++++ b/src/testing/fstest/testfs_test.go
+@@ -10,7 +10,8 @@ import (
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+-	"sort"
++	"slices"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -61,8 +62,8 @@ func (f *shuffledFile) ReadDir(n int) ([]fs.DirEntry, error) {
+ 	//
+ 	// We do this to make sure that the TestFS test suite is not affected by the
+ 	// order of directory entries.
+-	sort.Slice(dirents, func(i, j int) bool {
+-		return dirents[i].Name() > dirents[j].Name()
++	slices.SortFunc(dirents, func(a, b fs.DirEntry) int {
++		return strings.Compare(b.Name(), a.Name())
+ 	})
+ 	return dirents, err
+ }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 78ad8dbaac..200fa659b8 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -383,7 +383,7 @@ import (
+ 	"runtime"
+ 	"runtime/debug"
+ 	"runtime/trace"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -2382,7 +2382,7 @@ func runningList() []string {
+ 		list = append(list, fmt.Sprintf("%s (%v)", k.(string), highPrecisionTimeSince(v.(highPrecisionTime)).Round(time.Second)))
+ 		return true
+ 	})
+-	sort.Strings(list)
++	slices.Sort(list)
+ 	return list
+ }
+ 
+diff --git a/src/time/genzabbrs.go b/src/time/genzabbrs.go
+index 7dbd22f4ea..7657717825 100644
+--- a/src/time/genzabbrs.go
++++ b/src/time/genzabbrs.go
+@@ -21,7 +21,8 @@ import (
+ 	"log"
+ 	"net/http"
+ 	"os"
+-	"sort"
++	"slices"
++	"strings"
+ 	"text/template"
+ 	"time"
+ )
+@@ -109,8 +110,8 @@ func main() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	sort.Slice(zs, func(i, j int) bool {
+-		return zs[i].UnixName < zs[j].UnixName
++	slices.SortFunc(zs, func(a, b *zone) int {
++		return strings.Compare(a.UnixName, b.UnixName)
+ 	})
+ 	var v = struct {
+ 		URL string

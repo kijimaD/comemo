@@ -12,6 +12,25 @@ Date:   Wed Jul 24 15:22:09 2024 +0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 07ab135186..fad8625d98 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -99,12 +99,7 @@ func TestImportTestdata(t *testing.T) {
+ 		"exports.go":  {"go/ast", "go/token"},
+ 		"generics.go": nil,
+ 	}
+-	if true /* was goexperiment.Unified */ {
+-		// TODO(mdempsky): Fix test below to flatten the transitive
+-		// Package.Imports graph. Unified IR is more precise about
+-		// recreating the package import graph.
+-		testfiles["exports.go"] = []string{"go/ast"}
+-	}
++	testfiles["exports.go"] = []string{"go/ast"}
+ 
+ 	for testfile, wantImports := range testfiles {
+ 		tmpdir := mktmpdir(t)

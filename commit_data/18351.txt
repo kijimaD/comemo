@@ -8,7 +8,52 @@ Date:   Sat Jan 25 20:11:16 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/53020044
-
+---
  src/pkg/sync/pool.go      | 12 ++++++++++++
  src/pkg/sync/pool_test.go |  3 +++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/sync/pool.go b/src/pkg/sync/pool.go
+index 1a38887546..ca49d21a0d 100644
+--- a/src/pkg/sync/pool.go
++++ b/src/pkg/sync/pool.go
+@@ -72,6 +72,12 @@ func init() {
+ 
+ // Put adds x to the pool.
+ func (p *Pool) Put(x interface{}) {
++	if raceenabled {
++		// Under race detector the Pool degenerates into no-op.
++		// It's conforming, simple and does not introduce excessive
++		// happens-before edges between unrelated goroutines.
++		return
++	}
+ 	if x == nil {
+ 		return
+ 	}
+@@ -95,6 +101,12 @@ func (p *Pool) Put(x interface{}) {
+ // If Get would otherwise return nil and p.New is non-nil, Get returns
+ // the result of calling p.New.
+ func (p *Pool) Get() interface{} {
++	if raceenabled {
++		if p.New != nil {
++			return p.New()
++		}
++		return nil
++	}
+ 	l := p.pin()
+ 	t := l.tail
+ 	if t > 0 {
+diff --git a/src/pkg/sync/pool_test.go b/src/pkg/sync/pool_test.go
+index accf524a9f..7e02f69d6c 100644
+--- a/src/pkg/sync/pool_test.go
++++ b/src/pkg/sync/pool_test.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Pool is no-op under race detector, so all these tests do not work.
++// +build !race
++
+ package sync_test
+ 
+ import (

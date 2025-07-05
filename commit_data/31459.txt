@@ -13,6 +13,21 @@ Date:   Tue Feb 21 11:28:49 2017 -0500
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 8a48c351f6..fae2981610 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -170,6 +170,9 @@ func checkStaleRuntime(t *testing.T) {
+ 				t.Logf("go list -f {{.StaleReason}} failed: %v", err)
+ 			}
+ 			t.Logf("go list -f {{.StaleReason}} runtime:\n%s", out)
++			out, err = testEnv(exec.Command("ls", "-lR", "--full-time", runtime.GOROOT())).CombinedOutput()
++			t.Logf("%s", out)
++
+ 			staleRuntimeErr = fmt.Errorf("Stale runtime.a. Run 'go install runtime'.")
+ 		}
+ 	})

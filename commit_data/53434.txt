@@ -15,7 +15,36 @@ Date:   Wed Aug 10 06:52:22 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: hopehook <hopehook@qq.com>
-
+---
  src/cmd/go/internal/get/get.go | 1 -
  src/reflect/all_test.go        | 2 --
  2 files changed, 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 1bb67bcf51..586427ff33 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -206,7 +206,6 @@ func downloadPaths(patterns []string) []string {
+ 	for _, arg := range patterns {
+ 		if strings.Contains(arg, "@") {
+ 			base.Fatalf("go: can only use path@version syntax with 'go get' and 'go install' in module-aware mode")
+-			continue
+ 		}
+ 
+ 		// Guard against 'go get x.go', a common mistake.
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index aa620bf0ee..3a360b6c71 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -1876,11 +1876,9 @@ func TestSelect(t *testing.T) {
+ 				recvStr = fmt.Sprintf(", received %v, %v", recv.Interface(), recvOK)
+ 			}
+ 			t.Fatalf("%s\nselected #%d incorrectly%s", fmtSelect(info), i, recvStr)
+-			continue
+ 		}
+ 		if cas.panic {
+ 			t.Fatalf("%s\nselected #%d incorrectly (case should panic)", fmtSelect(info), i)
+-			continue
+ 		}
+ 
+ 		if cases[i].Dir == SelectRecv {

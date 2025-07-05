@@ -11,7 +11,7 @@ Date:   Wed Jul 22 13:09:26 2015 +0200
     Change-Id: I718bcb2ae3e5959d9f72cab5e6708289e5c8ebd5
     Reviewed-on: https://go-review.googlesource.com/12511
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  api/go1.5.txt                                    |  4 +-
  src/cmd/trace/main.go                            |  2 +-
  src/go/build/deps_test.go                        |  5 ++-
@@ -22,3 +22,516 @@ Date:   Wed Jul 22 13:09:26 2015 +0200
  src/runtime/{pprof => trace}/trace_test.go       | 34 ++++++++--------
  src/testing/testing.go                           | 13 +++---
  9 files changed, 102 insertions(+), 84 deletions(-)
+
+diff --git a/api/go1.5.txt b/api/go1.5.txt
+index 069a87649b..72e4ad9ae7 100644
+--- a/api/go1.5.txt
++++ b/api/go1.5.txt
+@@ -874,8 +874,8 @@ pkg reflect, func FuncOf([]Type, []Type, bool) Type
+ pkg runtime, func ReadTrace() []uint8
+ pkg runtime, func StartTrace() error
+ pkg runtime, func StopTrace()
+-pkg runtime/pprof, func StartTrace(io.Writer) error
+-pkg runtime/pprof, func StopTrace()
++pkg runtime/trace, func Start(io.Writer) error
++pkg runtime/trace, func Stop()
+ pkg strings, func Compare(string, string) int
+ pkg strings, func LastIndexByte(string, uint8) int
+ pkg strings, method (*Reader) Size() int64
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index c8a9231de7..27d8699b5a 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -6,7 +6,7 @@
+ Trace is a tool for viewing trace files.
+ 
+ Trace files can be generated with:
+-	- runtime/pprof.StartTrace
++	- runtime/trace.Start
+ 	- net/http/pprof package
+ 	- go test -trace
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index b183aea986..14b25b1161 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -151,9 +151,10 @@ var pkgDeps = map[string][]string{
+ 	"regexp/syntax":  {"L2"},
+ 	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
+ 	"runtime/pprof":  {"L2", "fmt", "text/tabwriter"},
++	"runtime/trace":  {"L0"},
+ 	"text/tabwriter": {"L2"},
+ 
+-	"testing":        {"L2", "flag", "fmt", "os", "runtime/pprof", "time"},
++	"testing":        {"L2", "flag", "fmt", "os", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest": {"L2", "log"},
+ 	"testing/quick":  {"L2", "flag", "fmt", "reflect"},
+ 
+@@ -331,7 +332,7 @@ var pkgDeps = map[string][]string{
+ 	"net/http/fcgi":     {"L4", "NET", "OS", "net/http", "net/http/cgi"},
+ 	"net/http/httptest": {"L4", "NET", "OS", "crypto/tls", "flag", "net/http"},
+ 	"net/http/httputil": {"L4", "NET", "OS", "net/http", "net/http/internal"},
+-	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof"},
++	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
+ 	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
+ 	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
+ 
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index bbca292f45..fd9154ac2a 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -58,6 +58,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"runtime/pprof"
++	"runtime/trace"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -112,11 +113,11 @@ func Trace(w http.ResponseWriter, r *http.Request) {
+ 		sec = 1
+ 	}
+ 
+-	// Set Content Type assuming StartTrace will work,
++	// Set Content Type assuming trace.Start will work,
+ 	// because if it does it starts writing.
+ 	w.Header().Set("Content-Type", "application/octet-stream")
+-	if err := pprof.StartTrace(w); err != nil {
+-		// StartTrace failed, so no writes yet.
++	if err := trace.Start(w); err != nil {
++		// trace.Start failed, so no writes yet.
+ 		// Can change header back to text content and send error code.
+ 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 		w.WriteHeader(http.StatusInternalServerError)
+@@ -124,7 +125,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 	time.Sleep(time.Duration(sec) * time.Second)
+-	pprof.StopTrace()
++	trace.Stop()
+ }
+ 
+ // Symbol looks up the program counters listed in the request,
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 43fe6e85a1..7d888e4ab0 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -613,33 +613,6 @@ func StopCPUProfile() {
+ 	<-cpu.done
+ }
+ 
+-// TODO(rsc): Decide if StartTrace belongs in this package.
+-// See golang.org/issue/9710.
+-// StartTrace enables tracing for the current process.
+-// While tracing, the trace will be buffered and written to w.
+-// StartTrace returns an error if profiling is tracing enabled.
+-func StartTrace(w io.Writer) error {
+-	if err := runtime.StartTrace(); err != nil {
+-		return err
+-	}
+-	go func() {
+-		for {
+-			data := runtime.ReadTrace()
+-			if data == nil {
+-				break
+-			}
+-			w.Write(data)
+-		}
+-	}()
+-	return nil
+-}
+-
+-// StopTrace stops the current tracing, if any.
+-// StopTrace only returns after all the writes for the trace have completed.
+-func StopTrace() {
+-	runtime.StopTrace()
+-}
+-
+ type byCycles []runtime.BlockProfileRecord
+ 
+ func (x byCycles) Len() int           { return len(x) }
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+new file mode 100644
+index 0000000000..7cbb8a6e82
+--- /dev/null
++++ b/src/runtime/trace/trace.go
+@@ -0,0 +1,42 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Go execution tracer.
++// The tracer captures a wide range of execution events like goroutine
++// creation/blocking/unblocking, syscall enter/exit/block, GC-related events,
++// changes of heap size, processor start/stop, etc and writes them to an io.Writer
++// in a compact form. A precise nanosecond-precision timestamp and a stack
++// trace is captured for most events. A trace can be analyzed later with
++// 'go tool trace' command.
++package trace
++
++import (
++	"io"
++	"runtime"
++)
++
++// Start enables tracing for the current program.
++// While tracing, the trace will be buffered and written to w.
++// Start returns an error if tracing is already enabled.
++func Start(w io.Writer) error {
++	if err := runtime.StartTrace(); err != nil {
++		return err
++	}
++	go func() {
++		for {
++			data := runtime.ReadTrace()
++			if data == nil {
++				break
++			}
++			w.Write(data)
++		}
++	}()
++	return nil
++}
++
++// Stop stops the current tracing, if any.
++// Stop only returns after all the writes for the trace have completed.
++func Stop() {
++	runtime.StopTrace()
++}
+diff --git a/src/runtime/pprof/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+similarity index 81%
+rename from src/runtime/pprof/trace_stack_test.go
+rename to src/runtime/trace/trace_stack_test.go
+index 984879dc92..061274a4f6 100644
+--- a/src/runtime/pprof/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package pprof_test
++package trace_test
+ 
+ import (
+ 	"bytes"
+@@ -10,7 +10,7 @@ import (
+ 	"net"
+ 	"os"
+ 	"runtime"
+-	. "runtime/pprof"
++	. "runtime/trace"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -25,7 +25,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 		t.Skip("skipping: nacl tests fail with 'failed to symbolize trace: failed to start addr2line'")
+ 	}
+ 	buf := new(bytes.Buffer)
+-	if err := StartTrace(buf); err != nil {
++	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+ 	}
+ 
+@@ -124,7 +124,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 	wp.Write(data[:])
+ 	<-pipeReadDone
+ 
+-	StopTrace()
++	Stop()
+ 	events, _, err := parseTrace(buf)
+ 	if err != nil {
+ 		t.Fatalf("failed to parse trace: %v", err)
+@@ -146,87 +146,87 @@ func TestTraceSymbolize(t *testing.T) {
+ 	want := []eventDesc{
+ 		eventDesc{trace.EvGCStart, []frame{
+ 			frame{"runtime.GC", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize", 106},
++			frame{"runtime/trace_test.TestTraceSymbolize", 106},
+ 			frame{"testing.tRunner", 0},
+ 		}},
+ 		eventDesc{trace.EvGoSched, []frame{
+-			frame{"runtime/pprof_test.TestTraceSymbolize", 107},
++			frame{"runtime/trace_test.TestTraceSymbolize", 107},
+ 			frame{"testing.tRunner", 0},
+ 		}},
+ 		eventDesc{trace.EvGoCreate, []frame{
+-			frame{"runtime/pprof_test.TestTraceSymbolize", 39},
++			frame{"runtime/trace_test.TestTraceSymbolize", 39},
+ 			frame{"testing.tRunner", 0},
+ 		}},
+ 		eventDesc{trace.EvGoStop, []frame{
+ 			frame{"runtime.block", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize.func1", 38},
++			frame{"runtime/trace_test.TestTraceSymbolize.func1", 38},
+ 		}},
+ 		eventDesc{trace.EvGoStop, []frame{
+ 			frame{"runtime.chansend1", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize.func2", 42},
++			frame{"runtime/trace_test.TestTraceSymbolize.func2", 42},
+ 		}},
+ 		eventDesc{trace.EvGoStop, []frame{
+ 			frame{"runtime.chanrecv1", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize.func3", 46},
++			frame{"runtime/trace_test.TestTraceSymbolize.func3", 46},
+ 		}},
+ 		eventDesc{trace.EvGoBlockRecv, []frame{
+ 			frame{"runtime.chanrecv1", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize.func4", 50},
++			frame{"runtime/trace_test.TestTraceSymbolize.func4", 50},
+ 		}},
+ 		eventDesc{trace.EvGoUnblock, []frame{
+ 			frame{"runtime.chansend1", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize", 109},
++			frame{"runtime/trace_test.TestTraceSymbolize", 109},
+ 			frame{"testing.tRunner", 0},
+ 		}},
+ 		eventDesc{trace.EvGoBlockSend, []frame{
+ 			frame{"runtime.chansend1", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize.func5", 54},
++			frame{"runtime/trace_test.TestTraceSymbolize.func5", 54},
+ 		}},
+ 		eventDesc{trace.EvGoUnblock, []frame{
+ 			frame{"runtime.chanrecv1", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize", 110},
++			frame{"runtime/trace_test.TestTraceSymbolize", 110},
+ 			frame{"testing.tRunner", 0},
+ 		}},
+ 		eventDesc{trace.EvGoBlockSelect, []frame{
+ 			frame{"runtime.selectgo", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize.func6", 59},
++			frame{"runtime/trace_test.TestTraceSymbolize.func6", 59},
+ 		}},
+ 		eventDesc{trace.EvGoUnblock, []frame{
+ 			frame{"runtime.selectgo", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize", 111},
++			frame{"runtime/trace_test.TestTraceSymbolize", 111},
+ 			frame{"testing.tRunner", 0},
+ 		}},
+ 		eventDesc{trace.EvGoBlockSync, []frame{
+ 			frame{"sync.(*Mutex).Lock", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize.func7", 67},
++			frame{"runtime/trace_test.TestTraceSymbolize.func7", 67},
+ 		}},
+ 		eventDesc{trace.EvGoUnblock, []frame{
+ 			frame{"sync.(*Mutex).Unlock", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize", 115},
++			frame{"runtime/trace_test.TestTraceSymbolize", 115},
+ 			frame{"testing.tRunner", 0},
+ 		}},
+ 		eventDesc{trace.EvGoBlockSync, []frame{
+ 			frame{"sync.(*WaitGroup).Wait", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize.func8", 73},
++			frame{"runtime/trace_test.TestTraceSymbolize.func8", 73},
+ 		}},
+ 		eventDesc{trace.EvGoUnblock, []frame{
+ 			frame{"sync.(*WaitGroup).Add", 0},
+ 			frame{"sync.(*WaitGroup).Done", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize", 116},
++			frame{"runtime/trace_test.TestTraceSymbolize", 116},
+ 			frame{"testing.tRunner", 0},
+ 		}},
+ 		eventDesc{trace.EvGoBlockCond, []frame{
+ 			frame{"sync.(*Cond).Wait", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize.func9", 78},
++			frame{"runtime/trace_test.TestTraceSymbolize.func9", 78},
+ 		}},
+ 		eventDesc{trace.EvGoUnblock, []frame{
+ 			frame{"sync.(*Cond).Signal", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize", 117},
++			frame{"runtime/trace_test.TestTraceSymbolize", 117},
+ 			frame{"testing.tRunner", 0},
+ 		}},
+ 		eventDesc{trace.EvGoSleep, []frame{
+ 			frame{"time.Sleep", 0},
+-			frame{"runtime/pprof_test.TestTraceSymbolize", 108},
++			frame{"runtime/trace_test.TestTraceSymbolize", 108},
+ 			frame{"testing.tRunner", 0},
+ 		}},
+ 	}
+@@ -237,14 +237,14 @@ func TestTraceSymbolize(t *testing.T) {
+ 				frame{"net.(*netFD).accept", 0},
+ 				frame{"net.(*TCPListener).AcceptTCP", 0},
+ 				frame{"net.(*TCPListener).Accept", 0},
+-				frame{"runtime/pprof_test.TestTraceSymbolize.func10", 86},
++				frame{"runtime/trace_test.TestTraceSymbolize.func10", 86},
+ 			}},
+ 			eventDesc{trace.EvGoSysCall, []frame{
+ 				frame{"syscall.read", 0},
+ 				frame{"syscall.Read", 0},
+ 				frame{"os.(*File).read", 0},
+ 				frame{"os.(*File).Read", 0},
+-				frame{"runtime/pprof_test.TestTraceSymbolize.func11", 101},
++				frame{"runtime/trace_test.TestTraceSymbolize.func11", 101},
+ 			}},
+ 		}...)
+ 	}
+diff --git a/src/runtime/pprof/trace_test.go b/src/runtime/trace/trace_test.go
+similarity index 95%
+rename from src/runtime/pprof/trace_test.go
+rename to src/runtime/trace/trace_test.go
+index ec88516cc1..e987564d8b 100644
+--- a/src/runtime/pprof/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package pprof_test
++package trace_test
+ 
+ import (
+ 	"bytes"
+@@ -11,7 +11,7 @@ import (
+ 	"net"
+ 	"os"
+ 	"runtime"
+-	. "runtime/pprof"
++	. "runtime/trace"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -39,10 +39,10 @@ func skipTraceTestsIfNeeded(t *testing.T) {
+ func TestTraceStartStop(t *testing.T) {
+ 	skipTraceTestsIfNeeded(t)
+ 	buf := new(bytes.Buffer)
+-	if err := StartTrace(buf); err != nil {
++	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+ 	}
+-	StopTrace()
++	Stop()
+ 	size := buf.Len()
+ 	if size == 0 {
+ 		t.Fatalf("trace is empty")
+@@ -55,25 +55,25 @@ func TestTraceStartStop(t *testing.T) {
+ 
+ func TestTraceDoubleStart(t *testing.T) {
+ 	skipTraceTestsIfNeeded(t)
+-	StopTrace()
++	Stop()
+ 	buf := new(bytes.Buffer)
+-	if err := StartTrace(buf); err != nil {
++	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+ 	}
+-	if err := StartTrace(buf); err == nil {
++	if err := Start(buf); err == nil {
+ 		t.Fatalf("succeed to start tracing second time")
+ 	}
+-	StopTrace()
+-	StopTrace()
++	Stop()
++	Stop()
+ }
+ 
+ func TestTrace(t *testing.T) {
+ 	skipTraceTestsIfNeeded(t)
+ 	buf := new(bytes.Buffer)
+-	if err := StartTrace(buf); err != nil {
++	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+ 	}
+-	StopTrace()
++	Stop()
+ 	_, err := trace.Parse(buf)
+ 	if err != nil {
+ 		t.Fatalf("failed to parse trace: %v", err)
+@@ -126,7 +126,7 @@ func TestTraceStress(t *testing.T) {
+ 	time.Sleep(time.Millisecond) // give the goroutine above time to block
+ 
+ 	buf := new(bytes.Buffer)
+-	if err := StartTrace(buf); err != nil {
++	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+ 	}
+ 
+@@ -220,7 +220,7 @@ func TestTraceStress(t *testing.T) {
+ 
+ 	runtime.GOMAXPROCS(procs)
+ 
+-	StopTrace()
++	Stop()
+ 	_, _, err = parseTrace(buf)
+ 	if err != nil {
+ 		t.Fatalf("failed to parse trace: %v", err)
+@@ -356,11 +356,11 @@ func TestTraceStressStartStop(t *testing.T) {
+ 
+ 	for i := 0; i < 3; i++ {
+ 		buf := new(bytes.Buffer)
+-		if err := StartTrace(buf); err != nil {
++		if err := Start(buf); err != nil {
+ 			t.Fatalf("failed to start tracing: %v", err)
+ 		}
+ 		time.Sleep(time.Millisecond)
+-		StopTrace()
++		Stop()
+ 		if _, _, err := parseTrace(buf); err != nil {
+ 			t.Fatalf("failed to parse trace: %v", err)
+ 		}
+@@ -377,7 +377,7 @@ func TestTraceFutileWakeup(t *testing.T) {
+ 	}
+ 
+ 	buf := new(bytes.Buffer)
+-	if err := StartTrace(buf); err != nil {
++	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+ 	}
+ 
+@@ -427,7 +427,7 @@ func TestTraceFutileWakeup(t *testing.T) {
+ 	}
+ 	done.Wait()
+ 
+-	StopTrace()
++	Stop()
+ 	events, _, err := parseTrace(buf)
+ 	if err != nil {
+ 		t.Fatalf("failed to parse trace: %v", err)
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 8381917478..1dcc35ebc0 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -150,6 +150,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"runtime/pprof"
++	"runtime/trace"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -180,7 +181,7 @@ var (
+ 	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
+ 	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to the named file after execution")
+ 	blockProfileRate = flag.Int("test.blockprofilerate", 1, "if >= 0, calls runtime.SetBlockProfileRate()")
+-	trace            = flag.String("test.trace", "", "write an execution trace to the named file after execution")
++	traceFile        = flag.String("test.trace", "", "write an execution trace to the named file after execution")
+ 	timeout          = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
+ 	cpuListStr       = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
+ 	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
+@@ -605,13 +606,13 @@ func before() {
+ 		}
+ 		// Could save f so after can call f.Close; not worth the effort.
+ 	}
+-	if *trace != "" {
+-		f, err := os.Create(toOutputDir(*trace))
++	if *traceFile != "" {
++		f, err := os.Create(toOutputDir(*traceFile))
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: %s", err)
+ 			return
+ 		}
+-		if err := pprof.StartTrace(f); err != nil {
++		if err := trace.Start(f); err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: can't start tracing: %s", err)
+ 			f.Close()
+ 			return
+@@ -632,8 +633,8 @@ func after() {
+ 	if *cpuProfile != "" {
+ 		pprof.StopCPUProfile() // flushes profile to disk
+ 	}
+-	if *trace != "" {
+-		pprof.StopTrace() // flushes trace to disk
++	if *traceFile != "" {
++		trace.Stop() // flushes trace to disk
+ 	}
+ 	if *memProfile != "" {
+ 		f, err := os.Create(toOutputDir(*memProfile))

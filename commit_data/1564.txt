@@ -7,7 +7,49 @@ Date:   Mon Jan 26 17:20:29 2009 -0800
     R=ken
     OCL=23534
     CL=23534
-
+---
  src/cmd/gc/go.h   |  1 +
  src/cmd/gc/walk.c | 11 ++++++++---
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 461c00b217..abb08ebe2d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -185,6 +185,7 @@ struct	Node
+ 	uchar	iota;		// OLITERAL made from iota
+ 	uchar	embedded;	// ODCLFIELD embedded type
+ 	uchar	colas;		// OAS resulting from :=
++	uchar	diag;		// already printed error about this
+ 
+ 	// most nodes
+ 	Node*	left;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 48ab2a6c99..99fe055ea2 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -534,8 +534,10 @@ loop:
+ 			}
+ 			break;
+ 		}
+-
+-		yyerror("bad shape across assignment - cr=%d cl=%d\n", cr, cl);
++		if(l->diag == 0) {
++			l->diag = 1;
++			yyerror("assignment count mismatch: %d = %d", cl, cr);
++		}
+ 		goto ret;
+ 
+ 	case OBREAK:
+@@ -3083,7 +3085,10 @@ multi:
+ 	return n;
+ 
+ badt:
+-	yyerror("shape error across :=");
++	if(nl->diag == 0) {
++		nl->diag = 1;
++		yyerror("assignment count mismatch: %d = %d", cl, cr);
++	}
+ 	return nl;
+ }
+ 

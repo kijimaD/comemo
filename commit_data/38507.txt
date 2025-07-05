@@ -13,7 +13,7 @@ Date:   Fri Nov 2 10:09:30 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/c/146939
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/x86/issue19518_test.go | 10 ++--------
  src/cmd/internal/obj/x86/obj6_test.go       |  8 +-------
  src/debug/elf/file_test.go                  |  2 +-
@@ -22,3 +22,114 @@ Date:   Fri Nov 2 10:09:30 2018 +0100
  src/runtime/runtime-gdb_test.go             |  2 ++
  test/nosplit.go                             |  2 +-
  7 files changed, 11 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/issue19518_test.go b/src/cmd/internal/obj/x86/issue19518_test.go
+index 2fe227ee3f..fa2beb8aad 100644
+--- a/src/cmd/internal/obj/x86/issue19518_test.go
++++ b/src/cmd/internal/obj/x86/issue19518_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -68,13 +67,8 @@ func objdumpOutput(t *testing.T) []byte {
+ 		testenv.GoToolPath(t), "build", "-o",
+ 		filepath.Join(tmpdir, "output"))
+ 
+-	var env []string
+-	for _, v := range os.Environ() {
+-		if !strings.HasPrefix(v, "GOARCH=") {
+-			env = append(env, v)
+-		}
+-	}
+-	cmd.Env = append(env, "GOARCH=amd64")
++	cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")
++
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("error %s output %s", err, out)
+diff --git a/src/cmd/internal/obj/x86/obj6_test.go b/src/cmd/internal/obj/x86/obj6_test.go
+index 2f6296ce8b..c5399744f2 100644
+--- a/src/cmd/internal/obj/x86/obj6_test.go
++++ b/src/cmd/internal/obj/x86/obj6_test.go
+@@ -99,13 +99,7 @@ func asmOutput(t *testing.T, s string) []byte {
+ 		testenv.GoToolPath(t), "tool", "asm", "-S", "-dynlink",
+ 		"-o", filepath.Join(tmpdir, "output.6"), tmpfile.Name())
+ 
+-	var env []string
+-	for _, v := range os.Environ() {
+-		if !strings.HasPrefix(v, "GOARCH=") {
+-			env = append(env, v)
+-		}
+-	}
+-	cmd.Env = append(env, "GOARCH=amd64")
++	cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")
+ 	asmout, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("error %s output %s", err, asmout)
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 11d8992b71..d7c1e9f800 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -784,7 +784,7 @@ func TestCompressedSection(t *testing.T) {
+ func TestNoSectionOverlaps(t *testing.T) {
+ 	// Ensure cmd/link outputs sections without overlaps.
+ 	switch runtime.GOOS {
+-	case "android", "darwin", "js", "nacl", "plan9", "windows":
++	case "aix", "android", "darwin", "js", "nacl", "plan9", "windows":
+ 		t.Skipf("cmd/link doesn't produce ELF binaries on %s", runtime.GOOS)
+ 	}
+ 	_ = net.ResolveIPAddr // force dynamic linkage
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 6835cacb3f..6fba4dd91a 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -623,6 +623,9 @@ func TestBadTraceback(t *testing.T) {
+ }
+ 
+ func TestTimePprof(t *testing.T) {
++	if runtime.GOOS == "aix" {
++		t.Skip("pprof not yet available on AIX (see golang.org/issue/28555)")
++	}
+ 	fn := runTestProg(t, "testprog", "TimeProf")
+ 	fn = strings.TrimSpace(fn)
+ 	defer os.Remove(fn)
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 593924183f..a1089c8fdf 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !nacl,!js
++// +build !aix,!nacl,!js
+ 
+ package pprof
+ 
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 7672e45b03..5d35813708 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -36,6 +36,8 @@ func checkGdbEnvironment(t *testing.T) {
+ 		if runtime.GOARCH == "mips" {
+ 			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
+ 		}
++	case "aix":
++		t.Skip("gdb does not work on AIX; see golang.org/issue/28558")
+ 	}
+ 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
+ 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 1855c010ae..734f456cc9 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,!js,!gcflags_noopt
++// +build !nacl,!js,!aix,!gcflags_noopt
+ // run
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.

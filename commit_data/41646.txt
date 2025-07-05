@@ -10,6 +10,37 @@ Date:   Thu Oct 17 16:58:56 2019 +0000
     Change-Id: Ife3be7ed484cbe87960bf972ac701954d86127d8
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201740
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.14.html | 17 ++++++++++++++++-
  1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index d836d08683..7814efd8be 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -33,9 +33,24 @@ TODO
+ <h2 id="ports">Ports</h2>
+ 
+ <p>
+-TODO
++  TODO: is Dragonfly passing? On both Dragonfly release & tip? (ABI
++  change happened) Does the net package's interface APIs work on both?
++  https://golang.org/issue/34368.
++</p>
++
++<p>
++  TODO: is Illumos up with a builder and passing?
++  https://golang.org/issue/15581.
+ </p>
+ 
++<p>
++  TODO: announce something about the Go Solaris port? Solaris itself
++  is unmaintained? The builder is still running at Oracle, but the
++  employee who set it up left the company and we have no way to
++  maintain it.
++</p>
++
++
+ <h3 id="nacl">Native Client (NaCl)</h3>
+ 
+ <p><!-- golang.org/issue/30439 -->

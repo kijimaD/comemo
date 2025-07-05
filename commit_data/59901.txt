@@ -11,6 +11,30 @@ Date:   Wed May 8 10:59:34 2024 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/time/tick_test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/time/tick_test.go b/src/time/tick_test.go
+index 42ef6d3217..4aaf6a2b80 100644
+--- a/src/time/tick_test.go
++++ b/src/time/tick_test.go
+@@ -440,7 +440,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
+ 		Sleep(sched)
+ 		tim.Reset(10000 * Second)
+ 		if isTicker {
+-			assertTick()
++			drain()
+ 		}
+ 		noTick()
+ 
+@@ -466,8 +466,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
+ 	Sleep(sched)
+ 	tim.Reset(10000 * Second)
+ 	if !synctimerchan && isTicker {
+-		assertLen()
+-		assertTick()
++		drain()
+ 	}
+ 	noTick()
+ 

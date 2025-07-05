@@ -9,10 +9,264 @@ Date:   Wed Jul 20 13:49:17 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/panic.go    | 16 ++++++++--------
  src/runtime/race.go     | 32 ++++++++++++++++----------------
  src/runtime/rdebug.go   |  6 +++---
  src/runtime/runtime1.go | 22 +++++++++++-----------
  src/runtime/trace.go    | 32 ++++++++++++++++----------------
  5 files changed, 54 insertions(+), 54 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index e7eee82df6..3783e3dede 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1190,7 +1190,7 @@ func fatalpanic(msgs *_panic) {
+ //
+ //go:nowritebarrierrec
+ func startpanic_m() bool {
+-	_g_ := getg()
++	gp := getg()
+ 	if mheap_.cachealloc.size == 0 { // very early
+ 		print("runtime: panic before malloc heap initialized\n")
+ 	}
+@@ -1198,18 +1198,18 @@ func startpanic_m() bool {
+ 	// could happen in a signal handler, or in a throw, or inside
+ 	// malloc itself. We want to catch if an allocation ever does
+ 	// happen (even if we're not in one of these situations).
+-	_g_.m.mallocing++
++	gp.m.mallocing++
+ 
+ 	// If we're dying because of a bad lock count, set it to a
+ 	// good lock count so we don't recursively panic below.
+-	if _g_.m.locks < 0 {
+-		_g_.m.locks = 1
++	if gp.m.locks < 0 {
++		gp.m.locks = 1
+ 	}
+ 
+-	switch _g_.m.dying {
++	switch gp.m.dying {
+ 	case 0:
+ 		// Setting dying >0 has the side-effect of disabling this G's writebuf.
+-		_g_.m.dying = 1
++		gp.m.dying = 1
+ 		atomic.Xadd(&panicking, 1)
+ 		lock(&paniclk)
+ 		if debug.schedtrace > 0 || debug.scheddetail > 0 {
+@@ -1220,13 +1220,13 @@ func startpanic_m() bool {
+ 	case 1:
+ 		// Something failed while panicking.
+ 		// Just print a stack trace and exit.
+-		_g_.m.dying = 2
++		gp.m.dying = 2
+ 		print("panic during panic\n")
+ 		return false
+ 	case 2:
+ 		// This is a genuine bug in the runtime, we couldn't even
+ 		// print the stack trace successfully.
+-		_g_.m.dying = 3
++		gp.m.dying = 3
+ 		print("stack trace unavailable\n")
+ 		exit(4)
+ 		fallthrough
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 4694288082..a67c8b9cdf 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -67,21 +67,21 @@ func RaceReleaseMerge(addr unsafe.Pointer) {
+ // Non-synchronization events (memory accesses, function entry/exit) still affect
+ // the race detector.
+ func RaceDisable() {
+-	_g_ := getg()
+-	if _g_.raceignore == 0 {
+-		racecall(&__tsan_go_ignore_sync_begin, _g_.racectx, 0, 0, 0)
++	gp := getg()
++	if gp.raceignore == 0 {
++		racecall(&__tsan_go_ignore_sync_begin, gp.racectx, 0, 0, 0)
+ 	}
+-	_g_.raceignore++
++	gp.raceignore++
+ }
+ 
+ //go:nosplit
+ 
+ // RaceEnable re-enables handling of race events in the current goroutine.
+ func RaceEnable() {
+-	_g_ := getg()
+-	_g_.raceignore--
+-	if _g_.raceignore == 0 {
+-		racecall(&__tsan_go_ignore_sync_end, _g_.racectx, 0, 0, 0)
++	gp := getg()
++	gp.raceignore--
++	if gp.raceignore == 0 {
++		racecall(&__tsan_go_ignore_sync_end, gp.racectx, 0, 0, 0)
+ 	}
+ }
+ 
+@@ -453,12 +453,12 @@ func racefree(p unsafe.Pointer, sz uintptr) {
+ 
+ //go:nosplit
+ func racegostart(pc uintptr) uintptr {
+-	_g_ := getg()
++	gp := getg()
+ 	var spawng *g
+-	if _g_.m.curg != nil {
+-		spawng = _g_.m.curg
++	if gp.m.curg != nil {
++		spawng = gp.m.curg
+ 	} else {
+-		spawng = _g_
++		spawng = gp
+ 	}
+ 
+ 	var racectx uintptr
+@@ -478,8 +478,8 @@ func racectxend(racectx uintptr) {
+ 
+ //go:nosplit
+ func racewriterangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
+-	_g_ := getg()
+-	if _g_ != _g_.m.curg {
++	gp := getg()
++	if gp != gp.m.curg {
+ 		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
+ 		// Not interesting.
+ 		return
+@@ -495,8 +495,8 @@ func racewriterangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
+ 
+ //go:nosplit
+ func racereadrangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
+-	_g_ := getg()
+-	if _g_ != _g_.m.curg {
++	gp := getg()
++	if gp != gp.m.curg {
+ 		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
+ 		// Not interesting.
+ 		return
+diff --git a/src/runtime/rdebug.go b/src/runtime/rdebug.go
+index 1b213f1934..7ecb2a52ee 100644
+--- a/src/runtime/rdebug.go
++++ b/src/runtime/rdebug.go
+@@ -15,8 +15,8 @@ func setMaxStack(in int) (out int) {
+ 
+ //go:linkname setPanicOnFault runtime/debug.setPanicOnFault
+ func setPanicOnFault(new bool) (old bool) {
+-	_g_ := getg()
+-	old = _g_.paniconfault
+-	_g_.paniconfault = new
++	gp := getg()
++	old = gp.paniconfault
++	gp.paniconfault = new
+ 	return old
+ }
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index e307901fc2..b0a458d187 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -35,13 +35,13 @@ var traceback_env uint32
+ //
+ //go:nosplit
+ func gotraceback() (level int32, all, crash bool) {
+-	_g_ := getg()
++	gp := getg()
+ 	t := atomic.Load(&traceback_cache)
+ 	crash = t&tracebackCrash != 0
+-	all = _g_.m.throwing >= throwTypeUser || t&tracebackAll != 0
+-	if _g_.m.traceback != 0 {
+-		level = int32(_g_.m.traceback)
+-	} else if _g_.m.throwing >= throwTypeRuntime {
++	all = gp.m.throwing >= throwTypeUser || t&tracebackAll != 0
++	if gp.m.traceback != 0 {
++		level = int32(gp.m.traceback)
++	} else if gp.m.throwing >= throwTypeRuntime {
+ 		// Always include runtime frames in runtime throws unless
+ 		// otherwise overridden by m.traceback.
+ 		level = 2
+@@ -474,18 +474,18 @@ func timediv(v int64, div int32, rem *int32) int32 {
+ 
+ //go:nosplit
+ func acquirem() *m {
+-	_g_ := getg()
+-	_g_.m.locks++
+-	return _g_.m
++	gp := getg()
++	gp.m.locks++
++	return gp.m
+ }
+ 
+ //go:nosplit
+ func releasem(mp *m) {
+-	_g_ := getg()
++	gp := getg()
+ 	mp.locks--
+-	if mp.locks == 0 && _g_.preempt {
++	if mp.locks == 0 && gp.preempt {
+ 		// restore the preemption request in case we've cleared it in newstack
+-		_g_.stackguard0 = stackPreempt
++		gp.stackguard0 = stackPreempt
+ 	}
+ }
+ 
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 4793d191e8..9b12b42f11 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -1254,16 +1254,16 @@ func traceGoCreate(newg *g, pc uintptr) {
+ }
+ 
+ func traceGoStart() {
+-	_g_ := getg().m.curg
+-	pp := _g_.m.p
+-	_g_.traceseq++
++	gp := getg().m.curg
++	pp := gp.m.p
++	gp.traceseq++
+ 	if pp.ptr().gcMarkWorkerMode != gcMarkWorkerNotWorker {
+-		traceEvent(traceEvGoStartLabel, -1, uint64(_g_.goid), _g_.traceseq, trace.markWorkerLabels[pp.ptr().gcMarkWorkerMode])
+-	} else if _g_.tracelastp == pp {
+-		traceEvent(traceEvGoStartLocal, -1, uint64(_g_.goid))
++		traceEvent(traceEvGoStartLabel, -1, uint64(gp.goid), gp.traceseq, trace.markWorkerLabels[pp.ptr().gcMarkWorkerMode])
++	} else if gp.tracelastp == pp {
++		traceEvent(traceEvGoStartLocal, -1, uint64(gp.goid))
+ 	} else {
+-		_g_.tracelastp = pp
+-		traceEvent(traceEvGoStart, -1, uint64(_g_.goid), _g_.traceseq)
++		gp.tracelastp = pp
++		traceEvent(traceEvGoStart, -1, uint64(gp.goid), gp.traceseq)
+ 	}
+ }
+ 
+@@ -1272,14 +1272,14 @@ func traceGoEnd() {
+ }
+ 
+ func traceGoSched() {
+-	_g_ := getg()
+-	_g_.tracelastp = _g_.m.p
++	gp := getg()
++	gp.tracelastp = gp.m.p
+ 	traceEvent(traceEvGoSched, 1)
+ }
+ 
+ func traceGoPreempt() {
+-	_g_ := getg()
+-	_g_.tracelastp = _g_.m.p
++	gp := getg()
++	gp.tracelastp = gp.m.p
+ 	traceEvent(traceEvGoPreempt, 1)
+ }
+ 
+@@ -1318,10 +1318,10 @@ func traceGoSysExit(ts int64) {
+ 		// aka right now), and assign a fresh time stamp to keep the log consistent.
+ 		ts = 0
+ 	}
+-	_g_ := getg().m.curg
+-	_g_.traceseq++
+-	_g_.tracelastp = _g_.m.p
+-	traceEvent(traceEvGoSysExit, -1, uint64(_g_.goid), _g_.traceseq, uint64(ts)/traceTickDiv)
++	gp := getg().m.curg
++	gp.traceseq++
++	gp.tracelastp = gp.m.p
++	traceEvent(traceEvGoSysExit, -1, uint64(gp.goid), gp.traceseq, uint64(ts)/traceTickDiv)
+ }
+ 
+ func traceGoSysBlock(pp *p) {

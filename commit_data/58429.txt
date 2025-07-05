@@ -12,6 +12,20 @@ Date:   Tue Nov 7 13:43:23 2023 -0800
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/log/slog/record.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/record.go b/src/log/slog/record.go
+index 8afe253bc8..97c87019a6 100644
+--- a/src/log/slog/record.go
++++ b/src/log/slog/record.go
+@@ -193,7 +193,7 @@ type Source struct {
+ 	Line int    `json:"line"`
+ }
+ 
+-// attrs returns the non-zero fields of s as a slice of attrs.
++// group returns the non-zero fields of s as a slice of attrs.
+ // It is similar to a LogValue method, but we don't want Source
+ // to implement LogValuer because it would be resolved before
+ // the ReplaceAttr function was called.

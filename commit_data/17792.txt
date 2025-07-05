@@ -7,6 +7,19 @@ Date:   Tue Oct 15 08:21:30 2013 +1100
     R=golang-dev, r
     CC=golang-dev, piatek
     https://golang.org/cl/14681043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7439613f52..a7d4c0039f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -332,6 +332,7 @@ Michael Gehring <mg@ebfe.org>
+ Michael Hoisie <hoisie@gmail.com>
+ Michael Lewis <mikelikespie@gmail.com>
+ Michael Matloob <matloob@google.com>
++Michael Piatek <piatek@google.com>
+ Michael Shields <mshields@google.com>
+ Michael Stapelberg <michael@stapelberg.de> <mstplbrg@googlemail.com>
+ Michael T. Jones <mtj@google.com> <michael.jones@gmail.com>

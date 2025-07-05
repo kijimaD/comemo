@@ -11,6 +11,21 @@ Date:   Thu Mar 23 15:05:31 2017 +1100
     Reviewed-on: https://go-review.googlesource.com/38490
     Run-TryBot: Dave Cheney <dave@cheney.net>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 4e72cf3452..bed200b578 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -183,9 +183,6 @@ type exporter struct {
+ 	written int // bytes written
+ 	indent  int // for p.trace
+ 	trace   bool
+-
+-	// work-around for issue #16369 only
+-	nesting int // amount of "nesting" of interface types
+ }
+ 
+ // export writes the exportlist for localpkg to out and returns the number of bytes written.

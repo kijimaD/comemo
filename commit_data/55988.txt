@@ -27,7 +27,7 @@ Date:   Tue Mar 28 14:48:59 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  misc/cgo/testcarchive/carchive_test.go     | 54 ++++++++++++++++++++++++++++++
  misc/cgo/testcarchive/testdata/libgo9/a.go | 14 ++++++++
  misc/cgo/testcarchive/testdata/main9.c     | 24 +++++++++++++
@@ -39,3 +39,306 @@ Date:   Tue Mar 28 14:48:59 2023 -0400
  src/runtime/proc.go                        | 22 +++++++++---
  src/runtime/signal_unix.go                 |  4 +--
  10 files changed, 182 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 8a39c24a6d..5996268018 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -1247,3 +1247,57 @@ func TestPreemption(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++// Issue 59294. Test calling Go function from C after using some
++// stack space.
++func TestDeepStack(t *testing.T) {
++	t.Parallel()
++
++	if !testWork {
++		defer func() {
++			os.Remove("testp9" + exeSuffix)
++			os.Remove("libgo9.a")
++			os.Remove("libgo9.h")
++		}()
++	}
++
++	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo9.a", "./libgo9")
++	out, err := cmd.CombinedOutput()
++	t.Logf("%v\n%s", cmd.Args, out)
++	if err != nil {
++		t.Fatal(err)
++	}
++	checkLineComments(t, "libgo9.h")
++	checkArchive(t, "libgo9.a")
++
++	// build with -O0 so the C compiler won't optimize out the large stack frame
++	ccArgs := append(cc, "-O0", "-o", "testp9"+exeSuffix, "main9.c", "libgo9.a")
++	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
++	t.Logf("%v\n%s", ccArgs, out)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	argv := cmdToRun("./testp9")
++	cmd = exec.Command(argv[0], argv[1:]...)
++	sb := new(strings.Builder)
++	cmd.Stdout = sb
++	cmd.Stderr = sb
++	if err := cmd.Start(); err != nil {
++		t.Fatal(err)
++	}
++
++	timer := time.AfterFunc(time.Minute,
++		func() {
++			t.Error("test program timed out")
++			cmd.Process.Kill()
++		},
++	)
++	defer timer.Stop()
++
++	err = cmd.Wait()
++	t.Logf("%v\n%s", cmd.Args, sb)
++	if err != nil {
++		t.Error(err)
++	}
++}
+diff --git a/misc/cgo/testcarchive/testdata/libgo9/a.go b/misc/cgo/testcarchive/testdata/libgo9/a.go
+new file mode 100644
+index 0000000000..acb08d90ec
+--- /dev/null
++++ b/misc/cgo/testcarchive/testdata/libgo9/a.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "runtime"
++
++import "C"
++
++func main() {}
++
++//export GoF
++func GoF() { runtime.GC() }
+diff --git a/misc/cgo/testcarchive/testdata/main9.c b/misc/cgo/testcarchive/testdata/main9.c
+new file mode 100644
+index 0000000000..95ad4dea49
+--- /dev/null
++++ b/misc/cgo/testcarchive/testdata/main9.c
+@@ -0,0 +1,24 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "libgo9.h"
++
++void use(int *x) { (*x)++; }
++
++void callGoFWithDeepStack() {
++	int x[10000];
++
++	use(&x[0]);
++	use(&x[9999]);
++
++	GoF();
++
++	use(&x[0]);
++	use(&x[9999]);
++}
++
++int main() {
++	GoF();                  // call GoF without using much stack
++	callGoFWithDeepStack(); // call GoF with a deep stack
++}
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+index 6a3eeb5822..395303552c 100644
+--- a/src/runtime/cgo.go
++++ b/src/runtime/cgo.go
+@@ -19,6 +19,7 @@ import "unsafe"
+ //go:linkname _cgo_yield _cgo_yield
+ //go:linkname _cgo_pthread_key_created _cgo_pthread_key_created
+ //go:linkname _cgo_bindm _cgo_bindm
++//go:linkname _cgo_getstackbound _cgo_getstackbound
+ 
+ var (
+ 	_cgo_init                     unsafe.Pointer
+@@ -30,6 +31,7 @@ var (
+ 	_cgo_yield                    unsafe.Pointer
+ 	_cgo_pthread_key_created      unsafe.Pointer
+ 	_cgo_bindm                    unsafe.Pointer
++	_cgo_getstackbound            unsafe.Pointer
+ )
+ 
+ // iscgo is set to true by the runtime/cgo package
+diff --git a/src/runtime/cgo/callbacks.go b/src/runtime/cgo/callbacks.go
+index 792dd7d086..3c246a88b6 100644
+--- a/src/runtime/cgo/callbacks.go
++++ b/src/runtime/cgo/callbacks.go
+@@ -141,3 +141,12 @@ var _cgo_yield unsafe.Pointer
+ 
+ //go:cgo_export_static _cgo_topofstack
+ //go:cgo_export_dynamic _cgo_topofstack
++
++// x_cgo_getstackbound gets the thread's C stack size and
++// set the G's stack bound based on the stack size.
++
++//go:cgo_import_static x_cgo_getstackbound
++//go:linkname x_cgo_getstackbound x_cgo_getstackbound
++//go:linkname _cgo_getstackbound _cgo_getstackbound
++var x_cgo_getstackbound byte
++var _cgo_getstackbound = &x_cgo_getstackbound
+diff --git a/src/runtime/cgo/gcc_stack_darwin.c b/src/runtime/cgo/gcc_stack_darwin.c
+new file mode 100644
+index 0000000000..2cc9b76196
+--- /dev/null
++++ b/src/runtime/cgo/gcc_stack_darwin.c
+@@ -0,0 +1,21 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <pthread.h>
++#include "libcgo.h"
++
++void
++x_cgo_getstackbound(G *g)
++{
++	void* addr;
++	size_t size;
++	pthread_t p;
++
++	p = pthread_self();
++	addr = pthread_get_stackaddr_np(p); // high address (!)
++	size = pthread_get_stacksize_np(p);
++	g->stacklo = (uintptr)addr - size;
++	// NOTE: don't change g->stackhi. We are called from asmcgocall
++	// which saves the stack depth based on g->stackhi.
++}
+diff --git a/src/runtime/cgo/gcc_stack_unix.c b/src/runtime/cgo/gcc_stack_unix.c
+new file mode 100644
+index 0000000000..3826322661
+--- /dev/null
++++ b/src/runtime/cgo/gcc_stack_unix.c
+@@ -0,0 +1,32 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix && !darwin
++
++#ifndef _GNU_SOURCE // pthread_getattr_np
++#define _GNU_SOURCE
++#endif
++
++#include <pthread.h>
++#include "libcgo.h"
++
++void
++x_cgo_getstackbound(G *g)
++{
++	pthread_attr_t attr;
++	void *addr;
++	size_t size;
++
++	pthread_attr_init(&attr);
++#if defined(__GLIBC__) || defined(__sun)
++	pthread_getattr_np(pthread_self(), &attr);  // GNU extension
++	pthread_attr_getstack(&attr, &addr, &size); // low address
++#else
++	pthread_attr_getstacksize(&attr, &size);
++	addr = __builtin_frame_address(0) + 4096 - size;
++#endif
++	g->stacklo = (uintptr)addr;
++	// NOTE: don't change g->stackhi. We are called from asmcgocall
++	// which saves the stack depth based on g->stackhi.
++}
+diff --git a/src/runtime/cgo/gcc_stack_windows.c b/src/runtime/cgo/gcc_stack_windows.c
+new file mode 100644
+index 0000000000..9fcb59cf1a
+--- /dev/null
++++ b/src/runtime/cgo/gcc_stack_windows.c
+@@ -0,0 +1,7 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "libcgo.h"
++
++void x_cgo_getstackbound(G *g) {} // no-op for now
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index fd7760a571..4152aa4852 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1889,8 +1889,11 @@ func allocm(pp *p, fn func(), id int64) *m {
+ // 1. when the callback is done with the m in non-pthread platforms,
+ // 2. or when the C thread exiting on pthread platforms.
+ //
++// The signal argument indicates whether we're called from a signal
++// handler.
++//
+ //go:nosplit
+-func needm() {
++func needm(signal bool) {
+ 	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
+ 		// Can happen if C/C++ code calls Go from a global ctor.
+ 		// Can also happen on Windows if a global ctor uses a
+@@ -1939,14 +1942,23 @@ func needm() {
+ 	osSetupTLS(mp)
+ 
+ 	// Install g (= m->g0) and set the stack bounds
+-	// to match the current stack. We don't actually know
++	// to match the current stack. If we don't actually know
+ 	// how big the stack is, like we don't know how big any
+-	// scheduling stack is, but we assume there's at least 32 kB,
+-	// which is more than enough for us.
++	// scheduling stack is, but we assume there's at least 32 kB.
++	// If we can get a more accurate stack bound from pthread,
++	// use that.
+ 	setg(mp.g0)
+ 	gp := getg()
+ 	gp.stack.hi = getcallersp() + 1024
+ 	gp.stack.lo = getcallersp() - 32*1024
++	if !signal && _cgo_getstackbound != nil {
++		// Don't adjust if called from the signal handler.
++		// We are on the signal stack, not the pthread stack.
++		// (We could get the stack bounds from sigaltstack, but
++		// we're getting out of the signal handler very soon
++		// anyway. Not worth it.)
++		asmcgocall(_cgo_getstackbound, unsafe.Pointer(gp))
++	}
+ 	gp.stackguard0 = gp.stack.lo + _StackGuard
+ 
+ 	// Should mark we are already in Go now.
+@@ -1967,7 +1979,7 @@ func needm() {
+ //
+ //go:nosplit
+ func needAndBindM() {
+-	needm()
++	needm(false)
+ 
+ 	if _cgo_pthread_key_created != nil && *(*uintptr)(_cgo_pthread_key_created) != 0 {
+ 		cgoBindM()
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index d1719b22ff..c7edbcd239 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -585,7 +585,7 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
+ 
+ 	// sp is not within gsignal stack, g0 stack, or sigaltstack. Bad.
+ 	setg(nil)
+-	needm()
++	needm(true)
+ 	if st.ss_flags&_SS_DISABLE != 0 {
+ 		noSignalStack(sig)
+ 	} else {
+@@ -1068,7 +1068,7 @@ func badsignal(sig uintptr, c *sigctxt) {
+ 		exit(2)
+ 		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
+ 	}
+-	needm()
++	needm(true)
+ 	if !sigsend(uint32(sig)) {
+ 		// A foreign thread received the signal sig, and the
+ 		// Go code does not want to handle it.

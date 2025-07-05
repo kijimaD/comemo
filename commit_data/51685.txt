@@ -12,7 +12,7 @@ Date:   Thu Mar 3 15:07:15 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/modfile.go          |  2 +-
  src/cmd/go/internal/workcmd/use.go              |  2 +-
  src/cmd/go/testdata/script/work_init_path.txt   | 17 +++++++++++++++++
@@ -20,3 +20,120 @@ Date:   Thu Mar 3 15:07:15 2022 -0500
  src/cmd/go/testdata/script/work_use_deleted.txt |  6 +++---
  src/cmd/go/testdata/script/work_use_dot.txt     |  4 ++--
  6 files changed, 29 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 627cf1dbc0..75c278a7df 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -802,7 +802,7 @@ var latestVersionIgnoringRetractionsCache par.Cache // path → queryLatestVersi
+ // an absolute path or a relative path starting with a '.' or '..'
+ // path component.
+ func ToDirectoryPath(path string) string {
+-	if modfile.IsDirectoryPath(path) {
++	if path == "." || modfile.IsDirectoryPath(path) {
+ 		return path
+ 	}
+ 	// The path is not a relative path or an absolute path, so make it relative
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index 1ee2d4e3c4..9e3bb4ae97 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -186,5 +186,5 @@ func pathRel(workDir, dir string) (abs, canonical string) {
+ 
+ 	// Normalize relative paths to use slashes, so that checked-in go.work
+ 	// files with relative paths within the repo are platform-independent.
+-	return abs, filepath.ToSlash(rel)
++	return abs, modload.ToDirectoryPath(rel)
+ }
+diff --git a/src/cmd/go/testdata/script/work_init_path.txt b/src/cmd/go/testdata/script/work_init_path.txt
+new file mode 100644
+index 0000000000..e3977882a0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_init_path.txt
+@@ -0,0 +1,17 @@
++# Regression test for https://go.dev/issue/51448.
++# 'go work init . foo/bar' should produce a go.work file
++# with the same paths as 'go work init; go work use -r .'.
++
++go work init . foo/bar
++mv go.work go.work.init
++
++go work init
++go work use -r .
++cmp go.work go.work.init
++
++-- go.mod --
++module example
++go 1.18
++-- foo/bar/go.mod --
++module example
++go 1.18
+diff --git a/src/cmd/go/testdata/script/work_use.txt b/src/cmd/go/testdata/script/work_use.txt
+index f5ea89c900..12c8cecab7 100644
+--- a/src/cmd/go/testdata/script/work_use.txt
++++ b/src/cmd/go/testdata/script/work_use.txt
+@@ -14,16 +14,16 @@ use (
+ go 1.18
+ 
+ use (
+-	foo
+-	foo/bar/baz
++	./foo
++	./foo/bar/baz
+ )
+ -- go.want_work_other --
+ go 1.18
+ 
+ use (
+-	foo
+-	foo/bar/baz
+-	other
++	./foo
++	./foo/bar/baz
++	./other
+ )
+ -- foo/go.mod --
+ module foo
+diff --git a/src/cmd/go/testdata/script/work_use_deleted.txt b/src/cmd/go/testdata/script/work_use_deleted.txt
+index 660eb56e2d..b379cbc09d 100644
+--- a/src/cmd/go/testdata/script/work_use_deleted.txt
++++ b/src/cmd/go/testdata/script/work_use_deleted.txt
+@@ -6,13 +6,13 @@ go 1.18
+ 
+ use (
+ 	.
+-	sub
+-	sub/dir/deleted
++	./sub
++	./sub/dir/deleted
+ )
+ -- go.work.want --
+ go 1.18
+ 
+-use sub/dir
++use ./sub/dir
+ -- sub/README.txt --
+ A go.mod file has been deleted from this directory.
+ In addition, the entire subdirectory sub/dir/deleted
+diff --git a/src/cmd/go/testdata/script/work_use_dot.txt b/src/cmd/go/testdata/script/work_use_dot.txt
+index ccd83d6a61..8f210423ec 100644
+--- a/src/cmd/go/testdata/script/work_use_dot.txt
++++ b/src/cmd/go/testdata/script/work_use_dot.txt
+@@ -31,7 +31,7 @@ grep '^use ["]?'$PWD'["]?$' ../../go.work
+ # resulting workspace would contain a duplicate module.
+ cp ../../go.work.orig ../../go.work
+ ! go work use $PWD .
+-stderr '^go: already added "bar/baz" as "'$PWD'"$'
++stderr '^go: already added "\./bar/baz" as "'$PWD'"$'
+ cmp ../../go.work ../../go.work.orig
+ 
+ 
+@@ -43,7 +43,7 @@ go 1.18
+ -- go.work.rel --
+ go 1.18
+ 
+-use bar/baz
++use ./bar/baz
+ -- bar/baz/go.mod --
+ module example/bar/baz
+ go 1.18

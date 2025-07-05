@@ -15,7 +15,41 @@ Date:   Sun Sep 22 08:05:02 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/text/template/parse/lex.go      |  1 +
  src/text/template/parse/lex_test.go | 10 ++++++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 70fc86b63c..a00f48e658 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -352,6 +352,7 @@ func lexComment(l *lexer) stateFn {
+ 	if !delim {
+ 		return l.errorf("comment ends before closing delimiter")
+ 	}
++	l.line += strings.Count(l.input[l.start:l.pos], "\n")
+ 	i := l.thisItem(itemComment)
+ 	if trimSpace {
+ 		l.pos += trimMarkerLen
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index d47f10f9d5..20f9698fa4 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -545,6 +545,16 @@ var lexPosTests = []lexTest{
+ 		{itemRightDelim, 11, "}}", 2},
+ 		{itemEOF, 13, "", 2},
+ 	}},
++	{"longcomment", "{{/*\n*/}}\n{{undefinedFunction \"test\"}}", []item{
++		{itemComment, 2, "/*\n*/", 1},
++		{itemText, 9, "\n", 2},
++		{itemLeftDelim, 10, "{{", 3},
++		{itemIdentifier, 12, "undefinedFunction", 3},
++		{itemSpace, 29, " ", 3},
++		{itemString, 30, "\"test\"", 3},
++		{itemRightDelim, 36, "}}", 3},
++		{itemEOF, 38, "", 3},
++	}},
+ }
+ 
+ // The other tests don't check position, to make the test cases easier to construct.

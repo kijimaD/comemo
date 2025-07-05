@@ -11,8 +11,615 @@ Date:   Fri Mar 4 15:26:38 2016 -0800
     Change-Id: I0809c6b88643f04c7fc503f866ffe25e69f29910
     Reviewed-on: https://go-review.googlesource.com/20260
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go   | 70 ++++++++++++++--------------
  src/cmd/compile/internal/gc/racewalk.go | 82 +++++++++++++--------------------
  src/cmd/compile/internal/gc/range.go    | 60 ++++++++++++------------
  3 files changed, 97 insertions(+), 115 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index d6acf413d5..5c68336a33 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -606,7 +606,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
+ 		if rangeOk && p.got(LRANGE) {
+ 			// expr_list '=' LRANGE expr
+ 			r := Nod(ORANGE, nil, p.expr())
+-			r.List = lhs
++			setNodeSeq(&r.List, lhs)
+ 			r.Etype = 0 // := flag
+ 			return r
+ 		}
+@@ -620,8 +620,8 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
+ 		}
+ 		// multiple
+ 		stmt := Nod(OAS2, nil, nil)
+-		stmt.List = lhs
+-		stmt.Rlist = rhs
++		setNodeSeq(&stmt.List, lhs)
++		setNodeSeq(&stmt.Rlist, rhs)
+ 		return stmt
+ 
+ 	case LCOLAS:
+@@ -631,7 +631,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
+ 		if rangeOk && p.got(LRANGE) {
+ 			// expr_list LCOLAS LRANGE expr
+ 			r := Nod(ORANGE, nil, p.expr())
+-			r.List = lhs
++			setNodeSeq(&r.List, lhs)
+ 			r.Colas = true
+ 			colasdefn(lhs, r)
+ 			return r
+@@ -716,13 +716,13 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 			// done in casebody()
+ 			markdcl() // matching popdcl in caseblock
+ 			stmt := Nod(OXCASE, nil, nil)
+-			stmt.List = cases
++			setNodeSeq(&stmt.List, cases)
+ 			if tswitch != nil {
+ 				if n := tswitch.Left; n != nil {
+ 					// type switch - declare variable
+ 					nn := newname(n.Sym)
+ 					declare(nn, dclcontext)
+-					stmt.Rlist = list1(nn)
++					setNodeSeq(&stmt.Rlist, []*Node{nn})
+ 
+ 					// keep track of the instances for reporting unused
+ 					nn.Name.Defn = tswitch
+@@ -747,10 +747,10 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 				n = Nod(OAS, cases.N, rhs)
+ 			} else {
+ 				n = Nod(OAS2, nil, nil)
+-				n.List = cases
+-				n.Rlist = list1(rhs)
++				setNodeSeq(&n.List, cases)
++				setNodeSeq(&n.Rlist, []*Node{rhs})
+ 			}
+-			stmt.List = list1(n)
++			setNodeSeq(&stmt.List, []*Node{n})
+ 
+ 			p.want(':') // consume ':' after declaring select cases for correct lineno
+ 			return stmt
+@@ -766,7 +766,7 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 			// done in casebody()
+ 			markdcl() // matching popdcl in caseblock
+ 			stmt := Nod(OXCASE, nil, nil)
+-			stmt.List = list1(colas(cases, list1(rhs), lno))
++			setNodeSeq(&stmt.List, []*Node{colas(cases, list1(rhs), lno)})
+ 
+ 			p.want(':') // consume ':' after declaring select cases for correct lineno
+ 			return stmt
+@@ -790,7 +790,7 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 				// type switch - declare variable
+ 				nn := newname(n.Sym)
+ 				declare(nn, dclcontext)
+-				stmt.Rlist = list1(nn)
++				setNodeSeq(&stmt.Rlist, []*Node{nn})
+ 
+ 				// keep track of the instances for reporting unused
+ 				nn.Name.Defn = tswitch
+@@ -914,7 +914,7 @@ func (p *parser) for_header() *Node {
+ 		}
+ 		h := Nod(OFOR, nil, nil)
+ 		if init != nil {
+-			h.Ninit = list1(init)
++			setNodeSeq(&h.Ninit, []*Node{init})
+ 		}
+ 		h.Left = cond
+ 		h.Right = post
+@@ -1017,7 +1017,7 @@ func (p *parser) if_header() *Node {
+ 
+ 	init, cond, _ := p.header(false)
+ 	h := Nod(OIF, nil, nil)
+-	h.Ninit = list1(init)
++	setNodeSeq(&h.Ninit, []*Node{init})
+ 	h.Left = cond
+ 	return h
+ }
+@@ -1041,9 +1041,9 @@ func (p *parser) if_stmt() *Node {
+ 
+ 	if p.got(LELSE) {
+ 		if p.tok == LIF {
+-			stmt.Rlist = list1(p.if_stmt())
++			setNodeSeq(&stmt.Rlist, []*Node{p.if_stmt()})
+ 		} else {
+-			stmt.Rlist = list1(p.compound_stmt(true))
++			setNodeSeq(&stmt.Rlist, []*Node{p.compound_stmt(true)})
+ 		}
+ 	}
+ 
+@@ -1072,7 +1072,7 @@ func (p *parser) switch_stmt() *Node {
+ 		tswitch = nil
+ 	}
+ 
+-	hdr.List = p.caseblock_list(tswitch)
++	setNodeSeq(&hdr.List, p.caseblock_list(tswitch))
+ 	popdcl()
+ 
+ 	return hdr
+@@ -1086,7 +1086,7 @@ func (p *parser) select_stmt() *Node {
+ 
+ 	p.want(LSELECT)
+ 	hdr := Nod(OSELECT, nil, nil)
+-	hdr.List = p.caseblock_list(nil)
++	setNodeSeq(&hdr.List, p.caseblock_list(nil))
+ 	return hdr
+ }
+ 
+@@ -1434,7 +1434,7 @@ loop:
+ 
+ 			// call or conversion
+ 			x = Nod(OCALL, x, nil)
+-			x.List = args
++			setNodeSeq(&x.List, args)
+ 			x.Isddd = ddd
+ 
+ 		case '{':
+@@ -1531,9 +1531,9 @@ func (p *parser) complitexpr() *Node {
+ 	p.want('{')
+ 	p.xnest++
+ 
+-	var l *NodeList
++	var l []*Node
+ 	for p.tok != EOF && p.tok != '}' {
+-		l = list(l, p.keyval())
++		l = append(l, p.keyval())
+ 		if !p.ocomma('}') {
+ 			break
+ 		}
+@@ -1542,7 +1542,7 @@ func (p *parser) complitexpr() *Node {
+ 	p.xnest--
+ 	p.want('}')
+ 
+-	n.List = l
++	setNodeSeq(&n.List, l)
+ 	return n
+ }
+ 
+@@ -1684,8 +1684,8 @@ func (p *parser) try_ntype() *Node {
+ 		result := p.fnres()
+ 		params = checkarglist(params, 1)
+ 		t := Nod(OTFUNC, nil, nil)
+-		t.List = params
+-		t.Rlist = result
++		setNodeSeq(&t.List, params)
++		setNodeSeq(&t.Rlist, result)
+ 		return t
+ 
+ 	case '[':
+@@ -1809,7 +1809,7 @@ func (p *parser) structtype() *Node {
+ 	p.want('}')
+ 
+ 	t := Nod(OTSTRUCT, nil, nil)
+-	t.List = l
++	setNodeSeq(&t.List, l)
+ 	return t
+ }
+ 
+@@ -1821,9 +1821,9 @@ func (p *parser) interfacetype() *Node {
+ 
+ 	p.want(LINTERFACE)
+ 	p.want('{')
+-	var l *NodeList
++	var l []*Node
+ 	for p.tok != EOF && p.tok != '}' {
+-		l = list(l, p.interfacedcl())
++		l = append(l, p.interfacedcl())
+ 		if !p.osemi('}') {
+ 			break
+ 		}
+@@ -1831,7 +1831,7 @@ func (p *parser) interfacetype() *Node {
+ 	p.want('}')
+ 
+ 	t := Nod(OTINTER, nil, nil)
+-	t.List = l
++	setNodeSeq(&t.List, l)
+ 	return t
+ }
+ 
+@@ -1897,8 +1897,8 @@ func (p *parser) fndcl(nointerface bool) *Node {
+ 		}
+ 
+ 		t := Nod(OTFUNC, nil, nil)
+-		t.List = params
+-		t.Rlist = result
++		setNodeSeq(&t.List, params)
++		setNodeSeq(&t.Rlist, result)
+ 
+ 		f := Nod(ODCLFUNC, nil, nil)
+ 		f.Func.Nname = newfuncname(name)
+@@ -1936,8 +1936,8 @@ func (p *parser) fndcl(nointerface bool) *Node {
+ 		}
+ 
+ 		t := Nod(OTFUNC, rcvr, nil)
+-		t.List = params
+-		t.Rlist = result
++		setNodeSeq(&t.List, params)
++		setNodeSeq(&t.Rlist, result)
+ 
+ 		f := Nod(ODCLFUNC, nil, nil)
+ 		f.Func.Shortname = newfuncname(name)
+@@ -2352,8 +2352,8 @@ func (p *parser) indcl() *Node {
+ 	// without func keyword
+ 	params = checkarglist(params, 1)
+ 	t := Nod(OTFUNC, fakethis(), nil)
+-	t.List = params
+-	t.Rlist = result
++	setNodeSeq(&t.List, params)
++	setNodeSeq(&t.Rlist, result)
+ 
+ 	return t
+ }
+@@ -2502,8 +2502,8 @@ func (p *parser) stmt() *Node {
+ 		}
+ 
+ 		stmt := Nod(ORETURN, nil, nil)
+-		stmt.List = results
+-		if stmt.List == nil && Curfn != nil {
++		setNodeSeq(&stmt.List, results)
++		if nodeSeqLen(stmt.List) == 0 && Curfn != nil {
+ 			for _, ln := range Curfn.Func.Dcl {
+ 				if ln.Class == PPARAM {
+ 					continue
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index b32124c990..433c0b08db 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -55,10 +55,10 @@ func instrument(fn *Node) {
+ 	}
+ 
+ 	if flag_race == 0 || !ispkgin(norace_inst_pkgs) {
+-		instrumentslice(fn.Nbody.Slice(), nil)
++		instrumentlist(fn.Nbody.Slice(), nil)
+ 
+ 		// nothing interesting for race detector in fn->enter
+-		instrumentslice(fn.Func.Exit.Slice(), nil)
++		instrumentlist(fn.Func.Exit.Slice(), nil)
+ 	}
+ 
+ 	if flag_race != 0 {
+@@ -86,28 +86,16 @@ func instrument(fn *Node) {
+ 	}
+ }
+ 
+-func instrumentlist(l *NodeList, init **NodeList) {
++func instrumentlist(l nodesOrNodeList, init nodesOrNodeListPtr) {
+ 	var instr *NodeList
+ 
+-	for ; l != nil; l = l.Next {
++	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+ 		instr = nil
+-		instrumentnode(&l.N, &instr, 0, 0)
++		instrumentnode(it.P(), &instr, 0, 0)
+ 		if init == nil {
+-			l.N.Ninit = concat(l.N.Ninit, instr)
++			appendNodeSeq(&it.N().Ninit, instr)
+ 		} else {
+-			*init = concat(*init, instr)
+-		}
+-	}
+-}
+-
+-func instrumentslice(l []*Node, init **NodeList) {
+-	for i := range l {
+-		var instr *NodeList
+-		instrumentnode(&l[i], &instr, 0, 0)
+-		if init == nil {
+-			l[i].Ninit = concat(l[i].Ninit, instr)
+-		} else {
+-			*init = concat(*init, instr)
++			appendNodeSeq(init, instr)
+ 		}
+ 	}
+ }
+@@ -115,7 +103,7 @@ func instrumentslice(l []*Node, init **NodeList) {
+ // walkexpr and walkstmt combined
+ // walks the tree and adds calls to the
+ // instrumentation code to top-level (statement) nodes' init
+-func instrumentnode(np **Node, init **NodeList, wr int, skip int) {
++func instrumentnode(np **Node, init nodesOrNodeListPtr, wr int, skip int) {
+ 	n := *np
+ 
+ 	if n == nil {
+@@ -135,7 +123,7 @@ func instrumentnode(np **Node, init **NodeList, wr int, skip int) {
+ 		// nil it out and handle it separately before putting it back.
+ 		l := n.Ninit
+ 
+-		n.Ninit = nil
++		setNodeSeq(&n.Ninit, nil)
+ 		instrumentlist(l, nil)
+ 		instrumentnode(&n, &l, wr, skip) // recurse with nil n->ninit
+ 		appendinit(&n, l)
+@@ -159,27 +147,27 @@ func instrumentnode(np **Node, init **NodeList, wr int, skip int) {
+ 		goto ret
+ 
+ 	case OBLOCK:
+-		var out *NodeList
+-		for l := n.List; l != nil; l = l.Next {
+-			switch l.N.Op {
++		var out []*Node
++		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++			switch it.N().Op {
+ 			case OCALLFUNC, OCALLMETH, OCALLINTER:
+-				instrumentnode(&l.N, &l.N.Ninit, 0, 0)
+-				out = list(out, l.N)
++				instrumentnode(it.P(), &it.N().Ninit, 0, 0)
++				out = append(out, it.N())
+ 				// Scan past OAS nodes copying results off stack.
+ 				// Those must not be instrumented, because the
+ 				// instrumentation calls will smash the results.
+ 				// The assignments are to temporaries, so they cannot
+ 				// be involved in races and need not be instrumented.
+-				for l.Next != nil && l.Next.N.Op == OAS && iscallret(l.Next.N.Right) {
+-					l = l.Next
+-					out = list(out, l.N)
++				for it.Len() > 1 && nodeSeqSecond(it.Seq()).Op == OAS && iscallret(nodeSeqSecond(it.Seq()).Right) {
++					it.Next()
++					out = append(out, it.N())
+ 				}
+ 			default:
+-				instrumentnode(&l.N, &out, 0, 0)
+-				out = list(out, l.N)
++				instrumentnode(it.P(), &out, 0, 0)
++				out = append(out, it.N())
+ 			}
+ 		}
+-		n.List = out
++		setNodeSeq(&n.List, out)
+ 		goto ret
+ 
+ 	case ODEFER:
+@@ -439,7 +427,7 @@ ret:
+ 	if n.Op != OBLOCK { // OBLOCK is handled above in a special way.
+ 		instrumentlist(n.List, init)
+ 	}
+-	instrumentslice(n.Nbody.Slice(), nil)
++	instrumentlist(n.Nbody.Slice(), nil)
+ 	instrumentlist(n.Rlist, nil)
+ 	*np = n
+ }
+@@ -472,7 +460,7 @@ func isartificial(n *Node) bool {
+ 	return false
+ }
+ 
+-func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
++func callinstr(np **Node, init nodesOrNodeListPtr, wr int, skip int) bool {
+ 	n := *np
+ 
+ 	//print("callinstr for %+N [ %O ] etype=%E class=%d\n",
+@@ -541,7 +529,7 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
+ 			f = mkcall(name, nil, init, uintptraddr(n))
+ 		}
+ 
+-		*init = list(*init, f)
++		appendNodeSeqNode(init, f)
+ 		return true
+ 	}
+ 
+@@ -587,13 +575,13 @@ func uintptraddr(n *Node) *Node {
+ 	return r
+ }
+ 
+-func detachexpr(n *Node, init **NodeList) *Node {
++func detachexpr(n *Node, init nodesOrNodeListPtr) *Node {
+ 	addr := Nod(OADDR, n, nil)
+ 	l := temp(Ptrto(n.Type))
+ 	as := Nod(OAS, l, addr)
+ 	typecheck(&as, Etop)
+ 	walkexpr(&as, init)
+-	*init = list(*init, as)
++	appendNodeSeqNode(init, as)
+ 	ind := Nod(OIND, l, nil)
+ 	typecheck(&ind, Erv)
+ 	walkexpr(&ind, init)
+@@ -606,15 +594,9 @@ func foreachnode(n *Node, f func(*Node, interface{}), c interface{}) {
+ 	}
+ }
+ 
+-func foreachlist(l *NodeList, f func(*Node, interface{}), c interface{}) {
+-	for ; l != nil; l = l.Next {
+-		foreachnode(l.N, f, c)
+-	}
+-}
+-
+-func foreachslice(l []*Node, f func(*Node, interface{}), c interface{}) {
+-	for _, n := range l {
+-		foreachnode(n, f, c)
++func foreachlist(l nodesOrNodeList, f func(*Node, interface{}), c interface{}) {
++	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
++		foreachnode(it.N(), f, c)
+ 	}
+ }
+ 
+@@ -623,7 +605,7 @@ func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
+ 	foreachnode(n.Left, f, c)
+ 	foreachnode(n.Right, f, c)
+ 	foreachlist(n.List, f, c)
+-	foreachslice(n.Nbody.Slice(), f, c)
++	foreachlist(n.Nbody, f, c)
+ 	foreachlist(n.Rlist, f, c)
+ }
+ 
+@@ -636,8 +618,8 @@ func hascallspred(n *Node, c interface{}) {
+ 
+ // appendinit is like addinit in subr.go
+ // but appends rather than prepends.
+-func appendinit(np **Node, init *NodeList) {
+-	if init == nil {
++func appendinit(np **Node, init nodesOrNodeList) {
++	if nodeSeqLen(init) == 0 {
+ 		return
+ 	}
+ 
+@@ -653,6 +635,6 @@ func appendinit(np **Node, init *NodeList) {
+ 		*np = n
+ 	}
+ 
+-	n.Ninit = concat(n.Ninit, init)
++	appendNodeSeq(&n.Ninit, init)
+ 	n.Ullman = UINF
+ }
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 50a04efa85..1e9c4d0651 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -33,9 +33,9 @@ func typecheckrange(n *Node) {
+ 	}
+ 
+ 	// delicate little dance.  see typecheckas2
+-	for ll := n.List; ll != nil; ll = ll.Next {
+-		if ll.N.Name == nil || ll.N.Name.Defn != n {
+-			typecheck(&ll.N, Erv|Easgn)
++	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++		if it.N().Name == nil || it.N().Name.Defn != n {
++			typecheck(it.P(), Erv|Easgn)
+ 		}
+ 	}
+ 
+@@ -66,7 +66,7 @@ func typecheckrange(n *Node) {
+ 
+ 		t1 = t.Type
+ 		t2 = nil
+-		if count(n.List) == 2 {
++		if nodeSeqLen(n.List) == 2 {
+ 			toomany = 1
+ 		}
+ 
+@@ -75,17 +75,17 @@ func typecheckrange(n *Node) {
+ 		t2 = runetype
+ 	}
+ 
+-	if count(n.List) > 2 || toomany != 0 {
++	if nodeSeqLen(n.List) > 2 || toomany != 0 {
+ 		Yyerror("too many variables in range")
+ 	}
+ 
+ 	v1 = nil
+-	if n.List != nil {
+-		v1 = n.List.N
++	if nodeSeqLen(n.List) != 0 {
++		v1 = nodeSeqFirst(n.List)
+ 	}
+ 	v2 = nil
+-	if n.List != nil && n.List.Next != nil {
+-		v2 = n.List.Next.N
++	if nodeSeqLen(n.List) > 1 {
++		v2 = nodeSeqSecond(n.List)
+ 	}
+ 
+ 	// this is not only a optimization but also a requirement in the spec.
+@@ -94,7 +94,7 @@ func typecheckrange(n *Node) {
+ 	// present."
+ 	if isblank(v2) {
+ 		if v1 != nil {
+-			n.List = list1(v1)
++			setNodeSeq(&n.List, []*Node{v1})
+ 		}
+ 		v2 = nil
+ 	}
+@@ -121,9 +121,9 @@ func typecheckrange(n *Node) {
+ out:
+ 	n.Typecheck = 1
+ 
+-	for ll := n.List; ll != nil; ll = ll.Next {
+-		if ll.N.Typecheck == 0 {
+-			typecheck(&ll.N, Erv|Easgn)
++	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++		if it.N().Typecheck == 0 {
++			typecheck(it.P(), Erv|Easgn)
+ 		}
+ 	}
+ 
+@@ -147,17 +147,17 @@ func walkrange(n *Node) {
+ 	n.Right = nil
+ 
+ 	var v1 *Node
+-	if n.List != nil {
+-		v1 = n.List.N
++	if nodeSeqLen(n.List) != 0 {
++		v1 = nodeSeqFirst(n.List)
+ 	}
+ 	var v2 *Node
+-	if n.List != nil && n.List.Next != nil && !isblank(n.List.Next.N) {
+-		v2 = n.List.Next.N
++	if nodeSeqLen(n.List) > 1 && !isblank(nodeSeqSecond(n.List)) {
++		v2 = nodeSeqSecond(n.List)
+ 	}
+ 
+ 	// n->list has no meaning anymore, clear it
+ 	// to avoid erroneous processing by racewalk.
+-	n.List = nil
++	setNodeSeq(&n.List, nil)
+ 
+ 	var body []*Node
+ 	var init *NodeList
+@@ -195,8 +195,8 @@ func walkrange(n *Node) {
+ 			body = []*Node{Nod(OAS, v1, hv1)}
+ 		} else {
+ 			a := Nod(OAS2, nil, nil)
+-			a.List = list(list1(v1), v2)
+-			a.Rlist = list(list1(hv1), Nod(OIND, hp, nil))
++			setNodeSeq(&a.List, []*Node{v1, v2})
++			setNodeSeq(&a.Rlist, []*Node{hv1, Nod(OIND, hp, nil)})
+ 			body = []*Node{a}
+ 
+ 			// Advance pointer as part of increment.
+@@ -215,7 +215,7 @@ func walkrange(n *Node) {
+ 			tmp.Right.Typecheck = 1
+ 			a = Nod(OAS, hp, tmp)
+ 			typecheck(&a, Etop)
+-			n.Right.Ninit = list1(a)
++			setNodeSeq(&n.Right.Ninit, []*Node{a})
+ 		}
+ 
+ 		// orderstmt allocated the iterator for us.
+@@ -250,8 +250,8 @@ func walkrange(n *Node) {
+ 			val := Nod(ODOT, hit, valname)
+ 			val = Nod(OIND, val, nil)
+ 			a := Nod(OAS2, nil, nil)
+-			a.List = list(list1(v1), v2)
+-			a.Rlist = list(list1(key), val)
++			setNodeSeq(&a.List, []*Node{v1, v2})
++			setNodeSeq(&a.Rlist, []*Node{key, val})
+ 			body = []*Node{a}
+ 		}
+ 
+@@ -271,9 +271,9 @@ func walkrange(n *Node) {
+ 		n.Left = Nod(ONE, hb, Nodbool(false))
+ 		a := Nod(OAS2RECV, nil, nil)
+ 		a.Typecheck = 1
+-		a.List = list(list1(hv1), hb)
+-		a.Rlist = list1(Nod(ORECV, ha, nil))
+-		n.Left.Ninit = list1(a)
++		setNodeSeq(&a.List, []*Node{hv1, hb})
++		setNodeSeq(&a.Rlist, []*Node{Nod(ORECV, ha, nil)})
++		setNodeSeq(&n.Left.Ninit, []*Node{a})
+ 		if v1 == nil {
+ 			body = nil
+ 		} else {
+@@ -296,13 +296,13 @@ func walkrange(n *Node) {
+ 		} else {
+ 			hv2 = temp(runetype)
+ 			a = Nod(OAS2, nil, nil)
+-			a.List = list(list1(hv1), hv2)
++			setNodeSeq(&a.List, []*Node{hv1, hv2})
+ 			fn := syslook("stringiter2")
+-			a.Rlist = list1(mkcall1(fn, getoutargx(fn.Type), nil, ha, hv1))
++			setNodeSeq(&a.Rlist, []*Node{mkcall1(fn, getoutargx(fn.Type), nil, ha, hv1)})
+ 		}
+ 
+ 		n.Left = Nod(ONE, hv1, Nodintconst(0))
+-		n.Left.Ninit = list(list1(Nod(OAS, ohv1, hv1)), a)
++		setNodeSeq(&n.Left.Ninit, []*Node{Nod(OAS, ohv1, hv1), a})
+ 
+ 		body = nil
+ 		if v1 != nil {
+@@ -315,7 +315,7 @@ func walkrange(n *Node) {
+ 
+ 	n.Op = OFOR
+ 	typechecklist(init, Etop)
+-	n.Ninit = concat(n.Ninit, init)
++	appendNodeSeq(&n.Ninit, init)
+ 	typechecklist(n.Left.Ninit, Etop)
+ 	typecheck(&n.Left, Erv)
+ 	typecheck(&n.Right, Etop)

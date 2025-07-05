@@ -9,6 +9,19 @@ Date:   Mon Mar 26 17:03:04 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5905062
-
+---
  src/run.bash | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index ddd55826f7..c2a52a078e 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -76,6 +76,7 @@ make clean
+ 
+ (xcd ../doc/codewalk
+ # TODO: test these too.
++set -e
+ go build pig.go
+ go build urlpoll.go
+ rm -f pig urlpoll

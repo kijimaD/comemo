@@ -8,7 +8,34 @@ Date:   Tue Jan 6 09:53:38 2009 -0800
     DELTA=3562  (0 added, 3560 deleted, 2 changed)
     OCL=22112
     CL=22114
-
+---
  src/cmd/clean.bash | 2 +-
  src/cmd/make.bash  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index cc5d5ae66b..615aaad9b6 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid cov gobuild prof gotest
++for i in cc 6l 6a 6c gc 6g ar db nm acid cov gobuild prof gotest
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 1e29ae76b5..36dd2bd247 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -12,7 +12,7 @@ bash mkenam
+ make enam.o
+ cd ..
+ 
+-for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid cov gobuild prof gotest
++for i in cc 6l 6a 6c gc 6g ar db nm acid cov gobuild prof gotest
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i

@@ -7,7 +7,7 @@ Date:   Thu Nov 11 19:54:35 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3053041
-
+---
  src/cmd/5g/gsubr.c         | 139 +++++++++++++++++++++++----------------------
  src/cmd/5l/5.out.h         |   2 +-
  src/cmd/5l/asm.c           | 112 ++++++++++++++++++++++--------------
@@ -16,3 +16,534 @@ Date:   Thu Nov 11 19:54:35 2010 -0800
  src/cmd/gc/walk.c          |  26 ++++++---
  src/pkg/runtime/arm/vlrt.c |  29 ++++++++--
  7 files changed, 204 insertions(+), 134 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 260a9d3f6a..f2a882bd6f 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -769,49 +769,55 @@ gmove(Node *f, Node *t)
+ 	*/
+ 	case CASE(TFLOAT32, TINT8):
+ 	case CASE(TFLOAT32, TUINT8):
+-		fa = AMOVF;
+-		a = AMOVFW;
+-		ta = AMOVB;
+-		goto fltconv;
+-
+ 	case CASE(TFLOAT32, TINT16):
+ 	case CASE(TFLOAT32, TUINT16):
+-		fa = AMOVF;
+-		a = AMOVFW;
+-		ta = AMOVH;
+-		goto fltconv;
+-
+ 	case CASE(TFLOAT32, TINT32):
+ 	case CASE(TFLOAT32, TUINT32):
+-		fa = AMOVF;
+-		a = AMOVFW;
+-		ta = AMOVW;
+-		goto fltconv;
++//	case CASE(TFLOAT32, TUINT64):
+ 
+ 	case CASE(TFLOAT64, TINT8):
+ 	case CASE(TFLOAT64, TUINT8):
+-		fa = AMOVD;
+-		a = AMOVDW;
+-		ta = AMOVB;
+-		goto fltconv;
+-
+ 	case CASE(TFLOAT64, TINT16):
+ 	case CASE(TFLOAT64, TUINT16):
+-		fa = AMOVD;
+-		a = AMOVDW;
+-		ta = AMOVH;
+-		goto fltconv;
+-
+ 	case CASE(TFLOAT64, TINT32):
+ 	case CASE(TFLOAT64, TUINT32):
+-		fa = AMOVD;
+-		a = AMOVDW;
++//	case CASE(TFLOAT64, TUINT64):
++		fa = AMOVF;
++		a = AMOVFW;
++		if(ft == TFLOAT64) {
++			fa = AMOVD;
++			a = AMOVDW;
++		}
+ 		ta = AMOVW;
+-		goto fltconv;
++		switch(tt) {
++		case TINT8:
++			ta = AMOVB;
++			break;
++		case TUINT8:
++			ta = AMOVBU;
++			break;
++		case TINT16:
++			ta = AMOVH;
++			break;
++		case TUINT16:
++			ta = AMOVHU;
++			break;
++		}
+ 
+-	case CASE(TFLOAT32, TUINT64):
+-	case CASE(TFLOAT64, TUINT64):
+-		fatal("gmove TFLOAT, UINT64 not implemented");
++		regalloc(&r1, types[ft], f);
++		regalloc(&r2, types[tt], t);
++		gins(fa, f, &r1);	// load to fpu
++		p1 = gins(a, &r1, &r1);	// convert to w
++		switch(tt) {
++		case TUINT8:
++		case TUINT16:
++		case TUINT32:
++			p1->scond |= C_UBIT;
++		}
++		gins(AMOVW, &r1, &r2);	// copy to cpu
++		gins(ta, &r2, t);	// store
++		regfree(&r1);
++		regfree(&r2);
+ 		return;
+ 
+ 	/*
+@@ -819,45 +825,52 @@ gmove(Node *f, Node *t)
+ 	 */
+ 	case CASE(TINT8, TFLOAT32):
+ 	case CASE(TUINT8, TFLOAT32):
+-		fa = AMOVB;
+-		a = AMOVWF;
+-		ta = AMOVF;
+-		goto fltconv;
+-
+ 	case CASE(TINT16, TFLOAT32):
+ 	case CASE(TUINT16, TFLOAT32):
+-		fa = AMOVH;
+-		a = AMOVWF;
+-		ta = AMOVF;
+-		goto fltconv;
+-
+ 	case CASE(TINT32, TFLOAT32):
+ 	case CASE(TUINT32, TFLOAT32):
+-		fa = AMOVW;
+-		a = AMOVWF;
+-		ta = AMOVF;
+-		goto fltconv;
+-
+ 	case CASE(TINT8, TFLOAT64):
+ 	case CASE(TUINT8, TFLOAT64):
+-		fa = AMOVB;
+-		a = AMOVWD;
+-		ta = AMOVD;
+-		goto fltconv;
+-
+ 	case CASE(TINT16, TFLOAT64):
+ 	case CASE(TUINT16, TFLOAT64):
+-		fa = AMOVH;
+-		a = AMOVWD;
+-		ta = AMOVD;
+-		goto fltconv;
+-
+ 	case CASE(TINT32, TFLOAT64):
+ 	case CASE(TUINT32, TFLOAT64):
+ 		fa = AMOVW;
+-		a = AMOVWD;
+-		ta = AMOVD;
+-		goto fltconv;
++		switch(ft) {
++		case TINT8:
++			fa = AMOVB;
++			break;
++		case TUINT8:
++			fa = AMOVBU;
++			break;
++		case TINT16:
++			fa = AMOVH;
++			break;
++		case TUINT16:
++			fa = AMOVHU;
++			break;
++		}
++		a = AMOVWF;
++		ta = AMOVF;
++		if(tt == TFLOAT64) {
++			a = AMOVWD;
++			ta = AMOVD;
++		}
++		regalloc(&r1, types[ft], f);
++		regalloc(&r2, types[tt], t);
++		gins(fa, f, &r1);	// load to cpu
++		gins(AMOVW, &r1, &r2);	// copy to fpu
++		p1 = gins(a, &r2, &r2);	// convert
++		switch(ft) {
++		case TUINT8:
++		case TUINT16:
++		case TUINT32:
++			p1->scond |= C_UBIT;
++		}
++		gins(ta, &r2, t);	// store
++		regfree(&r1);
++		regfree(&r2);
++		return;
+ 
+ 	case CASE(TUINT64, TFLOAT32):
+ 	case CASE(TUINT64, TFLOAT64):
+@@ -924,16 +937,6 @@ trunc64:
+ 	splitclean();
+ 	return;
+ 
+-fltconv:
+-	regalloc(&r1, types[ft], f);
+-	regalloc(&r2, types[tt], t);
+-	gins(fa, f, &r1);
+-	gins(a, &r1, &r2);
+-	gins(ta, &r2, t);
+-	regfree(&r1);
+-	regfree(&r2);
+-	return;
+-
+ fatal:
+ 	// should not happen
+ 	fatal("gmove %N -> %N", f, t);
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 865bc6945b..a25c0f71d3 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -189,7 +189,7 @@ enum	as
+ #define	C_PBIT	(1<<5)
+ #define	C_WBIT	(1<<6)
+ #define	C_FBIT	(1<<7)	/* psr flags-only */
+-#define	C_UBIT	(1<<7)	/* up bit */
++#define	C_UBIT	(1<<7)	/* up bit, unsigned bit */
+ 
+ #define C_SCOND_EQ	0
+ #define C_SCOND_NE	1
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index fcee2447e4..f6d9b2fa8b 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1257,32 +1257,6 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
+ 		o1 |= rf | (r<<16) | (rt<<12);
+ 		break;
+ 
+-	case 55:	/* floating point fix and float */
+-		rf = p->from.reg;
+-		rt = p->to.reg;
+-		if(p->from.type == D_REG) {
+-			// MOV R,FTMP
+-			o1 = oprrr(AMOVWF+AEND, p->scond);
+-			o1 |= (FREGTMP<<16);
+-			o1 |= (rf<<12);
+-
+-			// CVT FTMP,F
+-			o2 = oprrr(p->as, p->scond);
+-			o2 |= (FREGTMP<<0);
+-			o2 |= (rt<<12);
+-		} else {
+-			// CVT F,FTMP
+-			o1 = oprrr(p->as, p->scond);
+-			o1 |= (rf<<0);
+-			o1 |= (FREGTMP<<12);
+-
+-			// MOV FTMP,R
+-			o2 = oprrr(AMOVFW+AEND, p->scond);
+-			o2 |= (FREGTMP<<16);
+-			o2 |= (rt<<12);
+-		}
+-		break;
+-
+ 	case 56:	/* move to FP[CS]R */
+ 		o1 = ((p->scond & C_SCOND) << 28) | (0xe << 24) | (1<<8) | (1<<4);
+ 		o1 |= ((p->to.reg+1)<<21) | (p->from.reg << 12);
+@@ -1520,8 +1494,7 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
+ 		o1 |= p->to.reg << 12;
+ 		o1 |= (p->scond & C_SCOND) << 28;
+ 		break;
+-
+-	case 80:	/* fmov zfcon,reg */
++	case 80:	/* fmov zfcon,freg */
+ 		if((p->scond & C_SCOND) != C_SCOND_NONE)
+ 			diag("floating point cannot be conditional");	// cant happen
+ 		o1 = 0xf3000110;	// EOR 64
+@@ -1532,7 +1505,7 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
+ 		o1 |= r << 12;
+ 		o1 |= r << 16;
+ 		break;
+-	case 81:	/* fmov sfcon,reg */
++	case 81:	/* fmov sfcon,freg */
+ 		o1 = 0x0eb00a00;		// VMOV imm 32
+ 		if(p->as == AMOVD)
+ 			o1 = 0xeeb00b00;	// VMOV imm 64
+@@ -1542,16 +1515,56 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
+ 		o1 |= (v&0xf) << 0;
+ 		o1 |= (v&0xf0) << 12;
+ 		break;
+-	case 82:	/* fcmp reg,reg, */
++	case 82:	/* fcmp freg,freg, */
+ 		o1 = oprrr(p->as, p->scond);
+-		r = p->reg;
+-		if(r == NREG) {
+-			o1 |= (p->from.reg<<12) | (1<<16);
+-		} else
+-			o1 |= (r<<12) | (p->from.reg<<0);
++		o1 |= (p->reg<<12) | (p->from.reg<<0);
++		o2 = 0x0ef1fa10;	// VMRS R15
++		o2 |= (p->scond & C_SCOND) << 28;
++		break;
++	case 83:	/* fcmp freg,, */
++		o1 = oprrr(p->as, p->scond);
++		o1 |= (p->from.reg<<12) | (1<<16);
+ 		o2 = 0x0ef1fa10;	// VMRS R15
+ 		o2 |= (p->scond & C_SCOND) << 28;
+ 		break;
++	case 84:	/* movfw freg,freg - truncate float-to-fix */
++		o1 = oprrr(p->as, p->scond);
++		o1 |= (p->from.reg<<0);
++		o1 |= (p->to.reg<<12);
++		break;
++	case 85:	/* movwf freg,freg - fix-to-float */
++		o1 = oprrr(p->as, p->scond);
++		o1 |= (p->from.reg<<0);
++		o1 |= (p->to.reg<<12);
++		break;
++	case 86:	/* movfw freg,reg - truncate float-to-fix */
++		// macro for movfw freg,FTMP; movw FTMP,reg
++		o1 = oprrr(p->as, p->scond);
++		o1 |= (p->from.reg<<0);
++		o1 |= (FREGTMP<<12);
++		o2 = oprrr(AMOVFW+AEND, p->scond);
++		o2 |= (FREGTMP<<16);
++		o2 |= (p->to.reg<<12);
++		break;
++	case 87:	/* movwf reg,freg - fix-to-float */
++		// macro for movw reg,FTMP; movwf FTMP,freg
++		o1 = oprrr(AMOVWF+AEND, p->scond);
++		o1 |= (p->from.reg<<12);
++		o1 |= (FREGTMP<<16);
++		o2 = oprrr(p->as, p->scond);
++		o2 |= (FREGTMP<<0);
++		o2 |= (p->to.reg<<12);
++		break;
++	case 88:	/* movw reg,freg  */
++		o1 = oprrr(AMOVWF+AEND, p->scond);
++		o1 |= (p->from.reg<<12);
++		o1 |= (p->to.reg<<16);
++		break;
++	case 89:	/* movw freg,reg  */
++		o1 = oprrr(AMOVFW+AEND, p->scond);
++		o1 |= (p->from.reg<<16);
++		o1 |= (p->to.reg<<12);
++		break;
+ 	}
+ 	
+ 	out[0] = o1;
+@@ -1677,14 +1690,27 @@ oprrr(int a, int sc)
+ 	case AMOVFD:	return o | (0xe<<24) | (0xb<<20) | (7<<16) | (0xa<<8) | (0xc<<4) |
+ 			(0<<8);	// dtof
+ 
+-	case AMOVWF:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+-				(0<<18) | (0<<16) | (0<<8) | (1<<7);	// toint, signed, double, round
+-	case AMOVWD:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+-				(0<<18) | (0<<16) | (1<<8) | (1<<7);	// toint, signed, double, round
+-	case AMOVFW:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+-				(1<<18) | (0<<16) | (0<<8) | (1<<7);	// toint, signed, double, round
+-	case AMOVDW:	return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
+-				(1<<18) | (0<<16) | (1<<8) | (1<<7);	// toint, signed, double, round
++	case AMOVWF:
++			if((sc & C_UBIT) == 0)
++				o |= 1<<7;	/* signed */
++			return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
++				(0<<18) | (0<<8);	// toint, double
++	case AMOVWD:
++			if((sc & C_UBIT) == 0)
++				o |= 1<<7;	/* signed */
++			return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
++				(0<<18) | (1<<8);	// toint, double
++
++	case AMOVFW:
++			if((sc & C_UBIT) == 0)
++				o |= 1<<16;	/* signed */
++			return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
++				(1<<18) | (0<<8) | (1<<7);	// toint, double, trunc
++	case AMOVDW:
++			if((sc & C_UBIT) == 0)
++				o |= 1<<16;	/* signed */
++			return o | (0xe<<24) | (0xb<<20) | (8<<16) | (0xa<<8) | (4<<4) |
++				(1<<18) | (1<<8) | (1<<7);	// toint, double, trunc
+ 
+ 	case AMOVWF+AEND:	// copy WtoF
+ 		return o | (0xe<<24) | (0x0<<20) | (0xb<<8) | (1<<4);
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index 277b5ef406..96b2168371 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -195,14 +195,6 @@ Optab	optab[] =
+ 	{ AADDF,	C_FREG,	C_REG,	C_FREG,		54, 4, 0 },
+ 	{ AMOVF,	C_FREG, C_NONE, C_FREG,		54, 4, 0 },
+ 
+-	{ AMOVF,	C_ZFCON,C_NONE,	C_FREG,		80, 4, 0 },
+-	{ AMOVF,	C_SFCON,C_NONE,	C_FREG,		81, 4, 0 },
+-	{ ACMPF,	C_FREG,	C_REG,	C_NONE,		82, 8, 0 },
+-//	{ ACMPF,	C_FREG, C_NONE,	C_NONE,		82, 8, 0 },
+-
+-	{ AMOVFW,	C_FREG,	C_NONE,	C_REG,		55, 8, 0 },
+-	{ AMOVFW,	C_REG,	C_NONE,	C_FREG,		55, 8, 0 },
+-
+ 	{ AMOVW,	C_REG,	C_NONE,	C_FCR,		56, 4, 0 },
+ 	{ AMOVW,	C_FCR,	C_NONE,	C_REG,		57, 4, 0 },
+ 
+@@ -244,5 +236,20 @@ Optab	optab[] =
+ 	{ ALDREX,	C_SOREG,C_NONE,	C_REG,		77, 4, 0 },
+ 	{ ASTREX,	C_SOREG,C_REG,	C_REG,		78, 4, 0 },
+ 
++	{ AMOVF,	C_ZFCON,C_NONE,	C_FREG,		80, 4, 0 },
++	{ AMOVF,	C_SFCON,C_NONE,	C_FREG,		81, 4, 0 },
++
++	{ ACMPF,	C_FREG,	C_REG,	C_NONE,		82, 8, 0 },
++	{ ACMPF,	C_FREG, C_NONE,	C_NONE,		83, 8, 0 },
++
++	{ AMOVFW,	C_FREG,	C_NONE,	C_FREG,		84, 4, 0 },
++	{ AMOVWF,	C_FREG,	C_NONE,	C_FREG,		85, 4, 0 },
++
++	{ AMOVFW,	C_FREG,	C_NONE,	C_REG,		86, 8, 0 },
++	{ AMOVWF,	C_REG,	C_NONE,	C_FREG,		87, 8, 0 },
++
++	{ AMOVW,	C_REG,	C_NONE,	C_FREG,		88, 4, 0 },
++	{ AMOVW,	C_FREG,	C_NONE,	C_REG,		89, 4, 0 },
++
+ 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
+ };
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 7c4470f3a7..be0f5e8b30 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -1039,17 +1039,20 @@ buildop(void)
+ 			break;
+ 
+ 		case AMOVFW:
+-			oprange[AMOVWF] = oprange[r];
+-			oprange[AMOVWD] = oprange[r];
+ 			oprange[AMOVDW] = oprange[r];
+ 			break;
+ 
++		case AMOVWF:
++			oprange[AMOVWD] = oprange[r];
++			break;
++
+ 		case AMULL:
+ 			oprange[AMULA] = oprange[r];
+ 			oprange[AMULAL] = oprange[r];
+ 			oprange[AMULLU] = oprange[r];
+ 			oprange[AMULALU] = oprange[r];
+ 			break;
++
+ 		case ALDREX:
+ 		case ASTREX:
+ 			break;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 315319a328..6e238f6616 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -935,15 +935,25 @@ walkexpr(Node **np, NodeList **init)
+ 	case OCONV:
+ 	case OCONVNOP:
+ 		if(thechar == '5') {
+-			if(isfloat[n->left->type->etype] &&
+-			   (n->type->etype == TINT64 || n->type->etype == TUINT64)) {
+-				n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
+-				goto ret;
++			if(isfloat[n->left->type->etype]) {
++				if(n->type->etype == TINT64) {
++					n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
++					goto ret;
++				}
++				if(n->type->etype == TUINT64) {
++					n = mkcall("float64touint64", n->type, init, conv(n->left, types[TFLOAT64]));
++					goto ret;
++				}
+ 			}
+-			if((n->left->type->etype == TINT64 || n->left->type->etype == TUINT64) &&
+-			   isfloat[n->type->etype]) {
+-				n = mkcall("int64tofloat64", n->type, init, conv(n->left, types[TINT64]));
+-				goto ret;
++			if(isfloat[n->type->etype]) {
++				if(n->left->type->etype == TINT64) {
++					n = mkcall("int64tofloat64", n->type, init, conv(n->left, types[TINT64]));
++					goto ret;
++				}
++				if(n->left->type->etype == TUINT64) {
++					n = mkcall("uint64tofloat64", n->type, init, conv(n->left, types[TUINT64]));
++					goto ret;
++				}
+ 			}
+ 		}
+ 		walkexpr(&n->left, init);
+diff --git a/src/pkg/runtime/arm/vlrt.c b/src/pkg/runtime/arm/vlrt.c
+index 804a67e2fd..50f33710b1 100644
+--- a/src/pkg/runtime/arm/vlrt.c
++++ b/src/pkg/runtime/arm/vlrt.c
+@@ -88,7 +88,6 @@ _subv(Vlong *r, Vlong a, Vlong b)
+ 	r->hi = hi;
+ }
+ 
+-
+ void
+ _d2v(Vlong *y, double d)
+ {
+@@ -125,7 +124,7 @@ _d2v(Vlong *y, double d)
+ 	} else {
+ 		/* v = (hi||lo) << -sh */
+ 		sh = -sh;
+-		if(sh <= 10) {
++		if(sh <= 11) {
+ 			ylo = xlo << sh;
+ 			yhi = (xhi << sh) | (xlo >> (32-sh));
+ 		} else {
+@@ -157,6 +156,23 @@ runtime·float64toint64(double d, Vlong y)
+ 	_d2v(&y, d);
+ }
+ 
++void
++runtime·float64touint64(double d, Vlong y)
++{
++	_d2v(&y, d);
++}
++
++double
++_ul2d(ulong u)
++{
++	// compensate for bug in c
++	if(u & SIGN(32)) {
++		u ^= SIGN(32);
++		return 2147483648. + u;
++	}
++	return u;
++}
++
+ double
+ _v2d(Vlong x)
+ {
+@@ -166,9 +182,9 @@ _v2d(Vlong x)
+ 			x.hi = ~x.hi;
+ 		} else
+ 			x.hi = -x.hi;
+-		return -((long)x.hi*4294967296. + x.lo);
++		return -(_ul2d(x.hi)*4294967296. + _ul2d(x.lo));
+ 	}
+-	return (long)x.hi*4294967296. + x.lo;
++	return x.hi*4294967296. + _ul2d(x.lo);
+ }
+ 
+ float
+@@ -183,6 +199,11 @@ runtime·int64tofloat64(Vlong y, double d)
+ 	d = _v2d(y);
+ }
+ 
++void
++runtime·uint64tofloat64(Vlong y, double d)
++{
++	d = _ul2d(y.hi)*4294967296. + _ul2d(y.lo);
++}
+ 
+ static void
+ dodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)

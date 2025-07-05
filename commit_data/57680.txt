@@ -15,7 +15,7 @@ Date:   Sun Aug 20 16:14:50 2023 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/compare/compare.go | 11 +++------
  src/cmd/compile/internal/reflectdata/alg.go | 12 +++-------
  src/cmd/compile/internal/typecheck/syms.go  | 16 ++++++++-----
@@ -25,3 +25,387 @@ Date:   Sun Aug 20 16:14:50 2023 -0700
  src/cmd/compile/internal/walk/range.go      | 10 +++-----
  src/cmd/compile/internal/walk/walk.go       | 24 +++++++------------
  8 files changed, 48 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/compile/internal/compare/compare.go b/src/cmd/compile/internal/compare/compare.go
+index 5dd5eec8de..e165cd67db 100644
+--- a/src/cmd/compile/internal/compare/compare.go
++++ b/src/cmd/compile/internal/compare/compare.go
+@@ -294,8 +294,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
+ 		cmplen = tlen
+ 	}
+ 
+-	fn := typecheck.LookupRuntime("memequal")
+-	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
++	fn := typecheck.LookupRuntime("memequal", types.Types[types.TUINT8], types.Types[types.TUINT8])
+ 	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(cmplen)}, false).(*ir.CallExpr)
+ 
+ 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
+@@ -373,14 +372,10 @@ func eqmem(p, q ir.Node, field int, size int64) ir.Node {
+ 
+ func eqmemfunc(size int64, t *types.Type) (fn *ir.Name, needsize bool) {
+ 	switch size {
+-	default:
+-		fn = typecheck.LookupRuntime("memequal")
+-		needsize = true
+ 	case 1, 2, 4, 8, 16:
+ 		buf := fmt.Sprintf("memequal%d", int(size)*8)
+-		fn = typecheck.LookupRuntime(buf)
++		return typecheck.LookupRuntime(buf, t, t), false
+ 	}
+ 
+-	fn = typecheck.SubstArgTypes(fn, t, t)
+-	return fn, needsize
++	return typecheck.LookupRuntime("memequal", t, t), true
+ }
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 32af785feb..c52cb2c4df 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -249,9 +249,7 @@ func hashFunc(t *types.Type) *ir.Func {
+ }
+ 
+ func runtimeHashFor(name string, t *types.Type) *ir.Name {
+-	n := typecheck.LookupRuntime(name)
+-	n = typecheck.SubstArgTypes(n, t)
+-	return n
++	return typecheck.LookupRuntime(name, t)
+ }
+ 
+ // hashfor returns the function to compute the hash of a value of type t.
+@@ -647,9 +645,7 @@ func eqFunc(t *types.Type) *ir.Func {
+ func EqFor(t *types.Type) (ir.Node, bool) {
+ 	switch a, _ := types.AlgType(t); a {
+ 	case types.AMEM:
+-		n := typecheck.LookupRuntime("memequal")
+-		n = typecheck.SubstArgTypes(n, t, t)
+-		return n, true
++		return typecheck.LookupRuntime("memequal", t, t), true
+ 	case types.ASPECIAL:
+ 		fn := eqFunc(t)
+ 		return fn.Nname, false
+@@ -667,7 +663,5 @@ func anyCall(fn *ir.Func) bool {
+ }
+ 
+ func hashmem(t *types.Type) ir.Node {
+-	n := typecheck.LookupRuntime("memhash")
+-	n = typecheck.SubstArgTypes(n, t)
+-	return n
++	return typecheck.LookupRuntime("memhash", t)
+ }
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index 61a3422b1a..a977b5e110 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -11,21 +11,25 @@ import (
+ 	"cmd/internal/obj"
+ )
+ 
+-func LookupRuntime(name string) *ir.Name {
++// LookupRuntime returns a function or variable declared in
++// _builtin/runtime.go. If types_ is non-empty, successive occurrences
++// of the "any" placeholder type will be substituted.
++func LookupRuntime(name string, types_ ...*types.Type) *ir.Name {
+ 	s := ir.Pkgs.Runtime.Lookup(name)
+ 	if s == nil || s.Def == nil {
+ 		base.Fatalf("LookupRuntime: can't find runtime.%s", name)
+ 	}
+-	return s.Def.(*ir.Name)
++	n := s.Def.(*ir.Name)
++	if len(types_) != 0 {
++		n = substArgTypes(n, types_...)
++	}
++	return n
+ }
+ 
+ // SubstArgTypes substitutes the given list of types for
+ // successive occurrences of the "any" placeholder in the
+ // type syntax expression n.Type.
+-// The result of SubstArgTypes MUST be assigned back to old, e.g.
+-//
+-//	n.Left = SubstArgTypes(n.Left, t1, t2)
+-func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
++func substArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
+ 	for _, t := range types_ {
+ 		types.CalcSize(t)
+ 	}
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index a147b15e57..bf7592967e 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -514,8 +514,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, slice)}
+ 
+ 	// func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) []T
+-	fn := typecheck.LookupRuntime("growslice")
+-	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
++	fn := typecheck.LookupRuntime("growslice", elemtype, elemtype)
+ 
+ 	// else { s = growslice(oldPtr, newLen, oldCap, num, T) }
+ 	call := mkcall1(fn, s.Type(), nif.PtrInit(), oldPtr, newLen, oldCap, num, reflectdata.TypePtrAt(base.Pos, elemtype))
+@@ -541,8 +540,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		ir.CurFunc.SetWBPos(n.Pos())
+ 
+ 		// instantiate typedslicecopy(typ *type, dstPtr *any, dstLen int, srcPtr *any, srcLen int) int
+-		fn := typecheck.LookupRuntime("typedslicecopy")
+-		fn = typecheck.SubstArgTypes(fn, l1.Type().Elem(), l2.Type().Elem())
++		fn := typecheck.LookupRuntime("typedslicecopy", l1.Type().Elem(), l2.Type().Elem())
+ 		ptr1, len1 := backingArrayPtrLen(cheapExpr(slice, &nodes))
+ 		ptr2, len2 := backingArrayPtrLen(l2)
+ 		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, reflectdata.AppendElemRType(base.Pos, n), ptr1, len1, ptr2, len2)
+@@ -557,8 +555,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		ptr1, len1 := backingArrayPtrLen(cheapExpr(slice, &nodes))
+ 		ptr2, len2 := backingArrayPtrLen(l2)
+ 
+-		fn := typecheck.LookupRuntime("slicecopy")
+-		fn = typecheck.SubstArgTypes(fn, ptr1.Type().Elem(), ptr2.Type().Elem())
++		fn := typecheck.LookupRuntime("slicecopy", ptr1.Type().Elem(), ptr2.Type().Elem())
+ 		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, ptr1, len1, ptr2, len2, ir.NewInt(base.Pos, elemtype.Size()))
+ 	} else {
+ 		// memmove(&s[idx], &l2[0], len(l2)*sizeof(T))
+@@ -572,8 +569,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(base.Pos, elemtype.Size()))
+ 
+ 		// instantiate func memmove(to *any, frm *any, length uintptr)
+-		fn := typecheck.LookupRuntime("memmove")
+-		fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
++		fn := typecheck.LookupRuntime("memmove", elemtype, elemtype)
+ 		ncopy = mkcall1(fn, nil, &nodes, addr, sptr, nwid)
+ 	}
+ 	ln := append(nodes, ncopy)
+@@ -696,8 +692,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, nt)}
+ 
+ 	// instantiate growslice(oldPtr *any, newLen, oldCap, num int, typ *type) []any
+-	fn := typecheck.LookupRuntime("growslice")
+-	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
++	fn := typecheck.LookupRuntime("growslice", elemtype, elemtype)
+ 
+ 	// else { s = growslice(s.ptr, n, s.cap, l2, T) }
+ 	nif.Else = []ir.Node{
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 799ab5770d..c3a641eac9 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -101,8 +101,8 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
+ 		ir.NewAssignStmt(base.Pos, s, slice),
+ 	}
+ 
+-	fn := typecheck.LookupRuntime("growslice") //   growslice(ptr *T, newLen, oldCap, num int, <type>) (ret []T)
+-	fn = typecheck.SubstArgTypes(fn, s.Type().Elem(), s.Type().Elem())
++	//   growslice(ptr *T, newLen, oldCap, num int, <type>) (ret []T)
++	fn := typecheck.LookupRuntime("growslice", s.Type().Elem(), s.Type().Elem())
+ 
+ 	// else { s = growslice(s.ptr, n, s.cap, a, T) }
+ 	nif.Else = []ir.Node{
+@@ -149,8 +149,7 @@ func walkClear(n *ir.UnaryExpr) ir.Node {
+ // walkClose walks an OCLOSE node.
+ func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+ 	// cannot use chanfn - closechan takes any, not chan any
+-	fn := typecheck.LookupRuntime("closechan")
+-	fn = typecheck.SubstArgTypes(fn, n.X.Type())
++	fn := typecheck.LookupRuntime("closechan", n.X.Type())
+ 	return mkcall1(fn, nil, init, n.X)
+ }
+ 
+@@ -185,8 +184,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
+ 		n.Y = cheapExpr(n.Y, init)
+ 		ptrR, lenR := backingArrayPtrLen(n.Y)
+ 
+-		fn := typecheck.LookupRuntime("slicecopy")
+-		fn = typecheck.SubstArgTypes(fn, ptrL.Type().Elem(), ptrR.Type().Elem())
++		fn := typecheck.LookupRuntime("slicecopy", ptrL.Type().Elem(), ptrR.Type().Elem())
+ 
+ 		return mkcall1(fn, n.Type(), init, ptrL, lenL, ptrR, lenR, ir.NewInt(base.Pos, n.X.Type().Elem().Size()))
+ 	}
+@@ -219,8 +217,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
+ 	ne.Likely = true
+ 	l = append(l, ne)
+ 
+-	fn := typecheck.LookupRuntime("memmove")
+-	fn = typecheck.SubstArgTypes(fn, nl.Type().Elem(), nl.Type().Elem())
++	fn := typecheck.LookupRuntime("memmove", nl.Type().Elem(), nl.Type().Elem())
+ 	nwid := ir.Node(typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR]))
+ 	setwid := ir.NewAssignStmt(base.Pos, nwid, typecheck.Conv(nlen, types.Types[types.TUINTPTR]))
+ 	ne.Body.Append(setwid)
+@@ -365,8 +362,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		}
+ 		// Call runtime.makehmap to allocate an
+ 		// hmap on the heap and initialize hmap's hash0 field.
+-		fn := typecheck.LookupRuntime("makemap_small")
+-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
++		fn := typecheck.LookupRuntime("makemap_small", t.Key(), t.Elem())
+ 		return mkcall1(fn, n.Type(), init)
+ 	}
+ 
+@@ -392,8 +388,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		argtype = types.Types[types.TINT]
+ 	}
+ 
+-	fn := typecheck.LookupRuntime(fnname)
+-	fn = typecheck.SubstArgTypes(fn, hmapType, t.Key(), t.Elem())
++	fn := typecheck.LookupRuntime(fnname, hmapType, t.Key(), t.Elem())
+ 	return mkcall1(fn, n.Type(), init, reflectdata.MakeMapRType(base.Pos, n), typecheck.Conv(hint, argtype), h)
+ }
+ 
+@@ -503,8 +498,7 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		init.Append(r)
+ 
+ 		// instantiate memmove(to *any, frm *any, size uintptr)
+-		fn = typecheck.LookupRuntime("memmove")
+-		fn = typecheck.SubstArgTypes(fn, t.Elem(), t.Elem())
++		fn = typecheck.LookupRuntime("memmove", t.Elem(), t.Elem())
+ 		ncopy := mkcall1(fn, nil, init, ir.NewUnaryExpr(base.Pos, ir.OSPTR, s), copyptr, size)
+ 		init.Append(walkExpr(typecheck.Stmt(ncopy), init))
+ 
+@@ -609,11 +603,10 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		switch n.Type().Kind() {
+ 		case types.TINTER:
+ 			if n.Type().IsEmptyInterface() {
+-				on = typecheck.LookupRuntime("printeface")
++				on = typecheck.LookupRuntime("printeface", n.Type())
+ 			} else {
+-				on = typecheck.LookupRuntime("printiface")
++				on = typecheck.LookupRuntime("printiface", n.Type())
+ 			}
+-			on = typecheck.SubstArgTypes(on, n.Type()) // any-1
+ 		case types.TPTR:
+ 			if n.Type().Elem().NotInHeap() {
+ 				on = typecheck.LookupRuntime("printuintptr")
+@@ -625,11 +618,9 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			}
+ 			fallthrough
+ 		case types.TCHAN, types.TMAP, types.TFUNC, types.TUNSAFEPTR:
+-			on = typecheck.LookupRuntime("printpointer")
+-			on = typecheck.SubstArgTypes(on, n.Type()) // any-1
++			on = typecheck.LookupRuntime("printpointer", n.Type())
+ 		case types.TSLICE:
+-			on = typecheck.LookupRuntime("printslice")
+-			on = typecheck.SubstArgTypes(on, n.Type()) // any-1
++			on = typecheck.LookupRuntime("printslice", n.Type())
+ 		case types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64, types.TUINTPTR:
+ 			if types.RuntimeSymName(n.Type().Sym()) == "hex" {
+ 				on = typecheck.LookupRuntime("printhex")
+@@ -863,9 +854,7 @@ func badtype(op ir.Op, tl, tr *types.Type) {
+ }
+ 
+ func writebarrierfn(name string, l *types.Type, r *types.Type) ir.Node {
+-	fn := typecheck.LookupRuntime(name)
+-	fn = typecheck.SubstArgTypes(fn, l, r)
+-	return fn
++	return typecheck.LookupRuntime(name, l, r)
+ }
+ 
+ // isRuneCount reports whether n is of the form len([]rune(string)).
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index dd074b9f91..9548db82c0 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -165,7 +165,7 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 
+ 	// Time to do an allocation. We'll call into the runtime for that.
+ 	fnname, argType, needsaddr := dataWordFuncName(fromType)
+-	fn := typecheck.LookupRuntime(fnname)
++	var fn *ir.Name
+ 
+ 	var args []ir.Node
+ 	if needsaddr {
+@@ -178,11 +178,12 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		if !ir.IsAddressable(n) {
+ 			n = copyExpr(n, fromType, init)
+ 		}
+-		fn = typecheck.SubstArgTypes(fn, fromType)
++		fn = typecheck.LookupRuntime(fnname, fromType)
+ 		args = []ir.Node{reflectdata.ConvIfaceSrcRType(base.Pos, conv), typecheck.NodAddr(n)}
+ 	} else {
+ 		// Use a specialized conversion routine that takes the type being
+ 		// converted by value, not by pointer.
++		fn = typecheck.LookupRuntime(fnname)
+ 		var arg ir.Node
+ 		switch {
+ 		case fromType == argType:
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 8bf1c5b0f9..4e9908b5d1 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -231,14 +231,11 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		keysym := th.Field(0).Sym
+ 		elemsym := th.Field(1).Sym // ditto
+ 
+-		fn := typecheck.LookupRuntime("mapiterinit")
+-
+-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), th)
++		fn := typecheck.LookupRuntime("mapiterinit", t.Key(), t.Elem(), th)
+ 		init = append(init, mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), ha, typecheck.NodAddr(hit)))
+ 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
+ 
+-		fn = typecheck.LookupRuntime("mapiternext")
+-		fn = typecheck.SubstArgTypes(fn, th)
++		fn = typecheck.LookupRuntime("mapiternext", th)
+ 		nfor.Post = mkcallstmt1(fn, typecheck.NodAddr(hit))
+ 
+ 		key := ir.NewStarExpr(base.Pos, typecheck.ConvNop(ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), types.NewPtr(t.Key())))
+@@ -454,8 +451,7 @@ func mapClear(m, rtyp ir.Node) ir.Node {
+ 	t := m.Type()
+ 
+ 	// instantiate mapclear(typ *type, hmap map[any]any)
+-	fn := typecheck.LookupRuntime("mapclear")
+-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
++	fn := typecheck.LookupRuntime("mapclear", t.Key(), t.Elem())
+ 	n := mkcallstmt1(fn, rtyp, m)
+ 	return walkStmt(typecheck.Stmt(n))
+ }
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 21cccaacf8..be41e06b80 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -141,42 +141,34 @@ func chanfn(name string, n int, t *types.Type) ir.Node {
+ 	if !t.IsChan() {
+ 		base.Fatalf("chanfn %v", t)
+ 	}
+-	fn := typecheck.LookupRuntime(name)
+ 	switch n {
+-	default:
+-		base.Fatalf("chanfn %d", n)
+ 	case 1:
+-		fn = typecheck.SubstArgTypes(fn, t.Elem())
++		return typecheck.LookupRuntime(name, t.Elem())
+ 	case 2:
+-		fn = typecheck.SubstArgTypes(fn, t.Elem(), t.Elem())
++		return typecheck.LookupRuntime(name, t.Elem(), t.Elem())
+ 	}
+-	return fn
++	base.Fatalf("chanfn %d", n)
++	return nil
+ }
+ 
+ func mapfn(name string, t *types.Type, isfat bool) ir.Node {
+ 	if !t.IsMap() {
+ 		base.Fatalf("mapfn %v", t)
+ 	}
+-	fn := typecheck.LookupRuntime(name)
+ 	if mapfast(t) == mapslow || isfat {
+-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
+-	} else {
+-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Elem())
++		return typecheck.LookupRuntime(name, t.Key(), t.Elem(), t.Key(), t.Elem())
+ 	}
+-	return fn
++	return typecheck.LookupRuntime(name, t.Key(), t.Elem(), t.Elem())
+ }
+ 
+ func mapfndel(name string, t *types.Type) ir.Node {
+ 	if !t.IsMap() {
+ 		base.Fatalf("mapfn %v", t)
+ 	}
+-	fn := typecheck.LookupRuntime(name)
+ 	if mapfast(t) == mapslow {
+-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
+-	} else {
+-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
++		return typecheck.LookupRuntime(name, t.Key(), t.Elem(), t.Key())
+ 	}
+-	return fn
++	return typecheck.LookupRuntime(name, t.Key(), t.Elem())
+ }
+ 
+ const (

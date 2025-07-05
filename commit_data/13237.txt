@@ -11,7 +11,90 @@ Date:   Thu May 31 07:57:49 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev, remy
     https://golang.org/cl/6249068
-
+---
  misc/pprof                     | 20 ++++++++++++--------
  src/pkg/runtime/pprof/pprof.go | 11 +++++++----
  2 files changed, 19 insertions(+), 12 deletions(-)
+
+diff --git a/misc/pprof b/misc/pprof
+index 2fe56503c9..92009a1ce8 100755
+--- a/misc/pprof
++++ b/misc/pprof
+@@ -3753,15 +3753,19 @@ sub ReadHeapProfile {
+         } else {
+           # Remote-heap version 1
+           my $ratio;
+-          $ratio = (($s1*1.0)/$n1)/($sample_adjustment);
+-          if ($ratio < 1) {
+-            $n1 /= $ratio;
+-            $s1 /= $ratio;
++          if ($n1 > 0) {
++            $ratio = (($s1*1.0)/$n1)/($sample_adjustment);
++            if ($ratio < 1) {
++                $n1 /= $ratio;
++                $s1 /= $ratio;
++            }
+           }
+-          $ratio = (($s2*1.0)/$n2)/($sample_adjustment);
+-          if ($ratio < 1) {
+-            $n2 /= $ratio;
+-            $s2 /= $ratio;
++          if ($n2 > 0) {
++            $ratio = (($s2*1.0)/$n2)/($sample_adjustment);
++            if ($ratio < 1) {
++                $n2 /= $ratio;
++                $s2 /= $ratio;
++            }
+           }
+         }
+       }
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index f67e8a8f9a..a0a5b7c0cc 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -352,26 +352,26 @@ func WriteHeapProfile(w io.Writer) error {
+ 
+ // countHeap returns the number of records in the heap profile.
+ func countHeap() int {
+-	n, _ := runtime.MemProfile(nil, false)
++	n, _ := runtime.MemProfile(nil, true)
+ 	return n
+ }
+ 
+ // writeHeapProfile writes the current runtime heap profile to w.
+ func writeHeap(w io.Writer, debug int) error {
+-	// Find out how many records there are (MemProfile(nil, false)),
++	// Find out how many records there are (MemProfile(nil, true)),
+ 	// allocate that many records, and get the data.
+ 	// There's a race—more records might be added between
+ 	// the two calls—so allocate a few extra records for safety
+ 	// and also try again if we're very unlucky.
+ 	// The loop should only execute one iteration in the common case.
+ 	var p []runtime.MemProfileRecord
+-	n, ok := runtime.MemProfile(nil, false)
++	n, ok := runtime.MemProfile(nil, true)
+ 	for {
+ 		// Allocate room for a slightly bigger profile,
+ 		// in case a few more entries have been added
+ 		// since the call to MemProfile.
+ 		p = make([]runtime.MemProfileRecord, n+50)
+-		n, ok = runtime.MemProfile(p, false)
++		n, ok = runtime.MemProfile(p, true)
+ 		if ok {
+ 			p = p[0:n]
+ 			break
+@@ -431,11 +431,14 @@ func writeHeap(w io.Writer, debug int) error {
+ 		fmt.Fprintf(w, "# Sys = %d\n", s.Sys)
+ 		fmt.Fprintf(w, "# Lookups = %d\n", s.Lookups)
+ 		fmt.Fprintf(w, "# Mallocs = %d\n", s.Mallocs)
++		fmt.Fprintf(w, "# Frees = %d\n", s.Frees)
+ 
+ 		fmt.Fprintf(w, "# HeapAlloc = %d\n", s.HeapAlloc)
+ 		fmt.Fprintf(w, "# HeapSys = %d\n", s.HeapSys)
+ 		fmt.Fprintf(w, "# HeapIdle = %d\n", s.HeapIdle)
+ 		fmt.Fprintf(w, "# HeapInuse = %d\n", s.HeapInuse)
++		fmt.Fprintf(w, "# HeapReleased = %d\n", s.HeapReleased)
++		fmt.Fprintf(w, "# HeapObjects = %d\n", s.HeapObjects)
+ 
+ 		fmt.Fprintf(w, "# Stack = %d / %d\n", s.StackInuse, s.StackSys)
+ 		fmt.Fprintf(w, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)

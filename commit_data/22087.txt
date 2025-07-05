@@ -9,7 +9,74 @@ Date:   Mon Feb 23 10:57:21 2015 -0800
     Change-Id: Ie8680a875225748abd660fb26b4c25546e7b92d3
     Reviewed-on: https://go-review.googlesource.com/5620
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/floatconv.go      | 17 +++++++----------
  src/math/big/floatconv_test.go |  6 ++----
  2 files changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index a857fa6513..e41d447db0 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -126,11 +126,9 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+ }
+ 
+ // Parse is like z.Scan(r, base), but instead of reading from an
+-// io.ByteScanner, it parses the string s. An error is returned if the
+-// string contains invalid or trailing characters not belonging to the
+-// number.
+-//
+-// TODO(gri) define possible errors more precisely
++// io.ByteScanner, it parses the string s. An error is returned if
++// the string contains invalid or trailing bytes not belonging to
++// the number.
+ func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
+ 	r := strings.NewReader(s)
+ 
+@@ -139,11 +137,10 @@ func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
+ 	}
+ 
+ 	// entire string must have been consumed
+-	var ch byte
+-	if ch, err = r.ReadByte(); err != io.EOF {
+-		if err == nil {
+-			err = fmt.Errorf("expected end of string, found %q", ch)
+-		}
++	if ch, err2 := r.ReadByte(); err2 == nil {
++		err = fmt.Errorf("expected end of string, found %q", ch)
++	} else if err2 != io.EOF {
++		err = err2
+ 	}
+ 
+ 	return
+diff --git a/src/math/big/floatconv_test.go b/src/math/big/floatconv_test.go
+index 11e5df448a..a22a1f7ddf 100644
+--- a/src/math/big/floatconv_test.go
++++ b/src/math/big/floatconv_test.go
+@@ -5,7 +5,6 @@
+ package big
+ 
+ import (
+-	"io"
+ 	"math"
+ 	"strconv"
+ 	"testing"
+@@ -59,7 +58,7 @@ func TestFloatSetFloat64String(t *testing.T) {
+ 		{"+10000000000000000000000000000000000000000e-0", 1e40},
+ 	} {
+ 		var x Float
+-		x.prec = 53 // TODO(gri) find better solution
++		x.SetPrec(53)
+ 		_, ok := x.SetString(test.s)
+ 		if !ok {
+ 			t.Errorf("%s: parse error", test.s)
+@@ -313,8 +312,7 @@ func TestFloatFormat(t *testing.T) {
+ 		{"3.14", 'x', 0, "%x"},
+ 	} {
+ 		f, _, err := ParseFloat(test.x, 0, 1000, ToNearestEven)
+-		// TODO(gri) should we return io.EOF at the end?
+-		if err != nil && err != io.EOF {
++		if err != nil {
+ 			t.Errorf("%v: %s", test, err)
+ 			continue
+ 		}

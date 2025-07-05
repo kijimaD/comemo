@@ -14,7 +14,101 @@ Date:   Wed Mar 6 14:10:47 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7508043
-
+---
  src/pkg/net/http/header.go      | 47 +++++++++++++++++++++++++++++++----------
  src/pkg/net/http/header_test.go |  6 ++----
  2 files changed, 38 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/net/http/header.go b/src/pkg/net/http/header.go
+index f479b7b4eb..6374237fba 100644
+--- a/src/pkg/net/http/header.go
++++ b/src/pkg/net/http/header.go
+@@ -103,21 +103,41 @@ type keyValues struct {
+ 	values []string
+ }
+ 
+-type byKey []keyValues
+-
+-func (s byKey) Len() int           { return len(s) }
+-func (s byKey) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+-func (s byKey) Less(i, j int) bool { return s[i].key < s[j].key }
+-
+-func (h Header) sortedKeyValues(exclude map[string]bool) []keyValues {
+-	kvs := make([]keyValues, 0, len(h))
++// A headerSorter implements sort.Interface by sorting a []keyValues
++// by key. It's used as a pointer, so it can fit in a sort.Interface
++// interface value without allocation.
++type headerSorter struct {
++	kvs []keyValues
++}
++
++func (s *headerSorter) Len() int           { return len(s.kvs) }
++func (s *headerSorter) Swap(i, j int)      { s.kvs[i], s.kvs[j] = s.kvs[j], s.kvs[i] }
++func (s *headerSorter) Less(i, j int) bool { return s.kvs[i].key < s.kvs[j].key }
++
++// TODO: convert this to a sync.Cache (issue 4720)
++var headerSorterCache = make(chan *headerSorter, 8)
++
++// sortedKeyValues returns h's keys sorted in the returned kvs
++// slice. The headerSorter used to sort is also returned, for possible
++// return to headerSorterCache.
++func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *headerSorter) {
++	select {
++	case hs = <-headerSorterCache:
++	default:
++		hs = new(headerSorter)
++	}
++	if cap(hs.kvs) < len(h) {
++		hs.kvs = make([]keyValues, 0, len(h))
++	}
++	kvs = hs.kvs[:0]
+ 	for k, vv := range h {
+ 		if !exclude[k] {
+ 			kvs = append(kvs, keyValues{k, vv})
+ 		}
+ 	}
+-	sort.Sort(byKey(kvs))
+-	return kvs
++	hs.kvs = kvs
++	sort.Sort(hs)
++	return kvs, hs
+ }
+ 
+ // WriteSubset writes a header in wire format.
+@@ -127,7 +147,8 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
+ 	if !ok {
+ 		ws = stringWriter{w}
+ 	}
+-	for _, kv := range h.sortedKeyValues(exclude) {
++	kvs, sorter := h.sortedKeyValues(exclude)
++	for _, kv := range kvs {
+ 		for _, v := range kv.values {
+ 			v = headerNewlineToSpace.Replace(v)
+ 			v = textproto.TrimString(v)
+@@ -138,6 +159,10 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
+ 			}
+ 		}
+ 	}
++	select {
++	case headerSorterCache <- sorter:
++	default:
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/net/http/header_test.go b/src/pkg/net/http/header_test.go
+index 93a904536a..88c420a44a 100644
+--- a/src/pkg/net/http/header_test.go
++++ b/src/pkg/net/http/header_test.go
+@@ -196,9 +196,7 @@ func TestHeaderWriteSubsetMallocs(t *testing.T) {
+ 		buf.Reset()
+ 		testHeader.WriteSubset(&buf, nil)
+ 	})
+-	if n > 1 {
+-		// TODO(bradfitz,rsc): once we can sort without allocating,
+-		// make this an error.  See http://golang.org/issue/3761
+-		// t.Errorf("got %v allocs, want <= %v", n, 1)
++	if n > 0 {
++		t.Errorf("mallocs = %d; want 0", n)
+ 	}
+ }

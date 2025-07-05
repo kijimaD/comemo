@@ -8,6 +8,20 @@ Date:   Sun Jul 25 03:00:04 2021 +0900
     Reviewed-on: https://go-review.googlesource.com/c/go/+/336892
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Austin Clements <austin@google.com>
-
+---
  src/runtime/race.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index cc8c5db1bd..ce6b5b5468 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -343,7 +343,7 @@ func racereadrangepc1(addr, size, pc uintptr)
+ func racewriterangepc1(addr, size, pc uintptr)
+ func racecallbackthunk(uintptr)
+ 
+-// racecall allows calling an arbitrary function f from C race runtime
++// racecall allows calling an arbitrary function fn from C race runtime
+ // with up to 4 uintptr arguments.
+ func racecall(fn *byte, arg0, arg1, arg2, arg3 uintptr)
+ 

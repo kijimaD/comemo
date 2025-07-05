@@ -10,7 +10,7 @@ Date:   Sat Jul 11 08:51:20 2015 -0600
     Change-Id: I4469f7b307ae2a12ea89323422044e604c5133ae
     Reviewed-on: https://go-review.googlesource.com/12071
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_faq.html                       | 2 +-
  doc/gopher/README                     | 2 +-
  src/cmd/compile/internal/big/float.go | 2 +-
@@ -23,3 +23,141 @@ Date:   Sat Jul 11 08:51:20 2015 -0600
  src/net/http/pprof/pprof.go           | 2 +-
  src/strings/strings.go                | 2 +-
  11 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index d5ee805703..78a96568bc 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -893,7 +893,7 @@ encourages you to be explicit.
+ </p>
+ 
+ <p>
+-A blog post titled <a href="http://blog.golang.org/constants">Constants</a>
++A blog post titled <a href="https://blog.golang.org/constants">Constants</a>
+ explores this topic in more detail.
+ </p>
+ 
+diff --git a/doc/gopher/README b/doc/gopher/README
+index 936a24c66a..d4ca8a1c2d 100644
+--- a/doc/gopher/README
++++ b/doc/gopher/README
+@@ -1,3 +1,3 @@
+ The Go gopher was designed by Renee French. (http://reneefrench.blogspot.com/)
+ The design is licensed under the Creative Commons 3.0 Attributions license.
+-Read this article for more details: http://blog.golang.org/gopher
++Read this article for more details: https://blog.golang.org/gopher
+diff --git a/src/cmd/compile/internal/big/float.go b/src/cmd/compile/internal/big/float.go
+index c18a4657fc..d7aa8953c4 100644
+--- a/src/cmd/compile/internal/big/float.go
++++ b/src/cmd/compile/internal/big/float.go
+@@ -1406,7 +1406,7 @@ func (x *Float) ucmp(y *Float) int {
+ // sum (or difference) shall be −0. However, x+x = x−(−x) retains the same
+ // sign as x even when x is zero.
+ //
+-// See also: http://play.golang.org/p/RtH3UCt5IH
++// See also: https://play.golang.org/p/RtH3UCt5IH
+ 
+ // Add sets z to the rounded sum x+y and returns z. If z's precision is 0,
+ // it is changed to the larger of x's or y's precision before the operation.
+diff --git a/src/cmd/pprof/doc.go b/src/cmd/pprof/doc.go
+index c6ff11d102..1e094feee3 100644
+--- a/src/cmd/pprof/doc.go
++++ b/src/cmd/pprof/doc.go
+@@ -8,5 +8,5 @@
+ //
+ //	go tool pprof binary profile
+ //
+-// For more information, see http://blog.golang.org/profiling-go-programs.
++// For more information, see https://blog.golang.org/profiling-go-programs.
+ package main
+diff --git a/src/encoding/gob/doc.go b/src/encoding/gob/doc.go
+index 31223b6d43..4d3d0076fb 100644
+--- a/src/encoding/gob/doc.go
++++ b/src/encoding/gob/doc.go
+@@ -246,7 +246,7 @@ where * signifies zero or more repetitions and the type id of a value must
+ be predefined or be defined before the value in the stream.
+ 
+ See "Gobs of data" for a design discussion of the gob wire format:
+-http://blog.golang.org/gobs-of-data
++https://blog.golang.org/gobs-of-data
+ */
+ package gob
+ 
+diff --git a/src/encoding/json/fold.go b/src/encoding/json/fold.go
+index d6f77c93e5..9e170127db 100644
+--- a/src/encoding/json/fold.go
++++ b/src/encoding/json/fold.go
+@@ -26,7 +26,7 @@ const (
+ // The letters S and K are special because they map to 3 runes, not just 2:
+ //  * S maps to s and to U+017F 'ſ' Latin small letter long s
+ //  * k maps to K and to U+212A 'K' Kelvin sign
+-// See http://play.golang.org/p/tTxjOc0OGo
++// See https://play.golang.org/p/tTxjOc0OGo
+ //
+ // The returned function is specialized for matching against s and
+ // should only be given s. It's not curried for performance reasons.
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index c224699e3c..3b81b0760b 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -502,7 +502,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		case *Func:
+ 			// TODO(gri) Using derefStructPtr may result in methods being found
+ 			// that don't actually exist. An error either way, but the error
+-			// message is confusing. See: http://play.golang.org/p/al75v23kUy ,
++			// message is confusing. See: https://play.golang.org/p/al75v23kUy ,
+ 			// but go/types reports: "invalid argument: x.m is a method value".
+ 			check.invalidArg(arg0.Pos(), "%s is a method value", arg0)
+ 			return
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index ad90872106..9be7565771 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -228,7 +228,7 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
+ 	// TODO(gri) It's easy to create pathological cases where the
+ 	// current approach is incorrect: In general we need to know
+ 	// and add all methods _before_ type-checking the type.
+-	// See http://play.golang.org/p/WMpE0q2wK8
++	// See https://play.golang.org/p/WMpE0q2wK8
+ 	check.addMethodDecls(obj)
+ }
+ 
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index c18a4657fc..d7aa8953c4 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -1406,7 +1406,7 @@ func (x *Float) ucmp(y *Float) int {
+ // sum (or difference) shall be −0. However, x+x = x−(−x) retains the same
+ // sign as x even when x is zero.
+ //
+-// See also: http://play.golang.org/p/RtH3UCt5IH
++// See also: https://play.golang.org/p/RtH3UCt5IH
+ 
+ // Add sets z to the rounded sum x+y and returns z. If z's precision is 0,
+ // it is changed to the larger of x's or y's precision before the operation.
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 02cde50535..bbca292f45 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -43,7 +43,7 @@
+ //
+ // For a study of the facility in action, visit
+ //
+-//	http://blog.golang.org/2011/06/profiling-go-programs.html
++//	https://blog.golang.org/2011/06/profiling-go-programs.html
+ //
+ package pprof
+ 
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 3f5f3f7f01..dd51dabb32 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -4,7 +4,7 @@
+ 
+ // Package strings implements simple functions to manipulate UTF-8 encoded strings.
+ //
+-// For information about UTF-8 strings in Go, see http://blog.golang.org/strings.
++// For information about UTF-8 strings in Go, see https://blog.golang.org/strings.
+ package strings
+ 
+ import (

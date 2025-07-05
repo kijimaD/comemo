@@ -34,8 +34,82 @@ Date:   Thu Sep 12 11:37:45 2024 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/math/floor_asm.go    |  2 +-
  src/math/floor_loong64.s | 41 +++++++++++++++++++++++++++++++++++++++++
  src/math/floor_noasm.go  |  2 +-
  3 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/floor_asm.go b/src/math/floor_asm.go
+index 5cb45f5a7e..1b06b8def9 100644
+--- a/src/math/floor_asm.go
++++ b/src/math/floor_asm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build 386 || amd64 || arm64 || ppc64 || ppc64le || riscv64 || s390x || wasm
++//go:build 386 || amd64 || arm64 || loong64 || ppc64 || ppc64le || riscv64 || s390x || wasm
+ 
+ package math
+ 
+diff --git a/src/math/floor_loong64.s b/src/math/floor_loong64.s
+new file mode 100644
+index 0000000000..0df7deee60
+--- /dev/null
++++ b/src/math/floor_loong64.s
+@@ -0,0 +1,41 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// derived from math/floor_riscv64.s
++
++#include "textflag.h"
++
++#define ROUNDFN(NAME, FUNC)	\
++TEXT NAME(SB),NOSPLIT,$0;	\
++	MOVD	x+0(FP), F0;	\
++	MOVV	F0, R11;	\
++	/* 1023: bias of exponent, [-2^53, 2^53]: exactly integer represent range */;	\
++	MOVV	$1023+53, R12;	\
++	/* Drop all fraction bits */;	\
++	SRLV	$52, R11, R11;	\
++	/* Remove sign bit */;	\
++	AND	$0x7FF, R11, R11;	\
++	BLTU	R12, R11, isExtremum;	\
++normal:;	\
++	FUNC	F0, F2;	\
++	MOVV	F2, R10;	\
++	BEQ	R10, R0, is0;	\
++	FFINTDV	F2, F0;	\
++/* Return either input is +-Inf, NaN(0x7FF) or out of precision limitation */;	\
++isExtremum:;	\
++	MOVD	F0, ret+8(FP);	\
++	RET;	\
++is0:;	\
++	FCOPYSGD	F0, F2, F2;	\
++	MOVD	F2, ret+8(FP);	\
++	RET
++
++// func archFloor(x float64) float64
++ROUNDFN(·archFloor, FTINTRMVD)
++
++// func archCeil(x float64) float64
++ROUNDFN(·archCeil, FTINTRPVD)
++
++// func archTrunc(x float64) float64
++ROUNDFN(·archTrunc, FTINTRZVD)
+diff --git a/src/math/floor_noasm.go b/src/math/floor_noasm.go
+index 6754ca8fc8..34bd292f0e 100644
+--- a/src/math/floor_noasm.go
++++ b/src/math/floor_noasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !386 && !amd64 && !arm64 && !ppc64 && !ppc64le && !riscv64 && !s390x && !wasm
++//go:build !386 && !amd64 && !arm64 && !loong64 && !ppc64 && !ppc64le && !riscv64 && !s390x && !wasm
+ 
+ package math
+ 

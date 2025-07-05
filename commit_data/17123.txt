@@ -8,6 +8,23 @@ Date:   Fri Aug 9 23:23:34 2013 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/12491045
-
+---
  src/pkg/encoding/binary/binary_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index 083488adad..fdfee7d871 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -164,9 +164,9 @@ func TestSliceRoundTrip(t *testing.T) {
+ 		}
+ 		for i := 0; i < src.Len(); i++ {
+ 			if unsigned {
+-				src.Index(i).SetUint(uint64(i * 0x87654321))
++				src.Index(i).SetUint(uint64(i * 0x07654321))
+ 			} else {
+-				src.Index(i).SetInt(int64(i * 0x87654321))
++				src.Index(i).SetInt(int64(i * 0x07654321))
+ 			}
+ 		}
+ 		buf.Reset()

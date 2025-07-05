@@ -16,10 +16,98 @@ Date:   Thu Feb 5 15:22:49 2009 -0800
     R=ken
     OCL=24474
     CL=24476
-
+---
  src/cmd/gc/go.h                    |  3 +--
  src/cmd/gc/subr.c                  | 19 +++++++++++++++++++
  src/cmd/gc/walk.c                  |  4 ++--
  test/{bugs => fixedbugs}/bug064.go |  0
  test/golden.out                    |  6 ------
  5 files changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1dd041bada..6545d1e18c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -527,8 +527,6 @@ EXTERN	int32	thunk;
+ 
+ EXTERN	int	exporting;
+ 
+-EXTERN	int	func;
+-
+ /*
+  *	y.tab.c
+  */
+@@ -650,6 +648,7 @@ Type*	methtype(Type*);
+ int	methconv(Type*);
+ Sym*	signame(Type*);
+ int	eqtype(Type*, Type*, int);
++int	eqtypenoname(Type*, Type*);
+ void	argtype(Node*, Type*);
+ int	eqargs(Type*, Type*);
+ uint32	typehash(Type*, int);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 593d07cd38..2df3fc168f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1742,6 +1742,25 @@ eqtype(Type *t1, Type *t2, int d)
+ 	return eqtype(t1->type, t2->type, d+1);
+ }
+ 
++int
++eqtypenoname(Type *t1, Type *t2)
++{
++	if(t1 == T || t2 == T || t1->etype != TSTRUCT || t2->etype != TSTRUCT)
++		return eqtype(t1, t2, 0);
++
++
++	t1 = t1->type;
++	t2 = t2->type;
++	for(;;) {
++		if(!eqtype(t1, t2, 1))
++			return 0;
++		if(t1 == T)
++			return 1;
++		t1 = t1->down;
++		t2 = t2->down;
++	}
++}
++
+ static int
+ subtype(Type **stp, Type *t, int d)
+ {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6e959b8c7a..b680cb0744 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1905,8 +1905,8 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
+ 	if(l != T && r != N
+ 	&& structnext(&peekl) != T
+ 	&& listnext(&peekr) == N
+-	&& eqtype(r->type, *nl, 0))
+-		return convas(nod(OAS, nodarg(*nl, fp), r));
++	&& eqtypenoname(r->type, *nl))
++		return convas(nod(OAS, nodarg(r->type, fp), r));
+ 
+ loop:
+ 	if(l != T && isddd(l->type)) {
+diff --git a/test/bugs/bug064.go b/test/fixedbugs/bug064.go
+similarity index 100%
+rename from test/bugs/bug064.go
+rename to test/fixedbugs/bug064.go
+diff --git a/test/golden.out b/test/golden.out
+index 6713ec2fcf..fb9b82709e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -117,12 +117,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ =========== chan/nonblock.go
+ PASS
+ 
+-=========== bugs/bug064.go
+-bugs/bug064.go:15: illegal types for operand: CALL
+-	int
+-	struct { u int; v int }
+-BUG: compilation should succeed
+-
+ =========== bugs/bug085.go
+ bugs/bug085.go:8: P: undefined
+ BUG: fails incorrectly

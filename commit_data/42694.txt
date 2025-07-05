@@ -7,7 +7,32 @@ Date:   Wed Feb 5 14:36:25 2020 -0500
     Change-Id: Ifd022eb762f78f0b86f8fa7834c2dd891e4a35fc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217937
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  misc/boring/merge.sh   | 2 +-
  misc/boring/release.sh | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/boring/merge.sh b/misc/boring/merge.sh
+index 6d13ade23c..9809b224b3 100755
+--- a/misc/boring/merge.sh
++++ b/misc/boring/merge.sh
+@@ -28,5 +28,5 @@ if ! git log --format=%B -n 1 | grep "\[dev.boringcrypto"; then
+     exit 1
+ fi
+ 
+-git codereview mail -r dmitshur@golang.org,filippo@golang.org -trybot HEAD
++git codereview mail -r katie@golang.org,filippo@golang.org -trybot HEAD
+ cd - && git worktree remove "$WORKTREE"
+diff --git a/misc/boring/release.sh b/misc/boring/release.sh
+index 1f7b483183..09a11db5c5 100755
+--- a/misc/boring/release.sh
++++ b/misc/boring/release.sh
+@@ -26,7 +26,7 @@ done
+ 
+ git add RELEASES
+ git commit -m "misc/boring: add new releases to RELEASES file"
+-git codereview mail -r dmitshur@golang.org,filippo@golang.org
++git codereview mail -r katie@golang.org,filippo@golang.org
+ 
+ rm *.tar.gz
+ cd - && git worktree remove "$WORKTREE"

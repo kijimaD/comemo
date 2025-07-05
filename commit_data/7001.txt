@@ -7,6 +7,20 @@ Date:   Fri Dec 17 13:47:52 2010 -0800
     R=agl, agl1, rsc
     CC=golang-dev
     https://golang.org/cl/3753041
-
+---
  src/pkg/crypto/tls/conn_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/conn_test.go b/src/pkg/crypto/tls/conn_test.go
+index ee654ca888..f44a50bedd 100644
+--- a/src/pkg/crypto/tls/conn_test.go
++++ b/src/pkg/crypto/tls/conn_test.go
+@@ -43,7 +43,7 @@ func TestRemovePadding(t *testing.T) {
+ 			expectedGood = 0
+ 		}
+ 		if good != expectedGood {
+-			t.Errorf("#%d: wrong validity, want:%d got:%d", expectedGood, good)
++			t.Errorf("#%d: wrong validity, want:%d got:%d", i, expectedGood, good)
+ 		}
+ 		if good == 255 && len(payload) != test.expectedLen {
+ 			t.Errorf("#%d: got %d, want %d", i, len(payload), test.expectedLen)

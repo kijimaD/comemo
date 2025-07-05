@@ -7,7 +7,7 @@ Date:   Mon Dec 8 19:46:39 2008 -0800
     R=r
     OCL=20794
     CL=20794
-
+---
  src/cmd/6g/align.c     |  2 +-
  src/cmd/gc/Makefile    |  7 +++++--
  src/cmd/gc/go.h        |  3 ++-
@@ -18,3 +18,234 @@ Date:   Mon Dec 8 19:46:39 2008 -0800
  src/cmd/gc/sysimport.c |  5 +++++
  src/cmd/gc/unsafe.go   |  8 ++++++++
  9 files changed, 57 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 209c0765b1..aaf2fabfa0 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -203,7 +203,7 @@ typedefs[] =
+ {
+ 	"int",		TINT,		TINT32,
+ 	"uint",		TUINT,		TUINT32,
+-	"uptrint",	TUINTPTR,	TUINT64,
++	"uintptr",	TUINTPTR,	TUINT64,
+ 	"float",	TFLOAT,		TFLOAT32,
+ };
+ 
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 502f37146d..744460bd8a 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -39,10 +39,13 @@ y.tab.h: $(YFILES)
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+-sysimport.c:	sys.go mksys.c
++sysimport.c:	sys.go unsafe.go mksys.c
+ 	gcc -o mksys mksys.c
+ 	6g sys.go
+-	./mksys sys.6 >_sysimport.c && mv _sysimport.c sysimport.c
++	6g unsafe.go
++	./mksys sys >_sysimport.c &&\
++		./mksys unsafe >>_sysimport.c &&\
++		mv _sysimport.c sysimport.c
+ 
+ clean:
+ 	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) _sysimport.c
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 68898c9988..dc6de63c6c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -467,6 +467,7 @@ EXTERN	Sym*	pkgmyname;	// my name for package
+ EXTERN	Sym*	pkgimportname;	// package name from imported package
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	sysimport;
++extern	char*	unsafeimport;
+ EXTERN	char*	filename;	// name to uniqify names
+ EXTERN	void	(*dcladj)(Sym*);	// declaration is being exported/packaged
+ 
+@@ -535,7 +536,7 @@ int	yyparse(void);
+ int	mainlex(int, char*[]);
+ void	setfilename(char*);
+ void	importfile(Val*);
+-void	cannedimports(void);
++void	cannedimports(char*, char*);
+ void	unimportfile();
+ int32	yylex(void);
+ void	lexinit(void);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index bcee5ec5b3..f504595cb7 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -104,12 +104,12 @@ package:
+ 	{
+ 		yyerror("package statement must be first");
+ 		mkpackage("main");
+-		cannedimports();
++		cannedimports("sys.6", sysimport);
+ 	}
+ |	LPACKAGE sym
+ 	{
+ 		mkpackage($2->name);
+-		cannedimports();
++		cannedimports("sys.6", sysimport);
+ 	}
+ 
+ imports:
+@@ -1086,6 +1086,8 @@ Bnon_fn_type:
+ nametype:
+ 	LATYPE
+ 	{
++		if($1->otype != T && $1->otype->etype == TANY)
++			yyerror("the any type is restricted");
+ 		$$ = oldtype($1);
+ 	}
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 126a201d6f..dc2ec6166a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -218,6 +218,11 @@ importfile(Val *f)
+ 		return;
+ 	}
+ 
++	if(strcmp(f->u.sval->s, "unsafe") == 0) {
++		cannedimports("unsafe.6", unsafeimport);
++		return;
++	}
++
+ 	if(!findpkg(f->u.sval))
+ 		fatal("can't find import: %Z", f->u.sval);
+ 	imp = Bopen(namebuf, OREAD);
+@@ -277,11 +282,8 @@ unimportfile(void)
+ }
+ 
+ void
+-cannedimports(void)
++cannedimports(char *file, char *cp)
+ {
+-	char *file;
+-
+-	file = "sys.6";
+ 	lineno++;		// if sys.6 is included on line 1,
+ 	linehist(file, 0);	// the debugger gets confused
+ 
+@@ -290,7 +292,7 @@ cannedimports(void)
+ 	curio.peekc = 0;
+ 	curio.peekc1 = 0;
+ 	curio.infile = file;
+-	curio.cp = sysimport;
++	curio.cp = cp;
+ 
+ 	pkgmyname = S;
+ 	inimportsys = 1;
+diff --git a/src/cmd/gc/mksys.c b/src/cmd/gc/mksys.c
+index cf0537c318..a3838203fd 100644
+--- a/src/cmd/gc/mksys.c
++++ b/src/cmd/gc/mksys.c
+@@ -13,15 +13,22 @@
+ int
+ main(int argc, char **argv)
+ {
++	char *name;
+ 	FILE *fin;
+-	char buf[1024], *p, *q;
++	char buf[1024], initfunc[1024], *p, *q;
+ 
+ 	if(argc != 2) {
+-		fprintf(stderr, "usage: mksys sys.6\n");
++		fprintf(stderr, "usage: sys sys\n");
++		fprintf(stderr, "in file $1.6 s/PACKAGE/$1/\n");
+ 		exit(1);
+ 	}
+-	if((fin = fopen(argv[1], "r")) == NULL) {
+-		fprintf(stderr, "open %s: %s\n", argv[1], strerror(errno));
++
++	name = argv[1];
++	snprintf(initfunc, sizeof(initfunc), "init_%s_function", name);
++
++	snprintf(buf, sizeof(buf), "%s.6", name);
++	if((fin = fopen(buf, "r")) == NULL) {
++		fprintf(stderr, "open %s: %s\n", buf, strerror(errno));
+ 		exit(1);
+ 	}
+ 
+@@ -33,7 +40,7 @@ main(int argc, char **argv)
+ 	exit(1);
+ 
+ begin:
+-	printf("char *sysimport = \n");
++	printf("char *%simport = \n", name);
+ 
+ 	// process imports, stopping at $$ that closes them
+ 	while(fgets(buf, sizeof buf, fin) != NULL) {
+@@ -45,17 +52,21 @@ begin:
+ 		for(p=buf; *p==' ' || *p == '\t'; p++)
+ 			;
+ 
+-		// cut out decl of init_sys_function - it doesn't exist
+-		if(strstr(buf, "init_sys_function"))
++		// cut out decl of init_$1_function - it doesn't exist
++		if(strstr(buf, initfunc))
+ 			continue;
+ 
+-		// sys.go claims to be in package SYS to avoid
+-		// conflicts during "6g sys.go".  rename SYS to sys.
+-		for(q=p; *q; q++)
+-			if(memcmp(q, "SYS", 3) == 0)
+-				memmove(q, "sys", 3);
++		// sys.go claims to be in package PACKAGE to avoid
++		// conflicts during "6g sys.go".  rename PACKAGE to $2.
++		printf("\t\"");
++		while(q = strstr(p, "PACKAGE")) {
++			*q = 0;
++			printf("%s", p);	// up to the substitution
++			printf("%s", name);	// the sub name
++			p = q+7;		// continue with rest
++		}
+ 
+-		printf("\t\"%s\\n\"\n", p);
++		printf("%s\\n\"\n", p);
+ 	}
+ 	fprintf(stderr, "did not find end of imports\n");
+ 	exit(1);
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index bc91beb043..41a702c74d 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ 
+-package SYS	// rename to avoid redeclaration errors
++package PACKAGE
+ 
+ export func	mal(int32) *any;
+ export func	breakpoint();
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 56b6b8aca6..aa40e773f0 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -79,3 +79,8 @@ char *sysimport =
+ 	"export func sys.semrelease (sema *int32)\n"
+ 	"\n"
+ 	"$$\n";
++char *unsafeimport = 
++	"package unsafe\n"
++	"export type unsafe.pointer *any\n"
++	"\n"
++	"$$\n";
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+new file mode 100644
+index 0000000000..ba6aa7c462
+--- /dev/null
++++ b/src/cmd/gc/unsafe.go
+@@ -0,0 +1,8 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package PACKAGE
++
++export	type	pointer	*any;

@@ -11,7 +11,49 @@ Date:   Tue Jan 13 15:36:42 2015 -0500
     Change-Id: I467b4335e16dc9cd1521d687fc1f99a51cc7e54b
     Reviewed-on: https://go-review.googlesource.com/3149
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/malloc.go | 10 ++++++----
  src/runtime/mgc.go    |  1 +
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 223220a570..69eb090706 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -31,10 +31,12 @@ type pageID uintptr
+ // base address for all 0-byte allocations
+ var zerobase uintptr
+ 
++// Trigger the concurrent GC when 1/triggerratio memory is available to allocate.
++// Adjust this ratio as part of a scheme to ensure that mutators have enough
++// memory to allocate in durring a concurrent GC cycle.
++var triggerratio = int64(8)
++
+ // Determine whether to initiate a GC.
+-// Currently the primitive heuristic we use will start a new
+-// concurrent GC when approximately half the available space
+-// made available by the last GC cycle has been used.
+ // If the GC is already working no need to trigger another one.
+ // This should establish a feedback loop where if the GC does not
+ // have sufficient time to complete then more memory will be
+@@ -44,7 +46,7 @@ var zerobase uintptr
+ // A false negative simple does not start a GC, a false positive
+ // will start a GC needlessly. Neither have correctness issues.
+ func shouldtriggergc() bool {
+-	return memstats.heap_alloc+memstats.heap_alloc*3/4 >= memstats.next_gc && atomicloaduint(&bggc.working) == 0
++	return triggerratio*(int64(memstats.next_gc)-int64(memstats.heap_alloc)) <= int64(memstats.next_gc) && atomicloaduint(&bggc.working) == 0
+ }
+ 
+ // Allocate an object of size bytes.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 32f13d1d4d..6436a3f786 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1344,6 +1344,7 @@ func gcinit() {
+ 	gcpercent = readgogc()
+ 	gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcdata)), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)))
+ 	gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcbss)), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)))
++	memstats.next_gc = 4 << 20 // 4 megs to start with
+ }
+ 
+ // Called from malloc.go using onM, stopping and starting the world handled in caller.

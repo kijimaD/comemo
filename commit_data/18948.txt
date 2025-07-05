@@ -8,6 +8,20 @@ Date:   Wed Mar 26 10:21:22 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/80250043
-
+---
  src/pkg/runtime/heapdump.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index db0178eb65..bc0fd49c0a 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -803,7 +803,7 @@ playgcprog(uintptr offset, uintptr *prog, void (*callback)(void*,uintptr,uintptr
+ 			prog += 4;
+ 			break;
+ 		default:
+-			runtime·printf("%D\n", prog[0]);
++			runtime·printf("%D\n", (uint64)prog[0]);
+ 			runtime·throw("bad gc op");
+ 		}
+ 	}

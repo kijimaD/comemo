@@ -16,7 +16,56 @@ Date:   Fri Jun 16 21:12:25 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/exec.go           |  4 +++-
  src/os/exec_unix_test.go | 18 ++++++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index d01ca592ba..ed5a75c4d1 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -86,7 +86,9 @@ func Getppid() int { return syscall.Getppid() }
+ // about the underlying operating system process.
+ //
+ // On Unix systems, FindProcess always succeeds and returns a Process
+-// for the given pid, regardless of whether the process exists.
++// for the given pid, regardless of whether the process exists. To test whether
++// the process actually exists, see whether p.Signal(syscall.Signal(0)) reports
++// an error.
+ func FindProcess(pid int) (*Process, error) {
+ 	return findProcess(pid)
+ }
+diff --git a/src/os/exec_unix_test.go b/src/os/exec_unix_test.go
+index 82c072a746..26045192ff 100644
+--- a/src/os/exec_unix_test.go
++++ b/src/os/exec_unix_test.go
+@@ -9,6 +9,7 @@ package os_test
+ import (
+ 	"internal/testenv"
+ 	. "os"
++	"syscall"
+ 	"testing"
+ )
+ 
+@@ -25,3 +26,20 @@ func TestErrProcessDone(t *testing.T) {
+ 		t.Errorf("got %v want %v", got, ErrProcessDone)
+ 	}
+ }
++
++func TestUNIXProcessAlive(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++
++	p, err := StartProcess(testenv.GoToolPath(t), []string{"sleep", "1"}, &ProcAttr{})
++	if err != nil {
++		t.Skipf("starting test process: %v", err)
++	}
++	defer p.Kill()
++
++	proc, _ := FindProcess(p.Pid)
++	err = proc.Signal(syscall.Signal(0))
++	if err != nil {
++		t.Errorf("OS reported error for running process: %v", err)
++	}
++}

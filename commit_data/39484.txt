@@ -16,6 +16,35 @@ Date:   Fri Mar 1 12:55:43 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/dwarf_test.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 880b2ced6d..9c3bc624ef 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -37,17 +37,17 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 		t.Fatalf("cmd/link is stale - run go install cmd/link")
+ 	}
+ 
+-	tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmpDir)
+-
+ 	for _, prog := range []string{"testprog", "testprogcgo"} {
+ 		prog := prog
+ 		t.Run(prog, func(t *testing.T) {
+ 			t.Parallel()
+ 
++			tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer os.RemoveAll(tmpDir)
++
+ 			exe := filepath.Join(tmpDir, prog+".exe")
+ 			dir := "../../runtime/testdata/" + prog
+ 			cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)

@@ -11,6 +11,26 @@ Date:   Thu Dec 18 09:36:07 2014 +0100
     Change-Id: I86b440ed63d09b4ca676bba7034838860f1a5d8b
     Reviewed-on: https://go-review.googlesource.com/1782
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/gc/typecheck.c | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index f05d8022d0..72f4d6f3eb 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2959,14 +2959,6 @@ typecheckas2(Node *n)
+ 	l = n->list->n;
+ 	r = n->rlist->n;
+ 
+-	// m[i] = x, ok
+-	if(cl == 1 && cr == 2 && l->op == OINDEXMAP) {
+-		if(l->type == T)
+-			goto out;
+-		yyerror("assignment count mismatch: %d = %d (use delete)", cl, cr);
+-		goto out;
+-	}
+-
+ 	// x,y,z = f()
+ 	if(cr == 1) {
+ 		if(r->type == T)

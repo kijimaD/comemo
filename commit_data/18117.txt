@@ -10,8 +10,139 @@ Date:   Thu Dec 26 13:03:30 2013 -0800
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/45850043
-
+---
  src/pkg/net/http/client_test.go    | 20 +-------------------
  src/pkg/net/http/cookie_test.go    | 28 ++++++++++++++++++++++++++++
  src/pkg/net/http/transport_test.go |  2 +-
  3 files changed, 30 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 997d04151c..e5ad39c774 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -373,24 +373,6 @@ func (j *TestJar) Cookies(u *url.URL) []*Cookie {
+ 	return j.perURL[u.Host]
+ }
+ 
+-func TestRedirectCookiesOnRequest(t *testing.T) {
+-	defer afterTest(t)
+-	var ts *httptest.Server
+-	ts = httptest.NewServer(echoCookiesRedirectHandler)
+-	defer ts.Close()
+-	c := &Client{}
+-	req, _ := NewRequest("GET", ts.URL, nil)
+-	req.AddCookie(expectedCookies[0])
+-	// TODO: Uncomment when an implementation of a RFC6265 cookie jar lands.
+-	_ = c
+-	// resp, _ := c.Do(req)
+-	// matchReturnedCookies(t, expectedCookies, resp.Cookies())
+-
+-	req, _ = NewRequest("GET", ts.URL, nil)
+-	// resp, _ = c.Do(req)
+-	// matchReturnedCookies(t, expectedCookies[1:], resp.Cookies())
+-}
+-
+ func TestRedirectCookiesJar(t *testing.T) {
+ 	defer afterTest(t)
+ 	var ts *httptest.Server
+@@ -410,8 +392,8 @@ func TestRedirectCookiesJar(t *testing.T) {
+ }
+ 
+ func matchReturnedCookies(t *testing.T, expected, given []*Cookie) {
+-	t.Logf("Received cookies: %v", given)
+ 	if len(given) != len(expected) {
++		t.Logf("Received cookies: %v", given)
+ 		t.Errorf("Expected %d cookies, got %d", len(expected), len(given))
+ 	}
+ 	for _, ec := range expected {
+diff --git a/src/pkg/net/http/cookie_test.go b/src/pkg/net/http/cookie_test.go
+index 11b01cc571..1aa9d49d96 100644
+--- a/src/pkg/net/http/cookie_test.go
++++ b/src/pkg/net/http/cookie_test.go
+@@ -5,9 +5,13 @@
+ package http
+ 
+ import (
++	"bytes"
+ 	"encoding/json"
+ 	"fmt"
++	"log"
++	"os"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -51,12 +55,20 @@ var writeSetCookiesTests = []struct {
+ }
+ 
+ func TestWriteSetCookies(t *testing.T) {
++	defer log.SetOutput(os.Stderr)
++	var logbuf bytes.Buffer
++	log.SetOutput(&logbuf)
++
+ 	for i, tt := range writeSetCookiesTests {
+ 		if g, e := tt.Cookie.String(), tt.Raw; g != e {
+ 			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, e, g)
+ 			continue
+ 		}
+ 	}
++
++	if got, sub := logbuf.String(), "dropping domain attribute"; !strings.Contains(got, sub) {
++		t.Errorf("Expected substring %q in log output. Got:\n%s", sub, got)
++	}
+ }
+ 
+ type headerOnlyResponseWriter Header
+@@ -244,6 +256,10 @@ func TestReadCookies(t *testing.T) {
+ }
+ 
+ func TestCookieSanitizeValue(t *testing.T) {
++	defer log.SetOutput(os.Stderr)
++	var logbuf bytes.Buffer
++	log.SetOutput(&logbuf)
++
+ 	tests := []struct {
+ 		in, want string
+ 	}{
+@@ -257,9 +273,17 @@ func TestCookieSanitizeValue(t *testing.T) {
+ 			t.Errorf("sanitizeCookieValue(%q) = %q; want %q", tt.in, got, tt.want)
+ 		}
+ 	}
++
++	if got, sub := logbuf.String(), "dropping invalid bytes"; !strings.Contains(got, sub) {
++		t.Errorf("Expected substring %q in log output. Got:\n%s", sub, got)
++	}
+ }
+ 
+ func TestCookieSanitizePath(t *testing.T) {
++	defer log.SetOutput(os.Stderr)
++	var logbuf bytes.Buffer
++	log.SetOutput(&logbuf)
++
+ 	tests := []struct {
+ 		in, want string
+ 	}{
+@@ -272,4 +296,8 @@ func TestCookieSanitizePath(t *testing.T) {
+ 			t.Errorf("sanitizeCookiePath(%q) = %q; want %q", tt.in, got, tt.want)
+ 		}
+ 	}
++
++	if got, sub := logbuf.String(), "dropping invalid bytes"; !strings.Contains(got, sub) {
++		t.Errorf("Expected substring %q in log output. Got:\n%s", sub, got)
++	}
+ }
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index e4df30a98d..2ce2b6b518 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -798,8 +798,8 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ 
+ 	// We expect 0 or 1 extra goroutine, empirically.  Allow up to 5.
+ 	// Previously we were leaking one per numReq.
+-	t.Logf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
+ 	if int(growth) > 5 {
++		t.Logf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
+ 		t.Error("too many new goroutines")
+ 	}
+ }

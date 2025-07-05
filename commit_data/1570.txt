@@ -7,7 +7,69 @@ Date:   Tue Jan 27 13:23:28 2009 -0800
     R=r
     OCL=23602
     CL=23602
-
+---
  src/runtime/chan.c    | 9 ++++-----
  src/runtime/runtime.h | 2 +-
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 6f89fa3953..7e6f830f6c 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -5,7 +5,6 @@
+ #include "runtime.h"
+ 
+ static	int32	debug	= 0;
+-static	int32	xxx	= 0;
+ static	Lock		chanlock;
+ 
+ typedef	struct	Hchan	Hchan;
+@@ -548,7 +547,7 @@ sys·selectgo(Select *sel)
+ 	G *gp;
+ 	byte *as;
+ 
+-	if(xxx) {
++	if(debug) {
+ 		prints("selectgo: sel=");
+ 		sys·printpointer(sel);
+ 		prints("\n");
+@@ -697,7 +696,7 @@ loop:
+ 		goto loop;
+ 	}
+ 
+-	if(xxx) {
++	if(debug) {
+ 		prints("wait-return: sel=");
+ 		sys·printpointer(sel);
+ 		prints(" c=");
+@@ -747,7 +746,7 @@ asyns:
+ 
+ gotr:
+ 	// recv path to wakeup the sender (sg)
+-	if(xxx) {
++	if(debug) {
+ 		prints("gotr: sel=");
+ 		sys·printpointer(sel);
+ 		prints(" c=");
+@@ -765,7 +764,7 @@ gotr:
+ 
+ gots:
+ 	// send path to wakeup the receiver (sg)
+-	if(xxx) {
++	if(debug) {
+ 		prints("gots: sel=");
+ 		sys·printpointer(sel);
+ 		prints(" c=");
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 78e2affc62..c63512db6a 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -238,7 +238,7 @@ enum
+ };
+ 
+ /*
+- * defered subroutine calls
++ * deferred subroutine calls
+  */
+ struct Defer
+ {

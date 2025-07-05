@@ -25,7 +25,7 @@ Date:   Wed Jul 12 14:08:12 2023 -0400
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/cmd/go.mod                                     | 12 +--
  src/cmd/go.sum                                     | 24 +++---
  .../vendor/golang.org/x/arch/x86/x86asm/plan9x.go  |  6 ++
@@ -85,3 +85,2022 @@ Date:   Wed Jul 12 14:08:12 2023 -0400
  .../golang.org/x/net/dns/dnsmessage/message.go     |  6 +-
  src/vendor/modules.txt                             |  8 +-
  58 files changed, 458 insertions(+), 222 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 6b36e7cd45..ac8c9e4976 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -4,12 +4,12 @@ go 1.21
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
+-	golang.org/x/arch v0.3.0
+-	golang.org/x/mod v0.10.1-0.20230606122920-62c7e578f1a7
+-	golang.org/x/sync v0.2.1-0.20230601203510-93782cc822b6
+-	golang.org/x/sys v0.9.0
+-	golang.org/x/term v0.9.0
+-	golang.org/x/tools v0.9.4-0.20230613194514-c6c983054920
++	golang.org/x/arch v0.4.0
++	golang.org/x/mod v0.12.0
++	golang.org/x/sync v0.3.0
++	golang.org/x/sys v0.10.0
++	golang.org/x/term v0.10.0
++	golang.org/x/tools v0.11.1-0.20230712164437-1ca21856af7b
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 59e3f831ea..b7245ea447 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -2,15 +2,15 @@ github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26 h1:Xim43kblpZXfIBQsbu
+ github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26/go.mod h1:dDKJzRmX4S37WGHujM7tX//fmj1uioxKzKxz3lo4HJo=
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLhLDA8nozr/K289V1zcntHr3V+SHlXwzz1ZI2g=
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+-golang.org/x/arch v0.3.0 h1:02VY4/ZcO/gBOH6PUaoiptASxtXU10jazRCP865E97k=
+-golang.org/x/arch v0.3.0/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+-golang.org/x/mod v0.10.1-0.20230606122920-62c7e578f1a7 h1:OSEstGpBW1+G0wiXI0bBgOnI8nRJQKX3GCNxF75VR1s=
+-golang.org/x/mod v0.10.1-0.20230606122920-62c7e578f1a7/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+-golang.org/x/sync v0.2.1-0.20230601203510-93782cc822b6 h1:kiysxTbHE5FVnrNyc9BC/yeJi3DTUBHIJtNbC9uvXk4=
+-golang.org/x/sync v0.2.1-0.20230601203510-93782cc822b6/go.mod h1:FU7BRWz2tNW+3quACPkgCx/L+uEAv1htQ0V83Z9Rj+Y=
+-golang.org/x/sys v0.9.0 h1:KS/R3tvhPqvJvwcKfnBHJwwthS11LRhmM5D59eEXa0s=
+-golang.org/x/sys v0.9.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/term v0.9.0 h1:GRRCnKYhdQrD8kfRAdQ6Zcw1P0OcELxGLKJvtjVMZ28=
+-golang.org/x/term v0.9.0/go.mod h1:M6DEAAIenWoTxdKrOltXcmDY3rSplQUkrvaDU5FcQyo=
+-golang.org/x/tools v0.9.4-0.20230613194514-c6c983054920 h1:FJIPEU9owLOeJgghpx63YhobtkWkORJ3O5ZnbFr8Bzs=
+-golang.org/x/tools v0.9.4-0.20230613194514-c6c983054920/go.mod h1:owI94Op576fPu3cIGQeHs3joujW/2Oc6MtlxbF5dfNc=
++golang.org/x/arch v0.4.0 h1:A8WCeEWhLwPBKNbFi5Wv5UTCBx5zzubnXDlMOFAzFMc=
++golang.org/x/arch v0.4.0/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
++golang.org/x/mod v0.12.0 h1:rmsUpXtvNzj340zd98LZ4KntptpfRHwpFOHG188oHXc=
++golang.org/x/mod v0.12.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
++golang.org/x/sync v0.3.0 h1:ftCYgMx6zT/asHUrPw8BLLscYtGznsLAnjq5RH9P66E=
++golang.org/x/sync v0.3.0/go.mod h1:FU7BRWz2tNW+3quACPkgCx/L+uEAv1htQ0V83Z9Rj+Y=
++golang.org/x/sys v0.10.0 h1:SqMFp9UcQJZa+pmYuAKjd9xq1f0j5rLcDIk0mj4qAsA=
++golang.org/x/sys v0.10.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/term v0.10.0 h1:3R7pNqamzBraeqj/Tj8qt1aQ2HpmlC+Cx/qL/7hn4/c=
++golang.org/x/term v0.10.0/go.mod h1:lpqdcUyK/oCiQxvxVrppt5ggO2KCZ5QblwqPnfZ6d5o=
++golang.org/x/tools v0.11.1-0.20230712164437-1ca21856af7b h1:KIZCni6lCdxd4gxHx49Zp9mhckTFRbI/ZPDbR3jKu90=
++golang.org/x/tools v0.11.1-0.20230712164437-1ca21856af7b/go.mod h1:anzJrxPjNtfgiYQYirP2CPGzGLxrH2u2QBhn6Bf3qY8=
+diff --git a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/plan9x.go b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/plan9x.go
+index de417946a4..9e866d87b6 100644
+--- a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/plan9x.go
++++ b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/plan9x.go
+@@ -83,6 +83,12 @@ func GoSyntax(inst Inst, pc uint64, symname SymLookup) string {
+ 		}
+ 	}
+ 
++	if inst.Op == CMP {
++		// Use reads-left-to-right ordering for comparisons.
++		// See issue 60920.
++		args[0], args[1] = args[1], args[0]
++	}
++
+ 	if args != nil {
+ 		op += " " + strings.Join(args, ", ")
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/mod/internal/lazyregexp/lazyre.go b/src/cmd/vendor/golang.org/x/mod/internal/lazyregexp/lazyre.go
+index 2681af35af..150f887e7a 100644
+--- a/src/cmd/vendor/golang.org/x/mod/internal/lazyregexp/lazyre.go
++++ b/src/cmd/vendor/golang.org/x/mod/internal/lazyregexp/lazyre.go
+@@ -13,7 +13,7 @@ import (
+ 	"sync"
+ )
+ 
+-// Regexp is a wrapper around regexp.Regexp, where the underlying regexp will be
++// Regexp is a wrapper around [regexp.Regexp], where the underlying regexp will be
+ // compiled the first time it is needed.
+ type Regexp struct {
+ 	str  string
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/read.go b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+index a503bc2105..5b5bb5e115 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/read.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+@@ -65,7 +65,7 @@ type Comments struct {
+ }
+ 
+ // Comment returns the receiver. This isn't useful by itself, but
+-// a Comments struct is embedded into all the expression
++// a [Comments] struct is embedded into all the expression
+ // implementation types, and this gives each of those a Comment
+ // method to satisfy the Expr interface.
+ func (c *Comments) Comment() *Comments {
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index b4dd7997b6..930b6c59bc 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -5,17 +5,17 @@
+ // Package modfile implements a parser and formatter for go.mod files.
+ //
+ // The go.mod syntax is described in
+-// https://golang.org/cmd/go/#hdr-The_go_mod_file.
++// https://pkg.go.dev/cmd/go/#hdr-The_go_mod_file.
+ //
+-// The Parse and ParseLax functions both parse a go.mod file and return an
++// The [Parse] and [ParseLax] functions both parse a go.mod file and return an
+ // abstract syntax tree. ParseLax ignores unknown statements and may be used to
+ // parse go.mod files that may have been developed with newer versions of Go.
+ //
+-// The File struct returned by Parse and ParseLax represent an abstract
+-// go.mod file. File has several methods like AddNewRequire and DropReplace
+-// that can be used to programmatically edit a file.
++// The [File] struct returned by Parse and ParseLax represent an abstract
++// go.mod file. File has several methods like [File.AddNewRequire] and
++// [File.DropReplace] that can be used to programmatically edit a file.
+ //
+-// The Format function formats a File back to a byte slice which can be
++// The [Format] function formats a File back to a byte slice which can be
+ // written to a file.
+ package modfile
+ 
+@@ -226,7 +226,7 @@ var dontFixRetract VersionFixer = func(_, vers string) (string, error) {
+ // data is the content of the file.
+ //
+ // fix is an optional function that canonicalizes module versions.
+-// If fix is nil, all module versions must be canonical (module.CanonicalVersion
++// If fix is nil, all module versions must be canonical ([module.CanonicalVersion]
+ // must return the same string).
+ func Parse(file string, data []byte, fix VersionFixer) (*File, error) {
+ 	return parseToFile(file, data, fix, true)
+@@ -923,7 +923,7 @@ func (f *File) Format() ([]byte, error) {
+ }
+ 
+ // Cleanup cleans up the file f after any edit operations.
+-// To avoid quadratic behavior, modifications like DropRequire
++// To avoid quadratic behavior, modifications like [File.DropRequire]
+ // clear the entry but do not remove it from the slice.
+ // Cleanup cleans out all the cleared entries.
+ func (f *File) Cleanup() {
+@@ -1075,8 +1075,8 @@ func (f *File) AddNewRequire(path, vers string, indirect bool) {
+ // The requirements in req must specify at most one distinct version for each
+ // module path.
+ //
+-// If any existing requirements may be removed, the caller should call Cleanup
+-// after all edits are complete.
++// If any existing requirements may be removed, the caller should call
++// [File.Cleanup] after all edits are complete.
+ func (f *File) SetRequire(req []*Require) {
+ 	type elem struct {
+ 		version  string
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/work.go b/src/cmd/vendor/golang.org/x/mod/modfile/work.go
+index 75dc1c5491..d7b99376eb 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/work.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/work.go
+@@ -34,7 +34,7 @@ type Use struct {
+ // data is the content of the file.
+ //
+ // fix is an optional function that canonicalizes module versions.
+-// If fix is nil, all module versions must be canonical (module.CanonicalVersion
++// If fix is nil, all module versions must be canonical ([module.CanonicalVersion]
+ // must return the same string).
+ func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
+ 	fs, err := parse(file, data)
+@@ -83,7 +83,7 @@ func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
+ }
+ 
+ // Cleanup cleans up the file f after any edit operations.
+-// To avoid quadratic behavior, modifications like DropRequire
++// To avoid quadratic behavior, modifications like [WorkFile.DropRequire]
+ // clear the entry but do not remove it from the slice.
+ // Cleanup cleans out all the cleared entries.
+ func (f *WorkFile) Cleanup() {
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index e9dec6e614..2a364b229b 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -4,7 +4,7 @@
+ 
+ // Package module defines the module.Version type along with support code.
+ //
+-// The module.Version type is a simple Path, Version pair:
++// The [module.Version] type is a simple Path, Version pair:
+ //
+ //	type Version struct {
+ //		Path string
+@@ -12,7 +12,7 @@
+ //	}
+ //
+ // There are no restrictions imposed directly by use of this structure,
+-// but additional checking functions, most notably Check, verify that
++// but additional checking functions, most notably [Check], verify that
+ // a particular path, version pair is valid.
+ //
+ // # Escaped Paths
+@@ -140,7 +140,7 @@ type ModuleError struct {
+ 	Err     error
+ }
+ 
+-// VersionError returns a ModuleError derived from a Version and error,
++// VersionError returns a [ModuleError] derived from a [Version] and error,
+ // or err itself if it is already such an error.
+ func VersionError(v Version, err error) error {
+ 	var mErr *ModuleError
+@@ -169,7 +169,7 @@ func (e *ModuleError) Unwrap() error { return e.Err }
+ // An InvalidVersionError indicates an error specific to a version, with the
+ // module path unknown or specified externally.
+ //
+-// A ModuleError may wrap an InvalidVersionError, but an InvalidVersionError
++// A [ModuleError] may wrap an InvalidVersionError, but an InvalidVersionError
+ // must not wrap a ModuleError.
+ type InvalidVersionError struct {
+ 	Version string
+@@ -193,8 +193,8 @@ func (e *InvalidVersionError) Error() string {
+ func (e *InvalidVersionError) Unwrap() error { return e.Err }
+ 
+ // An InvalidPathError indicates a module, import, or file path doesn't
+-// satisfy all naming constraints. See CheckPath, CheckImportPath,
+-// and CheckFilePath for specific restrictions.
++// satisfy all naming constraints. See [CheckPath], [CheckImportPath],
++// and [CheckFilePath] for specific restrictions.
+ type InvalidPathError struct {
+ 	Kind string // "module", "import", or "file"
+ 	Path string
+@@ -294,7 +294,7 @@ func fileNameOK(r rune) bool {
+ }
+ 
+ // CheckPath checks that a module path is valid.
+-// A valid module path is a valid import path, as checked by CheckImportPath,
++// A valid module path is a valid import path, as checked by [CheckImportPath],
+ // with three additional constraints.
+ // First, the leading path element (up to the first slash, if any),
+ // by convention a domain name, must contain only lower-case ASCII letters,
+@@ -380,7 +380,7 @@ const (
+ // checkPath returns an error describing why the path is not valid.
+ // Because these checks apply to module, import, and file paths,
+ // and because other checks may be applied, the caller is expected to wrap
+-// this error with InvalidPathError.
++// this error with [InvalidPathError].
+ func checkPath(path string, kind pathKind) error {
+ 	if !utf8.ValidString(path) {
+ 		return fmt.Errorf("invalid UTF-8")
+@@ -532,7 +532,7 @@ var badWindowsNames = []string{
+ // they require ".vN" instead of "/vN", and for all N, not just N >= 2.
+ // SplitPathVersion returns with ok = false when presented with
+ // a path whose last path element does not satisfy the constraints
+-// applied by CheckPath, such as "example.com/pkg/v1" or "example.com/pkg/v1.2".
++// applied by [CheckPath], such as "example.com/pkg/v1" or "example.com/pkg/v1.2".
+ func SplitPathVersion(path string) (prefix, pathMajor string, ok bool) {
+ 	if strings.HasPrefix(path, "gopkg.in/") {
+ 		return splitGopkgIn(path)
+@@ -582,7 +582,7 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
+ // MatchPathMajor reports whether the semantic version v
+ // matches the path major version pathMajor.
+ //
+-// MatchPathMajor returns true if and only if CheckPathMajor returns nil.
++// MatchPathMajor returns true if and only if [CheckPathMajor] returns nil.
+ func MatchPathMajor(v, pathMajor string) bool {
+ 	return CheckPathMajor(v, pathMajor) == nil
+ }
+@@ -622,7 +622,7 @@ func CheckPathMajor(v, pathMajor string) error {
+ // PathMajorPrefix returns the major-version tag prefix implied by pathMajor.
+ // An empty PathMajorPrefix allows either v0 or v1.
+ //
+-// Note that MatchPathMajor may accept some versions that do not actually begin
++// Note that [MatchPathMajor] may accept some versions that do not actually begin
+ // with this prefix: namely, it accepts a 'v0.0.0-' prefix for a '.v1'
+ // pathMajor, even though that pathMajor implies 'v1' tagging.
+ func PathMajorPrefix(pathMajor string) string {
+@@ -643,7 +643,7 @@ func PathMajorPrefix(pathMajor string) string {
+ }
+ 
+ // CanonicalVersion returns the canonical form of the version string v.
+-// It is the same as semver.Canonical(v) except that it preserves the special build suffix "+incompatible".
++// It is the same as [semver.Canonical] except that it preserves the special build suffix "+incompatible".
+ func CanonicalVersion(v string) string {
+ 	cv := semver.Canonical(v)
+ 	if semver.Build(v) == "+incompatible" {
+@@ -652,8 +652,8 @@ func CanonicalVersion(v string) string {
+ 	return cv
+ }
+ 
+-// Sort sorts the list by Path, breaking ties by comparing Version fields.
+-// The Version fields are interpreted as semantic versions (using semver.Compare)
++// Sort sorts the list by Path, breaking ties by comparing [Version] fields.
++// The Version fields are interpreted as semantic versions (using [semver.Compare])
+ // optionally followed by a tie-breaking suffix introduced by a slash character,
+ // like in "v0.0.1/go.mod".
+ func Sort(list []Version) {
+@@ -793,7 +793,7 @@ func unescapeString(escaped string) (string, bool) {
+ }
+ 
+ // MatchPrefixPatterns reports whether any path prefix of target matches one of
+-// the glob patterns (as defined by path.Match) in the comma-separated globs
++// the glob patterns (as defined by [path.Match]) in the comma-separated globs
+ // list. This implements the algorithm used when matching a module path to the
+ // GOPRIVATE environment variable, as described by 'go help module-private'.
+ //
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/pseudo.go b/src/cmd/vendor/golang.org/x/mod/module/pseudo.go
+index f04ad37886..9cf19d3254 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/pseudo.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/pseudo.go
+@@ -125,7 +125,7 @@ func IsPseudoVersion(v string) bool {
+ }
+ 
+ // IsZeroPseudoVersion returns whether v is a pseudo-version with a zero base,
+-// timestamp, and revision, as returned by ZeroPseudoVersion.
++// timestamp, and revision, as returned by [ZeroPseudoVersion].
+ func IsZeroPseudoVersion(v string) bool {
+ 	return v == ZeroPseudoVersion(semver.Major(v))
+ }
+diff --git a/src/cmd/vendor/golang.org/x/mod/semver/semver.go b/src/cmd/vendor/golang.org/x/mod/semver/semver.go
+index a30a22bf20..9a2dfd33a7 100644
+--- a/src/cmd/vendor/golang.org/x/mod/semver/semver.go
++++ b/src/cmd/vendor/golang.org/x/mod/semver/semver.go
+@@ -140,7 +140,7 @@ func Compare(v, w string) int {
+ // Max canonicalizes its arguments and then returns the version string
+ // that compares greater.
+ //
+-// Deprecated: use Compare instead. In most cases, returning a canonicalized
++// Deprecated: use [Compare] instead. In most cases, returning a canonicalized
+ // version is not expected or desired.
+ func Max(v, w string) string {
+ 	v = Canonical(v)
+@@ -151,7 +151,7 @@ func Max(v, w string) string {
+ 	return w
+ }
+ 
+-// ByVersion implements sort.Interface for sorting semantic version strings.
++// ByVersion implements [sort.Interface] for sorting semantic version strings.
+ type ByVersion []string
+ 
+ func (vs ByVersion) Len() int      { return len(vs) }
+@@ -164,7 +164,7 @@ func (vs ByVersion) Less(i, j int) bool {
+ 	return vs[i] < vs[j]
+ }
+ 
+-// Sort sorts a list of semantic version strings using ByVersion.
++// Sort sorts a list of semantic version strings using [ByVersion].
+ func Sort(list []string) {
+ 	sort.Sort(ByVersion(list))
+ }
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/client.go b/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
+index 1c1b0297f0..aecdc68849 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
+@@ -19,7 +19,7 @@ import (
+ )
+ 
+ // A ClientOps provides the external operations
+-// (file caching, HTTP fetches, and so on) needed by the Client.
++// (file caching, HTTP fetches, and so on) needed by the [Client].
+ // The methods must be safe for concurrent use by multiple goroutines.
+ type ClientOps interface {
+ 	// ReadRemote reads and returns the content served at the given path
+@@ -72,7 +72,7 @@ type ClientOps interface {
+ // ErrWriteConflict signals a write conflict during Client.WriteConfig.
+ var ErrWriteConflict = errors.New("write conflict")
+ 
+-// ErrSecurity is returned by Client operations that invoke Client.SecurityError.
++// ErrSecurity is returned by [Client] operations that invoke Client.SecurityError.
+ var ErrSecurity = errors.New("security error: misbehaving server")
+ 
+ // A Client is a client connection to a checksum database.
+@@ -102,7 +102,7 @@ type Client struct {
+ 	tileSaved   map[tlog.Tile]bool // which tiles have been saved using c.ops.WriteCache already
+ }
+ 
+-// NewClient returns a new Client using the given Client.
++// NewClient returns a new [Client] using the given [ClientOps].
+ func NewClient(ops ClientOps) *Client {
+ 	return &Client{
+ 		ops: ops,
+@@ -155,7 +155,7 @@ func (c *Client) initWork() {
+ }
+ 
+ // SetTileHeight sets the tile height for the Client.
+-// Any call to SetTileHeight must happen before the first call to Lookup.
++// Any call to SetTileHeight must happen before the first call to [Client.Lookup].
+ // If SetTileHeight is not called, the Client defaults to tile height 8.
+ // SetTileHeight can be called at most once,
+ // and if so it must be called before the first call to Lookup.
+@@ -174,7 +174,7 @@ func (c *Client) SetTileHeight(height int) {
+ 
+ // SetGONOSUMDB sets the list of comma-separated GONOSUMDB patterns for the Client.
+ // For any module path matching one of the patterns,
+-// Lookup will return ErrGONOSUMDB.
++// [Client.Lookup] will return ErrGONOSUMDB.
+ // SetGONOSUMDB can be called at most once,
+ // and if so it must be called before the first call to Lookup.
+ func (c *Client) SetGONOSUMDB(list string) {
+@@ -187,8 +187,8 @@ func (c *Client) SetGONOSUMDB(list string) {
+ 	c.nosumdb = list
+ }
+ 
+-// ErrGONOSUMDB is returned by Lookup for paths that match
+-// a pattern listed in the GONOSUMDB list (set by SetGONOSUMDB,
++// ErrGONOSUMDB is returned by [Client.Lookup] for paths that match
++// a pattern listed in the GONOSUMDB list (set by [Client.SetGONOSUMDB],
+ // usually from the environment variable).
+ var ErrGONOSUMDB = errors.New("skipped (listed in GONOSUMDB)")
+ 
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go b/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
+index 8c22b19d31..db9865c317 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
+@@ -20,45 +20,45 @@
+ //
+ // # Verifying Notes
+ //
+-// A Verifier allows verification of signatures by one server public key.
++// A [Verifier] allows verification of signatures by one server public key.
+ // It can report the name of the server and the uint32 hash of the key,
+ // and it can verify a purported signature by that key.
+ //
+ // The standard implementation of a Verifier is constructed
+-// by NewVerifier starting from a verifier key, which is a
++// by [NewVerifier] starting from a verifier key, which is a
+ // plain text string of the form "<name>+<hash>+<keydata>".
+ //
+-// A Verifiers allows looking up a Verifier by the combination
++// A [Verifiers] allows looking up a Verifier by the combination
+ // of server name and key hash.
+ //
+ // The standard implementation of a Verifiers is constructed
+ // by VerifierList from a list of known verifiers.
+ //
+-// A Note represents a text with one or more signatures.
++// A [Note] represents a text with one or more signatures.
+ // An implementation can reject a note with too many signatures
+ // (for example, more than 100 signatures).
+ //
+-// A Signature represents a signature on a note, verified or not.
++// A [Signature] represents a signature on a note, verified or not.
+ //
+-// The Open function takes as input a signed message
++// The [Open] function takes as input a signed message
+ // and a set of known verifiers. It decodes and verifies
+-// the message signatures and returns a Note structure
++// the message signatures and returns a [Note] structure
+ // containing the message text and (verified or unverified) signatures.
+ //
+ // # Signing Notes
+ //
+-// A Signer allows signing a text with a given key.
++// A [Signer] allows signing a text with a given key.
+ // It can report the name of the server and the hash of the key
+ // and can sign a raw text using that key.
+ //
+ // The standard implementation of a Signer is constructed
+-// by NewSigner starting from an encoded signer key, which is a
++// by [NewSigner] starting from an encoded signer key, which is a
+ // plain text string of the form "PRIVATE+KEY+<name>+<hash>+<keydata>".
+ // Anyone with an encoded signer key can sign messages using that key,
+ // so it must be kept secret. The encoding begins with the literal text
+ // "PRIVATE+KEY" to avoid confusion with the public server key.
+ //
+-// The Sign function takes as input a Note and a list of Signers
++// The [Sign] function takes as input a Note and a list of Signers
+ // and returns an encoded, signed message.
+ //
+ // # Signed Note Format
+@@ -88,7 +88,7 @@
+ // although doing so will require deploying the new algorithms to all clients
+ // before starting to depend on them for signatures.
+ //
+-// The GenerateKey function generates and returns a new signer
++// The [GenerateKey] function generates and returns a new signer
+ // and corresponding verifier.
+ //
+ // # Example
+@@ -123,9 +123,9 @@
+ // base URLs, the only syntactic requirement is that they
+ // not contain spaces or newlines).
+ //
+-// If Open is given access to a Verifiers including the
+-// Verifier for this key, then it will succeed at verifying
+-// the encoded message and returning the parsed Note:
++// If [Open] is given access to a [Verifiers] including the
++// [Verifier] for this key, then it will succeed at verifying
++// the encoded message and returning the parsed [Note]:
+ //
+ //	vkey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
+ //	msg := []byte("If you think cryptography is the answer to your problem,\n" +
+@@ -238,7 +238,7 @@ func isValidName(name string) bool {
+ 	return name != "" && utf8.ValidString(name) && strings.IndexFunc(name, unicode.IsSpace) < 0 && !strings.Contains(name, "+")
+ }
+ 
+-// NewVerifier construct a new Verifier from an encoded verifier key.
++// NewVerifier construct a new [Verifier] from an encoded verifier key.
+ func NewVerifier(vkey string) (Verifier, error) {
+ 	name, vkey := chop(vkey, "+")
+ 	hash16, key64 := chop(vkey, "+")
+@@ -295,7 +295,7 @@ func (v *verifier) Name() string                { return v.name }
+ func (v *verifier) KeyHash() uint32             { return v.hash }
+ func (v *verifier) Verify(msg, sig []byte) bool { return v.verify(msg, sig) }
+ 
+-// NewSigner constructs a new Signer from an encoded signer key.
++// NewSigner constructs a new [Signer] from an encoded signer key.
+ func NewSigner(skey string) (Signer, error) {
+ 	priv1, skey := chop(skey, "+")
+ 	priv2, skey := chop(skey, "+")
+@@ -409,7 +409,7 @@ func (e *UnknownVerifierError) Error() string {
+ }
+ 
+ // An ambiguousVerifierError indicates that the given name and hash
+-// match multiple keys passed to VerifierList.
++// match multiple keys passed to [VerifierList].
+ // (If this happens, some malicious actor has taken control of the
+ // verifier list, at which point we may as well give up entirely,
+ // but we diagnose the problem instead.)
+@@ -422,7 +422,7 @@ func (e *ambiguousVerifierError) Error() string {
+ 	return fmt.Sprintf("ambiguous key %s+%08x", e.name, e.hash)
+ }
+ 
+-// VerifierList returns a Verifiers implementation that uses the given list of verifiers.
++// VerifierList returns a [Verifiers] implementation that uses the given list of verifiers.
+ func VerifierList(list ...Verifier) Verifiers {
+ 	m := make(verifierMap)
+ 	for _, v := range list {
+@@ -510,7 +510,7 @@ var (
+ // If known.Verifier returns any other error, Open returns that error.
+ //
+ // If no known verifier has signed an otherwise valid note,
+-// Open returns an UnverifiedNoteError.
++// Open returns an [UnverifiedNoteError].
+ // In this case, the unverified note can be fetched from inside the error.
+ func Open(msg []byte, known Verifiers) (*Note, error) {
+ 	if known == nil {
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/server.go b/src/cmd/vendor/golang.org/x/mod/sumdb/server.go
+index 899bd462bc..1e1779d025 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/server.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/server.go
+@@ -17,7 +17,7 @@ import (
+ )
+ 
+ // A ServerOps provides the external operations
+-// (underlying database access and so on) needed by the Server.
++// (underlying database access and so on) needed by the [Server].
+ type ServerOps interface {
+ 	// Signed returns the signed hash of the latest tree.
+ 	Signed(ctx context.Context) ([]byte, error)
+@@ -36,7 +36,7 @@ type ServerOps interface {
+ 
+ // A Server is the checksum database HTTP server,
+ // which implements http.Handler and should be invoked
+-// to serve the paths listed in ServerPaths.
++// to serve the paths listed in [ServerPaths].
+ type Server struct {
+ 	ops ServerOps
+ }
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/test.go b/src/cmd/vendor/golang.org/x/mod/sumdb/test.go
+index c2755b8495..fb772452d9 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/test.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/test.go
+@@ -14,15 +14,15 @@ import (
+ 	"golang.org/x/mod/sumdb/tlog"
+ )
+ 
+-// NewTestServer constructs a new TestServer
++// NewTestServer constructs a new [TestServer]
+ // that will sign its tree with the given signer key
+-// (see golang.org/x/mod/sumdb/note)
++// (see [golang.org/x/mod/sumdb/note])
+ // and fetch new records as needed by calling gosum.
+ func NewTestServer(signer string, gosum func(path, vers string) ([]byte, error)) *TestServer {
+ 	return &TestServer{signer: signer, gosum: gosum}
+ }
+ 
+-// A TestServer is an in-memory implementation of Server for testing.
++// A TestServer is an in-memory implementation of [ServerOps] for testing.
+ type TestServer struct {
+ 	signer string
+ 	gosum  func(path, vers string) ([]byte, error)
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tile.go b/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tile.go
+index e4aeb14eff..857d487551 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tile.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tile.go
+@@ -28,7 +28,7 @@ import (
+ // is tile/3/4/x001/x234/067.p/1, and
+ // Tile{H: 3, L: 4, N: 1234067, W: 8}'s path
+ // is tile/3/4/x001/x234/067.
+-// See Tile's Path method and the ParseTilePath function.
++// See the [Tile.Path] method and the [ParseTilePath] function.
+ //
+ // The special level L=-1 holds raw record data instead of hashes.
+ // In this case, the level encodes into a tile path as the path element
+@@ -46,7 +46,7 @@ type Tile struct {
+ // TileForIndex returns the tile of fixed height h ≥ 1
+ // and least width storing the given hash storage index.
+ //
+-// If h ≤ 0, TileForIndex panics.
++// If h ≤ 0, [TileForIndex] panics.
+ func TileForIndex(h int, index int64) Tile {
+ 	if h <= 0 {
+ 		panic(fmt.Sprintf("TileForIndex: invalid height %d", h))
+@@ -105,7 +105,7 @@ func tileHash(data []byte) Hash {
+ // size newTreeSize to replace a tree of size oldTreeSize.
+ // (No tiles need to be published for a tree of size zero.)
+ //
+-// If h ≤ 0, TileForIndex panics.
++// If h ≤ 0, NewTiles panics.
+ func NewTiles(h int, oldTreeSize, newTreeSize int64) []Tile {
+ 	if h <= 0 {
+ 		panic(fmt.Sprintf("NewTiles: invalid height %d", h))
+@@ -272,7 +272,7 @@ type TileReader interface {
+ // TileHashReader returns a HashReader that satisfies requests
+ // by loading tiles of the given tree.
+ //
+-// The returned HashReader checks that loaded tiles are
++// The returned [HashReader] checks that loaded tiles are
+ // valid for the given tree. Therefore, any hashes returned
+ // by the HashReader are already proven to be in the tree.
+ func TileHashReader(tree Tree, tr TileReader) HashReader {
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go b/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go
+index ae065f8557..6a11a752f9 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go
+@@ -131,7 +131,7 @@ func StoredHashIndex(level int, n int64) int64 {
+ 	return i + int64(level)
+ }
+ 
+-// SplitStoredHashIndex is the inverse of StoredHashIndex.
++// SplitStoredHashIndex is the inverse of [StoredHashIndex].
+ // That is, SplitStoredHashIndex(StoredHashIndex(level, n)) == level, n.
+ func SplitStoredHashIndex(index int64) (level int, n int64) {
+ 	// Determine level 0 record before index.
+@@ -183,7 +183,7 @@ func StoredHashes(n int64, data []byte, r HashReader) ([]Hash, error) {
+ 	return StoredHashesForRecordHash(n, RecordHash(data), r)
+ }
+ 
+-// StoredHashesForRecordHash is like StoredHashes but takes
++// StoredHashesForRecordHash is like [StoredHashes] but takes
+ // as its second argument RecordHash(data) instead of data itself.
+ func StoredHashesForRecordHash(n int64, h Hash, r HashReader) ([]Hash, error) {
+ 	// Start with the record hash.
+@@ -227,7 +227,7 @@ type HashReader interface {
+ 	ReadHashes(indexes []int64) ([]Hash, error)
+ }
+ 
+-// A HashReaderFunc is a function implementing HashReader.
++// A HashReaderFunc is a function implementing [HashReader].
+ type HashReaderFunc func([]int64) ([]Hash, error)
+ 
+ func (f HashReaderFunc) ReadHashes(indexes []int64) ([]Hash, error) {
+diff --git a/src/cmd/vendor/golang.org/x/mod/zip/zip.go b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+index 7b48a2a2f0..574f83f220 100644
+--- a/src/cmd/vendor/golang.org/x/mod/zip/zip.go
++++ b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+@@ -10,31 +10,31 @@
+ //
+ // • All file paths within a zip file must start with "<module>@<version>/",
+ // where "<module>" is the module path and "<version>" is the version.
+-// The module path must be valid (see golang.org/x/mod/module.CheckPath).
++// The module path must be valid (see [golang.org/x/mod/module.CheckPath]).
+ // The version must be valid and canonical (see
+-// golang.org/x/mod/module.CanonicalVersion). The path must have a major
++// [golang.org/x/mod/module.CanonicalVersion]). The path must have a major
+ // version suffix consistent with the version (see
+-// golang.org/x/mod/module.Check). The part of the file path after the
++// [golang.org/x/mod/module.Check]). The part of the file path after the
+ // "<module>@<version>/" prefix must be valid (see
+-// golang.org/x/mod/module.CheckFilePath).
++// [golang.org/x/mod/module.CheckFilePath]).
+ //
+ // • No two file paths may be equal under Unicode case-folding (see
+-// strings.EqualFold).
++// [strings.EqualFold]).
+ //
+ // • A go.mod file may or may not appear in the top-level directory. If present,
+ // it must be named "go.mod", not any other case. Files named "go.mod"
+ // are not allowed in any other directory.
+ //
+-// • The total size in bytes of a module zip file may be at most MaxZipFile
++// • The total size in bytes of a module zip file may be at most [MaxZipFile]
+ // bytes (500 MiB). The total uncompressed size of the files within the
+-// zip may also be at most MaxZipFile bytes.
++// zip may also be at most [MaxZipFile] bytes.
+ //
+ // • Each file's uncompressed size must match its declared 64-bit uncompressed
+ // size in the zip file header.
+ //
+ // • If the zip contains files named "<module>@<version>/go.mod" or
+ // "<module>@<version>/LICENSE", their sizes in bytes may be at most
+-// MaxGoMod or MaxLICENSE, respectively (both are 16 MiB).
++// [MaxGoMod] or [MaxLICENSE], respectively (both are 16 MiB).
+ //
+ // • Empty directories are ignored. File permissions and timestamps are also
+ // ignored.
+@@ -42,7 +42,7 @@
+ // • Symbolic links and other irregular files are not allowed.
+ //
+ // Note that this package does not provide hashing functionality. See
+-// golang.org/x/mod/sumdb/dirhash.
++// [golang.org/x/mod/sumdb/dirhash].
+ package zip
+ 
+ import (
+@@ -56,6 +56,7 @@ import (
+ 	"path"
+ 	"path/filepath"
+ 	"strings"
++	"time"
+ 	"unicode"
+ 	"unicode/utf8"
+ 
+@@ -117,8 +118,9 @@ type CheckedFiles struct {
+ 	SizeError error
+ }
+ 
+-// Err returns an error if CheckedFiles does not describe a valid module zip
+-// file. SizeError is returned if that field is set. A FileErrorList is returned
++// Err returns an error if [CheckedFiles] does not describe a valid module zip
++// file. [CheckedFiles.SizeError] is returned if that field is set.
++// A [FileErrorList] is returned
+ // if there are one or more invalid files. Other errors may be returned in the
+ // future.
+ func (cf CheckedFiles) Err() error {
+@@ -321,17 +323,17 @@ func checkFiles(files []File) (cf CheckedFiles, validFiles []File, validSizes []
+ }
+ 
+ // CheckDir reports whether the files in dir satisfy the name and size
+-// constraints listed in the package documentation. The returned CheckedFiles
++// constraints listed in the package documentation. The returned [CheckedFiles]
+ // record contains lists of valid, invalid, and omitted files. If a directory is
+ // omitted (for example, a nested module or vendor directory), it will appear in
+ // the omitted list, but its files won't be listed.
+ //
+ // CheckDir returns an error if it encounters an I/O error or if the returned
+-// CheckedFiles does not describe a valid module zip file (according to
+-// CheckedFiles.Err). The returned CheckedFiles is still populated when such
++// [CheckedFiles] does not describe a valid module zip file (according to
++// [CheckedFiles.Err]). The returned [CheckedFiles] is still populated when such
+ // an error is returned.
+ //
+-// Note that CheckDir will not open any files, so CreateFromDir may still fail
++// Note that CheckDir will not open any files, so [CreateFromDir] may still fail
+ // when CheckDir is successful due to I/O errors.
+ func CheckDir(dir string) (CheckedFiles, error) {
+ 	// List files (as CreateFromDir would) and check which ones are omitted
+@@ -362,13 +364,13 @@ func CheckDir(dir string) (CheckedFiles, error) {
+ // CheckZip reports whether the files contained in a zip file satisfy the name
+ // and size constraints listed in the package documentation.
+ //
+-// CheckZip returns an error if the returned CheckedFiles does not describe
+-// a valid module zip file (according to CheckedFiles.Err). The returned
++// CheckZip returns an error if the returned [CheckedFiles] does not describe
++// a valid module zip file (according to [CheckedFiles.Err]). The returned
+ // CheckedFiles is still populated when an error is returned. CheckZip will
+ // also return an error if the module path or version is malformed or if it
+ // encounters an error reading the zip file.
+ //
+-// Note that CheckZip does not read individual files, so Unzip may still fail
++// Note that CheckZip does not read individual files, so [Unzip] may still fail
+ // when CheckZip is successful due to I/O errors.
+ func CheckZip(m module.Version, zipFile string) (CheckedFiles, error) {
+ 	f, err := os.Open(zipFile)
+@@ -476,7 +478,7 @@ func checkZip(m module.Version, f *os.File) (*zip.Reader, CheckedFiles, error) {
+ // and writes it to w.
+ //
+ // Create verifies the restrictions described in the package documentation
+-// and should not produce an archive that Unzip cannot extract. Create does not
++// and should not produce an archive that [Unzip] cannot extract. Create does not
+ // include files in the output archive if they don't belong in the module zip.
+ // In particular, Create will not include files in modules found in
+ // subdirectories, most files in vendor directories, or irregular files (such
+@@ -543,12 +545,12 @@ func Create(w io.Writer, m module.Version, files []File) (err error) {
+ // a directory, dir. The zip content is written to w.
+ //
+ // CreateFromDir verifies the restrictions described in the package
+-// documentation and should not produce an archive that Unzip cannot extract.
++// documentation and should not produce an archive that [Unzip] cannot extract.
+ // CreateFromDir does not include files in the output archive if they don't
+ // belong in the module zip. In particular, CreateFromDir will not include
+ // files in modules found in subdirectories, most files in vendor directories,
+ // or irregular files (such as symbolic links) in the output archive.
+-// Additionally, unlike Create, CreateFromDir will not include directories
++// Additionally, unlike [Create], CreateFromDir will not include directories
+ // named ".bzr", ".git", ".hg", or ".svn".
+ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
+ 	defer func() {
+@@ -580,8 +582,8 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
+ // "sub/dir". To create a zip from the base of the repository, pass an empty
+ // string.
+ //
+-// If CreateFromVCS returns ErrUnrecognizedVCS, consider falling back to
+-// CreateFromDir.
++// If CreateFromVCS returns [UnrecognizedVCSError], consider falling back to
++// [CreateFromDir].
+ func CreateFromVCS(w io.Writer, m module.Version, repoRoot, revision, subdir string) (err error) {
+ 	defer func() {
+ 		if zerr, ok := err.(*zipError); ok {
+@@ -653,6 +655,7 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
+ 		return nil, err
+ 	}
+ 
++	haveLICENSE := false
+ 	var fs []File
+ 	for _, zf := range zipReader.File {
+ 		if !strings.HasPrefix(zf.Name, subdir) || strings.HasSuffix(zf.Name, "/") {
+@@ -669,6 +672,23 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
+ 			name: n,
+ 			f:    zf,
+ 		})
++		if n == "LICENSE" {
++			haveLICENSE = true
++		}
++	}
++
++	if !haveLICENSE && subdir != "" {
++		// Note: this method of extracting the license from the root copied from
++		// https://go.googlesource.com/go/+/refs/tags/go1.20.4/src/cmd/go/internal/modfetch/coderepo.go#1118
++		// https://go.googlesource.com/go/+/refs/tags/go1.20.4/src/cmd/go/internal/modfetch/codehost/git.go#657
++		cmd := exec.Command("git", "cat-file", "blob", rev+":LICENSE")
++		cmd.Dir = dir
++		cmd.Env = append(os.Environ(), "PWD="+dir)
++		stdout := bytes.Buffer{}
++		cmd.Stdout = &stdout
++		if err := cmd.Run(); err == nil {
++			fs = append(fs, dataFile{name: "LICENSE", data: stdout.Bytes()})
++		}
+ 	}
+ 
+ 	return fs, nil
+@@ -710,6 +730,26 @@ func (f zipFile) Path() string                 { return f.name }
+ func (f zipFile) Lstat() (os.FileInfo, error)  { return f.f.FileInfo(), nil }
+ func (f zipFile) Open() (io.ReadCloser, error) { return f.f.Open() }
+ 
++type dataFile struct {
++	name string
++	data []byte
++}
++
++func (f dataFile) Path() string                 { return f.name }
++func (f dataFile) Lstat() (os.FileInfo, error)  { return dataFileInfo{f}, nil }
++func (f dataFile) Open() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(f.data)), nil }
++
++type dataFileInfo struct {
++	f dataFile
++}
++
++func (fi dataFileInfo) Name() string       { return path.Base(fi.f.name) }
++func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
++func (fi dataFileInfo) Mode() os.FileMode  { return 0644 }
++func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
++func (fi dataFileInfo) IsDir() bool        { return false }
++func (fi dataFileInfo) Sys() interface{}   { return nil }
++
+ // isVendoredPackage attempts to report whether the given filename is contained
+ // in a package whose import path contains (but does not end with) the component
+ // "vendor".
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index 3156462715..0c4d14929a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -519,7 +519,7 @@ ccflags="$@"
+ 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
+ 		$2 ~ /^LO_(KEY|NAME)_SIZE$/ ||
+ 		$2 ~ /^LOOP_(CLR|CTL|GET|SET)_/ ||
+-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT|UDP)_/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MREMAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT|UDP)_/ ||
+ 		$2 ~ /^NFC_(GENL|PROTO|COMM|RF|SE|DIRECTION|LLCP|SOCKPROTO)_/ ||
+ 		$2 ~ /^NFC_.*_(MAX)?SIZE$/ ||
+ 		$2 ~ /^RAW_PAYLOAD_/ ||
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mremap.go b/src/cmd/vendor/golang.org/x/sys/unix/mremap.go
+new file mode 100644
+index 0000000000..86213c05d6
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mremap.go
+@@ -0,0 +1,40 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux
++// +build linux
++
++package unix
++
++import "unsafe"
++
++type mremapMmapper struct {
++	mmapper
++	mremap func(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (xaddr uintptr, err error)
++}
++
++func (m *mremapMmapper) Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
++	if newLength <= 0 || len(oldData) == 0 || len(oldData) != cap(oldData) || flags&MREMAP_FIXED != 0 {
++		return nil, EINVAL
++	}
++
++	pOld := &oldData[cap(oldData)-1]
++	m.Lock()
++	defer m.Unlock()
++	bOld := m.active[pOld]
++	if bOld == nil || &bOld[0] != &oldData[0] {
++		return nil, EINVAL
++	}
++	newAddr, errno := m.mremap(uintptr(unsafe.Pointer(&bOld[0])), uintptr(len(bOld)), uintptr(newLength), flags, 0)
++	if errno != nil {
++		return nil, errno
++	}
++	bNew := unsafe.Slice((*byte)(unsafe.Pointer(newAddr)), newLength)
++	pNew := &bNew[cap(bNew)-1]
++	if flags&MREMAP_DONTUNMAP == 0 {
++		delete(m.active, pOld)
++	}
++	m.active[pNew] = bNew
++	return bNew, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index 6de486befe..39de5f1430 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -2124,11 +2124,15 @@ func writevRacedetect(iovecs []Iovec, n int) {
+ 
+ // mmap varies by architecture; see syscall_linux_*.go.
+ //sys	munmap(addr uintptr, length uintptr) (err error)
++//sys	mremap(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (xaddr uintptr, err error)
+ 
+-var mapper = &mmapper{
+-	active: make(map[*byte][]byte),
+-	mmap:   mmap,
+-	munmap: munmap,
++var mapper = &mremapMmapper{
++	mmapper: mmapper{
++		active: make(map[*byte][]byte),
++		mmap:   mmap,
++		munmap: munmap,
++	},
++	mremap: mremap,
+ }
+ 
+ func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
+@@ -2139,6 +2143,10 @@ func Munmap(b []byte) (err error) {
+ 	return mapper.Munmap(b)
+ }
+ 
++func Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
++	return mapper.Mremap(oldData, newLength, flags)
++}
++
+ //sys	Madvise(b []byte, advice int) (err error)
+ //sys	Mprotect(b []byte, prot int) (err error)
+ //sys	Mlock(b []byte) (err error)
+@@ -2487,7 +2495,6 @@ func Getresgid() (rgid, egid, sgid int) {
+ // MqTimedreceive
+ // MqTimedsend
+ // MqUnlink
+-// Mremap
+ // Msgctl
+ // Msgget
+ // Msgrcv
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index de936b677b..3784f402e5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -493,6 +493,7 @@ const (
+ 	BPF_F_TEST_RUN_ON_CPU                       = 0x1
+ 	BPF_F_TEST_STATE_FREQ                       = 0x8
+ 	BPF_F_TEST_XDP_LIVE_FRAMES                  = 0x2
++	BPF_F_XDP_DEV_BOUND_ONLY                    = 0x40
+ 	BPF_F_XDP_HAS_FRAGS                         = 0x20
+ 	BPF_H                                       = 0x8
+ 	BPF_IMM                                     = 0x0
+@@ -826,9 +827,9 @@ const (
+ 	DM_UUID_FLAG                                = 0x4000
+ 	DM_UUID_LEN                                 = 0x81
+ 	DM_VERSION                                  = 0xc138fd00
+-	DM_VERSION_EXTRA                            = "-ioctl (2022-07-28)"
++	DM_VERSION_EXTRA                            = "-ioctl (2023-03-01)"
+ 	DM_VERSION_MAJOR                            = 0x4
+-	DM_VERSION_MINOR                            = 0x2f
++	DM_VERSION_MINOR                            = 0x30
+ 	DM_VERSION_PATCHLEVEL                       = 0x0
+ 	DT_BLK                                      = 0x6
+ 	DT_CHR                                      = 0x2
+@@ -1197,6 +1198,7 @@ const (
+ 	FAN_EVENT_METADATA_LEN                      = 0x18
+ 	FAN_EVENT_ON_CHILD                          = 0x8000000
+ 	FAN_FS_ERROR                                = 0x8000
++	FAN_INFO                                    = 0x20
+ 	FAN_MARK_ADD                                = 0x1
+ 	FAN_MARK_DONT_FOLLOW                        = 0x4
+ 	FAN_MARK_EVICTABLE                          = 0x200
+@@ -1233,6 +1235,8 @@ const (
+ 	FAN_REPORT_PIDFD                            = 0x80
+ 	FAN_REPORT_TARGET_FID                       = 0x1000
+ 	FAN_REPORT_TID                              = 0x100
++	FAN_RESPONSE_INFO_AUDIT_RULE                = 0x1
++	FAN_RESPONSE_INFO_NONE                      = 0x0
+ 	FAN_UNLIMITED_MARKS                         = 0x20
+ 	FAN_UNLIMITED_QUEUE                         = 0x10
+ 	FD_CLOEXEC                                  = 0x1
+@@ -1860,6 +1864,7 @@ const (
+ 	MEMWRITEOOB64                               = 0xc0184d15
+ 	MFD_ALLOW_SEALING                           = 0x2
+ 	MFD_CLOEXEC                                 = 0x1
++	MFD_EXEC                                    = 0x10
+ 	MFD_HUGETLB                                 = 0x4
+ 	MFD_HUGE_16GB                               = 0x88000000
+ 	MFD_HUGE_16MB                               = 0x60000000
+@@ -1875,6 +1880,7 @@ const (
+ 	MFD_HUGE_8MB                                = 0x5c000000
+ 	MFD_HUGE_MASK                               = 0x3f
+ 	MFD_HUGE_SHIFT                              = 0x1a
++	MFD_NOEXEC_SEAL                             = 0x8
+ 	MINIX2_SUPER_MAGIC                          = 0x2468
+ 	MINIX2_SUPER_MAGIC2                         = 0x2478
+ 	MINIX3_SUPER_MAGIC                          = 0x4d5a
+@@ -1898,6 +1904,9 @@ const (
+ 	MOUNT_ATTR_SIZE_VER0                        = 0x20
+ 	MOUNT_ATTR_STRICTATIME                      = 0x20
+ 	MOUNT_ATTR__ATIME                           = 0x70
++	MREMAP_DONTUNMAP                            = 0x4
++	MREMAP_FIXED                                = 0x2
++	MREMAP_MAYMOVE                              = 0x1
+ 	MSDOS_SUPER_MAGIC                           = 0x4d44
+ 	MSG_BATCH                                   = 0x40000
+ 	MSG_CMSG_CLOEXEC                            = 0x40000000
+@@ -2204,6 +2213,7 @@ const (
+ 	PACKET_USER                                 = 0x6
+ 	PACKET_VERSION                              = 0xa
+ 	PACKET_VNET_HDR                             = 0xf
++	PACKET_VNET_HDR_SZ                          = 0x18
+ 	PARITY_CRC16_PR0                            = 0x2
+ 	PARITY_CRC16_PR0_CCITT                      = 0x4
+ 	PARITY_CRC16_PR1                            = 0x3
+@@ -2221,6 +2231,7 @@ const (
+ 	PERF_ATTR_SIZE_VER5                         = 0x70
+ 	PERF_ATTR_SIZE_VER6                         = 0x78
+ 	PERF_ATTR_SIZE_VER7                         = 0x80
++	PERF_ATTR_SIZE_VER8                         = 0x88
+ 	PERF_AUX_FLAG_COLLISION                     = 0x8
+ 	PERF_AUX_FLAG_CORESIGHT_FORMAT_CORESIGHT    = 0x0
+ 	PERF_AUX_FLAG_CORESIGHT_FORMAT_RAW          = 0x100
+@@ -2361,6 +2372,7 @@ const (
+ 	PR_FP_EXC_UND                               = 0x40000
+ 	PR_FP_MODE_FR                               = 0x1
+ 	PR_FP_MODE_FRE                              = 0x2
++	PR_GET_AUXV                                 = 0x41555856
+ 	PR_GET_CHILD_SUBREAPER                      = 0x25
+ 	PR_GET_DUMPABLE                             = 0x3
+ 	PR_GET_ENDIAN                               = 0x13
+@@ -2369,6 +2381,8 @@ const (
+ 	PR_GET_FP_MODE                              = 0x2e
+ 	PR_GET_IO_FLUSHER                           = 0x3a
+ 	PR_GET_KEEPCAPS                             = 0x7
++	PR_GET_MDWE                                 = 0x42
++	PR_GET_MEMORY_MERGE                         = 0x44
+ 	PR_GET_NAME                                 = 0x10
+ 	PR_GET_NO_NEW_PRIVS                         = 0x27
+ 	PR_GET_PDEATHSIG                            = 0x2
+@@ -2389,6 +2403,7 @@ const (
+ 	PR_MCE_KILL_GET                             = 0x22
+ 	PR_MCE_KILL_LATE                            = 0x0
+ 	PR_MCE_KILL_SET                             = 0x1
++	PR_MDWE_REFUSE_EXEC_GAIN                    = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT                   = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT                    = 0x2b
+ 	PR_MTE_TAG_MASK                             = 0x7fff8
+@@ -2423,6 +2438,8 @@ const (
+ 	PR_SET_FP_MODE                              = 0x2d
+ 	PR_SET_IO_FLUSHER                           = 0x39
+ 	PR_SET_KEEPCAPS                             = 0x8
++	PR_SET_MDWE                                 = 0x41
++	PR_SET_MEMORY_MERGE                         = 0x43
+ 	PR_SET_MM                                   = 0x23
+ 	PR_SET_MM_ARG_END                           = 0x9
+ 	PR_SET_MM_ARG_START                         = 0x8
+@@ -2506,6 +2523,7 @@ const (
+ 	PTRACE_GETSIGMASK                           = 0x420a
+ 	PTRACE_GET_RSEQ_CONFIGURATION               = 0x420f
+ 	PTRACE_GET_SYSCALL_INFO                     = 0x420e
++	PTRACE_GET_SYSCALL_USER_DISPATCH_CONFIG     = 0x4211
+ 	PTRACE_INTERRUPT                            = 0x4207
+ 	PTRACE_KILL                                 = 0x8
+ 	PTRACE_LISTEN                               = 0x4208
+@@ -2536,6 +2554,7 @@ const (
+ 	PTRACE_SETREGSET                            = 0x4205
+ 	PTRACE_SETSIGINFO                           = 0x4203
+ 	PTRACE_SETSIGMASK                           = 0x420b
++	PTRACE_SET_SYSCALL_USER_DISPATCH_CONFIG     = 0x4210
+ 	PTRACE_SINGLESTEP                           = 0x9
+ 	PTRACE_SYSCALL                              = 0x18
+ 	PTRACE_SYSCALL_INFO_ENTRY                   = 0x1
+@@ -3072,7 +3091,7 @@ const (
+ 	TASKSTATS_GENL_NAME                         = "TASKSTATS"
+ 	TASKSTATS_GENL_VERSION                      = 0x1
+ 	TASKSTATS_TYPE_MAX                          = 0x6
+-	TASKSTATS_VERSION                           = 0xd
++	TASKSTATS_VERSION                           = 0xe
+ 	TCIFLUSH                                    = 0x0
+ 	TCIOFF                                      = 0x2
+ 	TCIOFLUSH                                   = 0x2
+@@ -3238,6 +3257,7 @@ const (
+ 	TP_STATUS_COPY                              = 0x2
+ 	TP_STATUS_CSUMNOTREADY                      = 0x8
+ 	TP_STATUS_CSUM_VALID                        = 0x80
++	TP_STATUS_GSO_TCP                           = 0x100
+ 	TP_STATUS_KERNEL                            = 0x0
+ 	TP_STATUS_LOSING                            = 0x4
+ 	TP_STATUS_SENDING                           = 0x2
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+index 9d5352c3e4..12a9a1389e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+@@ -443,6 +443,7 @@ const (
+ 	TIOCSWINSZ                       = 0x5414
+ 	TIOCVHANGUP                      = 0x5437
+ 	TOSTOP                           = 0x100
++	TPIDR2_MAGIC                     = 0x54504902
+ 	TUNATTACHFILTER                  = 0x401054d5
+ 	TUNDETACHFILTER                  = 0x401054d6
+ 	TUNGETDEVNETNS                   = 0x54e3
+@@ -515,6 +516,7 @@ const (
+ 	XCASE                            = 0x4
+ 	XTABS                            = 0x1800
+ 	ZA_MAGIC                         = 0x54366345
++	ZT_MAGIC                         = 0x5a544e01
+ 	_HIDIOCGRAWNAME                  = 0x80804804
+ 	_HIDIOCGRAWPHYS                  = 0x80404805
+ 	_HIDIOCGRAWUNIQ                  = 0x80404808
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+index 722c29a008..7ceec233fb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+@@ -1868,6 +1868,17 @@ func munmap(addr uintptr, length uintptr) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func mremap(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (xaddr uintptr, err error) {
++	r0, _, e1 := Syscall6(SYS_MREMAP, uintptr(oldaddr), uintptr(oldlength), uintptr(newlength), uintptr(flags), uintptr(newaddr), 0)
++	xaddr = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Madvise(b []byte, advice int) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(b) > 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
+index 7ea465204b..e6ed7d637d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
+@@ -372,6 +372,7 @@ const (
+ 	SYS_LANDLOCK_CREATE_RULESET = 444
+ 	SYS_LANDLOCK_ADD_RULE       = 445
+ 	SYS_LANDLOCK_RESTRICT_SELF  = 446
++	SYS_MEMFD_SECRET            = 447
+ 	SYS_PROCESS_MRELEASE        = 448
+ 	SYS_FUTEX_WAITV             = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index 00c3b8c20f..02e2462c8f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -1538,6 +1538,10 @@ const (
+ 	IFLA_GRO_MAX_SIZE                          = 0x3a
+ 	IFLA_TSO_MAX_SIZE                          = 0x3b
+ 	IFLA_TSO_MAX_SEGS                          = 0x3c
++	IFLA_ALLMULTI                              = 0x3d
++	IFLA_DEVLINK_PORT                          = 0x3e
++	IFLA_GSO_IPV4_MAX_SIZE                     = 0x3f
++	IFLA_GRO_IPV4_MAX_SIZE                     = 0x40
+ 	IFLA_PROTO_DOWN_REASON_UNSPEC              = 0x0
+ 	IFLA_PROTO_DOWN_REASON_MASK                = 0x1
+ 	IFLA_PROTO_DOWN_REASON_VALUE               = 0x2
+@@ -1968,7 +1972,7 @@ const (
+ 	NFT_MSG_GETFLOWTABLE              = 0x17
+ 	NFT_MSG_DELFLOWTABLE              = 0x18
+ 	NFT_MSG_GETRULE_RESET             = 0x19
+-	NFT_MSG_MAX                       = 0x1a
++	NFT_MSG_MAX                       = 0x21
+ 	NFTA_LIST_UNSPEC                  = 0x0
+ 	NFTA_LIST_ELEM                    = 0x1
+ 	NFTA_HOOK_UNSPEC                  = 0x0
+@@ -3651,7 +3655,7 @@ const (
+ 	ETHTOOL_MSG_PSE_GET                       = 0x24
+ 	ETHTOOL_MSG_PSE_SET                       = 0x25
+ 	ETHTOOL_MSG_RSS_GET                       = 0x26
+-	ETHTOOL_MSG_USER_MAX                      = 0x26
++	ETHTOOL_MSG_USER_MAX                      = 0x2b
+ 	ETHTOOL_MSG_KERNEL_NONE                   = 0x0
+ 	ETHTOOL_MSG_STRSET_GET_REPLY              = 0x1
+ 	ETHTOOL_MSG_LINKINFO_GET_REPLY            = 0x2
+@@ -3691,7 +3695,7 @@ const (
+ 	ETHTOOL_MSG_MODULE_NTF                    = 0x24
+ 	ETHTOOL_MSG_PSE_GET_REPLY                 = 0x25
+ 	ETHTOOL_MSG_RSS_GET_REPLY                 = 0x26
+-	ETHTOOL_MSG_KERNEL_MAX                    = 0x26
++	ETHTOOL_MSG_KERNEL_MAX                    = 0x2b
+ 	ETHTOOL_A_HEADER_UNSPEC                   = 0x0
+ 	ETHTOOL_A_HEADER_DEV_INDEX                = 0x1
+ 	ETHTOOL_A_HEADER_DEV_NAME                 = 0x2
+@@ -3795,7 +3799,7 @@ const (
+ 	ETHTOOL_A_RINGS_TCP_DATA_SPLIT            = 0xb
+ 	ETHTOOL_A_RINGS_CQE_SIZE                  = 0xc
+ 	ETHTOOL_A_RINGS_TX_PUSH                   = 0xd
+-	ETHTOOL_A_RINGS_MAX                       = 0xd
++	ETHTOOL_A_RINGS_MAX                       = 0x10
+ 	ETHTOOL_A_CHANNELS_UNSPEC                 = 0x0
+ 	ETHTOOL_A_CHANNELS_HEADER                 = 0x1
+ 	ETHTOOL_A_CHANNELS_RX_MAX                 = 0x2
+@@ -3833,14 +3837,14 @@ const (
+ 	ETHTOOL_A_COALESCE_RATE_SAMPLE_INTERVAL   = 0x17
+ 	ETHTOOL_A_COALESCE_USE_CQE_MODE_TX        = 0x18
+ 	ETHTOOL_A_COALESCE_USE_CQE_MODE_RX        = 0x19
+-	ETHTOOL_A_COALESCE_MAX                    = 0x19
++	ETHTOOL_A_COALESCE_MAX                    = 0x1c
+ 	ETHTOOL_A_PAUSE_UNSPEC                    = 0x0
+ 	ETHTOOL_A_PAUSE_HEADER                    = 0x1
+ 	ETHTOOL_A_PAUSE_AUTONEG                   = 0x2
+ 	ETHTOOL_A_PAUSE_RX                        = 0x3
+ 	ETHTOOL_A_PAUSE_TX                        = 0x4
+ 	ETHTOOL_A_PAUSE_STATS                     = 0x5
+-	ETHTOOL_A_PAUSE_MAX                       = 0x5
++	ETHTOOL_A_PAUSE_MAX                       = 0x6
+ 	ETHTOOL_A_PAUSE_STAT_UNSPEC               = 0x0
+ 	ETHTOOL_A_PAUSE_STAT_PAD                  = 0x1
+ 	ETHTOOL_A_PAUSE_STAT_TX_FRAMES            = 0x2
+@@ -4490,7 +4494,7 @@ const (
+ 	NL80211_ATTR_MAC_HINT                                   = 0xc8
+ 	NL80211_ATTR_MAC_MASK                                   = 0xd7
+ 	NL80211_ATTR_MAX_AP_ASSOC_STA                           = 0xca
+-	NL80211_ATTR_MAX                                        = 0x141
++	NL80211_ATTR_MAX                                        = 0x145
+ 	NL80211_ATTR_MAX_CRIT_PROT_DURATION                     = 0xb4
+ 	NL80211_ATTR_MAX_CSA_COUNTERS                           = 0xce
+ 	NL80211_ATTR_MAX_MATCH_SETS                             = 0x85
+@@ -4719,7 +4723,7 @@ const (
+ 	NL80211_BAND_ATTR_HT_CAPA                               = 0x4
+ 	NL80211_BAND_ATTR_HT_MCS_SET                            = 0x3
+ 	NL80211_BAND_ATTR_IFTYPE_DATA                           = 0x9
+-	NL80211_BAND_ATTR_MAX                                   = 0xb
++	NL80211_BAND_ATTR_MAX                                   = 0xd
+ 	NL80211_BAND_ATTR_RATES                                 = 0x2
+ 	NL80211_BAND_ATTR_VHT_CAPA                              = 0x8
+ 	NL80211_BAND_ATTR_VHT_MCS_SET                           = 0x7
+@@ -4860,7 +4864,7 @@ const (
+ 	NL80211_CMD_LEAVE_IBSS                                  = 0x2c
+ 	NL80211_CMD_LEAVE_MESH                                  = 0x45
+ 	NL80211_CMD_LEAVE_OCB                                   = 0x6d
+-	NL80211_CMD_MAX                                         = 0x98
++	NL80211_CMD_MAX                                         = 0x99
+ 	NL80211_CMD_MICHAEL_MIC_FAILURE                         = 0x29
+ 	NL80211_CMD_MODIFY_LINK_STA                             = 0x97
+ 	NL80211_CMD_NAN_MATCH                                   = 0x78
+@@ -5841,6 +5845,8 @@ const (
+ 	TUN_F_TSO6    = 0x4
+ 	TUN_F_TSO_ECN = 0x8
+ 	TUN_F_UFO     = 0x10
++	TUN_F_USO4    = 0x20
++	TUN_F_USO6    = 0x40
+ )
+ 
+ const (
+@@ -5850,9 +5856,10 @@ const (
+ )
+ 
+ const (
+-	VIRTIO_NET_HDR_GSO_NONE  = 0x0
+-	VIRTIO_NET_HDR_GSO_TCPV4 = 0x1
+-	VIRTIO_NET_HDR_GSO_UDP   = 0x3
+-	VIRTIO_NET_HDR_GSO_TCPV6 = 0x4
+-	VIRTIO_NET_HDR_GSO_ECN   = 0x80
++	VIRTIO_NET_HDR_GSO_NONE   = 0x0
++	VIRTIO_NET_HDR_GSO_TCPV4  = 0x1
++	VIRTIO_NET_HDR_GSO_UDP    = 0x3
++	VIRTIO_NET_HDR_GSO_TCPV6  = 0x4
++	VIRTIO_NET_HDR_GSO_UDP_L4 = 0x5
++	VIRTIO_NET_HDR_GSO_ECN    = 0x80
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
+index 4ecc1495cd..6d8acbcc57 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
+@@ -337,6 +337,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
+index 34fddff964..59293c6884 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
+@@ -350,6 +350,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
+index 3b14a6031f..40cfa38c29 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
+@@ -328,6 +328,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
+index 0517651ab3..055bc4216d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
+@@ -329,6 +329,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_loong64.go
+index 3b0c518134..f28affbc60 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_loong64.go
+@@ -330,6 +330,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
+index fccdf4dd0f..9d71e7ccd8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
+@@ -333,6 +333,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
+index 500de8fc07..fd5ccd332a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
+@@ -332,6 +332,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
+index d0434cd2c6..7704de77a2 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
+@@ -332,6 +332,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
+index 84206ba534..df00b87571 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
+@@ -333,6 +333,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc.go
+index ab078cf1f5..0942840db6 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc.go
+@@ -340,6 +340,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
+index 42eb2c4cef..0348743950 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
+@@ -339,6 +339,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
+index 31304a4e8b..bad0670475 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
+@@ -339,6 +339,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+index c311f9612d..9ea54b7b86 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+@@ -357,6 +357,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
+index bba3cefac1..aa268d025c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
+@@ -352,6 +352,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
+index ad8a013804..444045b6c5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
+@@ -334,6 +334,8 @@ type Taskstats struct {
+ 	Ac_exe_inode              uint64
+ 	Wpcopy_count              uint64
+ 	Wpcopy_delay_total        uint64
++	Irq_count                 uint64
++	Irq_delay_total           uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/service.go b/src/cmd/vendor/golang.org/x/sys/windows/service.go
+index c964b6848d..c44a1b9636 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/service.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/service.go
+@@ -218,6 +218,10 @@ type SERVICE_FAILURE_ACTIONS struct {
+ 	Actions      *SC_ACTION
+ }
+ 
++type SERVICE_FAILURE_ACTIONS_FLAG struct {
++	FailureActionsOnNonCrashFailures int32
++}
++
+ type SC_ACTION struct {
+ 	Type  uint32
+ 	Delay uint32
+diff --git a/src/cmd/vendor/golang.org/x/term/term_unix.go b/src/cmd/vendor/golang.org/x/term/term_unix.go
+index a4e31ab1b2..62c2b3f41f 100644
+--- a/src/cmd/vendor/golang.org/x/term/term_unix.go
++++ b/src/cmd/vendor/golang.org/x/term/term_unix.go
+@@ -60,7 +60,7 @@ func restore(fd int, state *State) error {
+ func getSize(fd int) (width, height int, err error) {
+ 	ws, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
+ 	if err != nil {
+-		return -1, -1, err
++		return 0, 0, err
+ 	}
+ 	return int(ws.Col), int(ws.Row), nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+index afff0d82d8..c18b84b714 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+@@ -271,6 +271,7 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
+ 		Sizes: sizes,
+ 		Error: func(error) {}, // ignore errors (e.g. unused import)
+ 	}
++	setGoVersion(tc, pkg)
+ 
+ 	// It's tempting to record the new types in the
+ 	// existing pass.TypesInfo, but we don't own it.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall_go120.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall_go120.go
+new file mode 100644
+index 0000000000..06b54946d7
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall_go120.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !go1.21
++
++package cgocall
++
++import "go/types"
++
++func setGoVersion(tc *types.Config, pkg *types.Package) {
++	// no types.Package.GoVersion until Go 1.21
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall_go121.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall_go121.go
+new file mode 100644
+index 0000000000..2a3e1fad22
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall_go121.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.21
++
++package cgocall
++
++import "go/types"
++
++func setGoVersion(tc *types.Config, pkg *types.Package) {
++	tc.GoVersion = pkg.GoVersion()
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+index 6d8039fe2b..ac37e4784e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+@@ -118,12 +118,3 @@ func Imports(pkg *types.Package, path string) bool {
+ 	}
+ 	return false
+ }
+-
+-// IsNamed reports whether t is exactly a named type in a package with a given path.
+-func IsNamed(t types.Type, path, name string) bool {
+-	if n, ok := t.(*types.Named); ok {
+-		obj := n.Obj()
+-		return obj.Pkg().Path() == path && obj.Name() == name
+-	}
+-	return false
+-}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/slog/slog.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/slog/slog.go
+index 8429eab935..92c1da8ef4 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/slog/slog.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/slog/slog.go
+@@ -139,7 +139,7 @@ func run(pass *analysis.Pass) (any, error) {
+ }
+ 
+ func isAttr(t types.Type) bool {
+-	return analysisutil.IsNamed(t, "log/slog", "Attr")
++	return isNamed(t, "log/slog", "Attr")
+ }
+ 
+ // shortName returns a name for the function that is shorter than FullName.
+@@ -195,28 +195,28 @@ func kvFuncSkipArgs(fn *types.Func) (int, bool) {
+ // The first key is the dereferenced receiver type name, or "" for a function.
+ var kvFuncs = map[string]map[string]int{
+ 	"": map[string]int{
+-		"Debug":    1,
+-		"Info":     1,
+-		"Warn":     1,
+-		"Error":    1,
+-		"DebugCtx": 2,
+-		"InfoCtx":  2,
+-		"WarnCtx":  2,
+-		"ErrorCtx": 2,
+-		"Log":      3,
+-		"Group":    1,
++		"Debug":        1,
++		"Info":         1,
++		"Warn":         1,
++		"Error":        1,
++		"DebugContext": 2,
++		"InfoContext":  2,
++		"WarnContext":  2,
++		"ErrorContext": 2,
++		"Log":          3,
++		"Group":        1,
+ 	},
+ 	"Logger": map[string]int{
+-		"Debug":    1,
+-		"Info":     1,
+-		"Warn":     1,
+-		"Error":    1,
+-		"DebugCtx": 2,
+-		"InfoCtx":  2,
+-		"WarnCtx":  2,
+-		"ErrorCtx": 2,
+-		"Log":      3,
+-		"With":     0,
++		"Debug":        1,
++		"Info":         1,
++		"Warn":         1,
++		"Error":        1,
++		"DebugContext": 2,
++		"InfoContext":  2,
++		"WarnContext":  2,
++		"ErrorContext": 2,
++		"Log":          3,
++		"With":         0,
+ 	},
+ 	"Record": map[string]int{
+ 		"Add": 0,
+@@ -232,3 +232,12 @@ func isMethodExpr(info *types.Info, c *ast.CallExpr) bool {
+ 	sel := info.Selections[s]
+ 	return sel != nil && sel.Kind() == types.MethodExpr
+ }
++
++// isNamed reports whether t is exactly a named type in a package with a given path.
++func isNamed(t types.Type, path, name string) bool {
++	if n, ok := t.(*types.Named); ok {
++		obj := n.Obj()
++		return obj.Pkg() != nil && obj.Pkg().Path() == path && obj.Name() == name
++	}
++	return false
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index ff22d23ce5..10c76bc627 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -62,6 +62,7 @@ type Config struct {
+ 	Compiler                  string
+ 	Dir                       string
+ 	ImportPath                string
++	GoVersion                 string // minimum required Go version, such as "go1.21.0"
+ 	GoFiles                   []string
+ 	NonGoFiles                []string
+ 	IgnoredFiles              []string
+@@ -217,8 +218,9 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 		return compilerImporter.Import(path)
+ 	})
+ 	tc := &types.Config{
+-		Importer: importer,
+-		Sizes:    types.SizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
++		Importer:  importer,
++		Sizes:     types.SizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
++		GoVersion: cfg.GoVersion,
+ 	}
+ 	info := &types.Info{
+ 		Types:      make(map[ast.Expr]types.TypeAndValue),
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
+index 3fbfebf369..1fc1de0bd1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
+@@ -64,8 +64,9 @@ type event struct {
+ // depth-first order. It calls f(n) for each node n before it visits
+ // n's children.
+ //
++// The complete traversal sequence is determined by ast.Inspect.
+ // The types argument, if non-empty, enables type-based filtering of
+-// events. The function f if is called only for nodes whose type
++// events. The function f is called only for nodes whose type
+ // matches an element of the types slice.
+ func (in *Inspector) Preorder(types []ast.Node, f func(ast.Node)) {
+ 	// Because it avoids postorder calls to f, and the pruning
+@@ -97,6 +98,7 @@ func (in *Inspector) Preorder(types []ast.Node, f func(ast.Node)) {
+ // of the non-nil children of the node, followed by a call of
+ // f(n, false).
+ //
++// The complete traversal sequence is determined by ast.Inspect.
+ // The types argument, if non-empty, enables type-based filtering of
+ // events. The function f if is called only for nodes whose type
+ // matches an element of the types slice.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index 549aa9e54c..f2ce77fd59 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -137,6 +137,17 @@ type Encoder struct {
+ // These objects are sufficient to define the API of their package.
+ // The objects described by a package's export data are drawn from this set.
+ //
++// The set of objects accessible from a package's Scope depends on
++// whether the package was produced by type-checking syntax, or
++// reading export data; the latter may have a smaller Scope since
++// export data trims objects that are not reachable from an exported
++// declaration. For example, the For function will return a path for
++// an exported method of an unexported type that is not reachable
++// from any public declaration; this path will cause the Object
++// function to fail if called on a package loaded from export data.
++// TODO(adonovan): is this a bug or feature? Should this package
++// compute accessibility in the same way?
++//
+ // For does not return a path for predeclared names, imported package
+ // names, local names, and unexported package-level names (except
+ // types).
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+index 81df45161a..954b42d696 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+@@ -158,24 +158,52 @@ type gobFact struct {
+ // for the same package. Each call to Decode returns an independent
+ // fact set.
+ type Decoder struct {
+-	pkg      *types.Package
+-	packages map[string]*types.Package
++	pkg        *types.Package
++	getPackage GetPackageFunc
+ }
+ 
+ // NewDecoder returns a fact decoder for the specified package.
++//
++// It uses a brute-force recursive approach to enumerate all objects
++// defined by dependencies of pkg, so that it can learn the set of
++// package paths that may be mentioned in the fact encoding. This does
++// not scale well; use [NewDecoderFunc] where possible.
+ func NewDecoder(pkg *types.Package) *Decoder {
+ 	// Compute the import map for this package.
+ 	// See the package doc comment.
+-	return &Decoder{pkg, importMap(pkg.Imports())}
++	m := importMap(pkg.Imports())
++	getPackageFunc := func(path string) *types.Package { return m[path] }
++	return NewDecoderFunc(pkg, getPackageFunc)
++}
++
++// NewDecoderFunc returns a fact decoder for the specified package.
++//
++// It calls the getPackage function for the package path string of
++// each dependency (perhaps indirect) that it encounters in the
++// encoding. If the function returns nil, the fact is discarded.
++//
++// This function is preferred over [NewDecoder] when the client is
++// capable of efficient look-up of packages by package path.
++func NewDecoderFunc(pkg *types.Package, getPackage GetPackageFunc) *Decoder {
++	return &Decoder{
++		pkg:        pkg,
++		getPackage: getPackage,
++	}
+ }
+ 
+-// Decode decodes all the facts relevant to the analysis of package pkg.
+-// The read function reads serialized fact data from an external source
+-// for one of of pkg's direct imports. The empty file is a valid
+-// encoding of an empty fact set.
++// A GetPackageFunc function returns the package denoted by a package path.
++type GetPackageFunc = func(pkgPath string) *types.Package
++
++// Decode decodes all the facts relevant to the analysis of package
++// pkg. The read function reads serialized fact data from an external
++// source for one of pkg's direct imports, identified by package path.
++// The empty file is a valid encoding of an empty fact set.
+ //
+ // It is the caller's responsibility to call gob.Register on all
+ // necessary fact types.
++//
++// Concurrent calls to Decode are safe, so long as the
++// [GetPackageFunc] (if any) is also concurrency-safe.
+ func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error) {
+ 	// Read facts from imported packages.
+ 	// Facts may describe indirectly imported packages, or their objects.
+@@ -202,13 +230,11 @@ func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error
+ 		if err := gob.NewDecoder(bytes.NewReader(data)).Decode(&gobFacts); err != nil {
+ 			return nil, fmt.Errorf("decoding facts for %q: %v", imp.Path(), err)
+ 		}
+-		if debug {
+-			logf("decoded %d facts: %v", len(gobFacts), gobFacts)
+-		}
++		logf("decoded %d facts: %v", len(gobFacts), gobFacts)
+ 
+ 		// Parse each one into a key and a Fact.
+ 		for _, f := range gobFacts {
+-			factPkg := d.packages[f.PkgPath]
++			factPkg := d.getPackage(f.PkgPath) // possibly an indirect dependency
+ 			if factPkg == nil {
+ 				// Fact relates to a dependency that was
+ 				// unused in this translation unit. Skip.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+index 7b21668660..b18e62d1d7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+@@ -21,6 +21,10 @@ import (
+ // Packages in the map that are only indirectly imported may be
+ // incomplete (!pkg.Complete()).
+ //
++// This function scales very poorly with packages' transitive object
++// references, which can be more than a million for each package near
++// the top of a large project. (This was a significant contributor to
++// #60621.)
+ // TODO(adonovan): opt: compute this information more efficiently
+ // by obtaining it from the internals of the gcexportdata decoder.
+ func importMap(imports []*types.Package) map[string]*types.Package {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index f3bdde6b54..fe71cb4d3b 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -17,13 +17,13 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2
+ ## explicit; go 1.12
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.3.0
++# golang.org/x/arch v0.4.0
+ ## explicit; go 1.17
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/mod v0.10.1-0.20230606122920-62c7e578f1a7
++# golang.org/x/mod v0.12.0
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -34,19 +34,19 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.2.1-0.20230601203510-93782cc822b6
++# golang.org/x/sync v0.3.0
+ ## explicit; go 1.17
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.9.0
++# golang.org/x/sys v0.10.0
+ ## explicit; go 1.17
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/term v0.9.0
++# golang.org/x/term v0.10.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.9.4-0.20230613194514-c6c983054920
++# golang.org/x/tools v0.11.1-0.20230712164437-1ca21856af7b
+ ## explicit; go 1.18
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+diff --git a/src/go.mod b/src/go.mod
+index 5ef63d4e3b..25829e17f2 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,11 +3,11 @@ module std
+ go 1.21
+ 
+ require (
+-	golang.org/x/crypto v0.10.0
+-	golang.org/x/net v0.11.1-0.20230613203745-f5464ddb689c
++	golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d
++	golang.org/x/net v0.12.1-0.20230712162946-57553cbff163
+ )
+ 
+ require (
+-	golang.org/x/sys v0.9.0 // indirect
+-	golang.org/x/text v0.10.1-0.20230613190012-2df65d769a9e // indirect
++	golang.org/x/sys v0.10.0 // indirect
++	golang.org/x/text v0.11.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 93d34efbe8..e474b8be31 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+-golang.org/x/crypto v0.10.0 h1:LKqV2xt9+kDzSTfOhx4FrkEBcMrAgHSYgzywV9zcGmM=
+-golang.org/x/crypto v0.10.0/go.mod h1:o4eNf7Ede1fv+hwOwZsTHl9EsPFO6q6ZvYR8vYfY45I=
+-golang.org/x/net v0.11.1-0.20230613203745-f5464ddb689c h1:icjsA5jFPWsTcuIb/yIeU6mgXRHPQBfo0Lzd1GQmKZI=
+-golang.org/x/net v0.11.1-0.20230613203745-f5464ddb689c/go.mod h1:2L/ixqYpgIVXmeoSA/4Lu7BzTG4KIyPIryS4IsOd1oQ=
+-golang.org/x/sys v0.9.0 h1:KS/R3tvhPqvJvwcKfnBHJwwthS11LRhmM5D59eEXa0s=
+-golang.org/x/sys v0.9.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/text v0.10.1-0.20230613190012-2df65d769a9e h1:GTf7SHdimRGQ2uYYuJ0eJUoAEJ9ufU2ocSTVWnbeVQc=
+-golang.org/x/text v0.10.1-0.20230613190012-2df65d769a9e/go.mod h1:TvPlkZtksWOMsz7fbANvkp4WM8x/WCo/om8BMLbz+aE=
++golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d h1:LiA25/KWKuXfIq5pMIBq1s5hz3HQxhJJSu/SUGlD+SM=
++golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d/go.mod h1:xgJhtzW8F9jGdVFWZESrid1U1bjeNy4zgy5cRr/CIio=
++golang.org/x/net v0.12.1-0.20230712162946-57553cbff163 h1:1EDKNuaCsog7zGLEml1qRuO4gt23jORUQX2f0IKZ860=
++golang.org/x/net v0.12.1-0.20230712162946-57553cbff163/go.mod h1:zEVYFnQC7m/vmpQFELhcD1EWkZlX69l4oqgmer6hfKA=
++golang.org/x/sys v0.10.0 h1:SqMFp9UcQJZa+pmYuAKjd9xq1f0j5rLcDIk0mj4qAsA=
++golang.org/x/sys v0.10.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/text v0.11.0 h1:LAntKIrcmeSKERyiOh0XMV39LXS8IE9UL2yP7+f5ij4=
++golang.org/x/text v0.11.0/go.mod h1:TvPlkZtksWOMsz7fbANvkp4WM8x/WCo/om8BMLbz+aE=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index ebc004a30d..dc3e099c83 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -7540,11 +7540,14 @@ func (t *http2Transport) RoundTrip(req *Request) (*Response, error) {
+ func http2authorityAddr(scheme string, authority string) (addr string) {
+ 	host, port, err := net.SplitHostPort(authority)
+ 	if err != nil { // authority didn't have a port
++		host = authority
++		port = ""
++	}
++	if port == "" { // authority's port was empty
+ 		port = "443"
+ 		if scheme == "http" {
+ 			port = "80"
+ 		}
+-		host = authority
+ 	}
+ 	if a, err := idna.ToASCII(host); err == nil {
+ 		host = a
+@@ -8290,22 +8293,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+ 
+ 	cancelRequest := func(cs *http2clientStream, err error) error {
+ 		cs.cc.mu.Lock()
+-		cs.abortStreamLocked(err)
+ 		bodyClosed := cs.reqBodyClosed
+-		if cs.ID != 0 {
+-			// This request may have failed because of a problem with the connection,
+-			// or for some unrelated reason. (For example, the user might have canceled
+-			// the request without waiting for a response.) Mark the connection as
+-			// not reusable, since trying to reuse a dead connection is worse than
+-			// unnecessarily creating a new one.
+-			//
+-			// If cs.ID is 0, then the request was never allocated a stream ID and
+-			// whatever went wrong was unrelated to the connection. We might have
+-			// timed out waiting for a stream slot when StrictMaxConcurrentStreams
+-			// is set, for example, in which case retrying on a different connection
+-			// will not help.
+-			cs.cc.doNotReuse = true
+-		}
+ 		cs.cc.mu.Unlock()
+ 		// Wait for the request body to be closed.
+ 		//
+@@ -8340,11 +8328,14 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+ 				return handleResponseHeaders()
+ 			default:
+ 				waitDone()
+-				return nil, cancelRequest(cs, cs.abortErr)
++				return nil, cs.abortErr
+ 			}
+ 		case <-ctx.Done():
+-			return nil, cancelRequest(cs, ctx.Err())
++			err := ctx.Err()
++			cs.abortStream(err)
++			return nil, cancelRequest(cs, err)
+ 		case <-cs.reqCancel:
++			cs.abortStream(http2errRequestCanceled)
+ 			return nil, cancelRequest(cs, http2errRequestCanceled)
+ 		}
+ 	}
+@@ -8902,6 +8893,9 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	if !httpguts.ValidHostHeader(host) {
++		return nil, errors.New("http2: invalid Host header")
++	}
+ 
+ 	var path string
+ 	if req.Method != "CONNECT" {
+diff --git a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+index 1577d4a19d..37da3de4d3 100644
+--- a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
++++ b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+@@ -527,12 +527,14 @@ func (r *Resource) pack(msg []byte, compression map[string]int, compressionOff i
+ // When parsing is started, the Header is parsed. Next, each Question can be
+ // either parsed or skipped. Alternatively, all Questions can be skipped at
+ // once. When all Questions have been parsed, attempting to parse Questions
+-// will return (nil, nil) and attempting to skip Questions will return
+-// (true, nil). After all Questions have been either parsed or skipped, all
++// will return the [ErrSectionDone] error.
++// After all Questions have been either parsed or skipped, all
+ // Answers, Authorities and Additionals can be either parsed or skipped in the
+ // same way, and each type of Resource must be fully parsed or skipped before
+ // proceeding to the next type of Resource.
+ //
++// Parser is safe to copy to preserve the parsing state.
++//
+ // Note that there is no requirement to fully skip or parse the message.
+ type Parser struct {
+ 	msg    []byte
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 88d2554c04..2b5f965f8f 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.10.0
++# golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d
+ ## explicit; go 1.17
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.11.1-0.20230613203745-f5464ddb689c
++# golang.org/x/net v0.12.1-0.20230712162946-57553cbff163
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -17,10 +17,10 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.9.0
++# golang.org/x/sys v0.10.0
+ ## explicit; go 1.17
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.10.1-0.20230613190012-2df65d769a9e
++# golang.org/x/text v0.11.0
+ ## explicit; go 1.17
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

@@ -7,8 +7,87 @@ Date:   Thu Mar 10 10:14:31 2011 -0500
     R=rsc, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4244066
-
+---
  src/pkg/crypto/openpgp/packet/packet.go      | 16 ++++++++--------
  src/pkg/crypto/openpgp/packet/packet_test.go | 20 ++++++++++++++++++++
  src/pkg/crypto/openpgp/write.go              |  2 +-
  3 files changed, 29 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index 269603ba49..aacbb666ec 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -169,7 +169,7 @@ func readHeader(r io.Reader) (tag packetType, length int64, contents io.Reader,
+ // serialiseHeader writes an OpenPGP packet header to w. See RFC 4880, section
+ // 4.2.
+ func serialiseHeader(w io.Writer, ptype packetType, length int) (err os.Error) {
+-	var buf [5]byte
++	var buf [6]byte
+ 	var n int
+ 
+ 	buf[0] = 0x80 | 0x40 | byte(ptype)
+@@ -178,16 +178,16 @@ func serialiseHeader(w io.Writer, ptype packetType, length int) (err os.Error) {
+ 		n = 2
+ 	} else if length < 8384 {
+ 		length -= 192
+-		buf[1] = byte(length >> 8)
++		buf[1] = 192 + byte(length>>8)
+ 		buf[2] = byte(length)
+ 		n = 3
+ 	} else {
+-		buf[0] = 255
+-		buf[1] = byte(length >> 24)
+-		buf[2] = byte(length >> 16)
+-		buf[3] = byte(length >> 8)
+-		buf[4] = byte(length)
+-		n = 5
++		buf[1] = 255
++		buf[2] = byte(length >> 24)
++		buf[3] = byte(length >> 16)
++		buf[4] = byte(length >> 8)
++		buf[5] = byte(length)
++		n = 6
+ 	}
+ 
+ 	_, err = w.Write(buf[:n])
+diff --git a/src/pkg/crypto/openpgp/packet/packet_test.go b/src/pkg/crypto/openpgp/packet/packet_test.go
+index 6789d2abc7..40c6b67d34 100644
+--- a/src/pkg/crypto/openpgp/packet/packet_test.go
++++ b/src/pkg/crypto/openpgp/packet/packet_test.go
+@@ -190,3 +190,23 @@ func TestReadHeader(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestSerialiseHeader(t *testing.T) {
++	tag := packetTypePublicKey
++	lengths := []int{0, 1, 2, 64, 192, 193, 8000, 8384, 8385, 10000}
++
++	for _, length := range lengths {
++		buf := bytes.NewBuffer(nil)
++		serialiseHeader(buf, tag, length)
++		tag2, length2, _, err := readHeader(buf)
++		if err != nil {
++			t.Errorf("length %d, err: %s", length, err)
++		}
++		if tag2 != tag {
++			t.Errorf("length %d, tag incorrect (got %d, want %d)", length, tag2, tag)
++		}
++		if int(length2) != length {
++			t.Errorf("length %d, length incorrect (got %d)", length, length2)
++		}
++	}
++}
+diff --git a/src/pkg/crypto/openpgp/write.go b/src/pkg/crypto/openpgp/write.go
+index 1a2e2bf040..9bef5e3b0b 100644
+--- a/src/pkg/crypto/openpgp/write.go
++++ b/src/pkg/crypto/openpgp/write.go
+@@ -39,7 +39,7 @@ func DetachSignText(w io.Writer, signer *Entity, message io.Reader) os.Error {
+ // ArmoredDetachSignText signs message (after canonicalising the line endings)
+ // with the private key from signer (which must already have been decrypted)
+ // and writes an armored signature to w.
+-func SignTextDetachedArmored(w io.Writer, signer *Entity, message io.Reader) os.Error {
++func ArmoredDetachSignText(w io.Writer, signer *Entity, message io.Reader) os.Error {
+ 	return armoredDetachSign(w, signer, message, packet.SigTypeText)
+ }
+ 

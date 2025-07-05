@@ -25,6 +25,32 @@ Date:   Thu Aug 10 11:35:34 2017 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/doc.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/cmd/dist/doc.go b/src/cmd/dist/doc.go
+new file mode 100644
+index 0000000000..ec4116c0d3
+--- /dev/null
++++ b/src/cmd/dist/doc.go
+@@ -0,0 +1,19 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// dist is the bootstrapping tool for the Go distribution.
++//
++// Usage:
++//   go tool dist [command]
++//
++// The commands are:
++//   banner         print installation banner
++//   bootstrap      rebuild everything
++//   clean          deletes all built files
++//   env [-p]       print environment (-p: include $PATH)
++//   install [dir]  install individual directory
++//   list [-json]   list all supported platforms
++//   test [-h]      run Go test(s)
++//   version        print Go version
++package main

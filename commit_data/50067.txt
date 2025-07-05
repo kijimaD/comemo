@@ -45,9 +45,303 @@ Date:   Tue Sep 28 17:06:56 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/pcln.go | 41 ++++++++++++++++++++++++--------------
  src/debug/gosym/pclntab.go       | 43 +++++++++++++++++++++++++++++++++++-----
  src/runtime/runtime2.go          |  6 +++---
  src/runtime/symtab.go            | 16 ++++++++-------
  4 files changed, 76 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index f319c10b5b..08b33ed815 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -72,7 +72,7 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
+ 
+ 	state := &pclntab{
+ 		// This is the size of the _func object in runtime/runtime2.go.
+-		funcSize: uint32(ctxt.Arch.PtrSize + 9*4),
++		funcSize: 10 * 4,
+ 	}
+ 
+ 	// Gather some basic stats and info.
+@@ -225,8 +225,10 @@ func makeInlSyms(ctxt *Link, funcs []loader.Sym, nameOffsets map[loader.Sym]uint
+ // generatePCHeader creates the runtime.pcheader symbol, setting it up as a
+ // generator to fill in its data later.
+ func (state *pclntab) generatePCHeader(ctxt *Link) {
++	ldr := ctxt.loader
++	textStartOff := int64(8 + 2*ctxt.Arch.PtrSize)
++	size := int64(8 + 8*ctxt.Arch.PtrSize)
+ 	writeHeader := func(ctxt *Link, s loader.Sym) {
+-		ldr := ctxt.loader
+ 		header := ctxt.loader.MakeSymbolUpdater(s)
+ 
+ 		writeSymOffset := func(off int64, ws loader.Sym) int64 {
+@@ -239,21 +241,30 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
+ 		}
+ 
+ 		// Write header.
+-		// Keep in sync with runtime/symtab.go:pcHeader.
+-		header.SetUint32(ctxt.Arch, 0, 0xfffffffa)
++		// Keep in sync with runtime/symtab.go:pcHeader and package debug/gosym.
++		header.SetUint32(ctxt.Arch, 0, 0xfffffff0)
+ 		header.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
+ 		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
+ 		off := header.SetUint(ctxt.Arch, 8, uint64(state.nfunc))
+ 		off = header.SetUint(ctxt.Arch, off, uint64(state.nfiles))
++		if off != textStartOff {
++			panic(fmt.Sprintf("pcHeader textStartOff: %d != %d", off, textStartOff))
++		}
++		off += int64(ctxt.Arch.PtrSize) // skip runtimeText relocation
+ 		off = writeSymOffset(off, state.funcnametab)
+ 		off = writeSymOffset(off, state.cutab)
+ 		off = writeSymOffset(off, state.filetab)
+ 		off = writeSymOffset(off, state.pctab)
+ 		off = writeSymOffset(off, state.pclntab)
++		if off != size {
++			panic(fmt.Sprintf("pcHeader size: %d != %d", off, size))
++		}
+ 	}
+ 
+-	size := int64(8 + 7*ctxt.Arch.PtrSize)
+ 	state.pcheader = state.addGeneratedSym(ctxt, "runtime.pcheader", size, writeHeader)
++	// Create the runtimeText relocation.
++	sb := ldr.MakeSymbolUpdater(state.pcheader)
++	sb.SetAddr(ctxt.Arch, textStartOff, ldr.Lookup("runtime.text", 0))
+ }
+ 
+ // walkFuncs iterates over the funcs, calling a function for each unique
+@@ -552,9 +563,8 @@ type pclnSetUint func(*loader.SymbolBuilder, *sys.Arch, int64, uint64) int64
+ // The first pass is executed early in the link, and it creates any needed
+ // relocations to lay out the data. The pieces that need relocations are:
+ //   1) the PC->func table.
+-//   2) The entry points in the func objects.
+-//   3) The funcdata.
+-// (1) and (2) are handled in writePCToFunc. (3) is handled in writeFuncdata.
++//   2) The funcdata.
++// (1) is handled in writePCToFunc. (2) is handled in writeFuncdata.
+ //
+ // After relocations, once we know where to write things in the output buffer,
+ // we execute the second pass, which is actually writing the data.
+@@ -708,9 +718,6 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
+ 		setAddr(sb, ctxt.Arch, int64(funcIndex*2*ctxt.Arch.PtrSize), s, 0)
+ 		setUint(sb, ctxt.Arch, int64((funcIndex*2+1)*ctxt.Arch.PtrSize), uint64(startLocations[i]))
+ 		funcIndex++
+-
+-		// Write the entry location.
+-		setAddr(sb, ctxt.Arch, int64(startLocations[i]), s, 0)
+ 	}
+ 
+ 	// Final entry of table is just end pc.
+@@ -760,6 +767,7 @@ func (state *pclntab) writeFuncData(ctxt *Link, sb *loader.SymbolBuilder, funcs
+ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
+ 	ldr := ctxt.loader
+ 	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
++	textStart := ldr.SymValue(ldr.Lookup("runtime.text", 0))
+ 	funcdata := []loader.Sym{}
+ 	var pcsp, pcfile, pcline, pcinline loader.Sym
+ 	var pcdata []loader.Sym
+@@ -772,10 +780,13 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
+ 			pcsp, pcfile, pcline, pcinline, pcdata = ldr.PcdataAuxs(s, pcdata)
+ 		}
+ 
+-		// Note we skip the space for the entry value -- that's handled in
+-		// writePCToFunc. We don't write it here, because it might require a
+-		// relocation.
+-		off := startLocations[i] + uint32(ctxt.Arch.PtrSize) // entry
++		off := startLocations[i]
++		// entry uintptr (offset of func entry PC from textStart)
++		entryOff := ldr.SymValue(s) - textStart
++		if entryOff < 0 {
++			panic(fmt.Sprintf("expected func %s(%x) to be placed before or at textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
++		}
++		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(entryOff)))
+ 
+ 		// name int32
+ 		nameoff, ok := nameOffsets[s]
+diff --git a/src/debug/gosym/pclntab.go b/src/debug/gosym/pclntab.go
+index bf97976b3c..fdaa47a917 100644
+--- a/src/debug/gosym/pclntab.go
++++ b/src/debug/gosym/pclntab.go
+@@ -22,6 +22,7 @@ const (
+ 	ver11
+ 	ver12
+ 	ver116
++	ver118
+ )
+ 
+ // A LineTable is a data structure mapping program counters to line numbers.
+@@ -48,10 +49,11 @@ type LineTable struct {
+ 	// Contains the version of the pclntab section.
+ 	version version
+ 
+-	// Go 1.2/1.16 state
++	// Go 1.2/1.16/1.18 state
+ 	binary      binary.ByteOrder
+ 	quantum     uint32
+ 	ptrsize     uint32
++	textStart   uintptr // address of runtime.text symbol (1.18+)
+ 	funcnametab []byte
+ 	cutab       []byte
+ 	funcdata    []byte
+@@ -166,8 +168,11 @@ func (t *LineTable) isGo12() bool {
+ 	return t.version >= ver12
+ }
+ 
+-const go12magic = 0xfffffffb
+-const go116magic = 0xfffffffa
++const (
++	go12magic  = 0xfffffffb
++	go116magic = 0xfffffffa
++	go118magic = 0xfffffff0
++)
+ 
+ // uintptr returns the pointer-sized value encoded at b.
+ // The pointer size is dictated by the table being read.
+@@ -219,11 +224,15 @@ func (t *LineTable) parsePclnTab() {
+ 		t.binary, possibleVersion = binary.LittleEndian, ver116
+ 	case beMagic == go116magic:
+ 		t.binary, possibleVersion = binary.BigEndian, ver116
++	case leMagic == go118magic:
++		t.binary, possibleVersion = binary.LittleEndian, ver118
++	case beMagic == go118magic:
++		t.binary, possibleVersion = binary.BigEndian, ver118
+ 	default:
+ 		return
+ 	}
+ 
+-	// quantum and ptrSize are the same between 1.2 and 1.16
++	// quantum and ptrSize are the same between 1.2, 1.16, and 1.18
+ 	t.quantum = uint32(t.Data[6])
+ 	t.ptrsize = uint32(t.Data[7])
+ 
+@@ -235,6 +244,18 @@ func (t *LineTable) parsePclnTab() {
+ 	}
+ 
+ 	switch possibleVersion {
++	case ver118:
++		t.nfunctab = uint32(offset(0))
++		t.nfiletab = uint32(offset(1))
++		t.textStart = uintptr(offset(2))
++		t.funcnametab = data(3)
++		t.cutab = data(4)
++		t.filetab = data(5)
++		t.pctab = data(6)
++		t.funcdata = data(7)
++		t.functab = data(7)
++		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
++		t.functab = t.functab[:functabsize]
+ 	case ver116:
+ 		t.nfunctab = uint32(offset(0))
+ 		t.nfiletab = uint32(offset(1))
+@@ -380,7 +401,14 @@ func (f funcData) IsZero() bool {
+ }
+ 
+ // entryPC returns the func's entry PC.
+-func (f funcData) entryPC() uint64 {
++func (f *funcData) entryPC() uint64 {
++	// In Go 1.18, the first field of _func changed
++	// from a uintptr entry PC to a uint32 entry offset.
++	if f.t.version >= ver118 {
++		// TODO: support multiple text sections.
++		// See runtime/symtab.go:(*moduledata).textAddr.
++		return uint64(f.t.binary.Uint32(f.data)) + uint64(f.t.textStart)
++	}
+ 	return f.t.uintptr(f.data)
+ }
+ 
+@@ -397,7 +425,12 @@ func (f funcData) field(n uint32) uint32 {
+ 	if n == 0 || n > 9 {
+ 		panic("bad funcdata field")
+ 	}
++	// In Go 1.18, the first field of _func changed
++	// from a uintptr entry PC to a uint32 entry offset.
+ 	sz0 := f.t.ptrsize
++	if f.t.version >= ver118 {
++		sz0 = 4
++	}
+ 	off := sz0 + (n-1)*4 // subsequent fields are 4 bytes each
+ 	data := f.data[off:]
+ 	return f.t.binary.Uint32(data)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 8188872ae8..db1c6e307b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -858,8 +858,8 @@ const (
+ // Keep in sync with linker (../cmd/link/internal/ld/pcln.go:/pclntab)
+ // and with package debug/gosym and with symtab.go in package runtime.
+ type _func struct {
+-	entryPC uintptr // start pc
+-	nameoff int32   // function name
++	entryoff uint32 // start pc, as offset from moduledata.text/pcHeader.textStart
++	nameoff  int32  // function name
+ 
+ 	args        int32  // in/out args size
+ 	deferreturn uint32 // offset of start of a deferreturn call instruction from entry, if any.
+@@ -879,7 +879,7 @@ type _func struct {
+ // A *Func can be either a *_func or a *funcinl, and they are distinguished
+ // by the first uintptr.
+ type funcinl struct {
+-	ones  uintptr // set to ^0 to distinguish from _func
++	ones  uint32  // set to ^0 to distinguish from _func
+ 	entry uintptr // entry of the real (the "outermost") frame
+ 	name  string
+ 	file  string
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index f65e16ff1d..d1fe1a4fcc 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -387,12 +387,13 @@ const (
+ 
+ // pcHeader holds data used by the pclntab lookups.
+ type pcHeader struct {
+-	magic          uint32  // 0xFFFFFFFA
++	magic          uint32  // 0xFFFFFFF0
+ 	pad1, pad2     uint8   // 0,0
+ 	minLC          uint8   // min instruction size
+ 	ptrSize        uint8   // size of a ptr in bytes
+ 	nfunc          int     // number of functions in the module
+ 	nfiles         uint    // number of entries in the file tab
++	textStart      uintptr // base for function entry PC offsets in this module, equal to moduledata.text
+ 	funcnameOffset uintptr // offset to the funcnametab variable from pcHeader
+ 	cuOffset       uintptr // offset to the cutab variable from pcHeader
+ 	filetabOffset  uintptr // offset to the filetab variable from pcHeader
+@@ -586,10 +587,11 @@ const debugPcln = false
+ func moduledataverify1(datap *moduledata) {
+ 	// Check that the pclntab's format is valid.
+ 	hdr := datap.pcHeader
+-	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 ||
+-		hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize {
++	if hdr.magic != 0xfffffff0 || hdr.pad1 != 0 || hdr.pad2 != 0 ||
++		hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize || hdr.textStart != datap.text {
+ 		println("runtime: pcHeader: magic=", hex(hdr.magic), "pad1=", hdr.pad1, "pad2=", hdr.pad2,
+-			"minLC=", hdr.minLC, "ptrSize=", hdr.ptrSize, "pluginpath=", datap.pluginpath)
++			"minLC=", hdr.minLC, "ptrSize=", hdr.ptrSize, "pcHeader.textStart=", hex(hdr.textStart),
++			"text=", hex(datap.text), "pluginpath=", datap.pluginpath)
+ 		throw("invalid function symbol table")
+ 	}
+ 
+@@ -685,7 +687,7 @@ func FuncForPC(pc uintptr) *Func {
+ 			name := funcnameFromNameoff(f, inltree[ix].func_)
+ 			file, line := funcline(f, pc)
+ 			fi := &funcinl{
+-				ones:  ^uintptr(0),
++				ones:  ^uint32(0),
+ 				entry: f.entry(), // entry of the real (the outermost) function.
+ 				name:  name,
+ 				file:  file,
+@@ -766,12 +768,12 @@ func (f funcInfo) _Func() *Func {
+ 
+ // isInlined reports whether f should be re-interpreted as a *funcinl.
+ func (f *_func) isInlined() bool {
+-	return f.entryPC == ^uintptr(0) // see comment for funcinl.ones
++	return f.entryoff == ^uint32(0) // see comment for funcinl.ones
+ }
+ 
+ // entry returns the entry PC for f.
+ func (f funcInfo) entry() uintptr {
+-	return f.entryPC
++	return f.datap.textAddr(uintptr(f.entryoff))
+ }
+ 
+ // findfunc looks up function metadata for a PC.

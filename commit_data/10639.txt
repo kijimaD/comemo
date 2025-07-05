@@ -8,7 +8,7 @@ Date:   Wed Dec 7 16:53:17 2011 +0300
     R=rsc, hectorchu, mattn.jp, alex.brainman, jdpoirier, snaury, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/5371049
-
+---
  src/cmd/ld/lib.c                    |  1 +
  src/cmd/ld/lib.h                    |  1 +
  src/cmd/ld/pe.c                     | 17 +++++++++++++++--
@@ -18,3 +18,264 @@ Date:   Wed Dec 7 16:53:17 2011 +0300
  src/pkg/runtime/cgo/windows_amd64.c | 17 ++++++-----------
  src/pkg/runtime/windows/thread.c    |  5 ++++-
  8 files changed, 50 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 82f3f007f4..5a4d752892 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -274,6 +274,7 @@ loadlib(void)
+ 	for(i=0; i<libraryp; i++) {
+ 		if(debug['v'])
+ 			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i].file, library[i].objref);
++		iscgo |= strcmp(library[i].pkg, "runtime/cgo") == 0;
+ 		objfile(library[i].file, library[i].pkg);
+ 	}
+ 	
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index f66eb438f0..bbaa52d43c 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -125,6 +125,7 @@ EXTERN	int32	nsymbol;
+ EXTERN	char*	thestring;
+ EXTERN	int	ndynexp;
+ EXTERN	int	havedynamic;
++EXTERN	int	iscgo;
+ 
+ EXTERN	Segment	segtext;
+ EXTERN	Segment	segdata;
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 2e50490cec..1d70b4808b 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -650,8 +650,21 @@ asmbpe(void)
+ 	// Commit size must be strictly less than reserve
+ 	// size otherwise reserve will be rounded up to a
+ 	// larger size, as verified with VMMap.
+-	set(SizeOfStackReserve, 0x00010000);
+-	set(SizeOfStackCommit, 0x0000ffff);
++
++	// Go code would be OK with 64k stacks, but we need larger stacks for cgo.
++	// That default stack reserve size affects only the main thread,
++	// for other threads we specify stack size in runtime explicitly
++	// (runtime knows whether cgo is enabled or not).
++	// If you change stack reserve sizes here,
++	// change them in runtime/cgo/windows_386/amd64.c as well.
++	if(!iscgo) {
++		set(SizeOfStackReserve, 0x00010000);
++		set(SizeOfStackCommit, 0x0000ffff);
++	} else {
++		set(SizeOfStackReserve, pe64 ? 0x00200000 : 0x00100000);
++		// account for 2 guard pages
++		set(SizeOfStackCommit, (pe64 ? 0x00200000 : 0x00100000) - 0x2000);
++	}
+ 	set(SizeOfHeapReserve, 0x00100000);
+ 	set(SizeOfHeapCommit, 0x00001000);
+ 	set(NumberOfRvaAndSizes, 16);
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 470463925e..04d4e214c3 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -21,15 +21,22 @@ TEXT _rt0_386(SB),7,$0
+ 	MOVL	AX, 120(SP)		// save argc, argv away
+ 	MOVL	BX, 124(SP)
+ 
++	// set default stack bounds.
++	// initcgo may update stackguard.
++	MOVL	$runtime·g0(SB), BP
++	LEAL	(-64*1024+104)(SP), BX
++	MOVL	BX, g_stackguard(BP)
++	MOVL	SP, g_stackbase(BP)
++	
+ 	// if there is an initcgo, call it to let it
+ 	// initialize and to set up GS.  if not,
+ 	// we set up GS ourselves.
+ 	MOVL	initcgo(SB), AX
+ 	TESTL	AX, AX
+ 	JZ	needtls
+-	PUSHL	$runtime·g0(SB)
++	PUSHL	BP
+ 	CALL	AX
+-	POPL	AX
++	POPL	BP
+ 	// skip runtime·ldt0setup(SB) and tls test after initcgo for non-windows
+ 	CMPL runtime·iswindows(SB), $0
+ 	JEQ ok
+@@ -59,16 +66,6 @@ ok:
+ 	// save m->g0 = g0
+ 	MOVL	CX, m_g0(AX)
+ 
+-	// create istack out of the OS stack
+-	// if there is an initcgo, it had setup stackguard for us
+-	MOVL	initcgo(SB), AX
+-	TESTL	AX, AX
+-	JNZ	stackok
+-	LEAL	(-64*1024+104)(SP), AX	// TODO: 104?
+-	MOVL	AX, g_stackguard(CX)
+-stackok:
+-	MOVL	SP, g_stackbase(CX)
+-
+ 	CALL	runtime·emptyfunc(SB)	// fault if stack check is wrong
+ 
+ 	// convention is D is always cleared
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 109b95eba8..18cdefb83d 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -12,13 +12,19 @@ TEXT _rt0_amd64(SB),7,$-8
+ 	ANDQ	$~15, SP
+ 	MOVQ	AX, 16(SP)
+ 	MOVQ	BX, 24(SP)
++	
++	// create istack out of the given (operating system) stack.
++	// initcgo may update stackguard.
++	MOVQ	$runtime·g0(SB), DI
++	LEAQ	(-8192+104)(SP), BX
++	MOVQ	BX, g_stackguard(DI)
++	MOVQ	SP, g_stackbase(DI)
+ 
+ 	// if there is an initcgo, call it.
+ 	MOVQ	initcgo(SB), AX
+ 	TESTQ	AX, AX
+ 	JZ	needtls
+-	LEAQ	runtime·g0(SB), DI
+-	CALL	AX
++	CALL	AX  // g0 already in DI
+ 	CMPL	runtime·iswindows(SB), $0
+ 	JEQ ok
+ 
+@@ -44,16 +50,6 @@ ok:
+ 	// save m->g0 = g0
+ 	MOVQ	CX, m_g0(AX)
+ 
+-	// create istack out of the given (operating system) stack
+-	// if there is an initcgo, it had setup stackguard for us
+-	MOVQ	initcgo(SB), AX
+-	TESTQ	AX, AX
+-	JNZ	stackok
+-	LEAQ	(-8192+104)(SP), AX
+-	MOVQ	AX, g_stackguard(CX)
+-stackok:
+-	MOVQ	SP, g_stackbase(CX)
+-
+ 	CLD				// convention is D is always left cleared
+ 	CALL	runtime·check(SB)
+ 
+diff --git a/src/pkg/runtime/cgo/windows_386.c b/src/pkg/runtime/cgo/windows_386.c
+index 96aea07128..4f34323929 100644
+--- a/src/pkg/runtime/cgo/windows_386.c
++++ b/src/pkg/runtime/cgo/windows_386.c
+@@ -8,15 +8,16 @@
+ 
+ static void *threadentry(void*);
+ 
+-/* From what I've read 1MB is default for 32-bit Linux. 
+-   Allocation granularity on Windows is typically 64 KB. */
++/* 1MB is default stack size for 32-bit Windows.
++   Allocation granularity on Windows is typically 64 KB.
++   The constant is also hardcoded in cmd/ld/pe.c (keep synchronized). */
+ #define STACKSIZE (1*1024*1024)
+ 
+ static void
+ xinitcgo(G *g)
+ {
+ 	int tmp;
+-	g->stackguard = (uintptr)&tmp - STACKSIZE + 4096;
++	g->stackguard = (uintptr)&tmp - STACKSIZE + 8*1024;
+ }
+ 
+ void (*initcgo)(G*) = xinitcgo;
+@@ -24,8 +25,7 @@ void (*initcgo)(G*) = xinitcgo;
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {
+-	ts->g->stackguard = STACKSIZE;
+-	_beginthread(threadentry, STACKSIZE, ts);
++	_beginthread(threadentry, 0, ts);
+ }
+ 
+ static void*
+@@ -38,12 +38,7 @@ threadentry(void *v)
+ 	free(v);
+ 
+ 	ts.g->stackbase = (uintptr)&ts;
+-
+-	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
+-	 * change to actual guard pointer.
+-	 */
+-	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++	ts.g->stackguard = (uintptr)&ts - STACKSIZE + 8*1024;
+ 
+ 	/*
+ 	 * Set specific keys in thread local storage.
+diff --git a/src/pkg/runtime/cgo/windows_amd64.c b/src/pkg/runtime/cgo/windows_amd64.c
+index 6d31845ce6..2abc30b892 100644
+--- a/src/pkg/runtime/cgo/windows_amd64.c
++++ b/src/pkg/runtime/cgo/windows_amd64.c
+@@ -8,15 +8,16 @@
+ 
+ static void *threadentry(void*);
+ 
+-/* From what I've read 2MB is default for 64-bit Linux. 
+-   Allocation granularity on Windows is typically 64 KB. */
++/* 2MB is default stack size for 64-bit Windows.
++   Allocation granularity on Windows is typically 64 KB.
++   The constant is also hardcoded in cmd/ld/pe.c (keep synchronized). */
+ #define STACKSIZE (2*1024*1024)
+ 
+ static void
+ xinitcgo(G *g)
+ {
+ 	int tmp;
+-	g->stackguard = (uintptr)&tmp - STACKSIZE + 4096;
++	g->stackguard = (uintptr)&tmp - STACKSIZE + 8*1024;
+ }
+ 
+ void (*initcgo)(G*) = xinitcgo;
+@@ -24,8 +25,7 @@ void (*initcgo)(G*) = xinitcgo;
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {
+-	ts->g->stackguard = STACKSIZE;
+-	_beginthread(threadentry, STACKSIZE, ts);
++	_beginthread(threadentry, 0, ts);
+ }
+ 
+ static void*
+@@ -38,12 +38,7 @@ threadentry(void *v)
+ 	free(v);
+ 
+ 	ts.g->stackbase = (uintptr)&ts;
+-
+-	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
+-	 * change to actual guard pointer.
+-	 */
+-	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++	ts.g->stackguard = (uintptr)&ts - STACKSIZE + 8*1024;
+ 
+ 	/*
+ 	 * Set specific keys in thread local storage.
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 4b963f374e..dc7e06cd33 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -183,6 +183,8 @@ runtime·semacreate(void)
+ 	return (uintptr)runtime·stdcall(runtime·CreateEvent, 4, (uintptr)0, (uintptr)0, (uintptr)0, (uintptr)0);
+ }
+ 
++#define STACK_SIZE_PARAM_IS_A_RESERVATION ((uintptr)0x00010000)
++
+ void
+ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
+@@ -193,7 +195,8 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 	USED(fn);	// assuming fn = mstart
+ 
+ 	thandle = runtime·stdcall(runtime·CreateThread, 6,
+-		nil, nil, runtime·tstart_stdcall, m, nil, nil);
++		nil, (uintptr)0x20000, runtime·tstart_stdcall, m,
++		STACK_SIZE_PARAM_IS_A_RESERVATION, nil);
+ 	if(thandle == nil) {
+ 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), runtime·getlasterror());
+ 		runtime·throw("runtime.newosproc");

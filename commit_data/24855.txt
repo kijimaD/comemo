@@ -11,8 +11,91 @@ Date:   Tue Sep 1 22:53:46 2015 -0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/dnsclient.go      |  9 +++++++--
  src/net/dnsclient_test.go | 25 +++++++++++++++++++++++++
  src/net/net.go            | 11 ++++++-----
  3 files changed, 38 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index ce48521bc6..a2f5986603 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -47,8 +47,13 @@ func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs
+ 		// None of the error codes make sense
+ 		// for the query we sent.  If we didn't get
+ 		// a name error and we didn't get success,
+-		// the server is behaving incorrectly.
+-		return "", nil, &DNSError{Err: "server misbehaving", Name: name, Server: server}
++		// the server is behaving incorrectly or
++		// having temporary trouble.
++		err := &DNSError{Err: "server misbehaving", Name: name, Server: server}
++		if dns.rcode == dnsRcodeServerFailure {
++			err.IsTemporary = true
++		}
++		return "", nil, err
+ 	}
+ 
+ 	// Look for the name.
+diff --git a/src/net/dnsclient_test.go b/src/net/dnsclient_test.go
+index 3ab2b836ef..42b536c3f3 100644
+--- a/src/net/dnsclient_test.go
++++ b/src/net/dnsclient_test.go
+@@ -67,3 +67,28 @@ func testWeighting(t *testing.T, margin float64) {
+ func TestWeighting(t *testing.T) {
+ 	testWeighting(t, 0.05)
+ }
++
++// Issue 8434: verify that Temporary returns true on an error when rcode
++// is SERVFAIL
++func TestIssue8434(t *testing.T) {
++	msg := &dnsMsg{
++		dnsMsgHdr: dnsMsgHdr{
++			rcode: dnsRcodeServerFailure,
++		},
++	}
++
++	_, _, err := answer("golang.org", "foo:53", msg, uint16(dnsTypeSRV))
++	if err == nil {
++		t.Fatal("expected an error")
++	}
++	if ne, ok := err.(Error); !ok {
++		t.Fatalf("err = %#v; wanted something supporting net.Error", err)
++	} else if !ne.Temporary() {
++		t.Fatalf("Temporary = false for err = %#v; want Temporary == true", err)
++	}
++	if de, ok := err.(*DNSError); !ok {
++		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
++	} else if !de.IsTemporary {
++		t.Fatalf("IsTemporary = false for err = %#v; want IsTemporary == true", err)
++	}
++}
+diff --git a/src/net/net.go b/src/net/net.go
+index 6e84c3a100..4f1bf9dcc1 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -520,10 +520,11 @@ var (
+ 
+ // DNSError represents a DNS lookup error.
+ type DNSError struct {
+-	Err       string // description of the error
+-	Name      string // name looked for
+-	Server    string // server used
+-	IsTimeout bool   // if true, timed out; not all timeouts set this
++	Err         string // description of the error
++	Name        string // name looked for
++	Server      string // server used
++	IsTimeout   bool   // if true, timed out; not all timeouts set this
++	IsTemporary bool   // if true, error is temporary; not all errors set this
+ }
+ 
+ func (e *DNSError) Error() string {
+@@ -546,7 +547,7 @@ func (e *DNSError) Timeout() bool { return e.IsTimeout }
+ // Temporary reports whether the DNS error is known to be temporary.
+ // This is not always known; a DNS lookup may fail due to a temporary
+ // error and return a DNSError for which Temporary returns false.
+-func (e *DNSError) Temporary() bool { return e.IsTimeout }
++func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
+ 
+ type writerOnly struct {
+ 	io.Writer

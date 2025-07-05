@@ -18,8 +18,48 @@ Date:   Thu Apr 28 09:35:19 2016 +0900
     Change-Id: I42992b1d852c2ab5dd37d6dbb481dba46929f665
     Reviewed-on: https://go-review.googlesource.com/22537
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_freebsd.go       | 2 +-
  src/runtime/sigtab_linux_generic.go | 2 +-
  src/runtime/sigtab_linux_mips64x.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/signal_freebsd.go b/src/runtime/signal_freebsd.go
+index c8b09e92d9..c4cb68720e 100644
+--- a/src/runtime/signal_freebsd.go
++++ b/src/runtime/signal_freebsd.go
+@@ -24,7 +24,7 @@ var sigtable = [...]sigTabT{
+ 	/* 9 */ {0, "SIGKILL: kill"},
+ 	/* 10 */ {_SigPanic + _SigUnblock, "SIGBUS: bus error"},
+ 	/* 11 */ {_SigPanic + _SigUnblock, "SIGSEGV: segmentation violation"},
+-	/* 12 */ {_SigNotify, "SIGSYS: bad system call"},
++	/* 12 */ {_SigNotify, "SIGSYS: bad system call"}, // see golang.org/issues/15204
+ 	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
+ 	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
+ 	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},
+diff --git a/src/runtime/sigtab_linux_generic.go b/src/runtime/sigtab_linux_generic.go
+index e97497f18c..ea36bf3645 100644
+--- a/src/runtime/sigtab_linux_generic.go
++++ b/src/runtime/sigtab_linux_generic.go
+@@ -45,7 +45,7 @@ var sigtable = [...]sigTabT{
+ 	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
+ 	/* 29 */ {_SigNotify, "SIGIO: i/o now possible"},
+ 	/* 30 */ {_SigNotify, "SIGPWR: power failure restart"},
+-	/* 31 */ {_SigThrow + _SigUnblock, "SIGSYS: bad system call"},
++	/* 31 */ {_SigThrow, "SIGSYS: bad system call"},
+ 	/* 32 */ {_SigSetStack + _SigUnblock, "signal 32"}, /* SIGCANCEL; see issue 6997 */
+ 	/* 33 */ {_SigSetStack + _SigUnblock, "signal 33"}, /* SIGSETXID; see issues 3871, 9400, 12498 */
+ 	/* 34 */ {_SigNotify, "signal 34"},
+diff --git a/src/runtime/sigtab_linux_mips64x.go b/src/runtime/sigtab_linux_mips64x.go
+index f7d81811ba..201fe3deeb 100644
+--- a/src/runtime/sigtab_linux_mips64x.go
++++ b/src/runtime/sigtab_linux_mips64x.go
+@@ -25,7 +25,7 @@ var sigtable = [...]sigTabT{
+ 	/* 9 */ {0, "SIGKILL: kill"},
+ 	/* 10 */ {_SigPanic + _SigUnblock, "SIGBUS: bus error"},
+ 	/* 11 */ {_SigPanic + _SigUnblock, "SIGSEGV: segmentation violation"},
+-	/* 12 */ {_SigThrow + _SigUnblock, "SIGSYS: bad system call"},
++	/* 12 */ {_SigThrow, "SIGSYS: bad system call"},
+ 	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
+ 	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
+ 	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},

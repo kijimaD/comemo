@@ -19,6 +19,25 @@ Date:   Thu May 24 08:36:00 2018 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testsanitizers/tsan_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/misc/cgo/testsanitizers/tsan_test.go b/misc/cgo/testsanitizers/tsan_test.go
+index ec4e0033fb..314b5072f3 100644
+--- a/misc/cgo/testsanitizers/tsan_test.go
++++ b/misc/cgo/testsanitizers/tsan_test.go
+@@ -7,9 +7,13 @@ package sanitizers_test
+ import (
+ 	"strings"
+ 	"testing"
++	"runtime"
+ )
+ 
+ func TestTSAN(t *testing.T) {
++	if runtime.GOARCH == "arm64" {
++		t.Skip("skipping test; see https://golang.org/issue/25682")
++	}
+ 	t.Parallel()
+ 	requireOvercommit(t)
+ 	config := configure("thread")

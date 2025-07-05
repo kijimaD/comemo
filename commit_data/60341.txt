@@ -15,8 +15,57 @@ Date:   Thu May 30 22:29:35 2024 -0700
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/gcc.go                                     |  4 ++--
  src/cmd/cgo/internal/testerrors/errors_test.go         |  1 +
  src/cmd/cgo/internal/testerrors/testdata/issue67707.go | 15 +++++++++++++++
  3 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b596477b0a..6c23e59adf 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1601,8 +1601,8 @@ func (p *Package) rewriteName(f *File, r *Ref, addPosition bool) ast.Expr {
+ 			break
+ 		}
+ 		if r.Context == ctxCall2 {
+-			if r.Name.Go == "_CMalloc" {
+-				error_(r.Pos(), "no two-result form for C.malloc")
++			if builtinDefs[r.Name.Go] != "" {
++				error_(r.Pos(), "no two-result form for C.%s", r.Name.Go)
+ 				break
+ 			}
+ 			// Invent new Name for the two-result function.
+diff --git a/src/cmd/cgo/internal/testerrors/errors_test.go b/src/cmd/cgo/internal/testerrors/errors_test.go
+index 07556007a8..eddfb6583b 100644
+--- a/src/cmd/cgo/internal/testerrors/errors_test.go
++++ b/src/cmd/cgo/internal/testerrors/errors_test.go
+@@ -127,6 +127,7 @@ func TestReportsTypeErrors(t *testing.T) {
+ 		"issue33061.go",
+ 		"issue50710.go",
+ 		"issue67517.go",
++		"issue67707.go",
+ 	} {
+ 		check(t, file)
+ 	}
+diff --git a/src/cmd/cgo/internal/testerrors/testdata/issue67707.go b/src/cmd/cgo/internal/testerrors/testdata/issue67707.go
+new file mode 100644
+index 0000000000..4f80de165e
+--- /dev/null
++++ b/src/cmd/cgo/internal/testerrors/testdata/issue67707.go
+@@ -0,0 +1,15 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "C"
++
++func F() *C.char {
++	s, err := C.CString("hi") // ERROR HERE: no two-result form
++	if err != nil {
++		println(err)
++	}
++	return s
++}

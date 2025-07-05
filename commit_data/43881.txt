@@ -11,6 +11,19 @@ Date:   Mon Apr 27 18:47:03 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/link.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 839ee0ca7e..84b1f9121e 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -66,7 +66,6 @@ type Link struct {
+ 
+ 	compressDWARF bool
+ 
+-	Tlsg2        loader.Sym
+ 	Libdir       []string
+ 	Library      []*sym.Library
+ 	LibraryByPkg map[string]*sym.Library

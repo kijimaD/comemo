@@ -9,6 +9,29 @@ Date:   Wed Apr 13 10:56:33 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4402042
-
+---
  src/pkg/archive/tar/reader.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 1b41196a99..0cfdf355dd 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -27,13 +27,13 @@ var (
+ //	tr := tar.NewReader(r)
+ //	for {
+ //		hdr, err := tr.Next()
+-//		if err != nil {
+-//			// handle error
+-//		}
+-//		if hdr == nil {
++//		if err == os.EOF {
+ //			// end of tar archive
+ //			break
+ //		}
++//		if err != nil {
++//			// handle error
++//		}
+ //		io.Copy(data, tr)
+ //	}
+ type Reader struct {

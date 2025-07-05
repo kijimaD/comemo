@@ -11,7 +11,7 @@ Date:   Tue May 14 16:05:51 2013 -0700
     R=bradfitz, google
     CC=golang-dev
     https://golang.org/cl/8853048
-
+---
  src/cmd/dist/goc2c.c          |  18 +++-
  src/pkg/bytes/bytes.go        |  26 ------
  src/pkg/bytes/bytes_decl.go   |   7 ++
@@ -22,3 +22,739 @@ Date:   Tue May 14 16:05:51 2013 -0700
  src/pkg/runtime/noasm_arm.goc |  73 +++++++++++++++
  src/pkg/runtime/string.goc    |  28 ------
  9 files changed, 568 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/dist/goc2c.c b/src/cmd/dist/goc2c.c
+index f584603971..f0fa043350 100644
+--- a/src/cmd/dist/goc2c.c
++++ b/src/cmd/dist/goc2c.c
+@@ -694,17 +694,29 @@ copy_body(void)
+ static void
+ process_file(void)
+ {
+-	char *package, *name;
++	char *package, *name, *p, *n;
+ 	struct params *params, *rets;
+ 	int paramwid;
+ 
+ 	package = read_package();
+ 	read_preprocessor_lines();
+ 	while (read_func_header(&name, &params, &paramwid, &rets)) {
+-		write_func_header(package, name, params, paramwid, rets);
++		// name may have a package override already
++		n = xstrstr(name, "·");
++		if(n != nil) {
++			p = xmalloc(n - name + 1);
++			xmemmove(p, name, n - name);
++			p[n - name] = 0;
++			n += xstrlen("·");
++		} else {
++			p = package;
++			n = name;
++		}
++		write_func_header(p, n, params, paramwid, rets);
+ 		copy_body();
+-		write_func_trailer(package, name, rets);
++		write_func_trailer(p, n, rets);
+ 		xfree(name);
++		if(p != package) xfree(p);
+ 		free_params(params);
+ 		free_params(rets);
+ 	}
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index e42f744394..b07902579c 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -11,32 +11,6 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// Compare returns an integer comparing two byte slices lexicographically.
+-// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+-// A nil argument is equivalent to an empty slice.
+-func Compare(a, b []byte) int {
+-	m := len(a)
+-	if m > len(b) {
+-		m = len(b)
+-	}
+-	for i, ac := range a[0:m] {
+-		bc := b[i]
+-		switch {
+-		case ac > bc:
+-			return 1
+-		case ac < bc:
+-			return -1
+-		}
+-	}
+-	switch {
+-	case len(a) < len(b):
+-		return -1
+-	case len(a) > len(b):
+-		return 1
+-	}
+-	return 0
+-}
+-
+ func equalPortable(a, b []byte) bool {
+ 	if len(a) != len(b) {
+ 		return false
+diff --git a/src/pkg/bytes/bytes_decl.go b/src/pkg/bytes/bytes_decl.go
+index fbf9282752..4e761f4bfb 100644
+--- a/src/pkg/bytes/bytes_decl.go
++++ b/src/pkg/bytes/bytes_decl.go
+@@ -14,3 +14,10 @@ func IndexByte(s []byte, c byte) int // asm_$GOARCH.s
+ // Equal returns a boolean reporting whether a == b.
+ // A nil argument is equivalent to an empty slice.
+ func Equal(a, b []byte) bool // asm_arm.s or ../runtime/asm_{386,amd64}.s
++
++//go:noescape
++
++// Compare returns an integer comparing two byte slices lexicographically.
++// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
++// A nil argument is equivalent to an empty slice.
++func Compare(a, b []byte) int // ../runtime/noasm_arm.goc or ../runtime/asm_{386,amd64}.s
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index d296224ac4..29134ac0be 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -47,7 +47,7 @@ type BinOpTest struct {
+ 	i int
+ }
+ 
+-var compareTests = []struct {
++var equalTests = []struct {
+ 	a, b []byte
+ 	i    int
+ }{
+@@ -73,12 +73,8 @@ var compareTests = []struct {
+ 	{nil, []byte("a"), -1},
+ }
+ 
+-func TestCompare(t *testing.T) {
++func TestEqual(t *testing.T) {
+ 	for _, tt := range compareTests {
+-		cmp := Compare(tt.a, tt.b)
+-		if cmp != tt.i {
+-			t.Errorf(`Compare(%q, %q) = %v`, tt.a, tt.b, cmp)
+-		}
+ 		eql := Equal(tt.a, tt.b)
+ 		if eql != (tt.i == 0) {
+ 			t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql)
+@@ -90,7 +86,7 @@ func TestCompare(t *testing.T) {
+ 	}
+ }
+ 
+-func TestEqual(t *testing.T) {
++func TestEqualExhaustive(t *testing.T) {
+ 	var size = 128
+ 	if testing.Short() {
+ 		size = 32
+diff --git a/src/pkg/bytes/compare_test.go b/src/pkg/bytes/compare_test.go
+new file mode 100644
+index 0000000000..0a36f5ad39
+--- /dev/null
++++ b/src/pkg/bytes/compare_test.go
+@@ -0,0 +1,204 @@
++package bytes_test
++
++import (
++	. "bytes"
++	"testing"
++)
++
++var compareTests = []struct {
++	a, b []byte
++	i    int
++}{
++	{[]byte(""), []byte(""), 0},
++	{[]byte("a"), []byte(""), 1},
++	{[]byte(""), []byte("a"), -1},
++	{[]byte("abc"), []byte("abc"), 0},
++	{[]byte("ab"), []byte("abc"), -1},
++	{[]byte("abc"), []byte("ab"), 1},
++	{[]byte("x"), []byte("ab"), 1},
++	{[]byte("ab"), []byte("x"), -1},
++	{[]byte("x"), []byte("a"), 1},
++	{[]byte("b"), []byte("x"), -1},
++	// test runtime·memeq's chunked implementation
++	{[]byte("abcdefgh"), []byte("abcdefgh"), 0},
++	{[]byte("abcdefghi"), []byte("abcdefghi"), 0},
++	{[]byte("abcdefghi"), []byte("abcdefghj"), -1},
++	// nil tests
++	{nil, nil, 0},
++	{[]byte(""), nil, 0},
++	{nil, []byte(""), 0},
++	{[]byte("a"), nil, 1},
++	{nil, []byte("a"), -1},
++}
++
++func TestCompare(t *testing.T) {
++	for _, tt := range compareTests {
++		cmp := Compare(tt.a, tt.b)
++		if cmp != tt.i {
++			t.Errorf(`Compare(%q, %q) = %v`, tt.a, tt.b, cmp)
++		}
++	}
++}
++
++func TestCompareIdenticalSlice(t *testing.T) {
++	var b = []byte("Hello Gophers!")
++	if Compare(b, b) != 0 {
++		t.Error("b != b")
++	}
++	if Compare(b, b[:1]) != 1 {
++		t.Error("b > b[:1] failed")
++	}
++}
++
++func TestCompareBytes(t *testing.T) {
++	n := 128
++	a := make([]byte, n+1)
++	b := make([]byte, n+1)
++	for len := 0; len < 128; len++ {
++		// randomish but deterministic data.  No 0 or 255.
++		for i := 0; i < len; i++ {
++			a[i] = byte(1 + 31*i%254)
++			b[i] = byte(1 + 31*i%254)
++		}
++		// data past the end is different
++		for i := len; i <= n; i++ {
++			a[i] = 8
++			b[i] = 9
++		}
++		cmp := Compare(a[:len], b[:len])
++		if cmp != 0 {
++			t.Errorf(`CompareIdentical(%d) = %d`, len, cmp)
++		}
++		if len > 0 {
++			cmp = Compare(a[:len-1], b[:len])
++			if cmp != -1 {
++				t.Errorf(`CompareAshorter(%d) = %d`, len, cmp)
++			}
++			cmp = Compare(a[:len], b[:len-1])
++			if cmp != 1 {
++				t.Errorf(`CompareBshorter(%d) = %d`, len, cmp)
++			}
++		}
++		for k := 0; k < len; k++ {
++			b[k] = a[k] - 1
++			cmp = Compare(a[:len], b[:len])
++			if cmp != 1 {
++				t.Errorf(`CompareAbigger(%d,%d) = %d`, len, k, cmp)
++			}
++			b[k] = a[k] + 1
++			cmp = Compare(a[:len], b[:len])
++			if cmp != -1 {
++				t.Errorf(`CompareBbigger(%d,%d) = %d`, len, k, cmp)
++			}
++			b[k] = a[k]
++		}
++	}
++}
++
++func BenchmarkCompareBytesEqual(b *testing.B) {
++	b1 := []byte("Hello Gophers!")
++	b2 := []byte("Hello Gophers!")
++	for i := 0; i < b.N; i++ {
++		if Compare(b1, b2) != 0 {
++			b.Fatal("b1 != b2")
++		}
++	}
++}
++
++func BenchmarkCompareBytesToNil(b *testing.B) {
++	b1 := []byte("Hello Gophers!")
++	var b2 []byte
++	for i := 0; i < b.N; i++ {
++		if Compare(b1, b2) != 1 {
++			b.Fatal("b1 > b2 failed")
++		}
++	}
++}
++
++func BenchmarkCompareBytesEmpty(b *testing.B) {
++	b1 := []byte("")
++	b2 := b1
++	for i := 0; i < b.N; i++ {
++		if Compare(b1, b2) != 0 {
++			b.Fatal("b1 != b2")
++		}
++	}
++}
++
++func BenchmarkCompareBytesIdentical(b *testing.B) {
++	b1 := []byte("Hello Gophers!")
++	b2 := b1
++	for i := 0; i < b.N; i++ {
++		if Compare(b1, b2) != 0 {
++			b.Fatal("b1 != b2")
++		}
++	}
++}
++
++func BenchmarkCompareBytesSameLength(b *testing.B) {
++	b1 := []byte("Hello Gophers!")
++	b2 := []byte("Hello, Gophers")
++	for i := 0; i < b.N; i++ {
++		if Compare(b1, b2) != -1 {
++			b.Fatal("b1 < b2 failed")
++		}
++	}
++}
++
++func BenchmarkCompareBytesDifferentLength(b *testing.B) {
++	b1 := []byte("Hello Gophers!")
++	b2 := []byte("Hello, Gophers!")
++	for i := 0; i < b.N; i++ {
++		if Compare(b1, b2) != -1 {
++			b.Fatal("b1 < b2 failed")
++		}
++	}
++}
++
++func BenchmarkCompareBytesBigUnaligned(b *testing.B) {
++	b.StopTimer()
++	b1 := make([]byte, 0, 1<<20)
++	for len(b1) < 1<<20 {
++		b1 = append(b1, "Hello Gophers!"...)
++	}
++	b2 := append([]byte("hello"), b1...)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		if Compare(b1, b2[len("hello"):]) != 0 {
++			b.Fatal("b1 != b2")
++		}
++	}
++	b.SetBytes(int64(len(b1)))
++}
++
++func BenchmarkCompareBytesBig(b *testing.B) {
++	b.StopTimer()
++	b1 := make([]byte, 0, 1<<20)
++	for len(b1) < 1<<20 {
++		b1 = append(b1, "Hello Gophers!"...)
++	}
++	b2 := append([]byte{}, b1...)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		if Compare(b1, b2) != 0 {
++			b.Fatal("b1 != b2")
++		}
++	}
++	b.SetBytes(int64(len(b1)))
++}
++
++func BenchmarkCompareBytesBigIdentical(b *testing.B) {
++	b.StopTimer()
++	b1 := make([]byte, 0, 1<<20)
++	for len(b1) < 1<<20 {
++		b1 = append(b1, "Hello Gophers!"...)
++	}
++	b2 := b1
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		if Compare(b1, b2) != 0 {
++			b.Fatal("b1 != b2")
++		}
++	}
++	b.SetBytes(int64(len(b1)))
++}
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 531057ff8a..2a854a8144 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -1101,3 +1101,138 @@ di_finish:
+ equal:
+ 	SETEQ	AX
+ 	RET
++
++TEXT runtime·cmpstring(SB),7,$0
++	MOVL	s1+0(FP), SI
++	MOVL	s1+4(FP), BX
++	MOVL	s2+8(FP), DI
++	MOVL	s2+12(FP), DX
++	CALL	runtime·cmpbody(SB)
++	MOVL	AX, res+16(FP)
++	RET
++
++TEXT bytes·Compare(SB),7,$0
++	MOVL	s1+0(FP), SI
++	MOVL	s1+4(FP), BX
++	MOVL	s2+12(FP), DI
++	MOVL	s2+16(FP), DX
++	CALL	runtime·cmpbody(SB)
++	MOVL	AX, res+24(FP)
++	RET
++
++// input:
++//   SI = a
++//   DI = b
++//   BX = alen
++//   DX = blen
++// output:
++//   AX = 1/0/-1
++TEXT runtime·cmpbody(SB),7,$0
++	CMPL	SI, DI
++	JEQ	cmp_allsame
++	CMPL	BX, DX
++	MOVL	DX, BP
++	CMOVLLT	BX, BP // BP = min(alen, blen)
++	CMPL	BP, $4
++	JB	cmp_small
++	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
++	JE	cmp_mediumloop
++cmp_largeloop:
++	CMPL	BP, $16
++	JB	cmp_mediumloop
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	PCMPEQB X0, X1
++	PMOVMSKB X1, AX
++	XORL	$0xffff, AX	// convert EQ to NE
++	JNE	cmp_diff16	// branch if at least one byte is not equal
++	ADDL	$16, SI
++	ADDL	$16, DI
++	SUBL	$16, BP
++	JMP	cmp_largeloop
++
++cmp_diff16:
++	BSFL	AX, BX	// index of first byte that differs
++	XORL	AX, AX
++	MOVB	(SI)(BX*1), CX
++	CMPB	CX, (DI)(BX*1)
++	SETHI	AX
++	LEAL	-1(AX*2), AX	// convert 1/0 to +1/-1
++	RET
++
++cmp_mediumloop:
++	CMPL	BP, $4
++	JBE	cmp_0through4
++	MOVL	(SI), AX
++	MOVL	(DI), CX
++	CMPL	AX, CX
++	JNE	cmp_diff4
++	ADDL	$4, SI
++	ADDL	$4, DI
++	SUBL	$4, BP
++	JMP	cmp_mediumloop
++
++cmp_0through4:
++	MOVL	-4(SI)(BP*1), AX
++	MOVL	-4(DI)(BP*1), CX
++	CMPL	AX, CX
++	JEQ	cmp_allsame
++
++cmp_diff4:
++	BSWAPL	AX	// reverse order of bytes
++	BSWAPL	CX
++	XORL	AX, CX	// find bit differences
++	BSRL	CX, CX	// index of highest bit difference
++	SHRL	CX, AX	// move a's bit to bottom
++	ANDL	$1, AX	// mask bit
++	LEAL	-1(AX*2), AX // 1/0 => +1/-1
++	RET
++
++	// 0-3 bytes in common
++cmp_small:
++	LEAL	(BP*8), CX
++	NEGL	CX
++	JEQ	cmp_allsame
++
++	// load si
++	CMPB	SI, $0xfc
++	JA	cmp_si_high
++	MOVL	(SI), SI
++	JMP	cmp_si_finish
++cmp_si_high:
++	MOVL	-4(SI)(BP*1), SI
++	SHRL	CX, SI
++cmp_si_finish:
++	SHLL	CX, SI
++
++	// same for di
++	CMPB	DI, $0xfc
++	JA	cmp_di_high
++	MOVL	(DI), DI
++	JMP	cmp_di_finish
++cmp_di_high:
++	MOVL	-4(DI)(BP*1), DI
++	SHRL	CX, DI
++cmp_di_finish:
++	SHLL	CX, DI
++
++	BSWAPL	SI	// reverse order of bytes
++	BSWAPL	DI
++	XORL	SI, DI	// find bit differences
++	JEQ	cmp_allsame
++	BSRL	DI, CX	// index of highest bit difference
++	SHRL	CX, SI	// move a's bit to bottom
++	ANDL	$1, SI	// mask bit
++	LEAL	-1(SI*2), AX // 1/0 => +1/-1
++	RET
++
++	// all the bytes in common are the same, so we just need
++	// to compare the lengths.
++cmp_allsame:
++	XORL	AX, AX
++	XORL	CX, CX
++	CMPL	BX, DX
++	SETGT	AX	// 1 if alen > blen
++	SETEQ	CX	// 1 if alen == blen
++	LEAL	-1(CX)(AX*2), AX	// 1,0,-1 result
++	RET
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 0dee1556da..4b18e103fd 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -1019,3 +1019,134 @@ di_finish:
+ equal:
+ 	SETEQ	AX
+ 	RET
++
++
++TEXT runtime·cmpstring(SB),7,$0
++	MOVQ	s1+0(FP), SI
++	MOVQ	s1+8(FP), BX
++	MOVQ	s2+16(FP), DI
++	MOVQ	s2+24(FP), DX
++	CALL	runtime·cmpbody(SB)
++	MOVQ	AX, res+32(FP)
++	RET
++
++TEXT bytes·Compare(SB),7,$0
++	MOVQ	s1+0(FP), SI
++	MOVQ	s1+8(FP), BX
++	MOVQ	s2+24(FP), DI
++	MOVQ	s2+32(FP), DX
++	CALL	runtime·cmpbody(SB)
++	MOVQ	AX, res+48(FP)
++	RET
++
++// input:
++//   SI = a
++//   DI = b
++//   BX = alen
++//   DX = blen
++// output:
++//   AX = 1/0/-1
++TEXT runtime·cmpbody(SB),7,$0
++	CMPQ	SI, DI
++	JEQ	cmp_allsame
++	CMPQ	BX, DX
++	MOVQ	DX, BP
++	CMOVQLT	BX, BP // BP = min(alen, blen) = # of bytes to compare
++	CMPQ	BP, $8
++	JB	cmp_small
++
++cmp_loop:
++	CMPQ	BP, $16
++	JBE	cmp_0through16
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	PCMPEQB X0, X1
++	PMOVMSKB X1, AX
++	XORQ	$0xffff, AX	// convert EQ to NE
++	JNE	cmp_diff16	// branch if at least one byte is not equal
++	ADDQ	$16, SI
++	ADDQ	$16, DI
++	SUBQ	$16, BP
++	JMP	cmp_loop
++	
++	// AX = bit mask of differences
++cmp_diff16:
++	BSFQ	AX, BX	// index of first byte that differs
++	XORQ	AX, AX
++	MOVB	(SI)(BX*1), CX
++	CMPB	CX, (DI)(BX*1)
++	SETHI	AX
++	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
++	RET
++
++	// 0 through 16 bytes left, alen>=8, blen>=8
++cmp_0through16:
++	CMPQ	BP, $8
++	JBE	cmp_0through8
++	MOVQ	(SI), AX
++	MOVQ	(DI), CX
++	CMPQ	AX, CX
++	JNE	cmp_diff8
++cmp_0through8:
++	MOVQ	-8(SI)(BP*1), AX
++	MOVQ	-8(DI)(BP*1), CX
++	CMPQ	AX, CX
++	JEQ	cmp_allsame
++
++	// AX and CX contain parts of a and b that differ.
++cmp_diff8:
++	BSWAPQ	AX	// reverse order of bytes
++	BSWAPQ	CX
++	XORQ	AX, CX
++	BSRQ	CX, CX	// index of highest bit difference
++	SHRQ	CX, AX	// move a's bit to bottom
++	ANDQ	$1, AX	// mask bit
++	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
++	RET
++
++	// 0-7 bytes in common
++cmp_small:
++	LEAQ	(BP*8), CX	// bytes left -> bits left
++	NEGQ	CX		//  - bits lift (== 64 - bits left mod 64)
++	JEQ	cmp_allsame
++
++	// load bytes of a into high bytes of AX
++	CMPB	SI, $0xf8
++	JA	cmp_si_high
++	MOVQ	(SI), SI
++	JMP	cmp_si_finish
++cmp_si_high:
++	MOVQ	-8(SI)(BP*1), SI
++	SHRQ	CX, SI
++cmp_si_finish:
++	SHLQ	CX, SI
++
++	// load bytes of b in to high bytes of BX
++	CMPB	DI, $0xf8
++	JA	cmp_di_high
++	MOVQ	(DI), DI
++	JMP	cmp_di_finish
++cmp_di_high:
++	MOVQ	-8(DI)(BP*1), DI
++	SHRQ	CX, DI
++cmp_di_finish:
++	SHLQ	CX, DI
++
++	BSWAPQ	SI	// reverse order of bytes
++	BSWAPQ	DI
++	XORQ	SI, DI	// find bit differences
++	JEQ	cmp_allsame
++	BSRQ	DI, CX	// index of highest bit difference
++	SHRQ	CX, SI	// move a's bit to bottom
++	ANDQ	$1, SI	// mask bit
++	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
++	RET
++
++cmp_allsame:
++	XORQ	AX, AX
++	XORQ	CX, CX
++	CMPQ	BX, DX
++	SETGT	AX	// 1 if alen > blen
++	SETEQ	CX	// 1 if alen == blen
++	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
++	RET
+diff --git a/src/pkg/runtime/noasm_arm.goc b/src/pkg/runtime/noasm_arm.goc
+new file mode 100644
+index 0000000000..976f5343ba
+--- /dev/null
++++ b/src/pkg/runtime/noasm_arm.goc
+@@ -0,0 +1,73 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Routines that are implemented in assembly in asm_{amd64,386}.s
++// but are implemented in C for arm.
++
++package runtime
++#include "runtime.h"
++
++#pragma textflag 7
++func cmpstring(s1 String, s2 String) (v int) {
++	uintgo i, l;
++	byte c1, c2;
++	
++	l = s1.len;
++        if(s2.len < l)
++		l = s2.len;
++        for(i=0; i<l; i++) {
++		c1 = s1.str[i];
++		c2 = s2.str[i];
++		if(c1 < c2) {
++			v = -1;
++			goto done;
++		}
++		if(c1 > c2) {
++			v = +1;
++			goto done;
++		}
++	}
++        if(s1.len < s2.len) {
++		v = -1;
++		goto done;
++	}
++        if(s1.len > s2.len) {
++		v = +1;
++		goto done;
++	}
++        v = 0;
++ done:;
++}
++
++#pragma textflag 7
++func bytes·Compare(s1 Slice, s2 Slice) (v int) {
++	uintgo i, l;
++	byte c1, c2;
++	
++	l = s1.len;
++        if(s2.len < l)
++		l = s2.len;
++        for(i=0; i<l; i++) {
++		c1 = s1.array[i];
++		c2 = s2.array[i];
++		if(c1 < c2) {
++			v = -1;
++			goto done;
++		}
++		if(c1 > c2) {
++			v = +1;
++			goto done;
++		}
++	}
++        if(s1.len < s2.len) {
++		v = -1;
++		goto done;
++	}
++	if(s1.len > s2.len) {
++		v = +1;
++		goto done;
++	}
++	v = 0;
++ done:;
++}
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 49bf1148b8..bc88d09a8b 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -177,34 +177,6 @@ func concatstring(n int, s1 String) {
+ 	(&s1)[n] = concatstring(n, &s1);
+ }
+ 
+-static int32
+-cmpstring(String s1, String s2)
+-{
+-	uintgo i, l;
+-	byte c1, c2;
+-
+-	l = s1.len;
+-	if(s2.len < l)
+-		l = s2.len;
+-	for(i=0; i<l; i++) {
+-		c1 = s1.str[i];
+-		c2 = s2.str[i];
+-		if(c1 < c2)
+-			return -1;
+-		if(c1 > c2)
+-			return +1;
+-	}
+-	if(s1.len < s2.len)
+-		return -1;
+-	if(s1.len > s2.len)
+-		return +1;
+-	return 0;
+-}
+-
+-func cmpstring(s1 String, s2 String) (v int) {
+-	v = cmpstring(s1, s2);
+-}
+-
+ func eqstring(s1 String, s2 String) (v bool) {
+ 	if(s1.len != s2.len) {
+ 		v = false;

@@ -22,8 +22,66 @@ Date:   Fri Jun 16 14:48:38 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/46001
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 2 +-
  src/cmd/compile/internal/gc/main.go    | 4 ++--
  src/cmd/compile/internal/gc/subr.go    | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 282f8766e2..2962962089 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -285,7 +285,7 @@ func (p *importer) pkg() *types.Pkg {
+ 	}
+ 
+ 	// we should never see a bad import path
+-	if isbadimport(path) {
++	if isbadimport(path, true) {
+ 		p.formatErrorf("bad package path %q for package %s", path, name)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 57c6600b15..5e30302970 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -891,7 +891,7 @@ func importfile(f *Val) *types.Pkg {
+ 		return nil
+ 	}
+ 
+-	if isbadimport(path_) {
++	if isbadimport(path_, false) {
+ 		return nil
+ 	}
+ 
+@@ -935,7 +935,7 @@ func importfile(f *Val) *types.Pkg {
+ 		}
+ 		path_ = path.Join(prefix, path_)
+ 
+-		if isbadimport(path_) {
++		if isbadimport(path_, true) {
+ 			return nil
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 566403bcde..d79789c4fe 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1969,7 +1969,7 @@ var reservedimports = []string{
+ 	"type",
+ }
+ 
+-func isbadimport(path string) bool {
++func isbadimport(path string, allowSpace bool) bool {
+ 	if strings.Contains(path, "\x00") {
+ 		yyerror("import path contains NUL")
+ 		return true
+@@ -1998,7 +1998,7 @@ func isbadimport(path string) bool {
+ 			return true
+ 		}
+ 
+-		if unicode.IsSpace(r) {
++		if !allowSpace && unicode.IsSpace(r) {
+ 			yyerror("import path contains space character: %q", path)
+ 			return true
+ 		}

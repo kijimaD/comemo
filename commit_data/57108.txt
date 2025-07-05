@@ -14,6 +14,21 @@ Date:   Mon Jun 12 15:57:00 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/script/build_unsupported_goos.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_unsupported_goos.txt b/src/cmd/go/testdata/script/build_unsupported_goos.txt
+index 8c1212934e..c94d6d252e 100644
+--- a/src/cmd/go/testdata/script/build_unsupported_goos.txt
++++ b/src/cmd/go/testdata/script/build_unsupported_goos.txt
+@@ -1,6 +1,6 @@
+ [compiler:gccgo] skip # gccgo assumes cross-compilation is always possible
+ 
+-env GOOS=windwos
++env GOOS=windwos # intentional misspelling of windows
+ 
+ ! go build -n exclude
+-stderr 'unsupported GOOS/GOARCH pair'
+\ No newline at end of file
++stderr 'unsupported GOOS/GOARCH pair'

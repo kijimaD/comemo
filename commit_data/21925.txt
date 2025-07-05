@@ -39,7 +39,7 @@ Date:   Fri Feb 6 15:09:46 2015 +0300
     Change-Id: Ic85e1706e18c3235cc45b3c0c031a9c1cdb7a40e
     Reviewed-on: https://go-review.googlesource.com/4050
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/closure.c     | 174 ++++++++++++++++++++++++++++++++++-------------
  src/cmd/gc/go.h          |   2 +
  src/cmd/gc/lex.c         |  20 ++++--
@@ -47,3 +47,394 @@ Date:   Fri Feb 6 15:09:46 2015 +0300
  src/runtime/proc_test.go |  12 ++++
  test/fixedbugs/bug346.go |  27 ++++++--
  6 files changed, 199 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 5d25ffe4ad..b1c4cd327a 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -105,6 +105,7 @@ typecheckclosure(Node *func, int top)
+ 	oldfn = curfn;
+ 	typecheck(&func->ntype, Etype);
+ 	func->type = func->ntype->type;
++	func->top = top;
+ 
+ 	// Type check the body now, but only if we're inside a function.
+ 	// At top level (in a variable initialization: curfn==nil) we're not
+@@ -119,9 +120,6 @@ typecheckclosure(Node *func, int top)
+ 		curfn = oldfn;
+ 	}
+ 
+-	// Remember closure context for capturevars.
+-	func->etype = (top & (Ecall|Eproc)) == Ecall;
+-
+ 	// Create top-level function 
+ 	xtop = list(xtop, makeclosure(func));
+ }
+@@ -172,22 +170,17 @@ makeclosure(Node *func)
+ // It decides whether each variable captured by a closure should be captured
+ // by value or by reference.
+ // We use value capturing for values <= 128 bytes that are never reassigned
+-// after declaration.
++// after capturing (effectively constant).
+ void
+ capturevars(Node *xfunc)
+ {
+-	Node *func, *v, *addr, *cv, *outer;
+-	NodeList *l, *body;
+-	char *p;
+-	vlong offset;
+-	int nvar, lno;
++	Node *func, *v, *outer;
++	NodeList *l;
++	int lno;
+ 
+ 	lno = lineno;
+ 	lineno = xfunc->lineno;
+ 
+-	nvar = 0;
+-	body = nil;
+-	offset = widthptr;
+ 	func = xfunc->closure;
+ 	func->enter = nil;
+ 	for(l=func->cvars; l; l=l->next) {
+@@ -202,7 +195,6 @@ capturevars(Node *xfunc)
+ 			v->op = OXXX;
+ 			continue;
+ 		}
+-		nvar++;
+ 
+ 		// type check the & of closed variables outside the closure,
+ 		// so that the outer frame also grabs them and knows they escape.
+@@ -213,10 +205,8 @@ capturevars(Node *xfunc)
+ 		if(outer->class != PPARAMOUT && !v->closure->addrtaken && !v->closure->assigned && v->type->width <= 128)
+ 			v->byval = 1;
+ 		else {
++			v->closure->addrtaken = 1;
+ 			outer = nod(OADDR, outer, N);
+-			// For a closure that is called in place, but not
+-			// inside a go statement, avoid moving variables to the heap.
+-			outer->etype = func->etype;
+ 		}
+ 		if(debug['m'] > 1)
+ 			warnl(v->lineno, "%S capturing by %s: %S (addr=%d assign=%d width=%d)",
+@@ -224,42 +214,132 @@ capturevars(Node *xfunc)
+ 				v->sym, v->closure->addrtaken, v->closure->assigned, (int32)v->type->width);
+ 		typecheck(&outer, Erv);
+ 		func->enter = list(func->enter, outer);
++	}
++
++	lineno = lno;
++}
+ 
+-		// declare variables holding addresses taken from closure
+-		// and initialize in entry prologue.
+-		addr = nod(ONAME, N, N);
+-		p = smprint("&%s", v->sym->name);
+-		addr->sym = lookup(p);
+-		free(p);
+-		addr->ntype = nod(OIND, typenod(v->type), N);
+-		addr->class = PAUTO;
+-		addr->addable = 1;
+-		addr->ullman = 1;
+-		addr->used = 1;
+-		addr->curfn = xfunc;
+-		xfunc->dcl = list(xfunc->dcl, addr);
+-		v->heapaddr = addr;
+-		cv = nod(OCLOSUREVAR, N, N);
+-		if(v->byval) {
++// transformclosure is called in a separate phase after escape analysis.
++// It transform closure bodies to properly reference captured variables.
++void
++transformclosure(Node *xfunc)
++{
++	Node *func, *cv, *addr, *v, *f;
++	NodeList *l, *body;
++	Type **param, *fld;
++	vlong offset;
++	int lno, nvar;
++
++	lno = lineno;
++	lineno = xfunc->lineno;
++	func = xfunc->closure;
++
++	if(func->top&Ecall) {
++		// If the closure is directly called, we transform it to a plain function call
++		// with variables passed as args. This avoids allocation of a closure object.
++		// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
++		// will complete the transformation later.
++		// For illustration, the following closure:
++		//	func(a int) {
++		//		println(byval)
++		//		byref++
++		//	}(42)
++		// becomes:
++		//	func(a int, byval int, &byref *int) {
++		//		println(byval)
++		//		(*&byref)++
++		//	}(42, byval, &byref)
++
++		// f is ONAME of the actual function.
++		f = xfunc->nname;
++		// Get pointer to input arguments and rewind to the end.
++		// We are going to append captured variables to input args.
++		param = &getinargx(f->type)->type;
++		for(; *param; param = &(*param)->down) {
++		}
++		for(l=func->cvars; l; l=l->next) {
++			v = l->n;
++			if(v->op == OXXX)
++				continue;
++			fld = typ(TFIELD);
++			fld->funarg = 1;
++			if(v->byval) {
++				// If v is captured by value, we merely downgrade it to PPARAM.
++				v->class = PPARAM;
++				v->ullman = 1;
++				fld->nname = v;
++			} else {
++				// If v of type T is captured by reference,
++				// we introduce function param &v *T
++				// and v remains PPARAMREF with &v heapaddr
++				// (accesses will implicitly deref &v).
++				snprint(namebuf, sizeof namebuf, "&%s", v->sym->name);
++				addr = newname(lookup(namebuf));
++				addr->type = ptrto(v->type);
++				addr->class = PPARAM;
++				v->heapaddr = addr;
++				fld->nname = addr;
++			}
++			fld->type = fld->nname->type;
++			fld->sym = fld->nname->sym;
++			// Declare the new param and append it to input arguments.
++			xfunc->dcl = list(xfunc->dcl, fld->nname);
++			*param = fld;
++			param = &fld->down;
++		}
++		// Recalculate param offsets.
++		if(f->type->width > 0)
++			fatal("transformclosure: width is already calculated");
++		dowidth(f->type);
++		xfunc->type = f->type; // update type of ODCLFUNC
++	} else {
++		// The closure is not called, so it is going to stay as closure.
++		nvar = 0;
++		body = nil;
++		offset = widthptr;
++		for(l=func->cvars; l; l=l->next) {
++			v = l->n;
++			if(v->op == OXXX)
++				continue;
++			nvar++;
++			// cv refers to the field inside of closure OSTRUCTLIT.
++			cv = nod(OCLOSUREVAR, N, N);
+ 			cv->type = v->type;
+-			offset = rnd(offset, v->type->align);
+-			cv->xoffset = offset;
+-			offset += v->type->width;
+-			body = list(body, nod(OAS, addr, nod(OADDR, cv, N)));
+-		} else {
+-			v->closure->addrtaken = 1;
+-			cv->type = ptrto(v->type);
+-			offset = rnd(offset, widthptr);
++			if(!v->byval)
++				cv->type = ptrto(v->type);
++			offset = rnd(offset, cv->type->align);
+ 			cv->xoffset = offset;
+-			offset += widthptr;
+-			body = list(body, nod(OAS, addr, cv));
++			offset += cv->type->width;
++
++			if(v->byval && v->type->width <= 2*widthptr && arch.thechar == '6') {
++				//  If it is a small variable captured by value, downgrade it to PAUTO.
++				// This optimization is currently enabled only for amd64, see:
++				// https://github.com/golang/go/issues/9865
++				v->class = PAUTO;
++				v->ullman = 1;
++				xfunc->dcl = list(xfunc->dcl, v);
++				body = list(body, nod(OAS, v, cv));
++			} else {
++				// Declare variable holding addresses taken from closure
++				// and initialize in entry prologue.
++				snprint(namebuf, sizeof namebuf, "&%s", v->sym->name);
++				addr = newname(lookup(namebuf));
++				addr->ntype = nod(OIND, typenod(v->type), N);
++				addr->class = PAUTO;
++				addr->used = 1;
++				addr->curfn = xfunc;
++				xfunc->dcl = list(xfunc->dcl, addr);
++				v->heapaddr = addr;
++				if(v->byval)
++					cv = nod(OADDR, cv, N);
++				body = list(body, nod(OAS, addr, cv));
++			}
+ 		}
++		typechecklist(body, Etop);
++		walkstmtlist(body);
++		xfunc->enter = body;
++		xfunc->needctxt = nvar > 0;
+ 	}
+-	typechecklist(body, Etop);
+-	walkstmtlist(body);
+-	xfunc->enter = body;
+-	xfunc->needctxt = nvar > 0;
+-	func->etype = 0;
+ 
+ 	lineno = lno;
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5be8ce50ce..38edaea747 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -331,6 +331,7 @@ struct	Node
+ 	// ONAME closure param with PPARAMREF
+ 	Node*	outer;	// outer PPARAMREF in nested closure
+ 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
++	int	top;	// top context (Ecall, Eproc, etc)
+ 
+ 	// ONAME substitute while inlining
+ 	Node* inlvar;
+@@ -1075,6 +1076,7 @@ Node*	closurebody(NodeList *body);
+ void	closurehdr(Node *ntype);
+ void	typecheckclosure(Node *func, int top);
+ void	capturevars(Node *func);
++void	transformclosure(Node *func);
+ Node*	walkclosure(Node *func, NodeList **init);
+ void	typecheckpartialcall(Node*, Node*);
+ Node*	walkpartialcall(Node*, NodeList**);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index bad4123575..902afc0f0f 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -405,8 +405,9 @@ gcmain(int argc, char *argv[])
+ 		}
+ 	}
+ 
+-	// Phase 4: Decide how to capture variables
+-	// and transform closure bodies accordingly.
++	// Phase 4: Decide how to capture closed variables.
++	// This needs to run before escape analysis,
++	// because variables captured by value do not escape.
+ 	for(l=xtop; l; l=l->next) {
+ 		if(l->n->op == ODCLFUNC && l->n->closure) {
+ 			curfn = l->n;
+@@ -457,7 +458,18 @@ gcmain(int argc, char *argv[])
+ 	// Move large values off stack too.
+ 	movelarge(xtop);
+ 
+-	// Phase 7: Compile top level functions.
++	// Phase 7: Transform closure bodies to properly reference captured variables.
++	// This needs to happen before walk, because closures must be transformed
++	// before walk reaches a call of a closure.
++	for(l=xtop; l; l=l->next) {
++		if(l->n->op == ODCLFUNC && l->n->closure) {
++			curfn = l->n;
++			transformclosure(l->n);
++		}
++	}
++	curfn = N;
++
++	// Phase 8: Compile top level functions.
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+ 			funccompile(l->n);
+@@ -465,7 +477,7 @@ gcmain(int argc, char *argv[])
+ 	if(nsavederrors+nerrors == 0)
+ 		fninit(xtop);
+ 
+-	// Phase 8: Check external declarations.
++	// Phase 9: Check external declarations.
+ 	for(l=externdcl; l; l=l->next)
+ 		if(l->n->op == ONAME)
+ 			typecheck(&l->n, Erv);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index aed5e33a60..736277da91 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -628,6 +628,26 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OCALLFUNC:
++		if(n->left->op == OCLOSURE) {
++			// Transform direct call of a closure to call of a normal function.
++			// transformclosure already did all preparation work.
++
++			// Append captured variables to argument list.
++			n->list = concat(n->list, n->left->enter);
++			n->left->enter = NULL;
++			// Replace OCLOSURE with ONAME/PFUNC.
++			n->left = n->left->closure->nname;
++			// Update type of OCALLFUNC node.
++			// Output arguments had not changed, but their offsets could.
++			if(n->left->type->outtuple == 1) {
++				t = getoutargx(n->left->type)->type;
++				if(t->etype == TFIELD)
++					t = t->type;
++				n->type = t;
++			} else
++				n->type = getoutargx(n->left->type);
++		}
++
+ 		t = n->left->type;
+ 		if(n->list && n->list->n->op == OAS)
+ 			goto ret;
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 3b78b01ca3..88cd48486a 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -435,6 +435,18 @@ func BenchmarkCreateGoroutinesCapture(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkClosureCall(b *testing.B) {
++	sum := 0
++	off1 := 1
++	for i := 0; i < b.N; i++ {
++		off2 := 2
++		func() {
++			sum += i + off1 + off2
++		}()
++	}
++	_ = sum
++}
++
+ type Matrix [][]float64
+ 
+ func BenchmarkMatmult(b *testing.B) {
+diff --git a/test/fixedbugs/bug346.go b/test/fixedbugs/bug346.go
+index d9203aa435..f69b58d183 100644
+--- a/test/fixedbugs/bug346.go
++++ b/test/fixedbugs/bug346.go
+@@ -9,11 +9,28 @@ package main
+ import "os"
+ 
+ func main() {
+-	x := 4
+-	a, b, c, d := func(i int) (p int, q int, r int, s int) { return 1, i, 3, x }(2)
++	// Test unclosed closure.
++	{
++		x := 4
++		a, b, c, d := func(i int) (p int, q int, r int, s int) { return 1, i, 3, x }(2)
+ 
+-	if a != 1 || b != 2 || c != 3 || d != 4 {
+-		println("abcd: expected 1 2 3 4 got", a, b, c, d)
+-		os.Exit(1)
++		if a != 1 || b != 2 || c != 3 || d != 4 {
++			println("1# abcd: expected 1 2 3 4 got", a, b, c, d)
++			os.Exit(1)
++		}
++	}
++	// Test real closure.
++	{
++		x := 4
++		gf = func(i int) (p int, q int, r int, s int) { return 1, i, 3, x }
++
++		a, b, c, d := gf(2)
++
++		if a != 1 || b != 2 || c != 3 || d != 4 {
++			println("2# abcd: expected 1 2 3 4 got", a, b, c, d)
++			os.Exit(1)
++		}
+ 	}
+ }
++
++var gf func(int) (int, int, int, int)

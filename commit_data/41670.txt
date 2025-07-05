@@ -18,8 +18,65 @@ Date:   Thu Oct 17 16:31:19 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201840
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/escape.go | 4 ++--
  src/cmd/compile/internal/gc/main.go   | 5 +++++
  src/cmd/compile/internal/gc/walk.go   | 9 +++++----
  3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index e25c79998c..66440674d9 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -471,8 +471,8 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 		e.discard(max)
+ 
+ 	case OCONV, OCONVNOP:
+-		if checkPtr(e.curfn) && n.Type.Etype == TUNSAFEPTR && n.Left.Type.IsPtr() {
+-			// When -d=checkptr is enabled, treat
++		if checkPtr(e.curfn, 2) && n.Type.Etype == TUNSAFEPTR && n.Left.Type.IsPtr() {
++			// When -d=checkptr=2 is enabled, treat
+ 			// conversions to unsafe.Pointer as an
+ 			// escaping operation. This allows better
+ 			// runtime instrumentation, since we can more
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e7131f10a2..771b4fe973 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -94,6 +94,11 @@ const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
+ const debugHelpFooter = `
+ <value> is key-specific.
+ 
++Key "checkptr" supports values:
++	"0": instrumentation disabled
++	"1": conversions involving unsafe.Pointer are instrumented
++	"2": conversions to unsafe.Pointer force heap allocation
++
+ Key "pctab" supports values:
+ 	"pctospadj", "pctofile", "pctoline", "pctoinline", "pctopcdata"
+ `
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ebae392808..4f5fa38a33 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -951,7 +951,7 @@ opswitch:
+ 
+ 	case OCONV, OCONVNOP:
+ 		n.Left = walkexpr(n.Left, init)
+-		if n.Op == OCONVNOP && checkPtr(Curfn) {
++		if n.Op == OCONVNOP && checkPtr(Curfn, 1) {
+ 			if n.Type.IsPtr() && n.Left.Type.Etype == TUNSAFEPTR { // unsafe.Pointer to *T
+ 				n = walkCheckPtrAlignment(n, init)
+ 				break
+@@ -3976,7 +3976,8 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
+ }
+ 
+ // checkPtr reports whether pointer checking should be enabled for
+-// function fn.
+-func checkPtr(fn *Node) bool {
+-	return Debug_checkptr != 0 && fn.Func.Pragma&NoCheckPtr == 0
++// function fn at a given level. See debugHelpFooter for defined
++// levels.
++func checkPtr(fn *Node, level int) bool {
++	return Debug_checkptr >= level && fn.Func.Pragma&NoCheckPtr == 0
+ }

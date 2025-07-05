@@ -12,10 +12,76 @@ Date:   Thu Apr 27 20:25:06 2023 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules          | 2 +-
  src/internal/coverage/decodecounter/decodecounterfile.go | 2 +-
  src/internal/poll/fd_windows_test.go                     | 2 +-
  src/runtime/coverage/apis.go                             | 2 +-
  src/runtime/metrics/description.go                       | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 175a7456b1..c7a525abb7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2601,7 +2601,7 @@
+ (SelectN [0] call:(StaticLECall {sym} a x)) && needRaceCleanup(sym, call) && clobber(call) => x
+ (SelectN [0] call:(StaticLECall {sym} x)) && needRaceCleanup(sym, call) && clobber(call) => x
+ 
+-// When rewriting append to growslice, we use as the the new length the result of
++// When rewriting append to growslice, we use as the new length the result of
+ // growslice so that we don't have to spill/restore the new length around the growslice call.
+ // The exception here is that if the new length is a constant, avoiding spilling it
+ // is pointless and its constantness is sometimes useful for subsequent optimizations.
+diff --git a/src/internal/coverage/decodecounter/decodecounterfile.go b/src/internal/coverage/decodecounter/decodecounterfile.go
+index fce060aaba..83934fe68b 100644
+--- a/src/internal/coverage/decodecounter/decodecounterfile.go
++++ b/src/internal/coverage/decodecounter/decodecounterfile.go
+@@ -236,7 +236,7 @@ func (cdr *CounterDataReader) NumSegments() uint32 {
+ 	return cdr.ftr.NumSegments
+ }
+ 
+-// BeginNextSegment sets up the the reader to read the next segment,
++// BeginNextSegment sets up the reader to read the next segment,
+ // returning TRUE if we do have another segment to read, or FALSE
+ // if we're done with all the segments (also an error if
+ // something went wrong).
+diff --git a/src/internal/poll/fd_windows_test.go b/src/internal/poll/fd_windows_test.go
+index 9f1db1000e..f0697a0d7b 100644
+--- a/src/internal/poll/fd_windows_test.go
++++ b/src/internal/poll/fd_windows_test.go
+@@ -144,7 +144,7 @@ func TestWSASocketConflict(t *testing.T) {
+ 		t.Fatalf("could not create the event!")
+ 	}
+ 
+-	// Set the low bit of the Event Handle so that the the completion
++	// Set the low bit of the Event Handle so that the completion
+ 	// of the overlapped I/O event will not trigger a completion event
+ 	// on any I/O completion port associated with the handle.
+ 	ovs[0].HEvent |= 0x1
+diff --git a/src/runtime/coverage/apis.go b/src/runtime/coverage/apis.go
+index 4366ef47ab..05da345ede 100644
+--- a/src/runtime/coverage/apis.go
++++ b/src/runtime/coverage/apis.go
+@@ -27,7 +27,7 @@ func WriteMetaDir(dir string) error {
+ 
+ // WriteMeta writes the meta-data content (the payload that would
+ // normally be emitted to a meta-data file) for the currently running
+-// program to the the writer 'w'. An error will be returned if the
++// program to the writer 'w'. An error will be returned if the
+ // operation can't be completed successfully (for example, if the
+ // currently running program was not built with "-cover", or if a
+ // write fails).
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index ad69d424c2..2d5b0f2195 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -380,7 +380,7 @@ var allDesc = []Description{
+ }
+ 
+ func init() {
+-	// Insert all the the non-default-reporting GODEBUGs into the table,
++	// Insert all the non-default-reporting GODEBUGs into the table,
+ 	// preserving the overall sort order.
+ 	i := 0
+ 	for i < len(allDesc) && allDesc[i].Name < "/godebug/" {

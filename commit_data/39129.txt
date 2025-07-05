@@ -19,7 +19,62 @@ Date:   Fri Jan 4 11:43:23 2019 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go |  4 ++--
  test/fixedbugs/issue29562.go       | 26 ++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index a985626a02..cc9a8f8b2c 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -243,7 +243,7 @@ func walkswitch(sw *Node) {
+ func (s *exprSwitch) walk(sw *Node) {
+ 	// Guard against double walk, see #25776.
+ 	if sw.List.Len() == 0 && sw.Nbody.Len() > 0 {
+-		Fatalf("second walk of switch")
++		return // Was fatal, but eliminating every possible source of double-walking is hard
+ 	}
+ 
+ 	casebody(sw, nil)
+@@ -302,7 +302,7 @@ func (s *exprSwitch) walk(sw *Node) {
+ 		s.exprname = cond
+ 	} else {
+ 		s.exprname = temp(cond.Type)
+-		cas = []*Node{nod(OAS, s.exprname, cond)}
++		cas = []*Node{nod(OAS, s.exprname, cond)} // This gets walk()ed again in walkstmtlist just before end of this function.  See #29562.
+ 		typecheckslice(cas, ctxStmt)
+ 	}
+ 
+diff --git a/test/fixedbugs/issue29562.go b/test/fixedbugs/issue29562.go
+new file mode 100644
+index 0000000000..cbcd77d5df
+--- /dev/null
++++ b/test/fixedbugs/issue29562.go
+@@ -0,0 +1,26 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Triggers a double walk of the (inlined) switch in il
++
++package p
++
++func il(s string) string {
++	switch len(s) {
++	case 0:
++		return "zero"
++	case 1:
++		return "one"
++	}
++	return s
++}
++
++func f() {
++	var s string
++	var as []string
++	switch false && (s+"a"+as[0]+il(s)+as[0]+s == "") {
++	}
++}

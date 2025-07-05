@@ -19,10 +19,109 @@ Date:   Wed Oct 11 15:25:13 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/70151
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go |  1 +
  src/cmd/compile/internal/gc/bimport.go |  2 ++
  test/fixedbugs/issue19261.dir/p.go     | 24 ++++++++++++++++++++++++
  test/fixedbugs/issue19261.dir/q.go     | 17 +++++++++++++++++
  test/fixedbugs/issue19261.go           |  7 +++++++
  5 files changed, 51 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index a009f2b6bf..c8bbd79d26 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -377,6 +377,7 @@ func export(out *bufio.Writer, trace bool) int {
+ 				p.tracef("\n----\nfunc { %#v }\n", f.Inl)
+ 			}
+ 			p.int(i)
++			p.int(int(f.InlCost))
+ 			p.stmtList(f.Inl)
+ 			if p.trace {
+ 				p.tracef("\n")
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 7456c42a49..19b5f5a051 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -187,6 +187,7 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
+ 		// them only for functions with inlineable bodies. funchdr does
+ 		// parameter renaming which doesn't matter if we don't have a body.
+ 
++		inlCost := p.int()
+ 		if f := p.funcList[i]; f != nil {
+ 			// function not yet imported - read body and set it
+ 			funchdr(f)
+@@ -200,6 +201,7 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
+ 				body = []*Node{nod(OEMPTY, nil, nil)}
+ 			}
+ 			f.Func.Inl.Set(body)
++			f.Func.InlCost = int32(inlCost)
+ 			funcbody()
+ 		} else {
+ 			// function already imported - read body but discard declarations
+diff --git a/test/fixedbugs/issue19261.dir/p.go b/test/fixedbugs/issue19261.dir/p.go
+new file mode 100644
+index 0000000000..1c44d8a33a
+--- /dev/null
++++ b/test/fixedbugs/issue19261.dir/p.go
+@@ -0,0 +1,24 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func F() { // ERROR "can inline F"
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++}
++
++func G() {
++	F() // ERROR "inlining call to F"
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++}
+diff --git a/test/fixedbugs/issue19261.dir/q.go b/test/fixedbugs/issue19261.dir/q.go
+new file mode 100644
+index 0000000000..9f3550abc7
+--- /dev/null
++++ b/test/fixedbugs/issue19261.dir/q.go
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package q
++
++import "./p"
++
++func H() {
++	p.F() // ERROR "inlining call to p.F"
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++	print(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
++}
+diff --git a/test/fixedbugs/issue19261.go b/test/fixedbugs/issue19261.go
+new file mode 100644
+index 0000000000..61cff6e1b0
+--- /dev/null
++++ b/test/fixedbugs/issue19261.go
+@@ -0,0 +1,7 @@
++// errorcheckdir -0 -m
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

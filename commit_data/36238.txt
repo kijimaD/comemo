@@ -62,8 +62,65 @@ Date:   Wed Feb 14 16:26:39 2018 -0500
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm/galign.go |  3 ++-
  src/math/sqrt_arm.s                    | 14 +++++++++++---
  test/run.go                            |  2 +-
  3 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 6df620838a..241edaf3a0 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -8,13 +8,14 @@ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/internal/obj/arm"
++	"cmd/internal/objabi"
+ )
+ 
+ func Init(arch *gc.Arch) {
+ 	arch.LinkArch = &arm.Linkarm
+ 	arch.REGSP = arm.REGSP
+ 	arch.MAXWIDTH = (1 << 32) - 1
+-
++	arch.SoftFloat = objabi.GOARM == 5
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
+diff --git a/src/math/sqrt_arm.s b/src/math/sqrt_arm.s
+index a920b08837..deb6712553 100644
+--- a/src/math/sqrt_arm.s
++++ b/src/math/sqrt_arm.s
+@@ -6,7 +6,15 @@
+ 
+ // func Sqrt(x float64) float64	
+ TEXT ·Sqrt(SB),NOSPLIT,$0
+-	MOVD   x+0(FP),F0
+-	SQRTD  F0,F0
+-	MOVD  F0,ret+8(FP)
++	MOVB	runtime·goarm(SB), R11
++	CMP	$5, R11
++	BEQ	arm5
++	MOVD	x+0(FP),F0
++	SQRTD	F0,F0
++	MOVD	F0,ret+8(FP)
+ 	RET
++arm5:
++	// Tail call to Go implementation.
++	// Can't use JMP, as in softfloat mode SQRTD is rewritten
++	// to a CALL, which makes this function have a frame.
++	RET	·sqrt(SB)
+diff --git a/test/run.go b/test/run.go
+index 8313a0d741..d432b67485 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -616,7 +616,7 @@ func (t *test) run() {
+ 			cmdline = append(cmdline, flags...)
+ 			cmdline = append(cmdline, long)
+ 			cmd := exec.Command(goTool(), cmdline...)
+-			cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+arch)
++			cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+arch, "GOARM=7")
+ 
+ 			var buf bytes.Buffer
+ 			cmd.Stdout, cmd.Stderr = &buf, &buf

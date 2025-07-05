@@ -13,6 +13,24 @@ Date:   Sat Nov 7 02:43:27 2020 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/runtime/mgcscavenge_test.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/runtime/mgcscavenge_test.go b/src/runtime/mgcscavenge_test.go
+index 250343077f..3b12a2e1e6 100644
+--- a/src/runtime/mgcscavenge_test.go
++++ b/src/runtime/mgcscavenge_test.go
+@@ -152,12 +152,6 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
+ 			max:   PallocChunkPages,
+ 			want:  BitRange{0, uint(m)},
+ 		}
+-		tests["StartFree"+suffix] = test{
+-			alloc: []BitRange{{uint(m), PallocChunkPages - uint(m)}},
+-			min:   m,
+-			max:   PallocChunkPages,
+-			want:  BitRange{0, uint(m)},
+-		}
+ 		tests["EndFree"+suffix] = test{
+ 			alloc: []BitRange{{0, PallocChunkPages - uint(m)}},
+ 			min:   m,

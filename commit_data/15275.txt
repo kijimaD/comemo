@@ -9,7 +9,36 @@ Date:   Fri Feb 15 13:13:19 2013 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7305097
-
+---
  src/pkg/runtime/signal_linux_386.c | 3 ++-
  src/pkg/runtime/signal_linux_arm.c | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/signal_linux_386.c b/src/pkg/runtime/signal_linux_386.c
+index 8b9c5e43a5..1fdb03f572 100644
+--- a/src/pkg/runtime/signal_linux_386.c
++++ b/src/pkg/runtime/signal_linux_386.c
+@@ -128,7 +128,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 	// under nohup and do not set explicit handler.
+ 	if(i == SIGHUP) {
+ 		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask));
++		if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)
++			runtime·throw("rt_sigaction read failure");
+ 		if(sa.k_sa_handler == SIG_IGN)
+ 			return;
+ 	}
+diff --git a/src/pkg/runtime/signal_linux_arm.c b/src/pkg/runtime/signal_linux_arm.c
+index e2b1500934..577ac29bfa 100644
+--- a/src/pkg/runtime/signal_linux_arm.c
++++ b/src/pkg/runtime/signal_linux_arm.c
+@@ -144,7 +144,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 	// under nohup and do not set explicit handler.
+ 	if(i == SIGHUP) {
+ 		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask));
++		if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)
++			runtime·throw("rt_sigaction read failure");
+ 		if(sa.sa_handler == SIG_IGN)
+ 			return;
+ 	}

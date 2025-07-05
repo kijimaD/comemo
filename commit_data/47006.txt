@@ -21,6 +21,27 @@ Date:   Thu Feb 18 20:08:42 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/parser/parser.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index e12eee79bf..41c3f2943e 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1754,7 +1754,14 @@ func (p *parser) parsePrimaryExpr(lhs bool) (x ast.Expr) {
+ 			default:
+ 				pos := p.pos
+ 				p.errorExpected(pos, "selector or type assertion")
+-				p.next() // make progress
++				// TODO(rFindley) The check for token.RBRACE below is a targeted fix
++				//                to error recovery sufficient to make the x/tools tests to
++				//                pass with the new parsing logic introduced for type
++				//                parameters. Remove this once error recovery has been
++				//                more generally reconsidered.
++				if p.tok != token.RBRACE {
++					p.next() // make progress
++				}
+ 				sel := &ast.Ident{NamePos: pos, Name: "_"}
+ 				x = &ast.SelectorExpr{X: x, Sel: sel}
+ 			}

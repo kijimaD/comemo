@@ -7,7 +7,7 @@ Date:   Fri Jul 18 17:18:29 2008 -0700
     - removed test_parser (not working anymore - parser needs more infrastructure)
     
     SVN=128089
-
+---
  usr/gri/gosrc/ast.go          | 22 ++++++++++
  usr/gri/gosrc/compilation.go  |  1 +
  usr/gri/gosrc/parser.go       | 54 +++++++++++++++----------
@@ -15,3 +15,590 @@ Date:   Fri Jul 18 17:18:29 2008 -0700
  usr/gri/gosrc/test_parser.go  | 43 --------------------
  usr/gri/gosrc/test_scanner.go |  8 +++-
  6 files changed, 110 insertions(+), 111 deletions(-)
+
+diff --git a/usr/gri/gosrc/ast.go b/usr/gri/gosrc/ast.go
+new file mode 100644
+index 0000000000..6a220a1ee5
+--- /dev/null
++++ b/usr/gri/gosrc/ast.go
+@@ -0,0 +1,22 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package AST
++
++import Globals "globals"
++import Universe "universe"
++
++
++export Expr
++type Expr struct {
++	typ *Globals.Type;
++	op int;
++	x, y *Expr;
++}
++
++
++export Stat
++type Stat struct {
++	// To be completed
++}
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index bfd6e13d4e..aa8d135497 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -9,6 +9,7 @@ import Object "object"
+ import Type "type"
+ import Universe "universe"
+ import Scanner "scanner"
++import AST "ast"
+ import Parser "parser"
+ import Export "export"
+ 
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 6bf6ecd43c..28fdf39d2a 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -9,6 +9,7 @@ import Globals "globals"
+ import Object "object"
+ import Type "type"
+ import Universe "universe"
++import AST "ast"
+ 
+ 
+ // So I can submit and have a running parser for now...
+@@ -20,9 +21,13 @@ type Parser struct {
+ 	comp *Globals.Compilation;
+ 	verbose, indent int;
+ 	S *Scanner.Scanner;
++	
++	// Token
+ 	tok int;  // one token look-ahead
+-	beg, end int;  // token position
+-	ident string;  // last ident seen
++	pos int;  // token source position
++	val string;  // token value (for IDENT, NUMBER, STRING only)
++
++	// Semantic analysis
+ 	top_scope *Globals.Scope;
+ 	exports *Globals.List;
+ }
+@@ -57,13 +62,10 @@ func (P *Parser) Ecart() {
+ 
+ 
+ func (P *Parser) Next() {
+-	P.tok, P.beg, P.end = P.S.Scan();
+-	if P.tok == Scanner.IDENT {
+-		P.ident = P.S.src[P.beg : P.end];
+-	}
++	P.tok, P.pos, P.val = P.S.Scan();
+ 	if P.verbose > 1 {
+ 		P.PrintIndent();
+-		print "[", P.beg, "] ", Scanner.TokenName(P.tok), "\n";
++		print "[", P.pos, "] ", Scanner.TokenName(P.tok), "\n";
+ 	}
+ }
+ 
+@@ -86,7 +88,7 @@ func (P *Parser) Error(pos int, msg string) {
+ 
+ func (P *Parser) Expect(tok int) {
+ 	if P.tok != tok {
+-		P.Error(P.beg, "expected '" + Scanner.TokenName(tok) + "', found '" + Scanner.TokenName(P.tok) + "'");
++		P.Error(P.pos, "expected '" + Scanner.TokenName(tok) + "', found '" + Scanner.TokenName(P.tok) + "'");
+ 	}
+ 	P.Next();  // make progress in any case
+ }
+@@ -157,7 +159,7 @@ func (P *Parser) ParseIdent() string {
+ 
+ 	ident := "";
+ 	if P.tok == Scanner.IDENT {
+-		ident = P.ident;
++		ident = P.val;
+ 		if P.verbose > 0 {
+ 			P.PrintIndent();
+ 			print "Ident = \"", ident, "\"\n";
+@@ -175,7 +177,7 @@ func (P *Parser) ParseIdent() string {
+ func (P *Parser) ParseIdentDecl(kind int) *Globals.Object {
+ 	P.Trace("IdentDecl");
+ 	
+-	pos := P.beg;
++	pos := P.pos;
+ 	obj := Globals.NewObject(pos, kind, P.ParseIdent());
+ 	P.Declare(obj);
+ 	
+@@ -214,7 +216,7 @@ func (P *Parser) ParseQualifiedIdent() *Globals.Object {
+ 	P.Trace("QualifiedIdent");
+ 
+ 	if EnableSemanticTests {
+-		pos := P.beg;
++		pos := P.pos;
+ 		ident := P.ParseIdent();
+ 		obj := P.Lookup(ident);
+ 		if obj == nil {
+@@ -250,7 +252,7 @@ func (P *Parser) ParseType() *Globals.Type{
+ 	
+ 	typ := P.TryType();
+ 	if typ == nil {
+-		P.Error(P.beg, "type expected");
++		P.Error(P.pos, "type expected");
+ 		typ = Universe.bad_t;
+ 	}
+ 	
+@@ -515,7 +517,7 @@ func (P *Parser) TryType() *Globals.Type {
+ func (P *Parser) ParseStatement() {
+ 	P.Trace("Statement");
+ 	if !P.TryStatement() {
+-		P.Error(P.beg, "statement expected");
++		P.Error(P.pos, "statement expected");
+ 		P.Next();  // make progress
+ 	}
+ 	P.Ecart();
+@@ -602,7 +604,7 @@ func (P *Parser) ParseOperand() {
+ 	case Scanner.NEW:
+ 		P.ParseNew();
+ 	default:
+-		P.Error(P.beg, "operand expected");
++		P.Error(P.pos, "operand expected");
+ 		P.Next();  // make progress
+ 	}
+ 	P.Ecart();
+@@ -678,7 +680,7 @@ func (P *Parser) ParsePrimaryExprList() {
+ }
+ 
+ 
+-func (P *Parser) ParseUnaryExpr() {
++func (P *Parser) ParseUnaryExpr() *AST.Expr {
+ 	P.Trace("UnaryExpr");
+ 	switch P.tok {
+ 	case Scanner.ADD: fallthrough;
+@@ -691,10 +693,11 @@ func (P *Parser) ParseUnaryExpr() {
+ 		P.Next();
+ 		P.ParseUnaryExpr();
+ 		P.Ecart();
+-		return;
++		return nil;  // TODO fix this
+ 	}
+ 	P.ParsePrimaryExpr();
+ 	P.Ecart();
++	return nil;  // TODO fix this
+ }
+ 
+ 
+@@ -718,15 +721,22 @@ func Precedence(tok int) int {
+ }
+ 
+ 
+-func (P *Parser) ParseBinaryExpr(prec1 int) {
++func (P *Parser) ParseBinaryExpr(prec1 int) *AST.Expr {
+ 	P.Trace("BinaryExpr");
+-	P.ParseUnaryExpr();
++	
++	x := P.ParseUnaryExpr();
+ 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
+ 		for Precedence(P.tok) == prec {
++			e := new(AST.Expr);
++			e.typ = Universe.undef_t;  // TODO fix this
++			e.op = P.tok;  // TODO should we use tokens or separate operator constants?
++			e.x = x;
+ 			P.Next();
+-			P.ParseBinaryExpr(prec + 1);
++			e.y = P.ParseBinaryExpr(prec + 1);
++			x = e;
+ 		}
+ 	}
++	
+ 	P.Ecart();
+ }
+ 
+@@ -1012,7 +1022,7 @@ func (P *Parser) TryStatement() bool {
+ 	case Scanner.RECV:
+ 		P.ParseSimpleStat();  // send or receive
+ 	case Scanner.IDENT:
+-		switch P.ident {
++		switch P.val {
+ 		case "print", "panic":
+ 			P.ParseBuiltinStat();
+ 		default:
+@@ -1127,7 +1137,7 @@ func (P *Parser) ParseConstDecl() {
+ func (P *Parser) ParseTypeSpec() {
+ 	P.Trace("TypeSpec");
+ 	
+-	pos := P.beg;
++	pos := P.pos;
+ 	ident := P.ParseIdent();
+ 	obj := P.top_scope.Lookup(ident);  // only lookup in top scope!
+ 	if obj != nil {
+@@ -1274,7 +1284,7 @@ func (P *Parser) ParseDeclaration() {
+ 	case Scanner.EXPORT:
+ 		P.ParseExportDecl();
+ 	default:
+-		P.Error(P.beg, "declaration expected");
++		P.Error(P.pos, "declaration expected");
+ 		P.Next();  // make progress
+ 	}
+ 	if indent != P.indent {
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index be88a4ede5..c209f16952 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -231,17 +231,17 @@ func TokenName(tok int) string {
+ }
+ 
+ 
+-func is_whitespace (ch int) bool {
++func is_whitespace(ch int) bool {
+ 	return ch == ' ' || ch == '\r' || ch == '\n' || ch == '\t';
+ }
+ 
+ 
+-func is_letter (ch int) bool {
++func is_letter(ch int) bool {
+ 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 128 ;
+ }
+ 
+ 
+-func digit_val (ch int) int {
++func digit_val(ch int) int {
+ 	if '0' <= ch && ch <= '9' {
+ 		return ch - '0';
+ 	}
+@@ -261,7 +261,7 @@ type Scanner struct {
+ 	nerrors int;  // number of errors
+ 	errpos int;  // last error position
+ 	
+-	src string;
++	src string;  // scanned source
+ 	pos int;  // current reading position
+ 	ch int;  // one char look-ahead
+ 	chpos int;  // position of ch
+@@ -271,7 +271,7 @@ type Scanner struct {
+ // Read the next Unicode char into S.ch.
+ // S.ch < 0 means end-of-file.
+ //
+-func (S *Scanner) Next () {
++func (S *Scanner) Next() {
+ 	const (
+ 		Bit1 = 7;
+ 		Bitx = 6;
+@@ -380,7 +380,7 @@ func IsUser(username string) bool {
+ }
+ 
+ 
+-func Init () {
++func Init() {
+ 	Keywords = new(map [string] int);
+ 	
+ 	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
+@@ -433,7 +433,7 @@ func (S *Scanner) Error(pos int, msg string) {
+ }
+ 
+ 
+-func (S *Scanner) Open (filename, src string) {
++func (S *Scanner) Open(filename, src string) {
+ 	if Keywords == nil {
+ 		Init();
+ 	}
+@@ -497,7 +497,7 @@ func CharString(ch int) string {
+ }
+ 
+ 
+-func (S *Scanner) Expect (ch int) {
++func (S *Scanner) Expect(ch int) {
+ 	if S.ch != ch {
+ 		S.Error(S.chpos, "expected " + CharString(ch) + ", found " + CharString(S.ch));
+ 	}
+@@ -505,14 +505,14 @@ func (S *Scanner) Expect (ch int) {
+ }
+ 
+ 
+-func (S *Scanner) SkipWhitespace () {
++func (S *Scanner) SkipWhitespace() {
+ 	for is_whitespace(S.ch) {
+ 		S.Next();
+ 	}
+ }
+ 
+ 
+-func (S *Scanner) SkipComment () {
++func (S *Scanner) SkipComment() {
+ 	// '/' already consumed
+ 	if S.ch == '/' {
+ 		// comment
+@@ -538,33 +538,35 @@ func (S *Scanner) SkipComment () {
+ }
+ 
+ 
+-func (S *Scanner) ScanIdentifier () int {
+-	beg := S.pos - 1;
++func (S *Scanner) ScanIdentifier() (tok int, val string) {
++	pos := S.chpos;
+ 	for is_letter(S.ch) || digit_val(S.ch) < 10 {
+ 		S.Next();
+ 	}
+-	end := S.pos - 1;
++	val = S.src[pos : S.chpos];
+ 	
+-	var tok int;
+ 	var present bool;
+-	tok, present = Keywords[S.src[beg : end]];
++	tok, present = Keywords[val];
+ 	if !present {
+ 		tok = IDENT;
+ 	}
+ 	
+-	return tok;
++	return tok, val;
+ }
+ 
+ 
+-func (S *Scanner) ScanMantissa (base int) {
++func (S *Scanner) ScanMantissa(base int) {
+ 	for digit_val(S.ch) < base {
+ 		S.Next();
+ 	}
+ }
+ 
+ 
+-func (S *Scanner) ScanNumber (seen_decimal_point bool) int {
++func (S *Scanner) ScanNumber(seen_decimal_point bool) string {
++	pos := S.chpos;
++	
+ 	if seen_decimal_point {
++		pos--;  // '.' is one byte
+ 		S.ScanMantissa(10);
+ 		goto exponent;
+ 	}
+@@ -585,7 +587,7 @@ func (S *Scanner) ScanNumber (seen_decimal_point bool) int {
+ 			}
+ 			// octal int
+ 		}
+-		return NUMBER;
++		goto exit;
+ 	}
+ 	
+ mantissa:
+@@ -607,7 +609,9 @@ exponent:
+ 		}
+ 		S.ScanMantissa(10);
+ 	}
+-	return NUMBER;
++	
++exit:
++	return S.src[pos : S.chpos];
+ }
+ 
+ 
+@@ -622,7 +626,7 @@ func (S *Scanner) ScanDigits(n int, base int) {
+ }
+ 
+ 
+-func (S *Scanner) ScanEscape () string {
++func (S *Scanner) ScanEscape() string {
+ 	// TODO: fix this routine
+ 	
+ 	ch := S.ch;
+@@ -654,9 +658,10 @@ func (S *Scanner) ScanEscape () string {
+ }
+ 
+ 
+-func (S *Scanner) ScanChar () int {
++func (S *Scanner) ScanChar() string {
+ 	// '\'' already consumed
+ 
++	pos := S.chpos - 1;
+ 	ch := S.ch;
+ 	S.Next();
+ 	if ch == '\\' {
+@@ -664,11 +669,11 @@ func (S *Scanner) ScanChar () int {
+ 	}
+ 
+ 	S.Expect('\'');
+-	return NUMBER;
++	return S.src[pos : S.chpos];
+ }
+ 
+ 
+-func (S *Scanner) ScanString () int {
++func (S *Scanner) ScanString() string {
+ 	// '"' already consumed
+ 
+ 	pos := S.chpos - 1;
+@@ -683,13 +688,13 @@ func (S *Scanner) ScanString () int {
+ 			S.ScanEscape();
+ 		}
+ 	}
+-
++	
+ 	S.Next();
+-	return STRING;
++	return S.src[pos : S.chpos];
+ }
+ 
+ 
+-func (S *Scanner) ScanRawString () int {
++func (S *Scanner) ScanRawString() string {
+ 	// '`' already consumed
+ 
+ 	pos := S.chpos - 1;
+@@ -703,11 +708,11 @@ func (S *Scanner) ScanRawString () int {
+ 	}
+ 
+ 	S.Next();
+-	return STRING;
++	return S.src[pos : S.chpos];
+ }
+ 
+ 
+-func (S *Scanner) Select2 (tok0, tok1 int) int {
++func (S *Scanner) Select2(tok0, tok1 int) int {
+ 	if S.ch == '=' {
+ 		S.Next();
+ 		return tok1;
+@@ -716,7 +721,7 @@ func (S *Scanner) Select2 (tok0, tok1 int) int {
+ }
+ 
+ 
+-func (S *Scanner) Select3 (tok0, tok1, ch2, tok2 int) int {
++func (S *Scanner) Select3(tok0, tok1, ch2, tok2 int) int {
+ 	if S.ch == '=' {
+ 		S.Next();
+ 		return tok1;
+@@ -729,7 +734,7 @@ func (S *Scanner) Select3 (tok0, tok1, ch2, tok2 int) int {
+ }
+ 
+ 
+-func (S *Scanner) Select4 (tok0, tok1, ch2, tok2, tok3 int) int {
++func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
+ 	if S.ch == '=' {
+ 		S.Next();
+ 		return tok1;
+@@ -746,27 +751,27 @@ func (S *Scanner) Select4 (tok0, tok1, ch2, tok2, tok3 int) int {
+ }
+ 
+ 
+-func (S *Scanner) Scan () (tok, beg, end int) {
++func (S *Scanner) Scan() (tok, pos int, val string) {
+ 	S.SkipWhitespace();
+ 	
+ 	ch := S.ch;
+ 	tok = ILLEGAL;
+-	beg = S.chpos;
+-
++	pos = S.chpos;
++	
+ 	switch {
+-	case is_letter(ch): tok = S.ScanIdentifier();
+-	case digit_val(ch) < 10: tok = S.ScanNumber(false);
++	case is_letter(ch): tok, val = S.ScanIdentifier();
++	case digit_val(ch) < 10: tok, val = NUMBER, S.ScanNumber(false);
+ 	default:
+ 		S.Next();  // always make progress
+ 		switch ch {
+ 		case -1: tok = EOF;
+-		case '"': tok = S.ScanString();
+-		case '\'': tok = S.ScanChar();
+-		case '`': tok = S.ScanRawString();
++		case '"': tok, val = STRING, S.ScanString();
++		case '\'': tok, val = NUMBER, S.ScanChar();
++		case '`': tok, val = STRING, S.ScanRawString();
+ 		case ':': tok = S.Select2(COLON, DEFINE);
+ 		case '.':
+ 			if digit_val(S.ch) < 10 {
+-				tok = S.ScanNumber(true);
++				tok, val = NUMBER, S.ScanNumber(true);
+ 			} else {
+ 				tok = PERIOD;
+ 			}
+@@ -791,8 +796,8 @@ func (S *Scanner) Scan () (tok, beg, end int) {
+ 			if S.ch == '/' || S.ch == '*' {
+ 				S.SkipComment();
+ 				// cannot simply return because of 6g bug
+-				tok, beg, end = S.Scan();
+-				return tok, beg, end;
++				tok, pos, val = S.Scan();
++				return tok, pos, val;
+ 			}
+ 			tok = S.Select2(QUO, QUO_ASSIGN);
+ 		case '%': tok = S.Select2(REM, REM_ASSIGN);
+@@ -810,10 +815,10 @@ func (S *Scanner) Scan () (tok, beg, end int) {
+ 		case '&': tok = S.Select3(AND, AND_ASSIGN, '&', LAND);
+ 		case '|': tok = S.Select3(OR, OR_ASSIGN, '|', LOR);
+ 		default:
+-			S.Error(beg, "illegal character " + CharString(ch));
++			S.Error(pos, "illegal character " + CharString(ch));
+ 			tok = ILLEGAL;
+ 		}
+ 	}
+ 	
+-	return tok, beg, S.chpos;
++	return tok, pos, val;
+ }
+diff --git a/usr/gri/gosrc/test_parser.go b/usr/gri/gosrc/test_parser.go
+deleted file mode 100644
+index 5b8571f32a..0000000000
+--- a/usr/gri/gosrc/test_parser.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import Globals "globals"  // to get rid od 6g warning only
+-import Scanner "scanner"
+-import Parser "parser"
+-
+-
+-func Parse(filename, src string, verbose int) {
+-	S := new(Scanner.Scanner);
+-	S.Open(filename, src);
+-	
+-	P := new(Parser.Parser);
+-	P.Open(nil, S, verbose);
+-	
+-	P.ParseProgram();
+-}
+-
+-
+-func main() {
+-	verbose := 0;
+-	for i := 1; i < sys.argc(); i++ {
+-		switch sys.argv(i) {
+-		case "-v":
+-			verbose = 1;
+-			continue;
+-		case "-vv":
+-			verbose = 2;
+-			continue;
+-		}
+-		
+-		src, ok := sys.readfile(sys.argv(i));
+-		if ok {
+-			print "parsing " + sys.argv(i) + "\n";
+-			Parse(sys.argv(i), src, verbose);
+-		} else {
+-			print "error: cannot read " + sys.argv(i) + "\n";
+-		}
+-	}
+-}
+diff --git a/usr/gri/gosrc/test_scanner.go b/usr/gri/gosrc/test_scanner.go
+index 5ebff817bd..931adb9bc6 100644
+--- a/usr/gri/gosrc/test_scanner.go
++++ b/usr/gri/gosrc/test_scanner.go
+@@ -11,8 +11,12 @@ func Scan(filename, src string) {
+ 	S := new(Scanner.Scanner);
+ 	S.Open(filename, src);
+ 	for {
+-		tok, beg, end := S.Scan();
+-		print Scanner.TokenName(tok), "\t ", src[beg : end], "\n";
++		tok, pos, val := S.Scan();
++		print pos, ": ", Scanner.TokenName(tok);
++		if tok == Scanner.IDENT || tok == Scanner.NUMBER || tok == Scanner.STRING {
++			print " ", val;
++		}
++		print "\n";
+ 		if tok == Scanner.EOF {
+ 			return;
+ 		}

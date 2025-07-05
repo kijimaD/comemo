@@ -19,7 +19,47 @@ Date:   Thu Jul 20 23:14:03 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/reflect/all_test.go | 6 ++++++
  src/reflect/value.go    | 8 +++++++-
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 31f6416ed9..afd2d2ef79 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -1706,6 +1706,12 @@ func TestChan(t *testing.T) {
+ 		if i, ok := cv.Recv(); i.Int() != 0 || ok {
+ 			t.Errorf("after close Recv %d, %t", i.Int(), ok)
+ 		}
++		// Closing a read-only channel
++		shouldPanic("", func() {
++			c := make(<-chan int, 1)
++			cv := ValueOf(c)
++			cv.Close()
++		})
+ 	}
+ 
+ 	// check creation of unbuffered channel
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 616da6a5c7..127a06e187 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1187,10 +1187,16 @@ func (v Value) capNonSlice() int {
+ }
+ 
+ // Close closes the channel v.
+-// It panics if v's Kind is not Chan.
++// It panics if v's Kind is not Chan or
++// v is a receive-only channel.
+ func (v Value) Close() {
+ 	v.mustBe(Chan)
+ 	v.mustBeExported()
++	tt := (*chanType)(unsafe.Pointer(v.typ()))
++	if ChanDir(tt.Dir)&SendDir == 0 {
++		panic("reflect: close of receive-only channel")
++	}
++
+ 	chanclose(v.pointer())
+ }
+ 

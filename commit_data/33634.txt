@@ -10,7 +10,60 @@ Date:   Tue May 2 11:15:41 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-
+---
  src/cmd/compile/internal/gc/racewalk.go |  7 ++++++-
  src/cmd/compile/internal/types/type.go  | 17 +++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index b1c4f223ab..0740abbbe8 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -504,13 +504,18 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 				name = "msanwrite"
+ 			}
+ 			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
+-		} else if flag_race && (t.IsStruct() || t.IsArray()) {
++		} else if flag_race && t.NumComponents() > 1 {
++			// for composite objects we have to write every address
++			// because a write might happen to any subobject.
++			// composites with only one element don't have subobjects, though.
+ 			name := "racereadrange"
+ 			if wr != 0 {
+ 				name = "racewriterange"
+ 			}
+ 			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
+ 		} else if flag_race {
++			// for non-composite objects we can write just the start
++			// address, as any write must write the first byte.
+ 			name := "raceread"
+ 			if wr != 0 {
+ 				name = "racewrite"
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 5c44e62585..3e12cc026c 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1317,6 +1317,23 @@ func (t *Type) SetNumElem(n int64) {
+ 	at.Bound = n
+ }
+ 
++func (t *Type) NumComponents() int64 {
++	switch t.Etype {
++	case TSTRUCT:
++		if t.IsFuncArgStruct() {
++			Fatalf("NumComponents func arg struct")
++		}
++		var n int64
++		for _, f := range t.FieldSlice() {
++			n += f.Type.NumComponents()
++		}
++		return n
++	case TARRAY:
++		return t.NumElem() * t.Elem().NumComponents()
++	}
++	return 1
++}
++
+ // ChanDir returns the direction of a channel type t.
+ // The direction will be one of Crecv, Csend, or Cboth.
+ func (t *Type) ChanDir() ChanDir {

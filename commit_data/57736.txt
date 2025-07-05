@@ -17,6 +17,32 @@ Date:   Sat Aug 26 08:08:30 2023 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/http/cgi/host.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index a3fba4b413..073952a7bd 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -35,10 +35,7 @@ import (
+ 
+ var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
+ 
+-var osDefaultInheritEnv = getOSDefaultInheritEnv()
+-
+-// TODO(mdempsky): Revert CL 522935 after #62277 is fixed.
+-func getOSDefaultInheritEnv() []string {
++var osDefaultInheritEnv = func() []string {
+ 	switch runtime.GOOS {
+ 	case "darwin", "ios":
+ 		return []string{"DYLD_LIBRARY_PATH"}
+@@ -54,7 +51,7 @@ func getOSDefaultInheritEnv() []string {
+ 		return []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"}
+ 	}
+ 	return nil
+-}
++}()
+ 
+ // Handler runs an executable in a subprocess with a CGI environment.
+ type Handler struct {

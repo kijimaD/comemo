@@ -41,7 +41,7 @@ Date:   Sat Nov 28 15:28:18 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/274105
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go          |  17 ++--
  src/cmd/compile/internal/gc/iexport.go         |   8 +-
  src/cmd/compile/internal/gc/initorder.go       |   2 +-
@@ -58,3 +58,1134 @@ Date:   Sat Nov 28 15:28:18 2020 -0500
  src/cmd/compile/internal/ir/node.go            |   4 +-
  src/cmd/compile/internal/logopt/logopt_test.go |   4 +-
  15 files changed, 241 insertions(+), 267 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 4cbc5d3851..f2fff02959 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -394,8 +394,8 @@ func (e *Escape) stmt(n ir.Node) {
+ 	case ir.OSELRECV:
+ 		e.assign(n.Left(), n.Right(), "selrecv", n)
+ 	case ir.OSELRECV2:
+-		e.assign(n.Left(), n.Right(), "selrecv", n)
+-		e.assign(n.List().First(), nil, "selrecv", n)
++		e.assign(n.List().First(), n.Rlist().First(), "selrecv", n)
++		e.assign(n.List().Second(), nil, "selrecv", n)
+ 	case ir.ORECV:
+ 		// TODO(mdempsky): Consider e.discard(n.Left).
+ 		e.exprSkipInit(e.discardHole(), n) // already visited n.Ninit
+@@ -412,18 +412,18 @@ func (e *Escape) stmt(n ir.Node) {
+ 		}
+ 
+ 	case ir.OAS2DOTTYPE: // v, ok = x.(type)
+-		e.assign(n.List().First(), n.Right(), "assign-pair-dot-type", n)
++		e.assign(n.List().First(), n.Rlist().First(), "assign-pair-dot-type", n)
+ 		e.assign(n.List().Second(), nil, "assign-pair-dot-type", n)
+ 	case ir.OAS2MAPR: // v, ok = m[k]
+-		e.assign(n.List().First(), n.Right(), "assign-pair-mapr", n)
++		e.assign(n.List().First(), n.Rlist().First(), "assign-pair-mapr", n)
+ 		e.assign(n.List().Second(), nil, "assign-pair-mapr", n)
+ 	case ir.OAS2RECV: // v, ok = <-ch
+-		e.assign(n.List().First(), n.Right(), "assign-pair-receive", n)
++		e.assign(n.List().First(), n.Rlist().First(), "assign-pair-receive", n)
+ 		e.assign(n.List().Second(), nil, "assign-pair-receive", n)
+ 
+ 	case ir.OAS2FUNC:
+-		e.stmts(n.Right().Init())
+-		e.call(e.addrs(n.List()), n.Right(), nil)
++		e.stmts(n.Rlist().First().Init())
++		e.call(e.addrs(n.List()), n.Rlist().First(), nil)
+ 	case ir.ORETURN:
+ 		results := e.curfn.Type().Results().FieldSlice()
+ 		for i, v := range n.List().Slice() {
+@@ -709,8 +709,7 @@ func (e *Escape) discards(l ir.Nodes) {
+ // that represents storing into the represented location.
+ func (e *Escape) addr(n ir.Node) EscHole {
+ 	if n == nil || ir.IsBlank(n) {
+-		// Can happen at least in OSELRECV.
+-		// TODO(mdempsky): Anywhere else?
++		// Can happen in select case, range, maybe others.
+ 		return e.discardHole()
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index f19acb8bc2..d6c50c7285 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1076,18 +1076,12 @@ func (w *exportWriter) stmt(n ir.Node) {
+ 			w.expr(n.Right())
+ 		}
+ 
+-	case ir.OAS2:
++	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+ 		w.op(ir.OAS2)
+ 		w.pos(n.Pos())
+ 		w.exprList(n.List())
+ 		w.exprList(n.Rlist())
+ 
+-	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+-		w.op(ir.OAS2)
+-		w.pos(n.Pos())
+-		w.exprList(n.List())
+-		w.exprList(ir.AsNodes([]ir.Node{n.Right()}))
+-
+ 	case ir.ORETURN:
+ 		w.op(ir.ORETURN)
+ 		w.pos(n.Pos())
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+index ea3d74d5ba..87a78ae053 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -256,7 +256,7 @@ func collectDeps(n ir.Node, transitive bool) ir.NodeSet {
+ 	case ir.OAS:
+ 		d.inspect(n.Right())
+ 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+-		d.inspect(n.Right())
++		d.inspect(n.Rlist().First())
+ 	case ir.ODCLFUNC:
+ 		d.inspectList(n.Body())
+ 	default:
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index bbbffebf5c..97ecb9559b 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -520,14 +520,11 @@ func inlcalls(fn *ir.Func) {
+ }
+ 
+ // Turn an OINLCALL into a statement.
+-func inlconv2stmt(n ir.Node) {
+-	n.SetOp(ir.OBLOCK)
+-
+-	// n->ninit stays
+-	n.PtrList().Set(n.Body().Slice())
+-
+-	n.PtrBody().Set(nil)
+-	n.PtrRlist().Set(nil)
++func inlconv2stmt(inlcall ir.Node) ir.Node {
++	n := ir.NodAt(inlcall.Pos(), ir.OBLOCK, nil, nil)
++	n.SetList(inlcall.Body())
++	n.SetInit(inlcall.Init())
++	return n
+ }
+ 
+ // Turn an OINLCALL into a single valued expression.
+@@ -600,9 +597,10 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
+ 	lno := setlineno(n)
+ 
+ 	inlnodelist(n.Init(), maxCost, inlMap)
+-	for _, n1 := range n.Init().Slice() {
++	init := n.Init().Slice()
++	for i, n1 := range init {
+ 		if n1.Op() == ir.OINLCALL {
+-			inlconv2stmt(n1)
++			init[i] = inlconv2stmt(n1)
+ 		}
+ 	}
+ 
+@@ -614,50 +612,49 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
+ 	n.SetRight(inlnode(n.Right(), maxCost, inlMap))
+ 	if n.Right() != nil && n.Right().Op() == ir.OINLCALL {
+ 		if n.Op() == ir.OFOR || n.Op() == ir.OFORUNTIL {
+-			inlconv2stmt(n.Right())
+-		} else if n.Op() == ir.OAS2FUNC {
+-			n.PtrRlist().Set(inlconv2list(n.Right()))
+-			n.SetRight(nil)
+-			n.SetOp(ir.OAS2)
+-			n.SetTypecheck(0)
+-			n = typecheck(n, ctxStmt)
++			n.SetRight(inlconv2stmt(n.Right()))
+ 		} else {
+ 			n.SetRight(inlconv2expr(n.Right()))
+ 		}
+ 	}
+ 
+ 	inlnodelist(n.List(), maxCost, inlMap)
++	s := n.List().Slice()
++	convert := inlconv2expr
+ 	if n.Op() == ir.OBLOCK {
+-		for _, n2 := range n.List().Slice() {
+-			if n2.Op() == ir.OINLCALL {
+-				inlconv2stmt(n2)
+-			}
+-		}
+-	} else {
+-		s := n.List().Slice()
+-		for i1, n1 := range s {
+-			if n1 != nil && n1.Op() == ir.OINLCALL {
+-				s[i1] = inlconv2expr(s[i1])
+-			}
++		convert = inlconv2stmt
++	}
++	for i, n1 := range s {
++		if n1 != nil && n1.Op() == ir.OINLCALL {
++			s[i] = convert(n1)
+ 		}
+ 	}
+ 
+ 	inlnodelist(n.Rlist(), maxCost, inlMap)
+-	s := n.Rlist().Slice()
+-	for i1, n1 := range s {
++
++	if n.Op() == ir.OAS2FUNC && n.Rlist().First().Op() == ir.OINLCALL {
++		n.PtrRlist().Set(inlconv2list(n.Rlist().First()))
++		n.SetOp(ir.OAS2)
++		n.SetTypecheck(0)
++		n = typecheck(n, ctxStmt)
++	}
++
++	s = n.Rlist().Slice()
++	for i, n1 := range s {
+ 		if n1.Op() == ir.OINLCALL {
+ 			if n.Op() == ir.OIF {
+-				inlconv2stmt(n1)
++				s[i] = inlconv2stmt(n1)
+ 			} else {
+-				s[i1] = inlconv2expr(s[i1])
++				s[i] = inlconv2expr(n1)
+ 			}
+ 		}
+ 	}
+ 
+ 	inlnodelist(n.Body(), maxCost, inlMap)
+-	for _, n := range n.Body().Slice() {
+-		if n.Op() == ir.OINLCALL {
+-			inlconv2stmt(n)
++	s = n.Body().Slice()
++	for i, n1 := range s {
++		if n1.Op() == ir.OINLCALL {
++			s[i] = inlconv2stmt(n1)
+ 		}
+ 	}
+ 
+@@ -1200,9 +1197,10 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool)
+ 	// and each use must redo the inlining.
+ 	// luckily these are small.
+ 	inlnodelist(call.Body(), maxCost, inlMap)
+-	for _, n := range call.Body().Slice() {
+-		if n.Op() == ir.OINLCALL {
+-			inlconv2stmt(n)
++	s := call.Body().Slice()
++	for i, n1 := range s {
++		if n1.Op() == ir.OINLCALL {
++			s[i] = inlconv2stmt(n1)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index e6c78d1afb..98a09f4006 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1001,20 +1001,17 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
+ 			return n
+ 		}
+ 
+-		n := p.nod(stmt, ir.OAS, nil, nil) // assume common case
+-
+ 		rhs := p.exprList(stmt.Rhs)
+-		lhs := p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def)
+-
+-		if len(lhs) == 1 && len(rhs) == 1 {
+-			// common case
+-			n.SetLeft(lhs[0])
+-			n.SetRight(rhs[0])
+-		} else {
+-			n.SetOp(ir.OAS2)
+-			n.PtrList().Set(lhs)
++		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
++			n := p.nod(stmt, ir.OAS2, nil, nil)
++			n.PtrList().Set(p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def))
+ 			n.PtrRlist().Set(rhs)
++			return n
+ 		}
++
++		n := p.nod(stmt, ir.OAS, nil, nil)
++		n.SetLeft(p.assignList(stmt.Lhs, n, stmt.Op == syntax.Def)[0])
++		n.SetRight(rhs[0])
+ 		return n
+ 
+ 	case *syntax.BranchStmt:
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index d4db7be911..66e279d85f 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -103,7 +103,11 @@ func (o *Order) newTemp(t *types.Type, clear bool) ir.Node {
+ // (The other candidate would be map access, but map access
+ // returns a pointer to the result data instead of taking a pointer
+ // to be filled in.)
++// TODO(rsc): t == n.Type() always; remove parameter.
+ func (o *Order) copyExpr(n ir.Node, t *types.Type, clear bool) ir.Node {
++	if t != n.Type() {
++		panic("copyExpr")
++	}
+ 	v := o.newTemp(t, clear)
+ 	a := ir.Nod(ir.OAS, v, n)
+ 	a = typecheck(a, ctxStmt)
+@@ -606,23 +610,19 @@ func (o *Order) stmt(n ir.Node) {
+ 			// that we can ensure that if op panics
+ 			// because r is zero, the panic happens before
+ 			// the map assignment.
+-
+-			n.SetLeft(o.safeExpr(n.Left()))
+-
+-			// TODO(rsc): Why is this DeepCopy?
+-			// We should know enough about the form here
+-			// to do something more provably shallower.
+-			l := ir.DeepCopy(src.NoXPos, n.Left())
+-			if l.Op() == ir.OINDEXMAP {
+-				l.SetIndexMapLValue(false)
++			// DeepCopy is a big hammer here, but safeExpr
++			// makes sure there is nothing too deep being copied.
++			l1 := o.safeExpr(n.Left())
++			l2 := ir.DeepCopy(src.NoXPos, l1)
++			if l1.Op() == ir.OINDEXMAP {
++				l2.SetIndexMapLValue(false)
+ 			}
+-			l = o.copyExpr(l, n.Left().Type(), false)
+-			n.SetRight(ir.Nod(n.SubOp(), l, n.Right()))
+-			n.SetRight(typecheck(n.Right(), ctxExpr))
+-			n.SetRight(o.expr(n.Right(), nil))
+-
+-			n.SetOp(ir.OAS)
+-			n.ResetAux()
++			l2 = o.copyExpr(l2, l2.Type(), false)
++			r := ir.NodAt(n.Pos(), n.SubOp(), l2, n.Right())
++			r = typecheck(r, ctxExpr)
++			r = o.expr(r, nil)
++			n = ir.NodAt(n.Pos(), ir.OAS, l1, r)
++			n = typecheck(n, ctxStmt)
+ 		}
+ 
+ 		o.mapAssign(n)
+@@ -639,8 +639,8 @@ func (o *Order) stmt(n ir.Node) {
+ 	case ir.OAS2FUNC:
+ 		t := o.markTemp()
+ 		o.exprList(n.List())
+-		o.init(n.Right())
+-		o.call(n.Right())
++		o.init(n.Rlist().First())
++		o.call(n.Rlist().First())
+ 		o.as2(n)
+ 		o.cleanTemp(t)
+ 
+@@ -654,7 +654,7 @@ func (o *Order) stmt(n ir.Node) {
+ 		t := o.markTemp()
+ 		o.exprList(n.List())
+ 
+-		switch r := n.Right(); r.Op() {
++		switch r := n.Rlist().First(); r.Op() {
+ 		case ir.ODOTTYPE2, ir.ORECV:
+ 			r.SetLeft(o.expr(r.Left(), nil))
+ 		case ir.OINDEXMAP:
+@@ -866,38 +866,39 @@ func (o *Order) stmt(n ir.Node) {
+ 				ir.Dump("select case", r)
+ 				base.Fatalf("unknown op in select %v", r.Op())
+ 
+-			// If this is case x := <-ch or case x, y := <-ch, the case has
+-			// the ODCL nodes to declare x and y. We want to delay that
+-			// declaration (and possible allocation) until inside the case body.
+-			// Delete the ODCL nodes here and recreate them inside the body below.
+ 			case ir.OSELRECV, ir.OSELRECV2:
++				var dst, ok, recv ir.Node
++				if r.Op() == ir.OSELRECV {
++					// case x = <-c
++					// case <-c (dst is ir.BlankNode)
++					dst, ok, recv = r.Left(), ir.BlankNode, r.Right()
++				} else {
++					// case x, ok = <-c
++					dst, ok, recv = r.List().First(), r.List().Second(), r.Rlist().First()
++				}
++
++				// If this is case x := <-ch or case x, y := <-ch, the case has
++				// the ODCL nodes to declare x and y. We want to delay that
++				// declaration (and possible allocation) until inside the case body.
++				// Delete the ODCL nodes here and recreate them inside the body below.
+ 				if r.Colas() {
+-					i := 0
+-					if r.Init().Len() != 0 && r.Init().First().Op() == ir.ODCL && r.Init().First().Left() == r.Left() {
+-						i++
+-					}
+-					if i < r.Init().Len() && r.Init().Index(i).Op() == ir.ODCL && r.List().Len() != 0 && r.Init().Index(i).Left() == r.List().First() {
+-						i++
++					init := r.Init().Slice()
++					if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].Left() == dst {
++						init = init[1:]
+ 					}
+-					if i >= r.Init().Len() {
+-						r.PtrInit().Set(nil)
++					if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].Left() == ok {
++						init = init[1:]
+ 					}
++					r.PtrInit().Set(init)
+ 				}
+-
+ 				if r.Init().Len() != 0 {
+ 					ir.DumpList("ninit", r.Init())
+ 					base.Fatalf("ninit on select recv")
+ 				}
+ 
+-				// case x = <-c
+-				// case x, ok = <-c
+-				// r->left is x, r->ntest is ok, r->right is ORECV, r->right->left is c.
+-				// r->left == N means 'case <-c'.
+-				// c is always evaluated; x and ok are only evaluated when assigned.
+-				r.Right().SetLeft(o.expr(r.Right().Left(), nil))
+-
+-				if r.Right().Left().Op() != ir.ONAME {
+-					r.Right().SetLeft(o.copyExpr(r.Right().Left(), r.Right().Left().Type(), false))
++				recv.SetLeft(o.expr(recv.Left(), nil))
++				if recv.Left().Op() != ir.ONAME {
++					recv.SetLeft(o.copyExpr(recv.Left(), recv.Left().Type(), false))
+ 				}
+ 
+ 				// Introduce temporary for receive and move actual copy into case body.
+@@ -906,42 +907,41 @@ func (o *Order) stmt(n ir.Node) {
+ 				// temporary per distinct type, sharing the temp among all receives
+ 				// with that temp. Similarly one ok bool could be shared among all
+ 				// the x,ok receives. Not worth doing until there's a clear need.
+-				if r.Left() != nil && ir.IsBlank(r.Left()) {
+-					r.SetLeft(nil)
+-				}
+-				if r.Left() != nil {
++				if !ir.IsBlank(dst) {
+ 					// use channel element type for temporary to avoid conversions,
+ 					// such as in case interfacevalue = <-intchan.
+ 					// the conversion happens in the OAS instead.
+-					tmp1 := r.Left()
+-
+ 					if r.Colas() {
+-						tmp2 := ir.Nod(ir.ODCL, tmp1, nil)
+-						tmp2 = typecheck(tmp2, ctxStmt)
+-						n2.PtrInit().Append(tmp2)
++						dcl := ir.Nod(ir.ODCL, dst, nil)
++						dcl = typecheck(dcl, ctxStmt)
++						n2.PtrInit().Append(dcl)
+ 					}
+ 
+-					r.SetLeft(o.newTemp(r.Right().Left().Type().Elem(), r.Right().Left().Type().Elem().HasPointers()))
+-					tmp2 := ir.Nod(ir.OAS, tmp1, r.Left())
+-					tmp2 = typecheck(tmp2, ctxStmt)
+-					n2.PtrInit().Append(tmp2)
++					tmp := o.newTemp(recv.Left().Type().Elem(), recv.Left().Type().Elem().HasPointers())
++					as := ir.Nod(ir.OAS, dst, tmp)
++					as = typecheck(as, ctxStmt)
++					n2.PtrInit().Append(as)
++					dst = tmp
+ 				}
+-
+-				if r.List().Len() != 0 && ir.IsBlank(r.List().First()) {
+-					r.PtrList().Set(nil)
+-				}
+-				if r.List().Len() != 0 {
+-					tmp1 := r.List().First()
++				if !ir.IsBlank(ok) {
+ 					if r.Colas() {
+-						tmp2 := ir.Nod(ir.ODCL, tmp1, nil)
+-						tmp2 = typecheck(tmp2, ctxStmt)
+-						n2.PtrInit().Append(tmp2)
++						dcl := ir.Nod(ir.ODCL, ok, nil)
++						dcl = typecheck(dcl, ctxStmt)
++						n2.PtrInit().Append(dcl)
+ 					}
+ 
+-					r.PtrList().Set1(o.newTemp(types.Types[types.TBOOL], false))
+-					tmp2 := okas(tmp1, r.List().First())
+-					tmp2 = typecheck(tmp2, ctxStmt)
+-					n2.PtrInit().Append(tmp2)
++					tmp := o.newTemp(types.Types[types.TBOOL], false)
++					as := okas(ok, tmp)
++					as = typecheck(as, ctxStmt)
++					n2.PtrInit().Append(as)
++					ok = tmp
++				}
++
++				if r.Op() == ir.OSELRECV {
++					r.SetLeft(dst)
++				} else {
++					r.List().SetIndex(0, dst)
++					r.List().SetIndex(1, ok)
+ 				}
+ 				orderBlock(n2.PtrInit(), o.free)
+ 
+@@ -1420,7 +1420,7 @@ func (o *Order) as2(n ir.Node) {
+ func (o *Order) okAs2(n ir.Node) {
+ 	var tmp1, tmp2 ir.Node
+ 	if !ir.IsBlank(n.List().First()) {
+-		typ := n.Right().Type()
++		typ := n.Rlist().First().Type()
+ 		tmp1 = o.newTemp(typ, typ.HasPointers())
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index d52fad5fec..2f2d7051c3 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -157,15 +157,19 @@ func cheapComputableIndex(width int64) bool {
+ // simpler forms.  The result must be assigned back to n.
+ // Node n may also be modified in place, and may also be
+ // the returned node.
+-func walkrange(n ir.Node) ir.Node {
+-	if isMapClear(n) {
+-		m := n.Right()
++func walkrange(nrange ir.Node) ir.Node {
++	if isMapClear(nrange) {
++		m := nrange.Right()
+ 		lno := setlineno(m)
+-		n = mapClear(m)
++		n := mapClear(m)
+ 		base.Pos = lno
+ 		return n
+ 	}
+ 
++	nfor := ir.NodAt(nrange.Pos(), ir.OFOR, nil, nil)
++	nfor.SetInit(nrange.Init())
++	nfor.SetSym(nrange.Sym())
++
+ 	// variable name conventions:
+ 	//	ohv1, hv1, hv2: hidden (old) val 1, 2
+ 	//	ha, hit: hidden aggregate, iterator
+@@ -173,20 +177,19 @@ func walkrange(n ir.Node) ir.Node {
+ 	//	hb: hidden bool
+ 	//	a, v1, v2: not hidden aggregate, val 1, 2
+ 
+-	t := n.Type()
++	t := nrange.Type()
+ 
+-	a := n.Right()
++	a := nrange.Right()
+ 	lno := setlineno(a)
+-	n.SetRight(nil)
+ 
+ 	var v1, v2 ir.Node
+-	l := n.List().Len()
++	l := nrange.List().Len()
+ 	if l > 0 {
+-		v1 = n.List().First()
++		v1 = nrange.List().First()
+ 	}
+ 
+ 	if l > 1 {
+-		v2 = n.List().Second()
++		v2 = nrange.List().Second()
+ 	}
+ 
+ 	if ir.IsBlank(v2) {
+@@ -201,14 +204,8 @@ func walkrange(n ir.Node) ir.Node {
+ 		base.Fatalf("walkrange: v2 != nil while v1 == nil")
+ 	}
+ 
+-	// n.List has no meaning anymore, clear it
+-	// to avoid erroneous processing by racewalk.
+-	n.PtrList().Set(nil)
+-
+ 	var ifGuard ir.Node
+ 
+-	translatedLoopOp := ir.OFOR
+-
+ 	var body []ir.Node
+ 	var init []ir.Node
+ 	switch t.Etype {
+@@ -216,9 +213,9 @@ func walkrange(n ir.Node) ir.Node {
+ 		base.Fatalf("walkrange")
+ 
+ 	case types.TARRAY, types.TSLICE:
+-		if arrayClear(n, v1, v2, a) {
++		if nn := arrayClear(nrange, v1, v2, a); nn != nil {
+ 			base.Pos = lno
+-			return n
++			return nn
+ 		}
+ 
+ 		// order.stmt arranged for a copy of the array/slice variable if needed.
+@@ -230,8 +227,8 @@ func walkrange(n ir.Node) ir.Node {
+ 		init = append(init, ir.Nod(ir.OAS, hv1, nil))
+ 		init = append(init, ir.Nod(ir.OAS, hn, ir.Nod(ir.OLEN, ha, nil)))
+ 
+-		n.SetLeft(ir.Nod(ir.OLT, hv1, hn))
+-		n.SetRight(ir.Nod(ir.OAS, hv1, ir.Nod(ir.OADD, hv1, nodintconst(1))))
++		nfor.SetLeft(ir.Nod(ir.OLT, hv1, hn))
++		nfor.SetRight(ir.Nod(ir.OAS, hv1, ir.Nod(ir.OADD, hv1, nodintconst(1))))
+ 
+ 		// for range ha { body }
+ 		if v1 == nil {
+@@ -245,7 +242,7 @@ func walkrange(n ir.Node) ir.Node {
+ 		}
+ 
+ 		// for v1, v2 := range ha { body }
+-		if cheapComputableIndex(n.Type().Elem().Width) {
++		if cheapComputableIndex(nrange.Type().Elem().Width) {
+ 			// v1, v2 = hv1, ha[hv1]
+ 			tmp := ir.Nod(ir.OINDEX, ha, hv1)
+ 			tmp.SetBounded(true)
+@@ -272,9 +269,9 @@ func walkrange(n ir.Node) ir.Node {
+ 		// Enhance the prove pass to understand this.
+ 		ifGuard = ir.Nod(ir.OIF, nil, nil)
+ 		ifGuard.SetLeft(ir.Nod(ir.OLT, hv1, hn))
+-		translatedLoopOp = ir.OFORUNTIL
++		nfor.SetOp(ir.OFORUNTIL)
+ 
+-		hp := temp(types.NewPtr(n.Type().Elem()))
++		hp := temp(types.NewPtr(nrange.Type().Elem()))
+ 		tmp := ir.Nod(ir.OINDEX, ha, nodintconst(0))
+ 		tmp.SetBounded(true)
+ 		init = append(init, ir.Nod(ir.OAS, hp, ir.Nod(ir.OADDR, tmp, nil)))
+@@ -293,16 +290,15 @@ func walkrange(n ir.Node) ir.Node {
+ 		// end of the allocation.
+ 		a = ir.Nod(ir.OAS, hp, addptr(hp, t.Elem().Width))
+ 		a = typecheck(a, ctxStmt)
+-		n.PtrList().Set1(a)
++		nfor.PtrList().Set1(a)
+ 
+ 	case types.TMAP:
+ 		// order.stmt allocated the iterator for us.
+ 		// we only use a once, so no copy needed.
+ 		ha := a
+ 
+-		hit := prealloc[n]
++		hit := prealloc[nrange]
+ 		th := hit.Type()
+-		n.SetLeft(nil)
+ 		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:hiter
+ 		elemsym := th.Field(1).Sym // ditto
+ 
+@@ -310,11 +306,11 @@ func walkrange(n ir.Node) ir.Node {
+ 
+ 		fn = substArgTypes(fn, t.Key(), t.Elem(), th)
+ 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, ir.Nod(ir.OADDR, hit, nil)))
+-		n.SetLeft(ir.Nod(ir.ONE, nodSym(ir.ODOT, hit, keysym), nodnil()))
++		nfor.SetLeft(ir.Nod(ir.ONE, nodSym(ir.ODOT, hit, keysym), nodnil()))
+ 
+ 		fn = syslook("mapiternext")
+ 		fn = substArgTypes(fn, th)
+-		n.SetRight(mkcall1(fn, nil, nil, ir.Nod(ir.OADDR, hit, nil)))
++		nfor.SetRight(mkcall1(fn, nil, nil, ir.Nod(ir.OADDR, hit, nil)))
+ 
+ 		key := nodSym(ir.ODOT, hit, keysym)
+ 		key = ir.Nod(ir.ODEREF, key, nil)
+@@ -335,8 +331,6 @@ func walkrange(n ir.Node) ir.Node {
+ 		// order.stmt arranged for a copy of the channel variable.
+ 		ha := a
+ 
+-		n.SetLeft(nil)
+-
+ 		hv1 := temp(t.Elem())
+ 		hv1.SetTypecheck(1)
+ 		if t.Elem().HasPointers() {
+@@ -344,12 +338,12 @@ func walkrange(n ir.Node) ir.Node {
+ 		}
+ 		hb := temp(types.Types[types.TBOOL])
+ 
+-		n.SetLeft(ir.Nod(ir.ONE, hb, nodbool(false)))
++		nfor.SetLeft(ir.Nod(ir.ONE, hb, nodbool(false)))
+ 		a := ir.Nod(ir.OAS2RECV, nil, nil)
+ 		a.SetTypecheck(1)
+ 		a.PtrList().Set2(hv1, hb)
+-		a.SetRight(ir.Nod(ir.ORECV, ha, nil))
+-		n.Left().PtrInit().Set1(a)
++		a.PtrRlist().Set1(ir.Nod(ir.ORECV, ha, nil))
++		nfor.Left().PtrInit().Set1(a)
+ 		if v1 == nil {
+ 			body = nil
+ 		} else {
+@@ -387,7 +381,7 @@ func walkrange(n ir.Node) ir.Node {
+ 		init = append(init, ir.Nod(ir.OAS, hv1, nil))
+ 
+ 		// hv1 < len(ha)
+-		n.SetLeft(ir.Nod(ir.OLT, hv1, ir.Nod(ir.OLEN, ha, nil)))
++		nfor.SetLeft(ir.Nod(ir.OLT, hv1, ir.Nod(ir.OLEN, ha, nil)))
+ 
+ 		if v1 != nil {
+ 			// hv1t = hv1
+@@ -431,24 +425,25 @@ func walkrange(n ir.Node) ir.Node {
+ 		}
+ 	}
+ 
+-	n.SetOp(translatedLoopOp)
+ 	typecheckslice(init, ctxStmt)
+ 
+ 	if ifGuard != nil {
+ 		ifGuard.PtrInit().Append(init...)
+ 		ifGuard = typecheck(ifGuard, ctxStmt)
+ 	} else {
+-		n.PtrInit().Append(init...)
++		nfor.PtrInit().Append(init...)
+ 	}
+ 
+-	typecheckslice(n.Left().Init().Slice(), ctxStmt)
++	typecheckslice(nfor.Left().Init().Slice(), ctxStmt)
+ 
+-	n.SetLeft(typecheck(n.Left(), ctxExpr))
+-	n.SetLeft(defaultlit(n.Left(), nil))
+-	n.SetRight(typecheck(n.Right(), ctxStmt))
++	nfor.SetLeft(typecheck(nfor.Left(), ctxExpr))
++	nfor.SetLeft(defaultlit(nfor.Left(), nil))
++	nfor.SetRight(typecheck(nfor.Right(), ctxStmt))
+ 	typecheckslice(body, ctxStmt)
+-	n.PtrBody().Prepend(body...)
++	nfor.PtrBody().Append(body...)
++	nfor.PtrBody().Append(nrange.Body().Slice()...)
+ 
++	var n ir.Node = nfor
+ 	if ifGuard != nil {
+ 		ifGuard.PtrBody().Set1(n)
+ 		n = ifGuard
+@@ -534,31 +529,31 @@ func mapClear(m ir.Node) ir.Node {
+ // in which the evaluation of a is side-effect-free.
+ //
+ // Parameters are as in walkrange: "for v1, v2 = range a".
+-func arrayClear(n, v1, v2, a ir.Node) bool {
++func arrayClear(loop, v1, v2, a ir.Node) ir.Node {
+ 	if base.Flag.N != 0 || instrumenting {
+-		return false
++		return nil
+ 	}
+ 
+ 	if v1 == nil || v2 != nil {
+-		return false
++		return nil
+ 	}
+ 
+-	if n.Body().Len() != 1 || n.Body().First() == nil {
+-		return false
++	if loop.Body().Len() != 1 || loop.Body().First() == nil {
++		return nil
+ 	}
+ 
+-	stmt := n.Body().First() // only stmt in body
++	stmt := loop.Body().First() // only stmt in body
+ 	if stmt.Op() != ir.OAS || stmt.Left().Op() != ir.OINDEX {
+-		return false
++		return nil
+ 	}
+ 
+ 	if !samesafeexpr(stmt.Left().Left(), a) || !samesafeexpr(stmt.Left().Right(), v1) {
+-		return false
++		return nil
+ 	}
+ 
+-	elemsize := n.Type().Elem().Width
++	elemsize := loop.Type().Elem().Width
+ 	if elemsize <= 0 || !isZero(stmt.Right()) {
+-		return false
++		return nil
+ 	}
+ 
+ 	// Convert to
+@@ -568,8 +563,7 @@ func arrayClear(n, v1, v2, a ir.Node) bool {
+ 	// 	memclr{NoHeap,Has}Pointers(hp, hn)
+ 	// 	i = len(a) - 1
+ 	// }
+-	n.SetOp(ir.OIF)
+-
++	n := ir.Nod(ir.OIF, nil, nil)
+ 	n.PtrBody().Set(nil)
+ 	n.SetLeft(ir.Nod(ir.ONE, ir.Nod(ir.OLEN, a, nil), nodintconst(0)))
+ 
+@@ -611,7 +605,7 @@ func arrayClear(n, v1, v2, a ir.Node) bool {
+ 	n.SetLeft(defaultlit(n.Left(), nil))
+ 	typecheckslice(n.Body().Slice(), ctxStmt)
+ 	n = walkstmt(n)
+-	return true
++	return n
+ }
+ 
+ // addptr returns (*T)(uintptr(p) + n).
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 9668df082a..3afcef69f8 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -47,36 +47,30 @@ func typecheckselect(sel ir.Node) {
+ 				}
+ 				base.ErrorfAt(pos, "select case must be receive, send or assign recv")
+ 
+-			// convert x = <-c into OSELRECV(x, <-c).
+-			// remove implicit conversions; the eventual assignment
+-			// will reintroduce them.
+ 			case ir.OAS:
++				// convert x = <-c into OSELRECV(x, <-c).
++				// remove implicit conversions; the eventual assignment
++				// will reintroduce them.
+ 				if (n.Right().Op() == ir.OCONVNOP || n.Right().Op() == ir.OCONVIFACE) && n.Right().Implicit() {
+ 					n.SetRight(n.Right().Left())
+ 				}
+-
+ 				if n.Right().Op() != ir.ORECV {
+ 					base.ErrorfAt(n.Pos(), "select assignment must have receive on right hand side")
+ 					break
+ 				}
+-
+ 				n.SetOp(ir.OSELRECV)
+ 
+-				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
+ 			case ir.OAS2RECV:
+-				if n.Right().Op() != ir.ORECV {
++				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
++				if n.Rlist().First().Op() != ir.ORECV {
+ 					base.ErrorfAt(n.Pos(), "select assignment must have receive on right hand side")
+ 					break
+ 				}
+-
+ 				n.SetOp(ir.OSELRECV2)
+-				n.SetLeft(n.List().First())
+-				n.PtrList().Set1(n.List().Second())
+ 
+-				// convert <-c into OSELRECV(N, <-c)
+ 			case ir.ORECV:
+-				n = ir.NodAt(n.Pos(), ir.OSELRECV, nil, n)
+-
++				// convert <-c into OSELRECV(_, <-c)
++				n = ir.NodAt(n.Pos(), ir.OSELRECV, ir.BlankNode, n)
+ 				n.SetTypecheck(1)
+ 				ncase.SetLeft(n)
+ 
+@@ -134,28 +128,19 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
+ 			case ir.OSEND:
+ 				// already ok
+ 
+-			case ir.OSELRECV, ir.OSELRECV2:
+-				if n.Op() == ir.OSELRECV || n.List().Len() == 0 {
+-					if n.Left() == nil {
+-						n = n.Right()
+-					} else {
+-						n.SetOp(ir.OAS)
+-					}
++			case ir.OSELRECV:
++				if ir.IsBlank(n.Left()) {
++					n = n.Right()
+ 					break
+ 				}
++				n.SetOp(ir.OAS)
+ 
+-				if n.Left() == nil {
+-					ir.BlankNode = typecheck(ir.BlankNode, ctxExpr|ctxAssign)
+-					n.SetLeft(ir.BlankNode)
++			case ir.OSELRECV2:
++				if ir.IsBlank(n.List().First()) && ir.IsBlank(n.List().Second()) {
++					n = n.Rlist().First()
++					break
+ 				}
+-
+-				n.SetOp(ir.OAS2)
+-				n.PtrList().Prepend(n.Left())
+-				n.PtrRlist().Set1(n.Right())
+-				n.SetRight(nil)
+-				n.SetLeft(nil)
+-				n.SetTypecheck(0)
+-				n = typecheck(n, ctxStmt)
++				n.SetOp(ir.OAS2RECV)
+ 			}
+ 
+ 			l = append(l, n)
+@@ -176,20 +161,30 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
+ 			dflt = cas
+ 			continue
+ 		}
++
++		// Lower x, _ = <-c to x = <-c.
++		if n.Op() == ir.OSELRECV2 && ir.IsBlank(n.List().Second()) {
++			n = ir.NodAt(n.Pos(), ir.OSELRECV, n.List().First(), n.Rlist().First())
++			n.SetTypecheck(1)
++			cas.SetLeft(n)
++		}
++
+ 		switch n.Op() {
+ 		case ir.OSEND:
+ 			n.SetRight(ir.Nod(ir.OADDR, n.Right(), nil))
+ 			n.SetRight(typecheck(n.Right(), ctxExpr))
+ 
+-		case ir.OSELRECV, ir.OSELRECV2:
+-			if n.Op() == ir.OSELRECV2 && n.List().Len() == 0 {
+-				n.SetOp(ir.OSELRECV)
+-			}
+-
+-			if n.Left() != nil {
++		case ir.OSELRECV:
++			if !ir.IsBlank(n.Left()) {
+ 				n.SetLeft(ir.Nod(ir.OADDR, n.Left(), nil))
+ 				n.SetLeft(typecheck(n.Left(), ctxExpr))
+ 			}
++
++		case ir.OSELRECV2:
++			if !ir.IsBlank(n.List().First()) {
++				n.List().SetIndex(0, ir.Nod(ir.OADDR, n.List().First(), nil))
++				n.List().SetIndex(0, typecheck(n.List().First(), ctxExpr))
++			}
+ 		}
+ 	}
+ 
+@@ -204,6 +199,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
+ 		setlineno(n)
+ 		r := ir.Nod(ir.OIF, nil, nil)
+ 		r.PtrInit().Set(cas.Init().Slice())
++		var call ir.Node
+ 		switch n.Op() {
+ 		default:
+ 			base.Fatalf("select %v", n.Op())
+@@ -211,30 +207,30 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
+ 		case ir.OSEND:
+ 			// if selectnbsend(c, v) { body } else { default body }
+ 			ch := n.Left()
+-			r.SetLeft(mkcall1(chanfn("selectnbsend", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), ch, n.Right()))
++			call = mkcall1(chanfn("selectnbsend", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), ch, n.Right())
+ 
+ 		case ir.OSELRECV:
+ 			// if selectnbrecv(&v, c) { body } else { default body }
+ 			ch := n.Right().Left()
+ 			elem := n.Left()
+-			if elem == nil {
++			if ir.IsBlank(elem) {
+ 				elem = nodnil()
+ 			}
+-			r.SetLeft(mkcall1(chanfn("selectnbrecv", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, ch))
++			call = mkcall1(chanfn("selectnbrecv", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, ch)
+ 
+ 		case ir.OSELRECV2:
+ 			// if selectnbrecv2(&v, &received, c) { body } else { default body }
+-			ch := n.Right().Left()
+-			elem := n.Left()
+-			if elem == nil {
++			ch := n.Rlist().First().Left()
++			elem := n.List().First()
++			if ir.IsBlank(elem) {
+ 				elem = nodnil()
+ 			}
+-			receivedp := ir.Nod(ir.OADDR, n.List().First(), nil)
++			receivedp := ir.Nod(ir.OADDR, n.List().Second(), nil)
+ 			receivedp = typecheck(receivedp, ctxExpr)
+-			r.SetLeft(mkcall1(chanfn("selectnbrecv2", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, receivedp, ch))
++			call = mkcall1(chanfn("selectnbrecv2", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, receivedp, ch)
+ 		}
+ 
+-		r.SetLeft(typecheck(r.Left(), ctxExpr))
++		r.SetLeft(typecheck(call, ctxExpr))
+ 		r.PtrBody().Set(cas.Body().Slice())
+ 		r.PtrRlist().Set(append(dflt.Init().Slice(), dflt.Body().Slice()...))
+ 		return []ir.Node{r, ir.Nod(ir.OBREAK, nil, nil)}
+@@ -288,11 +284,16 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
+ 			nsends++
+ 			c = n.Left()
+ 			elem = n.Right()
+-		case ir.OSELRECV, ir.OSELRECV2:
++		case ir.OSELRECV:
+ 			nrecvs++
+ 			i = ncas - nrecvs
+ 			c = n.Right().Left()
+ 			elem = n.Left()
++		case ir.OSELRECV2:
++			nrecvs++
++			i = ncas - nrecvs
++			c = n.Rlist().First().Left()
++			elem = n.List().First()
+ 		}
+ 
+ 		casorder[i] = cas
+@@ -305,7 +306,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
+ 
+ 		c = convnop(c, types.Types[types.TUNSAFEPTR])
+ 		setField("c", c)
+-		if elem != nil {
++		if !ir.IsBlank(elem) {
+ 			elem = convnop(elem, types.Types[types.TUNSAFEPTR])
+ 			setField("elem", elem)
+ 		}
+@@ -347,7 +348,7 @@ func walkselectcases(cases *ir.Nodes) []ir.Node {
+ 		r := ir.Nod(ir.OIF, cond, nil)
+ 
+ 		if n := cas.Left(); n != nil && n.Op() == ir.OSELRECV2 {
+-			x := ir.Nod(ir.OAS, n.List().First(), recvOK)
++			x := ir.Nod(ir.OAS, n.List().Second(), recvOK)
+ 			x = typecheck(x, ctxStmt)
+ 			r.PtrBody().Append(x)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6d818be132..4be6caa0e3 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1120,9 +1120,9 @@ func (s *state) stmt(n ir.Node) {
+ 		s.callResult(n.Left(), callGo)
+ 
+ 	case ir.OAS2DOTTYPE:
+-		res, resok := s.dottype(n.Right(), true)
++		res, resok := s.dottype(n.Rlist().First(), true)
+ 		deref := false
+-		if !canSSAType(n.Right().Type()) {
++		if !canSSAType(n.Rlist().First().Type()) {
+ 			if res.Op != ssa.OpLoad {
+ 				s.Fatalf("dottype of non-load")
+ 			}
+@@ -1142,10 +1142,10 @@ func (s *state) stmt(n ir.Node) {
+ 
+ 	case ir.OAS2FUNC:
+ 		// We come here only when it is an intrinsic call returning two values.
+-		if !isIntrinsicCall(n.Right()) {
+-			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", n.Right())
++		if !isIntrinsicCall(n.Rlist().First()) {
++			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", n.Rlist().First())
+ 		}
+-		v := s.intrinsicCall(n.Right())
++		v := s.intrinsicCall(n.Rlist().First())
+ 		v1 := s.newValue1(ssa.OpSelect0, n.List().First().Type(), v)
+ 		v2 := s.newValue1(ssa.OpSelect1, n.List().Second().Type(), v)
+ 		s.assign(n.List().First(), v1, false, 0)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 19146e2a9e..b5ace76552 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3330,8 +3330,6 @@ func typecheckas2(n ir.Node) {
+ 				goto mismatch
+ 			}
+ 			n.SetOp(ir.OAS2FUNC)
+-			n.SetRight(r)
+-			n.PtrRlist().Set(nil)
+ 			for i, l := range n.List().Slice() {
+ 				f := r.Type().Field(i)
+ 				if f.Type != nil && l.Type() != nil {
+@@ -3361,8 +3359,6 @@ func typecheckas2(n ir.Node) {
+ 				n.SetOp(ir.OAS2DOTTYPE)
+ 				r.SetOp(ir.ODOTTYPE2)
+ 			}
+-			n.SetRight(r)
+-			n.PtrRlist().Set(nil)
+ 			if l.Type() != nil {
+ 				checkassignto(r.Type(), l)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index d43545391c..c3c2c0492a 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -144,6 +144,7 @@ func lexinit() {
+ 	types.Types[types.TBLANK] = types.New(types.TBLANK)
+ 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
+ 	ir.BlankNode = ir.AsNode(s.Def)
++	ir.BlankNode.SetTypecheck(1)
+ 
+ 	s = ir.BuiltinPkg.Lookup("_")
+ 	s.Block = -100
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e7c88bd329..0a77cfbb38 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -604,11 +604,8 @@ opswitch:
+ 
+ 		if n.Op() == ir.OASOP {
+ 			// Rewrite x op= y into x = x op y.
+-			n.SetRight(ir.Nod(n.SubOp(), n.Left(), n.Right()))
+-			n.SetRight(typecheck(n.Right(), ctxExpr))
+-
+-			n.SetOp(ir.OAS)
+-			n.ResetAux()
++			n = ir.Nod(ir.OAS, n.Left(),
++				typecheck(ir.Nod(n.SubOp(), n.Left(), n.Right()), ctxExpr))
+ 		}
+ 
+ 		if oaslit(n, init) {
+@@ -683,12 +680,12 @@ opswitch:
+ 	case ir.OAS2FUNC:
+ 		init.AppendNodes(n.PtrInit())
+ 
+-		r := n.Right()
++		r := n.Rlist().First()
+ 		walkexprlistsafe(n.List().Slice(), init)
+ 		r = walkexpr(r, init)
+ 
+ 		if isIntrinsicCall(r) {
+-			n.SetRight(r)
++			n.PtrRlist().Set1(r)
+ 			break
+ 		}
+ 		init.Append(r)
+@@ -701,7 +698,7 @@ opswitch:
+ 	case ir.OAS2RECV:
+ 		init.AppendNodes(n.PtrInit())
+ 
+-		r := n.Right()
++		r := n.Rlist().First()
+ 		walkexprlistsafe(n.List().Slice(), init)
+ 		r.SetLeft(walkexpr(r.Left(), init))
+ 		var n1 ir.Node
+@@ -720,7 +717,7 @@ opswitch:
+ 	case ir.OAS2MAPR:
+ 		init.AppendNodes(n.PtrInit())
+ 
+-		r := n.Right()
++		r := n.Rlist().First()
+ 		walkexprlistsafe(n.List().Slice(), init)
+ 		r.SetLeft(walkexpr(r.Left(), init))
+ 		r.SetRight(walkexpr(r.Right(), init))
+@@ -759,7 +756,7 @@ opswitch:
+ 		if ok := n.List().Second(); !ir.IsBlank(ok) && ok.Type().IsBoolean() {
+ 			r.Type().Field(1).Type = ok.Type()
+ 		}
+-		n.SetRight(r)
++		n.PtrRlist().Set1(r)
+ 		n.SetOp(ir.OAS2FUNC)
+ 
+ 		// don't generate a = *var if a is _
+@@ -793,7 +790,7 @@ opswitch:
+ 
+ 	case ir.OAS2DOTTYPE:
+ 		walkexprlistsafe(n.List().Slice(), init)
+-		n.SetRight(walkexpr(n.Right(), init))
++		n.PtrRlist().SetIndex(0, walkexpr(n.Rlist().First(), init))
+ 
+ 	case ir.OCONVIFACE:
+ 		n.SetLeft(walkexpr(n.Left(), init))
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index c723bad4c9..4a08cca359 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -939,15 +939,12 @@ func stmtFmt(n Node, s fmt.State, mode FmtMode) {
+ 
+ 		mode.Fprintf(s, "%v %#v= %v", n.Left(), n.SubOp(), n.Right())
+ 
+-	case OAS2:
++	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+ 		if n.Colas() && !complexinit {
+ 			mode.Fprintf(s, "%.v := %.v", n.List(), n.Rlist())
+-			break
++		} else {
++			mode.Fprintf(s, "%.v = %.v", n.List(), n.Rlist())
+ 		}
+-		fallthrough
+-
+-	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+-		mode.Fprintf(s, "%.v = %v", n.List(), n.Right())
+ 
+ 	case ORETURN:
+ 		mode.Fprintf(s, "return %.v", n.List())
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 2850704ae1..85f7f92a42 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -520,8 +520,8 @@ const (
+ 	ORECOVER     // recover()
+ 	ORECV        // <-Left
+ 	ORUNESTR     // Type(Left) (Type is string, Left is rune)
+-	OSELRECV     // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
+-	OSELRECV2    // List = <-Right.Left: (appears as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
++	OSELRECV     // like OAS: Left = Right where Right.Op = ORECV (appears as .Left of OCASE)
++	OSELRECV2    // like OAS2: List = Rlist where len(List)=2, len(Rlist)=1, Rlist[0].Op = ORECV (appears as .Left of OCASE)
+ 	OIOTA        // iota
+ 	OREAL        // real(Left)
+ 	OIMAG        // imag(Left)
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index 51bab49518..4a6ed2fac9 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -132,7 +132,7 @@ func TestLogOpt(t *testing.T) {
+ 	// Check at both 1 and 8-byte alignments.
+ 	t.Run("Copy", func(t *testing.T) {
+ 		const copyCode = `package x
+-func s128a1(x *[128]int8) [128]int8 { 
++func s128a1(x *[128]int8) [128]int8 {
+ 	return *x
+ }
+ func s127a1(x *[127]int8) [127]int8 {
+@@ -219,7 +219,7 @@ func s15a8(x *[15]int64) [15]int64 {
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u003cN\u003e (assign-pair)"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u0026y.b (assign-pair)"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~R0:"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~R0) (return)"}]}`)
+ 	})

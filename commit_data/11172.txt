@@ -16,7 +16,7 @@ Date:   Sun Jan 15 14:19:44 2012 +0900
     R=devon.odell, alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/5538052
-
+---
  src/pkg/net/multicast_test.go  | 43 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/sock.go            |  2 +-
  src/pkg/net/sockopt_bsd.go     | 37 +++++++++++++++++++++++-------------
@@ -24,3 +24,211 @@ Date:   Sun Jan 15 14:19:44 2012 +0900
  src/pkg/net/sockopt_windows.go | 21 +++++++++++++++------
  src/pkg/net/udpsock_posix.go   |  1 +
  6 files changed, 103 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 96bac458da..183d5a8aba 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -95,6 +95,49 @@ func TestMulticastUDP(t *testing.T) {
+ 	}
+ }
+ 
++func TestSimpleMulticastUDP(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		return
++	}
++	if !*multicast {
++		t.Logf("test disabled; use --multicast to enable")
++		return
++	}
++
++	for _, tt := range multicastUDPTests {
++		var ifi *Interface
++		if tt.ipv6 {
++			continue
++		}
++		tt.flags = FlagUp | FlagMulticast
++		ift, err := Interfaces()
++		if err != nil {
++			t.Fatalf("Interfaces failed: %v", err)
++		}
++		for _, x := range ift {
++			if x.Flags&tt.flags == tt.flags {
++				ifi = &x
++				break
++			}
++		}
++		if ifi == nil {
++			t.Logf("an appropriate multicast interface not found")
++			return
++		}
++		c, err := ListenUDP(tt.net, &UDPAddr{IP: tt.laddr})
++		if err != nil {
++			t.Fatalf("ListenUDP failed: %v", err)
++		}
++		defer c.Close()
++		if err := c.JoinGroup(ifi, tt.gaddr); err != nil {
++			t.Fatalf("JoinGroup failed: %v", err)
++		}
++		if err := c.LeaveGroup(ifi, tt.gaddr); err != nil {
++			t.Fatalf("LeaveGroup failed: %v", err)
++		}
++	}
++}
++
+ func testIPv4MulticastSocketOptions(t *testing.T, fd *netFD, ifi *Interface) {
+ 	ifmc, err := ipv4MulticastInterface(fd)
+ 	if err != nil {
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 7732d2e063..881c922a25 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -28,7 +28,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	syscall.CloseOnExec(s)
+ 	syscall.ForkLock.RUnlock()
+ 
+-	setKernelSpecificSockopt(s, f)
++	setDefaultSockopts(s, f, p)
+ 
+ 	if la != nil {
+ 		e = syscall.Bind(s, la)
+diff --git a/src/pkg/net/sockopt_bsd.go b/src/pkg/net/sockopt_bsd.go
+index 370831fe5f..e99fb418cd 100644
+--- a/src/pkg/net/sockopt_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -12,22 +12,33 @@ import (
+ 	"syscall"
+ )
+ 
+-func setKernelSpecificSockopt(s, f int) {
+-	// Allow reuse of recently-used addresses.
+-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
++func setDefaultSockopts(s, f, p int) {
++	switch f {
++	case syscall.AF_INET6:
++		// Allow both IP versions even if the OS default is otherwise.
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
++	}
+ 
+-	// Allow reuse of recently-used ports.
+-	// This option is supported only in descendants of 4.4BSD,
+-	// to make an effective multicast application and an application
+-	// that requires quick draw possible.
+-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
++	if f == syscall.AF_UNIX || p == syscall.IPPROTO_TCP {
++		// Allow reuse of recently-used addresses.
++		syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
++
++		// Allow reuse of recently-used ports.
++		// This option is supported only in descendants of 4.4BSD,
++		// to make an effective multicast application and an application
++		// that requires quick draw possible.
++		syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
++	}
+ 
+ 	// Allow broadcast.
+ 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
++}
+ 
+-	if f == syscall.AF_INET6 {
+-		// using ip, tcp, udp, etc.
+-		// allow both protocols even if the OS default is otherwise.
+-		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+-	}
++func setDefaultMulticastSockopts(fd *netFD) {
++	fd.incref()
++	defer fd.decref()
++	// Allow multicast UDP and raw IP datagram sockets to listen
++	// concurrently across multiple listeners.
++	syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
++	syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
+ }
+diff --git a/src/pkg/net/sockopt_linux.go b/src/pkg/net/sockopt_linux.go
+index e55c3c5ce8..51583844f1 100644
+--- a/src/pkg/net/sockopt_linux.go
++++ b/src/pkg/net/sockopt_linux.go
+@@ -10,16 +10,27 @@ import (
+ 	"syscall"
+ )
+ 
+-func setKernelSpecificSockopt(s, f int) {
+-	// Allow reuse of recently-used addresses.
+-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
++func setDefaultSockopts(s, f, p int) {
++	switch f {
++	case syscall.AF_INET6:
++		// Allow both IP versions even if the OS default is otherwise.
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
++	}
++
++	if f == syscall.AF_UNIX || p == syscall.IPPROTO_TCP {
++		// Allow reuse of recently-used addresses.
++		syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
++	}
+ 
+ 	// Allow broadcast.
+ 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+ 
+-	if f == syscall.AF_INET6 {
+-		// using ip, tcp, udp, etc.
+-		// allow both protocols even if the OS default is otherwise.
+-		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+-	}
++}
++
++func setDefaultMulticastSockopts(fd *netFD) {
++	fd.incref()
++	defer fd.decref()
++	// Allow multicast UDP and raw IP datagram sockets to listen
++	// concurrently across multiple listeners.
++	syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+ }
+diff --git a/src/pkg/net/sockopt_windows.go b/src/pkg/net/sockopt_windows.go
+index df15b8c4c8..485c14a2d3 100644
+--- a/src/pkg/net/sockopt_windows.go
++++ b/src/pkg/net/sockopt_windows.go
+@@ -10,7 +10,13 @@ import (
+ 	"syscall"
+ )
+ 
+-func setKernelSpecificSockopt(s syscall.Handle, f int) {
++func setDefaultSockopts(s syscall.Handle, f, p int) {
++	switch f {
++	case syscall.AF_INET6:
++		// Allow both IP versions even if the OS default is otherwise.
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
++	}
++
+ 	// Windows will reuse recently-used addresses by default.
+ 	// SO_REUSEADDR should not be used here, as it allows
+ 	// a socket to forcibly bind to a port in use by another socket.
+@@ -21,9 +27,12 @@ func setKernelSpecificSockopt(s syscall.Handle, f int) {
+ 	// Allow broadcast.
+ 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+ 
+-	if f == syscall.AF_INET6 {
+-		// using ip, tcp, udp, etc.
+-		// allow both protocols even if the OS default is otherwise.
+-		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+-	}
++}
++
++func setDefaultMulticastSockopts(fd *netFD) {
++	fd.incref()
++	defer fd.decref()
++	// Allow multicast UDP and raw IP datagram sockets to listen
++	// concurrently across multiple listeners.
++	syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+ }
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 7bc4cb9f7e..d0bdb14755 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -251,6 +251,7 @@ func (c *UDPConn) JoinGroup(ifi *Interface, addr IP) error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+ 	}
++	setDefaultMulticastSockopts(c.fd)
+ 	ip := addr.To4()
+ 	if ip != nil {
+ 		return joinIPv4GroupUDP(c, ifi, ip)

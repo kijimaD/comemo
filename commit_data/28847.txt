@@ -18,7 +18,7 @@ Date:   Thu Aug 11 09:49:48 2016 -0700
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules | 11 ++++-
  src/cmd/compile/internal/ssa/gen/386Ops.go | 12 +++++
  src/cmd/compile/internal/ssa/opGen.go      | 63 ++++++++++++++++++++++++
@@ -26,3 +26,370 @@ Date:   Thu Aug 11 09:49:48 2016 -0700
  src/cmd/compile/internal/x86/387.go        | 35 +++++---------
  src/cmd/compile/internal/x86/ssa.go        | 23 +++++++++
  6 files changed, 196 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index b360189e43..0609d3b24a 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -70,8 +70,10 @@
+ (Neg32  x) -> (NEGL x)
+ (Neg16  x) -> (NEGL x)
+ (Neg8   x) -> (NEGL x)
+-(Neg32F x) -> (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
+-(Neg64F x) -> (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
++(Neg32F x) && !config.use387 -> (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
++(Neg64F x) && !config.use387 -> (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
++(Neg32F x) && config.use387 -> (FCHS x)
++(Neg64F x) && config.use387 -> (FCHS x)
+ 
+ (Com32 x) -> (NOTL x)
+ (Com16 x) -> (NOTL x)
+@@ -1250,3 +1252,8 @@
+   && x.Uses == 1
+   && clobber(x)
+   -> (MOVLstoreidx1 [i-2] {s} p (SHLLconst <idx.Type> [1] idx) w0 mem)
++
++// For PIC, break floating-point constant loading into two instructions so we have
++// a register to use for holding the address of the constant pool entry.
++(MOVSSconst [c]) && config.ctxt.Flag_shared -> (MOVSSconst2 (MOVSSconst1 [c]))
++(MOVSDconst [c]) && config.ctxt.Flag_shared -> (MOVSDconst2 (MOVSDconst1 [c]))
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 86f6f72370..1013adf4a6 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -463,6 +463,18 @@ func init() {
+ 		{name: "FlagLT_UGT"}, // signed < and unsigned >
+ 		{name: "FlagGT_UGT"}, // signed > and unsigned <
+ 		{name: "FlagGT_ULT"}, // signed > and unsigned >
++
++		// Special op for -x on 387
++		{name: "FCHS", argLength: 1, reg: fp11},
++
++		// Special ops for PIC floating-point constants.
++		// MOVSXconst1 loads the address of the constant-pool entry into a register.
++		// MOVSXconst2 loads the constant from that address.
++		// MOVSXconst1 returns a pointer, but we type it as uint32 because it can never point to the Go heap.
++		{name: "MOVSSconst1", reg: gp01, typ: "UInt32", aux: "Float32"},
++		{name: "MOVSDconst1", reg: gp01, typ: "UInt32", aux: "Float64"},
++		{name: "MOVSSconst2", argLength: 1, reg: gpfp, asm: "MOVSS"},
++		{name: "MOVSDconst2", argLength: 1, reg: gpfp, asm: "MOVSD"},
+ 	}
+ 
+ 	var _386blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 38a2ba7136..75381c4246 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -345,6 +345,11 @@ const (
+ 	Op386FlagLT_UGT
+ 	Op386FlagGT_UGT
+ 	Op386FlagGT_ULT
++	Op386FCHS
++	Op386MOVSSconst1
++	Op386MOVSDconst1
++	Op386MOVSSconst2
++	Op386MOVSDconst2
+ 
+ 	OpAMD64ADDSS
+ 	OpAMD64ADDSD
+@@ -3675,6 +3680,64 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 0,
+ 		reg:    regInfo{},
+ 	},
++	{
++		name:   "FCHS",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
++			},
++			outputs: []outputInfo{
++				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
++			},
++		},
++	},
++	{
++		name:    "MOVSSconst1",
++		auxType: auxFloat32,
++		argLen:  0,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++		},
++	},
++	{
++		name:    "MOVSDconst1",
++		auxType: auxFloat64,
++		argLen:  0,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++		},
++	},
++	{
++		name:   "MOVSSconst2",
++		argLen: 1,
++		asm:    x86.AMOVSS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++			outputs: []outputInfo{
++				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
++			},
++		},
++	},
++	{
++		name:   "MOVSDconst2",
++		argLen: 1,
++		asm:    x86.AMOVSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++			outputs: []outputInfo{
++				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
++			},
++		},
++	},
+ 
+ 	{
+ 		name:         "ADDSS",
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index caccf88b7a..b791c44098 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -78,6 +78,8 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 		return rewriteValue386_Op386MOVLstoreidx1(v, config)
+ 	case Op386MOVLstoreidx4:
+ 		return rewriteValue386_Op386MOVLstoreidx4(v, config)
++	case Op386MOVSDconst:
++		return rewriteValue386_Op386MOVSDconst(v, config)
+ 	case Op386MOVSDload:
+ 		return rewriteValue386_Op386MOVSDload(v, config)
+ 	case Op386MOVSDloadidx1:
+@@ -90,6 +92,8 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 		return rewriteValue386_Op386MOVSDstoreidx1(v, config)
+ 	case Op386MOVSDstoreidx8:
+ 		return rewriteValue386_Op386MOVSDstoreidx8(v, config)
++	case Op386MOVSSconst:
++		return rewriteValue386_Op386MOVSSconst(v, config)
+ 	case Op386MOVSSload:
+ 		return rewriteValue386_Op386MOVSSload(v, config)
+ 	case Op386MOVSSloadidx1:
+@@ -4213,6 +4217,25 @@ func rewriteValue386_Op386MOVLstoreidx4(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386MOVSDconst(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVSDconst [c])
++	// cond: config.ctxt.Flag_shared
++	// result: (MOVSDconst2 (MOVSDconst1 [c]))
++	for {
++		c := v.AuxInt
++		if !(config.ctxt.Flag_shared) {
++			break
++		}
++		v.reset(Op386MOVSDconst2)
++		v0 := b.NewValue0(v.Line, Op386MOVSDconst1, config.fe.TypeUInt32())
++		v0.AuxInt = c
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386MOVSDload(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -4683,6 +4706,25 @@ func rewriteValue386_Op386MOVSDstoreidx8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386MOVSSconst(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVSSconst [c])
++	// cond: config.ctxt.Flag_shared
++	// result: (MOVSSconst2 (MOVSSconst1 [c]))
++	for {
++		c := v.AuxInt
++		if !(config.ctxt.Flag_shared) {
++			break
++		}
++		v.reset(Op386MOVSSconst2)
++		v0 := b.NewValue0(v.Line, Op386MOVSSconst1, config.fe.TypeUInt32())
++		v0.AuxInt = c
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386MOVSSload(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -11399,10 +11441,13 @@ func rewriteValue386_OpNeg32F(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Neg32F x)
+-	// cond:
++	// cond: !config.use387
+ 	// result: (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
+ 	for {
+ 		x := v.Args[0]
++		if !(!config.use387) {
++			break
++		}
+ 		v.reset(Op386PXOR)
+ 		v.AddArg(x)
+ 		v0 := b.NewValue0(v.Line, Op386MOVSSconst, config.Frontend().TypeFloat32())
+@@ -11410,15 +11455,31 @@ func rewriteValue386_OpNeg32F(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Neg32F x)
++	// cond: config.use387
++	// result: (FCHS x)
++	for {
++		x := v.Args[0]
++		if !(config.use387) {
++			break
++		}
++		v.reset(Op386FCHS)
++		v.AddArg(x)
++		return true
++	}
++	return false
+ }
+ func rewriteValue386_OpNeg64F(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Neg64F x)
+-	// cond:
++	// cond: !config.use387
+ 	// result: (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
+ 	for {
+ 		x := v.Args[0]
++		if !(!config.use387) {
++			break
++		}
+ 		v.reset(Op386PXOR)
+ 		v.AddArg(x)
+ 		v0 := b.NewValue0(v.Line, Op386MOVSDconst, config.Frontend().TypeFloat64())
+@@ -11426,6 +11487,19 @@ func rewriteValue386_OpNeg64F(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Neg64F x)
++	// cond: config.use387
++	// result: (FCHS x)
++	for {
++		x := v.Args[0]
++		if !(config.use387) {
++			break
++		}
++		v.reset(Op386FCHS)
++		v.AddArg(x)
++		return true
++	}
++	return false
+ }
+ func rewriteValue386_OpNeg8(v *Value, config *Config) bool {
+ 	b := v.Block
+diff --git a/src/cmd/compile/internal/x86/387.go b/src/cmd/compile/internal/x86/387.go
+index 96a7d63082..bd0971cf4e 100644
+--- a/src/cmd/compile/internal/x86/387.go
++++ b/src/cmd/compile/internal/x86/387.go
+@@ -29,6 +29,14 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p.To.Reg = x86.REG_F0
+ 		popAndSave(s, v)
+ 		return true
++	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
++		p := gc.Prog(loadPush(v.Type))
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = x86.REG_F0
++		popAndSave(s, v)
++		return true
+ 
+ 	case ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1, ssa.Op386MOVSSloadidx4, ssa.Op386MOVSDloadidx8:
+ 		p := gc.Prog(loadPush(v.Type))
+@@ -183,28 +191,11 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		popAndSave(s, v)
+ 		return true
+ 
+-	case ssa.Op386PXOR:
+-		a0 := v.Args[0]
+-		a1 := v.Args[1]
+-		for a0.Op == ssa.OpCopy {
+-			a0 = a0.Args[0]
+-		}
+-		for a1.Op == ssa.OpCopy {
+-			a1 = a1.Args[0]
+-		}
+-		if (a0.Op == ssa.Op386MOVSSconst || a0.Op == ssa.Op386MOVSDconst) && a0.AuxInt == -0x8000000000000000 {
+-			push(s, v.Args[1])
+-			gc.Prog(x86.AFCHS)
+-			popAndSave(s, v)
+-			return true
+-		}
+-		if (a1.Op == ssa.Op386MOVSSconst || a1.Op == ssa.Op386MOVSDconst) && a1.AuxInt == -0x8000000000000000 {
+-			push(s, v.Args[0])
+-			gc.Prog(x86.AFCHS)
+-			popAndSave(s, v)
+-			return true
+-		}
+-		v.Fatalf("PXOR not used to change sign %s", v.LongString())
++	case ssa.Op386FCHS:
++		push(s, v.Args[0])
++		gc.Prog(x86.AFCHS)
++		popAndSave(s, v)
++		return true
+ 
+ 	case ssa.Op386CVTSL2SS, ssa.Op386CVTSL2SD:
+ 		p := gc.Prog(x86.AMOVL)
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index e941e6cda7..3005a19bfd 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -456,6 +456,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x
++	case ssa.Op386MOVSSconst1, ssa.Op386MOVSDconst1:
++		var literal string
++		if v.Op == ssa.Op386MOVSDconst1 {
++			literal = fmt.Sprintf("$f64.%016x", uint64(v.AuxInt))
++		} else {
++			literal = fmt.Sprintf("$f32.%08x", math.Float32bits(float32(math.Float64frombits(uint64(v.AuxInt)))))
++		}
++		p := gc.Prog(x86.ALEAL)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Name = obj.NAME_EXTERN
++		p.From.Sym = obj.Linklookup(gc.Ctxt, literal, 0)
++		p.From.Sym.Local = true
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++
+ 	case ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVLload, ssa.Op386MOVWload, ssa.Op386MOVBload, ssa.Op386MOVBLSXload, ssa.Op386MOVWLSXload:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+@@ -872,6 +893,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+ 			gc.Warnl(v.Line, "generated nil check")
+ 		}
++	case ssa.Op386FCHS:
++		v.Fatalf("FCHS in non-387 mode")
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+ 	}

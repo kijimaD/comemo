@@ -10,6 +10,20 @@ Date:   Wed Sep 18 21:34:24 2019 -0400
     Change-Id: I866b3882c8e83bf1fef60115cff5d1c6a9863f09
     Reviewed-on: https://go-review.googlesource.com/c/go/+/186319
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.13.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 4ca64ad13a..3baf16c0af 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -102,7 +102,7 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="ports">Ports</h2>
+ 
+-<p>
++<p id="nacl">
+   Go 1.13 is the last release that will run on Native Client (NaCl).
+ </p>
+ 

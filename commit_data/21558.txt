@@ -13,7 +13,48 @@ Date:   Wed Jan 14 21:32:05 2015 +0300
     Change-Id: I7fd30739b045e35b95e6ef6a8ef2f15b0dd6839c
     Reviewed-on: https://go-review.googlesource.com/2758
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/xml/marshal_test.go | 2 ++
  src/encoding/xml/xml.go          | 8 ++++----
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 14f73a75d5..cdd52ff97f 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -1148,12 +1148,14 @@ func TestMarshalFlush(t *testing.T) {
+ }
+ 
+ func BenchmarkMarshal(b *testing.B) {
++	b.ReportAllocs()
+ 	for i := 0; i < b.N; i++ {
+ 		Marshal(atomValue)
+ 	}
+ }
+ 
+ func BenchmarkUnmarshal(b *testing.B) {
++	b.ReportAllocs()
+ 	xml := []byte(atomXml)
+ 	for i := 0; i < b.N; i++ {
+ 		Unmarshal(xml, &Feed{})
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 8c15b98c3a..5690b20256 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -1119,12 +1119,12 @@ func (d *Decoder) name() (s string, ok bool) {
+ 	}
+ 
+ 	// Now we check the characters.
+-	s = d.buf.String()
+-	if !isName([]byte(s)) {
+-		d.err = d.syntaxError("invalid XML name: " + s)
++	b := d.buf.Bytes()
++	if !isName(b) {
++		d.err = d.syntaxError("invalid XML name: " + string(b))
+ 		return "", false
+ 	}
+-	return s, true
++	return string(b), true
+ }
+ 
+ // Read a name and append its bytes to d.buf.

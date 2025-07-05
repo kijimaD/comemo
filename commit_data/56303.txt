@@ -15,6 +15,19 @@ Date:   Tue Apr 25 16:41:51 2023 -0500
     Run-TryBot: Paul Murphy <murp@ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 7ac7699996..c1bfec059d 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -540,6 +540,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		}
+ 		if sect.type_ == elf.SHT_PROGBITS {
+ 			sb.SetData(sect.base[:sect.size])
++			sb.SetExternal(true)
+ 		}
+ 
+ 		sb.SetSize(int64(sect.size))

@@ -7,6 +7,19 @@ Date:   Thu Jun 27 22:43:30 2013 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/10730045
-
+---
  src/pkg/runtime/proc.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index e6844032a6..12ca09849c 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -87,7 +87,6 @@ static void procresize(int32);
+ static void acquirep(P*);
+ static P* releasep(void);
+ static void newm(void(*)(void), P*);
+-static void goidle(void);
+ static void stopm(void);
+ static void startm(P*, bool);
+ static void handoffp(P*);

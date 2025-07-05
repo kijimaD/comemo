@@ -17,10 +17,775 @@ Date:   Thu Jun 19 11:39:03 2014 +1000
     R=r, nightlyone
     CC=bradfitz, couchmoney, golang-codereviews, raph
     https://golang.org/cl/109050045
-
+---
  src/pkg/image/jpeg/huffman.go     | 257 +++++++++++++++++++++-----------------
  src/pkg/image/jpeg/reader.go      | 207 +++++++++++++++++++++++++-----
  src/pkg/image/jpeg/reader_test.go |   1 -
  src/pkg/image/jpeg/scan.go        |  18 ++-
  src/pkg/image/jpeg/writer.go      |   2 +-
  5 files changed, 327 insertions(+), 158 deletions(-)
+
+diff --git a/src/pkg/image/jpeg/huffman.go b/src/pkg/image/jpeg/huffman.go
+index f53d873a53..d4ff4cfa0c 100644
+--- a/src/pkg/image/jpeg/huffman.go
++++ b/src/pkg/image/jpeg/huffman.go
+@@ -4,94 +4,96 @@
+ 
+ package jpeg
+ 
+-import "io"
++import (
++	"io"
++)
+ 
+-// Each code is at most 16 bits long.
++// maxCodeLength is the maximum (inclusive) number of bits in a Huffman code.
+ const maxCodeLength = 16
+ 
+-// Each decoded value is a uint8, so there are at most 256 such values.
+-const maxNumValues = 256
++// maxNCodes is the maximum (inclusive) number of codes in a Huffman tree.
++const maxNCodes = 256
+ 
+-// Bit stream for the Huffman decoder.
+-// The n least significant bits of a form the unread bits, to be read in MSB to LSB order.
+-type bits struct {
+-	a uint32 // accumulator.
+-	m uint32 // mask. m==1<<(n-1) when n>0, with m==0 when n==0.
+-	n int    // the number of unread bits in a.
+-}
++// lutSize is the log-2 size of the Huffman decoder's look-up table.
++const lutSize = 8
+ 
+-// Huffman table decoder, specified in section C.
++// huffman is a Huffman decoder, specified in section C.
+ type huffman struct {
+-	l        [maxCodeLength]int
+-	length   int                 // sum of l[i].
+-	val      [maxNumValues]uint8 // the decoded values, as sorted by their encoding.
+-	size     [maxNumValues]int   // size[i] is the number of bits to encode val[i].
+-	code     [maxNumValues]int   // code[i] is the encoding of val[i].
+-	minCode  [maxCodeLength]int  // min codes of length i, or -1 if no codes of that length.
+-	maxCode  [maxCodeLength]int  // max codes of length i, or -1 if no codes of that length.
+-	valIndex [maxCodeLength]int  // index into val of minCode[i].
++	// length is the number of codes in the tree.
++	nCodes int32
++	// lut is the look-up table for the next lutSize bits in the bit-stream.
++	// The high 8 bits of the uint16 are the encoded value. The low 8 bits
++	// are 1 plus the code length, or 0 if the value is too large to fit in
++	// lutSize bits.
++	lut [1 << lutSize]uint16
++	// vals are the decoded values, sorted by their encoding.
++	vals [maxNCodes]uint8
++	// minCodes[i] is the minimum code of length i, or -1 if there are no
++	// codes of that length.
++	minCodes [maxCodeLength]int32
++	// maxCodes[i] is the maximum code of length i, or -1 if there are no
++	// codes of that length.
++	maxCodes [maxCodeLength]int32
++	// valsIndices[i] is the index into vals of minCodes[i].
++	valsIndices [maxCodeLength]int32
+ }
+ 
+-// Reads bytes from the io.Reader to ensure that bits.n is at least n.
+-func (d *decoder) ensureNBits(n int) error {
+-	for d.b.n < n {
+-		c, err := d.r.ReadByte()
++// errShortHuffmanData means that an unexpected EOF occurred while decoding
++// Huffman data.
++var errShortHuffmanData = FormatError("short Huffman data")
++
++// ensureNBits reads bytes from the byte buffer to ensure that d.bits.n is at
++// least n. For best performance (avoiding function calls inside hot loops),
++// the caller is the one responsible for first checking that d.bits.n < n.
++func (d *decoder) ensureNBits(n int32) error {
++	for {
++		c, err := d.readByteStuffedByte()
+ 		if err != nil {
+ 			if err == io.EOF {
+-				return FormatError("short Huffman data")
++				return errShortHuffmanData
+ 			}
+ 			return err
+ 		}
+-		d.b.a = d.b.a<<8 | uint32(c)
+-		d.b.n += 8
+-		if d.b.m == 0 {
+-			d.b.m = 1 << 7
++		d.bits.a = d.bits.a<<8 | uint32(c)
++		d.bits.n += 8
++		if d.bits.m == 0 {
++			d.bits.m = 1 << 7
+ 		} else {
+-			d.b.m <<= 8
+-		}
+-		// Byte stuffing, specified in section F.1.2.3.
+-		if c == 0xff {
+-			c, err = d.r.ReadByte()
+-			if err != nil {
+-				if err == io.EOF {
+-					return FormatError("short Huffman data")
+-				}
+-				return err
+-			}
+-			if c != 0x00 {
+-				return FormatError("missing 0xff00 sequence")
+-			}
++			d.bits.m <<= 8
++		}
++		if d.bits.n >= n {
++			break
+ 		}
+ 	}
+ 	return nil
+ }
+ 
+-// The composition of RECEIVE and EXTEND, specified in section F.2.2.1.
++// receiveExtend is the composition of RECEIVE and EXTEND, specified in section
++// F.2.2.1.
+ func (d *decoder) receiveExtend(t uint8) (int32, error) {
+-	if d.b.n < int(t) {
+-		if err := d.ensureNBits(int(t)); err != nil {
++	if d.bits.n < int32(t) {
++		if err := d.ensureNBits(int32(t)); err != nil {
+ 			return 0, err
+ 		}
+ 	}
+-	d.b.n -= int(t)
+-	d.b.m >>= t
++	d.bits.n -= int32(t)
++	d.bits.m >>= t
+ 	s := int32(1) << t
+-	x := int32(d.b.a>>uint8(d.b.n)) & (s - 1)
++	x := int32(d.bits.a>>uint8(d.bits.n)) & (s - 1)
+ 	if x < s>>1 {
+ 		x += ((-1) << t) + 1
+ 	}
+ 	return x, nil
+ }
+ 
+-// Processes a Define Huffman Table marker, and initializes a huffman struct from its contents.
+-// Specified in section B.2.4.2.
++// processDHT processes a Define Huffman Table marker, and initializes a huffman
++// struct from its contents. Specified in section B.2.4.2.
+ func (d *decoder) processDHT(n int) error {
+ 	for n > 0 {
+ 		if n < 17 {
+ 			return FormatError("DHT has wrong length")
+ 		}
+-		_, err := io.ReadFull(d.r, d.tmp[0:17])
+-		if err != nil {
++		if err := d.readFull(d.tmp[:17]); err != nil {
+ 			return err
+ 		}
+ 		tc := d.tmp[0] >> 4
+@@ -104,89 +106,112 @@ func (d *decoder) processDHT(n int) error {
+ 		}
+ 		h := &d.huff[tc][th]
+ 
+-		// Read l and val (and derive length).
+-		h.length = 0
+-		for i := 0; i < maxCodeLength; i++ {
+-			h.l[i] = int(d.tmp[i+1])
+-			h.length += h.l[i]
++		// Read nCodes and h.vals (and derive h.nCodes).
++		// nCodes[i] is the number of codes with code length i.
++		// h.nCodes is the total number of codes.
++		h.nCodes = 0
++		var nCodes [maxCodeLength]int32
++		for i := range nCodes {
++			nCodes[i] = int32(d.tmp[i+1])
++			h.nCodes += nCodes[i]
+ 		}
+-		if h.length == 0 {
++		if h.nCodes == 0 {
+ 			return FormatError("Huffman table has zero length")
+ 		}
+-		if h.length > maxNumValues {
++		if h.nCodes > maxNCodes {
+ 			return FormatError("Huffman table has excessive length")
+ 		}
+-		n -= h.length + 17
++		n -= int(h.nCodes) + 17
+ 		if n < 0 {
+ 			return FormatError("DHT has wrong length")
+ 		}
+-		_, err = io.ReadFull(d.r, h.val[0:h.length])
+-		if err != nil {
++		if err := d.readFull(h.vals[:h.nCodes]); err != nil {
+ 			return err
+ 		}
+ 
+-		// Derive size.
+-		k := 0
+-		for i := 0; i < maxCodeLength; i++ {
+-			for j := 0; j < h.l[i]; j++ {
+-				h.size[k] = i + 1
+-				k++
++		// Derive the look-up table.
++		for i := range h.lut {
++			h.lut[i] = 0
++		}
++		var x, code uint32
++		for i := uint32(0); i < lutSize; i++ {
++			code <<= 1
++			for j := int32(0); j < nCodes[i]; j++ {
++				// The codeLength is 1+i, so shift code by 8-(1+i) to
++				// calculate the high bits for every 8-bit sequence
++				// whose codeLength's high bits matches code.
++				// The high 8 bits of lutValue are the encoded value.
++				// The low 8 bits are 1 plus the codeLength.
++				base := uint8(code << (7 - i))
++				lutValue := uint16(h.vals[x])<<8 | uint16(2+i)
++				for k := uint8(0); k < 1<<(7-i); k++ {
++					h.lut[base|k] = lutValue
++				}
++				code++
++				x++
+ 			}
+ 		}
+ 
+-		// Derive code.
+-		code := 0
+-		size := h.size[0]
+-		for i := 0; i < h.length; i++ {
+-			if size != h.size[i] {
+-				code <<= uint8(h.size[i] - size)
+-				size = h.size[i]
+-			}
+-			h.code[i] = code
+-			code++
+-		}
+-
+-		// Derive minCode, maxCode, and valIndex.
+-		k = 0
+-		index := 0
+-		for i := 0; i < maxCodeLength; i++ {
+-			if h.l[i] == 0 {
+-				h.minCode[i] = -1
+-				h.maxCode[i] = -1
+-				h.valIndex[i] = -1
++		// Derive minCodes, maxCodes, and valsIndices.
++		var c, index int32
++		for i, n := range nCodes {
++			if n == 0 {
++				h.minCodes[i] = -1
++				h.maxCodes[i] = -1
++				h.valsIndices[i] = -1
+ 			} else {
+-				h.minCode[i] = k
+-				h.maxCode[i] = k + h.l[i] - 1
+-				h.valIndex[i] = index
+-				k += h.l[i]
+-				index += h.l[i]
++				h.minCodes[i] = c
++				h.maxCodes[i] = c + n - 1
++				h.valsIndices[i] = index
++				c += n
++				index += n
+ 			}
+-			k <<= 1
++			c <<= 1
+ 		}
+ 	}
+ 	return nil
+ }
+ 
+-// Returns the next Huffman-coded value from the bit stream, decoded according to h.
+-// TODO(nigeltao): This decoding algorithm is simple, but slow. A lookahead table, instead of always
+-// peeling off only 1 bit at time, ought to be faster.
++// decodeHuffman returns the next Huffman-coded value from the bit-stream,
++// decoded according to h.
+ func (d *decoder) decodeHuffman(h *huffman) (uint8, error) {
+-	if h.length == 0 {
++	if h.nCodes == 0 {
+ 		return 0, FormatError("uninitialized Huffman table")
+ 	}
+-	for i, code := 0, 0; i < maxCodeLength; i++ {
+-		if d.b.n == 0 {
++
++	if d.bits.n < 8 {
++		if err := d.ensureNBits(8); err != nil {
++			if err != errMissingFF00 && err != errShortHuffmanData {
++				return 0, err
++			}
++			// There are no more bytes of data in this segment, but we may still
++			// be able to read the next symbol out of the previously read bits.
++			// First, undo the readByte that the ensureNBits call made.
++			d.unreadByteStuffedByte()
++			goto slowPath
++		}
++	}
++	if v := h.lut[(d.bits.a>>uint32(d.bits.n-lutSize))&0xff]; v != 0 {
++		n := (v & 0xff) - 1
++		d.bits.n -= int32(n)
++		d.bits.m >>= n
++		return uint8(v >> 8), nil
++	}
++
++slowPath:
++	for i, code := 0, int32(0); i < maxCodeLength; i++ {
++		if d.bits.n == 0 {
+ 			if err := d.ensureNBits(1); err != nil {
+ 				return 0, err
+ 			}
+ 		}
+-		if d.b.a&d.b.m != 0 {
++		if d.bits.a&d.bits.m != 0 {
+ 			code |= 1
+ 		}
+-		d.b.n--
+-		d.b.m >>= 1
+-		if code <= h.maxCode[i] {
+-			return h.val[h.valIndex[i]+code-h.minCode[i]], nil
++		d.bits.n--
++		d.bits.m >>= 1
++		if code <= h.maxCodes[i] {
++			return h.vals[h.valsIndices[i]+code-h.minCodes[i]], nil
+ 		}
+ 		code <<= 1
+ 	}
+@@ -194,26 +219,26 @@ func (d *decoder) decodeHuffman(h *huffman) (uint8, error) {
+ }
+ 
+ func (d *decoder) decodeBit() (bool, error) {
+-	if d.b.n == 0 {
++	if d.bits.n == 0 {
+ 		if err := d.ensureNBits(1); err != nil {
+ 			return false, err
+ 		}
+ 	}
+-	ret := d.b.a&d.b.m != 0
+-	d.b.n--
+-	d.b.m >>= 1
++	ret := d.bits.a&d.bits.m != 0
++	d.bits.n--
++	d.bits.m >>= 1
+ 	return ret, nil
+ }
+ 
+-func (d *decoder) decodeBits(n int) (uint32, error) {
+-	if d.b.n < n {
++func (d *decoder) decodeBits(n int32) (uint32, error) {
++	if d.bits.n < n {
+ 		if err := d.ensureNBits(n); err != nil {
+ 			return 0, err
+ 		}
+ 	}
+-	ret := d.b.a >> uint(d.b.n-n)
+-	ret &= (1 << uint(n)) - 1
+-	d.b.n -= n
+-	d.b.m >>= uint(n)
++	ret := d.bits.a >> uint32(d.bits.n-n)
++	ret &= (1 << uint32(n)) - 1
++	d.bits.n -= n
++	d.bits.m >>= uint32(n)
+ 	return ret, nil
+ }
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index 356d56220a..c8fae3cea9 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -8,7 +8,6 @@
+ package jpeg
+ 
+ import (
+-	"bufio"
+ 	"image"
+ 	"image/color"
+ 	"io"
+@@ -84,15 +83,36 @@ var unzig = [blockSize]int{
+ 	53, 60, 61, 54, 47, 55, 62, 63,
+ }
+ 
+-// If the passed in io.Reader does not also have ReadByte, then Decode will introduce its own buffering.
++// Reader is deprecated.
+ type Reader interface {
++	io.ByteReader
+ 	io.Reader
+-	ReadByte() (c byte, err error)
++}
++
++// bits holds the unprocessed bits that have been taken from the byte-stream.
++// The n least significant bits of a form the unread bits, to be read in MSB to
++// LSB order.
++type bits struct {
++	a uint32 // accumulator.
++	m uint32 // mask. m==1<<(n-1) when n>0, with m==0 when n==0.
++	n int32  // the number of unread bits in a.
+ }
+ 
+ type decoder struct {
+-	r             Reader
+-	b             bits
++	r    io.Reader
++	bits bits
++	// bytes is a byte buffer, similar to a bufio.Reader, except that it
++	// has to be able to unread more than 1 byte, due to byte stuffing.
++	// Byte stuffing is specified in section F.1.2.3.
++	bytes struct {
++		// buf[i:j] are the buffered bytes read from the underlying
++		// io.Reader that haven't yet been passed further on.
++		buf  [4096]byte
++		i, j int
++		// nUnreadable is the number of bytes to back up i after
++		// overshooting. It can be 0, 1 or 2.
++		nUnreadable int
++	}
+ 	width, height int
+ 	img1          *image.Gray
+ 	img3          *image.YCbCr
+@@ -104,21 +124,157 @@ type decoder struct {
+ 	progCoeffs    [nColorComponent][]block // Saved state between progressive-mode scans.
+ 	huff          [maxTc + 1][maxTh + 1]huffman
+ 	quant         [maxTq + 1]block // Quantization tables, in zig-zag order.
+-	tmp           [1024]byte
++	tmp           [blockSize + 1]byte
++}
++
++// fill fills up the d.bytes.buf buffer from the underlying io.Reader. It
++// should only be called when there are no unread bytes in d.bytes.
++func (d *decoder) fill() error {
++	if d.bytes.i != d.bytes.j {
++		panic("jpeg: fill called when unread bytes exist")
++	}
++	// Move the last 2 bytes to the start of the buffer, in case we need
++	// to call unreadByteStuffedByte.
++	if d.bytes.j > 2 {
++		d.bytes.buf[0] = d.bytes.buf[d.bytes.j-2]
++		d.bytes.buf[1] = d.bytes.buf[d.bytes.j-1]
++		d.bytes.i, d.bytes.j = 2, 2
++	}
++	// Fill in the rest of the buffer.
++	n, err := d.r.Read(d.bytes.buf[d.bytes.j:])
++	d.bytes.j += n
++	return err
++}
++
++// unreadByteStuffedByte undoes the most recent readByteStuffedByte call,
++// giving a byte of data back from d.bits to d.bytes. The Huffman look-up table
++// requires at least 8 bits for look-up, which means that Huffman decoding can
++// sometimes overshoot and read one or two too many bytes. Two-byte overshoot
++// can happen when expecting to read a 0xff 0x00 byte-stuffed byte.
++func (d *decoder) unreadByteStuffedByte() {
++	if d.bytes.nUnreadable == 0 {
++		panic("jpeg: unreadByteStuffedByte call cannot be fulfilled")
++	}
++	d.bytes.i -= d.bytes.nUnreadable
++	d.bytes.nUnreadable = 0
++	if d.bits.n >= 8 {
++		d.bits.a >>= 8
++		d.bits.n -= 8
++		d.bits.m >>= 8
++	}
++}
++
++// readByte returns the next byte, whether buffered or not buffered. It does
++// not care about byte stuffing.
++func (d *decoder) readByte() (x byte, err error) {
++	for d.bytes.i == d.bytes.j {
++		if err = d.fill(); err != nil {
++			return 0, err
++		}
++	}
++	x = d.bytes.buf[d.bytes.i]
++	d.bytes.i++
++	d.bytes.nUnreadable = 0
++	return x, nil
++}
++
++// errMissingFF00 means that readByteStuffedByte encountered an 0xff byte (a
++// marker byte) that wasn't the expected byte-stuffed sequence 0xff, 0x00.
++var errMissingFF00 = FormatError("missing 0xff00 sequence")
++
++// readByteStuffedByte is like readByte but is for byte-stuffed Huffman data.
++func (d *decoder) readByteStuffedByte() (x byte, err error) {
++	// Take the fast path if d.bytes.buf contains at least two bytes.
++	if d.bytes.i+2 <= d.bytes.j {
++		x = d.bytes.buf[d.bytes.i]
++		d.bytes.i++
++		d.bytes.nUnreadable = 1
++		if x != 0xff {
++			return x, err
++		}
++		if d.bytes.buf[d.bytes.i] != 0x00 {
++			return 0, errMissingFF00
++		}
++		d.bytes.i++
++		d.bytes.nUnreadable = 2
++		return 0xff, nil
++	}
++
++	x, err = d.readByte()
++	if err != nil {
++		return 0, err
++	}
++	if x != 0xff {
++		d.bytes.nUnreadable = 1
++		return x, nil
++	}
++
++	x, err = d.readByte()
++	if err != nil {
++		d.bytes.nUnreadable = 1
++		return 0, err
++	}
++	d.bytes.nUnreadable = 2
++	if x != 0x00 {
++		return 0, errMissingFF00
++	}
++	return 0xff, nil
+ }
+ 
+-// Reads and ignores the next n bytes.
++// readFull reads exactly len(p) bytes into p. It does not care about byte
++// stuffing.
++func (d *decoder) readFull(p []byte) error {
++	// Unread the overshot bytes, if any.
++	if d.bytes.nUnreadable != 0 {
++		if d.bits.n >= 8 {
++			d.unreadByteStuffedByte()
++		}
++		d.bytes.nUnreadable = 0
++	}
++
++	for {
++		n := copy(p, d.bytes.buf[d.bytes.i:d.bytes.j])
++		p = p[n:]
++		d.bytes.i += n
++		if len(p) == 0 {
++			break
++		}
++		if err := d.fill(); err != nil {
++			if err == io.EOF {
++				err = io.ErrUnexpectedEOF
++			}
++			return err
++		}
++	}
++	return nil
++}
++
++// ignore ignores the next n bytes.
+ func (d *decoder) ignore(n int) error {
+-	for n > 0 {
+-		m := len(d.tmp)
++	// Unread the overshot bytes, if any.
++	if d.bytes.nUnreadable != 0 {
++		if d.bits.n >= 8 {
++			d.unreadByteStuffedByte()
++		}
++		d.bytes.nUnreadable = 0
++	}
++
++	for {
++		m := d.bytes.j - d.bytes.i
+ 		if m > n {
+ 			m = n
+ 		}
+-		_, err := io.ReadFull(d.r, d.tmp[0:m])
+-		if err != nil {
++		d.bytes.i += m
++		n -= m
++		if n == 0 {
++			break
++		}
++		if err := d.fill(); err != nil {
++			if err == io.EOF {
++				err = io.ErrUnexpectedEOF
++			}
+ 			return err
+ 		}
+-		n -= m
+ 	}
+ 	return nil
+ }
+@@ -133,8 +289,7 @@ func (d *decoder) processSOF(n int) error {
+ 	default:
+ 		return UnsupportedError("SOF has wrong length")
+ 	}
+-	_, err := io.ReadFull(d.r, d.tmp[:n])
+-	if err != nil {
++	if err := d.readFull(d.tmp[:n]); err != nil {
+ 		return err
+ 	}
+ 	// We only support 8-bit precision.
+@@ -187,8 +342,7 @@ func (d *decoder) processSOF(n int) error {
+ func (d *decoder) processDQT(n int) error {
+ 	const qtLength = 1 + blockSize
+ 	for ; n >= qtLength; n -= qtLength {
+-		_, err := io.ReadFull(d.r, d.tmp[0:qtLength])
+-		if err != nil {
++		if err := d.readFull(d.tmp[:qtLength]); err != nil {
+ 			return err
+ 		}
+ 		pq := d.tmp[0] >> 4
+@@ -214,8 +368,7 @@ func (d *decoder) processDRI(n int) error {
+ 	if n != 2 {
+ 		return FormatError("DRI has wrong length")
+ 	}
+-	_, err := io.ReadFull(d.r, d.tmp[0:2])
+-	if err != nil {
++	if err := d.readFull(d.tmp[:2]); err != nil {
+ 		return err
+ 	}
+ 	d.ri = int(d.tmp[0])<<8 + int(d.tmp[1])
+@@ -224,15 +377,10 @@ func (d *decoder) processDRI(n int) error {
+ 
+ // decode reads a JPEG image from r and returns it as an image.Image.
+ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
+-	if rr, ok := r.(Reader); ok {
+-		d.r = rr
+-	} else {
+-		d.r = bufio.NewReader(r)
+-	}
++	d.r = r
+ 
+ 	// Check for the Start Of Image marker.
+-	_, err := io.ReadFull(d.r, d.tmp[0:2])
+-	if err != nil {
++	if err := d.readFull(d.tmp[:2]); err != nil {
+ 		return nil, err
+ 	}
+ 	if d.tmp[0] != 0xff || d.tmp[1] != soiMarker {
+@@ -241,7 +389,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
+ 
+ 	// Process the remaining segments until the End Of Image marker.
+ 	for {
+-		_, err := io.ReadFull(d.r, d.tmp[0:2])
++		err := d.readFull(d.tmp[:2])
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -267,7 +415,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
+ 			// Note that extraneous 0xff bytes in e.g. SOS data are escaped as
+ 			// "\xff\x00", and so are detected a little further down below.
+ 			d.tmp[0] = d.tmp[1]
+-			d.tmp[1], err = d.r.ReadByte()
++			d.tmp[1], err = d.readByte()
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -280,7 +428,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
+ 		for marker == 0xff {
+ 			// Section B.1.1.2 says, "Any marker may optionally be preceded by any
+ 			// number of fill bytes, which are bytes assigned code X'FF'".
+-			marker, err = d.r.ReadByte()
++			marker, err = d.readByte()
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -300,8 +448,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
+ 
+ 		// Read the 16-bit length of the segment. The value includes the 2 bytes for the
+ 		// length itself, so we subtract 2 to get the number of remaining bytes.
+-		_, err = io.ReadFull(d.r, d.tmp[0:2])
+-		if err != nil {
++		if err = d.readFull(d.tmp[:2]); err != nil {
+ 			return nil, err
+ 		}
+ 		n := int(d.tmp[0])<<8 + int(d.tmp[1]) - 2
+diff --git a/src/pkg/image/jpeg/reader_test.go b/src/pkg/image/jpeg/reader_test.go
+index 926bb04344..93f4adab9d 100644
+--- a/src/pkg/image/jpeg/reader_test.go
++++ b/src/pkg/image/jpeg/reader_test.go
+@@ -86,7 +86,6 @@ func decodeFile(filename string) (image.Image, error) {
+ 	}
+ 	defer f.Close()
+ 	return Decode(f)
+-
+ }
+ 
+ // check checks that the two pix data are equal, within the given bounds.
+diff --git a/src/pkg/image/jpeg/scan.go b/src/pkg/image/jpeg/scan.go
+index 559235d512..6beb075139 100644
+--- a/src/pkg/image/jpeg/scan.go
++++ b/src/pkg/image/jpeg/scan.go
+@@ -6,7 +6,6 @@ package jpeg
+ 
+ import (
+ 	"image"
+-	"io"
+ )
+ 
+ // makeImg allocates and initializes the destination image.
+@@ -41,8 +40,7 @@ func (d *decoder) processSOS(n int) error {
+ 	if n < 6 || 4+2*d.nComp < n || n%2 != 0 {
+ 		return FormatError("SOS has wrong length")
+ 	}
+-	_, err := io.ReadFull(d.r, d.tmp[:n])
+-	if err != nil {
++	if err := d.readFull(d.tmp[:n]); err != nil {
+ 		return err
+ 	}
+ 	nComp := int(d.tmp[0])
+@@ -119,7 +117,7 @@ func (d *decoder) processSOS(n int) error {
+ 		}
+ 	}
+ 
+-	d.b = bits{}
++	d.bits = bits{}
+ 	mcu, expectedRST := 0, uint8(rst0Marker)
+ 	var (
+ 		// b is the decoded coefficients, in natural (not zig-zag) order.
+@@ -217,8 +215,9 @@ func (d *decoder) processSOS(n int) error {
+ 							d.eobRun--
+ 						} else {
+ 							// Decode the AC coefficients, as specified in section F.2.2.2.
++							huff := &d.huff[acTable][scan[i].ta]
+ 							for ; zig <= zigEnd; zig++ {
+-								value, err := d.decodeHuffman(&d.huff[acTable][scan[i].ta])
++								value, err := d.decodeHuffman(huff)
+ 								if err != nil {
+ 									return err
+ 								}
+@@ -238,7 +237,7 @@ func (d *decoder) processSOS(n int) error {
+ 									if val0 != 0x0f {
+ 										d.eobRun = uint16(1 << val0)
+ 										if val0 != 0 {
+-											bits, err := d.decodeBits(int(val0))
++											bits, err := d.decodeBits(int32(val0))
+ 											if err != nil {
+ 												return err
+ 											}
+@@ -308,8 +307,7 @@ func (d *decoder) processSOS(n int) error {
+ 			if d.ri > 0 && mcu%d.ri == 0 && mcu < mxx*myy {
+ 				// A more sophisticated decoder could use RST[0-7] markers to resynchronize from corrupt input,
+ 				// but this one assumes well-formed input, and hence the restart marker follows immediately.
+-				_, err := io.ReadFull(d.r, d.tmp[0:2])
+-				if err != nil {
++				if err := d.readFull(d.tmp[:2]); err != nil {
+ 					return err
+ 				}
+ 				if d.tmp[0] != 0xff || d.tmp[1] != expectedRST {
+@@ -320,7 +318,7 @@ func (d *decoder) processSOS(n int) error {
+ 					expectedRST = rst0Marker
+ 				}
+ 				// Reset the Huffman decoder.
+-				d.b = bits{}
++				d.bits = bits{}
+ 				// Reset the DC components, as per section F.2.1.3.1.
+ 				dc = [nColorComponent]int32{}
+ 				// Reset the progressive decoder state, as per section G.1.2.2.
+@@ -368,7 +366,7 @@ func (d *decoder) refine(b *block, h *huffman, zigStart, zigEnd, delta int32) er
+ 				if val0 != 0x0f {
+ 					d.eobRun = uint16(1 << val0)
+ 					if val0 != 0 {
+-						bits, err := d.decodeBits(int(val0))
++						bits, err := d.decodeBits(int32(val0))
+ 						if err != nil {
+ 							return err
+ 						}
+diff --git a/src/pkg/image/jpeg/writer.go b/src/pkg/image/jpeg/writer.go
+index c58fbf3055..19789faefc 100644
+--- a/src/pkg/image/jpeg/writer.go
++++ b/src/pkg/image/jpeg/writer.go
+@@ -249,7 +249,7 @@ func (e *encoder) writeByte(b byte) {
+ 	e.err = e.w.WriteByte(b)
+ }
+ 
+-// emit emits the least significant nBits bits of bits to the bitstream.
++// emit emits the least significant nBits bits of bits to the bit-stream.
+ // The precondition is bits < 1<<nBits && nBits <= 16.
+ func (e *encoder) emit(bits, nBits uint32) {
+ 	nBits += e.nBits

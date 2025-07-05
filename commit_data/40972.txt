@@ -53,6 +53,19 @@ Date:   Tue May 7 11:07:10 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 937e0223b3..0b3310b8ef 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -424,6 +424,7 @@ var passes = [...]pass{
+ 	{name: "insert resched checks", fn: insertLoopReschedChecks,
+ 		disabled: objabi.Preemptibleloops_enabled == 0}, // insert resched checks in loops.
+ 	{name: "lower", fn: lower, required: true},
++	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
+ 	{name: "lowered cse", fn: cse},
+ 	{name: "elim unread autos", fn: elimUnreadAutos},
+ 	{name: "lowered deadcode", fn: deadcode, required: true},

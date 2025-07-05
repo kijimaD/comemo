@@ -9,6 +9,19 @@ Date:   Tue Oct 29 06:39:01 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/context/context_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 869b02c92e..cff09fd322 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -253,6 +253,7 @@ func XTestChildFinishesFirst(t testingT) {
+ }
+ 
+ func testDeadline(c Context, name string, failAfter time.Duration, t testingT) {
++	t.Helper()
+ 	select {
+ 	case <-time.After(failAfter):
+ 		t.Fatalf("%s: context should have timed out", name)

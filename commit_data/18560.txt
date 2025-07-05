@@ -8,6 +8,20 @@ Date:   Tue Feb 18 21:51:47 2014 -0500
     R=adonovan
     CC=golang-codereviews
     https://golang.org/cl/62600043
-
+---
  misc/emacs/go-mode.el | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 6adac91ab9..b5a2d8f892 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -995,7 +995,7 @@ description at POINT."
+                            "-f"
+                            (file-truename (buffer-file-name (go--coverage-origin-buffer)))
+                            "-o"
+-                           (number-to-string (go--position-bytes (point))))
++                           (number-to-string (go--position-bytes point)))
+       (with-current-buffer outbuf
+         (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n")))))
+ 

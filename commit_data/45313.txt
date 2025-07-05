@@ -17,7 +17,7 @@ Date:   Fri Oct 9 11:49:59 2020 -0400
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/os/dir.go              |  62 ++++++++++++++++++++++-
  src/os/dir_darwin.go       |  62 +++++++++++++++++++----
  src/os/dir_plan9.go        |  42 ++++++++-------
@@ -39,3 +39,1267 @@ Date:   Fri Oct 9 11:49:59 2020 -0400
  src/os/stat_plan9.go       |   2 +-
  src/os/types.go            |   7 ++-
  20 files changed, 784 insertions(+), 110 deletions(-)
+
+diff --git a/src/os/dir.go b/src/os/dir.go
+index 1d7ced8061..a312001704 100644
+--- a/src/os/dir.go
++++ b/src/os/dir.go
+@@ -4,6 +4,14 @@
+ 
+ package os
+ 
++type readdirMode int
++
++const (
++	readdirName readdirMode = iota
++	readdirDirEntry
++	readdirFileInfo
++)
++
+ // Readdir reads the contents of the directory associated with file and
+ // returns a slice of up to n FileInfo values, as would be returned
+ // by Lstat, in directory order. Subsequent calls on the same file will yield
+@@ -19,11 +27,14 @@ package os
+ // nil error. If it encounters an error before the end of the
+ // directory, Readdir returns the FileInfo read until that point
+ // and a non-nil error.
++//
++// Most clients are better served by the more efficient ReadDir method.
+ func (f *File) Readdir(n int) ([]FileInfo, error) {
+ 	if f == nil {
+ 		return nil, ErrInvalid
+ 	}
+-	return f.readdir(n)
++	_, _, infos, err := f.readdir(n, readdirFileInfo)
++	return infos, err
+ }
+ 
+ // Readdirnames reads the contents of the directory associated with file
+@@ -45,5 +56,52 @@ func (f *File) Readdirnames(n int) (names []string, err error) {
+ 	if f == nil {
+ 		return nil, ErrInvalid
+ 	}
+-	return f.readdirnames(n)
++	names, _, _, err = f.readdir(n, readdirName)
++	return names, err
++}
++
++// A DirEntry is an entry read from a directory
++// (using the ReadDir function or a File's ReadDir method).
++type DirEntry interface {
++	// Name returns the name of the file (or subdirectory) described by the entry.
++	// This name is only the final element of the path, not the entire path.
++	// For example, Name would return "hello.go" not "/home/gopher/hello.go".
++	Name() string
++
++	// IsDir reports whether the entry describes a subdirectory.
++	IsDir() bool
++
++	// Type returns the type bits for the entry.
++	// The type bits are a subset of the usual FileMode bits, those returned by the FileMode.Type method.
++	Type() FileMode
++
++	// Info returns the FileInfo for the file or subdirectory described by the entry.
++	// The returned FileInfo may be from the time of the original directory read
++	// or from the time of the call to Info. If the file has been removed or renamed
++	// since the directory read, Info may return an error satisfying errors.Is(err, ErrNotExist).
++	// If the entry denotes a symbolic link, Info reports the information about the link itself,
++	// not the link's target.
++	Info() (FileInfo, error)
++}
++
++// ReadDir reads the contents of the directory associated with the file f
++// and returns a slice of DirEntry values in directory order.
++// Subsequent calls on the same file will yield later DirEntry records in the directory.
++//
++// If n > 0, ReadDir returns at most n DirEntry records.
++// In this case, if ReadDir returns an empty slice, it will return an error explaining why.
++// At the end of a directory, the error is io.EOF.
++//
++// If n <= 0, ReadDir returns all the DirEntry records remaining in the directory.
++// When it succeeds, it returns a nil error (not io.EOF).
++func (f *File) ReadDir(n int) ([]DirEntry, error) {
++	if f == nil {
++		return nil, ErrInvalid
++	}
++	_, dirents, _, err := f.readdir(n, readdirDirEntry)
++	return dirents, err
+ }
++
++// testingForceReadDirLstat forces ReadDir to call Lstat, for testing that code path.
++// This can be difficult to provoke on some Unix systems otherwise.
++var testingForceReadDirLstat bool
+diff --git a/src/os/dir_darwin.go b/src/os/dir_darwin.go
+index 476af6862e..deba3eb37f 100644
+--- a/src/os/dir_darwin.go
++++ b/src/os/dir_darwin.go
+@@ -24,11 +24,11 @@ func (d *dirInfo) close() {
+ 	d.dir = 0
+ }
+ 
+-func (f *File) readdirnames(n int) (names []string, err error) {
++func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+ 	if f.dirinfo == nil {
+ 		dir, call, errno := f.pfd.OpenDir()
+ 		if errno != nil {
+-			return nil, &PathError{call, f.name, errno}
++			return nil, nil, nil, &PathError{Op: call, Path: f.name, Err: errno}
+ 		}
+ 		f.dirinfo = &dirInfo{
+ 			dir: dir,
+@@ -42,15 +42,14 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 		n = -1
+ 	}
+ 
+-	names = make([]string, 0, size)
+ 	var dirent syscall.Dirent
+ 	var entptr *syscall.Dirent
+-	for len(names) < size || n == -1 {
++	for len(names)+len(dirents)+len(infos) < size || n == -1 {
+ 		if errno := readdir_r(d.dir, &dirent, &entptr); errno != 0 {
+ 			if errno == syscall.EINTR {
+ 				continue
+ 			}
+-			return names, &PathError{"readdir", f.name, errno}
++			return names, dirents, infos, &PathError{Op: "readdir", Path: f.name, Err: errno}
+ 		}
+ 		if entptr == nil { // EOF
+ 			break
+@@ -69,13 +68,58 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 		if string(name) == "." || string(name) == ".." {
+ 			continue
+ 		}
+-		names = append(names, string(name))
++		if mode == readdirName {
++			names = append(names, string(name))
++		} else if mode == readdirDirEntry {
++			de, err := newUnixDirent(f.name, string(name), dtToType(dirent.Type))
++			if IsNotExist(err) {
++				// File disappeared between readdir and stat.
++				// Treat as if it didn't exist.
++				continue
++			}
++			if err != nil {
++				return nil, dirents, nil, err
++			}
++			dirents = append(dirents, de)
++		} else {
++			info, err := lstat(f.name + "/" + string(name))
++			if IsNotExist(err) {
++				// File disappeared between readdir + stat.
++				// Treat as if it didn't exist.
++				continue
++			}
++			if err != nil {
++				return nil, nil, infos, err
++			}
++			infos = append(infos, info)
++		}
+ 		runtime.KeepAlive(f)
+ 	}
+-	if n >= 0 && len(names) == 0 {
+-		return names, io.EOF
++
++	if n > 0 && len(names)+len(dirents)+len(infos) == 0 {
++		return nil, nil, nil, io.EOF
++	}
++	return names, dirents, infos, nil
++}
++
++func dtToType(typ uint8) FileMode {
++	switch typ {
++	case syscall.DT_BLK:
++		return ModeDevice
++	case syscall.DT_CHR:
++		return ModeDevice | ModeCharDevice
++	case syscall.DT_DIR:
++		return ModeDir
++	case syscall.DT_FIFO:
++		return ModeNamedPipe
++	case syscall.DT_LNK:
++		return ModeSymlink
++	case syscall.DT_REG:
++		return 0
++	case syscall.DT_SOCK:
++		return ModeSocket
+ 	}
+-	return names, nil
++	return ^FileMode(0)
+ }
+ 
+ // Implemented in syscall/syscall_darwin.go.
+diff --git a/src/os/dir_plan9.go b/src/os/dir_plan9.go
+index 8195c02a46..5e6376282c 100644
+--- a/src/os/dir_plan9.go
++++ b/src/os/dir_plan9.go
+@@ -9,7 +9,7 @@ import (
+ 	"syscall"
+ )
+ 
+-func (file *File) readdir(n int) ([]FileInfo, error) {
++func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+ 	// If this file has no dirinfo, create one.
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo)
+@@ -20,7 +20,6 @@ func (file *File) readdir(n int) ([]FileInfo, error) {
+ 		size = 100
+ 		n = -1
+ 	}
+-	fi := make([]FileInfo, 0, size) // Empty with room to grow.
+ 	for n != 0 {
+ 		// Refill the buffer if necessary.
+ 		if d.bufp >= d.nbuf {
+@@ -33,10 +32,10 @@ func (file *File) readdir(n int) ([]FileInfo, error) {
+ 				if err == io.EOF {
+ 					break
+ 				}
+-				return fi, &PathError{"readdir", file.name, err}
++				return names, dirents, infos, &PathError{"readdir", file.name, err}
+ 			}
+ 			if nb < syscall.STATFIXLEN {
+-				return fi, &PathError{"readdir", file.name, syscall.ErrShortStat}
++				return names, dirents, infos, &PathError{"readdir", file.name, syscall.ErrShortStat}
+ 			}
+ 		}
+ 
+@@ -44,30 +43,39 @@ func (file *File) readdir(n int) ([]FileInfo, error) {
+ 		b := d.buf[d.bufp:]
+ 		m := int(uint16(b[0])|uint16(b[1])<<8) + 2
+ 		if m < syscall.STATFIXLEN {
+-			return fi, &PathError{"readdir", file.name, syscall.ErrShortStat}
++			return names, dirents, infos, &PathError{"readdir", file.name, syscall.ErrShortStat}
+ 		}
+ 
+ 		dir, err := syscall.UnmarshalDir(b[:m])
+ 		if err != nil {
+-			return fi, &PathError{"readdir", file.name, err}
++			return names, dirents, infos, &PathError{"readdir", file.name, err}
+ 		}
+-		fi = append(fi, fileInfoFromStat(dir))
+ 
++		if mode == readdirName {
++			names = append(names, dir.Name)
++		} else {
++			f := fileInfoFromStat(dir)
++			if mode == readdirDirEntry {
++				dirents = append(dirents, dirEntry{f})
++			} else {
++				infos = append(infos, f)
++			}
++		}
+ 		d.bufp += m
+ 		n--
+ 	}
+ 
+-	if n >= 0 && len(fi) == 0 {
+-		return fi, io.EOF
++	if n > 0 && len(names)+len(dirents)+len(infos) == 0 {
++		return nil, nil, nil, io.EOF
+ 	}
+-	return fi, nil
++	return names, dirents, infos, nil
+ }
+ 
+-func (file *File) readdirnames(n int) (names []string, err error) {
+-	fi, err := file.Readdir(n)
+-	names = make([]string, len(fi))
+-	for i := range fi {
+-		names[i] = fi[i].Name()
+-	}
+-	return
++type dirEntry struct {
++	fs *fileStat
+ }
++
++func (de dirEntry) Name() string            { return de.fs.Name() }
++func (de dirEntry) IsDir() bool             { return de.fs.IsDir() }
++func (de dirEntry) Type() FileMode          { return de.fs.Mode().Type() }
++func (de dirEntry) Info() (FileInfo, error) { return de.fs, nil }
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index 58ec406ab8..22a4e715fe 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -10,6 +10,7 @@ import (
+ 	"io"
+ 	"runtime"
+ 	"syscall"
++	"unsafe"
+ )
+ 
+ // Auxiliary information if the File describes a directory
+@@ -26,7 +27,7 @@ const (
+ 
+ func (d *dirInfo) close() {}
+ 
+-func (f *File) readdirnames(n int) (names []string, err error) {
++func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+ 	// If this file has no dirinfo, create one.
+ 	if f.dirinfo == nil {
+ 		f.dirinfo = new(dirInfo)
+@@ -41,7 +42,6 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 		n = -1
+ 	}
+ 
+-	names = make([]string, 0, size) // Empty with room to grow.
+ 	for n != 0 {
+ 		// Refill the buffer if necessary
+ 		if d.bufp >= d.nbuf {
+@@ -50,7 +50,7 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 			d.nbuf, errno = f.pfd.ReadDirent(d.buf)
+ 			runtime.KeepAlive(f)
+ 			if errno != nil {
+-				return names, &PathError{"readdirent", f.name, errno}
++				return names, dirents, infos, &PathError{"readdirent", f.name, errno}
+ 			}
+ 			if d.nbuf <= 0 {
+ 				break // EOF
+@@ -58,13 +58,115 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 		}
+ 
+ 		// Drain the buffer
+-		var nb, nc int
+-		nb, nc, names = syscall.ParseDirent(d.buf[d.bufp:d.nbuf], n, names)
+-		d.bufp += nb
+-		n -= nc
++		buf := d.buf[d.bufp:d.nbuf]
++		reclen, ok := direntReclen(buf)
++		if !ok || reclen > uint64(len(buf)) {
++			break
++		}
++		rec := buf[:reclen]
++		d.bufp += int(reclen)
++		ino, ok := direntIno(rec)
++		if !ok {
++			break
++		}
++		if ino == 0 {
++			continue
++		}
++		const namoff = uint64(unsafe.Offsetof(syscall.Dirent{}.Name))
++		namlen, ok := direntNamlen(rec)
++		if !ok || namoff+namlen > uint64(len(rec)) {
++			break
++		}
++		name := rec[namoff : namoff+namlen]
++		for i, c := range name {
++			if c == 0 {
++				name = name[:i]
++				break
++			}
++		}
++		// Check for useless names before allocating a string.
++		if string(name) == "." || string(name) == ".." {
++			continue
++		}
++		n--
++		if mode == readdirName {
++			names = append(names, string(name))
++		} else if mode == readdirDirEntry {
++			de, err := newUnixDirent(f.name, string(name), direntType(rec))
++			if IsNotExist(err) {
++				// File disappeared between readdir and stat.
++				// Treat as if it didn't exist.
++				continue
++			}
++			if err != nil {
++				return nil, dirents, nil, err
++			}
++			dirents = append(dirents, de)
++		} else {
++			info, err := lstat(f.name + "/" + string(name))
++			if IsNotExist(err) {
++				// File disappeared between readdir + stat.
++				// Treat as if it didn't exist.
++				continue
++			}
++			if err != nil {
++				return nil, nil, infos, err
++			}
++			infos = append(infos, info)
++		}
+ 	}
+-	if n >= 0 && len(names) == 0 {
+-		return names, io.EOF
++
++	if n > 0 && len(names)+len(dirents)+len(infos) == 0 {
++		return nil, nil, nil, io.EOF
++	}
++	return names, dirents, infos, nil
++}
++
++// readInt returns the size-bytes unsigned integer in native byte order at offset off.
++func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
++	if len(b) < int(off+size) {
++		return 0, false
++	}
++	if isBigEndian {
++		return readIntBE(b[off:], size), true
++	}
++	return readIntLE(b[off:], size), true
++}
++
++func readIntBE(b []byte, size uintptr) uint64 {
++	switch size {
++	case 1:
++		return uint64(b[0])
++	case 2:
++		_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[1]) | uint64(b[0])<<8
++	case 4:
++		_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[3]) | uint64(b[2])<<8 | uint64(b[1])<<16 | uint64(b[0])<<24
++	case 8:
++		_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
++			uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
++	default:
++		panic("syscall: readInt with unsupported size")
++	}
++}
++
++func readIntLE(b []byte, size uintptr) uint64 {
++	switch size {
++	case 1:
++		return uint64(b[0])
++	case 2:
++		_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[0]) | uint64(b[1])<<8
++	case 4:
++		_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24
++	case 8:
++		_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
++			uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
++	default:
++		panic("syscall: readInt with unsupported size")
+ 	}
+-	return names, nil
+ }
+diff --git a/src/os/dir_windows.go b/src/os/dir_windows.go
+index 9e5d6bd505..1c3f2f0d57 100644
+--- a/src/os/dir_windows.go
++++ b/src/os/dir_windows.go
+@@ -10,20 +10,14 @@ import (
+ 	"syscall"
+ )
+ 
+-func (file *File) readdir(n int) (fi []FileInfo, err error) {
+-	if file == nil {
+-		return nil, syscall.EINVAL
+-	}
++func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+ 	if !file.isdir() {
+-		return nil, &PathError{"Readdir", file.name, syscall.ENOTDIR}
++		return nil, nil, nil, &PathError{"readdir", file.name, syscall.ENOTDIR}
+ 	}
+ 	wantAll := n <= 0
+-	size := n
+ 	if wantAll {
+ 		n = -1
+-		size = 100
+ 	}
+-	fi = make([]FileInfo, 0, size) // Empty with room to grow.
+ 	d := &file.dirinfo.data
+ 	for n != 0 && !file.dirinfo.isempty {
+ 		if file.dirinfo.needdata {
+@@ -34,9 +28,6 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 					break
+ 				} else {
+ 					err = &PathError{"FindNextFile", file.name, e}
+-					if !wantAll {
+-						fi = nil
+-					}
+ 					return
+ 				}
+ 			}
+@@ -46,24 +37,32 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 		if name == "." || name == ".." { // Useless names
+ 			continue
+ 		}
+-		f := newFileStatFromWin32finddata(d)
+-		f.name = name
+-		f.path = file.dirinfo.path
+-		f.appendNameToPath = true
++		if mode == readdirName {
++			names = append(names, name)
++		} else {
++			f := newFileStatFromWin32finddata(d)
++			f.name = name
++			f.path = file.dirinfo.path
++			f.appendNameToPath = true
++			if mode == readdirDirEntry {
++				dirents = append(dirents, dirEntry{f})
++			} else {
++				infos = append(infos, f)
++			}
++		}
+ 		n--
+-		fi = append(fi, f)
+ 	}
+-	if !wantAll && len(fi) == 0 {
+-		return fi, io.EOF
++	if !wantAll && len(names)+len(dirents)+len(infos) == 0 {
++		return nil, nil, nil, io.EOF
+ 	}
+-	return fi, nil
++	return names, dirents, infos, nil
+ }
+ 
+-func (file *File) readdirnames(n int) (names []string, err error) {
+-	fis, err := file.Readdir(n)
+-	names = make([]string, len(fis))
+-	for i, fi := range fis {
+-		names[i] = fi.Name()
+-	}
+-	return names, err
++type dirEntry struct {
++	fs *fileStat
+ }
++
++func (de dirEntry) Name() string            { return de.fs.Name() }
++func (de dirEntry) IsDir() bool             { return de.fs.IsDir() }
++func (de dirEntry) Type() FileMode          { return de.fs.Mode().Type() }
++func (de dirEntry) Info() (FileInfo, error) { return de.fs, nil }
+diff --git a/src/os/dirent_aix.go b/src/os/dirent_aix.go
+new file mode 100644
+index 0000000000..5597b8af20
+--- /dev/null
++++ b/src/os/dirent_aix.go
+@@ -0,0 +1,30 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Ino), unsafe.Sizeof(syscall.Dirent{}.Ino))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Reclen), unsafe.Sizeof(syscall.Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	reclen, ok := direntReclen(buf)
++	if !ok {
++		return 0, false
++	}
++	return reclen - uint64(unsafe.Offsetof(syscall.Dirent{}.Name)), true
++}
++
++func direntType(buf []byte) FileMode {
++	return ^FileMode(0) // unknown
++}
+diff --git a/src/os/dirent_dragonfly.go b/src/os/dirent_dragonfly.go
+new file mode 100644
+index 0000000000..38cbd61ed3
+--- /dev/null
++++ b/src/os/dirent_dragonfly.go
+@@ -0,0 +1,55 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Fileno), unsafe.Sizeof(syscall.Dirent{}.Fileno))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	namlen, ok := direntNamlen(buf)
++	if !ok {
++		return 0, false
++	}
++	return (16 + namlen + 1 + 7) &^ 7, true
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Namlen), unsafe.Sizeof(syscall.Dirent{}.Namlen))
++}
++
++func direntType(buf []byte) FileMode {
++	off := unsafe.Offsetof(syscall.Dirent{}.Type)
++	if off >= uintptr(len(buf)) {
++		return ^FileMode(0) // unknown
++	}
++	typ := buf[off]
++	switch typ {
++	case syscall.DT_BLK:
++		return ModeDevice
++	case syscall.DT_CHR:
++		return ModeDevice | ModeCharDevice
++	case syscall.DT_DBF:
++		// DT_DBF is "database record file".
++		// fillFileStatFromSys treats as regular file.
++		return 0
++	case syscall.DT_DIR:
++		return ModeDir
++	case syscall.DT_FIFO:
++		return ModeNamedPipe
++	case syscall.DT_LNK:
++		return ModeSymlink
++	case syscall.DT_REG:
++		return 0
++	case syscall.DT_SOCK:
++		return ModeSocket
++	}
++	return ^FileMode(0) // unknown
++}
+diff --git a/src/os/dirent_freebsd.go b/src/os/dirent_freebsd.go
+new file mode 100644
+index 0000000000..d600837ebb
+--- /dev/null
++++ b/src/os/dirent_freebsd.go
+@@ -0,0 +1,47 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Fileno), unsafe.Sizeof(syscall.Dirent{}.Fileno))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Reclen), unsafe.Sizeof(syscall.Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Namlen), unsafe.Sizeof(syscall.Dirent{}.Namlen))
++}
++
++func direntType(buf []byte) FileMode {
++	off := unsafe.Offsetof(syscall.Dirent{}.Type)
++	if off >= uintptr(len(buf)) {
++		return ^FileMode(0) // unknown
++	}
++	typ := buf[off]
++	switch typ {
++	case syscall.DT_BLK:
++		return ModeDevice
++	case syscall.DT_CHR:
++		return ModeDevice | ModeCharDevice
++	case syscall.DT_DIR:
++		return ModeDir
++	case syscall.DT_FIFO:
++		return ModeNamedPipe
++	case syscall.DT_LNK:
++		return ModeSymlink
++	case syscall.DT_REG:
++		return 0
++	case syscall.DT_SOCK:
++		return ModeSocket
++	}
++	return ^FileMode(0) // unknown
++}
+diff --git a/src/os/dirent_js.go b/src/os/dirent_js.go
+new file mode 100644
+index 0000000000..31778c2ad8
+--- /dev/null
++++ b/src/os/dirent_js.go
+@@ -0,0 +1,30 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func direntIno(buf []byte) (uint64, bool) {
++	return 1, true
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Reclen), unsafe.Sizeof(syscall.Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	reclen, ok := direntReclen(buf)
++	if !ok {
++		return 0, false
++	}
++	return reclen - uint64(unsafe.Offsetof(syscall.Dirent{}.Name)), true
++}
++
++func direntType(buf []byte) FileMode {
++	return ^FileMode(0) // unknown
++}
+diff --git a/src/os/dirent_linux.go b/src/os/dirent_linux.go
+new file mode 100644
+index 0000000000..74a3431121
+--- /dev/null
++++ b/src/os/dirent_linux.go
+@@ -0,0 +1,51 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Ino), unsafe.Sizeof(syscall.Dirent{}.Ino))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Reclen), unsafe.Sizeof(syscall.Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	reclen, ok := direntReclen(buf)
++	if !ok {
++		return 0, false
++	}
++	return reclen - uint64(unsafe.Offsetof(syscall.Dirent{}.Name)), true
++}
++
++func direntType(buf []byte) FileMode {
++	off := unsafe.Offsetof(syscall.Dirent{}.Type)
++	if off >= uintptr(len(buf)) {
++		return ^FileMode(0) // unknown
++	}
++	typ := buf[off]
++	switch typ {
++	case syscall.DT_BLK:
++		return ModeDevice
++	case syscall.DT_CHR:
++		return ModeDevice | ModeCharDevice
++	case syscall.DT_DIR:
++		return ModeDir
++	case syscall.DT_FIFO:
++		return ModeNamedPipe
++	case syscall.DT_LNK:
++		return ModeSymlink
++	case syscall.DT_REG:
++		return 0
++	case syscall.DT_SOCK:
++		return ModeSocket
++	}
++	return ^FileMode(0) // unknown
++}
+diff --git a/src/os/dirent_netbsd.go b/src/os/dirent_netbsd.go
+new file mode 100644
+index 0000000000..d600837ebb
+--- /dev/null
++++ b/src/os/dirent_netbsd.go
+@@ -0,0 +1,47 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Fileno), unsafe.Sizeof(syscall.Dirent{}.Fileno))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Reclen), unsafe.Sizeof(syscall.Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Namlen), unsafe.Sizeof(syscall.Dirent{}.Namlen))
++}
++
++func direntType(buf []byte) FileMode {
++	off := unsafe.Offsetof(syscall.Dirent{}.Type)
++	if off >= uintptr(len(buf)) {
++		return ^FileMode(0) // unknown
++	}
++	typ := buf[off]
++	switch typ {
++	case syscall.DT_BLK:
++		return ModeDevice
++	case syscall.DT_CHR:
++		return ModeDevice | ModeCharDevice
++	case syscall.DT_DIR:
++		return ModeDir
++	case syscall.DT_FIFO:
++		return ModeNamedPipe
++	case syscall.DT_LNK:
++		return ModeSymlink
++	case syscall.DT_REG:
++		return 0
++	case syscall.DT_SOCK:
++		return ModeSocket
++	}
++	return ^FileMode(0) // unknown
++}
+diff --git a/src/os/dirent_openbsd.go b/src/os/dirent_openbsd.go
+new file mode 100644
+index 0000000000..d600837ebb
+--- /dev/null
++++ b/src/os/dirent_openbsd.go
+@@ -0,0 +1,47 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Fileno), unsafe.Sizeof(syscall.Dirent{}.Fileno))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Reclen), unsafe.Sizeof(syscall.Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Namlen), unsafe.Sizeof(syscall.Dirent{}.Namlen))
++}
++
++func direntType(buf []byte) FileMode {
++	off := unsafe.Offsetof(syscall.Dirent{}.Type)
++	if off >= uintptr(len(buf)) {
++		return ^FileMode(0) // unknown
++	}
++	typ := buf[off]
++	switch typ {
++	case syscall.DT_BLK:
++		return ModeDevice
++	case syscall.DT_CHR:
++		return ModeDevice | ModeCharDevice
++	case syscall.DT_DIR:
++		return ModeDir
++	case syscall.DT_FIFO:
++		return ModeNamedPipe
++	case syscall.DT_LNK:
++		return ModeSymlink
++	case syscall.DT_REG:
++		return 0
++	case syscall.DT_SOCK:
++		return ModeSocket
++	}
++	return ^FileMode(0) // unknown
++}
+diff --git a/src/os/dirent_solaris.go b/src/os/dirent_solaris.go
+new file mode 100644
+index 0000000000..5597b8af20
+--- /dev/null
++++ b/src/os/dirent_solaris.go
+@@ -0,0 +1,30 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Ino), unsafe.Sizeof(syscall.Dirent{}.Ino))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Reclen), unsafe.Sizeof(syscall.Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	reclen, ok := direntReclen(buf)
++	if !ok {
++		return 0, false
++	}
++	return reclen - uint64(unsafe.Offsetof(syscall.Dirent{}.Name)), true
++}
++
++func direntType(buf []byte) FileMode {
++	return ^FileMode(0) // unknown
++}
+diff --git a/src/os/endian_big.go b/src/os/endian_big.go
+new file mode 100644
+index 0000000000..c98f124782
+--- /dev/null
++++ b/src/os/endian_big.go
+@@ -0,0 +1,9 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ppc64 s390x mips mips64
++
++package os
++
++const isBigEndian = true
+diff --git a/src/os/endian_little.go b/src/os/endian_little.go
+new file mode 100644
+index 0000000000..3efc5e0d8d
+--- /dev/null
++++ b/src/os/endian_little.go
+@@ -0,0 +1,9 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build 386 amd64 arm arm64 ppc64le mips64le mipsle riscv64 wasm
++
++package os
++
++const isBigEndian = false
+diff --git a/src/os/export_test.go b/src/os/export_test.go
+index 812432cee4..d66264a68f 100644
+--- a/src/os/export_test.go
++++ b/src/os/export_test.go
+@@ -9,3 +9,4 @@ package os
+ var Atime = atime
+ var LstatP = &lstat
+ var ErrWriteAtInAppendMode = errWriteAtInAppendMode
++var TestingForceReadDirLstat = &testingForceReadDirLstat
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index e0f16d809d..3cb4ffbf33 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -9,7 +9,6 @@ package os
+ import (
+ 	"internal/poll"
+ 	"internal/syscall/unix"
+-	"io"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -353,33 +352,6 @@ func Symlink(oldname, newname string) error {
+ 	return nil
+ }
+ 
+-func (f *File) readdir(n int) (fi []FileInfo, err error) {
+-	dirname := f.name
+-	if dirname == "" {
+-		dirname = "."
+-	}
+-	names, err := f.Readdirnames(n)
+-	fi = make([]FileInfo, 0, len(names))
+-	for _, filename := range names {
+-		fip, lerr := lstat(dirname + "/" + filename)
+-		if IsNotExist(lerr) {
+-			// File disappeared between readdir + stat.
+-			// Just treat it as if it didn't exist.
+-			continue
+-		}
+-		if lerr != nil {
+-			return fi, lerr
+-		}
+-		fi = append(fi, fip)
+-	}
+-	if len(fi) == 0 && err == nil && n > 0 {
+-		// Per File.Readdir, the slice must be non-empty or err
+-		// must be non-nil if n > 0.
+-		err = io.EOF
+-	}
+-	return fi, err
+-}
+-
+ // Readlink returns the destination of the named symbolic link.
+ // If there is an error, it will be of type *PathError.
+ func Readlink(name string) (string, error) {
+@@ -407,3 +379,41 @@ func Readlink(name string) (string, error) {
+ 		}
+ 	}
+ }
++
++type unixDirent struct {
++	parent string
++	name   string
++	typ    FileMode
++	info   FileInfo
++}
++
++func (d *unixDirent) Name() string   { return d.name }
++func (d *unixDirent) IsDir() bool    { return d.typ.IsDir() }
++func (d *unixDirent) Type() FileMode { return d.typ }
++
++func (d *unixDirent) Info() (FileInfo, error) {
++	if d.info != nil {
++		return d.info, nil
++	}
++	return lstat(d.parent + "/" + d.name)
++}
++
++func newUnixDirent(parent, name string, typ FileMode) (DirEntry, error) {
++	ude := &unixDirent{
++		parent: parent,
++		name:   name,
++		typ:    typ,
++	}
++	if typ != ^FileMode(0) && !testingForceReadDirLstat {
++		return ude, nil
++	}
++
++	info, err := lstat(parent + "/" + name)
++	if err != nil {
++		return nil, err
++	}
++
++	ude.typ = info.Mode().Type()
++	ude.info = info
++	return ude, nil
++}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 865dfcc0de..c692ba099f 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -309,20 +309,21 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
+ 	defer file.Close()
+ 	s, err2 := file.Readdirnames(-1)
+ 	if err2 != nil {
+-		t.Fatalf("readdirnames %q failed: %v", dir, err2)
++		t.Fatalf("Readdirnames %q failed: %v", dir, err2)
+ 	}
+ 	for _, m := range contents {
+ 		found := false
+ 		for _, n := range s {
+ 			if n == "." || n == ".." {
+-				t.Errorf("got %s in directory", n)
++				t.Errorf("got %q in directory", n)
+ 			}
+-			if equal(m, n) {
+-				if found {
+-					t.Error("present twice:", m)
+-				}
+-				found = true
++			if !equal(m, n) {
++				continue
+ 			}
++			if found {
++				t.Error("present twice:", m)
++			}
++			found = true
+ 		}
+ 		if !found {
+ 			t.Error("could not find", m)
+@@ -338,16 +339,68 @@ func testReaddir(dir string, contents []string, t *testing.T) {
+ 	defer file.Close()
+ 	s, err2 := file.Readdir(-1)
+ 	if err2 != nil {
+-		t.Fatalf("readdir %q failed: %v", dir, err2)
++		t.Fatalf("Readdir %q failed: %v", dir, err2)
+ 	}
+ 	for _, m := range contents {
+ 		found := false
+ 		for _, n := range s {
+-			if equal(m, n.Name()) {
+-				if found {
+-					t.Error("present twice:", m)
+-				}
+-				found = true
++			if n.Name() == "." || n.Name() == ".." {
++				t.Errorf("got %q in directory", n.Name())
++			}
++			if !equal(m, n.Name()) {
++				continue
++			}
++			if found {
++				t.Error("present twice:", m)
++			}
++			found = true
++		}
++		if !found {
++			t.Error("could not find", m)
++		}
++	}
++}
++
++func testReadDir(dir string, contents []string, t *testing.T) {
++	file, err := Open(dir)
++	if err != nil {
++		t.Fatalf("open %q failed: %v", dir, err)
++	}
++	defer file.Close()
++	s, err2 := file.ReadDir(-1)
++	if err2 != nil {
++		t.Fatalf("ReadDir %q failed: %v", dir, err2)
++	}
++	for _, m := range contents {
++		found := false
++		for _, n := range s {
++			if n.Name() == "." || n.Name() == ".." {
++				t.Errorf("got %q in directory", n)
++			}
++			if !equal(m, n.Name()) {
++				continue
++			}
++			if found {
++				t.Error("present twice:", m)
++			}
++			found = true
++			lstat, err := Lstat(dir + "/" + m)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if n.IsDir() != lstat.IsDir() {
++				t.Errorf("%s: IsDir=%v, want %v", m, n.IsDir(), lstat.IsDir())
++			}
++			if n.Type() != lstat.Mode().Type() {
++				t.Errorf("%s: IsDir=%v, want %v", m, n.Type(), lstat.Mode().Type())
++			}
++			info, err := n.Info()
++			if err != nil {
++				t.Errorf("%s: Info: %v", m, err)
++				continue
++			}
++			if !SameFile(info, lstat) {
++				t.Errorf("%s: Info: SameFile(info, lstat) = false", m)
+ 			}
+ 		}
+ 		if !found {
+@@ -366,6 +419,11 @@ func TestReaddir(t *testing.T) {
+ 	testReaddir(sysdir.name, sysdir.files, t)
+ }
+ 
++func TestReadDir(t *testing.T) {
++	testReadDir(".", dot, t)
++	testReadDir(sysdir.name, sysdir.files, t)
++}
++
+ func benchmarkReaddirname(path string, b *testing.B) {
+ 	var nentries int
+ 	for i := 0; i < b.N; i++ {
+@@ -400,6 +458,23 @@ func benchmarkReaddir(path string, b *testing.B) {
+ 	b.Logf("benchmarkReaddir %q: %d entries", path, nentries)
+ }
+ 
++func benchmarkReadDir(path string, b *testing.B) {
++	var nentries int
++	for i := 0; i < b.N; i++ {
++		f, err := Open(path)
++		if err != nil {
++			b.Fatalf("open %q failed: %v", path, err)
++		}
++		fs, err := f.ReadDir(-1)
++		f.Close()
++		if err != nil {
++			b.Fatalf("readdir %q failed: %v", path, err)
++		}
++		nentries = len(fs)
++	}
++	b.Logf("benchmarkReadDir %q: %d entries", path, nentries)
++}
++
+ func BenchmarkReaddirname(b *testing.B) {
+ 	benchmarkReaddirname(".", b)
+ }
+@@ -408,6 +483,10 @@ func BenchmarkReaddir(b *testing.B) {
+ 	benchmarkReaddir(".", b)
+ }
+ 
++func BenchmarkReadDir(b *testing.B) {
++	benchmarkReadDir(".", b)
++}
++
+ func benchmarkStat(b *testing.B, path string) {
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+@@ -547,7 +626,8 @@ func TestReaddirNValues(t *testing.T) {
+ 		}
+ 	}
+ 
+-	readDirExpect := func(n, want int, wantErr error) {
++	readdirExpect := func(n, want int, wantErr error) {
++		t.Helper()
+ 		fi, err := d.Readdir(n)
+ 		if err != wantErr {
+ 			t.Fatalf("Readdir of %d got error %v, want %v", n, err, wantErr)
+@@ -557,7 +637,19 @@ func TestReaddirNValues(t *testing.T) {
+ 		}
+ 	}
+ 
+-	readDirNamesExpect := func(n, want int, wantErr error) {
++	readDirExpect := func(n, want int, wantErr error) {
++		t.Helper()
++		de, err := d.ReadDir(n)
++		if err != wantErr {
++			t.Fatalf("ReadDir of %d got error %v, want %v", n, err, wantErr)
++		}
++		if g, e := len(de), want; g != e {
++			t.Errorf("ReadDir of %d got %d files, want %d", n, g, e)
++		}
++	}
++
++	readdirnamesExpect := func(n, want int, wantErr error) {
++		t.Helper()
+ 		fi, err := d.Readdirnames(n)
+ 		if err != wantErr {
+ 			t.Fatalf("Readdirnames of %d got error %v, want %v", n, err, wantErr)
+@@ -567,7 +659,7 @@ func TestReaddirNValues(t *testing.T) {
+ 		}
+ 	}
+ 
+-	for _, fn := range []func(int, int, error){readDirExpect, readDirNamesExpect} {
++	for _, fn := range []func(int, int, error){readdirExpect, readdirnamesExpect, readDirExpect} {
+ 		// Test the slurp case
+ 		openDir()
+ 		fn(0, 105, nil)
+diff --git a/src/os/stat_plan9.go b/src/os/stat_plan9.go
+index b43339afa4..7ac2695df8 100644
+--- a/src/os/stat_plan9.go
++++ b/src/os/stat_plan9.go
+@@ -11,7 +11,7 @@ import (
+ 
+ const bitSize16 = 2
+ 
+-func fileInfoFromStat(d *syscall.Dir) FileInfo {
++func fileInfoFromStat(d *syscall.Dir) *fileStat {
+ 	fs := &fileStat{
+ 		name:    d.Name,
+ 		size:    d.Length,
+diff --git a/src/os/types.go b/src/os/types.go
+index 4b6c084838..0f51a48286 100644
+--- a/src/os/types.go
++++ b/src/os/types.go
+@@ -100,11 +100,16 @@ func (m FileMode) IsRegular() bool {
+ 	return m&ModeType == 0
+ }
+ 
+-// Perm returns the Unix permission bits in m.
++// Perm returns the Unix permission bits in m (m & ModePerm).
+ func (m FileMode) Perm() FileMode {
+ 	return m & ModePerm
+ }
+ 
++// Type returns type bits in m (m & ModeType).
++func (m FileMode) Type() FileMode {
++	return m & ModeType
++}
++
+ func (fs *fileStat) Name() string { return fs.name }
+ func (fs *fileStat) IsDir() bool  { return fs.Mode().IsDir() }
+ 

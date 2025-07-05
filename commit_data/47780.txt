@@ -15,7 +15,7 @@ Date:   Fri Apr 9 03:48:14 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  misc/cgo/test/issue6997_linux.go        | 8 +++++---
  src/context/context_test.go             | 4 ++--
  src/crypto/tls/handshake_server_test.go | 6 +++---
@@ -27,3 +27,201 @@ Date:   Fri Apr 9 03:48:14 2021 +0000
  src/net/http/pprof/pprof.go             | 2 +-
  src/net/http/transport.go               | 6 +++---
  10 files changed, 20 insertions(+), 18 deletions(-)
+
+diff --git a/misc/cgo/test/issue6997_linux.go b/misc/cgo/test/issue6997_linux.go
+index 0c98ea0794..f19afb8b7a 100644
+--- a/misc/cgo/test/issue6997_linux.go
++++ b/misc/cgo/test/issue6997_linux.go
+@@ -5,7 +5,7 @@
+ // +build !android
+ 
+ // Test that pthread_cancel works as expected
+-// (NPTL uses SIGRTMIN to implement thread cancelation)
++// (NPTL uses SIGRTMIN to implement thread cancellation)
+ // See https://golang.org/issue/6997
+ package cgotest
+ 
+@@ -17,8 +17,10 @@ extern int CancelThread();
+ */
+ import "C"
+ 
+-import "testing"
+-import "time"
++import (
++	"testing"
++	"time"
++)
+ 
+ func test6997(t *testing.T) {
+ 	r := C.StartThread()
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 84eef01da1..a2e2324a0e 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -661,7 +661,7 @@ func XTestWithCancelCanceledParent(t testingT) {
+ 		t.Errorf("child not done immediately upon construction")
+ 	}
+ 	if got, want := c.Err(), Canceled; got != want {
+-		t.Errorf("child not cancelled; got = %v, want = %v", got, want)
++		t.Errorf("child not canceled; got = %v, want = %v", got, want)
+ 	}
+ }
+ 
+@@ -779,7 +779,7 @@ func XTestCustomContextGoroutines(t testingT) {
+ 	defer cancel6()
+ 	checkNoGoroutine()
+ 
+-	// Check applied to cancelled context.
++	// Check applied to canceled context.
+ 	cancel6()
+ 	cancel1()
+ 	_, cancel7 := WithCancel(ctx5)
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 432b4cfe35..756d288cb3 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -1989,7 +1989,7 @@ func TestServerHandshakeContextCancellation(t *testing.T) {
+ // TestHandshakeContextHierarchy tests whether the contexts
+ // available to GetClientCertificate and GetCertificate are
+ // derived from the context provided to HandshakeContext, and
+-// that those contexts are cancelled after HandshakeContext has
++// that those contexts are canceled after HandshakeContext has
+ // returned.
+ func TestHandshakeContextHierarchy(t *testing.T) {
+ 	c, s := localPipe(t)
+@@ -2024,7 +2024,7 @@ func TestHandshakeContextHierarchy(t *testing.T) {
+ 		select {
+ 		case <-innerCtx.Done():
+ 		default:
+-			t.Errorf("GetClientCertificate context was not cancelled after HandshakeContext returned.")
++			t.Errorf("GetClientCertificate context was not canceled after HandshakeContext returned.")
+ 		}
+ 	}()
+ 	var innerCtx context.Context
+@@ -2048,7 +2048,7 @@ func TestHandshakeContextHierarchy(t *testing.T) {
+ 	select {
+ 	case <-innerCtx.Done():
+ 	default:
+-		t.Errorf("GetCertificate context was not cancelled after HandshakeContext returned.")
++		t.Errorf("GetCertificate context was not canceled after HandshakeContext returned.")
+ 	}
+ 	if err := <-clientErr; err != nil {
+ 		t.Errorf("Unexpected client error: %v", err)
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 12cc524c63..61b5018f0b 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1795,7 +1795,7 @@ func (db *DB) beginDC(ctx context.Context, dc *driverConn, release func(error),
+ 		return nil, err
+ 	}
+ 
+-	// Schedule the transaction to rollback when the context is cancelled.
++	// Schedule the transaction to rollback when the context is canceled.
+ 	// The cancel function in Tx will be called after done is set to true.
+ 	ctx, cancel := context.WithCancel(ctx)
+ 	tx = &Tx{
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index c06e565ea9..94af39c207 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -656,7 +656,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
+ 	db.SetMaxOpenConns(max)
+ 
+ 	// First saturate the connection pool.
+-	// Then start new requests for a connection that is cancelled after it is requested.
++	// Then start new requests for a connection that is canceled after it is requested.
+ 
+ 	state = 1
+ 	for i := 0; i < max; i++ {
+@@ -2784,7 +2784,7 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
+ 	// 3. Check if 2.A has committed in Tx (pass) or outside of Tx (fail).
+ 	sendQuery := make(chan struct{})
+ 	// The Tx status is returned through the row results, ensure
+-	// that the rows results are not cancelled.
++	// that the rows results are not canceled.
+ 	bypassRowsAwaitDone = true
+ 	hookTxGrabConn = func() {
+ 		cancel()
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 3b3d98ff9a..01d605c351 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1945,7 +1945,7 @@ func TestClientDoCanceledVsTimeout_h2(t *testing.T) {
+ }
+ 
+ // Issue 33545: lock-in the behavior promised by Client.Do's
+-// docs about request cancelation vs timing out.
++// docs about request cancellation vs timing out.
+ func testClientDoCanceledVsTimeout(t *testing.T, h2 bool) {
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index 8168b2ebc0..366cc8239a 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -478,7 +478,7 @@ func TestDumpResponse(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue 38352: Check for deadlock on cancelled requests.
++// Issue 38352: Check for deadlock on canceled requests.
+ func TestDumpRequestOutIssue38352(t *testing.T) {
+ 	if testing.Short() {
+ 		return
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 4e369580ea..db42ac6ba5 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -562,7 +562,7 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
+ 
+ 	backConnCloseCh := make(chan bool)
+ 	go func() {
+-		// Ensure that the cancelation of a request closes the backend.
++		// Ensure that the cancellation of a request closes the backend.
+ 		// See issue https://golang.org/issue/35559.
+ 		select {
+ 		case <-req.Context().Done():
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index a854fef5d3..888ea35c9a 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -287,7 +287,7 @@ func (name handler) serveDeltaProfile(w http.ResponseWriter, r *http.Request, p
+ 		err := r.Context().Err()
+ 		if err == context.DeadlineExceeded {
+ 			serveError(w, http.StatusRequestTimeout, err.Error())
+-		} else { // TODO: what's a good status code for cancelled requests? 400?
++		} else { // TODO: what's a good status code for canceled requests? 400?
+ 			serveError(w, http.StatusInternalServerError, err.Error())
+ 		}
+ 		return
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index f30ca881ac..57018d2392 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1187,7 +1187,7 @@ type wantConn struct {
+ 
+ 	// hooks for testing to know when dials are done
+ 	// beforeDial is called in the getConn goroutine when the dial is queued.
+-	// afterDial is called when the dial is completed or cancelled.
++	// afterDial is called when the dial is completed or canceled.
+ 	beforeDial func()
+ 	afterDial  func()
+ 
+@@ -1375,7 +1375,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
+ 			trace.GotConn(httptrace.GotConnInfo{Conn: w.pc.conn, Reused: w.pc.isReused()})
+ 		}
+ 		if w.err != nil {
+-			// If the request has been cancelled, that's probably
++			// If the request has been canceled, that's probably
+ 			// what caused w.err; if so, prefer to return the
+ 			// cancellation error (see golang.org/issue/16049).
+ 			select {
+@@ -1437,7 +1437,7 @@ func (t *Transport) queueForDial(w *wantConn) {
+ 
+ // dialConnFor dials on behalf of w and delivers the result to w.
+ // dialConnFor has received permission to dial w.cm and is counted in t.connCount[w.cm.key()].
+-// If the dial is cancelled or unsuccessful, dialConnFor decrements t.connCount[w.cm.key()].
++// If the dial is canceled or unsuccessful, dialConnFor decrements t.connCount[w.cm.key()].
+ func (t *Transport) dialConnFor(w *wantConn) {
+ 	defer w.afterDial()
+ 

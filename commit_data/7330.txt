@@ -8,6 +8,28 @@ Date:   Tue Feb 1 21:29:46 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4128048
-
+---
  src/pkg/sync/rwmutex.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/sync/rwmutex.go b/src/pkg/sync/rwmutex.go
+index 06fd0b0ffb..25696aca2f 100644
+--- a/src/pkg/sync/rwmutex.go
++++ b/src/pkg/sync/rwmutex.go
+@@ -64,12 +64,10 @@ func (rw *RWMutex) Lock() {
+ 	rw.r.Unlock()
+ }
+ 
+-// Unlock unlocks rw for writing.
+-// It is a run-time error if rw is not locked for writing
+-// on entry to Unlock.
++// Unlock unlocks rw for writing.  It is a run-time error if rw is
++// not locked for writing on entry to Unlock.
+ //
+-// Like for Mutexes,
+-// a locked RWMutex is not associated with a particular goroutine.
+-// It is allowed for one goroutine to RLock (Lock) an RWMutex and then
++// As with Mutexes, a locked RWMutex is not associated with a particular
++// goroutine.  One goroutine may RLock (Lock) an RWMutex and then
+ // arrange for another goroutine to RUnlock (Unlock) it.
+ func (rw *RWMutex) Unlock() { rw.w.Unlock() }

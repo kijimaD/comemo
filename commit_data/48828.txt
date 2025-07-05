@@ -19,8 +19,64 @@ Date:   Thu Jun 17 15:36:23 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/base/bootstrap_false.go | 11 +++++++++++
  src/cmd/compile/internal/base/bootstrap_true.go  | 11 +++++++++++
  src/cmd/compile/internal/noder/unified.go        | 10 ++++++++++
  3 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/compile/internal/base/bootstrap_false.go b/src/cmd/compile/internal/base/bootstrap_false.go
+new file mode 100644
+index 0000000000..de86644527
+--- /dev/null
++++ b/src/cmd/compile/internal/base/bootstrap_false.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !compiler_bootstrap
++
++package base
++
++// CompilerBootstrap reports whether the current compiler binary was
++// built with -tags=compiler_bootstrap.
++const CompilerBootstrap = false
+diff --git a/src/cmd/compile/internal/base/bootstrap_true.go b/src/cmd/compile/internal/base/bootstrap_true.go
+new file mode 100644
+index 0000000000..81a17e1f6e
+--- /dev/null
++++ b/src/cmd/compile/internal/base/bootstrap_true.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build compiler_bootstrap
++
++package base
++
++// CompilerBootstrap reports whether the current compiler binary was
++// built with -tags=compiler_bootstrap.
++const CompilerBootstrap = true
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 9a41ea9dfe..96c0916493 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -161,6 +161,16 @@ func writePkgStub(noders []*noder) string {
+ 
+ // freePackage ensures the given package is garbage collected.
+ func freePackage(pkg *types2.Package) {
++	// The GC test below relies on a precise GC that runs finalizers as
++	// soon as objects are unreachable. Our implementation provides
++	// this, but other/older implementations may not (e.g., Go 1.4 does
++	// not because of #22350). To avoid imposing unnecessary
++	// restrictions on the GOROOT_BOOTSTRAP toolchain, we skip the test
++	// during bootstrapping.
++	if base.CompilerBootstrap {
++		return
++	}
++
+ 	// Set a finalizer on pkg so we can detect if/when it's collected.
+ 	done := make(chan struct{})
+ 	runtime.SetFinalizer(pkg, func(*types2.Package) { close(done) })

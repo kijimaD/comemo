@@ -9,7 +9,7 @@ Date:   Wed Apr 11 16:47:53 2012 +0200
     R=r
     CC=golang-dev
     https://golang.org/cl/5931043
-
+---
  src/pkg/exp/norm/composition.go |  20 ++++----
  src/pkg/exp/norm/forminfo.go    | 104 +++++++++++++++++++++++++++++-----------
  src/pkg/exp/norm/iter.go        |  10 ++--
@@ -17,3 +17,497 @@ Date:   Wed Apr 11 16:47:53 2012 +0200
  src/pkg/exp/norm/normalize.go   |  28 +++++------
  src/pkg/exp/norm/tables.go      |  21 ++++----
  6 files changed, 128 insertions(+), 69 deletions(-)
+
+diff --git a/src/pkg/exp/norm/composition.go b/src/pkg/exp/norm/composition.go
+index 2cbe1ac730..7f84b94296 100644
+--- a/src/pkg/exp/norm/composition.go
++++ b/src/pkg/exp/norm/composition.go
+@@ -22,10 +22,10 @@ const (
+ // the UTF-8 characters in order.  Only the rune array is maintained in sorted
+ // order. flush writes the resulting segment to a byte array.
+ type reorderBuffer struct {
+-	rune  [maxBufferSize]runeInfo // Per character info.
+-	byte  [maxByteBufferSize]byte // UTF-8 buffer. Referenced by runeInfo.pos.
+-	nrune int                     // Number of runeInfos.
+-	nbyte uint8                   // Number or bytes.
++	rune  [maxBufferSize]Properties // Per character info.
++	byte  [maxByteBufferSize]byte   // UTF-8 buffer. Referenced by runeInfo.pos.
++	nrune int                       // Number of runeInfos.
++	nbyte uint8                     // Number or bytes.
+ 	f     formInfo
+ 
+ 	src       input
+@@ -81,7 +81,7 @@ func (rb *reorderBuffer) flushCopy(buf []byte) int {
+ // insertOrdered inserts a rune in the buffer, ordered by Canonical Combining Class.
+ // It returns false if the buffer is not large enough to hold the rune.
+ // It is used internally by insert and insertString only.
+-func (rb *reorderBuffer) insertOrdered(info runeInfo) bool {
++func (rb *reorderBuffer) insertOrdered(info Properties) bool {
+ 	n := rb.nrune
+ 	if n >= maxCombiningChars+1 {
+ 		return false
+@@ -107,12 +107,12 @@ func (rb *reorderBuffer) insertOrdered(info runeInfo) bool {
+ 
+ // insert inserts the given rune in the buffer ordered by CCC.
+ // It returns true if the buffer was large enough to hold the decomposed rune.
+-func (rb *reorderBuffer) insert(src input, i int, info runeInfo) bool {
++func (rb *reorderBuffer) insert(src input, i int, info Properties) bool {
+ 	if rune := src.hangul(i); rune != 0 {
+ 		return rb.decomposeHangul(rune)
+ 	}
+ 	if info.hasDecomposition() {
+-		return rb.insertDecomposed(info.decomposition())
++		return rb.insertDecomposed(info.Decomposition())
+ 	}
+ 	return rb.insertSingle(src, i, info)
+ }
+@@ -136,7 +136,7 @@ func (rb *reorderBuffer) insertDecomposed(dcomp []byte) bool {
+ 
+ // insertSingle inserts an entry in the reorderBuffer for the rune at
+ // position i. info is the runeInfo for the rune at position i.
+-func (rb *reorderBuffer) insertSingle(src input, i int, info runeInfo) bool {
++func (rb *reorderBuffer) insertSingle(src input, i int, info Properties) bool {
+ 	// insertOrder changes nbyte
+ 	pos := rb.nbyte
+ 	if !rb.insertOrdered(info) {
+@@ -151,7 +151,7 @@ func (rb *reorderBuffer) appendRune(r rune) {
+ 	bn := rb.nbyte
+ 	sz := utf8.EncodeRune(rb.byte[bn:], rune(r))
+ 	rb.nbyte += utf8.UTFMax
+-	rb.rune[rb.nrune] = runeInfo{pos: bn, size: uint8(sz)}
++	rb.rune[rb.nrune] = Properties{pos: bn, size: uint8(sz)}
+ 	rb.nrune++
+ }
+ 
+@@ -159,7 +159,7 @@ func (rb *reorderBuffer) appendRune(r rune) {
+ func (rb *reorderBuffer) assignRune(pos int, r rune) {
+ 	bn := rb.rune[pos].pos
+ 	sz := utf8.EncodeRune(rb.byte[bn:], rune(r))
+-	rb.rune[pos] = runeInfo{pos: bn, size: uint8(sz)}
++	rb.rune[pos] = Properties{pos: bn, size: uint8(sz)}
+ }
+ 
+ // runeAt returns the rune at position n. It is used for Hangul and recomposition.
+diff --git a/src/pkg/exp/norm/forminfo.go b/src/pkg/exp/norm/forminfo.go
+index c443b78d82..a982174f54 100644
+--- a/src/pkg/exp/norm/forminfo.go
++++ b/src/pkg/exp/norm/forminfo.go
+@@ -32,8 +32,8 @@ const (
+ 	headerFlagsMask = 0xC0 // extract the qcInfo bits from the header byte
+ )
+ 
+-// runeInfo is a representation for the data stored in charinfoTrie.
+-type runeInfo struct {
++// Properties provides access to normalization properties of a rune.
++type Properties struct {
+ 	pos   uint8  // start position in reorderBuffer; used in composition.go
+ 	size  uint8  // length of UTF-8 encoding of this rune
+ 	ccc   uint8  // leading canonical combining class (ccc if not decomposition)
+@@ -43,7 +43,7 @@ type runeInfo struct {
+ }
+ 
+ // functions dispatchable per form
+-type lookupFunc func(b input, i int) runeInfo
++type lookupFunc func(b input, i int) Properties
+ 
+ // formInfo holds Form-specific functions and tables.
+ type formInfo struct {
+@@ -75,11 +75,14 @@ func init() {
+ 
+ // We do not distinguish between boundaries for NFC, NFD, etc. to avoid
+ // unexpected behavior for the user.  For example, in NFD, there is a boundary
+-// after 'a'.  However, a might combine with modifiers, so from the application's
++// after 'a'.  However, 'a' might combine with modifiers, so from the application's
+ // perspective it is not a good boundary. We will therefore always use the 
+ // boundaries for the combining variants.
+-func (i runeInfo) boundaryBefore() bool {
+-	if i.ccc == 0 && !i.combinesBackward() {
++
++// BoundaryBefore returns true if this rune starts a new segment and
++// cannot combine with any rune on the left.
++func (p Properties) BoundaryBefore() bool {
++	if p.ccc == 0 && !p.combinesBackward() {
+ 		return true
+ 	}
+ 	// We assume that the CCC of the first character in a decomposition
+@@ -88,8 +91,10 @@ func (i runeInfo) boundaryBefore() bool {
+ 	return false
+ }
+ 
+-func (i runeInfo) boundaryAfter() bool {
+-	return i.isInert()
++// BoundaryAfter returns true if this rune cannot combine with runes to the right
++// and always denotes the end of a segment.
++func (p Properties) BoundaryAfter() bool {
++	return p.isInert()
+ }
+ 
+ // We pack quick check data in 4 bits:
+@@ -101,25 +106,52 @@ func (i runeInfo) boundaryAfter() bool {
+ // influenced by normalization.
+ type qcInfo uint8
+ 
+-func (i runeInfo) isYesC() bool { return i.flags&0x4 == 0 }
+-func (i runeInfo) isYesD() bool { return i.flags&0x1 == 0 }
++func (p Properties) isYesC() bool { return p.flags&0x4 == 0 }
++func (p Properties) isYesD() bool { return p.flags&0x1 == 0 }
+ 
+-func (i runeInfo) combinesForward() bool  { return i.flags&0x8 != 0 }
+-func (i runeInfo) combinesBackward() bool { return i.flags&0x2 != 0 } // == isMaybe
+-func (i runeInfo) hasDecomposition() bool { return i.flags&0x1 != 0 } // == isNoD
++func (p Properties) combinesForward() bool  { return p.flags&0x8 != 0 }
++func (p Properties) combinesBackward() bool { return p.flags&0x2 != 0 } // == isMaybe
++func (p Properties) hasDecomposition() bool { return p.flags&0x1 != 0 } // == isNoD
+ 
+-func (r runeInfo) isInert() bool {
+-	return r.flags&0xf == 0 && r.ccc == 0
++func (p Properties) isInert() bool {
++	return p.flags&0xf == 0 && p.ccc == 0
+ }
+ 
+-func (r runeInfo) decomposition() []byte {
+-	if r.index == 0 {
++// Decomposition returns the decomposition for the underlying rune
++// or nil if there is none.
++func (p Properties) Decomposition() []byte {
++	if p.index == 0 {
+ 		return nil
+ 	}
+-	p := r.index
+-	n := decomps[p] & 0x3F
+-	p++
+-	return decomps[p : p+uint16(n)]
++	i := p.index
++	n := decomps[i] & headerLenMask
++	i++
++	return decomps[i : i+uint16(n)]
++}
++
++// Size returns the length of UTF-8 encoding of the rune.
++func (p Properties) Size() int {
++	return int(p.size)
++}
++
++// CCC returns the canonical combining class of the underlying rune.
++func (p Properties) CCC() uint8 {
++	if p.index > firstCCCZeroExcept {
++		return 0
++	}
++	return p.ccc
++}
++
++// LeadCCC returns the CCC of the first rune in the decomposition.
++// If there is no decomposition, LeadCCC equals CCC.
++func (p Properties) LeadCCC() uint8 {
++	return p.ccc
++}
++
++// TrailCCC returns the CCC of the last rune in the decomposition.
++// If there is no decomposition, TrailCCC equals CCC.
++func (p Properties) TrailCCC() uint8 {
++	return p.tccc
+ }
+ 
+ // Recomposition
+@@ -135,24 +167,40 @@ func combine(a, b rune) rune {
+ 	return recompMap[key]
+ }
+ 
+-func lookupInfoNFC(b input, i int) runeInfo {
++func lookupInfoNFC(b input, i int) Properties {
+ 	v, sz := b.charinfoNFC(i)
+ 	return compInfo(v, sz)
+ }
+ 
+-func lookupInfoNFKC(b input, i int) runeInfo {
++func lookupInfoNFKC(b input, i int) Properties {
+ 	v, sz := b.charinfoNFKC(i)
+ 	return compInfo(v, sz)
+ }
+ 
++// Properties returns properties for the first rune in s.
++func (f Form) Properties(s []byte) Properties {
++	if f == NFC || f == NFD {
++		return compInfo(nfcTrie.lookup(s))
++	}
++	return compInfo(nfkcTrie.lookup(s))
++}
++
++// PropertiesString returns properties for the first rune in s.
++func (f Form) PropertiesString(s string) Properties {
++	if f == NFC || f == NFD {
++		return compInfo(nfcTrie.lookupString(s))
++	}
++	return compInfo(nfkcTrie.lookupString(s))
++}
++
+ // compInfo converts the information contained in v and sz
+-// to a runeInfo.  See the comment at the top of the file
++// to a Properties.  See the comment at the top of the file
+ // for more information on the format.
+-func compInfo(v uint16, sz int) runeInfo {
++func compInfo(v uint16, sz int) Properties {
+ 	if v == 0 {
+-		return runeInfo{size: uint8(sz)}
++		return Properties{size: uint8(sz)}
+ 	} else if v >= 0x8000 {
+-		return runeInfo{
++		return Properties{
+ 			size:  uint8(sz),
+ 			ccc:   uint8(v),
+ 			tccc:  uint8(v),
+@@ -162,7 +210,7 @@ func compInfo(v uint16, sz int) runeInfo {
+ 	// has decomposition
+ 	h := decomps[v]
+ 	f := (qcInfo(h&headerFlagsMask) >> 4) | 0x1
+-	ri := runeInfo{size: uint8(sz), flags: f, index: v}
++	ri := Properties{size: uint8(sz), flags: f, index: v}
+ 	if v >= firstCCC {
+ 		v += uint16(h&headerLenMask) + 1
+ 		ri.tccc = decomps[v]
+diff --git a/src/pkg/exp/norm/iter.go b/src/pkg/exp/norm/iter.go
+index 761ba90cdd..e37ad7b410 100644
+--- a/src/pkg/exp/norm/iter.go
++++ b/src/pkg/exp/norm/iter.go
+@@ -10,8 +10,8 @@ const MaxSegmentSize = maxByteBufferSize
+ // to a given Form.
+ type Iter struct {
+ 	rb   reorderBuffer
+-	info runeInfo // first character saved from previous iteration
+-	next iterFunc // implementation of next depends on form
++	info Properties // first character saved from previous iteration
++	next iterFunc   // implementation of next depends on form
+ 
+ 	p        int // current position in input source
+ 	outStart int // start of current segment in output buffer
+@@ -124,7 +124,7 @@ doFast:
+ 					break
+ 				}
+ 			}
+-		} else if d := i.info.decomposition(); d != nil {
++		} else if d := i.info.Decomposition(); d != nil {
+ 			i.rb.src.copySlice(out[outCopyStart:], inCopyStart, i.p)
+ 			p := outp + len(d)
+ 			if p > i.maxseg && i.setStart(outp, i.p) {
+@@ -245,7 +245,7 @@ doFast:
+ 			if i.setStart(outp-1, i.p-1) {
+ 				i.p--
+ 				outp--
+-				i.info = runeInfo{size: 1}
++				i.info = Properties{size: 1}
+ 				break
+ 			}
+ 		}
+@@ -274,7 +274,7 @@ doNorm:
+ 			return outp
+ 		}
+ 		i.info = i.rb.f.info(i.rb.src, i.p)
+-		if i.info.boundaryBefore() {
++		if i.info.BoundaryBefore() {
+ 			break
+ 		}
+ 	}
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index 1deedc949c..eb981f0f7e 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -605,6 +605,10 @@ func printCharInfoTables() int {
+ 
+ 		lccc := ccc(d[0])
+ 		tccc := ccc(d[len(d)-1])
++		cc := ccc(r)
++		if cc != 0 && lccc == 0 && tccc == 0 {
++			logger.Fatalf("%U: trailing and leading ccc are 0 for non-zero ccc %d", cc)
++		}
+ 		if tccc < lccc && lccc != 0 {
+ 			const msg = "%U: lccc (%d) must be <= tcc (%d)"
+ 			logger.Fatalf(msg, r, lccc, tccc)
+@@ -615,7 +619,13 @@ func printCharInfoTables() int {
+ 			index = 1
+ 			if lccc > 0 {
+ 				s += string([]byte{lccc})
+-				index |= 2
++				index = 2
++			}
++			if cc != lccc {
++				if cc != 0 {
++					logger.Fatalf("%U: for lccc != ccc, expected ccc to be 0; was %d", cc)
++				}
++				index = 3
+ 			}
+ 		}
+ 		return index, s
+@@ -642,7 +652,7 @@ func printCharInfoTables() int {
+ 	size := 0
+ 	positionMap := make(map[string]uint16)
+ 	decompositions.WriteString("\000")
+-	cname := []string{"firstCCC", "firstLeadingCCC", "", "lastDecomp"}
++	cname := []string{"firstCCC", "firstLeadingCCC", "firstCCCZeroExcept", "lastDecomp"}
+ 	fmt.Println("const (")
+ 	for i, m := range decompSet {
+ 		sa := []string{}
+diff --git a/src/pkg/exp/norm/normalize.go b/src/pkg/exp/norm/normalize.go
+index c1d74f89d0..1c3e49b771 100644
+--- a/src/pkg/exp/norm/normalize.go
++++ b/src/pkg/exp/norm/normalize.go
+@@ -185,14 +185,14 @@ func doAppend(rb *reorderBuffer, out []byte, p int) []byte {
+ 	}
+ 	fd := &rb.f
+ 	if doMerge {
+-		var info runeInfo
++		var info Properties
+ 		if p < n {
+ 			info = fd.info(src, p)
+-			if p == 0 && !info.boundaryBefore() {
++			if p == 0 && !info.BoundaryBefore() {
+ 				out = decomposeToLastBoundary(rb, out)
+ 			}
+ 		}
+-		if info.size == 0 || info.boundaryBefore() {
++		if info.size == 0 || info.BoundaryBefore() {
+ 			if fd.composing {
+ 				rb.compose()
+ 			}
+@@ -316,13 +316,13 @@ func firstBoundary(rb *reorderBuffer) int {
+ 	}
+ 	fd := &rb.f
+ 	info := fd.info(src, i)
+-	for n := 0; info.size != 0 && !info.boundaryBefore(); {
++	for n := 0; info.size != 0 && !info.BoundaryBefore(); {
+ 		i += int(info.size)
+ 		if n++; n >= maxCombiningChars {
+ 			return i
+ 		}
+ 		if i >= nsrc {
+-			if !info.boundaryAfter() {
++			if !info.BoundaryAfter() {
+ 				return -1
+ 			}
+ 			return nsrc
+@@ -368,11 +368,11 @@ func lastBoundary(fd *formInfo, b []byte) int {
+ 	if p+int(info.size) != i { // trailing non-starter bytes: illegal UTF-8
+ 		return i
+ 	}
+-	if info.boundaryAfter() {
++	if info.BoundaryAfter() {
+ 		return i
+ 	}
+ 	i = p
+-	for n := 0; i >= 0 && !info.boundaryBefore(); {
++	for n := 0; i >= 0 && !info.BoundaryBefore(); {
+ 		info, p = lastRuneStart(fd, b[:i])
+ 		if n++; n >= maxCombiningChars {
+ 			return len(b)
+@@ -404,7 +404,7 @@ func decomposeSegment(rb *reorderBuffer, sp int) int {
+ 			break
+ 		}
+ 		info = rb.f.info(rb.src, sp)
+-		bound := info.boundaryBefore()
++		bound := info.BoundaryBefore()
+ 		if bound || info.size == 0 {
+ 			break
+ 		}
+@@ -414,12 +414,12 @@ func decomposeSegment(rb *reorderBuffer, sp int) int {
+ 
+ // lastRuneStart returns the runeInfo and position of the last
+ // rune in buf or the zero runeInfo and -1 if no rune was found.
+-func lastRuneStart(fd *formInfo, buf []byte) (runeInfo, int) {
++func lastRuneStart(fd *formInfo, buf []byte) (Properties, int) {
+ 	p := len(buf) - 1
+ 	for ; p >= 0 && !utf8.RuneStart(buf[p]); p-- {
+ 	}
+ 	if p < 0 {
+-		return runeInfo{}, -1
++		return Properties{}, -1
+ 	}
+ 	return fd.info(inputBytes(buf), p), p
+ }
+@@ -433,15 +433,15 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
+ 		// illegal trailing continuation bytes
+ 		return buf
+ 	}
+-	if info.boundaryAfter() {
++	if info.BoundaryAfter() {
+ 		return buf
+ 	}
+-	var add [maxBackRunes]runeInfo // stores runeInfo in reverse order
++	var add [maxBackRunes]Properties // stores runeInfo in reverse order
+ 	add[0] = info
+ 	padd := 1
+ 	n := 1
+ 	p := len(buf) - int(info.size)
+-	for ; p >= 0 && !info.boundaryBefore(); p -= int(info.size) {
++	for ; p >= 0 && !info.BoundaryBefore(); p -= int(info.size) {
+ 		info, i = lastRuneStart(fd, buf[:p])
+ 		if int(info.size) != p-i {
+ 			break
+@@ -452,7 +452,7 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
+ 				i += int(info.size)
+ 				n++
+ 			} else {
+-				dcomp := info.decomposition()
++				dcomp := info.Decomposition()
+ 				for i := 0; i < len(dcomp); {
+ 					inf := rb.f.info(inputBytes(dcomp), i)
+ 					i += int(inf.size)
+diff --git a/src/pkg/exp/norm/tables.go b/src/pkg/exp/norm/tables.go
+index e97b171072..db7e64ee65 100644
+--- a/src/pkg/exp/norm/tables.go
++++ b/src/pkg/exp/norm/tables.go
+@@ -8,10 +8,11 @@ package norm
+ const Version = "6.0.0"
+ 
+ const (
+-	firstCCC        = 0x2E45
+-	firstLeadingCCC = 0x4965
+-	lastDecomp      = 0x49A2
+-	maxDecomp       = 0x8000
++	firstCCC           = 0x2E45
++	firstLeadingCCC    = 0x4965
++	firstCCCZeroExcept = 0x497B
++	lastDecomp         = 0x49A2
++	maxDecomp          = 0x8000
+ )
+ 
+ // decomps: 18850 bytes
+@@ -2660,10 +2661,10 @@ var decomps = [...]byte{
+ 	0xCC, 0x94, 0xCC, 0x81, 0xE6, 0x86, 0xCF, 0x89,
+ 	0xCC, 0x94, 0xCD, 0x82, 0xE6, 0x42, 0xCC, 0x80,
+ 	0xE6, 0xE6, 0x42, 0xCC, 0x81, 0xE6, 0xE6, 0x42,
+-	0xCC, 0x93, 0xE6, 0xE6, 0x43, 0xE3, 0x82, 0x99,
+-	0x08, 0x08, 0x43, 0xE3, 0x82, 0x9A, 0x08, 0x08,
++	0xCC, 0x93, 0xE6, 0xE6, 0x44, 0xCC, 0x88, 0xCC,
++	0x81, 0xE6, 0xE6, 0x43, 0xE3, 0x82, 0x99, 0x08,
+ 	// Bytes 4980 - 49bf
+-	0x44, 0xCC, 0x88, 0xCC, 0x81, 0xE6, 0xE6, 0x46,
++	0x08, 0x43, 0xE3, 0x82, 0x9A, 0x08, 0x08, 0x46,
+ 	0xE0, 0xBD, 0xB1, 0xE0, 0xBD, 0xB2, 0x82, 0x81,
+ 	0x46, 0xE0, 0xBD, 0xB1, 0xE0, 0xBD, 0xB4, 0x84,
+ 	0x81, 0x46, 0xE0, 0xBD, 0xB1, 0xE0, 0xBE, 0x80,
+@@ -2756,7 +2757,7 @@ var nfcValues = [2944]uint16{
+ 	0x0236: 0x8001, 0x0237: 0x8001, 0x0238: 0x8601, 0x0239: 0x80dc, 0x023a: 0x80dc, 0x023b: 0x80dc,
+ 	0x023c: 0x80dc, 0x023d: 0x80e6, 0x023e: 0x80e6, 0x023f: 0x80e6,
+ 	// Block 0x9, offset 0x240
+-	0x0240: 0x4965, 0x0241: 0x496a, 0x0242: 0x86e6, 0x0243: 0x496f, 0x0244: 0x4980, 0x0245: 0x86f0,
++	0x0240: 0x4965, 0x0241: 0x496a, 0x0242: 0x86e6, 0x0243: 0x496f, 0x0244: 0x4974, 0x0245: 0x86f0,
+ 	0x0246: 0x80e6, 0x0247: 0x80dc, 0x0248: 0x80dc, 0x0249: 0x80dc, 0x024a: 0x80e6, 0x024b: 0x80e6,
+ 	0x024c: 0x80e6, 0x024d: 0x80dc, 0x024e: 0x80dc, 0x0250: 0x80e6, 0x0251: 0x80e6,
+ 	0x0252: 0x80e6, 0x0253: 0x80dc, 0x0254: 0x80dc, 0x0255: 0x80dc, 0x0256: 0x80dc, 0x0257: 0x80e6,
+@@ -3903,7 +3904,7 @@ var nfkcValues = [5568]uint16{
+ 	0x0236: 0x8001, 0x0237: 0x8001, 0x0238: 0x8601, 0x0239: 0x80dc, 0x023a: 0x80dc, 0x023b: 0x80dc,
+ 	0x023c: 0x80dc, 0x023d: 0x80e6, 0x023e: 0x80e6, 0x023f: 0x80e6,
+ 	// Block 0x9, offset 0x240
+-	0x0240: 0x4965, 0x0241: 0x496a, 0x0242: 0x86e6, 0x0243: 0x496f, 0x0244: 0x4980, 0x0245: 0x86f0,
++	0x0240: 0x4965, 0x0241: 0x496a, 0x0242: 0x86e6, 0x0243: 0x496f, 0x0244: 0x4974, 0x0245: 0x86f0,
+ 	0x0246: 0x80e6, 0x0247: 0x80dc, 0x0248: 0x80dc, 0x0249: 0x80dc, 0x024a: 0x80e6, 0x024b: 0x80e6,
+ 	0x024c: 0x80e6, 0x024d: 0x80dc, 0x024e: 0x80dc, 0x0250: 0x80e6, 0x0251: 0x80e6,
+ 	0x0252: 0x80e6, 0x0253: 0x80dc, 0x0254: 0x80dc, 0x0255: 0x80dc, 0x0256: 0x80dc, 0x0257: 0x80e6,
+@@ -4609,7 +4610,7 @@ var nfkcValues = [5568]uint16{
+ 	0x124c: 0x0a89, 0x124d: 0x0a8d, 0x124e: 0x0a91, 0x124f: 0x0a95, 0x1250: 0x0a99, 0x1251: 0x0a9d,
+ 	0x1252: 0x0aa1, 0x1253: 0x0aa5, 0x1254: 0x0aad, 0x1255: 0x0ab5, 0x1256: 0x0abd, 0x1257: 0x0ac1,
+ 	0x1258: 0x0ac5, 0x1259: 0x0ac9, 0x125a: 0x0acd, 0x125b: 0x0ad1, 0x125c: 0x0ad5, 0x125d: 0x0ae5,
+-	0x125e: 0x4974, 0x125f: 0x497a, 0x1260: 0x0889, 0x1261: 0x07d9, 0x1262: 0x07dd, 0x1263: 0x0901,
++	0x125e: 0x497b, 0x125f: 0x4981, 0x1260: 0x0889, 0x1261: 0x07d9, 0x1262: 0x07dd, 0x1263: 0x0901,
+ 	0x1264: 0x07e1, 0x1265: 0x0905, 0x1266: 0x0909, 0x1267: 0x07e5, 0x1268: 0x07e9, 0x1269: 0x07ed,
+ 	0x126a: 0x090d, 0x126b: 0x0911, 0x126c: 0x0915, 0x126d: 0x0919, 0x126e: 0x091d, 0x126f: 0x0921,
+ 	0x1270: 0x082d, 0x1271: 0x07f1, 0x1272: 0x07f5, 0x1273: 0x07f9, 0x1274: 0x0841, 0x1275: 0x07fd,

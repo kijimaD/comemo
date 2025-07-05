@@ -7,6 +7,20 @@ Date:   Fri Jul 16 11:18:45 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1752043
-
+---
  src/pkg/big/arith_arm.s | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/big/arith_arm.s b/src/pkg/big/arith_arm.s
+index c8a45efc49..6ab8e989ed 100644
+--- a/src/pkg/big/arith_arm.s
++++ b/src/pkg/big/arith_arm.s
+@@ -33,3 +33,8 @@ TEXT ·addMulVVW(SB),7,$0
+ TEXT ·divWVW(SB),7,$0
+ 	B ·divWVW_g(SB)
+ 
++TEXT ·divWW(SB),7,$0
++	B ·divWW_g(SB)
++
++TEXT ·mulWW(SB),7,$0
++	B ·mulWW_g(SB)

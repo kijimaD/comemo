@@ -7,6 +7,14 @@ Date:   Tue Jun 22 15:22:49 2010 +0100
     R=adg
     CC=golang-dev
     https://golang.org/cl/1665043
-
+---
  misc/vim/ftdetect/gofiletype.vim | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/vim/ftdetect/gofiletype.vim b/misc/vim/ftdetect/gofiletype.vim
+index b67dab0abe..8843121603 100644
+--- a/misc/vim/ftdetect/gofiletype.vim
++++ b/misc/vim/ftdetect/gofiletype.vim
+@@ -1 +1 @@
+-au BufRead,BufNewFile *.go setfiletype go
++au BufRead,BufNewFile *.go set filetype=go

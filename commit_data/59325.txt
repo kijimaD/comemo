@@ -12,6 +12,20 @@ Date:   Mon Mar 4 02:30:21 2024 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/xcoff/ar.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/xcoff/ar.go b/src/internal/xcoff/ar.go
+index 9cbd50d149..e616f377a3 100644
+--- a/src/internal/xcoff/ar.go
++++ b/src/internal/xcoff/ar.go
+@@ -54,7 +54,7 @@ type Archive struct {
+ 	closer io.Closer
+ }
+ 
+-// MemberHeader holds information about a big archive file header
++// ArchiveHeader holds information about a big archive file header
+ type ArchiveHeader struct {
+ 	magic string
+ }

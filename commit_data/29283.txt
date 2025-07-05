@@ -25,8 +25,56 @@ Date:   Wed Sep 7 03:23:20 2016 +0000
     Change-Id: Ie1a325209de14d70af6acb2d78269b7a0450da7a
     Reviewed-on: https://go-review.googlesource.com/28578
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go |  2 +-
  test/live.go                       | 10 ----------
  test/live_ssa.go                   |  8 --------
  3 files changed, 1 insertion(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 0fd514fbaf..c5597d7f48 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1572,7 +1572,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		}
+ 
+ 		if haspointers(t.Type) {
+-			if escassignfromtag(e, note, nE.Escretval, src)&EscMask == EscNone && up.Op != ODEFER && up.Op != OPROC {
++			if escassignfromtag(e, note, nE.Escretval, src) == EscNone && up.Op != ODEFER && up.Op != OPROC {
+ 				a := src
+ 				for a.Op == OCONVNOP {
+ 					a = a.Left
+diff --git a/test/live.go b/test/live.go
+index ef0ade23c7..db47e14e93 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -643,13 +643,3 @@ func good40() {
+ 	printnl() // ERROR "live at call to printnl: autotmp_[0-9]+ ret$"
+ 	_ = t
+ }
+-
+-func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"
+-	ddd2(x, y) // ERROR "live at call to ddd2: autotmp_[0-9]+$"
+-	printnl()  // nothing live here.  See issue 16996.
+-}
+-func ddd2(a ...*int) { // ERROR "live at entry to ddd2: a$"
+-	sink = a[0]
+-}
+-
+-var sink *int
+diff --git a/test/live_ssa.go b/test/live_ssa.go
+index cf06141b44..27c4528dc1 100644
+--- a/test/live_ssa.go
++++ b/test/live_ssa.go
+@@ -646,11 +646,3 @@ func good40() {
+ 	printnl() // ERROR "live at call to printnl: autotmp_[0-9]+ ret$"
+ 	_ = t
+ }
+-
+-func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"
+-	ddd2(x, y) // ERROR "live at call to ddd2: autotmp_[0-9]+$"
+-	printnl()  // nothing live here.  See issue 16996.
+-}
+-func ddd2(a ...*int) { // ERROR "live at entry to ddd2: a$"
+-	sink = a[0]
+-}

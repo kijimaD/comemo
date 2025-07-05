@@ -12,7 +12,7 @@ Date:   Thu Nov 3 11:39:52 2011 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/5331060
-
+---
  src/pkg/Makefile                             | 13 ++++++++-----
  src/pkg/deps.bash                            | 21 +++++++++++++++++++--
  src/pkg/{ => encoding}/asn1/Makefile         |  4 ++--
@@ -64,3 +64,400 @@ Date:   Thu Nov 3 11:39:52 2011 -0700
  src/pkg/{ => encoding}/xml/xml.go            |  0
  src/pkg/{ => encoding}/xml/xml_test.go       |  0
  50 files changed, 37 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 3d11502f24..105f3c4cfa 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -16,7 +16,6 @@ all: install
+ DIRS=\
+ 	archive/tar\
+ 	archive/zip\
+-	asn1\
+ 	big\
+ 	bufio\
+ 	bytes\
+@@ -62,19 +61,23 @@ DIRS=\
+ 	crypto/x509\
+ 	crypto/x509/pkix\
+ 	crypto/xtea\
+-	csv\
+ 	debug/dwarf\
+ 	debug/macho\
+ 	debug/elf\
+ 	debug/gosym\
+ 	debug/pe\
+ 	encoding/ascii85\
++	encoding/asn1\
+ 	encoding/base32\
+ 	encoding/base64\
+ 	encoding/binary\
++	encoding/csv\
+ 	encoding/git85\
++	encoding/gob\
+ 	encoding/hex\
++	encoding/json\
+ 	encoding/pem\
++	encoding/xml\
+ 	errors\
+ 	exec\
+ 	exp/ebnf\
+@@ -98,7 +101,6 @@ DIRS=\
+ 	go/printer\
+ 	go/scanner\
+ 	go/token\
+-	gob\
+ 	hash\
+ 	hash/adler32\
+ 	hash/crc32\
+@@ -122,7 +124,6 @@ DIRS=\
+ 	index/suffixarray\
+ 	io\
+ 	io/ioutil\
+-	json\
+ 	log\
+ 	mail\
+ 	math\
+@@ -172,7 +173,6 @@ DIRS=\
+ 	utf16\
+ 	utf8\
+ 	websocket\
+-	xml\
+ 	../cmd/cgo\
+ 	../cmd/godoc\
+ 	../cmd/gofix\
+@@ -236,6 +236,9 @@ TEST=\
+ BENCH=\
+ 	$(filter-out $(NOBENCH),$(TEST))
+ 
++CRAP:
++	echo $(DIRS)
++
+ clean.dirs: $(addsuffix .clean, $(DIRS))
+ install.dirs: $(addsuffix .install, $(DIRS))
+ nuke.dirs: $(addsuffix .nuke, $(DIRS))
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index d7919aa2e1..5760453c9e 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -21,10 +21,17 @@ dirpat=$(echo $dirs C | awk '{
+ 		gsub("/", "\\/", x)
+ 		printf("/^(%s)$/\n", x)
+ 	}
+-}')
++}'
++	# Add packages' old names. TODO: clean up after renaming.
++	echo "/^(asn1)$/"
++	echo "/^(csv)$/"
++	echo "/^(gob)$/"
++	echo "/^(json)$/"
++	echo "/^(xml)$/"
++)
+ 
+ for dir in $dirs; do (
+-	cd $dir || exit 1
++	cd $dir >/dev/null || exit 1
+ 
+ 	sources=$(sed -n 's/^[ 	]*\([^ 	]*\.go\)[ 	]*\\*[ 	]*$/\1/p' Makefile)
+ 	sources=$(echo $sources | sed 's/\$(GOOS)/'$GOOS'/g')
+@@ -39,6 +46,16 @@ for dir in $dirs; do (
+ 		awk "$dirpat" |
+ 		grep -v "^$dir\$" |
+ 		sed 's/$/.install/' |
++		# TODO: rename the dependencies for renamed directories.  TODO: clean up after renaming.
++		# awk is overkill but it's easy to understand.
++		awk '
++			/^asn1.install$/ { print "encoding/asn1.install"; next }
++			/^csv.install$/ { print "encoding/csv.install"; next }
++			/^gob.install$/ { print "encoding/gob.install"; next }
++			/^json.install$/ { print "encoding/json.install"; next }
++			/^xml.install$/ { print "encoding/xml.install"; next }
++			{print}
++		' |
+ 		sed 's;^C\.install;runtime/cgo.install;' |
+ 		sort -u
+ 	)
+diff --git a/src/pkg/asn1/Makefile b/src/pkg/encoding/asn1/Makefile
+similarity index 80%
+rename from src/pkg/asn1/Makefile
+rename to src/pkg/encoding/asn1/Makefile
+index 6b7770e820..692c469878 100644
+--- a/src/pkg/asn1/Makefile
++++ b/src/pkg/encoding/asn1/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=asn1
+ GOFILES=\
+@@ -10,4 +10,4 @@ GOFILES=\
+ 	common.go\
+ 	marshal.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/encoding/asn1/asn1.go
+similarity index 100%
+rename from src/pkg/asn1/asn1.go
+rename to src/pkg/encoding/asn1/asn1.go
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/encoding/asn1/asn1_test.go
+similarity index 100%
+rename from src/pkg/asn1/asn1_test.go
+rename to src/pkg/encoding/asn1/asn1_test.go
+diff --git a/src/pkg/asn1/common.go b/src/pkg/encoding/asn1/common.go
+similarity index 100%
+rename from src/pkg/asn1/common.go
+rename to src/pkg/encoding/asn1/common.go
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+similarity index 100%
+rename from src/pkg/asn1/marshal.go
+rename to src/pkg/encoding/asn1/marshal.go
+diff --git a/src/pkg/asn1/marshal_test.go b/src/pkg/encoding/asn1/marshal_test.go
+similarity index 100%
+rename from src/pkg/asn1/marshal_test.go
+rename to src/pkg/encoding/asn1/marshal_test.go
+diff --git a/src/pkg/csv/Makefile b/src/pkg/encoding/csv/Makefile
+similarity index 79%
+rename from src/pkg/csv/Makefile
+rename to src/pkg/encoding/csv/Makefile
+index e364d51d23..7476d816a1 100644
+--- a/src/pkg/csv/Makefile
++++ b/src/pkg/encoding/csv/Makefile
+@@ -2,11 +2,11 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=csv
+ GOFILES=\
+ 	reader.go\
+ 	writer.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/csv/reader.go b/src/pkg/encoding/csv/reader.go
+similarity index 100%
+rename from src/pkg/csv/reader.go
+rename to src/pkg/encoding/csv/reader.go
+diff --git a/src/pkg/csv/reader_test.go b/src/pkg/encoding/csv/reader_test.go
+similarity index 100%
+rename from src/pkg/csv/reader_test.go
+rename to src/pkg/encoding/csv/reader_test.go
+diff --git a/src/pkg/csv/writer.go b/src/pkg/encoding/csv/writer.go
+similarity index 100%
+rename from src/pkg/csv/writer.go
+rename to src/pkg/encoding/csv/writer.go
+diff --git a/src/pkg/csv/writer_test.go b/src/pkg/encoding/csv/writer_test.go
+similarity index 100%
+rename from src/pkg/csv/writer_test.go
+rename to src/pkg/encoding/csv/writer_test.go
+diff --git a/src/pkg/gob/Makefile b/src/pkg/encoding/gob/Makefile
+similarity index 88%
+rename from src/pkg/gob/Makefile
+rename to src/pkg/encoding/gob/Makefile
+index 68007c189e..70ea22f94b 100644
+--- a/src/pkg/gob/Makefile
++++ b/src/pkg/encoding/gob/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=gob
+ GOFILES=\
+@@ -14,7 +14,7 @@ GOFILES=\
+ 	error.go\
+ 	type.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+ 
+ # Help for debugging. Requires adding debug.go to the gob package as well.
+ 
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/encoding/gob/codec_test.go
+similarity index 100%
+rename from src/pkg/gob/codec_test.go
+rename to src/pkg/encoding/gob/codec_test.go
+diff --git a/src/pkg/gob/debug.go b/src/pkg/encoding/gob/debug.go
+similarity index 100%
+rename from src/pkg/gob/debug.go
+rename to src/pkg/encoding/gob/debug.go
+diff --git a/src/pkg/gob/decode.go b/src/pkg/encoding/gob/decode.go
+similarity index 100%
+rename from src/pkg/gob/decode.go
+rename to src/pkg/encoding/gob/decode.go
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/encoding/gob/decoder.go
+similarity index 100%
+rename from src/pkg/gob/decoder.go
+rename to src/pkg/encoding/gob/decoder.go
+diff --git a/src/pkg/gob/doc.go b/src/pkg/encoding/gob/doc.go
+similarity index 100%
+rename from src/pkg/gob/doc.go
+rename to src/pkg/encoding/gob/doc.go
+diff --git a/src/pkg/gob/dump.go b/src/pkg/encoding/gob/dump.go
+similarity index 100%
+rename from src/pkg/gob/dump.go
+rename to src/pkg/encoding/gob/dump.go
+diff --git a/src/pkg/gob/encode.go b/src/pkg/encoding/gob/encode.go
+similarity index 100%
+rename from src/pkg/gob/encode.go
+rename to src/pkg/encoding/gob/encode.go
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/encoding/gob/encoder.go
+similarity index 100%
+rename from src/pkg/gob/encoder.go
+rename to src/pkg/encoding/gob/encoder.go
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+similarity index 100%
+rename from src/pkg/gob/encoder_test.go
+rename to src/pkg/encoding/gob/encoder_test.go
+diff --git a/src/pkg/gob/error.go b/src/pkg/encoding/gob/error.go
+similarity index 100%
+rename from src/pkg/gob/error.go
+rename to src/pkg/encoding/gob/error.go
+diff --git a/src/pkg/gob/gobencdec_test.go b/src/pkg/encoding/gob/gobencdec_test.go
+similarity index 100%
+rename from src/pkg/gob/gobencdec_test.go
+rename to src/pkg/encoding/gob/gobencdec_test.go
+diff --git a/src/pkg/gob/timing_test.go b/src/pkg/encoding/gob/timing_test.go
+similarity index 100%
+rename from src/pkg/gob/timing_test.go
+rename to src/pkg/encoding/gob/timing_test.go
+diff --git a/src/pkg/gob/type.go b/src/pkg/encoding/gob/type.go
+similarity index 100%
+rename from src/pkg/gob/type.go
+rename to src/pkg/encoding/gob/type.go
+diff --git a/src/pkg/gob/type_test.go b/src/pkg/encoding/gob/type_test.go
+similarity index 100%
+rename from src/pkg/gob/type_test.go
+rename to src/pkg/encoding/gob/type_test.go
+diff --git a/src/pkg/json/Makefile b/src/pkg/encoding/json/Makefile
+similarity index 82%
+rename from src/pkg/json/Makefile
+rename to src/pkg/encoding/json/Makefile
+index 28ed62bc4b..203cf3ca98 100644
+--- a/src/pkg/json/Makefile
++++ b/src/pkg/encoding/json/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=json
+ GOFILES=\
+@@ -13,4 +13,4 @@ GOFILES=\
+ 	stream.go\
+ 	tags.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/json/decode.go b/src/pkg/encoding/json/decode.go
+similarity index 100%
+rename from src/pkg/json/decode.go
+rename to src/pkg/encoding/json/decode.go
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+similarity index 100%
+rename from src/pkg/json/decode_test.go
+rename to src/pkg/encoding/json/decode_test.go
+diff --git a/src/pkg/json/encode.go b/src/pkg/encoding/json/encode.go
+similarity index 100%
+rename from src/pkg/json/encode.go
+rename to src/pkg/encoding/json/encode.go
+diff --git a/src/pkg/json/encode_test.go b/src/pkg/encoding/json/encode_test.go
+similarity index 100%
+rename from src/pkg/json/encode_test.go
+rename to src/pkg/encoding/json/encode_test.go
+diff --git a/src/pkg/json/indent.go b/src/pkg/encoding/json/indent.go
+similarity index 100%
+rename from src/pkg/json/indent.go
+rename to src/pkg/encoding/json/indent.go
+diff --git a/src/pkg/json/scanner.go b/src/pkg/encoding/json/scanner.go
+similarity index 100%
+rename from src/pkg/json/scanner.go
+rename to src/pkg/encoding/json/scanner.go
+diff --git a/src/pkg/json/scanner_test.go b/src/pkg/encoding/json/scanner_test.go
+similarity index 100%
+rename from src/pkg/json/scanner_test.go
+rename to src/pkg/encoding/json/scanner_test.go
+diff --git a/src/pkg/json/stream.go b/src/pkg/encoding/json/stream.go
+similarity index 100%
+rename from src/pkg/json/stream.go
+rename to src/pkg/encoding/json/stream.go
+diff --git a/src/pkg/json/stream_test.go b/src/pkg/encoding/json/stream_test.go
+similarity index 100%
+rename from src/pkg/json/stream_test.go
+rename to src/pkg/encoding/json/stream_test.go
+diff --git a/src/pkg/json/tagkey_test.go b/src/pkg/encoding/json/tagkey_test.go
+similarity index 100%
+rename from src/pkg/json/tagkey_test.go
+rename to src/pkg/encoding/json/tagkey_test.go
+diff --git a/src/pkg/json/tags.go b/src/pkg/encoding/json/tags.go
+similarity index 100%
+rename from src/pkg/json/tags.go
+rename to src/pkg/encoding/json/tags.go
+diff --git a/src/pkg/json/tags_test.go b/src/pkg/encoding/json/tags_test.go
+similarity index 100%
+rename from src/pkg/json/tags_test.go
+rename to src/pkg/encoding/json/tags_test.go
+diff --git a/src/pkg/xml/Makefile b/src/pkg/encoding/xml/Makefile
+similarity index 80%
+rename from src/pkg/xml/Makefile
+rename to src/pkg/encoding/xml/Makefile
+index d66c4988a8..731d2ad959 100644
+--- a/src/pkg/xml/Makefile
++++ b/src/pkg/encoding/xml/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=xml
+ 
+@@ -11,4 +11,4 @@ GOFILES=\
+ 	read.go\
+ 	xml.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/xml/atom_test.go b/src/pkg/encoding/xml/atom_test.go
+similarity index 100%
+rename from src/pkg/xml/atom_test.go
+rename to src/pkg/encoding/xml/atom_test.go
+diff --git a/src/pkg/xml/embed_test.go b/src/pkg/encoding/xml/embed_test.go
+similarity index 100%
+rename from src/pkg/xml/embed_test.go
+rename to src/pkg/encoding/xml/embed_test.go
+diff --git a/src/pkg/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+similarity index 100%
+rename from src/pkg/xml/marshal.go
+rename to src/pkg/encoding/xml/marshal.go
+diff --git a/src/pkg/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+similarity index 100%
+rename from src/pkg/xml/marshal_test.go
+rename to src/pkg/encoding/xml/marshal_test.go
+diff --git a/src/pkg/xml/read.go b/src/pkg/encoding/xml/read.go
+similarity index 100%
+rename from src/pkg/xml/read.go
+rename to src/pkg/encoding/xml/read.go
+diff --git a/src/pkg/xml/read_test.go b/src/pkg/encoding/xml/read_test.go
+similarity index 100%
+rename from src/pkg/xml/read_test.go
+rename to src/pkg/encoding/xml/read_test.go
+diff --git a/src/pkg/xml/xml.go b/src/pkg/encoding/xml/xml.go
+similarity index 100%
+rename from src/pkg/xml/xml.go
+rename to src/pkg/encoding/xml/xml.go
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/encoding/xml/xml_test.go
+similarity index 100%
+rename from src/pkg/xml/xml_test.go
+rename to src/pkg/encoding/xml/xml_test.go

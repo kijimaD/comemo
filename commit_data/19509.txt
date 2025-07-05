@@ -10,8 +10,67 @@ Date:   Tue Jun 10 16:52:37 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/105040043
-
+---
  src/pkg/net/http/response.go           |  5 ++++-
  src/pkg/net/http/responsewrite_test.go | 16 ++++++++++++++++
  src/pkg/net/http/transfer.go           |  4 +++-
  3 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/response.go b/src/pkg/net/http/response.go
+index 5949191270..5d2c39080e 100644
+--- a/src/pkg/net/http/response.go
++++ b/src/pkg/net/http/response.go
+@@ -266,7 +266,10 @@ func (r *Response) Write(w io.Writer) error {
+ 		return err
+ 	}
+ 
+-	if r1.ContentLength == 0 && !chunked(r1.TransferEncoding) {
++	// contentLengthAlreadySent may have been already sent for
++	// POST/PUT requests, even if zero length. See Issue 8180.
++	contentLengthAlreadySent := tw.shouldSendContentLength()
++	if r1.ContentLength == 0 && !chunked(r1.TransferEncoding) && !contentLengthAlreadySent {
+ 		if _, err := io.WriteString(w, "Content-Length: 0\r\n"); err != nil {
+ 			return err
+ 		}
+diff --git a/src/pkg/net/http/responsewrite_test.go b/src/pkg/net/http/responsewrite_test.go
+index 381199202a..585b13b850 100644
+--- a/src/pkg/net/http/responsewrite_test.go
++++ b/src/pkg/net/http/responsewrite_test.go
+@@ -191,6 +191,22 @@ func TestResponseWrite(t *testing.T) {
+ 				"Foo: Bar Baz\r\n" +
+ 				"\r\n",
+ 		},
++
++		// Want a single Content-Length header. Fixing issue 8180 where
++		// there were two.
++		{
++			Response{
++				StatusCode:       StatusOK,
++				ProtoMajor:       1,
++				ProtoMinor:       1,
++				Request:          &Request{Method: "POST"},
++				Header:           Header{},
++				ContentLength:    0,
++				TransferEncoding: nil,
++				Body:             nil,
++			},
++			"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
++		},
+ 	}
+ 
+ 	for i := range respWriteTests {
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 0f2b7854f5..7f63686528 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -155,7 +155,9 @@ func (t *transferWriter) WriteHeader(w io.Writer) error {
+ 	// function of the sanitized field triple (Body, ContentLength,
+ 	// TransferEncoding)
+ 	if t.shouldSendContentLength() {
+-		io.WriteString(w, "Content-Length: ")
++		if _, err := io.WriteString(w, "Content-Length: "); err != nil {
++			return err
++		}
+ 		if _, err := io.WriteString(w, strconv.FormatInt(t.ContentLength, 10)+"\r\n"); err != nil {
+ 			return err
+ 		}

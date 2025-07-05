@@ -12,6 +12,22 @@ Date:   Wed Sep 5 11:39:59 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/nilptr3_wasm.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/nilptr3_wasm.go b/test/nilptr3_wasm.go
+index 9376d42097..df29cdc5dc 100644
+--- a/test/nilptr3_wasm.go
++++ b/test/nilptr3_wasm.go
+@@ -246,8 +246,8 @@ type TT struct {
+ 
+ func f(t *TT) *byte {
+ 	// See issue 17242.
+-	s := &t.SS  // ERROR "removed nil check"
+-	return &s.x // ERROR "generated nil check"
++	s := &t.SS  // ERROR "generated nil check"
++	return &s.x // ERROR "removed nil check"
+ }
+ 
+ // make sure not to do nil check for newobject

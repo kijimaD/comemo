@@ -12,6 +12,50 @@ Date:   Tue Aug 22 06:27:48 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/runtime/hashmap_fast.go | 18 +++---------------
  1 file changed, 3 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index a69b5316be..c378647892 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -846,11 +846,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
+ 					*(*uint32)(dst.k) = *(*uint32)(k)
+ 				}
+ 
+-				if t.indirectvalue {
+-					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
+-				} else {
+-					typedmemmove(t.elem, dst.v, v)
+-				}
++				typedmemmove(t.elem, dst.v, v)
+ 				dst.i++
+ 				// These updates might push these pointers past the end of the
+ 				// key or value arrays.  That's ok, as we have the overflow pointer
+@@ -956,11 +952,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
+ 					*(*uint64)(dst.k) = *(*uint64)(k)
+ 				}
+ 
+-				if t.indirectvalue {
+-					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
+-				} else {
+-					typedmemmove(t.elem, dst.v, v)
+-				}
++				typedmemmove(t.elem, dst.v, v)
+ 				dst.i++
+ 				// These updates might push these pointers past the end of the
+ 				// key or value arrays.  That's ok, as we have the overflow pointer
+@@ -1056,11 +1048,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
+ 				// Copy key.
+ 				*(*string)(dst.k) = *(*string)(k)
+ 
+-				if t.indirectvalue {
+-					*(*unsafe.Pointer)(dst.v) = *(*unsafe.Pointer)(v)
+-				} else {
+-					typedmemmove(t.elem, dst.v, v)
+-				}
++				typedmemmove(t.elem, dst.v, v)
+ 				dst.i++
+ 				// These updates might push these pointers past the end of the
+ 				// key or value arrays.  That's ok, as we have the overflow pointer

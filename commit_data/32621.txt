@@ -17,7 +17,62 @@ Date:   Tue May 9 06:40:04 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go             | 28 ++++++++++++++++++++++++++++
  src/cmd/go/internal/work/build.go |  6 +++---
  2 files changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index bc6e1baab7..2b118695c9 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4009,3 +4009,31 @@ func TestNeedVersion(t *testing.T) {
+ 	tg.runFail("run", path)
+ 	tg.grepStderr("compile", "does not match go tool version")
+ }
++
++// Test that user can override default code generation flags.
++func TestUserOverrideFlags(t *testing.T) {
++	if !canCgo {
++		t.Skip("skipping because cgo not enabled")
++	}
++	if runtime.GOOS != "linux" {
++		// We are testing platform-independent code, so it's
++		// OK to skip cases that work differently.
++		t.Skipf("skipping on %s because test only works if c-archive implies -shared", runtime.GOOS)
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("override.go", `package main
++
++import "C"
++
++//export GoFunc
++func GoFunc() {}
++
++func main() {}`)
++	tg.creatingTemp("override.a")
++	tg.creatingTemp("override.h")
++	tg.run("build", "-x", "-buildmode=c-archive", "-gcflags=-shared=false", tg.path("override.go"))
++	tg.grepStderr("compile .*-shared .*-shared=false", "user can not override code generation flag")
++}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 4e181933a7..0b304f97fd 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -379,10 +379,10 @@ func BuildModeInit() {
+ 	}
+ 	if codegenArg != "" {
+ 		if gccgo {
+-			buildGccgoflags = append(buildGccgoflags, codegenArg)
++			buildGccgoflags = append([]string{codegenArg}, buildGccgoflags...)
+ 		} else {
+-			buildAsmflags = append(buildAsmflags, codegenArg)
+-			buildGcflags = append(buildGcflags, codegenArg)
++			buildAsmflags = append([]string{codegenArg}, buildAsmflags...)
++			buildGcflags = append([]string{codegenArg}, buildGcflags...)
+ 		}
+ 		// Don't alter InstallSuffix when modifying default codegen args.
+ 		if cfg.BuildBuildmode != "default" || cfg.BuildLinkshared {

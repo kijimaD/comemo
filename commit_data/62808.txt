@@ -13,6 +13,20 @@ Date:   Mon Apr 14 13:37:21 2025 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sean Liao <sean@liao.dev>
-
+---
  src/encoding/json/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/scanner.go b/src/encoding/json/scanner.go
+index da6ea2ac8f..3445dbf2bb 100644
+--- a/src/encoding/json/scanner.go
++++ b/src/encoding/json/scanner.go
+@@ -173,7 +173,7 @@ func (s *scanner) eof() int {
+ 	return scanError
+ }
+ 
+-// pushParseState pushes a new parse state p onto the parse stack.
++// pushParseState pushes a new parse state newParseState onto the parse stack.
+ // an error state is returned if maxNestingDepth was exceeded, otherwise successState is returned.
+ func (s *scanner) pushParseState(c byte, newParseState int, successState int) int {
+ 	s.parseState = append(s.parseState, newParseState)

@@ -23,7 +23,7 @@ Date:   Mon Mar 25 12:34:27 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  3 ---
  src/cmd/internal/objabi/typekind.go    |  1 -
  src/internal/reflectlite/type.go       |  1 -
@@ -45,3 +45,565 @@ Date:   Mon Mar 25 12:34:27 2019 -0700
  src/runtime/slice.go                   |  2 +-
  src/runtime/typekind.go                |  1 -
  20 files changed, 44 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 03fbbb123d..e39509a595 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -882,9 +882,6 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	ot = duint8(lsym, ot, t.Align) // fieldAlign
+ 
+ 	i = kinds[t.Etype]
+-	if !types.Haspointers(t) {
+-		i |= objabi.KindNoPointers
+-	}
+ 	if isdirectiface(t) {
+ 		i |= objabi.KindDirectIface
+ 	}
+diff --git a/src/cmd/internal/objabi/typekind.go b/src/cmd/internal/objabi/typekind.go
+index f0e6f472e5..990ff1888d 100644
+--- a/src/cmd/internal/objabi/typekind.go
++++ b/src/cmd/internal/objabi/typekind.go
+@@ -36,6 +36,5 @@ const (
+ 	KindUnsafePointer
+ 	KindDirectIface = 1 << 5
+ 	KindGCProg      = 1 << 6
+-	KindNoPointers  = 1 << 7
+ 	KindMask        = (1 << 5) - 1
+ )
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 9767ffbd0d..faecb8755d 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -370,7 +370,6 @@ func (n name) pkgPath() string {
+ const (
+ 	kindDirectIface = 1 << 5
+ 	kindGCProg      = 1 << 6 // Type.gc points to GC program
+-	kindNoPointers  = 1 << 7
+ 	kindMask        = (1 << 5) - 1
+ )
+ 
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 3c47d6712f..1c78570110 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -40,7 +40,7 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr,
+ 	for i := uintptr(0); i < ft.ptrdata/ptrSize; i++ {
+ 		gc = append(gc, gcdata[i/8]>>(i%8)&1)
+ 	}
+-	ptrs = ft.kind&kindNoPointers == 0
++	ptrs = ft.ptrdata != 0
+ 	return
+ }
+ 
+diff --git a/src/reflect/swapper.go b/src/reflect/swapper.go
+index bf77b682c4..016f95d7b0 100644
+--- a/src/reflect/swapper.go
++++ b/src/reflect/swapper.go
+@@ -29,7 +29,7 @@ func Swapper(slice interface{}) func(i, j int) {
+ 
+ 	typ := v.Type().Elem().(*rtype)
+ 	size := typ.Size()
+-	hasPtr := typ.kind&kindNoPointers == 0
++	hasPtr := typ.ptrdata != 0
+ 
+ 	// Some common & small cases, without using memmove:
+ 	if hasPtr {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index b1df4f22fc..aeb0edc6d1 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -586,7 +586,6 @@ type Method struct {
+ const (
+ 	kindDirectIface = 1 << 5
+ 	kindGCProg      = 1 << 6 // Type.gc points to GC program
+-	kindNoPointers  = 1 << 7
+ 	kindMask        = (1 << 5) - 1
+ )
+ 
+@@ -782,7 +781,7 @@ func (t *rtype) FieldAlign() int { return int(t.fieldAlign) }
+ 
+ func (t *rtype) Kind() Kind { return Kind(t.kind & kindMask) }
+ 
+-func (t *rtype) pointers() bool { return t.kind&kindNoPointers == 0 }
++func (t *rtype) pointers() bool { return t.ptrdata != 0 }
+ 
+ func (t *rtype) common() *rtype { return t }
+ 
+@@ -2156,13 +2155,6 @@ const (
+ )
+ 
+ func bucketOf(ktyp, etyp *rtype) *rtype {
+-	// See comment on hmap.overflow in ../runtime/map.go.
+-	var kind uint8
+-	if ktyp.kind&kindNoPointers != 0 && etyp.kind&kindNoPointers != 0 &&
+-		ktyp.size <= maxKeySize && etyp.size <= maxValSize {
+-		kind = kindNoPointers
+-	}
+-
+ 	if ktyp.size > maxKeySize {
+ 		ktyp = PtrTo(ktyp).(*rtype)
+ 	}
+@@ -2189,12 +2181,12 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 		panic("reflect: bad size computation in MapOf")
+ 	}
+ 
+-	if kind != kindNoPointers {
++	if ktyp.ptrdata != 0 || etyp.ptrdata != 0 {
+ 		nptr := (bucketSize*(1+ktyp.size+etyp.size) + ptrSize) / ptrSize
+ 		mask := make([]byte, (nptr+7)/8)
+ 		base := bucketSize / ptrSize
+ 
+-		if ktyp.kind&kindNoPointers == 0 {
++		if ktyp.ptrdata != 0 {
+ 			if ktyp.kind&kindGCProg != 0 {
+ 				panic("reflect: unexpected GC program in MapOf")
+ 			}
+@@ -2210,7 +2202,7 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 		}
+ 		base += bucketSize * ktyp.size / ptrSize
+ 
+-		if etyp.kind&kindNoPointers == 0 {
++		if etyp.ptrdata != 0 {
+ 			if etyp.kind&kindGCProg != 0 {
+ 				panic("reflect: unexpected GC program in MapOf")
+ 			}
+@@ -2241,7 +2233,7 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	b := &rtype{
+ 		align:   ptrSize,
+ 		size:    size,
+-		kind:    kind,
++		kind:    uint8(Struct),
+ 		ptrdata: ptrdata,
+ 		gcdata:  gcdata,
+ 	}
+@@ -2349,7 +2341,6 @@ func StructOf(fields []StructField) Type {
+ 		repr = make([]byte, 0, 64)
+ 		fset = map[string]struct{}{} // fields' names
+ 
+-		hasPtr    = false // records whether at least one struct-field is a pointer
+ 		hasGCProg = false // records whether a struct-field type has a GCProg
+ 	)
+ 
+@@ -2370,9 +2361,6 @@ func StructOf(fields []StructField) Type {
+ 		if ft.kind&kindGCProg != 0 {
+ 			hasGCProg = true
+ 		}
+-		if ft.pointers() {
+-			hasPtr = true
+-		}
+ 
+ 		// Update string and hash
+ 		name := f.name.name()
+@@ -2657,11 +2645,6 @@ func StructOf(fields []StructField) Type {
+ 	if len(methods) > 0 {
+ 		typ.tflag |= tflagUncommon
+ 	}
+-	if !hasPtr {
+-		typ.kind |= kindNoPointers
+-	} else {
+-		typ.kind &^= kindNoPointers
+-	}
+ 
+ 	if hasGCProg {
+ 		lastPtrField := 0
+@@ -2869,11 +2852,9 @@ func ArrayOf(count int, elem Type) Type {
+ 	array.len = uintptr(count)
+ 	array.slice = SliceOf(elem).(*rtype)
+ 
+-	array.kind &^= kindNoPointers
+ 	switch {
+-	case typ.kind&kindNoPointers != 0 || array.size == 0:
++	case typ.ptrdata == 0 || array.size == 0:
+ 		// No pointers.
+-		array.kind |= kindNoPointers
+ 		array.gcdata = nil
+ 		array.ptrdata = 0
+ 
+@@ -3087,8 +3068,6 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset
+ 	}
+ 	if ptrmap.n > 0 {
+ 		x.gcdata = &ptrmap.data[0]
+-	} else {
+-		x.kind |= kindNoPointers
+ 	}
+ 
+ 	var s string
+@@ -3135,7 +3114,7 @@ func (bv *bitVector) append(bit uint8) {
+ }
+ 
+ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
+-	if t.kind&kindNoPointers != 0 {
++	if t.ptrdata == 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 85b6c8289a..123607247a 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -460,7 +460,7 @@ const cgoResultFail = "cgo result has Go pointer"
+ // depending on indir. The top parameter is whether we are at the top
+ // level, where Go pointers are allowed.
+ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+-	if t.kind&kindNoPointers != 0 {
++	if t.ptrdata == 0 {
+ 		// If the type has no pointers there is nothing to do.
+ 		return
+ 	}
+@@ -523,7 +523,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if !top {
+ 			panic(errorString(msg))
+ 		}
+-		if st.elem.kind&kindNoPointers != 0 {
++		if st.elem.ptrdata == 0 {
+ 			return
+ 		}
+ 		for i := 0; i < s.cap; i++ {
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 7f3c4aa803..ed854e5e2b 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -64,7 +64,7 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+-	if typ.kind&kindNoPointers != 0 {
++	if typ.ptrdata == 0 {
+ 		return
+ 	}
+ 	if !cgoIsGoPointer(src) {
+@@ -83,7 +83,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckSliceCopy(typ *_type, dst, src slice, n int) {
+-	if typ.kind&kindNoPointers != 0 {
++	if typ.ptrdata == 0 {
+ 		return
+ 	}
+ 	if !cgoIsGoPointer(src.array) {
+@@ -203,7 +203,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
+ //go:nowritebarrier
+ //go:systemstack
+ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+-	if typ.kind&kindNoPointers != 0 {
++	if typ.ptrdata == 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 389bf799e2..8194457434 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -95,7 +95,7 @@ func makechan(t *chantype, size int) *hchan {
+ 		c = (*hchan)(mallocgc(hchanSize, nil, true))
+ 		// Race detector uses this location for synchronization.
+ 		c.buf = c.raceaddr()
+-	case elem.kind&kindNoPointers != 0:
++	case elem.ptrdata == 0:
+ 		// Elements do not contain pointers.
+ 		// Allocate hchan and buf in one call.
+ 		c = (*hchan)(mallocgc(hchanSize+mem, nil, true))
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index ca56708a04..992df6391e 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -195,7 +195,7 @@ func dumptype(t *_type) {
+ 		dwritebyte('.')
+ 		dwrite(name.str, uintptr(name.len))
+ 	}
+-	dumpbool(t.kind&kindDirectIface == 0 || t.kind&kindNoPointers == 0)
++	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
+ }
+ 
+ // dump an object
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index be3a9bd26f..9feec1b007 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -858,7 +858,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	dataSize := size
+ 	c := gomcache()
+ 	var x unsafe.Pointer
+-	noscan := typ == nil || typ.kind&kindNoPointers != 0
++	noscan := typ == nil || typ.ptrdata == 0
+ 	if size <= maxSmallSize {
+ 		if noscan && size < maxTinySize {
+ 			// Tiny allocator.
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 9c25b63348..0ebbf2ae76 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -264,7 +264,7 @@ func (h *hmap) newoverflow(t *maptype, b *bmap) *bmap {
+ 		ovf = (*bmap)(newobject(t.bucket))
+ 	}
+ 	h.incrnoverflow()
+-	if t.bucket.kind&kindNoPointers != 0 {
++	if t.bucket.ptrdata == 0 {
+ 		h.createOverflow()
+ 		*h.extra.overflow = append(*h.extra.overflow, ovf)
+ 	}
+@@ -368,7 +368,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
+ 		// but may not be empty.
+ 		buckets = dirtyalloc
+ 		size := t.bucket.size * nbuckets
+-		if t.bucket.kind&kindNoPointers == 0 {
++		if t.bucket.ptrdata != 0 {
+ 			memclrHasPointers(buckets, size)
+ 		} else {
+ 			memclrNoHeapPointers(buckets, size)
+@@ -742,13 +742,13 @@ search:
+ 			// Only clear key if there are pointers in it.
+ 			if t.indirectkey() {
+ 				*(*unsafe.Pointer)(k) = nil
+-			} else if t.key.kind&kindNoPointers == 0 {
++			} else if t.key.ptrdata != 0 {
+ 				memclrHasPointers(k, t.key.size)
+ 			}
+ 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+ 			if t.indirectvalue() {
+ 				*(*unsafe.Pointer)(v) = nil
+-			} else if t.elem.kind&kindNoPointers == 0 {
++			} else if t.elem.ptrdata != 0 {
+ 				memclrHasPointers(v, t.elem.size)
+ 			} else {
+ 				memclrNoHeapPointers(v, t.elem.size)
+@@ -820,7 +820,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	// grab snapshot of bucket state
+ 	it.B = h.B
+ 	it.buckets = h.buckets
+-	if t.bucket.kind&kindNoPointers != 0 {
++	if t.bucket.ptrdata == 0 {
+ 		// Allocate the current slice and remember pointers to both current and old.
+ 		// This preserves all relevant overflow buckets alive even if
+ 		// the table grows and/or overflow buckets are added to the table
+@@ -1232,7 +1232,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/value to help GC.
+-		if h.flags&oldIterator == 0 && t.bucket.kind&kindNoPointers == 0 {
++		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index 20f55e17c6..fc72f583fa 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -299,11 +299,11 @@ search:
+ 				continue
+ 			}
+ 			// Only clear key if there are pointers in it.
+-			if t.key.kind&kindNoPointers == 0 {
++			if t.key.ptrdata != 0 {
+ 				memclrHasPointers(k, t.key.size)
+ 			}
+ 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+-			if t.elem.kind&kindNoPointers == 0 {
++			if t.elem.ptrdata != 0 {
+ 				memclrHasPointers(v, t.elem.size)
+ 			} else {
+ 				memclrNoHeapPointers(v, t.elem.size)
+@@ -418,7 +418,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
+ 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+ 
+ 				// Copy key.
+-				if sys.PtrSize == 4 && t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
++				if sys.PtrSize == 4 && t.key.ptrdata != 0 && writeBarrier.enabled {
+ 					// Write with a write barrier.
+ 					*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
+ 				} else {
+@@ -436,7 +436,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/value to help GC.
+-		if h.flags&oldIterator == 0 && t.bucket.kind&kindNoPointers == 0 {
++		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index e00a7569f9..03115197f3 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -299,11 +299,11 @@ search:
+ 				continue
+ 			}
+ 			// Only clear key if there are pointers in it.
+-			if t.key.kind&kindNoPointers == 0 {
++			if t.key.ptrdata != 0 {
+ 				memclrHasPointers(k, t.key.size)
+ 			}
+ 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+-			if t.elem.kind&kindNoPointers == 0 {
++			if t.elem.ptrdata != 0 {
+ 				memclrHasPointers(v, t.elem.size)
+ 			} else {
+ 				memclrNoHeapPointers(v, t.elem.size)
+@@ -418,7 +418,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
+ 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+ 
+ 				// Copy key.
+-				if t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
++				if t.key.ptrdata != 0 && writeBarrier.enabled {
+ 					if sys.PtrSize == 8 {
+ 						// Write with a write barrier.
+ 						*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
+@@ -442,7 +442,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/value to help GC.
+-		if h.flags&oldIterator == 0 && t.bucket.kind&kindNoPointers == 0 {
++		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index 2eac2b5bb5..504a3a1d5f 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -332,7 +332,7 @@ search:
+ 			// Clear key's pointer.
+ 			k.str = nil
+ 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+-			if t.elem.kind&kindNoPointers == 0 {
++			if t.elem.ptrdata != 0 {
+ 				memclrHasPointers(v, t.elem.size)
+ 			} else {
+ 				memclrNoHeapPointers(v, t.elem.size)
+@@ -461,7 +461,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
+ 		}
+ 		// Unlink the overflow buckets & clear key/value to help GC.
+ 		// Unlink the overflow buckets & clear key/value to help GC.
+-		if h.flags&oldIterator == 0 && t.bucket.kind&kindNoPointers == 0 {
++		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index c0bd236313..df3ab6fc3c 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -157,7 +157,7 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	if dst == src {
+ 		return
+ 	}
+-	if typ.kind&kindNoPointers == 0 {
++	if typ.ptrdata != 0 {
+ 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.size)
+ 	}
+ 	// There's a race here: if some other goroutine can write to
+@@ -195,7 +195,7 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ // dst and src point off bytes into the value and only copies size bytes.
+ //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
+ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+-	if writeBarrier.needed && typ.kind&kindNoPointers == 0 && size >= sys.PtrSize {
++	if writeBarrier.needed && typ.ptrdata != 0 && size >= sys.PtrSize {
+ 		// Pointer-align start address for bulk barrier.
+ 		adst, asrc, asize := dst, src, size
+ 		if frag := -off & (sys.PtrSize - 1); frag != 0 {
+@@ -223,7 +223,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size
+ //
+ //go:nosplit
+ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
+-	if writeBarrier.needed && typ != nil && typ.kind&kindNoPointers == 0 && size >= sys.PtrSize {
++	if writeBarrier.needed && typ != nil && typ.ptrdata != 0 && size >= sys.PtrSize {
+ 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size)
+ 	}
+ 	memmove(dst, src, size)
+@@ -264,7 +264,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 		return n
+ 	}
+ 
+-	// Note: No point in checking typ.kind&kindNoPointers here:
++	// Note: No point in checking typ.ptrdata here:
+ 	// compiler only emits calls to typedslicecopy for types with pointers,
+ 	// and growslice and reflect_typedslicecopy check for pointers
+ 	// before calling typedslicecopy.
+@@ -280,7 +280,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 
+ //go:linkname reflect_typedslicecopy reflect.typedslicecopy
+ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+-	if elemType.kind&kindNoPointers != 0 {
++	if elemType.ptrdata == 0 {
+ 		n := dst.len
+ 		if n > src.len {
+ 			n = src.len
+@@ -317,7 +317,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+ //
+ //go:nosplit
+ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
+-	if typ.kind&kindNoPointers == 0 {
++	if typ.ptrdata != 0 {
+ 		bulkBarrierPreWrite(uintptr(ptr), 0, typ.size)
+ 	}
+ 	memclrNoHeapPointers(ptr, typ.size)
+@@ -330,7 +330,7 @@ func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
+ 
+ //go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
+ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
+-	if typ.kind&kindNoPointers == 0 {
++	if typ.ptrdata != 0 {
+ 		bulkBarrierPreWrite(uintptr(ptr), 0, size)
+ 	}
+ 	memclrNoHeapPointers(ptr, size)
+@@ -338,7 +338,7 @@ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintpt
+ 
+ // memclrHasPointers clears n bytes of typed memory starting at ptr.
+ // The caller must ensure that the type of the object at ptr has
+-// pointers, usually by checking typ.kind&kindNoPointers. However, ptr
++// pointers, usually by checking typ.ptrdata. However, ptr
+ // does not have to point to the start of the allocation.
+ //
+ //go:nosplit
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 2f00add83e..6fcdea1538 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -581,7 +581,7 @@ func (h heapBits) setCheckmarked(size uintptr) {
+ // The pointer bitmap is not maintained for allocations containing
+ // no pointers at all; any caller of bulkBarrierPreWrite must first
+ // make sure the underlying allocation contains pointers, usually
+-// by checking typ.kind&kindNoPointers.
++// by checking typ.ptrdata.
+ //
+ // Callers must perform cgo checks if writeBarrier.cgo.
+ //
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index a8c51e3e02..37b2c381dd 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -356,7 +356,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 	if uintptr(e.data) != base {
+ 		// As an implementation detail we allow to set finalizers for an inner byte
+ 		// of an object if it could come from tiny alloc (see mallocgc for details).
+-		if ot.elem == nil || ot.elem.kind&kindNoPointers == 0 || ot.elem.size >= maxTinySize {
++		if ot.elem == nil || ot.elem.ptrdata != 0 || ot.elem.size >= maxTinySize {
+ 			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
+ 		}
+ 	}
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index dca41ff8cd..79cfc69c54 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -171,7 +171,7 @@ func growslice(et *_type, old slice, cap int) slice {
+ 	}
+ 
+ 	var p unsafe.Pointer
+-	if et.kind&kindNoPointers != 0 {
++	if et.ptrdata == 0 {
+ 		p = mallocgc(capmem, nil, false)
+ 		// The append() that calls growslice is going to overwrite from old.len to cap (which will be the new length).
+ 		// Only clear the part that will not be overwritten.
+diff --git a/src/runtime/typekind.go b/src/runtime/typekind.go
+index abb27777fe..7087a9b046 100644
+--- a/src/runtime/typekind.go
++++ b/src/runtime/typekind.go
+@@ -34,7 +34,6 @@ const (
+ 
+ 	kindDirectIface = 1 << 5
+ 	kindGCProg      = 1 << 6
+-	kindNoPointers  = 1 << 7
+ 	kindMask        = (1 << 5) - 1
+ )
+ 

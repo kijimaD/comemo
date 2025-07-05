@@ -14,9 +14,179 @@ Date:   Tue Feb 22 17:25:10 2011 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4173075
-
+---
  src/pkg/go/ast/ast.go            |  2 +-
  src/pkg/go/ast/walk.go           |  4 +-
  src/pkg/go/parser/parser.go      | 88 +++++++++++++++++++++++++---------------
  src/pkg/go/parser/parser_test.go |  1 +
  4 files changed, 59 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 2e8f0973fa..abafb5663b 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -597,7 +597,7 @@ type (
+ 	IfStmt struct {
+ 		If   token.Pos // position of "if" keyword
+ 		Init Stmt      // initalization statement; or nil
+-		Cond Expr      // condition; or nil
++		Cond Expr      // condition
+ 		Body *BlockStmt
+ 		Else Stmt // else branch; or nil
+ 	}
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index a77f8ee5e0..20c337c3be 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -227,9 +227,7 @@ func Walk(v Visitor, node Node) {
+ 		if n.Init != nil {
+ 			Walk(v, n.Init)
+ 		}
+-		if n.Cond != nil {
+-			Walk(v, n.Cond)
+-		}
++		Walk(v, n.Cond)
+ 		Walk(v, n.Body)
+ 		if n.Else != nil {
+ 			Walk(v, n.Else)
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 2395b81587..77bcc44827 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1327,44 +1327,29 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
+ }
+ 
+ 
+-func (p *parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
+-	if p.tok != token.LBRACE {
++func (p *parser) parseIfStmt() *ast.IfStmt {
++	if p.trace {
++		defer un(trace(p, "IfStmt"))
++	}
++
++	pos := p.expect(token.IF)
++
++	var s ast.Stmt
++	var x ast.Expr
++	{
+ 		prevLev := p.exprLev
+ 		p.exprLev = -1
+-
+-		if p.tok != token.SEMICOLON {
+-			s1 = p.parseSimpleStmt(false)
+-		}
++		s = p.parseSimpleStmt(false)
+ 		if p.tok == token.SEMICOLON {
+ 			p.next()
+-			if p.tok != token.LBRACE && p.tok != token.SEMICOLON {
+-				s2 = p.parseSimpleStmt(false)
+-			}
+-			if isForStmt {
+-				// for statements have a 3rd section
+-				p.expectSemi()
+-				if p.tok != token.LBRACE {
+-					s3 = p.parseSimpleStmt(false)
+-				}
+-			}
++			x = p.parseExpr()
+ 		} else {
+-			s1, s2 = nil, s1
++			x = p.makeExpr(s)
++			s = nil
+ 		}
+-
+ 		p.exprLev = prevLev
+ 	}
+ 
+-	return s1, s2, s3
+-}
+-
+-
+-func (p *parser) parseIfStmt() *ast.IfStmt {
+-	if p.trace {
+-		defer un(trace(p, "IfStmt"))
+-	}
+-
+-	pos := p.expect(token.IF)
+-	s1, s2, _ := p.parseControlClause(false)
+ 	body := p.parseBlockStmt()
+ 	var else_ ast.Stmt
+ 	if p.tok == token.ELSE {
+@@ -1374,7 +1359,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
+ 		p.expectSemi()
+ 	}
+ 
+-	return &ast.IfStmt{pos, s1, p.makeExpr(s2), body, else_}
++	return &ast.IfStmt{pos, s, x, body, else_}
+ }
+ 
+ 
+@@ -1457,7 +1442,22 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
+ 	}
+ 
+ 	pos := p.expect(token.SWITCH)
+-	s1, s2, _ := p.parseControlClause(false)
++
++	var s1, s2 ast.Stmt
++	if p.tok != token.LBRACE {
++		prevLev := p.exprLev
++		p.exprLev = -1
++		s2 = p.parseSimpleStmt(false)
++		if p.tok == token.SEMICOLON {
++			p.next()
++			s1 = s2
++			s2 = nil
++			if p.tok != token.LBRACE {
++				s2 = p.parseSimpleStmt(false)
++			}
++		}
++		p.exprLev = prevLev
++	}
+ 
+ 	if isExprSwitch(s2) {
+ 		lbrace := p.expect(token.LBRACE)
+@@ -1575,7 +1575,31 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 	}
+ 
+ 	pos := p.expect(token.FOR)
+-	s1, s2, s3 := p.parseControlClause(true)
++
++	var s1, s2, s3 ast.Stmt
++	if p.tok != token.LBRACE {
++		prevLev := p.exprLev
++		p.exprLev = -1
++
++		if p.tok != token.SEMICOLON {
++			s2 = p.parseSimpleStmt(false)
++		}
++		if p.tok == token.SEMICOLON {
++			p.next()
++			s1 = s2
++			s2 = nil
++			if p.tok != token.SEMICOLON {
++				s2 = p.parseSimpleStmt(false)
++			}
++			p.expectSemi()
++			if p.tok != token.LBRACE {
++				s3 = p.parseSimpleStmt(false)
++			}
++		}
++
++		p.exprLev = prevLev
++	}
++
+ 	body := p.parseBlockStmt()
+ 	p.expectSemi()
+ 
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 5a7f05ca83..7123870203 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -18,6 +18,7 @@ var illegalInputs = []interface{}{
+ 	3.14,
+ 	[]byte(nil),
+ 	"foo!",
++	`package p; func f() { if /* should have condition */ {} };`,
+ }
+ 
+ 

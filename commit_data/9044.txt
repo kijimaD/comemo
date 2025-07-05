@@ -8,8 +8,111 @@ Date:   Wed Jul 13 13:50:05 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4703044
-
+---
  src/pkg/exp/template/doc.go      |  4 ++++
  src/pkg/exp/template/set.go      | 31 +++++++++++++++++++++++++++++--
  src/pkg/exp/template/set_test.go | 11 +++++++++--
  3 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/exp/template/doc.go
+index a0fdd0a1f9..ce8d3feb54 100644
+--- a/src/pkg/exp/template/doc.go
++++ b/src/pkg/exp/template/doc.go
+@@ -259,6 +259,10 @@ when it is executed.
+ The second way to build a template set is to use the Add method of Set to bind
+ a template to a set. A template may be bound to multiple sets.
+ 
++Set.Parse may be called multiple times on different inputs to construct the set.
++Two sets may therefore be constructed with a common base set of templates plus,
++through a second Parse call each, specializations for some elements.
++
+ When templates are executed via Template.Execute, no set is defined and so no
+ template invocations are possible. The method Template.ExecuteInSet provides a
+ way to specify a template set when executing a template directly.
+diff --git a/src/pkg/exp/template/set.go b/src/pkg/exp/template/set.go
+index 9e37e7cb2b..e6a0ae4ed6 100644
+--- a/src/pkg/exp/template/set.go
++++ b/src/pkg/exp/template/set.go
+@@ -38,7 +38,7 @@ func (s *Set) Funcs(funcMap FuncMap) *Set {
+ }
+ 
+ // Add adds the argument templates to the set. It panics if the call
+-// attempts to reuse a name defined in the template.
++// attempts to reuse a name defined in the set.
+ // The return value is the set, so calls can be chained.
+ func (s *Set) Add(templates ...*Template) *Set {
+ 	for _, t := range templates {
+@@ -50,6 +50,30 @@ func (s *Set) Add(templates ...*Template) *Set {
+ 	return s
+ }
+ 
++// AddSet adds the templates from the provided set to the to the receiver.
++// It panics if the call attempts to reuse a name defined in the set.
++// The return value is the set, so calls can be chained.
++func (s *Set) AddSet(set *Set) *Set {
++	for _, t := range set.tmpl {
++		if _, ok := s.tmpl[t.name]; ok {
++			panic(fmt.Errorf("template: %q already defined in set", t.name))
++		}
++		s.tmpl[t.name] = t
++	}
++	return s
++}
++
++// Union adds the templates from the provided set to the to the receiver.
++// Unlike AddSet, it does not panic if a name is reused; instead the old
++// template is replaced.
++// The return value is the set, so calls can be chained.
++func (s *Set) Union(set *Set) *Set {
++	for _, t := range set.tmpl {
++		s.tmpl[t.name] = t
++	}
++	return s
++}
++
+ // Template returns the template with the given name in the set,
+ // or nil if there is no such template.
+ func (s *Set) Template(name string) *Template {
+@@ -81,7 +105,10 @@ func (s *Set) recover(errp *os.Error) {
+ 	return
+ }
+ 
+-// Parse parses a string into a set of named templates.
++// Parse parses a string into a set of named templates.  Parse may be called
++// multiple times for a given set, adding the templates defined in the string
++// to the set.  If a template is redefined, the element in the set is
++// overwritten with the new definition.
+ func (s *Set) Parse(text string) (err os.Error) {
+ 	defer s.recover(&err)
+ 	lex := lex("set", text)
+diff --git a/src/pkg/exp/template/set_test.go b/src/pkg/exp/template/set_test.go
+index 83088af973..ede924cc19 100644
+--- a/src/pkg/exp/template/set_test.go
++++ b/src/pkg/exp/template/set_test.go
+@@ -92,9 +92,12 @@ var setExecTests = []execTest{
+ 	{"testFunc .", `{{oneArg .}}`, "oneArg=joe", "joe", true},
+ }
+ 
+-const setText = `
++const setText1 = `
+ 	{{define "x"}}TEXT{{end}}
+ 	{{define "dotV"}}{{.V}}{{end}}
++`
++
++const setText2 = `
+ 	{{define "dot"}}{{.}}{{end}}
+ 	{{define "nested"}}{{template "dot" .}}{{end}}
+ `
+@@ -102,7 +105,11 @@ const setText = `
+ func TestSetExecute(t *testing.T) {
+ 	// Declare a set with a couple of templates first.
+ 	set := NewSet()
+-	err := set.Parse(setText)
++	err := set.Parse(setText1)
++	if err != nil {
++		t.Fatalf("error parsing set: %s", err)
++	}
++	err = set.Parse(setText2)
+ 	if err != nil {
+ 		t.Fatalf("error parsing set: %s", err)
+ 	}

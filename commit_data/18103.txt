@@ -11,7 +11,40 @@ Date:   Fri Dec 20 11:49:42 2013 -0800
     R=golang-codereviews, gobot, bradfitz, josharian
     CC=golang-codereviews
     https://golang.org/cl/31810043
-
+---
  src/pkg/net/http/request.go      | 5 +++++
  src/pkg/net/http/request_test.go | 5 +++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 7702d320c7..6ed21af568 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -673,6 +673,11 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
+ 		return
+ 	}
+ 	ct := r.Header.Get("Content-Type")
++	// RFC 2616, section 7.2.1 - empty type
++	//   SHOULD be treated as application/octet-stream
++	if ct == "" {
++		ct = "application/octet-stream"
++	}
+ 	ct, _, err = mime.ParseMediaType(ct)
+ 	switch {
+ 	case ct == "application/x-www-form-urlencoded":
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 89303c3360..17af781c9d 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -68,8 +68,9 @@ type parseContentTypeTest struct {
+ 
+ var parseContentTypeTests = []parseContentTypeTest{
+ 	{false, stringMap{"Content-Type": {"text/plain"}}},
+-	// Non-existent keys are not placed. The value nil is illegal.
+-	{true, stringMap{}},
++	// Empty content type is legal - shoult be treated as
++	// application/octet-stream (RFC 2616, section 7.2.1)
++	{false, stringMap{}},
+ 	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},
+ 	{false, stringMap{"Content-Type": {"application/unknown"}}},
+ }

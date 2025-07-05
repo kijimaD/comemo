@@ -7,7 +7,32 @@ Date:   Fri Mar 11 14:46:36 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4278043
-
+---
  src/pkg/go/typechecker/testdata/test1.src | 2 +-
  src/pkg/go/typechecker/testdata/test4.src | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/typechecker/testdata/test1.src b/src/pkg/go/typechecker/testdata/test1.src
+index b0808ee7ac..b5531fb9f5 100644
+--- a/src/pkg/go/typechecker/testdata/test1.src
++++ b/src/pkg/go/typechecker/testdata/test1.src
+@@ -7,7 +7,7 @@
+ package P1
+ 
+ const (
+-	c1         /* ERROR "missing initializer" */
++	c1 = 0
+ 	c2     int = 0
+ 	c3, c4 = 0
+ )
+diff --git a/src/pkg/go/typechecker/testdata/test4.src b/src/pkg/go/typechecker/testdata/test4.src
+index bb9aee3ad3..94d3558f9c 100644
+--- a/src/pkg/go/typechecker/testdata/test4.src
++++ b/src/pkg/go/typechecker/testdata/test4.src
+@@ -7,5 +7,5 @@
+ package P4
+ 
+ const (
+-	c0 /* ERROR "missing initializer" */
++	c0 = 0
+ )

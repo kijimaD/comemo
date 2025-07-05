@@ -18,6 +18,20 @@ Date:   Thu Apr 21 00:00:38 2022 +0200
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/netip/netip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 8fad25db8d..7d8b20384e 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -456,7 +456,7 @@ func (ip Addr) lessOrEq(ip2 Addr) bool { return ip.Compare(ip2) <= 0 }
+ 
+ // Is4 reports whether ip is an IPv4 address.
+ //
+-// It returns false for IPv4-mapped IPv6 addresses. See IP.Unmap.
++// It returns false for IPv4-mapped IPv6 addresses. See Addr.Unmap.
+ func (ip Addr) Is4() bool {
+ 	return ip.z == z4
+ }

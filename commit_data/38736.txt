@@ -14,6 +14,79 @@ Date:   Mon Nov 19 22:11:33 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/regexp/example_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 54 insertions(+)
+
+diff --git a/src/regexp/example_test.go b/src/regexp/example_test.go
+index d65464665f..d134a6ba28 100644
+--- a/src/regexp/example_test.go
++++ b/src/regexp/example_test.go
+@@ -25,6 +25,20 @@ func Example() {
+ 	// false
+ }
+ 
++func ExampleMatch() {
++	matched, err := regexp.Match(`foo.*`, []byte(`seafood`))
++	fmt.Println(matched, err)
++	matched, err = regexp.Match(`bar.*`, []byte(`seafood`))
++	fmt.Println(matched, err)
++	matched, err = regexp.Match(`a(b`, []byte(`seafood`))
++	fmt.Println(matched, err)
++
++	// Output:
++	// true <nil>
++	// false <nil>
++	// false error parsing regexp: missing closing ): `a(b`
++}
++
+ func ExampleMatchString() {
+ 	matched, err := regexp.MatchString("foo.*", "seafood")
+ 	fmt.Println(matched, err)
+@@ -44,6 +58,46 @@ func ExampleQuoteMeta() {
+ 	// Escaping symbols like: \.\+\*\?\(\)\|\[\]\{\}\^\$
+ }
+ 
++func ExampleRegexp_Find() {
++	re := regexp.MustCompile("foo.?")
++	fmt.Printf("%q\n", re.Find([]byte(`seafood fool`)))
++
++	// Output:
++	// "food"
++}
++
++func ExampleRegexp_FindAll() {
++	re := regexp.MustCompile("foo.?")
++	fmt.Printf("%q\n", re.FindAll([]byte(`seafood fool`), -1))
++
++	// Output:
++	// ["food" "fool"]
++}
++
++func ExampleRegexp_FindAllSubmatch() {
++	re := regexp.MustCompile("foo(.?)")
++	fmt.Printf("%q\n", re.FindAllSubmatch([]byte(`seafood fool`), -1))
++
++	// Output:
++	// [["food" "d"] ["fool" "l"]]
++}
++
++func ExampleRegexp_FindSubmatch() {
++	re := regexp.MustCompile("foo(.?)")
++	fmt.Printf("%q\n", re.FindSubmatch([]byte(`seafood fool`)))
++
++	// Output:
++	// ["food" "d"]
++}
++
++func ExampleRegexp_Match() {
++	re := regexp.MustCompile("foo.?")
++	fmt.Println(re.Match([]byte(`seafood fool`)))
++
++	// Output:
++	// true
++}
++
+ func ExampleRegexp_FindString() {
+ 	re := regexp.MustCompile("foo.?")
+ 	fmt.Printf("%q\n", re.FindString("seafood fool"))

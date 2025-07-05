@@ -12,6 +12,48 @@ Date:   Mon Feb 14 19:28:20 2022 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/internal/atomic/types.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/runtime/internal/atomic/types.go b/src/runtime/internal/atomic/types.go
+index 1a240d7c91..d9cffbf88f 100644
+--- a/src/runtime/internal/atomic/types.go
++++ b/src/runtime/internal/atomic/types.go
+@@ -124,6 +124,28 @@ func (u *Uint8) Or(value uint8) {
+ 	Or8(&u.value, value)
+ }
+ 
++// Bool is an atomically accessed bool value.
++//
++// A Bool must not be copied.
++type Bool struct {
++	// Inherits noCopy from Uint8.
++	u Uint8
++}
++
++// Load accesses and returns the value atomically.
++func (b *Bool) Load() bool {
++	return b.u.Load() != 0
++}
++
++// Store updates the value atomically.
++func (b *Bool) Store(value bool) {
++	s := uint8(0)
++	if value {
++		s = 1
++	}
++	b.u.Store(s)
++}
++
+ // Uint32 is an atomically accessed uint32 value.
+ //
+ // A Uint32 must not be copied.
+@@ -326,6 +348,7 @@ func (u *Uintptr) Add(delta uintptr) uintptr {
+ //
+ // A Float64 must not be copied.
+ type Float64 struct {
++	// Inherits noCopy from Uint64.
+ 	u Uint64
+ }
+ 

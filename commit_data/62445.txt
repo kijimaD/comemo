@@ -18,6 +18,31 @@ Date:   Tue Mar 4 10:07:15 2025 -0800
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/httputil/reverseproxy_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index f089ce0574..a826dc82fe 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -23,6 +23,7 @@ import (
+ 	"net/url"
+ 	"os"
+ 	"reflect"
++	"runtime"
+ 	"slices"
+ 	"strconv"
+ 	"strings"
+@@ -1560,6 +1561,11 @@ func TestReverseProxyWebSocketHalfTCP(t *testing.T) {
+ 	// - that closing the write stream is propagated through the proxy and results in reading
+ 	//   EOF at the other end of the connection
+ 
++	switch runtime.GOOS {
++	case "plan9":
++		t.Skipf("not supported on %s", runtime.GOOS)
++	}
++
+ 	mustRead := func(t *testing.T, conn *net.TCPConn, msg string) {
+ 		b := make([]byte, len(msg))
+ 		if _, err := conn.Read(b); err != nil {

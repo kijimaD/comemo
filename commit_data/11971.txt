@@ -16,6 +16,25 @@ Date:   Thu Feb 16 13:31:46 2012 -0500
     R=rsc, dave
     CC=golang-dev
     https://golang.org/cl/5673055
-
+---
  src/cmd/dist/build.c | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 9d168b364f..f31c83ea7a 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -582,8 +582,12 @@ install(char *dir)
+ 		splitfields(&gccargs, bstr(&b));
+ 		for(i=0; i<nelem(proto_gccargs); i++)
+ 			vadd(&gccargs, proto_gccargs[i]);
++		if(xstrstr(gccargs.p[0], "clang") != nil) {
++			vadd(&gccargs, "-Wno-dangling-else");
++			vadd(&gccargs, "-Wno-unused-value");
++		}
+ 	}
+-	
++
+ 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
+ 	ispkg = hasprefix(dir, "pkg");
+ 	isgo = ispkg || streq(dir, "cmd/go") || streq(dir, "cmd/cgo");

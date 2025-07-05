@@ -11,6 +11,26 @@ Date:   Fri Jul 31 23:25:48 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/13035
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 8c204fb648..d12f696eaf 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1884,11 +1884,11 @@ func (s *Server) doKeepAlives() bool {
+ // By default, keep-alives are always enabled. Only very
+ // resource-constrained environments or servers in the process of
+ // shutting down should disable them.
+-func (s *Server) SetKeepAlivesEnabled(v bool) {
++func (srv *Server) SetKeepAlivesEnabled(v bool) {
+ 	if v {
+-		atomic.StoreInt32(&s.disableKeepAlives, 0)
++		atomic.StoreInt32(&srv.disableKeepAlives, 0)
+ 	} else {
+-		atomic.StoreInt32(&s.disableKeepAlives, 1)
++		atomic.StoreInt32(&srv.disableKeepAlives, 1)
+ 	}
+ }
+ 

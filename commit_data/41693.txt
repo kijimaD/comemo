@@ -16,7 +16,7 @@ Date:   Mon Oct 15 03:14:57 2018 -0400
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go            |  2 +-
  src/cmd/compile/internal/gc/builtin.go         |  1 +
  src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
@@ -30,3 +30,236 @@ Date:   Mon Oct 15 03:14:57 2018 -0400
  src/runtime/proc.go                            |  2 ++
  test/codegen/math.go                           |  1 +
  12 files changed, 81 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 2c77912f21..e20a72cfc8 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -226,7 +226,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = r
+ 	case ssa.OpARMSRR:
+ 		genregshift(s, arm.AMOVW, 0, v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_RR)
+-	case ssa.OpARMMULAF, ssa.OpARMMULAD, ssa.OpARMMULSF, ssa.OpARMMULSD:
++	case ssa.OpARMMULAF, ssa.OpARMMULAD, ssa.OpARMMULSF, ssa.OpARMMULSD, ssa.OpARMFMULAD:
+ 		r := v.Reg()
+ 		r0 := v.Args[0].Reg()
+ 		r1 := v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index c7cd5fae64..ab65696a09 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -186,6 +186,7 @@ var runtimeDecls = [...]struct {
+ 	{"x86HasPOPCNT", varTag, 15},
+ 	{"x86HasSSE41", varTag, 15},
+ 	{"x86HasFMA", varTag, 15},
++	{"armHasVFPv4", varTag, 15},
+ 	{"arm64HasATOMICS", varTag, 15},
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index d9eaa0b7e5..10a2241597 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -242,4 +242,5 @@ func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)
+ var x86HasPOPCNT bool
+ var x86HasSSE41 bool
+ var x86HasFMA bool
++var armHasVFPv4 bool
+ var arm64HasATOMICS bool
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index bd10ca047f..d05f754f30 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -312,6 +312,7 @@ var (
+ 	x86HasPOPCNT,
+ 	x86HasSSE41,
+ 	x86HasFMA,
++	armHasVFPv4,
+ 	arm64HasATOMICS,
+ 	typedmemclr,
+ 	typedmemmove,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b65882e032..bbedbbc5aa 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -92,6 +92,7 @@ func initssaconfig() {
+ 	x86HasPOPCNT = sysvar("x86HasPOPCNT")       // bool
+ 	x86HasSSE41 = sysvar("x86HasSSE41")         // bool
+ 	x86HasFMA = sysvar("x86HasFMA")             // bool
++	armHasVFPv4 = sysvar("armHasVFPv4")         // bool
+ 	arm64HasATOMICS = sysvar("arm64HasATOMICS") // bool
+ 	typedmemclr = sysfunc("typedmemclr")
+ 	typedmemmove = sysfunc("typedmemmove")
+@@ -3357,6 +3358,36 @@ func init() {
+ 			return s.variable(n, types.Types[TFLOAT64])
+ 		},
+ 		sys.AMD64)
++	addF("math", "Fma",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), armHasVFPv4, s.sb)
++			v := s.load(types.Types[TBOOL], addr)
++			b := s.endBlock()
++			b.Kind = ssa.BlockIf
++			b.SetControl(v)
++			bTrue := s.f.NewBlock(ssa.BlockPlain)
++			bFalse := s.f.NewBlock(ssa.BlockPlain)
++			bEnd := s.f.NewBlock(ssa.BlockPlain)
++			b.AddEdgeTo(bTrue)
++			b.AddEdgeTo(bFalse)
++			b.Likely = ssa.BranchLikely
++
++			// We have the intrinsic - use it directly.
++			s.startBlock(bTrue)
++			s.vars[n] = s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Call the pure Go version.
++			s.startBlock(bFalse)
++			a := s.call(n, callNormal)
++			s.vars[n] = s.load(types.Types[TFLOAT64], a)
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Merge results.
++			s.startBlock(bEnd)
++			return s.variable(n, types.Types[TFLOAT64])
++		},
++		sys.ARM)
+ 
+ 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 4ab388cae9..c1c73e23ec 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -210,6 +210,9 @@
+ 
+ (Round(32|64)F x) -> x
+ 
++// fused-multiply-add
++(Fma x y z) -> (FMULAD z x y)
++
+ // comparisons
+ (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 9795215c8a..bde170864d 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -192,6 +192,10 @@ func init() {
+ 		{name: "MULSF", argLength: 3, reg: fp31, asm: "MULSF", resultInArg0: true}, // arg0 - (arg1 * arg2)
+ 		{name: "MULSD", argLength: 3, reg: fp31, asm: "MULSD", resultInArg0: true}, // arg0 - (arg1 * arg2)
+ 
++		// FMULAD only exists on platforms with the VFPv4 instruction set.
++		// Any use must be preceded by a successful check of runtime.arm_support_vfpv4.
++		{name: "FMULAD", argLength: 3, reg: fp31, asm: "FMULAD", resultInArg0: true}, // arg0 + (arg1 * arg2)
++
+ 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
+ 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
+ 		{name: "OR", argLength: 2, reg: gp21, asm: "ORR", commutative: true},  // arg0 | arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 59740da9a4..1bac391914 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -925,6 +925,7 @@ const (
+ 	OpARMMULAD
+ 	OpARMMULSF
+ 	OpARMMULSD
++	OpARMFMULAD
+ 	OpARMAND
+ 	OpARMANDconst
+ 	OpARMOR
+@@ -12119,6 +12120,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "FMULAD",
++		argLen:       3,
++		resultInArg0: true,
++		asm:          arm.AFMULAD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{2, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:        "AND",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index ece2fe4fe9..24064bdefb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -538,6 +538,8 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpEqB_0(v)
+ 	case OpEqPtr:
+ 		return rewriteValueARM_OpEqPtr_0(v)
++	case OpFma:
++		return rewriteValueARM_OpFma_0(v)
+ 	case OpGeq16:
+ 		return rewriteValueARM_OpGeq16_0(v)
+ 	case OpGeq16U:
+@@ -17159,6 +17161,21 @@ func rewriteValueARM_OpEqPtr_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpFma_0(v *Value) bool {
++	// match: (Fma x y z)
++	// cond:
++	// result: (FMULAD z x y)
++	for {
++		z := v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMFMULAD)
++		v.AddArg(z)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpGeq16_0(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index 3e859a3516..94f9331d15 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -25,5 +25,7 @@ var (
+ 	x86HasSSE41  bool
+ 	x86HasFMA    bool
+ 
++	armHasVFPv4 bool
++
+ 	arm64HasATOMICS bool
+ )
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1a51b1d83b..71e756b991 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -516,6 +516,8 @@ func cpuinit() {
+ 	x86HasSSE41 = cpu.X86.HasSSE41
+ 	x86HasFMA = cpu.X86.HasFMA
+ 
++	armHasVFPv4 = cpu.ARM.HasVFPv4
++
+ 	arm64HasATOMICS = cpu.ARM64.HasATOMICS
+ }
+ 
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index c942085480..751406d732 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -109,6 +109,7 @@ func copysign(a, b, c float64) {
+ 
+ func fma(x, y, z float64) float64 {
+ 	// amd64:"VFMADD231SD"
++	// arm/6:"FMULAD"
+ 	// arm64:"FMADDD"
+ 	// s390x:"FMADD"
+ 	// ppc64:"FMADD"

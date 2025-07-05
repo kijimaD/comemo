@@ -15,6 +15,39 @@ Date:   Sun Mar 6 19:52:08 2022 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/writer.go | 14 +-------------
  1 file changed, 1 insertion(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 59e9409b97..59bce0730d 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -284,10 +284,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 		}
+ 
+ 	case *types2.Named:
+-		// Type aliases can refer to uninstantiated generic types, so we
+-		// might see len(TParams) != 0 && len(TArgs) == 0 here.
+-		// TODO(mdempsky): Revisit after #46477 is resolved.
+-		assert(typ.TypeParams().Len() == typ.TypeArgs().Len() || typ.TypeArgs().Len() == 0)
++		assert(typ.TypeParams().Len() == typ.TypeArgs().Len())
+ 
+ 		// TODO(mdempsky): Why do we need to loop here?
+ 		orig := typ
+@@ -1630,15 +1627,6 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
+ 			break
+ 		}
+ 
+-		// Skip aliases to uninstantiated generic types.
+-		// TODO(mdempsky): Revisit after #46477 is resolved.
+-		if name.IsAlias() {
+-			named, ok := name.Type().(*types2.Named)
+-			if ok && named.TypeParams().Len() != 0 && named.TypeArgs().Len() == 0 {
+-				break
+-			}
+-		}
+-
+ 		w.Code(declOther)
+ 		w.pkgObjs(decl.Name)
+ 

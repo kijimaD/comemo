@@ -9,6 +9,26 @@ Date:   Thu Aug 30 14:16:45 2018 -0600
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/fmt/example_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/fmt/example_test.go b/src/fmt/example_test.go
+index 92d5cd519e..1d2cc0d757 100644
+--- a/src/fmt/example_test.go
++++ b/src/fmt/example_test.go
+@@ -40,6 +40,14 @@ func ExamplePrintln() {
+ 	// 21
+ }
+ 
++func ExampleSprintln() {
++	s := "Aug"
++	sl := fmt.Sprintln("Today is 30", s)
++	fmt.Printf("%q", sl)
++	// Output:
++	// "Today is 30 Aug\n"
++}
++
+ func ExampleFprintln() {
+ 	n, err := fmt.Fprintln(os.Stdout, "there", "are", 99, "gophers")
+ 	if err != nil {

@@ -10,10 +10,111 @@ Date:   Thu Aug 25 21:00:20 2011 -0300
     R=golang-dev, adg, gustavo
     CC=golang-dev
     https://golang.org/cl/4958046
-
+---
  src/pkg/go/build/build_test.go         |  2 ++
  src/pkg/go/build/dir.go                | 17 +++++++++++++++--
  src/pkg/go/build/pkgtest/pkgtest.go    |  6 +++++-
  src/pkg/go/build/pkgtest/sqrt_test.go  |  4 ++++
  src/pkg/go/build/pkgtest/xsqrt_test.go |  4 ++++
  5 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index 8670785442..592ebbd9ea 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -28,6 +28,8 @@ var buildPkgs = []struct {
+ 			GoFiles:      []string{"pkgtest.go"},
+ 			SFiles:       []string{"sqrt_" + runtime.GOARCH + ".s"},
+ 			PkgName:      "pkgtest",
++			Imports:      []string{"os"},
++			TestImports:  []string{"fmt", "pkgtest"},
+ 			TestGoFiles:  sortstr([]string{"sqrt_test.go", "sqrt_" + runtime.GOARCH + "_test.go"}),
+ 			XTestGoFiles: []string{"xsqrt_test.go"},
+ 		},
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index 558b6cf957..fa4d9e913f 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -45,7 +45,8 @@ type DirInfo struct {
+ 	CgoFiles     []string // .go files that import "C"
+ 	CFiles       []string // .c files in dir
+ 	SFiles       []string // .s files in dir
+-	Imports      []string // All packages imported by goFiles
++	Imports      []string // All packages imported by GoFiles
++	TestImports  []string // All packages imported by (X)TestGoFiles
+ 	PkgName      string   // Name of package in dir
+ 	TestGoFiles  []string // _test.go files in package
+ 	XTestGoFiles []string // _test.go files outside package
+@@ -76,6 +77,7 @@ func (ctxt *Context) ScanDir(dir string, allowMain bool) (info *DirInfo, err os.
+ 
+ 	var di DirInfo
+ 	imported := make(map[string]bool)
++	testImported := make(map[string]bool)
+ 	fset := token.NewFileSet()
+ 	for _, d := range dirs {
+ 		if strings.HasPrefix(d.Name, "_") ||
+@@ -134,7 +136,11 @@ func (ctxt *Context) ScanDir(dir string, allowMain bool) (info *DirInfo, err os.
+ 			if err != nil {
+ 				log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
+ 			}
+-			imported[path] = true
++			if isTest {
++				testImported[path] = true
++			} else {
++				imported[path] = true
++			}
+ 			if path == "C" {
+ 				if isTest {
+ 					return nil, os.NewError("use of cgo in test " + filename)
+@@ -160,8 +166,15 @@ func (ctxt *Context) ScanDir(dir string, allowMain bool) (info *DirInfo, err os.
+ 		di.Imports[i] = p
+ 		i++
+ 	}
++	di.TestImports = make([]string, len(testImported))
++	i = 0
++	for p := range testImported {
++		di.TestImports[i] = p
++		i++
++	}
+ 	// File name lists are sorted because ioutil.ReadDir sorts.
+ 	sort.Strings(di.Imports)
++	sort.Strings(di.TestImports)
+ 	return &di, nil
+ }
+ 
+diff --git a/src/pkg/go/build/pkgtest/pkgtest.go b/src/pkg/go/build/pkgtest/pkgtest.go
+index 9322f5ebd7..03ebb9893a 100644
+--- a/src/pkg/go/build/pkgtest/pkgtest.go
++++ b/src/pkg/go/build/pkgtest/pkgtest.go
+@@ -4,6 +4,10 @@
+ 
+ package pkgtest
+ 
+-func Foo() {}
++import "os"
++
++func Foo() os.Error {
++	return nil
++}
+ 
+ func Sqrt(x float64) float64
+diff --git a/src/pkg/go/build/pkgtest/sqrt_test.go b/src/pkg/go/build/pkgtest/sqrt_test.go
+index 26b483fa0b..95fb625525 100644
+--- a/src/pkg/go/build/pkgtest/sqrt_test.go
++++ b/src/pkg/go/build/pkgtest/sqrt_test.go
+@@ -1 +1,5 @@
+ package pkgtest
++
++import "fmt"
++
++var _ = fmt.Printf
+diff --git a/src/pkg/go/build/pkgtest/xsqrt_test.go b/src/pkg/go/build/pkgtest/xsqrt_test.go
+index bd2964e03e..77e903d96c 100644
+--- a/src/pkg/go/build/pkgtest/xsqrt_test.go
++++ b/src/pkg/go/build/pkgtest/xsqrt_test.go
+@@ -1 +1,5 @@
+ package pkgtest_test
++
++import "pkgtest"
++
++var _ = pkgtest.Foo

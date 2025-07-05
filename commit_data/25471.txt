@@ -10,6 +10,20 @@ Date:   Mon Nov 2 17:37:31 2015 -0500
     Change-Id: I6f6c165074dfce857b6523703a890d205423cd28
     Reviewed-on: https://go-review.googlesource.com/16555
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index debd2cdb30..4d658e770c 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -103,7 +103,7 @@ func main() {
+ func getenv(envvar string) string {
+ 	s := os.Getenv(envvar)
+ 	if s == "" {
+-		log.Fatalf("%s not set\nrun $GOROOT/misc/ios/detect.go to attempt to autodetect", s)
++		log.Fatalf("%s not set\nrun $GOROOT/misc/ios/detect.go to attempt to autodetect", envvar)
+ 	}
+ 	return s
+ }

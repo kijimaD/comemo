@@ -14,10 +14,139 @@ Date:   Wed Feb 11 23:35:16 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/5970
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
-
+---
  src/encoding/asn1/asn1.go         |  2 ++
  src/encoding/asn1/asn1_test.go    |  4 +++-
  src/encoding/asn1/common.go       |  5 +++++
  src/encoding/asn1/marshal.go      | 10 ++++++++--
  src/encoding/asn1/marshal_test.go | 11 +++++++++++
  5 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index aa99ca5cc5..7172c1c786 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -579,6 +579,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 				result, err = parseObjectIdentifier(innerBytes)
+ 			case tagUTCTime:
+ 				result, err = parseUTCTime(innerBytes)
++			case tagGeneralizedTime:
++				result, err = parseGeneralizedTime(innerBytes)
+ 			case tagOctetString:
+ 				result = innerBytes
+ 			default:
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 4e864d08ac..1a2ae2569f 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -358,6 +358,8 @@ func newBool(b bool) *bool { return &b }
+ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParametersTest{
+ 	{"", fieldParameters{}},
+ 	{"ia5", fieldParameters{stringType: tagIA5String}},
++	{"generalized", fieldParameters{timeType: tagGeneralizedTime}},
++	{"utc", fieldParameters{timeType: tagUTCTime}},
+ 	{"printable", fieldParameters{stringType: tagPrintableString}},
+ 	{"optional", fieldParameters{optional: true}},
+ 	{"explicit", fieldParameters{explicit: true, tag: new(int)}},
+@@ -366,7 +368,7 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
+ 	{"default:42", fieldParameters{defaultValue: newInt64(42)}},
+ 	{"tag:17", fieldParameters{tag: newInt(17)}},
+ 	{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
+-	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, false, false}},
++	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, 0, false, false}},
+ 	{"set", fieldParameters{set: true}},
+ }
+ 
+diff --git a/src/encoding/asn1/common.go b/src/encoding/asn1/common.go
+index 33a117ece1..ab85e0496f 100644
+--- a/src/encoding/asn1/common.go
++++ b/src/encoding/asn1/common.go
+@@ -74,6 +74,7 @@ type fieldParameters struct {
+ 	defaultValue *int64 // a default value for INTEGER typed fields (maybe nil).
+ 	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
+ 	stringType   int    // the string tag to use when marshaling.
++	timeType     int    // the time tag to use when marshaling.
+ 	set          bool   // true iff this should be encoded as a SET
+ 	omitEmpty    bool   // true iff this should be omitted if empty when marshaling.
+ 
+@@ -94,6 +95,10 @@ func parseFieldParameters(str string) (ret fieldParameters) {
+ 			if ret.tag == nil {
+ 				ret.tag = new(int)
+ 			}
++		case part == "generalized":
++			ret.timeType = tagGeneralizedTime
++		case part == "utc":
++			ret.timeType = tagUTCTime
+ 		case part == "ia5":
+ 			ret.stringType = tagIA5String
+ 		case part == "printable":
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index bf92c04c9f..67a019db2d 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -410,9 +410,11 @@ func stripTagAndLength(in []byte) []byte {
+ 
+ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameters) (err error) {
+ 	switch value.Type() {
++	case flagType:
++		return nil
+ 	case timeType:
+ 		t := value.Interface().(time.Time)
+-		if outsideUTCRange(t) {
++		if params.timeType == tagGeneralizedTime || outsideUTCRange(t) {
+ 			return marshalGeneralizedTime(out, t)
+ 		} else {
+ 			return marshalUTCTime(out, t)
+@@ -552,6 +554,10 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 	}
+ 	class := classUniversal
+ 
++	if params.timeType != 0 && tag != tagUTCTime {
++		return StructuralError{"explicit time type given to non-time member"}
++	}
++
+ 	if params.stringType != 0 && tag != tagPrintableString {
+ 		return StructuralError{"explicit string type given to non-string member"}
+ 	}
+@@ -575,7 +581,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 			tag = params.stringType
+ 		}
+ 	case tagUTCTime:
+-		if outsideUTCRange(v.Interface().(time.Time)) {
++		if params.timeType == tagGeneralizedTime || outsideUTCRange(v.Interface().(time.Time)) {
+ 			tag = tagGeneralizedTime
+ 		}
+ 	}
+diff --git a/src/encoding/asn1/marshal_test.go b/src/encoding/asn1/marshal_test.go
+index 5b0115f28c..cdca8aa336 100644
+--- a/src/encoding/asn1/marshal_test.go
++++ b/src/encoding/asn1/marshal_test.go
+@@ -42,6 +42,14 @@ type explicitTagTest struct {
+ 	A int `asn1:"explicit,tag:5"`
+ }
+ 
++type flagTest struct {
++	A Flag `asn1:"tag:0,optional"`
++}
++
++type generalizedTimeTest struct {
++	A time.Time `asn1:"generalized"`
++}
++
+ type ia5StringTest struct {
+ 	A string `asn1:"ia5"`
+ }
+@@ -92,10 +100,13 @@ var marshalTests = []marshalTest{
+ 	{[]byte{1, 2, 3}, "0403010203"},
+ 	{implicitTagTest{64}, "3003850140"},
+ 	{explicitTagTest{64}, "3005a503020140"},
++	{flagTest{true}, "30028000"},
++	{flagTest{false}, "3000"},
+ 	{time.Unix(0, 0).UTC(), "170d3730303130313030303030305a"},
+ 	{time.Unix(1258325776, 0).UTC(), "170d3039313131353232353631365a"},
+ 	{time.Unix(1258325776, 0).In(PST), "17113039313131353134353631362d30383030"},
+ 	{farFuture(), "180f32313030303430353132303130315a"},
++	{generalizedTimeTest{time.Unix(1258325776, 0).UTC()}, "3011180f32303039313131353232353631365a"},
+ 	{BitString{[]byte{0x80}, 1}, "03020780"},
+ 	{BitString{[]byte{0x81, 0xf0}, 12}, "03030481f0"},
+ 	{ObjectIdentifier([]int{1, 2, 3, 4}), "06032a0304"},

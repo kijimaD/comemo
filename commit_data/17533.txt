@@ -7,6 +7,19 @@ Date:   Tue Sep 10 13:00:01 2013 -0400
     R=golang-dev, bradfitz
     CC=ail, golang-dev
     https://golang.org/cl/13441050
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 2865929caf..6f960f3b58 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -53,6 +53,7 @@ Alexandre Normand <alexandre.normand@gmail.com>
+ Alexandru Moșoi <brtzsnr@gmail.com>
+ Alexei Sholik <alcosholik@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>
++Alexis Imperial-Legrand <ail@google.com>
+ Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
+ Andrea Spadaccini <spadaccio@google.com>

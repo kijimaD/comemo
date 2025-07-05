@@ -10,7 +10,7 @@ Date:   Sun Feb 12 23:26:20 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5650069
-
+---
  src/cmd/gc/go.h                |   1 +
  src/cmd/gc/lex.c               |   4 +
  src/cmd/gc/reflect.c           |  66 +++----------
@@ -25,3 +25,1245 @@ Date:   Sun Feb 12 23:26:20 2012 -0500
  src/pkg/runtime/type.go        | 219 ++++++-----------------------------------
  src/pkg/unsafe/unsafe.go       |  24 -----
  13 files changed, 176 insertions(+), 516 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index cd23b2f086..bb909b953c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -764,6 +764,7 @@ EXTERN	Pkg*	gostringpkg;	// fake pkg for Go strings
+ EXTERN	Pkg*	runtimepkg;	// package runtime
+ EXTERN	Pkg*	stringpkg;	// fake package for C strings
+ EXTERN	Pkg*	typepkg;	// fake package for runtime type info
++EXTERN	Pkg*	weaktypepkg;	// weak references to runtime type info
+ EXTERN	Pkg*	unsafepkg;	// package unsafe
+ EXTERN	Pkg*	phash[128];
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index c91626dcea..e880b2f34c 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -209,6 +209,10 @@ main(int argc, char *argv[])
+ 	typepkg = mkpkg(strlit("type"));
+ 	typepkg->name = "type";
+ 
++	weaktypepkg = mkpkg(strlit("weak.type"));
++	weaktypepkg->name = "weak.type";
++	weaktypepkg->prefix = "weak.type";  // not weak%2etype
++
+ 	unsafepkg = mkpkg(strlit("unsafe"));
+ 	unsafepkg->name = "unsafe";
+ 
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 49aca0906c..c8f8b39644 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -454,54 +454,17 @@ kinds[] =
+ 	[TUNSAFEPTR]	= KindUnsafePointer,
+ };
+ 
+-static char*
+-structnames[] =
+-{
+-	[TINT]		= "*runtime.IntType",
+-	[TUINT]		= "*runtime.UintType",
+-	[TINT8]		= "*runtime.IntType",
+-	[TUINT8]	= "*runtime.UintType",
+-	[TINT16]	= "*runtime.IntType",
+-	[TUINT16]	= "*runtime.UintType",
+-	[TINT32]	= "*runtime.IntType",
+-	[TUINT32]	= "*runtime.UintType",
+-	[TINT64]	= "*runtime.IntType",
+-	[TUINT64]	= "*runtime.UintType",
+-	[TUINTPTR]	= "*runtime.UintType",
+-	[TCOMPLEX64]	= "*runtime.ComplexType",
+-	[TCOMPLEX128]	= "*runtime.ComplexType",
+-	[TFLOAT32]	= "*runtime.FloatType",
+-	[TFLOAT64]	= "*runtime.FloatType",
+-	[TBOOL]		= "*runtime.BoolType",
+-	[TSTRING]	= "*runtime.StringType",
+-	[TUNSAFEPTR] =	"*runtime.UnsafePointerType",
+-
+-	[TPTR32]	= "*runtime.PtrType",
+-	[TPTR64]	= "*runtime.PtrType",
+-	[TSTRUCT]	= "*runtime.StructType",
+-	[TINTER]	= "*runtime.InterfaceType",
+-	[TCHAN]		= "*runtime.ChanType",
+-	[TMAP]		= "*runtime.MapType",
+-	[TARRAY]	= "*runtime.ArrayType",
+-	[TFUNC]		= "*runtime.FuncType",
+-};
+-
+ static Sym*
+ typestruct(Type *t)
+ {
+-	char *name;
+-	int et;
+-
+-	et = t->etype;
+-	if(et < 0 || et >= nelem(structnames) || (name = structnames[et]) == nil) {
+-		fatal("typestruct %lT", t);
+-		return nil;	// silence gcc
+-	}
+-
+-	if(isslice(t))
+-		name = "*runtime.SliceType";
+-
+-	return pkglookup(name, typepkg);
++	// We use a weak reference to the reflect type
++	// to avoid requiring package reflect in every binary.
++	// If package reflect is available, the interface{} holding
++	// a runtime type will contain a *reflect.commonType.
++	// Otherwise it will use a nil type word but still be usable
++	// by package runtime (because we always use the memory
++	// after the interface value, not the interface value itself).
++	return pkglookup("*reflect.commonType", weaktypepkg);
+ }
+ 
+ int
+@@ -580,7 +543,7 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	ot = dsymptr(s, ot, typestruct(t), 0);
+ 	ot = dsymptr(s, ot, s, 2*widthptr);
+ 
+-	// ../../pkg/runtime/type.go:/commonType
++	// ../../pkg/reflect/type.go:/^type.commonType
+ 	// actual type structure
+ 	//	type commonType struct {
+ 	//		size uintptr;
+@@ -683,16 +646,9 @@ weaktypesym(Type *t)
+ {
+ 	char *p;
+ 	Sym *s;
+-	static Pkg *weak;
+-	
+-	if(weak == nil) {
+-		weak = mkpkg(strlit("weak.type"));
+-		weak->name = "weak.type";
+-		weak->prefix = "weak.type";  // not weak%2etype
+-	}
+-	
++
+ 	p = smprint("%-T", t);
+-	s = pkglookup(p, weak);
++	s = pkglookup(p, weaktypepkg);
+ 	//print("weaktypesym: %s -> %+S\n", p, s);
+ 	free(p);
+ 	return s;
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index dfd8797ae3..57e5a4283e 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -2317,7 +2317,7 @@ dwarfemitdebugsections(void)
+ 
+ 	// Needed by the prettyprinter code for interface inspection.
+ 	defgotype(lookup_or_diag("type.runtime.commonType"));
+-	defgotype(lookup_or_diag("type.runtime.InterfaceType"));
++	defgotype(lookup_or_diag("type.runtime.interfaceType"));
+ 	defgotype(lookup_or_diag("type.runtime.itab"));
+ 
+ 	genasmsym(defdwsymb);
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index 8191062d30..750d623cde 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -456,7 +456,7 @@ func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
+ 	}
+ 	if *(*unsafe.Pointer)(up) == nil {
+ 		// Allocate object.
+-		*(*unsafe.Pointer)(up) = unsafe.New(rtyp)
++		*(*unsafe.Pointer)(up) = unsafe.Pointer(reflect.New(rtyp).Pointer())
+ 	}
+ 	return *(*uintptr)(up)
+ }
+@@ -609,7 +609,7 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr,
+ 	// Maps cannot be accessed by moving addresses around the way
+ 	// that slices etc. can.  We must recover a full reflection value for
+ 	// the iteration.
+-	v := reflect.ValueOf(unsafe.Unreflect(mtyp, unsafe.Pointer(p)))
++	v := reflect.NewAt(mtyp, unsafe.Pointer(p)).Elem()
+ 	n := int(state.decodeUint())
+ 	for i := 0; i < n; i++ {
+ 		key := decodeIntoValue(state, keyOp, keyIndir, allocValue(mtyp.Key()), ovfl)
+@@ -662,7 +662,7 @@ func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintpt
+ 	// Always write a header at p.
+ 	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p))
+ 	if hdrp.Cap < n {
+-		hdrp.Data = uintptr(unsafe.NewArray(atyp.Elem(), n))
++		hdrp.Data = reflect.MakeSlice(atyp, n, n).Pointer()
+ 		hdrp.Cap = n
+ 	}
+ 	hdrp.Len = n
+@@ -969,16 +969,16 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
+ 		// Caller has gotten us to within one indirection of our value.
+ 		if i.indir > 0 {
+ 			if *(*unsafe.Pointer)(p) == nil {
+-				*(*unsafe.Pointer)(p) = unsafe.New(ut.base)
++				*(*unsafe.Pointer)(p) = unsafe.Pointer(reflect.New(ut.base).Pointer())
+ 			}
+ 		}
+ 		// Now p is a pointer to the base type.  Do we need to climb out to
+ 		// get to the receiver type?
+ 		var v reflect.Value
+ 		if ut.decIndir == -1 {
+-			v = reflect.ValueOf(unsafe.Unreflect(rcvrType, unsafe.Pointer(&p)))
++			v = reflect.NewAt(rcvrType, unsafe.Pointer(&p)).Elem()
+ 		} else {
+-			v = reflect.ValueOf(unsafe.Unreflect(rcvrType, p))
++			v = reflect.NewAt(rcvrType, p).Elem()
+ 		}
+ 		state.dec.decodeGobDecoder(state, v)
+ 	}
+diff --git a/src/pkg/encoding/gob/encode.go b/src/pkg/encoding/gob/encode.go
+index f05b17c309..168e08b137 100644
+--- a/src/pkg/encoding/gob/encode.go
++++ b/src/pkg/encoding/gob/encode.go
+@@ -590,7 +590,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
+ 				// Maps cannot be accessed by moving addresses around the way
+ 				// that slices etc. can.  We must recover a full reflection value for
+ 				// the iteration.
+-				v := reflect.ValueOf(unsafe.Unreflect(t, unsafe.Pointer(p)))
++				v := reflect.NewAt(t, unsafe.Pointer(p)).Elem()
+ 				mv := reflect.Indirect(v)
+ 				// We send zero-length (but non-nil) maps because the
+ 				// receiver might want to use the map.  (Maps don't use append.)
+@@ -613,7 +613,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 				// Interfaces transmit the name and contents of the concrete
+ 				// value they contain.
+-				v := reflect.ValueOf(unsafe.Unreflect(t, unsafe.Pointer(p)))
++				v := reflect.NewAt(t, unsafe.Pointer(p)).Elem()
+ 				iv := reflect.Indirect(v)
+ 				if !state.sendZero && (!iv.IsValid() || iv.IsNil()) {
+ 					return
+@@ -645,9 +645,9 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
+ 		var v reflect.Value
+ 		if ut.encIndir == -1 {
+ 			// Need to climb up one level to turn value into pointer.
+-			v = reflect.ValueOf(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
++			v = reflect.NewAt(rt, unsafe.Pointer(&p)).Elem()
+ 		} else {
+-			v = reflect.ValueOf(unsafe.Unreflect(rt, p))
++			v = reflect.NewAt(rt, p).Elem()
+ 		}
+ 		if !state.sendZero && isZero(v) {
+ 			return
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 0acee9e434..f55454b181 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -16,7 +16,6 @@
+ package reflect
+ 
+ import (
+-	"runtime"
+ 	"strconv"
+ 	"sync"
+ 	"unsafe"
+@@ -181,7 +180,7 @@ type Type interface {
+ 	// It panics if i is not in the range [0, NumOut()).
+ 	Out(i int) Type
+ 
+-	runtimeType() *runtime.Type
++	runtimeType() *runtimeType
+ 	common() *commonType
+ 	uncommon() *uncommonType
+ }
+@@ -221,128 +220,131 @@ const (
+ )
+ 
+ /*
+- * Copy of data structures from ../runtime/type.go.
+- * For comments, see the ones in that file.
+- *
+- * These data structures are known to the compiler and the runtime.
+- *
+- * Putting these types in runtime instead of reflect means that
+- * reflect doesn't need to be autolinked into every binary, which
+- * simplifies bootstrapping and package dependencies.
+- * Unfortunately, it also means that reflect needs its own
+- * copy in order to access the private fields.
++ * These data structures are known to the compiler (../../cmd/gc/reflect.c).
++ * A few are known to ../runtime/type.go to convey to debuggers.
+  */
+ 
++// The compiler can only construct empty interface values at
++// compile time; non-empty interface values get created
++// during initialization.  Type is an empty interface
++// so that the compiler can lay out references as data.
++// The underlying type is *reflect.ArrayType and so on.
++type runtimeType interface{}
++
+ // commonType is the common implementation of most values.
+ // It is embedded in other, public struct types, but always
+ // with a unique tag like `reflect:"array"` or `reflect:"ptr"`
+ // so that code cannot convert from, say, *arrayType to *ptrType.
+-
+ type commonType struct {
+-	size       uintptr
+-	hash       uint32
+-	_          uint8
+-	align      uint8
+-	fieldAlign uint8
+-	kind       uint8
+-	alg        *uintptr
+-	string     *string
+-	*uncommonType
+-	ptrToThis *runtime.Type
+-}
+-
++	size          uintptr      // size in bytes
++	hash          uint32       // hash of type; avoids computation in hash tables
++	_             uint8        // unused/padding
++	align         uint8        // alignment of variable with this type
++	fieldAlign    uint8        // alignment of struct field with this type
++	kind          uint8        // enumeration for C
++	alg           *uintptr     // algorithm table (../runtime/runtime.h:/Alg)
++	string        *string      // string form; unnecessary  but undeniably useful
++	*uncommonType              // (relatively) uncommon fields
++	ptrToThis     *runtimeType // pointer to this type, if used in binary or has methods
++}
++
++// Method on non-interface type
+ type method struct {
+-	name    *string
+-	pkgPath *string
+-	mtyp    *runtime.Type
+-	typ     *runtime.Type
+-	ifn     unsafe.Pointer
+-	tfn     unsafe.Pointer
+-}
+-
++	name    *string        // name of method
++	pkgPath *string        // nil for exported Names; otherwise import path
++	mtyp    *runtimeType   // method type (without receiver)
++	typ     *runtimeType   // .(*FuncType) underneath (with receiver)
++	ifn     unsafe.Pointer // fn used in interface call (one-word receiver)
++	tfn     unsafe.Pointer // fn used for normal method call
++}
++
++// uncommonType is present only for types with names or methods
++// (if T is a named type, the uncommonTypes for T and *T have methods).
++// Using a pointer to this struct reduces the overall size required
++// to describe an unnamed type with no methods.
+ type uncommonType struct {
+-	name    *string
+-	pkgPath *string
+-	methods []method
++	name    *string  // name of type
++	pkgPath *string  // import path; nil for built-in types like int, string
++	methods []method // methods associated with type
+ }
+ 
+ // ChanDir represents a channel type's direction.
+ type ChanDir int
+ 
+ const (
+-	RecvDir ChanDir = 1 << iota
+-	SendDir
+-	BothDir = RecvDir | SendDir
++	RecvDir ChanDir             = 1 << iota // <-chan
++	SendDir                                 // chan<-
++	BothDir = RecvDir | SendDir             // chan
+ )
+ 
+ // arrayType represents a fixed array type.
+ type arrayType struct {
+ 	commonType `reflect:"array"`
+-	elem       *runtime.Type
+-	slice      *runtime.Type
++	elem       *runtimeType // array element type
++	slice      *runtimeType // slice type
+ 	len        uintptr
+ }
+ 
+ // chanType represents a channel type.
+ type chanType struct {
+ 	commonType `reflect:"chan"`
+-	elem       *runtime.Type
+-	dir        uintptr
++	elem       *runtimeType // channel element type
++	dir        uintptr      // channel direction (ChanDir)
+ }
+ 
+ // funcType represents a function type.
+ type funcType struct {
+ 	commonType `reflect:"func"`
+-	dotdotdot  bool
+-	in         []*runtime.Type
+-	out        []*runtime.Type
++	dotdotdot  bool           // last input parameter is ...
++	in         []*runtimeType // input parameter types
++	out        []*runtimeType // output parameter types
+ }
+ 
+ // imethod represents a method on an interface type
+ type imethod struct {
+-	name    *string
+-	pkgPath *string
+-	typ     *runtime.Type
++	name    *string      // name of method
++	pkgPath *string      // nil for exported Names; otherwise import path
++	typ     *runtimeType // .(*FuncType) underneath
+ }
+ 
+ // interfaceType represents an interface type.
+ type interfaceType struct {
+ 	commonType `reflect:"interface"`
+-	methods    []imethod
++	methods    []imethod // sorted by hash
+ }
+ 
+ // mapType represents a map type.
+ type mapType struct {
+ 	commonType `reflect:"map"`
+-	key        *runtime.Type
+-	elem       *runtime.Type
++	key        *runtimeType // map key type
++	elem       *runtimeType // map element (value) type
+ }
+ 
+ // ptrType represents a pointer type.
+ type ptrType struct {
+ 	commonType `reflect:"ptr"`
+-	elem       *runtime.Type
++	elem       *runtimeType // pointer element (pointed at) type
+ }
+ 
+ // sliceType represents a slice type.
+ type sliceType struct {
+ 	commonType `reflect:"slice"`
+-	elem       *runtime.Type
++	elem       *runtimeType // slice element type
+ }
+ 
+ // Struct field
+ type structField struct {
+-	name    *string
+-	pkgPath *string
+-	typ     *runtime.Type
+-	tag     *string
+-	offset  uintptr
++	name    *string      // nil for embedded fields
++	pkgPath *string      // nil for exported Names; otherwise import path
++	typ     *runtimeType // type of field
++	tag     *string      // nil if no tag
++	offset  uintptr      // byte offset of field within struct
+ }
+ 
+ // structType represents a struct type.
+ type structType struct {
+ 	commonType `reflect:"struct"`
+-	fields     []structField
++	fields     []structField // sorted by offset
+ }
+ 
+ /*
+@@ -909,23 +911,18 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (f StructField, pr
+ }
+ 
+ // Convert runtime type to reflect type.
+-func toCommonType(p *runtime.Type) *commonType {
++func toCommonType(p *runtimeType) *commonType {
+ 	if p == nil {
+ 		return nil
+ 	}
+-	type hdr struct {
+-		x interface{}
+-		t commonType
+-	}
+-	x := unsafe.Pointer(p)
+-	return &(*hdr)(x).t
++	return (*p).(*commonType)
+ }
+ 
+-func toType(p *runtime.Type) Type {
++func toType(p *runtimeType) Type {
+ 	if p == nil {
+ 		return nil
+ 	}
+-	return toCommonType(p).toType()
++	return (*p).(*commonType)
+ }
+ 
+ // TypeOf returns the reflection Type of the value in the interface{}.
+@@ -940,14 +937,14 @@ var ptrMap struct {
+ 	m map[*commonType]*ptrType
+ }
+ 
+-func (t *commonType) runtimeType() *runtime.Type {
+-	// The runtime.Type always precedes the commonType in memory.
++func (t *commonType) runtimeType() *runtimeType {
++	// The runtimeType always precedes the commonType in memory.
+ 	// Adjust pointer to find it.
+ 	var rt struct {
+-		i  runtime.Type
++		i  runtimeType
+ 		ct commonType
+ 	}
+-	return (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(t)) - unsafe.Offsetof(rt.ct)))
++	return (*runtimeType)(unsafe.Pointer(uintptr(unsafe.Pointer(t)) - unsafe.Offsetof(rt.ct)))
+ }
+ 
+ // PtrTo returns the pointer type with element t.
+@@ -986,16 +983,15 @@ func (ct *commonType) ptrTo() *commonType {
+ 	}
+ 
+ 	var rt struct {
+-		i runtime.Type
++		i runtimeType
+ 		ptrType
+ 	}
+-	rt.i = (*runtime.PtrType)(unsafe.Pointer(&rt.ptrType))
++	rt.i = &rt.commonType
+ 
+ 	// initialize p using *byte's ptrType as a prototype.
+-	// have to do assignment as ptrType, not runtime.PtrType,
+-	// in order to write to unexported fields.
+ 	p = &rt.ptrType
+-	bp := (*ptrType)(unsafe.Pointer(unsafe.Typeof((*byte)(nil)).(*runtime.PtrType)))
++	var ibyte interface{} = (*byte)(nil)
++	bp := (*ptrType)(unsafe.Pointer((**(**runtimeType)(unsafe.Pointer(&ibyte))).(*commonType)))
+ 	*p = *bp
+ 
+ 	s := "*" + *ct.string
+@@ -1010,7 +1006,7 @@ func (ct *commonType) ptrTo() *commonType {
+ 
+ 	p.uncommonType = nil
+ 	p.ptrToThis = nil
+-	p.elem = (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - unsafe.Offsetof(rt.ptrType)))
++	p.elem = (*runtimeType)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - unsafe.Offsetof(rt.ptrType)))
+ 
+ 	ptrMap.m[ct] = p
+ 	ptrMap.Unlock()
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 71bad3355d..df65dcfa5b 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -207,7 +207,7 @@ func storeIword(p unsafe.Pointer, w iword, n uintptr) {
+ 
+ // emptyInterface is the header for an interface{} value.
+ type emptyInterface struct {
+-	typ  *runtime.Type
++	typ  *runtimeType
+ 	word iword
+ }
+ 
+@@ -215,8 +215,8 @@ type emptyInterface struct {
+ type nonEmptyInterface struct {
+ 	// see ../runtime/iface.c:/Itab
+ 	itab *struct {
+-		ityp   *runtime.Type // static interface type
+-		typ    *runtime.Type // dynamic concrete type
++		ityp   *runtimeType // static interface type
++		typ    *runtimeType // dynamic concrete type
+ 		link   unsafe.Pointer
+ 		bad    int32
+ 		unused int32
+@@ -1606,6 +1606,10 @@ func Copy(dst, src Value) int {
+  * constructors
+  */
+ 
++// implemented in package runtime
++func unsafe_New(Type) unsafe.Pointer
++func unsafe_NewArray(Type, int) unsafe.Pointer
++
+ // MakeSlice creates a new zero-initialized slice value
+ // for the specified slice type, length, and capacity.
+ func MakeSlice(typ Type, len, cap int) Value {
+@@ -1618,7 +1622,7 @@ func MakeSlice(typ Type, len, cap int) Value {
+ 
+ 	// Reinterpret as *SliceHeader to edit.
+ 	s := (*SliceHeader)(unsafe.Pointer(&x))
+-	s.Data = uintptr(unsafe.NewArray(typ.Elem(), cap))
++	s.Data = uintptr(unsafe_NewArray(typ.Elem(), cap))
+ 	s.Len = len
+ 	s.Cap = cap
+ 
+@@ -1697,7 +1701,7 @@ func Zero(typ Type) Value {
+ 	if t.size <= ptrSize {
+ 		return Value{t, nil, fl}
+ 	}
+-	return Value{t, unsafe.New(typ), fl | flagIndir}
++	return Value{t, unsafe_New(typ), fl | flagIndir}
+ }
+ 
+ // New returns a Value representing a pointer to a new zero value
+@@ -1706,11 +1710,18 @@ func New(typ Type) Value {
+ 	if typ == nil {
+ 		panic("reflect: New(nil)")
+ 	}
+-	ptr := unsafe.New(typ)
++	ptr := unsafe_New(typ)
+ 	fl := flag(Ptr) << flagKindShift
+ 	return Value{typ.common().ptrTo(), ptr, fl}
+ }
+ 
++// NewAt returns a Value representing a pointer to a value of the
++// specified type, using p as that pointer.
++func NewAt(typ Type, p unsafe.Pointer) Value {
++	fl := flag(Ptr) << flagKindShift
++	return Value{typ.common().ptrTo(), p, fl}
++}
++
+ // assignTo returns a value v that can be assigned directly to typ.
+ // It panics if v is not assignable to typ.
+ // For a conversion to an interface type, target is a suggested scratch space to use.
+@@ -1749,20 +1760,20 @@ func (v Value) assignTo(context string, dst *commonType, target *interface{}) Va
+ func chancap(ch iword) int32
+ func chanclose(ch iword)
+ func chanlen(ch iword) int32
+-func chanrecv(t *runtime.Type, ch iword, nb bool) (val iword, selected, received bool)
+-func chansend(t *runtime.Type, ch iword, val iword, nb bool) bool
+-
+-func makechan(typ *runtime.Type, size uint32) (ch iword)
+-func makemap(t *runtime.Type) (m iword)
+-func mapaccess(t *runtime.Type, m iword, key iword) (val iword, ok bool)
+-func mapassign(t *runtime.Type, m iword, key, val iword, ok bool)
+-func mapiterinit(t *runtime.Type, m iword) *byte
++func chanrecv(t *runtimeType, ch iword, nb bool) (val iword, selected, received bool)
++func chansend(t *runtimeType, ch iword, val iword, nb bool) bool
++
++func makechan(typ *runtimeType, size uint32) (ch iword)
++func makemap(t *runtimeType) (m iword)
++func mapaccess(t *runtimeType, m iword, key iword) (val iword, ok bool)
++func mapassign(t *runtimeType, m iword, key, val iword, ok bool)
++func mapiterinit(t *runtimeType, m iword) *byte
+ func mapiterkey(it *byte) (key iword, ok bool)
+ func mapiternext(it *byte)
+ func maplen(m iword) int32
+ 
+ func call(fn, arg unsafe.Pointer, n uint32)
+-func ifaceE2I(t *runtime.Type, src interface{}, dst unsafe.Pointer)
++func ifaceE2I(t *runtimeType, src interface{}, dst unsafe.Pointer)
+ 
+ // Dummy annotation marking that the value x escapes,
+ // for use in cases where the reflect code is so clever that
+diff --git a/src/pkg/runtime/error.go b/src/pkg/runtime/error.go
+index 4b0ee4931e..b6b520cf27 100644
+--- a/src/pkg/runtime/error.go
++++ b/src/pkg/runtime/error.go
+@@ -17,9 +17,6 @@ type Error interface {
+ 
+ // A TypeAssertionError explains a failed type assertion.
+ type TypeAssertionError struct {
+-	interfaceType   Type // interface had this type
+-	concreteType    Type // concrete value had this type
+-	assertedType    Type // asserted type
+ 	interfaceString string
+ 	concreteString  string
+ 	assertedString  string
+@@ -33,7 +30,7 @@ func (e *TypeAssertionError) Error() string {
+ 	if inter == "" {
+ 		inter = "interface"
+ 	}
+-	if e.concreteType == nil {
++	if e.concreteString == "" {
+ 		return "interface conversion: " + inter + " is nil, not " + e.assertedString
+ 	}
+ 	if e.missingMethod == "" {
+@@ -44,40 +41,10 @@ func (e *TypeAssertionError) Error() string {
+ 		": missing method " + e.missingMethod
+ }
+ 
+-// Concrete returns the type of the concrete value in the failed type assertion.
+-// If the interface value was nil, Concrete returns nil.
+-func (e *TypeAssertionError) Concrete() Type {
+-	return e.concreteType
+-}
+-
+-// Asserted returns the type incorrectly asserted by the type assertion.
+-func (e *TypeAssertionError) Asserted() Type {
+-	return e.assertedType
+-}
+-
+-// If the type assertion is to an interface type, MissingMethod returns the
+-// name of a method needed to satisfy that interface type but not implemented
+-// by Concrete.  If there are multiple such methods,
+-// MissingMethod returns one; which one is unspecified.
+-// If the type assertion is not to an interface type, MissingMethod returns an empty string.
+-func (e *TypeAssertionError) MissingMethod() string {
+-	return e.missingMethod
+-}
+-
+ // For calling from C.
+-func newTypeAssertionError(pt1, pt2, pt3 *Type, ps1, ps2, ps3 *string, pmeth *string, ret *interface{}) {
+-	var t1, t2, t3 Type
++func newTypeAssertionError(ps1, ps2, ps3 *string, pmeth *string, ret *interface{}) {
+ 	var s1, s2, s3, meth string
+ 
+-	if pt1 != nil {
+-		t1 = *pt1
+-	}
+-	if pt2 != nil {
+-		t2 = *pt2
+-	}
+-	if pt3 != nil {
+-		t3 = *pt3
+-	}
+ 	if ps1 != nil {
+ 		s1 = *ps1
+ 	}
+@@ -90,7 +57,7 @@ func newTypeAssertionError(pt1, pt2, pt3 *Type, ps1, ps2, ps3 *string, pmeth *st
+ 	if pmeth != nil {
+ 		meth = *pmeth
+ 	}
+-	*ret = &TypeAssertionError{t1, t2, t3, s1, s2, s3, meth}
++	*ret = &TypeAssertionError{s1, s2, s3, meth}
+ }
+ 
+ // An errorString represents a runtime error described by a single string.
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 9f709355a8..2b60c4f23a 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -7,14 +7,6 @@
+ #include "type.h"
+ #include "malloc.h"
+ 
+-enum 
+-{
+-	// If an empty interface has these bits set in its type
+-	// pointer, it was copied from a reflect.Value and is
+-	// not a valid empty interface.
+-	reflectFlags = 3,
+-};
+-
+ void
+ runtime·printiface(Iface i)
+ {
+@@ -127,7 +119,7 @@ search:
+ 				if(!canfail) {
+ 				throw:
+ 					// didn't find method
+-					runtime·newTypeAssertionError(nil, type, inter,
++					runtime·newTypeAssertionError(
+ 						nil, type->string, inter->string,
+ 						iname, &err);
+ 					if(locked)
+@@ -243,13 +235,13 @@ assertI2Tret(Type *t, Iface i, byte *ret)
+ 
+ 	tab = i.tab;
+ 	if(tab == nil) {
+-		runtime·newTypeAssertionError(nil, nil, t,
++		runtime·newTypeAssertionError(
+ 			nil, nil, t->string,
+ 			nil, &err);
+ 		runtime·panic(err);
+ 	}
+ 	if(tab->type != t) {
+-		runtime·newTypeAssertionError(tab->inter, tab->type, t,
++		runtime·newTypeAssertionError(
+ 			tab->inter->string, tab->type->string, t->string,
+ 			nil, &err);
+ 		runtime·panic(err);
+@@ -289,8 +281,6 @@ runtime·assertE2T(Type *t, Eface e, ...)
+ {
+ 	byte *ret;
+ 
+-	if(((uintptr)e.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+ 	ret = (byte*)(&e+1);
+ 	assertE2Tret(t, e, ret);
+ }
+@@ -300,16 +290,14 @@ assertE2Tret(Type *t, Eface e, byte *ret)
+ {
+ 	Eface err;
+ 
+-	if(((uintptr)e.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+ 	if(e.type == nil) {
+-		runtime·newTypeAssertionError(nil, nil, t,
++		runtime·newTypeAssertionError(
+ 			nil, nil, t->string,
+ 			nil, &err);
+ 		runtime·panic(err);
+ 	}
+ 	if(e.type != t) {
+-		runtime·newTypeAssertionError(nil, e.type, t,
++		runtime·newTypeAssertionError(
+ 			nil, e.type->string, t->string,
+ 			nil, &err);
+ 		runtime·panic(err);
+@@ -326,8 +314,6 @@ runtime·assertE2T2(Type *t, Eface e, ...)
+ 	bool *ok;
+ 	int32 wid;
+ 
+-	if(((uintptr)e.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+ 	ret = (byte*)(&e+1);
+ 	wid = t->size;
+ 	ok = (bool*)(ret + wid);
+@@ -366,7 +352,7 @@ runtime·assertI2E(InterfaceType* inter, Iface i, Eface ret)
+ 	tab = i.tab;
+ 	if(tab == nil) {
+ 		// explicit conversions require non-nil interface value.
+-		runtime·newTypeAssertionError(nil, nil, inter,
++		runtime·newTypeAssertionError(
+ 			nil, nil, inter->string,
+ 			nil, &err);
+ 		runtime·panic(err);
+@@ -421,7 +407,7 @@ runtime·ifaceI2I(InterfaceType *inter, Iface i, Iface *ret)
+ 	tab = i.tab;
+ 	if(tab == nil) {
+ 		// explicit conversions require non-nil interface value.
+-		runtime·newTypeAssertionError(nil, nil, inter,
++		runtime·newTypeAssertionError(
+ 			nil, nil, inter->string,
+ 			nil, &err);
+ 		runtime·panic(err);
+@@ -463,12 +449,10 @@ runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
+ 	Type *t;
+ 	Eface err;
+ 
+-	if(((uintptr)e.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+ 	t = e.type;
+ 	if(t == nil) {
+ 		// explicit conversions require non-nil interface value.
+-		runtime·newTypeAssertionError(nil, nil, inter,
++		runtime·newTypeAssertionError(
+ 			nil, nil, inter->string,
+ 			nil, &err);
+ 		runtime·panic(err);
+@@ -496,8 +480,6 @@ runtime·assertE2I(InterfaceType* inter, Eface e, Iface ret)
+ void
+ runtime·assertE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
+ {
+-	if(((uintptr)e.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+ 	if(e.type == nil) {
+ 		ok = 0;
+ 		ret.data = nil;
+@@ -520,12 +502,10 @@ runtime·assertE2E(InterfaceType* inter, Eface e, Eface ret)
+ 	Type *t;
+ 	Eface err;
+ 
+-	if(((uintptr)e.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+ 	t = e.type;
+ 	if(t == nil) {
+ 		// explicit conversions require non-nil interface value.
+-		runtime·newTypeAssertionError(nil, nil, inter,
++		runtime·newTypeAssertionError(
+ 			nil, nil, inter->string,
+ 			nil, &err);
+ 		runtime·panic(err);
+@@ -538,8 +518,6 @@ runtime·assertE2E(InterfaceType* inter, Eface e, Eface ret)
+ void
+ runtime·assertE2E2(InterfaceType* inter, Eface e, Eface ret, bool ok)
+ {
+-	if(((uintptr)e.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+ 	USED(inter);
+ 	ret = e;
+ 	ok = e.type != nil;
+@@ -626,10 +604,6 @@ runtime·ifaceeq_c(Iface i1, Iface i2)
+ bool
+ runtime·efaceeq_c(Eface e1, Eface e2)
+ {
+-	if(((uintptr)e1.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+-	if(((uintptr)e2.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+ 	if(e1.type != e2.type)
+ 		return false;
+ 	if(e1.type == nil)
+@@ -672,8 +646,6 @@ runtime·efacethash(Eface e1, uint32 ret)
+ {
+ 	Type *t;
+ 
+-	if(((uintptr)e1.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+ 	ret = 0;
+ 	t = e1.type;
+ 	if(t != nil)
+@@ -682,10 +654,8 @@ runtime·efacethash(Eface e1, uint32 ret)
+ }
+ 
+ void
+-unsafe·Typeof(Eface e, Eface ret)
++reflect·unsafe_Typeof(Eface e, Eface ret)
+ {
+-	if(((uintptr)e.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+ 	if(e.type == nil) {
+ 		ret.type = nil;
+ 		ret.data = nil;
+@@ -696,73 +666,10 @@ unsafe·Typeof(Eface e, Eface ret)
+ }
+ 
+ void
+-unsafe·Reflect(Eface e, Eface rettype, void *retaddr)
+-{
+-	uintptr *p;
+-	uintptr x;
+-
+-	if(((uintptr)e.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+-	if(e.type == nil) {
+-		rettype.type = nil;
+-		rettype.data = nil;
+-		retaddr = 0;
+-	} else {
+-		rettype = *(Eface*)e.type;
+-		if(e.type->size <= sizeof(uintptr)) {
+-			// Copy data into x ...
+-			x = 0;
+-			e.type->alg->copy(e.type->size, &x, &e.data);
+-
+-			// but then build pointer to x so that Reflect
+-			// always returns pointer to data.
+-			p = runtime·mal(sizeof(uintptr));
+-			*p = x;
+-		} else {
+-			// Already a pointer, but still make a copy,
+-			// to preserve value semantics for interface data.
+-			p = runtime·mal(e.type->size);
+-			e.type->alg->copy(e.type->size, p, e.data);
+-		}
+-		retaddr = p;
+-	}
+-	FLUSH(&rettype);
+-	FLUSH(&retaddr);
+-}
+-
+-void
+-unsafe·Unreflect(Eface typ, void *addr, Eface e)
+-{
+-	if(((uintptr)typ.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+-
+-	// Reflect library has reinterpreted typ
+-	// as its own kind of type structure.
+-	// We know that the pointer to the original
+-	// type structure sits before the data pointer.
+-	e.type = (Type*)((Eface*)typ.data-1);
+-
+-	// Interface holds either pointer to data
+-	// or copy of original data.
+-	if(e.type->size <= sizeof(uintptr))
+-		e.type->alg->copy(e.type->size, &e.data, addr);
+-	else {
+-		// Easier: already a pointer to data.
+-		// TODO(rsc): Should this make a copy?
+-		e.data = addr;
+-	}
+-
+-	FLUSH(&e);
+-}
+-
+-void
+-unsafe·New(Eface typ, void *ret)
++reflect·unsafe_New(Eface typ, void *ret)
+ {
+ 	Type *t;
+ 
+-	if(((uintptr)typ.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+-
+ 	// Reflect library has reinterpreted typ
+ 	// as its own kind of type structure.
+ 	// We know that the pointer to the original
+@@ -777,14 +684,11 @@ unsafe·New(Eface typ, void *ret)
+ }
+ 
+ void
+-unsafe·NewArray(Eface typ, uint32 n, void *ret)
++reflect·unsafe_NewArray(Eface typ, uint32 n, void *ret)
+ {
+ 	uint64 size;
+ 	Type *t;
+ 
+-	if(((uintptr)typ.type&reflectFlags) != 0)
+-		runtime·throw("invalid interface value");
+-
+ 	// Reflect library has reinterpreted typ
+ 	// as its own kind of type structure.
+ 	// We know that the pointer to the original
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3134dcfd75..b29487eb1f 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -674,7 +674,7 @@ void	runtime·panicslice(void);
+  */
+ void	runtime·newError(String, Eface*);
+ void	runtime·printany(Eface);
+-void	runtime·newTypeAssertionError(Type*, Type*, Type*, String*, String*, String*, String*, Eface*);
++void	runtime·newTypeAssertionError(String*, String*, String*, String*, Eface*);
+ void	runtime·newErrorString(String, Eface*);
+ void	runtime·fadd64c(uint64, uint64, uint64*);
+ void	runtime·fsub64c(uint64, uint64, uint64*);
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index 1e0d723bd0..6af6b237f1 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -4,206 +4,51 @@
+ 
+ /*
+  * Runtime type representation.
+- *
+- * The following files know the exact layout of these
+- * data structures and must be kept in sync with this file:
+- *
+- *	../../cmd/gc/reflect.c
+- *	../../cmd/ld/dwarf.c decodetype_*
+- *	../reflect/type.go
+- *	type.h
++ * This file exists only to provide types that 6l can turn into
++ * DWARF information for use by gdb.  Nothing else uses these.
++ * They should match the same types in ../reflect/type.go.
++ * For comments see ../reflect/type.go.
+  */
+ 
+ package runtime
+ 
+ import "unsafe"
+ 
+-// The compiler can only construct empty interface values at
+-// compile time; non-empty interface values get created
+-// during initialization.  Type is an empty interface
+-// so that the compiler can lay out references as data.
+-type Type interface{}
+-
+-// All types begin with a few common fields needed for
+-// the interface runtime.
+ type commonType struct {
+-	size          uintptr  // size in bytes
+-	hash          uint32   // hash of type; avoids computation in hash tables
+-	_             uint8    // unused
+-	align         uint8    // alignment of variable with this type
+-	fieldAlign    uint8    // alignment of struct field with this type
+-	kind          uint8    // enumeration for C
+-	alg           *uintptr // algorithm table (../runtime/runtime.h:/Alg)
+-	string        *string  // string form; unnecessary  but undeniably useful
+-	*uncommonType          // (relatively) uncommon fields
+-	ptrToThis     *Type    // pointer to this type, if used in binary or has methods
+-}
+-
+-// Values for commonType.kind.
+-const (
+-	kindBool = 1 + iota
+-	kindInt
+-	kindInt8
+-	kindInt16
+-	kindInt32
+-	kindInt64
+-	kindUint
+-	kindUint8
+-	kindUint16
+-	kindUint32
+-	kindUint64
+-	kindUintptr
+-	kindFloat32
+-	kindFloat64
+-	kindComplex64
+-	kindComplex128
+-	kindArray
+-	kindChan
+-	kindFunc
+-	kindInterface
+-	kindMap
+-	kindPtr
+-	kindSlice
+-	kindString
+-	kindStruct
+-	kindUnsafePointer
+-
+-	kindNoPointers = 1 << 7 // OR'ed into kind
+-)
+-
+-// Method on non-interface type
+-type _method struct { // underscore is to avoid collision with C
+-	name    *string        // name of method
+-	pkgPath *string        // nil for exported Names; otherwise import path
+-	mtyp    *Type          // method type (without receiver)
+-	typ     *Type          // .(*FuncType) underneath (with receiver)
+-	ifn     unsafe.Pointer // fn used in interface call (one-word receiver)
+-	tfn     unsafe.Pointer // fn used for normal method call
++	size       uintptr
++	hash       uint32
++	_          uint8
++	align      uint8
++	fieldAlign uint8
++	kind       uint8
++	alg        *uintptr
++	string     *string
++	*uncommonType
++	ptrToThis *interface{}
++}
++
++type _method struct {
++	name    *string
++	pkgPath *string
++	mtyp    *interface{}
++	typ     *interface{}
++	ifn     unsafe.Pointer
++	tfn     unsafe.Pointer
+ }
+ 
+-// uncommonType is present only for types with names or methods
+-// (if T is a named type, the uncommonTypes for T and *T have methods).
+-// Using a pointer to this struct reduces the overall size required
+-// to describe an unnamed type with no methods.
+ type uncommonType struct {
+-	name    *string   // name of type
+-	pkgPath *string   // import path; nil for built-in types like int, string
+-	methods []_method // methods associated with type
+-}
+-
+-// BoolType represents a boolean type.
+-type BoolType commonType
+-
+-// FloatType represents a float type.
+-type FloatType commonType
+-
+-// ComplexType represents a complex type.
+-type ComplexType commonType
+-
+-// IntType represents an int type.
+-type IntType commonType
+-
+-// UintType represents a uint type.
+-type UintType commonType
+-
+-// StringType represents a string type.
+-type StringType commonType
+-
+-// UintptrType represents a uintptr type.
+-type UintptrType commonType
+-
+-// UnsafePointerType represents an unsafe.Pointer type.
+-type UnsafePointerType commonType
+-
+-// ArrayType represents a fixed array type.
+-type ArrayType struct {
+-	commonType
+-	elem  *Type // array element type
+-	slice *Type // slice type
+-	len   uintptr
+-}
+-
+-// SliceType represents a slice type.
+-type SliceType struct {
+-	commonType
+-	elem *Type // slice element type
+-}
+-
+-// ChanDir represents a channel type's direction.
+-type ChanDir int
+-
+-const (
+-	RecvDir ChanDir             = 1 << iota // <-chan
+-	SendDir                                 // chan<-
+-	BothDir = RecvDir | SendDir             // chan
+-)
+-
+-// ChanType represents a channel type.
+-type ChanType struct {
+-	commonType
+-	elem *Type   // channel element type
+-	dir  uintptr // channel direction (ChanDir)
+-}
+-
+-// FuncType represents a function type.
+-type FuncType struct {
+-	commonType
+-	dotdotdot bool    // last input parameter is ...
+-	in        []*Type // input parameter types
+-	out       []*Type // output parameter types
++	name    *string
++	pkgPath *string
++	methods []_method
+ }
+ 
+-// Method on interface type
+-type _imethod struct { // underscore is to avoid collision with C
+-	name    *string // name of method
+-	pkgPath *string // nil for exported Names; otherwise import path
+-	typ     *Type   // .(*FuncType) underneath
++type _imethod struct {
++	name    *string
++	pkgPath *string
++	typ     *interface{}
+ }
+ 
+-// InterfaceType represents an interface type.
+-type InterfaceType struct {
++type interfaceType struct {
+ 	commonType
+-	methods []_imethod // sorted by hash
+-}
+-
+-// MapType represents a map type.
+-type MapType struct {
+-	commonType
+-	key  *Type // map key type
+-	elem *Type // map element (value) type
+-}
+-
+-// PtrType represents a pointer type.
+-type PtrType struct {
+-	commonType
+-	elem *Type // pointer element (pointed at) type
+-}
+-
+-// Struct field
+-type structField struct {
+-	name    *string // nil for embedded fields
+-	pkgPath *string // nil for exported Names; otherwise import path
+-	typ     *Type   // type of field
+-	tag     *string // nil if no tag
+-	offset  uintptr // byte offset of field within struct
+-}
+-
+-// StructType represents a struct type.
+-type StructType struct {
+-	commonType
+-	fields []structField // sorted by offset
+-}
+-
+-/*
+- * Must match iface.c:/Itab and compilers.
+- * NOTE: this is the version used by the reflection code, there is another
+- * one in iface_defs.go that is closer to the original C version.
+- */
+-type Itable struct {
+-	Itype  *Type // (*tab.inter).(*InterfaceType) is the interface type
+-	Type   *Type
+-	link   *Itable
+-	bad    int32
+-	unused int32
+-	Fn     [100000]uintptr // bigger than we'll ever see
++	methods []_imethod
+ }
+diff --git a/src/pkg/unsafe/unsafe.go b/src/pkg/unsafe/unsafe.go
+index b743d9d39d..024969b428 100644
+--- a/src/pkg/unsafe/unsafe.go
++++ b/src/pkg/unsafe/unsafe.go
+@@ -35,27 +35,3 @@ func Offsetof(v ArbitraryType) uintptr
+ // that the address of a variable with the type of v will always always be zero mod m.
+ // If v is of the form structValue.field, it returns the alignment of field f within struct object obj.
+ func Alignof(v ArbitraryType) uintptr
+-
+-// Typeof returns the type of an interface value, a runtime.Type.
+-func Typeof(i interface{}) (typ interface{})
+-
+-// Reflect unpacks an interface value into its type and the address of a copy of the
+-// internal value.
+-func Reflect(i interface{}) (typ interface{}, addr Pointer)
+-
+-// Unreflect inverts Reflect: Given a type and a pointer to a value, it returns an
+-// empty interface value with contents the type and the value (not the pointer to
+-// the value).  The typ is assumed to contain a pointer to a runtime type; the type
+-// information in the interface{} is ignored, so that, for example, both
+-// *reflect.structType and *runtime.StructType can be passed for typ.
+-func Unreflect(typ interface{}, addr Pointer) (ret interface{})
+-
+-// New allocates and returns a pointer to memory for a new value of the given type.
+-// The typ is assumed to hold a pointer to a runtime type.
+-// Callers should use reflect.New or reflect.Zero instead of invoking unsafe.New directly.
+-func New(typ interface{}) Pointer
+-
+-// NewArray allocates and returns a pointer to an array of n elements of the given type.
+-// The typ is assumed to hold a pointer to a runtime type.
+-// Callers should use reflect.MakeSlice instead of invoking unsafe.NewArray directly.
+-func NewArray(typ interface{}, n int) Pointer

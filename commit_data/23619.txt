@@ -9,6 +9,34 @@ Date:   Mon Jun 1 13:25:03 2015 +0900
     Change-Id: I9a18dacd10564d3eaa1fea4d77f1a48e08e79f53
     Reviewed-on: https://go-review.googlesource.com/10563
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/chan_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index 9119371d5c..497e87f43d 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -898,6 +898,8 @@ func BenchmarkChanPopular(b *testing.B) {
+ 	const n = 1000
+ 	c := make(chan bool)
+ 	var a []chan bool
++	var wg sync.WaitGroup
++	wg.Add(n)
+ 	for j := 0; j < n; j++ {
+ 		d := make(chan bool)
+ 		a = append(a, d)
+@@ -908,6 +910,7 @@ func BenchmarkChanPopular(b *testing.B) {
+ 				case <-d:
+ 				}
+ 			}
++			wg.Done()
+ 		}()
+ 	}
+ 	for i := 0; i < b.N; i++ {
+@@ -915,4 +918,5 @@ func BenchmarkChanPopular(b *testing.B) {
+ 			d <- true
+ 		}
+ 	}
++	wg.Wait()
+ }

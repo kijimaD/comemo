@@ -9,6 +9,20 @@ Date:   Tue Jul 21 06:58:32 2015 -0700
     Change-Id: I7ad359519c6274be37456b655f19bf0ca6ac6692
     Reviewed-on: https://go-review.googlesource.com/12449
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/stackalloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 2d639bf594..064b84a804 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -87,7 +87,7 @@ func stackalloc(f *Func) {
+ 	}
+ 
+ 	n = align(n, f.Config.PtrSize)
+-	f.Logf("stackalloc: %d-%d for return address\n", n, n+f.Config.ptrSize)
++	f.Logf("stackalloc: %d-%d for return address\n", n, n+f.Config.PtrSize)
+ 	n += f.Config.PtrSize // space for return address.  TODO: arch-dependent
+ 	f.RegAlloc = home
+ 	f.FrameSize = n

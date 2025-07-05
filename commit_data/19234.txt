@@ -10,7 +10,64 @@ Date:   Sat Apr 26 10:25:16 2014 -0600
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/96830044
-
+---
  src/pkg/encoding/gob/encode.go         |  2 +-
  src/pkg/encoding/gob/gobencdec_test.go | 19 ++++++++++++++++---
  2 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/encode.go b/src/pkg/encoding/gob/encode.go
+index d158b6442a..7831c02d13 100644
+--- a/src/pkg/encoding/gob/encode.go
++++ b/src/pkg/encoding/gob/encode.go
+@@ -491,7 +491,7 @@ func isZero(val reflect.Value) bool {
+ 		return !val.Bool()
+ 	case reflect.Complex64, reflect.Complex128:
+ 		return val.Complex() == 0
+-	case reflect.Chan, reflect.Func, reflect.Ptr:
++	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Ptr:
+ 		return val.IsNil()
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		return val.Int() == 0
+diff --git a/src/pkg/encoding/gob/gobencdec_test.go b/src/pkg/encoding/gob/gobencdec_test.go
+index 0193e2b67d..157b7723a7 100644
+--- a/src/pkg/encoding/gob/gobencdec_test.go
++++ b/src/pkg/encoding/gob/gobencdec_test.go
+@@ -705,13 +705,14 @@ func TestGobEncoderExtraIndirect(t *testing.T) {
+ }
+ 
+ // Another bug: this caused a crash with the new Go1 Time type.
+-// We throw in a gob-encoding array, to test another case of isZero
+-
++// We throw in a gob-encoding array, to test another case of isZero,
++// and a struct containing an nil interface, to test a third.
+ type isZeroBug struct {
+ 	T time.Time
+ 	S string
+ 	I int
+ 	A isZeroBugArray
++	F isZeroBugInterface
+ }
+ 
+ type isZeroBugArray [2]uint8
+@@ -731,8 +732,20 @@ func (a *isZeroBugArray) GobDecode(data []byte) error {
+ 	return nil
+ }
+ 
++type isZeroBugInterface struct {
++	I interface{}
++}
++
++func (i isZeroBugInterface) GobEncode() (b []byte, e error) {
++	return []byte{}, nil
++}
++
++func (i *isZeroBugInterface) GobDecode(data []byte) error {
++	return nil
++}
++
+ func TestGobEncodeIsZero(t *testing.T) {
+-	x := isZeroBug{time.Now(), "hello", -55, isZeroBugArray{1, 2}}
++	x := isZeroBug{time.Now(), "hello", -55, isZeroBugArray{1, 2}, isZeroBugInterface{}}
+ 	b := new(bytes.Buffer)
+ 	enc := NewEncoder(b)
+ 	err := enc.Encode(x)

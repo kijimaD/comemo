@@ -27,10 +27,318 @@ Date:   Tue May 2 14:17:54 2023 +0000
     Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/cgo_stub.go        | 18 +++++++++---------
  src/net/cgo_unix.go        | 30 +++++++++++++++---------------
  src/net/cgo_unix_test.go   | 32 +++++++-------------------------
  src/net/lookup_unix.go     | 31 ++++++++++---------------------
  src/net/netgo_unix_test.go | 28 ----------------------------
  5 files changed, 41 insertions(+), 98 deletions(-)
+
+diff --git a/src/net/cgo_stub.go b/src/net/cgo_stub.go
+index 96d5dc8e25..bd483110b5 100644
+--- a/src/net/cgo_stub.go
++++ b/src/net/cgo_stub.go
+@@ -18,22 +18,22 @@ import "context"
+ // is not available on this system.
+ const cgoAvailable = false
+ 
+-func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error, completed bool) {
+-	return nil, nil, false
++func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error) {
++	panic("cgo stub: cgo not available")
+ }
+ 
+-func cgoLookupPort(ctx context.Context, network, service string) (port int, err error, completed bool) {
+-	return 0, nil, false
++func cgoLookupPort(ctx context.Context, network, service string) (port int, err error) {
++	panic("cgo stub: cgo not available")
+ }
+ 
+-func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
+-	return nil, nil, false
++func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error) {
++	panic("cgo stub: cgo not available")
+ }
+ 
+ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
+-	return "", nil, false
++	panic("cgo stub: cgo not available")
+ }
+ 
+-func cgoLookupPTR(ctx context.Context, addr string) (ptrs []string, err error, completed bool) {
+-	return nil, nil, false
++func cgoLookupPTR(ctx context.Context, addr string) (ptrs []string, err error) {
++	panic("cgo stub: cgo not available")
+ }
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 62b4f23367..f10f3ea60b 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -66,15 +66,18 @@ func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (
+ 	}
+ }
+ 
+-func cgoLookupHost(ctx context.Context, name string) (hosts []string, err error, completed bool) {
+-	addrs, err, completed := cgoLookupIP(ctx, "ip", name)
++func cgoLookupHost(ctx context.Context, name string) (hosts []string, err error) {
++	addrs, err := cgoLookupIP(ctx, "ip", name)
++	if err != nil {
++		return nil, err
++	}
+ 	for _, addr := range addrs {
+ 		hosts = append(hosts, addr.String())
+ 	}
+-	return
++	return hosts, nil
+ }
+ 
+-func cgoLookupPort(ctx context.Context, network, service string) (port int, err error, completed bool) {
++func cgoLookupPort(ctx context.Context, network, service string) (port int, err error) {
+ 	var hints _C_struct_addrinfo
+ 	switch network {
+ 	case "": // no hints
+@@ -85,7 +88,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err
+ 		*_C_ai_socktype(&hints) = _C_SOCK_DGRAM
+ 		*_C_ai_protocol(&hints) = _C_IPPROTO_UDP
+ 	default:
+-		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}, true
++		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
+ 	}
+ 	switch ipVersion(network) {
+ 	case '4':
+@@ -94,10 +97,9 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err
+ 		*_C_ai_family(&hints) = _C_AF_INET6
+ 	}
+ 
+-	port, err = doBlockingWithCtx(ctx, func() (int, error) {
++	return doBlockingWithCtx(ctx, func() (int, error) {
+ 		return cgoLookupServicePort(&hints, network, service)
+ 	})
+-	return port, err, true
+ }
+ 
+ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (port int, err error) {
+@@ -208,11 +210,10 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
+ 	return addrs, nil
+ }
+ 
+-func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
+-	addrs, err = doBlockingWithCtx(ctx, func() ([]IPAddr, error) {
++func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error) {
++	return doBlockingWithCtx(ctx, func() ([]IPAddr, error) {
+ 		return cgoLookupHostIP(network, name)
+ 	})
+-	return addrs, err, true
+ }
+ 
+ // These are roughly enough for the following:
+@@ -228,20 +229,19 @@ const (
+ 	maxNameinfoLen = 4096
+ )
+ 
+-func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error, completed bool) {
++func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error) {
+ 	ip, err := netip.ParseAddr(addr)
+ 	if err != nil {
+-		return nil, &DNSError{Err: "invalid address", Name: addr}, true
++		return nil, &DNSError{Err: "invalid address", Name: addr}
+ 	}
+ 	sa, salen := cgoSockaddr(IP(ip.AsSlice()), ip.Zone())
+ 	if sa == nil {
+-		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}, true
++		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}
+ 	}
+ 
+-	names, err = doBlockingWithCtx(ctx, func() ([]string, error) {
++	return doBlockingWithCtx(ctx, func() ([]string, error) {
+ 		return cgoLookupAddrPTR(addr, sa, salen)
+ 	})
+-	return names, err, true
+ }
+ 
+ func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (names []string, err error) {
+diff --git a/src/net/cgo_unix_test.go b/src/net/cgo_unix_test.go
+index 86726dd7e5..d8233dfaf2 100644
+--- a/src/net/cgo_unix_test.go
++++ b/src/net/cgo_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (cgo || darwin) && !netgo && unix
++//go:build !netgo && ((cgo && unix) || darwin)
+ 
+ package net
+ 
+@@ -14,10 +14,7 @@ import (
+ func TestCgoLookupIP(t *testing.T) {
+ 	defer dnsWaitGroup.Wait()
+ 	ctx := context.Background()
+-	_, err, ok := cgoLookupIP(ctx, "ip", "localhost")
+-	if !ok {
+-		t.Errorf("cgoLookupIP must not be a placeholder")
+-	}
++	_, err := cgoLookupIP(ctx, "ip", "localhost")
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -27,10 +24,7 @@ func TestCgoLookupIPWithCancel(t *testing.T) {
+ 	defer dnsWaitGroup.Wait()
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+-	_, err, ok := cgoLookupIP(ctx, "ip", "localhost")
+-	if !ok {
+-		t.Errorf("cgoLookupIP must not be a placeholder")
+-	}
++	_, err := cgoLookupIP(ctx, "ip", "localhost")
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -39,10 +33,7 @@ func TestCgoLookupIPWithCancel(t *testing.T) {
+ func TestCgoLookupPort(t *testing.T) {
+ 	defer dnsWaitGroup.Wait()
+ 	ctx := context.Background()
+-	_, err, ok := cgoLookupPort(ctx, "tcp", "smtp")
+-	if !ok {
+-		t.Errorf("cgoLookupPort must not be a placeholder")
+-	}
++	_, err := cgoLookupPort(ctx, "tcp", "smtp")
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -52,10 +43,7 @@ func TestCgoLookupPortWithCancel(t *testing.T) {
+ 	defer dnsWaitGroup.Wait()
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+-	_, err, ok := cgoLookupPort(ctx, "tcp", "smtp")
+-	if !ok {
+-		t.Errorf("cgoLookupPort must not be a placeholder")
+-	}
++	_, err := cgoLookupPort(ctx, "tcp", "smtp")
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -64,10 +52,7 @@ func TestCgoLookupPortWithCancel(t *testing.T) {
+ func TestCgoLookupPTR(t *testing.T) {
+ 	defer dnsWaitGroup.Wait()
+ 	ctx := context.Background()
+-	_, err, ok := cgoLookupPTR(ctx, "127.0.0.1")
+-	if !ok {
+-		t.Errorf("cgoLookupPTR must not be a placeholder")
+-	}
++	_, err := cgoLookupPTR(ctx, "127.0.0.1")
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -77,10 +62,7 @@ func TestCgoLookupPTRWithCancel(t *testing.T) {
+ 	defer dnsWaitGroup.Wait()
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+-	_, err, ok := cgoLookupPTR(ctx, "127.0.0.1")
+-	if !ok {
+-		t.Errorf("cgoLookupPTR must not be a placeholder")
+-	}
++	_, err := cgoLookupPTR(ctx, "127.0.0.1")
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 0189db09e4..6607b5996a 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -56,11 +56,7 @@ func lookupProtocol(_ context.Context, name string) (int, error) {
+ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+ 	order, conf := systemConf().hostLookupOrder(r, host)
+ 	if order == hostLookupCgo {
+-		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
+-			return addrs, err
+-		}
+-		// cgo not available (or netgo); fall back to Go's DNS resolver
+-		order = hostLookupFilesDNS
++		return cgoLookupHost(ctx, host)
+ 	}
+ 	return r.goLookupHostOrder(ctx, host, order, conf)
+ }
+@@ -71,11 +67,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
+ 	}
+ 	order, conf := systemConf().hostLookupOrder(r, host)
+ 	if order == hostLookupCgo {
+-		if addrs, err, ok := cgoLookupIP(ctx, network, host); ok {
+-			return addrs, err
+-		}
+-		// cgo not available (or netgo); fall back to Go's DNS resolver
+-		order = hostLookupFilesDNS
++		return cgoLookupIP(ctx, network, host)
+ 	}
+ 	ips, _, err := r.goLookupIPCNAMEOrder(ctx, network, host, order, conf)
+ 	return ips, err
+@@ -85,16 +77,15 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
+ 	// Port lookup is not a DNS operation.
+ 	// Prefer the cgo resolver if possible.
+ 	if !systemConf().mustUseGoResolver(r) {
+-		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
+-			if err != nil {
+-				// Issue 18213: if cgo fails, first check to see whether we
+-				// have the answer baked-in to the net package.
+-				if port, err := goLookupPort(network, service); err == nil {
+-					return port, nil
+-				}
++		port, err := cgoLookupPort(ctx, network, service)
++		if err != nil {
++			// Issue 18213: if cgo fails, first check to see whether we
++			// have the answer baked-in to the net package.
++			if port, err := goLookupPort(network, service); err == nil {
++				return port, nil
+ 			}
+-			return port, err
+ 		}
++		return port, err
+ 	}
+ 	return goLookupPort(network, service)
+ }
+@@ -128,9 +119,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
+ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
+ 	order, conf := systemConf().hostLookupOrder(r, "")
+ 	if order == hostLookupCgo {
+-		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
+-			return ptrs, err
+-		}
++		return cgoLookupPTR(ctx, addr)
+ 	}
+ 	return r.goLookupPTR(ctx, addr, conf)
+ }
+diff --git a/src/net/netgo_unix_test.go b/src/net/netgo_unix_test.go
+deleted file mode 100644
+index 5ddebab143..0000000000
+--- a/src/net/netgo_unix_test.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (!cgo || netgo) && (dragonfly || freebsd || linux || netbsd || openbsd || solaris)
+-
+-package net
+-
+-import (
+-	"context"
+-	"testing"
+-)
+-
+-func TestGoLookupIP(t *testing.T) {
+-	defer dnsWaitGroup.Wait()
+-	host := "localhost"
+-	ctx := context.Background()
+-	_, err, ok := cgoLookupIP(ctx, "ip", host)
+-	if ok {
+-		t.Errorf("cgoLookupIP must be a placeholder")
+-	}
+-	if err != nil {
+-		t.Error(err)
+-	}
+-	if _, err := DefaultResolver.goLookupIP(ctx, "ip", host); err != nil {
+-		t.Error(err)
+-	}
+-}

@@ -19,7 +19,48 @@ Date:   Fri Aug 30 00:42:38 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  7 +------
  test/fixedbugs/issue5172.go              | 11 +++++++++--
  2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 03c5528c3d..b50f23da82 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -503,12 +503,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 
+ 	case OTSTRUCT:
+ 		ok |= Etype
+-		t := tostruct(n.List.Slice())
+-		if t.Broke() {
+-			n.Type = nil
+-			return n
+-		}
+-		setTypeNode(n, t)
++		setTypeNode(n, tostruct(n.List.Slice()))
+ 		n.List.Set(nil)
+ 
+ 	case OTINTER:
+diff --git a/test/fixedbugs/issue5172.go b/test/fixedbugs/issue5172.go
+index a6acbd3db7..0339935b64 100644
+--- a/test/fixedbugs/issue5172.go
++++ b/test/fixedbugs/issue5172.go
+@@ -12,8 +12,15 @@ type foo struct {
+ 	x bar // ERROR "undefined"
+ }
+ 
++type T struct{}
++
++func (t T) Bar() {}
++
+ func main() {
+ 	var f foo
+-	go f.bar()	// GCCGO_ERROR "undefined"
+-	defer f.bar()	// GCCGO_ERROR "undefined"
++	go f.bar()    // ERROR "undefined"
++	defer f.bar() // ERROR "undefined"
++
++	t := T{1} // ERROR "too many values"
++	go t.Bar()
+ }

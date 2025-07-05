@@ -18,8 +18,79 @@ Date:   Mon Nov 20 14:12:43 2017 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/doc/doc_test.go     | 13 +++++++++++++
  src/cmd/doc/pkg.go          |  8 +++++++-
  src/cmd/doc/testdata/pkg.go |  5 +++++
  3 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 0df53a3630..ee7c430cbd 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -445,6 +445,19 @@ var tests = []test{
+ 			`CaseMatch`,
+ 		},
+ 	},
++
++	// No dups with -u. Issue 21797.
++	{
++		"case matching on, no dups",
++		[]string{"-u", p, `duplicate`},
++		[]string{
++			`Duplicate`,
++			`duplicate`,
++		},
++		[]string{
++			"\\)\n+const", // This will appear if the const decl appears twice.
++		},
++	},
+ }
+ 
+ func TestDoc(t *testing.T) {
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 5a14d6e7cf..99a00c5632 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -594,6 +594,11 @@ func (pkg *Package) symbolDoc(symbol string) bool {
+ 	// Constants and variables behave the same.
+ 	values := pkg.findValues(symbol, pkg.doc.Consts)
+ 	values = append(values, pkg.findValues(symbol, pkg.doc.Vars)...)
++	// A declaration like
++	//	const ( c = 1; C = 2 )
++	// could be printed twice if the -u flag is set, as it matches twice.
++	// So we remember which declarations we've printed to avoid duplication.
++	printed := make(map[*ast.GenDecl]bool)
+ 	for _, value := range values {
+ 		// Print each spec only if there is at least one exported symbol in it.
+ 		// (See issue 11008.)
+@@ -628,7 +633,7 @@ func (pkg *Package) symbolDoc(symbol string) bool {
+ 				}
+ 			}
+ 		}
+-		if len(specs) == 0 {
++		if len(specs) == 0 || printed[value.Decl] {
+ 			continue
+ 		}
+ 		value.Decl.Specs = specs
+@@ -636,6 +641,7 @@ func (pkg *Package) symbolDoc(symbol string) bool {
+ 			pkg.packageClause(true)
+ 		}
+ 		pkg.emit(value.Doc, value.Decl)
++		printed[value.Decl] = true
+ 		found = true
+ 	}
+ 	// Types.
+diff --git a/src/cmd/doc/testdata/pkg.go b/src/cmd/doc/testdata/pkg.go
+index 99755b11c5..d0995bbf7d 100644
+--- a/src/cmd/doc/testdata/pkg.go
++++ b/src/cmd/doc/testdata/pkg.go
+@@ -193,3 +193,8 @@ var LongLine = newLongLine(
+ type T2 int
+ 
+ type T1 = T2
++
++const (
++	Duplicate = iota
++	duplicate
++)

@@ -28,8 +28,108 @@ Date:   Sun Jun 7 21:28:58 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/10821
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
-
+---
  src/encoding/pem/pem_test.go    | 12 ++++++------
  src/testing/quick/quick.go      | 14 +++++++++-----
  src/testing/quick/quick_test.go | 17 +++++++++++++++++
  3 files changed, 32 insertions(+), 11 deletions(-)
+
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index 1913f44c1f..ab656c6261 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -146,7 +146,7 @@ func TestLineBreaker(t *testing.T) {
+ }
+ 
+ func TestFuzz(t *testing.T) {
+-	testRoundtrip := func(block *Block) bool {
++	testRoundtrip := func(block Block) bool {
+ 		for key := range block.Headers {
+ 			if strings.Contains(key, ":") {
+ 				// Keys with colons cannot be encoded.
+@@ -155,14 +155,14 @@ func TestFuzz(t *testing.T) {
+ 		}
+ 
+ 		var buf bytes.Buffer
+-		err := Encode(&buf, block)
++		err := Encode(&buf, &block)
+ 		decoded, rest := Decode(buf.Bytes())
+ 
+ 		switch {
+ 		case err != nil:
+-			t.Errorf("Encode of %#v resulted in error: %s", block, err)
+-		case !reflect.DeepEqual(block, decoded):
+-			t.Errorf("Encode of %#v decoded as %#v", block, decoded)
++			t.Errorf("Encode of %#v resulted in error: %s", &block, err)
++		case !reflect.DeepEqual(&block, decoded):
++			t.Errorf("Encode of %#v decoded as %#v", &block, decoded)
+ 		case len(rest) != 0:
+ 			t.Errorf("Encode of %#v decoded correctly, but with %x left over", block, rest)
+ 		default:
+@@ -172,7 +172,7 @@ func TestFuzz(t *testing.T) {
+ 	}
+ 
+ 	// Explicitly test the empty block.
+-	if !testRoundtrip(&Block{
++	if !testRoundtrip(Block{
+ 		Type:    "EMPTY",
+ 		Headers: make(map[string]string),
+ 		Bytes:   []byte{},
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index 35b7b636b4..0e36810eb6 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -102,12 +102,16 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 			v.SetMapIndex(key, value)
+ 		}
+ 	case reflect.Ptr:
+-		elem, ok := Value(concrete.Elem(), rand)
+-		if !ok {
+-			return reflect.Value{}, false
++		if rand.Intn(complexSize) == 0 {
++			v.Set(reflect.Zero(concrete)) // Generate nil pointer.
++		} else {
++			elem, ok := Value(concrete.Elem(), rand)
++			if !ok {
++				return reflect.Value{}, false
++			}
++			v.Set(reflect.New(concrete.Elem()))
++			v.Elem().Set(elem)
+ 		}
+-		v.Set(reflect.New(concrete.Elem()))
+-		v.Elem().Set(elem)
+ 	case reflect.Slice:
+ 		numElems := rand.Intn(complexSize)
+ 		v.Set(reflect.MakeSlice(concrete, numElems, numElems))
+diff --git a/src/testing/quick/quick_test.go b/src/testing/quick/quick_test.go
+index 1b973027d5..c79f30ea1d 100644
+--- a/src/testing/quick/quick_test.go
++++ b/src/testing/quick/quick_test.go
+@@ -83,6 +83,9 @@ type TestMapAlias map[int]int
+ func fMapAlias(a TestMapAlias) TestMapAlias { return a }
+ 
+ func fPtr(a *int) *int {
++	if a == nil {
++		return nil
++	}
+ 	b := *a
+ 	return &b
+ }
+@@ -255,3 +258,17 @@ func TestFailure(t *testing.T) {
+ 		t.Errorf("#3 Error was not a SetupError: %s", err)
+ 	}
+ }
++
++// The following test didn't terminate because nil pointers were not
++// generated.
++// Issue 8818.
++func TestNilPointers(t *testing.T) {
++	type Recursive struct {
++		Next *Recursive
++	}
++
++	f := func(rec Recursive) bool {
++		return true
++	}
++	Check(f, nil)
++}

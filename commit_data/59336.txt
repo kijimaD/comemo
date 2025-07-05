@@ -19,7 +19,7 @@ Date:   Wed Feb 28 16:07:27 2024 +0100
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/godebug.md                                    |   6 +
  doc/next/6-stdlib/99-minor/os/63703.md            |  11 ++
  doc/next/6-stdlib/99-minor/path/filepath/63703.md |   6 +
@@ -29,3 +29,396 @@ Date:   Wed Feb 28 16:07:27 2024 +0100
  src/path/filepath/path_windows_test.go            |  14 +-
  src/runtime/metrics/doc.go                        |   4 +
  8 files changed, 160 insertions(+), 102 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 83b4bda89a..2b8852a7ec 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -139,6 +139,12 @@ At previous versions (`winsymlink=0`), mount points are treated as symlinks,
+ and other reparse points with non-default [`os.ModeType`](/pkg/os#ModeType) bits
+ (such as [`os.ModeDir`](/pkg/os#ModeDir)) do not have the `ModeIrregular` bit set.
+ 
++Go 1.23 changed [`os.Readlink`](/pkg/os#Readlink) and [`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks)
++to avoid trying to normalize volumes to drive letters, which was not always even possible.
++This behavior is controlled by the `winreadlinkvolume` setting.
++For Go 1.23, it defaults to `winreadlinkvolume=1`.
++Previous versions default to `winreadlinkvolume=0`.
++
+ ### Go 1.22
+ 
+ Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
+diff --git a/doc/next/6-stdlib/99-minor/os/63703.md b/doc/next/6-stdlib/99-minor/os/63703.md
+new file mode 100644
+index 0000000000..581ea142ab
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/os/63703.md
+@@ -0,0 +1,11 @@
++On Windows, the [`os.Readlink`](/os#Readlink) function no longer tries
++to resolve mount points to a canonical path.
++This behavior is controlled by the `winsymlink` setting.
++For Go 1.23, it defaults to `winsymlink=1`.
++Previous versions default to `winsymlink=0`.
++
++On Windows, [`os.Readlink`](/pkg/path/filepath#EvalSymlinks) no longer tries
++to normalize volumes to drive letters, which was not always even possible.
++This behavior is controlled by the `winreadlinkvolume` setting.
++For Go 1.23, it defaults to `winreadlinkvolume=1`.
++Previous versions default to `winreadlinkvolume=0`.
+\ No newline at end of file
+diff --git a/doc/next/6-stdlib/99-minor/path/filepath/63703.md b/doc/next/6-stdlib/99-minor/path/filepath/63703.md
+index f5dc76c46a..0aa0ba6fe3 100644
+--- a/doc/next/6-stdlib/99-minor/path/filepath/63703.md
++++ b/doc/next/6-stdlib/99-minor/path/filepath/63703.md
+@@ -3,3 +3,9 @@ mount points, which was a source of many inconsistencies and bugs.
+ This behavior is controlled by the `winsymlink` setting.
+ For Go 1.23, it defaults to `winsymlink=1`.
+ Previous versions default to `winsymlink=0`.
++
++On Windows, [`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks) no longer tries
++to normalize volumes to drive letters, which was not always even possible.
++This behavior is controlled by the `winreadlinkvolume` setting.
++For Go 1.23, it defaults to `winreadlinkvolume=1`.
++Previous versions default to `winreadlinkvolume=0`.
+\ No newline at end of file
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index a944db39aa..d5ac707a18 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -49,6 +49,7 @@ var All = []Info{
+ 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
+ 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
++	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0"},
+ 	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
+ 	{Name: "x509sha1", Package: "crypto/x509"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 22fd9e5d40..49fdd8d44d 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"errors"
++	"internal/godebug"
+ 	"internal/poll"
+ 	"internal/syscall/windows"
+ 	"runtime"
+@@ -349,6 +350,8 @@ func openSymlink(path string) (syscall.Handle, error) {
+ 	return h, nil
+ }
+ 
++var winreadlinkvolume = godebug.New("winreadlinkvolume")
++
+ // normaliseLinkPath converts absolute paths returned by
+ // DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, ...)
+ // into paths acceptable by all Windows APIs.
+@@ -356,7 +359,7 @@ func openSymlink(path string) (syscall.Handle, error) {
+ //
+ //	\??\C:\foo\bar into C:\foo\bar
+ //	\??\UNC\foo\bar into \\foo\bar
+-//	\??\Volume{abc}\ into C:\
++//	\??\Volume{abc}\ into \\?\Volume{abc}\
+ func normaliseLinkPath(path string) (string, error) {
+ 	if len(path) < 4 || path[:4] != `\??\` {
+ 		// unexpected path, return it as is
+@@ -371,7 +374,10 @@ func normaliseLinkPath(path string) (string, error) {
+ 		return `\\` + s[4:], nil
+ 	}
+ 
+-	// handle paths, like \??\Volume{abc}\...
++	// \??\Volume{abc}\
++	if winreadlinkvolume.Value() != "0" {
++		return `\\?\` + path[4:], nil
++	}
+ 
+ 	h, err := openSymlink(path)
+ 	if err != nil {
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 09ccbaff3b..7e8b8bbf1f 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -29,6 +29,7 @@ import (
+ )
+ 
+ var winsymlink = godebug.New("winsymlink")
++var winreadlinkvolume = godebug.New("winreadlinkvolume")
+ 
+ // For TestRawConnReadWrite.
+ type syscallDescriptor = syscall.Handle
+@@ -1252,110 +1253,123 @@ func TestRootDirAsTemp(t *testing.T) {
+ 	}
+ }
+ 
+-func testReadlink(t *testing.T, path, want string) {
+-	got, err := os.Readlink(path)
+-	if err != nil {
+-		t.Error(err)
+-		return
+-	}
+-	if got != want {
+-		t.Errorf(`Readlink(%q): got %q, want %q`, path, got, want)
+-	}
+-}
+-
+-func mklink(t *testing.T, link, target string) {
+-	output, err := testenv.Command(t, "cmd", "/c", "mklink", link, target).CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
+-	}
+-}
+-
+-func mklinkj(t *testing.T, link, target string) {
+-	output, err := testenv.Command(t, "cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
+-	}
+-}
+-
+-func mklinkd(t *testing.T, link, target string) {
+-	output, err := testenv.Command(t, "cmd", "/c", "mklink", "/D", link, target).CombinedOutput()
++// replaceDriveWithVolumeID returns path with its volume name replaced with
++// the mounted volume ID. E.g. C:\foo -> \\?\Volume{GUID}\foo.
++func replaceDriveWithVolumeID(t *testing.T, path string) string {
++	t.Helper()
++	cmd := testenv.Command(t, "cmd", "/c", "mountvol", filepath.VolumeName(path), "/L")
++	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
++		t.Fatalf("%v: %v\n%s", cmd, err, out)
+ 	}
++	vol := strings.Trim(string(out), " \n\r")
++	return filepath.Join(vol, path[len(filepath.VolumeName(path)):])
+ }
+ 
+-func TestWindowsReadlink(t *testing.T) {
+-	tmpdir, err := os.MkdirTemp("", "TestWindowsReadlink")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	// Make sure tmpdir is not a symlink, otherwise tests will fail.
+-	tmpdir, err = filepath.EvalSymlinks(tmpdir)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	chdir(t, tmpdir)
+-
+-	vol := filepath.VolumeName(tmpdir)
+-	output, err := testenv.Command(t, "cmd", "/c", "mountvol", vol, "/L").CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("failed to run mountvol %v /L: %v %q", vol, err, output)
+-	}
+-	ntvol := strings.Trim(string(output), " \n\r")
+-
+-	dir := filepath.Join(tmpdir, "dir")
+-	err = os.MkdirAll(dir, 0777)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	absdirjlink := filepath.Join(tmpdir, "absdirjlink")
+-	mklinkj(t, absdirjlink, dir)
+-	testReadlink(t, absdirjlink, dir)
+-
+-	ntdirjlink := filepath.Join(tmpdir, "ntdirjlink")
+-	mklinkj(t, ntdirjlink, ntvol+absdirjlink[len(filepath.VolumeName(absdirjlink)):])
+-	testReadlink(t, ntdirjlink, absdirjlink)
+-
+-	ntdirjlinktolink := filepath.Join(tmpdir, "ntdirjlinktolink")
+-	mklinkj(t, ntdirjlinktolink, ntvol+absdirjlink[len(filepath.VolumeName(absdirjlink)):])
+-	testReadlink(t, ntdirjlinktolink, absdirjlink)
+-
+-	mklinkj(t, "reldirjlink", "dir")
+-	testReadlink(t, "reldirjlink", dir) // relative directory junction resolves to absolute path
+-
+-	// Make sure we have sufficient privilege to run mklink command.
+-	testenv.MustHaveSymlink(t)
+-
+-	absdirlink := filepath.Join(tmpdir, "absdirlink")
+-	mklinkd(t, absdirlink, dir)
+-	testReadlink(t, absdirlink, dir)
+-
+-	ntdirlink := filepath.Join(tmpdir, "ntdirlink")
+-	mklinkd(t, ntdirlink, ntvol+absdirlink[len(filepath.VolumeName(absdirlink)):])
+-	testReadlink(t, ntdirlink, absdirlink)
+-
+-	mklinkd(t, "reldirlink", "dir")
+-	testReadlink(t, "reldirlink", "dir")
++func TestReadlink(t *testing.T) {
++	tests := []struct {
++		junction bool
++		dir      bool
++		drive    bool
++		relative bool
++	}{
++		{junction: true, dir: true, drive: true, relative: false},
++		{junction: true, dir: true, drive: false, relative: false},
++		{junction: true, dir: true, drive: false, relative: true},
++		{junction: false, dir: true, drive: true, relative: false},
++		{junction: false, dir: true, drive: false, relative: false},
++		{junction: false, dir: true, drive: false, relative: true},
++		{junction: false, dir: false, drive: true, relative: false},
++		{junction: false, dir: false, drive: false, relative: false},
++		{junction: false, dir: false, drive: false, relative: true},
++	}
++	for _, tt := range tests {
++		tt := tt
++		var name string
++		if tt.junction {
++			name = "junction"
++		} else {
++			name = "symlink"
++		}
++		if tt.dir {
++			name += "_dir"
++		} else {
++			name += "_file"
++		}
++		if tt.drive {
++			name += "_drive"
++		} else {
++			name += "_volume"
++		}
++		if tt.relative {
++			name += "_relative"
++		} else {
++			name += "_absolute"
++		}
+ 
+-	file := filepath.Join(tmpdir, "file")
+-	err = os.WriteFile(file, []byte(""), 0666)
+-	if err != nil {
+-		t.Fatal(err)
++		t.Run(name, func(t *testing.T) {
++			if !tt.relative {
++				t.Parallel()
++			}
++			// Make sure tmpdir is not a symlink, otherwise tests will fail.
++			tmpdir, err := filepath.EvalSymlinks(t.TempDir())
++			if err != nil {
++				t.Fatal(err)
++			}
++			link := filepath.Join(tmpdir, "link")
++			target := filepath.Join(tmpdir, "target")
++			if tt.dir {
++				if err := os.MkdirAll(target, 0777); err != nil {
++					t.Fatal(err)
++				}
++			} else {
++				if err := os.WriteFile(target, nil, 0666); err != nil {
++					t.Fatal(err)
++				}
++			}
++			var want string
++			if tt.relative {
++				relTarget := filepath.Base(target)
++				if tt.junction {
++					want = target // relative directory junction resolves to absolute path
++				} else {
++					want = relTarget
++				}
++				chdir(t, tmpdir)
++				link = filepath.Base(link)
++				target = relTarget
++			} else {
++				if tt.drive {
++					want = target
++				} else {
++					volTarget := replaceDriveWithVolumeID(t, target)
++					if winreadlinkvolume.Value() == "0" {
++						want = target
++					} else {
++						want = volTarget
++					}
++					target = volTarget
++				}
++			}
++			if tt.junction {
++				cmd := testenv.Command(t, "cmd", "/c", "mklink", "/J", link, target)
++				if out, err := cmd.CombinedOutput(); err != nil {
++					t.Fatalf("%v: %v\n%s", cmd, err, out)
++				}
++			} else {
++				if err := os.Symlink(target, link); err != nil {
++					t.Fatalf("Symlink(%#q, %#q): %v", target, link, err)
++				}
++			}
++			got, err := os.Readlink(link)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if got != want {
++				t.Fatalf("Readlink(%#q) = %#q; want %#q", target, got, want)
++			}
++		})
+ 	}
+-
+-	filelink := filepath.Join(tmpdir, "filelink")
+-	mklink(t, filelink, file)
+-	testReadlink(t, filelink, file)
+-
+-	linktofilelink := filepath.Join(tmpdir, "linktofilelink")
+-	mklink(t, linktofilelink, ntvol+filelink[len(filepath.VolumeName(filelink)):])
+-	testReadlink(t, linktofilelink, filelink)
+-
+-	mklink(t, "relfilelink", "file")
+-	testReadlink(t, "relfilelink", "file")
+ }
+ 
+ func TestOpenDirTOCTOU(t *testing.T) {
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 524b0d0f92..2862f390d0 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -530,6 +530,7 @@ func createMountPartition(t *testing.T, vhd string, args string) []byte {
+ }
+ 
+ var winsymlink = godebug.New("winsymlink")
++var winreadlinkvolume = godebug.New("winreadlinkvolume")
+ 
+ func TestEvalSymlinksJunctionToVolumeID(t *testing.T) {
+ 	// Test that EvalSymlinks resolves a directory junction which
+@@ -617,7 +618,11 @@ func TestNTNamespaceSymlink(t *testing.T) {
+ 	}
+ 	var want string
+ 	if winsymlink.Value() == "0" {
+-		want = vol + `\`
++		if winreadlinkvolume.Value() == "0" {
++			want = vol + `\`
++		} else {
++			want = target
++		}
+ 	} else {
+ 		want = dirlink
+ 	}
+@@ -646,7 +651,12 @@ func TestNTNamespaceSymlink(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	want = file
++
++	if winreadlinkvolume.Value() == "0" {
++		want = file
++	} else {
++		want = target
++	}
+ 	if got != want {
+ 		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, filelink, got, want)
+ 	}
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 2a1a3055fa..e63599e0d9 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -319,6 +319,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the crypto/tls
+ 		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
+ 
++	/godebug/non-default-behavior/winreadlinkvolume:events
++		The number of non-default behaviors executed by the os package
++		due to a non-default GODEBUG=winreadlinkvolume=... setting.
++
+ 	/godebug/non-default-behavior/winsymlink:events
+ 		The number of non-default behaviors executed by the os package
+ 		due to a non-default GODEBUG=winsymlink=... setting.

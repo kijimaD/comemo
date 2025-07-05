@@ -12,7 +12,7 @@ Date:   Fri Jan 26 10:18:50 2018 +0000
     Change-Id: Ice07c50b1a02d488ad2cde2a4e8aea93f3e3afff
     Reviewed-on: https://go-review.googlesource.com/90876
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go             |  21 +++
  src/cmd/asm/internal/asm/testdata/arm64.s      |  39 +++--
  src/cmd/asm/internal/asm/testdata/arm64error.s |  56 ++++++--
@@ -21,3 +21,661 @@ Date:   Fri Jan 26 10:18:50 2018 +0000
  src/cmd/internal/obj/arm64/asm7.go             | 188 +++++++++++++++++++++----
  src/cmd/internal/obj/arm64/doc.go              |  54 +++++++
  7 files changed, 314 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 524a503472..10458b01a0 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -178,18 +178,39 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
+ 		a.Reg = arm64.REG_SXTX + (reg & 31) + int16(num<<5)
+ 		a.Offset = int64(((rm & 31) << 16) | (7 << 13) | (uint32(num) << 10))
+ 	case "B8":
++		if isIndex {
++			return errors.New("invalid register extension")
++		}
+ 		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_8B & 15) << 5)
+ 	case "B16":
++		if isIndex {
++			return errors.New("invalid register extension")
++		}
+ 		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_16B & 15) << 5)
+ 	case "H4":
++		if isIndex {
++			return errors.New("invalid register extension")
++		}
+ 		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_4H & 15) << 5)
+ 	case "H8":
++		if isIndex {
++			return errors.New("invalid register extension")
++		}
+ 		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_8H & 15) << 5)
+ 	case "S2":
++		if isIndex {
++			return errors.New("invalid register extension")
++		}
+ 		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_2S & 15) << 5)
+ 	case "S4":
++		if isIndex {
++			return errors.New("invalid register extension")
++		}
+ 		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_4S & 15) << 5)
+ 	case "D2":
++		if isIndex {
++			return errors.New("invalid register extension")
++		}
+ 		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_2D & 15) << 5)
+ 	case "B":
+ 		if !isIndex {
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 18527037b3..f74dc29f77 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -68,6 +68,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	VADD	V1, V3, V3                      // 6384e15e
+ 	VSUB	V12, V30, V30                   // de87ec7e
+ 	VSUB	V12, V20, V30                   // 9e86ec7e
++	VFMLA	V1.D2, V12.D2, V1.D2            // 81cd614e
++	VFMLA	V1.S2, V12.S2, V1.S2            // 81cd210e
++	VFMLA	V1.S4, V12.S4, V1.S4            // 81cd214e
++	VFMLS	V1.D2, V12.D2, V1.D2            // 81cde14e
++	VFMLS	V1.S2, V12.S2, V1.S2            // 81cda10e
++	VFMLS	V1.S4, V12.S4, V1.S4            // 81cda14e
+ 
+ //	LTYPE1 imsr ',' spreg ','
+ //	{
+@@ -204,16 +210,20 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ //		outcode($1, &$2, NREG, &$4);
+ //	}
+ 	MOVK	$1, R1
+-	VMOV	V8.S[1], R1       // 013d0c0e
+-	VMOV	V0.D[0], R11      // 0b3c084e
+-	VMOV	V0.D[1], R11      // 0b3c184e
+-	VMOV	R20, V1.S[0]      // 811e044e
+-	VMOV	R1, V9.H4         // 290c020e
+-	VMOV	R22, V11.D2       // cb0e084e
+-	VMOV 	V2.B16, V4.B16    // 441ca24e
+-	VMOV	V20.S[0], V20     // 9406045e
+-	VREV32	V5.B16, V5.B16    // a508206e
+-	VDUP	V19.S[0], V17.S4  // 7106044e
++	VMOV	V8.S[1], R1           // 013d0c0e
++	VMOV	V0.D[0], R11          // 0b3c084e
++	VMOV	V0.D[1], R11          // 0b3c184e
++	VMOV	R20, V1.S[0]          // 811e044e
++	VMOV	R1, V9.H4             // 290c020e
++	VMOV	R22, V11.D2           // cb0e084e
++	VMOV 	V2.B16, V4.B16        // 441ca24e
++	VMOV	V20.S[0], V20         // 9406045e
++	VMOV	V12.D[0], V12.D[1]    // 8c05186e
++	VMOV	V10.S[0], V12.S[1]    // 4c050c6e
++	VMOV	V9.H[0], V12.H[1]     // 2c05066e
++	VMOV	V8.B[0], V12.B[1]     // 0c05036e
++	VREV32	V5.B16, V5.B16        // a508206e
++	VDUP	V19.S[0], V17.S4      // 7106044e
+ //
+ // B/BL
+ //
+@@ -367,6 +377,15 @@ again:
+ //	}
+ //	MADD	R1, R2, R3, R4
+ 
++	FMADDS	F1, F3, F2, F4          // 440c011f
++	FMADDD	F4, F5, F4, F4          // 8414441f
++	FMSUBS	F13, F21, F13, F19      // b3d50d1f
++	FMSUBD	F11, F7, F15, F31       // ff9d4b1f
++	FNMADDS	F1, F3, F2, F4          // 440c211f
++	FNMADDD	F1, F3, F2, F4          // 440c611f
++	FNMSUBS	F1, F3, F2, F4          // 448c211f
++	FNMSUBD	F1, F3, F2, F4          // 448c611f
++
+ // DMB, HINT
+ //
+ //		LDMB imm
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index e4fad9c741..b77dabd4e1 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -3,13 +3,51 @@
+ // license that can be found in the LICENSE file.
+ 
+ TEXT errors(SB),$0
+-	MOVD.P	300(R2), R3            // ERROR "offset out of range [-255,254]"
+-	MOVD.P	R3, 344(R2)            // ERROR "offset out of range [-255,254]"
+-	VLD1	(R8)(R13), [V2.B16]    // ERROR "illegal combination"
+-	VLD1	8(R9), [V2.B16]        // ERROR "illegal combination"
+-	VST1	[V1.B16], (R8)(R13)    // ERROR "illegal combination"
+-	VST1	[V1.B16], 9(R2)        // ERROR "illegal combination"
+-	VLD1	8(R8)(R13), [V2.B16]   // ERROR "illegal combination"
+-	ADD	R1.UXTB<<5, R2, R3     // ERROR "shift amount out of range 0 to 4"
+-	ADDS	R1.UXTX<<7, R2, R3     // ERROR "shift amount out of range 0 to 4"
++	MOVD.P	300(R2), R3                 // ERROR "offset out of range [-255,254]"
++	MOVD.P	R3, 344(R2)                 // ERROR "offset out of range [-255,254]"
++	VLD1	(R8)(R13), [V2.B16]         // ERROR "illegal combination"
++	VLD1	8(R9), [V2.B16]             // ERROR "illegal combination"
++	VST1	[V1.B16], (R8)(R13)         // ERROR "illegal combination"
++	VST1	[V1.B16], 9(R2)             // ERROR "illegal combination"
++	VLD1	8(R8)(R13), [V2.B16]        // ERROR "illegal combination"
++	ADD	R1.UXTB<<5, R2, R3          // ERROR "shift amount out of range 0 to 4"
++	ADDS	R1.UXTX<<7, R2, R3          // ERROR "shift amount out of range 0 to 4"
++	VMOV	V8.D[2], V12.D[1]           // ERROR "register element index out of range 0 to 1"
++	VMOV	V8.S[4], V12.S[1]           // ERROR "register element index out of range 0 to 3"
++	VMOV	V8.H[8], V12.H[1]           // ERROR "register element index out of range 0 to 7"
++	VMOV	V8.B[16], V12.B[1]          // ERROR "register element index out of range 0 to 15"
++	VMOV	V8.D[0], V12.S[1]           // ERROR "operand mismatch"
++	VMOV	V8.D[0], V12.H[1]           // ERROR "operand mismatch"
++	VMOV	V8.D[0], V12.B[1]           // ERROR "operand mismatch"
++	VMOV	V8.S[0], V12.H[1]           // ERROR "operand mismatch"
++	VMOV	V8.S[0], V12.B[1]           // ERROR "operand mismatch"
++	VMOV	V8.H[0], V12.B[1]           // ERROR "operand mismatch"
++	VMOV	V8.B[16], R3                // ERROR "register element index out of range 0 to 15"
++	VMOV	V8.H[9], R3                 // ERROR "register element index out of range 0 to 7"
++	VMOV	V8.S[4], R3                 // ERROR "register element index out of range 0 to 3"
++	VMOV	V8.D[2], R3                 // ERROR "register element index out of range 0 to 1"
++	VDUP	V8.B[16], R3.B16            // ERROR "register element index out of range 0 to 15"
++	VDUP	V8.B[17], R3.B8             // ERROR "register element index out of range 0 to 15"
++	VDUP	V8.H[9], R3.H4              // ERROR "register element index out of range 0 to 7"
++	VDUP	V8.H[9], R3.H8              // ERROR "register element index out of range 0 to 7"
++	VDUP	V8.S[4], R3.S2              // ERROR "register element index out of range 0 to 3"
++	VDUP	V8.S[4], R3.S4              // ERROR "register element index out of range 0 to 3"
++	VDUP	V8.D[2], R3.D2              // ERROR "register element index out of range 0 to 1"
++	VFMLA	V1.D2, V12.D2, V3.S2        // ERROR "operand mismatch"
++	VFMLA	V1.S2, V12.S2, V3.D2        // ERROR "operand mismatch"
++	VFMLA	V1.S4, V12.S2, V3.D2        // ERROR "operand mismatch"
++	VFMLA	V1.H4, V12.H4, V3.D2        // ERROR "operand mismatch"
++	VFMLS	V1.S2, V12.S2, V3.S4        // ERROR "operand mismatch"
++	VFMLS	V1.S2, V12.D2, V3.S4        // ERROR "operand mismatch"
++	VFMLS	V1.S2, V12.S4, V3.D2        // ERROR "operand mismatch"
++	VFMLA	V1.B8, V12.B8, V3.B8        // ERROR "invalid arrangement"
++	VFMLA	V1.B16, V12.B16, V3.B16     // ERROR "invalid arrangement"
++	VFMLA	V1.H4, V12.H4, V3.H4        // ERROR "invalid arrangement"
++	VFMLA	V1.H8, V12.H8, V3.H8        // ERROR "invalid arrangement"
++	VFMLA	V1.H4, V12.H4, V3.H4        // ERROR "invalid arrangement"
++	VFMLS	V1.B8, V12.B8, V3.B8        // ERROR "invalid arrangement"
++	VFMLS	V1.B16, V12.B16, V3.B16     // ERROR "invalid arrangement"
++	VFMLS	V1.H4, V12.H4, V3.H4        // ERROR "invalid arrangement"
++	VFMLS	V1.H8, V12.H8, V3.H8        // ERROR "invalid arrangement"
++	VFMLS	V1.H4, V12.H4, V3.H4        // ERROR "invalid arrangement"
+ 	RET
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 93322c77e1..3bb897c7a8 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -766,6 +766,8 @@ const (
+ 	AVMOVI
+ 	AVUADDLV
+ 	AVSUB
++	AVFMLA
++	AVFMLS
+ 	ALAST
+ 	AB  = obj.AJMP
+ 	ABL = obj.ACALL
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 13dbaae894..c369b66198 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -383,5 +383,7 @@ var Anames = []string{
+ 	"VMOVI",
+ 	"VUADDLV",
+ 	"VSUB",
++	"VFMLA",
++	"VFMLS",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 423f55f741..9d064806a1 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -146,6 +146,10 @@ func FPOP2S(m uint32, s uint32, type_ uint32, op uint32) uint32 {
+ 	return m<<31 | s<<29 | 0x1E<<24 | type_<<22 | 1<<21 | op<<12 | 2<<10
+ }
+ 
++func FPOP3S(m uint32, s uint32, type_ uint32, op uint32, op2 uint32) uint32 {
++	return m<<31 | s<<29 | 0x1F<<24 | type_<<22 | op<<21 | op2<<15
++}
++
+ func FPCVTI(sf uint32, s uint32, type_ uint32, rmode uint32, op uint32) uint32 {
+ 	return sf<<31 | s<<29 | 0x1E<<24 | type_<<22 | 1<<21 | rmode<<19 | op<<16 | 0<<10
+ }
+@@ -539,6 +543,7 @@ var optab = []Optab{
+ 	{AFADDS, C_FREG, C_FREG, C_FREG, 54, 4, 0, 0, 0},
+ 	{AFADDS, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+ 	{AFADDS, C_FCON, C_FREG, C_FREG, 54, 4, 0, 0, 0},
++	{AFMSUBD, C_FREG, C_FREG, C_FREG, 15, 4, 0, 0, 0},
+ 	{AFMOVS, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+ 	{AFMOVS, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+ 	{AFMOVD, C_FCON, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+@@ -589,6 +594,7 @@ var optab = []Optab{
+ 	{AVLD1, C_ROFF, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+ 	{AVMOV, C_ELEM, C_NONE, C_REG, 73, 4, 0, 0, 0},
+ 	{AVMOV, C_REG, C_NONE, C_ARNG, 82, 4, 0, 0, 0},
++	{AVMOV, C_ELEM, C_NONE, C_ELEM, 92, 4, 0, 0, 0},
+ 	{AVMOV, C_ARNG, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
+ 	{AVMOV, C_REG, C_NONE, C_ELEM, 78, 4, 0, 0, 0},
+ 	{AVMOV, C_ELEM, C_NONE, C_VREG, 80, 4, 0, 0, 0},
+@@ -600,6 +606,7 @@ var optab = []Optab{
+ 	{AVADDV, C_ARNG, C_NONE, C_VREG, 85, 4, 0, 0, 0},
+ 	{AVCNT, C_ARNG, C_NONE, C_ARNG, 29, 4, 0, 0, 0},
+ 	{AVMOVI, C_ADDCON, C_NONE, C_ARNG, 86, 4, 0, 0, 0},
++	{AVFMLA, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
+ 
+ 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 90, 4, 0, 0, 0},
+ 	{obj.APCDATA, C_VCON, C_NONE, C_VCON, 0, 0, 0, 0, 0},
+@@ -1987,6 +1994,15 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(AFMINNMS, t)
+ 			oprangeset(AFDIVD, t)
+ 
++		case AFMSUBD:
++			oprangeset(AFMSUBS, t)
++			oprangeset(AFMADDS, t)
++			oprangeset(AFMADDD, t)
++			oprangeset(AFNMSUBS, t)
++			oprangeset(AFNMSUBD, t)
++			oprangeset(AFNMADDS, t)
++			oprangeset(AFNMADDD, t)
++
+ 		case AFCVTSD:
+ 			oprangeset(AFCVTDS, t)
+ 			oprangeset(AFABSD, t)
+@@ -2126,6 +2142,9 @@ func buildop(ctxt *obj.Link) {
+ 		case AVADDV:
+ 			oprangeset(AVUADDLV, t)
+ 
++		case AVFMLA:
++			oprangeset(AVFMLS, t)
++
+ 		case ASHA1H,
+ 			AVCNT,
+ 			AVMOV,
+@@ -2189,6 +2208,13 @@ func SYSARG4(op1 int, Cn int, Cm int, op2 int) int {
+ 	return SYSARG5(0, op1, Cn, Cm, op2)
+ }
+ 
++/* checkindex checks if index >= 0 && index <= maxindex */
++func (c *ctxt7) checkindex(p *obj.Prog, index, maxindex int) {
++	if index < 0 || index > maxindex {
++		c.ctxt.Diag("register element index out of range 0 to %d: %v", maxindex, p)
++	}
++}
++
+ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	o1 := uint32(0)
+ 	o2 := uint32(0)
+@@ -2420,7 +2446,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 = 0
+ 		}
+ 
+-	case 15: /* mul/mneg/umulh/umull r,[r,]r; madd/msub Rm,Ra,Rn,Rd */
++	case 15: /* mul/mneg/umulh/umull r,[r,]r; madd/msub/fmadd/fmsub/fnmadd/fnmsub Rm,Ra,Rn,Rd */
+ 		o1 = c.oprrr(p, p.As)
+ 
+ 		rf := int(p.From.Reg)
+@@ -3283,12 +3309,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rel.Add = 0
+ 		rel.Type = objabi.R_ARM64_GOTPCREL
+ 
+-	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor Vm.<T>, Vn.<T>, Vd.<T> */
++	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor/vfmla/vfmls Vm.<T>, Vn.<T>, Vd.<T> */
+ 		af := int((p.From.Reg >> 5) & 15)
+ 		af3 := int((p.Reg >> 5) & 15)
+ 		at := int((p.To.Reg >> 5) & 15)
+ 		if af != af3 || af != at {
+-			c.ctxt.Diag("invalid arrangement: %v\n", p)
++			c.ctxt.Diag("operand mismatch: %v", p)
++			break
+ 		}
+ 		o1 = c.oprrr(p, p.As)
+ 		rf := int((p.From.Reg) & 31)
+@@ -3320,16 +3347,25 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			Q = 1
+ 			size = 1
+ 		default:
+-			c.ctxt.Diag("invalid arrangement: %v\n", p)
++			c.ctxt.Diag("invalid arrangement: %v", p)
+ 		}
+ 
+ 		if (p.As == AVORR || p.As == AVAND || p.As == AVEOR) &&
+ 			(af != ARNG_16B && af != ARNG_8B) {
+-			c.ctxt.Diag("invalid arrangement on op %v", p.As)
++			c.ctxt.Diag("invalid arrangement: %v", p)
++		} else if (p.As == AVFMLA || p.As == AVFMLS) &&
++			(af != ARNG_2D && af != ARNG_2S && af != ARNG_4S) {
++			c.ctxt.Diag("invalid arrangement: %v", p)
+ 		} else if p.As == AVORR {
+ 			size = 2
+ 		} else if p.As == AVAND || p.As == AVEOR {
+ 			size = 0
++		} else if (p.As == AVFMLA || p.As == AVFMLS) {
++			if af == ARNG_2D {
++				size = 1
++			} else {
++				size = 0
++			}
+ 		}
+ 
+ 		o1 |= (uint32(Q&1) << 30) | (uint32(size&3) << 22) | (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
+@@ -3339,22 +3375,27 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rt := int(p.To.Reg)
+ 		imm5 := 0
+ 		o1 = 7<<25 | 0xf<<10
++		index := int(p.From.Index)
+ 		switch (p.From.Reg >> 5) & 15 {
+ 		case ARNG_B:
++			c.checkindex(p, index, 15)
+ 			imm5 |= 1
+-			imm5 |= int(p.From.Index) << 1
++			imm5 |= index << 1
+ 		case ARNG_H:
++			c.checkindex(p, index, 7)
+ 			imm5 |= 2
+-			imm5 |= int(p.From.Index) << 2
++			imm5 |= index << 2
+ 		case ARNG_S:
++			c.checkindex(p, index, 3)
+ 			imm5 |= 4
+-			imm5 |= int(p.From.Index) << 3
++			imm5 |= index << 3
+ 		case ARNG_D:
++			c.checkindex(p, index, 1)
+ 			imm5 |= 8
+-			imm5 |= int(p.From.Index) << 4
++			imm5 |= index << 4
+ 			o1 |= 1 << 30
+ 		default:
+-			c.ctxt.Diag("invalid arrangement on op V.<T>[index], R: %v\n", p)
++			c.ctxt.Diag("invalid arrangement: %v", p)
+ 		}
+ 		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
+ 
+@@ -3471,21 +3512,26 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rt := int(p.To.Reg)
+ 		imm5 := 0
+ 		o1 = 1<<30 | 7<<25 | 7<<10
++		index :=int(p.From.Index)
+ 		switch (p.To.Reg >> 5) & 15 {
+ 		case ARNG_B:
++			c.checkindex(p, index, 15)
+ 			imm5 |= 1
+-			imm5 |= int(p.From.Index) << 1
++			imm5 |= index << 1
+ 		case ARNG_H:
++			c.checkindex(p, index, 7)
+ 			imm5 |= 2
+-			imm5 |= int(p.From.Index) << 2
++			imm5 |= index << 2
+ 		case ARNG_S:
++			c.checkindex(p, index, 3)
+ 			imm5 |= 4
+-			imm5 |= int(p.From.Index) << 3
++			imm5 |= index << 3
+ 		case ARNG_D:
++			c.checkindex(p, index, 1)
+ 			imm5 |= 8
+-			imm5 |= int(p.From.Index) << 4
++			imm5 |= index << 4
+ 		default:
+-			c.ctxt.Diag("invalid arrangement on op R, V.<T>[index]: %v\n", p)
++			c.ctxt.Diag("invalid arrangement: %v", p)
+ 		}
+ 		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
+ 
+@@ -3493,38 +3539,46 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rf := int(p.From.Reg)
+ 		rt := int(p.To.Reg)
+ 		o1 = 7<<25 | 1<<10
+-		var imm5, Q uint32
++		var imm5, Q int
++		index := int(p.From.Index)
+ 		switch (p.To.Reg >> 5) & 15 {
+ 		case ARNG_16B:
++			c.checkindex(p, index, 15)
+ 			Q = 1
+ 			imm5 = 1
+-			imm5 |= uint32(p.From.Index) << 1
++			imm5 |= index << 1
+ 		case ARNG_2D:
++			c.checkindex(p, index, 1)
+ 			Q = 1
+ 			imm5 = 8
+-			imm5 |= uint32(p.From.Index) << 4
++			imm5 |= index << 4
+ 		case ARNG_2S:
++			c.checkindex(p, index, 3)
+ 			Q = 0
+ 			imm5 = 4
+-			imm5 |= uint32(p.From.Index) << 3
++			imm5 |= index << 3
+ 		case ARNG_4H:
++			c.checkindex(p, index, 7)
+ 			Q = 0
+ 			imm5 = 2
+-			imm5 |= uint32(p.From.Index) << 2
++			imm5 |= index << 2
+ 		case ARNG_4S:
++			c.checkindex(p, index, 3)
+ 			Q = 1
+ 			imm5 = 4
+-			imm5 |= uint32(p.From.Index) << 3
++			imm5 |= index << 3
+ 		case ARNG_8B:
++			c.checkindex(p, index, 15)
+ 			Q = 0
+ 			imm5 = 1
+-			imm5 |= uint32(p.From.Index) << 1
++			imm5 |= index << 1
+ 		case ARNG_8H:
++			c.checkindex(p, index, 7)
+ 			Q = 1
+ 			imm5 = 2
+-			imm5 |= uint32(p.From.Index) << 2
++			imm5 |= index << 2
+ 		default:
+-			c.ctxt.Diag("invalid arrangement on VDUP Vn.<T>[index], Vd.<T>: %v\n", p)
++			c.ctxt.Diag("invalid arrangement: %v", p)
+ 		}
+ 		o1 |= (uint32(Q&1) << 30) | (uint32(imm5&0x1f) << 16)
+ 		o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
+@@ -3533,24 +3587,29 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rf := int(p.From.Reg)
+ 		rt := int(p.To.Reg)
+ 		imm5 := 0
++		index := int(p.From.Index)
+ 		switch p.As {
+ 		case AVMOV:
+ 			o1 = 1<<30 | 15<<25 | 1<<10
+ 			switch (p.From.Reg >> 5) & 15 {
+ 			case ARNG_B:
++				c.checkindex(p, index, 15)
+ 				imm5 |= 1
+-				imm5 |= int(p.From.Index) << 1
++				imm5 |= index << 1
+ 			case ARNG_H:
++				c.checkindex(p, index, 7)
+ 				imm5 |= 2
+-				imm5 |= int(p.From.Index) << 2
++				imm5 |= index << 2
+ 			case ARNG_S:
++				c.checkindex(p, index, 3)
+ 				imm5 |= 4
+-				imm5 |= int(p.From.Index) << 3
++				imm5 |= index << 3
+ 			case ARNG_D:
++				c.checkindex(p, index, 1)
+ 				imm5 |= 8
+-				imm5 |= int(p.From.Index) << 4
++				imm5 |= index << 4
+ 			default:
+-				c.ctxt.Diag("invalid arrangement on op V.<T>[index], Vn: %v\n", p)
++				c.ctxt.Diag("invalid arrangement: %v", p)
+ 			}
+ 		default:
+ 			c.ctxt.Diag("unsupported op %v", p.As)
+@@ -3759,6 +3818,47 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	case 90:
+ 		o1 = 0xbea71700
+ 
++	case 92: /* vmov Vn.<T>[index], Vd.<T>[index] */
++		rf := int(p.From.Reg)
++		rt := int(p.To.Reg)
++		imm4 := 0
++		imm5 := 0
++		o1 = 3<<29 | 7<<25 | 1<<10
++		index1 := int(p.To.Index)
++		index2 := int(p.From.Index)
++		if ((p.To.Reg >> 5) & 15) != ((p.From.Reg >> 5) & 15) {
++			c.ctxt.Diag("operand mismatch: %v", p)
++		}
++		switch (p.To.Reg >> 5) & 15 {
++		case ARNG_B:
++			c.checkindex(p, index1, 15)
++			c.checkindex(p, index2, 15)
++			imm5 |= 1
++			imm5 |= index1 << 1
++			imm4 |= index2
++		case ARNG_H:
++			c.checkindex(p, index1, 7)
++			c.checkindex(p, index2, 7)
++			imm5 |= 2
++			imm5 |= index1 << 2
++			imm4 |= index2 << 1
++		case ARNG_S:
++			c.checkindex(p, index1, 3)
++			c.checkindex(p, index2, 3)
++			imm5 |= 4
++			imm5 |= index1 << 3
++			imm4 |= index2 << 2
++		case ARNG_D:
++			c.checkindex(p, index1, 1)
++			c.checkindex(p, index2, 1)
++			imm5 |= 8
++			imm5 |= index1 << 4
++			imm4 |= index2 << 3
++		default:
++			c.ctxt.Diag("invalid arrangement: %v", p)
++		}
++		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(imm4&0xf) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
++
+ 		break
+ 
+ 	case 91: /* prfm imm(Rn), <prfop | $imm5> */
+@@ -4157,6 +4257,30 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
+ 	case AFSUBD:
+ 		return FPOP2S(0, 0, 1, 3)
+ 
++	case AFMADDD:
++		return FPOP3S(0, 0, 1, 0, 0)
++
++	case AFMADDS:
++		return FPOP3S(0, 0, 0, 0, 0)
++
++	case AFMSUBD:
++		return FPOP3S(0, 0, 1, 0, 1)
++
++	case AFMSUBS:
++		return FPOP3S(0, 0, 0, 0, 1)
++
++	case AFNMADDD:
++		return FPOP3S(0, 0, 1, 1, 0)
++
++	case AFNMADDS:
++		return FPOP3S(0, 0, 0, 1, 0)
++
++	case AFNMSUBD:
++		return FPOP3S(0, 0, 1, 1, 1)
++
++	case AFNMSUBS:
++		return FPOP3S(0, 0, 0, 1, 1)
++
+ 	case AFMULS:
+ 		return FPOP2S(0, 0, 0, 0)
+ 
+@@ -4345,6 +4469,12 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
+ 
+ 	case AVUADDLV:
+ 		return 1<<29 | 7<<25 | 3<<20 | 7<<11
++
++	case AVFMLA:
++		return 7<<25 | 0<<23 | 1<<21 | 3<<14 | 3<<10
++
++	case AVFMLS:
++		return 7<<25 | 1<<23 | 1<<21 | 3<<14 | 3<<10
+ 	}
+ 
+ 	c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
+diff --git a/src/cmd/internal/obj/arm64/doc.go b/src/cmd/internal/obj/arm64/doc.go
+index 3d65541fd2..a808d4c3ad 100644
+--- a/src/cmd/internal/obj/arm64/doc.go
++++ b/src/cmd/internal/obj/arm64/doc.go
+@@ -22,6 +22,46 @@ Go Assembly for ARM64 Reference Manual
+ 2. Alphabetical list of float-point instructions
+     // TODO
+ 
++    FMADDD: 64-bit floating-point fused Multiply-Add
++      FMADDD	<Fm>, <Fa>, <Fn>, <Fd>
++        Multiplies the values of <Fm> and <Fn>,
++        adds the product to <Fa>, and writes the result to <Fd>.
++
++    FMADDS: 32-bit floating-point fused Multiply-Add
++      FMADDS	<Fm>, <Fa>, <Fn>, <Fd>
++        Multiplies the values of <Fm> and <Fn>,
++        adds the product to <Fa>, and writes the result to <Fd>.
++
++    FMSUBD: 64-bit floating-point fused Multiply-Subtract
++      FMSUBD	<Fm>, <Fa>, <Fn>, <Fd>
++        Multiplies the values of <Fm> and <Fn>, negates the product,
++        adds the product to <Fa>, and writes the result to <Fd>.
++
++    FMSUBS: 32-bit floating-point fused Multiply-Subtract
++      FMSUBS	<Fm>, <Fa>, <Fn>, <Fd>
++        Multiplies the values of <Fm> and <Fn>, negates the product,
++        adds the product to <Fa>, and writes the result to <Fd>.
++
++    FNMADDD: 64-bit floating-point negated fused Multiply-Add
++      FNMADDD	<Fm>, <Fa>, <Fn>, <Fd>
++        Multiplies the values of <Fm> and <Fn>, negates the product,
++        subtracts the value of <Fa>, and writes the result to <Fd>.
++
++    FNMADDS: 32-bit floating-point negated fused Multiply-Add
++      FNMADDS	<Fm>, <Fa>, <Fn>, <Fd>
++        Multiplies the values of <Fm> and <Fn>, negates the product,
++        subtracts the value of <Fa>, and writes the result to <Fd>.
++
++    FNMSUBD: 64-bit floating-point negated fused Multiply-Subtract
++      FNMSUBD	<Fm>, <Fa>, <Fn>, <Fd>
++        Multiplies the values of <Fm> and <Fn>,
++        subtracts the value of <Fa>, and writes the result to <Fd>.
++
++    FNMSUBS: 32-bit floating-point negated fused Multiply-Subtract
++      FNMSUBS	<Fm>, <Fa>, <Fn>, <Fd>
++        Multiplies the values of <Fm> and <Fn>,
++        subtracts the value of <Fa>, and writes the result to <Fd>.
++
+ 3. Alphabetical list of SIMD instructions
+     VADD: Add (scalar)
+       VADD	<Vm>, <Vn>, <Vd>
+@@ -65,6 +105,16 @@ Go Assembly for ARM64 Reference Manual
+         <T> Is an arrangement specifier and can have the following values:
+         B8, B16
+ 
++    VFMLA: Floating-point fused Multiply-Add to accumulator (vector)
++      VFMLA	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
++        <T> Is an arrangement specifier and can have the following values:
++        S2, S4, D2
++
++    VFMLS: Floating-point fused Multiply-Subtract from accumulator (vector)
++      VFMLS	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
++        <T> Is an arrangement specifier and can have the following values:
++        S2, S4, D2
++
+     VLD1: Load multiple single-element structures
+       VLD1	(Rn), [<Vt>.<T>, <Vt2>.<T> ...]     // no offset
+       VLD1.P	imm(Rn), [<Vt>.<T>, <Vt2>.<T> ...]  // immediate offset variant
+@@ -96,6 +146,10 @@ Go Assembly for ARM64 Reference Manual
+         <T> Is an element size specifier and can have the following values:
+         B, H, S, D
+ 
++      VMOV	<Vn>.<T>[index], <Vd>.<T>[index] // Move vector element to another vector element.
++        <T> Is an element size specifier and can have the following values:
++        B, H, S, D
++
+     VMOVI: Move Immediate (vector).
+       VMOVI	$imm8, <Vd>.<T>
+         <T> is an arrangement specifier and can have the following values:

@@ -13,7 +13,44 @@ Date:   Tue May 9 19:48:29 2023 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/proc.go  | 5 +----
  src/runtime/trace.go | 8 ++++++++
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index db4eb21cb8..4fb4595a50 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -691,11 +691,8 @@ func schedinit() {
+ 	lockInit(&allpLock, lockRankAllp)
+ 	lockInit(&reflectOffs.lock, lockRankReflectOffs)
+ 	lockInit(&finlock, lockRankFin)
+-	lockInit(&trace.bufLock, lockRankTraceBuf)
+-	lockInit(&trace.stringsLock, lockRankTraceStrings)
+-	lockInit(&trace.lock, lockRankTrace)
+ 	lockInit(&cpuprof.lock, lockRankCpuprof)
+-	lockInit(&trace.stackTab.lock, lockRankTraceStackTab)
++	traceLockInit()
+ 	// Enforce that this lock is always a leaf lock.
+ 	// All of this lock's critical sections should be
+ 	// extremely short.
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 5eb68271d1..860b53bdbb 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -168,6 +168,14 @@ var trace struct {
+ 	buf     traceBufPtr // global trace buffer, used when running without a p
+ }
+ 
++// traceLockInit initializes global trace locks.
++func traceLockInit() {
++	lockInit(&trace.bufLock, lockRankTraceBuf)
++	lockInit(&trace.stringsLock, lockRankTraceStrings)
++	lockInit(&trace.lock, lockRankTrace)
++	lockInit(&trace.stackTab.lock, lockRankTraceStackTab)
++}
++
+ // traceBufHeader is per-P tracing buffer.
+ type traceBufHeader struct {
+ 	link      traceBufPtr             // in trace.empty/full

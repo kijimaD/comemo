@@ -18,10 +18,425 @@ Date:   Tue Nov 15 18:43:56 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/parser.go     | 46 +++++++++++++++---------
  src/crypto/x509/pkcs8.go      | 34 +++++++++++++++---
  src/crypto/x509/pkcs8_test.go | 11 ++++++
  src/crypto/x509/x509.go       | 84 +++++++++++++++++++++++++------------------
  src/crypto/x509/x509_test.go  | 15 ++++++++
  5 files changed, 135 insertions(+), 55 deletions(-)
+
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index 402bac95e8..6ea30178d9 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -7,6 +7,7 @@ package x509
+ import (
+ 	"bytes"
+ 	"crypto/dsa"
++	"crypto/ecdh"
+ 	"crypto/ecdsa"
+ 	"crypto/ed25519"
+ 	"crypto/elliptic"
+@@ -213,13 +214,15 @@ func parseExtension(der cryptobyte.String) (pkix.Extension, error) {
+ 	return ext, nil
+ }
+ 
+-func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error) {
++func parsePublicKey(keyData *publicKeyInfo) (any, error) {
++	oid := keyData.Algorithm.Algorithm
++	params := keyData.Algorithm.Parameters
+ 	der := cryptobyte.String(keyData.PublicKey.RightAlign())
+-	switch algo {
+-	case RSA:
++	switch {
++	case oid.Equal(oidPublicKeyRSA):
+ 		// RSA public keys must have a NULL in the parameters.
+ 		// See RFC 3279, Section 2.3.1.
+-		if !bytes.Equal(keyData.Algorithm.Parameters.FullBytes, asn1.NullBytes) {
++		if !bytes.Equal(params.FullBytes, asn1.NullBytes) {
+ 			return nil, errors.New("x509: RSA key missing NULL parameters")
+ 		}
+ 
+@@ -246,8 +249,8 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error
+ 			N: p.N,
+ 		}
+ 		return pub, nil
+-	case ECDSA:
+-		paramsDer := cryptobyte.String(keyData.Algorithm.Parameters.FullBytes)
++	case oid.Equal(oidPublicKeyECDSA):
++		paramsDer := cryptobyte.String(params.FullBytes)
+ 		namedCurveOID := new(asn1.ObjectIdentifier)
+ 		if !paramsDer.ReadASN1ObjectIdentifier(namedCurveOID) {
+ 			return nil, errors.New("x509: invalid ECDSA parameters")
+@@ -266,17 +269,24 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error
+ 			Y:     y,
+ 		}
+ 		return pub, nil
+-	case Ed25519:
++	case oid.Equal(oidPublicKeyEd25519):
+ 		// RFC 8410, Section 3
+ 		// > For all of the OIDs, the parameters MUST be absent.
+-		if len(keyData.Algorithm.Parameters.FullBytes) != 0 {
++		if len(params.FullBytes) != 0 {
+ 			return nil, errors.New("x509: Ed25519 key encoded with illegal parameters")
+ 		}
+ 		if len(der) != ed25519.PublicKeySize {
+ 			return nil, errors.New("x509: wrong Ed25519 public key size")
+ 		}
+ 		return ed25519.PublicKey(der), nil
+-	case DSA:
++	case oid.Equal(oidPublicKeyX25519):
++		// RFC 8410, Section 3
++		// > For all of the OIDs, the parameters MUST be absent.
++		if len(params.FullBytes) != 0 {
++			return nil, errors.New("x509: X25519 key encoded with illegal parameters")
++		}
++		return ecdh.X25519().NewPublicKey(der)
++	case oid.Equal(oidPublicKeyDSA):
+ 		y := new(big.Int)
+ 		if !der.ReadASN1Integer(y) {
+ 			return nil, errors.New("x509: invalid DSA public key")
+@@ -289,7 +299,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error
+ 				G: new(big.Int),
+ 			},
+ 		}
+-		paramsDer := cryptobyte.String(keyData.Algorithm.Parameters.FullBytes)
++		paramsDer := cryptobyte.String(params.FullBytes)
+ 		if !paramsDer.ReadASN1(&paramsDer, cryptobyte_asn1.SEQUENCE) ||
+ 			!paramsDer.ReadASN1Integer(pub.Parameters.P) ||
+ 			!paramsDer.ReadASN1Integer(pub.Parameters.Q) ||
+@@ -302,7 +312,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error
+ 		}
+ 		return pub, nil
+ 	default:
+-		return nil, nil
++		return nil, errors.New("x509: unknown public key algorithm")
+ 	}
+ }
+ 
+@@ -909,12 +919,14 @@ func parseCertificate(der []byte) (*Certificate, error) {
+ 	if !spki.ReadASN1BitString(&spk) {
+ 		return nil, errors.New("x509: malformed subjectPublicKey")
+ 	}
+-	cert.PublicKey, err = parsePublicKey(cert.PublicKeyAlgorithm, &publicKeyInfo{
+-		Algorithm: pkAI,
+-		PublicKey: spk,
+-	})
+-	if err != nil {
+-		return nil, err
++	if cert.PublicKeyAlgorithm != UnknownPublicKeyAlgorithm {
++		cert.PublicKey, err = parsePublicKey(&publicKeyInfo{
++			Algorithm: pkAI,
++			PublicKey: spk,
++		})
++		if err != nil {
++			return nil, err
++		}
+ 	}
+ 
+ 	if cert.Version > 1 {
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index d77efa3156..318dc24573 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"crypto/ecdh"
+ 	"crypto/ecdsa"
+ 	"crypto/ed25519"
+ 	"crypto/rsa"
+@@ -26,8 +27,9 @@ type pkcs8 struct {
+ 
+ // ParsePKCS8PrivateKey parses an unencrypted private key in PKCS #8, ASN.1 DER form.
+ //
+-// It returns a *rsa.PrivateKey, a *ecdsa.PrivateKey, or a ed25519.PrivateKey.
+-// More types might be supported in the future.
++// It returns a *rsa.PrivateKey, a *ecdsa.PrivateKey, a ed25519.PrivateKey (not
++// a pointer), or a *ecdh.PublicKey (for X25519). More types might be supported
++// in the future.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
+@@ -74,6 +76,16 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
+ 		}
+ 		return ed25519.NewKeyFromSeed(curvePrivateKey), nil
+ 
++	case privKey.Algo.Algorithm.Equal(oidPublicKeyX25519):
++		if l := len(privKey.Algo.Parameters.FullBytes); l != 0 {
++			return nil, errors.New("x509: invalid X25519 private key parameters")
++		}
++		var curvePrivateKey []byte
++		if _, err := asn1.Unmarshal(privKey.PrivateKey, &curvePrivateKey); err != nil {
++			return nil, fmt.Errorf("x509: invalid X25519 private key: %v", err)
++		}
++		return ecdh.X25519().NewPrivateKey(curvePrivateKey)
++
+ 	default:
+ 		return nil, fmt.Errorf("x509: PKCS#8 wrapping contained private key with unknown algorithm: %v", privKey.Algo.Algorithm)
+ 	}
+@@ -81,8 +93,9 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
+ 
+ // MarshalPKCS8PrivateKey converts a private key to PKCS #8, ASN.1 DER form.
+ //
+-// The following key types are currently supported: *rsa.PrivateKey, *ecdsa.PrivateKey
+-// and ed25519.PrivateKey. Unsupported key types result in an error.
++// The following key types are currently supported: *rsa.PrivateKey,
++// *ecdsa.PrivateKey, ed25519.PrivateKey (not a pointer), and *ecdh.PrivateKey
++// (X25519 only). Unsupported key types result in an error.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
+@@ -128,6 +141,19 @@ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
+ 		}
+ 		privKey.PrivateKey = curvePrivateKey
+ 
++	case *ecdh.PrivateKey:
++		if k.Curve() != ecdh.X25519() {
++			return nil, errors.New("x509: unknown curve while marshaling to PKCS#8")
++		}
++		privKey.Algo = pkix.AlgorithmIdentifier{
++			Algorithm: oidPublicKeyX25519,
++		}
++		curvePrivateKey, err := asn1.Marshal(k.Bytes())
++		if err != nil {
++			return nil, fmt.Errorf("x509: failed to marshal private key: %v", err)
++		}
++		privKey.PrivateKey = curvePrivateKey
++
+ 	default:
+ 		return nil, fmt.Errorf("x509: unknown key type while marshaling PKCS#8: %T", key)
+ 	}
+diff --git a/src/crypto/x509/pkcs8_test.go b/src/crypto/x509/pkcs8_test.go
+index aaceced926..f311f31844 100644
+--- a/src/crypto/x509/pkcs8_test.go
++++ b/src/crypto/x509/pkcs8_test.go
+@@ -6,6 +6,7 @@ package x509
+ 
+ import (
+ 	"bytes"
++	"crypto/ecdh"
+ 	"crypto/ecdsa"
+ 	"crypto/ed25519"
+ 	"crypto/elliptic"
+@@ -49,6 +50,11 @@ var pkcs8P521PrivateKeyHex = `3081ee020100301006072a8648ce3d020106052b8104002304
+ // From RFC 8410, Section 7.
+ var pkcs8Ed25519PrivateKeyHex = `302e020100300506032b657004220420d4ee72dbf913584ad5b6d8f1f769f8ad3afe7c28cbf1d4fbe097a88f44755842`
+ 
++// Generated using:
++//
++//	openssl genpkey -algorithm x25519
++var pkcs8X25519PrivateKeyHex = `302e020100300506032b656e0422042068ff93a73c5adefd6d498b24e588fd4daa10924d992afed01b43ca5725025a6b`
++
+ func TestPKCS8(t *testing.T) {
+ 	tests := []struct {
+ 		name    string
+@@ -90,6 +96,11 @@ func TestPKCS8(t *testing.T) {
+ 			keyHex:  pkcs8Ed25519PrivateKeyHex,
+ 			keyType: reflect.TypeOf(ed25519.PrivateKey{}),
+ 		},
++		{
++			name:    "X25519 private key",
++			keyHex:  pkcs8X25519PrivateKeyHex,
++			keyType: reflect.TypeOf(&ecdh.PrivateKey{}),
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index fb773e5bed..fce50455aa 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -23,6 +23,7 @@ package x509
+ import (
+ 	"bytes"
+ 	"crypto"
++	"crypto/ecdh"
+ 	"crypto/ecdsa"
+ 	"crypto/ed25519"
+ 	"crypto/elliptic"
+@@ -59,12 +60,12 @@ type pkixPublicKey struct {
+ 	BitString asn1.BitString
+ }
+ 
+-// ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form.
+-// The encoded public key is a SubjectPublicKeyInfo structure
+-// (see RFC 5280, Section 4.1).
++// ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form. The encoded
++// public key is a SubjectPublicKeyInfo structure (see RFC 5280, Section 4.1).
+ //
+-// It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey, or
+-// ed25519.PublicKey. More types might be supported in the future.
++// It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey,
++// ed25519.PublicKey (not a pointer), or *ecdh.PublicKey (for X25519).
++// More types might be supported in the future.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
+ func ParsePKIXPublicKey(derBytes []byte) (pub any, err error) {
+@@ -77,11 +78,7 @@ func ParsePKIXPublicKey(derBytes []byte) (pub any, err error) {
+ 	} else if len(rest) != 0 {
+ 		return nil, errors.New("x509: trailing data after ASN.1 of public-key")
+ 	}
+-	algo := getPublicKeyAlgorithmFromOID(pki.Algorithm.Algorithm)
+-	if algo == UnknownPublicKeyAlgorithm {
+-		return nil, errors.New("x509: unknown public key algorithm")
+-	}
+-	return parsePublicKey(algo, &pki)
++	return parsePublicKey(&pki)
+ }
+ 
+ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.AlgorithmIdentifier, err error) {
+@@ -117,6 +114,12 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
+ 	case ed25519.PublicKey:
+ 		publicKeyBytes = pub
+ 		publicKeyAlgorithm.Algorithm = oidPublicKeyEd25519
++	case *ecdh.PublicKey:
++		if pub.Curve() != ecdh.X25519() {
++			return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: unsupported ECDH curve")
++		}
++		publicKeyBytes = pub.Bytes()
++		publicKeyAlgorithm.Algorithm = oidPublicKeyX25519
+ 	default:
+ 		return nil, pkix.AlgorithmIdentifier{}, fmt.Errorf("x509: unsupported public key type: %T", pub)
+ 	}
+@@ -128,8 +131,9 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
+ // The encoded public key is a SubjectPublicKeyInfo structure
+ // (see RFC 5280, Section 4.1).
+ //
+-// The following key types are currently supported: *rsa.PublicKey, *ecdsa.PublicKey
+-// and ed25519.PublicKey. Unsupported key types result in an error.
++// The following key types are currently supported: *rsa.PublicKey,
++// *ecdsa.PublicKey, ed25519.PublicKey (not a pointer), and *ecdh.PublicKey
++// (X25519 only). Unsupported key types result in an error.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
+ func MarshalPKIXPublicKey(pub any) ([]byte, error) {
+@@ -240,7 +244,7 @@ type PublicKeyAlgorithm int
+ const (
+ 	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
+ 	RSA
+-	DSA // Unsupported.
++	DSA // Only supported for parsing.
+ 	ECDSA
+ 	Ed25519
+ )
+@@ -444,27 +448,34 @@ func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm
+ 	return UnknownSignatureAlgorithm
+ }
+ 
+-// RFC 3279, 2.3 Public Key Algorithms
+-//
+-//	pkcs-1 OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
+-//		rsadsi(113549) pkcs(1) 1 }
+-//
+-// rsaEncryption OBJECT IDENTIFIER ::== { pkcs1-1 1 }
+-//
+-//	id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
+-//		x9-57(10040) x9cm(4) 1 }
+-//
+-// RFC 5480, 2.1.1 Unrestricted Algorithm Identifier and Parameters
+-//
+-//	id-ecPublicKey OBJECT IDENTIFIER ::= {
+-//		iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
+ var (
+-	oidPublicKeyRSA     = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+-	oidPublicKeyDSA     = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
+-	oidPublicKeyECDSA   = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
+-	oidPublicKeyEd25519 = oidSignatureEd25519
++	// RFC 3279, 2.3 Public Key Algorithms
++	//
++	//	pkcs-1 OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
++	//		rsadsi(113549) pkcs(1) 1 }
++	//
++	// rsaEncryption OBJECT IDENTIFIER ::== { pkcs1-1 1 }
++	//
++	//	id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
++	//		x9-57(10040) x9cm(4) 1 }
++	oidPublicKeyRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
++	oidPublicKeyDSA = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
++	// RFC 5480, 2.1.1 Unrestricted Algorithm Identifier and Parameters
++	//
++	//	id-ecPublicKey OBJECT IDENTIFIER ::= {
++	//		iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
++	oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
++	// RFC 8410, Section 3
++	//
++	//	id-X25519    OBJECT IDENTIFIER ::= { 1 3 101 110 }
++	//	id-Ed25519   OBJECT IDENTIFIER ::= { 1 3 101 112 }
++	oidPublicKeyX25519  = asn1.ObjectIdentifier{1, 3, 101, 110}
++	oidPublicKeyEd25519 = asn1.ObjectIdentifier{1, 3, 101, 112}
+ )
+ 
++// getPublicKeyAlgorithmFromOID returns the exposed PublicKeyAlgorithm
++// identifier for public key types supported in certificates and CSRs. Marshal
++// and Parse functions may support a different set of public key types.
+ func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm {
+ 	switch {
+ 	case oid.Equal(oidPublicKeyRSA):
+@@ -1521,6 +1532,9 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	if getPublicKeyAlgorithmFromOID(publicKeyAlgorithm.Algorithm) == UnknownPublicKeyAlgorithm {
++		return nil, fmt.Errorf("x509: unsupported public key type: %T", pub)
++	}
+ 
+ 	asn1Issuer, err := subjectBytes(parent)
+ 	if err != nil {
+@@ -2068,9 +2082,11 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
+ 	}
+ 
+ 	var err error
+-	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, &in.TBSCSR.PublicKey)
+-	if err != nil {
+-		return nil, err
++	if out.PublicKeyAlgorithm != UnknownPublicKeyAlgorithm {
++		out.PublicKey, err = parsePublicKey(&in.TBSCSR.PublicKey)
++		if err != nil {
++			return nil, err
++		}
+ 	}
+ 
+ 	var subject pkix.RDNSequence
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 22697cd3ff..8846b00312 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"crypto"
+ 	"crypto/dsa"
++	"crypto/ecdh"
+ 	"crypto/ecdsa"
+ 	"crypto/ed25519"
+ 	"crypto/elliptic"
+@@ -115,6 +116,13 @@ func TestParsePKIXPublicKey(t *testing.T) {
+ 			t.Errorf("Value returned from ParsePKIXPublicKey was not an Ed25519 public key")
+ 		}
+ 	})
++	t.Run("X25519", func(t *testing.T) {
++		pub := testParsePKIXPublicKey(t, pemX25519Key)
++		k, ok := pub.(*ecdh.PublicKey)
++		if !ok || k.Curve() != ecdh.X25519() {
++			t.Errorf("Value returned from ParsePKIXPublicKey was not an X25519 public key")
++		}
++	})
+ }
+ 
+ var pemPublicKey = `-----BEGIN PUBLIC KEY-----
+@@ -153,6 +161,13 @@ MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=
+ -----END PUBLIC KEY-----
+ `
+ 
++// pemX25519Key was generated from pemX25519Key with "openssl pkey -pubout".
++var pemX25519Key = `
++-----BEGIN PUBLIC KEY-----
++MCowBQYDK2VuAyEA5yGXrH/6OzxuWEhEWS01/f4OP+Of3Yrddy6/J1kDTVM=
++-----END PUBLIC KEY-----
++`
++
+ func TestPKIXMismatchPublicKeyFormat(t *testing.T) {
+ 
+ 	const pkcs1PublicKey = "308201080282010100817cfed98bcaa2e2a57087451c7674e0c675686dc33ff1268b0c2a6ee0202dec710858ee1c31bdf5e7783582e8ca800be45f3275c6576adc35d98e26e95bb88ca5beb186f853b8745d88bc9102c5f38753bcda519fb05948d5c77ac429255ff8aaf27d9f45d1586e95e2e9ba8a7cb771b8a09dd8c8fed3f933fd9b439bc9f30c475953418ef25f71a2b6496f53d94d39ce850aa0cc75d445b5f5b4f4ee4db78ab197a9a8d8a852f44529a007ac0ac23d895928d60ba538b16b0b087a7f903ed29770e215019b77eaecc360f35f7ab11b6d735978795b2c4a74e5bdea4dc6594cd67ed752a108e666729a753ab36d6c4f606f8760f507e1765be8cd744007e629020103"

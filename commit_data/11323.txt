@@ -7,6 +7,28 @@ Date:   Sun Jan 22 18:52:38 2012 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5569043
-
+---
  src/pkg/go/doc/reader.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 1a2fad559a..926cf537eb 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -483,7 +483,7 @@ func (p sortType) Less(i, j int) bool {
+ 	// sort by name
+ 	// pull blocks (name = "") up to top
+ 	// in original order
+-	if ni, nj := p[i].Type.Name.Name, p[j].Type.Name.Name; ni != nj {
++	if ni, nj := p[i].Name, p[j].Name; ni != nj {
+ 		return ni < nj
+ 	}
+ 	return p[i].order < p[j].order
+@@ -509,6 +509,7 @@ func (doc *docReader) makeTypes(m map[string]*typeInfo) []*Type {
+ 			// process the type even if not exported so that we have
+ 			// its methods in case they are embedded somewhere
+ 			t := new(Type)
++			t.Name = old.name
+ 			if decl != nil {
+ 				typespec := decl.Specs[0].(*ast.TypeSpec)
+ 				doc := typespec.Doc

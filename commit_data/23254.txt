@@ -9,6 +9,28 @@ Date:   Sat May 2 22:44:49 2015 -0400
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/exec_linux.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 02474fc459..ced2ca862d 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -178,14 +178,14 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	if sys.Foreground {
+-		pgrp := sys.Pgid
++		pgrp := int32(sys.Pgid)
+ 		if pgrp == 0 {
+ 			r1, _, err1 = RawSyscall(SYS_GETPID, 0, 0, 0)
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+ 
+-			pgrp = int(r1)
++			pgrp = int32(r1)
+ 		}
+ 
+ 		// Place process group in foreground.

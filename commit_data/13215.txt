@@ -10,6 +10,20 @@ Date:   Thu May 31 03:06:38 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6261052
-
+---
  src/cmd/ld/elf.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index de9e6b8541..a3359cdd72 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -11,7 +11,7 @@
+  * in order to write the code just once.  The 64-bit data structure is
+  * written in the 32-bit format on the 32-bit machines.
+  */
+-#define	NSECT	32
++#define	NSECT	48
+ 
+ int	iself;
+ 

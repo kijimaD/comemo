@@ -12,6 +12,20 @@ Date:   Wed Apr 3 01:49:24 2019 -0700
     Change-Id: I56c3517ad6d0a9f39537182f63cef56bb198aa83
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170451
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/dwarf_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 9c411ff1b8..897b2fc881 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -98,6 +98,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 						if bytes.HasPrefix(out, []byte("Unable to find file")) {
+ 							// This failure will cause the App Store to reject our binaries.
+ 							t.Fatalf("symbols %v: failed to parse file", filepath.Base(exe))
++						} else if bytes.Contains(out, []byte(", Empty]")) {
++							t.Fatalf("symbols %v: parsed as empty", filepath.Base(exe))
+ 						}
+ 					}
+ 				}

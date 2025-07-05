@@ -9,8 +9,81 @@ Date:   Tue Jan 12 11:40:17 2016 +1300
     Change-Id: I70f3b48445f4f527d67f7b202b6171195440b09f
     Reviewed-on: https://go-review.googlesource.com/18550
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/internal/atomic/atomic_386.go    |  8 ++------
  src/runtime/internal/atomic/atomic_amd64x.go | 10 +++-------
  src/runtime/internal/atomic/stubs.go         |  2 --
  3 files changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_386.go b/src/runtime/internal/atomic/atomic_386.go
+index ae7b58325a..f4c50b0be1 100644
+--- a/src/runtime/internal/atomic/atomic_386.go
++++ b/src/runtime/internal/atomic/atomic_386.go
+@@ -8,19 +8,15 @@ package atomic
+ 
+ import "unsafe"
+ 
+-// The calls to nop are to keep these functions from being inlined.
+-// If they are inlined we have no guarantee that later rewrites of the
+-// code by optimizers will preserve the relative order of memory accesses.
+-
+ //go:nosplit
++//go:noinline
+ func Load(ptr *uint32) uint32 {
+-	nop()
+ 	return *ptr
+ }
+ 
+ //go:nosplit
++//go:noinline
+ func Loadp(ptr unsafe.Pointer) unsafe.Pointer {
+-	nop()
+ 	return *(*unsafe.Pointer)(ptr)
+ }
+ 
+diff --git a/src/runtime/internal/atomic/atomic_amd64x.go b/src/runtime/internal/atomic/atomic_amd64x.go
+index 7f6c892364..bd40fb3ea2 100644
+--- a/src/runtime/internal/atomic/atomic_amd64x.go
++++ b/src/runtime/internal/atomic/atomic_amd64x.go
+@@ -8,25 +8,21 @@ package atomic
+ 
+ import "unsafe"
+ 
+-// The calls to nop are to keep these functions from being inlined.
+-// If they are inlined we have no guarantee that later rewrites of the
+-// code by optimizers will preserve the relative order of memory accesses.
+-
+ //go:nosplit
++//go:noinline
+ func Load(ptr *uint32) uint32 {
+-	nop()
+ 	return *ptr
+ }
+ 
+ //go:nosplit
++//go:noinline
+ func Loadp(ptr unsafe.Pointer) unsafe.Pointer {
+-	nop()
+ 	return *(*unsafe.Pointer)(ptr)
+ }
+ 
+ //go:nosplit
++//go:noinline
+ func Load64(ptr *uint64) uint64 {
+-	nop()
+ 	return *ptr
+ }
+ 
+diff --git a/src/runtime/internal/atomic/stubs.go b/src/runtime/internal/atomic/stubs.go
+index 826829938d..497b98046d 100644
+--- a/src/runtime/internal/atomic/stubs.go
++++ b/src/runtime/internal/atomic/stubs.go
+@@ -12,8 +12,6 @@ func Cas(ptr *uint32, old, new uint32) bool
+ // NO go:noescape annotation; see atomic_pointer.go.
+ func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+ 
+-func nop() // call to prevent inlining of function body
+-
+ //go:noescape
+ func Casuintptr(ptr *uintptr, old, new uintptr) bool
+ 

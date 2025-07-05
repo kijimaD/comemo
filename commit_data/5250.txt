@@ -14,7 +14,7 @@ Date:   Thu Apr 8 18:15:30 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/906041
-
+---
  src/pkg/runtime/darwin/386/defs.h      | 46 +++++++++++++++++++-
  src/pkg/runtime/darwin/386/signal.c    | 38 ++++++++++++++---
  src/pkg/runtime/darwin/amd64/defs.h    | 44 +++++++++++++++++++
@@ -44,3 +44,1385 @@ Date:   Thu Apr 8 18:15:30 2010 -0700
  src/pkg/runtime/runtime.h              |  4 ++
  test/recover3.go                       | 78 ++++++++++++++++++++++++++++++++++
  28 files changed, 837 insertions(+), 70 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/defs.h b/src/pkg/runtime/darwin/386/defs.h
+index b66a5d8b4e..69ccc35f7d 100644
+--- a/src/pkg/runtime/darwin/386/defs.h
++++ b/src/pkg/runtime/darwin/386/defs.h
+@@ -1,4 +1,4 @@
+-// godefs -f -m32 defs.c
++// godefs defs.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -44,6 +44,50 @@ enum {
+ 	SA_ONSTACK = 0x1,
+ 	SA_USERTRAMP = 0x100,
+ 	SA_64REGSET = 0x200,
++	SIGHUP = 0x1,
++	SIGINT = 0x2,
++	SIGQUIT = 0x3,
++	SIGILL = 0x4,
++	SIGTRAP = 0x5,
++	SIGABRT = 0x6,
++	SIGEMT = 0x7,
++	SIGFPE = 0x8,
++	SIGKILL = 0x9,
++	SIGBUS = 0xa,
++	SIGSEGV = 0xb,
++	SIGSYS = 0xc,
++	SIGPIPE = 0xd,
++	SIGALRM = 0xe,
++	SIGTERM = 0xf,
++	SIGURG = 0x10,
++	SIGSTOP = 0x11,
++	SIGTSTP = 0x12,
++	SIGCONT = 0x13,
++	SIGCHLD = 0x14,
++	SIGTTIN = 0x15,
++	SIGTTOU = 0x16,
++	SIGIO = 0x17,
++	SIGXCPU = 0x18,
++	SIGXFSZ = 0x19,
++	SIGVTALRM = 0x1a,
++	SIGPROF = 0x1b,
++	SIGWINCH = 0x1c,
++	SIGINFO = 0x1d,
++	SIGUSR1 = 0x1e,
++	SIGUSR2 = 0x1f,
++	FPE_INTDIV = 0x7,
++	FPE_INTOVF = 0x8,
++	FPE_FLTDIV = 0x1,
++	FPE_FLTOVF = 0x2,
++	FPE_FLTUND = 0x3,
++	FPE_FLTRES = 0x4,
++	FPE_FLTINV = 0x5,
++	FPE_FLTSUB = 0x6,
++	BUS_ADRALN = 0x1,
++	BUS_ADRERR = 0x2,
++	BUS_OBJERR = 0x3,
++	SEGV_MAPERR = 0x1,
++	SEGV_ACCERR = 0x2,
+ };
+ 
+ // Types
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 6fe5f308fe..65c217b4e0 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -39,6 +39,39 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	Ucontext *uc;
+ 	Mcontext *mc;
+ 	Regs *r;
++	uintptr *sp;
++	void (*fn)(void);
++	G *gp;
++	byte *pc;
++
++	uc = context;
++	mc = uc->uc_mcontext;
++	r = &mc->ss;
++
++	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
++		// Work around Leopard bug that doesn't set FPE_INTDIV.
++		// Look at instruction to see if it is a divide.
++		// Not necessary in Snow Leopard (si_code will be != 0).
++		if(sig == SIGFPE && info->si_code == 0) {
++			pc = (byte*)r->eip;
++			if(pc[0] == 0xF7)
++				info->si_code = FPE_INTDIV;
++		}
++		
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = sig;
++		gp->sigcode0 = info->si_code;
++		gp->sigcode1 = (uintptr)info->si_addr;
++
++		sp = (uintptr*)r->esp;
++		*--sp = r->eip;
++		r->eip = (uintptr)sigpanic;
++		r->esp = (uintptr)sp;
++		return;
++	}
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+ 		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+@@ -56,11 +89,6 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 		printf("%s\n", sigtab[sig].name);
+ 	}
+ 
+-	uc = context;
+-	mc = uc->uc_mcontext;
+-	r = &mc->ss;
+-
+-	printf("Faulting address: %p\n", info->si_addr);
+ 	printf("pc: %x\n", r->eip);
+ 	printf("\n");
+ 
+diff --git a/src/pkg/runtime/darwin/amd64/defs.h b/src/pkg/runtime/darwin/amd64/defs.h
+index 1076e4c10a..0b5fde85ca 100644
+--- a/src/pkg/runtime/darwin/amd64/defs.h
++++ b/src/pkg/runtime/darwin/amd64/defs.h
+@@ -44,6 +44,50 @@ enum {
+ 	SA_ONSTACK = 0x1,
+ 	SA_USERTRAMP = 0x100,
+ 	SA_64REGSET = 0x200,
++	SIGHUP = 0x1,
++	SIGINT = 0x2,
++	SIGQUIT = 0x3,
++	SIGILL = 0x4,
++	SIGTRAP = 0x5,
++	SIGABRT = 0x6,
++	SIGEMT = 0x7,
++	SIGFPE = 0x8,
++	SIGKILL = 0x9,
++	SIGBUS = 0xa,
++	SIGSEGV = 0xb,
++	SIGSYS = 0xc,
++	SIGPIPE = 0xd,
++	SIGALRM = 0xe,
++	SIGTERM = 0xf,
++	SIGURG = 0x10,
++	SIGSTOP = 0x11,
++	SIGTSTP = 0x12,
++	SIGCONT = 0x13,
++	SIGCHLD = 0x14,
++	SIGTTIN = 0x15,
++	SIGTTOU = 0x16,
++	SIGIO = 0x17,
++	SIGXCPU = 0x18,
++	SIGXFSZ = 0x19,
++	SIGVTALRM = 0x1a,
++	SIGPROF = 0x1b,
++	SIGWINCH = 0x1c,
++	SIGINFO = 0x1d,
++	SIGUSR1 = 0x1e,
++	SIGUSR2 = 0x1f,
++	FPE_INTDIV = 0x7,
++	FPE_INTOVF = 0x8,
++	FPE_FLTDIV = 0x1,
++	FPE_FLTOVF = 0x2,
++	FPE_FLTUND = 0x3,
++	FPE_FLTRES = 0x4,
++	FPE_FLTINV = 0x5,
++	FPE_FLTSUB = 0x6,
++	BUS_ADRALN = 0x1,
++	BUS_ADRERR = 0x2,
++	BUS_OBJERR = 0x3,
++	SEGV_MAPERR = 0x1,
++	SEGV_ACCERR = 0x2,
+ };
+ 
+ // Types
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index beb55decf6..9c4f0dc147 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -47,6 +47,40 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	Ucontext *uc;
+ 	Mcontext *mc;
+ 	Regs *r;
++	G *gp;
++	uintptr *sp;
++	byte *pc;
++
++	uc = context;
++	mc = uc->uc_mcontext;
++	r = &mc->ss;
++
++	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
++		// Work around Leopard bug that doesn't set FPE_INTDIV.
++		// Look at instruction to see if it is a divide.
++		// Not necessary in Snow Leopard (si_code will be != 0).
++		if(sig == SIGFPE && info->si_code == 0) {
++			pc = (byte*)r->rip;
++			if((pc[0]&0xF0) == 0x40)	// 64-bit REX prefix
++				pc++;
++			if(pc[0] == 0xF7)
++				info->si_code = FPE_INTDIV;
++		}
++		
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = sig;
++		gp->sigcode0 = info->si_code;
++		gp->sigcode1 = (uintptr)info->si_addr;
++
++		sp = (uintptr*)r->rsp;
++		*--sp = r->rip;
++		r->rip = (uintptr)sigpanic;
++		r->rsp = (uintptr)sp;
++		return;
++	}
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+ 		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+@@ -64,11 +98,6 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 		printf("%s\n", sigtab[sig].name);
+ 	}
+ 
+-	uc = context;
+-	mc = uc->uc_mcontext;
+-	r = &mc->ss;
+-
+-	printf("Faulting address: %p\n", info->si_addr);
+ 	printf("pc: %X\n", r->rip);
+ 	printf("\n");
+ 
+diff --git a/src/pkg/runtime/darwin/defs.c b/src/pkg/runtime/darwin/defs.c
+index 1ed662957f..95edf7bb10 100644
+--- a/src/pkg/runtime/darwin/defs.c
++++ b/src/pkg/runtime/darwin/defs.c
+@@ -67,6 +67,54 @@ enum {
+ 	$SA_ONSTACK = SA_ONSTACK,
+ 	$SA_USERTRAMP = SA_USERTRAMP,
+ 	$SA_64REGSET = SA_64REGSET,
++	
++	$SIGHUP = SIGHUP,
++	$SIGINT = SIGINT,
++	$SIGQUIT = SIGQUIT,
++	$SIGILL = SIGILL,
++	$SIGTRAP = SIGTRAP,
++	$SIGABRT = SIGABRT,
++	$SIGEMT = SIGEMT,
++	$SIGFPE = SIGFPE,
++	$SIGKILL = SIGKILL,
++	$SIGBUS = SIGBUS,
++	$SIGSEGV = SIGSEGV,
++	$SIGSYS = SIGSYS,
++	$SIGPIPE = SIGPIPE,
++	$SIGALRM = SIGALRM,
++	$SIGTERM = SIGTERM,
++	$SIGURG = SIGURG,
++	$SIGSTOP = SIGSTOP,
++	$SIGTSTP = SIGTSTP,
++	$SIGCONT = SIGCONT,
++	$SIGCHLD = SIGCHLD,
++	$SIGTTIN = SIGTTIN,
++	$SIGTTOU = SIGTTOU,
++	$SIGIO = SIGIO,
++	$SIGXCPU = SIGXCPU,
++	$SIGXFSZ = SIGXFSZ,
++	$SIGVTALRM = SIGVTALRM,
++	$SIGPROF = SIGPROF,
++	$SIGWINCH = SIGWINCH,
++	$SIGINFO = SIGINFO,
++	$SIGUSR1 = SIGUSR1,
++	$SIGUSR2 = SIGUSR2,
++	
++	$FPE_INTDIV = FPE_INTDIV,
++	$FPE_INTOVF = FPE_INTOVF,
++	$FPE_FLTDIV = FPE_FLTDIV,
++	$FPE_FLTOVF = FPE_FLTOVF,
++	$FPE_FLTUND = FPE_FLTUND,
++	$FPE_FLTRES = FPE_FLTRES,
++	$FPE_FLTINV = FPE_FLTINV,
++	$FPE_FLTSUB = FPE_FLTSUB,
++	
++	$BUS_ADRALN = BUS_ADRALN,
++	$BUS_ADRERR = BUS_ADRERR,
++	$BUS_OBJERR = BUS_OBJERR,
++	
++	$SEGV_MAPERR = SEGV_MAPERR,
++	$SEGV_ACCERR = SEGV_ACCERR,
+ };
+ 
+ typedef mach_msg_body_t	$MachBody;
+diff --git a/src/pkg/runtime/darwin/os.h b/src/pkg/runtime/darwin/os.h
+index 2e493aed05..24496485c4 100644
+--- a/src/pkg/runtime/darwin/os.h
++++ b/src/pkg/runtime/darwin/os.h
+@@ -22,3 +22,4 @@ void	sigaction(uintptr, struct Sigaction*, struct Sigaction*);
+ struct StackT;
+ void	sigaltstack(struct StackT*, struct StackT*);
+ void	sigtramp(void);
++void	sigpanic(void);
+diff --git a/src/pkg/runtime/darwin/signals.h b/src/pkg/runtime/darwin/signals.h
+index c93e7fbe9b..ac9e5d6066 100644
+--- a/src/pkg/runtime/darwin/signals.h
++++ b/src/pkg/runtime/darwin/signals.h
+@@ -6,8 +6,9 @@
+ #define I SigIgnore
+ #define R SigRestart
+ #define Q SigQueue
++#define P SigPanic
+ 
+-static SigTab sigtab[] = {
++SigTab sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+ 	/* 1 */	Q+R, "SIGHUP: terminal line hangup",
+ 	/* 2 */	Q+R, "SIGINT: interrupt",
+@@ -16,10 +17,10 @@ static SigTab sigtab[] = {
+ 	/* 5 */	C, "SIGTRAP: trace trap",	/* used by panic and array out of bounds, etc. */
+ 	/* 6 */	C, "SIGABRT: abort",
+ 	/* 7 */	C, "SIGEMT: emulate instruction executed",
+-	/* 8 */	C, "SIGFPE: floating-point exception",
++	/* 8 */	C+P, "SIGFPE: floating-point exception",
+ 	/* 9 */	0, "SIGKILL: kill",
+-	/* 10 */	C, "SIGBUS: bus error",
+-	/* 11 */	C, "SIGSEGV: segmentation violation",
++	/* 10 */	C+P, "SIGBUS: bus error",
++	/* 11 */	C+P, "SIGSEGV: segmentation violation",
+ 	/* 12 */	C, "SIGSYS: bad system call",
+ 	/* 13 */	I, "SIGPIPE: write to broken pipe",
+ 	/* 14 */	Q+I+R, "SIGALRM: alarm clock",
+@@ -45,5 +46,6 @@ static SigTab sigtab[] = {
+ #undef I
+ #undef R
+ #undef Q
++#undef P
+ 
+ #define	NSIG 32
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index 38e3c23fb2..d9acfa8d30 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -6,6 +6,8 @@
+ #include "defs.h"
+ #include "os.h"
+ 
++extern SigTab sigtab[];
++
+ static void
+ unimplemented(int8 *name)
+ {
+@@ -443,3 +445,26 @@ mach_semrelease(uint32 sem)
+ 	}
+ }
+ 
++void
++sigpanic(void)
++{
++	switch(g->sig) {
++	case SIGBUS:
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
++			panicstring("invalid memory address or nil pointer dereference");
++		break;
++	case SIGSEGV:
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
++			panicstring("invalid memory address or nil pointer dereference");
++		break;
++	case SIGFPE:
++		switch(g->sigcode0) {
++		case FPE_INTDIV:
++			panicstring("integer divide by zero");
++		case FPE_INTOVF:
++			panicstring("integer overflow");
++		}
++		panicstring("floating point error");
++	}
++	panicstring(sigtab[g->sig].name);
++}
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 3529d1a58b..2483e7d907 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -48,7 +48,26 @@ void
+ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+-	Mcontext *mc;
++	Mcontext *r;
++
++	uc = context;
++	r = &uc->uc_mcontext;
++
++	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = sig;
++		gp->sigcode0 = info->si_code;
++		gp->sigcode1 = (uintptr)info->si_addr;
++
++		sp = (uintptr*)r->mc_esp;
++		*--sp = r->mc_eip;
++		r->mc_eip = (uintptr)sigpanic;
++		r->mc_esp = (uintptr)sp;
++		return;
++	}
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+ 		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+@@ -60,22 +79,18 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		exit(2);
+ 	panicking = 1;
+ 
+-	uc = context;
+-	mc = &uc->uc_mcontext;
+-
+ 	if(sig < 0 || sig >= NSIG)
+ 		printf("Signal %d\n", sig);
+ 	else
+ 		printf("%s\n", sigtab[sig].name);
+ 
+-	printf("Faulting address: %p\n", info->si_addr);
+-	printf("PC=%X\n", mc->mc_eip);
++	printf("PC=%X\n", r->mc_eip);
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)mc->mc_eip, (void*)mc->mc_esp, 0, m->curg);
++		traceback((void*)r->mc_eip, (void*)r->mc_esp, 0, m->curg);
+ 		tracebackothers(m->curg);
+-		dumpregs(mc);
++		dumpregs(r);
+ 	}
+ 
+ 	breakpoint();
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index dc0e1eb586..ea15922c62 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -56,7 +56,26 @@ void
+ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+-	Mcontext *mc;
++	Mcontext *r;
++
++	uc = context;
++	r = &uc->uc_mcontext;
++
++	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = sig;
++		gp->sigcode0 = info->si_code;
++		gp->sigcode1 = (uintptr)info->si_addr;
++
++		sp = (uintptr*)r->mc_rsp;
++		*--sp = r->mc_rip;
++		r->mc_rip = (uintptr)sigpanic;
++		r->mc_rsp = (uintptr)sp;
++		return;
++	}
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+ 		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+@@ -68,21 +87,17 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		exit(2);
+ 	panicking = 1;
+ 
+-	uc = context;
+-	mc = &uc->uc_mcontext;
+-
+ 	if(sig < 0 || sig >= NSIG)
+ 		printf("Signal %d\n", sig);
+ 	else
+ 		printf("%s\n", sigtab[sig].name);
+ 
+-	printf("Faulting address: %p\n", info->si_addr);
+-	printf("PC=%X\n", mc->mc_rip);
++	printf("PC=%X\n", r->mc_rip);
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)mc->mc_rip, (void*)mc->mc_rsp, 0, (void*)mc->mc_r15);
+-		tracebackothers((void*)mc->mc_r15);
++		traceback((void*)r->mc_rip, (void*)r->mc_rsp, 0, (void*)r->mc_r15);
++		tracebackothers((void*)r->mc_r15);
+ 		dumpregs(mc);
+ 	}
+ 
+diff --git a/src/pkg/runtime/freebsd/defs.c b/src/pkg/runtime/freebsd/defs.c
+index e4d0f0068c..0c75e75c4c 100644
+--- a/src/pkg/runtime/freebsd/defs.c
++++ b/src/pkg/runtime/freebsd/defs.c
+@@ -37,6 +37,54 @@ enum {
+ 	$UMTX_OP_WAKE = UMTX_OP_WAKE,
+ 
+ 	$EINTR = EINTR,
++	
++	$SIGHUP = SIGHUP,
++	$SIGINT = SIGINT,
++	$SIGQUIT = SIGQUIT,
++	$SIGILL = SIGILL,
++	$SIGTRAP = SIGTRAP,
++	$SIGABRT = SIGABRT,
++	$SIGEMT = SIGEMT,
++	$SIGFPE = SIGFPE,
++	$SIGKILL = SIGKILL,
++	$SIGBUS = SIGBUS,
++	$SIGSEGV = SIGSEGV,
++	$SIGSYS = SIGSYS,
++	$SIGPIPE = SIGPIPE,
++	$SIGALRM = SIGALRM,
++	$SIGTERM = SIGTERM,
++	$SIGURG = SIGURG,
++	$SIGSTOP = SIGSTOP,
++	$SIGTSTP = SIGTSTP,
++	$SIGCONT = SIGCONT,
++	$SIGCHLD = SIGCHLD,
++	$SIGTTIN = SIGTTIN,
++	$SIGTTOU = SIGTTOU,
++	$SIGIO = SIGIO,
++	$SIGXCPU = SIGXCPU,
++	$SIGXFSZ = SIGXFSZ,
++	$SIGVTALRM = SIGVTALRM,
++	$SIGPROF = SIGPROF,
++	$SIGWINCH = SIGWINCH,
++	$SIGINFO = SIGINFO,
++	$SIGUSR1 = SIGUSR1,
++	$SIGUSR2 = SIGUSR2,
++	
++	$FPE_INTDIV = FPE_INTDIV,
++	$FPE_INTOVF = FPE_INTOVF,
++	$FPE_FLTDIV = FPE_FLTDIV,
++	$FPE_FLTOVF = FPE_FLTOVF,
++	$FPE_FLTUND = FPE_FLTUND,
++	$FPE_FLTRES = FPE_FLTRES,
++	$FPE_FLTINV = FPE_FLTINV,
++	$FPE_FLTSUB = FPE_FLTSUB,
++	
++	$BUS_ADRALN = BUS_ADRALN,
++	$BUS_ADRERR = BUS_ADRERR,
++	$BUS_OBJERR = BUS_OBJERR,
++	
++	$SEGV_MAPERR = SEGV_MAPERR,
++	$SEGV_ACCERR = SEGV_ACCERR,
+ };
+ 
+ typedef struct rtprio	$Rtprio;
+diff --git a/src/pkg/runtime/freebsd/signals.h b/src/pkg/runtime/freebsd/signals.h
+index 93ff7eb981..0c41daf844 100644
+--- a/src/pkg/runtime/freebsd/signals.h
++++ b/src/pkg/runtime/freebsd/signals.h
+@@ -6,8 +6,9 @@
+ #define I SigIgnore
+ #define R SigRestart
+ #define Q SigQueue
++#define P SigPanic
+ 
+-static SigTab sigtab[] = {
++SigTab sigtab[] = {
+ 	/* 0 */		0, "SIGNONE: no trap",
+ 	/* 1 */		Q+R, "SIGHUP: terminal line hangup",
+ 	/* 2 */		Q+R, "SIGINT: interrupt",
+@@ -16,10 +17,10 @@ static SigTab sigtab[] = {
+ 	/* 5 */		C, "SIGTRAP: trace trap",
+ 	/* 6 */		C, "SIGABRT: abort",
+ 	/* 7 */		C, "SIGEMT: EMT instruction",
+-	/* 8 */		C, "SIGFPE: floating-point exception",
++	/* 8 */		C+P, "SIGFPE: floating-point exception",
+ 	/* 9 */		0, "SIGKILL: kill",
+-	/* 10 */	C, "SIGBUS: bus error",
+-	/* 11 */	C, "SIGSEGV: segmentation violation",
++	/* 10 */	C+P, "SIGBUS: bus error",
++	/* 11 */	C+P, "SIGSEGV: segmentation violation",
+ 	/* 12 */	C, "SIGSYS: bad system call",
+ 	/* 13 */	I, "SIGPIPE: write to broken pipe",
+ 	/* 14 */	Q+I+R, "SIGALRM: alarm clock",
+@@ -46,5 +47,6 @@ static SigTab sigtab[] = {
+ #undef I
+ #undef R
+ #undef Q
++#undef P
+ 
+ #define	NSIG 33
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index 19c14c5abe..9ee21c5924 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -6,6 +6,8 @@
+ #include "signals.h"
+ #include "os.h"
+ 
++extern SigTab sigtab[];
++
+ // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
+ // thus the code is largely similar. See linux/thread.c for comments.
+ 
+@@ -169,3 +171,27 @@ minit(void)
+ 	m->gsignal = malg(32*1024);
+ 	signalstack(m->gsignal->stackguard, 32*1024);
+ }
++
++void
++sigpanic(void)
++{
++	switch(g->sig) {
++	case SIGBUS:
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
++			panicstring("invalid memory address or nil pointer dereference");
++		break;
++	case SIGSEGV:
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
++			panicstring("invalid memory address or nil pointer dereference");
++		break;
++	case SIGFPE:
++		switch(g->sigcode0) {
++		case FPE_INTDIV:
++			panicstring("integer divide by zero");
++		case FPE_INTOVF:
++			panicstring("integer overflow");
++		}
++		panicstring("floating point error");
++	}
++	panicstring(sigtab[g->sig].name);
++}
+diff --git a/src/pkg/runtime/linux/386/defs.h b/src/pkg/runtime/linux/386/defs.h
+index 94bc2b5b6f..ef8ef05d03 100644
+--- a/src/pkg/runtime/linux/386/defs.h
++++ b/src/pkg/runtime/linux/386/defs.h
+@@ -1,4 +1,4 @@
+-// godefs -f -m32 -f -D_LOOSE_KERNEL_NAMES -f -D__ARCH_SI_UID_T=__kernel_uid32_t defs2.c
++// godefs -f -m32 -f -I/home/rsc/pub/linux-2.6/arch/x86/include -f -I/home/rsc/pub/linux-2.6/include -f -D_LOOSE_KERNEL_NAMES -f -D__ARCH_SI_UID_T=__kernel_uid32_t defs2.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -14,6 +14,49 @@ enum {
+ 	SA_ONSTACK = 0x8000000,
+ 	SA_RESTORER = 0x4000000,
+ 	SA_SIGINFO = 0x4,
++	SIGHUP = 0x1,
++	SIGINT = 0x2,
++	SIGQUIT = 0x3,
++	SIGILL = 0x4,
++	SIGTRAP = 0x5,
++	SIGABRT = 0x6,
++	SIGBUS = 0x7,
++	SIGFPE = 0x8,
++	SIGKILL = 0x9,
++	SIGUSR1 = 0xa,
++	SIGSEGV = 0xb,
++	SIGUSR2 = 0xc,
++	SIGPIPE = 0xd,
++	SIGALRM = 0xe,
++	SIGSTKFLT = 0x10,
++	SIGCHLD = 0x11,
++	SIGCONT = 0x12,
++	SIGSTOP = 0x13,
++	SIGTSTP = 0x14,
++	SIGTTIN = 0x15,
++	SIGTTOU = 0x16,
++	SIGURG = 0x17,
++	SIGXCPU = 0x18,
++	SIGXFSZ = 0x19,
++	SIGVTALRM = 0x1a,
++	SIGPROF = 0x1b,
++	SIGWINCH = 0x1c,
++	SIGIO = 0x1d,
++	SIGPWR = 0x1e,
++	SIGSYS = 0x1f,
++	FPE_INTDIV = 0x1,
++	FPE_INTOVF = 0x2,
++	FPE_FLTDIV = 0x3,
++	FPE_FLTOVF = 0x4,
++	FPE_FLTUND = 0x5,
++	FPE_FLTRES = 0x6,
++	FPE_FLTINV = 0x7,
++	FPE_FLTSUB = 0x8,
++	BUS_ADRALN = 0x1,
++	BUS_ADRERR = 0x2,
++	BUS_OBJERR = 0x3,
++	SEGV_MAPERR = 0x1,
++	SEGV_ACCERR = 0x2,
+ };
+ 
+ // Types
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index 87e6779b5e..fed052f63e 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -45,7 +45,28 @@ void
+ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+-	Sigcontext *sc;
++	Sigcontext *r;
++	uintptr *sp;
++	G *gp;
++
++	uc = context;
++	r = &uc->uc_mcontext;
++
++	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = sig;
++		gp->sigcode0 = info->si_code;
++		gp->sigcode1 = ((uintptr*)info)[3];
++
++		sp = (uintptr*)r->esp;
++		*--sp = r->eip;
++		r->eip = (uintptr)sigpanic;
++		r->esp = (uintptr)sp;
++		return;
++	}
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+ 		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+@@ -57,22 +78,18 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		exit(2);
+ 	panicking = 1;
+ 
+-	uc = context;
+-	sc = &uc->uc_mcontext;
+-
+ 	if(sig < 0 || sig >= NSIG)
+ 		printf("Signal %d\n", sig);
+ 	else
+ 		printf("%s\n", sigtab[sig].name);
+ 
+-	printf("Faulting address: %p\n", *(void**)info->_sifields);
+-	printf("PC=%X\n", sc->eip);
++	printf("PC=%X\n", r->eip);
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)sc->eip, (void*)sc->esp, 0, m->curg);
++		traceback((void*)r->eip, (void*)r->esp, 0, m->curg);
+ 		tracebackothers(m->curg);
+-		dumpregs(sc);
++		dumpregs(r);
+ 	}
+ 
+ 	breakpoint();
+diff --git a/src/pkg/runtime/linux/amd64/defs.h b/src/pkg/runtime/linux/amd64/defs.h
+index 43b0475239..c08e6b25d1 100644
+--- a/src/pkg/runtime/linux/amd64/defs.h
++++ b/src/pkg/runtime/linux/amd64/defs.h
+@@ -14,6 +14,49 @@ enum {
+ 	SA_ONSTACK = 0x8000000,
+ 	SA_RESTORER = 0x4000000,
+ 	SA_SIGINFO = 0x4,
++	SIGHUP = 0x1,
++	SIGINT = 0x2,
++	SIGQUIT = 0x3,
++	SIGILL = 0x4,
++	SIGTRAP = 0x5,
++	SIGABRT = 0x6,
++	SIGBUS = 0x7,
++	SIGFPE = 0x8,
++	SIGKILL = 0x9,
++	SIGUSR1 = 0xa,
++	SIGSEGV = 0xb,
++	SIGUSR2 = 0xc,
++	SIGPIPE = 0xd,
++	SIGALRM = 0xe,
++	SIGSTKFLT = 0x10,
++	SIGCHLD = 0x11,
++	SIGCONT = 0x12,
++	SIGSTOP = 0x13,
++	SIGTSTP = 0x14,
++	SIGTTIN = 0x15,
++	SIGTTOU = 0x16,
++	SIGURG = 0x17,
++	SIGXCPU = 0x18,
++	SIGXFSZ = 0x19,
++	SIGVTALRM = 0x1a,
++	SIGPROF = 0x1b,
++	SIGWINCH = 0x1c,
++	SIGIO = 0x1d,
++	SIGPWR = 0x1e,
++	SIGSYS = 0x1f,
++	FPE_INTDIV = 0x1,
++	FPE_INTOVF = 0x2,
++	FPE_FLTDIV = 0x3,
++	FPE_FLTOVF = 0x4,
++	FPE_FLTUND = 0x5,
++	FPE_FLTRES = 0x6,
++	FPE_FLTINV = 0x7,
++	FPE_FLTSUB = 0x8,
++	BUS_ADRALN = 0x1,
++	BUS_ADRERR = 0x2,
++	BUS_OBJERR = 0x3,
++	SEGV_MAPERR = 0x1,
++	SEGV_ACCERR = 0x2,
+ };
+ 
+ // Types
+@@ -116,6 +159,12 @@ struct Fpstate1 {
+ 	uint32 padding[24];
+ };
+ 
++typedef struct Fpreg1 Fpreg1;
++struct Fpreg1 {
++	uint16 significand[4];
++	uint16 exponent;
++};
++
+ typedef struct Sigaltstack Sigaltstack;
+ struct Sigaltstack {
+ 	void *ss_sp;
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index 87a5a638b3..57cdea1322 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -54,7 +54,29 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *mc;
+-	Sigcontext *sc;
++	Sigcontext *r;
++	uintptr *sp;
++	G *gp;
++
++	uc = context;
++	mc = &uc->uc_mcontext;
++	r = (Sigcontext*)mc;	// same layout, more conveient names
++
++	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = sig;
++		gp->sigcode0 = info->si_code;
++		gp->sigcode1 = ((uintptr*)info)[2];
++
++		sp = (uintptr*)r->rsp;
++		*--sp = r->rip;
++		r->rip = (uintptr)sigpanic;
++		r->rsp = (uintptr)sp;
++		return;
++	}
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+ 		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+@@ -66,23 +88,18 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		exit(2);
+ 	panicking = 1;
+ 
+-	uc = context;
+-	mc = &uc->uc_mcontext;
+-	sc = (Sigcontext*)mc;	// same layout, more conveient names
+-
+ 	if(sig < 0 || sig >= NSIG)
+ 		printf("Signal %d\n", sig);
+ 	else
+ 		printf("%s\n", sigtab[sig].name);
+ 
+-	printf("Faulting address: %p\n", *(void**)info->_sifields);
+-	printf("PC=%X\n", sc->rip);
++	printf("PC=%X\n", r->rip);
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)sc->rip, (void*)sc->rsp, 0, (void*)sc->r15);
+-		tracebackothers((void*)sc->r15);
+-		dumpregs(sc);
++		traceback((void*)r->rip, (void*)r->rsp, 0, (void*)r->r15);
++		tracebackothers((void*)r->r15);
++		dumpregs(r);
+ 	}
+ 
+ 	breakpoint();
+diff --git a/src/pkg/runtime/linux/arm/defs.h b/src/pkg/runtime/linux/arm/defs.h
+index 2159831588..b139851715 100644
+--- a/src/pkg/runtime/linux/arm/defs.h
++++ b/src/pkg/runtime/linux/arm/defs.h
+@@ -14,6 +14,49 @@ enum {
+ 	SA_ONSTACK = 0x8000000,
+ 	SA_RESTORER = 0x4000000,
+ 	SA_SIGINFO = 0x4,
++	SIGHUP = 0x1,
++	SIGINT = 0x2,
++	SIGQUIT = 0x3,
++	SIGILL = 0x4,
++	SIGTRAP = 0x5,
++	SIGABRT = 0x6,
++	SIGBUS = 0x7,
++	SIGFPE = 0x8,
++	SIGKILL = 0x9,
++	SIGUSR1 = 0xa,
++	SIGSEGV = 0xb,
++	SIGUSR2 = 0xc,
++	SIGPIPE = 0xd,
++	SIGALRM = 0xe,
++	SIGSTKFLT = 0x10,
++	SIGCHLD = 0x11,
++	SIGCONT = 0x12,
++	SIGSTOP = 0x13,
++	SIGTSTP = 0x14,
++	SIGTTIN = 0x15,
++	SIGTTOU = 0x16,
++	SIGURG = 0x17,
++	SIGXCPU = 0x18,
++	SIGXFSZ = 0x19,
++	SIGVTALRM = 0x1a,
++	SIGPROF = 0x1b,
++	SIGWINCH = 0x1c,
++	SIGIO = 0x1d,
++	SIGPWR = 0x1e,
++	SIGSYS = 0x1f,
++	FPE_INTDIV = 0x30001,
++	FPE_INTOVF = 0x30002,
++	FPE_FLTDIV = 0x30003,
++	FPE_FLTOVF = 0x30004,
++	FPE_FLTUND = 0x30005,
++	FPE_FLTRES = 0x30006,
++	FPE_FLTINV = 0x30007,
++	FPE_FLTSUB = 0x30008,
++	BUS_ADRALN = 0x30001,
++	BUS_ADRERR = 0x30002,
++	BUS_OBJERR = 0x30003,
++	SEGV_MAPERR = 0x30001,
++	SEGV_ACCERR = 0x30002,
+ };
+ 
+ // Types
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index d1d8bc08c7..6cc4ac9bea 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -53,7 +53,27 @@ void
+ sighandler(int32 sig, Siginfo *info, void *context)
+ {
+ 	Ucontext *uc;
+-	Sigcontext *sc;
++	Sigcontext *r;
++	G *gp;
++
++	uc = context;
++	r = &uc->uc_mcontext;
++
++	if((gp = m->curg) != nil && (sigtab[sig].flags & SigPanic)) {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = sig;
++		gp->sigcode0 = info->si_code;
++		gp->sigcode1 = r->fault_address;
++
++		// If this is a leaf function, we do smash LR,
++		// but we're not going back there anyway.
++		r->arm_lr = r->arm_pc;
++		r->arm_pc = (uintptr)sigpanic;
++		return;
++	}
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+ 		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
+@@ -70,18 +90,14 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	else
+ 		printf("%s\n", sigtab[sig].name);
+ 
+-	uc = context;
+-	sc = &uc->uc_mcontext;
+-
+-	printf("Faulting address: %p\n", sc->fault_address);
+-	printf("PC=%x\n", sc->arm_pc);
++	printf("PC=%x\n", r->arm_pc);
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)sc->arm_pc, (void*)sc->arm_sp, (void*)sc->arm_lr, m->curg);
++		traceback((void*)r->arm_pc, (void*)r->arm_sp, (void*)r->arm_lr, m->curg);
+ 		tracebackothers(m->curg);
+ 		printf("\n");
+-		dumpregs(sc);
++		dumpregs(r);
+ 	}
+ 
+ //	breakpoint();
+diff --git a/src/pkg/runtime/linux/defs.c b/src/pkg/runtime/linux/defs.c
+index 35fa029532..f3bdb61fa2 100644
+--- a/src/pkg/runtime/linux/defs.c
++++ b/src/pkg/runtime/linux/defs.c
+@@ -32,6 +32,53 @@ enum {
+ 	$SA_ONSTACK = SA_ONSTACK,
+ 	$SA_RESTORER = SA_RESTORER,
+ 	$SA_SIGINFO = SA_SIGINFO,
++	
++	$SIGHUP = SIGHUP,
++	$SIGINT = SIGINT,
++	$SIGQUIT = SIGQUIT,
++	$SIGILL = SIGILL,
++	$SIGTRAP = SIGTRAP,
++	$SIGABRT = SIGABRT,
++	$SIGBUS = SIGBUS,
++	$SIGFPE = SIGFPE,
++	$SIGKILL = SIGKILL,
++	$SIGUSR1 = SIGUSR1,
++	$SIGSEGV = SIGSEGV,
++	$SIGUSR2 = SIGUSR2,
++	$SIGPIPE = SIGPIPE,
++	$SIGALRM = SIGALRM,
++	$SIGSTKFLT = SIGSTKFLT,
++	$SIGCHLD = SIGCHLD,
++	$SIGCONT = SIGCONT,
++	$SIGSTOP = SIGSTOP,
++	$SIGTSTP = SIGTSTP,
++	$SIGTTIN = SIGTTIN,
++	$SIGTTOU = SIGTTOU,
++	$SIGURG = SIGURG,
++	$SIGXCPU = SIGXCPU,
++	$SIGXFSZ = SIGXFSZ,
++	$SIGVTALRM = SIGVTALRM,
++	$SIGPROF = SIGPROF,
++	$SIGWINCH = SIGWINCH,
++	$SIGIO = SIGIO,
++	$SIGPWR = SIGPWR,
++	$SIGSYS = SIGSYS,
++	
++	$FPE_INTDIV = FPE_INTDIV,
++	$FPE_INTOVF = FPE_INTOVF,
++	$FPE_FLTDIV = FPE_FLTDIV,
++	$FPE_FLTOVF = FPE_FLTOVF,
++	$FPE_FLTUND = FPE_FLTUND,
++	$FPE_FLTRES = FPE_FLTRES,
++	$FPE_FLTINV = FPE_FLTINV,
++	$FPE_FLTSUB = FPE_FLTSUB,
++	
++	$BUS_ADRALN = BUS_ADRALN,
++	$BUS_ADRERR = BUS_ADRERR,
++	$BUS_OBJERR = BUS_OBJERR,
++	
++	$SEGV_MAPERR = SEGV_MAPERR,
++	$SEGV_ACCERR = SEGV_ACCERR,
+ };
+ 
+ typedef struct timespec $Timespec;
+diff --git a/src/pkg/runtime/linux/defs1.c b/src/pkg/runtime/linux/defs1.c
+index 0fe3506ad6..e737f8e9ef 100644
+--- a/src/pkg/runtime/linux/defs1.c
++++ b/src/pkg/runtime/linux/defs1.c
+@@ -14,7 +14,6 @@ typedef __sigset_t $Usigset;
+ typedef struct _libc_fpxreg $Fpxreg;
+ typedef struct _libc_xmmreg $Xmmreg;
+ typedef struct _libc_fpstate $Fpstate;
+-typedef struct _libc_fpreg $Fpreg;
+ typedef struct _fpxreg $Fpxreg1;
+ typedef struct _xmmreg $Xmmreg1;
+ typedef struct _fpstate $Fpstate1;
+diff --git a/src/pkg/runtime/linux/defs2.c b/src/pkg/runtime/linux/defs2.c
+index a91086aa50..4cfe4a7ed0 100644
+--- a/src/pkg/runtime/linux/defs2.c
++++ b/src/pkg/runtime/linux/defs2.c
+@@ -4,7 +4,12 @@
+ 
+ /*
+  * Input to godefs
+-	godefs -f -m32 -f -I/home/rsc/pub/linux-2.6/arch/x86/include -f -I/home/rsc/pub/linux-2.6/include defs2.c >386/defs.h
++	godefs -f -m32 \
++		-f -I/home/rsc/pub/linux-2.6/arch/x86/include \
++		-f -I/home/rsc/pub/linux-2.6/include \
++		-f -D_LOOSE_KERNEL_NAMES \
++		-f -D__ARCH_SI_UID_T=__kernel_uid32_t \
++		defs2.c >386/defs.h
+ 
+  * The asm header tricks we have to use for Linux on amd64
+  * (see defs.c and defs1.c) don't work here, so this is yet another
+@@ -47,6 +52,53 @@ enum {
+ 	$SA_ONSTACK = SA_ONSTACK,
+ 	$SA_RESTORER = SA_RESTORER,
+ 	$SA_SIGINFO = SA_SIGINFO,
++
++	$SIGHUP = SIGHUP,
++	$SIGINT = SIGINT,
++	$SIGQUIT = SIGQUIT,
++	$SIGILL = SIGILL,
++	$SIGTRAP = SIGTRAP,
++	$SIGABRT = SIGABRT,
++	$SIGBUS = SIGBUS,
++	$SIGFPE = SIGFPE,
++	$SIGKILL = SIGKILL,
++	$SIGUSR1 = SIGUSR1,
++	$SIGSEGV = SIGSEGV,
++	$SIGUSR2 = SIGUSR2,
++	$SIGPIPE = SIGPIPE,
++	$SIGALRM = SIGALRM,
++	$SIGSTKFLT = SIGSTKFLT,
++	$SIGCHLD = SIGCHLD,
++	$SIGCONT = SIGCONT,
++	$SIGSTOP = SIGSTOP,
++	$SIGTSTP = SIGTSTP,
++	$SIGTTIN = SIGTTIN,
++	$SIGTTOU = SIGTTOU,
++	$SIGURG = SIGURG,
++	$SIGXCPU = SIGXCPU,
++	$SIGXFSZ = SIGXFSZ,
++	$SIGVTALRM = SIGVTALRM,
++	$SIGPROF = SIGPROF,
++	$SIGWINCH = SIGWINCH,
++	$SIGIO = SIGIO,
++	$SIGPWR = SIGPWR,
++	$SIGSYS = SIGSYS,
++	
++	$FPE_INTDIV = FPE_INTDIV,
++	$FPE_INTOVF = FPE_INTOVF,
++	$FPE_FLTDIV = FPE_FLTDIV,
++	$FPE_FLTOVF = FPE_FLTOVF,
++	$FPE_FLTUND = FPE_FLTUND,
++	$FPE_FLTRES = FPE_FLTRES,
++	$FPE_FLTINV = FPE_FLTINV,
++	$FPE_FLTSUB = FPE_FLTSUB,
++	
++	$BUS_ADRALN = BUS_ADRALN,
++	$BUS_ADRERR = BUS_ADRERR,
++	$BUS_OBJERR = BUS_OBJERR,
++	
++	$SEGV_MAPERR = SEGV_MAPERR,
++	$SEGV_ACCERR = SEGV_ACCERR,
+ };
+ 
+ typedef struct _fpreg $Fpreg;
+diff --git a/src/pkg/runtime/linux/defs_arm.c b/src/pkg/runtime/linux/defs_arm.c
+index 01d6bfcdc1..2b197272c6 100644
+--- a/src/pkg/runtime/linux/defs_arm.c
++++ b/src/pkg/runtime/linux/defs_arm.c
+@@ -35,7 +35,54 @@ enum {
+ 	$SA_RESTART = SA_RESTART,
+ 	$SA_ONSTACK = SA_ONSTACK,
+ 	$SA_RESTORER = SA_RESTORER,
+-	$SA_SIGINFO = SA_SIGINFO
++	$SA_SIGINFO = SA_SIGINFO,
++
++	$SIGHUP = SIGHUP,
++	$SIGINT = SIGINT,
++	$SIGQUIT = SIGQUIT,
++	$SIGILL = SIGILL,
++	$SIGTRAP = SIGTRAP,
++	$SIGABRT = SIGABRT,
++	$SIGBUS = SIGBUS,
++	$SIGFPE = SIGFPE,
++	$SIGKILL = SIGKILL,
++	$SIGUSR1 = SIGUSR1,
++	$SIGSEGV = SIGSEGV,
++	$SIGUSR2 = SIGUSR2,
++	$SIGPIPE = SIGPIPE,
++	$SIGALRM = SIGALRM,
++	$SIGSTKFLT = SIGSTKFLT,
++	$SIGCHLD = SIGCHLD,
++	$SIGCONT = SIGCONT,
++	$SIGSTOP = SIGSTOP,
++	$SIGTSTP = SIGTSTP,
++	$SIGTTIN = SIGTTIN,
++	$SIGTTOU = SIGTTOU,
++	$SIGURG = SIGURG,
++	$SIGXCPU = SIGXCPU,
++	$SIGXFSZ = SIGXFSZ,
++	$SIGVTALRM = SIGVTALRM,
++	$SIGPROF = SIGPROF,
++	$SIGWINCH = SIGWINCH,
++	$SIGIO = SIGIO,
++	$SIGPWR = SIGPWR,
++	$SIGSYS = SIGSYS,
++	
++	$FPE_INTDIV = FPE_INTDIV,
++	$FPE_INTOVF = FPE_INTOVF,
++	$FPE_FLTDIV = FPE_FLTDIV,
++	$FPE_FLTOVF = FPE_FLTOVF,
++	$FPE_FLTUND = FPE_FLTUND,
++	$FPE_FLTRES = FPE_FLTRES,
++	$FPE_FLTINV = FPE_FLTINV,
++	$FPE_FLTSUB = FPE_FLTSUB,
++	
++	$BUS_ADRALN = BUS_ADRALN,
++	$BUS_ADRERR = BUS_ADRERR,
++	$BUS_OBJERR = BUS_OBJERR,
++	
++	$SEGV_MAPERR = SEGV_MAPERR,
++	$SEGV_ACCERR = SEGV_ACCERR,
+ };
+ 
+ typedef sigset_t $Sigset;
+diff --git a/src/pkg/runtime/linux/os.h b/src/pkg/runtime/linux/os.h
+index 387fd43215..8ca26b7486 100644
+--- a/src/pkg/runtime/linux/os.h
++++ b/src/pkg/runtime/linux/os.h
+@@ -10,3 +10,4 @@ struct Sigaction;
+ void	rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
+ 
+ void	sigaltstack(Sigaltstack*, Sigaltstack*);
++void	sigpanic(void);
+diff --git a/src/pkg/runtime/linux/signals.h b/src/pkg/runtime/linux/signals.h
+index dbc87db25c..788f682407 100644
+--- a/src/pkg/runtime/linux/signals.h
++++ b/src/pkg/runtime/linux/signals.h
+@@ -6,8 +6,9 @@
+ #define I SigIgnore
+ #define R SigRestart
+ #define Q SigQueue
++#define P SigPanic
+ 
+-static SigTab sigtab[] = {
++SigTab sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+ 	/* 1 */	Q+R, "SIGHUP: terminal line hangup",
+ 	/* 2 */	Q+R, "SIGINT: interrupt",
+@@ -15,11 +16,11 @@ static SigTab sigtab[] = {
+ 	/* 4 */	C, "SIGILL: illegal instruction",
+ 	/* 5 */	C, "SIGTRAP: trace trap",
+ 	/* 6 */	C, "SIGABRT: abort",
+-	/* 7 */	C, "SIGBUS: bus error",
+-	/* 8 */	C, "SIGFPE: floating-point exception",
++	/* 7 */	C+P, "SIGBUS: bus error",
++	/* 8 */	C+P, "SIGFPE: floating-point exception",
+ 	/* 9 */	0, "SIGKILL: kill",
+ 	/* 10 */	Q+I+R, "SIGUSR1: user-defined signal 1",
+-	/* 11 */	C, "SIGSEGV: segmentation violation",
++	/* 11 */	C+P, "SIGSEGV: segmentation violation",
+ 	/* 12 */	Q+I+R, "SIGUSR2: user-defined signal 2",
+ 	/* 13 */	I, "SIGPIPE: write to broken pipe",
+ 	/* 14 */	Q+I+R, "SIGALRM: alarm clock",
+@@ -45,5 +46,6 @@ static SigTab sigtab[] = {
+ #undef I
+ #undef R
+ #undef Q
++#undef P
+ 
+ #define	NSIG 32
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index d6811eb378..a849125f94 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -4,9 +4,10 @@
+ 
+ #include "runtime.h"
+ #include "defs.h"
+-#include "signals.h"
+ #include "os.h"
+ 
++extern SigTab sigtab[];
++
+ // Linux futex.
+ //
+ //	futexsleep(uint32 *addr, uint32 val)
+@@ -270,3 +271,27 @@ minit(void)
+ 	m->gsignal = malg(32*1024);	// OS X wants >=8K, Linux >=2K
+ 	signalstack(m->gsignal->stackguard, 32*1024);
+ }
++
++void
++sigpanic(void)
++{
++	switch(g->sig) {
++	case SIGBUS:
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
++			panicstring("invalid memory address or nil pointer dereference");
++		break;
++	case SIGSEGV:
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
++			panicstring("invalid memory address or nil pointer dereference");
++		break;
++	case SIGFPE:
++		switch(g->sigcode0) {
++		case FPE_INTDIV:
++			panicstring("integer divide by zero");
++		case FPE_INTOVF:
++			panicstring("integer overflow");
++		}
++		panicstring("floating point error");
++	}
++	panicstring(sigtab[g->sig].name);
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 26ce4b635c..f3297e7e05 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -198,6 +198,9 @@ struct	G
+ 	M*	lockedm;
+ 	void	(*cgofn)(void*);	// for cgo/ffi
+ 	void	*cgoarg;
++	int32	sig;
++	uintptr	sigcode0;
++	uintptr	sigcode1;
+ };
+ struct	M
+ {
+@@ -268,6 +271,7 @@ enum
+ 	SigIgnore = 1<<1,
+ 	SigRestart = 1<<2,
+ 	SigQueue = 1<<3,
++	SigPanic = 1<<4,
+ };
+ 
+ // NOTE(rsc): keep in sync with extern.go:/type.Func.
+diff --git a/test/recover3.go b/test/recover3.go
+new file mode 100644
+index 0000000000..f719b0ced1
+--- /dev/null
++++ b/test/recover3.go
+@@ -0,0 +1,78 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"runtime"
++	"strings"
++	"syscall"
++)
++
++var didbug bool
++
++func bug() {
++	if didbug {
++		return
++	}
++	println("BUG")
++	didbug = true
++}
++
++func check(name string, f func(), err string) {
++	defer func() {
++		v := recover()
++		if v == nil {
++			bug()
++			println(name, "did not panic")
++			return
++		}
++		runt, ok := v.(runtime.Error)
++		if !ok {
++			bug()
++			println(name, "panicked but not with runtime.Error")
++			return
++		}
++		s := runt.String()
++		if strings.Index(s, err) < 0 {
++			bug()
++			println(name, "panicked with", s, "not", err)
++			return
++		}
++	}()
++	
++	f()
++}
++
++func main() {
++	var x int
++	var x64 int64
++	var p *[10]int
++	var q *[10000]int
++	var i int
++
++	// not catching divide by zero on the arm.  is that even possible?
++	if syscall.ARCH != "arm" {
++		check("int-div-zero", func() { println(1/x) }, "integer divide by zero")
++		check("int64-div-zero", func() { println(1/x64) }, "integer divide by zero")
++	}
++
++	check("nil-deref", func() { println(p[0]) }, "nil pointer dereference")
++	check("nil-deref-1", func() { println(p[1]) }, "nil pointer dereference")
++	check("nil-deref-big", func() { println(q[5000]) }, "nil pointer dereference")
++
++	i = 99999
++	var sl []int
++	check("array-bounds", func() { println(p[i]) }, "index out of range")
++	check("slice-bounds", func() { println(sl[i]) }, "index out of range")
++	
++	var inter interface{}
++	inter = 1
++	check("type-concrete", func() { println(inter.(string)) }, "int, not string")
++	check("type-interface", func() { println(inter.(m)) }, "missing method m")
++}
++
++type m interface{ m() }

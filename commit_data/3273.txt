@@ -8,7 +8,7 @@ Date:   Tue Sep 15 12:42:24 2009 -0700
     DELTA=127  (38 added, 3 deleted, 86 changed)
     OCL=34640
     CL=34650
-
+---
  doc/progs/sortmain.go                  |   2 +-
  test/assign.go                         |   4 ++
  test/bench/chameneosredux.go           |   2 +-
@@ -39,3 +39,811 @@ Date:   Tue Sep 15 12:42:24 2009 -0700
  test/range.go                          |   2 +-
  usr/dsymonds/iterable/iterable_test.go |   2 +-
  29 files changed, 116 insertions(+), 81 deletions(-)
+
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index 3dca963440..63d68ff05c 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -55,7 +55,7 @@ func days() {
+ 	if !sort.IsSorted(&a) {
+ 		panic()
+ 	}
+-	for i, d := range data {
++	for _, d := range data {
+ 		fmt.Printf("%s ", d.long_name)
+ 	}
+ 	fmt.Printf("\n")
+diff --git a/test/assign.go b/test/assign.go
+index 9fe9ea0791..acddefef6d 100644
+--- a/test/assign.go
++++ b/test/assign.go
+@@ -17,17 +17,21 @@ func main() {
+ 	{
+ 		var x, y sync.Mutex;
+ 		x = y;	// ERROR "assignment\[ -~\]*Mutex"
++		_ = x;
+ 	}
+ 	{
+ 		var x, y T;
+ 		x = y;	// ERROR "assignment\[ -~\]*Mutex"
++		_ = x;
+ 	}
+ 	{
+ 		var x, y [2]sync.Mutex;
+ 		x = y;	// ERROR "assignment\[ -~\]*Mutex"
++		_ = x;
+ 	}
+ 	{
+ 		var x, y [2]T;
+ 		x = y;	// ERROR "assignment\[ -~\]*Mutex"
++		_ = x;
+ 	}
+ }
+diff --git a/test/bench/chameneosredux.go b/test/bench/chameneosredux.go
+index a8cd85454f..e89e69b7dc 100644
+--- a/test/bench/chameneosredux.go
++++ b/test/bench/chameneosredux.go
+@@ -175,7 +175,7 @@ func play(ref *Referee, color []Color) {
+ 	fmt.Printf("\n");
+ 	<-ref.done;
+ 	total := 0;
+-	for i, c := range cham {
++	for _, c := range cham {
+ 		total += c.count;
+ 		fmt.Printf("%d %s\n", c.count, say(c.same));
+ 	}
+diff --git a/test/bench/regex-dna.go b/test/bench/regex-dna.go
+index 637cb14542..f42efc6d4d 100644
+--- a/test/bench/regex-dna.go
++++ b/test/bench/regex-dna.go
+@@ -106,10 +106,10 @@ func main() {
+ 	// Delete the comment lines and newlines
+ 	bytes = compile("(>[^\n]+)?\n").ReplaceAll(bytes, []byte{});
+ 	clen := len(bytes);
+-	for i, s := range variants {
++	for _, s := range variants {
+ 		fmt.Printf("%s %d\n", s, countMatches(s, bytes));
+ 	}
+-	for i, sub := range substs {
++	for _, sub := range substs {
+ 		bytes = compile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl));
+ 	}
+ 	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(bytes));
+diff --git a/test/bugs/bug193.go b/test/bugs/bug193.go
+index df768b930f..f6b03e13d2 100644
+--- a/test/bugs/bug193.go
++++ b/test/bugs/bug193.go
+@@ -12,4 +12,5 @@ func main() {
+ 	y1 := float(ss);
+ 	y2 := float(1<<s);  // ERROR "shift"
+ 	y3 := string(1<<s);  // ERROR "shift"
++	_, _, _, _, _ = s, ss, y1, y2, y3;
+ }
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index b19cbf3261..502e787a5b 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -22,27 +22,36 @@ func main() {
+ 
+ 	c <- 0;		// ok
+ 	ok := c <- 0;	// ok
++	_ = ok;
+ 	<-c;		// ok
+ 	x, ok := <-c;	// ok
++	_, _ = x, ok;
+ 
+ 	cr <- 0;	// ERROR "send"
+ 	ok = cr <- 0;	// ERROR "send"
++	_ = ok;
+ 	<-cr;		// ok
+ 	x, ok = <-cr;	// ok
++	_, _ = x, ok;
+ 
+ 	cs <- 0;	// ok
+ 	ok = cs <- 0;	// ok
++	_ = ok;
+ 	<-cs;		// ERROR "receive"
+ 	x, ok = <-cs;	// ERROR "receive"
++	_, _ = x, ok;
+ 
+ 	select {
+ 	case c <- 0:	// ok
+ 	case x := <-c:	// ok
++		_ = x;
+ 
+ 	case cr <- 0:	// ERROR "send"
+ 	case x := <-cr:	// ok
++		_ = x;
+ 
+ 	case cs <- 0:	// ok;
+ 	case x := <-cs:	// ERROR "receive"
++		_ = x;
+ 	}
+ }
+diff --git a/test/decl.go b/test/decl.go
+index 273d0ecffc..6e8cbab205 100644
+--- a/test/decl.go
++++ b/test/decl.go
+@@ -14,6 +14,7 @@ func f3() (float, int, string) { return 1, 2, "3" }
+ 
+ func x() (s string) {
+ 	a, b, s := f3();
++	_, _ = a, b;
+ 	return	// tests that result var is in scope for redeclaration
+ }
+ 
+diff --git a/test/declbad.go b/test/declbad.go
+index 04f5ac04b8..5fbb04ab5d 100644
+--- a/test/declbad.go
++++ b/test/declbad.go
+@@ -17,35 +17,42 @@ func main() {
+ 		// simple redeclaration
+ 		i := f1();
+ 		i := f1();	// ERROR "redeclared|no new"
++		_ = i;
+ 	}
+ 	{
+ 		// change of type for f
+ 		i, f, s := f3();
+ 		f, g, t := f3();	// ERROR "redeclared|cannot assign|incompatible"
++		_, _, _, _, _ = i, f, s, g, t;
+ 	}
+ 	{
+ 		// change of type for i
+ 		i, f, s := f3();
+ 		j, i, t := f3();	// ERROR "redeclared|cannot assign|incompatible"
++		_, _, _, _, _ = i, f, s, j, t;
+ 	}
+ 	{
+ 		// no new variables
+ 		i, f, s := f3();
+ 		i, f := f2();	// ERROR "redeclared|no new"
++		_, _, _ = i, f, s;
+ 	}
+ 	{
+ 		// single redeclaration
+ 		i, f, s := f3();
+ 		i := f1();		// ERROR "redeclared|no new|incompatible"
++		_, _, _ = i, f, s;
+ 	}
+ 		// double redeclaration
+ 	{
+ 		i, f, s := f3();
+ 		i, f := f2();	// ERROR "redeclared|no new"
++		_, _, _ = i, f, s;
+ 	}
+ 	{
+ 		// triple redeclaration
+ 		i, f, s := f3();
+ 		i, f, s := f3();	// ERROR "redeclared|no new"
++		_, _, _ = i, f, s;
+ 	}
+ }
+diff --git a/test/escape.go b/test/escape.go
+index d2534c60dd..2c5881d49c 100644
+--- a/test/escape.go
++++ b/test/escape.go
+@@ -112,7 +112,7 @@ func select_escapes1(x int, y int) (*int, *int) {
+ func range_escapes(x int) *int {
+ 	var a [1]int;
+ 	a[0] = x;
+-	for k, v := range a {
++	for _, v := range a {
+ 		return &v;
+ 	}
+ 	return nil;
+diff --git a/test/fixedbugs/bug022.go b/test/fixedbugs/bug022.go
+index 0250135a52..f94a585693 100644
+--- a/test/fixedbugs/bug022.go
++++ b/test/fixedbugs/bug022.go
+@@ -10,6 +10,7 @@ func putint(digits *string) {
+ 	var i byte;
+ 	i = (*digits)[7];  // compiles
+ 	i = digits[7];  // ERROR "illegal|is not|invalid"
++	_ = i;
+ }
+ 
+ func main() {
+diff --git a/test/fixedbugs/bug030.go b/test/fixedbugs/bug030.go
+index e1fce0180d..7efde9b445 100644
+--- a/test/fixedbugs/bug030.go
++++ b/test/fixedbugs/bug030.go
+@@ -9,4 +9,5 @@ package main
+ func main() {
+ 	var x int;
+ 	x := 0; // ERROR "declar|:="
++	_ = x;
+ }
+diff --git a/test/fixedbugs/bug047.go b/test/fixedbugs/bug047.go
+index 805647b3d9..f3749e7397 100644
+--- a/test/fixedbugs/bug047.go
++++ b/test/fixedbugs/bug047.go
+@@ -18,4 +18,6 @@ func main() {
+ 
+ 	type M map[int] int;
+ 	m0 := M{7:8};
++
++	_, _ = t, m0;
+ }
+diff --git a/test/fixedbugs/bug048.go b/test/fixedbugs/bug048.go
+index fbfc120131..b9fee7899c 100644
+--- a/test/fixedbugs/bug048.go
++++ b/test/fixedbugs/bug048.go
+@@ -9,4 +9,5 @@ package main
+ func main() {
+ 	type M map[int] int;
+ 	m1 := M{7 : 8};
++	_ = m1;
+ }
+diff --git a/test/fixedbugs/bug056.go b/test/fixedbugs/bug056.go
+index d816b74686..050a4a5c5d 100644
+--- a/test/fixedbugs/bug056.go
++++ b/test/fixedbugs/bug056.go
+@@ -12,6 +12,7 @@ func frexp() (a int, b float64) {
+ 
+ func main() {
+ 	a, b := frexp();
++	_, _ = a, b;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug065.go b/test/fixedbugs/bug065.go
+index 7ff373eb01..a5d1bedddb 100644
+--- a/test/fixedbugs/bug065.go
++++ b/test/fixedbugs/bug065.go
+@@ -8,4 +8,5 @@ package main
+ 
+ func main() {
+ 	k, l, m := 0,0,0;
++	_, _, _ = k, l, m;
+ }
+diff --git a/test/fixedbugs/bug143.go b/test/fixedbugs/bug143.go
+index af96075066..2f575fcfed 100644
+--- a/test/fixedbugs/bug143.go
++++ b/test/fixedbugs/bug143.go
+@@ -18,13 +18,16 @@ func main() {
+ 	mp := &m;
+ 
+ 	{
+-		x, ok := m["key"]
++		x, ok := m["key"];
++		_, _ = x, ok;
+ 	}
+ 	{
+-		x, ok := (*mp)["key"]
++		x, ok := (*mp)["key"];
++		_, _ = x, ok;
+ 	}
+ 	{
+-		x, ok := f()["key"]
++		x, ok := f()["key"];
++		_, _ = x, ok;
+ 	}
+ 	{
+ 		var x int;
+diff --git a/test/fixedbugs/bug146.go b/test/fixedbugs/bug146.go
+index 41a6d3afd9..bfb7529d6a 100644
+--- a/test/fixedbugs/bug146.go
++++ b/test/fixedbugs/bug146.go
+@@ -11,4 +11,5 @@ func main() {
+ 	a := [...]byte{ 0 };
+ 	b := Slice(&a);		// This should be OK.
+ 	c := Slice(a);		// ERROR "invalid|illegal|cannot"
++	_, _ = b, c;
+ }
+diff --git a/test/fixedbugs/bug152.go b/test/fixedbugs/bug152.go
+index 29cb1a065b..30c3cac91f 100644
+--- a/test/fixedbugs/bug152.go
++++ b/test/fixedbugs/bug152.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func main() {
+ 	s := 0;
+-	for i, v := range []int{1} {
++	for _, v := range []int{1} {
+ 		s += v;
+ 	}
+ 	if s != 1 {
+diff --git a/test/fixedbugs/bug173.go b/test/fixedbugs/bug173.go
+index a9e07e9d93..898b8400ba 100644
+--- a/test/fixedbugs/bug173.go
++++ b/test/fixedbugs/bug173.go
+@@ -14,8 +14,8 @@ type T string
+ func main() {
+ 	var t T = "hello";
+ 	println(t[0:4], t[4]);
+-	for i, x := range t {
++	for _, _ = range t {
+ 	}
+-	for i := range t {
++	for _ = range t {
+ 	}
+ }
+diff --git a/test/fixedbugs/bug183.go b/test/fixedbugs/bug183.go
+index 47f8bfe746..7fd6e4942f 100644
+--- a/test/fixedbugs/bug183.go
++++ b/test/fixedbugs/bug183.go
+@@ -11,7 +11,8 @@ type T int
+ func f() {
+ 	var x struct { T };
+ 	var y struct { T T };
+-	x = y	// ERROR "cannot|incompatible"
++	x = y;	// ERROR "cannot|incompatible"
++	_ = x;
+ }
+ 
+ type T1 struct { T }
+@@ -20,6 +21,7 @@ type T2 struct { T T }
+ func g() {
+ 	var x T1;
+ 	var y T2;
+-	x = y	// ERROR "cannot|incompatible"
++	x = y;	// ERROR "cannot|incompatible"
++	_ = x;
+ }
+ 
+diff --git a/test/fixedbugs/bug184.go b/test/fixedbugs/bug184.go
+index 95a76d081c..363af6c857 100644
+--- a/test/fixedbugs/bug184.go
++++ b/test/fixedbugs/bug184.go
+@@ -39,9 +39,11 @@ func fmter() (s string, i int, t string) {
+ func main() {
+ 	b := g();
+ 	bb, ok := b.(*Buffer);
++	_, _, _ = b, bb, ok;
+ 
+ 	b, ok = i();
+ 	bb, ok = b.(*Buffer);
++	_, _, _ = b, bb, ok;
+ 
+ 	s := fmt.Sprintf(fmter());
+ 	if s != "0x64 \"hello\"" {
+diff --git a/test/fixedbugs/bug189.go b/test/fixedbugs/bug189.go
+index d585ac463d..ce338305cd 100644
+--- a/test/fixedbugs/bug189.go
++++ b/test/fixedbugs/bug189.go
+@@ -14,4 +14,5 @@ func main() {
+ 	s1 := S{a: 7};	// ok - field is named
+ 	s3 := S{7, 11};	// ok - all fields have values
+ 	s2 := S{7};	// ERROR "too few"
++	_, _, _ = s1, s3, s2;
+ }
+diff --git a/test/fixedbugs/bug201.go b/test/fixedbugs/bug201.go
+index 81989ffa36..e72d8f9b9b 100644
+--- a/test/fixedbugs/bug201.go
++++ b/test/fixedbugs/bug201.go
+@@ -16,18 +16,18 @@ func (MyInt) m(*T1) { }
+ func main() {
+ 	{
+ 		var i interface{} = new(T1);
+-		v1, ok1 := i.(*T1);
+-		v2, ok2 := i.(*T2);
+-		v3, ok3 := i.(*T3);
++		_, ok1 := i.(*T1);
++		_, ok2 := i.(*T2);
++		_, ok3 := i.(*T3);
+ 		if !ok1 || ok2 || ok3 {
+ 			panicln("*T1", ok1, ok2, ok3);
+ 		}
+ 	}
+ 	{
+ 		var i interface{} = MyInt(0);
+-		v1, ok1 := i.(interface{ m(*T1) });
+-		v2, ok2 := i.(interface{ m(*T2) });
+-		v3, ok3 := i.(interface{ m(*T3) });
++		_, ok1 := i.(interface{ m(*T1) });
++		_, ok2 := i.(interface{ m(*T2) });
++		_, ok3 := i.(interface{ m(*T3) });
+ 		if !ok1 || ok2 || ok3 {
+ 			panicln("T", ok1, ok2, ok3);
+ 		}
+diff --git a/test/fixedbugs/bug204.go b/test/fixedbugs/bug204.go
+index 6c3540289f..d4534c27c5 100644
+--- a/test/fixedbugs/bug204.go
++++ b/test/fixedbugs/bug204.go
+@@ -9,7 +9,7 @@ package main
+ func main() {
+ 	nchar := 0;
+ 	a := []int { '日', '本', '語', 0xFFFD };
+-	for pos, char := range "日本語\xc0" {
++	for _, char := range "日本語\xc0" {
+ 		if nchar >= len(a) {
+ 			println("BUG");
+ 			break;
+diff --git a/test/initialize.go b/test/initialize.go
+index 5fde9dabaf..807bf5bda2 100644
+--- a/test/initialize.go
++++ b/test/initialize.go
+@@ -50,7 +50,7 @@ var same = []Same {
+ 
+ func main() {
+ 	ok := true;
+-	for i, s := range same {
++	for _, s := range same {
+ 		if !reflect.DeepEqual(s.a, s.b) {
+ 			ok = false;
+ 			fmt.Printf("not same: %v and %v\n", s.a, s.b);
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+index e78a9ce9ca..2f9900d940 100644
+--- a/test/mallocrep1.go
++++ b/test/mallocrep1.go
+@@ -87,7 +87,7 @@ func AllocAndFree(size, count int) {
+ }
+ 
+ func atoi(s string) int {
+-	i, xx1 := strconv.Atoi(s);
++	i, _ := strconv.Atoi(s);
+ 	return i
+ }
+ 
+diff --git a/test/map.go b/test/map.go
+index 95da48c75d..d09734a130 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -140,7 +140,6 @@ func main() {
+ 		s := strconv.Itoa(i);
+ 		s10 := strconv.Itoa(i*10);
+ 		f := float(i);
+-		t := T{int64(i), f};
+ 		// BUG m := M(i, i+1);
+ 		if mib[i] != (i != 0) {
+ 			fmt.Printf("mib[%d] = %t\n", i, mib[i]);
+@@ -193,133 +192,132 @@ func main() {
+ 	for i := 0; i < count; i++ {
+ 		s := strconv.Itoa(i);
+ 		f := float(i);
+-		t := T{int64(i), f};
+ 		{
+-			a, b := mib[i];
++			_, b := mib[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mib[%d]\n", i);
+ 			}
+-			a, b = mib[i];
++			_, b = mib[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mib[%d]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mii[i];
++			_, b := mii[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mii[%d]\n", i);
+ 			}
+-			a, b = mii[i];
++			_, b = mii[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mii[%d]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mfi[f];
++			_, b := mfi[f];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mfi[%d]\n", i);
+ 			}
+-			a, b = mfi[f];
++			_, b = mfi[f];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mfi[%d]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mif[i];
++			_, b := mif[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mif[%d]\n", i);
+ 			}
+-			a, b = mif[i];
++			_, b = mif[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mif[%d]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mis[i];
++			_, b := mis[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mis[%d]\n", i);
+ 			}
+-			a, b = mis[i];
++			_, b = mis[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mis[%d]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := msi[s];
++			_, b := msi[s];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: msi[%d]\n", i);
+ 			}
+-			a, b = msi[s];
++			_, b = msi[s];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: msi[%d]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mss[s];
++			_, b := mss[s];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mss[%d]\n", i);
+ 			}
+-			a, b = mss[s];
++			_, b = mss[s];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mss[%d]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mspa[s];
++			_, b := mspa[s];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mspa[%d]\n", i);
+ 			}
+-			a, b = mspa[s];
++			_, b = mspa[s];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mspa[%d]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mipT[i];
++			_, b := mipT[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mipT[%d]\n", i);
+ 			}
+-			a, b = mipT[i];
++			_, b = mipT[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mipT[%d]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mpTi[apT[i]];
++			_, b := mpTi[apT[i]];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mpTi[apT[%d]]\n", i);
+ 			}
+-			a, b = mpTi[apT[i]];
++			_, b = mpTi[apT[i]];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mpTi[apT[%d]]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mipM[i];
++			_, b := mipM[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mipM[%d]\n", i);
+ 			}
+-			a, b = mipM[i];
++			_, b = mipM[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mipM[%d]\n", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mit[i];
++			_, b := mit[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence decl: mit[%d]\n", i);
+ 			}
+-			a, b = mit[i];
++			_, b = mit[i];
+ 			if !b {
+ 				fmt.Printf("tuple existence assign: mit[%d]\n", i);
+ 			}
+ 		}
+ //		{
+-//			a, b := mti[t];
++//			_, b := mti[t];
+ //			if !b {
+ //				fmt.Printf("tuple existence decl: mti[%d]\n", i);
+ //			}
+-//			a, b = mti[t];
++//			_, b = mti[t];
+ //			if !b {
+ //				fmt.Printf("tuple existence assign: mti[%d]\n", i);
+ //			}
+@@ -331,133 +329,132 @@ func main() {
+ 	for i := count; i < 2*count; i++ {
+ 		s := strconv.Itoa(i);
+ 		f := float(i);
+-		t := T{int64(i),f};
+ 		{
+-			a, b := mib[i];
++			_, b := mib[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mib[%d]", i);
+ 			}
+-			a, b = mib[i];
++			_, b = mib[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mib[%d]", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mii[i];
++			_, b := mii[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mii[%d]", i);
+ 			}
+-			a, b = mii[i];
++			_, b = mii[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mii[%d]", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mfi[f];
++			_, b := mfi[f];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mfi[%d]", i);
+ 			}
+-			a, b = mfi[f];
++			_, b = mfi[f];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mfi[%d]", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mif[i];
++			_, b := mif[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mif[%d]", i);
+ 			}
+-			a, b = mif[i];
++			_, b = mif[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mif[%d]", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mis[i];
++			_, b := mis[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mis[%d]", i);
+ 			}
+-			a, b = mis[i];
++			_, b = mis[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mis[%d]", i);
+ 			}
+ 		}
+ 		{
+-			a, b := msi[s];
++			_, b := msi[s];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: msi[%d]", i);
+ 			}
+-			a, b = msi[s];
++			_, b = msi[s];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: msi[%d]", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mss[s];
++			_, b := mss[s];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mss[%d]", i);
+ 			}
+-			a, b = mss[s];
++			_, b = mss[s];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mss[%d]", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mspa[s];
++			_, b := mspa[s];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mspa[%d]", i);
+ 			}
+-			a, b = mspa[s];
++			_, b = mspa[s];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mspa[%d]", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mipT[i];
++			_, b := mipT[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mipT[%d]", i);
+ 			}
+-			a, b = mipT[i];
++			_, b = mipT[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mipT[%d]", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mpTi[apT[i]];
++			_, b := mpTi[apT[i]];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mpTi[apt[%d]]", i);
+ 			}
+-			a, b = mpTi[apT[i]];
++			_, b = mpTi[apT[i]];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mpTi[apT[%d]]", i);
+ 			}
+ 		}
+ 		{
+-			a, b := mipM[i];
++			_, b := mipM[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mipM[%d]", i);
+ 			}
+-			a, b = mipM[i];
++			_, b = mipM[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mipM[%d]", i);
+ 			}
+ 		}
+ //		{
+-//			a, b := mti[t];
++//			_, b := mti[t];
+ //			if b {
+ //				fmt.Printf("tuple nonexistence decl: mti[%d]", i);
+ //			}
+-//			a, b = mti[t];
++//			_, b = mti[t];
+ //			if b {
+ //				fmt.Printf("tuple nonexistence assign: mti[%d]", i);
+ //			}
+ //		}
+ 		{
+-			a, b := mit[i];
++			_, b := mit[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence decl: mit[%d]", i);
+ 			}
+-			a, b = mit[i];
++			_, b = mit[i];
+ 			if b {
+ 				fmt.Printf("tuple nonexistence assign: mit[%d]", i);
+ 			}
+@@ -487,10 +484,10 @@ func main() {
+ 			fmt.Printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i]);
+ 		}
+ 	}
+-	
++
+ 	// test range on nil map
+ 	var mnil map[string] int;
+-	for x, y := range mnil {
++	for _, _ = range mnil {
+ 		panic("range mnil");
+ 	}
+ }
+diff --git a/test/range.go b/test/range.go
+index 7a8c686350..7abc80c66d 100644
+--- a/test/range.go
++++ b/test/range.go
+@@ -42,7 +42,7 @@ func makearray() []int {
+ 
+ func testarray() {
+ 	s := 0;
+-	for k, v := range makearray() {
++	for _, v := range makearray() {
+ 		s += v;
+ 	}
+ 	if nmake != 1 {
+diff --git a/usr/dsymonds/iterable/iterable_test.go b/usr/dsymonds/iterable/iterable_test.go
+index 512cac1398..28bdfb66f7 100644
+--- a/usr/dsymonds/iterable/iterable_test.go
++++ b/usr/dsymonds/iterable/iterable_test.go
+@@ -13,7 +13,7 @@ type IntArray []int;
+ func (arr IntArray) Iter() <-chan interface {} {
+ 	ch := make(chan interface {});
+ 	go func() {
+-		for i, x := range arr {
++		for _, x := range arr {
+ 			ch <- x
+ 		}
+ 		close(ch)

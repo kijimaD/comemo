@@ -10,7 +10,112 @@ Date:   Tue Sep 9 14:22:58 2014 -0700
     R=golang-codereviews, bradfitz, rsc, khr
     CC=golang-codereviews
     https://golang.org/cl/135660043
-
+---
  src/runtime/hashmap.go  | 20 ++++++++------------
  src/runtime/map_test.go | 43 +++++++++++++++++++++++--------------------
  2 files changed, 31 insertions(+), 32 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index cbcc6c4041..b4e624423f 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -59,7 +59,8 @@ import (
+ 
+ const (
+ 	// Maximum number of key/value pairs a bucket can hold.
+-	bucketCnt = 8
++	bucketCntBits = 3
++	bucketCnt     = 1 << bucketCntBits
+ 
+ 	// Maximum average load of a bucket that triggers growth.
+ 	loadFactor = 6.5
+@@ -138,7 +139,7 @@ type hiter struct {
+ 	offset      uint8          // intra-bucket offset to start from during iteration (should be big enough to hold bucketCnt-1)
+ 	wrapped     bool           // already wrapped around from end of bucket array to beginning
+ 	B           uint8
+-	i	    uint8
++	i           uint8
+ 	bucket      uintptr
+ 	checkBucket uintptr
+ }
+@@ -562,17 +563,12 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	it.buckets = h.buckets
+ 
+ 	// decide where to start
+-	switch {
+-	case h.B == 0:
+-		it.startBucket = 0
+-		it.offset = uint8(fastrand1()) & (bucketCnt - 1)
+-	case h.B <= 31:
+-		it.startBucket = uintptr(fastrand1()) & (uintptr(1)<<h.B-1)
+-		it.offset = 0
+-	default:
+-		it.startBucket = (uintptr(fastrand1()) + uintptr(fastrand1())<<31) & (uintptr(1)<<h.B-1)
+-		it.offset = 0
++	r := uintptr(fastrand1())
++	if h.B > 31-bucketCntBits {
++		r += uintptr(fastrand1()) << 31
+ 	}
++	it.startBucket = r & (uintptr(1)<<h.B - 1)
++	it.offset = uint8(r >> h.B & (bucketCnt - 1))
+ 
+ 	// iterator state
+ 	it.bucket = it.startBucket
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 2e87a94a03..e2f1481ad5 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -412,30 +412,33 @@ func TestMapNanGrowIterator(t *testing.T) {
+ 
+ func TestMapIterOrder(t *testing.T) {
+ 	for _, n := range [...]int{3, 7, 9, 15} {
+-		// Make m be {0: true, 1: true, ..., n-1: true}.
+-		m := make(map[int]bool)
+-		for i := 0; i < n; i++ {
+-			m[i] = true
+-		}
+-		// Check that iterating over the map produces at least two different orderings.
+-		ord := func() []int {
+-			var s []int
+-			for key := range m {
+-				s = append(s, key)
++		for i := 0; i < 1000; i++ {
++			// Make m be {0: true, 1: true, ..., n-1: true}.
++			m := make(map[int]bool)
++			for i := 0; i < n; i++ {
++				m[i] = true
+ 			}
+-			return s
+-		}
+-		first := ord()
+-		ok := false
+-		for try := 0; try < 100; try++ {
+-			if !reflect.DeepEqual(first, ord()) {
+-				ok = true
++			// Check that iterating over the map produces at least two different orderings.
++			ord := func() []int {
++				var s []int
++				for key := range m {
++					s = append(s, key)
++				}
++				return s
++			}
++			first := ord()
++			ok := false
++			for try := 0; try < 100; try++ {
++				if !reflect.DeepEqual(first, ord()) {
++					ok = true
++					break
++				}
++			}
++			if !ok {
++				t.Errorf("Map with n=%d elements had consistent iteration order: %v", n, first)
+ 				break
+ 			}
+ 		}
+-		if !ok {
+-			t.Errorf("Map with n=%d elements had consistent iteration order: %v", n, first)
+-		}
+ 	}
+ }
+ 

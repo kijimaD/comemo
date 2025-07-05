@@ -7,6 +7,19 @@ Date:   Fri Jun 15 18:46:45 2018 +0900
     Change-Id: I9d9189ae7882164246abcc4b22d49c26d4a3f201
     Reviewed-on: https://go-review.googlesource.com/118937
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/type.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/mime/type.go b/src/mime/type.go
+index 78fc6b6714..53bf41e2e4 100644
+--- a/src/mime/type.go
++++ b/src/mime/type.go
+@@ -63,6 +63,7 @@ var builtinTypesLower = map[string]string{
+ 	".html": "text/html; charset=utf-8",
+ 	".jpg":  "image/jpeg",
+ 	".js":   "application/x-javascript",
++	".wasm": "application/wasm",
+ 	".pdf":  "application/pdf",
+ 	".png":  "image/png",
+ 	".svg":  "image/svg+xml",

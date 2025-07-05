@@ -14,7 +14,241 @@ Date:   Mon Mar 20 13:35:41 2017 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/hash/fnv/fnv.go      | 122 +++++++++++++++++++++++++++++++++++++++--------
  src/hash/fnv/fnv_test.go |  39 +++++++++++++++
  2 files changed, 141 insertions(+), 20 deletions(-)
+
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index f1fbb25bdf..3d2df73d3d 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -13,17 +13,23 @@ import (
+ )
+ 
+ type (
+-	sum32  uint32
+-	sum32a uint32
+-	sum64  uint64
+-	sum64a uint64
++	sum32   uint32
++	sum32a  uint32
++	sum64   uint64
++	sum64a  uint64
++	sum128  [2]uint64
++	sum128a [2]uint64
+ )
+ 
+ const (
+-	offset32 = 2166136261
+-	offset64 = 14695981039346656037
+-	prime32  = 16777619
+-	prime64  = 1099511628211
++	offset32        = 2166136261
++	offset64        = 14695981039346656037
++	offset128Lower  = 0x62b821756295c58d
++	offset128Higher = 0x6c62272e07bb0142
++	prime32         = 16777619
++	prime64         = 1099511628211
++	prime128Lower   = 0x13b
++	prime128Shift   = 24
+ )
+ 
+ // New32 returns a new 32-bit FNV-1 hash.Hash.
+@@ -54,10 +60,30 @@ func New64a() hash.Hash64 {
+ 	return &s
+ }
+ 
+-func (s *sum32) Reset()  { *s = offset32 }
+-func (s *sum32a) Reset() { *s = offset32 }
+-func (s *sum64) Reset()  { *s = offset64 }
+-func (s *sum64a) Reset() { *s = offset64 }
++// New128 returns a new 128-bit FNV-1 hash.Hash.
++// Its Sum method will lay the value out in big-endian byte order.
++func New128() hash.Hash {
++	var s sum128
++	s[0] = offset128Higher
++	s[1] = offset128Lower
++	return &s
++}
++
++// New128a returns a new 128-bit FNV-1a hash.Hash.
++// Its Sum method will lay the value out in big-endian byte order.
++func New128a() hash.Hash {
++	var s sum128a
++	s[0] = offset128Higher
++	s[1] = offset128Lower
++	return &s
++}
++
++func (s *sum32) Reset()   { *s = offset32 }
++func (s *sum32a) Reset()  { *s = offset32 }
++func (s *sum64) Reset()   { *s = offset64 }
++func (s *sum64a) Reset()  { *s = offset64 }
++func (s *sum128) Reset()  { s[0] = offset128Higher; s[1] = offset128Lower }
++func (s *sum128a) Reset() { s[0] = offset128Higher; s[1] = offset128Lower }
+ 
+ func (s *sum32) Sum32() uint32  { return uint32(*s) }
+ func (s *sum32a) Sum32() uint32 { return uint32(*s) }
+@@ -104,15 +130,57 @@ func (s *sum64a) Write(data []byte) (int, error) {
+ 	return len(data), nil
+ }
+ 
+-func (s *sum32) Size() int  { return 4 }
+-func (s *sum32a) Size() int { return 4 }
+-func (s *sum64) Size() int  { return 8 }
+-func (s *sum64a) Size() int { return 8 }
++func (s *sum128) Write(data []byte) (int, error) {
++	for _, c := range data {
++		// Compute the multiplication in 4 parts to simplify carrying
++		s1l := (s[1] & 0xffffffff) * prime128Lower
++		s1h := (s[1] >> 32) * prime128Lower
++		s0l := (s[0]&0xffffffff)*prime128Lower + (s[1]&0xffffffff)<<prime128Shift
++		s0h := (s[0]>>32)*prime128Lower + (s[1]>>32)<<prime128Shift
++		// Carries
++		s1h += s1l >> 32
++		s0l += s1h >> 32
++		s0h += s0l >> 32
++		// Update the values
++		s[1] = (s1l & 0xffffffff) + (s1h << 32)
++		s[0] = (s0l & 0xffffffff) + (s0h << 32)
++		s[1] ^= uint64(c)
++	}
++	return len(data), nil
++}
++
++func (s *sum128a) Write(data []byte) (int, error) {
++	for _, c := range data {
++		s[1] ^= uint64(c)
++		// Compute the multiplication in 4 parts to simplify carrying
++		s1l := (s[1] & 0xffffffff) * prime128Lower
++		s1h := (s[1] >> 32) * prime128Lower
++		s0l := (s[0]&0xffffffff)*prime128Lower + (s[1]&0xffffffff)<<prime128Shift
++		s0h := (s[0]>>32)*prime128Lower + (s[1]>>32)<<prime128Shift
++		// Carries
++		s1h += s1l >> 32
++		s0l += s1h >> 32
++		s0h += s0l >> 32
++		// Update the values
++		s[1] = (s1l & 0xffffffff) + (s1h << 32)
++		s[0] = (s0l & 0xffffffff) + (s0h << 32)
++	}
++	return len(data), nil
++}
+ 
+-func (s *sum32) BlockSize() int  { return 1 }
+-func (s *sum32a) BlockSize() int { return 1 }
+-func (s *sum64) BlockSize() int  { return 1 }
+-func (s *sum64a) BlockSize() int { return 1 }
++func (s *sum32) Size() int   { return 4 }
++func (s *sum32a) Size() int  { return 4 }
++func (s *sum64) Size() int   { return 8 }
++func (s *sum64a) Size() int  { return 8 }
++func (s *sum128) Size() int  { return 16 }
++func (s *sum128a) Size() int { return 16 }
++
++func (s *sum32) BlockSize() int   { return 1 }
++func (s *sum32a) BlockSize() int  { return 1 }
++func (s *sum64) BlockSize() int   { return 1 }
++func (s *sum64a) BlockSize() int  { return 1 }
++func (s *sum128) BlockSize() int  { return 1 }
++func (s *sum128a) BlockSize() int { return 1 }
+ 
+ func (s *sum32) Sum(in []byte) []byte {
+ 	v := uint32(*s)
+@@ -133,3 +201,17 @@ func (s *sum64a) Sum(in []byte) []byte {
+ 	v := uint64(*s)
+ 	return append(in, byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+ }
++
++func (s *sum128) Sum(in []byte) []byte {
++	return append(in,
++		byte(s[0]>>56), byte(s[0]>>48), byte(s[0]>>40), byte(s[0]>>32), byte(s[0]>>24), byte(s[0]>>16), byte(s[0]>>8), byte(s[0]),
++		byte(s[1]>>56), byte(s[1]>>48), byte(s[1]>>40), byte(s[1]>>32), byte(s[1]>>24), byte(s[1]>>16), byte(s[1]>>8), byte(s[1]),
++	)
++}
++
++func (s *sum128a) Sum(in []byte) []byte {
++	return append(in,
++		byte(s[0]>>56), byte(s[0]>>48), byte(s[0]>>40), byte(s[0]>>32), byte(s[0]>>24), byte(s[0]>>16), byte(s[0]>>8), byte(s[0]),
++		byte(s[1]>>56), byte(s[1]>>48), byte(s[1]>>40), byte(s[1]>>32), byte(s[1]>>24), byte(s[1]>>16), byte(s[1]>>8), byte(s[1]),
++	)
++}
+diff --git a/src/hash/fnv/fnv_test.go b/src/hash/fnv/fnv_test.go
+index 89d39b38ad..7da15ba9e8 100644
+--- a/src/hash/fnv/fnv_test.go
++++ b/src/hash/fnv/fnv_test.go
+@@ -44,6 +44,20 @@ var golden64a = []golden{
+ 	{[]byte{0xe7, 0x1f, 0xa2, 0x19, 0x05, 0x41, 0x57, 0x4b}, "abc"},
+ }
+ 
++var golden128 = []golden{
++	{[]byte{0x6c, 0x62, 0x27, 0x2e, 0x07, 0xbb, 0x01, 0x42, 0x62, 0xb8, 0x21, 0x75, 0x62, 0x95, 0xc5, 0x8d}, ""},
++	{[]byte{0xd2, 0x28, 0xcb, 0x69, 0x10, 0x1a, 0x8c, 0xaf, 0x78, 0x91, 0x2b, 0x70, 0x4e, 0x4a, 0x14, 0x1e}, "a"},
++	{[]byte{0x8, 0x80, 0x94, 0x5a, 0xee, 0xab, 0x1b, 0xe9, 0x5a, 0xa0, 0x73, 0x30, 0x55, 0x26, 0xc0, 0x88}, "ab"},
++	{[]byte{0xa6, 0x8b, 0xb2, 0xa4, 0x34, 0x8b, 0x58, 0x22, 0x83, 0x6d, 0xbc, 0x78, 0xc6, 0xae, 0xe7, 0x3b}, "abc"},
++}
++
++var golden128a = []golden{
++	{[]byte{0x6c, 0x62, 0x27, 0x2e, 0x07, 0xbb, 0x01, 0x42, 0x62, 0xb8, 0x21, 0x75, 0x62, 0x95, 0xc5, 0x8d}, ""},
++	{[]byte{0xd2, 0x28, 0xcb, 0x69, 0x6f, 0x1a, 0x8c, 0xaf, 0x78, 0x91, 0x2b, 0x70, 0x4e, 0x4a, 0x89, 0x64}, "a"},
++	{[]byte{0x08, 0x80, 0x95, 0x44, 0xbb, 0xab, 0x1b, 0xe9, 0x5a, 0xa0, 0x73, 0x30, 0x55, 0xb6, 0x9a, 0x62}, "ab"},
++	{[]byte{0xa6, 0x8d, 0x62, 0x2c, 0xec, 0x8b, 0x58, 0x22, 0x83, 0x6d, 0xbc, 0x79, 0x77, 0xaf, 0x7f, 0x3b}, "abc"},
++}
++
+ func TestGolden32(t *testing.T) {
+ 	testGolden(t, New32(), golden32)
+ }
+@@ -60,6 +74,14 @@ func TestGolden64a(t *testing.T) {
+ 	testGolden(t, New64a(), golden64a)
+ }
+ 
++func TestGolden128(t *testing.T) {
++	testGolden(t, New128(), golden128)
++}
++
++func TestGolden128a(t *testing.T) {
++	testGolden(t, New128a(), golden128a)
++}
++
+ func testGolden(t *testing.T, hash hash.Hash, gold []golden) {
+ 	for _, g := range gold {
+ 		hash.Reset()
+@@ -91,6 +113,13 @@ func TestIntegrity64(t *testing.T) {
+ func TestIntegrity64a(t *testing.T) {
+ 	testIntegrity(t, New64a())
+ }
++func TestIntegrity128(t *testing.T) {
++	testIntegrity(t, New128())
++}
++
++func TestIntegrity128a(t *testing.T) {
++	testIntegrity(t, New128a())
++}
+ 
+ func testIntegrity(t *testing.T, h hash.Hash) {
+ 	data := []byte{'1', '2', 3, 4, 5}
+@@ -129,6 +158,8 @@ func testIntegrity(t *testing.T, h hash.Hash) {
+ 		if sum64 != binary.BigEndian.Uint64(sum) {
+ 			t.Fatalf("Sum()=0x%x, but Sum64()=0x%x", sum, sum64)
+ 		}
++	case 16:
++		// There's no Sum128 function, so we don't need to test anything here.
+ 	}
+ }
+ 
+@@ -148,6 +179,14 @@ func BenchmarkFnv64aKB(b *testing.B) {
+ 	benchmarkKB(b, New64a())
+ }
+ 
++func BenchmarkFnv128KB(b *testing.B) {
++	benchmarkKB(b, New128())
++}
++
++func BenchmarkFnv128aKB(b *testing.B) {
++	benchmarkKB(b, New128a())
++}
++
+ func benchmarkKB(b *testing.B, h hash.Hash) {
+ 	b.SetBytes(1024)
+ 	data := make([]byte, 1024)

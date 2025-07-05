@@ -11,6 +11,20 @@ Date:   Thu Aug 6 01:49:00 2015 -0700
     Change-Id: I8b8ea3751200d06ed36acfe22f47ebb38107f8db
     Reviewed-on: https://go-review.googlesource.com/13282
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/hash/fnv/fnv.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index c0206613ac..09c5b2a336 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -5,7 +5,7 @@
+ // Package fnv implements FNV-1 and FNV-1a, non-cryptographic hash functions
+ // created by Glenn Fowler, Landon Curt Noll, and Phong Vo.
+ // See
+-// http://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function.
++// https://en.wikipedia.org/wiki/Fowler-Noll-Vo_hash_function.
+ package fnv
+ 
+ import (

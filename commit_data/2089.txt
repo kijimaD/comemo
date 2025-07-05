@@ -9,7 +9,46 @@ Date:   Sat Apr 25 13:41:56 2009 -0700
     DELTA=17  (17 added, 0 deleted, 0 changed)
     OCL=27855
     CL=27855
-
+---
  test/bugs/bug145.go | 17 +++++++++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 21 insertions(+)
+
+diff --git a/test/bugs/bug145.go b/test/bugs/bug145.go
+new file mode 100644
+index 0000000000..0b41ab59c7
+--- /dev/null
++++ b/test/bugs/bug145.go
+@@ -0,0 +1,17 @@
++// $G $D/$F.go || echo BUG should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type t int
++
++func main() {
++	t := 0
++}
++
++/*
++bug145.go:8: t is type, not var
++*/
+diff --git a/test/golden.out b/test/golden.out
+index b3cc4fb543..752691295c 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -121,6 +121,10 @@ bugs/bug140.go:6: syntax error near L1
+ bugs/bug140.go:7: syntax error near L2
+ BUG should compile
+ 
++=========== bugs/bug145.go
++bugs/bug145.go:8: t is type, not var
++BUG should compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

@@ -16,6 +16,19 @@ Date:   Wed Sep 22 17:28:36 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/assignments.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index c46a97f2e2..2810133a1f 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -237,6 +237,7 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnPos token.P
+ 	if len(lhs) != len(rhs) {
+ 		// invalidate lhs
+ 		for _, obj := range lhs {
++			obj.used = true // avoid declared but not used errors
+ 			if obj.typ == nil {
+ 				obj.typ = Typ[Invalid]
+ 			}

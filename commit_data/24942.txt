@@ -9,6 +9,29 @@ Date:   Thu Sep 10 07:13:28 2015 -0400
     Change-Id: Ie923dd1e37fed47fc395b9d1cd9194e55020bee5
     Reviewed-on: https://go-review.googlesource.com/14459
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/objdump/objdump_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index b6c339b9ef..8ceaba078c 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -105,6 +105,8 @@ func TestDisasm(t *testing.T) {
+ 		t.Skipf("skipping on %s, issue 9039", runtime.GOARCH)
+ 	case "arm64":
+ 		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
++	case "mips64", "mips64le":
++		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
+ 	}
+ 	testDisasm(t)
+ }
+@@ -119,6 +121,8 @@ func TestDisasmExtld(t *testing.T) {
+ 		t.Skipf("skipping on %s, no support for external linking, issue 9038", runtime.GOARCH)
+ 	case "arm64":
+ 		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
++	case "mips64", "mips64le":
++		t.Skipf("skipping on %s, issue 12559 and 12560", runtime.GOARCH)
+ 	}
+ 	// TODO(jsing): Reenable once openbsd/arm has external linking support.
+ 	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {

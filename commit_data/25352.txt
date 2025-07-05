@@ -9,6 +9,20 @@ Date:   Wed Oct 21 12:30:58 2015 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mfinal.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 24f35d2163..d6a8da9619 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -160,7 +160,7 @@ func runfinq() {
+ 		}
+ 		for fb != nil {
+ 			for i := fb.cnt; i > 0; i-- {
+-				f := (*finalizer)(add(unsafe.Pointer(&fb.fin), uintptr(i-1)*unsafe.Sizeof(finalizer{})))
++				f := &fb.fin[i-1]
+ 
+ 				framesz := unsafe.Sizeof((interface{})(nil)) + uintptr(f.nret)
+ 				if framecap < framesz {

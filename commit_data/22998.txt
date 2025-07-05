@@ -11,7 +11,7 @@ Date:   Mon Apr 13 18:26:08 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/9080
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/6g/gg.go    | 24 ------------------------
  src/cmd/6g/ggen.go  |  2 ++
  src/cmd/6g/reg.go   |  2 ++
@@ -23,3 +23,204 @@ Date:   Mon Apr 13 18:26:08 2015 -0500
  src/cmd/8g/gsubr.go |  7 +++++++
  src/cmd/8g/reg.go   |  2 ++
  10 files changed, 19 insertions(+), 86 deletions(-)
+
+diff --git a/src/cmd/6g/gg.go b/src/cmd/6g/gg.go
+deleted file mode 100644
+index 2deed5deb9..0000000000
+--- a/src/cmd/6g/gg.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "cmd/internal/obj/x86"
+-import "cmd/internal/gc"
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-var reg [x86.MAXREG]uint8
+-
+-var panicdiv *gc.Node
+-
+-/*
+- * cgen.c
+- */
+-
+-/*
+- * list.c
+- */
+diff --git a/src/cmd/6g/ggen.go b/src/cmd/6g/ggen.go
+index 17dbb48fa4..6e5e6bc4ca 100644
+--- a/src/cmd/6g/ggen.go
++++ b/src/cmd/6g/ggen.go
+@@ -166,6 +166,8 @@ func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int
+ 	return q
+ }
+ 
++var panicdiv *gc.Node
++
+ /*
+  * generate division.
+  * generates one of:
+diff --git a/src/cmd/6g/reg.go b/src/cmd/6g/reg.go
+index 7ad31f924a..ebca28262e 100644
+--- a/src/cmd/6g/reg.go
++++ b/src/cmd/6g/reg.go
+@@ -40,6 +40,8 @@ const (
+ 	NREGVAR = 32
+ )
+ 
++var reg [x86.MAXREG]uint8
++
+ var regname = []string{
+ 	".AX",
+ 	".CX",
+diff --git a/src/cmd/7g/gg.go b/src/cmd/7g/gg.go
+deleted file mode 100644
+index a267482f6b..0000000000
+--- a/src/cmd/7g/gg.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "cmd/internal/obj/arm64"
+-import "cmd/internal/gc"
+-
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-var reg [arm64.NREG + arm64.NFREG]uint8
+-
+-var panicdiv *gc.Node
+-
+-/*
+- * cgen.c
+- */
+-
+-/*
+- * list.c
+- */
+-
+-/*
+- * reg.c
+- */
+diff --git a/src/cmd/7g/ggen.go b/src/cmd/7g/ggen.go
+index 3b02b96e98..b824a3a18c 100644
+--- a/src/cmd/7g/ggen.go
++++ b/src/cmd/7g/ggen.go
+@@ -124,6 +124,8 @@ func ginsnop() {
+ 	gins(arm64.AHINT, &con, nil)
+ }
+ 
++var panicdiv *gc.Node
++
+ /*
+  * generate division.
+  * generates one of:
+diff --git a/src/cmd/7g/reg.go b/src/cmd/7g/reg.go
+index bf957c5968..0e5ac73499 100644
+--- a/src/cmd/7g/reg.go
++++ b/src/cmd/7g/reg.go
+@@ -39,6 +39,8 @@ const (
+ 	NREGVAR = 64 /* 32 general + 32 floating */
+ )
+ 
++var reg [arm64.NREG + arm64.NFREG]uint8
++
+ var regname = []string{
+ 	".R0",
+ 	".R1",
+diff --git a/src/cmd/8g/gg.go b/src/cmd/8g/gg.go
+deleted file mode 100644
+index bfbd12e2fd..0000000000
+--- a/src/cmd/8g/gg.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "cmd/internal/obj/x86"
+-import "cmd/internal/gc"
+-
+-// TODO(rsc):
+-//	assume CLD?
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// foptoas flags
+-const (
+-	Frev  = 1 << 0
+-	Fpop  = 1 << 1
+-	Fpop2 = 1 << 2
+-)
+-
+-var reg [x86.MAXREG]uint8
+-
+-var panicdiv *gc.Node
+-
+-/*
+- * cgen.c
+- */
+-
+-/*
+- * list.c
+- */
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/8g/ggen.go
+index 21191edeb7..59025525fa 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/8g/ggen.go
+@@ -189,6 +189,8 @@ func clearfat(nl *gc.Node) {
+ 	}
+ }
+ 
++var panicdiv *gc.Node
++
+ /*
+  * generate division.
+  * caller must set:
+diff --git a/src/cmd/8g/gsubr.go b/src/cmd/8g/gsubr.go
+index a5ee8edb41..34ddfe0619 100644
+--- a/src/cmd/8g/gsubr.go
++++ b/src/cmd/8g/gsubr.go
+@@ -42,6 +42,13 @@ import (
+ // At the same time, can raise StackBig in ../../runtime/stack.h.
+ var unmappedzero uint32 = 4096
+ 
++// foptoas flags
++const (
++	Frev  = 1 << 0
++	Fpop  = 1 << 1
++	Fpop2 = 1 << 2
++)
++
+ /*
+  * return Axxx for Oxxx on type t.
+  */
+diff --git a/src/cmd/8g/reg.go b/src/cmd/8g/reg.go
+index 9f2cb608e1..50b5b97ab1 100644
+--- a/src/cmd/8g/reg.go
++++ b/src/cmd/8g/reg.go
+@@ -37,6 +37,8 @@ const (
+ 	NREGVAR = 16 /* 8 integer + 8 floating */
+ )
+ 
++var reg [x86.MAXREG]uint8
++
+ var regname = []string{
+ 	".ax",
+ 	".cx",

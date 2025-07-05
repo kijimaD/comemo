@@ -16,7 +16,46 @@ Date:   Sun Nov 1 15:28:21 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/267097
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/config.go         | 2 +-
  src/cmd/link/internal/loadmacho/ldmacho.go | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index cd64d86a4a..0cb3cc25c0 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -206,7 +206,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	// When the race flag is set, the LLVM tsan relocatable file is linked
+ 	// into the final binary, which means external linking is required because
+ 	// internal linking does not support it.
+-	if *flagRace && (ctxt.Arch.InFamily(sys.PPC64) || ctxt.IsDarwin() && ctxt.IsARM64()) {
++	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
+ 		return true, "race on " + objabi.GOARCH
+ 	}
+ 
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index d26869e23a..6d1d9bb29e 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -724,10 +724,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 
+ 			if arch.Family == sys.ARM64 && rel.type_ == MACHO_ARM64_RELOC_ADDEND {
+ 				// Two relocations. This addend will be applied to the next one.
+-				rAdd = int64(rel.symnum)
++				rAdd = int64(rel.symnum) << 40 >> 40 // convert unsigned 24-bit to signed 24-bit
+ 				continue
+-			} else {
+-				rAdd = 0
+ 			}
+ 
+ 			rSize = rel.length
+@@ -789,6 +787,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 			r.SetSiz(rSize)
+ 			r.SetSym(rSym)
+ 			r.SetAdd(rAdd)
++
++			rAdd = 0 // clear rAdd for next iteration
+ 		}
+ 
+ 		sb.SortRelocs()

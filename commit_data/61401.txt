@@ -27,7 +27,7 @@ Date:   Fri Nov 1 11:57:48 2024 -0400
     TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../vendor/golang.org/x/sys/unix/ioctl_linux.go    |  96 ++++++++++++++++
@@ -70,3 +70,1554 @@ Date:   Fri Nov 1 11:57:48 2024 -0400
  .../golang.org/x/sys/cpu/syscall_darwin_x86_gc.go  |  98 ++++++++++++++++
  src/vendor/modules.txt                             |   2 +-
  41 files changed, 967 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index a91b8d0fe4..9add073013 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,7 +8,7 @@ require (
+ 	golang.org/x/build v0.0.0-20240722200705-b9910f320300
+ 	golang.org/x/mod v0.20.0
+ 	golang.org/x/sync v0.8.0
+-	golang.org/x/sys v0.26.0
++	golang.org/x/sys v0.26.1-0.20241105152852-e0753d469443
+ 	golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97
+ 	golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292
+ 	golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index c8ab76167b..64afa2de1b 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,8 +14,8 @@ golang.org/x/mod v0.20.0 h1:utOm6MM3R3dnawAiJgn0y+xvuYRsm1RKM/4giyfDgV0=
+ golang.org/x/mod v0.20.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.8.0 h1:3NFvSEYkUoMifnESzZl15y791HH1qU2xm6eCJU5ZPXQ=
+ golang.org/x/sync v0.8.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.26.0 h1:KHjCJyddX0LoSTb3J+vWpupP9p0oznkqVk/IfjymZbo=
+-golang.org/x/sys v0.26.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/sys v0.26.1-0.20241105152852-e0753d469443 h1:FPr/RpnBOqfdMWoEYvMQp58uqHLtb3rUd6mnuuowZEE=
++golang.org/x/sys v0.26.1-0.20241105152852-e0753d469443/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97 h1:5xPN7d0u5VdgF2gFFXUDaeD3NP1pPgFMHocnCQGAh5M=
+ golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97/go.mod h1:m7R/r+o5h7UvF2JD9n2iLSGY4v8v+zNSyTJ6xynLrqs=
+ golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292 h1:BOrQi08eIX3cDgGcMgFONf27MxXigcYa9x+iW5JuCXw=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ioctl_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ioctl_linux.go
+index dbe680eab8..7ca4fa12aa 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ioctl_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ioctl_linux.go
+@@ -58,6 +58,102 @@ func IoctlGetEthtoolDrvinfo(fd int, ifname string) (*EthtoolDrvinfo, error) {
+ 	return &value, err
+ }
+ 
++// IoctlGetEthtoolTsInfo fetches ethtool timestamping and PHC
++// association for the network device specified by ifname.
++func IoctlGetEthtoolTsInfo(fd int, ifname string) (*EthtoolTsInfo, error) {
++	ifr, err := NewIfreq(ifname)
++	if err != nil {
++		return nil, err
++	}
++
++	value := EthtoolTsInfo{Cmd: ETHTOOL_GET_TS_INFO}
++	ifrd := ifr.withData(unsafe.Pointer(&value))
++
++	err = ioctlIfreqData(fd, SIOCETHTOOL, &ifrd)
++	return &value, err
++}
++
++// IoctlGetHwTstamp retrieves the hardware timestamping configuration
++// for the network device specified by ifname.
++func IoctlGetHwTstamp(fd int, ifname string) (*HwTstampConfig, error) {
++	ifr, err := NewIfreq(ifname)
++	if err != nil {
++		return nil, err
++	}
++
++	value := HwTstampConfig{}
++	ifrd := ifr.withData(unsafe.Pointer(&value))
++
++	err = ioctlIfreqData(fd, SIOCGHWTSTAMP, &ifrd)
++	return &value, err
++}
++
++// IoctlSetHwTstamp updates the hardware timestamping configuration for
++// the network device specified by ifname.
++func IoctlSetHwTstamp(fd int, ifname string, cfg *HwTstampConfig) error {
++	ifr, err := NewIfreq(ifname)
++	if err != nil {
++		return err
++	}
++	ifrd := ifr.withData(unsafe.Pointer(cfg))
++	return ioctlIfreqData(fd, SIOCSHWTSTAMP, &ifrd)
++}
++
++// FdToClockID derives the clock ID from the file descriptor number
++// - see clock_gettime(3), FD_TO_CLOCKID macros. The resulting ID is
++// suitable for system calls like ClockGettime.
++func FdToClockID(fd int) int32 { return int32((int(^fd) << 3) | 3) }
++
++// IoctlPtpClockGetcaps returns the description of a given PTP device.
++func IoctlPtpClockGetcaps(fd int) (*PtpClockCaps, error) {
++	var value PtpClockCaps
++	err := ioctlPtr(fd, PTP_CLOCK_GETCAPS2, unsafe.Pointer(&value))
++	return &value, err
++}
++
++// IoctlPtpSysOffsetPrecise returns a description of the clock
++// offset compared to the system clock.
++func IoctlPtpSysOffsetPrecise(fd int) (*PtpSysOffsetPrecise, error) {
++	var value PtpSysOffsetPrecise
++	err := ioctlPtr(fd, PTP_SYS_OFFSET_PRECISE2, unsafe.Pointer(&value))
++	return &value, err
++}
++
++// IoctlPtpSysOffsetExtended returns an extended description of the
++// clock offset compared to the system clock. The samples parameter
++// specifies the desired number of measurements.
++func IoctlPtpSysOffsetExtended(fd int, samples uint) (*PtpSysOffsetExtended, error) {
++	value := PtpSysOffsetExtended{Samples: uint32(samples)}
++	err := ioctlPtr(fd, PTP_SYS_OFFSET_EXTENDED2, unsafe.Pointer(&value))
++	return &value, err
++}
++
++// IoctlPtpPinGetfunc returns the configuration of the specified
++// I/O pin on given PTP device.
++func IoctlPtpPinGetfunc(fd int, index uint) (*PtpPinDesc, error) {
++	value := PtpPinDesc{Index: uint32(index)}
++	err := ioctlPtr(fd, PTP_PIN_GETFUNC2, unsafe.Pointer(&value))
++	return &value, err
++}
++
++// IoctlPtpPinSetfunc updates configuration of the specified PTP
++// I/O pin.
++func IoctlPtpPinSetfunc(fd int, pd *PtpPinDesc) error {
++	return ioctlPtr(fd, PTP_PIN_SETFUNC2, unsafe.Pointer(pd))
++}
++
++// IoctlPtpPeroutRequest configures the periodic output mode of the
++// PTP I/O pins.
++func IoctlPtpPeroutRequest(fd int, r *PtpPeroutRequest) error {
++	return ioctlPtr(fd, PTP_PEROUT_REQUEST2, unsafe.Pointer(r))
++}
++
++// IoctlPtpExttsRequest configures the external timestamping mode
++// of the PTP I/O pins.
++func IoctlPtpExttsRequest(fd int, r *PtpExttsRequest) error {
++	return ioctlPtr(fd, PTP_EXTTS_REQUEST2, unsafe.Pointer(r))
++}
++
+ // IoctlGetWatchdogInfo fetches information about a watchdog device from the
+ // Linux watchdog API. For more information, see:
+ // https://www.kernel.org/doc/html/latest/watchdog/watchdog-api.html.
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index ac54ecaba0..6ab02b6c31 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -158,6 +158,16 @@ includes_Linux='
+ #endif
+ #define _GNU_SOURCE
+ 
++// See the description in unix/linux/types.go
++#if defined(__ARM_EABI__) || \
++	(defined(__mips__) && (_MIPS_SIM == _ABIO32)) || \
++	(defined(__powerpc__) && (!defined(__powerpc64__)))
++# ifdef   _TIME_BITS
++#  undef  _TIME_BITS
++# endif
++# define  _TIME_BITS 32
++#endif
++
+ // <sys/ioctl.h> is broken on powerpc64, as it fails to include definitions of
+ // these structures. We just include them copied from <bits/termios.h>.
+ #if defined(__powerpc__)
+@@ -256,6 +266,7 @@ struct ltchars {
+ #include <linux/nsfs.h>
+ #include <linux/perf_event.h>
+ #include <linux/pps.h>
++#include <linux/ptp_clock.h>
+ #include <linux/ptrace.h>
+ #include <linux/random.h>
+ #include <linux/reboot.h>
+@@ -527,6 +538,7 @@ ccflags="$@"
+ 		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MREMAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT|UDP)_/ ||
+ 		$2 ~ /^NFC_(GENL|PROTO|COMM|RF|SE|DIRECTION|LLCP|SOCKPROTO)_/ ||
+ 		$2 ~ /^NFC_.*_(MAX)?SIZE$/ ||
++		$2 ~ /^PTP_/ ||
+ 		$2 ~ /^RAW_PAYLOAD_/ ||
+ 		$2 ~ /^[US]F_/ ||
+ 		$2 ~ /^TP_STATUS_/ ||
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index f08abd434f..230a94549a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -1860,6 +1860,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sys	ClockAdjtime(clockid int32, buf *Timex) (state int, err error)
+ //sys	ClockGetres(clockid int32, res *Timespec) (err error)
+ //sys	ClockGettime(clockid int32, time *Timespec) (err error)
++//sys	ClockSettime(clockid int32, time *Timespec) (err error)
+ //sys	ClockNanosleep(clockid int32, flags int, request *Timespec, remain *Timespec) (err error)
+ //sys	Close(fd int) (err error)
+ //sys	CloseRange(first uint, last uint, flags uint) (err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go
+index 312ae6ac1d..7bf5c04bb0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go
+@@ -768,6 +768,15 @@ func Munmap(b []byte) (err error) {
+ 	return mapper.Munmap(b)
+ }
+ 
++func MmapPtr(fd int, offset int64, addr unsafe.Pointer, length uintptr, prot int, flags int) (ret unsafe.Pointer, err error) {
++	xaddr, err := mapper.mmap(uintptr(addr), length, prot, flags, fd, offset)
++	return unsafe.Pointer(xaddr), err
++}
++
++func MunmapPtr(addr unsafe.Pointer, length uintptr) (err error) {
++	return mapper.munmap(uintptr(addr), length)
++}
++
+ //sys   Gethostname(buf []byte) (err error) = SYS___GETHOSTNAME_A
+ //sysnb	Getgid() (gid int)
+ //sysnb	Getpid() (pid int)
+@@ -816,10 +825,10 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ // for checking symlinks begins with $VERSION/ $SYSNAME/ $SYSSYMR/ $SYSSYMA/
+ func isSpecialPath(path []byte) (v bool) {
+ 	var special = [4][8]byte{
+-		[8]byte{'V', 'E', 'R', 'S', 'I', 'O', 'N', '/'},
+-		[8]byte{'S', 'Y', 'S', 'N', 'A', 'M', 'E', '/'},
+-		[8]byte{'S', 'Y', 'S', 'S', 'Y', 'M', 'R', '/'},
+-		[8]byte{'S', 'Y', 'S', 'S', 'Y', 'M', 'A', '/'}}
++		{'V', 'E', 'R', 'S', 'I', 'O', 'N', '/'},
++		{'S', 'Y', 'S', 'N', 'A', 'M', 'E', '/'},
++		{'S', 'Y', 'S', 'S', 'Y', 'M', 'R', '/'},
++		{'S', 'Y', 'S', 'S', 'Y', 'M', 'A', '/'}}
+ 
+ 	var i, j int
+ 	for i = 0; i < len(special); i++ {
+@@ -3115,3 +3124,90 @@ func legacy_Mkfifoat(dirfd int, path string, mode uint32) (err error) {
+ //sys	Posix_openpt(oflag int) (fd int, err error) = SYS_POSIX_OPENPT
+ //sys	Grantpt(fildes int) (rc int, err error) = SYS_GRANTPT
+ //sys	Unlockpt(fildes int) (rc int, err error) = SYS_UNLOCKPT
++
++func fcntlAsIs(fd uintptr, cmd int, arg uintptr) (val int, err error) {
++	runtime.EnterSyscall()
++	r0, e2, e1 := CallLeFuncWithErr(GetZosLibVec()+SYS_FCNTL<<4, uintptr(fd), uintptr(cmd), arg)
++	runtime.ExitSyscall()
++	val = int(r0)
++	if int64(r0) == -1 {
++		err = errnoErr2(e1, e2)
++	}
++	return
++}
++
++func Fcntl(fd uintptr, cmd int, op interface{}) (ret int, err error) {
++	switch op.(type) {
++	case *Flock_t:
++		err = FcntlFlock(fd, cmd, op.(*Flock_t))
++		if err != nil {
++			ret = -1
++		}
++		return
++	case int:
++		return FcntlInt(fd, cmd, op.(int))
++	case *F_cnvrt:
++		return fcntlAsIs(fd, cmd, uintptr(unsafe.Pointer(op.(*F_cnvrt))))
++	case unsafe.Pointer:
++		return fcntlAsIs(fd, cmd, uintptr(op.(unsafe.Pointer)))
++	default:
++		return -1, EINVAL
++	}
++	return
++}
++
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++	if raceenabled {
++		raceReleaseMerge(unsafe.Pointer(&ioSync))
++	}
++	return sendfile(outfd, infd, offset, count)
++}
++
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++	// TODO: use LE call instead if the call is implemented
++	originalOffset, err := Seek(infd, 0, SEEK_CUR)
++	if err != nil {
++		return -1, err
++	}
++	//start reading data from in_fd
++	if offset != nil {
++		_, err := Seek(infd, *offset, SEEK_SET)
++		if err != nil {
++			return -1, err
++		}
++	}
++
++	buf := make([]byte, count)
++	readBuf := make([]byte, 0)
++	var n int = 0
++	for i := 0; i < count; i += n {
++		n, err := Read(infd, buf)
++		if n == 0 {
++			if err != nil {
++				return -1, err
++			} else { // EOF
++				break
++			}
++		}
++		readBuf = append(readBuf, buf...)
++		buf = buf[0:0]
++	}
++
++	n2, err := Write(outfd, readBuf)
++	if err != nil {
++		return -1, err
++	}
++
++	//When sendfile() returns, this variable will be set to the
++	// offset of the byte following the last byte that was read.
++	if offset != nil {
++		*offset = *offset + int64(n)
++		// If offset is not NULL, then sendfile() does not modify the file
++		// offset of in_fd
++		_, err := Seek(infd, originalOffset, SEEK_SET)
++		if err != nil {
++			return -1, err
++		}
++	}
++	return n2, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index de3b462489..ccba391c9f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -2625,6 +2625,28 @@ const (
+ 	PR_UNALIGN_NOPRINT                          = 0x1
+ 	PR_UNALIGN_SIGBUS                           = 0x2
+ 	PSTOREFS_MAGIC                              = 0x6165676c
++	PTP_CLK_MAGIC                               = '='
++	PTP_ENABLE_FEATURE                          = 0x1
++	PTP_EXTTS_EDGES                             = 0x6
++	PTP_EXTTS_EVENT_VALID                       = 0x1
++	PTP_EXTTS_V1_VALID_FLAGS                    = 0x7
++	PTP_EXTTS_VALID_FLAGS                       = 0x1f
++	PTP_EXT_OFFSET                              = 0x10
++	PTP_FALLING_EDGE                            = 0x4
++	PTP_MAX_SAMPLES                             = 0x19
++	PTP_PEROUT_DUTY_CYCLE                       = 0x2
++	PTP_PEROUT_ONE_SHOT                         = 0x1
++	PTP_PEROUT_PHASE                            = 0x4
++	PTP_PEROUT_V1_VALID_FLAGS                   = 0x0
++	PTP_PEROUT_VALID_FLAGS                      = 0x7
++	PTP_PIN_GETFUNC                             = 0xc0603d06
++	PTP_PIN_GETFUNC2                            = 0xc0603d0f
++	PTP_RISING_EDGE                             = 0x2
++	PTP_STRICT_FLAGS                            = 0x8
++	PTP_SYS_OFFSET_EXTENDED                     = 0xc4c03d09
++	PTP_SYS_OFFSET_EXTENDED2                    = 0xc4c03d12
++	PTP_SYS_OFFSET_PRECISE                      = 0xc0403d08
++	PTP_SYS_OFFSET_PRECISE2                     = 0xc0403d11
+ 	PTRACE_ATTACH                               = 0x10
+ 	PTRACE_CONT                                 = 0x7
+ 	PTRACE_DETACH                               = 0x11
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+index 8aa6d77c01..0c00cb3f3a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+@@ -237,6 +237,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x7434
+ 	PPPIOCXFERUNIT                   = 0x744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffff
++	PTP_CLOCK_GETCAPS                = 0x80503d01
++	PTP_CLOCK_GETCAPS2               = 0x80503d0a
++	PTP_ENABLE_PPS                   = 0x40043d04
++	PTP_ENABLE_PPS2                  = 0x40043d0d
++	PTP_EXTTS_REQUEST                = 0x40103d02
++	PTP_EXTTS_REQUEST2               = 0x40103d0b
++	PTP_MASK_CLEAR_ALL               = 0x3d13
++	PTP_MASK_EN_SINGLE               = 0x40043d14
++	PTP_PEROUT_REQUEST               = 0x40383d03
++	PTP_PEROUT_REQUEST2              = 0x40383d0c
++	PTP_PIN_SETFUNC                  = 0x40603d07
++	PTP_PIN_SETFUNC2                 = 0x40603d10
++	PTP_SYS_OFFSET                   = 0x43403d05
++	PTP_SYS_OFFSET2                  = 0x43403d0e
+ 	PTRACE_GETFPREGS                 = 0xe
+ 	PTRACE_GETFPXREGS                = 0x12
+ 	PTRACE_GET_THREAD_AREA           = 0x19
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+index da428f4253..dfb364554d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+@@ -237,6 +237,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x7434
+ 	PPPIOCXFERUNIT                   = 0x744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTP_CLOCK_GETCAPS                = 0x80503d01
++	PTP_CLOCK_GETCAPS2               = 0x80503d0a
++	PTP_ENABLE_PPS                   = 0x40043d04
++	PTP_ENABLE_PPS2                  = 0x40043d0d
++	PTP_EXTTS_REQUEST                = 0x40103d02
++	PTP_EXTTS_REQUEST2               = 0x40103d0b
++	PTP_MASK_CLEAR_ALL               = 0x3d13
++	PTP_MASK_EN_SINGLE               = 0x40043d14
++	PTP_PEROUT_REQUEST               = 0x40383d03
++	PTP_PEROUT_REQUEST2              = 0x40383d0c
++	PTP_PIN_SETFUNC                  = 0x40603d07
++	PTP_PIN_SETFUNC2                 = 0x40603d10
++	PTP_SYS_OFFSET                   = 0x43403d05
++	PTP_SYS_OFFSET2                  = 0x43403d0e
+ 	PTRACE_ARCH_PRCTL                = 0x1e
+ 	PTRACE_GETFPREGS                 = 0xe
+ 	PTRACE_GETFPXREGS                = 0x12
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+index bf45bfec78..d46dcf78ab 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+@@ -234,6 +234,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x7434
+ 	PPPIOCXFERUNIT                   = 0x744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffff
++	PTP_CLOCK_GETCAPS                = 0x80503d01
++	PTP_CLOCK_GETCAPS2               = 0x80503d0a
++	PTP_ENABLE_PPS                   = 0x40043d04
++	PTP_ENABLE_PPS2                  = 0x40043d0d
++	PTP_EXTTS_REQUEST                = 0x40103d02
++	PTP_EXTTS_REQUEST2               = 0x40103d0b
++	PTP_MASK_CLEAR_ALL               = 0x3d13
++	PTP_MASK_EN_SINGLE               = 0x40043d14
++	PTP_PEROUT_REQUEST               = 0x40383d03
++	PTP_PEROUT_REQUEST2              = 0x40383d0c
++	PTP_PIN_SETFUNC                  = 0x40603d07
++	PTP_PIN_SETFUNC2                 = 0x40603d10
++	PTP_SYS_OFFSET                   = 0x43403d05
++	PTP_SYS_OFFSET2                  = 0x43403d0e
+ 	PTRACE_GETCRUNCHREGS             = 0x19
+ 	PTRACE_GETFDPIC                  = 0x1f
+ 	PTRACE_GETFDPIC_EXEC             = 0x0
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+index 71c67162b7..3af3248a7f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+@@ -240,6 +240,20 @@ const (
+ 	PROT_BTI                         = 0x10
+ 	PROT_MTE                         = 0x20
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTP_CLOCK_GETCAPS                = 0x80503d01
++	PTP_CLOCK_GETCAPS2               = 0x80503d0a
++	PTP_ENABLE_PPS                   = 0x40043d04
++	PTP_ENABLE_PPS2                  = 0x40043d0d
++	PTP_EXTTS_REQUEST                = 0x40103d02
++	PTP_EXTTS_REQUEST2               = 0x40103d0b
++	PTP_MASK_CLEAR_ALL               = 0x3d13
++	PTP_MASK_EN_SINGLE               = 0x40043d14
++	PTP_PEROUT_REQUEST               = 0x40383d03
++	PTP_PEROUT_REQUEST2              = 0x40383d0c
++	PTP_PIN_SETFUNC                  = 0x40603d07
++	PTP_PIN_SETFUNC2                 = 0x40603d10
++	PTP_SYS_OFFSET                   = 0x43403d05
++	PTP_SYS_OFFSET2                  = 0x43403d0e
+ 	PTRACE_PEEKMTETAGS               = 0x21
+ 	PTRACE_POKEMTETAGS               = 0x22
+ 	PTRACE_SYSEMU                    = 0x1f
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+index 9476628fa0..292bcf0283 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+@@ -238,6 +238,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x7434
+ 	PPPIOCXFERUNIT                   = 0x744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTP_CLOCK_GETCAPS                = 0x80503d01
++	PTP_CLOCK_GETCAPS2               = 0x80503d0a
++	PTP_ENABLE_PPS                   = 0x40043d04
++	PTP_ENABLE_PPS2                  = 0x40043d0d
++	PTP_EXTTS_REQUEST                = 0x40103d02
++	PTP_EXTTS_REQUEST2               = 0x40103d0b
++	PTP_MASK_CLEAR_ALL               = 0x3d13
++	PTP_MASK_EN_SINGLE               = 0x40043d14
++	PTP_PEROUT_REQUEST               = 0x40383d03
++	PTP_PEROUT_REQUEST2              = 0x40383d0c
++	PTP_PIN_SETFUNC                  = 0x40603d07
++	PTP_PIN_SETFUNC2                 = 0x40603d10
++	PTP_SYS_OFFSET                   = 0x43403d05
++	PTP_SYS_OFFSET2                  = 0x43403d0e
+ 	PTRACE_SYSEMU                    = 0x1f
+ 	PTRACE_SYSEMU_SINGLESTEP         = 0x20
+ 	RLIMIT_AS                        = 0x9
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+index b9e85f3cf0..782b7110fa 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+@@ -234,6 +234,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x20007434
+ 	PPPIOCXFERUNIT                   = 0x2000744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffff
++	PTP_CLOCK_GETCAPS                = 0x40503d01
++	PTP_CLOCK_GETCAPS2               = 0x40503d0a
++	PTP_ENABLE_PPS                   = 0x80043d04
++	PTP_ENABLE_PPS2                  = 0x80043d0d
++	PTP_EXTTS_REQUEST                = 0x80103d02
++	PTP_EXTTS_REQUEST2               = 0x80103d0b
++	PTP_MASK_CLEAR_ALL               = 0x20003d13
++	PTP_MASK_EN_SINGLE               = 0x80043d14
++	PTP_PEROUT_REQUEST               = 0x80383d03
++	PTP_PEROUT_REQUEST2              = 0x80383d0c
++	PTP_PIN_SETFUNC                  = 0x80603d07
++	PTP_PIN_SETFUNC2                 = 0x80603d10
++	PTP_SYS_OFFSET                   = 0x83403d05
++	PTP_SYS_OFFSET2                  = 0x83403d0e
+ 	PTRACE_GETFPREGS                 = 0xe
+ 	PTRACE_GET_THREAD_AREA           = 0x19
+ 	PTRACE_GET_THREAD_AREA_3264      = 0xc4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+index a48b68a764..84973fd927 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+@@ -234,6 +234,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x20007434
+ 	PPPIOCXFERUNIT                   = 0x2000744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTP_CLOCK_GETCAPS                = 0x40503d01
++	PTP_CLOCK_GETCAPS2               = 0x40503d0a
++	PTP_ENABLE_PPS                   = 0x80043d04
++	PTP_ENABLE_PPS2                  = 0x80043d0d
++	PTP_EXTTS_REQUEST                = 0x80103d02
++	PTP_EXTTS_REQUEST2               = 0x80103d0b
++	PTP_MASK_CLEAR_ALL               = 0x20003d13
++	PTP_MASK_EN_SINGLE               = 0x80043d14
++	PTP_PEROUT_REQUEST               = 0x80383d03
++	PTP_PEROUT_REQUEST2              = 0x80383d0c
++	PTP_PIN_SETFUNC                  = 0x80603d07
++	PTP_PIN_SETFUNC2                 = 0x80603d10
++	PTP_SYS_OFFSET                   = 0x83403d05
++	PTP_SYS_OFFSET2                  = 0x83403d0e
+ 	PTRACE_GETFPREGS                 = 0xe
+ 	PTRACE_GET_THREAD_AREA           = 0x19
+ 	PTRACE_GET_THREAD_AREA_3264      = 0xc4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+index ea00e8522a..6d9cbc3b27 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+@@ -234,6 +234,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x20007434
+ 	PPPIOCXFERUNIT                   = 0x2000744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTP_CLOCK_GETCAPS                = 0x40503d01
++	PTP_CLOCK_GETCAPS2               = 0x40503d0a
++	PTP_ENABLE_PPS                   = 0x80043d04
++	PTP_ENABLE_PPS2                  = 0x80043d0d
++	PTP_EXTTS_REQUEST                = 0x80103d02
++	PTP_EXTTS_REQUEST2               = 0x80103d0b
++	PTP_MASK_CLEAR_ALL               = 0x20003d13
++	PTP_MASK_EN_SINGLE               = 0x80043d14
++	PTP_PEROUT_REQUEST               = 0x80383d03
++	PTP_PEROUT_REQUEST2              = 0x80383d0c
++	PTP_PIN_SETFUNC                  = 0x80603d07
++	PTP_PIN_SETFUNC2                 = 0x80603d10
++	PTP_SYS_OFFSET                   = 0x83403d05
++	PTP_SYS_OFFSET2                  = 0x83403d0e
+ 	PTRACE_GETFPREGS                 = 0xe
+ 	PTRACE_GET_THREAD_AREA           = 0x19
+ 	PTRACE_GET_THREAD_AREA_3264      = 0xc4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+index 91c6468717..5f9fedbce0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+@@ -234,6 +234,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x20007434
+ 	PPPIOCXFERUNIT                   = 0x2000744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffff
++	PTP_CLOCK_GETCAPS                = 0x40503d01
++	PTP_CLOCK_GETCAPS2               = 0x40503d0a
++	PTP_ENABLE_PPS                   = 0x80043d04
++	PTP_ENABLE_PPS2                  = 0x80043d0d
++	PTP_EXTTS_REQUEST                = 0x80103d02
++	PTP_EXTTS_REQUEST2               = 0x80103d0b
++	PTP_MASK_CLEAR_ALL               = 0x20003d13
++	PTP_MASK_EN_SINGLE               = 0x80043d14
++	PTP_PEROUT_REQUEST               = 0x80383d03
++	PTP_PEROUT_REQUEST2              = 0x80383d0c
++	PTP_PIN_SETFUNC                  = 0x80603d07
++	PTP_PIN_SETFUNC2                 = 0x80603d10
++	PTP_SYS_OFFSET                   = 0x83403d05
++	PTP_SYS_OFFSET2                  = 0x83403d0e
+ 	PTRACE_GETFPREGS                 = 0xe
+ 	PTRACE_GET_THREAD_AREA           = 0x19
+ 	PTRACE_GET_THREAD_AREA_3264      = 0xc4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
+index 8cbf38d639..bb0026ee0c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
+@@ -237,6 +237,20 @@ const (
+ 	PPPIOCXFERUNIT                   = 0x2000744e
+ 	PROT_SAO                         = 0x10
+ 	PR_SET_PTRACER_ANY               = 0xffffffff
++	PTP_CLOCK_GETCAPS                = 0x40503d01
++	PTP_CLOCK_GETCAPS2               = 0x40503d0a
++	PTP_ENABLE_PPS                   = 0x80043d04
++	PTP_ENABLE_PPS2                  = 0x80043d0d
++	PTP_EXTTS_REQUEST                = 0x80103d02
++	PTP_EXTTS_REQUEST2               = 0x80103d0b
++	PTP_MASK_CLEAR_ALL               = 0x20003d13
++	PTP_MASK_EN_SINGLE               = 0x80043d14
++	PTP_PEROUT_REQUEST               = 0x80383d03
++	PTP_PEROUT_REQUEST2              = 0x80383d0c
++	PTP_PIN_SETFUNC                  = 0x80603d07
++	PTP_PIN_SETFUNC2                 = 0x80603d10
++	PTP_SYS_OFFSET                   = 0x83403d05
++	PTP_SYS_OFFSET2                  = 0x83403d0e
+ 	PTRACE_GETEVRREGS                = 0x14
+ 	PTRACE_GETFPREGS                 = 0xe
+ 	PTRACE_GETREGS64                 = 0x16
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+index a2df734191..46120db5c9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+@@ -237,6 +237,20 @@ const (
+ 	PPPIOCXFERUNIT                   = 0x2000744e
+ 	PROT_SAO                         = 0x10
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTP_CLOCK_GETCAPS                = 0x40503d01
++	PTP_CLOCK_GETCAPS2               = 0x40503d0a
++	PTP_ENABLE_PPS                   = 0x80043d04
++	PTP_ENABLE_PPS2                  = 0x80043d0d
++	PTP_EXTTS_REQUEST                = 0x80103d02
++	PTP_EXTTS_REQUEST2               = 0x80103d0b
++	PTP_MASK_CLEAR_ALL               = 0x20003d13
++	PTP_MASK_EN_SINGLE               = 0x80043d14
++	PTP_PEROUT_REQUEST               = 0x80383d03
++	PTP_PEROUT_REQUEST2              = 0x80383d0c
++	PTP_PIN_SETFUNC                  = 0x80603d07
++	PTP_PIN_SETFUNC2                 = 0x80603d10
++	PTP_SYS_OFFSET                   = 0x83403d05
++	PTP_SYS_OFFSET2                  = 0x83403d0e
+ 	PTRACE_GETEVRREGS                = 0x14
+ 	PTRACE_GETFPREGS                 = 0xe
+ 	PTRACE_GETREGS64                 = 0x16
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+index 2479137923..5c951634fb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+@@ -237,6 +237,20 @@ const (
+ 	PPPIOCXFERUNIT                   = 0x2000744e
+ 	PROT_SAO                         = 0x10
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTP_CLOCK_GETCAPS                = 0x40503d01
++	PTP_CLOCK_GETCAPS2               = 0x40503d0a
++	PTP_ENABLE_PPS                   = 0x80043d04
++	PTP_ENABLE_PPS2                  = 0x80043d0d
++	PTP_EXTTS_REQUEST                = 0x80103d02
++	PTP_EXTTS_REQUEST2               = 0x80103d0b
++	PTP_MASK_CLEAR_ALL               = 0x20003d13
++	PTP_MASK_EN_SINGLE               = 0x80043d14
++	PTP_PEROUT_REQUEST               = 0x80383d03
++	PTP_PEROUT_REQUEST2              = 0x80383d0c
++	PTP_PIN_SETFUNC                  = 0x80603d07
++	PTP_PIN_SETFUNC2                 = 0x80603d10
++	PTP_SYS_OFFSET                   = 0x83403d05
++	PTP_SYS_OFFSET2                  = 0x83403d0e
+ 	PTRACE_GETEVRREGS                = 0x14
+ 	PTRACE_GETFPREGS                 = 0xe
+ 	PTRACE_GETREGS64                 = 0x16
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+index d265f146ee..11a84d5af2 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+@@ -234,6 +234,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x7434
+ 	PPPIOCXFERUNIT                   = 0x744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTP_CLOCK_GETCAPS                = 0x80503d01
++	PTP_CLOCK_GETCAPS2               = 0x80503d0a
++	PTP_ENABLE_PPS                   = 0x40043d04
++	PTP_ENABLE_PPS2                  = 0x40043d0d
++	PTP_EXTTS_REQUEST                = 0x40103d02
++	PTP_EXTTS_REQUEST2               = 0x40103d0b
++	PTP_MASK_CLEAR_ALL               = 0x3d13
++	PTP_MASK_EN_SINGLE               = 0x40043d14
++	PTP_PEROUT_REQUEST               = 0x40383d03
++	PTP_PEROUT_REQUEST2              = 0x40383d0c
++	PTP_PIN_SETFUNC                  = 0x40603d07
++	PTP_PIN_SETFUNC2                 = 0x40603d10
++	PTP_SYS_OFFSET                   = 0x43403d05
++	PTP_SYS_OFFSET2                  = 0x43403d0e
+ 	PTRACE_GETFDPIC                  = 0x21
+ 	PTRACE_GETFDPIC_EXEC             = 0x0
+ 	PTRACE_GETFDPIC_INTERP           = 0x1
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+index 3f2d644396..f78c4617ca 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+@@ -234,6 +234,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x7434
+ 	PPPIOCXFERUNIT                   = 0x744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTP_CLOCK_GETCAPS                = 0x80503d01
++	PTP_CLOCK_GETCAPS2               = 0x80503d0a
++	PTP_ENABLE_PPS                   = 0x40043d04
++	PTP_ENABLE_PPS2                  = 0x40043d0d
++	PTP_EXTTS_REQUEST                = 0x40103d02
++	PTP_EXTTS_REQUEST2               = 0x40103d0b
++	PTP_MASK_CLEAR_ALL               = 0x3d13
++	PTP_MASK_EN_SINGLE               = 0x40043d14
++	PTP_PEROUT_REQUEST               = 0x40383d03
++	PTP_PEROUT_REQUEST2              = 0x40383d0c
++	PTP_PIN_SETFUNC                  = 0x40603d07
++	PTP_PIN_SETFUNC2                 = 0x40603d10
++	PTP_SYS_OFFSET                   = 0x43403d05
++	PTP_SYS_OFFSET2                  = 0x43403d0e
+ 	PTRACE_DISABLE_TE                = 0x5010
+ 	PTRACE_ENABLE_TE                 = 0x5009
+ 	PTRACE_GET_LAST_BREAK            = 0x5006
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+index 5d8b727a1c..aeb777c344 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+@@ -239,6 +239,20 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x20007434
+ 	PPPIOCXFERUNIT                   = 0x2000744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTP_CLOCK_GETCAPS                = 0x40503d01
++	PTP_CLOCK_GETCAPS2               = 0x40503d0a
++	PTP_ENABLE_PPS                   = 0x80043d04
++	PTP_ENABLE_PPS2                  = 0x80043d0d
++	PTP_EXTTS_REQUEST                = 0x80103d02
++	PTP_EXTTS_REQUEST2               = 0x80103d0b
++	PTP_MASK_CLEAR_ALL               = 0x20003d13
++	PTP_MASK_EN_SINGLE               = 0x80043d14
++	PTP_PEROUT_REQUEST               = 0x80383d03
++	PTP_PEROUT_REQUEST2              = 0x80383d0c
++	PTP_PIN_SETFUNC                  = 0x80603d07
++	PTP_PIN_SETFUNC2                 = 0x80603d10
++	PTP_SYS_OFFSET                   = 0x83403d05
++	PTP_SYS_OFFSET2                  = 0x83403d0e
+ 	PTRACE_GETFPAREGS                = 0x14
+ 	PTRACE_GETFPREGS                 = 0xe
+ 	PTRACE_GETFPREGS64               = 0x19
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+index af30da5578..5cc1e8eb2f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+@@ -592,6 +592,16 @@ func ClockGettime(clockid int32, time *Timespec) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ClockSettime(clockid int32, time *Timespec) (err error) {
++	_, _, e1 := Syscall(SYS_CLOCK_SETTIME, uintptr(clockid), uintptr(unsafe.Pointer(time)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func ClockNanosleep(clockid int32, flags int, request *Timespec, remain *Timespec) (err error) {
+ 	_, _, e1 := Syscall6(SYS_CLOCK_NANOSLEEP, uintptr(clockid), uintptr(flags), uintptr(unsafe.Pointer(request)), uintptr(unsafe.Pointer(remain)), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index 3a69e45496..8daaf3faf4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -1752,12 +1752,6 @@ const (
+ 	IFLA_IPVLAN_UNSPEC                         = 0x0
+ 	IFLA_IPVLAN_MODE                           = 0x1
+ 	IFLA_IPVLAN_FLAGS                          = 0x2
+-	NETKIT_NEXT                                = -0x1
+-	NETKIT_PASS                                = 0x0
+-	NETKIT_DROP                                = 0x2
+-	NETKIT_REDIRECT                            = 0x7
+-	NETKIT_L2                                  = 0x0
+-	NETKIT_L3                                  = 0x1
+ 	IFLA_NETKIT_UNSPEC                         = 0x0
+ 	IFLA_NETKIT_PEER_INFO                      = 0x1
+ 	IFLA_NETKIT_PRIMARY                        = 0x2
+@@ -1796,6 +1790,7 @@ const (
+ 	IFLA_VXLAN_DF                              = 0x1d
+ 	IFLA_VXLAN_VNIFILTER                       = 0x1e
+ 	IFLA_VXLAN_LOCALBYPASS                     = 0x1f
++	IFLA_VXLAN_LABEL_POLICY                    = 0x20
+ 	IFLA_GENEVE_UNSPEC                         = 0x0
+ 	IFLA_GENEVE_ID                             = 0x1
+ 	IFLA_GENEVE_REMOTE                         = 0x2
+@@ -1825,6 +1820,8 @@ const (
+ 	IFLA_GTP_ROLE                              = 0x4
+ 	IFLA_GTP_CREATE_SOCKETS                    = 0x5
+ 	IFLA_GTP_RESTART_COUNT                     = 0x6
++	IFLA_GTP_LOCAL                             = 0x7
++	IFLA_GTP_LOCAL6                            = 0x8
+ 	IFLA_BOND_UNSPEC                           = 0x0
+ 	IFLA_BOND_MODE                             = 0x1
+ 	IFLA_BOND_ACTIVE_SLAVE                     = 0x2
+@@ -1857,6 +1854,7 @@ const (
+ 	IFLA_BOND_AD_LACP_ACTIVE                   = 0x1d
+ 	IFLA_BOND_MISSED_MAX                       = 0x1e
+ 	IFLA_BOND_NS_IP6_TARGET                    = 0x1f
++	IFLA_BOND_COUPLED_CONTROL                  = 0x20
+ 	IFLA_BOND_AD_INFO_UNSPEC                   = 0x0
+ 	IFLA_BOND_AD_INFO_AGGREGATOR               = 0x1
+ 	IFLA_BOND_AD_INFO_NUM_PORTS                = 0x2
+@@ -1925,6 +1923,7 @@ const (
+ 	IFLA_HSR_SEQ_NR                            = 0x5
+ 	IFLA_HSR_VERSION                           = 0x6
+ 	IFLA_HSR_PROTOCOL                          = 0x7
++	IFLA_HSR_INTERLINK                         = 0x8
+ 	IFLA_STATS_UNSPEC                          = 0x0
+ 	IFLA_STATS_LINK_64                         = 0x1
+ 	IFLA_STATS_LINK_XSTATS                     = 0x2
+@@ -1977,6 +1976,15 @@ const (
+ 	IFLA_DSA_MASTER                            = 0x1
+ )
+ 
++const (
++	NETKIT_NEXT     = -0x1
++	NETKIT_PASS     = 0x0
++	NETKIT_DROP     = 0x2
++	NETKIT_REDIRECT = 0x7
++	NETKIT_L2       = 0x0
++	NETKIT_L3       = 0x1
++)
++
+ const (
+ 	NF_INET_PRE_ROUTING  = 0x0
+ 	NF_INET_LOCAL_IN     = 0x1
+@@ -4110,6 +4118,106 @@ type EthtoolDrvinfo struct {
+ 	Regdump_len  uint32
+ }
+ 
++type EthtoolTsInfo struct {
++	Cmd             uint32
++	So_timestamping uint32
++	Phc_index       int32
++	Tx_types        uint32
++	Tx_reserved     [3]uint32
++	Rx_filters      uint32
++	Rx_reserved     [3]uint32
++}
++
++type HwTstampConfig struct {
++	Flags     int32
++	Tx_type   int32
++	Rx_filter int32
++}
++
++const (
++	HWTSTAMP_FILTER_NONE            = 0x0
++	HWTSTAMP_FILTER_ALL             = 0x1
++	HWTSTAMP_FILTER_SOME            = 0x2
++	HWTSTAMP_FILTER_PTP_V1_L4_EVENT = 0x3
++	HWTSTAMP_FILTER_PTP_V2_L4_EVENT = 0x6
++	HWTSTAMP_FILTER_PTP_V2_L2_EVENT = 0x9
++	HWTSTAMP_FILTER_PTP_V2_EVENT    = 0xc
++)
++
++const (
++	HWTSTAMP_TX_OFF          = 0x0
++	HWTSTAMP_TX_ON           = 0x1
++	HWTSTAMP_TX_ONESTEP_SYNC = 0x2
++)
++
++type (
++	PtpClockCaps struct {
++		Max_adj            int32
++		N_alarm            int32
++		N_ext_ts           int32
++		N_per_out          int32
++		Pps                int32
++		N_pins             int32
++		Cross_timestamping int32
++		Adjust_phase       int32
++		Max_phase_adj      int32
++		Rsv                [11]int32
++	}
++	PtpClockTime struct {
++		Sec      int64
++		Nsec     uint32
++		Reserved uint32
++	}
++	PtpExttsEvent struct {
++		T     PtpClockTime
++		Index uint32
++		Flags uint32
++		Rsv   [2]uint32
++	}
++	PtpExttsRequest struct {
++		Index uint32
++		Flags uint32
++		Rsv   [2]uint32
++	}
++	PtpPeroutRequest struct {
++		StartOrPhase PtpClockTime
++		Period       PtpClockTime
++		Index        uint32
++		Flags        uint32
++		On           PtpClockTime
++	}
++	PtpPinDesc struct {
++		Name  [64]byte
++		Index uint32
++		Func  uint32
++		Chan  uint32
++		Rsv   [5]uint32
++	}
++	PtpSysOffset struct {
++		Samples uint32
++		Rsv     [3]uint32
++		Ts      [51]PtpClockTime
++	}
++	PtpSysOffsetExtended struct {
++		Samples uint32
++		Rsv     [3]uint32
++		Ts      [25][3]PtpClockTime
++	}
++	PtpSysOffsetPrecise struct {
++		Device   PtpClockTime
++		Realtime PtpClockTime
++		Monoraw  PtpClockTime
++		Rsv      [4]uint32
++	}
++)
++
++const (
++	PTP_PF_NONE    = 0x0
++	PTP_PF_EXTTS   = 0x1
++	PTP_PF_PEROUT  = 0x2
++	PTP_PF_PHYSYNC = 0x3
++)
++
+ type (
+ 	HIDRawReportDescriptor struct {
+ 		Size  uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_zos_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_zos_s390x.go
+index d9a13af468..2e5d5a4435 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_zos_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_zos_s390x.go
+@@ -377,6 +377,12 @@ type Flock_t struct {
+ 	Pid    int32
+ }
+ 
++type F_cnvrt struct {
++	Cvtcmd int32
++	Pccsid int16
++	Fccsid int16
++}
++
+ type Termios struct {
+ 	Cflag uint32
+ 	Iflag uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index 5cee9a3143..4510bfc3f5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -725,20 +725,12 @@ func DurationSinceBoot() time.Duration {
+ }
+ 
+ func Ftruncate(fd Handle, length int64) (err error) {
+-	curoffset, e := Seek(fd, 0, 1)
+-	if e != nil {
+-		return e
+-	}
+-	defer Seek(fd, curoffset, 0)
+-	_, e = Seek(fd, length, 0)
+-	if e != nil {
+-		return e
++	type _FILE_END_OF_FILE_INFO struct {
++		EndOfFile int64
+ 	}
+-	e = SetEndOfFile(fd)
+-	if e != nil {
+-		return e
+-	}
+-	return nil
++	var info _FILE_END_OF_FILE_INFO
++	info.EndOfFile = length
++	return SetFileInformationByHandle(fd, FileEndOfFileInfo, (*byte)(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)))
+ }
+ 
+ func Gettimeofday(tv *Timeval) (err error) {
+@@ -894,6 +886,11 @@ const socket_error = uintptr(^uint32(0))
+ //sys	GetACP() (acp uint32) = kernel32.GetACP
+ //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
+ //sys	getBestInterfaceEx(sockaddr unsafe.Pointer, pdwBestIfIndex *uint32) (errcode error) = iphlpapi.GetBestInterfaceEx
++//sys   GetIfEntry2Ex(level uint32, row *MibIfRow2) (errcode error) = iphlpapi.GetIfEntry2Ex
++//sys   GetUnicastIpAddressEntry(row *MibUnicastIpAddressRow) (errcode error) = iphlpapi.GetUnicastIpAddressEntry
++//sys   NotifyIpInterfaceChange(family uint16, callback uintptr, callerContext unsafe.Pointer, initialNotification bool, notificationHandle *Handle) (errcode error) = iphlpapi.NotifyIpInterfaceChange
++//sys   NotifyUnicastIpAddressChange(family uint16, callback uintptr, callerContext unsafe.Pointer, initialNotification bool, notificationHandle *Handle) (errcode error) = iphlpapi.NotifyUnicastIpAddressChange
++//sys   CancelMibChangeNotify2(notificationHandle Handle) (errcode error) = iphlpapi.CancelMibChangeNotify2
+ 
+ // For testing: clients can set this flag to force
+ // creation of IPv6 sockets to return EAFNOSUPPORT.
+@@ -1685,13 +1682,16 @@ func (s NTStatus) Error() string {
+ // do not use NTUnicodeString, and instead UTF16PtrFromString should be used for
+ // the more common *uint16 string type.
+ func NewNTUnicodeString(s string) (*NTUnicodeString, error) {
+-	var u NTUnicodeString
+-	s16, err := UTF16PtrFromString(s)
++	s16, err := UTF16FromString(s)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	RtlInitUnicodeString(&u, s16)
+-	return &u, nil
++	n := uint16(len(s16) * 2)
++	return &NTUnicodeString{
++		Length:        n - 2, // subtract 2 bytes for the NULL terminator
++		MaximumLength: n,
++		Buffer:        &s16[0],
++	}, nil
+ }
+ 
+ // Slice returns a uint16 slice that aliases the data in the NTUnicodeString.
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+index 7b97a154c9..51311e205f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+@@ -2203,6 +2203,132 @@ const (
+ 	IfOperStatusLowerLayerDown = 7
+ )
+ 
++const (
++	IF_MAX_PHYS_ADDRESS_LENGTH = 32
++	IF_MAX_STRING_SIZE         = 256
++)
++
++// MIB_IF_ENTRY_LEVEL enumeration from netioapi.h or
++// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/nf-netioapi-getifentry2ex.
++const (
++	MibIfEntryNormal                  = 0
++	MibIfEntryNormalWithoutStatistics = 2
++)
++
++// MIB_NOTIFICATION_TYPE enumeration from netioapi.h or
++// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ne-netioapi-mib_notification_type.
++const (
++	MibParameterNotification = 0
++	MibAddInstance           = 1
++	MibDeleteInstance        = 2
++	MibInitialNotification   = 3
++)
++
++// MibIfRow2 stores information about a particular interface. See
++// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_row2.
++type MibIfRow2 struct {
++	InterfaceLuid               uint64
++	InterfaceIndex              uint32
++	InterfaceGuid               GUID
++	Alias                       [IF_MAX_STRING_SIZE + 1]uint16
++	Description                 [IF_MAX_STRING_SIZE + 1]uint16
++	PhysicalAddressLength       uint32
++	PhysicalAddress             [IF_MAX_PHYS_ADDRESS_LENGTH]uint8
++	PermanentPhysicalAddress    [IF_MAX_PHYS_ADDRESS_LENGTH]uint8
++	Mtu                         uint32
++	Type                        uint32
++	TunnelType                  uint32
++	MediaType                   uint32
++	PhysicalMediumType          uint32
++	AccessType                  uint32
++	DirectionType               uint32
++	InterfaceAndOperStatusFlags uint8
++	OperStatus                  uint32
++	AdminStatus                 uint32
++	MediaConnectState           uint32
++	NetworkGuid                 GUID
++	ConnectionType              uint32
++	TransmitLinkSpeed           uint64
++	ReceiveLinkSpeed            uint64
++	InOctets                    uint64
++	InUcastPkts                 uint64
++	InNUcastPkts                uint64
++	InDiscards                  uint64
++	InErrors                    uint64
++	InUnknownProtos             uint64
++	InUcastOctets               uint64
++	InMulticastOctets           uint64
++	InBroadcastOctets           uint64
++	OutOctets                   uint64
++	OutUcastPkts                uint64
++	OutNUcastPkts               uint64
++	OutDiscards                 uint64
++	OutErrors                   uint64
++	OutUcastOctets              uint64
++	OutMulticastOctets          uint64
++	OutBroadcastOctets          uint64
++	OutQLen                     uint64
++}
++
++// MIB_UNICASTIPADDRESS_ROW stores information about a unicast IP address. See
++// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_unicastipaddress_row.
++type MibUnicastIpAddressRow struct {
++	Address            RawSockaddrInet6 // SOCKADDR_INET union
++	InterfaceLuid      uint64
++	InterfaceIndex     uint32
++	PrefixOrigin       uint32
++	SuffixOrigin       uint32
++	ValidLifetime      uint32
++	PreferredLifetime  uint32
++	OnLinkPrefixLength uint8
++	SkipAsSource       uint8
++	DadState           uint32
++	ScopeId            uint32
++	CreationTimeStamp  Filetime
++}
++
++const ScopeLevelCount = 16
++
++// MIB_IPINTERFACE_ROW stores interface management information for a particular IP address family on a network interface.
++// See https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipinterface_row.
++type MibIpInterfaceRow struct {
++	Family                               uint16
++	InterfaceLuid                        uint64
++	InterfaceIndex                       uint32
++	MaxReassemblySize                    uint32
++	InterfaceIdentifier                  uint64
++	MinRouterAdvertisementInterval       uint32
++	MaxRouterAdvertisementInterval       uint32
++	AdvertisingEnabled                   uint8
++	ForwardingEnabled                    uint8
++	WeakHostSend                         uint8
++	WeakHostReceive                      uint8
++	UseAutomaticMetric                   uint8
++	UseNeighborUnreachabilityDetection   uint8
++	ManagedAddressConfigurationSupported uint8
++	OtherStatefulConfigurationSupported  uint8
++	AdvertiseDefaultRoute                uint8
++	RouterDiscoveryBehavior              uint32
++	DadTransmits                         uint32
++	BaseReachableTime                    uint32
++	RetransmitTime                       uint32
++	PathMtuDiscoveryTimeout              uint32
++	LinkLocalAddressBehavior             uint32
++	LinkLocalAddressTimeout              uint32
++	ZoneIndices                          [ScopeLevelCount]uint32
++	SitePrefixLength                     uint32
++	Metric                               uint32
++	NlMtu                                uint32
++	Connected                            uint8
++	SupportsWakeUpPatterns               uint8
++	SupportsNeighborDiscovery            uint8
++	SupportsRouterDiscovery              uint8
++	ReachableTime                        uint32
++	TransmitOffload                      uint32
++	ReceiveOffload                       uint32
++	DisableDefaultRoutes                 uint8
++}
++
+ // Console related constants used for the mode parameter to SetConsoleMode. See
+ // https://docs.microsoft.com/en-us/windows/console/setconsolemode for details.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 4c2e1bdc01..6f5252880c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -181,10 +181,15 @@ var (
+ 	procDnsRecordListFree                                    = moddnsapi.NewProc("DnsRecordListFree")
+ 	procDwmGetWindowAttribute                                = moddwmapi.NewProc("DwmGetWindowAttribute")
+ 	procDwmSetWindowAttribute                                = moddwmapi.NewProc("DwmSetWindowAttribute")
++	procCancelMibChangeNotify2                               = modiphlpapi.NewProc("CancelMibChangeNotify2")
+ 	procGetAdaptersAddresses                                 = modiphlpapi.NewProc("GetAdaptersAddresses")
+ 	procGetAdaptersInfo                                      = modiphlpapi.NewProc("GetAdaptersInfo")
+ 	procGetBestInterfaceEx                                   = modiphlpapi.NewProc("GetBestInterfaceEx")
+ 	procGetIfEntry                                           = modiphlpapi.NewProc("GetIfEntry")
++	procGetIfEntry2Ex                                        = modiphlpapi.NewProc("GetIfEntry2Ex")
++	procGetUnicastIpAddressEntry                             = modiphlpapi.NewProc("GetUnicastIpAddressEntry")
++	procNotifyIpInterfaceChange                              = modiphlpapi.NewProc("NotifyIpInterfaceChange")
++	procNotifyUnicastIpAddressChange                         = modiphlpapi.NewProc("NotifyUnicastIpAddressChange")
+ 	procAddDllDirectory                                      = modkernel32.NewProc("AddDllDirectory")
+ 	procAssignProcessToJobObject                             = modkernel32.NewProc("AssignProcessToJobObject")
+ 	procCancelIo                                             = modkernel32.NewProc("CancelIo")
+@@ -1606,6 +1611,14 @@ func DwmSetWindowAttribute(hwnd HWND, attribute uint32, value unsafe.Pointer, si
+ 	return
+ }
+ 
++func CancelMibChangeNotify2(notificationHandle Handle) (errcode error) {
++	r0, _, _ := syscall.SyscallN(procCancelMibChangeNotify2.Addr(), uintptr(notificationHandle))
++	if r0 != 0 {
++		errcode = syscall.Errno(r0)
++	}
++	return
++}
++
+ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
+ 	r0, _, _ := syscall.Syscall6(procGetAdaptersAddresses.Addr(), 5, uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizePointer)), 0)
+ 	if r0 != 0 {
+@@ -1638,6 +1651,46 @@ func GetIfEntry(pIfRow *MibIfRow) (errcode error) {
+ 	return
+ }
+ 
++func GetIfEntry2Ex(level uint32, row *MibIfRow2) (errcode error) {
++	r0, _, _ := syscall.SyscallN(procGetIfEntry2Ex.Addr(), uintptr(level), uintptr(unsafe.Pointer(row)))
++	if r0 != 0 {
++		errcode = syscall.Errno(r0)
++	}
++	return
++}
++
++func GetUnicastIpAddressEntry(row *MibUnicastIpAddressRow) (errcode error) {
++	r0, _, _ := syscall.SyscallN(procGetUnicastIpAddressEntry.Addr(), uintptr(unsafe.Pointer(row)))
++	if r0 != 0 {
++		errcode = syscall.Errno(r0)
++	}
++	return
++}
++
++func NotifyIpInterfaceChange(family uint16, callback uintptr, callerContext unsafe.Pointer, initialNotification bool, notificationHandle *Handle) (errcode error) {
++	var _p0 uint32
++	if initialNotification {
++		_p0 = 1
++	}
++	r0, _, _ := syscall.SyscallN(procNotifyIpInterfaceChange.Addr(), uintptr(family), uintptr(callback), uintptr(callerContext), uintptr(_p0), uintptr(unsafe.Pointer(notificationHandle)))
++	if r0 != 0 {
++		errcode = syscall.Errno(r0)
++	}
++	return
++}
++
++func NotifyUnicastIpAddressChange(family uint16, callback uintptr, callerContext unsafe.Pointer, initialNotification bool, notificationHandle *Handle) (errcode error) {
++	var _p0 uint32
++	if initialNotification {
++		_p0 = 1
++	}
++	r0, _, _ := syscall.SyscallN(procNotifyUnicastIpAddressChange.Addr(), uintptr(family), uintptr(callback), uintptr(callerContext), uintptr(_p0), uintptr(unsafe.Pointer(notificationHandle)))
++	if r0 != 0 {
++		errcode = syscall.Errno(r0)
++	}
++	return
++}
++
+ func AddDllDirectory(path *uint16) (cookie uintptr, err error) {
+ 	r0, _, e1 := syscall.Syscall(procAddDllDirectory.Addr(), 1, uintptr(unsafe.Pointer(path)), 0, 0)
+ 	cookie = uintptr(r0)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index a1aa32b6d2..16236baaea 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -43,7 +43,7 @@ golang.org/x/mod/zip
+ ## explicit; go 1.18
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.26.0
++# golang.org/x/sys v0.26.1-0.20241105152852-e0753d469443
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+diff --git a/src/go.mod b/src/go.mod
+index efc66984ba..d010f4fe50 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -8,6 +8,6 @@ require (
+ )
+ 
+ require (
+-	golang.org/x/sys v0.26.0 // indirect
++	golang.org/x/sys v0.26.1-0.20241105152852-e0753d469443 // indirect
+ 	golang.org/x/text v0.19.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 0138a96b18..ca48b2bfc5 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,7 +2,7 @@ golang.org/x/crypto v0.25.1-0.20240722173533-bb80217080b0 h1:wxHbFWyu21uEPJJnYaS
+ golang.org/x/crypto v0.25.1-0.20240722173533-bb80217080b0/go.mod h1:T+wALwcMOSE0kXgUAnPAHqTLW+XHgcELELW8VaDgm/M=
+ golang.org/x/net v0.27.1-0.20240722181819-765c7e89b3bd h1:pHzwejE8Zkb94bG4nA+fUeskKPFp1HPldrhv62dabro=
+ golang.org/x/net v0.27.1-0.20240722181819-765c7e89b3bd/go.mod h1:dDi0PyhWNoiUOrAS8uXv/vnScO4wnHQO4mj9fn/RytE=
+-golang.org/x/sys v0.26.0 h1:KHjCJyddX0LoSTb3J+vWpupP9p0oznkqVk/IfjymZbo=
+-golang.org/x/sys v0.26.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/sys v0.26.1-0.20241105152852-e0753d469443 h1:FPr/RpnBOqfdMWoEYvMQp58uqHLtb3rUd6mnuuowZEE=
++golang.org/x/sys v0.26.1-0.20241105152852-e0753d469443/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.19.0 h1:kTxAhCbGbxhK0IwgSKiMO5awPoDQ0RpfiVYBfK860YM=
+ golang.org/x/text v0.19.0/go.mod h1:BuEKDfySbSR4drPmRPG/7iBdf8hvFMuRexcpahXilzY=
+diff --git a/src/vendor/golang.org/x/sys/cpu/asm_darwin_x86_gc.s b/src/vendor/golang.org/x/sys/cpu/asm_darwin_x86_gc.s
+new file mode 100644
+index 0000000000..ec2acfe540
+--- /dev/null
++++ b/src/vendor/golang.org/x/sys/cpu/asm_darwin_x86_gc.s
+@@ -0,0 +1,17 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin && amd64 && gc
++
++#include "textflag.h"
++
++TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_sysctl(SB)
++GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
++DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
++
++TEXT libc_sysctlbyname_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_sysctlbyname(SB)
++GLOBL	·libc_sysctlbyname_trampoline_addr(SB), RODATA, $8
++DATA	·libc_sysctlbyname_trampoline_addr(SB)/8, $libc_sysctlbyname_trampoline<>(SB)
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_darwin_x86.go b/src/vendor/golang.org/x/sys/cpu/cpu_darwin_x86.go
+new file mode 100644
+index 0000000000..b838cb9e95
+--- /dev/null
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_darwin_x86.go
+@@ -0,0 +1,61 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin && amd64 && gc
++
++package cpu
++
++// darwinSupportsAVX512 checks Darwin kernel for AVX512 support via sysctl
++// call (see issue 43089). It also restricts AVX512 support for Darwin to
++// kernel version 21.3.0 (MacOS 12.2.0) or later (see issue 49233).
++//
++// Background:
++// Darwin implements a special mechanism to economize on thread state when
++// AVX512 specific registers are not in use. This scheme minimizes state when
++// preempting threads that haven't yet used any AVX512 instructions, but adds
++// special requirements to check for AVX512 hardware support at runtime (e.g.
++// via sysctl call or commpage inspection). See issue 43089 and link below for
++// full background:
++// https://github.com/apple-oss-distributions/xnu/blob/xnu-11215.1.10/osfmk/i386/fpu.c#L214-L240
++//
++// Additionally, all versions of the Darwin kernel from 19.6.0 through 21.2.0
++// (corresponding to MacOS 10.15.6 - 12.1) have a bug that can cause corruption
++// of the AVX512 mask registers (K0-K7) upon signal return. For this reason
++// AVX512 is considered unsafe to use on Darwin for kernel versions prior to
++// 21.3.0, where a fix has been confirmed. See issue 49233 for full background.
++func darwinSupportsAVX512() bool {
++	return darwinSysctlEnabled([]byte("hw.optional.avx512f\x00")) && darwinKernelVersionCheck(21, 3, 0)
++}
++
++// Ensure Darwin kernel version is at least major.minor.patch, avoiding dependencies
++func darwinKernelVersionCheck(major, minor, patch int) bool {
++	var release [256]byte
++	err := darwinOSRelease(&release)
++	if err != nil {
++		return false
++	}
++
++	var mmp [3]int
++	c := 0
++Loop:
++	for _, b := range release[:] {
++		switch {
++		case b >= '0' && b <= '9':
++			mmp[c] = 10*mmp[c] + int(b-'0')
++		case b == '.':
++			c++
++			if c > 2 {
++				return false
++			}
++		case b == 0:
++			break Loop
++		default:
++			return false
++		}
++	}
++	if c != 2 {
++		return false
++	}
++	return mmp[0] > major || mmp[0] == major && (mmp[1] > minor || mmp[1] == minor && mmp[2] >= patch)
++}
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_gc_x86.go b/src/vendor/golang.org/x/sys/cpu/cpu_gc_x86.go
+index 910728fb16..32a44514e2 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_gc_x86.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_gc_x86.go
+@@ -6,10 +6,10 @@
+ 
+ package cpu
+ 
+-// cpuid is implemented in cpu_x86.s for gc compiler
++// cpuid is implemented in cpu_gc_x86.s for gc compiler
+ // and in cpu_gccgo.c for gccgo.
+ func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
+ 
+-// xgetbv with ecx = 0 is implemented in cpu_x86.s for gc compiler
++// xgetbv with ecx = 0 is implemented in cpu_gc_x86.s for gc compiler
+ // and in cpu_gccgo.c for gccgo.
+ func xgetbv() (eax, edx uint32)
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_x86.s b/src/vendor/golang.org/x/sys/cpu/cpu_gc_x86.s
+similarity index 94%
+rename from src/vendor/golang.org/x/sys/cpu/cpu_x86.s
+rename to src/vendor/golang.org/x/sys/cpu/cpu_gc_x86.s
+index 7d7ba33efb..ce208ce6d6 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_x86.s
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_gc_x86.s
+@@ -18,7 +18,7 @@ TEXT ·cpuid(SB), NOSPLIT, $0-24
+ 	RET
+ 
+ // func xgetbv() (eax, edx uint32)
+-TEXT ·xgetbv(SB),NOSPLIT,$0-8
++TEXT ·xgetbv(SB), NOSPLIT, $0-8
+ 	MOVL $0, CX
+ 	XGETBV
+ 	MOVL AX, eax+0(FP)
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_gccgo_x86.go b/src/vendor/golang.org/x/sys/cpu/cpu_gccgo_x86.go
+index 99c60fe9f9..170d21ddfd 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_gccgo_x86.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_gccgo_x86.go
+@@ -23,9 +23,3 @@ func xgetbv() (eax, edx uint32) {
+ 	gccgoXgetbv(&a, &d)
+ 	return a, d
+ }
+-
+-// gccgo doesn't build on Darwin, per:
+-// https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/gcc.rb#L76
+-func darwinSupportsAVX512() bool {
+-	return false
+-}
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go b/src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go
+index 08f35ea177..f1caf0f78e 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go
+@@ -110,7 +110,6 @@ func doinit() {
+ 	ARM64.HasASIMDFHM = isSet(hwCap, hwcap_ASIMDFHM)
+ 	ARM64.HasDIT = isSet(hwCap, hwcap_DIT)
+ 
+-
+ 	// HWCAP2 feature bits
+ 	ARM64.HasSVE2 = isSet(hwCap2, hwcap2_SVE2)
+ 	ARM64.HasI8MM = isSet(hwCap2, hwcap2_I8MM)
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_other_x86.go b/src/vendor/golang.org/x/sys/cpu/cpu_other_x86.go
+new file mode 100644
+index 0000000000..a0fd7e2f75
+--- /dev/null
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_other_x86.go
+@@ -0,0 +1,11 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build 386 || amd64p32 || (amd64 && (!darwin || !gc))
++
++package cpu
++
++func darwinSupportsAVX512() bool {
++	panic("only implemented for gc && amd64 && darwin")
++}
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_x86.go b/src/vendor/golang.org/x/sys/cpu/cpu_x86.go
+index c29f5e4c5a..600a680786 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_x86.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_x86.go
+@@ -92,10 +92,8 @@ func archInit() {
+ 		osSupportsAVX = isSet(1, eax) && isSet(2, eax)
+ 
+ 		if runtime.GOOS == "darwin" {
+-			// Darwin doesn't save/restore AVX-512 mask registers correctly across signal handlers.
+-			// Since users can't rely on mask register contents, let's not advertise AVX-512 support.
+-			// See issue 49233.
+-			osSupportsAVX512 = false
++			// Darwin requires special AVX512 checks, see cpu_darwin_x86.go
++			osSupportsAVX512 = osSupportsAVX && darwinSupportsAVX512()
+ 		} else {
+ 			// Check if OPMASK and ZMM registers have OS support.
+ 			osSupportsAVX512 = osSupportsAVX && isSet(5, eax) && isSet(6, eax) && isSet(7, eax)
+diff --git a/src/vendor/golang.org/x/sys/cpu/syscall_darwin_x86_gc.go b/src/vendor/golang.org/x/sys/cpu/syscall_darwin_x86_gc.go
+new file mode 100644
+index 0000000000..4d0888b0c0
+--- /dev/null
++++ b/src/vendor/golang.org/x/sys/cpu/syscall_darwin_x86_gc.go
+@@ -0,0 +1,98 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Minimal copy of x/sys/unix so the cpu package can make a
++// system call on Darwin without depending on x/sys/unix.
++
++//go:build darwin && amd64 && gc
++
++package cpu
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++type _C_int int32
++
++// adapted from unix.Uname() at x/sys/unix/syscall_darwin.go L419
++func darwinOSRelease(release *[256]byte) error {
++	// from x/sys/unix/zerrors_openbsd_amd64.go
++	const (
++		CTL_KERN       = 0x1
++		KERN_OSRELEASE = 0x2
++	)
++
++	mib := []_C_int{CTL_KERN, KERN_OSRELEASE}
++	n := unsafe.Sizeof(*release)
++
++	return sysctl(mib, &release[0], &n, nil, 0)
++}
++
++type Errno = syscall.Errno
++
++var _zero uintptr // Single-word zero for use when we need a valid pointer to 0 bytes.
++
++// from x/sys/unix/zsyscall_darwin_amd64.go L791-807
++func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error {
++	var _p0 unsafe.Pointer
++	if len(mib) > 0 {
++		_p0 = unsafe.Pointer(&mib[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	if _, _, err := syscall_syscall6(
++		libc_sysctl_trampoline_addr,
++		uintptr(_p0),
++		uintptr(len(mib)),
++		uintptr(unsafe.Pointer(old)),
++		uintptr(unsafe.Pointer(oldlen)),
++		uintptr(unsafe.Pointer(new)),
++		uintptr(newlen),
++	); err != 0 {
++		return err
++	}
++
++	return nil
++}
++
++var libc_sysctl_trampoline_addr uintptr
++
++// adapted from internal/cpu/cpu_arm64_darwin.go
++func darwinSysctlEnabled(name []byte) bool {
++	out := int32(0)
++	nout := unsafe.Sizeof(out)
++	if ret := sysctlbyname(&name[0], (*byte)(unsafe.Pointer(&out)), &nout, nil, 0); ret != nil {
++		return false
++	}
++	return out > 0
++}
++
++//go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
++
++var libc_sysctlbyname_trampoline_addr uintptr
++
++// adapted from runtime/sys_darwin.go in the pattern of sysctl() above, as defined in x/sys/unix
++func sysctlbyname(name *byte, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error {
++	if _, _, err := syscall_syscall6(
++		libc_sysctlbyname_trampoline_addr,
++		uintptr(unsafe.Pointer(name)),
++		uintptr(unsafe.Pointer(old)),
++		uintptr(unsafe.Pointer(oldlen)),
++		uintptr(unsafe.Pointer(new)),
++		uintptr(newlen),
++		0,
++	); err != 0 {
++		return err
++	}
++
++	return nil
++}
++
++//go:cgo_import_dynamic libc_sysctlbyname sysctlbyname "/usr/lib/libSystem.B.dylib"
++
++// Implemented in the runtime package (runtime/sys_darwin.go)
++func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++
++//go:linkname syscall_syscall6 syscall.syscall6
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 5398a7708c..58940688fb 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -18,7 +18,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.26.0
++# golang.org/x/sys v0.26.1-0.20241105152852-e0753d469443
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.19.0

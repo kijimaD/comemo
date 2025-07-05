@@ -14,7 +14,7 @@ Date:   Mon Oct 24 14:33:22 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go  |  3 ---
  src/cmd/compile/internal/gc/bimport.go  |  3 ---
  src/cmd/compile/internal/gc/fmt.go      |  8 ++------
@@ -26,3 +26,240 @@ Date:   Mon Oct 24 14:33:22 2016 -0700
  src/cmd/compile/internal/gc/syntax.go   | 10 ++--------
  src/cmd/compile/internal/gc/walk.go     | 12 ++++++------
  10 files changed, 18 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index c40a338a8d..a6312cec90 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1185,9 +1185,6 @@ func (p *exporter) expr(n *Node) {
+ 	// case ODDDARG:
+ 	//	unimplemented - handled by default case
+ 
+-	// case OREGISTER:
+-	//	unimplemented - handled by default case
+-
+ 	case OLITERAL:
+ 		if n.Val().Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
+ 			p.expr(n.Orig)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index d898cae4f1..35eb5b1a39 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -837,9 +837,6 @@ func (p *importer) node() *Node {
+ 	// case ODDDARG:
+ 	//	unimplemented
+ 
+-	// case OREGISTER:
+-	//	unimplemented
+-
+ 	case OLITERAL:
+ 		typ := p.typ()
+ 		n := nodlit(p.value(typ))
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 22c96f1e5a..53d3875645 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -5,7 +5,6 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/obj"
+ 	"fmt"
+ 	"strconv"
+ 	"strings"
+@@ -1138,9 +1137,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
+ 	case ODDDARG:
+ 		fmt.Fprint(s, "... argument")
+ 
+-	case OREGISTER:
+-		fmt.Fprint(s, obj.Rconv(int(n.Reg)))
+-
+ 	case OLITERAL: // this is a bit of a mess
+ 		if fmtmode == FErr {
+ 			if n.Orig != nil && n.Orig != n {
+@@ -1511,8 +1507,8 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag) {
+ 	default:
+ 		fmt.Fprintf(s, "%v%j", n.Op, n)
+ 
+-	case OREGISTER, OINDREG:
+-		fmt.Fprintf(s, "%v-%v%j", n.Op, obj.Rconv(int(n.Reg)), n)
++	case OINDREGSP:
++		fmt.Fprintf(s, "%v-SP%j", n.Op, n)
+ 
+ 	case OLITERAL:
+ 		fmt.Fprintf(s, "%v-%v%j", n.Op, n.Val(), n)
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index fec983d515..fb6402206b 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -279,8 +279,7 @@ func nodarg(t interface{}, fp int) *Node {
+ 		Fatalf("bad fp")
+ 
+ 	case 0: // preparing arguments for call
+-		n.Op = OINDREG
+-		n.Reg = int16(Thearch.REGSP)
++		n.Op = OINDREGSP
+ 		n.Xoffset += Ctxt.FixedFrameSize()
+ 
+ 	case 1: // reading arguments inside call
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index ef54abdd66..bd56506e4d 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -152,8 +152,7 @@ var opnames = []string{
+ 	OCHECKNIL:        "CHECKNIL",
+ 	OVARKILL:         "VARKILL",
+ 	OVARLIVE:         "VARLIVE",
+-	OREGISTER:        "REGISTER",
+-	OINDREG:          "INDREG",
++	OINDREGSP:        "INDREGSP",
+ 	OCMP:             "CMP",
+ 	ODEC:             "DEC",
+ 	OINC:             "INC",
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index c8ab6038aa..8f13c7ac92 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -403,7 +403,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		OCHECKNIL,   // always followed by a read.
+ 		OCLOSUREVAR, // immutable pointer to captured variable
+ 		ODOTMETH,    // either part of CALLMETH or CALLPART (lowered to PTRLIT)
+-		OINDREG,     // at this stage, only n(SP) nodes from nodarg
++		OINDREGSP,   // at this stage, only n(SP) nodes from nodarg
+ 		ODCL,        // declarations (without value) cannot be races
+ 		ODCLCONST,
+ 		ODCLTYPE,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 196bd9c038..452d449f21 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -556,7 +556,7 @@ func (s *state) stmt(n *Node) {
+ 		// Make a fake node to mimic loading return value, ONLY for write barrier test.
+ 		// This is future-proofing against non-scalar 2-result intrinsics.
+ 		// Currently we only have scalar ones, which result in no write barrier.
+-		fakeret := &Node{Op: OINDREG, Reg: int16(Thearch.REGSP)}
++		fakeret := &Node{Op: OINDREGSP}
+ 		s.assign(n.List.First(), v1, needwritebarrier(n.List.First(), fakeret), false, n.Lineno, 0, false)
+ 		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second(), fakeret), false, n.Lineno, 0, false)
+ 		return
+@@ -1921,11 +1921,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		// Note we know the volatile result is false because you can't write &f() in Go.
+ 		return a
+ 
+-	case OINDREG:
+-		if int(n.Reg) != Thearch.REGSP {
+-			s.Fatalf("OINDREG of non-SP register %s in expr: %v", obj.Rconv(int(n.Reg)), n)
+-			return nil
+-		}
++	case OINDREGSP:
+ 		addr := s.entryNewValue1I(ssa.OpOffPtr, ptrto(n.Type), n.Xoffset, s.sp)
+ 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+ 
+@@ -3018,13 +3014,9 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
+ 			s.Fatalf("variable address class %v not implemented", classnames[n.Class])
+ 			return nil, false
+ 		}
+-	case OINDREG:
+-		// indirect off a register
++	case OINDREGSP:
++		// indirect off REGSP
+ 		// used for storing/loading arguments/returns to/from callees
+-		if int(n.Reg) != Thearch.REGSP {
+-			s.Fatalf("OINDREG of non-SP register %s in addr: %v", obj.Rconv(int(n.Reg)), n)
+-			return nil, false
+-		}
+ 		return s.entryNewValue1I(ssa.OpOffPtr, t, n.Xoffset, s.sp), true
+ 	case OINDEX:
+ 		if n.Left.Type.IsSlice() {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 2f2c134d74..a73be08eba 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1160,7 +1160,7 @@ func ullmancalc(n *Node) {
+ 	}
+ 
+ 	switch n.Op {
+-	case OREGISTER, OLITERAL, ONAME:
++	case OLITERAL, ONAME:
+ 		ul = 1
+ 		if n.Class == PAUTOHEAP {
+ 			ul++
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index da8671eac2..ef5b66ab0c 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -35,7 +35,7 @@ type Node struct {
+ 
+ 	// Various. Usually an offset into a struct. For example:
+ 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
+-	// - ODOT, ODOTPTR, and OINDREG use it to indicate offset relative to their base address.
++	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
+ 	// - OSTRUCTKEY uses it to store the named field's offset.
+ 	// - OXCASE and OXFALL use it to validate the use of fallthrough.
+ 	// Possibly still more uses. If you find any, document them.
+@@ -43,9 +43,6 @@ type Node struct {
+ 
+ 	Lineno int32
+ 
+-	// OREGISTER, OINDREG
+-	Reg int16
+-
+ 	Esc uint16 // EscXXX
+ 
+ 	Op        Op
+@@ -472,10 +469,7 @@ const (
+ 	OCHECKNIL   // emit code to ensure pointer/interface not nil
+ 	OVARKILL    // variable is dead
+ 	OVARLIVE    // variable is alive
+-
+-	// thearch-specific registers
+-	OREGISTER // a register, such as AX.
+-	OINDREG   // offset plus indirect of a register, such as 8(SP).
++	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
+ 
+ 	// arch-specific opcodes
+ 	OCMP    // compare: ACMP.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e2699d1f0a..6a00287b2d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -128,8 +128,8 @@ func adjustargs(n *Node, adjust int) {
+ 			continue
+ 		}
+ 
+-		if lhs.Op != OINDREG {
+-			yyerror("call argument store does not use OINDREG")
++		if lhs.Op != OINDREGSP {
++			yyerror("call argument store does not use OINDREGSP")
+ 		}
+ 
+ 		// can't really check this in machine-indep code.
+@@ -512,7 +512,7 @@ opswitch:
+ 
+ 	case OTYPE,
+ 		ONONAME,
+-		OINDREG,
++		OINDREGSP,
+ 		OEMPTY,
+ 		OGETG:
+ 
+@@ -2166,7 +2166,7 @@ func callnew(t *Type) *Node {
+ 
+ func iscallret(n *Node) bool {
+ 	n = outervalue(n)
+-	return n.Op == OINDREG && n.Reg == int16(Thearch.REGSP)
++	return n.Op == OINDREGSP
+ }
+ 
+ func isstack(n *Node) bool {
+@@ -2182,8 +2182,8 @@ func isstack(n *Node) bool {
+ 	}
+ 
+ 	switch n.Op {
+-	case OINDREG:
+-		return n.Reg == int16(Thearch.REGSP)
++	case OINDREGSP:
++		return true
+ 
+ 	case ONAME:
+ 		switch n.Class {

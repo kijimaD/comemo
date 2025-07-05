@@ -11,10 +11,76 @@ Date:   Wed Jun 20 01:17:03 2012 +0800
     R=dave, rsc
     CC=golang-dev
     https://golang.org/cl/6297087
-
+---
  src/pkg/runtime/defs_linux_arm.h     | 2 +-
  src/pkg/runtime/os_linux.h           | 2 +-
  src/pkg/runtime/signal_linux_386.c   | 3 ++-
  src/pkg/runtime/signal_linux_amd64.c | 3 ++-
  src/pkg/runtime/signal_linux_arm.c   | 3 ++-
  5 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_linux_arm.h b/src/pkg/runtime/defs_linux_arm.h
+index 9e5c83a079..f72ec3d1b7 100644
+--- a/src/pkg/runtime/defs_linux_arm.h
++++ b/src/pkg/runtime/defs_linux_arm.h
+@@ -143,6 +143,6 @@ struct Sigaction {
+ 	void *sa_handler;
+ 	uint32 sa_flags;
+ 	void *sa_restorer;
+-	uint32 sa_mask;
++	uint64 sa_mask;
+ };
+ #pragma pack off
+diff --git a/src/pkg/runtime/os_linux.h b/src/pkg/runtime/os_linux.h
+index 87daa3bb12..357b60eb45 100644
+--- a/src/pkg/runtime/os_linux.h
++++ b/src/pkg/runtime/os_linux.h
+@@ -10,7 +10,7 @@ int32	runtime·futex(uint32*, int32, uint32, Timespec*, uint32*, uint32);
+ int32	runtime·clone(int32, void*, M*, G*, void(*)(void));
+ 
+ struct Sigaction;
+-void	runtime·rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
++int32	runtime·rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
+ void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+ void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+ 
+diff --git a/src/pkg/runtime/signal_linux_386.c b/src/pkg/runtime/signal_linux_386.c
+index b154ad8872..4dbcb48f52 100644
+--- a/src/pkg/runtime/signal_linux_386.c
++++ b/src/pkg/runtime/signal_linux_386.c
+@@ -129,7 +129,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 	if(fn == runtime·sighandler)
+ 		fn = (void*)runtime·sigtramp;
+ 	sa.k_sa_handler = fn;
+-	runtime·rt_sigaction(i, &sa, nil, 8);
++	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
++		runtime·throw("rt_sigaction failure");
+ }
+ 
+ #define AT_NULL		0
+diff --git a/src/pkg/runtime/signal_linux_amd64.c b/src/pkg/runtime/signal_linux_amd64.c
+index 14095ba61c..8ff5be7859 100644
+--- a/src/pkg/runtime/signal_linux_amd64.c
++++ b/src/pkg/runtime/signal_linux_amd64.c
+@@ -139,5 +139,6 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 	if(fn == runtime·sighandler)
+ 		fn = (void*)runtime·sigtramp;
+ 	sa.sa_handler = fn;
+-	runtime·rt_sigaction(i, &sa, nil, 8);
++	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
++		runtime·throw("rt_sigaction failure");
+ }
+diff --git a/src/pkg/runtime/signal_linux_arm.c b/src/pkg/runtime/signal_linux_arm.c
+index d20af688bd..c35d139b27 100644
+--- a/src/pkg/runtime/signal_linux_arm.c
++++ b/src/pkg/runtime/signal_linux_arm.c
+@@ -139,7 +139,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 	if(fn == runtime·sighandler)
+ 		fn = (void*)runtime·sigtramp;
+ 	sa.sa_handler = fn;
+-	runtime·rt_sigaction(i, &sa, nil, 8);
++	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
++		runtime·throw("rt_sigaction failure");
+ }
+ 
+ #define AT_NULL		0

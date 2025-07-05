@@ -9,6 +9,20 @@ Date:   Fri Jan 3 22:48:03 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/47780043
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 329e2adb18..3d3eaa4cfe 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1009,7 +1009,7 @@ A field declaration may be followed by an optional string literal <i>tag</i>,
+ which becomes an attribute for all the fields in the corresponding
+ field declaration. The tags are made
+ visible through a <a href="/pkg/reflect/#StructTag">reflection interface</a>
+-and take part in <a href="Type_identity">type identity</a> for structs
++and take part in <a href="#Type_identity">type identity</a> for structs
+ but are otherwise ignored.
+ </p>
+ 

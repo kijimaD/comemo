@@ -17,7 +17,62 @@ Date:   Mon Mar 25 14:13:35 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/regexp/syntax/parse.go  |  4 +---
  src/regexp/syntax/regexp.go | 19 +++----------------
  2 files changed, 4 insertions(+), 19 deletions(-)
+
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 6a11b53fb1..6ed6491c80 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -249,9 +249,7 @@ func (p *parser) calcSize(re *Regexp, force bool) int64 {
+ 		size = int64(re.Max)*sub + int64(re.Max-re.Min)
+ 	}
+ 
+-	if size < 1 {
+-		size = 1
+-	}
++	size = max(1, size)
+ 	p.size[re] = size
+ 	return size
+ }
+diff --git a/src/regexp/syntax/regexp.go b/src/regexp/syntax/regexp.go
+index 4fa7d0e2f8..8ad3653abb 100644
+--- a/src/regexp/syntax/regexp.go
++++ b/src/regexp/syntax/regexp.go
+@@ -8,6 +8,7 @@ package syntax
+ // In this package, re is always a *Regexp and r is always a rune.
+ 
+ import (
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -75,24 +76,10 @@ func (x *Regexp) Equal(y *Regexp) bool {
+ 		}
+ 
+ 	case OpLiteral, OpCharClass:
+-		if len(x.Rune) != len(y.Rune) {
+-			return false
+-		}
+-		for i, r := range x.Rune {
+-			if r != y.Rune[i] {
+-				return false
+-			}
+-		}
++		return slices.Equal(x.Rune, y.Rune)
+ 
+ 	case OpAlternate, OpConcat:
+-		if len(x.Sub) != len(y.Sub) {
+-			return false
+-		}
+-		for i, sub := range x.Sub {
+-			if !sub.Equal(y.Sub[i]) {
+-				return false
+-			}
+-		}
++		return slices.EqualFunc(x.Sub, y.Sub, func(a, b *Regexp) bool { return a.Equal(b) })
+ 
+ 	case OpStar, OpPlus, OpQuest:
+ 		if x.Flags&NonGreedy != y.Flags&NonGreedy || !x.Sub[0].Equal(y.Sub[0]) {

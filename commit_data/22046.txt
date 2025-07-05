@@ -21,7 +21,7 @@ Date:   Tue Feb 10 12:24:11 2015 +0900
     Change-Id: I7ed7b4a0b6f10f54b29edc681a2f35603f2d8d45
     Reviewed-on: https://go-review.googlesource.com/4330
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/interface_bsd.go           |  81 +++++-----
  src/net/interface_darwin.go        |  37 +++--
  src/net/interface_freebsd.go       |  37 +++--
@@ -37,3 +37,1355 @@ Date:   Tue Feb 10 12:24:11 2015 +0900
  src/syscall/route_noifma_test.go   |  63 ++++++++
  src/syscall/route_openbsd.go       |   6 +-
  14 files changed, 740 insertions(+), 250 deletions(-)
+
+diff --git a/src/net/interface_bsd.go b/src/net/interface_bsd.go
+index 16775579d0..2f66e4fc31 100644
+--- a/src/net/interface_bsd.go
++++ b/src/net/interface_bsd.go
+@@ -54,24 +54,22 @@ func newLink(m *syscall.InterfaceMessage) (*Interface, error) {
+ 		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+ 	ifi := &Interface{Index: int(m.Header.Index), Flags: linkFlags(m.Header.Flags)}
+-	for _, sa := range sas {
+-		switch sa := sa.(type) {
+-		case *syscall.SockaddrDatalink:
+-			// NOTE: SockaddrDatalink.Data is minimum work area,
+-			// can be larger.
+-			m.Data = m.Data[unsafe.Offsetof(sa.Data):]
+-			var name [syscall.IFNAMSIZ]byte
+-			for i := 0; i < int(sa.Nlen); i++ {
+-				name[i] = byte(m.Data[i])
+-			}
+-			ifi.Name = string(name[:sa.Nlen])
+-			ifi.MTU = int(m.Header.Data.Mtu)
+-			addr := make([]byte, sa.Alen)
+-			for i := 0; i < int(sa.Alen); i++ {
+-				addr[i] = byte(m.Data[int(sa.Nlen)+i])
+-			}
+-			ifi.HardwareAddr = addr[:sa.Alen]
++	sa, _ := sas[syscall.RTAX_IFP].(*syscall.SockaddrDatalink)
++	if sa != nil {
++		// NOTE: SockaddrDatalink.Data is minimum work area,
++		// can be larger.
++		m.Data = m.Data[unsafe.Offsetof(sa.Data):]
++		var name [syscall.IFNAMSIZ]byte
++		for i := 0; i < int(sa.Nlen); i++ {
++			name[i] = byte(m.Data[i])
+ 		}
++		ifi.Name = string(name[:sa.Nlen])
++		ifi.MTU = int(m.Header.Data.Mtu)
++		addr := make([]byte, sa.Alen)
++		for i := 0; i < int(sa.Alen); i++ {
++			addr[i] = byte(m.Data[int(sa.Nlen)+i])
++		}
++		ifi.HardwareAddr = addr[:sa.Alen]
+ 	}
+ 	return ifi, nil
+ }
+@@ -144,39 +142,34 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 	return ifat, nil
+ }
+ 
+-func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (Addr, error) {
++func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (*IPNet, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+ 	ifa := &IPNet{}
+-	for i, sa := range sas {
+-		switch sa := sa.(type) {
+-		case *syscall.SockaddrInet4:
+-			switch i {
+-			case 0:
+-				ifa.Mask = IPv4Mask(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
+-			case 1:
+-				ifa.IP = IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
+-			}
+-		case *syscall.SockaddrInet6:
+-			switch i {
+-			case 0:
+-				ifa.Mask = make(IPMask, IPv6len)
+-				copy(ifa.Mask, sa.Addr[:])
+-			case 1:
+-				ifa.IP = make(IP, IPv6len)
+-				copy(ifa.IP, sa.Addr[:])
+-				// NOTE: KAME based IPv6 protcol stack usually embeds
+-				// the interface index in the interface-local or link-
+-				// local address as the kernel-internal form.
+-				if ifa.IP.IsLinkLocalUnicast() {
+-					ifa.IP[2], ifa.IP[3] = 0, 0
+-				}
+-			}
+-		default: // Sockaddrs contain syscall.SockaddrDatalink on NetBSD
+-			return nil, nil
++	switch sa := sas[syscall.RTAX_NETMASK].(type) {
++	case *syscall.SockaddrInet4:
++		ifa.Mask = IPv4Mask(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
++	case *syscall.SockaddrInet6:
++		ifa.Mask = make(IPMask, IPv6len)
++		copy(ifa.Mask, sa.Addr[:])
++	}
++	switch sa := sas[syscall.RTAX_IFA].(type) {
++	case *syscall.SockaddrInet4:
++		ifa.IP = IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
++	case *syscall.SockaddrInet6:
++		ifa.IP = make(IP, IPv6len)
++		copy(ifa.IP, sa.Addr[:])
++		// NOTE: KAME based IPv6 protcol stack usually embeds
++		// the interface index in the interface-local or
++		// link-local address as the kernel-internal form.
++		if ifa.IP.IsLinkLocalUnicast() {
++			ifa.IP[2], ifa.IP[3] = 0, 0
+ 		}
+ 	}
++	if ifa.IP == nil || ifa.Mask == nil {
++		return nil, nil // Sockaddrs contain syscall.SockaddrDatalink on NetBSD
++	}
+ 	return ifa, nil
+ }
+diff --git a/src/net/interface_darwin.go b/src/net/interface_darwin.go
+index ad0937db04..475b8611ce 100644
+--- a/src/net/interface_darwin.go
++++ b/src/net/interface_darwin.go
+@@ -29,35 +29,34 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 				if err != nil {
+ 					return nil, err
+ 				}
+-				ifmat = append(ifmat, ifma...)
++				if ifma != nil {
++					ifmat = append(ifmat, ifma)
++				}
+ 			}
+ 		}
+ 	}
+ 	return ifmat, nil
+ }
+ 
+-func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error) {
++func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) (*IPAddr, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+-	var ifmat []Addr
+-	for _, sa := range sas {
+-		switch sa := sa.(type) {
+-		case *syscall.SockaddrInet4:
+-			ifma := &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])}
+-			ifmat = append(ifmat, ifma.toAddr())
+-		case *syscall.SockaddrInet6:
+-			ifma := &IPAddr{IP: make(IP, IPv6len)}
+-			copy(ifma.IP, sa.Addr[:])
+-			// NOTE: KAME based IPv6 protocol stack usually embeds
+-			// the interface index in the interface-local or link-
+-			// local address as the kernel-internal form.
+-			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
+-				ifma.IP[2], ifma.IP[3] = 0, 0
+-			}
+-			ifmat = append(ifmat, ifma.toAddr())
++	switch sa := sas[syscall.RTAX_IFA].(type) {
++	case *syscall.SockaddrInet4:
++		return &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])}, nil
++	case *syscall.SockaddrInet6:
++		ifma := IPAddr{IP: make(IP, IPv6len)}
++		copy(ifma.IP, sa.Addr[:])
++		// NOTE: KAME based IPv6 protcol stack usually embeds
++		// the interface index in the interface-local or
++		// link-local address as the kernel-internal form.
++		if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
++			ifma.IP[2], ifma.IP[3] = 0, 0
+ 		}
++		return &ifma, nil
++	default:
++		return nil, nil
+ 	}
+-	return ifmat, nil
+ }
+diff --git a/src/net/interface_freebsd.go b/src/net/interface_freebsd.go
+index 5df767910e..13bf438103 100644
+--- a/src/net/interface_freebsd.go
++++ b/src/net/interface_freebsd.go
+@@ -29,35 +29,34 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 				if err != nil {
+ 					return nil, err
+ 				}
+-				ifmat = append(ifmat, ifma...)
++				if ifma != nil {
++					ifmat = append(ifmat, ifma)
++				}
+ 			}
+ 		}
+ 	}
+ 	return ifmat, nil
+ }
+ 
+-func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error) {
++func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) (*IPAddr, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+-	var ifmat []Addr
+-	for _, sa := range sas {
+-		switch sa := sa.(type) {
+-		case *syscall.SockaddrInet4:
+-			ifma := &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])}
+-			ifmat = append(ifmat, ifma.toAddr())
+-		case *syscall.SockaddrInet6:
+-			ifma := &IPAddr{IP: make(IP, IPv6len)}
+-			copy(ifma.IP, sa.Addr[:])
+-			// NOTE: KAME based IPv6 protocol stack usually embeds
+-			// the interface index in the interface-local or link-
+-			// local address as the kernel-internal form.
+-			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
+-				ifma.IP[2], ifma.IP[3] = 0, 0
+-			}
+-			ifmat = append(ifmat, ifma.toAddr())
++	switch sa := sas[syscall.RTAX_IFA].(type) {
++	case *syscall.SockaddrInet4:
++		return &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])}, nil
++	case *syscall.SockaddrInet6:
++		ifma := IPAddr{IP: make(IP, IPv6len)}
++		copy(ifma.IP, sa.Addr[:])
++		// NOTE: KAME based IPv6 protcol stack usually embeds
++		// the interface index in the interface-local or
++		// link-local address as the kernel-internal form.
++		if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
++			ifma.IP[2], ifma.IP[3] = 0, 0
+ 		}
++		return &ifma, nil
++	default:
++		return nil, nil
+ 	}
+-	return ifmat, nil
+ }
+diff --git a/src/syscall/route_bsd.go b/src/syscall/route_bsd.go
+index 1dabe42531..bc5de69bed 100644
+--- a/src/syscall/route_bsd.go
++++ b/src/syscall/route_bsd.go
+@@ -4,23 +4,37 @@
+ 
+ // +build darwin dragonfly freebsd netbsd openbsd
+ 
+-// Routing sockets and messages
+-
+ package syscall
+ 
+-import "unsafe"
++import (
++	"runtime"
++	"unsafe"
++)
++
++var (
++	freebsdConfArch       string // "machine $arch" line in kern.conftxt on freebsd
++	minRoutingSockaddrLen = rsaAlignOf(0)
++)
+ 
+ // Round the length of a raw sockaddr up to align it properly.
+ func rsaAlignOf(salen int) int {
+ 	salign := sizeofPtr
+-	// NOTE: It seems like 64-bit Darwin kernel still requires
+-	// 32-bit aligned access to BSD subsystem. Also NetBSD 6
+-	// kernel and beyond require 64-bit aligned access to routing
+-	// facilities.
+ 	if darwin64Bit {
++		// Darwin kernels require 32-bit aligned access to
++		// routing facilities.
+ 		salign = 4
+ 	} else if netbsd32Bit {
++		// NetBSD 6 and beyond kernels require 64-bit aligned
++		// access to routing facilities.
+ 		salign = 8
++	} else if runtime.GOOS == "freebsd" {
++		// In the case of kern.supported_archs="amd64 i386",
++		// we need to know the underlying kernel's
++		// architecture because the alignment for routing
++		// facilities are set at the build time of the kernel.
++		if freebsdConfArch == "amd64" {
++			salign = 8
++		}
+ 	}
+ 	if salen == 0 {
+ 		return salign
+@@ -28,6 +42,124 @@ func rsaAlignOf(salen int) int {
+ 	return (salen + salign - 1) & ^(salign - 1)
+ }
+ 
++// parseSockaddrLink parses b as a datalink socket address.
++func parseSockaddrLink(b []byte) (*SockaddrDatalink, error) {
++	sa, _, err := parseLinkLayerAddr(b[4:])
++	if err != nil {
++		return nil, err
++	}
++	rsa := (*RawSockaddrDatalink)(unsafe.Pointer(&b[0]))
++	sa.Len = rsa.Len
++	sa.Family = rsa.Family
++	sa.Index = rsa.Index
++	return sa, nil
++}
++
++// parseLinkLayerAddr parses b as a datalink socket address in
++// conventional BSD kernel form.
++func parseLinkLayerAddr(b []byte) (*SockaddrDatalink, int, error) {
++	// The encoding looks like the follwoing:
++	// +----------------------------+
++	// | Type             (1 octet) |
++	// +----------------------------+
++	// | Name length      (1 octet) |
++	// +----------------------------+
++	// | Address length   (1 octet) |
++	// +----------------------------+
++	// | Selector length  (1 octet) |
++	// +----------------------------+
++	// | Data            (variable) |
++	// +----------------------------+
++	type linkLayerAddr struct {
++		Type byte
++		Nlen byte
++		Alen byte
++		Slen byte
++	}
++	lla := (*linkLayerAddr)(unsafe.Pointer(&b[0]))
++	l := rsaAlignOf(int(4 + lla.Nlen + lla.Alen + lla.Slen))
++	if len(b) < l {
++		return nil, 0, EINVAL
++	}
++	b = b[4:]
++	sa := &SockaddrDatalink{Type: lla.Type, Nlen: lla.Nlen, Alen: lla.Alen, Slen: lla.Slen}
++	for i := 0; len(sa.Data) > i && i < int(lla.Nlen+lla.Alen+lla.Slen); i++ {
++		sa.Data[i] = int8(b[i])
++	}
++	return sa, l, nil
++}
++
++// parseSockaddrInet parses b as an internet socket address.
++func parseSockaddrInet(b []byte, family byte) (Sockaddr, error) {
++	switch family {
++	case AF_INET:
++		if len(b) < SizeofSockaddrInet4 {
++			return nil, EINVAL
++		}
++		rsa := (*RawSockaddrAny)(unsafe.Pointer(&b[0]))
++		return anyToSockaddr(rsa)
++	case AF_INET6:
++		if len(b) < SizeofSockaddrInet6 {
++			return nil, EINVAL
++		}
++		rsa := (*RawSockaddrAny)(unsafe.Pointer(&b[0]))
++		return anyToSockaddr(rsa)
++	default:
++		return nil, EINVAL
++	}
++}
++
++const (
++	offsetofInet4 = int(unsafe.Offsetof(RawSockaddrInet4{}.Addr))
++	offsetofInet6 = int(unsafe.Offsetof(RawSockaddrInet6{}.Addr))
++)
++
++// parseNetworkLayerAddr parses b as an internet socket address in
++// conventional BSD kernel form.
++func parseNetworkLayerAddr(b []byte, family byte) (Sockaddr, error) {
++	// The encoding looks similar to the NLRI encoding.
++	// +----------------------------+
++	// | Length           (1 octet) |
++	// +----------------------------+
++	// | Address prefix  (variable) |
++	// +----------------------------+
++	//
++	// The differences between the kernel form and the NLRI
++	// encoding are:
++	//
++	// - The length field of the kernel form indicates the prefix
++	//   length in bytes, not in bits
++	//
++	// - In the kernel form, zero value of the length field
++	//   doesn't mean 0.0.0.0/0 or ::/0
++	//
++	// - The kernel form appends leading bytes to the prefix field
++	//   to make the <length, prefix> tuple to be conformed with
++	//   the routing messeage boundary
++	l := int(rsaAlignOf(int(b[0])))
++	if len(b) < l {
++		return nil, EINVAL
++	}
++	switch family {
++	case AF_INET6:
++		sa := &SockaddrInet6{}
++		if l-1 < offsetofInet6 {
++			copy(sa.Addr[:], b[1:l])
++		} else {
++			copy(sa.Addr[:], b[l-offsetofInet6:l])
++		}
++		return sa, nil
++	default: // an old fashion, AF_UNSPEC or unknown means AF_INET
++		sa := &SockaddrInet4{}
++		if l-1 < offsetofInet4 {
++			copy(sa.Addr[:], b[1:l])
++		} else {
++			copy(sa.Addr[:], b[l-offsetofInet4:l])
++		}
++		return sa, nil
++	}
++}
++
+ // RouteRIB returns routing information base, as known as RIB,
+ // which consists of network facility information, states and
+ // parameters.
+@@ -50,7 +182,7 @@ func RouteRIB(facility, param int) ([]byte, error) {
+ 
+ // RoutingMessage represents a routing message.
+ type RoutingMessage interface {
+-	sockaddr() []Sockaddr
++	sockaddr() ([]Sockaddr, error)
+ }
+ 
+ const anyMessageLen = int(unsafe.Sizeof(anyMessage{}))
+@@ -68,50 +200,41 @@ type RouteMessage struct {
+ 	Data   []byte
+ }
+ 
+-const rtaRtMask = RTA_DST | RTA_GATEWAY | RTA_NETMASK | RTA_GENMASK
+-
+-func (m *RouteMessage) sockaddr() []Sockaddr {
+-	var (
+-		af  int
+-		sas [4]Sockaddr
+-	)
++func (m *RouteMessage) sockaddr() ([]Sockaddr, error) {
++	var sas [RTAX_MAX]Sockaddr
+ 	b := m.Data[:]
+-	for i := uint(0); i < RTAX_MAX; i++ {
+-		if m.Header.Addrs&rtaRtMask&(1<<i) == 0 {
++	family := uint8(AF_UNSPEC)
++	for i := uint(0); i < RTAX_MAX && len(b) >= minRoutingSockaddrLen; i++ {
++		if m.Header.Addrs&(1<<i) == 0 {
+ 			continue
+ 		}
+ 		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
+-		switch i {
+-		case RTAX_DST, RTAX_GATEWAY:
+-			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
++		switch rsa.Family {
++		case AF_LINK:
++			sa, err := parseSockaddrLink(b)
+ 			if err != nil {
+-				return nil
++				return nil, err
+ 			}
+-			if i == RTAX_DST {
+-				af = int(rsa.Family)
++			sas[i] = sa
++			b = b[rsaAlignOf(int(rsa.Len)):]
++		case AF_INET, AF_INET6:
++			sa, err := parseSockaddrInet(b, rsa.Family)
++			if err != nil {
++				return nil, err
+ 			}
+ 			sas[i] = sa
+-		case RTAX_NETMASK, RTAX_GENMASK:
+-			switch af {
+-			case AF_INET:
+-				rsa4 := (*RawSockaddrInet4)(unsafe.Pointer(&b[0]))
+-				sa := new(SockaddrInet4)
+-				for j := 0; rsa4.Len > 0 && j < int(rsa4.Len)-int(unsafe.Offsetof(rsa4.Addr)); j++ {
+-					sa.Addr[j] = rsa4.Addr[j]
+-				}
+-				sas[i] = sa
+-			case AF_INET6:
+-				rsa6 := (*RawSockaddrInet6)(unsafe.Pointer(&b[0]))
+-				sa := new(SockaddrInet6)
+-				for j := 0; rsa6.Len > 0 && j < int(rsa6.Len)-int(unsafe.Offsetof(rsa6.Addr)); j++ {
+-					sa.Addr[j] = rsa6.Addr[j]
+-				}
+-				sas[i] = sa
++			b = b[rsaAlignOf(int(rsa.Len)):]
++			family = rsa.Family
++		default:
++			sa, err := parseNetworkLayerAddr(b, family)
++			if err != nil {
++				return nil, err
+ 			}
++			sas[i] = sa
++			b = b[rsaAlignOf(int(b[0])):]
+ 		}
+-		b = b[rsaAlignOf(int(rsa.Len)):]
+ 	}
+-	return sas[:]
++	return sas[:], nil
+ }
+ 
+ // InterfaceMessage represents a routing message containing
+@@ -121,15 +244,17 @@ type InterfaceMessage struct {
+ 	Data   []byte
+ }
+ 
+-func (m *InterfaceMessage) sockaddr() (sas []Sockaddr) {
++func (m *InterfaceMessage) sockaddr() ([]Sockaddr, error) {
++	var sas [RTAX_MAX]Sockaddr
+ 	if m.Header.Addrs&RTA_IFP == 0 {
+-		return nil
++		return nil, nil
+ 	}
+-	sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(&m.Data[0])))
++	sa, err := parseSockaddrLink(m.Data[:])
+ 	if err != nil {
+-		return nil
++		return nil, err
+ 	}
+-	return append(sas, sa)
++	sas[RTAX_IFP] = sa
++	return sas[:], nil
+ }
+ 
+ // InterfaceAddrMessage represents a routing message containing
+@@ -139,79 +264,63 @@ type InterfaceAddrMessage struct {
+ 	Data   []byte
+ }
+ 
+-const rtaIfaMask = RTA_IFA | RTA_NETMASK | RTA_BRD
+-
+-func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+-	if m.Header.Addrs&rtaIfaMask == 0 {
+-		return nil
+-	}
++func (m *InterfaceAddrMessage) sockaddr() ([]Sockaddr, error) {
++	var sas [RTAX_MAX]Sockaddr
+ 	b := m.Data[:]
+-	// We still see AF_UNSPEC in socket addresses on some
+-	// platforms. To identify each address family correctly, we
+-	// will use the address family of RTAX_NETMASK as a preferred
+-	// one on the 32-bit NetBSD kernel, also use the length of
+-	// RTAX_NETMASK socket address on the FreeBSD kernel.
+-	preferredFamily := uint8(AF_UNSPEC)
+-	for i := uint(0); i < RTAX_MAX; i++ {
++	family := uint8(AF_UNSPEC)
++	for i := uint(0); i < RTAX_MAX && len(b) >= minRoutingSockaddrLen; i++ {
+ 		if m.Header.Addrs&(1<<i) == 0 {
+ 			continue
+ 		}
+ 		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
+-		switch i {
+-		case RTAX_IFA:
+-			if rsa.Family == AF_UNSPEC {
+-				rsa.Family = preferredFamily
+-			}
+-			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
++		switch rsa.Family {
++		case AF_LINK:
++			sa, err := parseSockaddrLink(b)
+ 			if err != nil {
+-				return nil
++				return nil, err
+ 			}
+-			sas = append(sas, sa)
+-		case RTAX_NETMASK:
+-			switch rsa.Family {
+-			case AF_UNSPEC:
+-				switch rsa.Len {
+-				case SizeofSockaddrInet4:
+-					rsa.Family = AF_INET
+-				case SizeofSockaddrInet6:
+-					rsa.Family = AF_INET6
+-				default:
+-					rsa.Family = AF_INET // an old fashion, AF_UNSPEC means AF_INET
+-				}
+-			case AF_INET, AF_INET6:
+-				preferredFamily = rsa.Family
+-			default:
+-				return nil
++			sas[i] = sa
++			b = b[rsaAlignOf(int(rsa.Len)):]
++		case AF_INET, AF_INET6:
++			sa, err := parseSockaddrInet(b, rsa.Family)
++			if err != nil {
++				return nil, err
+ 			}
+-			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
++			sas[i] = sa
++			b = b[rsaAlignOf(int(rsa.Len)):]
++			family = rsa.Family
++		default:
++			sa, err := parseNetworkLayerAddr(b, family)
+ 			if err != nil {
+-				return nil
++				return nil, err
+ 			}
+-			sas = append(sas, sa)
+-		case RTAX_BRD:
+-			// nothing to do
++			sas[i] = sa
++			b = b[rsaAlignOf(int(b[0])):]
+ 		}
+-		b = b[rsaAlignOf(int(rsa.Len)):]
+ 	}
+-	return sas
++	return sas[:], nil
+ }
+ 
+ // ParseRoutingMessage parses b as routing messages and returns the
+ // slice containing the RoutingMessage interfaces.
+ func ParseRoutingMessage(b []byte) (msgs []RoutingMessage, err error) {
+-	msgCount := 0
++	nmsgs, nskips := 0, 0
+ 	for len(b) >= anyMessageLen {
+-		msgCount++
++		nmsgs++
+ 		any := (*anyMessage)(unsafe.Pointer(&b[0]))
+ 		if any.Version != RTM_VERSION {
+ 			b = b[any.Msglen:]
+ 			continue
+ 		}
+-		msgs = append(msgs, any.toRoutingMessage(b))
++		if m := any.toRoutingMessage(b); m == nil {
++			nskips++
++		} else {
++			msgs = append(msgs, m)
++		}
+ 		b = b[any.Msglen:]
+ 	}
+ 	// We failed to parse any of the messages - version mismatch?
+-	if msgCount > 0 && len(msgs) == 0 {
++	if nmsgs != len(msgs)+nskips {
+ 		return nil, EINVAL
+ 	}
+ 	return msgs, nil
+@@ -219,6 +328,10 @@ func ParseRoutingMessage(b []byte) (msgs []RoutingMessage, err error) {
+ 
+ // ParseRoutingMessage parses msg's payload as raw sockaddrs and
+ // returns the slice containing the Sockaddr interfaces.
+-func ParseRoutingSockaddr(msg RoutingMessage) (sas []Sockaddr, err error) {
+-	return append(sas, msg.sockaddr()...), nil
++func ParseRoutingSockaddr(msg RoutingMessage) ([]Sockaddr, error) {
++	sas, err := msg.sockaddr()
++	if err != nil {
++		return nil, err
++	}
++	return sas, nil
+ }
+diff --git a/src/syscall/route_bsd_test.go b/src/syscall/route_bsd_test.go
+new file mode 100644
+index 0000000000..471f4a25a5
+--- /dev/null
++++ b/src/syscall/route_bsd_test.go
+@@ -0,0 +1,197 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package syscall_test
++
++import (
++	"fmt"
++	"net"
++	"os"
++	"syscall"
++	"testing"
++	"time"
++)
++
++func TestRouteRIB(t *testing.T) {
++	for _, facility := range []int{syscall.NET_RT_DUMP, syscall.NET_RT_IFLIST} {
++		for _, param := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
++			b, err := syscall.RouteRIB(facility, param)
++			if err != nil {
++				t.Error(facility, param, err)
++				continue
++			}
++			msgs, err := syscall.ParseRoutingMessage(b)
++			if err != nil {
++				t.Error(facility, param, err)
++				continue
++			}
++			var ipv4loopback, ipv6loopback bool
++			for _, m := range msgs {
++				flags, err := parseRoutingMessageHeader(m)
++				if err != nil {
++					t.Error(err)
++					continue
++				}
++				sas, err := parseRoutingSockaddrs(m)
++				if err != nil {
++					t.Error(err)
++					continue
++				}
++				if flags&(syscall.RTA_DST|syscall.RTA_IFA) != 0 {
++					sa := sas[syscall.RTAX_DST]
++					if sa == nil {
++						sa = sas[syscall.RTAX_IFA]
++					}
++					switch sa := sa.(type) {
++					case *syscall.SockaddrInet4:
++						if net.IP(sa.Addr[:]).IsLoopback() {
++							ipv4loopback = true
++						}
++					case *syscall.SockaddrInet6:
++						if net.IP(sa.Addr[:]).IsLoopback() {
++							ipv6loopback = true
++						}
++					}
++				}
++				t.Log(facility, param, flags, sockaddrs(sas))
++			}
++			if param == syscall.AF_UNSPEC && len(msgs) > 0 && !ipv4loopback && !ipv6loopback {
++				t.Errorf("no loopback facility found: ipv4/ipv6=%v/%v, %v", ipv4loopback, ipv6loopback, len(msgs))
++				continue
++			}
++		}
++	}
++}
++
++func TestRouteMonitor(t *testing.T) {
++	if testing.Short() || os.Getuid() != 0 {
++		t.Skip("must be root")
++	}
++
++	s, err := syscall.Socket(syscall.AF_ROUTE, syscall.SOCK_RAW, syscall.AF_UNSPEC)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer syscall.Close(s)
++
++	tmo := time.After(30 * time.Second)
++	go func() {
++		b := make([]byte, os.Getpagesize())
++		for {
++			n, err := syscall.Read(s, b)
++			if err != nil {
++				return
++			}
++			msgs, err := syscall.ParseRoutingMessage(b[:n])
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			for _, m := range msgs {
++				flags, err := parseRoutingMessageHeader(m)
++				if err != nil {
++					t.Error(err)
++					continue
++				}
++				sas, err := parseRoutingSockaddrs(m)
++				if err != nil {
++					t.Error(err)
++					continue
++				}
++				t.Log(flags, sockaddrs(sas))
++			}
++		}
++	}()
++	<-tmo
++}
++
++type addrFamily byte
++
++func (f addrFamily) String() string {
++	switch f {
++	case syscall.AF_UNSPEC:
++		return "unspec"
++	case syscall.AF_LINK:
++		return "link"
++	case syscall.AF_INET:
++		return "inet4"
++	case syscall.AF_INET6:
++		return "inet6"
++	default:
++		return fmt.Sprintf("unknown %d", f)
++	}
++}
++
++type addrFlags uint32
++
++var addrFlagNames = [...]string{
++	"dst",
++	"gateway",
++	"netmask",
++	"genmask",
++	"ifp",
++	"ifa",
++	"author",
++	"brd",
++	"mpls1,tag,src", // sockaddr_mpls=dragonfly,netbsd, sockaddr_in/in6=openbsd
++	"mpls2,srcmask", // sockaddr_mpls=dragonfly, sockaddr_in/in6=openbsd
++	"mpls3,label",   // sockaddr_mpls=dragonfly, sockaddr_rtlabel=openbsd
++}
++
++func (f addrFlags) String() string {
++	var s string
++	for i, name := range addrFlagNames {
++		if f&(1<<uint(i)) != 0 {
++			if s != "" {
++				s += "|"
++			}
++			s += name
++		}
++	}
++	if s == "" {
++		return "<nil>"
++	}
++	return s
++}
++
++type sockaddrs []syscall.Sockaddr
++
++func (sas sockaddrs) String() string {
++	var s string
++	for _, sa := range sas {
++		if sa == nil {
++			continue
++		}
++		if len(s) > 0 {
++			s += " "
++		}
++		switch sa := sa.(type) {
++		case *syscall.SockaddrDatalink:
++			s += fmt.Sprintf("[%v/%v/%v t/n/a/s=%v/%v/%v/%v]", sa.Len, addrFamily(sa.Family), sa.Index, sa.Type, sa.Nlen, sa.Alen, sa.Slen)
++		case *syscall.SockaddrInet4:
++			s += fmt.Sprintf("%v", net.IP(sa.Addr[:]).To4())
++		case *syscall.SockaddrInet6:
++			s += fmt.Sprintf("%v", net.IP(sa.Addr[:]).To16())
++		}
++	}
++	if s == "" {
++		return "<nil>"
++	}
++	return s
++}
++
++func (sas sockaddrs) match(flags addrFlags) error {
++	var f addrFlags
++	for i := range sas {
++		if sas[i] != nil {
++			f |= 1 << uint(i)
++		}
++	}
++	if f != flags {
++		return fmt.Errorf("got %v; want %v", f, flags)
++	}
++	return nil
++}
+diff --git a/src/syscall/route_darwin.go b/src/syscall/route_darwin.go
+index ad27907230..89bca12f3e 100644
+--- a/src/syscall/route_darwin.go
++++ b/src/syscall/route_darwin.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Routing sockets and messages for Darwin
+-
+ package syscall
+ 
+ import "unsafe"
+@@ -33,29 +31,37 @@ type InterfaceMulticastAddrMessage struct {
+ 	Data   []byte
+ }
+ 
+-const rtaIfmaMask = RTA_GATEWAY | RTA_IFP | RTA_IFA
+-
+-func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
+-	if m.Header.Addrs&rtaIfmaMask == 0 {
+-		return nil
+-	}
++func (m *InterfaceMulticastAddrMessage) sockaddr() ([]Sockaddr, error) {
++	var sas [RTAX_MAX]Sockaddr
+ 	b := m.Data[:]
+-	for i := uint(0); i < RTAX_MAX; i++ {
+-		if m.Header.Addrs&rtaIfmaMask&(1<<i) == 0 {
++	for i := uint(0); i < RTAX_MAX && len(b) >= minRoutingSockaddrLen; i++ {
++		if m.Header.Addrs&(1<<i) == 0 {
+ 			continue
+ 		}
+ 		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
+-		switch i {
+-		case RTAX_IFA:
+-			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+-			if e != nil {
+-				return nil
++		switch rsa.Family {
++		case AF_LINK:
++			sa, err := parseSockaddrLink(b)
++			if err != nil {
++				return nil, err
++			}
++			sas[i] = sa
++			b = b[rsaAlignOf(int(rsa.Len)):]
++		case AF_INET, AF_INET6:
++			sa, err := parseSockaddrInet(b, rsa.Family)
++			if err != nil {
++				return nil, err
++			}
++			sas[i] = sa
++			b = b[rsaAlignOf(int(rsa.Len)):]
++		default:
++			sa, l, err := parseLinkLayerAddr(b)
++			if err != nil {
++				return nil, err
+ 			}
+-			sas = append(sas, sa)
+-		case RTAX_GATEWAY, RTAX_IFP:
+-			// nothing to do
++			sas[i] = sa
++			b = b[l:]
+ 		}
+-		b = b[rsaAlignOf(int(rsa.Len)):]
+ 	}
+-	return sas
++	return sas[:], nil
+ }
+diff --git a/src/syscall/route_dragonfly.go b/src/syscall/route_dragonfly.go
+index 79190d2b01..5226f7f2e4 100644
+--- a/src/syscall/route_dragonfly.go
++++ b/src/syscall/route_dragonfly.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Routing sockets and messages for Dragonfly
+-
+ package syscall
+ 
+ import "unsafe"
+@@ -12,6 +10,8 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ 	switch any.Type {
+ 	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
+ 		p := (*RouteMessage)(unsafe.Pointer(any))
++		// We don't support sockaddr_mpls for now.
++		p.Header.Addrs &= RTA_DST | RTA_GATEWAY | RTA_NETMASK | RTA_GENMASK | RTA_IFA | RTA_IFP | RTA_BRD | RTA_AUTHOR
+ 		return &RouteMessage{Header: p.Header, Data: b[SizeofRtMsghdr:any.Msglen]}
+ 	case RTM_IFINFO:
+ 		p := (*InterfaceMessage)(unsafe.Pointer(any))
+@@ -35,7 +35,7 @@ type InterfaceAnnounceMessage struct {
+ 	Header IfAnnounceMsghdr
+ }
+ 
+-func (m *InterfaceAnnounceMessage) sockaddr() (sas []Sockaddr) { return nil }
++func (m *InterfaceAnnounceMessage) sockaddr() ([]Sockaddr, error) { return nil, nil }
+ 
+ // InterfaceMulticastAddrMessage represents a routing message
+ // containing network interface address entries.
+@@ -44,29 +44,37 @@ type InterfaceMulticastAddrMessage struct {
+ 	Data   []byte
+ }
+ 
+-const rtaIfmaMask = RTA_GATEWAY | RTA_IFP | RTA_IFA
+-
+-func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
+-	if m.Header.Addrs&rtaIfmaMask == 0 {
+-		return nil
+-	}
++func (m *InterfaceMulticastAddrMessage) sockaddr() ([]Sockaddr, error) {
++	var sas [RTAX_MAX]Sockaddr
+ 	b := m.Data[:]
+-	for i := uint(0); i < RTAX_MAX; i++ {
+-		if m.Header.Addrs&rtaIfmaMask&(1<<i) == 0 {
++	for i := uint(0); i < RTAX_MAX && len(b) >= minRoutingSockaddrLen; i++ {
++		if m.Header.Addrs&(1<<i) == 0 {
+ 			continue
+ 		}
+ 		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
+-		switch i {
+-		case RTAX_IFA:
+-			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+-			if e != nil {
+-				return nil
++		switch rsa.Family {
++		case AF_LINK:
++			sa, err := parseSockaddrLink(b)
++			if err != nil {
++				return nil, err
++			}
++			sas[i] = sa
++			b = b[rsaAlignOf(int(rsa.Len)):]
++		case AF_INET, AF_INET6:
++			sa, err := parseSockaddrInet(b, rsa.Family)
++			if err != nil {
++				return nil, err
++			}
++			sas[i] = sa
++			b = b[rsaAlignOf(int(rsa.Len)):]
++		default:
++			sa, l, err := parseLinkLayerAddr(b)
++			if err != nil {
++				return nil, err
+ 			}
+-			sas = append(sas, sa)
+-		case RTAX_GATEWAY, RTAX_IFP:
+-			// nothing to do
++			sas[i] = sa
++			b = b[l:]
+ 		}
+-		b = b[rsaAlignOf(int(rsa.Len)):]
+ 	}
+-	return sas
++	return sas[:], nil
+ }
+diff --git a/src/syscall/route_freebsd.go b/src/syscall/route_freebsd.go
+index 15897b1aca..0e18103855 100644
+--- a/src/syscall/route_freebsd.go
++++ b/src/syscall/route_freebsd.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Routing sockets and messages for FreeBSD
+-
+ package syscall
+ 
+ import "unsafe"
+@@ -13,13 +11,31 @@ var freebsdVersion uint32
+ 
+ func init() {
+ 	freebsdVersion, _ = SysctlUint32("kern.osreldate")
++	conf, _ := Sysctl("kern.conftxt")
++	for i, j := 0, 0; j < len(conf); j++ {
++		if conf[j] != '\n' {
++			continue
++		}
++		s := conf[i:j]
++		i = j + 1
++		if len(s) > len("machine") && s[:len("machine")] == "machine" {
++			s = s[len("machine"):]
++			for k := 0; k < len(s); k++ {
++				if s[k] == ' ' || s[k] == '\t' {
++					s = s[1:]
++				}
++				break
++			}
++			freebsdConfArch = s
++			break
++		}
++	}
+ }
+ 
+ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ 	switch any.Type {
+ 	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
+-		p := (*RouteMessage)(unsafe.Pointer(any))
+-		return &RouteMessage{Header: p.Header, Data: b[SizeofRtMsghdr:any.Msglen]}
++		return any.parseRouteMessage(b)
+ 	case RTM_IFINFO:
+ 		return any.parseInterfaceMessage(b)
+ 	case RTM_IFANNOUNCE:
+@@ -41,7 +57,7 @@ type InterfaceAnnounceMessage struct {
+ 	Header IfAnnounceMsghdr
+ }
+ 
+-func (m *InterfaceAnnounceMessage) sockaddr() (sas []Sockaddr) { return nil }
++func (m *InterfaceAnnounceMessage) sockaddr() ([]Sockaddr, error) { return nil, nil }
+ 
+ // InterfaceMulticastAddrMessage represents a routing message
+ // containing network interface address entries.
+@@ -50,29 +66,37 @@ type InterfaceMulticastAddrMessage struct {
+ 	Data   []byte
+ }
+ 
+-const rtaIfmaMask = RTA_GATEWAY | RTA_IFP | RTA_IFA
+-
+-func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
+-	if m.Header.Addrs&rtaIfmaMask == 0 {
+-		return nil
+-	}
++func (m *InterfaceMulticastAddrMessage) sockaddr() ([]Sockaddr, error) {
++	var sas [RTAX_MAX]Sockaddr
+ 	b := m.Data[:]
+-	for i := uint(0); i < RTAX_MAX; i++ {
+-		if m.Header.Addrs&rtaIfmaMask&(1<<i) == 0 {
++	for i := uint(0); i < RTAX_MAX && len(b) >= minRoutingSockaddrLen; i++ {
++		if m.Header.Addrs&(1<<i) == 0 {
+ 			continue
+ 		}
+ 		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
+-		switch i {
+-		case RTAX_IFA:
+-			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+-			if e != nil {
+-				return nil
++		switch rsa.Family {
++		case AF_LINK:
++			sa, err := parseSockaddrLink(b)
++			if err != nil {
++				return nil, err
++			}
++			sas[i] = sa
++			b = b[rsaAlignOf(int(rsa.Len)):]
++		case AF_INET, AF_INET6:
++			sa, err := parseSockaddrInet(b, rsa.Family)
++			if err != nil {
++				return nil, err
++			}
++			sas[i] = sa
++			b = b[rsaAlignOf(int(rsa.Len)):]
++		default:
++			sa, l, err := parseLinkLayerAddr(b)
++			if err != nil {
++				return nil, err
+ 			}
+-			sas = append(sas, sa)
+-		case RTAX_GATEWAY, RTAX_IFP:
+-			// nothing to do
++			sas[i] = sa
++			b = b[l:]
+ 		}
+-		b = b[rsaAlignOf(int(rsa.Len)):]
+ 	}
+-	return sas
++	return sas[:], nil
+ }
+diff --git a/src/syscall/route_freebsd_32bit.go b/src/syscall/route_freebsd_32bit.go
+index 93efdddb3b..5c10b05e24 100644
+--- a/src/syscall/route_freebsd_32bit.go
++++ b/src/syscall/route_freebsd_32bit.go
+@@ -8,6 +8,15 @@ package syscall
+ 
+ import "unsafe"
+ 
++func (any *anyMessage) parseRouteMessage(b []byte) *RouteMessage {
++	p := (*RouteMessage)(unsafe.Pointer(any))
++	off := int(unsafe.Offsetof(p.Header.Rmx)) + SizeofRtMetrics
++	if freebsdConfArch == "amd64" {
++		off += SizeofRtMetrics // rt_metrics on amd64 is simply doubled
++	}
++	return &RouteMessage{Header: p.Header, Data: b[rsaAlignOf(off):any.Msglen]}
++}
++
+ func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
+ 	p := (*InterfaceMessage)(unsafe.Pointer(any))
+ 	// FreeBSD 10 and beyond have a restructured mbuf
+@@ -18,7 +27,7 @@ func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
+ 		p.Header.Data.Hwassist = uint32(m.Data.Hwassist)
+ 		p.Header.Data.Epoch = m.Data.Epoch
+ 		p.Header.Data.Lastchange = m.Data.Lastchange
+-		return &InterfaceMessage{Header: p.Header, Data: b[sizeofIfMsghdr:any.Msglen]}
++		return &InterfaceMessage{Header: p.Header, Data: b[int(unsafe.Offsetof(p.Header.Data))+int(p.Header.Data.Datalen) : any.Msglen]}
+ 	}
+-	return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
++	return &InterfaceMessage{Header: p.Header, Data: b[int(unsafe.Offsetof(p.Header.Data))+int(p.Header.Data.Datalen) : any.Msglen]}
+ }
+diff --git a/src/syscall/route_freebsd_64bit.go b/src/syscall/route_freebsd_64bit.go
+index 9377f2fedc..728837ebb5 100644
+--- a/src/syscall/route_freebsd_64bit.go
++++ b/src/syscall/route_freebsd_64bit.go
+@@ -8,7 +8,12 @@ package syscall
+ 
+ import "unsafe"
+ 
++func (any *anyMessage) parseRouteMessage(b []byte) *RouteMessage {
++	p := (*RouteMessage)(unsafe.Pointer(any))
++	return &RouteMessage{Header: p.Header, Data: b[rsaAlignOf(int(unsafe.Offsetof(p.Header.Rmx))+SizeofRtMetrics):any.Msglen]}
++}
++
+ func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
+ 	p := (*InterfaceMessage)(unsafe.Pointer(any))
+-	return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
++	return &InterfaceMessage{Header: p.Header, Data: b[int(unsafe.Offsetof(p.Header.Data))+int(p.Header.Data.Datalen) : any.Msglen]}
+ }
+diff --git a/src/syscall/route_ifma_test.go b/src/syscall/route_ifma_test.go
+new file mode 100644
+index 0000000000..af2b67dc24
+--- /dev/null
++++ b/src/syscall/route_ifma_test.go
+@@ -0,0 +1,74 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd
++
++package syscall_test
++
++import (
++	"fmt"
++	"syscall"
++)
++
++func parseRoutingMessageHeader(m syscall.RoutingMessage) (addrFlags, error) {
++	switch m := m.(type) {
++	case *syscall.RouteMessage:
++		errno := syscall.Errno(uintptr(m.Header.Errno))
++		if errno != 0 {
++			return 0, fmt.Errorf("%T: %v, %#v", m, errno, m.Header)
++		}
++		return addrFlags(m.Header.Addrs), nil
++	case *syscall.InterfaceMessage:
++		return addrFlags(m.Header.Addrs), nil
++	case *syscall.InterfaceAddrMessage:
++		return addrFlags(m.Header.Addrs), nil
++	case *syscall.InterfaceMulticastAddrMessage:
++		return addrFlags(m.Header.Addrs), nil
++	default:
++		panic(fmt.Sprintf("unknown routing message type: %T", m))
++	}
++}
++
++func parseRoutingSockaddrs(m syscall.RoutingMessage) ([]syscall.Sockaddr, error) {
++	switch m := m.(type) {
++	case *syscall.RouteMessage:
++		sas, err := syscall.ParseRoutingSockaddr(m)
++		if err != nil {
++			return nil, fmt.Errorf("%T: %v, %#v", m, err, m.Data)
++		}
++		if err = sockaddrs(sas).match(addrFlags(m.Header.Addrs)); err != nil {
++			return nil, err
++		}
++		return sas, nil
++	case *syscall.InterfaceMessage:
++		sas, err := syscall.ParseRoutingSockaddr(m)
++		if err != nil {
++			return nil, fmt.Errorf("%T: %v, %#v", m, err, m.Data)
++		}
++		if err = sockaddrs(sas).match(addrFlags(m.Header.Addrs)); err != nil {
++			return nil, err
++		}
++		return sas, nil
++	case *syscall.InterfaceAddrMessage:
++		sas, err := syscall.ParseRoutingSockaddr(m)
++		if err != nil {
++			return nil, fmt.Errorf("%T: %v, %#v", m, err, m.Data)
++		}
++		if err = sockaddrs(sas).match(addrFlags(m.Header.Addrs)); err != nil {
++			return nil, err
++		}
++		return sas, nil
++	case *syscall.InterfaceMulticastAddrMessage:
++		sas, err := syscall.ParseRoutingSockaddr(m)
++		if err != nil {
++			return nil, fmt.Errorf("%T: %v, %#v", m, err, m.Data)
++		}
++		if err = sockaddrs(sas).match(addrFlags(m.Header.Addrs)); err != nil {
++			return nil, err
++		}
++		return sas, nil
++	default:
++		panic(fmt.Sprintf("unknown routing message type: %T", m))
++	}
++}
+diff --git a/src/syscall/route_netbsd.go b/src/syscall/route_netbsd.go
+index 9883aebaf5..d605ffa30f 100644
+--- a/src/syscall/route_netbsd.go
++++ b/src/syscall/route_netbsd.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Routing sockets and messages for NetBSD
+-
+ package syscall
+ 
+ import "unsafe"
+@@ -12,6 +10,8 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ 	switch any.Type {
+ 	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
+ 		p := (*RouteMessage)(unsafe.Pointer(any))
++		// We don't support sockaddr_mpls for now.
++		p.Header.Addrs &= RTA_DST | RTA_GATEWAY | RTA_NETMASK | RTA_GENMASK | RTA_IFA | RTA_IFP | RTA_BRD | RTA_AUTHOR
+ 		return &RouteMessage{Header: p.Header, Data: b[SizeofRtMsghdr:any.Msglen]}
+ 	case RTM_IFINFO:
+ 		p := (*InterfaceMessage)(unsafe.Pointer(any))
+@@ -32,4 +32,4 @@ type InterfaceAnnounceMessage struct {
+ 	Header IfAnnounceMsghdr
+ }
+ 
+-func (m *InterfaceAnnounceMessage) sockaddr() (sas []Sockaddr) { return nil }
++func (m *InterfaceAnnounceMessage) sockaddr() ([]Sockaddr, error) { return nil, nil }
+diff --git a/src/syscall/route_noifma_test.go b/src/syscall/route_noifma_test.go
+new file mode 100644
+index 0000000000..19d5d8ebbf
+--- /dev/null
++++ b/src/syscall/route_noifma_test.go
+@@ -0,0 +1,63 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build netbsd openbsd
++
++package syscall_test
++
++import (
++	"fmt"
++	"syscall"
++)
++
++func parseRoutingMessageHeader(m syscall.RoutingMessage) (addrFlags, error) {
++	switch m := m.(type) {
++	case *syscall.RouteMessage:
++		errno := syscall.Errno(uintptr(m.Header.Errno))
++		if errno != 0 {
++			return 0, fmt.Errorf("%T: %v, %#v", m, errno, m.Header)
++		}
++		return addrFlags(m.Header.Addrs), nil
++	case *syscall.InterfaceMessage:
++		return addrFlags(m.Header.Addrs), nil
++	case *syscall.InterfaceAddrMessage:
++		return addrFlags(m.Header.Addrs), nil
++	default:
++		panic(fmt.Sprintf("unknown routing message type: %T", m))
++	}
++}
++
++func parseRoutingSockaddrs(m syscall.RoutingMessage) ([]syscall.Sockaddr, error) {
++	switch m := m.(type) {
++	case *syscall.RouteMessage:
++		sas, err := syscall.ParseRoutingSockaddr(m)
++		if err != nil {
++			return nil, fmt.Errorf("%T: %v, %#v", m, err, m.Data)
++		}
++		if err = sockaddrs(sas).match(addrFlags(m.Header.Addrs)); err != nil {
++			return nil, err
++		}
++		return sas, nil
++	case *syscall.InterfaceMessage:
++		sas, err := syscall.ParseRoutingSockaddr(m)
++		if err != nil {
++			return nil, fmt.Errorf("%T: %v, %#v", m, err, m.Data)
++		}
++		if err = sockaddrs(sas).match(addrFlags(m.Header.Addrs)); err != nil {
++			return nil, err
++		}
++		return sas, nil
++	case *syscall.InterfaceAddrMessage:
++		sas, err := syscall.ParseRoutingSockaddr(m)
++		if err != nil {
++			return nil, fmt.Errorf("%T: %v, %#v", m, err, m.Data)
++		}
++		if err = sockaddrs(sas).match(addrFlags(m.Header.Addrs)); err != nil {
++			return nil, err
++		}
++		return sas, nil
++	default:
++		panic(fmt.Sprintf("unknown routing message type: %T", m))
++	}
++}
+diff --git a/src/syscall/route_openbsd.go b/src/syscall/route_openbsd.go
+index e5086400c5..7804a08910 100644
+--- a/src/syscall/route_openbsd.go
++++ b/src/syscall/route_openbsd.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Routing sockets and messages for OpenBSD
+-
+ package syscall
+ 
+ import "unsafe"
+@@ -12,6 +10,8 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ 	switch any.Type {
+ 	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
+ 		p := (*RouteMessage)(unsafe.Pointer(any))
++		// We don't support sockaddr_rtlabel for now.
++		p.Header.Addrs &= RTA_DST | RTA_GATEWAY | RTA_NETMASK | RTA_GENMASK | RTA_IFA | RTA_IFP | RTA_BRD | RTA_AUTHOR | RTA_SRC | RTA_SRCMASK
+ 		return &RouteMessage{Header: p.Header, Data: b[p.Header.Hdrlen:any.Msglen]}
+ 	case RTM_IFINFO:
+ 		p := (*InterfaceMessage)(unsafe.Pointer(any))
+@@ -32,4 +32,4 @@ type InterfaceAnnounceMessage struct {
+ 	Header IfAnnounceMsghdr
+ }
+ 
+-func (m *InterfaceAnnounceMessage) sockaddr() (sas []Sockaddr) { return nil }
++func (m *InterfaceAnnounceMessage) sockaddr() ([]Sockaddr, error) { return nil, nil }

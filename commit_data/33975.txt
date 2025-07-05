@@ -11,7 +11,7 @@ Date:   Sun Sep 3 11:59:18 2017 +0200
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go | 61 +++++++++++++++++++++++++++++---------
  src/cmd/dist/build.go              |  2 +-
  src/cmd/internal/dwarf/dwarf.go    | 24 +++++++++++++++
@@ -19,3 +19,326 @@ Date:   Sun Sep 3 11:59:18 2017 +0200
  src/cmd/link/internal/ld/dwarf.go  | 44 ++++++++++++++++++---------
  src/runtime/runtime-gdb_test.go    | 58 ++++++++++++++++++++++++++++++++++++
  6 files changed, 173 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index e9cd6a2c4e..ff9889750e 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -203,24 +203,57 @@ func addptabs() {
+ 	}
+ }
+ 
++func dumpGlobal(n *Node) {
++	if n.Type == nil {
++		Fatalf("external %v nil type\n", n)
++	}
++	if n.Class() == PFUNC {
++		return
++	}
++	if n.Sym.Pkg != localpkg {
++		return
++	}
++	dowidth(n.Type)
++	ggloblnod(n)
++}
++
++func dumpGlobalConst(n *Node) {
++	// only export typed constants
++	if n.Type == nil {
++		return
++	}
++	if n.Sym.Pkg != localpkg {
++		return
++	}
++	// only export integer constants for now
++	switch n.Type.Etype {
++	case TINT8:
++	case TINT16:
++	case TINT32:
++	case TINT64:
++	case TINT:
++	case TUINT8:
++	case TUINT16:
++	case TUINT32:
++	case TUINT64:
++	case TUINT:
++	case TUINTPTR:
++		// ok
++	default:
++		return
++	}
++	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(n.Type), n.Int64())
++}
++
+ func dumpglobls() {
+ 	// add globals
+ 	for _, n := range externdcl {
+-		if n.Op != ONAME {
+-			continue
+-		}
+-
+-		if n.Type == nil {
+-			Fatalf("external %v nil type\n", n)
+-		}
+-		if n.Class() == PFUNC {
+-			continue
+-		}
+-		if n.Sym.Pkg != localpkg {
+-			continue
++		switch n.Op {
++		case ONAME:
++			dumpGlobal(n)
++		case OLITERAL:
++			dumpGlobalConst(n)
+ 		}
+-		dowidth(n.Type)
+-		ggloblnod(n)
+ 	}
+ 
+ 	obj.SortSlice(funcsyms, func(i, j int) bool {
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 91a89063b4..89474d7678 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -685,7 +685,7 @@ func install(dir string) {
+ 	// For package runtime, this writes go_asm.h, which
+ 	// the assembly files will need.
+ 	pkg := dir
+-	if strings.HasPrefix(dir, "cmd/") {
++	if strings.HasPrefix(dir, "cmd/") && strings.Count(dir, "/") == 1 {
+ 		pkg = "main"
+ 	}
+ 	b := pathf("%s/_go_.a", workdir)
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index cee1821617..ea8bc3dbe9 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -21,6 +21,10 @@ const LocPrefix = "go.loc."
+ // RangePrefix is the prefix for all the symbols containing DWARF range lists.
+ const RangePrefix = "go.range."
+ 
++// InfoConstPrefix is the prefix for all symbols containing DWARF info
++// entries that contain constants.
++const ConstInfoPrefix = "go.constinfo."
++
+ // Sym represents a symbol.
+ type Sym interface {
+ 	Len() int64
+@@ -234,6 +238,7 @@ const (
+ 	DW_ABRV_COMPUNIT
+ 	DW_ABRV_FUNCTION
+ 	DW_ABRV_VARIABLE
++	DW_ABRV_INT_CONSTANT
+ 	DW_ABRV_AUTO
+ 	DW_ABRV_AUTO_LOCLIST
+ 	DW_ABRV_PARAM
+@@ -310,6 +315,17 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		},
+ 	},
+ 
++	/* INT CONSTANT */
++	{
++		DW_TAG_constant,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_const_value, DW_FORM_sdata},
++		},
++	},
++
+ 	/* AUTO */
+ 	{
+ 		DW_TAG_variable,
+@@ -734,6 +750,14 @@ func HasChildren(die *DWDie) bool {
+ 	return abbrevs[die.Abbrev].children != 0
+ }
+ 
++// PutIntConst writes a DIE for an integer constant
++func PutIntConst(ctxt Context, info, typ Sym, name string, val int64) {
++	Uleb128put(ctxt, info, DW_ABRV_INT_CONSTANT)
++	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
++	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, typ)
++	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_sdata, DW_CLS_CONSTANT, val, nil)
++}
++
+ // PutFunc writes a DIE for a function to s.
+ // It also writes child DIEs for each variable in vars.
+ func PutFunc(ctxt Context, info, loc, ranges Sym, name string, external bool, startPC Sym, size int64, scopes []Scope) error {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 539d013037..f868e5dd1b 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -499,3 +499,16 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
+ 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
+ 	}
+ }
++
++// DwarfIntConst creates a link symbol for an integer constant with the
++// given name, type and value.
++func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64) {
++	if myimportpath == "" {
++		return
++	}
++	s := ctxt.LookupInit(dwarf.ConstInfoPrefix+myimportpath, func(s *LSym) {
++		s.Type = objabi.SDWARFINFO
++		ctxt.Data = append(ctxt.Data, s)
++	})
++	dwarf.PutIntConst(dwCtxt{ctxt}, s, ctxt.Lookup(dwarf.InfoPrefix+typename), myimportpath+"."+name, val)
++}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 4d945ad019..713bb07bfa 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -972,6 +972,21 @@ func getCompilationDir() string {
+ 	return "/"
+ }
+ 
++func importInfoSymbol(ctxt *Link, dsym *Symbol) {
++	dsym.Attr |= AttrNotInSymbolTable | AttrReachable
++	dsym.Type = SDWARFINFO
++	for _, r := range dsym.R {
++		if r.Type == objabi.R_DWARFREF && r.Sym.Size == 0 {
++			if Buildmode == BuildmodeShared {
++				// These type symbols may not be present in BuildmodeShared. Skip.
++				continue
++			}
++			n := nameFromDIESym(r.Sym)
++			defgotype(ctxt, ctxt.Syms.Lookup("type."+n, 0))
++		}
++	}
++}
++
+ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
+ 	ls := ctxt.Syms.Lookup(".debug_line", 0)
+@@ -1064,18 +1079,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 		epcs = s
+ 
+ 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+-		dsym.Attr |= AttrNotInSymbolTable | AttrReachable
+-		dsym.Type = SDWARFINFO
+-		for _, r := range dsym.R {
+-			if r.Type == objabi.R_DWARFREF && r.Sym.Size == 0 {
+-				if Buildmode == BuildmodeShared {
+-					// These type symbols may not be present in BuildmodeShared. Skip.
+-					continue
+-				}
+-				n := nameFromDIESym(r.Sym)
+-				defgotype(ctxt, ctxt.Syms.Lookup("type."+n, 0))
+-			}
+-		}
++		importInfoSymbol(ctxt, dsym)
+ 		funcs = append(funcs, dsym)
+ 
+ 		finddebugruntimepath(s)
+@@ -1296,7 +1300,7 @@ const (
+ 	COMPUNITHEADERSIZE = 4 + 2 + 4 + 1
+ )
+ 
+-func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol, abbrevsym *Symbol) []*Symbol {
++func writeinfo(ctxt *Link, syms []*Symbol, funcs, consts []*Symbol, abbrevsym *Symbol) []*Symbol {
+ 	infosec := ctxt.Syms.Lookup(".debug_info", 0)
+ 	infosec.R = infosec.R[:0]
+ 	infosec.Type = SDWARFINFO
+@@ -1330,6 +1334,10 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol, abbrevsym *Symbol) [
+ 			cu = append(cu, funcs...)
+ 			funcs = nil
+ 		}
++		if consts != nil {
++			cu = append(cu, consts...)
++			consts = nil
++		}
+ 		cu = putdies(ctxt, dwarfctxt, cu, compunit.Child)
+ 		var cusize int64
+ 		for _, child := range cu {
+@@ -1544,6 +1552,14 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 
+ 	genasmsym(ctxt, defdwsymb)
+ 
++	var consts []*Symbol
++	for _, lib := range ctxt.Library {
++		if s := ctxt.Syms.Lookup(dwarf.ConstInfoPrefix+lib.Pkg, 0); s != nil {
++			importInfoSymbol(ctxt, s)
++			consts = append(consts, s)
++		}
++	}
++
+ 	abbrev := writeabbrev(ctxt)
+ 	syms := []*Symbol{abbrev}
+ 	syms, funcs := writelines(ctxt, syms)
+@@ -1563,7 +1579,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 
+ 	// Need to reorder symbols so SDWARFINFO is after all SDWARFSECT
+ 	// (but we need to generate dies before writepub)
+-	infosyms := writeinfo(ctxt, nil, funcs, abbrev)
++	infosyms := writeinfo(ctxt, nil, funcs, consts, abbrev)
+ 
+ 	syms = writepub(ctxt, ".debug_pubnames", ispubname, syms)
+ 	syms = writepub(ctxt, ".debug_pubtypes", ispubtype, syms)
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index ba13ee95da..7b035871d5 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -381,3 +381,61 @@ func TestGdbAutotmpTypes(t *testing.T) {
+ 		}
+ 	}
+ }
++
++const constsSource = `
++package main
++
++const aConstant int = 42
++const largeConstant uint64 = ^uint64(0)
++const minusOne int64 = -1
++
++func main() {
++	println("hello world")
++}
++`
++
++func TestGdbConst(t *testing.T) {
++	t.Parallel()
++	checkGdbEnvironment(t)
++	checkGdbVersion(t)
++
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatalf("failed to create temp directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	// Build the source code.
++	src := filepath.Join(dir, "main.go")
++	err = ioutil.WriteFile(src, []byte(constsSource), 0644)
++	if err != nil {
++		t.Fatalf("failed to create file: %v", err)
++	}
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", "a.exe")
++	cmd.Dir = dir
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("building source %v\n%s", err, out)
++	}
++
++	// Execute gdb commands.
++	args := []string{"-nx", "-batch",
++		"-ex", "set startup-with-shell off",
++		"-ex", "break main.main",
++		"-ex", "run",
++		"-ex", "print main.aConstant",
++		"-ex", "print main.largeConstant",
++		"-ex", "print main.minusOne",
++		"-ex", "print 'runtime._MSpanInUse'",
++		filepath.Join(dir, "a.exe"),
++	}
++	got, _ := exec.Command("gdb", args...).CombinedOutput()
++
++	sgot := string(got)
++
++	t.Logf("output %q", sgot)
++
++	if strings.Index(sgot, "\n$1 = 42\n$2 = 18446744073709551615\n$3 = -1\n$4 = 1 '\\001'") < 0 {
++		t.Fatalf("output mismatch")
++	}
++}

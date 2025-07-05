@@ -7,6 +7,20 @@ Date:   Fri Jan 30 14:54:49 2009 -0800
     R=ken
     OCL=23965
     CL=23965
-
+---
  src/cmd/6g/list.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+index b5e298b108..799bacf9a2 100644
+--- a/src/cmd/6g/list.c
++++ b/src/cmd/6g/list.c
+@@ -124,7 +124,7 @@ Dconv(Fmt *fp)
+ 		if(fp->flags & FmtLong) {
+ 			d1 = a->offset & 0xffffffffLL;
+ 			d2 = (a->offset>>32) & 0xffffffffLL;
+-			snprint(str, sizeof(str), "$%lud-%lud", d1, d2);
++			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
+ 			break;
+ 		}
+ 		snprint(str, sizeof(str), "$%lld", a->offset);

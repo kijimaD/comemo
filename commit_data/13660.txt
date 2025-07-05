@@ -9,9 +9,112 @@ Date:   Tue Aug 21 10:41:31 2012 +1000
     R=dvyukov, r, alex.brainman, minux.ma
     CC=golang-dev
     https://golang.org/cl/6462081
-
+---
  src/pkg/os/exec.go         | 11 ++++++++++-
  src/pkg/os/exec_plan9.go   |  4 ++--
  src/pkg/os/exec_unix.go    |  4 ++--
  src/pkg/os/exec_windows.go |  4 ++--
  4 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index eb6a4f825a..5aea3098b5 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"runtime"
++	"sync/atomic"
+ 	"syscall"
+ )
+ 
+@@ -13,7 +14,7 @@ import (
+ type Process struct {
+ 	Pid    int
+ 	handle uintptr
+-	done   bool // process has been successfully waited on
++	isdone uint32 // process has been successfully waited on, non zero if true
+ }
+ 
+ func newProcess(pid int, handle uintptr) *Process {
+@@ -22,6 +23,14 @@ func newProcess(pid int, handle uintptr) *Process {
+ 	return p
+ }
+ 
++func (p *Process) setDone() {
++	atomic.StoreUint32(&p.isdone, 1)
++}
++
++func (p *Process) done() bool {
++	return atomic.LoadUint32(&p.isdone) > 0
++}
++
+ // ProcAttr holds the attributes that will be applied to a new process
+ // started by StartProcess.
+ type ProcAttr struct {
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index ca2dfbf6bc..2a7a597637 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -49,7 +49,7 @@ func (p *Process) writeProcFile(file string, data string) error {
+ }
+ 
+ func (p *Process) signal(sig Signal) error {
+-	if p.done {
++	if p.done() {
+ 		return errors.New("os: process already finished")
+ 	}
+ 	if sig == Kill {
+@@ -84,7 +84,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 		}
+ 
+ 		if waitmsg.Pid == p.Pid {
+-			p.done = true
++			p.setDone()
+ 			break
+ 		}
+ 	}
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index ecfe5353bc..fa3ba8a19e 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -24,7 +24,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 		return nil, NewSyscallError("wait", e)
+ 	}
+ 	if pid1 != 0 {
+-		p.done = true
++		p.setDone()
+ 	}
+ 	ps = &ProcessState{
+ 		pid:    pid1,
+@@ -35,7 +35,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ }
+ 
+ func (p *Process) signal(sig Signal) error {
+-	if p.done {
++	if p.done() {
+ 		return errors.New("os: process already finished")
+ 	}
+ 	s, ok := sig.(syscall.Signal)
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index 5beca4a650..4aa2ade631 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -32,7 +32,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	if e != nil {
+ 		return nil, NewSyscallError("GetProcessTimes", e)
+ 	}
+-	p.done = true
++	p.setDone()
+ 	// NOTE(brainman): It seems that sometimes process is not dead
+ 	// when WaitForSingleObject returns. But we do not know any
+ 	// other way to wait for it. Sleeping for a while seems to do
+@@ -43,7 +43,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ }
+ 
+ func (p *Process) signal(sig Signal) error {
+-	if p.done {
++	if p.done() {
+ 		return errors.New("os: process already finished")
+ 	}
+ 	if sig == Kill {

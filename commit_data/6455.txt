@@ -7,6 +7,21 @@ Date:   Wed Oct 6 21:47:25 2010 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/2358041
-
+---
  src/pkg/net/ip_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index 9f30f14767..d237e53291 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -57,8 +57,7 @@ type ipStringTest struct {
+ }
+ 
+ var ipstringtests = []ipStringTest{
+-	// cf. draft-ietf-6man-text-addr-representation-07
+-	// (A Recommendation for IPv6 Address Text Representation)
++	// cf. RFC 5952 (A Recommendation for IPv6 Address Text Representation)
+ 	ipStringTest{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
+ 		0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
+ 		"2001:db8::123:12:1"},

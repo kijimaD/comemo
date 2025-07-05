@@ -7,10 +7,118 @@ Date:   Thu Sep 23 14:56:44 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2270042
-
+---
  src/pkg/go/printer/nodes.go                    |  8 --------
  src/pkg/go/printer/printer.go                  | 11 ++++++++++-
  src/pkg/go/printer/testdata/expressions.golden | 10 ++++++++++
  src/pkg/go/printer/testdata/expressions.input  | 10 ++++++++++
  src/pkg/go/printer/testdata/expressions.raw    | 10 ++++++++++
  5 files changed, 40 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 4650df6448..2451116fdb 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -848,14 +848,6 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		p.print(x.Lparen, token.LPAREN)
+ 		p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
+ 		if x.Ellipsis.IsValid() {
+-			if p.lastTok == token.INT {
+-				// w/o a blank, the previous int will become a float
+-				// (this could be solved more generally in the print
+-				// function but it appears that this is the only
+-				// place in the grammar where a token starting with
+-				// a do may legally extend the previous token)
+-				p.print(blank)
+-			}
+ 			p.print(x.Ellipsis, token.ELLIPSIS)
+ 		}
+ 		p.print(x.Rparen, token.RPAREN)
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index bb87b9f58c..3e6299da77 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -802,10 +802,19 @@ func (p *printer) print(args ...interface{}) {
+ 			data = []byte("\xff" + string(data) + "\xff")
+ 			tok = x.Kind
+ 		case token.Token:
++			s := x.String()
++			if p.lastTok == token.INT && s[0] == '.' {
++				// separate int with blank from '.' so it doesn't become a float
++				if len(p.buffer) != 0 {
++					p.internalError("whitespace buffer not empty")
++				}
++				p.buffer = p.buffer[0:1]
++				p.buffer[0] = ' '
++			}
+ 			if p.Styler != nil {
+ 				data, tag = p.Styler.Token(x)
+ 			} else {
+-				data = []byte(x.String())
++				data = []byte(s)
+ 			}
+ 			tok = x
+ 		case token.Position:
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index c828dbe675..02bae49b48 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -184,6 +184,16 @@ func f(x int, args ...int) {
+ 	f(9, .42...)
+ 	f(10, 42e0...)
+ 	f(11, 42e0...)
++
++	_ = 42 .x	// a blank must remain between 42 and .x
++	_ = 42..x
++	_ = 42..x
++	_ = 42.0.x
++	_ = 42.0.x
++	_ = .42.x
++	_ = .42.x
++	_ = 42e0.x
++	_ = 42e0.x
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 06e17a6662..7d5889b064 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -184,6 +184,16 @@ func f(x int, args ...int) {
+ 	f(9, .42...)
+ 	f(10, 42e0 ...)
+ 	f(11, 42e0...)
++
++	_ = 42 .x // a blank must remain between 42 and .x
++	_ = 42. .x
++	_ = 42..x
++	_ = 42.0 .x
++	_ = 42.0.x
++	_ = .42 .x
++	_ = .42.x
++	_ = 42e0 .x
++	_ = 42e0.x
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 56ec39b968..9e83892e87 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -184,6 +184,16 @@ func f(x int, args ...int) {
+ 	f(9, .42...)
+ 	f(10, 42e0...)
+ 	f(11, 42e0...)
++
++	_ = 42 .x	// a blank must remain between 42 and .x
++	_ = 42..x
++	_ = 42..x
++	_ = 42.0.x
++	_ = 42.0.x
++	_ = .42.x
++	_ = .42.x
++	_ = 42e0.x
++	_ = 42e0.x
+ }
+ 
+ 

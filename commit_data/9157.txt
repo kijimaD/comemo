@@ -17,8 +17,53 @@ Date:   Thu Jul 21 16:46:51 2011 +1000
     R=r, r
     CC=golang-dev
     https://golang.org/cl/4717045
-
+---
  src/pkg/fmt/fmt_test.go | 2 ++
  src/pkg/fmt/format.go   | 5 +++++
  src/pkg/fmt/print.go    | 4 ++++
  3 files changed, 11 insertions(+)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 2ede11cfc8..d13d09c1b6 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -180,6 +180,8 @@ var fmttests = []struct {
+ 	{"%+d", 0, "+0"},
+ 	{"% d", 0, " 0"},
+ 	{"% d", 12345, " 12345"},
++	{"%.0d", 0, ""},
++	{"%.d", 0, ""},
+ 
+ 	// unicode format
+ 	{"%U", 0x1, "U+0001"},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index bec55f75ba..24b15a286b 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -166,6 +166,11 @@ func (f *fmt) fmt_boolean(v bool) {
+ // integer; interprets prec but not wid.  Once formatted, result is sent to pad()
+ // and then flags are cleared.
+ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
++	// precision of 0 and value of 0 means "print nothing"
++	if f.precPresent && f.prec == 0 && a == 0 {
++		return
++	}
++
+ 	var buf []byte = f.intbuf[0:]
+ 	negative := signedness == signed && a < 0
+ 	if negative {
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 53c39f18da..7387349080 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -928,6 +928,10 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 				}
+ 			} else {
+ 				p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
++				if !p.fmt.precPresent {
++					p.fmt.prec = 0
++					p.fmt.precPresent = true
++				}
+ 			}
+ 		}
+ 		if i >= end {

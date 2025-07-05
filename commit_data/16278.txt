@@ -8,6 +8,24 @@ Date:   Tue May 7 11:41:36 2013 -0700
     R=golang-dev, bradfitz, adg
     CC=golang-dev
     https://golang.org/cl/9274043
-
+---
  doc/effective_go.html | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 227659ef4c..1b3168683a 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -403,8 +403,10 @@ if owner != user {
+ 
+ <p>
+ By convention, one-method interfaces are named by
+-the method name plus the -er suffix: <code>Reader</code>,
+-<code>Writer</code>, <code>Formatter</code> etc.
++the method name plus an -er suffix or similar modification
++to construct an agent noun: <code>Reader</code>,
++<code>Writer</code>, <code>Formatter</code>,
++<code>CloseNotifier</code> etc.
+ </p>
+ 
+ <p>

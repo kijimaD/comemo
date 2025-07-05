@@ -19,7 +19,7 @@ Date:   Wed Sep 13 15:04:16 2017 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/compile/internal/gc/inl_test.go | 51 +++++++++++++++++++++++++++++++++
  src/internal/testenv/testenv.go         | 22 ++++++++++++++
  src/runtime/crash_cgo_test.go           | 18 ++++++------
@@ -28,3 +28,394 @@ Date:   Wed Sep 13 15:04:16 2017 +0200
  src/runtime/runtime-gdb_test.go         |  6 ++--
  src/runtime/runtime_test.go             | 42 ---------------------------
  7 files changed, 96 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+new file mode 100644
+index 0000000000..77fc04dbf4
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -0,0 +1,51 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"bytes"
++	"internal/testenv"
++	"os/exec"
++	"testing"
++)
++
++// TestIntendedInlining tests that specific runtime functions are inlined.
++// This allows refactoring for code clarity and re-use without fear that
++// changes to the compiler will cause silent performance regressions.
++func TestIntendedInlining(t *testing.T) {
++	if testing.Short() && testenv.Builder() == "" {
++		t.Skip("skipping in short mode")
++	}
++	testenv.MustHaveGoRun(t)
++	t.Parallel()
++
++	// want is the list of function names that should be inlined.
++	want := []string{"tophash", "add", "(*bmap).keys", "bucketShift", "bucketMask"}
++
++	m := make(map[string]bool, len(want))
++	for _, s := range want {
++		m[s] = true
++	}
++
++	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "build", "-a", "-gcflags=-m", "runtime"))
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++	lines := bytes.Split(out, []byte{'\n'})
++	for _, x := range lines {
++		f := bytes.Split(x, []byte(": can inline "))
++		if len(f) < 2 {
++			continue
++		}
++		fn := bytes.TrimSpace(f[1])
++		delete(m, string(fn))
++	}
++
++	for s := range m {
++		t.Errorf("function %s not inlined", s)
++	}
++}
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index d7d7fe31a2..0736f9adc3 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -209,3 +209,25 @@ func SkipFlakyNet(t *testing.T) {
+ 		t.Skip("skipping test on builder known to have frequent network failures")
+ 	}
+ }
++
++// CleanCmdEnv will fill cmd.Env with the environment, excluding certain
++// variables that could modify the behavior of the Go tools such as
++// GODEBUG and GOTRACEBACK.
++func CleanCmdEnv(cmd *exec.Cmd) *exec.Cmd {
++	if cmd.Env != nil {
++		panic("environment already set")
++	}
++	for _, env := range os.Environ() {
++		// Exclude GODEBUG from the environment to prevent its output
++		// from breaking tests that are trying to parse other command output.
++		if strings.HasPrefix(env, "GODEBUG=") {
++			continue
++		}
++		// Exclude GOTRACEBACK for the same reason.
++		if strings.HasPrefix(env, "GOTRACEBACK=") {
++			continue
++		}
++		cmd.Env = append(cmd.Env, env)
++	}
++	return cmd
++}
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 40d12dc3dd..ae083ef8e8 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -113,7 +113,7 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
++	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("exit status: %v\n%s", err, got)
+ 	}
+@@ -136,7 +136,7 @@ func TestCgoExternalThreadSignal(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
++	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("exit status: %v\n%s", err, got)
+ 	}
+@@ -203,14 +203,14 @@ func TestCgoCheckBytes(t *testing.T) {
+ 	const tries = 10
+ 	var tot1, tot2 time.Duration
+ 	for i := 0; i < tries; i++ {
+-		cmd := testEnv(exec.Command(exe, "CgoCheckBytes"))
++		cmd := testenv.CleanCmdEnv(exec.Command(exe, "CgoCheckBytes"))
+ 		cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0", fmt.Sprintf("GO_CGOCHECKBYTES_TRY=%d", i))
+ 
+ 		start := time.Now()
+ 		cmd.Run()
+ 		d1 := time.Since(start)
+ 
+-		cmd = testEnv(exec.Command(exe, "CgoCheckBytes"))
++		cmd = testenv.CleanCmdEnv(exec.Command(exe, "CgoCheckBytes"))
+ 		cmd.Env = append(cmd.Env, fmt.Sprintf("GO_CGOCHECKBYTES_TRY=%d", i))
+ 
+ 		start = time.Now()
+@@ -283,7 +283,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testEnv(exec.Command(exe, runArg)).CombinedOutput()
++	got, err := testenv.CleanCmdEnv(exec.Command(exe, runArg)).CombinedOutput()
+ 	if err != nil {
+ 		if testenv.Builder() == "linux-amd64-alpine" {
+ 			// See Issue 18243 and Issue 19938.
+@@ -295,7 +295,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
+ 	defer os.Remove(fn)
+ 
+ 	for try := 0; try < 2; try++ {
+-		cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1"))
++		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1"))
+ 		// Check that pprof works both with and without explicit executable on command line.
+ 		if try == 0 {
+ 			cmd.Args = append(cmd.Args, exe, fn)
+@@ -359,7 +359,7 @@ func TestRaceProf(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testEnv(exec.Command(exe, "CgoRaceprof")).CombinedOutput()
++	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoRaceprof")).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -388,7 +388,7 @@ func TestRaceSignal(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testEnv(exec.Command(exe, "CgoRaceSignal")).CombinedOutput()
++	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoRaceSignal")).CombinedOutput()
+ 	if err != nil {
+ 		t.Logf("%s\n", got)
+ 		t.Fatal(err)
+@@ -431,7 +431,7 @@ func TestCatchPanic(t *testing.T) {
+ 	}
+ 
+ 	for _, early := range []bool{true, false} {
+-		cmd := testEnv(exec.Command(exe, "CgoCatchPanic"))
++		cmd := testenv.CleanCmdEnv(exec.Command(exe, "CgoCatchPanic"))
+ 		// Make sure a panic results in a crash.
+ 		cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
+ 		if early {
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 7753809d45..2962fbd082 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -32,25 +32,6 @@ func TestMain(m *testing.M) {
+ 	os.Exit(status)
+ }
+ 
+-func testEnv(cmd *exec.Cmd) *exec.Cmd {
+-	if cmd.Env != nil {
+-		panic("environment already set")
+-	}
+-	for _, env := range os.Environ() {
+-		// Exclude GODEBUG from the environment to prevent its output
+-		// from breaking tests that are trying to parse other command output.
+-		if strings.HasPrefix(env, "GODEBUG=") {
+-			continue
+-		}
+-		// Exclude GOTRACEBACK for the same reason.
+-		if strings.HasPrefix(env, "GOTRACEBACK=") {
+-			continue
+-		}
+-		cmd.Env = append(cmd.Env, env)
+-	}
+-	return cmd
+-}
+-
+ var testprog struct {
+ 	sync.Mutex
+ 	dir    string
+@@ -70,7 +51,7 @@ func runTestProg(t *testing.T, binary, name string) string {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := testEnv(exec.Command(exe, name))
++	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
+ 	var b bytes.Buffer
+ 	cmd.Stdout = &b
+ 	cmd.Stderr = &b
+@@ -139,7 +120,7 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
+ 	exe := filepath.Join(testprog.dir, name+".exe")
+ 	cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
+ 	cmd.Dir = "testdata/" + binary
+-	out, err := testEnv(cmd).CombinedOutput()
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+ 	if err != nil {
+ 		target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
+ 		testprog.target[name] = target
+@@ -158,14 +139,14 @@ var (
+ func checkStaleRuntime(t *testing.T) {
+ 	staleRuntimeOnce.Do(func() {
+ 		// 'go run' uses the installed copy of runtime.a, which may be out of date.
+-		out, err := testEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
++		out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
+ 		if err != nil {
+ 			staleRuntimeErr = fmt.Errorf("failed to execute 'go list': %v\n%v", err, string(out))
+ 			return
+ 		}
+ 		if string(out) != "false\n" {
+ 			t.Logf("go list -f {{.Stale}} runtime:\n%s", out)
+-			out, err := testEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
++			out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
+ 			if err != nil {
+ 				t.Logf("go list -f {{.StaleReason}} failed: %v", err)
+ 			}
+@@ -468,7 +449,7 @@ func TestMemPprof(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testEnv(exec.Command(exe, "MemProf")).CombinedOutput()
++	got, err := testenv.CleanCmdEnv(exec.Command(exe, "MemProf")).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -476,7 +457,7 @@ func TestMemPprof(t *testing.T) {
+ 	defer os.Remove(fn)
+ 
+ 	for try := 0; try < 2; try++ {
+-		cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-alloc_space", "-top"))
++		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-alloc_space", "-top"))
+ 		// Check that pprof works both with and without explicit executable on command line.
+ 		if try == 0 {
+ 			cmd.Args = append(cmd.Args, exe, fn)
+@@ -586,7 +567,7 @@ func TestPanicRace(t *testing.T) {
+ 	const tries = 10
+ retry:
+ 	for i := 0; i < tries; i++ {
+-		got, err := testEnv(exec.Command(exe, "PanicRace")).CombinedOutput()
++		got, err := testenv.CleanCmdEnv(exec.Command(exe, "PanicRace")).CombinedOutput()
+ 		if err == nil {
+ 			t.Logf("try %d: program exited successfully, should have failed", i+1)
+ 			continue
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index cbaa1f65fe..af9e6430da 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -65,13 +65,13 @@ func TestCrashDumpsAllThreads(t *testing.T) {
+ 
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+ 	cmd.Dir = dir
+-	out, err := testEnv(cmd).CombinedOutput()
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("building source: %v\n%s", err, out)
+ 	}
+ 
+ 	cmd = exec.Command(filepath.Join(dir, "a.exe"))
+-	cmd = testEnv(cmd)
++	cmd = testenv.CleanCmdEnv(cmd)
+ 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
+ 
+ 	// Set GOGC=off. Because of golang.org/issue/10958, the tight
+@@ -184,7 +184,7 @@ func TestPanicSystemstack(t *testing.T) {
+ 
+ 	t.Parallel()
+ 	cmd := exec.Command(os.Args[0], "testPanicSystemstackInternal")
+-	cmd = testEnv(cmd)
++	cmd = testenv.CleanCmdEnv(cmd)
+ 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
+ 	pr, pw, err := os.Pipe()
+ 	if err != nil {
+@@ -249,7 +249,7 @@ func TestSignalExitStatus(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	err = testEnv(exec.Command(exe, "SignalExitStatus")).Run()
++	err = testenv.CleanCmdEnv(exec.Command(exe, "SignalExitStatus")).Run()
+ 	if err == nil {
+ 		t.Error("test program succeeded unexpectedly")
+ 	} else if ee, ok := err.(*exec.ExitError); !ok {
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 811d81f961..ba13ee95da 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -132,7 +132,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+ 	cmd.Dir = dir
+-	out, err := testEnv(cmd).CombinedOutput()
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("building source %v\n%s", err, out)
+ 	}
+@@ -278,7 +278,7 @@ func TestGdbBacktrace(t *testing.T) {
+ 	}
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+ 	cmd.Dir = dir
+-	out, err := testEnv(cmd).CombinedOutput()
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("building source %v\n%s", err, out)
+ 	}
+@@ -348,7 +348,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
+ 	}
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", "a.exe")
+ 	cmd.Dir = dir
+-	out, err := testEnv(cmd).CombinedOutput()
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("building source %v\n%s", err, out)
+ 	}
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 752cd21c92..922cd830bc 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -5,10 +5,7 @@
+ package runtime_test
+ 
+ import (
+-	"bytes"
+-	"internal/testenv"
+ 	"io"
+-	"os/exec"
+ 	. "runtime"
+ 	"runtime/debug"
+ 	"strings"
+@@ -357,42 +354,3 @@ func TestVersion(t *testing.T) {
+ 		t.Fatalf("cr/nl in version: %q", vers)
+ 	}
+ }
+-
+-// TestIntendedInlining tests that specific runtime functions are inlined.
+-// This allows refactoring for code clarity and re-use without fear that
+-// changes to the compiler will cause silent performance regressions.
+-func TestIntendedInlining(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" {
+-		t.Skip("skipping in short mode")
+-	}
+-	testenv.MustHaveGoRun(t)
+-	t.Parallel()
+-
+-	// want is the list of function names that should be inlined.
+-	want := []string{"tophash", "add", "(*bmap).keys", "bucketShift", "bucketMask"}
+-
+-	m := make(map[string]bool, len(want))
+-	for _, s := range want {
+-		m[s] = true
+-	}
+-
+-	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "build", "-a", "-gcflags=-m", "runtime"))
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Logf("%s", out)
+-		t.Fatal(err)
+-	}
+-	lines := bytes.Split(out, []byte{'\n'})
+-	for _, x := range lines {
+-		f := bytes.Split(x, []byte(": can inline "))
+-		if len(f) < 2 {
+-			continue
+-		}
+-		fn := bytes.TrimSpace(f[1])
+-		delete(m, string(fn))
+-	}
+-
+-	for s := range m {
+-		t.Errorf("function %s not inlined", s)
+-	}
+-}

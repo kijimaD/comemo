@@ -26,7 +26,7 @@ Date:   Mon Aug 8 01:10:18 2022 +0700
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/noder.go |  3 +++
  test/directive.go                       | 16 +---------------
  test/directive2.go                      | 13 ++++---------
@@ -35,3 +35,192 @@ Date:   Mon Aug 8 01:10:18 2022 +0700
  test/notinheap3.go                      |  6 +++++-
  test/typeparam/mdempsky/11.go           | 16 ----------------
  7 files changed, 24 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 15b1bf7b9f..b68d7b7702 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -344,6 +344,9 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ 		if flag == 0 && !allowedStdPragmas[verb] && base.Flag.Std {
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
+ 		}
++		if flag == ir.NotInHeap && *base.Flag.LowerP != "runtime/internal/sys" {
++			p.error(syntax.Error{Pos: pos, Msg: "//go:notinheap only allowed in runtime/internal/sys"})
++		}
+ 		pragma.Flag |= flag
+ 		pragma.Pos = append(pragma.Pos, pragmaPos{flag, pos})
+ 	}
+diff --git a/test/directive.go b/test/directive.go
+index 147e81db2c..8da15e2437 100644
+--- a/test/directive.go
++++ b/test/directive.go
+@@ -29,17 +29,9 @@ const c = 1
+ //go:noinline // ERROR "misplaced compiler directive"
+ type T int
+ 
+-// ok
+-//go:notinheap
+-type T1 int
+-
+ type (
+-	//go:notinheap
+ 	//go:noinline // ERROR "misplaced compiler directive"
+-	T2  int
+-	T2b int
+-	//go:notinheap
+-	T2c int
++	T2 int
+ 	//go:noinline // ERROR "misplaced compiler directive"
+ 	T3 int
+ )
+@@ -61,11 +53,5 @@ func f() {
+ 	_ = func() {}
+ 
+ 	//go:noinline // ERROR "misplaced compiler directive"
+-	// ok:
+-	//go:notinheap
+ 	type T int
+ }
+-
+-// someday there might be a directive that can apply to type aliases, but go:notinheap doesn't.
+-//go:notinheap // ERROR "misplaced compiler directive"
+-type T6 = int
+diff --git a/test/directive2.go b/test/directive2.go
+index e73e11235d..2bb9ca9f0a 100644
+--- a/test/directive2.go
++++ b/test/directive2.go
+@@ -13,21 +13,20 @@ package main
+ 
+ //go:build bad // ERROR "misplaced compiler directive"
+ 
+-//go:notinheap // ERROR "misplaced compiler directive"
++//go:noinline // ERROR "misplaced compiler directive"
+ type (
+-	T2  int //go:notinheap // ERROR "misplaced compiler directive"
++	T2  int //go:noinline // ERROR "misplaced compiler directive"
+ 	T2b int
+ 	T2c int
+ 	T3  int
+ )
+ 
+-//go:notinheap // ERROR "misplaced compiler directive"
++//go:noinline // ERROR "misplaced compiler directive"
+ type (
+-	//go:notinheap
+ 	T4 int
+ )
+ 
+-//go:notinheap // ERROR "misplaced compiler directive"
++//go:noinline // ERROR "misplaced compiler directive"
+ type ()
+ 
+ type T5 int
+@@ -53,10 +52,6 @@ func f() {
+ 	const c = 1
+ 
+ 	_ = func() {}
+-
+-	// ok:
+-	//go:notinheap
+-	type T int
+ }
+ 
+ // EOF
+diff --git a/test/fixedbugs/bug515.go b/test/fixedbugs/bug515.go
+index 186f46609a..80d426fd67 100644
+--- a/test/fixedbugs/bug515.go
++++ b/test/fixedbugs/bug515.go
+@@ -6,16 +6,18 @@
+ 
+ // Caused a gofrontend crash.
+ 
++//go:build gccgo
++
+ package p
+ 
+ //go:notinheap
+ type S1 struct{}
+ 
+ type S2 struct {
+-	r interface { Read([]byte) (int, error) }
++	r      interface{ Read([]byte) (int, error) }
+ 	s1, s2 []byte
+-	p *S1
+-	n uintptr
++	p      *S1
++	n      uintptr
+ }
+ 
+ var V any = S2{}
+diff --git a/test/notinheap2.go b/test/notinheap2.go
+index 100ed37b72..cc1024ad5a 100644
+--- a/test/notinheap2.go
++++ b/test/notinheap2.go
+@@ -4,12 +4,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test walk errors for go:notinheap.
++// Test walk errors for not-in-heap.
++
++//go:build cgo
+ 
+ package p
+ 
+-//go:notinheap
++import "runtime/cgo"
++
+ type nih struct {
++	_    cgo.Incomplete
+ 	next *nih
+ }
+ 
+diff --git a/test/notinheap3.go b/test/notinheap3.go
+index 5ace8d6793..b442ed42cd 100644
+--- a/test/notinheap3.go
++++ b/test/notinheap3.go
+@@ -6,8 +6,12 @@
+ 
+ // Test write barrier elimination for notinheap.
+ 
++//go:build cgo
++
+ package p
+ 
++import "runtime/cgo"
++
+ type t1 struct {
+ 	x *nih
+ 	s []nih
+@@ -20,8 +24,8 @@ type t2 struct {
+ 	y [1024]byte
+ }
+ 
+-//go:notinheap
+ type nih struct {
++	_ cgo.Incomplete
+ 	x uintptr
+ }
+ 
+diff --git a/test/typeparam/mdempsky/11.go b/test/typeparam/mdempsky/11.go
+deleted file mode 100644
+index e86c038a10..0000000000
+--- a/test/typeparam/mdempsky/11.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// errorcheck
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Reported by Cuong Manh Le.
+-
+-package p
+-
+-type a struct{}
+-
+-//go:notinheap
+-type b a
+-
+-var _ = (*b)(new(a)) // ERROR "cannot convert"

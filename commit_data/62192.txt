@@ -24,6 +24,26 @@ Date:   Mon Feb 10 20:10:22 2025 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/trace/reader.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/trace/reader.go b/src/internal/trace/reader.go
+index 81710c0125..75b88f7bac 100644
+--- a/src/internal/trace/reader.go
++++ b/src/internal/trace/reader.go
+@@ -152,12 +152,10 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ 			return syncEvent(nil, r.lastTs, r.syncs), nil
+ 		}
+ 		// Read the next generation.
+-		var err error
+-		r.gen, r.spill, err = readGeneration(r.r, r.spill)
++		r.gen, r.spill, r.spillErr = readGeneration(r.r, r.spill)
+ 		if r.gen == nil {
+-			return Event{}, err
++			return syncEvent(nil, r.lastTs, r.syncs), nil
+ 		}
+-		r.spillErr = err
+ 
+ 		// Reset CPU samples cursor.
+ 		r.cpuSamples = r.gen.cpuSamples

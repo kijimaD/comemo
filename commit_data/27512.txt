@@ -24,9 +24,317 @@ Date:   Thu Mar 31 14:33:46 2016 +1100
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/clientserver_test.go | 57 ++++++++++++++++++++++++
  src/net/http/lex.go               | 94 +++++++++++++++++++++++++++++++++++++++
  src/net/http/request.go           | 89 ------------------------------------
  src/net/http/transport.go         | 20 +++++++--
  4 files changed, 168 insertions(+), 92 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 171060b541..fdc47db60a 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1045,6 +1045,63 @@ func testTransportGCRequest(t *testing.T, h2, body bool) {
+ 	}
+ }
+ 
++func TestTransportRejectsInvalidHeaders_h1(t *testing.T) {
++	testTransportRejectsInvalidHeaders(t, h1Mode)
++}
++func TestTransportRejectsInvalidHeaders_h2(t *testing.T) {
++	testTransportRejectsInvalidHeaders(t, h2Mode)
++}
++func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
++	defer afterTest(t)
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		fmt.Fprintf(w, "Handler saw headers: %q", r.Header)
++	}))
++	defer cst.close()
++	cst.tr.DisableKeepAlives = true
++
++	tests := []struct {
++		key, val string
++		ok       bool
++	}{
++		{"Foo", "capital-key", true}, // verify h2 allows capital keys
++		{"Foo", "foo\x00bar", false}, // \x00 byte in value not allowed
++		{"Foo", "two\nlines", false}, // \n byte in value not allowed
++		{"bogus\nkey", "v", false},   // \n byte also not allowed in key
++		{"A space", "v", false},      // spaces in keys not allowed
++		{"имя", "v", false},          // key must be ascii
++		{"name", "валю", true},       // value may be non-ascii
++		{"", "v", false},             // key must be non-empty
++		{"k", "", true},              // value may be empty
++	}
++	for _, tt := range tests {
++		dialedc := make(chan bool, 1)
++		cst.tr.Dial = func(netw, addr string) (net.Conn, error) {
++			dialedc <- true
++			return net.Dial(netw, addr)
++		}
++		req, _ := NewRequest("GET", cst.ts.URL, nil)
++		req.Header[tt.key] = []string{tt.val}
++		res, err := cst.c.Do(req)
++		var body []byte
++		if err == nil {
++			body, _ = ioutil.ReadAll(res.Body)
++			res.Body.Close()
++		}
++		var dialed bool
++		select {
++		case <-dialedc:
++			dialed = true
++		default:
++		}
++
++		if !tt.ok && dialed {
++			t.Errorf("For key %q, value %q, transport dialed. Expected local failure. Response was: (%v, %v)\nServer replied with: %s", tt.key, tt.val, res, err, body)
++		} else if (err == nil) != tt.ok {
++			t.Errorf("For key %q, value %q; got err = %v; want ok=%v", tt.key, tt.val, err, tt.ok)
++		}
++	}
++}
++
+ type noteCloseConn struct {
+ 	net.Conn
+ 	closeFunc func()
+diff --git a/src/net/http/lex.go b/src/net/http/lex.go
+index 52b6481c14..63d14ec2ec 100644
+--- a/src/net/http/lex.go
++++ b/src/net/http/lex.go
+@@ -181,3 +181,97 @@ func isCTL(b byte) bool {
+ 	const del = 0x7f // a CTL
+ 	return b < ' ' || b == del
+ }
++
++func validHeaderName(v string) bool {
++	if len(v) == 0 {
++		return false
++	}
++	for _, r := range v {
++		if !isToken(r) {
++			return false
++		}
++	}
++	return true
++}
++
++func validHostHeader(h string) bool {
++	// The latests spec is actually this:
++	//
++	// http://tools.ietf.org/html/rfc7230#section-5.4
++	//     Host = uri-host [ ":" port ]
++	//
++	// Where uri-host is:
++	//     http://tools.ietf.org/html/rfc3986#section-3.2.2
++	//
++	// But we're going to be much more lenient for now and just
++	// search for any byte that's not a valid byte in any of those
++	// expressions.
++	for i := 0; i < len(h); i++ {
++		if !validHostByte[h[i]] {
++			return false
++		}
++	}
++	return true
++}
++
++// See the validHostHeader comment.
++var validHostByte = [256]bool{
++	'0': true, '1': true, '2': true, '3': true, '4': true, '5': true, '6': true, '7': true,
++	'8': true, '9': true,
++
++	'a': true, 'b': true, 'c': true, 'd': true, 'e': true, 'f': true, 'g': true, 'h': true,
++	'i': true, 'j': true, 'k': true, 'l': true, 'm': true, 'n': true, 'o': true, 'p': true,
++	'q': true, 'r': true, 's': true, 't': true, 'u': true, 'v': true, 'w': true, 'x': true,
++	'y': true, 'z': true,
++
++	'A': true, 'B': true, 'C': true, 'D': true, 'E': true, 'F': true, 'G': true, 'H': true,
++	'I': true, 'J': true, 'K': true, 'L': true, 'M': true, 'N': true, 'O': true, 'P': true,
++	'Q': true, 'R': true, 'S': true, 'T': true, 'U': true, 'V': true, 'W': true, 'X': true,
++	'Y': true, 'Z': true,
++
++	'!':  true, // sub-delims
++	'$':  true, // sub-delims
++	'%':  true, // pct-encoded (and used in IPv6 zones)
++	'&':  true, // sub-delims
++	'(':  true, // sub-delims
++	')':  true, // sub-delims
++	'*':  true, // sub-delims
++	'+':  true, // sub-delims
++	',':  true, // sub-delims
++	'-':  true, // unreserved
++	'.':  true, // unreserved
++	':':  true, // IPv6address + Host expression's optional port
++	';':  true, // sub-delims
++	'=':  true, // sub-delims
++	'[':  true,
++	'\'': true, // sub-delims
++	']':  true,
++	'_':  true, // unreserved
++	'~':  true, // unreserved
++}
++
++// validHeaderValue reports whether v is a valid "field-value" according to
++// http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2 :
++//
++//        message-header = field-name ":" [ field-value ]
++//        field-value    = *( field-content | LWS )
++//        field-content  = <the OCTETs making up the field-value
++//                         and consisting of either *TEXT or combinations
++//                         of token, separators, and quoted-string>
++//
++// http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2 :
++//
++//        TEXT           = <any OCTET except CTLs,
++//                          but including LWS>
++//        LWS            = [CRLF] 1*( SP | HT )
++//        CTL            = <any US-ASCII control character
++//                         (octets 0 - 31) and DEL (127)>
++func validHeaderValue(v string) bool {
++	for i := 0; i < len(v); i++ {
++		b := v[i]
++		if isCTL(b) && !isLWS(b) {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index ba487cfa31..9cf2d2576f 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1106,92 +1106,3 @@ func (r *Request) isReplayable() bool {
+ 	}
+ 	return false
+ }
+-
+-func validHostHeader(h string) bool {
+-	// The latests spec is actually this:
+-	//
+-	// http://tools.ietf.org/html/rfc7230#section-5.4
+-	//     Host = uri-host [ ":" port ]
+-	//
+-	// Where uri-host is:
+-	//     http://tools.ietf.org/html/rfc3986#section-3.2.2
+-	//
+-	// But we're going to be much more lenient for now and just
+-	// search for any byte that's not a valid byte in any of those
+-	// expressions.
+-	for i := 0; i < len(h); i++ {
+-		if !validHostByte[h[i]] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-// See the validHostHeader comment.
+-var validHostByte = [256]bool{
+-	'0': true, '1': true, '2': true, '3': true, '4': true, '5': true, '6': true, '7': true,
+-	'8': true, '9': true,
+-
+-	'a': true, 'b': true, 'c': true, 'd': true, 'e': true, 'f': true, 'g': true, 'h': true,
+-	'i': true, 'j': true, 'k': true, 'l': true, 'm': true, 'n': true, 'o': true, 'p': true,
+-	'q': true, 'r': true, 's': true, 't': true, 'u': true, 'v': true, 'w': true, 'x': true,
+-	'y': true, 'z': true,
+-
+-	'A': true, 'B': true, 'C': true, 'D': true, 'E': true, 'F': true, 'G': true, 'H': true,
+-	'I': true, 'J': true, 'K': true, 'L': true, 'M': true, 'N': true, 'O': true, 'P': true,
+-	'Q': true, 'R': true, 'S': true, 'T': true, 'U': true, 'V': true, 'W': true, 'X': true,
+-	'Y': true, 'Z': true,
+-
+-	'!':  true, // sub-delims
+-	'$':  true, // sub-delims
+-	'%':  true, // pct-encoded (and used in IPv6 zones)
+-	'&':  true, // sub-delims
+-	'(':  true, // sub-delims
+-	')':  true, // sub-delims
+-	'*':  true, // sub-delims
+-	'+':  true, // sub-delims
+-	',':  true, // sub-delims
+-	'-':  true, // unreserved
+-	'.':  true, // unreserved
+-	':':  true, // IPv6address + Host expression's optional port
+-	';':  true, // sub-delims
+-	'=':  true, // sub-delims
+-	'[':  true,
+-	'\'': true, // sub-delims
+-	']':  true,
+-	'_':  true, // unreserved
+-	'~':  true, // unreserved
+-}
+-
+-func validHeaderName(v string) bool {
+-	if len(v) == 0 {
+-		return false
+-	}
+-	return strings.IndexFunc(v, isNotToken) == -1
+-}
+-
+-// validHeaderValue reports whether v is a valid "field-value" according to
+-// http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2 :
+-//
+-//        message-header = field-name ":" [ field-value ]
+-//        field-value    = *( field-content | LWS )
+-//        field-content  = <the OCTETs making up the field-value
+-//                         and consisting of either *TEXT or combinations
+-//                         of token, separators, and quoted-string>
+-//
+-// http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2 :
+-//
+-//        TEXT           = <any OCTET except CTLs,
+-//                          but including LWS>
+-//        LWS            = [CRLF] 1*( SP | HT )
+-//        CTL            = <any US-ASCII control character
+-//                         (octets 0 - 31) and DEL (127)>
+-func validHeaderValue(v string) bool {
+-	for i := 0; i < len(v); i++ {
+-		b := v[i]
+-		if isCTL(b) && !isLWS(b) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 774294ff07..b6a1b33014 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -274,18 +274,32 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		req.closeBody()
+ 		return nil, errors.New("http: nil Request.Header")
+ 	}
++	scheme := req.URL.Scheme
++	isHTTP := scheme == "http" || scheme == "https"
++	if isHTTP {
++		for k, vv := range req.Header {
++			if !validHeaderName(k) {
++				return nil, fmt.Errorf("net/http: invalid header field name %q", k)
++			}
++			for _, v := range vv {
++				if !validHeaderValue(v) {
++					return nil, fmt.Errorf("net/http: invalid header field value %q for key %v", v, k)
++				}
++			}
++		}
++	}
+ 	// TODO(bradfitz): switch to atomic.Value for this map instead of RWMutex
+ 	t.altMu.RLock()
+-	altRT := t.altProto[req.URL.Scheme]
++	altRT := t.altProto[scheme]
+ 	t.altMu.RUnlock()
+ 	if altRT != nil {
+ 		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
+ 			return resp, err
+ 		}
+ 	}
+-	if s := req.URL.Scheme; s != "http" && s != "https" {
++	if !isHTTP {
+ 		req.closeBody()
+-		return nil, &badStringError{"unsupported protocol scheme", s}
++		return nil, &badStringError{"unsupported protocol scheme", scheme}
+ 	}
+ 	if req.Method != "" && !validMethod(req.Method) {
+ 		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)

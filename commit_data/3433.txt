@@ -9,10 +9,266 @@ Date:   Sat Oct 3 11:33:51 2009 -0700
     DELTA=211  (210 added, 0 deleted, 1 changed)
     OCL=35293
     CL=35307
-
+---
  misc/cgo/stdio/Makefile   |   2 +-
  misc/cgo/stdio/chain.go   |  43 +++++++++++++
  misc/cgo/stdio/golden.out | 150 ++++++++++++++++++++++++++++++++++++++++++++++
  misc/cgo/stdio/test.bash  |  15 +++++
  src/run.bash              |   5 ++
  5 files changed, 214 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/stdio/Makefile b/misc/cgo/stdio/Makefile
+index 010e179742..83b1ed9e50 100644
+--- a/misc/cgo/stdio/Makefile
++++ b/misc/cgo/stdio/Makefile
+@@ -8,7 +8,7 @@ TARG=stdio
+ CGOFILES=\
+ 	file.go
+ 
+-CLEANFILES+=hello fib chain
++CLEANFILES+=hello fib chain run.out
+ 
+ include $(GOROOT)/src/Make.pkg
+ 
+diff --git a/misc/cgo/stdio/chain.go b/misc/cgo/stdio/chain.go
+new file mode 100644
+index 0000000000..18c598d4d7
+--- /dev/null
++++ b/misc/cgo/stdio/chain.go
+@@ -0,0 +1,43 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Pass numbers along a chain of threads.
++
++package main
++
++import (
++	"runtime";
++	"stdio";
++	"strconv";
++)
++
++const N = 10
++const R = 5
++
++func link(left chan<- int, right <-chan int) {
++	// Keep the links in dedicated operating system
++	// threads, so that this program tests coordination
++	// between pthreads and not just goroutines.
++	runtime.LockOSThread();
++	for {
++		v := <-right;
++		stdio.Puts(strconv.Itoa(v));
++		left <- 1+v;
++	}
++}
++
++func main() {
++	leftmost := make(chan int);
++	var left chan int;
++	right := leftmost;
++	for i := 0; i < N; i++ {
++		left, right = right, make(chan int);
++		go link(left, right);
++	}
++	for i := 0; i < R; i++ {
++		right <- 0;
++		x := <-leftmost;
++		stdio.Puts(strconv.Itoa(x));
++	}
++}
+diff --git a/misc/cgo/stdio/golden.out b/misc/cgo/stdio/golden.out
+new file mode 100644
+index 0000000000..c0e496547e
+--- /dev/null
++++ b/misc/cgo/stdio/golden.out
+@@ -0,0 +1,150 @@
++* hello
++hello, world
++* fib
++0
++1
++1
++2
++3
++5
++8
++13
++21
++34
++55
++89
++144
++233
++377
++610
++987
++1597
++2584
++4181
++6765
++10946
++17711
++28657
++46368
++75025
++121393
++196418
++317811
++514229
++832040
++1346269
++2178309
++3524578
++5702887
++9227465
++14930352
++24157817
++39088169
++63245986
++102334155
++165580141
++267914296
++433494437
++701408733
++1134903170
++1836311903
++2971215073
++4807526976
++7778742049
++12586269025
++20365011074
++32951280099
++53316291173
++86267571272
++139583862445
++225851433717
++365435296162
++591286729879
++956722026041
++1548008755920
++2504730781961
++4052739537881
++6557470319842
++10610209857723
++17167680177565
++27777890035288
++44945570212853
++72723460248141
++117669030460994
++190392490709135
++308061521170129
++498454011879264
++806515533049393
++1304969544928657
++2111485077978050
++3416454622906707
++5527939700884757
++8944394323791464
++14472334024676221
++23416728348467685
++37889062373143906
++61305790721611591
++99194853094755497
++160500643816367088
++259695496911122585
++420196140727489673
++679891637638612258
++1100087778366101931
++1779979416004714189
++2880067194370816120
++* chain
++0
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++0
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++0
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++0
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++0
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
+diff --git a/misc/cgo/stdio/test.bash b/misc/cgo/stdio/test.bash
+new file mode 100755
+index 0000000000..8849fa4788
+--- /dev/null
++++ b/misc/cgo/stdio/test.bash
+@@ -0,0 +1,15 @@
++#!/bin/sh
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++make hello fib chain
++echo '*' hello >run.out
++./hello >>run.out
++echo '*' fib >>run.out
++./fib >>run.out
++echo '*' chain >>run.out
++./chain >>run.out
++diff run.out golden.out
++make clean
+diff --git a/src/run.bash b/src/run.bash
+index c8f5d0c082..99ba599cf0 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -50,6 +50,11 @@ time make
+ time make test
+ ) || exit $?
+ 
++(xcd ../misc/cgo/stdio
++make clean
++test.bash
++) || exit $?
++
+ (xcd ../usr/austin/ogle
+ make clean
+ time make ogle

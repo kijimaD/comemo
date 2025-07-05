@@ -22,7 +22,7 @@ Date:   Thu Feb 18 15:42:05 2021 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt           |  57 +++++++++-
  .../go/testdata/script/test_fuzz_mutate_crash.txt  |  14 +++
  src/cmd/go/testdata/script/test_fuzz_mutator.txt   |   2 +-
@@ -34,3 +34,720 @@ Date:   Thu Feb 18 15:42:05 2021 -0500
  src/testing/internal/testdeps/deps.go              |   9 +-
  src/testing/testing.go                             |  11 +-
  10 files changed, 297 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index 9870f719da..f9783504ee 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -116,6 +116,21 @@ stdout 'off by one error'
+ ! stdout ^ok
+ stdout FAIL
+ 
++# Test panic with unsupported seed corpus
++! go test -run FuzzUnsupported fuzz_add_test.go
++! stdout ^ok
++stdout FAIL
++
++# Test panic with different number of args to f.Add
++! go test -run FuzzAddDifferentNumber fuzz_add_test.go
++! stdout ^ok
++stdout FAIL
++
++# Test panic with different type of args to f.Add
++! go test -run FuzzAddDifferentType fuzz_add_test.go
++! stdout ^ok
++stdout FAIL
++
+ # Test fatal with testdata seed corpus
+ ! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
+ ! stdout ^ok
+@@ -128,6 +143,11 @@ stdout ok
+ ! stdout FAIL
+ ! stdout 'fatal here'
+ 
++# Test panic with malformed seed corpus
++! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
++! stdout ^ok
++stdout FAIL
++
+ # Test pass with file in other nested testdata directory
+ go test -run FuzzInNestedDir corpustesting/fuzz_testdata_corpus_test.go
+ stdout ok
+@@ -316,6 +336,24 @@ func FuzzNilPanic(f *testing.F) {
+     })
+ }
+ 
++func FuzzUnsupported(f *testing.F) {
++    m := make(map[string]bool)
++    f.Add(m)
++    f.Fuzz(func(t *testing.T, b []byte) {})
++}
++
++func FuzzAddDifferentNumber(f *testing.F) {
++    f.Add([]byte("a"))
++    f.Add([]byte("a"), []byte("b"))
++    f.Fuzz(func(t *testing.T, b []byte) {})
++}
++
++func FuzzAddDifferentType(f *testing.F) {
++    f.Add(false)
++    f.Add(1234)
++    f.Fuzz(func(t *testing.T, b []byte) {})
++}
++
+ -- corpustesting/fuzz_testdata_corpus_test.go --
+ package fuzz_testdata_corpus
+ 
+@@ -324,7 +362,7 @@ import "testing"
+ func fuzzFn(f *testing.F) {
+     f.Helper()
+     f.Fuzz(func(t *testing.T, b []byte) {
+-        if string(b) == "12345\n" {
++        if string(b) == "12345" {
+             t.Fatal("fatal here")
+         }
+     })
+@@ -338,13 +376,22 @@ func FuzzPass(f *testing.F) {
+     fuzzFn(f)
+ }
+ 
++func FuzzPanic(f *testing.F) {
++    f.Fuzz(func(t *testing.T, b []byte) {})
++}
++
+ func FuzzInNestedDir(f *testing.F) {
+-    fuzzFn(f)
++    f.Fuzz(func(t *testing.T, b []byte) {})
+ }
+ 
+ -- corpustesting/testdata/corpus/FuzzFail/1 --
+-12345
++go test fuzz v1
++[]byte("12345")
+ -- corpustesting/testdata/corpus/FuzzPass/1 --
+-00000
++go test fuzz v1
++[]byte("00000")
++-- corpustesting/testdata/corpus/FuzzPanic/1 --
++malformed
+ -- corpustesting/testdata/corpus/FuzzInNestedDir/anotherdir/1 --
+-12345
+\ No newline at end of file
++go test fuzz v1
++[]byte("12345")
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index b45e7d77c7..2f5d069e69 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -24,6 +24,12 @@ go run check_testdata.go FuzzWithBug
+ # the target, and should fail when run without fuzzing.
+ ! go test -parallel=1
+ 
++# Running the fuzzer should find a crashing input quickly for fuzzing two types.
++! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=5s -parallel=1
++stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
++stdout 'these inputs caused a crash!'
++go run check_testdata.go FuzzWithTwoTypes
++
+ ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=5s -parallel=1
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
+ stdout 'runtime.Goexit'
+@@ -64,6 +70,14 @@ func FuzzWithNilPanic(f *testing.F) {
+ 	})
+ }
+ 
++func FuzzWithTwoTypes(f *testing.F) {
++	f.Fuzz(func(t *testing.T, a, b []byte) {
++		if len(a) > 0 && len(b) > 0 {
++			panic("these inputs caused a crash!")
++		}
++	})
++}
++
+ func FuzzWithBadExit(f *testing.F) {
+ 	f.Add([]byte("aa"))
+ 	f.Fuzz(func(t *testing.T, b []byte) {
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator.txt b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+index a84fc35c5c..b94fa90245 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+@@ -14,7 +14,7 @@ go test -fuzz=FuzzA -fuzztime=5s -parallel=1 -log=fuzz
+ go run check_logs.go fuzz fuzz.worker
+ 
+ # Test that the mutator is good enough to find several unique mutations.
+-! go test -v -fuzz=Fuzz -parallel=1 -fuzztime=30s mutator_test.go
++! go test -fuzz=Fuzz -parallel=1 -fuzztime=30s mutator_test.go
+ ! stdout ok
+ stdout FAIL
+ stdout 'mutator found enough unique mutations'
+diff --git a/src/internal/fuzz/encoding.go b/src/internal/fuzz/encoding.go
+index 31810fca61..c018ef5fe2 100644
+--- a/src/internal/fuzz/encoding.go
++++ b/src/internal/fuzz/encoding.go
+@@ -20,14 +20,14 @@ var encVersion1 = "go test fuzz v1"
+ // corpus.
+ func marshalCorpusFile(vals ...interface{}) []byte {
+ 	if len(vals) == 0 {
+-		panic("must have at least one value to encode")
++		panic("must have at least one value to marshal")
+ 	}
+ 	b := bytes.NewBuffer([]byte(encVersion1))
+ 	// TODO(katiehockman): keep uint8 and int32 encoding where applicable,
+ 	// instead of changing to byte and rune respectively.
+ 	for _, val := range vals {
+ 		switch t := val.(type) {
+-		case int, int8, int16, int64, uint, uint16, uint32, uint64, uintptr, float32, float64, bool:
++		case int, int8, int16, int64, uint, uint16, uint32, uint64, float32, float64, bool:
+ 			fmt.Fprintf(b, "\n%T(%v)", t, t)
+ 		case string:
+ 			fmt.Fprintf(b, "\nstring(%q)", t)
+@@ -47,7 +47,7 @@ func marshalCorpusFile(vals ...interface{}) []byte {
+ // unmarshalCorpusFile decodes corpus bytes into their respective values.
+ func unmarshalCorpusFile(b []byte) ([]interface{}, error) {
+ 	if len(b) == 0 {
+-		return nil, fmt.Errorf("cannot decode empty string")
++		return nil, fmt.Errorf("cannot unmarshal empty string")
+ 	}
+ 	lines := bytes.Split(b, []byte("\n"))
+ 	if len(lines) < 2 {
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index ef009334f7..aa121bf2a0 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -15,7 +15,9 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
++	"reflect"
+ 	"runtime"
++	"strings"
+ 	"sync"
+ )
+ 
+@@ -32,6 +34,8 @@ import (
+ // seed is a list of seed values added by the fuzz target with testing.F.Add and
+ // in testdata.
+ //
++// types is the list of types which make up a corpus entry.
++//
+ // corpusDir is a directory where files containing values that crash the
+ // code being tested may be written.
+ //
+@@ -40,7 +44,7 @@ import (
+ //
+ // If a crash occurs, the function will return an error containing information
+ // about the crash, which can be reported to the user.
+-func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, corpusDir, cacheDir string) (err error) {
++func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, types []reflect.Type, corpusDir, cacheDir string) (err error) {
+ 	if err := ctx.Err(); err != nil {
+ 		return err
+ 	}
+@@ -49,12 +53,22 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, co
+ 	}
+ 
+ 	sharedMemSize := 100 << 20 // 100 MB
+-	corpus, err := readCache(seed, cacheDir)
++	// Make sure all of the seed corpus has marshalled data.
++	for i := range seed {
++		if seed[i].Data == nil {
++			seed[i].Data = marshalCorpusFile(seed[i].Values...)
++		}
++	}
++	corpus, err := readCache(seed, types, cacheDir)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	if len(corpus.entries) == 0 {
+-		corpus.entries = []CorpusEntry{{Data: []byte{}}}
++		var vals []interface{}
++		for _, t := range types {
++			vals = append(vals, zeroValue(t))
++		}
++		corpus.entries = append(corpus.entries, CorpusEntry{Data: marshalCorpusFile(vals...), Values: vals})
+ 	}
+ 
+ 	// TODO(jayconrod): do we want to support fuzzing different binaries?
+@@ -224,10 +238,8 @@ type CorpusEntry = struct {
+ 	// Data is the raw data loaded from a corpus file.
+ 	Data []byte
+ 
+-	// TODO(jayconrod,katiehockman): support multiple values of different types
+-	// added with f.Add with a Values []interface{} field. We'll need marhsalling
+-	// and unmarshalling functions, and we'll need to figure out what to do
+-	// in the mutator.
++	// Values is the unmarshaled values from a corpus file.
++	Values []interface{}
+ }
+ 
+ type crasherEntry struct {
+@@ -262,35 +274,57 @@ type coordinator struct {
+ 	errC chan error
+ }
+ 
+-// readCache creates a combined corpus from seed values, values in the
+-// corpus directory (in testdata), and values in the cache (in GOCACHE/fuzz).
++// readCache creates a combined corpus from seed values and values in the cache
++// (in GOCACHE/fuzz).
+ //
+-// TODO(jayconrod,katiehockman): if a value in the cache has the wrong type,
+-// ignore it instead of reporting an error. Cached values may be used for
+-// the same package at a different version or in a different module.
+ // TODO(jayconrod,katiehockman): need a mechanism that can remove values that
+ // aren't useful anymore, for example, because they have the wrong type.
+-func readCache(seed []CorpusEntry, cacheDir string) (corpus, error) {
++func readCache(seed []CorpusEntry, types []reflect.Type, cacheDir string) (corpus, error) {
+ 	var c corpus
+ 	c.entries = append(c.entries, seed...)
+-	entries, err := ReadCorpus(cacheDir)
++	entries, err := ReadCorpus(cacheDir, types)
+ 	if err != nil {
+-		return corpus{}, err
++		if _, ok := err.(*MalformedCorpusError); !ok {
++			// It's okay if some files in the cache directory are malformed and
++			// are not included in the corpus, but fail if it's an I/O error.
++			return corpus{}, err
++		}
++		// TODO(jayconrod,katiehockman): consider printing some kind of warning
++		// indicating the number of files which were skipped because they are
++		// malformed.
+ 	}
+ 	c.entries = append(c.entries, entries...)
+ 	return c, nil
+ }
+ 
+-// ReadCorpus reads the corpus from the testdata directory in this target's
+-// package.
+-func ReadCorpus(dir string) ([]CorpusEntry, error) {
++// MalformedCorpusError is an error found while reading the corpus from the
++// filesystem. All of the errors are stored in the errs list. The testing
++// framework uses this to report malformed files in testdata.
++type MalformedCorpusError struct {
++	errs []error
++}
++
++func (e *MalformedCorpusError) Error() string {
++	var msgs []string
++	for _, s := range e.errs {
++		msgs = append(msgs, s.Error())
++	}
++	return strings.Join(msgs, "\n")
++}
++
++// ReadCorpus reads the corpus from the provided dir. The returned corpus
++// entries are guaranteed to match the given types. Any malformed files will
++// be saved in a MalformedCorpusError and returned, along with the most recent
++// error.
++func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
+ 	files, err := ioutil.ReadDir(dir)
+ 	if os.IsNotExist(err) {
+ 		return nil, nil // No corpus to read
+ 	} else if err != nil {
+-		return nil, fmt.Errorf("testing: reading seed corpus from testdata: %v", err)
++		return nil, fmt.Errorf("reading seed corpus from testdata: %v", err)
+ 	}
+ 	var corpus []CorpusEntry
++	var errs []error
+ 	for _, file := range files {
+ 		// TODO(jayconrod,katiehockman): determine when a file is a fuzzing input
+ 		// based on its name. We should only read files created by writeToCorpus.
+@@ -300,11 +334,30 @@ func ReadCorpus(dir string) ([]CorpusEntry, error) {
+ 		if file.IsDir() {
+ 			continue
+ 		}
+-		bytes, err := ioutil.ReadFile(filepath.Join(dir, file.Name()))
++		filename := filepath.Join(dir, file.Name())
++		data, err := ioutil.ReadFile(filename)
+ 		if err != nil {
+-			return nil, fmt.Errorf("testing: failed to read corpus file: %v", err)
++			return nil, fmt.Errorf("failed to read corpus file: %v", err)
+ 		}
+-		corpus = append(corpus, CorpusEntry{Name: file.Name(), Data: bytes})
++		vals, err := unmarshalCorpusFile(data)
++		if err != nil {
++			errs = append(errs, fmt.Errorf("failed to unmarshal %q: %v", filename, err))
++			continue
++		}
++		if len(vals) != len(types) {
++			errs = append(errs, fmt.Errorf("wrong number of values in corpus file %q: %d, want %d", filename, len(vals), len(types)))
++			continue
++		}
++		for i := range types {
++			if reflect.TypeOf(vals[i]) != types[i] {
++				errs = append(errs, fmt.Errorf("mismatched types in corpus file %q: %v, want %v", filename, vals, types))
++				continue
++			}
++		}
++		corpus = append(corpus, CorpusEntry{Name: file.Name(), Data: data, Values: vals})
++	}
++	if len(errs) > 0 {
++		return corpus, &MalformedCorpusError{errs: errs}
+ 	}
+ 	return corpus, nil
+ }
+@@ -325,3 +378,32 @@ func writeToCorpus(b []byte, dir string) (name string, err error) {
+ 	}
+ 	return name, nil
+ }
++
++func zeroValue(t reflect.Type) interface{} {
++	for _, v := range zeroVals {
++		if reflect.TypeOf(v) == t {
++			return v
++		}
++	}
++	panic(fmt.Sprintf("unsupported type: %v", t))
++}
++
++var zeroVals []interface{} = []interface{}{
++	[]byte(""),
++	string(""),
++	false,
++	byte(0),
++	rune(0),
++	float32(0),
++	float64(0),
++	int(0),
++	int8(0),
++	int16(0),
++	int32(0),
++	int64(0),
++	uint(0),
++	uint8(0),
++	uint16(0),
++	uint32(0),
++	uint64(0),
++}
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index 377491adcb..584c21e8ae 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -6,6 +6,7 @@ package fuzz
+ 
+ import (
+ 	"encoding/binary"
++	"fmt"
+ 	"reflect"
+ 	"unsafe"
+ )
+@@ -49,12 +50,38 @@ func min(a, b int) int {
+ 	return b
+ }
+ 
+-// mutate performs several mutations directly onto the provided byte slice.
+-func (m *mutator) mutate(ptrB *[]byte) {
+-	// TODO(jayconrod,katiehockman): make this use zero allocations
+-	// TODO(katiehockman): pull some of these functions into helper methods
+-	// and test that each case is working as expected.
++// mutate performs several mutations on the provided values.
++func (m *mutator) mutate(vals []interface{}, maxBytes int) []interface{} {
++	// TODO(jayconrod,katiehockman): use as few allocations as possible
++	// TODO(katiehockman): pull some of these functions into helper methods and
++	// test that each case is working as expected.
+ 	// TODO(katiehockman): perform more types of mutations.
++
++	// maxPerVal will represent the maximum number of bytes that each value be
++	// allowed after mutating, giving an equal amount of capacity to each line.
++	// Allow a little wiggle room for the encoding.
++	maxPerVal := maxBytes/len(vals) - 100
++
++	// Pick a random value to mutate.
++	// TODO: consider mutating more than one value at a time.
++	i := m.rand(len(vals))
++	// TODO(katiehockman): support mutating other types
++	switch v := vals[i].(type) {
++	case []byte:
++		if len(v) > maxPerVal {
++			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
++		}
++		b := make([]byte, 0, maxPerVal)
++		b = append(b, v...)
++		m.mutateBytes(&b)
++		vals[i] = b
++		return vals
++	default:
++		panic(fmt.Sprintf("type not supported for mutating: %T", vals[i]))
++	}
++}
++
++func (m *mutator) mutateBytes(ptrB *[]byte) {
+ 	b := *ptrB
+ 	defer func() {
+ 		oldHdr := (*reflect.SliceHeader)(unsafe.Pointer(ptrB))
+@@ -103,6 +130,10 @@ func (m *mutator) mutate(ptrB *[]byte) {
+ 				dst = m.rand(len(b))
+ 			}
+ 			n := m.chooseLen(len(b) - src)
++			if len(b)+n >= cap(b) {
++				iter--
++				continue
++			}
+ 			tmp := make([]byte, n)
+ 			copy(tmp, b[src:])
+ 			b = b[:len(b)+n]
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index f9284db729..e2b3c3d7a6 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -453,6 +453,10 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
+ 	mem := <-ws.memMu
+ 	defer func() { ws.memMu <- mem }()
+ 
++	vals, err := unmarshalCorpusFile(mem.valueCopy())
++	if err != nil {
++		panic(err)
++	}
+ 	for {
+ 		select {
+ 		case <-ctx.Done():
+@@ -460,10 +464,11 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
+ 			// real heuristic once we have one.
+ 			return fuzzResponse{Interesting: true}
+ 		default:
+-			b := mem.valueRef()
+-			ws.m.mutate(&b)
++			vals = ws.m.mutate(vals, cap(mem.valueRef()))
++			b := marshalCorpusFile(vals...)
+ 			mem.setValueLen(len(b))
+-			if err := ws.fuzzFn(CorpusEntry{Data: b}); err != nil {
++			mem.setValue(b)
++			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
+ 				return fuzzResponse{Err: err.Error()}
+ 			}
+ 			// TODO(jayconrod,katiehockman): return early if we find an
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 6b2d910af5..f670ef4546 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"reflect"
+ 	"runtime"
+ 	"sync/atomic"
+ 	"time"
+@@ -57,8 +58,9 @@ var _ TB = (*F)(nil)
+ // We use a type alias because we don't want to export this type, and we can't
+ // importing internal/fuzz from testing.
+ type corpusEntry = struct {
+-	Name string
+-	Data []byte
++	Name   string
++	Data   []byte
++	Values []interface{}
+ }
+ 
+ // Cleanup registers a function to be called when the test and all its
+@@ -183,20 +185,35 @@ func (f *F) TempDir() string {
+ // be a no-op if called after or within the Fuzz function. The args must match
+ // those in the Fuzz function.
+ func (f *F) Add(args ...interface{}) {
+-	if len(args) == 0 {
+-		panic("testing: Add must have at least one argument")
+-	}
+-	if len(args) != 1 {
+-		// TODO: support more than one argument
+-		panic("testing: Add only supports one argument currently")
+-	}
+-	switch v := args[0].(type) {
+-	case []byte:
+-		f.corpus = append(f.corpus, corpusEntry{Data: v})
+-	// TODO: support other types
+-	default:
+-		panic("testing: Add only supports []byte currently")
++	var values []interface{}
++	for i := range args {
++		if t := reflect.TypeOf(args[i]); !supportedTypes[t] {
++			panic(fmt.Sprintf("testing: unsupported type to Add %v", t))
++		}
++		values = append(values, args[i])
+ 	}
++	f.corpus = append(f.corpus, corpusEntry{Values: values})
++}
++
++// supportedTypes represents all of the supported types which can be fuzzed.
++var supportedTypes = map[reflect.Type]bool{
++	reflect.TypeOf(([]byte)("")):  true,
++	reflect.TypeOf((string)("")):  true,
++	reflect.TypeOf((bool)(false)): true,
++	reflect.TypeOf((byte)(0)):     true,
++	reflect.TypeOf((rune)(0)):     true,
++	reflect.TypeOf((float32)(0)):  true,
++	reflect.TypeOf((float64)(0)):  true,
++	reflect.TypeOf((int)(0)):      true,
++	reflect.TypeOf((int8)(0)):     true,
++	reflect.TypeOf((int16)(0)):    true,
++	reflect.TypeOf((int32)(0)):    true,
++	reflect.TypeOf((int64)(0)):    true,
++	reflect.TypeOf((uint)(0)):     true,
++	reflect.TypeOf((uint8)(0)):    true,
++	reflect.TypeOf((uint16)(0)):   true,
++	reflect.TypeOf((uint32)(0)):   true,
++	reflect.TypeOf((uint64)(0)):   true,
+ }
+ 
+ // Fuzz runs the fuzz function, ff, for fuzz testing. If ff fails for a set of
+@@ -210,15 +227,30 @@ func (f *F) Fuzz(ff interface{}) {
+ 		panic("testing: F.Fuzz called more than once")
+ 	}
+ 	f.fuzzCalled = true
++	f.Helper()
+ 
+-	fn, ok := ff.(func(*T, []byte))
+-	if !ok {
+-		panic("testing: Fuzz function must have type func(*testing.T, []byte)")
++	// ff should be in the form func(*testing.T, ...interface{})
++	fn := reflect.ValueOf(ff)
++	fnType := fn.Type()
++	if fnType.Kind() != reflect.Func {
++		panic("testing: F.Fuzz must receive a function")
++	}
++	if fnType.NumIn() < 2 || fnType.In(0) != reflect.TypeOf((*T)(nil)) {
++		panic("testing: F.Fuzz function must receive at least two arguments, where the first argument is a *T")
++	}
++
++	// Save the types of the function to compare against the corpus.
++	var types []reflect.Type
++	for i := 1; i < fnType.NumIn(); i++ {
++		t := fnType.In(i)
++		if !supportedTypes[t] {
++			panic(fmt.Sprintf("testing: unsupported type for fuzzing %v", t))
++		}
++		types = append(types, t)
+ 	}
+-	f.Helper()
+ 
+ 	// Load seed corpus
+-	c, err := f.fuzzContext.readCorpus(filepath.Join(corpusDir, f.name))
++	c, err := f.fuzzContext.readCorpus(filepath.Join(corpusDir, f.name), types)
+ 	if err != nil {
+ 		f.Fatal(err)
+ 	}
+@@ -231,6 +263,11 @@ func (f *F) Fuzz(ff interface{}) {
+ 	// TODO(jayconrod,katiehockman): dedupe testdata corpus with entries from f.Add
+ 	// TODO(jayconrod,katiehockman): handle T.Parallel calls within fuzz function.
+ 	run := func(e corpusEntry) error {
++		if e.Values == nil {
++			// Every code path should have already unmarshaled Data into Values.
++			// It's our fault if it didn't.
++			panic(fmt.Sprintf("corpus file %q was not unmarshaled", e.Name))
++		}
+ 		testName, ok, _ := f.testContext.match.fullName(&f.common, e.Name)
+ 		if !ok || shouldFailFast() {
+ 			return nil
+@@ -257,7 +294,13 @@ func (f *F) Fuzz(ff interface{}) {
+ 			t.chatty.Updatef(t.name, "=== RUN  %s\n", t.name)
+ 		}
+ 		f.inFuzzFn = true
+-		go tRunner(t, func(t *T) { fn(t, e.Data) })
++		go tRunner(t, func(t *T) {
++			args := []reflect.Value{reflect.ValueOf(t)}
++			for _, v := range e.Values {
++				args = append(args, reflect.ValueOf(v))
++			}
++			fn.Call(args)
++		})
+ 		<-t.signal
+ 		f.inFuzzFn = false
+ 		if t.Failed() {
+@@ -273,7 +316,7 @@ func (f *F) Fuzz(ff interface{}) {
+ 		// actual fuzzing.
+ 		corpusTargetDir := filepath.Join(corpusDir, f.name)
+ 		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
+-		err := f.fuzzContext.coordinateFuzzing(*fuzzDuration, *parallel, f.corpus, corpusTargetDir, cacheTargetDir)
++		err := f.fuzzContext.coordinateFuzzing(*fuzzDuration, *parallel, f.corpus, types, corpusTargetDir, cacheTargetDir)
+ 		if err != nil {
+ 			f.result = FuzzResult{Error: err}
+ 			f.Error(err)
+@@ -365,9 +408,9 @@ type fuzzCrashError interface {
+ // fuzzContext holds all fields that are common to all fuzz targets.
+ type fuzzContext struct {
+ 	importPath        func() string
+-	coordinateFuzzing func(time.Duration, int, []corpusEntry, string, string) error
++	coordinateFuzzing func(time.Duration, int, []corpusEntry, []reflect.Type, string, string) error
+ 	runFuzzWorker     func(func(corpusEntry) error) error
+-	readCorpus        func(string) ([]corpusEntry, error)
++	readCorpus        func(string, []reflect.Type) ([]corpusEntry, error)
+ }
+ 
+ // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 3160cae7a4..d5481d6608 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -18,6 +18,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"os/signal"
++	"reflect"
+ 	"regexp"
+ 	"runtime/pprof"
+ 	"strings"
+@@ -132,7 +133,7 @@ func (TestDeps) SetPanicOnExit0(v bool) {
+ 	testlog.SetPanicOnExit0(v)
+ }
+ 
+-func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fuzz.CorpusEntry, corpusDir, cacheDir string) (err error) {
++func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fuzz.CorpusEntry, types []reflect.Type, corpusDir, cacheDir string) (err error) {
+ 	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
+ 	// In either case, we'll stop worker processes gracefully and save
+ 	// crashers and interesting values.
+@@ -143,7 +144,7 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fu
+ 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
+ 	defer stop()
+ 	defer cancel()
+-	err = fuzz.CoordinateFuzzing(ctx, parallel, seed, corpusDir, cacheDir)
++	err = fuzz.CoordinateFuzzing(ctx, parallel, seed, types, corpusDir, cacheDir)
+ 	if err == ctx.Err() {
+ 		return nil
+ 	}
+@@ -168,6 +169,6 @@ func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
+ 	return nil
+ }
+ 
+-func (TestDeps) ReadCorpus(dir string) ([]fuzz.CorpusEntry, error) {
+-	return fuzz.ReadCorpus(dir)
++func (TestDeps) ReadCorpus(dir string, types []reflect.Type) ([]fuzz.CorpusEntry, error) {
++	return fuzz.ReadCorpus(dir, types)
+ }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 2e38898c98..152483d8ff 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -243,6 +243,7 @@ import (
+ 	"internal/race"
+ 	"io"
+ 	"os"
++	"reflect"
+ 	"runtime"
+ 	"runtime/debug"
+ 	"runtime/trace"
+@@ -1324,11 +1325,13 @@ func (f matchStringOnly) ImportPath() string                          { return "
+ func (f matchStringOnly) StartTestLog(io.Writer)                      {}
+ func (f matchStringOnly) StopTestLog() error                          { return errMain }
+ func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
+-func (f matchStringOnly) CoordinateFuzzing(time.Duration, int, []corpusEntry, string, string) error {
++func (f matchStringOnly) CoordinateFuzzing(time.Duration, int, []corpusEntry, []reflect.Type, string, string) error {
+ 	return errMain
+ }
+ func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) error) error { return errMain }
+-func (f matchStringOnly) ReadCorpus(string) ([]corpusEntry, error)    { return nil, errMain }
++func (f matchStringOnly) ReadCorpus(string, []reflect.Type) ([]corpusEntry, error) {
++	return nil, errMain
++}
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -1371,9 +1374,9 @@ type testDeps interface {
+ 	StartTestLog(io.Writer)
+ 	StopTestLog() error
+ 	WriteProfileTo(string, io.Writer, int) error
+-	CoordinateFuzzing(time.Duration, int, []corpusEntry, string, string) error
++	CoordinateFuzzing(time.Duration, int, []corpusEntry, []reflect.Type, string, string) error
+ 	RunFuzzWorker(func(corpusEntry) error) error
+-	ReadCorpus(string) ([]corpusEntry, error)
++	ReadCorpus(string, []reflect.Type) ([]corpusEntry, error)
+ }
+ 
+ // MainStart is meant for use by tests generated by 'go test'.

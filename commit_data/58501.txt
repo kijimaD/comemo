@@ -25,10 +25,165 @@ Date:   Wed Oct 18 19:21:55 2023 +0000
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     Commit-Queue: Martin Möhrmann <martin@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/internal/cpu/cpu.go          |  3 +++
  src/internal/cpu/cpu_x86.go      | 37 +++++++++++++++++++++++++++++++------
  src/internal/cpu/cpu_x86_test.go | 18 ++++++++++++++++++
  src/runtime/asm_amd64.h          |  3 +++
  src/runtime/asm_amd64.s          | 12 ++++++------
  5 files changed, 61 insertions(+), 12 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 91b5b9b91f..d794e53cee 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -29,6 +29,9 @@ var X86 struct {
+ 	HasADX       bool
+ 	HasAVX       bool
+ 	HasAVX2      bool
++	HasAVX512F   bool
++	HasAVX512BW  bool
++	HasAVX512VL  bool
+ 	HasBMI1      bool
+ 	HasBMI2      bool
+ 	HasERMS      bool
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index 96b8ef92b5..f8aa53abeb 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -34,12 +34,15 @@ const (
+ 	cpuid_AVX       = 1 << 28
+ 
+ 	// ebx bits
+-	cpuid_BMI1 = 1 << 3
+-	cpuid_AVX2 = 1 << 5
+-	cpuid_BMI2 = 1 << 8
+-	cpuid_ERMS = 1 << 9
+-	cpuid_ADX  = 1 << 19
+-	cpuid_SHA  = 1 << 29
++	cpuid_BMI1     = 1 << 3
++	cpuid_AVX2     = 1 << 5
++	cpuid_BMI2     = 1 << 8
++	cpuid_ERMS     = 1 << 9
++	cpuid_AVX512F  = 1 << 16
++	cpuid_ADX      = 1 << 19
++	cpuid_SHA      = 1 << 29
++	cpuid_AVX512BW = 1 << 30
++	cpuid_AVX512VL = 1 << 31
+ 
+ 	// edx bits for CPUID 0x80000001
+ 	cpuid_RDTSCP = 1 << 27
+@@ -77,6 +80,15 @@ func doinit() {
+ 			option{Name: "bmi2", Feature: &X86.HasBMI2},
+ 			option{Name: "fma", Feature: &X86.HasFMA})
+ 	}
++	if level < 4 {
++		// These options are required at level 4. At lower levels
++		// they can be turned off.
++		options = append(options,
++			option{Name: "avx512f", Feature: &X86.HasAVX512F},
++			option{Name: "avx512bw", Feature: &X86.HasAVX512BW},
++			option{Name: "avx512vl", Feature: &X86.HasAVX512VL},
++		)
++	}
+ 
+ 	maxID, _, _, _ := cpuid(0, 0)
+ 
+@@ -108,11 +120,18 @@ func doinit() {
+ 	X86.HasFMA = isSet(ecx1, cpuid_FMA) && X86.HasOSXSAVE
+ 
+ 	osSupportsAVX := false
++	osSupportsAVX512 := false
+ 	// For XGETBV, OSXSAVE bit is required and sufficient.
+ 	if X86.HasOSXSAVE {
+ 		eax, _ := xgetbv()
+ 		// Check if XMM and YMM registers have OS support.
+ 		osSupportsAVX = isSet(eax, 1<<1) && isSet(eax, 1<<2)
++
++		// AVX512 detection does not work on Darwin,
++		// see https://github.com/golang/go/issues/49233
++		//
++		// Check if opmask, ZMMhi256 and Hi16_ZMM have OS support.
++		osSupportsAVX512 = osSupportsAVX && isSet(eax, 1<<5) && isSet(eax, 1<<6) && isSet(eax, 1<<7)
+ 	}
+ 
+ 	X86.HasAVX = isSet(ecx1, cpuid_AVX) && osSupportsAVX
+@@ -129,6 +148,12 @@ func doinit() {
+ 	X86.HasADX = isSet(ebx7, cpuid_ADX)
+ 	X86.HasSHA = isSet(ebx7, cpuid_SHA)
+ 
++	X86.HasAVX512F = isSet(ebx7, cpuid_AVX512F) && osSupportsAVX512
++	if X86.HasAVX512F {
++		X86.HasAVX512BW = isSet(ebx7, cpuid_AVX512BW)
++		X86.HasAVX512VL = isSet(ebx7, cpuid_AVX512VL)
++	}
++
+ 	var maxExtendedInformation uint32
+ 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
+ 
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index 8564ccc799..cc6552bae8 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -18,6 +18,24 @@ func TestX86ifAVX2hasAVX(t *testing.T) {
+ 	}
+ }
+ 
++func TestX86ifAVX512FhasAVX2(t *testing.T) {
++	if X86.HasAVX512F && !X86.HasAVX2 {
++		t.Fatalf("HasAVX2 expected true when HasAVX512F is true, got false")
++	}
++}
++
++func TestX86ifAVX512BWhasAVX512F(t *testing.T) {
++	if X86.HasAVX512BW && !X86.HasAVX512F {
++		t.Fatalf("HasAVX512F expected true when HasAVX512BW is true, got false")
++	}
++}
++
++func TestX86ifAVX512VLhasAVX512F(t *testing.T) {
++	if X86.HasAVX512VL && !X86.HasAVX512F {
++		t.Fatalf("HasAVX512F expected true when HasAVX512VL is true, got false")
++	}
++}
++
+ func TestDisableSSE3(t *testing.T) {
+ 	if GetGOAMD64level() > 1 {
+ 		t.Skip("skipping test: can't run on GOAMD64>v1 machines")
+diff --git a/src/runtime/asm_amd64.h b/src/runtime/asm_amd64.h
+index f7a8896db6..b263ade802 100644
+--- a/src/runtime/asm_amd64.h
++++ b/src/runtime/asm_amd64.h
+@@ -20,6 +20,9 @@
+ #ifdef GOAMD64_v4
+ #define hasAVX
+ #define hasAVX2
++#define hasAVX512F
++#define hasAVX512BW
++#define hasAVX512VL
+ #define hasPOPCNT
+ #define hasSSE42
+ #endif
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index ab845fbd8a..1abf4075e0 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -144,12 +144,12 @@ GLOBL bad_cpu_msg<>(SB), RODATA, $84
+ #define commpage64_base_address         0x00007fffffe00000
+ #define commpage64_cpu_capabilities64   (commpage64_base_address+0x010)
+ #define commpage64_version              (commpage64_base_address+0x01E)
+-#define hasAVX512F                      0x0000004000000000
+-#define hasAVX512CD                     0x0000008000000000
+-#define hasAVX512DQ                     0x0000010000000000
+-#define hasAVX512BW                     0x0000020000000000
+-#define hasAVX512VL                     0x0000100000000000
+-#define NEED_DARWIN_SUPPORT             (hasAVX512F | hasAVX512DQ | hasAVX512CD | hasAVX512BW | hasAVX512VL)
++#define AVX512F                         0x0000004000000000
++#define AVX512CD                        0x0000008000000000
++#define AVX512DQ                        0x0000010000000000
++#define AVX512BW                        0x0000020000000000
++#define AVX512VL                        0x0000100000000000
++#define NEED_DARWIN_SUPPORT             (AVX512F | AVX512DQ | AVX512CD | AVX512BW | AVX512VL)
+ #else
+ #define NEED_OS_SUPPORT_AX V4_OS_SUPPORT_AX
+ #endif

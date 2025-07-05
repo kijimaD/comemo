@@ -7,6 +7,21 @@ Date:   Wed Jun 12 13:11:03 2019 -0400
     Change-Id: Ifdc3c5b840e6833f14c8e52948e45d5faa5a0615
     Reviewed-on: https://go-review.googlesource.com/c/go/+/181940
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.13.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index d0fae49092..ce3e8c9692 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -182,7 +182,8 @@ TODO
+ <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+   <dd>
+     <p><!-- CL 175218 -->
+-      TODO: <a href="https://golang.org/cl/175218">https://golang.org/cl/175218</a>: add support for JavaScript modules
++      When using a <code>&lt;script&gt;</code> tag with "module" set as the
++      type attribute, code will now be interperted as <a href="https://html.spec.whatwg.org/multipage/scripting.html#the-script-element:module-script-2">JavaScript module script</a>.
+     </p>
+ 
+ </dl><!-- html/template -->

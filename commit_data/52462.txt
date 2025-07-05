@@ -20,8 +20,100 @@ Date:   Thu May 5 09:41:53 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/staticdata/data.go | 13 ++++++++++---
  src/cmd/internal/goobj/objfile.go           |  3 +--
  src/cmd/internal/obj/sym.go                 |  5 ++++-
  3 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index b8b645f246..2ea1a81c7a 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -5,6 +5,7 @@
+ package staticdata
+ 
+ import (
++	"encoding/base64"
+ 	"fmt"
+ 	"go/constant"
+ 	"io"
+@@ -61,9 +62,15 @@ func InitSliceBytes(nam *ir.Name, off int64, s string) {
+ 
+ const (
+ 	stringSymPrefix  = "go.string."
+-	stringSymPattern = ".gostring.%d.%x"
++	stringSymPattern = ".gostring.%d.%s"
+ )
+ 
++// shortHashString converts the hash to a string for use with stringSymPattern.
++// We cut it to 16 bytes and then base64-encode to make it even smaller.
++func shortHashString(hash []byte) string {
++	return base64.StdEncoding.EncodeToString(hash[:16])
++}
++
+ // StringSym returns a symbol containing the string s.
+ // The symbol contains the string data, not a string header.
+ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
+@@ -75,7 +82,7 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
+ 		// Same pattern is known to fileStringSym below.
+ 		h := notsha256.New()
+ 		io.WriteString(h, s)
+-		symname = fmt.Sprintf(stringSymPattern, len(s), h.Sum(nil))
++		symname = fmt.Sprintf(stringSymPattern, len(s), shortHashString(h.Sum(nil)))
+ 	} else {
+ 		// Small strings get named directly by their contents.
+ 		symname = strconv.Quote(s)
+@@ -162,7 +169,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
+ 
+ 	var symdata *obj.LSym
+ 	if readonly {
+-		symname := fmt.Sprintf(stringSymPattern, size, sum)
++		symname := fmt.Sprintf(stringSymPattern, size, shortHashString(sum))
+ 		symdata = base.Ctxt.Lookup(stringSymPrefix + symname)
+ 		if !symdata.OnList() {
+ 			info := symdata.NewFileInfo()
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index e58be66e59..1b676b3677 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -20,7 +20,6 @@ package goobj
+ 
+ import (
+ 	"cmd/internal/bio"
+-	"cmd/internal/notsha256"
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
+@@ -367,7 +366,7 @@ const Hash64Size = 8
+ // Hash
+ type HashType [HashSize]byte
+ 
+-const HashSize = notsha256.Size
++const HashSize = 16 // truncated SHA256
+ 
+ // Relocation.
+ //
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 95dd07d0fa..40e5377a3d 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -35,6 +35,7 @@ import (
+ 	"cmd/internal/goobj"
+ 	"cmd/internal/notsha256"
+ 	"cmd/internal/objabi"
++	"encoding/base64"
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"log"
+@@ -175,7 +176,9 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
+ 
+ // GCLocalsSym generates a content-addressable sym containing data.
+ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
+-	return ctxt.LookupInit(fmt.Sprintf("gclocals·%x", notsha256.Sum256(data)), func(lsym *LSym) {
++	sum := notsha256.Sum256(data)
++	str := base64.StdEncoding.EncodeToString(sum[:16])
++	return ctxt.LookupInit(fmt.Sprintf("gclocals·%s", str), func(lsym *LSym) {
+ 		lsym.P = data
+ 		lsym.Set(AttrContentAddressable, true)
+ 	})

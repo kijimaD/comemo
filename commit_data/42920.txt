@@ -9,6 +9,20 @@ Date:   Wed Jan 15 20:26:56 2020 +0000
     Change-Id: I20cbf95ef4fd7c5c255a93ed3ec3e027a0ce2bc2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214944
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  misc/wasm/wasm_exec.js | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index bb66cf254d..5ac4032993 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -440,7 +440,7 @@
+ 
+ 					// func valueInstanceOf(v ref, t ref) bool
+ 					"syscall/js.valueInstanceOf": (sp) => {
+-						this.mem.setUint8(sp + 24, loadValue(sp + 8) instanceof loadValue(sp + 16));
++						this.mem.setUint8(sp + 24, (loadValue(sp + 8) instanceof loadValue(sp + 16)) ? 1 : 0);
+ 					},
+ 
+ 					// func copyBytesToGo(dst []byte, src ref) (int, bool)

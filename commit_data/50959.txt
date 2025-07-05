@@ -17,7 +17,7 @@ Date:   Thu Nov 18 13:43:04 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  5 +++--
  src/cmd/compile/internal/types/fmt.go           |  4 ++--
  src/cmd/compile/internal/types/identity.go      |  2 ++
@@ -26,3 +26,158 @@ Date:   Thu Nov 18 13:43:04 2021 -0800
  test/fixedbugs/issue49665.go                    | 18 ++++++++++++++++++
  test/fixedbugs/issue49665.out                   |  2 ++
  7 files changed, 46 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index f35baabbf9..142b289dae 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -924,11 +924,12 @@ func hashMightPanic(t *types.Type) bool {
+ 	}
+ }
+ 
+-// formalType replaces byte and rune aliases with real types.
++// formalType replaces predeclared aliases with real types.
+ // They've been separate internally to make error messages
+ // better, but we have to merge them in the reflect tables.
+ func formalType(t *types.Type) *types.Type {
+-	if t == types.ByteType || t == types.RuneType {
++	switch t {
++	case types.AnyType, types.ByteType, types.RuneType:
+ 		return types.Types[t.Kind()]
+ 	}
+ 	return t
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index b20d2e2908..3198a1f53c 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -328,8 +328,8 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 		return
+ 	}
+ 
+-	if t == ByteType || t == RuneType {
+-		// in %-T mode collapse rune and byte with their originals.
++	if t == AnyType || t == ByteType || t == RuneType {
++		// in %-T mode collapse predeclared aliases with their originals.
+ 		switch mode {
+ 		case fmtTypeIDName, fmtTypeID:
+ 			t = Types[t.Kind()]
+diff --git a/src/cmd/compile/internal/types/identity.go b/src/cmd/compile/internal/types/identity.go
+index dce7d29143..89343b8419 100644
+--- a/src/cmd/compile/internal/types/identity.go
++++ b/src/cmd/compile/internal/types/identity.go
+@@ -58,6 +58,8 @@ func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool
+ 			return (t1 == Types[TUINT8] || t1 == ByteType) && (t2 == Types[TUINT8] || t2 == ByteType)
+ 		case TINT32:
+ 			return (t1 == Types[TINT32] || t1 == RuneType) && (t2 == Types[TINT32] || t2 == RuneType)
++		case TINTER:
++			return (t1 == Types[TINTER] || t1 == AnyType) && (t2 == Types[TINTER] || t2 == AnyType)
+ 		default:
+ 			return false
+ 		}
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 6288df30d6..b1194fa196 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -106,12 +106,16 @@ const (
+ // It also stores pointers to several special types:
+ //   - Types[TANY] is the placeholder "any" type recognized by SubstArgTypes.
+ //   - Types[TBLANK] represents the blank variable's type.
++//   - Types[TINTER] is the canonical "interface{}" type.
+ //   - Types[TNIL] represents the predeclared "nil" value's type.
+ //   - Types[TUNSAFEPTR] is package unsafe's Pointer type.
+ var Types [NTYPE]*Type
+ 
+ var (
+-	// Predeclared alias types. Kept separate for better error messages.
++	// Predeclared alias types. These are actually created as distinct
++	// defined types for better error messages, but are then specially
++	// treated as identical to their respective underlying types.
++	AnyType  *Type
+ 	ByteType *Type
+ 	RuneType *Type
+ 
+@@ -119,8 +123,6 @@ var (
+ 	ErrorType *Type
+ 	// Predeclared comparable interface type.
+ 	ComparableType *Type
+-	// Predeclared any interface type.
+-	AnyType *Type
+ 
+ 	// Types to represent untyped string and boolean constants.
+ 	UntypedString = newType(TSTRING)
+@@ -1207,6 +1209,11 @@ func (t *Type) cmp(x *Type) Cmp {
+ 			if (t == Types[RuneType.kind] || t == RuneType) && (x == Types[RuneType.kind] || x == RuneType) {
+ 				return CMPeq
+ 			}
++
++		case TINTER:
++			if (t == Types[AnyType.kind] || t == AnyType) && (x == Types[AnyType.kind] || x == AnyType) {
++				return CMPeq
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types/universe.go b/src/cmd/compile/internal/types/universe.go
+index 13f62a3ab2..f845614e13 100644
+--- a/src/cmd/compile/internal/types/universe.go
++++ b/src/cmd/compile/internal/types/universe.go
+@@ -59,6 +59,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 
+ 	Types[TANY] = newType(TANY)
+ 	Types[TINTER] = NewInterface(LocalPkg, nil, false)
++	CheckSize(Types[TINTER])
+ 
+ 	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
+ 		typ := newType(kind)
+@@ -108,11 +109,14 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 	ResumeCheckSize()
+ 
+ 	// any type (interface)
+-	if base.Flag.G > 0 {
+-		DeferCheckSize()
+-		AnyType = defBasic(TFORW, BuiltinPkg, "any")
+-		AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}, false))
+-		ResumeCheckSize()
++	DeferCheckSize()
++	AnyType = defBasic(TFORW, BuiltinPkg, "any")
++	AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}, false))
++	ResumeCheckSize()
++
++	if base.Flag.G == 0 {
++		ComparableType.Sym().Def = nil
++		AnyType.Sym().Def = nil
+ 	}
+ 
+ 	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")
+diff --git a/test/fixedbugs/issue49665.go b/test/fixedbugs/issue49665.go
+new file mode 100644
+index 0000000000..c6c22a1b4e
+--- /dev/null
++++ b/test/fixedbugs/issue49665.go
+@@ -0,0 +1,18 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++var x any
++var y interface{}
++
++var _ = &x == &y // assert x and y have identical types
++
++func main() {
++	fmt.Printf("%T\n%T\n", &x, &y)
++}
+diff --git a/test/fixedbugs/issue49665.out b/test/fixedbugs/issue49665.out
+new file mode 100644
+index 0000000000..bd06d717cf
+--- /dev/null
++++ b/test/fixedbugs/issue49665.out
+@@ -0,0 +1,2 @@
++*interface {}
++*interface {}

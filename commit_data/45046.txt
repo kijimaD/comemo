@@ -17,7 +17,7 @@ Date:   Wed Sep 23 11:06:39 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Carlos Eduardo Seo <carlos.seo@gmail.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64enc.s |   1 +
  src/cmd/compile/internal/gc/bench_test.go    |  12 ++++
  src/cmd/compile/internal/ppc64/ssa.go        |   2 +-
@@ -30,3 +30,377 @@ Date:   Wed Sep 23 11:06:39 2020 -0400
  src/cmd/internal/obj/ppc64/asm9.go           | 104 +++++++++++++++++----------
  test/codegen/shift.go                        |   7 +-
  11 files changed, 142 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64enc.s b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+index e26f6f8933..88a7609ba8 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+@@ -266,6 +266,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	SRDCC R3, R4                    // 7c841c37
+ 	ROTLW $16, R3, R4               // 5464803e
+ 	ROTLW R3, R4, R5                // 5c85183e
++	EXTSWSLI $3, R4, R5             // 7c851ef4
+ 	RLWMI $7, R3, $65535, R6        // 50663c3e
+ 	RLWMICC $7, R3, $65535, R6      // 50663c3f
+ 	RLWNM $3, R4, $7, R6            // 54861f7e
+diff --git a/src/cmd/compile/internal/gc/bench_test.go b/src/cmd/compile/internal/gc/bench_test.go
+index 09aaf428c3..a2887f2f7b 100644
+--- a/src/cmd/compile/internal/gc/bench_test.go
++++ b/src/cmd/compile/internal/gc/bench_test.go
+@@ -20,6 +20,18 @@ func BenchmarkLoadAdd(b *testing.B) {
+ 	}
+ }
+ 
++// Added for ppc64 extswsli on power9
++func BenchmarkExtShift(b *testing.B) {
++	x := make([]int32, 1024)
++	for i := 0; i < b.N; i++ {
++		var s int64
++		for i := range x {
++			s ^= int64(x[i]+32) * 8
++		}
++		globl = s
++	}
++}
++
+ func BenchmarkModify(b *testing.B) {
+ 	a := make([]int64, 1024)
+ 	v := globl
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 4a83a0bdd7..a5fbdaffba 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -677,7 +677,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 
+ 	case ssa.OpPPC64ADDconst, ssa.OpPPC64ANDconst, ssa.OpPPC64ORconst, ssa.OpPPC64XORconst,
+-		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst, ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst:
++		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst, ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst, ssa.OpPPC64EXTSWSLconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.Reg = v.Args[0].Reg()
+ 		p.From.Type = obj.TYPE_CONST
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 774d5096de..de30d003e6 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -1025,6 +1025,8 @@
+ (SLWconst [c] z:(MOVWZreg x)) && z.Uses == 1 && c < 24 => (CLRLSLWI [newPPC64ShiftAuxInt(c,8,31,32)] x)
+ (SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+ (SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
++// special case for power9
++(SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && objabi.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
+ 
+ // Lose widening ops fed to stores
+ (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) => (MOVBstore [off] {sym} ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index ed99c40cd2..28317928a8 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -223,6 +223,7 @@ func init() {
+ 
+ 		{name: "ROTLconst", argLength: 1, reg: gp11, asm: "ROTL", aux: "Int64"},   // arg0 rotate left by auxInt bits
+ 		{name: "ROTLWconst", argLength: 1, reg: gp11, asm: "ROTLW", aux: "Int64"}, // uint32(arg0) rotate left by auxInt bits
++		{name: "EXTSWSLconst", argLength: 1, reg: gp11, asm: "EXTSWSLI", aux: "Int64"},
+ 
+ 		{name: "CNTLZD", argLength: 1, reg: gp11, asm: "CNTLZD", clobberFlags: true}, // count leading zeros
+ 		{name: "CNTLZW", argLength: 1, reg: gp11, asm: "CNTLZW", clobberFlags: true}, // count leading zeros (32 bit)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1fc0f7ea79..1fe00c7026 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1865,6 +1865,7 @@ const (
+ 	OpPPC64SLWconst
+ 	OpPPC64ROTLconst
+ 	OpPPC64ROTLWconst
++	OpPPC64EXTSWSLconst
+ 	OpPPC64CNTLZD
+ 	OpPPC64CNTLZW
+ 	OpPPC64CNTTZD
+@@ -24849,6 +24850,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "EXTSWSLconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.AEXTSWSLI,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:         "CNTLZD",
+ 		argLen:       1,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 12b08824b5..29ec3992f2 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -12877,6 +12877,24 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (SLDconst [c] z:(MOVWreg x))
++	// cond: c < 32 && objabi.GOPPC64 >= 9
++	// result: (EXTSWSLconst [c] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64MOVWreg {
++			break
++		}
++		x := z.Args[0]
++		if !(c < 32 && objabi.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64EXTSWSLconst)
++		v.AuxInt = int64ToAuxInt(c)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64SLW(v *Value) bool {
+@@ -13000,6 +13018,24 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (SLWconst [c] z:(MOVWreg x))
++	// cond: c < 32 && objabi.GOPPC64 >= 9
++	// result: (EXTSWSLconst [c] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64MOVWreg {
++			break
++		}
++		x := z.Args[0]
++		if !(c < 32 && objabi.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64EXTSWSLconst)
++		v.AuxInt = int64ToAuxInt(c)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64SRAD(v *Value) bool {
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index f438803fb5..4c97302f83 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -733,6 +733,8 @@ const (
+ 	ASRAD
+ 	ASRADCC
+ 	ASRDCC
++	AEXTSWSLI
++	AEXTSWSLICC
+ 	ASTDCCC
+ 	ATD
+ 
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index accd87fe00..fca4b3e355 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -329,6 +329,8 @@ var Anames = []string{
+ 	"SRAD",
+ 	"SRADCC",
+ 	"SRDCC",
++	"EXTSWSLI",
++	"EXTSWSLICC",
+ 	"STDCCC",
+ 	"TD",
+ 	"DWORD",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 60dda72507..9f06bdf8b3 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -160,6 +160,8 @@ var optab = []Optab{
+ 	{ASLD, C_REG, C_REG, C_NONE, C_REG, 6, 4, 0},
+ 	{ASLD, C_SCON, C_REG, C_NONE, C_REG, 25, 4, 0},
+ 	{ASLD, C_SCON, C_NONE, C_NONE, C_REG, 25, 4, 0},
++	{AEXTSWSLI, C_SCON, C_NONE, C_NONE, C_REG, 25, 4, 0},
++	{AEXTSWSLI, C_SCON, C_REG, C_NONE, C_REG, 25, 4, 0},
+ 	{ASLW, C_SCON, C_REG, C_NONE, C_REG, 57, 4, 0},
+ 	{ASLW, C_SCON, C_NONE, C_NONE, C_REG, 57, 4, 0},
+ 	{ASRAW, C_REG, C_NONE, C_NONE, C_REG, 6, 4, 0},
+@@ -1877,6 +1879,9 @@ func buildop(ctxt *obj.Link) {
+ 		case ASRAW: /* sraw Rb,Rs,Ra; srawi sh,Rs,Ra */
+ 			opset(ASRAWCC, r0)
+ 
++		case AEXTSWSLI:
++			opset(AEXTSWSLICC, r0)
++
+ 		case ASRAD: /* sraw Rb,Rs,Ra; srawi sh,Rs,Ra */
+ 			opset(ASRADCC, r0)
+ 
+@@ -2189,49 +2194,54 @@ func AOP_RLDIC(op uint32, a uint32, s uint32, sh uint32, m uint32) uint32 {
+ 	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | ((sh&32)>>5)<<1 | (m&31)<<6 | ((m&32)>>5)<<5
+ }
+ 
++func AOP_EXTSWSLI(op uint32, a uint32, s uint32, sh uint32) uint32 {
++	return op | (a&31)<<21 | (s&31)<<16 | (sh&31)<<11 | ((sh&32)>>5)<<1
++}
++
+ func AOP_ISEL(op uint32, t uint32, a uint32, b uint32, bc uint32) uint32 {
+ 	return op | (t&31)<<21 | (a&31)<<16 | (b&31)<<11 | (bc&0x1F)<<6
+ }
+ 
+ const (
+ 	/* each rhs is OPVCC(_, _, _, _) */
+-	OP_ADD    = 31<<26 | 266<<1 | 0<<10 | 0
+-	OP_ADDI   = 14<<26 | 0<<1 | 0<<10 | 0
+-	OP_ADDIS  = 15<<26 | 0<<1 | 0<<10 | 0
+-	OP_ANDI   = 28<<26 | 0<<1 | 0<<10 | 0
+-	OP_EXTSB  = 31<<26 | 954<<1 | 0<<10 | 0
+-	OP_EXTSH  = 31<<26 | 922<<1 | 0<<10 | 0
+-	OP_EXTSW  = 31<<26 | 986<<1 | 0<<10 | 0
+-	OP_ISEL   = 31<<26 | 15<<1 | 0<<10 | 0
+-	OP_MCRF   = 19<<26 | 0<<1 | 0<<10 | 0
+-	OP_MCRFS  = 63<<26 | 64<<1 | 0<<10 | 0
+-	OP_MCRXR  = 31<<26 | 512<<1 | 0<<10 | 0
+-	OP_MFCR   = 31<<26 | 19<<1 | 0<<10 | 0
+-	OP_MFFS   = 63<<26 | 583<<1 | 0<<10 | 0
+-	OP_MFMSR  = 31<<26 | 83<<1 | 0<<10 | 0
+-	OP_MFSPR  = 31<<26 | 339<<1 | 0<<10 | 0
+-	OP_MFSR   = 31<<26 | 595<<1 | 0<<10 | 0
+-	OP_MFSRIN = 31<<26 | 659<<1 | 0<<10 | 0
+-	OP_MTCRF  = 31<<26 | 144<<1 | 0<<10 | 0
+-	OP_MTFSF  = 63<<26 | 711<<1 | 0<<10 | 0
+-	OP_MTFSFI = 63<<26 | 134<<1 | 0<<10 | 0
+-	OP_MTMSR  = 31<<26 | 146<<1 | 0<<10 | 0
+-	OP_MTMSRD = 31<<26 | 178<<1 | 0<<10 | 0
+-	OP_MTSPR  = 31<<26 | 467<<1 | 0<<10 | 0
+-	OP_MTSR   = 31<<26 | 210<<1 | 0<<10 | 0
+-	OP_MTSRIN = 31<<26 | 242<<1 | 0<<10 | 0
+-	OP_MULLW  = 31<<26 | 235<<1 | 0<<10 | 0
+-	OP_MULLD  = 31<<26 | 233<<1 | 0<<10 | 0
+-	OP_OR     = 31<<26 | 444<<1 | 0<<10 | 0
+-	OP_ORI    = 24<<26 | 0<<1 | 0<<10 | 0
+-	OP_ORIS   = 25<<26 | 0<<1 | 0<<10 | 0
+-	OP_RLWINM = 21<<26 | 0<<1 | 0<<10 | 0
+-	OP_RLWNM  = 23<<26 | 0<<1 | 0<<10 | 0
+-	OP_SUBF   = 31<<26 | 40<<1 | 0<<10 | 0
+-	OP_RLDIC  = 30<<26 | 4<<1 | 0<<10 | 0
+-	OP_RLDICR = 30<<26 | 2<<1 | 0<<10 | 0
+-	OP_RLDICL = 30<<26 | 0<<1 | 0<<10 | 0
+-	OP_RLDCL  = 30<<26 | 8<<1 | 0<<10 | 0
++	OP_ADD      = 31<<26 | 266<<1 | 0<<10 | 0
++	OP_ADDI     = 14<<26 | 0<<1 | 0<<10 | 0
++	OP_ADDIS    = 15<<26 | 0<<1 | 0<<10 | 0
++	OP_ANDI     = 28<<26 | 0<<1 | 0<<10 | 0
++	OP_EXTSB    = 31<<26 | 954<<1 | 0<<10 | 0
++	OP_EXTSH    = 31<<26 | 922<<1 | 0<<10 | 0
++	OP_EXTSW    = 31<<26 | 986<<1 | 0<<10 | 0
++	OP_ISEL     = 31<<26 | 15<<1 | 0<<10 | 0
++	OP_MCRF     = 19<<26 | 0<<1 | 0<<10 | 0
++	OP_MCRFS    = 63<<26 | 64<<1 | 0<<10 | 0
++	OP_MCRXR    = 31<<26 | 512<<1 | 0<<10 | 0
++	OP_MFCR     = 31<<26 | 19<<1 | 0<<10 | 0
++	OP_MFFS     = 63<<26 | 583<<1 | 0<<10 | 0
++	OP_MFMSR    = 31<<26 | 83<<1 | 0<<10 | 0
++	OP_MFSPR    = 31<<26 | 339<<1 | 0<<10 | 0
++	OP_MFSR     = 31<<26 | 595<<1 | 0<<10 | 0
++	OP_MFSRIN   = 31<<26 | 659<<1 | 0<<10 | 0
++	OP_MTCRF    = 31<<26 | 144<<1 | 0<<10 | 0
++	OP_MTFSF    = 63<<26 | 711<<1 | 0<<10 | 0
++	OP_MTFSFI   = 63<<26 | 134<<1 | 0<<10 | 0
++	OP_MTMSR    = 31<<26 | 146<<1 | 0<<10 | 0
++	OP_MTMSRD   = 31<<26 | 178<<1 | 0<<10 | 0
++	OP_MTSPR    = 31<<26 | 467<<1 | 0<<10 | 0
++	OP_MTSR     = 31<<26 | 210<<1 | 0<<10 | 0
++	OP_MTSRIN   = 31<<26 | 242<<1 | 0<<10 | 0
++	OP_MULLW    = 31<<26 | 235<<1 | 0<<10 | 0
++	OP_MULLD    = 31<<26 | 233<<1 | 0<<10 | 0
++	OP_OR       = 31<<26 | 444<<1 | 0<<10 | 0
++	OP_ORI      = 24<<26 | 0<<1 | 0<<10 | 0
++	OP_ORIS     = 25<<26 | 0<<1 | 0<<10 | 0
++	OP_RLWINM   = 21<<26 | 0<<1 | 0<<10 | 0
++	OP_RLWNM    = 23<<26 | 0<<1 | 0<<10 | 0
++	OP_SUBF     = 31<<26 | 40<<1 | 0<<10 | 0
++	OP_RLDIC    = 30<<26 | 4<<1 | 0<<10 | 0
++	OP_RLDICR   = 30<<26 | 2<<1 | 0<<10 | 0
++	OP_RLDICL   = 30<<26 | 0<<1 | 0<<10 | 0
++	OP_RLDCL    = 30<<26 | 8<<1 | 0<<10 | 0
++	OP_EXTSWSLI = 31<<26 | 445<<2
+ )
+ 
+ func oclass(a *obj.Addr) int {
+@@ -2965,14 +2975,21 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		case AROTL:
+ 			a = int(0)
+ 			op = OP_RLDICL
++		case AEXTSWSLI:
++			a = int(v)
+ 		default:
+ 			c.ctxt.Diag("unexpected op in sldi case\n%v", p)
+ 			a = 0
+ 			o1 = 0
+ 		}
+ 
+-		o1 = AOP_RLDIC(op, uint32(p.To.Reg), uint32(r), uint32(v), uint32(a))
+-		if p.As == ASLDCC || p.As == ASRDCC {
++		if p.As == AEXTSWSLI || p.As == AEXTSWSLICC {
++			o1 = AOP_EXTSWSLI(OP_EXTSWSLI, uint32(r), uint32(p.To.Reg), uint32(v))
++
++		} else {
++			o1 = AOP_RLDIC(op, uint32(p.To.Reg), uint32(r), uint32(v), uint32(a))
++		}
++		if p.As == ASLDCC || p.As == ASRDCC || p.As == AEXTSWSLICC {
+ 			o1 |= 1 // Set the condition code bit
+ 		}
+ 
+@@ -4350,6 +4367,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 	case ASRADCC:
+ 		return OPVCC(31, 794, 0, 1)
+ 
++	case AEXTSWSLI:
++		return OPVCC(31, 445, 0, 0)
++	case AEXTSWSLICC:
++		return OPVCC(31, 445, 0, 1)
++
+ 	case ASRW:
+ 		return OPVCC(31, 536, 0, 0)
+ 	case ASRWCC:
+@@ -5013,6 +5035,10 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
+ 		return OPVCC(31, (413 << 1), 0, 0)
+ 	case ASRADCC:
+ 		return OPVCC(31, (413 << 1), 0, 1)
++	case AEXTSWSLI:
++		return OPVCC(31, 445, 0, 0)
++	case AEXTSWSLICC:
++		return OPVCC(31, 445, 0, 1)
+ 
+ 	case ASTSW:
+ 		return OPVCC(31, 725, 0, 0)
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 32214851b5..abc4b091c9 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -182,7 +182,7 @@ func checkUnneededTrunc(tab *[100000]uint32, d uint64, v uint32, h uint16, b byt
+ 	return f, g
+ }
+ 
+-func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, v64 uint64) (uint8, uint16, uint32, uint64) {
++func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, x32 int32, v64 uint64) (uint8, uint16, uint32, uint64, int64) {
+ 
+ 	// ppc64le:-"AND","CLRLSLWI"
+ 	// ppc64:-"AND","CLRLSLWI"
+@@ -202,7 +202,10 @@ func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, v64 uint64) (uint8, u
+ 	// ppc64le:-"AND","CLRLSLDI"
+ 	// ppc64:-"AND","CLRLSLDI"
+ 	i := (v64 & 0xFFFFFFFF) << 5
+-	return f, g, h, i
++	// ppc64le/power9:-"SLD","EXTSWSLI"
++	// ppc64/power9:-"SLD","EXTSWSLI"
++	j := int64(x32+32)*8
++	return f, g, h, i, j
+ }
+ 
+ func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {

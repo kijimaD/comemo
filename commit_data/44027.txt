@@ -34,7 +34,94 @@ Date:   Fri Apr 24 12:15:04 2020 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/root_unix.go      | 29 ++++++++++++++++++++++++++++-
  src/crypto/x509/root_unix_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index 1be4058bab..b48e618a65 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -9,6 +9,7 @@ package x509
+ import (
+ 	"io/ioutil"
+ 	"os"
++	"path/filepath"
+ 	"strings"
+ )
+ 
+@@ -69,7 +70,7 @@ func loadSystemRoots() (*CertPool, error) {
+ 	}
+ 
+ 	for _, directory := range dirs {
+-		fis, err := ioutil.ReadDir(directory)
++		fis, err := readUniqueDirectoryEntries(directory)
+ 		if err != nil {
+ 			if firstErr == nil && !os.IsNotExist(err) {
+ 				firstErr = err
+@@ -90,3 +91,29 @@ func loadSystemRoots() (*CertPool, error) {
+ 
+ 	return nil, firstErr
+ }
++
++// readUniqueDirectoryEntries is like ioutil.ReadDir but omits
++// symlinks that point within the directory.
++func readUniqueDirectoryEntries(dir string) ([]os.FileInfo, error) {
++	fis, err := ioutil.ReadDir(dir)
++	if err != nil {
++		return nil, err
++	}
++	uniq := fis[:0]
++	for _, fi := range fis {
++		if !isSameDirSymlink(fi, dir) {
++			uniq = append(uniq, fi)
++		}
++	}
++	return uniq, nil
++}
++
++// isSameDirSymlink reports whether fi in dir is a symlink with a
++// target not containing a slash.
++func isSameDirSymlink(fi os.FileInfo, dir string) bool {
++	if fi.Mode()&os.ModeSymlink == 0 {
++		return false
++	}
++	target, err := os.Readlink(filepath.Join(dir, fi.Name()))
++	return err == nil && !strings.Contains(target, "/")
++}
+diff --git a/src/crypto/x509/root_unix_test.go b/src/crypto/x509/root_unix_test.go
+index 5a27d639b5..39556ae60d 100644
+--- a/src/crypto/x509/root_unix_test.go
++++ b/src/crypto/x509/root_unix_test.go
+@@ -202,3 +202,30 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
+ 		t.Fatalf("Mismatched certPools\nGot:\n%s\n\nWant:\n%s", g, w)
+ 	}
+ }
++
++func TestReadUniqueDirectoryEntries(t *testing.T) {
++	temp := func(base string) string { return filepath.Join(t.TempDir(), base) }
++	if f, err := os.Create(temp("file")); err != nil {
++		t.Fatal(err)
++	} else {
++		f.Close()
++	}
++	if err := os.Symlink("target-in", temp("link-in")); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Symlink("../target-out", temp("link-out")); err != nil {
++		t.Fatal(err)
++	}
++	got, err := readUniqueDirectoryEntries(t.TempDir())
++	if err != nil {
++		t.Fatal(err)
++	}
++	gotNames := []string{}
++	for _, fi := range got {
++		gotNames = append(gotNames, fi.Name())
++	}
++	wantNames := []string{"file", "link-out"}
++	if !reflect.DeepEqual(gotNames, wantNames) {
++		t.Errorf("got %q; want %q", gotNames, wantNames)
++	}
++}

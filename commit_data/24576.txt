@@ -7,6 +7,22 @@ Date:   Wed Aug 5 16:43:49 2015 -0700
     Change-Id: I402841743fcdc287631646039eb149f5cfdf886c
     Reviewed-on: https://go-review.googlesource.com/13269
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5c56b370bd..041e321717 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2111,8 +2111,8 @@ func genValue(v *ssa.Value) {
+ 		f := v.Block.Func
+ 		loc := f.RegAlloc[v.ID]
+ 		for _, a := range v.Args {
+-			if f.RegAlloc[a.ID] != loc { // TODO: .Equal() instead?
+-				v.Fatalf("phi arg at different location than phi %v %v %v %v", v, loc, a, f.RegAlloc[a.ID])
++			if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
++				v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
+ 			}
+ 		}
+ 	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64, ssa.OpConstString, ssa.OpConstNil, ssa.OpConstBool:

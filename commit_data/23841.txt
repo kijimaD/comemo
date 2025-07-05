@@ -16,7 +16,7 @@ Date:   Tue Jun 16 18:28:01 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/11088
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/go.go       |  2 --
  src/cmd/compile/internal/gc/inl.go      | 10 +++----
  src/cmd/compile/internal/gc/subr.go     |  9 +-----
@@ -26,3 +26,177 @@ Date:   Tue Jun 16 18:28:01 2015 -0400
  test/fixedbugs/issue11053.out           |  3 ++
  test/run.go                             |  3 +-
  8 files changed, 80 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 024810e0b8..7951e72bb6 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -644,8 +644,6 @@ var compiling_runtime int
+ 
+ var compiling_wrappers int
+ 
+-var inl_nonlocal int
+-
+ var use_writebarrier int
+ 
+ var pure_go int
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index ea11740c9a..d29ee59c54 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -831,12 +831,10 @@ func inlvar(var_ *Node) *Node {
+ 	n.Name.Curfn = Curfn // the calling function, not the called one
+ 	n.Addrtaken = var_.Addrtaken
+ 
+-	// Esc pass wont run if we're inlining into a iface wrapper.
+-	// Luckily, we can steal the results from the target func.
+-	// If inlining a function defined in another package after
+-	// escape analysis is done, treat all local vars as escaping.
+-	// See issue 9537.
+-	if var_.Esc == EscHeap || (inl_nonlocal != 0 && var_.Op == ONAME) {
++	// This may no longer be necessary now that we run escape analysis
++	// after wrapper generation, but for 1.5 this is conservatively left
++	// unchanged.  See bugs 11053 and 9537.
++	if var_.Esc == EscHeap {
+ 		addrescapes(n)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a759f39b57..beb3c3c386 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2494,15 +2494,8 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 	typecheck(&fn, Etop)
+ 	typechecklist(fn.Nbody, Etop)
+ 
+-	// Set inl_nonlocal to whether we are calling a method on a
+-	// type defined in a different package.  Checked in inlvar.
+-	if !methodrcvr.Local {
+-		inl_nonlocal = 1
+-	}
+-
+ 	inlcalls(fn)
+-
+-	inl_nonlocal = 0
++	escAnalyze(list1(fn), false)
+ 
+ 	Curfn = nil
+ 	funccompile(fn)
+diff --git a/test/fixedbugs/issue11053.dir/p.go b/test/fixedbugs/issue11053.dir/p.go
+new file mode 100644
+index 0000000000..e431cb4467
+--- /dev/null
++++ b/test/fixedbugs/issue11053.dir/p.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func Int32(i int32) *int32 {
++	return &i
++}
+diff --git a/test/fixedbugs/issue11053.dir/p_test.go b/test/fixedbugs/issue11053.dir/p_test.go
+new file mode 100644
+index 0000000000..e0a9555d2a
+--- /dev/null
++++ b/test/fixedbugs/issue11053.dir/p_test.go
+@@ -0,0 +1,51 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"p"
++)
++
++type I interface {
++	Add(out *P)
++}
++
++type P struct {
++	V *int32
++}
++
++type T struct{}
++
++var x int32 = 42
++
++func Int32x(i int32) *int32 {
++	return &i
++}
++
++func (T) Add(out *P) {
++	out.V = p.Int32(x) // inlined, p.i.2 moved to heap
++}
++
++var PP P
++var out *P = &PP
++
++func F(s I) interface{} {
++	s.Add(out) // not inlined.
++	return out
++}
++
++var s T
++
++func main() {
++	println("Starting")
++	fmt.Sprint(new(int32))
++	resp := F(s).(*P)
++	println("Before, *resp.V=", *resp.V) // Trashes *resp.V in process of printing.
++	println("After,  *resp.V=", *resp.V)
++	if got, want := *resp.V, int32(42); got != want {
++		fmt.Printf("FAIL, got %v, want %v", got, want)
++	}
++}
+diff --git a/test/fixedbugs/issue11053.go b/test/fixedbugs/issue11053.go
+new file mode 100644
+index 0000000000..06005d3841
+--- /dev/null
++++ b/test/fixedbugs/issue11053.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 11053: Compiler does not run escape analysis on an inlined
++// generated method wrapper.
++
++package ignored
+diff --git a/test/fixedbugs/issue11053.out b/test/fixedbugs/issue11053.out
+new file mode 100644
+index 0000000000..a75f73c882
+--- /dev/null
++++ b/test/fixedbugs/issue11053.out
+@@ -0,0 +1,3 @@
++Starting
++Before, *resp.V= 42
++After,  *resp.V= 42
+diff --git a/test/run.go b/test/run.go
+index f28995c196..3cd95ec042 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -729,6 +729,7 @@ func (t *test) expectedOutput() string {
+ func splitOutput(out string) []string {
+ 	// 6g error messages continue onto additional lines with leading tabs.
+ 	// Split the output at the beginning of each line that doesn't begin with a tab.
++	// <autogenerated> lines are impossible to match so those are filtered out.
+ 	var res []string
+ 	for _, line := range strings.Split(out, "\n") {
+ 		if strings.HasSuffix(line, "\r") { // remove '\r', output by compiler on windows
+@@ -736,7 +737,7 @@ func splitOutput(out string) []string {
+ 		}
+ 		if strings.HasPrefix(line, "\t") {
+ 			res[len(res)-1] += "\n" + line
+-		} else if strings.HasPrefix(line, "go tool") {
++		} else if strings.HasPrefix(line, "go tool") || strings.HasPrefix(line, "<autogenerated>") {
+ 			continue
+ 		} else if strings.TrimSpace(line) != "" {
+ 			res = append(res, line)

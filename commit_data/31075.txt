@@ -12,7 +12,7 @@ Date:   Mon Jan 23 14:24:24 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go   |  9 +--------
  src/cmd/compile/internal/gc/dcl.go       | 25 ++++++++++++-------------
  src/cmd/compile/internal/gc/export.go    |  2 +-
@@ -21,3 +21,205 @@ Date:   Mon Jan 23 14:24:24 2017 -0800
  test/alias2.go                           |  8 ++++----
  test/fixedbugs/issue18655.go             | 22 ++++++++++++++++++++++
  7 files changed, 53 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 3c1f7100c3..1ee9e76737 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -466,14 +466,7 @@ func (p *importer) typ() *Type {
+ 			result := p.paramList()
+ 			nointerface := p.bool()
+ 
+-			base := recv[0].Type
+-			star := false
+-			if base.IsPtr() {
+-				base = base.Elem()
+-				star = true
+-			}
+-
+-			n := methodname0(sym, star, base.Sym)
++			n := newfuncname(methodname(sym, recv[0].Type))
+ 			n.Type = functypefield(recv[0], params, result)
+ 			checkwidth(n.Type)
+ 			addmethod(sym, n.Type, false, nointerface)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index a5c50f06dc..856a7faced 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -519,10 +519,6 @@ func funchdr(n *Node) {
+ 		Fatalf("funchdr: dclcontext = %d", dclcontext)
+ 	}
+ 
+-	if Ctxt.Flag_dynlink && importpkg == nil && n.Func.Nname != nil {
+-		makefuncsym(n.Func.Nname.Sym)
+-	}
+-
+ 	dclcontext = PAUTO
+ 	funcstart(n)
+ 
+@@ -1163,19 +1159,19 @@ bad:
+ 	return nil
+ }
+ 
+-func methodname(s *Sym, recv *Node) *Node {
++// methodname is a misnomer because this now returns a Sym, rather
++// than an ONAME.
++// TODO(mdempsky): Reconcile with methodsym.
++func methodname(s *Sym, recv *Type) *Sym {
+ 	star := false
+-	if recv.Op == OIND {
++	if recv.IsPtr() {
+ 		star = true
+-		recv = recv.Left
++		recv = recv.Elem()
+ 	}
+ 
+-	return methodname0(s, star, recv.Sym)
+-}
+-
+-func methodname0(s *Sym, star bool, tsym *Sym) *Node {
++	tsym := recv.Sym
+ 	if tsym == nil || isblanksym(s) {
+-		return newfuncname(s)
++		return s
+ 	}
+ 
+ 	var p string
+@@ -1191,7 +1187,7 @@ func methodname0(s *Sym, star bool, tsym *Sym) *Node {
+ 		s = Pkglookup(p, tsym.Pkg)
+ 	}
+ 
+-	return newfuncname(s)
++	return s
+ }
+ 
+ // Add a method, declared as a function.
+@@ -1335,6 +1331,9 @@ func makefuncsym(s *Sym) {
+ 		return
+ 	}
+ 	s1 := funcsym(s)
++	if s1.Def != nil {
++		return
++	}
+ 	s1.Def = newfuncname(s1)
+ 	s1.Def.Func.Shortname = s
+ 	funcsyms = append(funcsyms, s1.Def)
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 5556984dcb..58b2bf8121 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -83,7 +83,7 @@ func autoexport(n *Node, ctxt Class) {
+ 	if (ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN {
+ 		return
+ 	}
+-	if n.Name.Param != nil && n.Name.Param.Ntype != nil && n.Name.Param.Ntype.Op == OTFUNC && n.Name.Param.Ntype.Left != nil { // method
++	if n.Type != nil && n.Type.IsKind(TFUNC) && n.Type.Recv() != nil { // method
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 0c5957f987..1d69151cc4 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -247,19 +247,19 @@ func (p *noder) funcHeader(fun *syntax.FuncDecl) *Node {
+ 				yyerror("func main must have no arguments and no return values")
+ 			}
+ 		}
+-
+-		f.Func.Nname = newfuncname(name)
+ 	} else {
+-		// Receiver MethodName Signature
+-
+ 		f.Func.Shortname = name
+-		f.Func.Nname = methodname(f.Func.Shortname, t.Left.Right)
++		name = nblank.Sym // filled in by typecheckfunc
+ 	}
+ 
++	f.Func.Nname = newfuncname(name)
+ 	f.Func.Nname.Name.Defn = f
+ 	f.Func.Nname.Name.Param.Ntype = t // TODO: check if nname already has an ntype
+ 
+-	declare(f.Func.Nname, PFUNC)
++	if fun.Recv == nil {
++		declare(f.Func.Nname, PFUNC)
++	}
++
+ 	funchdr(f)
+ 	return f
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d751610763..1379bb56d4 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3436,8 +3436,15 @@ func typecheckfunc(n *Node) {
+ 	t.SetNname(n.Func.Nname)
+ 	rcvr := t.Recv()
+ 	if rcvr != nil && n.Func.Shortname != nil {
++		n.Func.Nname.Sym = methodname(n.Func.Shortname, rcvr.Type)
++		declare(n.Func.Nname, PFUNC)
++
+ 		addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+ 	}
++
++	if Ctxt.Flag_dynlink && importpkg == nil && n.Func.Nname != nil {
++		makefuncsym(n.Func.Nname.Sym)
++	}
+ }
+ 
+ // The result of stringtoarraylit MUST be assigned back to n, e.g.
+diff --git a/test/alias2.go b/test/alias2.go
+index 58eedf0c8c..32c3654995 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -37,8 +37,8 @@ type (
+ // Methods can be declared on the original named type and the alias.
+ func (T0) m1()  {} // GCCGO_ERROR "previous"
+ func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|redefinition of .m1."
+-func (A0) m1()  {} // TODO(gri) this should be an error  // GCCGO_ERROR "redefinition of .m1."
+-func (A0) m1()  {} // ERROR "A0\.m1 redeclared in this block|redefinition of .m1."
++func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
++func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
+ func (A0) m2()  {}
+ 
+ // Type aliases and the original type name can be used interchangeably.
+@@ -95,10 +95,10 @@ type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type|expected type"
+ func (A1) m() {} // ERROR "cannot define new methods on non-local type int|may not define methods on non-local type"
+ func (A2) m() {} // ERROR "invalid receiver type"
+ func (A3) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
+-func (A4) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
++func (A4) m() {} // ERROR "reflect.Value.m redeclared in this block" "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
+ 
+ type B1 = struct{}
+ 
+-func (B1) m() {} // ERROR "invalid receiver type"
++func (B1) m() {} // ERROR "m redeclared in this block" "invalid receiver type"
+ 
+ // TODO(gri) expand
+diff --git a/test/fixedbugs/issue18655.go b/test/fixedbugs/issue18655.go
+new file mode 100644
+index 0000000000..abc2600280
+--- /dev/null
++++ b/test/fixedbugs/issue18655.go
+@@ -0,0 +1,22 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T struct{}
++type A = T
++type B = T
++
++func (T) m() {}
++func (T) m() {} // ERROR "redeclared"
++func (A) m() {} // ERROR "redeclared"
++func (A) m() {} // ERROR "redeclared"
++func (B) m() {} // ERROR "redeclared"
++func (B) m() {} // ERROR "redeclared"
++
++func (*T) m() {} // ERROR "redeclared"
++func (*A) m() {} // ERROR "redeclared"
++func (*B) m() {} // ERROR "redeclared"

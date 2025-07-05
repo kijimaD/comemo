@@ -9,7 +9,7 @@ Date:   Wed Aug 4 08:34:52 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1904045
-
+---
  doc/progs/file.go                         |  8 ++++----
  src/cmd/goyacc/goyacc.go                  |  2 +-
  src/cmd/hgpatch/main.go                   |  4 ++--
@@ -32,3 +32,979 @@ Date:   Wed Aug 4 08:34:52 2010 +1000
  src/pkg/syscall/zsyscall_linux_arm.go     | 26 ++++++++++++-------------
  src/pkg/syscall/zsyscall_nacl_386.go      |  4 ++--
  21 files changed, 128 insertions(+), 128 deletions(-)
+
+diff --git a/doc/progs/file.go b/doc/progs/file.go
+index b2f2c04766..d3fb5ae9e8 100644
+--- a/doc/progs/file.go
++++ b/doc/progs/file.go
+@@ -10,8 +10,8 @@ import (
+ )
+ 
+ type File struct {
+-	fd      int    // file descriptor number
+-	name    string // file name at Open time
++	fd   int    // file descriptor number
++	name string // file name at Open time
+ }
+ 
+ func newFile(fd int, name string) *File {
+@@ -27,7 +27,7 @@ var (
+ 	Stderr = newFile(2, "/dev/stderr")
+ )
+ 
+-func Open(name string, mode int, perm int) (file *File, err os.Error) {
++func Open(name string, mode int, perm uint32) (file *File, err os.Error) {
+ 	r, e := syscall.Open(name, mode, perm)
+ 	if e != 0 {
+ 		err = os.Errno(e)
+@@ -40,7 +40,7 @@ func (file *File) Close() os.Error {
+ 		return os.EINVAL
+ 	}
+ 	e := syscall.Close(file.fd)
+-	file.fd = -1  // so it can't be closed again
++	file.fd = -1 // so it can't be closed again
+ 	if e != 0 {
+ 		return os.Errno(e)
+ 	}
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 39098cc81f..b364d5189b 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -3038,7 +3038,7 @@ func open(s string) *bufio.Reader {
+ 	return bufio.NewReader(fi)
+ }
+ 
+-func create(s string, m int) *bufio.Writer {
++func create(s string, m uint32) *bufio.Writer {
+ 	fo, err := os.Open(s, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, m)
+ 	if err != nil {
+ 		error("error opening %v: %v", s, err)
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index f6ea36da85..cdc293a13f 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -153,7 +153,7 @@ func main() {
+ 			changed[o.Dst] = 1
+ 		}
+ 		if o.Mode != 0 {
+-			chk(os.Chmod(o.Dst, o.Mode&0755))
++			chk(os.Chmod(o.Dst, uint32(o.Mode&0755)))
+ 			undoRevert(o.Dst)
+ 			changed[o.Dst] = 1
+ 		}
+@@ -192,7 +192,7 @@ func makeParent(name string) {
+ 
+ // Copy of os.MkdirAll but adds to undo log after
+ // creating a directory.
+-func mkdirAll(path string, perm int) os.Error {
++func mkdirAll(path string, perm uint32) os.Error {
+ 	dir, err := os.Lstat(path)
+ 	if err == nil {
+ 		if dir.IsDirectory() {
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index d338693807..fb3fdcda1e 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -49,7 +49,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
+ // WriteFile writes data to a file named by filename.
+ // If the file does not exist, WriteFile creates it with permissions perm;
+ // otherwise WriteFile truncates it before writing.
+-func WriteFile(filename string, data []byte, perm int) os.Error {
++func WriteFile(filename string, data []byte, perm uint32) os.Error {
+ 	f, err := os.Open(filename, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, perm)
+ 	if err != nil {
+ 		return err
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 0fbec3b4ad..909e28e68f 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -46,19 +46,19 @@ var (
+ // Flags to Open wrapping those of the underlying system. Not all flags
+ // may be implemented on a given system.
+ const (
+-	O_RDONLY   = syscall.O_RDONLY   // open the file read-only.
+-	O_WRONLY   = syscall.O_WRONLY   // open the file write-only.
+-	O_RDWR     = syscall.O_RDWR     // open the file read-write.
+-	O_APPEND   = syscall.O_APPEND   // append data to the file when writing.
+-	O_ASYNC    = syscall.O_ASYNC    // generate a signal when I/O is available.
+-	O_CREAT    = syscall.O_CREAT    // create a new file if none exists.
+-	O_EXCL     = syscall.O_EXCL     // used with O_CREAT, file must not exist
+-	O_NOCTTY   = syscall.O_NOCTTY   // do not make file the controlling tty.
+-	O_NONBLOCK = syscall.O_NONBLOCK // open in non-blocking mode.
+-	O_NDELAY   = O_NONBLOCK         // synonym for O_NONBLOCK
+-	O_SYNC     = syscall.O_SYNC     // open for synchronous I/O.
+-	O_TRUNC    = syscall.O_TRUNC    // if possible, truncate file when opened.
+-	O_CREATE   = O_CREAT            // create a new file if none exists.
++	O_RDONLY   int = syscall.O_RDONLY   // open the file read-only.
++	O_WRONLY   int = syscall.O_WRONLY   // open the file write-only.
++	O_RDWR     int = syscall.O_RDWR     // open the file read-write.
++	O_APPEND   int = syscall.O_APPEND   // append data to the file when writing.
++	O_ASYNC    int = syscall.O_ASYNC    // generate a signal when I/O is available.
++	O_CREAT    int = syscall.O_CREAT    // create a new file if none exists.
++	O_EXCL     int = syscall.O_EXCL     // used with O_CREAT, file must not exist
++	O_NOCTTY   int = syscall.O_NOCTTY   // do not make file the controlling tty.
++	O_NONBLOCK int = syscall.O_NONBLOCK // open in non-blocking mode.
++	O_NDELAY   int = O_NONBLOCK         // synonym for O_NONBLOCK
++	O_SYNC     int = syscall.O_SYNC     // open for synchronous I/O.
++	O_TRUNC    int = syscall.O_TRUNC    // if possible, truncate file when opened.
++	O_CREATE   int = O_CREAT            // create a new file if none exists.
+ )
+ 
+ type eofError int
+@@ -208,7 +208,7 @@ func Pipe() (r *File, w *File, err Error) {
+ 
+ // Mkdir creates a new directory with the specified name and permission bits.
+ // It returns an error, if any.
+-func Mkdir(name string, perm int) Error {
++func Mkdir(name string, perm uint32) Error {
+ 	e := syscall.Mkdir(name, perm)
+ 	if e != 0 {
+ 		return &PathError{"mkdir", name, Errno(e)}
+@@ -358,7 +358,7 @@ func Rename(oldname, newname string) Error {
+ 
+ // Chmod changes the mode of the named file to mode.
+ // If the file is a symbolic link, it changes the mode of the link's target.
+-func Chmod(name string, mode int) Error {
++func Chmod(name string, mode uint32) Error {
+ 	if e := syscall.Chmod(name, mode); e != 0 {
+ 		return &PathError{"chmod", name, Errno(e)}
+ 	}
+@@ -366,7 +366,7 @@ func Chmod(name string, mode int) Error {
+ }
+ 
+ // Chmod changes the mode of the file to mode.
+-func (f *File) Chmod(mode int) Error {
++func (f *File) Chmod(mode uint32) Error {
+ 	if e := syscall.Fchmod(f.fd, mode); e != 0 {
+ 		return &PathError{"chmod", f.name, Errno(e)}
+ 	}
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 76033c3e39..5d53770532 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -25,7 +25,7 @@ const DevNull = "/dev/null"
+ // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
+ // if applicable.  If successful, methods on the returned File can be used for I/O.
+ // It returns the File and an Error, if any.
+-func Open(name string, flag int, perm int) (file *File, err Error) {
++func Open(name string, flag int, perm uint32) (file *File, err Error) {
+ 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
+ 	if e != 0 {
+ 		return nil, &PathError{"open", name, Errno(e)}
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 2c1c20ccc6..cb2ac987cf 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -21,7 +21,7 @@ const DevNull = "NUL"
+ 
+ func (file *File) isdir() bool { return file != nil && file.dirinfo != nil }
+ 
+-func openFile(name string, flag int, perm int) (file *File, err Error) {
++func openFile(name string, flag int, perm uint32) (file *File, err Error) {
+ 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
+ 	if e != 0 {
+ 		return nil, &PathError{"open", name, Errno(e)}
+@@ -51,7 +51,7 @@ func openDir(name string) (file *File, err Error) {
+ // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
+ // if applicable.  If successful, methods on the returned File can be used for I/O.
+ // It returns the File and an Error, if any.
+-func Open(name string, flag int, perm int) (file *File, err Error) {
++func Open(name string, flag int, perm uint32) (file *File, err Error) {
+ 	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
+ 	r, e := openDir(name)
+ 	if e == nil {
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index 36f497a1a5..bea971375e 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -12,7 +12,7 @@ package os
+ // directories that MkdirAll creates.
+ // If path is already a directory, MkdirAll does nothing
+ // and returns nil.
+-func MkdirAll(path string, perm int) Error {
++func MkdirAll(path string, perm uint32) Error {
+ 	// If path exists, stop with success or error.
+ 	dir, err := Lstat(path)
+ 	if err == nil {
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 2635885582..25606c1122 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -29,7 +29,7 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
+ //sys	Adjtime(delta *Timeval, olddelta *Timeval) (errno int)
+ //sys	Chdir(path string) (errno int)
+ //sys	Chflags(path string, flags int) (errno int)
+-//sys	Chmod(path string, mode int) (errno int)
++//sys	Chmod(path string, mode uint32) (errno int)
+ //sys	Chown(path string, uid int, gid int) (errno int)
+ //sys	Chroot(path string) (errno int)
+ //sys	Close(fd int) (errno int)
+@@ -39,7 +39,7 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (errno int)
+ //sys	Fchflags(path string, flags int) (errno int)
+-//sys	Fchmod(fd int, mode int) (errno int)
++//sys	Fchmod(fd int, mode uint32) (errno int)
+ //sys	Fchown(fd int, uid int, gid int) (errno int)
+ //sys	Flock(fd int, how int) (errno int)
+ //sys	Fpathconf(fd int, name int) (val int, errno int)
+@@ -68,10 +68,10 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
+ //sys	Link(path string, link string) (errno int)
+ //sys	Listen(s int, backlog int) (errno int)
+ //sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
+-//sys	Mkdir(path string, mode int) (errno int)
+-//sys	Mkfifo(path string, mode int) (errno int)
+-//sys	Mknod(path string, mode int, dev int) (errno int)
+-//sys	Open(path string, mode int, perm int) (fd int, errno int)
++//sys	Mkdir(path string, mode uint32) (errno int)
++//sys	Mkfifo(path string, mode uint32) (errno int)
++//sys	Mknod(path string, mode uint32, dev int) (errno int)
++//sys	Open(path string, mode int, perm uint32) (fd int, errno int)
+ //sys	Pathconf(path string, name int) (val int, errno int)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, errno int)
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, errno int)
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index acf636797c..051e1145bc 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -21,7 +21,7 @@ const OS = "freebsd"
+ //sys	Adjtime(delta *Timeval, olddelta *Timeval) (errno int)
+ //sys	Chdir(path string) (errno int)
+ //sys	Chflags(path string, flags int) (errno int)
+-//sys	Chmod(path string, mode int) (errno int)
++//sys	Chmod(path string, mode uint32) (errno int)
+ //sys	Chown(path string, uid int, gid int) (errno int)
+ //sys	Chroot(path string) (errno int)
+ //sys	Close(fd int) (errno int)
+@@ -30,7 +30,7 @@ const OS = "freebsd"
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (errno int)
+ //sys	Fchflags(path string, flags int) (errno int)
+-//sys	Fchmod(fd int, mode int) (errno int)
++//sys	Fchmod(fd int, mode uint32) (errno int)
+ //sys	Fchown(fd int, uid int, gid int) (errno int)
+ //sys	Flock(fd int, how int) (errno int)
+ //sys	Fpathconf(fd int, name int) (val int, errno int)
+@@ -61,11 +61,11 @@ const OS = "freebsd"
+ //sys	Link(path string, link string) (errno int)
+ //sys	Listen(s int, backlog int) (errno int)
+ //sys	Lstat(path string, stat *Stat_t) (errno int)
+-//sys	Mkdir(path string, mode int) (errno int)
+-//sys	Mkfifo(path string, mode int) (errno int)
+-//sys	Mknod(path string, mode int, dev int) (errno int)
++//sys	Mkdir(path string, mode uint32) (errno int)
++//sys	Mkfifo(path string, mode uint32) (errno int)
++//sys	Mknod(path string, mode uint32, dev int) (errno int)
+ //sys	Nanosleep(time *Timespec, leftover *Timespec) (errno int)
+-//sys	Open(path string, mode int, perm int) (fd int, errno int)
++//sys	Open(path string, mode int, perm uint32) (fd int, errno int)
+ //sys	Pathconf(path string, name int) (val int, errno int)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, errno int)
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, errno int)
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 8442d8485c..5b48939551 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -19,13 +19,13 @@ const OS = "linux"
+  * Wrapped
+  */
+ 
+-//sys	open(path string, mode int, perm int) (fd int, errno int)
+-func Open(path string, mode int, perm int) (fd int, errno int) {
++//sys	open(path string, mode int, perm uint32) (fd int, errno int)
++func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	return open(path, mode|O_LARGEFILE, perm)
+ }
+ 
+-//sys	openat(dirfd int, path string, flags int, mode int) (fd int, errno int)
+-func Openat(dirfd int, path string, flags int, mode int) (fd int, errno int) {
++//sys	openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int)
++func Openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int) {
+ 	return openat(dirfd, path, flags|O_LARGEFILE, mode)
+ }
+ 
+@@ -561,25 +561,25 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
+ /*
+  * Direct access
+  */
+-//sys	Access(path string, mode int) (errno int)
++//sys	Access(path string, mode uint32) (errno int)
+ //sys	Acct(path string) (errno int)
+ //sys	Adjtimex(buf *Timex) (state int, errno int)
+ //sys	Chdir(path string) (errno int)
+-//sys	Chmod(path string, mode int) (errno int)
++//sys	Chmod(path string, mode uint32) (errno int)
+ //sys	Chroot(path string) (errno int)
+ //sys	Close(fd int) (errno int)
+-//sys	Creat(path string, mode int) (fd int, errno int)
++//sys	Creat(path string, mode uint32) (fd int, errno int)
+ //sys	Dup(oldfd int) (fd int, errno int)
+ //sys	Dup2(oldfd int, newfd int) (fd int, errno int)
+ //sys	EpollCreate(size int) (fd int, errno int)
+ //sys	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int)
+ //sys	Exit(code int) = SYS_EXIT_GROUP
+-//sys	Faccessat(dirfd int, path string, mode int, flags int) (errno int)
+-//sys	Fallocate(fd int, mode int, off int64, len int64) (errno int)
++//sys	Faccessat(dirfd int, path string, mode uint32, flags int) (errno int)
++//sys	Fallocate(fd int, mode uint32, off int64, len int64) (errno int)
+ //sys	Fchdir(fd int) (errno int)
+-//sys	Fchmod(fd int, mode int) (errno int)
+-//sys	Fchmodat(dirfd int, path string, mode int, flags int) (errno int)
++//sys	Fchmod(fd int, mode uint32) (errno int)
++//sys	Fchmodat(dirfd int, path string, mode uint32, flags int) (errno int)
+ //sys	Fchownat(dirfd int, path string, uid int, gid int, flags int) (errno int)
+ //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
+ //sys	Fdatasync(fd int) (errno int)
+@@ -597,10 +597,10 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
+ //sys	Kill(pid int, sig int) (errno int)
+ //sys	Klogctl(typ int, buf []byte) (n int, errno int) = SYS_SYSLOG
+ //sys	Link(oldpath string, newpath string) (errno int)
+-//sys	Mkdir(path string, mode int) (errno int)
+-//sys	Mkdirat(dirfd int, path string, mode int) (errno int)
+-//sys	Mknod(path string, mode int, dev int) (errno int)
+-//sys	Mknodat(dirfd int, path string, mode int, dev int) (errno int)
++//sys	Mkdir(path string, mode uint32) (errno int)
++//sys	Mkdirat(dirfd int, path string, mode uint32) (errno int)
++//sys	Mknod(path string, mode uint32, dev int) (errno int)
++//sys	Mknodat(dirfd int, path string, mode uint32, dev int) (errno int)
+ //sys	Nanosleep(time *Timespec, leftover *Timespec) (errno int)
+ //sys	Pause() (errno int)
+ //sys	PivotRoot(newroot string, putold string) (errno int) = SYS_PIVOT_ROOT
+diff --git a/src/pkg/syscall/syscall_nacl.go b/src/pkg/syscall/syscall_nacl.go
+index 0b592cc51f..b7a6508fb9 100644
+--- a/src/pkg/syscall/syscall_nacl.go
++++ b/src/pkg/syscall/syscall_nacl.go
+@@ -10,7 +10,7 @@ const OS = "nacl"
+ 
+ // Auto-generated
+ 
+-//sys	Chmod(path string, mode int) (errno int)
++//sys	Chmod(path string, mode uint32) (errno int)
+ //sys	Clock() (clock int)
+ //sys	Close(fd int) (errno int)
+ //sys	Exit(code int)
+@@ -18,7 +18,7 @@ const OS = "nacl"
+ //sys	Getdents(fd int, buf []byte) (n int, errno int)
+ //sys	Getpid() (pid int)
+ //sys	Gettimeofday(tv *Timeval) (errno int)
+-//sys	Open(path string, mode int, perm int) (fd int, errno int)
++//sys	Open(path string, mode int, perm uint32) (fd int, errno int)
+ //sys	Read(fd int, p []byte) (n int, errno int)
+ //sys	read(fd int, buf *byte, nbuf int) (n int, errno int)
+ //sys	Stat(path string, stat *Stat_t) (errno int)
+@@ -132,7 +132,7 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+ 	return 0, ENACL
+ }
+ 
+-func Mkdir(path string, mode int) (errno int) { return ENACL }
++func Mkdir(path string, mode uint32) (errno int) { return ENACL }
+ 
+ func Lstat(path string, stat *Stat_t) (errno int) {
+ 	return Stat(path, stat)
+@@ -160,7 +160,7 @@ func Rename(oldpath, newpath string) (errno int) {
+ 	return ENACL
+ }
+ 
+-func Fchmod(fd int, mode int) (errno int) { return ENACL }
++func Fchmod(fd int, mode uint32) (errno int) { return ENACL }
+ 
+ func Chown(path string, uid int, gid int) (errno int) {
+ 	return ENACL
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index d1d2bf1082..5ab4dd0758 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -164,7 +164,7 @@ func Errstr(errno int) string {
+ 
+ func Exit(code int) { ExitProcess(uint32(code)) }
+ 
+-func Open(path string, mode int, perm int) (fd int, errno int) {
++func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	if len(path) == 0 {
+ 		return -1, ERROR_FILE_NOT_FOUND
+ 	}
+@@ -329,7 +329,7 @@ func Chdir(path string) (errno int) {
+ 	return 0
+ }
+ 
+-func Mkdir(path string, mode int) (errno int) {
++func Mkdir(path string, mode uint32) (errno int) {
+ 	if ok, e := CreateDirectory(&StringToUTF16(path)[0], nil); !ok {
+ 		return e
+ 	}
+@@ -620,8 +620,8 @@ func Fchdir(fd int) (errno int)                           { return EWINDOWS }
+ func Link(oldpath, newpath string) (errno int)            { return EWINDOWS }
+ func Symlink(path, link string) (errno int)               { return EWINDOWS }
+ func Readlink(path string, buf []byte) (n int, errno int) { return 0, EWINDOWS }
+-func Chmod(path string, mode int) (errno int)             { return EWINDOWS }
+-func Fchmod(fd int, mode int) (errno int)                 { return EWINDOWS }
++func Chmod(path string, mode uint32) (errno int)          { return EWINDOWS }
++func Fchmod(fd int, mode uint32) (errno int)              { return EWINDOWS }
+ func Chown(path string, uid int, gid int) (errno int)     { return EWINDOWS }
+ func Lchown(path string, uid int, gid int) (errno int)    { return EWINDOWS }
+ func Fchown(fd int, uid int, gid int) (errno int)         { return EWINDOWS }
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 78e21ca442..3e5c88f391 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -179,7 +179,7 @@ func Chflags(path string, flags int) (errno int) {
+ 	return
+ }
+ 
+-func Chmod(path string, mode int) (errno int) {
++func Chmod(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -239,7 +239,7 @@ func Fchflags(path string, flags int) (errno int) {
+ 	return
+ }
+ 
+-func Fchmod(fd int, mode int) (errno int) {
++func Fchmod(fd int, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -428,25 +428,25 @@ func Lstat(path string, stat *Stat_t) (errno int) {
+ 	return
+ }
+ 
+-func Mkdir(path string, mode int) (errno int) {
++func Mkdir(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mkfifo(path string, mode int) (errno int) {
++func Mkfifo(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKFIFO, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mknod(path string, mode int, dev int) (errno int) {
++func Mknod(path string, mode uint32, dev int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev))
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Open(path string, mode int, perm int) (fd int, errno int) {
++func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+ 	fd = int(r0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index 96a4bd0f02..39a8b1c02d 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -178,7 +178,7 @@ func Chflags(path string, flags int) (errno int) {
+ 	return
+ }
+ 
+-func Chmod(path string, mode int) (errno int) {
++func Chmod(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -238,7 +238,7 @@ func Fchflags(path string, flags int) (errno int) {
+ 	return
+ }
+ 
+-func Fchmod(fd int, mode int) (errno int) {
++func Fchmod(fd int, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -427,25 +427,25 @@ func Lstat(path string, stat *Stat_t) (errno int) {
+ 	return
+ }
+ 
+-func Mkdir(path string, mode int) (errno int) {
++func Mkdir(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mkfifo(path string, mode int) (errno int) {
++func Mkfifo(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKFIFO, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mknod(path string, mode int, dev int) (errno int) {
++func Mknod(path string, mode uint32, dev int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev))
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Open(path string, mode int, perm int) (fd int, errno int) {
++func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+ 	fd = int(r0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 611beacf61..b687995a7e 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -172,7 +172,7 @@ func Chflags(path string, flags int) (errno int) {
+ 	return
+ }
+ 
+-func Chmod(path string, mode int) (errno int) {
++func Chmod(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -226,7 +226,7 @@ func Fchflags(path string, flags int) (errno int) {
+ 	return
+ }
+ 
+-func Fchmod(fd int, mode int) (errno int) {
++func Fchmod(fd int, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -427,19 +427,19 @@ func Lstat(path string, stat *Stat_t) (errno int) {
+ 	return
+ }
+ 
+-func Mkdir(path string, mode int) (errno int) {
++func Mkdir(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mkfifo(path string, mode int) (errno int) {
++func Mkfifo(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKFIFO, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mknod(path string, mode int, dev int) (errno int) {
++func Mknod(path string, mode uint32, dev int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev))
+ 	errno = int(e1)
+ 	return
+@@ -451,7 +451,7 @@ func Nanosleep(time *Timespec, leftover *Timespec) (errno int) {
+ 	return
+ }
+ 
+-func Open(path string, mode int, perm int) (fd int, errno int) {
++func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+ 	fd = int(r0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index f6c050ee50..1e1f26a020 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -173,7 +173,7 @@ func Chflags(path string, flags int) (errno int) {
+ 	return
+ }
+ 
+-func Chmod(path string, mode int) (errno int) {
++func Chmod(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -227,7 +227,7 @@ func Fchflags(path string, flags int) (errno int) {
+ 	return
+ }
+ 
+-func Fchmod(fd int, mode int) (errno int) {
++func Fchmod(fd int, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -428,19 +428,19 @@ func Lstat(path string, stat *Stat_t) (errno int) {
+ 	return
+ }
+ 
+-func Mkdir(path string, mode int) (errno int) {
++func Mkdir(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mkfifo(path string, mode int) (errno int) {
++func Mkfifo(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKFIFO, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mknod(path string, mode int, dev int) (errno int) {
++func Mknod(path string, mode uint32, dev int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev))
+ 	errno = int(e1)
+ 	return
+@@ -452,7 +452,7 @@ func Nanosleep(time *Timespec, leftover *Timespec) (errno int) {
+ 	return
+ }
+ 
+-func Open(path string, mode int, perm int) (fd int, errno int) {
++func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+ 	fd = int(r0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index c1670f31e7..e595305041 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -5,14 +5,14 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func open(path string, mode int, perm int) (fd int, errno int) {
++func open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func openat(dirfd int, path string, flags int, mode int) (fd int, errno int) {
++func openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), uintptr(mode), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+@@ -61,7 +61,7 @@ func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
+ 	return
+ }
+ 
+-func Access(path string, mode int) (errno int) {
++func Access(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -86,7 +86,7 @@ func Chdir(path string) (errno int) {
+ 	return
+ }
+ 
+-func Chmod(path string, mode int) (errno int) {
++func Chmod(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -104,7 +104,7 @@ func Close(fd int) (errno int) {
+ 	return
+ }
+ 
+-func Creat(path string, mode int) (fd int, errno int) {
++func Creat(path string, mode uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_CREAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+@@ -154,13 +154,13 @@ func Exit(code int) {
+ 	return
+ }
+ 
+-func Faccessat(dirfd int, path string, mode int, flags int) (errno int) {
++func Faccessat(dirfd int, path string, mode uint32, flags int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_FACCESSAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(flags), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Fallocate(fd int, mode int, off int64, len int64) (errno int) {
++func Fallocate(fd int, mode uint32, off int64, len int64) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_FALLOCATE, uintptr(fd), uintptr(mode), uintptr(off), uintptr(off>>32), uintptr(len), uintptr(len>>32))
+ 	errno = int(e1)
+ 	return
+@@ -172,13 +172,13 @@ func Fchdir(fd int) (errno int) {
+ 	return
+ }
+ 
+-func Fchmod(fd int, mode int) (errno int) {
++func Fchmod(fd int, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Fchmodat(dirfd int, path string, mode int, flags int) (errno int) {
++func Fchmodat(dirfd int, path string, mode uint32, flags int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_FCHMODAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(flags), 0, 0)
+ 	errno = int(e1)
+ 	return
+@@ -298,25 +298,25 @@ func Link(oldpath string, newpath string) (errno int) {
+ 	return
+ }
+ 
+-func Mkdir(path string, mode int) (errno int) {
++func Mkdir(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mkdirat(dirfd int, path string, mode int) (errno int) {
++func Mkdirat(dirfd int, path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKDIRAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode))
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mknod(path string, mode int, dev int) (errno int) {
++func Mknod(path string, mode uint32, dev int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev))
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mknodat(dirfd int, path string, mode int, dev int) (errno int) {
++func Mknodat(dirfd int, path string, mode uint32, dev int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_MKNODAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev), 0, 0)
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 87e545987a..bdc532839c 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -5,14 +5,14 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func open(path string, mode int, perm int) (fd int, errno int) {
++func open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func openat(dirfd int, path string, flags int, mode int) (fd int, errno int) {
++func openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), uintptr(mode), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+@@ -61,7 +61,7 @@ func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
+ 	return
+ }
+ 
+-func Access(path string, mode int) (errno int) {
++func Access(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -86,7 +86,7 @@ func Chdir(path string) (errno int) {
+ 	return
+ }
+ 
+-func Chmod(path string, mode int) (errno int) {
++func Chmod(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -104,7 +104,7 @@ func Close(fd int) (errno int) {
+ 	return
+ }
+ 
+-func Creat(path string, mode int) (fd int, errno int) {
++func Creat(path string, mode uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_CREAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+@@ -154,13 +154,13 @@ func Exit(code int) {
+ 	return
+ }
+ 
+-func Faccessat(dirfd int, path string, mode int, flags int) (errno int) {
++func Faccessat(dirfd int, path string, mode uint32, flags int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_FACCESSAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(flags), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Fallocate(fd int, mode int, off int64, len int64) (errno int) {
++func Fallocate(fd int, mode uint32, off int64, len int64) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_FALLOCATE, uintptr(fd), uintptr(mode), uintptr(off), uintptr(len), 0, 0)
+ 	errno = int(e1)
+ 	return
+@@ -172,13 +172,13 @@ func Fchdir(fd int) (errno int) {
+ 	return
+ }
+ 
+-func Fchmod(fd int, mode int) (errno int) {
++func Fchmod(fd int, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Fchmodat(dirfd int, path string, mode int, flags int) (errno int) {
++func Fchmodat(dirfd int, path string, mode uint32, flags int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_FCHMODAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(flags), 0, 0)
+ 	errno = int(e1)
+ 	return
+@@ -298,25 +298,25 @@ func Link(oldpath string, newpath string) (errno int) {
+ 	return
+ }
+ 
+-func Mkdir(path string, mode int) (errno int) {
++func Mkdir(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mkdirat(dirfd int, path string, mode int) (errno int) {
++func Mkdirat(dirfd int, path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKDIRAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode))
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mknod(path string, mode int, dev int) (errno int) {
++func Mknod(path string, mode uint32, dev int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev))
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mknodat(dirfd int, path string, mode int, dev int) (errno int) {
++func Mknodat(dirfd int, path string, mode uint32, dev int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_MKNODAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev), 0, 0)
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 36ff342946..4b535f9df7 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -5,14 +5,14 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func open(path string, mode int, perm int) (fd int, errno int) {
++func open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func openat(dirfd int, path string, flags int, mode int) (fd int, errno int) {
++func openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), uintptr(mode), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+@@ -61,7 +61,7 @@ func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
+ 	return
+ }
+ 
+-func Access(path string, mode int) (errno int) {
++func Access(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -86,7 +86,7 @@ func Chdir(path string) (errno int) {
+ 	return
+ }
+ 
+-func Chmod(path string, mode int) (errno int) {
++func Chmod(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -104,7 +104,7 @@ func Close(fd int) (errno int) {
+ 	return
+ }
+ 
+-func Creat(path string, mode int) (fd int, errno int) {
++func Creat(path string, mode uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_CREAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+@@ -154,13 +154,13 @@ func Exit(code int) {
+ 	return
+ }
+ 
+-func Faccessat(dirfd int, path string, mode int, flags int) (errno int) {
++func Faccessat(dirfd int, path string, mode uint32, flags int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_FACCESSAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(flags), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Fallocate(fd int, mode int, off int64, len int64) (errno int) {
++func Fallocate(fd int, mode uint32, off int64, len int64) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_FALLOCATE, uintptr(fd), uintptr(mode), uintptr(off), uintptr(off>>32), uintptr(len), uintptr(len>>32))
+ 	errno = int(e1)
+ 	return
+@@ -172,13 +172,13 @@ func Fchdir(fd int) (errno int) {
+ 	return
+ }
+ 
+-func Fchmod(fd int, mode int) (errno int) {
++func Fchmod(fd int, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Fchmodat(dirfd int, path string, mode int, flags int) (errno int) {
++func Fchmodat(dirfd int, path string, mode uint32, flags int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_FCHMODAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(flags), 0, 0)
+ 	errno = int(e1)
+ 	return
+@@ -298,25 +298,25 @@ func Link(oldpath string, newpath string) (errno int) {
+ 	return
+ }
+ 
+-func Mkdir(path string, mode int) (errno int) {
++func Mkdir(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mkdirat(dirfd int, path string, mode int) (errno int) {
++func Mkdirat(dirfd int, path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKDIRAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode))
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mknod(path string, mode int, dev int) (errno int) {
++func Mknod(path string, mode uint32, dev int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev))
+ 	errno = int(e1)
+ 	return
+ }
+ 
+-func Mknodat(dirfd int, path string, mode int, dev int) (errno int) {
++func Mknodat(dirfd int, path string, mode uint32, dev int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_MKNODAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev), 0, 0)
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_nacl_386.go b/src/pkg/syscall/zsyscall_nacl_386.go
+index 34a0bd4668..17b4919fe5 100644
+--- a/src/pkg/syscall/zsyscall_nacl_386.go
++++ b/src/pkg/syscall/zsyscall_nacl_386.go
+@@ -5,7 +5,7 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func Chmod(path string, mode int) (errno int) {
++func Chmod(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+ 	return
+@@ -57,7 +57,7 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ 	return
+ }
+ 
+-func Open(path string, mode int, perm int) (fd int, errno int) {
++func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+ 	fd = int(r0)
+ 	errno = int(e1)

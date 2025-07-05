@@ -20,7 +20,33 @@ Date:   Thu Aug 23 19:51:50 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/text/template/exec_test.go | 1 +
  src/text/template/funcs.go     | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 6f40d80635..648ad8ff03 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1279,6 +1279,7 @@ func TestBadFuncNames(t *testing.T) {
+ }
+ 
+ func testBadFuncName(name string, t *testing.T) {
++	t.Helper()
+ 	defer func() {
+ 		recover()
+ 	}()
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index abddfa1141..31fe77a327 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -65,7 +65,7 @@ func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
+ func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
+ 	for name, fn := range in {
+ 		if !goodName(name) {
+-			panic(fmt.Errorf("function name %s is not a valid identifier", name))
++			panic(fmt.Errorf("function name %q is not a valid identifier", name))
+ 		}
+ 		v := reflect.ValueOf(fn)
+ 		if v.Kind() != reflect.Func {

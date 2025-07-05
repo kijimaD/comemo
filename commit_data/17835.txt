@@ -7,6 +7,20 @@ Date:   Wed Oct 23 10:28:28 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/15360045
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 8b9e9b6c76..ec3e9c199d 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -65,7 +65,7 @@ from mercurial import util as hg_util
+ if os.sys.platform == 'plan9':
+ 	try:
+ 		import plan9
+-		n = plan9.bind(os.path.expanduser("~/lib"), os.path.expanduser("~"), plan9.MBEFORE)
++		n = plan9.bind(os.path.expanduser("~/lib"), os.path.expanduser("~"), plan9.MBEFORE|plan9.MCREATE)
+ 	except ImportError:
+ 		pass
+ 

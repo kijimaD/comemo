@@ -37,8 +37,72 @@ Date:   Thu Jan 7 03:06:49 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go     | 19 +++++++++++++------
  src/cmd/compile/internal/gc/typecheck.go |  2 --
  test/fixedbugs/issue13821b.go            |  2 ++
  3 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index d30515a87b..795b53da11 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -634,6 +634,7 @@ func evconst(n *Node) {
+ 	var wr int
+ 	var v Val
+ 	var norig *Node
++	var nn *Node
+ 	if nr == nil {
+ 		// copy numeric value to avoid modifying
+ 		// nl, in case someone still refers to it (e.g. iota).
+@@ -1115,15 +1116,21 @@ ret:
+ 	return
+ 
+ settrue:
+-	norig = saveorig(n)
+-	*n = *Nodbool(true)
+-	n.Orig = norig
++	nn = Nodbool(true)
++	nn.Orig = saveorig(n)
++	if !iscmp[n.Op] {
++		nn.Type = nl.Type
++	}
++	*n = *nn
+ 	return
+ 
+ setfalse:
+-	norig = saveorig(n)
+-	*n = *Nodbool(false)
+-	n.Orig = norig
++	nn = Nodbool(false)
++	nn.Orig = saveorig(n)
++	if !iscmp[n.Op] {
++		nn.Type = nl.Type
++	}
++	*n = *nn
+ 	return
+ 
+ illegal:
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 224480279c..8c1305f7f4 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -687,8 +687,6 @@ OpSwitch:
+ 				n.Left = l
+ 				n.Right = r
+ 			}
+-		} else if n.Op == OANDAND || n.Op == OOROR {
+-			evconst(n)
+ 		}
+ 
+ 		if et == TSTRING {
+diff --git a/test/fixedbugs/issue13821b.go b/test/fixedbugs/issue13821b.go
+index 3b0e2d2287..0950fdea96 100644
+--- a/test/fixedbugs/issue13821b.go
++++ b/test/fixedbugs/issue13821b.go
+@@ -20,3 +20,5 @@ var x4 = x1 && b2   // ERROR "mismatched types B and B2"
+ var x5 = x2 && b2   // ERROR "mismatched types B and B2"
+ var x6 = b2 && x1   // ERROR "mismatched types B2 and B"
+ var x7 = b2 && x2   // ERROR "mismatched types B2 and B"
++
++var x8 = b && !B2(true) // ERROR "mismatched types B and B2"

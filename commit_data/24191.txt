@@ -10,7 +10,68 @@ Date:   Tue Jul 14 15:08:10 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12193
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 27 +++++++++++++++++++++++++++
  src/cmd/go/vcs.go     |  4 ++--
  2 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1f3615f498..1e7388467b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2133,6 +2133,7 @@ func TestGoGetUpdate(t *testing.T) {
+ 	// golang.org/issue/9224.
+ 	// The recursive updating was trying to walk to
+ 	// former dependencies, not current ones.
++
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+ 	tg := testgo(t)
+@@ -2157,3 +2158,29 @@ func TestGoGetUpdate(t *testing.T) {
+ 	rewind()
+ 	tg.run("get", "-d", "-u", "github.com/rsc/go-get-issue-9224-cmd")
+ }
++
++func TestGoGetDomainRoot(t *testing.T) {
++	// golang.org/issue/9357.
++	// go get foo.io (not foo.io/subdir) was not working consistently.
++
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++
++	// go-get-issue-9357.appspot.com is running
++	// the code at github.com/rsc/go-get-issue-9357,
++	// a trivial Go on App Engine app that serves a
++	// <meta> tag for the domain root.
++	tg.run("get", "-d", "go-get-issue-9357.appspot.com")
++	tg.run("get", "go-get-issue-9357.appspot.com")
++	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
++
++	tg.must(os.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
++	tg.run("get", "go-get-issue-9357.appspot.com")
++
++	tg.must(os.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
++	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
++}
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 29433de541..5393801ca5 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -650,11 +650,11 @@ func repoRootForImportPathStatic(importPath, scheme string, security securityMod
+ // repoRootForImportDynamic finds a *repoRoot for a custom domain that's not
+ // statically known by repoRootForImportPathStatic.
+ //
+-// This handles custom import paths like "name.tld/pkg/foo".
++// This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
+ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRoot, error) {
+ 	slash := strings.Index(importPath, "/")
+ 	if slash < 0 {
+-		return nil, errors.New("import path does not contain a slash")
++		slash = len(importPath)
+ 	}
+ 	host := importPath[:slash]
+ 	if !strings.Contains(host, ".") {

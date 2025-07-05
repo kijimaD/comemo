@@ -11,6 +11,20 @@ Date:   Wed Dec 26 01:17:47 2018 +0000
     GitHub-Pull-Request: golang/go#29419
     Reviewed-on: https://go-review.googlesource.com/c/155743
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/prime.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/prime.go b/src/math/big/prime.go
+index 4c2c152f65..d9a5f1ec96 100644
+--- a/src/math/big/prime.go
++++ b/src/math/big/prime.go
+@@ -51,7 +51,7 @@ func (x *Int) ProbablyPrime(n int) bool {
+ 	}
+ 
+ 	if w&1 == 0 {
+-		return false // n is even
++		return false // x is even
+ 	}
+ 
+ 	const primesA = 3 * 5 * 7 * 11 * 13 * 17 * 19 * 23 * 37

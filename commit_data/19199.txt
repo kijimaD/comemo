@@ -14,6 +14,31 @@ Date:   Thu Apr 17 16:25:38 2014 -0400
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/89040043
-
+---
  src/cmd/pack/pack_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index bd4b224aff..b2be74b097 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -247,7 +247,7 @@ func TestLargeDefs(t *testing.T) {
+ 	main := filepath.Join(dir, "main.go")
+ 	prog := `
+ 		package main
+-		import "./large"
++		import "large"
+ 		var V large.T
+ 		func main() {
+ 			println("ok")
+@@ -267,8 +267,8 @@ func TestLargeDefs(t *testing.T) {
+ 	run("go", "build", "cmd/pack") // writes pack binary to dir
+ 	run("go", "tool", char+"g", "large.go")
+ 	run("./pack", "grc", "large.a", "large."+char)
+-	run("go", "tool", char+"g", "main.go")
+-	run("go", "tool", char+"l", "-o", "a.out", "main."+char)
++	run("go", "tool", char+"g", "-I", ".", "main.go")
++	run("go", "tool", char+"l", "-L", ".", "-o", "a.out", "main."+char)
+ 	out := run("./a.out")
+ 	if out != "ok\n" {
+ 		t.Fatal("incorrect output: %q, want %q", out, "ok\n")

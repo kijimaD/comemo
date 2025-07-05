@@ -8,6 +8,20 @@ Date:   Sun Jul 1 23:12:42 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6357058
-
+---
  src/pkg/image/names.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/names.go b/src/pkg/image/names.go
+index 55f634c17c..04ee2cfb47 100644
+--- a/src/pkg/image/names.go
++++ b/src/pkg/image/names.go
+@@ -20,7 +20,7 @@ var (
+ )
+ 
+ // Uniform is an infinite-sized Image of uniform color.
+-// It implements the color.Color, color.ColorModel, and Image interfaces.
++// It implements the color.Color, color.Model, and Image interfaces.
+ type Uniform struct {
+ 	C color.Color
+ }

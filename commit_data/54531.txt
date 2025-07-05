@@ -11,7 +11,7 @@ Date:   Fri Sep 9 11:29:32 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go             |   62 +-
  src/cmd/compile/internal/base/flag.go              |    1 +
  src/cmd/compile/internal/gc/main.go                |   17 +
@@ -25,3 +25,2287 @@ Date:   Fri Sep 9 11:29:32 2022 -0700
  src/cmd/dist/buildtool.go                          |    1 +
  src/internal/profile/legacy_profile.go             |   16 +-
  12 files changed, 2015 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 32a45d7a9c..ba2149175d 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -16,35 +16,39 @@ var Debug DebugFlags
+ // The -d option takes a comma-separated list of settings.
+ // Each setting is name=value; for ints, name is short for name=1.
+ type DebugFlags struct {
+-	Append               int    `help:"print information about append compilation"`
+-	Checkptr             int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation"`
+-	Closure              int    `help:"print information about closure compilation"`
+-	DclStack             int    `help:"run internal dclstack check"`
+-	Defer                int    `help:"print information about defer compilation"`
+-	DisableNil           int    `help:"disable nil checks"`
+-	DumpPtrs             int    `help:"show Node pointers values in dump output"`
+-	DwarfInl             int    `help:"print information about DWARF inlined function creation"`
+-	Export               int    `help:"print export data"`
+-	GCProg               int    `help:"print dump of GC programs"`
+-	InlFuncsWithClosures int    `help:"allow functions with closures to be inlined"`
+-	Libfuzzer            int    `help:"enable coverage instrumentation for libfuzzer"`
+-	LocationLists        int    `help:"print information about DWARF location list creation"`
+-	Nil                  int    `help:"print information about nil checks"`
+-	NoOpenDefer          int    `help:"disable open-coded defers"`
+-	NoRefName            int    `help:"do not include referenced symbol names in object file"`
+-	PCTab                string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
+-	Panic                int    `help:"show all compiler panics"`
+-	Reshape              int    `help:"print information about expression reshaping"`
+-	Shapify              int    `help:"print information about shaping recursive types"`
+-	Slice                int    `help:"print information about slice compilation"`
+-	SoftFloat            int    `help:"force compiler to emit soft-float code"`
+-	SyncFrames           int    `help:"how many writer stack frames to include at sync points in unified export data"`
+-	TypeAssert           int    `help:"print information about type assertion inlining"`
+-	TypecheckInl         int    `help:"eager typechecking of inline function bodies"`
+-	Unified              int    `help:"enable unified IR construction"`
+-	WB                   int    `help:"print information about write barriers"`
+-	ABIWrap              int    `help:"print information about ABI wrapper generation"`
+-	MayMoreStack         string `help:"call named function before all stack growth checks"`
++	Append                     int    `help:"print information about append compilation"`
++	Checkptr                   int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation"`
++	Closure                    int    `help:"print information about closure compilation"`
++	DclStack                   int    `help:"run internal dclstack check"`
++	Defer                      int    `help:"print information about defer compilation"`
++	DisableNil                 int    `help:"disable nil checks"`
++	DumpPtrs                   int    `help:"show Node pointers values in dump output"`
++	DwarfInl                   int    `help:"print information about DWARF inlined function creation"`
++	Export                     int    `help:"print export data"`
++	GCProg                     int    `help:"print dump of GC programs"`
++	InlFuncsWithClosures       int    `help:"allow functions with closures to be inlined"`
++	Libfuzzer                  int    `help:"enable coverage instrumentation for libfuzzer"`
++	LocationLists              int    `help:"print information about DWARF location list creation"`
++	Nil                        int    `help:"print information about nil checks"`
++	NoOpenDefer                int    `help:"disable open-coded defers"`
++	NoRefName                  int    `help:"do not include referenced symbol names in object file"`
++	PCTab                      string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
++	Panic                      int    `help:"show all compiler panics"`
++	Reshape                    int    `help:"print information about expression reshaping"`
++	Shapify                    int    `help:"print information about shaping recursive types"`
++	Slice                      int    `help:"print information about slice compilation"`
++	SoftFloat                  int    `help:"force compiler to emit soft-float code"`
++	SyncFrames                 int    `help:"how many writer stack frames to include at sync points in unified export data"`
++	TypeAssert                 int    `help:"print information about type assertion inlining"`
++	TypecheckInl               int    `help:"eager typechecking of inline function bodies"`
++	Unified                    int    `help:"enable unified IR construction"`
++	WB                         int    `help:"print information about write barriers"`
++	ABIWrap                    int    `help:"print information about ABI wrapper generation"`
++	MayMoreStack               string `help:"call named function before all stack growth checks"`
++	InlineHotFuncThreshold     string `help:"threshold percentage for determining functions as hot candidates for inlining"`
++	InlineHotCallSiteThreshold string `help:"threshold percentage for determining call sites as hot candidates for inlining"`
++	InlineHotBudget            int    `help:"inline budget for hot functions"`
++	PGOInline                  int    `help:"debug profile-guided inlining"`
+ 
+ 	Any bool // set when any of the debug flags have been set
+ }
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 3e9d86c9bc..e6df6b680b 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -124,6 +124,7 @@ type CmdFlags struct {
+ 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
+ 	WB                 bool         "help:\"enable write barrier\""                    // TODO: remove
+ 	AltComparable      bool         "help:\"enable alternative comparable semantics\"" // experiment - remove eventually
++	PgoProfile         string       "help:\"read profile from `file`\""
+ 
+ 	// Configuration derived from flags; not a flag itself.
+ 	Cfg struct {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2fbf2f49d5..5633f1fc04 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -17,6 +17,7 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/noder"
++	"cmd/compile/internal/pgo"
+ 	"cmd/compile/internal/pkginit"
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/ssa"
+@@ -249,10 +250,26 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		typecheck.AllImportedBodies()
+ 	}
+ 
++	// Read profile file and build profile-graph and weighted-call-graph.
++	base.Timer.Start("fe", "pgoprofile")
++	if base.Flag.PgoProfile != "" {
++		pgo.BuildProfileGraph(base.Flag.PgoProfile)
++		pgo.BuildWeightedCallGraph()
++	}
++
+ 	// Inlining
+ 	base.Timer.Start("fe", "inlining")
+ 	if base.Flag.LowerL != 0 {
++		if pgo.WeightedCG != nil {
++			inline.InlinePrologue()
++		}
+ 		inline.InlinePackage()
++		if pgo.WeightedCG != nil {
++			inline.InlineEpilogue()
++			// Delete the graphs as no other optimization uses this currently.
++			pgo.WeightedCG = nil
++			pgo.ProfileGraph = nil
++		}
+ 	}
+ 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
+ 
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 5e14a87dfa..4d942d037f 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -29,11 +29,13 @@ package inline
+ import (
+ 	"fmt"
+ 	"go/constant"
++	"strconv"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
++	"cmd/compile/internal/pgo"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -53,6 +55,91 @@ const (
+ 	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
+ )
+ 
++var (
++	// List of all hot ndes.
++	candHotNodeMap = make(map[*pgo.IRNode]struct{})
++
++	// List of all hot call sites.
++	candHotEdgeMap = make(map[pgo.CallSiteInfo]struct{})
++
++	// List of inlined call sites.
++	inlinedCallSites = make(map[pgo.CallSiteInfo]struct{})
++
++	// Threshold in percentage for hot function inlining.
++	inlineHotFuncThresholdPercent = float64(2)
++
++	// Threshold in percentage for hot callsite inlining.
++	inlineHotCallSiteThresholdPercent = float64(0.1)
++
++	// Budget increased due to hotness.
++	inlineHotMaxBudget int32 = 160
++)
++
++// InlinePrologue records the hot callsites from ir-graph.
++func InlinePrologue() {
++	if s, err := strconv.ParseFloat(base.Debug.InlineHotFuncThreshold, 64); err == nil {
++		inlineHotFuncThresholdPercent = s
++		if base.Debug.PGOInline > 0 {
++			fmt.Printf("hot-node-thres=%v\n", inlineHotFuncThresholdPercent)
++		}
++	}
++
++	if s, err := strconv.ParseFloat(base.Debug.InlineHotCallSiteThreshold, 64); err == nil {
++		inlineHotCallSiteThresholdPercent = s
++		if base.Debug.PGOInline > 0 {
++			fmt.Printf("hot-callsite-thres=%v\n", inlineHotCallSiteThresholdPercent)
++		}
++	}
++
++	if base.Debug.InlineHotBudget != 0 {
++		inlineHotMaxBudget = int32(base.Debug.InlineHotBudget)
++	}
++
++	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
++		for _, f := range list {
++			name := ir.PkgFuncName(f)
++			if n, ok := pgo.WeightedCG.IRNodes[name]; ok {
++				nodeweight := pgo.WeightInPercentage(n.Flat, pgo.GlobalTotalNodeWeight)
++				if nodeweight > inlineHotFuncThresholdPercent {
++					candHotNodeMap[n] = struct{}{}
++				}
++				for _, e := range pgo.WeightedCG.OutEdges[n] {
++					if e.Weight != 0 {
++						edgeweightpercent := pgo.WeightInPercentage(e.Weight, pgo.GlobalTotalEdgeWeight)
++						if edgeweightpercent > inlineHotCallSiteThresholdPercent {
++							csi := pgo.CallSiteInfo{Line: e.CallSite, Caller: n.AST, Callee: e.Dst.AST}
++							if _, ok := candHotEdgeMap[csi]; !ok {
++								candHotEdgeMap[csi] = struct{}{}
++							}
++						}
++					}
++				}
++			}
++		}
++	})
++	if base.Debug.PGOInline > 0 {
++		fmt.Printf("hot-cg before inline in dot format:")
++		pgo.PrintWeightedCallGraphDOT(inlineHotFuncThresholdPercent, inlineHotCallSiteThresholdPercent)
++	}
++}
++
++// InlineEpilogue updates IRGraph after inlining.
++func InlineEpilogue() {
++	if base.Debug.PGOInline > 0 {
++		ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
++			for _, f := range list {
++				name := ir.PkgFuncName(f)
++				if n, ok := pgo.WeightedCG.IRNodes[name]; ok {
++					pgo.RedirectEdges(n, inlinedCallSites)
++				}
++			}
++		})
++		// Print the call-graph after inlining. This is a debugging feature.
++		fmt.Printf("hot-cg after inline in dot:")
++		pgo.PrintWeightedCallGraphDOT(inlineHotFuncThresholdPercent, inlineHotCallSiteThresholdPercent)
++	}
++}
++
+ // InlinePackage finds functions that can be inlined and clones them before walk expands them.
+ func InlinePackage() {
+ 	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+@@ -81,6 +168,9 @@ func CanInline(fn *ir.Func) {
+ 		base.Fatalf("CanInline no nname %+v", fn)
+ 	}
+ 
++	// Initialize an empty list of hot callsites for this caller.
++	pgo.ListOfHotCallSites = make(map[pgo.CallSiteInfo]struct{})
++
+ 	var reason string // reason, if any, that the function was not inlined
+ 	if base.Flag.LowerM > 1 || logopt.Enabled() {
+ 		defer func() {
+@@ -168,6 +258,19 @@ func CanInline(fn *ir.Func) {
+ 		cc = 1 // this appears to yield better performance than 0.
+ 	}
+ 
++	// Update the budget for profile-guided inlining.
++	budget := int32(inlineMaxBudget)
++	if base.Flag.PgoProfile != "" && pgo.WeightedCG != nil {
++		if n, ok := pgo.WeightedCG.IRNodes[ir.PkgFuncName(fn)]; ok {
++			if _, ok := candHotNodeMap[n]; ok {
++				budget = int32(inlineHotMaxBudget)
++				if base.Debug.PGOInline > 0 {
++					fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
++				}
++			}
++		}
++	}
++
+ 	// At this point in the game the function we're looking at may
+ 	// have "stale" autos, vars that still appear in the Dcl list, but
+ 	// which no longer have any uses in the function body (due to
+@@ -178,7 +281,9 @@ func CanInline(fn *ir.Func) {
+ 	// list. See issue 25249 for more context.
+ 
+ 	visitor := hairyVisitor{
+-		budget:        inlineMaxBudget,
++		curFunc:       fn,
++		budget:        budget,
++		maxBudget:     budget,
+ 		extraCallCost: cc,
+ 	}
+ 	if visitor.tooHairy(fn) {
+@@ -187,7 +292,7 @@ func CanInline(fn *ir.Func) {
+ 	}
+ 
+ 	n.Func.Inl = &ir.Inline{
+-		Cost: inlineMaxBudget - visitor.budget,
++		Cost: budget - visitor.budget,
+ 		Dcl:  pruneUnusedAutos(n.Defn.(*ir.Func).Dcl, &visitor),
+ 		Body: inlcopylist(fn.Body),
+ 
+@@ -195,12 +300,12 @@ func CanInline(fn *ir.Func) {
+ 	}
+ 
+ 	if base.Flag.LowerM > 1 {
+-		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, inlineMaxBudget-visitor.budget, fn.Type(), ir.Nodes(n.Func.Inl.Body))
++		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, budget-visitor.budget, fn.Type(), ir.Nodes(n.Func.Inl.Body))
+ 	} else if base.Flag.LowerM != 0 {
+ 		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n)
+ 	}
+ 	if logopt.Enabled() {
+-		logopt.LogOpt(fn.Pos(), "canInlineFunction", "inline", ir.FuncName(fn), fmt.Sprintf("cost: %d", inlineMaxBudget-visitor.budget))
++		logopt.LogOpt(fn.Pos(), "canInlineFunction", "inline", ir.FuncName(fn), fmt.Sprintf("cost: %d", budget-visitor.budget))
+ 	}
+ }
+ 
+@@ -239,7 +344,10 @@ func canDelayResults(fn *ir.Func) bool {
+ // hairyVisitor visits a function body to determine its inlining
+ // hairiness and whether or not it can be inlined.
+ type hairyVisitor struct {
++	// This is needed to access the current caller in the doNode function.
++	curFunc       *ir.Func
+ 	budget        int32
++	maxBudget     int32
+ 	reason        string
+ 	extraCallCost int32
+ 	usedLocals    ir.NameSet
+@@ -252,7 +360,7 @@ func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
+ 		return true
+ 	}
+ 	if v.budget < 0 {
+-		v.reason = fmt.Sprintf("function too complex: cost %d exceeds budget %d", inlineMaxBudget-v.budget, inlineMaxBudget)
++		v.reason = fmt.Sprintf("function too complex: cost %d exceeds budget %d", v.maxBudget-v.budget, v.maxBudget)
+ 		return true
+ 	}
+ 	return false
+@@ -330,6 +438,20 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 			}
+ 		}
+ 
++		// Determine if the callee edge is a for hot callee or not.
++		if base.Flag.PgoProfile != "" && pgo.WeightedCG != nil && v.curFunc != nil {
++			if fn := inlCallee(n.X); fn != nil && typecheck.HaveInlineBody(fn) {
++				ln := pgo.ConvertLine2Int(ir.Line(n))
++				csi := pgo.CallSiteInfo{Line: ln, Caller: v.curFunc, Callee: fn}
++				if _, o := candHotEdgeMap[csi]; o {
++					pgo.ListOfHotCallSites[pgo.CallSiteInfo{Line: ln, Caller: v.curFunc}] = struct{}{}
++					if base.Debug.PGOInline > 0 {
++						fmt.Printf("hot-callsite identified at line=%v for func=%v\n", ir.Line(n), ir.PkgFuncName(v.curFunc))
++					}
++				}
++			}
++		}
++
+ 		if ir.IsIntrinsicCall(n) {
+ 			// Treat like any other node.
+ 			break
+@@ -750,13 +872,29 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
+ 		return n
+ 	}
+ 	if fn.Inl.Cost > maxCost {
+-		// The inlined function body is too big. Typically we use this check to restrict
+-		// inlining into very big functions.  See issue 26546 and 17566.
+-		if logopt.Enabled() {
+-			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+-				fmt.Sprintf("cost %d of %s exceeds max large caller cost %d", fn.Inl.Cost, ir.PkgFuncName(fn), maxCost))
++		// If the callsite is hot and it is under the inlineHotMaxBudget budget, then try to inline it, or else bail.
++		ln := pgo.ConvertLine2Int(ir.Line(n))
++		csi := pgo.CallSiteInfo{Line: ln, Caller: ir.CurFunc}
++		if _, ok := pgo.ListOfHotCallSites[csi]; ok {
++			if fn.Inl.Cost > inlineHotMaxBudget {
++				if logopt.Enabled() {
++					logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
++						fmt.Sprintf("cost %d of %s exceeds max large caller cost %d", fn.Inl.Cost, ir.PkgFuncName(fn), inlineHotMaxBudget))
++				}
++				return n
++			}
++			if base.Debug.PGOInline > 0 {
++				fmt.Printf("hot-budget check allows inlining for callsite at %v\n", ir.Line(n))
++			}
++		} else {
++			// The inlined function body is too big. Typically we use this check to restrict
++			// inlining into very big functions.  See issue 26546 and 17566.
++			if logopt.Enabled() {
++				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
++					fmt.Sprintf("cost %d of %s exceeds max large caller cost %d", fn.Inl.Cost, ir.PkgFuncName(fn), maxCost))
++			}
++			return n
+ 		}
+-		return n
+ 	}
+ 
+ 	if fn == ir.CurFunc {
+@@ -899,7 +1037,16 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
+ 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
+ 	}
+ 
++	if base.Debug.PGOInline > 0 {
++		ln := pgo.ConvertLine2Int(ir.Line(n))
++		csi := pgo.CallSiteInfo{Line: ln, Caller: ir.CurFunc}
++		if _, ok := inlinedCallSites[csi]; !ok {
++			inlinedCallSites[csi] = struct{}{}
++		}
++	}
++
+ 	res := InlineCall(n, fn, inlIndex)
++
+ 	if res == nil {
+ 		base.FatalfAt(n.Pos(), "inlining call to %v failed", fn)
+ 	}
+diff --git a/src/cmd/compile/internal/pgo/graph.go b/src/cmd/compile/internal/pgo/graph.go
+new file mode 100644
+index 0000000000..d7b9432f0f
+--- /dev/null
++++ b/src/cmd/compile/internal/pgo/graph.go
+@@ -0,0 +1,1033 @@
++// Copyright 2014 Google Inc. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++// Package graph collects a set of samples into a directed graph.
++
++// Original file location: https://github.com/google/pprof/tree/main/internal/graph/graph.go
++package pgo
++
++import (
++	"fmt"
++	"internal/profile"
++	"math"
++	"path/filepath"
++	"sort"
++	"strconv"
++	"strings"
++)
++
++const maxNodelets = 4 // Number of nodelets for labels (both numeric and non)
++
++// Options encodes the options for constructing a graph
++type Options struct {
++	SampleValue       func(s []int64) int64      // Function to compute the value of a sample
++	SampleMeanDivisor func(s []int64) int64      // Function to compute the divisor for mean graphs, or nil
++	FormatTag         func(int64, string) string // Function to format a sample tag value into a string
++	ObjNames          bool                       // Always preserve obj filename
++	OrigFnNames       bool                       // Preserve original (eg mangled) function names
++
++	CallTree     bool // Build a tree instead of a graph
++	DropNegative bool // Drop nodes with overall negative values
++
++	KeptNodes NodeSet // If non-nil, only use nodes in this set
++}
++
++// Nodes is an ordered collection of graph nodes.
++type Nodes []*Node
++
++// Node is an entry on a profiling report. It represents a unique
++// program location.
++type Node struct {
++	// Info describes the source location associated to this node.
++	Info NodeInfo
++
++	// Function represents the function that this node belongs to. On
++	// graphs with sub-function resolution (eg line number or
++	// addresses), two nodes in a NodeMap that are part of the same
++	// function have the same value of Node.Function. If the Node
++	// represents the whole function, it points back to itself.
++	Function *Node
++
++	// Values associated to this node. Flat is exclusive to this node,
++	// Cum includes all descendents.
++	Flat, FlatDiv, Cum, CumDiv int64
++
++	// In and out Contains the nodes immediately reaching or reached by
++	// this node.
++	In, Out EdgeMap
++
++	// LabelTags provide additional information about subsets of a sample.
++	LabelTags TagMap
++
++	// NumericTags provide additional values for subsets of a sample.
++	// Numeric tags are optionally associated to a label tag. The key
++	// for NumericTags is the name of the LabelTag they are associated
++	// to, or "" for numeric tags not associated to a label tag.
++	NumericTags map[string]TagMap
++}
++
++// Graph summarizes a performance profile into a format that is
++// suitable for visualization.
++type Graph struct {
++	Nodes Nodes
++}
++
++// FlatValue returns the exclusive value for this node, computing the
++// mean if a divisor is available.
++func (n *Node) FlatValue() int64 {
++	if n.FlatDiv == 0 {
++		return n.Flat
++	}
++	return n.Flat / n.FlatDiv
++}
++
++// CumValue returns the inclusive value for this node, computing the
++// mean if a divisor is available.
++func (n *Node) CumValue() int64 {
++	if n.CumDiv == 0 {
++		return n.Cum
++	}
++	return n.Cum / n.CumDiv
++}
++
++// AddToEdge increases the weight of an edge between two nodes. If
++// there isn't such an edge one is created.
++func (n *Node) AddToEdge(to *Node, v int64, residual, inline bool) {
++	n.AddToEdgeDiv(to, 0, v, residual, inline)
++}
++
++// AddToEdgeDiv increases the weight of an edge between two nodes. If
++// there isn't such an edge one is created.
++func (n *Node) AddToEdgeDiv(to *Node, dv, v int64, residual, inline bool) {
++	if n.Out[to] != to.In[n] {
++		panic(fmt.Errorf("asymmetric edges %v %v", *n, *to))
++	}
++
++	if e := n.Out[to]; e != nil {
++		e.WeightDiv += dv
++		e.Weight += v
++		if residual {
++			e.Residual = true
++		}
++		if !inline {
++			e.Inline = false
++		}
++		return
++	}
++
++	info := &Edge{Src: n, Dest: to, WeightDiv: dv, Weight: v, Residual: residual, Inline: inline}
++	n.Out[to] = info
++	to.In[n] = info
++}
++
++// NodeInfo contains the attributes for a node.
++type NodeInfo struct {
++	Name              string
++	OrigName          string
++	Address           uint64
++	File              string
++	StartLine, Lineno int
++	Objfile           string
++}
++
++// PrintableName calls the Node's Formatter function with a single space separator.
++func (i *NodeInfo) PrintableName() string {
++	return strings.Join(i.NameComponents(), " ")
++}
++
++// NameComponents returns the components of the printable name to be used for a node.
++func (i *NodeInfo) NameComponents() []string {
++	var name []string
++	if i.Address != 0 {
++		name = append(name, fmt.Sprintf("%016x", i.Address))
++	}
++	if fun := i.Name; fun != "" {
++		name = append(name, fun)
++	}
++
++	switch {
++	case i.Lineno != 0:
++		// User requested line numbers, provide what we have.
++		name = append(name, fmt.Sprintf("%s:%d", i.File, i.Lineno))
++	case i.File != "":
++		// User requested file name, provide it.
++		name = append(name, i.File)
++	case i.Name != "":
++		// User requested function name. It was already included.
++	case i.Objfile != "":
++		// Only binary name is available
++		name = append(name, "["+filepath.Base(i.Objfile)+"]")
++	default:
++		// Do not leave it empty if there is no information at all.
++		name = append(name, "<unknown>")
++	}
++	return name
++}
++
++// NodeMap maps from a node info struct to a node. It is used to merge
++// report entries with the same info.
++type NodeMap map[NodeInfo]*Node
++
++// NodeSet is a collection of node info structs.
++type NodeSet map[NodeInfo]bool
++
++// NodePtrSet is a collection of nodes. Trimming a graph or tree requires a set
++// of objects which uniquely identify the nodes to keep. In a graph, NodeInfo
++// works as a unique identifier; however, in a tree multiple nodes may share
++// identical NodeInfos. A *Node does uniquely identify a node so we can use that
++// instead. Though a *Node also uniquely identifies a node in a graph,
++// currently, during trimming, graphs are rebuilt from scratch using only the
++// NodeSet, so there would not be the required context of the initial graph to
++// allow for the use of *Node.
++type NodePtrSet map[*Node]bool
++
++// FindOrInsertNode takes the info for a node and either returns a matching node
++// from the node map if one exists, or adds one to the map if one does not.
++// If kept is non-nil, nodes are only added if they can be located on it.
++func (nm NodeMap) FindOrInsertNode(info NodeInfo, kept NodeSet) *Node {
++	if kept != nil {
++		if _, ok := kept[info]; !ok {
++			return nil
++		}
++	}
++
++	if n, ok := nm[info]; ok {
++		return n
++	}
++
++	n := &Node{
++		Info:        info,
++		In:          make(EdgeMap),
++		Out:         make(EdgeMap),
++		LabelTags:   make(TagMap),
++		NumericTags: make(map[string]TagMap),
++	}
++	nm[info] = n
++	if info.Address == 0 && info.Lineno == 0 {
++		// This node represents the whole function, so point Function
++		// back to itself.
++		n.Function = n
++		return n
++	}
++	// Find a node that represents the whole function.
++	info.Address = 0
++	info.Lineno = 0
++	n.Function = nm.FindOrInsertNode(info, nil)
++	return n
++}
++
++// EdgeMap is used to represent the incoming/outgoing edges from a node.
++type EdgeMap map[*Node]*Edge
++
++// Edge contains any attributes to be represented about edges in a graph.
++type Edge struct {
++	Src, Dest *Node
++	// The summary weight of the edge
++	Weight, WeightDiv int64
++
++	// residual edges connect nodes that were connected through a
++	// separate node, which has been removed from the report.
++	Residual bool
++	// An inline edge represents a call that was inlined into the caller.
++	Inline bool
++}
++
++// WeightValue returns the weight value for this edge, normalizing if a
++// divisor is available.
++func (e *Edge) WeightValue() int64 {
++	if e.WeightDiv == 0 {
++		return e.Weight
++	}
++	return e.Weight / e.WeightDiv
++}
++
++// Tag represent sample annotations
++type Tag struct {
++	Name          string
++	Unit          string // Describe the value, "" for non-numeric tags
++	Value         int64
++	Flat, FlatDiv int64
++	Cum, CumDiv   int64
++}
++
++// FlatValue returns the exclusive value for this tag, computing the
++// mean if a divisor is available.
++func (t *Tag) FlatValue() int64 {
++	if t.FlatDiv == 0 {
++		return t.Flat
++	}
++	return t.Flat / t.FlatDiv
++}
++
++// CumValue returns the inclusive value for this tag, computing the
++// mean if a divisor is available.
++func (t *Tag) CumValue() int64 {
++	if t.CumDiv == 0 {
++		return t.Cum
++	}
++	return t.Cum / t.CumDiv
++}
++
++// TagMap is a collection of tags, classified by their name.
++type TagMap map[string]*Tag
++
++// SortTags sorts a slice of tags based on their weight.
++func SortTags(t []*Tag, flat bool) []*Tag {
++	ts := tags{t, flat}
++	sort.Sort(ts)
++	return ts.t
++}
++
++// New summarizes performance data from a profile into a graph.
++func New(prof *profile.Profile, o *Options) *Graph {
++	if o.CallTree {
++		return newTree(prof, o)
++	}
++	g, _ := newGraph(prof, o)
++	return g
++}
++
++// newGraph computes a graph from a profile. It returns the graph, and
++// a map from the profile location indices to the corresponding graph
++// nodes.
++func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
++	nodes, locationMap := CreateNodes(prof, o)
++	seenNode := make(map[*Node]bool)
++	seenEdge := make(map[nodePair]bool)
++	for _, sample := range prof.Sample {
++		var w, dw int64
++		w = o.SampleValue(sample.Value)
++		if o.SampleMeanDivisor != nil {
++			dw = o.SampleMeanDivisor(sample.Value)
++		}
++		if dw == 0 && w == 0 {
++			continue
++		}
++		for k := range seenNode {
++			delete(seenNode, k)
++		}
++		for k := range seenEdge {
++			delete(seenEdge, k)
++		}
++		var parent *Node
++		// A residual edge goes over one or more nodes that were not kept.
++		residual := false
++
++		labels := joinLabels(sample)
++		// Group the sample frames, based on a global map.
++		for i := len(sample.Location) - 1; i >= 0; i-- {
++			l := sample.Location[i]
++			locNodes := locationMap[l.ID]
++			for ni := len(locNodes) - 1; ni >= 0; ni-- {
++				n := locNodes[ni]
++				if n == nil {
++					residual = true
++					continue
++				}
++				// Add cum weight to all nodes in stack, avoiding double counting.
++				if _, ok := seenNode[n]; !ok {
++					seenNode[n] = true
++					n.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, false)
++				}
++				// Update edge weights for all edges in stack, avoiding double counting.
++				if _, ok := seenEdge[nodePair{n, parent}]; !ok && parent != nil && n != parent {
++					seenEdge[nodePair{n, parent}] = true
++					parent.AddToEdgeDiv(n, dw, w, residual, ni != len(locNodes)-1)
++				}
++				parent = n
++				residual = false
++			}
++		}
++		if parent != nil && !residual {
++			// Add flat weight to leaf node.
++			parent.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, true)
++		}
++	}
++
++	return selectNodesForGraph(nodes, o.DropNegative), locationMap
++}
++
++func selectNodesForGraph(nodes Nodes, dropNegative bool) *Graph {
++	// Collect nodes into a graph.
++	gNodes := make(Nodes, 0, len(nodes))
++	for _, n := range nodes {
++		if n == nil {
++			continue
++		}
++		if n.Cum == 0 && n.Flat == 0 {
++			continue
++		}
++		if dropNegative && isNegative(n) {
++			continue
++		}
++		gNodes = append(gNodes, n)
++	}
++	return &Graph{gNodes}
++}
++
++type nodePair struct {
++	src, dest *Node
++}
++
++func newTree(prof *profile.Profile, o *Options) (g *Graph) {
++	parentNodeMap := make(map[*Node]NodeMap, len(prof.Sample))
++	for _, sample := range prof.Sample {
++		var w, dw int64
++		w = o.SampleValue(sample.Value)
++		if o.SampleMeanDivisor != nil {
++			dw = o.SampleMeanDivisor(sample.Value)
++		}
++		if dw == 0 && w == 0 {
++			continue
++		}
++		var parent *Node
++		labels := joinLabels(sample)
++		// Group the sample frames, based on a per-node map.
++		for i := len(sample.Location) - 1; i >= 0; i-- {
++			l := sample.Location[i]
++			lines := l.Line
++			if len(lines) == 0 {
++				lines = []profile.Line{{}} // Create empty line to include location info.
++			}
++			for lidx := len(lines) - 1; lidx >= 0; lidx-- {
++				nodeMap := parentNodeMap[parent]
++				if nodeMap == nil {
++					nodeMap = make(NodeMap)
++					parentNodeMap[parent] = nodeMap
++				}
++				n := nodeMap.findOrInsertLine(l, lines[lidx], o)
++				if n == nil {
++					continue
++				}
++				n.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, false)
++				if parent != nil {
++					parent.AddToEdgeDiv(n, dw, w, false, lidx != len(lines)-1)
++				}
++				parent = n
++			}
++		}
++		if parent != nil {
++			parent.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, true)
++		}
++	}
++
++	nodes := make(Nodes, len(prof.Location))
++	for _, nm := range parentNodeMap {
++		nodes = append(nodes, nm.nodes()...)
++	}
++	return selectNodesForGraph(nodes, o.DropNegative)
++}
++
++func joinLabels(s *profile.Sample) string {
++	if len(s.Label) == 0 {
++		return ""
++	}
++
++	var labels []string
++	for key, vals := range s.Label {
++		for _, v := range vals {
++			labels = append(labels, key+":"+v)
++		}
++	}
++	sort.Strings(labels)
++	return strings.Join(labels, `\n`)
++}
++
++// isNegative returns true if the node is considered as "negative" for the
++// purposes of drop_negative.
++func isNegative(n *Node) bool {
++	switch {
++	case n.Flat < 0:
++		return true
++	case n.Flat == 0 && n.Cum < 0:
++		return true
++	default:
++		return false
++	}
++}
++
++// CreateNodes creates graph nodes for all locations in a profile. It
++// returns set of all nodes, plus a mapping of each location to the
++// set of corresponding nodes (one per location.Line).
++func CreateNodes(prof *profile.Profile, o *Options) (Nodes, map[uint64]Nodes) {
++	locations := make(map[uint64]Nodes, len(prof.Location))
++	nm := make(NodeMap, len(prof.Location))
++	for _, l := range prof.Location {
++		lines := l.Line
++		if len(lines) == 0 {
++			lines = []profile.Line{{}} // Create empty line to include location info.
++		}
++		nodes := make(Nodes, len(lines))
++		for ln := range lines {
++			nodes[ln] = nm.findOrInsertLine(l, lines[ln], o)
++		}
++		locations[l.ID] = nodes
++	}
++	return nm.nodes(), locations
++}
++
++func (nm NodeMap) nodes() Nodes {
++	nodes := make(Nodes, 0, len(nm))
++	for _, n := range nm {
++		nodes = append(nodes, n)
++	}
++	return nodes
++}
++
++func (nm NodeMap) findOrInsertLine(l *profile.Location, li profile.Line, o *Options) *Node {
++	var objfile string
++	if m := l.Mapping; m != nil && m.File != "" {
++		objfile = m.File
++	}
++
++	if ni := nodeInfo(l, li, objfile, o); ni != nil {
++		return nm.FindOrInsertNode(*ni, o.KeptNodes)
++	}
++	return nil
++}
++
++func nodeInfo(l *profile.Location, line profile.Line, objfile string, o *Options) *NodeInfo {
++	if line.Function == nil {
++		return &NodeInfo{Address: l.Address, Objfile: objfile}
++	}
++	ni := &NodeInfo{
++		Address: l.Address,
++		Lineno:  int(line.Line),
++		Name:    line.Function.Name,
++	}
++	if fname := line.Function.Filename; fname != "" {
++		ni.File = filepath.Clean(fname)
++	}
++	if o.OrigFnNames {
++		ni.OrigName = line.Function.SystemName
++	}
++	if o.ObjNames || (ni.Name == "" && ni.OrigName == "") {
++		ni.Objfile = objfile
++		ni.StartLine = int(line.Function.StartLine)
++	}
++	return ni
++}
++
++type tags struct {
++	t    []*Tag
++	flat bool
++}
++
++func (t tags) Len() int      { return len(t.t) }
++func (t tags) Swap(i, j int) { t.t[i], t.t[j] = t.t[j], t.t[i] }
++func (t tags) Less(i, j int) bool {
++	if !t.flat {
++		if t.t[i].Cum != t.t[j].Cum {
++			return abs64(t.t[i].Cum) > abs64(t.t[j].Cum)
++		}
++	}
++	if t.t[i].Flat != t.t[j].Flat {
++		return abs64(t.t[i].Flat) > abs64(t.t[j].Flat)
++	}
++	return t.t[i].Name < t.t[j].Name
++}
++
++// Sum adds the flat and cum values of a set of nodes.
++func (ns Nodes) Sum() (flat int64, cum int64) {
++	for _, n := range ns {
++		flat += n.Flat
++		cum += n.Cum
++	}
++	return
++}
++
++func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64, numUnit map[string][]string, format func(int64, string) string, flat bool) {
++	// Update sample value
++	if flat {
++		n.FlatDiv += dw
++		n.Flat += w
++	} else {
++		n.CumDiv += dw
++		n.Cum += w
++	}
++
++	// Add string tags
++	if labels != "" {
++		t := n.LabelTags.findOrAddTag(labels, "", 0)
++		if flat {
++			t.FlatDiv += dw
++			t.Flat += w
++		} else {
++			t.CumDiv += dw
++			t.Cum += w
++		}
++	}
++
++	numericTags := n.NumericTags[labels]
++	if numericTags == nil {
++		numericTags = TagMap{}
++		n.NumericTags[labels] = numericTags
++	}
++	// Add numeric tags
++	if format == nil {
++		format = defaultLabelFormat
++	}
++	for k, nvals := range numLabel {
++		units := numUnit[k]
++		for i, v := range nvals {
++			var t *Tag
++			if len(units) > 0 {
++				t = numericTags.findOrAddTag(format(v, units[i]), units[i], v)
++			} else {
++				t = numericTags.findOrAddTag(format(v, k), k, v)
++			}
++			if flat {
++				t.FlatDiv += dw
++				t.Flat += w
++			} else {
++				t.CumDiv += dw
++				t.Cum += w
++			}
++		}
++	}
++}
++
++func defaultLabelFormat(v int64, key string) string {
++	return strconv.FormatInt(v, 10)
++}
++
++func (m TagMap) findOrAddTag(label, unit string, value int64) *Tag {
++	l := m[label]
++	if l == nil {
++		l = &Tag{
++			Name:  label,
++			Unit:  unit,
++			Value: value,
++		}
++		m[label] = l
++	}
++	return l
++}
++
++// String returns a text representation of a graph, for debugging purposes.
++func (g *Graph) String() string {
++	var s []string
++
++	nodeIndex := make(map[*Node]int, len(g.Nodes))
++
++	for i, n := range g.Nodes {
++		nodeIndex[n] = i + 1
++	}
++
++	for i, n := range g.Nodes {
++		name := n.Info.PrintableName()
++		var in, out []int
++
++		for _, from := range n.In {
++			in = append(in, nodeIndex[from.Src])
++		}
++		for _, to := range n.Out {
++			out = append(out, nodeIndex[to.Dest])
++		}
++		s = append(s, fmt.Sprintf("%d: %s[flat=%d cum=%d] %x -> %v ", i+1, name, n.Flat, n.Cum, in, out))
++	}
++	return strings.Join(s, "\n")
++}
++
++// DiscardLowFrequencyNodes returns a set of the nodes at or over a
++// specific cum value cutoff.
++func (g *Graph) DiscardLowFrequencyNodes(nodeCutoff int64) NodeSet {
++	return makeNodeSet(g.Nodes, nodeCutoff)
++}
++
++// DiscardLowFrequencyNodePtrs returns a NodePtrSet of nodes at or over a
++// specific cum value cutoff.
++func (g *Graph) DiscardLowFrequencyNodePtrs(nodeCutoff int64) NodePtrSet {
++	cutNodes := getNodesAboveCumCutoff(g.Nodes, nodeCutoff)
++	kept := make(NodePtrSet, len(cutNodes))
++	for _, n := range cutNodes {
++		kept[n] = true
++	}
++	return kept
++}
++
++func makeNodeSet(nodes Nodes, nodeCutoff int64) NodeSet {
++	cutNodes := getNodesAboveCumCutoff(nodes, nodeCutoff)
++	kept := make(NodeSet, len(cutNodes))
++	for _, n := range cutNodes {
++		kept[n.Info] = true
++	}
++	return kept
++}
++
++// getNodesAboveCumCutoff returns all the nodes which have a Cum value greater
++// than or equal to cutoff.
++func getNodesAboveCumCutoff(nodes Nodes, nodeCutoff int64) Nodes {
++	cutoffNodes := make(Nodes, 0, len(nodes))
++	for _, n := range nodes {
++		if abs64(n.Cum) < nodeCutoff {
++			continue
++		}
++		cutoffNodes = append(cutoffNodes, n)
++	}
++	return cutoffNodes
++}
++
++// TrimLowFrequencyTags removes tags that have less than
++// the specified weight.
++func (g *Graph) TrimLowFrequencyTags(tagCutoff int64) {
++	// Remove nodes with value <= total*nodeFraction
++	for _, n := range g.Nodes {
++		n.LabelTags = trimLowFreqTags(n.LabelTags, tagCutoff)
++		for s, nt := range n.NumericTags {
++			n.NumericTags[s] = trimLowFreqTags(nt, tagCutoff)
++		}
++	}
++}
++
++func trimLowFreqTags(tags TagMap, minValue int64) TagMap {
++	kept := TagMap{}
++	for s, t := range tags {
++		if abs64(t.Flat) >= minValue || abs64(t.Cum) >= minValue {
++			kept[s] = t
++		}
++	}
++	return kept
++}
++
++// TrimLowFrequencyEdges removes edges that have less than
++// the specified weight. Returns the number of edges removed
++func (g *Graph) TrimLowFrequencyEdges(edgeCutoff int64) int {
++	var droppedEdges int
++	for _, n := range g.Nodes {
++		for src, e := range n.In {
++			if abs64(e.Weight) < edgeCutoff {
++				delete(n.In, src)
++				delete(src.Out, n)
++				droppedEdges++
++			}
++		}
++	}
++	return droppedEdges
++}
++
++// SortNodes sorts the nodes in a graph based on a specific heuristic.
++func (g *Graph) SortNodes(cum bool, visualMode bool) {
++	// Sort nodes based on requested mode
++	switch {
++	case visualMode:
++		// Specialized sort to produce a more visually-interesting graph
++		g.Nodes.Sort(EntropyOrder)
++	case cum:
++		g.Nodes.Sort(CumNameOrder)
++	default:
++		g.Nodes.Sort(FlatNameOrder)
++	}
++}
++
++// SelectTopNodePtrs returns a set of the top maxNodes *Node in a graph.
++func (g *Graph) SelectTopNodePtrs(maxNodes int, visualMode bool) NodePtrSet {
++	set := make(NodePtrSet)
++	for _, node := range g.selectTopNodes(maxNodes, visualMode) {
++		set[node] = true
++	}
++	return set
++}
++
++// SelectTopNodes returns a set of the top maxNodes nodes in a graph.
++func (g *Graph) SelectTopNodes(maxNodes int, visualMode bool) NodeSet {
++	return makeNodeSet(g.selectTopNodes(maxNodes, visualMode), 0)
++}
++
++// selectTopNodes returns a slice of the top maxNodes nodes in a graph.
++func (g *Graph) selectTopNodes(maxNodes int, visualMode bool) Nodes {
++	if maxNodes > 0 {
++		if visualMode {
++			var count int
++			// If generating a visual graph, count tags as nodes. Update
++			// maxNodes to account for them.
++			for i, n := range g.Nodes {
++				tags := countTags(n)
++				if tags > maxNodelets {
++					tags = maxNodelets
++				}
++				if count += tags + 1; count >= maxNodes {
++					maxNodes = i + 1
++					break
++				}
++			}
++		}
++	}
++	if maxNodes > len(g.Nodes) {
++		maxNodes = len(g.Nodes)
++	}
++	return g.Nodes[:maxNodes]
++}
++
++// countTags counts the tags with flat count. This underestimates the
++// number of tags being displayed, but in practice is close enough.
++func countTags(n *Node) int {
++	count := 0
++	for _, e := range n.LabelTags {
++		if e.Flat != 0 {
++			count++
++		}
++	}
++	for _, t := range n.NumericTags {
++		for _, e := range t {
++			if e.Flat != 0 {
++				count++
++			}
++		}
++	}
++	return count
++}
++
++// nodeSorter is a mechanism used to allow a report to be sorted
++// in different ways.
++type nodeSorter struct {
++	rs   Nodes
++	less func(l, r *Node) bool
++}
++
++func (s nodeSorter) Len() int           { return len(s.rs) }
++func (s nodeSorter) Swap(i, j int)      { s.rs[i], s.rs[j] = s.rs[j], s.rs[i] }
++func (s nodeSorter) Less(i, j int) bool { return s.less(s.rs[i], s.rs[j]) }
++
++// Sort reorders a slice of nodes based on the specified ordering
++// criteria. The result is sorted in decreasing order for (absolute)
++// numeric quantities, alphabetically for text, and increasing for
++// addresses.
++func (ns Nodes) Sort(o NodeOrder) error {
++	var s nodeSorter
++
++	switch o {
++	case FlatNameOrder:
++		s = nodeSorter{ns,
++			func(l, r *Node) bool {
++				if iv, jv := abs64(l.Flat), abs64(r.Flat); iv != jv {
++					return iv > jv
++				}
++				if iv, jv := l.Info.PrintableName(), r.Info.PrintableName(); iv != jv {
++					return iv < jv
++				}
++				if iv, jv := abs64(l.Cum), abs64(r.Cum); iv != jv {
++					return iv > jv
++				}
++				return compareNodes(l, r)
++			},
++		}
++	case FlatCumNameOrder:
++		s = nodeSorter{ns,
++			func(l, r *Node) bool {
++				if iv, jv := abs64(l.Flat), abs64(r.Flat); iv != jv {
++					return iv > jv
++				}
++				if iv, jv := abs64(l.Cum), abs64(r.Cum); iv != jv {
++					return iv > jv
++				}
++				if iv, jv := l.Info.PrintableName(), r.Info.PrintableName(); iv != jv {
++					return iv < jv
++				}
++				return compareNodes(l, r)
++			},
++		}
++	case NameOrder:
++		s = nodeSorter{ns,
++			func(l, r *Node) bool {
++				if iv, jv := l.Info.Name, r.Info.Name; iv != jv {
++					return iv < jv
++				}
++				return compareNodes(l, r)
++			},
++		}
++	case FileOrder:
++		s = nodeSorter{ns,
++			func(l, r *Node) bool {
++				if iv, jv := l.Info.File, r.Info.File; iv != jv {
++					return iv < jv
++				}
++				if iv, jv := l.Info.StartLine, r.Info.StartLine; iv != jv {
++					return iv < jv
++				}
++				return compareNodes(l, r)
++			},
++		}
++	case AddressOrder:
++		s = nodeSorter{ns,
++			func(l, r *Node) bool {
++				if iv, jv := l.Info.Address, r.Info.Address; iv != jv {
++					return iv < jv
++				}
++				return compareNodes(l, r)
++			},
++		}
++	case CumNameOrder, EntropyOrder:
++		// Hold scoring for score-based ordering
++		var score map[*Node]int64
++		scoreOrder := func(l, r *Node) bool {
++			if iv, jv := abs64(score[l]), abs64(score[r]); iv != jv {
++				return iv > jv
++			}
++			if iv, jv := l.Info.PrintableName(), r.Info.PrintableName(); iv != jv {
++				return iv < jv
++			}
++			if iv, jv := abs64(l.Flat), abs64(r.Flat); iv != jv {
++				return iv > jv
++			}
++			return compareNodes(l, r)
++		}
++
++		switch o {
++		case CumNameOrder:
++			score = make(map[*Node]int64, len(ns))
++			for _, n := range ns {
++				score[n] = n.Cum
++			}
++			s = nodeSorter{ns, scoreOrder}
++		case EntropyOrder:
++			score = make(map[*Node]int64, len(ns))
++			for _, n := range ns {
++				score[n] = entropyScore(n)
++			}
++			s = nodeSorter{ns, scoreOrder}
++		}
++	default:
++		return fmt.Errorf("report: unrecognized sort ordering: %d", o)
++	}
++	sort.Sort(s)
++	return nil
++}
++
++// compareNodes compares two nodes to provide a deterministic ordering
++// between them. Two nodes cannot have the same Node.Info value.
++func compareNodes(l, r *Node) bool {
++	return fmt.Sprint(l.Info) < fmt.Sprint(r.Info)
++}
++
++// entropyScore computes a score for a node representing how important
++// it is to include this node on a graph visualization. It is used to
++// sort the nodes and select which ones to display if we have more
++// nodes than desired in the graph. This number is computed by looking
++// at the flat and cum weights of the node and the incoming/outgoing
++// edges. The fundamental idea is to penalize nodes that have a simple
++// fallthrough from their incoming to the outgoing edge.
++func entropyScore(n *Node) int64 {
++	score := float64(0)
++
++	if len(n.In) == 0 {
++		score++ // Favor entry nodes
++	} else {
++		score += edgeEntropyScore(n, n.In, 0)
++	}
++
++	if len(n.Out) == 0 {
++		score++ // Favor leaf nodes
++	} else {
++		score += edgeEntropyScore(n, n.Out, n.Flat)
++	}
++
++	return int64(score*float64(n.Cum)) + n.Flat
++}
++
++// edgeEntropyScore computes the entropy value for a set of edges
++// coming in or out of a node. Entropy (as defined in information
++// theory) refers to the amount of information encoded by the set of
++// edges. A set of edges that have a more interesting distribution of
++// samples gets a higher score.
++func edgeEntropyScore(n *Node, edges EdgeMap, self int64) float64 {
++	score := float64(0)
++	total := self
++	for _, e := range edges {
++		if e.Weight > 0 {
++			total += abs64(e.Weight)
++		}
++	}
++	if total != 0 {
++		for _, e := range edges {
++			frac := float64(abs64(e.Weight)) / float64(total)
++			score += -frac * math.Log2(frac)
++		}
++		if self > 0 {
++			frac := float64(abs64(self)) / float64(total)
++			score += -frac * math.Log2(frac)
++		}
++	}
++	return score
++}
++
++// NodeOrder sets the ordering for a Sort operation
++type NodeOrder int
++
++// Sorting options for node sort.
++const (
++	FlatNameOrder NodeOrder = iota
++	FlatCumNameOrder
++	CumNameOrder
++	NameOrder
++	FileOrder
++	AddressOrder
++	EntropyOrder
++)
++
++// Sort returns a slice of the edges in the map, in a consistent
++// order. The sort order is first based on the edge weight
++// (higher-to-lower) and then by the node names to avoid flakiness.
++func (e EdgeMap) Sort() []*Edge {
++	el := make(edgeList, 0, len(e))
++	for _, w := range e {
++		el = append(el, w)
++	}
++
++	sort.Sort(el)
++	return el
++}
++
++// Sum returns the total weight for a set of nodes.
++func (e EdgeMap) Sum() int64 {
++	var ret int64
++	for _, edge := range e {
++		ret += edge.Weight
++	}
++	return ret
++}
++
++type edgeList []*Edge
++
++func (el edgeList) Len() int {
++	return len(el)
++}
++
++func (el edgeList) Less(i, j int) bool {
++	if el[i].Weight != el[j].Weight {
++		return abs64(el[i].Weight) > abs64(el[j].Weight)
++	}
++
++	from1 := el[i].Src.Info.PrintableName()
++	from2 := el[j].Src.Info.PrintableName()
++	if from1 != from2 {
++		return from1 < from2
++	}
++
++	to1 := el[i].Dest.Info.PrintableName()
++	to2 := el[j].Dest.Info.PrintableName()
++
++	return to1 < to2
++}
++
++func (el edgeList) Swap(i, j int) {
++	el[i], el[j] = el[j], el[i]
++}
++
++func abs64(i int64) int64 {
++	if i < 0 {
++		return -i
++	}
++	return i
++}
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+new file mode 100644
+index 0000000000..98238823f7
+--- /dev/null
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -0,0 +1,480 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// WORK IN PROGRESS
++
++package pgo
++
++import (
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"fmt"
++	"internal/profile"
++	"log"
++	"os"
++	"strconv"
++	"strings"
++)
++
++// IRGraph is the key datastrcture that is built from profile. It is essentially a call graph with nodes pointing to IRs of functions and edges carrying weights and callsite information. The graph is bidirectional that helps in removing nodes efficiently.
++type IRGraph struct {
++	// Nodes of the graph
++	IRNodes  map[string]*IRNode
++	OutEdges IREdgeMap
++	InEdges  IREdgeMap
++}
++
++// IRNode represents a node in the IRGraph.
++type IRNode struct {
++	// Pointer to the IR of the Function represented by this node.
++	AST *ir.Func
++	// Flat weight of the IRNode, obtained from profile.
++	Flat int64
++	// Cumulative weight of the IRNode.
++	Cum int64
++}
++
++// IREdgeMap maps an IRNode to its successors.
++type IREdgeMap map[*IRNode][]*IREdge
++
++// IREdge represents a call edge in the IRGraph with source, destination, weight, callsite, and line number information.
++type IREdge struct {
++	// Source and destination of the edge in IRNode.
++	Src, Dst *IRNode
++	Weight   int64
++	CallSite int
++}
++
++// NodeMapKey represents a hash key to identify unique call-edges in profile and in IR. Used for deduplication of call edges found in profile.
++type NodeMapKey struct {
++	CallerName string
++	CalleeName string
++	CallSite   int
++}
++
++// Weights capture both node weight and edge weight.
++type Weights struct {
++	NFlat   int64
++	NCum    int64
++	EWeight int64
++}
++
++// CallSiteInfo captures call-site information and its caller/callee.
++type CallSiteInfo struct {
++	Line   int
++	Caller *ir.Func
++	Callee *ir.Func
++}
++
++var (
++	// Aggregated NodeWeights and EdgeWeights across profiles. This helps us determine the percentage threshold for hot/cold partitioning.
++	GlobalTotalNodeWeight = int64(0)
++	GlobalTotalEdgeWeight = int64(0)
++
++	// Global node and their aggregated weight information.
++	GlobalNodeMap = make(map[NodeMapKey]*Weights)
++
++	// WeightedCG represents the IRGraph built from profile, which we will update as part of inlining.
++	WeightedCG *IRGraph
++
++	// Original profile-graph.
++	ProfileGraph *Graph
++
++	// Per-caller data structure to track the list of hot call sites. This gets rewritten every caller leaving it to GC for cleanup.
++	ListOfHotCallSites = make(map[CallSiteInfo]struct{})
++)
++
++// BuildProfileGraph generates a profile-graph from the profile.
++func BuildProfileGraph(profileFile string) {
++
++	// if possible, we should cache the profile-graph.
++	if ProfileGraph != nil {
++		return
++	}
++
++	// open the profile file.
++	f, err := os.Open(profileFile)
++	if err != nil {
++		log.Fatal("failed to open file " + profileFile)
++		return
++	}
++	defer f.Close()
++	p, err := profile.Parse(f)
++	if err != nil {
++		log.Fatal("failed to Parse profile file.")
++		return
++	}
++	// Build the options.
++	opt := &Options{
++		CallTree:    false,
++		SampleValue: func(v []int64) int64 { return v[1] },
++	}
++	// Build the graph using profile package.
++	ProfileGraph = New(p, opt)
++
++	// Build various global maps from profile.
++	preprocessProfileGraph()
++
++}
++
++// BuildWeightedCallGraph generates a weighted callgraph from the profile for the current package.
++func BuildWeightedCallGraph() {
++
++	// Bail if there is no profile-graph available.
++	if ProfileGraph == nil {
++		return
++	}
++
++	// Create package-level call graph with weights from profile and IR.
++	WeightedCG = createIRGraph()
++}
++
++// ConvertLine2Int converts ir.Line string to integer.
++func ConvertLine2Int(line string) int {
++	splits := strings.Split(line, ":")
++	cs, _ := strconv.ParseInt(splits[len(splits)-2], 0, 64)
++	return int(cs)
++}
++
++// preprocessProfileGraph builds various maps from the profile-graph. It builds GlobalNodeMap and other information based on the name and callsite to compute node and edge weights which will be used later on to create edges for WeightedCG.
++func preprocessProfileGraph() {
++	nFlat := make(map[string]int64)
++	nCum := make(map[string]int64)
++
++	// Accummulate weights for the same node.
++	for _, n := range ProfileGraph.Nodes {
++		canonicalName := n.Info.Name
++		nFlat[canonicalName] += n.FlatValue()
++		nCum[canonicalName] += n.CumValue()
++	}
++
++	// Process ProfileGraph and build various node and edge maps which will be consumed by AST walk.
++	for _, n := range ProfileGraph.Nodes {
++		GlobalTotalNodeWeight += n.FlatValue()
++		canonicalName := n.Info.Name
++		// Create the key to the NodeMapKey.
++		nodeinfo := NodeMapKey{
++			CallerName: canonicalName,
++			CallSite:   n.Info.Lineno,
++		}
++
++		for _, e := range n.Out {
++			GlobalTotalEdgeWeight += e.WeightValue()
++			nodeinfo.CalleeName = e.Dest.Info.Name
++			if w, ok := GlobalNodeMap[nodeinfo]; ok {
++				w.EWeight += e.WeightValue()
++			} else {
++				weights := new(Weights)
++				weights.NFlat = nFlat[canonicalName]
++				weights.NCum = nCum[canonicalName]
++				weights.EWeight = e.WeightValue()
++				GlobalNodeMap[nodeinfo] = weights
++			}
++		}
++	}
++}
++
++// createIRGraph builds the IRGraph by visting all the ir.Func in decl list of a package.
++func createIRGraph() *IRGraph {
++	var g IRGraph
++	// Bottomup walk over the function to create IRGraph.
++	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
++		for _, n := range list {
++			g.Visit(n, recursive)
++		}
++	})
++	return &g
++}
++
++// Visit traverses the body of each ir.Func and use GlobalNodeMap to determine if we need to add an edge from ir.Func and any node in the ir.Func body.
++func (g *IRGraph) Visit(fn *ir.Func, recursive bool) {
++	if g.IRNodes == nil {
++		g.IRNodes = make(map[string]*IRNode)
++	}
++	if g.OutEdges == nil {
++		g.OutEdges = make(map[*IRNode][]*IREdge)
++	}
++	if g.InEdges == nil {
++		g.InEdges = make(map[*IRNode][]*IREdge)
++	}
++	name := ir.PkgFuncName(fn)
++	node := new(IRNode)
++	node.AST = fn
++	if g.IRNodes[name] == nil {
++		g.IRNodes[name] = node
++	}
++	// Create the key for the NodeMapKey.
++	nodeinfo := NodeMapKey{
++		CallerName: name,
++		CalleeName: "",
++		CallSite:   -1,
++	}
++	// If the node exists, then update its node weight.
++	if weights, ok := GlobalNodeMap[nodeinfo]; ok {
++		g.IRNodes[name].Flat = weights.NFlat
++		g.IRNodes[name].Cum = weights.NCum
++	}
++
++	// Recursively walk over the body of the function to create IRGraph edges.
++	g.createIRGraphEdge(fn, g.IRNodes[name], name)
++}
++
++// addEdge adds an edge between caller and new node that points to `callee` based on the profile-graph and GlobalNodeMap.
++func (g *IRGraph) addEdge(caller *IRNode, callee *ir.Func, n *ir.Node, callername string, line int) {
++
++	// Create an IRNode for the callee.
++	calleenode := new(IRNode)
++	calleenode.AST = callee
++	calleename := ir.PkgFuncName(callee)
++
++	// Create key for NodeMapKey.
++	nodeinfo := NodeMapKey{
++		CallerName: callername,
++		CalleeName: calleename,
++		CallSite:   line,
++	}
++
++	// Create the callee node with node weight.
++	if g.IRNodes[calleename] == nil {
++		g.IRNodes[calleename] = calleenode
++		nodeinfo2 := NodeMapKey{
++			CallerName: calleename,
++			CalleeName: "",
++			CallSite:   -1,
++		}
++		if weights, ok := GlobalNodeMap[nodeinfo2]; ok {
++			g.IRNodes[calleename].Flat = weights.NFlat
++			g.IRNodes[calleename].Cum = weights.NCum
++		}
++	}
++
++	if weights, ok := GlobalNodeMap[nodeinfo]; ok {
++		caller.Flat = weights.NFlat
++		caller.Cum = weights.NCum
++
++		// Add edge in the IRGraph from caller to callee.
++		info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: weights.EWeight, CallSite: line}
++		g.OutEdges[caller] = append(g.OutEdges[caller], info)
++		g.InEdges[g.IRNodes[calleename]] = append(g.InEdges[g.IRNodes[calleename]], info)
++	} else {
++		nodeinfo.CalleeName = ""
++		nodeinfo.CallSite = -1
++		if weights, ok := GlobalNodeMap[nodeinfo]; ok {
++			caller.Flat = weights.NFlat
++			caller.Cum = weights.NCum
++			info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: 0, CallSite: line}
++			g.OutEdges[caller] = append(g.OutEdges[caller], info)
++			g.InEdges[g.IRNodes[calleename]] = append(g.InEdges[g.IRNodes[calleename]], info)
++		} else {
++			info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: 0, CallSite: line}
++			g.OutEdges[caller] = append(g.OutEdges[caller], info)
++			g.InEdges[g.IRNodes[calleename]] = append(g.InEdges[g.IRNodes[calleename]], info)
++		}
++	}
++}
++
++// createIRGraphEdge traverses the nodes in the body of ir.Func and add edges between callernode which points to the ir.Func and the nodes in the body.
++func (g *IRGraph) createIRGraphEdge(fn *ir.Func, callernode *IRNode, name string) {
++	var doNode func(ir.Node) bool
++	doNode = func(n ir.Node) bool {
++		switch n.Op() {
++		default:
++			ir.DoChildren(n, doNode)
++		case ir.OCALLFUNC:
++			call := n.(*ir.CallExpr)
++			line := ConvertLine2Int(ir.Line(n))
++			// Find the callee function from the call site and add the edge.
++			f := inlCallee(call.X)
++			if f != nil {
++				g.addEdge(callernode, f, &n, name, line)
++			}
++		case ir.OCALLMETH:
++			call := n.(*ir.CallExpr)
++			// Find the callee method from the call site and add the edge.
++			fn2 := ir.MethodExprName(call.X).Func
++			line := ConvertLine2Int(ir.Line(n))
++			g.addEdge(callernode, fn2, &n, name, line)
++		}
++		return false
++	}
++	doNode(fn)
++}
++
++// WeightInPercentage converts profile weights to a percentage.
++func WeightInPercentage(value int64, total int64) float64 {
++	var ratio float64
++	if total != 0 {
++		ratio = (float64(value) / float64(total)) * 100
++	}
++	return ratio
++}
++
++// PrintWeightedCallGraphDOT prints IRGraph in DOT format.
++func PrintWeightedCallGraphDOT(nodeThreshold float64, edgeThreshold float64) {
++	fmt.Printf("\ndigraph G {\n")
++	fmt.Printf("forcelabels=true;\n")
++
++	// List of functions in this package.
++	funcs := make(map[string]struct{})
++	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
++		for _, f := range list {
++			name := ir.PkgFuncName(f)
++			funcs[name] = struct{}{}
++		}
++	})
++
++	// Determine nodes of DOT.
++	nodes := make(map[string]*ir.Func)
++	for name, _ := range funcs {
++		if n, ok := WeightedCG.IRNodes[name]; ok {
++			for _, e := range WeightedCG.OutEdges[n] {
++				if _, ok := nodes[ir.PkgFuncName(e.Src.AST)]; !ok {
++					nodes[ir.PkgFuncName(e.Src.AST)] = e.Src.AST
++				}
++				if _, ok := nodes[ir.PkgFuncName(e.Dst.AST)]; !ok {
++					nodes[ir.PkgFuncName(e.Dst.AST)] = e.Dst.AST
++				}
++			}
++			if _, ok := nodes[ir.PkgFuncName(n.AST)]; !ok {
++				nodes[ir.PkgFuncName(n.AST)] = n.AST
++			}
++		}
++	}
++
++	// Print nodes.
++	for name, ast := range nodes {
++		if n, ok := WeightedCG.IRNodes[name]; ok {
++			nodeweight := WeightInPercentage(n.Flat, GlobalTotalNodeWeight)
++			color := "black"
++			if nodeweight > nodeThreshold {
++				color = "red"
++			}
++			if ast.Inl != nil {
++				fmt.Printf("\"%v\" [color=%v,label=\"%v,freq=%.2f,inl_cost=%d\"];\n", ir.PkgFuncName(ast), color, ir.PkgFuncName(ast), nodeweight, ast.Inl.Cost)
++			} else {
++				fmt.Printf("\"%v\" [color=%v, label=\"%v,freq=%.2f\"];\n", ir.PkgFuncName(ast), color, ir.PkgFuncName(ast), nodeweight)
++			}
++		}
++	}
++	// Print edges.
++	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
++		for _, f := range list {
++			name := ir.PkgFuncName(f)
++			if n, ok := WeightedCG.IRNodes[name]; ok {
++				for _, e := range WeightedCG.OutEdges[n] {
++					edgepercent := WeightInPercentage(e.Weight, GlobalTotalEdgeWeight)
++					if edgepercent > edgeThreshold {
++						fmt.Printf("edge [color=red, style=solid];\n")
++					} else {
++						fmt.Printf("edge [color=black, style=solid];\n")
++					}
++
++					fmt.Printf("\"%v\" -> \"%v\" [label=\"%.2f\"];\n", ir.PkgFuncName(n.AST), ir.PkgFuncName(e.Dst.AST), edgepercent)
++				}
++			}
++		}
++	})
++	fmt.Printf("}\n")
++}
++
++// redirectEdges deletes the cur node out-edges and redirect them so now these edges are the parent node out-edges.
++func redirectEdges(g *IRGraph, parent *IRNode, cur *IRNode) {
++	for _, outEdge := range g.OutEdges[cur] {
++		outEdge.Src = parent
++		g.OutEdges[parent] = append(g.OutEdges[parent], outEdge)
++	}
++	delete(g.OutEdges, cur)
++}
++
++// RedirectEdges deletes and redirects out-edges from node cur based on inlining information via inlinedCallSites.
++func RedirectEdges(cur *IRNode, inlinedCallSites map[CallSiteInfo]struct{}) {
++	g := WeightedCG
++	for i, outEdge := range g.OutEdges[cur] {
++		if _, found := inlinedCallSites[CallSiteInfo{Line: outEdge.CallSite, Caller: cur.AST}]; !found {
++			for _, InEdge := range g.InEdges[cur] {
++				if _, ok := inlinedCallSites[CallSiteInfo{Line: InEdge.CallSite, Caller: InEdge.Src.AST}]; ok {
++					weight := calculateweight(g, InEdge.Src, cur)
++					redirectEdge(g, InEdge.Src, cur, outEdge, weight, i)
++				}
++			}
++		} else {
++			remove(g, cur, i, outEdge.Dst.AST.Nname)
++		}
++	}
++	removeall(g, cur)
++}
++
++// calculateweight calculates the weight of the new redirected edge.
++func calculateweight(g *IRGraph, parent *IRNode, cur *IRNode) int64 {
++	sum := int64(0)
++	pw := int64(0)
++	for _, InEdge := range g.InEdges[cur] {
++		sum = sum + InEdge.Weight
++		if InEdge.Src == parent {
++			pw = InEdge.Weight
++		}
++	}
++	weight := int64(0)
++	if sum != 0 {
++		weight = pw / sum
++	} else {
++		weight = pw
++	}
++	return weight
++}
++
++// redirectEdge deletes the cur-node's out-edges and redirect them so now these edges are the parent node out-edges.
++func redirectEdge(g *IRGraph, parent *IRNode, cur *IRNode, outEdge *IREdge, weight int64, idx int) {
++	outEdge.Src = parent
++	outEdge.Weight = weight * outEdge.Weight
++	g.OutEdges[parent] = append(g.OutEdges[parent], outEdge)
++	remove(g, cur, idx, outEdge.Dst.AST.Nname)
++}
++
++// remove deletes the cur-node's out-edges at index idx.
++func remove(g *IRGraph, cur *IRNode, idx int, name *ir.Name) {
++	if len(g.OutEdges[cur]) >= 2 {
++		g.OutEdges[cur][idx] = &IREdge{CallSite: -1}
++	} else {
++		delete(g.OutEdges, cur)
++	}
++}
++
++// removeall deletes all cur-node's out-edges that marked to be removed .
++func removeall(g *IRGraph, cur *IRNode) {
++	for i := len(g.OutEdges[cur]) - 1; i >= 0; i-- {
++		if g.OutEdges[cur][i].CallSite == -1 {
++			g.OutEdges[cur][i] = g.OutEdges[cur][len(g.OutEdges[cur])-1]
++			g.OutEdges[cur] = g.OutEdges[cur][:len(g.OutEdges[cur])-1]
++		}
++	}
++}
++
++// inlCallee is same as the implementation for inl.go with one change. The change is that we do not invoke CanInline on a closure.
++func inlCallee(fn ir.Node) *ir.Func {
++	fn = ir.StaticValue(fn)
++	switch fn.Op() {
++	case ir.OMETHEXPR:
++		fn := fn.(*ir.SelectorExpr)
++		n := ir.MethodExprName(fn)
++		// Check that receiver type matches fn.X.
++		// TODO(mdempsky): Handle implicit dereference
++		// of pointer receiver argument?
++		if n == nil || !types.Identical(n.Type().Recv().Type, fn.X.Type()) {
++			return nil
++		}
++		return n.Func
++	case ir.ONAME:
++		fn := fn.(*ir.Name)
++		if fn.Class == ir.PFUNC {
++			return fn.Func
++		}
++	case ir.OCLOSURE:
++		fn := fn.(*ir.ClosureExpr)
++		c := fn.Func
++		return c
++	}
++	return nil
++}
+diff --git a/src/cmd/compile/internal/test/pgo_inl_test.go b/src/cmd/compile/internal/test/pgo_inl_test.go
+new file mode 100644
+index 0000000000..eeeeae933b
+--- /dev/null
++++ b/src/cmd/compile/internal/test/pgo_inl_test.go
+@@ -0,0 +1,148 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test
++
++import (
++	"bufio"
++	"fmt"
++	"internal/testenv"
++	"io"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"regexp"
++	"strings"
++	"testing"
++)
++
++// TestPGOIntendedInlining tests that specific functions are inlined.
++func TestPGOIntendedInlining(t *testing.T) {
++	testenv.MustHaveGoRun(t)
++	t.Parallel()
++
++	// Make a temporary directory to work in.
++	tmpdir, err := ioutil.TempDir("", "TestCode")
++	if err != nil {
++		t.Fatalf("Failed to create temporary directory: %v", err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	want := map[string][]string{
++		"cmd/compile/internal/test/testdata/pgo/inline": {
++			"(*BS).NS",
++		},
++	}
++
++	// The functions which are not expected to be inlined are as follows.
++	wantNot := map[string][]string{
++		"cmd/compile/internal/test/testdata/pgo/inline": {
++			// The calling edge main->A is hot and the cost of A is large than
++			// inlineHotCalleeMaxBudget.
++			"A",
++			// The calling edge BenchmarkA" -> benchmarkB is cold
++			// and the cost of A is large than inlineMaxBudget.
++			"benchmarkB",
++		},
++	}
++
++	must := map[string]bool{
++		"(*BS).NS": true,
++	}
++
++	notInlinedReason := make(map[string]string)
++	pkgs := make([]string, 0, len(want))
++	for pname, fnames := range want {
++		pkgs = append(pkgs, pname)
++		for _, fname := range fnames {
++			fullName := pname + "." + fname
++			if _, ok := notInlinedReason[fullName]; ok {
++				t.Errorf("duplicate func: %s", fullName)
++			}
++			notInlinedReason[fullName] = "unknown reason"
++		}
++	}
++
++	// If the compiler emit "cannot inline for function A", the entry A
++	// in expectedNotInlinedList will be removed.
++	expectedNotInlinedList := make(map[string]struct{})
++	for pname, fnames := range wantNot {
++		for _, fname := range fnames {
++			fullName := pname + "." + fname
++			expectedNotInlinedList[fullName] = struct{}{}
++		}
++	}
++
++	// go test -bench=. -cpuprofile testdata/pgo/inline/inline_hot.pprof cmd/compile/internal/test/testdata/pgo/inline
++	curdir, err1 := os.Getwd()
++	if err1 != nil {
++		t.Fatal(err1)
++	}
++	gcflag_option := "-gcflags=-m -m -pgoprofile %s/testdata/pgo/inline/inline_hot.pprof"
++	gcflag := fmt.Sprintf(gcflag_option, curdir)
++	args := append([]string{"test", "-run=nope", gcflag}, pkgs...)
++	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), args...))
++
++	pr, pw := io.Pipe()
++	cmd.Stdout = pw
++	cmd.Stderr = pw
++	cmdErr := make(chan error, 1)
++	go func() {
++		cmdErr <- cmd.Run()
++		pw.Close()
++	}()
++	scanner := bufio.NewScanner(pr)
++	curPkg := ""
++	canInline := regexp.MustCompile(`: can inline ([^ ]*)`)
++	haveInlined := regexp.MustCompile(`: inlining call to ([^ ]*)`)
++	cannotInline := regexp.MustCompile(`: cannot inline ([^ ]*): (.*)`)
++	for scanner.Scan() {
++		line := scanner.Text()
++		if strings.HasPrefix(line, "# ") {
++			curPkg = line[2:]
++			splits := strings.Split(curPkg, " ")
++			curPkg = splits[0]
++			continue
++		}
++		if m := haveInlined.FindStringSubmatch(line); m != nil {
++			fname := m[1]
++			delete(notInlinedReason, curPkg+"."+fname)
++			continue
++		}
++		if m := canInline.FindStringSubmatch(line); m != nil {
++			fname := m[1]
++			fullname := curPkg + "." + fname
++			// If function must be inlined somewhere, being inlinable is not enough
++			if _, ok := must[fullname]; !ok {
++				delete(notInlinedReason, fullname)
++				continue
++			}
++		}
++		if m := cannotInline.FindStringSubmatch(line); m != nil {
++			fname, reason := m[1], m[2]
++			fullName := curPkg + "." + fname
++			if _, ok := notInlinedReason[fullName]; ok {
++				// cmd/compile gave us a reason why
++				notInlinedReason[fullName] = reason
++			}
++			delete(expectedNotInlinedList, fullName)
++			continue
++		}
++	}
++	if err := <-cmdErr; err != nil {
++		t.Fatal(err)
++	}
++	if err := scanner.Err(); err != nil {
++		t.Fatal(err)
++	}
++	for fullName, reason := range notInlinedReason {
++		t.Errorf("%s was not inlined: %s", fullName, reason)
++	}
++
++	// If the list expectedNotInlinedList is not empty, it indicates
++	// the functions in the expectedNotInlinedList are marked with caninline.
++	for fullName, _ := range expectedNotInlinedList {
++		t.Errorf("%s was expected not inlined", fullName)
++	}
++}
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot.go b/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot.go
+new file mode 100644
+index 0000000000..c1d2a53983
+--- /dev/null
++++ b/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot.go
+@@ -0,0 +1,86 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// WARNING: Please avoid updating this file. If this file needs to be updated, then a new inline_hot.pprof file should be generated via "go test -bench=. -cpuprofile testdata/pgo/inline/inline_hot.pprof cmd/compile/internal/test/testdata/pgo/inline".
++package main
++
++import (
++	"time"
++)
++
++type BS struct {
++	length uint
++	s      []uint64
++}
++
++const wSize = uint(64)
++const lWSize = uint(6)
++
++func D(i uint) int {
++	return int((i + (wSize - 1)) >> lWSize)
++}
++
++func N(length uint) (bs *BS) {
++	bs = &BS{
++		length,
++		make([]uint64, D(length)),
++	}
++
++	return bs
++}
++
++func (b *BS) S(i uint) *BS {
++	b.s[i>>lWSize] |= 1 << (i & (wSize - 1))
++	return b
++}
++
++var jn = [...]byte{
++	0, 1, 56, 2, 57, 49, 28, 3, 61, 58, 42, 50, 38, 29, 17, 4,
++	62, 47, 59, 36, 45, 43, 51, 22, 53, 39, 33, 30, 24, 18, 12, 5,
++	63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11,
++	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
++}
++
++func T(v uint64) uint {
++	return uint(jn[((v&-v)*0x03f79d71b4ca8b09)>>58])
++}
++
++func (b *BS) NS(i uint) (uint, bool) {
++	x := int(i >> lWSize)
++	if x >= len(b.s) {
++		return 0, false
++	}
++	w := b.s[x]
++	w = w >> (i & (wSize - 1))
++	if w != 0 {
++		return i + T(w), true
++	}
++	x = x + 1
++	for x < len(b.s) {
++		if b.s[x] != 0 {
++			return uint(x)*wSize + T(b.s[x]), true
++		}
++		x = x + 1
++
++	}
++	return 0, false
++}
++
++func A() {
++	s := N(100000)
++	for i := 0; i < 1000; i += 30 {
++		s.S(uint(i))
++	}
++	for j := 0; j < 1000; j++ {
++		c := uint(0)
++		for i, e := s.NS(0); e; i, e = s.NS(i + 1) {
++			c++
++		}
++	}
++}
++
++func main() {
++	time.Sleep(time.Second)
++	A()
++}
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot.pprof b/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot.pprof
+new file mode 100644
+index 0000000000..45ccb6132b
+Binary files /dev/null and b/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot.pprof differ
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot_test.go b/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot_test.go
+new file mode 100644
+index 0000000000..024d340785
+--- /dev/null
++++ b/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot_test.go
+@@ -0,0 +1,47 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// WARNING: Please avoid updating this file. If this file needs to be updated, then a new inline_hot.pprof file should be generated via "go test -bench=. -cpuprofile testdata/pgo/inline/inline_hot.pprof cmd/compile/internal/test/testdata/pgo/inline".
++package main
++
++import "testing"
++
++func BenchmarkA(b *testing.B) {
++	benchmarkB(b)
++}
++func benchmarkB(b *testing.B) {
++
++	for i := 0; true; {
++		A()
++		i = i + 1
++		if i >= b.N {
++			break
++		}
++		A()
++		i = i + 1
++		if i >= b.N {
++			break
++		}
++		A()
++		i = i + 1
++		if i >= b.N {
++			break
++		}
++		A()
++		i = i + 1
++		if i >= b.N {
++			break
++		}
++		A()
++		i = i + 1
++		if i >= b.N {
++			break
++		}
++		A()
++		i = i + 1
++		if i >= b.N {
++			break
++		}
++	}
++}
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 2a4490b201..394a4168d2 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -66,6 +66,7 @@ var bootstrapDirs = []string{
+ 	"internal/goroot",
+ 	"internal/goversion",
+ 	"internal/pkgbits",
++	"internal/profile",
+ 	"internal/race",
+ 	"internal/saferio",
+ 	"internal/platform",
+diff --git a/src/internal/profile/legacy_profile.go b/src/internal/profile/legacy_profile.go
+index 0ac350a888..b102c95904 100644
+--- a/src/internal/profile/legacy_profile.go
++++ b/src/internal/profile/legacy_profile.go
+@@ -722,7 +722,7 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
+ 	var l string
+ 	var err error
+ 	// Parse text of the form "attribute = value" before the samples.
+-	const delimiter = "="
++	const delimiter = '='
+ 	for {
+ 		l, err = r.ReadString('\n')
+ 		if err != nil {
+@@ -746,10 +746,13 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
+ 			break
+ 		}
+ 
+-		key, val, ok := strings.Cut(l, delimiter)
+-		if !ok {
++		index := strings.IndexByte(l, delimiter)
++		if index < 0 {
+ 			break
+ 		}
++		key := l[:index]
++		val := l[index+1:]
++
+ 		key, val = strings.TrimSpace(key), strings.TrimSpace(val)
+ 		var err error
+ 		switch key {
+@@ -1023,7 +1026,7 @@ func (p *Profile) ParseMemoryMap(rd io.Reader) error {
+ 
+ 	var attrs []string
+ 	var r *strings.Replacer
+-	const delimiter = "="
++	const delimiter = '='
+ 	for {
+ 		l, err := b.ReadString('\n')
+ 		if err != nil {
+@@ -1046,7 +1049,10 @@ func (p *Profile) ParseMemoryMap(rd io.Reader) error {
+ 			if err == errUnrecognized {
+ 				// Recognize assignments of the form: attr=value, and replace
+ 				// $attr with value on subsequent mappings.
+-				if attr, value, ok := strings.Cut(l, delimiter); ok {
++				idx := strings.IndexByte(l, delimiter)
++				if idx >= 0 {
++					attr := l[:idx]
++					value := l[idx+1:]
+ 					attrs = append(attrs, "$"+strings.TrimSpace(attr), strings.TrimSpace(value))
+ 					r = strings.NewReplacer(attrs...)
+ 				}

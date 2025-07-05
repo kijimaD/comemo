@@ -15,7 +15,37 @@ Date:   Wed Jul 25 10:03:40 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/125818
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go           |  2 +-
  src/cmd/go/testdata/script/binary_only.txt | 10 ++++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 5d3d2ef77f..38ff22211c 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -411,7 +411,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 		if b.IsCmdList {
+ 			return nil
+ 		}
+-		return fmt.Errorf("missing or invalid binary-only package")
++		return fmt.Errorf("missing or invalid binary-only package; expected file %q", a.Package.Target)
+ 	}
+ 
+ 	if err := b.Mkdir(a.Objdir); err != nil {
+diff --git a/src/cmd/go/testdata/script/binary_only.txt b/src/cmd/go/testdata/script/binary_only.txt
+new file mode 100644
+index 0000000000..397904efaa
+--- /dev/null
++++ b/src/cmd/go/testdata/script/binary_only.txt
+@@ -0,0 +1,10 @@
++# check that error for missing binary-only says where it should be
++! go build b
++stderr pkg[\\/].*a\.a
++
++-- a/a.go --
++//go:binary-only-package
++
++package a
++-- b/b.go --
++package b; import "a"

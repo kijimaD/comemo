@@ -31,10 +31,225 @@ Date:   Tue Oct 23 12:33:56 2018 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go    | 22 +++++++++++
  src/cmd/asm/internal/asm/parse.go  |  2 +
  src/cmd/internal/obj/link.go       |  1 +
  src/cmd/internal/obj/ppc64/asm9.go | 80 ++++++++++++++++++++++++++++++++------
  src/cmd/internal/obj/util.go       |  1 +
  5 files changed, 95 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 627be09d08..5da64f135a 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -308,6 +308,28 @@ func (p *Parser) asmPCData(operands [][]lex.Token) {
+ 	p.append(prog, "", true)
+ }
+ 
++// asmPCAlign assembles a PCALIGN pseudo-op.
++// PCALIGN $16
++func (p *Parser) asmPCAlign(operands [][]lex.Token) {
++	if len(operands) != 1 {
++		p.errorf("expect one operand for PCALIGN")
++		return
++	}
++
++	// Operand 0 must be an immediate constant.
++	key := p.address(operands[0])
++	if !p.validImmediate("PCALIGN", &key) {
++		return
++	}
++
++	prog := &obj.Prog{
++		Ctxt: p.ctxt,
++		As:   obj.APCALIGN,
++		From: key,
++	}
++	p.append(prog, "", true)
++}
++
+ // asmFuncData assembles a FUNCDATA pseudo-op.
+ // FUNCDATA $1, funcdata<>+4(SB)
+ func (p *Parser) asmFuncData(operands [][]lex.Token) {
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 48749b7874..e77db9fba1 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -227,6 +227,8 @@ func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
+ 		p.asmGlobl(operands)
+ 	case "PCDATA":
+ 		p.asmPCData(operands)
++	case "PCALIGN":
++		p.asmPCAlign(operands)
+ 	case "TEXT":
+ 		p.asmText(operands)
+ 	default:
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 354bda5e48..f983d5277e 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -344,6 +344,7 @@ const (
+ 	AFUNCDATA
+ 	AJMP
+ 	ANOP
++	APCALIGN
+ 	APCDATA
+ 	ARET
+ 	AGETCALLERPC
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 66a77b308c..a36565c9fd 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -602,6 +602,7 @@ var optab = []Optab{
+ 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0},
+ 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0}, // same as ABR/ABL
+ 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0}, // same as ABR/ABL
++	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0},   // align code
+ 
+ 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0},
+ }
+@@ -610,6 +611,28 @@ var oprange [ALAST & obj.AMask][]Optab
+ 
+ var xcmp [C_NCLASS][C_NCLASS]bool
+ 
++// padding bytes to add to align code as requested
++func addpad(pc, a int64, ctxt *obj.Link) int {
++	switch a {
++	case 8:
++		if pc%8 != 0 {
++			return 4
++		}
++	case 16:
++		switch pc % 16 {
++		// When currently aligned to 4, avoid 3 NOPs and set to
++		// 8 byte alignment which should still help.
++		case 4, 12:
++			return 4
++		case 8:
++			return 8
++		}
++	default:
++		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
++	}
++	return 0
++}
++
+ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	p := cursym.Func.Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+@@ -632,12 +655,16 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		o = c.oplook(p)
+ 		m = int(o.size)
+ 		if m == 0 {
+-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+-				c.ctxt.Diag("zero-width instruction\n%v", p)
++			if p.As == obj.APCALIGN {
++				a := c.vregoff(&p.From)
++				m = addpad(pc, a, ctxt)
++			} else {
++				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
++					ctxt.Diag("zero-width instruction\n%v", p)
++				}
++				continue
+ 			}
+-			continue
+ 		}
+-
+ 		pc += int64(m)
+ 	}
+ 
+@@ -686,10 +713,15 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 			m = int(o.size)
+ 			if m == 0 {
+-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+-					c.ctxt.Diag("zero-width instruction\n%v", p)
++				if p.As == obj.APCALIGN {
++					a := c.vregoff(&p.From)
++					m = addpad(pc, a, ctxt)
++				} else {
++					if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
++						ctxt.Diag("zero-width instruction\n%v", p)
++					}
++					continue
+ 				}
+-				continue
+ 			}
+ 
+ 			pc += int64(m)
+@@ -698,7 +730,10 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		c.cursym.Size = pc
+ 	}
+ 
+-	pc += -pc & (funcAlign - 1)
++	if pc%funcAlign != 0 {
++		pc += funcAlign - (pc % funcAlign)
++	}
++
+ 	c.cursym.Size = pc
+ 
+ 	/*
+@@ -716,10 +751,19 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		if int(o.size) > 4*len(out) {
+ 			log.Fatalf("out array in span9 is too small, need at least %d for %v", o.size/4, p)
+ 		}
++		origsize := o.size
+ 		c.asmout(p, o, out[:])
+-		for i = 0; i < int32(o.size/4); i++ {
+-			c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
+-			bp = bp[4:]
++		if origsize == 0 && o.size > 0 {
++			for i = 0; i < int32(o.size/4); i++ {
++				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[0])
++				bp = bp[4:]
++			}
++			o.size = origsize
++		} else {
++			for i = 0; i < int32(o.size/4); i++ {
++				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
++				bp = bp[4:]
++			}
+ 		}
+ 	}
+ }
+@@ -1897,6 +1941,7 @@ func buildop(ctxt *obj.Link) {
+ 			obj.ATEXT,
+ 			obj.AUNDEF,
+ 			obj.AFUNCDATA,
++			obj.APCALIGN,
+ 			obj.APCDATA,
+ 			obj.ADUFFZERO,
+ 			obj.ADUFFCOPY:
+@@ -2305,6 +2350,19 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		prasm(p)
+ 
+ 	case 0: /* pseudo ops */
++		if p.As == obj.APCALIGN {
++			aln := c.vregoff(&p.From)
++			v := addpad(p.Pc, aln, c.ctxt)
++			if v > 0 {
++				for i := 0; i < 6; i++ {
++					out[i] = uint32(0)
++				}
++				o.size = int8(v)
++				out[0] = LOP_RRR(OP_OR, REGZERO, REGZERO, REGZERO)
++				return
++			}
++			o.size = 0
++		}
+ 		break
+ 
+ 	case 1: /* mov r1,r2 ==> OR Rs,Rs,Ra */
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index aeb7854193..da938c998a 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -535,6 +535,7 @@ var Anames = []string{
+ 	"FUNCDATA",
+ 	"JMP",
+ 	"NOP",
++	"PCALIGN",
+ 	"PCDATA",
+ 	"RET",
+ 	"GETCALLERPC",

@@ -11,6 +11,20 @@ Date:   Fri Dec 15 17:35:40 2023 +0800
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  doc/go1.22.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 3d63e99eeb..458e17954d 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -965,7 +965,7 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
+   The <code>loong64</code> port now supports passing function arguments and results using registers.
+ </p>
+ <p><!-- CL 481315,537615,480878 -->
+-  The <code>linux/loong64</code> port now supports the memory sanitizer, new-style linker relocations, and the <code>plugin</code> build mode.
++  The <code>linux/loong64</code> port now supports the address sanitizer, memory sanitizer, new-style linker relocations, and the <code>plugin</code> build mode.
+ </p>
+ 
+ <h3 id="openbsd">OpenBSD</h3>

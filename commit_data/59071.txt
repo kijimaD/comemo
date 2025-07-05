@@ -10,6 +10,20 @@ Date:   Mon Feb 5 01:22:58 2024 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/time/format_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 8a26eaa35b..29b9c280e6 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -1001,7 +1001,7 @@ func FuzzFormatRFC3339(f *testing.F) {
+ 
+ 		gotNanos := AppendFormatRFC3339(ts, nil, true)
+ 		wantNanos := AppendFormatAny(ts, nil, RFC3339Nano)
+-		if !bytes.Equal(got, want) {
++		if !bytes.Equal(gotNanos, wantNanos) {
+ 			t.Errorf("Format(%s, RFC3339Nano) mismatch:\n\tgot:  %s\n\twant: %s", ts, gotNanos, wantNanos)
+ 		}
+ 	})

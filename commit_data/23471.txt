@@ -11,7 +11,7 @@ Date:   Tue May 12 15:40:13 2015 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5l/asm.go          | 36 ------------------------------------
  src/cmd/5l/obj.go          |  1 -
  src/cmd/6l/asm.go          | 38 +-------------------------------------
@@ -25,3 +25,394 @@ Date:   Tue May 12 15:40:13 2015 +1200
  src/cmd/internal/ld/go.go  | 23 ++++++++++++++++++++++-
  src/cmd/internal/ld/lib.go |  1 -
  12 files changed, 23 insertions(+), 186 deletions(-)
+
+diff --git a/src/cmd/5l/asm.go b/src/cmd/5l/asm.go
+index 85ea684fc7..14302a5a38 100644
+--- a/src/cmd/5l/asm.go
++++ b/src/cmd/5l/asm.go
+@@ -37,24 +37,6 @@ import (
+ 	"log"
+ )
+ 
+-func needlib(name string) int {
+-	if name[0] == '\x00' {
+-		return 0
+-	}
+-
+-	/* reuse hash code in symbol table */
+-	p := fmt.Sprintf(".dynlib.%s", name)
+-
+-	s := ld.Linklookup(ld.Ctxt, p, 0)
+-
+-	if s.Type == 0 {
+-		s.Type = 100 // avoid SDATA, etc.
+-		return 1
+-	}
+-
+-	return 0
+-}
+-
+ func gentext() {
+ }
+ 
+@@ -557,24 +539,6 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+ 	}
+ }
+ 
+-func adddynlib(lib string) {
+-	if needlib(lib) == 0 {
+-		return
+-	}
+-
+-	if ld.Iself {
+-		s := ld.Linklookup(ld.Ctxt, ".dynstr", 0)
+-		if s.Size == 0 {
+-			ld.Addstring(s, "")
+-		}
+-		ld.Elfwritedynent(ld.Linklookup(ld.Ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(s, lib)))
+-	} else if ld.HEADTYPE == obj.Hdarwin {
+-		ld.Machoadddynlib(lib)
+-	} else {
+-		ld.Diag("adddynlib: unsupported binary format")
+-	}
+-}
+-
+ func asmb() {
+ 	if ld.Debug['v'] != 0 {
+ 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+diff --git a/src/cmd/5l/obj.go b/src/cmd/5l/obj.go
+index e4fffdec6a..d9485521ad 100644
+--- a/src/cmd/5l/obj.go
++++ b/src/cmd/5l/obj.go
+@@ -58,7 +58,6 @@ func linkarchinit() {
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+-	ld.Thearch.Adddynlib = adddynlib
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Adddynsym = adddynsym
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index a025ce6ea6..9b471a04ac 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -44,24 +44,6 @@ func PADDR(x uint32) uint32 {
+ 
+ var zeroes string
+ 
+-func needlib(name string) int {
+-	if name[0] == '\x00' {
+-		return 0
+-	}
+-
+-	/* reuse hash code in symbol table */
+-	p := fmt.Sprintf(".elfload.%s", name)
+-
+-	s := ld.Linklookup(ld.Ctxt, p, 0)
+-
+-	if s.Type == 0 {
+-		s.Type = 100 // avoid SDATA, etc.
+-		return 1
+-	}
+-
+-	return 0
+-}
+-
+ func Addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) int64 {
+ 	s.Reachable = true
+ 	i := s.Size
+@@ -673,7 +655,7 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+ 		/* size of object */
+ 		ld.Adduint64(ctxt, d, uint64(s.Size))
+ 
+-		if s.Cgoexport&ld.CgoExportDynamic == 0 && s.Dynimplib != "" && needlib(s.Dynimplib) != 0 {
++		if s.Cgoexport&ld.CgoExportDynamic == 0 && s.Dynimplib != "" && !ld.Seenlib[s.Dynimplib] {
+ 			ld.Elfwritedynent(ld.Linklookup(ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(ld.Linklookup(ctxt, ".dynstr", 0), s.Dynimplib)))
+ 		}
+ 	} else if ld.HEADTYPE == obj.Hdarwin {
+@@ -685,24 +667,6 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+ 	}
+ }
+ 
+-func adddynlib(lib string) {
+-	if needlib(lib) == 0 {
+-		return
+-	}
+-
+-	if ld.Iself {
+-		s := ld.Linklookup(ld.Ctxt, ".dynstr", 0)
+-		if s.Size == 0 {
+-			ld.Addstring(s, "")
+-		}
+-		ld.Elfwritedynent(ld.Linklookup(ld.Ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(s, lib)))
+-	} else if ld.HEADTYPE == obj.Hdarwin {
+-		ld.Machoadddynlib(lib)
+-	} else {
+-		ld.Diag("adddynlib: unsupported binary format")
+-	}
+-}
+-
+ func asmb() {
+ 	if ld.Debug['v'] != 0 {
+ 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+diff --git a/src/cmd/6l/obj.go b/src/cmd/6l/obj.go
+index 8ee7bb28db..38ac0783b6 100644
+--- a/src/cmd/6l/obj.go
++++ b/src/cmd/6l/obj.go
+@@ -61,7 +61,6 @@ func linkarchinit() {
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+-	ld.Thearch.Adddynlib = adddynlib
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Adddynsym = adddynsym
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/7l/asm.go b/src/cmd/7l/asm.go
+index a17899dcf0..a0e813cfa5 100644
+--- a/src/cmd/7l/asm.go
++++ b/src/cmd/7l/asm.go
+@@ -40,24 +40,6 @@ import (
+ 
+ func gentext() {}
+ 
+-func needlib(name string) int {
+-	if name[0] == '\x00' {
+-		return 0
+-	}
+-
+-	/* reuse hash code in symbol table */
+-	p := fmt.Sprintf(".dynlib.%s", name)
+-
+-	s := ld.Linklookup(ld.Ctxt, p, 0)
+-
+-	if s.Type == 0 {
+-		s.Type = 100 // avoid SDATA, etc.
+-		return 1
+-	}
+-
+-	return 0
+-}
+-
+ func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
+ 	log.Fatalf("adddynrela not implemented")
+ }
+@@ -297,24 +279,6 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+ 	// TODO(minux): implement when needed.
+ }
+ 
+-func adddynlib(lib string) {
+-	if needlib(lib) == 0 {
+-		return
+-	}
+-
+-	if ld.Iself {
+-		s := ld.Linklookup(ld.Ctxt, ".dynstr", 0)
+-		if s.Size == 0 {
+-			ld.Addstring(s, "")
+-		}
+-		ld.Elfwritedynent(ld.Linklookup(ld.Ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(s, lib)))
+-	} else if ld.HEADTYPE == obj.Hdarwin {
+-		ld.Machoadddynlib(lib)
+-	} else {
+-		ld.Diag("adddynlib: unsupported binary format")
+-	}
+-}
+-
+ func asmb() {
+ 	if ld.Debug['v'] != 0 {
+ 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+diff --git a/src/cmd/7l/obj.go b/src/cmd/7l/obj.go
+index aeea421bc2..7d0500387b 100644
+--- a/src/cmd/7l/obj.go
++++ b/src/cmd/7l/obj.go
+@@ -58,7 +58,6 @@ func linkarchinit() {
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+-	ld.Thearch.Adddynlib = adddynlib
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Adddynsym = adddynsym
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/8l/asm.go b/src/cmd/8l/asm.go
+index 7231379108..873fd16470 100644
+--- a/src/cmd/8l/asm.go
++++ b/src/cmd/8l/asm.go
+@@ -37,24 +37,6 @@ import (
+ 	"log"
+ )
+ 
+-func needlib(name string) int {
+-	if name[0] == '\x00' {
+-		return 0
+-	}
+-
+-	/* reuse hash code in symbol table */
+-	p := fmt.Sprintf(".dynlib.%s", name)
+-
+-	s := ld.Linklookup(ld.Ctxt, p, 0)
+-
+-	if s.Type == 0 {
+-		s.Type = 100 // avoid SDATA, etc.
+-		return 1
+-	}
+-
+-	return 0
+-}
+-
+ func gentext() {
+ }
+ 
+@@ -548,24 +530,6 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+ 	}
+ }
+ 
+-func adddynlib(lib string) {
+-	if needlib(lib) == 0 {
+-		return
+-	}
+-
+-	if ld.Iself {
+-		s := ld.Linklookup(ld.Ctxt, ".dynstr", 0)
+-		if s.Size == 0 {
+-			ld.Addstring(s, "")
+-		}
+-		ld.Elfwritedynent(ld.Linklookup(ld.Ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(s, lib)))
+-	} else if ld.HEADTYPE == obj.Hdarwin {
+-		ld.Machoadddynlib(lib)
+-	} else if ld.HEADTYPE != obj.Hwindows {
+-		ld.Diag("adddynlib: unsupported binary format")
+-	}
+-}
+-
+ func asmb() {
+ 	if ld.Debug['v'] != 0 {
+ 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+diff --git a/src/cmd/8l/obj.go b/src/cmd/8l/obj.go
+index 5af3f9249b..9bbaa7ee1b 100644
+--- a/src/cmd/8l/obj.go
++++ b/src/cmd/8l/obj.go
+@@ -58,7 +58,6 @@ func linkarchinit() {
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+-	ld.Thearch.Adddynlib = adddynlib
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Adddynsym = adddynsym
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/9l/asm.go b/src/cmd/9l/asm.go
+index 257f23e2ab..702ba2bb7c 100644
+--- a/src/cmd/9l/asm.go
++++ b/src/cmd/9l/asm.go
+@@ -38,24 +38,6 @@ import (
+ 	"log"
+ )
+ 
+-func needlib(name string) int {
+-	if name[0] == '\x00' {
+-		return 0
+-	}
+-
+-	/* reuse hash code in symbol table */
+-	p := fmt.Sprintf(".dynlib.%s", name)
+-
+-	s := ld.Linklookup(ld.Ctxt, p, 0)
+-
+-	if s.Type == 0 {
+-		s.Type = 100 // avoid SDATA, etc.
+-		return 1
+-	}
+-
+-	return 0
+-}
+-
+ func gentext() {
+ 	var s *ld.LSym
+ 	var stub *ld.LSym
+@@ -670,22 +652,6 @@ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+ 	}
+ }
+ 
+-func adddynlib(lib string) {
+-	if needlib(lib) == 0 {
+-		return
+-	}
+-
+-	if ld.Iself {
+-		s := ld.Linklookup(ld.Ctxt, ".dynstr", 0)
+-		if s.Size == 0 {
+-			ld.Addstring(s, "")
+-		}
+-		ld.Elfwritedynent(ld.Linklookup(ld.Ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(s, lib)))
+-	} else {
+-		ld.Diag("adddynlib: unsupported binary format")
+-	}
+-}
+-
+ func asmb() {
+ 	if ld.Debug['v'] != 0 {
+ 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+diff --git a/src/cmd/9l/obj.go b/src/cmd/9l/obj.go
+index 2da37561e9..f584ca43cd 100644
+--- a/src/cmd/9l/obj.go
++++ b/src/cmd/9l/obj.go
+@@ -62,7 +62,6 @@ func linkarchinit() {
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+-	ld.Thearch.Adddynlib = adddynlib
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Adddynsym = adddynsym
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/internal/ld/go.go b/src/cmd/internal/ld/go.go
+index 0223bfae9d..c1defeb8a2 100644
+--- a/src/cmd/internal/ld/go.go
++++ b/src/cmd/internal/ld/go.go
+@@ -416,7 +416,7 @@ func loadcgo(file string, pkg string, p string) {
+ 				// to force a link of foo.so.
+ 				havedynamic = 1
+ 
+-				Thearch.Adddynlib(lib)
++				adddynlib(lib)
+ 				continue
+ 			}
+ 
+@@ -534,6 +534,27 @@ err:
+ 	nerrors++
+ }
+ 
++var Seenlib = make(map[string]bool)
++
++func adddynlib(lib string) {
++	if Seenlib[lib] {
++		return
++	}
++	Seenlib[lib] = true
++
++	if Iself {
++		s := Linklookup(Ctxt, ".dynstr", 0)
++		if s.Size == 0 {
++			Addstring(s, "")
++		}
++		Elfwritedynent(Linklookup(Ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(s, lib)))
++	} else if HEADTYPE == obj.Hdarwin {
++		Machoadddynlib(lib)
++	} else {
++		Diag("adddynlib: unsupported binary format")
++	}
++}
++
+ var markq *LSym
+ 
+ var emarkq *LSym
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index d4e67800d2..5ab5f653f3 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -94,7 +94,6 @@ type Arch struct {
+ 	Openbsddynld     string
+ 	Dragonflydynld   string
+ 	Solarisdynld     string
+-	Adddynlib        func(string)
+ 	Adddynrel        func(*LSym, *Reloc)
+ 	Adddynsym        func(*Link, *LSym)
+ 	Archinit         func()

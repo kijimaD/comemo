@@ -9,9 +9,127 @@ Date:   Mon Nov 16 12:40:01 2009 -0800
     
     R=rsc
     https://golang.org/cl/155063
-
+---
  src/pkg/bytes/bytes.go          | 13 +++++++++++++
  src/pkg/bytes/bytes_test.go     | 27 +++++++++++++++++++++++++++
  src/pkg/strings/strings.go      | 14 ++++++++++++++
  src/pkg/strings/strings_test.go | 25 +++++++++++++++++++++++++
  4 files changed, 79 insertions(+)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index f6cae73537..0c585bd80f 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -239,6 +239,19 @@ func Map(mapping func(rune int) int, s []byte) []byte {
+ 	return b[0:nbytes];
+ }
+ 
++// Repeat returns a new byte array consisting of count copies of b.
++func Repeat(b []byte, count int) []byte {
++	nb := make([]byte, len(b)*count);
++	bp := 0;
++	for i := 0; i < count; i++ {
++		for j := 0; j < len(b); j++ {
++			nb[bp] = b[j];
++			bp++;
++		}
++	}
++	return nb;
++}
++
+ // ToUpper returns a copy of the byte array s with all Unicode letters mapped to their upper case.
+ func ToUpper(s []byte) []byte	{ return Map(unicode.ToUpper, s) }
+ 
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index dddaf5064e..3e737cb376 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -361,3 +361,30 @@ func TestAddByte(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type RepeatTest struct {
++	in, out	string;
++	count	int;
++}
++
++var RepeatTests = []RepeatTest{
++	RepeatTest{"", "", 0},
++	RepeatTest{"", "", 1},
++	RepeatTest{"", "", 2},
++	RepeatTest{"-", "", 0},
++	RepeatTest{"-", "-", 1},
++	RepeatTest{"-", "----------", 10},
++	RepeatTest{"abc ", "abc abc abc ", 3},
++}
++
++func TestRepeat(t *testing.T) {
++	for _, tt := range RepeatTests {
++		tin := strings.Bytes(tt.in);
++		tout := strings.Bytes(tt.out);
++		a := Repeat(tin, tt.count);
++		if !Equal(a, tout) {
++			t.Errorf("Repeat(%q, %d) = %q; want %q", tin, tt.count, a, tout);
++			continue;
++		}
++	}
++}
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 055d7d1e99..7ccfc5ca84 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -188,6 +188,20 @@ func Map(mapping func(rune int) int, s string) string {
+ 	return string(b[0:nbytes]);
+ }
+ 
++// Repeat returns a new string consisting of count copies of the string s.
++func Repeat(s string, count int) string {
++	b := make([]byte, len(s)*count);
++	bp := 0;
++	for i := 0; i < count; i++ {
++		for j := 0; j < len(s); j++ {
++			b[bp] = s[j];
++			bp++;
++		}
++	}
++	return string(b);
++}
++
++
+ // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
+ func ToUpper(s string) string	{ return Map(unicode.ToUpper, s) }
+ 
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 732da42421..0073f0d0ea 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -336,3 +336,28 @@ func TestCaseConsistency(t *testing.T) {
+ 		}
+ 	*/
+ }
++
++type RepeatTest struct {
++	in, out	string;
++	count	int;
++}
++
++var RepeatTests = []RepeatTest{
++	RepeatTest{"", "", 0},
++	RepeatTest{"", "", 1},
++	RepeatTest{"", "", 2},
++	RepeatTest{"-", "", 0},
++	RepeatTest{"-", "-", 1},
++	RepeatTest{"-", "----------", 10},
++	RepeatTest{"abc ", "abc abc abc ", 3},
++}
++
++func TestRepeat(t *testing.T) {
++	for _, tt := range RepeatTests {
++		a := Repeat(tt.in, tt.count);
++		if !equal("Repeat(s)", a, tt.out, t) {
++			t.Errorf("Repeat(%v, %d) = %v; want %v", tt.in, tt.count, a, tt.out);
++			continue;
++		}
++	}
++}

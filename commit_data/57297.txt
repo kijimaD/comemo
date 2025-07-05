@@ -19,8 +19,183 @@ Date:   Wed Jul 26 11:08:03 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  api/go1.21.txt        |   2 -
  src/maps/maps.go      |  28 --------------
  src/maps/maps_test.go | 100 --------------------------------------------------
  3 files changed, 130 deletions(-)
+
+diff --git a/api/go1.21.txt b/api/go1.21.txt
+index def0fa84e4..42b3075fd8 100644
+--- a/api/go1.21.txt
++++ b/api/go1.21.txt
+@@ -344,8 +344,6 @@ pkg maps, func Copy[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$3 }, $2 c
+ pkg maps, func DeleteFunc[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0, func($1, $2) bool) #57436
+ pkg maps, func Equal[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$3 }, $2 comparable, $3 comparable]($0, $1) bool #57436
+ pkg maps, func EqualFunc[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$4 }, $2 comparable, $3 interface{}, $4 interface{}]($0, $1, func($3, $4) bool) bool #57436
+-pkg maps, func Keys[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) []$1 #57436
+-pkg maps, func Values[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) []$2 #57436
+ pkg math/big, method (*Int) Float64() (float64, Accuracy) #56984
+ pkg net/http, method (*ProtocolError) Is(error) bool #41198
+ pkg net/http, method (*ResponseController) EnableFullDuplex() error #57786
+diff --git a/src/maps/maps.go b/src/maps/maps.go
+index 4dabb7caa3..befde18c9c 100644
+--- a/src/maps/maps.go
++++ b/src/maps/maps.go
+@@ -5,34 +5,6 @@
+ // Package maps defines various functions useful with maps of any type.
+ package maps
+ 
+-import "unsafe"
+-
+-// keys is implemented in the runtime package.
+-//
+-//go:noescape
+-func keys(m any, slice unsafe.Pointer)
+-
+-// Keys returns the keys of the map m.
+-// The keys will be in an indeterminate order.
+-func Keys[M ~map[K]V, K comparable, V any](m M) []K {
+-	r := make([]K, 0, len(m))
+-	keys(m, unsafe.Pointer(&r))
+-	return r
+-}
+-
+-// values is implemented in the runtime package.
+-//
+-//go:noescape
+-func values(m any, slice unsafe.Pointer)
+-
+-// Values returns the values of the map m.
+-// The values will be in an indeterminate order.
+-func Values[M ~map[K]V, K comparable, V any](m M) []V {
+-	r := make([]V, 0, len(m))
+-	values(m, unsafe.Pointer(&r))
+-	return r
+-}
+-
+ // Equal reports whether two maps contain the same key/value pairs.
+ // Values are compared using ==.
+ func Equal[M1, M2 ~map[K]V, K, V comparable](m1 M1, m2 M2) bool {
+diff --git a/src/maps/maps_test.go b/src/maps/maps_test.go
+index dc803e2dbc..5e3f9ca03b 100644
+--- a/src/maps/maps_test.go
++++ b/src/maps/maps_test.go
+@@ -6,87 +6,13 @@ package maps
+ 
+ import (
+ 	"math"
+-	"slices"
+-	"sort"
+ 	"strconv"
+ 	"testing"
+-	"unsafe"
+ )
+ 
+ var m1 = map[int]int{1: 2, 2: 4, 4: 8, 8: 16}
+ var m2 = map[int]string{1: "2", 2: "4", 4: "8", 8: "16"}
+ 
+-func keysForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []K) {
+-	keys(m, unsafe.Pointer(&s))
+-}
+-
+-func TestKeys(t *testing.T) {
+-	want := []int{1, 2, 4, 8}
+-
+-	got1 := Keys(m1)
+-	sort.Ints(got1)
+-	if !slices.Equal(got1, want) {
+-		t.Errorf("Keys(%v) = %v, want %v", m1, got1, want)
+-	}
+-
+-	got2 := Keys(m2)
+-	sort.Ints(got2)
+-	if !slices.Equal(got2, want) {
+-		t.Errorf("Keys(%v) = %v, want %v", m2, got2, want)
+-	}
+-
+-	// test for oldbucket code path
+-	// We grow from 128 to 256 buckets at size 832 (6.5 * 128).
+-	// Then we have to evacuate 128 buckets, which means we'll be done evacuation at 832+128=960 elements inserted.
+-	// so 840 is a good number to test for oldbucket code path.
+-	var want3 []int
+-	var m = make(map[int]int)
+-	for i := 0; i < 840; i++ {
+-		want3 = append(want3, i)
+-		m[i] = i * i
+-	}
+-
+-	got3 := Keys(m)
+-	sort.Ints(got3)
+-	if !slices.Equal(got3, want3) {
+-		t.Errorf("Keys(%v) = %v, want %v", m, got3, want3)
+-	}
+-}
+-
+-func valuesForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []V) {
+-	values(m, unsafe.Pointer(&s))
+-}
+-
+-func TestValues(t *testing.T) {
+-	got1 := Values(m1)
+-	want1 := []int{2, 4, 8, 16}
+-	sort.Ints(got1)
+-	if !slices.Equal(got1, want1) {
+-		t.Errorf("Values(%v) = %v, want %v", m1, got1, want1)
+-	}
+-
+-	got2 := Values(m2)
+-	want2 := []string{"16", "2", "4", "8"}
+-	sort.Strings(got2)
+-	if !slices.Equal(got2, want2) {
+-		t.Errorf("Values(%v) = %v, want %v", m2, got2, want2)
+-	}
+-
+-	//test for oldbucket code path
+-	var want3 []int
+-	var m = make(map[int]int)
+-	for i := 0; i < 840; i++ {
+-		want3 = append(want3, i*i)
+-		m[i] = i * i
+-	}
+-
+-	got3 := Values(m)
+-	sort.Ints(got3)
+-	if !slices.Equal(got3, want3) {
+-		t.Errorf("Values(%v) = %v, want %v", m, got3, want3)
+-	}
+-}
+-
+ func TestEqual(t *testing.T) {
+ 	if !Equal(m1, m1) {
+ 		t.Errorf("Equal(%v, %v) = false, want true", m1, m1)
+@@ -256,29 +182,3 @@ func TestCloneWithMapAssign(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func BenchmarkKeys(b *testing.B) {
+-	m := make(map[int]int, 1000000)
+-	for i := 0; i < 1000000; i++ {
+-		m[i] = i
+-	}
+-	b.ResetTimer()
+-
+-	slice := make([]int, 0, len(m))
+-	for i := 0; i < b.N; i++ {
+-		keysForBenchmarking(m, slice)
+-	}
+-}
+-
+-func BenchmarkValues(b *testing.B) {
+-	m := make(map[int]int, 1000000)
+-	for i := 0; i < 1000000; i++ {
+-		m[i] = i
+-	}
+-	b.ResetTimer()
+-
+-	slice := make([]int, 0, len(m))
+-	for i := 0; i < b.N; i++ {
+-		valuesForBenchmarking(m, slice)
+-	}
+-}

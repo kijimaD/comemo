@@ -8,8 +8,73 @@ Date:   Mon Jul 13 11:41:02 2009 -0700
     DELTA=10  (5 added, 1 deleted, 4 changed)
     OCL=31523
     CL=31526
-
+---
  src/pkg/gob/decoder.go      | 2 +-
  src/pkg/gob/encoder_test.go | 4 ++--
  src/pkg/gob/type.go         | 8 ++++++--
  3 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 4941a788b0..8676533e62 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -72,7 +72,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 	// Check type compatibility.
+ 	// TODO(r): need to make the decoder work correctly if the wire type is compatible
+ 	// but not equal to the local type (e.g, extra fields).
+-	if info.wire.name != dec.seen[id].name {
++	if info.wire.name() != dec.seen[id].name() {
+ 		dec.state.err = os.ErrorString("gob decode: incorrect type for wire value");
+ 		return dec.state.err
+ 	}
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 56f6151dbb..1640ac72a5 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -72,7 +72,7 @@ func TestBasicEncoder(t *testing.T) {
+ 		t.Fatal("error decoding ET1 type:", err);
+ 	}
+ 	info := getTypeInfo(reflect.Typeof(ET1{}));
+-	trueWire1 := &wireType{name:"ET1", s: info.typeId.gobType().(*structType)};
++	trueWire1 := &wireType{s: info.typeId.gobType().(*structType)};
+ 	if !reflect.DeepEqual(wire1, trueWire1) {
+ 		t.Fatalf("invalid wireType for ET1: expected %+v; got %+v\n", *trueWire1, *wire1);
+ 	}
+@@ -88,7 +88,7 @@ func TestBasicEncoder(t *testing.T) {
+ 		t.Fatal("error decoding ET2 type:", err);
+ 	}
+ 	info = getTypeInfo(reflect.Typeof(ET2{}));
+-	trueWire2 := &wireType{name:"ET2", s: info.typeId.gobType().(*structType)};
++	trueWire2 := &wireType{s: info.typeId.gobType().(*structType)};
+ 	if !reflect.DeepEqual(wire2, trueWire2) {
+ 		t.Fatalf("invalid wireType for ET2: expected %+v; got %+v\n", *trueWire2, *wire2);
+ 	}
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index cd05a390ba..7eaae05a1b 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -310,10 +310,14 @@ func bootstrapType(name string, e interface{}) TypeId {
+ // are built in encode.go's init() function.
+ 
+ type wireType struct {
+-	name	string;
+ 	s	*structType;
+ }
+ 
++func (w *wireType) name() string {
++	// generalize once we can have non-struct types on the wire.
++	return w.s.name
++}
++
+ type decEngine struct	// defined in decode.go
+ type encEngine struct	// defined in encode.go
+ type typeInfo struct {
+@@ -336,7 +340,7 @@ func getTypeInfo(rt reflect.Type) *typeInfo {
+ 		path, name := rt.Name();
+ 		info.typeId = getType(name, rt).id();
+ 		// assume it's a struct type
+-		info.wire = &wireType{name, info.typeId.gobType().(*structType)};
++		info.wire = &wireType{info.typeId.gobType().(*structType)};
+ 		typeInfoMap[rt] = info;
+ 	}
+ 	return info;

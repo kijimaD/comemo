@@ -9,6 +9,20 @@ Date:   Mon Sep 18 11:50:29 2017 +0100
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/elliptic/p256_amd64.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/elliptic/p256_amd64.go b/src/crypto/elliptic/p256_amd64.go
+index 26f1f0df83..bde8e3dfbb 100644
+--- a/src/crypto/elliptic/p256_amd64.go
++++ b/src/crypto/elliptic/p256_amd64.go
+@@ -280,7 +280,7 @@ func uint64IsZero(x uint64) int {
+ 	x &= x >> 4
+ 	x &= x >> 2
+ 	x &= x >> 1
+-	return int(x&1)
++	return int(x & 1)
+ }
+ 
+ // scalarIsZero returns 1 if scalar represents the zero value, and zero

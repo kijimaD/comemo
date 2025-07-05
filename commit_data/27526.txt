@@ -9,6 +9,31 @@ Date:   Thu Mar 31 09:29:32 2016 -0700
     Change-Id: I5cc8be5737ddb7c1f5e4a6cd92cf557af45e961d
     Reviewed-on: https://go-review.googlesource.com/21347
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c552dd01a1..83888be6f7 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -11,6 +11,7 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"os"
++	"runtime/debug"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -151,6 +152,11 @@ func Fatalf(fmt_ string, args ...interface{}) {
+ 		fmt.Printf("\n")
+ 		fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
+ 		fmt.Printf("https://golang.org/issue/new\n")
++	} else {
++		// Not a release; dump a stack trace, too.
++		fmt.Println()
++		os.Stdout.Write(debug.Stack())
++		fmt.Println()
+ 	}
+ 
+ 	hcrash()

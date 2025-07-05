@@ -20,9 +20,184 @@ Date:   Sun Apr 2 15:49:58 2023 +0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: xie cui <523516579@qq.com>
-
+---
  src/go/build/deps_test.go |  4 ++-
  src/maps/maps.go          | 15 ++++++++---
  src/maps/maps_test.go     | 32 ++++++++++++++++++++++++
  src/runtime/map.go        | 64 +++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 111 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e93422addc..89c7035d35 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -46,7 +46,7 @@ var depsRules = `
+ 	  internal/goexperiment, internal/goos,
+ 	  internal/goversion, internal/nettrace, internal/platform,
+ 	  log/internal,
+-	  maps, unicode/utf8, unicode/utf16, unicode,
++	  unicode/utf8, unicode/utf16, unicode,
+ 	  unsafe;
+ 
+ 	# slices depends on unsafe for overlapping check.
+@@ -57,6 +57,8 @@ var depsRules = `
+ 	internal/goarch, unsafe
+ 	< internal/abi;
+ 
++	unsafe < maps;
++
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+ 	internal/abi, internal/cpu, internal/goarch,
+ 	internal/coverage/rtcov, internal/godebugs, internal/goexperiment,
+diff --git a/src/maps/maps.go b/src/maps/maps.go
+index 27eea01501..dddfb37973 100644
+--- a/src/maps/maps.go
++++ b/src/maps/maps.go
+@@ -5,16 +5,25 @@
+ // Package maps defines various functions useful with maps of any type.
+ package maps
+ 
++import "unsafe"
++
++// keys is implemented in the runtime package.
++//
++//go:noescape
++func keys(m any, slice unsafe.Pointer)
++
+ // Keys returns the keys of the map m.
+ // The keys will be in an indeterminate order.
+ func Keys[M ~map[K]V, K comparable, V any](m M) []K {
+ 	r := make([]K, 0, len(m))
+-	for k := range m {
+-		r = append(r, k)
+-	}
++	keys(m, unsafe.Pointer(&r))
+ 	return r
+ }
+ 
++func keysForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []K) {
++	keys(m, unsafe.Pointer(&s))
++}
++
+ // Values returns the values of the map m.
+ // The values will be in an indeterminate order.
+ func Values[M ~map[K]V, K comparable, V any](m M) []V {
+diff --git a/src/maps/maps_test.go b/src/maps/maps_test.go
+index 1825df5b77..a7a8c10f71 100644
+--- a/src/maps/maps_test.go
++++ b/src/maps/maps_test.go
+@@ -29,6 +29,23 @@ func TestKeys(t *testing.T) {
+ 	if !slices.Equal(got2, want) {
+ 		t.Errorf("Keys(%v) = %v, want %v", m2, got2, want)
+ 	}
++
++	// test for oldbucket code path
++	// We grow from 128 to 256 buckets at size 832 (6.5 * 128).
++	// Then we have to evacuate 128 buckets, which means we'll be done evacuation at 832+128=960 elements inserted.
++	// so 840 is a good number to test for oldbucket code path.
++	var want3 []int
++	var m = make(map[int]int)
++	for i := 0; i < 840; i++ {
++		want3 = append(want3, i)
++		m[i] = i
++	}
++
++	got3 := Keys(m)
++	sort.Ints(got3)
++	if !slices.Equal(got3, want3) {
++		t.Errorf("Keys(%v) = %v, want %v", m, got3, want3)
++	}
+ }
+ 
+ func TestValues(t *testing.T) {
+@@ -216,3 +233,18 @@ func TestCloneWithMapAssign(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var keysArr []int
++
++func BenchmarkKeys(b *testing.B) {
++	m := make(map[int]int, 1000000)
++	for i := 0; i < 1000000; i++ {
++		m[i] = i
++	}
++	b.ResetTimer()
++
++	slice := make([]int, 0, len(m))
++	for i := 0; i < b.N; i++ {
++		keysForBenchmarking(m, slice)
++	}
++}
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index a1fe08f758..33685269cd 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -1593,3 +1593,67 @@ func mapclone2(t *maptype, src *hmap) *hmap {
+ 	}
+ 	return dst
+ }
++
++// keys for implementing maps.keys
++//
++//go:linkname keys maps.keys
++func keys(m any, p unsafe.Pointer) {
++	e := efaceOf(&m)
++	t := (*maptype)(unsafe.Pointer(e._type))
++	h := (*hmap)(e.data)
++
++	if h == nil || h.count == 0 {
++		return
++	}
++	s := (*slice)(p)
++	r := int(fastrand())
++	offset := uint8(r >> h.B & (bucketCnt - 1))
++	if h.B == 0 {
++		copyKeys(t, h, (*bmap)(h.buckets), s, offset)
++		return
++	}
++	arraySize := int(bucketShift(h.B))
++	buckets := h.buckets
++	for i := 0; i < arraySize; i++ {
++		bucket := (i + r) & (arraySize - 1)
++		b := (*bmap)(add(buckets, uintptr(bucket)*uintptr(t.BucketSize)))
++		copyKeys(t, h, b, s, offset)
++	}
++
++	if h.growing() {
++		oldArraySize := int(h.noldbuckets())
++		for i := 0; i < oldArraySize; i++ {
++			bucket := (i + r) & (oldArraySize - 1)
++			b := (*bmap)(add(h.oldbuckets, uintptr(bucket)*uintptr(t.BucketSize)))
++			if evacuated(b) {
++				continue
++			}
++			copyKeys(t, h, b, s, offset)
++		}
++	}
++	return
++}
++
++func copyKeys(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
++	for b != nil {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			offi := (i + uintptr(offset)) & (bucketCnt - 1)
++			if isEmpty(b.tophash[offi]) {
++				continue
++			}
++			if h.flags&hashWriting != 0 {
++				fatal("concurrent map read and map write")
++			}
++			k := add(unsafe.Pointer(b), dataOffset+offi*uintptr(t.KeySize))
++			if t.IndirectKey() {
++				k = *((*unsafe.Pointer)(k))
++			}
++			if s.len >= s.cap {
++				fatal("concurrent map read and map write")
++			}
++			typedmemmove(t.Key, add(s.array, uintptr(s.len)*uintptr(t.KeySize)), k)
++			s.len++
++		}
++		b = b.overflow(t)
++	}
++}

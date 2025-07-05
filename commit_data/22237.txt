@@ -17,6 +17,24 @@ Date:   Sun Mar 1 19:13:50 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/6440
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os1_openbsd.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index d23d812ace..04779ea870 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -19,8 +19,10 @@ const (
+ 	_CLOCK_MONOTONIC = 3
+ )
+ 
+-var sigset_none = uint32(0)
+-var sigset_all = ^sigset_none
++const (
++	sigset_none = uint32(0)
++	sigset_all  = ^uint32(0)
++)
+ 
+ // From OpenBSD's <sys/sysctl.h>
+ const (

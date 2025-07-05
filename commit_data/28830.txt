@@ -13,6 +13,24 @@ Date:   Thu Aug 4 19:53:52 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/wait_waitid.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/os/wait_waitid.go b/src/os/wait_waitid.go
+index 5dbd7f9766..74b7494c0d 100644
+--- a/src/os/wait_waitid.go
++++ b/src/os/wait_waitid.go
+@@ -28,6 +28,12 @@ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	_, _, e := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+ 	runtime.KeepAlive(psig)
+ 	if e != 0 {
++		// waitid has been available since Linux 2.6.9, but
++		// reportedly is not available in Ubuntu on Windows.
++		// See issue 16610.
++		if e == syscall.ENOSYS {
++			return false, nil
++		}
+ 		return false, NewSyscallError("waitid", e)
+ 	}
+ 	return true, nil

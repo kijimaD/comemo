@@ -9,7 +9,44 @@ Date:   Fri Mar 3 16:55:05 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 6 ------
  src/cmd/internal/obj/objfile.go     | 8 +-------
  2 files changed, 1 insertion(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index d2f68b7c33..29d146c9cc 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -467,12 +467,6 @@ func gendebug(fnsym *obj.LSym, decls []*Node) {
+ 
+ 		fnsym.Autom = append(fnsym.Autom, a)
+ 	}
+-
+-	// Reverse to make toolstash happy.
+-	// TODO(mdempsky): Remove.
+-	for i, j := 0, len(fnsym.Autom)-1; i < j; i, j = i+1, j-1 {
+-		fnsym.Autom[i], fnsym.Autom[j] = fnsym.Autom[j], fnsym.Autom[i]
+-	}
+ }
+ 
+ // fieldtrack adds R_USEFIELD relocations to fnsym to record any
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index fbf4d4b244..1bd4f53ae4 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -595,13 +595,7 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
+ 			})
+ 		}
+ 
+-		// We want to sort variables by offset, breaking ties
+-		// with declaration order. Autom holds variables in
+-		// reverse declaration order, so we reverse the
+-		// assembled slice and then apply a stable sort.
+-		for i, j := 0, len(vars)-1; i < j; i, j = i+1, j-1 {
+-			vars[i], vars[j] = vars[j], vars[i]
+-		}
++		// Stable sort so that ties are broken with declaration order.
+ 		sort.Stable(dwarf.VarsByOffset(vars))
+ 
+ 		dwarf.PutFunc(dctxt, dsym, s.Name, s.Version == 0, s, s.Size, vars)

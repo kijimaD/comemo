@@ -13,7 +13,55 @@ Date:   Tue May 1 12:10:14 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/bits/bits_test.go   | 7 ++++---
  src/math/bits/export_test.go | 7 +++++++
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/bits/bits_test.go b/src/math/bits/bits_test.go
+index ba05210c9b..5c34f6dbf7 100644
+--- a/src/math/bits/bits_test.go
++++ b/src/math/bits/bits_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package bits
++package bits_test
+ 
+ import (
++	. "math/bits"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -83,7 +84,7 @@ func TestLeadingZeros(t *testing.T) {
+ // Exported (global) variable serving as input for some
+ // of the benchmarks to ensure side-effect free calls
+ // are not optimized away.
+-var Input uint64 = deBruijn64
++var Input uint64 = DeBruijn64
+ 
+ // Exported (global) variable to store function results
+ // during benchmarking to ensure side-effect free calls
+@@ -333,7 +334,7 @@ func BenchmarkOnesCount64(b *testing.B) {
+ }
+ 
+ func TestRotateLeft(t *testing.T) {
+-	var m uint64 = deBruijn64
++	var m uint64 = DeBruijn64
+ 
+ 	for k := uint(0); k < 128; k++ {
+ 		x8 := uint8(m)
+diff --git a/src/math/bits/export_test.go b/src/math/bits/export_test.go
+new file mode 100644
+index 0000000000..8c6f9332cc
+--- /dev/null
++++ b/src/math/bits/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bits
++
++const DeBruijn64 = deBruijn64

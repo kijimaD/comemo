@@ -11,7 +11,7 @@ Date:   Thu Oct 20 14:29:58 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/aes/const.go         | 7 +++++++
  src/crypto/cipher/gcm.go        | 4 ++++
  src/crypto/dsa/dsa.go           | 2 ++
@@ -20,3 +20,124 @@ Date:   Thu Oct 20 14:29:58 2016 -0400
  src/crypto/rsa/rsa.go           | 2 ++
  src/math/big/int.go             | 5 ++++-
  7 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/aes/const.go b/src/crypto/aes/const.go
+index aee73a7c52..cbac5ff0ea 100644
+--- a/src/crypto/aes/const.go
++++ b/src/crypto/aes/const.go
+@@ -4,6 +4,13 @@
+ 
+ // Package aes implements AES encryption (formerly Rijndael), as defined in
+ // U.S. Federal Information Processing Standards Publication 197.
++//
++// The AES operations in this package are not implemented using constant-time algorithms.
++// An exception is when running on systems with enabled hardware support for AES
++// that makes these operations constant-time. Examples include amd64 systems using AES-NI
++// extensions and s390x systems using Message-Security-Assist extensions.
++// On such systems, when the result of NewCipher is passed to cipher.NewGCM,
++// the GHASH operation used by GCM is also constant-time.
+ package aes
+ 
+ // This file contains AES constants - 8720 bytes of initialized data.
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index cfc5769a80..793a4459e5 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -74,6 +74,10 @@ type gcm struct {
+ 
+ // NewGCM returns the given 128-bit, block cipher wrapped in Galois Counter Mode
+ // with the standard nonce length.
++//
++// In general, the GHASH operation performed by this implementation of GCM is not constant-time.
++// An exception is when the underlying Block was created by aes.NewCipher
++// on systems with hardware support for AES. See the crypto/aes package documentation for details.
+ func NewGCM(cipher Block) (AEAD, error) {
+ 	return NewGCMWithNonceSize(cipher, gcmStandardNonceSize)
+ }
+diff --git a/src/crypto/dsa/dsa.go b/src/crypto/dsa/dsa.go
+index 633c1f4a66..bc0c3e3462 100644
+--- a/src/crypto/dsa/dsa.go
++++ b/src/crypto/dsa/dsa.go
+@@ -3,6 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package dsa implements the Digital Signature Algorithm, as defined in FIPS 186-3.
++//
++// The DSA operations in this package are not implemented using constant-time algorithms.
+ package dsa
+ 
+ import (
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index c02df45d10..d3527243e7 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -367,18 +367,24 @@ func initP521() {
+ }
+ 
+ // P256 returns a Curve which implements P-256 (see FIPS 186-3, section D.2.3)
++//
++// The cryptographic operations are implemented using constant-time algorithms.
+ func P256() Curve {
+ 	initonce.Do(initAll)
+ 	return p256
+ }
+ 
+ // P384 returns a Curve which implements P-384 (see FIPS 186-3, section D.2.4)
++//
++// The cryptographic operations do not use constant-time algorithms.
+ func P384() Curve {
+ 	initonce.Do(initAll)
+ 	return p384
+ }
+ 
+ // P521 returns a Curve which implements P-521 (see FIPS 186-3, section D.2.5)
++//
++// The cryptographic operations do not use constant-time algorithms.
+ func P521() Curve {
+ 	initonce.Do(initAll)
+ 	return p521
+diff --git a/src/crypto/elliptic/p224.go b/src/crypto/elliptic/p224.go
+index de266ca77a..22d0e2429c 100644
+--- a/src/crypto/elliptic/p224.go
++++ b/src/crypto/elliptic/p224.go
+@@ -35,7 +35,9 @@ func initP224() {
+ 	p224FromBig(&p224.b, p224.B)
+ }
+ 
+-// P224 returns a Curve which implements P-224 (see FIPS 186-3, section D.2.2)
++// P224 returns a Curve which implements P-224 (see FIPS 186-3, section D.2.2).
++//
++// The cryptographic operations are implemented using constant-time algorithms.
+ func P224() Curve {
+ 	initonce.Do(initAll)
+ 	return p224
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index f809a9b9bc..1de4fcb473 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -18,6 +18,8 @@
+ // with v1.5/OAEP and signing/verifying with v1.5/PSS. If one needs to abstract
+ // over the public-key primitive, the PrivateKey struct implements the
+ // Decrypter and Signer interfaces from the crypto package.
++//
++// The RSA operations in this package are not implemented using constant-time algorithms.
+ package rsa
+ 
+ import (
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index a2c1b580f5..1d8dabce12 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -404,8 +404,11 @@ func (x *Int) BitLen() int {
+ 
+ // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
+ // If y <= 0, the result is 1 mod |m|; if m == nil or m == 0, z = x**y.
+-// See Knuth, volume 2, section 4.6.3.
++//
++// Modular exponentation of inputs of a particular size is not a
++// cryptographically constant-time operation.
+ func (z *Int) Exp(x, y, m *Int) *Int {
++	// See Knuth, volume 2, section 4.6.3.
+ 	var yWords nat
+ 	if !y.neg {
+ 		yWords = y.abs

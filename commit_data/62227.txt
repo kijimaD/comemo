@@ -12,6 +12,24 @@ Date:   Wed Feb 12 15:24:10 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@google.com>
-
+---
  src/internal/abi/switch.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/internal/abi/switch.go b/src/internal/abi/switch.go
+index 9669fe51d5..df6f99c945 100644
+--- a/src/internal/abi/switch.go
++++ b/src/internal/abi/switch.go
+@@ -27,12 +27,7 @@ type InterfaceSwitchCacheEntry struct {
+ 	Itab uintptr
+ }
+ 
+-const go122InterfaceSwitchCache = true
+-
+ func UseInterfaceSwitchCache(goarch string) bool {
+-	if !go122InterfaceSwitchCache {
+-		return false
+-	}
+ 	// We need an atomic load instruction to make the cache multithreaded-safe.
+ 	// (AtomicLoadPtr needs to be implemented in cmd/compile/internal/ssa/_gen/ARCH.rules.)
+ 	switch goarch {

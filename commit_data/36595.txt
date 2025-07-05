@@ -19,8 +19,92 @@ Date:   Tue May 8 08:10:17 2018 -0700
     Change-Id: I971c62616dec51a33788b7634e6478e1bfcd6260
     Reviewed-on: https://go-review.googlesource.com/112157
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386Ops.go | 10 +++++-----
  src/cmd/compile/internal/ssa/gen/main.go   |  2 +-
  src/cmd/compile/internal/ssa/opGen.go      | 10 +++++-----
  3 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 6b7a2eb2ec..076782e2fa 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -346,11 +346,11 @@ func init() {
+ 		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+ 
+ 		// direct binary-op on memory (read-modify-write)
+-		{name: "ADDLmodify", argLength: 3, reg: gpstore, asm: "ADDL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // *(arg0+auxint+aux) += arg1, arg2=mem
+-		{name: "SUBLmodify", argLength: 3, reg: gpstore, asm: "SUBL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // *(arg0+auxint+aux) -= arg1, arg2=mem
+-		{name: "ANDLmodify", argLength: 3, reg: gpstore, asm: "ANDL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // *(arg0+auxint+aux) &= arg1, arg2=mem
+-		{name: "ORLmodify", argLength: 3, reg: gpstore, asm: "ORL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // *(arg0+auxint+aux) |= arg1, arg2=mem
+-		{name: "XORLmodify", argLength: 3, reg: gpstore, asm: "XORL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // *(arg0+auxint+aux) ^= arg1, arg2=mem
++		{name: "ADDLmodify", argLength: 3, reg: gpstore, asm: "ADDL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) += arg1, arg2=mem
++		{name: "SUBLmodify", argLength: 3, reg: gpstore, asm: "SUBL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) -= arg1, arg2=mem
++		{name: "ANDLmodify", argLength: 3, reg: gpstore, asm: "ANDL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) &= arg1, arg2=mem
++		{name: "ORLmodify", argLength: 3, reg: gpstore, asm: "ORL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Read,Write"},   // *(arg0+auxint+aux) |= arg1, arg2=mem
++		{name: "XORLmodify", argLength: 3, reg: gpstore, asm: "XORL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) ^= arg1, arg2=mem
+ 
+ 		// indexed loads/stores
+ 		{name: "MOVBloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBLZX", aux: "SymOff", symEffect: "Read"}, // load a byte from arg0+arg1+auxint+aux. arg2=mem
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 5889da3ea3..e329d7c775 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -227,7 +227,7 @@ func genOp() {
+ 				if !needEffect {
+ 					log.Fatalf("symEffect with aux %s not allowed", v.aux)
+ 				}
+-				fmt.Fprintf(w, "symEffect: Sym%s,\n", v.symEffect)
++				fmt.Fprintf(w, "symEffect: Sym%s,\n", strings.Replace(v.symEffect, ",", "|Sym", -1))
+ 			} else if needEffect {
+ 				log.Fatalf("symEffect needed for aux %s", v.aux)
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 47a16ab819..2570bf771e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -4432,7 +4432,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+ 		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
++		symEffect:      SymRead | SymWrite,
+ 		asm:            x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -4446,7 +4446,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+ 		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
++		symEffect:      SymRead | SymWrite,
+ 		asm:            x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -4460,7 +4460,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+ 		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
++		symEffect:      SymRead | SymWrite,
+ 		asm:            x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -4474,7 +4474,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+ 		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
++		symEffect:      SymRead | SymWrite,
+ 		asm:            x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -4488,7 +4488,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+ 		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
++		symEffect:      SymRead | SymWrite,
+ 		asm:            x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{

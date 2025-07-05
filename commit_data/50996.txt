@@ -10,6 +10,20 @@ Date:   Mon Nov 22 23:39:52 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/366094
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 6555756fd3..a508e484e4 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2174,7 +2174,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 
+ 		n++
+-		if n > 20 {
++		if n > 1000 {
+ 			ctxt.Diag("span must be looping")
+ 			log.Fatalf("loop")
+ 		}

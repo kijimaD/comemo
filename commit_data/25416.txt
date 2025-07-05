@@ -19,7 +19,7 @@ Date:   Thu Oct 22 14:22:38 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/16336
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go      |  1 +
  src/cmd/compile/internal/gc/ssa.go          | 73 +++++++++++++++++++++--------
  src/cmd/compile/internal/ssa/config.go      | 16 ++++---
@@ -31,3 +31,486 @@ Date:   Thu Oct 22 14:22:38 2015 -0700
  src/cmd/compile/internal/ssa/stackalloc.go  | 63 +++++++++++++++++++++++--
  src/cmd/compile/internal/ssa/value.go       |  8 ++--
  10 files changed, 156 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index e7bece8bd9..8ebdd66553 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -604,6 +604,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	ptr.Ullman = 1
+ 	ptr.Used = true
+ 	ptr.Name.Curfn = xfunc
++	ptr.Xoffset = 0
+ 	xfunc.Func.Dcl = list(xfunc.Func.Dcl, ptr)
+ 	var body *NodeList
+ 	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f7100fefbe..c988465e9f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -304,14 +304,14 @@ func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimp
+ 
+ var (
+ 	// dummy node for the memory variable
+-	memVar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
++	memVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "mem"}}
+ 
+ 	// dummy nodes for temporary variables
+-	ptrVar   = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
+-	capVar   = Node{Op: ONAME, Sym: &Sym{Name: "cap"}}
+-	typVar   = Node{Op: ONAME, Sym: &Sym{Name: "typ"}}
+-	idataVar = Node{Op: ONAME, Sym: &Sym{Name: "idata"}}
+-	okVar    = Node{Op: ONAME, Sym: &Sym{Name: "ok"}}
++	ptrVar   = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ptr"}}
++	capVar   = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "cap"}}
++	typVar   = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "typ"}}
++	idataVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "idata"}}
++	okVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ok"}}
+ )
+ 
+ // startBlock sets the current block we're generating code in to b.
+@@ -2021,6 +2021,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
+ 	if left.Op == ONAME && canSSA(left) {
+ 		// Update variable assignment.
+ 		s.vars[left] = right
++		s.addNamedValue(left, right)
+ 		return
+ 	}
+ 	// not ssa-able.  Treat as a store.
+@@ -2245,13 +2246,14 @@ func (s *state) lookupSymbol(n *Node, sym interface{}) interface{} {
+ // If bounded is true then this address does not require a nil check for its operand
+ // even if that would otherwise be implied.
+ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
++	t := Ptrto(n.Type)
+ 	switch n.Op {
+ 	case ONAME:
+ 		switch n.Class {
+ 		case PEXTERN:
+ 			// global variable
+ 			aux := &ssa.ExternSymbol{n.Type, n.Sym}
+-			v := s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
++			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
+ 			// TODO: Make OpAddr use AuxInt as well as Aux.
+ 			if n.Xoffset != 0 {
+ 				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, n.Xoffset, v)
+@@ -2277,12 +2279,12 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			// getting lucky.  We might need a real dependency edge
+ 			// between vardef and addr ops.
+ 			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
+-			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
+ 		case PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
+ 			// ensure that we reuse symbols for out parameters so
+ 			// that cse works on their addresses
+ 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
+-			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
+ 		case PAUTO | PHEAP, PPARAM | PHEAP, PPARAMOUT | PHEAP, PPARAMREF:
+ 			return s.expr(n.Name.Heapaddr)
+ 		default:
+@@ -2296,18 +2298,18 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			s.Unimplementedf("OINDREG of non-SP register %s in addr: %v", obj.Rconv(int(n.Reg)), n)
+ 			return nil
+ 		}
+-		return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.sp)
++		return s.entryNewValue1I(ssa.OpOffPtr, t, n.Xoffset, s.sp)
+ 	case OINDEX:
+ 		if n.Left.Type.IsSlice() {
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i)
+-			len := s.newValue1(ssa.OpSliceLen, Types[TUINTPTR], a)
++			len := s.newValue1(ssa.OpSliceLen, Types[TINT], a)
+ 			if !n.Bounded {
+ 				s.boundsCheck(i, len)
+ 			}
+-			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), a)
+-			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
++			p := s.newValue1(ssa.OpSlicePtr, t, a)
++			return s.newValue2(ssa.OpPtrIndex, t, p, i)
+ 		} else { // array
+ 			a := s.addr(n.Left, bounded)
+ 			i := s.expr(n.Right)
+@@ -2326,15 +2328,15 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 		return p
+ 	case ODOT:
+ 		p := s.addr(n.Left, bounded)
+-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
++		return s.newValue2(ssa.OpAddPtr, t, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	case ODOTPTR:
+ 		p := s.expr(n.Left)
+ 		if !bounded {
+ 			s.nilCheck(p)
+ 		}
+-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
++		return s.newValue2(ssa.OpAddPtr, t, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	case OCLOSUREVAR:
+-		return s.newValue2(ssa.OpAddPtr, Ptrto(n.Type),
++		return s.newValue2(ssa.OpAddPtr, t,
+ 			s.entryNewValue0(ssa.OpGetClosurePtr, Ptrto(Types[TUINT8])),
+ 			s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	case OPARAM:
+@@ -2347,11 +2349,10 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 		original_p := *p
+ 		original_p.Xoffset = n.Xoffset
+ 		aux := &ssa.ArgSymbol{Typ: n.Type, Node: &original_p}
+-		return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++		return s.entryNewValue1A(ssa.OpAddr, t, aux, s.sp)
+ 	case OCONVNOP:
+ 		addr := s.addr(n.Left, bounded)
+-		to := Ptrto(n.Type)
+-		return s.newValue1(ssa.OpCopy, to, addr) // ensure that addr has the right type
++		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
+ 
+ 	default:
+ 		s.Unimplementedf("unhandled addr %v", Oconv(int(n.Op), 0))
+@@ -3155,6 +3156,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
+ 			// need a phi value
+ 			v := b.NewValue0(s.peekLine(), ssa.OpPhi, t)
+ 			v.AddArgs(vals...)
++			s.addNamedValue(name, v)
+ 			return v
+ 		}
+ 	}
+@@ -3182,6 +3184,33 @@ func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
+ 
+ // TODO: the above mutually recursive functions can lead to very deep stacks.  Fix that.
+ 
++func (s *state) addNamedValue(n *Node, v *ssa.Value) {
++	if n.Class == Pxxx {
++		// Don't track our dummy nodes (&memVar etc.).
++		return
++	}
++	if n.Sym == nil {
++		// TODO: What the heck is this?
++		return
++	}
++	if strings.HasPrefix(n.Sym.Name, "autotmp_") {
++		// Don't track autotmp_ variables.
++		return
++	}
++	if n.Class == PPARAM || n.Class == PPARAMOUT {
++		// TODO: Remove this
++		return
++	}
++	if n.Class == PAUTO && n.Xoffset != 0 {
++		s.Fatalf("AUTO var with offset %s %d", n, n.Xoffset)
++	}
++	values, ok := s.f.NamedValues[n]
++	if !ok {
++		s.f.Names = append(s.f.Names, n)
++	}
++	s.f.NamedValues[n] = append(values, v)
++}
++
+ // an unresolved branch
+ type branch struct {
+ 	p *obj.Prog  // branch instruction
+@@ -4441,7 +4470,7 @@ func (*ssaExport) StringData(s string) interface{} {
+ 	return &ssa.ExternSymbol{Typ: idealstring, Sym: data}
+ }
+ 
+-func (e *ssaExport) Auto(t ssa.Type) fmt.Stringer {
++func (e *ssaExport) Auto(t ssa.Type) ssa.GCNode {
+ 	n := temp(t.(*Type))   // Note: adds new auto to Curfn.Func.Dcl list
+ 	e.mustImplement = true // This modifies the input to SSA, so we want to make sure we succeed from here!
+ 	return n
+@@ -4480,3 +4509,7 @@ func (e *ssaExport) Unimplementedf(msg string, args ...interface{}) {
+ 	}
+ 	e.unimplemented = true
+ }
++
++func (n *Node) Typ() ssa.Type {
++	return n.Type
++}
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index efb8b146a1..cfba10bc24 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -4,10 +4,7 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/internal/obj"
+-	"fmt"
+-)
++import "cmd/internal/obj"
+ 
+ type Config struct {
+ 	arch       string                     // "amd64", etc.
+@@ -63,7 +60,14 @@ type Frontend interface {
+ 
+ 	// Auto returns a Node for an auto variable of the given type.
+ 	// The SSA compiler uses this function to allocate space for spills.
+-	Auto(Type) fmt.Stringer // returns *gc.Node
++	Auto(Type) GCNode
++}
++
++// interface used to hold *gc.Node.  We'd use *gc.Node directly but
++// that would lead to an import cycle.
++type GCNode interface {
++	Typ() Type
++	String() string
+ }
+ 
+ // NewConfig returns a new configuration object for the given architecture.
+@@ -93,7 +97,7 @@ func (c *Config) Frontend() Frontend { return c.fe }
+ // NewFunc returns a new, empty function object
+ func (c *Config) NewFunc() *Func {
+ 	// TODO(khr): should this function take name, type, etc. as arguments?
+-	return &Func{Config: c}
++	return &Func{Config: c, NamedValues: map[GCNode][]*Value{}}
+ }
+ 
+ func (c *Config) Logf(msg string, args ...interface{})           { c.fe.Logf(msg, args...) }
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index be25eddb47..3351589fda 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -162,6 +162,25 @@ func deadcode(f *Func) {
+ 	}
+ 	f.Blocks = f.Blocks[:i]
+ 
++	// Remove dead entries from namedValues map.
++	for name, values := range f.NamedValues {
++		i := 0
++		for _, v := range values {
++			for v.Op == OpCopy {
++				v = v.Args[0]
++			}
++			if live[v.ID] {
++				values[i] = v
++				i++
++			}
++		}
++		f.NamedValues[name] = values[:i]
++		tail := values[i:]
++		for j := range tail {
++			tail[j] = nil
++		}
++	}
++
+ 	// TODO: renumber Blocks and Values densely?
+ 	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?
+ }
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 3ef20ef34f..2057d8ea5c 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -36,7 +36,7 @@ func decompose(f *Func) {
+ func decomposeStringPhi(v *Value) {
+ 	fe := v.Block.Func.Config.fe
+ 	ptrType := fe.TypeBytePtr()
+-	lenType := fe.TypeUintptr()
++	lenType := fe.TypeInt()
+ 
+ 	ptr := v.Block.NewValue0(v.Line, OpPhi, ptrType)
+ 	len := v.Block.NewValue0(v.Line, OpPhi, lenType)
+@@ -55,7 +55,7 @@ func decomposeStringPhi(v *Value) {
+ func decomposeSlicePhi(v *Value) {
+ 	fe := v.Block.Func.Config.fe
+ 	ptrType := fe.TypeBytePtr()
+-	lenType := fe.TypeUintptr()
++	lenType := fe.TypeInt()
+ 
+ 	ptr := v.Block.NewValue0(v.Line, OpPhi, ptrType)
+ 	len := v.Block.NewValue0(v.Line, OpPhi, lenType)
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 76a05f91d9..d0ba7b1c09 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -6,7 +6,6 @@ package ssa
+ 
+ import (
+ 	"cmd/internal/obj"
+-	"fmt"
+ 	"testing"
+ )
+ 
+@@ -29,7 +28,7 @@ type DummyFrontend struct {
+ func (DummyFrontend) StringData(s string) interface{} {
+ 	return nil
+ }
+-func (DummyFrontend) Auto(t Type) fmt.Stringer {
++func (DummyFrontend) Auto(t Type) GCNode {
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 1ea7c2e2de..772fffce33 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -25,6 +25,13 @@ type Func struct {
+ 
+ 	// when register allocation is done, maps value ids to locations
+ 	RegAlloc []Location
++
++	// map from *gc.Node to set of Values that represent that Node.
++	// The Node must be an ONAME with PPARAM, PPARAMOUT, or PAUTO class.
++	NamedValues map[GCNode][]*Value
++	// Names is a copy of NamedValues.Keys.  We keep a separate list
++	// of keys to make iteration order deterministic.
++	Names []GCNode
+ }
+ 
+ // NumBlocks returns an integer larger than the id of any Block in the Func.
+diff --git a/src/cmd/compile/internal/ssa/location.go b/src/cmd/compile/internal/ssa/location.go
+index 9f445e5b5a..0f9fb33eeb 100644
+--- a/src/cmd/compile/internal/ssa/location.go
++++ b/src/cmd/compile/internal/ssa/location.go
+@@ -4,10 +4,6 @@
+ 
+ package ssa
+ 
+-import (
+-	"fmt"
+-)
+-
+ // A place that an ssa variable can reside.
+ type Location interface {
+ 	Name() string // name to use in assembly templates: %rax, 16(%rsp), ...
+@@ -26,7 +22,7 @@ func (r *Register) Name() string {
+ 
+ // A LocalSlot is a location in the stack frame.
+ type LocalSlot struct {
+-	N fmt.Stringer // a *gc.Node for an auto variable
++	N GCNode // a *gc.Node for an auto variable
+ }
+ 
+ func (s *LocalSlot) Name() string {
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 17d1f66cea..793162a797 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -36,7 +36,8 @@ func stackalloc(f *Func) {
+ 			case v.Op == OpStoreReg, v.isStackPhi():
+ 				s.remove(v.ID)
+ 				for _, id := range s.contents() {
+-					if v.Type == types[id] {
++					if v.Type.Equal(types[id]) {
++						// Only need interferences between equivalent types.
+ 						interfere[v.ID] = append(interfere[v.ID], id)
+ 						interfere[id] = append(interfere[id], v.ID)
+ 					}
+@@ -47,6 +48,18 @@ func stackalloc(f *Func) {
+ 		}
+ 	}
+ 
++	// Build map from values to their names, if any.
++	// A value may be associated with more than one name (e.g. after
++	// the assignment i=j). This step picks one name per value arbitrarily.
++	names := make([]GCNode, f.NumValues())
++	for _, name := range f.Names {
++		// Note: not "range f.NamedValues" above, because
++		// that would be nondeterministic.
++		for _, v := range f.NamedValues[name] {
++			names[v.ID] = name
++		}
++	}
++
+ 	// Figure out which StoreReg ops are phi args.  We don't pick slots for
+ 	// phi args because a stack phi and its args must all use the same stack slot.
+ 	phiArg := make([]bool, f.NumValues())
+@@ -67,6 +80,7 @@ func stackalloc(f *Func) {
+ 
+ 	// Each time we assign a stack slot to a value v, we remember
+ 	// the slot we used via an index into locations[v.Type].
++	// TODO: share slots among equivalent types.
+ 	slots := make([]int, f.NumValues())
+ 	for i := f.NumValues() - 1; i >= 0; i-- {
+ 		slots[i] = -1
+@@ -82,6 +96,45 @@ func stackalloc(f *Func) {
+ 			if phiArg[v.ID] {
+ 				continue
+ 			}
++
++			// If this is a named value, try to use the name as
++			// the spill location.
++			var name GCNode
++			if v.Op == OpStoreReg {
++				name = names[v.Args[0].ID]
++			} else {
++				name = names[v.ID]
++			}
++			if name != nil && v.Type.Equal(name.Typ()) {
++				for _, id := range interfere[v.ID] {
++					h := f.getHome(id)
++					if h != nil && h.(*LocalSlot).N == name {
++						// A variable can interfere with itself.
++						// It is rare, but but it can happen.
++						goto noname
++					}
++				}
++				if v.Op == OpPhi {
++					for _, a := range v.Args {
++						for _, id := range interfere[a.ID] {
++							h := f.getHome(id)
++							if h != nil && h.(*LocalSlot).N == name {
++								goto noname
++							}
++						}
++					}
++				}
++				loc := &LocalSlot{name}
++				f.setHome(v, loc)
++				if v.Op == OpPhi {
++					for _, a := range v.Args {
++						f.setHome(a, loc)
++					}
++				}
++				continue
++			}
++
++		noname:
+ 			// Set of stack slots we could reuse.
+ 			locs := locations[v.Type]
+ 			// Mark all positions in locs used by interfering values.
+@@ -96,7 +149,7 @@ func stackalloc(f *Func) {
+ 			}
+ 			if v.Op == OpPhi {
+ 				// Stack phi and args must get the same stack slot, so
+-				// anything they interfere with is something v the phi
++				// anything the args interfere with is something the phi
+ 				// interferes with.
+ 				for _, a := range v.Args {
+ 					for _, xid := range interfere[a.ID] {
+@@ -209,11 +262,11 @@ func (f *Func) liveSpills() [][][]ID {
+ 	return live
+ }
+ 
+-func (f *Func) getHome(v *Value) Location {
+-	if int(v.ID) >= len(f.RegAlloc) {
++func (f *Func) getHome(vid ID) Location {
++	if int(vid) >= len(f.RegAlloc) {
+ 		return nil
+ 	}
+-	return f.RegAlloc[v.ID]
++	return f.RegAlloc[vid]
+ }
+ 
+ func (f *Func) setHome(v *Value, loc Location) {
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index a5915da025..661a05989a 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -142,15 +142,15 @@ type ExternSymbol struct {
+ // ArgSymbol is an aux value that encodes an argument or result
+ // variable's constant offset from FP (FP = SP + framesize).
+ type ArgSymbol struct {
+-	Typ  Type         // Go type
+-	Node fmt.Stringer // A *gc.Node referring to the argument/result variable.
++	Typ  Type   // Go type
++	Node GCNode // A *gc.Node referring to the argument/result variable.
+ }
+ 
+ // AutoSymbol is an aux value that encodes a local variable's
+ // constant offset from SP.
+ type AutoSymbol struct {
+-	Typ  Type         // Go type
+-	Node fmt.Stringer // A *gc.Node referring to a local (auto) variable.
++	Typ  Type   // Go type
++	Node GCNode // A *gc.Node referring to a local (auto) variable.
+ }
+ 
+ func (s *ExternSymbol) String() string {

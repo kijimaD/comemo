@@ -14,7 +14,82 @@ Date:   Wed Aug 24 12:39:20 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/crypto/tls/handshake_server.go      |  9 ++++++++-
  src/crypto/tls/handshake_server_test.go | 21 +++++++--------------
  2 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index cf6dfad3a7..fc0a7ac13d 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -239,7 +239,7 @@ func (hs *serverHandshakeState) processClientHello() error {
+ 
+ 	hs.ecdheOk = supportsECDHE(c.config, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
+ 
+-	if hs.ecdheOk {
++	if hs.ecdheOk && len(hs.clientHello.supportedPoints) > 0 {
+ 		// Although omitting the ec_point_formats extension is permitted, some
+ 		// old OpenSSL version will refuse to handshake if not present.
+ 		//
+@@ -320,6 +320,13 @@ func supportsECDHE(c *Config, supportedCurves []CurveID, supportedPoints []uint8
+ 			break
+ 		}
+ 	}
++	// Per RFC 8422, Section 5.1.2, if the Supported Point Formats extension is
++	// missing, uncompressed points are supported. If supportedPoints is empty,
++	// the extension must be missing, as an empty extension body is rejected by
++	// the parser. See https://go.dev/issue/49126.
++	if len(supportedPoints) == 0 {
++		supportsPointFormat = true
++	}
+ 
+ 	return supportsCurve && supportsPointFormat
+ }
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 863cb20600..78889f4ad2 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -281,7 +281,7 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
+ 
+ func TestTLSPointFormats(t *testing.T) {
+ 	// Test that a Server returns the ec_point_format extension when ECC is
+-	// negotiated, and not returned on RSA handshake.
++	// negotiated, and not on a RSA handshake or if ec_point_format is missing.
+ 	tests := []struct {
+ 		name                string
+ 		cipherSuites        []uint16
+@@ -289,8 +289,11 @@ func TestTLSPointFormats(t *testing.T) {
+ 		supportedPoints     []uint8
+ 		wantSupportedPoints bool
+ 	}{
+-		{"ECC", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, []uint8{compressionNone}, true},
++		{"ECC", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, []uint8{pointFormatUncompressed}, true},
++		{"ECC without ec_point_format", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, nil, false},
++		{"ECC with extra values", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, []uint8{13, 37, pointFormatUncompressed, 42}, true},
+ 		{"RSA", []uint16{TLS_RSA_WITH_AES_256_GCM_SHA384}, nil, nil, false},
++		{"RSA with ec_point_format", []uint16{TLS_RSA_WITH_AES_256_GCM_SHA384}, nil, []uint8{pointFormatUncompressed}, false},
+ 	}
+ 	for _, tt := range tests {
+ 		t.Run(tt.name, func(t *testing.T) {
+@@ -330,18 +333,8 @@ func TestTLSPointFormats(t *testing.T) {
+ 				t.Fatalf("didn't get ServerHello message in reply. Got %v\n", reply)
+ 			}
+ 			if tt.wantSupportedPoints {
+-				if len(serverHello.supportedPoints) < 1 {
+-					t.Fatal("missing ec_point_format extension from server")
+-				}
+-				found := false
+-				for _, p := range serverHello.supportedPoints {
+-					if p == pointFormatUncompressed {
+-						found = true
+-						break
+-					}
+-				}
+-				if !found {
+-					t.Fatal("missing uncompressed format in ec_point_format extension from server")
++				if !bytes.Equal(serverHello.supportedPoints, []uint8{pointFormatUncompressed}) {
++					t.Fatal("incorrect ec_point_format extension from server")
+ 				}
+ 			} else {
+ 				if len(serverHello.supportedPoints) != 0 {

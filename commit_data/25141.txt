@@ -13,7 +13,64 @@ Date:   Wed Sep 30 13:35:03 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/binary/binary.go      |  4 ++++
  src/encoding/binary/binary_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 2bbe07c02f..1c2577b68d 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -135,6 +135,10 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
+ // blank (_) field names is skipped; i.e., blank field names
+ // may be used for padding.
+ // When reading into a struct, all non-blank fields must be exported.
++//
++// The error is EOF only if no bytes were read.
++// If an EOF happens after reading some but not all the bytes,
++// Read returns ErrUnexpectedEOF.
+ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 	// Fast path for basic types and slices.
+ 	if n := intDataSize(data); n != 0 {
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index 8ee595fa47..7fd36fa4ef 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -309,6 +309,36 @@ func TestReadErrorMsg(t *testing.T) {
+ 	read(&p)
+ }
+ 
++func TestReadTruncated(t *testing.T) {
++	const data = "0123456789abcdef"
++
++	var b1 = make([]int32, 4)
++	var b2 struct {
++		A, B, C, D byte
++		E          int32
++		F          float64
++	}
++
++	for i := 0; i <= len(data); i++ {
++		var errWant error
++		switch i {
++		case 0:
++			errWant = io.EOF
++		case len(data):
++			errWant = nil
++		default:
++			errWant = io.ErrUnexpectedEOF
++		}
++
++		if err := Read(strings.NewReader(data[:i]), LittleEndian, &b1); err != errWant {
++			t.Errorf("Read(%d) with slice: got %v, want %v", i, err, errWant)
++		}
++		if err := Read(strings.NewReader(data[:i]), LittleEndian, &b2); err != errWant {
++			t.Errorf("Read(%d) with struct: got %v, want %v", i, err, errWant)
++		}
++	}
++}
++
+ type byteSliceReader struct {
+ 	remain []byte
+ }

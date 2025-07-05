@@ -11,7 +11,7 @@ Date:   Wed Sep 17 12:14:52 2008 -0700
     DELTA=213  (62 added, 147 deleted, 4 changed)
     OCL=15435
     CL=15437
-
+---
  doc/progs/235A.go        | 52 --------------------------------------
  doc/progs/235B.go        | 48 -----------------------------------
  doc/progs/235_gen.go     | 59 -------------------------------------------
@@ -19,3 +19,282 @@ Date:   Wed Sep 17 12:14:52 2008 -0700
  doc/progs/run            | 65 ++++++++++++++++++++++++++++++++++++++++++++++++
  doc/progs/server1.go     |  6 ++---
  6 files changed, 69 insertions(+), 163 deletions(-)
+
+diff --git a/doc/progs/235A.go b/doc/progs/235A.go
+deleted file mode 100644
+index 05e4a48233..0000000000
+--- a/doc/progs/235A.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-type INT uint64
+-
+-func Multiplier(f INT, in, out *chan INT) {
+-	for {
+-		out -< (f * <-in);
+-	}
+-}
+-
+-func min(a, b INT) INT {
+-	if a < b { return a }
+-	return b;
+-}
+-
+-func main() {
+-	c2i := new(chan INT, 100);
+-	c2o := new(chan INT);
+-	c3i := new(chan INT, 100);
+-	c3o := new(chan INT);
+-	c5i := new(chan INT, 100);
+-	c5o := new(chan INT);
+-
+-	go Multiplier(2, c2i, c2o);
+-	go Multiplier(3, c3i, c3o);
+-	go Multiplier(5, c5i, c5o);
+-
+-	var x INT = 1;
+-
+-	x2 := x;
+-	x3 := x;
+-	x5 := x;
+-
+-	for i := 0; i < 100; i++ {
+-		print(x, "\n");
+-
+-		c2i -< x;
+-		c3i -< x;
+-		c5i -< x;
+-
+-		if x2 == x { x2 = <- c2o }
+-		if x3 == x { x3 = <- c3o }
+-		if x5 == x { x5 = <- c5o }
+-
+-		x = min(min(x2, x3), x5);
+-	}
+-	sys.exit(0);
+-}
+diff --git a/doc/progs/235B.go b/doc/progs/235B.go
+deleted file mode 100644
+index bd7e21daa8..0000000000
+--- a/doc/progs/235B.go
++++ /dev/null
+@@ -1,48 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-type INT uint64
+-
+-func Multiplier(f INT) (in, out *chan INT) {
+-	inc := new(chan INT, 100);
+-	outc := new(chan INT);
+-	go func(f INT, in, out *chan INT) {
+-		for {
+-			out -< f * <-in;
+-		}
+-	}(f, inc, outc)
+-	return inc, outc
+-}
+-
+-func min(a, b INT) INT {
+-	if a < b { return a }
+-	return b;
+-}
+-
+-func main() {
+-	c2i, c2o := Multiplier(2);
+-	c3i, c3o := Multiplier(3);
+-	c5i, c5o := Multiplier(5);
+-
+-	var x INT = 1;
+-
+-	x2, x3, x5 := x, x, x;
+-
+-	for i := 0; i < 100; i++ {
+-		print(x, "\n");
+-
+-		c2i -< x;
+-		c3i -< x;
+-		c5i -< x;
+-
+-		if x2 == x { x2 = <- c2o }
+-		if x3 == x { x3 = <- c3o }
+-		if x5 == x { x5 = <- c5o }
+-
+-		x = min(min(x2, x3), x5);
+-	}
+-	sys.exit(0);
+-}
+diff --git a/doc/progs/235_gen.go b/doc/progs/235_gen.go
+deleted file mode 100644
+index 1e84edb92b..0000000000
+--- a/doc/progs/235_gen.go
++++ /dev/null
+@@ -1,59 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-type INT uint64
+-
+-func Multiplier(f INT) (in, out *chan INT) {
+-	in = new(chan INT, 100);
+-	out = new(chan INT, 100);
+-	go func(in, out *chan INT, f INT) {
+-		for {
+-			out -< f * <- in;
+-		}
+-	}(in, out, f);
+-	return in, out;
+-}
+-
+-
+-func min(xs *[]INT) INT {
+-	m := xs[0];
+-	for i := 1; i < len(xs); i++ {
+-		if xs[i] < m {
+-			m = xs[i];
+-		}
+-	}
+-	return m;
+-}
+-
+-
+-func main() {
+-	F := []INT{2, 3, 5};
+-	const n = len(F);
+-
+-	x := INT(1);
+-	ins := new([]*chan INT, n);
+-	outs := new([]*chan INT, n);
+-	xs := new([]INT, n);
+-	for i := 0; i < n; i++ {
+-		ins[i], outs[i] = Multiplier(F[i]);
+-		xs[i] = x;
+-	}
+-
+-	for i := 0; i < 100; i++ {
+-		print(x, "\n");
+-		t := min(xs);
+-		for i := 0; i < n; i++ {
+-			ins[i] -< x;
+-		}
+-
+-		for i := 0; i < n; i++ {
+-			if xs[i] == x { xs[i] = <- outs[i]; }
+-		}
+-		
+-		x = min(xs);
+-	}
+-	sys.exit(0);
+-}
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index 540036865d..2347a1a19e 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -7,7 +7,7 @@ package main
+ import FD "fd"
+ 
+ func main() {
+-	hello := []byte{'h', 'e', 'l', 'l', 'o', ', ', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
++	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
+ 	FD.Stdout.Write(&hello);
+ 	fd,  errno := FD.Open("/does/not/exist",  0,  0);
+ 	if fd == nil {
+diff --git a/doc/progs/run b/doc/progs/run
+new file mode 100755
+index 0000000000..489cab5bd9
+--- /dev/null
++++ b/doc/progs/run
+@@ -0,0 +1,65 @@
++#!/bin/bash
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++rm -f *.6
++
++for i in \
++	fd.go \
++	helloworld.go \
++	helloworld2.go \
++	helloworld3.go \
++	echo.go \
++	cat.go \
++	cat_rot13.go \
++	sum.go \
++	sort.go \
++	sortmain.go \
++	sieve.go \
++	sieve1.go \
++	server1.go \
++; do
++	BASE=$(basename $i .go)
++
++	6g $i
++done
++
++function testit {
++	6l $1.6
++	x=$(echo $(6.out $2 2>&1))  # extra echo canonicalizes
++	if [ "$x" != "$3" ]
++	then
++		echo $1 failed: '"'$x'"' is not '"'$3'"'
++	fi
++}
++
++function testitpipe {
++	6l $1.6
++	x=$(echo $(6.out | $2 2>&1))  # extra echo canonicalizes
++	if [ "$x" != "$3" ]
++	then
++		echo $1 failed: '"'$x'"' is not '"'$3'"'
++	fi
++}
++
++
++testit helloworld "" "Hello, world; or Καλημέρα κόσμε; or こんにちは 世界"
++testit helloworld2 "" "Hello, world; or Καλημέρα κόσμε; or こんにちは 世界"
++testit helloworld3 "" "hello, world can't open file; errno=2"
++testit echo "hello, world" "hello, world"
++testit sum "" "6"
++
++alphabet=abcdefghijklmnopqrstuvwxyz
++rot13=nopqrstuvwxyzabcdefghijklm
++echo $alphabet | testit cat "" $alphabet
++echo $alphabet | testit cat_rot13 "--rot13" $rot13
++echo $rot13 | testit cat_rot13 "--rot13" $alphabet
++
++testit sortmain "" "Sunday Monday Tuesday Thursday Friday"
++
++testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
++testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
++
++# server hangs; don't run it
++testit server1 "" ""
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+index 69bf22d871..d70ddfd9d0 100644
+--- a/doc/progs/server1.go
++++ b/doc/progs/server1.go
+@@ -27,9 +27,9 @@ func Server(op *BinOp, service *chan *Request, quit *chan bool) {
+ 	}
+ }
+ 
+-func StartServer(op *BinOp) (servch *chan *Request, quitch *chan bool) {
+-	service := new(chan *Request);
+-	quit := new(chan bool);
++func StartServer(op *BinOp) (service *chan *Request, quit *chan bool) {
++	service = new(chan *Request);
++	quit = new(chan bool);
+ 	go Server(op, service, quit);
+ 	return service, quit;
+ }

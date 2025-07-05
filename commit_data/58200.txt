@@ -20,6 +20,26 @@ Date:   Wed Oct 11 14:09:20 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/lock_sema.go | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index e15bbf79ae..9afba08b0b 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -130,13 +130,7 @@ func unlock2(l *mutex) {
+ 
+ // One-time notifications.
+ func noteclear(n *note) {
+-	if GOOS == "aix" {
+-		// On AIX, semaphores might not synchronize the memory in some
+-		// rare cases. See issue #30189.
+-		atomic.Storeuintptr(&n.key, 0)
+-	} else {
+-		n.key = 0
+-	}
++	n.key = 0
+ }
+ 
+ func notewakeup(n *note) {

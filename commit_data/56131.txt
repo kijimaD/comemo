@@ -17,7 +17,7 @@ Date:   Sat Mar 25 16:57:07 2023 -0700
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/conf.go                   | 2 +-
  src/net/conn_test.go              | 2 +-
  src/net/dial_test.go              | 2 +-
@@ -74,3 +74,726 @@ Date:   Sat Mar 25 16:57:07 2023 -0700
  src/net/unixsock_test.go          | 2 +-
  src/net/writev_test.go            | 2 +-
  55 files changed, 58 insertions(+), 57 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 41196042bb..8a4ee935c6 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/conn_test.go b/src/net/conn_test.go
+index d168dda08e..4f391b0675 100644
+--- a/src/net/conn_test.go
++++ b/src/net/conn_test.go
+@@ -5,7 +5,7 @@
+ // This file implements API tests across platforms and will never have a build
+ // tag.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 57f685e547..d4db405e37 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 20da8f1970..6923f6a4a7 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ // DNS client: see RFC 1035.
+ // Has to be linked into package net for Dial.
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 69b300410a..d5f34e5300 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !windows
++//go:build !js && !wasip1 && !windows
+ 
+ // Read system DNS config from /etc/resolv.conf
+ 
+diff --git a/src/net/dnsname_test.go b/src/net/dnsname_test.go
+index 28b7c680fe..4a5f01a04a 100644
+--- a/src/net/dnsname_test.go
++++ b/src/net/dnsname_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/error_posix.go b/src/net/error_posix.go
+index 619483593b..c8dc069db4 100644
+--- a/src/net/error_posix.go
++++ b/src/net/error_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 4467dc11b2..fe0d9f676d 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/error_unix.go b/src/net/error_unix.go
+index 1f9b6eb78c..d6948670b6 100644
+--- a/src/net/error_unix.go
++++ b/src/net/error_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || js
++//go:build unix || js || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/external_test.go b/src/net/external_test.go
+index 3a97011fe8..0709b9d6f5 100644
+--- a/src/net/external_test.go
++++ b/src/net/external_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/file_stub.go b/src/net/file_stub.go
+index 91df926a57..1299f0e67f 100644
+--- a/src/net/file_stub.go
++++ b/src/net/file_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build (js && wasm) || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/file_test.go b/src/net/file_test.go
+index ea2a218dfb..53cd3c1074 100644
+--- a/src/net/file_test.go
++++ b/src/net/file_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/hook_unix.go b/src/net/hook_unix.go
+index fa82c7e52b..4e20f59218 100644
+--- a/src/net/hook_unix.go
++++ b/src/net/hook_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/interface_stub.go b/src/net/interface_stub.go
+index 2d4475f63e..829dbc6938 100644
+--- a/src/net/interface_stub.go
++++ b/src/net/interface_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build (js && wasm) || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index f6c9868418..da54a660e5 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 68ada4939a..1373059abe 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index 7b4d23927f..59967eb923 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/iprawsock_test.go b/src/net/iprawsock_test.go
+index a6db77480f..14c03a1f4d 100644
+--- a/src/net/iprawsock_test.go
++++ b/src/net/iprawsock_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index 7fd676bd2c..b0a00a6296 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index df3cadfa1a..f0a8861370 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9
++//go:build !js && !plan9 && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/lookup_fake.go b/src/net/lookup_fake.go
+index c27eae4ba5..45146e1c95 100644
+--- a/src/net/lookup_fake.go
++++ b/src/net/lookup_fake.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build (js && wasm) || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index b47e444375..e02c45f638 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/main_conf_test.go b/src/net/main_conf_test.go
+index 71257976bd..e5994f5e5f 100644
+--- a/src/net/main_conf_test.go
++++ b/src/net/main_conf_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9
++//go:build !js && !plan9 && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/main_noconf_test.go b/src/net/main_noconf_test.go
+index d7f22664b5..077a36e5d6 100644
+--- a/src/net/main_noconf_test.go
++++ b/src/net/main_noconf_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || plan9
++//go:build (js && wasm) || plan9 || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/main_posix_test.go b/src/net/main_posix_test.go
+index 8899aa9c94..a7942ee327 100644
+--- a/src/net/main_posix_test.go
++++ b/src/net/main_posix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9
++//go:build !js && !plan9 && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 1ee8c2efe7..9fd5c88543 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 61c17530c2..f86dd66a2d 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index 2ecc1fa46a..8e801d15d1 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Fake networking for js/wasm. It is intended to allow tests of other package to pass.
++// Fake networking for js/wasm and wasip1/wasm. It is intended to allow tests of other package to pass.
+ 
+-//go:build js && wasm
++//go:build (js && wasm) || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 05c058a46c..a0ac85f406 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/packetconn_test.go b/src/net/packetconn_test.go
+index fa160df5f5..dc0c14b93d 100644
+--- a/src/net/packetconn_test.go
++++ b/src/net/packetconn_test.go
+@@ -5,7 +5,7 @@
+ // This file implements API tests across platforms and will never have a build
+ // tag.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/parse_test.go b/src/net/parse_test.go
+index 97716d769a..7c509a97f2 100644
+--- a/src/net/parse_test.go
++++ b/src/net/parse_test.go
+@@ -12,9 +12,10 @@ import (
+ )
+ 
+ func TestReadLine(t *testing.T) {
+-	// /etc/services file does not exist on android, plan9, windows.
++	// /etc/services file does not exist on android, plan9, windows, or wasip1
++	// where it would be required to be mounted from the host file system.
+ 	switch runtime.GOOS {
+-	case "android", "plan9", "windows":
++	case "android", "plan9", "windows", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 	filename := "/etc/services" // a nice big file
+diff --git a/src/net/port_unix.go b/src/net/port_unix.go
+index b05b588f17..0b2ea3ec5d 100644
+--- a/src/net/port_unix.go
++++ b/src/net/port_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ // Read system port mappings from /etc/services
+ 
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index 8275d80d74..c5668079a9 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -5,7 +5,7 @@
+ // This file implements API tests across platforms and will never have a build
+ // tag.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/rawconn_stub_test.go b/src/net/rawconn_stub_test.go
+index ff3d829893..c8ad80cc84 100644
+--- a/src/net/rawconn_stub_test.go
++++ b/src/net/rawconn_stub_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || plan9
++//go:build (js && wasm) || plan9 || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/rawconn_test.go b/src/net/rawconn_test.go
+index d1ef79d715..06d5856a9a 100644
+--- a/src/net/rawconn_test.go
++++ b/src/net/rawconn_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/resolverdialfunc_test.go b/src/net/resolverdialfunc_test.go
+index 1fb02b1737..1de0402389 100644
+--- a/src/net/resolverdialfunc_test.go
++++ b/src/net/resolverdialfunc_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ // Test that Resolver.Dial can be a func returning an in-memory net.Conn
+ // speaking DNS.
+diff --git a/src/net/sendfile_stub.go b/src/net/sendfile_stub.go
+index 7428da3127..c7a2e6a1e4 100644
+--- a/src/net/sendfile_stub.go
++++ b/src/net/sendfile_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || (js && wasm) || netbsd || openbsd || ios
++//go:build aix || (js && wasm) || netbsd || openbsd || ios || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 969c022b00..44a87a1d20 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index 6796d7993e..2ff0689067 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/sock_stub.go b/src/net/sock_stub.go
+index 4b73e575fe..e163755568 100644
+--- a/src/net/sock_stub.go
++++ b/src/net/sock_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || (js && wasm) || solaris
++//go:build aix || (js && wasm) || solaris || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/sockaddr_posix.go b/src/net/sockaddr_posix.go
+index 76c3233b29..e44fc76f4b 100644
+--- a/src/net/sockaddr_posix.go
++++ b/src/net/sockaddr_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/sockopt_stub.go b/src/net/sockopt_stub.go
+index 98e23714d9..186d8912cb 100644
+--- a/src/net/sockopt_stub.go
++++ b/src/net/sockopt_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build (js && wasm) || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/sockoptip_stub.go b/src/net/sockoptip_stub.go
+index 2c993eb719..a37c31223d 100644
+--- a/src/net/sockoptip_stub.go
++++ b/src/net/sockoptip_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build (js && wasm) || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index ed144a6ddc..e6f425b1cd 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index 35a93d1f38..f720a22519 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/tcpsock_unix_test.go b/src/net/tcpsock_unix_test.go
+index b14670bc67..35fd937e07 100644
+--- a/src/net/tcpsock_unix_test.go
++++ b/src/net/tcpsock_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9 && !windows
++//go:build !js && !plan9 && !wasip1 && !windows
+ 
+ package net
+ 
+diff --git a/src/net/tcpsockopt_stub.go b/src/net/tcpsockopt_stub.go
+index 0fe91829c0..f778143d3b 100644
+--- a/src/net/tcpsockopt_stub.go
++++ b/src/net/tcpsockopt_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build (js && wasm) || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index a2bc819829..6b3554ed79 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index ffeec81cff..f3dbcfec00 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 0ed2ff98c1..2afd4ac2ae 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index b38438c11a..14fbac0932 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -12,7 +12,7 @@ import (
+ 	"time"
+ )
+ 
+-// BUG(mikio): On JS and Plan 9, methods and functions related
++// BUG(mikio): On JS, WASIP1 and Plan 9, methods and functions related
+ // to UnixConn and UnixListener are not implemented.
+ 
+ // BUG(mikio): On Windows, methods and functions related to UnixConn
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index c16b483603..c501b499ed 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/unixsock_readmsg_other.go b/src/net/unixsock_readmsg_other.go
+index b3d19fe73d..0899a6d3d3 100644
+--- a/src/net/unixsock_readmsg_other.go
++++ b/src/net/unixsock_readmsg_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || windows
++//go:build (js && wasm) || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/unixsock_test.go b/src/net/unixsock_test.go
+index 2fc9580caf..8402519a0d 100644
+--- a/src/net/unixsock_test.go
++++ b/src/net/unixsock_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9 && !windows
++//go:build !js && !plan9 && !wasip1 && !windows
+ 
+ package net
+ 
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index c4efe9d2ae..8722c0f920 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package net
+ 

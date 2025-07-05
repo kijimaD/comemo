@@ -7,7 +7,34 @@ Date:   Wed Sep 14 13:29:31 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5021042
-
+---
  src/pkg/exp/regexp/exec_test.go  | 2 +-
  src/pkg/image/png/reader_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/regexp/exec_test.go b/src/pkg/exp/regexp/exec_test.go
+index e8eaff5412..3adf8484ca 100644
+--- a/src/pkg/exp/regexp/exec_test.go
++++ b/src/pkg/exp/regexp/exec_test.go
+@@ -558,7 +558,7 @@ Reading:
+ 			}
+ 			have := re.FindStringSubmatchIndex(text)
+ 			if (len(have) > 0) != match {
+-				t.Errorf("%s:%d: %#q.Match(%#q) = %v, but %#q.FindSubmatchIndex(%#q) = %v", file, lineno, pattern, text, match, text, have)
++				t.Errorf("%s:%d: %#q.Match(%#q) = %v, but %#q.FindSubmatchIndex(%#q) = %v", file, lineno, pattern, text, match, pattern, text, have)
+ 				continue Testing
+ 			}
+ 			if len(have) > len(pos) {
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index 2088431905..1b7c2de718 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -262,7 +262,7 @@ func TestReaderError(t *testing.T) {
+ 			t.Errorf("decoding %s: %s, want %s", tt.file, err, tt.err)
+ 		}
+ 		if img != nil {
+-			t.Errorf("decoding %s: have image + error")
++			t.Errorf("decoding %s: have image + error", tt.file)
+ 		}
+ 	}
+ }

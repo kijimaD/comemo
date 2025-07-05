@@ -10,9 +10,84 @@ Date:   Tue Jun 25 15:43:33 2019 -0400
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/go/build/deps_test.go           |  2 +-
  src/runtime/pprof/pprof.go          |  3 +++
  src/runtime/pprof/pprof_norusage.go | 15 +++++++++++++++
  src/runtime/pprof/pprof_rusage.go   | 20 ++++++++++++++++++++
  4 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index efb11814e7..9ef85dbf1b 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -195,7 +195,7 @@ var pkgDeps = map[string][]string{
+ 	"regexp":         {"L2", "regexp/syntax"},
+ 	"regexp/syntax":  {"L2"},
+ 	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
+-	"runtime/pprof":  {"L2", "compress/gzip", "context", "encoding/binary", "fmt", "io/ioutil", "os", "text/tabwriter", "time"},
++	"runtime/pprof":  {"L2", "compress/gzip", "context", "encoding/binary", "fmt", "io/ioutil", "os", "syscall", "text/tabwriter", "time"},
+ 	"runtime/trace":  {"L0", "context", "fmt"},
+ 	"text/tabwriter": {"L2"},
+ 
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index bbdc432eec..b4f9ab8f7a 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -630,6 +630,9 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
+ 	fmt.Fprintf(w, "# GCCPUFraction = %v\n", s.GCCPUFraction)
+ 	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
+ 
++	// Also flush out MaxRSS on supported platforms.
++	addMaxRSS(w)
++
+ 	tw.Flush()
+ 	return b.Flush()
+ }
+diff --git a/src/runtime/pprof/pprof_norusage.go b/src/runtime/pprof/pprof_norusage.go
+new file mode 100644
+index 0000000000..6fdcc6cc38
+--- /dev/null
++++ b/src/runtime/pprof/pprof_norusage.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !darwin,!linux
++
++package pprof
++
++import (
++	"io"
++)
++
++// Stub call for platforms that don't support rusage.
++func addMaxRSS(w io.Writer) {
++}
+diff --git a/src/runtime/pprof/pprof_rusage.go b/src/runtime/pprof/pprof_rusage.go
+new file mode 100644
+index 0000000000..6eaf168444
+--- /dev/null
++++ b/src/runtime/pprof/pprof_rusage.go
+@@ -0,0 +1,20 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin linux
++
++package pprof
++
++import (
++	"fmt"
++	"io"
++	"syscall"
++)
++
++// Adds MaxRSS to platforms that are supported.
++func addMaxRSS(w io.Writer) {
++	var rusage syscall.Rusage
++	syscall.Getrusage(0, &rusage)
++	fmt.Fprintf(w, "# MaxRSS = %d\n", rusage.Maxrss)
++}

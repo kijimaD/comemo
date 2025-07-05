@@ -13,6 +13,24 @@ Date:   Fri Sep 24 16:52:06 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2204048
-
+---
  src/pkg/net/sock.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index d04d4dd7c2..3e105ad4ab 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -38,6 +38,12 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	// Allow broadcast.
+ 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+ 
++	if f == syscall.AF_INET6 {
++		// using ip, tcp, udp, etc.
++		// allow both protocols even if the OS default is otherwise.
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
++	}
++
+ 	if la != nil {
+ 		e = syscall.Bind(s, la)
+ 		if e != 0 {

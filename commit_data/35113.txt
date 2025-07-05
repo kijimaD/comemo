@@ -11,7 +11,43 @@ Date:   Wed Dec 13 22:49:23 2017 -0800
     Change-Id: I10f20e41f2c466a76519983253f87af7cf6d5e70
     Reviewed-on: https://go-review.googlesource.com/83918
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/resolver.go          |  4 ++--
  src/go/types/testdata/decls2b.src | 10 ++++++++++
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 7bcfaabcde..d03c1799af 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -417,9 +417,9 @@ func (check *Checker) collectObjects() {
+ 					// receiver name. They will be type-checked later, with regular
+ 					// functions.
+ 					if list := d.Recv.List; len(list) > 0 {
+-						typ := list[0].Type
++						typ := unparen(list[0].Type)
+ 						if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
+-							typ = ptr.X
++							typ = unparen(ptr.X)
+ 						}
+ 						if base, _ := typ.(*ast.Ident); base != nil && base.Name != "_" {
+ 							check.assocMethod(base.Name, obj)
+diff --git a/src/go/types/testdata/decls2b.src b/src/go/types/testdata/decls2b.src
+index e7bc394762..8e82c6dcde 100644
+--- a/src/go/types/testdata/decls2b.src
++++ b/src/go/types/testdata/decls2b.src
+@@ -63,3 +63,13 @@ func ((*T7)) m3() {}
+ func (x *(T7),) m4() {}
+ func (x (*(T7)),) m5() {}
+ func (x ((*((T7)))),) m6() {}
++
++// Check that methods with parenthesized receiver are actually present (issue #23130).
++var (
++	_ = T7.m1
++	_ = T7.m2
++	_ = (*T7).m3
++	_ = (*T7).m4
++	_ = (*T7).m5
++	_ = (*T7).m6
++)
+\ No newline at end of file

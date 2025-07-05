@@ -14,7 +14,251 @@ Date:   Wed Apr 8 14:30:55 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj2/objfile.go      | 97 ++++++++++++++-------------------
  src/cmd/internal/goobj2/objfile_test.go | 72 +++++++++++++++++-------
  2 files changed, 93 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 12d3a1a095..792dfc046a 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -185,14 +185,19 @@ func (h *Header) Size() int {
+ }
+ 
+ // Symbol definition.
+-type Sym struct {
+-	Name  string
+-	ABI   uint16
+-	Type  uint8
+-	Flag  uint8
+-	Siz   uint32
+-	Align uint32
+-}
++//
++// Serialized format:
++// Sym struct {
++//    Name  string
++//    ABI   uint16
++//    Type  uint8
++//    Flag  uint8
++//    Siz   uint32
++//    Align uint32
++// }
++type Sym2 [SymSize]byte
++
++const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
+ 
+ const SymABIstatic = ^uint16(0)
+ 
+@@ -211,19 +216,6 @@ const (
+ 	SymFlagTopFrame
+ )
+ 
+-func (s *Sym) Write(w *Writer) {
+-	w.StringRef(s.Name)
+-	w.Uint16(s.ABI)
+-	w.Uint8(s.Type)
+-	w.Uint8(s.Flag)
+-	w.Uint32(s.Siz)
+-	w.Uint32(s.Align)
+-}
+-
+-const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
+-
+-type Sym2 [SymSize]byte
+-
+ func (s *Sym2) Name(r *Reader) string {
+ 	len := binary.LittleEndian.Uint32(s[:])
+ 	off := binary.LittleEndian.Uint32(s[4:])
+@@ -258,38 +250,29 @@ func (s *Sym2) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[16:], x) }
+ 
+ func (s *Sym2) Write(w *Writer) { w.Bytes(s[:]) }
+ 
++// for testing
++func (s *Sym2) fromBytes(b []byte) { copy(s[:], b) }
++
+ // Symbol reference.
+ type SymRef struct {
+ 	PkgIdx uint32
+ 	SymIdx uint32
+ }
+ 
+-func (s *SymRef) Write(w *Writer) {
+-	w.Uint32(s.PkgIdx)
+-	w.Uint32(s.SymIdx)
+-}
+-
+ // Relocation.
+-type Reloc struct {
+-	Off  int32
+-	Siz  uint8
+-	Type uint8
+-	Add  int64
+-	Sym  SymRef
+-}
+-
+-func (r *Reloc) Write(w *Writer) {
+-	w.Uint32(uint32(r.Off))
+-	w.Uint8(r.Siz)
+-	w.Uint8(r.Type)
+-	w.Uint64(uint64(r.Add))
+-	r.Sym.Write(w)
+-}
++//
++// Serialized format:
++// Reloc struct {
++//    Off  int32
++//    Siz  uint8
++//    Type uint8
++//    Add  int64
++//    Sym  SymRef
++// }
++type Reloc2 [RelocSize]byte
+ 
+ const RelocSize = 4 + 1 + 1 + 8 + 8
+ 
+-type Reloc2 [RelocSize]byte
+-
+ func (r *Reloc2) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
+ func (r *Reloc2) Siz() uint8  { return r[4] }
+ func (r *Reloc2) Type() uint8 { return r[5] }
+@@ -317,11 +300,19 @@ func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
+ 
+ func (r *Reloc2) Write(w *Writer) { w.Bytes(r[:]) }
+ 
++// for testing
++func (r *Reloc2) fromBytes(b []byte) { copy(r[:], b) }
++
+ // Aux symbol info.
+-type Aux struct {
+-	Type uint8
+-	Sym  SymRef
+-}
++//
++// Serialized format:
++// Aux struct {
++//    Type uint8
++//    Sym  SymRef
++// }
++type Aux2 [AuxSize]byte
++
++const AuxSize = 1 + 8
+ 
+ // Aux Type
+ const (
+@@ -336,15 +327,6 @@ const (
+ 	// TODO: more. Pcdata?
+ )
+ 
+-func (a *Aux) Write(w *Writer) {
+-	w.Uint8(a.Type)
+-	a.Sym.Write(w)
+-}
+-
+-const AuxSize = 1 + 8
+-
+-type Aux2 [AuxSize]byte
+-
+ func (a *Aux2) Type() uint8 { return a[0] }
+ func (a *Aux2) Sym() SymRef {
+ 	return SymRef{binary.LittleEndian.Uint32(a[1:]), binary.LittleEndian.Uint32(a[5:])}
+@@ -358,6 +340,9 @@ func (a *Aux2) SetSym(x SymRef) {
+ 
+ func (a *Aux2) Write(w *Writer) { w.Bytes(a[:]) }
+ 
++// for testing
++func (a *Aux2) fromBytes(b []byte) { copy(a[:], b) }
++
+ type Writer struct {
+ 	wr        *bio.Writer
+ 	stringMap map[string]uint32
+diff --git a/src/cmd/internal/goobj2/objfile_test.go b/src/cmd/internal/goobj2/objfile_test.go
+index ee15136cbe..bdd9c25066 100644
+--- a/src/cmd/internal/goobj2/objfile_test.go
++++ b/src/cmd/internal/goobj2/objfile_test.go
+@@ -8,32 +8,64 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/internal/bio"
++	"cmd/internal/objabi"
+ 	"testing"
+ )
+ 
+-func dummyWriter() *Writer {
+-	var buf bytes.Buffer
+-	wr := &bio.Writer{Writer: bufio.NewWriter(&buf)} // hacky: no file, so cannot seek
++func dummyWriter(buf *bytes.Buffer) *Writer {
++	wr := &bio.Writer{Writer: bufio.NewWriter(buf)} // hacky: no file, so cannot seek
+ 	return NewWriter(wr)
+ }
+ 
+-func TestSize(t *testing.T) {
+-	// This test checks that hard-coded sizes match the actual sizes
+-	// in the object file format.
+-	tests := []struct {
+-		x    interface{ Write(*Writer) }
+-		want uint32
+-	}{
+-		{&Reloc{}, RelocSize},
+-		{&Aux{}, AuxSize},
++func TestReadWrite(t *testing.T) {
++	// Test that we get the same data in a write-read roundtrip.
++
++	// Write a symbol, a relocation, and an aux info.
++	var buf bytes.Buffer
++	w := dummyWriter(&buf)
++
++	var s Sym2
++	s.SetABI(1)
++	s.SetType(uint8(objabi.STEXT))
++	s.SetFlag(0x12)
++	s.SetSiz(12345)
++	s.SetAlign(8)
++	s.Write(w)
++
++	var r Reloc2
++	r.SetOff(12)
++	r.SetSiz(4)
++	r.SetType(uint8(objabi.R_ADDR))
++	r.SetAdd(54321)
++	r.SetSym(SymRef{11, 22})
++	r.Write(w)
++
++	var a Aux2
++	a.SetType(AuxFuncInfo)
++	a.SetSym(SymRef{33, 44})
++	a.Write(w)
++
++	w.wr.Flush()
++
++	// Read them back and check.
++	b := buf.Bytes()
++	var s2 Sym2
++	s2.fromBytes(b)
++	if s2.ABI() != 1 || s2.Type() != uint8(objabi.STEXT) || s2.Flag() != 0x12 || s2.Siz() != 12345 || s2.Align() != 8 {
++		t.Errorf("read Sym2 mismatch: got %v %v %v %v %v", s2.ABI(), s2.Type(), s2.Flag(), s2.Siz(), s2.Align())
+ 	}
+-	w := dummyWriter()
+-	for _, test := range tests {
+-		off0 := w.off
+-		test.x.Write(w)
+-		got := w.off - off0
+-		if got != test.want {
+-			t.Errorf("size(%T) mismatch: %d bytes written, but size=%d", test.x, got, test.want)
+-		}
++
++	b = b[SymSize:]
++	var r2 Reloc2
++	r2.fromBytes(b)
++	if r2.Off() != 12 || r2.Siz() != 4 || r2.Type() != uint8(objabi.R_ADDR) || r2.Add() != 54321 || r2.Sym() != (SymRef{11, 22}) {
++		t.Errorf("read Reloc2 mismatch: got %v %v %v %v %v", r2.Off(), r2.Siz(), r2.Type(), r2.Add(), r2.Sym())
++	}
++
++	b = b[RelocSize:]
++	var a2 Aux2
++	a2.fromBytes(b)
++	if a2.Type() != AuxFuncInfo || a2.Sym() != (SymRef{33, 44}) {
++		t.Errorf("read Aux2 mismatch: got %v %v", a2.Type(), a2.Sym())
+ 	}
+ }

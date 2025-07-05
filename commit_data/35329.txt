@@ -41,8 +41,56 @@ Date:   Thu Jan 25 11:35:27 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 2 +-
  src/cmd/compile/internal/gc/subr.go   | 2 --
  src/cmd/internal/obj/x86/obj6.go      | 3 +++
  3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index ce322e5e99..e3129edbf1 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1076,7 +1076,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+-		p := s.Prog(obj.AJMP)
++		p := s.Prog(obj.ARET)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = b.Aux.(*obj.LSym)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index e0925dc7f2..5143c3e3d5 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1759,8 +1759,6 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface
+ 		as.Right.Type = rcvr
+ 		fn.Nbody.Append(as)
+ 		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr, false)))
+-		// When tail-calling, we can't use a frame pointer.
+-		fn.Func.SetNoFramePointer(true)
+ 	} else {
+ 		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
+ 		call := nod(OCALL, dot, nil)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 7b5e4769dc..c31d458d4a 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -917,6 +917,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 
+ 		if autoffset != 0 {
++			to := p.To // Keep To attached to RET for retjmp below
++			p.To = obj.Addr{}
+ 			if bpsize > 0 {
+ 				// Restore caller's BP
+ 				p.As = AMOVQ
+@@ -936,6 +938,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			p.Spadj = -autoffset
+ 			p = obj.Appendp(p, newprog)
+ 			p.As = obj.ARET
++			p.To = to
+ 
+ 			// If there are instructions following
+ 			// this ARET, they come from a branch

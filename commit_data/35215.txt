@@ -7,7 +7,37 @@ Date:   Thu Jan 11 11:30:49 2018 -0500
     Change-Id: I13afaa894292bd566510b40a5e4bbbe4d72d4d08
     Reviewed-on: https://go-review.googlesource.com/87395
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/go1.10.txt  | 1 +
  doc/go1.10.html | 6 ++++++
  2 files changed, 7 insertions(+)
+
+diff --git a/api/go1.10.txt b/api/go1.10.txt
+index 6647ec66dc..f17e54343f 100644
+--- a/api/go1.10.txt
++++ b/api/go1.10.txt
+@@ -573,6 +573,7 @@ pkg encoding/xml, type TokenReader interface, Token() (Token, error)
+ pkg flag, method (*FlagSet) ErrorHandling() ErrorHandling
+ pkg flag, method (*FlagSet) Name() string
+ pkg flag, method (*FlagSet) Output() io.Writer
++pkg html/template, type Srcset string
+ pkg math, func Erfcinv(float64) float64
+ pkg math, func Erfinv(float64) float64
+ pkg math, func Round(float64) float64
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 04944ac19a..b5b3c01e6c 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -1050,6 +1050,12 @@ The new actions <code>{{"{{break}}"}}</code> and <code>{{"{{continue}}"}}</code>
+ break out of the innermost <code>{{"{{range"}}</code>&nbsp;...<code>}}</code> loop,
+ like the corresponding Go statements.
+ </p>
++<p>
++The new <a href="/pkg/html/template#Srcset"><code>Srcset</code></a> content
++type allows for proper handling of values within the
++<a href="https://w3c.github.io/html/semantics-embedded-content.html#element-attrdef-img-srcset"><code>srcset</code></a>
++attribute of <code>img</code> tags.
++</p>
+ </dl>
+ 
+ <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>

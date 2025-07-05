@@ -7,6 +7,22 @@ Date:   Mon Jul 30 11:37:20 2012 +1000
     R=golang-dev, rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/6454062
-
+---
  misc/dashboard/codereview/dashboard/front.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dashboard/codereview/dashboard/front.go b/misc/dashboard/codereview/dashboard/front.go
+index 052f50d367..970ed3e1a0 100644
+--- a/misc/dashboard/codereview/dashboard/front.go
++++ b/misc/dashboard/codereview/dashboard/front.go
+@@ -244,8 +244,8 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
+     {{end}}
+     <td>
+       <a href="http://codereview.appspot.com/{{.Number}}/" title="{{ printf "%s" .Description}}">{{.Number}}: {{.FirstLineHTML}}</a>
+-      {{if and .LGTMs $tbl.Assignable}}<br /><span style="font-size: smaller;">LGTMs: {{.LGTMHTML}}{{end}}</span>
+-      {{if and .NotLGTMs $tbl.Assignable}}<br /><span style="font-size: smaller; color: #f74545;">NOT LGTMs: {{.NotLGTMHTML}}{{end}}</span>
++      {{if and .LGTMs $tbl.Assignable}}<br /><span style="font-size: smaller;">LGTMs: {{.LGTMHTML}}</span>{{end}}
++      {{if and .NotLGTMs $tbl.Assignable}}<br /><span style="font-size: smaller; color: #f74545;">NOT LGTMs: {{.NotLGTMHTML}}</span>{{end}}
+     </td>
+     <td title="Last modified">{{.ModifiedAgo}}</td>
+     {{if $.IsAdmin}}<td><a href="/update-cl?cl={{.Number}}" title="Update this CL">&#x27f3;</a></td>{{end}}

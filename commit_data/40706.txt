@@ -26,6 +26,19 @@ Date:   Wed Jun 19 13:33:33 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/macho_combine_dwarf.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/macho_combine_dwarf.go b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+index dd2ab4c5b0..3c123a092f 100644
+--- a/src/cmd/link/internal/ld/macho_combine_dwarf.go
++++ b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+@@ -409,6 +409,7 @@ func machoUpdateDwarfHeader(r *loadCmdReader, buildmode BuildMode, compressedSec
+ 	segv := reflect.ValueOf(seg).Elem()
+ 	segv.FieldByName("Offset").SetUint(uint64(dwarfstart))
+ 	segv.FieldByName("Addr").SetUint(uint64(dwarfaddr))
++	segv.FieldByName("Prot").SetUint(0)
+ 
+ 	if compressedSects != nil {
+ 		var segSize uint64

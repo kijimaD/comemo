@@ -11,6 +11,31 @@ Date:   Wed Sep 6 11:31:58 2023 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/go_test.go | 13 -------------
  1 file changed, 13 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1c4374da4b..1e28bec92d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -791,19 +791,6 @@ func (tg *testgoData) mustNotExist(path string) {
+ 	}
+ }
+ 
+-// mustHaveContent succeeds if filePath is a path to a file,
+-// and that file is readable and not empty.
+-func (tg *testgoData) mustHaveContent(filePath string) {
+-	tg.mustExist(filePath)
+-	f, err := os.Stat(filePath)
+-	if err != nil {
+-		tg.t.Fatal(err)
+-	}
+-	if f.Size() == 0 {
+-		tg.t.Fatalf("expected %s to have data, but is empty", filePath)
+-	}
+-}
+-
+ // wantExecutable fails with msg if path is not executable.
+ func (tg *testgoData) wantExecutable(path, msg string) {
+ 	tg.t.Helper()

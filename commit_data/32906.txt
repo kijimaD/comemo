@@ -15,7 +15,40 @@ Date:   Tue Jun 13 22:55:33 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/45653
     Reviewed-by: Jaana Burcu Dogan <jbd@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/path/filepath/path.go | 5 +++++
  src/path/path.go          | 5 ++++-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index e35ed5fefd..c242143c7a 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -4,6 +4,11 @@
+ 
+ // Package filepath implements utility routines for manipulating filename paths
+ // in a way compatible with the target operating system-defined file paths.
++//
++// The filepath package uses either forward slashes or backslashes,
++// depending on the operating system. To process paths such as URLs
++// that always use forward slashes regardless of the operating
++// system, see the path package.
+ package filepath
+ 
+ import (
+diff --git a/src/path/path.go b/src/path/path.go
+index 76c7814c59..5c905110a1 100644
+--- a/src/path/path.go
++++ b/src/path/path.go
+@@ -5,7 +5,10 @@
+ // Package path implements utility routines for manipulating slash-separated
+ // paths.
+ //
+-// To manipulate operating system paths, use the path/filepath package.
++// The path package should only be used for paths separated by forward
++// slashes, such as the paths in URLs. This package does not deal with
++// Windows paths with drive letters or backslashes; to manipulate
++// operating system paths, use the path/filepath package.
+ package path
+ 
+ import (

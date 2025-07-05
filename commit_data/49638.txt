@@ -31,7 +31,7 @@ Date:   Tue Aug 31 17:43:18 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        |  2 +-
  src/cmd/compile/internal/types2/call.go            | 19 +++++----
  src/cmd/compile/internal/types2/expr.go            | 49 ++++++++++++++++++----
@@ -40,3 +40,290 @@ Date:   Tue Aug 31 17:43:18 2021 -0700
  .../internal/types2/testdata/examples/types.go2    |  1 +
  .../types2/testdata/fixedbugs/issue39634.go2       |  2 +-
  7 files changed, 66 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 87295fe0e7..e3844d5163 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -763,7 +763,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		var t operand
+ 		x1 := x
+ 		for _, arg := range call.ArgList {
+-			check.rawExpr(x1, arg, nil) // permit trace for types, e.g.: new(trace(T))
++			check.rawExpr(x1, arg, nil, false) // permit trace for types, e.g.: new(trace(T))
+ 			check.dump("%v: %s", posFor(x1), x1)
+ 			x1 = &t // use incoming x only for first argument
+ 		}
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 954aa1de20..5bf17876c1 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -83,8 +83,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 		x.expr = iexpr
+ 		check.record(x)
+ 	} else {
+-		check.exprOrType(x, call.Fun)
++		check.exprOrType(x, call.Fun, true)
+ 	}
++	// x.typ may be generic
+ 
+ 	switch x.mode {
+ 	case invalid:
+@@ -94,6 +95,10 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 
+ 	case typexpr:
+ 		// conversion
++		check.nonGeneric(x)
++		if x.mode == invalid {
++			return conversion
++		}
+ 		T := x.typ
+ 		x.mode = invalid
+ 		switch n := len(call.ArgList); n {
+@@ -122,6 +127,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 		return conversion
+ 
+ 	case builtin:
++		// no need to check for non-genericity here
+ 		id := x.id
+ 		if !check.builtin(x, call, id) {
+ 			x.mode = invalid
+@@ -135,6 +141,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	}
+ 
+ 	// ordinary function/method call
++	// signature may be generic
+ 	cgocall := x.mode == cgofunc
+ 
+ 	sig := asSignature(x.typ)
+@@ -474,15 +481,11 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 		}
+ 	}
+ 
+-	check.exprOrType(x, e.X)
++	check.exprOrType(x, e.X, false)
+ 	if x.mode == invalid {
+ 		goto Error
+ 	}
+ 
+-	if x.mode == typexpr {
+-		x.typ = check.varType(e.X)
+-	}
+-
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+ 		switch {
+@@ -683,7 +686,7 @@ func (check *Checker) use(arg ...syntax.Expr) {
+ 			check.use(l.ElemList...)
+ 			continue
+ 		}
+-		check.rawExpr(&x, e, nil)
++		check.rawExpr(&x, e, nil, false)
+ 	}
+ }
+ 
+@@ -714,7 +717,7 @@ func (check *Checker) useLHS(arg ...syntax.Expr) {
+ 				}
+ 			}
+ 		}
+-		check.rawExpr(&x, e, nil)
++		check.rawExpr(&x, e, nil, false)
+ 		if v != nil {
+ 			v.used = v_used // restore v.used
+ 		}
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 799874624d..99204762bc 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1085,8 +1085,10 @@ const (
+ // rawExpr typechecks expression e and initializes x with the expression
+ // value or type. If an error occurred, x.mode is set to invalid.
+ // If hint != nil, it is the type of a composite literal element.
++// If allowGeneric is set, the operand type may be an uninstantiated
++// parameterized type or function value.
+ //
+-func (check *Checker) rawExpr(x *operand, e syntax.Expr, hint Type) exprKind {
++func (check *Checker) rawExpr(x *operand, e syntax.Expr, hint Type, allowGeneric bool) exprKind {
+ 	if check.conf.Trace {
+ 		check.trace(e.Pos(), "expr %s", e)
+ 		check.indent++
+@@ -1097,11 +1099,40 @@ func (check *Checker) rawExpr(x *operand, e syntax.Expr, hint Type) exprKind {
+ 	}
+ 
+ 	kind := check.exprInternal(x, e, hint)
++
++	if !allowGeneric {
++		check.nonGeneric(x)
++	}
++
+ 	check.record(x)
+ 
+ 	return kind
+ }
+ 
++// If x is a generic function or type, nonGeneric reports an error and invalidates x.mode and x.typ.
++// Otherwise it leaves x alone.
++func (check *Checker) nonGeneric(x *operand) {
++	if x.mode == invalid || x.mode == novalue {
++		return
++	}
++	var what string
++	switch t := x.typ.(type) {
++	case *Named:
++		if isGeneric(t) {
++			what = "type"
++		}
++	case *Signature:
++		if t.tparams != nil {
++			what = "function"
++		}
++	}
++	if what != "" {
++		check.errorf(x.expr, "cannot use generic %s %s without instantiation", what, x.expr)
++		x.mode = invalid
++		x.typ = Typ[Invalid]
++	}
++}
++
+ // exprInternal contains the core of type checking of expressions.
+ // Must only be called by rawExpr.
+ //
+@@ -1386,7 +1417,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		x.typ = typ
+ 
+ 	case *syntax.ParenExpr:
+-		kind := check.rawExpr(x, e.X, nil)
++		kind := check.rawExpr(x, e.X, nil, false)
+ 		x.expr = e
+ 		return kind
+ 
+@@ -1468,7 +1499,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// unary expression
+ 			if e.Op == syntax.Mul {
+ 				// pointer indirection
+-				check.exprOrType(x, e.X)
++				check.exprOrType(x, e.X, false)
+ 				switch x.mode {
+ 				case invalid:
+ 					goto Error
+@@ -1595,14 +1626,14 @@ func (check *Checker) typeAssertion(pos syntax.Pos, x *operand, xtyp *Interface,
+ // If an error occurred, x.mode is set to invalid.
+ //
+ func (check *Checker) expr(x *operand, e syntax.Expr) {
+-	check.rawExpr(x, e, nil)
++	check.rawExpr(x, e, nil, false)
+ 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
+ 	check.singleValue(x)
+ }
+ 
+ // multiExpr is like expr but the result may also be a multi-value.
+ func (check *Checker) multiExpr(x *operand, e syntax.Expr) {
+-	check.rawExpr(x, e, nil)
++	check.rawExpr(x, e, nil, false)
+ 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
+ }
+ 
+@@ -1612,16 +1643,18 @@ func (check *Checker) multiExpr(x *operand, e syntax.Expr) {
+ //
+ func (check *Checker) exprWithHint(x *operand, e syntax.Expr, hint Type) {
+ 	assert(hint != nil)
+-	check.rawExpr(x, e, hint)
++	check.rawExpr(x, e, hint, false)
+ 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
+ 	check.singleValue(x)
+ }
+ 
+ // exprOrType typechecks expression or type e and initializes x with the expression value or type.
++// If allowGeneric is set, the operand type may be an uninstantiated parameterized type or function
++// value.
+ // If an error occurred, x.mode is set to invalid.
+ //
+-func (check *Checker) exprOrType(x *operand, e syntax.Expr) {
+-	check.rawExpr(x, e, nil)
++func (check *Checker) exprOrType(x *operand, e syntax.Expr, allowGeneric bool) {
++	check.rawExpr(x, e, nil, allowGeneric)
+ 	check.exclude(x, 1<<novalue)
+ 	check.singleValue(x)
+ }
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index e8755a1a68..febfd21ea3 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -15,7 +15,8 @@ import (
+ // In that case x represents the uninstantiated function value and
+ // it is the caller's responsibility to instantiate the function.
+ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst bool) {
+-	check.exprOrType(x, e.X)
++	check.exprOrType(x, e.X, true)
++	// x may be generic
+ 
+ 	switch x.mode {
+ 	case invalid:
+@@ -25,6 +26,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 	case typexpr:
+ 		// type instantiation
+ 		x.mode = invalid
++		// TODO(gri) here we re-evaluate e.X - try to avoid this
+ 		x.typ = check.varType(e)
+ 		if x.typ != Typ[Invalid] {
+ 			x.mode = typexpr
+@@ -38,6 +40,12 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 		}
+ 	}
+ 
++	// x should not be generic at this point, but be safe and check
++	check.nonGeneric(x)
++	if x.mode == invalid {
++		return false
++	}
++
+ 	// ordinary index expression
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 3231fbec93..e138c58123 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -170,7 +170,7 @@ func (check *Checker) closeScope() {
+ func (check *Checker) suspendedCall(keyword string, call *syntax.CallExpr) {
+ 	var x operand
+ 	var msg string
+-	switch check.rawExpr(&x, call, nil) {
++	switch check.rawExpr(&x, call, nil, false) {
+ 	case conversion:
+ 		msg = "requires function call, not conversion"
+ 	case expression:
+@@ -386,7 +386,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		// function and method calls and receive operations can appear
+ 		// in statement context. Such statements may be parenthesized."
+ 		var x operand
+-		kind := check.rawExpr(&x, s.X, nil)
++		kind := check.rawExpr(&x, s.X, nil, false)
+ 		var msg string
+ 		switch x.mode {
+ 		default:
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/types.go2 b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+index 9ee014452c..97c9951ada 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/types.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+@@ -102,6 +102,7 @@ func _() {
+ 
+ // Generic types cannot be used without instantiation.
+ var _ T // ERROR cannot use generic type T
++var _ = T /* ERROR cannot use generic type T */ (0)
+ 
+ // In type context, generic (parameterized) types cannot be parenthesized before
+ // being instantiated. See also NOTES entry from 12/4/2019.
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
+index 8d14f8acaf..8e6bd974e8 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
+@@ -85,7 +85,7 @@ var x T25 /* ERROR without instantiation */ .m1
+ 
+ // crash 26
+ type T26 = interface{ F26[ /* ERROR cannot have type parameters */ Z any]() }
+-func F26[Z any]() T26 { return F26 /* ERROR without instantiation */ /* ERROR missing method */ [] /* ERROR operand */ }
++func F26[Z any]() T26 { return F26 /* ERROR without instantiation */ [] /* ERROR operand */ }
+ 
+ // crash 27
+ func e27[T any]() interface{ x27 /* ERROR not a type */ } { panic(0) }

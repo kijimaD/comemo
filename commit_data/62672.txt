@@ -13,6 +13,29 @@ Date:   Thu Feb 20 22:53:31 2025 +1100
     Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/internal/obj/arm64/asm7.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index f8d4c7aa98..680384da3f 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1953,7 +1953,7 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 		return C_BITCON
+ 	}
+ 
+-	if 0 <= v && v <= 0xffffff {
++	if isaddcon2(int64(v)) {
+ 		return C_ADDCON2
+ 	}
+ 	return C_LCON
+@@ -2205,7 +2205,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 				return C_BITCON
+ 			}
+ 
+-			if 0 <= v && v <= 0xffffff {
++			if isaddcon2(v) {
+ 				return C_ADDCON2
+ 			}
+ 

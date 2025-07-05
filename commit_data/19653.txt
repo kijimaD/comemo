@@ -24,7 +24,7 @@ Date:   Wed Jul 2 21:04:10 2014 +1000
     R=golang-codereviews, rsc, bradfitz, dave
     CC=0intro, ality, golang-codereviews, jas, minux.ma, mischief
     https://golang.org/cl/101510049
-
+---
  include/link.h                       |  2 +-
  src/liblink/asm6.c                   | 14 ++++++++++-
  src/liblink/asm8.c                   |  6 ++---
@@ -41,3 +41,502 @@ Date:   Wed Jul 2 21:04:10 2014 +1000
  src/pkg/runtime/sys_plan9_amd64.s    | 26 +++----------------
  src/pkg/runtime/time_plan9_386.c     | 36 --------------------------
  15 files changed, 94 insertions(+), 142 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 2067bec089..b4a46a9821 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -391,7 +391,7 @@ struct	Link
+ 	LSym*	sym_modu;
+ 	LSym*	symmorestack[20];
+ 	LSym*	tlsg;
+-	LSym*	plan9tos;
++	LSym*	plan9privates;
+ 	Prog*	curp;
+ 	Prog*	printp;
+ 	Prog*	blitrl;
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 66afc7a12a..751c972154 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -1901,7 +1901,6 @@ prefixof(Link *ctxt, Addr *a)
+ 		case Hlinux:
+ 		case Hnetbsd:
+ 		case Hopenbsd:
+-		case Hplan9:
+ 		case Hsolaris:
+ 			return 0x64; // FS
+ 		case Hdarwin:
+@@ -3365,6 +3364,19 @@ mfound:
+ 		default:
+ 			sysfatal("unknown TLS base location for %s", headstr(ctxt->headtype));
+ 
++		case Hplan9:
++			if(ctxt->plan9privates == nil)
++				ctxt->plan9privates = linklookup(ctxt, "_privates", 0);
++			memset(&pp.from, 0, sizeof pp.from);
++			pp.from.type = D_EXTERN;
++			pp.from.sym = ctxt->plan9privates;
++			pp.from.offset = 0;
++			pp.from.index = D_NONE;
++			ctxt->rexflag |= Pw;
++			*ctxt->andptr++ = 0x8B;
++			asmand(ctxt, &pp.from, &p->to);
++			break;
++
+ 		case Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
+ 			// TLS base is 0(FS).
+ 			pp.from = p->from;
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index 3ab527ce89..62ef41e18a 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -2707,11 +2707,11 @@ mfound:
+ 			break;
+ 		
+ 		case Hplan9:
+-			if(ctxt->plan9tos == nil)
+-				ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
++			if(ctxt->plan9privates == nil)
++				ctxt->plan9privates = linklookup(ctxt, "_privates", 0);
+ 			memset(&pp.from, 0, sizeof pp.from);
+ 			pp.from.type = D_EXTERN;
+-			pp.from.sym = ctxt->plan9tos;
++			pp.from.sym = ctxt->plan9privates;
+ 			pp.from.offset = 0;
+ 			pp.from.index = D_NONE;
+ 			*ctxt->andptr++ = 0x8B;
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index d83f847851..a8538c9ecf 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -103,7 +103,7 @@ static int
+ canuselocaltls(Link *ctxt)
+ {
+ 	switch(ctxt->headtype) {
+-//	case Hlinux:
++	case Hplan9:
+ 	case Hwindows:
+ 		return 0;
+ 	}
+@@ -402,6 +402,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		for(i=0; i<nelem(morename); i++)
+ 			ctxt->symmorestack[i] = linklookup(ctxt, morename[i], 0);
+ 	}
++
++	if(ctxt->headtype == Hplan9 && ctxt->plan9privates == nil)
++		ctxt->plan9privates = linklookup(ctxt, "_privates", 0);
++
+ 	ctxt->cursym = cursym;
+ 
+ 	if(cursym->text == nil || cursym->text->link == nil)
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index 72934c1499..6f96ebae95 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -270,8 +270,8 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		ctxt->symmorestack[1] = linklookup(ctxt, "runtime.morestack_noctxt", 0);
+ 	}
+ 
+-	if(ctxt->headtype == Hplan9 && ctxt->plan9tos == nil)
+-		ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
++	if(ctxt->headtype == Hplan9 && ctxt->plan9privates == nil)
++		ctxt->plan9privates = linklookup(ctxt, "_privates", 0);
+ 
+ 	ctxt->cursym = cursym;
+ 
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index 2b029ce4dc..c8da39ded1 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -128,8 +128,6 @@ linknew(LinkArch *arch)
+ 	default:
+ 		sysfatal("unknown thread-local storage offset for %s", headstr(ctxt->headtype));
+ 	case Hplan9:
+-		ctxt->tlsoffset = -2*ctxt->arch->ptrsize;
+-		break;
+ 	case Hwindows:
+ 		break;
+ 	case Hlinux:
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index c8a21847c4..56d07229b6 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -11,8 +11,12 @@ enum {
+ #else
+ #ifdef GOOS_windows
+ 	RuntimeGogoBytes = 80,
++#else
++#ifdef GOOS_plan9
++	RuntimeGogoBytes = 80,
+ #else
+ 	RuntimeGogoBytes = 64,
++#endif	// Plan 9
+ #endif	// Windows
+ #endif	// Solaris
+ 	PhysPageSize = 4096,
+diff --git a/src/pkg/runtime/defs_plan9_amd64.h b/src/pkg/runtime/defs_plan9_amd64.h
+index d8fec67eb7..20bca479c2 100644
+--- a/src/pkg/runtime/defs_plan9_amd64.h
++++ b/src/pkg/runtime/defs_plan9_amd64.h
+@@ -1,4 +1,4 @@
+-#define PAGESIZE 0x200000ULL
++#define PAGESIZE 0x1000
+ 
+ typedef struct Ureg Ureg;
+ 
+diff --git a/src/pkg/runtime/memclr_plan9_amd64.s b/src/pkg/runtime/memclr_plan9_amd64.s
+index 6b33054f5d..1fabcd5f09 100644
+--- a/src/pkg/runtime/memclr_plan9_amd64.s
++++ b/src/pkg/runtime/memclr_plan9_amd64.s
+@@ -5,44 +5,17 @@
+ #include "../../cmd/ld/textflag.h"
+ 
+ // void runtime·memclr(void*, uintptr)
+-TEXT runtime·memclr(SB), NOSPLIT, $0-16
+-	MOVQ	ptr+0(FP), DI
+-	MOVQ	n+8(FP), BX
+-	XORQ	AX, AX
+-
+-clr_tail:
+-	TESTQ	BX, BX
+-	JEQ	clr_0
+-	CMPQ	BX, $2
+-	JBE	clr_1or2
+-	CMPQ	BX, $4
+-	JBE	clr_3or4
+-	CMPQ	BX, $8
+-	JBE	clr_5through8
+-	CMPQ	BX, $16
+-	JBE	clr_9through16
+-	MOVQ	BX, CX
+-	SHRQ	$2, CX
++TEXT runtime·memclr(SB),NOSPLIT,$0-16
++	MOVQ	addr+0(FP), DI
++	MOVQ	count+8(FP), CX
++	MOVQ	CX, BX
++	ANDQ	$7, BX
++	SHRQ	$3, CX
++	MOVQ	$0, AX
++	CLD
+ 	REP
+ 	STOSQ
+-	ANDQ	$3, BX
+-	JNE	clr_tail
+-	RET
+-
+-clr_1or2:
+-	MOVB	AX, (DI)
+-	MOVB	AX, -1(DI)(BX*1)
+-clr_0:
+-	RET
+-clr_3or4:
+-	MOVW	AX, (DI)
+-	MOVW	AX, -2(DI)(BX*1)
+-	RET
+-clr_5through8:
+-	MOVL	AX, (DI)
+-	MOVL	AX, -4(DI)(BX*1)
+-	RET
+-clr_9through16:
+-	MOVQ	AX, (DI)
+-	MOVQ	AX, -8(DI)(BX*1)
++	MOVQ	BX, CX
++	REP
++	STOSB
+ 	RET
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index cf3480deac..6da7c7ef52 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -146,6 +146,35 @@ runtime·usleep(uint32 µs)
+ 	runtime·sleep(ms);
+ }
+ 
++#pragma textflag NOSPLIT
++int64
++runtime·nanotime(void)
++{
++	static int32 fd = -1;
++	byte b[8];
++	uint32 hi, lo;
++
++	// As long as all goroutines share the same file
++	// descriptor table we can get away with using
++	// just a static fd.  Without a lock the file can
++	// be opened twice but that's okay.
++	//
++	// Using /dev/bintime gives us a latency on the
++	// order of ten microseconds between two calls.
++	//
++	// The naïve implementation (without the cached
++	// file descriptor) is roughly four times slower
++	// in 9vx on a 2.16 GHz Intel Core 2 Duo.
++
++	if(fd < 0 && (fd = runtime·open("/dev/bintime", OREAD|OCEXEC, 0)) < 0)
++		return 0;
++	if(runtime·pread(fd, b, sizeof b, 0) != sizeof b)
++		return 0;
++	hi = b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3];
++	lo = b[4]<<24 | b[5]<<16 | b[6]<<8 | b[7];
++	return (int64)hi<<32 | (int64)lo;
++}
++
+ void
+ time·now(int64 sec, int32 nsec)
+ {
+diff --git a/src/pkg/runtime/rt0_plan9_386.s b/src/pkg/runtime/rt0_plan9_386.s
+index dad75c84d7..a8ae50841d 100644
+--- a/src/pkg/runtime/rt0_plan9_386.s
++++ b/src/pkg/runtime/rt0_plan9_386.s
+@@ -4,39 +4,20 @@
+ 
+ #include "../../cmd/ld/textflag.h"
+ 
+-TEXT _rt0_386_plan9(SB),NOSPLIT, $0
++TEXT _rt0_386_plan9(SB),NOSPLIT,$12
+ 	MOVL	AX, _tos(SB)
+-	
+-	// move arguments down to make room for
+-	// m and g at top of stack, right before Tos.
+-	MOVL	SP, SI
+-	SUBL	$8, SP
+-	MOVL	SP, DI
+-		
+-	MOVL	AX, CX
+-	SUBL	SI, CX
+-	CLD
+-	REP; MOVSB
+-	
+-	// adjust argv
+-	SUBL	SI, DI
+-	MOVL	newargc+0(SP), CX
+-	LEAL	newargv+4(SP), BP
+-argv_fix:
+-	ADDL	DI, 0(BP)
+-	ADDL	$4, BP
+-	LOOP	argv_fix
+-	
++	LEAL	8(SP), AX
++	MOVL	AX, _privates(SB)
++	MOVL	$1, _nprivates(SB)
+ 	CALL	runtime·asminit(SB)
+-
+-	MOVL	0(SP), AX
+-	LEAL	4(SP), BX
+-	PUSHL	BX
+-	PUSHL	AX
+-	PUSHL	$-1
+-
+-	JMP	_rt0_go(SB)
++	MOVL	inargc-4(FP), AX
++	MOVL	AX, 0(SP)
++	LEAL	inargv+0(FP), AX
++	MOVL	AX, 4(SP)
++	CALL	_rt0_go(SB)
+ 
+ DATA  runtime·isplan9(SB)/4, $1
+ GLOBL runtime·isplan9(SB), $4
+ GLOBL _tos(SB), $4
++GLOBL _privates(SB), $4
++GLOBL _nprivates(SB), $4
+diff --git a/src/pkg/runtime/rt0_plan9_amd64.s b/src/pkg/runtime/rt0_plan9_amd64.s
+index 79a7c92fcb..96d00584df 100644
+--- a/src/pkg/runtime/rt0_plan9_amd64.s
++++ b/src/pkg/runtime/rt0_plan9_amd64.s
+@@ -4,11 +4,18 @@
+ 
+ #include "../../cmd/ld/textflag.h"
+ 
+-TEXT _rt0_amd64_plan9(SB),NOSPLIT,$-8
+-	LEAQ	8(SP), SI // argv
+-	MOVQ	0(SP), DI // argc
++TEXT _rt0_amd64_plan9(SB),NOSPLIT,$24
++	MOVQ	AX, _tos(SB)
++	LEAQ	16(SP), AX
++	MOVQ	AX, _privates(SB)
++	MOVL	$1, _nprivates(SB)
++	MOVL	inargc-8(FP), DI
++	LEAQ	inargv+0(FP), SI
+ 	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+ 
+ DATA runtime·isplan9(SB)/4, $1
+ GLOBL runtime·isplan9(SB), $4
++GLOBL _tos(SB), $8
++GLOBL _privates(SB), $8
++GLOBL _nprivates(SB), $4
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index 5a652abaed..6a39012059 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -101,7 +101,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
+ 	MOVL	BX, g_m(DX)
+ 
+ 	// Initialize procid from TOS struct.
+-	// TODO: Be explicit and insert a new MOVL _tos(SB), AX here.
++	MOVL	_tos(SB), AX
+ 	MOVL	48(AX), AX // procid
+ 	MOVL	AX, m_procid(BX)	// save pid as m->procid
+ 	
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index 7e8e59393b..bcecc39638 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -10,26 +10,22 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·open(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$14, BP
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·pread(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$50, BP
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·pwrite(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$51, BP
+ 	SYSCALL
+ 	RET
+ 
+ // int32 _seek(int64*, int32, int64, int32)
+ TEXT _seek<>(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$39, BP
+ 	SYSCALL
+ 	RET
+@@ -52,67 +48,51 @@ TEXT runtime·seek(SB),NOSPLIT,$56
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$4, BP
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·exits(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$8, BP
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·brk_(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$24, BP
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·sleep(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$17, BP
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$37, BP
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$52, BP
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·notify(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$28, BP
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·noted(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$29, BP
+ 	SYSCALL
+ 	RET
+ 	
+ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$38, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·nanotime(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+-	MOVQ	$60, BP
+-	SYSCALL
+-	RET
+-
+ TEXT runtime·rfork(SB),NOSPLIT,$0
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$19, BP // rfork
+ 	SYSCALL
+ 
+@@ -135,8 +115,9 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
+ 	MOVQ	DX, g(AX)
+ 	MOVQ	BX, g_m(DX)
+ 
+-	// Initialize AX from pid in TLS.
+-	MOVQ	0(FS), AX
++	// Initialize procid from TOS struct.
++	MOVQ	_tos(SB), AX
++	MOVQ	64(AX), AX
+ 	MOVQ	AX, m_procid(BX)	// save pid as m->procid
+ 	
+ 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
+@@ -224,7 +205,6 @@ TEXT runtime·errstr(SB),NOSPLIT,$0
+ 	MOVQ	m_errstr(BX), CX
+ 	MOVQ	CX, 8(SP)
+ 	MOVQ	$ERRMAX, 16(SP)
+-	MOVQ	$0x8000, AX
+ 	MOVQ	$41, BP
+ 	SYSCALL
+ 
+diff --git a/src/pkg/runtime/time_plan9_386.c b/src/pkg/runtime/time_plan9_386.c
+deleted file mode 100644
+index 71d54b7642..0000000000
+--- a/src/pkg/runtime/time_plan9_386.c
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "os_GOOS.h"
+-#include "../../cmd/ld/textflag.h"
+-
+-#pragma textflag NOSPLIT
+-int64
+-runtime·nanotime(void)
+-{
+-	static int32 fd = -1;
+-	byte b[8];
+-	uint32 hi, lo;
+-
+-	// As long as all goroutines share the same file
+-	// descriptor table we can get away with using
+-	// just a static fd.  Without a lock the file can
+-	// be opened twice but that's okay.
+-	//
+-	// Using /dev/bintime gives us a latency on the
+-	// order of ten microseconds between two calls.
+-	//
+-	// The naïve implementation (without the cached
+-	// file descriptor) is roughly four times slower
+-	// in 9vx on a 2.16 GHz Intel Core 2 Duo.
+-
+-	if(fd < 0 && (fd = runtime·open("/dev/bintime", OREAD|OCEXEC, 0)) < 0)
+-		return 0;
+-	if(runtime·pread(fd, b, sizeof b, 0) != sizeof b)
+-		return 0;
+-	hi = b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3];
+-	lo = b[4]<<24 | b[5]<<16 | b[6]<<8 | b[7];
+-	return (int64)hi<<32 | (int64)lo;
+-}

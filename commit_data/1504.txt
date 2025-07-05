@@ -8,7 +8,7 @@ Date:   Fri Jan 16 11:36:44 2009 -0800
     DELTA=337  (0 added, 1 deleted, 336 changed)
     OCL=22950
     CL=22950
-
+---
  doc/progs/fd.go                       |   8 +--
  src/lib/net/dialgoogle_test.go        |  24 +++----
  src/lib/net/fd.go                     |  10 +--
@@ -31,3 +31,1448 @@ Date:   Fri Jan 16 11:36:44 2009 -0800
  src/lib/syscall/types_amd64_linux.go  | 104 +++++++++++++--------------
  src/lib/time/tick.go                  |   2 +-
  21 files changed, 298 insertions(+), 299 deletions(-)
+
+diff --git a/doc/progs/fd.go b/doc/progs/fd.go
+index ef94b08267..8a9eb4eb2a 100644
+--- a/doc/progs/fd.go
++++ b/doc/progs/fd.go
+@@ -28,7 +28,7 @@ export var (
+ )
+ 
+ export func Open(name string, mode int64, perm int64) (fd *FD, err *os.Error) {
+-	r, e := syscall.open(name, mode, perm);
++	r, e := syscall.Open(name, mode, perm);
+ 	return newFD(r, name), os.ErrnoToError(e)
+ }
+ 
+@@ -36,7 +36,7 @@ func (fd *FD) Close() *os.Error {
+ 	if fd == nil {
+ 		return os.EINVAL
+ 	}
+-	r, e := syscall.close(fd.fildes);
++	r, e := syscall.Close(fd.fildes);
+ 	fd.fildes = -1;  // so it can't be closed again
+ 	return nil
+ }
+@@ -45,7 +45,7 @@ func (fd *FD) Read(b []byte) (ret int, err *os.Error) {
+ 	if fd == nil {
+ 		return -1, os.EINVAL
+ 	}
+-	r, e := syscall.read(fd.fildes, &b[0], int64(len(b)));
++	r, e := syscall.Read(fd.fildes, &b[0], int64(len(b)));
+ 	return int(r), os.ErrnoToError(e)
+ }
+ 
+@@ -53,7 +53,7 @@ func (fd *FD) Write(b []byte) (ret int, err *os.Error) {
+ 	if fd == nil {
+ 		return -1, os.EINVAL
+ 	}
+-	r, e := syscall.write(fd.fildes, &b[0], int64(len(b)));
++	r, e := syscall.Write(fd.fildes, &b[0], int64(len(b)));
+ 	return int(r), os.ErrnoToError(e)
+ }
+ 
+diff --git a/src/lib/net/dialgoogle_test.go b/src/lib/net/dialgoogle_test.go
+index 4a9f7ffa6b..c323e1e303 100644
+--- a/src/lib/net/dialgoogle_test.go
++++ b/src/lib/net/dialgoogle_test.go
+@@ -17,7 +17,7 @@ var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
+ 
+ // fd is already connected to www.google.com port 80.
+ // Run an HTTP request to fetch the main page.
+-func FetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
++func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
+ 	req := io.StringBytes("GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
+ 	n, errno := fd.Write(req);
+ 
+@@ -25,27 +25,27 @@ func FetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
+ 	n, errno = io.Readn(fd, buf);
+ 
+ 	if n < 1000 {
+-		t.Errorf("FetchGoogle: short HTTP read from %s %s", network, addr);
++		t.Errorf("fetchGoogle: short HTTP read from %s %s", network, addr);
+ 		return
+ 	}
+ }
+ 
+-func DoDial(t *testing.T, network, addr string) {
++func doDial(t *testing.T, network, addr string) {
+ 	fd, err := net.Dial(network, "", addr);
+ 	if err != nil {
+ 		t.Errorf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
+ 		return
+ 	}
+-	FetchGoogle(t, fd, network, addr);
++	fetchGoogle(t, fd, network, addr);
+ 	fd.Close()
+ }
+ 
+-func DoDialTCP(t *testing.T, network, addr string) {
++func doDialTCP(t *testing.T, network, addr string) {
+ 	fd, err := net.DialTCP(network, "", addr);
+ 	if err != nil {
+ 		t.Errorf("net.DialTCP(%q, %q, %q) = _, %v", network, "", addr, err);
+ 	} else {
+-		FetchGoogle(t, fd, network, addr);
++		fetchGoogle(t, fd, network, addr);
+ 	}
+ 	fd.Close()
+ }
+@@ -76,13 +76,13 @@ export func TestDialGoogle(t *testing.T) {
+ 			continue
+ 		}
+ 		t.Logf("-- %s --", addr);
+-		DoDial(t, "tcp", addr);
+-		DoDialTCP(t, "tcp", addr);
++		doDial(t, "tcp", addr);
++		doDialTCP(t, "tcp", addr);
+ 		if addr[0] != '[' {
+-			DoDial(t, "tcp4", addr);
+-			DoDialTCP(t, "tcp4", addr)
++			doDial(t, "tcp4", addr);
++			doDialTCP(t, "tcp4", addr)
+ 		}
+-		DoDial(t, "tcp6", addr);
+-		DoDialTCP(t, "tcp6", addr)
++		doDial(t, "tcp6", addr);
++		doDialTCP(t, "tcp6", addr)
+ 	}
+ }
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index 10574cdb0f..b93f04189e 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -28,11 +28,11 @@ export type FD struct {
+ 
+ // Make reads and writes on fd return EAGAIN instead of blocking.
+ func _SetNonblock(fd int64) *os.Error {
+-	flags, e := syscall.fcntl(fd, syscall.F_GETFL, 0);
++	flags, e := syscall.Fcntl(fd, syscall.F_GETFL, 0);
+ 	if e != 0 {
+ 		return os.ErrnoToError(e)
+ 	}
+-	flags, e = syscall.fcntl(fd, syscall.F_SETFL, flags | syscall.O_NONBLOCK);
++	flags, e = syscall.Fcntl(fd, syscall.F_SETFL, flags | syscall.O_NONBLOCK);
+ 	if e != 0 {
+ 		return os.ErrnoToError(e)
+ 	}
+@@ -272,16 +272,16 @@ func (fd *FD) Accept(sa *syscall.Sockaddr) (nfd *FD, err *os.Error) {
+ 	if fd == nil || fd.osfd == nil {
+ 		return nil, os.EINVAL
+ 	}
+-	s, e := syscall.accept(fd.fd, sa);
++	s, e := syscall.Accept(fd.fd, sa);
+ 	for e == syscall.EAGAIN {
+ 		pollserver.WaitRead(fd);
+-		s, e = syscall.accept(fd.fd, sa)
++		s, e = syscall.Accept(fd.fd, sa)
+ 	}
+ 	if e != 0 {
+ 		return nil, os.ErrnoToError(e)
+ 	}
+ 	if nfd, err = NewFD(s); err != nil {
+-		syscall.close(s);
++		syscall.Close(s);
+ 		return nil, err
+ 	}
+ 	return nfd, nil
+diff --git a/src/lib/net/fd_darwin.go b/src/lib/net/fd_darwin.go
+index a92ad78131..34fd90f0a4 100644
+--- a/src/lib/net/fd_darwin.go
++++ b/src/lib/net/fd_darwin.go
+@@ -14,14 +14,14 @@ import (
+ 
+ export type Pollster struct {
+ 	kq int64;
+-	eventbuf [10]syscall.Kevent;
+-	events []syscall.Kevent;
++	eventbuf [10]syscall.Kevent_t;
++	events []syscall.Kevent_t;
+ }
+ 
+ export func NewPollster() (p *Pollster, err *os.Error) {
+ 	p = new(Pollster);
+ 	var e int64;
+-	if p.kq, e = syscall.kqueue(); e != 0 {
++	if p.kq, e = syscall.Kqueue(); e != 0 {
+ 		return nil, os.ErrnoToError(e)
+ 	}
+ 	p.events = p.eventbuf[0:0];
+@@ -35,36 +35,36 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 	} else {
+ 		kmode = syscall.EVFILT_WRITE
+ 	}
+-	var events [1]syscall.Kevent;
++	var events [1]syscall.Kevent_t;
+ 	ev := &events[0];
+-	ev.ident = fd;
+-	ev.filter = kmode;
++	ev.Ident = fd;
++	ev.Filter = kmode;
+ 
+ 	// EV_ADD - add event to kqueue list
+ 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
+ 	//	rather than waiting for real event
+ 	// EV_ONESHOT - delete the event the first time it triggers
+-	ev.flags = syscall.EV_ADD | syscall.EV_RECEIPT;
++	ev.Flags = syscall.EV_ADD | syscall.EV_RECEIPT;
+ 	if !repeat {
+-		ev.flags |= syscall.EV_ONESHOT
++		ev.Flags |= syscall.EV_ONESHOT
+ 	}
+ 
+-	n, e := syscall.kevent(p.kq, events, events, nil);
++	n, e := syscall.Kevent(p.kq, events, events, nil);
+ 	if e != 0 {
+ 		return os.ErrnoToError(e)
+ 	}
+-	if n != 1 || (ev.flags & syscall.EV_ERROR) == 0 || ev.ident != fd || ev.filter != kmode {
++	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || ev.Ident != fd || ev.Filter != kmode {
+ 		return os.NewError("kqueue phase error")
+ 	}
+-	if ev.data != 0 {
+-		return os.ErrnoToError(ev.data)
++	if ev.Data != 0 {
++		return os.ErrnoToError(ev.Data)
+ 	}
+ 	return nil
+ }
+ 
+ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+ 	for len(p.events) == 0 {
+-		nn, e := syscall.kevent(p.kq, nil, p.eventbuf, nil);
++		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf, nil);
+ 		if e != 0 {
+ 			if e == syscall.EAGAIN || e == syscall.EINTR {
+ 				continue
+@@ -75,8 +75,8 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+ 	}
+ 	ev := &p.events[0];
+ 	p.events = p.events[1:len(p.events)];
+-	fd = ev.ident;
+-	if ev.filter == syscall.EVFILT_READ {
++	fd = ev.Ident;
++	if ev.Filter == syscall.EVFILT_READ {
+ 		mode = 'r'
+ 	} else {
+ 		mode = 'w'
+@@ -85,6 +85,6 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+ }
+ 
+ func (p *Pollster) Close() *os.Error {
+-	r, e := syscall.close(p.kq);
++	r, e := syscall.Close(p.kq);
+ 	return os.ErrnoToError(e)
+ }
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index 98842c7556..240d5dc585 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -117,7 +117,7 @@ func _HostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Er
+ 
+ // Convert socket address into "host:port".
+ func _SockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
+-	switch sa.family {
++	switch sa.Family {
+ 	case syscall.AF_INET, syscall.AF_INET6:
+ 		addr, port, e := SockaddrToIP(sa);
+ 		if e != nil {
+@@ -141,34 +141,34 @@ func boolint(b bool) int {
+ 
+ // Generic _Socket creation.
+ func _Socket(f, p, t int64, la, ra *syscall.Sockaddr) (fd *FD, err *os.Error) {
+-	s, e := syscall.socket(f, p, t);
++	s, e := syscall.Socket(f, p, t);
+ 	if e != 0 {
+ 		return nil, os.ErrnoToError(e)
+ 	}
+ 
+ 	// Allow reuse of recently-used addresses.
+-	syscall.setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
++	syscall.Setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
+ 
+ 	var r int64;
+ 	if la != nil {
+-		r, e = syscall.bind(s, la);
++		r, e = syscall.Bind(s, la);
+ 		if e != 0 {
+-			syscall.close(s);
++			syscall.Close(s);
+ 			return nil, os.ErrnoToError(e)
+ 		}
+ 	}
+ 
+ 	if ra != nil {
+-		r, e = syscall.connect(s, ra);
++		r, e = syscall.Connect(s, ra);
+ 		if e != 0 {
+-			syscall.close(s);
++			syscall.Close(s);
+ 			return nil, os.ErrnoToError(e)
+ 		}
+ 	}
+ 
+ 	fd, err = NewFD(s);
+ 	if err != nil {
+-		syscall.close(s);
++		syscall.Close(s);
+ 		return nil, err
+ 	}
+ 
+@@ -227,11 +227,11 @@ func (c *_ConnBase) Close() *os.Error {
+ 
+ 
+ func setsockopt_int(fd, level, opt int64, value int) *os.Error {
+-	return os.ErrnoToError(syscall.setsockopt_int(fd, level, opt, value));
++	return os.ErrnoToError(syscall.Setsockopt_int(fd, level, opt, value));
+ }
+ 
+ func setsockopt_tv(fd, level, opt int64, nsec int64) *os.Error {
+-	return os.ErrnoToError(syscall.setsockopt_tv(fd, level, opt, nsec));
++	return os.ErrnoToError(syscall.Setsockopt_tv(fd, level, opt, nsec));
+ }
+ 
+ func (c *_ConnBase) SetReadBuffer(bytes int) *os.Error {
+@@ -275,7 +275,7 @@ func (c *_ConnBase) SetKeepAlive(keepalive bool) *os.Error {
+ }
+ 
+ func (c *_ConnBase) SetLinger(sec int) *os.Error {
+-	e := syscall.setsockopt_linger(c.FD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec);
++	e := syscall.Setsockopt_linger(c.FD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec);
+ 	return os.ErrnoToError(e);
+ }
+ 
+@@ -492,9 +492,9 @@ export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
+ 	if e != nil {
+ 		return nil, e
+ 	}
+-	r, e1 := syscall.listen(fd.fd, ListenBacklog());
++	r, e1 := syscall.Listen(fd.fd, ListenBacklog());
+ 	if e1 != 0 {
+-		syscall.close(fd.fd);
++		syscall.Close(fd.fd);
+ 		return nil, os.ErrnoToError(e1)
+ 	}
+ 	l = new(ListenerTCP);
+diff --git a/src/lib/net/net_darwin.go b/src/lib/net/net_darwin.go
+index 2ad0043c50..062f5ea79b 100644
+--- a/src/lib/net/net_darwin.go
++++ b/src/lib/net/net_darwin.go
+@@ -17,12 +17,12 @@ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 		return nil, os.EINVAL
+ 	}
+ 	sa := new(syscall.SockaddrInet4);
+-	sa.len = syscall.SizeofSockaddrInet4;
+-	sa.family = syscall.AF_INET;
+-	sa.port[0] = byte(port>>8);
+-	sa.port[1] = byte(port);
++	sa.Len = syscall.SizeofSockaddrInet4;
++	sa.Family = syscall.AF_INET;
++	sa.Port[0] = byte(port>>8);
++	sa.Port[1] = byte(port);
+ 	for i := 0; i < IPv4len; i++ {
+-		sa.addr[i] = p[i]
++		sa.Addr[i] = p[i]
+ 	}
+ 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
+ }
+@@ -33,33 +33,33 @@ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 		return nil, os.EINVAL
+ 	}
+ 	sa := new(syscall.SockaddrInet6);
+-	sa.len = syscall.SizeofSockaddrInet6;
+-	sa.family = syscall.AF_INET6;
+-	sa.port[0] = byte(port>>8);
+-	sa.port[1] = byte(port);
++	sa.Len = syscall.SizeofSockaddrInet6;
++	sa.Family = syscall.AF_INET6;
++	sa.Port[0] = byte(port>>8);
++	sa.Port[1] = byte(port);
+ 	for i := 0; i < IPv6len; i++ {
+-		sa.addr[i] = p[i]
++		sa.Addr[i] = p[i]
+ 	}
+ 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
+ }
+ 
+ 
+ export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Error) {
+-	switch sa1.family {
++	switch sa1.Family {
+ 	case syscall.AF_INET:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet4);
+-		a := ToIPv6(sa.addr);
++		a := ToIPv6(sa.Addr);
+ 		if a == nil {
+ 			return nil, 0, os.EINVAL
+ 		}
+-		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
++		return a, int(sa.Port[0])<<8 + int(sa.Port[1]), nil;
+ 	case syscall.AF_INET6:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet6);
+-		a := ToIPv6(sa.addr);
++		a := ToIPv6(sa.Addr);
+ 		if a == nil {
+ 			return nil, 0, os.EINVAL
+ 		}
+-		return nil, int(sa.port[0])<<8 + int(sa.port[1]), nil;
++		return nil, int(sa.Port[0])<<8 + int(sa.Port[1]), nil;
+ 	default:
+ 		return nil, 0, os.EINVAL
+ 	}
+diff --git a/src/lib/net/parse_test.go b/src/lib/net/parse_test.go
+index 2c2cabe2de..874982617d 100644
+--- a/src/lib/net/parse_test.go
++++ b/src/lib/net/parse_test.go
+@@ -14,7 +14,7 @@ import (
+ export func TestReadLine(t *testing.T) {
+ 	filename := "/etc/services";	// a nice big file
+ 
+-	fd, err := os._Open(filename, os.O_RDONLY, 0);
++	fd, err := os.Open(filename, os.O_RDONLY, 0);
+ 	if err != nil {
+ 		t.Fatalf("open %s: %v", filename, err);
+ 	}
+diff --git a/src/lib/os/os_error.go b/src/lib/os/os_error.go
+index d12a5c1184..f01b95db93 100644
+--- a/src/lib/os/os_error.go
++++ b/src/lib/os/os_error.go
+@@ -15,11 +15,11 @@ export type Error struct {
+ // Indexed by errno.
+ // If we worry about syscall speed (only relevant on failure), we could
+ // make it an array, but it's probably not important.
+-var ErrorTab = make(map[int64] *Error);
++var errorTab = make(map[int64] *Error);
+ 
+ // Table of all known errors in system.  Use the same error string twice,
+ // get the same *os.Error.
+-var ErrorStringTab = make(map[string] *Error);
++var errorStringTab = make(map[string] *Error);
+ 
+ // These functions contain a race if two goroutines add identical
+ // errors simultaneously but the consequences are unimportant.
+@@ -29,12 +29,12 @@ export func NewError(s string) *Error {
+ 	if s == "" {
+ 		return nil
+ 	}
+-	err, ok := ErrorStringTab[s];
++	err, ok := errorStringTab[s];
+ 	if ok {
+ 		return err
+ 	}
+ 	err = &Error{s};
+-	ErrorStringTab[s] = err;
++	errorStringTab[s] = err;
+ 	return err;
+ }
+ 
+@@ -44,12 +44,12 @@ export func ErrnoToError(errno int64) *Error {
+ 		return nil
+ 	}
+ 	// Quick lookup by errno.
+-	err, ok := ErrorTab[errno];
++	err, ok := errorTab[errno];
+ 	if ok {
+ 		return err
+ 	}
+-	err = NewError(syscall.errstr(errno));
+-	ErrorTab[errno] = err;
++	err = NewError(syscall.Errstr(errno));
++	errorTab[errno] = err;
+ 	return err;
+ }
+ 
+@@ -91,11 +91,10 @@ export var (
+ 	ERANGE = ErrnoToError(syscall.ERANGE);
+ 	EAGAIN = ErrnoToError(syscall.EAGAIN);
+ )
+-const NoError = "No Error"
+ 
+ func (e *Error) String() string {
+ 	if e == nil {
+-		return NoError
++		return "No Error"
+ 	}
+ 	return e.s
+ }
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index 5f317c7751..f875d64d42 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -40,7 +40,7 @@ export const (
+ )
+ 
+ export func Open(name string, mode int, flags int) (fd *FD, err *Error) {
+-	r, e := syscall.open(name, int64(mode), int64(flags));
++	r, e := syscall.Open(name, int64(mode), int64(flags));
+ 	return NewFD(r), ErrnoToError(e)
+ }
+ 
+@@ -48,7 +48,7 @@ func (fd *FD) Close() *Error {
+ 	if fd == nil {
+ 		return EINVAL
+ 	}
+-	r, e := syscall.close(fd.fd);
++	r, e := syscall.Close(fd.fd);
+ 	fd.fd = -1;  // so it can't be closed again
+ 	return ErrnoToError(e)
+ }
+@@ -59,7 +59,7 @@ func (fd *FD) Read(b []byte) (ret int, err *Error) {
+ 	}
+ 	var r, e int64;
+ 	if len(b) > 0 {  // because we access b[0]
+-		r, e = syscall.read(fd.fd, &b[0], int64(len(b)));
++		r, e = syscall.Read(fd.fd, &b[0], int64(len(b)));
+ 		if r < 0 {
+ 			r = 0
+ 		}
+@@ -73,7 +73,7 @@ func (fd *FD) Write(b []byte) (ret int, err *Error) {
+ 	}
+ 	var r, e int64;
+ 	if len(b) > 0 {  // because we access b[0]
+-		r, e = syscall.write(fd.fd, &b[0], int64(len(b)));
++		r, e = syscall.Write(fd.fd, &b[0], int64(len(b)));
+ 		if r < 0 {
+ 			r = 0
+ 		}
+@@ -89,7 +89,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ 	if !syscall.StringToBytes(b, s) {
+ 		return 0, EINVAL
+ 	}
+-	r, e := syscall.write(fd.fd, &b[0], int64(len(s)));
++	r, e := syscall.Write(fd.fd, &b[0], int64(len(s)));
+ 	if r < 0 {
+ 		r = 0
+ 	}
+@@ -98,7 +98,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ 
+ export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
+ 	var p [2]int64;
+-	r, e := syscall.pipe(&p);
++	r, e := syscall.Pipe(&p);
+ 	if e != 0 {
+ 		return nil, nil, ErrnoToError(e)
+ 	}
+@@ -106,6 +106,6 @@ export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
+ }
+ 
+ export func Mkdir(name string, perm int) *Error {
+-	r, e := syscall.mkdir(name, int64(perm));
++	r, e := syscall.Mkdir(name, int64(perm));
+ 	return ErrnoToError(e)
+ }
+diff --git a/src/lib/os/os_time.go b/src/lib/os/os_time.go
+index b396eafab1..b5cc643368 100644
+--- a/src/lib/os/os_time.go
++++ b/src/lib/os/os_time.go
+@@ -11,7 +11,7 @@ import (
+ 
+ export func Time() (sec int64, nsec int64, err *Error) {
+ 	var errno int64;
+-	sec, nsec, errno = syscall.gettimeofday();
++	sec, nsec, errno = syscall.Gettimeofday();
+ 	if errno != 0 {
+ 		return 0, 0, ErrnoToError(errno)
+ 	}
+diff --git a/src/lib/syscall/errstr_darwin.go b/src/lib/syscall/errstr_darwin.go
+index 8d62f74e88..65f970b674 100644
+--- a/src/lib/syscall/errstr_darwin.go
++++ b/src/lib/syscall/errstr_darwin.go
+@@ -234,7 +234,7 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
+ 	return string(buf)[i:len(buf)];
+ }
+ 
+-export func errstr(errno int64) string {
++export func Errstr(errno int64) string {
+ 	if errno < 0 || errno >= len(error) {
+ 		return "Error " + str(errno)
+ 	}
+diff --git a/src/lib/syscall/errstr_linux.go b/src/lib/syscall/errstr_linux.go
+index 20b46f28fa..df1f87e3ef 100644
+--- a/src/lib/syscall/errstr_linux.go
++++ b/src/lib/syscall/errstr_linux.go
+@@ -284,7 +284,7 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
+ 	return string(buf)[i:len(buf)];
+ }
+ 
+-export func errstr(errno int64) string {
++export func Errstr(errno int64) string {
+ 	if errno < 0 || errno >= len(error) {
+ 		return "Error " + str(errno)
+ 	}
+diff --git a/src/lib/syscall/file_darwin.go b/src/lib/syscall/file_darwin.go
+index 7084a72a89..f11618226a 100644
+--- a/src/lib/syscall/file_darwin.go
++++ b/src/lib/syscall/file_darwin.go
+@@ -11,10 +11,10 @@ import (
+ 	"unsafe";
+ )
+ 
+-const NameBufsize = 512
++const nameBufsize = 512
+ 
+-export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
+-	var namebuf [NameBufsize]byte;
++export func Open(name string, mode int64, perm int64) (ret int64, errno int64) {
++	var namebuf [nameBufsize]byte;
+ 	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+@@ -22,8 +22,8 @@ export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func creat(name string, perm int64) (ret int64, errno int64) {
+-	var namebuf [NameBufsize]byte;
++export func Creat(name string, perm int64) (ret int64, errno int64) {
++	var namebuf [nameBufsize]byte;
+ 	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+@@ -31,22 +31,22 @@ export func creat(name string, perm int64) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func close(fd int64) (ret int64, errno int64) {
++export func Close(fd int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_CLOSE, fd, 0, 0);
+ 	return r1, err;
+ }
+ 
+-export func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
++export func Read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_READ, fd, int64(uintptr(unsafe.pointer(buf))), nbytes);
+ 	return r1, err;
+ }
+ 
+-export func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
++export func Write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_WRITE, fd, int64(uintptr(unsafe.pointer(buf))), nbytes);
+ 	return r1, err;
+ }
+ 
+-export func pipe(fds *[2]int64) (ret int64, errno int64) {
++export func Pipe(fds *[2]int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_PIPE, 0, 0, 0);
+ 	if r1 < 0 {
+ 		return r1, err;
+@@ -56,8 +56,8 @@ export func pipe(fds *[2]int64) (ret int64, errno int64) {
+ 	return 0, 0;
+ }
+ 
+-export func stat(name string, buf *Stat) (ret int64, errno int64) {
+-	var namebuf [NameBufsize]byte;
++export func Stat(name string, buf *Stat_t) (ret int64, errno int64) {
++	var namebuf [nameBufsize]byte;
+ 	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+@@ -65,18 +65,18 @@ export func stat(name string, buf *Stat) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func lstat(name *byte, buf *Stat) (ret int64, errno int64) {
++export func Lstat(name *byte, buf *Stat_t) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_LSTAT, int64(uintptr(unsafe.pointer(name))), int64(uintptr(unsafe.pointer(buf))), 0);
+ 	return r1, err;
+ }
+ 
+-export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
++export func Fstat(fd int64, buf *Stat_t) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_FSTAT, fd, int64(uintptr(unsafe.pointer(buf))), 0);
+ 	return r1, err;
+ }
+ 
+-export func unlink(name string) (ret int64, errno int64) {
+-	var namebuf [NameBufsize]byte;
++export func Unlink(name string) (ret int64, errno int64) {
++	var namebuf [nameBufsize]byte;
+ 	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+@@ -84,13 +84,13 @@ export func unlink(name string) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
++export func Fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg);
+ 	return r1, err
+ }
+ 
+-export func mkdir(name string, perm int64) (ret int64, errno int64) {
+-	var namebuf [NameBufsize]byte;
++export func Mkdir(name string, perm int64) (ret int64, errno int64) {
++	var namebuf [nameBufsize]byte;
+ 	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+@@ -98,7 +98,7 @@ export func mkdir(name string, perm int64) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func dup2(fd1, fd2 int64) (ret int64, errno int64) {
++export func Dup2(fd1, fd2 int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_DUP2, fd1, fd2, 0);
+ 	return r1, err;
+ }
+diff --git a/src/lib/syscall/file_linux.go b/src/lib/syscall/file_linux.go
+index 80fc1e934f..f048c1b712 100644
+--- a/src/lib/syscall/file_linux.go
++++ b/src/lib/syscall/file_linux.go
+@@ -11,10 +11,10 @@ import (
+ 	"unsafe";
+ )
+ 
+-const NameBufsize = 512
++const nameBufsize = 512
+ 
+-export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
+-	var namebuf [NameBufsize]byte;
++export func Open(name string, mode int64, perm int64) (ret int64, errno int64) {
++	var namebuf [nameBufsize]byte;
+ 	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+@@ -22,8 +22,8 @@ export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func creat(name string, perm int64) (ret int64, errno int64) {
+-	var namebuf [NameBufsize]byte;
++export func Creat(name string, perm int64) (ret int64, errno int64) {
++	var namebuf [nameBufsize]byte;
+ 	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+@@ -31,22 +31,22 @@ export func creat(name string, perm int64) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func close(fd int64) (ret int64, errno int64) {
++export func Close(fd int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_CLOSE, fd, 0, 0);
+ 	return r1, err;
+ }
+ 
+-export func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
++export func Read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_READ, fd, int64(uintptr(unsafe.pointer(buf))), nbytes);
+ 	return r1, err;
+ }
+ 
+-export func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
++export func Write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_WRITE, fd, int64(uintptr(unsafe.pointer(buf))), nbytes);
+ 	return r1, err;
+ }
+ 
+-export func pipe(fds *[2]int64) (ret int64, errno int64) {
++export func Pipe(fds *[2]int64) (ret int64, errno int64) {
+ 	var t [2] int32;
+ 	r1, r2, err := Syscall(SYS_PIPE, int64(uintptr(unsafe.pointer(&t[0]))), 0, 0);
+ 	if r1 < 0 {
+@@ -57,8 +57,8 @@ export func pipe(fds *[2]int64) (ret int64, errno int64) {
+ 	return 0, 0;
+ }
+ 
+-export func stat(name string, buf *Stat) (ret int64, errno int64) {
+-	var namebuf [NameBufsize]byte;
++export func Stat(name string, buf *Stat_t) (ret int64, errno int64) {
++	var namebuf [nameBufsize]byte;
+ 	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+@@ -66,18 +66,18 @@ export func stat(name string, buf *Stat) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func lstat(name *byte, buf *Stat) (ret int64, errno int64) {
++export func Lstat(name *byte, buf *Stat_t) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_LSTAT, int64(uintptr(unsafe.pointer(name))), int64(uintptr(unsafe.pointer(buf))), 0);
+ 	return r1, err;
+ }
+ 
+-export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
++export func Fstat(fd int64, buf *Stat_t) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_FSTAT, fd, int64(uintptr(unsafe.pointer(buf))), 0);
+ 	return r1, err;
+ }
+ 
+-export func unlink(name string) (ret int64, errno int64) {
+-	var namebuf [NameBufsize]byte;
++export func Unlink(name string) (ret int64, errno int64) {
++	var namebuf [nameBufsize]byte;
+ 	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+@@ -85,13 +85,13 @@ export func unlink(name string) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
++export func Fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg);
+ 	return r1, err
+ }
+ 
+-export func mkdir(name string, perm int64) (ret int64, errno int64) {
+-	var namebuf [NameBufsize]byte;
++export func Mkdir(name string, perm int64) (ret int64, errno int64) {
++	var namebuf [nameBufsize]byte;
+ 	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+@@ -99,7 +99,7 @@ export func mkdir(name string, perm int64) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
+-export func dup2(fd1, fd2 int64) (ret int64, errno int64) {
++export func Dup2(fd1, fd2 int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_DUP2, fd1, fd2, 0);
+ 	return r1, err;
+ }
+diff --git a/src/lib/syscall/socket_darwin.go b/src/lib/syscall/socket_darwin.go
+index e83004bdcb..c4323a6ba5 100644
+--- a/src/lib/syscall/socket_darwin.go
++++ b/src/lib/syscall/socket_darwin.go
+@@ -17,33 +17,33 @@ export func SockaddrToSockaddrInet6(s *Sockaddr) *SockaddrInet6;
+ export func SockaddrInet4ToSockaddr(s *SockaddrInet4) *Sockaddr;
+ export func SockaddrInet6ToSockaddr(s *SockaddrInet6) *Sockaddr;
+ 
+-export func socket(domain, proto, typ int64) (ret int64, err int64) {
++export func Socket(domain, proto, typ int64) (ret int64, err int64) {
+ 	r1, r2, e := Syscall(SYS_SOCKET, domain, proto, typ);
+ 	return r1, e
+ }
+ 
+-export func connect(fd int64, sa *Sockaddr) (ret int64, err int64) {
+-	r1, r2, e := Syscall(SYS_CONNECT, fd, int64(uintptr(unsafe.pointer(sa))), int64(sa.len));
++export func Connect(fd int64, sa *Sockaddr) (ret int64, err int64) {
++	r1, r2, e := Syscall(SYS_CONNECT, fd, int64(uintptr(unsafe.pointer(sa))), int64(sa.Len));
+ 	return r1, e
+ }
+ 
+-export func bind(fd int64, sa *Sockaddr) (ret int64, err int64) {
+-	r1, r2, e := Syscall(SYS_BIND, fd, int64(uintptr(unsafe.pointer(sa))), int64(sa.len));
++export func Bind(fd int64, sa *Sockaddr) (ret int64, err int64) {
++	r1, r2, e := Syscall(SYS_BIND, fd, int64(uintptr(unsafe.pointer(sa))), int64(sa.Len));
+ 	return r1, e
+ }
+ 
+-export func listen(fd, n int64) (ret int64, err int64) {
++export func Listen(fd, n int64) (ret int64, err int64) {
+ 	r1, r2, e := Syscall(SYS_LISTEN, fd, n, 0);
+ 	return r1, e
+ }
+ 
+-export func accept(fd int64, sa *Sockaddr) (ret int64, err int64) {
++export func Accept(fd int64, sa *Sockaddr) (ret int64, err int64) {
+ 	var n int32 = SizeofSockaddr;
+ 	r1, r2, e := Syscall(SYS_ACCEPT, fd, int64(uintptr(unsafe.pointer(sa))), int64(uintptr(unsafe.pointer(&n))));
+ 	return r1, e
+ }
+ 
+-export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err int64) {
++export func Setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err int64) {
+ 	if fd < 0 {
+ 		return -1, EINVAL
+ 	}
+@@ -51,47 +51,47 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
+ 	return r1, e
+ }
+ 
+-export func setsockopt_int(fd, level, opt int64, value int) int64 {
++export func Setsockopt_int(fd, level, opt int64, value int) int64 {
+ 	var n int32 = int32(opt);
+-	r1, e := setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&n))), 4);
++	r1, e := Setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&n))), 4);
+ 	return e
+ }
+ 
+-export func setsockopt_tv(fd, level, opt, nsec int64) int64 {
++export func Setsockopt_tv(fd, level, opt, nsec int64) int64 {
+ 	var tv Timeval;
+ 	nsec += 999;
+-	tv.sec = int64(nsec/1000000000);
+-	tv.usec = uint32(nsec%1000000000);
+-	r1, e := setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&tv))), 4);
++	tv.Sec = int64(nsec/1000000000);
++	tv.Usec = uint32(nsec%1000000000);
++	r1, e := Setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&tv))), 4);
+ 	return e
+ }
+ 
+-export func setsockopt_linger(fd, level, opt int64, sec int) int64 {
++export func Setsockopt_linger(fd, level, opt int64, sec int) int64 {
+ 	var l Linger;
+ 	if sec != 0 {
+-		l.yes = 1;
+-		l.sec = int32(sec);
++		l.Yes = 1;
++		l.Sec = int32(sec);
+ 	} else {
+-		l.yes = 0;
+-		l.sec = 0;
++		l.Yes = 0;
++		l.Sec = 0;
+ 	}
+-	r1, err := setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&l))), 8);
++	r1, err := Setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&l))), 8);
+ 	return err
+ }
+ 
+ /*
+-export func getsockopt(fd, level, opt, valueptr, lenptr int64) (ret int64, errno int64) {
++export func Getsockopt(fd, level, opt, valueptr, lenptr int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall6(SYS_GETSOCKOPT, fd, level, opt, valueptr, lenptr, 0);
+ 	return r1, err;
+ }
+ */
+ 
+-export func kqueue() (ret int64, errno int64) {
++export func Kqueue() (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_KQUEUE, 0, 0, 0);
+ 	return r1, err
+ }
+ 
+-export func kevent(kq int64, changes, events []Kevent, timeout *Timespec) (ret int64, errno int64) {
++export func Kevent(kq int64, changes, events []Kevent_t, timeout *Timespec) (ret int64, errno int64) {
+ 	var nchange, changeptr, nevent, eventptr int64;
+ 	nchange = 0;
+ 	changeptr = 0;
+diff --git a/src/lib/syscall/socket_linux.go b/src/lib/syscall/socket_linux.go
+index 05df6baafe..458e363f68 100644
+--- a/src/lib/syscall/socket_linux.go
++++ b/src/lib/syscall/socket_linux.go
+@@ -17,8 +17,8 @@ export func SockaddrToSockaddrInet6(s *Sockaddr) *SockaddrInet6;
+ export func SockaddrInet4ToSockaddr(s *SockaddrInet4) *Sockaddr;
+ export func SockaddrInet6ToSockaddr(s *SockaddrInet6) *Sockaddr;
+ 
+-func Len(s *Sockaddr) int64 {
+-	switch s.family {
++func saLen(s *Sockaddr) int64 {
++	switch s.Family {
+ 	case AF_UNIX:
+ 		return SizeofSockaddrUnix;
+ 	case AF_INET:
+@@ -29,33 +29,33 @@ func Len(s *Sockaddr) int64 {
+ 	return 0
+ }
+ 
+-export func socket(domain, proto, typ int64) (ret int64, err int64) {
++export func Socket(domain, proto, typ int64) (ret int64, err int64) {
+ 	r1, r2, e := Syscall(SYS_SOCKET, domain, proto, typ);
+ 	return r1, e
+ }
+ 
+-export func connect(fd int64, sa *Sockaddr) (ret int64, err int64) {
+-	r1, r2, e := Syscall(SYS_CONNECT, fd, int64(uintptr(unsafe.pointer(sa))), Len(sa));
++export func Connect(fd int64, sa *Sockaddr) (ret int64, err int64) {
++	r1, r2, e := Syscall(SYS_CONNECT, fd, int64(uintptr(unsafe.pointer(sa))), saLen(sa));
+ 	return r1, e
+ }
+ 
+-export func bind(fd int64, sa *Sockaddr) (ret int64, err int64) {
+-	r1, r2, e := Syscall(SYS_BIND, fd, int64(uintptr(unsafe.pointer(sa))), Len(sa));
++export func Bind(fd int64, sa *Sockaddr) (ret int64, err int64) {
++	r1, r2, e := Syscall(SYS_BIND, fd, int64(uintptr(unsafe.pointer(sa))), saLen(sa));
+ 	return r1, e
+ }
+ 
+-export func listen(fd, n int64) (ret int64, err int64) {
++export func Listen(fd, n int64) (ret int64, err int64) {
+ 	r1, r2, e := Syscall(SYS_LISTEN, fd, n, 0);
+ 	return r1, e
+ }
+ 
+-export func accept(fd int64, sa *Sockaddr) (ret int64, err int64) {
++export func Accept(fd int64, sa *Sockaddr) (ret int64, err int64) {
+ 	var n int32 = SizeofSockaddr;
+ 	r1, r2, e := Syscall(SYS_ACCEPT, fd, int64(uintptr(unsafe.pointer(sa))), int64(uintptr(unsafe.pointer(&n))));
+ 	return r1, e
+ }
+ 
+-export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err int64) {
++export func Setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err int64) {
+ 	if fd < 0 {
+ 		return -1, EINVAL
+ 	}
+@@ -63,31 +63,31 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
+ 	return r1, e
+ }
+ 
+-export func setsockopt_int(fd, level, opt int64, value int) int64 {
++export func Setsockopt_int(fd, level, opt int64, value int) int64 {
+ 	n := int32(opt);
+-	r1, e := setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&n))), 4);
++	r1, e := Setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&n))), 4);
+ 	return e
+ }
+ 
+-export func setsockopt_tv(fd, level, opt, nsec int64) int64 {
++export func Setsockopt_tv(fd, level, opt, nsec int64) int64 {
+ 	var tv Timeval;
+ 	nsec += 999;
+-	tv.sec = int64(nsec/1000000000);
+-	tv.usec = uint64(nsec%1000000000);
+-	r1, e := setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&tv))), 4);
++	tv.Sec = int64(nsec/1000000000);
++	tv.Usec = uint64(nsec%1000000000);
++	r1, e := Setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&tv))), 4);
+ 	return e
+ }
+ 
+-export func setsockopt_linger(fd, level, opt int64, sec int) int64 {
++export func Setsockopt_linger(fd, level, opt int64, sec int) int64 {
+ 	var l Linger;
+ 	if sec != 0 {
+-		l.yes = 1;
+-		l.sec = int32(sec)
++		l.Yes = 1;
++		l.Sec = int32(sec)
+ 	} else {
+-		l.yes = 0;
+-		l.sec = 0
++		l.Yes = 0;
++		l.Sec = 0
+ 	}
+-	r1, err := setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&l))), 8);
++	r1, err := Setsockopt(fd, level, opt, int64(uintptr(unsafe.pointer(&l))), 8);
+ 	return err
+ }
+ 
+@@ -98,17 +98,17 @@ export func getsockopt(fd, level, opt, valueptr, lenptr int64) (ret int64, errno
+ }
+ */
+ 
+-export func epoll_create(size int64) (ret int64, errno int64) {
++export func Epoll_create(size int64) (ret int64, errno int64) {
+ 	r1, r2, err := syscall.Syscall(SYS_EPOLL_CREATE, size, 0, 0);
+ 	return r1, err
+ }
+ 
+-export func epoll_ctl(epfd, op, fd int64, ev *EpollEvent) int64 {
++export func Epoll_ctl(epfd, op, fd int64, ev *EpollEvent) int64 {
+ 	r1, r2, err := syscall.Syscall6(SYS_EPOLL_CTL, epfd, op, fd, int64(uintptr(unsafe.pointer(ev))), 0, 0);
+ 	return err
+ }
+ 
+-export func epoll_wait(epfd int64, ev []EpollEvent, msec int64) (ret int64, err int64) {
++export func Epoll_wait(epfd int64, ev []EpollEvent, msec int64) (ret int64, err int64) {
+ 	var evptr, nev int64;
+ 	if ev != nil && len(ev) > 0 {
+ 		nev = int64(len(ev));
+diff --git a/src/lib/syscall/time_amd64_darwin.go b/src/lib/syscall/time_amd64_darwin.go
+index 7be6d6607d..4e55c8ddd6 100644
+--- a/src/lib/syscall/time_amd64_darwin.go
++++ b/src/lib/syscall/time_amd64_darwin.go
+@@ -6,7 +6,7 @@ package syscall
+ 
+ import syscall "syscall"
+ 
+-export func gettimeofday() (sec, nsec, errno int64) {
++export func Gettimeofday() (sec, nsec, errno int64) {
+ 	// The "1" in the call is the timeval pointer, which must be
+ 	// non-zero but is otherwise unused.  The results
+ 	// are returned in r1, r2.
+@@ -17,8 +17,8 @@ export func gettimeofday() (sec, nsec, errno int64) {
+ 	return r1, r2*1000, 0
+ }
+ 
+-export func nstotimeval(ns int64, tv *Timeval) {
++export func Nstotimeval(ns int64, tv *Timeval) {
+ 	ns += 999;	// round up
+-	tv.sec = int64(ns/1000000000);
+-	tv.usec = uint32(ns%1000000000 / 1000);
++	tv.Sec = int64(ns/1000000000);
++	tv.Usec = uint32(ns%1000000000 / 1000);
+ }
+diff --git a/src/lib/syscall/time_amd64_linux.go b/src/lib/syscall/time_amd64_linux.go
+index 61ad270051..17e8851117 100644
+--- a/src/lib/syscall/time_amd64_linux.go
++++ b/src/lib/syscall/time_amd64_linux.go
+@@ -9,17 +9,17 @@ import (
+ 	"unsafe";
+ )
+ 
+-export func gettimeofday() (sec, nsec, errno int64) {
++export func Gettimeofday() (sec, nsec, errno int64) {
+ 	var tv Timeval;
+ 	r1, r2, e := Syscall(SYS_GETTIMEOFDAY, int64(uintptr(unsafe.pointer(&tv))), 0, 0);
+ 	if e != 0 {
+ 		return 0, 0, e
+ 	}
+-	return int64(tv.sec), int64(tv.usec*1000), 0
++	return int64(tv.Sec), int64(tv.Usec*1000), 0
+ }
+ 
+-export func nstotimeval(ns int64, tv *Timeval) {
++export func Nstotimeval(ns int64, tv *Timeval) {
+ 	ns += 999;	// round up
+-	tv.sec = int64(ns/1000000000);
+-	tv.usec = uint64(ns%1000000000 / 1000);
++	tv.Sec = int64(ns/1000000000);
++	tv.Usec = uint64(ns%1000000000 / 1000);
+ }
+diff --git a/src/lib/syscall/types_amd64_darwin.go b/src/lib/syscall/types_amd64_darwin.go
+index dea06c8113..b5120197e5 100644
+--- a/src/lib/syscall/types_amd64_darwin.go
++++ b/src/lib/syscall/types_amd64_darwin.go
+@@ -11,35 +11,35 @@ package syscall
+ // Time
+ 
+ export type Timespec struct {
+-	sec	int64;
+-	nsec	uint64;
++	Sec	int64;
++	Nsec	uint64;
+ }
+ 
+ export type Timeval struct {
+-	sec	int64;
+-	usec	uint32;
++	Sec	int64;
++	Usec	uint32;
+ }
+ 
+ 
+ // Processes
+ 
+ export type Rusage struct {
+-	utime	Timeval;
+-	stime	Timeval;
+-	maxrss	int64;
+-	ixrss	int64;
+-	idrss	int64;
+-	isrss	int64;
+-	minflt	int64;
+-	majflt	int64;
+-	nswap	int64;
+-	inblock	int64;
+-	oublock	int64;
+-	msgsnd	int64;
+-	msgrcv	int64;
+-	nsignals	int64;
+-	nvcsw	int64;
+-	nivcsw	int64;
++	Utime	Timeval;
++	Stime	Timeval;
++	Maxrss	int64;
++	Ixrss	int64;
++	Idrss	int64;
++	Isrss	int64;
++	Minflt	int64;
++	Majflt	int64;
++	Nswap	int64;
++	Inblock	int64;
++	Oublock	int64;
++	Msgsnd	int64;
++	Msgrcv	int64;
++	Nsignals	int64;
++	Nvcsw	int64;
++	Nivcsw	int64;
+ }
+ 
+ 
+@@ -67,26 +67,26 @@ export const (
+ 	FD_CLOEXEC = 1;
+ )
+ 
+-export type Stat struct {
+-	dev	uint32;
+-	mode	uint16;
+-	nlink	uint16;
+-	ino	uint64;
+-	uid	uint32;
+-	gid	uint32;
+-	rdev	uint32;
+-	pad1	uint32;
+-	atime Timespec;
+-	mtime Timespec;
+-	ctime Timespec;
+-	birthtime Timespec;
+-	size uint64;
+-	blocks uint64;
+-	blksize uint32;
+-	flags uint32;
+-	gen uint32;
+-	lspare uint32;
+-	qspare [2]uint64;
++export type Stat_t struct {
++	Dev	uint32;
++	Mode	uint16;
++	Nlink	uint16;
++	Ino	uint64;
++	Uid	uint32;
++	Gid	uint32;
++	Rdev	uint32;
++	Pad1	uint32;
++	Atime Timespec;
++	Mtime Timespec;
++	Ctime Timespec;
++	Birthtime Timespec;
++	Size uint64;
++	Blocks uint64;
++	Blksize uint32;
++	Flags uint32;
++	Gen uint32;
++	Lspare uint32;
++	Qspare [2]uint64;
+ }
+ 
+ 
+@@ -128,41 +128,41 @@ export const (
+ )
+ 
+ export type SockaddrUnix struct {
+-	len	byte;
+-	family	byte;
+-	path	[104]byte
++	Len	byte;
++	Family	byte;
++	Path	[104]byte
+ }
+ export const SizeofSockaddrUnix = 106
+ 
+ export type SockaddrInet4 struct {
+-	len	byte;
+-	family	byte;
+-	port	[2]byte;
+-	addr	[4]byte;
+-	zero	[8]byte
++	Len	byte;
++	Family	byte;
++	Port	[2]byte;
++	Addr	[4]byte;
++	Zero	[8]byte
+ }
+ export const SizeofSockaddrInet4 = 16
+ 
+ export type SockaddrInet6 struct {
+-	len	byte;
+-	family	byte;
+-	port	[2]byte;
+-	flowinfo	[4]byte;
+-	addr	[16]byte;
+-	scopeid	[4]byte;
++	Len	byte;
++	Family	byte;
++	Port	[2]byte;
++	Flowinfo	[4]byte;
++	Addr	[16]byte;
++	Scopeid	[4]byte;
+ }
+ export const SizeofSockaddrInet6 = 28
+ 
+ export type Sockaddr struct {
+-	len	byte;
+-	family	byte;
+-	opaque	[126]byte
++	Len	byte;
++	Family	byte;
++	Opaque	[126]byte
+ }
+ export const SizeofSockaddr = 128
+ 
+ export type Linger struct {
+-	yes int32;
+-	sec int32;
++	Yes int32;
++	Sec int32;
+ }
+ 
+ 
+@@ -201,12 +201,12 @@ export const (
+ 	EV_ERROR = 0x4000
+ )
+ 
+-export type Kevent struct {
+-	ident int64;
+-	filter int16;
+-	flags uint16;
+-	fflags uint32;
+-	data int64;
+-	udata int64;
++export type Kevent_t struct {
++	Ident int64;
++	Filter int16;
++	Flags uint16;
++	Fflags uint32;
++	Data int64;
++	Udata int64;
+ }
+ 
+diff --git a/src/lib/syscall/types_amd64_linux.go b/src/lib/syscall/types_amd64_linux.go
+index f422c62b6d..371f839ab6 100644
+--- a/src/lib/syscall/types_amd64_linux.go
++++ b/src/lib/syscall/types_amd64_linux.go
+@@ -11,35 +11,35 @@ package syscall
+ // Time
+ 
+ export type Timespec struct {
+-	sec	int64;
+-	nsec	uint64;
++	Sec	int64;
++	Nsec	uint64;
+ }
+ 
+ export type Timeval struct {
+-	sec	int64;
+-	usec	uint64;
++	Sec	int64;
++	Usec	uint64;
+ }
+ 
+ 
+ // Processes
+ 
+ export type Rusage struct {
+-	utime	Timeval;
+-	stime	Timeval;
+-	maxrss	int64;
+-	ixrss	int64;
+-	idrss	int64;
+-	isrss	int64;
+-	minflt	int64;
+-	majflt	int64;
+-	nswap	int64;
+-	inblock	int64;
+-	oublock	int64;
+-	msgsnd	int64;
+-	msgrcv	int64;
+-	nsignals	int64;
+-	nvcsw	int64;
+-	nivcsw	int64;
++	Utime	Timeval;
++	Stime	Timeval;
++	Maxrss	int64;
++	Ixrss	int64;
++	Idrss	int64;
++	Isrss	int64;
++	Minflt	int64;
++	Majflt	int64;
++	Nswap	int64;
++	Inblock	int64;
++	Oublock	int64;
++	Msgsnd	int64;
++	Msgrcv	int64;
++	Nsignals	int64;
++	Nvcsw	int64;
++	Nivcsw	int64;
+ }
+ 
+ 
+@@ -67,21 +67,21 @@ export const (
+ 	FD_CLOEXEC = 1;
+ )
+ 
+-export type Stat struct {
+-	dev	uint64;
+-	ino	uint64;
+-	nlink	uint64;
+-	mode	uint32;
+-	uid	uint32;
+-	gid	uint32;
++export type Stat_t struct {
++	Dev	uint64;
++	Ino	uint64;
++	Nlink	uint64;
++	Mode	uint32;
++	Uid	uint32;
++	Gid	uint32;
+ 	_pad0	uint32;
+-	rdev	uint64;
+-	size	int64;
+-	blksize	int64;
+-	blocks	int64;
+-	atime	Timespec;
+-	mtime	Timespec;
+-	ctime	Timespec;
++	Rdev	uint64;
++	Size	int64;
++	Blksize	int64;
++	Blocks	int64;
++	Atime	Timespec;
++	Mtime	Timespec;
++	Ctime	Timespec;
+ 	_unused	[3]int64
+ }
+ 
+@@ -134,37 +134,37 @@ export const (
+ )
+ 
+ export type SockaddrUnix struct {
+-	family	uint16;
+-	path	[108]byte
++	Family	uint16;
++	Path	[108]byte
+ }
+ export const SizeofSockaddrUnix = 110
+ 
+ export type SockaddrInet4 struct {
+-	family	uint16;
+-	port	[2]byte;
+-	addr	[4]byte;
+-	zero	[8]byte
++	Family	uint16;
++	Port	[2]byte;
++	Addr	[4]byte;
++	Zero	[8]byte
+ }
+ export const SizeofSockaddrInet4 = 16
+ 
+ export type SockaddrInet6 struct {
+-	family	uint16;
+-	port	[2]byte;
+-	flowinfo	[4]byte;
+-	addr	[16]byte;
+-	scopeid	[4]byte;
++	Family	uint16;
++	Port	[2]byte;
++	Flowinfo	[4]byte;
++	Addr	[16]byte;
++	Scopeid	[4]byte;
+ }
+ export const SizeofSockaddrInet6 = 28
+ 
+ export type Sockaddr struct {
+-	family	uint16;
+-	opaque	[126]byte
++	Family	uint16;
++	Opaque	[126]byte
+ }
+ export const SizeofSockaddr = 128
+ 
+ export type Linger struct {
+-	yes int32;
+-	sec int32;
++	Yes int32;
++	Sec int32;
+ }
+ 
+ 
+@@ -187,7 +187,7 @@ export const (
+ )
+ 
+ export type EpollEvent struct {
+-	events uint32;
+-	fd int32;
+-	pad int32;
++	Events uint32;
++	Fd int32;
++	Pad int32;
+ }
+diff --git a/src/lib/time/tick.go b/src/lib/time/tick.go
+index d1db0ce6e7..f200f30dd1 100644
+--- a/src/lib/time/tick.go
++++ b/src/lib/time/tick.go
+@@ -42,7 +42,7 @@ func ticker(ns int64, c chan int64) {
+ 			when += ns
+ 		}
+ 
+-		syscall.nstotimeval(when - now, &tv);
++		syscall.Nstotimeval(when - now, &tv);
+ 		syscall.Syscall6(syscall.SYS_SELECT, 0, 0, 0, 0, int64(uintptr(unsafe.pointer(&tv))), 0);
+ 		now = time.Nanoseconds();
+ 		c <- now;

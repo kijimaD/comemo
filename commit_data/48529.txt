@@ -17,7 +17,7 @@ Date:   Tue May 25 18:05:02 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/amd64/galign.go |  2 +-
  src/cmd/compile/internal/amd64/ssa.go    | 23 +++++++++--------------
  src/cmd/compile/internal/arm64/galign.go |  2 ++
@@ -25,3 +25,134 @@ Date:   Tue May 25 18:05:02 2021 -0400
  src/cmd/compile/internal/ssagen/arch.go  |  8 ++++----
  src/cmd/compile/internal/ssagen/ssa.go   |  8 ++++++--
  6 files changed, 42 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 2785aa0336..3b13e123a7 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -23,6 +23,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+ 	arch.SSAGenBlock = ssaGenBlock
+-	arch.LoadRegResults = loadRegResults
++	arch.LoadRegResult = loadRegResult
+ 	arch.SpillArgReg = spillArgReg
+ }
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 7e2dc41928..c27a5fe5b5 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1354,20 +1354,15 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	}
+ }
+ 
+-func loadRegResults(s *ssagen.State, f *ssa.Func) {
+-	for _, o := range f.OwnAux.ABIInfo().OutParams() {
+-		n := o.Name.(*ir.Name)
+-		rts, offs := o.RegisterTypesAndOffsets()
+-		for i := range o.Registers {
+-			p := s.Prog(loadByType(rts[i]))
+-			p.From.Type = obj.TYPE_MEM
+-			p.From.Name = obj.NAME_AUTO
+-			p.From.Sym = n.Linksym()
+-			p.From.Offset = n.FrameOffset() + offs[i]
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = ssa.ObjRegForAbiReg(o.Registers[i], f.Config)
+-		}
+-	}
++func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
++	p := s.Prog(loadByType(t))
++	p.From.Type = obj.TYPE_MEM
++	p.From.Name = obj.NAME_AUTO
++	p.From.Sym = n.Linksym()
++	p.From.Offset = n.FrameOffset() + off
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = reg
++	return p
+ }
+ 
+ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index d3db37e16f..2a61b9dd99 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -23,4 +23,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+ 	arch.SSAGenBlock = ssaGenBlock
++	arch.LoadRegResult = loadRegResult
++	arch.SpillArgReg = spillArgReg
+ }
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index d82788218d..74308a18f6 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
++	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/types"
+@@ -1278,3 +1279,22 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 		b.Fatalf("branch not implemented: %s", b.LongString())
+ 	}
+ }
++
++func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
++	p := s.Prog(loadByType(t))
++	p.From.Type = obj.TYPE_MEM
++	p.From.Name = obj.NAME_AUTO
++	p.From.Sym = n.Linksym()
++	p.From.Offset = n.FrameOffset() + off
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = reg
++	return p
++}
++
++func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
++	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
++	p.To.Name = obj.NAME_PARAM
++	p.To.Sym = n.Linksym()
++	p.Pos = p.Pos.WithNotStmt()
++	return p
++}
+diff --git a/src/cmd/compile/internal/ssagen/arch.go b/src/cmd/compile/internal/ssagen/arch.go
+index 7215f42c05..957fb3e84a 100644
+--- a/src/cmd/compile/internal/ssagen/arch.go
++++ b/src/cmd/compile/internal/ssagen/arch.go
+@@ -42,10 +42,10 @@ type ArchInfo struct {
+ 	// for all values in the block before SSAGenBlock.
+ 	SSAGenBlock func(s *State, b, next *ssa.Block)
+ 
+-	// LoadRegResults emits instructions that loads register-assigned results
+-	// into registers. They are already in memory (PPARAMOUT nodes).
+-	// Used in open-coded defer return path.
+-	LoadRegResults func(s *State, f *ssa.Func)
++	// LoadRegResult emits instructions that loads register-assigned result
++	// at n+off (n is PPARAMOUT) to register reg. The result is already in
++	// memory. Used in open-coded defer return path.
++	LoadRegResult func(s *State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog
+ 
+ 	// SpillArgReg emits instructions that spill reg to n+off.
+ 	SpillArgReg func(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 91b0c79cd3..f59220ab8e 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6930,8 +6930,12 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		// recovers a panic, it will return to caller with right results.
+ 		// The results are already in memory, because they are not SSA'd
+ 		// when the function has defers (see canSSAName).
+-		if f.OwnAux.ABIInfo().OutRegistersUsed() != 0 {
+-			Arch.LoadRegResults(&s, f)
++		for _, o := range f.OwnAux.ABIInfo().OutParams() {
++			n := o.Name.(*ir.Name)
++			rts, offs := o.RegisterTypesAndOffsets()
++			for i := range o.Registers {
++				Arch.LoadRegResult(&s, f, rts[i], ssa.ObjRegForAbiReg(o.Registers[i], f.Config), n, offs[i])
++			}
+ 		}
+ 
+ 		pp.Prog(obj.ARET)

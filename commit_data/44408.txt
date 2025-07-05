@@ -14,6 +14,28 @@ Date:   Thu Jun 25 16:39:56 2020 -0700
     Change-Id: If8549bc746f42a93f1903439e1b464b3e81e2c19
     Reviewed-on: https://go-review.googlesource.com/c/go/+/240005
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/go1.14.html | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 478035360a..35a9f3c2f3 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -466,7 +466,15 @@ Do not send CLs removing the interior tags from such phrases.
+       certificate, and letting the package automatically select the best one.
+       Note that the performance of this selection is going to be poor unless the
+       <a href="/pkg/crypto/tls/#Certificate.Leaf"><code>Certificate.Leaf</code></a>
+-      field is set.
++      field is set. The
++      <a href="/pkg/crypto/tls/#Config.NameToCertificate"><code>Config.NameToCertificate</code></a>
++      field, which only supports associating a single certificate with
++      a give name, is now deprecated and should be left as <code>nil</code>.
++      Similarly the
++      <a href="/pkg/crypto/tls/#Config.BuildNameToCertificate"><code>Config.BuildNameToCertificate</code></a>
++      method, which builds the <code>NameToCertificate</code> field
++      from the leaf certificates, is now deprecated and should not be
++      called.
+     </p>
+ 
+     <p><!-- CL 175517 -->

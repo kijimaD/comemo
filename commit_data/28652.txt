@@ -7,6 +7,30 @@ Date:   Tue Jun 21 11:11:50 2016 -0400
     Change-Id: Ie1c95fd0869307551bfcf76bf45c13372723fbba
     Reviewed-on: https://go-review.googlesource.com/24288
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.7.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 5f6b6a6934..8a76b369bc 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -288,6 +288,18 @@ To avoid confusion with the new <code>-tests</code> check, the old, unadvertised
+ <code>-test</code> option has been removed; it was equivalent to <code>-all</code> <code>-shadow</code>.
+ </p>
+ 
++<p id="vet_lostcancel">
++The <code>vet</code> command also has a new check,
++<code>-lostcancel</code>, which detects failure to call the
++cancellation function returned by the <code>WithCancel</code>,
++<code>WithTimeout</code>, and <code>WithDeadline</code> functions in
++Go 1.7's new <code>context</code> package (see <a
++href='#context'>below</a>).
++Failure to call the function prevents the new <code>Context</code>
++from being reclaimed until its parent is cancelled.
++(The background context is never cancelled.)
++</p>
++
+ <h3 id="cmd_dist">Go tool dist</h3>
+ 
+ <p>

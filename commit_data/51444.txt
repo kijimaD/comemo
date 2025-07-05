@@ -27,7 +27,7 @@ Date:   Wed Jan 26 22:48:44 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/381254
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go     |  2 +-
  src/cmd/compile/internal/types2/issues_test.go     |  9 +++--
  src/cmd/compile/internal/types2/predicates.go      |  3 ++
@@ -44,3 +44,327 @@ Date:   Wed Jan 26 22:48:44 2022 -0800
  test/typeparam/issue48276a.out                     |  2 +-
  test/typeparam/issue50646.go                       | 39 ----------------------
  15 files changed, 42 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 81a3cdeb0b..e0f2d8abe1 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -221,7 +221,7 @@ func (check *Checker) implements(V, T Type) error {
+ 	// If T is comparable, V must be comparable.
+ 	// Remember as a pending error and report only if we don't have a more specific error.
+ 	var pending error
+-	if Ti.IsComparable() && !Comparable(V) {
++	if Ti.IsComparable() && ((Vi != nil && !Vi.IsComparable()) || (Vi == nil && !Comparable(V))) {
+ 		pending = errorf("%s does not implement comparable", V)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 6b64251118..697a73525c 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -623,16 +623,15 @@ func TestIssue50646(t *testing.T) {
+ 		t.Errorf("comparable is not a comparable type")
+ 	}
+ 
+-	// TODO(gri) should comparable be an alias, like any? (see #50791)
+-	if !Implements(anyType, comparableType.Underlying().(*Interface)) {
+-		t.Errorf("any does not implement comparable")
++	if Implements(anyType, comparableType.Underlying().(*Interface)) {
++		t.Errorf("any implements comparable")
+ 	}
+ 	if !Implements(comparableType, anyType.(*Interface)) {
+ 		t.Errorf("comparable does not implement any")
+ 	}
+ 
+-	if !AssignableTo(anyType, comparableType) {
+-		t.Errorf("any not assignable to comparable")
++	if AssignableTo(anyType, comparableType) {
++		t.Errorf("any assignable to comparable")
+ 	}
+ 	if !AssignableTo(comparableType, anyType) {
+ 		t.Errorf("comparable not assignable to any")
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index cc3c76e695..003e58db38 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -306,6 +306,9 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		if y, ok := y.(*Interface); ok {
+ 			xset := x.typeSet()
+ 			yset := y.typeSet()
++			if xset.comparable != yset.comparable {
++				return false
++			}
+ 			if !xset.terms.equal(yset.terms) {
+ 				return false
+ 			}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.go2 b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+index 3463c42572..1763550c04 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+@@ -9,19 +9,18 @@ package p
+ import "io"
+ import "context"
+ 
+-// Interfaces are always comparable (though the comparison may panic at runtime).
+ func eql[T comparable](x, y T) bool {
+ 	return x == y
+ }
+ 
+-func _() {
+-	var x interface{}
+-	var y interface{ m() }
++func _[X comparable, Y interface{comparable; m()}]() {
++	var x X
++	var y Y
+ 	eql(x, y /* ERROR does not match */ ) // interfaces of different types
+ 	eql(x, x)
+ 	eql(y, y)
+-	eql(y, nil)
+-	eql[io.Reader](nil, nil)
++	eql(y, nil /* ERROR cannot use nil as Y value in argument to eql */ )
++	eql[io /* ERROR does not implement comparable */ .Reader](nil, nil)
+ }
+ 
+ // If we have a receiver of pointer to type parameter type (below: *T)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50646.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50646.go2
+index 6e8419f247..3bdba1113a 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50646.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50646.go2
+@@ -4,9 +4,6 @@
+ 
+ package p
+ 
+-// Because we can use == and != with values of arbitrary
+-// interfaces, all interfaces implement comparable.
+-
+ func f1[_ comparable]()              {}
+ func f2[_ interface{ comparable }]() {}
+ 
+@@ -14,15 +11,15 @@ type T interface{ m() }
+ 
+ func _[P comparable, Q ~int, R any]() {
+ 	_ = f1[int]
+-	_ = f1[T]
+-	_ = f1[any]
++	_ = f1[T /* ERROR T does not implement comparable */ ]
++	_ = f1[any /* ERROR any does not implement comparable */ ]
+ 	_ = f1[P]
+ 	_ = f1[Q]
+ 	_ = f1[R /* ERROR R does not implement comparable */]
+ 
+ 	_ = f2[int]
+-	_ = f2[T]
+-	_ = f2[any]
++	_ = f2[T /* ERROR T does not implement comparable */ ]
++	_ = f2[any /* ERROR any does not implement comparable */ ]
+ 	_ = f2[P]
+ 	_ = f2[Q]
+ 	_ = f2[R /* ERROR R does not implement comparable */]
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 8762bae559..b844fb22b6 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -387,6 +387,9 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		if y, ok := y.(*Interface); ok {
+ 			xset := x.typeSet()
+ 			yset := y.typeSet()
++			if xset.comparable != yset.comparable {
++				return false
++			}
+ 			if !xset.terms.equal(yset.terms) {
+ 				return false
+ 			}
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 09a841bb98..347815f9dd 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -225,7 +225,7 @@ func (check *Checker) implements(V, T Type) error {
+ 	// If T is comparable, V must be comparable.
+ 	// Remember as a pending error and report only if we don't have a more specific error.
+ 	var pending error
+-	if Ti.IsComparable() && !Comparable(V) {
++	if Ti.IsComparable() && ((Vi != nil && !Vi.IsComparable()) || (Vi == nil && !Comparable(V))) {
+ 		pending = errorf("%s does not implement comparable", V)
+ 	}
+ 
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 613ced92ed..bd98f48177 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -650,16 +650,15 @@ func TestIssue50646(t *testing.T) {
+ 		t.Errorf("comparable is not a comparable type")
+ 	}
+ 
+-	// TODO(gri) should comparable be an alias, like any? (see #50791)
+-	if !Implements(anyType, comparableType.Underlying().(*Interface)) {
+-		t.Errorf("any does not implement comparable")
++	if Implements(anyType, comparableType.Underlying().(*Interface)) {
++		t.Errorf("any implements comparable")
+ 	}
+ 	if !Implements(comparableType, anyType.(*Interface)) {
+ 		t.Errorf("comparable does not implement any")
+ 	}
+ 
+-	if !AssignableTo(anyType, comparableType) {
+-		t.Errorf("any not assignable to comparable")
++	if AssignableTo(anyType, comparableType) {
++		t.Errorf("any assignable to comparable")
+ 	}
+ 	if !AssignableTo(comparableType, anyType) {
+ 		t.Errorf("comparable not assignable to any")
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 1ba0043327..9ae6cd51b7 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -308,6 +308,9 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		if y, ok := y.(*Interface); ok {
+ 			xset := x.typeSet()
+ 			yset := y.typeSet()
++			if xset.comparable != yset.comparable {
++				return false
++			}
+ 			if !xset.terms.equal(yset.terms) {
+ 				return false
+ 			}
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index c164825eb7..8291852a49 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -9,19 +9,18 @@ package p
+ import "io"
+ import "context"
+ 
+-// Interfaces are always comparable (though the comparison may panic at runtime).
+ func eql[T comparable](x, y T) bool {
+ 	return x == y
+ }
+ 
+-func _() {
+-	var x interface{}
+-	var y interface{ m() }
++func _[X comparable, Y interface{comparable; m()}]() {
++	var x X
++	var y Y
+ 	eql(x, y /* ERROR does not match */ ) // interfaces of different types
+ 	eql(x, x)
+ 	eql(y, y)
+-	eql(y, nil)
+-	eql[io.Reader](nil, nil)
++	eql(y, nil /* ERROR cannot use nil as Y value in argument to eql */ )
++	eql[io /* ERROR does not implement comparable */ .Reader](nil, nil)
+ }
+ 
+ // If we have a receiver of pointer to type parameter type (below: *T)
+diff --git a/src/go/types/testdata/fixedbugs/issue50646.go2 b/src/go/types/testdata/fixedbugs/issue50646.go2
+index 6e8419f247..3bdba1113a 100644
+--- a/src/go/types/testdata/fixedbugs/issue50646.go2
++++ b/src/go/types/testdata/fixedbugs/issue50646.go2
+@@ -4,9 +4,6 @@
+ 
+ package p
+ 
+-// Because we can use == and != with values of arbitrary
+-// interfaces, all interfaces implement comparable.
+-
+ func f1[_ comparable]()              {}
+ func f2[_ interface{ comparable }]() {}
+ 
+@@ -14,15 +11,15 @@ type T interface{ m() }
+ 
+ func _[P comparable, Q ~int, R any]() {
+ 	_ = f1[int]
+-	_ = f1[T]
+-	_ = f1[any]
++	_ = f1[T /* ERROR T does not implement comparable */ ]
++	_ = f1[any /* ERROR any does not implement comparable */ ]
+ 	_ = f1[P]
+ 	_ = f1[Q]
+ 	_ = f1[R /* ERROR R does not implement comparable */]
+ 
+ 	_ = f2[int]
+-	_ = f2[T]
+-	_ = f2[any]
++	_ = f2[T /* ERROR T does not implement comparable */ ]
++	_ = f2[any /* ERROR any does not implement comparable */ ]
+ 	_ = f2[P]
+ 	_ = f2[Q]
+ 	_ = f2[R /* ERROR R does not implement comparable */]
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index ad6d316227..085048f797 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -387,6 +387,9 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		if y, ok := y.(*Interface); ok {
+ 			xset := x.typeSet()
+ 			yset := y.typeSet()
++			if xset.comparable != yset.comparable {
++				return false
++			}
+ 			if !xset.terms.equal(yset.terms) {
+ 				return false
+ 			}
+diff --git a/test/typeparam/issue48276a.go b/test/typeparam/issue48276a.go
+index 060ac3eb7f..25e939f536 100644
+--- a/test/typeparam/issue48276a.go
++++ b/test/typeparam/issue48276a.go
+@@ -9,7 +9,7 @@ package main
+ import "fmt"
+ 
+ func main() {
+-	IsZero[interface{}]("")
++	IsZero[int](0)
+ }
+ 
+ func IsZero[T comparable](val T) bool {
+diff --git a/test/typeparam/issue48276a.out b/test/typeparam/issue48276a.out
+index 7e8a8a9a2e..8f38db999d 100644
+--- a/test/typeparam/issue48276a.out
++++ b/test/typeparam/issue48276a.out
+@@ -1 +1 @@
+-<nil>:
++0:0
+diff --git a/test/typeparam/issue50646.go b/test/typeparam/issue50646.go
+deleted file mode 100644
+index 44bbe2ae6f..0000000000
+--- a/test/typeparam/issue50646.go
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// run -gcflags=-G=3
+-
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func eql[P comparable](x, y P) {
+-	if x != y {
+-		panic("not equal")
+-	}
+-}
+-
+-func expectPanic(f func()) {
+-	defer func() {
+-		if recover() == nil {
+-			panic("function succeeded unexpectedly")
+-		}
+-	}()
+-	f()
+-}
+-
+-func main() {
+-	eql[int](1, 1)
+-	eql(1, 1)
+-
+-	// all interfaces implement comparable
+-	var x, y any = 2, 2
+-	eql[any](x, y)
+-	eql(x, y)
+-
+-	// but we may get runtime panics
+-	x, y = 1, 2 // x != y
+-	expectPanic(func() { eql(x, y) })
+-
+-	x, y = main, main // functions are not comparable
+-	expectPanic(func() { eql(x, y) })
+-}

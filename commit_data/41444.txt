@@ -17,7 +17,33 @@ Date:   Mon Sep 30 11:12:29 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 1 +
  test/prove.go                           | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index f061b62448..1a0a46c154 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -409,6 +409,7 @@ var passes = [...]pass{
+ 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
+ 	{name: "generic cse", fn: cse},
+ 	{name: "phiopt", fn: phiopt},
++	{name: "gcse deadcode", fn: deadcode, required: true}, // clean out after cse and phiopt
+ 	{name: "nilcheckelim", fn: nilcheckelim},
+ 	{name: "prove", fn: prove},
+ 	{name: "fuse plain", fn: fusePlain},
+diff --git a/test/prove.go b/test/prove.go
+index 6629982ba8..00fc94e721 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -507,7 +507,7 @@ func sm1(b []int, x int) {
+ 	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
+ 	// Test non-constant argument with known limits.
+ 	if cap(b) > 10 {
+-		useSlice(b[2:]) // ERROR "Proved slicemask not needed$"
++		useSlice(b[2:])
+ 	}
+ }
+ 

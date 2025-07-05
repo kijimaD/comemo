@@ -9,7 +9,44 @@ Date:   Mon Nov 4 12:35:11 2013 -0500
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/21450043
-
+---
  src/pkg/net/textproto/reader.go      | 9 +++------
  src/pkg/net/textproto/reader_test.go | 4 ++++
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index 56ece5b087..b0c07413c1 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -574,13 +574,10 @@ func canonicalMIMEHeaderKey(a []byte) string {
+ 		// and upper case after each dash.
+ 		// (Host, User-Agent, If-Modified-Since).
+ 		// MIME headers are ASCII only, so no Unicode issues.
+-		if a[i] == ' ' {
+-			a[i] = '-'
+-			upper = true
+-			continue
+-		}
+ 		c := a[i]
+-		if upper && 'a' <= c && c <= 'z' {
++		if c == ' ' {
++			c = '-'
++		} else if upper && 'a' <= c && c <= 'z' {
+ 			c -= toLower
+ 		} else if !upper && 'A' <= c && c <= 'Z' {
+ 			c += toLower
+diff --git a/src/pkg/net/textproto/reader_test.go b/src/pkg/net/textproto/reader_test.go
+index f27042d4e9..cc12912b63 100644
+--- a/src/pkg/net/textproto/reader_test.go
++++ b/src/pkg/net/textproto/reader_test.go
+@@ -25,6 +25,10 @@ var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
+ 	{"user-agent", "User-Agent"},
+ 	{"USER-AGENT", "User-Agent"},
+ 	{"üser-agenT", "üser-Agent"}, // non-ASCII unchanged
++
++	// This caused a panic due to mishandling of a space:
++	{"C Ontent-Transfer-Encoding", "C-Ontent-Transfer-Encoding"},
++	{"foo bar", "Foo-Bar"},
+ }
+ 
+ func TestCanonicalMIMEHeaderKey(t *testing.T) {

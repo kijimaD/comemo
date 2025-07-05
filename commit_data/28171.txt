@@ -19,8 +19,144 @@ Date:   Mon May 2 17:03:36 2016 -0700
     Change-Id: I7978e8de163eb9965964942aee27f13bf94a7c3c
     Reviewed-on: https://go-review.googlesource.com/22714
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 32 +++++++++++++++++++-------------
  src/cmd/compile/internal/gc/bimport.go | 13 ++++++++-----
  src/go/internal/gcimporter/bimport.go  |  4 +++-
  3 files changed, 30 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 1cce0c9a44..5d037ae05e 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -844,29 +844,33 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
+ 	}
+ 	p.typ(t)
+ 	if n > 0 {
+-		if name := parName(q, numbered); name != "" {
+-			p.string(name)
++		name := parName(q, numbered)
++		if name == "" {
++			// Sometimes we see an empty name even for n > 0.
++			// This appears to happen for interface methods
++			// with _ (blank) parameter names. Make sure we
++			// have a proper name and package so we don't crash
++			// during import (see also issue #15470).
++			// (parName uses "" instead of "?" as in fmt.go)
++			// TODO(gri) review parameter name encoding
++			name = "_"
++		}
++		p.string(name)
++		if name != "_" {
+ 			// Because of (re-)exported inlined functions
+ 			// the importpkg may not be the package to which this
+ 			// function (and thus its parameter) belongs. We need to
+ 			// supply the parameter package here. We need the package
+ 			// when the function is inlined so we can properly resolve
+-			// the name.
++			// the name. The _ (blank) parameter cannot be accessed, so
++			// we don't need to export a package.
++			//
+ 			// TODO(gri) This is compiler-specific. Try using importpkg
+ 			// here and then update the symbols if we find an inlined
+ 			// body only. Otherwise, the parameter name is ignored and
+ 			// the package doesn't matter. This would remove an int
+ 			// (likely 1 byte) for each named parameter.
+ 			p.pkg(q.Sym.Pkg)
+-		} else {
+-			// Sometimes we see an empty name even for n > 0.
+-			// This appears to happen for interface methods
+-			// with _ (blank) parameter names. Make sure we
+-			// have a proper name and package so we don't crash
+-			// during import (see also issue #15470).
+-			// TODO(gri) review parameter encoding
+-			p.string("_")
+-			p.pkg(localpkg)
+ 		}
+ 	}
+ 	// TODO(gri) This is compiler-specific (escape info).
+@@ -890,7 +894,7 @@ func parName(f *Field, numbered bool) string {
+ 				if s.Name[1] == 'r' { // originally an unnamed result
+ 					return "" // s = nil
+ 				} else if s.Name[1] == 'b' { // originally the blank identifier _
+-					return "_"
++					return "_" // belongs to localpkg
+ 				}
+ 			}
+ 		} else {
+@@ -1463,6 +1467,8 @@ func (p *exporter) fieldSym(s *Sym, short bool) {
+ 		}
+ 	}
+ 
++	// we should never see a _ (blank) here - these are accessible ("read") fields
++	// TODO(gri) can we assert this with an explicit check?
+ 	p.string(name)
+ 	if !exportname(name) {
+ 		p.pkg(s.Pkg)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 0a8980744d..7eb97355aa 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -201,12 +201,12 @@ func (p *importer) pkg() *Pkg {
+ 
+ 	// we should never see an empty package name
+ 	if name == "" {
+-		Fatalf("importer: empty package name in import")
++		Fatalf("importer: empty package name for path %q", path)
+ 	}
+ 
+ 	// we should never see a bad import path
+ 	if isbadimport(path) {
+-		Fatalf("importer: bad path in import: %q", path)
++		Fatalf("importer: bad package path %q for package %s", path, name)
+ 	}
+ 
+ 	// an empty path denotes the package we are currently importing;
+@@ -222,7 +222,7 @@ func (p *importer) pkg() *Pkg {
+ 	if pkg.Name == "" {
+ 		pkg.Name = name
+ 	} else if pkg.Name != name {
+-		Fatalf("importer: conflicting names %s and %s for package %q", pkg.Name, name, path)
++		Fatalf("importer: conflicting package names %s and %s for path %q", pkg.Name, name, path)
+ 	}
+ 	p.pkgList = append(p.pkgList, pkg)
+ 
+@@ -518,7 +518,7 @@ func (p *importer) fieldName() *Sym {
+ 		// During imports, unqualified non-exported identifiers are from builtinpkg
+ 		// (see parser.go:sym). The binary exporter only exports blank as a non-exported
+ 		// identifier without qualification.
+-		pkg = localpkg
++		pkg = builtinpkg
+ 	} else if name == "?" || name != "" && !exportname(name) {
+ 		if name == "?" {
+ 			name = ""
+@@ -569,7 +569,10 @@ func (p *importer) param(named bool) *Node {
+ 		}
+ 		// TODO(gri) Supply function/method package rather than
+ 		// encoding the package for each parameter repeatedly.
+-		pkg := p.pkg()
++		pkg := localpkg
++		if name != "_" {
++			pkg = p.pkg()
++		}
+ 		n.Left = newname(pkg.Lookup(name))
+ 	}
+ 
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index f1385c8c90..eb29df77ab 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -506,10 +506,12 @@ func (p *importer) param(named bool) (*types.Var, bool) {
+ 		if name == "" {
+ 			panic("expected named parameter")
+ 		}
++		if name != "_" {
++			pkg = p.pkg()
++		}
+ 		if i := strings.Index(name, "·"); i > 0 {
+ 			name = name[:i] // cut off gc-specific parameter numbering
+ 		}
+-		pkg = p.pkg()
+ 	}
+ 
+ 	// read and discard compiler-specific info

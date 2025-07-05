@@ -11,6 +11,46 @@ Date:   Mon Jun 1 16:20:32 2020 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/tls_test.go | 15 +++++----------
  1 file changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 9e340774b6..d5238026da 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -785,11 +785,6 @@ func TestCloneNonFuncFields(t *testing.T) {
+ 	typ := v.Type()
+ 	for i := 0; i < typ.NumField(); i++ {
+ 		f := v.Field(i)
+-		if !f.CanSet() {
+-			// unexported field; not cloned.
+-			continue
+-		}
+-
+ 		// testing/quick can't handle functions or interfaces and so
+ 		// isn't used here.
+ 		switch fn := typ.Field(i).Name; fn {
+@@ -830,17 +825,17 @@ func TestCloneNonFuncFields(t *testing.T) {
+ 			f.Set(reflect.ValueOf([]CurveID{CurveP256}))
+ 		case "Renegotiation":
+ 			f.Set(reflect.ValueOf(RenegotiateOnceAsClient))
++		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys":
++			continue // these are unexported fields that are handled separately
+ 		default:
+ 			t.Errorf("all fields must be accounted for, but saw unknown field %q", fn)
+ 		}
+ 	}
++	// Set the unexported fields related to session ticket keys, which are copied with Clone().
++	c1.autoSessionTicketKeys = []ticketKey{c1.ticketKeyFromBytes(c1.SessionTicketKey)}
++	c1.sessionTicketKeys = []ticketKey{c1.ticketKeyFromBytes(c1.SessionTicketKey)}
+ 
+ 	c2 := c1.Clone()
+-	// DeepEqual also compares unexported fields, thus c2 needs to have run
+-	// serverInit in order to be DeepEqual to c1. Cloning it and discarding
+-	// the result is sufficient.
+-	c2.Clone()
+-
+ 	if !reflect.DeepEqual(&c1, c2) {
+ 		t.Errorf("clone failed to copy a field")
+ 	}

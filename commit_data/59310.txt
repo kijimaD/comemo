@@ -13,6 +13,24 @@ Date:   Tue Feb 27 13:54:42 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/os/file_windows.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 51dbc355f8..22fd9e5d40 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -115,11 +115,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 		}
+ 		return nil, &PathError{Op: "open", Path: name, Err: e}
+ 	}
+-	f, e := newFile(r, name, "file"), nil
+-	if e != nil {
+-		return nil, &PathError{Op: "open", Path: name, Err: e}
+-	}
+-	return f, nil
++	return newFile(r, name, "file"), nil
+ }
+ 
+ func (file *file) close() error {

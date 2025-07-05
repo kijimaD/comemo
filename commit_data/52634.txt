@@ -16,7 +16,45 @@ Date:   Fri May 13 19:04:59 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go            | 4 ----
  src/cmd/compile/internal/typecheck/universe.go | 4 +---
  2 files changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index ffbeb20053..43d48b4a65 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -409,7 +409,6 @@ func (n *MakeExpr) SetOp(op Op) {
+ // (It may be copied and assigned a type, though.)
+ type NilExpr struct {
+ 	miniExpr
+-	Sym_ *types.Sym // TODO: Remove
+ }
+ 
+ func NewNilExpr(pos src.XPos) *NilExpr {
+@@ -419,9 +418,6 @@ func NewNilExpr(pos src.XPos) *NilExpr {
+ 	return n
+ }
+ 
+-func (n *NilExpr) Sym() *types.Sym     { return n.Sym_ }
+-func (n *NilExpr) SetSym(x *types.Sym) { n.Sym_ = x }
+-
+ // A ParenExpr is a parenthesized expression (X).
+ // It may end up being a value or a type.
+ type ParenExpr struct {
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index a49bf5793e..19cb244d58 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -101,9 +101,7 @@ func InitUniverse() {
+ 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
+ 
+ 	s = types.BuiltinPkg.Lookup("nil")
+-	nnil := NodNil()
+-	nnil.(*ir.NilExpr).SetSym(s)
+-	s.Def = nnil
++	s.Def = NodNil()
+ 
+ 	// initialize okfor
+ 	for et := types.Kind(0); et < types.NTYPE; et++ {

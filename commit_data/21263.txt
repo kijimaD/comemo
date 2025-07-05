@@ -14,7 +14,43 @@ Date:   Mon Dec 15 15:00:56 2014 +1100
     Reviewed-on: https://go-review.googlesource.com/1564
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/generate.go      | 4 ++++
  src/cmd/go/generate_test.go | 6 ++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index baf4d2b55c..8c1e3ee230 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -255,6 +255,10 @@ func (g *Generator) split(line string) []string {
+ 	// Parse line, obeying quoted strings.
+ 	var words []string
+ 	line = line[len("//go:generate ") : len(line)-1] // Drop preamble and final newline.
++	// There may still be a carriage return.
++	if len(line) > 0 && line[len(line)-1] == '\r' {
++		line = line[:len(line)-1]
++	}
+ 	// One (possibly quoted) word per iteration.
+ Words:
+ 	for {
+diff --git a/src/cmd/go/generate_test.go b/src/cmd/go/generate_test.go
+index 660ebabbe8..2ec548630a 100644
+--- a/src/cmd/go/generate_test.go
++++ b/src/cmd/go/generate_test.go
+@@ -40,9 +40,15 @@ func TestGenerateCommandParse(t *testing.T) {
+ 	}
+ 	g.setShorthand([]string{"-command", "yacc", "go", "tool", "yacc"})
+ 	for _, test := range splitTests {
++		// First with newlines.
+ 		got := g.split("//go:generate " + test.in + "\n")
+ 		if !reflect.DeepEqual(got, test.out) {
+ 			t.Errorf("split(%q): got %q expected %q", test.in, got, test.out)
+ 		}
++		// Then with CRLFs, thank you Windows.
++		got = g.split("//go:generate " + test.in + "\r\n")
++		if !reflect.DeepEqual(got, test.out) {
++			t.Errorf("split(%q): got %q expected %q", test.in, got, test.out)
++		}
+ 	}
+ }

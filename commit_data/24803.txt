@@ -7,6 +7,20 @@ Date:   Tue Sep 1 12:31:18 2015 +1000
     Change-Id: I6a4ab5a1f44b54cfa81a650055460587ceefb2fc
     Reviewed-on: https://go-review.googlesource.com/14144
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/io/ioutil/ioutil.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/ioutil/ioutil.go b/src/io/ioutil/ioutil.go
+index 909a815632..e90a33f99b 100644
+--- a/src/io/ioutil/ioutil.go
++++ b/src/io/ioutil/ioutil.go
+@@ -96,7 +96,7 @@ func (f byName) Less(i, j int) bool { return f[i].Name() < f[j].Name() }
+ func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+ 
+ // ReadDir reads the directory named by dirname and returns
+-// a list of sorted directory entries.
++// a list of directory entries sorted by filename.
+ func ReadDir(dirname string) ([]os.FileInfo, error) {
+ 	f, err := os.Open(dirname)
+ 	if err != nil {

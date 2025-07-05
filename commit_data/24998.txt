@@ -12,9 +12,171 @@ Date:   Tue Sep 15 09:02:07 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/14591
     Reviewed-by: Todd Neal <todd@tneal.org>
     Run-TryBot: Todd Neal <todd@tneal.org>
-
+---
  .../compile/internal/gc/testdata/loadstore_ssa.go  | 21 ++++++++++++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules       | 10 ++++++--
  src/cmd/compile/internal/ssa/regalloc.go           | 28 ++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go       | 22 ++++++++++-------
  4 files changed, 71 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go b/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
+index cf37095742..e986f53bc6 100644
+--- a/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
+@@ -57,10 +57,31 @@ func testStoreSize_ssa(p *uint16, q *uint16, v uint32) {
+ 
+ var failed = false
+ 
++func testExtStore_ssa(p *byte, b bool) int {
++	switch {
++	}
++	x := *p
++	*p = 7
++	if b {
++		return int(x)
++	}
++	return 0
++}
++
++func testExtStore() {
++	const start = 8
++	var b byte = start
++	if got := testExtStore_ssa(&b, true); got != start {
++		fmt.Println("testExtStore failed.  want =", start, ", got =", got)
++		failed = true
++	}
++}
++
+ func main() {
+ 
+ 	testLoadStoreOrder()
+ 	testStoreSize()
++	testExtStore()
+ 
+ 	if failed {
+ 		panic("failed")
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 0591e8f8ef..5f34f76eda 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -474,8 +474,14 @@
+ (SETNE (InvertFlags x)) -> (SETNE x)
+ 
+ // sign extended loads
+-(MOVBQSX (MOVBload [off] {sym} ptr mem)) -> (MOVBQSXload [off] {sym} ptr mem)
+-(MOVBQZX (MOVBload [off] {sym} ptr mem)) -> (MOVBQZXload [off] {sym} ptr mem)
++// Note: The combined instruction must end up in the same block
++// as the original load.  If not, we end up making a value with
++// memory type live in two different blocks, which can lead to
++// multiple memory values alive simultaneously.
++// TODO: somehow have this rewrite rule put the new MOVBQSXload in
++// v.Args[0].Block instead of in v.Block?
++(MOVBQSX (MOVBload [off] {sym} ptr mem)) && b == v.Args[0].Block -> (MOVBQSXload [off] {sym} ptr mem)
++(MOVBQZX (MOVBload [off] {sym} ptr mem)) && b == v.Args[0].Block -> (MOVBQZXload [off] {sym} ptr mem)
+ // TODO: more
+ 
+ // Don't extend before storing
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 3122c7a130..f529b42fe0 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1046,5 +1046,33 @@ func (f *Func) live() [][][]ID {
+ 			break
+ 		}
+ 	}
++
++	// Make sure that there is only one live memory variable in each set.
++	// Ideally we should check this at every instructiom, but at every
++	// edge seems good enough for now.
++	isMem := make([]bool, f.NumValues())
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			isMem[v.ID] = v.Type.IsMemory()
++		}
++	}
++	for _, b := range f.Blocks {
++		for i, c := range b.Succs {
++			nmem := 0
++			for _, id := range live[b.ID][i] {
++				if isMem[id] {
++					nmem++
++				}
++			}
++			if nmem > 1 {
++				f.Fatalf("more than one mem live on edge %v->%v: %v", b, c, live[b.ID][i])
++			}
++			// TODO: figure out why we get nmem==0 occasionally.
++			//if nmem == 0 {
++			//	f.Fatalf("no mem live on edge %v->%v: %v", b, c, live[b.ID][i])
++			//}
++		}
++	}
++
+ 	return live
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index cb6405d44d..d2f5ca8f32 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3939,16 +3939,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		;
+ 	case OpAMD64MOVBQSX:
+ 		// match: (MOVBQSX (MOVBload [off] {sym} ptr mem))
+-		// cond:
++		// cond: b == v.Args[0].Block
+ 		// result: (MOVBQSXload [off] {sym} ptr mem)
+ 		{
+ 			if v.Args[0].Op != OpAMD64MOVBload {
+-				goto end9de452216bde3b2e2a2d01f43da1f78e
++				goto end4fcdab76af223d4a6b942b532ebf860b
+ 			}
+ 			off := v.Args[0].AuxInt
+ 			sym := v.Args[0].Aux
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
++			if !(b == v.Args[0].Block) {
++				goto end4fcdab76af223d4a6b942b532ebf860b
++			}
+ 			v.Op = OpAMD64MOVBQSXload
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -3959,21 +3962,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end9de452216bde3b2e2a2d01f43da1f78e
+-	end9de452216bde3b2e2a2d01f43da1f78e:
++		goto end4fcdab76af223d4a6b942b532ebf860b
++	end4fcdab76af223d4a6b942b532ebf860b:
+ 		;
+ 	case OpAMD64MOVBQZX:
+ 		// match: (MOVBQZX (MOVBload [off] {sym} ptr mem))
+-		// cond:
++		// cond: b == v.Args[0].Block
+ 		// result: (MOVBQZXload [off] {sym} ptr mem)
+ 		{
+ 			if v.Args[0].Op != OpAMD64MOVBload {
+-				goto end573f4e6a6fe8032338b85fddd4d1bab4
++				goto endce35c966b0a38aa124a610e5616a220c
+ 			}
+ 			off := v.Args[0].AuxInt
+ 			sym := v.Args[0].Aux
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
++			if !(b == v.Args[0].Block) {
++				goto endce35c966b0a38aa124a610e5616a220c
++			}
+ 			v.Op = OpAMD64MOVBQZXload
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -3984,8 +3990,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end573f4e6a6fe8032338b85fddd4d1bab4
+-	end573f4e6a6fe8032338b85fddd4d1bab4:
++		goto endce35c966b0a38aa124a610e5616a220c
++	endce35c966b0a38aa124a610e5616a220c:
+ 		;
+ 	case OpAMD64MOVBload:
+ 		// match: (MOVBload  [off1] {sym} (ADDQconst [off2] ptr) mem)

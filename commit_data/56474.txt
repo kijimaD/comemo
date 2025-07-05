@@ -10,7 +10,7 @@ Date:   Fri Apr 14 14:09:12 2023 -0400
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/reflectlite/all_test.go            |  35 ++---
  src/internal/reflectlite/reflect_mirror_test.go |   3 +-
  src/internal/reflectlite/type.go                | 194 +++++-------------------
@@ -21,3 +21,749 @@ Date:   Fri Apr 14 14:09:12 2023 -0400
  src/runtime/syscall_windows.go                  |   2 +-
  src/runtime/type.go                             |  70 ++-------
  9 files changed, 90 insertions(+), 259 deletions(-)
+
+diff --git a/src/internal/reflectlite/all_test.go b/src/internal/reflectlite/all_test.go
+index bb3cad470c..820b4aeaf8 100644
+--- a/src/internal/reflectlite/all_test.go
++++ b/src/internal/reflectlite/all_test.go
+@@ -7,6 +7,7 @@ package reflectlite_test
+ import (
+ 	"encoding/base64"
+ 	"fmt"
++	"internal/abi"
+ 	. "internal/reflectlite"
+ 	"math"
+ 	"reflect"
+@@ -240,37 +241,37 @@ func TestSetValue(t *testing.T) {
+ 	for i, tt := range valueTests {
+ 		v := ValueOf(tt.i).Elem()
+ 		switch v.Kind() {
+-		case Int:
++		case abi.Int:
+ 			v.Set(ValueOf(int(132)))
+-		case Int8:
++		case abi.Int8:
+ 			v.Set(ValueOf(int8(8)))
+-		case Int16:
++		case abi.Int16:
+ 			v.Set(ValueOf(int16(16)))
+-		case Int32:
++		case abi.Int32:
+ 			v.Set(ValueOf(int32(32)))
+-		case Int64:
++		case abi.Int64:
+ 			v.Set(ValueOf(int64(64)))
+-		case Uint:
++		case abi.Uint:
+ 			v.Set(ValueOf(uint(132)))
+-		case Uint8:
++		case abi.Uint8:
+ 			v.Set(ValueOf(uint8(8)))
+-		case Uint16:
++		case abi.Uint16:
+ 			v.Set(ValueOf(uint16(16)))
+-		case Uint32:
++		case abi.Uint32:
+ 			v.Set(ValueOf(uint32(32)))
+-		case Uint64:
++		case abi.Uint64:
+ 			v.Set(ValueOf(uint64(64)))
+-		case Float32:
++		case abi.Float32:
+ 			v.Set(ValueOf(float32(256.25)))
+-		case Float64:
++		case abi.Float64:
+ 			v.Set(ValueOf(512.125))
+-		case Complex64:
++		case abi.Complex64:
+ 			v.Set(ValueOf(complex64(532.125 + 10i)))
+-		case Complex128:
++		case abi.Complex128:
+ 			v.Set(ValueOf(complex128(564.25 + 1i)))
+-		case String:
++		case abi.String:
+ 			v.Set(ValueOf("stringy cheese"))
+-		case Bool:
++		case abi.Bool:
+ 			v.Set(ValueOf(true))
+ 		}
+ 		s := valueToString(v)
+@@ -946,7 +947,7 @@ func TestInvalid(t *testing.T) {
+ 		t.Errorf("field: IsValid=%v, Kind=%v, want true, Interface", v.IsValid(), v.Kind())
+ 	}
+ 	v = v.Elem()
+-	if v.IsValid() != false || v.Kind() != Invalid {
++	if v.IsValid() != false || v.Kind() != abi.Invalid {
+ 		t.Errorf("field elem: IsValid=%v, Kind=%v, want false, Invalid", v.IsValid(), v.Kind())
+ 	}
+ }
+diff --git a/src/internal/reflectlite/reflect_mirror_test.go b/src/internal/reflectlite/reflect_mirror_test.go
+index 9b28b13550..dd13ab782a 100644
+--- a/src/internal/reflectlite/reflect_mirror_test.go
++++ b/src/internal/reflectlite/reflect_mirror_test.go
+@@ -19,7 +19,6 @@ import (
+ )
+ 
+ var typeNames = []string{
+-	"rtype",
+ 	"uncommonType",
+ 	"arrayType",
+ 	"chanType",
+@@ -115,7 +114,7 @@ func TestMirrorWithReflect(t *testing.T) {
+ 	wg.Wait()
+ 
+ 	if len(rl.m) != len(r.m) {
+-		t.Fatalf("number of types mismatch, reflect: %d, reflectlite: %d", len(r.m), len(rl.m))
++		t.Fatalf("number of types mismatch, reflect: %d, reflectlite: %d (%+v, %+v)", len(r.m), len(rl.m), r.m, rl.m)
+ 	}
+ 
+ 	for typName := range r.m {
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 5796b8f168..d562cbe874 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -75,45 +75,25 @@ type Type interface {
+ 
+ // A Kind represents the specific kind of type that a Type represents.
+ // The zero Kind is not a valid kind.
+-type Kind uint
++type Kind = abi.Kind
++
++const Ptr = abi.Pointer
+ 
+ const (
+-	Invalid Kind = iota
+-	Bool
+-	Int
+-	Int8
+-	Int16
+-	Int32
+-	Int64
+-	Uint
+-	Uint8
+-	Uint16
+-	Uint32
+-	Uint64
+-	Uintptr
+-	Float32
+-	Float64
+-	Complex64
+-	Complex128
+-	Array
+-	Chan
+-	Func
+-	Interface
+-	Map
+-	Pointer
+-	Slice
+-	String
+-	Struct
+-	UnsafePointer
++	// Import-and-export these constants as necessary
++	Interface = abi.Interface
++	Slice     = abi.Slice
++	String    = abi.String
++	Struct    = abi.Struct
+ )
+ 
+-const Ptr = Pointer
+-
+ type nameOff = abi.NameOff
+ type typeOff = abi.TypeOff
+ type textOff = abi.TextOff
+ 
+-type rtype abi.Type
++type rtype struct {
++	abi.Type
++}
+ 
+ // uncommonType is present only for defined types or types with methods
+ // (if T is a defined type, the uncommonTypes for T and *T have methods).
+@@ -304,50 +284,6 @@ func (n name) pkgPath() string {
+  * The compiler does not know about the data structures and methods below.
+  */
+ 
+-const (
+-	kindDirectIface = 1 << 5
+-	kindGCProg      = 1 << 6 // Type.gc points to GC program
+-	kindMask        = (1 << 5) - 1
+-)
+-
+-// String returns the name of k.
+-func (k Kind) String() string {
+-	if int(k) < len(kindNames) {
+-		return kindNames[k]
+-	}
+-	return kindNames[0]
+-}
+-
+-var kindNames = []string{
+-	Invalid:       "invalid",
+-	Bool:          "bool",
+-	Int:           "int",
+-	Int8:          "int8",
+-	Int16:         "int16",
+-	Int32:         "int32",
+-	Int64:         "int64",
+-	Uint:          "uint",
+-	Uint8:         "uint8",
+-	Uint16:        "uint16",
+-	Uint32:        "uint32",
+-	Uint64:        "uint64",
+-	Uintptr:       "uintptr",
+-	Float32:       "float32",
+-	Float64:       "float64",
+-	Complex64:     "complex64",
+-	Complex128:    "complex128",
+-	Array:         "array",
+-	Chan:          "chan",
+-	Func:          "func",
+-	Interface:     "interface",
+-	Map:           "map",
+-	Ptr:           "ptr",
+-	Slice:         "slice",
+-	String:        "string",
+-	Struct:        "struct",
+-	UnsafePointer: "unsafe.Pointer",
+-}
+-
+ // resolveNameOff resolves a name offset from a base pointer.
+ // The (*rtype).nameOff method is a convenience wrapper for this function.
+ // Implemented in the runtime package.
+@@ -367,61 +303,7 @@ func (t *rtype) typeOff(off typeOff) *rtype {
+ }
+ 
+ func (t *rtype) uncommon() *uncommonType {
+-	if t.TFlag&abi.TFlagUncommon == 0 {
+-		return nil
+-	}
+-	switch t.Kind() {
+-	case Struct:
+-		return &(*structTypeUncommon)(unsafe.Pointer(t)).u
+-	case Ptr:
+-		type u struct {
+-			ptrType
+-			u uncommonType
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case Func:
+-		type u struct {
+-			funcType
+-			u uncommonType
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case Slice:
+-		type u struct {
+-			sliceType
+-			u uncommonType
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case Array:
+-		type u struct {
+-			arrayType
+-			u uncommonType
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case Chan:
+-		type u struct {
+-			chanType
+-			u uncommonType
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case Map:
+-		type u struct {
+-			mapType
+-			u uncommonType
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case Interface:
+-		type u struct {
+-			interfaceType
+-			u uncommonType
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	default:
+-		type u struct {
+-			rtype
+-			u uncommonType
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	}
++	return t.Uncommon()
+ }
+ 
+ func (t *rtype) String() string {
+@@ -432,10 +314,6 @@ func (t *rtype) String() string {
+ 	return s
+ }
+ 
+-func (t *rtype) Size() uintptr { return t.Size_ }
+-
+-func (t *rtype) Kind() Kind { return Kind(t.Kind_ & kindMask) }
+-
+ func (t *rtype) pointers() bool { return t.PtrBytes != 0 }
+ 
+ func (t *rtype) common() *rtype { return t }
+@@ -491,28 +369,32 @@ func (t *rtype) Name() string {
+ }
+ 
+ func (t *rtype) chanDir() chanDir {
+-	if t.Kind() != Chan {
++	if t.Kind() != abi.Chan {
+ 		panic("reflect: chanDir of non-chan type")
+ 	}
+ 	tt := (*chanType)(unsafe.Pointer(t))
+ 	return chanDir(tt.dir)
+ }
+ 
++func toRType(t *abi.Type) *rtype {
++	return (*rtype)(unsafe.Pointer(t))
++}
++
+ func (t *rtype) Elem() Type {
+ 	switch t.Kind() {
+-	case Array:
++	case abi.Array:
+ 		tt := (*arrayType)(unsafe.Pointer(t))
+-		return toType((*rtype)(tt.Elem))
+-	case Chan:
++		return toType(toRType(tt.Elem))
++	case abi.Chan:
+ 		tt := (*chanType)(unsafe.Pointer(t))
+ 		return toType(tt.elem)
+-	case Map:
++	case abi.Map:
+ 		tt := (*mapType)(unsafe.Pointer(t))
+ 		return toType(tt.elem)
+-	case Ptr:
++	case abi.Pointer:
+ 		tt := (*ptrType)(unsafe.Pointer(t))
+ 		return toType(tt.elem)
+-	case Slice:
++	case abi.Slice:
+ 		tt := (*sliceType)(unsafe.Pointer(t))
+ 		return toType(tt.elem)
+ 	}
+@@ -520,7 +402,7 @@ func (t *rtype) Elem() Type {
+ }
+ 
+ func (t *rtype) In(i int) Type {
+-	if t.Kind() != Func {
++	if t.Kind() != abi.Func {
+ 		panic("reflect: In of non-func type")
+ 	}
+ 	tt := (*funcType)(unsafe.Pointer(t))
+@@ -528,7 +410,7 @@ func (t *rtype) In(i int) Type {
+ }
+ 
+ func (t *rtype) Key() Type {
+-	if t.Kind() != Map {
++	if t.Kind() != abi.Map {
+ 		panic("reflect: Key of non-map type")
+ 	}
+ 	tt := (*mapType)(unsafe.Pointer(t))
+@@ -536,7 +418,7 @@ func (t *rtype) Key() Type {
+ }
+ 
+ func (t *rtype) Len() int {
+-	if t.Kind() != Array {
++	if t.Kind() != abi.Array {
+ 		panic("reflect: Len of non-array type")
+ 	}
+ 	tt := (*arrayType)(unsafe.Pointer(t))
+@@ -544,7 +426,7 @@ func (t *rtype) Len() int {
+ }
+ 
+ func (t *rtype) NumField() int {
+-	if t.Kind() != Struct {
++	if t.Kind() != abi.Struct {
+ 		panic("reflect: NumField of non-struct type")
+ 	}
+ 	tt := (*structType)(unsafe.Pointer(t))
+@@ -552,7 +434,7 @@ func (t *rtype) NumField() int {
+ }
+ 
+ func (t *rtype) NumIn() int {
+-	if t.Kind() != Func {
++	if t.Kind() != abi.Func {
+ 		panic("reflect: NumIn of non-func type")
+ 	}
+ 	tt := (*funcType)(unsafe.Pointer(t))
+@@ -560,7 +442,7 @@ func (t *rtype) NumIn() int {
+ }
+ 
+ func (t *rtype) NumOut() int {
+-	if t.Kind() != Func {
++	if t.Kind() != abi.Func {
+ 		panic("reflect: NumOut of non-func type")
+ 	}
+ 	tt := (*funcType)(unsafe.Pointer(t))
+@@ -568,7 +450,7 @@ func (t *rtype) NumOut() int {
+ }
+ 
+ func (t *rtype) Out(i int) Type {
+-	if t.Kind() != Func {
++	if t.Kind() != abi.Func {
+ 		panic("reflect: Out of non-func type")
+ 	}
+ 	tt := (*funcType)(unsafe.Pointer(t))
+@@ -771,16 +653,16 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 
+ 	// Non-composite types of equal kind have same underlying type
+ 	// (the predefined instance of the type).
+-	if Bool <= kind && kind <= Complex128 || kind == String || kind == UnsafePointer {
++	if abi.Bool <= kind && kind <= abi.Complex128 || kind == abi.String || kind == abi.UnsafePointer {
+ 		return true
+ 	}
+ 
+ 	// Composite types.
+ 	switch kind {
+-	case Array:
++	case abi.Array:
+ 		return T.Len() == V.Len() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
+ 
+-	case Chan:
++	case abi.Chan:
+ 		// Special case:
+ 		// x is a bidirectional channel value, T is a channel type,
+ 		// and x's type V and T have identical element types.
+@@ -791,7 +673,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 		// Otherwise continue test for identical underlying type.
+ 		return V.chanDir() == T.chanDir() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
+ 
+-	case Func:
++	case abi.Func:
+ 		t := (*funcType)(unsafe.Pointer(T))
+ 		v := (*funcType)(unsafe.Pointer(V))
+ 		if t.outCount != v.outCount || t.inCount != v.inCount {
+@@ -819,13 +701,13 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 		// need a run time conversion.
+ 		return false
+ 
+-	case Map:
++	case abi.Map:
+ 		return haveIdenticalType(T.Key(), V.Key(), cmpTags) && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
+ 
+-	case Ptr, Slice:
++	case Ptr, abi.Slice:
+ 		return haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
+ 
+-	case Struct:
++	case abi.Struct:
+ 		t := (*structType)(unsafe.Pointer(T))
+ 		v := (*structType)(unsafe.Pointer(V))
+ 		if len(t.fields) != len(v.fields) {
+@@ -878,5 +760,5 @@ func toType(t *rtype) Type {
+ 
+ // ifaceIndir reports whether t is stored indirectly in an interface value.
+ func ifaceIndir(t *rtype) bool {
+-	return t.Kind_&kindDirectIface == 0
++	return t.Kind_&abi.KindDirectIface == 0
+ }
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index c5b9596617..c14ed7c102 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -5,6 +5,7 @@
+ package reflectlite
+ 
+ import (
++	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/unsafeheader"
+ 	"runtime"
+@@ -89,7 +90,7 @@ func (f flag) ro() flag {
+ // pointer returns the underlying pointer represented by v.
+ // v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
+ func (v Value) pointer() unsafe.Pointer {
+-	if v.typ.Size_ != goarch.PtrSize || !v.typ.pointers() {
++	if v.typ.Size() != goarch.PtrSize || !v.typ.pointers() {
+ 		panic("can't call pointer on a non-pointer Value")
+ 	}
+ 	if v.flag&flagIndir != 0 {
+@@ -198,7 +199,7 @@ func (f flag) mustBeExported() {
+ // or it is not addressable.
+ func (f flag) mustBeAssignable() {
+ 	if f == 0 {
+-		panic(&ValueError{methodName(), Invalid})
++		panic(&ValueError{methodName(), abi.Invalid})
+ 	}
+ 	// Assignable if addressable and not read-only.
+ 	if f&flagRO != 0 {
+@@ -225,7 +226,7 @@ func (v Value) CanSet() bool {
+ func (v Value) Elem() Value {
+ 	k := v.kind()
+ 	switch k {
+-	case Interface:
++	case abi.Interface:
+ 		var eface any
+ 		if v.typ.NumMethod() == 0 {
+ 			eface = *(*any)(v.ptr)
+@@ -239,7 +240,7 @@ func (v Value) Elem() Value {
+ 			x.flag |= v.flag.ro()
+ 		}
+ 		return x
+-	case Pointer:
++	case abi.Pointer:
+ 		ptr := v.ptr
+ 		if v.flag&flagIndir != 0 {
+ 			ptr = *(*unsafe.Pointer)(ptr)
+@@ -262,7 +263,7 @@ func valueInterface(v Value) any {
+ 		panic(&ValueError{"reflectlite.Value.Interface", 0})
+ 	}
+ 
+-	if v.kind() == Interface {
++	if v.kind() == abi.Interface {
+ 		// Special case: return the element inside the interface.
+ 		// Empty interface has one layout, all interfaces with
+ 		// methods have a second layout.
+@@ -288,7 +289,7 @@ func valueInterface(v Value) any {
+ func (v Value) IsNil() bool {
+ 	k := v.kind()
+ 	switch k {
+-	case Chan, Func, Map, Pointer, UnsafePointer:
++	case abi.Chan, abi.Func, abi.Map, abi.Pointer, abi.UnsafePointer:
+ 		// if v.flag&flagMethod != 0 {
+ 		// 	return false
+ 		// }
+@@ -297,7 +298,7 @@ func (v Value) IsNil() bool {
+ 			ptr = *(*unsafe.Pointer)(ptr)
+ 		}
+ 		return ptr == nil
+-	case Interface, Slice:
++	case abi.Interface, abi.Slice:
+ 		// Both interface and slice are nil if first word is 0.
+ 		// Both are always bigger than a word; assume flagIndir.
+ 		return *(*unsafe.Pointer)(v.ptr) == nil
+@@ -329,17 +330,17 @@ func maplen(unsafe.Pointer) int
+ func (v Value) Len() int {
+ 	k := v.kind()
+ 	switch k {
+-	case Array:
++	case abi.Array:
+ 		tt := (*arrayType)(unsafe.Pointer(v.typ))
+ 		return int(tt.Len)
+-	case Chan:
++	case abi.Chan:
+ 		return chanlen(v.pointer())
+-	case Map:
++	case abi.Map:
+ 		return maplen(v.pointer())
+-	case Slice:
++	case abi.Slice:
+ 		// Slice is bigger than a word; assume flagIndir.
+ 		return (*unsafeheader.Slice)(v.ptr).Len
+-	case String:
++	case abi.String:
+ 		// String is bigger than a word; assume flagIndir.
+ 		return (*unsafeheader.String)(v.ptr).Len
+ 	}
+@@ -349,7 +350,7 @@ func (v Value) Len() int {
+ // NumMethod returns the number of exported methods in the value's method set.
+ func (v Value) numMethod() int {
+ 	if v.typ == nil {
+-		panic(&ValueError{"reflectlite.Value.NumMethod", Invalid})
++		panic(&ValueError{"reflectlite.Value.NumMethod", abi.Invalid})
+ 	}
+ 	return v.typ.NumMethod()
+ }
+@@ -361,7 +362,7 @@ func (v Value) Set(x Value) {
+ 	v.mustBeAssignable()
+ 	x.mustBeExported() // do not let unexported x leak
+ 	var target unsafe.Pointer
+-	if v.kind() == Interface {
++	if v.kind() == abi.Interface {
+ 		target = v.ptr
+ 	}
+ 	x = x.assignTo("reflectlite.Set", v.typ, target)
+@@ -376,7 +377,7 @@ func (v Value) Set(x Value) {
+ func (v Value) Type() Type {
+ 	f := v.flag
+ 	if f == 0 {
+-		panic(&ValueError{"reflectlite.Value.Type", Invalid})
++		panic(&ValueError{"reflectlite.Value.Type", abi.Invalid})
+ 	}
+ 	// Method values not supported.
+ 	return v.typ
+@@ -425,11 +426,11 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
+ 		if target == nil {
+ 			target = unsafe_New(dst)
+ 		}
+-		if v.Kind() == Interface && v.IsNil() {
++		if v.Kind() == abi.Interface && v.IsNil() {
+ 			// A nil ReadWriter passed to nil Reader is OK,
+ 			// but using ifaceE2I below will panic.
+ 			// Avoid the panic by returning a nil dst (e.g., Reader) explicitly.
+-			return Value{dst, nil, flag(Interface)}
++			return Value{dst, nil, flag(abi.Interface)}
+ 		}
+ 		x := valueInterface(v)
+ 		if dst.NumMethod() == 0 {
+@@ -437,7 +438,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
+ 		} else {
+ 			ifaceE2I(dst, x, target)
+ 		}
+-		return Value{dst, target, flagIndir | flag(Interface)}
++		return Value{dst, target, flagIndir | flag(abi.Interface)}
+ 	}
+ 
+ 	// Failed.
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 4619abf4f5..e40eb9b47b 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -174,7 +174,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+ 	case kindArray:
+ 		a := (*arraytype)(unsafe.Pointer(t))
+ 		for i := uintptr(0); i < a.Len; i++ {
+-			h = typehash((*_type)(a.Elem), add(p, i*a.Elem.Size_), h)
++			h = typehash(toType(a.Elem), add(p, i*a.Elem.Size_), h)
+ 		}
+ 		return h
+ 	case kindStruct:
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index e92b7e4fed..e2e37284a2 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -466,11 +466,11 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 			if at.Len != 1 {
+ 				throw("can't happen")
+ 			}
+-			cgoCheckArg((*_type)(at.Elem), p, at.Elem.Kind_&kindDirectIface == 0, top, msg)
++			cgoCheckArg(toType(at.Elem), p, at.Elem.Kind_&kindDirectIface == 0, top, msg)
+ 			return
+ 		}
+ 		for i := uintptr(0); i < at.Len; i++ {
+-			cgoCheckArg((*_type)(at.Elem), p, true, top, msg)
++			cgoCheckArg(toType(at.Elem), p, true, top, msg)
+ 			p = add(p, at.Elem.Size_)
+ 		}
+ 	case kindChan, kindMap:
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index cc11ef0469..1acf0f9233 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -249,7 +249,7 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 		at := (*arraytype)(unsafe.Pointer(typ))
+ 		for i := uintptr(0); i < at.Len; i++ {
+ 			if off < at.Elem.Size_ {
+-				cgoCheckUsingType((*_type)(at.Elem), src, off, size)
++				cgoCheckUsingType(toType(at.Elem), src, off, size)
+ 			}
+ 			src = add(src, at.Elem.Size_)
+ 			skipped := off
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 5177f614c8..37f86d0d7f 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -186,7 +186,7 @@ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
+ 	case kindArray:
+ 		at := (*arraytype)(unsafe.Pointer(t))
+ 		if at.Len == 1 {
+-			return p.tryRegAssignArg((*_type)(at.Elem), offset)
++			return p.tryRegAssignArg((*_type)(unsafe.Pointer(at.Elem)), offset) // TODO fix when runtime is fully commoned up w/ abi.Type
+ 		}
+ 	case kindStruct:
+ 		st := (*structtype)(unsafe.Pointer(t))
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 85d576379c..bc8ded2821 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -19,7 +19,9 @@ type textOff = abi.TextOff
+ // ../cmd/compile/internal/reflectdata/reflect.go:/^func.dcommontype and
+ // ../reflect/type.go:/^type.rtype.
+ // ../internal/reflectlite/type.go:/^type.rtype.
+-type _type abi.Type
++type _type struct {
++	abi.Type
++}
+ 
+ func (t *_type) string() string {
+ 	s := t.nameOff(t.Str).name()
+@@ -30,65 +32,7 @@ func (t *_type) string() string {
+ }
+ 
+ func (t *_type) uncommon() *uncommontype {
+-	if t.TFlag&abi.TFlagUncommon == 0 {
+-		return nil
+-	}
+-	switch t.Kind_ & kindMask {
+-	case kindStruct:
+-		type u struct {
+-			structtype
+-			u uncommontype
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case kindPtr:
+-		type u struct {
+-			ptrtype
+-			u uncommontype
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case kindFunc:
+-		type u struct {
+-			functype
+-			u uncommontype
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case kindSlice:
+-		type u struct {
+-			slicetype
+-			u uncommontype
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case kindArray:
+-		type u struct {
+-			arraytype
+-			u uncommontype
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case kindChan:
+-		type u struct {
+-			chantype
+-			u uncommontype
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case kindMap:
+-		type u struct {
+-			maptype
+-			u uncommontype
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	case kindInterface:
+-		type u struct {
+-			interfacetype
+-			u uncommontype
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	default:
+-		type u struct {
+-			_type
+-			u uncommontype
+-		}
+-		return &(*u)(unsafe.Pointer(t)).u
+-	}
++	return t.Uncommon()
+ }
+ 
+ func (t *_type) name() string {
+@@ -500,6 +444,10 @@ type _typePair struct {
+ 	t2 *_type
+ }
+ 
++func toType(t *abi.Type) *_type {
++	return (*_type)(unsafe.Pointer(t))
++}
++
+ // typesEqual reports whether two types are equal.
+ //
+ // Everywhere in the runtime and reflect packages, it is assumed that
+@@ -554,7 +502,7 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 	case kindArray:
+ 		at := (*arraytype)(unsafe.Pointer(t))
+ 		av := (*arraytype)(unsafe.Pointer(v))
+-		return typesEqual((*_type)(at.Elem), (*_type)(av.Elem), seen) && at.Len == av.Len
++		return typesEqual(toType(at.Elem), toType(av.Elem), seen) && at.Len == av.Len
+ 	case kindChan:
+ 		ct := (*chantype)(unsafe.Pointer(t))
+ 		cv := (*chantype)(unsafe.Pointer(v))

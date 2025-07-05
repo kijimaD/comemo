@@ -14,6 +14,29 @@ Date:   Tue Feb 13 21:15:05 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcshared/main2.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testcshared/main2.c b/misc/cgo/testcshared/main2.c
+index 6e8bf141ca..ec5ec8f0d0 100644
+--- a/misc/cgo/testcshared/main2.c
++++ b/misc/cgo/testcshared/main2.c
+@@ -21,7 +21,7 @@ int main(void) {
+ 
+   // The descriptor will be initialized in a thread, so we have to
+   // give a chance to get opened.
+-  for (i = 0; i < 1000; i++) {
++  for (i = 0; i < 200; i++) {
+     n = read(fd, buf, sizeof buf);
+     if (n >= 0)
+       break;
+@@ -33,7 +33,7 @@ int main(void) {
+     // An EBADF error means that the shared library has not opened the
+     // descriptor yet.
+     ts.tv_sec = 0;
+-    ts.tv_nsec = 1000000;
++    ts.tv_nsec = 10000000;
+     nanosleep(&ts, NULL);
+   }
+ 

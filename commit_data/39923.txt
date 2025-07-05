@@ -14,9 +14,149 @@ Date:   Mon Feb 25 13:56:18 2019 +0100
     Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go    | 14 +++++++++
  src/cmd/internal/dwarf/dwarf.go        |  4 +++
  src/cmd/link/internal/ld/dwarf.go      |  6 ++++
  src/cmd/link/internal/ld/dwarf_test.go | 53 ++++++++++++++++++++++++++++++++++
  4 files changed, 77 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 98ff2a3d27..20bc4acc6a 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -497,6 +497,8 @@ func Main(archInit func(*Arch)) {
+ 
+ 	finishUniverse()
+ 
++	recordPackageName()
++
+ 	typecheckok = true
+ 
+ 	// Process top-level declarations in phases.
+@@ -1406,6 +1408,18 @@ func recordFlags(flags ...string) {
+ 	s.P = cmd.Bytes()[1:]
+ }
+ 
++// recordPackageName records the name of the package being
++// compiled, so that the linker can save it in the compile unit's DIE.
++func recordPackageName() {
++	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + myimportpath)
++	s.Type = objabi.SDWARFINFO
++	// Sometimes (for example when building tests) we can link
++	// together two package main archives. So allow dups.
++	s.Set(obj.AttrDuplicateOK, true)
++	Ctxt.Data = append(Ctxt.Data, s)
++	s.P = []byte(localpkg.Name)
++}
++
+ // flag_lang is the language version we are compiling for, set by the -lang flag.
+ var flag_lang string
+ 
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 7f37cf059d..df80039063 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -298,6 +298,8 @@ const (
+ 	DW_AT_go_embedded_field = 0x2903
+ 	DW_AT_go_runtime_type   = 0x2904
+ 
++	DW_AT_go_package_name = 0x2905 // Attribute for DW_TAG_compile_unit
++
+ 	DW_AT_internal_location = 253 // params and locals; not emitted
+ )
+ 
+@@ -369,6 +371,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_ranges, DW_FORM_sec_offset},
+ 			{DW_AT_comp_dir, DW_FORM_string},
+ 			{DW_AT_producer, DW_FORM_string},
++			{DW_AT_go_package_name, DW_FORM_string},
+ 		},
+ 	},
+ 
+@@ -381,6 +384,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_language, DW_FORM_data1},
+ 			{DW_AT_comp_dir, DW_FORM_string},
+ 			{DW_AT_producer, DW_FORM_string},
++			{DW_AT_go_package_name, DW_FORM_string},
+ 		},
+ 	},
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index e86247dd04..feee63d065 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1833,6 +1833,12 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 
+ 		newattr(unit.dwinfo, dwarf.DW_AT_producer, dwarf.DW_CLS_STRING, int64(len(producer)), producer)
+ 
++		var pkgname string
++		if s := ctxt.Syms.ROLookup(dwarf.CUInfoPrefix+"packagename."+unit.lib.Pkg, 0); s != nil {
++			pkgname = string(s.P)
++		}
++		newattr(unit.dwinfo, dwarf.DW_AT_go_package_name, dwarf.DW_CLS_STRING, int64(len(pkgname)), pkgname)
++
+ 		if len(lib.Textp) == 0 {
+ 			unit.dwinfo.Abbrev = dwarf.DW_ABRV_COMPUNIT_TEXTLESS
+ 		}
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 287ad5c99d..333680511a 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1142,3 +1142,56 @@ func main() {
+ 		}
+ 	}
+ }
++
++func TestPackageNameAttr(t *testing.T) {
++	const dwarfAttrGoPackageName = dwarf.Attr(0x2905)
++	const dwarfGoLanguage = 22
++
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	t.Parallel()
++
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	const prog = "package main\nfunc main() {\nprintln(\"hello world\")\n}\n"
++
++	f := gobuild(t, dir, prog, NoOpt)
++
++	defer f.Close()
++
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	rdr := d.Reader()
++	for {
++		e, err := rdr.Next()
++		if err != nil {
++			t.Fatal(err)
++		}
++		if e == nil {
++			break
++		}
++		if e.Tag != dwarf.TagCompileUnit {
++			continue
++		}
++		if lang, _ := e.Val(dwarf.AttrLanguage).(int64); lang != dwarfGoLanguage {
++			continue
++		}
++
++		_, ok := e.Val(dwarfAttrGoPackageName).(string)
++		if !ok {
++			name, _ := e.Val(dwarf.AttrName).(string)
++			t.Errorf("found compile unit without package name: %s", name)
++		}
++	}
++}

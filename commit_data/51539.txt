@@ -51,9 +51,315 @@ Date:   Tue Feb 8 00:52:11 2022 +0000
     Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/export_test.go   | 18 +++++++++++
  src/runtime/mgcpacer.go      | 72 +++++++++++++++++++++++++++++++++++++++++---
  src/runtime/mgcpacer_test.go | 45 +++++++++++++++++++++++++++
  src/runtime/mgcscavenge.go   | 58 +++++++++++++++++++++++++++++------
  4 files changed, 179 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 83b7f86ef8..0ac15ce82c 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1332,3 +1332,21 @@ func Releasem() {
+ }
+ 
+ var Timediv = timediv
++
++type PIController struct {
++	piController
++}
++
++func NewPIController(kp, ti, tt, min, max float64) *PIController {
++	return &PIController{piController{
++		kp:  kp,
++		ti:  ti,
++		tt:  tt,
++		min: min,
++		max: max,
++	}}
++}
++
++func (c *PIController) Next(input, setpoint, period float64) (float64, bool) {
++	return c.piController.next(input, setpoint, period)
++}
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index f06560201a..d54dbc26c2 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -154,6 +154,8 @@ type gcControllerState struct {
+ 	// For goexperiment.PacerRedesign.
+ 	consMarkController piController
+ 
++	_ uint32 // Padding for atomics on 32-bit platforms.
++
+ 	// heapGoal is the goal heapLive for when next GC ends.
+ 	// Set to ^uint64(0) if disabled.
+ 	//
+@@ -670,10 +672,31 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) floa
+ 		currentConsMark := (float64(c.heapLive-c.trigger) * (utilization + idleUtilization)) /
+ 			(float64(scanWork) * (1 - utilization))
+ 
+-		// Update cons/mark controller.
+-		// Period for this is 1 GC cycle.
++		// Update cons/mark controller. The time period for this is 1 GC cycle.
++		//
++		// This use of a PI controller might seem strange. So, here's an explanation:
++		//
++		// currentConsMark represents the consMark we *should've* had to be perfectly
++		// on-target for this cycle. Given that we assume the next GC will be like this
++		// one in the steady-state, it stands to reason that we should just pick that
++		// as our next consMark. In practice, however, currentConsMark is too noisy:
++		// we're going to be wildly off-target in each GC cycle if we do that.
++		//
++		// What we do instead is make a long-term assumption: there is some steady-state
++		// consMark value, but it's obscured by noise. By constantly shooting for this
++		// noisy-but-perfect consMark value, the controller will bounce around a bit,
++		// but its average behavior, in aggregate, should be less noisy and closer to
++		// the true long-term consMark value, provided its tuned to be slightly overdamped.
++		var ok bool
+ 		oldConsMark := c.consMark
+-		c.consMark = c.consMarkController.next(c.consMark, currentConsMark, 1.0)
++		c.consMark, ok = c.consMarkController.next(c.consMark, currentConsMark, 1.0)
++		if !ok {
++			// The error spiraled out of control. This is incredibly unlikely seeing
++			// as this controller is essentially just a smoothing function, but it might
++			// mean that something went very wrong with how currentConsMark was calculated.
++			// Just reset consMark and keep going.
++			c.consMark = 0
++		}
+ 
+ 		if debug.gcpacertrace > 0 {
+ 			printlock()
+@@ -681,6 +704,9 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) floa
+ 			print("pacer: ", int(utilization*100), "% CPU (", int(goal), " exp.) for ")
+ 			print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.stackScan+c.globalsScan, " B exp.) ")
+ 			print("in ", c.trigger, " B -> ", c.heapLive, " B (∆goal ", int64(c.heapLive)-int64(c.heapGoal), ", cons/mark ", oldConsMark, ")")
++			if !ok {
++				print("[controller reset]")
++			}
+ 			println()
+ 			printunlock()
+ 		}
+@@ -1263,15 +1289,38 @@ type piController struct {
+ 	// PI controller state.
+ 
+ 	errIntegral float64 // Integral of the error from t=0 to now.
++
++	// Error flags.
++	errOverflow   bool // Set if errIntegral ever overflowed.
++	inputOverflow bool // Set if an operation with the input overflowed.
+ }
+ 
+-func (c *piController) next(input, setpoint, period float64) float64 {
++// next provides a new sample to the controller.
++//
++// input is the sample, setpoint is the desired point, and period is how much
++// time (in whatever unit makes the most sense) has passed since the last sample.
++//
++// Returns a new value for the variable it's controlling, and whether the operation
++// completed successfully. One reason this might fail is if error has been growing
++// in an unbounded manner, to the point of overflow.
++//
++// In the specific case of an error overflow occurs, the errOverflow field will be
++// set and the rest of the controller's internal state will be fully reset.
++func (c *piController) next(input, setpoint, period float64) (float64, bool) {
+ 	// Compute the raw output value.
+ 	prop := c.kp * (setpoint - input)
+ 	rawOutput := prop + c.errIntegral
+ 
+ 	// Clamp rawOutput into output.
+ 	output := rawOutput
++	if isInf(output) || isNaN(output) {
++		// The input had a large enough magnitude that either it was already
++		// overflowed, or some operation with it overflowed.
++		// Set a flag and reset. That's the safest thing to do.
++		c.reset()
++		c.inputOverflow = true
++		return c.min, false
++	}
+ 	if output < c.min {
+ 		output = c.min
+ 	} else if output > c.max {
+@@ -1281,6 +1330,19 @@ func (c *piController) next(input, setpoint, period float64) float64 {
+ 	// Update the controller's state.
+ 	if c.ti != 0 && c.tt != 0 {
+ 		c.errIntegral += (c.kp*period/c.ti)*(setpoint-input) + (period/c.tt)*(output-rawOutput)
++		if isInf(c.errIntegral) || isNaN(c.errIntegral) {
++			// So much error has accumulated that we managed to overflow.
++			// The assumptions around the controller have likely broken down.
++			// Set a flag and reset. That's the safest thing to do.
++			c.reset()
++			c.errOverflow = true
++			return c.min, false
++		}
+ 	}
+-	return output
++	return output, true
++}
++
++// reset resets the controller state, except for controller error flags.
++func (c *piController) reset() {
++	c.errIntegral = 0
+ }
+diff --git a/src/runtime/mgcpacer_test.go b/src/runtime/mgcpacer_test.go
+index 9ec0e5172b..10a8ca2520 100644
+--- a/src/runtime/mgcpacer_test.go
++++ b/src/runtime/mgcpacer_test.go
+@@ -715,3 +715,48 @@ func (f float64Stream) limit(min, max float64) float64Stream {
+ 		return v
+ 	}
+ }
++
++func FuzzPIController(f *testing.F) {
++	isNormal := func(x float64) bool {
++		return !math.IsInf(x, 0) && !math.IsNaN(x)
++	}
++	isPositive := func(x float64) bool {
++		return isNormal(x) && x > 0
++	}
++	// Seed with constants from controllers in the runtime.
++	// It's not critical that we keep these in sync, they're just
++	// reasonable seed inputs.
++	f.Add(0.3375, 3.2e6, 1e9, 0.001, 1000.0, 0.01)
++	f.Add(0.9, 4.0, 1000.0, -1000.0, 1000.0, 0.84)
++	f.Fuzz(func(t *testing.T, kp, ti, tt, min, max, setPoint float64) {
++		// Ignore uninteresting invalid parameters. These parameters
++		// are constant, so in practice surprising values will be documented
++		// or will be other otherwise immediately visible.
++		//
++		// We just want to make sure that given a non-Inf, non-NaN input,
++		// we always get a non-Inf, non-NaN output.
++		if !isPositive(kp) || !isPositive(ti) || !isPositive(tt) {
++			return
++		}
++		if !isNormal(min) || !isNormal(max) || min > max {
++			return
++		}
++		// Use a random source, but make it deterministic.
++		rs := rand.New(rand.NewSource(800))
++		randFloat64 := func() float64 {
++			return math.Float64frombits(rs.Uint64())
++		}
++		p := NewPIController(kp, ti, tt, min, max)
++		state := float64(0)
++		for i := 0; i < 100; i++ {
++			input := randFloat64()
++			// Ignore the "ok" parameter. We're just trying to break it.
++			// state is intentionally completely uncorrelated with the input.
++			var ok bool
++			state, ok = p.Next(input, setPoint, 1.0)
++			if !isNormal(state) {
++				t.Fatalf("got NaN or Inf result from controller: %f %v", state, ok)
++			}
++		}
++	})
++}
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index c27e189af9..5f50378adf 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -165,11 +165,12 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
+ 
+ // Sleep/wait state of the background scavenger.
+ var scavenge struct {
+-	lock       mutex
+-	g          *g
+-	parked     bool
+-	timer      *timer
+-	sysmonWake uint32 // Set atomically.
++	lock                 mutex
++	g                    *g
++	parked               bool
++	timer                *timer
++	sysmonWake           uint32 // Set atomically.
++	printControllerReset bool   // Whether the scavenger is in cooldown.
+ }
+ 
+ // readyForScavenger signals sysmon to wake the scavenger because
+@@ -295,8 +296,14 @@ func bgscavenge(c chan int) {
+ 		max: 1000.0, // 1000:1
+ 	}
+ 	// It doesn't really matter what value we start at, but we can't be zero, because
+-	// that'll cause divide-by-zero issues.
+-	critSleepRatio := 0.001
++	// that'll cause divide-by-zero issues. Pick something conservative which we'll
++	// also use as a fallback.
++	const startingCritSleepRatio = 0.001
++	critSleepRatio := startingCritSleepRatio
++	// Duration left in nanoseconds during which we avoid using the controller and
++	// we hold critSleepRatio at a conservative value. Used if the controller's
++	// assumptions fail to hold.
++	controllerCooldown := int64(0)
+ 	for {
+ 		released := uintptr(0)
+ 		crit := float64(0)
+@@ -383,9 +390,22 @@ func bgscavenge(c chan int) {
+ 		// because of the additional overheads of using scavenged memory.
+ 		crit *= 1 + scavengeCostRatio
+ 
+-		// Go to sleep for our current sleepNS.
++		// Go to sleep based on how much time we spent doing work.
+ 		slept := scavengeSleep(int64(crit / critSleepRatio))
+ 
++		// Stop here if we're cooling down from the controller.
++		if controllerCooldown > 0 {
++			// crit and slept aren't exact measures of time, but it's OK to be a bit
++			// sloppy here. We're just hoping we're avoiding some transient bad behavior.
++			t := slept + int64(crit)
++			if t > controllerCooldown {
++				controllerCooldown = 0
++			} else {
++				controllerCooldown -= t
++			}
++			continue
++		}
++
+ 		// Calculate the CPU time spent.
+ 		//
+ 		// This may be slightly inaccurate with respect to GOMAXPROCS, but we're
+@@ -395,7 +415,20 @@ func bgscavenge(c chan int) {
+ 		cpuFraction := float64(crit) / ((float64(slept) + crit) * float64(gomaxprocs))
+ 
+ 		// Update the critSleepRatio, adjusting until we reach our ideal fraction.
+-		critSleepRatio = critSleepController.next(cpuFraction, idealFraction, float64(slept)+crit)
++		var ok bool
++		critSleepRatio, ok = critSleepController.next(cpuFraction, idealFraction, float64(slept)+crit)
++		if !ok {
++			// The core assumption of the controller, that we can get a proportional
++			// response, broke down. This may be transient, so temporarily switch to
++			// sleeping a fixed, conservative amount.
++			critSleepRatio = startingCritSleepRatio
++			controllerCooldown = 5e9 // 5 seconds.
++
++			// Signal the scav trace printer to output this.
++			lock(&scavenge.lock)
++			scavenge.printControllerReset = true
++			unlock(&scavenge.lock)
++		}
+ 	}
+ }
+ 
+@@ -434,7 +467,11 @@ func (p *pageAlloc) scavenge(nbytes uintptr) uintptr {
+ // released should be the amount of memory released since the last time this
+ // was called, and forced indicates whether the scavenge was forced by the
+ // application.
++//
++// scavenge.lock must be held.
+ func printScavTrace(gen uint32, released uintptr, forced bool) {
++	assertLockHeld(&scavenge.lock)
++
+ 	printlock()
+ 	print("scav ", gen, " ",
+ 		released>>10, " KiB work, ",
+@@ -443,6 +480,9 @@ func printScavTrace(gen uint32, released uintptr, forced bool) {
+ 	)
+ 	if forced {
+ 		print(" (forced)")
++	} else if scavenge.printControllerReset {
++		print(" [controller reset]")
++		scavenge.printControllerReset = false
+ 	}
+ 	println()
+ 	printunlock()

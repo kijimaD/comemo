@@ -11,7 +11,7 @@ Date:   Wed Mar 22 20:01:17 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 2 +-
  src/cmd/compile/internal/types2/builtins.go    | 2 +-
  src/cmd/compile/internal/types2/call.go        | 6 +++---
@@ -19,3 +19,112 @@ Date:   Wed Mar 22 20:01:17 2023 -0700
  src/go/types/builtins.go                       | 2 +-
  src/go/types/call.go                           | 6 +++---
  6 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 74987ece01..adef1e8d99 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -361,7 +361,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 	// resulting in 2 or more values; otherwise we have an assignment mismatch.
+ 	if r != 1 {
+ 		if returnStmt != nil {
+-			rhs, _ := check.exprList(orig_rhs, false)
++			rhs := check.exprList(orig_rhs)
+ 			check.returnError(returnStmt, lhs, rhs)
+ 		} else {
+ 			check.assignError(orig_rhs, l, r)
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 94fddca19a..e35dab8140 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -45,7 +45,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	switch id {
+ 	default:
+ 		// make argument getter
+-		xlist, _ := check.exprList(call.ArgList, false)
++		xlist := check.exprList(call.ArgList)
+ 		arg = func(x *operand, i int) { *x = *xlist[i] }
+ 		nargs = len(xlist)
+ 		// evaluate first argument, if present
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 517befe5dd..1400aba883 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -226,7 +226,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	}
+ 
+ 	// evaluate arguments
+-	args, _ := check.exprList(call.ArgList, false)
++	args := check.exprList(call.ArgList)
+ 	sig = check.arguments(call, sig, targs, args, xlist)
+ 
+ 	if wasGeneric && sig.TypeParams().Len() == 0 {
+@@ -261,12 +261,12 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	return statement
+ }
+ 
+-func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
++func (check *Checker) exprList(elist []syntax.Expr) (xlist []*operand) {
+ 	switch len(elist) {
+ 	case 0:
+ 		// nothing to do
+ 	case 1:
+-		return check.multiExpr(elist[0], allowCommaOk)
++		xlist, _ = check.multiExpr(elist[0], false)
+ 	default:
+ 		// multiple (possibly invalid) values
+ 		xlist = make([]*operand, len(elist))
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index fdf5a4b24c..26de0a093a 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -359,7 +359,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
+ 	// resulting in 2 or more values; otherwise we have an assignment mismatch.
+ 	if r != 1 {
+ 		if returnStmt != nil {
+-			rhs, _ := check.exprList(orig_rhs, false)
++			rhs := check.exprList(orig_rhs)
+ 			check.returnError(returnStmt, lhs, rhs)
+ 		} else {
+ 			check.assignError(orig_rhs, l, r)
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 783e00090b..9659a7ccb1 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -46,7 +46,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	switch id {
+ 	default:
+ 		// make argument getter
+-		xlist, _ := check.exprList(call.Args, false)
++		xlist := check.exprList(call.Args)
+ 		arg = func(x *operand, i int) { *x = *xlist[i] }
+ 		nargs = len(xlist)
+ 		// evaluate first argument, if present
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 47734e872b..f8aa261816 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -228,7 +228,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 	}
+ 
+ 	// evaluate arguments
+-	args, _ := check.exprList(call.Args, false)
++	args := check.exprList(call.Args)
+ 	sig = check.arguments(call, sig, targs, args, xlist)
+ 
+ 	if wasGeneric && sig.TypeParams().Len() == 0 {
+@@ -263,12 +263,12 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 	return statement
+ }
+ 
+-func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
++func (check *Checker) exprList(elist []ast.Expr) (xlist []*operand) {
+ 	switch len(elist) {
+ 	case 0:
+ 		// nothing to do
+ 	case 1:
+-		return check.multiExpr(elist[0], allowCommaOk)
++		xlist, _ = check.multiExpr(elist[0], false)
+ 	default:
+ 		// multiple (possibly invalid) values
+ 		xlist = make([]*operand, len(elist))

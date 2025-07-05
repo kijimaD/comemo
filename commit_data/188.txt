@@ -3,6 +3,38 @@ Author: Ken Thompson <ken@golang.org>
 Date:   Tue Jun 17 18:01:05 2008 -0700
 
     SVN=123249
-
+---
  src/cmd/gc/const.c | 14 +++++++++-----
  1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 0a530b47d4..589066a9bb 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -9,17 +9,21 @@ void
+ convlit(Node *n, Type *t)
+ {
+ 	int et;
++	Node *n1;
+ 
+ 	if(n == N || n->op != OLITERAL || t == T)
+ 		return;
+ 
+-	if(t->etype == TANY || isptrto(t, TANY)) {
+-		defaultlit(n);
+-		return;
+-	}
+-
+ 	et = t->etype;
+ 	switch(whatis(n)) {
++	default:
++		goto bad1;
++
++	case Wlitnil:
++		if(isptr[et] || et = TINTER)
++			break;
++		goto bad1;
++
+ 	case Wlitint:
+ 		if(isptrto(t, TSTRING)) {
+ 			Rune rune;

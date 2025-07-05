@@ -21,9 +21,181 @@ Date:   Fri Jan 5 19:19:14 2024 -0500
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/call.go  | 11 ++---------
  src/go/internal/typeparams/typeparams.go | 30 +++++++++++++++++++++++++-----
  src/go/types/call.go                     | 12 ++----------
  src/go/types/index.go                    |  2 +-
  4 files changed, 30 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index db7d86e3d3..2e8531b07a 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -38,6 +38,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
+ 	var instErrPos poser
+ 	if inst != nil {
+ 		instErrPos = inst.Pos()
++		x.expr = inst // if we don't have an index expression, keep the existing expression of x
+ 	} else {
+ 		instErrPos = pos
+ 	}
+@@ -51,7 +52,6 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
+ 		targs = check.typeList(xlist)
+ 		if targs == nil {
+ 			x.mode = invalid
+-			x.expr = inst
+ 			return nil, nil
+ 		}
+ 		assert(len(targs) == len(xlist))
+@@ -66,7 +66,6 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
+ 		// Providing too many type arguments is always an error.
+ 		check.errorf(xlist[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
+ 		x.mode = invalid
+-		x.expr = inst
+ 		return nil, nil
+ 	}
+ 
+@@ -114,7 +113,6 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
+ 		if targs == nil {
+ 			// error was already reported
+ 			x.mode = invalid
+-			x.expr = inst
+ 			return nil, nil
+ 		}
+ 		got = len(targs)
+@@ -122,15 +120,10 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
+ 	assert(got == want)
+ 
+ 	// instantiate function signature
+-	expr := x.expr // if we don't have an index expression, keep the existing expression of x
+-	if inst != nil {
+-		expr = inst
+-	}
+-	sig = check.instantiateSignature(x.Pos(), expr, sig, targs, xlist)
++	sig = check.instantiateSignature(x.Pos(), x.expr, sig, targs, xlist)
+ 
+ 	x.typ = sig
+ 	x.mode = value
+-	x.expr = expr
+ 	return nil, nil
+ }
+ 
+diff --git a/src/go/internal/typeparams/typeparams.go b/src/go/internal/typeparams/typeparams.go
+index 3f84f2f0d0..0bddf737d3 100644
+--- a/src/go/internal/typeparams/typeparams.go
++++ b/src/go/internal/typeparams/typeparams.go
+@@ -33,22 +33,42 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.
+ // IndexExpr wraps an ast.IndexExpr or ast.IndexListExpr.
+ //
+ // Orig holds the original ast.Expr from which this IndexExpr was derived.
++//
++// Note: IndexExpr (intentionally) does not wrap ast.Expr, as that leads to
++// accidental misuse such as encountered in golang/go#63933.
++//
++// TODO(rfindley): remove this helper, in favor of just having a helper
++// function that returns indices.
+ type IndexExpr struct {
+-	Orig ast.Expr // the wrapped expr, which may be distinct from the IndexListExpr below.
+-	*ast.IndexListExpr
++	Orig    ast.Expr   // the wrapped expr, which may be distinct from the IndexListExpr below.
++	X       ast.Expr   // expression
++	Lbrack  token.Pos  // position of "["
++	Indices []ast.Expr // index expressions
++	Rbrack  token.Pos  // position of "]"
++}
++
++func (x *IndexExpr) Pos() token.Pos {
++	return x.Orig.Pos()
+ }
+ 
+ func UnpackIndexExpr(n ast.Node) *IndexExpr {
+ 	switch e := n.(type) {
+ 	case *ast.IndexExpr:
+-		return &IndexExpr{e, &ast.IndexListExpr{
++		return &IndexExpr{
++			Orig:    e,
+ 			X:       e.X,
+ 			Lbrack:  e.Lbrack,
+ 			Indices: []ast.Expr{e.Index},
+ 			Rbrack:  e.Rbrack,
+-		}}
++		}
+ 	case *ast.IndexListExpr:
+-		return &IndexExpr{e, e}
++		return &IndexExpr{
++			Orig:    e,
++			X:       e.X,
++			Lbrack:  e.Lbrack,
++			Indices: e.Indices,
++			Rbrack:  e.Rbrack,
++		}
+ 	}
+ 	return nil
+ }
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index c7de3bdb9f..b48eb82b66 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -40,6 +40,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 	var instErrPos positioner
+ 	if ix != nil {
+ 		instErrPos = inNode(ix.Orig, ix.Lbrack)
++		x.expr = ix.Orig // if we don't have an index expression, keep the existing expression of x
+ 	} else {
+ 		instErrPos = atPos(pos)
+ 	}
+@@ -53,7 +54,6 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 		targs = check.typeList(xlist)
+ 		if targs == nil {
+ 			x.mode = invalid
+-			x.expr = ix
+ 			return nil, nil
+ 		}
+ 		assert(len(targs) == len(xlist))
+@@ -68,7 +68,6 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 		// Providing too many type arguments is always an error.
+ 		check.errorf(ix.Indices[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
+ 		x.mode = invalid
+-		x.expr = ix.Orig
+ 		return nil, nil
+ 	}
+ 
+@@ -117,7 +116,6 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 		if targs == nil {
+ 			// error was already reported
+ 			x.mode = invalid
+-			x.expr = ix // TODO(gri) is this correct?
+ 			return nil, nil
+ 		}
+ 		got = len(targs)
+@@ -125,15 +123,9 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 	assert(got == want)
+ 
+ 	// instantiate function signature
+-	expr := x.expr // if we don't have an index expression, keep the existing expression of x
+-	if ix != nil {
+-		expr = ix.Orig
+-	}
+-	sig = check.instantiateSignature(x.Pos(), expr, sig, targs, xlist)
+-
++	sig = check.instantiateSignature(x.Pos(), x.expr, sig, targs, xlist)
+ 	x.typ = sig
+ 	x.mode = value
+-	x.expr = expr
+ 	return nil, nil
+ }
+ 
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 6f532a96c1..7a1666b59a 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -172,7 +172,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 				// ok to continue even if indexing failed - map element type is known
+ 				x.mode = mapindex
+ 				x.typ = elem
+-				x.expr = e
++				x.expr = e.Orig
+ 				return false
+ 			}
+ 

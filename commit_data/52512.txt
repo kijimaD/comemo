@@ -19,6 +19,24 @@ Date:   Fri May 6 15:57:21 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index ce86f73cda..8d1a81ed1d 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -227,8 +227,10 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 					// DWARF info between the compiler and linker.
+ 					continue
+ 				}
+-			} else if target.IsPPC64() && target.IsPIE() && ldr.SymName(rs) == ".TOC." {
+-				// This is a TOC relative relocation generated from a go object. It is safe to resolve.
++			} else if target.IsPPC64() && ldr.SymName(rs) == ".TOC." {
++				// TOC symbol doesn't have a type but we do assign a value
++				// (see the address pass) and we can resolve it.
++				// TODO: give it a type.
+ 			} else {
+ 				st.err.errorUnresolved(ldr, s, rs)
+ 				continue

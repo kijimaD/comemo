@@ -31,8 +31,117 @@ Date:   Wed Oct 6 14:58:22 2021 -0700
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/testing/fuzz.go    |  9 ++++++++-
  src/testing/match.go   | 11 +++++++++++
  src/testing/testing.go | 20 +++++++-------------
  3 files changed, 26 insertions(+), 14 deletions(-)
+
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 40b77c1331..0429f8243d 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -380,6 +380,13 @@ func (f *F) Fuzz(ff interface{}) {
+ 		if e.Path != "" {
+ 			testName = fmt.Sprintf("%s/%s", testName, filepath.Base(e.Path))
+ 		}
++		if f.testContext.isFuzzing {
++			// Don't preserve subtest names while fuzzing. If fn calls T.Run,
++			// there will be a very large number of subtests with duplicate names,
++			// which will use a large amount of memory. The subtest names aren't
++			// useful since there's no way to re-run them deterministically.
++			f.testContext.match.clearSubNames()
++		}
+ 
+ 		// Record the stack trace at the point of this call so that if the subtest
+ 		// function - which runs in a separate stack - is marked as a helper, we can
+@@ -395,7 +402,6 @@ func (f *F) Fuzz(ff interface{}) {
+ 				level:   f.level + 1,
+ 				creator: pc[:n],
+ 				chatty:  f.chatty,
+-				fuzzing: true,
+ 			},
+ 			context: f.testContext,
+ 		}
+@@ -615,6 +621,7 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ok bool) {
+ 	}
+ 	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
+ 	tctx := newTestContext(1, m)
++	tctx.isFuzzing = true
+ 	fctx := &fuzzContext{
+ 		deps: deps,
+ 	}
+diff --git a/src/testing/match.go b/src/testing/match.go
+index d97e415765..c6ff429fe4 100644
+--- a/src/testing/match.go
++++ b/src/testing/match.go
+@@ -82,6 +82,17 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok, partial
+ 	return name, ok, partial
+ }
+ 
++// clearSubNames clears the matcher's internal state, potentially freeing
++// memory. After this is called, T.Name may return the same strings as it did
++// for earlier subtests.
++func (m *matcher) clearSubNames() {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++	for key := range m.subNames {
++		delete(m.subNames, key)
++	}
++}
++
+ func (m simpleMatch) matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool) {
+ 	for i, s := range name {
+ 		if i >= len(m) {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index b3f4b4da58..57ac580051 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -495,7 +495,6 @@ type common struct {
+ 
+ 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
+ 	bench      bool           // Whether the current test is a benchmark.
+-	fuzzing    bool           // Whether the current test is a fuzzing target.
+ 	hasSub     int32          // Written atomically.
+ 	raceErrors int            // Number of races detected during test.
+ 	runner     string         // Function name of tRunner running the test.
+@@ -697,17 +696,6 @@ func (c *common) flushToParent(testName, format string, args ...interface{}) {
+ 	}
+ }
+ 
+-// isFuzzing returns whether the current context, or any of the parent contexts,
+-// are a fuzzing target
+-func (c *common) isFuzzing() bool {
+-	for com := c; com != nil; com = com.parent {
+-		if com.fuzzing {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ type indenter struct {
+ 	c *common
+ }
+@@ -1291,7 +1279,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 			}
+ 		}
+ 
+-		if err != nil && t.isFuzzing() {
++		if err != nil && t.context.isFuzzing {
+ 			prefix := "panic: "
+ 			if err == errNilPanicOrGoexit {
+ 				prefix = ""
+@@ -1457,6 +1445,12 @@ type testContext struct {
+ 	match    *matcher
+ 	deadline time.Time
+ 
++	// isFuzzing is true in the context used when generating random inputs
++	// for fuzz targets. isFuzzing is false when running normal tests and
++	// when running fuzz tests as unit tests (without -fuzz or when -fuzz
++	// does not match).
++	isFuzzing bool
++
+ 	mu sync.Mutex
+ 
+ 	// Channel used to signal tests that are ready to be run in parallel.

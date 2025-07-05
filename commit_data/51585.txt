@@ -21,7 +21,7 @@ Date:   Tue Feb 15 14:27:13 2022 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  doc/go1.18.html                                    |  4 ++--
  src/cmd/go/alldocs.go                              | 16 +++++++--------
  src/cmd/go/internal/base/flag.go                   |  7 -------
@@ -50,3 +50,532 @@ Date:   Tue Feb 15 14:27:13 2022 -0500
  src/cmd/go/testdata/script/work_workfile.txt       | 21 -------------------
  src/internal/cfg/cfg.go                            |  1 +
  27 files changed, 80 insertions(+), 86 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 243df2b7d4..c75bfe9e5d 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -345,8 +345,8 @@ Do not send CLs removing the interior tags from such phrases.
+ <p><!-- https://golang.org/issue/45713 -->
+   The <code>go</code> command now supports a "Workspace" mode. If a
+   <code>go.work</code> file is found in the working directory or a
+-  parent directory, or one is specified using the <code>-workfile</code>
+-  flag, it will put the <code>go</code> command into workspace mode.
++  parent directory, or one is specified using the <code>GOWORK</code>
++  environment variable, it will put the <code>go</code> command into workspace mode.
+   In workspace mode, the <code>go.work</code> file will be used to
+   determine the set of main modules used as the roots for module
+   resolution, instead of using the normally-found <code>go.mod</code>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 13a3f00d6f..63e7900e02 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -177,14 +177,6 @@
+ // 		directory, but it is not accessed. When -modfile is specified, an
+ // 		alternate go.sum file is also used: its path is derived from the
+ // 		-modfile flag by trimming the ".mod" extension and appending ".sum".
+-// 	-workfile file
+-// 		in module aware mode, use the given go.work file as a workspace file.
+-// 		By default or when -workfile is "auto", the go command searches for a
+-// 		file named go.work in the current directory and then containing directories
+-// 		until one is found. If a valid go.work file is found, the modules
+-// 		specified will collectively be used as the main modules. If -workfile
+-// 		is "off", or a go.work file is not found in "auto" mode, workspace
+-// 		mode is disabled.
+ // 	-overlay file
+ // 		read a JSON config file that provides an overlay for build operations.
+ // 		The file is a JSON struct with a single field, named 'Replace', that
+@@ -2075,6 +2067,14 @@
+ // 	GOVCS
+ // 		Lists version control commands that may be used with matching servers.
+ // 		See 'go help vcs'.
++// 	GOWORK
++// 		In module aware mode, use the given go.work file as a workspace file.
++// 		By default or when GOWORK is "auto", the go command searches for a
++// 		file named go.work in the current directory and then containing directories
++// 		until one is found. If a valid go.work file is found, the modules
++// 		specified will collectively be used as the main modules. If GOWORK
++// 		is "off", or a go.work file is not found in "auto" mode, workspace
++// 		mode is disabled.
+ //
+ // Environment variables for use with cgo:
+ //
+diff --git a/src/cmd/go/internal/base/flag.go b/src/cmd/go/internal/base/flag.go
+index 2c72c7e562..120420a126 100644
+--- a/src/cmd/go/internal/base/flag.go
++++ b/src/cmd/go/internal/base/flag.go
+@@ -62,13 +62,6 @@ func AddModFlag(flags *flag.FlagSet) {
+ 	flags.Var(explicitStringFlag{value: &cfg.BuildMod, explicit: &cfg.BuildModExplicit}, "mod", "")
+ }
+ 
+-// AddWorkfileFlag adds the workfile flag to the flag set. It enables workspace
+-// mode for commands that support it by resetting the cfg.WorkFile variable
+-// to "" (equivalent to auto) rather than off.
+-func AddWorkfileFlag(flags *flag.FlagSet) {
+-	flags.Var(explicitStringFlag{value: &cfg.WorkFile, explicit: &cfg.WorkFileExplicit}, "workfile", "")
+-}
+-
+ // AddModCommonFlags adds the module-related flags common to build commands
+ // and 'go mod' subcommands.
+ func AddModCommonFlags(flags *flag.FlagSet) {
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 7f68d7bb62..deab3dddd0 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -49,10 +49,8 @@ var (
+ 	BuildWork              bool // -work flag
+ 	BuildX                 bool // -x flag
+ 
+-	ModCacheRW       bool   // -modcacherw flag
+-	ModFile          string // -modfile flag
+-	WorkFile         string // -workfile flag
+-	WorkFileExplicit bool   // whether -workfile was set explicitly
++	ModCacheRW bool   // -modcacherw flag
++	ModFile    string // -modfile flag
+ 
+ 	CmdName string // "build", "install", "list", "mod tidy", etc.
+ 
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index e56dd8223f..c1adf8cef4 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -154,6 +154,10 @@ func ExtraEnvVars() []cfg.EnvVar {
+ 	}
+ 	modload.InitWorkfile()
+ 	gowork := modload.WorkFilePath()
++	// As a special case, if a user set off explicitly, report that in GOWORK.
++	if cfg.Getenv("GOWORK") == "off" {
++		gowork = "off"
++	}
+ 	return []cfg.EnvVar{
+ 		{Name: "GOMOD", Value: gomod},
+ 		{Name: "GOWORK", Value: gowork},
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index d1eaad1c12..28ddaac8f1 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -545,6 +545,14 @@ General-purpose environment variables:
+ 	GOVCS
+ 		Lists version control commands that may be used with matching servers.
+ 		See 'go help vcs'.
++	GOWORK
++		In module aware mode, use the given go.work file as a workspace file.
++		By default or when GOWORK is "auto", the go command searches for a
++		file named go.work in the current directory and then containing directories
++		until one is found. If a valid go.work file is found, the modules
++		specified will collectively be used as the main modules. If GOWORK
++		is "off", or a go.work file is not found in "auto" mode, workspace
++		mode is disabled.
+ 
+ Environment variables for use with cgo:
+ 
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index d9a7078ccf..8be9211935 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -316,7 +316,6 @@ For more about modules, see https://golang.org/ref/mod.
+ func init() {
+ 	CmdList.Run = runList // break init cycle
+ 	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
+-	base.AddWorkfileFlag(&CmdList.Flag)
+ }
+ 
+ var (
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 6b8a010fd9..5bc6cbc4bb 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -70,7 +70,6 @@ func init() {
+ 	// TODO(jayconrod): https://golang.org/issue/35849 Apply -x to other 'go mod' commands.
+ 	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+ 	base.AddModCommonFlags(&cmdDownload.Flag)
+-	base.AddWorkfileFlag(&cmdDownload.Flag)
+ }
+ 
+ type moduleJSON struct {
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index 9b6aa1fb14..9568c65740 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -42,7 +42,6 @@ var (
+ func init() {
+ 	cmdGraph.Flag.Var(&graphGo, "go", "")
+ 	base.AddModCommonFlags(&cmdGraph.Flag)
+-	base.AddWorkfileFlag(&cmdGraph.Flag)
+ }
+ 
+ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 3f0c005d5d..459bf5d070 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -39,7 +39,6 @@ See https://golang.org/ref/mod#go-mod-verify for more about 'go mod verify'.
+ 
+ func init() {
+ 	base.AddModCommonFlags(&cmdVerify.Flag)
+-	base.AddWorkfileFlag(&cmdVerify.Flag)
+ }
+ 
+ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index d8355cca95..2d3f1eb05b 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -59,7 +59,6 @@ var (
+ func init() {
+ 	cmdWhy.Run = runWhy // break init cycle
+ 	base.AddModCommonFlags(&cmdWhy.Flag)
+-	base.AddWorkfileFlag(&cmdWhy.Flag)
+ }
+ 
+ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 523be8c473..a07066696e 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -288,16 +288,16 @@ func BinDir() string {
+ // operate in workspace mode. It should not be called by other commands,
+ // for example 'go mod tidy', that don't operate in workspace mode.
+ func InitWorkfile() {
+-	switch cfg.WorkFile {
++	switch gowork := cfg.Getenv("GOWORK"); gowork {
+ 	case "off":
+ 		workFilePath = ""
+ 	case "", "auto":
+ 		workFilePath = findWorkspaceFile(base.Cwd())
+ 	default:
+-		if !filepath.IsAbs(cfg.WorkFile) {
+-			base.Fatalf("the path provided to -workfile must be an absolute path")
++		if !filepath.IsAbs(gowork) {
++			base.Fatalf("the path provided to GOWORK must be an absolute path")
+ 		}
+-		workFilePath = cfg.WorkFile
++		workFilePath = gowork
+ 	}
+ }
+ 
+@@ -1109,7 +1109,7 @@ func setDefaultBuildMod() {
+ 		if inWorkspaceMode() && cfg.BuildMod != "readonly" {
+ 			base.Fatalf("go: -mod may only be set to readonly when in workspace mode, but it is set to %q"+
+ 				"\n\tRemove the -mod flag to use the default readonly value,"+
+-				"\n\tor set -workfile=off to disable workspace mode.", cfg.BuildMod)
++				"\n\tor set GOWORK=off to disable workspace mode.", cfg.BuildMod)
+ 		}
+ 		// Don't override an explicit '-mod=' argument.
+ 		return
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index c4b70b64fe..00a3e4b332 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -65,7 +65,6 @@ func init() {
+ 	CmdRun.Run = runRun // break init loop
+ 
+ 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
+-	base.AddWorkfileFlag(&CmdRun.Flag)
+ 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
+ }
+ 
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index b9d1ec91ff..c046caca25 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -28,7 +28,6 @@ import (
+ 
+ func init() {
+ 	work.AddBuildFlags(CmdTest, work.OmitVFlag)
+-	base.AddWorkfileFlag(&CmdTest.Flag)
+ 
+ 	cf := CmdTest.Flag
+ 	cf.BoolVar(&testC, "c", false, "")
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 1c278d3d99..0b5848a77d 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -130,14 +130,6 @@ and test commands:
+ 		directory, but it is not accessed. When -modfile is specified, an
+ 		alternate go.sum file is also used: its path is derived from the
+ 		-modfile flag by trimming the ".mod" extension and appending ".sum".
+-	-workfile file
+-		in module aware mode, use the given go.work file as a workspace file.
+-		By default or when -workfile is "auto", the go command searches for a
+-		file named go.work in the current directory and then containing directories
+-		until one is found. If a valid go.work file is found, the modules
+-		specified will collectively be used as the main modules. If -workfile
+-		is "off", or a go.work file is not found in "auto" mode, workspace
+-		mode is disabled.
+ 	-overlay file
+ 		read a JSON config file that provides an overlay for build operations.
+ 		The file is a JSON struct with a single field, named 'Replace', that
+@@ -217,7 +209,6 @@ func init() {
+ 
+ 	AddBuildFlags(CmdBuild, DefaultBuildFlags)
+ 	AddBuildFlags(CmdInstall, DefaultBuildFlags)
+-	base.AddWorkfileFlag(&CmdBuild.Flag)
+ }
+ 
+ // Note that flags consulted by other parts of the code
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index e7b1b13271..05f4f3dddf 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -110,8 +110,6 @@ func init() {
+ 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropUse), "dropuse", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagEditworkReplace), "replace", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropReplace), "dropreplace", "")
+-
+-	base.AddWorkfileFlag(&cmdEdit.Flag)
+ }
+ 
+ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+@@ -137,7 +135,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	if gowork == "" {
+-		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
++		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
+ 	}
+ 
+ 	anyFlags :=
+diff --git a/src/cmd/go/internal/workcmd/init.go b/src/cmd/go/internal/workcmd/init.go
+index aa3126319a..63bee6e4f5 100644
+--- a/src/cmd/go/internal/workcmd/init.go
++++ b/src/cmd/go/internal/workcmd/init.go
+@@ -33,7 +33,6 @@ current go version will also be listed in the go.work file.
+ 
+ func init() {
+ 	base.AddModCommonFlags(&cmdInit.Flag)
+-	base.AddWorkfileFlag(&cmdInit.Flag)
+ }
+ 
+ func runInit(ctx context.Context, cmd *base.Command, args []string) {
+@@ -41,11 +40,6 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	modload.ForceUseModules = true
+ 
+-	// TODO(matloob): support using the -workfile path
+-	// To do that properly, we'll have to make the module directories
+-	// make dirs relative to workFile path before adding the paths to
+-	// the directory entries
+-
+ 	workFile := modload.WorkFilePath()
+ 	if workFile == "" {
+ 		workFile = filepath.Join(base.Cwd(), "go.work")
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+index 948fc5d370..b0f61c5fa2 100644
+--- a/src/cmd/go/internal/workcmd/sync.go
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -39,14 +39,13 @@ that in each workspace module.
+ 
+ func init() {
+ 	base.AddModCommonFlags(&cmdSync.Flag)
+-	base.AddWorkfileFlag(&cmdSync.Flag)
+ }
+ 
+ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.ForceUseModules = true
+ 	modload.InitWorkfile()
+ 	if modload.WorkFilePath() == "" {
+-		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
++		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
+ 	}
+ 
+ 	workGraph := modload.LoadModGraph(ctx, "")
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index 3d003b78eb..1ee2d4e3c4 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -42,7 +42,6 @@ func init() {
+ 	cmdUse.Run = runUse // break init cycle
+ 
+ 	base.AddModCommonFlags(&cmdUse.Flag)
+-	base.AddWorkfileFlag(&cmdUse.Flag)
+ }
+ 
+ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+@@ -53,7 +52,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 	gowork = modload.WorkFilePath()
+ 
+ 	if gowork == "" {
+-		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
++		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
+ 	}
+ 	workFile, err := modload.ReadWorkFile(gowork)
+ 	if err != nil {
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index cbb3746a69..a10bf5a1c3 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -32,7 +32,9 @@ stdout 'example.com/b'
+ go list -mod=readonly all
+ ! go list -mod=mod all
+ stderr '^go: -mod may only be set to readonly when in workspace mode'
+-go list -mod=mod -workfile=off all
++env GOWORK=off
++go list -mod=mod all
++env GOWORK=
+ 
+ # Test that duplicates in the use list return an error
+ cp go.work go.work.backup
+@@ -53,7 +55,9 @@ go run example.com/d
+ # This exercises the code that determines which module command-line-arguments
+ # belongs to.
+ go list ./b/main.go
+-go build -n -workfile=off -o foo foo.go
++env GOWORK=off
++go build -n -o foo foo.go
++env GOWORK=
+ go build -n -o foo foo.go
+ 
+ -- go.work.dup --
+diff --git a/src/cmd/go/testdata/script/work_edit.txt b/src/cmd/go/testdata/script/work_edit.txt
+index fd04bbda6e..71959ca0dd 100644
+--- a/src/cmd/go/testdata/script/work_edit.txt
++++ b/src/cmd/go/testdata/script/work_edit.txt
+@@ -30,7 +30,8 @@ cmp stdout go.work.want_print
+ go work edit -json -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+ cmp stdout go.work.want_json
+ 
+-go work edit -print -fmt -workfile $GOPATH/src/unformatted
++env GOWORK=$GOPATH/src/unformatted
++go work edit -print -fmt
+ cmp stdout formatted
+ 
+ -- m/go.mod --
+diff --git a/src/cmd/go/testdata/script/work_env.txt b/src/cmd/go/testdata/script/work_env.txt
+index ec3d3be3ed..511bb4e2cb 100644
+--- a/src/cmd/go/testdata/script/work_env.txt
++++ b/src/cmd/go/testdata/script/work_env.txt
+@@ -13,6 +13,10 @@ cd src
+ go env GOWORK
+ stdout 'go.work'
+ 
++env GOWORK='off'
++go env GOWORK
++stdout 'off'
++
+ ! go env -w GOWORK=off
+ stderr '^go: GOWORK cannot be modified$'
+ 
+diff --git a/src/cmd/go/testdata/script/work_gowork.txt b/src/cmd/go/testdata/script/work_gowork.txt
+new file mode 100644
+index 0000000000..1cfbf0ca18
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_gowork.txt
+@@ -0,0 +1,24 @@
++env GOWORK=stop.work
++! go list a # require absolute path
++! stderr panic
++env GOWORK=doesnotexist
++! go list a
++! stderr panic
++
++env GOWORK=$GOPATH/src/stop.work
++go list -n a
++go build -n a
++go test -n a
++
++-- stop.work --
++go 1.18
++
++use ./a
++-- a/a.go --
++package a
++-- a/a_test.go --
++package a
++-- a/go.mod --
++module a
++
++go 1.18
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/work_init_workfile.txt b/src/cmd/go/testdata/script/work_init_gowork.txt
+similarity index 52%
+rename from src/cmd/go/testdata/script/work_init_workfile.txt
+rename to src/cmd/go/testdata/script/work_init_gowork.txt
+index e6f56716f9..55ac99b8c0 100644
+--- a/src/cmd/go/testdata/script/work_init_workfile.txt
++++ b/src/cmd/go/testdata/script/work_init_gowork.txt
+@@ -1,11 +1,15 @@
+-# Test that the workfile flag is used by go work init.
++# Test that the GOWORK environment variable flag is used by go work init.
+ 
++! exists go.work
+ go work init
+ exists go.work
+ 
+-go work init -workfile=$GOPATH/src/foo/foo.work
++env GOWORK=$GOPATH/src/foo/foo.work
++! exists foo/foo.work
++go work init
+ exists foo/foo.work
+ 
++env GOWORK=
+ cd foo/bar
+ ! go work init
+ stderr 'already exists'
+diff --git a/src/cmd/go/testdata/script/work_nowork.txt b/src/cmd/go/testdata/script/work_nowork.txt
+index b0320cbccb..b4c9b1d9cf 100644
+--- a/src/cmd/go/testdata/script/work_nowork.txt
++++ b/src/cmd/go/testdata/script/work_nowork.txt
+@@ -1,17 +1,17 @@
+ ! go work use
+-stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using -workfile flag\)$'
++stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using GOWORK environment variable\)$'
+ 
+ ! go work use .
+-stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using -workfile flag\)$'
++stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using GOWORK environment variable\)$'
+ 
+ ! go work edit
+-stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using -workfile flag\)$'
++stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using GOWORK environment variable\)$'
+ 
+ ! go work edit -go=1.18
+-stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using -workfile flag\)$'
++stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using GOWORK environment variable\)$'
+ 
+ ! go work sync
+-stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using -workfile flag\)$'
++stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using GOWORK environment variable\)$'
+ 
+ -- go.mod --
+ module example
+diff --git a/src/cmd/go/testdata/script/work_workfile.txt b/src/cmd/go/testdata/script/work_workfile.txt
+deleted file mode 100644
+index b62918147e..0000000000
+--- a/src/cmd/go/testdata/script/work_workfile.txt
++++ /dev/null
+@@ -1,21 +0,0 @@
+-! go list -workfile=stop.work a # require absolute path
+-! stderr panic
+-! go list -workfile=doesnotexist a
+-! stderr panic
+-
+-go list -n -workfile=$GOPATH/src/stop.work a
+-go build -n -workfile=$GOPATH/src/stop.work a
+-go test -n -workfile=$GOPATH/src/stop.work a
+-
+--- stop.work --
+-go 1.18
+-
+-use ./a
+--- a/a.go --
+-package a
+--- a/a_test.go --
+-package a
+--- a/go.mod --
+-module a
+-
+-go 1.18
+\ No newline at end of file
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index 4cb3fbd4f3..78664d7a96 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -62,6 +62,7 @@ const KnownEnv = `
+ 	GOTOOLDIR
+ 	GOVCS
+ 	GOWASM
++	GOWORK
+ 	GO_EXTLINK_ENABLED
+ 	PKG_CONFIG
+ `

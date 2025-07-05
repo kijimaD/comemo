@@ -10,7 +10,7 @@ Date:   Fri Aug 26 15:15:23 2011 -0400
     R=alex.brainman, go.peter.90, mattn.jp
     CC=golang-dev
     https://golang.org/cl/4968041
-
+---
  src/pkg/Makefile                              |  1 -
  src/pkg/time/Makefile                         | 10 +++---
  src/pkg/time/internal_test.go                 | 12 ++++++++
@@ -23,3 +23,286 @@ Date:   Fri Aug 26 15:15:23 2011 -0400
  src/pkg/time/zoneinfo_unix.go                 |  5 +++
  src/pkg/time/zoneinfo_windows.go              | 44 ++++++++++++++++++++++++++-
  11 files changed, 114 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 84d5607837..9bd920ea08 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -230,7 +230,6 @@ NOBENCH+=\
+ ifeq ($(GOOS),windows)
+ NOTEST+=os/signal    # no signals
+ NOTEST+=syslog       # no network
+-NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
+ endif
+ 
+ TEST=\
+diff --git a/src/pkg/time/Makefile b/src/pkg/time/Makefile
+index a6fce3fa1f..473e7ea937 100644
+--- a/src/pkg/time/Makefile
++++ b/src/pkg/time/Makefile
+@@ -13,27 +13,27 @@ GOFILES=\
+ 	time.go\
+ 
+ GOFILES_freebsd=\
+-	sys_posix.go\
++	sys_unix.go\
+ 	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_darwin=\
+-	sys_posix.go\
++	sys_unix.go\
+ 	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_linux=\
+-	sys_posix.go\
++	sys_unix.go\
+ 	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_openbsd=\
+-	sys_posix.go\
++	sys_unix.go\
+ 	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_windows=\
+-	sys_posix.go\
++	sys_windows.go\
+ 	zoneinfo_windows.go\
+ 
+ GOFILES_plan9=\
+diff --git a/src/pkg/time/internal_test.go b/src/pkg/time/internal_test.go
+new file mode 100644
+index 0000000000..d7e7076539
+--- /dev/null
++++ b/src/pkg/time/internal_test.go
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time
++
++func init() {
++	// force US/Pacific for time zone tests
++	onceSetupZone.Do(setupTestingZone)
++}
++
++var Interrupt = interrupt
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index a4a1a429fd..b6b88f6cab 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -7,7 +7,6 @@ package time_test
+ import (
+ 	"fmt"
+ 	"os"
+-	"syscall"
+ 	"testing"
+ 	"sort"
+ 	. "time"
+@@ -17,7 +16,7 @@ func TestSleep(t *testing.T) {
+ 	const delay = int64(100e6)
+ 	go func() {
+ 		Sleep(delay / 2)
+-		syscall.Kill(os.Getpid(), syscall.SIGCHLD)
++		Interrupt()
+ 	}()
+ 	start := Nanoseconds()
+ 	Sleep(delay)
+diff --git a/src/pkg/time/sys_plan9.go b/src/pkg/time/sys_plan9.go
+index abe8649a24..9ae0161ba8 100644
+--- a/src/pkg/time/sys_plan9.go
++++ b/src/pkg/time/sys_plan9.go
+@@ -16,3 +16,8 @@ func sysSleep(t int64) os.Error {
+ 	}
+ 	return nil
+ }
++
++// for testing: whatever interrupts a sleep
++func interrupt() {
++	// cannot predict pid, don't want to kill group
++}
+diff --git a/src/pkg/time/sys_unix.go b/src/pkg/time/sys_unix.go
+new file mode 100644
+index 0000000000..0f9128e20a
+--- /dev/null
++++ b/src/pkg/time/sys_unix.go
+@@ -0,0 +1,23 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time
++
++import (
++	"os"
++	"syscall"
++)
++
++func sysSleep(t int64) os.Error {
++	errno := syscall.Sleep(t)
++	if errno != 0 && errno != syscall.EINTR {
++		return os.NewSyscallError("sleep", errno)
++	}
++	return nil
++}
++
++// for testing: whatever interrupts a sleep
++func interrupt() {
++	syscall.Kill(os.Getpid(), syscall.SIGCHLD)
++}
+diff --git a/src/pkg/time/sys_posix.go b/src/pkg/time/sys_windows.go
+similarity index 84%
+rename from src/pkg/time/sys_posix.go
+rename to src/pkg/time/sys_windows.go
+index 0d1eb72fcf..feff90b8b0 100644
+--- a/src/pkg/time/sys_posix.go
++++ b/src/pkg/time/sys_windows.go
+@@ -16,3 +16,7 @@ func sysSleep(t int64) os.Error {
+ 	}
+ 	return nil
+ }
++
++// for testing: whatever interrupts a sleep
++func interrupt() {
++}
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index dceed491aa..07d7598332 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -5,7 +5,6 @@
+ package time_test
+ 
+ import (
+-	"os"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -13,13 +12,6 @@ import (
+ 	. "time"
+ )
+ 
+-func init() {
+-	// Force US Pacific time for daylight-savings
+-	// tests below (localtests).  Needs to be set
+-	// before the first call into the time library.
+-	os.Setenv("TZ", "America/Los_Angeles")
+-}
+-
+ // We should be in PST/PDT, but if the time zone files are missing we
+ // won't be. The purpose of this test is to at least explain why some of
+ // the subsequent tests fail.
+diff --git a/src/pkg/time/zoneinfo_plan9.go b/src/pkg/time/zoneinfo_plan9.go
+index 3c3e7c4244..57e605e0d6 100644
+--- a/src/pkg/time/zoneinfo_plan9.go
++++ b/src/pkg/time/zoneinfo_plan9.go
+@@ -57,3 +57,19 @@ func setupZone() {
+ 	}
+ 	zones = parseZones(t)
+ }
++
++func setupTestingZone() {
++	f, err := os.Open("/adm/timezone/US_Pacific")
++	if err != nil {
++		return
++	}
++	defer f.Close()
++	l, _ := f.Seek(0, 2)
++	f.Seek(0, 0)
++	buf := make([]byte, l)
++	_, err := f.Read(buf)
++	if err != nil {
++		return
++	}
++	zones = parseZones(buf)
++}
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+index f3ea7b6fda..ce4d9f13af 100644
+--- a/src/pkg/time/zoneinfo_unix.go
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -185,6 +185,11 @@ func readinfofile(name string) ([]zonetime, bool) {
+ 	return parseinfo(buf)
+ }
+ 
++func setupTestingZone() {
++	os.Setenv("TZ", "America/Los_Angeles")
++	setupZone()
++}
++
+ func setupZone() {
+ 	// consult $TZ to find the time zone to use.
+ 	// no $TZ means use the system default /etc/localtime.
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index fabc006011..ab3e7df59c 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -27,9 +27,30 @@ type zone struct {
+ 	prev                  *zone
+ }
+ 
++// BUG(rsc): On Windows, time zone abbreviations are unavailable.
++// This package constructs them using the capital letters from a longer
++// time zone description.
++
+ // Populate zone struct with Windows supplied information. Returns true, if data is valid.
+ func (z *zone) populate(bias, biasdelta int32, d *syscall.Systemtime, name []uint16) (dateisgood bool) {
+-	z.name = syscall.UTF16ToString(name)
++	// name is 'Pacific Standard Time' but we want 'PST'.
++	// Extract just capital letters.  It's not perfect but the
++	// information we need is not available from the kernel.
++	// Because time zone abbreviations are not unique,
++	// Windows refuses to expose them.
++	//
++	// http://social.msdn.microsoft.com/Forums/eu/vclanguage/thread/a87e1d25-fb71-4fe0-ae9c-a9578c9753eb
++	// http://stackoverflow.com/questions/4195948/windows-time-zone-abbreviations-in-asp-net
++	short := make([]uint16, len(name))
++	w := 0
++	for _, c := range name {
++		if 'A' <= c && c <= 'Z' {
++			short[w] = c
++			w++
++		}
++	}
++	z.name = syscall.UTF16ToString(short[:w])
++
+ 	z.offset = int(bias)
+ 	z.year = int64(d.Year)
+ 	z.month = int(d.Month)
+@@ -129,6 +150,10 @@ func setupZone() {
+ 		initError = os.NewSyscallError("GetTimeZoneInformation", e)
+ 		return
+ 	}
++	setupZoneFromTZI(&i)
++}
++
++func setupZoneFromTZI(i *syscall.Timezoneinformation) {
+ 	if !tz.std.populate(i.Bias, i.StandardBias, &i.StandardDate, i.StandardName[0:]) {
+ 		tz.disabled = true
+ 		tz.offsetIfDisabled = tz.std.offset
+@@ -144,6 +169,23 @@ func setupZone() {
+ 	tz.januaryIsStd = tz.dst.cutoffSeconds(t.Year) < tz.std.cutoffSeconds(t.Year)
+ }
+ 
++var usPacific = syscall.Timezoneinformation{
++	Bias: 8 * 60,
++	StandardName: [32]uint16{
++		'P', 'a', 'c', 'i', 'f', 'i', 'c', ' ', 'S', 't', 'a', 'n', 'd', 'a', 'r', 'd', ' ', 'T', 'i', 'm', 'e',
++	},
++	StandardDate: syscall.Systemtime{Month: 11, Day: 1, Hour: 2},
++	DaylightName: [32]uint16{
++		'P', 'a', 'c', 'i', 'f', 'i', 'c', ' ', 'D', 'a', 'y', 'l', 'i', 'g', 'h', 't', ' ', 'T', 'i', 'm', 'e',
++	},
++	DaylightDate: syscall.Systemtime{Month: 3, Day: 2, Hour: 2},
++	DaylightBias: -60,
++}
++
++func setupTestingZone() {
++	setupZoneFromTZI(&usPacific)
++}
++
+ // Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
+ func lookupTimezone(sec int64) (zone string, offset int) {
+ 	onceSetupZone.Do(setupZone)

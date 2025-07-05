@@ -11,7 +11,7 @@ Date:   Thu Aug 23 05:06:47 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/issue9400_linux.go                   | 2 +-
  misc/cgo/testshared/shared_test.go                 | 2 +-
  src/bytes/buffer_test.go                           | 2 +-
@@ -35,3 +35,306 @@ Date:   Thu Aug 23 05:06:47 2018 +0000
  test/live.go                                       | 2 +-
  test/run.go                                        | 2 +-
  22 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/misc/cgo/test/issue9400_linux.go b/misc/cgo/test/issue9400_linux.go
+index 34eb4983a4..7719535d25 100644
+--- a/misc/cgo/test/issue9400_linux.go
++++ b/misc/cgo/test/issue9400_linux.go
+@@ -41,7 +41,7 @@ func test9400(t *testing.T) {
+ 
+ 	// Grow the stack and put down a test pattern
+ 	const pattern = 0x123456789abcdef
+-	var big [1024]uint64 // len must match assmebly
++	var big [1024]uint64 // len must match assembly
+ 	for i := range big {
+ 		big[i] = pattern
+ 	}
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 846a27173e..529a2c692f 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -560,7 +560,7 @@ func TestNotes(t *testing.T) {
+ 			abiHashNoteFound = true
+ 		case 3: // ELF_NOTE_GODEPS_TAG
+ 			if depsNoteFound {
+-				t.Error("multiple depedency list notes")
++				t.Error("multiple dependency list notes")
+ 			}
+ 			testDepsNote(t, f, note)
+ 			depsNoteFound = true
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index acbe5ca0c4..6e9d6952a5 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -293,7 +293,7 @@ func TestReadFromPanicReader(t *testing.T) {
+ 	}
+ 	check(t, "TestReadFromPanicReader (1)", &buf, "")
+ 
+-	// Confirm that when Reader panics, the emtpy buffer remains empty
++	// Confirm that when Reader panics, the empty buffer remains empty
+ 	var buf2 Buffer
+ 	defer func() {
+ 		recover()
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index 1d1cf510cb..df60b71ebd 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -33,7 +33,7 @@ func newParser(goarch string) *Parser {
+ 
+ // tryParse executes parse func in panicOnError=true context.
+ // parse is expected to call any parsing methods that may panic.
+-// Returns error gathered from recover; nil if no parse errors occured.
++// Returns error gathered from recover; nil if no parse errors occurred.
+ //
+ // For unexpected panics, calls t.Fatal.
+ func tryParse(t *testing.T, parse func()) (err error) {
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+index afd1dfd313..2f0d9ecf86 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+@@ -911,7 +911,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	VADDPD.BCST.Z (AX), Z2, K1, Z1 // 62f1edd95808
+ 	VMAXPD.BCST (AX), Z2, K1, Z1   // 62f1ed595f08
+ 	VMAXPD.BCST.Z (AX), Z2, K1, Z1 // 62f1edd95f08
+-	// EVEX: surpress all exceptions (SAE).
++	// EVEX: suppress all exceptions (SAE).
+ 	VMAXPD.SAE   Z3, Z2, K1, Z1   // 62f1ed595fcb or 62f1ed195fcb
+ 	VMAXPD.SAE.Z Z3, Z2, K1, Z1   // 62f1edd95fcb or 62f1ed995fcb
+ 	VMAXPD (AX), Z2, K1, Z1       // 62f1ed495f08
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index bbd2a668a5..7292963799 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5710,7 +5710,7 @@ func (n *Node) StorageClass() ssa.StorageClass {
+ 	case PAUTO:
+ 		return ssa.ClassAuto
+ 	default:
+-		Fatalf("untranslateable storage class for %v: %s", n, n.Class())
++		Fatalf("untranslatable storage class for %v: %s", n, n.Class())
+ 		return 0
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index ca6bce972e..1caa61a966 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -133,7 +133,7 @@ func dse(f *Func) {
+ 	}
+ }
+ 
+-// elimDeadAutosGeneric deletes autos that are never accessed. To acheive this
++// elimDeadAutosGeneric deletes autos that are never accessed. To achieve this
+ // we track the operations that the address of each auto reaches and if it only
+ // reaches stores then we delete all the stores. The other operations will then
+ // be eliminated by the dead code elimination pass.
+diff --git a/src/cmd/go/internal/cache/default_unix_test.go b/src/cmd/go/internal/cache/default_unix_test.go
+index a207497a42..1458201f4b 100644
+--- a/src/cmd/go/internal/cache/default_unix_test.go
++++ b/src/cmd/go/internal/cache/default_unix_test.go
+@@ -62,6 +62,6 @@ func TestDefaultDir(t *testing.T) {
+ 	os.Setenv("HOME", "/")
+ 	if _, showWarnings := defaultDir(); showWarnings {
+ 		// https://golang.org/issue/26280
+-		t.Error("Cache initalization warnings should be squelched when $GOCACHE and $XDG_CACHE_HOME are unset and $HOME is /")
++		t.Error("Cache initialization warnings should be squelched when $GOCACHE and $XDG_CACHE_HOME are unset and $HOME is /")
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index e6340b8bfd..6c1525da9a 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -758,7 +758,7 @@ func (pkg *loadPkg) stackText() string {
+ }
+ 
+ // why returns the text to use in "go mod why" output about the given package.
+-// It is less ornate than the stackText but conatins the same information.
++// It is less ornate than the stackText but contains the same information.
+ func (pkg *loadPkg) why() string {
+ 	var buf strings.Builder
+ 	var stack []*loadPkg
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 42fa0e64ac..2822787e63 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2858,7 +2858,7 @@ func useResponseFile(path string, argLen int) bool {
+ 	}
+ 
+ 	// On the Go build system, use response files about 10% of the
+-	// time, just to excercise this codepath.
++	// time, just to exercise this codepath.
+ 	isBuilder := os.Getenv("GO_BUILDER_NAME") != ""
+ 	if isBuilder && rand.Intn(10) == 0 {
+ 		return true
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index 96c109e0f2..8071ac8879 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -439,6 +439,7 @@ func (task *taskDesc) complete() bool {
+ }
+ 
+ // descendents returns all the task nodes in the subtree rooted from this task.
++// TODO: the method name is misspelled
+ func (task *taskDesc) decendents() []*taskDesc {
+ 	if task == nil {
+ 		return nil
+diff --git a/src/crypto/aes/gcm_arm64.s b/src/crypto/aes/gcm_arm64.s
+index 98e9f5bbe5..61c868cd0c 100644
+--- a/src/crypto/aes/gcm_arm64.s
++++ b/src/crypto/aes/gcm_arm64.s
+@@ -434,7 +434,7 @@ TEXT ·gcmAesEnc(SB),NOSPLIT,$0
+ 	VLD1	(tPtr), [ACC0.B16]
+ 	VEOR	ACC1.B16, ACC1.B16, ACC1.B16
+ 	VEOR	ACCM.B16, ACCM.B16, ACCM.B16
+-	// Prepare intial counter, and the increment vector
++	// Prepare initial counter, and the increment vector
+ 	VLD1	(ctrPtr), [CTR.B16]
+ 	VEOR	INC.B16, INC.B16, INC.B16
+ 	MOVD	$1, H0
+@@ -733,7 +733,7 @@ TEXT ·gcmAesDec(SB),NOSPLIT,$0
+ 	VLD1	(tPtr), [ACC0.B16]
+ 	VEOR	ACC1.B16, ACC1.B16, ACC1.B16
+ 	VEOR	ACCM.B16, ACCM.B16, ACCM.B16
+-	// Prepare intial counter, and the increment vector
++	// Prepare initial counter, and the increment vector
+ 	VLD1	(ctrPtr), [CTR.B16]
+ 	VEOR	INC.B16, INC.B16, INC.B16
+ 	MOVD	$1, H0
+@@ -969,7 +969,7 @@ tail:
+ tailLast:
+ 	VEOR	KLAST.B16, B0.B16, B0.B16
+ 
+-	// Assuming it is safe to load past dstPtr due to the presense of the tag
++	// Assuming it is safe to load past dstPtr due to the presence of the tag
+ 	VLD1	(srcPtr), [B5.B16]
+ 
+ 	VEOR	B5.B16, B0.B16, B0.B16
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 210db4c1d0..4c2ff7b7c4 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -861,7 +861,7 @@ nextIntermediate:
+ }
+ 
+ // validHostname returns whether host is a valid hostname that can be matched or
+-// matched against according to RFC 6125 2.2, with some leniency to accomodate
++// matched against according to RFC 6125 2.2, with some leniency to accommodate
+ // legacy values.
+ func validHostname(host string) bool {
+ 	host = strings.TrimSuffix(host, ".")
+diff --git a/src/internal/bytealg/index_arm64.s b/src/internal/bytealg/index_arm64.s
+index 20d68ba9b8..3a551a72da 100644
+--- a/src/internal/bytealg/index_arm64.s
++++ b/src/internal/bytealg/index_arm64.s
+@@ -32,7 +32,7 @@ TEXT indexbody<>(SB),NOSPLIT,$0-56
+ 	// to avoid repeatedly re-load it again and again
+ 	// for sebsequent substring comparisons
+ 	SUB	R3, R1, R4
+-	// R4 contains the start of last substring for comparsion
++	// R4 contains the start of last substring for comparison
+ 	ADD	R0, R4, R4
+ 	ADD	$1, R0, R8
+ 
+diff --git a/src/internal/trace/goroutines.go b/src/internal/trace/goroutines.go
+index 2d7d3aa3ae..a5fda489be 100644
+--- a/src/internal/trace/goroutines.go
++++ b/src/internal/trace/goroutines.go
+@@ -37,7 +37,7 @@ type UserRegionDesc struct {
+ 
+ 	// Region end event. Normally EvUserRegion end event or nil,
+ 	// but can be EvGoStop or EvGoEnd event if the goroutine
+-	// terminated without explicitely ending the region.
++	// terminated without explicitly ending the region.
+ 	End *Event
+ 
+ 	GExecutionStat
+diff --git a/src/os/user/user.go b/src/os/user/user.go
+index 1f733b8023..c1b8101c86 100644
+--- a/src/os/user/user.go
++++ b/src/os/user/user.go
+@@ -11,7 +11,7 @@ parses /etc/passwd and /etc/group. The other is cgo-based and relies on
+ the standard C library (libc) routines such as getpwuid_r and getgrnam_r.
+ 
+ When cgo is available, cgo-based (libc-backed) code is used by default.
+-This can be overriden by using osusergo build tag, which enforces
++This can be overridden by using osusergo build tag, which enforces
+ the pure Go implementation.
+ */
+ package user
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 6c65674b3b..2a15910aea 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1472,7 +1472,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $0x14	// Size duplicated below
+ // This function communicates back to the debugger by setting RAX and
+ // invoking INT3 to raise a breakpoint signal. See the comments in the
+ // implementation for the protocol the debugger is expected to
+-// follow. InjectDebugCall in the runtime tests demonstates this protocol.
++// follow. InjectDebugCall in the runtime tests demonstrates this protocol.
+ //
+ // The debugger must ensure that any pointers passed to the function
+ // obey escape analysis requirements. Specifically, it must not pass
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index c1449dba60..c9127ac2d2 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -363,7 +363,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 	// Layout new m scheduler stack on os stack.
+ 	MOVQ	SP, AX
+ 	MOVQ	AX, (g_stack+stack_hi)(DX)
+-	SUBQ	$(64*1024), AX		// inital stack size (adjusted later)
++	SUBQ	$(64*1024), AX		// initial stack size (adjusted later)
+ 	MOVQ	AX, (g_stack+stack_lo)(DX)
+ 	ADDQ	$const__StackGuard, AX
+ 	MOVQ	AX, g_stackguard0(DX)
+diff --git a/src/time/time.go b/src/time/time.go
+index 5350d2e98b..f2da32dbad 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1076,7 +1076,7 @@ func (t Time) Local() Time {
+ 	return t
+ }
+ 
+-// In returns a copy of t representating the same time instant, but
++// In returns a copy of t representing the same time instant, but
+ // with the copy's location information set to loc for display
+ // purposes.
+ //
+diff --git a/test/fixedbugs/issue22662b.go b/test/fixedbugs/issue22662b.go
+index 3594c0f4ef..2678383ab0 100644
+--- a/test/fixedbugs/issue22662b.go
++++ b/test/fixedbugs/issue22662b.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ // Each of these tests is expected to fail (missing package clause)
+-// at the position determined by the preceeding line directive.
++// at the position determined by the preceding line directive.
+ var tests = []struct {
+ 	src, pos string
+ }{
+diff --git a/test/live.go b/test/live.go
+index 18611f5113..13bdc4aae1 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -465,7 +465,7 @@ func f29(b bool) {
+ // copy of array of pointers should die at end of range loop
+ var pstructarr [10]pstruct
+ 
+-// Struct size choosen to make pointer to element in pstructarr
++// Struct size chosen to make pointer to element in pstructarr
+ // not computable by strength reduction.
+ type pstruct struct {
+ 	intp *int
+diff --git a/test/run.go b/test/run.go
+index 99ef79feb1..82508d1c1f 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -435,7 +435,7 @@ func (ctxt *context) match(name string) bool {
+ func init() { checkShouldTest() }
+ 
+ // goGcflags returns the -gcflags argument to use with go build / go run.
+-// This must match the flags used for building the standard libary,
++// This must match the flags used for building the standard library,
+ // or else the commands will rebuild any needed packages (like runtime)
+ // over and over.
+ func goGcflags() string {

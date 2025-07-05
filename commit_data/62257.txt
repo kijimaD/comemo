@@ -13,8 +13,81 @@ Date:   Mon Jan 6 12:59:07 2025 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/640735
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/sync/map_test.go      | 10 ++++------
  src/sync/oncefunc_test.go |  4 +---
  src/sync/pool_test.go     | 10 ++++------
  3 files changed, 9 insertions(+), 15 deletions(-)
+
+diff --git a/src/sync/map_test.go b/src/sync/map_test.go
+index f12c43a28f..05c81354c8 100644
+--- a/src/sync/map_test.go
++++ b/src/sync/map_test.go
+@@ -225,15 +225,13 @@ func TestIssue40999(t *testing.T) {
+ 	// add an initial entry to bias len(m.dirty) above the miss count.
+ 	m.Store(nil, struct{}{})
+ 
+-	var finalized uint32
++	var cleanedUp uint32
+ 
+-	// Set finalizers that count for collected keys. A non-zero count
++	// Add cleanups that count for collected keys. A non-zero count
+ 	// indicates that keys have not been leaked.
+-	for atomic.LoadUint32(&finalized) == 0 {
++	for atomic.LoadUint32(&cleanedUp) == 0 {
+ 		p := new(int)
+-		runtime.SetFinalizer(p, func(*int) {
+-			atomic.AddUint32(&finalized, 1)
+-		})
++		runtime.AddCleanup(p, func(c *uint32) { atomic.AddUint32(c, 1) }, &cleanedUp)
+ 		m.Store(p, struct{}{})
+ 		m.Delete(p)
+ 		runtime.GC()
+diff --git a/src/sync/oncefunc_test.go b/src/sync/oncefunc_test.go
+index 5f0d564063..daf094571f 100644
+--- a/src/sync/oncefunc_test.go
++++ b/src/sync/oncefunc_test.go
+@@ -203,9 +203,7 @@ func TestOnceXGC(t *testing.T) {
+ 		t.Run(n, func(t *testing.T) {
+ 			buf := make([]byte, 1024)
+ 			var gc atomic.Bool
+-			runtime.SetFinalizer(&buf[0], func(_ *byte) {
+-				gc.Store(true)
+-			})
++			runtime.AddCleanup(&buf[0], func(g *atomic.Bool) { g.Store(true) }, &gc)
+ 			f := fn(buf)
+ 			gcwaitfin()
+ 			if gc.Load() != false {
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index b6ee983c29..286dcacf3e 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -109,12 +109,10 @@ loop:
+ 		if try == 1 && testing.Short() {
+ 			break
+ 		}
+-		var fin, fin1 uint32
++		var cln, cln1 uint32
+ 		for i := 0; i < N; i++ {
+ 			v := new(string)
+-			runtime.SetFinalizer(v, func(vv *string) {
+-				atomic.AddUint32(&fin, 1)
+-			})
++			runtime.AddCleanup(v, func(f *uint32) { atomic.AddUint32(f, 1) }, &cln)
+ 			p.Put(v)
+ 		}
+ 		if drain {
+@@ -126,11 +124,11 @@ loop:
+ 			runtime.GC()
+ 			time.Sleep(time.Duration(i*100+10) * time.Millisecond)
+ 			// 1 pointer can remain on stack or elsewhere
+-			if fin1 = atomic.LoadUint32(&fin); fin1 >= N-1 {
++			if cln1 = atomic.LoadUint32(&cln); cln1 >= N-1 {
+ 				continue loop
+ 			}
+ 		}
+-		t.Fatalf("only %v out of %v resources are finalized on try %v", fin1, N, try)
++		t.Fatalf("only %v out of %v resources are cleaned up on try %v", cln1, N, try)
+ 	}
+ }
+ 

@@ -13,7 +13,53 @@ Date:   Tue Dec 8 17:23:23 2015 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go |  7 ++++---
  test/fixedbugs/issue13539.go          | 20 ++++++++++++++++++++
  2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 16e0802e3e..a3f3079393 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -668,10 +668,11 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
+ 			// labelname ':' stmt
+ 			if labelOk {
+ 				// If we have a labelname, it was parsed by operand
+-				// (calling p.name()) and given an ONAME, ONONAME, or OTYPE node.
+-				if lhs.Op == ONAME || lhs.Op == ONONAME || lhs.Op == OTYPE {
++				// (calling p.name()) and given an ONAME, ONONAME, OTYPE, or OPACK node.
++				switch lhs.Op {
++				case ONAME, ONONAME, OTYPE, OPACK:
+ 					lhs = newname(lhs.Sym)
+-				} else {
++				default:
+ 					p.syntax_error("expecting semicolon or newline or }")
+ 					// we already progressed, no need to advance
+ 				}
+diff --git a/test/fixedbugs/issue13539.go b/test/fixedbugs/issue13539.go
+new file mode 100644
+index 0000000000..72c3ab0ae0
+--- /dev/null
++++ b/test/fixedbugs/issue13539.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that a label named like a package is recognized
++// as a label rather than a package and that the package
++// remains unused.
++
++package main
++
++import "math" // ERROR "imported and not used"
++
++func main() {
++math:
++	for {
++		break math
++	}
++}

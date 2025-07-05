@@ -29,7 +29,49 @@ Date:   Tue Dec 17 13:49:34 2013 +1100
     R=golang-dev, dave, mtj, adg
     CC=golang-dev
     https://golang.org/cl/21030043
-
+---
  src/pkg/math/rand/rand.go      |  6 ++----
  src/pkg/math/rand/rand_test.go | 14 ++++++++++++++
  2 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/math/rand/rand.go b/src/pkg/math/rand/rand.go
+index 2157cdb465..04fb67d19d 100644
+--- a/src/pkg/math/rand/rand.go
++++ b/src/pkg/math/rand/rand.go
+@@ -103,12 +103,10 @@ func (r *Rand) Float32() float32 { return float32(r.Float64()) }
+ // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
+ func (r *Rand) Perm(n int) []int {
+ 	m := make([]int, n)
+-	for i := 0; i < n; i++ {
+-		m[i] = i
+-	}
+ 	for i := 0; i < n; i++ {
+ 		j := r.Intn(i + 1)
+-		m[i], m[j] = m[j], m[i]
++		m[i] = m[j]
++		m[j] = i
+ 	}
+ 	return m
+ }
+diff --git a/src/pkg/math/rand/rand_test.go b/src/pkg/math/rand/rand_test.go
+index 4d3abdb606..4f0a8d0ee9 100644
+--- a/src/pkg/math/rand/rand_test.go
++++ b/src/pkg/math/rand/rand_test.go
+@@ -357,3 +357,17 @@ func BenchmarkInt31n1000(b *testing.B) {
+ 		r.Int31n(1000)
+ 	}
+ }
++
++func BenchmarkPerm3(b *testing.B) {
++	r := New(NewSource(1))
++	for n := b.N; n > 0; n-- {
++		r.Perm(3)
++	}
++}
++
++func BenchmarkPerm30(b *testing.B) {
++	r := New(NewSource(1))
++	for n := b.N; n > 0; n-- {
++		r.Perm(30)
++	}
++}

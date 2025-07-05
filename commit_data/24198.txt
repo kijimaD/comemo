@@ -30,7 +30,7 @@ Date:   Wed Jul 15 14:55:02 2015 +1000
     Change-Id: I538ca0adf7e040fa96c5bc8b3aef4454535126b9
     Reviewed-on: https://go-review.googlesource.com/12220
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/color/ycbcr.go             | 22 +++++++++++---------
  src/image/color/ycbcr_test.go        | 39 ++++++++++++++++++++++++++++++++----
  src/image/decode_example_test.go     | 32 ++++++++++++++---------------
@@ -38,3 +38,270 @@ Date:   Wed Jul 15 14:55:02 2015 +1000
  src/image/internal/imageutil/gen.go  |  6 +++---
  src/image/internal/imageutil/impl.go | 24 +++++++++++-----------
  6 files changed, 80 insertions(+), 47 deletions(-)
+
+diff --git a/src/image/color/ycbcr.go b/src/image/color/ycbcr.go
+index f8c1326b3c..4bcb07dce2 100644
+--- a/src/image/color/ycbcr.go
++++ b/src/image/color/ycbcr.go
+@@ -11,9 +11,10 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
+ 	//	Cb = -0.1687*R - 0.3313*G + 0.5000*B + 128
+ 	//	Cr =  0.5000*R - 0.4187*G - 0.0813*B + 128
+ 	// http://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
+-	r1 := int(r)
+-	g1 := int(g)
+-	b1 := int(b)
++
++	r1 := int32(r)
++	g1 := int32(g)
++	b1 := int32(b)
+ 	yy := (19595*r1 + 38470*g1 + 7471*b1 + 1<<15) >> 16
+ 	cb := (-11056*r1 - 21712*g1 + 32768*b1 + 257<<15) >> 16
+ 	cr := (32768*r1 - 27440*g1 - 5328*b1 + 257<<15) >> 16
+@@ -42,9 +43,10 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
+ 	//	G = Y' - 0.34414*(Cb-128) - 0.71414*(Cr-128)
+ 	//	B = Y' + 1.77200*(Cb-128)
+ 	// http://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
+-	yy1 := int(y)<<16 + 1<<15
+-	cb1 := int(cb) - 128
+-	cr1 := int(cr) - 128
++
++	yy1 := int32(y) * 0x10100 // Convert 0x12 to 0x121200.
++	cb1 := int32(cb) - 128
++	cr1 := int32(cr) - 128
+ 	r := (yy1 + 91881*cr1) >> 16
+ 	g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+ 	b := (yy1 + 116130*cb1) >> 16
+@@ -96,12 +98,12 @@ func (c YCbCr) RGBA() (uint32, uint32, uint32, uint32) {
+ 	//	fmt.Printf("0x%04x 0x%04x 0x%04x\n", r0, g0, b0)
+ 	//	fmt.Printf("0x%04x 0x%04x 0x%04x\n", r1, g1, b1)
+ 	// prints:
+-	//	0x7e19 0x808e 0x7dba
++	//	0x7e18 0x808e 0x7db9
+ 	//	0x7e7e 0x8080 0x7d7d
+ 
+-	yy1 := int(c.Y)<<16 + 1<<15
+-	cb1 := int(c.Cb) - 128
+-	cr1 := int(c.Cr) - 128
++	yy1 := int32(c.Y) * 0x10100 // Convert 0x12 to 0x121200.
++	cb1 := int32(c.Cb) - 128
++	cr1 := int32(c.Cr) - 128
+ 	r := (yy1 + 91881*cr1) >> 8
+ 	g := (yy1 - 22554*cb1 - 46802*cr1) >> 8
+ 	b := (yy1 + 116130*cb1) >> 8
+diff --git a/src/image/color/ycbcr_test.go b/src/image/color/ycbcr_test.go
+index 6bf53f1fd3..d64e38ef46 100644
+--- a/src/image/color/ycbcr_test.go
++++ b/src/image/color/ycbcr_test.go
+@@ -5,6 +5,7 @@
+ package color
+ 
+ import (
++	"fmt"
+ 	"testing"
+ )
+ 
+@@ -15,8 +16,18 @@ func delta(x, y uint8) uint8 {
+ 	return y - x
+ }
+ 
++func eq(c0, c1 Color) error {
++	r0, g0, b0, a0 := c0.RGBA()
++	r1, g1, b1, a1 := c1.RGBA()
++	if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
++		return fmt.Errorf("got  0x%04x 0x%04x 0x%04x 0x%04x\nwant 0x%04x 0x%04x 0x%04x 0x%04x",
++			r0, g0, b0, a0, r1, g1, b1, a1)
++	}
++	return nil
++}
++
+ // TestYCbCrRoundtrip tests that a subset of RGB space can be converted to YCbCr
+-// and back to within 1/256 tolerance.
++// and back to within 2/256 tolerance.
+ func TestYCbCrRoundtrip(t *testing.T) {
+ 	for r := 0; r < 256; r += 7 {
+ 		for g := 0; g < 256; g += 5 {
+@@ -24,8 +35,9 @@ func TestYCbCrRoundtrip(t *testing.T) {
+ 				r0, g0, b0 := uint8(r), uint8(g), uint8(b)
+ 				y, cb, cr := RGBToYCbCr(r0, g0, b0)
+ 				r1, g1, b1 := YCbCrToRGB(y, cb, cr)
+-				if delta(r0, r1) > 1 || delta(g0, g1) > 1 || delta(b0, b1) > 1 {
+-					t.Fatalf("\nr0, g0, b0 = %d, %d, %d\nr1, g1, b1 = %d, %d, %d", r0, g0, b0, r1, g1, b1)
++				if delta(r0, r1) > 2 || delta(g0, g1) > 2 || delta(b0, b1) > 2 {
++					t.Fatalf("\nr0, g0, b0 = %d, %d, %d\ny,  cb, cr = %d, %d, %d\nr1, g1, b1 = %d, %d, %d",
++						r0, g0, b0, y, cb, cr, r1, g1, b1)
+ 				}
+ 			}
+ 		}
+@@ -52,6 +64,15 @@ func TestYCbCrToRGBConsistency(t *testing.T) {
+ 	}
+ }
+ 
++// TestYCbCrGray tests that YCbCr colors are a superset of Gray colors.
++func TestYCbCrGray(t *testing.T) {
++	for i := 0; i < 256; i++ {
++		if err := eq(YCbCr{uint8(i), 0x80, 0x80}, Gray{uint8(i)}); err != nil {
++			t.Errorf("i=0x%02d:\n%v", i, err)
++		}
++	}
++}
++
+ // TestCMYKRoundtrip tests that a subset of RGB space can be converted to CMYK
+ // and back to within 1/256 tolerance.
+ func TestCMYKRoundtrip(t *testing.T) {
+@@ -62,7 +83,8 @@ func TestCMYKRoundtrip(t *testing.T) {
+ 				c, m, y, k := RGBToCMYK(r0, g0, b0)
+ 				r1, g1, b1 := CMYKToRGB(c, m, y, k)
+ 				if delta(r0, r1) > 1 || delta(g0, g1) > 1 || delta(b0, b1) > 1 {
+-					t.Fatalf("\nr0, g0, b0 = %d, %d, %d\nr1, g1, b1 = %d, %d, %d", r0, g0, b0, r1, g1, b1)
++					t.Fatalf("\nr0, g0, b0 = %d, %d, %d\nc, m, y, k = %d, %d, %d, %d\nr1, g1, b1 = %d, %d, %d",
++						r0, g0, b0, c, m, y, k, r1, g1, b1)
+ 				}
+ 			}
+ 		}
+@@ -91,6 +113,15 @@ func TestCMYKToRGBConsistency(t *testing.T) {
+ 	}
+ }
+ 
++// TestCMYKGray tests that CMYK colors are a superset of Gray colors.
++func TestCMYKGray(t *testing.T) {
++	for i := 0; i < 256; i++ {
++		if err := eq(CMYK{0x00, 0x00, 0x00, uint8(255 - i)}, Gray{uint8(i)}); err != nil {
++			t.Errorf("i=0x%02d:\n%v", i, err)
++		}
++	}
++}
++
+ func TestPalette(t *testing.T) {
+ 	p := Palette{
+ 		RGBA{0xff, 0xff, 0xff, 0xff},
+diff --git a/src/image/decode_example_test.go b/src/image/decode_example_test.go
+index 21e90fea4f..81fa0378e1 100644
+--- a/src/image/decode_example_test.go
++++ b/src/image/decode_example_test.go
+@@ -61,22 +61,22 @@ func Example() {
+ 	}
+ 	// Output:
+ 	// bin               red  green   blue  alpha
+-	// 0x0000-0x0fff:    353    759   7228      0
+-	// 0x1000-0x1fff:    629   2944   1036      0
+-	// 0x2000-0x2fff:   1075   2319    984      0
+-	// 0x3000-0x3fff:    838   2291    988      0
+-	// 0x4000-0x4fff:    540   1302    542      0
+-	// 0x5000-0x5fff:    319    971    263      0
+-	// 0x6000-0x6fff:    316    377    178      0
+-	// 0x7000-0x7fff:    581    280    216      0
+-	// 0x8000-0x8fff:   3457    228    274      0
+-	// 0x9000-0x9fff:   2294    237    334      0
+-	// 0xa000-0xafff:    938    283    370      0
+-	// 0xb000-0xbfff:    322    338    401      0
+-	// 0xc000-0xcfff:    229    386    295      0
+-	// 0xd000-0xdfff:    263    416    281      0
+-	// 0xe000-0xefff:    538    433    312      0
+-	// 0xf000-0xffff:   2758   1886   1748  15450
++	// 0x0000-0x0fff:    364    790   7242      0
++	// 0x1000-0x1fff:    645   2967   1039      0
++	// 0x2000-0x2fff:   1072   2299    979      0
++	// 0x3000-0x3fff:    820   2266    980      0
++	// 0x4000-0x4fff:    537   1305    541      0
++	// 0x5000-0x5fff:    319    962    261      0
++	// 0x6000-0x6fff:    322    375    177      0
++	// 0x7000-0x7fff:    601    279    214      0
++	// 0x8000-0x8fff:   3478    227    273      0
++	// 0x9000-0x9fff:   2260    234    329      0
++	// 0xa000-0xafff:    921    282    373      0
++	// 0xb000-0xbfff:    321    335    397      0
++	// 0xc000-0xcfff:    229    388    298      0
++	// 0xd000-0xdfff:    260    414    277      0
++	// 0xe000-0xefff:    516    428    298      0
++	// 0xf000-0xffff:   2785   1899   1772  15450
+ }
+ 
+ const data = `
+diff --git a/src/image/draw/draw_test.go b/src/image/draw/draw_test.go
+index 29951bf05b..a58f0f4984 100644
+--- a/src/image/draw/draw_test.go
++++ b/src/image/draw/draw_test.go
+@@ -163,8 +163,8 @@ var drawTests = []drawTest{
+ 	// The source pixel is {0, 0, 136} in YCbCr-space, which is {11, 38, 0, 255} in RGB-space.
+ 	{"ycbcr", vgradCr(), fillAlpha(255), Over, color.RGBA{11, 38, 0, 255}},
+ 	{"ycbcrSrc", vgradCr(), fillAlpha(255), Src, color.RGBA{11, 38, 0, 255}},
+-	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, color.RGBA{42, 29, 0, 255}},
+-	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, color.RGBA{8, 29, 0, 192}},
++	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, color.RGBA{42, 28, 0, 255}},
++	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, color.RGBA{8, 28, 0, 192}},
+ 	{"ycbcrNil", vgradCr(), nil, Over, color.RGBA{11, 38, 0, 255}},
+ 	{"ycbcrNilSrc", vgradCr(), nil, Src, color.RGBA{11, 38, 0, 255}},
+ 	// Uniform mask (100%, 75%, nil) and variable Gray source.
+diff --git a/src/image/internal/imageutil/gen.go b/src/image/internal/imageutil/gen.go
+index 6779b4959d..fc1e707f0f 100644
+--- a/src/image/internal/imageutil/gen.go
++++ b/src/image/internal/imageutil/gen.go
+@@ -95,9 +95,9 @@ const sratioCase = `
+ 			%s
+ 
+ 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+-				yy1 := int(src.Y[yi])<<16 + 1<<15
+-				cb1 := int(src.Cb[ci]) - 128
+-				cr1 := int(src.Cr[ci]) - 128
++				yy1 := int32(src.Y[yi]) * 0x10100 // Convert 0x12 to 0x121200.
++				cb1 := int32(src.Cb[ci]) - 128
++				cr1 := int32(src.Cr[ci]) - 128
+ 				r := (yy1 + 91881*cr1) >> 16
+ 				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+ 				b := (yy1 + 116130*cb1) >> 16
+diff --git a/src/image/internal/imageutil/impl.go b/src/image/internal/imageutil/impl.go
+index d5dee468b3..fd7826d4a9 100644
+--- a/src/image/internal/imageutil/impl.go
++++ b/src/image/internal/imageutil/impl.go
+@@ -44,9 +44,9 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
+ 
+ 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+-				yy1 := int(src.Y[yi])<<16 + 1<<15
+-				cb1 := int(src.Cb[ci]) - 128
+-				cr1 := int(src.Cr[ci]) - 128
++				yy1 := int32(src.Y[yi]) * 0x10100 // Convert 0x12 to 0x121200.
++				cb1 := int32(src.Cb[ci]) - 128
++				cr1 := int32(src.Cr[ci]) - 128
+ 				r := (yy1 + 91881*cr1) >> 16
+ 				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+ 				b := (yy1 + 116130*cb1) >> 16
+@@ -83,9 +83,9 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 				ci := ciBase + sx/2
+ 
+ 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+-				yy1 := int(src.Y[yi])<<16 + 1<<15
+-				cb1 := int(src.Cb[ci]) - 128
+-				cr1 := int(src.Cr[ci]) - 128
++				yy1 := int32(src.Y[yi]) * 0x10100 // Convert 0x12 to 0x121200.
++				cb1 := int32(src.Cb[ci]) - 128
++				cr1 := int32(src.Cr[ci]) - 128
+ 				r := (yy1 + 91881*cr1) >> 16
+ 				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+ 				b := (yy1 + 116130*cb1) >> 16
+@@ -122,9 +122,9 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 				ci := ciBase + sx/2
+ 
+ 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+-				yy1 := int(src.Y[yi])<<16 + 1<<15
+-				cb1 := int(src.Cb[ci]) - 128
+-				cr1 := int(src.Cr[ci]) - 128
++				yy1 := int32(src.Y[yi]) * 0x10100 // Convert 0x12 to 0x121200.
++				cb1 := int32(src.Cb[ci]) - 128
++				cr1 := int32(src.Cr[ci]) - 128
+ 				r := (yy1 + 91881*cr1) >> 16
+ 				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+ 				b := (yy1 + 116130*cb1) >> 16
+@@ -160,9 +160,9 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
+ 
+ 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+-				yy1 := int(src.Y[yi])<<16 + 1<<15
+-				cb1 := int(src.Cb[ci]) - 128
+-				cr1 := int(src.Cr[ci]) - 128
++				yy1 := int32(src.Y[yi]) * 0x10100 // Convert 0x12 to 0x121200.
++				cb1 := int32(src.Cb[ci]) - 128
++				cr1 := int32(src.Cr[ci]) - 128
+ 				r := (yy1 + 91881*cr1) >> 16
+ 				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
+ 				b := (yy1 + 116130*cb1) >> 16

@@ -48,10 +48,505 @@ Date:   Mon Jul 11 02:40:14 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/cmd/internal/obj/arm64/asm7.go          |  85 +++++++++++++++++-----
  src/cmd/internal/objabi/reloctype.go        |  16 ++++
  src/cmd/internal/objabi/reloctype_string.go |  70 +++++++++---------
  src/cmd/internal/objabi/symkind_string.go   |   2 +-
  src/cmd/link/internal/arm64/asm.go          | 109 +++++++++++++++++++++++++---
  5 files changed, 222 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 95053163c5..d364cde25b 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -37,6 +37,7 @@ import (
+ 	"log"
+ 	"math"
+ 	"sort"
++	"strings"
+ )
+ 
+ // ctxt7 holds state while assembling a single function.
+@@ -73,7 +74,7 @@ type Optab struct {
+ 	a3    uint8
+ 	a4    uint8
+ 	type_ int8
+-	size  int8
++	size_ int8 // the value of this field is not static, use the size() method to return the value
+ 	param int16
+ 	flag  int8
+ 	scond uint16
+@@ -1021,6 +1022,27 @@ func pcAlignPadLength(pc int64, alignedValue int64, ctxt *obj.Link) int {
+ 	return int(-pc & (alignedValue - 1))
+ }
+ 
++// size returns the size of the sequence of machine instructions when p is encoded with o.
++// Usually it just returns o.size directly, in some cases it checks whether the optimization
++// conditions are met, and if so returns the size of the optimized instruction sequence.
++// These optimizations need to be synchronized with the asmout function.
++func (o *Optab) size(ctxt *obj.Link, p *obj.Prog) int {
++	// Optimize adrp+add+ld/st to adrp+ld/st(offset).
++	sz := movesize(p.As)
++	if sz != -1 {
++		// Relocations R_AARCH64_LDST{64,32,16,8}_ABS_LO12_NC can only generate 8-byte, 4-byte,
++		// 2-byte and 1-byte aligned addresses, so the address of load/store must be aligned.
++		// Also symbols with prefix of "go:string." are Go strings, which will go into
++		// the symbol table, their addresses are not necessary aligned, rule this out.
++		align := int64(1 << sz)
++		if o.a1 == C_ADDR && p.From.Offset%align == 0 && !strings.HasPrefix(p.From.Sym.Name, "go:string.") ||
++			o.a4 == C_ADDR && p.To.Offset%align == 0 && !strings.HasPrefix(p.To.Sym.Name, "go:string.") {
++			return 8
++		}
++	}
++	return int(o.size_)
++}
++
+ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	if ctxt.Retpoline {
+ 		ctxt.Diag("-spectre=ret not supported on arm64")
+@@ -1050,7 +1072,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 		p.Pc = pc
+ 		o = c.oplook(p)
+-		m = int(o.size)
++		m = o.size(c.ctxt, p)
+ 		if m == 0 {
+ 			switch p.As {
+ 			case obj.APCALIGN:
+@@ -1131,7 +1153,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					bflag = 1
+ 				}
+ 			}
+-			m = int(o.size)
++			m = o.size(c.ctxt, p)
+ 
+ 			if m == 0 {
+ 				switch p.As {
+@@ -1176,8 +1198,9 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			psz += 4
+ 		}
+ 
+-		if int(o.size) > 4*len(out) {
+-			log.Fatalf("out array in span7 is too small, need at least %d for %v", o.size/4, p)
++		sz := o.size(c.ctxt, p)
++		if sz > 4*len(out) {
++			log.Fatalf("out array in span7 is too small, need at least %d for %v", sz/4, p)
+ 		}
+ 		if p.As == obj.APCALIGN {
+ 			alignedValue := p.From.Offset
+@@ -1190,7 +1213,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			}
+ 		} else {
+ 			c.asmout(p, o, out[:])
+-			for i = 0; i < int(o.size/4); i++ {
++			for i = 0; i < sz/4; i++ {
+ 				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
+ 				bp = bp[4:]
+ 				psz += 4
+@@ -1238,7 +1261,7 @@ func (c *ctxt7) isRestartable(p *obj.Prog) bool {
+ 	// If p doesn't use REGTMP, it can be simply preempted, so we don't
+ 	// mark it.
+ 	o := c.oplook(p)
+-	return o.size > 4 && o.flag&NOTUSETMP == 0
++	return o.size(c.ctxt, p) > 4 && o.flag&NOTUSETMP == 0
+ }
+ 
+ /*
+@@ -3414,7 +3437,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			op = int32(c.opirr(p, AADD))
+ 		}
+ 
+-		if int(o.size) == 8 {
++		if int(o.size(c.ctxt, p)) == 8 {
+ 			// NOTE: this case does not use REGTMP. If it ever does,
+ 			// remove the NOTUSETMP flag in optab.
+ 			o1 = c.oaddi(p, op, v&0xfff000, r, rt)
+@@ -4460,31 +4483,43 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o2 |= uint32(r&31) << 5
+ 		o2 |= uint32(rt & 31)
+ 
+-		/* reloc ops */
+-	case 64: /* movT R,addr -> adrp + add + movT R, (REGTMP) */
++	/* reloc ops */
++	case 64: /* movT R,addr -> adrp + movT R, (REGTMP) */
+ 		if p.From.Reg == REGTMP {
+ 			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+ 		}
+ 		o1 = ADR(1, 0, REGTMP)
+-		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
+ 		rel := obj.Addrel(c.cursym)
+ 		rel.Off = int32(c.pc)
+ 		rel.Siz = 8
+ 		rel.Sym = p.To.Sym
+ 		rel.Add = p.To.Offset
+-		rel.Type = objabi.R_ADDRARM64
+-		o3 = c.olsr12u(p, int32(c.opstr(p, p.As)), 0, REGTMP, int(p.From.Reg))
++		// For unaligned access, fall back to adrp + add + movT R, (REGTMP).
++		if o.size(c.ctxt, p) != 8 {
++			o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
++			o3 = c.olsr12u(p, int32(c.opstr(p, p.As)), 0, REGTMP, int(p.From.Reg))
++			rel.Type = objabi.R_ADDRARM64
++			break
++		}
++		o2 = c.olsr12u(p, int32(c.opstr(p, p.As)), 0, REGTMP, int(p.From.Reg))
++		rel.Type = c.addrRelocType(p)
+ 
+-	case 65: /* movT addr,R -> adrp + add + movT (REGTMP), R */
++	case 65: /* movT addr,R -> adrp + movT (REGTMP), R */
+ 		o1 = ADR(1, 0, REGTMP)
+-		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
+ 		rel := obj.Addrel(c.cursym)
+ 		rel.Off = int32(c.pc)
+ 		rel.Siz = 8
+ 		rel.Sym = p.From.Sym
+ 		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_ADDRARM64
+-		o3 = c.olsr12u(p, int32(c.opldr(p, p.As)), 0, REGTMP, int(p.To.Reg))
++		// For unaligned access, fall back to adrp + add + movT (REGTMP), R.
++		if o.size(c.ctxt, p) != 8 {
++			o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
++			o3 = c.olsr12u(p, int32(c.opldr(p, p.As)), 0, REGTMP, int(p.To.Reg))
++			rel.Type = objabi.R_ADDRARM64
++			break
++		}
++		o2 = c.olsr12u(p, int32(c.opldr(p, p.As)), 0, REGTMP, int(p.To.Reg))
++		rel.Type = c.addrRelocType(p)
+ 
+ 	case 66: /* ldp O(R)!, (r1, r2); ldp (R)O!, (r1, r2) */
+ 		v := int32(c.regoff(&p.From))
+@@ -5676,6 +5711,22 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	out[4] = o5
+ }
+ 
++func (c *ctxt7) addrRelocType(p *obj.Prog) objabi.RelocType {
++	switch movesize(p.As) {
++	case 0:
++		return objabi.R_ARM64_PCREL_LDST8
++	case 1:
++		return objabi.R_ARM64_PCREL_LDST16
++	case 2:
++		return objabi.R_ARM64_PCREL_LDST32
++	case 3:
++		return objabi.R_ARM64_PCREL_LDST64
++	default:
++		c.ctxt.Diag("use R_ADDRARM64 relocation type for: %v\n", p)
++	}
++	return -1
++}
++
+ /*
+  * basic Rm op Rn -> Rd (using shifted register with 0)
+  * also op Rn -> Rt
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index f60cac2b95..e5d1d5f9e0 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -154,6 +154,22 @@ const (
+ 	// adrp followed by another add instruction.
+ 	R_ARM64_PCREL
+ 
++	// R_ARM64_PCREL_LDST8 resolves a PC-relative addresses instruction sequence, usually an
++	// adrp followed by a LD8 or ST8 instruction.
++	R_ARM64_PCREL_LDST8
++
++	// R_ARM64_PCREL_LDST16 resolves a PC-relative addresses instruction sequence, usually an
++	// adrp followed by a LD16 or ST16 instruction.
++	R_ARM64_PCREL_LDST16
++
++	// R_ARM64_PCREL_LDST32 resolves a PC-relative addresses instruction sequence, usually an
++	// adrp followed by a LD32 or ST32 instruction.
++	R_ARM64_PCREL_LDST32
++
++	// R_ARM64_PCREL_LDST64 resolves a PC-relative addresses instruction sequence, usually an
++	// adrp followed by a LD64 or ST64 instruction.
++	R_ARM64_PCREL_LDST64
++
+ 	// R_ARM64_LDST8 sets a LD/ST immediate value to bits [11:0] of a local address.
+ 	R_ARM64_LDST8
+ 
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index 9756f2a321..ccc755e4bb 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -45,42 +45,46 @@ func _() {
+ 	_ = x[R_ARM64_GOTPCREL-35]
+ 	_ = x[R_ARM64_GOT-36]
+ 	_ = x[R_ARM64_PCREL-37]
+-	_ = x[R_ARM64_LDST8-38]
+-	_ = x[R_ARM64_LDST16-39]
+-	_ = x[R_ARM64_LDST32-40]
+-	_ = x[R_ARM64_LDST64-41]
+-	_ = x[R_ARM64_LDST128-42]
+-	_ = x[R_POWER_TLS_LE-43]
+-	_ = x[R_POWER_TLS_IE-44]
+-	_ = x[R_POWER_TLS-45]
+-	_ = x[R_ADDRPOWER_DS-46]
+-	_ = x[R_ADDRPOWER_GOT-47]
+-	_ = x[R_ADDRPOWER_PCREL-48]
+-	_ = x[R_ADDRPOWER_TOCREL-49]
+-	_ = x[R_ADDRPOWER_TOCREL_DS-50]
+-	_ = x[R_RISCV_CALL-51]
+-	_ = x[R_RISCV_CALL_TRAMP-52]
+-	_ = x[R_RISCV_PCREL_ITYPE-53]
+-	_ = x[R_RISCV_PCREL_STYPE-54]
+-	_ = x[R_RISCV_TLS_IE_ITYPE-55]
+-	_ = x[R_RISCV_TLS_IE_STYPE-56]
+-	_ = x[R_PCRELDBL-57]
+-	_ = x[R_ADDRLOONG64-58]
+-	_ = x[R_ADDRLOONG64U-59]
+-	_ = x[R_ADDRLOONG64TLS-60]
+-	_ = x[R_ADDRLOONG64TLSU-61]
+-	_ = x[R_CALLLOONG64-62]
+-	_ = x[R_JMPLOONG64-63]
+-	_ = x[R_ADDRMIPSU-64]
+-	_ = x[R_ADDRMIPSTLS-65]
+-	_ = x[R_ADDRCUOFF-66]
+-	_ = x[R_WASMIMPORT-67]
+-	_ = x[R_XCOFFREF-68]
++	_ = x[R_ARM64_PCREL_LDST8-38]
++	_ = x[R_ARM64_PCREL_LDST16-39]
++	_ = x[R_ARM64_PCREL_LDST32-40]
++	_ = x[R_ARM64_PCREL_LDST64-41]
++	_ = x[R_ARM64_LDST8-42]
++	_ = x[R_ARM64_LDST16-43]
++	_ = x[R_ARM64_LDST32-44]
++	_ = x[R_ARM64_LDST64-45]
++	_ = x[R_ARM64_LDST128-46]
++	_ = x[R_POWER_TLS_LE-47]
++	_ = x[R_POWER_TLS_IE-48]
++	_ = x[R_POWER_TLS-49]
++	_ = x[R_ADDRPOWER_DS-50]
++	_ = x[R_ADDRPOWER_GOT-51]
++	_ = x[R_ADDRPOWER_PCREL-52]
++	_ = x[R_ADDRPOWER_TOCREL-53]
++	_ = x[R_ADDRPOWER_TOCREL_DS-54]
++	_ = x[R_RISCV_CALL-55]
++	_ = x[R_RISCV_CALL_TRAMP-56]
++	_ = x[R_RISCV_PCREL_ITYPE-57]
++	_ = x[R_RISCV_PCREL_STYPE-58]
++	_ = x[R_RISCV_TLS_IE_ITYPE-59]
++	_ = x[R_RISCV_TLS_IE_STYPE-60]
++	_ = x[R_PCRELDBL-61]
++	_ = x[R_ADDRLOONG64-62]
++	_ = x[R_ADDRLOONG64U-63]
++	_ = x[R_ADDRLOONG64TLS-64]
++	_ = x[R_ADDRLOONG64TLSU-65]
++	_ = x[R_CALLLOONG64-66]
++	_ = x[R_JMPLOONG64-67]
++	_ = x[R_ADDRMIPSU-68]
++	_ = x[R_ADDRMIPSTLS-69]
++	_ = x[R_ADDRCUOFF-70]
++	_ = x[R_WASMIMPORT-71]
++	_ = x[R_XCOFFREF-72]
+ }
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USEGENERICIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRLOONG64R_ADDRLOONG64UR_ADDRLOONG64TLSR_ADDRLOONG64TLSUR_CALLLOONG64R_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USEGENERICIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRLOONG64R_ADDRLOONG64UR_ADDRLOONG64TLSR_ADDRLOONG64TLSUR_CALLLOONG64R_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 233, 244, 250, 261, 271, 280, 293, 307, 321, 335, 351, 362, 375, 388, 402, 416, 430, 445, 459, 473, 484, 498, 513, 530, 548, 569, 581, 599, 618, 637, 657, 677, 687, 700, 714, 730, 747, 760, 772, 783, 796, 807, 819, 829}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 233, 244, 250, 261, 271, 280, 293, 307, 321, 335, 351, 362, 375, 394, 414, 434, 454, 467, 481, 495, 509, 524, 538, 552, 563, 577, 592, 609, 627, 648, 660, 678, 697, 716, 736, 756, 766, 779, 793, 809, 826, 839, 851, 862, 875, 886, 898, 908}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/internal/objabi/symkind_string.go b/src/cmd/internal/objabi/symkind_string.go
+index c0b84030f7..be4e91f53f 100644
+--- a/src/cmd/internal/objabi/symkind_string.go
++++ b/src/cmd/internal/objabi/symkind_string.go
+@@ -1,4 +1,4 @@
+-// Code generated by "stringer -type=SymKind symkind.go"; DO NOT EDIT.
++// Code generated by "stringer -type=SymKind"; DO NOT EDIT.
+ 
+ package objabi
+ 
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 42f0e77865..e0fdc202f5 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -467,6 +467,28 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 		out.Write64(uint64(r.Xadd))
+ 		out.Write64(uint64(sectoff + 4))
+ 		out.Write64(uint64(elf.R_AARCH64_ADD_ABS_LO12_NC) | uint64(elfsym)<<32)
++
++	case objabi.R_ARM64_PCREL_LDST8,
++		objabi.R_ARM64_PCREL_LDST16,
++		objabi.R_ARM64_PCREL_LDST32,
++		objabi.R_ARM64_PCREL_LDST64:
++		// two relocations: R_AARCH64_ADR_PREL_PG_HI21 and R_AARCH64_LDST{64/32/16/8}_ABS_LO12_NC
++		out.Write64(uint64(elf.R_AARCH64_ADR_PREL_PG_HI21) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		var ldstType elf.R_AARCH64
++		switch r.Type {
++		case objabi.R_ARM64_PCREL_LDST8:
++			ldstType = elf.R_AARCH64_LDST8_ABS_LO12_NC
++		case objabi.R_ARM64_PCREL_LDST16:
++			ldstType = elf.R_AARCH64_LDST16_ABS_LO12_NC
++		case objabi.R_ARM64_PCREL_LDST32:
++			ldstType = elf.R_AARCH64_LDST32_ABS_LO12_NC
++		case objabi.R_ARM64_PCREL_LDST64:
++			ldstType = elf.R_AARCH64_LDST64_ABS_LO12_NC
++		}
++		out.Write64(uint64(ldstType) | uint64(elfsym)<<32)
++
+ 	case objabi.R_ARM64_TLS_LE:
+ 		out.Write64(uint64(elf.R_AARCH64_TLSLE_MOVW_TPREL_G0) | uint64(elfsym)<<32)
+ 	case objabi.R_ARM64_TLS_IE:
+@@ -516,7 +538,10 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ 		}
+ 	}
+ 
+-	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 || rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL {
++	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 ||
++		rt == objabi.R_ARM64_PCREL_LDST8 || rt == objabi.R_ARM64_PCREL_LDST16 ||
++		rt == objabi.R_ARM64_PCREL_LDST32 || rt == objabi.R_ARM64_PCREL_LDST64 ||
++		rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL {
+ 		if ldr.SymDynid(rs) < 0 {
+ 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
+ 			return false
+@@ -545,7 +570,11 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ 
+ 		v |= 1 << 24 // pc-relative bit
+ 		v |= ld.MACHO_ARM64_RELOC_BRANCH26 << 28
+-	case objabi.R_ADDRARM64:
++	case objabi.R_ADDRARM64,
++		objabi.R_ARM64_PCREL_LDST8,
++		objabi.R_ARM64_PCREL_LDST16,
++		objabi.R_ARM64_PCREL_LDST32,
++		objabi.R_ARM64_PCREL_LDST64:
+ 		siz = 4
+ 		// Two relocation entries: MACHO_ARM64_RELOC_PAGEOFF12 MACHO_ARM64_RELOC_PAGE21
+ 		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
+@@ -601,7 +630,8 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	rs := r.Xsym
+ 	rt := r.Type
+ 
+-	if rt == objabi.R_ADDRARM64 && r.Xadd != signext21(r.Xadd) {
++	if (rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_PCREL_LDST8 || rt == objabi.R_ARM64_PCREL_LDST16 ||
++		rt == objabi.R_ARM64_PCREL_LDST32 || rt == objabi.R_ARM64_PCREL_LDST64) && r.Xadd != signext21(r.Xadd) {
+ 		// If the relocation target would overflow the addend, then target
+ 		// a linker-manufactured label symbol with a smaller addend instead.
+ 		label := ldr.Lookup(offsetLabelName(ldr, rs, r.Xadd/peRelocLimit*peRelocLimit), ldr.SymVersion(rs))
+@@ -653,6 +683,19 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 		out.Write32(uint32(symdynid))
+ 		out.Write16(ld.IMAGE_REL_ARM64_PAGEOFFSET_12A)
+ 
++	case objabi.R_ARM64_PCREL_LDST8,
++		objabi.R_ARM64_PCREL_LDST16,
++		objabi.R_ARM64_PCREL_LDST32,
++		objabi.R_ARM64_PCREL_LDST64:
++		// Note: r.Xadd has been taken care of below, in archreloc.
++		out.Write32(uint32(sectoff))
++		out.Write32(uint32(symdynid))
++		out.Write16(ld.IMAGE_REL_ARM64_PAGEBASE_REL21)
++
++		out.Write32(uint32(sectoff + 4))
++		out.Write32(uint32(symdynid))
++		out.Write16(ld.IMAGE_REL_ARM64_PAGEOFFSET_12L)
++
+ 	case objabi.R_CALLARM64:
+ 		// Note: r.Xadd has been taken care of above, by using a label pointing into the middle of the function.
+ 		out.Write32(uint32(sectoff))
+@@ -674,6 +717,10 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		switch rt := r.Type(); rt {
+ 		default:
+ 		case objabi.R_ARM64_GOTPCREL,
++			objabi.R_ARM64_PCREL_LDST8,
++			objabi.R_ARM64_PCREL_LDST16,
++			objabi.R_ARM64_PCREL_LDST32,
++			objabi.R_ARM64_PCREL_LDST64,
+ 			objabi.R_ADDRARM64:
+ 
+ 			// set up addend for eventual relocation via outer symbol.
+@@ -700,17 +747,35 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 				}
+ 
+ 				// The first instruction (ADRP) has a 21-bit immediate field,
+-				// and the second (ADD) has a 12-bit immediate field.
++				// and the second (ADD or LD/ST) has a 12-bit immediate field.
+ 				// The first instruction is only for high bits, but to get the carry bits right we have
+ 				// to put the full addend, including the bottom 12 bits again.
+ 				// That limits the distance of any addend to only 21 bits.
+-				// But we assume that LDRP's top bit will be interpreted as a sign bit,
++				// But we assume that ADRP's top bit will be interpreted as a sign bit,
+ 				// so we only use 20 bits.
+ 				// pereloc takes care of introducing new symbol labels
+ 				// every megabyte for longer relocations.
+ 				xadd := uint32(xadd)
+ 				o0 |= (xadd&3)<<29 | (xadd&0xffffc)<<3
+-				o1 |= (xadd & 0xfff) << 10
++				switch rt {
++				case objabi.R_ARM64_PCREL_LDST8, objabi.R_ADDRARM64:
++					o1 |= (xadd & 0xfff) << 10
++				case objabi.R_ARM64_PCREL_LDST16:
++					if xadd&0x1 != 0 {
++						ldr.Errorf(s, "offset for 16-bit load/store has unaligned value %d", xadd&0xfff)
++					}
++					o1 |= ((xadd & 0xfff) >> 1) << 10
++				case objabi.R_ARM64_PCREL_LDST32:
++					if xadd&0x3 != 0 {
++						ldr.Errorf(s, "offset for 32-bit load/store has unaligned value %d", xadd&0xfff)
++					}
++					o1 |= ((xadd & 0xfff) >> 2) << 10
++				case objabi.R_ARM64_PCREL_LDST64:
++					if xadd&0x7 != 0 {
++						ldr.Errorf(s, "offset for 64-bit load/store has unaligned value %d", xadd&0xfff)
++					}
++					o1 |= ((xadd & 0xfff) >> 3) << 10
++				}
+ 
+ 				if target.IsBigEndian() {
+ 					val = int64(o0)<<32 | int64(o1)
+@@ -750,8 +815,12 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		}
+ 	}
+ 
+-	switch r.Type() {
+-	case objabi.R_ADDRARM64:
++	switch rt := r.Type(); rt {
++	case objabi.R_ADDRARM64,
++		objabi.R_ARM64_PCREL_LDST8,
++		objabi.R_ARM64_PCREL_LDST16,
++		objabi.R_ARM64_PCREL_LDST32,
++		objabi.R_ARM64_PCREL_LDST64:
+ 		t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
+ 		if t >= 1<<32 || t < -1<<32 {
+ 			ldr.Errorf(s, "program too large, address relocation distance = %d", t)
+@@ -768,7 +837,25 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		}
+ 
+ 		o0 |= (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
+-		o1 |= uint32(t&0xfff) << 10
++		switch rt {
++		case objabi.R_ARM64_PCREL_LDST8, objabi.R_ADDRARM64:
++			o1 |= uint32(t&0xfff) << 10
++		case objabi.R_ARM64_PCREL_LDST16:
++			if t&0x1 != 0 {
++				ldr.Errorf(s, "offset for 16-bit load/store has unaligned value %d", t&0xfff)
++			}
++			o1 |= (uint32(t&0xfff) >> 1) << 10
++		case objabi.R_ARM64_PCREL_LDST32:
++			if t&0x3 != 0 {
++				ldr.Errorf(s, "offset for 32-bit load/store has unaligned value %d", t&0xfff)
++			}
++			o1 |= (uint32(t&0xfff) >> 2) << 10
++		case objabi.R_ARM64_PCREL_LDST64:
++			if t&0x7 != 0 {
++				ldr.Errorf(s, "offset for 64-bit load/store has unaligned value %d", t&0xfff)
++			}
++			o1 |= (uint32(t&0xfff) >> 3) << 10
++		}
+ 
+ 		// when laid out, the instruction order must always be o1, o2.
+ 		if target.IsBigEndian() {
+@@ -952,6 +1039,10 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
+ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
+ 	switch rt := r.Type(); rt {
+ 	case objabi.R_ARM64_GOTPCREL,
++		objabi.R_ARM64_PCREL_LDST8,
++		objabi.R_ARM64_PCREL_LDST16,
++		objabi.R_ARM64_PCREL_LDST32,
++		objabi.R_ARM64_PCREL_LDST64,
+ 		objabi.R_ADDRARM64:
+ 		rr := ld.ExtrelocViaOuterSym(ldr, r, s)
+ 		return rr, true

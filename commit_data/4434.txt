@@ -15,7 +15,69 @@ Date:   Tue Dec 15 17:21:34 2009 -0800
     R=r
     CC=golang-dev, skybrian
     https://golang.org/cl/180054
-
+---
  src/pkg/rand/rand.go      | 19 +++++++++++++++++--
  src/pkg/rand/rand_test.go | 21 +++++++++++++++++++++
  2 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/rand/rand.go b/src/pkg/rand/rand.go
+index 0d7eaa79a1..8c1219a7a1 100644
+--- a/src/pkg/rand/rand.go
++++ b/src/pkg/rand/rand.go
+@@ -62,10 +62,25 @@ func (r *Rand) Int63n(n int64) int64 {
+ }
+ 
+ // Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
+-func (r *Rand) Int31n(n int32) int32 { return int32(r.Int63n(int64(n))) }
++func (r *Rand) Int31n(n int32) int32 {
++	if n <= 0 {
++		return 0
++	}
++	max := int32((1 << 31) - 1 - (1<<31)%uint32(n))
++	v := r.Int31()
++	for v > max {
++		v = r.Int31()
++	}
++	return v % n
++}
+ 
+ // Intn returns, as an int, a non-negative pseudo-random number in [0,n).
+-func (r *Rand) Intn(n int) int { return int(r.Int63n(int64(n))) }
++func (r *Rand) Intn(n int) int {
++	if n <= 1<<31-1 {
++		return int(r.Int31n(int32(n)))
++	}
++	return int(r.Int63n(int64(n)))
++}
+ 
+ // Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
+ func (r *Rand) Float64() float64 { return float64(r.Int63()) / (1 << 63) }
+diff --git a/src/pkg/rand/rand_test.go b/src/pkg/rand/rand_test.go
+index b90c69db7f..786831517d 100644
+--- a/src/pkg/rand/rand_test.go
++++ b/src/pkg/rand/rand_test.go
+@@ -327,3 +327,24 @@ func BenchmarkInt63Unthreadsafe(b *testing.B) {
+ 		r.Int63()
+ 	}
+ }
++
++func BenchmarkIntn1000(b *testing.B) {
++	r := New(NewSource(1))
++	for n := b.N; n > 0; n-- {
++		r.Intn(1000)
++	}
++}
++
++func BenchmarkInt63n1000(b *testing.B) {
++	r := New(NewSource(1))
++	for n := b.N; n > 0; n-- {
++		r.Int63n(1000)
++	}
++}
++
++func BenchmarkInt31n1000(b *testing.B) {
++	r := New(NewSource(1))
++	for n := b.N; n > 0; n-- {
++		r.Int31n(1000)
++	}
++}

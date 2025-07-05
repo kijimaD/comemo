@@ -18,10 +18,82 @@ Date:   Tue Nov 11 16:54:50 2014 -0500
     R=rlh
     CC=golang-codereviews
     https://golang.org/cl/167610043
-
+---
  src/runtime/mgc0.c    | 3 +--
  src/runtime/mgc0.go   | 2 +-
  src/runtime/runtime.h | 2 ++
  src/runtime/stack.c   | 8 ++++++++
  src/runtime/sys_x86.c | 1 +
  5 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 8d87107c74..3c4d1afa56 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -1094,8 +1094,7 @@ shade(byte *b)
+ void
+ runtime·gcmarkwb_m()
+ {
+-	byte **slot, *ptr;
+-	slot = (byte**)g->m->scalararg[0];
++	byte *ptr;
+ 	ptr = (byte*)g->m->scalararg[1];
+ 
+ 	switch(runtime·gcphase) {
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 760d2a5453..dc4eec5196 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -109,7 +109,7 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+ 	}
+ 
+ 	mp := acquirem()
+-	if mp.inwb {
++	if mp.inwb || mp.dying > 0 {
+ 		releasem(mp)
+ 		return
+ 	}
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index a4186f4505..fec224390c 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -1121,6 +1121,8 @@ void	runtime·osyield(void);
+ void	runtime·lockOSThread(void);
+ void	runtime·unlockOSThread(void);
+ 
++void	runtime·writebarrierptr_nostore(void*, void*);
++
+ bool	runtime·showframe(Func*, G*);
+ void	runtime·printcreatedby(G*);
+ 
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index fb23cc1c3b..a4947a53b3 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -706,6 +706,14 @@ runtime·newstack(void)
+ 		runtime·printf("runtime: split stack overflow: %p < %p\n", sp, gp->stack.lo);
+ 		runtime·throw("runtime: split stack overflow");
+ 	}
++	
++	if(gp->sched.ctxt != nil) {
++		// morestack wrote sched.ctxt on its way in here,
++		// without a write barrier. Run the write barrier now.
++		// It is not possible to be preempted between then
++		// and now, so it's okay.
++		runtime·writebarrierptr_nostore(&gp->sched.ctxt, gp->sched.ctxt);
++	}
+ 
+ 	if(gp->stackguard0 == (uintptr)StackPreempt) {
+ 		if(gp == g->m->g0)
+diff --git a/src/runtime/sys_x86.c b/src/runtime/sys_x86.c
+index a450b3e584..edbe47ff45 100644
+--- a/src/runtime/sys_x86.c
++++ b/src/runtime/sys_x86.c
+@@ -20,6 +20,7 @@ runtime·gostartcall(Gobuf *gobuf, void (*fn)(void), void *ctxt)
+ 	gobuf->sp = (uintptr)sp;
+ 	gobuf->pc = (uintptr)fn;
+ 	gobuf->ctxt = ctxt;
++	runtime·writebarrierptr_nostore(&gobuf->ctxt, ctxt);
+ }
+ 
+ // Called to rewind context saved during morestack back to beginning of function.

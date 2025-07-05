@@ -34,7 +34,7 @@ Date:   Thu Jun 21 12:08:36 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go                     | 13 +++---
  src/cmd/vet/all/whitelist/386.txt                  |  2 -
  src/cmd/vet/all/whitelist/amd64.txt                |  1 -
@@ -54,3 +54,484 @@ Date:   Thu Jun 21 12:08:36 2018 -0400
  .../testdata/testprogcgo/bigstack_windows.c        | 46 +++++++++++++++++++++
  .../testdata/testprogcgo/bigstack_windows.go       | 27 +++++++++++++
  18 files changed, 208 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 3b7df9aef8..efd971c1cf 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -845,15 +845,18 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
+ 	// and system calls even in "pure" Go code are actually C
+ 	// calls that may need more stack than we think.
+ 	//
+-	// The default stack reserve size affects only the main
++	// The default stack reserve size directly affects only the main
+ 	// thread, ctrlhandler thread, and profileloop thread. For
+ 	// these, it must be greater than the stack size assumed by
+ 	// externalthreadhandler.
+ 	//
+-	// For other threads we specify stack size in runtime explicitly.
+-	// For these, the reserve must match STACKSIZE in
+-	// runtime/cgo/gcc_windows_{386,amd64}.c and osStackSize in
+-	// runtime/os_windows.go.
++	// For other threads, the runtime explicitly asks the kernel
++	// to use the default stack size so that all stacks are
++	// consistent.
++	//
++	// At thread start, in minit, the runtime queries the OS for
++	// the actual stack bounds so that the stack size doesn't need
++	// to be hard-coded into the runtime.
+ 	oh64.SizeOfStackReserve = 0x00200000
+ 	if !iscgo {
+ 		oh64.SizeOfStackCommit = 0x00001000
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 76e82317ed..f59094eb14 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -22,5 +22,3 @@ runtime/duff_386.s: [386] duffcopy: function duffcopy missing Go declaration
+ 
+ runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go declaration
+ runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration
+-
+-runtime/asm_386.s: [386] stackcheck: function stackcheck missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 2268b39353..20e0d48d53 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -20,4 +20,3 @@ runtime/asm_amd64.s: [amd64] aeshashbody: function aeshashbody missing Go declar
+ runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+-runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 9280c68d2c..1ec11f7ca8 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -24,5 +24,3 @@ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argc
+ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
+ 
+ runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
+-
+-runtime/asm_amd64p32.s: [amd64p32] stackcheck: function stackcheck missing Go declaration
+diff --git a/src/runtime/cgo/gcc_windows_386.c b/src/runtime/cgo/gcc_windows_386.c
+index e80a564943..f2ff710f60 100644
+--- a/src/runtime/cgo/gcc_windows_386.c
++++ b/src/runtime/cgo/gcc_windows_386.c
+@@ -11,16 +11,9 @@
+ 
+ static void threadentry(void*);
+ 
+-/* 1MB is default stack size for 32-bit Windows.
+-   Allocation granularity on Windows is typically 64 KB.
+-   This constant must match SizeOfStackReserve in ../cmd/link/internal/ld/pe.go. */
+-#define STACKSIZE (1*1024*1024)
+-
+ void
+ x_cgo_init(G *g)
+ {
+-	int tmp;
+-	g->stacklo = (uintptr)&tmp - STACKSIZE + 8*1024;
+ }
+ 
+ 
+@@ -44,8 +37,7 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	ts.g->stackhi = (uintptr)&ts;
+-	ts.g->stacklo = (uintptr)&ts - STACKSIZE + 8*1024;
++	// minit queries stack bounds from the OS.
+ 
+ 	/*
+ 	 * Set specific keys in thread local storage.
+diff --git a/src/runtime/cgo/gcc_windows_amd64.c b/src/runtime/cgo/gcc_windows_amd64.c
+index 75a7dc8ec2..511ab44fa9 100644
+--- a/src/runtime/cgo/gcc_windows_amd64.c
++++ b/src/runtime/cgo/gcc_windows_amd64.c
+@@ -11,16 +11,9 @@
+ 
+ static void threadentry(void*);
+ 
+-/* 2MB is default stack size for 64-bit Windows.
+-   Allocation granularity on Windows is typically 64 KB.
+-   This constant must match SizeOfStackReserve in ../cmd/link/internal/ld/pe.go. */
+-#define STACKSIZE (2*1024*1024)
+-
+ void
+ x_cgo_init(G *g)
+ {
+-	int tmp;
+-	g->stacklo = (uintptr)&tmp - STACKSIZE + 8*1024;
+ }
+ 
+ 
+@@ -44,8 +37,7 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	ts.g->stackhi = (uintptr)&ts;
+-	ts.g->stacklo = (uintptr)&ts - STACKSIZE + 8*1024;
++	// minit queries stack bounds from the OS.
+ 
+ 	/*
+ 	 * Set specific keys in thread local storage.
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index d8f75a468b..b2ee8df1f0 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -489,3 +489,19 @@ func TestCgoTracebackSigpanic(t *testing.T) {
+ 		t.Fatalf("failure incorrectly contains %q. output:\n%s\n", nowant, got)
+ 	}
+ }
++
++// Test that C code called via cgo can use large Windows thread stacks
++// and call back in to Go without crashing. See issue #20975.
++//
++// See also TestBigStackCallbackSyscall.
++func TestBigStackCallbackCgo(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		t.Skip("skipping windows specific test")
++	}
++	t.Parallel()
++	got := runTestProg(t, "testprogcgo", "BigStack")
++	want := "OK\n"
++	if got != want {
++		t.Errorf("expected %q got %v", want, got)
++	}
++}
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index 7ce6797414..9bd9107476 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -71,3 +71,4 @@ type FloatingSaveArea C.FLOATING_SAVE_AREA
+ type M128a C.M128A
+ type Context C.CONTEXT
+ type Overlapped C.OVERLAPPED
++type MemoryBasicInformation C.MEMORY_BASIC_INFORMATION
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index bac6ce78ce..589a7884cd 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -129,3 +129,13 @@ type overlapped struct {
+ 	anon0        [8]byte
+ 	hevent       *byte
+ }
++
++type memoryBasicInformation struct {
++	baseAddress       uintptr
++	allocationBase    uintptr
++	allocationProtect uint32
++	regionSize        uintptr
++	state             uint32
++	protect           uint32
++	type_             uint32
++}
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index 6e04568114..1e173e934d 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -151,3 +151,13 @@ type overlapped struct {
+ 	anon0        [8]byte
+ 	hevent       *byte
+ }
++
++type memoryBasicInformation struct {
++	baseAddress       uintptr
++	allocationBase    uintptr
++	allocationProtect uint32
++	regionSize        uintptr
++	state             uint32
++	protect           uint32
++	type_             uint32
++}
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 1f3ebf6072..bf5baea13e 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -45,6 +45,7 @@ const (
+ //go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
++//go:cgo_import_dynamic runtime._VirtualQuery VirtualQuery%3 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
+ //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
+@@ -92,6 +93,7 @@ var (
+ 	_SwitchToThread,
+ 	_VirtualAlloc,
+ 	_VirtualFree,
++	_VirtualQuery,
+ 	_WSAGetOverlappedResult,
+ 	_WaitForSingleObject,
+ 	_WriteConsoleW,
+@@ -291,9 +293,6 @@ func osRelax(relax bool) uint32 {
+ 	}
+ }
+ 
+-// osStackSize must match SizeOfStackReserve in ../cmd/link/internal/ld/pe.go.
+-var osStackSize uintptr = 0x00200000*_64bit + 0x00100000*(1-_64bit)
+-
+ func osinit() {
+ 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+ 	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
+@@ -322,18 +321,6 @@ func osinit() {
+ 	// equivalent threads that all do a mix of GUI, IO, computations, etc.
+ 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
+ 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
+-
+-	// Fix the entry thread's stack bounds, since runtime entry
+-	// assumed we were on a tiny stack. If this is a cgo binary,
+-	// x_cgo_init already fixed these.
+-	if !iscgo {
+-		// Leave 8K of slop for calling C functions that don't
+-		// have stack checks. We shouldn't be anywhere near
+-		// this bound anyway.
+-		g0.stack.lo = g0.stack.hi - osStackSize + 8*1024
+-		g0.stackguard0 = g0.stack.lo + _StackGuard
+-		g0.stackguard1 = g0.stackguard0
+-	}
+ }
+ 
+ func nanotime() int64
+@@ -634,10 +621,10 @@ func semacreate(mp *m) {
+ //go:nowritebarrierrec
+ //go:nosplit
+ func newosproc(mp *m) {
+-	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
+-	thandle := stdcall6(_CreateThread, 0, osStackSize,
++	// We pass 0 for the stack size to use the default for this binary.
++	thandle := stdcall6(_CreateThread, 0, 0,
+ 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
+-		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
++		0, 0)
+ 
+ 	if thandle == 0 {
+ 		if atomic.Load(&exiting) != 0 {
+@@ -702,6 +689,30 @@ func minit() {
+ 	var thandle uintptr
+ 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
+ 	atomic.Storeuintptr(&getg().m.thread, thandle)
++
++	// Query the true stack base from the OS. Currently we're
++	// running on a small assumed stack.
++	var mbi memoryBasicInformation
++	res := stdcall3(_VirtualQuery, uintptr(unsafe.Pointer(&mbi)), uintptr(unsafe.Pointer(&mbi)), unsafe.Sizeof(mbi))
++	if res == 0 {
++		print("runtime: VirtualQuery failed; errno=", getlasterror(), "\n")
++		throw("VirtualQuery for stack base failed")
++	}
++	// Add 8K of slop for calling C functions that don't have
++	// stack checks. We shouldn't be anywhere near this bound
++	// anyway.
++	base := mbi.allocationBase + 8*1024
++	// Sanity check the stack bounds.
++	g0 := getg()
++	if base > g0.stack.hi || g0.stack.hi-base > 64<<20 {
++		print("runtime: g0 stack [", hex(base), ",", hex(g0.stack.hi), ")\n")
++		throw("bad g0 stack")
++	}
++	g0.stack.lo = base
++	g0.stackguard0 = g0.stack.lo + _StackGuard
++	g0.stackguard1 = g0.stackguard0
++	// Sanity check the SP.
++	stackcheck()
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b5486321ed..f82014eb92 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1233,6 +1233,7 @@ func mstart() {
+ 	if osStack {
+ 		// Initialize stack bounds from system stack.
+ 		// Cgo may have left stack size in stack.hi.
++		// minit may update the stack bounds.
+ 		size := _g_.stack.hi
+ 		if size == 0 {
+ 			size = 8192 * sys.StackGuardMultiplier
+diff --git a/src/runtime/stubs_x86.go b/src/runtime/stubs_x86.go
+new file mode 100644
+index 0000000000..830c48bd01
+--- /dev/null
++++ b/src/runtime/stubs_x86.go
+@@ -0,0 +1,10 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build amd64 amd64p32 386
++
++package runtime
++
++// stackcheck checks that SP is in range [g->stack.lo, g->stack.hi).
++func stackcheck()
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 56d5cfaa82..3c091adcb1 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -315,8 +315,7 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
+ 	// Layout new m scheduler stack on os stack.
+ 	MOVL	SP, AX
+ 	MOVL	AX, (g_stack+stack_hi)(DX)
+-	SUBL	runtime·osStackSize(SB), AX		// stack size
+-	ADDL	$(8*1024), AX				// slop for calling C
++	SUBL	$(64*1024), AX		// initial stack size (adjusted later)
+ 	MOVL	AX, (g_stack+stack_lo)(DX)
+ 	ADDL	$const__StackGuard, AX
+ 	MOVL	AX, g_stackguard0(DX)
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 119e04c704..c1449dba60 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -363,8 +363,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 	// Layout new m scheduler stack on os stack.
+ 	MOVQ	SP, AX
+ 	MOVQ	AX, (g_stack+stack_hi)(DX)
+-	SUBQ	runtime·osStackSize(SB), AX		// stack size
+-	ADDQ	$(8*1024), AX				// slop for calling C
++	SUBQ	$(64*1024), AX		// inital stack size (adjusted later)
+ 	MOVQ	AX, (g_stack+stack_lo)(DX)
+ 	ADDQ	$const__StackGuard, AX
+ 	MOVQ	AX, g_stackguard0(DX)
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 0f5e13f97e..0882e9cb73 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -957,6 +957,52 @@ uintptr_t cfunc() {
+ 	}
+ }
+ 
++// Test that C code called via a DLL can use large Windows thread
++// stacks and call back in to Go without crashing. See issue #20975.
++//
++// See also TestBigStackCallbackCgo.
++func TestBigStackCallbackSyscall(t *testing.T) {
++	if _, err := exec.LookPath("gcc"); err != nil {
++		t.Skip("skipping test: gcc is missing")
++	}
++
++	srcname, err := filepath.Abs("testdata/testprogcgo/bigstack_windows.c")
++	if err != nil {
++		t.Fatal("Abs failed: ", err)
++	}
++
++	tmpdir, err := ioutil.TempDir("", "TestBigStackCallback")
++	if err != nil {
++		t.Fatal("TempDir failed: ", err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	outname := "mydll.dll"
++	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
++	cmd.Dir = tmpdir
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build dll: %v - %v", err, string(out))
++	}
++	dllpath := filepath.Join(tmpdir, outname)
++
++	dll := syscall.MustLoadDLL(dllpath)
++	defer dll.Release()
++
++	var ok bool
++	proc := dll.MustFindProc("bigStack")
++	cb := syscall.NewCallback(func() uintptr {
++		// Do something interesting to force stack checks.
++		forceStackCopy()
++		ok = true
++		return 0
++	})
++	proc.Call(cb)
++	if !ok {
++		t.Fatalf("callback not called")
++	}
++}
++
+ // wantLoadLibraryEx reports whether we expect LoadLibraryEx to work for tests.
+ func wantLoadLibraryEx() bool {
+ 	return testenv.Builder() == "windows-amd64-gce" || testenv.Builder() == "windows-386-gce"
+diff --git a/src/runtime/testdata/testprogcgo/bigstack_windows.c b/src/runtime/testdata/testprogcgo/bigstack_windows.c
+new file mode 100644
+index 0000000000..cd85ac88d0
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/bigstack_windows.c
+@@ -0,0 +1,46 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test source is used by both TestBigStackCallbackCgo (linked
++// directly into the Go binary) and TestBigStackCallbackSyscall
++// (compiled into a DLL).
++
++#include <windows.h>
++#include <stdio.h>
++
++#ifndef STACK_SIZE_PARAM_IS_A_RESERVATION
++#define STACK_SIZE_PARAM_IS_A_RESERVATION 0x00010000
++#endif
++
++typedef void callback(char*);
++
++// Allocate a stack that's much larger than the default.
++static const int STACK_SIZE = 16<<20;
++
++static callback *bigStackCallback;
++
++static void useStack(int bytes) {
++	// Windows doesn't like huge frames, so we grow the stack 64k at a time.
++	char x[64<<10];
++	if (bytes < sizeof x) {
++		bigStackCallback(x);
++	} else {
++		useStack(bytes - sizeof x);
++	}
++}
++
++static DWORD WINAPI threadEntry(LPVOID lpParam) {
++	useStack(STACK_SIZE - (128<<10));
++	return 0;
++}
++
++void bigStack(callback *cb) {
++	bigStackCallback = cb;
++	HANDLE hThread = CreateThread(NULL, STACK_SIZE, threadEntry, NULL, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
++	if (hThread == NULL) {
++		fprintf(stderr, "CreateThread failed\n");
++		exit(1);
++	}
++	WaitForSingleObject(hThread, INFINITE);
++}
+diff --git a/src/runtime/testdata/testprogcgo/bigstack_windows.go b/src/runtime/testdata/testprogcgo/bigstack_windows.go
+new file mode 100644
+index 0000000000..f58fcf993f
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/bigstack_windows.go
+@@ -0,0 +1,27 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++typedef void callback(char*);
++extern void goBigStack1(char*);
++extern void bigStack(callback*);
++*/
++import "C"
++
++func init() {
++	register("BigStack", BigStack)
++}
++
++func BigStack() {
++	// Create a large thread stack and call back into Go to test
++	// if Go correctly determines the stack bounds.
++	C.bigStack((*C.callback)(C.goBigStack1))
++}
++
++//export goBigStack1
++func goBigStack1(x *C.char) {
++	println("OK")
++}

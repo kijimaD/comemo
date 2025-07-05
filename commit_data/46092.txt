@@ -11,6 +11,26 @@ Date:   Sun Dec 6 21:28:36 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275787
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  doc/go1.16.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 5ad3cae6d9..a1f07c10fd 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -70,6 +70,14 @@ Do not send CLs removing the interior tags from such phrases.
+   <code>netbsd/arm64</code> port).
+ </p>
+ 
++<h3 id="openbsd">OpenBSD</h3>
++
++<p><!-- golang.org/issue/40995 -->
++  Go now supports the MIPS64 architecture on OpenBSD
++  (the <code>openbsd/mips64</code> port). This port does not yet
++  support cgo.
++</p>
++
+ <h3 id="386">386</h3>
+ 
+ <p><!-- golang.org/issue/40255, golang.org/issue/41848, CL 258957, and CL 260017 -->

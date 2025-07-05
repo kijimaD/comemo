@@ -7,6 +7,20 @@ Date:   Thu Mar 15 19:28:07 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5823058
-
+---
  doc/play/solitaire.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/play/solitaire.go b/doc/play/solitaire.go
+index 546bc10206..759d542815 100644
+--- a/doc/play/solitaire.go
++++ b/doc/play/solitaire.go
+@@ -14,7 +14,7 @@ const N = 11 + 1 // length of a row (+1 for \n)
+ // Periods represent illegal fields,
+ // ● are pegs, and ○ are holes.
+ 
+-var board = []int(
++var board = []rune(
+ 	`...........
+ ...........
+ ....●●●....

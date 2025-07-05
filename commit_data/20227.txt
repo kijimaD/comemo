@@ -8,6 +8,22 @@ Date:   Mon Aug 25 20:01:43 2014 -0700
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/133900043
-
+---
  src/cmd/go/doc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 19fe5cd3ef..0d4e263891 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -250,6 +250,10 @@ quoted string appears a single argument to the generator.
+ 
+ Go generate sets several variables when it runs the generator:
+ 
++	$GOARCH
++		The execution architecture (arm, amd64, etc.)
++	$GOOS
++		The execution operating system (linux, windows, etc.)
+ 	$GOFILE
+ 		The base name of the file.
+ 	$GOPACKAGE

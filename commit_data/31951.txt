@@ -11,7 +11,35 @@ Date:   Thu Mar 23 16:39:11 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/gen.go  | 4 +++-
  src/cmd/compile/internal/gc/pgen.go | 3 +++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index c6ef820f07..22705b47d1 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -225,5 +225,7 @@ func tempAt(pos src.XPos, curfn *Node, t *Type) *Node {
+ 	// TODO(mdempsky/josharian): Remove all reads and writes of lineno and Curfn.
+ 	lineno = pos
+ 	Curfn = curfn
+-	return temp(t)
++	n := temp(t)
++	Curfn = nil
++	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index c3030cb8eb..a525373e2f 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -299,6 +299,9 @@ func compile(fn *Node) {
+ 		return
+ 	}
+ 
++	// From this point, there should be no uses of Curfn. Enforce that.
++	Curfn = nil
++
+ 	// Build an SSA backend function.
+ 	ssafn := buildssa(fn)
+ 	if nerrors != 0 {

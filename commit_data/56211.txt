@@ -16,6 +16,31 @@ Date:   Tue Apr 18 12:16:43 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/godebugs/godebugs_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/internal/godebugs/godebugs_test.go b/src/internal/godebugs/godebugs_test.go
+index 663268f02b..a1cb8d492a 100644
+--- a/src/internal/godebugs/godebugs_test.go
++++ b/src/internal/godebugs/godebugs_test.go
+@@ -6,7 +6,9 @@ package godebugs_test
+ 
+ import (
+ 	"internal/godebugs"
++	"internal/testenv"
+ 	"os"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -14,6 +16,9 @@ import (
+ func TestAll(t *testing.T) {
+ 	data, err := os.ReadFile("../../../doc/godebug.md")
+ 	if err != nil {
++		if os.IsNotExist(err) && (testenv.Builder() == "" || runtime.GOOS != "linux") {
++			t.Skip(err)
++		}
+ 		t.Fatal(err)
+ 	}
+ 	doc := string(data)

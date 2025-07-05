@@ -11,7 +11,7 @@ Date:   Mon Oct 22 11:28:21 2012 -0700
     R=rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/6709061
-
+---
  src/pkg/exp/types/staging/builtins.go           |  16 ++-
  src/pkg/exp/types/staging/check.go              |   3 +-
  src/pkg/exp/types/staging/expr.go               |  58 +++++-----
@@ -21,3 +21,480 @@ Date:   Mon Oct 22 11:28:21 2012 -0700
  src/pkg/exp/types/staging/testdata/decls2a.src  |   7 +-
  src/pkg/exp/types/staging/testdata/expr3.src    |   5 +
  8 files changed, 134 insertions(+), 106 deletions(-)
+
+diff --git a/src/pkg/exp/types/staging/builtins.go b/src/pkg/exp/types/staging/builtins.go
+index ef9ae80e2b..8aa0d35d94 100644
+--- a/src/pkg/exp/types/staging/builtins.go
++++ b/src/pkg/exp/types/staging/builtins.go
+@@ -204,13 +204,27 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 			check.errorf(call.Pos(), "%s expects %d or %d arguments; found %d", call, min, min+1, n)
+ 			goto Error
+ 		}
++		var sizes []interface{} // constant integer arguments, if any
+ 		for _, arg := range args[1:] {
+ 			check.expr(x, arg, nil, iota)
+-			if !x.isInteger() {
++			if x.isInteger() {
++				if x.mode == constant {
++					if isNegConst(x.val) {
++						check.invalidArg(x.pos(), "%s must not be negative", x)
++						// safe to continue
++					} else {
++						sizes = append(sizes, x.val) // x.val >= 0
++					}
++				}
++			} else {
+ 				check.invalidArg(x.pos(), "%s must be an integer", x)
+ 				// safe to continue
+ 			}
+ 		}
++		if len(sizes) == 2 && compareConst(sizes[0], sizes[1], token.GTR) {
++			check.invalidArg(args[1].Pos(), "length and capacity swapped")
++			// safe to continue
++		}
+ 		x.mode = variable
+ 		x.typ = typ0
+ 
+diff --git a/src/pkg/exp/types/staging/check.go b/src/pkg/exp/types/staging/check.go
+index 1fc41342d9..56930c5b0f 100644
+--- a/src/pkg/exp/types/staging/check.go
++++ b/src/pkg/exp/types/staging/check.go
+@@ -179,7 +179,8 @@ func (check *checker) ident(name *ast.Ident, cycleOk bool) {
+ 		ftyp := check.typ(fdecl.Type, cycleOk).(*Signature)
+ 		obj.Type = ftyp
+ 		if fdecl.Recv != nil {
+-			// TODO(gri) handle method receiver
++			// TODO(gri) is this good enough for the receiver?
++			check.collectFields(token.FUNC, fdecl.Recv, true)
+ 		}
+ 		check.stmt(fdecl.Body)
+ 
+diff --git a/src/pkg/exp/types/staging/expr.go b/src/pkg/exp/types/staging/expr.go
+index 560b16c16f..f5f46f6a10 100644
+--- a/src/pkg/exp/types/staging/expr.go
++++ b/src/pkg/exp/types/staging/expr.go
+@@ -398,38 +398,31 @@ func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
+ }
+ 
+ // index checks an index expression for validity. If length >= 0, it is the upper
+-// bound for the index. The result is a valid constant index >= 0, or a negative
+-// value.
++// bound for the index. The result is a valid integer constant, or nil.
+ //
+-func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
++func (check *checker) index(index ast.Expr, length int64, iota int) interface{} {
+ 	var x operand
+-	var i int64 // index value, valid if >= 0
+ 
+ 	check.expr(&x, index, nil, iota)
+ 	if !x.isInteger() {
+ 		check.errorf(x.pos(), "index %s must be integer", &x)
+-		return -1
++		return nil
+ 	}
+ 	if x.mode != constant {
+-		return -1 // we cannot check more
++		return nil // we cannot check more
+ 	}
+ 	// x.mode == constant and the index value must be >= 0
+ 	if isNegConst(x.val) {
+ 		check.errorf(x.pos(), "index %s must not be negative", &x)
+-		return -1
++		return nil
+ 	}
+-	var ok bool
+-	if i, ok = x.val.(int64); !ok {
+-		// index value doesn't fit into an int64
+-		i = length // trigger out of bounds check below if we know length (>= 0)
+-	}
+-
+-	if length >= 0 && i >= length {
++	// x.val >= 0
++	if length >= 0 && compareConst(x.val, length, token.GEQ) {
+ 		check.errorf(x.pos(), "index %s is out of bounds (>= %d)", &x, length)
+-		return -1
++		return nil
+ 	}
+ 
+-	return i
++	return x.val
+ }
+ 
+ func (check *checker) callRecord(x *operand) {
+@@ -672,18 +665,20 @@ func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cy
+ 			goto Error
+ 		}
+ 
+-		var lo int64
++		var lo interface{} = zeroConst
+ 		if e.Low != nil {
+ 			lo = check.index(e.Low, length, iota)
+ 		}
+ 
+-		var hi int64 = length
++		var hi interface{}
+ 		if e.High != nil {
+ 			hi = check.index(e.High, length, iota)
++		} else if length >= 0 {
++			hi = length
+ 		}
+ 
+-		if hi >= 0 && lo > hi {
+-			check.errorf(e.Low.Pos(), "inverted slice range: %d > %d", lo, hi)
++		if lo != nil && hi != nil && compareConst(lo, hi, token.GTR) {
++			check.errorf(e.Low.Pos(), "inverted slice range: %v > %v", lo, hi)
+ 			// ok to continue
+ 		}
+ 
+@@ -747,6 +742,8 @@ func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cy
+ 	case *ast.StarExpr:
+ 		check.exprOrType(x, e.X, hint, iota, true)
+ 		switch x.mode {
++		case invalid:
++			// ignore - error reported before
+ 		case novalue:
+ 			check.errorf(x.pos(), "%s used as value or type", x)
+ 			goto Error
+@@ -840,13 +837,16 @@ Error:
+ func (check *checker) expr(x *operand, e ast.Expr, hint Type, iota int) {
+ 	check.exprOrType(x, e, hint, iota, false)
+ 	switch x.mode {
++	case invalid:
++		// ignore - error reported before
+ 	case novalue:
+ 		check.errorf(x.pos(), "%s used as value", x)
+-		x.mode = invalid
+ 	case typexpr:
+ 		check.errorf(x.pos(), "%s is not an expression", x)
+-		x.mode = invalid
++	default:
++		return
+ 	}
++	x.mode = invalid
+ }
+ 
+ // typ is like exprOrType but also checks that e represents a type (rather than a value).
+@@ -855,13 +855,15 @@ func (check *checker) expr(x *operand, e ast.Expr, hint Type, iota int) {
+ func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
+ 	var x operand
+ 	check.exprOrType(&x, e, nil, -1, cycleOk)
+-	switch {
+-	case x.mode == novalue:
++	switch x.mode {
++	case invalid:
++		// ignore - error reported before
++	case novalue:
+ 		check.errorf(x.pos(), "%s used as type", &x)
+-		x.typ = Typ[Invalid]
+-	case x.mode != typexpr:
++	case typexpr:
++		return x.typ
++	default:
+ 		check.errorf(x.pos(), "%s is not a type", &x)
+-		x.typ = Typ[Invalid]
+ 	}
+-	return x.typ
++	return Typ[Invalid]
+ }
+diff --git a/src/pkg/exp/types/staging/testdata/builtins.src b/src/pkg/exp/types/staging/testdata/builtins.src
+index c641537e93..a07af89f41 100644
+--- a/src/pkg/exp/types/staging/testdata/builtins.src
++++ b/src/pkg/exp/types/staging/testdata/builtins.src
+@@ -68,11 +68,11 @@ func _imag() {
+ 	var f64 float64
+ 	var c64 complex64
+ 	var c128 complex128
+-	_0 := imag /* ERROR "argument" */ ()
+-	_1 := imag /* ERROR "argument" */ (1, 2)
+-	_2 := imag(10 /* ERROR "must be a complex number" */)
+-	_3 := imag(2.7182818 /* ERROR "must be a complex number" */)
+-	_4 := imag("foo" /* ERROR "must be a complex number" */)
++	_ = imag /* ERROR "argument" */ ()
++	_ = imag /* ERROR "argument" */ (1, 2)
++	_ = imag(10 /* ERROR "must be a complex number" */)
++	_ = imag(2.7182818 /* ERROR "must be a complex number" */)
++	_ = imag("foo" /* ERROR "must be a complex number" */)
+ 	const _5 = imag(1 + 2i)
+ 	assert(_5 == 2)
+ 	f32 = _5
+@@ -92,16 +92,16 @@ func _len() {
+ 	var p *[20]int
+ 	var s []int
+ 	var m map[string]complex128
+-	_0 := len /* ERROR "argument" */ ()
+-	_1 := len /* ERROR "argument" */ (1, 2)
+-	_2 := len(42 /* ERROR "invalid" */)
++	_ = len /* ERROR "argument" */ ()
++	_ = len /* ERROR "argument" */ (1, 2)
++	_ = len(42 /* ERROR "invalid" */)
+ 	const _3 = len(c)
+ 	assert(_3 == 6)
+ 	const _4 = len(a)
+ 	assert(_4 == 10)
+ 	const _5 = len(p)
+ 	assert(_5 == 20)
+-	_6 := len(m)
++	_ = len(m)
+ 	len /* ERROR "not used" */ (c)
+ 
+ 	// esoteric case
+@@ -111,54 +111,59 @@ func _len() {
+ 	assert /* ERROR "failed" */ (n == 10)
+ 	var ch <-chan int
+ 	const nn = len /* ERROR "not constant" */ (hash[<-ch][len(t)])
+-	_7 := nn // TODO(gri) remove this once unused constants get type-checked
++	_ = nn // TODO(gri) remove this once unused constants get type-checked
+ }
+ 
+ func _make() {
+ 	n := 0
+ 
+-	_0 := make /* ERROR "argument" */ ()
+-	_1 := make(1 /* ERROR "not a type" */)
+-	_2 := make(int /* ERROR "cannot make" */)
++	_ = make /* ERROR "argument" */ ()
++	_ = make(1 /* ERROR "not a type" */)
++	_ = make(int /* ERROR "cannot make" */)
+ 
+ 	// slices
+-	_3 := make/* ERROR "arguments" */ ([]int)
+-	_4 := make/* ERROR "arguments" */ ([]int, 2, 3, 4)
+-	_5 := make([]int, int /* ERROR "not an expression" */)
+-	_6 := make([]int, 10, float32 /* ERROR "not an expression" */)
+-	_7 := make([]int, "foo" /* ERROR "must be an integer" */)
+-	_8 := make([]int, 10, 2.3 /* ERROR "must be an integer" */)
+-	_9 := make([]int, 5, 10.0)
+-	_10 := make([]int, 0i)
+-	_11 := make([]int, -1, 1<<100) // out-of-range constants lead to run-time errors
++	_ = make/* ERROR "arguments" */ ([]int)
++	_ = make/* ERROR "arguments" */ ([]int, 2, 3, 4)
++	_ = make([]int, int /* ERROR "not an expression" */)
++	_ = make([]int, 10, float32 /* ERROR "not an expression" */)
++	_ = make([]int, "foo" /* ERROR "must be an integer" */)
++	_ = make([]int, 10, 2.3 /* ERROR "must be an integer" */)
++	_ = make([]int, 5, 10.0)
++	_ = make([]int, 0i)
++	_ = make([]int, - /* ERROR "must not be negative" */ 1, 10)
++	_ = make([]int, 0, - /* ERROR "must not be negative" */ 1)
++	_ = make([]int, - /* ERROR "must not be negative" */ 1, - /* ERROR "must not be negative" */ 1)
++	_ = make([]int, 1<<100, 1<<100)  // run-time panic
++	_ = make([]int, 1 /* ERROR "length and capacity swapped" */ <<100 + 1, 1<<100)
++	_ = make([]int, 1 /* ERROR "length and capacity swapped" */ <<100, 12345)
+ 
+ 	// maps
+-	_12 := make /* ERROR "arguments" */ (map[int]string, 10, 20)
+-	_13 := make(map[int]float32, int /* ERROR "not an expression" */)
+-	_14 := make(map[int]float32, "foo" /* ERROR "must be an integer" */)
+-	_15 := make(map[int]float32, 10)
+-	_16 := make(map[int]float32, n)
+-	_17 := make(map[int]float32, int64(n))
++	_ = make /* ERROR "arguments" */ (map[int]string, 10, 20)
++	_ = make(map[int]float32, int /* ERROR "not an expression" */)
++	_ = make(map[int]float32, "foo" /* ERROR "must be an integer" */)
++	_ = make(map[int]float32, 10)
++	_ = make(map[int]float32, n)
++	_ = make(map[int]float32, int64(n))
+ 
+ 	// channels
+-	_22 := make /* ERROR "arguments" */ (chan int, 10, 20)
+-	_23 := make(chan int, int /* ERROR "not an expression" */)
+-	_24 := make(chan<- int, "foo" /* ERROR "must be an integer" */)
+-	_25 := make(<-chan float64, 10)
+-	_26 := make(chan chan int, n)
+-	_27 := make(chan string, int64(n))
++	_ = make /* ERROR "arguments" */ (chan int, 10, 20)
++	_ = make(chan int, int /* ERROR "not an expression" */)
++	_ = make(chan<- int, "foo" /* ERROR "must be an integer" */)
++	_ = make(<-chan float64, 10)
++	_ = make(chan chan int, n)
++	_ = make(chan string, int64(n))
+ 
+ 	make /* ERROR "not used" */ ([]int, 10)
+ }
+ 
+ func _new() {
+-	_0 := new /* ERROR "argument" */ ()
+-	_1 := new /* ERROR "argument" */ (1, 2)
+-	_3 := new("foo" /* ERROR "not a type" */)
+-	_4 := new(float64)
+-	_5 := new(struct{ x, y int })
+-	_6 := new(*float64)
+-	_7 := *_4 == **_6
++	_ = new /* ERROR "argument" */ ()
++	_ = new /* ERROR "argument" */ (1, 2)
++	_ = new("foo" /* ERROR "not a type" */)
++	p := new(float64)
++	_ = new(struct{ x, y int })
++	q := new(*float64)
++	_ = *p == **q
+ 	new /* ERROR "not used" */ (int)
+ }
+ 
+@@ -167,11 +172,11 @@ func _real() {
+ 	var f64 float64
+ 	var c64 complex64
+ 	var c128 complex128
+-	_0 := real /* ERROR "argument" */ ()
+-	_1 := real /* ERROR "argument" */ (1, 2)
+-	_2 := real(10 /* ERROR "must be a complex number" */)
+-	_3 := real(2.7182818 /* ERROR "must be a complex number" */)
+-	_4 := real("foo" /* ERROR "must be a complex number" */)
++	_ = real /* ERROR "argument" */ ()
++	_ = real /* ERROR "argument" */ (1, 2)
++	_ = real(10 /* ERROR "must be a complex number" */)
++	_ = real(2.7182818 /* ERROR "must be a complex number" */)
++	_ = real("foo" /* ERROR "must be a complex number" */)
+ 	const _5 = real(1 + 2i)
+ 	assert(_5 == 1)
+ 	f32 = _5
+@@ -186,40 +191,40 @@ func _real() {
+ }
+ 
+ func _recover() {
+-	_0 := recover()
+-	_1 := recover /* ERROR "argument" */ (10)
++	_ = recover()
++	_ = recover /* ERROR "argument" */ (10)
+ 	recover()
+ }
+ 
+ func _Alignof() {
+ 	var x int
+-	_0 := unsafe /* ERROR "argument" */ .Alignof()
+-	_1 := unsafe /* ERROR "argument" */ .Alignof(1, 2)
+-	_3 := unsafe.Alignof(int /* ERROR "not an expression" */)
+-	_4 := unsafe.Alignof(42)
+-	_5 := unsafe.Alignof(new(struct{}))
++	_ = unsafe /* ERROR "argument" */ .Alignof()
++	_ = unsafe /* ERROR "argument" */ .Alignof(1, 2)
++	_ = unsafe.Alignof(int /* ERROR "not an expression" */)
++	_ = unsafe.Alignof(42)
++	_ = unsafe.Alignof(new(struct{}))
+ 	unsafe /* ERROR "not used" */ .Alignof(x)
+ }
+ 
+ func _Offsetof() {
+ 	var x struct{ f int }
+-	_0 := unsafe /* ERROR "argument" */ .Offsetof()
+-	_1 := unsafe /* ERROR "argument" */ .Offsetof(1, 2)
+-	_2 := unsafe.Offsetof(int /* ERROR "not an expression" */)
+-	_3 := unsafe.Offsetof(x /* ERROR "not a selector" */)
+-	_4 := unsafe.Offsetof(x.f)
+-	_5 := unsafe.Offsetof((x.f))
+-	_6 := unsafe.Offsetof((((((((x))).f)))))
++	_ = unsafe /* ERROR "argument" */ .Offsetof()
++	_ = unsafe /* ERROR "argument" */ .Offsetof(1, 2)
++	_ = unsafe.Offsetof(int /* ERROR "not an expression" */)
++	_ = unsafe.Offsetof(x /* ERROR "not a selector" */)
++	_ = unsafe.Offsetof(x.f)
++	_ = unsafe.Offsetof((x.f))
++	_ = unsafe.Offsetof((((((((x))).f)))))
+ 	unsafe /* ERROR "not used" */ .Offsetof(x.f)
+ }
+ 
+ func _Sizeof() {
+ 	var x int
+-	_0 := unsafe /* ERROR "argument" */ .Sizeof()
+-	_1 := unsafe /* ERROR "argument" */ .Sizeof(1, 2)
+-	_2 := unsafe.Sizeof(int /* ERROR "not an expression" */)
+-	_3 := unsafe.Sizeof(42)
+-	_4 := unsafe.Sizeof(new(complex128))
++	_ = unsafe /* ERROR "argument" */ .Sizeof()
++	_ = unsafe /* ERROR "argument" */ .Sizeof(1, 2)
++	_ = unsafe.Sizeof(int /* ERROR "not an expression" */)
++	_ = unsafe.Sizeof(42)
++	_ = unsafe.Sizeof(new(complex128))
+ 	unsafe /* ERROR "not used" */ .Sizeof(x)
+ 
+ 	// basic types have size guarantees
+@@ -252,7 +257,7 @@ func _assert() {
+ // self-testing only
+ func _trace() {
+ 	// Uncomment the code below to test trace - will produce console output
+-	// _0 := trace /* ERROR "no value" */ ()
+-	// _1 := trace(1)
+-	// _2 := trace(true, 1.2, '\'', "foo", 42i, "foo" <= "bar")
++	// _ = trace /* ERROR "no value" */ ()
++	// _ = trace(1)
++	// _ = trace(true, 1.2, '\'', "foo", 42i, "foo" <= "bar")
+ }
+diff --git a/src/pkg/exp/types/staging/testdata/decls0.src b/src/pkg/exp/types/staging/testdata/decls0.src
+index e8ae53b220..3537a9e558 100644
+--- a/src/pkg/exp/types/staging/testdata/decls0.src
++++ b/src/pkg/exp/types/staging/testdata/decls0.src
+@@ -16,7 +16,7 @@ import (
+ const pi = 3.1415
+ 
+ type (
+-	N undeclared /* ERROR "undeclared" */ /* ERROR "not a type" */
++	N undeclared /* ERROR "undeclared" */
+ 	B bool
+ 	I int32
+ 	A [10]P
+@@ -41,7 +41,7 @@ type (
+ 
+ 
+ type (
+-	p1 pi /* ERROR "no field or method foo" */ /* ERROR "not a type" */ .foo
++	p1 pi /* ERROR "no field or method foo" */ .foo
+ 	p2 unsafe.Pointer
+ )
+ 
+diff --git a/src/pkg/exp/types/staging/testdata/decls1.src b/src/pkg/exp/types/staging/testdata/decls1.src
+index 32859fc0ee..16da045ef2 100644
+--- a/src/pkg/exp/types/staging/testdata/decls1.src
++++ b/src/pkg/exp/types/staging/testdata/decls1.src
+@@ -26,7 +26,7 @@ var (
+ 	array []byte
+ 	iface interface{}
+ 	
+-	blank _ /* ERROR "cannot use _" */ /* ERROR "not a type" */
++	blank _ /* ERROR "cannot use _" */
+ )
+ 
+ // Global variables with initialization
+@@ -63,8 +63,8 @@ var (
+ 	t12 complex64 = -(u + *t11) / *&v
+ 	t13 int = a /* ERROR "shifted operand" */ << d
+ 	t14 int = i << j /* ERROR "must be unsigned" */ 
+-	t15 math /* ERROR "not in selector" */ /* ERROR "not a type" */
+-	t16 math /* ERROR "not a type" */ .xxx /* ERROR "unexported" */
++	t15 math /* ERROR "not in selector" */
++	t16 math.xxx /* ERROR "unexported" */
+ 	t17 math /* ERROR "not a type" */ .Pi
+ 	t18 float64 = math.Pi * 10.0
+ 	t19 int = t1 /* ERROR "cannot call" */ ()
+diff --git a/src/pkg/exp/types/staging/testdata/decls2a.src b/src/pkg/exp/types/staging/testdata/decls2a.src
+index 738bcb76ae..8323829f35 100644
+--- a/src/pkg/exp/types/staging/testdata/decls2a.src
++++ b/src/pkg/exp/types/staging/testdata/decls2a.src
+@@ -28,9 +28,10 @@ type T2 struct {
+ func (undeclared /* ERROR "undeclared" */) m() {}
+ func (x *undeclared /* ERROR "undeclared" */) m() {}
+ 
+-func (pi /* ERROR "not a type" */) m1() {}
+-func (x pi /* ERROR "not a type" */) m2() {}
+-func (x *pi /* ERROR "not a type" */) m3() {}
++// TODO(gri) try to get rid of double error reporting here
++func (pi /* ERROR "not a type" */ /* ERROR "not a type" */) m1() {}
++func (x pi /* ERROR "not a type" */ /* ERROR "not a type" */) m2() {}
++func (x *pi /* ERROR "not a type" */ /* ERROR "cannot indirect" */) m3() {} // TODO(gri) not closing the last /* comment crashes the system
+ 
+ // Blank types.
+ type _ struct { m int }
+diff --git a/src/pkg/exp/types/staging/testdata/expr3.src b/src/pkg/exp/types/staging/testdata/expr3.src
+index 5635e12eeb..e20aa0b4b0 100644
+--- a/src/pkg/exp/types/staging/testdata/expr3.src
++++ b/src/pkg/exp/types/staging/testdata/expr3.src
+@@ -88,6 +88,11 @@ func indexes() {
+ 	_ = s[1 : 2]
+ 	_ = s[2 /* ERROR "inverted slice range" */ : 1]
+ 	_ = s[2 :]
++	_ = s[: 1<<100]
++	_ = s[1<<100 :]
++	_ = s[1<<100 : 1<<100]
++	_ = s[1 /* ERROR "inverted slice range" */ <<100+1 : 1<<100]
++	_ = s[1 /* ERROR "inverted slice range" */ <<100+1 : 10]
+ 
+ 	var t string
+ 	_ = t[- /* ERROR "index .* negative" */ 1]

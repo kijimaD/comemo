@@ -21,10 +21,200 @@ Date:   Tue Apr 11 16:40:12 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/ssa/config.go       | 16 +++++-----------
  src/cmd/compile/internal/ssa/export_test.go  | 25 ++++++++++++++++---------
  src/cmd/compile/internal/ssa/rewrite.go      |  2 +-
  src/cmd/compile/internal/ssa/writebarrier.go |  6 +++---
  src/cmd/compile/internal/ssagen/ssa.go       | 12 ++----------
  5 files changed, 27 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index ed844306c1..6a3990500b 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -136,10 +136,11 @@ type Logger interface {
+ }
+ 
+ type Frontend interface {
+-	CanSSA(t *types.Type) bool
+-
+ 	Logger
+ 
++	// CanSSA reports whether variabbles of type t are SSA-able.
++	CanSSA(t *types.Type) bool
++
+ 	// StringData returns a symbol pointing to the given string's contents.
+ 	StringData(string) *obj.LSym
+ 
+@@ -151,9 +152,6 @@ type Frontend interface {
+ 	// for the parts of that compound type.
+ 	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
+ 
+-	// Line returns a string describing the given position.
+-	Line(src.XPos) string
+-
+ 	// AllocFrame assigns frame offsets to all live auto variables.
+ 	AllocFrame(f *Func)
+ 
+@@ -164,15 +162,11 @@ type Frontend interface {
+ 	// UseWriteBarrier reports whether write barrier is enabled
+ 	UseWriteBarrier() bool
+ 
+-	// SetWBPos indicates that a write barrier has been inserted
+-	// in this function at position pos.
+-	SetWBPos(pos src.XPos)
+-
+ 	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
+ 	MyImportPath() string
+ 
+-	// LSym returns the linker symbol of the function being compiled.
+-	LSym() string
++	// Func returns the ir.Func of the function being compiled.
++	Func() *ir.Func
+ }
+ 
+ // NewConfig returns a new configuration object for the given architecture.
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index f98437b629..14f2474a11 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -55,7 +55,18 @@ type Conf struct {
+ 
+ func (c *Conf) Frontend() Frontend {
+ 	if c.fe == nil {
+-		c.fe = TestFrontend{t: c.tb, ctxt: c.config.ctxt}
++		f := ir.NewFunc(src.NoXPos)
++		f.Nname = ir.NewNameAt(f.Pos(), &types.Sym{
++			Pkg:  types.NewPkg("my/import/path", "path"),
++			Name: "function",
++		})
++		f.LSym = &obj.LSym{Name: "my/import/path.function"}
++
++		c.fe = TestFrontend{
++			t:    c.tb,
++			ctxt: c.config.ctxt,
++			f:    f,
++		}
+ 	}
+ 	return c.fe
+ }
+@@ -65,6 +76,7 @@ func (c *Conf) Frontend() Frontend {
+ type TestFrontend struct {
+ 	t    testing.TB
+ 	ctxt *obj.Link
++	f    *ir.Func
+ }
+ 
+ func (TestFrontend) StringData(s string) *obj.LSym {
+@@ -79,9 +91,6 @@ func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
+ func (d TestFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
+ 	return LocalSlot{N: parent.N, Type: t, Off: offset}
+ }
+-func (TestFrontend) Line(_ src.XPos) string {
+-	return "unknown.go:0"
+-}
+ func (TestFrontend) AllocFrame(f *Func) {
+ }
+ func (d TestFrontend) Syslook(s string) *obj.LSym {
+@@ -90,8 +99,6 @@ func (d TestFrontend) Syslook(s string) *obj.LSym {
+ func (TestFrontend) UseWriteBarrier() bool {
+ 	return true // only writebarrier_test cares
+ }
+-func (TestFrontend) SetWBPos(pos src.XPos) {
+-}
+ 
+ func (d TestFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+ func (d TestFrontend) Log() bool                            { return true }
+@@ -101,10 +108,10 @@ func (d TestFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.
+ func (d TestFrontend) Debug_checknil() bool                               { return false }
+ 
+ func (d TestFrontend) MyImportPath() string {
+-	return "my/import/path"
++	return d.f.Sym().Pkg.Path
+ }
+-func (d TestFrontend) LSym() string {
+-	return "my/import/path.function"
++func (d TestFrontend) Func() *ir.Func {
++	return d.f
+ }
+ 
+ var testTypes Types
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 6dffa0309f..58813d2fbe 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1992,7 +1992,7 @@ func logicFlags32(x int32) flagConstant {
+ }
+ 
+ func makeJumpTableSym(b *Block) *obj.LSym {
+-	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.fe.LSym(), b.ID))
++	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.fe.Func().LSym.Name, b.ID))
+ 	s.Set(obj.AttrDuplicateOK, true)
+ 	s.Set(obj.AttrLocal, true)
+ 	return s
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 1ff18dd057..5df65bfaa3 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -406,7 +406,7 @@ func writebarrier(f *Func) {
+ 				// Save old value to write buffer.
+ 				addEntry(oldVal)
+ 			}
+-			f.fe.SetWBPos(pos)
++			f.fe.Func().SetWBPos(pos)
+ 			nWBops--
+ 		}
+ 
+@@ -419,7 +419,7 @@ func writebarrier(f *Func) {
+ 				// zeroWB(&typ, dst)
+ 				taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
+ 				memThen = wbcall(pos, bThen, wbZero, sp, memThen, taddr, dst)
+-				f.fe.SetWBPos(pos)
++				f.fe.Func().SetWBPos(pos)
+ 				nWBops--
+ 			case OpMoveWB:
+ 				dst := w.Args[0]
+@@ -436,7 +436,7 @@ func writebarrier(f *Func) {
+ 				// moveWB(&typ, dst, src)
+ 				taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
+ 				memThen = wbcall(pos, bThen, wbMove, sp, memThen, taddr, dst, src)
+-				f.fe.SetWBPos(pos)
++				f.fe.Func().SetWBPos(pos)
+ 				nWBops--
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index e67241004e..d7b016f967 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7877,10 +7877,6 @@ func (e *ssafn) CanSSA(t *types.Type) bool {
+ 	return TypeOK(t)
+ }
+ 
+-func (e *ssafn) Line(pos src.XPos) string {
+-	return base.FmtPos(pos)
+-}
+-
+ // Logf logs a message from the compiler.
+ func (e *ssafn) Logf(msg string, args ...interface{}) {
+ 	if e.log {
+@@ -7932,16 +7928,12 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
+ 	return nil
+ }
+ 
+-func (e *ssafn) SetWBPos(pos src.XPos) {
+-	e.curfn.SetWBPos(pos)
+-}
+-
+ func (e *ssafn) MyImportPath() string {
+ 	return base.Ctxt.Pkgpath
+ }
+ 
+-func (e *ssafn) LSym() string {
+-	return e.curfn.LSym.Name
++func (e *ssafn) Func() *ir.Func {
++	return e.curfn
+ }
+ 
+ func clobberBase(n ir.Node) ir.Node {

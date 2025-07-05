@@ -14,6 +14,20 @@ Date:   Mon Oct 14 13:28:28 2024 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index c38ed8be7f..e3462f54ec 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -544,7 +544,7 @@ opSwitch:
+ 					}
+ 				}
+ 			}
+-			if name.Class == ir.PPARAM {
++			if name.Class == ir.PPARAM || name.Class == ir.PAUTOHEAP && name.IsClosureVar() {
+ 				extraCost = min(extraCost, inlineParamCallCost)
+ 			}
+ 		}

@@ -7,7 +7,32 @@ Date:   Thu Aug 30 17:23:51 2018 -0600
     Change-Id: I0dd843ac06f1b9987aa2fc90ae62074e668d6d4d
     Reviewed-on: https://go-review.googlesource.com/132438
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 8f0a20a0d7..8001484e12 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1404,6 +1404,7 @@ Vladimir Mihailenco <vladimir.webdev@gmail.com>
+ Vladimir Nikishenko <vova616@gmail.com>
+ Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+ Vladimir Varankin <nek.narqo@gmail.com>
++VMware, Inc.
+ Volker Dobler <dr.volker.dobler@gmail.com>
+ W. Trevor King <wking@tremily.us>
+ Wade Simmons <wade@wades.im>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 333dff7aa3..305f6d8d80 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1738,6 +1738,7 @@ Vadim Grek <vadimprog@gmail.com>
+ Vadim Vygonets <unixdj@gmail.com>
+ Val Polouchkine <vpolouch@justin.tv>
+ Vega Garcia Luis Alfonso <vegacom@gmail.com>
++Venil Noronha <veniln@vmware.com>
+ Veselkov Konstantin <kostozyb@gmail.com>
+ Victor Chudnovsky <vchudnov@google.com>
+ Victor Vrantchan <vrancean+github@gmail.com>

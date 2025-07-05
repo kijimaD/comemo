@@ -7,6 +7,20 @@ Date:   Mon Mar 11 12:32:47 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7624044
-
+---
  src/pkg/debug/macho/file.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index fa73a315c7..f5f0dedb7c 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -142,6 +142,8 @@ type Dysymtab struct {
+  * Mach-O reader
+  */
+ 
++// FormatError is returned by some operations if the data does
++// not have the correct format for an object file.
+ type FormatError struct {
+ 	off int64
+ 	msg string

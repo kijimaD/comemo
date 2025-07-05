@@ -23,8 +23,80 @@ Date:   Tue Feb 20 17:15:43 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/net/conf.go      | 17 +++++++----------
  src/net/conf_test.go |  4 ++--
  src/net/net.go       |  3 +--
  3 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 15d73cf6ce..6fe1e4725a 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -338,13 +338,6 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
+ 	if stringsHasSuffix(hostname, ".") {
+ 		hostname = hostname[:len(hostname)-1]
+ 	}
+-	if canUseCgo && stringsHasSuffixFold(hostname, ".local") {
+-		// Per RFC 6762, the ".local" TLD is special. And
+-		// because Go's native resolver doesn't do mDNS or
+-		// similar local resolution mechanisms, assume that
+-		// libc might (via Avahi, etc) and use cgo.
+-		return hostLookupCgo, dnsConf
+-	}
+ 
+ 	nss := getSystemNSS()
+ 	srcs := nss.sources["hosts"]
+@@ -404,9 +397,13 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
+ 				}
+ 				continue
+ 			case hostname != "" && stringsHasPrefix(src.source, "mdns"):
+-				// e.g. "mdns4", "mdns4_minimal"
+-				// We already returned true before if it was *.local.
+-				// libc wouldn't have found a hit on this anyway.
++				if stringsHasSuffixFold(hostname, ".local") {
++					// Per RFC 6762, the ".local" TLD is special. And
++					// because Go's native resolver doesn't do mDNS or
++					// similar local resolution mechanisms, assume that
++					// libc might (via Avahi, etc) and use cgo.
++					return hostLookupCgo, dnsConf
++				}
+ 
+ 				// We don't parse mdns.allow files. They're rare. If one
+ 				// exists, it might list other TLDs (besides .local) or even
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 0f324b245a..6ebd6be635 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -257,7 +257,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupFilesDNS},
+ 				{"x", "myhostname", hostLookupFilesDNS},
+-				{"x.local", "myhostname", hostLookupCgo},
++				{"x.local", "myhostname", hostLookupFilesDNS},
+ 			},
+ 		},
+ 		{
+@@ -268,7 +268,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupDNSFiles},
+ 				{"x", "myhostname", hostLookupDNSFiles},
+-				{"x.local", "myhostname", hostLookupCgo},
++				{"x.local", "myhostname", hostLookupDNSFiles},
+ 			},
+ 		},
+ 		{
+diff --git a/src/net/net.go b/src/net/net.go
+index b5f7303db3..d0db65286b 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -54,8 +54,7 @@ when the LOCALDOMAIN environment variable is present (even if empty),
+ when the RES_OPTIONS or HOSTALIASES environment variable is non-empty,
+ when the ASR_CONFIG environment variable is non-empty (OpenBSD only),
+ when /etc/resolv.conf or /etc/nsswitch.conf specify the use of features that the
+-Go resolver does not implement, and when the name being looked up ends in .local
+-or is an mDNS name.
++Go resolver does not implement.
+ 
+ On all systems (except Plan 9), when the cgo resolver is being used
+ this package applies a concurrent cgo lookup limit to prevent the system

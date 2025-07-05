@@ -8,6 +8,20 @@ Date:   Mon Apr 14 09:36:47 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/87140044
-
+---
  src/libbio/bgetc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/libbio/bgetc.c b/src/libbio/bgetc.c
+index 3399fb16b3..ceb5cb13f8 100644
+--- a/src/libbio/bgetc.c
++++ b/src/libbio/bgetc.c
+@@ -83,7 +83,7 @@ Bgetle4(Biobuf *bp)
+ 
+ 	l = Bgetle2(bp);
+ 	h = Bgetle2(bp);
+-	return l|((uint32)h<<16);
++	return (int)((uint32)l|((uint32)h<<16));
+ }
+ 
+ int

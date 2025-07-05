@@ -24,9 +24,141 @@ Date:   Tue Jun 8 20:09:49 2021 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go       |  1 +
  test/fixedbugs/issue46653.dir/bad/bad.go | 64 ++++++++++++++++++++++++++++++++
  test/fixedbugs/issue46653.dir/main.go    | 27 ++++++++++++++
  test/fixedbugs/issue46653.go             | 10 +++++
  4 files changed, 102 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 0b10cb8a9e..55a0ab7da7 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -148,6 +148,7 @@ func dumpdata() {
+ 	if reflectdata.ZeroSize > 0 {
+ 		zero := base.PkgLinksym("go.map", "zero", obj.ABI0)
+ 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
++		zero.Set(obj.AttrContentAddressable, true)
+ 	}
+ 
+ 	staticdata.WriteFuncSyms()
+diff --git a/test/fixedbugs/issue46653.dir/bad/bad.go b/test/fixedbugs/issue46653.dir/bad/bad.go
+new file mode 100644
+index 0000000000..c1611b8347
+--- /dev/null
++++ b/test/fixedbugs/issue46653.dir/bad/bad.go
+@@ -0,0 +1,64 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func Bad() {
++	m := make(map[int64]A)
++	a := m[0]
++	if len(a.B.C1.D2.E2.F1) != 0 ||
++		len(a.B.C1.D2.E2.F2) != 0 ||
++		len(a.B.C1.D2.E2.F3) != 0 ||
++		len(a.B.C1.D2.E2.F4) != 0 ||
++		len(a.B.C1.D2.E2.F5) != 0 ||
++		len(a.B.C1.D2.E2.F6) != 0 ||
++		len(a.B.C1.D2.E2.F7) != 0 ||
++		len(a.B.C1.D2.E2.F8) != 0 ||
++		len(a.B.C1.D2.E2.F9) != 0 ||
++		len(a.B.C1.D2.E2.F10) != 0 ||
++		len(a.B.C1.D2.E2.F11) != 0 ||
++		len(a.B.C1.D2.E2.F16) != 0 {
++		panic("bad")
++	}
++}
++
++type A struct {
++	B
++}
++
++type B struct {
++	C1 C
++	C2 C
++}
++
++type C struct {
++	D1 D
++	D2 D
++}
++
++type D struct {
++	E1 E
++	E2 E
++	E3 E
++	E4 E
++}
++
++type E struct {
++	F1  string
++	F2  string
++	F3  string
++	F4  string
++	F5  string
++	F6  string
++	F7  string
++	F8  string
++	F9  string
++	F10 string
++	F11 string
++	F12 string
++	F13 string
++	F14 string
++	F15 string
++	F16 string
++}
+diff --git a/test/fixedbugs/issue46653.dir/main.go b/test/fixedbugs/issue46653.dir/main.go
+new file mode 100644
+index 0000000000..e2a96e54ec
+--- /dev/null
++++ b/test/fixedbugs/issue46653.dir/main.go
+@@ -0,0 +1,27 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	bad "issue46653.dir/bad"
++)
++
++func main() {
++	bad.Bad()
++}
++
++func neverCalled() L {
++	m := make(map[string]L)
++	return m[""]
++}
++
++type L struct {
++	A Data
++	B Data
++}
++
++type Data struct {
++	F1 [22][]string
++}
+diff --git a/test/fixedbugs/issue46653.go b/test/fixedbugs/issue46653.go
+new file mode 100644
+index 0000000000..e6283b1de5
+--- /dev/null
++++ b/test/fixedbugs/issue46653.go
+@@ -0,0 +1,10 @@
++// runindir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test to verify compiler and linker handling of multiple
++// competing map.zero symbol definitions.
++
++package ignored

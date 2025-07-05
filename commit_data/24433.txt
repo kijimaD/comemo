@@ -9,7 +9,7 @@ Date:   Tue Jul 28 14:19:20 2015 -0700
     Change-Id: I90bb8894fbac04ca5e5484ea260c131ef8b506fb
     Reviewed-on: https://go-review.googlesource.com/12798
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 124 +++++++++++---
  src/cmd/compile/internal/ssa/deadcode_test.go  |   8 +-
  src/cmd/compile/internal/ssa/deadstore_test.go |   6 +-
@@ -27,3 +27,1863 @@ Date:   Tue Jul 28 14:19:20 2015 -0700
  src/cmd/compile/internal/ssa/schedule_test.go  |   4 +-
  src/cmd/compile/internal/ssa/shift_test.go     |   2 +-
  16 files changed, 537 insertions(+), 304 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6866f4942e..e26412cf46 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -347,9 +347,33 @@ func (s *state) entryNewValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ss
+ 	return s.f.Entry.NewValue2(s.peekLine(), op, t, arg0, arg1)
+ }
+ 
+-// constInt adds a new const int value to the entry block.
++// constInt* routines add a new const int value to the entry block.
++func (s *state) constInt8(t ssa.Type, c int8) *ssa.Value {
++	return s.f.ConstInt8(s.peekLine(), t, c)
++}
++func (s *state) constInt16(t ssa.Type, c int16) *ssa.Value {
++	return s.f.ConstInt16(s.peekLine(), t, c)
++}
++func (s *state) constInt32(t ssa.Type, c int32) *ssa.Value {
++	return s.f.ConstInt32(s.peekLine(), t, c)
++}
++func (s *state) constInt64(t ssa.Type, c int64) *ssa.Value {
++	return s.f.ConstInt64(s.peekLine(), t, c)
++}
++func (s *state) constIntPtr(t ssa.Type, c int64) *ssa.Value {
++	if s.config.PtrSize == 4 && int64(int32(c)) != c {
++		s.Fatalf("pointer constant too big %d", c)
++	}
++	return s.f.ConstIntPtr(s.peekLine(), t, c)
++}
+ func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
+-	return s.f.ConstInt(s.peekLine(), t, c)
++	if s.config.IntSize == 8 {
++		return s.constInt64(t, c)
++	}
++	if int64(int32(c)) != c {
++		s.Fatalf("integer constant too big %d", c)
++	}
++	return s.constInt32(t, int32(c))
+ }
+ 
+ // ssaStmtList converts the statement n to SSA and adds it to s.
+@@ -584,7 +608,7 @@ func (s *state) stmt(n *Node) {
+ 		if n.Left != nil {
+ 			cond = s.expr(n.Left)
+ 		} else {
+-			cond = s.entryNewValue0A(ssa.OpConst, Types[TBOOL], true)
++			cond = s.entryNewValue0A(ssa.OpConstBool, Types[TBOOL], true)
+ 		}
+ 		b = s.endBlock()
+ 		b.Kind = ssa.BlockIf
+@@ -862,11 +886,26 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OLITERAL:
+ 		switch n.Val().Ctype() {
+ 		case CTINT:
+-			return s.constInt(n.Type, Mpgetfix(n.Val().U.(*Mpint)))
+-		case CTSTR, CTBOOL:
+-			return s.entryNewValue0A(ssa.OpConst, n.Type, n.Val().U)
++			i := Mpgetfix(n.Val().U.(*Mpint))
++			switch n.Type.Size() {
++			case 1:
++				return s.constInt8(n.Type, int8(i))
++			case 2:
++				return s.constInt16(n.Type, int16(i))
++			case 4:
++				return s.constInt32(n.Type, int32(i))
++			case 8:
++				return s.constInt64(n.Type, i)
++			default:
++				s.Fatalf("bad integer size %d", n.Type.Size())
++				return nil
++			}
++		case CTSTR:
++			return s.entryNewValue0A(ssa.OpConstString, n.Type, n.Val().U)
++		case CTBOOL:
++			return s.entryNewValue0A(ssa.OpConstBool, n.Type, n.Val().U)
+ 		case CTNIL:
+-			return s.entryNewValue0(ssa.OpConst, n.Type)
++			return s.entryNewValue0(ssa.OpConstNil, n.Type)
+ 		default:
+ 			s.Unimplementedf("unhandled OLITERAL %v", n.Val().Ctype())
+ 			return nil
+@@ -1020,7 +1059,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case ODOTPTR:
+ 		p := s.expr(n.Left)
+ 		s.nilCheck(p)
+-		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
++		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+ 	case OINDEX:
+@@ -1031,10 +1070,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			var elemtype *Type
+ 			var len *ssa.Value
+ 			if n.Left.Type.IsString() {
+-				len = s.newValue1(ssa.OpStringLen, s.config.Uintptr, a)
++				len = s.newValue1(ssa.OpStringLen, s.config.Int, a)
+ 				elemtype = Types[TUINT8]
+ 			} else {
+-				len = s.constInt(s.config.Uintptr, n.Left.Type.Bound)
++				len = s.constInt(s.config.Int, n.Left.Type.Bound)
+ 				elemtype = n.Left.Type.Type
+ 			}
+ 			s.boundsCheck(i, len)
+@@ -1149,12 +1188,25 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
+ // zeroVal returns the zero value for type t.
+ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 	switch {
++	case t.IsInteger():
++		switch t.Size() {
++		case 1:
++			return s.constInt8(t, 0)
++		case 2:
++			return s.constInt16(t, 0)
++		case 4:
++			return s.constInt32(t, 0)
++		case 8:
++			return s.constInt64(t, 0)
++		default:
++			s.Fatalf("bad sized integer type %s", t)
++		}
+ 	case t.IsString():
+-		return s.entryNewValue0A(ssa.OpConst, t, "")
+-	case t.IsInteger() || t.IsPtr():
+-		return s.entryNewValue0(ssa.OpConst, t)
++		return s.entryNewValue0A(ssa.OpConstString, t, "")
++	case t.IsPtr():
++		return s.entryNewValue0(ssa.OpConstNil, t)
+ 	case t.IsBoolean():
+-		return s.entryNewValue0A(ssa.OpConst, t, false) // TODO: store bools as 0/1 in AuxInt?
++		return s.entryNewValue0A(ssa.OpConstBool, t, false) // TODO: store bools as 0/1 in AuxInt?
+ 	}
+ 	s.Unimplementedf("zero for type %v not implemented", t)
+ 	return nil
+@@ -1212,7 +1264,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			a := s.addr(n.Left)
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i)
+-			len := s.constInt(s.config.Uintptr, n.Left.Type.Bound)
++			len := s.constInt(s.config.Int, n.Left.Type.Bound)
+ 			s.boundsCheck(i, len)
+ 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
+ 		}
+@@ -1222,11 +1274,11 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 		return p
+ 	case ODOT:
+ 		p := s.addr(n.Left)
+-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
++		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
+ 	case ODOTPTR:
+ 		p := s.expr(n.Left)
+ 		s.nilCheck(p)
+-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))
++		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
+ 	default:
+ 		s.Unimplementedf("addr: bad op %v", Oconv(int(n.Op), 0))
+ 		return nil
+@@ -1570,7 +1622,7 @@ func genValue(v *ssa.Value) {
+ 		x := regnum(v.Args[0])
+ 		y := regnum(v.Args[1])
+ 		if x != r && y != r {
+-			p := Prog(x86.AMOVQ)
++			p := Prog(regMoveAMD64(v.Type.Size()))
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = x
+ 			p.To.Type = obj.TYPE_REG
+@@ -1731,11 +1783,22 @@ func genValue(v *ssa.Value) {
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.To.Type = obj.TYPE_CONST
+ 		p.To.Offset = v.AuxInt
+-	case ssa.OpAMD64MOVQconst:
++	case ssa.OpAMD64MOVBconst, ssa.OpAMD64MOVWconst, ssa.OpAMD64MOVLconst, ssa.OpAMD64MOVQconst:
+ 		x := regnum(v)
+-		p := Prog(x86.AMOVQ)
++		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = v.AuxInt
++		var i int64
++		switch v.Op {
++		case ssa.OpAMD64MOVBconst:
++			i = int64(int8(v.AuxInt))
++		case ssa.OpAMD64MOVWconst:
++			i = int64(int16(v.AuxInt))
++		case ssa.OpAMD64MOVLconst:
++			i = int64(int32(v.AuxInt))
++		case ssa.OpAMD64MOVQconst:
++			i = v.AuxInt
++		}
++		p.From.Offset = i
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x
+ 	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload:
+@@ -1836,7 +1899,7 @@ func genValue(v *ssa.Value) {
+ 				v.Fatalf("phi arg at different location than phi %v %v %v %v", v, loc, a, f.RegAlloc[a.ID])
+ 			}
+ 		}
+-	case ssa.OpConst:
++	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64, ssa.OpConstString, ssa.OpConstNil, ssa.OpConstBool:
+ 		if v.Block.Func.RegAlloc[v.ID] != nil {
+ 			v.Fatalf("const value %v shouldn't have a location", v)
+ 		}
+@@ -2079,6 +2142,23 @@ var ssaRegToReg = [...]int16{
+ 	// TODO: arch-dependent
+ }
+ 
++// regMoveAMD64 returns the register->register move opcode for the given width.
++// TODO: generalize for all architectures?
++func regMoveAMD64(width int64) int {
++	switch width {
++	case 1:
++		return x86.AMOVB
++	case 2:
++		return x86.AMOVW
++	case 4:
++		return x86.AMOVL
++	case 8:
++		return x86.AMOVQ
++	default:
++		panic("bad register width")
++	}
++}
++
+ // regnum returns the register (in cmd/internal/obj numbering) to
+ // which v has been allocated.  Panics if v is not assigned to a
+ // register.
+diff --git a/src/cmd/compile/internal/ssa/deadcode_test.go b/src/cmd/compile/internal/ssa/deadcode_test.go
+index c63b8e4106..9ec8959571 100644
+--- a/src/cmd/compile/internal/ssa/deadcode_test.go
++++ b/src/cmd/compile/internal/ssa/deadcode_test.go
+@@ -17,7 +17,7 @@ func TestDeadLoop(t *testing.T) {
+ 		// dead loop
+ 		Bloc("deadblock",
+ 			// dead value in dead block
+-			Valu("deadval", OpConst, TypeBool, 0, true),
++			Valu("deadval", OpConstBool, TypeBool, 0, true),
+ 			If("deadval", "deadblock", "exit")))
+ 
+ 	CheckFunc(fun.f)
+@@ -41,7 +41,7 @@ func TestDeadValue(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("deadval", OpConst, TypeInt64, 37, nil),
++			Valu("deadval", OpConst64, TypeInt64, 37, nil),
+ 			Goto("exit")),
+ 		Bloc("exit",
+ 			Exit("mem")))
+@@ -63,7 +63,7 @@ func TestNeverTaken(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t})
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("cond", OpConst, TypeBool, 0, false),
++			Valu("cond", OpConstBool, TypeBool, 0, false),
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+ 			If("cond", "then", "else")),
+ 		Bloc("then",
+@@ -99,7 +99,7 @@ func TestNestedDeadBlocks(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("cond", OpConst, TypeBool, 0, false),
++			Valu("cond", OpConstBool, TypeBool, 0, false),
+ 			If("cond", "b2", "b4")),
+ 		Bloc("b2",
+ 			If("cond", "b3", "b4")),
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+index 3b29e1c430..5b318eb2d2 100644
+--- a/src/cmd/compile/internal/ssa/deadstore_test.go
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -15,7 +15,7 @@ func TestDeadStore(t *testing.T) {
+ 		Bloc("entry",
+ 			Valu("start", OpArg, TypeMem, 0, ".mem"),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+-			Valu("v", OpConst, TypeBool, 0, true),
++			Valu("v", OpConstBool, TypeBool, 0, true),
+ 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
+ 			Valu("addr2", OpAddr, ptrType, 0, nil, "sb"),
+ 			Valu("store1", OpStore, TypeMem, 0, nil, "addr1", "v", "start"),
+@@ -42,7 +42,7 @@ func TestDeadStorePhi(t *testing.T) {
+ 		Bloc("entry",
+ 			Valu("start", OpArg, TypeMem, 0, ".mem"),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+-			Valu("v", OpConst, TypeBool, 0, true),
++			Valu("v", OpConstBool, TypeBool, 0, true),
+ 			Valu("addr", OpAddr, ptrType, 0, nil, "sb"),
+ 			Goto("loop")),
+ 		Bloc("loop",
+@@ -69,7 +69,7 @@ func TestDeadStoreTypes(t *testing.T) {
+ 		Bloc("entry",
+ 			Valu("start", OpArg, TypeMem, 0, ".mem"),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+-			Valu("v", OpConst, TypeBool, 0, true),
++			Valu("v", OpConstBool, TypeBool, 0, true),
+ 			Valu("addr1", OpAddr, t1, 0, nil, "sb"),
+ 			Valu("addr2", OpAddr, t2, 0, nil, "sb"),
+ 			Valu("store1", OpStore, TypeMem, 0, nil, "addr1", "v", "start"),
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index 5209e307b7..1f3124167a 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -44,7 +44,7 @@ func genFwdBack(size int) []bloc {
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("p", OpConst, TypeBool, 0, true),
++			Valu("p", OpConstBool, TypeBool, 0, true),
+ 			Goto(blockn(0)),
+ 		),
+ 	)
+@@ -74,7 +74,7 @@ func genManyPred(size int) []bloc {
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("p", OpConst, TypeBool, 0, true),
++			Valu("p", OpConstBool, TypeBool, 0, true),
+ 			Goto(blockn(0)),
+ 		),
+ 	)
+@@ -85,15 +85,15 @@ func genManyPred(size int) []bloc {
+ 		switch i % 3 {
+ 		case 0:
+ 			blocs = append(blocs, Bloc(blockn(i),
+-				Valu("a", OpConst, TypeBool, 0, true),
++				Valu("a", OpConstBool, TypeBool, 0, true),
+ 				Goto(blockn(i+1))))
+ 		case 1:
+ 			blocs = append(blocs, Bloc(blockn(i),
+-				Valu("a", OpConst, TypeBool, 0, true),
++				Valu("a", OpConstBool, TypeBool, 0, true),
+ 				If("p", blockn(i+1), blockn(0))))
+ 		case 2:
+ 			blocs = append(blocs, Bloc(blockn(i),
+-				Valu("a", OpConst, TypeBool, 0, true),
++				Valu("a", OpConstBool, TypeBool, 0, true),
+ 				If("p", blockn(i+1), blockn(size))))
+ 		}
+ 	}
+@@ -112,7 +112,7 @@ func genMaxPred(size int) []bloc {
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("p", OpConst, TypeBool, 0, true),
++			Valu("p", OpConstBool, TypeBool, 0, true),
+ 			Goto(blockn(0)),
+ 		),
+ 	)
+@@ -137,14 +137,14 @@ func genMaxPredValue(size int) []bloc {
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("p", OpConst, TypeBool, 0, true),
++			Valu("p", OpConstBool, TypeBool, 0, true),
+ 			Goto(blockn(0)),
+ 		),
+ 	)
+ 
+ 	for i := 0; i < size; i++ {
+ 		blocs = append(blocs, Bloc(blockn(i),
+-			Valu("a", OpConst, TypeBool, 0, true),
++			Valu("a", OpConstBool, TypeBool, 0, true),
+ 			If("p", blockn(i+1), "exit")))
+ 	}
+ 
+@@ -267,7 +267,7 @@ func TestDominatorsMultPredFwd(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("p", OpConst, TypeBool, 0, true),
++			Valu("p", OpConstBool, TypeBool, 0, true),
+ 			If("p", "a", "c")),
+ 		Bloc("a",
+ 			If("p", "b", "c")),
+@@ -295,7 +295,7 @@ func TestDominatorsDeadCode(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("p", OpConst, TypeBool, 0, false),
++			Valu("p", OpConstBool, TypeBool, 0, false),
+ 			If("p", "b3", "b5")),
+ 		Bloc("b2", Exit("mem")),
+ 		Bloc("b3", Goto("b2")),
+@@ -318,7 +318,7 @@ func TestDominatorsMultPredRev(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("p", OpConst, TypeBool, 0, true),
++			Valu("p", OpConstBool, TypeBool, 0, true),
+ 			Goto("a")),
+ 		Bloc("a",
+ 			If("p", "b", "entry")),
+@@ -346,7 +346,7 @@ func TestDominatorsMultPred(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("p", OpConst, TypeBool, 0, true),
++			Valu("p", OpConstBool, TypeBool, 0, true),
+ 			If("p", "a", "c")),
+ 		Bloc("a",
+ 			If("p", "b", "c")),
+@@ -374,7 +374,7 @@ func TestPostDominators(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("p", OpConst, TypeBool, 0, true),
++			Valu("p", OpConstBool, TypeBool, 0, true),
+ 			If("p", "a", "c")),
+ 		Bloc("a",
+ 			If("p", "b", "c")),
+@@ -401,7 +401,7 @@ func TestInfiniteLoop(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("p", OpConst, TypeBool, 0, true),
++			Valu("p", OpConstBool, TypeBool, 0, true),
+ 			Goto("a")),
+ 		Bloc("a",
+ 			Goto("b")),
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index e0f7c9ff60..ce13075f19 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -248,9 +248,25 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
+ }
+ 
+ // ConstInt returns an int constant representing its argument.
+-func (f *Func) ConstInt(line int32, t Type, c int64) *Value {
++func (f *Func) ConstInt8(line int32, t Type, c int8) *Value {
+ 	// TODO: cache?
+-	return f.Entry.NewValue0I(line, OpConst, t, c)
++	return f.Entry.NewValue0I(line, OpConst8, t, int64(c))
++}
++func (f *Func) ConstInt16(line int32, t Type, c int16) *Value {
++	// TODO: cache?
++	return f.Entry.NewValue0I(line, OpConst16, t, int64(c))
++}
++func (f *Func) ConstInt32(line int32, t Type, c int32) *Value {
++	// TODO: cache?
++	return f.Entry.NewValue0I(line, OpConst32, t, int64(c))
++}
++func (f *Func) ConstInt64(line int32, t Type, c int64) *Value {
++	// TODO: cache?
++	return f.Entry.NewValue0I(line, OpConst64, t, c)
++}
++func (f *Func) ConstIntPtr(line int32, t Type, c int64) *Value {
++	// TODO: cache?
++	return f.Entry.NewValue0I(line, OpConstPtr, t, c)
+ }
+ 
+ func (f *Func) Logf(msg string, args ...interface{})           { f.Config.Logf(msg, args...) }
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index edea8f78d1..dda96317fe 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -23,7 +23,7 @@
+ //       Bloc("exit",
+ //           Exit("mem")),
+ //       Bloc("deadblock",
+-//          Valu("deadval", OpConst, TypeBool, 0, true),
++//          Valu("deadval", OpConstBool, TypeBool, 0, true),
+ //          If("deadval", "deadblock", "exit")))
+ //
+ // and the Blocks or Values used in the Func can be accessed
+@@ -265,8 +265,8 @@ func TestArgs(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t})
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("a", OpConst, TypeInt64, 14, nil),
+-			Valu("b", OpConst, TypeInt64, 26, nil),
++			Valu("a", OpConst64, TypeInt64, 14, nil),
++			Valu("b", OpConst64, TypeInt64, 26, nil),
+ 			Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+ 			Goto("exit")),
+@@ -288,8 +288,8 @@ func TestEquiv(t *testing.T) {
+ 		{
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+-					Valu("a", OpConst, TypeInt64, 14, nil),
+-					Valu("b", OpConst, TypeInt64, 26, nil),
++					Valu("a", OpConst64, TypeInt64, 14, nil),
++					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+ 					Goto("exit")),
+@@ -297,8 +297,8 @@ func TestEquiv(t *testing.T) {
+ 					Exit("mem"))),
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+-					Valu("a", OpConst, TypeInt64, 14, nil),
+-					Valu("b", OpConst, TypeInt64, 26, nil),
++					Valu("a", OpConst64, TypeInt64, 14, nil),
++					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+ 					Goto("exit")),
+@@ -309,8 +309,8 @@ func TestEquiv(t *testing.T) {
+ 		{
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+-					Valu("a", OpConst, TypeInt64, 14, nil),
+-					Valu("b", OpConst, TypeInt64, 26, nil),
++					Valu("a", OpConst64, TypeInt64, 14, nil),
++					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+ 					Goto("exit")),
+@@ -320,8 +320,8 @@ func TestEquiv(t *testing.T) {
+ 				Bloc("exit",
+ 					Exit("mem")),
+ 				Bloc("entry",
+-					Valu("a", OpConst, TypeInt64, 14, nil),
+-					Valu("b", OpConst, TypeInt64, 26, nil),
++					Valu("a", OpConst64, TypeInt64, 14, nil),
++					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+ 					Goto("exit"))),
+@@ -354,14 +354,14 @@ func TestEquiv(t *testing.T) {
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-					Valu("b", OpConst, TypeInt64, 26, nil),
+-					Valu("a", OpConst, TypeInt64, 14, nil),
++					Valu("b", OpConst64, TypeInt64, 26, nil),
++					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Exit("mem"))),
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-					Valu("a", OpConst, TypeInt64, 14, nil),
+-					Valu("b", OpConst, TypeInt64, 26, nil),
++					Valu("a", OpConst64, TypeInt64, 14, nil),
++					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Exit("mem"))),
+ 		},
+ 		// value auxint different
+@@ -369,12 +369,12 @@ func TestEquiv(t *testing.T) {
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-					Valu("a", OpConst, TypeInt64, 14, nil),
++					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Exit("mem"))),
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-					Valu("a", OpConst, TypeInt64, 26, nil),
++					Valu("a", OpConst64, TypeInt64, 26, nil),
+ 					Exit("mem"))),
+ 		},
+ 		// value aux different
+@@ -382,12 +382,12 @@ func TestEquiv(t *testing.T) {
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-					Valu("a", OpConst, TypeInt64, 0, 14),
++					Valu("a", OpConst64, TypeInt64, 0, 14),
+ 					Exit("mem"))),
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-					Valu("a", OpConst, TypeInt64, 0, 26),
++					Valu("a", OpConst64, TypeInt64, 0, 26),
+ 					Exit("mem"))),
+ 		},
+ 		// value args different
+@@ -395,15 +395,15 @@ func TestEquiv(t *testing.T) {
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-					Valu("a", OpConst, TypeInt64, 14, nil),
+-					Valu("b", OpConst, TypeInt64, 26, nil),
++					Valu("a", OpConst64, TypeInt64, 14, nil),
++					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+ 					Exit("mem"))),
+ 			Fun(c, "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-					Valu("a", OpConst, TypeInt64, 0, nil),
+-					Valu("b", OpConst, TypeInt64, 14, nil),
++					Valu("a", OpConst64, TypeInt64, 0, nil),
++					Valu("b", OpConst64, TypeInt64, 14, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "b", "a"),
+ 					Exit("mem"))),
+ 		},
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index d881aaa693..5680dc58e3 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -82,7 +82,7 @@
+ (Rsh64 <t> x y) && y.Type.Size() == 8 ->
+ 	(SARQ <t> x (CMOVQCC <t>
+ 			(CMPQconst <TypeFlags> [64] y)
+-			(Const <t> [63])
++			(MOVQconst <t> [63])
+ 			y))
+ 
+ (Less64 x y) -> (SETL (CMPQ <TypeFlags> x y))
+@@ -116,16 +116,20 @@
+ (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
+ (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
+ 
+-(Move [size] dst src mem) -> (REPMOVSB dst src (Const <TypeUInt64> [size]) mem)
++(Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <TypeUInt64> [size]) mem)
+ 
+ (Not x) -> (XORQconst [1] x)
+ 
+ (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
+ 
+-(Const <t> [val]) && t.IsInteger() -> (MOVQconst [val])
+-(Const <t>) && t.IsPtr() -> (MOVQconst [0]) // nil is the only const pointer
+-(Const <t>) && t.IsBoolean() && !v.Aux.(bool) -> (MOVQconst [0])
+-(Const <t>) && t.IsBoolean() && v.Aux.(bool) -> (MOVQconst [1])
++(Const8 [val]) -> (MOVBconst [val])
++(Const16 [val]) -> (MOVWconst [val])
++(Const32 [val]) -> (MOVLconst [val])
++(Const64 [val]) -> (MOVQconst [val])
++(ConstPtr [val]) -> (MOVQconst [val])
++(ConstNil) -> (MOVQconst [0])
++(ConstBool {b}) && !b.(bool) -> (MOVBconst [0])
++(ConstBool {b}) && b.(bool) -> (MOVBconst [1])
+ 
+ (Addr {sym} base) -> (LEAQ {sym} base)
+ 
+@@ -226,15 +230,15 @@
+ 
+ // lower Zero instructions with word sizes
+ (Zero [0] _ mem) -> (Copy mem)
+-(Zero [1] destptr mem) -> (MOVBstore destptr (Const <TypeInt8> [0]) mem)
+-(Zero [2] destptr mem) -> (MOVWstore destptr (Const <TypeInt16> [0]) mem)
+-(Zero [4] destptr mem) -> (MOVLstore destptr (Const <TypeInt32> [0]) mem)
+-(Zero [8] destptr mem) -> (MOVQstore destptr (Const <TypeInt64> [0]) mem)
++(Zero [1] destptr mem) -> (MOVBstore destptr (MOVBconst <TypeInt8> [0]) mem)
++(Zero [2] destptr mem) -> (MOVWstore destptr (MOVWconst <TypeInt16> [0]) mem)
++(Zero [4] destptr mem) -> (MOVLstore destptr (MOVLconst <TypeInt32> [0]) mem)
++(Zero [8] destptr mem) -> (MOVQstore destptr (MOVQconst <TypeInt64> [0]) mem)
+ 
+ // rewrite anything less than 4 words into a series of MOV[BWLQ] $0, ptr(off) instructions
+ (Zero [size] destptr mem) && size < 4*8 -> (MOVXzero [size] destptr mem)
+ // Use STOSQ to zero memory. Rewrite this into storing the words with REPSTOSQ and then filling in the remainder with linear moves
+-(Zero [size] destptr mem) && size >= 4*8 -> (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (Const <TypeUInt64> [size/8]) mem))
++(Zero [size] destptr mem) && size >= 4*8 -> (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <TypeUInt64> [size/8]) mem))
+ 
+ // Absorb InvertFlags into branches.
+ (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
+@@ -249,8 +253,8 @@
+ (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
+ 
+ // get rid of >=64 code for constant shifts
+-(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && inBounds(d, c) -> (Const [-1])
+-(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && !inBounds(d, c) -> (Const [0])
++(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && inBounds(d, c) -> (MOVQconst [-1])
++(SBBQcarrymask (CMPQconst [c] (MOVQconst [d]))) && !inBounds(d, c) -> (MOVQconst [0])
+ (ANDQconst [0] _) -> (MOVQconst [0])
+ (ANDQconst [-1] x) -> (Copy x)
+ (CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x) && inBounds(d, c) -> (Copy x)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 9b5c302217..40f7b1680f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -138,12 +138,16 @@ func init() {
+ 		{name: "MOVLQSX", reg: gp11, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
+ 		{name: "MOVLQZX", reg: gp11, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
+ 
+-		{name: "MOVQconst", reg: gp01}, // auxint
+-		{name: "LEAQ", reg: gp11sb},    // arg0 + auxint + offset encoded in aux
+-		{name: "LEAQ1", reg: gp21sb},   // arg0 + arg1 + auxint
+-		{name: "LEAQ2", reg: gp21sb},   // arg0 + 2*arg1 + auxint
+-		{name: "LEAQ4", reg: gp21sb},   // arg0 + 4*arg1 + auxint
+-		{name: "LEAQ8", reg: gp21sb},   // arg0 + 8*arg1 + auxint
++		{name: "MOVBconst", reg: gp01, asm: "MOVB"}, // 8 low bits of auxint
++		{name: "MOVWconst", reg: gp01, asm: "MOVW"}, // 16 low bits of auxint
++		{name: "MOVLconst", reg: gp01, asm: "MOVL"}, // 32 low bits of auxint
++		{name: "MOVQconst", reg: gp01, asm: "MOVQ"}, // auxint
++
++		{name: "LEAQ", reg: gp11sb},  // arg0 + auxint + offset encoded in aux
++		{name: "LEAQ1", reg: gp21sb}, // arg0 + arg1 + auxint
++		{name: "LEAQ2", reg: gp21sb}, // arg0 + 2*arg1 + auxint
++		{name: "LEAQ4", reg: gp21sb}, // arg0 + 4*arg1 + auxint
++		{name: "LEAQ8", reg: gp21sb}, // arg0 + 8*arg1 + auxint
+ 
+ 		{name: "MOVBload", reg: gpload, asm: "MOVB"},          // load byte from arg0+auxint. arg1=mem
+ 		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX"},    // ditto, extend to int64
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index d13466f06a..49c70af4cc 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -20,31 +20,31 @@
+ // For now, the generated successors must be a permutation of the matched successors.
+ 
+ // constant folding
+-(Add64 (Const [c]) (Const [d])) -> (Const [c+d])
+-(AddPtr (Const [c]) (Const [d])) -> (Const [c+d])
+-(Mul64 (Const [c]) (Const [d])) -> (Const [c*d])
+-(MulPtr (Const [c]) (Const [d])) -> (Const [c*d])
+-(IsInBounds (Const [c]) (Const [d])) -> (Const {inBounds(c,d)})
++(Add64 (Const64 [c]) (Const64 [d])) -> (Const64 [c+d])
++(AddPtr (ConstPtr [c]) (ConstPtr [d])) -> (ConstPtr [c+d])
++(Mul64 (Const64 [c]) (Const64 [d])) -> (Const64 [c*d])
++(MulPtr (ConstPtr [c]) (ConstPtr [d])) -> (ConstPtr [c*d])
++(IsInBounds (ConstPtr [c]) (ConstPtr [d])) -> (ConstPtr {inBounds(c,d)})
+ 
+ // tear apart slices
+ // TODO: anything that generates a slice needs to go in here.
+ (SlicePtr (Load ptr mem)) -> (Load ptr mem)
+-(SliceLen (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (Const <config.Uintptr> [config.PtrSize])) mem)
+-(SliceCap (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (Const <config.Uintptr> [config.PtrSize*2])) mem)
++(SliceLen (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Uintptr> [config.PtrSize])) mem)
++(SliceCap (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Uintptr> [config.PtrSize*2])) mem)
+ 
+ // slice and interface comparisons
+ // the frontend ensures that we can only compare against nil
+ // start by putting nil on the right to simplify the other rules
+-(EqFat x y) && x.Op == OpConst && y.Op != OpConst -> (EqFat y x)
+-(NeqFat x y) && x.Op == OpConst && y.Op != OpConst -> (NeqFat y x)
++(EqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (EqFat y x)
++(NeqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (NeqFat y x)
+ // it suffices to check the first word (backing array for slices, dynamic type for interfaces)
+-(EqFat (Load ptr mem) y) && y.Op == OpConst -> (EqPtr (Load <config.Uintptr> ptr mem) (Const <config.Uintptr> [0]))
+-(NeqFat (Load ptr mem) y) && y.Op == OpConst -> (NeqPtr (Load <config.Uintptr> ptr mem) (Const <config.Uintptr> [0]))
++(EqFat (Load ptr mem) (ConstNil)) -> (EqPtr (Load <config.Uintptr> ptr mem) (ConstPtr <config.Uintptr> [0]))
++(NeqFat (Load ptr mem) (ConstNil)) -> (NeqPtr (Load <config.Uintptr> ptr mem) (ConstPtr <config.Uintptr> [0]))
+ 
+ // indexing operations
+ // Note: bounds check has already been done
+ (ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+-(PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
++(PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr <config.Uintptr> idx (ConstPtr <config.Uintptr> [t.Elem().Size()])))
+ (StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+ 
+ // big-object moves
+@@ -52,12 +52,12 @@
+ (Store dst (Load <t> src mem) mem) && t.Size() > 8 -> (Move [t.Size()] dst src mem)
+ 
+ // string ops
+-(Const <t> {s}) && t.IsString() -> (StringMake (Addr <TypeBytePtr> {config.fe.StringData(s.(string))} (SB <config.Uintptr>)) (Const <config.Uintptr> [int64(len(s.(string)))]))
++(ConstString {s}) -> (StringMake (Addr <TypeBytePtr> {config.fe.StringData(s.(string))} (SB <config.Uintptr>)) (ConstPtr <config.Uintptr> [int64(len(s.(string)))]))
+ (Load <t> ptr mem) && t.IsString() -> (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.PtrSize] ptr) mem))
+ (StringPtr (StringMake ptr _)) -> ptr
+ (StringLen (StringMake _ len)) -> len
+ (Store dst str mem) && str.Type.IsString() -> (Store (OffPtr <TypeBytePtr> [config.PtrSize] dst) (StringLen <config.Uintptr> str) (Store <TypeMem> dst (StringPtr <TypeBytePtr> str) mem))
+ 
+ (If (Not cond) yes no) -> (If cond no yes)
+-(If (Const {c}) yes no) && c.(bool) -> (Plain nil yes)
+-(If (Const {c}) yes no) && !c.(bool) -> (Plain nil no)
++(If (ConstBool {c}) yes no) && c.(bool) -> (Plain nil yes)
++(If (ConstBool {c}) yes no) && !c.(bool) -> (Plain nil no)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 2dcaa67bd1..732641319f 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -115,7 +115,15 @@ var genericOps = []opData{
+ 	// in the AuxInt field as an int64 (including int, uint64, etc.).
+ 	// For integer types smaller than 64 bits, only the low-order
+ 	// bits of the AuxInt field matter.
+-	{name: "Const"},
++	{name: "ConstBool"},
++	{name: "ConstString"},
++	{name: "ConstNil"},
++	{name: "Const8"},
++	{name: "Const16"},
++	{name: "Const32"},
++	{name: "Const64"},
++	{name: "ConstPtr"}, // pointer-sized integer constant
++	// TODO: Const32F, ...
+ 
+ 	// Constant-like things
+ 	{name: "Arg"}, // memory input to the function.
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 8dca0bca1f..03cbf7cd57 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -81,6 +81,9 @@ func genRules(arch arch) {
+ 			continue
+ 		}
+ 		op := strings.Split(rule, " ")[0][1:]
++		if op[len(op)-1] == ')' {
++			op = op[:len(op)-1] // rule has only opcode, e.g. (ConstNil) -> ...
++		}
+ 		if isBlock(op, arch) {
+ 			blockrules[op] = append(blockrules[op], rule)
+ 		} else {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 0d56e647af..358459ea8e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -85,6 +85,9 @@ const (
+ 	OpAMD64MOVWQZX
+ 	OpAMD64MOVLQSX
+ 	OpAMD64MOVLQZX
++	OpAMD64MOVBconst
++	OpAMD64MOVWconst
++	OpAMD64MOVLconst
+ 	OpAMD64MOVQconst
+ 	OpAMD64LEAQ
+ 	OpAMD64LEAQ1
+@@ -214,7 +217,14 @@ const (
+ 	OpNeg64
+ 	OpPhi
+ 	OpCopy
+-	OpConst
++	OpConstBool
++	OpConstString
++	OpConstNil
++	OpConst8
++	OpConst16
++	OpConst32
++	OpConst64
++	OpConstPtr
+ 	OpArg
+ 	OpAddr
+ 	OpSP
+@@ -685,8 +695,36 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "MOVBconst",
++		asm:  x86.AMOVB,
++		reg: regInfo{
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "MOVWconst",
++		asm:  x86.AMOVW,
++		reg: regInfo{
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "MOVLconst",
++		asm:  x86.AMOVL,
++		reg: regInfo{
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "MOVQconst",
++		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1546,7 +1584,35 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Const",
++		name:    "ConstBool",
++		generic: true,
++	},
++	{
++		name:    "ConstString",
++		generic: true,
++	},
++	{
++		name:    "ConstNil",
++		generic: true,
++	},
++	{
++		name:    "Const8",
++		generic: true,
++	},
++	{
++		name:    "Const16",
++		generic: true,
++	},
++	{
++		name:    "Const32",
++		generic: true,
++	},
++	{
++		name:    "Const64",
++		generic: true,
++	},
++	{
++		name:    "ConstPtr",
+ 		generic: true,
+ 	},
+ 	{
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index c21f3ab7a7..abf504e6b4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -492,16 +492,44 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endfd75d26316012d86cb71d0dd1214259b
+ 	endfd75d26316012d86cb71d0dd1214259b:
+ 		;
+-	case OpConst:
+-		// match: (Const <t> [val])
+-		// cond: t.IsInteger()
++	case OpConst16:
++		// match: (Const16 [val])
++		// cond:
++		// result: (MOVWconst [val])
++		{
++			val := v.AuxInt
++			v.Op = OpAMD64MOVWconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = val
++			return true
++		}
++		goto end2c6c92f297873b8ac12bd035d56d001e
++	end2c6c92f297873b8ac12bd035d56d001e:
++		;
++	case OpConst32:
++		// match: (Const32 [val])
++		// cond:
++		// result: (MOVLconst [val])
++		{
++			val := v.AuxInt
++			v.Op = OpAMD64MOVLconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = val
++			return true
++		}
++		goto enddae5807662af67143a3ac3ad9c63bae5
++	enddae5807662af67143a3ac3ad9c63bae5:
++		;
++	case OpConst64:
++		// match: (Const64 [val])
++		// cond:
+ 		// result: (MOVQconst [val])
+ 		{
+-			t := v.Type
+ 			val := v.AuxInt
+-			if !(t.IsInteger()) {
+-				goto end4c8bfe9df26fc5aa2bd76b211792732a
+-			}
+ 			v.Op = OpAMD64MOVQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -509,35 +537,67 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AuxInt = val
+ 			return true
+ 		}
+-		goto end4c8bfe9df26fc5aa2bd76b211792732a
+-	end4c8bfe9df26fc5aa2bd76b211792732a:
++		goto endc630434ae7f143ab69d5f482a9b52b5f
++	endc630434ae7f143ab69d5f482a9b52b5f:
+ 		;
+-		// match: (Const <t>)
+-		// cond: t.IsPtr()
+-		// result: (MOVQconst [0])
++	case OpConst8:
++		// match: (Const8 [val])
++		// cond:
++		// result: (MOVBconst [val])
+ 		{
+-			t := v.Type
+-			if !(t.IsPtr()) {
+-				goto endd23abe8d7061f11c260b162e24eec060
++			val := v.AuxInt
++			v.Op = OpAMD64MOVBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = val
++			return true
++		}
++		goto end200524c722ed14ca935ba47f8f30327d
++	end200524c722ed14ca935ba47f8f30327d:
++		;
++	case OpConstBool:
++		// match: (ConstBool {b})
++		// cond: !b.(bool)
++		// result: (MOVBconst [0])
++		{
++			b := v.Aux
++			if !(!b.(bool)) {
++				goto end876159ea073d2dcefcc251667c1a7780
+ 			}
+-			v.Op = OpAMD64MOVQconst
++			v.Op = OpAMD64MOVBconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AuxInt = 0
+ 			return true
+ 		}
+-		goto endd23abe8d7061f11c260b162e24eec060
+-	endd23abe8d7061f11c260b162e24eec060:
++		goto end876159ea073d2dcefcc251667c1a7780
++	end876159ea073d2dcefcc251667c1a7780:
+ 		;
+-		// match: (Const <t>)
+-		// cond: t.IsBoolean() && !v.Aux.(bool)
+-		// result: (MOVQconst [0])
++		// match: (ConstBool {b})
++		// cond: b.(bool)
++		// result: (MOVBconst [1])
+ 		{
+-			t := v.Type
+-			if !(t.IsBoolean() && !v.Aux.(bool)) {
+-				goto end7b1347fd0902b990ee1e49145c7e8c31
++			b := v.Aux
++			if !(b.(bool)) {
++				goto end0dacad3f7cad53905aad5303391447f6
+ 			}
++			v.Op = OpAMD64MOVBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = 1
++			return true
++		}
++		goto end0dacad3f7cad53905aad5303391447f6
++	end0dacad3f7cad53905aad5303391447f6:
++		;
++	case OpConstNil:
++		// match: (ConstNil)
++		// cond:
++		// result: (MOVQconst [0])
++		{
+ 			v.Op = OpAMD64MOVQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -545,26 +605,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AuxInt = 0
+ 			return true
+ 		}
+-		goto end7b1347fd0902b990ee1e49145c7e8c31
+-	end7b1347fd0902b990ee1e49145c7e8c31:
++		goto endea557d921056c25b945a49649e4b9b91
++	endea557d921056c25b945a49649e4b9b91:
+ 		;
+-		// match: (Const <t>)
+-		// cond: t.IsBoolean() && v.Aux.(bool)
+-		// result: (MOVQconst [1])
++	case OpConstPtr:
++		// match: (ConstPtr [val])
++		// cond:
++		// result: (MOVQconst [val])
+ 		{
+-			t := v.Type
+-			if !(t.IsBoolean() && v.Aux.(bool)) {
+-				goto ende0d1c954b5ab5af7227bff9635774f1c
+-			}
++			val := v.AuxInt
+ 			v.Op = OpAMD64MOVQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = 1
++			v.AuxInt = val
+ 			return true
+ 		}
+-		goto ende0d1c954b5ab5af7227bff9635774f1c
+-	ende0d1c954b5ab5af7227bff9635774f1c:
++		goto endc395c0a53eeccf597e225a07b53047d1
++	endc395c0a53eeccf597e225a07b53047d1:
+ 		;
+ 	case OpConvNop:
+ 		// match: (ConvNop <t> x)
+@@ -1527,7 +1585,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	case OpMove:
+ 		// match: (Move [size] dst src mem)
+ 		// cond:
+-		// result: (REPMOVSB dst src (Const <TypeUInt64> [size]) mem)
++		// result: (REPMOVSB dst src (MOVQconst <TypeUInt64> [size]) mem)
+ 		{
+ 			size := v.AuxInt
+ 			dst := v.Args[0]
+@@ -1539,15 +1597,15 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.resetArgs()
+ 			v.AddArg(dst)
+ 			v.AddArg(src)
+-			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
+ 			v0.Type = TypeUInt64
+ 			v0.AuxInt = size
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end1b2d226705fd31dbbe74e3286af178ea
+-	end1b2d226705fd31dbbe74e3286af178ea:
++		goto end2aab774aedae2c616ee88bfa87cdf30e
++	end2aab774aedae2c616ee88bfa87cdf30e:
+ 		;
+ 	case OpMul16:
+ 		// match: (Mul16 x y)
+@@ -1846,13 +1904,13 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	case OpRsh64:
+ 		// match: (Rsh64 <t> x y)
+ 		// cond: y.Type.Size() == 8
+-		// result: (SARQ <t> x (CMOVQCC <t> 			(CMPQconst <TypeFlags> [64] y) 			(Const <t> [63]) 			y))
++		// result: (SARQ <t> x (CMOVQCC <t> 			(CMPQconst <TypeFlags> [64] y) 			(MOVQconst <t> [63]) 			y))
+ 		{
+ 			t := v.Type
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+ 			if !(y.Type.Size() == 8) {
+-				goto end16bda9bd1611d415969fdbec55ed4330
++				goto endd5f88a8c4f11e0e844b35fd8677bd940
+ 			}
+ 			v.Op = OpAMD64SARQ
+ 			v.AuxInt = 0
+@@ -1867,7 +1925,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v1.AuxInt = 64
+ 			v1.AddArg(y)
+ 			v0.AddArg(v1)
+-			v2 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v2 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
+ 			v2.Type = t
+ 			v2.AuxInt = 63
+ 			v0.AddArg(v2)
+@@ -1875,8 +1933,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto end16bda9bd1611d415969fdbec55ed4330
+-	end16bda9bd1611d415969fdbec55ed4330:
++		goto endd5f88a8c4f11e0e844b35fd8677bd940
++	endd5f88a8c4f11e0e844b35fd8677bd940:
+ 		;
+ 	case OpRsh64U:
+ 		// match: (Rsh64U <t> x y)
+@@ -1935,53 +1993,53 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	case OpAMD64SBBQcarrymask:
+ 		// match: (SBBQcarrymask (CMPQconst [c] (MOVQconst [d])))
+ 		// cond: inBounds(d, c)
+-		// result: (Const [-1])
++		// result: (MOVQconst [-1])
+ 		{
+ 			if v.Args[0].Op != OpAMD64CMPQconst {
+-				goto endf67d323ecef000dbcd15d7e031c3475e
++				goto end378de7e659770f877c08b6b269073069
+ 			}
+ 			c := v.Args[0].AuxInt
+ 			if v.Args[0].Args[0].Op != OpAMD64MOVQconst {
+-				goto endf67d323ecef000dbcd15d7e031c3475e
++				goto end378de7e659770f877c08b6b269073069
+ 			}
+ 			d := v.Args[0].Args[0].AuxInt
+ 			if !(inBounds(d, c)) {
+-				goto endf67d323ecef000dbcd15d7e031c3475e
++				goto end378de7e659770f877c08b6b269073069
+ 			}
+-			v.Op = OpConst
++			v.Op = OpAMD64MOVQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AuxInt = -1
+ 			return true
+ 		}
+-		goto endf67d323ecef000dbcd15d7e031c3475e
+-	endf67d323ecef000dbcd15d7e031c3475e:
++		goto end378de7e659770f877c08b6b269073069
++	end378de7e659770f877c08b6b269073069:
+ 		;
+ 		// match: (SBBQcarrymask (CMPQconst [c] (MOVQconst [d])))
+ 		// cond: !inBounds(d, c)
+-		// result: (Const [0])
++		// result: (MOVQconst [0])
+ 		{
+ 			if v.Args[0].Op != OpAMD64CMPQconst {
+-				goto end4157ddea9c4f71bfabfd6fa50e1208ed
++				goto enda7bfd1974bf83ca79653c560a718a86c
+ 			}
+ 			c := v.Args[0].AuxInt
+ 			if v.Args[0].Args[0].Op != OpAMD64MOVQconst {
+-				goto end4157ddea9c4f71bfabfd6fa50e1208ed
++				goto enda7bfd1974bf83ca79653c560a718a86c
+ 			}
+ 			d := v.Args[0].Args[0].AuxInt
+ 			if !(!inBounds(d, c)) {
+-				goto end4157ddea9c4f71bfabfd6fa50e1208ed
++				goto enda7bfd1974bf83ca79653c560a718a86c
+ 			}
+-			v.Op = OpConst
++			v.Op = OpAMD64MOVQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AuxInt = 0
+ 			return true
+ 		}
+-		goto end4157ddea9c4f71bfabfd6fa50e1208ed
+-	end4157ddea9c4f71bfabfd6fa50e1208ed:
++		goto enda7bfd1974bf83ca79653c560a718a86c
++	enda7bfd1974bf83ca79653c560a718a86c:
+ 		;
+ 	case OpAMD64SETA:
+ 		// match: (SETA (InvertFlags x))
+@@ -2676,10 +2734,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		;
+ 		// match: (Zero [1] destptr mem)
+ 		// cond:
+-		// result: (MOVBstore destptr (Const <TypeInt8> [0]) mem)
++		// result: (MOVBstore destptr (MOVBconst <TypeInt8> [0]) mem)
+ 		{
+ 			if v.AuxInt != 1 {
+-				goto end09ec7b1fc5ad40534e0e25c896323f5c
++				goto end16839f51d2e9cf9548f216848406bd97
+ 			}
+ 			destptr := v.Args[0]
+ 			mem := v.Args[1]
+@@ -2688,22 +2746,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AddArg(destptr)
+-			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVBconst, TypeInvalid)
+ 			v0.Type = TypeInt8
+ 			v0.AuxInt = 0
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end09ec7b1fc5ad40534e0e25c896323f5c
+-	end09ec7b1fc5ad40534e0e25c896323f5c:
++		goto end16839f51d2e9cf9548f216848406bd97
++	end16839f51d2e9cf9548f216848406bd97:
+ 		;
+ 		// match: (Zero [2] destptr mem)
+ 		// cond:
+-		// result: (MOVWstore destptr (Const <TypeInt16> [0]) mem)
++		// result: (MOVWstore destptr (MOVWconst <TypeInt16> [0]) mem)
+ 		{
+ 			if v.AuxInt != 2 {
+-				goto end2dee246789dbd305bb1eaec768bdae14
++				goto enddc4a090329efde9ca19983ad18174cbb
+ 			}
+ 			destptr := v.Args[0]
+ 			mem := v.Args[1]
+@@ -2712,22 +2770,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AddArg(destptr)
+-			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVWconst, TypeInvalid)
+ 			v0.Type = TypeInt16
+ 			v0.AuxInt = 0
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end2dee246789dbd305bb1eaec768bdae14
+-	end2dee246789dbd305bb1eaec768bdae14:
++		goto enddc4a090329efde9ca19983ad18174cbb
++	enddc4a090329efde9ca19983ad18174cbb:
+ 		;
+ 		// match: (Zero [4] destptr mem)
+ 		// cond:
+-		// result: (MOVLstore destptr (Const <TypeInt32> [0]) mem)
++		// result: (MOVLstore destptr (MOVLconst <TypeInt32> [0]) mem)
+ 		{
+ 			if v.AuxInt != 4 {
+-				goto ende2bf4ecf21bc9e76700a9c5f62546e78
++				goto end365a027b67399ad8d5d2d5eca847f7d8
+ 			}
+ 			destptr := v.Args[0]
+ 			mem := v.Args[1]
+@@ -2736,22 +2794,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AddArg(destptr)
+-			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVLconst, TypeInvalid)
+ 			v0.Type = TypeInt32
+ 			v0.AuxInt = 0
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto ende2bf4ecf21bc9e76700a9c5f62546e78
+-	ende2bf4ecf21bc9e76700a9c5f62546e78:
++		goto end365a027b67399ad8d5d2d5eca847f7d8
++	end365a027b67399ad8d5d2d5eca847f7d8:
+ 		;
+ 		// match: (Zero [8] destptr mem)
+ 		// cond:
+-		// result: (MOVQstore destptr (Const <TypeInt64> [0]) mem)
++		// result: (MOVQstore destptr (MOVQconst <TypeInt64> [0]) mem)
+ 		{
+ 			if v.AuxInt != 8 {
+-				goto enda65d5d60783daf9b9405f04c44f7adaf
++				goto end5808a5e9c68555a82c3514db39017e56
+ 			}
+ 			destptr := v.Args[0]
+ 			mem := v.Args[1]
+@@ -2760,15 +2818,15 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AddArg(destptr)
+-			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
+ 			v0.Type = TypeInt64
+ 			v0.AuxInt = 0
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto enda65d5d60783daf9b9405f04c44f7adaf
+-	enda65d5d60783daf9b9405f04c44f7adaf:
++		goto end5808a5e9c68555a82c3514db39017e56
++	end5808a5e9c68555a82c3514db39017e56:
+ 		;
+ 		// match: (Zero [size] destptr mem)
+ 		// cond: size < 4*8
+@@ -2794,13 +2852,13 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		;
+ 		// match: (Zero [size] destptr mem)
+ 		// cond: size >= 4*8
+-		// result: (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (Const <TypeUInt64> [size/8]) mem))
++		// result: (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <TypeUInt64> [size/8]) mem))
+ 		{
+ 			size := v.AuxInt
+ 			destptr := v.Args[0]
+ 			mem := v.Args[1]
+ 			if !(size >= 4*8) {
+-				goto end7a358169d20d6834b21f2e03fbf351b2
++				goto endb3058a90f909821d5689fb358519828b
+ 			}
+ 			v.Op = OpZero
+ 			v.AuxInt = 0
+@@ -2815,7 +2873,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v1 := v.Block.NewValue0(v.Line, OpAMD64REPSTOSQ, TypeInvalid)
+ 			v1.Type = TypeMem
+ 			v1.AddArg(destptr)
+-			v2 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v2 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
+ 			v2.Type = TypeUInt64
+ 			v2.AuxInt = size / 8
+ 			v1.AddArg(v2)
+@@ -2823,8 +2881,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end7a358169d20d6834b21f2e03fbf351b2
+-	end7a358169d20d6834b21f2e03fbf351b2:
++		goto endb3058a90f909821d5689fb358519828b
++	endb3058a90f909821d5689fb358519828b:
+ 		;
+ 	case OpZeroExt16to32:
+ 		// match: (ZeroExt16to32 x)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 2c2a48693a..8fa3b6ded1 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -5,50 +5,50 @@ package ssa
+ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 	switch v.Op {
+ 	case OpAdd64:
+-		// match: (Add64 (Const [c]) (Const [d]))
++		// match: (Add64 (Const64 [c]) (Const64 [d]))
+ 		// cond:
+-		// result: (Const [c+d])
++		// result: (Const64 [c+d])
+ 		{
+-			if v.Args[0].Op != OpConst {
+-				goto endd2f4bfaaf6c937171a287b73e5c2f73e
++			if v.Args[0].Op != OpConst64 {
++				goto end8c46df6f85a11cb1d594076b0e467908
+ 			}
+ 			c := v.Args[0].AuxInt
+-			if v.Args[1].Op != OpConst {
+-				goto endd2f4bfaaf6c937171a287b73e5c2f73e
++			if v.Args[1].Op != OpConst64 {
++				goto end8c46df6f85a11cb1d594076b0e467908
+ 			}
+ 			d := v.Args[1].AuxInt
+-			v.Op = OpConst
++			v.Op = OpConst64
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AuxInt = c + d
+ 			return true
+ 		}
+-		goto endd2f4bfaaf6c937171a287b73e5c2f73e
+-	endd2f4bfaaf6c937171a287b73e5c2f73e:
++		goto end8c46df6f85a11cb1d594076b0e467908
++	end8c46df6f85a11cb1d594076b0e467908:
+ 		;
+ 	case OpAddPtr:
+-		// match: (AddPtr (Const [c]) (Const [d]))
++		// match: (AddPtr (ConstPtr [c]) (ConstPtr [d]))
+ 		// cond:
+-		// result: (Const [c+d])
++		// result: (ConstPtr [c+d])
+ 		{
+-			if v.Args[0].Op != OpConst {
+-				goto end67284cb7ae441d6c763096b49a3569a3
++			if v.Args[0].Op != OpConstPtr {
++				goto end145c1aec793b2befff34bc8983b48a38
+ 			}
+ 			c := v.Args[0].AuxInt
+-			if v.Args[1].Op != OpConst {
+-				goto end67284cb7ae441d6c763096b49a3569a3
++			if v.Args[1].Op != OpConstPtr {
++				goto end145c1aec793b2befff34bc8983b48a38
+ 			}
+ 			d := v.Args[1].AuxInt
+-			v.Op = OpConst
++			v.Op = OpConstPtr
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AuxInt = c + d
+ 			return true
+ 		}
+-		goto end67284cb7ae441d6c763096b49a3569a3
+-	end67284cb7ae441d6c763096b49a3569a3:
++		goto end145c1aec793b2befff34bc8983b48a38
++	end145c1aec793b2befff34bc8983b48a38:
+ 		;
+ 	case OpArrayIndex:
+ 		// match: (ArrayIndex (Load ptr mem) idx)
+@@ -76,16 +76,12 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto end4894dd7b58383fee5f8a92be08437c33
+ 	end4894dd7b58383fee5f8a92be08437c33:
+ 		;
+-	case OpConst:
+-		// match: (Const <t> {s})
+-		// cond: t.IsString()
+-		// result: (StringMake (Addr <TypeBytePtr> {config.fe.StringData(s.(string))} (SB <config.Uintptr>)) (Const <config.Uintptr> [int64(len(s.(string)))]))
++	case OpConstString:
++		// match: (ConstString {s})
++		// cond:
++		// result: (StringMake (Addr <TypeBytePtr> {config.fe.StringData(s.(string))} (SB <config.Uintptr>)) (ConstPtr <config.Uintptr> [int64(len(s.(string)))]))
+ 		{
+-			t := v.Type
+ 			s := v.Aux
+-			if !(t.IsString()) {
+-				goto enda6f250a3c775ae5a239ece8074b46cea
+-			}
+ 			v.Op = OpStringMake
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -97,24 +93,24 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v1.Type = config.Uintptr
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+-			v2 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v2 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+ 			v2.Type = config.Uintptr
+ 			v2.AuxInt = int64(len(s.(string)))
+ 			v.AddArg(v2)
+ 			return true
+ 		}
+-		goto enda6f250a3c775ae5a239ece8074b46cea
+-	enda6f250a3c775ae5a239ece8074b46cea:
++		goto end1a01fc02fad8727f9a3b716cfdac3a44
++	end1a01fc02fad8727f9a3b716cfdac3a44:
+ 		;
+ 	case OpEqFat:
+ 		// match: (EqFat x y)
+-		// cond: x.Op == OpConst && y.Op != OpConst
++		// cond: x.Op == OpConstNil && y.Op != OpConstNil
+ 		// result: (EqFat y x)
+ 		{
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			if !(x.Op == OpConst && y.Op != OpConst) {
+-				goto end4540bddcf0fc8e4b71fac6e9edbb8eec
++			if !(x.Op == OpConstNil && y.Op != OpConstNil) {
++				goto endcea7f7399afcff860c54d82230a9a934
+ 			}
+ 			v.Op = OpEqFat
+ 			v.AuxInt = 0
+@@ -124,21 +120,20 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto end4540bddcf0fc8e4b71fac6e9edbb8eec
+-	end4540bddcf0fc8e4b71fac6e9edbb8eec:
++		goto endcea7f7399afcff860c54d82230a9a934
++	endcea7f7399afcff860c54d82230a9a934:
+ 		;
+-		// match: (EqFat (Load ptr mem) y)
+-		// cond: y.Op == OpConst
+-		// result: (EqPtr (Load <config.Uintptr> ptr mem) (Const <config.Uintptr> [0]))
++		// match: (EqFat (Load ptr mem) (ConstNil))
++		// cond:
++		// result: (EqPtr (Load <config.Uintptr> ptr mem) (ConstPtr <config.Uintptr> [0]))
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto end779b0e24e33d8eff668c368b90387caa
++				goto end2597220d1792c84d362da7901d2065d2
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+-			y := v.Args[1]
+-			if !(y.Op == OpConst) {
+-				goto end779b0e24e33d8eff668c368b90387caa
++			if v.Args[1].Op != OpConstNil {
++				goto end2597220d1792c84d362da7901d2065d2
+ 			}
+ 			v.Op = OpEqPtr
+ 			v.AuxInt = 0
+@@ -149,37 +144,37 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v0.AddArg(ptr)
+ 			v0.AddArg(mem)
+ 			v.AddArg(v0)
+-			v1 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v1 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+ 			v1.Type = config.Uintptr
+ 			v1.AuxInt = 0
+ 			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end779b0e24e33d8eff668c368b90387caa
+-	end779b0e24e33d8eff668c368b90387caa:
++		goto end2597220d1792c84d362da7901d2065d2
++	end2597220d1792c84d362da7901d2065d2:
+ 		;
+ 	case OpIsInBounds:
+-		// match: (IsInBounds (Const [c]) (Const [d]))
++		// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
+ 		// cond:
+-		// result: (Const {inBounds(c,d)})
++		// result: (ConstPtr {inBounds(c,d)})
+ 		{
+-			if v.Args[0].Op != OpConst {
+-				goto enda96ccac78df2d17ae96c8baf2af2e189
++			if v.Args[0].Op != OpConstPtr {
++				goto enddfd340bc7103ca323354aec96b113c23
+ 			}
+ 			c := v.Args[0].AuxInt
+-			if v.Args[1].Op != OpConst {
+-				goto enda96ccac78df2d17ae96c8baf2af2e189
++			if v.Args[1].Op != OpConstPtr {
++				goto enddfd340bc7103ca323354aec96b113c23
+ 			}
+ 			d := v.Args[1].AuxInt
+-			v.Op = OpConst
++			v.Op = OpConstPtr
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.Aux = inBounds(c, d)
+ 			return true
+ 		}
+-		goto enda96ccac78df2d17ae96c8baf2af2e189
+-	enda96ccac78df2d17ae96c8baf2af2e189:
++		goto enddfd340bc7103ca323354aec96b113c23
++	enddfd340bc7103ca323354aec96b113c23:
+ 		;
+ 	case OpLoad:
+ 		// match: (Load <t> ptr mem)
+@@ -216,60 +211,60 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 	endce3ba169a57b8a9f6b12751d49b4e23a:
+ 		;
+ 	case OpMul64:
+-		// match: (Mul64 (Const [c]) (Const [d]))
++		// match: (Mul64 (Const64 [c]) (Const64 [d]))
+ 		// cond:
+-		// result: (Const [c*d])
++		// result: (Const64 [c*d])
+ 		{
+-			if v.Args[0].Op != OpConst {
+-				goto endf4ba5346dc8a624781afaa68a8096a9a
++			if v.Args[0].Op != OpConst64 {
++				goto end7aea1048b5d1230974b97f17238380ae
+ 			}
+ 			c := v.Args[0].AuxInt
+-			if v.Args[1].Op != OpConst {
+-				goto endf4ba5346dc8a624781afaa68a8096a9a
++			if v.Args[1].Op != OpConst64 {
++				goto end7aea1048b5d1230974b97f17238380ae
+ 			}
+ 			d := v.Args[1].AuxInt
+-			v.Op = OpConst
++			v.Op = OpConst64
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AuxInt = c * d
+ 			return true
+ 		}
+-		goto endf4ba5346dc8a624781afaa68a8096a9a
+-	endf4ba5346dc8a624781afaa68a8096a9a:
++		goto end7aea1048b5d1230974b97f17238380ae
++	end7aea1048b5d1230974b97f17238380ae:
+ 		;
+ 	case OpMulPtr:
+-		// match: (MulPtr (Const [c]) (Const [d]))
++		// match: (MulPtr (ConstPtr [c]) (ConstPtr [d]))
+ 		// cond:
+-		// result: (Const [c*d])
++		// result: (ConstPtr [c*d])
+ 		{
+-			if v.Args[0].Op != OpConst {
+-				goto end10541de7ea2bce703c1e372ac9a271e7
++			if v.Args[0].Op != OpConstPtr {
++				goto end808c190f346658bb1ad032bf37a1059f
+ 			}
+ 			c := v.Args[0].AuxInt
+-			if v.Args[1].Op != OpConst {
+-				goto end10541de7ea2bce703c1e372ac9a271e7
++			if v.Args[1].Op != OpConstPtr {
++				goto end808c190f346658bb1ad032bf37a1059f
+ 			}
+ 			d := v.Args[1].AuxInt
+-			v.Op = OpConst
++			v.Op = OpConstPtr
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AuxInt = c * d
+ 			return true
+ 		}
+-		goto end10541de7ea2bce703c1e372ac9a271e7
+-	end10541de7ea2bce703c1e372ac9a271e7:
++		goto end808c190f346658bb1ad032bf37a1059f
++	end808c190f346658bb1ad032bf37a1059f:
+ 		;
+ 	case OpNeqFat:
+ 		// match: (NeqFat x y)
+-		// cond: x.Op == OpConst && y.Op != OpConst
++		// cond: x.Op == OpConstNil && y.Op != OpConstNil
+ 		// result: (NeqFat y x)
+ 		{
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			if !(x.Op == OpConst && y.Op != OpConst) {
+-				goto end5d2a9d3aa52fb6866825f35ac65c7cfd
++			if !(x.Op == OpConstNil && y.Op != OpConstNil) {
++				goto end94c68f7dc30c66ed42e507e01c4e5dc7
+ 			}
+ 			v.Op = OpNeqFat
+ 			v.AuxInt = 0
+@@ -279,21 +274,20 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto end5d2a9d3aa52fb6866825f35ac65c7cfd
+-	end5d2a9d3aa52fb6866825f35ac65c7cfd:
++		goto end94c68f7dc30c66ed42e507e01c4e5dc7
++	end94c68f7dc30c66ed42e507e01c4e5dc7:
+ 		;
+-		// match: (NeqFat (Load ptr mem) y)
+-		// cond: y.Op == OpConst
+-		// result: (NeqPtr (Load <config.Uintptr> ptr mem) (Const <config.Uintptr> [0]))
++		// match: (NeqFat (Load ptr mem) (ConstNil))
++		// cond:
++		// result: (NeqPtr (Load <config.Uintptr> ptr mem) (ConstPtr <config.Uintptr> [0]))
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto endf2f18052c2d999a7ac883c441c3b7ade
++				goto end03a0fc8dde062c55439174f70c19e6ce
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+-			y := v.Args[1]
+-			if !(y.Op == OpConst) {
+-				goto endf2f18052c2d999a7ac883c441c3b7ade
++			if v.Args[1].Op != OpConstNil {
++				goto end03a0fc8dde062c55439174f70c19e6ce
+ 			}
+ 			v.Op = OpNeqPtr
+ 			v.AuxInt = 0
+@@ -304,19 +298,19 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v0.AddArg(ptr)
+ 			v0.AddArg(mem)
+ 			v.AddArg(v0)
+-			v1 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v1 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+ 			v1.Type = config.Uintptr
+ 			v1.AuxInt = 0
+ 			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto endf2f18052c2d999a7ac883c441c3b7ade
+-	endf2f18052c2d999a7ac883c441c3b7ade:
++		goto end03a0fc8dde062c55439174f70c19e6ce
++	end03a0fc8dde062c55439174f70c19e6ce:
+ 		;
+ 	case OpPtrIndex:
+ 		// match: (PtrIndex <t> ptr idx)
+ 		// cond:
+-		// result: (AddPtr ptr (MulPtr <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
++		// result: (AddPtr ptr (MulPtr <config.Uintptr> idx (ConstPtr <config.Uintptr> [t.Elem().Size()])))
+ 		{
+ 			t := v.Type
+ 			ptr := v.Args[0]
+@@ -329,23 +323,23 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v0 := v.Block.NewValue0(v.Line, OpMulPtr, TypeInvalid)
+ 			v0.Type = config.Uintptr
+ 			v0.AddArg(idx)
+-			v1 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v1 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+ 			v1.Type = config.Uintptr
+ 			v1.AuxInt = t.Elem().Size()
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto endb39bbe157d1791123f6083b2cfc59ddc
+-	endb39bbe157d1791123f6083b2cfc59ddc:
++		goto endfb3e605edaa4c3c0684c4fa9c8f150ee
++	endfb3e605edaa4c3c0684c4fa9c8f150ee:
+ 		;
+ 	case OpSliceCap:
+ 		// match: (SliceCap (Load ptr mem))
+ 		// cond:
+-		// result: (Load (AddPtr <ptr.Type> ptr (Const <config.Uintptr> [config.PtrSize*2])) mem)
++		// result: (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Uintptr> [config.PtrSize*2])) mem)
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto end83c0ff7760465a4184bad9e4b47f7be8
++				goto end18c7acae3d96b30b9e5699194df4a687
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+@@ -356,7 +350,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v0 := v.Block.NewValue0(v.Line, OpAddPtr, TypeInvalid)
+ 			v0.Type = ptr.Type
+ 			v0.AddArg(ptr)
+-			v1 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v1 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+ 			v1.Type = config.Uintptr
+ 			v1.AuxInt = config.PtrSize * 2
+ 			v0.AddArg(v1)
+@@ -364,16 +358,16 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end83c0ff7760465a4184bad9e4b47f7be8
+-	end83c0ff7760465a4184bad9e4b47f7be8:
++		goto end18c7acae3d96b30b9e5699194df4a687
++	end18c7acae3d96b30b9e5699194df4a687:
+ 		;
+ 	case OpSliceLen:
+ 		// match: (SliceLen (Load ptr mem))
+ 		// cond:
+-		// result: (Load (AddPtr <ptr.Type> ptr (Const <config.Uintptr> [config.PtrSize])) mem)
++		// result: (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Uintptr> [config.PtrSize])) mem)
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto end20579b262d017d875d579683996f0ef9
++				goto end2dc65aee31bb0d91847032be777777d2
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+@@ -384,7 +378,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v0 := v.Block.NewValue0(v.Line, OpAddPtr, TypeInvalid)
+ 			v0.Type = ptr.Type
+ 			v0.AddArg(ptr)
+-			v1 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v1 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+ 			v1.Type = config.Uintptr
+ 			v1.AuxInt = config.PtrSize
+ 			v0.AddArg(v1)
+@@ -392,8 +386,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end20579b262d017d875d579683996f0ef9
+-	end20579b262d017d875d579683996f0ef9:
++		goto end2dc65aee31bb0d91847032be777777d2
++	end2dc65aee31bb0d91847032be777777d2:
+ 		;
+ 	case OpSlicePtr:
+ 		// match: (SlicePtr (Load ptr mem))
+@@ -573,19 +567,19 @@ func rewriteBlockgeneric(b *Block) bool {
+ 		goto endebe19c1c3c3bec068cdb2dd29ef57f96
+ 	endebe19c1c3c3bec068cdb2dd29ef57f96:
+ 		;
+-		// match: (If (Const {c}) yes no)
++		// match: (If (ConstBool {c}) yes no)
+ 		// cond: c.(bool)
+ 		// result: (Plain nil yes)
+ 		{
+ 			v := b.Control
+-			if v.Op != OpConst {
+-				goto end915e334b6388fed7d63e09aa69ecb05c
++			if v.Op != OpConstBool {
++				goto end9ff0273f9b1657f4afc287562ca889f0
+ 			}
+ 			c := v.Aux
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			if !(c.(bool)) {
+-				goto end915e334b6388fed7d63e09aa69ecb05c
++				goto end9ff0273f9b1657f4afc287562ca889f0
+ 			}
+ 			v.Block.Func.removePredecessor(b, no)
+ 			b.Kind = BlockPlain
+@@ -594,22 +588,22 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			b.Succs[0] = yes
+ 			return true
+ 		}
+-		goto end915e334b6388fed7d63e09aa69ecb05c
+-	end915e334b6388fed7d63e09aa69ecb05c:
++		goto end9ff0273f9b1657f4afc287562ca889f0
++	end9ff0273f9b1657f4afc287562ca889f0:
+ 		;
+-		// match: (If (Const {c}) yes no)
++		// match: (If (ConstBool {c}) yes no)
+ 		// cond: !c.(bool)
+ 		// result: (Plain nil no)
+ 		{
+ 			v := b.Control
+-			if v.Op != OpConst {
+-				goto end6452ee3a5bb02c708bddc3181c3ea3cb
++			if v.Op != OpConstBool {
++				goto endf401a4553c3c7c6bed64801da7bba076
+ 			}
+ 			c := v.Aux
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			if !(!c.(bool)) {
+-				goto end6452ee3a5bb02c708bddc3181c3ea3cb
++				goto endf401a4553c3c7c6bed64801da7bba076
+ 			}
+ 			v.Block.Func.removePredecessor(b, yes)
+ 			b.Kind = BlockPlain
+@@ -618,8 +612,8 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			b.Succs[0] = no
+ 			return true
+ 		}
+-		goto end6452ee3a5bb02c708bddc3181c3ea3cb
+-	end6452ee3a5bb02c708bddc3181c3ea3cb:
++		goto endf401a4553c3c7c6bed64801da7bba076
++	endf401a4553c3c7c6bed64801da7bba076:
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/ssa/schedule_test.go b/src/cmd/compile/internal/ssa/schedule_test.go
+index 3a89483a9a..e724871bd0 100644
+--- a/src/cmd/compile/internal/ssa/schedule_test.go
++++ b/src/cmd/compile/internal/ssa/schedule_test.go
+@@ -12,8 +12,8 @@ func TestSchedule(t *testing.T) {
+ 		Fun(c, "entry",
+ 			Bloc("entry",
+ 				Valu("mem0", OpArg, TypeMem, 0, ".mem"),
+-				Valu("ptr", OpConst, TypeInt64, 0xABCD, nil),
+-				Valu("v", OpConst, TypeInt64, 12, nil),
++				Valu("ptr", OpConst64, TypeInt64, 0xABCD, nil),
++				Valu("v", OpConst64, TypeInt64, 12, nil),
+ 				Valu("mem1", OpStore, TypeMem, 0, nil, "ptr", "v", "mem0"),
+ 				Valu("mem2", OpStore, TypeMem, 0, nil, "ptr", "v", "mem1"),
+ 				Valu("mem3", OpStore, TypeInt64, 0, nil, "ptr", "sum", "mem2"),
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index cde48d355a..c32e48d93f 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -33,7 +33,7 @@ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
+ 			Valu("argptr", OpOffPtr, ptyp, 8, nil, "SP"),
+ 			Valu("resptr", OpOffPtr, ptyp, 16, nil, "SP"),
+ 			Valu("load", OpLoad, typ, 0, nil, "argptr", "mem"),
+-			Valu("c", OpConst, TypeUInt64, amount, nil),
++			Valu("c", OpConst64, TypeUInt64, amount, nil),
+ 			Valu("shift", op, typ, 0, nil, "load", "c"),
+ 			Valu("store", OpStore, TypeMem, 0, nil, "resptr", "shift", "mem"),
+ 			Exit("store")))

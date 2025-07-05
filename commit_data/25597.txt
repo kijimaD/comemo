@@ -7,10 +7,521 @@ Date:   Thu Sep 10 11:21:57 2015 -0400
     Change-Id: I14b537922b97d4bce9e0523d98a822da906348f1
     Reviewed-on: https://go-review.googlesource.com/14447
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/defs_linux_mips64x.go    | 183 +++++++++++++++++++++++++++++++++++
  src/runtime/lfstack_linux_mips64x.go |  32 ++++++
  src/runtime/os_linux_mips64x.go      |  18 ++++
  src/runtime/signal_linux_mips64x.go  |  67 +++++++++++++
  src/runtime/signal_mips64x.go        | 180 ++++++++++++++++++++++++++++++++++
  5 files changed, 480 insertions(+)
+
+diff --git a/src/runtime/defs_linux_mips64x.go b/src/runtime/defs_linux_mips64x.go
+new file mode 100644
+index 0000000000..bb3cd9801e
+--- /dev/null
++++ b/src/runtime/defs_linux_mips64x.go
+@@ -0,0 +1,183 @@
++// +build mips64 mips64le
++// +build linux
++
++package runtime
++
++const (
++	_EINTR  = 0x4
++	_EAGAIN = 0xb
++	_ENOMEM = 0xc
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x800
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_DONTNEED   = 0x4
++	_MADV_HUGEPAGE   = 0xe
++	_MADV_NOHUGEPAGE = 0xf
++
++	_SA_RESTART = 0x10000000
++	_SA_ONSTACK = 0x8000000
++	_SA_SIGINFO = 0x8
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGUSR1   = 0x10
++	_SIGUSR2   = 0x11
++	_SIGCHLD   = 0x12
++	_SIGPWR    = 0x13
++	_SIGWINCH  = 0x14
++	_SIGURG    = 0x15
++	_SIGIO     = 0x16
++	_SIGSTOP   = 0x17
++	_SIGTSTP   = 0x18
++	_SIGCONT   = 0x19
++	_SIGTTIN   = 0x1a
++	_SIGTTOU   = 0x1b
++	_SIGVTALRM = 0x1c
++	_SIGPROF   = 0x1d
++	_SIGXCPU   = 0x1e
++	_SIGXFSZ   = 0x1f
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EPOLLIN       = 0x1
++	_EPOLLOUT      = 0x4
++	_EPOLLERR      = 0x8
++	_EPOLLHUP      = 0x10
++	_EPOLLRDHUP    = 0x2000
++	_EPOLLET       = 0x80000000
++	_EPOLL_CLOEXEC = 0x80000
++	_EPOLL_CTL_ADD = 0x1
++	_EPOLL_CTL_DEL = 0x2
++	_EPOLL_CTL_MOD = 0x3
++)
++
++//struct Sigset {
++//	uint64	sig[1];
++//};
++//typedef uint64 Sigset;
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++func (ts *timespec) set_sec(x int64) {
++	ts.tv_sec = x
++}
++
++func (ts *timespec) set_nsec(x int32) {
++	ts.tv_nsec = int64(x)
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int64
++}
++
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = int64(x)
++}
++
++type sigactiont struct {
++	sa_flags   uint32
++	sa_handler uintptr
++	sa_mask    [2]uint64
++	// linux header does not have sa_restorer field,
++	// but it is used in setsig(). it is no harm to put it here
++	sa_restorer uintptr
++}
++
++type siginfo struct {
++	si_signo int32
++	si_code  int32
++	si_errno int32
++	__pad0   [1]int32
++	// below here is a union; si_addr is the only field we use
++	si_addr uint64
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type epollevent struct {
++	events    uint32
++	pad_cgo_0 [4]byte
++	data      [8]byte // unaligned uintptr
++}
++
++const (
++	_O_RDONLY    = 0x0
++	_O_CLOEXEC   = 0x80000
++	_SA_RESTORER = 0
++)
++
++type sigaltstackt struct {
++	ss_sp    *byte
++	ss_size  uintptr
++	ss_flags int32
++}
++
++type sigcontext struct {
++	sc_regs      [32]uint64
++	sc_fpregs    [32]uint64
++	sc_mdhi      uint64
++	sc_hi1       uint64
++	sc_hi2       uint64
++	sc_hi3       uint64
++	sc_mdlo      uint64
++	sc_lo1       uint64
++	sc_lo2       uint64
++	sc_lo3       uint64
++	sc_pc        uint64
++	sc_fpc_csr   uint32
++	sc_used_math uint32
++	sc_dsp       uint32
++	sc_reserved  uint32
++}
++
++type ucontext struct {
++	uc_flags    uint64
++	uc_link     *ucontext
++	uc_stack    sigaltstackt
++	uc_mcontext sigcontext
++	uc_sigmask  uint64
++}
+diff --git a/src/runtime/lfstack_linux_mips64x.go b/src/runtime/lfstack_linux_mips64x.go
+new file mode 100644
+index 0000000000..49b65585f4
+--- /dev/null
++++ b/src/runtime/lfstack_linux_mips64x.go
+@@ -0,0 +1,32 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++// +build linux
++
++package runtime
++
++import "unsafe"
++
++// On mips64, Linux limits the user address space to 40 bits (see
++// TASK_SIZE64 in the Linux kernel).  This has grown over time,
++// so here we allow 48 bit addresses.
++//
++// In addition to the 16 bits taken from the top, we can take 3 from the
++// bottom, because node must be pointer-aligned, giving a total of 19 bits
++// of count.
++const (
++	addrBits = 48
++	cntBits  = 64 - addrBits + 3
++)
++
++func lfstackPack(node *lfnode, cnt uintptr) uint64 {
++	return uint64(uintptr(unsafe.Pointer(node)))<<(64-addrBits) | uint64(cnt&(1<<cntBits-1))
++}
++
++func lfstackUnpack(val uint64) (node *lfnode, cnt uintptr) {
++	node = (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
++	cnt = uintptr(val & (1<<cntBits - 1))
++	return
++}
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+new file mode 100644
+index 0000000000..4d2e9e8a20
+--- /dev/null
++++ b/src/runtime/os_linux_mips64x.go
+@@ -0,0 +1,18 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++// +build linux
++
++package runtime
++
++var randomNumber uint32
++
++//go:nosplit
++func cputicks() int64 {
++	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
++	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
++	// randomNumber provides better seeding of fastrand1.
++	return nanotime() + int64(randomNumber)
++}
+diff --git a/src/runtime/signal_linux_mips64x.go b/src/runtime/signal_linux_mips64x.go
+new file mode 100644
+index 0000000000..c550f69908
+--- /dev/null
++++ b/src/runtime/signal_linux_mips64x.go
+@@ -0,0 +1,67 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++// +build mips64 mips64le
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *sigcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
++func (c *sigctxt) r0() uint64        { return c.regs().sc_regs[0] }
++func (c *sigctxt) r1() uint64        { return c.regs().sc_regs[1] }
++func (c *sigctxt) r2() uint64        { return c.regs().sc_regs[2] }
++func (c *sigctxt) r3() uint64        { return c.regs().sc_regs[3] }
++func (c *sigctxt) r4() uint64        { return c.regs().sc_regs[4] }
++func (c *sigctxt) r5() uint64        { return c.regs().sc_regs[5] }
++func (c *sigctxt) r6() uint64        { return c.regs().sc_regs[6] }
++func (c *sigctxt) r7() uint64        { return c.regs().sc_regs[7] }
++func (c *sigctxt) r8() uint64        { return c.regs().sc_regs[8] }
++func (c *sigctxt) r9() uint64        { return c.regs().sc_regs[9] }
++func (c *sigctxt) r10() uint64       { return c.regs().sc_regs[10] }
++func (c *sigctxt) r11() uint64       { return c.regs().sc_regs[11] }
++func (c *sigctxt) r12() uint64       { return c.regs().sc_regs[12] }
++func (c *sigctxt) r13() uint64       { return c.regs().sc_regs[13] }
++func (c *sigctxt) r14() uint64       { return c.regs().sc_regs[14] }
++func (c *sigctxt) r15() uint64       { return c.regs().sc_regs[15] }
++func (c *sigctxt) r16() uint64       { return c.regs().sc_regs[16] }
++func (c *sigctxt) r17() uint64       { return c.regs().sc_regs[17] }
++func (c *sigctxt) r18() uint64       { return c.regs().sc_regs[18] }
++func (c *sigctxt) r19() uint64       { return c.regs().sc_regs[19] }
++func (c *sigctxt) r20() uint64       { return c.regs().sc_regs[20] }
++func (c *sigctxt) r21() uint64       { return c.regs().sc_regs[21] }
++func (c *sigctxt) r22() uint64       { return c.regs().sc_regs[22] }
++func (c *sigctxt) r23() uint64       { return c.regs().sc_regs[23] }
++func (c *sigctxt) r24() uint64       { return c.regs().sc_regs[24] }
++func (c *sigctxt) r25() uint64       { return c.regs().sc_regs[25] }
++func (c *sigctxt) r26() uint64       { return c.regs().sc_regs[26] }
++func (c *sigctxt) r27() uint64       { return c.regs().sc_regs[27] }
++func (c *sigctxt) r28() uint64       { return c.regs().sc_regs[28] }
++func (c *sigctxt) r29() uint64       { return c.regs().sc_regs[29] }
++func (c *sigctxt) r30() uint64       { return c.regs().sc_regs[30] }
++func (c *sigctxt) r31() uint64       { return c.regs().sc_regs[31] }
++func (c *sigctxt) sp() uint64        { return c.regs().sc_regs[29] }
++func (c *sigctxt) pc() uint64        { return c.regs().sc_pc }
++func (c *sigctxt) link() uint64      { return c.regs().sc_regs[31] }
++func (c *sigctxt) lo() uint64        { return c.regs().sc_mdlo }
++func (c *sigctxt) hi() uint64        { return c.regs().sc_mdhi }
++
++func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
++
++func (c *sigctxt) set_r30(x uint64)  { c.regs().sc_regs[30] = x }
++func (c *sigctxt) set_pc(x uint64)   { c.regs().sc_pc = x }
++func (c *sigctxt) set_sp(x uint64)   { c.regs().sc_regs[29] = x }
++func (c *sigctxt) set_link(x uint64) { c.regs().sc_regs[31] = x }
++
++func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint64) {
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize)) = uintptr(x)
++}
+diff --git a/src/runtime/signal_mips64x.go b/src/runtime/signal_mips64x.go
+new file mode 100644
+index 0000000000..81ce59594a
+--- /dev/null
++++ b/src/runtime/signal_mips64x.go
+@@ -0,0 +1,180 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++// +build mips64 mips64le
++
++package runtime
++
++import "unsafe"
++
++func dumpregs(c *sigctxt) {
++	print("r0   ", hex(c.r0()), "\t")
++	print("r1   ", hex(c.r1()), "\n")
++	print("r2   ", hex(c.r2()), "\t")
++	print("r3   ", hex(c.r3()), "\n")
++	print("r4   ", hex(c.r4()), "\t")
++	print("r5   ", hex(c.r5()), "\n")
++	print("r6   ", hex(c.r6()), "\t")
++	print("r7   ", hex(c.r7()), "\n")
++	print("r8   ", hex(c.r8()), "\t")
++	print("r9   ", hex(c.r9()), "\n")
++	print("r10  ", hex(c.r10()), "\t")
++	print("r11  ", hex(c.r11()), "\n")
++	print("r12  ", hex(c.r12()), "\t")
++	print("r13  ", hex(c.r13()), "\n")
++	print("r14  ", hex(c.r14()), "\t")
++	print("r15  ", hex(c.r15()), "\n")
++	print("r16  ", hex(c.r16()), "\t")
++	print("r17  ", hex(c.r17()), "\n")
++	print("r18  ", hex(c.r18()), "\t")
++	print("r19  ", hex(c.r19()), "\n")
++	print("r20  ", hex(c.r20()), "\t")
++	print("r21  ", hex(c.r21()), "\n")
++	print("r22  ", hex(c.r22()), "\t")
++	print("r23  ", hex(c.r23()), "\n")
++	print("r24  ", hex(c.r24()), "\t")
++	print("r25  ", hex(c.r25()), "\n")
++	print("r26  ", hex(c.r26()), "\t")
++	print("r27  ", hex(c.r27()), "\n")
++	print("r28  ", hex(c.r28()), "\t")
++	print("r29  ", hex(c.r29()), "\n")
++	print("r30  ", hex(c.r30()), "\t")
++	print("r31  ", hex(c.r31()), "\n")
++	print("pc   ", hex(c.pc()), "\t")
++	print("link ", hex(c.link()), "\n")
++	print("lo   ", hex(c.lo()), "\t")
++	print("hi   ", hex(c.hi()), "\n")
++}
++
++var crashing int32
++
++// May run during STW, so write barriers are not allowed.
++//go:nowritebarrier
++func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
++	_g_ := getg()
++	c := &sigctxt{info, ctxt}
++
++	if sig == _SIGPROF {
++		sigprof(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp, _g_.m)
++		return
++	}
++	flags := int32(_SigThrow)
++	if sig < uint32(len(sigtable)) {
++		flags = sigtable[sig].flags
++	}
++	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp.sig = sig
++		gp.sigcode0 = uintptr(c.sigcode())
++		gp.sigcode1 = uintptr(c.sigaddr())
++		gp.sigpc = uintptr(c.pc())
++
++		// We arrange link, and pc to pretend the panicking
++		// function calls sigpanic directly.
++		// Always save LINK to stack so that panics in leaf
++		// functions are correctly handled. This smashes
++		// the stack frame but we're not going back there
++		// anyway.
++		sp := c.sp() - ptrSize
++		c.set_sp(sp)
++		*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
++
++		pc := uintptr(gp.sigpc)
++
++		// If we don't recognize the PC as code
++		// but we do recognize the link register as code,
++		// then assume this was a call to non-code and treat like
++		// pc == 0, to make unwinding show the context.
++		if pc != 0 && findfunc(pc) == nil && findfunc(uintptr(c.link())) != nil {
++			pc = 0
++		}
++
++		// Don't bother saving PC if it's zero, which is
++		// probably a call to a nil func: the old link register
++		// is more useful in the stack trace.
++		if pc != 0 {
++			c.set_link(uint64(pc))
++		}
++
++		// In case we are panicking from external C code
++		c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
++		c.set_pc(uint64(funcPC(sigpanic)))
++		return
++	}
++
++	if c.sigcode() == _SI_USER || flags&_SigNotify != 0 {
++		if sigsend(sig) {
++			return
++		}
++	}
++
++	if flags&_SigKill != 0 {
++		exit(2)
++	}
++
++	if flags&_SigThrow == 0 {
++		return
++	}
++
++	_g_.m.throwing = 1
++	_g_.m.caughtsig.set(gp)
++
++	if crashing == 0 {
++		startpanic()
++	}
++
++	if sig < uint32(len(sigtable)) {
++		print(sigtable[sig].name, "\n")
++	} else {
++		print("Signal ", sig, "\n")
++	}
++
++	print("PC=", hex(c.pc()), " m=", _g_.m.id, "\n")
++	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
++		print("signal arrived during cgo execution\n")
++		gp = _g_.m.lockedg
++	}
++	print("\n")
++
++	level, _, docrash := gotraceback()
++	if level > 0 {
++		goroutineheader(gp)
++		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp)
++		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
++			// tracebackothers on original m skipped this one; trace it now.
++			goroutineheader(_g_.m.curg)
++			traceback(^uintptr(0), ^uintptr(0), 0, gp)
++		} else if crashing == 0 {
++			tracebackothers(gp)
++			print("\n")
++		}
++		dumpregs(c)
++	}
++
++	if docrash {
++		crashing++
++		if crashing < sched.mcount {
++			// There are other m's that need to dump their stacks.
++			// Relay SIGQUIT to the next m by sending it to the current process.
++			// All m's that have already received SIGQUIT have signal masks blocking
++			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
++			// When the last m receives the SIGQUIT, it will fall through to the call to
++			// crash below. Just in case the relaying gets botched, each m involved in
++			// the relay sleeps for 5 seconds and then does the crash/exit itself.
++			// In expected operation, the last m has received the SIGQUIT and run
++			// crash/exit and the process is gone, all long before any of the
++			// 5-second sleeps have finished.
++			print("\n-----\n\n")
++			raiseproc(_SIGQUIT)
++			usleep(5 * 1000 * 1000)
++		}
++		crash()
++	}
++
++	exit(2)
++}

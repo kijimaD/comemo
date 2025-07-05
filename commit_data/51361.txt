@@ -48,9 +48,144 @@ Date:   Tue Jan 18 10:49:57 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/stmt.go                  | 15 ++++++++-------
  src/cmd/compile/internal/types2/testdata/check/stmt0.src | 14 +++++++++++++-
  src/go/types/stmt.go                                     | 14 +++++++-------
  src/go/types/testdata/check/stmt0.src                    | 14 +++++++++++++-
  4 files changed, 41 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index ae9cc69c99..98244cd5e9 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -305,7 +305,7 @@ L:
+ 			}
+ 		}
+ 		seen[T] = e
+-		if T != nil {
++		if T != nil && xtyp != nil {
+ 			check.typeAssertion(e, x, xtyp, T, true)
+ 		}
+ 	}
+@@ -733,15 +733,16 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 	if x.mode == invalid {
+ 		return
+ 	}
++
+ 	// TODO(gri) we may want to permit type switches on type parameter values at some point
++	var xtyp *Interface
+ 	if isTypeParam(x.typ) {
+ 		check.errorf(&x, "cannot use type switch on type parameter value %s", &x)
+-		return
+-	}
+-	xtyp, _ := under(x.typ).(*Interface)
+-	if xtyp == nil {
+-		check.errorf(&x, "%s is not an interface", &x)
+-		return
++	} else {
++		xtyp, _ = under(x.typ).(*Interface)
++		if xtyp == nil {
++			check.errorf(&x, "%s is not an interface", &x)
++		}
+ 	}
+ 
+ 	check.multipleSwitchDefaults(s.Body)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/stmt0.src b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+index 8b18d676ac..c4820c9f7f 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+@@ -695,7 +695,7 @@ func typeswitches() {
+ 		_ = y
+ 	}
+ 
+-	switch x := i /* ERROR "not an interface" */ .(type) {}
++	switch /* ERROR "x declared but not used" */ x := i /* ERROR "not an interface" */ .(type) {}
+ 
+ 	switch t := x.(type) {
+ 	case nil:
+@@ -719,6 +719,18 @@ func typeswitches() {
+ 	case T2 /* ERROR "wrong type for method m" */ :
+ 	case I2 /* STRICT "wrong type for method m" */ : // only an error in strict mode (issue 8561)
+ 	}
++
++
++	{
++		x := 1
++		v := 2
++		switch v /* ERROR "v [(]variable of type int[)] is not an interface" */ .(type) {
++		case int:
++			println(x)
++			println(x / /* ERROR "invalid operation: division by zero" */ 0)
++		case /* ERROR "1 is not a type" */ 1:
++		}
++	}
+ }
+ 
+ // Test that each case clause uses the correct type of the variable
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 8621d2800a..0a69789078 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -310,7 +310,7 @@ L:
+ 			}
+ 		}
+ 		seen[T] = e
+-		if T != nil {
++		if T != nil && xtyp != nil {
+ 			check.typeAssertion(e, x, xtyp, T)
+ 		}
+ 	}
+@@ -686,14 +686,14 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			return
+ 		}
+ 		// TODO(gri) we may want to permit type switches on type parameter values at some point
++		var xtyp *Interface
+ 		if isTypeParam(x.typ) {
+ 			check.errorf(&x, _InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
+-			return
+-		}
+-		xtyp, _ := under(x.typ).(*Interface)
+-		if xtyp == nil {
+-			check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
+-			return
++		} else {
++			xtyp, _ = under(x.typ).(*Interface)
++			if xtyp == nil {
++				check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
++			}
+ 		}
+ 
+ 		check.multipleDefaults(s.Body.List)
+diff --git a/src/go/types/testdata/check/stmt0.src b/src/go/types/testdata/check/stmt0.src
+index c7a718de70..a635af7cbb 100644
+--- a/src/go/types/testdata/check/stmt0.src
++++ b/src/go/types/testdata/check/stmt0.src
+@@ -695,7 +695,7 @@ func typeswitches() {
+ 		_ = y
+ 	}
+ 
+-	switch x := i /* ERROR "not an interface" */ .(type) {}
++	switch x /* ERROR "x declared but not used" */ := i /* ERROR "not an interface" */ .(type) {}
+ 
+ 	switch t := x.(type) {
+ 	case nil:
+@@ -719,6 +719,18 @@ func typeswitches() {
+ 	case T2 /* ERROR "wrong type for method m" */ :
+ 	case I2 /* STRICT "wrong type for method m" */ : // only an error in strict mode (issue 8561)
+ 	}
++
++
++	{
++		x := 1
++		v := 2
++		switch v /* ERROR "v [(]variable of type int[)] is not an interface" */ .(type) {
++		case int:
++			println(x)
++			println(x / 0 /* ERROR "invalid operation: division by zero" */)
++		case 1 /* ERROR "expected type, found 1" */:
++		}
++	}
+ }
+ 
+ // Test that each case clause uses the correct type of the variable

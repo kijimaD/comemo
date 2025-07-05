@@ -12,8 +12,53 @@ Date:   Wed Nov 1 11:03:41 2017 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/go/internal/gccgoimporter/gccgoinstallation_test.go | 1 -
  src/go/internal/gccgoimporter/importer_test.go          | 1 -
  src/runtime/pprof/pprof_test.go                         | 2 --
  3 files changed, 4 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/gccgoinstallation_test.go b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+index 23db6054c1..e601411237 100644
+--- a/src/go/internal/gccgoimporter/gccgoinstallation_test.go
++++ b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+@@ -152,7 +152,6 @@ func TestInstallationImporter(t *testing.T) {
+ 	// were compiled with gccgo.
+ 	if runtime.Compiler != "gccgo" {
+ 		t.Skip("This test needs gccgo")
+-		return
+ 	}
+ 
+ 	var inst GccgoInstallation
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index 61c07bc72a..26f5d9f5b7 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -122,7 +122,6 @@ func TestObjImporter(t *testing.T) {
+ 	// were compiled with gccgo.
+ 	if runtime.Compiler != "gccgo" {
+ 		t.Skip("This test needs gccgo")
+-		return
+ 	}
+ 
+ 	tmpdir, err := ioutil.TempDir("", "")
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 955964c721..81c44af2b7 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -179,7 +179,6 @@ func testCPUProfile(t *testing.T, need []string, f func(dur time.Duration)) {
+ 
+ 	if badOS[runtime.GOOS] {
+ 		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
+-		return
+ 	}
+ 	// Ignore the failure if the tests are running in a QEMU-based emulator,
+ 	// QEMU is not perfect at emulating everything.
+@@ -187,7 +186,6 @@ func testCPUProfile(t *testing.T, need []string, f func(dur time.Duration)) {
+ 	// IN_QEMU=1 indicates that the tests are running in QEMU. See issue 9605.
+ 	if os.Getenv("IN_QEMU") == "1" {
+ 		t.Skip("ignore the failure in QEMU; see golang.org/issue/9605")
+-		return
+ 	}
+ 	t.FailNow()
+ }

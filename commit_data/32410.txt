@@ -17,6 +17,36 @@ Date:   Sun Apr 23 05:03:11 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/shortcircuit.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/shortcircuit.go b/src/cmd/compile/internal/ssa/shortcircuit.go
+index 54e186980d..506be4e7a0 100644
+--- a/src/cmd/compile/internal/ssa/shortcircuit.go
++++ b/src/cmd/compile/internal/ssa/shortcircuit.go
+@@ -17,8 +17,7 @@ func shortcircuit(f *Func) {
+ 	//    x = phi(a, ...)
+ 	//
+ 	// We can replace the "a" in the phi with the constant true.
+-	ct := f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, true)
+-	cf := f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, false)
++	var ct, cf *Value
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if v.Op != OpPhi {
+@@ -37,8 +36,14 @@ func shortcircuit(f *Func) {
+ 					continue
+ 				}
+ 				if e.i == 0 {
++					if ct == nil {
++						ct = f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, true)
++					}
+ 					v.SetArg(i, ct)
+ 				} else {
++					if cf == nil {
++						cf = f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, false)
++					}
+ 					v.SetArg(i, cf)
+ 				}
+ 			}

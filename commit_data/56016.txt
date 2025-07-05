@@ -14,6 +14,29 @@ Date:   Mon Apr 3 15:17:40 2023 -0400
     TryBot-Bypass: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/cgo/gcc_stack_unix.c | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_stack_unix.c b/src/runtime/cgo/gcc_stack_unix.c
+index 5ca6a94429..71ac36ff1e 100644
+--- a/src/runtime/cgo/gcc_stack_unix.c
++++ b/src/runtime/cgo/gcc_stack_unix.c
+@@ -18,9 +18,16 @@ x_cgo_getstackbound(G *g)
+ 	void *addr;
+ 	size_t size;
+ 
+-#if defined(__GLIBC__) || defined(__sun)
++#if defined(__GLIBC__) || (defined(__sun) && !defined(__illumos__))
++	// pthread_getattr_np is a GNU extension supported in glibc.
++	// Solaris is not glibc but does support pthread_getattr_np
++	// (and the fallback doesn't work...). Illumos does not.
+ 	pthread_getattr_np(pthread_self(), &attr);  // GNU extension
+ 	pthread_attr_getstack(&attr, &addr, &size); // low address
++#elif defined(__illumos__)
++	pthread_attr_init(&attr);
++	pthread_attr_get_np(pthread_self(), &attr);
++	pthread_attr_getstack(&attr, &addr, &size); // low address
+ #else
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);

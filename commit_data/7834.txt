@@ -9,6 +9,43 @@ Date:   Tue Mar 22 13:30:16 2011 -0700
     TBR=rsc
     CC=golang-dev
     https://golang.org/cl/4273096
-
+---
  src/Make.pkg | 18 ++++++++----------
  1 file changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index dcdb09132e..d8d034dfa3 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -117,16 +117,6 @@ dir:
+ #	_obj/x.cgo2.c	- C implementations compiled with gcc to create a dynamic library
+ #
+ 
+-ifneq ($(CGOFILES)$(SWIGFILES),)
+-# Have to run gcc with the right size argument on hybrid 32/64 machines.
+-_CGO_CFLAGS_386=-m32
+-_CGO_CFLAGS_amd64=-m64
+-_CGO_LDFLAGS_freebsd=-shared -lpthread -lm
+-_CGO_LDFLAGS_linux=-shared -lpthread -lm
+-_CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
+-_CGO_LDFLAGS_windows=-shared -lm -mthreads
+-endif
+-
+ ifdef CGOFILES
+ _obj/_cgo_run: $(CGOFILES)
+ 	@mkdir -p _obj
+@@ -176,6 +166,14 @@ _obj/_cgo_import.c: _cgo1_.o
+ # added _cgo_defun.$O to $OFILES, and added the installed copy of
+ # package_x.so (built from x.cgo2.c) to $(INSTALLFILES).
+ 
++# Have to run gcc with the right size argument on hybrid 32/64 machines.
++_CGO_CFLAGS_386=-m32
++_CGO_CFLAGS_amd64=-m64
++_CGO_LDFLAGS_freebsd=-shared -lpthread -lm
++_CGO_LDFLAGS_linux=-shared -lpthread -lm
++_CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
++_CGO_LDFLAGS_windows=-shared -lm -mthreads
++
+ # Have to compile the runtime header.
+ RUNTIME_CFLAGS=-I$(pkgdir)
+ 

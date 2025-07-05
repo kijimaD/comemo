@@ -22,7 +22,7 @@ Date:   Tue Dec 29 03:08:23 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/func.go           | 16 +---------------
  src/cmd/compile/internal/ir/sizeof_test.go    |  2 +-
  src/cmd/compile/internal/noder/noder.go       |  7 +++++--
@@ -32,3 +32,164 @@ Date:   Tue Dec 29 03:08:23 2020 -0800
  src/cmd/compile/internal/typecheck/iimport.go | 11 ++++++-----
  src/cmd/compile/internal/walk/closure.go      |  2 +-
  8 files changed, 18 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 4613425f1a..bffd4dd5ef 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -49,7 +49,6 @@ import (
+ // pointer from the Func back to the OCALLPART.
+ type Func struct {
+ 	miniNode
+-	typ  *types.Type
+ 	Body Nodes
+ 	Iota int64
+ 
+@@ -116,9 +115,7 @@ func NewFunc(pos src.XPos) *Func {
+ 
+ func (f *Func) isStmt() {}
+ 
+-func (f *Func) Type() *types.Type     { return f.typ }
+-func (f *Func) SetType(x *types.Type) { f.typ = x }
+-
++func (f *Func) Type() *types.Type  { return f.Nname.Type() }
+ func (f *Func) Sym() *types.Sym    { return f.Nname.Sym() }
+ func (f *Func) Linksym() *obj.LSym { return f.Nname.Linksym() }
+ 
+@@ -236,17 +233,6 @@ func FuncSymName(s *types.Sym) string {
+ 	return s.Name + "·f"
+ }
+ 
+-// NewFuncNameAt generates a new name node for a function or method.
+-func NewFuncNameAt(pos src.XPos, s *types.Sym, fn *Func) *Name {
+-	if fn.Nname != nil {
+-		base.Fatalf("newFuncName - already have name")
+-	}
+-	n := NewNameAt(pos, s)
+-	n.SetFunc(fn)
+-	fn.Nname = n
+-	return n
+-}
+-
+ // MarkFunc marks a node as a function.
+ func MarkFunc(n *Name) {
+ 	if n.Op() != ONAME || n.Class_ != Pxxx {
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 2a618f85ed..61f207af20 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 200, 352},
++		{Func{}, 196, 344},
+ 		{Name{}, 132, 232},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 920f4839ad..f4b5e0cf91 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -524,7 +524,8 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+ 		name = ir.BlankNode.Sym() // filled in by typecheckfunc
+ 	}
+ 
+-	f.Nname = ir.NewFuncNameAt(p.pos(fun.Name), name, f)
++	f.Nname = ir.NewNameAt(p.pos(fun.Name), name)
++	f.Nname.Func = f
+ 	f.Nname.Defn = f
+ 	f.Nname.Ntype = t
+ 
+@@ -1742,7 +1743,9 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ 
+ 	fn := ir.NewFunc(p.pos(expr))
+ 	fn.SetIsHiddenClosure(ir.CurFunc != nil)
+-	fn.Nname = ir.NewFuncNameAt(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
++
++	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by typecheckclosure
++	fn.Nname.Func = fn
+ 	fn.Nname.Ntype = xtype
+ 	fn.Nname.Defn = fn
+ 
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 83f926e135..c4f32ff59d 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -23,7 +23,8 @@ func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
+ 	}
+ 
+ 	fn := ir.NewFunc(base.Pos)
+-	fn.Nname = ir.NewFuncNameAt(base.Pos, sym, fn)
++	fn.Nname = ir.NewNameAt(base.Pos, sym)
++	fn.Nname.Func = fn
+ 	fn.Nname.Defn = fn
+ 	fn.Nname.Ntype = tfn
+ 	ir.MarkFunc(fn.Nname)
+diff --git a/src/cmd/compile/internal/typecheck/export.go b/src/cmd/compile/internal/typecheck/export.go
+index 03deff8174..c525391401 100644
+--- a/src/cmd/compile/internal/typecheck/export.go
++++ b/src/cmd/compile/internal/typecheck/export.go
+@@ -31,12 +31,8 @@ func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val
+ // ipkg is the package being imported
+ func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
+ 	n := importobj(ipkg, pos, s, ir.ONAME, ir.PFUNC, t)
+-
+-	fn := ir.NewFunc(pos)
+-	fn.SetType(t)
+-	n.SetFunc(fn)
+-	fn.Nname = n
+-
++	n.Func = ir.NewFunc(pos)
++	n.Func.Nname = n
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 9bb9245d4a..060024951e 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -409,7 +409,6 @@ func tcFunc(n *ir.Func) {
+ 	if t == nil {
+ 		return
+ 	}
+-	n.SetType(t)
+ 	rcvr := t.Recv()
+ 	if rcvr != nil && n.Shortname != nil {
+ 		m := addmethod(n, n.Shortname, t, true, n.Pragma&ir.Nointerface != 0)
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 86277e69bd..00ecd9b819 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -331,12 +331,13 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 			recv := r.param()
+ 			mtyp := r.signature(recv)
+ 
+-			fn := ir.NewFunc(mpos)
+-			fn.SetType(mtyp)
+-			m := ir.NewFuncNameAt(mpos, ir.MethodSym(recv.Type, msym), fn)
+-			m.SetType(mtyp)
+-			m.Class_ = ir.PFUNC
+ 			// methodSym already marked m.Sym as a function.
++			m := ir.NewNameAt(mpos, ir.MethodSym(recv.Type, msym))
++			m.Class_ = ir.PFUNC
++			m.SetType(mtyp)
++
++			m.Func = ir.NewFunc(mpos)
++			m.Func.Nname = m
+ 
+ 			f := types.NewField(mpos, msym, mtyp)
+ 			f.Nname = m
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 9bcb82bc03..00d3f50bc4 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -67,7 +67,7 @@ func Closure(fn *ir.Func) {
+ 		}
+ 
+ 		types.CalcSize(f.Type())
+-		fn.SetType(f.Type()) // update type of ODCLFUNC
++		fn.Nname.SetType(f.Type()) // update type of ODCLFUNC
+ 	} else {
+ 		// The closure is not called, so it is going to stay as closure.
+ 		var body []ir.Node

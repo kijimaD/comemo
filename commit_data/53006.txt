@@ -30,9 +30,102 @@ Date:   Fri Jun 24 19:11:52 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/414135
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go |  2 +-
  src/cmd/compile/internal/noder/noder.go |  4 +---
  src/cmd/compile/internal/types2/api.go  |  5 ++---
  src/cmd/compile/internal/types2/stmt.go | 17 ++++++-----------
  4 files changed, 10 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 628c0f54fc..e45a204867 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -41,7 +41,7 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 	conf := types2.Config{
+ 		Context:               ctxt,
+ 		GoVersion:             base.Flag.Lang,
+-		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
++		IgnoreBranchErrors:    true, // parser already checked via syntax.CheckBranches mode
+ 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
+ 		Error: func(err error) {
+ 			terr := err.(types2.Error)
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index c4c2db5f78..15b1bf7b9f 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -27,8 +27,6 @@ import (
+ func LoadPackage(filenames []string) {
+ 	base.Timer.Start("fe", "parse")
+ 
+-	mode := syntax.CheckBranches
+-
+ 	// Limit the number of simultaneously open files.
+ 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+ 
+@@ -58,7 +56,7 @@ func LoadPackage(filenames []string) {
+ 				}
+ 				defer f.Close()
+ 
+-				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, mode) // errors are tracked via p.error
++				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
+ 			}()
+ 		}
+ 	}()
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index a739b1114d..a22ea5d12f 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -128,9 +128,8 @@ type Config struct {
+ 	//          Do not use casually!
+ 	FakeImportC bool
+ 
+-	// If IgnoreLabels is set, correct label use is not checked.
+-	// TODO(gri) Consolidate label checking and remove this flag.
+-	IgnoreLabels bool
++	// If IgnoreBranchErrors is set, branch/label errors are ignored.
++	IgnoreBranchErrors bool
+ 
+ 	// If CompilerErrorMessages is set, errors are reported using
+ 	// cmd/compile error strings to match $GOROOT/test errors.
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index e00f73ce99..74d4164ba9 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -41,7 +41,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 
+ 	check.stmtList(0, body.List)
+ 
+-	if check.hasLabel && !check.conf.IgnoreLabels {
++	if check.hasLabel && !check.conf.IgnoreBranchErrors {
+ 		check.labels(body)
+ 	}
+ 
+@@ -504,22 +504,17 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 			check.hasLabel = true
+ 			break // checked in 2nd pass (check.labels)
+ 		}
++		if check.conf.IgnoreBranchErrors {
++			break
++		}
+ 		switch s.Tok {
+ 		case syntax.Break:
+ 			if ctxt&breakOk == 0 {
+-				if check.conf.CompilerErrorMessages {
+-					check.error(s, "break is not in a loop, switch, or select statement")
+-				} else {
+-					check.error(s, "break not in for, switch, or select statement")
+-				}
++				check.error(s, "break not in for, switch, or select statement")
+ 			}
+ 		case syntax.Continue:
+ 			if ctxt&continueOk == 0 {
+-				if check.conf.CompilerErrorMessages {
+-					check.error(s, "continue is not in a loop")
+-				} else {
+-					check.error(s, "continue not in for statement")
+-				}
++				check.error(s, "continue not in for statement")
+ 			}
+ 		case syntax.Fallthrough:
+ 			if ctxt&fallthroughOk == 0 {

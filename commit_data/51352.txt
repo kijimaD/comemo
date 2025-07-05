@@ -17,7 +17,7 @@ Date:   Fri Jan 14 15:22:10 2022 -0500
     Trust: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/metadata.go              |  9 ---------
  src/cmd/internal/osinfo/doc.go        |  6 ------
  src/cmd/internal/osinfo/os_js.go      | 18 ------------------
@@ -25,3 +25,160 @@ Date:   Fri Jan 14 15:22:10 2022 -0500
  src/cmd/internal/osinfo/os_unix.go    | 36 -----------------------------------
  src/cmd/internal/osinfo/os_windows.go | 19 ------------------
  6 files changed, 109 deletions(-)
+
+diff --git a/src/cmd/dist/metadata.go b/src/cmd/dist/metadata.go
+index 76f108ea06..f0a125fb8a 100644
+--- a/src/cmd/dist/metadata.go
++++ b/src/cmd/dist/metadata.go
+@@ -12,7 +12,6 @@
+ package main
+ 
+ import (
+-	"cmd/internal/osinfo"
+ 	"fmt"
+ 	"internal/sysinfo"
+ 	"runtime"
+@@ -21,13 +20,5 @@ import (
+ func logMetadata() error {
+ 	fmt.Printf("# GOARCH: %s\n", runtime.GOARCH)
+ 	fmt.Printf("# CPU: %s\n", sysinfo.CPU.Name())
+-
+-	fmt.Printf("# GOOS: %s\n", runtime.GOOS)
+-	ver, err := osinfo.Version()
+-	if err != nil {
+-		return fmt.Errorf("error determining OS version: %v", err)
+-	}
+-	fmt.Printf("# OS Version: %s\n", ver)
+-
+ 	return nil
+ }
+diff --git a/src/cmd/internal/osinfo/doc.go b/src/cmd/internal/osinfo/doc.go
+deleted file mode 100644
+index c2f74bea27..0000000000
+--- a/src/cmd/internal/osinfo/doc.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package osinfo provides OS metadata information.
+-package osinfo
+diff --git a/src/cmd/internal/osinfo/os_js.go b/src/cmd/internal/osinfo/os_js.go
+deleted file mode 100644
+index 8e86464cd8..0000000000
+--- a/src/cmd/internal/osinfo/os_js.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build js
+-
+-package osinfo
+-
+-import (
+-	"fmt"
+-)
+-
+-// Version returns the OS version name/number.
+-func Version() (string, error) {
+-	// TODO(prattmic): Does wasm have any version/runtime detection
+-	// functionality?
+-	return "", fmt.Errorf("unimplemented")
+-}
+diff --git a/src/cmd/internal/osinfo/os_plan9.go b/src/cmd/internal/osinfo/os_plan9.go
+deleted file mode 100644
+index ad1d324e5e..0000000000
+--- a/src/cmd/internal/osinfo/os_plan9.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build plan9
+-
+-package osinfo
+-
+-import (
+-	"os"
+-)
+-
+-// Version returns the OS version name/number.
+-func Version() (string, error) {
+-	b, err := os.ReadFile("/dev/osversion")
+-	if err != nil {
+-		return "", err
+-	}
+-
+-	return string(b), nil
+-}
+diff --git a/src/cmd/internal/osinfo/os_unix.go b/src/cmd/internal/osinfo/os_unix.go
+deleted file mode 100644
+index 4587cb2501..0000000000
+--- a/src/cmd/internal/osinfo/os_unix.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+-
+-package osinfo
+-
+-import (
+-	"bytes"
+-
+-	"golang.org/x/sys/unix"
+-)
+-
+-func utsString(b []byte) string {
+-	i := bytes.IndexByte(b, 0)
+-	if i == -1 {
+-		return string(b)
+-	}
+-	return string(b[:i])
+-}
+-
+-// Version returns the OS version name/number.
+-func Version() (string, error) {
+-	var uts unix.Utsname
+-	if err := unix.Uname(&uts); err != nil {
+-		return "", err
+-	}
+-
+-	sysname := utsString(uts.Sysname[:])
+-	release := utsString(uts.Release[:])
+-	version := utsString(uts.Version[:])
+-	machine := utsString(uts.Machine[:])
+-
+-	return sysname + " " + release + " " + version + " " + machine, nil
+-}
+diff --git a/src/cmd/internal/osinfo/os_windows.go b/src/cmd/internal/osinfo/os_windows.go
+deleted file mode 100644
+index 05fab9bb1e..0000000000
+--- a/src/cmd/internal/osinfo/os_windows.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build windows
+-
+-package osinfo
+-
+-import (
+-	"fmt"
+-
+-	"golang.org/x/sys/windows"
+-)
+-
+-// Version returns the OS version name/number.
+-func Version() (string, error) {
+-	major, minor, patch := windows.RtlGetNtVersionNumbers()
+-	return fmt.Sprintf("%d.%d.%d", major, minor, patch), nil
+-}

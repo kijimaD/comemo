@@ -16,7 +16,7 @@ Date:   Fri Oct 22 15:27:50 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2623043
-
+---
  src/cmd/5l/l.h     | 12 +++---------
  src/cmd/6l/l.h     |  5 +++--
  src/cmd/6l/span.c  | 17 ++++++++---------
@@ -25,3 +25,364 @@ Date:   Fri Oct 22 15:27:50 2010 -0400
  src/cmd/ld/data.c  | 26 +++++++++++++++++++++-----
  src/cmd/ld/macho.c | 35 ++++++++++++++++++++++++-----------
  7 files changed, 67 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 86885b421a..3a54e20f8f 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -56,11 +56,9 @@ typedef	struct	Optab	Optab;
+ typedef	struct	Oprang	Oprang;
+ typedef	uchar	Opcross[32][2][32];
+ typedef	struct	Count	Count;
+-typedef	struct	Use	Use;
+ 
+ #define	P		((Prog*)0)
+ #define	S		((Sym*)0)
+-#define	U		((Use*)0)
+ #define	TNAME		(cursym?cursym->name:noname)
+ 
+ struct	Adr
+@@ -139,9 +137,9 @@ struct	Sym
+ 	uchar	thumb;	// thumb code
+ 	uchar	foreign;	// called by arm if thumb, by thumb if arm
+ 	uchar	fnptr;	// used as fn ptr
+-	Use*		use;
+ 	Sym*	hash;	// in hash table
+ 	Sym*	next;	// in text or data list
++	Sym*	sub;
+ 	Sym*	gotype;
+ 	char*	file;
+ 	char*	dynimpname;
+@@ -191,12 +189,6 @@ struct	Count
+ 	int32	count;
+ 	int32	outof;
+ };
+-struct	Use
+-{
+-	Prog*	p;	/* use */
+-	Prog*	ct;	/* curtext */
+-	Use*		link;
+-};
+ 
+ enum
+ {
+@@ -213,6 +205,8 @@ enum
+ 	SFILE,
+ 	SCONST,
+ 
++	SSUB	= 1<<8,
++
+ 	LFROM		= 1<<0,
+ 	LTO		= 1<<1,
+ 	LPOOL		= 1<<2,
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 4f56fe983f..39b3866d2d 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -131,6 +131,7 @@ struct	Sym
+ 	int32	sig;
+ 	Sym*	hash;	// in hash table
+ 	Sym*	next;	// in text or data list
++	Sym*	sub;	// in SSUB list
+ 	vlong	value;
+ 	vlong	size;
+ 	Sym*	gotype;
+@@ -175,12 +176,13 @@ enum
+ 	SELFDATA,
+ 	SRODATA,
+ 	SDATA,
++	SMACHO,
+ 	SBSS,
+ 
+ 	SXREF,
+-	SMACHO,
+ 	SFILE,
+ 	SCONST,
++	SSUB	= 1<<8,
+ 
+ 	NHASH		= 10007,
+ 	NHUNK		= 100000,
+@@ -354,7 +356,6 @@ EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
+ EXTERN	vlong	textstksiz;
+ EXTERN	vlong	textarg;
+ extern	char	thechar;
+-EXTERN	int	dynptrsize;
+ EXTERN	int	elfstrsize;
+ EXTERN	char*	elfstrdat;
+ EXTERN	int	elftextsh;
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 605a1a627e..6cb3586f5d 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -46,6 +46,9 @@ span1(Sym *s)
+ 	int n, m, i;
+ 
+ 	cursym = s;
++	
++	if(s->p != nil)
++		return;
+ 
+ 	for(p = s->text; p != P; p = p->link) {
+ 		p->back = 2;	// use short branches first time through
+@@ -145,6 +148,8 @@ span(void)
+ 	// NOTE(rsc): If we get rid of the globals we should
+ 	// be able to parallelize these iterations.
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
++		if(cursym->p != nil)
++			continue;
+ 		// TODO: move into span1
+ 		for(p = cursym->text; p != P; p = p->link) {
+ 			n = 0;
+@@ -671,15 +676,9 @@ relput8(Prog *p, Adr *a)
+ vlong
+ symaddr(Sym *s)
+ {
+-	switch(s->type) {
+-	case SMACHO:
+-		return segdata.vaddr + segdata.filelen - dynptrsize + s->value;
+-
+-	default:
+-		if(!s->reachable)
+-			diag("unreachable symbol in symaddr - %s", s->name);
+-		return s->value;
+-	}
++	if(!s->reachable)
++		diag("unreachable symbol in symaddr - %s", s->name);
++	return s->value;
+ }
+ 
+ static vlong
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 0049c3f1f3..fd0b642448 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -132,6 +132,7 @@ struct	Sym
+ 	int32	sig;
+ 	Sym*	hash;	// in hash table
+ 	Sym*	next;	// in text or data list
++	Sym*	sub;	// in sub list
+ 	Sym*	gotype;
+ 	char*	file;
+ 	char*	dynimpname;
+@@ -164,14 +165,16 @@ enum
+ 	/* order here is order in output file */
+ 	STEXT,
+ 	SELFDATA,
+-	SRODATA,	// TODO(rsc): move
++	SRODATA,
+ 	SDATA,
++	SMACHO,	/* Mach-O __nl_symbol_ptr */
+ 	SBSS,
+ 
+ 	SXREF,
+-	SMACHO,	// TODO(rsc): maybe move between DATA1 and BSS?
+ 	SFILE,
+ 	SCONST,
++	
++	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
+ 
+ 	NHASH		= 10007,
+ 	NHUNK		= 100000,
+@@ -287,7 +290,6 @@ EXTERN	Prog*	curp;
+ EXTERN	Sym*	cursym;
+ EXTERN	Sym*	datap;
+ EXTERN	int32	elfdatsize;
+-EXTERN	int32	dynptrsize;
+ EXTERN	char	debug[128];
+ EXTERN	char	literal[32];
+ EXTERN	Sym*	etextp;
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 3aab95874a..7f083eebde 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -503,15 +503,9 @@ relput4(Prog *p, Adr *a)
+ int32
+ symaddr(Sym *s)
+ {
+-	switch(s->type) {
+-	case SMACHO:
+-		return segdata.vaddr + segdata.filelen - dynptrsize + s->value;
+-	
+-	default:
+-		if(!s->reachable)
+-			diag("unreachable symbol in symaddr - %s", s->name);
+-		return s->value;
+-	}
++	if(!s->reachable)
++		diag("unreachable symbol in symaddr - %s", s->name);
++	return s->value;
+ }
+ 
+ static int32
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 461a39950b..55925f15c3 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -393,6 +393,23 @@ codeblk(int32 addr, int32 size)
+ 			Bprint(&bso, "\n");
+ 		}
+ 		p = sym->text;
++		if(p == nil) {
++			Bprint(&bso, "%.6llux\t%-20s | foreign text\n", (vlong)addr, sym->name);
++			n = sym->size;
++			q = sym->p;
++			
++			while(n >= 16) {
++				Bprint(&bso, "%.6ux\t%-20.16I\n",  addr, q);
++				addr += 16;
++				q += 16;
++				n -= 16;
++			}
++			if(n > 0)
++				Bprint(&bso, "%.6ux\t%-20.*I\n", addr, n, q);
++			addr += n;
++			continue;
++		}
++			
+ 		Bprint(&bso, "%.6llux\t%-20s | %P\n", (vlong)addr, sym->name, p);
+ 		for(p = p->link; p != P; p = p->link) {
+ 			if(p->link != P)
+@@ -671,7 +688,6 @@ dodata(void)
+ 		datsize += t;
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+-	datsize += dynptrsize;
+ 
+ 	/* bss */
+ 	sect = addsection(&segdata, ".bss", 06);
+@@ -702,7 +718,7 @@ void
+ address(void)
+ {
+ 	Section *s, *text, *data, *rodata, *bss;
+-	Sym *sym;
++	Sym *sym, *sub;
+ 	uvlong va;
+ 
+ 	va = INITTEXT;
+@@ -723,11 +739,9 @@ address(void)
+ 	for(s=segdata.sect; s != nil; s=s->next) {
+ 		s->vaddr = va;
+ 		va += s->len;
+-		if(s == segdata.sect)
+-			va += dynptrsize;
+ 		segdata.len = va - segdata.vaddr;
+ 	}
+-	segdata.filelen = segdata.sect->len + dynptrsize;	// assume .data is first
++	segdata.filelen = segdata.sect->len;	// assume .data is first
+ 	
+ 	text = segtext.sect;
+ 	rodata = segtext.sect->next;
+@@ -740,6 +754,8 @@ address(void)
+ 			sym->value += rodata->vaddr;
+ 		else
+ 			sym->value += data->vaddr;
++		for(sub = sym->sub; sub != nil; sub = sub->sub)
++			sub->value += sym->value;
+ 	}
+ 	
+ 	xdefine("text", STEXT, text->vaddr);
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 75c3ad865a..67264233c7 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -281,7 +281,7 @@ domacho(void)
+ 	char *p;
+ 	uchar *dat;
+ 	uint32 x;
+-	Sym *s;
++	Sym *s, *smacho;
+ 	Sym **impsym;
+ 
+ 	ptrsize = 4;
+@@ -352,10 +352,16 @@ domacho(void)
+ 		}
+ 	}
+ 
++	smacho = lookup("__nl_symbol_ptr", 0);
++	smacho->type = SMACHO;
++	smacho->reachable = 1;
+ 	for(h=0; h<nimpsym; h++) {
+ 		s = impsym[h];
+-		s->type = SMACHO;
++		s->type = SMACHO | SSUB;
++		s->sub = smacho->sub;
++		smacho->sub = s;
+ 		s->value = (nexpsym+h) * ptrsize;
++		s->reachable = 1;
+ 
+ 		/* symbol table entry - darwin still puts _ prefixes on all C symbols */
+ 		x = nstrtab;
+@@ -398,7 +404,9 @@ domacho(void)
+ 		dat[3] = x>>24;
+ 	}
+ 
+-	dynptrsize = (nexpsym+nimpsym) * ptrsize;
++	smacho->size = (nexpsym+nimpsym) * ptrsize;
++	if(smacho->size == 0)
++		smacho->reachable = 0;
+ }
+ 
+ vlong
+@@ -408,10 +416,13 @@ domacholink(void)
+ 	uchar *p;
+ 	Sym *s;
+ 	uint64 val;
++	Sym *smacho;
++	
++	smacho = lookup("__nl_symbol_ptr", 0);
+ 
+ 	linkoff = 0;
+ 	if(nlinkdata > 0 || nstrtab > 0) {
+-		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen - dynptrsize, INITRND);
++		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen - smacho->size, INITRND);
+ 		seek(cout, linkoff, 0);
+ 
+ 		for(i = 0; i<nexpsym; ++i) {
+@@ -452,6 +463,7 @@ asmbmacho(void)
+ 	MachoSeg *ms;
+ 	MachoDebug *md;
+ 	MachoLoad *ml;
++	Sym *smacho;
+ 
+ 	/* apple MACH */
+ 	va = INITTEXT - HEADR;
+@@ -492,8 +504,9 @@ asmbmacho(void)
+ 	msect->flag = 0x400;	/* flag - some instructions */
+ 
+ 	/* data */
++	smacho = lookup("__nl_symbol_ptr", 0);
+ 	w = segdata.len;
+-	ms = newMachoSeg("__DATA", 2+(dynptrsize>0));
++	ms = newMachoSeg("__DATA", 2+(smacho->size > 0));
+ 	ms->vaddr = va+v;
+ 	ms->vsize = w;
+ 	ms->fileoffset = v;
+@@ -503,14 +516,14 @@ asmbmacho(void)
+ 
+ 	msect = newMachoSect(ms, "__data");
+ 	msect->addr = va+v;
+-	msect->size = segdata.filelen - dynptrsize;
++	msect->size = segdata.filelen - smacho->size;
+ 	msect->off = v;
+ 
+-	if(dynptrsize > 0) {
++	if(smacho->size > 0) {
+ 		msect = newMachoSect(ms, "__nl_symbol_ptr");
+-		msect->addr = va+v+segdata.filelen - dynptrsize;
+-		msect->size = dynptrsize;
+-		msect->off = v+segdata.filelen - dynptrsize;
++		msect->addr = smacho->value;
++		msect->size = smacho->size;
++		msect->off = datoff(msect->addr);
+ 		msect->align = 2;
+ 		msect->flag = 6;	/* section with nonlazy symbol pointers */
+ 		/*
+@@ -551,7 +564,7 @@ asmbmacho(void)
+ 	if(!debug['d']) {
+ 		int nsym;
+ 
+-		nsym = dynptrsize/ptrsize;
++		nsym = smacho->size/ptrsize;
+ 
+ 		ms = newMachoSeg("__LINKEDIT", 0);
+ 		ms->vaddr = va+v+rnd(segdata.len, INITRND);

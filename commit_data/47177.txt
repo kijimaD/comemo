@@ -15,7 +15,7 @@ Date:   Tue Mar 2 21:16:24 2021 +0000
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.17.html                                    | 12 +++++++--
  src/cmd/go/alldocs.go                              | 26 ++++---------------
  src/cmd/go/internal/cfg/cfg.go                     |  2 --
@@ -36,3 +36,545 @@ Date:   Tue Mar 2 21:16:24 2021 +0000
  .../testdata/script/mod_get_insecure_redirect.txt  |  4 +--
  src/cmd/go/testdata/script/mod_sumdb_cache.txt     |  7 -----
  19 files changed, 83 insertions(+), 132 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 79cd4f7b61..a07290714f 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -43,8 +43,16 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h3 id="go-command">Go command</h3>
+ 
+-<p>
+-  TODO: complete this section, or delete if not needed
++<h4 id="go-get"><code>go</code> <code>get</code></h4>
++
++<p><!-- golang.org/issue/37519 -->
++  The <code>go</code> <code>get</code> <code>-insecure</code> flag is
++  deprecated and has been removed. To permit the use of insecure schemes
++  when fetching dependencies, please use the <code>GOINSECURE</code>
++  environment variable. The <code>-insecure</code> flag also bypassed module
++  sum validation, use <code>GOPRIVATE</code> or <code>GONOSUMDB</code> if
++  you need that functionality. See <code>go</code> <code>help</code>
++  <code>environment</code> for details.
+ </p>
+ 
+ <h2 id="runtime">Runtime</h2>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index db3f281ef3..a125e94cea 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -596,7 +596,7 @@
+ //
+ // Usage:
+ //
+-// 	go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]
++// 	go get [-d] [-t] [-u] [-v] [build flags] [packages]
+ //
+ // Get resolves its command-line arguments to packages at specific module versions,
+ // updates go.mod to require those versions, downloads source code into the
+@@ -641,14 +641,6 @@
+ // When the -t and -u flags are used together, get will update
+ // test dependencies as well.
+ //
+-// The -insecure flag permits fetching from repositories and resolving
+-// custom domains using insecure schemes such as HTTP, and also bypassess
+-// module sum validation using the checksum database. Use with caution.
+-// This flag is deprecated and will be removed in a future version of go.
+-// To permit the use of insecure schemes, use the GOINSECURE environment
+-// variable instead. To bypass module sum validation, use GOPRIVATE or
+-// GONOSUMDB. See 'go help environment' for details.
+-//
+ // The -d flag instructs get not to build or install packages. get will only
+ // update go.mod and download source code needed to build packages.
+ //
+@@ -1783,9 +1775,8 @@
+ // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
+ // 		of module path prefixes that should always be fetched in an insecure
+ // 		manner. Only applies to dependencies that are being fetched directly.
+-// 		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
+-// 		checksum database validation. GOPRIVATE or GONOSUMDB may be used
+-// 		to achieve that.
++// 		GOINSECURE does not disable checksum database validation. GOPRIVATE or
++// 		GONOSUMDB may be used to achieve that.
+ // 	GOOS
+ // 		The operating system for which to compile code.
+ // 		Examples are linux, darwin, windows, netbsd.
+@@ -2135,7 +2126,7 @@
+ // This help text, accessible as 'go help gopath-get' even in module-aware mode,
+ // describes 'go get' as it operates in legacy GOPATH mode.
+ //
+-// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]
++// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [build flags] [packages]
+ //
+ // Get downloads the packages named by the import paths, along with their
+ // dependencies. It then installs the named packages, like 'go install'.
+@@ -2151,13 +2142,6 @@
+ // The -fix flag instructs get to run the fix tool on the downloaded packages
+ // before resolving dependencies or building the code.
+ //
+-// The -insecure flag permits fetching from repositories and resolving
+-// custom domains using insecure schemes such as HTTP. Use with caution.
+-// This flag is deprecated and will be removed in a future version of go.
+-// The GOINSECURE environment variable should be used instead, since it
+-// provides control over which packages may be retrieved using an insecure
+-// scheme. See 'go help environment' for details.
+-//
+ // The -t flag instructs get to also download the packages required to build
+ // the tests for the specified packages.
+ //
+@@ -2342,7 +2326,7 @@
+ // will result in the following requests:
+ //
+ // 	https://example.org/pkg/foo?go-get=1 (preferred)
+-// 	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
++// 	http://example.org/pkg/foo?go-get=1  (fallback, only with use of correctly set GOINSECURE)
+ //
+ // If that page contains the meta tag
+ //
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 322247962f..810189c15d 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -51,8 +51,6 @@ var (
+ 	ModCacheRW bool   // -modcacherw flag
+ 	ModFile    string // -modfile flag
+ 
+-	Insecure bool // -insecure flag
+-
+ 	CmdName string // "build", "install", "list", "mod tidy", etc.
+ 
+ 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 329a2f5eda..10eda1275e 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -26,7 +26,7 @@ import (
+ )
+ 
+ var CmdGet = &base.Command{
+-	UsageLine: "go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]",
++	UsageLine: "go get [-d] [-f] [-t] [-u] [-v] [-fix] [build flags] [packages]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+ Get downloads the packages named by the import paths, along with their
+@@ -43,13 +43,6 @@ of the original.
+ The -fix flag instructs get to run the fix tool on the downloaded packages
+ before resolving dependencies or building the code.
+ 
+-The -insecure flag permits fetching from repositories and resolving
+-custom domains using insecure schemes such as HTTP. Use with caution.
+-This flag is deprecated and will be removed in a future version of go.
+-The GOINSECURE environment variable should be used instead, since it
+-provides control over which packages may be retrieved using an insecure
+-scheme. See 'go help environment' for details.
+-
+ The -t flag instructs get to also download the packages required to build
+ the tests for the specified packages.
+ 
+@@ -105,17 +98,17 @@ Usage: ` + CmdGet.UsageLine + `
+ }
+ 
+ var (
+-	getD   = CmdGet.Flag.Bool("d", false, "")
+-	getF   = CmdGet.Flag.Bool("f", false, "")
+-	getT   = CmdGet.Flag.Bool("t", false, "")
+-	getU   = CmdGet.Flag.Bool("u", false, "")
+-	getFix = CmdGet.Flag.Bool("fix", false, "")
++	getD        = CmdGet.Flag.Bool("d", false, "")
++	getF        = CmdGet.Flag.Bool("f", false, "")
++	getT        = CmdGet.Flag.Bool("t", false, "")
++	getU        = CmdGet.Flag.Bool("u", false, "")
++	getFix      = CmdGet.Flag.Bool("fix", false, "")
++	getInsecure = CmdGet.Flag.Bool("insecure", false, "")
+ )
+ 
+ func init() {
+ 	work.AddBuildFlags(CmdGet, work.OmitModFlag|work.OmitModCommonFlags)
+ 	CmdGet.Run = runGet // break init loop
+-	CmdGet.Flag.BoolVar(&cfg.Insecure, "insecure", cfg.Insecure, "")
+ }
+ 
+ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+@@ -129,8 +122,8 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	if *getF && !*getU {
+ 		base.Fatalf("go get: cannot use -f flag without -u")
+ 	}
+-	if cfg.Insecure {
+-		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see 'go help get' for details\n")
++	if *getInsecure {
++		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
+ 	}
+ 
+ 	// Disable any prompting for passwords by Git.
+@@ -435,7 +428,7 @@ func downloadPackage(p *load.Package) error {
+ 		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
+ 	}
+ 	security := web.SecureOnly
+-	if cfg.Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
++	if module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
+ 		security = web.Insecure
+ 	}
+ 
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 57cee4ff96..2f86e4195d 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -251,7 +251,7 @@ For example,
+ will result in the following requests:
+ 
+ 	https://example.org/pkg/foo?go-get=1 (preferred)
+-	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
++	http://example.org/pkg/foo?go-get=1  (fallback, only with use of correctly set GOINSECURE)
+ 
+ If that page contains the meta tag
+ 
+@@ -517,9 +517,8 @@ General-purpose environment variables:
+ 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
+ 		of module path prefixes that should always be fetched in an insecure
+ 		manner. Only applies to dependencies that are being fetched directly.
+-		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
+-		checksum database validation. GOPRIVATE or GONOSUMDB may be used
+-		to achieve that.
++		GOINSECURE does not disable checksum database validation. GOPRIVATE or
++		GONOSUMDB may be used to achieve that.
+ 	GOOS
+ 		The operating system for which to compile code.
+ 		Examples are linux, darwin, windows, netbsd.
+diff --git a/src/cmd/go/internal/modfetch/insecure.go b/src/cmd/go/internal/modfetch/insecure.go
+deleted file mode 100644
+index 012d05f29d..0000000000
+--- a/src/cmd/go/internal/modfetch/insecure.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modfetch
+-
+-import (
+-	"cmd/go/internal/cfg"
+-
+-	"golang.org/x/mod/module"
+-)
+-
+-// allowInsecure reports whether we are allowed to fetch this path in an insecure manner.
+-func allowInsecure(path string) bool {
+-	return cfg.Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, path)
+-}
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index af9e24cefd..ed9a52267a 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -267,7 +267,7 @@ var (
+ func lookupDirect(path string) (Repo, error) {
+ 	security := web.SecureOnly
+ 
+-	if allowInsecure(path) {
++	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
+ 		security = web.Insecure
+ 	}
+ 	rr, err := vcs.RepoRootForImportPath(path, vcs.PreferMod, security)
+@@ -312,7 +312,7 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
+ 	// version control system, we ignore meta tags about modules
+ 	// and use only direct source control entries (get.IgnoreMod).
+ 	security := web.SecureOnly
+-	if allowInsecure(path) {
++	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
+ 		security = web.Insecure
+ 	}
+ 	rr, err := vcs.RepoRootForImportPath(path, vcs.IgnoreMod, security)
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index fbe2bda2e5..118bb3d2d0 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -34,7 +34,7 @@ import (
+ 
+ // useSumDB reports whether to use the Go checksum database for the given module.
+ func useSumDB(mod module.Version) bool {
+-	return cfg.GOSUMDB != "off" && !cfg.Insecure && !module.MatchPrefixPatterns(cfg.GONOSUMDB, mod.Path)
++	return cfg.GOSUMDB != "off" && !module.MatchPrefixPatterns(cfg.GONOSUMDB, mod.Path)
+ }
+ 
+ // lookupSumDB returns the Go checksum database's go.sum lines for the given module,
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index b875a46d81..9340a582e5 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -37,7 +37,6 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+@@ -53,7 +52,7 @@ import (
+ var CmdGet = &base.Command{
+ 	// Note: -d -u are listed explicitly because they are the most common get flags.
+ 	// Do not send CLs removing them because they're covered by [get flags].
+-	UsageLine: "go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]",
++	UsageLine: "go get [-d] [-t] [-u] [-v] [build flags] [packages]",
+ 	Short:     "add dependencies to current module and install them",
+ 	Long: `
+ Get resolves its command-line arguments to packages at specific module versions,
+@@ -99,14 +98,6 @@ but changes the default to select patch releases.
+ When the -t and -u flags are used together, get will update
+ test dependencies as well.
+ 
+-The -insecure flag permits fetching from repositories and resolving
+-custom domains using insecure schemes such as HTTP, and also bypassess
+-module sum validation using the checksum database. Use with caution.
+-This flag is deprecated and will be removed in a future version of go.
+-To permit the use of insecure schemes, use the GOINSECURE environment
+-variable instead. To bypass module sum validation, use GOPRIVATE or
+-GONOSUMDB. See 'go help environment' for details.
+-
+ The -d flag instructs get not to build or install packages. get will only
+ update go.mod and download source code needed to build packages.
+ 
+@@ -227,13 +218,13 @@ variable for future go command invocations.
+ }
+ 
+ var (
+-	getD   = CmdGet.Flag.Bool("d", false, "")
+-	getF   = CmdGet.Flag.Bool("f", false, "")
+-	getFix = CmdGet.Flag.Bool("fix", false, "")
+-	getM   = CmdGet.Flag.Bool("m", false, "")
+-	getT   = CmdGet.Flag.Bool("t", false, "")
+-	getU   upgradeFlag
+-	// -insecure is cfg.Insecure
++	getD        = CmdGet.Flag.Bool("d", false, "")
++	getF        = CmdGet.Flag.Bool("f", false, "")
++	getFix      = CmdGet.Flag.Bool("fix", false, "")
++	getM        = CmdGet.Flag.Bool("m", false, "")
++	getT        = CmdGet.Flag.Bool("t", false, "")
++	getU        upgradeFlag
++	getInsecure = CmdGet.Flag.Bool("insecure", false, "")
+ 	// -v is cfg.BuildV
+ )
+ 
+@@ -264,7 +255,6 @@ func (v *upgradeFlag) String() string { return "" }
+ func init() {
+ 	work.AddBuildFlags(CmdGet, work.OmitModFlag)
+ 	CmdGet.Run = runGet // break init loop
+-	CmdGet.Flag.BoolVar(&cfg.Insecure, "insecure", cfg.Insecure, "")
+ 	CmdGet.Flag.Var(&getU, "u", "")
+ }
+ 
+@@ -284,8 +274,8 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	if *getM {
+ 		base.Fatalf("go get: -m flag is no longer supported; consider -d to skip building packages")
+ 	}
+-	if cfg.Insecure {
+-		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see 'go help get' for details\n")
++	if *getInsecure {
++		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
+ 	}
+ 	load.ModResolveTests = *getT
+ 
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index a77e0f9317..f177278eba 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -28,7 +28,7 @@ import (
+ 	"cmd/internal/browser"
+ )
+ 
+-// impatientInsecureHTTPClient is used in -insecure mode,
++// impatientInsecureHTTPClient is used with GOINSECURE,
+ // when we're connecting to https servers that might not be there
+ // or might be using self-signed certificates.
+ var impatientInsecureHTTPClient = &http.Client{
+diff --git a/src/cmd/go/testdata/script/get_404_meta.txt b/src/cmd/go/testdata/script/get_404_meta.txt
+index b71cc7fe01..ec4f8d3243 100644
+--- a/src/cmd/go/testdata/script/get_404_meta.txt
++++ b/src/cmd/go/testdata/script/get_404_meta.txt
+@@ -3,9 +3,10 @@
+ [!net] skip
+ [!exec:git] skip
+ 
++env GONOSUMDB=bazil.org,github.com,golang.org
+ env GO111MODULE=off
+-go get -d -insecure bazil.org/fuse/fs/fstestutil
++go get -d bazil.org/fuse/fs/fstestutil
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+-go get -d -insecure bazil.org/fuse/fs/fstestutil
++go get -d bazil.org/fuse/fs/fstestutil
+diff --git a/src/cmd/go/testdata/script/get_insecure.txt b/src/cmd/go/testdata/script/get_insecure.txt
+index 36ad2c05b7..69930f7107 100644
+--- a/src/cmd/go/testdata/script/get_insecure.txt
++++ b/src/cmd/go/testdata/script/get_insecure.txt
+@@ -12,10 +12,12 @@ env GO111MODULE=off
+ # GOPATH: Try go get -d of HTTP-only repo (should fail).
+ ! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+ 
+-# GOPATH: Try again with -insecure (should succeed).
+-go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p
++# GOPATH: Try again with GOINSECURE (should succeed).
++env GOINSECURE=insecure.go-get-issue-15410.appspot.com
++go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+ 
+-# GOPATH: Try updating without -insecure (should fail).
++# GOPATH: Try updating without GOINSECURE (should fail).
++env GOINSECURE=''
+ ! go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
+ 
+ # Modules: Set up
+@@ -29,10 +31,14 @@ env GOPROXY=''
+ # Modules: Try go get -d of HTTP-only repo (should fail).
+ ! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+ 
+-# Modules: Try again with -insecure (should succeed).
+-go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p
++# Modules: Try again with GOINSECURE (should succeed).
++env GOINSECURE=insecure.go-get-issue-15410.appspot.com
++env GONOSUMDB=insecure.go-get-issue-15410.appspot.com
++go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+ 
+-# Modules: Try updating without -insecure (should fail).
++# Modules: Try updating without GOINSECURE (should fail).
++env GOINSECURE=''
++env GONOSUMDB=''
+ ! go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
+ 
+ go list -m ...
+@@ -48,4 +54,4 @@ func main() {
+ 	os.Exit(1)
+ }
+ -- module_file --
+-module m
+\ No newline at end of file
++module m
+diff --git a/src/cmd/go/testdata/script/get_insecure_custom_domain.txt b/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
+index a4a6fd428f..7eba42e873 100644
+--- a/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
++++ b/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
+@@ -3,4 +3,6 @@
+ env GO111MODULE=off
+ 
+ ! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+-go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p
++
++env GOINSECURE=insecure.go-get-issue-15410.appspot.com
++go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+diff --git a/src/cmd/go/testdata/script/get_insecure_deprecated.txt b/src/cmd/go/testdata/script/get_insecure_deprecated.txt
+deleted file mode 100644
+index 7f5f5c7877..0000000000
+--- a/src/cmd/go/testdata/script/get_insecure_deprecated.txt
++++ /dev/null
+@@ -1,21 +0,0 @@
+-# GOPATH: Set up
+-env GO111MODULE=off
+-
+-# GOPATH: Fetch without insecure, no warning
+-! go get test
+-! stderr 'go get: -insecure flag is deprecated; see ''go help get'' for details'
+-
+-# GOPATH: Fetch with insecure, should warn
+-! go get -insecure test
+-stderr 'go get: -insecure flag is deprecated; see ''go help get'' for details'
+-
+-# Modules: Set up
+-env GO111MODULE=on
+-
+-# Modules: Fetch without insecure, no warning
+-! go get test
+-! stderr 'go get: -insecure flag is deprecated; see ''go help get'' for details'
+-
+-# Modules: Fetch with insecure, should warn
+-! go get -insecure test
+-stderr 'go get: -insecure flag is deprecated; see ''go help get'' for details'
+diff --git a/src/cmd/go/testdata/script/get_insecure_no_longer_supported.txt b/src/cmd/go/testdata/script/get_insecure_no_longer_supported.txt
+new file mode 100644
+index 0000000000..2517664dd0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/get_insecure_no_longer_supported.txt
+@@ -0,0 +1,13 @@
++# GOPATH: Set up
++env GO111MODULE=off
++
++# GOPATH: Fetch with insecure, should error
++! go get -insecure test
++stderr 'go get: -insecure flag is no longer supported; use GOINSECURE instead'
++
++# Modules: Set up
++env GO111MODULE=on
++
++# Modules: Fetch with insecure, should error
++! go get -insecure test
++stderr 'go get: -insecure flag is no longer supported; use GOINSECURE instead'
+diff --git a/src/cmd/go/testdata/script/get_insecure_redirect.txt b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+index 0478d1f75d..fb5f26951c 100644
+--- a/src/cmd/go/testdata/script/get_insecure_redirect.txt
++++ b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+@@ -1,4 +1,4 @@
+-# golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure.
++# golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure (now replaced by GOINSECURE).
+ # golang.org/issue/34049: 'go get' would panic in case of an insecure redirect in GOPATH mode
+ 
+ [!net] skip
+@@ -9,4 +9,5 @@ env GO111MODULE=off
+ ! go get -d vcs-test.golang.org/insecure/go/insecure
+ stderr 'redirected .* to insecure URL'
+ 
+-go get -d -insecure vcs-test.golang.org/insecure/go/insecure
++env GOINSECURE=vcs-test.golang.org/insecure/go/insecure
++go get -d vcs-test.golang.org/insecure/go/insecure
+diff --git a/src/cmd/go/testdata/script/get_insecure_update.txt b/src/cmd/go/testdata/script/get_insecure_update.txt
+index 4511c98c56..e1a1a23d47 100644
+--- a/src/cmd/go/testdata/script/get_insecure_update.txt
++++ b/src/cmd/go/testdata/script/get_insecure_update.txt
+@@ -5,8 +5,10 @@ env GO111MODULE=off
+ # Clone the repo via HTTP manually.
+ exec git clone -q http://github.com/golang/example github.com/golang/example
+ 
+-# Update without -insecure should fail.
+-# Update with -insecure should succeed.
++# Update without GOINSECURE should fail.
+ # We need -f to ignore import comments.
+ ! go get -d -u -f github.com/golang/example/hello
+-go get -d -u -f -insecure github.com/golang/example/hello
++
++# Update with GOINSECURE should succeed.
++env GOINSECURE=github.com/golang/example/hello
++go get -d -u -f github.com/golang/example/hello
+diff --git a/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt b/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt
+index 3755f17633..2e12834495 100644
+--- a/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt
++++ b/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt
+@@ -1,4 +1,4 @@
+-# golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure.
++# golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure (now replaced by GOINSECURE).
+ 
+ [!net] skip
+ [!exec:git] skip
+@@ -10,8 +10,6 @@ env GOSUMDB=off
+ ! go get -d vcs-test.golang.org/insecure/go/insecure
+ stderr 'redirected .* to insecure URL'
+ 
+-go get -d -insecure vcs-test.golang.org/insecure/go/insecure
+-
+ # insecure host
+ env GOINSECURE=vcs-test.golang.org
+ go clean -modcache
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_cache.txt b/src/cmd/go/testdata/script/mod_sumdb_cache.txt
+index 2937b2e4dc..1b38475fb5 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_cache.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_cache.txt
+@@ -43,12 +43,5 @@ env GOPROXY=$proxy/sumdb-504
+ ! go get -d rsc.io/quote@v1.5.2
+ stderr 504
+ 
+-# but -insecure bypasses the checksum lookup entirely
+-env GOINSECURE=
+-go get -d -insecure rsc.io/quote@v1.5.2
+-
+-# and then it is in go.sum again
+-go get -d rsc.io/quote@v1.5.2
+-
+ -- go.mod.orig --
+ module m

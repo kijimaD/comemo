@@ -32,7 +32,7 @@ Date:   Tue Nov 8 17:33:47 2022 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modindex/read.go                  | 12 ++++++++----
  src/cmd/go/internal/work/build.go                     |  5 ++---
  src/cmd/go/testdata/script/install_goroot_targets.txt |  9 +++++++++
@@ -40,3 +40,174 @@ Date:   Tue Nov 8 17:33:47 2022 -0500
  src/go/build/deps_test.go                             |  3 +--
  src/internal/buildinternal/needs_install.go           | 14 --------------
  6 files changed, 27 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index f01ca6ec17..fa0271f6ec 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -12,7 +12,6 @@ import (
+ 	"go/build"
+ 	"go/build/constraint"
+ 	"go/token"
+-	"internal/buildinternal"
+ 	"internal/godebug"
+ 	"internal/goroot"
+ 	"path"
+@@ -396,6 +395,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 	inTestdata := func(sub string) bool {
+ 		return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || str.HasPathPrefix(sub, "testdata")
+ 	}
++	var pkga string
+ 	if !inTestdata(rp.dir) {
+ 		// In build.go, p.Root should only be set in the non-local-import case, or in
+ 		// GOROOT or GOPATH. Since module mode only calls Import with path set to "."
+@@ -414,7 +414,6 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 			// The fields set below (SrcRoot, PkgRoot, BinDir, PkgTargetRoot, and PkgObj)
+ 			// are only set in build.Import if p.Root != "".
+ 			var pkgtargetroot string
+-			var pkga string
+ 			suffix := ""
+ 			if ctxt.InstallSuffix != "" {
+ 				suffix = "_" + ctxt.InstallSuffix
+@@ -437,8 +436,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 				p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+ 
+ 				// Set the install target if applicable.
+-				if strings.ToLower(godebug.Get("installgoroot")) == "all" ||
+-					!p.Goroot || buildinternal.NeedsInstalledDotA(p.ImportPath) {
++				if strings.ToLower(godebug.Get("installgoroot")) == "all" || !p.Goroot {
+ 					p.PkgObj = ctxt.joinPath(p.Root, pkga)
+ 				}
+ 			}
+@@ -629,6 +627,12 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 		}
+ 	}
+ 
++	// Now that p.CgoFiles has been set, use it to determine whether
++	// a package in GOROOT gets an install target:
++	if len(p.CgoFiles) != 0 && p.Root != "" && p.Goroot && pkga != "" {
++		p.PkgObj = ctxt.joinPath(p.Root, pkga)
++	}
++
+ 	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)
+ 	p.TestEmbedPatterns, p.TestEmbedPatternPos = cleanDecls(testEmbedPos)
+ 	p.XTestEmbedPatterns, p.XTestEmbedPatternPos = cleanDecls(xTestEmbedPos)
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index f93fb0bb6a..98babc0024 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -10,7 +10,6 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
+-	"internal/buildinternal"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -740,11 +739,11 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
+ 				// or else something is wrong and worth reporting (like a ConflictDir).
+ 			case p.Name != "main" && p.Module != nil:
+ 				// Non-executables have no target (except the cache) when building with modules.
+-			case p.Name != "main" && p.Standard && !buildinternal.NeedsInstalledDotA(p.ImportPath):
++			case p.Name != "main" && p.Standard && p.Internal.Build.PkgObj == "":
+ 				// Most packages in std do not need an installed .a, because they can be
+ 				// rebuilt and used directly from the build cache.
+ 				// A few targets (notably those using cgo) still do need to be installed
+-				// in case the user's environment lacks a C compiler.			case p.Internal.GobinSubdir:
++				// in case the user's environment lacks a C compiler.
+ 			case p.Internal.GobinSubdir:
+ 				base.Errorf("go: cannot install cross-compiled binaries when GOBIN is set")
+ 			case p.Internal.CmdlineFiles:
+diff --git a/src/cmd/go/testdata/script/install_goroot_targets.txt b/src/cmd/go/testdata/script/install_goroot_targets.txt
+index cc143657c7..4d6ca13e24 100644
+--- a/src/cmd/go/testdata/script/install_goroot_targets.txt
++++ b/src/cmd/go/testdata/script/install_goroot_targets.txt
+@@ -19,3 +19,12 @@ stdout cgo\.a
+ env GODEBUG=installgoroot=all
+ go list -f '{{.Target}}' fmt
+ stdout fmt\.a
++
++# With CGO_ENABLED=0, packages that would have
++# an install target with cgo on no longer do.
++env GODEBUG=
++env CGO_ENABLED=0
++go list -f '{{.Target}}' runtime/cgo
++! stdout .
++go list -export -f '{{.Export}}' runtime/cgo
++stdout $GOCACHE
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index ccdc657e36..4c0388149d 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -13,7 +13,6 @@ import (
+ 	"go/doc"
+ 	"go/token"
+ 	"internal/buildcfg"
+-	"internal/buildinternal"
+ 	"internal/godebug"
+ 	"internal/goroot"
+ 	"internal/goversion"
+@@ -784,8 +783,7 @@ Found:
+ 			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+ 
+ 			// Set the install target if applicable.
+-			if strings.ToLower(godebug.Get("installgoroot")) == "all" ||
+-				!p.Goroot || buildinternal.NeedsInstalledDotA(p.ImportPath) {
++			if strings.ToLower(godebug.Get("installgoroot")) == "all" || !p.Goroot {
+ 				p.PkgObj = ctxt.joinPath(p.Root, pkga)
+ 			}
+ 		}
+@@ -1003,6 +1001,12 @@ Found:
+ 		}
+ 	}
+ 
++	// Now that p.CgoFiles has been set, use it to determine whether
++	// a package in GOROOT gets an install target:
++	if len(p.CgoFiles) != 0 && p.Root != "" && p.Goroot && pkga != "" {
++		p.PkgObj = ctxt.joinPath(p.Root, pkga)
++	}
++
+ 	for tag := range allTags {
+ 		p.AllTags = append(p.AllTags, tag)
+ 	}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 6fd83f777b..25556ac04c 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -40,7 +40,6 @@ var depsRules = `
+ 	# No dependencies allowed for any of these packages.
+ 	NONE
+ 	< constraints, container/list, container/ring,
+-	  internal/buildinternal,
+ 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
+ 	  internal/coverage/uleb128, internal/coverage/calloc,
+ 	  internal/cpu, internal/goarch,
+@@ -286,7 +285,7 @@ var depsRules = `
+ 	FMT, internal/goexperiment
+ 	< internal/buildcfg;
+ 
+-	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/buildinternal
++	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion
+ 	< go/build;
+ 
+ 	# databases
+diff --git a/src/internal/buildinternal/needs_install.go b/src/internal/buildinternal/needs_install.go
+deleted file mode 100644
+index b3c17df244..0000000000
+--- a/src/internal/buildinternal/needs_install.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package buildinternal provides internal functions used by go/build
+-// that need to be used by other packages too.
+-package buildinternal
+-
+-// NeedsInstalledDotA returns true if the given stdlib package
+-// needs an installed .a file in the stdlib.
+-func NeedsInstalledDotA(importPath string) bool {
+-	return importPath == "net" || importPath == "os/signal" || importPath == "os/user" || importPath == "plugin" ||
+-		importPath == "runtime/cgo"
+-}

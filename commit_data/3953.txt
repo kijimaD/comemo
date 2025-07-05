@@ -6,7 +6,34 @@ Date:   Tue Nov 10 14:09:01 2009 -0800
     
     R=r
     http://go/go-review/1024048
-
+---
  doc/root.html        | 2 +-
  lib/godoc/godoc.html | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index c6afa74d09..655ac238db 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -28,7 +28,7 @@
+   <table width="100%">
+     <tr>
+       <td align=center width="100%">
+-        <a href="http://www.youtube.com/FIXME"><img src="/doc/video-snap.jpg"></a>
++        <a href="http://www.youtube.com/watch?v=wwoWei-GAPo"><img src="/doc/video-snap.jpg"></a>
+       </td>
+     </tr>
+   </table>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 6ac255ab2a..4f34c68a77 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -83,7 +83,7 @@
+     <li><a href="/doc/effective_go.html">Effective Go</a></li>
+     <li><a href="/doc/go_faq.html">FAQ</a></li>
+     <li><a href="/doc/go_lang_faq.html">Language Design FAQ</a></li>
+-    <li><a href="/XXX">Tech talk (1 hour)</a></li>
++    <li><a href="http://www.youtube.com/watch?v=rKnDgT73v8s">Tech talk (1 hour)</a> (<a href="/doc/go_talk-20091030.pdf">PDF</a>)</li>
+     <li><a href="/doc/go_spec.html">Language Specification</a></li>
+     <li><a href="/doc/go_mem.html">Memory Model</a></li>
+     <li><a href="/doc/go_for_cpp_programmers.html">Go for C++ Programmers</a></li>

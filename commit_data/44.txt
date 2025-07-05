@@ -3,7 +3,7 @@ Author: Ken Thompson <ken@golang.org>
 Date:   Fri Mar 28 13:41:41 2008 -0700
 
     SVN=114202
-
+---
  src/c/const.c  |  377 ++++++++++++++
  src/c/dcl.c    |  764 ++++++++++++++++++++++++++++
  src/c/export.c |  585 +++++++++++++++++++++
@@ -19,3 +19,11046 @@ Date:   Fri Mar 28 13:41:41 2008 -0700
  src/c/test.c   |  138 +++++
  src/c/walk.c   |  967 +++++++++++++++++++++++++++++++++++
  14 files changed, 10958 insertions(+)
+
+diff --git a/src/c/const.c b/src/c/const.c
+new file mode 100644
+index 0000000000..ff1f5221d0
+--- /dev/null
++++ b/src/c/const.c
+@@ -0,0 +1,377 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include	"go.h"
++#define	TUP(x,y)	(((x)<<16)|(y))
++
++void
++convlit(Node *n, Node *t)
++{
++	int et;
++
++	if(n->op != OLITERAL)
++		return;
++	if(t == N)
++		return;
++	n->type = t;
++	et = t->etype;
++
++	switch(whatis(n)) {
++	case Wlitint:
++		if(isptrto(t, TSTRING)) {
++			Rune rune;
++			int l;
++			String *s;
++
++			rune = n->val.vval;
++			l = runelen(rune);
++			s = mal(sizeof(*s)+l);
++			s->len = l;
++			runetochar((char*)(s->s), &rune);
++
++			n->val.sval = s;
++			n->val.ctype = CTSTR;
++			break;
++		}
++		if(isint[et]) {
++			if(n->val.vval < minintval[et])
++				goto bad2;
++			if(n->val.vval > maxintval[et])
++				goto bad2;
++			break;
++		}
++		if(isfloat[et]) {
++			if(n->val.vval < minfloatval[et])
++				goto bad2;
++			if(n->val.vval > maxfloatval[et])
++				goto bad2;
++			n->val.dval = n->val.vval;
++			n->val.ctype = CTFLT;
++			break;
++		}
++		goto bad1;
++
++	case Wlitfloat:
++		if(isint[et]) {
++			if(n->val.dval < minintval[et])
++				goto bad2;
++			if(n->val.dval > maxintval[et])
++				goto bad2;
++			n->val.vval = n->val.dval;
++			n->val.ctype = CTINT;
++			break;
++		}
++		if(isfloat[et]) {
++			if(n->val.dval < minfloatval[et])
++				goto bad2;
++			if(n->val.dval > maxfloatval[et])
++				goto bad2;
++			break;
++		}
++		goto bad1;
++	}
++	return;
++
++bad1:
++	yyerror("illegal conversion of constant to %T", t);
++	return;
++
++bad2:
++	yyerror("overflow converting constant to %T", t);
++	return;
++}
++
++void
++evconst(Node *n)
++{
++	Node *t, *nl, *nr;
++	long len;
++	String *str;
++	int wl, wr;
++
++	nl = n->left;
++	if(nl == N)
++		return;
++
++	switch(n->op) {
++	case OCONV:
++		t = n->type;
++		*n = *nl;
++		n->type = t;
++		return;
++	}
++
++	wl = whatis(nl);
++	switch(wl) {
++	default:
++		return;
++
++	case Wlitint:
++	case Wlitfloat:
++	case Wlitbool:
++	case Wlitstr:
++		break;
++	}
++
++	nr = n->right;
++	if(nr == N)
++		goto unary;
++
++	wr = whatis(nr);
++	switch(wr) {
++	default:
++		return;
++
++	case Wlitint:
++	case Wlitfloat:
++	case Wlitbool:
++	case Wlitstr:
++		break;
++	}
++	if(wl != wr) {
++		yyerror("illegal combination of literals %d %d", nl->etype, nr->etype);
++		return;
++	}
++
++	switch(TUP(n->op, wl)) {
++	default:
++		yyerror("illegal combination of literals %O %d", n->op, wl);
++		return;
++
++	case TUP(OADD, Wlitint):
++		nl->val.vval += nr->val.vval;
++		break;
++	case TUP(OSUB, Wlitint):
++		nl->val.vval -= nr->val.vval;
++		break;
++	case TUP(OMUL, Wlitint):
++		nl->val.vval *= nr->val.vval;
++		break;
++	case TUP(ODIV, Wlitint):
++		nl->val.vval /= nr->val.vval;
++		break;
++	case TUP(OMOD, Wlitint):
++		nl->val.vval %= nr->val.vval;
++		break;
++	case TUP(OLSH, Wlitint):
++		nl->val.vval <<= nr->val.vval;
++		break;
++	case TUP(ORSH, Wlitint):
++		nl->val.vval >>= nr->val.vval;
++		break;
++	case TUP(OOR, Wlitint):
++		nl->val.vval |= nr->val.vval;
++		break;
++	case TUP(OAND, Wlitint):
++		nl->val.vval &= nr->val.vval;
++		break;
++
++	case TUP(OADD, Wlitfloat):
++		nl->val.dval += nr->val.dval;
++		break;
++	case TUP(OSUB, Wlitfloat):
++		nl->val.dval -= nr->val.dval;
++		break;
++	case TUP(OMUL, Wlitfloat):
++		nl->val.dval *= nr->val.dval;
++		break;
++	case TUP(ODIV, Wlitfloat):
++		nl->val.dval /= nr->val.dval;
++		break;
++
++	case TUP(OEQ, Wlitint):
++		if(nl->val.vval == nr->val.vval)
++			goto settrue;
++		goto setfalse;
++	case TUP(ONE, Wlitint):
++		if(nl->val.vval != nr->val.vval)
++			goto settrue;
++		goto setfalse;
++	case TUP(OLT, Wlitint):
++		if(nl->val.vval < nr->val.vval)
++			goto settrue;
++		goto setfalse;
++	case TUP(OLE, Wlitint):
++		if(nl->val.vval <= nr->val.vval)
++			goto settrue;
++		goto setfalse;
++	case TUP(OGE, Wlitint):
++		if(nl->val.vval >= nr->val.vval)
++			goto settrue;
++		goto setfalse;
++	case TUP(OGT, Wlitint):
++		if(nl->val.vval > nr->val.vval)
++			goto settrue;
++		goto setfalse;
++
++	case TUP(OEQ, Wlitfloat):
++		if(nl->val.dval == nr->val.dval)
++			goto settrue;
++		goto setfalse;
++	case TUP(ONE, Wlitfloat):
++		if(nl->val.dval != nr->val.dval)
++			goto settrue;
++		goto setfalse;
++	case TUP(OLT, Wlitfloat):
++		if(nl->val.dval < nr->val.dval)
++			goto settrue;
++		goto setfalse;
++	case TUP(OLE, Wlitfloat):
++		if(nl->val.dval <= nr->val.dval)
++			goto settrue;
++		goto setfalse;
++	case TUP(OGE, Wlitfloat):
++		if(nl->val.dval >= nr->val.dval)
++			goto settrue;
++		goto setfalse;
++	case TUP(OGT, Wlitfloat):
++		if(nl->val.dval > nr->val.dval)
++			goto settrue;
++		goto setfalse;
++
++
++	case TUP(OEQ, Wlitstr):
++		if(cmpslit(nl, nr) == 0)
++			goto settrue;
++		goto setfalse;
++	case TUP(ONE, Wlitstr):
++		if(cmpslit(nl, nr) != 0)
++			goto settrue;
++		goto setfalse;
++	case TUP(OLT, Wlitstr):
++		if(cmpslit(nl, nr) < 0)
++			goto settrue;
++		goto setfalse;
++	case TUP(OLE, Wlitstr):
++		if(cmpslit(nl, nr) <= 0)
++			goto settrue;
++		goto setfalse;
++	case TUP(OGE, Wlitstr):
++		if(cmpslit(nl, nr) >= 0l)
++			goto settrue;
++		goto setfalse;
++	case TUP(OGT, Wlitstr):
++		if(cmpslit(nl, nr) > 0)
++			goto settrue;
++		goto setfalse;
++	case TUP(OADD, Wlitstr):
++		len = nl->val.sval->len + nr->val.sval->len;
++		str = mal(sizeof(*str) + len);
++		str->len = len;
++		memcpy(str->s, nl->val.sval->s, nl->val.sval->len);
++		memcpy(str->s+nl->val.sval->len, nr->val.sval->s, nr->val.sval->len);
++		str->len = len;
++		nl->val.sval = str;
++		break;
++
++	case TUP(OOROR, Wlitbool):
++		if(nl->val.vval || nr->val.vval)
++			goto settrue;
++		goto setfalse;
++	case TUP(OANDAND, Wlitbool):
++		if(nl->val.vval && nr->val.vval)
++			goto settrue;
++		goto setfalse;
++	}
++	*n = *nl;
++	return;
++
++settrue:
++	*n = *booltrue;
++	return;
++
++setfalse:
++	*n = *boolfalse;
++	return;
++
++unary:
++	switch(TUP(n->op, wl)) {
++	default:
++		yyerror("illegal combination of literals %O %d", n->op, wl);
++		return;
++
++	case TUP(OPLUS, Wlitint):
++		nl->val.vval = +nl->val.vval;
++		break;
++	case TUP(OMINUS, Wlitint):
++		nl->val.vval = -nl->val.vval;
++		break;
++	case TUP(OCOM, Wlitint):
++		nl->val.vval = ~nl->val.vval;
++		break;
++
++	case TUP(OPLUS, Wlitfloat):
++		nl->val.dval = +nl->val.dval;
++		break;
++	case TUP(OMINUS, Wlitfloat):
++		nl->val.dval = -nl->val.dval;
++		break;
++
++	case TUP(ONOT, Wlitbool):
++		if(nl->val.vval)
++			goto settrue;
++		goto setfalse;
++	}
++	*n = *nl;
++}
++
++void
++defaultlit(Node *n)
++{
++	if(n == N)
++		return;
++	if(n->type != N)
++		return;
++	if(n->op != OLITERAL)
++		return;
++
++	switch(n->val.ctype) {
++	default:
++		yyerror("defaultlit: unknown literal: %N", n);
++		break;
++	case CTINT:
++	case CTSINT:
++	case CTUINT:
++		n->type = types[TINT32];
++		break;
++	case CTFLT:
++		n->type = types[TFLOAT64];
++		break;
++	case CTBOOL:
++		n->type = types[TBOOL];
++		break;
++	case CTSTR:
++		n->type = types[TSTRING];
++		break;
++	}
++}
++
++int
++cmpslit(Node *l, Node *r)
++{
++	long l1, l2, i, m;
++	uchar *s1, *s2;
++
++	l1 = l->val.sval->len;
++	l2 = r->val.sval->len;
++	s1 = l->val.sval->s;
++	s2 = r->val.sval->s;
++
++	m = l1;
++	if(l2 < m)
++		m = l2;
++
++	for(i=0; i<m; i++) {
++		if(s1[i] == s2[i])
++			continue;
++		if(s1[i] > s2[i])
++			return +1;
++		return -1;
++	}
++	if(l1 == l2)
++		return 0;
++	if(l1 > l2)
++		return +1;
++	return -1;
++}
+diff --git a/src/c/dcl.c b/src/c/dcl.c
+new file mode 100644
+index 0000000000..f59399746b
+--- /dev/null
++++ b/src/c/dcl.c
+@@ -0,0 +1,764 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include	"go.h"
++#include	"y.tab.h"
++
++void
++dodclvar(Node *n, Node *t)
++{
++
++loop:
++	if(n == N)
++		return;
++
++	if(n->op == OLIST) {
++		dodclvar(n->left, t);
++		n = n->right;
++		goto loop;
++	}
++
++	addvar(n, t, dclcontext);
++}
++
++void
++dodcltype(Node *n, Node *t)
++{
++
++loop:
++	if(n == N)
++		return;
++
++	if(n->op == OLIST) {
++		dodcltype(n->left, t);
++		n = n->right;
++		goto loop;
++	}
++
++	addtyp(n, t, dclcontext);
++}
++
++void
++dodclconst(Node *n, Node *e)
++{
++	Sym *s;
++	Dcl *r, *d;
++
++loop:
++	if(n == N)
++		return;
++	if(n->op == OLIST) {
++		dodclconst(n->left, e);
++		n = n->right;
++		goto loop;
++	}
++
++	if(n->op != ONAME)
++		fatal("dodclconst: not a name");
++
++	if(e->op != OLITERAL) {
++		yyerror("expression must be a constant");
++		goto loop;
++	}
++	s = n->sym;
++
++	s->oconst = e;
++	s->lexical = LACONST;
++
++	r = autodcl;
++	if(dclcontext == PEXTERN)
++		r = externdcl;
++
++	d = dcl();
++	d->dsym = s;
++	d->dnode = e;
++	d->op = OCONST;
++
++	r->back->forw = d;
++	r->back = d;
++
++	if(debug['d'])
++		print("const-dcl %S %N\n", n->sym, n->sym->oconst);
++}
++
++/*
++ * return nelem of list
++ */
++int
++listcount(Node *n)
++{
++	int v;
++
++	v = 0;
++	while(n != N) {
++		v++;
++		if(n->op != OLIST)
++			break;
++		n = n->right;
++	}
++	return v;
++}
++
++/*
++ * turn a parsed function declaration
++ * into a type
++ */
++Node*
++functype(Node *this, Node *in, Node *out)
++{
++	Node *t;
++
++	t = nod(OTYPE, N, N);
++	t->etype = TFUNC;
++
++	t->type = dostruct(this, TSTRUCT);
++	t->type->down = dostruct(out, TSTRUCT);
++	t->type->down->down = dostruct(in, TSTRUCT);
++
++	t->thistuple = listcount(this);
++	t->outtuple = listcount(out);
++	t->intuple = listcount(in);
++
++	return t;
++}
++
++void
++funcnam(Node *t, char *nam)
++{
++	Node *n;
++	Sym *s;
++	char buf[100];
++
++	if(nam == nil) {
++		vargen++;
++		snprint(buf, sizeof(buf), "_f%.3ld", vargen);
++		nam = buf;
++	}
++
++	if(t->etype != TFUNC)
++		fatal("funcnam: not func %T\n", t);
++
++	if(t->thistuple > 0) {
++		vargen++;
++		snprint(namebuf, sizeof(namebuf), "_t%.3ld", vargen);
++		s = lookup(namebuf);
++		addtyp(newtype(s), t->type, PEXTERN);
++		n = newname(s);
++		n->vargen = vargen;
++		t->type->nname = n;
++	}
++	if(t->outtuple > 0) {
++		vargen++;
++		snprint(namebuf, sizeof(namebuf), "_o%.3ld", vargen);
++		s = lookup(namebuf);
++		addtyp(newtype(s), t->type->down, PEXTERN);
++		n = newname(s);
++		n->vargen = vargen;
++		t->type->down->nname = n;
++	}
++	if(t->intuple > 0) {
++		vargen++;
++		snprint(namebuf, sizeof(namebuf), "_i%.3ld", vargen);
++		s = lookup(namebuf);
++		addtyp(newtype(s), t->type->down->down, PEXTERN);
++		n = newname(s);
++		n->vargen = vargen;
++		t->type->down->down->nname = n;
++	}
++}
++
++int
++methcmp(Node *t1, Node *t2)
++{
++	if(t1->etype != TFUNC)
++		return 0;
++	if(t2->etype != TFUNC)
++		return 0;
++
++	t1 = t1->type->down;	// skip this arg
++	t2 = t2->type->down;	// skip this arg
++	for(;;) {
++		if(t1 == t2)
++			break;
++		if(t1 == N || t2 == N)
++			return 0;
++		if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
++			return 0;
++
++		if(!eqtype(t1->type, t2->type, 0))
++			return 0;
++
++		t1 = t1->down;
++		t2 = t2->down;
++	}
++	return 1;
++}
++
++/*
++ * add a method, declared as a function,
++ * into the structure
++ */
++void
++addmethod(Node *n, Node *pa, Node *t)
++{
++	Node *p, *f, *d;
++	Sym *s;
++
++	if(n->op != ONAME)
++		goto bad;
++	s = n->sym;
++	if(s == S)
++		goto bad;
++	if(pa == N)
++		goto bad;
++	if(pa->etype != TPTR)
++		goto bad;
++	p = pa->type;
++	if(p == N)
++		goto bad;
++	if(p->etype != TSTRUCT)
++		goto bad;
++	if(p->sym == S)
++		goto bad;
++
++	if(p->type == N) {
++		n = nod(ODCLFIELD, newname(s), N);
++		n->type = t;
++
++		stotype(n, &p->type, p);
++		return;
++	}
++
++	d = N;	// last found
++	for(f=p->type; f!=N; f=f->down) {
++		if(f->etype != TFIELD)
++			fatal("addmethod: not TFIELD: %N", f);
++
++		if(strcmp(s->name, f->sym->name) != 0) {
++			d = f;
++			continue;
++		}
++
++		// if a field matches a non-this function
++		// then delete it and let it be redeclared
++		if(methcmp(t, f->type)) {
++			if(d == N) {
++				p->type = f->down;
++				continue;
++			}
++			d->down = f->down;
++			continue;
++		}
++		if(!eqtype(t, f->type, 0))
++			yyerror("field redeclared as method: %S", s);
++		return;
++	}
++
++	n = nod(ODCLFIELD, newname(s), N);
++	n->type = t;
++
++	if(d == N)
++		stotype(n, &p->type, p);
++	else
++		stotype(n, &d->down, p);
++	return;
++
++bad:
++	yyerror("unknown method pointer: %T", pa);
++}
++
++/*
++ * declare the function proper.
++ * and declare the arguments
++ * called in extern-declaration context
++ * returns in auto-declaration context.
++ */
++void
++funchdr(Node *n)
++{
++	Node *on;
++	Sym *s;
++
++	s = n->nname->sym;
++	on = s->oname;
++
++	// check for foreward declaration
++	if(on == N || !eqtype(n->type, on->type, 0)) {
++		// initial declaration or redeclaration
++		// declare fun name, argument types and argument names
++		funcnam(n->type, s->name);
++		n->nname->type = n->type;
++		if(n->type->thistuple == 0)
++			addvar(n->nname, n->type, PEXTERN);
++	} else {
++		// identical redeclaration
++		// steal previous names
++		n->nname = on;
++		n->type = on->type;
++		n->sym = s;
++		s->oname = n;
++		if(debug['d'])
++			print("forew  var-dcl %S %T\n", n->sym, n->type);
++	}
++
++	// change the declaration context from extern to auto
++	autodcl = dcl();
++	autodcl->back = autodcl;
++
++	if(dclcontext != PEXTERN)
++		fatal("funchdr: dclcontext");
++	dclcontext = PAUTO;
++
++	funcargs(n->type);
++	if(n->type->thistuple > 0) {
++		Node *n1;
++		n1 = *getthis(n->type);
++		addmethod(n->nname, n1->type->type, n->type);
++	}
++}
++
++void
++funcargs(Node *t)
++{
++	Node *n1;
++	Iter save;
++
++	// declare the this argument
++	n1 = structfirst(&save, getthis(t));
++	if(n1 != N) {
++		if(n1->nname != N)
++			addvar(n1->nname, n1->type, PAUTO);
++	}
++
++	// declare the incoming arguments
++	n1 = structfirst(&save, getinarg(t));
++	while(n1 != N) {
++		if(n1->nname != N)
++			addvar(n1->nname, n1->type, PAUTO);
++		n1 = structnext(&save);
++	}
++
++	// declare the outgoing arguments
++//	n1 = structfirst(&save, getoutarg(t));
++//	while(n1 != N) {
++//		n1->left = newname(n1->sym);
++//		if(n1->nname != N)
++//			addvar(n1->nname, n1->type, PAUTO);
++//		n1 = structnext(&save);
++//	}
++}
++
++/*
++ * compile the function.
++ * called in auto-declaration context.
++ * returns in extern-declaration context.
++ */
++void
++funcbody(Node *n)
++{
++
++	compile(n);
++
++	// change the declaration context from auto to extern
++	if(dclcontext != PAUTO)
++		fatal("funcbody: dclcontext");
++	dclcontext = PEXTERN;
++}
++
++/*
++ * turn a parsed struct into a type
++ */
++Node**
++stotype(Node *n, Node **t, Node *uber)
++{
++	Node *f;
++	Iter save;
++
++	n = listfirst(&save, &n);
++
++loop:
++	if(n == N) {
++		*t = N;
++		return t;
++	}
++
++	if(n->op == OLIST) {
++		// recursive because it can be lists of lists
++		t = stotype(n, t, uber);
++		goto next;
++	}
++
++	if(n->op != ODCLFIELD || n->type == N)
++		fatal("stotype: oops %N\n", n);
++
++	if(n->type->etype == TDARRAY)
++		yyerror("type of a structure field cannot be an open array");
++
++	f = nod(OTYPE, N, N);
++	f->etype = TFIELD;
++	f->type = n->type;
++	f->uberstruct = uber;
++
++	if(n->left != N && n->left->op == ONAME) {
++		f->nname = n->left;
++	} else {
++		vargen++;
++		snprint(namebuf, sizeof(namebuf), "_e%.3ld", vargen);
++		f->nname = newname(lookup(namebuf));
++	}
++	f->sym = f->nname->sym;
++	f->nname->uberstruct = uber;	// can reach parent from element
++
++	*t = f;
++	t = &f->down;
++
++next:
++	n = listnext(&save);
++	goto loop;
++}
++
++Node*
++dostruct(Node *n, int et)
++{
++	Node *t;
++
++	/*
++	 * convert a parsed id/type list into
++	 * a type for struct/interface/arglist
++	 */
++
++	t = nod(OTYPE, N, N);
++	stotype(n, &t->type, t);
++	t->etype = et;
++	return t;
++}
++
++Node*
++sortinter(Node *n)
++{
++	return n;
++}
++
++void
++dcopy(Sym *a, Sym *b)
++{
++	a->name = b->name;
++	a->oname = b->oname;
++	a->otype = b->otype;
++	a->oconst = b->oconst;
++	a->package = b->package;
++	a->opackage = b->opackage;
++	a->forwtype = b->forwtype;
++	a->lexical = b->lexical;
++	a->undef = b->undef;
++	a->vargen = b->vargen;
++}
++
++Sym*
++push(void)
++{
++	Sym *d;
++
++	d = mal(sizeof(*d));
++	d->link = dclstack;
++	dclstack = d;
++	return d;
++}
++
++Sym*
++pushdcl(Sym *s)
++{
++	Sym *d;
++
++	d = push();
++	dcopy(d, s);
++	return d;
++}
++
++void
++popdcl(void)
++{
++	Sym *d, *s;
++
++//	if(debug['d'])
++//		print("revert\n");
++	for(d=dclstack; d!=S; d=d->link) {
++		if(d->name == nil)
++			break;
++		s = pkglookup(d->name, d->package);
++		dcopy(s, d);
++		if(debug['d'])
++			print("\t%ld pop %S\n", curio.lineno, s);
++	}
++	if(d != S)
++		d = d->link;
++	dclstack = d;
++}
++
++void
++markdcl(void)
++{
++	Sym *d;
++
++	d = push();
++	d->name = nil;		// used as a mark in fifo
++//	if(debug['d'])
++//		print("markdcl\n");
++}
++
++void
++markdclstack(void)
++{
++	Sym *d, *s;
++
++	markdcl();
++
++	// copy the entire pop of the stack
++	// all the way back to block0.
++	// after this the symbol table is at
++	// block0 and popdcl will restore it.
++	for(d=dclstack; d!=S; d=d->link) {
++		if(d == b0stack)
++			break;
++		if(d->name != nil) {
++			s = pkglookup(d->name, d->package);
++			pushdcl(s);
++			dcopy(s, d);
++		}
++	}
++}
++
++void
++addvar(Node *n, Node *t, int ctxt)
++{
++	Dcl *r, *d;
++	Sym *s;
++	Node *on;
++	int gen;
++
++	if(n==N || n->sym == S || n->op != ONAME || t == N)
++		fatal("addvar: n=%N t=%N nil", n, t);
++
++	on = t;
++	if(on->etype == TPTR)
++		on = on->type;
++	if(on->etype == TSTRUCT && on->vargen == 0) {
++		vargen++;
++		snprint(namebuf, sizeof(namebuf), "_s%.3ld", vargen);
++		addtyp(newtype(lookup(namebuf)), on, PEXTERN);
++	}
++
++	s = n->sym;
++	vargen++;
++	gen = vargen;
++
++	r = autodcl;
++	if(ctxt == PEXTERN) {
++		on = s->oname;
++		if(on != N) {
++			if(eqtype(t, on->type, 0)) {
++				warn("%S redeclared", s);
++				return;
++			}
++			yyerror("%S redeclared (%T %T)", s,
++				on->type, t);
++		}
++		r = externdcl;
++		gen = 0;
++	}
++
++	pushdcl(s);
++	s->vargen = gen;
++	s->oname = n;
++
++	n->type = t;
++	n->vargen = gen;
++
++	d = dcl();
++	d->dsym = s;
++	d->dnode = n;
++	d->op = ONAME;
++
++	r->back->forw = d;
++	r->back = d;
++
++	if(debug['d']) {
++		if(ctxt == PEXTERN)
++			print("extern var-dcl %S G%ld %T\n", s, s->vargen, t);
++		else
++			print("auto   var-dcl %S G%ld %T\n", s, s->vargen, t);
++	}
++}
++
++void
++addtyp(Node *n, Node *t, int ctxt)
++{
++	Dcl *r, *d;
++	Sym *s;
++	Node *f, *ot;
++
++	if(n==N || n->sym == S || n->op != OTYPE || t == N)
++		fatal("addtyp: n=%N t=%N nil", n, t);
++
++	s = n->sym;
++
++	r = autodcl;
++	if(ctxt == PEXTERN) {
++		ot = s->otype;
++		if(ot != N) {
++			// allow nil interface to be
++			// redeclared as an interface
++			if(ot->etype == TINTER && ot->type == N && t->etype == TINTER) {
++				if(debug['d'])
++					print("forew  typ-dcl %S G%ld %T\n", s, s->vargen, t);
++				s->otype = t;
++				return;
++			}
++			if(eqtype(t, ot, 0)) {
++				warn("%S redeclared", s);
++				return;
++			}
++			yyerror("%S redeclared (%T %T)", s,
++				ot, t);
++		}
++		r = externdcl;
++	}
++
++	pushdcl(s);
++	vargen++;
++	s->vargen = vargen;
++	s->otype = t;
++	s->lexical = LATYPE;
++
++	if(t->sym != S)
++		warn("addtyp: renaming %S to %S", t->sym, s);
++
++	t->sym = s;
++	t->vargen = vargen;
++
++	for(f=s->forwtype; f!=N; f=f->nforw) {
++		if(f->op != OTYPE && f->etype != TPTR)
++			fatal("addtyp: foreward");
++		f->type = t;
++	}
++	s->forwtype = N;
++
++	d = dcl();
++	d->dsym = s;
++	d->dnode = t;
++	d->op = OTYPE;
++
++	r->back->forw = d;
++	r->back = d;
++
++	if(debug['d']) {
++		if(ctxt == PEXTERN)
++			print("extern typ-dcl %S G%ld %T\n", s, s->vargen, t);
++		else
++			print("auto   typ-dcl %S G%ld %T\n", s, s->vargen, t);
++	}
++}
++
++/*
++ * make a new variable
++ */
++Node*
++tempname(Node *t)
++{
++	Sym *s;
++	Node *n;
++
++	if(t == N) {
++		yyerror("tempname called with nil type");
++		t = types[TINT32];
++	}
++
++	s = lookup("!tmpname!");
++	n = newname(s);
++	dodclvar(n, t);
++	return n;
++}
++
++/*
++ * this generates a new name that is
++ * pushed down on the declaration list.
++ * no diagnostics are produced as this
++ * name will soon be declared.
++ */
++Node*
++newname(Sym *s)
++{
++	Node *n;
++
++	n = nod(ONAME, N, N);
++	n->sym = s;
++	n->type = N;
++	n->addable = 1;
++	n->ullman = 0;
++	return n;
++}
++
++/*
++ * this will return an old name
++ * that has already been pushed on the
++ * declaration list. a diagnostic is
++ * generated if no name has been defined.
++ */
++Node*
++oldname(Sym *s)
++{
++	Node *n;
++
++	n = s->oname;
++	if(n == N) {
++		yyerror("%S undefined", s);
++		n = newname(s);
++		dodclvar(n, types[TINT32]);
++	}
++	return n;
++}
++
++/*
++ * same for types
++ */
++Node*
++newtype(Sym *s)
++{
++	Node *n;
++
++	n = nod(OTYPE, N, N);
++	n->etype = TFORW;
++	n->sym = s;
++	n->type = N;
++	return n;
++}
++
++Node*
++oldtype(Sym *s)
++{
++	Node *n;
++
++	n = s->otype;
++	if(n == N)
++		fatal("%S not a type", s); // cant happen
++	return n;
++}
++
++Node*
++forwdcl(Sym *s)
++{
++	Node *n;
++
++	// this type has no meaning and
++	// will cause an error if referenced.
++	// it will be patched when/if the
++	// type is ever assigned.
++	n = nod(OTYPE, N, N);
++	n->etype = TFORW;
++	n = ptrto(n);
++
++	n->nforw = s->forwtype;
++	s->forwtype = n;
++	return n;
++}
+diff --git a/src/c/export.c b/src/c/export.c
+new file mode 100644
+index 0000000000..de54f1fe38
+--- /dev/null
++++ b/src/c/export.c
+@@ -0,0 +1,585 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include	"go.h"
++#include	"y.tab.h"
++
++void
++markexport(Node *n)
++{
++	Sym *s;
++	Dcl *d, *r;
++
++loop:
++	if(n == N)
++		return;
++	if(n->op == OLIST) {
++		markexport(n->left);
++		n = n->right;
++		goto loop;
++	}
++	if(n->op != OEXPORT)
++		fatal("markexport: op no OEXPORT: %O", n->op);
++
++	s = n->sym;
++	if(n->psym != S)
++		s = pkglookup(n->sym->name, n->psym->name);
++
++	if(s->export != 0)
++		return;
++	s->export = 1;
++
++	d = mal(sizeof(*d));
++	d->dsym = s;
++	d->dnode = N;
++	d->lineno = curio.lineno;
++
++	r = exportlist;
++	d->back = r->back;
++	r->back->forw = d;
++	r->back = d;
++}
++
++void
++reexport(Node *t)
++{
++	Sym *s;
++
++	if(t == N)
++		fatal("reexport: type nil\n");
++
++	s = t->sym;
++	if(s == S/* || s->name[0] == '_'*/) {
++		exportgen++;
++		snprint(namebuf, sizeof(namebuf), "_e%.3ld", exportgen);
++		s = lookup(namebuf);
++		s->lexical = LATYPE;
++		s->otype = t;
++		t->sym = s;
++	}
++	dumpexporttype(s);
++}
++
++void
++dumpexportconst(Sym *s)
++{
++	Node *n, *t;
++
++	if(s->exported != 0)
++		return;
++	s->exported = 1;
++
++	n = s->oconst;
++	if(n == N || n->op != OLITERAL)
++		fatal("dumpexportconst: oconst nil: %S\n", s);
++
++	t = n->type;	// may or may not be specified
++	if(t != N)
++		reexport(t);
++
++	Bprint(bout, "\tconst ");
++	if(s->export != 0)
++		Bprint(bout, "!");
++	Bprint(bout, "%lS ", s);
++	if(t != N)
++		Bprint(bout, "%lS ", t->sym);
++
++	switch(n->val.ctype) {
++	default:
++		fatal("dumpexportconst: unknown ctype: %S\n", s);
++	case CTINT:
++	case CTSINT:
++	case CTUINT:
++	case CTBOOL:
++		Bprint(bout, "0x%llux\n", n->val.vval);
++		break;
++	case CTFLT:
++		Bprint(bout, "%.17e\n", n->val.dval);
++		break;
++	case CTSTR:
++		Bprint(bout, "\"%Z\"\n", n->val.sval);
++		break;
++	}
++}
++
++void
++dumpexportvar(Sym *s)
++{
++	Node *n, *t;
++
++	if(s->exported != 0)
++		return;
++	s->exported = 1;
++
++	n = s->oname;
++	if(n == N || n->type == N)
++		fatal("dumpexportvar: oname nil: %S\n", s);
++
++	t = n->type;
++	reexport(t);
++
++	Bprint(bout, "\tvar ");
++	if(s->export != 0)
++		Bprint(bout, "!");
++	Bprint(bout, "%lS %lS\n", s, t->sym);
++}
++
++void
++dumpexporttype(Sym *s)
++{
++	Node *t, *f;
++	Sym *ts;
++	int et;
++
++	if(s->exported != 0)
++		return;
++	s->exported = 1;
++
++	t = s->otype;
++	if(t == N || t->op != OTYPE)
++		fatal("dumpexporttype: otype nil: %S\n", s);
++	if(t->sym != s)
++		fatal("dumpexporttype: cross reference: %S\n", s);
++
++	et = t->etype;
++	switch(et) {
++	default:
++		if(et < 0 || et >= nelem(types) || types[et] == N)
++			fatal("dumpexporttype: basic type: %E\n", et);
++		/* type 5 */
++		Bprint(bout, "\ttype %lS %d\n", s, et);
++		break;
++
++	case TARRAY:
++		reexport(t->type);
++
++		/* type 2 */
++		Bprint(bout, "\ttype ");
++		if(s->export != 0)
++			Bprint(bout, "!");
++		Bprint(bout, "%lS [%lud] %lS\n", s, t->bound, t->type->sym);
++		break;
++
++	case TPTR:
++		reexport(t->type);
++
++		/* type 6 */
++		Bprint(bout, "\ttype ");
++		if(s->export != 0)
++			Bprint(bout, "!");
++		Bprint(bout, "%lS *%lS\n", s, t->type->sym);
++		break;
++
++	case TFUNC:
++		for(f=t->type; f!=N; f=f->down) {
++			if(f->op != OTYPE || f->etype != TSTRUCT)
++				fatal("dumpexporttype: funct not field: %O/%E\n",
++					f->op, f->etype);
++			reexport(f);
++		}
++
++		/* type 3 */
++		Bprint(bout, "\ttype ");
++		if(s->export != 0)
++			Bprint(bout, "!");
++		Bprint(bout, "%lS (", s);
++		for(f=t->type; f!=N; f=f->down) {
++			if(f != t->type)
++				Bprint(bout, " ");
++			Bprint(bout, "%lS", f->sym);
++		}
++		Bprint(bout, ")\n");
++		break;
++
++	case TSTRUCT:
++	case TINTER:
++		for(f=t->type; f!=N; f=f->down) {
++			if(f->op != OTYPE || f->etype != TFIELD)
++				fatal("dumpexporttype: funct not field: %O/%E\n",
++					f->op, f->etype);
++			reexport(f->type);
++		}
++
++		/* type 4 */
++		Bprint(bout, "\ttype ");
++		if(s->export)
++			Bprint(bout, "!");
++		Bprint(bout, "%lS %c", s, (et==TSTRUCT)? '{': '<');
++		for(f=t->type; f!=N; f=f->down) {
++			ts = f->type->sym;
++			if(f != t->type)
++				Bprint(bout, " ");
++			Bprint(bout, "%s %lS", f->sym->name, ts);
++		}
++		Bprint(bout, "%c\n", (et==TSTRUCT)? '}': '>');
++		break;
++	}
++}
++
++void
++dumpe(Sym *s)
++{
++	switch(s->lexical) {
++	default:
++		yyerror("unknown export symbol: %S\n", s, s->lexical);
++		break;
++	case LPACK:
++		yyerror("package export symbol: %S\n", s);
++		break;
++	case LATYPE:
++	case LBASETYPE:
++		dumpexporttype(s);
++		break;
++	case LNAME:
++		dumpexportvar(s);
++		break;
++	case LACONST:
++		dumpexportconst(s);
++		break;
++	}
++}
++
++void
++dumpexport(void)
++{
++	Dcl *d;
++	long lno;
++
++	lno = dynlineno;
++
++	Bprint(bout, "   import\n");
++	Bprint(bout, "   ((\n");
++
++	// print it depth first
++	for(d=exportlist->forw; d!=D; d=d->forw) {
++		dynlineno = d->lineno;
++		dumpe(d->dsym);
++	}
++
++	Bprint(bout, "   ))\n");
++
++	dynlineno = lno;
++}
++
++/*
++ * ******* import *******
++ */
++Node*
++importlooktype(Node *n)
++{
++	Sym *s;
++
++	if(n->op != OIMPORT)
++		fatal("importlooktype: oops1 %N\n", n);
++
++	s = pkglookup(n->sym->name, n->psym->name);
++	if(s->otype == N)
++		fatal("importlooktype: oops2 %S\n", s);
++
++	return s->otype;
++}
++
++Node**
++importstotype(Node *n, Node **t, Node *uber)
++{
++	Node *f;
++	Iter save;
++
++	n = listfirst(&save, &n);
++
++loop:
++	if(n == N) {
++		*t = N;
++		return t;
++	}
++
++	f = nod(OTYPE, N, N);
++	f->etype = TFIELD;
++	f->type = importlooktype(n);
++	f->uberstruct = uber;
++
++	if(n->fsym != S) {
++		f->nname = newname(n->fsym);
++	} else {
++		vargen++;
++		snprint(namebuf, sizeof(namebuf), "_m%.3ld", vargen);
++		f->nname = newname(lookup(namebuf));
++	}
++	f->sym = f->nname->sym;
++	f->nname->uberstruct = uber;
++
++	*t = f;
++	t = &f->down;
++
++	n = listnext(&save);
++	goto loop;
++}
++
++int
++importcount(Node *t)
++{
++	int i;
++	Node *f;
++
++	if(t == N || t->op != OTYPE || t->etype != TSTRUCT)
++		fatal("importcount: not a struct: %N", t);
++
++	i = 0;
++	for(f=t->type; f!=N; f=f->down)
++		i = i+1;
++	return i;
++}
++
++void
++importfuncnam(Node *t)
++{
++	Node *n, *n1;
++
++	if(t->etype != TFUNC)
++		fatal("importfuncnam: not func %T\n", t);
++
++	if(t->thistuple > 0) {
++		n1 = t->type;
++		if(n1->sym == S)
++			fatal("importfuncnam: no this");
++		n = newname(n1->sym);
++		vargen++;
++		n->vargen = vargen;
++		n1->nname = n;
++	}
++	if(t->outtuple > 0) {
++		n1 = t->type->down;
++		if(n1->sym == S)
++			fatal("importfuncnam: no output");
++		n = newname(n1->sym);
++		vargen++;
++		n->vargen = vargen;
++		n1->nname = n;
++	}
++	if(t->intuple > 0) {
++		n1 = t->type->down->down;
++		if(n1->sym == S)
++			fatal("importfuncnam: no input");
++		n = newname(n1->sym);
++		vargen++;
++		n->vargen = vargen;
++		n1->nname = n;
++	}
++}
++
++Sym*
++getimportsym(Node *ss)
++{
++	char *pkg;
++	Sym *s;
++
++	pkg = ss->psym->name;
++	if(ss->kaka) {
++		pkg = package;
++		if(pkgmyname != S)
++			pkg = pkgmyname->name;
++	}
++	s = pkglookup(ss->sym->name, pkg);
++	/* botch - need some diagnostic checking for the following assignment */
++	s->opackage = ss->osym->name;
++	return s;
++}
++
++void
++importaddtyp(Node *ss, Node *t)
++{
++	Sym *s;
++
++	s = getimportsym(ss);
++	if(s->otype == N || !eqtype(t, s->otype, 0)) {
++		addtyp(newtype(s), t, PEXTERN);
++	}
++}
++
++/*
++ * LCONST importsym LITERAL
++ * untyped constant
++ */
++void
++doimportc1(Node *ss, Val *v)
++{
++	Node *n;
++	Sym *s;
++
++	n = nod(OLITERAL, N, N);
++	n->val = *v;
++
++	s = getimportsym(ss);
++	if(s->oconst == N) {
++		// botch sould ask if already declared the same
++		dodclconst(newname(s), n);
++	}
++}
++
++/*
++ * LCONST importsym importsym LITERAL
++ * typed constant
++ */
++void
++doimportc2(Node *ss, Node *st, Val *v)
++{
++	Node *n, *t;
++	Sym *s;
++
++	n = nod(OLITERAL, N, N);
++	n->val = *v;
++
++	t = importlooktype(st);
++	n->type = t;
++
++	s = getimportsym(ss);
++	if(s->oconst == N) {
++		// botch sould ask if already declared the same
++		dodclconst(newname(s), n);
++	}
++}
++
++/*
++ * LVAR importsym importsym
++ * variable
++ */
++void
++doimportv1(Node *ss, Node *st)
++{
++	Node *t;
++	Sym *s;
++
++	t = importlooktype(st);
++	s = getimportsym(ss);
++	if(s->oname == N || !eqtype(t, s->oname->type, 0)) {
++		addvar(newname(s), t, dclcontext);
++	}
++}
++
++/*
++ * LTYPE importsym [ importsym ] importsym
++ * array type
++ */
++void
++doimport1(Node *ss, Node *ss1, Node *s)
++{
++	fatal("doimport1");
++}
++
++/*
++ * LTYPE importsym [ LLITERAL ] importsym
++ * array type
++ */
++void
++doimport2(Node *ss, Val *b, Node *st)
++{
++	Node *t;
++	Sym *s;
++
++	t = nod(OTYPE, N, N);
++	t->etype = TARRAY;
++	t->bound = b->vval;
++	s = pkglookup(st->sym->name, st->psym->name);
++	t->type = s->otype;
++
++	importaddtyp(ss, t);
++}
++
++/*
++ * LTYPE importsym '(' importsym_list ')'
++ * function/method type
++ */
++void
++doimport3(Node *ss, Node *n)
++{
++	Node *t;
++
++	t = nod(OTYPE, N, N);
++	t->etype = TFUNC;
++
++	t->type = importlooktype(n->left);
++	t->type->down = importlooktype(n->right->left);
++	t->type->down->down = importlooktype(n->right->right);
++
++	t->thistuple = importcount(t->type);
++	t->outtuple = importcount(t->type->down);
++	t->intuple = importcount(t->type->down->down);
++
++	importfuncnam(t);
++
++	importaddtyp(ss, t);
++}
++
++/*
++ * LTYPE importsym '{' importsym_list '}'
++ * structure type
++ */
++void
++doimport4(Node *ss, Node *n)
++{
++	Node *t;
++
++	t = nod(OTYPE, N, N);
++	t->etype = TSTRUCT;
++	importstotype(n, &t->type, t);
++
++	importaddtyp(ss, t);
++}
++
++/*
++ * LTYPE importsym LLITERAL
++ * basic type
++ */
++void
++doimport5(Node *ss, Val *v)
++{
++	int et;
++	Node *t;
++
++	et = v->vval;
++	if(et <= 0 || et >= nelem(types) || types[et] == N)
++		fatal("doimport5: bad type index: %E\n", et);
++
++	t = nod(OTYPE, 0, 0);
++	t->etype = et;
++	t->sym = S;
++
++	importaddtyp(ss, t);
++}
++
++/*
++ * LTYPE importsym * importsym
++ * pointer type
++ */
++void
++doimport6(Node *ss, Node *st)
++{
++	Node *t;
++	Sym *s;
++
++	s = pkglookup(st->sym->name, st->psym->name);
++	t = s->otype;
++	if(t == N)
++		t = forwdcl(s);
++	else
++		t = ptrto(t);
++
++	importaddtyp(ss, t);
++}
++
++/*
++ * LTYPE importsym '<' importsym '>'
++ * interface type
++ */
++void
++doimport7(Node *ss, Node *n)
++{
++	Node *t;
++
++	t = nod(OTYPE, N, N);
++	t->etype = TINTER;
++	importstotype(n, &t->type, t);
++
++	importaddtyp(ss, t);
++}
+diff --git a/src/c/gen.c b/src/c/gen.c
+new file mode 100644
+index 0000000000..d3f473c10b
+--- /dev/null
++++ b/src/c/gen.c
+@@ -0,0 +1,1176 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go.h"
++
++#undef	EXTERN
++#define	EXTERN
++#include "gen.h"
++
++static	Node*	curfn;
++
++void
++compile(Node *fn)
++{
++	Plist *pl;
++
++	if(fn->nbody == N)
++		return;
++	if(nerrors != 0) {
++		walk(fn);
++		return;
++	}
++
++	if(debug['w'])
++		dump("--- pre walk ---", fn->nbody);
++	walk(fn);
++	if(nerrors != 0)
++		return;
++	if(debug['w'])
++		dump("--- post walk ---", fn->nbody);
++
++	curfn = fn;
++
++	continpc = P;
++	breakpc = P;
++
++	pc = mal(sizeof(*pc));
++	firstpc = pc;
++	pc->op = PEND;
++	pc->addr.type = ANONE;
++	pc->loc = 1;
++	inarggen();
++	gen(curfn->nbody);
++
++	if(curfn->type->outtuple != 0)
++		gopcodet(PPANIC, N, N);
++
++	if(debug['p'])
++		proglist();
++
++	pl = mal(sizeof(*pl));
++	pl->name = curfn->nname;
++	pl->locals = autodcl;
++	pl->firstpc = firstpc;
++
++	if(plist == nil)
++		plist = pl;
++	else
++		plast->link = pl;
++	plast = pl;
++
++	if(debug['f'])
++		frame(0);
++}
++
++/*
++ * compile statements
++ */
++void
++gen(Node *n)
++{
++	long lno;
++	Prog *scontin, *sbreak;
++	Prog *p1, *p2, *p3;
++	Sym *s;
++
++	lno = dynlineno;
++
++loop:
++	if(n == N)
++		goto ret;
++	dynlineno = n->lineno;	// for diagnostics
++
++	switch(n->op) {
++	default:
++		dump("gen: unknown op", n);
++		break;
++
++	case ODCLTYPE:
++		break;
++
++	case OLIST:
++		gen(n->left);
++		n = n->right;
++		goto loop;
++
++	case OPANIC:
++	case OPRINT:
++		genprint(n->left);
++		if(n->op == OPANIC)
++			gopcodet(PPANIC, N, N);
++		break;
++
++	case OCASE:
++	case OFALL:
++	case OXCASE:
++	case OXFALL:
++	case OEMPTY:
++		break;
++
++	case OLABEL:
++		// before declaration, s->label points at
++		// a link list of PXGOTO instructions.
++		// after declaration, s->label points
++		// at a PGOTO to .+1
++
++		s = n->left->sym;
++		p1 = (Prog*)s->label;
++
++		if(p1 != P) {
++			if(p1->op == PGOTO) {
++				yyerror("label redeclared: %S", s);
++				break;
++			}
++			while(p1 != P) {
++				if(p1->op != PGOTOX)
++					fatal("bad label pointer: %S", s);
++				p2 = p1->addr.branch;
++				p1->addr.branch = pc;
++				p1->op = PGOTO;
++				p1 = p2;
++			}
++		}
++
++		s->label = pc;
++		p1 = gbranch(PGOTO, N);
++		patch(p1, pc);
++		break;
++
++	case OGOTO:
++		s = n->left->sym;
++		p1 = (Prog*)s->label;
++		if(p1 != P && p1->op == PGOTO) {
++			// already declared
++			p2 = gbranch(PGOTO, N);
++			patch(p2, p1->addr.branch);
++			break;
++		}
++
++		// not declaraed yet
++		p2 = gbranch(PGOTOX, N);
++		p2->addr.node = n;	// info for diagnostic if never declared
++		patch(p2, p1);
++		s->label = p2;
++		break;
++
++	case OBREAK:
++		if(breakpc == P) {
++			yyerror("gen: break is not in a loop");
++			break;
++		}
++		patch(gbranch(PGOTO, N), breakpc);
++		break;
++
++	case OCONTINUE:
++		if(continpc == P) {
++			yyerror("gen: continue is not in a loop");
++			break;
++		}
++		patch(gbranch(PGOTO, N), continpc);
++		break;
++
++	case OFOR:
++		gen(n->ninit);				// 		init
++		p1 = gbranch(PGOTO, N);			// 		goto test
++		sbreak = breakpc;
++		breakpc = gbranch(PGOTO, N);		// break:	goto done
++		scontin = continpc;
++		continpc = pc;
++		gen(n->nincr);				// contin:	incr
++		patch(p1, pc);				// test:
++		bgen(n->ntest, 0, breakpc);		//		if(!test) goto break
++		gen(n->nbody);				//		body
++		patch(gbranch(PGOTO, N), continpc);	//		goto contin
++		patch(breakpc, pc);			// done:
++		continpc = scontin;
++		breakpc = sbreak;
++		break;
++
++	case OIF:
++		gen(n->ninit);				//		init
++		p1 = gbranch(PGOTO, N);			//		goto test
++		p2 = gbranch(PGOTO, N);			// p2:		goto else
++		patch(p1, pc);				// test:
++		bgen(n->ntest, 0, p2);			// 		if(!test) goto p2
++		gen(n->nbody);				//		then
++		p3 = gbranch(PGOTO, N);			//		goto done
++		patch(p2, pc);				// else:
++		gen(n->nelse);				//		else
++		patch(p3, pc);				// done:
++		break;
++
++	case OSWITCH:
++		gen(n->ninit);				// 		init
++		p1 = gbranch(PGOTO, N);			// 		goto test
++		sbreak = breakpc;
++		breakpc = gbranch(PGOTO, N);		// break:	goto done
++		patch(p1, pc);				// test:
++		swgen(n);				//		switch(test) body
++		patch(breakpc, pc);			// done:
++		breakpc = sbreak;
++		break;
++
++	case OASOP:
++		cgen_asop(n->left, n->right, n->kaka);
++		break;
++
++	case ODCLVAR:
++	case OCOLAS:
++	case OAS:
++		cgen_as(n->left, n->right, n->op, n->kaka);
++		break;
++
++	case OCALL:
++	case OCALLPTR:
++	case OCALLMETH:
++	case OCALLINTER:
++		cgen_call(n, 1);
++		break;
++
++	case ORETURN:
++		cgen_ret(n);
++		break;
++	}
++
++ret:
++	dynlineno = lno;
++}
++
++/*
++ * compile expression to (unnamed) reg
++ */
++void
++cgen(Node *n)
++{
++	long lno;
++	Node *nl, *nr, *r, *r1;
++	int a;
++	Prog *p1, *p2, *p3;
++
++	if(n == N)
++		return;
++
++	lno = dynlineno;
++	if(n->op != ONAME)
++		dynlineno = n->lineno;	// for diagnostics
++
++	nl = n->left;
++	nr = n->right;
++
++	if(nr != N && nr->ullman >= UINF && nl != N && nl->ullman >= UINF) {
++		cgen(nr);
++		r = tempname(n->type);
++		gopcodet(PSTORE, n->type, r);
++		nr = r;
++	}
++
++	switch(n->op) {
++	default:
++		yyerror("cgen: unknown op %O", n->op);
++		break;
++
++	case ONAME:
++	case OLITERAL:
++		gopcodet(PLOAD, n->type, n);
++		break;
++
++	case ONEW:
++		gopcodet(PNEW, n->type, n);
++		break;
++
++	// these call bgen to get a bool value
++	case OOROR:
++	case OANDAND:
++	case OEQ:
++	case ONE:
++	case OLT:
++	case OLE:
++	case OGE:
++	case OGT:
++	case ONOT:
++		p1 = gbranch(PGOTO, N);
++		p2 = gopcodet(PLOAD, n->type, booltrue);
++		p3 = gbranch(PGOTO, N);
++		patch(p1, pc);
++		bgen(n, 1, p2);
++		p2 = gopcodet(PLOAD, n->type, boolfalse);
++		patch(p3, pc);
++		goto ret;
++
++	case OPLUS:
++		cgen(nl);
++		goto ret;
++
++	// unary
++	case OMINUS:
++	case OCOM:
++		a = optopop(n->op);
++		goto uop;
++
++	// symmetric binary
++	case OAND:
++	case OOR:
++	case OXOR:
++	case OADD:
++	case OMUL:
++		a = optopop(n->op);
++		goto sbop;
++
++	// asymmetric binary
++	case OMOD:
++	case OSUB:
++	case ODIV:
++	case OLSH:
++	case ORSH:
++	case OCAT:
++		a = optopop(n->op);
++		goto abop;
++
++	case OCONV:
++		if(isbytearray(nl->type)) {
++			if(nl->type->etype == TPTR)
++				cgen(nl);
++			else
++				agen(nl);
++			gopcode(PCONV, PTNIL, nod(OCONV, n->type, nl->type));
++			break;
++		}
++
++		cgen(nl);
++		gopcode(PCONV, PTNIL, nod(OCONV, n->type, nl->type));
++		break;
++
++	case OINDEXSTR:
++		nl = n->left;
++		nr = n->right;
++		if(nl->addable) {
++			cgen(nr);
++			gopcodet(PINDEXZ, nr->type, nl);
++			break;
++		}
++		cgen(nl);
++		r = tempname(nl->type);
++		gopcodet(PSTORE, nl->type, r);
++		cgen(nr);
++		gopcodet(PINDEXZ, nr->type, r);
++		break;
++
++	case OSLICE:
++		nl = n->left;
++		nr = n->right;
++
++		r = nr->left;
++		if(usesptr(nr->left)) {
++			cgen(nr->left);
++			r = tempname(nr->left->type);
++			gopcodet(PSTORE, nr->left->type, r);
++		}
++
++		r1 = nr->right;
++		if(!nr->right->addable) {
++			cgen(nr->right);
++			r1 = tempname(nr->right->type);
++			gopcodet(PSTORE, nr->right->type, r1);
++		}
++
++		// string into PTADDR
++		if(!nl->addable) {
++			cgen(nl);
++			gconv(PTADDR, nl->type->etype);
++		} else
++			gopcode(PLOAD, PTADDR, nl);
++
++		// offset in int reg
++		cgen(nr->left);
++
++		// len addressed
++		gopcodet(PSLICE, nr->left->type, nr->right);
++		break;
++
++	case OINDEXPTR:
++	case OINDEX:
++	case ODOT:
++	case ODOTPTR:
++	case OIND:
++		agen(n);
++		gopcodet(PLOADI, n->type, N);
++		break;
++
++	case OLEN:
++		cgen(nl);
++		gopcodet(PLEN, nl->type, nl);
++		break;
++
++	case ODOTMETH:
++	case ODOTINTER:
++		cgen(n->left);
++		break;
++
++	case OADDR:
++		agen(nl);
++		gconv(PTPTR, PTADDR);
++		break;
++
++	case OCALL:
++	case OCALLPTR:
++	case OCALLMETH:
++	case OCALLINTER:
++		cgen_call(n, 0);
++		cgen_callret(n, N);
++		break;
++	}
++	goto ret;
++
++sbop:	// symmetric
++	if(nl->ullman < nr->ullman) {
++		r = nl;
++		nl = nr;
++		nr = r;
++	}
++
++abop:	// asymmetric
++	if(nr->addable) {
++		cgen(nl);
++		gopcodet(a, n->type, nr);
++		goto ret;
++	}
++
++	cgen(nr);
++	r = tempname(n->type);
++	gopcodet(PSTORE, n->type, r);
++	cgen(nl);
++	gopcodet(a, n->type, r);
++	goto ret;
++
++uop:	// unary
++	cgen(nl);
++	gopcodet(a, n->type, N);
++	goto ret;
++
++ret:
++	dynlineno = lno;
++}
++
++/*
++ * compile the address of a value
++ */
++void
++agen(Node *n)
++{
++	Node *nl, *nr;
++	Node *t, *r;
++
++	if(n == N || n->type == N)
++		return;
++	switch(n->op) {
++	default:
++		dump("agen: unknown op", n);
++		break;
++
++	case ONAME:
++		gopcode(PADDR, PTADDR, n);
++		break;
++
++	case OINDEXPTR:
++		nl = n->left;
++		nr = n->right;
++		if(nl->addable) {
++			cgen(nr);
++			gopcode(PLOAD, PTADDR, nl);
++			genindex(n);
++			break;
++		}
++		if(nr->addable) {
++			cgen(nl);
++			gconv(PTADDR, nl->type->etype);
++			cgen(nr);
++			genindex(n);
++			break;
++		}
++		cgen(nr);
++		r = tempname(n->type);
++		gopcodet(PSTORE, n->type, r);
++		cgen(nl);
++		gconv(PTADDR, nl->type->etype);
++		cgen(r);
++		genindex(n);
++		break;
++
++	case OINDEX:
++		nl = n->left;
++		nr = n->right;
++		if(nl->addable) {
++			cgen(nr);
++			agen(nl);
++			genindex(n);
++			break;
++		}
++		if(nr->addable) {
++			agen(nl);
++			cgen(nr);
++			genindex(n);
++			break;
++		}
++		cgen(nr);
++		r = tempname(n->type);
++		gopcodet(PSTORE, n->type, r);
++		agen(nl);
++		cgen(r);
++		genindex(n);
++		break;
++
++	case OIND:
++		nl = n->left;
++		if(nl->addable) {
++			gopcode(PLOAD, PTADDR, nl);
++			break;
++		}
++		cgen(nl);
++		gconv(PTADDR, nl->type->etype);
++		break;
++		
++	case ODOT:
++	case ODOTPTR:
++		nl = n->left;
++		nr = n->right;
++		t = nl->type;
++		switch(t->etype) {
++		default:
++			badtype(n->op, n->left->type, n->right->type);
++			break;
++
++		case TPTR:
++			if(nl->op != ONAME) {
++				cgen(nl);
++				gconv(PTADDR, nl->type->etype);
++			} else
++				gopcode(PLOAD, PTADDR, nl);
++			gaddoffset(nr);
++			break;
++
++		case TSTRUCT:
++			agen(nl);
++			gaddoffset(nr);
++			break;
++		}
++		break;
++	}
++}
++
++/*
++ * compile boolean expression
++ * true is branch-true or branch-false
++ * to is where to branch
++ */
++void
++bgen(Node *n, int true, Prog *to)
++{
++	long lno;
++	int et, a;
++	Node *nl, *nr, *r;
++	Prog *p1, *p2;
++
++	if(n == N)
++		n = booltrue;
++
++	lno = dynlineno;
++	if(n->op != ONAME)
++		dynlineno = n->lineno;	// for diagnostics
++
++	if(n == N)
++		goto ret;
++	if(n->type == N) {
++		convlit(n, types[TBOOL]);
++		if(n->type == N)
++			goto ret;
++	}
++
++	et = n->type->etype;
++	if(et != TBOOL) {
++		yyerror("cgen: bad type %T for %O", n->type, n->op);
++		patch(gbranch(PERROR, N), to);
++		goto ret;
++	}
++	nl = N;
++	nr = N;
++
++	switch(n->op) {
++	default:
++		cgen(n);
++		gopcodet(PTEST, n->type, N);
++		a = PBTRUE;
++		if(!true)
++			a = PBFALSE;
++		patch(gbranch(a, n->type), to);
++		goto ret;
++
++	case OLITERAL:
++		if(!true == !n->val.vval)
++			patch(gbranch(PGOTO, N), to);
++		goto ret;
++
++	case ONAME:
++		gopcodet(PTEST, n->type, n);
++		a = PBTRUE;
++		if(!true)
++			a = PBFALSE;
++		patch(gbranch(a, n->type), to);
++		goto ret;
++
++	case OANDAND:
++		if(!true)
++			goto caseor;
++
++	caseand:
++		p1 = gbranch(PGOTO, N);
++		p2 = gbranch(PGOTO, N);
++		patch(p1, pc);
++		bgen(n->left, !true, p2);
++		bgen(n->right, !true, p2);
++		p1 = gbranch(PGOTO, N);
++		patch(p1, to);
++		patch(p2, pc);
++		goto ret;
++
++	case OOROR:
++		if(!true)
++			goto caseand;
++
++	caseor:
++		bgen(n->left, true, to);
++		bgen(n->right, true, to);
++		goto ret;
++
++	case OEQ:
++	case ONE:
++	case OLT:
++	case OGT:
++	case OLE:
++	case OGE:
++		nr = n->right;
++		if(nr == N || nr->type == N)
++			goto ret;
++
++	case ONOT:	// unary
++		nl = n->left;
++		if(nl == N || nl->type == N)
++			goto ret;
++	}
++
++	switch(n->op) {
++
++	case ONOT:
++		bgen(nl, !true, to);
++		goto ret;
++
++	case OEQ: a = PBEQ; goto br;
++	case ONE: a = PBNE; goto br;
++	case OLT: a = PBLT; goto br;
++	case OGT: a = PBGT; goto br;
++	case OLE: a = PBLE; goto br;
++	case OGE: a = PBGE; goto br;
++	br:
++		if(!true)
++			a = brcom(a);
++
++		// make simplest on right
++		if(nl->ullman < nr->ullman) {
++			a = brrev(a);
++			r = nl;
++			nl = nr;
++			nr = r;
++		}
++
++		if(nr->addable) {
++			cgen(nl);
++			gopcodet(PCMP, nr->type, nr);
++			patch(gbranch(a, nr->type), to);
++			break;
++		}
++		cgen(nr);
++		r = tempname(nr->type);
++		gopcodet(PSTORE, nr->type, r);
++		cgen(nl);
++		gopcodet(PCMP, nr->type, r);
++		patch(gbranch(a, nr->type), to);
++		break;
++	}
++	goto ret;
++
++ret:
++	dynlineno = lno;
++}
++
++void
++swgen(Node *n)
++{
++	Node *c1, *c2;
++	Case *s0, *se, *s;
++	Prog *p1, *dflt;
++	long lno;
++	int any;
++	Iter save1, save2;
++
++	lno = dynlineno;
++
++	p1 = gbranch(PGOTO, N);
++	s0 = C;
++	se = C;
++
++	// walk thru the body placing breaks
++	// and labels into the case statements
++
++	any = 0;
++	dflt = P;
++	c1 = listfirst(&save1, &n->nbody);
++	while(c1 != N) {
++		dynlineno = c1->lineno;	// for diagnostics
++		if(c1->op != OCASE) {
++			if(s0 == C)
++				yyerror("unreachable statements in a switch");
++			gen(c1);
++
++			any = 1;
++			if(c1->op == OFALL)
++				any = 0;
++			c1 = listnext(&save1);
++			continue;
++		}
++
++		// put in the break between cases
++		if(any) {
++			patch(gbranch(PGOTO, N), breakpc);
++			any = 0;
++		}
++
++		// over case expressions
++		c2 = listfirst(&save2, &c1->left);
++		if(c2 == N)
++			dflt = pc;
++
++		while(c2 != N) {
++
++			s = mal(sizeof(*s));
++			if(s0 == C)
++				s0 = s;
++			else
++				se->slink = s;
++			se = s;
++
++			s->scase = c2;		// case expression
++			s->sprog = pc;		// where to go
++
++			c2 = listnext(&save2);
++		}
++
++		c1 = listnext(&save1);
++	}
++
++	if(any)
++		patch(gbranch(PGOTO, N), breakpc);
++
++	patch(p1, pc);
++	c1 = tempname(n->ntest->type);
++	cgen(n->ntest);
++	gopcodet(PSTORE, n->ntest->type, c1);
++
++	for(s=s0; s!=C; s=s->slink) {
++		cgen(s->scase);
++		gopcodet(PCMP, n->ntest->type, c1);
++		patch(gbranch(PBEQ, n->ntest->type), s->sprog);
++	}
++	if(dflt != P) {
++		patch(gbranch(PGOTO, N), dflt);
++		goto ret;
++	}
++	patch(gbranch(PGOTO, N), breakpc);
++
++ret:
++	dynlineno = lno;
++}
++
++/*
++ * does this tree use
++ * the pointer register
++ */
++int
++usesptr(Node *n)
++{
++//	if(n->addable)
++//		return 0;
++	return 1;
++}
++
++void
++cgen_as(Node *nl, Node *nr, int op, int kaka)
++{
++	Node *r;
++
++loop:
++	switch(op) {
++	default:
++		fatal("cgen_as: unknown op %O", op);
++
++	case ODCLVAR:
++		if(nr == N && nl->op == OLIST) {
++			kaka = PAS_SINGLE;
++			cgen_as(nl->left, nr, op, kaka);
++			nl = nl->right;
++			goto loop;
++		}
++
++	case OCOLAS:
++	case OAS:
++		switch(kaka) {
++		default:
++			yyerror("cgen_as: unknown param %d %d", kaka, PAS_CALLM);
++			break;
++
++		case PAS_CALLM: // function returning multi values
++			cgen_call(nr, 0);
++			cgen_callret(nr, nl);
++			break;
++
++		case PAS_SINGLE: // single return val used in expr
++			if(nr == N) {
++				if(nl->addable) {
++					gopcodet(PSTOREZ, nl->type, nl);
++					break;
++				}
++				agen(nl);
++				gopcodet(PSTOREZIP, nl->type, N);
++				break;
++			}
++
++			if(nl->addable) {
++				cgen(nr);
++				genconv(nl->type, nr->type);
++				gopcodet(PSTORE, nl->type, nl);
++				break;
++			}
++
++			if(nr->addable && !needconvert(nl->type, nr->type)) {
++				agen(nl);
++				gopcodet(PSTOREI, nr->type, nr);
++				break;
++			}
++			if(!usesptr(nr)) {
++				cgen(nr);
++				genconv(nl->type, nr->type);
++				agen(nl);
++				gopcodet(PSTOREI, nr->type, N);
++				break;
++			}
++			agen(nl);
++			r = tempname(ptrto(nl->type));
++			gopcode(PSTORE, PTADDR, r);
++			cgen(nr);
++			genconv(nl->type, nr->type);
++			gopcode(PLOAD, PTADDR, r);
++			gopcodet(PSTOREI, nl->type, N);
++			break;
++
++		case PAS_STRUCT: // structure assignment
++			r = ptrto(nr->type);
++			if(!usesptr(nr)) {
++				agen(nr);
++				agen(nl);
++				gopcodet(PLOAD, N, r);
++				gopcodet(PERROR, nr->type, N);
++				break;
++			}
++			r = tempname(r);
++			agen(nr);
++			gopcode(PSTORE, PTADDR, r);
++
++			agen(nl);
++			gopcodet(PERROR, nr->type, r);
++			break;
++		}
++		break;
++	}
++}
++
++void
++cgen_asop(Node *nl, Node *nr, int op)
++{
++	Node *r;
++	int a;
++
++	a = optopop(op);
++	if(nr->addable) {
++		if(nl->addable) {
++			gopcodet(PLOAD, nl->type, nl);
++			gopcodet(a, nr->type, nr);
++			gopcodet(PSTORE, nl->type, nl);
++			return;
++		}
++
++		agen(nl);
++		gopcodet(PLOADI, nl->type, N);
++		gopcodet(a, nr->type, nr);
++		gopcodet(PSTOREI, nl->type, N);
++		return;
++	}
++
++	r = tempname(nr->type);
++	cgen(nr);
++	gopcodet(PSTORE, nr->type, r);
++
++	agen(nl);
++	gopcodet(PLOADI, nl->type, N);
++	gopcodet(a, nr->type, r);
++	gopcodet(PSTOREI, nl->type, N);
++}
++
++void
++inarggen(void)
++{
++	Iter save;
++	Node *arg, *t;
++	int i;
++
++	t = curfn->type;
++
++	arg = structfirst(&save, getthis(t));
++	if(arg != N) {
++		fnparam(t, 0, 0);
++		gopcodet(PSTORE, arg->type, arg->nname);
++	}
++
++	i = 0;
++	arg = structfirst(&save, getinarg(t));
++	while(arg != N) {
++		fnparam(t, 2, i);
++		gopcodet(PLOADI, arg->type, arg->nname);
++
++		arg = structnext(&save);
++		i++;
++	}
++}
++
++void
++cgen_ret(Node *n)
++{
++	Node *arg, *a, *f;
++	Iter save;
++
++	arg = listfirst(&save, &n->left);	// expr list
++	a = getoutargx(curfn->type);
++	f = a->type;
++	for(;;) {
++		if(arg == N)
++			break;
++		if(f->etype != TFIELD)
++			fatal("cgen_ret: not field");
++		if(arg->addable && !needconvert(f->type, arg->type)) {
++			gopcode(PLOAD, PTADDR, a->nname);
++			gopcode(PADDO, PTADDR, f->nname);
++			gopcodet(PSTOREI, arg->type, arg);
++		} else {
++			cgen(arg);
++			genconv(f->type, arg->type);
++			gopcode(PLOAD, PTADDR, a->nname);
++			gopcode(PADDO, PTADDR, f->nname);
++			gopcodet(PSTOREI, arg->type, N);
++		}
++		arg = listnext(&save);
++		f = f->down;
++	}
++	gopcodet(PRETURN, N, N);
++}
++
++void
++cgen_call(Node *n, int toss)
++{
++	Node *t, *at, *ae, *sn;
++	Iter save;
++	int i;
++
++	/*
++	 * open a block
++	 */
++	gopcodet(PCALL1, N, n->left);
++
++	/*
++	 * prepare the input args
++	 */
++	t = n->left->type;
++	if(t->etype == TPTR)
++		t = t->type;
++
++	at = *getinarg(t);			// parameter struct
++	sn = at->nname;				// in arg structure name
++
++	at = at->type;				// parameter fields
++	ae = listfirst(&save, &n->right);	// expr list
++
++	for(i=0; i<t->intuple; i++) {
++		if(ae == N)
++			fatal("cgen_call: tupleness");
++
++		if(ae->addable && !needconvert(at->type, ae->type)) {
++			gopcode(PADDR, PTADDR, sn);
++			gopcode(PADDO, PTADDR, at->nname);
++			gopcodet(PSTOREI, at->type, ae);
++		} else {
++			cgen(ae);
++			genconv(at->type, ae->type);
++			gopcode(PADDR, PTADDR, sn);
++			gopcode(PADDO, PTADDR, at->nname);
++			gopcodet(PSTOREI, at->type, N);
++		}
++		ae = listnext(&save);
++		at = at->down;
++	}
++
++	/*
++	 * call the function
++	 */
++	switch(n->op) {
++	default:
++		fatal("cgen_call: %O", n->op);
++
++	case OCALL:
++		gopcodet(PCALL2, N, n->left);
++		break;
++
++	case OCALLPTR:
++		cgen(n->left);
++		gopcodet(PCALLI2, N, n->left);
++		break;
++
++	case OCALLMETH:
++		cgen(n->left);
++		gopcodet(PCALLM2, N, n->left);
++		break;
++
++	case OCALLINTER:
++		cgen(n->left);
++		gopcodet(PCALLF2, N, n->left);
++		break;
++	}
++
++	/*
++	 * toss the output args
++	 */
++	if(toss) {
++		gopcodet(PCALL3, N, n->left);
++		return;
++	}
++}
++
++void
++cgen_callret(Node *n, Node *mas)
++{
++	Node *t, *at, *ae, *sn;
++	Iter save;
++	int i;
++
++	t = n->left->type;
++	if(t->etype == TPTR)
++		t = t->type;
++
++	at = *getoutarg(t);			// parameter struct
++	sn = at->nname;				// out arg structure name
++	at = at->type;				// parameter fields
++
++	// call w single return val to a register
++	if(mas == N) {
++		gopcode(PADDR, PTADDR, sn);
++		gopcode(PADDO, PTADDR, at->nname);
++		gopcodet(PLOADI, at->type, N);
++		gopcodet(PCALL3, N, N);
++		return;
++	}
++
++	// call w multiple values to lval list
++	ae = listfirst(&save, &mas);	// expr list
++	for(i=0; i<t->outtuple; i++) {
++		if(ae == N)
++			fatal("cgen_callret: output arguments do not match");
++
++		if(ae->addable) {
++			gopcode(PADDR, PTADDR, sn);
++			gopcode(PADDO, PTADDR, at->nname);
++			gopcodet(PLOADI, at->type, ae);
++		} else {
++			agen(ae);
++			gopcode(PADDR, PTADDR, sn);
++			gopcode(PADDO, PTADDR, at->nname);
++			gopcodet(PLOADI, at->type, N);
++		}
++
++		ae = listnext(&save);
++		at = at->down;
++	}
++
++	gopcodet(PCALL3, N, N);
++}
++
++void
++genprint(Node *n)
++{
++	Node *arg;
++	Iter save;
++
++	arg = listfirst(&save, &n);
++	while(arg != N) {
++		cgen(arg);
++		gopcodet(PPRINT, arg->type, N);
++		arg = listnext(&save);
++	}
++}
++
++int
++needconvert(Node *tl, Node *tr)
++{
++	if(isinter(tl))
++		if(isptrto(tr, TSTRUCT) || isinter(tr))
++			return 1;
++	if(isptrto(tl, TSTRUCT))
++		if(isinter(tr))
++			return 1;
++	return 0;
++}
++
++void
++genconv(Node *tl, Node *tr)
++{
++	if(needconvert(tl, tr))
++		gopcode(PCONV, PTNIL, nod(OCONV, tl, tr));
++}
++
++void
++genindex(Node *n)
++{
++	gopcode(PINDEX, n->right->type->etype, n);
++}
++
++int
++optopop(int op)
++{
++	int a;
++
++	switch(op) {
++	default:
++		fatal("optopop: unknown op %O\n", op);
++
++	case OMINUS:	a = PMINUS;	break;
++	case OCOM:	a = PCOM;	break;
++	case OAND:	a = PAND;	break;
++	case OOR:	a = POR;	break;
++	case OXOR:	a = PXOR;	break;
++	case OADD:	a = PADD;	break;
++	case OMUL:	a = PMUL;	break;
++	case OMOD:	a = PMOD;	break;
++	case OSUB:	a = PSUB;	break;
++	case ODIV:	a = PDIV;	break;
++	case OLSH:	a = PLSH;	break;
++	case ORSH:	a = PRSH;	break;
++	case OCAT:	a = PCAT;	break;
++	}
++	return a;
++}
+diff --git a/src/c/gen.h b/src/c/gen.h
+new file mode 100644
+index 0000000000..13383141ad
+--- /dev/null
++++ b/src/c/gen.h
+@@ -0,0 +1,206 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#ifndef	EXTERN
++#define EXTERN	extern
++#endif
++
++typedef	struct	Prog	Prog;
++typedef	struct	Addr	Addr;
++
++struct	Addr
++{
++	int	type;
++	Node*	node;
++	Prog*	branch;
++};
++
++enum
++{
++	AXXX		= 0,
++	ANONE,
++	ANODE,
++	ABRANCH,
++};
++
++struct	Prog
++{
++	int	op;			// opcode
++	int	pt;
++	int	pt1;
++	int	param;
++	long	lineno;			// source line
++	long	loc;			// program counter for print
++	int	mark;
++	Addr	addr;			// operand
++	Prog*	link;
++};
++#define	P	((Prog*)0)
++
++typedef	struct	Plist	Plist;
++struct	Plist
++{
++	Node*	name;
++	Dcl*	locals;
++	Prog*	firstpc;
++	int	recur;
++	Plist*	link;
++};
++
++typedef	struct	Sig	Sig;
++struct Sig
++{
++	char*	fun;
++	ulong	hash;
++	int	offset;
++	Sig*	link;
++};
++
++enum
++{
++	PTxxx,
++
++	PTINT8		= TINT8,
++	PTUINT8		= TUINT8,
++	PTINT16		= TINT16,
++	PTUINT16	= TUINT16,
++	PTINT32		= TINT32,
++	PTUINT32	= TUINT32,
++	PTINT64		= TINT64,
++	PTUINT64	= TUINT64,
++	PTFLOAT32	= TFLOAT32,
++	PTFLOAT64	= TFLOAT64,
++	PTFLOAT80	= TFLOAT80,
++	PTBOOL		= TBOOL,
++	PTPTR		= TPTR,
++	PTSTRUCT	= TSTRUCT,
++	PTINTER		= TINTER,
++	PTARRAY		= TARRAY,
++	PTSTRING	= TSTRING,
++	PTCHAN		= TCHAN,
++	PTMAP		= TMAP,
++
++	PTNIL		= NTYPE,
++	PTADDR,
++	PTERROR,
++
++	NPTYPE,
++};
++
++enum
++{
++	PXXX		= 0,
++
++	PERROR, PPANIC, PPRINT, PGOTO, PGOTOX,
++
++	PCMP, PTEST, PNEW, PLEN,
++	PCALL1, PCALL2, PCALLI2, PCALLM2, PCALLF2, PCALL3, PRETURN,
++
++	PBEQ, PBNE,
++	PBLT, PBLE, PBGE, PBGT,
++	PBTRUE, PBFALSE,
++
++	PLOAD, PLOADI,
++	PSTORE, PSTOREI,
++	PSTOREZ, PSTOREZIP,
++	PCONV, PADDR, PADDO, PINDEX, PINDEXZ,
++	PSLICE,
++
++	PADD, PSUB, PMUL, PDIV, PLSH, PRSH, PMOD,
++	PAND, POR, PXOR, PCAT,
++
++	PMINUS, PCOM,
++
++	PEND,
++};
++
++typedef	struct	Case Case;
++struct	Case
++{
++	Prog*	sprog;
++	Node*	scase;
++	Case*	slink;
++};
++#define	C	((Case*)0)
++
++EXTERN	Prog*	continpc;
++EXTERN	Prog*	breakpc;
++EXTERN	Prog*	pc;
++EXTERN	Prog*	firstpc;
++EXTERN	Plist*	plist;
++EXTERN	Plist*	plast;
++EXTERN	Biobuf*	bout;
++EXTERN	long	dynloc;
++
++/*
++ * gen.c
++ */
++void	compile(Node*);
++void	proglist(void);
++void	gen(Node*);
++void	cgen(Node*);
++void	agen(Node*);
++void	bgen(Node*, int, Prog*);
++void	swgen(Node*);
++Node*	lookdot(Node*, Node*, int);
++int	usesptr(Node*);
++void	inarggen(void);
++void	cgen_as(Node*, Node*, int, int);
++void	cgen_asop(Node*, Node*, int);
++void	cgen_ret(Node*);
++void	cgen_call(Node*, int);
++void	cgen_callret(Node*, Node*);
++void	genprint(Node*);
++int	needconvert(Node*, Node*);
++void	genconv(Node*, Node*);
++void	genindex(Node*);
++
++/*
++ * gsubr.c
++ */
++int	Aconv(Fmt*);
++int	Pconv(Fmt*);
++void	proglist(void);
++Prog*	gbranch(int, Node*);
++void	patch(Prog*, Prog*);
++Prog*	prog(int);
++Node*	tempname(Node*);
++Prog*	gopcode(int, int, Node*);
++Prog*	gopcodet(int, Node*, Node*);
++void	gaddoffset(Node*);
++void	gconv(int, int);
++int	conv2pt(Node*);
++void	belexinit(int);
++vlong	convvtox(vlong, int);
++int	brcom(int);
++int	brrev(int);
++void	fnparam(Node*, int, int);
++Sig*	lsort(Sig*, int(*)(Sig*, Sig*));
++
++/*
++ * obj.c
++ */
++void	dumpobj(void);
++void	litrl(Prog*);
++void	obj(Prog*);
++void	follow(Prog*);
++Prog*	gotochain(Prog*);
++int	Xconv(Fmt*);
++int	Rconv(Fmt*);
++int	Qconv(Fmt*);
++int	Dconv(Fmt*);
++int	Cconv(Fmt*);
++void	dumpexterns(void);
++void	dumpfunct(Plist*);
++void	dumpsignatures(void);
++void	doframe(Dcl*, char*);
++void	docall1(Prog*);
++void	docall2(Prog*);
++void	docalli2(Prog*);
++void	docallm2(Prog*);
++void	docallf2(Prog*);
++void	docall3(Prog*);
++void	doconv(Prog*);
++char*	getfmt(int);
++void	dumpmethods(void);
+diff --git a/src/c/go.h b/src/c/go.h
+new file mode 100644
+index 0000000000..eaada80666
+--- /dev/null
++++ b/src/c/go.h
+@@ -0,0 +1,513 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++todo:
++	1. dyn arrays
++	2. multi
++	3. block 0
++tothinkabout:
++	1. alias name name.name.name
++	2. argument in import
++*/
++
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++
++#ifndef	EXTERN
++#define EXTERN	extern
++#endif
++enum
++{
++	NHUNK		= 50000,
++	BUFSIZ		= 8192,
++	NSYMB		= 500,
++	NHASH		= 1024,
++	STRINGSZ	= 200,
++	YYMAXDEPTH	= 500,
++	MAXALIGN	= 7,
++	UINF		= 100,
++
++	PRIME1		= 3,
++	PRIME2		= 10007,
++	PRIME3		= 10009,
++	PRIME4		= 10037,
++	PRIME5		= 10039,
++	PRIME6		= 10061,
++	PRIME7		= 10067,
++	PRIME8		= 10079,
++	PRIME9		= 10091,
++};
++
++/* note this is the representation
++ * of the compilers string literals,
++ * it happens to also be the runtime
++ * representation, but that may change */
++typedef	struct	String	String;
++struct	String
++{
++	long	len;
++	uchar	s[3];	// variable
++};
++
++typedef	struct	Val	Val;
++struct	Val
++{
++	int	ctype;
++	double	dval;
++	vlong	vval;
++	String*	sval;
++};
++
++typedef	struct	Sym	Sym;
++typedef	struct	Node	Node;
++struct	Node
++{
++	int	op;
++
++	// most nodes
++	Node*	left;
++	Node*	right;
++	Node*	type;
++
++	// for-body
++	Node*	ninit;
++	Node*	ntest;
++	Node*	nincr;
++	Node*	nbody;
++
++	// if-body
++	Node*	nelse;
++
++	// OTYPE-TFIELD
++	Node*	down;		// also used in TMAP
++	Node*	uberstruct;
++
++	// cases
++	Node*	ncase;
++
++	// OTYPE-TPTR
++	Node*	nforw;
++
++	// OTYPE-TFUNCT
++	Node*	this;
++	Node*	argout;
++	Node*	argin;
++	Node*	nname;
++	int	thistuple;
++	int	outtuple;
++	int	intuple;
++
++	// OTYPE-TARRAY
++	long	bound;
++
++	// OLITERAL
++	Val	val;
++
++	Sym*	osym;		// import
++	Sym*	fsym;		// import
++	Sym*	psym;		// import
++	Sym*	sym;		// various
++	uchar	ullman;		// sethi/ullman number
++	uchar	addable;	// type of addressability - 0 is not addressable
++	uchar	recur;		// to detect loops
++	uchar	trecur;		// to detect loops
++	uchar	etype;		// is an op for OASOP, is etype for OTYPE
++	uchar	chan;
++	uchar	kaka;
++	uchar	multi;		// type of assignment or call
++	long	vargen;		// unique name for OTYPE/ONAME
++	long	lineno;
++};
++#define	N	((Node*)0)
++
++struct	Sym
++{
++	char*	opackage;	// original package name
++	char*	package;	// package name
++	char*	name;		// variable name
++	Node*	oname;		// ONAME node if a var
++	Node*	otype;		// OTYPE node if a type
++	Node*	oconst;		// OLITERAL node if a const
++	Node*	forwtype;	// OTYPE/TPTR iff foreward declared
++	void*	label;		// pointer to Prog* of label
++	long	lexical;
++	long	vargen;		// unique variable number
++	uchar	undef;		// a diagnostic has been generated
++	uchar	export;		// marked as export
++	uchar	exported;	// has been exported
++	Sym*	link;
++};
++#define	S	((Sym*)0)
++
++typedef	struct	Dcl	Dcl;
++struct	Dcl
++{
++	int	op;		// ONAME for var, OTYPE for type, Oxxx for const
++	Sym*	dsym;		// for printing only
++	Node*	dnode;		// otype or oname
++	long	lineno;
++
++	Dcl*	forw;
++	Dcl*	back;		// sentinel has pointer to last
++};
++#define	D	((Dcl*)0)
++
++typedef	struct	Iter	Iter;
++struct	Iter
++{
++	int	done;
++	Node**	an;
++	Node*	n;
++};
++
++enum
++{
++	OXXX,
++
++	OTYPE, OCONST, OVAR, OEXPORT, OIMPORT,
++
++	ONAME,
++	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
++	ODCLFUNC, ODCLCONST, ODCLVAR,
++	ODCLTYPE, ODCLFIELD, ODCLARG,
++	OLIST,
++	OPTR, OARRAY,
++	ORETURN, OFOR, OIF, OSWITCH,
++	OAS, OASOP, OCOLAS, OCASE, OXCASE, OFALL, OXFALL,
++	OGOTO, OPROC, ONEW, OPANIC, OPRINT, OEMPTY,
++
++	OOROR,
++	OANDAND,
++	OEQ, ONE, OLT, OLE, OGE, OGT,
++	OADD, OSUB, OOR, OXOR, OCAT,
++	OMUL, ODIV, OMOD, OLSH, ORSH, OAND,
++	ODEC, OINC,
++	OLEN,
++	OFUNC,
++	OLABEL,
++	OBREAK,
++	OCONTINUE,
++	OADDR,
++	OIND,
++	OCALL, OCALLPTR, OCALLMETH, OCALLINTER,
++	OINDEX, OINDEXPTR, OINDEXSTR, OINDEXMAP, OINDEXPTRMAP,
++	OSLICE,
++	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
++	OLITERAL,
++	OCONV,
++	OBAD,
++
++	OEND,
++};
++enum
++{
++	Txxx,
++
++	TINT8,	TUINT8,
++	TINT16,	TUINT16,
++	TINT32,	TUINT32,
++	TINT64,	TUINT64,
++
++	TFLOAT32,
++	TFLOAT64,
++	TFLOAT80,
++
++	TBOOL,
++
++	TPTR,
++	TFUNC,
++	TARRAY,
++	TDARRAY,
++	TSTRUCT,
++	TCHAN,
++	TMAP,
++	TINTER,
++	TFORW,
++	TFIELD,
++	TPOLY,
++	TSTRING,
++
++	NTYPE,
++};
++enum
++{
++	CTxxx,
++
++	CTINT,
++	CTSINT,
++	CTUINT,
++	CTFLT,
++
++	CTSTR,
++	CTBOOL,
++	CTNIL,
++};
++
++enum
++{
++	/* indications for whatis() */
++	Wnil	= 0,
++	Wtnil,
++
++	Wtfloat,
++	Wtint,
++	Wtbool,
++	Wtstr,
++
++	Wlitfloat,
++	Wlitint,
++	Wlitbool,
++	Wlitstr,
++
++	Wtunkn,
++};
++
++enum
++{
++	/* types of channel */
++	Cxxx,
++	Cboth,
++	Crecv,
++	Csend,
++};
++
++enum
++{
++	Pxxx,
++
++	PEXTERN,	// declaration context
++	PAUTO,
++
++	PCALL_NIL,	// no return value
++	PCALL_SINGLE,	// single return value
++	PCALL_MULTI,	// multiple return values
++
++	PAS_SINGLE,	// top level walk->gen hints for OAS
++	PAS_MULTI,	// multiple values
++	PAS_CALLM,	// multiple values from a call
++	PAS_STRUCT,	// structure assignment
++};
++
++typedef	struct	Io	Io;
++struct	Io
++{
++	char*	infile;
++	Biobuf*	bin;
++	long	lineno;
++	int	peekc;
++};
++
++EXTERN	Io	curio;
++EXTERN	Io	pushedio;
++
++EXTERN	char*	outfile;
++EXTERN	char*	package;
++EXTERN	Biobuf*	bout;
++EXTERN	int	nerrors;
++EXTERN	char	namebuf[NSYMB];
++EXTERN	char	debug[256];
++EXTERN	long	dynlineno;
++EXTERN	Sym*	hash[NHASH];
++EXTERN	Sym*	dclstack;
++EXTERN	Sym*	b0stack;
++EXTERN	Sym*	pkgmyname;	// my name for package
++
++EXTERN	Node*	types[NTYPE];
++EXTERN	uchar	isint[NTYPE];
++EXTERN	uchar	isfloat[NTYPE];
++EXTERN	uchar	okforeq[NTYPE];
++EXTERN	uchar	okforadd[NTYPE];
++EXTERN	uchar	okforand[NTYPE];
++EXTERN	double	minfloatval[NTYPE];
++EXTERN	double	maxfloatval[NTYPE];
++EXTERN	vlong	minintval[NTYPE];
++EXTERN	vlong	maxintval[NTYPE];
++
++EXTERN	Dcl*	autodcl;
++EXTERN	Dcl*	externdcl;
++EXTERN	Dcl*	exportlist;
++EXTERN	int	dclcontext;	// PEXTERN/PAUTO
++EXTERN	int	importflag;
++
++EXTERN	Node*	booltrue;
++EXTERN	Node*	boolfalse;
++EXTERN	ulong	iota;
++EXTERN	long	vargen;
++EXTERN	long	exportgen;
++
++EXTERN	Node*	retnil;
++EXTERN	Node*	fskel;
++
++EXTERN	char*	context;
++EXTERN	int	thechar;
++EXTERN	char*	thestring;
++EXTERN	char*	hunk;
++EXTERN	long	nhunk;
++EXTERN	long	thunk;
++
++/*
++ *	y.tab.c
++ */
++int	yyparse(void);
++
++/*
++ *	lex.c
++ */
++int	main(int, char*[]);
++void	importfile(Val*);
++void	unimportfile();
++long	yylex(void);
++void	lexinit(void);
++char*	lexname(int);
++long	getr(void);
++int	getnsc(void);
++long	escchar(long, int*);
++int	getc(void);
++void	ungetc(int);
++void	mkpackage(char*);
++
++/*
++ *	mpatof.c
++ */
++int	mpatof(char*, double*);
++int	mpatov(char*, vlong*);
++
++/*
++ *	subr.c
++ */
++void	myexit(int);
++void*	mal(long);
++void*	remal(void*, long, long);
++void	errorexit(void);
++ulong	stringhash(char*);
++Sym*	lookup(char*);
++Sym*	pkglookup(char*, char*);
++void	yyerror(char*, ...);
++void	warn(char*, ...);
++void	fatal(char*, ...);
++Node*	nod(int, Node*, Node*);
++Dcl*	dcl(void);
++Node*	rev(Node*);
++Node*	unrev(Node*);
++void	dodump(Node*, int);
++void	dump(char*, Node*);
++Node*	aindex(Node*, Node*);
++int	isptrto(Node*, int);
++int	isinter(Node*);
++int	isbytearray(Node*);
++int	eqtype(Node*, Node*, int);
++ulong	typehash(Node*, int);
++void	frame(int);
++Node*	literal(long);
++Node*	dobad(void);
++void	ullmancalc(Node*);
++void	badtype(int, Node*, Node*);
++Node*	ptrto(Node*);
++Node*	cleanidlist(Node*);
++
++Node**	getthis(Node*);
++Node**	getoutarg(Node*);
++Node**	getinarg(Node*);
++
++Node*	getthisx(Node*);
++Node*	getoutargx(Node*);
++Node*	getinargx(Node*);
++
++Node*	listfirst(Iter*, Node**);
++Node*	listnext(Iter*);
++Node*	structfirst(Iter*, Node**);
++Node*	structnext(Iter*);
++
++int	Econv(Fmt*);
++int	Jconv(Fmt*);
++int	Oconv(Fmt*);
++int	Sconv(Fmt*);
++int	Tconv(Fmt*);
++int	Nconv(Fmt*);
++int	Zconv(Fmt*);
++
++/*
++ *	dcl.c
++ */
++void	dodclvar(Node*, Node*);
++void	dodcltype(Node*, Node*);
++void	dodclconst(Node*, Node*);
++void	defaultlit(Node*);
++int	listcount(Node*);
++Node*	functype(Node*, Node*, Node*);
++char*	thistypenam(Node*);
++void	funcnam(Node*, char*);
++void	funchdr(Node*);
++void	funcargs(Node*);
++void	funcbody(Node*);
++Node*	dostruct(Node*, int);
++Node**	stotype(Node*, Node**, Node*);
++Node*	sortinter(Node*);
++void	markdcl(void);
++void	popdcl(void);
++void	markdclstack(void);
++Sym*	pushdcl(Sym*);
++void	addvar(Node*, Node*, int);
++void	addtyp(Node*, Node*, int);
++Node*	newname(Sym*);
++Node*	oldname(Sym*);
++Node*	newtype(Sym*);
++Node*	oldtype(Sym*);
++Node*	forwdcl(Sym*);
++
++/*
++ *	export.c
++ */
++void	markexport(Node*);
++void	dumpe(Sym*);
++void	dumpexport(void);
++void	dumpexporttype(Sym*);
++void	dumpexportvar(Sym*);
++void	dumpexportconst(Sym*);
++void	doimportv1(Node*, Node*);
++void	doimportc1(Node*, Val*);
++void	doimportc2(Node*, Node*, Val*);
++void	doimport1(Node*, Node*, Node*);
++void	doimport2(Node*, Val*, Node*);
++void	doimport3(Node*, Node*);
++void	doimport4(Node*, Node*);
++void	doimport5(Node*, Val*);
++void	doimport6(Node*, Node*);
++void	doimport7(Node*, Node*);
++
++/*
++ *	walk.c
++ */
++void	walk(Node*);
++void	walktype(Node*, int);
++Node*	walkswitch(Node*, Node*, Node*(*)(Node*, Node*));
++int	casebody(Node*);
++int	whatis(Node*);
++void	walkdot(Node*);
++void	walkslice(Node*);
++void	ascompatee(int, Node**, Node**);
++void	ascompatet(int, Node**, Node**);
++void	ascompatte(int, Node**, Node**);
++void	ascompattt(int, Node**, Node**);
++int	ascompat(Node*, Node*);
++void	prcompat(Node**);
++
++/*
++ *	const.c
++ */
++void	convlit(Node*, Node*);
++void	evconst(Node*);
++int	cmpslit(Node *l, Node *r);
++
++/*
++ *	gen.c/gsubr.c/obj.c
++ */
++void	belexinit(int);
++vlong	convvtox(vlong, int);
++void	compile(Node*);
++void	proglist(void);
++void	dumpobj(void);
++int	optopop(int);
+diff --git a/src/c/go.y b/src/c/go.y
+new file mode 100644
+index 0000000000..0c8fac798a
+--- /dev/null
++++ b/src/c/go.y
+@@ -0,0 +1,1302 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++%{
++#include "go.h"
++%}
++%union	{
++	Node*		node;
++	Sym*		sym;
++	struct	Val	val;
++	int		lint;
++}
++%token	<sym>		LNAME LBASETYPE LATYPE LANY LPACK LACONST
++%token	<val>		LLITERAL LASOP
++%token			LPACKAGE LIMPORT LEXPORT
++%token			LMAP LCHAN LINTERFACE LFUNC LSTRUCT
++%token			LCOLAS LFALL LRETURN
++%token			LNEW LLEN
++%token			LVAR LTYPE LCONST LCONVERT
++%token			LFOR LIF LELSE LSWITCH LCASE LDEFAULT
++%token			LBREAK LCONTINUE LGO LGOTO LRANGE
++%token			LOROR LANDAND LEQ LNE LLE LLT LGE LGT
++%token			LLSH LRSH LINC LDEC
++%token			LNIL LTRUE LFALSE LIOTA
++%token			LPANIC LPRINT LIGNORE
++
++%type	<sym>		sym laconst lname latype
++%type	<lint>		chantype
++%type	<node>		xdcl xdcl_list_r oxdcl_list common_dcl
++%type	<node>		oarg_type_list arg_type_list_r arg_type
++%type	<node>		stmt empty_stmt else_stmt
++%type	<node>		complex_stmt compound_stmt stmt_list_r ostmt_list
++%type	<node>		for_stmt for_body for_header
++%type	<node>		if_stmt if_body if_header
++%type	<node>		range_header range_body range_stmt
++%type	<node>		simple_stmt osimple_stmt
++%type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
++%type	<node>		name name_name new_name new_name_list_r
++%type	<node>		type polytype
++%type	<node>		new_type
++%type	<node>		vardcl_list_r vardcl
++%type	<node>		constdcl_list_r constdcl
++%type	<node>		typedcl_list_r typedcl
++%type	<node>		interfacedcl_list_r interfacedcl
++%type	<node>		structdcl_list_r structdcl
++%type	<node>		export_list_r export
++%type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
++%type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
++%type	<node>		fntype fnbody fntypeh fnlitdcl intype
++%type	<node>		fnres fnliteral xfndcl fndcl
++%type	<node>		keyval_list_r keyval
++
++%left			LOROR
++%left			LANDAND
++%left			LEQ LNE LLE LGE LLT LGT
++%left			'+' '-' '|' '^'
++%left			'*' '/' '%' '&' LLSH LRSH
++%%
++file:
++	package imports oxdcl_list
++	{
++		if(debug['f'])
++			frame(1);
++	}
++
++package:
++	{
++		yyerror("package statement must be first");
++		mkpackage("main");
++	}
++|	LPACKAGE sym
++	{
++		mkpackage($2->name);
++	}
++
++imports:
++|	imports import
++
++import:
++	LIMPORT import_stmt
++|	LIMPORT '(' import_stmt_list_r osemi ')'
++
++import_stmt:
++	import_here import_there
++
++import_here:
++	LLITERAL
++	{
++		// import with original name
++		pkgmyname = S;
++		importfile(&$1);
++	}
++|	sym LLITERAL
++	{
++		// import with given name
++		pkgmyname = $1;
++		pkgmyname->lexical = LPACK;
++		importfile(&$2);
++	}
++|	'.' LLITERAL
++	{
++		// import with my name
++		pkgmyname = lookup(package);
++		importfile(&$2);
++	}
++
++import_there:
++	hidden_import_list_r ')' ')'
++	{
++		unimportfile();
++	}
++|	LIMPORT '(' '(' hidden_import_list_r ')' ')'
++
++/*
++ * declarations
++ */
++xdcl:
++	common_dcl
++|	LEXPORT export_list_r
++	{
++		markexport(rev($2));
++	}
++|	LEXPORT '(' export_list_r ')'
++	{
++		markexport(rev($3));
++	}
++|	xfndcl
++|	';'
++	{
++		$$ = N;
++	}
++
++common_dcl:
++	LVAR vardcl
++	{
++		$$ = $2;
++	}
++|	LVAR '(' vardcl_list_r osemi ')'
++	{
++		$$ = rev($3);
++	}
++|	LCONST constdcl
++	{
++		$$ = $2;
++		iota = 0;
++	}
++|	LCONST '(' constdcl_list_r osemi ')'
++	{
++		$$ = rev($3);
++		iota = 0;
++	}
++|	LTYPE typedcl
++	{
++		$$ = $2;
++	}
++|	LTYPE '(' typedcl_list_r osemi ')'
++	{
++		$$ = rev($3);
++	}
++
++vardcl:
++	new_name_list_r type
++	{
++		$$ = rev($1);
++		dodclvar($$, $2);
++
++		$$ = nod(ODCLVAR, $$, N);
++		$$->type = $2;
++	}
++|	new_name_list_r type '=' oexpr_list
++	{
++		$$ = rev($1);
++		dodclvar($$, $2);
++
++		$$ = nod(ODCLVAR, $$, $4);
++		$$->type = $2;
++	}
++|	new_name '=' expr
++	{
++		walktype($3, 0);	// this is a little harry
++		defaultlit($3);
++		dodclvar($1, $3->type);
++
++		$$ = nod(ODCLVAR, $1, $3);
++		$$->type = $3->type;
++	}
++
++constdcl:
++	new_name '=' expr
++	{
++		walktype($3, 0);
++		dodclconst($1, $3);
++
++		$$ = nod(ODCLCONST, $1, $3);
++		iota += 1;
++	}
++|	new_name type '=' expr
++	{
++		walktype($4, 0);
++		convlit($4, $2);
++		dodclconst($1, $4);
++
++		$$ = nod(ODCLCONST, $1, $4);
++		iota += 1;
++	}
++
++typedcl:
++	new_type type
++	{
++		dodcltype($1, $2);
++
++		$$ = nod(ODCLTYPE, $1, N);
++		$$->type = $2;
++	}
++
++/*
++ * statements
++ */
++stmt:
++	error ';'
++	{
++		$$ = N;
++		context = nil;
++	}
++|	common_dcl ';'
++	{
++		$$ = $1;
++	}
++|	simple_stmt ';'
++|	complex_stmt
++|	compound_stmt
++|	empty_stmt
++
++empty_stmt:
++	';'
++	{
++		$$ = nod(OEMPTY, N, N);
++	}
++
++else_stmt:
++	stmt
++	{
++		$$ = $1;
++		switch($$->op) {
++		case OLABEL:
++		case OXCASE:
++		case OXFALL:
++			yyerror("statement cannot be labeled");
++		}
++	}
++
++simple_stmt:
++	expr
++	{
++		$$ = $1;
++	}
++|	expr LINC
++	{
++		$$ = nod(OASOP, $1, literal(1));
++		$$->kaka = OADD;
++	}
++|	expr LDEC
++	{
++		$$ = nod(OASOP, $1, literal(1));
++		$$->kaka = OSUB;
++	}
++|	expr LASOP expr
++	{
++		$$ = nod(OASOP, $1, $3);
++		$$->kaka = $2.vval;	// rathole to pass opcode
++	}
++|	expr_list '=' expr_list
++	{
++		$$ = nod(OAS, $1, $3);
++	}
++|	new_name LCOLAS expr
++	{
++		walktype($3, 0);	// this is a little harry
++		defaultlit($3);
++		dodclvar($1, $3->type);
++		$$ = nod(OCOLAS, $1, $3);
++	}
++
++complex_stmt:
++	LFOR for_stmt
++	{
++		/* FOR and WHILE are the same keyword */
++		popdcl();
++		$$ = $2;
++	}
++|	LSWITCH if_stmt
++	{
++		popdcl();
++		if(!casebody($2->nbody))
++			yyerror("switch statement must have case labels");
++		$$ = $2;
++		$$->op = OSWITCH;
++	}
++|	LIF if_stmt
++	{
++		popdcl();
++		$$ = $2;
++	}
++|	LIF if_stmt LELSE else_stmt
++	{
++		popdcl();
++		$$ = $2;
++		$$->nelse = $4;
++	}
++|	LRANGE range_stmt
++	{
++		popdcl();
++		$$ = $2;
++	}
++|	LRETURN oexpr_list ';'
++	{
++		$$ = nod(ORETURN, $2, N);
++	}
++|	LCASE expr_list ':'
++	{
++		// will be converted to OCASE
++		// right will point to next case
++		// done in casebody()
++		popdcl();
++		markdcl();
++		$$ = nod(OXCASE, $2, N);
++	}
++|	LDEFAULT ':'
++	{
++		popdcl();
++		markdcl();
++		$$ = nod(OXCASE, N, N);
++	}
++|	LFALL ';'
++	{
++		// will be converted to OFALL
++		$$ = nod(OXFALL, N, N);
++	}
++|	LBREAK oexpr ';'
++	{
++		$$ = nod(OBREAK, $2, N);
++	}
++|	LCONTINUE oexpr ';'
++	{
++		$$ = nod(OCONTINUE, $2, N);
++	}
++|	LGO pexpr '(' oexpr_list ')' ';'
++	{
++		$$ = nod(OPROC, $2, $4);
++	}
++|	LPRINT expr_list ';'
++	{
++		$$ = nod(OPRINT, $2, N);
++	}
++|	LPANIC oexpr_list ';'
++	{
++		$$ = nod(OPANIC, $2, N);
++	}
++|	LGOTO new_name ';'
++	{
++		$$ = nod(OGOTO, $2, N);
++	}
++|	new_name ':'
++	{
++		$$ = nod(OLABEL, $1, N);
++	}
++
++compound_stmt:
++	'{'
++	{
++		markdcl();
++	} ostmt_list '}'
++	{
++		$$ = $3;
++		if($$ == N)
++			$$ = nod(OEMPTY, N, N);
++		popdcl();
++	}
++
++for_header:
++	osimple_stmt ';' osimple_stmt ';' osimple_stmt
++	{
++		// init ; test ; incr
++		$$ = nod(OFOR, N, N);
++		$$->ninit = $1;
++		$$->ntest = $3;
++		$$->nincr = $5;
++	}
++|	osimple_stmt
++	{
++		// test
++		$$ = nod(OFOR, N, N);
++		$$->ninit = N;
++		$$->ntest = $1;
++		$$->nincr = N;
++	}
++
++for_body:
++	for_header compound_stmt
++	{
++		$$ = $1;
++		$$->nbody = $2;
++	}
++
++for_stmt:
++	{ markdcl(); } for_body
++	{
++		$$ = $2;
++	}
++
++if_header:
++	osimple_stmt
++	{
++		// test
++		$$ = nod(OIF, N, N);
++		$$->ninit = N;
++		$$->ntest = $1;
++	}
++|	osimple_stmt ';' osimple_stmt
++	{
++		// init ; test
++		$$ = nod(OIF, N, N);
++		$$->ninit = $1;
++		$$->ntest = $3;
++	}
++
++if_body:
++	if_header compound_stmt
++	{
++		$$ = $1;
++		$$->nbody = $2;
++	}
++
++if_stmt:
++	{ markdcl(); } if_body
++	{
++		$$ = $2;
++	}
++
++range_header:
++	new_name LCOLAS expr
++	{
++		$$ = N;
++	}
++|	new_name ',' new_name LCOLAS expr
++	{
++		$$ = N;
++	}
++|	new_name ',' new_name '=' expr
++	{
++		yyerror("range statement only allows := assignment");
++		$$ = N;
++	}
++
++range_body:
++	range_header compound_stmt
++	{
++		$$ = $1;
++		$$->nbody = $2;
++	}
++
++range_stmt:
++	{ markdcl(); } range_body
++	{
++		$$ = $2;
++	}
++
++/*
++ * expressions
++ */
++expr:
++	uexpr
++|	expr LOROR expr
++	{
++		$$ = nod(OOROR, $1, $3);
++	}
++|	expr LANDAND expr
++	{
++		$$ = nod(OANDAND, $1, $3);
++	}
++|	expr LEQ expr
++	{
++		$$ = nod(OEQ, $1, $3);
++	}
++|	expr LNE expr
++	{
++		$$ = nod(ONE, $1, $3);
++	}
++|	expr LLT expr
++	{
++		$$ = nod(OLT, $1, $3);
++	}
++|	expr LLE expr
++	{
++		$$ = nod(OLE, $1, $3);
++	}
++|	expr LGE expr
++	{
++		$$ = nod(OGE, $1, $3);
++	}
++|	expr LGT expr
++	{
++		$$ = nod(OGT, $1, $3);
++	}
++|	expr '+' expr
++	{
++		$$ = nod(OADD, $1, $3);
++	}
++|	expr '-' expr
++	{
++		$$ = nod(OSUB, $1, $3);
++	}
++|	expr '|' expr
++	{
++		$$ = nod(OOR, $1, $3);
++	}
++|	expr '^' expr
++	{
++		$$ = nod(OXOR, $1, $3);
++	}
++|	expr '*' expr
++	{
++		$$ = nod(OMUL, $1, $3);
++	}
++|	expr '/' expr
++	{
++		$$ = nod(ODIV, $1, $3);
++	}
++|	expr '%' expr
++	{
++		$$ = nod(OMOD, $1, $3);
++	}
++|	expr '&' expr
++	{
++		$$ = nod(OAND, $1, $3);
++	}
++|	expr LLSH expr
++	{
++		$$ = nod(OLSH, $1, $3);
++	}
++|	expr LRSH expr
++	{
++		$$ = nod(ORSH, $1, $3);
++	}
++
++uexpr:
++	pexpr
++|	LCONVERT '(' type ',' expr ')'
++	{
++		$$ = nod(OCONV, $5, N);
++		$$->type = $3;
++	}
++|	'*' uexpr
++	{
++		$$ = nod(OIND, $2, N);
++	}
++|	'&' uexpr
++	{
++		$$ = nod(OADDR, $2, N);
++	}
++|	'+' uexpr
++	{
++		$$ = nod(OPLUS, $2, N);
++	}
++|	'-' uexpr
++	{
++		$$ = nod(OMINUS, $2, N);
++	}
++|	'!' uexpr
++	{
++		$$ = nod(ONOT, $2, N);
++	}
++|	'~' uexpr
++	{
++		yyerror("the OCOM operator is ^");
++		$$ = nod(OCOM, $2, N);
++	}
++|	'^' uexpr
++	{
++		$$ = nod(OCOM, $2, N);
++	}
++|	LLT uexpr
++	{
++		$$ = nod(ORECV, $2, N);
++	}
++|	LGT uexpr
++	{
++		$$ = nod(OSEND, $2, N);
++	}
++
++pexpr:
++	LLITERAL
++	{
++		$$ = nod(OLITERAL, N, N);
++		$$->val = $1;
++	}
++|	laconst
++	{
++		$$ = nod(OLITERAL, N, N);
++		$$->val = $1->oconst->val;
++		$$->type = $1->oconst->type;
++	}
++|	LNIL
++	{
++		$$ = nod(OLITERAL, N, N);
++		$$->val.ctype = CTNIL;
++		$$->val.vval = 0;
++	}
++|	LTRUE
++	{
++		$$ = booltrue;
++	}
++|	LFALSE
++	{
++		$$ = boolfalse;
++	}
++|	LIOTA
++	{
++		$$ = literal(iota);
++	}
++|	name
++|	'(' expr ')'
++	{
++		$$ = $2;
++	}
++|	pexpr '.' sym
++	{
++		$$ = nod(ODOT, $1, newname($3));
++	}
++|	pexpr '[' expr ']'
++	{
++		$$ = nod(OINDEX, $1, $3);
++	}
++|	pexpr '[' keyval ']'
++	{
++		$$ = nod(OSLICE, $1, $3);
++	}
++|	pexpr '(' oexpr_list ')'
++	{
++		$$ = nod(OCALL, $1, $3);
++	}
++|	LLEN '(' name ')'
++	{
++		$$ = nod(OLEN, $3, N);
++	}
++|	LNEW '(' type ')'
++	{
++		$$ = nod(ONEW, N, N);
++		$$->type = ptrto($3);
++	}
++|	fnliteral
++|	'[' expr_list ']'
++	{
++		// array literal
++		$$ = N;
++	}
++|	'[' keyval_list_r ']'
++	{
++		// map literal
++		$$ = N;
++	}
++|	latype '(' oexpr_list ')'
++	{
++		// struct literal and conversions
++		$$ = nod(OCONV, $3, N);
++		$$->type = $1->otype;
++	}
++
++/*
++ * lexical symbols that can be
++ * from other packages
++ */
++lpack:
++	LPACK 
++	{
++		context = $1->name;
++	}
++
++laconst:
++	LACONST
++|	lpack '.' LACONST
++	{
++		$$ = $3;
++		context = nil;
++	}
++
++lname:
++	LNAME
++|	lpack '.' LNAME
++	{
++		$$ = $3;
++		context = nil;
++	}
++
++latype:
++	LATYPE
++|	lpack '.' LATYPE
++	{
++		$$ = $3;
++		context = nil;
++	}
++
++/*
++ * names and types
++ *	newname is used before declared
++ *	oldname is used after declared
++ */
++name_name:
++	LNAME
++	{
++		$$ = newname($1);
++	}
++
++new_name:
++	sym
++	{
++		$$ = newname($1);
++	}
++
++new_type:
++	sym
++	{
++		$$ = newtype($1);
++	}
++
++sym:
++	LATYPE
++|	LNAME
++|	LACONST
++|	LPACK
++
++name:
++	lname
++	{
++		$$ = oldname($1);
++	}
++
++type:
++	latype
++	{
++		$$ = oldtype($1);
++	}
++|	'[' oexpr ']' type
++	{
++		$$ = aindex($2, $4);
++	}
++|	LCHAN chantype polytype
++	{
++		$$ = nod(OTYPE, N, N);
++		$$->etype = TCHAN;
++		$$->type = $3;
++		$$->chan = $2;
++	}
++|	LMAP '[' type ']' polytype
++	{
++		$$ = nod(OTYPE, N, N);
++		$$->etype = TMAP;
++		$$->down = $3;
++		$$->type = $5;
++	}
++|	LSTRUCT '{' structdcl_list_r osemi '}'
++	{
++		$$ = dostruct(rev($3), TSTRUCT);
++	}
++|	LSTRUCT '{' '}'
++	{
++		$$ = dostruct(N, TSTRUCT);
++	}
++|	LINTERFACE '{' interfacedcl_list_r osemi '}'
++	{
++		$$ = dostruct(rev($3), TINTER);
++		$$ = sortinter($$);
++	}
++|	LINTERFACE '{' '}'
++	{
++		$$ = dostruct(N, TINTER);
++	}
++|	fntypeh
++|	'*' type
++	{
++		$$ = ptrto($2);
++	}
++|	'*' lname
++	{
++		// dont know if this is an error or not
++		if(dclcontext != PEXTERN)
++			yyerror("foreward type in function body %s", $2->name);
++		$$ = forwdcl($2);
++	}
++
++polytype:
++	type
++|	LANY
++	{
++		$$ = nod(OTYPE, N, N);
++		$$->etype = TPOLY;
++	}
++
++chantype:
++	{
++		$$ = Cboth;
++	}
++|	LLT
++	{
++		$$ = Crecv;
++	}
++|	LGT
++	{
++		$$ = Csend;
++	}
++
++keyval:
++	expr ':' expr
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++/*
++ * function stuff
++ * all in one place to show how crappy it all is
++ */
++xfndcl:
++	LFUNC fndcl fnbody
++	{
++		$$ = $2;
++		$$->nbody = $3;
++		funcbody($$);
++	}
++
++fndcl:
++	new_name '(' oarg_type_list ')' fnres
++	{
++		b0stack = dclstack;	// mark base for fn literals
++		$$ = nod(ODCLFUNC, N, N);
++		$$->nname = $1;
++		$$->type = functype(N, $3, $5);
++		funchdr($$);
++	}
++|	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
++	{
++		b0stack = dclstack;	// mark base for fn literals
++		if($2 == N || $2->op == OLIST)
++			yyerror("syntax error in method receiver");
++		$$ = nod(ODCLFUNC, N, N);
++		$$->nname = $4;
++		$$->type = functype($2, $6, $8);
++		funchdr($$);
++	}
++
++fntypeh:
++	LFUNC '(' oarg_type_list ')' fnres
++	{
++		$$ = functype(N, $3, $5);
++		funcnam($$, nil);
++	}
++/* i dont believe that this form is useful for nothing */
++|	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' fnres
++	{
++		if($3 == N || $3->op == OLIST)
++			yyerror("syntax error in method receiver");
++		$$ = functype($3, $7, $9);
++		funcnam($$, nil);
++	}
++
++fntype:
++	fntypeh
++|	latype
++	{
++		$$ = oldtype($1);
++		if($$ == N || $$->etype != TFUNC)
++			yyerror("illegal type for function literal");
++	}
++
++fnlitdcl:
++	fntype
++	{
++		markdclstack();	// save dcl stack and revert to block0
++		$$ = $1;
++		funcargs($$);
++	}
++
++fnliteral:
++	fnlitdcl '{' ostmt_list '}'
++	{
++		popdcl();
++
++		vargen++;
++		snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
++
++		$$ = newname(lookup(namebuf));
++		addvar($$, $1, PEXTERN);
++
++		{
++			Node *n;
++
++			n = nod(ODCLFUNC, N, N);
++			n->nname = $$;
++			n->type = $1;
++			n->nbody = $3;
++			if(n->nbody == N)
++				n->nbody = nod(ORETURN, N, N);
++			compile(n);
++		}
++
++		$$ = nod(OADDR, $$, N);
++	}
++
++fnbody:
++	compound_stmt
++	{
++		$$ = $1;
++		if($$->op == OEMPTY)
++			$$ = nod(ORETURN, N, N);
++	}
++|	';'
++	{
++		$$ = N;
++	}
++
++fnres:
++	{
++		$$ = N;
++	}
++|	type
++	{
++		$$ = nod(ODCLFIELD, N, N);
++		$$->type = $1;
++		$$ = cleanidlist($$);
++	}
++|	'(' oarg_type_list ')'
++	{
++		$$ = $2;
++	}
++
++/*
++ * lists of things
++ * note that they are left recursive
++ * to conserve yacc stack. they need to
++ * be reversed to interpret correctly
++ */
++xdcl_list_r:
++	xdcl
++|	xdcl_list_r xdcl
++	{
++		$$ = nod(OLIST, $1, $2);
++	}
++
++vardcl_list_r:
++	vardcl
++|	vardcl_list_r ';' vardcl
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++constdcl_list_r:
++	constdcl
++|	constdcl_list_r ';' constdcl
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++typedcl_list_r:
++	typedcl
++|	typedcl_list_r ';' typedcl
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++structdcl_list_r:
++	structdcl
++	{
++		$$ = cleanidlist($1);
++	}
++|	structdcl_list_r ';' structdcl
++	{
++		$$ = cleanidlist($3);
++		$$ = nod(OLIST, $1, $$);
++	}
++
++interfacedcl_list_r:
++	interfacedcl
++	{
++		$$ = cleanidlist($1);
++	}
++|	interfacedcl_list_r ';' interfacedcl
++	{
++		$$ = cleanidlist($3);
++		$$ = nod(OLIST, $1, $$);
++	}
++
++structdcl:
++	new_name ',' structdcl
++	{
++		$$ = nod(ODCLFIELD, $1, N);
++		$$ = nod(OLIST, $$, $3);
++	}
++|	new_name type
++	{
++		$$ = nod(ODCLFIELD, $1, N);
++		$$->type = $2;
++	}
++
++interfacedcl:
++	new_name ',' interfacedcl
++	{
++		$$ = nod(ODCLFIELD, $1, N);
++		$$ = nod(OLIST, $$, $3);
++	}
++|	new_name intype
++	{
++		$$ = nod(ODCLFIELD, $1, N);
++		$$->type = $2;
++	}
++
++intype:
++	'(' oarg_type_list ')' fnres
++	{
++		// without func keyword
++		$$ = functype(N, $2, $4);
++		funcnam($$, nil);
++	}
++|	LFUNC '(' oarg_type_list ')' fnres
++	{
++		// with func keyword
++		$$ = functype(N, $3, $5);
++		funcnam($$, nil);
++	}
++|	latype
++	{
++		$$ = oldtype($1);
++		if($$ == N || $$->etype != TFUNC)
++			yyerror("illegal type for function literal");
++	}
++
++arg_type:
++	name_name
++	{
++		$$ = nod(ODCLFIELD, $1, N);
++	}
++|	type
++	{
++		$$ = nod(ODCLFIELD, N, N);
++		$$->type = $1;
++	}
++|	new_name type
++	{
++		$$ = nod(ODCLFIELD, $1, N);
++		$$->type = $2;
++	}
++
++arg_type_list_r:
++	arg_type
++|	arg_type_list_r ',' arg_type
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++stmt_list_r:
++	stmt
++	{
++		$$ = $1;
++	}
++|	stmt_list_r stmt
++	{
++		$$ = nod(OLIST, $1, $2);
++	}
++
++expr_list_r:
++	expr
++|	expr_list_r ',' expr
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++new_name_list_r:
++	new_name
++|	new_name_list_r ',' new_name
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++export_list_r:
++	export
++|	export_list_r ocomma export
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++export:
++	sym
++	{
++		$$ = nod(OEXPORT, N, N);
++		$$->sym = $1;
++	}
++|	sym '.' sym
++	{
++		$$ = nod(OEXPORT, N, N);
++		$$->psym = $1;
++		$$->sym = $3;
++	}
++
++import_stmt_list_r:
++	import_stmt
++|	import_stmt_list_r osemi import_stmt
++
++hidden_import_list_r:
++	hidden_import
++|	hidden_import_list_r hidden_import
++
++hidden_importsym_list_r:
++	hidden_importsym
++|	hidden_importsym_list_r hidden_importsym
++	{
++		$$ = nod(OLIST, $1, $2);
++	}
++
++hidden_importfield_list_r:
++	hidden_importfield
++|	hidden_importfield_list_r hidden_importfield
++	{
++		$$ = nod(OLIST, $1, $2);
++	}
++
++keyval_list_r:
++	keyval
++|	keyval_list_r ',' keyval
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++/*
++ * the one compromise of a
++ * non-reversed list
++ */
++expr_list:
++	expr_list_r
++	{
++		$$ = rev($1);
++	}
++
++/*
++ * optional things
++ */
++osemi:
++|	';'
++
++ocomma:
++|	','
++
++oexpr:
++	{
++		$$ = N;
++	}
++|	expr
++
++oexpr_list:
++	{
++		$$ = N;
++	}
++|	expr_list
++
++osimple_stmt:
++	{
++		$$ = N;
++	}
++|	simple_stmt
++
++ostmt_list:
++	{
++		$$ = N;
++	}
++|	stmt_list_r
++	{
++		$$ = rev($1);
++	}
++
++oxdcl_list:
++	{
++		$$ = N;
++	}
++|	xdcl_list_r
++	{
++		$$ = rev($1);
++	}
++
++ohidden_importsym_list:
++	{
++		$$ = N;
++	}
++|	hidden_importsym_list_r
++	{
++		$$ = rev($1);
++	}
++
++ohidden_importfield_list:
++	{
++		$$ = N;
++	}
++|	hidden_importfield_list_r
++	{
++		$$ = rev($1);
++	}
++
++oarg_type_list:
++	{
++		$$ = N;
++	}
++|	arg_type_list_r
++	{
++		$$ = cleanidlist(rev($1));
++	}
++
++/*
++ * import syntax from header of
++ * an output package
++ */
++hidden_import:
++	/* variables */
++	LVAR hidden_importsym hidden_importsym
++	{
++		// var
++		doimportv1($2, $3);
++	}
++
++	/* constants */
++|	LCONST hidden_importsym LLITERAL
++	{
++		doimportc1($2, &$3);
++	}
++|	LCONST hidden_importsym hidden_importsym LLITERAL
++	{
++		doimportc2($2, $3, &$4);
++	}
++
++	/* types */
++|	LTYPE hidden_importsym '[' hidden_importsym ']' hidden_importsym
++	{
++		// type map
++		doimport1($2, $4, $6);
++	}
++|	LTYPE hidden_importsym '[' LLITERAL ']' hidden_importsym
++	{
++		// type array
++		doimport2($2, &$4, $6);
++	}
++|	LTYPE hidden_importsym '(' ohidden_importsym_list ')'
++	{
++		// type function
++		doimport3($2, $4);
++	}
++|	LTYPE hidden_importsym '{' ohidden_importfield_list '}'
++	{
++		// type structure
++		doimport4($2, $4);
++	}
++|	LTYPE hidden_importsym LLITERAL
++	{
++		// type basic
++		doimport5($2, &$3);
++	}
++|	LTYPE hidden_importsym '*' hidden_importsym
++	{
++		// type pointer
++		doimport6($2, $4);
++	}
++|	LTYPE hidden_importsym LLT ohidden_importfield_list LGT
++	{
++		// type interface
++		doimport7($2, $4);
++	}
++
++isym:
++	sym '.' sym
++	{
++		$$ = nod(OIMPORT, N, N);
++		$$->osym = $1;
++		$$->psym = $1;
++		$$->sym = $3;
++	}
++|	'(' sym ')' sym '.' sym
++	{
++		$$ = nod(OIMPORT, N, N);
++		$$->osym = $2;
++		$$->psym = $4;
++		$$->sym = $6;
++	}
++
++hidden_importsym:
++	isym
++|	'!' isym
++	{
++		$$ = $2;
++		$$->kaka = 1;
++	}
++
++hidden_importfield:
++	sym isym
++	{
++		$$ = $2;
++		$$->fsym = $1;
++	}
+diff --git a/src/c/gsubr.c b/src/c/gsubr.c
+new file mode 100644
+index 0000000000..bf6c31b578
+--- /dev/null
++++ b/src/c/gsubr.c
+@@ -0,0 +1,523 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go.h"
++#include "gen.h"
++
++Prog*
++gbranch(int op, Node *t)
++{
++	Prog *p;
++
++	p = prog(op);
++	p->addr.type = ABRANCH;
++	p->pt = conv2pt(t);
++	return p;
++}
++
++Prog*
++gopcode(int op, int pt, Node *n)
++{
++	Prog *p;
++
++	p = prog(op);
++	p->pt = pt;
++	p->addr.node = n;
++	if(n == N) {
++		p->addr.type = ANONE;
++		return p;
++	}
++	if(n->op == OTYPE) {
++		p->pt1 = conv2pt(n);
++		p->addr.type = ANONE;
++		return p;
++	}
++	p->addr.type = ANODE;
++//	p->param = n->param;
++	return p;
++}
++
++Prog*
++gopcodet(int op, Node *t, Node *n)
++{
++	return gopcode(op, conv2pt(t), n);
++}
++
++void
++gaddoffset(Node *n)
++{
++	Prog *p;
++
++	if(n == N || n->op != ONAME || n->sym == S)
++		goto bad;
++	p = gopcode(PADDO, PTADDR, n);
++	return;
++
++bad:
++	fatal("gaddoffset: %N", n);
++
++}
++
++void
++gconv(int t1, int t2)
++{
++	Prog *p;
++
++	p = gopcode(PCONV, t1, N);
++	p->pt1 = t2;
++}
++
++int
++conv2pt(Node *t)
++{
++	if(t == N)
++		return PTxxx;
++	switch(t->etype) {
++	case TPTR:
++		t = t->type;
++		if(t == N)
++			return PTERROR;
++		switch(t->etype) {
++		case PTSTRING:
++		case PTCHAN:
++		case PTMAP:
++			return t->etype;
++		}
++		return TPTR;
++	}
++	return t->etype;
++}
++
++void
++patch(Prog *p, Prog *to)
++{
++	if(p->addr.type != ABRANCH)
++		yyerror("patch: not a branch");
++	p->addr.branch = to;
++}
++
++Prog*
++prog(int as)
++{
++	Prog *p;
++
++	p = pc;
++	pc = mal(sizeof(*pc));
++
++	pc->op = PEND;
++	pc->addr.type = ANONE;
++	pc->loc = p->loc+1;
++
++	p->op = as;
++	p->lineno = dynlineno;
++	p->link = pc;
++	return p;
++}
++
++void
++proglist(void)
++{
++	Prog *p;
++
++	print("--- prog list ---\n");
++	for(p=firstpc; p!=P; p=p->link)
++		print("%P\n", p);
++}
++
++char*	ptnames[] =
++{
++	[PTxxx]		= "",
++	[PTINT8]	= "I8",
++	[PTUINT8]	= "U8",
++	[PTINT16]	= "I16",
++	[PTUINT16]	= "U16",
++	[PTINT32]	= "I32",
++	[PTUINT32]	= "U32",
++	[PTINT64]	= "I64",
++	[PTUINT64]	= "U64",
++	[PTFLOAT32]	= "F32",
++	[PTFLOAT64]	= "F64",
++	[PTFLOAT80]	= "F80",
++	[PTBOOL]	= "B",
++	[PTPTR]		= "P",
++	[PTADDR]	= "A",
++	[PTINTER]	= "I",
++	[PTNIL]		= "N",
++	[PTSTRUCT]	= "S",
++	[PTSTRING]	= "Z",
++	[PTCHAN]	= "C",
++	[PTMAP]		= "M",
++	[PTERROR]	= "?",
++};
++
++int
++Xconv(Fmt *fp)
++{
++	char buf[100];
++	int pt;
++
++	pt = va_arg(fp->args, int);
++	if(pt < 0 || pt >= nelem(ptnames) || ptnames[pt] == nil) {
++		snprint(buf, sizeof(buf), "PT(%d)", pt);
++		return fmtstrcpy(fp, buf);
++	}
++	return fmtstrcpy(fp, ptnames[pt]);
++}
++
++int
++Qconv(Fmt *fp)
++{
++	char buf[100];
++	int pt;
++
++	pt = va_arg(fp->args, int);
++	if(pt == PTADDR)
++		pt = PTPTR;
++	snprint(buf, sizeof(buf), "_T_%X", pt);
++	return fmtstrcpy(fp, buf);
++}
++
++int
++Rconv(Fmt *fp)
++{
++	char buf[100];
++	int pt;
++
++	pt = va_arg(fp->args, int);
++	if(pt == PTADDR)
++		snprint(buf, sizeof(buf), "_R_%X", pt);
++	else
++		snprint(buf, sizeof(buf), "_U._R_%X", pt);
++	return fmtstrcpy(fp, buf);
++}
++
++/*
++s%[ 	]*%%g
++s%(\/\*.*)*%%g
++s%,%\n%g
++s%\n+%\n%g
++s%(=0)*%%g
++s%^P(.+)%	[P\1]		= "\1",%g
++s%^	........*\]		=%&~%g
++s%	=~%=%g
++*/
++
++static char*
++pnames[] =
++{
++	[PXXX]		= "XXX",
++	[PERROR]	= "ERROR",
++	[PPANIC]	= "PANIC",
++	[PPRINT]	= "PRINT",
++	[PGOTO]		= "GOTO",
++	[PGOTOX]	= "GOTOX",
++	[PCMP]		= "CMP",
++	[PNEW]		= "NEW",
++	[PLEN]		= "LEN",
++	[PTEST]		= "TEST",
++	[PCALL1]	= "CALL1",
++	[PCALL2]	= "CALL2",
++	[PCALLI2]	= "CALLI2",
++	[PCALLM2]	= "CALLM2",
++	[PCALLF2]	= "CALLF2",
++	[PCALL3]	= "CALL3",
++	[PRETURN]	= "RETURN",
++	[PBEQ]		= "BEQ",
++	[PBNE]		= "BNE",
++	[PBLT]		= "BLT",
++	[PBLE]		= "BLE",
++	[PBGE]		= "BGE",
++	[PBGT]		= "BGT",
++	[PBTRUE]	= "BTRUE",
++	[PBFALSE]	= "BFALSE",
++	[PLOAD]		= "LOAD",
++	[PLOADI]	= "LOADI",
++	[PSTORE]	= "STORE",
++	[PSTOREI]	= "STOREI",
++	[PSTOREZ]	= "STOREZ",
++	[PCONV]		= "CONV",
++	[PADDR]		= "ADDR",
++	[PADDO]		= "ADDO",
++	[PINDEX]	= "INDEX",
++	[PINDEXZ]	= "INDEXZ",
++	[PCAT]		= "CAT",
++	[PADD]		= "ADD",
++	[PSUB]		= "SUB",
++	[PSLICE]	= "SLICE",
++	[PMUL]		= "MUL",
++	[PDIV]		= "DIV",
++	[PLSH]		= "LSH",
++	[PRSH]		= "RSH",
++	[PMOD]		= "MOD",
++	[PMINUS]	= "MINUS",
++	[PCOM]		= "COM",
++	[PAND]		= "AND",
++	[POR]		= "OR",
++	[PXOR]		= "XOR",
++	[PEND]		= "END",
++};
++
++int
++Aconv(Fmt *fp)
++{
++	char buf[100], buf1[100];
++	Prog *p;
++	int o;
++
++	p = va_arg(fp->args, Prog*);
++	if(p == P) {
++		snprint(buf, sizeof(buf), "<P>");
++		goto ret;
++	}
++
++	o = p->op;
++	if(o < 0 || o >= nelem(pnames) || pnames[o] == nil)
++		snprint(buf, sizeof(buf), "(A%d)", o);
++	else
++		snprint(buf, sizeof(buf), "%s", pnames[o]);
++
++	o = p->pt;
++	if(o != PTxxx) {
++		snprint(buf1, sizeof(buf1), "-%X", o);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
++	o = p->pt1;
++	if(o != PTxxx) {
++		snprint(buf1, sizeof(buf1), "-%X", o);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
++ret:
++	return fmtstrcpy(fp, buf);
++}
++
++int
++Pconv(Fmt *fp)
++{
++	char buf[500], buf1[500];
++	Prog *p;
++
++	p = va_arg(fp->args, Prog*);
++	snprint(buf1, sizeof(buf1), "%4ld %4ld %-9A", p->loc, p->lineno, p);
++
++	switch(p->addr.type) {
++	default:
++		snprint(buf, sizeof(buf), "?%d", p->addr.type);
++		break;
++
++	case ANONE:
++		goto out;
++
++	case ANODE:
++		snprint(buf, sizeof(buf), "%N", p->addr.node);
++		break;
++
++	case ABRANCH:
++		if(p->addr.branch == P) {
++			snprint(buf, sizeof(buf), "<nil>");
++			break;
++		}
++		snprint(buf, sizeof(buf), "%ld", p->addr.branch->loc);
++		break;
++	}
++
++	strncat(buf1, " ", sizeof(buf1));
++	strncat(buf1, buf, sizeof(buf1));
++
++out:
++	return fmtstrcpy(fp, buf1);
++}
++
++static char*
++typedefs[] =
++{
++	"int",		"int32",
++	"uint",		"uint32",
++	"rune",		"uint32",
++	"short",	"int16",
++	"ushort",	"uint16",
++	"long",		"int32",
++	"ulong",	"uint32",
++	"vlong",	"int64",
++	"uvlong",	"uint64",
++	"float",	"float32",
++	"double",	"float64",
++
++};
++
++void
++belexinit(int lextype)
++{
++	int i;
++	Sym *s0, *s1;
++
++	for(i=0; i<nelem(typedefs); i+=2) {
++		s1 = lookup(typedefs[i+1]);
++		if(s1->lexical != lextype)
++			yyerror("need %s to define %s",
++				typedefs[i+1], typedefs[i+0]);
++		s0 = lookup(typedefs[i+0]);
++		s0->lexical = s1->lexical;
++		s0->otype = s1->otype;
++	}
++
++	fmtinstall('A', Aconv);		// asm opcodes
++	fmtinstall('P', Pconv);		// asm instruction
++	fmtinstall('R', Rconv);		// interpreted register
++	fmtinstall('Q', Qconv);		// interpreted etype
++	fmtinstall('X', Xconv);		// interpreted etype
++
++	fmtinstall('D', Dconv);		// addressed operand
++	fmtinstall('C', Cconv);		// C type
++}
++
++vlong
++convvtox(vlong v, int et)
++{
++	/* botch - do truncation conversion when energetic */
++	return v;
++}
++
++/*
++ * return !(op)
++ * eg == <=> !=
++ */
++int
++brcom(int a)
++{
++	switch(a) {
++	case PBEQ:	return PBNE;
++	case PBNE:	return PBEQ;
++	case PBLT:	return PBGE;
++	case PBGT:	return PBLE;
++	case PBLE:	return PBGT;
++	case PBGE:	return PBLT;
++	case PBTRUE:	return PBFALSE;
++	case PBFALSE:	return PBTRUE;
++	}
++	fatal("brcom: no com for %A\n", a);
++	return PERROR;
++}
++
++/*
++ * return reverse(op)
++ * eg a op b <=> b r(op) a
++ */
++int
++brrev(int a)
++{
++	switch(a) {
++	case PBEQ:	return PBEQ;
++	case PBNE:	return PBNE;
++	case PBLT:	return PBGT;
++	case PBGT:	return PBLT;
++	case PBLE:	return PBGE;
++	case PBGE:	return PBLE;
++	}
++	fatal("brcom: no rev for %A\n", a);
++	return PERROR;
++}
++
++/*
++ * codegen the address of the ith
++ * element in the jth argument.
++ */
++void
++fnparam(Node *t, int j, int i)
++{
++	Node *a, *f;
++
++	switch(j) {
++	default:
++		fatal("fnparam: bad j");
++	case 0:
++		a = getthisx(t);
++		break;
++	case 1:
++		a = getoutargx(t);
++		break;
++	case 2:
++		a = getinargx(t);
++		break;
++	}
++
++	f = a->type;
++	while(i > 0) {
++		f = f->down;
++		i--;
++	}
++	if(f->etype != TFIELD)
++		fatal("fnparam: not field");
++
++	gopcode(PLOAD, PTADDR, a->nname);
++	gopcode(PADDO, PTADDR, f->nname);
++}
++
++Sig*
++lsort(Sig *l, int(*f)(Sig*, Sig*))
++{
++	Sig *l1, *l2, *le;
++
++	if(l == 0 || l->link == 0)
++		return l;
++
++	l1 = l;
++	l2 = l;
++	for(;;) {
++		l2 = l2->link;
++		if(l2 == 0)
++			break;
++		l2 = l2->link;
++		if(l2 == 0)
++			break;
++		l1 = l1->link;
++	}
++
++	l2 = l1->link;
++	l1->link = 0;
++	l1 = lsort(l, f);
++	l2 = lsort(l2, f);
++
++	/* set up lead element */
++	if((*f)(l1, l2) < 0) {
++		l = l1;
++		l1 = l1->link;
++	} else {
++		l = l2;
++		l2 = l2->link;
++	}
++	le = l;
++
++	for(;;) {
++		if(l1 == 0) {
++			while(l2) {
++				le->link = l2;
++				le = l2;
++				l2 = l2->link;
++			}
++			le->link = 0;
++			break;
++		}
++		if(l2 == 0) {
++			while(l1) {
++				le->link = l1;
++				le = l1;
++				l1 = l1->link;
++			}
++			break;
++		}
++		if((*f)(l1, l2) < 0) {
++			le->link = l1;
++			le = l1;
++			l1 = l1->link;
++		} else {
++			le->link = l2;
++			le = l2;
++			l2 = l2->link;
++		}
++	}
++	le->link = 0;
++	return l;
++}
+diff --git a/src/c/lex.c b/src/c/lex.c
+new file mode 100644
+index 0000000000..3d119331d7
+--- /dev/null
++++ b/src/c/lex.c
+@@ -0,0 +1,1058 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++#define		EXTERN
++#include	"go.h"
++#include	"y.tab.h"
++
++#define	DBG	if(!debug['x']);else print
++enum
++{
++	EOF		= -1,
++};
++
++int
++main(int argc, char *argv[])
++{
++	int c;
++
++	outfile = nil;
++	package = "____";
++	ARGBEGIN {
++	default:
++		c = ARGC();
++		if(c >= 0 && c < sizeof(debug))
++			debug[c]++;
++		break;
++
++	case 'o':
++		outfile = ARGF();
++		break;
++
++	case 'k':
++		package = ARGF();
++		break;
++	} ARGEND
++
++	if(argc != 1)
++		goto usage;
++
++	fmtinstall('O', Oconv);		// node opcodes
++	fmtinstall('E', Econv);		// etype opcodes
++	fmtinstall('J', Jconv);		// all the node flags
++	fmtinstall('S', Sconv);		// sym pointer
++	fmtinstall('T', Tconv);		// type pointer
++	fmtinstall('N', Nconv);		// node pointer
++	fmtinstall('Z', Zconv);		// escaped string
++	lexinit();
++
++	curio.infile = argv[0];
++
++	curio.bin = Bopen(curio.infile, OREAD);
++	if(curio.bin == nil)
++		fatal("cant open: %s", curio.infile);
++
++	externdcl = mal(sizeof(*externdcl));
++	externdcl->back = externdcl;
++	dclcontext = PEXTERN;
++
++	exportlist = mal(sizeof(*exportlist));
++	exportlist->back = exportlist;
++
++	// function field skeleton
++	fskel = nod(OLIST, N, nod(OLIST, N, N));
++	fskel->left = nod(ODCLFIELD, N, N);
++	fskel->right->left = nod(ODCLFIELD, N, N);
++	fskel->right->right = nod(ODCLFIELD, N, N);
++
++	curio.peekc = 0;
++	curio.lineno = 1;
++	nerrors = 0;
++	yyparse();
++	if(nerrors == 0) {
++		dumpobj();
++	}
++
++	Bterm(curio.bin);
++	if(bout != nil)
++		Bterm(bout);
++
++	if(nerrors)
++		errorexit();
++
++	myexit(0);
++	return 0;
++
++usage:
++	print("flags:\n");
++	print("  -d print declarations\n");
++	print("  -f print stack frame structure\n");
++	print("  -k name specify package name\n");
++	print("  -o file specify output file\n");
++	print("  -p print the assembly language\n");
++	print("  -w print the parse tree after typing\n");
++	print("  -x print lex tokens\n");
++	print("  -h panic on an error\n");
++	myexit(0);
++	return 0;
++}
++
++void
++importfile(Val *f)
++{
++	Biobuf *imp;
++	long c;
++
++	if(f->ctype != CTSTR) {
++		yyerror("import statement not a string");
++		return;
++	}
++	snprint(namebuf, sizeof(namebuf), "%Z.go.c", f->sval);
++
++	imp = Bopen(namebuf, OREAD);
++	if(imp == nil) {
++		yyerror("cant open import: %s", namebuf);
++		return;
++	}
++
++	/*
++	 * position the input right
++	 * after (( and return
++	 */
++	pushedio = curio;
++	curio.bin = imp;
++	curio.lineno = 1;
++	curio.peekc = 0;
++	curio.infile = strdup(namebuf);
++	for(;;) {
++		c = getc();
++		if(c == EOF)
++			break;
++		if(c != '(')
++			continue;
++		c = getc();
++		if(c == EOF)
++			break;
++		if(c != '(')
++			continue;
++		return;
++	}
++	yyerror("no import in: %Z", f->sval);
++	unimportfile();
++}
++
++void
++unimportfile(void)
++{
++	if(curio.bin != nil && pushedio.bin != nil) {
++		Bterm(curio.bin);
++		curio = pushedio;
++		pushedio.bin = nil;
++	}
++}
++
++long
++yylex(void)
++{
++	long c, c1;
++	char *cp;
++	Rune rune;
++	int escflag;
++	Sym *s;
++
++l0:
++	c = getc();
++	if(isspace(c))
++		goto l0;
++
++	if(c >= Runeself) {
++		/* all multibyte runes are alpha */
++		cp = namebuf;
++		goto talph;
++	}
++
++	if(isalpha(c)) {
++		cp = namebuf;
++		goto talph;
++	}
++
++	if(isdigit(c))
++		goto tnum;
++
++	switch(c) {
++	case EOF:
++		ungetc(EOF);
++		return -1;
++
++	case '_':
++		cp = namebuf;
++		goto talph;
++
++	case '.':
++		c1 = getc();
++		if(isdigit(c1)) {
++			cp = namebuf;
++			*cp++ = c;
++			c = c1;
++			c1 = 0;
++			goto casedot;
++		}
++		break;
++
++	case '"':
++		/* "..." */
++		strcpy(namebuf, "\"<string>\"");
++		cp = mal(sizeof(long));
++		c1 = 4;
++
++	caseq:
++		for(;;) {
++			c = escchar('"', &escflag);
++			if(c == EOF)
++				break;
++			if(escflag) {
++				cp = remal(cp, c1, 1);
++				cp[c1++] = c;
++			} else {
++				rune = c;
++				c = runelen(rune);
++				cp = remal(cp, c1, c);
++				runetochar(cp+c1, &rune);
++				c1 += c;
++			}
++		}
++		goto catem;
++
++	case '`':
++		/* `...` */
++		strcpy(namebuf, "`<string>`");
++		cp = mal(sizeof(long));
++		c1 = 4;
++
++	casebq:
++		for(;;) {
++			c = getc();
++			if(c == EOF || c == '`')
++				break;
++			cp = remal(cp, c1, 1);
++			cp[c1++] = c;
++		}
++
++	catem:
++		for(;;) {
++			/* it takes 2 peekc's to skip comments */
++			c = getc();
++			if(isspace(c))
++				continue;
++			if(c == '"')
++				goto caseq;
++			if(c == '`')
++				goto casebq;
++			ungetc(c);
++			break;
++		}
++
++		*(long*)cp = c1-4;	// length
++		do {
++			cp = remal(cp, c1, 1);
++			cp[c1++] = 0;
++		} while(c1 & MAXALIGN);
++		yylval.val.sval = (String*)cp;
++		yylval.val.ctype = CTSTR;
++		DBG("lex: string literal\n");
++		return LLITERAL;
++
++	case '\'':
++		/* '.' */
++		c = escchar('\'', &escflag);
++		if(c == EOF)
++			c = '\'';
++		c1 = escchar('\'', &escflag);
++		if(c1 != EOF) {
++			yyerror("missing '");
++			ungetc(c1);
++		}
++		yylval.val.vval = c;
++		yylval.val.ctype = CTINT;
++		DBG("lex: codepoint literal\n");
++		return LLITERAL;
++
++	case '/':
++		c1 = getc();
++		if(c1 == '*') {
++			for(;;) {
++				c = getr();
++				while(c == '*') {
++					c = getr();
++					if(c == '/')
++						goto l0;
++				}
++				if(c == EOF) {
++					yyerror("eof in comment");
++					errorexit();
++				}
++			}
++		}
++		if(c1 == '/') {
++			for(;;) {
++				c = getr();
++				if(c == '\n')
++					goto l0;
++				if(c == EOF) {
++					yyerror("eof in comment");
++					errorexit();
++				}
++			}
++		}
++		if(c1 == '=') {
++			c = ODIV;
++			goto asop;
++		}
++		break;
++
++	case ':':
++		c1 = getc();
++		if(c1 == '=') {
++			c = LCOLAS;
++			goto lx;
++		}
++		break;
++
++	case '*':
++		c1 = getc();
++		if(c1 == '=') {
++			c = OMUL;
++			goto asop;
++		}
++		break;
++
++	case '%':
++		c1 = getc();
++		if(c1 == '=') {
++			c = OMOD;
++			goto asop;
++		}
++		break;
++
++	case '+':
++		c1 = getc();
++		if(c1 == '+') {
++			c = LINC;
++			goto lx;
++		}
++		if(c1 == '=') {
++			c = OADD;
++			goto asop;
++		}
++		break;
++
++	case '-':
++		c1 = getc();
++		if(c1 == '-') {
++			c = LDEC;
++			goto lx;
++		}
++		if(c1 == '=') {
++			c = OSUB;
++			goto asop;
++		}
++		break;
++
++	case '>':
++		c1 = getc();
++		if(c1 == '>') {
++			c = LRSH;
++			c1 = getc();
++			if(c1 == '=') {
++				c = ORSH;
++				goto asop;
++			}
++			break;
++		}
++		if(c1 == '=') {
++			c = LGE;
++			goto lx;
++		}
++		c = LGT;
++		break;
++
++	case '<':
++		c1 = getc();
++		if(c1 == '<') {
++			c = LLSH;
++			c1 = getc();
++			if(c1 == '=') {
++				c = OLSH;
++				goto asop;
++			}
++			break;
++		}
++		if(c1 == '=') {
++			c = LLE;
++			goto lx;
++		}
++		c = LLT;
++		break;
++
++	case '=':
++		c1 = getc();
++		if(c1 == '=') {
++			c = LEQ;
++			goto lx;
++		}
++		break;
++
++	case '!':
++		c1 = getc();
++		if(c1 == '=') {
++			c = LNE;
++			goto lx;
++		}
++		break;
++
++	case '&':
++		c1 = getc();
++		if(c1 == '&') {
++			c = LANDAND;
++			goto lx;
++		}
++		if(c1 == '=') {
++			c = OAND;
++			goto asop;
++		}
++		break;
++
++	case '|':
++		c1 = getc();
++		if(c1 == '|') {
++			c = LOROR;
++			goto lx;
++		}
++		if(c1 == '=') {
++			c = OOR;
++			goto asop;
++		}
++		break;
++
++	case '^':
++		c1 = getc();
++		if(c1 == '=') {
++			c = OXOR;
++			goto asop;
++		}
++		break;
++
++	default:
++		goto lx;
++	}
++	ungetc(c1);
++
++lx:
++	if(c > 0xff)
++		DBG("lex: TOKEN %s\n", lexname(c));
++	else
++		DBG("lex: TOKEN '%c'\n", c);
++	return c;
++
++asop:
++	yylval.val.vval = c;	// rathole to hold which asop
++	DBG("lex: TOKEN ASOP %c\n", c);
++	return LASOP;
++
++talph:
++	/*
++	 * cp is set to namebuf and some
++	 * prefix has been stored
++	 */
++	for(;;) {
++		if(c >= Runeself) {
++			for(c1=0;;) {
++				cp[c1++] = c;
++				if(fullrune(cp, c1))
++					break;
++				c = getc();
++			}
++			cp += c1;
++			c = getc();
++			continue;
++		}
++		if(!isalnum(c) && c != '_')
++			break;
++		*cp++ = c;
++		c = getc();
++	}
++	*cp = 0;
++	ungetc(c);
++
++	s = lookup(namebuf);
++	if(s->lexical == LIGNORE)
++		goto l0;
++
++	if(context != nil) {
++		s = pkglookup(s->name, context);
++		if(s->lexical == LIGNORE)
++			goto l0;
++	}
++
++	DBG("lex: %S %s\n", s, lexname(s->lexical));
++	yylval.sym = s;
++	if(s->lexical == LBASETYPE)
++		return LATYPE;
++	return s->lexical;
++
++tnum:
++	c1 = 0;
++	cp = namebuf;
++	if(c != '0') {
++		for(;;) {
++			*cp++ = c;
++			c = getc();
++			if(isdigit(c))
++				continue;
++			goto dc;
++		}
++	}
++	*cp++ = c;
++	c = getc();
++	if(c == 'x' || c == 'X')
++		for(;;) {
++			*cp++ = c;
++			c = getc();
++			if(isdigit(c))
++				continue;
++			if(c >= 'a' && c <= 'f')
++				continue;
++			if(c >= 'A' && c <= 'F')
++				continue;
++			if(cp == namebuf+2)
++				yyerror("malformed hex constant");
++			goto ncu;
++		}
++	if(c < '0' || c > '7')
++		goto dc;
++	for(;;) {
++		if(c >= '0' && c <= '7') {
++			*cp++ = c;
++			c = getc();
++			continue;
++		}
++		goto ncu;
++	}
++
++dc:
++	if(c == '.')
++		goto casedot;
++	if(c == 'e' || c == 'E')
++		goto casee;
++
++ncu:
++	*cp = 0;
++	ungetc(c);
++	if(mpatov(namebuf, &yylval.val.vval)) {
++		yyerror("overflow in constant");
++		yylval.val.vval = 0;
++	}
++	yylval.val.ctype = CTINT;
++	DBG("lex: integer literal\n");
++	return LLITERAL;
++
++casedot:
++	for(;;) {
++		*cp++ = c;
++		c = getc();
++		if(!isdigit(c))
++			break;
++	}
++	if(c != 'e' && c != 'E')
++		goto caseout;
++
++casee:
++	*cp++ = 'e';
++	c = getc();
++	if(c == '+' || c == '-') {
++		*cp++ = c;
++		c = getc();
++	}
++	if(!isdigit(c))
++		yyerror("malformed fp constant exponent");
++	while(isdigit(c)) {
++		*cp++ = c;
++		c = getc();
++	}
++
++caseout:
++	*cp = 0;
++	ungetc(c);
++	if(mpatof(namebuf, &yylval.val.dval)) {
++		yyerror("overflow in float constant");
++		yylval.val.dval = 0;
++	}
++	yylval.val.ctype = CTFLT;
++	DBG("lex: floating literal\n");
++	return LLITERAL;
++}
++
++int
++getc(void)
++{
++	int c;
++
++	c = curio.peekc;
++	if(c != 0) {
++		curio.peekc = 0;
++		if(c == '\n')
++			curio.lineno++;
++		return c;
++	}
++
++	c = Bgetc(curio.bin);
++	switch(c) {
++	case 0:
++	case EOF:
++		return EOF;
++
++	case '\n':
++		curio.lineno++;
++		break;
++
++	}
++	return c;
++}
++
++void
++ungetc(int c)
++{
++	curio.peekc = c;
++	if(c == '\n')
++		curio.lineno--;
++}
++
++long
++getr(void)
++{
++	int c, i;
++	char str[UTFmax+1];
++	Rune rune;
++
++	c = getc();
++	if(c < Runeself)
++		return c;
++	i = 0;
++	str[i++] = c;
++
++loop:
++	c = getc();
++	str[i++] = c;
++	if(!fullrune(str, i))
++		goto loop;
++	c = chartorune(&rune, str);
++	if(rune == Runeerror && c == 1) {
++		yyerror("illegal rune in string");
++		for(c=0; c<i; c++)
++			print(" %.2x", *(uchar*)(str+c));
++		print("\n");
++	}
++	return rune;
++}
++
++int
++getnsc(void)
++{
++	int c;
++
++	c = getc();
++	for(;;) {
++		if(!isspace(c))
++			return c;
++		if(c == '\n') {
++			curio.lineno++;
++			return c;
++		}
++		c = getc();
++	}
++	return 0;
++}
++
++
++long
++escchar(long e, int *escflg)
++{
++	long c, l;
++	int i;
++
++	*escflg = 0;
++
++loop:
++	c = getr();
++	if(c == '\n') {
++		yyerror("newline in string");
++		return EOF;
++	}
++	if(c != '\\') {
++		if(c == e)
++			c = EOF;
++		return c;
++	}
++	c = getr();
++	switch(c) {
++	case '\n':
++		goto loop;
++
++	case 'x':
++		i = 2;
++		goto hex;
++
++	case 'u':
++		i = 4;
++		goto hex;
++
++	case 'U':
++		i = 8;
++		goto hex;
++
++	case '0':
++	case '1':
++	case '2':
++	case '3':
++	case '4':
++	case '5':
++	case '6':
++	case '7':
++		goto oct;
++
++	case 'a': return '\a';
++	case 'b': return '\b';
++	case 'f': return '\f';
++	case 'n': return '\n';
++	case 'r': return '\r';
++	case 't': return '\t';
++	case 'v': return '\v';
++
++	default:
++		warn("unknown escape sequence: %c", c);
++	}
++	return c;
++
++hex:
++	l = 0;
++	for(; i>0; i--) {
++		c = getc();
++		if(c >= '0' && c <= '9') {
++			l = l*16 + c-'0';
++			continue;
++		}
++		if(c >= 'a' && c <= 'f') {
++			l = l*16 + c-'a' + 10;
++			continue;
++		}
++		if(c >= 'A' && c <= 'F') {
++			l = l*16 + c-'A' + 10;
++			continue;
++		}
++		warn("non-hex character in escape sequence: %c", c);
++		ungetc(c);
++		break;
++	}
++	*escflg = 1;
++	return l;
++
++oct:
++	l = c - '0';
++	for(i=2; i>0; i--) {
++		c = getc();
++		if(c >= '0' && c <= '7') {
++			l = l*8 + c-'0';
++			continue;
++		}
++		warn("non-oct character in escape sequence: %c", c);
++		ungetc(c);
++	}
++	if(l > 255)
++		warn("oct escape value > 255: %d", l);
++	*escflg = 1;
++	return l;
++}
++
++static	struct
++{
++	char*	name;
++	int	lexical;
++	int	etype;
++} syms[] =
++{
++/*	name		lexical		etype
++ */
++/* basic types */
++	"int8",		LBASETYPE,	TINT8,
++	"int16",	LBASETYPE,	TINT16,
++	"int32",	LBASETYPE,	TINT32,
++	"int64",	LBASETYPE,	TINT64,
++
++	"uint8",	LBASETYPE,	TUINT8,
++	"uint16",	LBASETYPE,	TUINT16,
++	"uint32",	LBASETYPE,	TUINT32,
++	"uint64",	LBASETYPE,	TUINT64,
++
++	"float32",	LBASETYPE,	TFLOAT32,
++	"float64",	LBASETYPE,	TFLOAT64,
++	"float80",	LBASETYPE,	TFLOAT80,
++
++	"bool",		LBASETYPE,	TBOOL,
++	"byte",		LBASETYPE,	TUINT8,
++	"char",		LBASETYPE,	TUINT8,		// temp??
++	"string",	LBASETYPE,	TSTRING,
++
++/* keywords */
++	"any",		LANY,		Txxx,
++	"break",	LBREAK,		Txxx,
++	"case",		LCASE,		Txxx,
++	"chan",		LCHAN,		Txxx,
++	"const",	LCONST,		Txxx,
++	"continue",	LCONTINUE,	Txxx,
++	"convert",	LCONVERT,	Txxx,
++	"default",	LDEFAULT,	Txxx,
++	"else",		LELSE,		Txxx,
++	"export",	LEXPORT,	Txxx,
++	"fallthrough",	LFALL,		Txxx,
++	"false",	LFALSE,		Txxx,
++	"for",		LFOR,		Txxx,
++	"func",		LFUNC,		Txxx,
++	"go",		LGO,		Txxx,
++	"goto",		LGOTO,		Txxx,
++	"if",		LIF,		Txxx,
++	"import",	LIMPORT,	Txxx,
++	"interface",	LINTERFACE,	Txxx,
++	"iota",		LIOTA,		Txxx,
++	"map",		LMAP,		Txxx,
++	"new",		LNEW,		Txxx,
++	"len",		LLEN,		Txxx,
++	"nil",		LNIL,		Txxx,
++	"package",	LPACKAGE,	Txxx,
++	"panic",	LPANIC,		Txxx,
++	"print",	LPRINT,		Txxx,
++	"range",	LRANGE,		Txxx,
++	"return",	LRETURN,	Txxx,
++	"struct",	LSTRUCT,	Txxx,
++	"switch",	LSWITCH,	Txxx,
++	"true",		LTRUE,		Txxx,
++	"type",		LTYPE,		Txxx,
++	"var",		LVAR,		Txxx,
++
++	"notwithstanding",		LIGNORE,	Txxx,
++	"thetruthofthematter",		LIGNORE,	Txxx,
++	"despiteallobjections",		LIGNORE,	Txxx,
++	"whereas",			LIGNORE,	Txxx,
++	"insofaras",			LIGNORE,	Txxx,
++};
++
++void
++lexinit(void)
++{
++	int i, etype, lex;
++	Sym *s;
++	Node *t;
++
++
++	for(i=TINT8; i<=TUINT64; i++)
++		isint[i] = 1;
++	for(i=TFLOAT32; i<=TFLOAT80; i++)
++		isfloat[i] = 1;
++
++	/*
++	 * initialize okfor
++	 */
++	for(i=0; i<NTYPE; i++) {
++		if(isint[i]) {
++			okforeq[i] = 1;
++			okforadd[i] = 1;
++			okforand[i] = 1;
++		}
++		if(isfloat[i]) {
++			okforeq[i] = 1;
++			okforadd[i] = 1;
++		}
++		switch(i) {
++		case TBOOL:
++			okforeq[i] = 1;
++			break;
++		case TPTR:
++			okforeq[i] = 1;
++			break;
++		}
++		minfloatval[i] = 0.0;
++		maxfloatval[i] = 0.0;
++		minintval[i] = 0;
++		maxintval[i] = 0;
++	}
++// this stuff smells - really need to do constants
++// in multi precision arithmetic
++
++	maxintval[TINT8] = 0x7f;
++	minintval[TINT8] = -maxintval[TINT8]-1;
++	maxintval[TINT16] = 0x7fff;
++	minintval[TINT16] = -maxintval[TINT16]-1;
++	maxintval[TINT32] = 0x7fffffffL;
++	minintval[TINT32] = -maxintval[TINT32]-1;
++	maxintval[TINT64] = 0x7fffffffffffffffLL;
++	minintval[TINT64] = -maxintval[TINT64]-1;
++
++	maxintval[TUINT8] = 0xff;
++	maxintval[TUINT16] = 0xffff;
++	maxintval[TUINT32] = 0xffffffffL;
++	maxintval[TUINT64] = 0xffffffffffffffffLL;
++
++	maxfloatval[TFLOAT32] = 3.40282347e+38;
++	minfloatval[TFLOAT32] = -maxfloatval[TFLOAT32];
++	maxfloatval[TFLOAT64] = 1.7976931348623157e+308;
++	minfloatval[TFLOAT64] = -maxfloatval[TFLOAT64]-1;
++
++	/*
++	 * initialize basic types array
++	 * initialize known symbols
++	 */
++	for(i=0; i<nelem(syms); i++) {
++		lex = syms[i].lexical;
++		s = lookup(syms[i].name);
++		s->lexical = lex;
++
++		if(lex != LBASETYPE)
++			continue;
++
++		etype = syms[i].etype;
++		if(etype < 0 || etype >= nelem(types))
++			fatal("lexinit: %s bad etype", s->name);
++
++		t = types[etype];
++		if(t != N) {
++			s->otype = t;
++			continue;
++		}
++		t = nod(OTYPE, N, N);
++		t->etype = etype;
++		switch(etype) {
++		case TSTRING:
++		case TCHAN:
++		case TMAP:
++			t = ptrto(t);
++		}
++		t->sym = s;
++		t->recur = 1;	// supresses printing beyond name
++
++		types[etype] = t;
++		s->otype = t;
++	}
++
++	/* pick up the backend typedefs */
++	belexinit(LBASETYPE);
++
++	booltrue = nod(OLITERAL, N, N);
++	booltrue->val.ctype = CTBOOL;
++	booltrue->val.vval = 1;
++	booltrue->type = types[TBOOL];
++
++	boolfalse = nod(OLITERAL, N, N);
++	boolfalse->val.ctype = CTBOOL;
++	boolfalse->val.vval = 0;
++	booltrue->type = types[TBOOL];
++}
++
++struct
++{
++	int	lex;
++	char*	name;
++} lexn[] =
++{
++	LANDAND,	"ANDAND",
++	LASOP,		"ASOP",
++	LACONST,	"ACONST",
++	LATYPE,		"ATYPE",
++	LBASETYPE,	"BASETYPE",
++	LBREAK,		"BREAK",
++	LCASE,		"CASE",
++	LCHAN,		"CHAN",
++	LCOLAS,		"COLAS",
++	LCONST,		"CONST",
++	LCONTINUE,	"CONTINUE",
++	LDEC,		"DEC",
++	LELSE,		"ELSE",
++	LEQ,		"EQ",
++	LFUNC,		"FUNC",
++	LGE,		"GE",
++	LGO,		"GO",
++	LGOTO,		"GOTO",
++	LGT,		"GT",
++	LIF,		"IF",
++	LINC,		"INC",
++	LINTERFACE,	"INTERFACE",
++	LLE,		"LE",
++	LLITERAL,	"LITERAL",
++	LLSH,		"LSH",
++	LLT,		"LT",
++	LMAP,		"MAP",
++	LNAME,		"NAME",
++	LNE,		"NE",
++	LOROR,		"OROR",
++	LPACK,		"PACK",
++	LRANGE,		"RANGE",
++	LRETURN,	"RETURN",
++	LRSH,		"RSH",
++	LSTRUCT,	"STRUCT",
++	LSWITCH,	"SWITCH",
++	LTYPE,		"TYPE",
++	LVAR,		"VAR",
++	LFOR,		"FOR",
++	LNEW,		"NEW",
++	LLEN,		"LEN",
++	LFALL,		"FALL",
++	LCONVERT,	"CONVERT",
++	LIOTA,		"IOTA",
++	LPRINT,		"PRINT",
++	LPACKAGE,	"PACKAGE",
++	LIMPORT,	"IMPORT",
++	LEXPORT,	"EXPORT",
++	LPANIC,		"PANIC",
++};
++
++char*
++lexname(int lex)
++{
++	int i;
++	static char buf[100];
++
++	for(i=0; i<nelem(lexn); i++)
++		if(lexn[i].lex == lex)
++			return lexn[i].name;
++	snprint(buf, sizeof(buf), "LEX-%d", lex);
++	return buf;
++}
++
++void
++mkpackage(char* pkg)
++{
++	Sym *s;
++	long h;
++
++	if(bout != nil) {
++		yyerror("mkpackage: called again %s %s", pkg, package);
++		return;
++	}
++
++	// defefine all names to be this package
++	package = pkg;
++	for(h=0; h<NHASH; h++)
++		for(s = hash[h]; s != S; s = s->link) {
++			s->package = package;
++			s->opackage = package;
++		}
++
++	if(outfile == nil) {
++		snprint(namebuf, sizeof(namebuf), "%s.go.c", package);
++		outfile = strdup(namebuf);
++	}
++
++	bout = Bopen(outfile, OWRITE);
++	if(bout == nil)
++		fatal("cant open %s", outfile);
++}
+diff --git a/src/c/mpatof.c b/src/c/mpatof.c
+new file mode 100755
+index 0000000000..07bcf4a27a
+--- /dev/null
++++ b/src/c/mpatof.c
+@@ -0,0 +1,342 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include	<u.h>
++#include	<libc.h>
++
++int	mpatof(char*, double*);
++int	mpatov(char *s, vlong *v);
++
++enum
++{
++	Mpscale	= 29,		/* safely smaller than bits in a long */
++	Mpprec	= 36,		/* Mpscale*Mpprec sb > largest fp exp */
++	Mpbase	= 1L<<Mpscale,
++};
++
++typedef
++struct
++{
++	long	a[Mpprec];
++	char	ovf;
++} Mp;
++
++static	void	mpint(Mp*, int);
++static	void	mppow(Mp*, int, int);
++static	void	mpmul(Mp*, int);
++static	void	mpadd(Mp*, Mp*);
++static	int	mptof(Mp*, double*);
++
++/*
++ * convert a string, s, to floating in *d
++ * return conversion overflow.
++ * required syntax is [+-]d*[.]d*[e[+-]d*]
++ */
++int
++mpatof(char *s, double *d)
++{
++	Mp a, b;
++	int dp, c, f, ef, ex, zer;
++	double d1, d2;
++
++	dp = 0;		/* digits after decimal point */
++	f = 0;		/* sign */
++	ex = 0;		/* exponent */
++	zer = 1;	/* zero */
++	memset(&a, 0, sizeof(a));
++	for(;;) {
++		switch(c = *s++) {
++		default:
++			goto bad;
++		case '-':
++			f = 1;
++		case ' ':
++		case  '\t':
++		case  '+':
++			continue;
++		case '.':
++			dp = 1;
++			continue;
++		case '1':
++		case '2':
++		case '3':
++		case '4':
++		case '5':
++		case '6':
++		case '7':
++		case '8':
++		case '9':
++			zer = 0;
++		case '0':
++			mpint(&b, c-'0');
++			mpmul(&a, 10);
++			mpadd(&a, &b);
++			if(dp)
++				dp++;
++			continue;
++		case 'E':
++		case 'e':
++			ex = 0;
++			ef = 0;
++			for(;;) {
++				c = *s++;
++				if(c == '+' || c == ' ' || c == '\t')
++					continue;
++				if(c == '-') {
++					ef = 1;
++					continue;
++				}
++				if(c >= '0' && c <= '9') {
++					ex = ex*10 + (c-'0');
++					continue;
++				}
++				break;
++			}
++			if(ef)
++				ex = -ex;
++		case 0:
++			break;
++		}
++		break;
++	}
++	if(a.ovf)
++		goto bad;
++	if(zer) {
++		*d = 0;
++		return 0;
++	}
++	if(dp)
++		dp--;
++	dp -= ex;
++	if(dp > 0) {
++		/*
++		 * must divide by 10**dp
++		 */
++		if(mptof(&a, &d1))
++			goto bad;
++
++		/*
++		 * trial exponent of 8**dp
++		 * 8 (being between 5 and 10)
++		 * should pick up all underflows
++		 * in the division of 5**dp.
++		 */
++		d2 = frexp(d1, &ex);
++		d2 = ldexp(d2, ex-3*dp);
++		if(d2 == 0)
++			goto bad;
++
++		/*
++		 * decompose each 10 into 5*2.
++		 * create 5**dp in fixed point
++		 * and then play with the exponent
++		 * for the remaining 2**dp.
++		 * note that 5**dp will overflow
++		 * with as few as 134 input digits.
++		 */
++		mpint(&a, 1);
++		mppow(&a, 5, dp);
++		if(mptof(&a, &d2))
++			goto bad;
++		d1 = frexp(d1/d2, &ex);
++		d1 = ldexp(d1, ex-dp);
++		if(d1 == 0)
++			goto bad;
++	} else {
++		/*
++		 * must multiply by 10**|dp| --
++		 * just do it in fixed point.
++		 */
++		mppow(&a, 10, -dp);
++		if(mptof(&a, &d1))
++			goto bad;
++	}
++	if(f)
++		d1 = -d1;
++	*d = d1;
++	return 0;
++
++bad:
++	return 1;
++}
++
++/*
++ * convert a to floating in *d
++ * return conversion overflow
++ */
++static int
++mptof(Mp *a, double *d)
++{
++	double f, g;
++	long x, *a1;
++	int i;
++
++	if(a->ovf)
++		return 1;
++	a1 = a->a;
++	f = ldexp(*a1++, 0);
++	for(i=Mpscale; i<Mpprec*Mpscale; i+=Mpscale)
++		if(x = *a1++) {
++			g = ldexp(x, i);
++			/*
++			 * NOTE: the test (g==0) is plan9
++			 * specific. ansi compliant overflow
++			 * is signaled by HUGE and errno==ERANGE.
++			 * change this for your particular ldexp.
++			 */
++			if(g == 0)
++				return 1;
++			f += g;		/* this could bomb! */
++		}
++	*d = f;
++	return 0;
++}
++
++/*
++ * return a += b
++ */
++static void
++mpadd(Mp *a, Mp *b)
++{
++	int i, c;
++	long x, *a1, *b1;
++
++	if(b->ovf)
++		a->ovf = 1;
++	if(a->ovf)
++		return;
++	c = 0;
++	a1 = a->a;
++	b1 = b->a;
++	for(i=0; i<Mpprec; i++) {
++		x = *a1 + *b1++ + c;
++		c = 0;
++		if(x >= Mpbase) {
++			x -= Mpbase;
++			c = 1;
++		}
++		*a1++ = x;
++	}
++	a->ovf = c;
++}
++
++/*
++ * return a = c
++ */
++static void
++mpint(Mp *a, int c)
++{
++
++	memset(a, 0, sizeof(*a));
++	a->a[0] = c;
++}
++
++/*
++ * return a *= c
++ */
++static void
++mpmul(Mp *a, int c)
++{
++	Mp p;
++	int b;
++	memmove(&p, a, sizeof(p));
++	if(!(c & 1))
++		memset(a, 0, sizeof(*a));
++	c &= ~1;
++	for(b=2; c; b<<=1) {
++		mpadd(&p, &p);
++		if(c & b) {
++			mpadd(a, &p);
++			c &= ~b;
++		}
++	}
++}
++
++/*
++ * return a *= b**e
++ */
++static void
++mppow(Mp *a, int b, int e)
++{
++	int b1;
++
++	b1 = b*b;
++	b1 = b1*b1;
++	while(e >= 4) {
++		mpmul(a, b1);
++		e -= 4;
++		if(a->ovf)
++			return;
++	}
++	while(e > 0) {
++		mpmul(a, b);
++		e--;
++	}
++}
++
++/*
++ * convert a string, s, to vlong in *v
++ * return conversion overflow.
++ * required syntax is [0[x]]d*
++ */
++int
++mpatov(char *s, vlong *v)
++{
++	vlong n, nn;
++	int c;
++	n = 0;
++	c = *s;
++	if(c == '0')
++		goto oct;
++	while(c = *s++) {
++		if(c >= '0' && c <= '9')
++			nn = n*10 + c-'0';
++		else
++			goto bad;
++		if(n < 0 && nn >= 0)
++			goto bad;
++		n = nn;
++	}
++	goto out;
++oct:
++	s++;
++	c = *s;
++	if(c == 'x' || c == 'X')
++		goto hex;
++	while(c = *s++) {
++		if(c >= '0' || c <= '7')
++			nn = n*8 + c-'0';
++		else
++			goto bad;
++		if(n < 0 && nn >= 0)
++			goto bad;
++		n = nn;
++	}
++	goto out;
++hex:
++	s++;
++	while(c = *s++) {
++		if(c >= '0' && c <= '9')
++			c += 0-'0';
++		else
++		if(c >= 'a' && c <= 'f')
++			c += 10-'a';
++		else
++		if(c >= 'A' && c <= 'F')
++			c += 10-'A';
++		else
++			goto bad;
++		nn = n*16 + c;
++		if(n < 0 && nn >= 0)
++			goto bad;
++		n = nn;
++	}
++out:
++	*v = n;
++	return 0;
++
++bad:
++	*v = ~0;
++	return 1;
++}
+diff --git a/src/c/obj.c b/src/c/obj.c
+new file mode 100644
+index 0000000000..2c220226cd
+--- /dev/null
++++ b/src/c/obj.c
+@@ -0,0 +1,1535 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include	"go.h"
++#include	"gen.h"
++
++static	Prog*	firstp;
++static	Prog*	lastp;
++static	int	typeexpand;
++
++void
++dumpobj(void)
++{
++	Plist *pl;
++	Prog *p;
++	long lno;
++
++	Bprint(bout, "\n\n/*\n");
++	Bprint(bout, " * automatic code generated from\n");
++	Bprint(bout, " * %s in package \"%s\"\n", curio.infile, package);
++	dumpexport();
++	Bprint(bout, " */\n", curio.infile, package);
++	Bprint(bout, "#include \"gort.h\"\n");
++
++	// put out external variables and types
++	doframe(externdcl, "external");
++	dumpmethods();
++
++	// put out signatures
++	dumpsignatures();
++
++	// put out functions
++	for(pl=plist; pl!=nil; pl=pl->link) {
++		/* print out the function header */
++		dumpfunct(pl);
++
++		/* clear the marks */
++		for(p=pl->firstpc; p!=nil; p=p->link)
++			p->mark = 0;
++
++		/* relinearize the object code */
++		firstp = mal(sizeof(*firstp));
++		lastp = firstp;
++		follow(pl->firstpc);
++		lastp->link = P;
++		pl->firstpc = firstp->link;
++
++		/* clear the marks - relabel the locations */
++		for(p=pl->firstpc; p!=nil; p=p->link)
++			p->mark = 0;
++
++		/* mark the labels */
++		for(p=pl->firstpc; p!=nil; p=p->link) {
++			if(p->addr.branch != P)
++				p->addr.branch->mark = 1;
++		}
++
++		/* interpret the instructions */
++		lno = dynlineno;
++		for(p=pl->firstpc; p!=nil; p=p->link) {
++			dynlineno = p->lineno;
++			dynloc = p->loc;
++			obj(p);
++		}
++		dynlineno = lno;
++		Bprint(bout, "}\n");
++	}
++}
++
++void
++obj1(Prog *p)
++{
++	Node *n;
++	static long uloc, olino;
++
++	Bprint(bout, "\n\t// %P\n", p);
++	if(p->mark)
++		Bprint(bout, "_L%ld:\n", p->loc);
++
++	uloc++;
++	if(p->lineno != 0)
++		olino = p->lineno;
++	Bprint(bout, "\tgotrace(%ld, %ld);\n", uloc, olino);
++
++	switch(p->op) {
++	default:
++		warn("obj: unknown opcode %A", p);
++		Bprint(bout, "\tprintf(\"unknown line %ld-%ld: %A\\n\");\n",
++			dynloc, dynlineno, p);
++
++	case PPANIC:
++		Bprint(bout, "\tprintf(\"panic line %ld\\n\");\n", dynlineno);
++		Bprint(bout, "\tgoexit(1);\n");
++		break;
++
++	case PPRINT:
++		Bprint(bout, "\tprint%s(%R);\n", getfmt(p->pt), p->pt);
++		break;
++
++	case PGOTO:
++		Bprint(bout, "\tgoto %D;\n", p);
++		break;
++
++	case PGOTOX:
++		yyerror("label not declared: %S", p->addr.node->left->sym);
++		break;
++
++	case PCMP:
++		if(p->pt == PTSTRING)
++			goto pcmpz;
++
++		switch(p->link->op) {
++		case PBEQ:
++			Bprint(bout, "\tif(%R == %D) {\n", p->pt, p);
++			break;
++		case PBNE:
++			Bprint(bout, "\tif(%R != %D) {\n", p->pt, p);
++			break;
++		case PBLT:
++			Bprint(bout, "\tif(%R < %D) {\n", p->pt, p);
++			break;
++		case PBLE:
++			Bprint(bout, "\tif(%R <= %D) {\n", p->pt, p);
++			break;
++		case PBGE:
++			Bprint(bout, "\tif(%R >= %D) {\n", p->pt, p);
++			break;
++		case PBGT:
++			Bprint(bout, "\tif(%R > %D) {\n", p->pt, p);
++			break;
++		}
++		break;
++
++	pcmpz:
++		Bprint(bout, "\tif(cmpZ(%D) ", p);
++		switch(p->link->op) {
++		case PBEQ:
++			Bprint(bout, "== 0) {\n");
++			break;
++		case PBNE:
++			Bprint(bout, "!= 0) {\n");
++			break;
++		case PBLT:
++			Bprint(bout, "< 0) {\n");
++			break;
++		case PBLE:
++			Bprint(bout, "<= 0) {\n");
++			break;
++		case PBGE:
++			Bprint(bout, ">= 0) {\n");
++			break;
++		case PBGT:
++			Bprint(bout, "> 0) {\n");
++			break;
++		}
++		break;
++
++	case PTEST:
++		switch(p->link->op) {
++		case PBTRUE:
++			Bprint(bout, "\tif(%D != 0) {\n", p);
++			break;
++		case PBFALSE:
++			Bprint(bout, "\tif(%D == 0) {\n", p);
++			break;
++		}
++		break;
++
++	case PBEQ:
++	case PBNE:
++	case PBLT:
++	case PBLE:
++	case PBGE:
++	case PBGT:
++	case PBTRUE:
++	case PBFALSE:
++		Bprint(bout, "\t\tgoto %D; }\n", p);
++		break;
++
++	case PLEN:
++		Bprint(bout, "\t%R = %D->len;\n", PTINT32, p);
++		break;
++
++	case PNEW:
++		if(p->addr.type != ANODE)
++			goto bad;
++		n = p->addr.node;
++		n = n->type;
++		n = n->type;
++		if(n == N || n->op != OTYPE)
++			goto bad;
++		Bprint(bout, "\t%R = gomal(sizeof(%C%lC));\n", p->pt, n, n);
++		break;
++
++	case PLOAD:
++		if(p->pt == PTPTR || p->pt == PTADDR) {
++			Bprint(bout, "\t%R = (%Q)%D;\n", p->pt, PTPTR, p);
++			break;
++		}
++		Bprint(bout, "\t%R = %D;\n", p->pt, p);
++		break;
++
++	case PLOADI:	// R/D = *(A)
++		Bprint(bout, "\t%D = *(%Q*)%R;\n", p, p->pt, PTADDR);
++		break;
++
++	case PSTORE:
++		if(p->pt == PTPTR || p->pt == PTADDR) {
++			if(p->addr.type != ANODE)
++				goto bad;
++			n = p->addr.node;
++			if(n == N || n->type == N)
++				goto bad;
++			Bprint(bout, "\t%D = (%C)%R;\n", p, n->type, p->pt);
++			break;
++		}
++		Bprint(bout, "\t%D = %R;\n", p, p->pt);
++		break;
++
++	case PSTOREI:	// *(A) = R/D
++		Bprint(bout, "\t*(%Q*)%R = %D;\n", p->pt, PTADDR, p);
++		break;
++
++	case PSTOREZ:
++		switch(p->pt) {
++		default:
++			Bprint(bout, "\t%D = 0;\n", p);
++			break;
++
++		case PTARRAY:
++		case PTSTRUCT:
++			Bprint(bout, "\tmemset(&%D, 0, sizeof(%D));\n", p, p);
++			break;
++
++		case PTINTER:
++			Bprint(bout, "\t%D.s = 0; %D.m = 0;\n", p, p);
++			break;
++
++		case PTSTRING:
++			Bprint(bout, "\t%D = &nilstring;\n", p);
++			break;
++		}
++		break;
++
++	case PCONV:
++		doconv(p);
++		break;
++
++	case PADDR:
++		Bprint(bout, "\t%R = (%Q)&%D;\n", p->pt, p->pt, p);
++		break;
++
++	case PADDO:
++		if(p->addr.type != ANODE)
++			goto bad;
++		n = p->addr.node;
++		if(n == N || n->op != ONAME || n->sym == S)
++			goto bad;
++		if(n->uberstruct == N || n->uberstruct->etype != TSTRUCT)
++			goto bad;
++
++		Bprint(bout, "\t%R = (%Q)((char*)%R + offsetof(_T_%ld, %s));\n",
++			p->pt, PTADDR, p->pt,
++//			n->uberstruct->nname->sym->package,
++			n->uberstruct->vargen, n->sym->name);
++		break;
++
++	case PINDEXZ:
++		Bprint(bout, "\t%R = %D->string[%R];\n",
++			PTUINT8, p, p->pt);
++		break;
++
++	case PINDEX:
++		if(p->addr.type != ANODE)
++			goto bad;
++		n = p->addr.node;
++		Bprint(bout, "\t%R += (%R)*sizeof(%C);\n",
++			PTADDR, p->pt, n->type);
++		break;
++
++	case PSLICE:
++		if(p->addr.type != ANODE)
++			goto bad;
++		n = p->addr.node;
++		Bprint(bout, "\tsliceZ(%R, %D);\n", p->pt, p);
++		break;
++
++	case PCAT:
++		Bprint(bout, "\tcatZ(%D);\n", p);
++		break;
++
++	case PADD:
++		Bprint(bout, "\t%R += %D;\n", p->pt, p);
++		break;
++
++	case PSUB:
++		Bprint(bout, "\t%R -= %D;\n", p->pt, p);
++		break;
++
++	case PMUL:
++		Bprint(bout, "\t%R *= %D;\n", p->pt, p);
++		break;
++
++	case PDIV:
++		Bprint(bout, "\t%R /= %D;\n", p->pt, p);
++		break;
++
++	case PLSH:
++		Bprint(bout, "\t%R <<= %D;\n", p->pt, p);
++		break;
++
++	case PRSH:
++		Bprint(bout, "\t%R >>= %D;\n", p->pt, p);
++		break;
++
++	case PMOD:
++		Bprint(bout, "\t%R %%= %D;\n", p->pt, p);
++		break;
++
++	case PAND:
++		Bprint(bout, "\t%R &= %D;\n", p->pt, p);
++		break;
++
++	case POR:
++		Bprint(bout, "\t%R |= %D;\n", p->pt, p);
++		break;
++
++	case PXOR:
++		Bprint(bout, "\t%R ^= %D;\n", p->pt, p);
++		break;
++
++	case PMINUS:
++		Bprint(bout, "\t%R = -%R;\n", p->pt, p->pt);
++		break;
++
++	case PCOM:
++		Bprint(bout, "\t%R = ~%R;\n", p->pt, p->pt);
++		break;
++
++	case PRETURN:
++		Bprint(bout, "\treturn;\n");
++		break;
++
++	case PCALL1:	// process the arguments
++		docall1(p);
++		break;
++
++	case PCALL2:	// call the normal function
++		docall2(p);
++		break;
++
++	case PCALLI2:	// call the indirect function
++		docalli2(p);
++		break;
++
++	case PCALLM2:	// call the method function
++		docallm2(p);
++		break;
++
++	case PCALLF2:	// call the interface method function
++		docallf2(p);
++		break;
++
++	case PCALL3:	// process the return
++		docall3(p);
++		break;
++
++	case PEND:
++		Bprint(bout, "\treturn;\n");
++		break;
++	}
++	return;
++
++bad:
++	print("bad code generation on\n\t// %P\n", p);
++}
++
++
++void
++follow(Prog *p)
++{
++	Prog *q;
++	int i, op;
++
++loop:
++	if(p == P)
++		return;
++
++	if(p->op == PGOTO) {
++		q = p->addr.branch;
++		if(q != P) {
++			p->mark = 1;
++			p = q;
++			if(p->mark == 0)
++				goto loop;
++		}
++	}
++
++	if(p->mark) {
++		/* copy up to 4 instructions to avoid branch */
++		for(i=0, q=p; i<4; i++, q=q->link) {
++			if(q == P)
++				break;
++			if(q == lastp)
++				break;
++			if(q->op == PGOTO)
++				break;
++			if(q->addr.branch == P)
++				continue;
++			if(q->addr.branch->mark)
++				continue;
++			if(q->op == PCALL1)
++				continue;
++
++			// we found an invertable now copy
++//			for(;;) {
++//				q = copyp(p);
++//				p = p->link;
++//				q->mark = 1;
++//				lastp->link = q;
++//				lastp = q;
++//				if(q->op != a || q->addr.branch == P || q->addr.branch->mark)
++//					continue;
++//
++//				q->op = relinv(q->op);
++//				p = q->addr.branch;
++//				q->addr.branch = q->link;
++//				q->link = p;
++//				follow(q->link);
++//				p = q->link;
++//				if(p->mark)
++//					return;
++//				goto loop;
++//			}
++		}
++
++		q = mal(sizeof(*q));
++		q->op = PGOTO;
++		q->lineno = p->lineno;
++		q->addr.type = ABRANCH;
++		q->addr.branch = gotochain(p);
++		p = q;
++	}
++
++	p->mark = 1;
++	p->loc = lastp->loc+1;
++	lastp->link = p;
++	lastp = p;
++
++	op = p->op;
++	if(op == PGOTO || op == PRETURN || op == OEND)
++		return;
++
++	if(op == PCALL1 || p->addr.branch == P) {
++		p = p->link;
++		goto loop;
++	}
++
++	q = gotochain(p->link);
++	if(q != P && q->mark) {
++		p->op = brcom(op);
++		p->link = p->addr.branch;
++		p->addr.branch = q;
++	}
++	follow(p->link);
++	q = gotochain(p->addr.branch);
++	p->addr.branch = q;
++	if(q != P && q->mark)
++		return;
++
++	p = q;
++	goto loop;
++}
++
++void
++obj(Prog *p)
++{
++	Node *n;
++	String *s;
++	long i;
++
++	if(p->addr.type != ANODE)
++		goto out;
++	n = p->addr.node;
++	if(n == N || n->op != OLITERAL)
++		goto out;
++	if(p->pt != PTSTRING)
++		goto out;
++
++	s = n->val.sval;
++	Bprint(bout, "\t{ static struct {_T_U32	l;_T_U8	s[%d]; } slit = { %d", s->len, s->len);
++	for(i=0; i<s->len; i++) {
++		if(i%16 == 0)
++			Bprint(bout, "\n\t\t");
++		Bprint(bout, ",%d", s->s[i]);
++	}
++	Bprint(bout, " };\n");
++
++	obj1(p);
++	Bprint(bout, "\t}\n");
++	return;
++
++out:
++	obj1(p);
++}
++
++Prog*
++gotochain(Prog *p)
++{
++	int i;
++
++	for(i=0; i<20; i++) {
++		if(p == P || p->op != PGOTO)
++			return p;
++		p = p->addr.branch;
++	}
++	return P;
++}
++
++/*
++ * print a C type
++ */
++int
++Cconv(Fmt *fp)
++{
++	char buf[1000], buf1[100];
++	Node *t, *f, *n;
++	Iter it;
++	int pt;
++	long v1, v2;
++
++	t = va_arg(fp->args, Node*);
++	if(t == N)
++		return fmtstrcpy(fp, "<C>");
++
++	t->recur++;
++	if(t->op != OTYPE) {
++		snprint(buf, sizeof(buf), "C-%O", t->op);
++		goto out;
++	}
++	if(t->recur > 5) {
++		snprint(buf, sizeof(buf), "C-%E ...", t->etype);
++		goto out;
++	}
++
++	// post-name format
++	if(fp->flags & FmtLong) {
++		strcpy(buf, "");
++		switch(t->etype) {
++		default:
++			break;
++		case TARRAY:
++			snprint(buf, sizeof(buf), "[%ld]", t->bound);
++			break;
++		case TFUNC:
++			if(t->thistuple > 0) {
++				f = *getthis(t);
++				v1 = 9999;
++				v2 = 9999;
++				if(f != N) {
++					v1 = f->vargen;
++					if(f->nname != N)
++						v2 = f->nname->vargen;
++				}
++				snprint(buf1, sizeof(buf1), "(_T_%ld* _V_%ld",
++					v1, v2);
++				strncat(buf, buf1, sizeof(buf));
++			} else
++				strncat(buf, "(void* _dummythis", sizeof(buf));
++
++			if(t->outtuple > 0) {
++				f = *getoutarg(t);
++				v1 = 9999;
++				v2 = 9999;
++				if(f != N) {
++					v1 = f->vargen;
++					if(f->nname != N)
++						v2 = f->nname->vargen;
++				}
++				snprint(buf1, sizeof(buf1), ", _T_%ld* _V_%ld",
++					v1, v2);
++				strncat(buf, buf1, sizeof(buf));
++			} else
++				strncat(buf, ", void* _dummyout", sizeof(buf));
++
++			if(t->intuple > 0) {
++				f = *getinarg(t);
++				v1 = 9999;
++				v2 = 9999;
++				if(f != N) {
++					v1 = f->vargen;
++					if(f->nname != N)
++						v2 = f->nname->vargen;
++				}
++				snprint(buf1, sizeof(buf1), ", _T_%ld* _V_%ld)",
++					v1, v2);
++				strncat(buf, buf1, sizeof(buf));
++			} else
++				strncat(buf, ", void* _dummyin)", sizeof(buf));
++			break;
++		}
++		goto out;
++	}
++
++	if(t->vargen != 0 && !typeexpand) {
++		if(t->etype == TFUNC) {
++			strcpy(buf, "void");
++			goto out;
++		}
++		snprint(buf, sizeof(buf), "_T_%ld", t->vargen);
++		goto out;
++	}
++
++	switch(t->etype) {
++	default:
++		pt = conv2pt(t);
++		snprint(buf, sizeof(buf), "%Q", pt);
++		break;
++
++	case TSTRUCT:
++		if(fp->flags & FmtShort) {
++			strcpy(buf, "{");
++		} else {
++			if(t->vargen != 0) {
++				snprint(buf, sizeof(buf), "_T_%ld", t->vargen);
++				goto out;
++			}
++			strcpy(buf, "struct{");
++		}
++
++		f = structfirst(&it, &t);
++		while(f != N) {
++			n = f->type;
++			if(n->etype == TFUNC)
++				goto next;
++			if(f->sym == S)
++				snprint(buf1, sizeof(buf1), "%C;", n);
++			else
++				snprint(buf1, sizeof(buf1), "%C %s;", n, f->sym->name);
++			strncat(buf, buf1, sizeof(buf));
++		next:
++			f = structnext(&it);
++		}
++		strncat(buf, "}", sizeof(buf));
++		break;
++
++	case TPTR:
++		if(isptrto(t, TSTRING)) {
++			snprint(buf, sizeof(buf), "%C", t->type);
++			break;
++		}
++		snprint(buf, sizeof(buf), "%C*", t->type);
++		break;
++
++	case TARRAY:
++		snprint(buf, sizeof(buf), "%C", t->type);
++		break;
++
++	case TFUNC:
++		strcpy(buf, "void");
++		break;
++	}
++
++out:
++	t->recur--;
++	return fmtstrcpy(fp, buf);
++}
++
++/*
++ * print Prog operand
++ */
++int
++Dconv(Fmt *fp)
++{
++	char buf[500];
++	Prog *p;
++	Node *n;
++
++	if(fp->flags & FmtLong) {
++		p = nil;
++		n = va_arg(fp->args, Node*);
++		goto prnode;
++	}
++	p = va_arg(fp->args, Prog*);
++
++	switch(p->addr.type) {
++	default:
++		snprint(buf, sizeof(buf), "addr.type=%d", p->addr.type);
++		break;
++
++	case ANONE:
++		snprint(buf, sizeof(buf), "%R", p->pt);
++		break;
++
++	case ANODE:
++		n = p->addr.node;
++		goto prnode;
++
++	case ABRANCH:
++		p = p->addr.branch;
++		if(p == P) {
++			snprint(buf, sizeof(buf), "addr.branch=nil");
++			break;
++		}
++		snprint(buf, sizeof(buf), "_L%ld", p->loc);
++		break;
++	}
++	goto out;
++
++prnode:
++	if(n == N) {
++		snprint(buf, sizeof(buf), "addr.node=nil");
++		goto out;
++	}
++	switch(n->op) {
++	default:
++		snprint(buf, sizeof(buf), "%N", p->addr.node);
++		break;
++
++	case ONAME:
++		if(n->vargen != 0) {
++			snprint(buf, sizeof(buf), "_V_%ld", n->vargen);
++			break;
++		}
++		snprint(buf, sizeof(buf), "%s_%s", n->sym->opackage, n->sym->name);
++		break;
++
++	case OLITERAL:
++		switch(p->pt) {
++		badlit:
++		default:
++			snprint(buf, sizeof(buf), "BADLIT-%d pt-%d", p->pt, n->val.ctype);
++			break;
++		case PTINT8:
++		case PTINT16:
++		case PTINT32:
++		case PTUINT8:
++		case PTUINT16:
++		case PTUINT32:
++			switch(n->val.ctype) {
++			default:
++				goto badlit;
++			case CTINT:
++			case CTSINT:
++			case CTUINT:
++				if(n->val.vval < 0)
++					snprint(buf, sizeof(buf), "-0x%llux", -n->val.vval);
++				else
++					snprint(buf, sizeof(buf), "0x%llux", n->val.vval);
++				break;
++			}
++			break;
++		case PTINT64:
++		case PTUINT64:
++			switch(n->val.ctype) {
++			default:
++				goto badlit;
++			case CTINT:
++			case CTSINT:
++			case CTUINT:
++				snprint(buf, sizeof(buf), "0x%lluxll", n->val.vval);
++				break;
++			}
++			break;
++		case PTFLOAT32:
++		case PTFLOAT64:
++		case PTFLOAT80:
++			switch(n->val.ctype) {
++			default:
++				goto badlit;
++			case CTFLT:
++				snprint(buf, sizeof(buf), "%.17e", n->val.dval);
++				break;
++			}
++			break;
++		case PTBOOL:
++			switch(n->val.ctype) {
++			default:
++				goto badlit;
++			case CTBOOL:
++				snprint(buf, sizeof(buf), "%lld", n->val.vval);
++				break;
++			}
++			break;
++		case PTPTR:
++			switch(n->val.ctype) {
++			default:
++				goto badlit;
++			case CTSTR:
++				snprint(buf, sizeof(buf), "\"%Z\"", n->val.sval);
++				break;
++			case CTNIL:
++				snprint(buf, sizeof(buf), "(void*)0", n->val.sval);
++				break;
++			}
++			break;
++
++		case PTSTRING:
++			snprint(buf, sizeof(buf), "(_T_Z)&slit");
++			break;
++
++		}
++		break;
++	}
++
++out:
++	return fmtstrcpy(fp, buf);
++}
++
++char*
++thistypenam(Node *t)
++{
++	char *typ;
++	Node *n;
++
++	typ = "???";
++	if(t == N)
++		return typ;
++	n = getthisx(t);	// struct{field a *T}
++	if(n != N)
++		n = n->type;	// field a *T
++	if(n != N)
++		n = n->type;	// *T
++	if(n != N)
++		n = n->type;	// T
++	if(n != N && n->sym != S)
++		typ = n->sym->name;
++	return typ;
++}
++
++void
++dumpfunct(Plist *pl)
++{
++	Node *t;
++	char *pkg, *typ, *fun;
++
++	t = pl->name->type;
++	pkg = pl->name->sym->opackage;
++	fun = pl->name->sym->name;
++
++	if(t->thistuple > 0) {
++		typ = thistypenam(t);	// struct{field a *T}
++		Bprint(bout, "\n%C %s_%s_%s%lC", t, pkg, typ, fun, t);
++	} else {
++		Bprint(bout, "\n%C %s_%s%lC", t, pkg, fun, t);
++	}
++
++	Bprint(bout, "\n{\n");
++	doframe(pl->locals, "local");
++}
++
++void
++dumpmethods()
++{
++	Node *t;
++	char *pkg, *typ, *fun;
++	Plist *pl;
++
++	for(pl=plist; pl!=nil; pl=pl->link) {
++		t = pl->name->type;
++		if(t->thistuple > 0) {
++			pkg = pl->name->sym->opackage;
++			fun = pl->name->sym->name;
++			typ = thistypenam(t);
++			Bprint(bout, "\n%C %s_%s_%s%lC;\n", t, pkg, typ, fun, t);
++		}
++	}
++}
++
++static int
++sigcmp(Sig *a, Sig *b)
++{
++	return strcmp(a->fun, b->fun);
++}
++
++void
++dumpsignatures(void)
++{
++	Dcl *d;
++	Node *t, *f;
++	Sym *s1, *s;
++	char *pkg, *typ, *fun;
++	int et, o, any;
++	Sig *a, *b;
++
++	/* put all the names into a linked
++	 * list so that it may be generated in sorted order.
++	 * the runtime will be linear rather than quadradic
++	 */
++
++	any = 1;
++	for(d=externdcl; d!=D; d=d->forw) {
++		if(d->op != OTYPE)
++			continue;
++
++		t = d->dnode;
++		et = t->etype;
++		if(et != TSTRUCT && et != TINTER)
++			continue;
++
++		s = d->dsym;
++		if(s == S)
++			continue;
++
++		typ = s->name;
++		if(typ[0] == '_')
++			continue;
++
++		pkg = s->opackage;
++		if(pkg != package) {
++			if(et == TINTER)
++				Bprint(bout, "extern	_Sigi sig_%s_%s[];\n", pkg, typ);
++			else
++				Bprint(bout, "extern	_Sigs sig_%s_%s[];\n", pkg, typ);
++			continue;
++		}
++
++		a = nil;
++		o = 0;
++		for(f=t->type; f!=N; f=f->down) {
++			if(f->type->etype != TFUNC)
++				continue;
++
++			if(f->etype != TFIELD)
++				fatal("dumpsignatures: not field");
++
++			s1 = f->sym;
++			if(s1 == nil)
++				continue;
++			fun = s1->name;
++			if(fun[0] == '_')
++				continue;
++
++			b = mal(sizeof(*b));
++			b->link = a;
++			a = b;
++
++			a->fun = fun;
++			a->hash = PRIME8*stringhash(fun) + PRIME9*typehash(f->type, 0);
++			a->offset = o;
++			o++;
++		}
++
++		if(1 || et == TINTER || a != nil) {
++			if(any) {
++				Bprint(bout, "\n");
++				any = 0;
++			}
++
++			a = lsort(a, sigcmp);
++
++			if(et == TINTER) {
++				o = 0;
++				for(b=a; b!=nil; b=b->link)
++					o++;
++				Bprint(bout, "_Sigi sig_%s_%s[] =\n", pkg, typ);
++				Bprint(bout, "{\n");
++				Bprint(bout, "\t{ \"\", 0, %d}, // count\n", o);
++				for(b=a; b!=nil; b=b->link) {
++					Bprint(bout, "\t{ \"%s\", 0x%.8lux, %d},\n",
++						b->fun, b->hash, b->offset);
++				}
++			} else {
++				Bprint(bout, "_Sigs sig_%s_%s[] =\n", pkg, typ);
++				Bprint(bout, "{\n");
++				for(b=a; b!=nil; b=b->link) {
++					Bprint(bout, "\t{ \"%s\", 0x%.8lux, &%s_%s_%s },\n",
++						b->fun, b->hash, pkg, typ, b->fun);
++				}
++			}
++			Bprint(bout, "\t{ 0,0,0 }\n");
++			Bprint(bout, "};\n");
++		}
++	}
++}
++
++int
++istypstr(Node *t)
++{
++	if(t == N)
++		fatal("istypstr: t nil");
++	if(t->etype == TSTRUCT)
++		return 1;
++	return 0;
++}
++
++static int XXX = 0;
++static int YYY = 0;
++
++int
++alldefined(Node *t, int first)
++{
++	Node *t1;
++
++	if(t == N)
++		return 1;
++
++	if(t->op != OTYPE)
++		fatal("alldefined: not OTYPE: %O", t->op);
++
++	if(t->recur)
++		return 1;
++
++	if(!first && t->sym!=S && t->sym->undef != 0)
++		return 1;
++
++	t->recur++;
++
++	switch(t->etype) {
++	default:
++		// should be basic types
++		return 1;
++
++	case TPTR:
++	case TARRAY:
++	case TFIELD:
++		if(!alldefined(t->type, 0))
++			goto no;
++		break;
++
++	case TSTRUCT:
++	case TFUNC:
++		for(t1=t->type; t1!=N; t1=t1->down) {
++			if(!alldefined(t1, 0))
++				goto no;
++		}
++		break;
++	}
++
++	t->recur--;
++	return 1;
++
++no:
++	t->recur--;
++	return 0;
++}
++
++void
++doframe(Dcl *r, char *msg)
++{
++	Sym *s;
++	Dcl *d;
++	Node *n, *t;
++	int flag, pass, any;
++	char *tab, *nam, *pkg, *typ;
++
++	tab = "\t";
++	if(msg[0] != 'l')
++		tab = "";
++
++	// put out types
++	flag = 1;
++	typeexpand = 1;
++	for(pass=0;; pass++) {
++if(XXX)print("\npass %d\n\n", pass);
++		any = 0;
++		for(d=r; d!=D; d=d->forw) {
++			if(d->op != OTYPE)
++				continue;
++
++			if(flag) {
++				Bprint(bout, "\n%s// %s types\n", tab, msg);
++				flag = 0;
++			}
++
++			n = d->dnode;
++			nam = "???";
++			s = d->dsym;
++			if(s != S)
++				nam = s->name;
++
++			if(pass == 0) {
++				if(s != S)
++					s->undef = 0;
++				if(istypstr(n)) {
++					Bprint(bout, "%stypedef struct _T_%ld _T_%ld; // %s\n",
++						tab, n->vargen, n->vargen, nam);
++if(XXX)print("\t1 pass-%d ", pass);
++if(XXX)print("typedef struct _T_%ld _T_%ld; // %s\n", n->vargen, n->vargen, nam);
++				}
++				any = 1;
++				continue;
++			}
++
++if(XXX)if(s != S) print("looking at %s undef=%d: %lT\n", s->name, s->undef, n);
++
++			if(s != S && s->undef == 0 && alldefined(n, 1)) {
++if(XXX)print("\t2 pass-%d ", pass);
++				if(istypstr(n)) {
++					Bprint(bout, "%sstruct _T_%ld %hC; // %s\n",
++						tab, n->vargen, n, nam);
++if(XXX)print("struct _T_%ld %hC; // %s\n", n->vargen, n, nam);
++				} else {
++					if(n->etype != TFUNC)
++					Bprint(bout, "%stypedef %C _T_%ld%lC; // %s\n",
++						tab, n, n->vargen, n, nam);
++if(XXX)print("typedef %C _T_%ld%lC; // %s\n", n, n->vargen, n, nam);
++				}
++				s->undef = 1;
++				any = 1;
++			}
++		}
++		if(any)
++			continue;
++
++		for(d=r; d!=D; d=d->forw) {
++			if(d->op != OTYPE)
++				continue;
++			n = d->dnode;
++			s = d->dsym;
++			if(s != S) {
++				if(s->undef == 0)
++					fatal("doframe: couldnt resolve type %s %lT\n",
++						s->name, n);
++				continue;
++			}
++if(XXX)print("\t-3 pass-%d ", pass);
++			if(istypstr(n)) {
++				Bprint(bout, "%sstruct _T_%ld %hC;\n",
++					tab, n->vargen, n);
++if(XXX)print("struct _T_%ld %hC;\n", n->vargen, n);
++			} else {
++				Bprint(bout, "%stypedef %C _T_%ld%lC;\n",
++					tab, n, n->vargen, n);
++if(XXX)print("typedef %C _T_%ld%lC;\n", n, n->vargen, n);
++			}
++		}
++		break;
++	}
++	typeexpand = 0;
++
++	flag = 1;
++	for(d=r; d!=D; d=d->forw) {
++		if(d->op != ONAME)
++			continue;
++
++		if(flag) {
++			Bprint(bout, "\n%s// %s variables\n", tab, msg);
++			flag = 0;
++		}
++
++		nam = "???";
++		pkg = nam;
++		s = d->dsym;
++		if(s != S) {
++			nam = s->name;
++			pkg = s->opackage;
++		}
++
++		n = d->dnode;
++		t = n->type;
++		if(n->vargen != 0) {
++if(YYY) print("nam-1 %s\n", nam);
++			Bprint(bout, "%s%C _V_%ld%lC; // %s\n",
++				tab, t, n->vargen, t, nam);
++			continue;
++		}
++
++		if(t->etype == TFUNC && t->thistuple > 0) {
++if(YYY) print("nam-2 %s\n", nam);
++			typ = thistypenam(t);
++			Bprint(bout, "%s%C %s_%s_%s%lC;\n",
++				tab, t, pkg, typ, nam, t);
++			continue;
++		}
++
++if(YYY) print("nam-3 %E %s %lT\n", t->etype, nam, t);
++		Bprint(bout, "%s%C %s_%s%lC;\n",
++			tab, t, pkg, nam, t);
++	}
++}
++
++/*
++ * open the frame
++ * declare dummy this/in/out args
++ */
++void
++docall1(Prog *p)
++{
++	Node *f, *t, *n;
++
++	if(p->addr.type != ANODE)
++		goto bad;
++
++	f = p->addr.node;
++	if(f == N)
++		goto bad;
++	t = f->type;
++	if(t == N)
++		goto bad;
++	if(t->etype == TPTR)
++		t = t->type;
++	if(t->etype != TFUNC)
++		goto bad;
++
++	Bprint(bout, "\t{\n");		// open a block - closed in CALL2/CALL3
++
++	if(t->thistuple > 0) {
++		n = *getthis(t);
++		if(n->nname == N)
++			goto bad;
++		Bprint(bout, "\t\t_T_%ld _V_%ld; // %S\n", n->vargen, n->nname->vargen, n->sym);
++	}
++	if(t->outtuple > 0) {
++		n  = *getoutarg(t);
++		if(n->nname == N)
++			goto bad;
++		Bprint(bout, "\t\t_T_%ld _V_%ld; // %S\n", n->vargen, n->nname->vargen, n->sym);
++	}
++	if(t->intuple > 0) {
++		n = *getinarg(t);
++		if(n->nname == N)
++			goto bad;
++		Bprint(bout, "\t\t_T_%ld _V_%ld; // %S\n", n->vargen, n->nname->vargen, n->sym);
++	}
++
++	return;
++
++bad:
++	fatal("docall1: bad %P", p);
++}
++
++/*
++ * call the function
++ */
++void
++docall2(Prog *p)
++{
++	Node *f, *t, *n;
++
++	if(p->addr.type != ANODE)
++		goto bad;
++	f = p->addr.node;
++	if(f == N)
++		goto bad;
++	t = f->type;
++	if(t == N || t->etype != TFUNC)
++		goto bad;
++
++	Bprint(bout, "\t%D(", p);
++
++	if(t->thistuple > 0) {
++		n  = *getthis(t);
++		Bprint(bout, "&_V_%ld", n->nname->vargen);
++	} else
++		Bprint(bout, "0");
++
++	if(t->outtuple > 0) {
++		n  = *getoutarg(t);
++		Bprint(bout, ", &_V_%ld", n->nname->vargen);
++	} else
++		Bprint(bout, ", 0");
++
++	if(t->intuple > 0) {
++		n  = *getinarg(t);
++		Bprint(bout, ", &_V_%ld);\n", n->nname->vargen);
++	} else
++		Bprint(bout, ", 0);\n");
++
++	return;
++
++bad:
++	fatal("docall2: bad");
++}
++
++/*
++ * call the function indirect
++ */
++void
++docalli2(Prog *p)
++{
++	Node *f, *t, *n;
++
++	if(p->addr.type != ANODE)
++		goto bad;
++	f = p->addr.node;
++	if(f == N)
++		goto bad;
++	t = f->type;
++	if(t == N || t->etype != TPTR)
++		goto bad;
++	t = t->type;
++	if(t->etype != TFUNC)
++		goto bad;
++
++	// pass one -- declare the prototype
++	if(t->outtuple > 0) {
++		n  = *getoutarg(t);
++		Bprint(bout, "\t(*(void(*)(void*, _T_%ld*", n->vargen);
++	} else
++		Bprint(bout, "\t(*(void(*)(void*, void*");
++
++	if(t->intuple > 0) {
++		n  = *getinarg(t);
++		Bprint(bout, ", _T_%ld*)", n->vargen);
++	} else
++		Bprint(bout, ", void*)");
++
++	// pass two -- pass the arguments
++	if(t->outtuple > 0) {
++		n  = *getoutarg(t);
++		Bprint(bout, ")%R)(0, &_V_%ld", PTPTR, n->nname->vargen);
++	} else
++		Bprint(bout, ")%R)(0, 0", PTPTR);
++
++	if(t->intuple > 0) {
++		n  = *getinarg(t);
++		Bprint(bout, ", &_V_%ld);\n", n->nname->vargen);
++	} else
++		Bprint(bout, ", 0);\n");
++
++	return;
++
++bad:
++	fatal("docalli2: bad");
++}
++
++/*
++ * call the method
++ */
++void
++docallm2(Prog *p)
++{
++	Node *f, *t, *n;
++	char *pkg, *typ, *nam;
++
++	if(p->addr.type != ANODE)
++		goto bad;
++	f = p->addr.node;
++	if(f == N || f->op != ODOTMETH)
++		goto bad;
++	t = f->type;
++	if(t == N || t->etype != TFUNC)
++		goto bad;
++
++	nam = "???";
++	pkg = nam;
++	typ = nam;
++
++	// get the structure name
++	n = f->left;
++	if(n != N)
++		n = n->type;
++	if(n->op == OTYPE && n->etype == TPTR)
++		n = n->type;
++	if(n->sym != S) {
++		typ = n->sym->name;
++		pkg = n->sym->opackage;
++	}
++
++	// get the function name
++	n = f->right;
++	if(n != N && n->op == ONAME && n->sym != S)
++		nam = n->sym->name;
++
++	Bprint(bout, "\t%s_%s_%s(%R", pkg, typ, nam, PTPTR);
++
++	if(t->outtuple > 0) {
++		n  = *getoutarg(t);
++		Bprint(bout, ", (void*)&_V_%ld", n->nname->vargen);
++	} else
++		Bprint(bout, ", 0");
++
++	if(t->intuple > 0) {
++		n  = *getinarg(t);
++		Bprint(bout, ", (void*)&_V_%ld);\n", n->nname->vargen);
++	} else
++		Bprint(bout, ", 0);\n");
++
++	return;
++
++bad:
++	fatal("docallm2: bad");
++}
++
++/*
++ * call the interface method
++ */
++void
++docallf2(Prog *p)
++{
++	Node *f, *t, *n;
++	int offset;
++
++	if(p->addr.type != ANODE)
++		goto bad;
++	f = p->addr.node;
++	if(f == N || f->op != ODOTINTER)
++		goto bad;
++	t = f->type;
++	if(t == N || t->etype != TFUNC)
++		goto bad;
++
++	offset = 0;
++
++	Bprint(bout, "\t(_U._R_I.m->fun[%d])(_U._R_I.s", f->kaka);
++
++	if(t->outtuple > 0) {
++		n  = *getoutarg(t);
++		Bprint(bout, ", (void*)&_V_%ld", n->nname->vargen);
++	} else
++		Bprint(bout, ", 0");
++
++	if(t->intuple > 0) {
++		n  = *getinarg(t);
++		Bprint(bout, ", (void*)&_V_%ld);\n", n->nname->vargen);
++	} else
++		Bprint(bout, ", 0);\n");
++
++	return;
++
++bad:
++	fatal("docallf2: bad");
++}
++
++/*
++ * close the frame
++ */
++void
++docall3(Prog *p)
++{
++	Bprint(bout, "\t}\n");
++}
++
++char*
++signame(Node *t)
++{
++// this code sb merged with thistypename
++	static char name[100];
++	char *typ, *pkg;
++
++	typ = "???";
++	pkg = typ;
++
++	if(t == N || t->op != OTYPE)
++		goto out;
++
++	if(t->etype == TPTR) {
++		t = t->type;
++		if(t == N)
++			goto out;
++	}
++	if(t->sym == S)
++		goto out;
++	typ = t->sym->name;
++	pkg = t->sym->opackage;	// this may not be correct
++
++out:
++	snprint(name, sizeof(name), "sig_%s_%s", pkg, typ);
++	return name;
++}
++
++void
++doconv(Prog *p)
++{
++	Node *n, *tl, *tr;
++	int l, pt;
++
++	if(p->pt != PTNIL) {
++		Bprint(bout, "\t%R = %R;\n", p->pt, p->pt1);
++		return;
++	}
++
++	n = p->addr.node;
++	if(p->addr.type != ANODE || n == N || n->op != OCONV)
++		fatal("doconv: PCONV-N not OCONV");
++
++	tl = n->left;
++	tr = n->right;
++
++	if(isinter(tl)) {
++		if(isptrto(tr, TSTRUCT)) {
++			Bprint(bout, "\tconvertStoI(%s, ", signame(tl));
++			Bprint(bout, "%s); // _U._R_I = _U._R_P\n",
++				signame(tr));
++			return;
++		}
++		if(isinter(tr)) {
++			Bprint(bout, "\tconvertItoI(%s); // _U._R_I = _U._R_I\n",
++				signame(tl));
++			return;
++		}
++	}
++	if(isptrto(tl, TSTRUCT) && isinter(tr)) {
++		Bprint(bout, "\t%R = %R.s;\n", TPTR, PTINTER);
++		return;
++	}
++	if(isint[tl->etype] || isfloat[tl->etype]) {
++		if(isint[tr->etype] || isfloat[tr->etype]) {
++			Bprint(bout, "\t%R = %R;\n", conv2pt(tl), conv2pt(tr));
++			return;
++		}
++	}
++
++	if(isptrto(tl, TSTRING)) {
++		if(isint[tr->etype]) {
++			Bprint(bout, "\tconvertItoZ(%R);\n", conv2pt(tr));
++			return;
++		}
++		l = isbytearray(tr);
++		if(l > 0) {
++			pt = PTADDR;
++			if(tr->etype == TPTR)
++				pt = TPTR;
++			Bprint(bout, "\tconvertBtoZ(%R, %d);\n", pt, l-1);
++			return;
++		}
++	}
++
++	fatal("doconv: %T = %T", tl, tr);
++}
++
++char*
++getfmt(int pt)
++{
++	switch(pt) {
++	default:
++		return "D";
++
++	case PTUINT8:
++	case PTUINT16:
++	case PTUINT32:
++	case PTUINT64:
++		return "UD";
++
++	case PTFLOAT32:
++	case PTFLOAT64:
++	case PTFLOAT80:
++		return "F";
++
++	case PTSTRING:
++		return "Z";
++	}
++}
+diff --git a/src/c/subr.c b/src/c/subr.c
+new file mode 100644
+index 0000000000..052179c9ed
+--- /dev/null
++++ b/src/c/subr.c
+@@ -0,0 +1,1472 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include	"go.h"
++#include	"y.tab.h"
++
++void
++errorexit(void)
++{
++	if(outfile)
++		remove(outfile);
++	myexit(1);
++}
++
++void
++myexit(int x)
++{
++	if(x)
++		exits("error");
++	exits(nil);
++}
++
++void
++yyerror(char *fmt, ...)
++{
++	va_list arg;
++	long lno;
++
++	lno = dynlineno;
++	if(lno == 0)
++		lno = curio.lineno;
++
++	print("%s:%ld: ", curio.infile, lno);
++	va_start(arg, fmt);
++	vfprint(1, fmt, arg);
++	va_end(arg);
++	print("\n");
++	if(debug['h'])
++		*(int*)0 = 0;
++
++	nerrors++;
++	if(nerrors >= 10)
++		fatal("too many errors");
++}
++
++void
++warn(char *fmt, ...)
++{
++	va_list arg;
++	long lno;
++
++	lno = dynlineno;
++	if(lno == 0)
++		lno = curio.lineno;
++
++	print("%s:%ld: ", curio.infile, lno);
++	va_start(arg, fmt);
++	vfprint(1, fmt, arg);
++	va_end(arg);
++	print("\n");
++	if(debug['h'])
++		*(int*)0 = 0;
++}
++
++void
++fatal(char *fmt, ...)
++{
++	va_list arg;
++	long lno;
++
++	lno = dynlineno;
++	if(lno == 0)
++		lno = curio.lineno;
++
++	print("%s:%ld: fatal error: ", curio.infile, lno);
++	va_start(arg, fmt);
++	vfprint(1, fmt, arg);
++	va_end(arg);
++	print("\n");
++	if(debug['h'])
++		*(int*)0 = 0;
++	myexit(1);
++}
++
++ulong
++stringhash(char *p)
++{
++	long h;
++	int c;
++
++	h = 0;
++	for(;;) {
++		c = *p++;
++		if(c == 0)
++			break;
++		h = h*PRIME1 + c;
++	}
++
++	if(h < 0) {
++		h = -h;
++		if(h < 0)
++			h = 0;
++	}
++	return h;
++}
++
++Sym*
++lookup(char *p)
++{
++	Sym *s;
++	ulong h;
++	int c;
++
++	h = stringhash(p) % NHASH;
++	c = p[0];
++
++	for(s = hash[h]; s != S; s = s->link) {
++		if(s->name[0] != c)
++			continue;
++		if(strcmp(s->name, p) == 0)
++			if(strcmp(s->package, package) == 0)
++				return s;
++	}
++
++	s = mal(sizeof(*s));
++	s->lexical = LNAME;
++	s->name = mal(strlen(p)+1);
++	s->opackage = package;
++	s->package = package;
++
++	strcpy(s->name, p);
++
++	s->link = hash[h];
++	hash[h] = s;
++
++	return s;
++}
++
++Sym*
++pkglookup(char *p, char *k)
++{
++	Sym *s;
++	ulong h;
++	int c;
++
++	h = stringhash(p) % NHASH;
++	c = p[0];
++	for(s = hash[h]; s != S; s = s->link) {
++		if(s->name[0] != c)
++			continue;
++		if(strcmp(s->name, p) == 0)
++			if(strcmp(s->package, k) == 0)
++				return s;
++	}
++
++	s = mal(sizeof(*s));
++	s->lexical = LNAME;
++	s->name = mal(strlen(p)+1);
++	strcpy(s->name, p);
++
++	s->package = mal(strlen(k)+1);
++	s->opackage = s->package;
++	strcpy(s->package, k);
++
++	s->link = hash[h];
++	hash[h] = s;
++
++	return s;
++}
++
++void
++gethunk(void)
++{
++	char *h;
++	long nh;
++
++	nh = NHUNK;
++	if(thunk >= 10L*NHUNK)
++		nh = 10L*NHUNK;
++	h = (char*)malloc(nh);
++	if(h == (char*)-1) {
++		yyerror("out of memory");
++		errorexit();
++	}
++	hunk = h;
++	nhunk = nh;
++	thunk += nh;
++}
++
++void*
++mal(long n)
++{
++	void *p;
++
++	while((ulong)hunk & MAXALIGN) {
++		hunk++;
++		nhunk--;
++	}
++	while(nhunk < n)
++		gethunk();
++
++	p = hunk;
++	nhunk -= n;
++	hunk += n;
++	memset(p, 0, n);
++	return p;
++}
++
++void*
++remal(void *p, long on, long n)
++{
++	void *q;
++
++	q = (uchar*)p + on;
++	if(q != hunk || nhunk < n) {
++		while(nhunk < on+n)
++			gethunk();
++		memmove(hunk, p, on);
++		p = hunk;
++		hunk += on;
++		nhunk -= on;
++	}
++	hunk += n;
++	nhunk -= n;
++	return p;
++}
++
++Dcl*
++dcl(void)
++{
++	Dcl *d;
++
++	d = mal(sizeof(*d));
++	d->lineno = dynlineno;
++	return d;
++}
++
++Node*
++nod(int op, Node *nleft, Node *nright)
++{
++	Node *n;
++
++	n = mal(sizeof(*n));
++	n->op = op;
++	n->left = nleft;
++	n->right = nright;
++	n->lineno = dynlineno;
++	if(dynlineno == 0)
++		n->lineno = curio.lineno;
++	return n;
++}
++
++Node*
++dobad(void)
++{
++	return nod(OBAD, N, N);
++}
++
++Node*
++rev(Node *na)
++{
++	Node *i, *n;
++
++	/*
++	 * since yacc wants to build lists
++	 * stacked down on the left -
++	 * this routine converts them to
++	 * stack down on the right -
++	 * in memory without recursion
++	 */
++
++	if(na == N || na->op != OLIST)
++		return na;
++	i = na;
++	for(n = na->left; n != N; n = n->left) {
++		if(n->op != OLIST)
++			break;
++		i->left = n->right;
++		n->right = i;
++		i = n;
++	}
++	i->left = n;
++	return i;
++}
++
++Node*
++unrev(Node *na)
++{
++	Node *i, *n;
++
++	/*
++	 * this restores a reverse list
++	 */
++	if(na == N || na->op != OLIST)
++		return na;
++	i = na;
++	for(n = na->right; n != N; n = n->right) {
++		if(n->op != OLIST)
++			break;
++		i->right = n->left;
++		n->left = i;
++		i = n;
++	}
++	i->right = n;
++	return i;
++}
++
++Node*
++aindex(Node *b, Node *t)
++{
++	Node *r;
++
++	r = nod(OTYPE, N, N);
++	r->type = t;
++	r->etype = TARRAY;
++
++	if(t->etype == TDARRAY)
++		yyerror("dynamic array type cannot be a dynamic array");
++
++	walktype(b, 0);
++	switch(whatis(b)) {
++	default:
++		yyerror("array bound must be a constant integer expression");
++		break;
++
++	case Wnil:	// default zero lb
++		r->bound = 0;
++		break;
++
++	case Wlitint:	// fixed lb
++		r->bound = b->val.vval;
++		break;
++	}
++	return r;
++}
++
++void
++indent(int dep)
++{
++	int i;
++
++	for(i=0; i<dep; i++)
++		print(".   ");
++}
++
++void
++dodump(Node *n, int dep)
++{
++
++loop:
++	if(n == N)
++		return;
++
++	switch(n->op) {
++	case OLIST:
++		if(n->left != N && n->left->op == OLIST)
++			dodump(n->left, dep+1);
++		else
++			dodump(n->left, dep);
++		n = n->right;
++		goto loop;
++
++	case ODCLFUNC:
++		dodump(n->nname, dep);
++		if(n->this) {
++			indent(dep);
++			print("%O-this\n", n->op);
++			dodump(n->this, dep+1);
++		}
++		if(n->argout) {
++			indent(dep);
++			print("%O-outarg\n", n->op);
++			dodump(n->argout, dep+1);
++		}
++		if(n->argin) {
++			indent(dep);
++			print("%O-inarg\n", n->op);
++			dodump(n->argin, dep+1);
++		}
++		n = n->nbody;
++		goto loop;
++
++	case OIF:
++	case OSWITCH:
++	case OFOR:
++		dodump(n->ninit, dep);
++		break;
++	}
++
++	indent(dep);
++	if(dep > 10) {
++		print("...\n");
++		return;
++	}
++
++	switch(n->op) {
++	default:
++		print("%N\n", n);
++		break;
++
++	case OTYPE:
++		print("%O-%E %lT\n", n->op, n->etype, n);
++		break;
++
++	case OIF:
++		print("%O%J\n", n->op, n);
++		dodump(n->ntest, dep+1);
++		if(n->nbody != N) {
++			indent(dep);
++			print("%O-then\n", n->op);
++			dodump(n->nbody, dep+1);
++		}
++		if(n->nelse != N) {
++			indent(dep);
++			print("%O-else\n", n->op);
++			dodump(n->nelse, dep+1);
++		}
++		return;
++
++	case OSWITCH:
++	case OFOR:
++		print("%O%J\n", n->op, n);
++		dodump(n->ntest, dep+1);
++
++		if(n->nbody != N) {
++			indent(dep);
++			print("%O-body\n", n->op);
++			dodump(n->nbody, dep+1);
++		}
++
++		if(n->nincr != N) {
++			indent(dep);
++			print("%O-incr\n", n->op);
++			dodump(n->nincr, dep+1);
++		}
++		return;
++
++	case OCASE:
++		// the right side points to the next case
++		print("%O%J\n", n->op, n);
++		dodump(n->left, dep+1);
++		return;
++	}
++
++	dodump(n->left, dep+1);
++	n = n->right;
++	dep++;
++	goto loop;
++}
++
++void
++dump(char *s, Node *n)
++{
++	print("%s\n", s);
++	dodump(n, 1);
++}
++
++int
++whatis(Node *n)
++{
++	Node *t;
++
++	if(n == N)
++		return Wnil;
++
++	if(n->op == OLITERAL) {
++		switch(n->val.ctype) {
++		default:
++			break;
++		case CTINT:
++		case CTSINT:
++		case CTUINT:
++			return Wlitint;
++		case CTFLT:
++			return Wlitfloat;
++		case CTBOOL:
++			return Wlitbool;
++		case CTSTR:
++			return Wlitstr;
++		}
++		return Wtunkn;
++	}
++
++	t = n->type;
++	if(t == N)
++		return Wtnil;
++
++	switch(t->etype) {
++	case TINT8:
++	case TINT16:
++	case TINT32:
++	case TINT64:
++	case TUINT8:
++	case TUINT16:
++	case TUINT32:
++	case TUINT64:
++		return Wtint;
++	case TFLOAT32:
++	case TFLOAT64:
++	case TFLOAT80:
++		return Wtfloat;
++	case TBOOL:
++		return Wtbool;
++
++	case TPTR:
++		if(isptrto(t, TSTRING))
++			return Wtstr;
++		break;
++	}
++	return Wtunkn;
++}
++
++/*
++s%,%,\n%g
++s%\n+%\n%g
++s%^[ 	]*O%%g
++s%,.*%%g
++s%.+%	[O&]		= "&",%g
++s%^	........*\]%&~%g
++s%~	%%g
++*/
++
++static char*
++opnames[] =
++{
++	[OADDR]		= "ADDR",
++	[OADD]		= "ADD",
++	[OANDAND]	= "ANDAND",
++	[OAND]		= "AND",
++	[OARRAY]	= "ARRAY",
++	[OASOP]		= "ASOP",
++	[OAS]		= "AS",
++	[OBAD]		= "BAD",
++	[OBREAK]	= "BREAK",
++	[OCALL]		= "CALL",
++	[OCALLPTR]	= "CALLPTR",
++	[OCALLMETH]	= "CALLMETH",
++	[OCALLINTER]	= "CALLINTER",
++	[OCAT]		= "CAT",
++	[OCASE]		= "CASE",
++	[OXCASE]	= "XCASE",
++	[OFALL]		= "FALL",
++	[OCONV]		= "CONV",
++	[OCOLAS]	= "COLAS",
++	[OCOM]		= "COM",
++	[OCONST]	= "CONST",
++	[OCONTINUE]	= "CONTINUE",
++	[ODCLARG]	= "DCLARG",
++	[ODCLCONST]	= "DCLCONST",
++	[ODCLFIELD]	= "DCLFIELD",
++	[ODCLFUNC]	= "DCLFUNC",
++	[ODCLTYPE]	= "DCLTYPE",
++	[ODCLVAR]	= "DCLVAR",
++	[ODIV]		= "DIV",
++	[ODOT]		= "DOT",
++	[ODOTPTR]	= "DOTPTR",
++	[ODOTMETH]	= "DOTMETH",
++	[ODOTINTER]	= "DOTINTER",
++	[OEMPTY]	= "EMPTY",
++	[OEND]		= "END",
++	[OEQ]		= "EQ",
++	[OFOR]		= "FOR",
++	[OFUNC]		= "FUNC",
++	[OGE]		= "GE",
++	[OPROC]		= "PROC",
++	[OGOTO]		= "GOTO",
++	[OGT]		= "GT",
++	[OIF]		= "IF",
++	[OINDEX]	= "INDEX",
++	[OINDEXPTR]	= "INDEXPTR",
++	[OINDEXSTR]	= "INDEXSTR",
++	[OINDEXMAP]	= "INDEXMAP",
++	[OINDEXPTRMAP]	= "INDEXPTRMAP",
++	[OIND]		= "IND",
++	[OLABEL]	= "LABEL",
++	[OLE]		= "LE",
++	[OLEN]		= "LEN",
++	[OLIST]		= "LIST",
++	[OLITERAL]	= "LITERAL",
++	[OLSH]		= "LSH",
++	[OLT]		= "LT",
++	[OMINUS]	= "MINUS",
++	[OMOD]		= "MOD",
++	[OMUL]		= "MUL",
++	[ONAME]		= "NAME",
++	[ONE]		= "NE",
++	[ONOT]		= "NOT",
++	[OOROR]		= "OROR",
++	[OOR]		= "OR",
++	[OPLUS]		= "PLUS",
++	[ODEC]		= "DEC",
++	[OINC]		= "INC",
++	[OSEND]		= "SEND",
++	[ORECV]		= "RECV",
++	[OPTR]		= "PTR",
++	[ORETURN]	= "RETURN",
++	[ORSH]		= "RSH",
++	[OSLICE]	= "SLICE",
++	[OSUB]		= "SUB",
++	[OSWITCH]	= "SWITCH",
++	[OTYPE]		= "TYPE",
++	[OVAR]		= "VAR",
++	[OEXPORT]	= "EXPORT",
++	[OIMPORT]	= "IMPORT",
++	[OXOR]		= "XOR",
++	[ONEW]		= "NEW",
++	[OFALL]		= "FALL",
++	[OXFALL]	= "XFALL",
++	[OPANIC]	= "PANIC",
++	[OPRINT]	= "PRINT",
++	[OXXX]		= "XXX",
++};
++
++int
++Oconv(Fmt *fp)
++{
++	char buf[500];
++	int o;
++
++	o = va_arg(fp->args, int);
++	if(o < 0 || o >= nelem(opnames) || opnames[o] == nil) {
++		snprint(buf, sizeof(buf), "O-%d", o);
++		return fmtstrcpy(fp, buf);
++	}
++	return fmtstrcpy(fp, opnames[o]);
++}
++
++/*
++s%,%,\n%g
++s%\n+%\n%g
++s%^[ 	]*T%%g
++s%,.*%%g
++s%.+%	[T&]		= "&",%g
++s%^	........*\]%&~%g
++s%~	%%g
++*/
++
++static char*
++etnames[] =
++{
++	[TINT8]		= "INT8",
++	[TUINT8]	= "UINT8",
++	[TINT16]	= "INT16",
++	[TUINT16]	= "UINT16",
++	[TINT32]	= "INT32",
++	[TUINT32]	= "UINT32",
++	[TINT64]	= "INT64",
++	[TUINT64]	= "UINT64",
++	[TFLOAT32]	= "FLOAT32",
++	[TFLOAT64]	= "FLOAT64",
++	[TFLOAT80]	= "FLOAT80",
++	[TBOOL]		= "BOOL",
++	[TPTR]		= "PTR",
++	[TFUNC]		= "FUNC",
++	[TARRAY]	= "ARRAY",
++	[TDARRAY]	= "DARRAY",
++	[TSTRUCT]	= "STRUCT",
++	[TCHAN]		= "CHAN",
++	[TMAP]		= "MAP",
++	[TINTER]	= "INTER",
++	[TFORW]		= "FORW",
++	[TFIELD]	= "FIELD",
++	[TSTRING]	= "STRING",
++	[TCHAN]		= "CHAN",
++};
++
++int
++Econv(Fmt *fp)
++{
++	char buf[500];
++	int et;
++
++	et = va_arg(fp->args, int);
++	if(et < 0 || et >= nelem(etnames) || etnames[et] == nil) {
++		snprint(buf, sizeof(buf), "E-%d", et);
++		return fmtstrcpy(fp, buf);
++	}
++	return fmtstrcpy(fp, etnames[et]);
++}
++
++int
++Jconv(Fmt *fp)
++{
++	char buf[500], buf1[100];
++	Node *n;
++
++	n = va_arg(fp->args, Node*);
++	strcpy(buf, "");
++
++	if(n->ullman != 0) {
++		snprint(buf1, sizeof(buf1), " u(%d)", n->ullman);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
++	if(n->addable != 0) {
++		snprint(buf1, sizeof(buf1), " a(%d)", n->addable);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
++	if(n->vargen != 0) {
++		snprint(buf1, sizeof(buf1), " g(%ld)", n->vargen);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
++	if(n->lineno != 0) {
++		snprint(buf1, sizeof(buf1), " l(%ld)", n->lineno);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
++	return fmtstrcpy(fp, buf);
++}
++
++int
++Gconv(Fmt *fp)
++{
++	char buf[100];
++	Node *t;
++
++	t = va_arg(fp->args, Node*);
++
++	if(t->etype == TFUNC) {
++		if(t->vargen != 0) {
++			snprint(buf, sizeof(buf), "-%d%d%d g(%ld)",
++				t->thistuple, t->outtuple, t->intuple, t->vargen);
++			goto out;
++		}
++		snprint(buf, sizeof(buf), "-%d%d%d",
++			t->thistuple, t->outtuple, t->intuple);
++		goto out;
++	}
++	if(t->vargen != 0) {
++		snprint(buf, sizeof(buf), " g(%ld)", t->vargen);
++		goto out;
++	}
++	strcpy(buf, "");
++
++out:
++	return fmtstrcpy(fp, buf);
++}
++
++int
++Sconv(Fmt *fp)
++{
++	char buf[500];
++	Sym *s;
++	char *opk, *pkg, *nam;
++
++	s = va_arg(fp->args, Sym*);
++	if(s == S) {
++		snprint(buf, sizeof(buf), "<S>");
++		goto out;
++	}
++
++	pkg = "<nil>";
++	nam = pkg;
++	opk = pkg;
++
++	if(s->opackage != nil)
++		opk = s->opackage;
++	if(s->package != nil)
++		pkg = s->package;
++	if(s->name != nil)
++		nam = s->name;
++
++	if(strcmp(pkg, package) || strcmp(opk, package) || (fp->flags & FmtLong)) {
++		if(strcmp(opk, pkg) == 0) {
++			snprint(buf, sizeof(buf), "%s.%s", pkg, nam);
++			goto out;
++		}
++		snprint(buf, sizeof(buf), "(%s)%s.%s", opk, pkg, nam);
++		goto out;
++	}
++	snprint(buf, sizeof(buf), "%s", nam);
++
++out:
++	return fmtstrcpy(fp, buf);
++}
++
++int
++Tconv(Fmt *fp)
++{
++	char buf[500], buf1[500];
++	Node *t, *t1;
++	int et;
++
++	t = va_arg(fp->args, Node*);
++	if(t == N)
++		return fmtstrcpy(fp, "<T>");
++
++	t->trecur++;
++	if(t->op != OTYPE) {
++		snprint(buf, sizeof(buf), "T-%O", t->op);
++		goto out;
++	}
++	et = t->etype;
++
++	strcpy(buf, "");
++	if(t->sym != S) {
++		snprint(buf, sizeof(buf), "<%S>", t->sym);
++	}
++	if(t->trecur > 5) {
++		strncat(buf, "...", sizeof(buf));
++		goto out;
++	}
++
++	switch(et) {
++	default:
++		snprint(buf1, sizeof(buf1), "%E", et);
++		strncat(buf, buf1, sizeof(buf));
++		if(t->type != N) {
++			snprint(buf1, sizeof(buf1), " %T", t->type);
++			strncat(buf, buf1, sizeof(buf));
++		}
++		break;
++
++	case TFIELD:
++		snprint(buf1, sizeof(buf1), "%T", t->type);
++		strncat(buf, buf1, sizeof(buf));
++		break;
++
++	case TFUNC:
++		snprint(buf1, sizeof(buf1), "%d%d%d(%lT,%lT,%lT)",
++			t->thistuple, t->outtuple, t->intuple,
++			t->type, t->type->down, t->type->down->down);
++		strncat(buf, buf1, sizeof(buf));
++		break;
++
++	case TINTER:
++		strncat(buf, "I{", sizeof(buf));
++		if(fp->flags & FmtLong) {
++			for(t1=t->type; t1!=N; t1=t1->down) {
++				snprint(buf1, sizeof(buf1), "%T;", t1);
++				strncat(buf, buf1, sizeof(buf));
++			}
++		}
++		strncat(buf, "}", sizeof(buf));
++		break;
++
++	case TSTRUCT:
++		strncat(buf, "{", sizeof(buf));
++		if(fp->flags & FmtLong) {
++			for(t1=t->type; t1!=N; t1=t1->down) {
++				snprint(buf1, sizeof(buf1), "%T;", t1);
++				strncat(buf, buf1, sizeof(buf));
++			}
++		}
++		strncat(buf, "}", sizeof(buf));
++		break;
++
++	case TMAP:
++		snprint(buf, sizeof(buf), "[%T]%T", t->down, t->type);
++		break;
++
++	case TARRAY:
++		snprint(buf1, sizeof(buf1), "[%ld]%T", t->bound, t->type);
++		strncat(buf, buf1, sizeof(buf));
++		break;
++
++	case TDARRAY:
++		snprint(buf1, sizeof(buf1), "[]%T", t->type);
++		strncat(buf, buf1, sizeof(buf));
++		break;
++
++	case TPTR:
++		snprint(buf1, sizeof(buf1), "*%T", t->type);
++		strncat(buf, buf1, sizeof(buf));
++		break;
++	}
++
++out:
++	t->trecur--;
++	return fmtstrcpy(fp, buf);
++}
++
++int
++Nconv(Fmt *fp)
++{
++	char buf[500], buf1[500];
++	Node *n;
++
++	n = va_arg(fp->args, Node*);
++	if(n == N) {
++		snprint(buf, sizeof(buf), "<N>");
++		goto out;
++	}
++
++	switch(n->op) {
++	default:
++		snprint(buf, sizeof(buf), "%O%J", n->op, n);
++		break;
++
++	case ONAME:
++		if(n->sym == S) {
++			snprint(buf, sizeof(buf), "%O%J", n->op, n);
++			break;
++		}
++		snprint(buf, sizeof(buf), "%O-%S G%ld%J", n->op,
++			n->sym, n->sym->vargen, n);
++		goto ptyp;
++
++	case OLITERAL:
++		switch(n->val.ctype) {
++		default:
++			snprint(buf1, sizeof(buf1), "LITERAL-%d", n->val.ctype);
++			break;
++		case CTINT:
++			snprint(buf1, sizeof(buf1), "I%lld", n->val.vval);
++			break;
++		case CTSINT:
++			snprint(buf1, sizeof(buf1), "S%lld", n->val.vval);
++			break;
++		case CTUINT:
++			snprint(buf1, sizeof(buf1), "U%lld", n->val.vval);
++			break;
++		case CTFLT:
++			snprint(buf1, sizeof(buf1), "F%g", n->val.dval);
++			break;
++		case CTSTR:
++			snprint(buf1, sizeof(buf1), "S\"%Z\"", n->val.sval);
++			break;
++		case CTBOOL:
++			snprint(buf1, sizeof(buf1), "B%lld", n->val.vval);
++			break;
++		case CTNIL:
++			snprint(buf1, sizeof(buf1), "N");
++			break;
++		}
++		snprint(buf, sizeof(buf1), "%O-%s%J", n->op, buf1, n);
++		break;
++		
++	case OASOP:
++		snprint(buf, sizeof(buf), "%O-%O%J", n->op, n->kaka, n);
++		break;
++
++	case OTYPE:
++		snprint(buf, sizeof(buf), "%O-%E%J", n->op, n->etype, n);
++		break;
++	}
++	if(n->sym != S) {
++		snprint(buf1, sizeof(buf1), " %S G%ld", n->sym, n->sym->vargen);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
++ptyp:
++	if(n->type != N) {
++		snprint(buf1, sizeof(buf1), " %T", n->type);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
++out:
++	return fmtstrcpy(fp, buf);
++}
++
++int
++Zconv(Fmt *fp)
++{
++	uchar *s, *se;
++	char *p;
++	char buf[500];
++	int c;
++	String *sp;
++
++	sp = va_arg(fp->args, String*);
++	if(sp == nil) {
++		snprint(buf, sizeof(buf), "<nil>");
++		goto out;
++	}
++	s = sp->s;
++	se = s + sp->len;
++
++	p = buf;
++
++loop:
++	c = *s++;
++	if(s > se)
++		c = 0;
++	switch(c) {
++	default:
++		*p++ = c;
++		break;
++	case 0:
++		*p = 0;
++		goto out;
++	case '\t':
++		*p++ = '\\';
++		*p++ = 't';
++		break;
++	case '\n':
++		*p++ = '\\';
++		*p++ = 'n';
++		break;
++	}
++	goto loop;	
++
++out:
++	return fmtstrcpy(fp, buf);
++}
++
++int
++isptrto(Node *t, int et)
++{
++	if(t == N)
++		return 0;
++	if(t->etype != TPTR)
++		return 0;
++	t = t->type;
++	if(t == N)
++		return 0;
++	if(t->etype != et)
++		return 0;
++	return 1;
++}
++
++int
++isinter(Node *t)
++{
++	if(t != N && t->etype == TINTER)
++		return 1;
++	return 0;
++}
++
++int
++isbytearray(Node *t)
++{
++	if(t == N)
++		return 0;
++	if(t->etype == TPTR) {
++		t = t->type;
++		if(t == N)
++			return 0;
++	}
++	if(t->etype != TARRAY)
++		return 0;
++	return t->bound+1;
++}
++
++int
++eqtype(Node *t1, Node *t2, int d)
++{
++	if(d >= 10)
++		return 1;
++
++	if(t1 == t2)
++		return 1;
++	if(t1 == N || t2 == N)
++		return 0;
++	if(t1->op != OTYPE || t2->op != OTYPE)
++		fatal("eqtype: oops %O %O", t1->op, t2->op);
++
++	if(t1->etype != t2->etype)
++		return 0;
++
++	switch(t1->etype) {
++	case TINTER:
++	case TSTRUCT:
++		t1 = t1->type;
++		t2 = t2->type;
++		for(;;) {
++			if(!eqtype(t1, t2, 0))
++				return 0;
++			if(t1 == N)
++				return 1;
++			if(t1->nname != N && t1->nname->sym != S) {
++				if(t2->nname == N || t2->nname->sym == S)
++					return 0;
++				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0)
++					return 0;
++			}
++			t1 = t1->down;
++			t2 = t2->down;
++		}
++		return 1;
++
++	case TFUNC:
++		t1 = t1->type;
++		t2 = t2->type;
++		for(;;) {
++			if(t1 == t2)
++				break;
++			if(t1 == N || t2 == N)
++				return 0;
++			if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
++				return 0;
++
++			if(!eqtype(t1->type, t2->type, 0))
++				return 0;
++
++			t1 = t1->down;
++			t2 = t2->down;
++		}
++		return 1;
++	}
++	return eqtype(t1->type, t2->type, d+1);
++}
++
++ulong
++typehash(Node *at, int d)
++{
++	ulong h;
++	Node *t;
++
++	if(at == N)
++		return PRIME2;
++	if(d >= 5)
++		return PRIME3;
++
++	if(at->op != OTYPE)
++		fatal("typehash: oops %O", at->op);
++
++	if(at->recur)
++		return 0;
++	at->recur = 1;
++
++	h = at->etype*PRIME4;
++
++	switch(at->etype) {
++	default:
++		h += PRIME5 * typehash(at->type, d+1);
++		break;
++
++	case TINTER:
++		// botch -- should be sorted?
++		for(t=at->type; t!=N; t=t->down)
++			h += PRIME6 * typehash(t, d+1);
++		break;
++
++	case TSTRUCT:
++		for(t=at->type; t!=N; t=t->down)
++			h += PRIME7 * typehash(t, d+1);
++		break;
++
++	case TFUNC:
++		t = at->type;
++		// skip this argument
++		if(t != N)
++			t = t->down;
++		for(; t!=N; t=t->down)
++			h += PRIME7 * typehash(t, d+1);
++		break;
++	}
++
++	at->recur = 0;
++	return h;
++}
++
++Node*
++ptrto(Node *t)
++{
++	Node *p;
++
++	p = nod(OTYPE, N, N);
++	p->etype = TPTR;
++	p->type = t;
++	return p;
++}
++
++Node*
++literal(long v)
++{
++	Node *n;
++
++	n = nod(OLITERAL, N, N);
++	n->val.ctype = CTINT;
++	n->val.vval = v;
++	return n;
++}
++
++void
++frame(int context)
++{
++	char *p;
++	Dcl *d;
++	int flag;
++
++	p = "stack";
++	d = autodcl;
++	if(context) {
++		p = "external";
++		d = externdcl;
++	}
++
++	flag = 1;
++	for(; d!=D; d=d->forw) {
++		switch(d->op) {
++		case ONAME:
++			if(flag)
++				print("--- %s frame ---\n", p);
++			print("%O %S G%ld T\n", d->op, d->dsym, d->dnode->vargen, d->dnode->type);
++			flag = 0;
++			break;
++
++		case OTYPE:
++			if(flag)
++				print("--- %s frame ---\n", p);
++			print("%O %lT\n", d->op, d->dnode);
++			flag = 0;
++			break;
++		}
++	}
++}
++
++/*
++ * calculate sethi/ullman number
++ * roughly how many registers needed to
++ * compile a node. used to compile the
++ * hardest side first to minimize registers.
++ */
++void
++ullmancalc(Node *n)
++{
++	int ul, ur;
++
++	if(n == N)
++		return;
++
++	switch(n->op) {
++	case OLITERAL:
++	case ONAME:
++		ul = 0;
++		goto out;
++	case OCALL:
++		ul = UINF;
++		goto out;
++	}
++	ul = 0;
++	if(n->left != N)
++		ul = n->left->ullman;
++	ur = 0;
++	if(n->right != N)
++		ur = n->right->ullman;
++	if(ul == ur)
++		ul += 1;
++	if(ur > ul)
++		ul = ur;
++
++out:
++	n->ullman = ul;
++}
++
++void
++badtype(int o, Node *tl, Node *tr)
++{
++	yyerror("illegal types for operand");
++	if(tl != N)
++		print("	(%T)", tl);
++	print(" %O ", o);
++	if(tr != N)
++		print("(%T)", tr);
++	print("\n");
++}
++
++/*
++ * this routine gets the parsing of
++ * a parameter list that can have
++ * name, type and name-type.
++ * it must distribute lone names
++ * with trailing types to give every
++ * name a type. (a,b,c int) comes out
++ * (a int, b int, c int).
++ */
++Node*
++cleanidlist(Node *r)
++{
++	Node *t, *l, *n, *nn;
++
++	t = N;		// untyped name
++	nn = r;		// next node to take
++
++loop:
++	n = nn;
++	if(n == N) {
++		if(t != N) {
++			yyerror("syntax error in parameter list");
++			l = types[TINT32];
++			goto distrib;
++		}
++		return r;
++	}
++
++	l = n;
++	nn = N;
++	if(l->op == OLIST) {
++		nn = l->right;
++		l = l->left;
++	}
++
++	if(l->op != ODCLFIELD)
++		fatal("cleanformal: %O", n->op);
++
++	if(l->type == N) {
++		if(t == N)
++			t = n;
++		goto loop;
++	}
++
++	if(t == N)
++		goto loop;
++
++	l = l->type;	// type to be distributed
++
++distrib:
++	while(t != n) {
++		if(t->op != OLIST) {
++			if(t->type == N)
++				t->type = l;
++			break;
++		}
++		if(t->left->type == N)
++			t->left->type = l;
++		t = t->right;
++	}
++
++	t = N;
++	goto loop;
++}
++
++/*
++ * iterator to walk a structure declaration
++ */
++Node*
++structfirst(Iter *s, Node **nn)
++{
++	Node *r, *n;
++
++	n = *nn;
++	if(n == N || n->op != OTYPE)
++		goto bad;
++
++	switch(n->etype) {
++	default:
++		goto bad;
++
++	case TSTRUCT:
++	case TINTER:
++	case TFUNC:
++		break;
++	}
++
++	r = n->type;
++	if(r == N)
++		goto rnil;
++
++	if(r->op != OTYPE || r->etype != TFIELD)
++		fatal("structfirst: not field %N", r);
++
++	s->n = r;
++	return r;
++
++bad:
++	fatal("structfirst: not struct %N", n);
++
++rnil:
++	return N;
++}
++
++Node*
++structnext(Iter *s)
++{
++	Node *n, *r;
++
++	n = s->n;
++	r = n->down;
++	if(r == N)
++		goto rnil;
++
++	if(r->op != OTYPE || r->etype != TFIELD)
++		goto bad;
++
++	s->n = r;
++	return r;
++
++bad:
++	fatal("structnext: not struct %N", n);
++
++rnil:
++	return N;
++}
++
++/*
++ * iterator to walk a list
++ */
++Node*
++listfirst(Iter *s, Node **nn)
++{
++	Node *n;
++
++	n = *nn;
++	if(n == N) {
++		s->done = 1;
++		s->an = &s->n;
++		s->n = N;
++		return N;
++	}
++
++	if(n->op == OLIST) {
++		s->done = 0;
++		s->n = n;
++		s->an = &n->left;
++		return n->left;
++	}
++
++	s->done = 1;
++	s->an = nn;
++	return n;
++}
++
++Node*
++listnext(Iter *s)
++{
++	Node *n, *r;
++
++	if(s->done) {
++		s->an = &s->n;
++		s->n = N;
++		return N;
++	}
++
++	n = s->n;
++	r = n->right;
++	if(r->op == OLIST) {
++		s->n = r;
++		s->an = &r->left;
++		return r->left;
++	}
++
++	s->done = 1;
++	s->an = &n->right;
++	return n->right;
++}
++
++Node**
++getthis(Node *t)
++{
++	if(t->etype != TFUNC)
++		fatal("getthis: not a func %N", t);
++	return &t->type;
++}
++
++Node**
++getoutarg(Node *t)
++{
++	if(t->etype != TFUNC)
++		fatal("getoutarg: not a func %N", t);
++	return &t->type->down;
++}
++
++Node**
++getinarg(Node *t)
++{
++	if(t->etype != TFUNC)
++		fatal("getinarg: not a func %N", t);
++	return &t->type->down->down;
++}
++
++Node*
++getthisx(Node *t)
++{
++	return *getthis(t);
++}
++
++Node*
++getoutargx(Node *t)
++{
++	return *getoutarg(t);
++}
++
++Node*
++getinargx(Node *t)
++{
++	return *getinarg(t);
++}
+diff --git a/src/c/test.c b/src/c/test.c
+new file mode 100644
+index 0000000000..2ab4a78e82
+--- /dev/null
++++ b/src/c/test.c
+@@ -0,0 +1,138 @@
++
++
++/*
++ * automatic code generated from
++ * test.go in package "test"
++ */
++
++// basic types
++typedef	unsigned char      _T_U8;
++typedef	signed char        _T_I8;
++typedef	unsigned short     _T_U16;
++typedef	signed short       _T_I16;
++typedef	unsigned long      _T_U32;
++typedef	signed long        _T_I32;
++typedef	unsigned long long _T_U64;
++typedef	signed long long   _T_I64;
++typedef	float              _T_F32;
++typedef	double             _T_F64;
++typedef	double             _T_F80;
++typedef	int                _T_B;
++typedef unsigned char*     _T_P;
++
++#define	offsetof(s, m)     (_T_U32)(&(((s*)0)->m))
++
++typedef	struct{_T_U32 I1; _T_U32 I2; _T_U32 I3;} _T_I;
++typedef	struct{_T_U32 O1; _T_U32 O2;} _T_O;
++
++void	test_main(void);
++_T_O	test_simple(_T_I);
++int	printf(char*, ...);
++
++// external variables
++
++void
++test_main(void)
++{
++
++	// registers
++	register union
++	{
++		_T_U8  _R_U8;
++		_T_I8  _R_I8;
++		_T_U16 _R_U16;
++		_T_I16 _R_I16;
++		_T_U32 _R_U32;
++		_T_I32 _R_I32;
++		_T_U64 _R_U64;
++		_T_I64 _R_I64;
++		_T_F32 _R_F32;
++		_T_F64 _R_F64;
++		_T_F80 _R_F80;
++		_T_B   _R_B;
++		_T_P   _R_P;
++	} _U;
++
++	// local variables
++	_T_I32 _V_3; // x
++	_T_I32 _V_4; // y
++
++	{
++		_T_I I;
++		_T_O O;
++		I.I1 = 10;
++		I.I2 = 20;
++		I.I3 = 30;
++		O = test_simple(I);
++		_V_3 = O.O1;
++		_V_4 = O.O2;
++	}
++
++	//    1    7 LOAD_I32  NAME a(1) p(3) l(7) x G0 INT32
++	_U._R_I32 = _V_3;
++
++	//    2   10 CMP_I32   I15 LITERAL  a(1) l(10) INT32
++	if(_U._R_I32 == 15)
++
++	//    3   10 BEQ_I32   4
++		goto _L4;
++
++	printf("no 1 %d\n", _V_3);
++
++	//    4    7 LOAD_I32  NAME a(1) p(4) l(7) y G0 INT32
++_L4:
++	_U._R_I32 = _V_4;
++
++	//    5   11 CMP_I32   I50 LITERAL  a(1) l(11) INT32
++	if(_U._R_I32 == 50)
++
++	//    6   11 BEQ_I32   7
++		goto _L7;
++
++	printf("no 2 %d\n", _V_4);
++
++	//    7    0 END      
++_L7:
++	;
++}
++
++_T_O
++test_simple(_T_I I)
++{
++
++	// registers
++	register union
++	{
++		_T_U8  _R_U8;
++		_T_I8  _R_I8;
++		_T_U16 _R_U16;
++		_T_I16 _R_I16;
++		_T_U32 _R_U32;
++		_T_I32 _R_I32;
++		_T_U64 _R_U64;
++		_T_I64 _R_I64;
++		_T_F32 _R_F32;
++		_T_F64 _R_F64;
++		_T_F80 _R_F80;
++		_T_B   _R_B;
++		_T_P   _R_P;
++	} _U;
++
++	_T_O O;
++
++	int ia, ib, ic;
++	ia = I.I1;
++	ib = I.I2;
++	ic = I.I3;
++
++	O.O1 = ia+5;
++	O.O2 = ib+ic;
++	return O;
++}
++
++int
++main(void)
++{
++	test_main();
++	return 0;
++}
+diff --git a/src/c/walk.c b/src/c/walk.c
+new file mode 100644
+index 0000000000..c6602953c5
+--- /dev/null
++++ b/src/c/walk.c
+@@ -0,0 +1,967 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include	"go.h"
++
++static	Node*	sw1(Node*, Node*);
++static	Node*	sw2(Node*, Node*);
++static	Node*	sw3(Node*, Node*);
++static	Node*	curfn;
++
++void
++walk(Node *fn)
++{
++	curfn = fn;
++	walktype(fn->nbody, 1);
++}
++
++void
++walktype(Node *n, int top)
++{
++	Node *t, *r;
++	Sym *s;
++	long lno;
++	int et;
++
++	/*
++	 * walk the whole tree of the body of a function.
++	 * the types expressions are calculated.
++	 * compile-time constants are evaluated.
++	 */
++
++	lno = dynlineno;
++
++loop:
++	if(n == N)
++		goto ret;
++	if(n->op != ONAME)
++		dynlineno = n->lineno;	// for diagnostics
++
++	t = N;
++	et = Txxx;
++
++	switch(n->op) {
++	default:
++		fatal("walktype: switch 1 unknown op %N", n);
++		goto ret;
++
++	case ODCLTYPE:
++		goto ret;
++
++	case OPANIC:
++	case OPRINT:
++		walktype(n->left, 0);
++		prcompat(&n->left);
++		goto ret;
++
++	case OLITERAL:
++		n->addable = 1;
++		ullmancalc(n);
++		goto ret;
++
++	case ONAME:
++		n->addable = 1;
++		ullmancalc(n);
++		if(n->type == N) {
++			s = n->sym;
++			if(s->undef == 0) {
++				yyerror("walktype: %N undeclared", n);
++				s->undef = 1;
++			}
++		}
++		goto ret;
++
++	case OLIST:
++		walktype(n->left, top);
++		n = n->right;
++		goto loop;
++
++	case OFOR:
++		if(!top)
++			goto nottop;
++		walktype(n->ninit, 1);
++		walktype(n->ntest, 1);
++		walktype(n->nincr, 1);
++		n = n->nbody;
++		goto loop;
++
++	case OSWITCH:
++		if(!top)
++			goto nottop;
++
++		if(n->ntest == N)
++			n->ntest = booltrue;
++		walktype(n->ninit, 1);
++		walktype(n->ntest, 1);
++		walktype(n->nbody, 1);
++
++		// find common type
++		if(n->ntest->type == N)
++			n->ntest->type = walkswitch(n->ntest, n->nbody, sw1);
++
++		// if that fails pick a type
++		if(n->ntest->type == N)
++			n->ntest->type = walkswitch(n->ntest, n->nbody, sw2);
++
++		// set the type on all literals
++		if(n->ntest->type != N)
++			walkswitch(n->ntest, n->nbody, sw3);
++
++		n = n->nincr;
++		goto loop;
++
++	case OEMPTY:
++		if(!top)
++			goto nottop;
++		goto ret;
++
++	case OIF:
++		if(!top)
++			goto nottop;
++		walktype(n->ninit, 1);
++		walktype(n->ntest, 1);
++		walktype(n->nelse, 1);
++		n = n->nbody;
++		goto loop;
++
++	case OCALL:
++	case OCALLPTR:
++	case OCALLMETH:
++	case OCALLINTER:
++		walktype(n->left, 0);
++		if(n->left == N)
++			goto ret;
++		t = n->left->type;
++		if(t == N)
++			goto ret;
++
++		if(n->left->op == ODOTMETH)
++			n->op = OCALLMETH;
++		if(n->left->op == ODOTINTER)
++			n->op = OCALLINTER;
++
++		if(t->etype == TPTR) {
++			t = t->type;
++			n->op = OCALLPTR;
++		}
++
++		if(t->etype != TFUNC) {
++			yyerror("call of a non-function %T", t);
++			goto ret;
++		}
++
++		n->type = *getoutarg(t);
++		switch(t->outtuple) {
++		default:
++			n->kaka = PCALL_MULTI;
++			if(!top)
++				yyerror("function call must be single valued (%d)", et);
++			break;
++		case 0:
++			n->kaka = PCALL_NIL;
++			break;
++		case 1:
++			n->kaka = PCALL_SINGLE;
++			n->type = n->type->type->type;
++			break;
++		}
++
++		r = n->right;
++		walktype(r, 0);
++		ascompatte(n->op, getinarg(t), &n->right);
++		goto ret;
++
++	case OCOLAS:
++	case ODCLVAR:
++	case OAS:
++		if(!top)
++			goto nottop;
++
++		n->kaka = PAS_SINGLE;
++		r = n->left;
++		if(r != N && r->op == OLIST)
++			n->kaka = PAS_MULTI;
++
++		walktype(r, 0);
++
++		r = n->right;
++		if(r == N)
++			goto ret;
++
++		if(r->op == OCALL && n->kaka == PAS_MULTI) {
++			walktype(r, 1);
++			if(r->kaka == PCALL_MULTI) {
++				ascompatet(n->op, &n->left, &r->type);
++				n->kaka = PAS_CALLM;
++				goto ret;
++			}
++		}
++
++		walktype(n->right, 0);
++		ascompatee(n->op, &n->left, &n->right);
++
++		if(n->kaka == PAS_SINGLE) {
++			t = n->right->type;
++			if(t != N && t->etype == TSTRUCT)
++				n->kaka = PAS_STRUCT;
++		}
++		goto ret;
++
++	case OBREAK:
++	case OCONTINUE:
++	case OGOTO:
++	case OLABEL:
++		goto ret;
++
++	case OXCASE:
++		yyerror("case statement out of place");
++		n->op = OCASE;
++
++	case OCASE:
++		n = n->left;
++		goto loop;
++
++	case OXFALL:
++		yyerror("fallthrough statement out of place");
++		n->op = OFALL;
++
++	case OFALL:
++		goto ret;
++
++	case OCONV:
++		walktype(n->left, 0);
++		if(n->left == N)
++			goto ret;
++		convlit(n->left, n->type);
++		if(eqtype(n->type, n->left->type, 0))
++			*n = *n->left;
++		goto ret;
++
++	case ORETURN:
++		walktype(n->left, 0);
++		ascompatte(n->op, getoutarg(curfn->type), &n->left);
++		goto ret;
++
++	case ONOT:
++		walktype(n->left, 0);
++		if(n->left == N || n->left->type == N)
++			goto ret;
++		et = n->left->type->etype;
++		break;
++
++	case OASOP:
++		if(!top)
++			goto nottop;
++
++	case OLSH:
++	case ORSH:
++	case OMOD:
++	case OAND:
++	case OOR:
++	case OXOR:
++	case OANDAND:
++	case OOROR:
++	case OEQ:
++	case ONE:
++	case OLT:
++	case OLE:
++	case OGE:
++	case OGT:
++	case OADD:
++	case OSUB:
++	case OMUL:
++	case ODIV:
++	case OCAT:
++		walktype(n->left, 0);
++		walktype(n->right, 0);
++		if(n->left == N || n->right == N)
++			goto ret;
++		convlit(n->left, n->right->type);
++		convlit(n->right, n->left->type);
++		evconst(n);
++		if(n->op == OLITERAL)
++			goto ret;
++		if(n->left->type == N || n->right->type == N)
++			goto ret;
++		if(!ascompat(n->left->type, n->right->type))
++			goto badt;
++		break;
++
++	case OPLUS:
++	case OMINUS:
++	case OCOM:
++		walktype(n->left, 0);
++		if(n->left == N)
++			goto ret;
++		evconst(n);
++		ullmancalc(n);
++		if(n->op == OLITERAL)
++			goto ret;
++		break;
++
++	case OLEN:
++		walktype(n->left, 0);
++		evconst(n);
++		ullmancalc(n);
++		t = n->left->type;
++		if(t != N && t->etype == TPTR)
++			t = t->type;
++		if(t == N)
++			goto ret;
++		switch(t->etype) {
++		default:
++			goto badt;
++		case TSTRING:
++			break;
++		}
++		n->type = types[TINT32];
++		goto ret;
++
++	case OINDEX:
++	case OINDEXPTR:
++	case OINDEXSTR:
++	case OINDEXMAP:
++	case OINDEXPTRMAP:
++		walktype(n->left, 0);
++		walktype(n->right, 0);
++		ullmancalc(n);
++		if(n->left == N || n->right == N)
++			goto ret;
++		t = n->left->type;
++		if(t == N)
++			goto ret;
++
++		// map - left and right sides must match
++		if(t->etype == TMAP || isptrto(t, TMAP)) {
++			n->ullman = UINF;
++			n->op = OINDEXMAP;
++			if(isptrto(t, TMAP)) {
++				n->op = OINDEXPTRMAP;
++				t = t->type;
++				if(t == N)
++					goto ret;
++			}
++			convlit(n->right, t->down);
++			if(!ascompat(t->down, n->right->type))
++				goto badt;
++			n->type = t->type;
++			goto ret;
++		}
++
++		// right side must be an int
++		if(n->right->type == N)
++			convlit(n->right, types[TINT32]);
++		if(n->left->type == N || n->right->type == N)
++			goto ret;
++		if(!isint[n->right->type->etype])
++			goto badt;
++
++		// left side is string
++		if(isptrto(t, TSTRING)) {
++			n->op = OINDEXSTR;
++			n->type = types[TUINT8];
++			goto ret;
++		}
++
++		// left side is array
++		if(t->etype == TPTR) {
++			t = t->type;
++			n->op = OINDEXPTR;
++		}
++		if(t->etype != TARRAY && t->etype != TDARRAY)
++			goto badt;
++		n->type = t->type;
++		goto ret;
++
++	case OSLICE:
++		walkslice(n);
++		goto ret;
++
++	case ODOT:
++	case ODOTPTR:
++	case ODOTMETH:
++	case ODOTINTER:
++		walkdot(n);
++		goto ret;
++
++	case OADDR:
++		walktype(n->left, 0);
++		if(n->left == N)
++			goto ret;
++		t = n->left->type;
++		if(t == N)
++			goto ret;
++		n->type = ptrto(t);
++		goto ret;
++
++	case OIND:
++		walktype(n->left, 0);
++		if(n->left == N)
++			goto ret;
++		t = n->left->type;
++		if(t == N)
++			goto ret;
++		if(t->etype != TPTR)
++			goto badt;
++		n->type = t->type;
++		goto ret;
++
++	case ONEW:
++		if(n->left != N)
++			yyerror("dont know what new(,e) means");
++		goto ret;
++	}
++
++/*
++ * ======== second switch ========
++ */
++
++	switch(n->op) {
++	default:
++		fatal("walktype: switch 2 unknown op %N", n);
++		goto ret;
++
++	case OASOP:
++		break;
++
++	case ONOT:
++	case OANDAND:
++	case OOROR:
++		et = n->left->type->etype;
++		if(et != TBOOL)
++			goto badt;
++		t = types[TBOOL];
++		break;
++
++	case OEQ:
++	case ONE:
++		et = n->left->type->etype;
++		if(!okforeq[et])
++			goto badt;
++		t = types[TBOOL];
++		break;
++
++	case OLT:
++	case OLE:
++	case OGE:
++	case OGT:
++		et = n->left->type->etype;
++		if(!okforadd[et])
++			if(!isptrto(n->left->type, TSTRING))
++				goto badt;
++		t = types[TBOOL];
++		break;
++
++	case OCAT:
++	case OADD:
++		if(isptrto(n->left->type, TSTRING)) {
++			n->op = OCAT;
++			break;
++		}
++
++	case OSUB:
++	case OMUL:
++	case ODIV:
++	case OPLUS:
++	case OMINUS:
++		et = n->left->type->etype;
++		if(!okforadd[et])
++			goto badt;
++		break;
++
++	case OLSH:
++	case ORSH:
++	case OAND:
++	case OOR:
++	case OXOR:
++	case OMOD:
++	case OCOM:
++		et = n->left->type->etype;
++		if(!okforand[et])
++			goto badt;
++		break;
++	}
++
++	if(t == N)
++		t = n->left->type;
++	n->type = t;
++	ullmancalc(n);
++	goto ret;
++
++nottop:
++	fatal("walktype: not top %O", n->op);
++
++badt:
++	if(n->right == N) {
++		if(n->left == N) {
++			badtype(n->op, N, N);
++			goto ret;
++		}
++		badtype(n->op, n->left->type, N);
++		goto ret;
++	}
++	badtype(n->op, n->left->type, n->right->type);
++	goto ret;
++
++ret:
++	dynlineno = lno;
++}
++
++/*
++ * return the first type
++ */
++Node*
++sw1(Node *c, Node *place)
++{
++	if(place == N)
++		return c->type;
++	return place;
++}
++
++/*
++ * return a suitable type
++ */
++Node*
++sw2(Node *c, Node *place)
++{
++	return types[TINT32];	// botch
++}
++
++/*
++ * check that selected type
++ * is compat with all the cases
++ */
++Node*
++sw3(Node *c, Node *place)
++{
++	if(place == N)
++		return c->type;
++	if(c->type == N)
++		c->type = place;
++	convlit(c, place);
++	if(!ascompat(place, c->type))
++		badtype(OSWITCH, place, c->type);
++	return place;
++}
++
++Node*
++walkswitch(Node *test, Node *body, Node*(*call)(Node*, Node*))
++{
++	Node *n, *c;
++	Node *place;
++
++	place = call(test, N);
++
++	n = body;
++	if(n->op == OLIST)
++		n = n->left;
++
++	for(; n!=N; n=n->right) {
++		if(n->op != OCASE)
++			fatal("walkswitch: not case %O\n", n->op);
++		for(c=n->left; c!=N; c=c->right) {
++			if(c->op != OLIST) {
++				place = call(c, place);
++				break;
++			}
++			place = call(c->left, place);
++		}
++	}
++	return place;
++}
++
++int
++casebody(Node *n)
++{
++	Node *oc, *ot, *t;
++	Iter save;
++
++
++	/*
++	 * look to see if statements at top level have
++	 * case labels attached to them. convert the illegal
++	 * ops XFALL and XCASE into legal ops FALL and CASE.
++	 * all unconverted ops will thus be caught as illegal
++	 */
++
++	oc = N;		// last case statement
++	ot = N;		// last statement (look for XFALL)
++
++	t = listfirst(&save, &n);
++
++	if(t->op != OXCASE)
++		return 0;
++
++loop:
++	if(t == N) {
++		if(oc == N)
++			return 0;
++		return 1;
++	}
++	if(t->op == OXCASE) {
++		/* rewrite and link top level cases */
++		t->op = OCASE;
++		if(oc != N)
++			oc->right = t;
++		oc = t;
++
++		/* rewrite top fall that preceed case */
++		if(ot != N && ot->op == OXFALL)
++			ot->op = OFALL;
++	}
++
++	/* if first statement is not case then return 0 */
++	if(oc == N)
++		return 0;
++
++	ot = t;
++	t = listnext(&save);
++	goto loop;
++}
++
++/*
++ * allowable type combinations for
++ * normal binary operations.
++ */
++
++Node*
++lookdot(Node *n, Node *t, int d)
++{
++	Node *r, *f, *c;
++	Sym *s;
++	int o;
++
++	r = N;
++	s = n->sym;
++	if(d > 0)
++		goto deep;
++
++	o = 0;
++	for(f=t->type; f!=N; f=f->down) {
++		f->kaka = o;
++		o++;
++
++		if(f->sym == S)
++			continue;
++		if(f->sym != s)
++			continue;
++		if(r != N) {
++			yyerror("ambiguous DOT reference %s", s->name);
++			break;
++		}
++		r = f;
++	}
++	return r;
++
++deep:
++	/* deeper look after shallow failed */
++	for(f=t->type; f!=N; f=f->down) {
++		// only look at unnamed sub-structures
++		// BOTCH no such thing -- all are assigned temp names
++		if(f->sym != S)
++			continue;
++		c = f->type;
++		if(c->etype != TSTRUCT)
++			continue;
++		c = lookdot(n, c, d-1);
++		if(c == N)
++			continue;
++		if(r != N) {
++			yyerror("ambiguous unnamed DOT reference %s", s->name);
++			break;
++		}
++		r = c;
++	}
++	return r;
++}
++
++void
++walkdot(Node *n)
++{
++	Node *t, *f;
++	int i;
++
++	if(n->left == N || n->right == N)
++		return;
++
++	walktype(n->left, 0);
++	if(n->right->op != ONAME) {
++		yyerror("rhs of . must be a name");
++		return;
++	}
++
++	t = n->left->type;
++	if(t == N)
++		return;
++
++	if(t->etype == TPTR) {
++		t = t->type;
++		if(t == N)
++			return;
++		n->op = ODOTPTR;
++	}
++
++	if(n->right->op != ONAME)
++		fatal("walkdot: not name %O", n->right->op);
++
++	switch(t->etype) {
++	default:
++		badtype(ODOT, t, N);
++		return;
++
++	case TSTRUCT:
++	case TINTER:
++		for(i=0; i<5; i++) {
++			f = lookdot(n->right, t, i);
++			if(f != N)
++				break;
++		}
++		if(f == N) {
++			yyerror("undefined DOT reference %N", n->right);
++			break;
++		}
++		n->right = f->nname;		// substitute real name
++		n->type = f->type;
++		if(n->type->etype == TFUNC) {
++			n->op = ODOTMETH;
++			if(t->etype == TINTER) {
++				n->op = ODOTINTER;
++				n->kaka = f->kaka;
++			}
++		}
++		break;
++	}
++}
++
++void
++walkslice(Node *n)
++{
++	Node *l, *r;
++
++	if(n->left == N || n->right == N)
++		return;
++	walktype(n->left, 0);
++	if(!isptrto(n->left->type, TSTRING)) {
++		badtype(OSLICE, n->left->type, N);
++		return;
++	}
++	if(n->right->op != OLIST)
++		fatal("slice not a list");
++
++	// check for type errors
++	walktype(n->right, 0);
++	l = n->right->left;
++	r = n->right->right;
++	convlit(l, types[TINT32]);
++	convlit(r, types[TINT32]);
++	if(l == N || r == N ||
++	   l->type == N || r->type == N)
++		return;
++	if(!isint[l->type->etype] || !isint[l->type->etype]) {
++		badtype(OSLICE, l->type, r->type);
++		return;
++	}
++
++	// now convert to int32
++	n->right->left = nod(OCONV, n->right->left, N);
++	n->right->left->type = types[TINT32];
++	n->right->right = nod(OCONV, n->right->right, N);
++	n->right->right->type = types[TINT32];
++	walktype(n->right, 0);
++
++	n->type = n->left->type;
++}
++
++/*
++ * test tuple type list against each other
++ * called in four contexts
++ *	1. a,b = c,d		...ee
++ *	2. a,b = fn()		...et
++ *	3. call(fn())		...tt
++ *	4. call(a,b)		...te
++ */
++void
++ascompatee(int op, Node **nl, Node **nr)
++{
++	Node *l, *r;
++	Iter savel, saver;
++	int sa, na;
++
++	l = listfirst(&savel, nl);
++	r = listfirst(&saver, nr);
++	na = 0;	// number of assignments - looking for multi
++	sa = 0;	// one of the assignments is a structure assignment
++
++loop:
++	if(l == N || r == N) {
++		if(l != r)
++			yyerror("error in shape across assignment");
++		if(sa != 0 && na > 1)
++			yyerror("cant do multi-struct assignments");
++		return;
++	}
++
++	convlit(r, l->type);
++
++	if(!ascompat(l->type, r->type)) {
++		badtype(op, l->type, r->type);
++		return;
++	}
++	if(l->type != N && l->type->etype == TSTRUCT)
++		sa = 1;
++
++	l = listnext(&savel);
++	r = listnext(&saver);
++	na++;
++	goto loop;
++}
++
++void
++ascompatet(int op, Node **nl, Node **nr)
++{
++	Node *l, *r;
++	Iter savel, saver;
++
++	l = listfirst(&savel, nl);
++	r = structfirst(&saver, nr);
++
++loop:
++	if(l == N || r == N) {
++		if(l != r)
++			yyerror("error in shape across assignment");
++		return;
++	}
++
++	if(!ascompat(l->type, r->type)) {
++		badtype(op, l->type, r->type);
++		return;
++	}
++
++	l = listnext(&savel);
++	r = structnext(&saver);
++
++	goto loop;
++}
++
++void
++ascompatte(int op, Node **nl, Node **nr)
++{
++	Node *l, *r;
++	Iter savel, saver;
++
++	l = structfirst(&savel, nl);
++	r = listfirst(&saver, nr);
++
++loop:
++	if(l == N || r == N) {
++		if(l != r)
++			yyerror("error in shape across assignment");
++		return;
++	}
++
++	convlit(r, l->type);
++
++	if(!ascompat(l->type, r->type)) {
++		badtype(op, l->type, r->type);
++		return;
++	}
++
++	l = structnext(&savel);
++	r = listnext(&saver);
++
++	goto loop;
++}
++
++void
++ascompattt(int op, Node **nl, Node **nr)
++{
++	Node *l, *r;
++	Iter savel, saver;
++
++	l = structfirst(&savel, nl);
++	r = structfirst(&saver, nr);
++
++loop:
++	if(l == N || r == N) {
++		if(l != r)
++			yyerror("error in shape across assignment");
++		return;
++	}
++
++	if(!ascompat(l->type, r->type)) {
++		badtype(op, l->type, r->type);
++		return;
++	}
++
++	l = structnext(&savel);
++	r = structnext(&saver);
++
++	goto loop;
++}
++
++/*
++ * can we assign var of type t2 to var of type t1
++ */
++int
++ascompat(Node *t1, Node *t2)
++{
++	if(eqtype(t1, t2, 0))
++		return 1;
++//	if(eqtype(t1, nilptr, 0))
++//		return 1;
++//	if(eqtype(t2, nilptr, 0))
++//		return 1;
++	if(isinter(t1))
++		if(isptrto(t2, TSTRUCT) || isinter(t2))
++			return 1;
++	if(isinter(t2))
++		if(isptrto(t1, TSTRUCT))
++			return 1;
++	return 0;
++}
++
++void
++prcompat(Node **n)
++{
++	Node *l, *t;
++	Iter save;
++	int w;
++
++	l = listfirst(&save, n);
++
++loop:
++	if(l == N)
++		return;
++
++	t = N;
++	w = whatis(l);
++	switch(w) {
++	default:
++		badtype((*n)->op, l->type, N);
++		break;
++	case Wtint:
++	case Wtfloat:
++	case Wtbool:
++	case Wtstr:
++		break;
++	case Wlitint:
++		t = types[TINT32];
++		break;
++	case Wlitfloat:
++		t = types[TFLOAT64];
++		break;
++	case Wlitbool:
++		t = types[TBOOL];
++		break;
++	case Wlitstr:
++		t = types[TSTRING];
++		break;
++	}
++
++	if(t != N)
++		convlit(l, t);
++
++	l = listnext(&save);
++	goto loop;
++}

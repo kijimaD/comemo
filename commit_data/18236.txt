@@ -15,7 +15,7 @@ Date:   Mon Jan 13 23:07:57 2014 -0500
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/51260045
-
+---
  src/cmd/link/auto.go                | 117 ++++++++++++++++++++++++++++++++++++
  src/cmd/link/auto_test.go           |  72 ++++++++++++++++++++++
  src/cmd/link/layout.go              |  52 +++++++++++-----
@@ -34,3 +34,949 @@ Date:   Mon Jan 13 23:07:57 2014 -0500
  src/cmd/link/testdata/layout.s      |  29 +++++++++
  src/cmd/link/write.go               |   2 +-
  17 files changed, 557 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/link/auto.go b/src/cmd/link/auto.go
+new file mode 100644
+index 0000000000..8f0c39f8c0
+--- /dev/null
++++ b/src/cmd/link/auto.go
+@@ -0,0 +1,117 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Automatic symbol generation.
++
++// TODO(rsc): Handle go.typelink, go.track symbols.
++// TODO(rsc): Do not handle $f64. and $f32. symbols. Instead, generate those
++// from the compiler and assemblers as dupok data, and then remove autoData below.
++package main
++
++import (
++	"debug/goobj"
++	"strconv"
++	"strings"
++)
++
++// linkerDefined lists the symbols supplied by other parts of the linker
++// (runtime.go and layout.go).
++var linkerDefined = map[string]bool{
++	"bss":        true,
++	"data":       true,
++	"ebss":       true,
++	"edata":      true,
++	"efunctab":   true,
++	"end":        true,
++	"enoptrbss":  true,
++	"enoptrdata": true,
++	"erodata":    true,
++	"etext":      true,
++	"etypelink":  true,
++	"functab":    true,
++	"gcbss":      true,
++	"gcdata":     true,
++	"noptrbss":   true,
++	"noptrdata":  true,
++	"pclntab":    true,
++	"rodata":     true,
++	"text":       true,
++	"typelink":   true,
++}
++
++// isAuto reports whether sym is an automatically-generated data or constant symbol.
++func (p *Prog) isAuto(sym goobj.SymID) bool {
++	return strings.HasPrefix(sym.Name, "go.weak.") ||
++		strings.HasPrefix(sym.Name, "$f64.") ||
++		strings.HasPrefix(sym.Name, "$f32.") ||
++		linkerDefined[sym.Name]
++}
++
++// autoData defines the automatically generated data symbols needed by p.
++func (p *Prog) autoData() {
++	for sym := range p.Missing {
++		switch {
++		// Floating-point constants that need to be loaded from memory are
++		// written as $f64.{16 hex digits} or $f32.{8 hex digits}; the hex digits
++		// give the IEEE bit pattern of the constant. As far as the layout into
++		// memory is concerned, we interpret these as uint64 or uint32 constants.
++		case strings.HasPrefix(sym.Name, "$f64."), strings.HasPrefix(sym.Name, "$f32."):
++			size := 64
++			if sym.Name[2:4] == "32" {
++				size = 32
++			}
++			delete(p.Missing, sym)
++			fbits, err := strconv.ParseUint(sym.Name[len("$f64."):], 16, size)
++			if err != nil {
++				p.errorf("unexpected floating point symbol %s", sym)
++				continue
++			}
++			data := make([]byte, size/8)
++			if size == 64 {
++				p.byteorder.PutUint64(data, fbits)
++			} else {
++				p.byteorder.PutUint32(data, uint32(fbits))
++			}
++			p.addSym(&Sym{
++				Sym: &goobj.Sym{
++					SymID: sym,
++					Kind:  goobj.SRODATA,
++					Size:  size / 8,
++				},
++				Bytes: data,
++			})
++		}
++	}
++}
++
++// autoConst defines the automatically generated constant symbols needed by p.
++func (p *Prog) autoConst() {
++	for sym := range p.Missing {
++		switch {
++		case strings.HasPrefix(sym.Name, "go.weak."):
++			// weak symbol resolves to actual symbol if present, or else nil.
++			delete(p.Missing, sym)
++			targ := sym
++			targ.Name = sym.Name[len("go.weak."):]
++			var addr Addr
++			if s := p.Syms[targ]; s != nil {
++				addr = s.Addr
++			}
++			p.defineConst(sym.Name, addr)
++		}
++	}
++}
++
++// defineConst defines a new symbol with the given name and constant address.
++func (p *Prog) defineConst(name string, addr Addr) {
++	sym := goobj.SymID{Name: name}
++	p.addSym(&Sym{
++		Sym: &goobj.Sym{
++			SymID: sym,
++			Kind:  goobj.SCONST,
++		},
++		Package: nil,
++		Addr:    addr,
++	})
++}
+diff --git a/src/cmd/link/auto_test.go b/src/cmd/link/auto_test.go
+new file mode 100644
+index 0000000000..27f8e2b96d
+--- /dev/null
++++ b/src/cmd/link/auto_test.go
+@@ -0,0 +1,72 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test for auto-generated symbols.
++
++// There is no test for $f64. and $f32. symbols, because those are
++// not possible to write in the assembler syntax. Instead of changing
++// the assembler to allow that, we plan to change the compilers
++// not to generate such symbols (plain dupok data is sufficient).
++
++package main
++
++import (
++	"bytes"
++	"debug/goobj"
++	"testing"
++)
++
++// Each test case is an object file, generated from a corresponding .s file.
++// The image of the autotab symbol should be a sequence of pairs of
++// identical 8-byte sequences.
++var autoTests = []string{
++	"testdata/autosection.6",
++	"testdata/autoweak.6",
++}
++
++func TestAuto(t *testing.T) {
++	for _, obj := range autoTests {
++		p := Prog{GOOS: "darwin", GOARCH: "amd64", StartSym: "start"}
++		p.omitRuntime = true
++		p.Error = func(s string) { t.Error(s) }
++		var buf bytes.Buffer
++		p.link(&buf, obj)
++		if p.NumError > 0 {
++			continue // already reported
++		}
++
++		const name = "autotab"
++		sym := p.Syms[goobj.SymID{Name: name}]
++		if sym == nil {
++			t.Errorf("%s is missing %s symbol", obj, name)
++			return
++		}
++		if sym.Size == 0 {
++			return
++		}
++
++		seg := sym.Section.Segment
++		off := sym.Addr - seg.VirtAddr
++		data := seg.Data[off : off+Addr(sym.Size)]
++		if len(data)%16 != 0 {
++			t.Errorf("%s: %s.Size = %d, want multiple of 16", obj, name, len(data))
++			return
++		}
++	Data:
++		for i := 0; i < len(data); i += 16 {
++			have := p.byteorder.Uint64(data[i : i+8])
++			want := p.byteorder.Uint64(data[i+8 : i+16])
++			if have != want {
++				// Look for relocation so we can explain what went wrong.
++				for _, r := range sym.Reloc {
++					if r.Offset == i {
++						t.Errorf("%s: %s+%#x: %s: have %#x want %#x", obj, name, i, r.Sym, have, want)
++						continue Data
++					}
++				}
++				t.Errorf("%s: %s+%#x: have %#x want %#x", obj, name, i, have, want)
++			}
++		}
++	}
++}
+diff --git a/src/cmd/link/layout.go b/src/cmd/link/layout.go
+index 1d6824ecb7..6477022444 100644
+--- a/src/cmd/link/layout.go
++++ b/src/cmd/link/layout.go
+@@ -25,21 +25,19 @@ type layoutSection struct {
+ // Entries with the same Segment name must be contiguous.
+ var layout = []layoutSection{
+ 	{Segment: "text", Section: "text", Kind: goobj.STEXT},
++	{Segment: "rodata", Section: "rodata", Kind: goobj.SRODATA},
++	{Segment: "rodata", Section: "functab", Kind: goobj.SPCLNTAB},
++	{Segment: "rodata", Section: "typelink", Kind: goobj.STYPELINK},
++	{Segment: "data", Section: "noptrdata", Kind: goobj.SNOPTRDATA},
+ 	{Segment: "data", Section: "data", Kind: goobj.SDATA},
++	{Segment: "data", Section: "bss", Kind: goobj.SBSS},
++	{Segment: "data", Section: "noptrbss", Kind: goobj.SNOPTRBSS},
+ 
+ 	// Later:
+ 	//	{"rodata", "type", goobj.STYPE},
+ 	//	{"rodata", "string", goobj.SSTRING},
+ 	//	{"rodata", "gostring", goobj.SGOSTRING},
+ 	//	{"rodata", "gofunc", goobj.SGOFUNC},
+-	//	{"rodata", "rodata", goobj.SRODATA},
+-	//	{"rodata", "functab", goobj.SFUNCTAB},
+-	//	{"rodata", "typelink", goobj.STYPELINK},
+-	//	{"rodata", "symtab", goobj.SSYMTAB},
+-	//	{"rodata", "pclntab", goobj.SPCLNTAB},
+-	//	{"data", "noptrdata", goobj.SNOPTRDATA},
+-	//	{"data", "bss", goobj.SBSS},
+-	//	{"data", "noptrbss", goobj.SNOPTRBSS},
+ }
+ 
+ // layoutByKind maps from SymKind to an entry in layout.
+@@ -54,8 +52,9 @@ func init() {
+ 		}
+ 	}
+ 	layoutByKind = make([]*layoutSection, max)
+-	for i, sect := range layout {
+-		layoutByKind[sect.Kind] = &layout[i]
++	for i := range layout {
++		sect := &layout[i]
++		layoutByKind[sect.Kind] = sect
+ 		sect.Index = i
+ 	}
+ }
+@@ -67,7 +66,7 @@ func (p *Prog) layout() {
+ 
+ 	// Assign symbols to sections using index, creating sections as needed.
+ 	// Could keep sections separated by type during input instead.
+-	for _, sym := range p.Syms {
++	for _, sym := range p.SymOrder {
+ 		kind := sym.Kind
+ 		if kind < 0 || int(kind) >= len(layoutByKind) || layoutByKind[kind] == nil {
+ 			p.errorf("%s: unexpected symbol kind %v", sym.SymID, kind)
+@@ -82,7 +81,7 @@ func (p *Prog) layout() {
+ 			}
+ 			sections[lsect.Index] = sect
+ 		}
+-		if sym.Data.Size > 0 {
++		if sym.Data.Size > 0 || len(sym.Bytes) > 0 {
+ 			sect.InFile = true
+ 		}
+ 		sym.Section = sect
+@@ -102,9 +101,17 @@ func (p *Prog) layout() {
+ 		if sect == nil {
+ 			continue
+ 		}
+-		if seg == nil || seg.Name != layout[i].Segment {
++		segName := layout[i].Segment
++
++		// Special case: Mach-O does not support "rodata" segment,
++		// so store read-only data in text segment.
++		if p.GOOS == "darwin" && segName == "rodata" {
++			segName = "text"
++		}
++
++		if seg == nil || seg.Name != segName {
+ 			seg = &Segment{
+-				Name: layout[i].Segment,
++				Name: segName,
+ 			}
+ 			p.Segments = append(p.Segments, seg)
+ 		}
+@@ -153,6 +160,21 @@ func (p *Prog) layout() {
+ 				seg.FileSize = addr - seg.VirtAddr
+ 			}
+ 		}
+-		seg.VirtSize = addr
++		seg.VirtSize = addr - seg.VirtAddr
++	}
++
++	// Define symbols for section names.
++	var progEnd Addr
++	for i, sect := range sections {
++		name := layout[i].Section
++		var start, end Addr
++		if sect != nil {
++			start = sect.VirtAddr
++			end = sect.VirtAddr + sect.Size
++		}
++		p.defineConst(name, start)
++		p.defineConst("e"+name, end)
++		progEnd = end
+ 	}
++	p.defineConst("end", progEnd)
+ }
+diff --git a/src/cmd/link/layout_test.go b/src/cmd/link/layout_test.go
+new file mode 100644
+index 0000000000..e5513af35e
+--- /dev/null
++++ b/src/cmd/link/layout_test.go
+@@ -0,0 +1,45 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"strings"
++	"testing"
++)
++
++func TestLayout(t *testing.T) {
++	p := Prog{GOOS: "darwin", GOARCH: "amd64", StartSym: "text_start"}
++	p.omitRuntime = true
++	p.Error = func(s string) { t.Error(s) }
++	var buf bytes.Buffer
++	const obj = "testdata/layout.6"
++	p.link(&buf, obj)
++	if p.NumError > 0 {
++		return // already reported
++	}
++	if len(p.Dead) > 0 {
++		t.Errorf("%s: unexpected dead symbols %v", obj, p.Dead)
++		return
++	}
++
++	for _, sym := range p.SymOrder {
++		if p.isAuto(sym.SymID) {
++			continue
++		}
++		if sym.Section == nil {
++			t.Errorf("%s: symbol %s is missing section", obj, sym)
++			continue
++		}
++		i := strings.Index(sym.Name, "_")
++		if i < 0 {
++			t.Errorf("%s: unexpected symbol %s", obj, sym)
++			continue
++		}
++		if sym.Section.Name != sym.Name[:i] {
++			t.Errorf("%s: symbol %s in section %s, want %s", obj, sym, sym.Section.Name, sym.Name[:i])
++		}
++	}
++}
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 9480a21c05..984796784e 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -7,26 +7,29 @@ package main
+ import (
+ 	"bytes"
+ 	"debug/goobj"
++	"io/ioutil"
+ 	"testing"
+ )
+ 
+ func TestLinkHello(t *testing.T) {
+ 	p := &Prog{
+-		GOOS:   "darwin",
+-		GOARCH: "amd64",
+-		Error:  func(s string) { t.Error(s) },
++		GOOS:     "darwin",
++		GOARCH:   "amd64",
++		Error:    func(s string) { t.Error(s) },
++		StartSym: "_rt0_go",
+ 	}
+ 	var buf bytes.Buffer
+ 	p.link(&buf, "testdata/hello.6")
+ 	if p.NumError > 0 {
+ 		return
+ 	}
+-	if len(p.Syms) != 2 || p.Syms[goobj.SymID{"_rt0_go", 0}] == nil || p.Syms[goobj.SymID{"hello", 1}] == nil {
+-		t.Errorf("Syms = %v, want [_rt0_go hello<1>]", p.Syms)
++	if p.Syms[goobj.SymID{"_rt0_go", 0}] == nil || p.Syms[goobj.SymID{"hello", 1}] == nil {
++		t.Errorf("Syms = %v, want at least [_rt0_go hello<1>]", p.Syms)
+ 	}
+ 
+-	checkGolden(t, buf.Bytes(), "testdata/link.hello.darwin.amd64")
+-
+ 	// uncomment to leave file behind for execution:
+-	// ioutil.WriteFile("a.out", buf.Bytes(), 0777)
++	if false {
++		ioutil.WriteFile("a.out", buf.Bytes(), 0777)
++	}
++	checkGolden(t, buf.Bytes(), "testdata/link.hello.darwin.amd64")
+ }
+diff --git a/src/cmd/link/load.go b/src/cmd/link/load.go
+index c890ec2e50..5b757faf00 100644
+--- a/src/cmd/link/load.go
++++ b/src/cmd/link/load.go
+@@ -6,10 +6,7 @@
+ 
+ package main
+ 
+-import (
+-	"encoding/binary"
+-	"os"
+-)
++import "os"
+ 
+ // load allocates segment images, populates them with data
+ // read from package files, and applies relocations to the data.
+@@ -27,6 +24,24 @@ func (p *Prog) load() {
+ // loadPackage loads and relocates data for all the
+ // symbols needed in the given package.
+ func (p *Prog) loadPackage(pkg *Package) {
++	if pkg.File == "" {
++		// This "package" contains internally generated symbols only.
++		// All such symbols have a sym.Bytes field holding the actual data
++		// (if any), plus relocations.
++		for _, sym := range pkg.Syms {
++			if sym.Bytes == nil {
++				continue
++			}
++			seg := sym.Section.Segment
++			off := sym.Addr - seg.VirtAddr
++			data := seg.Data[off : off+Addr(sym.Size)]
++			copy(data, sym.Bytes)
++			p.relocateSym(sym, data)
++		}
++		return
++	}
++
++	// Package stored in file.
+ 	f, err := os.Open(pkg.File)
+ 	if err != nil {
+ 		p.errorf("%v", err)
+@@ -41,8 +56,14 @@ func (p *Prog) loadPackage(pkg *Package) {
+ 			continue
+ 		}
+ 		// TODO(rsc): If not using mmap, at least coalesce nearby reads.
++		if sym.Section == nil {
++			p.errorf("internal error: missing section for %s", sym.Name)
++		}
+ 		seg := sym.Section.Segment
+ 		off := sym.Addr - seg.VirtAddr
++		if off >= Addr(len(seg.Data)) || off+Addr(sym.Data.Size) > Addr(len(seg.Data)) {
++			p.errorf("internal error: allocated space for %s too small: %d bytes for %d+%d (%d)", sym, len(seg.Data), off, sym.Data.Size, sym.Size)
++		}
+ 		data := seg.Data[off : off+Addr(sym.Data.Size)]
+ 		_, err := f.ReadAt(data, sym.Data.Offset)
+ 		if err != nil {
+@@ -89,10 +110,9 @@ func (p *Prog) relocateSym(sym *Sym, data []byte) {
+ 			p.errorf("%v: unknown relocation size %d", sym, r.Size)
+ 		case 4:
+ 			// TODO(rsc): Check for overflow?
+-			// TODO(rsc): Handle big-endian systems.
+-			binary.LittleEndian.PutUint32(frag, uint32(val))
++			p.byteorder.PutUint32(frag, uint32(val))
+ 		case 8:
+-			binary.LittleEndian.PutUint64(frag, uint64(val))
++			p.byteorder.PutUint64(frag, uint64(val))
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/link/macho.go b/src/cmd/link/macho.go
+index 9418bea006..4e5524be9b 100644
+--- a/src/cmd/link/macho.go
++++ b/src/cmd/link/macho.go
+@@ -315,12 +315,7 @@ func (h *machoHeader) size() int {
+ func (h *machoHeader) encode() []byte {
+ 	w := &machoWriter{p: h.p}
+ 	w.is64 = h.CPU&macho64Bit != 0
+-	switch h.SubCPU {
+-	default:
+-		h.p.errorf("mach-o error: unknown CPU")
+-	case machoSubCPU386:
+-		w.order = binary.LittleEndian
+-	}
++	w.order = w.p.byteorder
+ 
+ 	loadSize := 0
+ 	for _, seg := range h.Segments {
+diff --git a/src/cmd/link/macho_test.go b/src/cmd/link/macho_test.go
+index 4f19fa4da2..62b1327497 100644
+--- a/src/cmd/link/macho_test.go
++++ b/src/cmd/link/macho_test.go
+@@ -28,6 +28,7 @@ var machoWriteTests = []struct {
+ 		golden: true,
+ 		prog: &Prog{
+ 			GOARCH:       "amd64",
++			GOOS:         "darwin",
+ 			UnmappedSize: 0x1000,
+ 			Entry:        0x1000,
+ 			Segments: []*Segment{
+@@ -62,6 +63,7 @@ var machoWriteTests = []struct {
+ 		golden: true,
+ 		prog: &Prog{
+ 			GOARCH:       "amd64",
++			GOOS:         "darwin",
+ 			UnmappedSize: 0x1000,
+ 			Entry:        0x1000,
+ 			Segments: []*Segment{
+@@ -117,6 +119,7 @@ var machoWriteTests = []struct {
+ 		golden: true,
+ 		prog: &Prog{
+ 			GOARCH:       "amd64",
++			GOOS:         "darwin",
+ 			UnmappedSize: 0x1000,
+ 			Entry:        0x1000,
+ 			Segments: []*Segment{
+@@ -173,6 +176,7 @@ func TestMachoWrite(t *testing.T) {
+ 	for _, tt := range machoWriteTests {
+ 		name := tt.prog.GOARCH + "." + tt.name
+ 		prog := cloneProg(tt.prog)
++		prog.init()
+ 		var f machoFormat
+ 		vsize, fsize := f.headerSize(prog)
+ 		shiftProg(prog, vsize, fsize)
+diff --git a/src/cmd/link/prog.go b/src/cmd/link/prog.go
+index ec98e863f2..a63b36d385 100644
+--- a/src/cmd/link/prog.go
++++ b/src/cmd/link/prog.go
+@@ -6,10 +6,12 @@ package main
+ 
+ import (
+ 	"debug/goobj"
++	"encoding/binary"
+ 	"fmt"
+ 	"go/build"
+ 	"io"
+ 	"os"
++	"runtime"
+ )
+ 
+ // A Prog holds state for constructing an executable (program) image.
+@@ -31,17 +33,26 @@ import (
+ //
+ type Prog struct {
+ 	// Context
+-	GOOS      string // target operating system
+-	GOARCH    string // target architecture
+-	Format    string // desired file format ("elf", "macho", ...)
+-	formatter formatter
+-	Error     func(string) // called to report an error (if set)
+-	NumError  int          // number of errors printed
++	GOOS     string       // target operating system
++	GOARCH   string       // target architecture
++	Format   string       // desired file format ("elf", "macho", ...)
++	Error    func(string) // called to report an error (if set)
++	NumError int          // number of errors printed
++	StartSym string
++
++	// Derived context
++	arch
++	formatter   formatter
++	startSym    goobj.SymID
++	pkgdir      string
++	omitRuntime bool // do not load runtime package
+ 
+ 	// Input
+ 	Packages   map[string]*Package  // loaded packages, by import path
+ 	Syms       map[goobj.SymID]*Sym // defined symbols, by symbol ID
+-	Missing    map[goobj.SymID]bool // missing symbols, by symbol ID
++	Missing    map[goobj.SymID]bool // missing symbols
++	Dead       map[goobj.SymID]bool // symbols removed as dead
++	SymOrder   []*Sym               // order syms were scanned
+ 	MaxVersion int                  // max SymID.Version, for generating fresh symbol IDs
+ 
+ 	// Output
+@@ -51,8 +62,11 @@ type Prog struct {
+ 	Segments     []*Segment // loaded memory segments
+ }
+ 
+-// startSymID is the symbol where program execution begins.
+-var startSymID = goobj.SymID{Name: "_rt0_go"}
++// An arch describes architecture-dependent settings.
++type arch struct {
++	byteorder binary.ByteOrder
++	ptrsize   int
++}
+ 
+ // A formatter takes care of the details of generating a particular
+ // kind of executable file.
+@@ -86,6 +100,7 @@ type Sym struct {
+ 	Package    *Package // package defining symbol
+ 	Section    *Section // section where symbol is placed in output program
+ 	Addr       Addr     // virtual address of symbol in output program
++	Bytes      []byte   // symbol data, for internally defined symbols
+ }
+ 
+ // A Segment is a loaded memory segment.
+@@ -131,7 +146,9 @@ func (p *Prog) link(w io.Writer, mainFile string) {
+ 	}
+ 	p.dead()
+ 	p.runtime()
++	p.autoData()
+ 	p.layout()
++	p.autoConst()
+ 	if p.NumError > 0 {
+ 		return
+ 	}
+@@ -162,6 +179,9 @@ func (p *Prog) init() {
+ 			return
+ 		}
+ 	}
++	if p.StartSym == "" {
++		p.StartSym = fmt.Sprintf("_rt0_%s_%s", p.GOARCH, p.GOOS)
++	}
+ 
+ 	// Derive internal context.
+ 	p.formatter = formatters[p.Format]
+@@ -169,6 +189,15 @@ func (p *Prog) init() {
+ 		p.errorf("unknown output file format %q", p.Format)
+ 		return
+ 	}
++	p.startSym = goobj.SymID{Name: p.StartSym}
++	arch, ok := arches[p.GOARCH]
++	if !ok {
++		p.errorf("unknown GOOS %q", p.GOOS)
++		return
++	}
++	p.arch = arch
++
++	p.pkgdir = fmt.Sprintf("%s/pkg/%s_%s", runtime.GOROOT(), p.GOOS, p.GOARCH)
+ }
+ 
+ // goosFormat records the default format for each known GOOS value.
+@@ -180,3 +209,10 @@ var goosFormat = map[string]string{
+ var formatters = map[string]formatter{
+ 	"darwin": machoFormat{},
+ }
++
++var arches = map[string]arch{
++	"amd64": {
++		byteorder: binary.LittleEndian,
++		ptrsize:   8,
++	},
++}
+diff --git a/src/cmd/link/scan.go b/src/cmd/link/scan.go
+index 951d173f46..0720e039b8 100644
+--- a/src/cmd/link/scan.go
++++ b/src/cmd/link/scan.go
+@@ -13,6 +13,7 @@ package main
+ import (
+ 	"debug/goobj"
+ 	"os"
++	"sort"
+ 	"strings"
+ )
+ 
+@@ -20,9 +21,20 @@ import (
+ func (p *Prog) scan(mainfile string) {
+ 	p.initScan()
+ 	p.scanFile("main", mainfile)
+-	if len(p.Missing) != 0 {
+-		// TODO(rsc): iterate in deterministic order
+-		for sym := range p.Missing {
++	if len(p.Missing) > 0 && !p.omitRuntime {
++		p.scanImport("runtime")
++	}
++
++	var missing []string
++	for sym := range p.Missing {
++		if !p.isAuto(sym) {
++			missing = append(missing, sym.String())
++		}
++	}
++
++	if missing != nil {
++		sort.Strings(missing)
++		for _, sym := range missing {
+ 			p.errorf("undefined: %s", sym)
+ 		}
+ 	}
+@@ -35,7 +47,7 @@ func (p *Prog) initScan() {
+ 	p.Packages = make(map[string]*Package)
+ 	p.Syms = make(map[goobj.SymID]*Sym)
+ 	p.Missing = make(map[goobj.SymID]bool)
+-	p.Missing[startSymID] = true
++	p.Missing[p.startSym] = true
+ }
+ 
+ // scanFile reads file to learn about the package with the given import path.
+@@ -81,21 +93,62 @@ func (p *Prog) scanFile(pkgpath string, file string) {
+ 			if r.Sym.Version != 0 {
+ 				r.Sym.Version += p.MaxVersion
+ 			}
+-			if p.Syms[r.Sym] != nil {
++			if p.Syms[r.Sym] == nil {
+ 				p.Missing[r.Sym] = true
+ 			}
+ 		}
++		if gs.Func != nil {
++			for i := range gs.Func.FuncData {
++				fdata := &gs.Func.FuncData[i]
++				if fdata.Sym.Name != "" {
++					if fdata.Sym.Version != 0 {
++						fdata.Sym.Version += p.MaxVersion
++					}
++					if p.Syms[fdata.Sym] == nil {
++						p.Missing[fdata.Sym] = true
++					}
++				}
++			}
++		}
+ 		if old := p.Syms[gs.SymID]; old != nil {
+-			p.errorf("symbol %s defined in both %s and %s", old.Package.File, file)
+-			continue
++			// Duplicate definition of symbol. Is it okay?
++			// TODO(rsc): Write test for this code.
++			switch {
++			// If both symbols are BSS (no data), take max of sizes
++			// but otherwise ignore second symbol.
++			case old.Data.Size == 0 && gs.Data.Size == 0:
++				if old.Size < gs.Size {
++					old.Size = gs.Size
++				}
++				continue
++
++			// If one is in BSS and one is not, use the one that is not.
++			case old.Data.Size > 0 && gs.Data.Size == 0:
++				continue
++			case gs.Data.Size > 0 && old.Data.Size == 0:
++				break // install gs as new symbol below
++
++			// If either is marked as DupOK, we can keep either one.
++			// Keep the one that we saw first.
++			case old.DupOK || gs.DupOK:
++				continue
++
++			// Otherwise, there's an actual conflict:
++			default:
++				p.errorf("symbol %s defined in both %s and %s %v %v", gs.SymID, old.Package.File, file, old.Data, gs.Data)
++				continue
++			}
+ 		}
+ 		s := &Sym{
+ 			Sym:     gs,
+ 			Package: pkg,
+ 		}
+-		pkg.Syms = append(pkg.Syms, s)
+-		p.Syms[gs.SymID] = s
++		p.addSym(s)
+ 		delete(p.Missing, gs.SymID)
++
++		if s.Data.Size > int64(s.Size) {
++			p.errorf("%s: initialized data larger than symbol (%d > %d)", s, s.Data.Size, s.Size)
++		}
+ 	}
+ 	p.MaxVersion += pkg.MaxVersion
+ 
+@@ -108,6 +161,21 @@ func (p *Prog) scanFile(pkgpath string, file string) {
+ 	}
+ }
+ 
++func (p *Prog) addSym(s *Sym) {
++	pkg := s.Package
++	if pkg == nil {
++		pkg = p.Packages[""]
++		if pkg == nil {
++			pkg = &Package{}
++			p.Packages[""] = pkg
++		}
++		s.Package = pkg
++	}
++	pkg.Syms = append(pkg.Syms, s)
++	p.Syms[s.SymID] = s
++	p.SymOrder = append(p.SymOrder, s)
++}
++
+ // scanImport finds the object file for the given import path and then scans it.
+ func (p *Prog) scanImport(pkgpath string) {
+ 	if p.Packages[pkgpath] != nil {
+@@ -115,5 +183,5 @@ func (p *Prog) scanImport(pkgpath string) {
+ 	}
+ 
+ 	// TODO(rsc): Implement correct search to find file.
+-	p.scanFile(pkgpath, "/Users/rsc/rscgo/pkg/darwin_amd64/"+pkgpath+".a")
++	p.scanFile(pkgpath, p.pkgdir+"/"+pkgpath+".a")
+ }
+diff --git a/src/cmd/link/testdata/autosection.6 b/src/cmd/link/testdata/autosection.6
+new file mode 100644
+index 0000000000..62619a7ea3
+Binary files /dev/null and b/src/cmd/link/testdata/autosection.6 differ
+diff --git a/src/cmd/link/testdata/autosection.s b/src/cmd/link/testdata/autosection.s
+new file mode 100644
+index 0000000000..8a579b7027
+--- /dev/null
++++ b/src/cmd/link/testdata/autosection.s
+@@ -0,0 +1,60 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test of section-named symbols.
++
++#include "../../ld/textflag.h"
++
++TEXT start(SB),7,$0
++	MOVQ $autotab(SB),AX
++	MOVQ $autoptr(SB),AX
++	RET
++
++GLOBL zero(SB), $8
++
++GLOBL zeronoptr(SB), NOPTR, $16
++
++// text
++DATA autotab+0x00(SB)/8, $text(SB)
++DATA autotab+0x08(SB)/8, $start(SB)
++DATA autotab+0x10(SB)/8, $etext(SB)
++DATA autotab+0x18(SB)/8, $start+16(SB)
++
++// data
++DATA autotab+0x20(SB)/8, $data(SB)
++DATA autotab+0x28(SB)/8, $autotab(SB)
++DATA autotab+0x30(SB)/8, $edata(SB)
++DATA autotab+0x38(SB)/8, $nonzero+4(SB)
++
++// bss
++DATA autotab+0x40(SB)/8, $bss(SB)
++DATA autotab+0x48(SB)/8, $zero(SB)
++DATA autotab+0x50(SB)/8, $ebss(SB)
++DATA autotab+0x58(SB)/8, $zero+8(SB)
++
++// noptrdata
++DATA autotab+0x60(SB)/8, $noptrdata(SB)
++DATA autotab+0x68(SB)/8, $nonzeronoptr(SB)
++DATA autotab+0x70(SB)/8, $enoptrdata(SB)
++DATA autotab+0x78(SB)/8, $nonzeronoptr+8(SB)
++
++// noptrbss
++DATA autotab+0x80(SB)/8, $noptrbss(SB)
++DATA autotab+0x88(SB)/8, $zeronoptr(SB)
++DATA autotab+0x90(SB)/8, $enoptrbss(SB)
++DATA autotab+0x98(SB)/8, $zeronoptr+16(SB)
++
++// end
++DATA autotab+0xa0(SB)/8, $end(SB)
++DATA autotab+0xa8(SB)/8, $zeronoptr+16(SB)
++
++GLOBL autotab(SB), $0xb0
++
++DATA nonzero(SB)/4, $1
++GLOBL nonzero(SB), $4
++
++DATA nonzeronoptr(SB)/8, $2
++GLOBL nonzeronoptr(SB), NOPTR, $8
++
++GLOBL autoptr(SB), $0
+diff --git a/src/cmd/link/testdata/autoweak.6 b/src/cmd/link/testdata/autoweak.6
+new file mode 100644
+index 0000000000..f7e9e69713
+Binary files /dev/null and b/src/cmd/link/testdata/autoweak.6 differ
+diff --git a/src/cmd/link/testdata/autoweak.s b/src/cmd/link/testdata/autoweak.s
+new file mode 100644
+index 0000000000..2d11330db2
+--- /dev/null
++++ b/src/cmd/link/testdata/autoweak.s
+@@ -0,0 +1,30 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test of go.weak symbols.
++
++TEXT start(SB),7,$0
++	MOVQ $autotab(SB),AX
++	MOVQ $autoptr(SB),AX
++	RET
++
++// go.weak.sym should resolve to sym, because sym is in the binary.
++DATA autotab+0(SB)/8, $go·weak·sym(SB)
++DATA autotab+8(SB)/8, $sym(SB)
++
++// go.weak.missingsym should resolve to 0, because missingsym is not in the binary.
++DATA autotab+16(SB)/8, $go·weak·missingsym(SB)
++DATA autotab+24(SB)/8, $0
++
++// go.weak.deadsym should resolve to 0, because deadsym is discarded during dead code removal
++DATA autotab+32(SB)/8, $go·weak·deadsym(SB)
++DATA autotab+40(SB)/8, $0
++
++GLOBL autotab(SB), $48
++
++GLOBL sym(SB), $1
++
++GLOBL deadsym(SB), $1
++
++GLOBL autoptr(SB), $0
+diff --git a/src/cmd/link/testdata/layout.6 b/src/cmd/link/testdata/layout.6
+new file mode 100644
+index 0000000000..b19491efc5
+Binary files /dev/null and b/src/cmd/link/testdata/layout.6 differ
+diff --git a/src/cmd/link/testdata/layout.s b/src/cmd/link/testdata/layout.s
+new file mode 100644
+index 0000000000..0d492c5af2
+--- /dev/null
++++ b/src/cmd/link/testdata/layout.s
+@@ -0,0 +1,29 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test of section assignment in layout.go.
++// Each symbol should end up in the section named by the symbol name prefix (up to the underscore).
++
++#include "../../ld/textflag.h"
++
++TEXT text_start(SB),7,$0
++	MOVQ $rodata_sym(SB), AX
++	MOVQ $noptrdata_sym(SB), AX
++	MOVQ $data_sym(SB), AX
++	MOVQ $bss_sym(SB), AX
++	MOVQ $noptrbss_sym(SB), AX
++	RET
++
++DATA rodata_sym(SB)/4, $1
++GLOBL rodata_sym(SB), RODATA, $4
++
++DATA noptrdata_sym(SB)/4, $1
++GLOBL noptrdata_sym(SB), NOPTR, $4
++
++DATA data_sym(SB)/4, $1
++GLOBL data_sym(SB), $4
++
++GLOBL bss_sym(SB), $4
++
++GLOBL noptrbss_sym(SB), NOPTR, $4
+diff --git a/src/cmd/link/write.go b/src/cmd/link/write.go
+index 4577506c6a..7e11b2fe71 100644
+--- a/src/cmd/link/write.go
++++ b/src/cmd/link/write.go
+@@ -9,6 +9,6 @@ package main
+ import "io"
+ 
+ func (p *Prog) write(w io.Writer) {
+-	p.Entry = p.Syms[startSymID].Addr
++	p.Entry = p.Syms[p.startSym].Addr
+ 	p.formatter.write(w, p)
+ }

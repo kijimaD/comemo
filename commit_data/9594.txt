@@ -9,6 +9,20 @@ Date:   Mon Sep 5 15:03:41 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4950063
-
+---
  misc/goplay/goplay.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index 7f4c45376f..a1eb61795f 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -145,7 +145,7 @@ func run(cmd ...string) ([]byte, os.Error) {
+ var frontPage = template.Must(template.New("frontPage").Parse(frontPageText)) // HTML template
+ var output = template.Must(template.New("output").Parse(outputText))          // HTML template
+ 
+-var outputText = `<pre>{{html .}}</pre>`
++var outputText = `<pre>{{printf "%s" . |html}}</pre>`
+ 
+ var frontPageText = `<!doctype html>
+ <html>

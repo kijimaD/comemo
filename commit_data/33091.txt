@@ -8,6 +8,21 @@ Date:   Thu Jul 6 12:36:25 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/47690
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/symtab.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 40add013e4..ced42dad61 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -573,6 +573,9 @@ func moduledataverify1(datap *moduledata) {
+ 
+ // FuncForPC returns a *Func describing the function that contains the
+ // given program counter address, or else nil.
++//
++// If pc represents multiple functions because of inlining, it returns
++// the *Func describing the outermost frame at pc.
+ func FuncForPC(pc uintptr) *Func {
+ 	return findfunc(pc)._Func()
+ }

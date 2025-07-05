@@ -10,7 +10,34 @@ Date:   Tue Aug 12 19:52:04 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/127210043
-
+---
  src/cmd/go/pkg.go    | 2 +-
  src/cmd/go/test.bash | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index eb8c451783..1af33f037a 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -267,7 +267,7 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
+ 		bp.BinDir = gobin
+ 	}
+ 	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path {
+-		err = fmt.Errorf("directory %s contains package %q", bp.Dir, bp.ImportComment)
++		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
+ 	}
+ 	p.load(stk, bp, err)
+ 	if p.Error != nil && len(importPos) > 0 {
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 93a7c67c18..2bb929fb03 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -131,7 +131,7 @@ TEST 'import comment - mismatch'
+ if ./testgo build ./testdata/importcom/wrongplace.go 2>testdata/err; then
+ 	echo 'go build ./testdata/importcom/wrongplace.go suceeded'
+ 	ok=false
+-elif ! grep 'wrongplace contains package "my/x"' testdata/err >/dev/null; then
++elif ! grep 'wrongplace expects import "my/x"' testdata/err >/dev/null; then
+ 	echo 'go build did not mention incorrect import:'
+ 	cat testdata/err
+ 	ok=false

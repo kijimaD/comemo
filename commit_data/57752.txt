@@ -13,7 +13,59 @@ Date:   Mon Aug 28 20:40:51 2023 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/init.go              |  4 ++--
  src/cmd/go/testdata/script/build_pie_race.txt | 30 +++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 29116cb90c..7d0921f0cc 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -246,8 +246,8 @@ func buildModeInit() {
+ 			pkgsFilter = oneMainPkg
+ 		}
+ 	case "pie":
+-		if cfg.BuildRace {
+-			base.Fatalf("-buildmode=pie not supported when -race is enabled")
++		if cfg.BuildRace && !platform.DefaultPIE(cfg.Goos, cfg.Goarch, cfg.BuildRace) {
++			base.Fatalf("-buildmode=pie not supported when -race is enabled on %s/%s", cfg.Goos, cfg.Goarch)
+ 		}
+ 		if gccgo {
+ 			codegenArg = "-fPIE"
+diff --git a/src/cmd/go/testdata/script/build_pie_race.txt b/src/cmd/go/testdata/script/build_pie_race.txt
+new file mode 100644
+index 0000000000..39bea0521f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_pie_race.txt
+@@ -0,0 +1,30 @@
++# go build -buildmode=pie -race main.go on Darwin should work without errors
++
++[!race] skip 'test requires race detector support'
++
++[!GOOS:darwin] ! go build -buildmode=pie -race
++[!GOOS:darwin] stderr '^-buildmode=pie not supported when -race is enabled on '$GOOS'/'$GOARCH'$'
++[!GOOS:darwin] stop 'not testing -buildmode=pie -race on platform that does not support it'
++
++go build -buildmode=pie -race bytes
++! stderr .
++
++[short] stop 'not linking a binary in -short mode'
++
++go build -buildmode=pie -race main.go
++! stderr .
++exec ./main
++stdout 'Hello, 世界'
++
++-- go.mod --
++module m
++
++go 1.21
++-- main.go --
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Println("Hello, 世界")
++}

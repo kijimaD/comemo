@@ -13,7 +13,7 @@ Date:   Sat Sep 16 15:28:14 2017 +0900
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/goobj/read.go       | 24 +++++++----
  src/cmd/internal/objfile/disasm.go   | 10 ++---
  src/cmd/internal/objfile/elf.go      |  4 +-
@@ -26,3 +26,575 @@ Date:   Sat Sep 16 15:28:14 2017 +0900
  src/cmd/nm/nm_cgo_test.go            | 11 +++++
  src/cmd/nm/nm_test.go                | 55 ++++++++++++++++++++-----
  11 files changed, 211 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 2a12ff13c7..ecc9719d2b 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -127,13 +127,18 @@ type InlinedCall struct {
+ 
+ // A Package is a parsed Go object file or archive defining a Go package.
+ type Package struct {
+-	ImportPath string        // import path denoting this package
+-	Imports    []string      // packages imported by this package
+-	SymRefs    []SymID       // list of symbol names and versions referred to by this pack
+-	Syms       []*Sym        // symbols defined by this package
+-	MaxVersion int           // maximum Version in any SymID in Syms
+-	Arch       string        // architecture
+-	Native     []io.ReaderAt // native object data (e.g. ELF)
++	ImportPath string          // import path denoting this package
++	Imports    []string        // packages imported by this package
++	SymRefs    []SymID         // list of symbol names and versions referred to by this pack
++	Syms       []*Sym          // symbols defined by this package
++	MaxVersion int             // maximum Version in any SymID in Syms
++	Arch       string          // architecture
++	Native     []*NativeReader // native object data (e.g. ELF)
++}
++
++type NativeReader struct {
++	Name string
++	io.ReaderAt
+ }
+ 
+ var (
+@@ -439,7 +444,10 @@ func (r *objReader) parseArchive() error {
+ 					return fmt.Errorf("parsing archive member %q: %v", name, err)
+ 				}
+ 			} else {
+-				r.p.Native = append(r.p.Native, io.NewSectionReader(r.f, r.offset, size))
++				r.p.Native = append(r.p.Native, &NativeReader{
++					Name:     name,
++					ReaderAt: io.NewSectionReader(r.f, r.offset, size),
++				})
+ 			}
+ 
+ 			r.skip(r.limit - r.offset)
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 804f47d4ee..ede1141a3e 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -40,23 +40,23 @@ type Disasm struct {
+ }
+ 
+ // Disasm returns a disassembler for the file f.
+-func (f *File) Disasm() (*Disasm, error) {
+-	syms, err := f.Symbols()
++func (e *Entry) Disasm() (*Disasm, error) {
++	syms, err := e.Symbols()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+-	pcln, err := f.PCLineTable()
++	pcln, err := e.PCLineTable()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+-	textStart, textBytes, err := f.Text()
++	textStart, textBytes, err := e.Text()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+-	goarch := f.GOARCH()
++	goarch := e.GOARCH()
+ 	disasm := disasms[goarch]
+ 	byteOrder := byteOrders[goarch]
+ 	if disasm == nil || byteOrder == nil {
+diff --git a/src/cmd/internal/objfile/elf.go b/src/cmd/internal/objfile/elf.go
+index 4a9013348a..7d5162a1e8 100644
+--- a/src/cmd/internal/objfile/elf.go
++++ b/src/cmd/internal/objfile/elf.go
+@@ -11,14 +11,14 @@ import (
+ 	"debug/elf"
+ 	"encoding/binary"
+ 	"fmt"
+-	"os"
++	"io"
+ )
+ 
+ type elfFile struct {
+ 	elf *elf.File
+ }
+ 
+-func openElf(r *os.File) (rawFile, error) {
++func openElf(r io.ReaderAt) (rawFile, error) {
+ 	f, err := elf.NewFile(r)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index c9e12a81a4..51fa6e873f 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -22,12 +22,33 @@ type goobjFile struct {
+ 	f     *os.File // the underlying .o or .a file
+ }
+ 
+-func openGoobj(r *os.File) (rawFile, error) {
++func openGoFile(r *os.File) (*File, error) {
+ 	f, err := goobj.Parse(r, `""`)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &goobjFile{goobj: f, f: r}, nil
++	rf := &goobjFile{goobj: f, f: r}
++	if len(f.Native) == 0 {
++		return &File{r, []*Entry{&Entry{raw: rf}}}, nil
++	}
++	entries := make([]*Entry, len(f.Native)+1)
++	entries[0] = &Entry{
++		raw: rf,
++	}
++L:
++	for i, nr := range f.Native {
++		for _, try := range openers {
++			if raw, err := try(nr); err == nil {
++				entries[i+1] = &Entry{
++					name: nr.Name,
++					raw:  raw,
++				}
++				continue L
++			}
++		}
++		return nil, fmt.Errorf("open %s: unrecognized archive member %s", r.Name(), nr.Name)
++	}
++	return &File{r, entries}, nil
+ }
+ 
+ func goobjName(id goobj.SymID) string {
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index 1d22a09b13..d6d545c23e 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -10,7 +10,7 @@ import (
+ 	"debug/dwarf"
+ 	"debug/macho"
+ 	"fmt"
+-	"os"
++	"io"
+ 	"sort"
+ )
+ 
+@@ -20,7 +20,7 @@ type machoFile struct {
+ 	macho *macho.File
+ }
+ 
+-func openMacho(r *os.File) (rawFile, error) {
++func openMacho(r io.ReaderAt) (rawFile, error) {
+ 	f, err := macho.NewFile(r)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/cmd/internal/objfile/objfile.go b/src/cmd/internal/objfile/objfile.go
+index 2bf6363f29..10307be072 100644
+--- a/src/cmd/internal/objfile/objfile.go
++++ b/src/cmd/internal/objfile/objfile.go
+@@ -9,6 +9,7 @@ import (
+ 	"debug/dwarf"
+ 	"debug/gosym"
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"sort"
+ )
+@@ -24,8 +25,13 @@ type rawFile interface {
+ 
+ // A File is an opened executable file.
+ type File struct {
+-	r   *os.File
+-	raw rawFile
++	r       *os.File
++	entries []*Entry
++}
++
++type Entry struct {
++	name string
++	raw  rawFile
+ }
+ 
+ // A Sym is a symbol defined in an executable file.
+@@ -50,9 +56,8 @@ type RelocStringer interface {
+ 	String(insnOffset uint64) string
+ }
+ 
+-var openers = []func(*os.File) (rawFile, error){
++var openers = []func(io.ReaderAt) (rawFile, error){
+ 	openElf,
+-	openGoobj,
+ 	openMacho,
+ 	openPE,
+ 	openPlan9,
+@@ -65,9 +70,12 @@ func Open(name string) (*File, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	if f, err := openGoFile(r); err == nil {
++		return f, nil
++	}
+ 	for _, try := range openers {
+ 		if raw, err := try(r); err == nil {
+-			return &File{r, raw}, nil
++			return &File{r, []*Entry{&Entry{raw: raw}}}, nil
+ 		}
+ 	}
+ 	r.Close()
+@@ -78,8 +86,44 @@ func (f *File) Close() error {
+ 	return f.r.Close()
+ }
+ 
++func (f *File) Entries() []*Entry {
++	return f.entries
++}
++
+ func (f *File) Symbols() ([]Sym, error) {
+-	syms, err := f.raw.symbols()
++	return f.entries[0].Symbols()
++}
++
++func (f *File) PCLineTable() (Liner, error) {
++	return f.entries[0].PCLineTable()
++}
++
++func (f *File) Text() (uint64, []byte, error) {
++	return f.entries[0].Text()
++}
++
++func (f *File) GOARCH() string {
++	return f.entries[0].GOARCH()
++}
++
++func (f *File) LoadAddress() (uint64, error) {
++	return f.entries[0].LoadAddress()
++}
++
++func (f *File) DWARF() (*dwarf.Data, error) {
++	return f.entries[0].DWARF()
++}
++
++func (f *File) Disasm() (*Disasm, error) {
++	return f.entries[0].Disasm()
++}
++
++func (e *Entry) Name() string {
++	return e.name
++}
++
++func (e *Entry) Symbols() ([]Sym, error) {
++	syms, err := e.raw.symbols()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -93,37 +137,37 @@ func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
+ func (x byAddr) Len() int           { return len(x) }
+ func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+ 
+-func (f *File) PCLineTable() (Liner, error) {
++func (e *Entry) PCLineTable() (Liner, error) {
+ 	// If the raw file implements Liner directly, use that.
+ 	// Currently, only Go intermediate objects and archives (goobj) use this path.
+-	if pcln, ok := f.raw.(Liner); ok {
++	if pcln, ok := e.raw.(Liner); ok {
+ 		return pcln, nil
+ 	}
+ 	// Otherwise, read the pcln tables and build a Liner out of that.
+-	textStart, symtab, pclntab, err := f.raw.pcln()
++	textStart, symtab, pclntab, err := e.raw.pcln()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	return gosym.NewTable(symtab, gosym.NewLineTable(pclntab, textStart))
+ }
+ 
+-func (f *File) Text() (uint64, []byte, error) {
+-	return f.raw.text()
++func (e *Entry) Text() (uint64, []byte, error) {
++	return e.raw.text()
+ }
+ 
+-func (f *File) GOARCH() string {
+-	return f.raw.goarch()
++func (e *Entry) GOARCH() string {
++	return e.raw.goarch()
+ }
+ 
+ // LoadAddress returns the expected load address of the file.
+ // This differs from the actual load address for a position-independent
+ // executable.
+-func (f *File) LoadAddress() (uint64, error) {
+-	return f.raw.loadAddress()
++func (e *Entry) LoadAddress() (uint64, error) {
++	return e.raw.loadAddress()
+ }
+ 
+ // DWARF returns DWARF debug data for the file, if any.
+ // This is for cmd/pprof to locate cgo functions.
+-func (f *File) DWARF() (*dwarf.Data, error) {
+-	return f.raw.dwarf()
++func (e *Entry) DWARF() (*dwarf.Data, error) {
++	return e.raw.dwarf()
+ }
+diff --git a/src/cmd/internal/objfile/pe.go b/src/cmd/internal/objfile/pe.go
+index 46b2317242..80db6f0f18 100644
+--- a/src/cmd/internal/objfile/pe.go
++++ b/src/cmd/internal/objfile/pe.go
+@@ -10,7 +10,7 @@ import (
+ 	"debug/dwarf"
+ 	"debug/pe"
+ 	"fmt"
+-	"os"
++	"io"
+ 	"sort"
+ )
+ 
+@@ -18,17 +18,11 @@ type peFile struct {
+ 	pe *pe.File
+ }
+ 
+-func openPE(r *os.File) (rawFile, error) {
++func openPE(r io.ReaderAt) (rawFile, error) {
+ 	f, err := pe.NewFile(r)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	switch f.OptionalHeader.(type) {
+-	case *pe.OptionalHeader32, *pe.OptionalHeader64:
+-		// ok
+-	default:
+-		return nil, fmt.Errorf("unrecognized PE format")
+-	}
+ 	return &peFile{f}, nil
+ }
+ 
+diff --git a/src/cmd/internal/objfile/plan9obj.go b/src/cmd/internal/objfile/plan9obj.go
+index 3e34f65ae7..da0b345f53 100644
+--- a/src/cmd/internal/objfile/plan9obj.go
++++ b/src/cmd/internal/objfile/plan9obj.go
+@@ -11,7 +11,7 @@ import (
+ 	"debug/plan9obj"
+ 	"errors"
+ 	"fmt"
+-	"os"
++	"io"
+ 	"sort"
+ )
+ 
+@@ -28,7 +28,7 @@ type plan9File struct {
+ 	plan9 *plan9obj.File
+ }
+ 
+-func openPlan9(r *os.File) (rawFile, error) {
++func openPlan9(r io.ReaderAt) (rawFile, error) {
+ 	f, err := plan9obj.NewFile(r)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/cmd/nm/nm.go b/src/cmd/nm/nm.go
+index 2e2dd75018..65ef5b4295 100644
+--- a/src/cmd/nm/nm.go
++++ b/src/cmd/nm/nm.go
+@@ -106,41 +106,54 @@ func nm(file string) {
+ 	}
+ 	defer f.Close()
+ 
+-	syms, err := f.Symbols()
+-	if err != nil {
+-		errorf("reading %s: %v", file, err)
+-	}
+-	if len(syms) == 0 {
+-		errorf("reading %s: no symbols", file)
+-	}
++	w := bufio.NewWriter(os.Stdout)
+ 
+-	switch *sortOrder {
+-	case "address":
+-		sort.Slice(syms, func(i, j int) bool { return syms[i].Addr < syms[j].Addr })
+-	case "name":
+-		sort.Slice(syms, func(i, j int) bool { return syms[i].Name < syms[j].Name })
+-	case "size":
+-		sort.Slice(syms, func(i, j int) bool { return syms[i].Size > syms[j].Size })
+-	}
++	entries := f.Entries()
+ 
+-	w := bufio.NewWriter(os.Stdout)
+-	for _, sym := range syms {
+-		if filePrefix {
+-			fmt.Fprintf(w, "%s:\t", file)
++	for _, e := range entries {
++		syms, err := e.Symbols()
++		if err != nil {
++			errorf("reading %s: %v", file, err)
+ 		}
+-		if sym.Code == 'U' {
+-			fmt.Fprintf(w, "%8s", "")
+-		} else {
+-			fmt.Fprintf(w, "%8x", sym.Addr)
++		if len(syms) == 0 {
++			errorf("reading %s: no symbols", file)
+ 		}
+-		if *printSize {
+-			fmt.Fprintf(w, " %10d", sym.Size)
++
++		switch *sortOrder {
++		case "address":
++			sort.Slice(syms, func(i, j int) bool { return syms[i].Addr < syms[j].Addr })
++		case "name":
++			sort.Slice(syms, func(i, j int) bool { return syms[i].Name < syms[j].Name })
++		case "size":
++			sort.Slice(syms, func(i, j int) bool { return syms[i].Size > syms[j].Size })
+ 		}
+-		fmt.Fprintf(w, " %c %s", sym.Code, sym.Name)
+-		if *printType && sym.Type != "" {
+-			fmt.Fprintf(w, " %s", sym.Type)
++
++		for _, sym := range syms {
++			if len(entries) > 1 {
++				name := e.Name()
++				if name == "" {
++					fmt.Fprintf(w, "%s(%s):\t", file, "_go_.o")
++				} else {
++					fmt.Fprintf(w, "%s(%s):\t", file, name)
++				}
++			} else if filePrefix {
++				fmt.Fprintf(w, "%s:\t", file)
++			}
++			if sym.Code == 'U' {
++				fmt.Fprintf(w, "%8s", "")
++			} else {
++				fmt.Fprintf(w, "%8x", sym.Addr)
++			}
++			if *printSize {
++				fmt.Fprintf(w, " %10d", sym.Size)
++			}
++			fmt.Fprintf(w, " %c %s", sym.Code, sym.Name)
++			if *printType && sym.Type != "" {
++				fmt.Fprintf(w, " %s", sym.Type)
++			}
++			fmt.Fprintf(w, "\n")
+ 		}
+-		fmt.Fprintf(w, "\n")
+ 	}
++
+ 	w.Flush()
+ }
+diff --git a/src/cmd/nm/nm_cgo_test.go b/src/cmd/nm/nm_cgo_test.go
+index 31ab1d67b5..4e67560e2e 100644
+--- a/src/cmd/nm/nm_cgo_test.go
++++ b/src/cmd/nm/nm_cgo_test.go
+@@ -34,3 +34,14 @@ func TestInternalLinkerCgoExec(t *testing.T) {
+ func TestExternalLinkerCgoExec(t *testing.T) {
+ 	testGoExec(t, true, true)
+ }
++
++func TestCgoLib(t *testing.T) {
++	if runtime.GOARCH == "arm" {
++		switch runtime.GOOS {
++		case "darwin", "android", "nacl":
++		default:
++			t.Skip("skip test due to #19811")
++		}
++	}
++	testGoLib(t, true)
++}
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index c6f6d3b9d4..4be5d0e74e 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -161,7 +161,7 @@ func TestGoExec(t *testing.T) {
+ 	testGoExec(t, false, false)
+ }
+ 
+-func testGoLib(t *testing.T) {
++func testGoLib(t *testing.T, iscgo bool) {
+ 	tmpdir, err := ioutil.TempDir("", "TestGoLib")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -180,7 +180,7 @@ func testGoLib(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	err = template.Must(template.New("mylib").Parse(testlib)).Execute(file, nil)
++	err = template.Must(template.New("mylib").Parse(testlib)).Execute(file, iscgo)
+ 	if e := file.Close(); err == nil {
+ 		err = e
+ 	}
+@@ -212,23 +212,46 @@ func testGoLib(t *testing.T) {
+ 	type symType struct {
+ 		Type  string
+ 		Name  string
++		CSym  bool
+ 		Found bool
+ 	}
+ 	var syms = []symType{
+-		{"B", "%22%22.Testdata", false},
+-		{"T", "%22%22.Testfunc", false},
++		{"B", "%22%22.Testdata", false, false},
++		{"T", "%22%22.Testfunc", false, false},
++	}
++	if iscgo {
++		syms = append(syms, symType{"B", "%22%22.TestCgodata", false, false})
++		syms = append(syms, symType{"T", "%22%22.TestCgofunc", false, false})
++		if runtime.GOOS == "darwin" || (runtime.GOOS == "windows" && runtime.GOARCH == "386") {
++			syms = append(syms, symType{"D", "_cgodata", true, false})
++			syms = append(syms, symType{"T", "_cgofunc", true, false})
++		} else {
++			syms = append(syms, symType{"D", "cgodata", true, false})
++			syms = append(syms, symType{"T", "cgofunc", true, false})
++		}
+ 	}
+ 	scanner := bufio.NewScanner(bytes.NewBuffer(out))
+ 	for scanner.Scan() {
+ 		f := strings.Fields(scanner.Text())
+-		if len(f) < 3 {
+-			continue
++		var typ, name string
++		var csym bool
++		if iscgo {
++			if len(f) < 4 {
++				continue
++			}
++			csym = !strings.Contains(f[0], "_go_.o")
++			typ = f[2]
++			name = f[3]
++		} else {
++			if len(f) < 3 {
++				continue
++			}
++			typ = f[1]
++			name = f[2]
+ 		}
+-		typ := f[1]
+-		name := f[2]
+ 		for i := range syms {
+ 			sym := &syms[i]
+-			if sym.Type == typ && sym.Name == name {
++			if sym.Type == typ && sym.Name == name && sym.CSym == csym {
+ 				if sym.Found {
+ 					t.Fatalf("duplicate symbol %s %s", sym.Type, sym.Name)
+ 				}
+@@ -248,7 +271,7 @@ func testGoLib(t *testing.T) {
+ }
+ 
+ func TestGoLib(t *testing.T) {
+-	testGoLib(t)
++	testGoLib(t, false)
+ }
+ 
+ const testexec = `
+@@ -274,6 +297,18 @@ func testfunc() {
+ const testlib = `
+ package mylib
+ 
++{{if .}}
++// int cgodata = 5;
++// void cgofunc(void) {}
++import "C"
++
++var TestCgodata = C.cgodata
++
++func TestCgofunc() {
++	C.cgofunc()
++}
++{{end}}
++
+ var Testdata uint32
+ 
+ func Testfunc() {}

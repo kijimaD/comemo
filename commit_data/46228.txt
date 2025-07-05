@@ -17,10 +17,127 @@ Date:   Sat Nov 28 18:09:21 2020 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Meng Zhuo <mzh@golangcn.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/conn_test.go       |  2 +-
  src/net/mockserver_test.go | 12 +++++++++---
  src/net/protoconn_test.go  |  2 +-
  src/net/server_test.go     |  4 ++--
  src/net/tcpsock_test.go    |  2 +-
  5 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/conn_test.go b/src/net/conn_test.go
+index 6854898da2..771cabcd3c 100644
+--- a/src/net/conn_test.go
++++ b/src/net/conn_test.go
+@@ -32,7 +32,7 @@ func TestConnAndListener(t *testing.T) {
+ 		}
+ 		defer ls.teardown()
+ 		ch := make(chan error, 1)
+-		handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
++		handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
+ 		if err := ls.buildup(handler); err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 9faf173679..867e31e9ae 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -87,6 +87,7 @@ type localServer struct {
+ 	lnmu sync.RWMutex
+ 	Listener
+ 	done chan bool // signal that indicates server stopped
++	cl   []Conn    // accepted connection list
+ }
+ 
+ func (ls *localServer) buildup(handler func(*localServer, Listener)) error {
+@@ -99,10 +100,16 @@ func (ls *localServer) buildup(handler func(*localServer, Listener)) error {
+ 
+ func (ls *localServer) teardown() error {
+ 	ls.lnmu.Lock()
++	defer ls.lnmu.Unlock()
+ 	if ls.Listener != nil {
+ 		network := ls.Listener.Addr().Network()
+ 		address := ls.Listener.Addr().String()
+ 		ls.Listener.Close()
++		for _, c := range ls.cl {
++			if err := c.Close(); err != nil {
++				return err
++			}
++		}
+ 		<-ls.done
+ 		ls.Listener = nil
+ 		switch network {
+@@ -110,7 +117,6 @@ func (ls *localServer) teardown() error {
+ 			os.Remove(address)
+ 		}
+ 	}
+-	ls.lnmu.Unlock()
+ 	return nil
+ }
+ 
+@@ -203,7 +209,7 @@ func newDualStackServer() (*dualStackServer, error) {
+ 	}, nil
+ }
+ 
+-func transponder(ln Listener, ch chan<- error) {
++func (ls *localServer) transponder(ln Listener, ch chan<- error) {
+ 	defer close(ch)
+ 
+ 	switch ln := ln.(type) {
+@@ -220,7 +226,7 @@ func transponder(ln Listener, ch chan<- error) {
+ 		ch <- err
+ 		return
+ 	}
+-	defer c.Close()
++	ls.cl = append(ls.cl, c)
+ 
+ 	network := ln.Addr().Network()
+ 	if c.LocalAddr().Network() != network || c.RemoteAddr().Network() != network {
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index 9f6772c7d1..6f83f52681 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -72,7 +72,7 @@ func TestTCPConnSpecificMethods(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	ch := make(chan error, 1)
+-	handler := func(ls *localServer, ln Listener) { transponder(ls.Listener, ch) }
++	handler := func(ls *localServer, ln Listener) { ls.transponder(ls.Listener, ch) }
+ 	ls, err := (&streamListener{Listener: ln}).newLocalServer()
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index 2673b87718..4ac5443e6a 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -86,7 +86,7 @@ func TestTCPServer(t *testing.T) {
+ 			}
+ 			for i := 0; i < N; i++ {
+ 				ch := tpchs[i]
+-				handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
++				handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
+ 				if err := lss[i].buildup(handler); err != nil {
+ 					t.Fatal(err)
+ 				}
+@@ -178,7 +178,7 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
+ 		}
+ 		for i := 0; i < N; i++ {
+ 			ch := tpchs[i]
+-			handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
++			handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
+ 			if err := lss[i].buildup(handler); err != nil {
+ 				t.Fatal(err)
+ 			}
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index 6e905aa091..d6172bc503 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -393,7 +393,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 		}
+ 		defer ls.teardown()
+ 		ch := make(chan error, 1)
+-		handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
++		handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
+ 		if err := ls.buildup(handler); err != nil {
+ 			t.Fatal(err)
+ 		}

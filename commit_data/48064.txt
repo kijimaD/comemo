@@ -15,9 +15,66 @@ Date:   Tue Apr 20 16:22:01 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/312046
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/testso/so_test.go           | 4 ++++
  misc/cgo/testso/testdata/cgoso.go    | 2 +-
  misc/cgo/testsovar/so_test.go        | 4 ++++
  misc/cgo/testsovar/testdata/cgoso.go | 2 +-
  4 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testso/so_test.go b/misc/cgo/testso/so_test.go
+index 1c97ae9bcb..2023c51f11 100644
+--- a/misc/cgo/testso/so_test.go
++++ b/misc/cgo/testso/so_test.go
+@@ -79,6 +79,10 @@ func TestSO(t *testing.T) {
+ 	case "windows":
+ 		ext = "dll"
+ 		args = append(args, "-DEXPORT_DLL")
++		// At least in mingw-clang it is not permitted to just name a .dll
++		// on the command line. You must name the corresponding import
++		// library instead, even though the dll is used when the executable is run.
++		args = append(args, "-Wl,-out-implib,libcgosotest.a")
+ 	case "aix":
+ 		ext = "so.1"
+ 	}
+diff --git a/misc/cgo/testso/testdata/cgoso.go b/misc/cgo/testso/testdata/cgoso.go
+index bba5de3312..b59b2a8e8b 100644
+--- a/misc/cgo/testso/testdata/cgoso.go
++++ b/misc/cgo/testso/testdata/cgoso.go
+@@ -14,7 +14,7 @@ package cgosotest
+ #cgo solaris LDFLAGS: -L. -lcgosotest
+ #cgo netbsd LDFLAGS: -L. libcgosotest.so
+ #cgo darwin LDFLAGS: -L. libcgosotest.dylib
+-#cgo windows LDFLAGS: -L. libcgosotest.dll
++#cgo windows LDFLAGS: -L. libcgosotest.a
+ #cgo aix LDFLAGS: -L. -l cgosotest
+ 
+ void init(void);
+diff --git a/misc/cgo/testsovar/so_test.go b/misc/cgo/testsovar/so_test.go
+index 1c97ae9bcb..2023c51f11 100644
+--- a/misc/cgo/testsovar/so_test.go
++++ b/misc/cgo/testsovar/so_test.go
+@@ -79,6 +79,10 @@ func TestSO(t *testing.T) {
+ 	case "windows":
+ 		ext = "dll"
+ 		args = append(args, "-DEXPORT_DLL")
++		// At least in mingw-clang it is not permitted to just name a .dll
++		// on the command line. You must name the corresponding import
++		// library instead, even though the dll is used when the executable is run.
++		args = append(args, "-Wl,-out-implib,libcgosotest.a")
+ 	case "aix":
+ 		ext = "so.1"
+ 	}
+diff --git a/misc/cgo/testsovar/testdata/cgoso.go b/misc/cgo/testsovar/testdata/cgoso.go
+index 9c7f95e92e..d9deb556da 100644
+--- a/misc/cgo/testsovar/testdata/cgoso.go
++++ b/misc/cgo/testsovar/testdata/cgoso.go
+@@ -18,7 +18,7 @@ package cgosotest
+ #cgo solaris LDFLAGS: -L. -lcgosotest
+ #cgo netbsd LDFLAGS: -L. libcgosotest.so
+ #cgo darwin LDFLAGS: -L. libcgosotest.dylib
+-#cgo windows LDFLAGS: -L. libcgosotest.dll
++#cgo windows LDFLAGS: -L. libcgosotest.a
+ #cgo aix LDFLAGS: -L. -l cgosotest
+ 
+ #include "cgoso_c.h"

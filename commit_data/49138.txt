@@ -25,9 +25,89 @@ Date:   Mon Jul 19 12:41:30 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/336430
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go         |  8 ++++++++
  src/cmd/compile/internal/noder/transform.go |  2 --
  test/run.go                                 |  5 ++---
  test/typeparam/mdempsky/14.go               | 11 +++++++----
  4 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 9c800dcd1a..09d6d87f06 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -349,6 +349,14 @@ func (n *InlinedCallExpr) SingleResult() Node {
+ 	if have := len(n.ReturnVars); have != 1 {
+ 		base.FatalfAt(n.Pos(), "inlined call has %v results, expected 1", have)
+ 	}
++	if !n.Type().HasShape() && n.ReturnVars[0].Type().HasShape() {
++		// If the type of the call is not a shape, but the type of the return value
++		// is a shape, we need to do an implicit conversion, so the real type
++		// of n is maintained.
++		r := NewConvExpr(n.Pos(), OCONVNOP, n.Type(), n.ReturnVars[0])
++		r.SetTypecheck(1)
++		return r
++	}
+ 	return n.ReturnVars[0]
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index efbc8f68ce..86bdb91395 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -161,8 +161,6 @@ func transformCall(n *ir.CallExpr) {
+ 		typecheck.FixMethodCall(n)
+ 	}
+ 	if t.NumResults() == 1 {
+-		n.SetType(l.Type().Results().Field(0).Type)
+-
+ 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME {
+ 			if sym := n.X.(*ir.Name).Sym(); types.IsRuntimePkg(sym.Pkg) && sym.Name == "getg" {
+ 				// Emit code for runtime.getg() directly instead of calling function.
+diff --git a/test/run.go b/test/run.go
+index 55c508dd42..1e01d16067 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2174,9 +2174,8 @@ var g3Failures = setOf(
+ 
+ 	"typeparam/mdempsky/4.go", // -G=3 can't export functions with labeled breaks in loops
+ 
+-	"typeparam/cons.go",        // causes an unreachable method
+-	"typeparam/issue44688.go",  // interface conversion fails due to missing method
+-	"typeparam/mdempsky/14.go", // interface comparison failure
++	"typeparam/cons.go",       // causes an unreachable method
++	"typeparam/issue44688.go", // interface conversion fails due to missing method
+ )
+ 
+ var unifiedFailures = setOf(
+diff --git a/test/typeparam/mdempsky/14.go b/test/typeparam/mdempsky/14.go
+index 61f9436910..ba685bc35c 100644
+--- a/test/typeparam/mdempsky/14.go
++++ b/test/typeparam/mdempsky/14.go
+@@ -6,11 +6,14 @@
+ 
+ package main
+ 
+-func Zero[T any]() (_ T) { return }
++// Zero returns the zero value of T
++func Zero[T any]() (_ T) {
++	return
++}
+ 
+-type T[X any] int
++type AnyInt[X any] int
+ 
+-func (T[X]) M() {
++func (AnyInt[X]) M() {
+ 	var have interface{} = Zero[X]()
+ 	var want interface{} = Zero[MyInt]()
+ 
+@@ -22,7 +25,7 @@ func (T[X]) M() {
+ type I interface{ M() }
+ 
+ type MyInt int
+-type U = T[MyInt]
++type U = AnyInt[MyInt]
+ 
+ var x = U(0)
+ var i I = x

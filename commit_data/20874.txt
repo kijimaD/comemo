@@ -19,7 +19,65 @@ Date:   Wed Oct 22 10:56:26 2014 +1100
     R=adg, c.emil.hessman, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/160950044
-
+---
  misc/makerelease/makerelease.go        | 19 ++++++++++++++++++-
  misc/makerelease/windows/installer.wxs |  5 ++---
  2 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/misc/makerelease/makerelease.go b/misc/makerelease/makerelease.go
+index 3094856dd4..9b2373307f 100644
+--- a/misc/makerelease/makerelease.go
++++ b/misc/makerelease/makerelease.go
+@@ -437,7 +437,8 @@ func (b *Build) Do() error {
+ 		// Build package.
+ 		_, err = b.run(work, "candle",
+ 			"-nologo",
+-			"-dVersion="+version,
++			"-dGoVersion="+version,
++			"-dWixGoVersion="+wixVersion(version),
+ 			"-dArch="+b.Arch,
+ 			"-dSourceDir=go",
+ 			installer, appfiles)
+@@ -471,6 +472,22 @@ func (b *Build) Do() error {
+ 	return err
+ }
+ 
++var versionRe = regexp.MustCompile(`^go([0-9]+(\.[0-9]+)*)`)
++
++// The Microsoft installer requires version format major.minor.build
++// (http://msdn.microsoft.com/en-us/library/aa370859%28v=vs.85%29.aspx).
++// Where the major and minor field has a maximum value of 255 and build 65535.
++// The offical Go version format is goMAJOR.MINOR.PATCH at $GOROOT/VERSION.
++// It's based on the Mercurial tag. Remove prefix and suffix to make the
++// installer happy.
++func wixVersion(v string) string {
++	m := versionRe.FindStringSubmatch(v)
++	if m == nil {
++		return "0.0.0"
++	}
++	return m[1]
++}
++
+ // extras fetches the go.tools, go.blog, and go-tour repositories,
+ // builds them and copies the resulting binaries and static assets
+ // to the new GOROOT.
+diff --git a/misc/makerelease/windows/installer.wxs b/misc/makerelease/windows/installer.wxs
+index b170b98dc4..66e0913ba8 100644
+--- a/misc/makerelease/windows/installer.wxs
++++ b/misc/makerelease/windows/installer.wxs
+@@ -18,13 +18,12 @@
+ 
+ <Product
+     Id="FF5B30B2-08C2-11E1-85A2-6ACA4824019B"
+-    Name="Go Programming Language $(var.Arch) $(var.Version)"
++    Name="Go Programming Language $(var.Arch) $(var.GoVersion)"
+     Language="1033"
+     Codepage="1252"
+-    Version="0.0.0.0"
++    Version="$(var.WixGoVersion)"
+     Manufacturer="http://golang.org"
+     UpgradeCode="$(var.UpgradeCode)" >
+-    <!-- Version="$(var.Version)" TODO: Version requires X.X.X.X format -->
+ 
+ <Package
+     Id='*' 

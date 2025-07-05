@@ -8,8 +8,53 @@ Date:   Wed Jul 29 16:23:17 2009 -0700
     DELTA=16  (15 added, 0 deleted, 1 changed)
     OCL=32475
     CL=32481
-
+---
  src/pkg/go/printer/printer.go          | 2 +-
  src/pkg/go/printer/testdata/golden1.go | 7 +++++++
  src/pkg/go/printer/testdata/source1.go | 8 ++++++++
  3 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index b3de0d2e1b..6e6f3a1b5e 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -681,7 +681,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ // Print the statement list indented, but without a newline after the last statement.
+ func (p *printer) stmtList(list []ast.Stmt) {
+ 	if len(list) > 0 {
+-		p.print(+1, newline);
++		p.print(+1, formfeed);  // the next lines have different structure
+ 		optSemi := false;
+ 		for i, s := range list {
+ 			if i > 0 {
+diff --git a/src/pkg/go/printer/testdata/golden1.go b/src/pkg/go/printer/testdata/golden1.go
+index b44eb6c49b..b36497f255 100644
+--- a/src/pkg/go/printer/testdata/golden1.go
++++ b/src/pkg/go/printer/testdata/golden1.go
+@@ -50,3 +50,10 @@ func f1() {
+ 	/* 4 */
+ 	f0()
+ }
++
++func abs(x int) int {
++	if x < 0 {	// the tab printed before this comment's // must not affect the remaining lines
++		return -x	// this statement should be properly indented
++	}
++	return x
++}
+diff --git a/src/pkg/go/printer/testdata/source1.go b/src/pkg/go/printer/testdata/source1.go
+index f96746a702..b0a9c71eb0 100644
+--- a/src/pkg/go/printer/testdata/source1.go
++++ b/src/pkg/go/printer/testdata/source1.go
+@@ -50,3 +50,11 @@ func f1() {
+ 	/* 4 */
+ 	f0();
+ }
++
++
++func abs(x int) int {
++	if x < 0 {  // the tab printed before this comment's // must not affect the remaining lines
++		return -x;  // this statement should be properly indented
++	}
++	return x;
++}

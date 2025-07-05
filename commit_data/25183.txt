@@ -14,6 +14,20 @@ Date:   Mon Oct 5 17:17:58 2015 -0700
     Change-Id: I079f4788134bf9aedcccc26838879eedad1c925e
     Reviewed-on: https://go-review.googlesource.com/15434
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index ef035c7130..b66049f0c2 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -285,7 +285,7 @@ func printUsage(w io.Writer) {
+ func usage() {
+ 	// special case "go test -h"
+ 	if len(os.Args) > 1 && os.Args[1] == "test" {
+-		os.Stdout.WriteString(testUsage + "\n\n" +
++		os.Stderr.WriteString(testUsage + "\n\n" +
+ 			strings.TrimSpace(testFlag1) + "\n\n\t" +
+ 			strings.TrimSpace(testFlag2) + "\n")
+ 		os.Exit(2)

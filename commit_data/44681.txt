@@ -11,7 +11,121 @@ Date:   Wed Aug 19 01:38:43 2020 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/archive/archive.go |  6 ++++++
  src/cmd/internal/objfile/goobj.go   | 32 +++++++++++++-------------------
  2 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/internal/archive/archive.go b/src/cmd/internal/archive/archive.go
+index db67ce424b..c1661d7711 100644
+--- a/src/cmd/internal/archive/archive.go
++++ b/src/cmd/internal/archive/archive.go
+@@ -17,6 +17,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"strconv"
++	"strings"
+ 	"time"
+ 	"unicode/utf8"
+ )
+@@ -83,6 +84,7 @@ func (e *Entry) String() string {
+ 
+ type GoObj struct {
+ 	TextHeader []byte
++	Arch       string
+ 	Data
+ }
+ 
+@@ -404,6 +406,10 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
+ 		}
+ 	}
+ 	o.TextHeader = h
++	hs := strings.Fields(string(h))
++	if len(hs) >= 4 {
++		o.Arch = hs[3]
++	}
+ 	o.Offset = r.offset
+ 	o.Size = size - int64(len(h))
+ 
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index e838f58aed..af9ada3324 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -17,13 +17,13 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
+-	"strings"
+ )
+ 
+ type goobjFile struct {
+ 	goobj *archive.GoObj
+ 	r     *goobj.Reader
+ 	f     *os.File
++	arch  *sys.Arch
+ }
+ 
+ func openGoFile(f *os.File) (*File, error) {
+@@ -45,9 +45,16 @@ L:
+ 				return nil, err
+ 			}
+ 			r := goobj.NewReaderFromBytes(b, false)
++			var arch *sys.Arch
++			for _, a := range sys.Archs {
++				if a.Name == e.Obj.Arch {
++					arch = a
++					break
++				}
++			}
+ 			entries = append(entries, &Entry{
+ 				name: e.Name,
+-				raw:  &goobjFile{e.Obj, r, f},
++				raw:  &goobjFile{e.Obj, r, f, arch},
+ 			})
+ 			continue
+ 		case archive.EntryNativeObj:
+@@ -223,17 +230,8 @@ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
+ // Returns "",0,nil if unknown.
+ // This function implements the Liner interface in preference to pcln() above.
+ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+-	// TODO: this is really inefficient. Binary search? Memoize last result?
+ 	r := f.r
+-	var arch *sys.Arch
+-	archname := f.goarch()
+-	for _, a := range sys.Archs {
+-		if a.Name == archname {
+-			arch = a
+-			break
+-		}
+-	}
+-	if arch == nil {
++	if f.arch == nil {
+ 		return "", 0, nil
+ 	}
+ 	pcdataBase := r.PcdataBase()
+@@ -264,10 +262,10 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+ 		lengths := info.ReadFuncInfoLengths(b)
+ 		off, end := info.ReadPcline(b)
+ 		pcline := r.BytesAt(pcdataBase+off, int(end-off))
+-		line := int(pcValue(pcline, pc-addr, arch))
++		line := int(pcValue(pcline, pc-addr, f.arch))
+ 		off, end = info.ReadPcfile(b)
+ 		pcfile := r.BytesAt(pcdataBase+off, int(end-off))
+-		fileID := pcValue(pcfile, pc-addr, arch)
++		fileID := pcValue(pcfile, pc-addr, f.arch)
+ 		globalFileID := info.ReadFile(b, lengths.FileOff, uint32(fileID))
+ 		fileName := r.File(int(globalFileID))
+ 		// Note: we provide only the name in the Func structure.
+@@ -332,11 +330,7 @@ func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
+ }
+ 
+ func (f *goobjFile) goarch() string {
+-	hs := strings.Fields(string(f.goobj.TextHeader))
+-	if len(hs) >= 4 {
+-		return hs[3]
+-	}
+-	return ""
++	return f.goobj.Arch
+ }
+ 
+ func (f *goobjFile) loadAddress() (uint64, error) {

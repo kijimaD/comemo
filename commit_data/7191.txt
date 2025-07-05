@@ -7,7 +7,42 @@ Date:   Thu Jan 20 00:16:16 2011 -0500
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/4083042
-
+---
  src/pkg/net/net_test.go       | 4 ++++
  src/pkg/net/resolv_windows.go | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 5f60972ace..1e6e99eec7 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"flag"
+ 	"regexp"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -103,6 +104,9 @@ var revAddrTests = []struct {
+ }
+ 
+ func TestReverseAddress(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		return
++	}
+ 	for i, tt := range revAddrTests {
+ 		a, e := reverseaddr(tt.Addr)
+ 		if len(tt.ErrPrefix) > 0 && e == nil {
+diff --git a/src/pkg/net/resolv_windows.go b/src/pkg/net/resolv_windows.go
+index d5292b8be2..e9b1145ef8 100644
+--- a/src/pkg/net/resolv_windows.go
++++ b/src/pkg/net/resolv_windows.go
+@@ -81,3 +81,7 @@ func LookupPort(network, service string) (port int, err os.Error) {
+ func isDomainName(s string) bool {
+ 	panic("unimplemented")
+ }
++
++func resolveaddr(addr string) (arpa string, err os.Error) {
++	panic("unimplemented")
++}

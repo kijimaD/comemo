@@ -9,7 +9,98 @@ Date:   Thu Oct 15 16:34:05 2009 -0700
     DELTA=62  (61 added, 1 deleted, 0 changed)
     OCL=35788
     CL=35802
-
+---
  src/pkg/io/utils.go      | 30 +++++++++++++++++++++++++++++-
  src/pkg/io/utils_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 61 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/io/utils.go b/src/pkg/io/utils.go
+index 78b8320eca..bdf2348747 100644
+--- a/src/pkg/io/utils.go
++++ b/src/pkg/io/utils.go
+@@ -9,6 +9,7 @@ package io
+ import (
+ 	"bytes";
+ 	"os";
++	"sort";
+ )
+ 
+ // ReadAll reads from r until an error or EOF and returns the data it read.
+@@ -37,9 +38,36 @@ func WriteFile(filename string, data []byte, perm int) os.Error {
+ 		return err;
+ 	}
+ 	n, err := f.Write(data);
++	f.Close();
+ 	if err == nil && n < len(data) {
+ 		err = ErrShortWrite;
+ 	}
+-	f.Close();
+ 	return err;
+ }
++
++// A dirList implements sort.Interface.
++type dirList []*os.Dir
++
++func (d dirList) Len() int { return len(d); }
++func (d dirList) Less(i, j int) bool { return d[i].Name < d[j].Name; }
++func (d dirList) Swap(i, j int) { d[i], d[j] = d[j], d[i]; }
++
++// ReadDir reads the directory named by dirname and returns
++// a list of sorted directory entries.
++func ReadDir(dirname string) ([]*os.Dir, os.Error) {
++	f, err := os.Open(dirname, os.O_RDONLY, 0);
++	if err != nil {
++		return nil, err;
++	}
++	list, err := f.Readdir(-1);
++	f.Close();
++	if err != nil {
++		return nil, err;
++	}
++	dirs := make(dirList, len(list));
++	for i := range list {
++		dirs[i] = &list[i];
++	}
++	sort.Sort(dirs);
++	return dirs, nil;
++}
+diff --git a/src/pkg/io/utils_test.go b/src/pkg/io/utils_test.go
+index 9153fb1996..085e0167e6 100644
+--- a/src/pkg/io/utils_test.go
++++ b/src/pkg/io/utils_test.go
+@@ -59,3 +59,35 @@ func TestWriteFile(t *testing.T) {
+ 	// cleanup
+ 	os.Remove(filename);	// ignore error
+ }
++
++
++func TestReadDir(t *testing.T) {
++	dirname := "rumpelstilzchen";
++	_, err := ReadDir(dirname);
++	if err == nil {
++		t.Fatalf("ReadDir %s: error expected, none found", dirname);
++	}
++
++	dirname = ".";
++	list, err := ReadDir(dirname);
++	if err != nil {
++		t.Fatalf("ReadDir %s: %v", dirname, err);
++	}
++
++	foundTest := false;
++	foundObj := false;
++	for _, dir := range list {
++		switch {
++		case dir.IsRegular() && dir.Name == "utils_test.go":
++			foundTest = true;
++		case dir.IsDirectory() && dir.Name == "_obj":
++			foundObj = true;
++		}
++	}
++	if !foundTest {
++		t.Fatalf("ReadDir %s: test file not found", dirname);
++	}
++	if !foundObj {
++		t.Fatalf("ReadDir %s: _obj directory not found", dirname);
++	}
++}

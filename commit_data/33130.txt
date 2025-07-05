@@ -7,6 +7,21 @@ Date:   Sat Jul 15 16:27:30 2017 -0400
     Change-Id: I52efa7aa72a23256e5ca56470ffeba975ed8f739
     Reviewed-on: https://go-review.googlesource.com/48760
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/math/rand/rand.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 9fe1cbd61e..fe99c948ac 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -8,7 +8,8 @@
+ // Float64 and Int, use a default shared Source that produces a deterministic
+ // sequence of values each time a program is run. Use the Seed function to
+ // initialize the default Source if different behavior is required for each run.
+-// The default Source is safe for concurrent use by multiple goroutines.
++// The default Source is safe for concurrent use by multiple goroutines, but
++// Sources created by NewSource are not.
+ //
+ // For random numbers suitable for security-sensitive work, see the crypto/rand
+ // package.

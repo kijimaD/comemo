@@ -10,7 +10,7 @@ Date:   Mon Feb 25 16:25:34 2013 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7377052
-
+---
  src/cmd/vet/Makefile          |   2 +-
  src/cmd/vet/atomic.go         |  31 ---------
  src/cmd/vet/buildtag.go       |   5 --
@@ -28,3 +28,758 @@ Date:   Mon Feb 25 16:25:34 2013 -0800
  src/cmd/vet/test_structtag.go |  15 +++++
  src/cmd/vet/test_taglit.go    |  31 +++++++++
  16 files changed, 343 insertions(+), 271 deletions(-)
+
+diff --git a/src/cmd/vet/Makefile b/src/cmd/vet/Makefile
+index ba86addac8..307f4729cf 100644
+--- a/src/cmd/vet/Makefile
++++ b/src/cmd/vet/Makefile
+@@ -3,6 +3,6 @@
+ # license that can be found in the LICENSE file.
+ 
+ test testshort:
+-	go build -tags unsafe
++	go build -tags vet_test
+ 	../../../test/errchk ./vet -compositewhitelist=false -printfuncs='Warn:1,Warnf:1' *.go
+ 
+diff --git a/src/cmd/vet/atomic.go b/src/cmd/vet/atomic.go
+index 0abc6f5241..4ab256f649 100644
+--- a/src/cmd/vet/atomic.go
++++ b/src/cmd/vet/atomic.go
+@@ -7,7 +7,6 @@ package main
+ import (
+ 	"go/ast"
+ 	"go/token"
+-	"sync/atomic"
+ )
+ 
+ // checkAtomicAssignment walks the assignment statement checking for common
+@@ -58,33 +57,3 @@ func (f *File) checkAtomicAddAssignment(left ast.Expr, call *ast.CallExpr) {
+ 		f.Warn(left.Pos(), "direct assignment to atomic value")
+ 	}
+ }
+-
+-type Counter uint64
+-
+-func BadAtomicAssignmentUsedInTests() {
+-	x := uint64(1)
+-	x = atomic.AddUint64(&x, 1)        // ERROR "direct assignment to atomic value"
+-	_, x = 10, atomic.AddUint64(&x, 1) // ERROR "direct assignment to atomic value"
+-	x, _ = atomic.AddUint64(&x, 1), 10 // ERROR "direct assignment to atomic value"
+-
+-	y := &x
+-	*y = atomic.AddUint64(y, 1) // ERROR "direct assignment to atomic value"
+-
+-	var su struct{ Counter uint64 }
+-	su.Counter = atomic.AddUint64(&su.Counter, 1) // ERROR "direct assignment to atomic value"
+-	z1 := atomic.AddUint64(&su.Counter, 1)
+-	_ = z1 // Avoid err "z declared and not used"
+-
+-	var sp struct{ Counter *uint64 }
+-	*sp.Counter = atomic.AddUint64(sp.Counter, 1) // ERROR "direct assignment to atomic value"
+-	z2 := atomic.AddUint64(sp.Counter, 1)
+-	_ = z2 // Avoid err "z declared and not used"
+-
+-	au := []uint64{10, 20}
+-	au[0] = atomic.AddUint64(&au[0], 1) // ERROR "direct assignment to atomic value"
+-	au[1] = atomic.AddUint64(&au[0], 1)
+-
+-	ap := []*uint64{&au[0], &au[1]}
+-	*ap[0] = atomic.AddUint64(ap[0], 1) // ERROR "direct assignment to atomic value"
+-	*ap[1] = atomic.AddUint64(ap[0], 1)
+-}
+diff --git a/src/cmd/vet/buildtag.go b/src/cmd/vet/buildtag.go
+index bd1dd2d378..4b7580457b 100644
+--- a/src/cmd/vet/buildtag.go
++++ b/src/cmd/vet/buildtag.go
+@@ -2,13 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +builder // ERROR "possible malformed \+build comment"
+-// +build !ignore
+-
+ package main
+ 
+-// +build toolate // ERROR "build comment appears too late in file"
+-
+ import (
+ 	"bytes"
+ 	"fmt"
+diff --git a/src/cmd/vet/method.go b/src/cmd/vet/method.go
+index 562742e5a0..bf982dc7ac 100644
+--- a/src/cmd/vet/method.go
++++ b/src/cmd/vet/method.go
+@@ -160,10 +160,3 @@ func (f *File) matchParamType(expect string, actual ast.Expr) bool {
+ 	printer.Fprint(&f.b, f.fset, actual)
+ 	return f.b.String() == expect
+ }
+-
+-func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "should have signature Scan"
+-}
+-
+-type BadInterfaceUsedInTests interface {
+-	ReadByte() byte // ERROR "should have signature ReadByte"
+-}
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index fde440a05e..ad3d39c8fc 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -8,7 +8,6 @@ package main
+ 
+ import (
+ 	"flag"
+-	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ 	"go/types"
+@@ -459,137 +458,3 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
+ 	}
+ 	return false
+ }
+-
+-// Error methods that do not satisfy the Error interface and should be checked.
+-type errorTest1 int
+-
+-func (errorTest1) Error(...interface{}) string {
+-	return "hi"
+-}
+-
+-type errorTest2 int // Analogous to testing's *T type.
+-func (errorTest2) Error(...interface{}) {
+-}
+-
+-type errorTest3 int
+-
+-func (errorTest3) Error() { // No return value.
+-}
+-
+-type errorTest4 int
+-
+-func (errorTest4) Error() int { // Different return type.
+-	return 3
+-}
+-
+-type errorTest5 int
+-
+-func (errorTest5) error() { // niladic; don't complain if no args (was bug)
+-}
+-
+-// This function never executes, but it serves as a simple test for the program.
+-// Test with make test.
+-func BadFunctionUsedInTests() {
+-	var b bool
+-	var i int
+-	var r rune
+-	var s string
+-	var x float64
+-	var p *int
+-	// Some good format/argtypes
+-	fmt.Printf("")
+-	fmt.Printf("%b %b", 3, i)
+-	fmt.Printf("%c %c %c %c", 3, i, 'x', r)
+-	fmt.Printf("%d %d", 3, i)
+-	fmt.Printf("%e %e %e", 3, 3e9, x)
+-	fmt.Printf("%E %E %E", 3, 3e9, x)
+-	fmt.Printf("%f %f %f", 3, 3e9, x)
+-	fmt.Printf("%F %F %F", 3, 3e9, x)
+-	fmt.Printf("%g %g %g", 3, 3e9, x)
+-	fmt.Printf("%G %G %G", 3, 3e9, x)
+-	fmt.Printf("%o %o", 3, i)
+-	fmt.Printf("%p %p", p, nil)
+-	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
+-	fmt.Printf("%s %s", "hi", s)
+-	fmt.Printf("%t %t", true, b)
+-	fmt.Printf("%T %T", 3, i)
+-	fmt.Printf("%U %U", 3, i)
+-	fmt.Printf("%v %v", 3, i)
+-	fmt.Printf("%x %x %x %x", 3, i, "hi", s)
+-	fmt.Printf("%X %X %X %X", 3, i, "hi", s)
+-	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
+-	// Some bad format/argTypes
+-	fmt.Printf("%b", 2.3)                      // ERROR "arg for printf verb %b of wrong type"
+-	fmt.Printf("%c", 2.3)                      // ERROR "arg for printf verb %c of wrong type"
+-	fmt.Printf("%d", 2.3)                      // ERROR "arg for printf verb %d of wrong type"
+-	fmt.Printf("%e", "hi")                     // ERROR "arg for printf verb %e of wrong type"
+-	fmt.Printf("%E", true)                     // ERROR "arg for printf verb %E of wrong type"
+-	fmt.Printf("%f", "hi")                     // ERROR "arg for printf verb %f of wrong type"
+-	fmt.Printf("%F", 'x')                      // ERROR "arg for printf verb %F of wrong type"
+-	fmt.Printf("%g", "hi")                     // ERROR "arg for printf verb %g of wrong type"
+-	fmt.Printf("%G", i)                        // ERROR "arg for printf verb %G of wrong type"
+-	fmt.Printf("%o", x)                        // ERROR "arg for printf verb %o of wrong type"
+-	fmt.Printf("%p", 23)                       // ERROR "arg for printf verb %p of wrong type"
+-	fmt.Printf("%q", x)                        // ERROR "arg for printf verb %q of wrong type"
+-	fmt.Printf("%s", b)                        // ERROR "arg for printf verb %s of wrong type"
+-	fmt.Printf("%t", 23)                       // ERROR "arg for printf verb %t of wrong type"
+-	fmt.Printf("%U", x)                        // ERROR "arg for printf verb %U of wrong type"
+-	fmt.Printf("%x", nil)                      // ERROR "arg for printf verb %x of wrong type"
+-	fmt.Printf("%X", 2.3)                      // ERROR "arg for printf verb %X of wrong type"
+-	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg for printf verb %g of wrong type"
+-	// TODO
+-	fmt.Println()                      // not an error
+-	fmt.Println("%s", "hi")            // ERROR "possible formatting directive in Println call"
+-	fmt.Printf("%s", "hi", 3)          // ERROR "wrong number of args for format in Printf call"
+-	fmt.Printf("%"+("s"), "hi", 3)     // ERROR "wrong number of args for format in Printf call"
+-	fmt.Printf("%s%%%d", "hi", 3)      // correct
+-	fmt.Printf("%08s", "woo")          // correct
+-	fmt.Printf("% 8s", "woo")          // correct
+-	fmt.Printf("%.*d", 3, 3)           // correct
+-	fmt.Printf("%.*d", 3, 3, 3)        // ERROR "wrong number of args for format in Printf call"
+-	fmt.Printf("%.*d", "hi", 3)        // ERROR "arg for \* in printf format not of type int"
+-	fmt.Printf("%.*d", i, 3)           // correct
+-	fmt.Printf("%.*d", s, 3)           // ERROR "arg for \* in printf format not of type int"
+-	fmt.Printf("%q %q", multi()...)    // ok
+-	fmt.Printf("%#q", `blah`)          // ok
+-	printf("now is the time", "buddy") // ERROR "no formatting directive"
+-	Printf("now is the time", "buddy") // ERROR "no formatting directive"
+-	Printf("hi")                       // ok
+-	const format = "%s %s\n"
+-	Printf(format, "hi", "there")
+-	Printf(format, "hi") // ERROR "wrong number of args for format in Printf call"
+-	f := new(File)
+-	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
+-	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args for format in Warnf call"
+-	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
+-	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
+-	// Something that satisfies the error interface.
+-	var e error
+-	fmt.Println(e.Error()) // ok
+-	// Something that looks like an error interface but isn't, such as the (*T).Error method
+-	// in the testing package.
+-	var et1 errorTest1
+-	fmt.Println(et1.Error())        // ERROR "no args in Error call"
+-	fmt.Println(et1.Error("hi"))    // ok
+-	fmt.Println(et1.Error("%d", 3)) // ERROR "possible formatting directive in Error call"
+-	var et2 errorTest2
+-	et2.Error()        // ERROR "no args in Error call"
+-	et2.Error("hi")    // ok, not an error method.
+-	et2.Error("%d", 3) // ERROR "possible formatting directive in Error call"
+-	var et3 errorTest3
+-	et3.Error() // ok, not an error method.
+-	var et4 errorTest4
+-	et4.Error() // ok, not an error method.
+-	var et5 errorTest5
+-	et5.error() // ok, not an error method.
+-}
+-
+-// printf is used by the test.
+-func printf(format string, args ...interface{}) {
+-	panic("don't call - testing only")
+-}
+-
+-// multi is used by the test.
+-func multi() []interface{} {
+-	panic("don't call - testing only")
+-}
+diff --git a/src/cmd/vet/print_unsafe.go b/src/cmd/vet/print_unsafe.go
+deleted file mode 100644
+index 1446b927dc..0000000000
+--- a/src/cmd/vet/print_unsafe.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build unsafe
+-
+-// This file contains a special test for the printf-checker that tests unsafe.Pointer.
+-
+-package main
+-
+-import (
+-	"fmt"
+-	"unsafe" // just for test case printing unsafe.Pointer
+-)
+-
+-func UnsafePointerPrintfTest() {
+-	var up *unsafe.Pointer
+-	fmt.Printf("%p", up)
+-}
+diff --git a/src/cmd/vet/rangeloop.go b/src/cmd/vet/rangeloop.go
+index 1687fcb8a2..ecc5954272 100644
+--- a/src/cmd/vet/rangeloop.go
++++ b/src/cmd/vet/rangeloop.go
+@@ -63,55 +63,3 @@ func checkRangeLoop(f *File, n *ast.RangeStmt) {
+ 		return true
+ 	})
+ }
+-
+-func BadRangeLoopsUsedInTests() {
+-	var s []int
+-	for i, v := range s {
+-		go func() {
+-			println(i) // ERROR "range variable i enclosed by function"
+-			println(v) // ERROR "range variable v enclosed by function"
+-		}()
+-	}
+-	for i, v := range s {
+-		defer func() {
+-			println(i) // ERROR "range variable i enclosed by function"
+-			println(v) // ERROR "range variable v enclosed by function"
+-		}()
+-	}
+-	for i := range s {
+-		go func() {
+-			println(i) // ERROR "range variable i enclosed by function"
+-		}()
+-	}
+-	for _, v := range s {
+-		go func() {
+-			println(v) // ERROR "range variable v enclosed by function"
+-		}()
+-	}
+-	for i, v := range s {
+-		go func() {
+-			println(i, v)
+-		}()
+-		println("unfortunately, we don't catch the error above because of this statement")
+-	}
+-	for i, v := range s {
+-		go func(i, v int) {
+-			println(i, v)
+-		}(i, v)
+-	}
+-	for i, v := range s {
+-		i, v := i, v
+-		go func() {
+-			println(i, v)
+-		}()
+-	}
+-	// If the key of the range statement is not an identifier
+-	// the code should not panic (it used to).
+-	var x [2]int
+-	var f int
+-	for x[0], f = range s {
+-		go func() {
+-			_ = f // ERROR "range variable f enclosed by function"
+-		}()
+-	}
+-}
+diff --git a/src/cmd/vet/structtag.go b/src/cmd/vet/structtag.go
+index 4a04bb5b63..545e420c10 100644
+--- a/src/cmd/vet/structtag.go
++++ b/src/cmd/vet/structtag.go
+@@ -35,7 +35,3 @@ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
+ 		return
+ 	}
+ }
+-
+-type BadTypeUsedInTests struct {
+-	X int "hello" // ERROR "not compatible with reflect.StructTag.Get"
+-}
+diff --git a/src/cmd/vet/taglit.go b/src/cmd/vet/taglit.go
+index 1197522d49..2ae0b2ad44 100644
+--- a/src/cmd/vet/taglit.go
++++ b/src/cmd/vet/taglit.go
+@@ -11,8 +11,6 @@ import (
+ 	"go/ast"
+ 	"go/types"
+ 	"strings"
+-
+-	"go/scanner" // for test; chosen because it's already linked in.
+ )
+ 
+ var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite white list; for testing only")
+@@ -148,18 +146,3 @@ var untaggedLiteralWhitelist = map[string]bool{
+ 	"image.Point":         true,
+ 	"image.Rectangle":     true,
+ }
+-
+-// Testing is awkward because we need to reference things from a separate package
+-// to trigger the warnings.
+-
+-var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "untagged fields"
+-	"Name",
+-	"Usage",
+-	nil, // Value
+-	"DefValue",
+-}
+-
+-// Used to test the check for slices and arrays: If that test is disabled and
+-// vet is run with --compositewhitelist=false, this line triggers an error.
+-// Clumsy but sufficient.
+-var scannerErrorListTest = scanner.ErrorList{nil, nil}
+diff --git a/src/cmd/vet/test_atomic.go b/src/cmd/vet/test_atomic.go
+new file mode 100644
+index 0000000000..9231e9dc0d
+--- /dev/null
++++ b/src/cmd/vet/test_atomic.go
+@@ -0,0 +1,43 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build vet_test
++
++// This file contains tests for the atomic checker.
++
++package main
++
++import (
++	"sync/atomic"
++)
++
++type Counter uint64
++
++func AtomicTests() {
++	x := uint64(1)
++	x = atomic.AddUint64(&x, 1)        // ERROR "direct assignment to atomic value"
++	_, x = 10, atomic.AddUint64(&x, 1) // ERROR "direct assignment to atomic value"
++	x, _ = atomic.AddUint64(&x, 1), 10 // ERROR "direct assignment to atomic value"
++
++	y := &x
++	*y = atomic.AddUint64(y, 1) // ERROR "direct assignment to atomic value"
++
++	var su struct{ Counter uint64 }
++	su.Counter = atomic.AddUint64(&su.Counter, 1) // ERROR "direct assignment to atomic value"
++	z1 := atomic.AddUint64(&su.Counter, 1)
++	_ = z1 // Avoid err "z declared and not used"
++
++	var sp struct{ Counter *uint64 }
++	*sp.Counter = atomic.AddUint64(sp.Counter, 1) // ERROR "direct assignment to atomic value"
++	z2 := atomic.AddUint64(sp.Counter, 1)
++	_ = z2 // Avoid err "z declared and not used"
++
++	au := []uint64{10, 20}
++	au[0] = atomic.AddUint64(&au[0], 1) // ERROR "direct assignment to atomic value"
++	au[1] = atomic.AddUint64(&au[0], 1)
++
++	ap := []*uint64{&au[0], &au[1]}
++	*ap[0] = atomic.AddUint64(ap[0], 1) // ERROR "direct assignment to atomic value"
++	*ap[1] = atomic.AddUint64(ap[0], 1)
++}
+diff --git a/src/cmd/vet/test_buildtag.go b/src/cmd/vet/test_buildtag.go
+new file mode 100644
+index 0000000000..d7174ade21
+--- /dev/null
++++ b/src/cmd/vet/test_buildtag.go
+@@ -0,0 +1,15 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the buildtag checker.
++
++// +build vet_test
++// +builder // ERROR "possible malformed \+build comment"
++// +build !ignore
++
++package main
++
++// +build toolate // ERROR "build comment appears too late in file"
++
++var _ = 3
+diff --git a/src/cmd/vet/test_method.go b/src/cmd/vet/test_method.go
+new file mode 100644
+index 0000000000..41de62bb1d
+--- /dev/null
++++ b/src/cmd/vet/test_method.go
+@@ -0,0 +1,24 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the canonical method checker.
++
++// +build vet_test
++
++// This file contains the code to check canonical methods.
++
++package main
++
++import (
++	"fmt"
++)
++
++type MethodTest int
++
++func (t *MethodTest) Scan(x fmt.ScanState, c byte) { // ERROR "should have signature Scan"
++}
++
++type MethodTestInterface interface {
++	ReadByte() byte // ERROR "should have signature ReadByte"
++}
+diff --git a/src/cmd/vet/test_print.go b/src/cmd/vet/test_print.go
+new file mode 100644
+index 0000000000..5a19e07a55
+--- /dev/null
++++ b/src/cmd/vet/test_print.go
+@@ -0,0 +1,153 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build vet_test
++
++// This file contains tests for the printf checker.
++
++package main
++
++import (
++	"fmt"
++	"unsafe" // just for test case printing unsafe.Pointer
++)
++
++func UnsafePointerPrintfTest() {
++	var up *unsafe.Pointer
++	fmt.Printf("%p", up)
++}
++
++// Error methods that do not satisfy the Error interface and should be checked.
++type errorTest1 int
++
++func (errorTest1) Error(...interface{}) string {
++	return "hi"
++}
++
++type errorTest2 int // Analogous to testing's *T type.
++func (errorTest2) Error(...interface{}) {
++}
++
++type errorTest3 int
++
++func (errorTest3) Error() { // No return value.
++}
++
++type errorTest4 int
++
++func (errorTest4) Error() int { // Different return type.
++	return 3
++}
++
++type errorTest5 int
++
++func (errorTest5) error() { // niladic; don't complain if no args (was bug)
++}
++
++// This function never executes, but it serves as a simple test for the program.
++// Test with make test.
++func PrintfTests() {
++	var b bool
++	var i int
++	var r rune
++	var s string
++	var x float64
++	var p *int
++	// Some good format/argtypes
++	fmt.Printf("")
++	fmt.Printf("%b %b", 3, i)
++	fmt.Printf("%c %c %c %c", 3, i, 'x', r)
++	fmt.Printf("%d %d", 3, i)
++	fmt.Printf("%e %e %e", 3, 3e9, x)
++	fmt.Printf("%E %E %E", 3, 3e9, x)
++	fmt.Printf("%f %f %f", 3, 3e9, x)
++	fmt.Printf("%F %F %F", 3, 3e9, x)
++	fmt.Printf("%g %g %g", 3, 3e9, x)
++	fmt.Printf("%G %G %G", 3, 3e9, x)
++	fmt.Printf("%o %o", 3, i)
++	fmt.Printf("%p %p", p, nil)
++	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
++	fmt.Printf("%s %s", "hi", s)
++	fmt.Printf("%t %t", true, b)
++	fmt.Printf("%T %T", 3, i)
++	fmt.Printf("%U %U", 3, i)
++	fmt.Printf("%v %v", 3, i)
++	fmt.Printf("%x %x %x %x", 3, i, "hi", s)
++	fmt.Printf("%X %X %X %X", 3, i, "hi", s)
++	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
++	// Some bad format/argTypes
++	fmt.Printf("%b", 2.3)                      // ERROR "arg for printf verb %b of wrong type"
++	fmt.Printf("%c", 2.3)                      // ERROR "arg for printf verb %c of wrong type"
++	fmt.Printf("%d", 2.3)                      // ERROR "arg for printf verb %d of wrong type"
++	fmt.Printf("%e", "hi")                     // ERROR "arg for printf verb %e of wrong type"
++	fmt.Printf("%E", true)                     // ERROR "arg for printf verb %E of wrong type"
++	fmt.Printf("%f", "hi")                     // ERROR "arg for printf verb %f of wrong type"
++	fmt.Printf("%F", 'x')                      // ERROR "arg for printf verb %F of wrong type"
++	fmt.Printf("%g", "hi")                     // ERROR "arg for printf verb %g of wrong type"
++	fmt.Printf("%G", i)                        // ERROR "arg for printf verb %G of wrong type"
++	fmt.Printf("%o", x)                        // ERROR "arg for printf verb %o of wrong type"
++	fmt.Printf("%p", 23)                       // ERROR "arg for printf verb %p of wrong type"
++	fmt.Printf("%q", x)                        // ERROR "arg for printf verb %q of wrong type"
++	fmt.Printf("%s", b)                        // ERROR "arg for printf verb %s of wrong type"
++	fmt.Printf("%t", 23)                       // ERROR "arg for printf verb %t of wrong type"
++	fmt.Printf("%U", x)                        // ERROR "arg for printf verb %U of wrong type"
++	fmt.Printf("%x", nil)                      // ERROR "arg for printf verb %x of wrong type"
++	fmt.Printf("%X", 2.3)                      // ERROR "arg for printf verb %X of wrong type"
++	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg for printf verb %g of wrong type"
++	// TODO
++	fmt.Println()                      // not an error
++	fmt.Println("%s", "hi")            // ERROR "possible formatting directive in Println call"
++	fmt.Printf("%s", "hi", 3)          // ERROR "wrong number of args for format in Printf call"
++	fmt.Printf("%"+("s"), "hi", 3)     // ERROR "wrong number of args for format in Printf call"
++	fmt.Printf("%s%%%d", "hi", 3)      // correct
++	fmt.Printf("%08s", "woo")          // correct
++	fmt.Printf("% 8s", "woo")          // correct
++	fmt.Printf("%.*d", 3, 3)           // correct
++	fmt.Printf("%.*d", 3, 3, 3)        // ERROR "wrong number of args for format in Printf call"
++	fmt.Printf("%.*d", "hi", 3)        // ERROR "arg for \* in printf format not of type int"
++	fmt.Printf("%.*d", i, 3)           // correct
++	fmt.Printf("%.*d", s, 3)           // ERROR "arg for \* in printf format not of type int"
++	fmt.Printf("%q %q", multi()...)    // ok
++	fmt.Printf("%#q", `blah`)          // ok
++	printf("now is the time", "buddy") // ERROR "no formatting directive"
++	Printf("now is the time", "buddy") // ERROR "no formatting directive"
++	Printf("hi")                       // ok
++	const format = "%s %s\n"
++	Printf(format, "hi", "there")
++	Printf(format, "hi") // ERROR "wrong number of args for format in Printf call"
++	f := new(File)
++	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
++	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args for format in Warnf call"
++	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
++	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
++	// Something that satisfies the error interface.
++	var e error
++	fmt.Println(e.Error()) // ok
++	// Something that looks like an error interface but isn't, such as the (*T).Error method
++	// in the testing package.
++	var et1 errorTest1
++	fmt.Println(et1.Error())        // ERROR "no args in Error call"
++	fmt.Println(et1.Error("hi"))    // ok
++	fmt.Println(et1.Error("%d", 3)) // ERROR "possible formatting directive in Error call"
++	var et2 errorTest2
++	et2.Error()        // ERROR "no args in Error call"
++	et2.Error("hi")    // ok, not an error method.
++	et2.Error("%d", 3) // ERROR "possible formatting directive in Error call"
++	var et3 errorTest3
++	et3.Error() // ok, not an error method.
++	var et4 errorTest4
++	et4.Error() // ok, not an error method.
++	var et5 errorTest5
++	et5.error() // ok, not an error method.
++}
++
++// printf is used by the test.
++func printf(format string, args ...interface{}) {
++	panic("don't call - testing only")
++}
++
++// multi is used by the test.
++func multi() []interface{} {
++	panic("don't call - testing only")
++}
+diff --git a/src/cmd/vet/test_rangeloop.go b/src/cmd/vet/test_rangeloop.go
+new file mode 100644
+index 0000000000..941fd72aaa
+--- /dev/null
++++ b/src/cmd/vet/test_rangeloop.go
+@@ -0,0 +1,61 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the rangeloop checker.
++
++// +build vet_test
++
++package main
++
++func RangeLoopTests() {
++	var s []int
++	for i, v := range s {
++		go func() {
++			println(i) // ERROR "range variable i enclosed by function"
++			println(v) // ERROR "range variable v enclosed by function"
++		}()
++	}
++	for i, v := range s {
++		defer func() {
++			println(i) // ERROR "range variable i enclosed by function"
++			println(v) // ERROR "range variable v enclosed by function"
++		}()
++	}
++	for i := range s {
++		go func() {
++			println(i) // ERROR "range variable i enclosed by function"
++		}()
++	}
++	for _, v := range s {
++		go func() {
++			println(v) // ERROR "range variable v enclosed by function"
++		}()
++	}
++	for i, v := range s {
++		go func() {
++			println(i, v)
++		}()
++		println("unfortunately, we don't catch the error above because of this statement")
++	}
++	for i, v := range s {
++		go func(i, v int) {
++			println(i, v)
++		}(i, v)
++	}
++	for i, v := range s {
++		i, v := i, v
++		go func() {
++			println(i, v)
++		}()
++	}
++	// If the key of the range statement is not an identifier
++	// the code should not panic (it used to).
++	var x [2]int
++	var f int
++	for x[0], f = range s {
++		go func() {
++			_ = f // ERROR "range variable f enclosed by function"
++		}()
++	}
++}
+diff --git a/src/cmd/vet/test_structtag.go b/src/cmd/vet/test_structtag.go
+new file mode 100644
+index 0000000000..08cf737fd8
+--- /dev/null
++++ b/src/cmd/vet/test_structtag.go
+@@ -0,0 +1,15 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the structtag checker.
++
++// +build vet_test
++
++// This file contains the test for canonical struct tags.
++
++package main
++
++type StructTagTest struct {
++	X int "hello" // ERROR "not compatible with reflect.StructTag.Get"
++}
+diff --git a/src/cmd/vet/test_taglit.go b/src/cmd/vet/test_taglit.go
+new file mode 100644
+index 0000000000..0d83b18fd6
+--- /dev/null
++++ b/src/cmd/vet/test_taglit.go
+@@ -0,0 +1,31 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the untagged struct literal checker.
++
++// +build vet_test
++
++// This file contains the test for untagged struct literals.
++
++package main
++
++import (
++	"flag"
++	"go/scanner"
++)
++
++// Testing is awkward because we need to reference things from a separate package
++// to trigger the warnings.
++
++var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "untagged fields"
++	"Name",
++	"Usage",
++	nil, // Value
++	"DefValue",
++}
++
++// Used to test the check for slices and arrays: If that test is disabled and
++// vet is run with --compositewhitelist=false, this line triggers an error.
++// Clumsy but sufficient.
++var scannerErrorListTest = scanner.ErrorList{nil, nil}

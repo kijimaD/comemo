@@ -7,6 +7,20 @@ Date:   Fri Mar 9 11:50:38 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5782063
-
+---
  src/pkg/net/interface.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/interface.go b/src/pkg/net/interface.go
+index f25d046c17..ee23570a96 100644
+--- a/src/pkg/net/interface.go
++++ b/src/pkg/net/interface.go
+@@ -78,7 +78,7 @@ func (ifi *Interface) MulticastAddrs() ([]Addr, error) {
+ 	return interfaceMulticastAddrTable(ifi.Index)
+ }
+ 
+-// Interfaces returns a list of the systems's network interfaces.
++// Interfaces returns a list of the system's network interfaces.
+ func Interfaces() ([]Interface, error) {
+ 	return interfaceTable(0)
+ }

@@ -11,6 +11,20 @@ Date:   Thu Nov 12 13:55:20 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/152102
-
+---
  src/pkg/exp/draw/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/draw/Makefile b/src/pkg/exp/draw/Makefile
+index 865fae1038..44238c5cfb 100644
+--- a/src/pkg/exp/draw/Makefile
++++ b/src/pkg/exp/draw/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-TARG=draw
++TARG=exp/draw
+ GOFILES=\
+ 	arith.go\
+ 	color.go\

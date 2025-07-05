@@ -7,6 +7,20 @@ Date:   Tue Jan 8 09:49:38 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7061051
-
+---
  doc/articles/go_command.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/go_command.html b/doc/articles/go_command.html
+index 1e9e70fd8c..e72e7acd80 100644
+--- a/doc/articles/go_command.html
++++ b/doc/articles/go_command.html
+@@ -50,7 +50,7 @@ most other languages. Over the last few years we consistently reminded people
+ about the <code>goinstall</code> command
+ (now replaced by <a href="/cmd/go/#Download_and_install_packages_and_dependencies"><code>go get</code></a>)
+ and its conventions: first, that the import path is derived in a known way from
+-the URL of the source code; second, that that the place to store the sources in
++the URL of the source code; second, that the place to store the sources in
+ the local file system is derived in a known way from the import path; third,
+ that each directory in a source tree corresponds to a single package; and
+ fourth, that the package is built using only information in the source code.

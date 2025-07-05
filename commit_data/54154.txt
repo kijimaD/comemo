@@ -15,7 +15,7 @@ Date:   Mon Sep 26 11:47:22 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go         |  6 +-----
  src/go/types/expr.go                            |  6 +-----
  src/internal/types/testdata/check/expr0.go      |  4 ++--
@@ -26,3 +26,174 @@ Date:   Mon Sep 26 11:47:22 2022 -0700
  src/internal/types/testdata/check/typeparams.go |  2 +-
  src/internal/types/testdata/check/vardecl.go    |  4 ++--
  9 files changed, 23 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 25c822dba8..3e82e4bcca 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1860,11 +1860,7 @@ func (check *Checker) singleValue(x *operand) {
+ 		// tuple types are never named - no need for underlying type below
+ 		if t, ok := x.typ.(*Tuple); ok {
+ 			assert(t.Len() != 1)
+-			if check.conf.CompilerErrorMessages {
+-				check.errorf(x, _TooManyValues, "multiple-value %s in single-value context", x)
+-			} else {
+-				check.errorf(x, _TooManyValues, "%d-valued %s where single value is expected", t.Len(), x)
+-			}
++			check.errorf(x, _TooManyValues, "multiple-value %s in single-value context", x)
+ 			x.mode = invalid
+ 		}
+ 	}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index cc1db30fef..12f73947fd 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1803,11 +1803,7 @@ func (check *Checker) singleValue(x *operand) {
+ 		// tuple types are never named - no need for underlying type below
+ 		if t, ok := x.typ.(*Tuple); ok {
+ 			assert(t.Len() != 1)
+-			if compilerErrorMessages {
+-				check.errorf(x, _TooManyValues, "multiple-value %s in single-value context", x)
+-			} else {
+-				check.errorf(x, _TooManyValues, "%d-valued %s where single value is expected", t.Len(), x)
+-			}
++			check.errorf(x, _TooManyValues, "multiple-value %s in single-value context", x)
+ 			x.mode = invalid
+ 		}
+ 	}
+diff --git a/src/internal/types/testdata/check/expr0.go b/src/internal/types/testdata/check/expr0.go
+index 19923777df..dd86eca535 100644
+--- a/src/internal/types/testdata/check/expr0.go
++++ b/src/internal/types/testdata/check/expr0.go
+@@ -175,8 +175,8 @@ var (
+ func g() (a, b int) { return }
+ 
+ func _() {
+-	_ = -g /* ERROR 2-valued g */ ()
+-	_ = <-g /* ERROR 2-valued g */ ()
++	_ = -g /* ERROR multiple-value g */ ()
++	_ = <-g /* ERROR multiple-value g */ ()
+ }
+ 
+ // ~ is accepted as unary operator only permitted in interface type elements
+diff --git a/src/internal/types/testdata/check/expr1.go b/src/internal/types/testdata/check/expr1.go
+index 42b95fbb37..49e8baed02 100644
+--- a/src/internal/types/testdata/check/expr1.go
++++ b/src/internal/types/testdata/check/expr1.go
+@@ -120,8 +120,8 @@ func _(x, y string, z mystring) {
+ func f() (a, b int) { return }
+ 
+ func _(x int) {
+-	_ = f /* ERROR 2-valued f */ () + 1
+-	_ = x + f /* ERROR 2-valued f */ ()
+-	_ = f /* ERROR 2-valued f */ () + f
+-	_ = f /* ERROR 2-valued f */ () + f /* ERROR 2-valued f */ ()
++	_ = f /* ERROR multiple-value f */ () + 1
++	_ = x + f /* ERROR multiple-value f */ ()
++	_ = f /* ERROR multiple-value f */ () + f
++	_ = f /* ERROR multiple-value f */ () + f /* ERROR multiple-value f */ ()
+ }
+diff --git a/src/internal/types/testdata/check/expr3.go b/src/internal/types/testdata/check/expr3.go
+index abe209201a..a28d119f4e 100644
+--- a/src/internal/types/testdata/check/expr3.go
++++ b/src/internal/types/testdata/check/expr3.go
+@@ -554,7 +554,7 @@ func _calls() {
+ 	fi(1, 2.0, x, 3.14, "foo")
+ 	fi(g2())
+ 	fi(0, g2)
+-	fi(0, g2 /* ERROR "2-valued g2" */ ())
++	fi(0, g2 /* ERROR "multiple-value g2" */ ())
+ }
+ 
+ func issue6344() {
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index 5f46021b94..7581ec92bd 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -61,10 +61,10 @@ func issue9473(a []int, b ...int) {
+ 	_ = append(f1())
+ 	_ = append(f2 /* ERROR cannot use .* in argument */ ())
+ 	_ = append(f2()... /* ERROR cannot use ... */ )
+-	_ = append(f0(), f1 /* ERROR 2-valued f1 */ ())
+-	_ = append(f0(), f2 /* ERROR 2-valued f2 */ ())
+-	_ = append(f0(), f1 /* ERROR 2-valued f1 */ ()...)
+-	_ = append(f0(), f2 /* ERROR 2-valued f2 */ ()...)
++	_ = append(f0(), f1 /* ERROR multiple-value f1 */ ())
++	_ = append(f0(), f2 /* ERROR multiple-value f2 */ ())
++	_ = append(f0(), f1 /* ERROR multiple-value f1 */ ()...)
++	_ = append(f0(), f2 /* ERROR multiple-value f2 */ ()...)
+ 
+ 	// variadic user-defined function
+ 	append_(f0())
+@@ -72,10 +72,10 @@ func issue9473(a []int, b ...int) {
+ 	append_(f1())
+ 	append_(f2 /* ERROR cannot use .* in argument */ ())
+ 	append_(f2()... /* ERROR cannot use ... */ )
+-	append_(f0(), f1 /* ERROR 2-valued f1 */ ())
+-	append_(f0(), f2 /* ERROR 2-valued f2 */ ())
+-	append_(f0(), f1 /* ERROR 2-valued f1 */ ()...)
+-	append_(f0(), f2 /* ERROR 2-valued f2 */ ()...)
++	append_(f0(), f1 /* ERROR multiple-value f1 */ ())
++	append_(f0(), f2 /* ERROR multiple-value f2 */ ())
++	append_(f0(), f1 /* ERROR multiple-value f1 */ ()...)
++	append_(f0(), f2 /* ERROR multiple-value f2 */ ()...)
+ }
+ 
+ // Check that embedding a non-interface type in an interface results in a good error message.
+diff --git a/src/internal/types/testdata/check/stmt0.go b/src/internal/types/testdata/check/stmt0.go
+index 3dc5681cb8..7eabbef8ad 100644
+--- a/src/internal/types/testdata/check/stmt0.go
++++ b/src/internal/types/testdata/check/stmt0.go
+@@ -650,14 +650,14 @@ func issue11667() {
+ 
+ func issue11687() {
+ 	f := func() (_, _ int) { return }
+-	switch f /* ERROR "2-valued f" */ () {
++	switch f /* ERROR "multiple-value f" */ () {
+ 	}
+ 	var x int
+-	switch f /* ERROR "2-valued f" */ () {
++	switch f /* ERROR "multiple-value f" */ () {
+ 	case x:
+ 	}
+ 	switch x {
+-	case f /* ERROR "2-valued f" */ ():
++	case f /* ERROR "multiple-value f" */ ():
+ 	}
+ }
+ 
+diff --git a/src/internal/types/testdata/check/typeparams.go b/src/internal/types/testdata/check/typeparams.go
+index 766500c6b9..b7950bf0be 100644
+--- a/src/internal/types/testdata/check/typeparams.go
++++ b/src/internal/types/testdata/check/typeparams.go
+@@ -39,7 +39,7 @@ var _ = f(0 /* ERROR cannot use 0 .* as \[\]chan int */ )
+ 
+ func swap[A, B any](a A, b B) (B, A) { return b, a }
+ 
+-var _ = swap /* ERROR single value is expected */ [int, float32](1, 2)
++var _ = swap /* ERROR multiple-value */ [int, float32](1, 2)
+ var f32, i = swap[int, float32](swap[float32, int](1, 2))
+ var _ float32 = f32
+ var _ int = i
+diff --git a/src/internal/types/testdata/check/vardecl.go b/src/internal/types/testdata/check/vardecl.go
+index 6b6a45bc77..732225d926 100644
+--- a/src/internal/types/testdata/check/vardecl.go
++++ b/src/internal/types/testdata/check/vardecl.go
+@@ -28,7 +28,7 @@ var _ = 1, 2 /* ERROR "extra init expr 2" */
+ var _, _ = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
+ var _, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+ 
+-var _ = g /* ERROR "2-valued g" */ ()
++var _ = g /* ERROR "multiple-value g" */ ()
+ var _, _ = g()
+ var _, _, _ = g /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ()
+ 
+@@ -47,7 +47,7 @@ var (
+ 	_, _ = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
+ 	_, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+ 
+-	_ = g /* ERROR "2-valued g" */ ()
++	_ = g /* ERROR "multiple-value g" */ ()
+ 	_, _ = g()
+ 	_, _, _ = g /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ()
+ 

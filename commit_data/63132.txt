@@ -11,7 +11,7 @@ Date:   Mon May 19 13:09:06 2025 -0700
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/67002.txt                              |   1 +
  doc/next/6-stdlib/99-minor/os/67002.md          |   1 +
  src/internal/syscall/windows/at_windows.go      |   2 +
@@ -24,3 +24,706 @@ Date:   Mon May 19 13:09:06 2025 -0700
  src/os/root_unix.go                             |  17 ++-
  src/os/root_windows.go                          |  21 +++-
  11 files changed, 297 insertions(+), 85 deletions(-)
+
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+index 274f200538..2a442fd6a4 100644
+--- a/api/next/67002.txt
++++ b/api/next/67002.txt
+@@ -3,6 +3,7 @@ pkg os, method (*Root) Chown(string, int, int) error #67002
+ pkg os, method (*Root) Chtimes(string, time.Time, time.Time) error #67002
+ pkg os, method (*Root) Lchown(string, int, int) error #67002
+ pkg os, method (*Root) Link(string, string) error #67002
++pkg os, method (*Root) MkdirAll(string, fs.FileMode) error #67002
+ pkg os, method (*Root) Readlink(string) (string, error) #67002
+ pkg os, method (*Root) RemoveAll(string) error #67002
+ pkg os, method (*Root) Rename(string, string) error #67002
+diff --git a/doc/next/6-stdlib/99-minor/os/67002.md b/doc/next/6-stdlib/99-minor/os/67002.md
+index 62f1b36054..a8e79437b6 100644
+--- a/doc/next/6-stdlib/99-minor/os/67002.md
++++ b/doc/next/6-stdlib/99-minor/os/67002.md
+@@ -5,6 +5,7 @@ The [os.Root] type supports the following additional methods:
+   * [os.Root.Chtimes]
+   * [os.Root.Lchown]
+   * [os.Root.Link]
++  * [os.Root.MkdirAll]
+   * [os.Root.Readlink]
+   * [os.Root.RemoveAll]
+   * [os.Root.Rename]
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index 87a84c3da5..87e0195d30 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -159,6 +159,8 @@ func ntCreateFileError(err error, flag uint64) error {
+ 		}
+ 	case STATUS_FILE_IS_A_DIRECTORY:
+ 		return syscall.EISDIR
++	case STATUS_OBJECT_NAME_COLLISION:
++		return syscall.EEXIST
+ 	}
+ 	return s.Errno()
+ }
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 20e6ae57a8..905cabc81e 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -548,6 +548,7 @@ func (s NTStatus) Error() string {
+ // At the moment, we only need a couple, so just put them here manually.
+ // If this list starts getting long, we should consider generating the full set.
+ const (
++	STATUS_OBJECT_NAME_COLLISION     NTStatus = 0xC0000035
+ 	STATUS_FILE_IS_A_DIRECTORY       NTStatus = 0xC00000BA
+ 	STATUS_DIRECTORY_NOT_EMPTY       NTStatus = 0xC0000101
+ 	STATUS_NOT_A_DIRECTORY           NTStatus = 0xC0000103
+diff --git a/src/os/path_test.go b/src/os/path_test.go
+index 2a4e9565dc..563f7753bd 100644
+--- a/src/os/path_test.go
++++ b/src/os/path_test.go
+@@ -16,63 +16,84 @@ import (
+ var isReadonlyError = func(error) bool { return false }
+ 
+ func TestMkdirAll(t *testing.T) {
+-	t.Parallel()
++	testMaybeRooted(t, func(t *testing.T, r *Root) {
++		mkdirAll := MkdirAll
++		create := Create
++		if r != nil {
++			mkdirAll = r.MkdirAll
++			create = r.Create
++		}
+ 
+-	tmpDir := TempDir()
+-	path := tmpDir + "/_TestMkdirAll_/dir/./dir2"
+-	err := MkdirAll(path, 0777)
+-	if err != nil {
+-		t.Fatalf("MkdirAll %q: %s", path, err)
+-	}
+-	defer RemoveAll(tmpDir + "/_TestMkdirAll_")
++		path := "_TestMkdirAll_/dir/./dir2"
++		err := mkdirAll(path, 0777)
++		if err != nil {
++			t.Fatalf("MkdirAll %q: %s", path, err)
++		}
+ 
+-	// Already exists, should succeed.
+-	err = MkdirAll(path, 0777)
+-	if err != nil {
+-		t.Fatalf("MkdirAll %q (second time): %s", path, err)
+-	}
++		// Already exists, should succeed.
++		err = mkdirAll(path, 0777)
++		if err != nil {
++			t.Fatalf("MkdirAll %q (second time): %s", path, err)
++		}
+ 
+-	// Make file.
+-	fpath := path + "/file"
+-	f, err := Create(fpath)
+-	if err != nil {
+-		t.Fatalf("create %q: %s", fpath, err)
+-	}
+-	defer f.Close()
++		// Make file.
++		fpath := path + "/file"
++		f, err := create(fpath)
++		if err != nil {
++			t.Fatalf("create %q: %s", fpath, err)
++		}
++		defer f.Close()
+ 
+-	// Can't make directory named after file.
+-	err = MkdirAll(fpath, 0777)
+-	if err == nil {
+-		t.Fatalf("MkdirAll %q: no error", fpath)
+-	}
+-	perr, ok := err.(*PathError)
+-	if !ok {
+-		t.Fatalf("MkdirAll %q returned %T, not *PathError", fpath, err)
+-	}
+-	if filepath.Clean(perr.Path) != filepath.Clean(fpath) {
+-		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", fpath, filepath.Clean(perr.Path), filepath.Clean(fpath))
+-	}
++		// Can't make directory named after file.
++		err = mkdirAll(fpath, 0777)
++		if err == nil {
++			t.Fatalf("MkdirAll %q: no error", fpath)
++		}
++		perr, ok := err.(*PathError)
++		if !ok {
++			t.Fatalf("MkdirAll %q returned %T, not *PathError", fpath, err)
++		}
++		if filepath.Clean(perr.Path) != filepath.Clean(fpath) {
++			t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", fpath, filepath.Clean(perr.Path), filepath.Clean(fpath))
++		}
+ 
+-	// Can't make subdirectory of file.
+-	ffpath := fpath + "/subdir"
+-	err = MkdirAll(ffpath, 0777)
+-	if err == nil {
+-		t.Fatalf("MkdirAll %q: no error", ffpath)
+-	}
+-	perr, ok = err.(*PathError)
+-	if !ok {
+-		t.Fatalf("MkdirAll %q returned %T, not *PathError", ffpath, err)
+-	}
+-	if filepath.Clean(perr.Path) != filepath.Clean(fpath) {
+-		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", ffpath, filepath.Clean(perr.Path), filepath.Clean(fpath))
+-	}
++		// Can't make subdirectory of file.
++		ffpath := fpath + "/subdir"
++		err = mkdirAll(ffpath, 0777)
++		if err == nil {
++			t.Fatalf("MkdirAll %q: no error", ffpath)
++		}
++		perr, ok = err.(*PathError)
++		if !ok {
++			t.Fatalf("MkdirAll %q returned %T, not *PathError", ffpath, err)
++		}
++		if filepath.Clean(perr.Path) != filepath.Clean(fpath) {
++			t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", ffpath, filepath.Clean(perr.Path), filepath.Clean(fpath))
++		}
+ 
+-	if runtime.GOOS == "windows" {
+-		path := tmpDir + `\_TestMkdirAll_\dir\.\dir2\`
+-		err := MkdirAll(path, 0777)
+-		if err != nil {
+-			t.Fatalf("MkdirAll %q: %s", path, err)
++		if runtime.GOOS == "windows" {
++			path := `_TestMkdirAll_\dir\.\dir2\`
++			err := mkdirAll(path, 0777)
++			if err != nil {
++				t.Fatalf("MkdirAll %q: %s", path, err)
++			}
+ 		}
++	})
++}
++
++func TestMkdirAllAbsPath(t *testing.T) {
++	t.Parallel()
++	tmpDir := t.TempDir()
++	path := filepath.Join(tmpDir, "/a/b/c")
++	if err := MkdirAll(path, 0o777); err != nil {
++		t.Fatal(err)
++	}
++	st, err := Stat(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !st.IsDir() {
++		t.Fatalf("after MkdirAll(%q, 0o777), %q is not a directory", path, path)
+ 	}
+ }
+ 
+diff --git a/src/os/root.go b/src/os/root.go
+index 9b9deaecc4..02bf0b5a3a 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -145,7 +145,7 @@ func (r *Root) Chmod(name string, mode FileMode) error {
+ // See [Mkdir] for more details.
+ //
+ // If perm contains bits other than the nine least-significant bits (0o777),
+-// OpenFile returns an error.
++// Mkdir returns an error.
+ func (r *Root) Mkdir(name string, perm FileMode) error {
+ 	if perm&0o777 != perm {
+ 		return &PathError{Op: "mkdirat", Path: name, Err: errors.New("unsupported file mode")}
+@@ -153,6 +153,18 @@ func (r *Root) Mkdir(name string, perm FileMode) error {
+ 	return rootMkdir(r, name, perm)
+ }
+ 
++// MkdirAll creates a new directory in the root, along with any necessary parents.
++// See [MkdirAll] for more details.
++//
++// If perm contains bits other than the nine least-significant bits (0o777),
++// MkdirAll returns an error.
++func (r *Root) MkdirAll(name string, perm FileMode) error {
++	if perm&0o777 != perm {
++		return &PathError{Op: "mkdirat", Path: name, Err: errors.New("unsupported file mode")}
++	}
++	return rootMkdirAll(r, name, perm)
++}
++
+ // Chown changes the numeric uid and gid of the named file in the root.
+ // See [Chown] for more details.
+ func (r *Root) Chown(name string, uid, gid int) error {
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+index b34416284f..c4929623c4 100644
+--- a/src/os/root_noopenat.go
++++ b/src/os/root_noopenat.go
+@@ -8,6 +8,7 @@ package os
+ 
+ import (
+ 	"errors"
++	"internal/stringslite"
+ 	"sync/atomic"
+ 	"syscall"
+ 	"time"
+@@ -147,6 +148,27 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	return nil
+ }
+ 
++func rootMkdirAll(r *Root, name string, perm FileMode) error {
++	// We only check for errPathEscapes here.
++	// For errors such as ENOTDIR (a non-directory file appeared somewhere along the path),
++	// we let MkdirAll generate the error.
++	// MkdirAll will return a PathError referencing the exact location of the error,
++	// and we want to preserve that property.
++	if err := checkPathEscapes(r, name); err == errPathEscapes {
++		return &PathError{Op: "mkdirat", Path: name, Err: err}
++	}
++	prefix := r.root.name + string(PathSeparator)
++	if err := MkdirAll(prefix+name, perm); err != nil {
++		if pe, ok := err.(*PathError); ok {
++			pe.Op = "mkdirat"
++			pe.Path = stringslite.TrimPrefix(pe.Path, prefix)
++			return pe
++		}
++		return &PathError{Op: "mkdirat", Path: name, Err: underlyingError(err)}
++	}
++	return nil
++}
++
+ func rootRemove(r *Root, name string) error {
+ 	if err := checkPathEscapesLstat(r, name); err != nil {
+ 		return &PathError{Op: "removeat", Path: name, Err: err}
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index b57506a2eb..192c29e319 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -69,7 +69,7 @@ func (r *root) Name() string {
+ }
+ 
+ func rootChmod(r *Root, name string, mode FileMode) error {
+-	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, chmodat(parent, name, mode)
+ 	})
+ 	if err != nil {
+@@ -79,7 +79,7 @@ func rootChmod(r *Root, name string, mode FileMode) error {
+ }
+ 
+ func rootChown(r *Root, name string, uid, gid int) error {
+-	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, chownat(parent, name, uid, gid)
+ 	})
+ 	if err != nil {
+@@ -89,7 +89,7 @@ func rootChown(r *Root, name string, uid, gid int) error {
+ }
+ 
+ func rootLchown(r *Root, name string, uid, gid int) error {
+-	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, lchownat(parent, name, uid, gid)
+ 	})
+ 	if err != nil {
+@@ -99,7 +99,7 @@ func rootLchown(r *Root, name string, uid, gid int) error {
+ }
+ 
+ func rootChtimes(r *Root, name string, atime time.Time, mtime time.Time) error {
+-	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, chtimesat(parent, name, atime, mtime)
+ 	})
+ 	if err != nil {
+@@ -109,7 +109,7 @@ func rootChtimes(r *Root, name string, atime time.Time, mtime time.Time) error {
+ }
+ 
+ func rootMkdir(r *Root, name string, perm FileMode) error {
+-	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, mkdirat(parent, name, perm)
+ 	})
+ 	if err != nil {
+@@ -118,8 +118,67 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	return nil
+ }
+ 
++func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
++	// doInRoot opens each path element in turn.
++	//
++	// openDirFunc opens all but the last path component.
++	// The usual default openDirFunc just opens directories with O_DIRECTORY.
++	// We replace it here with one that creates missing directories along the way.
++	openDirFunc := func(parent sysfdType, name string) (sysfdType, error) {
++		for try := range 2 {
++			fd, err := rootOpenDir(parent, name)
++			switch err.(type) {
++			case nil, errSymlink:
++				return fd, err
++			}
++			if try > 0 || !IsNotExist(err) {
++				return 0, &PathError{Op: "openat", Err: err}
++			}
++			if err := mkdirat(parent, name, perm); err != nil {
++				return 0, &PathError{Op: "mkdirat", Err: err}
++			}
++		}
++		panic("unreachable")
++	}
++	// openLastComponentFunc opens the last path component.
++	openLastComponentFunc := func(parent sysfdType, name string) (struct{}, error) {
++		err := mkdirat(parent, name, perm)
++		if err == syscall.EEXIST {
++			mode, e := modeAt(parent, name)
++			if e == nil {
++				if mode.IsDir() {
++					// The target of MkdirAll is an existing directory.
++					err = nil
++				} else if mode&ModeSymlink != 0 {
++					// The target of MkdirAll is a symlink.
++					// For consistency with os.MkdirAll,
++					// succeed if the link resolves to a directory.
++					// We don't return errSymlink here, because we don't
++					// want to create the link target if it doesn't exist.
++					fi, e := r.Stat(fullname)
++					if e == nil && fi.Mode().IsDir() {
++						err = nil
++					}
++				}
++			}
++		}
++		switch err.(type) {
++		case nil, errSymlink:
++			return struct{}{}, err
++		}
++		return struct{}{}, &PathError{Op: "mkdirat", Err: err}
++	}
++	_, err := doInRoot(r, fullname, openDirFunc, openLastComponentFunc)
++	if err != nil {
++		if _, ok := err.(*PathError); !ok {
++			err = &PathError{Op: "mkdirat", Path: fullname, Err: err}
++		}
++	}
++	return err
++}
++
+ func rootReadlink(r *Root, name string) (string, error) {
+-	target, err := doInRoot(r, name, func(parent sysfdType, name string) (string, error) {
++	target, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (string, error) {
+ 		return readlinkat(parent, name)
+ 	})
+ 	if err != nil {
+@@ -129,7 +188,7 @@ func rootReadlink(r *Root, name string) (string, error) {
+ }
+ 
+ func rootRemove(r *Root, name string) error {
+-	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, removeat(parent, name)
+ 	})
+ 	if err != nil {
+@@ -148,7 +207,7 @@ func rootRemoveAll(r *Root, name string) error {
+ 		// Consistency with os.RemoveAll: Return EINVAL when trying to remove .
+ 		return &PathError{Op: "RemoveAll", Path: name, Err: syscall.EINVAL}
+ 	}
+-	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, removeAllFrom(parent, name)
+ 	})
+ 	if IsNotExist(err) {
+@@ -161,8 +220,8 @@ func rootRemoveAll(r *Root, name string) error {
+ }
+ 
+ func rootRename(r *Root, oldname, newname string) error {
+-	_, err := doInRoot(r, oldname, func(oldparent sysfdType, oldname string) (struct{}, error) {
+-		_, err := doInRoot(r, newname, func(newparent sysfdType, newname string) (struct{}, error) {
++	_, err := doInRoot(r, oldname, nil, func(oldparent sysfdType, oldname string) (struct{}, error) {
++		_, err := doInRoot(r, newname, nil, func(newparent sysfdType, newname string) (struct{}, error) {
+ 			return struct{}{}, renameat(oldparent, oldname, newparent, newname)
+ 		})
+ 		return struct{}{}, err
+@@ -174,8 +233,8 @@ func rootRename(r *Root, oldname, newname string) error {
+ }
+ 
+ func rootLink(r *Root, oldname, newname string) error {
+-	_, err := doInRoot(r, oldname, func(oldparent sysfdType, oldname string) (struct{}, error) {
+-		_, err := doInRoot(r, newname, func(newparent sysfdType, newname string) (struct{}, error) {
++	_, err := doInRoot(r, oldname, nil, func(oldparent sysfdType, oldname string) (struct{}, error) {
++		_, err := doInRoot(r, newname, nil, func(newparent sysfdType, newname string) (struct{}, error) {
+ 			return struct{}{}, linkat(oldparent, oldname, newparent, newname)
+ 		})
+ 		return struct{}{}, err
+@@ -188,13 +247,23 @@ func rootLink(r *Root, oldname, newname string) error {
+ 
+ // doInRoot performs an operation on a path in a Root.
+ //
+-// It opens the directory containing the final element of the path,
+-// and calls f with the directory FD and name of the final element.
++// It calls f with the FD or handle for the directory containing the last
++// path element, and the name of the last path element.
++//
++// For example, given the path a/b/c it calls f with the FD for a/b and the name "c".
++//
++// If openDirFunc is non-nil, it is called to open intermediate path elements.
++// For example, given the path a/b/c openDirFunc will be called to open a and a/b in turn.
++//
++// f or openDirFunc may return errSymlink to indicate that the path element is a symlink
++// which should be followed. Note that this can result in f being called multiple times
++// with different names. For example, give the path "link" which is a symlink to "target",
++// f is called with the path "link", returns errSymlink("target"), and is called again with
++// the path "target".
+ //
+-// If the path refers to a symlink which should be followed,
+-// then f must return errSymlink.
+-// doInRoot will follow the symlink and call f again.
+-func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string) (T, error)) (ret T, err error) {
++// If f or openDirFunc return a *PathError, doInRoot will set PathError.Path to the
++// full path which caused the error.
++func doInRoot[T any](r *Root, name string, openDirFunc func(parent sysfdType, name string) (sysfdType, error), f func(parent sysfdType, name string) (T, error)) (ret T, err error) {
+ 	if err := r.root.incref(); err != nil {
+ 		return ret, err
+ 	}
+@@ -204,6 +273,9 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
+ 	if err != nil {
+ 		return ret, err
+ 	}
++	if openDirFunc == nil {
++		openDirFunc = rootOpenDir
++	}
+ 
+ 	rootfd := r.root.fd
+ 	dirfd := rootfd
+@@ -226,6 +298,7 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
+ 	steps := 0
+ 	restarts := 0
+ 	symlinks := 0
++Loop:
+ 	for {
+ 		steps++
+ 		if steps > maxSteps && restarts > maxRestarts {
+@@ -267,23 +340,23 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
+ 			// suffixSep contains any trailing separator characters
+ 			// which we rejoin to the final part at this time.
+ 			ret, err = f(dirfd, parts[i]+suffixSep)
+-			if _, ok := err.(errSymlink); !ok {
+-				return ret, err
++			if err == nil {
++				return
+ 			}
+ 		} else {
+ 			var fd sysfdType
+-			fd, err = rootOpenDir(dirfd, parts[i])
++			fd, err = openDirFunc(dirfd, parts[i])
+ 			if err == nil {
+ 				if dirfd != rootfd {
+ 					syscall.Close(dirfd)
+ 				}
+ 				dirfd = fd
+-			} else if _, ok := err.(errSymlink); !ok {
+-				return ret, err
+ 			}
+ 		}
+ 
+-		if e, ok := err.(errSymlink); ok {
++		switch e := err.(type) {
++		case nil:
++		case errSymlink:
+ 			symlinks++
+ 			if symlinks > rootMaxSymlinks {
+ 				return ret, syscall.ELOOP
+@@ -311,7 +384,16 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
+ 				dirfd = rootfd
+ 			}
+ 			parts = newparts
+-			continue
++			continue Loop
++		case *PathError:
++			// This is strings.Join(parts[:i+1], PathSeparator).
++			e.Path = parts[0]
++			for _, part := range parts[1 : i+1] {
++				e.Path += string(PathSeparator) + part
++			}
++			return ret, e
++		default:
++			return ret, err
+ 		}
+ 
+ 		i++
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index c75a094730..4e09cb9621 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -551,6 +551,40 @@ func TestRootMkdir(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootMkdirAll(t *testing.T) {
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			wantError := test.wantError
++			if !wantError {
++				fi, err := os.Lstat(filepath.Join(root.Name(), test.open))
++				if err == nil && fi.Mode().Type() == fs.ModeSymlink {
++					// This case is trying to mkdir("some symlink"),
++					// which is an error.
++					wantError = true
++				}
++			}
++
++			err := root.Mkdir(test.open, 0o777)
++			if errEndsTest(t, err, wantError, "root.MkdirAll(%q)", test.open) {
++				return
++			}
++			fi, err := os.Lstat(target)
++			if err != nil {
++				t.Fatalf(`stat file created with Root.MkdirAll(%q): %v`, test.open, err)
++			}
++			if !fi.IsDir() {
++				t.Fatalf(`stat file created with Root.MkdirAll(%q): not a directory`, test.open)
++			}
++			if mode := fi.Mode(); mode&0o777 == 0 {
++				// Issue #73559: We're not going to worry about the exact
++				// mode bits (which will have been modified by umask),
++				// but there should be mode bits.
++				t.Fatalf(`stat file created with Root.MkdirAll(%q): mode=%v, want non-zero`, test.open, mode)
++			}
++		})
++	}
++}
++
+ func TestRootOpenRoot(t *testing.T) {
+ 	for _, test := range rootTestCases {
+ 		test.run(t, func(t *testing.T, target string, root *os.Root) {
+@@ -1115,7 +1149,7 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
+ 	name: "symlink to dir ends in slash",
+ 	fs: []string{
+ 		"dir/",
+-		"link => dir",
++		"link => dir/",
+ 	},
+ 	open: "link",
+ }, {
+@@ -1361,6 +1395,20 @@ func TestRootConsistencyMkdir(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootConsistencyMkdirAll(t *testing.T) {
++	for _, test := range rootConsistencyTestCases {
++		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++			var err error
++			if r == nil {
++				err = os.MkdirAll(path, 0o777)
++			} else {
++				err = r.MkdirAll(path, 0o777)
++			}
++			return "", err
++		})
++	}
++}
++
+ func TestRootConsistencyRemove(t *testing.T) {
+ 	for _, test := range rootConsistencyTestCases {
+ 		if test.open == "." || test.open == "./" {
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index 45462c9e10..af963f472d 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -62,7 +62,7 @@ func newRoot(fd int, name string) (*Root, error) {
+ 
+ // openRootInRoot is Root.OpenRoot.
+ func openRootInRoot(r *Root, name string) (*Root, error) {
+-	fd, err := doInRoot(r, name, func(parent int, name string) (fd int, err error) {
++	fd, err := doInRoot(r, name, nil, func(parent int, name string) (fd int, err error) {
+ 		ignoringEINTR(func() error {
+ 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
+ 			if isNoFollowErr(err) {
+@@ -80,7 +80,7 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
+ 
+ // rootOpenFileNolog is Root.OpenFile.
+ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File, error) {
+-	fd, err := doInRoot(root, name, func(parent int, name string) (fd int, err error) {
++	fd, err := doInRoot(root, name, nil, func(parent int, name string) (fd int, err error) {
+ 		ignoringEINTR(func() error {
+ 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|flag, uint32(perm))
+ 			if isNoFollowErr(err) || err == syscall.ENOTDIR {
+@@ -118,7 +118,7 @@ func rootOpenDir(parent int, name string) (int, error) {
+ }
+ 
+ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+-	fi, err := doInRoot(r, name, func(parent sysfdType, n string) (FileInfo, error) {
++	fi, err := doInRoot(r, name, nil, func(parent sysfdType, n string) (FileInfo, error) {
+ 		var fs fileStat
+ 		if err := unix.Fstatat(parent, n, &fs.sys, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+ 			return nil, err
+@@ -136,7 +136,7 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+ }
+ 
+ func rootSymlink(r *Root, oldname, newname string) error {
+-	_, err := doInRoot(r, newname, func(parent sysfdType, name string) (struct{}, error) {
++	_, err := doInRoot(r, newname, nil, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, symlinkat(oldname, parent, name)
+ 	})
+ 	if err != nil {
+@@ -246,6 +246,15 @@ func symlinkat(oldname string, newfd int, newname string) error {
+ 	return unix.Symlinkat(oldname, newfd, newname)
+ }
+ 
++func modeAt(parent int, name string) (FileMode, error) {
++	var fs fileStat
++	if err := unix.Fstatat(parent, name, &fs.sys, unix.AT_SYMLINK_NOFOLLOW); err != nil {
++		return 0, err
++	}
++	fillFileStatFromSys(&fs, name)
++	return fs.mode, nil
++}
++
+ // checkSymlink resolves the symlink name in parent,
+ // and returns errSymlink with the link contents.
+ //
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index 3d3db1916e..a918606806 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -119,7 +119,7 @@ func newRoot(fd syscall.Handle, name string) (*Root, error) {
+ 
+ // openRootInRoot is Root.OpenRoot.
+ func openRootInRoot(r *Root, name string) (*Root, error) {
+-	fd, err := doInRoot(r, name, rootOpenDir)
++	fd, err := doInRoot(r, name, nil, rootOpenDir)
+ 	if err != nil {
+ 		return nil, &PathError{Op: "openat", Path: name, Err: err}
+ 	}
+@@ -128,7 +128,7 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
+ 
+ // rootOpenFileNolog is Root.OpenFile.
+ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File, error) {
+-	fd, err := doInRoot(root, name, func(parent syscall.Handle, name string) (syscall.Handle, error) {
++	fd, err := doInRoot(root, name, nil, func(parent syscall.Handle, name string) (syscall.Handle, error) {
+ 		return openat(parent, name, flag, perm)
+ 	})
+ 	if err != nil {
+@@ -212,7 +212,7 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+ 		// merely the empirical evidence that Lstat behaves this way.
+ 		lstat = false
+ 	}
+-	fi, err := doInRoot(r, name, func(parent syscall.Handle, n string) (FileInfo, error) {
++	fi, err := doInRoot(r, name, nil, func(parent syscall.Handle, n string) (FileInfo, error) {
+ 		fd, err := openat(parent, n, windows.O_OPEN_REPARSE, 0)
+ 		if err != nil {
+ 			return nil, err
+@@ -274,7 +274,7 @@ func rootSymlink(r *Root, oldname, newname string) error {
+ 		flags |= windows.SYMLINKAT_RELATIVE
+ 	}
+ 
+-	_, err := doInRoot(r, newname, func(parent sysfdType, name string) (struct{}, error) {
++	_, err := doInRoot(r, newname, nil, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, windows.Symlinkat(oldname, parent, name, flags)
+ 	})
+ 	if err != nil {
+@@ -389,3 +389,16 @@ func readlinkat(dirfd syscall.Handle, name string) (string, error) {
+ 	defer syscall.CloseHandle(fd)
+ 	return readReparseLinkHandle(fd)
+ }
++
++func modeAt(parent syscall.Handle, name string) (FileMode, error) {
++	fd, err := openat(parent, name, windows.O_OPEN_REPARSE|windows.O_DIRECTORY, 0)
++	if err != nil {
++		return 0, err
++	}
++	defer syscall.CloseHandle(fd)
++	fi, err := statHandle(name, fd)
++	if err != nil {
++		return 0, err
++	}
++	return fi.Mode(), nil
++}

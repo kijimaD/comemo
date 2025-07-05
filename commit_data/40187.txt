@@ -15,8 +15,72 @@ Date:   Wed Apr 24 08:27:04 2019 -0400
     Run-TryBot: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue31637.dir/a.go | 15 +++++++++++++++
  test/fixedbugs/issue31637.dir/b.go | 19 +++++++++++++++++++
  test/fixedbugs/issue31637.go       | 11 +++++++++++
  3 files changed, 45 insertions(+)
+
+diff --git a/test/fixedbugs/issue31637.dir/a.go b/test/fixedbugs/issue31637.dir/a.go
+new file mode 100644
+index 0000000000..71f392697c
+--- /dev/null
++++ b/test/fixedbugs/issue31637.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type dO struct {
++	x int
++}
++
++type EDO struct{}
++
++func (EDO) Apply(*dO) {}
++
++var X EDO
+diff --git a/test/fixedbugs/issue31637.dir/b.go b/test/fixedbugs/issue31637.dir/b.go
+new file mode 100644
+index 0000000000..ce83b000df
+--- /dev/null
++++ b/test/fixedbugs/issue31637.dir/b.go
+@@ -0,0 +1,19 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++type No struct {
++	a.EDO
++}
++
++func X() No {
++	return No{}
++}
++
++func main() {
++	X()
++}
+diff --git a/test/fixedbugs/issue31637.go b/test/fixedbugs/issue31637.go
+new file mode 100644
+index 0000000000..dcfb4a7e53
+--- /dev/null
++++ b/test/fixedbugs/issue31637.go
+@@ -0,0 +1,11 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This directory contains a pair of packages that triggered
++// a compiler crash in gollvm (problem in handling an inlinable
++// method with unnamed parameter). See issue 31637 for details.
++
++package ignored

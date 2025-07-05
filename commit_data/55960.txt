@@ -18,9 +18,148 @@ Date:   Tue Mar 28 17:44:18 2023 -0400
     Run-TryBot: Sameer Ajmani <sameer@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/40221.txt          |  1 +
  src/context/context.go      | 41 ++++++++++++++++++++++++++++++++++++++
  src/context/context_test.go | 48 +++++++++++++++++++++++++++++++++++++++++++++
  src/context/x_test.go       |  1 +
  4 files changed, 91 insertions(+)
+
+diff --git a/api/next/40221.txt b/api/next/40221.txt
+new file mode 100644
+index 0000000000..ed513401e1
+--- /dev/null
++++ b/api/next/40221.txt
+@@ -0,0 +1 @@
++pkg context, func WithoutCancel(Context) Context #40221
+diff --git a/src/context/context.go b/src/context/context.go
+index c60179e70f..7227099889 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -474,6 +474,40 @@ func (c *cancelCtx) cancel(removeFromParent bool, err, cause error) {
+ 	}
+ }
+ 
++// WithoutCancel returns a copy of parent that is not canceled when parent is canceled.
++// The returned context returns no Deadline or Err, and its Done channel is nil.
++// Calling Cause on the returned context returns nil.
++func WithoutCancel(parent Context) Context {
++	if parent == nil {
++		panic("cannot create context from nil parent")
++	}
++	return withoutCancelCtx{parent}
++}
++
++type withoutCancelCtx struct {
++	c Context
++}
++
++func (withoutCancelCtx) Deadline() (deadline time.Time, ok bool) {
++	return
++}
++
++func (withoutCancelCtx) Done() <-chan struct{} {
++	return nil
++}
++
++func (withoutCancelCtx) Err() error {
++	return nil
++}
++
++func (c withoutCancelCtx) Value(key any) any {
++	return value(c, key)
++}
++
++func (c withoutCancelCtx) String() string {
++	return contextName(c.c) + ".WithoutCancel"
++}
++
+ // WithDeadline returns a copy of the parent context with the deadline adjusted
+ // to be no later than d. If the parent's deadline is already earlier than d,
+ // WithDeadline(parent, d) is semantically equivalent to parent. The returned
+@@ -645,6 +679,13 @@ func value(c Context, key any) any {
+ 				return c
+ 			}
+ 			c = ctx.Context
++		case withoutCancelCtx:
++			if key == &cancelCtxKey {
++				// This implements Cause(ctx) == nil
++				// when ctx is created using WithoutCancel.
++				return nil
++			}
++			c = ctx.c
+ 		case *timerCtx:
+ 			if key == &cancelCtxKey {
+ 				return &ctx.cancelCtx
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 5311d8d4f4..e14b040d1a 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -981,6 +981,36 @@ func XTestCause(t testingT) {
+ 			err:   Canceled,
+ 			cause: finishedEarly,
+ 		},
++		{
++			name: "WithoutCancel",
++			ctx: func() Context {
++				return WithoutCancel(Background())
++			}(),
++			err:   nil,
++			cause: nil,
++		},
++		{
++			name: "WithoutCancel canceled",
++			ctx: func() Context {
++				ctx, cancel := WithCancelCause(Background())
++				ctx = WithoutCancel(ctx)
++				cancel(finishedEarly)
++				return ctx
++			}(),
++			err:   nil,
++			cause: nil,
++		},
++		{
++			name: "WithoutCancel timeout",
++			ctx: func() Context {
++				ctx, cancel := WithTimeoutCause(Background(), 0, tooSlow)
++				ctx = WithoutCancel(ctx)
++				cancel()
++				return ctx
++			}(),
++			err:   nil,
++			cause: nil,
++		},
+ 	} {
+ 		if got, want := test.ctx.Err(), test.err; want != got {
+ 			t.Errorf("%s: ctx.Err() = %v want %v", test.name, got, want)
+@@ -1009,3 +1039,21 @@ func XTestCauseRace(t testingT) {
+ 		runtime.Gosched()
+ 	}
+ }
++
++func XTestWithoutCancel(t testingT) {
++	key, value := "key", "value"
++	ctx := WithValue(Background(), key, value)
++	ctx = WithoutCancel(ctx)
++	if d, ok := ctx.Deadline(); !d.IsZero() || ok != false {
++		t.Errorf("ctx.Deadline() = %v, %v want zero, false", d, ok)
++	}
++	if done := ctx.Done(); done != nil {
++		t.Errorf("ctx.Deadline() = %v want nil", done)
++	}
++	if err := ctx.Err(); err != nil {
++		t.Errorf("ctx.Err() = %v want nil", err)
++	}
++	if v := ctx.Value(key); v != value {
++		t.Errorf("ctx.Value(%q) = %q want %q", key, v, value)
++	}
++}
+diff --git a/src/context/x_test.go b/src/context/x_test.go
+index a2d814f8ea..00f546bbf7 100644
+--- a/src/context/x_test.go
++++ b/src/context/x_test.go
+@@ -31,3 +31,4 @@ func TestDeadlineExceededSupportsTimeout(t *testing.T) { XTestDeadlineExceededSu
+ func TestCustomContextGoroutines(t *testing.T)         { XTestCustomContextGoroutines(t) }
+ func TestCause(t *testing.T)                           { XTestCause(t) }
+ func TestCauseRace(t *testing.T)                       { XTestCauseRace(t) }
++func TestWithoutCancel(t *testing.T)                   { XTestWithoutCancel(t) }

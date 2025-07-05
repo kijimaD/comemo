@@ -15,6 +15,59 @@ Date:   Thu Nov 3 00:44:16 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/32584
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/net/http/h2_bundle.go | 13 ++-----------
  1 file changed, 2 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 71f511723a..6367d20aac 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -3957,7 +3957,7 @@ func (sc *http2serverConn) processPing(f *http2PingFrame) error {
+ 
+ 		return http2ConnectionError(http2ErrCodeProtocol)
+ 	}
+-	if sc.inGoAway {
++	if sc.inGoAway && sc.goAwayCode != http2ErrCodeNo {
+ 		return nil
+ 	}
+ 	sc.writeFrame(http2FrameWriteRequest{write: http2writePingAck{f}})
+@@ -3966,9 +3966,6 @@ func (sc *http2serverConn) processPing(f *http2PingFrame) error {
+ 
+ func (sc *http2serverConn) processWindowUpdate(f *http2WindowUpdateFrame) error {
+ 	sc.serveG.check()
+-	if sc.inGoAway {
+-		return nil
+-	}
+ 	switch {
+ 	case f.StreamID != 0:
+ 		state, st := sc.state(f.StreamID)
+@@ -3994,9 +3991,6 @@ func (sc *http2serverConn) processWindowUpdate(f *http2WindowUpdateFrame) error
+ 
+ func (sc *http2serverConn) processResetStream(f *http2RSTStreamFrame) error {
+ 	sc.serveG.check()
+-	if sc.inGoAway {
+-		return nil
+-	}
+ 
+ 	state, st := sc.state(f.StreamID)
+ 	if state == http2stateIdle {
+@@ -4049,9 +4043,6 @@ func (sc *http2serverConn) processSettings(f *http2SettingsFrame) error {
+ 		}
+ 		return nil
+ 	}
+-	if sc.inGoAway {
+-		return nil
+-	}
+ 	if err := f.ForeachSetting(sc.processSetting); err != nil {
+ 		return err
+ 	}
+@@ -4108,7 +4099,7 @@ func (sc *http2serverConn) processSettingInitialWindowSize(val uint32) error {
+ 
+ func (sc *http2serverConn) processData(f *http2DataFrame) error {
+ 	sc.serveG.check()
+-	if sc.inGoAway {
++	if sc.inGoAway && sc.goAwayCode != http2ErrCodeNo {
+ 		return nil
+ 	}
+ 	data := f.Data()

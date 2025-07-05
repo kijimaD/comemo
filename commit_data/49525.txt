@@ -11,7 +11,44 @@ Date:   Tue Aug 24 13:52:07 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go | 7 +++++--
  src/go/types/call.go                    | 7 +++++--
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 538fdc0fb7..4bbc524856 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -341,8 +341,11 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 	}
+ 
+ 	// check arguments
+-	for i, a := range args {
+-		check.assignment(a, sigParams.vars[i].typ, check.sprintf("argument to %s", call.Fun))
++	if len(args) > 0 {
++		context := check.sprintf("argument to %s", call.Fun)
++		for i, a := range args {
++			check.assignment(a, sigParams.vars[i].typ, context)
++		}
+ 	}
+ 
+ 	return
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 87eeef444b..fdecafb781 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -347,8 +347,11 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 	}
+ 
+ 	// check arguments
+-	for i, a := range args {
+-		check.assignment(a, sigParams.vars[i].typ, check.sprintf("argument to %s", call.Fun))
++	if len(args) > 0 {
++		context := check.sprintf("argument to %s", call.Fun)
++		for i, a := range args {
++			check.assignment(a, sigParams.vars[i].typ, context)
++		}
+ 	}
+ 
+ 	return

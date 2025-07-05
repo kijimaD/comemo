@@ -17,10 +17,218 @@ Date:   Wed Mar 19 10:17:22 2025 -0700
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go |  4 ++--
  src/cmd/compile/internal/types2/range.go | 25 +++++++++++++++++++++++
  src/cmd/compile/internal/walk/range.go   | 35 +++++++++++++++++++++++++++-----
  src/go/types/range.go                    | 25 +++++++++++++++++++++++
  test/codegen/issue52635.go               | 12 +++++++++++
  5 files changed, 94 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index c69cd8c32e..9d43ec1991 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -217,12 +217,12 @@ func nilcheckelim2(f *Func) {
+ 					f.Warnl(v.Pos, "removed nil check")
+ 				}
+ 				// For bug 33724, policy is that we might choose to bump an existing position
+-				// off the faulting load/store in favor of the one from the nil check.
++				// off the faulting load in favor of the one from the nil check.
+ 
+ 				// Iteration order means that first nilcheck in the chain wins, others
+ 				// are bumped into the ordinary statement preservation algorithm.
+ 				u := b.Values[unnecessary.get(v.Args[0].ID)]
+-				if !u.Pos.SameFileAndLine(v.Pos) {
++				if !u.Type.IsMemory() && !u.Pos.SameFileAndLine(v.Pos) {
+ 					if u.Pos.IsStmt() == src.PosIsStmt {
+ 						pendingLines.add(u.Pos)
+ 					}
+diff --git a/src/cmd/compile/internal/types2/range.go b/src/cmd/compile/internal/types2/range.go
+index 86626ceaa8..ecda53d14b 100644
+--- a/src/cmd/compile/internal/types2/range.go
++++ b/src/cmd/compile/internal/types2/range.go
+@@ -8,6 +8,7 @@ package types2
+ 
+ import (
+ 	"cmd/compile/internal/syntax"
++	"go/constant"
+ 	"internal/buildcfg"
+ 	. "internal/types/errors"
+ )
+@@ -23,8 +24,32 @@ import (
+ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, noNewVarPos poser, sKey, sValue, sExtra, rangeVar syntax.Expr, isDef bool) {
+ 	// check expression to iterate over
+ 	var x operand
++
++	// From the spec:
++	//   The range expression x is evaluated before beginning the loop,
++	//   with one exception: if at most one iteration variable is present
++	//   and x or len(x) is constant, the range expression is not evaluated.
++	// So we have to be careful not to evaluate the arg in the
++	// described situation.
++
++	check.hasCallOrRecv = false
+ 	check.expr(nil, &x, rangeVar)
+ 
++	if isTypes2 && x.mode != invalid && sValue == nil && !check.hasCallOrRecv {
++		if t, ok := arrayPtrDeref(under(x.typ)).(*Array); ok {
++			// Override type of rangeVar to be a constant
++			// (and thus side-effects will not be computed
++			// by the backend).
++			check.record(&operand{
++				mode: constant_,
++				expr: rangeVar,
++				typ:  Typ[Int],
++				val:  constant.MakeInt64(t.len),
++				id:   x.id,
++			})
++		}
++	}
++
+ 	// determine key/value types
+ 	var key, val Type
+ 	if x.mode != invalid {
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index ede9f2182d..a1e5442a69 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -5,6 +5,7 @@
+ package walk
+ 
+ import (
++	"go/constant"
+ 	"internal/buildcfg"
+ 	"unicode/utf8"
+ 
+@@ -80,6 +81,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		base.Fatalf("walkRange")
+ 
+ 	case types.IsInt[k]:
++		if nn := arrayRangeClear(nrange, v1, v2, a); nn != nil {
++			base.Pos = lno
++			return nn
++		}
+ 		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, t)
+ 		hn := typecheck.TempAt(base.Pos, ir.CurFunc, t)
+ 
+@@ -519,13 +524,33 @@ func arrayRangeClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
+ 	}
+ 	lhs := stmt.X.(*ir.IndexExpr)
+ 	x := lhs.X
+-	if a.Type().IsPtr() && a.Type().Elem().IsArray() {
+-		if s, ok := x.(*ir.StarExpr); ok && s.Op() == ir.ODEREF {
+-			x = s.X
++
++	// Get constant number of iterations for int and array cases.
++	n := int64(-1)
++	if ir.IsConst(a, constant.Int) {
++		n = ir.Int64Val(a)
++	} else if a.Type().IsArray() {
++		n = a.Type().NumElem()
++	} else if a.Type().IsPtr() && a.Type().Elem().IsArray() {
++		n = a.Type().Elem().NumElem()
++	}
++
++	if n >= 0 {
++		// Int/Array case.
++		if !x.Type().IsArray() {
++			return nil
++		}
++		if x.Type().NumElem() != n {
++			return nil
++		}
++	} else {
++		// Slice case.
++		if !ir.SameSafeExpr(x, a) {
++			return nil
+ 		}
+ 	}
+ 
+-	if !ir.SameSafeExpr(x, a) || !ir.SameSafeExpr(lhs.Index, v1) {
++	if !ir.SameSafeExpr(lhs.Index, v1) {
+ 		return nil
+ 	}
+ 
+@@ -533,7 +558,7 @@ func arrayRangeClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
+ 		return nil
+ 	}
+ 
+-	return arrayClear(stmt.Pos(), a, loop)
++	return arrayClear(stmt.Pos(), x, loop)
+ }
+ 
+ // arrayClear constructs a call to runtime.memclr for fast zeroing of slices and arrays.
+diff --git a/src/go/types/range.go b/src/go/types/range.go
+index 5c80463aba..91149c1426 100644
+--- a/src/go/types/range.go
++++ b/src/go/types/range.go
+@@ -11,6 +11,7 @@ package types
+ 
+ import (
+ 	"go/ast"
++	"go/constant"
+ 	"internal/buildcfg"
+ 	. "internal/types/errors"
+ )
+@@ -26,8 +27,32 @@ import (
+ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *ast.RangeStmt, noNewVarPos positioner, sKey, sValue, sExtra, rangeVar ast.Expr, isDef bool) {
+ 	// check expression to iterate over
+ 	var x operand
++
++	// From the spec:
++	//   The range expression x is evaluated before beginning the loop,
++	//   with one exception: if at most one iteration variable is present
++	//   and x or len(x) is constant, the range expression is not evaluated.
++	// So we have to be careful not to evaluate the arg in the
++	// described situation.
++
++	check.hasCallOrRecv = false
+ 	check.expr(nil, &x, rangeVar)
+ 
++	if isTypes2 && x.mode != invalid && sValue == nil && !check.hasCallOrRecv {
++		if t, ok := arrayPtrDeref(under(x.typ)).(*Array); ok {
++			// Override type of rangeVar to be a constant
++			// (and thus side-effects will not be computed
++			// by the backend).
++			check.record(&operand{
++				mode: constant_,
++				expr: rangeVar,
++				typ:  Typ[Int],
++				val:  constant.MakeInt64(t.len),
++				id:   x.id,
++			})
++		}
++	}
++
+ 	// determine key/value types
+ 	var key, val Type
+ 	if x.mode != invalid {
+diff --git a/test/codegen/issue52635.go b/test/codegen/issue52635.go
+index 9b08cade36..9ee63f0fbe 100644
+--- a/test/codegen/issue52635.go
++++ b/test/codegen/issue52635.go
+@@ -12,6 +12,7 @@ package codegen
+ type T struct {
+ 	a *[10]int
+ 	b [10]int
++	s []int
+ }
+ 
+ func (t *T) f() {
+@@ -38,4 +39,15 @@ func (t *T) f() {
+ 	for i := range *t.a {
+ 		(*t.a)[i] = 0
+ 	}
++
++	// amd64:-".*runtime.memclrNoHeapPointers"
++	// amd64:"DUFFZERO"
++	for i := range t.b {
++		t.b[i] = 0
++	}
++
++	// amd64:".*runtime.memclrNoHeapPointers"
++	for i := range t.s {
++		t.s[i] = 0
++	}
+ }

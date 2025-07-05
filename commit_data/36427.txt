@@ -13,7 +13,58 @@ Date:   Thu Apr 26 15:25:36 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/init.go  | 16 +++++++++++-----
  src/cmd/compile/internal/gc/noder.go | 11 -----------
  2 files changed, 11 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 98ea289548..bb2bc4b844 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -115,12 +115,18 @@ func fninit(n []*Node) {
+ 
+ 	// (6)
+ 	for _, s := range types.InitSyms {
+-		if s.Def != nil && s != initsym {
+-			n := asNode(s.Def)
+-			n.checkInitFuncSignature()
+-			a = nod(OCALL, n, nil)
+-			r = append(r, a)
++		if s == initsym {
++			continue
++		}
++		n := resolve(oldname(s))
++		if n.Op == ONONAME {
++			// No package-scope init function; just a
++			// local variable, field name, or something.
++			continue
+ 		}
++		n.checkInitFuncSignature()
++		a = nod(OCALL, n, nil)
++		r = append(r, a)
+ 	}
+ 
+ 	// (7)
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 98ac9b36b8..ecd039ae78 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -67,17 +67,6 @@ func parseFiles(filenames []string) uint {
+ 
+ 	localpkg.Height = myheight
+ 
+-	if flagiexport {
+-		// init.go requires all imported init functions to be
+-		// fully resolved.
+-		// TODO(mdempsky): Can this be done elsewhere more cleanly?
+-		for _, s := range types.InitSyms {
+-			if n := asNode(s.Def); n != nil && s.Pkg != localpkg {
+-				resolve(n)
+-			}
+-		}
+-	}
+-
+ 	return lines
+ }
+ 

@@ -9,7 +9,7 @@ Date:   Fri Feb 17 11:07:34 2012 -0600
     R=golang-dev, alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/5677074
-
+---
  misc/{ => dist}/windows/README          |   0
  misc/dist/windows/dist.bat              |  54 +++++++++++++++++++++++++++++++
  misc/{ => dist}/windows/godocserver.bat |   0
@@ -18,3 +18,145 @@ Date:   Fri Feb 17 11:07:34 2012 -0600
  misc/windows/LICENSE                    | Bin 1687 -> 0 bytes
  misc/windows/package.bash               |  55 --------------------------------
  7 files changed, 54 insertions(+), 55 deletions(-)
+
+diff --git a/misc/windows/README b/misc/dist/windows/README
+similarity index 100%
+rename from misc/windows/README
+rename to misc/dist/windows/README
+diff --git a/misc/dist/windows/dist.bat b/misc/dist/windows/dist.bat
+new file mode 100755
+index 0000000000..ec8841dbb7
+--- /dev/null
++++ b/misc/dist/windows/dist.bat
+@@ -0,0 +1,54 @@
++:: Copyright 2012 The Go Authors. All rights reserved.
++:: Use of this source code is governed by a BSD-style
++:: license that can be found in the LICENSE file.
++@echo off
++
++setlocal
++
++:: Requires WiX (candle light heat), 7zip, and hg
++
++echo # Setting variable info
++for /f %%i in ('hg.exe root') do set ROOT=%%i
++for /f %%i in ('hg.exe id -n') do set ID=%%i
++for /f "tokens=3" %%i in ('%ROOT%\bin\go.exe version') do set VER=%%i
++if errorlevel 1 goto end
++
++echo # Getting GOARCH
++%ROOT%\bin\go tool dist env > env.txt
++set GOARCH /p = find "GOARCH" "env.txt">NUL
++del /F /Q /S env.txt>NUL
++if errorlevel 1 goto end
++
++rmdir /S /Q go>NUL
++mkdir go
++
++echo # Cloning the go tree
++hg clone -r %ID% %ROOT% go
++if errorlevel 1 goto end
++
++rmdir /S /Q  go\.hg>NUL
++del /F /Q /S go\.hgignore go\.hgtags>NUL
++
++echo # Copying pkg, bin and src/pkg/runtime/z*
++xcopy %ROOT%\pkg                   go\pkg /V /E /Y /I
++xcopy %ROOT%\bin                   go\bin /V /E /Y /I
++xcopy %ROOT%\src\pkg\runtime\z*.c  go\src\pkg\runtime  /V /E /Y
++xcopy %ROOT%\src\pkg\runtime\z*.go go\src\pkg\runtime  /V /E /Y
++xcopy %ROOT%\src\pkg\runtime\z*.h  go\src\pkg\runtime  /V /E /T
++
++echo # Starting zip packaging
++7za a -tzip -mx=9 gowin%GOARCH%"_"%VER%.zip "go/"
++if errorlevel 1 goto end
++
++echo # Starting Go directory file harvesting
++heat dir go -nologo -cg AppFiles -gg -g1 -srd -sfrag -template fragment -dr INSTALLDIR -var var.SourceDir -out AppFiles.wxs
++if errorlevel 1 goto end
++
++echo # Starting installer packaging
++candle -nologo -dVersion=%VER% -dArch=%GOARCH% -dSourceDir=go installer.wxs AppFiles.wxs
++light -nologo -ext WixUIExtension -ext WixUtilExtension installer.wixobj AppFiles.wixobj -o gowin%GOARCH%"_"%VER%.msi
++if errorlevel 1 goto end
++
++del /F /Q /S *.wixobj AppFiles.wxs *.wixpdb>NUL
++
++:end
+diff --git a/misc/windows/godocserver.bat b/misc/dist/windows/godocserver.bat
+similarity index 100%
+rename from misc/windows/godocserver.bat
+rename to misc/dist/windows/godocserver.bat
+diff --git a/misc/windows/goenv.bat b/misc/dist/windows/goenv.bat
+similarity index 100%
+rename from misc/windows/goenv.bat
+rename to misc/dist/windows/goenv.bat
+diff --git a/misc/windows/installer.wxs b/misc/dist/windows/installer.wxs
+similarity index 100%
+rename from misc/windows/installer.wxs
+rename to misc/dist/windows/installer.wxs
+diff --git a/misc/windows/LICENSE b/misc/windows/LICENSE
+deleted file mode 100644
+index b2b0be62c0..0000000000
+Binary files a/misc/windows/LICENSE and /dev/null differ
+diff --git a/misc/windows/package.bash b/misc/windows/package.bash
+deleted file mode 100755
+index 995e47d0ae..0000000000
+--- a/misc/windows/package.bash
++++ /dev/null
+@@ -1,55 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2011 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-set -e
+-
+-PROGS="
+-	candle
+-	light
+-	heat
+-"
+-
+-echo "%%%%% Checking for WiX executables %%%%%" 1>&2
+-for i in $PROGS; do
+-	if ! which -a $1 >/dev/null; then
+-		echo "Cannot find '$i' on search path." 1>$2
+-		exit 1
+-	fi
+-done
+-
+-echo "%%%%% Checking the packager's path %%%%%" 1>&2
+-if ! test -f ../../src/env.bash; then
+-	echo "package.bash must be run from $GOROOT/misc/windows" 1>&2
+-fi
+-
+-echo "%%%%% Setting the go package version info %%%%%" 1>&2
+-ver="$(bash ../../src/version.bash | sed 's/ .*//')"
+-
+-rm -rf go
+-mkdir go
+-
+-echo "%%%%% Cloning the go tree %%%%%" 1>&2
+-hg clone -r $(hg id -n | sed 's/+//') $(hg root) go
+-
+-rm -rf ./go/.hg ./go/.hgignore ./go/.hgtags
+-
+-echo "%%%%% Copying pkg, bin and src/pkg/runtime/z* %%%%%" 1>&2
+-cp -a ../../pkg go/pkg
+-cp -a ../../bin go/bin
+-cp ../../src/pkg/runtime/z*.c go/src/pkg/runtime/
+-cp ../../src/pkg/runtime/z*.go go/src/pkg/runtime/
+-cp ../../src/pkg/runtime/z*.h go/src/pkg/runtime/
+-
+-echo "%%%%% Starting zip packaging %%%%%" 1>&2
+-7za a -tzip -mx=9 gowin$GOARCH"_"$ver.zip "go/" >/dev/null
+-
+-echo "%%%%% Starting Go directory file harvesting %%%%%" 1>&2
+-heat dir go -nologo -cg AppFiles -gg -g1 -srd -sfrag -template fragment -dr INSTALLDIR -var var.SourceDir -out AppFiles.wxs
+-
+-echo "%%%%% Starting installer packaging %%%%%" 1>&2
+-candle -nologo -dVersion=$ver -dArch=$GOARCH -dSourceDir=go installer.wxs AppFiles.wxs
+-light -nologo -ext WixUIExtension -ext WixUtilExtension installer.wixobj AppFiles.wixobj -o gowin$GOARCH"_"$ver.msi
+-
+-rm -f *.wixobj AppFiles.wxs *.wixpdb
+-

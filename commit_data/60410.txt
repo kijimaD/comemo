@@ -17,6 +17,52 @@ Date:   Wed Jun 26 16:29:01 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/bogo_shim_test.go | 26 +++++++++++++++++++++++++-
  1 file changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index f481a5a40f..ce01852aee 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -37,6 +37,9 @@ var (
+ 	maxVersion    = flag.Int("max-version", VersionTLS13, "")
+ 	expectVersion = flag.Int("expect-version", 0, "")
+ 
++	noTLS1  = flag.Bool("no-tls1", false, "")
++	noTLS11 = flag.Bool("no-tls11", false, "")
++	noTLS12 = flag.Bool("no-tls12", false, "")
+ 	noTLS13 = flag.Bool("no-tls13", false, "")
+ 
+ 	requireAnyClientCertificate = flag.Bool("require-any-client-certificate", false, "")
+@@ -116,8 +119,29 @@ func bogoShim() {
+ 
+ 		ClientSessionCache: NewLRUClientSessionCache(0),
+ 	}
+-	if *noTLS13 && cfg.MaxVersion == VersionTLS13 {
++
++	if *noTLS1 {
++		cfg.MinVersion = VersionTLS11
++		if *noTLS11 {
++			cfg.MinVersion = VersionTLS12
++			if *noTLS12 {
++				cfg.MinVersion = VersionTLS13
++				if *noTLS13 {
++					log.Fatalf("no supported versions enabled")
++				}
++			}
++		}
++	} else if *noTLS13 {
+ 		cfg.MaxVersion = VersionTLS12
++		if *noTLS12 {
++			cfg.MaxVersion = VersionTLS11
++			if *noTLS11 {
++				cfg.MaxVersion = VersionTLS10
++				if *noTLS1 {
++					log.Fatalf("no supported versions enabled")
++				}
++			}
++		}
+ 	}
+ 
+ 	if *advertiseALPN != "" {

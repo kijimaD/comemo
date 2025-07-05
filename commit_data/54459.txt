@@ -12,6 +12,20 @@ Date:   Tue Oct 4 15:03:26 2022 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/build/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index b583c282c1..4fa07788c9 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -103,7 +103,7 @@ type Context struct {
+ 
+ 	// ReadDir returns a slice of fs.FileInfo, sorted by Name,
+ 	// describing the content of the named directory.
+-	// If ReadDir is nil, Import uses ioutil.ReadDir.
++	// If ReadDir is nil, Import uses os.ReadDir.
+ 	ReadDir func(dir string) ([]fs.FileInfo, error)
+ 
+ 	// OpenFile opens a file (not a directory) for reading.

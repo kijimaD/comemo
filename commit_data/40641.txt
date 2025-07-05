@@ -18,7 +18,7 @@ Date:   Fri Jun 7 17:56:24 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go.mod                 |  2 +-
  src/go.sum                 |  2 ++
  src/net/http/h2_bundle.go  | 26 +++++++++++++++++++++++++-
@@ -26,3 +26,190 @@ Date:   Fri Jun 7 17:56:24 2019 +0000
  src/net/http/server.go     | 13 ++++++++++---
  src/vendor/modules.txt     |  2 +-
  6 files changed, 83 insertions(+), 6 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index d7d707c2d7..5151a7eb82 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.12
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f
+-	golang.org/x/net v0.0.0-20190514140710-3ec191127204
++	golang.org/x/net v0.0.0-20190607172144-d5cec3884524
+ 	golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8 // indirect
+ 	golang.org/x/text v0.3.2 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index c0f012c3df..bceecf5bd0 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -4,6 +4,8 @@ golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f/go.mod h1:yigFU9vqHzYiE8U
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190514140710-3ec191127204 h1:4yG6GqBtw9C+UrLp6s2wtSniayy/Vd/3F7ffLE427XI=
+ golang.org/x/net v0.0.0-20190514140710-3ec191127204/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20190607172144-d5cec3884524 h1:A4fHjHFi2zGH4/ziDBluIhhGzT/kAuTD1lKHLAztlG8=
++golang.org/x/net v0.0.0-20190607172144-d5cec3884524/go.mod h1:HSz+uSET+XFnRR8LxR5pz3Of3rY3CfYBVs4xY44aLks=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20190528183647-3626398d7749 h1:oG2HS+e2B9VqK95y67B5MgJIJhOPY27/m5uJKJhHzus=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 0cfdc4e822..173622fc8b 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -3832,7 +3832,20 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
+ 		if http2testHookOnConn != nil {
+ 			http2testHookOnConn()
+ 		}
++		// The TLSNextProto interface predates contexts, so
++		// the net/http package passes down its per-connection
++		// base context via an exported but unadvertised
++		// method on the Handler. This is for internal
++		// net/http<=>http2 use only.
++		var ctx context.Context
++		type baseContexter interface {
++			BaseContext() context.Context
++		}
++		if bc, ok := h.(baseContexter); ok {
++			ctx = bc.BaseContext()
++		}
+ 		conf.ServeConn(c, &http2ServeConnOpts{
++			Context:    ctx,
+ 			Handler:    h,
+ 			BaseConfig: hs,
+ 		})
+@@ -3843,6 +3856,10 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
+ 
+ // ServeConnOpts are options for the Server.ServeConn method.
+ type http2ServeConnOpts struct {
++	// Context is the base context to use.
++	// If nil, context.Background is used.
++	Context context.Context
++
+ 	// BaseConfig optionally sets the base configuration
+ 	// for values. If nil, defaults are used.
+ 	BaseConfig *Server
+@@ -3853,6 +3870,13 @@ type http2ServeConnOpts struct {
+ 	Handler Handler
+ }
+ 
++func (o *http2ServeConnOpts) context() context.Context {
++	if o.Context != nil {
++		return o.Context
++	}
++	return context.Background()
++}
++
+ func (o *http2ServeConnOpts) baseConfig() *Server {
+ 	if o != nil && o.BaseConfig != nil {
+ 		return o.BaseConfig
+@@ -3998,7 +4022,7 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
+ }
+ 
+ func http2serverConnBaseContext(c net.Conn, opts *http2ServeConnOpts) (ctx context.Context, cancel func()) {
+-	ctx, cancel = context.WithCancel(context.Background())
++	ctx, cancel = context.WithCancel(opts.context())
+ 	ctx = context.WithValue(ctx, LocalAddrContextKey, c.LocalAddr())
+ 	if hs := opts.baseConfig(); hs != nil {
+ 		ctx = context.WithValue(ctx, ServerContextKey, hs)
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 679936e115..e7ed15c3aa 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -6066,6 +6066,50 @@ func TestServerContexts(t *testing.T) {
+ 	}
+ }
+ 
++func TestServerContextsHTTP2(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++	type baseKey struct{}
++	type connKey struct{}
++	ch := make(chan context.Context, 1)
++	ts := httptest.NewUnstartedServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
++		if r.ProtoMajor != 2 {
++			t.Errorf("unexpected HTTP/1.x request")
++		}
++		ch <- r.Context()
++	}))
++	ts.Config.BaseContext = func(ln net.Listener) context.Context {
++		if strings.Contains(reflect.TypeOf(ln).String(), "onceClose") {
++			t.Errorf("unexpected onceClose listener type %T", ln)
++		}
++		return context.WithValue(context.Background(), baseKey{}, "base")
++	}
++	ts.Config.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
++		if got, want := ctx.Value(baseKey{}), "base"; got != want {
++			t.Errorf("in ConnContext, base context key = %#v; want %q", got, want)
++		}
++		return context.WithValue(ctx, connKey{}, "conn")
++	}
++	ts.TLS = &tls.Config{
++		NextProtos: []string{"h2", "http/1.1"},
++	}
++	ts.StartTLS()
++	defer ts.Close()
++	ts.Client().Transport.(*Transport).ForceAttemptHTTP2 = true
++	res, err := ts.Client().Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++	ctx := <-ch
++	if got, want := ctx.Value(baseKey{}), "base"; got != want {
++		t.Errorf("base context key = %#v; want %q", got, want)
++	}
++	if got, want := ctx.Value(connKey{}), "conn"; got != want {
++		t.Errorf("conn context key = %#v; want %q", got, want)
++	}
++}
++
+ // Issue 30710: ensure that as per the spec, a server responds
+ // with 501 Not Implemented for unsupported transfer-encodings.
+ func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 82145ebd65..829bacfa83 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1796,7 +1796,7 @@ func (c *conn) serve(ctx context.Context) {
+ 		*c.tlsState = tlsConn.ConnectionState()
+ 		if proto := c.tlsState.NegotiatedProtocol; validNPN(proto) {
+ 			if fn := c.server.TLSNextProto[proto]; fn != nil {
+-				h := initNPNRequest{tlsConn, serverHandler{c.server}}
++				h := initNPNRequest{ctx, tlsConn, serverHandler{c.server}}
+ 				fn(c.server, tlsConn, h)
+ 			}
+ 			return
+@@ -3347,10 +3347,17 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ // uninitialized fields in its *Request. Such partially-initialized
+ // Requests come from NPN protocol handlers.
+ type initNPNRequest struct {
+-	c *tls.Conn
+-	h serverHandler
++	ctx context.Context
++	c   *tls.Conn
++	h   serverHandler
+ }
+ 
++// BaseContext is an exported but unadvertised http.Handler method
++// recognized by x/net/http2 to pass down a context; the TLSNextProto
++// API predates context support so we shoehorn through the only
++// interface we have available.
++func (h initNPNRequest) BaseContext() context.Context { return h.ctx }
++
+ func (h initNPNRequest) ServeHTTP(rw ResponseWriter, req *Request) {
+ 	if req.TLS == nil {
+ 		req.TLS = &tls.ConnectionState{}
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index b7a9006746..d8b5df5b38 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/chacha20
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20190514140710-3ec191127204
++# golang.org/x/net v0.0.0-20190607172144-d5cec3884524
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+ golang.org/x/net/http/httpproxy

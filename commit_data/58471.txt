@@ -11,10 +11,264 @@ Date:   Mon Sep 4 14:37:13 2023 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  api/next/62418.txt                     |  1 +
  src/log/slog/example_log_level_test.go | 58 ++++++++++++++++++++++++++++++
  src/log/slog/handler.go                |  2 +-
  src/log/slog/logger.go                 | 42 +++++++++++++++++++---
  src/log/slog/logger_test.go            | 66 ++++++++++++++++++++++++++++++++++
  5 files changed, 163 insertions(+), 6 deletions(-)
+
+diff --git a/api/next/62418.txt b/api/next/62418.txt
+new file mode 100644
+index 0000000000..fd482f4ba8
+--- /dev/null
++++ b/api/next/62418.txt
+@@ -0,0 +1 @@
++pkg log/slog, func SetLogLoggerLevel(Level) Level #62418
+diff --git a/src/log/slog/example_log_level_test.go b/src/log/slog/example_log_level_test.go
+new file mode 100644
+index 0000000000..ca8db416e5
+--- /dev/null
++++ b/src/log/slog/example_log_level_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog_test
++
++import (
++	"log"
++	"log/slog"
++	"log/slog/internal/slogtest"
++	"os"
++)
++
++// This example shows how to use slog.SetLogLoggerLevel to change the minimal level
++// of the internal default handler for slog package before calling slog.SetDefault.
++func ExampleSetLogLoggerLevel_log() {
++	defer log.SetFlags(log.Flags()) // revert changes after the example
++	log.SetFlags(0)
++	defer log.SetOutput(log.Writer()) // revert changes after the example
++	log.SetOutput(os.Stdout)
++
++	// Default logging level is slog.LevelInfo.
++	log.Print("log debug") // log debug
++	slog.Debug("debug")    // no output
++	slog.Info("info")      // INFO info
++
++	// Set the default logging level to slog.LevelDebug.
++	currentLogLevel := slog.SetLogLoggerLevel(slog.LevelDebug)
++	defer slog.SetLogLoggerLevel(currentLogLevel) // revert changes after the example
++
++	log.Print("log debug") // log debug
++	slog.Debug("debug")    // DEBUG debug
++	slog.Info("info")      // INFO info
++
++	// Output:
++	// log debug
++	// INFO info
++	// log debug
++	// DEBUG debug
++	// INFO info
++}
++
++// This example shows how to use slog.SetLogLoggerLevel to change the minimal level
++// of the internal writer that uses the custom handler for log package after
++// calling slog.SetDefault.
++func ExampleSetLogLoggerLevel_slog() {
++	// Set the default logging level to slog.LevelError.
++	currentLogLevel := slog.SetLogLoggerLevel(slog.LevelError)
++	defer slog.SetLogLoggerLevel(currentLogLevel) // revert changes after the example
++
++	defer slog.SetDefault(slog.Default()) // revert changes after the example
++	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime})))
++
++	log.Print("error") // level=ERROR msg=error
++
++	// Output:
++	// level=ERROR msg=error
++}
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index a6c643cdb9..9f6d88b169 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -100,7 +100,7 @@ func newDefaultHandler(output func(uintptr, []byte) error) *defaultHandler {
+ }
+ 
+ func (*defaultHandler) Enabled(_ context.Context, l Level) bool {
+-	return l >= LevelInfo
++	return l >= logLoggerLevel.Level()
+ }
+ 
+ // Collect the level, attributes and message in a string and
+diff --git a/src/log/slog/logger.go b/src/log/slog/logger.go
+index fceafe0cba..f03aeec295 100644
+--- a/src/log/slog/logger.go
++++ b/src/log/slog/logger.go
+@@ -16,6 +16,36 @@ import (
+ 
+ var defaultLogger atomic.Pointer[Logger]
+ 
++var logLoggerLevel LevelVar
++
++// SetLogLoggerLevel controls the level for the bridge to the [log] package.
++//
++// Before [SetDefault] is called, slog top-level logging functions call the default [log.Logger].
++// In that mode, SetLogLoggerLevel sets the minimum level for those calls.
++// By default, the minimum level is Info, so calls to [Debug]
++// (as well as top-level logging calls at lower levels)
++// will not be passed to the log.Logger. After calling
++//
++//	slog.SetLogLoggerLevel(slog.LevelDebug)
++//
++// calls to [Debug] will be passed to the log.Logger.
++//
++// After [SetDefault] is called, calls to the default [log.Logger] are passed to the
++// slog default handler. In that mode,
++// SetLogLoggerLevel sets the level at which those calls are logged.
++// That is, after calling
++//
++//	slog.SetLogLoggerLevel(slog.LevelDebug)
++//
++// A call to [log.Printf] will result in output at level [LevelDebug].
++//
++// SetLogLoggerLevel returns the previous value.
++func SetLogLoggerLevel(level Level) (oldLevel Level) {
++	oldLevel = logLoggerLevel.Level()
++	logLoggerLevel.Set(level)
++	return
++}
++
+ func init() {
+ 	defaultLogger.Store(New(newDefaultHandler(loginternal.DefaultOutput)))
+ }
+@@ -25,7 +55,8 @@ func Default() *Logger { return defaultLogger.Load() }
+ 
+ // SetDefault makes l the default [Logger].
+ // After this call, output from the log package's default Logger
+-// (as with [log.Print], etc.) will be logged at [LevelInfo] using l's Handler.
++// (as with [log.Print], etc.) will be logged using l's Handler,
++// at a level controlled by [SetLogLoggerLevel].
+ func SetDefault(l *Logger) {
+ 	defaultLogger.Store(l)
+ 	// If the default's handler is a defaultHandler, then don't use a handleWriter,
+@@ -36,7 +67,7 @@ func SetDefault(l *Logger) {
+ 	// See TestSetDefault.
+ 	if _, ok := l.Handler().(*defaultHandler); !ok {
+ 		capturePC := log.Flags()&(log.Lshortfile|log.Llongfile) != 0
+-		log.SetOutput(&handlerWriter{l.Handler(), LevelInfo, capturePC})
++		log.SetOutput(&handlerWriter{l.Handler(), &logLoggerLevel, capturePC})
+ 		log.SetFlags(0) // we want just the log message, no time or location
+ 	}
+ }
+@@ -45,12 +76,13 @@ func SetDefault(l *Logger) {
+ // It is used to link the default log.Logger to the default slog.Logger.
+ type handlerWriter struct {
+ 	h         Handler
+-	level     Level
++	level     Leveler
+ 	capturePC bool
+ }
+ 
+ func (w *handlerWriter) Write(buf []byte) (int, error) {
+-	if !w.h.Enabled(context.Background(), w.level) {
++	level := w.level.Level()
++	if !w.h.Enabled(context.Background(), level) {
+ 		return 0, nil
+ 	}
+ 	var pc uintptr
+@@ -66,7 +98,7 @@ func (w *handlerWriter) Write(buf []byte) (int, error) {
+ 	if len(buf) > 0 && buf[len(buf)-1] == '\n' {
+ 		buf = buf[:len(buf)-1]
+ 	}
+-	r := NewRecord(time.Now(), w.level, string(buf), pc)
++	r := NewRecord(time.Now(), level, string(buf), pc)
+ 	return origLen, w.h.Handle(context.Background(), r)
+ }
+ 
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index 88aa38ee0c..bb1c8a16ea 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -191,6 +191,7 @@ func TestCallDepth(t *testing.T) {
+ 		}
+ 	}
+ 
++	defer SetDefault(Default()) // restore
+ 	logger := New(h)
+ 	SetDefault(logger)
+ 
+@@ -363,6 +364,71 @@ func TestSetDefault(t *testing.T) {
+ 	}
+ }
+ 
++// Test defaultHandler minimum level without calling slog.SetDefault.
++func TestLogLoggerLevelForDefaultHandler(t *testing.T) {
++	// Revert any changes to the default logger, flags, and level of log and slog.
++	currentLogLoggerLevel := logLoggerLevel.Level()
++	currentLogWriter := log.Writer()
++	currentLogFlags := log.Flags()
++	t.Cleanup(func() {
++		logLoggerLevel.Set(currentLogLoggerLevel)
++		log.SetOutput(currentLogWriter)
++		log.SetFlags(currentLogFlags)
++	})
++
++	var logBuf bytes.Buffer
++	log.SetOutput(&logBuf)
++	log.SetFlags(0)
++
++	for _, test := range []struct {
++		logLevel Level
++		logFn    func(string, ...any)
++		want     string
++	}{
++		{LevelDebug, Debug, "DEBUG a"},
++		{LevelDebug, Info, "INFO a"},
++		{LevelInfo, Debug, ""},
++		{LevelInfo, Info, "INFO a"},
++	} {
++		SetLogLoggerLevel(test.logLevel)
++		test.logFn("a")
++		checkLogOutput(t, logBuf.String(), test.want)
++		logBuf.Reset()
++	}
++}
++
++// Test handlerWriter minimum level by calling slog.SetDefault.
++func TestLogLoggerLevelForHandlerWriter(t *testing.T) {
++	removeTime := func(_ []string, a Attr) Attr {
++		if a.Key == TimeKey {
++			return Attr{}
++		}
++		return a
++	}
++
++	// Revert any changes to the default logger. This is important because other
++	// tests might change the default logger using SetDefault. Also ensure we
++	// restore the default logger at the end of the test.
++	currentLogger := Default()
++	currentLogLoggerLevel := logLoggerLevel.Level()
++	currentLogWriter := log.Writer()
++	currentFlags := log.Flags()
++	t.Cleanup(func() {
++		SetDefault(currentLogger)
++		logLoggerLevel.Set(currentLogLoggerLevel)
++		log.SetOutput(currentLogWriter)
++		log.SetFlags(currentFlags)
++	})
++
++	var logBuf bytes.Buffer
++	log.SetOutput(&logBuf)
++	log.SetFlags(0)
++	SetLogLoggerLevel(LevelError)
++	SetDefault(New(NewTextHandler(&logBuf, &HandlerOptions{ReplaceAttr: removeTime})))
++	log.Print("error")
++	checkLogOutput(t, logBuf.String(), `level=ERROR msg=error`)
++}
++
+ func TestLoggerError(t *testing.T) {
+ 	var buf bytes.Buffer
+ 

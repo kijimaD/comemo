@@ -12,8 +12,88 @@ Date:   Tue Jul 31 15:17:31 2018 +0200
     Change-Id: I2465eb4a45f71b3b61624349e908a195010a09f1
     Reviewed-on: https://go-review.googlesource.com/126856
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/js/callback.go   | 5 +----
  src/syscall/js/js.go         | 7 +++++--
  src/syscall/js/typedarray.go | 1 -
  3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/syscall/js/callback.go b/src/syscall/js/callback.go
+index de9da888fd..346669ad34 100644
+--- a/src/syscall/js/callback.go
++++ b/src/syscall/js/callback.go
+@@ -43,15 +43,12 @@ var (
+ )
+ 
+ // Callback is a Go function that got wrapped for use as a JavaScript callback.
+-// A Callback can be passed to functions of this package that accept interface{},
+-// for example Value.Set and Value.Call.
+ type Callback struct {
+ 	Value // the JavaScript function that queues the callback for execution
+ 	id    uint32
+ }
+ 
+-// NewCallback returns a wrapped callback function. It can be passed to functions of this package
+-// that accept interface{}, for example Value.Set and Value.Call.
++// NewCallback returns a wrapped callback function.
+ //
+ // Invoking the callback in JavaScript will queue the Go function fn for execution.
+ // This execution happens asynchronously on a special goroutine that handles all callbacks and preserves
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 4b55193c41..5deef35c2b 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -216,7 +216,7 @@ func (v Value) Get(p string) Value {
+ 
+ func valueGet(v ref, p string) ref
+ 
+-// Set sets the JavaScript property p of value v to x.
++// Set sets the JavaScript property p of value v to ValueOf(x).
+ func (v Value) Set(p string, x interface{}) {
+ 	valueSet(v.ref, p, ValueOf(x).ref)
+ }
+@@ -230,7 +230,7 @@ func (v Value) Index(i int) Value {
+ 
+ func valueIndex(v ref, i int) ref
+ 
+-// SetIndex sets the JavaScript index i of value v to x.
++// SetIndex sets the JavaScript index i of value v to ValueOf(x).
+ func (v Value) SetIndex(i int, x interface{}) {
+ 	valueSetIndex(v.ref, i, ValueOf(x).ref)
+ }
+@@ -254,6 +254,7 @@ func valueLength(v ref) int
+ 
+ // Call does a JavaScript call to the method m of value v with the given arguments.
+ // It panics if v has no method m.
++// The arguments get mapped to JavaScript values according to the ValueOf function.
+ func (v Value) Call(m string, args ...interface{}) Value {
+ 	res, ok := valueCall(v.ref, m, makeArgs(args))
+ 	if !ok {
+@@ -272,6 +273,7 @@ func valueCall(v ref, m string, args []ref) (ref, bool)
+ 
+ // Invoke does a JavaScript call of the value v with the given arguments.
+ // It panics if v is not a function.
++// The arguments get mapped to JavaScript values according to the ValueOf function.
+ func (v Value) Invoke(args ...interface{}) Value {
+ 	res, ok := valueInvoke(v.ref, makeArgs(args))
+ 	if !ok {
+@@ -287,6 +289,7 @@ func valueInvoke(v ref, args []ref) (ref, bool)
+ 
+ // New uses JavaScript's "new" operator with value v as constructor and the given arguments.
+ // It panics if v is not a function.
++// The arguments get mapped to JavaScript values according to the ValueOf function.
+ func (v Value) New(args ...interface{}) Value {
+ 	res, ok := valueNew(v.ref, makeArgs(args))
+ 	if !ok {
+diff --git a/src/syscall/js/typedarray.go b/src/syscall/js/typedarray.go
+index e824197258..afa15488ec 100644
+--- a/src/syscall/js/typedarray.go
++++ b/src/syscall/js/typedarray.go
+@@ -41,7 +41,6 @@ var (
+ )
+ 
+ // TypedArrayOf returns a JavaScript typed array backed by the slice's underlying array.
+-// It can be passed to functions of this package that accept interface{}, for example Value.Set and Value.Call.
+ //
+ // The supported types are []int8, []int16, []int32, []uint8, []uint16, []uint32, []float32 and []float64.
+ // Passing an unsupported value causes a panic.

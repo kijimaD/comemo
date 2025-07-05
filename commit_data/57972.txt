@@ -16,10 +16,289 @@ Date:   Wed Sep 13 16:58:24 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/61410.txt           |  2 +
  src/net/http/request.go      | 47 +++++++++++++++++++++++
  src/net/http/request_test.go | 90 ++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/server.go       | 24 ++++++------
  src/net/http/server_test.go  |  4 +-
  5 files changed, 154 insertions(+), 13 deletions(-)
+
+diff --git a/api/next/61410.txt b/api/next/61410.txt
+new file mode 100644
+index 0000000000..01c8a2c3e8
+--- /dev/null
++++ b/api/next/61410.txt
+@@ -0,0 +1,2 @@
++pkg net/http, method (*Request) PathValue(string) string #61410
++pkg net/http, method (*Request) SetPathValue(string, string) #61410
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 12039c9ae2..b66e6853f6 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -329,6 +329,11 @@ type Request struct {
+ 	// It is unexported to prevent people from using Context wrong
+ 	// and mutating the contexts held by callers of the same request.
+ 	ctx context.Context
++
++	// The following fields are for requests matched by ServeMux.
++	pat         *pattern          // the pattern that matched
++	matches     []string          // values for the matching wildcards in pat
++	otherValues map[string]string // for calls to SetPathValue that don't match a wildcard
+ }
+ 
+ // Context returns the request's context. To change the context, use
+@@ -1415,6 +1420,48 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
+ 	return nil, nil, ErrMissingFile
+ }
+ 
++// PathValue returns the value for the named path wildcard in the ServeMux pattern
++// that matched the request.
++// It returns the empty string if the request was not matched against a pattern
++// or there is no such wildcard in the pattern.
++func (r *Request) PathValue(name string) string {
++	if i := r.patIndex(name); i >= 0 {
++		return r.matches[i]
++	}
++	return r.otherValues[name]
++}
++
++func (r *Request) SetPathValue(name, value string) {
++	if i := r.patIndex(name); i >= 0 {
++		r.matches[i] = value
++	} else {
++		if r.otherValues == nil {
++			r.otherValues = map[string]string{}
++		}
++		r.otherValues[name] = value
++	}
++}
++
++// patIndex returns the index of name in the list of named wildcards of the
++// request's pattern, or -1 if there is no such name.
++func (r *Request) patIndex(name string) int {
++	// The linear search seems expensive compared to a map, but just creating the map
++	// takes a lot of time, and most patterns will just have a couple of wildcards.
++	if r.pat == nil {
++		return -1
++	}
++	i := 0
++	for _, seg := range r.pat.segments {
++		if seg.wild && seg.s != "" {
++			if name == seg.s {
++				return i
++			}
++			i++
++		}
++	}
++	return -1
++}
++
+ func (r *Request) expectsContinue() bool {
+ 	return hasToken(r.Header.get("Expect"), "100-continue")
+ }
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 5711164894..1aeb93fe14 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"math"
+ 	"mime/multipart"
+ 	. "net/http"
++	"net/http/httptest"
+ 	"net/url"
+ 	"os"
+ 	"reflect"
+@@ -1414,3 +1415,92 @@ func TestErrNotSupported(t *testing.T) {
+ 		t.Error("errors.Is(ErrNotSupported, errors.ErrUnsupported) failed")
+ 	}
+ }
++
++func TestPathValueNoMatch(t *testing.T) {
++	// Check that PathValue and SetPathValue work on a Request that was never matched.
++	var r Request
++	if g, w := r.PathValue("x"), ""; g != w {
++		t.Errorf("got %q, want %q", g, w)
++	}
++	r.SetPathValue("x", "a")
++	if g, w := r.PathValue("x"), "a"; g != w {
++		t.Errorf("got %q, want %q", g, w)
++	}
++}
++
++func TestPathValue(t *testing.T) {
++	for _, test := range []struct {
++		pattern string
++		url     string
++		want    map[string]string
++	}{
++		{
++			"/{a}/is/{b}/{c...}",
++			"/now/is/the/time/for/all",
++			map[string]string{
++				"a": "now",
++				"b": "the",
++				"c": "time/for/all",
++				"d": "",
++			},
++		},
++		// TODO(jba): uncomment these tests when we implement path escaping (forthcoming).
++		// {
++		// 	"/names/{name}/{other...}",
++		// 	"/names/" + url.PathEscape("/john") + "/address",
++		// 	map[string]string{
++		// 		"name":  "/john",
++		// 		"other": "address",
++		// 	},
++		// },
++		// {
++		// 	"/names/{name}/{other...}",
++		// 	"/names/" + url.PathEscape("john/doe") + "/address",
++		// 	map[string]string{
++		// 		"name":  "john/doe",
++		// 		"other": "address",
++		// 	},
++		// },
++	} {
++		mux := NewServeMux()
++		mux.HandleFunc(test.pattern, func(w ResponseWriter, r *Request) {
++			for name, want := range test.want {
++				got := r.PathValue(name)
++				if got != want {
++					t.Errorf("%q, %q: got %q, want %q", test.pattern, name, got, want)
++				}
++			}
++		})
++		server := httptest.NewServer(mux)
++		defer server.Close()
++		_, err := Get(server.URL + test.url)
++		if err != nil {
++			t.Fatal(err)
++		}
++	}
++}
++
++func TestSetPathValue(t *testing.T) {
++	mux := NewServeMux()
++	mux.HandleFunc("/a/{b}/c/{d...}", func(_ ResponseWriter, r *Request) {
++		kvs := map[string]string{
++			"b": "X",
++			"d": "Y",
++			"a": "Z",
++		}
++		for k, v := range kvs {
++			r.SetPathValue(k, v)
++		}
++		for k, w := range kvs {
++			if g := r.PathValue(k); g != w {
++				t.Errorf("got %q, want %q", g, w)
++			}
++		}
++	})
++	server := httptest.NewServer(mux)
++	defer server.Close()
++	_, err := Get(server.URL + "/a/b/c/d/e")
++	if err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 74362a69ad..a229169197 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2410,14 +2410,15 @@ func stripHostPort(h string) string {
+ // If there is no registered handler that applies to the request,
+ // Handler returns a “page not found” handler and an empty pattern.
+ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
+-	return mux.findHandler(r)
++	h, p, _, _ := mux.findHandler(r)
++	return h, p
+ }
+ 
+ // findHandler finds a handler for a request.
+ // If there is a matching handler, it returns it and the pattern that matched.
+ // Otherwise it returns a Redirect or NotFound handler with the path that would match
+ // after the redirect.
+-func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
++func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *pattern, matches []string) {
+ 	var n *routingNode
+ 	// TODO(jba): use escaped path. This is an independent change that is also part
+ 	// of proposal https://go.dev/issue/61410.
+@@ -2430,11 +2431,11 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
+ 		// but the path canonicalization does not.
+ 		_, _, u := mux.matchOrRedirect(r.URL.Host, r.Method, path, r.URL)
+ 		if u != nil {
+-			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
++			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path, nil, nil
+ 		}
+ 		// Redo the match, this time with r.Host instead of r.URL.Host.
+ 		// Pass a nil URL to skip the trailing-slash redirect logic.
+-		n, _, _ = mux.matchOrRedirect(r.Host, r.Method, path, nil)
++		n, matches, _ = mux.matchOrRedirect(r.Host, r.Method, path, nil)
+ 	} else {
+ 		// All other requests have any port stripped and path cleaned
+ 		// before passing to mux.handler.
+@@ -2444,9 +2445,9 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
+ 		// If the given path is /tree and its handler is not registered,
+ 		// redirect for /tree/.
+ 		var u *url.URL
+-		n, _, u = mux.matchOrRedirect(host, r.Method, path, r.URL)
++		n, matches, u = mux.matchOrRedirect(host, r.Method, path, r.URL)
+ 		if u != nil {
+-			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
++			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path, nil, nil
+ 		}
+ 		if path != r.URL.Path {
+ 			// Redirect to cleaned path.
+@@ -2455,14 +2456,14 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string) {
+ 				patStr = n.pattern.String()
+ 			}
+ 			u := &url.URL{Path: path, RawQuery: r.URL.RawQuery}
+-			return RedirectHandler(u.String(), StatusMovedPermanently), patStr
++			return RedirectHandler(u.String(), StatusMovedPermanently), patStr, nil, nil
+ 		}
+ 	}
+ 	if n == nil {
+ 		// TODO(jba): support 405 (MethodNotAllowed) by checking for patterns with different methods.
+-		return NotFoundHandler(), ""
++		return NotFoundHandler(), "", nil, nil
+ 	}
+-	return n.handler, n.pattern.String()
++	return n.handler, n.pattern.String(), n.pattern, matches
+ }
+ 
+ // matchOrRedirect looks up a node in the tree that matches the host, method and path.
+@@ -2551,8 +2552,9 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
+ 		w.WriteHeader(StatusBadRequest)
+ 		return
+ 	}
+-	h, _ := mux.findHandler(r)
+-	// TODO(jba); save matches in Request.
++	h, _, pat, matches := mux.findHandler(r)
++	r.pat = pat
++	r.matches = matches
+ 	h.ServeHTTP(w, r)
+ }
+ 
+diff --git a/src/net/http/server_test.go b/src/net/http/server_test.go
+index b0cc093d43..0c361c7d66 100644
+--- a/src/net/http/server_test.go
++++ b/src/net/http/server_test.go
+@@ -110,7 +110,7 @@ func TestFindHandler(t *testing.T) {
+ 		r.Method = test.method
+ 		r.Host = "example.com"
+ 		r.URL = &url.URL{Path: test.path}
+-		gotH, _ := mux.findHandler(&r)
++		gotH, _, _, _ := mux.findHandler(&r)
+ 		got := fmt.Sprintf("%#v", gotH)
+ 		if got != test.wantHandler {
+ 			t.Errorf("%s %q: got %q, want %q", test.method, test.path, got, test.wantHandler)
+@@ -204,7 +204,7 @@ func BenchmarkServerMatch(b *testing.B) {
+ 		if err != nil {
+ 			b.Fatal(err)
+ 		}
+-		if h, p := mux.findHandler(r); h != nil && p == "" {
++		if h, p, _, _ := mux.findHandler(r); h != nil && p == "" {
+ 			b.Error("impossible")
+ 		}
+ 	}

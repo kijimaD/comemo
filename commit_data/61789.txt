@@ -20,7 +20,61 @@ Date:   Wed Nov 20 17:20:41 2024 -0500
     Auto-Submit: Carlos Amedee <carlos@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mcleanup.go | 18 ++++++++++++++++--
  src/runtime/mheap.go    |  2 +-
  2 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mcleanup.go b/src/runtime/mcleanup.go
+index db1a6ac67e..04d8ff59aa 100644
+--- a/src/runtime/mcleanup.go
++++ b/src/runtime/mcleanup.go
+@@ -131,12 +131,26 @@ func (c Cleanup) Stop() {
+ 
+ 	iter, exists := span.specialFindSplicePoint(offset, _KindSpecialCleanup)
+ 	if exists {
+-		for s := *iter; s != nil && offset == uintptr(s.offset); iter = &s.next {
+-			if (*specialCleanup)(unsafe.Pointer(s)).id == c.id {
++		for {
++			s := *iter
++			if s == nil {
++				// Reached the end of the linked list. Stop searching at this point.
++				break
++			}
++			if offset == uintptr(s.offset) && _KindSpecialCleanup == s.kind &&
++				(*specialCleanup)(unsafe.Pointer(s)).id == c.id {
++				// The special is a cleanup and contains a matching cleanup id.
+ 				*iter = s.next
+ 				found = s
+ 				break
+ 			}
++			if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && _KindSpecialCleanup < s.kind) {
++				// The special is outside the region specified for that kind of
++				// special. The specials are sorted by kind.
++				break
++			}
++			// Try the next special.
++			iter = &s.next
+ 		}
+ 	}
+ 	if span.specials == nil {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 4b9734da5f..4fcfbeca84 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -2046,7 +2046,6 @@ func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
+ 
+ 	mp := acquirem()
+ 	addspecial(p, &s.special, true)
+-	releasem(mp)
+ 	// This is responsible for maintaining the same
+ 	// GC-related invariants as markrootSpans in any
+ 	// situation where it's possible that markrootSpans
+@@ -2057,6 +2056,7 @@ func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
+ 		// special isn't part of the GC'd heap.
+ 		scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+ 	}
++	releasem(mp)
+ 	// Keep f alive. There's a window in this function where it's
+ 	// only reachable via the special while the special hasn't been
+ 	// added to the specials list yet. This is similar to a bug

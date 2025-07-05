@@ -28,6 +28,26 @@ Date:   Wed Feb 24 11:59:49 2016 +0900
     Change-Id: I9631f41a3c73f3269c7e30d679c025ae64d71a98
     Reviewed-on: https://go-review.googlesource.com/19870
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 5623039b7b..4a5c438e46 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -355,7 +355,13 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
+ 		}
+ 		addrs, err := goLookupIP(tt.name)
+ 		if err != nil {
+-			if err, ok := err.(*DNSError); !ok || (err.Name != tt.error.(*DNSError).Name || err.Server != tt.error.(*DNSError).Server || err.IsTimeout != tt.error.(*DNSError).IsTimeout) {
++			// This test uses external network connectivity.
++			// We need to take care with errors on both
++			// DNS message exchange layer and DNS
++			// transport layer because goLookupIP may fail
++			// when the IP connectivty on node under test
++			// gets lost during its run.
++			if err, ok := err.(*DNSError); !ok || tt.error != nil && (err.Name != tt.error.(*DNSError).Name || err.Server != tt.error.(*DNSError).Server || err.IsTimeout != tt.error.(*DNSError).IsTimeout) {
+ 				t.Errorf("got %v; want %v", err, tt.error)
+ 			}
+ 			continue

@@ -12,9 +12,127 @@ Date:   Wed Sep 8 21:30:01 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go          | 22 +++++++++++++++------
  .../internal/syntax/testdata/issue43527.go2        | 23 ++++++++++++++++++++++
  .../compile/internal/syntax/testdata/tparams.go2   |  8 ++++----
  .../types2/testdata/fixedbugs/issue47996.go2       |  2 +-
  4 files changed, 44 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index e89796cb31..c836a21c2f 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1908,8 +1908,9 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
+ 		defer p.trace("paramList")()
+ 	}
+ 
+-	var named int // number of parameters that have an explicit name and type/bound
+-	p.list(_Comma, close, func() bool {
++	var named int // number of parameters that have an explicit name and type
++	var typed int // number of parameters that have an explicit type
++	end := p.list(_Comma, close, func() bool {
+ 		par := p.paramDeclOrNil(name)
+ 		name = nil // 1st name was consumed if present
+ 		if par != nil {
+@@ -1919,6 +1920,9 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
+ 			if par.Name != nil && par.Type != nil {
+ 				named++
+ 			}
++			if par.Type != nil {
++				typed++
++			}
+ 			list = append(list, par)
+ 		}
+ 		return false
+@@ -1939,10 +1943,11 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
+ 		}
+ 	} else if named != len(list) {
+ 		// some named => all must have names and types
+-		var pos Pos // left-most error position (or unknown)
+-		var typ Expr
++		var pos Pos  // left-most error position (or unknown)
++		var typ Expr // current type (from right to left)
+ 		for i := len(list) - 1; i >= 0; i-- {
+-			if par := list[i]; par.Type != nil {
++			par := list[i]
++			if par.Type != nil {
+ 				typ = par.Type
+ 				if par.Name == nil {
+ 					pos = typ.Pos()
+@@ -1961,7 +1966,12 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
+ 		if pos.IsKnown() {
+ 			var msg string
+ 			if requireNames {
+-				msg = "type parameters must be named"
++				if named == typed {
++					pos = end // position error at closing ]
++					msg = "missing type constraint"
++				} else {
++					msg = "type parameters must be named"
++				}
+ 			} else {
+ 				msg = "mixed named and unnamed parameters"
+ 			}
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue43527.go2 b/src/cmd/compile/internal/syntax/testdata/issue43527.go2
+new file mode 100644
+index 0000000000..dd2c9b1272
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue43527.go2
+@@ -0,0 +1,23 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++        // 0 and 1-element []-lists are syntactically valid
++        _[A, B /* ERROR missing type constraint */ ] int
++        _[A, /* ERROR type parameters must be named */ interface{}] int
++        _[A, B, C /* ERROR missing type constraint */ ] int
++        _[A B, C /* ERROR missing type constraint */ ] int
++        _[A B, /* ERROR type parameters must be named */ interface{}] int
++        _[A B, /* ERROR type parameters must be named */ interface{}, C D] int
++        _[A B, /* ERROR type parameters must be named */ interface{}, C, D] int
++        _[A B, /* ERROR type parameters must be named */ interface{}, C, interface{}] int
++        _[A B, C interface{}, D, /* ERROR type parameters must be named */ interface{}] int
++)
++
++// function type parameters use the same parsing routine - just have a couple of tests
++
++func _[A, B /* ERROR missing type constraint */ ]() {}
++func _[A, /* ERROR type parameters must be named */ interface{}]() {}
+diff --git a/src/cmd/compile/internal/syntax/testdata/tparams.go2 b/src/cmd/compile/internal/syntax/testdata/tparams.go2
+index 42031c3277..8e47ff5ed8 100644
+--- a/src/cmd/compile/internal/syntax/testdata/tparams.go2
++++ b/src/cmd/compile/internal/syntax/testdata/tparams.go2
+@@ -4,8 +4,8 @@
+ 
+ package p
+ 
+-type t[ /* ERROR type parameters must be named */ a, b] struct{}
+-type t[a t, b t, /* ERROR type parameters must be named */ c] struct{}
++type t[a, b /* ERROR missing type constraint */ ] struct{}
++type t[a t, b t, c /* ERROR missing type constraint */ ] struct{}
+ type t struct {
+ 	t [n]byte
+ 	t[a]
+@@ -18,5 +18,5 @@ type t interface {
+ }
+ 
+ func f[ /* ERROR empty type parameter list */ ]()
+-func f[ /* ERROR type parameters must be named */ a, b]()
+-func f[a t, b t, /* ERROR type parameters must be named */ c]()
++func f[a, b /* ERROR missing type constraint */ ]()
++func f[a t, b t, c /* ERROR missing type constraint */ ]()
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go2
+index 56e90942ab..2c4b6610fe 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go2
+@@ -5,4 +5,4 @@
+ package p
+ 
+ // don't crash
+-func T /* ERROR missing */ [P /* ERROR named */ ] m /* ERROR m */ () /* ERROR \) */ { /* ERROR { */ } /* ERROR } */
++func T /* ERROR missing */ [P] /* ERROR missing */ m /* ERROR unexpected */ () /* ERROR \) */ { /* ERROR { */ } /* ERROR } */

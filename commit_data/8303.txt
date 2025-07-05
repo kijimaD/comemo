@@ -14,8 +14,64 @@ Date:   Tue May 3 01:56:23 2011 -0400
     R=iant
     CC=golang-dev
     https://golang.org/cl/4428079
-
+---
  src/cmd/ld/go.c  |  2 ++
  src/cmd/ld/lib.c | 12 ++++++++++++
  src/cmd/ld/lib.h |  1 +
  3 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index e52c5cb34d..a19fe460db 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -454,6 +454,7 @@ loaddynimport(char *file, char *pkg, char *p, int n)
+ 		if(strcmp(name, "_") == 0 && strcmp(def, "_") == 0) {
+ 			// allow #pragma dynimport _ _ "foo.so"
+ 			// to force a link of foo.so.
++			havedynamic = 1;
+ 			adddynlib(lib);
+ 			continue;
+ 		}
+@@ -468,6 +469,7 @@ loaddynimport(char *file, char *pkg, char *p, int n)
+ 			s->dynimpname = def;
+ 			s->dynimpvers = q;
+ 			s->type = SDYNIMPORT;
++			havedynamic = 1;
+ 		}
+ 	}
+ 	return;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 15219ba116..105d982e4b 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -259,6 +259,18 @@ loadlib(void)
+ 			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i].file, library[i].objref);
+ 		objfile(library[i].file, library[i].pkg);
+ 	}
++	
++	// We've loaded all the code now.
++	// If there are no dynamic libraries needed, gcc disables dynamic linking.
++	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
++	// assumes that a dynamic binary always refers to at least one dynamic library.
++	// Rather than be a source of test cases for glibc, disable dynamic linking
++	// the same way that gcc would.
++	//
++	// Exception: on OS X, programs such as Shark only work with dynamic
++	// binaries, so leave it enabled on OS X (Mach-O) binaries.
++	if(!havedynamic && HEADTYPE != Hdarwin)
++		debug['d'] = 1;
+ }
+ 
+ /*
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 8b603a04a6..447045f01b 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -122,6 +122,7 @@ EXTERN	char*	outfile;
+ EXTERN	int32	nsymbol;
+ EXTERN	char*	thestring;
+ EXTERN	int	ndynexp;
++EXTERN	int	havedynamic;
+ 
+ EXTERN	Segment	segtext;
+ EXTERN	Segment	segdata;

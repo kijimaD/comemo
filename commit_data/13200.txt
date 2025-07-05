@@ -7,6 +7,23 @@ Date:   Tue May 29 14:27:07 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6249065
-
+---
  src/pkg/net/http/header.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/net/http/header.go b/src/pkg/net/http/header.go
+index d584c799f9..0eca817d7a 100644
+--- a/src/pkg/net/http/header.go
++++ b/src/pkg/net/http/header.go
+@@ -99,6 +99,11 @@ func hasToken(v, token string) bool {
+ 	}
+ 	for sp := 0; sp <= len(v)-len(token); sp++ {
+ 		// Check that first character is good.
++		// The token is ASCII, so checking only a single byte
++		// is sufficient.  We skip this potential starting
++		// position if both the first byte and its potential
++		// ASCII uppercase equivalent (b|0x20) don't match.
++		// False positives ('^' => '~') are caught by EqualFold.
+ 		if b := v[sp]; b != token[0] && b|0x20 != token[0] {
+ 			continue
+ 		}

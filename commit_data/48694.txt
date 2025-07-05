@@ -10,7 +10,7 @@ Date:   Mon Jun 7 23:04:16 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/325922
     Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/go1.17.html                                    |   8 +
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
@@ -27,3 +27,844 @@ Date:   Mon Jun 7 23:04:16 2021 -0400
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 402 +++++++++++++++------
  src/cmd/vendor/modules.txt                         |   2 +-
  15 files changed, 372 insertions(+), 134 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index c1b3b3cef4..8b0fcea29d 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -137,6 +137,14 @@ Do not send CLs removing the interior tags from such phrases.
+   <!-- TODO(bcmills): replace the design-doc link with proper documentation. -->
+ </p>
+ 
++<p><!-- golang.org/issue/45965 -->
++  Because the number of additional explicit requirements in the go.mod file may
++  be substantial, in a Go 1.17 module the newly-added requirements
++  on <em>indirect</em> dependencies are maintained in a
++  separate <code>require</code> block from the block containing direct
++  dependencies.
++</p>
++
+ <p><!-- golang.org/issue/45094 -->
+   To facilitate the upgrade to lazy loading, the
+   <code>go</code> <code>mod</code> <code>tidy</code> subcommand now supports
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 1aa0320d07..cd03968eed 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,7 +7,7 @@ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
+ 	golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e
+ 	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e // indirect
+-	golang.org/x/mod v0.4.3-0.20210512182355-6088ed88cecd
++	golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a
+ 	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
+ 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+ 	golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index eeb625fcf8..d728acaec9 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -13,8 +13,8 @@ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8U
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
+ golang.org/x/mod v0.4.2/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+-golang.org/x/mod v0.4.3-0.20210512182355-6088ed88cecd h1:CuRnpyMrCCBulv0d/y0CswR4K0vGydgE3DZ2wYPIOo8=
+-golang.org/x/mod v0.4.3-0.20210512182355-6088ed88cecd/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
++golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a h1:e8qnjKz4EE6OjRki9wTadWSIogINvq10sMcuBRORxMY=
++golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index ea404b9f78..eb9cfe629b 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -999,10 +999,14 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
+ 			Indirect: !rs.direct[m.Path],
+ 		})
+ 	}
+-	modFile.SetRequire(list)
+ 	if goVersion != "" {
+ 		modFile.AddGoStmt(goVersion)
+ 	}
++	if semver.Compare("v"+modFileGoVersion(), separateIndirectVersionV) < 0 {
++		modFile.SetRequire(list)
++	} else {
++		modFile.SetRequireSeparateIndirect(list)
++	}
+ 	modFile.Cleanup()
+ 
+ 	dirty := index.modFileIsDirty(modFile)
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index a9c3a91d35..1145ac4ba5 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -35,6 +35,11 @@ const (
+ 	// module's go.mod file is expected to list explicit requirements on every
+ 	// module that provides any package transitively imported by that module.
+ 	lazyLoadingVersionV = "v1.17"
++
++	// separateIndirectVersionV is the Go version (plus leading "v") at which
++	// "// indirect" dependencies are added in a block separate from the direct
++	// ones. See https://golang.org/issue/45965.
++	separateIndirectVersionV = "v1.17"
+ )
+ 
+ const (
+diff --git a/src/cmd/go/testdata/script/mod_go_version_missing.txt b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+index aca36a0450..d704816729 100644
+--- a/src/cmd/go/testdata/script/mod_go_version_missing.txt
++++ b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+@@ -73,10 +73,9 @@ module example.com/m
+ 
+ go $goversion
+ 
+-require (
+-	example.com/dep v0.1.0
+-	example.com/testdep v0.1.0 // indirect
+-)
++require example.com/dep v0.1.0
++
++require example.com/testdep v0.1.0 // indirect
+ 
+ replace (
+ 	example.com/dep v0.1.0 => ./dep
+diff --git a/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt b/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
+index 3dc1515df2..97718c4513 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
+@@ -139,9 +139,10 @@ go 1.17
+ require (
+ 	a v0.1.0
+ 	b v0.1.0
+-	c v0.1.0 // indirect
+ )
+ 
++require c v0.1.0 // indirect
++
+ replace (
+ 	a v0.1.0 => ./a1
+ 	b v0.1.0 => ./b1
+diff --git a/src/cmd/go/testdata/script/mod_lazy_new_import.txt b/src/cmd/go/testdata/script/mod_lazy_new_import.txt
+index 86b14b64b6..4272a52de1 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_new_import.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_new_import.txt
+@@ -78,10 +78,9 @@ module example.com/lazy
+ 
+ go 1.17
+ 
+-require (
+-	example.com/a v0.1.0
+-	example.com/b v0.1.0 // indirect
+-)
++require example.com/a v0.1.0
++
++require example.com/b v0.1.0 // indirect
+ 
+ replace (
+ 	example.com/a v0.1.0 => ./a
+@@ -94,8 +93,9 @@ module example.com/lazy
+ 
+ go 1.17
+ 
++require example.com/a v0.1.0
++
+ require (
+-	example.com/a v0.1.0
+ 	example.com/b v0.1.0 // indirect
+ 	example.com/c v0.1.0 // indirect
+ )
+diff --git a/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt b/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt
+index 722712d1f2..68a5b6dca2 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt
+@@ -148,10 +148,9 @@ module example.com/lazy
+ 
+ go 1.17
+ 
+-require (
+-	example.com/a v0.1.0
+-	example.com/b v0.1.0 // indirect
+-)
++require example.com/a v0.1.0
++
++require example.com/b v0.1.0 // indirect
+ 
+ replace (
+ 	example.com/a v0.1.0 => ./a
+diff --git a/src/cmd/go/testdata/script/mod_retention.txt b/src/cmd/go/testdata/script/mod_retention.txt
+index 0e639db551..7a371b1806 100644
+--- a/src/cmd/go/testdata/script/mod_retention.txt
++++ b/src/cmd/go/testdata/script/mod_retention.txt
+@@ -140,8 +140,9 @@ module m
+ go $goversion
+ 
+ require (
+-	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+ 	rsc.io/quote v1.5.2
+ 	rsc.io/sampler v1.3.0 // indirect
+ 	rsc.io/testonly v1.0.0 // indirect
+ )
++
++require golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+diff --git a/src/cmd/go/testdata/script/mod_tidy_convergence.txt b/src/cmd/go/testdata/script/mod_tidy_convergence.txt
+index 22c8fc66c5..09c46f764b 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_convergence.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_convergence.txt
+@@ -90,7 +90,6 @@ cmp go.mod go.mod.postget
+ cp go.mod.orig go.mod
+ go mod edit -go=1.17 go.mod
+ go mod edit -go=1.17 go.mod.tidye
+-go mod edit -go=1.17 go.mod.postget
+ 
+ go mod tidy -e
+ cmp go.mod go.mod.tidye
+@@ -99,7 +98,7 @@ stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provid
+ 
+ go get -d example.net/x@v0.1.0 example.net/y@v0.1.0
+ go mod tidy
+-cmp go.mod go.mod.postget
++cmp go.mod go.mod.postget-117
+ 
+ 
+ -- go.mod --
+@@ -144,6 +143,21 @@ require (
+ 	example.net/x v0.1.0
+ 	example.net/y v0.1.0 // indirect
+ )
++-- go.mod.postget-117 --
++module example.net/m
++
++go 1.17
++
++replace (
++	example.net/x v0.1.0 => ./x1
++	example.net/x v0.2.0-pre => ./x2-pre
++	example.net/y v0.1.0 => ./y1
++	example.net/y v0.2.0 => ./y2
++)
++
++require example.net/x v0.1.0
++
++require example.net/y v0.1.0 // indirect
+ -- m.go --
+ package m
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_version.txt b/src/cmd/go/testdata/script/mod_tidy_version.txt
+index eaa6ee7b0d..3bc97bcb1e 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_version.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_version.txt
+@@ -92,8 +92,9 @@ cmpenv go.mod go.mod.latest
+ -- go.mod --
+ module example.com/m
+ 
++require example.net/a v0.1.0
++
+ require (
+-	example.net/a v0.1.0
+ 	example.net/c v0.1.0 // indirect
+ 	example.net/d v0.1.0 // indirect
+ )
+@@ -118,8 +119,9 @@ module example.com/m
+ 
+ go 1.15
+ 
++require example.net/a v0.1.0
++
+ require (
+-	example.net/a v0.1.0
+ 	example.net/c v0.1.0 // indirect
+ 	example.net/d v0.1.0 // indirect
+ )
+@@ -139,8 +141,9 @@ module example.com/m
+ 
+ go 1.15
+ 
++require example.net/a v0.1.0
++
+ require (
+-	example.net/a v0.1.0
+ 	example.net/c v0.1.0 // indirect
+ 	example.net/d v0.2.0 // indirect
+ )
+@@ -160,10 +163,9 @@ module example.com/m
+ 
+ go 1.16
+ 
+-require (
+-	example.net/a v0.1.0
+-	example.net/c v0.1.0 // indirect
+-)
++require example.net/a v0.1.0
++
++require example.net/c v0.1.0 // indirect
+ 
+ replace (
+ 	example.net/a v0.1.0 => ./a
+@@ -180,8 +182,9 @@ module example.com/m
+ 
+ go 1.17
+ 
++require example.net/a v0.1.0
++
+ require (
+-	example.net/a v0.1.0
+ 	example.net/b v0.1.0 // indirect
+ 	example.net/c v0.1.0 // indirect
+ )
+@@ -201,8 +204,9 @@ module example.com/m
+ 
+ go $goversion
+ 
++require example.net/a v0.1.0
++
+ require (
+-	example.net/a v0.1.0
+ 	example.net/b v0.1.0 // indirect
+ 	example.net/c v0.1.0 // indirect
+ )
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/read.go b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+index 2a961ca81c..956f30cbb3 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/read.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+@@ -194,12 +194,15 @@ func (x *FileSyntax) updateLine(line *Line, tokens ...string) {
+ 	line.Token = tokens
+ }
+ 
+-func (x *FileSyntax) removeLine(line *Line) {
++// markRemoved modifies line so that it (and its end-of-line comment, if any)
++// will be dropped by (*FileSyntax).Cleanup.
++func (line *Line) markRemoved() {
+ 	line.Token = nil
++	line.Comments.Suffix = nil
+ }
+ 
+ // Cleanup cleans up the file syntax x after any edit operations.
+-// To avoid quadratic behavior, removeLine marks the line as dead
++// To avoid quadratic behavior, (*Line).markRemoved marks the line as dead
+ // by setting line.Token = nil but does not remove it from the slice
+ // in which it appears. After edits have all been indicated,
+ // calling Cleanup cleans out the dead lines.
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 7299e15500..78f83fa714 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -58,13 +58,6 @@ type Go struct {
+ 	Syntax  *Line
+ }
+ 
+-// A Require is a single require statement.
+-type Require struct {
+-	Mod      module.Version
+-	Indirect bool // has "// indirect" comment
+-	Syntax   *Line
+-}
+-
+ // An Exclude is a single exclude statement.
+ type Exclude struct {
+ 	Mod    module.Version
+@@ -93,6 +86,93 @@ type VersionInterval struct {
+ 	Low, High string
+ }
+ 
++// A Require is a single require statement.
++type Require struct {
++	Mod      module.Version
++	Indirect bool // has "// indirect" comment
++	Syntax   *Line
++}
++
++func (r *Require) markRemoved() {
++	r.Syntax.markRemoved()
++	*r = Require{}
++}
++
++func (r *Require) setVersion(v string) {
++	r.Mod.Version = v
++
++	if line := r.Syntax; len(line.Token) > 0 {
++		if line.InBlock {
++			// If the line is preceded by an empty line, remove it; see
++			// https://golang.org/issue/33779.
++			if len(line.Comments.Before) == 1 && len(line.Comments.Before[0].Token) == 0 {
++				line.Comments.Before = line.Comments.Before[:0]
++			}
++			if len(line.Token) >= 2 { // example.com v1.2.3
++				line.Token[1] = v
++			}
++		} else {
++			if len(line.Token) >= 3 { // require example.com v1.2.3
++				line.Token[2] = v
++			}
++		}
++	}
++}
++
++// setIndirect sets line to have (or not have) a "// indirect" comment.
++func (r *Require) setIndirect(indirect bool) {
++	r.Indirect = indirect
++	line := r.Syntax
++	if isIndirect(line) == indirect {
++		return
++	}
++	if indirect {
++		// Adding comment.
++		if len(line.Suffix) == 0 {
++			// New comment.
++			line.Suffix = []Comment{{Token: "// indirect", Suffix: true}}
++			return
++		}
++
++		com := &line.Suffix[0]
++		text := strings.TrimSpace(strings.TrimPrefix(com.Token, string(slashSlash)))
++		if text == "" {
++			// Empty comment.
++			com.Token = "// indirect"
++			return
++		}
++
++		// Insert at beginning of existing comment.
++		com.Token = "// indirect; " + text
++		return
++	}
++
++	// Removing comment.
++	f := strings.TrimSpace(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
++	if f == "indirect" {
++		// Remove whole comment.
++		line.Suffix = nil
++		return
++	}
++
++	// Remove comment prefix.
++	com := &line.Suffix[0]
++	i := strings.Index(com.Token, "indirect;")
++	com.Token = "//" + com.Token[i+len("indirect;"):]
++}
++
++// isIndirect reports whether line has a "// indirect" comment,
++// meaning it is in go.mod only for its effect on indirect dependencies,
++// so that it can be dropped entirely once the effective version of the
++// indirect dependency reaches the given minimum version.
++func isIndirect(line *Line) bool {
++	if len(line.Suffix) == 0 {
++		return false
++	}
++	f := strings.Fields(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
++	return (len(f) == 1 && f[0] == "indirect" || len(f) > 1 && f[0] == "indirect;")
++}
++
+ func (f *File) AddModuleStmt(path string) error {
+ 	if f.Syntax == nil {
+ 		f.Syntax = new(FileSyntax)
+@@ -476,58 +556,6 @@ func (f *File) fixRetract(fix VersionFixer, errs *ErrorList) {
+ 	}
+ }
+ 
+-// isIndirect reports whether line has a "// indirect" comment,
+-// meaning it is in go.mod only for its effect on indirect dependencies,
+-// so that it can be dropped entirely once the effective version of the
+-// indirect dependency reaches the given minimum version.
+-func isIndirect(line *Line) bool {
+-	if len(line.Suffix) == 0 {
+-		return false
+-	}
+-	f := strings.Fields(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
+-	return (len(f) == 1 && f[0] == "indirect" || len(f) > 1 && f[0] == "indirect;")
+-}
+-
+-// setIndirect sets line to have (or not have) a "// indirect" comment.
+-func setIndirect(line *Line, indirect bool) {
+-	if isIndirect(line) == indirect {
+-		return
+-	}
+-	if indirect {
+-		// Adding comment.
+-		if len(line.Suffix) == 0 {
+-			// New comment.
+-			line.Suffix = []Comment{{Token: "// indirect", Suffix: true}}
+-			return
+-		}
+-
+-		com := &line.Suffix[0]
+-		text := strings.TrimSpace(strings.TrimPrefix(com.Token, string(slashSlash)))
+-		if text == "" {
+-			// Empty comment.
+-			com.Token = "// indirect"
+-			return
+-		}
+-
+-		// Insert at beginning of existing comment.
+-		com.Token = "// indirect; " + text
+-		return
+-	}
+-
+-	// Removing comment.
+-	f := strings.TrimSpace(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
+-	if f == "indirect" {
+-		// Remove whole comment.
+-		line.Suffix = nil
+-		return
+-	}
+-
+-	// Remove comment prefix.
+-	com := &line.Suffix[0]
+-	i := strings.Index(com.Token, "indirect;")
+-	com.Token = "//" + com.Token[i+len("indirect;"):]
+-}
+-
+ // IsDirectoryPath reports whether the given path should be interpreted
+ // as a directory path. Just like on the go command line, relative paths
+ // and rooted paths are directory paths; the rest are module paths.
+@@ -835,6 +863,12 @@ func (f *File) AddGoStmt(version string) error {
+ 	return nil
+ }
+ 
++// AddRequire sets the first require line for path to version vers,
++// preserving any existing comments for that line and removing all
++// other lines for path.
++//
++// If no line currently exists for path, AddRequire adds a new line
++// at the end of the last require block.
+ func (f *File) AddRequire(path, vers string) error {
+ 	need := true
+ 	for _, r := range f.Require {
+@@ -844,7 +878,7 @@ func (f *File) AddRequire(path, vers string) error {
+ 				f.Syntax.updateLine(r.Syntax, "require", AutoQuote(path), vers)
+ 				need = false
+ 			} else {
+-				f.Syntax.removeLine(r.Syntax)
++				r.Syntax.markRemoved()
+ 				*r = Require{}
+ 			}
+ 		}
+@@ -856,69 +890,235 @@ func (f *File) AddRequire(path, vers string) error {
+ 	return nil
+ }
+ 
++// AddNewRequire adds a new require line for path at version vers at the end of
++// the last require block, regardless of any existing require lines for path.
+ func (f *File) AddNewRequire(path, vers string, indirect bool) {
+ 	line := f.Syntax.addLine(nil, "require", AutoQuote(path), vers)
+-	setIndirect(line, indirect)
+-	f.Require = append(f.Require, &Require{module.Version{Path: path, Version: vers}, indirect, line})
++	r := &Require{
++		Mod:    module.Version{Path: path, Version: vers},
++		Syntax: line,
++	}
++	r.setIndirect(indirect)
++	f.Require = append(f.Require, r)
+ }
+ 
++// SetRequire updates the requirements of f to contain exactly req, preserving
++// the existing block structure and line comment contents (except for 'indirect'
++// markings) for the first requirement on each named module path.
++//
++// The Syntax field is ignored for the requirements in req.
++//
++// Any requirements not already present in the file are added to the block
++// containing the last require line.
++//
++// The requirements in req must specify at most one distinct version for each
++// module path.
++//
++// If any existing requirements may be removed, the caller should call Cleanup
++// after all edits are complete.
+ func (f *File) SetRequire(req []*Require) {
+-	need := make(map[string]string)
+-	indirect := make(map[string]bool)
++	type elem struct {
++		version  string
++		indirect bool
++	}
++	need := make(map[string]elem)
+ 	for _, r := range req {
+-		need[r.Mod.Path] = r.Mod.Version
+-		indirect[r.Mod.Path] = r.Indirect
++		if prev, dup := need[r.Mod.Path]; dup && prev.version != r.Mod.Version {
++			panic(fmt.Errorf("SetRequire called with conflicting versions for path %s (%s and %s)", r.Mod.Path, prev.version, r.Mod.Version))
++		}
++		need[r.Mod.Path] = elem{r.Mod.Version, r.Indirect}
+ 	}
+ 
++	// Update or delete the existing Require entries to preserve
++	// only the first for each module path in req.
+ 	for _, r := range f.Require {
+-		if v, ok := need[r.Mod.Path]; ok {
+-			r.Mod.Version = v
+-			r.Indirect = indirect[r.Mod.Path]
++		e, ok := need[r.Mod.Path]
++		if ok {
++			r.setVersion(e.version)
++			r.setIndirect(e.indirect)
+ 		} else {
+-			*r = Require{}
++			r.markRemoved()
++		}
++		delete(need, r.Mod.Path)
++	}
++
++	// Add new entries in the last block of the file for any paths that weren't
++	// already present.
++	//
++	// This step is nondeterministic, but the final result will be deterministic
++	// because we will sort the block.
++	for path, e := range need {
++		f.AddNewRequire(path, e.version, e.indirect)
++	}
++
++	f.SortBlocks()
++}
++
++// SetRequireSeparateIndirect updates the requirements of f to contain the given
++// requirements. Comment contents (except for 'indirect' markings) are retained
++// from the first existing requirement for each module path, and block structure
++// is maintained as long as the indirect markings match.
++//
++// Any requirements on paths not already present in the file are added. Direct
++// requirements are added to the last block containing *any* other direct
++// requirement. Indirect requirements are added to the last block containing
++// *only* other indirect requirements. If no suitable block exists, a new one is
++// added, with the last block containing a direct dependency (if any)
++// immediately before the first block containing only indirect dependencies.
++//
++// The Syntax field is ignored for requirements in the given blocks.
++func (f *File) SetRequireSeparateIndirect(req []*Require) {
++	type modKey struct {
++		path     string
++		indirect bool
++	}
++	need := make(map[modKey]string)
++	for _, r := range req {
++		need[modKey{r.Mod.Path, r.Indirect}] = r.Mod.Version
++	}
++
++	comments := make(map[string]Comments)
++	for _, r := range f.Require {
++		v, ok := need[modKey{r.Mod.Path, r.Indirect}]
++		if !ok {
++			if _, ok := need[modKey{r.Mod.Path, !r.Indirect}]; ok {
++				if _, dup := comments[r.Mod.Path]; !dup {
++					comments[r.Mod.Path] = r.Syntax.Comments
++				}
++			}
++			r.markRemoved()
++			continue
+ 		}
++		r.setVersion(v)
++		delete(need, modKey{r.Mod.Path, r.Indirect})
+ 	}
+ 
+-	var newStmts []Expr
++	var (
++		lastDirectOrMixedBlock Expr
++		firstIndirectOnlyBlock Expr
++		lastIndirectOnlyBlock  Expr
++	)
+ 	for _, stmt := range f.Syntax.Stmt {
+ 		switch stmt := stmt.(type) {
++		case *Line:
++			if len(stmt.Token) == 0 || stmt.Token[0] != "require" {
++				continue
++			}
++			if isIndirect(stmt) {
++				lastIndirectOnlyBlock = stmt
++			} else {
++				lastDirectOrMixedBlock = stmt
++			}
+ 		case *LineBlock:
+-			if len(stmt.Token) > 0 && stmt.Token[0] == "require" {
+-				var newLines []*Line
++			if len(stmt.Token) == 0 || stmt.Token[0] != "require" {
++				continue
++			}
++			indirectOnly := true
++			for _, line := range stmt.Line {
++				if len(line.Token) == 0 {
++					continue
++				}
++				if !isIndirect(line) {
++					indirectOnly = false
++					break
++				}
++			}
++			if indirectOnly {
++				lastIndirectOnlyBlock = stmt
++				if firstIndirectOnlyBlock == nil {
++					firstIndirectOnlyBlock = stmt
++				}
++			} else {
++				lastDirectOrMixedBlock = stmt
++			}
++		}
++	}
++
++	isOrContainsStmt := func(stmt Expr, target Expr) bool {
++		if stmt == target {
++			return true
++		}
++		if stmt, ok := stmt.(*LineBlock); ok {
++			if target, ok := target.(*Line); ok {
+ 				for _, line := range stmt.Line {
+-					if p, err := parseString(&line.Token[0]); err == nil && need[p] != "" {
+-						if len(line.Comments.Before) == 1 && len(line.Comments.Before[0].Token) == 0 {
+-							line.Comments.Before = line.Comments.Before[:0]
+-						}
+-						line.Token[1] = need[p]
+-						delete(need, p)
+-						setIndirect(line, indirect[p])
+-						newLines = append(newLines, line)
++					if line == target {
++						return true
+ 					}
+ 				}
+-				if len(newLines) == 0 {
+-					continue // drop stmt
+-				}
+-				stmt.Line = newLines
+ 			}
++		}
++		return false
++	}
+ 
+-		case *Line:
+-			if len(stmt.Token) > 0 && stmt.Token[0] == "require" {
+-				if p, err := parseString(&stmt.Token[1]); err == nil && need[p] != "" {
+-					stmt.Token[2] = need[p]
+-					delete(need, p)
+-					setIndirect(stmt, indirect[p])
++	addRequire := func(path, vers string, indirect bool, comments Comments) {
++		var line *Line
++		if indirect {
++			if lastIndirectOnlyBlock != nil {
++				line = f.Syntax.addLine(lastIndirectOnlyBlock, "require", path, vers)
++			} else {
++				// Add a new require block after the last direct-only or mixed "require"
++				// block (if any).
++				//
++				// (f.Syntax.addLine would add the line to an existing "require" block if
++				// present, but here the existing "require" blocks are all direct-only, so
++				// we know we need to add a new block instead.)
++				line = &Line{Token: []string{"require", path, vers}}
++				lastIndirectOnlyBlock = line
++				firstIndirectOnlyBlock = line // only block implies first block
++				if lastDirectOrMixedBlock == nil {
++					f.Syntax.Stmt = append(f.Syntax.Stmt, line)
+ 				} else {
+-					continue // drop stmt
++					for i, stmt := range f.Syntax.Stmt {
++						if isOrContainsStmt(stmt, lastDirectOrMixedBlock) {
++							f.Syntax.Stmt = append(f.Syntax.Stmt, nil)     // increase size
++							copy(f.Syntax.Stmt[i+2:], f.Syntax.Stmt[i+1:]) // shuffle elements up
++							f.Syntax.Stmt[i+1] = line
++							break
++						}
++					}
++				}
++			}
++		} else {
++			if lastDirectOrMixedBlock != nil {
++				line = f.Syntax.addLine(lastDirectOrMixedBlock, "require", path, vers)
++			} else {
++				// Add a new require block before the first indirect block (if any).
++				//
++				// That way if the file initially contains only indirect lines,
++				// the direct lines still appear before it: we preserve existing
++				// structure, but only to the extent that that structure already
++				// reflects the direct/indirect split.
++				line = &Line{Token: []string{"require", path, vers}}
++				lastDirectOrMixedBlock = line
++				if firstIndirectOnlyBlock == nil {
++					f.Syntax.Stmt = append(f.Syntax.Stmt, line)
++				} else {
++					for i, stmt := range f.Syntax.Stmt {
++						if isOrContainsStmt(stmt, firstIndirectOnlyBlock) {
++							f.Syntax.Stmt = append(f.Syntax.Stmt, nil)   // increase size
++							copy(f.Syntax.Stmt[i+1:], f.Syntax.Stmt[i:]) // shuffle elements up
++							f.Syntax.Stmt[i] = line
++							break
++						}
++					}
+ 				}
+ 			}
+ 		}
+-		newStmts = append(newStmts, stmt)
++
++		line.Comments.Before = commentsAdd(line.Comments.Before, comments.Before)
++		line.Comments.Suffix = commentsAdd(line.Comments.Suffix, comments.Suffix)
++
++		r := &Require{
++			Mod:      module.Version{Path: path, Version: vers},
++			Indirect: indirect,
++			Syntax:   line,
++		}
++		r.setIndirect(indirect)
++		f.Require = append(f.Require, r)
+ 	}
+-	f.Syntax.Stmt = newStmts
+ 
+-	for path, vers := range need {
+-		f.AddNewRequire(path, vers, indirect[path])
++	for k, vers := range need {
++		addRequire(k.path, vers, k.indirect, comments[k.path])
+ 	}
+ 	f.SortBlocks()
+ }
+@@ -926,7 +1126,7 @@ func (f *File) SetRequire(req []*Require) {
+ func (f *File) DropRequire(path string) error {
+ 	for _, r := range f.Require {
+ 		if r.Mod.Path == path {
+-			f.Syntax.removeLine(r.Syntax)
++			r.Syntax.markRemoved()
+ 			*r = Require{}
+ 		}
+ 	}
+@@ -957,7 +1157,7 @@ func (f *File) AddExclude(path, vers string) error {
+ func (f *File) DropExclude(path, vers string) error {
+ 	for _, x := range f.Exclude {
+ 		if x.Mod.Path == path && x.Mod.Version == vers {
+-			f.Syntax.removeLine(x.Syntax)
++			x.Syntax.markRemoved()
+ 			*x = Exclude{}
+ 		}
+ 	}
+@@ -988,7 +1188,7 @@ func (f *File) AddReplace(oldPath, oldVers, newPath, newVers string) error {
+ 				continue
+ 			}
+ 			// Already added; delete other replacements for same.
+-			f.Syntax.removeLine(r.Syntax)
++			r.Syntax.markRemoved()
+ 			*r = Replace{}
+ 		}
+ 		if r.Old.Path == oldPath {
+@@ -1004,7 +1204,7 @@ func (f *File) AddReplace(oldPath, oldVers, newPath, newVers string) error {
+ func (f *File) DropReplace(oldPath, oldVers string) error {
+ 	for _, r := range f.Replace {
+ 		if r.Old.Path == oldPath && r.Old.Version == oldVers {
+-			f.Syntax.removeLine(r.Syntax)
++			r.Syntax.markRemoved()
+ 			*r = Replace{}
+ 		}
+ 	}
+@@ -1045,7 +1245,7 @@ func (f *File) AddRetract(vi VersionInterval, rationale string) error {
+ func (f *File) DropRetract(vi VersionInterval) error {
+ 	for _, r := range f.Retract {
+ 		if r.VersionInterval == vi {
+-			f.Syntax.removeLine(r.Syntax)
++			r.Syntax.markRemoved()
+ 			*r = Retract{}
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 9a1723d32c..34dbdaf5dd 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ ## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+-# golang.org/x/mod v0.4.3-0.20210512182355-6088ed88cecd
++# golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

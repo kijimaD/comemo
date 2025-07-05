@@ -7,6 +7,20 @@ Date:   Tue Dec 7 16:14:55 2010 -0500
     R=agl1, rsc
     CC=golang-dev
     https://golang.org/cl/3366041
-
+---
  src/pkg/crypto/tls/generate_cert.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index bdc70f1cf6..2ee8073f93 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -40,7 +40,7 @@ func main() {
+ 		SerialNumber: []byte{0},
+ 		Subject: x509.Name{
+ 			CommonName:   *hostName,
+-			Organization: "Acme Co",
++			Organization: []string{"Acme Co"},
+ 		},
+ 		NotBefore: time.SecondsToUTC(now - 300),
+ 		NotAfter:  time.SecondsToUTC(now + 60*60*24*365), // valid for 1 year.

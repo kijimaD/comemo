@@ -7,8 +7,48 @@ Date:   Tue Feb 14 11:20:39 2012 +0900
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5661051
-
+---
  src/pkg/syscall/syscall_freebsd.go | 2 +-
  src/pkg/syscall/syscall_netbsd.go  | 2 +-
  src/pkg/syscall/syscall_openbsd.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 5be16da965..6556ea8de9 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -146,7 +146,7 @@ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ //sysnb	Getuid() (uid int)
+ //sys	Issetugid() (tainted bool)
+-//sys	Kill(pid int, signum int) (err error)
++//sys	Kill(pid int, signum Signal) (err error)
+ //sys	Kqueue() (fd int, err error)
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Link(path string, link string) (err error)
+diff --git a/src/pkg/syscall/syscall_netbsd.go b/src/pkg/syscall/syscall_netbsd.go
+index 77ca9501b7..3f6d16f569 100644
+--- a/src/pkg/syscall/syscall_netbsd.go
++++ b/src/pkg/syscall/syscall_netbsd.go
+@@ -119,7 +119,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ //sysnb	Getuid() (uid int)
+ //sys	Issetugid() (tainted bool)
+-//sys	Kill(pid int, signum int) (err error)
++//sys	Kill(pid int, signum Signal) (err error)
+ //sys	Kqueue() (fd int, err error)
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Link(path string, link string) (err error)
+diff --git a/src/pkg/syscall/syscall_openbsd.go b/src/pkg/syscall/syscall_openbsd.go
+index adbbf3dd26..7cd1191087 100644
+--- a/src/pkg/syscall/syscall_openbsd.go
++++ b/src/pkg/syscall/syscall_openbsd.go
+@@ -135,7 +135,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ //sysnb	Getuid() (uid int)
+ //sys	Issetugid() (tainted bool)
+-//sys	Kill(pid int, signum int) (err error)
++//sys	Kill(pid int, signum Signal) (err error)
+ //sys	Kqueue() (fd int, err error)
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Link(path string, link string) (err error)

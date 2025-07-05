@@ -10,7 +10,7 @@ Date:   Mon Dec 19 13:05:53 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/34650
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/net/dnsclient_unix.go      | 44 +++++++++++------------
  src/net/dnsclient_unix_test.go | 81 ++++++++++++++++++------------------------
  src/net/lookup.go              | 24 +++++++++----
@@ -18,3 +18,367 @@ Date:   Mon Dec 19 13:05:53 2016 -0800
  src/net/lookup_unix.go         |  3 +-
  src/net/lookup_windows_test.go |  8 ++---
  6 files changed, 83 insertions(+), 84 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 2980302849..4dd4e16b0f 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -444,7 +444,7 @@ func goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder)
+ 			return
+ 		}
+ 	}
+-	ips, err := goLookupIPOrder(ctx, name, order)
++	ips, _, err := goLookupIPCNAMEOrder(ctx, name, order)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -472,27 +472,28 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
+ // The libc versions are in cgo_*.go.
+ func goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+ 	order := systemConf().hostLookupOrder(host)
+-	return goLookupIPOrder(ctx, host, order)
++	addrs, _, err = goLookupIPCNAMEOrder(ctx, host, order)
++	return
+ }
+ 
+-func goLookupIPOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []IPAddr, err error) {
++func goLookupIPCNAMEOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []IPAddr, cname string, err error) {
+ 	if order == hostLookupFilesDNS || order == hostLookupFiles {
+ 		addrs = goLookupIPFiles(name)
+ 		if len(addrs) > 0 || order == hostLookupFiles {
+-			return addrs, nil
++			return addrs, name, nil
+ 		}
+ 	}
+ 	if !isDomainName(name) {
+ 		// See comment in func lookup above about use of errNoSuchHost.
+-		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: name}
++		return nil, "", &DNSError{Err: errNoSuchHost.Error(), Name: name}
+ 	}
+ 	resolvConf.tryUpdate("/etc/resolv.conf")
+ 	resolvConf.mu.RLock()
+ 	conf := resolvConf.dnsConfig
+ 	resolvConf.mu.RUnlock()
+ 	type racer struct {
+-		fqdn string
+-		rrs  []dnsRR
++		cname string
++		rrs   []dnsRR
+ 		error
+ 	}
+ 	lane := make(chan racer, 1)
+@@ -501,20 +502,23 @@ func goLookupIPOrder(ctx context.Context, name string, order hostLookupOrder) (a
+ 	for _, fqdn := range conf.nameList(name) {
+ 		for _, qtype := range qtypes {
+ 			go func(qtype uint16) {
+-				_, rrs, err := tryOneName(ctx, conf, fqdn, qtype)
+-				lane <- racer{fqdn, rrs, err}
++				cname, rrs, err := tryOneName(ctx, conf, fqdn, qtype)
++				lane <- racer{cname, rrs, err}
+ 			}(qtype)
+ 		}
+ 		for range qtypes {
+ 			racer := <-lane
+ 			if racer.error != nil {
+ 				// Prefer error for original name.
+-				if lastErr == nil || racer.fqdn == name+"." {
++				if lastErr == nil || fqdn == name+"." {
+ 					lastErr = racer.error
+ 				}
+ 				continue
+ 			}
+ 			addrs = append(addrs, addrRecordList(racer.rrs)...)
++			if cname == "" {
++				cname = racer.cname
++			}
+ 		}
+ 		if len(addrs) > 0 {
+ 			break
+@@ -532,24 +536,16 @@ func goLookupIPOrder(ctx context.Context, name string, order hostLookupOrder) (a
+ 			addrs = goLookupIPFiles(name)
+ 		}
+ 		if len(addrs) == 0 && lastErr != nil {
+-			return nil, lastErr
++			return nil, "", lastErr
+ 		}
+ 	}
+-	return addrs, nil
++	return addrs, cname, nil
+ }
+ 
+-// goLookupCNAME is the native Go implementation of LookupCNAME.
+-// Used only if cgoLookupCNAME refuses to handle the request
+-// (that is, only if cgoLookupCNAME is the stub in cgo_stub.go).
+-// Normally we let cgo use the C library resolver instead of
+-// depending on our lookup code, so that Go and C get the same
+-// answers.
+-func goLookupCNAME(ctx context.Context, name string) (cname string, err error) {
+-	_, rrs, err := lookup(ctx, name, dnsTypeCNAME)
+-	if err != nil {
+-		return
+-	}
+-	cname = rrs[0].(*dnsRR_CNAME).Cname
++// goLookupCNAME is the native Go (non-cgo) implementation of LookupCNAME.
++func goLookupCNAME(ctx context.Context, host string) (cname string, err error) {
++	order := systemConf().hostLookupOrder(host)
++	_, cname, err = goLookupIPCNAMEOrder(ctx, host, order)
+ 	return
+ }
+ 
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 7dc364de50..85267bbddc 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -455,14 +455,14 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
+ 		name := fmt.Sprintf("order %v", order)
+ 
+ 		// First ensure that we get an error when contacting a non-existent host.
+-		_, err := goLookupIPOrder(context.Background(), "notarealhost", order)
++		_, _, err := goLookupIPCNAMEOrder(context.Background(), "notarealhost", order)
+ 		if err == nil {
+ 			t.Errorf("%s: expected error while looking up name not in hosts file", name)
+ 			continue
+ 		}
+ 
+ 		// Now check that we get an address when the name appears in the hosts file.
+-		addrs, err := goLookupIPOrder(context.Background(), "thor", order) // entry is in "testdata/hosts"
++		addrs, _, err := goLookupIPCNAMEOrder(context.Background(), "thor", order) // entry is in "testdata/hosts"
+ 		if err != nil {
+ 			t.Errorf("%s: expected to successfully lookup host entry", name)
+ 			continue
+@@ -744,8 +744,11 @@ func TestRetryTimeout(t *testing.T) {
+ 	}
+ 	defer conf.teardown()
+ 
+-	if err := conf.writeAndUpdate([]string{"nameserver 192.0.2.1", // the one that will timeout
+-		"nameserver 192.0.2.2"}); err != nil {
++	testConf := []string{
++		"nameserver 192.0.2.1", // the one that will timeout
++		"nameserver 192.0.2.2",
++	}
++	if err := conf.writeAndUpdate(testConf); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -771,28 +774,10 @@ func TestRetryTimeout(t *testing.T) {
+ 			t.Error("deadline didn't change")
+ 		}
+ 
+-		r := &dnsMsg{
+-			dnsMsgHdr: dnsMsgHdr{
+-				id:                  q.id,
+-				response:            true,
+-				recursion_available: true,
+-			},
+-			question: q.question,
+-			answer: []dnsRR{
+-				&dnsRR_CNAME{
+-					Hdr: dnsRR_Header{
+-						Name:   q.question[0].Name,
+-						Rrtype: dnsTypeCNAME,
+-						Class:  dnsClassINET,
+-					},
+-					Cname: "golang.org",
+-				},
+-			},
+-		}
+-		return r, nil
++		return mockTXTResponse(q), nil
+ 	}
+ 
+-	_, err = goLookupCNAME(context.Background(), "www.golang.org")
++	_, err = LookupTXT("www.golang.org")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -838,36 +823,40 @@ func testRotate(t *testing.T, rotate bool, nameservers, wantServers []string) {
+ 	var usedServers []string
+ 	d.rh = func(s string, q *dnsMsg, _ time.Time) (*dnsMsg, error) {
+ 		usedServers = append(usedServers, s)
+-
+-		r := &dnsMsg{
+-			dnsMsgHdr: dnsMsgHdr{
+-				id:                  q.id,
+-				response:            true,
+-				recursion_available: true,
+-			},
+-			question: q.question,
+-			answer: []dnsRR{
+-				&dnsRR_CNAME{
+-					Hdr: dnsRR_Header{
+-						Name:   q.question[0].Name,
+-						Rrtype: dnsTypeCNAME,
+-						Class:  dnsClassINET,
+-					},
+-					Cname: "golang.org",
+-				},
+-			},
+-		}
+-		return r, nil
++		return mockTXTResponse(q), nil
+ 	}
+ 
+ 	// len(nameservers) + 1 to allow rotation to get back to start
+ 	for i := 0; i < len(nameservers)+1; i++ {
+-		if _, err := goLookupCNAME(context.Background(), "www.golang.org"); err != nil {
++		if _, err := LookupTXT("www.golang.org"); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 	}
+ 
+ 	if !reflect.DeepEqual(usedServers, wantServers) {
+-		t.Fatalf("rotate=%t got used servers:\n%v\nwant:\n%v", rotate, usedServers, wantServers)
++		t.Errorf("rotate=%t got used servers:\n%v\nwant:\n%v", rotate, usedServers, wantServers)
+ 	}
+ }
++
++func mockTXTResponse(q *dnsMsg) *dnsMsg {
++	r := &dnsMsg{
++		dnsMsgHdr: dnsMsgHdr{
++			id:                  q.id,
++			response:            true,
++			recursion_available: true,
++		},
++		question: q.question,
++		answer: []dnsRR{
++			&dnsRR_TXT{
++				Hdr: dnsRR_Header{
++					Name:   q.question[0].Name,
++					Rrtype: dnsTypeTXT,
++					Class:  dnsClassINET,
++				},
++				Txt: "ok",
++			},
++		},
++	}
++
++	return r
++}
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 8b5cab0894..cc2013e432 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -233,20 +233,32 @@ func (r *Resolver) LookupPort(ctx context.Context, network, service string) (por
+ 	return port, nil
+ }
+ 
+-// LookupCNAME returns the canonical DNS host for the given name.
++// LookupCNAME returns the canonical name for the given host.
+ // Callers that do not care about the canonical name can call
+ // LookupHost or LookupIP directly; both take care of resolving
+ // the canonical name as part of the lookup.
+-func LookupCNAME(name string) (cname string, err error) {
+-	return DefaultResolver.lookupCNAME(context.Background(), name)
++//
++// A canonical name is the final name after following zero
++// or more CNAME records.
++// LookupCNAME does not return an error if host does not
++// contain DNS "CNAME" records, as long as host resolves to
++// address records.
++func LookupCNAME(host string) (cname string, err error) {
++	return DefaultResolver.lookupCNAME(context.Background(), host)
+ }
+ 
+-// LookupCNAME returns the canonical DNS host for the given name.
++// LookupCNAME returns the canonical name for the given host.
+ // Callers that do not care about the canonical name can call
+ // LookupHost or LookupIP directly; both take care of resolving
+ // the canonical name as part of the lookup.
+-func (r *Resolver) LookupCNAME(ctx context.Context, name string) (cname string, err error) {
+-	return r.lookupCNAME(ctx, name)
++//
++// A canonical name is the final name after following zero
++// or more CNAME records.
++// LookupCNAME does not return an error if host does not
++// contain DNS "CNAME" records, as long as host resolves to
++// address records.
++func (r *Resolver) LookupCNAME(ctx context.Context, host string) (cname string, err error) {
++	return r.lookupCNAME(ctx, host)
+ }
+ 
+ // LookupSRV tries to resolve an SRV query of the given service,
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 656bebb9b8..36db56acd0 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -243,14 +243,15 @@ func TestLookupIPv6LinkLocalAddr(t *testing.T) {
+ 	}
+ }
+ 
+-var lookupIANACNAMETests = []struct {
++var lookupCNAMETests = []struct {
+ 	name, cname string
+ }{
+ 	{"www.iana.org", "icann.org."},
+ 	{"www.iana.org.", "icann.org."},
++	{"www.google.com", "google.com."},
+ }
+ 
+-func TestLookupIANACNAME(t *testing.T) {
++func TestLookupCNAME(t *testing.T) {
+ 	if testenv.Builder() == "" {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+@@ -259,7 +260,7 @@ func TestLookupIANACNAME(t *testing.T) {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+-	for _, tt := range lookupIANACNAMETests {
++	for _, tt := range lookupCNAMETests {
+ 		cname, err := LookupCNAME(tt.name)
+ 		if err != nil {
+ 			t.Fatal(err)
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 609adbfd9b..be2ced9c39 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -72,7 +72,8 @@ func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, e
+ 		// cgo not available (or netgo); fall back to Go's DNS resolver
+ 		order = hostLookupFilesDNS
+ 	}
+-	return goLookupIPOrder(ctx, host, order)
++	addrs, _, err = goLookupIPCNAMEOrder(ctx, host, order)
++	return
+ }
+ 
+ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index bc9ffe15a4..cebb2d0558 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -24,7 +24,7 @@ func toJson(v interface{}) string {
+ 	return string(data)
+ }
+ 
+-func TestLookupMX(t *testing.T) {
++func TestNSLookupMX(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, server := range nslookupTestServers {
+@@ -49,7 +49,7 @@ func TestLookupMX(t *testing.T) {
+ 	}
+ }
+ 
+-func TestLookupCNAME(t *testing.T) {
++func TestNSLookupCNAME(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, server := range nslookupTestServers {
+@@ -72,7 +72,7 @@ func TestLookupCNAME(t *testing.T) {
+ 	}
+ }
+ 
+-func TestLookupNS(t *testing.T) {
++func TestNSLookupNS(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, server := range nslookupTestServers {
+@@ -98,7 +98,7 @@ func TestLookupNS(t *testing.T) {
+ 	}
+ }
+ 
+-func TestLookupTXT(t *testing.T) {
++func TestNSLookupTXT(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, server := range nslookupTestServers {

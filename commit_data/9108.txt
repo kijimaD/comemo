@@ -9,6 +9,20 @@ Date:   Mon Jul 18 21:09:28 2011 +1000
     R=golang-dev, r, r, dsymonds, lucio.dere
     CC=golang-dev
     https://golang.org/cl/4744047
-
+---
  src/cmd/gc/pgen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index ad5ad27583..962324a8bb 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -149,7 +149,7 @@ compactframe(Prog* ptxt)
+ {
+ 	NodeList *ll;
+ 	Node* n;
+-	uint32 w;
++	vlong w;
+ 
+ 	if (stksize == 0)
+ 		return;

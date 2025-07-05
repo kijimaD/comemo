@@ -15,7 +15,58 @@ Date:   Mon May 13 13:20:37 2024 -0700
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/x509/verify.go      |  5 +++++
  src/crypto/x509/verify_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index ba972ae244..7170087287 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -984,6 +984,11 @@ func validHostname(host string, isPattern bool) bool {
+ 	if len(host) == 0 {
+ 		return false
+ 	}
++	if host == "*" {
++		// Bare wildcards are not allowed, they are not valid DNS names,
++		// nor are they allowed per RFC 6125.
++		return false
++	}
+ 
+ 	for i, part := range strings.Split(host, ".") {
+ 		if part == "" {
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 8a7a5f6e2c..ca330cac80 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -2811,3 +2811,29 @@ func TestVerifyNilPubKey(t *testing.T) {
+ 		t.Fatalf("buildChains returned unexpected error, got: %v, want %v", err, UnknownAuthorityError{})
+ 	}
+ }
++
++func TestVerifyBareWildcard(t *testing.T) {
++	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatalf("failed to generate key: %s", err)
++	}
++	tmpl := &Certificate{
++		SerialNumber: big.NewInt(1),
++		Subject:      pkix.Name{CommonName: "test"},
++		NotBefore:    time.Now().Add(-time.Hour),
++		NotAfter:     time.Now().Add(time.Hour),
++		DNSNames:     []string{"*"},
++	}
++	cDER, err := CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
++	if err != nil {
++		t.Fatalf("failed to create certificate: %s", err)
++	}
++	c, err := ParseCertificate(cDER)
++	if err != nil {
++		t.Fatalf("failed to parse certificate: %s", err)
++	}
++
++	if err := c.VerifyHostname("label"); err == nil {
++		t.Fatalf("VerifyHostname unexpected success with bare wildcard SAN")
++	}
++}

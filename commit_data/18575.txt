@@ -14,8 +14,256 @@ Date:   Wed Feb 19 17:08:44 2014 -0500
     R=r
     CC=golang-codereviews
     https://golang.org/cl/66130043
-
+---
  src/cmd/pack/doc.go       |  3 +-
  src/cmd/pack/pack.go      | 98 ++++++++++++++++++++++++++++++++++++++++++-----
  src/cmd/pack/pack_test.go | 44 +++++++++++++++++++++
  3 files changed, 135 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/pack/doc.go b/src/cmd/pack/doc.go
+index cebcb36a33..1529e07e90 100644
+--- a/src/cmd/pack/doc.go
++++ b/src/cmd/pack/doc.go
+@@ -14,6 +14,7 @@ Pack applies the operation to the archive, using the names as arguments to the o
+ 
+ The operation op is given by one of these letters:
+ 
++	c	append files (from the file system) to a new archive
+ 	p	print files from the archive
+ 	r	append files (from the file system) to the archive
+ 	t	list files from the archive
+@@ -27,8 +28,8 @@ even if a file with the given name already exists in the archive. In this way
+ pack's r operation is more like Unix ar's rq operation.
+ 
+ Adding the letter v to an operation, as in pv or rv, enables verbose operation:
++For the c and r commands, names are printed as files are added.
+ For the p command, each file is prefixed by the name on a line by itself.
+-For the r command, names are printed as files are added.
+ For the t command, the listing includes additional file metadata.
+ For the x command, names are printed as files are extracted.
+ 
+diff --git a/src/cmd/pack/pack.go b/src/cmd/pack/pack.go
+index 9996ec9753..99e22ed7ea 100644
+--- a/src/cmd/pack/pack.go
++++ b/src/cmd/pack/pack.go
+@@ -5,6 +5,9 @@
+ package main
+ 
+ import (
++	"bufio"
++	"bytes"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"log"
+@@ -32,7 +35,10 @@ the name, and if shorter, space padded on the right.
+ */
+ 
+ const usageMessage = `Usage: pack op file.a [name....]
+-Where op is one of prtx optionally followed by v for verbose output.
++Where op is one of cprtx optionally followed by v for verbose output.
++For compatibility with old Go build environments the op string grc is
++accepted as a synonym for c.
++
+ For more information, run
+ 	godoc cmd/pack`
+ 
+@@ -58,6 +64,10 @@ func main() {
+ 		ar = archive(os.Args[2], os.O_RDWR, os.Args[3:])
+ 		ar.scan(ar.skipContents)
+ 		ar.addFiles()
++	case 'c':
++		ar = archive(os.Args[2], os.O_RDWR|os.O_TRUNC, os.Args[3:])
++		ar.addPkgdef()
++		ar.addFiles()
+ 	case 't':
+ 		ar = archive(os.Args[2], os.O_RDONLY, os.Args[3:])
+ 		ar.scan(ar.tableOfContents)
+@@ -83,9 +93,17 @@ var (
+ 
+ // setOp parses the operation string (first argument).
+ func setOp(arg string) {
++	// Recognize 'go tool pack grc' because that was the
++	// formerly canonical way to build a new archive
++	// from a set of input files. Accepting it keeps old
++	// build systems working with both Go 1.2 and Go 1.3.
++	if arg == "grc" {
++		arg = "c"
++	}
++
+ 	for _, r := range arg {
+ 		switch r {
+-		case 'p', 'r', 't', 'x':
++		case 'c', 'p', 'r', 't', 'x':
+ 			if op != 0 {
+ 				// At most one can be set.
+ 				usage()
+@@ -116,12 +134,13 @@ const (
+ type Archive struct {
+ 	fd    *os.File // Open file descriptor.
+ 	files []string // Explicit list of files to be processed.
++	pad   int      // Padding bytes required at end of current archive file
+ }
+ 
+ // archive opens (or if necessary creates) the named archive.
+ func archive(name string, mode int, files []string) *Archive {
+ 	fd, err := os.OpenFile(name, mode, 0)
+-	if err != nil && mode == os.O_RDWR && os.IsNotExist(err) {
++	if err != nil && mode&^os.O_TRUNC == os.O_RDWR && os.IsNotExist(err) {
+ 		fd, err = create(name)
+ 	}
+ 	if err != nil {
+@@ -317,10 +336,7 @@ func (ar *Archive) addFile(fd FileLike) {
+ 	mtime := int64(0)
+ 	uid := 0
+ 	gid := 0
+-	n, err := fmt.Fprintf(ar.fd, entryHeader, exactly16Bytes(info.Name()), mtime, uid, gid, info.Mode(), info.Size())
+-	if err != nil || n != entryLen {
+-		log.Fatal("writing entry header: ", err)
+-	}
++	ar.startFile(info.Name(), mtime, uid, gid, info.Mode(), info.Size())
+ 	n64, err := io.Copy(ar.fd, fd)
+ 	if err != nil {
+ 		log.Fatal("writing file: ", err)
+@@ -328,12 +344,76 @@ func (ar *Archive) addFile(fd FileLike) {
+ 	if n64 != info.Size() {
+ 		log.Fatal("writing file: wrote %d bytes; file is size %d", n64, info.Size())
+ 	}
+-	if info.Size()&1 == 1 {
+-		_, err = ar.fd.Write([]byte{0})
++	ar.endFile()
++}
++
++// startFile writes the archive entry header.
++func (ar *Archive) startFile(name string, mtime int64, uid, gid int, mode os.FileMode, size int64) {
++	n, err := fmt.Fprintf(ar.fd, entryHeader, exactly16Bytes(name), mtime, uid, gid, mode, size)
++	if err != nil || n != entryLen {
++		log.Fatal("writing entry header: ", err)
++	}
++	ar.pad = int(size & 1)
++}
++
++// endFile writes the archive entry tail (a single byte of padding, if the file size was odd).
++func (ar *Archive) endFile() {
++	if ar.pad != 0 {
++		_, err := ar.fd.Write([]byte{0})
+ 		if err != nil {
+ 			log.Fatal("writing archive: ", err)
+ 		}
++		ar.pad = 0
++	}
++}
++
++// addPkgdef adds the __.PKGDEF file to the archive, copied
++// from the first Go object file on the file list, if any.
++// The archive is known to be empty.
++func (ar *Archive) addPkgdef() {
++	for _, file := range ar.files {
++		pkgdef, err := readPkgdef(file)
++		if err != nil {
++			continue
++		}
++		if verbose {
++			fmt.Printf("__.PKGDEF # %s\n", file)
++		}
++		ar.startFile("__.PKGDEF", 0, 0, 0, 0644, int64(len(pkgdef)))
++		_, err = ar.fd.Write(pkgdef)
++		if err != nil {
++			log.Fatal("writing __.PKGDEF: ", err)
++		}
++		ar.endFile()
++		break
++	}
++}
++
++// readPkgdef extracts the __.PKGDEF data from a Go object file.
++func readPkgdef(file string) (data []byte, err error) {
++	f, err := os.Open(file)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++
++	// Read from file, collecting header for __.PKGDEF.
++	// The header is from the beginning of the file until a line
++	// containing just "!". The first line must begin with "go object ".
++	var buf bytes.Buffer
++	scan := bufio.NewScanner(f)
++	for scan.Scan() {
++		line := scan.Text()
++		if buf.Len() == 0 && !strings.HasPrefix(line, "go object ") {
++			return nil, errors.New("not a Go object file")
++		}
++		if line == "!" {
++			break
++		}
++		buf.WriteString(line)
++		buf.WriteString("\n")
+ 	}
++	return buf.Bytes(), nil
+ }
+ 
+ // exactly16Bytes truncates the string if necessary so it is at most 16 bytes long,
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 53fdc18a6a..427ba8b30d 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -10,7 +10,9 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
++	"strings"
+ 	"testing"
+ 	"time"
+ 	"unicode/utf8"
+@@ -164,6 +166,48 @@ func TestExtract(t *testing.T) {
+ 	}
+ }
+ 
++// Test that pack-created archives can be understood by the tools.
++func TestHello(t *testing.T) {
++	dir := tmpDir(t)
++	defer os.RemoveAll(dir)
++	hello := filepath.Join(dir, "hello.go")
++	prog := `
++		package main
++		func main() {
++			println("hello world")
++		}
++	`
++	err := ioutil.WriteFile(hello, []byte(prog), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	run := func(args ...string) string {
++		cmd := exec.Command(args[0], args[1:]...)
++		cmd.Dir = dir
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			t.Fatalf("%v: %v\n%s", args, err, string(out))
++		}
++		return string(out)
++	}
++
++	out := run("go", "env")
++	i := strings.Index(out, "GOCHAR=\"")
++	if i < 0 {
++		t.Fatal("cannot find GOCHAR in 'go env' output")
++	}
++	char := out[i+8 : i+9]
++	run("go", "build", "cmd/pack") // writes pack binary to dir
++	run("go", "tool", char+"g", "hello.go")
++	run("./pack", "grc", "hello.a", "hello."+char)
++	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
++	out = run("./a.out")
++	if out != "hello world\n" {
++		t.Fatal("incorrect output: %q, want %q", out, "hello world\n")
++	}
++}
++
+ // Fake implementation of files.
+ 
+ var helloFile = &FakeFile{

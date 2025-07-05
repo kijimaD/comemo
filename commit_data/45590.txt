@@ -23,7 +23,65 @@ Date:   Thu Oct 29 13:30:54 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go | 26 +++++++++++++++++---------
  test/escape_iface.go               |  8 ++++++++
  2 files changed, 25 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 6c69867789..5b58908299 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1446,19 +1446,27 @@ func devirtualizeCall(call *Node) {
+ 	x.Type = typ
+ 	x = nodlSym(call.Left.Pos, OXDOT, x, call.Left.Sym)
+ 	x = typecheck(x, ctxExpr|ctxCallee)
+-	if x.Op != ODOTMETH {
+-		// TODO(mdempsky): Figure out how to avoid this and
+-		// turn back into a Fatalf.
++	switch x.Op {
++	case ODOTMETH:
+ 		if Debug.m != 0 {
+-			Warnl(call.Pos, "failed to devirtualize %v", x)
++			Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
++		}
++		call.Op = OCALLMETH
++		call.Left = x
++	case ODOTINTER:
++		// Promoted method from embedded interface-typed field (#42279).
++		if Debug.m != 0 {
++			Warnl(call.Pos, "partially devirtualizing %v to %v", call.Left, typ)
++		}
++		call.Op = OCALLINTER
++		call.Left = x
++	default:
++		// TODO(mdempsky): Turn back into Fatalf after more testing.
++		if Debug.m != 0 {
++			Warnl(call.Pos, "failed to devirtualize %v (%v)", x, x.Op)
+ 		}
+ 		return
+ 	}
+-	if Debug.m != 0 {
+-		Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
+-	}
+-	call.Op = OCALLMETH
+-	call.Left = x
+ 
+ 	// Duplicated logic from typecheck for function call return
+ 	// value types.
+diff --git a/test/escape_iface.go b/test/escape_iface.go
+index 5a232fdbd4..dba08e3cb3 100644
+--- a/test/escape_iface.go
++++ b/test/escape_iface.go
+@@ -255,3 +255,11 @@ func dotTypeEscape2() { // #13805, #15796
+ 		sink, *(&ok) = y.(*int)
+ 	}
+ }
++
++func issue42279() {
++	type I interface{ M() }
++	type T struct{ I }
++
++	var i I = T{} // ERROR "T\{\} does not escape"
++	i.M()         // ERROR "partially devirtualizing i.M to T"
++}

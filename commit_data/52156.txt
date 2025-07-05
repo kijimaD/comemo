@@ -18,7 +18,7 @@ Date:   Mon Feb 7 17:24:40 2022 -0500
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/next/51082.txt                |   6 +
  src/go/build/deps_test.go         |   2 +-
  src/go/doc/comment.go             | 543 ++++----------------------------------
@@ -30,3 +30,1433 @@ Date:   Mon Feb 7 17:24:40 2022 -0500
  src/go/doc/synopsis_test.go       |  14 +-
  src/go/doc/testdata/pkgdoc/doc.go |  19 ++
  10 files changed, 390 insertions(+), 795 deletions(-)
+
+diff --git a/api/next/51082.txt b/api/next/51082.txt
+index 72c5b2e246..b05997f985 100644
+--- a/api/next/51082.txt
++++ b/api/next/51082.txt
+@@ -1,3 +1,9 @@
++pkg go/doc, method (*Package) HTML(string) []uint8 #51082
++pkg go/doc, method (*Package) Markdown(string) []uint8 #51082
++pkg go/doc, method (*Package) Parser() *comment.Parser #51082
++pkg go/doc, method (*Package) Printer() *comment.Printer #51082
++pkg go/doc, method (*Package) Synopsis(string) string #51082
++pkg go/doc, method (*Package) Text(string) []uint8 #51082
+ pkg go/doc/comment, func DefaultLookupPackage(string) (string, bool) #51082
+ pkg go/doc/comment, method (*DocLink) DefaultURL(string) string #51082
+ pkg go/doc/comment, method (*Heading) DefaultID() string #51082
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 7117e08c3b..a43f72fea1 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -294,7 +294,7 @@ var depsRules = `
+ 	< go/printer
+ 	< go/format;
+ 
+-	go/parser, internal/lazyregexp, text/template
++	go/doc/comment, go/parser, internal/lazyregexp, text/template
+ 	< go/doc;
+ 
+ 	math/big, go/token
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index f1aa69d974..4f73664ba3 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -2,515 +2,70 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Godoc comment extraction and comment -> HTML formatting.
+-
+ package doc
+ 
+ import (
+-	"bytes"
+-	"internal/lazyregexp"
++	"go/doc/comment"
+ 	"io"
+-	"strings"
+-	"text/template" // for HTMLEscape
+-	"unicode"
+-	"unicode/utf8"
+-)
+-
+-const (
+-	ldquo = "&ldquo;"
+-	rdquo = "&rdquo;"
+-	ulquo = "“"
+-	urquo = "”"
+ )
+ 
+-var (
+-	htmlQuoteReplacer    = strings.NewReplacer(ulquo, ldquo, urquo, rdquo)
+-	unicodeQuoteReplacer = strings.NewReplacer("``", ulquo, "''", urquo)
+-)
+-
+-// Escape comment text for HTML. If nice is set, also replace:
++// ToHTML converts comment text to formatted HTML.
+ //
+-//	`` -> &ldquo;
+-//	'' -> &rdquo;
++// Deprecated: ToHTML cannot identify documentation links
++// in the doc comment, because they depend on knowing what
++// package the text came from, which is not included in this API.
+ //
+-func commentEscape(w io.Writer, text string, nice bool) {
+-	if nice {
+-		// In the first pass, we convert `` and '' into their unicode equivalents.
+-		// This prevents them from being escaped in HTMLEscape.
+-		text = convertQuotes(text)
+-		var buf bytes.Buffer
+-		template.HTMLEscape(&buf, []byte(text))
+-		// Now we convert the unicode quotes to their HTML escaped entities to maintain old behavior.
+-		// We need to use a temp buffer to read the string back and do the conversion,
+-		// otherwise HTMLEscape will escape & to &amp;
+-		htmlQuoteReplacer.WriteString(w, buf.String())
+-		return
+-	}
+-	template.HTMLEscape(w, []byte(text))
+-}
+-
+-func convertQuotes(text string) string {
+-	return unicodeQuoteReplacer.Replace(text)
+-}
+-
+-const (
+-	// Regexp for Go identifiers
+-	identRx = `[\pL_][\pL_0-9]*`
+-
+-	// Regexp for URLs
+-	// Match parens, and check later for balance - see #5043, #22285
+-	// Match .,:;?! within path, but not at end - see #18139, #16565
+-	// This excludes some rare yet valid urls ending in common punctuation
+-	// in order to allow sentences ending in URLs.
+-
+-	// protocol (required) e.g. http
+-	protoPart = `(https?|ftp|file|gopher|mailto|nntp)`
+-	// host (required) e.g. www.example.com or [::1]:8080
+-	hostPart = `([a-zA-Z0-9_@\-.\[\]:]+)`
+-	// path+query+fragment (optional) e.g. /path/index.html?q=foo#bar
+-	pathPart = `([.,:;?!]*[a-zA-Z0-9$'()*+&#=@~_/\-\[\]%])*`
+-
+-	urlRx = protoPart + `://` + hostPart + pathPart
+-)
+-
+-var matchRx = lazyregexp.New(`(` + urlRx + `)|(` + identRx + `)`)
+-
+-var (
+-	html_a      = []byte(`<a href="`)
+-	html_aq     = []byte(`">`)
+-	html_enda   = []byte("</a>")
+-	html_i      = []byte("<i>")
+-	html_endi   = []byte("</i>")
+-	html_p      = []byte("<p>\n")
+-	html_endp   = []byte("</p>\n")
+-	html_pre    = []byte("<pre>")
+-	html_endpre = []byte("</pre>\n")
+-	html_h      = []byte(`<h3 id="`)
+-	html_hq     = []byte(`">`)
+-	html_endh   = []byte("</h3>\n")
+-)
+-
+-// Emphasize and escape a line of text for HTML. URLs are converted into links;
+-// if the URL also appears in the words map, the link is taken from the map (if
+-// the corresponding map value is the empty string, the URL is not converted
+-// into a link). Go identifiers that appear in the words map are italicized; if
+-// the corresponding map value is not the empty string, it is considered a URL
+-// and the word is converted into a link. If nice is set, the remaining text's
+-// appearance is improved where it makes sense, such as replacing:
+-//
+-//	`` -> &ldquo;
+-//	'' -> &rdquo;
+-func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
+-	for {
+-		m := matchRx.FindStringSubmatchIndex(line)
+-		if m == nil {
+-			break
+-		}
+-		// m >= 6 (two parenthesized sub-regexps in matchRx, 1st one is urlRx)
+-
+-		// write text before match
+-		commentEscape(w, line[0:m[0]], nice)
+-
+-		// adjust match for URLs
+-		match := line[m[0]:m[1]]
+-		if strings.Contains(match, "://") {
+-			m0, m1 := m[0], m[1]
+-			for _, s := range []string{"()", "{}", "[]"} {
+-				open, close := s[:1], s[1:] // E.g., "(" and ")"
+-				// require opening parentheses before closing parentheses (#22285)
+-				if i := strings.Index(match, close); i >= 0 && i < strings.Index(match, open) {
+-					m1 = m0 + i
+-					match = line[m0:m1]
+-				}
+-				// require balanced pairs of parentheses (#5043)
+-				for i := 0; strings.Count(match, open) != strings.Count(match, close) && i < 10; i++ {
+-					m1 = strings.LastIndexAny(line[:m1], s)
+-					match = line[m0:m1]
+-				}
+-			}
+-			if m1 != m[1] {
+-				// redo matching with shortened line for correct indices
+-				m = matchRx.FindStringSubmatchIndex(line[:m[0]+len(match)])
+-			}
+-		}
+-
+-		// analyze match
+-		url := ""
+-		italics := false
+-		if words != nil {
+-			url, italics = words[match]
+-		}
+-		if m[2] >= 0 {
+-			// match against first parenthesized sub-regexp; must be match against urlRx
+-			if !italics {
+-				// no alternative URL in words list, use match instead
+-				url = match
+-			}
+-			italics = false // don't italicize URLs
+-		}
+-
+-		// write match
+-		if len(url) > 0 {
+-			w.Write(html_a)
+-			template.HTMLEscape(w, []byte(url))
+-			w.Write(html_aq)
+-		}
+-		if italics {
+-			w.Write(html_i)
+-		}
+-		commentEscape(w, match, nice)
+-		if italics {
+-			w.Write(html_endi)
+-		}
+-		if len(url) > 0 {
+-			w.Write(html_enda)
+-		}
+-
+-		// advance
+-		line = line[m[1]:]
+-	}
+-	commentEscape(w, line, nice)
+-}
+-
+-func indentLen(s string) int {
+-	i := 0
+-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+-		i++
+-	}
+-	return i
+-}
+-
+-func isBlank(s string) bool {
+-	return len(s) == 0 || (len(s) == 1 && s[0] == '\n')
+-}
+-
+-func commonPrefix(a, b string) string {
+-	i := 0
+-	for i < len(a) && i < len(b) && a[i] == b[i] {
+-		i++
+-	}
+-	return a[0:i]
+-}
+-
+-func unindent(block []string) {
+-	if len(block) == 0 {
+-		return
+-	}
+-
+-	// compute maximum common white prefix
+-	prefix := block[0][0:indentLen(block[0])]
+-	for _, line := range block {
+-		if !isBlank(line) {
+-			prefix = commonPrefix(prefix, line[0:indentLen(line)])
+-		}
+-	}
+-	n := len(prefix)
+-
+-	// remove
+-	for i, line := range block {
+-		if !isBlank(line) {
+-			block[i] = line[n:]
+-		}
+-	}
+-}
+-
+-// heading returns the trimmed line if it passes as a section heading;
+-// otherwise it returns the empty string.
+-func heading(line string) string {
+-	line = strings.TrimSpace(line)
+-	if len(line) == 0 {
+-		return ""
+-	}
+-
+-	// a heading must start with an uppercase letter
+-	r, _ := utf8.DecodeRuneInString(line)
+-	if !unicode.IsLetter(r) || !unicode.IsUpper(r) {
+-		return ""
+-	}
+-
+-	// it must end in a letter or digit:
+-	r, _ = utf8.DecodeLastRuneInString(line)
+-	if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+-		return ""
+-	}
+-
+-	// exclude lines with illegal characters. we allow "(),"
+-	if strings.ContainsAny(line, ";:!?+*/=[]{}_^°&§~%#@<\">\\") {
+-		return ""
+-	}
+-
+-	// allow "'" for possessive "'s" only
+-	for b := line; ; {
+-		var ok bool
+-		if _, b, ok = strings.Cut(b, "'"); !ok {
+-			break
+-		}
+-		if b != "s" && !strings.HasPrefix(b, "s ") {
+-			return "" // ' not followed by s and then end-of-word
+-		}
+-	}
+-
+-	// allow "." when followed by non-space
+-	for b := line; ; {
+-		var ok bool
+-		if _, b, ok = strings.Cut(b, "."); !ok {
+-			break
+-		}
+-		if b == "" || strings.HasPrefix(b, " ") {
+-			return "" // not followed by non-space
+-		}
+-	}
+-
+-	return line
+-}
+-
+-type op int
+-
+-const (
+-	opPara op = iota
+-	opHead
+-	opPre
+-)
+-
+-type block struct {
+-	op    op
+-	lines []string
+-}
+-
+-var nonAlphaNumRx = lazyregexp.New(`[^a-zA-Z0-9]`)
+-
+-func anchorID(line string) string {
+-	// Add a "hdr-" prefix to avoid conflicting with IDs used for package symbols.
+-	return "hdr-" + nonAlphaNumRx.ReplaceAllString(line, "_")
+-}
+-
+-// ToHTML converts comment text to formatted HTML.
+-// The comment was prepared by DocReader,
+-// so it is known not to have leading, trailing blank lines
+-// nor to have trailing spaces at the end of lines.
+-// The comment markers have already been removed.
++// Given the *[doc.Package] p where text was found,
++// ToHTML(w, text, nil) can be replaced by:
+ //
+-// Each span of unindented non-blank lines is converted into
+-// a single paragraph. There is one exception to the rule: a span that
+-// consists of a single line, is followed by another paragraph span,
+-// begins with a capital letter, and contains no punctuation
+-// other than parentheses and commas is formatted as a heading.
++//	w.Write(p.HTML(text))
+ //
+-// A span of indented lines is converted into a <pre> block,
+-// with the common indent prefix removed.
++// which is in turn shorthand for:
+ //
+-// URLs in the comment text are converted into links; if the URL also appears
+-// in the words map, the link is taken from the map (if the corresponding map
+-// value is the empty string, the URL is not converted into a link).
++//	w.Write(p.Printer().HTML(p.Parser().Parse(text)))
+ //
+-// A pair of (consecutive) backticks (`) is converted to a unicode left quote (“), and a pair of (consecutive)
+-// single quotes (') is converted to a unicode right quote (”).
++// If words may be non-nil, the longer replacement is:
+ //
+-// Go identifiers that appear in the words map are italicized; if the corresponding
+-// map value is not the empty string, it is considered a URL and the word is converted
+-// into a link.
++//	parser := p.Parser()
++//	parser.Words = words
++//	w.Write(p.Printer().HTML(parser.Parse(d)))
+ func ToHTML(w io.Writer, text string, words map[string]string) {
+-	for _, b := range blocks(text) {
+-		switch b.op {
+-		case opPara:
+-			w.Write(html_p)
+-			for _, line := range b.lines {
+-				emphasize(w, line, words, true)
+-			}
+-			w.Write(html_endp)
+-		case opHead:
+-			w.Write(html_h)
+-			id := ""
+-			for _, line := range b.lines {
+-				if id == "" {
+-					id = anchorID(line)
+-					w.Write([]byte(id))
+-					w.Write(html_hq)
+-				}
+-				commentEscape(w, line, true)
+-			}
+-			if id == "" {
+-				w.Write(html_hq)
+-			}
+-			w.Write(html_endh)
+-		case opPre:
+-			w.Write(html_pre)
+-			for _, line := range b.lines {
+-				emphasize(w, line, nil, false)
+-			}
+-			w.Write(html_endpre)
+-		}
+-	}
++	p := new(Package).Parser()
++	p.Words = words
++	d := p.Parse(text)
++	pr := new(comment.Printer)
++	w.Write(pr.HTML(d))
+ }
+ 
+-func blocks(text string) []block {
+-	var (
+-		out  []block
+-		para []string
+-
+-		lastWasBlank   = false
+-		lastWasHeading = false
+-	)
+-
+-	close := func() {
+-		if para != nil {
+-			out = append(out, block{opPara, para})
+-			para = nil
+-		}
+-	}
+-
+-	lines := strings.SplitAfter(text, "\n")
+-	unindent(lines)
+-	for i := 0; i < len(lines); {
+-		line := lines[i]
+-		if isBlank(line) {
+-			// close paragraph
+-			close()
+-			i++
+-			lastWasBlank = true
+-			continue
+-		}
+-		if indentLen(line) > 0 {
+-			// close paragraph
+-			close()
+-
+-			// count indented or blank lines
+-			j := i + 1
+-			for j < len(lines) && (isBlank(lines[j]) || indentLen(lines[j]) > 0) {
+-				j++
+-			}
+-			// but not trailing blank lines
+-			for j > i && isBlank(lines[j-1]) {
+-				j--
+-			}
+-			pre := lines[i:j]
+-			i = j
+-
+-			unindent(pre)
+-
+-			// put those lines in a pre block
+-			out = append(out, block{opPre, pre})
+-			lastWasHeading = false
+-			continue
+-		}
+-
+-		if lastWasBlank && !lastWasHeading && i+2 < len(lines) &&
+-			isBlank(lines[i+1]) && !isBlank(lines[i+2]) && indentLen(lines[i+2]) == 0 {
+-			// current line is non-blank, surrounded by blank lines
+-			// and the next non-blank line is not indented: this
+-			// might be a heading.
+-			if head := heading(line); head != "" {
+-				close()
+-				out = append(out, block{opHead, []string{head}})
+-				i += 2
+-				lastWasHeading = true
+-				continue
+-			}
+-		}
+-
+-		// open paragraph
+-		lastWasBlank = false
+-		lastWasHeading = false
+-		para = append(para, lines[i])
+-		i++
+-	}
+-	close()
+-
+-	return out
+-}
+-
+-// ToText prepares comment text for presentation in textual output.
+-// It wraps paragraphs of text to width or fewer Unicode code points
+-// and then prefixes each line with the indent. In preformatted sections
+-// (such as program text), it prefixes each non-blank line with preIndent.
++// ToText converts comment text to formatted text.
+ //
+-// A pair of (consecutive) backticks (`) is converted to a unicode left quote (“), and a pair of (consecutive)
+-// single quotes (') is converted to a unicode right quote (”).
+-func ToText(w io.Writer, text string, indent, preIndent string, width int) {
+-	l := lineWrapper{
+-		out:    w,
+-		width:  width,
+-		indent: indent,
+-	}
+-	for _, b := range blocks(text) {
+-		switch b.op {
+-		case opPara:
+-			// l.write will add leading newline if required
+-			for _, line := range b.lines {
+-				line = convertQuotes(line)
+-				l.write(line)
+-			}
+-			l.flush()
+-		case opHead:
+-			w.Write(nl)
+-			for _, line := range b.lines {
+-				line = convertQuotes(line)
+-				l.write(line + "\n")
+-			}
+-			l.flush()
+-		case opPre:
+-			w.Write(nl)
+-			for _, line := range b.lines {
+-				if isBlank(line) {
+-					w.Write([]byte("\n"))
+-				} else {
+-					w.Write([]byte(preIndent))
+-					w.Write([]byte(line))
+-				}
+-			}
+-		}
+-	}
+-}
+-
+-type lineWrapper struct {
+-	out       io.Writer
+-	printed   bool
+-	width     int
+-	indent    string
+-	n         int
+-	pendSpace int
+-}
+-
+-var nl = []byte("\n")
+-var space = []byte(" ")
+-var prefix = []byte("// ")
+-
+-func (l *lineWrapper) write(text string) {
+-	if l.n == 0 && l.printed {
+-		l.out.Write(nl) // blank line before new paragraph
+-	}
+-	l.printed = true
+-
+-	needsPrefix := false
+-	isComment := strings.HasPrefix(text, "//")
+-	for _, f := range strings.Fields(text) {
+-		w := utf8.RuneCountInString(f)
+-		// wrap if line is too long
+-		if l.n > 0 && l.n+l.pendSpace+w > l.width {
+-			l.out.Write(nl)
+-			l.n = 0
+-			l.pendSpace = 0
+-			needsPrefix = isComment && !strings.HasPrefix(f, "//")
+-		}
+-		if l.n == 0 {
+-			l.out.Write([]byte(l.indent))
+-		}
+-		if needsPrefix {
+-			l.out.Write(prefix)
+-			needsPrefix = false
+-		}
+-		l.out.Write(space[:l.pendSpace])
+-		l.out.Write([]byte(f))
+-		l.n += l.pendSpace + w
+-		l.pendSpace = 1
+-	}
+-}
+-
+-func (l *lineWrapper) flush() {
+-	if l.n == 0 {
+-		return
+-	}
+-	l.out.Write(nl)
+-	l.pendSpace = 0
+-	l.n = 0
++// Deprecated: ToText cannot identify documentation links
++// in the doc comment, because they depend on knowing what
++// package the text came from, which is not included in this API.
++//
++// Given the *[doc.Package] p where text was found,
++// ToText(w, text, "", "\t", 80) can be replaced by:
++//
++//	w.Write(p.Text(text))
++//
++// In the general case, ToText(w, text, prefix, codePrefix, width)
++// can be replaced by:
++//
++//	d := p.Parser().Parse(text)
++//	pr := p.Printer()
++//	pr.TextPrefix = prefix
++//	pr.TextCodePrefix = codePrefix
++//	pr.TextWidth = width
++//	w.Write(pr.Text(d))
++//
++// See the documentation for [Package.Text] and [comment.Printer.Text]
++// for more details.
++func ToText(w io.Writer, text string, prefix, codePrefix string, width int) {
++	d := new(Package).Parser().Parse(text)
++	pr := &comment.Printer{
++		TextPrefix:     prefix,
++		TextCodePrefix: codePrefix,
++		TextWidth:      width,
++	}
++	w.Write(pr.Text(d))
+ }
+diff --git a/src/go/doc/comment_test.go b/src/go/doc/comment_test.go
+index 6d1b209e1e..e1e5f15bdf 100644
+--- a/src/go/doc/comment_test.go
++++ b/src/go/doc/comment_test.go
+@@ -1,4 +1,4 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
++// Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -6,242 +6,62 @@ package doc
+ 
+ import (
+ 	"bytes"
+-	"reflect"
+-	"strings"
++	"go/parser"
++	"go/token"
++	"internal/diff"
+ 	"testing"
+ )
+ 
+-var headingTests = []struct {
+-	line string
+-	ok   bool
+-}{
+-	{"Section", true},
+-	{"A typical usage", true},
+-	{"ΔΛΞ is Greek", true},
+-	{"Foo 42", true},
+-	{"", false},
+-	{"section", false},
+-	{"A typical usage:", false},
+-	{"This code:", false},
+-	{"δ is Greek", false},
+-	{"Foo §", false},
+-	{"Fermat's Last Sentence", true},
+-	{"Fermat's", true},
+-	{"'sX", false},
+-	{"Ted 'Too' Bar", false},
+-	{"Use n+m", false},
+-	{"Scanning:", false},
+-	{"N:M", false},
+-}
+-
+-func TestIsHeading(t *testing.T) {
+-	for _, tt := range headingTests {
+-		if h := heading(tt.line); (len(h) > 0) != tt.ok {
+-			t.Errorf("isHeading(%q) = %v, want %v", tt.line, h, tt.ok)
+-		}
++func TestComment(t *testing.T) {
++	fset := token.NewFileSet()
++	pkgs, err := parser.ParseDir(fset, "testdata/pkgdoc", nil, parser.ParseComments)
++	if err != nil {
++		t.Fatal(err)
+ 	}
+-}
+-
+-var blocksTests = []struct {
+-	in   string
+-	out  []block
+-	text string
+-}{
+-	{
+-		in: `Para 1.
+-Para 1 line 2.
+-
+-Para 2.
+-
+-Section
+-
+-Para 3.
+-
+-	pre
+-	pre1
+-
+-Para 4.
+-
+-	pre
+-	pre1
+-
+-	pre2
+-
+-Para 5.
+-
+-
+-	pre
+-
+-
+-	pre1
+-	pre2
+-
+-Para 6.
+-	pre
+-	pre2
+-`,
+-		out: []block{
+-			{opPara, []string{"Para 1.\n", "Para 1 line 2.\n"}},
+-			{opPara, []string{"Para 2.\n"}},
+-			{opHead, []string{"Section"}},
+-			{opPara, []string{"Para 3.\n"}},
+-			{opPre, []string{"pre\n", "pre1\n"}},
+-			{opPara, []string{"Para 4.\n"}},
+-			{opPre, []string{"pre\n", "pre1\n", "\n", "pre2\n"}},
+-			{opPara, []string{"Para 5.\n"}},
+-			{opPre, []string{"pre\n", "\n", "\n", "pre1\n", "pre2\n"}},
+-			{opPara, []string{"Para 6.\n"}},
+-			{opPre, []string{"pre\n", "pre2\n"}},
+-		},
+-		text: `.   Para 1. Para 1 line 2.
+-
+-.   Para 2.
+-
+-
+-.   Section
+-
+-.   Para 3.
+-
+-$	pre
+-$	pre1
+-
+-.   Para 4.
+-
+-$	pre
+-$	pre1
+-
+-$	pre2
+-
+-.   Para 5.
+-
+-$	pre
+-
+-
+-$	pre1
+-$	pre2
+-
+-.   Para 6.
+-
+-$	pre
+-$	pre2
+-`,
+-	},
+-	{
+-		in: "Para.\n\tshould not be ``escaped''",
+-		out: []block{
+-			{opPara, []string{"Para.\n"}},
+-			{opPre, []string{"should not be ``escaped''"}},
+-		},
+-		text: ".   Para.\n\n$	should not be ``escaped''",
+-	},
+-	{
+-		in: "// A very long line of 46 char for line wrapping.",
+-		out: []block{
+-			{opPara, []string{"// A very long line of 46 char for line wrapping."}},
+-		},
+-		text: `.   // A very long line of 46 char for line
+-.   // wrapping.
+-`,
+-	},
+-	{
+-		in: `/* A very long line of 46 char for line wrapping.
+-A very long line of 46 char for line wrapping. */`,
+-		out: []block{
+-			{opPara, []string{"/* A very long line of 46 char for line wrapping.\n", "A very long line of 46 char for line wrapping. */"}},
+-		},
+-		text: `.   /* A very long line of 46 char for line
+-.   wrapping. A very long line of 46 char
+-.   for line wrapping. */
+-`,
+-	},
+-	{
+-		in: `A line of 36 char for line wrapping.
+-//Another line starting with //`,
+-		out: []block{
+-			{opPara, []string{"A line of 36 char for line wrapping.\n",
+-				"//Another line starting with //"}},
+-		},
+-		text: `.   A line of 36 char for line wrapping.
+-.   //Another line starting with //
+-`,
+-	},
+-}
+-
+-func TestBlocks(t *testing.T) {
+-	for i, tt := range blocksTests {
+-		b := blocks(tt.in)
+-		if !reflect.DeepEqual(b, tt.out) {
+-			t.Errorf("#%d: mismatch\nhave: %v\nwant: %v", i, b, tt.out)
+-		}
++	if pkgs["pkgdoc"] == nil {
++		t.Fatal("missing package pkgdoc")
+ 	}
+-}
+-
+-func TestToText(t *testing.T) {
+-	var buf bytes.Buffer
+-	for i, tt := range blocksTests {
+-		ToText(&buf, tt.in, ".   ", "$\t", 40)
+-		if have := buf.String(); have != tt.text {
+-			t.Errorf("#%d: mismatch\nhave: %s\nwant: %s\nhave vs want:\n%q\n%q", i, have, tt.text, have, tt.text)
+-		}
+-		buf.Reset()
++	pkg := New(pkgs["pkgdoc"], "testdata/pkgdoc", 0)
++
++	var (
++		input           = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things.\n"
++		wantHTML        = `<p><a href="#T">T</a> and <a href="#U">U</a> are types, and <a href="#T.M">T.M</a> is a method, but [V] is a broken link. <a href="/math/rand#Int">rand.Int</a> and <a href="/crypto/rand#Reader">crand.Reader</a> are things.` + "\n"
++		wantOldHTML     = "<p>[T] and [U] are <i>types</i>, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things.\n"
++		wantMarkdown    = "[T](#T) and [U](#U) are types, and [T.M](#T.M) is a method, but \\[V] is a broken link. [rand.Int](/math/rand#Int) and [crand.Reader](/crypto/rand#Reader) are things.\n"
++		wantText        = "T and U are types, and T.M is a method, but [V] is a broken link. rand.Int and\ncrand.Reader are things.\n"
++		wantOldText     = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link.\n[rand.Int] and [crand.Reader] are things.\n"
++		wantSynopsis    = "T and U are types, and T.M is a method, but [V] is a broken link."
++		wantOldSynopsis = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link."
++	)
++
++	if b := pkg.HTML(input); string(b) != wantHTML {
++		t.Errorf("%s", diff.Diff("pkg.HTML", b, "want", []byte(wantHTML)))
++	}
++	if b := pkg.Markdown(input); string(b) != wantMarkdown {
++		t.Errorf("%s", diff.Diff("pkg.Markdown", b, "want", []byte(wantMarkdown)))
++	}
++	if b := pkg.Text(input); string(b) != wantText {
++		t.Errorf("%s", diff.Diff("pkg.Text", b, "want", []byte(wantText)))
++	}
++	if b := pkg.Synopsis(input); b != wantSynopsis {
++		t.Errorf("%s", diff.Diff("pkg.Synopsis", []byte(b), "want", []byte(wantText)))
+ 	}
+-}
+ 
+-var emphasizeTests = []struct {
+-	in, out string
+-}{
+-	{"", ""},
+-	{"http://[::1]:8080/foo.txt", `<a href="http://[::1]:8080/foo.txt">http://[::1]:8080/foo.txt</a>`},
+-	{"before (https://www.google.com) after", `before (<a href="https://www.google.com">https://www.google.com</a>) after`},
+-	{"before https://www.google.com:30/x/y/z:b::c. After", `before <a href="https://www.google.com:30/x/y/z:b::c">https://www.google.com:30/x/y/z:b::c</a>. After`},
+-	{"http://www.google.com/path/:;!-/?query=%34b#093124", `<a href="http://www.google.com/path/:;!-/?query=%34b#093124">http://www.google.com/path/:;!-/?query=%34b#093124</a>`},
+-	{"http://www.google.com/path/:;!-/?query=%34bar#093124", `<a href="http://www.google.com/path/:;!-/?query=%34bar#093124">http://www.google.com/path/:;!-/?query=%34bar#093124</a>`},
+-	{"http://www.google.com/index.html! After", `<a href="http://www.google.com/index.html">http://www.google.com/index.html</a>! After`},
+-	{"http://www.google.com/", `<a href="http://www.google.com/">http://www.google.com/</a>`},
+-	{"https://www.google.com/", `<a href="https://www.google.com/">https://www.google.com/</a>`},
+-	{"http://www.google.com/path.", `<a href="http://www.google.com/path">http://www.google.com/path</a>.`},
+-	{"http://en.wikipedia.org/wiki/Camellia_(cipher)", `<a href="http://en.wikipedia.org/wiki/Camellia_(cipher)">http://en.wikipedia.org/wiki/Camellia_(cipher)</a>`},
+-	{"(http://www.google.com/)", `(<a href="http://www.google.com/">http://www.google.com/</a>)`},
+-	{"http://gmail.com)", `<a href="http://gmail.com">http://gmail.com</a>)`},
+-	{"((http://gmail.com))", `((<a href="http://gmail.com">http://gmail.com</a>))`},
+-	{"http://gmail.com ((http://gmail.com)) ()", `<a href="http://gmail.com">http://gmail.com</a> ((<a href="http://gmail.com">http://gmail.com</a>)) ()`},
+-	{"Foo bar http://example.com/ quux!", `Foo bar <a href="http://example.com/">http://example.com/</a> quux!`},
+-	{"Hello http://example.com/%2f/ /world.", `Hello <a href="http://example.com/%2f/">http://example.com/%2f/</a> /world.`},
+-	{"Lorem http: ipsum //host/path", "Lorem http: ipsum //host/path"},
+-	{"javascript://is/not/linked", "javascript://is/not/linked"},
+-	{"http://foo", `<a href="http://foo">http://foo</a>`},
+-	{"art by [[https://www.example.com/person/][Person Name]]", `art by [[<a href="https://www.example.com/person/">https://www.example.com/person/</a>][Person Name]]`},
+-	{"please visit (http://golang.org/)", `please visit (<a href="http://golang.org/">http://golang.org/</a>)`},
+-	{"please visit http://golang.org/hello())", `please visit <a href="http://golang.org/hello()">http://golang.org/hello()</a>)`},
+-	{"http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD", `<a href="http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD">http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD</a>`},
+-	{"https://foo.bar/bal/x(])", `<a href="https://foo.bar/bal/x(">https://foo.bar/bal/x(</a>])`}, // inner ] causes (]) to be cut off from URL
+-	{"foo [ http://bar(])", `foo [ <a href="http://bar(">http://bar(</a>])`},                      // outer [ causes ]) to be cut off from URL
+-}
++	var buf bytes.Buffer
+ 
+-func TestEmphasize(t *testing.T) {
+-	for i, tt := range emphasizeTests {
+-		var buf bytes.Buffer
+-		emphasize(&buf, tt.in, nil, true)
+-		out := buf.String()
+-		if out != tt.out {
+-			t.Errorf("#%d: mismatch\nhave: %v\nwant: %v", i, out, tt.out)
+-		}
++	buf.Reset()
++	ToHTML(&buf, input, map[string]string{"types": ""})
++	if b := buf.Bytes(); string(b) != wantOldHTML {
++		t.Errorf("%s", diff.Diff("ToHTML", b, "want", []byte(wantOldHTML)))
+ 	}
+-}
+ 
+-func TestCommentEscape(t *testing.T) {
+-	commentTests := []struct {
+-		in, out string
+-	}{
+-		{"typically invoked as ``go tool asm'',", "typically invoked as " + ldquo + "go tool asm" + rdquo + ","},
+-		{"For more detail, run ``go help test'' and ``go help testflag''", "For more detail, run " + ldquo + "go help test" + rdquo + " and " + ldquo + "go help testflag" + rdquo},
++	buf.Reset()
++	ToText(&buf, input, "", "\t", 80)
++	if b := buf.Bytes(); string(b) != wantOldText {
++		t.Errorf("%s", diff.Diff("ToText", b, "want", []byte(wantOldText)))
+ 	}
+-	for i, tt := range commentTests {
+-		var buf strings.Builder
+-		commentEscape(&buf, tt.in, true)
+-		out := buf.String()
+-		if out != tt.out {
+-			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)
+-		}
++
++	if b := Synopsis(input); b != wantOldSynopsis {
++		t.Errorf("%s", diff.Diff("Synopsis", []byte(b), "want", []byte(wantOldText)))
+ 	}
+ }
+diff --git a/src/go/doc/doc.go b/src/go/doc/doc.go
+index f0c1b5dd32..651a2c1f6c 100644
+--- a/src/go/doc/doc.go
++++ b/src/go/doc/doc.go
+@@ -8,6 +8,7 @@ package doc
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/doc/comment"
+ 	"go/token"
+ 	"strings"
+ )
+@@ -35,6 +36,9 @@ type Package struct {
+ 	// the package. Examples are extracted from _test.go files
+ 	// provided to NewFromFiles.
+ 	Examples []*Example
++
++	importByName map[string]string
++	syms         map[string]bool
+ }
+ 
+ // Value is the documentation for a (possibly grouped) var or const declaration.
+@@ -119,7 +123,7 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+ 	r.readPackage(pkg, mode)
+ 	r.computeMethodSets()
+ 	r.cleanupTypes()
+-	return &Package{
++	p := &Package{
+ 		Doc:        r.doc,
+ 		Name:       pkg.Name,
+ 		ImportPath: importPath,
+@@ -131,6 +135,48 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+ 		Types:      sortedTypes(r.types, mode&AllMethods != 0),
+ 		Vars:       sortedValues(r.values, token.VAR),
+ 		Funcs:      sortedFuncs(r.funcs, true),
++
++		importByName: r.importByName,
++		syms:         make(map[string]bool),
++	}
++
++	p.collectValues(p.Consts)
++	p.collectValues(p.Vars)
++	p.collectTypes(p.Types)
++	p.collectFuncs(p.Funcs)
++
++	return p
++}
++
++func (p *Package) collectValues(values []*Value) {
++	for _, v := range values {
++		for _, name := range v.Names {
++			p.syms[name] = true
++		}
++	}
++}
++
++func (p *Package) collectTypes(types []*Type) {
++	for _, t := range types {
++		if p.syms[t.Name] {
++			// Shouldn't be any cycles but stop just in case.
++			continue
++		}
++		p.syms[t.Name] = true
++		p.collectValues(t.Consts)
++		p.collectValues(t.Vars)
++		p.collectFuncs(t.Funcs)
++		p.collectFuncs(t.Methods)
++	}
++}
++
++func (p *Package) collectFuncs(funcs []*Func) {
++	for _, f := range funcs {
++		if f.Recv != "" {
++			p.syms[strings.TrimPrefix(f.Recv, "*")+"."+f.Name] = true
++		} else {
++			p.syms[f.Name] = true
++		}
+ 	}
+ }
+ 
+@@ -218,3 +264,87 @@ func simpleImporter(imports map[string]*ast.Object, path string) (*ast.Object, e
+ 	}
+ 	return pkg, nil
+ }
++
++// lookupSym reports whether the package has a given symbol or method.
++//
++// If recv == "", HasSym reports whether the package has a top-level
++// const, func, type, or var named name.
++//
++// If recv != "", HasSym reports whether the package has a type
++// named recv with a method named name.
++func (p *Package) lookupSym(recv, name string) bool {
++	if recv != "" {
++		return p.syms[recv+"."+name]
++	}
++	return p.syms[name]
++}
++
++// lookupPackage returns the import path identified by name
++// in the given package. If name uniquely identifies a single import,
++// then lookupPackage returns that import.
++// If multiple packages are imported as name, importPath returns "", false.
++// Otherwise, if name is the name of p itself, importPath returns "", true,
++// to signal a reference to p.
++// Otherwise, importPath returns "", false.
++func (p *Package) lookupPackage(name string) (importPath string, ok bool) {
++	if path, ok := p.importByName[name]; ok {
++		if path == "" {
++			return "", false // multiple imports used the name
++		}
++		return path, true // found import
++	}
++	if p.Name == name {
++		return "", true // allow reference to this package
++	}
++	return "", false // unknown name
++}
++
++// Parser returns a doc comment parser configured
++// for parsing doc comments from package p.
++// Each call returns a new parser, so that the caller may
++// customize it before use.
++func (p *Package) Parser() *comment.Parser {
++	return &comment.Parser{
++		LookupPackage: p.lookupPackage,
++		LookupSym:     p.lookupSym,
++	}
++}
++
++// Printer returns a doc comment printer configured
++// for printing doc comments from package p.
++// Each call returns a new printer, so that the caller may
++// customize it before use.
++func (p *Package) Printer() *comment.Printer {
++	// No customization today, but having p.Printer()
++	// gives us flexibility in the future, and it is convenient for callers.
++	return &comment.Printer{}
++}
++
++// HTML returns formatted HTML for the doc comment text.
++//
++// To customize details of the HTML, use [Package.Printer]
++// to obtain a [comment.Printer], and configure it
++// before calling its HTML method.
++func (p *Package) HTML(text string) []byte {
++	return p.Printer().HTML(p.Parser().Parse(text))
++}
++
++// Markdown returns formatted Markdown for the doc comment text.
++//
++// To customize details of the Markdown, use [Package.Printer]
++// to obtain a [comment.Printer], and configure it
++// before calling its Markdown method.
++func (p *Package) Markdown(text string) []byte {
++	return p.Printer().Markdown(p.Parser().Parse(text))
++}
++
++// Text returns formatted text for the doc comment text,
++// wrapped to 80 Unicode code points and using tabs for
++// code block indentation.
++//
++// To customize details of the formatting, use [Package.Printer]
++// to obtain a [comment.Printer], and configure it
++// before calling its Text method.
++func (p *Package) Text(text string) []byte {
++	return p.Printer().Text(p.Parser().Parse(text))
++}
+diff --git a/src/go/doc/doc_test.go b/src/go/doc/doc_test.go
+index 5a5fbd8bf3..b79087e538 100644
+--- a/src/go/doc/doc_test.go
++++ b/src/go/doc/doc_test.go
+@@ -152,15 +152,6 @@ func Test(t *testing.T) {
+ 	t.Run("AllMethods", func(t *testing.T) { test(t, AllMethods) })
+ }
+ 
+-func TestAnchorID(t *testing.T) {
+-	const in = "Important Things 2 Know & Stuff"
+-	const want = "hdr-Important_Things_2_Know___Stuff"
+-	got := anchorID(in)
+-	if got != want {
+-		t.Errorf("anchorID(%q) = %q; want %q", in, got, want)
+-	}
+-}
+-
+ func TestFuncs(t *testing.T) {
+ 	fset := token.NewFileSet()
+ 	file, err := parser.ParseFile(fset, "funcs.go", strings.NewReader(funcsTestFile), parser.ParseComments)
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index c591059e5c..492e039703 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -9,9 +9,12 @@ import (
+ 	"go/ast"
+ 	"go/token"
+ 	"internal/lazyregexp"
++	"path"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++	"unicode"
++	"unicode/utf8"
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -178,13 +181,16 @@ type reader struct {
+ 	filenames []string
+ 	notes     map[string][]*Note
+ 
++	// imports
++	imports      map[string]int
++	hasDotImp    bool // if set, package contains a dot import
++	importByName map[string]string
++
+ 	// declarations
+-	imports   map[string]int
+-	hasDotImp bool     // if set, package contains a dot import
+-	values    []*Value // consts and vars
+-	order     int      // sort order of const and var declarations (when we can't use a name)
+-	types     map[string]*namedType
+-	funcs     methodSet
++	values []*Value // consts and vars
++	order  int      // sort order of const and var declarations (when we can't use a name)
++	types  map[string]*namedType
++	funcs  methodSet
+ 
+ 	// support for package-local shadowing of predeclared types
+ 	shadowedPredecl map[string]bool
+@@ -485,6 +491,28 @@ var (
+ 	noteCommentRx = lazyregexp.New(`^/[/*][ \t]*` + noteMarker) // MARKER(uid) at comment start
+ )
+ 
++// clean replaces each sequence of space, \r, or \t characters
++// with a single space and removes any trailing and leading spaces.
++func clean(s string) string {
++	var b []byte
++	p := byte(' ')
++	for i := 0; i < len(s); i++ {
++		q := s[i]
++		if q == '\r' || q == '\t' {
++			q = ' '
++		}
++		if q != ' ' || p != ' ' {
++			b = append(b, q)
++			p = q
++		}
++	}
++	// remove trailing blank, if any
++	if n := len(b); n > 0 && p == ' ' {
++		b = b[0 : n-1]
++	}
++	return string(b)
++}
++
+ // readNote collects a single note from a sequence of comments.
+ func (r *reader) readNote(list []*ast.Comment) {
+ 	text := (&ast.CommentGroup{List: list}).Text()
+@@ -493,7 +521,7 @@ func (r *reader) readNote(list []*ast.Comment) {
+ 		// We remove any formatting so that we don't
+ 		// get spurious line breaks/indentation when
+ 		// showing the TODO body.
+-		body := clean(text[m[1]:], keepNL)
++		body := clean(text[m[1]:])
+ 		if body != "" {
+ 			marker := text[m[2]:m[3]]
+ 			r.notes[marker] = append(r.notes[marker], &Note{
+@@ -550,8 +578,23 @@ func (r *reader) readFile(src *ast.File) {
+ 					if s, ok := spec.(*ast.ImportSpec); ok {
+ 						if import_, err := strconv.Unquote(s.Path.Value); err == nil {
+ 							r.imports[import_] = 1
+-							if s.Name != nil && s.Name.Name == "." {
+-								r.hasDotImp = true
++							var name string
++							if s.Name != nil {
++								name = s.Name.Name
++								if name == "." {
++									r.hasDotImp = true
++								}
++							}
++							if name != "." {
++								if name == "" {
++									name = assumedPackageName(import_)
++								}
++								old, ok := r.importByName[name]
++								if !ok {
++									r.importByName[name] = import_
++								} else if old != import_ && old != "" {
++									r.importByName[name] = "" // ambiguous
++								}
+ 							}
+ 						}
+ 					}
+@@ -611,6 +654,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
+ 	r.types = make(map[string]*namedType)
+ 	r.funcs = make(methodSet)
+ 	r.notes = make(map[string][]*Note)
++	r.importByName = make(map[string]string)
+ 
+ 	// sort package files before reading them so that the
+ 	// result does not depend on map iteration order
+@@ -630,6 +674,12 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
+ 		r.readFile(f)
+ 	}
+ 
++	for name, path := range r.importByName {
++		if path == "" {
++			delete(r.importByName, name)
++		}
++	}
++
+ 	// process functions now that we have better type information
+ 	for _, f := range pkg.Files {
+ 		for _, decl := range f.Decls {
+@@ -950,3 +1000,30 @@ var predeclaredConstants = map[string]bool{
+ 	"nil":   true,
+ 	"true":  true,
+ }
++
++// assumedPackageName returns the assumed package name
++// for a given import path. This is a copy of
++// golang.org/x/tools/internal/imports.ImportPathToAssumedName.
++func assumedPackageName(importPath string) string {
++	notIdentifier := func(ch rune) bool {
++		return !('a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' ||
++			'0' <= ch && ch <= '9' ||
++			ch == '_' ||
++			ch >= utf8.RuneSelf && (unicode.IsLetter(ch) || unicode.IsDigit(ch)))
++	}
++
++	base := path.Base(importPath)
++	if strings.HasPrefix(base, "v") {
++		if _, err := strconv.Atoi(base[1:]); err == nil {
++			dir := path.Dir(importPath)
++			if dir != "." {
++				base = path.Base(dir)
++			}
++		}
++	}
++	base = strings.TrimPrefix(base, "go-")
++	if i := strings.IndexFunc(base, notIdentifier); i >= 0 {
++		base = base[:i]
++	}
++	return base
++}
+diff --git a/src/go/doc/synopsis.go b/src/go/doc/synopsis.go
+index ca607cc4e5..3c9e7e9b9e 100644
+--- a/src/go/doc/synopsis.go
++++ b/src/go/doc/synopsis.go
+@@ -5,77 +5,74 @@
+ package doc
+ 
+ import (
++	"go/doc/comment"
+ 	"strings"
+ 	"unicode"
+ )
+ 
+-// firstSentenceLen returns the length of the first sentence in s.
++// firstSentence returns the first sentence in s.
+ // The sentence ends after the first period followed by space and
+ // not preceded by exactly one uppercase letter.
+-func firstSentenceLen(s string) int {
++func firstSentence(s string) string {
+ 	var ppp, pp, p rune
+ 	for i, q := range s {
+ 		if q == '\n' || q == '\r' || q == '\t' {
+ 			q = ' '
+ 		}
+ 		if q == ' ' && p == '.' && (!unicode.IsUpper(pp) || unicode.IsUpper(ppp)) {
+-			return i
++			return s[:i]
+ 		}
+ 		if p == '。' || p == '．' {
+-			return i
++			return s[:i]
+ 		}
+ 		ppp, pp, p = pp, p, q
+ 	}
+-	return len(s)
++	return s
+ }
+ 
+-const (
+-	keepNL = 1 << iota
+-)
++// Synopsis returns a cleaned version of the first sentence in text.
++//
++// Deprecated: New programs should use [Package.Synopsis] instead,
++// which handles links in text properly.
++func Synopsis(text string) string {
++	var p Package
++	return p.Synopsis(text)
++}
+ 
+-// clean replaces each sequence of space, \n, \r, or \t characters
+-// with a single space and removes any trailing and leading spaces.
+-// If the keepNL flag is set, newline characters are passed through
+-// instead of being change to spaces.
+-func clean(s string, flags int) string {
+-	var b []byte
+-	p := byte(' ')
+-	for i := 0; i < len(s); i++ {
+-		q := s[i]
+-		if (flags&keepNL) == 0 && q == '\n' || q == '\r' || q == '\t' {
+-			q = ' '
+-		}
+-		if q != ' ' || p != ' ' {
+-			b = append(b, q)
+-			p = q
+-		}
+-	}
+-	// remove trailing blank, if any
+-	if n := len(b); n > 0 && p == ' ' {
+-		b = b[0 : n-1]
+-	}
+-	return string(b)
++// IllegalPrefixes is a list of lower-case prefixes that identify
++// a comment as not being a doc comment.
++// This helps to avoid misinterpreting the common mistake
++// of a copyright notice immediately before a package statement
++// as being a doc comment.
++var IllegalPrefixes = []string{
++	"copyright",
++	"all rights",
++	"author",
+ }
+ 
+-// Synopsis returns a cleaned version of the first sentence in s.
+-// That sentence ends after the first period followed by space and
+-// not preceded by exactly one uppercase letter. The result string
+-// has no \n, \r, or \t characters and uses only single spaces between
+-// words. If s starts with any of the IllegalPrefixes, the result
+-// is the empty string.
+-func Synopsis(s string) string {
+-	s = clean(s[0:firstSentenceLen(s)], 0)
++// Synopsis returns a cleaned version of the first sentence in text.
++// That sentence ends after the first period followed by space and not
++// preceded by exactly one uppercase letter, or at the first paragraph break.
++// The result string has no \n, \r, or \t characters and uses only single
++// spaces between words. If text starts with any of the IllegalPrefixes,
++// the result is the empty string.
++func (p *Package) Synopsis(text string) string {
++	text = firstSentence(text)
++	lower := strings.ToLower(text)
+ 	for _, prefix := range IllegalPrefixes {
+-		if strings.HasPrefix(strings.ToLower(s), prefix) {
++		if strings.HasPrefix(lower, prefix) {
+ 			return ""
+ 		}
+ 	}
+-	s = convertQuotes(s)
+-	return s
+-}
+-
+-var IllegalPrefixes = []string{
+-	"copyright",
+-	"all rights",
+-	"author",
++	pr := p.Printer()
++	pr.TextWidth = -1
++	d := p.Parser().Parse(text)
++	if len(d.Content) == 0 {
++		return ""
++	}
++	if _, ok := d.Content[0].(*comment.Paragraph); !ok {
++		return ""
++	}
++	d.Content = d.Content[:1] // might be blank lines, code blocks, etc in “first sentence”
++	return strings.TrimSpace(string(pr.Text(d)))
+ }
+diff --git a/src/go/doc/synopsis_test.go b/src/go/doc/synopsis_test.go
+index 3f443dc757..158c734bf0 100644
+--- a/src/go/doc/synopsis_test.go
++++ b/src/go/doc/synopsis_test.go
+@@ -18,8 +18,8 @@ var tests = []struct {
+ 	{"  foo.  ", 6, "foo."},
+ 	{"  foo\t  bar.\n", 12, "foo bar."},
+ 	{"  foo\t  bar.\n", 12, "foo bar."},
+-	{"a  b\n\nc\r\rd\t\t", 12, "a b c d"},
+-	{"a  b\n\nc\r\rd\t\t  . BLA", 15, "a b c d ."},
++	{"a  b\n\nc\r\rd\t\t", 12, "a b"},
++	{"a  b\n\nc\r\rd\t\t  . BLA", 15, "a b"},
+ 	{"Package poems by T.S.Eliot. To rhyme...", 27, "Package poems by T.S.Eliot."},
+ 	{"Package poems by T. S. Eliot. To rhyme...", 29, "Package poems by T. S. Eliot."},
+ 	{"foo implements the foo ABI. The foo ABI is...", 27, "foo implements the foo ABI."},
+@@ -35,18 +35,18 @@ var tests = []struct {
+ 	{"All Rights reserved. Package foo does bar.", 20, ""},
+ 	{"All rights reserved. Package foo does bar.", 20, ""},
+ 	{"Authors: foo@bar.com. Package foo does bar.", 21, ""},
+-	{"typically invoked as ``go tool asm'',", 37, "typically invoked as " + ulquo + "go tool asm" + urquo + ","},
++	{"typically invoked as ``go tool asm'',", 37, "typically invoked as “go tool asm”,"},
+ }
+ 
+ func TestSynopsis(t *testing.T) {
+ 	for _, e := range tests {
+-		fsl := firstSentenceLen(e.txt)
+-		if fsl != e.fsl {
+-			t.Errorf("got fsl = %d; want %d for %q\n", fsl, e.fsl, e.txt)
++		fs := firstSentence(e.txt)
++		if fs != e.txt[:e.fsl] {
++			t.Errorf("firstSentence(%q) = %q, want %q", e.txt, fs, e.txt[:e.fsl])
+ 		}
+ 		syn := Synopsis(e.txt)
+ 		if syn != e.syn {
+-			t.Errorf("got syn = %q; want %q for %q\n", syn, e.syn, e.txt)
++			t.Errorf("Synopsis(%q) = %q, want %q", e.txt, syn, e.syn)
+ 		}
+ 	}
+ }
+diff --git a/src/go/doc/testdata/pkgdoc/doc.go b/src/go/doc/testdata/pkgdoc/doc.go
+new file mode 100644
+index 0000000000..61bd4e32f9
+--- /dev/null
++++ b/src/go/doc/testdata/pkgdoc/doc.go
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkgdoc
++
++import (
++	crand "crypto/rand"
++	"math/rand"
++)
++
++type T int
++
++type U int
++
++func (T) M() {}
++
++var _ = rand.Int
++var _ = crand.Reader

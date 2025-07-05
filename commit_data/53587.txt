@@ -16,6 +16,19 @@ Date:   Fri Aug 19 09:20:02 2022 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Paul Murphy <murp@ibm.com>
-
+---
  src/runtime/rt0_linux_ppc64.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/rt0_linux_ppc64.s b/src/runtime/rt0_linux_ppc64.s
+index 897d61052a..c9300a9caf 100644
+--- a/src/runtime/rt0_linux_ppc64.s
++++ b/src/runtime/rt0_linux_ppc64.s
+@@ -22,6 +22,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
+ 	// There is no TLS base pointer.
+ 	//
+ 	// TODO(austin): Support ABI v1 dynamic linking entry point
++	XOR	R0, R0 // Note, newer kernels may not always set R0 to 0.
+ 	MOVD	$runtime·rt0_go(SB), R12
+ 	MOVD	R12, CTR
+ 	MOVBZ	runtime·iscgo(SB), R5

@@ -19,6 +19,19 @@ Date:   Wed Jul 12 10:12:50 2017 -0600
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os_linux.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index a6efc0e3d1..78899737b6 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -132,6 +132,7 @@ const (
+ 		_CLONE_FS | /* share cwd, etc */
+ 		_CLONE_FILES | /* share fd table */
+ 		_CLONE_SIGHAND | /* share sig handler table */
++		_CLONE_SYSVSEM | /* share SysV semaphore undo lists (see issue #20763) */
+ 		_CLONE_THREAD /* revisit - okay for now */
+ )
+ 

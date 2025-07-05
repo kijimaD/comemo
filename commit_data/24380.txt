@@ -12,6 +12,20 @@ Date:   Thu Jul 23 02:19:57 2015 -0400
     Change-Id: I84ced5aa84bb1e4a4cdb2254f2d08a64a1ef23f6
     Reviewed-on: https://go-review.googlesource.com/12558
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c169ec7db8..c89543871b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2094,7 +2094,7 @@ func TestIssue10193(t *testing.T) {
+ 	tg.parallel()
+ 	tg.tempDir("src")
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.runFail("get", "code.google.com/p/rsc-svn")
++	tg.runFail("get", "code.google.com/p/rsc/pdf")
+ 	tg.grepStderr("is shutting down", "missed warning about code.google.com")
+ }
+ 

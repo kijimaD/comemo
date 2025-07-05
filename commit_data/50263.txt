@@ -12,6 +12,36 @@ Date:   Tue Oct 12 23:33:50 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Alexander Rakoczy <alex@golang.org>
-
+---
  src/embed/example_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/embed/example_test.go b/src/embed/example_test.go
+new file mode 100644
+index 0000000000..5498c275fd
+--- /dev/null
++++ b/src/embed/example_test.go
+@@ -0,0 +1,23 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package embed_test
++
++import (
++	"embed"
++	"log"
++	"net/http"
++)
++
++//go:embed internal/embedtest/testdata/*.txt
++var content embed.FS
++
++func Example() {
++	mutex := http.NewServeMux()
++	mutex.Handle("/", http.FileServer(http.FS(content)))
++	err := http.ListenAndServe(":8080", mutex)
++	if err != nil {
++		log.Fatal(err)
++	}
++}

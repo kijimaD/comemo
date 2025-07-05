@@ -7,6 +7,39 @@ Date:   Tue Aug 6 07:57:51 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12508043
-
+---
  misc/notepadplus/functionList.xml | 17 ++++++-----------
  1 file changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/misc/notepadplus/functionList.xml b/misc/notepadplus/functionList.xml
+index 341af7b1d8..3d86bad7fa 100644
+--- a/misc/notepadplus/functionList.xml
++++ b/misc/notepadplus/functionList.xml
+@@ -7,21 +7,16 @@
+ 		<!-- <parsers> -->
+ 			<parser id="go" displayName="Go" commentExpr="((/\*.*?\*)/|(//.*?$))">
+ 				<function
+-				    mainExpr="(^func\s+[\w]+)|(^func\s*\(\s*[\w]+\s+\*?\s*[\w]+\s*\)\s*[\w]+)"
++					mainExpr="(^func\s+\w+)|(^func\s*\(\s*\w+\s*\*?\s*\w+\s*\)\s*\w+)"
+ 					displayMode="$className->$functionName">
+ 					<functionName>
+-						<nameExpr expr="(((func)[\s][\w]+)|(\(\s*[\w]+\s+\*?\s*[\w]+\s*\)\s*[\w]+))"/>
+-						<nameExpr expr="(((func)[\s][\w]+)|(\)\s*[\w]+))"/>
+-						<nameExpr expr="(([\s][\w]+)|(\)\s*[\w]+))"/>
+-						<nameExpr expr="[\w]+"/>
++						<nameExpr expr="((func\s+\w+)|(\)\s*\w+))"/>
++						<nameExpr expr="((\s+\w+)|(\)\s*\w+))"/>
++						<nameExpr expr="\w+"/>
+ 					</functionName>
+ 					<className>
+-						<nameExpr expr="\(\s*[\w]+\s+\*?\s*[\w]+\s*\)\s*[\w]+"/>
+-						<nameExpr expr="\(\s*[\w]+\s+\*?\s*[\w]+\s*\)"/>
+-						<nameExpr expr="[\w]+\s+\*?\s*[\w]+\s*\)"/>
+-						<nameExpr expr="\*?\s*[\w]+\s*\)"/>
+-						<nameExpr expr="[\w]+\s*\)"/>
+-						<nameExpr expr="[\w]+"/>
++						<nameExpr expr="\w+\s*\)"/>
++						<nameExpr expr="\w+"/>
+ 					</className>
+ 				</function>
+ 			</parser>

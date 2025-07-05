@@ -28,6 +28,34 @@ Date:   Wed Apr 24 01:16:08 2024 +0900
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Joedian Reid <joedian@google.com>
-
+---
  src/net/url/url.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index f362958edd..7cd6913ad7 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -814,6 +814,22 @@ func validOptionalPort(port string) bool {
+ //   - if u.Fragment is empty, #fragment is omitted.
+ func (u *URL) String() string {
+ 	var buf strings.Builder
++
++	n := len(u.Scheme)
++	if u.Opaque != "" {
++		n += len(u.Opaque)
++	} else {
++		if !u.OmitHost && (u.Scheme != "" || u.Host != "" || u.User != nil) {
++			username := u.User.Username()
++			password, _ := u.User.Password()
++			n += len(username) + len(password) + len(u.Host)
++		}
++		n += len(u.Path)
++	}
++	n += len(u.RawQuery) + len(u.RawFragment)
++	n += len(":" + "//" + "//" + ":" + "@" + "/" + "./" + "?" + "#")
++	buf.Grow(n)
++
+ 	if u.Scheme != "" {
+ 		buf.WriteString(u.Scheme)
+ 		buf.WriteByte(':')

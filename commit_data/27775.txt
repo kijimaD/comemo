@@ -12,7 +12,7 @@ Date:   Tue Apr 12 16:58:56 2016 -0300
     Change-Id: I2b17ecd06be07dfbb4207c690f52a59ea9b04808
     Reviewed-on: https://go-review.googlesource.com/21902
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/common.go     | 2 +-
  src/crypto/tls/prf.go        | 2 +-
  src/crypto/x509/pkcs8.go     | 2 +-
@@ -26,3 +26,181 @@ Date:   Tue Apr 12 16:58:56 2016 -0300
  src/net/mail/message.go      | 4 ++--
  src/net/mail/message_test.go | 2 +-
  12 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 572266bc8f..b3399b063c 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -114,7 +114,7 @@ const (
+ 	certTypeRSAFixedDH = 3 // A certificate containing a static DH key
+ 	certTypeDSSFixedDH = 4 // A certificate containing a static DH key
+ 
+-	// See RFC4492 sections 3 and 5.5.
++	// See RFC 4492 sections 3 and 5.5.
+ 	certTypeECDSASign      = 64 // A certificate containing an ECDSA-capable public key, signed with ECDSA.
+ 	certTypeRSAFixedECDH   = 65 // A certificate containing an ECDH-capable public key, signed with RSA.
+ 	certTypeECDSAFixedECDH = 66 // A certificate containing an ECDH-capable public key, signed with ECDSA.
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index 747b817ba3..5833fc1963 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -85,7 +85,7 @@ func prf30(result, secret, label, seed []byte) {
+ 
+ 	done := 0
+ 	i := 0
+-	// RFC5246 section 6.3 says that the largest PRF output needed is 128
++	// RFC 5246 section 6.3 says that the largest PRF output needed is 128
+ 	// bytes. Since no more ciphersuites will be added to SSLv3, this will
+ 	// remain true. Each iteration gives us 16 bytes so 10 iterations will
+ 	// be sufficient.
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index 6e56752c0e..b304a3f63c 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -13,7 +13,7 @@ import (
+ 
+ // pkcs8 reflects an ASN.1, PKCS#8 PrivateKey. See
+ // ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-8/pkcs-8v1_2.asn
+-// and RFC5208.
++// and RFC 5208.
+ type pkcs8 struct {
+ 	Version    int
+ 	Algo       pkix.AlgorithmIdentifier
+diff --git a/src/crypto/x509/sec1.go b/src/crypto/x509/sec1.go
+index 5f1b3ecc7c..33f376c072 100644
+--- a/src/crypto/x509/sec1.go
++++ b/src/crypto/x509/sec1.go
+@@ -17,9 +17,9 @@ const ecPrivKeyVersion = 1
+ 
+ // ecPrivateKey reflects an ASN.1 Elliptic Curve Private Key Structure.
+ // References:
+-//   RFC5915
++//   RFC 5915
+ //   SEC1 - http://www.secg.org/sec1-v2.pdf
+-// Per RFC5915 the NamedCurveOID is marked as ASN.1 OPTIONAL, however in
++// Per RFC 5915 the NamedCurveOID is marked as ASN.1 OPTIONAL, however in
+ // most cases it is not.
+ type ecPrivateKey struct {
+ 	Version       int
+diff --git a/src/mime/encodedword.go b/src/mime/encodedword.go
+index e6cbebe946..c3ca4bacd1 100644
+--- a/src/mime/encodedword.go
++++ b/src/mime/encodedword.go
+@@ -16,7 +16,7 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// A WordEncoder is a RFC 2047 encoded-word encoder.
++// A WordEncoder is an RFC 2047 encoded-word encoder.
+ type WordEncoder byte
+ 
+ const (
+diff --git a/src/net/dnsname_test.go b/src/net/dnsname_test.go
+index be07dc6a16..bc777b855e 100644
+--- a/src/net/dnsname_test.go
++++ b/src/net/dnsname_test.go
+@@ -15,7 +15,7 @@ type dnsNameTest struct {
+ }
+ 
+ var dnsNameTests = []dnsNameTest{
+-	// RFC2181, section 11.
++	// RFC 2181, section 11.
+ 	{"_xmpp-server._tcp.google.com", true},
+ 	{"foo.com", true},
+ 	{"1foo.com", true},
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 5bca888845..bac2de1a2e 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -817,7 +817,7 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
+ 	}
+ 	req.Header = Header(mimeHeader)
+ 
+-	// RFC2616: Must treat
++	// RFC 2616: Must treat
+ 	//	GET /index.html HTTP/1.1
+ 	//	Host: www.google.com
+ 	// and
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index b49b77d8b9..91d4ffb7ec 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -185,7 +185,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
+ 	return resp, nil
+ }
+ 
+-// RFC2616: Should treat
++// RFC 2616: Should treat
+ //	Pragma: no-cache
+ // like
+ //	Cache-Control: no-cache
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index deb170c334..64529f1e96 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1747,7 +1747,7 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
+ 	w.Header().Set("Location", urlStr)
+ 	w.WriteHeader(code)
+ 
+-	// RFC2616 recommends that a short note "SHOULD" be included in the
++	// RFC 2616 recommends that a short note "SHOULD" be included in the
+ 	// response because older user agents may not understand 301/307.
+ 	// Shouldn't send the response for POST or HEAD; that leaves GET.
+ 	if r.Method == "GET" {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 4c130f0cc4..501e4be08c 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -276,7 +276,7 @@ func (t *transferReader) protoAtLeast(m, n int) bool {
+ }
+ 
+ // bodyAllowedForStatus reports whether a given response status code
+-// permits a body. See RFC2616, section 4.4.
++// permits a body. See RFC 2616, section 4.4.
+ func bodyAllowedForStatus(status int) bool {
+ 	switch {
+ 	case status >= 100 && status <= 199:
+@@ -368,7 +368,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 
+ 	// If there is no Content-Length or chunked Transfer-Encoding on a *Response
+ 	// and the status is not 1xx, 204 or 304, then the body is unbounded.
+-	// See RFC2616, section 4.4.
++	// See RFC 2616, section 4.4.
+ 	switch msg.(type) {
+ 	case *Response:
+ 		if realLength == -1 &&
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 12342b368f..9e3a103a4f 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -570,7 +570,7 @@ func isQtext(c byte) bool {
+ 	return '!' <= c && c <= '~'
+ }
+ 
+-// quoteString renders a string as a RFC5322 quoted-string.
++// quoteString renders a string as an RFC 5322 quoted-string.
+ func quoteString(s string) string {
+ 	var buf bytes.Buffer
+ 	buf.WriteByte('"')
+@@ -594,7 +594,7 @@ func isVchar(c byte) bool {
+ }
+ 
+ // isWSP reports whether c is a WSP (white space).
+-// WSP is a space or horizontal tab (RFC5234 Appendix B).
++// WSP is a space or horizontal tab (RFC 5234 Appendix B).
+ func isWSP(c byte) bool {
+ 	return c == ' ' || c == '\t'
+ }
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index cf86ace68f..2669325c13 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -92,7 +92,7 @@ func TestDateParsing(t *testing.T) {
+ 			"Fri, 21 Nov 1997 09:55:06 -0600",
+ 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+ 		},
+-		// RFC5322, Appendix A.6.2
++		// RFC 5322, Appendix A.6.2
+ 		// Obsolete date.
+ 		{
+ 			"21 Nov 97 09:55:06 GMT",

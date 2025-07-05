@@ -15,7 +15,60 @@ Date:   Wed Oct 12 13:11:02 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/30935
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/unicode/letter.go      |  7 +++++--
  src/unicode/letter_test.go | 14 ++------------
  2 files changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/src/unicode/letter.go b/src/unicode/letter.go
+index 462daf88b9..b43cc66e7d 100644
+--- a/src/unicode/letter.go
++++ b/src/unicode/letter.go
+@@ -320,6 +320,7 @@ type foldPair struct {
+ // the Unicode-defined simple case folding. Among the code points
+ // equivalent to rune (including rune itself), SimpleFold returns the
+ // smallest rune > r if one exists, or else the smallest rune >= 0.
++// If r is not a valid Unicode code point, SimpleFold(r) returns r.
+ //
+ // For example:
+ //	SimpleFold('A') = 'a'
+@@ -331,9 +332,11 @@ type foldPair struct {
+ //
+ //	SimpleFold('1') = '1'
+ //
++//	SimpleFold(-2) = -2
++//
+ func SimpleFold(r rune) rune {
+-	if r < 0 {
+-		panic("unicode: negative rune is disallowed")
++	if r < 0 || r > MaxRune {
++		return r
+ 	}
+ 
+ 	if int(r) < len(asciiFold) {
+diff --git a/src/unicode/letter_test.go b/src/unicode/letter_test.go
+index 15e4ade2a3..3fe72ff13d 100644
+--- a/src/unicode/letter_test.go
++++ b/src/unicode/letter_test.go
+@@ -432,19 +432,9 @@ func TestSimpleFold(t *testing.T) {
+ 			r = out
+ 		}
+ 	}
+-}
+ 
+-func TestSimpleFoldPanic(t *testing.T) {
+-	got := func() (r interface{}) {
+-		defer func() { r = recover() }()
+-		SimpleFold(-1)
+-		return nil
+-	}()
+-	want := "unicode: negative rune is disallowed"
+-
+-	s, _ := got.(string)
+-	if s != want {
+-		t.Errorf("SimpleFold(-1) should panic, got: %q, want: %q", got, want)
++	if r := SimpleFold(-42); r != -42 {
++		t.Errorf("SimpleFold(-42) = %v, want -42", r)
+ 	}
+ }
+ 

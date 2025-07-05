@@ -10,8 +10,479 @@ Date:   Fri Sep 19 13:51:23 2014 -0400
     R=iant, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/142280043
-
+---
  src/runtime/mcache.c |  10 ++---
  src/runtime/mgc0.c   | 112 +++++++++++++++++++++++++--------------------------
  src/runtime/stack.c  |  30 +++++++-------
  3 files changed, 76 insertions(+), 76 deletions(-)
+
+diff --git a/src/runtime/mcache.c b/src/runtime/mcache.c
+index bb1fc54032..17ea5d2e26 100644
+--- a/src/runtime/mcache.c
++++ b/src/runtime/mcache.c
+@@ -13,7 +13,7 @@
+ extern volatile intgo runtime·MemProfileRate;
+ 
+ // dummy MSpan that contains no free objects.
+-static MSpan emptymspan;
++static MSpan runtime·emptymspan;
+ 
+ MCache*
+ runtime·allocmcache(void)
+@@ -27,7 +27,7 @@ runtime·allocmcache(void)
+ 	runtime·unlock(&runtime·mheap.lock);
+ 	runtime·memclr((byte*)c, sizeof(*c));
+ 	for(i = 0; i < NumSizeClasses; i++)
+-		c->alloc[i] = &emptymspan;
++		c->alloc[i] = &runtime·emptymspan;
+ 
+ 	// Set first allocation sample size.
+ 	rate = runtime·MemProfileRate;
+@@ -83,7 +83,7 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
+ 	s = c->alloc[sizeclass];
+ 	if(s->freelist != nil)
+ 		runtime·throw("refill on a nonempty span");
+-	if(s != &emptymspan)
++	if(s != &runtime·emptymspan)
+ 		s->incache = false;
+ 
+ 	// Get a new cached span from the central lists.
+@@ -107,9 +107,9 @@ runtime·MCache_ReleaseAll(MCache *c)
+ 
+ 	for(i=0; i<NumSizeClasses; i++) {
+ 		s = c->alloc[i];
+-		if(s != &emptymspan) {
++		if(s != &runtime·emptymspan) {
+ 			runtime·MCentral_UncacheSpan(&runtime·mheap.central[i].mcentral, s);
+-			c->alloc[i] = &emptymspan;
++			c->alloc[i] = &runtime·emptymspan;
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 88c8d0f3c9..03ca288496 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -120,7 +120,7 @@ FinBlock*	runtime·finc;	// cache of free blocks
+ static byte finptrmask[FinBlockSize/PtrSize/PointersPerByte];
+ bool	runtime·fingwait;
+ bool	runtime·fingwake;
+-static FinBlock	*allfin;	// list of all blocks
++static FinBlock	*runtime·allfin;	// list of all blocks
+ 
+ BitVector	runtime·gcdatamask;
+ BitVector	runtime·gcbssmask;
+@@ -154,7 +154,7 @@ static struct {
+ 	// Copy of mheap.allspans for marker or sweeper.
+ 	MSpan**	spans;
+ 	uint32	nspan;
+-} work;
++} runtime·work;
+ 
+ // scanblock scans a block of n bytes starting at pointer b for references
+ // to other objects, scanning any it finds recursively until there are no
+@@ -225,7 +225,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
+ 		}
+ 
+ 		// If another proc wants a pointer, give it some.
+-		if(work.nwait > 0 && nobj > 4 && work.full == 0) {
++		if(runtime·work.nwait > 0 && nobj > 4 && runtime·work.full == 0) {
+ 			wbuf->nobj = nobj;
+ 			wbuf = handoff(wbuf);
+ 			nobj = wbuf->nobj;
+@@ -369,7 +369,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
+ 			// quadruple is already marked. Otherwise we resort to CAS
+ 			// loop for marking.
+ 			if((xbits&(bitMask|(bitMask<<gcBits))) != (bitBoundary|(bitBoundary<<gcBits)) ||
+-				work.nproc == 1)
++				runtime·work.nproc == 1)
+ 				*bitp = xbits | (bitMarked<<shift);
+ 			else
+ 				runtime·atomicor8(bitp, bitMarked<<shift);
+@@ -434,18 +434,18 @@ markroot(ParFor *desc, uint32 i)
+ 		break;
+ 
+ 	case RootFinalizers:
+-		for(fb=allfin; fb; fb=fb->alllink)
++		for(fb=runtime·allfin; fb; fb=fb->alllink)
+ 			scanblock((byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), finptrmask);
+ 		break;
+ 
+ 	case RootSpans:
+ 		// mark MSpan.specials
+ 		sg = runtime·mheap.sweepgen;
+-		for(spanidx=0; spanidx<work.nspan; spanidx++) {
++		for(spanidx=0; spanidx<runtime·work.nspan; spanidx++) {
+ 			Special *sp;
+ 			SpecialFinalizer *spf;
+ 
+-			s = work.spans[spanidx];
++			s = runtime·work.spans[spanidx];
+ 			if(s->state != MSpanInUse)
+ 				continue;
+ 			if(s->sweepgen != sg) {
+@@ -479,7 +479,7 @@ markroot(ParFor *desc, uint32 i)
+ 		// needed only to output in traceback
+ 		status = runtime·readgstatus(gp);
+ 		if((status == Gwaiting || status == Gsyscall) && gp->waitsince == 0)
+-			gp->waitsince = work.tstart;
++			gp->waitsince = runtime·work.tstart;
+ 		// Shrink a stack if not much of it is being used.
+ 		runtime·shrinkstack(gp);
+ 		if(runtime·readgstatus(gp) == Gdead) 
+@@ -502,7 +502,7 @@ getempty(Workbuf *b)
+ 	MCache *c;
+ 
+ 	if(b != nil)
+-		runtime·lfstackpush(&work.full, &b->node);
++		runtime·lfstackpush(&runtime·work.full, &b->node);
+ 	b = nil;
+ 	c = g->m->mcache;
+ 	if(c->gcworkbuf != nil) {
+@@ -510,7 +510,7 @@ getempty(Workbuf *b)
+ 		c->gcworkbuf = nil;
+ 	}
+ 	if(b == nil)
+-		b = (Workbuf*)runtime·lfstackpop(&work.empty);
++		b = (Workbuf*)runtime·lfstackpop(&runtime·work.empty);
+ 	if(b == nil)
+ 		b = runtime·persistentalloc(sizeof(*b), CacheLineSize, &mstats.gc_sys);
+ 	b->nobj = 0;
+@@ -527,7 +527,7 @@ putempty(Workbuf *b)
+ 		c->gcworkbuf = b;
+ 		return;
+ 	}
+-	runtime·lfstackpush(&work.empty, &b->node);
++	runtime·lfstackpush(&runtime·work.empty, &b->node);
+ }
+ 
+ void
+@@ -544,21 +544,21 @@ getfull(Workbuf *b)
+ 	int32 i;
+ 
+ 	if(b != nil)
+-		runtime·lfstackpush(&work.empty, &b->node);
+-	b = (Workbuf*)runtime·lfstackpop(&work.full);
+-	if(b != nil || work.nproc == 1)
++		runtime·lfstackpush(&runtime·work.empty, &b->node);
++	b = (Workbuf*)runtime·lfstackpop(&runtime·work.full);
++	if(b != nil || runtime·work.nproc == 1)
+ 		return b;
+ 
+-	runtime·xadd(&work.nwait, +1);
++	runtime·xadd(&runtime·work.nwait, +1);
+ 	for(i=0;; i++) {
+-		if(work.full != 0) {
+-			runtime·xadd(&work.nwait, -1);
+-			b = (Workbuf*)runtime·lfstackpop(&work.full);
++		if(runtime·work.full != 0) {
++			runtime·xadd(&runtime·work.nwait, -1);
++			b = (Workbuf*)runtime·lfstackpop(&runtime·work.full);
+ 			if(b != nil)
+ 				return b;
+-			runtime·xadd(&work.nwait, +1);
++			runtime·xadd(&runtime·work.nwait, +1);
+ 		}
+-		if(work.nwait == work.nproc)
++		if(runtime·work.nwait == runtime·work.nproc)
+ 			return nil;
+ 		if(i < 10) {
+ 			g->m->gcstats.nprocyield++;
+@@ -589,7 +589,7 @@ handoff(Workbuf *b)
+ 	g->m->gcstats.nhandoffcnt += n;
+ 
+ 	// Put b on full list - let first half of b get stolen.
+-	runtime·lfstackpush(&work.full, &b->node);
++	runtime·lfstackpush(&runtime·work.full, &b->node);
+ 	return b1;
+ }
+ 
+@@ -773,8 +773,8 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType
+ 		if(runtime·finc == nil) {
+ 			runtime·finc = runtime·persistentalloc(FinBlockSize, 0, &mstats.gc_sys);
+ 			runtime·finc->cap = (FinBlockSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
+-			runtime·finc->alllink = allfin;
+-			allfin = runtime·finc;
++			runtime·finc->alllink = runtime·allfin;
++			runtime·allfin = runtime·finc;
+ 			if(finptrmask[0] == 0) {
+ 				// Build pointer mask for Finalizer array in block.
+ 				// Check assumptions made in finalizer1 array above.
+@@ -814,7 +814,7 @@ runtime·iterate_finq(void (*callback)(FuncVal*, byte*, uintptr, Type*, PtrType*
+ 	Finalizer *f;
+ 	uintptr i;
+ 
+-	for(fb = allfin; fb; fb = fb->alllink) {
++	for(fb = runtime·allfin; fb; fb = fb->alllink) {
+ 		for(i = 0; i < fb->cnt; i++) {
+ 			f = &fb->fin[i];
+ 			callback(f->fn, f->arg, f->nret, f->fint, f->ot);
+@@ -1065,12 +1065,12 @@ runtime·sweepone(void)
+ 	sg = runtime·mheap.sweepgen;
+ 	for(;;) {
+ 		idx = runtime·xadd(&runtime·sweep.spanidx, 1) - 1;
+-		if(idx >= work.nspan) {
++		if(idx >= runtime·work.nspan) {
+ 			runtime·mheap.sweepdone = true;
+ 			g->m->locks--;
+ 			return -1;
+ 		}
+-		s = work.spans[idx];
++		s = runtime·work.spans[idx];
+ 		if(s->state != MSpanInUse) {
+ 			s->sweepgen = sg;
+ 			continue;
+@@ -1118,14 +1118,14 @@ runtime·gchelper(void)
+ 	gchelperstart();
+ 
+ 	// parallel mark for over gc roots
+-	runtime·parfordo(work.markfor);
++	runtime·parfordo(runtime·work.markfor);
+ 
+ 	// help other threads scan secondary blocks
+ 	scanblock(nil, 0, nil);
+ 
+-	nproc = work.nproc;  // work.nproc can change right after we increment work.ndone
+-	if(runtime·xadd(&work.ndone, +1) == nproc-1)
+-		runtime·notewakeup(&work.alldone);
++	nproc = runtime·work.nproc;  // runtime·work.nproc can change right after we increment runtime·work.ndone
++	if(runtime·xadd(&runtime·work.ndone, +1) == nproc-1)
++		runtime·notewakeup(&runtime·work.alldone);
+ 	g->m->traceback = 0;
+ }
+ 
+@@ -1284,7 +1284,7 @@ runtime·gcinit(void)
+ 	if(sizeof(Workbuf) != WorkbufSize)
+ 		runtime·throw("runtime: size of Workbuf is suboptimal");
+ 
+-	work.markfor = runtime·parforalloc(MaxGcproc);
++	runtime·work.markfor = runtime·parforalloc(MaxGcproc);
+ 	runtime·gcpercent = runtime·readgogc();
+ 	runtime·gcdatamask = unrollglobgcprog(runtime·gcdata, runtime·edata - runtime·data);
+ 	runtime·gcbssmask = unrollglobgcprog(runtime·gcbss, runtime·ebss - runtime·bss);
+@@ -1319,7 +1319,7 @@ gc(struct gc_args *args)
+ 
+ 	g->m->traceback = 2;
+ 	t0 = args->start_time;
+-	work.tstart = args->start_time; 
++	runtime·work.tstart = args->start_time; 
+ 
+ 	t1 = 0;
+ 	if(runtime·debug.gctrace)
+@@ -1339,21 +1339,21 @@ gc(struct gc_args *args)
+ 	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+ 	runtime·lock(&runtime·mheap.lock);
+ 	// Free the old cached sweep array if necessary.
+-	if(work.spans != nil && work.spans != runtime·mheap.allspans)
+-		runtime·SysFree(work.spans, work.nspan*sizeof(work.spans[0]), &mstats.other_sys);
++	if(runtime·work.spans != nil && runtime·work.spans != runtime·mheap.allspans)
++		runtime·SysFree(runtime·work.spans, runtime·work.nspan*sizeof(runtime·work.spans[0]), &mstats.other_sys);
+ 	// Cache the current array for marking.
+ 	runtime·mheap.gcspans = runtime·mheap.allspans;
+-	work.spans = runtime·mheap.allspans;
+-	work.nspan = runtime·mheap.nspan;
++	runtime·work.spans = runtime·mheap.allspans;
++	runtime·work.nspan = runtime·mheap.nspan;
+ 	runtime·unlock(&runtime·mheap.lock);
+ 
+-	work.nwait = 0;
+-	work.ndone = 0;
+-	work.nproc = runtime·gcprocs();
+-	runtime·parforsetup(work.markfor, work.nproc, RootCount + runtime·allglen, nil, false, markroot);
+-	if(work.nproc > 1) {
+-		runtime·noteclear(&work.alldone);
+-		runtime·helpgc(work.nproc);
++	runtime·work.nwait = 0;
++	runtime·work.ndone = 0;
++	runtime·work.nproc = runtime·gcprocs();
++	runtime·parforsetup(runtime·work.markfor, runtime·work.nproc, RootCount + runtime·allglen, nil, false, markroot);
++	if(runtime·work.nproc > 1) {
++		runtime·noteclear(&runtime·work.alldone);
++		runtime·helpgc(runtime·work.nproc);
+ 	}
+ 
+ 	t2 = 0;
+@@ -1361,15 +1361,15 @@ gc(struct gc_args *args)
+ 		t2 = runtime·nanotime();
+ 
+ 	gchelperstart();
+-	runtime·parfordo(work.markfor);
++	runtime·parfordo(runtime·work.markfor);
+ 	scanblock(nil, 0, nil);
+ 
+ 	t3 = 0;
+ 	if(runtime·debug.gctrace)
+ 		t3 = runtime·nanotime();
+ 
+-	if(work.nproc > 1)
+-		runtime·notesleep(&work.alldone);
++	if(runtime·work.nproc > 1)
++		runtime·notesleep(&runtime·work.alldone);
+ 
+ 	cachestats();
+ 	// next_gc calculation is tricky with concurrent sweep since we don't know size of live heap
+@@ -1396,21 +1396,21 @@ gc(struct gc_args *args)
+ 		}
+ 		obj = mstats.nmalloc - mstats.nfree;
+ 
+-		stats.nprocyield += work.markfor->nprocyield;
+-		stats.nosyield += work.markfor->nosyield;
+-		stats.nsleep += work.markfor->nsleep;
++		stats.nprocyield += runtime·work.markfor->nprocyield;
++		stats.nosyield += runtime·work.markfor->nosyield;
++		stats.nsleep += runtime·work.markfor->nsleep;
+ 
+ 		runtime·printf("gc%d(%d): %D+%D+%D+%D us, %D -> %D MB, %D (%D-%D) objects,"
+ 				" %d goroutines,"
+ 				" %d/%d/%d sweeps,"
+ 				" %D(%D) handoff, %D(%D) steal, %D/%D/%D yields\n",
+-			mstats.numgc, work.nproc, (t1-t0)/1000, (t2-t1)/1000, (t3-t2)/1000, (t4-t3)/1000,
++			mstats.numgc, runtime·work.nproc, (t1-t0)/1000, (t2-t1)/1000, (t3-t2)/1000, (t4-t3)/1000,
+ 			heap0>>20, heap1>>20, obj,
+ 			mstats.nmalloc, mstats.nfree,
+ 			runtime·gcount(),
+-			work.nspan, runtime·sweep.nbgsweep, runtime·sweep.npausesweep,
++			runtime·work.nspan, runtime·sweep.nbgsweep, runtime·sweep.npausesweep,
+ 			stats.nhandoff, stats.nhandoffcnt,
+-			work.markfor->nsteal, work.markfor->nstealcnt,
++			runtime·work.markfor->nsteal, runtime·work.markfor->nstealcnt,
+ 			stats.nprocyield, stats.nosyield, stats.nsleep);
+ 		runtime·sweep.nbgsweep = runtime·sweep.npausesweep = 0;
+ 	}
+@@ -1419,14 +1419,14 @@ gc(struct gc_args *args)
+ 	// Even if this is still stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+ 	runtime·lock(&runtime·mheap.lock);
+ 	// Free the old cached mark array if necessary.
+-	if(work.spans != nil && work.spans != runtime·mheap.allspans)
+-		runtime·SysFree(work.spans, work.nspan*sizeof(work.spans[0]), &mstats.other_sys);
++	if(runtime·work.spans != nil && runtime·work.spans != runtime·mheap.allspans)
++		runtime·SysFree(runtime·work.spans, runtime·work.nspan*sizeof(runtime·work.spans[0]), &mstats.other_sys);
+ 	// Cache the current array for sweeping.
+ 	runtime·mheap.gcspans = runtime·mheap.allspans;
+ 	runtime·mheap.sweepgen += 2;
+ 	runtime·mheap.sweepdone = false;
+-	work.spans = runtime·mheap.allspans;
+-	work.nspan = runtime·mheap.nspan;
++	runtime·work.spans = runtime·mheap.allspans;
++	runtime·work.nspan = runtime·mheap.nspan;
+ 	runtime·sweep.spanidx = 0;
+ 	runtime·unlock(&runtime·mheap.lock);
+ 
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index 95a5a123d9..6fbab8fb6e 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -32,8 +32,8 @@ enum
+ // Stacks are assigned an order according to size.
+ //     order = log_2(size/FixedStack)
+ // There is a free list for each order.
+-static MSpan stackpool[NumStackOrders];
+-static Mutex stackpoolmu;
++static MSpan runtime·stackpool[NumStackOrders];
++static Mutex runtime·stackpoolmu;
+ // TODO: one lock per order?
+ 
+ void
+@@ -45,7 +45,7 @@ runtime·stackinit(void)
+ 		runtime·throw("cache size must be a multiple of page size");
+ 
+ 	for(i = 0; i < NumStackOrders; i++)
+-		runtime·MSpanList_Init(&stackpool[i]);
++		runtime·MSpanList_Init(&runtime·stackpool[i]);
+ }
+ 
+ // Allocates a stack from the free pool.  Must be called with
+@@ -58,7 +58,7 @@ poolalloc(uint8 order)
+ 	MLink *x;
+ 	uintptr i;
+ 
+-	list = &stackpool[order];
++	list = &runtime·stackpool[order];
+ 	s = list->next;
+ 	if(s == list) {
+ 		// no free stacks.  Allocate another span worth.
+@@ -99,7 +99,7 @@ poolfree(MLink *x, uint8 order)
+ 		runtime·throw("freeing stack not in a stack span");
+ 	if(s->freelist == nil) {
+ 		// s will now have a free stack
+-		runtime·MSpanList_Insert(&stackpool[order], s);
++		runtime·MSpanList_Insert(&runtime·stackpool[order], s);
+ 	}
+ 	x->next = s->freelist;
+ 	s->freelist = x;
+@@ -127,14 +127,14 @@ stackcacherefill(MCache *c, uint8 order)
+ 	// Grab half of the allowed capacity (to prevent thrashing).
+ 	list = nil;
+ 	size = 0;
+-	runtime·lock(&stackpoolmu);
++	runtime·lock(&runtime·stackpoolmu);
+ 	while(size < StackCacheSize/2) {
+ 		x = poolalloc(order);
+ 		x->next = list;
+ 		list = x;
+ 		size += FixedStack << order;
+ 	}
+-	runtime·unlock(&stackpoolmu);
++	runtime·unlock(&runtime·stackpoolmu);
+ 
+ 	c->stackcache[order].list = list;
+ 	c->stackcache[order].size = size;
+@@ -150,14 +150,14 @@ stackcacherelease(MCache *c, uint8 order)
+ 		runtime·printf("stackcacherelease order=%d\n", order);
+ 	x = c->stackcache[order].list;
+ 	size = c->stackcache[order].size;
+-	runtime·lock(&stackpoolmu);
++	runtime·lock(&runtime·stackpoolmu);
+ 	while(size > StackCacheSize/2) {
+ 		y = x->next;
+ 		poolfree(x, order);
+ 		x = y;
+ 		size -= FixedStack << order;
+ 	}
+-	runtime·unlock(&stackpoolmu);
++	runtime·unlock(&runtime·stackpoolmu);
+ 	c->stackcache[order].list = x;
+ 	c->stackcache[order].size = size;
+ }
+@@ -170,7 +170,7 @@ runtime·stackcache_clear(MCache *c)
+ 
+ 	if(StackDebug >= 1)
+ 		runtime·printf("stackcache clear\n");
+-	runtime·lock(&stackpoolmu);
++	runtime·lock(&runtime·stackpoolmu);
+ 	for(order = 0; order < NumStackOrders; order++) {
+ 		x = c->stackcache[order].list;
+ 		while(x != nil) {
+@@ -181,7 +181,7 @@ runtime·stackcache_clear(MCache *c)
+ 		c->stackcache[order].list = nil;
+ 		c->stackcache[order].size = 0;
+ 	}
+-	runtime·unlock(&stackpoolmu);
++	runtime·unlock(&runtime·stackpoolmu);
+ }
+ 
+ Stack
+@@ -227,9 +227,9 @@ runtime·stackalloc(uint32 n)
+ 			// procresize. Just get a stack from the global pool.
+ 			// Also don't touch stackcache during gc
+ 			// as it's flushed concurrently.
+-			runtime·lock(&stackpoolmu);
++			runtime·lock(&runtime·stackpoolmu);
+ 			x = poolalloc(order);
+-			runtime·unlock(&stackpoolmu);
++			runtime·unlock(&runtime·stackpoolmu);
+ 		} else {
+ 			x = c->stackcache[order].list;
+ 			if(x == nil) {
+@@ -289,9 +289,9 @@ runtime·stackfree(Stack stk)
+ 		x = (MLink*)v;
+ 		c = g->m->mcache;
+ 		if(c == nil || g->m->gcing || g->m->helpgc) {
+-			runtime·lock(&stackpoolmu);
++			runtime·lock(&runtime·stackpoolmu);
+ 			poolfree(x, order);
+-			runtime·unlock(&stackpoolmu);
++			runtime·unlock(&runtime·stackpoolmu);
+ 		} else {
+ 			if(c->stackcache[order].size >= StackCacheSize)
+ 				stackcacherelease(c, order);

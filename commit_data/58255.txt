@@ -35,6 +35,20 @@ Date:   Wed Oct 18 16:49:50 2023 -0400
     Auto-Submit: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/work/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index f115b5dc47..d66ffb7b86 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2389,7 +2389,7 @@ var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
+ // and returns a non-nil error.
+ func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs ...any) error {
+ 	out, err := b.runOut(a, dir, env, cmdargs...)
+-	if desc == "" {
++	if len(out) > 0 && desc == "" {
+ 		desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
+ 	}
+ 	return b.reportCmd(a, desc, dir, out, err)

@@ -20,8 +20,128 @@ Date:   Fri Jun 1 15:47:29 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/get/get.go  |  8 ++++----
  src/cmd/go/internal/load/pkg.go |  7 +++++++
  src/cmd/go/vendor_test.go       | 44 ++++++++++++++++++++++++++++++++++++++++-
  3 files changed, 54 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 610c5407e9..5bfeac387c 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -217,7 +217,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 		if parent == nil {
+ 			return load.LoadPackage(path, stk)
+ 		}
+-		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode)
++		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+ 	}
+ 
+ 	p := load1(arg, mode)
+@@ -346,12 +346,12 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 				base.Errorf("%s", err)
+ 				continue
+ 			}
+-			// If this is a test import, apply vendor lookup now.
+-			// We cannot pass useVendor to download, because
++			// If this is a test import, apply module and vendor lookup now.
++			// We cannot pass ResolveImport to download, because
+ 			// download does caching based on the value of path,
+ 			// so it must be the fully qualified path already.
+ 			if i >= len(p.Imports) {
+-				path = load.VendoredImportPath(p, path)
++				path = load.ResolveImportPath(p, path)
+ 			}
+ 			download(path, p, stk, 0)
+ 		}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index dd8d18056c..6ab8260dae 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -404,6 +404,10 @@ const (
+ 	// disallowVendor will reject direct use of paths containing /vendor/.
+ 	ResolveImport = 1 << iota
+ 
++	// ResolveModule is for download (part of "go get") and indicates
++	// that the module adjustment should be done, but not vendor adjustment.
++	ResolveModule
++
+ 	// GetTestDeps is for download (part of "go get") and indicates
+ 	// that test dependencies should be fetched too.
+ 	GetTestDeps
+@@ -434,6 +438,9 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
+ 		// The code is also needed in a few other places anyway.
+ 		path = ResolveImportPath(parent, path)
+ 		importPath = path
++	} else if mode&ResolveModule != 0 {
++		path = ModuleImportPath(parent, path)
++		importPath = path
+ 	}
+ 
+ 	p := packageCache[importPath]
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index e30fc65d80..0e7a633240 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
++	"os"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strings"
+@@ -352,10 +353,51 @@ func TestModLegacyGet(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("."))
++	tg.setenv("GOPATH", tg.path("d1"))
+ 	tg.run("get", "vcs-test.golang.org/git/modlegacy1-old.git/p1")
+ 	tg.run("list", "-f", "{{.Deps}}", "vcs-test.golang.org/git/modlegacy1-old.git/p1")
+ 	tg.grepStdout("new.git/p2", "old/p1 should depend on new/p2")
+ 	tg.grepStdoutNot("new.git/v2/p2", "old/p1 should NOT depend on new/v2/p2")
+ 	tg.run("build", "vcs-test.golang.org/git/modlegacy1-old.git/p1", "vcs-test.golang.org/git/modlegacy1-new.git/p1")
++
++	tg.setenv("GOPATH", tg.path("d2"))
++
++	tg.must(os.RemoveAll(tg.path("d2")))
++	tg.run("get", "github.com/rsc/vgotest5")
++	tg.run("get", "github.com/rsc/vgotest4")
++	tg.run("get", "github.com/myitcv/vgo_example_compat")
++
++	if testing.Short() {
++		return
++	}
++
++	tg.must(os.RemoveAll(tg.path("d2")))
++	tg.run("get", "github.com/rsc/vgotest4")
++	tg.run("get", "github.com/rsc/vgotest5")
++	tg.run("get", "github.com/myitcv/vgo_example_compat")
++
++	tg.must(os.RemoveAll(tg.path("d2")))
++	tg.run("get", "github.com/rsc/vgotest4", "github.com/rsc/vgotest5")
++	tg.run("get", "github.com/myitcv/vgo_example_compat")
++
++	tg.must(os.RemoveAll(tg.path("d2")))
++	tg.run("get", "github.com/rsc/vgotest5", "github.com/rsc/vgotest4")
++	tg.run("get", "github.com/myitcv/vgo_example_compat")
++
++	tg.must(os.RemoveAll(tg.path("d2")))
++	tg.run("get", "github.com/myitcv/vgo_example_compat")
++	tg.run("get", "github.com/rsc/vgotest4", "github.com/rsc/vgotest5")
++
++	pkgs := []string{"github.com/myitcv/vgo_example_compat", "github.com/rsc/vgotest4", "github.com/rsc/vgotest5"}
++	for i := 0; i < 3; i++ {
++		for j := 0; j < 3; j++ {
++			for k := 0; k < 3; k++ {
++				if i == j || i == k || k == j {
++					continue
++				}
++				tg.must(os.RemoveAll(tg.path("d2")))
++				tg.run("get", pkgs[i], pkgs[j], pkgs[k])
++			}
++		}
++	}
+ }

@@ -14,6 +14,34 @@ Date:   Thu Aug 7 18:34:25 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/125840043
-
+---
  src/cmd/9c/swt.c | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/9c/swt.c b/src/cmd/9c/swt.c
+index c912cd5ed8..83058e7ab9 100644
+--- a/src/cmd/9c/swt.c
++++ b/src/cmd/9c/swt.c
+@@ -32,11 +32,19 @@
+ void
+ swit1(C1 *q, int nc, int32 def, Node *n)
+ {
+-	Node tn;
+-	
++	Node tn, nod;
++
++	regalloc(&nod, n, Z);
++	/* always signed */
++	if(typev[n->type->etype])
++		nod.type = types[TVLONG];
++	else
++		nod.type = types[TLONG];
++	cgen(n, &nod);
+ 	regalloc(&tn, &regnode, Z);
+-	swit2(q, nc, def, n, &tn);
++	swit2(q, nc, def, &nod, &tn);
+ 	regfree(&tn);
++	regfree(&nod);
+ }
+ 
+ void

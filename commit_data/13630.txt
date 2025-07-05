@@ -9,7 +9,40 @@ Date:   Wed Aug 15 07:32:49 2012 -0700
     R=rsc, rogpeppe, r
     CC=golang-dev
     https://golang.org/cl/6457075
-
+---
  src/cmd/go/test.bash | 6 ++++++
  src/cmd/go/test.go   | 4 +++-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index fe186d4bbc..587bcfc1f9 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -76,6 +76,12 @@ if ! ./testgo test ./testdata/testimport; then
+ 	ok=false
+ fi
+ 
++# Test installation with relative imports.
++if ! ./testgo test -i ./testdata/testimport; then
++    echo "go test -i ./testdata/testimport failed"
++    ok=false
++fi
++
+ # Test tests with relative imports in packages synthesized
+ # from Go files named on the command line.
+ if ! ./testgo test ./testdata/testimport/*.go; then
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 5f40bd64c0..cd9b411e9d 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -276,7 +276,9 @@ func runTest(cmd *Command, args []string) {
+ 
+ 		all := []string{}
+ 		for path := range deps {
+-			all = append(all, path)
++			if !build.IsLocalImport(path) {
++				all = append(all, path)
++			}
+ 		}
+ 		sort.Strings(all)
+ 

@@ -12,7 +12,33 @@ Date:   Tue Oct 25 20:38:20 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/go.go   | 3 ---
  src/cmd/compile/internal/gc/pgen.go | 2 --
  2 files changed, 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 782e56e009..97066cde01 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -380,7 +380,4 @@ var panicdivide *Node
+ 
+ var growslice *Node
+ 
+-var writebarrierptr *Node
+-var typedmemmove *Node
+-
+ var panicdottype *Node
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index e368e87f2f..a1665ea022 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -303,8 +303,6 @@ func compile(fn *Node) {
+ 		panicslice = Sysfunc("panicslice")
+ 		panicdivide = Sysfunc("panicdivide")
+ 		growslice = Sysfunc("growslice")
+-		writebarrierptr = Sysfunc("writebarrierptr")
+-		typedmemmove = Sysfunc("typedmemmove")
+ 		panicdottype = Sysfunc("panicdottype")
+ 	}
+ 

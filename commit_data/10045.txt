@@ -7,6 +7,42 @@ Date:   Wed Oct 19 08:23:13 2011 +1100
     R=golang-dev, rsc, rsc
     CC=golang-dev
     https://golang.org/cl/5283052
-
+---
  src/pkg/http/serve_test.go | 17 ++++++++++++++++-
  1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 731a3279f0..2ff66d5ce5 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -864,6 +864,14 @@ func TestZeroLengthPostAndResponse(t *testing.T) {
+ }
+ 
+ func TestHandlerPanic(t *testing.T) {
++	testHandlerPanic(t, false)
++}
++
++func TestHandlerPanicWithHijack(t *testing.T) {
++	testHandlerPanic(t, true)
++}
++
++func testHandlerPanic(t *testing.T, withHijack bool) {
+ 	// Unlike the other tests that set the log output to ioutil.Discard
+ 	// to quiet the output, this test uses a pipe.  The pipe serves three
+ 	// purposes:
+@@ -884,7 +892,14 @@ func TestHandlerPanic(t *testing.T) {
+ 	log.SetOutput(pw)
+ 	defer log.SetOutput(os.Stderr)
+ 
+-	ts := httptest.NewServer(HandlerFunc(func(ResponseWriter, *Request) {
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		if withHijack {
++			rwc, _, err := w.(Hijacker).Hijack()
++			if err != nil {
++				t.Logf("unexpected error: %v", err)
++			}
++			defer rwc.Close()
++		}
+ 		panic("intentional death for testing")
+ 	}))
+ 	defer ts.Close()

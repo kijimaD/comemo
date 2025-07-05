@@ -9,6 +9,26 @@ Date:   Mon Jun 6 15:45:00 2022 -0400
     Change-Id: I07a805147a6aa0923331f3f940a9e6e5553cbea9
     Reviewed-on: https://go-review.googlesource.com/c/go/+/410676
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  doc/go1.19.html | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 4e6699c289..9a689d1980 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -134,8 +134,12 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   TODO: <a href="https://go.dev/cl/402374">https://go.dev/cl/402374</a>: enable regabi on riscv64 by default
+ </p>
+-<p>
+-  TODO: <a href="https://go.dev/cl/391014">https://go.dev/cl/391014</a>: The Go compiler now requires the -p=importpath flag, which is already supplied by the go command and by Bazel. Any other build systems that invoke the Go compiler directly will need to make sure they pass this flag as well in order to use Go 1.19.: cmd/compile: require -p flag
++<p><!-- CL 391014 -->
++  The Go compiler now requires the <code>-p=importpath</code> flag to
++  build a linkable object file. This is already supplied by
++  the <code>go</code> command and by Bazel. Any other build systems
++  that invoke the Go compiler directly will need to make sure they
++  pass this flag as well.
+ </p>
+ <p>
+   TODO: complete this section, or delete if not needed

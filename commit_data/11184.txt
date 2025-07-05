@@ -8,6 +8,31 @@ Date:   Mon Jan 16 11:11:58 2012 +0400
     R=golang-dev, bradfitz
     CC=golang-dev, mpimenov
     https://golang.org/cl/5543060
-
+---
  src/pkg/exp/inotify/inotify_linux_test.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exp/inotify/inotify_linux_test.go b/src/pkg/exp/inotify/inotify_linux_test.go
+index d035ec1410..c2160fc653 100644
+--- a/src/pkg/exp/inotify/inotify_linux_test.go
++++ b/src/pkg/exp/inotify/inotify_linux_test.go
+@@ -83,14 +83,15 @@ func TestInotifyClose(t *testing.T) {
+ 	watcher, _ := NewWatcher()
+ 	watcher.Close()
+ 
+-	done := false
++	done := make(chan bool)
+ 	go func() {
+ 		watcher.Close()
+-		done = true
++		done <- true
+ 	}()
+ 
+-	time.Sleep(50 * time.Millisecond)
+-	if !done {
++	select {
++	case <-done:
++	case <-time.After(50 * time.Millisecond):
+ 		t.Fatal("double Close() test failed: second Close() call didn't return")
+ 	}
+ 

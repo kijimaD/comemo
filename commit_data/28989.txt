@@ -14,6 +14,21 @@ Date:   Fri Jul 22 16:38:27 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/sockcmsg_linux.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/syscall/sockcmsg_linux.go b/src/syscall/sockcmsg_linux.go
+index 5a56b25beb..4cb9075ba8 100644
+--- a/src/syscall/sockcmsg_linux.go
++++ b/src/syscall/sockcmsg_linux.go
+@@ -31,6 +31,9 @@ func ParseUnixCredentials(m *SocketControlMessage) (*Ucred, error) {
+ 	if m.Header.Type != SCM_CREDENTIALS {
+ 		return nil, EINVAL
+ 	}
++	if uintptr(len(m.Data)) < unsafe.Sizeof(Ucred{}) {
++		return nil, EINVAL
++	}
+ 	ucred := *(*Ucred)(unsafe.Pointer(&m.Data[0]))
+ 	return &ucred, nil
+ }

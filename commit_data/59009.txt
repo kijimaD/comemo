@@ -15,10 +15,207 @@ Date:   Wed Jan 3 00:10:58 2024 +0000
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/61696.txt             |  1 +
  src/sync/map.go                | 20 ++++++++++++++
  src/sync/map_bench_test.go     | 12 ++++++++
  src/sync/map_reference_test.go | 17 +++++++++++-
  src/sync/map_test.go           | 63 ++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 112 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/61696.txt b/api/next/61696.txt
+new file mode 100644
+index 0000000000..8adaf3d80e
+--- /dev/null
++++ b/api/next/61696.txt
+@@ -0,0 +1 @@
++pkg sync, method (*Map) Clear() #61696
+diff --git a/src/sync/map.go b/src/sync/map.go
+index 7a9eebdce3..1f26cdd8bb 100644
+--- a/src/sync/map.go
++++ b/src/sync/map.go
+@@ -155,6 +155,26 @@ func (m *Map) Store(key, value any) {
+ 	_, _ = m.Swap(key, value)
+ }
+ 
++// Clear deletes all the keys.
++func (m *Map) Clear() {
++	read := m.loadReadOnly()
++	if len(read.m) == 0 && !read.amended {
++		// Avoid allocating a new readOnly when the map is already clear.
++		return
++	}
++
++	m.mu.Lock()
++	defer m.mu.Unlock()
++
++	read = m.loadReadOnly()
++	if len(read.m) > 0 || read.amended {
++		m.read.Store(&readOnly{})
++	}
++
++	clear(m.dirty)
++	m.misses = 0 // Don't immediately promote the newly-cleared dirty map on the next operation
++}
++
+ // tryCompareAndSwap compare the entry with the given old value and swaps
+ // it with a new value if the entry is equal to the old value, and the entry
+ // has not been expunged.
+diff --git a/src/sync/map_bench_test.go b/src/sync/map_bench_test.go
+index eebec3bacf..fb9eb25432 100644
+--- a/src/sync/map_bench_test.go
++++ b/src/sync/map_bench_test.go
+@@ -533,3 +533,15 @@ func BenchmarkCompareAndDeleteMostlyMisses(b *testing.B) {
+ 		},
+ 	})
+ }
++
++func BenchmarkClear(b *testing.B) {
++	benchMap(b, bench{
++		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
++			for ; pb.Next(); i++ {
++				k, v := i%256, i%256
++				m.Clear()
++				m.Store(k, v)
++			}
++		},
++	})
++}
+diff --git a/src/sync/map_reference_test.go b/src/sync/map_reference_test.go
+index aa5ebf352f..283da0f3a9 100644
+--- a/src/sync/map_reference_test.go
++++ b/src/sync/map_reference_test.go
+@@ -13,7 +13,7 @@ import (
+ 
+ // mapInterface is the interface Map implements.
+ type mapInterface interface {
+-	Load(any) (any, bool)
++	Load(key any) (value any, ok bool)
+ 	Store(key, value any)
+ 	LoadOrStore(key, value any) (actual any, loaded bool)
+ 	LoadAndDelete(key any) (value any, loaded bool)
+@@ -22,6 +22,7 @@ type mapInterface interface {
+ 	CompareAndSwap(key, old, new any) (swapped bool)
+ 	CompareAndDelete(key, old any) (deleted bool)
+ 	Range(func(key, value any) (shouldContinue bool))
++	Clear()
+ }
+ 
+ var (
+@@ -144,6 +145,13 @@ func (m *RWMutexMap) Range(f func(key, value any) (shouldContinue bool)) {
+ 	}
+ }
+ 
++func (m *RWMutexMap) Clear() {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++
++	clear(m.dirty)
++}
++
+ // DeepCopyMap is an implementation of mapInterface using a Mutex and
+ // atomic.Value.  It makes deep copies of the map on every write to avoid
+ // acquiring the Mutex in Load.
+@@ -269,3 +277,10 @@ func (m *DeepCopyMap) dirty() map[any]any {
+ 	}
+ 	return dirty
+ }
++
++func (m *DeepCopyMap) Clear() {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++
++	m.clean.Store((map[any]any)(nil))
++}
+diff --git a/src/sync/map_test.go b/src/sync/map_test.go
+index 316f87bacc..e1d0380765 100644
+--- a/src/sync/map_test.go
++++ b/src/sync/map_test.go
+@@ -26,6 +26,7 @@ const (
+ 	opSwap             = mapOp("Swap")
+ 	opCompareAndSwap   = mapOp("CompareAndSwap")
+ 	opCompareAndDelete = mapOp("CompareAndDelete")
++	opClear            = mapOp("Clear")
+ )
+ 
+ var mapOps = [...]mapOp{
+@@ -37,6 +38,7 @@ var mapOps = [...]mapOp{
+ 	opSwap,
+ 	opCompareAndSwap,
+ 	opCompareAndDelete,
++	opClear,
+ }
+ 
+ // mapCall is a quick.Generator for calls on mapInterface.
+@@ -74,6 +76,9 @@ func (c mapCall) apply(m mapInterface) (any, bool) {
+ 			}
+ 		}
+ 		return nil, false
++	case opClear:
++		m.Clear()
++		return nil, false
+ 	default:
+ 		panic("invalid mapOp")
+ 	}
+@@ -294,3 +299,61 @@ func TestMapRangeNoAllocations(t *testing.T) { // Issue 62404
+ 		t.Errorf("AllocsPerRun of m.Range = %v; want 0", allocs)
+ 	}
+ }
++
++// TestConcurrentClear tests concurrent behavior of sync.Map properties to ensure no data races.
++// Checks for proper synchronization between Clear, Store, Load operations.
++func TestConcurrentClear(t *testing.T) {
++	var m sync.Map
++
++	wg := sync.WaitGroup{}
++	wg.Add(30) // 10 goroutines for writing, 10 goroutines for reading, 10 goroutines for waiting
++
++	// Writing data to the map concurrently
++	for i := 0; i < 10; i++ {
++		go func(k, v int) {
++			defer wg.Done()
++			m.Store(k, v)
++		}(i, i*10)
++	}
++
++	// Reading data from the map concurrently
++	for i := 0; i < 10; i++ {
++		go func(k int) {
++			defer wg.Done()
++			if value, ok := m.Load(k); ok {
++				t.Logf("Key: %v, Value: %v\n", k, value)
++			} else {
++				t.Logf("Key: %v not found\n", k)
++			}
++		}(i)
++	}
++
++	// Clearing data from the map concurrently
++	for i := 0; i < 10; i++ {
++		go func() {
++			defer wg.Done()
++			m.Clear()
++		}()
++	}
++
++	wg.Wait()
++
++	m.Clear()
++
++	m.Range(func(k, v any) bool {
++		t.Errorf("after Clear, Map contains (%v, %v); expected to be empty", k, v)
++
++		return true
++	})
++}
++
++func TestMapClearNoAllocations(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
++	var m sync.Map
++	allocs := testing.AllocsPerRun(10, func() {
++		m.Clear()
++	})
++	if allocs > 0 {
++		t.Errorf("AllocsPerRun of m.Clear = %v; want 0", allocs)
++	}
++}

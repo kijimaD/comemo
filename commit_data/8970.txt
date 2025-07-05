@@ -8,7 +8,66 @@ Date:   Thu Jul 7 16:32:19 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4672049
-
+---
  src/pkg/image/image.go      | 17 +++++++++++++++--
  src/pkg/image/image_test.go |  5 +++++
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index f4c38d28a6..5ea302d0da 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -548,7 +548,7 @@ func NewGray16(w, h int) *Gray16 {
+ 	return &Gray16{pix, w, Rectangle{ZP, Point{w, h}}}
+ }
+ 
+-// A PalettedColorModel represents a fixed palette of colors.
++// A PalettedColorModel represents a fixed palette of at most 256 colors.
+ type PalettedColorModel []Color
+ 
+ func diff(a, b uint32) uint32 {
+@@ -648,7 +648,20 @@ func (p *Paletted) SubImage(r Rectangle) Image {
+ 
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+ func (p *Paletted) Opaque() bool {
+-	for _, c := range p.Palette {
++	var present [256]bool
++	base := p.Rect.Min.Y * p.Stride
++	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
++	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
++		for _, c := range p.Pix[i0:i1] {
++			present[c] = true
++		}
++		i0 += p.Stride
++		i1 += p.Stride
++	}
++	for i, c := range p.Palette {
++		if !present[i] {
++			continue
++		}
+ 		_, _, _, a := c.RGBA()
+ 		if a != 0xffff {
+ 			return false
+diff --git a/src/pkg/image/image_test.go b/src/pkg/image/image_test.go
+index f167f7f28d..5469d64230 100644
+--- a/src/pkg/image/image_test.go
++++ b/src/pkg/image/image_test.go
+@@ -10,6 +10,7 @@ import (
+ 
+ type image interface {
+ 	Image
++	Opaque() bool
+ 	Set(int, int, Color)
+ 	SubImage(Rectangle) Image
+ }
+@@ -49,6 +50,10 @@ func TestImage(t *testing.T) {
+ 			t.Errorf("%T: at (6, 3), want a non-zero color, got %v", m, m.At(6, 3))
+ 			continue
+ 		}
++		if !m.SubImage(Rect(6, 3, 7, 4)).(image).Opaque() {
++			t.Errorf("%T: at (6, 3) was not opaque", m)
++			continue
++		}
+ 		m = m.SubImage(Rect(3, 2, 9, 8)).(image)
+ 		if !Rect(3, 2, 9, 8).Eq(m.Bounds()) {
+ 			t.Errorf("%T: sub-image want bounds %v, got %v", m, Rect(3, 2, 9, 8), m.Bounds())

@@ -10,6 +10,21 @@ Date:   Fri Jul 3 20:28:56 2015 -0700
     Change-Id: I1e2b8310057cbbbd9ffc501ef51e744690e00726
     Reviewed-on: https://go-review.googlesource.com/11875
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5e254c265b..9ad2890003 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -608,6 +608,9 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			// parameter/result slot or local variable
+ 			v := s.decladdrs[n]
+ 			if v == nil {
++				if flag_race != 0 && n.String() == ".fp" {
++					s.Unimplementedf("race detector mishandles nodfp")
++				}
+ 				s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
+ 			}
+ 			return v

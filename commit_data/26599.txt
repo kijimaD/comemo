@@ -32,9 +32,81 @@ Date:   Tue Feb 16 12:09:05 2016 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go |  8 +++++++-
  test/fixedbugs/issue14331.dir/a.go | 14 ++++++++++++++
  test/fixedbugs/issue14331.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue14331.go       |  9 +++++++++
  4 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 64b6e36758..d00e5a6c46 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -748,7 +748,13 @@ func typefmt(t *Type, flag int) string {
+ 		if name != "" {
+ 			str = name + " " + typ
+ 		}
+-		if flag&obj.FmtShort == 0 && !fmtbody && t.Note != nil {
++
++		// The fmtbody flag is intended to suppress escape analysis annotations
++		// when printing a function type used in a function body.
++		// (The escape analysis tags do not apply to func vars.)
++		// But it must not suppress struct field tags.
++		// See golang.org/issue/13777 and golang.org/issue/14331.
++		if flag&obj.FmtShort == 0 && (!fmtbody || !t.Funarg) && t.Note != nil {
+ 			str += " " + strconv.Quote(*t.Note)
+ 		}
+ 		return str
+diff --git a/test/fixedbugs/issue14331.dir/a.go b/test/fixedbugs/issue14331.dir/a.go
+new file mode 100644
+index 0000000000..1b7f853bc9
+--- /dev/null
++++ b/test/fixedbugs/issue14331.dir/a.go
+@@ -0,0 +1,14 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var S struct {
++	Str string `tag`
++}
++
++func F() string {
++	v := S
++	return v.Str
++}
+diff --git a/test/fixedbugs/issue14331.dir/b.go b/test/fixedbugs/issue14331.dir/b.go
+new file mode 100644
+index 0000000000..7a0abb2506
+--- /dev/null
++++ b/test/fixedbugs/issue14331.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func G() string {
++	return a.F()
++}
+diff --git a/test/fixedbugs/issue14331.go b/test/fixedbugs/issue14331.go
+new file mode 100644
+index 0000000000..32f3e5156c
+--- /dev/null
++++ b/test/fixedbugs/issue14331.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Inline function misses struct tags.
++
++package ignored

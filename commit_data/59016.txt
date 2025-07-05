@@ -31,6 +31,24 @@ Date:   Thu Feb 1 05:10:32 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/560216
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/trace2map.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace2map.go b/src/runtime/trace2map.go
+index 4a5a7ecba4..195ec0bbe7 100644
+--- a/src/runtime/trace2map.go
++++ b/src/runtime/trace2map.go
+@@ -141,5 +141,11 @@ func (tab *traceMap) reset() {
+ 	assertLockHeld(&tab.lock)
+ 	tab.mem.drop()
+ 	tab.seq.Store(0)
+-	tab.tab = [1 << 13]atomic.UnsafePointer{}
++	// Clear table without write barriers. The table consists entirely
++	// of notinheap pointers, so this is fine.
++	//
++	// Write barriers may theoretically call into the tracer and acquire
++	// the lock again, and this lock ordering is expressed in the static
++	// lock ranking checker.
++	memclrNoHeapPointers(unsafe.Pointer(&tab.tab), unsafe.Sizeof(tab.tab))
+ }

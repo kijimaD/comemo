@@ -12,6 +12,20 @@ Date:   Tue Apr 17 14:53:56 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 63abf97e7e..4d5757fce9 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -207,6 +207,8 @@ var importedObjectTests = []struct {
+ 	{"go/types.Comparable", "func Comparable(T Type) bool"},
+ 	{"math.Pi", "const Pi untyped float"},
+ 	{"math.Sin", "func Sin(x float64) float64"},
++	{"go/ast.NotNilFilter", "func NotNilFilter(_ string, v reflect.Value) bool"},
++	{"go/internal/gcimporter.BImportData", "func BImportData(fset *go/token.FileSet, imports map[string]*go/types.Package, data []byte, path string) (_ int, pkg *go/types.Package, err error)"},
+ 
+ 	// interfaces
+ 	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key interface{}) interface{}}"},

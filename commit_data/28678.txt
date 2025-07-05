@@ -20,9 +20,192 @@ Date:   Sat Jun 18 19:40:57 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/gen.go    |   8 +++
  src/cmd/compile/internal/gc/plive.go  |  12 ++++
  src/cmd/compile/internal/gc/syntax.go |  12 ++++
  test/fixedbugs/issue16095.go          | 104 ++++++++++++++++++++++++++++++++++
  4 files changed, 136 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 3faf6d4a63..fc0003da81 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -160,6 +160,14 @@ func moveToHeap(n *Node) {
+ 		if n.Class == PPARAM {
+ 			stackcopy.SetNotLiveAtEnd(true)
+ 		}
++		if n.Class == PPARAMOUT {
++			// Make sure the pointer to the heap copy is kept live throughout the function.
++			// The function could panic at any point, and then a defer could recover.
++			// Thus, we need the pointer to the heap copy always available so the
++			// post-deferreturn code can copy the return value back to the stack.
++			// See issue 16095.
++			heapaddr.setIsOutputParamHeapAddr(true)
++		}
+ 		n.Name.Param.Stackcopy = stackcopy
+ 
+ 		// Substitute the stackcopy into the function variable list so that
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 7d0d2dd894..9c39ca7022 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1175,6 +1175,18 @@ func livenessepilogue(lv *Liveness) {
+ 	all := bvalloc(nvars)
+ 	ambig := bvalloc(localswords())
+ 
++	// Set ambig bit for the pointers to heap-allocated pparamout variables.
++	// These are implicitly read by post-deferreturn code and thus must be
++	// kept live throughout the function (if there is any defer that recovers).
++	if hasdefer {
++		for _, n := range lv.vars {
++			if n.IsOutputParamHeapAddr() {
++				xoffset := n.Xoffset + stkptrsize
++				onebitwalktype1(n.Type, &xoffset, ambig)
++			}
++		}
++	}
++
+ 	for _, bb := range lv.cfg {
+ 		// Compute avarinitany and avarinitall for entry to block.
+ 		// This duplicates information known during livenesssolve
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index e673db9004..fab8697627 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -79,6 +79,7 @@ const (
+ 	hasBreak = 1 << iota
+ 	notLiveAtEnd
+ 	isClosureVar
++	isOutputParamHeapAddr
+ )
+ 
+ func (n *Node) HasBreak() bool {
+@@ -112,6 +113,17 @@ func (n *Node) setIsClosureVar(b bool) {
+ 	}
+ }
+ 
++func (n *Node) IsOutputParamHeapAddr() bool {
++	return n.flags&isOutputParamHeapAddr != 0
++}
++func (n *Node) setIsOutputParamHeapAddr(b bool) {
++	if b {
++		n.flags |= isOutputParamHeapAddr
++	} else {
++		n.flags &^= isOutputParamHeapAddr
++	}
++}
++
+ // Val returns the Val for the node.
+ func (n *Node) Val() Val {
+ 	if n.hasVal != +1 {
+diff --git a/test/fixedbugs/issue16095.go b/test/fixedbugs/issue16095.go
+new file mode 100644
+index 0000000000..864b4b7c7c
+--- /dev/null
++++ b/test/fixedbugs/issue16095.go
+@@ -0,0 +1,104 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++)
++
++var sink *[20]byte
++
++func f() (x [20]byte) {
++	// Initialize x.
++	for i := range x {
++		x[i] = byte(i)
++	}
++
++	// Force x to be allocated on the heap.
++	sink = &x
++	sink = nil
++
++	// Go to deferreturn after the panic below.
++	defer func() {
++		recover()
++	}()
++
++	// This call collects the heap-allocated version of x (oops!)
++	runtime.GC()
++
++	// Allocate that same object again and clobber it.
++	y := new([20]byte)
++	for i := 0; i < 20; i++ {
++		y[i] = 99
++	}
++	// Make sure y is heap allocated.
++	sink = y
++
++	panic(nil)
++
++	// After the recover we reach the deferreturn, which
++	// copies the heap version of x back to the stack.
++	// It gets the pointer to x from a stack slot that was
++	// not marked as live during the call to runtime.GC().
++}
++
++var sinkint int
++
++func g(p *int) (x [20]byte) {
++	// Initialize x.
++	for i := range x {
++		x[i] = byte(i)
++	}
++
++	// Force x to be allocated on the heap.
++	sink = &x
++	sink = nil
++
++	// Go to deferreturn after the panic below.
++	defer func() {
++		recover()
++	}()
++
++	// This call collects the heap-allocated version of x (oops!)
++	runtime.GC()
++
++	// Allocate that same object again and clobber it.
++	y := new([20]byte)
++	for i := 0; i < 20; i++ {
++		y[i] = 99
++	}
++	// Make sure y is heap allocated.
++	sink = y
++
++	// panic with a non-call (with no fallthrough)
++	for {
++		sinkint = *p
++	}
++
++	// After the recover we reach the deferreturn, which
++	// copies the heap version of x back to the stack.
++	// It gets the pointer to x from a stack slot that was
++	// not marked as live during the call to runtime.GC().
++}
++
++func main() {
++	x := f()
++	for i, v := range x {
++		if v != byte(i) {
++			fmt.Printf("%v\n", x)
++			panic("bad f")
++		}
++	}
++	x = g(nil)
++	for i, v := range x {
++		if v != byte(i) {
++			fmt.Printf("%v\n", x)
++			panic("bad g")
++		}
++	}
++}

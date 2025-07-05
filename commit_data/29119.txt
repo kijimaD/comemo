@@ -19,9 +19,147 @@ Date:   Fri Aug 26 10:33:34 2016 -0400
     Change-Id: Idc850ac6749b3e778fda3da66bcd864f6b1df375
     Reviewed-on: https://go-review.googlesource.com/27871
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s | 11 ++++++++
  src/cmd/internal/obj/s390x/a.out.go       | 12 ++++++++
  src/cmd/internal/obj/s390x/anames.go      | 10 +++++++
  src/cmd/internal/obj/s390x/asmz.go        | 46 +++++++++++++++++++++++++++++++
  4 files changed, 79 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 7729384554..e902100dc5 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -78,6 +78,17 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	DIVWU	R1, R2                // b90400a0b90400b2b99700a1b904002b
+ 	DIVWU	R1, R2, R3            // b90400a0b90400b2b99700a1b904003b
+ 
++	LAA	R1, R2, 524287(R3)    // eb213fff7ff8
++	LAAG	R4, R5, -524288(R6)   // eb54600080e8
++	LAAL	R7, R8, 8192(R9)      // eb87900002fa
++	LAALG	R10, R11, -8192(R12)  // ebbac000feea
++	LAN	R1, R2, (R3)          // eb21300000f4
++	LANG	R4, R5, (R6)          // eb54600000e4
++	LAX	R7, R8, (R9)          // eb87900000f7
++	LAXG	R10, R11, (R12)       // ebbac00000e7
++	LAO	R1, R2, (R3)          // eb21300000f6
++	LAOG	R4, R5, (R6)          // eb54600000e6
++
+ 	XC	$8, (R15), n-8(SP)       // XC  (R15), $8, n-8(SP)       // d707f010f000
+ 	NC	$8, (R15), n-8(SP)       // NC  (R15), $8, n-8(SP)       // d407f010f000
+ 	OC	$8, (R15), n-8(SP)       // OC  (R15), $8, n-8(SP)       // d607f010f000
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 490695ca1d..28b03d433f 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -364,6 +364,18 @@ const (
+ 	ALA
+ 	ALAY
+ 
++	// interlocked load and op
++	ALAA
++	ALAAG
++	ALAAL
++	ALAALG
++	ALAN
++	ALANG
++	ALAX
++	ALAXG
++	ALAO
++	ALAOG
++
+ 	// load/store multiple
+ 	ALMY
+ 	ALMG
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 62dd181eda..c8367d6eca 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -134,6 +134,16 @@ var Anames = []string{
+ 	"LARL",
+ 	"LA",
+ 	"LAY",
++	"LAA",
++	"LAAG",
++	"LAAL",
++	"LAALG",
++	"LAN",
++	"LANG",
++	"LAX",
++	"LAXG",
++	"LAO",
++	"LAOG",
+ 	"LMY",
+ 	"LMG",
+ 	"STMY",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 847af9c4e0..0b0ed585e8 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -137,6 +137,9 @@ var optab = []Optab{
+ 	Optab{AMOVBZ, C_ADDR, C_NONE, C_NONE, C_REG, 75, 0},
+ 	Optab{AMOVB, C_ADDR, C_NONE, C_NONE, C_REG, 75, 0},
+ 
++	// interlocked load and op
++	Optab{ALAAG, C_REG, C_REG, C_NONE, C_LOREG, 99, 0},
++
+ 	// integer arithmetic
+ 	Optab{AADD, C_REG, C_REG, C_NONE, C_REG, 2, 0},
+ 	Optab{AADD, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
+@@ -809,6 +812,16 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ASTCKC, r)
+ 			opset(ASTCKE, r)
+ 			opset(ASTCKF, r)
++		case ALAAG:
++			opset(ALAA, r)
++			opset(ALAAL, r)
++			opset(ALAALG, r)
++			opset(ALAN, r)
++			opset(ALANG, r)
++			opset(ALAX, r)
++			opset(ALAXG, r)
++			opset(ALAO, r)
++			opset(ALAOG, r)
+ 		case ASTMG:
+ 			opset(ASTMY, r)
+ 		case ALMG:
+@@ -3800,6 +3813,39 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			zRSY(op_LMG, uint32(rstart), uint32(rend), uint32(reg), uint32(offset), asm)
+ 		}
+ 
++	case 99: // interlocked load and op
++		if p.To.Index != 0 {
++			ctxt.Diag("cannot use indexed address")
++		}
++		offset := regoff(ctxt, &p.To)
++		if offset < -DISP20/2 || offset >= DISP20/2 {
++			ctxt.Diag("%v does not fit into 20-bit signed integer", offset)
++		}
++		var opcode uint32
++		switch p.As {
++		case ALAA:
++			opcode = op_LAA
++		case ALAAG:
++			opcode = op_LAAG
++		case ALAAL:
++			opcode = op_LAAL
++		case ALAALG:
++			opcode = op_LAALG
++		case ALAN:
++			opcode = op_LAN
++		case ALANG:
++			opcode = op_LANG
++		case ALAX:
++			opcode = op_LAX
++		case ALAXG:
++			opcode = op_LAXG
++		case ALAO:
++			opcode = op_LAO
++		case ALAOG:
++			opcode = op_LAOG
++		}
++		zRSY(opcode, uint32(p.Reg), uint32(p.From.Reg), uint32(p.To.Reg), uint32(offset), asm)
++
+ 	case 100: // VRX STORE
+ 		op, m3, _ := vop(p.As)
+ 		if p.From3 != nil {

@@ -32,7 +32,82 @@ Date:   Sat Mar 9 18:09:10 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go |  9 +++------
  src/reflect/value.go                    | 19 ++++++++++++++++---
  2 files changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index 1ad6ca3421..0dfd252372 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -133,14 +133,11 @@ func TestIntendedInlining(t *testing.T) {
+ 			"Value.pointer",
+ 			"add",
+ 			"align",
++			"flag.mustBe",
++			"flag.mustBeAssignable",
++			"flag.mustBeExported",
+ 			"flag.kind",
+ 			"flag.ro",
+-
+-			// TODO: these use panic, which gets their budgets
+-			// slightly over the limit
+-			// "flag.mustBe",
+-			// "flag.mustBeAssignable",
+-			// "flag.mustBeExported",
+ 		},
+ 		"regexp": {
+ 			"(*bitState).push",
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 372b7a6dc8..5951b18b8c 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -203,7 +203,8 @@ type nonEmptyInterface struct {
+ // v.flag.mustBe(Bool), which will only bother to copy the
+ // single important word for the receiver.
+ func (f flag) mustBe(expected Kind) {
+-	if f.kind() != expected {
++	// TODO(mvdan): use f.kind() again once mid-stack inlining gets better
++	if Kind(f&flagKindMask) != expected {
+ 		panic(&ValueError{methodName(), f.kind()})
+ 	}
+ }
+@@ -211,8 +212,14 @@ func (f flag) mustBe(expected Kind) {
+ // mustBeExported panics if f records that the value was obtained using
+ // an unexported field.
+ func (f flag) mustBeExported() {
++	if f == 0 || f&flagRO != 0 {
++		f.mustBeExportedSlow()
++	}
++}
++
++func (f flag) mustBeExportedSlow() {
+ 	if f == 0 {
+-		panic(&ValueError{methodName(), 0})
++		panic(&ValueError{methodName(), Invalid})
+ 	}
+ 	if f&flagRO != 0 {
+ 		panic("reflect: " + methodName() + " using value obtained using unexported field")
+@@ -223,6 +230,12 @@ func (f flag) mustBeExported() {
+ // which is to say that either it was obtained using an unexported field
+ // or it is not addressable.
+ func (f flag) mustBeAssignable() {
++	if f&flagRO != 0 || f&flagAddr == 0 {
++		f.mustBeAssignableSlow()
++	}
++}
++
++func (f flag) mustBeAssignableSlow() {
+ 	if f == 0 {
+ 		panic(&ValueError{methodName(), Invalid})
+ 	}
+@@ -981,7 +994,7 @@ func (v Value) Interface() (i interface{}) {
+ 
+ func valueInterface(v Value, safe bool) interface{} {
+ 	if v.flag == 0 {
+-		panic(&ValueError{"reflect.Value.Interface", 0})
++		panic(&ValueError{"reflect.Value.Interface", Invalid})
+ 	}
+ 	if safe && v.flag&flagRO != 0 {
+ 		// Do not allow access to unexported values via Interface,

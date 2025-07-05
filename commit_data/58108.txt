@@ -23,6 +23,25 @@ Date:   Mon Oct 2 15:55:29 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/syscall/rlimit.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/rlimit.go b/src/syscall/rlimit.go
+index fdc0d1bf1f..d77341bde9 100644
+--- a/src/syscall/rlimit.go
++++ b/src/syscall/rlimit.go
+@@ -31,9 +31,10 @@ func init() {
+ 	var lim Rlimit
+ 	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
+ 		origRlimitNofile.Store(&lim)
+-		lim.Cur = lim.Max
+-		adjustFileLimit(&lim)
+-		setrlimit(RLIMIT_NOFILE, &lim)
++		nlim := lim
++		nlim.Cur = nlim.Max
++		adjustFileLimit(&nlim)
++		setrlimit(RLIMIT_NOFILE, &nlim)
+ 	}
+ }
+ 

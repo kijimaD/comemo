@@ -11,7 +11,123 @@ Date:   Thu May 26 09:01:05 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4547062
-
+---
  src/pkg/encoding/binary/binary.go      | 48 ++++++++++++++++++++++++++++++++++
  src/pkg/encoding/binary/binary_test.go | 41 +++++++++++++++++++++++++++++
  2 files changed, 89 insertions(+)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index a01d0e0246..d0185ebb71 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -125,6 +125,54 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
+ // Bytes read from r are decoded using the specified byte order
+ // and written to successive fields of the data.
+ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
++	// Fast path for basic types
++	var n int
++	switch data.(type) {
++	case *int8:
++		n = 1
++	case *uint8:
++		n = 1
++	case *int16:
++		n = 2
++	case *uint16:
++		n = 2
++	case *int32:
++		n = 4
++	case *uint32:
++		n = 4
++	case *int64:
++		n = 8
++	case *uint64:
++		n = 8
++	}
++	if n != 0 {
++		var buf [8]byte
++		bs := buf[:n]
++		if _, err := io.ReadFull(r, bs); err != nil {
++			return err
++		}
++		switch v := data.(type) {
++		case *int8:
++			*v = int8(buf[0])
++		case *uint8:
++			*v = buf[0]
++		case *int16:
++			*v = int16(order.Uint16(bs))
++		case *uint16:
++			*v = order.Uint16(bs)
++		case *int32:
++			*v = int32(order.Uint32(bs))
++		case *uint32:
++			*v = order.Uint32(bs)
++		case *int64:
++			*v = int64(order.Uint64(bs))
++		case *uint64:
++			*v = order.Uint64(bs)
++		}
++		return nil
++	}
++
++	// Fallback to reflect-based.
+ 	var v reflect.Value
+ 	switch d := reflect.ValueOf(data); d.Kind() {
+ 	case reflect.Ptr:
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index 7857c68d36..e588b9be41 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -5,6 +5,7 @@
+ package binary
+ 
+ import (
++	"io"
+ 	"os"
+ 	"bytes"
+ 	"math"
+@@ -160,3 +161,43 @@ func TestWriteT(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type byteSliceReader struct {
++	remain []byte
++}
++
++func (br *byteSliceReader) Read(p []byte) (int, os.Error) {
++	n := copy(p, br.remain)
++	br.remain = br.remain[n:]
++	return n, nil
++}
++
++func BenchmarkRead(b *testing.B) {
++	var ls Struct
++	bsr := &byteSliceReader{}
++	var r io.Reader = bsr
++
++	for i := 0; i < b.N; i++ {
++		bsr.remain = big
++		Read(r, BigEndian, &ls.Int8)
++		Read(r, BigEndian, &ls.Int16)
++		Read(r, BigEndian, &ls.Int32)
++		Read(r, BigEndian, &ls.Int64)
++		Read(r, BigEndian, &ls.Uint8)
++		Read(r, BigEndian, &ls.Uint16)
++		Read(r, BigEndian, &ls.Uint32)
++		Read(r, BigEndian, &ls.Uint64)
++	}
++
++	want := s
++	want.Float32 = 0
++	want.Float64 = 0
++	want.Complex64 = 0
++	want.Complex128 = 0
++	for i := range want.Array {
++		want.Array[i] = 0
++	}
++	if !reflect.DeepEqual(ls, want) {
++		panic("no match")
++	}
++}

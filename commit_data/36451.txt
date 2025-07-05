@@ -38,9 +38,314 @@ Date:   Sun Apr 15 16:52:49 2018 +0200
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/loopbce.go |   7 --
  src/cmd/compile/internal/ssa/prove.go   | 145 +++++++++++++++++++-------------
  test/loopbce.go                         |  25 +++++-
  test/prove.go                           |  39 ++++++++-
  4 files changed, 147 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index d484d12a78..692e55e17a 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -150,13 +150,6 @@ nextb:
+ 			continue
+ 		}
+ 
+-		// If max is c + SliceLen with c <= 0 then we drop c.
+-		// Makes sure c + SliceLen doesn't overflow when SliceLen == 0.
+-		// TODO: save c as an offset from max.
+-		if w, c := dropAdd64(max); (w.Op == OpStringLen || w.Op == OpSliceLen) && 0 >= c && -c >= 0 {
+-			max = w
+-		}
+-
+ 		// We can only guarantee that the loops runs within limits of induction variable
+ 		// if the increment is ±1 or when the limits are constants.
+ 		if inc.AuxInt != 1 && inc.AuxInt != -1 {
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 0767be7d57..9f2a38252e 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -389,70 +389,78 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 		}
+ 	}
+ 
+-	// Process: x+delta > w    (with delta,w constants)
+-	//
+-	// We want to derive: x+delta > w  ⇒  x > w-delta
+-	//
+-	// We do this for signed numbers for now, as that allows to prove many
+-	// accesses to slices in loops.
+-	//
+-	// From x+delta > w, we compute (using integers of the correct size):
+-	//    min = w - delta
+-	//    max = MaxInt - delta
+-	//
+-	// And we prove that:
+-	//    if min<max: min < x AND x <= max
+-	//    if min>max: min < x OR  x <= max
+-	//
+-	// This is always correct, even in case of overflow.
+-	//
+-	// If the initial fact is x+delta >= w instead, the derived conditions are:
+-	//    if min<max: min <= x AND x <= max
+-	//    if min>max: min <= x OR  x <= max
+-	//
+-	// Notice the conditions for max are still <=, as they handle overflows.
++	// Process: x+delta > w (with delta constant)
++	// Only signed domain for now (useful for accesses to slices in loops).
+ 	if r == gt || r == gt|eq {
+-		if x, delta := isConstDelta(v); x != nil && w.isGenericIntConst() && d == signed {
++		if x, delta := isConstDelta(v); x != nil && d == signed {
+ 			if parent.Func.pass.debug > 1 {
+ 				parent.Func.Warnl(parent.Pos, "x+d >= w; x:%v %v delta:%v w:%v d:%v", x, parent.String(), delta, w.AuxInt, d)
+ 			}
+-
+-			var min, max int64
+-			var vmin, vmax *Value
+-			switch x.Type.Size() {
+-			case 8:
+-				min = w.AuxInt - delta
+-				max = int64(^uint64(0)>>1) - delta
+-
+-				vmin = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, min)
+-				vmax = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, max)
+-
+-			case 4:
+-				min = int64(int32(w.AuxInt) - int32(delta))
+-				max = int64(int32(^uint32(0)>>1) - int32(delta))
+-
+-				vmin = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, min)
+-				vmax = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, max)
+-
+-			default:
+-				panic("unimplemented")
+-			}
+-
+-			if min < max {
+-				// Record that x > min and max >= x
+-				ft.update(parent, x, vmin, d, r)
+-				ft.update(parent, vmax, x, d, r|eq)
++			if !w.isGenericIntConst() {
++				// If we know that x+delta > w but w is not constant, we can derive:
++				//    if delta < 0 and x > MinInt - delta, then x > w (because x+delta cannot underflow)
++				// This is useful for loops with bounds "len(slice)-K" (delta = -K)
++				if l, has := ft.limits[x.ID]; has && delta < 0 {
++					if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
++						(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
++						ft.update(parent, x, w, signed, r)
++					}
++				}
+ 			} else {
+-				// We know that either x>min OR x<=max. factsTable cannot record OR conditions,
+-				// so let's see if we can already prove that one of them is false, in which case
+-				// the other must be true
+-				if l, has := ft.limits[x.ID]; has {
+-					if l.max <= min {
+-						// x>min is impossible, so it must be x<=max
+-						ft.update(parent, vmax, x, d, r|eq)
+-					} else if l.min > max {
+-						// x<=max is impossible, so it must be x>min
+-						ft.update(parent, x, vmin, d, r)
++				// With w,delta constants, we want to derive: x+delta > w  ⇒  x > w-delta
++				//
++				// We compute (using integers of the correct size):
++				//    min = w - delta
++				//    max = MaxInt - delta
++				//
++				// And we prove that:
++				//    if min<max: min < x AND x <= max
++				//    if min>max: min < x OR  x <= max
++				//
++				// This is always correct, even in case of overflow.
++				//
++				// If the initial fact is x+delta >= w instead, the derived conditions are:
++				//    if min<max: min <= x AND x <= max
++				//    if min>max: min <= x OR  x <= max
++				//
++				// Notice the conditions for max are still <=, as they handle overflows.
++				var min, max int64
++				var vmin, vmax *Value
++				switch x.Type.Size() {
++				case 8:
++					min = w.AuxInt - delta
++					max = int64(^uint64(0)>>1) - delta
++
++					vmin = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, min)
++					vmax = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, max)
++
++				case 4:
++					min = int64(int32(w.AuxInt) - int32(delta))
++					max = int64(int32(^uint32(0)>>1) - int32(delta))
++
++					vmin = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, min)
++					vmax = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, max)
++
++				default:
++					panic("unimplemented")
++				}
++
++				if min < max {
++					// Record that x > min and max >= x
++					ft.update(parent, x, vmin, d, r)
++					ft.update(parent, vmax, x, d, r|eq)
++				} else {
++					// We know that either x>min OR x<=max. factsTable cannot record OR conditions,
++					// so let's see if we can already prove that one of them is false, in which case
++					// the other must be true
++					if l, has := ft.limits[x.ID]; has {
++						if l.max <= min {
++							// x>min is impossible, so it must be x<=max
++							ft.update(parent, vmax, x, d, r|eq)
++						} else if l.min > max {
++							// x<=max is impossible, so it must be x>min
++							ft.update(parent, x, vmin, d, r)
++						}
+ 					}
+ 				}
+ 			}
+@@ -661,24 +669,43 @@ func prove(f *Func) {
+ 	ft := newFactsTable()
+ 
+ 	// Find length and capacity ops.
++	var zero *Value
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
++			// If we found a zero constant, save it (so we don't have
++			// to build one later).
++			if zero == nil && v.Op == OpConst64 && v.AuxInt == 0 {
++				zero = v
++			}
+ 			if v.Uses == 0 {
+ 				// We don't care about dead values.
+ 				// (There can be some that are CSEd but not removed yet.)
+ 				continue
+ 			}
+ 			switch v.Op {
++			case OpStringLen:
++				if zero == nil {
++					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
++				}
++				ft.update(b, v, zero, signed, gt|eq)
+ 			case OpSliceLen:
+ 				if ft.lens == nil {
+ 					ft.lens = map[ID]*Value{}
+ 				}
+ 				ft.lens[v.Args[0].ID] = v
++				if zero == nil {
++					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
++				}
++				ft.update(b, v, zero, signed, gt|eq)
+ 			case OpSliceCap:
+ 				if ft.caps == nil {
+ 					ft.caps = map[ID]*Value{}
+ 				}
+ 				ft.caps[v.Args[0].ID] = v
++				if zero == nil {
++					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
++				}
++				ft.update(b, v, zero, signed, gt|eq)
+ 			}
+ 		}
+ 	}
+diff --git a/test/loopbce.go b/test/loopbce.go
+index 6ef183dea8..c93bfc8f00 100644
+--- a/test/loopbce.go
++++ b/test/loopbce.go
+@@ -100,6 +100,22 @@ func g0d(a string) int {
+ 	return x
+ }
+ 
++func g0e(a string) int {
++	x := 0
++	for i := len(a) - 1; i >= 0; i-- { // ERROR "Induction variable: limits \[0,\?\], increment -1$"
++		x += int(a[i]) // ERROR "Proved IsInBounds$"
++	}
++	return x
++}
++
++func g0f(a string) int {
++	x := 0
++	for i := len(a) - 1; 0 <= i; i-- { // ERROR "Induction variable: limits \[0,\?\], increment -1$"
++		x += int(a[i]) // ERROR "Proved IsInBounds$"
++	}
++	return x
++}
++
+ func g1() int {
+ 	a := "evenlength"
+ 	x := 0
+@@ -265,7 +281,14 @@ func nobce2(a string) {
+ 		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
+ 	}
+ 	for i := int64(0); i < int64(len(a))+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+-		// tests an overflow of StringLen-MinInt64
++		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
++	}
++	j := int64(len(a)) - 123
++	for i := int64(0); i < j+123+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
++		useString(a[i:]) // ERROR "Proved IsSliceInBounds$"
++	}
++	for i := int64(0); i < j+122+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
++		// len(a)-123+122+MinInt overflows when len(a) == 0, so a bound check is needed here
+ 		useString(a[i:])
+ 	}
+ }
+diff --git a/test/prove.go b/test/prove.go
+index b5b3f20082..424ab5c0d7 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -42,8 +42,8 @@ func f1b(a []int, i int, j uint) int {
+ 	if i >= 10 && i < len(a) {
+ 		return a[i] // ERROR "Proved IsInBounds$"
+ 	}
+-	if i >= 10 && i < len(a) { // todo: handle this case
+-		return a[i-10]
++	if i >= 10 && i < len(a) {
++		return a[i-10] // ERROR "Proved IsInBounds$"
+ 	}
+ 	if j < uint(len(a)) {
+ 		return a[j] // ERROR "Proved IsInBounds$"
+@@ -613,6 +613,41 @@ func trans3(a, b []int, i int) {
+ 	_ = b[i] // ERROR "Proved IsInBounds$"
+ }
+ 
++// Derived from nat.cmp
++func natcmp(x, y []uint) (r int) {
++	m := len(x)
++	n := len(y)
++	if m != n || m == 0 {
++		return
++	}
++
++	i := m - 1
++	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment -1"
++		x[i] == // ERROR "Proved IsInBounds$"
++			y[i] { // ERROR "Proved IsInBounds$"
++		i--
++	}
++
++	switch {
++	case x[i] < // todo, cannot prove this because it's dominated by i<=0 || x[i]==y[i]
++		y[i]: // ERROR "Proved IsInBounds$"
++		r = -1
++	case x[i] > // ERROR "Proved IsInBounds$"
++		y[i]: // ERROR "Proved IsInBounds$"
++		r = 1
++	}
++	return
++}
++
++func suffix(s, suffix string) bool {
++	// todo, we're still not able to drop the bound check here in the general case
++	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
++}
++
++func constsuffix(s string) bool {
++	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$"
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

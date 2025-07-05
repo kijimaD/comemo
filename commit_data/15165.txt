@@ -7,6 +7,19 @@ Date:   Thu Feb 7 20:25:10 2013 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/7307070
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d7e8930575..1aa82020aa 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -203,6 +203,7 @@ Jeff Hodges <jeff@somethingsimilar.com>
+ Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jeff Wendling <jeff@spacemonkey.com>
+ Jeremy Jackins <jeremyjackins@gmail.com>
++Jeremy Schlatter <jeremy.schlatter@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Jimmy Zelinskie <jimmyzelinskie@gmail.com>
+ Jingcheng Zhang <diogin@gmail.com>

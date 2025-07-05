@@ -41,8 +41,157 @@ Date:   Wed Apr 15 17:08:58 2015 -0400
     Change-Id: I78e297161026f8b5cc7507c965fd3e486f81ed29
     Reviewed-on: https://go-review.googlesource.com/8980
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbitmap.go | 41 ++++++++++++++++++++---------------------
  src/runtime/mheap.go   |  5 ++++-
  src/runtime/msize.go   | 17 ++++++++++++++---
  3 files changed, 38 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 5dad2a0782..f0704bdb5d 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -154,17 +154,16 @@ func heapBitsForSpan(base uintptr) (hbits heapBits) {
+ // return base == 0
+ // otherwise return the base of the object.
+ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
+-	if p < mheap_.arena_start || p >= mheap_.arena_used {
++	arenaStart := mheap_.arena_start
++	if p < arenaStart || p >= mheap_.arena_used {
+ 		return
+ 	}
+-
++	off := p - arenaStart
++	idx := off >> _PageShift
+ 	// p points into the heap, but possibly to the middle of an object.
+ 	// Consult the span table to find the block beginning.
+-	// TODO(rsc): Factor this out.
+ 	k := p >> _PageShift
+-	x := k
+-	x -= mheap_.arena_start >> _PageShift
+-	s = h_spans[x]
++	s = h_spans[idx]
+ 	if s == nil || pageID(k) < s.start || p >= s.limit || s.state != mSpanInUse {
+ 		if s == nil || s.state == _MSpanStack {
+ 			// If s is nil, the virtual address has never been part of the heap.
+@@ -188,23 +187,23 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
+ 			printunlock()
+ 			throw("objectstart: bad pointer in unexpected span")
+ 		}
+-		return
+ 	}
+-	base = s.base()
+-	if p-base >= s.elemsize {
+-		// n := (p - base) / s.elemsize, using division by multiplication
+-		n := uintptr(uint64(p-base) >> s.divShift * uint64(s.divMul) >> s.divShift2)
+-
+-		const debugMagic = false
+-		if debugMagic {
+-			n2 := (p - base) / s.elemsize
+-			if n != n2 {
+-				println("runtime: bad div magic", (p - base), s.elemsize, s.divShift, s.divMul, s.divShift2)
+-				throw("bad div magic")
+-			}
++	// If this span holds object of a power of 2 size, just mask off the bits to
++	// the interior of the object. Otherwise use the size to get the base.
++	if s.baseMask != 0 {
++		// optimize for power of 2 sized objects.
++		base = s.base()
++		base = base + (p-base)&s.baseMask
++		// base = p & s.baseMask is faster for small spans,
++		// but doesn't work for large spans.
++		// Overall, it's faster to use the more general computation above.
++	} else {
++		base = s.base()
++		if p-base >= s.elemsize {
++			// n := (p - base) / s.elemsize, using division by multiplication
++			n := uintptr(uint64(p-base) >> s.divShift * uint64(s.divMul) >> s.divShift2)
++			base += n * s.elemsize
+ 		}
+-
+-		base += n * s.elemsize
+ 	}
+ 	// Now that we know the actual base, compute heapBits to return to caller.
+ 	hbits = heapBitsForAddr(base)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index c5de8218c2..fe44231e7b 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -24,7 +24,6 @@ type mheap struct {
+ 	nspan     uint32
+ 	sweepgen  uint32 // sweep generation, see comment in mspan
+ 	sweepdone uint32 // all spans are swept
+-
+ 	// span lookup
+ 	spans        **mspan
+ 	spans_mapped uintptr
+@@ -99,6 +98,7 @@ type mspan struct {
+ 	// if sweepgen == h->sweepgen - 1, the span is currently being swept
+ 	// if sweepgen == h->sweepgen, the span is swept and ready to use
+ 	// h->sweepgen is incremented by 2 after every GC
++
+ 	sweepgen    uint32
+ 	divMul      uint32   // for divide by elemsize - divMagic.mul
+ 	ref         uint16   // capacity - number of objects in freelist
+@@ -114,6 +114,7 @@ type mspan struct {
+ 	limit       uintptr  // end of data in span
+ 	speciallock mutex    // guards specials list
+ 	specials    *special // linked list of special records sorted by offset.
++	baseMask    uintptr  // if non-0, elemsize is a power of 2, & this will get object allocation base
+ }
+ 
+ func (s *mspan) base() uintptr {
+@@ -384,12 +385,14 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan
+ 			s.divShift = 0
+ 			s.divMul = 0
+ 			s.divShift2 = 0
++			s.baseMask = 0
+ 		} else {
+ 			s.elemsize = uintptr(class_to_size[sizeclass])
+ 			m := &class_to_divmagic[sizeclass]
+ 			s.divShift = m.shift
+ 			s.divMul = m.mul
+ 			s.divShift2 = m.shift2
++			s.baseMask = m.baseMask
+ 		}
+ 
+ 		// update stats, sweep lists
+diff --git a/src/runtime/msize.go b/src/runtime/msize.go
+index 9ba145dbf6..bc735beb42 100644
+--- a/src/runtime/msize.go
++++ b/src/runtime/msize.go
+@@ -215,14 +215,24 @@ func roundupsize(size uintptr) uintptr {
+ // http://ridiculousfish.com/blog/posts/labor-of-division-episode-i.html
+ // http://ridiculousfish.com/blog/posts/labor-of-division-episode-iii.html
+ type divMagic struct {
+-	shift  uint8
+-	mul    uint32
+-	shift2 uint8
++	shift    uint8
++	mul      uint32
++	shift2   uint8
++	baseMask uintptr
+ }
+ 
+ func computeDivMagic(d uint32) divMagic {
+ 	var m divMagic
+ 
++	// If the size is a power of two, heapBitsForObject can divide even faster by masking.
++	// Compute this mask.
++	if d&(d-1) == 0 {
++		// It is a power of 2 (assuming dinptr != 1)
++		m.baseMask = ^(uintptr(d) - 1)
++	} else {
++		m.baseMask = 0
++	}
++
+ 	// Compute pre-shift by factoring power of 2 out of d.
+ 	for d&1 == 0 {
+ 		m.shift++
+@@ -239,5 +249,6 @@ func computeDivMagic(d uint32) divMagic {
+ 	}
+ 	m.mul = uint32(((1 << k) + d64 - 1) / d64) //  ⌈2^k / d⌉
+ 	m.shift2 = k
++
+ 	return m
+ }

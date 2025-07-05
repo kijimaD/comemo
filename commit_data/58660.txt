@@ -19,7 +19,7 @@ Date:   Wed Nov 22 14:31:37 2023 -0500
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Sean Liao <sean@liao.dev>
-
+---
  .github/ISSUE_TEMPLATE/00-bug.yml             | 2 +-
  .github/ISSUE_TEMPLATE/01-pkgsite.yml         | 2 +-
  .github/ISSUE_TEMPLATE/03-gopls.yml           | 2 +-
@@ -28,3 +28,90 @@ Date:   Wed Nov 22 14:31:37 2023 -0500
  .github/ISSUE_TEMPLATE/11-language-change.yml | 2 +-
  .github/ISSUE_TEMPLATE/12-telemetry.yml       | 2 +-
  7 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/00-bug.yml b/.github/ISSUE_TEMPLATE/00-bug.yml
+index 7a87618190..3e64b83655 100644
+--- a/.github/ISSUE_TEMPLATE/00-bug.yml
++++ b/.github/ISSUE_TEMPLATE/00-bug.yml
+@@ -3,7 +3,7 @@
+ name: Bugs
+ description: The go command, standard library, or anything else
+ labels: [ 'kind/bug', 'bug' ]
+-title: "affected/package: "
++title: "import/path: issue title"
+ 
+ body:
+   - type: markdown
+diff --git a/.github/ISSUE_TEMPLATE/01-pkgsite.yml b/.github/ISSUE_TEMPLATE/01-pkgsite.yml
+index 714bc4198c..fb695857c7 100644
+--- a/.github/ISSUE_TEMPLATE/01-pkgsite.yml
++++ b/.github/ISSUE_TEMPLATE/01-pkgsite.yml
+@@ -1,6 +1,6 @@
+ name: Pkg.go.dev bugs or feature requests
+ description: Issues or feature requests for the documentation site
+-title: "x/pkgsite: "
++title: "x/pkgsite: issue title"
+ labels: ["pkgsite"]
+ body:
+   - type: markdown
+diff --git a/.github/ISSUE_TEMPLATE/03-gopls.yml b/.github/ISSUE_TEMPLATE/03-gopls.yml
+index d81c90c65d..83759d65d8 100644
+--- a/.github/ISSUE_TEMPLATE/03-gopls.yml
++++ b/.github/ISSUE_TEMPLATE/03-gopls.yml
+@@ -1,6 +1,6 @@
+ name: Gopls bugs or feature requests
+ description: Issues or feature requests for the Go language server (gopls)
+-title: "x/tools/gopls: "
++title: "x/tools/gopls: issue title"
+ labels: ["gopls", "Tools"]
+ body:
+   - type: markdown
+diff --git a/.github/ISSUE_TEMPLATE/04-vuln.yml b/.github/ISSUE_TEMPLATE/04-vuln.yml
+index dd14aeeb97..1759697307 100644
+--- a/.github/ISSUE_TEMPLATE/04-vuln.yml
++++ b/.github/ISSUE_TEMPLATE/04-vuln.yml
+@@ -1,6 +1,6 @@
+ name: Go vulnerability management - bugs and feature requests
+ description: Issues or feature requests about Go vulnerability management
+-title: "x/vuln: "
++title: "x/vuln: issue title"
+ labels: ["vulncheck", "vulndb"]
+ body:
+   - type: markdown
+diff --git a/.github/ISSUE_TEMPLATE/10-proposal.yml b/.github/ISSUE_TEMPLATE/10-proposal.yml
+index 8eb6ceb26a..d2a256c5ae 100644
+--- a/.github/ISSUE_TEMPLATE/10-proposal.yml
++++ b/.github/ISSUE_TEMPLATE/10-proposal.yml
+@@ -1,6 +1,6 @@
+ name: Proposals
+ description: New external API or other notable changes
+-title: "proposal: affected/package: "
++title: "proposal: import/path: proposal title"
+ labels: ["Proposal"]
+ body:
+   - type: markdown
+diff --git a/.github/ISSUE_TEMPLATE/11-language-change.yml b/.github/ISSUE_TEMPLATE/11-language-change.yml
+index 4965ab80ed..37ba2d7e40 100644
+--- a/.github/ISSUE_TEMPLATE/11-language-change.yml
++++ b/.github/ISSUE_TEMPLATE/11-language-change.yml
+@@ -1,7 +1,7 @@
+ name: Language Change Proposals
+ description: Changes to the language
+ labels: ["Proposal", "v2", "LanguageChange"]
+-title: "proposal: Go 2: "
++title: "proposal: Go 2: proposal title"
+ 
+ 
+ body:
+diff --git a/.github/ISSUE_TEMPLATE/12-telemetry.yml b/.github/ISSUE_TEMPLATE/12-telemetry.yml
+index 7f1a29c634..787a664165 100644
+--- a/.github/ISSUE_TEMPLATE/12-telemetry.yml
++++ b/.github/ISSUE_TEMPLATE/12-telemetry.yml
+@@ -1,6 +1,6 @@
+ name: Go Telemetry Proposals
+ description: New telemetry counter or update on an existing one
+-title: "x/telemetry/config: "
++title: "x/telemetry/config: issue title"
+ labels: ["Telemetry-Proposal"]
+ projects: ["golang/29"]
+ body:

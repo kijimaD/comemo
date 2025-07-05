@@ -7,6 +7,21 @@ Date:   Mon Jun 20 17:44:36 2011 -0400
     R=adg, r
     CC=golang-dev
     https://golang.org/cl/4633054
-
+---
  src/all-qemu.bash | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/all-qemu.bash b/src/all-qemu.bash
+index 6d5cd6eddf..c7079ba139 100755
+--- a/src/all-qemu.bash
++++ b/src/all-qemu.bash
+@@ -8,7 +8,8 @@
+ 
+ export NOTEST=""
+ 
+-NOTEST="$NOTEST big" # xxx
++NOTEST="$NOTEST big" # just slow
++NOTEST="$NOTEST go/build" # wants to run cgo
+ NOTEST="$NOTEST http net rpc syslog websocket"  # no localhost network
+ NOTEST="$NOTEST os"  # 64-bit seek fails
+ 

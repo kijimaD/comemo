@@ -28,7 +28,76 @@ Date:   Tue Jun 13 21:39:54 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/testing/fstest/testfs.go      |  2 +-
  src/testing/fstest/testfs_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index ddb6080882..78b0b82640 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -270,7 +270,7 @@ func (t *fsTester) checkDir(dir string) {
+ 		}
+ 	}
+ 
+-	t.checkGlob(dir, list)
++	t.checkGlob(dir, list2)
+ }
+ 
+ // formatEntry formats an fs.DirEntry into a string for error messages and comparison.
+diff --git a/src/testing/fstest/testfs_test.go b/src/testing/fstest/testfs_test.go
+index aefb4b3361..a48c597ff4 100644
+--- a/src/testing/fstest/testfs_test.go
++++ b/src/testing/fstest/testfs_test.go
+@@ -6,8 +6,10 @@ package fstest
+ 
+ import (
+ 	"internal/testenv"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
++	"sort"
+ 	"testing"
+ )
+ 
+@@ -38,3 +40,39 @@ func TestDash(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++type shuffledFS MapFS
++
++func (fsys shuffledFS) Open(name string) (fs.File, error) {
++	f, err := MapFS(fsys).Open(name)
++	if err != nil {
++		return nil, err
++	}
++	return &shuffledFile{File: f}, nil
++}
++
++type shuffledFile struct{ fs.File }
++
++func (f *shuffledFile) ReadDir(n int) ([]fs.DirEntry, error) {
++	dirents, err := f.File.(fs.ReadDirFile).ReadDir(n)
++	// Shuffle in a deterministic way, all we care about is making sure that the
++	// list of directory entries is not is the lexicographic order.
++	//
++	// We do this to make sure that the TestFS test suite is not affected by the
++	// order of directory entries.
++	sort.Slice(dirents, func(i, j int) bool {
++		return dirents[i].Name() > dirents[j].Name()
++	})
++	return dirents, err
++}
++
++func TestShuffledFS(t *testing.T) {
++	fsys := shuffledFS{
++		"tmp/one":   {Data: []byte("1")},
++		"tmp/two":   {Data: []byte("2")},
++		"tmp/three": {Data: []byte("3")},
++	}
++	if err := TestFS(fsys, "tmp/one", "tmp/two", "tmp/three"); err != nil {
++		t.Error(err)
++	}
++}

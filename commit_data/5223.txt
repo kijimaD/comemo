@@ -7,6 +7,20 @@ Date:   Mon Apr 5 22:08:07 2010 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/862042
-
+---
  src/pkg/deps.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index fa06f646fc..2058e758f4 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -18,7 +18,7 @@ dirpat=$(echo $dirs | sed 's/ /|/g; s/.*/^(&)$/')
+ for dir in $dirs; do (
+ 	cd $dir || exit 1
+ 
+-	sources=$(sed -n 's/\.go[ \t]*\\/.go/p' Makefile)
++	sources=$(sed -n 's/^[ \t]*\([^ \t]*\.go\)[ \t]*\\?[ \t]*$/\1/p' Makefile)
+ 	sources=$(echo $sources | sed 's/\$(GOOS)/'$GOOS'/g')
+ 	sources=$(echo $sources | sed 's/\$(GOARCH)/'$GOARCH'/g')
+ 	sources=$(ls $sources 2> /dev/null)  # remove .s, .c, etc.

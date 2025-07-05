@@ -19,7 +19,82 @@ Date:   Thu Oct 22 10:05:44 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/sym.go |  2 +-
  src/cmd/link/link_test.go   | 53 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 54 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 0182773f8e..4515bdd0d3 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -205,7 +205,7 @@ func (ctxt *Link) NumberSyms() {
+ 		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
+ 		// may reference named symbols whose names are not fully expanded.
+ 		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
+-			if len(s.P) <= 8 && len(s.R) == 0 && !strings.HasPrefix(s.Name, "type.") {
++			if s.Size <= 8 && len(s.R) == 0 && !strings.HasPrefix(s.Name, "type.") {
+ 				// We can use short hash only for symbols without relocations.
+ 				// Don't use short hash for type symbols, as they need special handling.
+ 				s.PkgIdx = goobj.PkgIdxHashed64
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 968da4837d..204410e976 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -820,3 +820,56 @@ func TestReadOnly(t *testing.T) {
+ 		t.Errorf("running test program did not fail. output:\n%s", out)
+ 	}
+ }
++
++const testIssue38554Src = `
++package main
++
++type T [10<<20]byte
++
++//go:noinline
++func f() T {
++	return T{} // compiler will make a large stmp symbol, but not used.
++}
++
++func main() {
++	x := f()
++	println(x[1])
++}
++`
++
++func TestIssue38554(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	t.Parallel()
++
++	tmpdir, err := ioutil.TempDir("", "TestIssue38554")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	src := filepath.Join(tmpdir, "x.go")
++	err = ioutil.WriteFile(src, []byte(testIssue38554Src), 0666)
++	if err != nil {
++		t.Fatalf("failed to write source file: %v", err)
++	}
++	exe := filepath.Join(tmpdir, "x.exe")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, src)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("build failed: %v\n%s", err, out)
++	}
++
++	fi, err := os.Stat(exe)
++	if err != nil {
++		t.Fatalf("failed to stat output file: %v", err)
++	}
++
++	// The test program is not much different from a helloworld, which is
++	// typically a little over 1 MB. We allow 5 MB. If the bad stmp is live,
++	// it will be over 10 MB.
++	const want = 5 << 20
++	if got := fi.Size(); got > want {
++		t.Errorf("binary too big: got %d, want < %d", got, want)
++	}
++}

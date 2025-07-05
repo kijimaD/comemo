@@ -9,7 +9,91 @@ Date:   Fri Apr 28 08:11:21 2017 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go    | 16 ++++++++--------
  src/cmd/link/internal/ld/symkind.go | 10 +++++-----
  2 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 5d3323ba92..8aa6cde603 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1361,8 +1361,8 @@ func (ctxt *Link) dodata() {
+ 		// "read only" data with relocations needs to go in its own section
+ 		// when building a shared library. We do this by boosting objects of
+ 		// type SXXX with relocations to type SXXXRELRO.
+-		for _, symnro := range ReadOnly {
+-			symnrelro := RelROMap[symnro]
++		for _, symnro := range readOnly {
++			symnrelro := relROMap[symnro]
+ 
+ 			ro := []*Symbol{}
+ 			relro := data[symnrelro]
+@@ -1640,14 +1640,14 @@ func (ctxt *Link) dodata() {
+ 		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
+ 		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
+ 	}
+-	for _, symn := range ReadOnly {
++	for _, symn := range readOnly {
+ 		align := dataMaxAlign[symn]
+ 		if sect.Align < align {
+ 			sect.Align = align
+ 		}
+ 	}
+ 	datsize = Rnd(datsize, int64(sect.Align))
+-	for _, symn := range ReadOnly {
++	for _, symn := range readOnly {
+ 		for _, s := range data[symn] {
+ 			datsize = aligndatsize(datsize, s)
+ 			s.Sect = sect
+@@ -1720,16 +1720,16 @@ func (ctxt *Link) dodata() {
+ 		sect.Vaddr = 0
+ 		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
+ 		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
+-		for _, symnro := range ReadOnly {
+-			symn := RelROMap[symnro]
++		for _, symnro := range readOnly {
++			symn := relROMap[symnro]
+ 			align := dataMaxAlign[symn]
+ 			if sect.Align < align {
+ 				sect.Align = align
+ 			}
+ 		}
+ 		datsize = Rnd(datsize, int64(sect.Align))
+-		for _, symnro := range ReadOnly {
+-			symn := RelROMap[symnro]
++		for _, symnro := range readOnly {
++			symn := relROMap[symnro]
+ 			for _, s := range data[symn] {
+ 				datsize = aligndatsize(datsize, s)
+ 				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
+diff --git a/src/cmd/link/internal/ld/symkind.go b/src/cmd/link/internal/ld/symkind.go
+index 1d10ce235c..1f95f8afa8 100644
+--- a/src/cmd/link/internal/ld/symkind.go
++++ b/src/cmd/link/internal/ld/symkind.go
+@@ -124,10 +124,10 @@ var abiSymKindToSymKind = [...]SymKind{
+ 	SDWARFINFO,
+ }
+ 
+-// ReadOnly are the symbol kinds that form read-only sections. In some
++// readOnly are the symbol kinds that form read-only sections. In some
+ // cases, if they will require relocations, they are transformed into
+-// rel-ro sections using RelROMap.
+-var ReadOnly = []SymKind{
++// rel-ro sections using relROMap.
++var readOnly = []SymKind{
+ 	STYPE,
+ 	SSTRING,
+ 	SGOSTRING,
+@@ -137,9 +137,9 @@ var ReadOnly = []SymKind{
+ 	SFUNCTAB,
+ }
+ 
+-// RelROMap describes the transformation of read-only symbols to rel-ro
++// relROMap describes the transformation of read-only symbols to rel-ro
+ // symbols.
+-var RelROMap = map[SymKind]SymKind{
++var relROMap = map[SymKind]SymKind{
+ 	STYPE:     STYPERELRO,
+ 	SSTRING:   SSTRINGRELRO,
+ 	SGOSTRING: SGOSTRINGRELRO,

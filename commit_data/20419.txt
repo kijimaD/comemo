@@ -8,8 +8,173 @@ Date:   Sat Sep 6 21:16:35 2014 -0400
     R=golang-codereviews, aram, r
     CC=golang-codereviews, iant, khr
     https://golang.org/cl/141180043
-
+---
  src/pkg/runtime/netpoll.go   | 15 +++++++++++----
  src/pkg/runtime/os_solaris.c | 10 ++++++++++
  src/pkg/runtime/panic1.go    | 13 ++++++++++++-
  3 files changed, 33 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/netpoll.go b/src/pkg/runtime/netpoll.go
+index 08da87aa26..3456e02081 100644
+--- a/src/pkg/runtime/netpoll.go
++++ b/src/pkg/runtime/netpoll.go
+@@ -72,7 +72,7 @@ type pollCache struct {
+ var pollcache pollCache
+ 
+ func netpollServerInit() {
+-	netpollinit()
++	onM(netpollinit)
+ }
+ 
+ func netpollOpen(fd uintptr) (*pollDesc, int) {
+@@ -93,7 +93,10 @@ func netpollOpen(fd uintptr) (*pollDesc, int) {
+ 	pd.wd = 0
+ 	unlock(&pd.lock)
+ 
+-	errno := netpollopen(fd, pd)
++	var errno int32
++	onM(func() {
++		errno = netpollopen(fd, pd)
++	})
+ 	return pd, int(errno)
+ }
+ 
+@@ -107,7 +110,9 @@ func netpollClose(pd *pollDesc) {
+ 	if pd.rg != 0 && pd.rg != pdReady {
+ 		gothrow("netpollClose: blocked read on closing descriptor")
+ 	}
+-	netpollclose(uintptr(pd.fd))
++	onM(func() {
++		netpollclose(uintptr(pd.fd))
++	})
+ 	pollcache.free(pd)
+ }
+ 
+@@ -138,7 +143,9 @@ func netpollWait(pd *pollDesc, mode int) int {
+ 	}
+ 	// As for now only Solaris uses level-triggered IO.
+ 	if GOOS == "solaris" {
+-		netpollarm(pd, mode)
++		onM(func() {
++			netpollarm(pd, mode)
++		})
+ 	}
+ 	for !netpollblock(pd, int32(mode), false) {
+ 		err = netpollcheckerr(pd, int32(mode))
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index 5e1f7ab076..c6c2a8a7a1 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -386,36 +386,42 @@ runtime·semawakeup(M *mp)
+ 		runtime·throw("sem_post");
+ }
+ 
++#pragma textflag NOSPLIT
+ int32
+ runtime·close(int32 fd)
+ {
+ 	return runtime·sysvicall1(libc·close, (uintptr)fd);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·exit(int32 r)
+ {
+ 	runtime·sysvicall1(libc·exit, (uintptr)r);
+ }
+ 
++#pragma textflag NOSPLIT
+ /* int32 */ void
+ runtime·getcontext(Ucontext* context)
+ {
+ 	runtime·sysvicall1(libc·getcontext, (uintptr)context);
+ }
+ 
++#pragma textflag NOSPLIT
+ int32
+ runtime·getrlimit(int32 res, Rlimit* rlp)
+ {
+ 	return runtime·sysvicall2(libc·getrlimit, (uintptr)res, (uintptr)rlp);
+ }
+ 
++#pragma textflag NOSPLIT
+ uint8*
+ runtime·mmap(byte* addr, uintptr len, int32 prot, int32 flags, int32 fildes, uint32 off)
+ {
+ 	return (uint8*)runtime·sysvicall6(libc·mmap, (uintptr)addr, (uintptr)len, (uintptr)prot, (uintptr)flags, (uintptr)fildes, (uintptr)off);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·munmap(byte* addr, uintptr len)
+ {
+@@ -430,6 +436,7 @@ runtime·nanotime(void)
+ 	return runtime·sysvicall0((uintptr)runtime·nanotime1);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ time·now(int64 sec, int32 usec)
+ {
+@@ -442,6 +449,7 @@ time·now(int64 sec, int32 usec)
+ 	FLUSH(&usec);
+ }
+ 
++#pragma textflag NOSPLIT
+ int32
+ runtime·open(int8* path, int32 oflag, int32 mode)
+ {
+@@ -490,6 +498,7 @@ runtime·raise(int32 sig)
+ 	runtime·sysvicall1(libc·raise, (uintptr)sig);
+ }
+ 
++#pragma textflag NOSPLIT
+ int32
+ runtime·read(int32 fd, void* buf, int32 nbyte)
+ {
+@@ -563,6 +572,7 @@ runtime·usleep(uint32 µs)
+ 	runtime·usleep1(µs);
+ }
+ 
++#pragma textflag NOSPLIT
+ int32
+ runtime·write(uintptr fd, void* buf, int32 nbyte)
+ {
+diff --git a/src/pkg/runtime/panic1.go b/src/pkg/runtime/panic1.go
+index 1f2f54ec20..e877434320 100644
+--- a/src/pkg/runtime/panic1.go
++++ b/src/pkg/runtime/panic1.go
+@@ -138,10 +138,12 @@ func gorecover(argp uintptr) interface{} {
+ 	return nil
+ }
+ 
++//go:nosplit
+ func startpanic() {
+ 	onM(startpanic_m)
+ }
+ 
++//go:nosplit
+ func dopanic(unused int) {
+ 	gp := getg()
+ 	mp := acquirem()
+@@ -152,10 +154,19 @@ func dopanic(unused int) {
+ 	*(*int)(nil) = 0
+ }
+ 
++//go:nosplit
+ func throw(s *byte) {
+-	gothrow(gostringnocopy(s))
++	gp := getg()
++	if gp.m.throwing == 0 {
++		gp.m.throwing = 1
++	}
++	startpanic()
++	print("fatal error: ", gostringnocopy(s), "\n")
++	dopanic(0)
++	*(*int)(nil) = 0 // not reached
+ }
+ 
++//go:nosplit
+ func gothrow(s string) {
+ 	gp := getg()
+ 	if gp.m.throwing == 0 {

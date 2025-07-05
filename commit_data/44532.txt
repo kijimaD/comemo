@@ -16,7 +16,7 @@ Date:   Tue Jul 21 15:53:30 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go |  1 +
  src/cmd/internal/goobj2/funcinfo.go    | 16 +++++++++++-----
  src/cmd/internal/goobj2/objfile.go     |  4 ++--
@@ -28,3 +28,262 @@ Date:   Tue Jul 21 15:53:30 2020 -0400
  src/cmd/link/internal/ld/pcln.go       | 18 +++++++++++-------
  src/cmd/link/internal/loader/loader.go |  4 ++++
  10 files changed, 38 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 9d71c1e2ef..3bb7bb9834 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -429,6 +429,7 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
+ 	// Create top-level function.
+ 	xfunc := makepartialcall(fn, fn.Type, sym)
+ 	fn.Func = xfunc.Func
++	fn.Func.SetWrapper(true)
+ 	fn.Right = newname(sym)
+ 	fn.Op = OCALLPART
+ 	fn.Type = xfunc.Type
+diff --git a/src/cmd/internal/goobj2/funcinfo.go b/src/cmd/internal/goobj2/funcinfo.go
+index 36b2de20cd..b525c88b13 100644
+--- a/src/cmd/internal/goobj2/funcinfo.go
++++ b/src/cmd/internal/goobj2/funcinfo.go
+@@ -6,6 +6,7 @@ package goobj2
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/objabi"
+ 	"encoding/binary"
+ )
+ 
+@@ -16,6 +17,7 @@ import (
+ type FuncInfo struct {
+ 	Args   uint32
+ 	Locals uint32
++	FuncID objabi.FuncID
+ 
+ 	Pcsp        uint32
+ 	Pcfile      uint32
+@@ -38,6 +40,7 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
+ 
+ 	writeUint32(a.Args)
+ 	writeUint32(a.Locals)
++	writeUint32(uint32(a.FuncID))
+ 
+ 	writeUint32(a.Pcsp)
+ 	writeUint32(a.Pcfile)
+@@ -72,6 +75,7 @@ func (a *FuncInfo) Read(b []byte) {
+ 
+ 	a.Args = readUint32()
+ 	a.Locals = readUint32()
++	a.FuncID = objabi.FuncID(readUint32())
+ 
+ 	a.Pcsp = readUint32()
+ 	a.Pcfile = readUint32()
+@@ -120,7 +124,7 @@ type FuncInfoLengths struct {
+ func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
+ 	var result FuncInfoLengths
+ 
+-	const numpcdataOff = 24
++	const numpcdataOff = 28
+ 	result.NumPcdata = binary.LittleEndian.Uint32(b[numpcdataOff:])
+ 	result.PcdataOff = numpcdataOff + 4
+ 
+@@ -146,24 +150,26 @@ func (*FuncInfo) ReadArgs(b []byte) uint32 { return binary.LittleEndian.Uint32(b
+ 
+ func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32(b[4:]) }
+ 
++func (*FuncInfo) ReadFuncID(b []byte) uint32 { return binary.LittleEndian.Uint32(b[8:]) }
++
+ // return start and end offsets.
+ func (*FuncInfo) ReadPcsp(b []byte) (uint32, uint32) {
+-	return binary.LittleEndian.Uint32(b[8:]), binary.LittleEndian.Uint32(b[12:])
++	return binary.LittleEndian.Uint32(b[12:]), binary.LittleEndian.Uint32(b[16:])
+ }
+ 
+ // return start and end offsets.
+ func (*FuncInfo) ReadPcfile(b []byte) (uint32, uint32) {
+-	return binary.LittleEndian.Uint32(b[12:]), binary.LittleEndian.Uint32(b[16:])
++	return binary.LittleEndian.Uint32(b[16:]), binary.LittleEndian.Uint32(b[20:])
+ }
+ 
+ // return start and end offsets.
+ func (*FuncInfo) ReadPcline(b []byte) (uint32, uint32) {
+-	return binary.LittleEndian.Uint32(b[16:]), binary.LittleEndian.Uint32(b[20:])
++	return binary.LittleEndian.Uint32(b[20:]), binary.LittleEndian.Uint32(b[24:])
+ }
+ 
+ // return start and end offsets.
+ func (*FuncInfo) ReadPcinline(b []byte, pcdataoffset uint32) (uint32, uint32) {
+-	return binary.LittleEndian.Uint32(b[20:]), binary.LittleEndian.Uint32(b[pcdataoffset:])
++	return binary.LittleEndian.Uint32(b[24:]), binary.LittleEndian.Uint32(b[pcdataoffset:])
+ }
+ 
+ // return start and end offsets.
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 4465cfd5af..eae9b5587c 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -21,7 +21,7 @@ import (
+ // New object file format.
+ //
+ //    Header struct {
+-//       Magic       [...]byte   // "\x00go115ld"
++//       Magic       [...]byte   // "\x00go116ld"
+ //       Fingerprint [8]byte
+ //       Flags       uint32
+ //       Offsets     [...]uint32 // byte offset of each block below
+@@ -199,7 +199,7 @@ type Header struct {
+ 	Offsets     [NBlk]uint32
+ }
+ 
+-const Magic = "\x00go115ld"
++const Magic = "\x00go116ld"
+ 
+ func (h *Header) Write(w *Writer) {
+ 	w.RawString(h.Magic)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 195af8494c..8d189b71f9 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -400,6 +400,7 @@ type FuncInfo struct {
+ 	Args     int32
+ 	Locals   int32
+ 	Align    int32
++	FuncID   objabi.FuncID
+ 	Text     *Prog
+ 	Autot    map[*LSym]struct{}
+ 	Pcln     Pcln
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index c0194c5a6d..2f28b6eeec 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -40,7 +40,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+ 	}
+ 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+ 	if s.Type == objabi.STEXT {
+-		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Func.Args), uint64(s.Func.Locals))
++		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x", uint64(s.Func.Args), uint64(s.Func.Locals), uint64(s.Func.FuncID))
+ 		if s.Leaf() {
+ 			fmt.Fprintf(ctxt.Bso, " leaf")
+ 		}
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 6cf82779e4..988ecdf543 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -534,6 +534,7 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		o := goobj2.FuncInfo{
+ 			Args:   uint32(s.Func.Args),
+ 			Locals: uint32(s.Func.Locals),
++			FuncID: objabi.FuncID(s.Func.FuncID),
+ 		}
+ 		pc := &s.Func.Pcln
+ 		o.Pcsp = pcdataoff
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index b27e6c163d..afe0ee4ee0 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -127,6 +127,8 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	if s.OnList() {
+ 		ctxt.Diag("symbol %s listed multiple times", s.Name)
+ 	}
++	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
++	s.Func.FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
+ 	s.Set(AttrOnList, true)
+ 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
+ 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index 0fda1db178..6c9336f31c 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -4,11 +4,6 @@
+ 
+ package objabi
+ 
+-import (
+-	"strconv"
+-	"strings"
+-)
+-
+ // A FuncID identifies particular functions that need to be treated
+ // specially by the runtime.
+ // Note that in some situations involving plugins, there may be multiple
+@@ -44,7 +39,10 @@ const (
+ 
+ // Get the function ID for the named function in the named file.
+ // The function should be package-qualified.
+-func GetFuncID(name, file string) FuncID {
++func GetFuncID(name string, isWrapper bool) FuncID {
++	if isWrapper {
++		return FuncID_wrapper
++	}
+ 	switch name {
+ 	case "runtime.main":
+ 		return FuncID_runtime_main
+@@ -98,17 +96,5 @@ func GetFuncID(name, file string) FuncID {
+ 		// Don't show in the call stack (used when invoking defer functions)
+ 		return FuncID_wrapper
+ 	}
+-	if file == "<autogenerated>" {
+-		return FuncID_wrapper
+-	}
+-	if strings.HasPrefix(name, "runtime.call") {
+-		if _, err := strconv.Atoi(name[12:]); err == nil {
+-			// runtime.callXX reflect call wrappers.
+-			return FuncID_wrapper
+-		}
+-	}
+-	if strings.HasSuffix(name, "-fm") {
+-		return FuncID_wrapper
+-	}
+ 	return FuncID_normal
+ }
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 1b59b80e26..c6174e378c 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -297,7 +297,14 @@ func (state *oldPclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch, new
+ 		}
+ 
+ 		inlTreeSym.SetUint16(arch, int64(i*20+0), uint16(call.Parent))
+-		inlTreeSym.SetUint8(arch, int64(i*20+2), uint8(objabi.GetFuncID(ldr.SymName(call.Func), "")))
++		inlFunc := ldr.FuncInfo(call.Func)
++
++		var funcID objabi.FuncID
++		if inlFunc.Valid() {
++			funcID = inlFunc.FuncID()
++		}
++		inlTreeSym.SetUint8(arch, int64(i*20+2), uint8(funcID))
++
+ 		// byte 3 is unused
+ 		inlTreeSym.SetUint32(arch, int64(i*20+4), uint32(val))
+ 		inlTreeSym.SetUint32(arch, int64(i*20+8), uint32(call.Line))
+@@ -610,13 +617,10 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcdata))))
+ 
+ 		// funcID uint8
+-		var file string
+-		if fi.Valid() && fi.NumFile() > 0 {
+-			filesymname := ldr.SymName(fi.File(0))
+-			file = filesymname[len(src.FileSymPrefix):]
++		var funcID objabi.FuncID
++		if fi.Valid() {
++			funcID = fi.FuncID()
+ 		}
+-		funcID := objabi.GetFuncID(ldr.SymName(s), file)
+-
+ 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
+ 
+ 		// unused
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 16331e0825..45085f56c1 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1872,6 +1872,10 @@ func (fi *FuncInfo) Locals() int {
+ 	return int((*goobj2.FuncInfo)(nil).ReadLocals(fi.data))
+ }
+ 
++func (fi *FuncInfo) FuncID() objabi.FuncID {
++	return objabi.FuncID((*goobj2.FuncInfo)(nil).ReadFuncID(fi.data))
++}
++
+ func (fi *FuncInfo) Pcsp() []byte {
+ 	pcsp, end := (*goobj2.FuncInfo)(nil).ReadPcsp(fi.data)
+ 	return fi.r.BytesAt(fi.r.PcdataBase()+pcsp, int(end-pcsp))

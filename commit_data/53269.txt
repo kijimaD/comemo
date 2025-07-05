@@ -13,6 +13,35 @@ Date:   Sun Aug 7 01:55:52 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/walk/expr.go | 12 ------------
  1 file changed, 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 83fcea38d5..dfa82e7ec0 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -727,23 +727,11 @@ func walkIndex(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
+ 		if base.Flag.LowerM != 0 && n.Bounded() && !ir.IsConst(n.Index, constant.Int) {
+ 			base.Warn("index bounds check elided")
+ 		}
+-		if ir.IsSmallIntConst(n.Index) && !n.Bounded() {
+-			base.Errorf("index out of bounds")
+-		}
+ 	} else if ir.IsConst(n.X, constant.String) {
+ 		n.SetBounded(bounded(r, int64(len(ir.StringVal(n.X)))))
+ 		if base.Flag.LowerM != 0 && n.Bounded() && !ir.IsConst(n.Index, constant.Int) {
+ 			base.Warn("index bounds check elided")
+ 		}
+-		if ir.IsSmallIntConst(n.Index) && !n.Bounded() {
+-			base.Errorf("index out of bounds")
+-		}
+-	}
+-
+-	if ir.IsConst(n.Index, constant.Int) {
+-		if v := n.Index.Val(); constant.Sign(v) < 0 || ir.ConstOverflow(v, types.Types[types.TINT]) {
+-			base.Errorf("index out of bounds")
+-		}
+ 	}
+ 	return n
+ }

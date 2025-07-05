@@ -7,10 +7,139 @@ Date:   Sun Aug 18 19:19:36 2013 +0900
     R=golang-dev, dave, rsc, adg, bradfitz
     CC=golang-dev
     https://golang.org/cl/11809043
-
+---
  src/pkg/net/iprawsock_posix.go |  6 ++++++
  src/pkg/net/protoconn_test.go  | 29 +++++++++++++++++++++++++++++
  src/pkg/net/udpsock_plan9.go   |  3 +++
  src/pkg/net/udpsock_posix.go   |  6 ++++++
  src/pkg/net/unixsock_posix.go  |  3 +++
  5 files changed, 47 insertions(+)
+
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 8d41d20d6d..1df661c37d 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -128,6 +128,9 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+ 	}
++	if addr == nil {
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
++	}
+ 	sa, err := addr.sockaddr(c.fd.family)
+ 	if err != nil {
+ 		return 0, &OpError{"write", c.fd.net, addr, err}
+@@ -154,6 +157,9 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
+ 	if !c.ok() {
+ 		return 0, 0, syscall.EINVAL
+ 	}
++	if addr == nil {
++		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
++	}
+ 	sa, err := addr.sockaddr(c.fd.family)
+ 	if err != nil {
+ 		return 0, 0, &OpError{"write", c.fd.net, addr, err}
+diff --git a/src/pkg/net/protoconn_test.go b/src/pkg/net/protoconn_test.go
+index 7e4fbdaa74..56f22da071 100644
+--- a/src/pkg/net/protoconn_test.go
++++ b/src/pkg/net/protoconn_test.go
+@@ -161,6 +161,15 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ 	} else {
+ 		f.Close()
+ 	}
++
++	defer func() {
++		if p := recover(); p != nil {
++			t.Fatalf("UDPConn.WriteToUDP or WriteMsgUDP panicked: %v", p)
++		}
++	}()
++
++	c.WriteToUDP(wb, nil)
++	c.WriteMsgUDP(wb, nil, nil)
+ }
+ 
+ func TestIPConnSpecificMethods(t *testing.T) {
+@@ -218,6 +227,15 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 	} else {
+ 		f.Close()
+ 	}
++
++	defer func() {
++		if p := recover(); p != nil {
++			t.Fatalf("IPConn.WriteToIP or WriteMsgIP panicked: %v", p)
++		}
++	}()
++
++	c.WriteToIP(wb, nil)
++	c.WriteMsgIP(wb, nil, nil)
+ }
+ 
+ func TestUnixListenerSpecificMethods(t *testing.T) {
+@@ -358,4 +376,15 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	} else {
+ 		f.Close()
+ 	}
++
++	defer func() {
++		if p := recover(); p != nil {
++			t.Fatalf("UnixConn.WriteToUnix or WriteMsgUnix panicked: %v", p)
++		}
++	}()
++
++	c1.WriteToUnix(wb, nil)
++	c1.WriteMsgUnix(wb, nil, nil)
++	c3.WriteToUnix(wb, nil)
++	c3.WriteMsgUnix(wb, nil, nil)
+ }
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index 12a3483990..73621706d5 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -73,6 +73,9 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ 	if !c.ok() || c.fd.data == nil {
+ 		return 0, syscall.EINVAL
+ 	}
++	if addr == nil {
++		return 0, &OpError{Op: "write", Net: c.fd.dir, Addr: nil, Err: errMissingAddress}
++	}
+ 	h := new(udpHeader)
+ 	h.raddr = addr.IP.To16()
+ 	h.laddr = c.fd.laddr.(*UDPAddr).IP.To16()
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 0504e4ff5b..1eee64f0c8 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -124,6 +124,9 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ 	if c.fd.isConnected {
+ 		return 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
+ 	}
++	if addr == nil {
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
++	}
+ 	sa, err := addr.sockaddr(c.fd.family)
+ 	if err != nil {
+ 		return 0, &OpError{"write", c.fd.net, addr, err}
+@@ -153,6 +156,9 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
+ 	if c.fd.isConnected {
+ 		return 0, 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
+ 	}
++	if addr == nil {
++		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
++	}
+ 	sa, err := addr.sockaddr(c.fd.family)
+ 	if err != nil {
+ 		return 0, 0, &OpError{"write", c.fd.net, addr, err}
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 593a43516e..2ae92a0233 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -186,6 +186,9 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+ 	}
++	if addr == nil {
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
++	}
+ 	if addr.Net != sotypeToNet(c.fd.sotype) {
+ 		return 0, syscall.EAFNOSUPPORT
+ 	}

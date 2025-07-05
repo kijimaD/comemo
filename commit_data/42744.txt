@@ -11,7 +11,57 @@ Date:   Tue Feb 18 10:54:26 2020 -0500
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 5 +++--
  src/cmd/link/internal/ld/go.go   | 6 +++---
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 13e7e77ea3..a3957e92a6 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -939,13 +939,14 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
+ 		Errorf(nil, "%s: cannot set with -X: not a var of type string (%s)", name, typeName)
+ 		return
+ 	}
+-	bld, s := l.MakeSymbolUpdater(s)
++	bld := l.MakeSymbolUpdater(s)
+ 	if bld.Type() == sym.SBSS {
+ 		bld.SetType(sym.SDATA)
+ 	}
+ 
+ 	p := fmt.Sprintf("%s.str", name)
+-	sbld, sp := l.MakeSymbolUpdater(l.LookupOrCreateSym(p, 0))
++	sp := l.LookupOrCreateSym(p, 0)
++	sbld := l.MakeSymbolUpdater(sp)
+ 
+ 	sbld.Addstring(value)
+ 	sbld.SetType(sym.SRODATA)
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index e05a57c4a7..8e6b8ee6b9 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -350,12 +350,12 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
+ 	var buf bytes.Buffer
+ 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
+ 		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
+-			bld, s := l.MakeSymbolUpdater(i)
++			bld := l.MakeSymbolUpdater(i)
+ 			bld.SetSpecial(true)
+ 			bld.SetNotInSymbolTable(true)
+ 			if bld.Reachable() {
+ 				buf.WriteString(name[9:])
+-				for p := l.Reachparent[s]; p != 0; p = l.Reachparent[p] {
++				for p := l.Reachparent[i]; p != 0; p = l.Reachparent[p] {
+ 					buf.WriteString("\t")
+ 					buf.WriteString(l.SymName(p))
+ 				}
+@@ -373,7 +373,7 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
+ 	if s == 0 || !l.AttrReachable(s) {
+ 		return
+ 	}
+-	bld, _ := l.MakeSymbolUpdater(s)
++	bld := l.MakeSymbolUpdater(s)
+ 	bld.SetType(sym.SDATA)
+ 	addstrdata(arch, l, *flagFieldTrack, buf.String())
+ }

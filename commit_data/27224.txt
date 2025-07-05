@@ -15,7 +15,83 @@ Date:   Mon Feb 15 18:24:06 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go     | 24 ++++++++++++------------
  src/runtime/mgcmark.go |  6 +++---
  2 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 7e93740d04..1c184db10b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -755,11 +755,13 @@ var work struct {
+ 	// Number of roots of various root types. Set by gcMarkRootPrepare.
+ 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
+ 
+-	// finalizersDone indicates that finalizers and objects with
+-	// finalizers have been scanned by markroot. During concurrent
+-	// GC, this happens during the concurrent scan phase. During
+-	// STW GC, this happens during mark termination.
+-	finalizersDone bool
++	// markrootDone indicates that roots have been marked at least
++	// once during the current GC cycle. This is checked by root
++	// marking operations that have to happen only during the
++	// first root marking pass, whether that's during the
++	// concurrent mark phase in current GC or mark termination in
++	// STW GC.
++	markrootDone bool
+ 
+ 	// Each type of GC state transition is protected by a lock.
+ 	// Since multiple threads can simultaneously detect the state
+@@ -1112,9 +1114,8 @@ top:
+ 		// below. The important thing is that the wb remains active until
+ 		// all marking is complete. This includes writes made by the GC.
+ 
+-		// markroot is done now, so record that objects with
+-		// finalizers have been scanned.
+-		work.finalizersDone = true
++		// Record that one root marking pass has completed.
++		work.markrootDone = true
+ 
+ 		// Disable assists and background workers. We must do
+ 		// this before waking blocked assists.
+@@ -1573,9 +1574,8 @@ func gcMark(start_time int64) {
+ 		notesleep(&work.alldone)
+ 	}
+ 
+-	// markroot is done now, so record that objects with
+-	// finalizers have been scanned.
+-	work.finalizersDone = true
++	// Record that at least one root marking pass has completed.
++	work.markrootDone = true
+ 
+ 	for i := 0; i < int(gomaxprocs); i++ {
+ 		if !allp[i].gcw.empty() {
+@@ -1745,7 +1745,7 @@ func gcResetMarkState() {
+ 
+ 	work.bytesMarked = 0
+ 	work.initialHeapLive = memstats.heap_live
+-	work.finalizersDone = false
++	work.markrootDone = false
+ }
+ 
+ // Hooks for other packages
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 683dbf49ad..a079358e70 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -235,11 +235,11 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 
+ 	// We process objects with finalizers only during the first
+ 	// markroot pass. In concurrent GC, this happens during
+-	// concurrent scan and we depend on addfinalizer to ensure the
++	// concurrent mark and we depend on addfinalizer to ensure the
+ 	// above invariants for objects that get finalizers after
+-	// concurrent scan. In STW GC, this will happen during mark
++	// concurrent mark. In STW GC, this will happen during mark
+ 	// termination.
+-	if work.finalizersDone {
++	if work.markrootDone {
+ 		return
+ 	}
+ 

@@ -15,7 +15,7 @@ Date:   Thu Feb 27 02:42:28 2020 -0500
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  5 ++--
  .../google/pprof/internal/report/report.go         | 28 ++++++++++++++++------
@@ -27,3 +27,229 @@ Date:   Thu Feb 27 02:42:28 2020 -0500
  src/vendor/golang.org/x/net/route/address.go       |  4 ++--
  src/vendor/modules.txt                             |  2 +-
  10 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index b59be73fff..0096c74e86 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.14
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20200212024743-f11f1df84d12
++	github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
+ 	golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff
+ 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
+ 	golang.org/x/mod v0.2.0
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index dac64f407c..2bb6a9ab06 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,8 +1,9 @@
+ github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
++github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e h1:fY5BOSpyZCqRo5OhCuC+XN+r/bBCmeuuJtjz+bCNIf8=
+ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
+ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
+-github.com/google/pprof v0.0.0-20200212024743-f11f1df84d12 h1:TgXhFz35pKlZuUz1pNlOKk1UCSXPpuUIc144Wd7SxCA=
+-github.com/google/pprof v0.0.0-20200212024743-f11f1df84d12/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
++github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3 h1:SRgJV+IoxM5MKyFdlSUeNy6/ycRUF2yBAKdAQswoHUk=
++github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
+ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 h1:UDMh68UUwekSh5iP2OMhRRZJiiBccgV7axzUG8vi56c=
+ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff h1:k/MrR0lKiCokRu1JUDDAWhWZinfBAOZRzz3LkPOkFMs=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index 1b555a4e2e..56083d8abf 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -834,10 +834,19 @@ func printTraces(w io.Writer, rpt *Report) error {
+ 
+ 	_, locations := graph.CreateNodes(prof, &graph.Options{})
+ 	for _, sample := range prof.Sample {
+-		var stack graph.Nodes
++		type stk struct {
++			*graph.NodeInfo
++			inline bool
++		}
++		var stack []stk
+ 		for _, loc := range sample.Location {
+-			id := loc.ID
+-			stack = append(stack, locations[id]...)
++			nodes := locations[loc.ID]
++			for i, n := range nodes {
++				// The inline flag may be inaccurate if 'show' or 'hide' filter is
++				// used. See https://github.com/google/pprof/issues/511.
++				inline := i != len(nodes)-1
++				stack = append(stack, stk{&n.Info, inline})
++			}
+ 		}
+ 
+ 		if len(stack) == 0 {
+@@ -875,10 +884,15 @@ func printTraces(w io.Writer, rpt *Report) error {
+ 		if d != 0 {
+ 			v = v / d
+ 		}
+-		fmt.Fprintf(w, "%10s   %s\n",
+-			rpt.formatValue(v), stack[0].Info.PrintableName())
+-		for _, s := range stack[1:] {
+-			fmt.Fprintf(w, "%10s   %s\n", "", s.Info.PrintableName())
++		for i, s := range stack {
++			var vs, inline string
++			if i == 0 {
++				vs = rpt.formatValue(v)
++			}
++			if s.inline {
++				inline = " (inline)"
++			}
++			fmt.Fprintf(w, "%10s   %s%s\n", vs, s.PrintableName(), inline)
+ 		}
+ 	}
+ 	fmt.Fprintln(w, separator)
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/proto.go b/src/cmd/vendor/github.com/google/pprof/profile/proto.go
+index e7df33ac2b..539ad3ab33 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/proto.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/proto.go
+@@ -33,7 +33,10 @@
+ 
+ package profile
+ 
+-import "errors"
++import (
++	"errors"
++	"fmt"
++)
+ 
+ type buffer struct {
+ 	field int // field tag
+@@ -235,7 +238,7 @@ func decodeField(b *buffer, data []byte) ([]byte, error) {
+ 		b.u64 = uint64(le32(data[:4]))
+ 		data = data[4:]
+ 	default:
+-		return nil, errors.New("unknown wire type: " + string(b.typ))
++		return nil, fmt.Errorf("unknown wire type: %d", b.typ)
+ 	}
+ 
+ 	return data, nil
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index a7e481801f..8bb7b7423e 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20200212024743-f11f1df84d12
++# github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
+ ## explicit
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils
+diff --git a/src/go.mod b/src/go.mod
+index c1741d2505..ab79164278 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.14
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
+-	golang.org/x/net v0.0.0-20200219183655-46282727080f
++	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
+ 	golang.org/x/sys v0.0.0-20200219091948-cb0a6d8edb6c // indirect
+ 	golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 75a94ac89b..3f8e5d40b9 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,8 +2,8 @@ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACk
+ golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6 h1:Sy5bstxEqwwbYs6n0/pBuxKENqOeZUgD45Gp3Q3pqLg=
+ golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+-golang.org/x/net v0.0.0-20200219183655-46282727080f h1:dB42wwhNuwPvh8f+5zZWNcU+F2Xs/B9wXXwvUCOH7r8=
+-golang.org/x/net v0.0.0-20200219183655-46282727080f/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
++golang.org/x/net v0.0.0-20200301022130-244492dfa37a h1:GuSPYbZzB5/dcLNCwLQLsg3obCJtX9IJhpXkvY7kzk0=
++golang.org/x/net v0.0.0-20200301022130-244492dfa37a/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20200219091948-cb0a6d8edb6c h1:jceGD5YNJGgGMkJz79agzOln1K9TaZUjv5ird16qniQ=
+diff --git a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+index 82bcdcc838..da8bafd921 100644
+--- a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
++++ b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+@@ -14,6 +14,7 @@ package dnsmessage
+ 
+ import (
+ 	"errors"
++	"fmt"
+ )
+ 
+ // Message formats
+@@ -1819,17 +1820,6 @@ func unpackText(msg []byte, off int) (string, int, error) {
+ 	return string(msg[beginOff:endOff]), endOff, nil
+ }
+ 
+-func skipText(msg []byte, off int) (int, error) {
+-	if off >= len(msg) {
+-		return off, errBaseLen
+-	}
+-	endOff := off + 1 + int(msg[off])
+-	if endOff > len(msg) {
+-		return off, errCalcLen
+-	}
+-	return endOff, nil
+-}
+-
+ // packBytes appends the wire format of field to msg.
+ func packBytes(msg []byte, field []byte) []byte {
+ 	return append(msg, field...)
+@@ -1844,14 +1834,6 @@ func unpackBytes(msg []byte, off int, field []byte) (int, error) {
+ 	return newOff, nil
+ }
+ 
+-func skipBytes(msg []byte, off int, field []byte) (int, error) {
+-	newOff := off + len(field)
+-	if newOff > len(msg) {
+-		return off, errBaseLen
+-	}
+-	return newOff, nil
+-}
+-
+ const nameLen = 255
+ 
+ // A Name is a non-encoded domain name. It is used instead of strings to avoid
+@@ -2159,7 +2141,7 @@ func unpackResourceBody(msg []byte, off int, hdr ResourceHeader) (ResourceBody,
+ 		return nil, off, &nestedError{name + " record", err}
+ 	}
+ 	if r == nil {
+-		return nil, off, errors.New("invalid resource type: " + string(hdr.Type+'0'))
++		return nil, off, fmt.Errorf("invalid resource type: %d", hdr.Type)
+ 	}
+ 	return r, off + int(hdr.Length), nil
+ }
+diff --git a/src/vendor/golang.org/x/net/route/address.go b/src/vendor/golang.org/x/net/route/address.go
+index b71528191f..e3125a473b 100644
+--- a/src/vendor/golang.org/x/net/route/address.go
++++ b/src/vendor/golang.org/x/net/route/address.go
+@@ -46,12 +46,12 @@ func (a *LinkAddr) marshal(b []byte) (int, error) {
+ 	data := b[8:]
+ 	if nlen > 0 {
+ 		b[5] = byte(nlen)
+-		copy(data[:nlen], a.Addr)
++		copy(data[:nlen], a.Name)
+ 		data = data[nlen:]
+ 	}
+ 	if alen > 0 {
+ 		b[6] = byte(alen)
+-		copy(data[:alen], a.Name)
++		copy(data[:alen], a.Addr)
+ 		data = data[alen:]
+ 	}
+ 	return ll, nil
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 1c56a34019..6feb23d65d 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20200219183655-46282727080f
++# golang.org/x/net v0.0.0-20200301022130-244492dfa37a
+ ## explicit
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

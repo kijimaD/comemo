@@ -14,6 +14,39 @@ Date:   Tue Jun 21 00:54:52 2016 +0430
     Change-Id: I83a74710e66cf0d274d8c0743338c26f89f31afe
     Reviewed-on: https://go-review.googlesource.com/24273
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/container/heap/heap.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/container/heap/heap.go b/src/container/heap/heap.go
+index 5fe23b9537..7110c513f0 100644
+--- a/src/container/heap/heap.go
++++ b/src/container/heap/heap.go
+@@ -83,8 +83,9 @@ func Remove(h Interface, i int) interface{} {
+ // but less expensive than, calling Remove(h, i) followed by a Push of the new value.
+ // The complexity is O(log(n)) where n = h.Len().
+ func Fix(h Interface, i int) {
+-	down(h, i, h.Len())
+-	up(h, i)
++	if !down(h, i, h.Len()) {
++		up(h, i)
++	}
+ }
+ 
+ func up(h Interface, j int) {
+@@ -98,7 +99,8 @@ func up(h Interface, j int) {
+ 	}
+ }
+ 
+-func down(h Interface, i, n int) {
++func down(h Interface, i0, n int) bool {
++	i := i0
+ 	for {
+ 		j1 := 2*i + 1
+ 		if j1 >= n || j1 < 0 { // j1 < 0 after int overflow
+@@ -114,4 +116,5 @@ func down(h Interface, i, n int) {
+ 		h.Swap(i, j)
+ 		i = j
+ 	}
++	return i > i0
+ }

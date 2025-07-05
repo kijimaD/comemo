@@ -9,6 +9,29 @@ Date:   Tue Oct 18 23:50:54 2016 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/main.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 77b45a5aed..df2798397c 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -143,6 +143,8 @@ var ptrSizeMap = map[string]int64{
+ 	"amd64":    8,
+ 	"arm":      4,
+ 	"arm64":    8,
++	"mips":     4,
++	"mipsle":   4,
+ 	"mips64":   8,
+ 	"mips64le": 8,
+ 	"ppc64":    8,
+@@ -156,6 +158,8 @@ var intSizeMap = map[string]int64{
+ 	"amd64":    8,
+ 	"arm":      4,
+ 	"arm64":    8,
++	"mips":     4,
++	"mipsle":   4,
+ 	"mips64":   8,
+ 	"mips64le": 8,
+ 	"ppc64":    8,

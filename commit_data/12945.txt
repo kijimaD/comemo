@@ -18,10 +18,233 @@ Date:   Tue Apr 24 15:27:48 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6101055
-
+---
  src/pkg/exp/html/foreign.go               | 78 ++++++++++++++++++++++++++++++-
  src/pkg/exp/html/parse.go                 | 39 +++++++++-------
  src/pkg/exp/html/testlogs/tests11.dat.log |  6 +--
  src/pkg/exp/html/testlogs/tests16.dat.log |  2 +-
  src/pkg/exp/html/testlogs/tests19.dat.log |  6 +--
  5 files changed, 106 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/exp/html/foreign.go b/src/pkg/exp/html/foreign.go
+index 3ba81ce4d6..99b7a6535d 100644
+--- a/src/pkg/exp/html/foreign.go
++++ b/src/pkg/exp/html/foreign.go
+@@ -8,6 +8,14 @@ import (
+ 	"strings"
+ )
+ 
++func adjustAttributeNames(aa []Attribute, nameMap map[string]string) {
++	for i := range aa {
++		if newName, ok := nameMap[aa[i].Key]; ok {
++			aa[i].Key = newName
++		}
++	}
++}
++
+ func adjustForeignAttributes(aa []Attribute) {
+ 	for i, a := range aa {
+ 		if a.Key == "" || a.Key[0] != 'x' {
+@@ -129,4 +137,72 @@ var svgTagNameAdjustments = map[string]string{
+ 	"textpath":            "textPath",
+ }
+ 
+-// TODO: add look-up tables for MathML and SVG attribute adjustments.
++// Section 12.2.5.1
++var mathMLAttributeAdjustments = map[string]string{
++	"definitionurl": "definitionURL",
++}
++
++var svgAttributeAdjustments = map[string]string{
++	"attributename":             "attributeName",
++	"attributetype":             "attributeType",
++	"basefrequency":             "baseFrequency",
++	"baseprofile":               "baseProfile",
++	"calcmode":                  "calcMode",
++	"clippathunits":             "clipPathUnits",
++	"contentscripttype":         "contentScriptType",
++	"contentstyletype":          "contentStyleType",
++	"diffuseconstant":           "diffuseConstant",
++	"edgemode":                  "edgeMode",
++	"externalresourcesrequired": "externalResourcesRequired",
++	"filterres":                 "filterRes",
++	"filterunits":               "filterUnits",
++	"glyphref":                  "glyphRef",
++	"gradienttransform":         "gradientTransform",
++	"gradientunits":             "gradientUnits",
++	"kernelmatrix":              "kernelMatrix",
++	"kernelunitlength":          "kernelUnitLength",
++	"keypoints":                 "keyPoints",
++	"keysplines":                "keySplines",
++	"keytimes":                  "keyTimes",
++	"lengthadjust":              "lengthAdjust",
++	"limitingconeangle":         "limitingConeAngle",
++	"markerheight":              "markerHeight",
++	"markerunits":               "markerUnits",
++	"markerwidth":               "markerWidth",
++	"maskcontentunits":          "maskContentUnits",
++	"maskunits":                 "maskUnits",
++	"numoctaves":                "numOctaves",
++	"pathlength":                "pathLength",
++	"patterncontentunits":       "patternContentUnits",
++	"patterntransform":          "patternTransform",
++	"patternunits":              "patternUnits",
++	"pointsatx":                 "pointsAtX",
++	"pointsaty":                 "pointsAtY",
++	"pointsatz":                 "pointsAtZ",
++	"preservealpha":             "preserveAlpha",
++	"preserveaspectratio":       "preserveAspectRatio",
++	"primitiveunits":            "primitiveUnits",
++	"refx":                      "refX",
++	"refy":                      "refY",
++	"repeatcount":               "repeatCount",
++	"repeatdur":                 "repeatDur",
++	"requiredextensions":        "requiredExtensions",
++	"requiredfeatures":          "requiredFeatures",
++	"specularconstant":          "specularConstant",
++	"specularexponent":          "specularExponent",
++	"spreadmethod":              "spreadMethod",
++	"startoffset":               "startOffset",
++	"stddeviation":              "stdDeviation",
++	"stitchtiles":               "stitchTiles",
++	"surfacescale":              "surfaceScale",
++	"systemlanguage":            "systemLanguage",
++	"tablevalues":               "tableValues",
++	"targetx":                   "targetX",
++	"targety":                   "targetY",
++	"textlength":                "textLength",
++	"viewbox":                   "viewBox",
++	"viewtarget":                "viewTarget",
++	"xchannelselector":          "xChannelSelector",
++	"ychannelselector":          "yChannelSelector",
++	"zoomandpan":                "zoomAndPan",
++}
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 3e5ffa5842..e3b3c95b59 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -813,18 +813,6 @@ func inBodyIM(p *parser) bool {
+ 			p.oe.pop()
+ 			p.acknowledgeSelfClosingTag()
+ 			p.framesetOK = false
+-		case "select":
+-			p.reconstructActiveFormattingElements()
+-			p.addElement(p.tok.Data, p.tok.Attr)
+-			p.framesetOK = false
+-			p.im = inSelectIM
+-			return true
+-		case "optgroup", "option":
+-			if p.top().Data == "option" {
+-				p.oe.pop()
+-			}
+-			p.reconstructActiveFormattingElements()
+-			p.addElement(p.tok.Data, p.tok.Attr)
+ 		case "image":
+ 			p.tok.Data = "img"
+ 			return false
+@@ -887,12 +875,29 @@ func inBodyIM(p *parser) bool {
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 			p.setOriginalIM()
+ 			p.im = textIM
++		case "select":
++			p.reconstructActiveFormattingElements()
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.framesetOK = false
++			p.im = inSelectIM
++			return true
++		case "optgroup", "option":
++			if p.top().Data == "option" {
++				p.oe.pop()
++			}
++			p.reconstructActiveFormattingElements()
++			p.addElement(p.tok.Data, p.tok.Attr)
++		case "rp", "rt":
++			if p.elementInScope(defaultScope, "ruby") {
++				p.generateImpliedEndTags()
++			}
++			p.addElement(p.tok.Data, p.tok.Attr)
+ 		case "math", "svg":
+ 			p.reconstructActiveFormattingElements()
+ 			if p.tok.Data == "math" {
+-				// TODO: adjust MathML attributes.
++				adjustAttributeNames(p.tok.Attr, mathMLAttributeAdjustments)
+ 			} else {
+-				// TODO: adjust SVG attributes.
++				adjustAttributeNames(p.tok.Attr, svgAttributeAdjustments)
+ 			}
+ 			adjustForeignAttributes(p.tok.Attr)
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+@@ -901,7 +906,7 @@ func inBodyIM(p *parser) bool {
+ 		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
+ 			// Ignore the token.
+ 		default:
+-			// TODO.
++			p.reconstructActiveFormattingElements()
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 		}
+ 	case EndTagToken:
+@@ -1785,14 +1790,14 @@ func parseForeignContent(p *parser) bool {
+ 		}
+ 		switch p.top().Namespace {
+ 		case "math":
+-			// TODO: adjust MathML attributes.
++			adjustAttributeNames(p.tok.Attr, mathMLAttributeAdjustments)
+ 		case "svg":
+ 			// Adjust SVG tag names. The tokenizer lower-cases tag names, but
+ 			// SVG wants e.g. "foreignObject" with a capital second "O".
+ 			if x := svgTagNameAdjustments[p.tok.Data]; x != "" {
+ 				p.tok.Data = x
+ 			}
+-			// TODO: adjust SVG attributes.
++			adjustAttributeNames(p.tok.Attr, svgAttributeAdjustments)
+ 		default:
+ 			panic("html: bad parser state: unexpected namespace")
+ 		}
+diff --git a/src/pkg/exp/html/testlogs/tests11.dat.log b/src/pkg/exp/html/testlogs/tests11.dat.log
+index 6bb73214ff..739a7e7755 100644
+--- a/src/pkg/exp/html/testlogs/tests11.dat.log
++++ b/src/pkg/exp/html/testlogs/tests11.dat.log
+@@ -1,6 +1,6 @@
+-FAIL "<!DOCTYPE html><body><svg attributeName='' attributeType='' baseFrequency='' baseProfile='' calcMode='' clipPathUnits='' contentScriptType='' contentStyleType='' diffuseConstant='' edgeMode='' externalResourcesRequired='' filterRes='' filterUnits='' glyphRef='' gradientTransform='' gradientUnits='' kernelMatrix='' kernelUnitLength='' keyPoints='' keySplines='' keyTimes='' lengthAdjust='' limitingConeAngle='' markerHeight='' markerUnits='' markerWidth='' maskContentUnits='' maskUnits='' numOctaves='' pathLength='' patternContentUnits='' patternTransform='' patternUnits='' pointsAtX='' pointsAtY='' pointsAtZ='' preserveAlpha='' preserveAspectRatio='' primitiveUnits='' refX='' refY='' repeatCount='' repeatDur='' requiredExtensions='' requiredFeatures='' specularConstant='' specularExponent='' spreadMethod='' startOffset='' stdDeviation='' stitchTiles='' surfaceScale='' systemLanguage='' tableValues='' targetX='' targetY='' textLength='' viewBox='' viewTarget='' xChannelSelector='' yChannelSelector='' zoomAndPan=''></svg>"
+-FAIL "<!DOCTYPE html><BODY><SVG ATTRIBUTENAME='' ATTRIBUTETYPE='' BASEFREQUENCY='' BASEPROFILE='' CALCMODE='' CLIPPATHUNITS='' CONTENTSCRIPTTYPE='' CONTENTSTYLETYPE='' DIFFUSECONSTANT='' EDGEMODE='' EXTERNALRESOURCESREQUIRED='' FILTERRES='' FILTERUNITS='' GLYPHREF='' GRADIENTTRANSFORM='' GRADIENTUNITS='' KERNELMATRIX='' KERNELUNITLENGTH='' KEYPOINTS='' KEYSPLINES='' KEYTIMES='' LENGTHADJUST='' LIMITINGCONEANGLE='' MARKERHEIGHT='' MARKERUNITS='' MARKERWIDTH='' MASKCONTENTUNITS='' MASKUNITS='' NUMOCTAVES='' PATHLENGTH='' PATTERNCONTENTUNITS='' PATTERNTRANSFORM='' PATTERNUNITS='' POINTSATX='' POINTSATY='' POINTSATZ='' PRESERVEALPHA='' PRESERVEASPECTRATIO='' PRIMITIVEUNITS='' REFX='' REFY='' REPEATCOUNT='' REPEATDUR='' REQUIREDEXTENSIONS='' REQUIREDFEATURES='' SPECULARCONSTANT='' SPECULAREXPONENT='' SPREADMETHOD='' STARTOFFSET='' STDDEVIATION='' STITCHTILES='' SURFACESCALE='' SYSTEMLANGUAGE='' TABLEVALUES='' TARGETX='' TARGETY='' TEXTLENGTH='' VIEWBOX='' VIEWTARGET='' XCHANNELSELECTOR='' YCHANNELSELECTOR='' ZOOMANDPAN=''></SVG>"
+-FAIL "<!DOCTYPE html><body><svg attributename='' attributetype='' basefrequency='' baseprofile='' calcmode='' clippathunits='' contentscripttype='' contentstyletype='' diffuseconstant='' edgemode='' externalresourcesrequired='' filterres='' filterunits='' glyphref='' gradienttransform='' gradientunits='' kernelmatrix='' kernelunitlength='' keypoints='' keysplines='' keytimes='' lengthadjust='' limitingconeangle='' markerheight='' markerunits='' markerwidth='' maskcontentunits='' maskunits='' numoctaves='' pathlength='' patterncontentunits='' patterntransform='' patternunits='' pointsatx='' pointsaty='' pointsatz='' preservealpha='' preserveaspectratio='' primitiveunits='' refx='' refy='' repeatcount='' repeatdur='' requiredextensions='' requiredfeatures='' specularconstant='' specularexponent='' spreadmethod='' startoffset='' stddeviation='' stitchtiles='' surfacescale='' systemlanguage='' tablevalues='' targetx='' targety='' textlength='' viewbox='' viewtarget='' xchannelselector='' ychannelselector='' zoomandpan=''></svg>"
++PASS "<!DOCTYPE html><body><svg attributeName='' attributeType='' baseFrequency='' baseProfile='' calcMode='' clipPathUnits='' contentScriptType='' contentStyleType='' diffuseConstant='' edgeMode='' externalResourcesRequired='' filterRes='' filterUnits='' glyphRef='' gradientTransform='' gradientUnits='' kernelMatrix='' kernelUnitLength='' keyPoints='' keySplines='' keyTimes='' lengthAdjust='' limitingConeAngle='' markerHeight='' markerUnits='' markerWidth='' maskContentUnits='' maskUnits='' numOctaves='' pathLength='' patternContentUnits='' patternTransform='' patternUnits='' pointsAtX='' pointsAtY='' pointsAtZ='' preserveAlpha='' preserveAspectRatio='' primitiveUnits='' refX='' refY='' repeatCount='' repeatDur='' requiredExtensions='' requiredFeatures='' specularConstant='' specularExponent='' spreadMethod='' startOffset='' stdDeviation='' stitchTiles='' surfaceScale='' systemLanguage='' tableValues='' targetX='' targetY='' textLength='' viewBox='' viewTarget='' xChannelSelector='' yChannelSelector='' zoomAndPan=''></svg>"
++PASS "<!DOCTYPE html><BODY><SVG ATTRIBUTENAME='' ATTRIBUTETYPE='' BASEFREQUENCY='' BASEPROFILE='' CALCMODE='' CLIPPATHUNITS='' CONTENTSCRIPTTYPE='' CONTENTSTYLETYPE='' DIFFUSECONSTANT='' EDGEMODE='' EXTERNALRESOURCESREQUIRED='' FILTERRES='' FILTERUNITS='' GLYPHREF='' GRADIENTTRANSFORM='' GRADIENTUNITS='' KERNELMATRIX='' KERNELUNITLENGTH='' KEYPOINTS='' KEYSPLINES='' KEYTIMES='' LENGTHADJUST='' LIMITINGCONEANGLE='' MARKERHEIGHT='' MARKERUNITS='' MARKERWIDTH='' MASKCONTENTUNITS='' MASKUNITS='' NUMOCTAVES='' PATHLENGTH='' PATTERNCONTENTUNITS='' PATTERNTRANSFORM='' PATTERNUNITS='' POINTSATX='' POINTSATY='' POINTSATZ='' PRESERVEALPHA='' PRESERVEASPECTRATIO='' PRIMITIVEUNITS='' REFX='' REFY='' REPEATCOUNT='' REPEATDUR='' REQUIREDEXTENSIONS='' REQUIREDFEATURES='' SPECULARCONSTANT='' SPECULAREXPONENT='' SPREADMETHOD='' STARTOFFSET='' STDDEVIATION='' STITCHTILES='' SURFACESCALE='' SYSTEMLANGUAGE='' TABLEVALUES='' TARGETX='' TARGETY='' TEXTLENGTH='' VIEWBOX='' VIEWTARGET='' XCHANNELSELECTOR='' YCHANNELSELECTOR='' ZOOMANDPAN=''></SVG>"
++PASS "<!DOCTYPE html><body><svg attributename='' attributetype='' basefrequency='' baseprofile='' calcmode='' clippathunits='' contentscripttype='' contentstyletype='' diffuseconstant='' edgemode='' externalresourcesrequired='' filterres='' filterunits='' glyphref='' gradienttransform='' gradientunits='' kernelmatrix='' kernelunitlength='' keypoints='' keysplines='' keytimes='' lengthadjust='' limitingconeangle='' markerheight='' markerunits='' markerwidth='' maskcontentunits='' maskunits='' numoctaves='' pathlength='' patterncontentunits='' patterntransform='' patternunits='' pointsatx='' pointsaty='' pointsatz='' preservealpha='' preserveaspectratio='' primitiveunits='' refx='' refy='' repeatcount='' repeatdur='' requiredextensions='' requiredfeatures='' specularconstant='' specularexponent='' spreadmethod='' startoffset='' stddeviation='' stitchtiles='' surfacescale='' systemlanguage='' tablevalues='' targetx='' targety='' textlength='' viewbox='' viewtarget='' xchannelselector='' ychannelselector='' zoomandpan=''></svg>"
+ PASS "<!DOCTYPE html><body><math attributeName='' attributeType='' baseFrequency='' baseProfile='' calcMode='' clipPathUnits='' contentScriptType='' contentStyleType='' diffuseConstant='' edgeMode='' externalResourcesRequired='' filterRes='' filterUnits='' glyphRef='' gradientTransform='' gradientUnits='' kernelMatrix='' kernelUnitLength='' keyPoints='' keySplines='' keyTimes='' lengthAdjust='' limitingConeAngle='' markerHeight='' markerUnits='' markerWidth='' maskContentUnits='' maskUnits='' numOctaves='' pathLength='' patternContentUnits='' patternTransform='' patternUnits='' pointsAtX='' pointsAtY='' pointsAtZ='' preserveAlpha='' preserveAspectRatio='' primitiveUnits='' refX='' refY='' repeatCount='' repeatDur='' requiredExtensions='' requiredFeatures='' specularConstant='' specularExponent='' spreadMethod='' startOffset='' stdDeviation='' stitchTiles='' surfaceScale='' systemLanguage='' tableValues='' targetX='' targetY='' textLength='' viewBox='' viewTarget='' xChannelSelector='' yChannelSelector='' zoomAndPan=''></math>"
+ PASS "<!DOCTYPE html><body><svg><altGlyph /><altGlyphDef /><altGlyphItem /><animateColor /><animateMotion /><animateTransform /><clipPath /><feBlend /><feColorMatrix /><feComponentTransfer /><feComposite /><feConvolveMatrix /><feDiffuseLighting /><feDisplacementMap /><feDistantLight /><feFlood /><feFuncA /><feFuncB /><feFuncG /><feFuncR /><feGaussianBlur /><feImage /><feMerge /><feMergeNode /><feMorphology /><feOffset /><fePointLight /><feSpecularLighting /><feSpotLight /><feTile /><feTurbulence /><foreignObject /><glyphRef /><linearGradient /><radialGradient /><textPath /></svg>"
+ PASS "<!DOCTYPE html><body><svg><altglyph /><altglyphdef /><altglyphitem /><animatecolor /><animatemotion /><animatetransform /><clippath /><feblend /><fecolormatrix /><fecomponenttransfer /><fecomposite /><feconvolvematrix /><fediffuselighting /><fedisplacementmap /><fedistantlight /><feflood /><fefunca /><fefuncb /><fefuncg /><fefuncr /><fegaussianblur /><feimage /><femerge /><femergenode /><femorphology /><feoffset /><fepointlight /><fespecularlighting /><fespotlight /><fetile /><feturbulence /><foreignobject /><glyphref /><lineargradient /><radialgradient /><textpath /></svg>"
+diff --git a/src/pkg/exp/html/testlogs/tests16.dat.log b/src/pkg/exp/html/testlogs/tests16.dat.log
+index cfbdd4b4d5..b07eaea5d9 100644
+--- a/src/pkg/exp/html/testlogs/tests16.dat.log
++++ b/src/pkg/exp/html/testlogs/tests16.dat.log
+@@ -185,5 +185,5 @@ PASS "<iframe>...<!--X->...<!--/X->...</iframe>"
+ PASS "<xmp><!--<xmp></xmp>--></xmp>"
+ PASS "<noembed><!--<noembed></noembed>--></noembed>"
+ FAIL "<!doctype html><table>"
+-FAIL "<!doctype html><table><td><span><font></span><span>"
++PASS "<!doctype html><table><td><span><font></span><span>"
+ FAIL "<!doctype html><form><table></form><form></table></form>"
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+index 49180ad9eb..bca9478848 100644
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ b/src/pkg/exp/html/testlogs/tests19.dat.log
+@@ -1,4 +1,4 @@
+-FAIL "<!doctype html><math><mn DefinitionUrl=\"foo\">"
++PASS "<!doctype html><math><mn DefinitionUrl=\"foo\">"
+ PASS "<!doctype html><html></p><!--foo-->"
+ PASS "<!doctype html><head></head></p><!--foo-->"
+ PASS "<!doctype html><body><p><pre>"
+@@ -10,10 +10,10 @@ PASS "<!doctype html><isindex action=\"POST\">"
+ PASS "<!doctype html><isindex prompt=\"this is isindex\">"
+ PASS "<!doctype html><isindex type=\"hidden\">"
+ PASS "<!doctype html><isindex name=\"foo\">"
+-FAIL "<!doctype html><ruby><p><rp>"
++PASS "<!doctype html><ruby><p><rp>"
+ FAIL "<!doctype html><ruby><div><span><rp>"
+ FAIL "<!doctype html><ruby><div><p><rp>"
+-FAIL "<!doctype html><ruby><p><rt>"
++PASS "<!doctype html><ruby><p><rt>"
+ FAIL "<!doctype html><ruby><div><span><rt>"
+ FAIL "<!doctype html><ruby><div><p><rt>"
+ PASS "<!doctype html><math/><foo>"

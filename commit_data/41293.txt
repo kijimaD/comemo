@@ -15,6 +15,20 @@ Date:   Sat Sep 21 21:17:40 2019 +0300
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/fd_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index dbe4a511ec..4f59871f49 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -248,7 +248,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
+ 		return nil, err
+ 	}
+ 	if err = netfd.init(); err != nil {
+-		fd.Close()
++		netfd.Close()
+ 		return nil, err
+ 	}
+ 	lsa, _ := syscall.Getsockname(netfd.pfd.Sysfd)

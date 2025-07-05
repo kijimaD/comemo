@@ -7,6 +7,27 @@ Date:   Sat Sep 27 17:46:40 2008 -0700
     R=r
     OCL=16053
     CL=16053
-
+---
  src/cmd/gc/walk.c | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 915cfcc79d..417b011214 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2933,13 +2933,10 @@ reorder3(Node *n)
+ 			if(c2 > c1) {
+ 				if(vmatch1(l1->left, l2->right)) {
+ 					q = nod(OXXX, N, N);
+-					tempname(q, l2->right->type);
++					tempname(q, l1->right->type);
+ 					q = nod(OAS, l1->left, q);
+ 					l1->left = q->right;
+-					if(r == N)
+-						r = q;
+-					else
+-						r = list(r, q);
++					r = list(r, q);
+ 					break;
+ 				}
+ 			}

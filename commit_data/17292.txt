@@ -7,8 +7,81 @@ Date:   Fri Aug 16 01:15:04 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12740046
-
+---
  src/cmd/5g/ggen.c | 6 +++---
  src/cmd/6g/ggen.c | 6 +++---
  src/cmd/8g/ggen.c | 6 +++---
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index cd59aef2b4..52c2cd4395 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -14,7 +14,7 @@ static Prog* appendp(Prog*, int, int, int, int32, int, int, int32);
+ void
+ defframe(Prog *ptxt, Bvec *bv)
+ {
+-	int i, first;
++	int i, j, first;
+ 	uint32 frame;
+ 	Prog *p, *p1;
+ 	
+@@ -49,8 +49,8 @@ defframe(Prog *ptxt, Bvec *bv)
+ 		patch(p, p1);
+ 	} else {
+ 		first = 1;
+-		for(i=0; i<stkptrsize; i+=widthptr) {
+-			if(bvget(bv, i/widthptr)) {
++		for(i=0, j=0; i<stkptrsize; i+=widthptr, j+=2) {
++			if(bvget(bv, j) || bvget(bv, j+1)) {
+ 				if(first) {
+ 					p = appendp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
+ 					first = 0;
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 259bb7c070..ec1d1ddc4c 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -14,7 +14,7 @@ static Prog* appendp(Prog*, int, int, vlong, int, vlong);
+ void
+ defframe(Prog *ptxt, Bvec *bv)
+ {
+-	int i;
++	int i, j;
+ 	uint32 frame;
+ 	Prog *p;
+ 
+@@ -37,8 +37,8 @@ defframe(Prog *ptxt, Bvec *bv)
+ 		p = appendp(p, AREP, D_NONE, 0, D_NONE, 0);
+ 		appendp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);
+ 	} else {
+-		for(i=0; i<stkptrsize; i+=widthptr)
+-			if(bvget(bv, i/widthptr))
++		for(i=0, j=0; i<stkptrsize; i+=widthptr, j+=2)
++			if(bvget(bv, j) || bvget(bv, j+1))
+ 				p = appendp(p, AMOVQ, D_CONST, 0, D_SP+D_INDIR, frame-stkptrsize+i);
+ 	}
+ }
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 609f6977f0..6b8c67e5bc 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -16,7 +16,7 @@ defframe(Prog *ptxt, Bvec *bv)
+ {
+ 	uint32 frame;
+ 	Prog *p;
+-	int i;
++	int i, j;
+ 
+ 	// fill in argument size
+ 	ptxt->to.offset2 = rnd(curfn->type->argwid, widthptr);
+@@ -39,8 +39,8 @@ defframe(Prog *ptxt, Bvec *bv)
+ 		p = appendp(p, AREP, D_NONE, 0, D_NONE, 0);
+ 		appendp(p, ASTOSL, D_NONE, 0, D_NONE, 0);
+ 	} else {
+-		for(i=0; i<stkptrsize; i+=widthptr)
+-			if(bvget(bv, i/widthptr))
++		for(i=0, j=0; i<stkptrsize; i+=widthptr, j+=2)
++			if(bvget(bv, j) || bvget(bv, j+1))
+ 				p = appendp(p, AMOVL, D_CONST, 0, D_SP+D_INDIR, frame-stkptrsize+i);
+ 	}
+ }

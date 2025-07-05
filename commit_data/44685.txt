@@ -11,8 +11,69 @@ Date:   Fri Jun 5 03:53:53 2020 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  1 +
  src/cmd/compile/internal/ssa/rewriteARM64.go | 12 ++++++++++++
  test/codegen/bits.go                         | 13 +++++++++++--
  3 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 27959d01fc..80e8c7137b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1323,6 +1323,7 @@
+ (AND x (MVN y)) -> (BIC x y)
+ (XOR x (MVN y)) -> (EON x y)
+ (OR  x (MVN y)) -> (ORN x y)
++(MVN (XOR x y)) -> (EON x y)
+ (CSEL {cc} x (MOVDconst [0]) flag) -> (CSEL0 {cc} x flag)
+ (CSEL {cc} (MOVDconst [0]) y flag) -> (CSEL0 {arm64Negate(cc.(Op))} y flag)
+ (SUB x (SUB y z)) -> (SUB (ADD <v.Type> x z) y)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 023d9908c2..842eddbf4a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -14593,6 +14593,18 @@ func rewriteValueARM64_OpARM64MULW(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64MVN(v *Value) bool {
+ 	v_0 := v.Args[0]
++	// match: (MVN (XOR x y))
++	// result: (EON x y)
++	for {
++		if v_0.Op != OpARM64XOR {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpARM64EON)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (MVN (MOVDconst [c]))
+ 	// result: (MOVDconst [^c])
+ 	for {
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 0a5428b55a..398dd84e9e 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -310,9 +310,18 @@ func op_bic(x, y uint32) uint32 {
+ 	return x &^ y
+ }
+ 
+-func op_eon(x, y uint32) uint32 {
++func op_eon(x, y, z uint32, a []uint32, n, m uint64) uint64 {
++	// arm64:`EON\t`,-`EOR`,-`MVN`
++	a[0] = x ^ (y ^ 0xffffffff)
++
++	// arm64:`EON\t`,-`EOR`,-`MVN`
++	a[1] = ^(y ^ z)
++
+ 	// arm64:`EON\t`,-`XOR`
+-	return x ^ ^y
++	a[2] = x ^ ^z
++
++	// arm64:`EON\t`,-`EOR`,-`MVN`
++	return n ^ (m ^ 0xffffffffffffffff)
+ }
+ 
+ func op_orn(x, y uint32) uint32 {

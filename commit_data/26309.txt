@@ -9,6 +9,20 @@ Date:   Fri Jan 8 11:33:17 2016 -0800
     Change-Id: Icbb85c858d0bc545499a2b31622e9e7abdd7e5f9
     Reviewed-on: https://go-review.googlesource.com/18441
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/big/int.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 16b7cd131b..67ab7042ff 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -273,7 +273,7 @@ func (z *Int) Mod(x, y *Int) *Int {
+ // DivMod implements Euclidean division and modulus (unlike Go):
+ //
+ //	q = x div y  such that
+-//	m = x - y*q  with 0 <= m < |q|
++//	m = x - y*q  with 0 <= m < |y|
+ //
+ // (See Raymond T. Boute, ``The Euclidean definition of the functions
+ // div and mod''. ACM Transactions on Programming Languages and

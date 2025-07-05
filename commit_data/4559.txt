@@ -13,7 +13,7 @@ Date:   Thu Jan 7 18:45:45 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/183153
-
+---
  misc/dashboard/README                          |  33 +++
  misc/dashboard/buildcontrol.py                 | 193 +++++++++++++++++
  misc/dashboard/builder.sh                      |  64 ++++++
@@ -24,3 +24,755 @@ Date:   Thu Jan 7 18:45:45 2010 -0800
  misc/dashboard/godashboard/key.py              |   9 +
  misc/dashboard/godashboard/main.html           |  84 ++++++++
  9 files changed, 697 insertions(+)
+
+diff --git a/misc/dashboard/README b/misc/dashboard/README
+new file mode 100644
+index 0000000000..7b07a21a20
+--- /dev/null
++++ b/misc/dashboard/README
+@@ -0,0 +1,33 @@
++The files in this directory constitute the continuous builder:
++
++godashboard/: An AppEngine which acts as a server
++builder.sh, buildcontrol.sh: used by the build slaves
++
++If you wish to run a Go builder, please email golang-dev@googlegroups.com
++
++
++Setting up a Go builder:
++
++* (Optional) create a new user 'gobuild'
++* Edit ~gobuild/.bash_profile and add the following:
++
++export GOROOT=/gobuild/go
++export GOARCH=XXX
++export GOOS=XXX
++export GOBIN=/gobuild/bin
++export PATH=$PATH:/gobuild/bin
++export BUILDER=XXX
++export BUILDHOST=godashboard.appspot.com
++
++* Write ~gobuild/.gobuildkey (you need to get it from someone who knows it)
++
++* sudo apt-get install bison gcc libc6-dev ed make
++* cd ~gobuild
++* mkdir bin
++* hg clone https://go.googlecode.com/hg/ $GOROOT
++* copy builder.sh and buildcontrol.py to ~gobuild
++* chmod a+x ./builder.sh ./buildcontrol.py
++* cd go
++* ../buildcontrol.py next $BUILDER  (just to check that things are ok)
++* cd ..
++* ./builder.sh (You probably want to run this in a screen long term.)
+diff --git a/misc/dashboard/buildcontrol.py b/misc/dashboard/buildcontrol.py
+new file mode 100644
+index 0000000000..caa1a2f477
+--- /dev/null
++++ b/misc/dashboard/buildcontrol.py
+@@ -0,0 +1,193 @@
++#!/usr/bin/env python
++
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This is a utility script for implementing a Go build slave.
++
++import httplib
++import os
++import subprocess
++import sys
++import time
++
++buildhost = ''
++buildport = -1
++buildkey = ''
++
++def main(args):
++    global buildport, buildhost, buildkey
++
++    if len(args) < 2:
++        return usage(args[0])
++
++    if 'BUILDHOST' not in os.environ:
++        print >>sys.stderr, "Please set $BUILDHOST"
++        return
++    buildhost = os.environ['BUILDHOST']
++
++    if 'BUILDPORT' not in os.environ:
++        buildport = 80
++    else:
++        buildport = int(os.environ['BUILDPORT'])
++
++    try:
++        buildkey = file('%s/.gobuildkey' % os.environ['HOME'], 'r').read().strip()
++    except IOError:
++        print >>sys.stderr, "Need key in ~/.gobuildkey"
++        return
++
++    if args[1] == 'init':
++        return doInit(args)
++    elif args[1] == 'hwget':
++        return doHWGet(args)
++    elif args[1] == 'next':
++        return doNext(args)
++    elif args[1] == 'record':
++        return doRecord(args)
++    else:
++        return usage(args[0])
++
++def usage(name):
++    sys.stderr.write('''Usage: %s <command>
++
++Commands:
++  init <rev>: init the build bot with the given commit as the first in history
++  hwget <builder>: get the most recent revision built by the given builder
++  next <builder>: get the next revision number to by built by the given builder
++  record <builder> <rev> <ok|log file>: record a build result
++''' % name)
++    return 1
++
++def doInit(args):
++    if len(args) != 3:
++        return usage(args[0])
++    c = getCommit(args[2])
++    if c is None:
++        fatal('Cannot get commit %s' % args[2])
++
++    return command('init', {'node': c.node, 'date': c.date, 'user': c.user, 'desc': c.desc})
++
++def doHWGet(args, retries = 0):
++    if len(args) != 3:
++        return usage(args[0])
++    conn = httplib.HTTPConnection(buildhost, buildport, True)
++    conn.request('GET', '/hw-get?builder=%s' % args[2]);
++    reply = conn.getresponse()
++    if reply.status == 200:
++        print reply.read()
++    elif reply.status == 500 and retries < 3:
++        return doHWGet(args, retries = retries + 1)
++    else:
++        raise Failed('get-hw returned %d' % reply.status)
++    return 0
++
++def doNext(args):
++    if len(args) != 3:
++        return usage(args[0])
++    conn = httplib.HTTPConnection(buildhost, buildport, True)
++    conn.request('GET', '/hw-get?builder=%s' % args[2]);
++    reply = conn.getresponse()
++    if reply.status == 200:
++        rev = reply.read()
++    else:
++        raise Failed('get-hw returned %d' % reply.status)
++
++    c = getCommit(rev)
++    next = getCommit(str(c.num + 1))
++    if next is not None:
++        print c.num + 1
++    else:
++        print "<none>"
++    return 0
++
++def doRecord(args):
++    if len(args) != 5:
++        return usage(args[0])
++    builder = args[2]
++    rev = args[3]
++    c = getCommit(rev)
++    if c is None:
++        print >>sys.stderr, "Bad revision:", rev
++        return 1
++    logfile = args[4]
++    log = ''
++    if logfile != 'ok':
++        log = file(logfile, 'r').read()
++    return command('build', {'node': c.node, 'parent': c.parent, 'date': c.date, 'user': c.user, 'desc': c.desc, 'log': log, 'builder': builder})
++
++if __name__ == '__main__':
++    sys.exit(main(sys.argv))
++
++def encodeMultipartFormdata(fields, files):
++    """fields is a sequence of (name, value) elements for regular form fields.
++    files is a sequence of (name, filename, value) elements for data to be uploaded as files"""
++    BOUNDARY = '----------ThIs_Is_tHe_bouNdaRY_$'
++    CRLF = '\r\n'
++    L = []
++    for (key, value) in fields.items():
++        L.append('--' + BOUNDARY)
++        L.append('Content-Disposition: form-data; name="%s"' % key)
++        L.append('')
++        L.append(value)
++    for (key, filename, value) in files:
++        L.append('--' + BOUNDARY)
++        L.append('Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename))
++        L.append('Content-Type: %s' % get_content_type(filename))
++        L.append('')
++        L.append(value)
++    L.append('--' + BOUNDARY + '--')
++    L.append('')
++    body = CRLF.join(L)
++    content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
++    return content_type, body
++
++def unescapeXML(s):
++    return s.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
++
++class Commit:
++    pass
++
++def getCommit(rev):
++    output, stderr = subprocess.Popen(['hg', 'log', '-r', rev, '-l', '1', '--template', '{rev}>{node|escape}>{author|escape}>{date}>{desc}'], stdout = subprocess.PIPE, stderr = subprocess.PIPE, close_fds = True).communicate()
++    if len(stderr) > 0:
++        return None
++    [n, node, user, date, desc] = output.split('>', 4)
++
++    c = Commit()
++    c.num = int(n)
++    c.node = unescapeXML(node)
++    c.user = unescapeXML(user)
++    c.date = unescapeXML(date)
++    c.desc = desc
++    c.parent = ''
++
++    if c.num > 0:
++        output, _ = subprocess.Popen(['hg', 'log', '-r', str(c.num - 1), '-l', '1', '--template', '{node}'], stdout = subprocess.PIPE, close_fds = True).communicate()
++        c.parent = output
++
++    return c
++
++class Failed(Exception):
++    def __init__(self, msg):
++        self.msg = msg
++    def __str__(self):
++        return self.msg
++
++def command(cmd, args, retries = 0):
++    args['key'] = buildkey
++    contentType, body = encodeMultipartFormdata(args, [])
++    print body
++    conn = httplib.HTTPConnection(buildhost, buildport, True)
++    conn.request('POST', '/' + cmd, body, {'Content-Type': contentType})
++    reply = conn.getresponse()
++    if reply.status != 200:
++        print "Command failed. Output:"
++        print reply.read()
++    if reply.status == 500 and retries < 3:
++        print "Was a 500. Waiting two seconds and trying again."
++        time.sleep(2)
++        return command(cmd, args, retries = retries + 1)
++    if reply.status != 200:
++        raise Failed('Command "%s" returned %d' % (cmd, reply.status))
+diff --git a/misc/dashboard/builder.sh b/misc/dashboard/builder.sh
+new file mode 100644
+index 0000000000..4a87ed2d53
+--- /dev/null
++++ b/misc/dashboard/builder.sh
+@@ -0,0 +1,64 @@
++#!/bin/sh
++
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++fatal() {
++    echo $1
++    exit 1
++}
++
++if [ ! -d go ] ; then
++    fatal "Please run in directory that contains a checked out repo in 'go'"
++fi
++
++if [ ! -f buildcontrol.py ] ; then
++    fatal "Please include buildcontrol.py in this directory"
++fi
++
++if [ "x$BUILDER" == "x" ] ; then
++    fatal "Please set \$BUILDER to the name of this builder"
++fi
++
++if [ "x$BUILDHOST" == "x" ] ; then
++    fatal "Please set \$BUILDHOST to the hostname of the gobuild server"
++fi
++
++if [ "x$GOARCH" == "x" -o "x$GOOS" == "x" ] ; then
++    fatal "Please set $GOARCH and $GOOS"
++fi
++
++export PATH=$PATH:`pwd`/candidate/bin
++export GOBIN=`pwd`/candidate/bin
++
++while true ; do
++    cd go || fatal "Cannot cd into 'go'"
++    hg pull -u || fatal "hg sync failed"
++    rev=`python ../buildcontrol.py next $BUILDER`
++    if [ $? -ne 0 ] ; then
++        fatal "Cannot get next revision"
++    fi
++    cd .. || fatal "Cannot cd up"
++    if [ "x$rev" == "x<none>" ] ; then
++        sleep 10
++        continue
++    fi
++
++    echo "Cloning for revision $rev"
++    rm -Rf candidate
++    hg clone -r $rev go candidate || fatal "hg clone failed"
++    export GOROOT=`pwd`/candidate
++    mkdir -p candidate/bin || fatal "Cannot create candidate/bin"
++    cd candidate/src || fatal "Cannot cd into candidate/src"
++    echo "Building revision $rev"
++    ./all.bash > ../log 2>&1
++    if [ $? -ne 0 ] ; then
++        echo "Recording failure for $rev"
++        python ../../buildcontrol.py record $BUILDER $rev ../log || fatal "Cannot record result"
++    else
++        echo "Recording success for $rev"
++        python ../../buildcontrol.py record $BUILDER $rev ok || fatal "Cannot record result"
++    fi
++    cd ../.. || fatal "Cannot cd up"
++done
+diff --git a/misc/dashboard/godashboard/_multiprocessing.py b/misc/dashboard/godashboard/_multiprocessing.py
+new file mode 100644
+index 0000000000..8c66c06596
+--- /dev/null
++++ b/misc/dashboard/godashboard/_multiprocessing.py
+@@ -0,0 +1,5 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++import multiprocessing
+diff --git a/misc/dashboard/godashboard/app.yaml b/misc/dashboard/godashboard/app.yaml
+new file mode 100644
+index 0000000000..06681def10
+--- /dev/null
++++ b/misc/dashboard/godashboard/app.yaml
+@@ -0,0 +1,8 @@
++application: godashboard
++version: 1
++runtime: python
++api_version: 1
++
++handlers:
++- url: /.*
++  script: gobuild.py
+diff --git a/misc/dashboard/godashboard/gobuild.py b/misc/dashboard/godashboard/gobuild.py
+new file mode 100644
+index 0000000000..f984d920f9
+--- /dev/null
++++ b/misc/dashboard/godashboard/gobuild.py
+@@ -0,0 +1,285 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This is the server part of the continuous build system for Go. It must be run
++# by AppEngine.
++
++from google.appengine.ext import db
++from google.appengine.ext import webapp
++from google.appengine.ext.webapp import template
++from google.appengine.ext.webapp.util import run_wsgi_app
++import datetime
++import hashlib
++import logging
++import os
++import re
++
++import key
++
++# The main class of state are commit objects. One of these exists for each of
++# the commits known to the build system. Their key names are of the form
++# <commit number (%08x)> "-" <hg hash>. This means that a sorting by the key
++# name is sufficient to order the commits.
++#
++# The commit numbers are purely local. They need not match up to the commit
++# numbers in an hg repo. When inserting a new commit, the parent commit must be
++# given and this is used to generate the new commit number. In order to create
++# the first Commit object, a special command (/init) is used.
++class Commit(db.Model):
++    num = db.IntegerProperty() # internal, monotonic counter.
++    node = db.StringProperty() # Hg hash
++    parentnode = db.StringProperty() # Hg hash
++    user = db.StringProperty()
++    date = db.DateTimeProperty()
++    desc = db.BlobProperty()
++
++    # This is the list of builds. Each element is a string of the form <builder
++    # name> "`" <log hash>. If the log hash is empty, then the build was
++    # successful.
++    builds = db.StringListProperty()
++
++# A Log contains the textual build log of a failed build. The key name is the
++# hex digest of the SHA256 hash of the contents.
++class Log(db.Model):
++    log = db.BlobProperty()
++
++# For each builder, we store the last revision that it built. So, if it
++# crashes, it knows where to start up from. The key names for these objects are
++# "hw-" <builder name>
++class Highwater(db.Model):
++    commit = db.StringProperty()
++
++class MainPage(webapp.RequestHandler):
++    def get(self):
++        self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
++
++        q = Commit.all()
++        q.order('-__key__')
++        results = q.fetch(30)
++
++        revs = [toRev(r) for r in results]
++        allbuilders = set()
++
++        for r in revs:
++            for b in r['builds']:
++                allbuilders.add(b['builder'])
++        for r in revs:
++            have = set(x['builder'] for x in r['builds'])
++            need = allbuilders.difference(have)
++            for n in need:
++                r['builds'].append({'builder': n, 'log':'', 'ok': False})
++            r['builds'].sort(cmp = byBuilder)
++
++        builders = list(allbuilders)
++        builders.sort()
++        values = {"revs": revs, "builders": builders}
++
++        path = os.path.join(os.path.dirname(__file__), 'main.html')
++        self.response.out.write(template.render(path, values))
++
++class GetHighwater(webapp.RequestHandler):
++    def get(self):
++        builder = self.request.get('builder')
++
++        hw = Highwater.get_by_key_name('hw-%s' % builder)
++        if hw is None:
++            # If no highwater has been recorded for this builder, we find the
++            # initial commit and return that.
++            q = Commit.all()
++            q.filter('num =', 0)
++            commitzero = q.get()
++            self.response.set_status(200)
++            self.response.out.write(commitzero.node)
++            return
++
++        self.response.set_status(200)
++        self.response.out.write(hw.commit)
++
++class LogHandler(webapp.RequestHandler):
++    def get(self):
++        self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
++        hash = self.request.path[5:]
++        l = Log.get_by_key_name(hash)
++        if l is None:
++            self.response.set_status(404)
++            return
++        self.response.set_status(200)
++        self.response.out.write(l.log)
++
++# Init creates the commit with id 0. Since this commit doesn't have a parent,
++# it cannot be created by Build.
++class Init(webapp.RequestHandler):
++    def post(self):
++        if self.request.get('key') != key.accessKey:
++            self.response.set_status(403)
++            return
++
++        date = parseDate(self.request.get('date'))
++        node = self.request.get('node')
++        if not validNode(node) or date is None:
++            logging.error("Not valid node ('%s') or bad date (%s %s)", node, date, self.request.get('date'))
++            self.response.set_status(500)
++            return
++
++        commit = Commit(key_name = '00000000-%s' % node)
++        commit.num = 0
++        commit.node = node
++        commit.parentnode = ''
++        commit.user = self.request.get('user')
++        commit.date = date
++        commit.desc = self.request.get('desc').encode('utf8')
++
++        commit.put()
++
++        self.response.set_status(200)
++
++# Build is the main command: it records the result of a new build.
++class Build(webapp.RequestHandler):
++    def post(self):
++        if self.request.get('key') != key.accessKey:
++            self.response.set_status(403)
++            return
++
++        builder = self.request.get('builder')
++        log = self.request.get('log').encode('utf-8')
++
++        loghash = ''
++        if len(log) > 0:
++            loghash = hashlib.sha256(log).hexdigest()
++            l = Log(key_name = loghash)
++            l.log = log
++            l.put()
++
++        date = parseDate(self.request.get('date'))
++        node = self.request.get('node')
++        parent = self.request.get('parent')
++        if not validNode(node) or not validNode(parent) or date is None:
++            logging.error("Not valid node ('%s') or bad date (%s %s)", node, date, self.request.get('date'))
++            self.response.set_status(500)
++            return
++
++        q = Commit.all()
++        q.filter('node =', parent)
++        p = q.get()
++        if p is None:
++            self.response.set_status(404)
++            return
++        parentnum, _ = p.key().name().split('-', 1)
++        nodenum = int(parentnum, 16) + 1
++
++        def add_build():
++            key_name = '%08x-%s' % (nodenum, node)
++            n = Commit.get_by_key_name(key_name)
++            if n is None:
++                n = Commit(key_name = key_name)
++                n.num = nodenum
++                n.node = node
++                n.parentnode = parent
++                n.user = self.request.get('user')
++                n.date = date
++                n.desc = self.request.get('desc').encode('utf8')
++            s = '%s`%s' % (builder, loghash)
++            for i, b in enumerate(n.builds):
++                if b.split('`', 1)[0] == builder:
++                    n.builds[i] = s
++                    break
++            else:
++                n.builds.append(s)
++            n.put()
++
++        db.run_in_transaction(add_build)
++
++        hw = Highwater.get_by_key_name('hw-%s' % builder)
++        if hw is None:
++            hw = Highwater(key_name = 'hw-%s' % builder)
++        hw.commit = node
++        hw.put()
++
++        self.response.set_status(200)
++
++class FixedOffset(datetime.tzinfo):
++    """Fixed offset in minutes east from UTC."""
++
++    def __init__(self, offset):
++        self.__offset = datetime.timedelta(seconds = offset)
++
++    def utcoffset(self, dt):
++        return self.__offset
++
++    def tzname(self, dt):
++        return None
++
++    def dst(self, dt):
++        return datetime.timedelta(0)
++
++def validNode(node):
++    if len(node) != 40:
++        return False
++    for x in node:
++        o = ord(x)
++        if (o < ord('0') or o > ord('9')) and (o < ord('a') or o > ord('f')):
++            return False
++    return True
++
++def parseDate(date):
++    if '-' in date:
++        (a, offset) = date.split('-', 1)
++        try:
++            return datetime.datetime.fromtimestamp(float(a), FixedOffset(0-int(offset)))
++        except ValueError:
++            return None
++    if '+' in date:
++        (a, offset) = date.split('+', 1)
++        try:
++            return datetime.datetime.fromtimestamp(float(a), FixedOffset(int(offset)))
++        except ValueError:
++            return None
++    try:
++        return datetime.datetime.utcfromtimestamp(float(date))
++    except ValueError:
++        return None
++
++email_re = re.compile('^[^<]+<([^>]*)>$')
++
++def toUsername(user):
++    r = email_re.match(user)
++    if r is None:
++        return user
++    email = r.groups()[0]
++    return email.replace('@golang.org', '')
++
++def dateToShortStr(d):
++    return d.strftime('%a %b %d %H:%M')
++
++def parseBuild(build):
++    [builder, logblob] = build.split('`')
++    return {'builder': builder, 'log': logblob, 'ok': len(logblob) == 0}
++
++def toRev(c):
++        b = { "node": c.node,
++              "user": toUsername(c.user),
++              "date": dateToShortStr(c.date),
++              "desc": c.desc}
++        b['builds'] = [parseBuild(build) for build in c.builds]
++        return b
++
++def byBuilder(x, y):
++    return cmp(x['builder'], y['builder'])
++
++# This is the URL map for the server. The first three entries are public, the
++# rest are only used by the builders.
++application = webapp.WSGIApplication(
++                                     [('/', MainPage),
++                                      ('/log/.*', LogHandler),
++                                      ('/hw-get', GetHighwater),
++
++                                      ('/init', Init),
++                                      ('/build', Build),
++                                     ])
++
++def main():
++    run_wsgi_app(application)
++
++if __name__ == "__main__":
++    main()
+diff --git a/misc/dashboard/godashboard/index.yaml b/misc/dashboard/godashboard/index.yaml
+new file mode 100644
+index 0000000000..784d23d012
+--- /dev/null
++++ b/misc/dashboard/godashboard/index.yaml
+@@ -0,0 +1,16 @@
++indexes:
++
++# AUTOGENERATED
++
++# This index.yaml is automatically updated whenever the dev_appserver
++# detects that a new type of query is run.  If you want to manage the
++# index.yaml file manually, remove the above marker line (the line
++# saying "# AUTOGENERATED").  If you want to manage some indexes
++# manually, move them above the marker line.  The index.yaml file is
++# automatically uploaded to the admin console when you next deploy
++# your application using appcfg.py.
++
++- kind: Commit
++  properties:
++  - name: __key__
++    direction: desc
+diff --git a/misc/dashboard/godashboard/key.py b/misc/dashboard/godashboard/key.py
+new file mode 100644
+index 0000000000..7495709ecd
+--- /dev/null
++++ b/misc/dashboard/godashboard/key.py
+@@ -0,0 +1,9 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# accessKey controls private access to the build server (i.e. to record new
++# builds). It's tranmitted in the clear but, given the low value of the target,
++# this should be sufficient.
++accessKey = "this is not the real key"
++
+diff --git a/misc/dashboard/godashboard/main.html b/misc/dashboard/godashboard/main.html
+new file mode 100644
+index 0000000000..ec874ce4ff
+--- /dev/null
++++ b/misc/dashboard/godashboard/main.html
+@@ -0,0 +1,84 @@
++<!DOCTYPE HTML>
++<html>
++  <head>
++    <title>Go build</title>
++
++    <style>
++      td.revision {
++        font-family: monospace;
++      }
++      table.alternate {
++          white-space: nowrap;
++      }
++
++      table.alternate tr td {
++        padding-right: 10px;
++      }
++      table.alternate tr td:last-child {
++        padding-right: 0;
++      }
++      table.alternate tr:nth-child(2n) {
++        background-color: #eef;
++      }
++      td.user {
++        font-family: monospace;
++      }
++      td.date {
++        font-size: 0.8em;
++      }
++      td.result {
++        text-align: center;
++      }
++      td.desc {
++        font-size: 0.9em;
++        font-family: sans-serif;
++      }
++      th.builder {
++        font-variant: small-caps;
++        font-size: 1.2em;
++        color: #966;
++        padding-right: 1em;
++      }
++      span.ok {
++        color: green;
++      }
++    </style>
++  </head>
++
++  <body>
++    <table class="alternate" cellpadding="0" cellspacing="0">
++      <tr>
++        {% for b in builders %}
++          <th class="builder">{{b}}</th>
++        {% endfor %}
++        <th></th>
++        <th></th>
++        <th></th>
++        <th></th>
++      </tr>
++
++      {% for r in revs %}
++      <tr>
++        {% for b in r.builds %}
++          <td class="result">
++          {% if b.ok %}
++            <span class="ok">☺</span>
++          {% else %}
++            {% if b.log %}
++              <a href="/log/{{b.log}}">failed</a>
++            {% else %}
++              <span/>
++            {% endif %}
++          {% endif %}
++          </td>
++        {% endfor %}
++
++        <td class="revision"><a href="https://code.google.com/p/go/source/detail?r={{r.node}}">{{r.node|slice:":12"}}</a></td>
++        <td class="user">{{r.user|escape}}</td>
++        <td class="date">{{r.date|escape}}</td>
++        <td class="desc">{{r.desc|escape}}</td>
++      </tr>
++      {% endfor %}
++    </table>
++  </body>
++</html>

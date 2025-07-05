@@ -7,6 +7,20 @@ Date:   Tue Feb 8 22:39:39 2011 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/4151042
-
+---
  src/cmd/clean.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index b451670974..92d8cc5c92 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -4,7 +4,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ gomake=gomake
+-if [ $1 == "--gomake" -a "$2" != "" ]; then
++if [ "$1" == "--gomake" -a "$2" != "" ]; then
+ 	gomake=$2
+ fi
+ 

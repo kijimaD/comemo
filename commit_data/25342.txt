@@ -15,10 +15,222 @@ Date:   Wed Oct 21 09:45:27 2015 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/deps_test.go |  3 +-
  src/runtime/msan.go       | 42 ++++++++++++++++++++++++++
  src/runtime/msan/msan.go  | 32 ++++++++++++++++++++
  src/runtime/msan0.go      | 22 ++++++++++++++
  src/runtime/msan_amd64.s  | 76 +++++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 174 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e3c146963a..58b93436ee 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -263,8 +263,9 @@ var pkgDeps = map[string][]string{
+ 	// that shows up in programs that use cgo.
+ 	"C": {},
+ 
+-	// Race detector uses cgo.
++	// Race detector/MSan uses cgo.
+ 	"runtime/race": {"C"},
++	"runtime/msan": {"C"},
+ 
+ 	// Plan 9 alone needs io/ioutil and os.
+ 	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
+diff --git a/src/runtime/msan.go b/src/runtime/msan.go
+new file mode 100644
+index 0000000000..7457fe1150
+--- /dev/null
++++ b/src/runtime/msan.go
+@@ -0,0 +1,42 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build msan
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++// Public memory sanitizer API.
++
++func MSanRead(addr unsafe.Pointer, len int) {
++	msanread(addr, uintptr(len))
++}
++
++func MSanWrite(addr unsafe.Pointer, len int) {
++	msanwrite(addr, uintptr(len))
++}
++
++// Private interface for the runtime.
++const msanenabled = true
++
++//go:noescape
++func msanread(addr unsafe.Pointer, sz uintptr)
++
++//go:noescape
++func msanwrite(addr unsafe.Pointer, sz uintptr)
++
++//go:noescape
++func msanmalloc(addr unsafe.Pointer, sz uintptr)
++
++//go:noescape
++func msanfree(addr unsafe.Pointer, sz uintptr)
++
++// These are called from msan_amd64.s
++//go:cgo_import_static __msan_read_go
++//go:cgo_import_static __msan_write_go
++//go:cgo_import_static __msan_malloc_go
++//go:cgo_import_static __msan_free_go
+diff --git a/src/runtime/msan/msan.go b/src/runtime/msan/msan.go
+new file mode 100644
+index 0000000000..b6ea3f0d16
+--- /dev/null
++++ b/src/runtime/msan/msan.go
+@@ -0,0 +1,32 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build msan,linux,amd64
++
++package msan
++
++/*
++#cgo CFLAGS: -fsanitize=memory
++#cgo LDFLAGS: -fsanitize=memory
++
++#include <stdint.h>
++#include <sanitizer/msan_interface.h>
++
++void __msan_read_go(void *addr, uintptr_t sz) {
++	__msan_check_mem_is_initialized(addr, sz);
++}
++
++void __msan_write_go(void *addr, uintptr_t sz) {
++	__msan_unpoison(addr, sz);
++}
++
++void __msan_malloc_go(void *addr, uintptr_t sz) {
++	__msan_unpoison(addr, sz);
++}
++
++void __msan_free_go(void *addr, uintptr_t sz) {
++	__msan_poison(addr, sz);
++}
++*/
++import "C"
+diff --git a/src/runtime/msan0.go b/src/runtime/msan0.go
+new file mode 100644
+index 0000000000..f66fbe8779
+--- /dev/null
++++ b/src/runtime/msan0.go
+@@ -0,0 +1,22 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !msan
++
++// Dummy MSan support API, used when not built with -msan.
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++const msanenabled = false
++
++// Because msanenabled is false, none of these functions should be called.
++
++func msanread(addr unsafe.Pointer, sz uintptr)   { throw("race") }
++func msanwrite(addr unsafe.Pointer, sz uintptr)  { throw("race") }
++func msanmalloc(addr unsafe.Pointer, sz uintptr) { throw("msan") }
++func msanfree(addr unsafe.Pointer, sz uintptr)   { throw("msan") }
+diff --git a/src/runtime/msan_amd64.s b/src/runtime/msan_amd64.s
+new file mode 100644
+index 0000000000..6e8c1a10fc
+--- /dev/null
++++ b/src/runtime/msan_amd64.s
+@@ -0,0 +1,76 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build msan
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "funcdata.h"
++#include "textflag.h"
++
++// This is like race_amd64.s, but for the msan calls.
++// See race_amd64.s for detailed comments.
++
++#ifdef GOOS_windows
++#define RARG0 CX
++#define RARG1 DX
++#define RARG2 R8
++#define RARG3 R9
++#else
++#define RARG0 DI
++#define RARG1 SI
++#define RARG2 DX
++#define RARG3 CX
++#endif
++
++// func runtime·msanread(addr unsafe.Pointer, sz uintptr)
++// Called from instrumented code.
++TEXT	runtime·msanread(SB), NOSPLIT, $0-16
++	MOVQ	addr+0(FP), RARG0
++	MOVQ	size+8(FP), RARG1
++	// void __msan_read_go(void *addr, uintptr_t sz);
++	MOVQ	$__msan_read_go(SB), AX
++	JMP	msancall<>(SB)
++
++// func runtime·msanwrite(addr unsafe.Pointer, sz uintptr)
++// Called from instrumented code.
++TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
++	MOVQ	addr+0(FP), RARG0
++	MOVQ	size+8(FP), RARG1
++	// void __msan_write_go(void *addr, uintptr_t sz);
++	MOVQ	$__msan_write_go(SB), AX
++	JMP	msancall<>(SB)
++
++// func runtime·msanmalloc(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
++	MOVQ	addr+0(FP), RARG0
++	MOVQ	size+8(FP), RARG1
++	// void __msan_malloc_go(void *addr, uintptr_t sz);
++	MOVQ	$__msan_malloc_go(SB), AX
++	JMP	msancall<>(SB)
++
++// func runtime·msanfree(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
++	MOVQ	addr+0(FP), RARG0
++	MOVQ	size+8(FP), RARG1
++	// void __msan_free_go(void *addr, uintptr_t sz);
++	MOVQ	$__msan_free_go(SB), AX
++	JMP	msancall<>(SB)
++
++// Switches SP to g0 stack and calls (AX). Arguments already set.
++TEXT	msancall<>(SB), NOSPLIT, $0-0
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	MOVQ	g_m(R14), R13
++	// Switch to g0 stack.
++	MOVQ	SP, R12		// callee-saved, preserved across the CALL
++	MOVQ	m_g0(R13), R10
++	CMPQ	R10, R14
++	JE	call	// already on g0
++	MOVQ	(g_sched+gobuf_sp)(R10), SP
++call:
++	ANDQ	$~15, SP	// alignment for gcc ABI
++	CALL	AX
++	MOVQ	R12, SP
++	RET

@@ -7,6 +7,29 @@ Date:   Tue Mar 6 11:23:27 2012 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5752059
-
+---
  src/pkg/go/parser/parser.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index cc3923bbfc..4a391454ae 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -380,11 +380,13 @@ func (p *parser) seesComma(context string) bool {
+ 	if p.tok == token.COMMA {
+ 		return true
+ 	}
+-	if p.tok == token.SEMICOLON && p.lit == "\n" {
+-		p.error(p.pos, "missing ',' before newline in "+context)
+-		return true // "insert" the comma and continue
++	/*
++		if p.tok == token.SEMICOLON && p.lit == "\n" {
++			p.error(p.pos, "missing ',' before newline in "+context)
++			return true // "insert" the comma and continue
+ 
+-	}
++		}
++	*/
+ 	return false
+ }
+ 

@@ -23,6 +23,20 @@ Date:   Sun Sep 13 17:03:48 2020 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Trust: Giovanni Bajo <rasky@develer.com>
-
+---
  src/make.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index 277a34d5d7..b4a8e70849 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -77,7 +77,7 @@ if not "x%GOROOT_BOOTSTRAP%"=="x" goto bootstrapset
+ for /f "tokens=*" %%g in ('where go 2^>nul') do (
+ 	if "x%GOROOT_BOOTSTRAP%"=="x" (
+ 		for /f "tokens=*" %%i in ('%%g env GOROOT 2^>nul') do (
+-			if /I not %%i==%GOROOT_TEMP% (
++			if /I not "%%i"=="%GOROOT_TEMP%" (
+ 				set GOROOT_BOOTSTRAP=%%i
+ 			)
+ 		)

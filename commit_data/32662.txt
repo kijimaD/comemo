@@ -23,6 +23,20 @@ Date:   Thu May 11 15:28:39 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 5dc417038a..22e8c31317 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -2105,7 +2105,7 @@ func gchelper() {
+ 		traceGCScanDone()
+ 	}
+ 
+-	nproc := work.nproc // work.nproc can change right after we increment work.ndone
++	nproc := atomic.Load(&work.nproc) // work.nproc can change right after we increment work.ndone
+ 	if atomic.Xadd(&work.ndone, +1) == nproc-1 {
+ 		notewakeup(&work.alldone)
+ 	}

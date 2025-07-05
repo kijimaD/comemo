@@ -12,6 +12,23 @@ Date:   Mon Apr 13 19:40:11 2020 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index c4128e9502..668a246b5f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -3006,8 +3006,9 @@ func (c *typeConv) anonymousStructTypedef(dt *dwarf.TypedefType) bool {
+ 	return ok && st.StructName == ""
+ }
+ 
+-// badPointerTypedef reports whether t is a C typedef that should not be considered a pointer in Go.
+-// A typedef is bad if C code sometimes stores non-pointers in this type.
++// badPointerTypedef reports whether dt is a C typedef that should not be
++// considered a pointer in Go. A typedef is bad if C code sometimes stores
++// non-pointers in this type.
+ // TODO: Currently our best solution is to find these manually and list them as
+ // they come up. A better solution is desired.
+ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {

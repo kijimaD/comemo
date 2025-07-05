@@ -34,6 +34,51 @@ Date:   Thu May 9 19:55:39 2019 +0000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/lock_js.go | 18 ++++++++++++++----
  1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index f58c915b63..c038499f2a 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -11,8 +11,6 @@ import (
+ )
+ 
+ // js/wasm has no support for threads yet. There is no preemption.
+-// Waiting for a mutex is implemented by allowing other goroutines
+-// to run until the mutex gets unlocked.
+ 
+ const (
+ 	mutex_unlocked = 0
+@@ -28,9 +26,16 @@ const (
+ )
+ 
+ func lock(l *mutex) {
+-	for l.key == mutex_locked {
+-		mcall(gosched_m)
++	if l.key == mutex_locked {
++		// js/wasm is single-threaded so we should never
++		// observe this.
++		throw("self deadlock")
+ 	}
++	gp := getg()
++	if gp.m.locks < 0 {
++		throw("lock count")
++	}
++	gp.m.locks++
+ 	l.key = mutex_locked
+ }
+ 
+@@ -38,6 +43,11 @@ func unlock(l *mutex) {
+ 	if l.key == mutex_unlocked {
+ 		throw("unlock of unlocked lock")
+ 	}
++	gp := getg()
++	gp.m.locks--
++	if gp.m.locks < 0 {
++		throw("lock count")
++	}
+ 	l.key = mutex_unlocked
+ }
+ 

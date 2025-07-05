@@ -13,7 +13,72 @@ Date:   Mon Aug 14 14:15:23 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/unify.go | 14 +++++++-------
  src/go/types/unify.go                    | 14 +++++++-------
  2 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index a48f745cb4..6a130d55e0 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -425,13 +425,6 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	// x != y if we get here
+ 	assert(x != y)
+ 
+-	// Type elements (array, slice, etc. elements) use emode for unification.
+-	// Element types must match exactly if the types are used in an assignment.
+-	emode := mode
+-	if mode&assign != 0 {
+-		emode |= exact
+-	}
+-
+ 	// If we don't require exact unification and both types are interfaces,
+ 	// one interface must have a subset of the methods of the other and
+ 	// corresponding method signatures must unify.
+@@ -547,6 +540,13 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 		x, y = y, x
+ 	}
+ 
++	// Type elements (array, slice, etc. elements) use emode for unification.
++	// Element types must match exactly if the types are used in an assignment.
++	emode := mode
++	if mode&assign != 0 {
++		emode |= exact
++	}
++
+ 	switch x := x.(type) {
+ 	case *Basic:
+ 		// Basic types are singletons except for the rune and byte
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 619459b1ee..20381215c5 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -427,13 +427,6 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	// x != y if we get here
+ 	assert(x != y)
+ 
+-	// Type elements (array, slice, etc. elements) use emode for unification.
+-	// Element types must match exactly if the types are used in an assignment.
+-	emode := mode
+-	if mode&assign != 0 {
+-		emode |= exact
+-	}
+-
+ 	// If we don't require exact unification and both types are interfaces,
+ 	// one interface must have a subset of the methods of the other and
+ 	// corresponding method signatures must unify.
+@@ -549,6 +542,13 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 		x, y = y, x
+ 	}
+ 
++	// Type elements (array, slice, etc. elements) use emode for unification.
++	// Element types must match exactly if the types are used in an assignment.
++	emode := mode
++	if mode&assign != 0 {
++		emode |= exact
++	}
++
+ 	switch x := x.(type) {
+ 	case *Basic:
+ 		// Basic types are singletons except for the rune and byte

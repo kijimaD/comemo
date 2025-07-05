@@ -10,6 +10,20 @@ Date:   Mon Jan 26 20:52:02 2015 +0900
     Change-Id: Idb4fed889973368b35d38b361b23581abacfdeab
     Reviewed-on: https://go-review.googlesource.com/3306
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  src/net/cgo_bsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/cgo_bsd.go b/src/net/cgo_bsd.go
+index 3090d3019d..388eab4fe1 100644
+--- a/src/net/cgo_bsd.go
++++ b/src/net/cgo_bsd.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !netgo
+-// +build darwin dragonfly freebsd solaris
++// +build darwin dragonfly freebsd
+ 
+ package net
+ 

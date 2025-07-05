@@ -325,3 +325,26 @@ Date:   Fri Oct 25 13:41:36 2019 -0400
  test/live.go                                       |  18 +-
  test/nosplit.go                                    |   6 +-
  314 files changed, 6737 insertions(+), 1166 deletions(-)
+
+diff --cc src/cmd/internal/obj/link.go
+index 2e94d55225,468e9402ee..76c6f261a3
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@@ -409,12 -405,11 +409,13 @@@ type FuncInfo struct 
+  	dwarfAbsFnSym      *LSym
+  	dwarfDebugLinesSym *LSym
+  
+- 	GCArgs       *LSym
+- 	GCLocals     *LSym
+- 	GCRegs       *LSym
+- 	StackObjects *LSym
++ 	GCArgs             *LSym
++ 	GCLocals           *LSym
++ 	GCRegs             *LSym
++ 	StackObjects       *LSym
++ 	OpenCodedDeferInfo *LSym
+ +
+ +	FuncInfoSym *LSym
+  }
+  
+  type InlMark struct {

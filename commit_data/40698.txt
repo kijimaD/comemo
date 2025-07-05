@@ -16,6 +16,36 @@ Date:   Tue Jun 18 15:31:18 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_sumdb_proxy.txt | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_proxy.txt b/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
+index 52f6a10fba..6fbf7aeb8a 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
+@@ -17,11 +17,14 @@ rm $GOPATH/pkg/mod/download/cache/sumdb
+ rm go.sum
+ 
+ # direct access fails (because localhost.localdev does not exist)
++# The text of the error message is hard to predict because some DNS servers
++# will resolve unknown domains like localhost.localdev to a real IP
++# to serve ads.
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb
+ env GOPROXY=direct
+ ! go get -d rsc.io/fortune@v1.0.0
+-stderr 'verifying.*lookup.*localhost.localdev'
++stderr 'verifying.*localhost.localdev'
+ rm $GOPATH/pkg/mod/download/cache/sumdb
+ rm go.sum
+ 
+@@ -30,7 +33,7 @@ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb
+ env GOPROXY=$proxy/sumdb-404
+ ! go get -d rsc.io/fortune@v1.0.0
+-stderr 'verifying.*lookup.*localhost.localdev'
++stderr 'verifying.*localhost.localdev'
+ rm $GOPATH/pkg/mod/download/cache/sumdb
+ rm go.sum
+ 

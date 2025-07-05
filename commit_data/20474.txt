@@ -8,6 +8,19 @@ Date:   Wed Sep 10 06:25:05 2014 -0700
     R=rsc, 0intro, alex.brainman, iant
     CC=golang-codereviews
     https://golang.org/cl/140460044
-
+---
  src/runtime/asm_amd64.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 1a106dc1f1..e5702d074c 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -272,6 +272,7 @@ onm:
+ // record an argument size. For that purpose, it has no arguments.
+ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	// Cannot grow scheduler stack (m->g0).
++	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	g_m(BX), BX
+ 	MOVQ	m_g0(BX), SI

@@ -9,7 +9,7 @@ Date:   Fri Nov 4 16:30:12 2016 -0400
     Change-Id: Ie2f62237e6ec316989c021de9b267cc9d6ee6676
     Reviewed-on: https://go-review.googlesource.com/32830
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes_amd64.go                           | 2 +-
  src/bytes/bytes_generic.go                         | 2 +-
  src/cmp.bash                                       | 2 +-
@@ -27,3 +27,166 @@ Date:   Fri Nov 4 16:30:12 2016 -0400
  src/runtime/testdata/testprogcgo/pprof.go          | 2 +-
  src/runtime/testdata/testprogcgo/threadpprof.go    | 2 +-
  16 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/bytes/bytes_amd64.go b/src/bytes/bytes_amd64.go
+index 9a4e5e375a..6affff6334 100644
+--- a/src/bytes/bytes_amd64.go
++++ b/src/bytes/bytes_amd64.go
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/bytes/bytes_generic.go b/src/bytes/bytes_generic.go
+index e8a4fe347e..06c9e1f26c 100644
+--- a/src/bytes/bytes_generic.go
++++ b/src/bytes/bytes_generic.go
+@@ -1,4 +1,4 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
++// Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/cmp.bash b/src/cmp.bash
+index 68086c31f2..dac9ca0da1 100644
+--- a/src/cmp.bash
++++ b/src/cmp.bash
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env bash
+ 
+-# Copyright 2016 The Go Authors.  All rights reserved.
++# Copyright 2016 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+diff --git a/src/crypto/sha1/sha1block_amd64.go b/src/crypto/sha1/sha1block_amd64.go
+index fd85a4262b..0320e41f36 100644
+--- a/src/crypto/sha1/sha1block_amd64.go
++++ b/src/crypto/sha1/sha1block_amd64.go
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/crypto/sha256/sha256block_amd64.s b/src/crypto/sha256/sha256block_amd64.s
+index 6a740f9b59..edf7ad1a3b 100644
+--- a/src/crypto/sha256/sha256block_amd64.s
++++ b/src/crypto/sha256/sha256block_amd64.s
+@@ -1,4 +1,4 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
++// Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/crypto/sha256/sha256block_ppc64le.s b/src/crypto/sha256/sha256block_ppc64le.s
+index 98b0271b1a..7ac500024c 100644
+--- a/src/crypto/sha256/sha256block_ppc64le.s
++++ b/src/crypto/sha256/sha256block_ppc64le.s
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/debug/pe/string.go b/src/debug/pe/string.go
+index 0155adf9f0..c30255f341 100644
+--- a/src/debug/pe/string.go
++++ b/src/debug/pe/string.go
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/internal/syscall/windows/mksyscall.go b/src/internal/syscall/windows/mksyscall.go
+index 0b01938b87..91fa2b3b81 100644
+--- a/src/internal/syscall/windows/mksyscall.go
++++ b/src/internal/syscall/windows/mksyscall.go
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/internal/syscall/windows/registry/mksyscall.go b/src/internal/syscall/windows/registry/mksyscall.go
+index 3f8eb8eba6..077215351e 100644
+--- a/src/internal/syscall/windows/registry/mksyscall.go
++++ b/src/internal/syscall/windows/registry/mksyscall.go
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/runtime/cgo/asm_mips64x.s b/src/runtime/cgo/asm_mips64x.s
+index e2042f6f40..aae2767ed7 100644
+--- a/src/runtime/cgo/asm_mips64x.s
++++ b/src/runtime/cgo/asm_mips64x.s
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/runtime/cgo/gcc_context.c b/src/runtime/cgo/gcc_context.c
+index 1e6cf7ee12..b46b6040d2 100644
+--- a/src/runtime/cgo/gcc_context.c
++++ b/src/runtime/cgo/gcc_context.c
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/runtime/cgo/gcc_linux_mips64x.c b/src/runtime/cgo/gcc_linux_mips64x.c
+index 5bf51972a6..8a95629f56 100644
+--- a/src/runtime/cgo/gcc_linux_mips64x.c
++++ b/src/runtime/cgo/gcc_linux_mips64x.c
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/runtime/cgo/gcc_mips64x.S b/src/runtime/cgo/gcc_mips64x.S
+index e0a1043009..a7ef0061a4 100644
+--- a/src/runtime/cgo/gcc_mips64x.S
++++ b/src/runtime/cgo/gcc_mips64x.S
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/runtime/cgo/gcc_s390x.S b/src/runtime/cgo/gcc_s390x.S
+index 022f82d93e..db654e4f9b 100644
+--- a/src/runtime/cgo/gcc_s390x.S
++++ b/src/runtime/cgo/gcc_s390x.S
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/runtime/testdata/testprogcgo/pprof.go b/src/runtime/testdata/testprogcgo/pprof.go
+index cb30ec5b25..4460b9304e 100644
+--- a/src/runtime/testdata/testprogcgo/pprof.go
++++ b/src/runtime/testdata/testprogcgo/pprof.go
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/runtime/testdata/testprogcgo/threadpprof.go b/src/runtime/testdata/testprogcgo/threadpprof.go
+index 5f16e2526f..44afb91d96 100644
+--- a/src/runtime/testdata/testprogcgo/threadpprof.go
++++ b/src/runtime/testdata/testprogcgo/threadpprof.go
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors.  All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 

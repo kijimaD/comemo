@@ -7,7 +7,93 @@ Date:   Tue Sep 7 16:29:07 2010 -0400
     R=r, gri1
     CC=golang-dev
     https://golang.org/cl/2119044
-
+---
  src/pkg/exec/exec.go |  6 +++---
  src/pkg/os/exec.go   | 20 ++++++++++----------
  2 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index e1c49004f7..7ae4519ab5 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -63,7 +63,7 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
+ 	return nil, nil, os.EINVAL
+ }
+ 
+-// Run starts the binary prog running with
++// Run starts the named binary running with
+ // arguments argv and environment envv.
+ // It returns a pointer to a new Cmd representing
+ // the command or an error.
+@@ -78,7 +78,7 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
+ // If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
+ // of the returned Cmd is the other end of the pipe.
+ // Otherwise the field in Cmd is nil.
+-func Run(argv0 string, argv, envv []string, dir string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
++func Run(name string, argv, envv []string, dir string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
+ 	p = new(Cmd)
+ 	var fd [3]*os.File
+ 
+@@ -95,7 +95,7 @@ func Run(argv0 string, argv, envv []string, dir string, stdin, stdout, stderr in
+ 	}
+ 
+ 	// Run command.
+-	p.Pid, err = os.ForkExec(argv0, argv, envv, dir, fd[0:])
++	p.Pid, err = os.ForkExec(name, argv, envv, dir, fd[0:])
+ 	if err != nil {
+ 		goto Error
+ 	}
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index c0831cab69..501ebc270f 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -8,14 +8,14 @@ import (
+ 	"syscall"
+ )
+ 
+-// ForkExec forks the current process and invokes Exec with the file, arguments,
+-// and environment specified by argv0, argv, and envv.  It returns the process
++// ForkExec forks the current process and invokes Exec with the program, arguments,
++// and environment specified by name, argv, and envv.  It returns the process
+ // id of the forked process and an Error, if any.  The fd array specifies the
+ // file descriptors to be set up in the new process: fd[0] will be Unix file
+ // descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
+ // will cause the child to have no open file descriptor with that index.
+ // If dir is not empty, the child chdirs into the directory before execing the program.
+-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File) (pid int, err Error) {
++func ForkExec(name string, argv []string, envv []string, dir string, fd []*File) (pid int, err Error) {
+ 	if envv == nil {
+ 		envv = Environ()
+ 	}
+@@ -29,24 +29,24 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File
+ 		}
+ 	}
+ 
+-	p, e := syscall.ForkExec(argv0, argv, envv, dir, intfd)
++	p, e := syscall.ForkExec(name, argv, envv, dir, intfd)
+ 	if e != 0 {
+-		return 0, &PathError{"fork/exec", argv0, Errno(e)}
++		return 0, &PathError{"fork/exec", name, Errno(e)}
+ 	}
+ 	return p, nil
+ }
+ 
+-// Exec replaces the current process with an execution of the program
+-// named by argv0, with arguments argv and environment envv.
++// Exec replaces the current process with an execution of the
++// named binary, with arguments argv and environment envv.
+ // If successful, Exec never returns.  If it fails, it returns an Error.
+ // ForkExec is almost always a better way to execute a program.
+-func Exec(argv0 string, argv []string, envv []string) Error {
++func Exec(name string, argv []string, envv []string) Error {
+ 	if envv == nil {
+ 		envv = Environ()
+ 	}
+-	e := syscall.Exec(argv0, argv, envv)
++	e := syscall.Exec(name, argv, envv)
+ 	if e != 0 {
+-		return &PathError{"exec", argv0, Errno(e)}
++		return &PathError{"exec", name, Errno(e)}
+ 	}
+ 	return nil
+ }

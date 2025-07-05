@@ -8,7 +8,7 @@ Date:   Thu Mar 12 17:55:11 2009 -0700
     R=r
     OCL=26217
     CL=26217
-
+---
  src/cmd/gc/Makefile       |  2 +-
  src/cmd/gc/builtin.c.boot |  2 ++
  src/cmd/gc/go.h           |  1 +
@@ -20,3 +20,297 @@ Date:   Thu Mar 12 17:55:11 2009 -0700
  src/cmd/gc/walk.c         | 50 +++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/chan.c        | 49 ++++++++++++++++++++++++++++++++++++++++++++--
  10 files changed, 121 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index e0d0f16887..a3db97e405 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -41,7 +41,7 @@ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+ builtin.c:	sys.go unsafe.go mkbuiltin1.c mkbuiltin
+-	mkbuiltin >builtin.c || \
++	./mkbuiltin >builtin.c || \
+ 	(echo 'mkbuiltin failed; using bootstrap copy of builtin.c'; cp builtin.c.boot builtin.c)
+ 
+ clean:
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index ccc38343d7..9245936dd2 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -41,6 +41,8 @@ char *sysimport =
+ 	"func sys.chanrecv3 (hchan chan any, elem *any) (pres bool)\n"
+ 	"func sys.chansend1 (hchan chan any, elem any)\n"
+ 	"func sys.chansend2 (hchan chan any, elem any) (pres bool)\n"
++	"func sys.closechan (hchan chan any)\n"
++	"func sys.closedchan (hchan chan any) (? bool)\n"
+ 	"func sys.newselect (size int) (sel *uint8)\n"
+ 	"func sys.selectsend (sel *uint8, hchan chan any, elem any) (selected bool)\n"
+ 	"func sys.selectrecv (sel *uint8, hchan chan any, elem *any) (selected bool)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c87cf05ef1..0306eabf75 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -309,6 +309,7 @@ enum
+ 	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL,
+ 	OGOTO, OPROC, OMAKE, ONEW, OEMPTY, OSELECT,
+ 	OLEN, OCAP, OPANIC, OPANICN, OPRINT, OPRINTN, OTYPEOF,
++	OCLOSE, OCLOSED,
+ 
+ 	OOROR,
+ 	OANDAND,
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 87e8e53f78..a68490fd8a 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -15,7 +15,7 @@
+ %token	<val>		LLITERAL
+ %token	<lint>		LASOP
+ %token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
+-%token	<sym>		LPACKAGE LIMPORT LDEFER
++%token	<sym>		LPACKAGE LIMPORT LDEFER LCLOSE LCLOSED
+ %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
+ %token	<sym>		LCOLAS LFALL LRETURN LDDD
+ %token	<sym>		LLEN LCAP LPANIC LPANICN LPRINT LPRINTN
+@@ -888,6 +888,14 @@ pexpr:
+ 	{
+ 		$$ = nod(OLEN, $3, N);
+ 	}
++|	LCLOSE '(' expr ')'
++	{
++		$$ = nod(OCLOSE, $3, N);
++	}
++|	LCLOSED '(' expr ')'
++	{
++		$$ = nod(OCLOSED, $3, N);
++	}
+ |	LCAP '(' expr ')'
+ 	{
+ 		$$ = nod(OCAP, $3, N);
+@@ -1023,6 +1031,8 @@ sym2:
+ sym3:
+ 	LLEN
+ |	LCAP
++|	LCLOSE
++|	LCLOSED
+ |	LPANIC
+ |	LPANICN
+ |	LPRINT
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 23717d3417..b31cf6f0c3 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1112,7 +1112,6 @@ static	struct
+ 	"any",		LBASETYPE,	TANY,
+ 	"sys",		LPACK,		Txxx,
+ 
+-/* keywords */
+ 	"break",	LBREAK,		Txxx,
+ 	"case",		LCASE,		Txxx,
+ 	"chan",		LCHAN,		Txxx,
+@@ -1151,6 +1150,9 @@ static	struct
+ 	"type",		LTYPE,		Txxx,
+ 	"var",		LVAR,		Txxx,
+ 
++	"close",	LCLOSE,		Txxx,
++	"closed",	LCLOSED,	Txxx,
++
+ 	"notwithstanding",		LIGNORE,	Txxx,
+ 	"thetruthofthematter",		LIGNORE,	Txxx,
+ 	"despiteallobjections",		LIGNORE,	Txxx,
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index 8148120e0d..5d0d73cc40 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -21,7 +21,8 @@ case "$USER" in
+ ken | r | rsc)
+ 	if ! cmp _builtin.c builtin.c.boot
+ 	then
+-		p4 open builtin.c.boot
++		PATH=$PATH:/usr/local/bin
++		p4 open builtin.c.boot >/dev/null
+ 		cp _builtin.c builtin.c.boot
+ 	fi
+ esac
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 723937b2d0..59bf934921 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -688,6 +688,8 @@ opnames[] =
+ 	[OLABEL]	= "LABEL",
+ 	[OLE]		= "LE",
+ 	[OLEN]		= "LEN",
++	[OCLOSE]	= "CLOSE",
++	[OCLOSED]	= "CLOSED",
+ 	[OCAP]		= "CAP",
+ 	[OLIST]		= "LIST",
+ 	[OLITERAL]	= "LITERAL",
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index b121456c38..a2ef1d2592 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -55,6 +55,8 @@ func	chanrecv2(hchan chan any) (elem any, pres bool);
+ func	chanrecv3(hchan chan any, elem *any) (pres bool);
+ func	chansend1(hchan chan any, elem any);
+ func	chansend2(hchan chan any, elem any) (pres bool);
++func	closechan(hchan chan any);
++func	closedchan(hchan chan any) bool;
+ 
+ func	newselect(size int) (sel *byte);
+ func	selectsend(sel *byte, hchan chan any, elem any) (selected bool);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b8821e6f70..c113858d78 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -126,6 +126,8 @@ loop:
+ 
+ 	case OASOP:
+ 	case OAS:
++	case OCLOSE:
++	case OCLOSED:
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+ 	case OCALL:
+@@ -852,6 +854,20 @@ loop:
+ 		}
+ 		goto ret;
+ 
++	case OCLOSE:
++		if(top != Etop)
++			goto nottop;
++		walktype(n->left, Erv);		// chan
++		indir(n, chanop(n, top));
++		goto ret;
++
++	case OCLOSED:
++		if(top == Elv)
++			goto nottop;
++		walktype(n->left, Erv);		// chan
++		indir(n, chanop(n, top));
++		goto ret;
++
+ 	case OSEND:
+ 		if(top == Elv)
+ 			goto nottop;
+@@ -2447,6 +2463,40 @@ chanop(Node *n, int top)
+ 	default:
+ 		fatal("chanop: unknown op %O", n->op);
+ 
++	case OCLOSE:
++		// closechan(hchan *chan any);
++		t = fixchan(n->left->type);
++		if(t == T)
++			break;
++
++		a = n->left;			// chan
++		r = a;
++
++		on = syslook("closechan", 1);
++		argtype(on, t->type);	// any-1
++
++		r = nod(OCALL, on, r);
++		walktype(r, top);
++		r->type = n->type;
++		break;
++
++	case OCLOSED:
++		// closedchan(hchan *chan any) bool;
++		t = fixchan(n->left->type);
++		if(t == T)
++			break;
++
++		a = n->left;			// chan
++		r = a;
++
++		on = syslook("closedchan", 1);
++		argtype(on, t->type);	// any-1
++
++		r = nod(OCALL, on, r);
++		walktype(r, top);
++		n->type = r->type;
++		break;
++
+ 	case OMAKE:
+ 		cl = listcount(n->left);
+ 		if(cl > 1)
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 7e6f830f6c..a15e50dc02 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -7,6 +7,14 @@
+ static	int32	debug	= 0;
+ static	Lock		chanlock;
+ 
++enum
++{
++	Wclosed		= 0x0001,
++	Rclosed		= 0xfffe,
++	Rincr		= 0x0002,
++	Rmax		= 0x8000,
++};
++
+ typedef	struct	Hchan	Hchan;
+ typedef	struct	Link	Link;
+ typedef	struct	WaitQ	WaitQ;
+@@ -32,7 +40,9 @@ struct	WaitQ
+ 
+ struct	Hchan
+ {
+-	uint32	elemsize;
++	uint16	elemsize;
++	uint16	closed;			// Wclosed closed() hash been called
++					// Rclosed read-count after closed()
+ 	uint32	dataqsiz;		// size of the circular q
+ 	uint32	qcount;			// total data in the q
+ 	Alg*	elemalg;		// interface for element type
+@@ -535,7 +545,6 @@ sys·selectdefault(Select *sel, ...)
+ 	}
+ }
+ 
+-
+ // selectgo(sel *byte);
+ void
+ sys·selectgo(Select *sel)
+@@ -790,6 +799,42 @@ retc:
+ 	*as = true;
+ }
+ 
++// closechan(sel *byte);
++void
++sys·closechan(Hchan *c)
++{
++	if(c == nil)
++		throw("closechan: channel not allocated");
++
++	// if wclosed already set
++	// work has been done - just return
++	if(c->closed & Wclosed)
++		return;
++
++	// set wclosed
++	c->closed |= Wclosed;
++}
++
++// closedchan(sel *byte) bool;
++void
++sys·closedchan(Hchan *c, bool closed)
++{
++	if(c == nil)
++		throw("closedchan: channel not allocated");
++
++	closed = 0;
++
++	// test rclosed
++	if(c->closed & Rclosed) {
++		// see if rclosed has been set a lot
++		if(c->closed & Rmax)
++			throw("closedchan: ignored");
++		c->closed += Rincr;
++		closed = 1;
++	}
++	FLUSH(&closed);
++}
++
+ static SudoG*
+ dequeue(WaitQ *q, Hchan *c)
+ {

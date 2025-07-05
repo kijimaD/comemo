@@ -12,10 +12,94 @@ Date:   Thu Jun 29 11:44:04 2023 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/devirtualize/devirtualize.go | 10 +++++-----
  src/cmd/compile/internal/typecheck/stmt.go            |  2 +-
  src/cmd/compile/internal/typecheck/subr.go            |  4 ++--
  src/cmd/go/internal/gover/gover.go                    |  1 -
  src/cmd/go/main.go                                    |  6 +++---
  5 files changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/devirtualize.go b/src/cmd/compile/internal/devirtualize/devirtualize.go
+index cfeb8d8ee9..b156b66312 100644
+--- a/src/cmd/compile/internal/devirtualize/devirtualize.go
++++ b/src/cmd/compile/internal/devirtualize/devirtualize.go
+@@ -4,11 +4,11 @@
+ 
+ // Package devirtualize implements two "devirtualization" optimization passes:
+ //
+-// - "Static" devirtualization which replaces interface method calls with
+-//   direct concrete-type method calls where possible.
+-// - "Profile-guided" devirtualization which replaces indirect calls with a
+-//   conditional direct call to the hottest concrete callee from a profile, as
+-//   well as a fallback using the original indirect call.
++//   - "Static" devirtualization which replaces interface method calls with
++//     direct concrete-type method calls where possible.
++//   - "Profile-guided" devirtualization which replaces indirect calls with a
++//     conditional direct call to the hottest concrete callee from a profile, as
++//     well as a fallback using the original indirect call.
+ package devirtualize
+ 
+ import (
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index c434ff9118..9dea261bb9 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -607,7 +607,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 			if !n1.Type().IsInterface() {
+ 				why := ImplementsExplain(n1.Type(), t)
+ 				if why != "" {
+-					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v (%s)" , guard.X, n1.Type(), why)
++					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v (%s)", guard.X, n1.Type(), why)
+ 				}
+ 				continue
+ 			}
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 8554805fa6..2bb978a0fa 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -713,12 +713,12 @@ func ImplementsExplain(t, iface *types.Type) string {
+ 		return fmt.Sprintf("%v does not implement %v (%v method is marked 'nointerface')", t, iface, missing.Sym)
+ 	} else if have != nil && have.Sym == missing.Sym {
+ 		return fmt.Sprintf("%v does not implement %v (wrong type for %v method)\n"+
+-		"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++			"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 	} else if ptr != 0 {
+ 		return fmt.Sprintf("%v does not implement %v (%v method has pointer receiver)", t, iface, missing.Sym)
+ 	} else if have != nil {
+ 		return fmt.Sprintf("%v does not implement %v (missing %v method)\n"+
+-		"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++			"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 	}
+ 	return fmt.Sprintf("%v does not implement %v (missing %v method)", t, iface, missing.Sym)
+ }
+diff --git a/src/cmd/go/internal/gover/gover.go b/src/cmd/go/internal/gover/gover.go
+index 247717125b..ce2242d522 100644
+--- a/src/cmd/go/internal/gover/gover.go
++++ b/src/cmd/go/internal/gover/gover.go
+@@ -111,7 +111,6 @@ func IsPrerelease(x string) bool {
+ //
+ //	Prev("1.2") = "1.1"
+ //	Prev("1.3rc4") = "1.2"
+-//
+ func Prev(x string) string {
+ 	v := parse(x)
+ 	if cmpInt(v.minor, "1") <= 0 {
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 00b0a2b78b..2898c68049 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -300,10 +300,10 @@ func maybeStartTrace(pctx context.Context) context.Context {
+ //
+ // We have to handle the -C flag this way for two reasons:
+ //
+-//   1. Toolchain selection needs to be in the right directory to look for go.mod and go.work.
++//  1. Toolchain selection needs to be in the right directory to look for go.mod and go.work.
+ //
+-//   2. A toolchain switch later on reinvokes the new go command with the same arguments.
+-//      The parent toolchain has already done the chdir; the child must not try to do it again.
++//  2. A toolchain switch later on reinvokes the new go command with the same arguments.
++//     The parent toolchain has already done the chdir; the child must not try to do it again.
+ func handleChdirFlag() {
+ 	_, used := lookupCmd(os.Args[1:])
+ 	used++ // because of [1:]

@@ -12,8 +12,62 @@ Date:   Tue Jul 30 10:27:08 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/12028049
-
+---
  src/cmd/gc/go.h          | 1 +
  src/cmd/gc/lex.c         | 5 ++++-
  test/fixedbugs/bug435.go | 2 +-
  3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index db25013cca..e530e79dd0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -751,6 +751,7 @@ struct	Io
+ 	int32	ilineno;
+ 	int	nlsemi;
+ 	int	eofnl;
++	int	last;
+ 	int	peekc;
+ 	int	peekc1;	// second peekc for ...
+ 	char*	cp;	// used for content when bin==nil
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index b7f71d553e..750b6aad6a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -329,6 +329,8 @@ main(int argc, char *argv[])
+ 		curio.peekc = 0;
+ 		curio.peekc1 = 0;
+ 		curio.nlsemi = 0;
++		curio.eofnl = 0;
++		curio.last = 0;
+ 
+ 		// Skip initial BOM if present.
+ 		if(Bgetrune(curio.bin) != BOM)
+@@ -1602,7 +1604,7 @@ check:
+ 		}
+ 	case EOF:
+ 		// insert \n at EOF
+-		if(curio.eofnl)
++		if(curio.eofnl || curio.last == '\n')
+ 			return EOF;
+ 		curio.eofnl = 1;
+ 		c = '\n';
+@@ -1611,6 +1613,7 @@ check:
+ 			lexlineno++;
+ 		break;
+ 	}
++	curio.last = c;
+ 	return c;
+ }
+ 
+diff --git a/test/fixedbugs/bug435.go b/test/fixedbugs/bug435.go
+index 9c30b143bc..45323d8eed 100644
+--- a/test/fixedbugs/bug435.go
++++ b/test/fixedbugs/bug435.go
+@@ -12,4 +12,4 @@
+ package main
+ 
+ func foo() {
+-	bar(1, // ERROR "unexpected|missing|undefined"
++	bar(1, // ERROR "unexpected|missing|undefined"
+\ No newline at end of file

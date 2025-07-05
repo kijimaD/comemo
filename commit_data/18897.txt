@@ -10,6 +10,30 @@ Date:   Tue Mar 18 21:01:23 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/77420045
-
+---
  misc/bash/go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/misc/bash/go b/misc/bash/go
+index d806a8147d..90defda827 100644
+--- a/misc/bash/go
++++ b/misc/bash/go
+@@ -20,7 +20,7 @@ _go()
+ 
+   local cmd="${COMP_WORDS[1]}"
+ 
+-  local cmds="build clean env doc fix fmt get
++  local cmds="build clean env fix fmt get
+     install list run test tool version vet"
+   local addhelp="gopath importpath remote
+     testflag testfunc"
+@@ -88,9 +88,6 @@ _go()
+         COMPREPLY=(`_go_importpath "$cur"`)
+       fi
+       ;;
+-    'doc')
+-      COMPREPLY=(`_go_importpath "$cur"`)
+-      ;;
+     'fix')
+       COMPREPLY=(`_go_importpath "$cur"`)
+       ;;

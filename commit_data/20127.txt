@@ -10,7 +10,43 @@ Date:   Mon Aug 18 20:40:12 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/131900044
-
+---
  src/pkg/net/http/requestwrite_test.go | 4 ++--
  src/pkg/net/http/transfer.go          | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/requestwrite_test.go b/src/pkg/net/http/requestwrite_test.go
+index 997010c2b2..7a6bd58786 100644
+--- a/src/pkg/net/http/requestwrite_test.go
++++ b/src/pkg/net/http/requestwrite_test.go
+@@ -280,7 +280,7 @@ var reqWriteTests = []reqWriteTest{
+ 			ContentLength: 10, // but we're going to send only 5 bytes
+ 		},
+ 		Body:      []byte("12345"),
+-		WantError: errors.New("http: Request.ContentLength=10 with Body length 5"),
++		WantError: errors.New("http: ContentLength=10 with Body length 5"),
+ 	},
+ 
+ 	// Request with a ContentLength of 4 but an 8 byte body.
+@@ -294,7 +294,7 @@ var reqWriteTests = []reqWriteTest{
+ 			ContentLength: 4, // but we're going to try to send 8 bytes
+ 		},
+ 		Body:      []byte("12345678"),
+-		WantError: errors.New("http: Request.ContentLength=4 with Body length 8"),
++		WantError: errors.New("http: ContentLength=4 with Body length 8"),
+ 	},
+ 
+ 	// Request with a 5 ContentLength and nil body.
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index c9be871595..51b1dcb30b 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -228,7 +228,7 @@ func (t *transferWriter) WriteBody(w io.Writer) error {
+ 	}
+ 
+ 	if !t.ResponseToHEAD && t.ContentLength != -1 && t.ContentLength != ncopy {
+-		return fmt.Errorf("http: Request.ContentLength=%d with Body length %d",
++		return fmt.Errorf("http: ContentLength=%d with Body length %d",
+ 			t.ContentLength, ncopy)
+ 	}
+ 

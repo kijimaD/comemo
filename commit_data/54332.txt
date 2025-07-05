@@ -17,7 +17,7 @@ Date:   Mon Oct 3 20:00:43 2022 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/poll/fd_writev_libc.go |  2 +-
  src/internal/poll/iovec_unix.go     |  2 +-
  src/internal/poll/writev.go         |  6 +++---
@@ -26,3 +26,142 @@ Date:   Mon Oct 3 20:00:43 2022 +0200
  src/syscall/syscall_aix.go          |  1 +
  src/syscall/zsyscall_aix_ppc64.go   | 18 ++++++++++++++++++
  7 files changed, 26 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/poll/fd_writev_libc.go b/src/internal/poll/fd_writev_libc.go
+index e427e62481..7d59e6b641 100644
+--- a/src/internal/poll/fd_writev_libc.go
++++ b/src/internal/poll/fd_writev_libc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || (openbsd && !mips64)
++//go:build aix || darwin || (openbsd && !mips64)
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/iovec_unix.go b/src/internal/poll/iovec_unix.go
+index c1500840ac..3f2833e728 100644
+--- a/src/internal/poll/iovec_unix.go
++++ b/src/internal/poll/iovec_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/writev.go b/src/internal/poll/writev.go
+index 4086c705fd..75c8b642b5 100644
+--- a/src/internal/poll/writev.go
++++ b/src/internal/poll/writev.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++//go:build unix
+ 
+ package poll
+ 
+@@ -30,8 +30,8 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
+ 	// 1024 and this seems conservative enough for now. Darwin's
+ 	// UIO_MAXIOV also seems to be 1024.
+ 	maxVec := 1024
+-	if runtime.GOOS == "solaris" {
+-		// IOV_MAX is set to XOPEN_IOV_MAX on Solaris.
++	if runtime.GOOS == "aix" || runtime.GOOS == "solaris" {
++		// IOV_MAX is set to XOPEN_IOV_MAX on AIX and Solaris.
+ 		maxVec = 16
+ 	}
+ 
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index 81b14774f9..c4efe9d2ae 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -153,7 +153,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
+ 
+ 		var wantSum int
+ 		switch runtime.GOOS {
+-		case "android", "darwin", "ios", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
++		case "aix", "android", "darwin", "ios", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
+ 			var wantMinCalls int
+ 			wantSum = want.Len()
+ 			v := chunks
+diff --git a/src/net/writev_unix.go b/src/net/writev_unix.go
+index 3318fc5f6f..3b0325bf64 100644
+--- a/src/net/writev_unix.go
++++ b/src/net/writev_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++//go:build unix
+ 
+ package net
+ 
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index 45a4060f56..807990f3c0 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -642,6 +642,7 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid),
+ //sys	Unlink(path string) (err error)
+ //sysnb	Uname(buf *Utsname) (err error)
+ //sys	write(fd int, p []byte) (n int, err error)
++//sys	writev(fd int, iovecs []Iovec) (n uintptr, err error)
+ 
+ //sys	gettimeofday(tv *Timeval, tzp *Timezone) (err error)
+ 
+diff --git a/src/syscall/zsyscall_aix_ppc64.go b/src/syscall/zsyscall_aix_ppc64.go
+index 39838a42e6..c9e2edea24 100644
+--- a/src/syscall/zsyscall_aix_ppc64.go
++++ b/src/syscall/zsyscall_aix_ppc64.go
+@@ -96,6 +96,7 @@ import "unsafe"
+ //go:cgo_import_dynamic libc_Unlink unlink "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_Uname uname "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_write write "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_writev writev "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_gettimeofday gettimeofday "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_mmap mmap "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_munmap munmap "libc.a/shr_64.o"
+@@ -189,6 +190,7 @@ import "unsafe"
+ //go:linkname libc_Unlink libc_Unlink
+ //go:linkname libc_Uname libc_Uname
+ //go:linkname libc_write libc_write
++//go:linkname libc_writev libc_writev
+ //go:linkname libc_gettimeofday libc_gettimeofday
+ //go:linkname libc_mmap libc_mmap
+ //go:linkname libc_munmap libc_munmap
+@@ -285,6 +287,7 @@ var (
+ 	libc_Unlink,
+ 	libc_Uname,
+ 	libc_write,
++	libc_writev,
+ 	libc_gettimeofday,
+ 	libc_mmap,
+ 	libc_munmap libcFunc
+@@ -1381,6 +1384,21 @@ func write(fd int, p []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func writev(fd int, iovecs []Iovec) (n uintptr, err error) {
++	var _p0 *Iovec
++	if len(iovecs) > 0 {
++		_p0 = &iovecs[0]
++	}
++	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_writev)), 3, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(iovecs)), 0, 0, 0)
++	n = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func gettimeofday(tv *Timeval, tzp *Timezone) (err error) {
+ 	_, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_gettimeofday)), 2, uintptr(unsafe.Pointer(tv)), uintptr(unsafe.Pointer(tzp)), 0, 0, 0, 0)
+ 	if e1 != 0 {

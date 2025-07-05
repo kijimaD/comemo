@@ -13,8 +13,69 @@ Date:   Fri Oct 16 16:49:56 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go          | 4 ++--
  src/cmd/compile/internal/ssa/gen/MIPS.rules | 3 +++
  src/cmd/compile/internal/ssa/rewriteMIPS.go | 6 ++++++
  3 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e70e5a969b..979a092ba1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3546,7 +3546,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X) // TODO: same arches as And8.
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
+ 	addF("runtime/internal/atomic", "Or8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
+@@ -3558,7 +3558,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X) // TODO: same arches as And8.
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
+ 
+ 	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
+ 	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 96feaf9234..246b4ebdbc 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -383,6 +383,9 @@
+ 				(ANDconst <typ.UInt32> [3]
+ 					(XORconst <typ.UInt32> [3] ptr)))))) mem)
+ 
++(AtomicAnd32 ...) => (LoweredAtomicAnd ...)
++(AtomicOr32  ...) => (LoweredAtomicOr  ...)
++
+ 
+ // checks
+ (NilCheck ...) => (LoweredNilCheck ...)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index bdafa9a957..87d1aa378f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -44,6 +44,9 @@ func rewriteValueMIPS(v *Value) bool {
+ 	case OpAtomicAdd32:
+ 		v.Op = OpMIPSLoweredAtomicAdd
+ 		return true
++	case OpAtomicAnd32:
++		v.Op = OpMIPSLoweredAtomicAnd
++		return true
+ 	case OpAtomicAnd8:
+ 		return rewriteValueMIPS_OpAtomicAnd8(v)
+ 	case OpAtomicCompareAndSwap32:
+@@ -61,6 +64,9 @@ func rewriteValueMIPS(v *Value) bool {
+ 	case OpAtomicLoadPtr:
+ 		v.Op = OpMIPSLoweredAtomicLoad32
+ 		return true
++	case OpAtomicOr32:
++		v.Op = OpMIPSLoweredAtomicOr
++		return true
+ 	case OpAtomicOr8:
+ 		return rewriteValueMIPS_OpAtomicOr8(v)
+ 	case OpAtomicStore32:

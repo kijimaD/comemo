@@ -21,8 +21,86 @@ Date:   Wed Apr 26 10:07:02 2023 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-
+---
  src/runtime/export_test.go | 17 +++++++++++++++++
  src/runtime/stack.go       |  5 ++++-
  src/runtime/stack_test.go  | 19 +++++++++++++++++++
  3 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 320aff869a..c7c111ce47 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -423,6 +423,23 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 	return
+ }
+ 
++// ShrinkStackAndVerifyFramePointers attempts to shrink the stack of the current goroutine
++// and verifies that unwinding the new stack doesn't crash, even if the old
++// stack has been freed or reused (simulated via poisoning).
++func ShrinkStackAndVerifyFramePointers() {
++	before := stackPoisonCopy
++	defer func() { stackPoisonCopy = before }()
++	stackPoisonCopy = 1
++
++	gp := getg()
++	systemstack(func() {
++		shrinkstack(gp)
++	})
++	// If our new stack contains frame pointers into the old stack, this will
++	// crash because the old stack has been poisoned.
++	FPCallers(0, make([]uintptr, 1024))
++}
++
+ // BlockOnSystemStack switches to the system stack, prints "x\n" to
+ // stderr, and blocks in a stack containing
+ // "runtime.blockOnSystemStackInternal".
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 54513eba65..01d6b9c22f 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -108,13 +108,16 @@ const (
+ 	stackDebug       = 0
+ 	stackFromSystem  = 0 // allocate stacks from system memory instead of the heap
+ 	stackFaultOnFree = 0 // old stacks are mapped noaccess to detect use after free
+-	stackPoisonCopy  = 0 // fill stack that should not be accessed with garbage, to detect bad dereferences during copy
+ 	stackNoCache     = 0 // disable per-P small stack caches
+ 
+ 	// check the BP links during traceback.
+ 	debugCheckBP = false
+ )
+ 
++var (
++	stackPoisonCopy = 0 // fill stack that should not be accessed with garbage, to detect bad dereferences during copy
++)
++
+ const (
+ 	uintptrMask = 1<<(8*goarch.PtrSize) - 1
+ 
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 4e3f369f2f..042289aa58 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -939,3 +939,22 @@ func TestFramePointerAdjust(t *testing.T) {
+ 		t.Errorf("output:\n%s\n\nwant no output", output)
+ 	}
+ }
++
++// TestSystemstackFramePointerAdjust is a regression test for issue 59692 that
++// ensures that the frame pointer of systemstack is correctly adjusted. See CL
++// 489015 for more details.
++func TestSystemstackFramePointerAdjust(t *testing.T) {
++	growAndShrinkStack(512, [1024]byte{})
++}
++
++// growAndShrinkStack grows the stack of the current goroutine in order to
++// shrink it again and verify that all frame pointers on the new stack have
++// been correctly adjusted. stackBallast is used to ensure we're not depending
++// on the current heuristics of stack shrinking too much.
++func growAndShrinkStack(n int, stackBallast [1024]byte) {
++	if n <= 0 {
++		return
++	}
++	growAndShrinkStack(n-1, stackBallast)
++	ShrinkStackAndVerifyFramePointers()
++}

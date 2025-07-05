@@ -21,7 +21,61 @@ Date:   Sat Sep 19 23:32:12 2020 +0200
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/test_cleanup_failnow.txt | 14 ++++++++++++++
  src/testing/testing.go                              | 10 ++++++++--
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_cleanup_failnow.txt b/src/cmd/go/testdata/script/test_cleanup_failnow.txt
+index 5ad4185fc1..0737a93db2 100644
+--- a/src/cmd/go/testdata/script/test_cleanup_failnow.txt
++++ b/src/cmd/go/testdata/script/test_cleanup_failnow.txt
+@@ -1,11 +1,25 @@
+ # For issue 41355
+ [short] skip
+ 
++# This test could fail if the testing package does not wait until
++# a panicking test does the panic. Turn off multithreading, GC, and
++# async preemption to increase the probability of such a failure.
++env GOMAXPROCS=1
++env GOGC=off
++env GODEBUG=asyncpreempt=off
++
++# If the test exits with 'no tests to run', it means the testing package
++# implementation is incorrect and does not wait until a test panic.
++# If the test exits with '(?s)panic: die.*panic: die', it means
++# the testing package did an extra panic for a panicking test.
++
+ ! go test -v cleanup_failnow/panic_nocleanup_test.go
++! stdout 'no tests to run'
+ stdout '(?s)panic: die \[recovered\].*panic: die'
+ ! stdout '(?s)panic: die \[recovered\].*panic: die.*panic: die'
+ 
+ ! go test -v cleanup_failnow/panic_withcleanup_test.go
++! stdout 'no tests to run'
+ stdout '(?s)panic: die \[recovered\].*panic: die'
+ ! stdout '(?s)panic: die \[recovered\].*panic: die.*panic: die'
+ 
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index d86354093a..a44c0a0749 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1091,10 +1091,16 @@ func tRunner(t *T, fn func(t *T)) {
+ 		// complete even if a cleanup function calls t.FailNow. See issue 41355.
+ 		didPanic := false
+ 		defer func() {
+-			t.signal <- signal
+-			if err != nil && !didPanic {
++			if didPanic {
++				return
++			}
++			if err != nil {
+ 				panic(err)
+ 			}
++			// Only report that the test is complete if it doesn't panic,
++			// as otherwise the test binary can exit before the panic is
++			// reported to the user. See issue 41479.
++			t.signal <- signal
+ 		}()
+ 
+ 		doPanic := func(err interface{}) {

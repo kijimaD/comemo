@@ -9,8 +9,183 @@ Date:   Fri Aug 7 12:19:03 2015 +0200
     Change-Id: I85e6b22d09009b38847082dc375b6108c2dee80a
     Reviewed-on: https://go-review.googlesource.com/13370
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/arith_ssa.go | 23 ++++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go      |  3 ++-
  src/cmd/compile/internal/ssa/opGen.go             | 24 +++++++++++------------
  3 files changed, 37 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index ca96988113..2a56e2163f 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -141,6 +141,28 @@ func testBitwiseRshU_ssa(a uint32, b, c uint32) uint32 {
+ 	return a >> b >> c
+ }
+ 
++func testShiftCX_ssa() int {
++	switch {
++	} // prevent inlining
++	v1 := uint8(3)
++	v4 := (v1 * v1) ^ v1 | v1 - v1 - v1&v1 ^ uint8(3+2) + v1*1>>0 - v1 | 1 | v1<<(2*3|0-0*0^1)
++	v5 := v4>>(3-0-uint(3)) | v1 | v1 + v1 ^ v4<<(0+1|3&1)<<(uint64(1)<<0*2*0<<0) ^ v1
++	v6 := v5 ^ (v1+v1)*v1 | v1 | v1*v1>>(v1&v1)>>(uint(1)<<0*uint(3)>>1)*v1<<2*v1<<v1 - v1>>2 | (v4 - v1) ^ v1 + v1 ^ v1>>1 | v1 + v1 - v1 ^ v1
++	v7 := v6 & v5 << 0
++	v1++
++	v11 := 2&1 ^ 0 + 3 | int(0^0)<<1>>(1*0*3) ^ 0*0 ^ 3&0*3&3 ^ 3*3 ^ 1 ^ int(2)<<(2*3) + 2 | 2 | 2 ^ 2 + 1 | 3 | 0 ^ int(1)>>1 ^ 2 // int
++	v7--
++	return int(uint64(2*1)<<(3-2)<<uint(3>>v7)-2)&v11 | v11 - int(2)<<0>>(2-1)*(v11*0&v11<<1<<(uint8(2)+v4))
++}
++
++func testShiftCX() {
++	want := 141
++	if got := testShiftCX_ssa(); want != got {
++		println("testShiftCX failed, wanted", want, "got", got)
++		failed = true
++	}
++}
++
+ // testSubqToNegq ensures that the SUBQ -> NEGQ translation works correctly.
+ func testSubqToNegq() {
+ 	want := int64(-318294940372190156)
+@@ -263,6 +285,7 @@ func main() {
+ 	testBitwiseLogic()
+ 	testOcom()
+ 	testLrot()
++	testShiftCX()
+ 	testSubConst()
+ 
+ 	if failed {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 9e8b2fa018..6c517a950e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -72,6 +72,7 @@ func init() {
+ 
+ 	// Common individual register masks
+ 	var (
++		cx     = buildReg("CX")
+ 		gp     = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+ 		gpsp   = gp | buildReg("SP")
+ 		gpspsb = gpsp | buildReg("SB")
+@@ -91,7 +92,7 @@ func init() {
+ 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
+ 		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly}
+ 		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
+-		gp21shift = regInfo{inputs: []regMask{gpsp, buildReg("CX")}, outputs: gponly}
++		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}}
+ 
+ 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+ 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6f412806c8..dd4462d258 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1175,7 +1175,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1188,7 +1188,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1201,7 +1201,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1214,7 +1214,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1275,7 +1275,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1288,7 +1288,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1301,7 +1301,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1314,7 +1314,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1375,7 +1375,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1388,7 +1388,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1401,7 +1401,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},
+@@ -1414,7 +1414,7 @@ var opcodeTable = [...]opInfo{
+ 				2,     // .CX
+ 			},
+ 			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 		},
+ 	},

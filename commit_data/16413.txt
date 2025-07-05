@@ -14,7 +14,7 @@ Date:   Mon May 27 08:11:59 2013 +0200
     R=golang-dev, dvyukov, minux.ma
     CC=golang-dev
     https://golang.org/cl/9786044
-
+---
  src/pkg/runtime/hashmap.c    |  1 +
  src/pkg/runtime/os_darwin.c  |  2 ++
  src/pkg/runtime/os_freebsd.c |  2 ++
@@ -25,3 +25,225 @@ Date:   Mon May 27 08:11:59 2013 +0200
  src/pkg/runtime/os_windows.c |  2 ++
  src/pkg/runtime/symtab.c     | 21 ++++++++++++++-------
  9 files changed, 30 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 959d6bc760..2e61bcfe8f 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -524,6 +524,7 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
+ }
+ 
+ // When an item is not found, fast versions return a pointer to this zeroed memory.
++#pragma dataflag 16 // no pointers
+ static uint8 empty_value[MAXVALUESIZE];
+ 
+ // Specialized versions of mapaccess1 for specific types.
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index 276362a97f..deb1c556a9 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -523,6 +523,7 @@ runtime·setprof(bool on)
+ 		runtime·sigprocmask(SIG_BLOCK, &sigset_prof, nil);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+@@ -533,6 +534,7 @@ runtime·badcallback(void)
+ 	runtime·write(2, badcallback, sizeof badcallback - 1);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index f454ab3497..8c6e1b2496 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -235,6 +235,7 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+@@ -245,6 +246,7 @@ runtime·badcallback(void)
+ 	runtime·write(2, badcallback, sizeof badcallback - 1);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 6b86d2b177..6bb376a7e9 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -172,6 +172,7 @@ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ 		*rnd = runtime·startup_random_data;
+ 		*rnd_len = runtime·startup_random_data_len;
+ 	} else {
++		#pragma dataflag 16 // no pointers
+ 		static byte urandom_data[HashRandomBytes];
+ 		int32 fd;
+ 		fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+@@ -283,6 +284,7 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+@@ -293,6 +295,7 @@ runtime·badcallback(void)
+ 	runtime·write(2, badcallback, sizeof badcallback - 1);
+ }
+ 
++#pragma dataflag 16  // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 7679ec2552..3355208133 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -275,6 +275,7 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+@@ -285,6 +286,7 @@ runtime·badcallback(void)
+ 	runtime·write(2, badcallback, sizeof badcallback - 1);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 4ce102ec2c..898dca9b6a 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -257,6 +257,7 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+@@ -267,6 +268,7 @@ runtime·badcallback(void)
+ 	runtime·write(2, badcallback, sizeof badcallback - 1);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index 53ec4ae176..dd02eb8782 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -330,6 +330,7 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+@@ -340,6 +341,7 @@ runtime·badcallback(void)
+ 	runtime·pwrite(2, badcallback, sizeof badcallback - 1, -1LL);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go.\n";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index b28affe31b..9b8e3e363a 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -450,9 +450,11 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
++#pragma dataflag 16 // no pointers
+ int8 runtime·badcallbackmsg[] = "runtime: cgo callback on thread not created by Go.\n";
+ int32 runtime·badcallbacklen = sizeof runtime·badcallbackmsg - 1;
+ 
++#pragma dataflag 16 // no pointers
+ int8 runtime·badsignalmsg[] = "runtime: signal received on thread not created by Go.\n";
+ int32 runtime·badsignallen = sizeof runtime·badsignalmsg - 1;
+ 
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 578406247e..5edcb49bda 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -307,6 +307,15 @@ gostringn(byte *p, int32 l)
+ 	return s;
+ }
+ 
++static struct
++{
++	String srcstring;
++	int32 aline;
++	int32 delta;
++} *files;
++
++enum { maxfiles = 200 };
++
+ // walk symtab accumulating path names for use by pc/ln table.
+ // don't need the full generality of the z entry history stack because
+ // there are no includes in go (and only sensible includes in our c);
+@@ -314,12 +323,8 @@ gostringn(byte *p, int32 l)
+ static void
+ dosrcline(Sym *sym)
+ {
++	#pragma dataflag 16 // no pointers
+ 	static byte srcbuf[1000];
+-	static struct {
+-		String srcstring;
+-		int32 aline;
+-		int32 delta;
+-	} files[200];
+ 	static int32 incstart;
+ 	static int32 nfunc, nfile, nhist;
+ 	Func *f;
+@@ -347,7 +352,7 @@ dosrcline(Sym *sym)
+ 			l = makepath(srcbuf, sizeof srcbuf, sym->name+1);
+ 			nhist = 0;
+ 			nfile = 0;
+-			if(nfile == nelem(files))
++			if(nfile == maxfiles)
+ 				return;
+ 			files[nfile].srcstring = gostringn(srcbuf, l);
+ 			files[nfile].aline = 0;
+@@ -358,7 +363,7 @@ dosrcline(Sym *sym)
+ 			if(srcbuf[0] != '\0') {
+ 				if(nhist++ == 0)
+ 					incstart = sym->value;
+-				if(nhist == 0 && nfile < nelem(files)) {
++				if(nhist == 0 && nfile < maxfiles) {
+ 					// new top-level file
+ 					files[nfile].srcstring = gostringn(srcbuf, l);
+ 					files[nfile].aline = sym->value;
+@@ -567,10 +572,12 @@ buildfuncs(void)
+ 	splitpcln();
+ 
+ 	// record src file and line info for each func
++	files = runtime·malloc(maxfiles * sizeof(files[0]));
+ 	walksymtab(dosrcline);  // pass 1: determine hugestring_len
+ 	hugestring.str = runtime·mallocgc(hugestring_len, FlagNoPointers, 0, 0);
+ 	hugestring.len = 0;
+ 	walksymtab(dosrcline);  // pass 2: fill and use hugestring
++	files = nil;
+ 
+ 	if(hugestring.len != hugestring_len)
+ 		runtime·throw("buildfunc: problem in initialization procedure");

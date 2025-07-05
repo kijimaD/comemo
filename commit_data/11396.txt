@@ -19,7 +19,7 @@ Date:   Wed Jan 25 17:53:50 2012 -0500
     R=lvd
     CC=golang-dev
     https://golang.org/cl/5569062
-
+---
  src/cmd/gc/Makefile      |   1 +
  src/cmd/gc/fmt.c         |   8 +-
  src/cmd/gc/gen.c         |   1 +
@@ -35,3 +35,1028 @@ Date:   Wed Jan 25 17:53:50 2012 -0500
  test/func8.go            |  47 ++++++
  test/reorder2.go         | 174 ++++++++++++++++++++++
  14 files changed, 705 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 623add4a7f..bb0d01637e 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -34,6 +34,7 @@ OFILES=\
+ 	mparith2.$O\
+ 	mparith3.$O\
+ 	obj.$O\
++	order.$O\
+ 	range.$O\
+ 	reflect.$O\
+ 	select.$O\
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index b7a648789a..31b0a623f2 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1263,8 +1263,12 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OMAKEMAP:
+ 	case OMAKECHAN:
+ 	case OMAKESLICE:
+-		if(n->list->next)
+-			return fmtprint(f, "make(%T, %,H)", n->type, n->list->next);
++		if(n->list) // pre-typecheck
++			return fmtprint(f, "make(%T, %,H)", n->type, n->list);
++		if(n->right)
++			return fmtprint(f, "make(%T, %N, %N)", n->type, n->left, n->right);
++		if(n->left)
++			return fmtprint(f, "make(%T, %N)", n->type, n->left);
+ 		return fmtprint(f, "make(%T)", n->type);
+ 
+ 	// Unary
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index ebdd0f02dc..694a10ab5c 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -826,5 +826,6 @@ temp(Type *t)
+ 	
+ 	n = nod(OXXX, N, N);
+ 	tempname(n, t);
++	n->sym->def->used = 1;
+ 	return n;
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 37bf806e36..b4715376f6 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1088,6 +1088,11 @@ void	dumpobj(void);
+ void	ieeedtod(uint64 *ieee, double native);
+ Sym*	stringsym(char*, int);
+ 
++/*
++ *	order.c
++ */
++void	order(Node *fn);
++
+ /*
+  *	range.c
+  */
+@@ -1124,6 +1129,7 @@ int	stataddr(Node *nam, Node *n);
+  */
+ Node*	adddot(Node *n);
+ int	adddot1(Sym *s, Type *t, int d, Type **save, int ignorecase);
++void	addinit(Node**, NodeList*);
+ Type*	aindex(Node *b, Type *t);
+ int	algtype(Type *t);
+ int	algtype1(Type *t, Type **bad);
+@@ -1135,6 +1141,7 @@ int	brcom(int a);
+ int	brrev(int a);
+ NodeList*	concat(NodeList *a, NodeList *b);
+ int	convertop(Type *src, Type *dst, char **why);
++Node*	copyexpr(Node*, Type*, NodeList**);
+ int	count(NodeList *l);
+ int	cplxsubtype(int et);
+ int	eqtype(Type *t1, Type *t2);
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 137d913711..b8ebcbcbda 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -225,6 +225,7 @@ static void
+ inlconv2stmt(Node *n)
+ {
+ 	n->op = OBLOCK;
++	// n->ninit stays
+ 	n->list = n->nbody;
+ 	n->nbody = nil;
+ 	n->rlist = nil;
+@@ -232,13 +233,14 @@ inlconv2stmt(Node *n)
+ 
+ // Turn an OINLCALL into a single valued expression.
+ static void
+-inlconv2expr(Node *n)
++inlconv2expr(Node **np)
+ {
+-	n->op = OCONVNOP;
+-	n->left = n->rlist->n;
+-	n->rlist = nil;
+-	n->ninit = concat(n->ninit, n->nbody);
+-	n->nbody = nil;
++	Node *n, *r;
++	
++	n = *np;
++	r = n->rlist->n;
++	addinit(&r, concat(n->ninit, n->nbody));
++	*np = r;
+ }
+ 
+ // Turn the OINLCALL in n->list into an expression list on n.
+@@ -248,7 +250,7 @@ inlgluelist(Node *n)
+ {
+ 	Node *c;
+ 
+-	c = n->list->n;
++	c = n->list->n;  // this is the OINLCALL
+ 	n->ninit = concat(n->ninit, c->ninit);
+ 	n->ninit = concat(n->ninit, c->nbody);
+ 	n->list  = c->rlist;
+@@ -261,7 +263,7 @@ inlgluerlist(Node *n)
+ {
+ 	Node *c;
+ 
+-	c = n->rlist->n;
++	c = n->rlist->n;  // this is the OINLCALL
+ 	n->ninit = concat(n->ninit, c->ninit);
+ 	n->ninit = concat(n->ninit, c->nbody);
+ 	n->rlist = c->rlist;
+@@ -322,11 +324,11 @@ inlnode(Node **np)
+ 
+ 	inlnode(&n->left);
+ 	if(n->left && n->left->op == OINLCALL)
+-		inlconv2expr(n->left);
++		inlconv2expr(&n->left);
+ 
+ 	inlnode(&n->right);
+ 	if(n->right && n->right->op == OINLCALL)
+-		inlconv2expr(n->right);
++		inlconv2expr(&n->right);
+ 
+ 	inlnodelist(n->list);
+ 	switch(n->op) {
+@@ -359,7 +361,7 @@ inlnode(Node **np)
+ 	list_dflt:
+ 		for(l=n->list; l; l=l->next)
+ 			if(l->n->op == OINLCALL)
+-				inlconv2expr(l->n);
++				inlconv2expr(&l->n);
+ 	}
+ 
+ 	inlnodelist(n->rlist);
+@@ -377,13 +379,13 @@ inlnode(Node **np)
+ 	default:
+ 		for(l=n->rlist; l; l=l->next)
+ 			if(l->n->op == OINLCALL)
+-				inlconv2expr(l->n);
++				inlconv2expr(&l->n);
+ 
+ 	}
+ 
+ 	inlnode(&n->ntest);
+ 	if(n->ntest && n->ntest->op == OINLCALL)
+-		inlconv2expr(n->ntest);
++		inlconv2expr(&n->ntest);
+ 
+ 	inlnode(&n->nincr);
+ 	if(n->nincr && n->nincr->op == OINLCALL)
+@@ -504,11 +506,14 @@ mkinlcall(Node **np, Node *fn)
+ 			fatal("missing inlvar for %N\n", t->nname);
+ 
+ 		if(n->left->op == ODOTMETH) {
+-			if (!n->left->left)
++			if(!n->left->left)
+ 				fatal("method call without receiver: %+N", n);
+-			if(t != T && t->nname != N && !isblank(t->nname))
++			if(t == T)
++				fatal("method call unknown receiver type: %+N", n);
++			if(t->nname != N && !isblank(t->nname))
+ 				as = nod(OAS, t->nname->inlvar, n->left->left);
+-			// else if !ONAME add to init anyway?
++			else
++				as = nod(OAS, temp(t->type), n->left->left);
+ 		} else {  // non-method call to method
+ 			if (!n->list)
+ 				fatal("non-method call to method without first arg: %+N", n);
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+new file mode 100644
+index 0000000000..42e32dca98
+--- /dev/null
++++ b/src/cmd/gc/order.c
+@@ -0,0 +1,370 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Rewrite tree to use separate statements to enforce
++// order of evaluation.  Makes walk easier, because it
++// can (after this runs) reorder at will within an expression.
++
++#include	<u.h>
++#include	<libc.h>
++#include	"go.h"
++
++static void	orderstmt(Node*, NodeList**);
++static void	orderstmtlist(NodeList*, NodeList**);
++static void	orderexpr(Node**, NodeList**);
++static void	orderexprlist(NodeList*, NodeList**);
++
++void
++order(Node *fn)
++{
++	NodeList *out;
++	
++	out = nil;
++	orderstmtlist(fn->nbody, &out);
++	fn->nbody = out;
++}
++
++static void
++orderstmtlist(NodeList *l, NodeList **out)
++{
++	for(; l; l=l->next)
++		orderstmt(l->n, out);
++}
++
++// Order the block of statements *l onto a new list,
++// and then replace *l with that list.
++static void
++orderblock(NodeList **l)
++{
++	NodeList *out;
++	
++	out = nil;
++	orderstmtlist(*l, &out);
++	*l = out;
++}
++
++// Order the side effects in *np and leave them as
++// the init list of the final *np.
++static void
++orderexprinplace(Node **np)
++{
++	Node *n;
++	NodeList *out;
++	
++	n = *np;
++	out = nil;
++	orderexpr(&n, &out);
++	addinit(&n, out);
++	*np = n;
++}
++
++// Like orderblock, but applied to a single statement.
++static void
++orderstmtinplace(Node **np)
++{
++	Node *n;
++	NodeList *out;
++
++	n = *np;
++	out = nil;
++	orderstmt(n, &out);
++	*np = liststmt(out);
++}
++
++// Move n's init list to *out.
++static void
++orderinit(Node *n, NodeList **out)
++{
++	*out = concat(*out, n->ninit);
++	n->ninit = nil;
++}
++
++// Is the list l actually just f() for a multi-value function?
++static int
++ismulticall(NodeList *l)
++{
++	Node *n;
++	
++	// one arg only
++	if(l == nil || l->next != nil)
++		return 0;
++	n = l->n;
++	
++	// must be call
++	switch(n->op) {
++	default:
++		return 0;
++	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++		break;
++	}
++	
++	// call must return multiple values
++	return n->left->type->outtuple > 1;
++}
++
++// n is a multi-value function call.  Add t1, t2, .. = n to out
++// and return the list t1, t2, ...
++static NodeList*
++copyret(Node *n, NodeList **out)
++{
++	Type *t;
++	Node *tmp, *as;
++	NodeList *l1, *l2;
++	Iter tl;
++	
++	if(n->type->etype != TSTRUCT || !n->type->funarg)
++		fatal("copyret %T %d", n->type, n->left->type->outtuple);
++
++	l1 = nil;
++	l2 = nil;
++	for(t=structfirst(&tl, &n->type); t; t=structnext(&tl)) {
++		tmp = temp(t->type);
++		l1 = list(l1, tmp);
++		l2 = list(l2, tmp);
++	}
++	
++	as = nod(OAS2, N, N);
++	as->list = l1;
++	as->rlist = list1(n);
++	typecheck(&as, Etop);
++	orderstmt(as, out);
++
++	return l2;
++}
++
++static void
++ordercallargs(NodeList **l, NodeList **out)
++{
++	if(ismulticall(*l)) {
++		// return f() where f() is multiple values.
++		*l = copyret((*l)->n, out);
++	} else {
++		orderexprlist(*l, out);
++	}
++}
++
++static void
++ordercall(Node *n, NodeList **out)
++{
++	orderexpr(&n->left, out);
++	ordercallargs(&n->list, out);
++}
++
++static void
++orderstmt(Node *n, NodeList **out)
++{
++	int lno;
++	NodeList *l;
++	Node *r;
++
++	if(n == N)
++		return;
++
++	lno = setlineno(n);
++	switch(n->op) {
++	default:
++		fatal("orderstmt %O", n->op);
++
++	case OAS2:
++	case OAS2DOTTYPE:
++	case OAS2MAPR:
++	case OAS:
++	case OASOP:
++	case OCLOSE:
++	case OCOPY:
++	case ODELETE:
++	case OPANIC:
++	case OPRINT:
++	case OPRINTN:
++	case ORECOVER:
++	case ORECV:
++	case OSEND:
++		orderinit(n, out);
++		orderexpr(&n->left, out);
++		orderexpr(&n->right, out);
++		orderexprlist(n->list, out);
++		orderexprlist(n->rlist, out);
++		*out = list(*out, n);
++		break;
++	
++	case OAS2FUNC:
++		// Special: avoid copy of func call n->rlist->n.
++		orderinit(n, out);
++		orderexprlist(n->list, out);
++		ordercall(n->rlist->n, out);
++		*out = list(*out, n);
++		break;
++
++	case OAS2RECV:
++		// Special: avoid copy of receive.
++		orderinit(n, out);
++		orderexprlist(n->list, out);
++		orderexpr(&n->rlist->n->left, out);  // arg to recv
++		*out = list(*out, n);
++		break;
++
++	case OBLOCK:
++	case OEMPTY:
++		// Special: does not save n onto out.
++		orderinit(n, out);
++		orderstmtlist(n->list, out);
++		break;
++
++	case OBREAK:
++	case OCONTINUE:
++	case ODCL:
++	case ODCLCONST:
++	case ODCLTYPE:
++	case OFALL:
++	case_OFALL:
++	case OGOTO:
++	case OLABEL:
++		// Special: n->left is not an expression; save as is.
++		orderinit(n, out);
++		*out = list(*out, n);
++		break;
++
++	case OCALLFUNC:
++	case OCALLINTER:
++	case OCALLMETH:
++		// Special: handle call arguments.
++		orderinit(n, out);
++		ordercall(n, out);
++		*out = list(*out, n);
++		break;
++
++	case ODEFER:
++	case OPROC:
++		// Special: order arguments to inner call but not call itself.
++		orderinit(n, out);
++		ordercall(n->left, out);
++		*out = list(*out, n);
++		break;
++
++	case OFOR:
++		orderinit(n, out);
++		orderexprinplace(&n->ntest);
++		orderstmtinplace(&n->nincr);
++		orderblock(&n->nbody);
++		*out = list(*out, n);
++		break;
++		
++	case OIF:
++		orderinit(n, out);
++		orderexprinplace(&n->ntest);
++		orderblock(&n->nbody);
++		orderblock(&n->nelse);
++		*out = list(*out, n);
++		break;
++
++	case ORANGE:
++		orderinit(n, out);
++		orderexpr(&n->right, out);
++		for(l=n->list; l; l=l->next)
++			orderexprinplace(&l->n);
++		orderblock(&n->nbody);
++		*out = list(*out, n);
++		break;
++
++	case ORETURN:
++		ordercallargs(&n->list, out);
++		*out = list(*out, n);
++		break;
++		
++	case OSELECT:
++		orderinit(n, out);
++		for(l=n->list; l; l=l->next) {
++			if(l->n->op != OXCASE)
++				fatal("order select case %O", l->n->op);
++			r = l->n->left;
++			if(r == nil)
++				continue;
++			switch(r->op) {
++			case OSELRECV:
++			case OSELRECV2:
++				orderexprinplace(&r->left);
++				orderexprinplace(&r->ntest);
++				orderexpr(&r->right->left, out);
++				break;
++			case OSEND:
++				orderexpr(&r->left, out);
++				orderexpr(&r->right, out);
++				break;
++			}
++		}
++		*out = list(*out, n);
++		break;
++
++	case OSWITCH:
++		orderinit(n, out);
++		orderexpr(&n->ntest, out);
++		for(l=n->list; l; l=l->next) {
++			if(l->n->op != OXCASE)
++				fatal("order switch case %O", l->n->op);
++			orderexpr(&l->n->left, &l->n->ninit);
++		}
++		*out = list(*out, n);
++		break;
++
++	case OXFALL:
++		yyerror("fallthrough statement out of place");
++		n->op = OFALL;
++		goto case_OFALL;
++	}
++	
++	lineno = lno;
++}
++
++static void
++orderexprlist(NodeList *l, NodeList **out)
++{
++	for(; l; l=l->next)
++		orderexpr(&l->n, out);
++}
++
++static void
++orderexpr(Node **np, NodeList **out)
++{
++	Node *n;
++	int lno;
++
++	n = *np;
++	if(n == N)
++		return;
++
++	lno = setlineno(n);
++	orderinit(n, out);
++
++	switch(n->op) {
++	default:
++		orderexpr(&n->left, out);
++		orderexpr(&n->right, out);
++		orderexprlist(n->list, out);
++		orderexprlist(n->rlist, out);
++		break;
++	
++	case OANDAND:
++	case OOROR:
++		orderexpr(&n->left, out);
++		orderexprinplace(&n->right);
++		break;
++	
++	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++		ordercall(n, out);
++		n = copyexpr(n, n->type, out);
++		break;
++
++	case ORECV:
++		n = copyexpr(n, n->type, out);
++		break;
++	}
++	
++	lineno = lno;
++
++	*np = n;
++}
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index a54f097825..8e65ba22db 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -54,7 +54,11 @@ compile(Node *fn)
+ 			t = structnext(&save);
+ 		}
+ 	}
+-
++	
++	order(curfn);
++	if(nerrors != 0)
++		goto ret;
++	
+ 	hasdefer = 0;
+ 	walk(curfn);
+ 	if(nerrors != 0)
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 73a0af799e..0cf21e2bbe 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -154,6 +154,10 @@ init2(Node *n, NodeList **out)
+ {
+ 	if(n == N || n->initorder == InitDone)
+ 		return;
++
++	if(n->op == ONAME && n->ninit)
++		fatal("name %S with ninit: %+N\n", n->sym, n);
++
+ 	init1(n, out);
+ 	init2(n->left, out);
+ 	init2(n->right, out);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 9c31dace4c..59e18c2885 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1957,7 +1957,7 @@ safeexpr(Node *n, NodeList **init)
+ 	return cheapexpr(n, init);
+ }
+ 
+-static Node*
++Node*
+ copyexpr(Node *n, Type *t, NodeList **init)
+ {
+ 	Node *a, *l;
+@@ -3522,3 +3522,26 @@ strlit(char *s)
+ 	t->len = strlen(s);
+ 	return t;
+ }
++
++void
++addinit(Node **np, NodeList *init)
++{
++	Node *n;
++	
++	if(init == nil)
++		return;
++
++	n = *np;
++	switch(n->op) {
++	case ONAME:
++	case OLITERAL:
++		// There may be multiple refs to this node;
++		// introduce OCONVNOP to hold init list.
++		n = nod(OCONVNOP, n, N);
++		n->type = n->left->type;
++		n->typecheck = 1;
++		*np = n;
++		break;
++	}
++	n->ninit = concat(init, n->ninit);
++}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index f9f0d8b301..2e8c3b1e25 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1161,6 +1161,7 @@ reswitch:
+ 			yyerror("missing argument to make");
+ 			goto error;
+ 		}
++		n->list = nil;
+ 		l = args->n;
+ 		args = args->next;
+ 		typecheck(&l, Etype);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6ec978f0bb..53040fe93d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -199,14 +199,12 @@ walkstmt(Node **np)
+ 	case OPANIC:
+ 	case OEMPTY:
+ 	case ORECOVER:
+-		if(n->typecheck == 0) {
+-			dump("missing typecheck:", n);
+-			fatal("missing typecheck");
+-		}
++		if(n->typecheck == 0)
++			fatal("missing typecheck: %+N", n);
+ 		init = n->ninit;
+ 		n->ninit = nil;
+ 		walkexpr(&n, &init);
+-		n->ninit = concat(init, n->ninit);
++		addinit(&n, init);
+ 		break;
+ 
+ 	case OBREAK:
+@@ -250,7 +248,7 @@ walkstmt(Node **np)
+ 			init = n->ntest->ninit;
+ 			n->ntest->ninit = nil;
+ 			walkexpr(&n->ntest, &init);
+-			n->ntest->ninit = concat(init, n->ntest->ninit);
++			addinit(&n->ntest, init);
+ 		}
+ 		walkstmt(&n->nincr);
+ 		walkstmtlist(n->nbody);
+@@ -332,6 +330,9 @@ walkstmt(Node **np)
+ 		break;
+ 	}
+ 
++	if(n->op == ONAME)
++		fatal("walkstmt ended up with name: %+N", n);
++	
+ 	*np = n;
+ }
+ 
+@@ -402,10 +403,8 @@ walkexpr(Node **np, NodeList **init)
+ 	if(debug['w'] > 1)
+ 		dump("walk-before", n);
+ 
+-	if(n->typecheck != 1) {
+-		dump("missed typecheck", n);
+-		fatal("missed typecheck");
+-	}
++	if(n->typecheck != 1)
++		fatal("missed typecheck: %+N\n", n);
+ 
+ 	switch(n->op) {
+ 	default:
+@@ -481,7 +480,7 @@ walkexpr(Node **np, NodeList **init)
+ 		// save elsewhere and store on the eventual n->right.
+ 		ll = nil;
+ 		walkexpr(&n->right, &ll);
+-		n->right->ninit = concat(n->right->ninit, ll);
++		addinit(&n->right, ll);
+ 		goto ret;
+ 
+ 	case OPRINT:
+@@ -994,8 +993,10 @@ walkexpr(Node **np, NodeList **init)
+ 	case ONEW:
+ 		if(n->esc == EscNone && n->type->type->width < (1<<16)) {
+ 			r = temp(n->type->type);
+-			*init = list(*init, nod(OAS, r, N));  // zero temp
+-			r = nod(OADDR, r, N);
++			r = nod(OAS, r, N);  // zero temp
++			typecheck(&r, Etop);
++			*init = list(*init, r);
++			r = nod(OADDR, r->left, N);
+ 			typecheck(&r, Erv);
+ 			n = r;
+ 		} else {
+@@ -1878,7 +1879,7 @@ reorder3save(Node **np, NodeList *all, NodeList *stop, NodeList **early)
+ 	
+ 	q = temp(n->type);
+ 	q = nod(OAS, q, n);
+-	q->typecheck = 1;
++	typecheck(&q, Etop);
+ 	*early = list(*early, q);
+ 	*np = q->left;
+ }
+diff --git a/test/fixedbugs/bug401.go b/test/fixedbugs/bug401.go
+index baad1bc7da..553e217b7d 100644
+--- a/test/fixedbugs/bug401.go
++++ b/test/fixedbugs/bug401.go
+@@ -1,29 +1,46 @@
+-// $G $D/$F.go || echo "Bug398"
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo "Bug401"
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Issue 2582
+-package foo
+-    
+-type T struct {}
++package main
++
++type T struct{}
++
+ func (T) cplx() complex128 {
+-	for false {}  // avoid inlining
+-	return complex(1,0)
++	for false {
++	} // avoid inlining
++	return complex(1, 0)
++}
++
++func (T) cplx2() complex128 {
++	return complex(0, 1)
+ }
+ 
+ type I interface {
+ 	cplx() complex128
+ }
+ 
+-func f(e float32, t T) {
++func main() {
+ 
+-    	_ = real(t.cplx())
+-    	_ = imag(t.cplx())
++	var t T
++
++	if v := real(t.cplx()); v != 1 {
++		panic("not-inlined complex call failed")
++	}
++	_ = imag(t.cplx())
++
++	_ = real(t.cplx2())
++	if v := imag(t.cplx2()); v != 1 {
++		panic("potentially inlined complex call failed")
++	}
+ 
+ 	var i I
+ 	i = t
+-    	_ = real(i.cplx())
+-    	_ = imag(i.cplx())
+-}
+\ No newline at end of file
++	if v := real(i.cplx()); v != 1 {
++		panic("potentially inlined complex call failed")
++	}
++	_ = imag(i.cplx())
++}
+diff --git a/test/func8.go b/test/func8.go
+new file mode 100644
+index 0000000000..bb61064535
+--- /dev/null
++++ b/test/func8.go
+@@ -0,0 +1,47 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var calledf int
++
++func f() int {
++	calledf++
++	return 0
++}
++
++func g() int {
++	return calledf
++}
++
++var xy string
++
++func x() bool {
++	for false {
++	} // no inlining
++	xy += "x"
++	return false
++}
++
++func y() string {
++	for false {
++	} // no inlining
++	xy += "y"
++	return "abc"
++}
++
++func main() {
++	if f() == g() {
++		println("wrong f,g order")
++	}
++
++	if x() == (y() == "abc") {
++		panic("wrong compare")
++	}
++	if xy != "xy" {
++		println("wrong x,y order")
++	}
++}
+diff --git a/test/reorder2.go b/test/reorder2.go
+new file mode 100644
+index 0000000000..3e149853a3
+--- /dev/null
++++ b/test/reorder2.go
+@@ -0,0 +1,174 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// derived from fixedbugs/bug294.go
++
++package main
++
++var log string
++
++type TT int
++
++func (t TT) a(s string) TT {
++	log += "a(" + s + ")"
++	return t
++}
++
++func (TT) b(s string) string {
++	log += "b(" + s + ")"
++	return s
++}
++
++type F func(s string) F
++
++func a(s string) F {
++	log += "a(" + s + ")"
++	return F(a)
++}
++
++func b(s string) string {
++	log += "b(" + s + ")"
++	return s
++}
++
++type I interface {
++	a(s string) I
++	b(s string) string
++}
++
++type T1 int
++
++func (t T1) a(s string) I {
++	log += "a(" + s + ")"
++	return t
++}
++
++func (T1) b(s string) string {
++	log += "b(" + s + ")"
++	return s
++}
++
++// f(g(), h()) where g is not inlinable but h is will have the same problem.
++// As will x := g() + h() (same conditions).
++// And g() <- h().
++func f(x, y string) {
++	log += "f(" + x + ", " + y + ")"
++}
++
++func ff(x, y string) {
++	for false {
++	} // prevent inl
++	log += "ff(" + x + ", " + y + ")"
++}
++
++func h(x string) string {
++	log += "h(" + x + ")"
++	return x
++}
++
++func g(x string) string {
++	for false {
++	} // prevent inl
++	log += "g(" + x + ")"
++	return x
++}
++
++func main() {
++	err := 0
++	var t TT
++	if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
++		println("expecting a(1)a(2)a(3) , got ", log)
++		err++
++	}
++	log = ""
++
++	if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
++		println("expecting a(1)b(2)a(2), got ", log)
++		err++
++	}
++	log = ""
++	if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
++		println("expecting a(3)b(4)a(4)b(5)a(5), got ", log)
++		err++
++	}
++	log = ""
++	var i I = T1(0)
++	if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
++		println("expecting a(6)ba(7)ba(8)ba(9), got", log)
++		err++
++	}
++	log = ""
++
++	if s := t.a("1").b("3"); log != "a(1)b(3)" || s != "3" {
++		println("expecting a(1)b(3) and 3, got ", log, " and ", s)
++		err++
++	}
++	log = ""
++
++	if s := t.a("1").a(t.b("2")).b("3") + t.a("4").b("5"); log != "a(1)b(2)a(2)b(3)a(4)b(5)" || s != "35" {
++		println("expecting a(1)b(2)a(2)b(3)a(4)b(5) and 35, got ", log, " and ", s)
++		err++
++	}
++	log = ""
++
++	if s := t.a("4").b("5") + t.a("1").a(t.b("2")).b("3"); log != "a(4)b(5)a(1)b(2)a(2)b(3)" || s != "53" {
++		println("expecting a(4)b(5)a(1)b(2)a(2)b(3) and 35, got ", log, " and ", s)
++		err++
++	}
++	log = ""
++
++	if ff(g("1"), g("2")); log != "g(1)g(2)ff(1, 2)" {
++		println("expecting g(1)g(2)ff..., got ", log)
++		err++
++	}
++	log = ""
++
++	if ff(g("1"), h("2")); log != "g(1)h(2)ff(1, 2)" {
++		println("expecting g(1)h(2)ff..., got ", log)
++		err++
++	}
++	log = ""
++
++	if ff(h("1"), g("2")); log != "h(1)g(2)ff(1, 2)" {
++		println("expecting h(1)g(2)ff..., got ", log)
++		err++
++	}
++	log = ""
++
++	if ff(h("1"), h("2")); log != "h(1)h(2)ff(1, 2)" {
++		println("expecting h(1)h(2)ff..., got ", log)
++		err++
++	}
++	log = ""
++
++	if s := g("1") + g("2"); log != "g(1)g(2)" || s != "12" {
++		println("expecting g1g2 and 12, got ", log, " and ", s)
++		err++
++	}
++	log = ""
++
++	if s := g("1") + h("2"); log != "g(1)h(2)" || s != "12" {
++		println("expecting g1h2 and 12, got ", log, " and ", s)
++		err++
++	}
++	log = ""
++
++	if s := h("1") + g("2"); log != "h(1)g(2)" || s != "12" {
++		println("expecting h1g2 and 12, got ", log, " and ", s)
++		err++
++	}
++	log = ""
++
++	if s := h("1") + h("2"); log != "h(1)h(2)" || s != "12" {
++		println("expecting h1h2 and 12, got ", log, " and ", s)
++		err++
++	}
++	log = ""
++
++	if err > 0 {
++		panic("fail")
++	}
++}

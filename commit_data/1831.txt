@@ -8,8 +8,93 @@ Date:   Mon Mar 16 14:20:08 2009 -0700
     DELTA=14  (12 added, 0 deleted, 2 changed)
     OCL=26278
     CL=26348
-
+---
  src/lib/go/scanner.go      | 8 +++++++-
  src/lib/go/scanner_test.go | 2 ++
  src/lib/go/token.go        | 6 +++++-
  3 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/go/scanner.go b/src/lib/go/scanner.go
+index f665f10bab..0910e59de1 100644
+--- a/src/lib/go/scanner.go
++++ b/src/lib/go/scanner.go
+@@ -447,7 +447,13 @@ scan_again:
+ 		case '>': tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
+ 		case '=': tok = S.switch2(token.ASSIGN, token.EQL);
+ 		case '!': tok = S.switch2(token.NOT, token.NEQ);
+-		case '&': tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
++		case '&':
++			if S.ch == '^' {
++				S.next();
++				tok = S.switch2(token.AND_NOT, token.AND_NOT_ASSIGN);
++			} else {
++				tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
++			}
+ 		case '|': tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
+ 		default: S.error(loc, "illegal character " + charString(ch));
+ 		}
+diff --git a/src/lib/go/scanner_test.go b/src/lib/go/scanner_test.go
+index 221f01256e..247bbe4df0 100644
+--- a/src/lib/go/scanner_test.go
++++ b/src/lib/go/scanner_test.go
+@@ -76,6 +76,7 @@ var tokens = [...]elt{
+ 	elt{ token.XOR, "^", operator },
+ 	elt{ token.SHL, "<<", operator },
+ 	elt{ token.SHR, ">>", operator },
++	elt{ token.AND_NOT, "&^", operator },
+ 
+ 	elt{ token.ADD_ASSIGN, "+=", operator },
+ 	elt{ token.SUB_ASSIGN, "-=", operator },
+@@ -88,6 +89,7 @@ var tokens = [...]elt{
+ 	elt{ token.XOR_ASSIGN, "^=", operator },
+ 	elt{ token.SHL_ASSIGN, "<<=", operator },
+ 	elt{ token.SHR_ASSIGN, ">>=", operator },
++	elt{ token.AND_NOT_ASSIGN, "&^=", operator },
+ 
+ 	elt{ token.LAND, "&&", operator },
+ 	elt{ token.LOR, "||", operator },
+diff --git a/src/lib/go/token.go b/src/lib/go/token.go
+index 1961fb10ee..26ff1cb993 100644
+--- a/src/lib/go/token.go
++++ b/src/lib/go/token.go
+@@ -40,6 +40,7 @@ const (
+ 	XOR;
+ 	SHL;
+ 	SHR;
++	AND_NOT;
+ 
+ 	ADD_ASSIGN;
+ 	SUB_ASSIGN;
+@@ -52,6 +53,7 @@ const (
+ 	XOR_ASSIGN;
+ 	SHL_ASSIGN;
+ 	SHR_ASSIGN;
++	AND_NOT_ASSIGN;
+ 
+ 	LAND;
+ 	LOR;
+@@ -145,6 +147,7 @@ var tokens = map [int] string {
+ 	XOR : "^",
+ 	SHL : "<<",
+ 	SHR : ">>",
++	AND_NOT : "&^",
+ 
+ 	ADD_ASSIGN : "+=",
+ 	SUB_ASSIGN : "-=",
+@@ -157,6 +160,7 @@ var tokens = map [int] string {
+ 	XOR_ASSIGN : "^=",
+ 	SHL_ASSIGN : "<<=",
+ 	SHR_ASSIGN : ">>=",
++	AND_NOT_ASSIGN : "&^=",
+ 
+ 	LAND : "&&",
+ 	LOR : "||",
+@@ -264,7 +268,7 @@ func Precedence(tok int) int {
+ 		return 4;
+ 	case ADD, SUB, OR, XOR:
+ 		return 5;
+-	case MUL, QUO, REM, SHL, SHR, AND:
++	case MUL, QUO, REM, SHL, SHR, AND, AND_NOT:
+ 		return 6;
+ 	}
+ 	return LowestPrec;

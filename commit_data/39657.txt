@@ -13,7 +13,61 @@ Date:   Thu Jan 31 22:24:00 2019 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/big/int.go      |  6 ++++++
  src/math/big/int_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 8c1a54a9c6..eb0285c48f 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -448,6 +448,12 @@ func (x *Int) BitLen() int {
+ 	return x.abs.bitLen()
+ }
+ 
++// TrailingZeroBits returns the number of consecutive least significant zero
++// bits of |x|.
++func (x *Int) TrailingZeroBits() uint {
++	return x.abs.trailingZeroBits()
++}
++
+ // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
+ // If m == nil or m == 0, z = x**y unless y <= 0 then z = 1.
+ //
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 48d08d0e7e..2435b3610c 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1335,6 +1335,31 @@ func TestBitSet(t *testing.T) {
+ 	}
+ }
+ 
++var tzbTests = []struct {
++	in  string
++	out uint
++}{
++	{"0", 0},
++	{"1", 0},
++	{"-1", 0},
++	{"4", 2},
++	{"-8", 3},
++	{"0x4000000000000000000", 74},
++	{"-0x8000000000000000000", 75},
++}
++
++func TestTrailingZeroBits(t *testing.T) {
++	for i, test := range tzbTests {
++		in, _ := new(Int).SetString(test.in, 0)
++		want := test.out
++		got := in.TrailingZeroBits()
++
++		if got != want {
++			t.Errorf("#%d: got %v want %v", i, got, want)
++		}
++	}
++}
++
+ func BenchmarkBitset(b *testing.B) {
+ 	z := new(Int)
+ 	z.SetBit(z, 512, 1)

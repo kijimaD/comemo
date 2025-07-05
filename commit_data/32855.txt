@@ -9,7 +9,78 @@ Date:   Wed Jun 7 11:32:42 2017 -0700
     Change-Id: Ia3f5558f3e0dcb8ee2dab54a6e9588eecc22511f
     Reviewed-on: https://go-review.googlesource.com/45074
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/expr.go             |  6 +++---
  src/go/types/testdata/shifts.src | 18 ++++++++++++------
  2 files changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 7f54b09071..1624858329 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -633,13 +633,13 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
+ 	}
+ 
+ 	// spec: "The right operand in a shift expression must have unsigned
+-	// integer type or be an untyped constant that can be converted to
+-	// unsigned integer type."
++	// integer type or be an untyped constant representable by a value of
++	// type uint."
+ 	switch {
+ 	case isUnsigned(y.typ):
+ 		// nothing to do
+ 	case isUntyped(y.typ):
+-		check.convertUntyped(y, Typ[UntypedInt])
++		check.convertUntyped(y, Typ[Uint])
+ 		if y.mode == invalid {
+ 			x.mode = invalid
+ 			return
+diff --git a/src/go/types/testdata/shifts.src b/src/go/types/testdata/shifts.src
+index 099c9ecc7c..dc029fc647 100644
+--- a/src/go/types/testdata/shifts.src
++++ b/src/go/types/testdata/shifts.src
+@@ -10,7 +10,7 @@ func shifts0() {
+ 		s = 10
+ 		_ = 0<<0
+ 		_ = 1<<s
+-		_ = 1<<- /* ERROR "invalid shift" */ 1
++		_ = 1<<- /* ERROR "overflows uint" */ 1
+ 		_ = 1<<1075 /* ERROR "invalid shift" */
+ 		_ = 2.0<<1
+ 
+@@ -39,12 +39,18 @@ func shifts1() {
+ 		_ = 1<<u
+ 		_ = 1<<"foo" /* ERROR "cannot convert" */
+ 		_ = i<<0
+-		_ = i<<- /* ERROR "must not be negative" */ 1
++		_ = i<<- /* ERROR "overflows uint" */ 1
+ 		_ = 1 /* ERROR "overflows" */ <<100
+ 
+ 		_ uint = 1 << 0
+ 		_ uint = 1 << u
+ 		_ float32 = 1 /* ERROR "must be integer" */ << u
++
++		// for issue 14822
++		_ = 1<<( /* ERROR "invalid shift count" */ 1<<63)
++		_ = 1<<( /* ERROR "overflows uint" */ 1<<64)
++		_ = u<<(1<<63) // valid
++		_ = u<<( /* ERROR "overflows uint" */ 1<<64)
+ 	)
+ }
+ 
+@@ -321,11 +327,11 @@ func issue5895() {
+ }
+ 
+ func issue11325() {
+-	var _ = 0 >> 1.1 /* ERROR "must be unsigned integer" */ // example from issue 11325
+-	_ = 0 >> 1.1 /* ERROR "must be unsigned integer" */
+-	_ = 0 << 1.1 /* ERROR "must be unsigned integer" */
++	var _ = 0 >> 1.1 /* ERROR "truncated to uint" */ // example from issue 11325
++	_ = 0 >> 1.1 /* ERROR "truncated to uint" */
++	_ = 0 << 1.1 /* ERROR "truncated to uint" */
+ 	_ = 0 >> 1.
+-	_ = 1 >> 1.1 /* ERROR "must be unsigned integer" */
++	_ = 1 >> 1.1 /* ERROR "truncated to uint" */
+ 	_ = 1 >> 1.
+ 	_ = 1. >> 1
+ 	_ = 1. >> 1.

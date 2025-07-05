@@ -7,6 +7,19 @@ Date:   Wed Dec 21 12:06:20 2011 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5502060
-
+---
  doc/progs/run | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/progs/run b/doc/progs/run
+index b4c63f8b3e..7ceec7466e 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -117,6 +117,6 @@ testit server1 "" ""
+ testit eff_bytesize "" "1.00YB 9.09TB"
+ testit eff_sequence "" "[-1 2 6 16 44]"
+ 
+-testit go1 "" ""
++testit go1 "" "Christmas is a holiday: true"
+ 
+ rm -f $O.out $O.out.exe *.$O "$TMPFILE"

@@ -27,9 +27,123 @@ Date:   Mon Sep 25 22:34:23 2017 -0300
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/printer/nodes.go                    | 31 ++++++++++++++++++++----------
  src/go/printer/testdata/expressions.golden | 10 ++++++++++
  src/go/printer/testdata/expressions.input  | 11 ++++++++++-
  src/go/printer/testdata/expressions.raw    | 10 ++++++++++
  4 files changed, 51 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index e9b110fe79..37b5873b68 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -398,22 +398,33 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 			// no blank between keyword and {} in this case
+ 			p.print(lbrace, token.LBRACE, rbrace, token.RBRACE)
+ 			return
+-		} else if isStruct && p.isOneLineFieldList(list) { // for now ignore interfaces
++		} else if p.isOneLineFieldList(list) {
+ 			// small enough - print on one line
+ 			// (don't use identList and ignore source line breaks)
+ 			p.print(lbrace, token.LBRACE, blank)
+ 			f := list[0]
+-			for i, x := range f.Names {
+-				if i > 0 {
+-					// no comments so no need for comma position
+-					p.print(token.COMMA, blank)
++			if isStruct {
++				for i, x := range f.Names {
++					if i > 0 {
++						// no comments so no need for comma position
++						p.print(token.COMMA, blank)
++					}
++					p.expr(x)
++				}
++				if len(f.Names) > 0 {
++					p.print(blank)
++				}
++				p.expr(f.Type)
++			} else { // interface
++				if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
++					// method
++					p.expr(f.Names[0])
++					p.signature(ftyp.Params, ftyp.Results)
++				} else {
++					// embedded interface
++					p.expr(f.Type)
+ 				}
+-				p.expr(x)
+-			}
+-			if len(f.Names) > 0 {
+-				p.print(blank)
+ 			}
+-			p.expr(f.Type)
+ 			p.print(blank, rbrace, token.RBRACE)
+ 			return
+ 		}
+diff --git a/src/go/printer/testdata/expressions.golden b/src/go/printer/testdata/expressions.golden
+index 4c08a423db..16a68c7bf7 100644
+--- a/src/go/printer/testdata/expressions.golden
++++ b/src/go/printer/testdata/expressions.golden
+@@ -290,6 +290,16 @@ func _() {
+ 	_ = struct{ x, y, z int }{0, 1, 2}
+ 	_ = struct{ int }{0}
+ 	_ = struct{ s struct{ int } }{struct{ int }{0}}
++
++	_ = (interface{})(nil)
++	_ = (interface{ String() string })(nil)
++	_ = (interface {
++		String() string
++	})(nil)
++	_ = (interface{ fmt.Stringer })(nil)
++	_ = (interface {
++		fmt.Stringer
++	})(nil)
+ }
+ 
+ func _() {
+diff --git a/src/go/printer/testdata/expressions.input b/src/go/printer/testdata/expressions.input
+index b3b8c2bdc6..8c523b6022 100644
+--- a/src/go/printer/testdata/expressions.input
++++ b/src/go/printer/testdata/expressions.input
+@@ -295,8 +295,17 @@ func _() {
+ 	_ = struct{ x, y, z int }{0, 1, 2}
+ 	_ = struct{ int }{0}
+ 	_ = struct{ s struct { int } }{struct{ int}{0} }
+-}
+ 
++	_ = (interface{})(nil)
++	_ = (interface{String() string})(nil)
++	_ = (interface{
++		String()    string
++	})(nil)
++	_ = (interface{fmt.Stringer})(nil)
++	_ = (interface{
++		    fmt.Stringer
++	})(nil)
++}
+ 
+ func _() {
+ 	// do not modify literals
+diff --git a/src/go/printer/testdata/expressions.raw b/src/go/printer/testdata/expressions.raw
+index f121115e9d..058fded447 100644
+--- a/src/go/printer/testdata/expressions.raw
++++ b/src/go/printer/testdata/expressions.raw
+@@ -290,6 +290,16 @@ func _() {
+ 	_ = struct{ x, y, z int }{0, 1, 2}
+ 	_ = struct{ int }{0}
+ 	_ = struct{ s struct{ int } }{struct{ int }{0}}
++
++	_ = (interface{})(nil)
++	_ = (interface{ String() string })(nil)
++	_ = (interface {
++		String() string
++	})(nil)
++	_ = (interface{ fmt.Stringer })(nil)
++	_ = (interface {
++		fmt.Stringer
++	})(nil)
+ }
+ 
+ func _() {

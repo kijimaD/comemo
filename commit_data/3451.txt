@@ -11,9 +11,335 @@ Date:   Tue Oct 6 09:47:46 2009 -0700
     DELTA=142  (53 added, 4 deleted, 85 changed)
     OCL=35367
     CL=35375
-
+---
  src/cmd/5g/cgen.c   |  30 ++++++++--
  src/cmd/5g/cgen64.c | 162 ++++++++++++++++++++++++++--------------------------
  src/cmd/5g/gsubr.c  |  30 +++++++++-
  test/arm-pass.txt   |   5 ++
  4 files changed, 138 insertions(+), 89 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 93b79e3ce2..dfee75e0ec 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -880,6 +880,25 @@ bgen(Node *n, int true, Prog *to)
+ 			break;
+ 		}
+ 
++		if(is64(nr->type)) {
++			if(!nl->addable) {
++				tempalloc(&n1, nl->type);
++				cgen(nl, &n1);
++				nl = &n1;
++			}
++			if(!nr->addable) {
++				tempalloc(&n2, nr->type);
++				cgen(nr, &n2);
++				nr = &n2;
++			}
++			cmp64(nl, nr, a, to);
++			if(nr == &n2)
++				tempfree(&n2);
++			if(nl == &n1)
++				tempfree(&n1);
++			break;
++		}
++
+ 		a = optoas(a, nr->type);
+ 
+ 		if(nr->ullman >= UINF) {
+@@ -988,18 +1007,21 @@ sgen(Node *n, Node *res, int32 w)
+ 	if(osrc % 4 != 0 || odst %4 != 0)
+ 		fatal("sgen: non word(4) aligned offset src %d or dst %d", osrc, odst);
+ 
+-	regalloc(&dst, types[tptr], N);
+-	regalloc(&src, types[tptr], N);
+-	regalloc(&tmp, types[TUINT32], N);
++	regalloc(&dst, types[tptr], res);
+ 
+ 	if(n->ullman >= res->ullman) {
+-		agen(n, &src);
++		agen(n, &dst);
++		regalloc(&src, types[tptr], N);
++		gins(AMOVW, &dst, &src);
+ 		agen(res, &dst);
+ 	} else {
+ 		agen(res, &dst);
++		regalloc(&src, types[tptr], N);
+ 		agen(n, &src);
+ 	}
+ 
++	regalloc(&tmp, types[TUINT32], N);
++
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads
+ 
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index 05e49fa732..6b41bb0517 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -458,86 +458,84 @@ cgen64(Node *n, Node *res)
+ void
+ cmp64(Node *nl, Node *nr, int op, Prog *to)
+ {
+-	fatal("cmp64 not implemented");
+-//	Node lo1, hi1, lo2, hi2, rr;
+-//	Prog *br;
+-//	Type *t;
+-
+-//	split64(nl, &lo1, &hi1);
+-//	split64(nr, &lo2, &hi2);
+-
+-//	// compare most significant word;
+-//	// if they differ, we're done.
+-//	t = hi1.type;
+-//	if(nl->op == OLITERAL || nr->op == OLITERAL)
+-//		gins(ACMPL, &hi1, &hi2);
+-//	else {
+-//		regalloc(&rr, types[TINT32], N);
+-//		gins(AMOVL, &hi1, &rr);
+-//		gins(ACMPL, &rr, &hi2);
+-//		regfree(&rr);
+-//	}
+-//	br = P;
+-//	switch(op) {
+-//	default:
+-//		fatal("cmp64 %O %T", op, t);
+-//	case OEQ:
+-//		// cmp hi
+-//		// jne L
+-//		// cmp lo
+-//		// jeq to
+-//		// L:
+-//		br = gbranch(AJNE, T);
+-//		break;
+-//	case ONE:
+-//		// cmp hi
+-//		// jne to
+-//		// cmp lo
+-//		// jne to
+-//		patch(gbranch(AJNE, T), to);
+-//		break;
+-//	case OGE:
+-//	case OGT:
+-//		// cmp hi
+-//		// jgt to
+-//		// jlt L
+-//		// cmp lo
+-//		// jge to (or jgt to)
+-//		// L:
+-//		patch(gbranch(optoas(OGT, t), T), to);
+-//		br = gbranch(optoas(OLT, t), T);
+-//		break;
+-//	case OLE:
+-//	case OLT:
+-//		// cmp hi
+-//		// jlt to
+-//		// jgt L
+-//		// cmp lo
+-//		// jle to (or jlt to)
+-//		// L:
+-//		patch(gbranch(optoas(OLT, t), T), to);
+-//		br = gbranch(optoas(OGT, t), T);
+-//		break;
+-//	}
+-
+-//	// compare least significant word
+-//	t = lo1.type;
+-//	if(nl->op == OLITERAL || nr->op == OLITERAL)
+-//		gins(ACMPL, &lo1, &lo2);
+-//	else {
+-//		regalloc(&rr, types[TINT32], N);
+-//		gins(AMOVL, &lo1, &rr);
+-//		gins(ACMPL, &rr, &lo2);
+-//		regfree(&rr);
+-//	}
+-
+-//	// jump again
+-//	patch(gbranch(optoas(op, t), T), to);
+-
+-//	// point first branch down here if appropriate
+-//	if(br != P)
+-//		patch(br, pc);
+-
+-//	splitclean();
+-//	splitclean();
++	Node lo1, hi1, lo2, hi2, r1, r2;
++	Prog *br;
++	Type *t;
++
++	split64(nl, &lo1, &hi1);
++	split64(nr, &lo2, &hi2);
++
++	// compare most significant word;
++	// if they differ, we're done.
++	t = hi1.type;
++	regalloc(&r1, types[TINT32], N);
++	regalloc(&r2, types[TINT32], N);
++	gins(AMOVW, &hi1, &r1);
++	gins(AMOVW, &hi2, &r2);
++	gcmp(ACMP, &r1, &r2);
++	regfree(&r1);
++	regfree(&r2);
++
++	br = P;
++	switch(op) {
++	default:
++		fatal("cmp64 %O %T", op, t);
++	case OEQ:
++		// cmp hi
++		// bne L
++		// cmp lo
++		// beq to
++		// L:
++		br = gbranch(ABNE, T);
++		break;
++	case ONE:
++		// cmp hi
++		// bne to
++		// cmp lo
++		// bne to
++		patch(gbranch(ABNE, T), to);
++		break;
++	case OGE:
++	case OGT:
++		// cmp hi
++		// bgt to
++		// blt L
++		// cmp lo
++		// bge to (or bgt to)
++		// L:
++		patch(gbranch(optoas(OGT, t), T), to);
++		br = gbranch(optoas(OLT, t), T);
++		break;
++	case OLE:
++	case OLT:
++		// cmp hi
++		// blt to
++		// bgt L
++		// cmp lo
++		// ble to (or jlt to)
++		// L:
++		patch(gbranch(optoas(OLT, t), T), to);
++		br = gbranch(optoas(OGT, t), T);
++		break;
++	}
++
++	// compare least significant word
++	t = lo1.type;
++	regalloc(&r1, types[TINT32], N);
++	regalloc(&r2, types[TINT32], N);
++	gins(AMOVW, &lo1, &r1);
++	gins(AMOVW, &lo2, &r2);
++	gcmp(ACMP, &r1, &r2);
++	regfree(&r1);
++	regfree(&r2);
++
++	// jump again
++	patch(gbranch(optoas(op, t), T), to);
++
++	// point first branch down here if appropriate
++	if(br != P)
++		patch(br, pc);
++
++	splitclean();
++	splitclean();
+ }
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 3a64cee84e..f0a1b2485e 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -202,7 +202,19 @@ afunclit(Addr *a)
+ void
+ regalloc(Node *n, Type *t, Node *o)
+ {
+-	int i, et;
++	int i, et, fixfree, floatfree;
++
++	if(debug['r']) {
++		fixfree = 0;
++		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
++			if(reg[i] == 0)
++				fixfree++;
++		floatfree = 0;
++		for(i=REGALLOC_F0; i<=REGALLOC_FMAX; i++)
++			if(reg[i] == 0)
++				floatfree++;
++		print("regalloc fix %d float %d\n", fixfree, floatfree);
++	}
+ 
+ 	if(t == T)
+ 		fatal("regalloc: t nil");
+@@ -259,7 +271,19 @@ out:
+ void
+ regfree(Node *n)
+ {
+-	int i;
++	int i, fixfree, floatfree;
++
++	if(debug['r']) {
++		fixfree = 0;
++		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
++			if(reg[i] == 0)
++				fixfree++;
++		floatfree = 0;
++		for(i=REGALLOC_F0; i<=REGALLOC_FMAX; i++)
++			if(reg[i] == 0)
++				floatfree++;
++		print("regalloc fix %d float %d\n", fixfree, floatfree);
++	}
+ 
+ 	if(n->op != OREGISTER && n->op != OINDREG)
+ 		fatal("regfree: not a register");
+@@ -1098,7 +1122,7 @@ optoas(int op, Type *t)
+ 	a = AGOK;
+ 	switch(CASE(op, simtype[t->etype])) {
+ 	default:
+-		fatal("optoas: no entry %O-%T", op, t);
++		fatal("optoas: no entry %O-%T etype %T simtype %T", op, t, types[t->etype], types[simtype[t->etype]]);
+ 		break;
+ 
+ /*	case CASE(OADDR, TPTR32):
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 0c96afc9a3..c25b3d03d3 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -1,5 +1,6 @@
+ 64bit.go
+ assign.go
++bigalg.go
+ blank1.go
+ bugs/bug136.go
+ bugs/bug162.go
+@@ -34,6 +35,7 @@ fixedbugs/bug005.go
+ fixedbugs/bug007.go
+ fixedbugs/bug008.go
+ fixedbugs/bug009.go
++fixedbugs/bug012.go
+ fixedbugs/bug013.go
+ fixedbugs/bug014.go
+ fixedbugs/bug015.go
+@@ -86,6 +88,7 @@ fixedbugs/bug080.go
+ fixedbugs/bug081.go
+ fixedbugs/bug082.go
+ fixedbugs/bug083.go
++fixedbugs/bug084.go
+ fixedbugs/bug085.go
+ fixedbugs/bug086.go
+ fixedbugs/bug087.go
+@@ -204,6 +207,7 @@ indirect.go
+ indirect1.go
+ initcomma.go
+ initializerr.go
++intcvt.go
+ interface/convert.go
+ interface/convert1.go
+ interface/convert2.go
+@@ -219,6 +223,7 @@ iota.go
+ ken/complit.go
+ ken/embed.go
+ ken/for.go
++ken/interbasic.go
+ ken/interfun.go
+ ken/intervar.go
+ ken/label.go

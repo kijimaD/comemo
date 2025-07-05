@@ -7,6 +7,29 @@ Date:   Thu Mar 3 11:26:53 2011 -0800
     R=r, rh, gri, rsc
     CC=golang-dev
     https://golang.org/cl/4237055
-
+---
  src/pkg/testing/benchmark.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index 8c226c4d41..cf73e2b48f 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -8,6 +8,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"os"
++	"runtime"
+ 	"time"
+ )
+ 
+@@ -64,6 +65,9 @@ func (b *B) nsPerOp() int64 {
+ 
+ // runN runs a single benchmark for the specified number of iterations.
+ func (b *B) runN(n int) {
++	// Try to get a comparable environment for each run
++	// by clearing garbage from previous runs.
++	runtime.GC()
+ 	b.N = n
+ 	b.ResetTimer()
+ 	b.StartTimer()

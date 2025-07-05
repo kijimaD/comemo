@@ -18,7 +18,65 @@ Date:   Mon Jul 9 22:40:51 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/builder.go      |  5 +++++
  src/strings/builder_test.go | 16 ++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index ac58f34e1d..3f33a87508 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -50,6 +50,11 @@ func (b *Builder) String() string {
+ // Len returns the number of accumulated bytes; b.Len() == len(b.String()).
+ func (b *Builder) Len() int { return len(b.buf) }
+ 
++// Cap returns the capacity of the builder's underlying byte slice. It is the
++// total space allocated for the string being built and includes any bytes
++// already written.
++func (b *Builder) Cap() int { return cap(b.buf) }
++
+ // Reset resets the Builder to be empty.
+ func (b *Builder) Reset() {
+ 	b.addr = nil
+diff --git a/src/strings/builder_test.go b/src/strings/builder_test.go
+index 949f214619..9e597015d8 100644
+--- a/src/strings/builder_test.go
++++ b/src/strings/builder_test.go
+@@ -20,6 +20,9 @@ func check(t *testing.T, b *Builder, want string) {
+ 	if n := b.Len(); n != len(got) {
+ 		t.Errorf("Len: got %d; but len(String()) is %d", n, len(got))
+ 	}
++	if n := b.Cap(); n < len(got) {
++		t.Errorf("Cap: got %d; but len(String()) is %d", n, len(got))
++	}
+ }
+ 
+ func TestBuilder(t *testing.T) {
+@@ -89,6 +92,9 @@ func TestBuilderGrow(t *testing.T) {
+ 		allocs := testing.AllocsPerRun(100, func() {
+ 			var b Builder
+ 			b.Grow(growLen) // should be only alloc, when growLen > 0
++			if b.Cap() < growLen {
++				t.Fatalf("growLen=%d: Cap() is lower than growLen", growLen)
++			}
+ 			b.Write(p)
+ 			if b.String() != string(p) {
+ 				t.Fatalf("growLen=%d: bad data written after Grow", growLen)
+@@ -226,6 +232,16 @@ func TestBuilderCopyPanic(t *testing.T) {
+ 				b.Len()
+ 			},
+ 		},
++		{
++			name:      "Cap",
++			wantPanic: false,
++			fn: func() {
++				var a Builder
++				a.WriteByte('x')
++				b := a
++				b.Cap()
++			},
++		},
+ 		{
+ 			name:      "Reset",
+ 			wantPanic: false,

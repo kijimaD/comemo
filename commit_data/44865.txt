@@ -19,6 +19,66 @@ Date:   Tue Sep 1 00:34:03 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go | 33 ++++++++++++++++++++-------------
  1 file changed, 20 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 6050646594..1664d8c5be 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -374,7 +374,7 @@ var (
+ // pathInModuleCache returns the import path of the directory dir,
+ // if dir is in the module cache copy of a module in our build list.
+ func pathInModuleCache(dir string) string {
+-	for _, m := range buildList[1:] {
++	tryMod := func(m module.Version) (string, bool) {
+ 		var root string
+ 		var err error
+ 		if repl := Replacement(m); repl.Path != "" && repl.Version == "" {
+@@ -388,13 +388,26 @@ func pathInModuleCache(dir string) string {
+ 			root, err = modfetch.DownloadDir(m)
+ 		}
+ 		if err != nil {
+-			continue
++			return "", false
+ 		}
+-		if sub := search.InDir(dir, root); sub != "" {
+-			sub = filepath.ToSlash(sub)
+-			if !strings.Contains(sub, "/vendor/") && !strings.HasPrefix(sub, "vendor/") && !strings.Contains(sub, "@") {
+-				return path.Join(m.Path, filepath.ToSlash(sub))
+-			}
++
++		sub := search.InDir(dir, root)
++		if sub == "" {
++			return "", false
++		}
++		sub = filepath.ToSlash(sub)
++		if strings.Contains(sub, "/vendor/") || strings.HasPrefix(sub, "vendor/") || strings.Contains(sub, "@") {
++			return "", false
++		}
++
++		return path.Join(m.Path, filepath.ToSlash(sub)), true
++	}
++
++	for _, m := range buildList[1:] {
++		if importPath, ok := tryMod(m); ok {
++			// checkMultiplePaths ensures that a module can be used for at most one
++			// requirement, so this must be it.
++			return importPath
+ 		}
+ 	}
+ 	return ""
+@@ -568,12 +581,6 @@ func PackageImports(path string) (imports, testImports []string) {
+ 	return imports, testImports
+ }
+ 
+-// ModuleUsedDirectly reports whether the main module directly imports
+-// some package in the module with the given path.
+-func ModuleUsedDirectly(path string) bool {
+-	return loaded.direct[path]
+-}
+-
+ // Lookup returns the source directory, import path, and any loading error for
+ // the package at path as imported from the package in parentDir.
+ // Lookup requires that one of the Load functions in this package has already

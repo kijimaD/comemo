@@ -23,9 +23,80 @@ Date:   Thu Jul 15 00:56:44 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/dcl.go | 12 +++++++++++-
  test/fixedbugs/issue47201.dir/a.go        | 13 +++++++++++++
  test/fixedbugs/issue47201.dir/b.go        |  9 +++++++++
  test/fixedbugs/issue47201.go              |  7 +++++++
  4 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index f3058d8811..5b771e3c0b 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -106,7 +106,17 @@ func Export(n *ir.Name) {
+ // Redeclared emits a diagnostic about symbol s being redeclared at pos.
+ func Redeclared(pos src.XPos, s *types.Sym, where string) {
+ 	if !s.Lastlineno.IsKnown() {
+-		pkgName := DotImportRefs[s.Def.(*ir.Ident)]
++		var pkgName *ir.PkgName
++		if s.Def == nil {
++			for id, pkg := range DotImportRefs {
++				if id.Sym().Name == s.Name {
++					pkgName = pkg
++					break
++				}
++			}
++		} else {
++			pkgName = DotImportRefs[s.Def.(*ir.Ident)]
++		}
+ 		base.ErrorfAt(pos, "%v redeclared %s\n"+
+ 			"\t%v: previous declaration during import %q", s, where, base.FmtPos(pkgName.Pos()), pkgName.Pkg.Path)
+ 	} else {
+diff --git a/test/fixedbugs/issue47201.dir/a.go b/test/fixedbugs/issue47201.dir/a.go
+new file mode 100644
+index 0000000000..54b7079092
+--- /dev/null
++++ b/test/fixedbugs/issue47201.dir/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	. "fmt"
++)
++
++func test() {
++	Println("foo")
++}
+diff --git a/test/fixedbugs/issue47201.dir/b.go b/test/fixedbugs/issue47201.dir/b.go
+new file mode 100644
+index 0000000000..5fd0635af2
+--- /dev/null
++++ b/test/fixedbugs/issue47201.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func Println() {} // ERROR "Println redeclared in this block"
++
++func main() {}
+diff --git a/test/fixedbugs/issue47201.go b/test/fixedbugs/issue47201.go
+new file mode 100644
+index 0000000000..e3a470b419
+--- /dev/null
++++ b/test/fixedbugs/issue47201.go
+@@ -0,0 +1,7 @@
++// errorcheckdir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

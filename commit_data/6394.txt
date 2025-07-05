@@ -9,7 +9,52 @@ Date:   Mon Sep 27 12:04:21 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2194046
-
+---
  src/cmd/gc/go.y      |  2 +-
  test/chan/select4.go | 25 +++++++++++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 6bc63e9118..b6774c1dd0 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -461,7 +461,7 @@ case:
+ 		}
+ 		break;
+ 	}
+-|	LCASE name '=' expr ':'
++|	LCASE expr '=' expr ':'
+ 	{
+ 		// will be converted to OCASE
+ 		// right will point to next case
+diff --git a/test/chan/select4.go b/test/chan/select4.go
+new file mode 100644
+index 0000000000..46618ac881
+--- /dev/null
++++ b/test/chan/select4.go
+@@ -0,0 +1,25 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++package main
++
++func f() *int {
++	println("BUG: called f")
++	return new(int)
++}
++
++func main() {
++	var x struct {
++		a int
++	}
++	c := make(chan int, 1)
++	c1 := make(chan int)
++	c <- 42
++	select {
++	case *f() = <-c1:
++		// nothing
++	case x.a = <-c:
++		if x.a != 42 {
++			println("BUG:", x.a)
++		}
++	}
++}

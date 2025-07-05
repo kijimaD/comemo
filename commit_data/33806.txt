@@ -21,6 +21,53 @@ Date:   Sat Sep 9 00:22:29 2017 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/all_test.go | 12 +++++++++---
  1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 7409d8b141..d0630aef44 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -3068,10 +3068,12 @@ func BenchmarkCeil(b *testing.B) {
+ 	GlobalF = x
+ }
+ 
++var copysignNeg = -1.0
++
+ func BenchmarkCopysign(b *testing.B) {
+ 	x := 0.0
+ 	for i := 0; i < b.N; i++ {
+-		x = Copysign(.5, -1)
++		x = Copysign(.5, copysignNeg)
+ 	}
+ 	GlobalF = x
+ }
+@@ -3164,10 +3166,12 @@ func BenchmarkExp2Go(b *testing.B) {
+ 	GlobalF = x
+ }
+ 
++var absPos = .5
++
+ func BenchmarkAbs(b *testing.B) {
+ 	x := 0.0
+ 	for i := 0; i < b.N; i++ {
+-		x = Abs(.5)
++		x = Abs(absPos)
+ 	}
+ 	GlobalF = x
+ 
+@@ -3417,10 +3421,12 @@ func BenchmarkRemainder(b *testing.B) {
+ 	GlobalF = x
+ }
+ 
++var signbitPos = 2.5
++
+ func BenchmarkSignbit(b *testing.B) {
+ 	x := false
+ 	for i := 0; i < b.N; i++ {
+-		x = Signbit(2.5)
++		x = Signbit(signbitPos)
+ 	}
+ 	GlobalB = x
+ }

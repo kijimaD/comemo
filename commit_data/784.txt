@@ -8,6 +8,23 @@ Date:   Tue Sep 30 15:38:41 2008 -0700
     R=ken
     OCL=16244
     CL=16244
-
+---
  src/cmd/gc/subr.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c467e7e748..f659c17c2e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1845,9 +1845,9 @@ loop:
+ 
+ 	yyerror("illegal types for operand: %O", o);
+ 	if(tl != T)
+-		print("	(%lT)\n", tl);
++		print("	%lT\n", tl);
+ 	if(tr != T)
+-		print("	(%lT)\n", tr);
++		print("	%lT\n", tr);
+ }
+ 
+ /*

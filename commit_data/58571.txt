@@ -29,7 +29,7 @@ Date:   Sat Jul 29 18:25:42 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go   |   4 +-
  src/cmd/compile/internal/arm/galign.go      |   2 +-
  src/cmd/compile/internal/arm/ssa.go         |   4 +-
@@ -51,3 +51,1113 @@ Date:   Sat Jul 29 18:25:42 2023 -0700
  src/runtime/preempt_arm.s                   |  12 +--
  src/runtime/runtime2.go                     |   4 +-
  20 files changed, 209 insertions(+), 149 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index a2de63685c..592d7b4b76 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -372,10 +372,10 @@ func Test386EndToEnd(t *testing.T) {
+ }
+ 
+ func TestARMEndToEnd(t *testing.T) {
+-	defer func(old int) { buildcfg.GOARM = old }(buildcfg.GOARM)
++	defer func(old int) { buildcfg.GOARM.Version = old }(buildcfg.GOARM.Version)
+ 	for _, goarm := range []int{5, 6, 7} {
+ 		t.Logf("GOARM=%d", goarm)
+-		buildcfg.GOARM = goarm
++		buildcfg.GOARM.Version = goarm
+ 		testEndToEnd(t, "arm", "arm")
+ 		if goarm == 6 {
+ 			testEndToEnd(t, "arm", "armv6")
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 23e52bacbf..43d811832e 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -15,7 +15,7 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.LinkArch = &arm.Linkarm
+ 	arch.REGSP = arm.REGSP
+ 	arch.MAXWIDTH = (1 << 32) - 1
+-	arch.SoftFloat = buildcfg.GOARM == 5
++	arch.SoftFloat = buildcfg.GOARM.SoftFloat
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 7fcbb4d024..638ed3ed4e 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -289,7 +289,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.OpARMANDconst, ssa.OpARMBICconst:
+ 		// try to optimize ANDconst and BICconst to BFC, which saves bytes and ticks
+ 		// BFC is only available on ARMv7, and its result and source are in the same register
+-		if buildcfg.GOARM == 7 && v.Reg() == v.Args[0].Reg() {
++		if buildcfg.GOARM.Version == 7 && v.Reg() == v.Args[0].Reg() {
+ 			var val uint32
+ 			if v.Op == ssa.OpARMANDconst {
+ 				val = ^uint32(v.AuxInt)
+@@ -646,7 +646,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			default:
+ 			}
+ 		}
+-		if buildcfg.GOARM >= 6 {
++		if buildcfg.GOARM.Version >= 6 {
+ 			// generate more efficient "MOVB/MOVBU/MOVH/MOVHU Reg@>0, Reg" on ARMv6 & ARMv7
+ 			genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
+ 			return
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM.rules b/src/cmd/compile/internal/ssa/_gen/ARM.rules
+index a60afb000a..ed0ed80afa 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM.rules
+@@ -66,17 +66,17 @@
+ 
+ // count trailing zero for ARMv5 and ARMv6
+ // 32 - CLZ(x&-x - 1)
+-(Ctz32 <t> x) && buildcfg.GOARM<=6 =>
++(Ctz32 <t> x) && buildcfg.GOARM.Version<=6 =>
+ 	(RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
+-(Ctz16 <t> x) && buildcfg.GOARM<=6 =>
++(Ctz16 <t> x) && buildcfg.GOARM.Version<=6 =>
+ 	(RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x10000] x))) [1])))
+-(Ctz8 <t> x) && buildcfg.GOARM<=6 =>
++(Ctz8 <t> x) && buildcfg.GOARM.Version<=6 =>
+ 	(RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x100] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x100] x))) [1])))
+ 
+ // count trailing zero for ARMv7
+-(Ctz32 <t> x) && buildcfg.GOARM==7 => (CLZ <t> (RBIT <t> x))
+-(Ctz16 <t> x) && buildcfg.GOARM==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
+-(Ctz8 <t> x) && buildcfg.GOARM==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
++(Ctz32 <t> x) && buildcfg.GOARM.Version==7 => (CLZ <t> (RBIT <t> x))
++(Ctz16 <t> x) && buildcfg.GOARM.Version==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
++(Ctz8 <t> x) && buildcfg.GOARM.Version==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
+ 
+ // bit length
+ (BitLen32 <t> x) => (RSBconst [32] (CLZ <t> x))
+@@ -90,13 +90,13 @@
+ // t5 = x right rotate 8 bits  -- (d,   a,   b,   c  )
+ // result = t4 ^ t5            -- (d,   c,   b,   a  )
+ // using shifted ops this can be done in 4 instructions.
+-(Bswap32 <t> x) && buildcfg.GOARM==5 =>
++(Bswap32 <t> x) && buildcfg.GOARM.Version==5 =>
+ 	(XOR <t>
+ 		(SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8])
+ 		(SRRconst <t> x [8]))
+ 
+ // byte swap for ARMv6 and above
+-(Bswap32 x) && buildcfg.GOARM>=6 => (REV x)
++(Bswap32 x) && buildcfg.GOARM.Version>=6 => (REV x)
+ 
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB ...) => (AND ...)
+@@ -741,10 +741,10 @@
+ (SUBconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) => (ADDconst [-c] x)
+ (ANDconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c)) => (BICconst [int32(^uint32(c))] x)
+ (BICconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c)) => (ANDconst [int32(^uint32(c))] x)
+-(ADDconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (SUBconst [-c] x)
+-(SUBconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (ADDconst [-c] x)
+-(ANDconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (BICconst [int32(^uint32(c))] x)
+-(BICconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (ANDconst [int32(^uint32(c))] x)
++(ADDconst [c] x) && buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (SUBconst [-c] x)
++(SUBconst [c] x) && buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (ADDconst [-c] x)
++(ANDconst [c] x) && buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (BICconst [int32(^uint32(c))] x)
++(BICconst [c] x) && buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (ANDconst [int32(^uint32(c))] x)
+ (ADDconst [c] (MOVWconst [d])) => (MOVWconst [c+d])
+ (ADDconst [c] (ADDconst [d] x)) => (ADDconst [c+d] x)
+ (ADDconst [c] (SUBconst [d] x)) => (ADDconst [c-d] x)
+@@ -1139,7 +1139,7 @@
+ // UBFX instruction is supported by ARMv6T2, ARMv7 and above versions, REV16 is supported by
+ // ARMv6 and above versions. So for ARMv6, we need to match SLLconst, SRLconst and ORshiftLL.
+ ((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(armBFAuxInt(8, 8))] x) x) => (REV16 x)
+-((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x) && buildcfg.GOARM>=6 => (REV16 x)
++((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x) && buildcfg.GOARM.Version>=6 => (REV16 x)
+ 
+ // use indexed loads and stores
+ (MOVWload [0] {sym} (ADD ptr idx) mem) && sym == nil => (MOVWloadidx ptr idx mem)
+@@ -1209,25 +1209,25 @@
+ (BIC x x) => (MOVWconst [0])
+ 
+ (ADD (MUL x y) a) => (MULA x y a)
+-(SUB a (MUL x y)) && buildcfg.GOARM == 7 => (MULS x y a)
+-(RSB (MUL x y) a) && buildcfg.GOARM == 7 => (MULS x y a)
++(SUB a (MUL x y)) && buildcfg.GOARM.Version == 7 => (MULS x y a)
++(RSB (MUL x y) a) && buildcfg.GOARM.Version == 7 => (MULS x y a)
+ 
+-(NEGF (MULF x y)) && buildcfg.GOARM >= 6 => (NMULF x y)
+-(NEGD (MULD x y)) && buildcfg.GOARM >= 6 => (NMULD x y)
+-(MULF (NEGF x) y) && buildcfg.GOARM >= 6 => (NMULF x y)
+-(MULD (NEGD x) y) && buildcfg.GOARM >= 6 => (NMULD x y)
++(NEGF (MULF x y)) && buildcfg.GOARM.Version >= 6 => (NMULF x y)
++(NEGD (MULD x y)) && buildcfg.GOARM.Version >= 6 => (NMULD x y)
++(MULF (NEGF x) y) && buildcfg.GOARM.Version >= 6 => (NMULF x y)
++(MULD (NEGD x) y) && buildcfg.GOARM.Version >= 6 => (NMULD x y)
+ (NMULF (NEGF x) y) => (MULF x y)
+ (NMULD (NEGD x) y) => (MULD x y)
+ 
+ // the result will overwrite the addend, since they are in the same register
+-(ADDF a (MULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAF a x y)
+-(ADDF a (NMULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSF a x y)
+-(ADDD a (MULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAD a x y)
+-(ADDD a (NMULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSD a x y)
+-(SUBF a (MULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSF a x y)
+-(SUBF a (NMULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAF a x y)
+-(SUBD a (MULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSD a x y)
+-(SUBD a (NMULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAD a x y)
++(ADDF a (MULF x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULAF a x y)
++(ADDF a (NMULF x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULSF a x y)
++(ADDD a (MULD x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULAD a x y)
++(ADDD a (NMULD x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULSD a x y)
++(SUBF a (MULF x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULSF a x y)
++(SUBF a (NMULF x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULAF a x y)
++(SUBD a (MULD x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULSD a x y)
++(SUBD a (NMULD x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULAD a x y)
+ 
+ (AND x (MVN y)) => (BIC x y)
+ 
+@@ -1259,8 +1259,8 @@
+ (CMPD x (MOVDconst [0])) => (CMPD0 x)
+ 
+ // bit extraction
+-(SRAconst (SLLconst x [c]) [d]) && buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFX [(d-c)|(32-d)<<8] x)
+-(SRLconst (SLLconst x [c]) [d]) && buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFXU [(d-c)|(32-d)<<8] x)
++(SRAconst (SLLconst x [c]) [d]) && buildcfg.GOARM.Version==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFX [(d-c)|(32-d)<<8] x)
++(SRLconst (SLLconst x [c]) [d]) && buildcfg.GOARM.Version==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFXU [(d-c)|(32-d)<<8] x)
+ 
+ // comparison simplification
+ ((EQ|NE) (CMP x (RSBconst [0] y))) => ((EQ|NE) (CMN x y)) // sense of carry bit not preserved; see also #50854
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 70cacb90ed..971c9a5d55 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -1496,7 +1496,7 @@ func rewriteValueARM_OpARMADDD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (ADDD a (MULD x y))
+-	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM.Version >= 6
+ 	// result: (MULAD a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1506,7 +1506,7 @@ func rewriteValueARM_OpARMADDD(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
+-			if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
++			if !(a.Uses == 1 && buildcfg.GOARM.Version >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMMULAD)
+@@ -1516,7 +1516,7 @@ func rewriteValueARM_OpARMADDD(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (ADDD a (NMULD x y))
+-	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM.Version >= 6
+ 	// result: (MULSD a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1526,7 +1526,7 @@ func rewriteValueARM_OpARMADDD(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
+-			if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
++			if !(a.Uses == 1 && buildcfg.GOARM.Version >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMMULSD)
+@@ -1541,7 +1541,7 @@ func rewriteValueARM_OpARMADDF(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (ADDF a (MULF x y))
+-	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM.Version >= 6
+ 	// result: (MULAF a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1551,7 +1551,7 @@ func rewriteValueARM_OpARMADDF(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
+-			if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
++			if !(a.Uses == 1 && buildcfg.GOARM.Version >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMMULAF)
+@@ -1561,7 +1561,7 @@ func rewriteValueARM_OpARMADDF(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (ADDF a (NMULF x y))
+-	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM.Version >= 6
+ 	// result: (MULSF a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1571,7 +1571,7 @@ func rewriteValueARM_OpARMADDF(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
+-			if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
++			if !(a.Uses == 1 && buildcfg.GOARM.Version >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMMULSF)
+@@ -1979,12 +1979,12 @@ func rewriteValueARM_OpARMADDconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (ADDconst [c] x)
+-	// cond: buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
++	// cond: buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
+ 	// result: (SUBconst [-c] x)
+ 	for {
+ 		c := auxIntToInt32(v.AuxInt)
+ 		x := v_0
+-		if !(buildcfg.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
++		if !(buildcfg.GOARM.Version == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
+ 			break
+ 		}
+ 		v.reset(OpARMSUBconst)
+@@ -2099,7 +2099,7 @@ func rewriteValueARM_OpARMADDshiftLL(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (ADDshiftLL <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x)
+-	// cond: buildcfg.GOARM>=6
++	// cond: buildcfg.GOARM.Version>=6
+ 	// result: (REV16 x)
+ 	for {
+ 		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != 24 {
+@@ -2110,7 +2110,7 @@ func rewriteValueARM_OpARMADDshiftLL(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0_0.Args[0]
+-		if x != v_1 || !(buildcfg.GOARM >= 6) {
++		if x != v_1 || !(buildcfg.GOARM.Version >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMREV16)
+@@ -2551,12 +2551,12 @@ func rewriteValueARM_OpARMANDconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (ANDconst [c] x)
+-	// cond: buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
++	// cond: buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
+ 	// result: (BICconst [int32(^uint32(c))] x)
+ 	for {
+ 		c := auxIntToInt32(v.AuxInt)
+ 		x := v_0
+-		if !(buildcfg.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
++		if !(buildcfg.GOARM.Version == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
+ 			break
+ 		}
+ 		v.reset(OpARMBICconst)
+@@ -3052,12 +3052,12 @@ func rewriteValueARM_OpARMBICconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (BICconst [c] x)
+-	// cond: buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
++	// cond: buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
+ 	// result: (ANDconst [int32(^uint32(c))] x)
+ 	for {
+ 		c := auxIntToInt32(v.AuxInt)
+ 		x := v_0
+-		if !(buildcfg.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
++		if !(buildcfg.GOARM.Version == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
+ 			break
+ 		}
+ 		v.reset(OpARMANDconst)
+@@ -7590,7 +7590,7 @@ func rewriteValueARM_OpARMMULD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (MULD (NEGD x) y)
+-	// cond: buildcfg.GOARM >= 6
++	// cond: buildcfg.GOARM.Version >= 6
+ 	// result: (NMULD x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -7599,7 +7599,7 @@ func rewriteValueARM_OpARMMULD(v *Value) bool {
+ 			}
+ 			x := v_0.Args[0]
+ 			y := v_1
+-			if !(buildcfg.GOARM >= 6) {
++			if !(buildcfg.GOARM.Version >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMNMULD)
+@@ -7614,7 +7614,7 @@ func rewriteValueARM_OpARMMULF(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (MULF (NEGF x) y)
+-	// cond: buildcfg.GOARM >= 6
++	// cond: buildcfg.GOARM.Version >= 6
+ 	// result: (NMULF x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -7623,7 +7623,7 @@ func rewriteValueARM_OpARMMULF(v *Value) bool {
+ 			}
+ 			x := v_0.Args[0]
+ 			y := v_1
+-			if !(buildcfg.GOARM >= 6) {
++			if !(buildcfg.GOARM.Version >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMNMULF)
+@@ -8247,7 +8247,7 @@ func rewriteValueARM_OpARMMVNshiftRLreg(v *Value) bool {
+ func rewriteValueARM_OpARMNEGD(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (NEGD (MULD x y))
+-	// cond: buildcfg.GOARM >= 6
++	// cond: buildcfg.GOARM.Version >= 6
+ 	// result: (NMULD x y)
+ 	for {
+ 		if v_0.Op != OpARMMULD {
+@@ -8255,7 +8255,7 @@ func rewriteValueARM_OpARMNEGD(v *Value) bool {
+ 		}
+ 		y := v_0.Args[1]
+ 		x := v_0.Args[0]
+-		if !(buildcfg.GOARM >= 6) {
++		if !(buildcfg.GOARM.Version >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMNMULD)
+@@ -8267,7 +8267,7 @@ func rewriteValueARM_OpARMNEGD(v *Value) bool {
+ func rewriteValueARM_OpARMNEGF(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (NEGF (MULF x y))
+-	// cond: buildcfg.GOARM >= 6
++	// cond: buildcfg.GOARM.Version >= 6
+ 	// result: (NMULF x y)
+ 	for {
+ 		if v_0.Op != OpARMMULF {
+@@ -8275,7 +8275,7 @@ func rewriteValueARM_OpARMNEGF(v *Value) bool {
+ 		}
+ 		y := v_0.Args[1]
+ 		x := v_0.Args[0]
+-		if !(buildcfg.GOARM >= 6) {
++		if !(buildcfg.GOARM.Version >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMNMULF)
+@@ -8583,7 +8583,7 @@ func rewriteValueARM_OpARMORshiftLL(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (ORshiftLL <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x)
+-	// cond: buildcfg.GOARM>=6
++	// cond: buildcfg.GOARM.Version>=6
+ 	// result: (REV16 x)
+ 	for {
+ 		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != 24 {
+@@ -8594,7 +8594,7 @@ func rewriteValueARM_OpARMORshiftLL(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0_0.Args[0]
+-		if x != v_1 || !(buildcfg.GOARM >= 6) {
++		if x != v_1 || !(buildcfg.GOARM.Version >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMREV16)
+@@ -9048,7 +9048,7 @@ func rewriteValueARM_OpARMRSB(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (RSB (MUL x y) a)
+-	// cond: buildcfg.GOARM == 7
++	// cond: buildcfg.GOARM.Version == 7
+ 	// result: (MULS x y a)
+ 	for {
+ 		if v_0.Op != OpARMMUL {
+@@ -9057,7 +9057,7 @@ func rewriteValueARM_OpARMRSB(v *Value) bool {
+ 		y := v_0.Args[1]
+ 		x := v_0.Args[0]
+ 		a := v_1
+-		if !(buildcfg.GOARM == 7) {
++		if !(buildcfg.GOARM.Version == 7) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULS)
+@@ -10534,7 +10534,7 @@ func rewriteValueARM_OpARMSRAconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SRAconst (SLLconst x [c]) [d])
+-	// cond: buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31
++	// cond: buildcfg.GOARM.Version==7 && uint64(d)>=uint64(c) && uint64(d)<=31
+ 	// result: (BFX [(d-c)|(32-d)<<8] x)
+ 	for {
+ 		d := auxIntToInt32(v.AuxInt)
+@@ -10543,7 +10543,7 @@ func rewriteValueARM_OpARMSRAconst(v *Value) bool {
+ 		}
+ 		c := auxIntToInt32(v_0.AuxInt)
+ 		x := v_0.Args[0]
+-		if !(buildcfg.GOARM == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
++		if !(buildcfg.GOARM.Version == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
+ 			break
+ 		}
+ 		v.reset(OpARMBFX)
+@@ -10590,7 +10590,7 @@ func rewriteValueARM_OpARMSRLconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SRLconst (SLLconst x [c]) [d])
+-	// cond: buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31
++	// cond: buildcfg.GOARM.Version==7 && uint64(d)>=uint64(c) && uint64(d)<=31
+ 	// result: (BFXU [(d-c)|(32-d)<<8] x)
+ 	for {
+ 		d := auxIntToInt32(v.AuxInt)
+@@ -10599,7 +10599,7 @@ func rewriteValueARM_OpARMSRLconst(v *Value) bool {
+ 		}
+ 		c := auxIntToInt32(v_0.AuxInt)
+ 		x := v_0.Args[0]
+-		if !(buildcfg.GOARM == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
++		if !(buildcfg.GOARM.Version == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
+ 			break
+ 		}
+ 		v.reset(OpARMBFXU)
+@@ -10830,7 +10830,7 @@ func rewriteValueARM_OpARMSUB(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SUB a (MUL x y))
+-	// cond: buildcfg.GOARM == 7
++	// cond: buildcfg.GOARM.Version == 7
+ 	// result: (MULS x y a)
+ 	for {
+ 		a := v_0
+@@ -10839,7 +10839,7 @@ func rewriteValueARM_OpARMSUB(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
+-		if !(buildcfg.GOARM == 7) {
++		if !(buildcfg.GOARM.Version == 7) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULS)
+@@ -10852,7 +10852,7 @@ func rewriteValueARM_OpARMSUBD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (SUBD a (MULD x y))
+-	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM.Version >= 6
+ 	// result: (MULSD a x y)
+ 	for {
+ 		a := v_0
+@@ -10861,7 +10861,7 @@ func rewriteValueARM_OpARMSUBD(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
+-		if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
++		if !(a.Uses == 1 && buildcfg.GOARM.Version >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULSD)
+@@ -10869,7 +10869,7 @@ func rewriteValueARM_OpARMSUBD(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SUBD a (NMULD x y))
+-	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM.Version >= 6
+ 	// result: (MULAD a x y)
+ 	for {
+ 		a := v_0
+@@ -10878,7 +10878,7 @@ func rewriteValueARM_OpARMSUBD(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
+-		if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
++		if !(a.Uses == 1 && buildcfg.GOARM.Version >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULAD)
+@@ -10891,7 +10891,7 @@ func rewriteValueARM_OpARMSUBF(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (SUBF a (MULF x y))
+-	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM.Version >= 6
+ 	// result: (MULSF a x y)
+ 	for {
+ 		a := v_0
+@@ -10900,7 +10900,7 @@ func rewriteValueARM_OpARMSUBF(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
+-		if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
++		if !(a.Uses == 1 && buildcfg.GOARM.Version >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULSF)
+@@ -10908,7 +10908,7 @@ func rewriteValueARM_OpARMSUBF(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SUBF a (NMULF x y))
+-	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM.Version >= 6
+ 	// result: (MULAF a x y)
+ 	for {
+ 		a := v_0
+@@ -10917,7 +10917,7 @@ func rewriteValueARM_OpARMSUBF(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
+-		if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
++		if !(a.Uses == 1 && buildcfg.GOARM.Version >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULAF)
+@@ -11383,12 +11383,12 @@ func rewriteValueARM_OpARMSUBconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SUBconst [c] x)
+-	// cond: buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
++	// cond: buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
+ 	// result: (ADDconst [-c] x)
+ 	for {
+ 		c := auxIntToInt32(v.AuxInt)
+ 		x := v_0
+-		if !(buildcfg.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
++		if !(buildcfg.GOARM.Version == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
+ 			break
+ 		}
+ 		v.reset(OpARMADDconst)
+@@ -12710,7 +12710,7 @@ func rewriteValueARM_OpARMXORshiftLL(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (XORshiftLL <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x)
+-	// cond: buildcfg.GOARM>=6
++	// cond: buildcfg.GOARM.Version>=6
+ 	// result: (REV16 x)
+ 	for {
+ 		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != 24 {
+@@ -12721,7 +12721,7 @@ func rewriteValueARM_OpARMXORshiftLL(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0_0.Args[0]
+-		if x != v_1 || !(buildcfg.GOARM >= 6) {
++		if x != v_1 || !(buildcfg.GOARM.Version >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMREV16)
+@@ -13062,12 +13062,12 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (Bswap32 <t> x)
+-	// cond: buildcfg.GOARM==5
++	// cond: buildcfg.GOARM.Version==5
+ 	// result: (XOR <t> (SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8]) (SRRconst <t> x [8]))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(buildcfg.GOARM == 5) {
++		if !(buildcfg.GOARM.Version == 5) {
+ 			break
+ 		}
+ 		v.reset(OpARMXOR)
+@@ -13090,11 +13090,11 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Bswap32 x)
+-	// cond: buildcfg.GOARM>=6
++	// cond: buildcfg.GOARM.Version>=6
+ 	// result: (REV x)
+ 	for {
+ 		x := v_0
+-		if !(buildcfg.GOARM >= 6) {
++		if !(buildcfg.GOARM.Version >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMREV)
+@@ -13177,12 +13177,12 @@ func rewriteValueARM_OpCtz16(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz16 <t> x)
+-	// cond: buildcfg.GOARM<=6
++	// cond: buildcfg.GOARM.Version<=6
+ 	// result: (RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x10000] x))) [1])))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(buildcfg.GOARM <= 6) {
++		if !(buildcfg.GOARM.Version <= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMRSBconst)
+@@ -13204,12 +13204,12 @@ func rewriteValueARM_OpCtz16(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Ctz16 <t> x)
+-	// cond: buildcfg.GOARM==7
++	// cond: buildcfg.GOARM.Version==7
+ 	// result: (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(buildcfg.GOARM == 7) {
++		if !(buildcfg.GOARM.Version == 7) {
+ 			break
+ 		}
+ 		v.reset(OpARMCLZ)
+@@ -13228,12 +13228,12 @@ func rewriteValueARM_OpCtz32(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (Ctz32 <t> x)
+-	// cond: buildcfg.GOARM<=6
++	// cond: buildcfg.GOARM.Version<=6
+ 	// result: (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(buildcfg.GOARM <= 6) {
++		if !(buildcfg.GOARM.Version <= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMRSBconst)
+@@ -13252,12 +13252,12 @@ func rewriteValueARM_OpCtz32(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Ctz32 <t> x)
+-	// cond: buildcfg.GOARM==7
++	// cond: buildcfg.GOARM.Version==7
+ 	// result: (CLZ <t> (RBIT <t> x))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(buildcfg.GOARM == 7) {
++		if !(buildcfg.GOARM.Version == 7) {
+ 			break
+ 		}
+ 		v.reset(OpARMCLZ)
+@@ -13274,12 +13274,12 @@ func rewriteValueARM_OpCtz8(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz8 <t> x)
+-	// cond: buildcfg.GOARM<=6
++	// cond: buildcfg.GOARM.Version<=6
+ 	// result: (RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x100] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x100] x))) [1])))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(buildcfg.GOARM <= 6) {
++		if !(buildcfg.GOARM.Version <= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMRSBconst)
+@@ -13301,12 +13301,12 @@ func rewriteValueARM_OpCtz8(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Ctz8 <t> x)
+-	// cond: buildcfg.GOARM==7
++	// cond: buildcfg.GOARM.Version==7
+ 	// result: (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(buildcfg.GOARM == 7) {
++		if !(buildcfg.GOARM.Version == 7) {
+ 			break
+ 		}
+ 		v.reset(OpARMCLZ)
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a5148ad486..a40d0556ff 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2285,6 +2285,8 @@
+ //	GOARM
+ //		For GOARCH=arm, the ARM architecture for which to compile.
+ //		Valid values are 5, 6, 7.
++//		The value can be followed by an option specifying how to implement floating point instructions.
++//		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
+ //	GO386
+ //		For GOARCH=386, how to implement floating point instructions.
+ //		Valid values are sse2 (default), softfloat.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 93613ac65e..c5d1e2af16 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -601,6 +601,8 @@ Architecture-specific environment variables:
+ 	GOARM
+ 		For GOARCH=arm, the ARM architecture for which to compile.
+ 		Valid values are 5, 6, 7.
++		The value can be followed by an option specifying how to implement floating point instructions.
++		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
+ 	GO386
+ 		For GOARCH=386, how to implement floating point instructions.
+ 		Valid values are sse2 (default), softfloat.
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 177ffd9797..24b9bdd980 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -979,7 +979,7 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
+ 			if immrot(^uint32(c.instoffset)) != 0 {
+ 				return C_NCON
+ 			}
+-			if uint32(c.instoffset) <= 0xffff && buildcfg.GOARM == 7 {
++			if uint32(c.instoffset) <= 0xffff && buildcfg.GOARM.Version == 7 {
+ 				return C_SCON
+ 			}
+ 			if x, y := immrot2a(uint32(c.instoffset)); x != 0 && y != 0 {
+@@ -3044,16 +3044,16 @@ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ }
+ 
+ func (c *ctxt5) chipzero5(e float64) int {
+-	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+-	if buildcfg.GOARM < 7 || math.Float64bits(e) != 0 {
++	// We use GOARM.Version=7 and !GOARM.SoftFloat to gate the use of VFPv3 vmov (imm) instructions.
++	if buildcfg.GOARM.Version < 7 || buildcfg.GOARM.SoftFloat || math.Float64bits(e) != 0 {
+ 		return -1
+ 	}
+ 	return 0
+ }
+ 
+ func (c *ctxt5) chipfloat5(e float64) int {
+-	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+-	if buildcfg.GOARM < 7 {
++	// We use GOARM.Version=7 and !GOARM.SoftFloat to gate the use of VFPv3 vmov (imm) instructions.
++	if buildcfg.GOARM.Version < 7 || buildcfg.GOARM.SoftFloat {
+ 		return -1
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index fb7c260f89..def4f526ad 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -66,7 +66,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())
+ 			}
+ 
+-			if buildcfg.GOARM < 7 {
++			if buildcfg.GOARM.Version < 7 {
+ 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
+ 				if progedit_tlsfallback == nil {
+ 					progedit_tlsfallback = ctxt.Lookup("runtime.read_tls_fallback")
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 1b91dbe3ce..0fb56e6c78 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -1458,7 +1458,7 @@ var (
+ 	archVariants = map[string][]string{
+ 		"386":     {"GO386", "sse2", "softfloat"},
+ 		"amd64":   {"GOAMD64", "v1", "v2", "v3", "v4"},
+-		"arm":     {"GOARM", "5", "6", "7"},
++		"arm":     {"GOARM", "5", "6", "7", "7,softfloat"},
+ 		"arm64":   {},
+ 		"loong64": {},
+ 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b603fba6c7..eab74dc328 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -878,7 +878,17 @@ func (ctxt *Link) linksetup() {
+ 			sb := ctxt.loader.MakeSymbolUpdater(goarm)
+ 			sb.SetType(sym.SDATA)
+ 			sb.SetSize(0)
+-			sb.AddUint8(uint8(buildcfg.GOARM))
++			sb.AddUint8(uint8(buildcfg.GOARM.Version))
++
++			goarmsoftfp := ctxt.loader.LookupOrCreateSym("runtime.goarmsoftfp", 0)
++			sb2 := ctxt.loader.MakeSymbolUpdater(goarmsoftfp)
++			sb2.SetType(sym.SDATA)
++			sb2.SetSize(0)
++			if buildcfg.GOARM.SoftFloat {
++				sb2.AddUint8(1)
++			} else {
++				sb2.AddUint8(0)
++			}
+ 		}
+ 
+ 		// Set runtime.disableMemoryProfiling bool if
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index b97b9c1b53..8b97a653d7 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -69,22 +69,61 @@ func goamd64() int {
+ 	return int(defaultGOAMD64[len("v")] - '0')
+ }
+ 
+-func goarm() int {
++type goarmFeatures struct {
++	Version   int
++	SoftFloat bool
++}
++
++func (g goarmFeatures) String() string {
++	armStr := strconv.Itoa(g.Version)
++	if g.SoftFloat {
++		armStr += ",softfloat"
++	} else {
++		armStr += ",hardfloat"
++	}
++	return armStr
++}
++
++func goarm() (g goarmFeatures) {
++	const (
++		softFloatOpt = ",softfloat"
++		hardFloatOpt = ",hardfloat"
++	)
+ 	def := defaultGOARM
+ 	if GOOS == "android" && GOARCH == "arm" {
+ 		// Android arm devices always support GOARM=7.
+ 		def = "7"
+ 	}
+-	switch v := envOr("GOARM", def); v {
++	v := envOr("GOARM", def)
++
++	floatSpecified := false
++	if strings.HasSuffix(v, softFloatOpt) {
++		g.SoftFloat = true
++		floatSpecified = true
++		v = v[:len(v)-len(softFloatOpt)]
++	}
++	if strings.HasSuffix(v, hardFloatOpt) {
++		floatSpecified = true
++		v = v[:len(v)-len(hardFloatOpt)]
++	}
++
++	switch v {
+ 	case "5":
+-		return 5
++		g.Version = 5
+ 	case "6":
+-		return 6
++		g.Version = 6
+ 	case "7":
+-		return 7
++		g.Version = 7
++	default:
++		Error = fmt.Errorf("invalid GOARM: must start with 5, 6, or 7, and may optionally end in either %q or %q", hardFloatOpt, softFloatOpt)
++		g.Version = int(def[0] - '0')
+ 	}
+-	Error = fmt.Errorf("invalid GOARM: must be 5, 6, 7")
+-	return int(def[0] - '0')
++
++	// 5 defaults to softfloat. 6 and 7 default to hardfloat.
++	if !floatSpecified && g.Version == 5 {
++		g.SoftFloat = true
++	}
++	return
+ }
+ 
+ func gomips() string {
+@@ -182,7 +221,7 @@ func GOGOARCH() (name, value string) {
+ 	case "amd64":
+ 		return "GOAMD64", fmt.Sprintf("v%d", GOAMD64)
+ 	case "arm":
+-		return "GOARM", strconv.Itoa(GOARM)
++		return "GOARM", GOARM.String()
+ 	case "mips", "mipsle":
+ 		return "GOMIPS", GOMIPS
+ 	case "mips64", "mips64le":
+@@ -207,7 +246,7 @@ func gogoarchTags() []string {
+ 		return list
+ 	case "arm":
+ 		var list []string
+-		for i := 5; i <= GOARM; i++ {
++		for i := 5; i <= GOARM.Version; i++ {
+ 			list = append(list, fmt.Sprintf("%s.%d", GOARCH, i))
+ 		}
+ 		return list
+diff --git a/src/math/rand/rand_test.go b/src/math/rand/rand_test.go
+index 4ad2ae2230..9f074fea00 100644
+--- a/src/math/rand/rand_test.go
++++ b/src/math/rand/rand_test.go
+@@ -14,6 +14,7 @@ import (
+ 	. "math/rand"
+ 	"os"
+ 	"runtime"
++	"strings"
+ 	"sync"
+ 	"testing"
+ 	"testing/iotest"
+@@ -331,7 +332,7 @@ func TestExpTables(t *testing.T) {
+ func hasSlowFloatingPoint() bool {
+ 	switch runtime.GOARCH {
+ 	case "arm":
+-		return os.Getenv("GOARM") == "5"
++		return os.Getenv("GOARM") == "5" || strings.HasSuffix(os.Getenv("GOARM"), ",softfloat")
+ 	case "mips", "mipsle", "mips64", "mips64le":
+ 		// Be conservative and assume that all mips boards
+ 		// have emulated floating point.
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index e3206a1d27..31a0584fb5 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -39,10 +39,10 @@ TEXT _rt0_arm_lib(SB),NOSPLIT,$104
+ 	MOVW	g, 32(R13)
+ 	MOVW	R11, 36(R13)
+ 
+-	// Skip floating point registers on GOARM < 6.
+-	MOVB    runtime·goarm(SB), R11
+-	CMP	$6, R11
+-	BLT	skipfpsave
++	// Skip floating point registers on goarmsoftfp != 0.
++	MOVB    runtime·goarmsoftfp(SB), R11
++	CMP	$0, R11
++	BNE     skipfpsave
+ 	MOVD	F8, (40+8*0)(R13)
+ 	MOVD	F9, (40+8*1)(R13)
+ 	MOVD	F10, (40+8*2)(R13)
+@@ -77,9 +77,9 @@ nocgo:
+ 	BL	runtime·newosproc0(SB)
+ rr:
+ 	// Restore callee-save registers and return.
+-	MOVB    runtime·goarm(SB), R11
+-	CMP	$6, R11
+-	BLT	skipfprest
++	MOVB    runtime·goarmsoftfp(SB), R11
++	CMP     $0, R11
++	BNE     skipfprest
+ 	MOVD	(40+8*0)(R13), F8
+ 	MOVD	(40+8*1)(R13), F9
+ 	MOVD	(40+8*2)(R13), F10
+@@ -197,10 +197,10 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
+ 	RET
+ 
+ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+-	// disable runfast (flush-to-zero) mode of vfp if runtime.goarm > 5
+-	MOVB	runtime·goarm(SB), R11
+-	CMP	$5, R11
+-	BLE	4(PC)
++	// disable runfast (flush-to-zero) mode of vfp if runtime.goarmsoftfp == 0
++	MOVB	runtime·goarmsoftfp(SB), R11
++	CMP	$0, R11
++	BNE	4(PC)
+ 	WORD	$0xeef1ba10	// vmrs r11, fpscr
+ 	BIC	$(1<<24), R11
+ 	WORD	$0xeee1ba10	// vmsr fpscr, r11
+diff --git a/src/runtime/cgo/asm_arm.s b/src/runtime/cgo/asm_arm.s
+index 095e9c06c9..425899ebe5 100644
+--- a/src/runtime/cgo/asm_arm.s
++++ b/src/runtime/cgo/asm_arm.s
+@@ -32,10 +32,10 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	// starting at 4(R13).
+ 	MOVW.W	R14, -4(R13)
+ 
+-	// Skip floating point registers on GOARM < 6.
+-	MOVB    runtime·goarm(SB), R11
+-	CMP $6, R11
+-	BLT skipfpsave
++	// Skip floating point registers if goarmsoftfp!=0.
++	MOVB    runtime·goarmsoftfp(SB), R11
++	CMP     $0, R11
++	BNE     skipfpsave
+ 	MOVD	F8, (13*4+8*1)(R13)
+ 	MOVD	F9, (13*4+8*2)(R13)
+ 	MOVD	F10, (13*4+8*3)(R13)
+@@ -50,9 +50,9 @@ skipfpsave:
+ 	// We set up the arguments to cgocallback when saving registers above.
+ 	BL	runtime·cgocallback(SB)
+ 
+-	MOVB    runtime·goarm(SB), R11
+-	CMP $6, R11
+-	BLT skipfprest
++	MOVB    runtime·goarmsoftfp(SB), R11
++	CMP     $0, R11
++	BNE     skipfprest
+ 	MOVD	(13*4+8*1)(R13), F8
+ 	MOVD	(13*4+8*2)(R13), F9
+ 	MOVD	(13*4+8*3)(R13), F10
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index a96ae59c15..17544d6b21 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -317,11 +317,11 @@ func genARM() {
+ 
+ 	p("MOVW.W R14, -%d(R13)", lfp.stack) // allocate frame, save LR
+ 	l.save()
+-	p("MOVB ·goarm(SB), R0\nCMP $6, R0\nBLT nofp") // test goarm, and skip FP registers if goarm=5.
++	p("MOVB ·goarmsoftfp(SB), R0\nCMP $0, R0\nBNE nofp") // test goarmsoftfp, and skip FP registers if goarmsoftfp!=0.
+ 	lfp.save()
+ 	label("nofp:")
+ 	p("CALL ·asyncPreempt2(SB)")
+-	p("MOVB ·goarm(SB), R0\nCMP $6, R0\nBLT nofp2") // test goarm, and skip FP registers if goarm=5.
++	p("MOVB ·goarmsoftfp(SB), R0\nCMP $0, R0\nBNE nofp2") // test goarmsoftfp, and skip FP registers if goarmsoftfp!=0.
+ 	lfp.restore()
+ 	label("nofp2:")
+ 	l.restore()
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index df8c709b8f..ae80119fe1 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -15,14 +15,16 @@ const (
+ )
+ 
+ func checkgoarm() {
+-	if goarm > 5 && cpu.HWCap&_HWCAP_VFP == 0 {
++	if cpu.HWCap&_HWCAP_VFP == 0 && goarmsoftfp == 0 {
+ 		print("runtime: this CPU has no floating point hardware, so it cannot run\n")
+-		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
++		print("a binary compiled for hard floating point. Recompile adding ,softfloat\n")
++		print("to GOARM.\n")
+ 		exit(1)
+ 	}
+-	if goarm > 6 && cpu.HWCap&_HWCAP_VFPv3 == 0 {
++	if goarm > 6 && cpu.HWCap&_HWCAP_VFPv3 == 0 && goarmsoftfp == 0 {
+ 		print("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n")
+-		print("this GOARM=", goarm, " binary. Recompile using GOARM=5 or GOARM=6.\n")
++		print("a binary compiled for VFPv3 hard floating point. Recompile adding ,softfloat\n")
++		print("to GOARM or changing GOARM to 6.\n")
+ 		exit(1)
+ 	}
+ 
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index 6e0c729855..b9779159ad 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -23,14 +23,16 @@ func checkgoarm() {
+ 	if GOOS == "android" {
+ 		return
+ 	}
+-	if goarm > 5 && cpu.HWCap&_HWCAP_VFP == 0 {
++	if cpu.HWCap&_HWCAP_VFP == 0 && goarmsoftfp == 0 {
+ 		print("runtime: this CPU has no floating point hardware, so it cannot run\n")
+-		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
++		print("a binary compiled for hard floating point. Recompile adding ,softfloat\n")
++		print("to GOARM.\n")
+ 		exit(1)
+ 	}
+-	if goarm > 6 && cpu.HWCap&_HWCAP_VFPv3 == 0 {
++	if goarm > 6 && cpu.HWCap&_HWCAP_VFPv3 == 0 && goarmsoftfp == 0 {
+ 		print("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n")
+-		print("this GOARM=", goarm, " binary. Recompile using GOARM=5 or GOARM=6.\n")
++		print("a binary compiled for VFPv3 hard floating point. Recompile adding ,softfloat\n")
++		print("to GOARM or changing GOARM to 6.\n")
+ 		exit(1)
+ 	}
+ }
+diff --git a/src/runtime/preempt_arm.s b/src/runtime/preempt_arm.s
+index 8f243c0dcd..b68df5d6b1 100644
+--- a/src/runtime/preempt_arm.s
++++ b/src/runtime/preempt_arm.s
+@@ -19,9 +19,9 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW R12, 48(R13)
+ 	MOVW CPSR, R0
+ 	MOVW R0, 52(R13)
+-	MOVB ·goarm(SB), R0
+-	CMP $6, R0
+-	BLT nofp
++	MOVB ·goarmsoftfp(SB), R0
++	CMP $0, R0
++	BNE nofp
+ 	MOVW FPCR, R0
+ 	MOVW R0, 56(R13)
+ 	MOVD F0, 60(R13)
+@@ -42,9 +42,9 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD F15, 180(R13)
+ nofp:
+ 	CALL ·asyncPreempt2(SB)
+-	MOVB ·goarm(SB), R0
+-	CMP $6, R0
+-	BLT nofp2
++	MOVB ·goarmsoftfp(SB), R0
++	CMP $0, R0
++	BNE nofp2
+ 	MOVD 180(R13), F15
+ 	MOVD 172(R13), F14
+ 	MOVD 164(R13), F13
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e64c3c5695..fb283a3ab4 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1230,7 +1230,9 @@ var (
+ 	processorVersionInfo uint32
+ 	isIntel              bool
+ 
+-	goarm uint8 // set by cmd/link on arm systems
++	// set by cmd/link on arm systems
++	goarm       uint8
++	goarmsoftfp uint8
+ )
+ 
+ // Set by the linker so the runtime can determine the buildmode.

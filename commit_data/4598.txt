@@ -10,7 +10,75 @@ Date:   Wed Jan 13 13:09:33 2010 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/186137
-
+---
  lib/godoc/dirlist.html |  2 +-
  src/cmd/godoc/godoc.go | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/lib/godoc/dirlist.html b/lib/godoc/dirlist.html
+index c1f24d758d..b35da55d8d 100644
+--- a/lib/godoc/dirlist.html
++++ b/lib/godoc/dirlist.html
+@@ -18,7 +18,7 @@
+ </tr>
+ {.repeated section @}
+ <tr>
+-	<td align="left"><a href="{Name|html}">{Name|html}</a></td>
++	<td align="left"><a href="{Name|html}{@|dir/}">{Name|html}{@|dir/}</a></td>
+ 	<td></td>
+ 	<td align="right">{Size|html}</td>
+ 	<td></td>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 09b110caba..b590cd2971 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -694,6 +694,14 @@ func timeFmt(w io.Writer, x interface{}, format string) {
+ }
+ 
+ 
++// Template formatter for "dir/" format.
++func dirslashFmt(w io.Writer, x interface{}, format string) {
++	if x.(*os.Dir).IsDirectory() {
++		w.Write([]byte{'/'})
++	}
++}
++
++
+ var fmap = template.FormatterMap{
+ 	"": textFmt,
+ 	"html": htmlFmt,
+@@ -705,6 +713,7 @@ var fmap = template.FormatterMap{
+ 	"infoSnippet": infoSnippetFmt,
+ 	"padding": paddingFmt,
+ 	"time": timeFmt,
++	"dir/": dirslashFmt,
+ }
+ 
+ 
+@@ -802,6 +811,13 @@ func serveHTMLDoc(c *http.Conn, r *http.Request, path string) {
+ 		return
+ 	}
+ 
++	// if it begins with "<!DOCTYPE " assume it is standalone
++	// html that doesn't need the template wrapping.
++	if bytes.HasPrefix(src, strings.Bytes("<!DOCTYPE ")) {
++		c.Write(src)
++		return
++	}
++
+ 	// if it's the language spec, add tags to EBNF productions
+ 	if strings.HasSuffix(path, "go_spec.html") {
+ 		var buf bytes.Buffer
+@@ -917,6 +933,12 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
+ 		return
+ 	}
+ 
++	for _, d := range list {
++		if d.IsDirectory() {
++			d.Size = 0
++		}
++	}
++
+ 	var buf bytes.Buffer
+ 	if err := dirlistHTML.Execute(list, &buf); err != nil {
+ 		log.Stderrf("dirlistHTML.Execute: %s", err)

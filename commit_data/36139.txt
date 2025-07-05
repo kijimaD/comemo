@@ -11,6 +11,20 @@ Date:   Mon Mar 26 17:45:01 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sema.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index d5ea14d46d..e7824d0d88 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -507,7 +507,7 @@ func notifyListWait(l *notifyList, t uint32) {
+ 		l.tail.next = s
+ 	}
+ 	l.tail = s
+-	goparkunlock(&l.lock, "semacquire", traceEvGoBlockCond, 3)
++	goparkunlock(&l.lock, "sync.Cond.Wait", traceEvGoBlockCond, 3)
+ 	if t0 != 0 {
+ 		blockevent(s.releasetime-t0, 2)
+ 	}

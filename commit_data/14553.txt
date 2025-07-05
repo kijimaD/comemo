@@ -9,8 +9,55 @@ Date:   Tue Dec 4 07:09:01 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6872055
-
+---
  src/pkg/net/http/request.go      |  1 +
  src/pkg/net/http/request_test.go | 10 ++++++++++
  src/pkg/net/url/url.go           |  2 +-
  3 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index b9d6289793..0b6e6cbab5 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -124,6 +124,7 @@ type Request struct {
+ 	// The host on which the URL is sought.
+ 	// Per RFC 2616, this is either the value of the Host: header
+ 	// or the host name given in the URL itself.
++	// It may be of the form "host:port".
+ 	Host string
+ 
+ 	// Form contains the parsed form data, including both the URL
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index c0b738c6e6..2f34d12412 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -228,6 +228,16 @@ func TestReadRequestErrors(t *testing.T) {
+ 	}
+ }
+ 
++func TestNewRequestHost(t *testing.T) {
++	req, err := NewRequest("GET", "http://localhost:1234/", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if req.Host != "localhost:1234" {
++		t.Errorf("Host = %q; want localhost:1234", req.Host)
++	}
++}
++
+ func testMissingFile(t *testing.T, req *Request) {
+ 	f, fh, err := req.FormFile("missing")
+ 	if f != nil {
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index d1fff89da7..692a7fdc04 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -224,7 +224,7 @@ type URL struct {
+ 	Scheme   string
+ 	Opaque   string    // encoded opaque data
+ 	User     *Userinfo // username and password information
+-	Host     string
++	Host     string    // host or host:port
+ 	Path     string
+ 	RawQuery string // encoded query values, without '?'
+ 	Fragment string // fragment for references, without '#'

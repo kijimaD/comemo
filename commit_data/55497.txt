@@ -26,7 +26,41 @@ Date:   Fri Feb 10 11:38:42 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/defs_windows.go   | 1 +
  src/runtime/signal_windows.go | 3 ++-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index 7e5d9570f8..60f20a5c2c 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -27,6 +27,7 @@ const (
+ 	_CTRL_SHUTDOWN_EVENT = 0x6
+ 
+ 	_EXCEPTION_ACCESS_VIOLATION     = 0xc0000005
++	_EXCEPTION_IN_PAGE_ERROR        = 0xc0000006
+ 	_EXCEPTION_BREAKPOINT           = 0x80000003
+ 	_EXCEPTION_ILLEGAL_INSTRUCTION  = 0xc000001d
+ 	_EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 1ea0d1e06c..e4258f01b0 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -76,6 +76,7 @@ func isgoexception(info *exceptionrecord, r *context) bool {
+ 	default:
+ 		return false
+ 	case _EXCEPTION_ACCESS_VIOLATION:
++	case _EXCEPTION_IN_PAGE_ERROR:
+ 	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
+ 	case _EXCEPTION_INT_OVERFLOW:
+ 	case _EXCEPTION_FLT_DENORMAL_OPERAND:
+@@ -345,7 +346,7 @@ func sigpanic() {
+ 	}
+ 
+ 	switch gp.sig {
+-	case _EXCEPTION_ACCESS_VIOLATION:
++	case _EXCEPTION_ACCESS_VIOLATION, _EXCEPTION_IN_PAGE_ERROR:
+ 		if gp.sigcode1 < 0x1000 {
+ 			panicmem()
+ 		}

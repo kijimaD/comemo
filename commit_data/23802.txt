@@ -9,8 +9,51 @@ Date:   Mon Jun 15 13:19:39 2015 +1000
     Change-Id: I80d8fcfcb5c856aaf9d0e73d756d86018e2bec3b
     Reviewed-on: https://go-review.googlesource.com/11110
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go                  | 6 ++++++
  src/cmd/go/pkg.go                      | 5 +++++
  src/cmd/go/testdata/testinternal3/t.go | 3 +++
  3 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index cdbdfd79ea..fd1a63551c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -875,6 +875,12 @@ func testMove(t *testing.T, vcs, url, base, config string) {
+ 	tg.grepStderr("validating server certificate|not found", "go get -d -f -u "+url+" failed for wrong reason")
+ }
+ 
++func TestInternalPackageErrorsAreHandled(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("list", "./testdata/testinternal3")
++}
++
+ func TestMoveGit(t *testing.T) {
+ 	testMove(t, "git", "rsc.io/pdf", "pdf", "rsc.io/pdf/.git/config")
+ }
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 539ef5bfc6..73527a3aba 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -327,6 +327,11 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
+ 	// is disallowed if the importing code is outside the tree
+ 	// rooted at the parent of the “internal” directory.
+ 
++	// There was an error loading the package; stop here.
++	if p.Error != nil {
++		return p
++	}
++
+ 	// The stack includes p.ImportPath.
+ 	// If that's the only thing on the stack, we started
+ 	// with a name given on the command line, not an
+diff --git a/src/cmd/go/testdata/testinternal3/t.go b/src/cmd/go/testdata/testinternal3/t.go
+new file mode 100644
+index 0000000000..8576a4b4d7
+--- /dev/null
++++ b/src/cmd/go/testdata/testinternal3/t.go
+@@ -0,0 +1,3 @@
++package t
++
++import _ "internal/does-not-exist"

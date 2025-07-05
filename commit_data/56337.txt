@@ -16,8 +16,43 @@ Date:   Fri Apr 28 14:51:18 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/{android => go_android_exec}/README                     | 0
  misc/{android/go_android_exec.go => go_android_exec/main.go} | 3 ---
  src/cmd/dist/build.go                                        | 2 +-
  3 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/misc/android/README b/misc/go_android_exec/README
+similarity index 100%
+rename from misc/android/README
+rename to misc/go_android_exec/README
+diff --git a/misc/android/go_android_exec.go b/misc/go_android_exec/main.go
+similarity index 99%
+rename from misc/android/go_android_exec.go
+rename to misc/go_android_exec/main.go
+index 445ac284be..639b744610 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/go_android_exec/main.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ignore
+-// +build ignore
+-
+ // This program can be used as go_android_GOARCH_exec by the Go tool.
+ // It executes binaries on an android device using adb.
+ package main
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 1d329ab9f1..11fb5f0753 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1661,7 +1661,7 @@ func wrapperPathFor(goos, goarch string) string {
+ 	switch {
+ 	case goos == "android":
+ 		if gohostos != "android" {
+-			return pathf("%s/misc/android/go_android_exec.go", goroot)
++			return pathf("%s/misc/go_android_exec/main.go", goroot)
+ 		}
+ 	case goos == "ios":
+ 		if gohostos != "ios" {

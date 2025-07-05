@@ -13,6 +13,22 @@ Date:   Mon Dec 20 16:31:45 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/373514
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/net/http/server.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ddc799bd9e..ffb742ba4a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -494,8 +494,8 @@ type response struct {
+ // prior to the headers being written. If the set of trailers is fixed
+ // or known before the header is written, the normal Go trailers mechanism
+ // is preferred:
+-//    https://golang.org/pkg/net/http/#ResponseWriter
+-//    https://golang.org/pkg/net/http/#example_ResponseWriter_trailers
++//    https://pkg.go.dev/net/http#ResponseWriter
++//    https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
+ const TrailerPrefix = "Trailer:"
+ 
+ // finalTrailers is called after the Handler exits and returns a non-nil

@@ -13,6 +13,36 @@ Date:   Thu Dec 1 12:36:51 2022 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  doc/go1.20.html | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 571c466134..ab09effaff 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -26,7 +26,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <h2 id="language">Changes to the language</h2>
+ 
+ <p>
+-  Go 1.20 includes three changes to the language.
++  Go 1.20 includes four changes to the language.
+ </p>
+ 
+ <p><!-- https://go.dev/issue/46505 -->
+@@ -56,6 +56,15 @@ Do not send CLs removing the interior tags from such phrases.
+   what the implementations have always done.
+ </p>
+ 
++<p><!-- https://go.dev/issue/56548 -->
++  <a href="/ref/spec#Comparison_operators">Comparable types</a> (such as ordinary interfaces)
++  may now satisfy <code>comparable</code> constraints, even if the type arguments
++  are not strictly comparable (comparison may panic at runtime).
++  This makes it possible to instantiate a type parameter constrained by <code>comparable</code>
++  (e.g., a type parameter for a user-defined generic map key) with a non-strictly comparable type argument
++  such as an interface type, or a composite type containing an interface type.
++</p>
++
+ <h2 id="ports">Ports</h2>
+ 
+ <h3 id="freebsd-riscv">FreeBSD/RISC-V</h3>

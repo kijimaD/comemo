@@ -11,6 +11,19 @@ Date:   Wed Aug 5 09:12:18 2015 -0400
     Change-Id: I9c62d3026f7bb62c49a601ad73f33bf655372915
     Reviewed-on: https://go-review.googlesource.com/13162
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index eaa7a4c54c..496fe11724 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -265,6 +265,7 @@ var cgoEnabled = map[string]bool{
+ 	"dragonfly/amd64": true,
+ 	"freebsd/386":     true,
+ 	"freebsd/amd64":   true,
++	"freebsd/arm":     true,
+ 	"linux/386":       true,
+ 	"linux/amd64":     true,
+ 	"linux/arm":       true,

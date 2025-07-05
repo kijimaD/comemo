@@ -8,7 +8,7 @@ Date:   Mon Nov 17 13:58:45 2008 -0800
     DELTA=66  (52 added, 3 deleted, 11 changed)
     OCL=19386
     CL=19389
-
+---
  src/cmd/gc/go.h       |  1 +
  src/cmd/gc/mparith1.c | 17 ++++++++++++++---
  src/cmd/gc/mparith2.c | 11 +++++++++++
@@ -18,3 +18,238 @@ Date:   Mon Nov 17 13:58:45 2008 -0800
  test/fmt_test.go      |  2 +-
  test/golden.out       | 23 +++++++++++++++--------
  8 files changed, 64 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index e26d38946a..54c47d0c51 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -558,6 +558,7 @@ void	mprshfixfix(Mpint *a, Mpint *b);
+ void	mpxorfixfix(Mpint *a, Mpint *b);
+ void	mpcomfix(Mpint *a);
+ vlong	mpgetfix(Mpint *a);
++double	mpgetfixflt(Mpint *a);
+ 
+ /*
+  *	mparith3.c
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index b9ecea04bd..98fa661b46 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <errno.h>
+ #include "go.h"
+ 
+ /// uses arithmetic
+@@ -149,7 +151,7 @@ mpcomfix(Mpint *a)
+ void
+ mpmovefixflt(Mpflt *a, Mpint *b)
+ {
+-	mpmovecflt(a, mpgetfix(b));
++	mpmovecflt(a, mpgetfixflt(b));
+ }
+ 
+ void
+@@ -200,6 +202,15 @@ mpatoflt(Mpflt *a, char *as)
+ {
+ 	int dp, c, f, ef, ex, zer;
+ 	char *s;
++	double f64;
++
++	/* until Mpflt is really mp, use strtod to get rounding right */
++	errno = 0;
++	f64 = strtod(as, &s);
++	mpmovecflt(a, f64);
++	if(errno != 0)
++		a->ovf = 1;
++	return;
+ 
+ 	s = as;
+ 	dp = 0;		/* digits after decimal point */
+@@ -279,14 +290,14 @@ mpatoflt(Mpflt *a, char *as)
+ 	return;
+ 
+ bad:
+-	warn("set ovf in mpatof");
++	warn("set ovf in mpatof: %s", as);
+ 	mpmovecflt(a, 0.0);
+ }
+ 
+ //
+ // fixed point input
+ // required syntax is [+-][0[x]]d*
+-// 
++//
+ void
+ mpatofix(Mpint *a, char *as)
+ {
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index c9116e701d..186437602d 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -459,6 +459,17 @@ mpgetfix(Mpint *a)
+ 	return v;
+ }
+ 
++double
++mpgetfixflt(Mpint *a)
++{
++	// answer might not fit in intermediate vlong, so format
++	// to string and then let the string routine convert.
++	char buf[1000];
++
++	snprint(buf, sizeof buf, "%B", a);
++	return strtod(buf, nil);
++}
++
+ void
+ mpmovecfix(Mpint *a, vlong c)
+ {
+diff --git a/test/bugs/bug120.go b/test/bugs/bug120.go
+index 58639c792e..f4727bc93f 100644
+--- a/test/bugs/bug120.go
++++ b/test/bugs/bug120.go
+@@ -19,8 +19,21 @@ var tests = []Test {
+ 	Test{ 456.7, "456.7", "456.7" },
+ 	Test{ 1e23+8.5e6, "1e23+8.5e6", "1.0000000000000001e+23" },
+ 	Test{ 100000000000000008388608, "100000000000000008388608", "1.0000000000000001e+23" },
++	Test{ 1e23+8388609, "1e23+8388609", "1.0000000000000001e+23" },
++
++	// "x" = the floating point value from converting the string x.
++	// These are exactly representable in 64-bit floating point:
++	//	1e23-8388608
++	//	1e23+8388608
++	// The former has an even mantissa, so "1e23" rounds to 1e23-8388608.
++	// If "1e23+8388608" is implemented as "1e23" + "8388608",
++	// that ends up computing 1e23-8388608 + 8388608 = 1e23,
++	// which rounds back to 1e23-8388608.
++	// The correct answer, of course, would be "1e23+8388608" = 1e23+8388608.
++	// This is not going to be correct until 6g has multiprecision floating point.
++	// A simpler case is "1e23+1", which should also round to 1e23+8388608.
+ 	Test{ 1e23+8.388608e6, "1e23+8.388608e6", "1.0000000000000001e+23" },
+-	Test{ 1e23+8.388609e6, "1e23+8.388609e6", "1.0000000000000001e+23" },
++	Test{ 1e23+1, "1e23+1", "1.0000000000000001e+23" },
+ }
+ 
+ func main() {
+@@ -30,6 +43,12 @@ func main() {
+ 		v := strconv.ftoa64(t.f, 'g', -1);
+ 		if v != t.out {
+ 			println("Bad float64 const:", t.in, "want", t.out, "got", v);
++			x, overflow, ok := strconv.atof64(t.out);
++			if !ok {
++				panicln("bug120: strconv.atof64", t.out);
++			}
++			println("\twant exact:", strconv.ftoa64(x, 'g', 1000));
++			println("\tgot exact: ", strconv.ftoa64(t.f, 'g', 1000));
+ 			ok = false;
+ 		}
+ 	}
+diff --git a/test/const.go b/test/const.go
+index f16a8c4b75..85c0a91b60 100644
+--- a/test/const.go
++++ b/test/const.go
+@@ -76,7 +76,7 @@ func ints() {
+ func floats() {
+ 	assert(f0 == c0, "f0");
+ 	assert(f1 == c1, "f1");
+-	assert(fhuge > fhuge_1, "fhuge");
++	assert(fhuge == fhuge_1, "fhuge");	// float64 can't distinguish fhuge, fhuge_1.
+ 	assert(fhuge_1 + 1 == fhuge, "fhuge 1");
+ 	assert(fhuge + fm1 +1  == fhuge, "fm1");
+ 	assert(f3div2 == 1.5, "3./2.");
+diff --git a/test/convlit.go b/test/convlit.go
+index 2f1b202258..23dab0a9c4 100644
+--- a/test/convlit.go
++++ b/test/convlit.go
+@@ -25,7 +25,7 @@ var bad5 = "a" + 'a';	// ERROR "literals|incompatible"
+ 
+ var bad6 int = 1.5;	// ERROR "convert"
+ var bad7 int = 1e100;	// ERROR "overflow"
+-var bad8 float = 1e1000;	// ERROR "overflow"
++var bad8 float32 = 1e200;	// ERROR "overflow"
+ 
+ // but these implicit conversions are okay
+ var good1 string = "a";
+diff --git a/test/fmt_test.go b/test/fmt_test.go
+index dfc7fdd886..b2f44429c4 100644
+--- a/test/fmt_test.go
++++ b/test/fmt_test.go
+@@ -80,7 +80,7 @@ func main() {
+ 	E(f.s("\t20.8e\t|").wp(20,8).e(1.2345e3).s("|"), "\t20.8e\t|      1.23450000e+03|");
+ 	E(f.s("\t20f\t|").w(20).f64(1.23456789e3).s("|"), "\t20f\t|         1234.567890|");
+ 	E(f.s("\t20f\t|").w(20).f64(1.23456789e-3).s("|"), "\t20f\t|            0.001235|");
+-	E(f.s("\t20f\t|").w(20).f64(12345678901.23456789).s("|"), "\t20f\t|  12345678901.234570|");
++	E(f.s("\t20f\t|").w(20).f64(12345678901.23456789).s("|"), "\t20f\t|  12345678901.234568|");
+ 	E(f.s("\t-20f\t|").w(-20).f64(1.23456789e3).s("|"), "\t-20f\t|1234.567890         |");
+ 	E(f.s("\t20.8f\t|").wp(20,8).f64(1.23456789e3).s("|"), "\t20.8f\t|       1234.56789000|");
+ 	E(f.s("\t20.8f\t|").wp(20,8).f64(1.23456789e-3).s("|"), "\t20.8f\t|          0.00123457|");
+diff --git a/test/golden.out b/test/golden.out
+index ffc7f41ffa..ec5f8e3183 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -11,11 +11,10 @@ errchk: ./convlit.go: unmatched error messages:
+ ==================================================
+ ./convlit.go:8: cannot convert non-integer constant to int
+ ./convlit.go:11: overflow converting constant to int
+-./convlit.go:12: overflow converting constant to float
++./convlit.go:12: overflow in float constant
+ ./convlit.go:8: cannot convert non-integer constant to int
+ ./convlit.go:9: cannot convert non-integer constant to int
+ ./convlit.go:11: overflow converting constant to int
+-./convlit.go:12: overflow converting constant to float
+ ==================================================
+ 
+ =========== ./helloworld.go
+@@ -37,6 +36,9 @@ Faulting address: 0x0
+ pc: xxx
+ 
+ 
++=========== ./method2.go
++BUG: errchk: command succeeded unexpectedly:  6g ./method2.go
++
+ =========== ./peano.go
+ 0! = 1
+ 1! = 1
+@@ -88,6 +90,9 @@ BUG should compile
+ =========== bugs/bug041.go
+ BUG: compilation succeeds incorrectly
+ 
++=========== bugs/bug046.go
++BUG: errchk: command succeeded unexpectedly:  6g bugs/bug046.go
++
+ =========== bugs/bug064.go
+ bugs/bug064.go:15: illegal types for operand: CALL
+ 	int
+@@ -115,6 +120,9 @@ bugs/bug098.go:10: illegal types for operand: AS
+ 	**M
+ BUG should compile
+ 
++=========== bugs/bug104.go
++BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
++
+ =========== bugs/bug105.go
+ bugs/bug105.go:8: P: undefined
+ bugs/bug105.go:9: illegal types for operand: RETURN
+@@ -142,13 +150,12 @@ panic on line 85 PC=xxx
+ BUG: should not fail
+ 
+ =========== bugs/bug120.go
+-Bad float64 const: 456.7 want 456.7 got 456.70000000000005
+-Bad float64 const: 100000000000000008388608 want 1.0000000000000001e+23 got 2.0037642052907827e+17
+ Bad float64 const: 1e23+8.388608e6 want 1.0000000000000001e+23 got 1e+23
+-bug120
+-
+-panic on line 139 PC=xxx
+-BUG: bug120
++	want exact: 100000000000000008388608
++	got exact:  99999999999999991611392
++Bad float64 const: 1e23+1 want 1.0000000000000001e+23 got 1e+23
++	want exact: 100000000000000008388608
++	got exact:  99999999999999991611392
+ 
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint

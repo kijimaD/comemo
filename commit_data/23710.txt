@@ -7,8 +7,45 @@ Date:   Fri Jun 5 13:04:29 2015 -0400
     Change-Id: I9d4e0f3e9afc9920ee0d77b0073ac8597c7c048f
     Reviewed-on: https://go-review.googlesource.com/10756
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func_test.go  | 4 ++++
  src/cmd/compile/internal/ssa/regalloc.go   | 4 ++++
  src/cmd/compile/internal/ssa/stackalloc.go | 4 ++++
  3 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index c15b167bc1..947a0b72c4 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // This file contains some utility functions to help define Funcs for testing.
+ // As an example, the following func
+ //
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 23a46d66b4..8da969b660 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package ssa
+ 
+ import (
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index ab686470be..dd55d96ccc 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package ssa
+ 
+ import "log"

@@ -7,6 +7,20 @@ Date:   Sun Jul 12 14:37:01 2015 +0100
     Change-Id: I26c268f46dcffe39912b8c92ce9abb875310934f
     Reviewed-on: https://go-review.googlesource.com/12100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index cff1ea71dc..2eb0402f69 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -294,7 +294,7 @@ func (s *state) stmt(n *Node) {
+ 	case OBLOCK:
+ 		s.stmtList(n.List)
+ 
+-	case OEMPTY:
++	case OEMPTY, ODCLCONST, ODCLTYPE:
+ 
+ 	case ODCL:
+ 		if n.Left.Class&PHEAP == 0 {

@@ -12,7 +12,48 @@ Date:   Fri Feb 27 12:41:20 2015 -0500
     Change-Id: Ief5f16401a25739ad57d959607b8d81ffe0bc211
     Reviewed-on: https://go-review.googlesource.com/6271
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mbitmap.go |  4 ++++
  src/runtime/mgcmark.go | 12 +++++-------
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 702fccae98..4592044363 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -234,6 +234,10 @@ func (h heapBits) isMarked() bool {
+ 
+ // setMarked sets the marked bit in the heap bits, atomically.
+ func (h heapBits) setMarked() {
++	// Each byte of GC bitmap holds info for two words.
++	// Might be racing with other updates, so use atomic update always.
++	// We used to be clever here and use a non-atomic update in certain
++	// cases, but it's not worth the risk.
+ 	atomicor8(h.bitp, bitMarked<<h.shift)
+ }
+ 
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 50e125dc27..494c3c1621 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -577,15 +577,13 @@ func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWorkProducer) {
+ 			return
+ 		}
+ 
+-		// Each byte of GC bitmap holds info for two words.
+-		// Might be racing with other updates, so use atomic update always.
+-		// We used to be clever here and use a non-atomic update in certain
+-		// cases, but it's not worth the risk.
+ 		hbits.setMarked()
+-	}
+ 
+-	if !useCheckmark && hbits.typeBits() == typeDead {
+-		return // noscan object
++		// If this is a noscan object, fast-track it to black
++		// instead of greying it.
++		if hbits.typeBits() == typeDead {
++			return
++		}
+ 	}
+ 
+ 	// Queue the obj for scanning. The PREFETCH(obj) logic has been removed but

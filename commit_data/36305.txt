@@ -14,7 +14,7 @@ Date:   Thu Feb 15 12:21:48 2018 +0200
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/internal/atomic/asm_arm.s          |  3 +++
  src/runtime/internal/atomic/atomic_arm.go      | 22 ++++++----------------
  src/runtime/internal/atomic/sys_linux_arm.s    | 20 ++++++++++++++++++++
@@ -28,3 +28,267 @@ Date:   Thu Feb 15 12:21:48 2018 +0200
  src/sync/atomic/asm_openbsd_arm.s              | 10 ----------
  src/sync/atomic/asm_plan9_arm.s                | 11 -----------
  12 files changed, 44 insertions(+), 89 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/asm_arm.s b/src/runtime/internal/atomic/asm_arm.s
+index f44d43fcfb..95373faab1 100644
+--- a/src/runtime/internal/atomic/asm_arm.s
++++ b/src/runtime/internal/atomic/asm_arm.s
+@@ -49,6 +49,9 @@ casfail:
+ 	MOVB	R0, ret+12(FP)
+ 	RET
+ 
++TEXT runtime∕internal∕atomic·Loadp(SB),NOSPLIT|NOFRAME,$0-8
++	B runtime∕internal∕atomic·Load(SB)
++
+ TEXT runtime∕internal∕atomic·Casuintptr(SB),NOSPLIT,$0-13
+ 	B	runtime∕internal∕atomic·Cas(SB)
+ 
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index b67a6b6c5a..bbf19feea9 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -68,22 +68,6 @@ func Xchguintptr(addr *uintptr, v uintptr) uintptr {
+ 	return uintptr(Xchg((*uint32)(unsafe.Pointer(addr)), uint32(v)))
+ }
+ 
+-//go:nosplit
+-func Load(addr *uint32) uint32 {
+-	return Xadd(addr, 0)
+-}
+-
+-// Should be a built-in for unsafe.Pointer?
+-//go:nosplit
+-func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+-	return unsafe.Pointer(uintptr(p) + x)
+-}
+-
+-//go:nosplit
+-func Loadp(addr unsafe.Pointer) unsafe.Pointer {
+-	return unsafe.Pointer(uintptr(Xadd((*uint32)(addr), 0)))
+-}
+-
+ //go:nosplit
+ func StorepNoWB(addr unsafe.Pointer, v unsafe.Pointer) {
+ 	for {
+@@ -204,3 +188,9 @@ func And8(addr *uint8, v uint8) {
+ 
+ //go:nosplit
+ func armcas(ptr *uint32, old, new uint32) bool
++
++//go:noescape
++func Load(addr *uint32) uint32
++
++//go:noescape
++func Loadp(addr unsafe.Pointer) unsafe.Pointer
+diff --git a/src/runtime/internal/atomic/sys_linux_arm.s b/src/runtime/internal/atomic/sys_linux_arm.s
+index 6151e7c019..1d6439a6ba 100644
+--- a/src/runtime/internal/atomic/sys_linux_arm.s
++++ b/src/runtime/internal/atomic/sys_linux_arm.s
+@@ -43,3 +43,23 @@ TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0
+ // register. ARMv7 introduced the DMB instruction, but it's expensive
+ // even on single-core devices. The kernel helper takes care of all of
+ // this for us.
++
++// Use kernel helper version of memory_barrier, when compiled with GOARM < 7.
++TEXT memory_barrier<>(SB),NOSPLIT|NOFRAME,$0
++	MOVW	$0xffff0fa0, R15 // R15 is hardware PC.
++
++TEXT runtime∕internal∕atomic·Load(SB),NOSPLIT,$0-8
++	MOVW	addr+0(FP), R0
++	MOVW	(R0), R1
++
++	MOVB	runtime·goarm(SB), R11
++	CMP	$7, R11
++	BGE	native_barrier
++	BL	memory_barrier<>(SB)
++	B	prolog
++native_barrier:
++	DMB	MB_ISH
++
++prolog:
++	MOVW	R1, ret+4(FP)
++	RET
+diff --git a/src/runtime/internal/atomic/sys_nonlinux_arm.s b/src/runtime/internal/atomic/sys_nonlinux_arm.s
+index ec839c0986..9026b66e09 100644
+--- a/src/runtime/internal/atomic/sys_nonlinux_arm.s
++++ b/src/runtime/internal/atomic/sys_nonlinux_arm.s
+@@ -19,3 +19,15 @@ TEXT	·Cas(SB),NOSPLIT,$0
+ 
+ TEXT	·Casp1(SB),NOSPLIT,$0
+ 	JMP	·Cas(SB)
++
++TEXT runtime∕internal∕atomic·Load(SB),NOSPLIT|NOFRAME,$0-8
++	MOVW	addr+0(FP), R0
++	MOVW	(R0), R1
++
++	MOVB	runtime·goarm(SB), R11
++	CMP	$7, R11
++	BLT	2(PC)
++	DMB	MB_ISH
++
++	MOVW	R1, ret+4(FP)
++	RET
+diff --git a/src/sync/atomic/asm_arm.s b/src/sync/atomic/asm_arm.s
+index 432f1c09be..568156627a 100644
+--- a/src/sync/atomic/asm_arm.s
++++ b/src/sync/atomic/asm_arm.s
+@@ -20,6 +20,9 @@
+ 	BLT	2(PC); \
+ 	DMB	MB_ISH
+ 
++TEXT ·LoadUint32(SB),NOSPLIT|NOFRAME,$0
++	JMP	runtime∕internal∕atomic·Load(SB)
++
+ TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0-13
+ 	MOVW	addr+0(FP), R1
+ 	MOVW	old+4(FP), R2
+diff --git a/src/sync/atomic/asm_darwin_arm.s b/src/sync/atomic/asm_darwin_arm.s
+index 14aca14d21..7ccb44ad88 100644
+--- a/src/sync/atomic/asm_darwin_arm.s
++++ b/src/sync/atomic/asm_darwin_arm.s
+@@ -54,18 +54,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-load32loop:
+-	LDREX (R1), R2		// loads R2
+-	DMB MB_ISHST
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE load32loop
+-	DMB MB_ISH
+-	MOVW R2, val+4(FP)
+-	RET
+-
+ TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	B ·loadUint64(SB)
+ 
+diff --git a/src/sync/atomic/asm_freebsd_arm.s b/src/sync/atomic/asm_freebsd_arm.s
+index 78efe971be..2a762ca6fb 100644
+--- a/src/sync/atomic/asm_freebsd_arm.s
++++ b/src/sync/atomic/asm_freebsd_arm.s
+@@ -55,16 +55,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-load32loop:
+-	LDREX (R1), R2		// loads R2
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE load32loop
+-	MOVW R2, val+4(FP)
+-	RET
+-
+ TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	B ·loadUint64(SB)
+ 
+diff --git a/src/sync/atomic/asm_linux_arm.s b/src/sync/atomic/asm_linux_arm.s
+index 1d485f85d5..60549303e3 100644
+--- a/src/sync/atomic/asm_linux_arm.s
++++ b/src/sync/atomic/asm_linux_arm.s
+@@ -163,16 +163,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B	·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+-	MOVW	addr+0(FP), R2
+-loadloop1:
+-	MOVW	0(R2), R0
+-	MOVW	R0, R1
+-	BL	cas<>(SB)
+-	BCC	loadloop1
+-	MOVW	R1, val+4(FP)
+-	RET
+-
+ TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	B	·loadUint64(SB)
+ 
+diff --git a/src/sync/atomic/asm_nacl_arm.s b/src/sync/atomic/asm_nacl_arm.s
+index 509f503a4c..5cb953131c 100644
+--- a/src/sync/atomic/asm_nacl_arm.s
++++ b/src/sync/atomic/asm_nacl_arm.s
+@@ -55,16 +55,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-load32loop:
+-	LDREX (R1), R2		// loads R2
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE load32loop
+-	MOVW R2, val+4(FP)
+-	RET
+-
+ TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	B ·loadUint64(SB)
+ 
+diff --git a/src/sync/atomic/asm_netbsd_arm.s b/src/sync/atomic/asm_netbsd_arm.s
+index d67803119c..0528484f3b 100644
+--- a/src/sync/atomic/asm_netbsd_arm.s
++++ b/src/sync/atomic/asm_netbsd_arm.s
+@@ -55,16 +55,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-load32loop:
+-	LDREX (R1), R2		// loads R2
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE load32loop
+-	MOVW R2, val+4(FP)
+-	RET
+-
+ TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	B ·loadUint64(SB)
+ 
+diff --git a/src/sync/atomic/asm_openbsd_arm.s b/src/sync/atomic/asm_openbsd_arm.s
+index c73807fd5a..541a62a728 100644
+--- a/src/sync/atomic/asm_openbsd_arm.s
++++ b/src/sync/atomic/asm_openbsd_arm.s
+@@ -55,16 +55,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-load32loop:
+-	LDREX (R1), R2		// loads R2
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE load32loop
+-	MOVW R2, val+4(FP)
+-	RET
+-
+ TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	B ·loadUint64(SB)
+ 
+diff --git a/src/sync/atomic/asm_plan9_arm.s b/src/sync/atomic/asm_plan9_arm.s
+index 0d99762083..5b157f5196 100644
+--- a/src/sync/atomic/asm_plan9_arm.s
++++ b/src/sync/atomic/asm_plan9_arm.s
+@@ -61,17 +61,6 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-load32loop:
+-	LDREX (R1), R2		// loads R2
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE load32loop
+-	MOVW R2, val+4(FP)
+-	DMB_ISH_7
+-	RET
+-
+ TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	B ·loadUint64(SB)
+ 

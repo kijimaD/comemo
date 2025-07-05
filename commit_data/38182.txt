@@ -7,6 +7,20 @@ Date:   Tue Oct 9 10:14:59 2018 +0100
     Change-Id: I098b3c627c2142affd4e800a2c1f37e00f3775c5
     Reviewed-on: https://go-review.googlesource.com/c/140777
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index b68314cf73..3dc73a8fde 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -146,7 +146,7 @@ directive can skip over a directive like any other comment.
+ // will report positions in the original input to the generator.
+ /*
+ The line directive is an historical special case; all other directives are of the form
+-//go:name and must start at the begnning of a line, indicating that the directive is defined
++//go:name and must start at the beginning of a line, indicating that the directive is defined
+ by the Go toolchain.
+ 
+ 	//go:noescape

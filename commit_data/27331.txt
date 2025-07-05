@@ -9,8 +9,65 @@ Date:   Mon Mar 21 10:47:24 2016 -0700
     Change-Id: I8725dee490778be9c1fd31990a6b27df9713c3c9
     Reviewed-on: https://go-review.googlesource.com/20957
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/line_test.go | 4 +---
  src/cmd/internal/obj/obj.go       | 9 +++------
  src/cmd/internal/obj/pcln.go      | 4 +---
  3 files changed, 5 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index 56bf5844fd..8f9bcd1ec6 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -40,9 +40,7 @@ func TestLineHist(t *testing.T) {
+ 	}
+ 
+ 	for i, want := range expect {
+-		var f *LSym
+-		var l int32
+-		linkgetline(ctxt, int32(i), &f, &l)
++		f, l := linkgetline(ctxt, int32(i))
+ 		have := fmt.Sprintf("%s:%d", f.Name, l)
+ 		if have != want {
+ 			t.Errorf("linkgetline(%d) = %q, want %q", i, have, want)
+diff --git a/src/cmd/internal/obj/obj.go b/src/cmd/internal/obj/obj.go
+index f38078fca8..3eb37b3bbc 100644
+--- a/src/cmd/internal/obj/obj.go
++++ b/src/cmd/internal/obj/obj.go
+@@ -273,18 +273,15 @@ func (h *LineHist) AbsFileLine(lineno int) (file string, line int) {
+ // This is a simplified copy of linklinefmt above.
+ // It doesn't allow printing the full stack, and it returns the file name and line number separately.
+ // TODO: Unify with linklinefmt somehow.
+-func linkgetline(ctxt *Link, lineno int32, f **LSym, l *int32) {
++func linkgetline(ctxt *Link, lineno int32) (f *LSym, l int32) {
+ 	stk := ctxt.LineHist.At(int(lineno))
+ 	if stk == nil || stk.AbsFile == "" {
+-		*f = Linklookup(ctxt, "??", HistVersion)
+-		*l = 0
+-		return
++		return Linklookup(ctxt, "??", HistVersion), 0
+ 	}
+ 	if stk.Sym == nil {
+ 		stk.Sym = Linklookup(ctxt, stk.AbsFile, HistVersion)
+ 	}
+-	*f = stk.Sym
+-	*l = int32(stk.fileLineAt(int(lineno)))
++	return stk.Sym, int32(stk.fileLineAt(int(lineno)))
+ }
+ 
+ func Linkprfile(ctxt *Link, line int) {
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 9a2e3f3aa8..9770c96fcc 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -143,9 +143,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
+ 	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Lineno == 0 || phase == 1 {
+ 		return oldval
+ 	}
+-	var l int32
+-	var f *LSym
+-	linkgetline(ctxt, p.Lineno, &f, &l)
++	f, l := linkgetline(ctxt, p.Lineno)
+ 	if f == nil {
+ 		//	print("getline failed for %s %v\n", ctxt->cursym->name, p);
+ 		return oldval

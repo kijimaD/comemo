@@ -14,6 +14,36 @@ Date:   Mon Aug 10 18:30:11 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e01ebd6e89..7e377f9b84 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4386,6 +4386,9 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
+ 			// Deferred nil function needs to panic when the function is invoked,
+ 			// not the point of defer statement.
+ 			s.maybeNilCheckClosure(closure, k)
++			if k == callNormal && ssa.LateCallExpansionEnabledWithin(s.f) {
++				testLateExpansion = true
++			}
+ 		}
+ 	case OCALLMETH:
+ 		if fn.Op != ODOTMETH {
+@@ -4556,7 +4559,13 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
+ 			// critical that we not clobber any arguments already
+ 			// stored onto the stack.
+ 			codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
+-			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(ACArgs, ACResults), codeptr, closure, s.mem())
++			if testLateExpansion {
++				aux := ssa.ClosureAuxCall(ACArgs, ACResults)
++				call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
++				call.AddArgs(callArgs...)
++			} else {
++				call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(ACArgs, ACResults), codeptr, closure, s.mem())
++			}
+ 		case codeptr != nil:
+ 			if testLateExpansion {
+ 				aux := ssa.InterfaceAuxCall(ACArgs, ACResults)

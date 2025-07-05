@@ -13,7 +13,7 @@ Date:   Thu Apr 30 15:32:54 2015 +0100
     Change-Id: I21f47fcc802c07c5d4a1ada56374314e388a6dc7
     Reviewed-on: https://go-review.googlesource.com/9506
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/arch1_386.go      | 15 +++++-----
  src/runtime/arch1_amd64.go    | 15 +++++-----
  src/runtime/arch1_amd64p32.go | 15 +++++-----
@@ -27,3 +27,432 @@ Date:   Thu Apr 30 15:32:54 2015 +0100
  src/runtime/runtime_test.go   | 52 -----------------------------------
  src/runtime/traceback.go      | 16 ++++++++++-
  12 files changed, 105 insertions(+), 142 deletions(-)
+
+diff --git a/src/runtime/arch1_386.go b/src/runtime/arch1_386.go
+index b024d7a51f..d41696a6d6 100644
+--- a/src/runtime/arch1_386.go
++++ b/src/runtime/arch1_386.go
+@@ -5,12 +5,11 @@
+ package runtime
+ 
+ const (
+-	thechar           = '8'
+-	_BigEndian        = 0
+-	_CacheLineSize    = 64
+-	_RuntimeGogoBytes = 64
+-	_PhysPageSize     = goos_nacl*65536 + (1-goos_nacl)*4096 // 4k normally; 64k on NaCl
+-	_PCQuantum        = 1
+-	_Int64Align       = 4
+-	hugePageSize      = 1 << 21
++	thechar        = '8'
++	_BigEndian     = 0
++	_CacheLineSize = 64
++	_PhysPageSize  = goos_nacl*65536 + (1-goos_nacl)*4096 // 4k normally; 64k on NaCl
++	_PCQuantum     = 1
++	_Int64Align    = 4
++	hugePageSize   = 1 << 21
+ )
+diff --git a/src/runtime/arch1_amd64.go b/src/runtime/arch1_amd64.go
+index 932b2b7c55..15f4cc65fe 100644
+--- a/src/runtime/arch1_amd64.go
++++ b/src/runtime/arch1_amd64.go
+@@ -5,12 +5,11 @@
+ package runtime
+ 
+ const (
+-	thechar           = '6'
+-	_BigEndian        = 0
+-	_CacheLineSize    = 64
+-	_RuntimeGogoBytes = 80 + (goos_solaris)*16
+-	_PhysPageSize     = 4096
+-	_PCQuantum        = 1
+-	_Int64Align       = 8
+-	hugePageSize      = 1 << 21
++	thechar        = '6'
++	_BigEndian     = 0
++	_CacheLineSize = 64
++	_PhysPageSize  = 4096
++	_PCQuantum     = 1
++	_Int64Align    = 8
++	hugePageSize   = 1 << 21
+ )
+diff --git a/src/runtime/arch1_amd64p32.go b/src/runtime/arch1_amd64p32.go
+index 79421e848a..3c5456f933 100644
+--- a/src/runtime/arch1_amd64p32.go
++++ b/src/runtime/arch1_amd64p32.go
+@@ -5,12 +5,11 @@
+ package runtime
+ 
+ const (
+-	thechar           = '6'
+-	_BigEndian        = 0
+-	_CacheLineSize    = 64
+-	_RuntimeGogoBytes = 64
+-	_PhysPageSize     = 65536*goos_nacl + 4096*(1-goos_nacl)
+-	_PCQuantum        = 1
+-	_Int64Align       = 8
+-	hugePageSize      = 1 << 21
++	thechar        = '6'
++	_BigEndian     = 0
++	_CacheLineSize = 64
++	_PhysPageSize  = 65536*goos_nacl + 4096*(1-goos_nacl)
++	_PCQuantum     = 1
++	_Int64Align    = 8
++	hugePageSize   = 1 << 21
+ )
+diff --git a/src/runtime/arch1_arm.go b/src/runtime/arch1_arm.go
+index c3fe4f0cb3..0ec2093881 100644
+--- a/src/runtime/arch1_arm.go
++++ b/src/runtime/arch1_arm.go
+@@ -5,12 +5,11 @@
+ package runtime
+ 
+ const (
+-	thechar           = '5'
+-	_BigEndian        = 0
+-	_CacheLineSize    = 32
+-	_RuntimeGogoBytes = 60
+-	_PhysPageSize     = 65536*goos_nacl + 4096*(1-goos_nacl)
+-	_PCQuantum        = 4
+-	_Int64Align       = 4
+-	hugePageSize      = 0
++	thechar        = '5'
++	_BigEndian     = 0
++	_CacheLineSize = 32
++	_PhysPageSize  = 65536*goos_nacl + 4096*(1-goos_nacl)
++	_PCQuantum     = 4
++	_Int64Align    = 4
++	hugePageSize   = 0
+ )
+diff --git a/src/runtime/arch1_arm64.go b/src/runtime/arch1_arm64.go
+index 549a635ca4..1a3165c8b7 100644
+--- a/src/runtime/arch1_arm64.go
++++ b/src/runtime/arch1_arm64.go
+@@ -5,12 +5,11 @@
+ package runtime
+ 
+ const (
+-	thechar           = '7'
+-	_BigEndian        = 0
+-	_CacheLineSize    = 32
+-	_RuntimeGogoBytes = 64
+-	_PhysPageSize     = 4096*(1-goos_darwin) + 16384*goos_darwin
+-	_PCQuantum        = 4
+-	_Int64Align       = 8
+-	hugePageSize      = 0
++	thechar        = '7'
++	_BigEndian     = 0
++	_CacheLineSize = 32
++	_PhysPageSize  = 4096*(1-goos_darwin) + 16384*goos_darwin
++	_PCQuantum     = 4
++	_Int64Align    = 8
++	hugePageSize   = 0
+ )
+diff --git a/src/runtime/arch1_ppc64.go b/src/runtime/arch1_ppc64.go
+index ee453c09f2..de6dd91401 100644
+--- a/src/runtime/arch1_ppc64.go
++++ b/src/runtime/arch1_ppc64.go
+@@ -5,12 +5,11 @@
+ package runtime
+ 
+ const (
+-	thechar           = '9'
+-	_BigEndian        = 1
+-	_CacheLineSize    = 64
+-	_RuntimeGogoBytes = 72
+-	_PhysPageSize     = 65536
+-	_PCQuantum        = 4
+-	_Int64Align       = 8
+-	hugePageSize      = 0
++	thechar        = '9'
++	_BigEndian     = 1
++	_CacheLineSize = 64
++	_PhysPageSize  = 65536
++	_PCQuantum     = 4
++	_Int64Align    = 8
++	hugePageSize   = 0
+ )
+diff --git a/src/runtime/arch1_ppc64le.go b/src/runtime/arch1_ppc64le.go
+index aa028a10f3..9a55c71101 100644
+--- a/src/runtime/arch1_ppc64le.go
++++ b/src/runtime/arch1_ppc64le.go
+@@ -5,12 +5,11 @@
+ package runtime
+ 
+ const (
+-	thechar           = '9'
+-	_BigEndian        = 0
+-	_CacheLineSize    = 64
+-	_RuntimeGogoBytes = 72
+-	_PhysPageSize     = 65536
+-	_PCQuantum        = 4
+-	_Int64Align       = 8
+-	hugePageSize      = 0
++	thechar        = '9'
++	_BigEndian     = 0
++	_CacheLineSize = 64
++	_PhysPageSize  = 65536
++	_PCQuantum     = 4
++	_Int64Align    = 8
++	hugePageSize   = 0
+ )
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index e0c8b17bd3..378a68e019 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -106,11 +106,6 @@ var MemclrBytes = memclrBytes
+ 
+ var HashLoad = &hashLoad
+ 
+-// For testing.
+-func GogoBytes() int32 {
+-	return _RuntimeGogoBytes
+-}
+-
+ // entry point for testing
+ func GostringW(w []uint16) (s string) {
+ 	systemstack(func() {
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 00535da77d..6bd90ece31 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2484,11 +2484,9 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	mp.mallocing++
+ 
+ 	// Define that a "user g" is a user-created goroutine, and a "system g"
+-	// is one that is m->g0 or m->gsignal. We've only made sure that we
+-	// can unwind user g's, so exclude the system g's.
++	// is one that is m->g0 or m->gsignal.
+ 	//
+-	// It is not quite as easy as testing gp == m->curg (the current user g)
+-	// because we might be interrupted for profiling halfway through a
++	// We might be interrupted for profiling halfway through a
+ 	// goroutine switch. The switch involves updating three (or four) values:
+ 	// g, PC, SP, and (on arm) LR. The PC must be the last to be updated,
+ 	// because once it gets updated the new g is running.
+@@ -2497,8 +2495,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	// so the update only affects g, SP, and PC. Since PC must be last, there
+ 	// the possible partial transitions in ordinary execution are (1) g alone is updated,
+ 	// (2) both g and SP are updated, and (3) SP alone is updated.
+-	// If g is updated, we'll see a system g and not look closer.
+-	// If SP alone is updated, we can detect the partial transition by checking
++	// If SP or g alone is updated, we can detect the partial transition by checking
+ 	// whether the SP is within g's stack bounds. (We could also require that SP
+ 	// be changed only after g, but the stack bounds check is needed by other
+ 	// cases, so there is no need to impose an additional requirement.)
+@@ -2527,15 +2524,11 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	// disabled, so a profiling signal cannot arrive then anyway.
+ 	//
+ 	// Third, the common case: it may be that the switch updates g, SP, and PC
+-	// separately, as in gogo.
+-	//
+-	// Because gogo is the only instance, we check whether the PC lies
+-	// within that function, and if so, not ask for a traceback. This approach
+-	// requires knowing the size of the gogo function, which we
+-	// record in arch_*.h and check in runtime_test.go.
++	// separately. If the PC is within any of the functions that does this,
++	// we don't ask for a traceback. C.F. the function setsSP for more about this.
+ 	//
+ 	// There is another apparently viable approach, recorded here in case
+-	// the "PC within gogo" check turns out not to be usable.
++	// the "PC within setsSP function" check turns out not to be usable.
+ 	// It would be possible to delay the update of either g or SP until immediately
+ 	// before the PC update instruction. Then, because of the stack bounds check,
+ 	// the only problematic interrupt point is just before that PC update instruction,
+@@ -2556,28 +2549,23 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	// transition. We simply require that g and SP match and that the PC is not
+ 	// in gogo.
+ 	traceback := true
+-	gogo := funcPC(gogo)
+-	if gp == nil || gp != mp.curg ||
+-		sp < gp.stack.lo || gp.stack.hi < sp ||
+-		(gogo <= pc && pc < gogo+_RuntimeGogoBytes) {
++	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) {
+ 		traceback = false
+ 	}
+-
+ 	var stk [maxCPUProfStack]uintptr
+ 	n := 0
+-	if traceback {
+-		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap)
++	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
++		// Cgo, we can't unwind and symbolize arbitrary C code,
++		// so instead collect Go stack that leads to the cgo call.
++		// This is especially important on windows, since all syscalls are cgo calls.
++		n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
++	} else if traceback {
++		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap|_TraceJumpStack)
+ 	}
+ 	if !traceback || n <= 0 {
+ 		// Normal traceback is impossible or has failed.
+ 		// See if it falls into several common cases.
+ 		n = 0
+-		if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
+-			// Cgo, we can't unwind and symbolize arbitrary C code,
+-			// so instead collect Go stack that leads to the cgo call.
+-			// This is especially important on windows, since all syscalls are cgo calls.
+-			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
+-		}
+ 		if GOOS == "windows" && n == 0 && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
+ 			// Libcall, i.e. runtime syscall on windows.
+ 			// Collect Go stack that leads to the call.
+@@ -2612,6 +2600,30 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	mp.mallocing--
+ }
+ 
++// Reports whether a function will set the SP
++// to an absolute value. Important that
++// we don't traceback when these are at the bottom
++// of the stack since we can't be sure that we will
++// find the caller.
++//
++// If the function is not on the bottom of the stack
++// we assume that it will have set it up so that traceback will be consistent,
++// either by being a traceback terminating function
++// or putting one on the stack at the right offset.
++func setsSP(pc uintptr) bool {
++	f := findfunc(pc)
++	if f == nil {
++		// couldn't find the function for this PC,
++		// so assume the worst and stop traceback
++		return true
++	}
++	switch f.entry {
++	case gogoPC, systemstackPC, mcallPC, morestackPC:
++		return true
++	}
++	return false
++}
++
+ // Arrange to call fn with a traceback hz times a second.
+ func setcpuprofilerate_m(hz int32) {
+ 	// Force sane arguments.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index ac539b9a9d..8dfece5845 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -594,8 +594,9 @@ type stkframe struct {
+ }
+ 
+ const (
+-	_TraceRuntimeFrames = 1 << 0 // include frames for internal runtime functions.
+-	_TraceTrap          = 1 << 1 // the initial PC, SP are from a trap, not a return PC from a call
++	_TraceRuntimeFrames = 1 << iota // include frames for internal runtime functions.
++	_TraceTrap                      // the initial PC, SP are from a trap, not a return PC from a call
++	_TraceJumpStack                 // if traceback is on a systemstack, resume trace at g that called into it
+ )
+ 
+ const (
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index d4cccbf084..f65562ab91 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -6,13 +6,8 @@ package runtime_test
+ 
+ import (
+ 	"io"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+ 	. "runtime"
+ 	"runtime/debug"
+-	"strconv"
+-	"strings"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -88,53 +83,6 @@ func BenchmarkDeferMany(b *testing.B) {
+ 	}
+ }
+ 
+-// The profiling signal handler needs to know whether it is executing runtime.gogo.
+-// The constant RuntimeGogoBytes in arch_*.h gives the size of the function;
+-// we don't have a way to obtain it from the linker (perhaps someday).
+-// Test that the constant matches the size determined by 'go tool nm -S'.
+-// The value reported will include the padding between runtime.gogo and the
+-// next function in memory. That's fine.
+-func TestRuntimeGogoBytes(t *testing.T) {
+-	switch GOOS {
+-	case "android", "nacl":
+-		t.Skipf("skipping on %s", GOOS)
+-	case "darwin":
+-		switch GOARCH {
+-		case "arm", "arm64":
+-			t.Skipf("skipping on %s/%s, no fork", GOOS, GOARCH)
+-		}
+-	}
+-
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	out, err := exec.Command("go", "build", "-o", dir+"/hello", "../../test/helloworld.go").CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("building hello world: %v\n%s", err, out)
+-	}
+-
+-	out, err = exec.Command("go", "tool", "nm", "-size", dir+"/hello").CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("go tool nm: %v\n%s", err, out)
+-	}
+-
+-	for _, line := range strings.Split(string(out), "\n") {
+-		f := strings.Fields(line)
+-		if len(f) == 4 && f[3] == "runtime.gogo" {
+-			size, _ := strconv.Atoi(f[1])
+-			if GogoBytes() != int32(size) {
+-				t.Fatalf("RuntimeGogoBytes = %d, should be %d", GogoBytes(), size)
+-			}
+-			return
+-		}
+-	}
+-
+-	t.Fatalf("go tool nm did not report size for runtime.gogo")
+-}
+-
+ // golang.org/issue/7063
+ func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
+ 	SetCPUProfileRate(0)
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 9f34e37ea4..0f29608aae 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -46,6 +46,9 @@ var (
+ 	timerprocPC          uintptr
+ 	gcBgMarkWorkerPC     uintptr
+ 	systemstack_switchPC uintptr
++	systemstackPC        uintptr
++
++	gogoPC uintptr
+ 
+ 	externalthreadhandlerp uintptr // initialized elsewhere
+ )
+@@ -69,6 +72,10 @@ func tracebackinit() {
+ 	timerprocPC = funcPC(timerproc)
+ 	gcBgMarkWorkerPC = funcPC(gcBgMarkWorker)
+ 	systemstack_switchPC = funcPC(systemstack_switch)
++	systemstackPC = funcPC(systemstack)
++
++	// used by sigprof handler
++	gogoPC = funcPC(gogo)
+ }
+ 
+ // Traceback over the deferred function calls.
+@@ -194,7 +201,14 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		// Found an actual function.
+ 		// Derive frame pointer and link register.
+ 		if frame.fp == 0 {
+-			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc))
++			// We want to jump over the systemstack switch. If we're running on the
++			// g0, this systemstack is at the top of the stack.
++			// if we're not on g0 or there's a no curg, then this is a regular call.
++			sp := frame.sp
++			if flags&_TraceJumpStack != 0 && f.entry == systemstackPC && gp == g.m.g0 && gp.m.curg != nil {
++				sp = gp.m.curg.sched.sp
++			}
++			frame.fp = sp + uintptr(funcspdelta(f, frame.pc))
+ 			if !usesLR {
+ 				// On x86, call instruction pushes return PC before entering new function.
+ 				frame.fp += regSize

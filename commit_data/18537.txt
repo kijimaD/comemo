@@ -13,7 +13,149 @@ Date:   Sat Feb 15 16:39:04 2014 +0100
     R=khr, rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/60550044
-
+---
  src/cmd/gc/walk.c           | 37 +++++++++++++++++++---------------
  test/fixedbugs/issue7272.go | 48 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 69 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1bceae9982..e9f4c25c4b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -21,7 +21,7 @@ static	NodeList*	reorder3(NodeList*);
+ static	Node*	addstr(Node*, NodeList**);
+ static	Node*	appendslice(Node*, NodeList**);
+ static	Node*	append(Node*, NodeList**);
+-static	Node*	copyany(Node*, NodeList**);
++static	Node*	copyany(Node*, NodeList**, int);
+ static	Node*	sliceany(Node*, NodeList**);
+ static	void	walkcompare(Node**, NodeList**);
+ static	void	walkrotate(Node**);
+@@ -223,6 +223,9 @@ walkstmt(Node **np)
+ 			walkexprlist(n->left->list, &n->ninit);
+ 			n->left = walkprint(n->left, &n->ninit, 1);
+ 			break;
++		case OCOPY:
++			n->left = copyany(n->left, &n->ninit, 1);
++			break;
+ 		default:
+ 			walkexpr(&n->left, &n->ninit);
+ 			break;
+@@ -254,6 +257,9 @@ walkstmt(Node **np)
+ 			walkexprlist(n->left->list, &n->ninit);
+ 			n->left = walkprint(n->left, &n->ninit, 1);
+ 			break;
++		case OCOPY:
++			n->left = copyany(n->left, &n->ninit, 1);
++			break;
+ 		default:
+ 			walkexpr(&n->left, &n->ninit);
+ 			break;
+@@ -1311,19 +1317,7 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OCOPY:
+-		if(flag_race) {
+-			if(n->right->type->etype == TSTRING)
+-				fn = syslook("slicestringcopy", 1);
+-			else
+-				fn = syslook("copy", 1);
+-			argtype(fn, n->left->type);
+-			argtype(fn, n->right->type);
+-			n = mkcall1(fn, n->type, init,
+-					n->left, n->right,
+-					nodintconst(n->left->type->type->width));
+-			goto ret;
+-		}
+-		n = copyany(n, init);
++		n = copyany(n, init, flag_race);
+ 		goto ret;
+ 
+ 	case OCLOSE:
+@@ -2821,7 +2815,7 @@ append(Node *n, NodeList **init)
+ 	return ns;
+ }
+ 
+-// Lower copy(a, b) to a memmove call.
++// Lower copy(a, b) to a memmove call or a runtime call.
+ //
+ // init {
+ //   n := len(a)
+@@ -2833,11 +2827,22 @@ append(Node *n, NodeList **init)
+ // Also works if b is a string.
+ //
+ static Node*
+-copyany(Node *n, NodeList **init)
++copyany(Node *n, NodeList **init, int runtimecall)
+ {
+ 	Node *nl, *nr, *nfrm, *nto, *nif, *nlen, *nwid, *fn;
+ 	NodeList *l;
+ 
++	if(runtimecall) {
++		if(n->right->type->etype == TSTRING)
++			fn = syslook("slicestringcopy", 1);
++		else
++			fn = syslook("copy", 1);
++		argtype(fn, n->left->type);
++		argtype(fn, n->right->type);
++		return mkcall1(fn, n->type, init,
++				n->left, n->right,
++				nodintconst(n->left->type->type->width));
++	}
+ 	walkexpr(&n->left, init);
+ 	walkexpr(&n->right, init);
+ 	nl = temp(n->left->type);
+diff --git a/test/fixedbugs/issue7272.go b/test/fixedbugs/issue7272.go
+new file mode 100644
+index 0000000000..97a08da09f
+--- /dev/null
++++ b/test/fixedbugs/issue7272.go
+@@ -0,0 +1,48 @@
++// compile
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7272: test builtin functions in statement context and in
++// go/defer functions.
++
++package p
++
++func F() {
++	var a []int
++	var c chan int
++	var m map[int]int
++
++	close(c)
++	copy(a, a)
++	delete(m, 0)
++	panic(0)
++	print("foo")
++	println("bar")
++	recover()
++
++	(close(c))
++	(copy(a, a))
++	(delete(m, 0))
++	(panic(0))
++	(print("foo"))
++	(println("bar"))
++	(recover())
++
++	go close(c)
++	go copy(a, a)
++	go delete(m, 0)
++	go panic(0)
++	go print("foo")
++	go println("bar")
++	go recover()
++
++	defer close(c)
++	defer copy(a, a)
++	defer delete(m, 0)
++	defer panic(0)
++	defer print("foo")
++	defer println("bar")
++	defer recover()
++}

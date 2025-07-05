@@ -9,7 +9,124 @@ Date:   Tue Aug 13 09:44:12 2013 -0700
     R=golang-dev, bradfitz, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/12458043
-
+---
  src/pkg/net/dnsclient_unix.go      | 42 ++++++++++++++++++++++++++++++++++----
  src/pkg/net/dnsclient_unix_test.go | 29 ++++++++++++++++++++++++++
  2 files changed, 67 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index c9a16a94d8..38fbf322cf 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -17,6 +17,7 @@
+ package net
+ 
+ import (
++	"io"
+ 	"math/rand"
+ 	"sync"
+ 	"time"
+@@ -25,6 +26,13 @@ import (
+ // Send a request on the connection and hope for a reply.
+ // Up to cfg.attempts attempts.
+ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error) {
++	var useTCP bool
++	switch c.(type) {
++	case *UDPConn:
++		useTCP = false
++	case *TCPConn:
++		useTCP = true
++	}
+ 	if len(name) >= 256 {
+ 		return nil, &DNSError{Err: "name too long", Name: name}
+ 	}
+@@ -38,7 +46,10 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
+ 	if !ok {
+ 		return nil, &DNSError{Err: "internal error - cannot pack message", Name: name}
+ 	}
+-
++	if useTCP {
++		mlen := uint16(len(msg))
++		msg = append([]byte{byte(mlen >> 8), byte(mlen)}, msg...)
++	}
+ 	for attempt := 0; attempt < cfg.attempts; attempt++ {
+ 		n, err := c.Write(msg)
+ 		if err != nil {
+@@ -50,9 +61,19 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
+ 		} else {
+ 			c.SetReadDeadline(time.Now().Add(time.Duration(cfg.timeout) * time.Second))
+ 		}
+-
+-		buf := make([]byte, 2000) // More than enough.
+-		n, err = c.Read(buf)
++		buf := make([]byte, 2000)
++		if useTCP {
++			n, err = io.ReadFull(c, buf[:2])
++			if err != nil {
++				if e, ok := err.(Error); ok && e.Timeout() {
++					continue
++				}
++			}
++			buf = make([]byte, uint16(buf[0])<<8+uint16(buf[1]))
++			n, err = io.ReadFull(c, buf)
++		} else {
++			n, err = c.Read(buf)
++		}
+ 		if err != nil {
+ 			if e, ok := err.(Error); ok && e.Timeout() {
+ 				continue
+@@ -98,6 +119,19 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs
+ 			err = merr
+ 			continue
+ 		}
++		if msg.truncated { // see RFC 5966
++			c, cerr = Dial("tcp", server)
++			if cerr != nil {
++				err = cerr
++				continue
++			}
++			msg, merr = exchange(cfg, c, name, qtype)
++			c.Close()
++			if merr != nil {
++				err = merr
++				continue
++			}
++		}
+ 		cname, addrs, err = answer(name, server, msg, qtype)
+ 		if err == nil || err.(*DNSError).Err == noSuchHost {
+ 			break
+diff --git a/src/pkg/net/dnsclient_unix_test.go b/src/pkg/net/dnsclient_unix_test.go
+new file mode 100644
+index 0000000000..fe51f229e5
+--- /dev/null
++++ b/src/pkg/net/dnsclient_unix_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"runtime"
++	"testing"
++)
++
++func TestTCPLookup(t *testing.T) {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++		t.Skip("skipping unix dns test")
++	}
++	if testing.Short() || !*testExternal {
++		t.Skip("skipping test to avoid external network")
++	}
++	c, err := Dial("tcp", "8.8.8.8:53")
++	defer c.Close()
++	if err != nil {
++		t.Fatalf("Dial failed: %v", err)
++	}
++	cfg := &dnsConfig{timeout: 10, attempts: 3}
++	_, err = exchange(cfg, c, "com.", dnsTypeALL)
++	if err != nil {
++		t.Fatalf("exchange failed: %v", err)
++	}
++}

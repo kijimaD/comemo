@@ -13,9 +13,72 @@ Date:   Thu Mar 30 15:07:05 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/dwarf_test.go          |  1 +
  src/cmd/link/linkbig_test.go        |  2 +-
  src/internal/testenv/testenv.go     |  9 +++++++++
  src/internal/testenv/testenv_cgo.go | 11 +++++++++++
  4 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 4c7e2e4232..f88aecc7c7 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -20,6 +20,7 @@ import (
+ )
+ 
+ func TestDWARF(t *testing.T) {
++	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	if runtime.GOOS == "plan9" {
+diff --git a/src/cmd/link/linkbig_test.go b/src/cmd/link/linkbig_test.go
+index d793c2f5f2..960d89fd21 100644
+--- a/src/cmd/link/linkbig_test.go
++++ b/src/cmd/link/linkbig_test.go
+@@ -21,7 +21,7 @@ import (
+ 
+ func TestLargeText(t *testing.T) {
+ 	if testing.Short() || (obj.GOARCH != "ppc64le" && obj.GOARCH != "ppc64" && obj.GOARCH != "arm") {
+-		t.Skip("Skipping large text section test in short mode or on %s", obj.GOARCH)
++		t.Skipf("Skipping large text section test in short mode or on %s", obj.GOARCH)
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 4cd8a2b541..1a13ac3f2b 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -151,6 +151,15 @@ func MustHaveExternalNetwork(t *testing.T) {
+ 	}
+ }
+ 
++var haveCGO bool
++
++// MustHaveCGO calls t.Skip if cgo is not available.
++func MustHaveCGO(t *testing.T) {
++	if !haveCGO {
++		t.Skipf("skipping test: no cgo")
++	}
++}
++
+ // HasSymlink reports whether the current system can use os.Symlink.
+ func HasSymlink() bool {
+ 	ok, _ := hasSymlink()
+diff --git a/src/internal/testenv/testenv_cgo.go b/src/internal/testenv/testenv_cgo.go
+new file mode 100644
+index 0000000000..e3d4d16b33
+--- /dev/null
++++ b/src/internal/testenv/testenv_cgo.go
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++
++package testenv
++
++func init() {
++	haveCGO = true
++}

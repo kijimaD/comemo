@@ -17,7 +17,55 @@ Date:   Tue Jun 22 22:21:09 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 2 +-
  src/cmd/compile/internal/walk/order.go | 9 ---------
  2 files changed, 1 insertion(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 7a6bf878e1..659ba02b5b 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -535,7 +535,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	}
+ 
+ 	// Populate closure variables.
+-	if !fn.ClosureCalled() {
++	if fn.Needctxt() {
+ 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
+ 		offset := int64(types.PtrSize) // PtrSize to skip past function entry PC field
+ 		for _, n := range fn.ClosureVars {
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index c24f80508a..75657cd3e4 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1566,7 +1566,6 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC && callX.Type().NumResults() == 0 {
+ 		if callX.Op() == ir.OCLOSURE {
+ 			clo := callX.(*ir.ClosureExpr)
+-			clo.Func.SetClosureCalled(false)
+ 			clo.IsGoWrap = true
+ 		}
+ 		return
+@@ -1691,12 +1690,6 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 			// Deal with "defer returnsafunc()(x, y)" (for
+ 			// example) by copying the callee expression.
+ 			fnExpr = mkArgCopy(callX)
+-			if callX.Op() == ir.OCLOSURE {
+-				// For "defer func(...)", in addition to copying the
+-				// closure into a temp, mark it as no longer directly
+-				// called.
+-				callX.(*ir.ClosureExpr).Func.SetClosureCalled(false)
+-			}
+ 		}
+ 	}
+ 
+@@ -1770,8 +1763,6 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 	topcall := ir.NewCallExpr(n.Pos(), ir.OCALL, clo, nil)
+ 	typecheck.Call(topcall)
+ 
+-	fn.SetClosureCalled(false)
+-
+ 	// Finally, point the defer statement at the newly generated call.
+ 	n.Call = topcall
+ }

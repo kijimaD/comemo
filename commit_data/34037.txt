@@ -11,6 +11,44 @@ Date:   Tue Sep 26 16:07:27 2017 -0600
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/path/filepath/example_unix_test.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/src/path/filepath/example_unix_test.go b/src/path/filepath/example_unix_test.go
+index cd8233ceb6..40bc547fe4 100644
+--- a/src/path/filepath/example_unix_test.go
++++ b/src/path/filepath/example_unix_test.go
+@@ -8,6 +8,7 @@ package filepath_test
+ 
+ import (
+ 	"fmt"
++	"os"
+ 	"path/filepath"
+ )
+ 
+@@ -79,3 +80,24 @@ func ExampleJoin() {
+ 	// a/b/c
+ 	// a/b/c
+ }
++func ExampleWalk() {
++	dir := "dir/to/walk"
++	subDirToSkip := "skip" // dir/to/walk/skip
++
++	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
++		if err != nil {
++			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dir, err)
++			return err
++		}
++		if info.IsDir() && info.Name() == subDirToSkip {
++			fmt.Printf("skipping a dir without errors: %+v \n", info.Name())
++			return filepath.SkipDir
++		}
++		fmt.Printf("visited file: %q\n", path)
++		return nil
++	})
++
++	if err != nil {
++		fmt.Printf("error walking the path %q: %v\n", dir, err)
++	}
++}

@@ -8,7 +8,148 @@ Date:   Sat May 18 02:55:44 2013 +0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/9475043
-
+---
  misc/cgo/test/callback_c.c | 26 +++++++++++++++++--
  misc/cgo/test/issue1560.go | 63 ++++++++++++++--------------------------------
  2 files changed, 43 insertions(+), 46 deletions(-)
+
+diff --git a/misc/cgo/test/callback_c.c b/misc/cgo/test/callback_c.c
+index 47f07301bf..032011ae5d 100644
+--- a/misc/cgo/test/callback_c.c
++++ b/misc/cgo/test/callback_c.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include <sys/types.h>
++#include <unistd.h>
+ #include "_cgo_export.h"
+ 
+ void
+@@ -29,9 +30,30 @@ IntoC(void)
+ 	BackIntoGo();
+ }
+ 
+-void
++#ifdef WIN32
++#include <windows.h>
++long long
++mysleep(int seconds) {
++	long long st = GetTickCount();
++	sleep(seconds);
++	return st;
++}
++#else
++#include <sys/time.h>
++long long
++mysleep(int seconds) {
++	long long st;
++	struct timeval tv;
++	gettimeofday(&tv, NULL);
++	st = tv.tv_sec * 1000 + tv.tv_usec / 1000;
++	sleep(seconds);
++	return st;
++}
++#endif
++
++long long
+ twoSleep(int n)
+ {
+ 	BackgroundSleep(n);
+-	sleep(n);
++	return mysleep(n);
+ }
+diff --git a/misc/cgo/test/issue1560.go b/misc/cgo/test/issue1560.go
+index 147ce94b58..c46954b074 100644
+--- a/misc/cgo/test/issue1560.go
++++ b/misc/cgo/test/issue1560.go
+@@ -5,71 +5,46 @@
+ package cgotest
+ 
+ /*
+-#include <unistd.h>
++// mysleep returns the absolute start time in ms.
++long long mysleep(int seconds);
+ 
+-unsigned int sleep(unsigned int seconds);
+-
+-extern void BackgroundSleep(int);
+-void twoSleep(int);
++// twoSleep returns the absolute start time of the first sleep
++// in ms.
++long long twoSleep(int);
+ */
+ import "C"
+ 
+ import (
+-	"runtime"
+ 	"testing"
+ 	"time"
+ )
+ 
+-var sleepDone = make(chan bool)
++var sleepDone = make(chan int64)
+ 
+-func parallelSleep(n int) {
+-	C.twoSleep(C.int(n))
+-	<-sleepDone
++// parallelSleep returns the absolute difference between the start time
++// of the two sleeps.
++func parallelSleep(n int) int64 {
++	t := int64(C.twoSleep(C.int(n))) - <-sleepDone
++	if t < 0 {
++		return -t
++	}
++	return t
+ }
+ 
+ //export BackgroundSleep
+ func BackgroundSleep(n int32) {
+ 	go func() {
+-		C.sleep(C.uint(n))
+-		sleepDone <- true
+-	}()
+-}
+-
+-// wasteCPU starts a background goroutine to waste CPU
+-// to cause the power management to raise the CPU frequency.
+-// On ARM this has the side effect of making sleep more accurate.
+-func wasteCPU() chan struct{} {
+-	done := make(chan struct{})
+-	go func() {
+-		for {
+-			select {
+-			case <-done:
+-				return
+-			default:
+-			}
+-		}
++		sleepDone <- int64(C.mysleep(C.int(n)))
+ 	}()
+-	// pause for a short amount of time to allow the
+-	// power management to recognise load has risen.
+-	<-time.After(300 * time.Millisecond)
+-	return done
+ }
+ 
+ func testParallelSleep(t *testing.T) {
+-	if runtime.GOARCH == "arm" {
+-		// on ARM, the 1.3s deadline is frequently missed,
+-		// and burning cpu seems to help
+-		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+-		defer close(wasteCPU())
+-	}
+-
+ 	sleepSec := 1
+-	start := time.Now()
+-	parallelSleep(sleepSec)
+-	dt := time.Since(start)
+-	t.Logf("sleep(%d) slept for %v", sleepSec, dt)
++	dt := time.Duration(parallelSleep(sleepSec)) * time.Millisecond
++	t.Logf("difference in start time for two sleep(%d) is %v", sleepSec, dt)
+ 	// bug used to run sleeps in serial, producing a 2*sleepSec-second delay.
+-	if dt >= time.Duration(sleepSec)*1300*time.Millisecond {
++	// we detect if the start times of those sleeps are > 0.5*sleepSec-second.
++	if dt >= time.Duration(sleepSec)*time.Second/2 {
+ 		t.Fatalf("parallel %d-second sleeps slept for %f seconds", sleepSec, dt.Seconds())
+ 	}
+ }

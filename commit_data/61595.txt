@@ -22,7 +22,7 @@ Date:   Fri Nov 15 13:49:28 2024 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go        | 27 ++++++++++++++++-
  src/cmd/go/internal/fsys/fsys.go      | 36 ++++++++--------------
  src/cmd/go/internal/fsys/fsys_test.go | 57 ++++++++++++++++++-----------------
@@ -35,3 +35,634 @@ Date:   Fri Nov 15 13:49:28 2024 -0500
  src/cmd/go/internal/search/search.go  | 12 ++++----
  src/cmd/go/internal/workcmd/use.go    |  6 ++--
  11 files changed, 141 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 11b3893810..5b8468926f 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -14,11 +14,13 @@ import (
+ 	"internal/buildcfg"
+ 	"internal/cfg"
+ 	"io"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+ 	"sync"
++	"time"
+ 
+ 	"cmd/go/internal/fsys"
+ 	"cmd/internal/pathcache"
+@@ -181,7 +183,15 @@ func defaultContext() build.Context {
+ 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
+ 		return fsys.Open(path)
+ 	}
+-	ctxt.ReadDir = fsys.ReadDir
++	ctxt.ReadDir = func(path string) ([]fs.FileInfo, error) {
++		// Convert []fs.DirEntry to []fs.FileInfo using dirInfo.
++		dirs, err := fsys.ReadDir(path)
++		infos := make([]fs.FileInfo, len(dirs))
++		for i, dir := range dirs {
++			infos[i] = &dirInfo{dir}
++		}
++		return infos, err
++	}
+ 	ctxt.IsDir = func(path string) bool {
+ 		isDir, err := fsys.IsDir(path)
+ 		return err == nil && isDir
+@@ -641,3 +651,18 @@ func BuildXWriter(ctx context.Context) (io.Writer, bool) {
+ 	}
+ 	return os.Stderr, true
+ }
++
++// A dirInfo implements fs.FileInfo from fs.DirEntry.
++// We know that go/build doesn't use the non-DirEntry parts,
++// so we can panic instead of doing difficult work.
++type dirInfo struct {
++	dir fs.DirEntry
++}
++
++func (d *dirInfo) Name() string      { return d.dir.Name() }
++func (d *dirInfo) IsDir() bool       { return d.dir.IsDir() }
++func (d *dirInfo) Mode() fs.FileMode { return d.dir.Type() }
++
++func (d *dirInfo) Size() int64        { panic("dirInfo.Size") }
++func (d *dirInfo) ModTime() time.Time { panic("dirInfo.ModTime") }
++func (d *dirInfo) Sys() any           { panic("dirInfo.Sys") }
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 63db4d2593..79641133c5 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -301,32 +301,20 @@ func nonFileInOverlayError(overlayPath string) error {
+ 	return fmt.Errorf("replacement path %q is a directory, not a file", overlayPath)
+ }
+ 
+-// osReadDir is like os.ReadDir but returns []fs.FileInfo and corrects the error to be errNotDir
++// osReadDir is like os.ReadDir corrects the error to be errNotDir
+ // if the problem is that name exists but is not a directory.
+-func osReadDir(name string) ([]fs.FileInfo, error) {
++func osReadDir(name string) ([]fs.DirEntry, error) {
+ 	dirs, err := os.ReadDir(name)
+ 	if err != nil && !os.IsNotExist(err) {
+ 		if info, err := os.Stat(name); err == nil && !info.IsDir() {
+ 			return nil, &fs.PathError{Op: "ReadDir", Path: name, Err: errNotDir}
+ 		}
+ 	}
+-
+-	// Convert dirs to infos, even if there is an error,
+-	// so that we preserve any partial read from os.ReadDir.
+-	infos := make([]fs.FileInfo, 0, len(dirs))
+-	for _, dir := range dirs {
+-		info, err := dir.Info()
+-		if err != nil {
+-			continue
+-		}
+-		infos = append(infos, info)
+-	}
+-
+-	return infos, err
++	return dirs, err
+ }
+ 
+ // ReadDir reads the named directory in the virtual file system.
+-func ReadDir(dir string) ([]fs.FileInfo, error) {
++func ReadDir(dir string) ([]fs.DirEntry, error) {
+ 	Trace("ReadDir", dir)
+ 	dir = abs(dir)
+ 	if _, ok := parentIsOverlayFile(dir); ok {
+@@ -346,14 +334,14 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
+ 	}
+ 
+ 	// Stat files in overlay to make composite list of fileinfos
+-	files := make(map[string]fs.FileInfo)
++	files := make(map[string]fs.DirEntry)
+ 	for _, f := range diskfis {
+ 		files[f.Name()] = f
+ 	}
+ 	for name, to := range dirNode.children {
+ 		switch {
+ 		case to.isDir():
+-			files[name] = fakeDir(name)
++			files[name] = fs.FileInfoToDirEntry(fakeDir(name))
+ 		case to.isDeleted():
+ 			delete(files, name)
+ 		default:
+@@ -364,14 +352,14 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
+ 			// ordinary directory.
+ 			fi, err := os.Stat(to.actualFilePath)
+ 			if err != nil {
+-				files[name] = missingFile(name)
++				files[name] = fs.FileInfoToDirEntry(missingFile(name))
+ 				continue
+ 			} else if fi.IsDir() {
+ 				return nil, &fs.PathError{Op: "Stat", Path: filepath.Join(dir, name), Err: nonFileInOverlayError(to.actualFilePath)}
+ 			}
+ 			// Add a fileinfo for the overlaid file, so that it has
+ 			// the original file's name, but the overlaid file's metadata.
+-			files[name] = fakeFile{name, fi}
++			files[name] = fs.FileInfoToDirEntry(fakeFile{name, fi})
+ 		}
+ 	}
+ 	sortedFiles := diskfis[:0]
+@@ -456,18 +444,18 @@ func IsGoDir(name string) (bool, error) {
+ 	}
+ 
+ 	var firstErr error
+-	for _, fi := range fis {
+-		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".go") {
++	for _, d := range fis {
++		if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
+ 			continue
+ 		}
+-		if fi.Mode().IsRegular() {
++		if d.Type().IsRegular() {
+ 			return true, nil
+ 		}
+ 
+ 		// fi is the result of an Lstat, so it doesn't follow symlinks.
+ 		// But it's okay if the file is a symlink pointing to a regular
+ 		// file, so use os.Stat to follow symlinks and check that.
+-		fi, err := os.Stat(Actual(filepath.Join(name, fi.Name())))
++		fi, err := os.Stat(Actual(filepath.Join(name, d.Name())))
+ 		if err == nil && fi.Mode().IsRegular() {
+ 			return true, nil
+ 		}
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index bb3f091cd5..11c002e861 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -31,8 +31,8 @@ func initOverlay(t *testing.T, config string) {
+ 	t.Chdir(t.TempDir())
+ 	resetForTesting()
+ 	t.Cleanup(resetForTesting)
+-
+ 	cwd := cwd()
++
+ 	a := txtar.Parse([]byte(config))
+ 	for _, f := range a.Files {
+ 		name := filepath.Join(cwd, f.Name)
+@@ -302,18 +302,14 @@ func TestReadDir(t *testing.T) {
+ 		for len(infos) > 0 || len(want) > 0 {
+ 			switch {
+ 			case len(want) == 0 || len(infos) > 0 && infos[0].Name() < want[0].name:
+-				t.Errorf("ReadDir(%q): unexpected entry: %s IsDir=%v Size=%v", dir, infos[0].Name(), infos[0].IsDir(), infos[0].Size())
++				t.Errorf("ReadDir(%q): unexpected entry: %s IsDir=%v", dir, infos[0].Name(), infos[0].IsDir())
+ 				infos = infos[1:]
+ 			case len(infos) == 0 || len(want) > 0 && want[0].name < infos[0].Name():
+-				t.Errorf("ReadDir(%q): missing entry: %s IsDir=%v Size=%v", dir, want[0].name, want[0].isDir, want[0].size)
++				t.Errorf("ReadDir(%q): missing entry: %s IsDir=%v", dir, want[0].name, want[0].isDir)
+ 				want = want[1:]
+ 			default:
+-				infoSize := infos[0].Size()
+-				if want[0].isDir {
+-					infoSize = 0
+-				}
+-				if infos[0].IsDir() != want[0].isDir || want[0].isDir && infoSize != want[0].size {
+-					t.Errorf("ReadDir(%q): %s: IsDir=%v Size=%v, want IsDir=%v Size=%v", dir, want[0].name, infos[0].IsDir(), infoSize, want[0].isDir, want[0].size)
++				if infos[0].IsDir() != want[0].isDir {
++					t.Errorf("ReadDir(%q): %s: IsDir=%v, want IsDir=%v", dir, want[0].name, infos[0].IsDir(), want[0].isDir)
+ 				}
+ 				infos = infos[1:]
+ 				want = want[1:]
+@@ -689,8 +685,21 @@ contents of other file
+ 			initOverlay(t, tc.overlay)
+ 
+ 			var got []file
+-			Walk(tc.root, func(path string, info fs.FileInfo, err error) error {
+-				got = append(got, file{path, info.Name(), info.Size(), info.Mode(), info.IsDir()})
++			WalkDir(tc.root, func(path string, d fs.DirEntry, err error) error {
++				info, err := d.Info()
++				if err != nil {
++					t.Fatal(err)
++				}
++				if info.Name() != d.Name() {
++					t.Errorf("walk %s: d.Name() = %q, but info.Name() = %q", path, d.Name(), info.Name())
++				}
++				if info.IsDir() != d.IsDir() {
++					t.Errorf("walk %s: d.IsDir() = %v, but info.IsDir() = %v", path, d.IsDir(), info.IsDir())
++				}
++				if info.Mode().Type() != d.Type() {
++					t.Errorf("walk %s: d.Type() = %v, but info.Mode().Type() = %v", path, d.Type(), info.Mode().Type())
++				}
++				got = append(got, file{path, d.Name(), info.Size(), info.Mode(), d.IsDir()})
+ 				return nil
+ 			})
+ 
+@@ -700,22 +709,16 @@ contents of other file
+ 			for i := 0; i < len(got) && i < len(tc.wantFiles); i++ {
+ 				wantPath := filepath.FromSlash(tc.wantFiles[i].path)
+ 				if got[i].path != wantPath {
+-					t.Errorf("path of file #%v in walk, got %q, want %q", i, got[i].path, wantPath)
++					t.Errorf("walk #%d: path = %q, want %q", i, got[i].path, wantPath)
+ 				}
+ 				if got[i].name != tc.wantFiles[i].name {
+-					t.Errorf("name of file #%v in walk, got %q, want %q", i, got[i].name, tc.wantFiles[i].name)
++					t.Errorf("walk %s: Name = %q, want %q", got[i].path, got[i].name, tc.wantFiles[i].name)
+ 				}
+ 				if got[i].mode&(fs.ModeDir|0700) != tc.wantFiles[i].mode {
+-					t.Errorf("mode&(fs.ModeDir|0700) for mode of file #%v in walk, got %v, want %v", i, got[i].mode&(fs.ModeDir|0700), tc.wantFiles[i].mode)
++					t.Errorf("walk %s: Mode = %q, want %q", got[i].path, got[i].mode&(fs.ModeDir|0700), tc.wantFiles[i].mode)
+ 				}
+ 				if got[i].isDir != tc.wantFiles[i].isDir {
+-					t.Errorf("isDir for file #%v in walk, got %v, want %v", i, got[i].isDir, tc.wantFiles[i].isDir)
+-				}
+-				if tc.wantFiles[i].isDir {
+-					continue // don't check size for directories
+-				}
+-				if got[i].size != tc.wantFiles[i].size {
+-					t.Errorf("size of file #%v in walk, got %v, want %v", i, got[i].size, tc.wantFiles[i].size)
++					t.Errorf("walk %s: IsDir = %v, want %v", got[i].path, got[i].isDir, tc.wantFiles[i].isDir)
+ 				}
+ 			}
+ 		})
+@@ -735,9 +738,9 @@ func TestWalkSkipDir(t *testing.T) {
+ `)
+ 
+ 	var seen []string
+-	Walk("dir", func(path string, info fs.FileInfo, err error) error {
++	WalkDir("dir", func(path string, d fs.DirEntry, err error) error {
+ 		seen = append(seen, filepath.ToSlash(path))
+-		if info.Name() == "skip" {
++		if d.Name() == "skip" {
+ 			return filepath.SkipDir
+ 		}
+ 		return nil
+@@ -771,9 +774,9 @@ func TestWalkSkipAll(t *testing.T) {
+ `)
+ 
+ 	var seen []string
+-	Walk("dir", func(path string, info fs.FileInfo, err error) error {
++	WalkDir("dir", func(path string, d fs.DirEntry, err error) error {
+ 		seen = append(seen, filepath.ToSlash(path))
+-		if info.Name() == "foo2" {
++		if d.Name() == "foo2" {
+ 			return filepath.SkipAll
+ 		}
+ 		return nil
+@@ -796,7 +799,7 @@ func TestWalkError(t *testing.T) {
+ 	initOverlay(t, "{}")
+ 
+ 	alreadyCalled := false
+-	err := Walk("foo", func(path string, info fs.FileInfo, err error) error {
++	err := WalkDir("foo", func(path string, d fs.DirEntry, err error) error {
+ 		if alreadyCalled {
+ 			t.Fatal("expected walk function to be called exactly once, but it was called more than once")
+ 		}
+@@ -848,7 +851,7 @@ func TestWalkSymlink(t *testing.T) {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			var got []string
+ 
+-			err := Walk(tc.dir, func(path string, info fs.FileInfo, err error) error {
++			err := WalkDir(tc.dir, func(path string, d fs.DirEntry, err error) error {
+ 				t.Logf("walk %q", path)
+ 				got = append(got, path)
+ 				if err != nil {
+diff --git a/src/cmd/go/internal/fsys/walk.go b/src/cmd/go/internal/fsys/walk.go
+index 23d739518a..2fcaa948a7 100644
+--- a/src/cmd/go/internal/fsys/walk.go
++++ b/src/cmd/go/internal/fsys/walk.go
+@@ -1,4 +1,4 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
++// Copyright 2024 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -9,40 +9,51 @@ import (
+ 	"path/filepath"
+ )
+ 
+-// Walk walks the file tree rooted at root, calling walkFn for each file or
+-// directory in the tree, including root.
+-func Walk(root string, walkFn filepath.WalkFunc) error {
+-	Trace("Walk", root)
++// Copied from path/filepath.
++
++// WalkDir is like filepath.WalkDir but over the virtual file system.
++func WalkDir(root string, fn fs.WalkDirFunc) error {
+ 	info, err := Lstat(root)
+ 	if err != nil {
+-		err = walkFn(root, nil, err)
++		err = fn(root, nil, err)
+ 	} else {
+-		err = walk(root, info, walkFn)
++		err = walkDir(root, fs.FileInfoToDirEntry(info), fn)
+ 	}
+-	if err == filepath.SkipDir {
++	if err == filepath.SkipDir || err == filepath.SkipAll {
+ 		return nil
+ 	}
+ 	return err
+ }
+ 
+-// walk recursively descends path, calling walkFn. Copied, with some
+-// modifications from path/filepath.walk.
+-func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
+-	if err := walkFn(path, info, nil); err != nil || !info.IsDir() {
++// walkDir recursively descends path, calling walkDirFn.
++func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
++	if err := walkDirFn(path, d, nil); err != nil || !d.IsDir() {
++		if err == filepath.SkipDir && d.IsDir() {
++			// Successfully skipped directory.
++			err = nil
++		}
+ 		return err
+ 	}
+ 
+-	fis, err := ReadDir(path)
++	dirs, err := ReadDir(path)
+ 	if err != nil {
+-		return walkFn(path, info, err)
++		// Second call, to report ReadDir error.
++		err = walkDirFn(path, d, err)
++		if err != nil {
++			if err == filepath.SkipDir && d.IsDir() {
++				err = nil
++			}
++			return err
++		}
+ 	}
+ 
+-	for _, fi := range fis {
+-		filename := filepath.Join(path, fi.Name())
+-		if err := walk(filename, fi, walkFn); err != nil {
+-			if !fi.IsDir() || err != filepath.SkipDir {
+-				return err
++	for _, d1 := range dirs {
++		path1 := filepath.Join(path, d1.Name())
++		if err := walkDir(path1, d1, walkDirFn); err != nil {
++			if err == filepath.SkipDir {
++				break
+ 			}
++			return err
+ 		}
+ 	}
+ 	return nil
+diff --git a/src/cmd/go/internal/imports/scan.go b/src/cmd/go/internal/imports/scan.go
+index e18f28c351..5ad438c674 100644
+--- a/src/cmd/go/internal/imports/scan.go
++++ b/src/cmd/go/internal/imports/scan.go
+@@ -15,26 +15,27 @@ import (
+ 	"cmd/go/internal/fsys"
+ )
+ 
+-func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
+-	infos, err := fsys.ReadDir(dir)
++func ScanDir(path string, tags map[string]bool) ([]string, []string, error) {
++	dirs, err := fsys.ReadDir(path)
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}
+ 	var files []string
+-	for _, info := range infos {
+-		name := info.Name()
++	for _, dir := range dirs {
++		name := dir.Name()
+ 
+ 		// If the directory entry is a symlink, stat it to obtain the info for the
+ 		// link target instead of the link itself.
+-		if info.Mode()&fs.ModeSymlink != 0 {
+-			info, err = fsys.Stat(filepath.Join(dir, name))
++		if dir.Type()&fs.ModeSymlink != 0 {
++			info, err := fsys.Stat(filepath.Join(path, name))
+ 			if err != nil {
+ 				continue // Ignore broken symlinks.
+ 			}
++			dir = fs.FileInfoToDirEntry(info)
+ 		}
+ 
+-		if info.Mode().IsRegular() && !strings.HasPrefix(name, "_") && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
+-			files = append(files, filepath.Join(dir, name))
++		if dir.Type().IsRegular() && !strings.HasPrefix(name, "_") && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
++			files = append(files, filepath.Join(path, name))
+ 		}
+ 	}
+ 	return scanFiles(files, tags, false)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index bdb7bc886e..ac4ba1a342 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2184,28 +2184,28 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
+ 				// Gather all files in the named directory, stopping at module boundaries
+ 				// and ignoring files that wouldn't be packaged into a module.
+ 				count := 0
+-				err := fsys.Walk(file, func(path string, info os.FileInfo, err error) error {
++				err := fsys.WalkDir(file, func(path string, d fs.DirEntry, err error) error {
+ 					if err != nil {
+ 						return err
+ 					}
+ 					rel := filepath.ToSlash(str.TrimFilePathPrefix(path, pkgdir))
+-					name := info.Name()
++					name := d.Name()
+ 					if path != file && (isBadEmbedName(name) || ((name[0] == '.' || name[0] == '_') && !all)) {
+ 						// Ignore bad names, assuming they won't go into modules.
+ 						// Also avoid hidden files that user may not know about.
+ 						// See golang.org/issue/42328.
+-						if info.IsDir() {
++						if d.IsDir() {
+ 							return fs.SkipDir
+ 						}
+ 						return nil
+ 					}
+-					if info.IsDir() {
++					if d.IsDir() {
+ 						if _, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil {
+ 							return filepath.SkipDir
+ 						}
+ 						return nil
+ 					}
+-					if !info.Mode().IsRegular() {
++					if !d.Type().IsRegular() {
+ 						return nil
+ 					}
+ 					count++
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 7950884248..c4102409b4 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -86,18 +86,18 @@ func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
+ 	h := cache.NewHash("moduleIndex")
+ 	fmt.Fprintf(h, "modroot %s\n", modroot)
+ 	fmt.Fprintf(h, "package %s %s %v\n", runtime.Version(), indexVersion, pkgdir)
+-	entries, err := fsys.ReadDir(pkgdir)
++	dirs, err := fsys.ReadDir(pkgdir)
+ 	if err != nil {
+ 		// pkgdir might not be a directory. give up on hashing.
+ 		return cache.ActionID{}, ErrNotIndexed
+ 	}
+ 	cutoff := time.Now().Add(-modTimeCutoff)
+-	for _, info := range entries {
+-		if info.IsDir() {
++	for _, d := range dirs {
++		if d.IsDir() {
+ 			continue
+ 		}
+ 
+-		if !info.Mode().IsRegular() {
++		if !d.Type().IsRegular() {
+ 			return cache.ActionID{}, ErrNotIndexed
+ 		}
+ 		// To avoid problems for very recent files where a new
+@@ -108,6 +108,10 @@ func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
+ 		// This is the same strategy used for hashing test inputs.
+ 		// See hashOpen in cmd/go/internal/test/test.go for the
+ 		// corresponding code.
++		info, err := d.Info()
++		if err != nil {
++			return cache.ActionID{}, ErrNotIndexed
++		}
+ 		if info.ModTime().After(cutoff) {
+ 			return cache.ActionID{}, ErrNotIndexed
+ 		}
+diff --git a/src/cmd/go/internal/modindex/scan.go b/src/cmd/go/internal/modindex/scan.go
+index 2a2c3ea2c2..90be154e8e 100644
+--- a/src/cmd/go/internal/modindex/scan.go
++++ b/src/cmd/go/internal/modindex/scan.go
+@@ -23,17 +23,17 @@ import (
+ // moduleWalkErr returns filepath.SkipDir if the directory isn't relevant
+ // when indexing a module or generating a filehash, ErrNotIndexed,
+ // if the module shouldn't be indexed, and nil otherwise.
+-func moduleWalkErr(root string, path string, info fs.FileInfo, err error) error {
++func moduleWalkErr(root string, path string, d fs.DirEntry, err error) error {
+ 	if err != nil {
+ 		return ErrNotIndexed
+ 	}
+ 	// stop at module boundaries
+-	if info.IsDir() && path != root {
+-		if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
++	if d.IsDir() && path != root {
++		if info, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !info.IsDir() {
+ 			return filepath.SkipDir
+ 		}
+ 	}
+-	if info.Mode()&fs.ModeSymlink != 0 {
++	if d.Type()&fs.ModeSymlink != 0 {
+ 		if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+ 			// return an error to make the module hash invalid.
+ 			// Symlink directories in modules are tricky, so we won't index
+@@ -57,12 +57,12 @@ func indexModule(modroot string) ([]byte, error) {
+ 	// we want to follow it (see https://go.dev/issue/50807).
+ 	// Add a trailing separator to force that to happen.
+ 	root := str.WithFilePathSeparator(modroot)
+-	err := fsys.Walk(root, func(path string, info fs.FileInfo, err error) error {
+-		if err := moduleWalkErr(root, path, info, err); err != nil {
++	err := fsys.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
++		if err := moduleWalkErr(root, path, d, err); err != nil {
+ 			return err
+ 		}
+ 
+-		if !info.IsDir() {
++		if !d.IsDir() {
+ 			return nil
+ 		}
+ 		if !strings.HasPrefix(path, root) {
+@@ -204,7 +204,7 @@ func importRaw(modroot, reldir string) *rawPackage {
+ 		if d.IsDir() {
+ 			continue
+ 		}
+-		if d.Mode()&fs.ModeSymlink != 0 {
++		if d.Type()&fs.ModeSymlink != 0 {
+ 			if isDir(filepath.Join(absdir, d.Name())) {
+ 				// Symlinks to directories are not source files.
+ 				continue
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 1d0583b1fe..6c60101c8b 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -83,7 +83,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 		// we want to follow it (see https://go.dev/issue/50807).
+ 		// Add a trailing separator to force that to happen.
+ 		root = str.WithFilePathSeparator(filepath.Clean(root))
+-		err := fsys.Walk(root, func(pkgDir string, fi fs.FileInfo, err error) error {
++		err := fsys.WalkDir(root, func(pkgDir string, d fs.DirEntry, err error) error {
+ 			if err != nil {
+ 				m.AddError(err)
+ 				return nil
+@@ -110,8 +110,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 				want = false
+ 			}
+ 
+-			if !fi.IsDir() {
+-				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.Pattern(), "...") {
++			if !d.IsDir() {
++				if d.Type()&fs.ModeSymlink != 0 && want && strings.Contains(m.Pattern(), "...") {
+ 					if target, err := fsys.Stat(pkgDir); err == nil && target.IsDir() {
+ 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", pkgDir)
+ 					}
+@@ -124,7 +124,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 			}
+ 			// Stop at module boundaries.
+ 			if (prune&pruneGoMod != 0) && pkgDir != root {
+-				if fi, err := os.Stat(filepath.Join(pkgDir, "go.mod")); err == nil && !fi.IsDir() {
++				if info, err := os.Stat(filepath.Join(pkgDir, "go.mod")); err == nil && !info.IsDir() {
+ 					return filepath.SkipDir
+ 				}
+ 			}
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 450c2ed8f8..abc6b8b43c 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -135,7 +135,7 @@ func (m *Match) MatchPackages() {
+ 			root += "cmd" + string(filepath.Separator)
+ 		}
+ 
+-		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
++		err := fsys.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+ 			if err != nil {
+ 				return err // Likely a permission error, which could interfere with matching.
+ 			}
+@@ -160,8 +160,8 @@ func (m *Match) MatchPackages() {
+ 				want = false
+ 			}
+ 
+-			if !fi.IsDir() {
+-				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.pattern, "...") {
++			if !d.IsDir() {
++				if d.Type()&fs.ModeSymlink != 0 && want && strings.Contains(m.pattern, "...") {
+ 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+ 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
+ 					}
+@@ -278,11 +278,11 @@ func (m *Match) MatchDirs(modRoots []string) {
+ 	// we want to follow it (see https://go.dev/issue/50807).
+ 	// Add a trailing separator to force that to happen.
+ 	dir = str.WithFilePathSeparator(dir)
+-	err := fsys.Walk(dir, func(path string, fi fs.FileInfo, err error) error {
++	err := fsys.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+ 		if err != nil {
+ 			return err // Likely a permission error, which could interfere with matching.
+ 		}
+-		if !fi.IsDir() {
++		if !d.IsDir() {
+ 			return nil
+ 		}
+ 		top := false
+@@ -308,7 +308,7 @@ func (m *Match) MatchDirs(modRoots []string) {
+ 
+ 		if !top && cfg.ModulesEnabled {
+ 			// Ignore other modules found in subdirectories.
+-			if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
++			if info, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !info.IsDir() {
+ 				return filepath.SkipDir
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index e2c197c663..3e503bfac5 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -150,13 +150,13 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
+ 		// If the root itself is a symlink to a directory,
+ 		// we want to follow it (see https://go.dev/issue/50807).
+ 		// Add a trailing separator to force that to happen.
+-		fsys.Walk(str.WithFilePathSeparator(useDir), func(path string, info fs.FileInfo, err error) error {
++		fsys.WalkDir(str.WithFilePathSeparator(useDir), func(path string, d fs.DirEntry, err error) error {
+ 			if err != nil {
+ 				return err
+ 			}
+ 
+-			if !info.IsDir() {
+-				if info.Mode()&fs.ModeSymlink != 0 {
++			if !d.IsDir() {
++				if d.Type()&fs.ModeSymlink != 0 {
+ 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+ 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", base.ShortPathConservative(path))
+ 					}

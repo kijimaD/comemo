@@ -14,7 +14,7 @@ Date:   Thu Jul 31 12:55:40 2014 +0400
     R=golang-codereviews, josharian, tracey.brendan, khr
     CC=bradfitz, golang-codereviews, r, rlh, rsc
     https://golang.org/cl/116390043
-
+---
  src/pkg/runtime/env_posix.c | 15 +------
  src/pkg/runtime/malloc.c    | 97 ---------------------------------------------
  src/pkg/runtime/malloc.h    |  8 ----
@@ -27,3 +27,653 @@ Date:   Thu Jul 31 12:55:40 2014 +0400
  src/pkg/runtime/runtime.h   |  1 -
  src/pkg/runtime/time.goc    |  1 -
  11 files changed, 18 insertions(+), 325 deletions(-)
+
+diff --git a/src/pkg/runtime/env_posix.c b/src/pkg/runtime/env_posix.c
+index 4c8288f6b4..9b3583ce8b 100644
+--- a/src/pkg/runtime/env_posix.c
++++ b/src/pkg/runtime/env_posix.c
+@@ -46,28 +46,17 @@ void
+ syscall·setenv_c(String k, String v)
+ {
+ 	byte *arg[2];
+-	uintptr len;
+ 
+ 	if(_cgo_setenv == nil)
+ 		return;
+ 
+-	// Objects that are explicitly freed must be at least 16 bytes in size,
+-	// so that they are not allocated using tiny alloc.
+-	len = k.len + 1;
+-	if(len < TinySize)
+-		len = TinySize;
+-	arg[0] = runtime·malloc(len);
++	arg[0] = runtime·malloc(k.len + 1);
+ 	runtime·memmove(arg[0], k.str, k.len);
+ 	arg[0][k.len] = 0;
+ 
+-	len = v.len + 1;
+-	if(len < TinySize)
+-		len = TinySize;
+-	arg[1] = runtime·malloc(len);
++	arg[1] = runtime·malloc(v.len + 1);
+ 	runtime·memmove(arg[1], v.str, v.len);
+ 	arg[1][v.len] = 0;
+ 
+ 	runtime·asmcgocall((void*)_cgo_setenv, arg);
+-	runtime·free(arg[0]);
+-	runtime·free(arg[1]);
+ }
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index 7bc70cf608..d56d0dcf31 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -41,100 +41,6 @@ runtime·malloc(uintptr size)
+ 	return runtime·mallocgc(size, nil, FlagNoInvokeGC);
+ }
+ 
+-// Free the object whose base pointer is v.
+-void
+-runtime·free(void *v)
+-{
+-	int32 sizeclass;
+-	MSpan *s;
+-	MCache *c;
+-	uintptr size;
+-
+-	if(v == nil)
+-		return;
+-	
+-	// If you change this also change mgc0.c:/^sweep,
+-	// which has a copy of the guts of free.
+-
+-	if(g->m->mallocing)
+-		runtime·throw("malloc/free - deadlock");
+-	g->m->mallocing = 1;
+-
+-	if(!runtime·mlookup(v, nil, nil, &s)) {
+-		runtime·printf("free %p: not an allocated block\n", v);
+-		runtime·throw("free runtime·mlookup");
+-	}
+-	size = s->elemsize;
+-	sizeclass = s->sizeclass;
+-	// Objects that are smaller than TinySize can be allocated using tiny alloc,
+-	// if then such object is combined with an object with finalizer, we will crash.
+-	if(size < TinySize)
+-		runtime·throw("freeing too small block");
+-
+-	if(runtime·debug.allocfreetrace)
+-		runtime·tracefree(v, size);
+-
+-	// Ensure that the span is swept.
+-	// If we free into an unswept span, we will corrupt GC bitmaps.
+-	runtime·MSpan_EnsureSwept(s);
+-
+-	if(s->specials != nil)
+-		runtime·freeallspecials(s, v, size);
+-
+-	c = g->m->mcache;
+-	if(sizeclass == 0) {
+-		// Large object.
+-		s->needzero = 1;
+-		// Must mark v freed before calling unmarkspan and MHeap_Free:
+-		// they might coalesce v into other spans and change the bitmap further.
+-		runtime·markfreed(v);
+-		runtime·unmarkspan(v, s->npages<<PageShift);
+-		// NOTE(rsc,dvyukov): The original implementation of efence
+-		// in CL 22060046 used SysFree instead of SysFault, so that
+-		// the operating system would eventually give the memory
+-		// back to us again, so that an efence program could run
+-		// longer without running out of memory. Unfortunately,
+-		// calling SysFree here without any kind of adjustment of the
+-		// heap data structures means that when the memory does
+-		// come back to us, we have the wrong metadata for it, either in
+-		// the MSpan structures or in the garbage collection bitmap.
+-		// Using SysFault here means that the program will run out of
+-		// memory fairly quickly in efence mode, but at least it won't
+-		// have mysterious crashes due to confused memory reuse.
+-		// It should be possible to switch back to SysFree if we also 
+-		// implement and then call some kind of MHeap_DeleteSpan.
+-		if(runtime·debug.efence) {
+-			s->limit = nil;	// prevent mlookup from finding this span
+-			runtime·SysFault((void*)(s->start<<PageShift), size);
+-		} else
+-			runtime·MHeap_Free(&runtime·mheap, s, 1);
+-		c->local_nlargefree++;
+-		c->local_largefree += size;
+-	} else {
+-		// Small object.
+-		if(size > 2*sizeof(uintptr))
+-			((uintptr*)v)[1] = (uintptr)0xfeedfeedfeedfeedll;	// mark as "needs to be zeroed"
+-		else if(size > sizeof(uintptr))
+-			((uintptr*)v)[1] = 0;
+-		// Must mark v freed before calling MCache_Free:
+-		// it might coalesce v and other blocks into a bigger span
+-		// and change the bitmap further.
+-		c->local_nsmallfree[sizeclass]++;
+-		c->local_cachealloc -= size;
+-		if(c->alloc[sizeclass] == s) {
+-			// We own the span, so we can just add v to the freelist
+-			runtime·markfreed(v);
+-			((MLink*)v)->next = s->freelist;
+-			s->freelist = v;
+-			s->ref--;
+-		} else {
+-			// Someone else owns this span.  Add to free queue.
+-			runtime·MCache_Free(c, v, sizeclass, size);
+-		}
+-	}
+-	g->m->mallocing = 0;
+-}
+-
+ int32
+ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ {
+@@ -351,9 +257,6 @@ runtime·mallocinit(void)
+ 	// Initialize the rest of the allocator.	
+ 	runtime·MHeap_Init(&runtime·mheap);
+ 	g->m->mcache = runtime·allocmcache();
+-
+-	// See if it works.
+-	runtime·free(runtime·malloc(TinySize));
+ }
+ 
+ void*
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 50656e4ee9..958c540361 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -331,7 +331,6 @@ struct MCache
+ 	uintptr	tinysize;
+ 	// The rest is not accessed on every malloc.
+ 	MSpan*	alloc[NumSizeClasses];	// spans to allocate from
+-	MCacheList free[NumSizeClasses];// lists of explicitly freed objects
+ 
+ 	StackFreeList stackcache[NumStackOrders];
+ 
+@@ -343,7 +342,6 @@ struct MCache
+ };
+ 
+ MSpan*	runtime·MCache_Refill(MCache *c, int32 sizeclass);
+-void	runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size);
+ void	runtime·MCache_ReleaseAll(MCache *c);
+ void	runtime·stackcache_clear(MCache *c);
+ 
+@@ -418,7 +416,6 @@ struct MSpan
+ 	byte	*limit;		// end of data in span
+ 	Lock	specialLock;	// guards specials list
+ 	Special	*specials;	// linked list of special records sorted by offset.
+-	MLink	*freebuf;	// objects freed explicitly, not incorporated into freelist yet
+ };
+ 
+ void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
+@@ -442,14 +439,12 @@ struct MCentral
+ 	int32 sizeclass;
+ 	MSpan nonempty;	// list of spans with a free object
+ 	MSpan empty;	// list of spans with no free objects (or cached in an MCache)
+-	int32 nfree;	// # of objects available in nonempty spans
+ };
+ 
+ void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
+ MSpan*	runtime·MCentral_CacheSpan(MCentral *c);
+ void	runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s);
+ bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
+-void	runtime·MCentral_FreeList(MCentral *c, MLink *start); // TODO: need this?
+ 
+ // Main malloc heap.
+ // The heap itself is the "free[]" and "large" arrays,
+@@ -522,7 +517,6 @@ int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
+ void	runtime·gc(int32 force);
+ uintptr	runtime·sweepone(void);
+ void	runtime·markallocated(void *v, uintptr size, uintptr size0, Type* typ, bool scan);
+-void	runtime·markfreed(void *v);
+ void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
+ void	runtime·unmarkspan(void *v, uintptr size);
+ void	runtime·purgecachedstats(MCache*);
+@@ -565,8 +559,6 @@ void	runtime·setprofilebucket(void *p, Bucket *b);
+ bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, Type*, PtrType*);
+ void	runtime·removefinalizer(void*);
+ void	runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot);
+-
+-void	runtime·freeallspecials(MSpan *span, void *p, uintptr size);
+ bool	runtime·freespecial(Special *s, void *p, uintptr size, bool freed);
+ 
+ // Information from the compiler about the layout of stack frames.
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index 44500ef47f..cae4176482 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -73,7 +73,6 @@ runtime·freemcache(MCache *c)
+ MSpan*
+ runtime·MCache_Refill(MCache *c, int32 sizeclass)
+ {
+-	MCacheList *l;
+ 	MSpan *s;
+ 
+ 	g->m->locks++;
+@@ -84,15 +83,6 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
+ 	if(s != &emptymspan)
+ 		runtime·MCentral_UncacheSpan(&runtime·mheap.central[sizeclass], s);
+ 
+-	// Push any explicitly freed objects to the central lists.
+-	// Not required, but it seems like a good time to do it.
+-	l = &c->free[sizeclass];
+-	if(l->nlist > 0) {
+-		runtime·MCentral_FreeList(&runtime·mheap.central[sizeclass], l->list);
+-		l->list = nil;
+-		l->nlist = 0;
+-	}
+-
+ 	// Get a new cached span from the central lists.
+ 	s = runtime·MCentral_CacheSpan(&runtime·mheap.central[sizeclass]);
+ 	if(s == nil)
+@@ -106,32 +96,11 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
+ 	return s;
+ }
+ 
+-void
+-runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size)
+-{
+-	MCacheList *l;
+-
+-	// Put on free list.
+-	l = &c->free[sizeclass];
+-	p->next = l->list;
+-	l->list = p;
+-	l->nlist++;
+-
+-	// We transfer a span at a time from MCentral to MCache,
+-	// so we'll do the same in the other direction.
+-	if(l->nlist >= (runtime·class_to_allocnpages[sizeclass]<<PageShift)/size) {
+-		runtime·MCentral_FreeList(&runtime·mheap.central[sizeclass], l->list);
+-		l->list = nil;
+-		l->nlist = 0;
+-	}
+-}
+-
+ void
+ runtime·MCache_ReleaseAll(MCache *c)
+ {
+ 	int32 i;
+ 	MSpan *s;
+-	MCacheList *l;
+ 
+ 	for(i=0; i<NumSizeClasses; i++) {
+ 		s = c->alloc[i];
+@@ -139,11 +108,5 @@ runtime·MCache_ReleaseAll(MCache *c)
+ 			runtime·MCentral_UncacheSpan(&runtime·mheap.central[i], s);
+ 			c->alloc[i] = &emptymspan;
+ 		}
+-		l = &c->free[i];
+-		if(l->nlist > 0) {
+-			runtime·MCentral_FreeList(&runtime·mheap.central[i], l->list);
+-			l->list = nil;
+-			l->nlist = 0;
+-		}
+ 	}
+ }
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index 238fcd5dfd..a39af41a24 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -19,7 +19,6 @@
+ #include "malloc.h"
+ 
+ static bool MCentral_Grow(MCentral *c);
+-static void MCentral_Free(MCentral *c, MLink *v);
+ static void MCentral_ReturnToHeap(MCentral *c, MSpan *s);
+ 
+ // Initialize a single central free list.
+@@ -94,7 +93,6 @@ havespan:
+ 		runtime·throw("empty span");
+ 	if(s->freelist == nil)
+ 		runtime·throw("freelist empty");
+-	c->nfree -= n;
+ 	runtime·MSpanList_Remove(s);
+ 	runtime·MSpanList_InsertBack(&c->empty, s);
+ 	s->incache = true;
+@@ -106,22 +104,12 @@ havespan:
+ void
+ runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s)
+ {
+-	MLink *v;
+ 	int32 cap, n;
+ 
+ 	runtime·lock(c);
+ 
+ 	s->incache = false;
+ 
+-	// Move any explicitly freed items from the freebuf to the freelist.
+-	while((v = s->freebuf) != nil) {
+-		s->freebuf = v->next;
+-		runtime·markfreed(v);
+-		v->next = s->freelist;
+-		s->freelist = v;
+-		s->ref--;
+-	}
+-
+ 	if(s->ref == 0) {
+ 		// Free back to heap.  Unlikely, but possible.
+ 		MCentral_ReturnToHeap(c, s); // unlocks c
+@@ -131,74 +119,12 @@ runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s)
+ 	cap = (s->npages << PageShift) / s->elemsize;
+ 	n = cap - s->ref;
+ 	if(n > 0) {
+-		c->nfree += n;
+ 		runtime·MSpanList_Remove(s);
+ 		runtime·MSpanList_Insert(&c->nonempty, s);
+ 	}
+ 	runtime·unlock(c);
+ }
+ 
+-// Free the list of objects back into the central free list c.
+-// Called from runtime·free.
+-void
+-runtime·MCentral_FreeList(MCentral *c, MLink *start)
+-{
+-	MLink *next;
+-
+-	runtime·lock(c);
+-	for(; start != nil; start = next) {
+-		next = start->next;
+-		MCentral_Free(c, start);
+-	}
+-	runtime·unlock(c);
+-}
+-
+-// Helper: free one object back into the central free list.
+-// Caller must hold lock on c on entry.  Holds lock on exit.
+-static void
+-MCentral_Free(MCentral *c, MLink *v)
+-{
+-	MSpan *s;
+-
+-	// Find span for v.
+-	s = runtime·MHeap_Lookup(&runtime·mheap, v);
+-	if(s == nil || s->ref == 0)
+-		runtime·throw("invalid free");
+-	if(s->state != MSpanInUse)
+-		runtime·throw("free into stack span");
+-	if(s->sweepgen != runtime·mheap.sweepgen)
+-		runtime·throw("free into unswept span");
+-	
+-	// If the span is currently being used unsynchronized by an MCache,
+-	// we can't modify the freelist.  Add to the freebuf instead.  The
+-	// items will get moved to the freelist when the span is returned
+-	// by the MCache.
+-	if(s->incache) {
+-		v->next = s->freebuf;
+-		s->freebuf = v;
+-		return;
+-	}
+-
+-	// Move span to nonempty if necessary.
+-	if(s->freelist == nil) {
+-		runtime·MSpanList_Remove(s);
+-		runtime·MSpanList_Insert(&c->nonempty, s);
+-	}
+-
+-	// Add the object to span's free list.
+-	runtime·markfreed(v);
+-	v->next = s->freelist;
+-	s->freelist = v;
+-	s->ref--;
+-	c->nfree++;
+-
+-	// If s is completely freed, return it to the heap.
+-	if(s->ref == 0) {
+-		MCentral_ReturnToHeap(c, s); // unlocks c
+-		runtime·lock(c);
+-	}
+-}
+-
+ // Free n objects from a span s back into the central free list c.
+ // Called during sweep.
+ // Returns true if the span was returned to heap.  Sets sweepgen to
+@@ -220,7 +146,6 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
+ 	end->next = s->freelist;
+ 	s->freelist = start;
+ 	s->ref -= n;
+-	c->nfree += n;
+ 	
+ 	// delay updating sweepgen until here.  This is the signal that
+ 	// the span may be used in an MCache, so it must come after the
+@@ -285,7 +210,6 @@ MCentral_Grow(MCentral *c)
+ 	runtime·markspan((byte*)(s->start<<PageShift), size, n, size*n < (s->npages<<PageShift));
+ 
+ 	runtime·lock(c);
+-	c->nfree += n;
+ 	runtime·MSpanList_Insert(&c->nonempty, s);
+ 	return true;
+ }
+@@ -294,15 +218,11 @@ MCentral_Grow(MCentral *c)
+ static void
+ MCentral_ReturnToHeap(MCentral *c, MSpan *s)
+ {
+-	int32 size;
+-
+-	size = runtime·class_to_size[c->sizeclass];
+ 	runtime·MSpanList_Remove(s);
+ 	s->needzero = 1;
+ 	s->freelist = nil;
+ 	if(s->ref != 0)
+ 		runtime·throw("ref wrong");
+-	c->nfree -= (s->npages << PageShift) / size;
+ 	runtime·unlock(c);
+ 	runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
+ 	runtime·MHeap_Free(&runtime·mheap, s, 0);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 5e1236c24f..c46dec4105 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -505,12 +505,10 @@ markroot(ParFor *desc, uint32 i)
+ 	switch(i) {
+ 	case RootData:
+ 		scanblock(data, edata - data, work.gcdata);
+-		//scanblock(data, edata - data, ScanConservatively);
+ 		break;
+ 
+ 	case RootBss:
+ 		scanblock(bss, ebss - bss, work.gcbss);
+-		//scanblock(bss, ebss - bss, ScanConservatively);
+ 		break;
+ 
+ 	case RootFinalizers:
+@@ -964,7 +962,20 @@ runtime·MSpan_Sweep(MSpan *s)
+ 			// important to set sweepgen before returning it to heap
+ 			runtime·atomicstore(&s->sweepgen, sweepgen);
+ 			sweepgenset = true;
+-			// See note about SysFault vs SysFree in malloc.goc.
++			// NOTE(rsc,dvyukov): The original implementation of efence
++			// in CL 22060046 used SysFree instead of SysFault, so that
++			// the operating system would eventually give the memory
++			// back to us again, so that an efence program could run
++			// longer without running out of memory. Unfortunately,
++			// calling SysFree here without any kind of adjustment of the
++			// heap data structures means that when the memory does
++			// come back to us, we have the wrong metadata for it, either in
++			// the MSpan structures or in the garbage collection bitmap.
++			// Using SysFault here means that the program will run out of
++			// memory fairly quickly in efence mode, but at least it won't
++			// have mysterious crashes due to confused memory reuse.
++			// It should be possible to switch back to SysFree if we also
++			// implement and then call some kind of MHeap_DeleteSpan.
+ 			if(runtime·debug.efence) {
+ 				s->limit = nil;	// prevent mlookup from finding this span
+ 				runtime·SysFault(p, size);
+@@ -1079,8 +1090,6 @@ runtime·sweepone(void)
+ 		}
+ 		if(s->sweepgen != sg-2 || !runtime·cas(&s->sweepgen, sg-2, sg-1))
+ 			continue;
+-		if(s->incache)
+-			runtime·throw("sweep of incache span");
+ 		npages = s->npages;
+ 		if(!runtime·MSpan_Sweep(s))
+ 			npages = 0;
+@@ -1364,14 +1373,6 @@ gc(struct gc_args *args)
+ 	if(runtime·debug.allocfreetrace)
+ 		runtime·tracegc();
+ 
+-	// This is required while we explicitly free objects and have imprecise GC.
+-	// If we don't do this, then scanblock can queue an object for scanning;
+-	// then another thread frees this object during RootFlushCaches;
+-	// then the first thread scans the object; then debug check in scanblock
+-	// finds this object already freed and throws.
+-	if(Debug)
+-		flushallmcaches();
+-
+ 	g->m->traceback = 2;
+ 	t0 = args->start_time;
+ 	work.tstart = args->start_time; 
+@@ -1635,7 +1636,6 @@ runfinq(void)
+ 				f = &fb->fin[i];
+ 				framesz = sizeof(Eface) + f->nret;
+ 				if(framecap < framesz) {
+-					runtime·free(frame);
+ 					// The frame does not contain pointers interesting for GC,
+ 					// all not yet finalized objects are stored in finq.
+ 					// If we do not mark it as FlagNoScan,
+@@ -1972,39 +1972,6 @@ runtime·markallocated_m(void)
+ 	mp->ptrarg[1] = nil;
+ }
+ 
+-// mark the block at v as freed.
+-void
+-runtime·markfreed(void *v)
+-{
+-	uintptr *b, off, shift, xbits, bits;
+-
+-	if((byte*)v > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
+-		runtime·throw("markfreed: bad pointer");
+-
+-	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
+-	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+-	shift = (off % wordsPerBitmapWord) * gcBits;
+-	xbits = *b;
+-	bits = (xbits>>shift) & bitMask;
+-
+-	if(bits == bitMiddle)
+-		runtime·throw("bad bits in markfreed");
+-	if(bits == bitBoundary)
+-		return;  // FlagNoGC object
+-	if(!g->m->gcing || work.nproc == 1) {
+-		// During normal operation (not GC), the span bitmap is not updated concurrently,
+-		// because either the span is cached or accesses are protected with MCentral lock.
+-		*b = (xbits & ~(bitMask<<shift)) | (bitBoundary<<shift);
+-	} else {
+-		// During GC other threads concurrently mark heap.
+-		for(;;) {
+-			xbits = *b;
+-			if(runtime·casp((void**)b, (void*)xbits, (void*)((xbits & ~(bitMask<<shift)) | (bitBoundary<<shift))))
+-				break;
+-		}
+-	}
+-}
+-
+ // mark the span of memory at v as having n blocks of the given size.
+ // if leftover is true, there is left over space at the end of the span.
+ void
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 1c0d38e120..c7043bb143 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -714,7 +714,6 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
+ 	span->specialLock.key = 0;
+ 	span->specials = nil;
+ 	span->needzero = 0;
+-	span->freebuf = nil;
+ }
+ 
+ // Initialize an empty doubly-linked list.
+@@ -939,38 +938,3 @@ runtime·freespecial(Special *s, void *p, uintptr size, bool freed)
+ 		return true;
+ 	}
+ }
+-
+-// Free all special records for p.
+-void
+-runtime·freeallspecials(MSpan *span, void *p, uintptr size)
+-{
+-	Special *s, **t, *list;
+-	uintptr offset;
+-
+-	if(span->sweepgen != runtime·mheap.sweepgen)
+-		runtime·throw("runtime: freeallspecials: unswept span");
+-	// first, collect all specials into the list; then, free them
+-	// this is required to not cause deadlock between span->specialLock and proflock
+-	list = nil;
+-	offset = (uintptr)p - (span->start << PageShift);
+-	runtime·lock(&span->specialLock);
+-	t = &span->specials;
+-	while((s = *t) != nil) {
+-		if(offset + size <= s->offset)
+-			break;
+-		if(offset <= s->offset) {
+-			*t = s->next;
+-			s->next = list;
+-			list = s;
+-		} else
+-			t = &s->next;
+-	}
+-	runtime·unlock(&span->specialLock);
+-
+-	while(list != nil) {
+-		s = list;
+-		list = s->next;
+-		if(!runtime·freespecial(s, p, size, true))
+-			runtime·throw("can't explicitly free an object with a finalizer");
+-	}
+-}
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 04e0ec4b8c..af8bb1bc0e 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -68,8 +68,7 @@ freedefer(Defer *d)
+ 		p->deferpool[sc] = d;
+ 		// No need to wipe out pointers in argp/pc/fn/args,
+ 		// because we empty the pool before GC.
+-	} else
+-		runtime·free(d);
++	}
+ }
+ 
+ // Create a new deferred function fn with siz bytes of arguments.
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index e21da4f309..26e687e3b4 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1929,10 +1929,8 @@ allgadd(G *gp)
+ 		new = runtime·malloc(cap*sizeof(new[0]));
+ 		if(new == nil)
+ 			runtime·throw("runtime: cannot allocate memory");
+-		if(runtime·allg != nil) {
++		if(runtime·allg != nil)
+ 			runtime·memmove(new, runtime·allg, runtime·allglen*sizeof(new[0]));
+-			runtime·free(runtime·allg);
+-		}
+ 		runtime·allg = new;
+ 		allgcap = cap;
+ 	}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3690ad37d7..199b56a9cf 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -875,7 +875,6 @@ bool	runtime·efaceeq_c(Eface, Eface);
+ uintptr	runtime·ifacehash(Iface, uintptr);
+ uintptr	runtime·efacehash(Eface, uintptr);
+ void*	runtime·malloc(uintptr size);
+-void	runtime·free(void *v);
+ void	runtime·runpanic(Panic*);
+ uintptr	runtime·getcallersp(void*);
+ int32	runtime·mcount(void);
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 712e03e838..791e4eb02b 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -127,7 +127,6 @@ addtimer(Timer *t)
+ 			n = timers.cap*3 / 2;
+ 		nt = runtime·malloc(n*sizeof nt[0]);
+ 		runtime·memmove(nt, timers.t, timers.len*sizeof nt[0]);
+-		runtime·free(timers.t);
+ 		timers.t = nt;
+ 		timers.cap = n;
+ 	}

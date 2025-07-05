@@ -14,7 +14,41 @@ Date:   Fri Sep 17 12:27:23 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/text/template/multi_test.go | 10 ++++++++++
  src/text/template/template.go   |  2 +-
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/multi_test.go b/src/text/template/multi_test.go
+index b543ab5c47..6b81ffe7ac 100644
+--- a/src/text/template/multi_test.go
++++ b/src/text/template/multi_test.go
+@@ -452,3 +452,13 @@ func TestIssue19294(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue 48436
++func TestAddToZeroTemplate(t *testing.T) {
++	tree, err := parse.Parse("c", cloneText3, "", "", nil, builtins())
++	if err != nil {
++		t.Fatal(err)
++	}
++	var tmpl Template
++	tmpl.AddParseTree("x", tree["c"])
++}
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index fd74d45e9b..776be9cd07 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -127,9 +127,9 @@ func (t *Template) copy(c *common) *Template {
+ // its definition. If it has been defined and already has that name, the existing
+ // definition is replaced; otherwise a new template is created, defined, and returned.
+ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
++	t.init()
+ 	t.muTmpl.Lock()
+ 	defer t.muTmpl.Unlock()
+-	t.init()
+ 	nt := t
+ 	if name != t.name {
+ 		nt = t.New(name)

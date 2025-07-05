@@ -13,7 +13,45 @@ Date:   Thu May 12 22:34:48 2011 -0400
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4515073
-
+---
  src/pkg/image/tiff/consts.go |  1 +
  src/pkg/image/tiff/reader.go | 14 ++++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/image/tiff/consts.go b/src/pkg/image/tiff/consts.go
+index 761ac9d909..169ba27721 100644
+--- a/src/pkg/image/tiff/consts.go
++++ b/src/pkg/image/tiff/consts.go
+@@ -54,6 +54,7 @@ const (
+ 	tPredictor    = 317
+ 	tColorMap     = 320
+ 	tExtraSamples = 338
++	tSampleFormat = 339
+ )
+ 
+ // Compression types (defined in various places in the spec and supplements).
+diff --git a/src/pkg/image/tiff/reader.go b/src/pkg/image/tiff/reader.go
+index 40f659c36c..57a7be4a25 100644
+--- a/src/pkg/image/tiff/reader.go
++++ b/src/pkg/image/tiff/reader.go
+@@ -133,6 +133,20 @@ func (d *decoder) parseIFD(p []byte) os.Error {
+ 				0xffff,
+ 			}
+ 		}
++	case tSampleFormat:
++		// Page 27 of the spec: If the SampleFormat is present and
++		// the value is not 1 [= unsigned integer data], a Baseline
++		// TIFF reader that cannot handle the SampleFormat value
++		// must terminate the import process gracefully.
++		val, err := d.ifdUint(p)
++		if err != nil {
++			return err
++		}
++		for _, v := range val {
++			if v != 1 {
++				return UnsupportedError("sample format")
++			}
++		}
+ 	}
+ 	return nil
+ }

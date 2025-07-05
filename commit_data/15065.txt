@@ -12,7 +12,53 @@ Date:   Thu Jan 31 13:45:43 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7225076
-
+---
  src/pkg/net/url/url.go      | 7 +++++++
  src/pkg/net/url/url_test.go | 9 +++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 68f2c2f6e7..667aa0741f 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -220,6 +220,12 @@ func escape(s string, mode encoding) string {
+ //
+ //	scheme:opaque[?query][#fragment]
+ //
++// Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
++// A consequence is that it is impossible to tell which slashes in the Path were
++// slashes in the raw URL and which were %2f. This distinction is rarely important,
++// but when it is a client must use other routines to parse the raw URL or construct
++// the parsed URL. For example, an HTTP server can consult req.RequestURI, and
++// an HTTP client can use URL{Opaque: "/Go%2f"} instead of URL{Path: "/Go/"}.
+ type URL struct {
+ 	Scheme   string
+ 	Opaque   string    // encoded opaque data
+@@ -371,6 +377,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
+ 	if url.Scheme, rest, err = getscheme(rawurl); err != nil {
+ 		goto Error
+ 	}
++	url.Scheme = strings.ToLower(url.Scheme)
+ 
+ 	rest, url.RawQuery = split(rest, '?', true)
+ 
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index cd3b0b9e8c..ed94d02055 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -251,6 +251,15 @@ var urltests = []URLTest{
+ 		},
+ 		"file:///home/adg/rabbits",
+ 	},
++	// case-insensitive scheme
++	{
++		"MaIlTo:webmaster@golang.org",
++		&URL{
++			Scheme: "mailto",
++			Opaque: "webmaster@golang.org",
++		},
++		"mailto:webmaster@golang.org",
++	},
+ }
+ 
+ // more useful string for debugging than fmt's struct printer

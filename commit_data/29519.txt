@@ -37,7 +37,7 @@ Date:   Tue Sep 20 15:06:08 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go   |  52 ++++++++---------
  src/cmd/link/internal/arm/asm.go     |  50 ++++++++--------
  src/cmd/link/internal/arm64/asm.go   |  12 ++--
@@ -60,3 +60,2523 @@ Date:   Tue Sep 20 15:06:08 2016 +1200
  src/cmd/link/internal/s390x/asm.go   |  36 ++++++------
  src/cmd/link/internal/x86/asm.go     |  56 +++++++++---------
  21 files changed, 350 insertions(+), 350 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 2de86ea1db..63fca9a14d 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -58,14 +58,14 @@ func gentext(ctxt *ld.Link) {
+ 	if !ctxt.DynlinkingGo() {
+ 		return
+ 	}
+-	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
++	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+ 	if addmoduledata.Type == obj.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+ 		// we're linking a module containing the runtime -> no need for
+ 		// an init function
+ 		return
+ 	}
+ 	addmoduledata.Attr |= ld.AttrReachable
+-	initfunc := ld.Linklookup(ctxt, "go.link.addmoduledata", 0)
++	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+ 	initfunc.Attr |= ld.AttrLocal
+ 	initfunc.Attr |= ld.AttrReachable
+@@ -89,7 +89,7 @@ func gentext(ctxt *ld.Link) {
+ 	if ld.Buildmode == ld.BuildmodePlugin {
+ 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+ 	}
+-	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
++	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Type = obj.SINITARR
+@@ -123,7 +123,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		r.Add += 4
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 			r.Add += int64(targ.Plt)
+ 		}
+ 
+@@ -147,7 +147,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		addgotsym(ctxt, targ)
+ 
+ 		r.Type = obj.R_PCREL
+-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
++		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += 4
+ 		r.Add += int64(targ.Got)
+ 		return true
+@@ -174,7 +174,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	case 512 + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 			r.Add = int64(targ.Plt)
+ 			r.Type = obj.R_PCREL
+ 			return true
+@@ -216,7 +216,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		}
+ 		addgotsym(ctxt, targ)
+ 		r.Type = obj.R_PCREL
+-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
++		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += int64(targ.Got)
+ 		return true
+ 	}
+@@ -234,7 +234,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		} else {
+ 			// for both ELF and Mach-O
+ 			addpltsym(ctxt, targ)
+-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 			r.Add = int64(targ.Plt)
+ 			return true
+ 		}
+@@ -243,7 +243,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		if s.Type == obj.STEXT && ld.Iself {
+ 			if ld.Headtype == obj.Hsolaris {
+ 				addpltsym(ctxt, targ)
+-				r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++				r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 				r.Add += int64(targ.Plt)
+ 				return true
+ 			}
+@@ -252,7 +252,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			// correspondent GOT symbol.
+ 			addgotsym(ctxt, targ)
+ 
+-			r.Sym = ld.Linklookup(ctxt, ".got", 0)
++			r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 			r.Add += int64(targ.Got)
+ 			return true
+ 		}
+@@ -304,7 +304,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			// though it would be more efficient (for the dynamic linker) if we
+ 			// generated R_X86_RELATIVE instead.
+ 			ld.Adddynsym(ctxt, targ)
+-			rela := ld.Linklookup(ctxt, ".rela", 0)
++			rela := ctxt.Syms.Lookup(".rela", 0)
+ 			ld.Addaddrplus(ctxt, rela, s, int64(r.Off))
+ 			if r.Siz == 8 {
+ 				ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_X86_64_64))
+@@ -330,14 +330,14 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			// but we only need to support cgo and that's all it needs.
+ 			ld.Adddynsym(ctxt, targ)
+ 
+-			got := ld.Linklookup(ctxt, ".got", 0)
++			got := ctxt.Syms.Lookup(".got", 0)
+ 			s.Type = got.Type | obj.SSUB
+ 			s.Outer = got
+ 			s.Sub = got.Sub
+ 			got.Sub = s
+ 			s.Value = got.Size
+ 			ld.Adduint64(ctxt, got, 0)
+-			ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(targ.Dynid))
++			ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.got", 0), uint32(targ.Dynid))
+ 			r.Type = 256 // ignore during relocsym
+ 			return true
+ 		}
+@@ -527,8 +527,8 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+ }
+ 
+ func elfsetupplt(ctxt *ld.Link) {
+-	plt := ld.Linklookup(ctxt, ".plt", 0)
+-	got := ld.Linklookup(ctxt, ".got.plt", 0)
++	plt := ctxt.Syms.Lookup(".plt", 0)
++	got := ctxt.Syms.Lookup(".got.plt", 0)
+ 	if plt.Size == 0 {
+ 		// pushq got+8(IP)
+ 		ld.Adduint8(ctxt, plt, 0xff)
+@@ -546,7 +546,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 		ld.Adduint32(ctxt, plt, 0x00401f0f)
+ 
+ 		// assume got->size == 0 too
+-		ld.Addaddrplus(ctxt, got, ld.Linklookup(ctxt, ".dynamic", 0), 0)
++		ld.Addaddrplus(ctxt, got, ctxt.Syms.Lookup(".dynamic", 0), 0)
+ 
+ 		ld.Adduint64(ctxt, got, 0)
+ 		ld.Adduint64(ctxt, got, 0)
+@@ -561,9 +561,9 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	ld.Adddynsym(ctxt, s)
+ 
+ 	if ld.Iself {
+-		plt := ld.Linklookup(ctxt, ".plt", 0)
+-		got := ld.Linklookup(ctxt, ".got.plt", 0)
+-		rela := ld.Linklookup(ctxt, ".rela.plt", 0)
++		plt := ctxt.Syms.Lookup(".plt", 0)
++		got := ctxt.Syms.Lookup(".got.plt", 0)
++		rela := ctxt.Syms.Lookup(".rela.plt", 0)
+ 		if plt.Size == 0 {
+ 			elfsetupplt(ctxt)
+ 		}
+@@ -606,16 +606,16 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 		// has details about what we're avoiding.
+ 
+ 		addgotsym(ctxt, s)
+-		plt := ld.Linklookup(ctxt, ".plt", 0)
++		plt := ctxt.Syms.Lookup(".plt", 0)
+ 
+-		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.plt", 0), uint32(s.Dynid))
++		ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.plt", 0), uint32(s.Dynid))
+ 
+ 		// jmpq *got+size(IP)
+ 		s.Plt = int32(plt.Size)
+ 
+ 		ld.Adduint8(ctxt, plt, 0xff)
+ 		ld.Adduint8(ctxt, plt, 0x25)
+-		ld.Addpcrelplus(ctxt, plt, ld.Linklookup(ctxt, ".got", 0), int64(s.Got))
++		ld.Addpcrelplus(ctxt, plt, ctxt.Syms.Lookup(".got", 0), int64(s.Got))
+ 	} else {
+ 		ld.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+@@ -627,17 +627,17 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	}
+ 
+ 	ld.Adddynsym(ctxt, s)
+-	got := ld.Linklookup(ctxt, ".got", 0)
++	got := ctxt.Syms.Lookup(".got", 0)
+ 	s.Got = int32(got.Size)
+ 	ld.Adduint64(ctxt, got, 0)
+ 
+ 	if ld.Iself {
+-		rela := ld.Linklookup(ctxt, ".rela", 0)
++		rela := ctxt.Syms.Lookup(".rela", 0)
+ 		ld.Addaddrplus(ctxt, rela, got, int64(s.Got))
+ 		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_X86_64_GLOB_DAT))
+ 		ld.Adduint64(ctxt, rela, 0)
+ 	} else if ld.Headtype == obj.Hdarwin {
+-		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(s.Dynid))
++		ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.got", 0), uint32(s.Dynid))
+ 	} else {
+ 		ld.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+@@ -775,7 +775,7 @@ func asmb(ctxt *ld.Link) {
+ 			ld.Asmplan9sym(ctxt)
+ 			ld.Cflush()
+ 
+-			sym := ld.Linklookup(ctxt, "pclntab", 0)
++			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index d822c20f43..5e03827022 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -62,14 +62,14 @@ func gentext(ctxt *ld.Link) {
+ 	if !ctxt.DynlinkingGo() {
+ 		return
+ 	}
+-	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
++	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+ 	if addmoduledata.Type == obj.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+ 		// we're linking a module containing the runtime -> no need for
+ 		// an init function
+ 		return
+ 	}
+ 	addmoduledata.Attr |= ld.AttrReachable
+-	initfunc := ld.Linklookup(ctxt, "go.link.addmoduledata", 0)
++	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+ 	initfunc.Attr |= ld.AttrLocal
+ 	initfunc.Attr |= ld.AttrReachable
+@@ -83,7 +83,7 @@ func gentext(ctxt *ld.Link) {
+ 	rel := ld.Addrel(initfunc)
+ 	rel.Off = 8
+ 	rel.Siz = 4
+-	rel.Sym = ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
++	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+ 	rel.Type = obj.R_CALLARM
+ 	rel.Add = 0xeafffffe // vomit
+ 
+@@ -99,7 +99,7 @@ func gentext(ctxt *ld.Link) {
+ 	if ld.Buildmode == ld.BuildmodePlugin {
+ 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+ 	}
+-	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
++	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Type = obj.SINITARR
+@@ -128,7 +128,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
+ 		}
+ 
+@@ -158,7 +158,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		}
+ 
+ 		r.Type = obj.R_PCREL
+-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
++		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += int64(targ.Got) + 4
+ 		return true
+ 
+@@ -170,7 +170,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	case 256 + ld.R_ARM_GOTPC: // R_ARM_BASE_PREL
+ 		r.Type = obj.R_PCREL
+ 
+-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
++		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += 4
+ 		return true
+ 
+@@ -178,7 +178,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		r.Type = obj.R_CALLARM
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
+ 		}
+ 
+@@ -212,7 +212,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		r.Type = obj.R_CALLARM
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
+ 		}
+ 
+@@ -227,7 +227,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	switch r.Type {
+ 	case obj.R_CALLARM:
+ 		addpltsym(ctxt, targ)
+-		r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++		r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 		r.Add = int64(targ.Plt)
+ 		return true
+ 
+@@ -237,7 +237,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		}
+ 		if ld.Iself {
+ 			ld.Adddynsym(ctxt, targ)
+-			rel := ld.Linklookup(ctxt, ".rel", 0)
++			rel := ctxt.Syms.Lookup(".rel", 0)
+ 			ld.Addaddrplus(ctxt, rel, s, int64(r.Off))
+ 			ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_ARM_GLOB_DAT)) // we need a nil + A dynamic reloc
+ 			r.Type = obj.R_CONST                                                            // write r->add during relocsym
+@@ -300,8 +300,8 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ }
+ 
+ func elfsetupplt(ctxt *ld.Link) {
+-	plt := ld.Linklookup(ctxt, ".plt", 0)
+-	got := ld.Linklookup(ctxt, ".got.plt", 0)
++	plt := ctxt.Syms.Lookup(".plt", 0)
++	got := ctxt.Syms.Lookup(".got.plt", 0)
+ 	if plt.Size == 0 {
+ 		// str lr, [sp, #-4]!
+ 		ld.Adduint32(ctxt, plt, 0xe52de004)
+@@ -457,25 +457,25 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
+ 		return 0
+ 
+ 		// The following three arch specific relocations are only for generation of
+ 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
+ 	case obj.R_PLT0: // add ip, pc, #0xXX00000
+-		if ld.Symaddr(ld.Linklookup(ctxt, ".got.plt", 0)) < ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0)) {
++		if ld.Symaddr(ctxt.Syms.Lookup(".got.plt", 0)) < ld.Symaddr(ctxt.Syms.Lookup(".plt", 0)) {
+ 			ld.Errorf(s, ".got.plt should be placed after .plt section.")
+ 		}
+-		*val = 0xe28fc600 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add)) >> 20))
++		*val = 0xe28fc600 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add)) >> 20))
+ 		return 0
+ 
+ 	case obj.R_PLT1: // add ip, ip, #0xYY000
+-		*val = 0xe28cca00 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add+4)) >> 12))
++		*val = 0xe28cca00 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add+4)) >> 12))
+ 
+ 		return 0
+ 
+ 	case obj.R_PLT2: // ldr pc, [ip, #0xZZZ]!
+-		*val = 0xe5bcf000 + (0xfff & int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add+8)))
++		*val = 0xe5bcf000 + (0xfff & int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ctxt.Syms.Lookup(".plt", 0))+int64(r.Off))+r.Add+8)))
+ 
+ 		return 0
+ 
+@@ -516,9 +516,9 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	ld.Adddynsym(ctxt, s)
+ 
+ 	if ld.Iself {
+-		plt := ld.Linklookup(ctxt, ".plt", 0)
+-		got := ld.Linklookup(ctxt, ".got.plt", 0)
+-		rel := ld.Linklookup(ctxt, ".rel.plt", 0)
++		plt := ctxt.Syms.Lookup(".plt", 0)
++		got := ctxt.Syms.Lookup(".got.plt", 0)
++		rel := ctxt.Syms.Lookup(".rel.plt", 0)
+ 		if plt.Size == 0 {
+ 			elfsetupplt(ctxt)
+ 		}
+@@ -552,7 +552,7 @@ func addgotsyminternal(ctxt *ld.Link, s *ld.Symbol) {
+ 		return
+ 	}
+ 
+-	got := ld.Linklookup(ctxt, ".got", 0)
++	got := ctxt.Syms.Lookup(".got", 0)
+ 	s.Got = int32(got.Size)
+ 
+ 	ld.Addaddrplus(ctxt, got, s, 0)
+@@ -569,12 +569,12 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	}
+ 
+ 	ld.Adddynsym(ctxt, s)
+-	got := ld.Linklookup(ctxt, ".got", 0)
++	got := ctxt.Syms.Lookup(".got", 0)
+ 	s.Got = int32(got.Size)
+ 	ld.Adduint32(ctxt, got, 0)
+ 
+ 	if ld.Iself {
+-		rel := ld.Linklookup(ctxt, ".rel", 0)
++		rel := ctxt.Syms.Lookup(".rel", 0)
+ 		ld.Addaddrplus(ctxt, rel, got, int64(s.Got))
+ 		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_ARM_GLOB_DAT))
+ 	} else {
+@@ -673,7 +673,7 @@ func asmb(ctxt *ld.Link) {
+ 			ld.Asmplan9sym(ctxt)
+ 			ld.Cflush()
+ 
+-			sym := ld.Linklookup(ctxt, "pclntab", 0)
++			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 65f598fad5..4042d4209c 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -42,14 +42,14 @@ func gentext(ctxt *ld.Link) {
+ 	if !ctxt.DynlinkingGo() {
+ 		return
+ 	}
+-	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
++	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+ 	if addmoduledata.Type == obj.STEXT {
+ 		// we're linking a module containing the runtime -> no need for
+ 		// an init function
+ 		return
+ 	}
+ 	addmoduledata.Attr |= ld.AttrReachable
+-	initfunc := ld.Linklookup(ctxt, "go.link.addmoduledata", 0)
++	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+ 	initfunc.Attr |= ld.AttrLocal
+ 	initfunc.Attr |= ld.AttrReachable
+@@ -75,11 +75,11 @@ func gentext(ctxt *ld.Link) {
+ 	rel = ld.Addrel(initfunc)
+ 	rel.Off = 8
+ 	rel.Siz = 4
+-	rel.Sym = ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
++	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+ 	rel.Type = obj.R_CALLARM64 // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
+ 
+ 	ctxt.Textp = append(ctxt.Textp, initfunc)
+-	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
++	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Type = obj.SINITARR
+@@ -330,7 +330,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
+ 		return 0
+ 
+ 	case obj.R_ADDRARM64:
+@@ -482,7 +482,7 @@ func asmb(ctxt *ld.Link) {
+ 			ld.Asmplan9sym(ctxt)
+ 			ld.Cflush()
+ 
+-			sym := ld.Linklookup(ctxt, "pclntab", 0)
++			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index f84e959d80..9d4966fe2f 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -532,7 +532,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				r.Done = 0
+ 				r.Type = obj.R_ADDR
+ 
+-				r.Xsym = Linkrlookup(ctxt, r.Sym.Sect.Name, 0)
++				r.Xsym = ctxt.Syms.ROLookup(r.Sym.Sect.Name, 0)
+ 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
+ 				o = r.Xadd
+ 				rs = r.Xsym
+@@ -673,7 +673,7 @@ func (ctxt *Link) reloc() {
+ 
+ func dynrelocsym(ctxt *Link, s *Symbol) {
+ 	if (Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui) && Linkmode != LinkExternal {
+-		rel := Linklookup(ctxt, ".rel", 0)
++		rel := ctxt.Syms.Lookup(".rel", 0)
+ 		if s == rel {
+ 			return
+ 		}
+@@ -987,12 +987,12 @@ func addstrdata1(ctxt *Link, arg string) {
+ 
+ func addstrdata(ctxt *Link, name string, value string) {
+ 	p := fmt.Sprintf("%s.str", name)
+-	sp := Linklookup(ctxt, p, 0)
++	sp := ctxt.Syms.Lookup(p, 0)
+ 
+ 	Addstring(ctxt, sp, value)
+ 	sp.Type = obj.SRODATA
+ 
+-	s := Linklookup(ctxt, name, 0)
++	s := ctxt.Syms.Lookup(name, 0)
+ 	s.Size = 0
+ 	s.Attr |= AttrDuplicateOK
+ 	reachable := s.Attr.Reachable()
+@@ -1037,7 +1037,7 @@ func Addstring(ctxt *Link, s *Symbol, str string) int64 {
+ // addgostring adds str, as a Go string value, to s. symname is the name of the
+ // symbol used to define the string data and must be unique per linked object.
+ func addgostring(ctxt *Link, s *Symbol, symname, str string) {
+-	sym := Linklookup(ctxt, symname, 0)
++	sym := ctxt.Syms.Lookup(symname, 0)
+ 	if sym.Type != obj.Sxxx {
+ 		Errorf(s, "duplicate symname in addgostring: %s", symname)
+ 	}
+@@ -1052,7 +1052,7 @@ func addgostring(ctxt *Link, s *Symbol, symname, str string) {
+ 
+ func addinitarrdata(ctxt *Link, s *Symbol) {
+ 	p := s.Name + ".ptr"
+-	sp := Linklookup(ctxt, p, 0)
++	sp := ctxt.Syms.Lookup(p, 0)
+ 	sp.Type = obj.SINITARR
+ 	sp.Size = 0
+ 	sp.Attr |= AttrDuplicateOK
+@@ -1114,7 +1114,7 @@ type GCProg struct {
+ 
+ func (p *GCProg) Init(ctxt *Link, name string) {
+ 	p.ctxt = ctxt
+-	p.sym = Linklookup(ctxt, name, 0)
++	p.sym = ctxt.Syms.Lookup(name, 0)
+ 	p.w.Init(p.writeByte(ctxt))
+ 	if debugGCProg {
+ 		fmt.Fprintf(os.Stderr, "ld: start GCProg %s\n", name)
+@@ -1330,7 +1330,7 @@ func (ctxt *Link) dodata() {
+ 			s.Value = int64(uint64(datsize) - sect.Vaddr)
+ 
+ 			// Resolve .TOC. symbol for this object file (ppc64)
+-			toc = Linkrlookup(ctxt, ".TOC.", int(s.Version))
++			toc = ctxt.Syms.ROLookup(".TOC.", int(s.Version))
+ 			if toc != nil {
+ 				toc.Sect = sect
+ 				toc.Outer = s
+@@ -1351,8 +1351,8 @@ func (ctxt *Link) dodata() {
+ 	sect.Align = dataMaxAlign[obj.SNOPTRDATA]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+-	Linklookup(ctxt, "runtime.noptrdata", 0).Sect = sect
+-	Linklookup(ctxt, "runtime.enoptrdata", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.noptrdata", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.enoptrdata", 0).Sect = sect
+ 	for _, s := range data[obj.SNOPTRDATA] {
+ 		datsize = aligndatsize(datsize, s)
+ 		s.Sect = sect
+@@ -1390,8 +1390,8 @@ func (ctxt *Link) dodata() {
+ 	sect.Align = dataMaxAlign[obj.SDATA]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+-	Linklookup(ctxt, "runtime.data", 0).Sect = sect
+-	Linklookup(ctxt, "runtime.edata", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.data", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.edata", 0).Sect = sect
+ 	var gc GCProg
+ 	gc.Init(ctxt, "runtime.gcdata")
+ 	for _, s := range data[obj.SDATA] {
+@@ -1411,8 +1411,8 @@ func (ctxt *Link) dodata() {
+ 	sect.Align = dataMaxAlign[obj.SBSS]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+-	Linklookup(ctxt, "runtime.bss", 0).Sect = sect
+-	Linklookup(ctxt, "runtime.ebss", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.bss", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.ebss", 0).Sect = sect
+ 	gc = GCProg{}
+ 	gc.Init(ctxt, "runtime.gcbss")
+ 	for _, s := range data[obj.SBSS] {
+@@ -1431,8 +1431,8 @@ func (ctxt *Link) dodata() {
+ 	sect.Align = dataMaxAlign[obj.SNOPTRBSS]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+-	Linklookup(ctxt, "runtime.noptrbss", 0).Sect = sect
+-	Linklookup(ctxt, "runtime.enoptrbss", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.noptrbss", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.enoptrbss", 0).Sect = sect
+ 	for _, s := range data[obj.SNOPTRBSS] {
+ 		datsize = aligndatsize(datsize, s)
+ 		s.Sect = sect
+@@ -1441,7 +1441,7 @@ func (ctxt *Link) dodata() {
+ 	}
+ 
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+-	Linklookup(ctxt, "runtime.end", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.end", 0).Sect = sect
+ 	checkdatsize(ctxt, datsize, obj.SNOPTRBSS)
+ 
+ 	if len(data[obj.STLSBSS]) > 0 {
+@@ -1506,11 +1506,11 @@ func (ctxt *Link) dodata() {
+ 	sect = addsection(segro, ".rodata", 04)
+ 
+ 	sect.Vaddr = 0
+-	Linklookup(ctxt, "runtime.rodata", 0).Sect = sect
+-	Linklookup(ctxt, "runtime.erodata", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.rodata", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.erodata", 0).Sect = sect
+ 	if !UseRelro() {
+-		Linklookup(ctxt, "runtime.types", 0).Sect = sect
+-		Linklookup(ctxt, "runtime.etypes", 0).Sect = sect
++		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
++		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
+ 	}
+ 	for _, symn := range obj.ReadOnly {
+ 		align := dataMaxAlign[symn]
+@@ -1590,8 +1590,8 @@ func (ctxt *Link) dodata() {
+ 		sect = addrelrosection("")
+ 
+ 		sect.Vaddr = 0
+-		Linklookup(ctxt, "runtime.types", 0).Sect = sect
+-		Linklookup(ctxt, "runtime.etypes", 0).Sect = sect
++		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
++		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
+ 		for _, symnro := range obj.ReadOnly {
+ 			symn := obj.RelROMap[symnro]
+ 			align := dataMaxAlign[symn]
+@@ -1623,8 +1623,8 @@ func (ctxt *Link) dodata() {
+ 	sect.Align = dataMaxAlign[obj.STYPELINK]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+-	Linklookup(ctxt, "runtime.typelink", 0).Sect = sect
+-	Linklookup(ctxt, "runtime.etypelink", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.typelink", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.etypelink", 0).Sect = sect
+ 	for _, s := range data[obj.STYPELINK] {
+ 		datsize = aligndatsize(datsize, s)
+ 		s.Sect = sect
+@@ -1640,8 +1640,8 @@ func (ctxt *Link) dodata() {
+ 	sect.Align = dataMaxAlign[obj.SITABLINK]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+-	Linklookup(ctxt, "runtime.itablink", 0).Sect = sect
+-	Linklookup(ctxt, "runtime.eitablink", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.itablink", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.eitablink", 0).Sect = sect
+ 	for _, s := range data[obj.SITABLINK] {
+ 		datsize = aligndatsize(datsize, s)
+ 		s.Sect = sect
+@@ -1657,8 +1657,8 @@ func (ctxt *Link) dodata() {
+ 	sect.Align = dataMaxAlign[obj.SSYMTAB]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+-	Linklookup(ctxt, "runtime.symtab", 0).Sect = sect
+-	Linklookup(ctxt, "runtime.esymtab", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.symtab", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.esymtab", 0).Sect = sect
+ 	for _, s := range data[obj.SSYMTAB] {
+ 		datsize = aligndatsize(datsize, s)
+ 		s.Sect = sect
+@@ -1674,8 +1674,8 @@ func (ctxt *Link) dodata() {
+ 	sect.Align = dataMaxAlign[obj.SPCLNTAB]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+-	Linklookup(ctxt, "runtime.pclntab", 0).Sect = sect
+-	Linklookup(ctxt, "runtime.epclntab", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.pclntab", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.epclntab", 0).Sect = sect
+ 	for _, s := range data[obj.SPCLNTAB] {
+ 		datsize = aligndatsize(datsize, s)
+ 		s.Sect = sect
+@@ -1856,7 +1856,7 @@ func (ctxt *Link) textbuildid() {
+ 		return
+ 	}
+ 
+-	sym := Linklookup(ctxt, "go.buildid", 0)
++	sym := ctxt.Syms.Lookup("go.buildid", 0)
+ 	sym.Attr |= AttrReachable
+ 	// The \xff is invalid UTF-8, meant to make it less likely
+ 	// to find one of these accidentally.
+@@ -1880,10 +1880,10 @@ func (ctxt *Link) textaddress() {
+ 	sect := Segtext.Sect
+ 
+ 	sect.Align = int32(Funcalign)
+-	Linklookup(ctxt, "runtime.text", 0).Sect = sect
+-	Linklookup(ctxt, "runtime.etext", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.text", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.etext", 0).Sect = sect
+ 	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+-		Linklookup(ctxt, ".text", 0).Sect = sect
++		ctxt.Syms.Lookup(".text", 0).Sect = sect
+ 	}
+ 	va := uint64(*FlagTextAddr)
+ 	sect.Vaddr = va
+@@ -2045,12 +2045,12 @@ func (ctxt *Link) address() {
+ 
+ 	var (
+ 		text     = Segtext.Sect
+-		rodata   = Linklookup(ctxt, "runtime.rodata", 0).Sect
+-		typelink = Linklookup(ctxt, "runtime.typelink", 0).Sect
+-		itablink = Linklookup(ctxt, "runtime.itablink", 0).Sect
+-		symtab   = Linklookup(ctxt, "runtime.symtab", 0).Sect
+-		pclntab  = Linklookup(ctxt, "runtime.pclntab", 0).Sect
+-		types    = Linklookup(ctxt, "runtime.types", 0).Sect
++		rodata   = ctxt.Syms.Lookup("runtime.rodata", 0).Sect
++		typelink = ctxt.Syms.Lookup("runtime.typelink", 0).Sect
++		itablink = ctxt.Syms.Lookup("runtime.itablink", 0).Sect
++		symtab   = ctxt.Syms.Lookup("runtime.symtab", 0).Sect
++		pclntab  = ctxt.Syms.Lookup("runtime.pclntab", 0).Sect
++		types    = ctxt.Syms.Lookup("runtime.types", 0).Sect
+ 	)
+ 
+ 	for _, s := range datap {
+@@ -2072,8 +2072,8 @@ func (ctxt *Link) address() {
+ 	}
+ 
+ 	if Buildmode == BuildmodeShared {
+-		s := Linklookup(ctxt, "go.link.abihashbytes", 0)
+-		sectSym := Linklookup(ctxt, ".note.go.abihash", 0)
++		s := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
++		sectSym := ctxt.Syms.Lookup(".note.go.abihash", 0)
+ 		s.Sect = sectSym.Sect
+ 		s.Value = int64(sectSym.Sect.Vaddr + 16)
+ 	}
+@@ -2092,15 +2092,15 @@ func (ctxt *Link) address() {
+ 	ctxt.xdefine("runtime.itablink", obj.SRODATA, int64(itablink.Vaddr))
+ 	ctxt.xdefine("runtime.eitablink", obj.SRODATA, int64(itablink.Vaddr+itablink.Length))
+ 
+-	sym := Linklookup(ctxt, "runtime.gcdata", 0)
++	sym := ctxt.Syms.Lookup("runtime.gcdata", 0)
+ 	sym.Attr |= AttrLocal
+ 	ctxt.xdefine("runtime.egcdata", obj.SRODATA, Symaddr(sym)+sym.Size)
+-	Linklookup(ctxt, "runtime.egcdata", 0).Sect = sym.Sect
++	ctxt.Syms.Lookup("runtime.egcdata", 0).Sect = sym.Sect
+ 
+-	sym = Linklookup(ctxt, "runtime.gcbss", 0)
++	sym = ctxt.Syms.Lookup("runtime.gcbss", 0)
+ 	sym.Attr |= AttrLocal
+ 	ctxt.xdefine("runtime.egcbss", obj.SRODATA, Symaddr(sym)+sym.Size)
+-	Linklookup(ctxt, "runtime.egcbss", 0).Sect = sym.Sect
++	ctxt.Syms.Lookup("runtime.egcbss", 0).Sect = sym.Sect
+ 
+ 	ctxt.xdefine("runtime.symtab", obj.SRODATA, int64(symtab.Vaddr))
+ 	ctxt.xdefine("runtime.esymtab", obj.SRODATA, int64(symtab.Vaddr+symtab.Length))
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 0494479bcd..7cf47a3c09 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -59,8 +59,8 @@ func deadcode(ctxt *Link) {
+ 	d.init()
+ 	d.flood()
+ 
+-	callSym := Linkrlookup(ctxt, "reflect.Value.Call", 0)
+-	methSym := Linkrlookup(ctxt, "reflect.Value.Method", 0)
++	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", 0)
++	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", 0)
+ 	reflectSeen := false
+ 
+ 	if ctxt.DynlinkingGo() {
+@@ -249,7 +249,7 @@ func (d *deadcodepass) init() {
+ 
+ 			// We don't keep the go.plugin.exports symbol,
+ 			// but we do keep the symbols it refers to.
+-			exports := Linkrlookup(d.ctxt, "go.plugin.exports", 0)
++			exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
+ 			for _, r := range exports.R {
+ 				d.mark(r.Sym, nil)
+ 			}
+@@ -263,7 +263,7 @@ func (d *deadcodepass) init() {
+ 	}
+ 
+ 	for _, name := range names {
+-		d.mark(Linkrlookup(d.ctxt, name, 0), nil)
++		d.mark(d.ctxt.Syms.ROLookup(name, 0), nil)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 8fd6f3f7a2..866103012c 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -82,7 +82,7 @@ var gdbscript string
+ var dwarfp []*Symbol
+ 
+ func writeabbrev(ctxt *Link, syms []*Symbol) []*Symbol {
+-	s := Linklookup(ctxt, ".debug_abbrev", 0)
++	s := ctxt.Syms.Lookup(".debug_abbrev", 0)
+ 	s.Type = obj.SDWARFSECT
+ 	abbrevsym = s
+ 	Addbytes(ctxt, s, dwarf.GetAbbrev())
+@@ -146,7 +146,7 @@ func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version in
+ 
+ 	if name != "" && (abbrev <= dwarf.DW_ABRV_VARIABLE || abbrev >= dwarf.DW_ABRV_NULLTYPE) {
+ 		if abbrev != dwarf.DW_ABRV_VARIABLE || version == 0 {
+-			sym := Linklookup(ctxt, dwarf.InfoPrefix+name, version)
++			sym := ctxt.Syms.Lookup(dwarf.InfoPrefix+name, version)
+ 			sym.Attr |= AttrHidden
+ 			sym.Type = obj.SDWARFINFO
+ 			die.Sym = sym
+@@ -173,7 +173,7 @@ func walktypedef(die *dwarf.DWDie) *dwarf.DWDie {
+ }
+ 
+ func walksymtypedef(ctxt *Link, s *Symbol) *Symbol {
+-	if t := Linkrlookup(ctxt, s.Name+"..def", int(s.Version)); t != nil {
++	if t := ctxt.Syms.ROLookup(s.Name+"..def", int(s.Version)); t != nil {
+ 		return t
+ 	}
+ 	return s
+@@ -200,7 +200,7 @@ var prefixBuf = []byte(dwarf.InfoPrefix)
+ func find(ctxt *Link, name string) *Symbol {
+ 	n := append(prefixBuf, name...)
+ 	// The string allocation below is optimized away because it is only used in a map lookup.
+-	s := Linkrlookup(ctxt, string(n), 0)
++	s := ctxt.Syms.ROLookup(string(n), 0)
+ 	prefixBuf = n[:len(dwarf.InfoPrefix)]
+ 	if s != nil && s.Type == obj.SDWARFINFO {
+ 		return s
+@@ -312,7 +312,7 @@ func newabslocexprattr(die *dwarf.DWDie, addr int64, sym *Symbol) {
+ 
+ // Lookup predefined types
+ func lookupOrDiag(ctxt *Link, n string) *Symbol {
+-	s := Linkrlookup(ctxt, n, 0)
++	s := ctxt.Syms.ROLookup(n, 0)
+ 	if s == nil || s.Size == 0 {
+ 		Exitf("dwarf: missing type: %s", n)
+ 	}
+@@ -338,7 +338,7 @@ func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) {
+ 		Errorf(nil, "dwarf: bad def in dotypedef")
+ 	}
+ 
+-	sym := Linklookup(ctxt, dtolsym(def.Sym).Name+"..def", 0)
++	sym := ctxt.Syms.Lookup(dtolsym(def.Sym).Name+"..def", 0)
+ 	sym.Attr |= AttrHidden
+ 	sym.Type = obj.SDWARFINFO
+ 	def.Sym = sym
+@@ -658,7 +658,7 @@ const (
+ func mkinternaltype(ctxt *Link, abbrev int, typename, keyname, valname string, f func(*dwarf.DWDie)) *Symbol {
+ 	name := mkinternaltypename(typename, keyname, valname)
+ 	symname := dwarf.InfoPrefix + name
+-	s := Linkrlookup(ctxt, symname, 0)
++	s := ctxt.Syms.ROLookup(symname, 0)
+ 	if s != nil && s.Type == obj.SDWARFINFO {
+ 		return s
+ 	}
+@@ -921,7 +921,7 @@ func getCompilationDir() string {
+ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
+ 	if linesec == nil {
+-		linesec = Linklookup(ctxt, ".debug_line", 0)
++		linesec = ctxt.Syms.Lookup(".debug_line", 0)
+ 	}
+ 	linesec.Type = obj.SDWARFSECT
+ 	linesec.R = linesec.R[:0]
+@@ -1004,7 +1004,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 		epc = s.Value + s.Size
+ 		epcs = s
+ 
+-		dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
++		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+ 		dsym.Attr |= AttrHidden
+ 		dsym.Type = obj.SDWARFINFO
+ 		for _, r := range dsym.R {
+@@ -1014,7 +1014,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 					continue
+ 				}
+ 				n := nameFromDIESym(r.Sym)
+-				defgotype(ctxt, Linklookup(ctxt, "type."+n, 0))
++				defgotype(ctxt, ctxt.Syms.Lookup("type."+n, 0))
+ 			}
+ 		}
+ 		funcs = append(funcs, dsym)
+@@ -1101,7 +1101,7 @@ func appendPCDeltaCFA(b []byte, deltapc, cfa int64) []byte {
+ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
+ 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
+ 	if framesec == nil {
+-		framesec = Linklookup(ctxt, ".debug_frame", 0)
++		framesec = ctxt.Syms.Lookup(".debug_frame", 0)
+ 	}
+ 	framesec.Type = obj.SDWARFSECT
+ 	framesec.R = framesec.R[:0]
+@@ -1222,7 +1222,7 @@ const (
+ 
+ func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol) []*Symbol {
+ 	if infosec == nil {
+-		infosec = Linklookup(ctxt, ".debug_info", 0)
++		infosec = ctxt.Syms.Lookup(".debug_info", 0)
+ 	}
+ 	infosec.R = infosec.R[:0]
+ 	infosec.Type = obj.SDWARFINFO
+@@ -1230,7 +1230,7 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs []*Symbol) []*Symbol {
+ 	syms = append(syms, infosec)
+ 
+ 	if arangessec == nil {
+-		arangessec = Linklookup(ctxt, ".dwarfaranges", 0)
++		arangessec = ctxt.Syms.Lookup(".dwarfaranges", 0)
+ 	}
+ 	arangessec.R = arangessec.R[:0]
+ 
+@@ -1290,7 +1290,7 @@ func ispubtype(die *dwarf.DWDie) bool {
+ }
+ 
+ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*Symbol) []*Symbol {
+-	s := Linklookup(ctxt, sname, 0)
++	s := ctxt.Syms.Lookup(sname, 0)
+ 	s.Type = obj.SDWARFSECT
+ 	syms = append(syms, s)
+ 
+@@ -1330,7 +1330,7 @@ func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*S
+  *  because we need die->offs of dwarf.DW_globals.
+  */
+ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
+-	s := Linklookup(ctxt, ".debug_aranges", 0)
++	s := ctxt.Syms.Lookup(".debug_aranges", 0)
+ 	s.Type = obj.SDWARFSECT
+ 	// The first tuple is aligned to a multiple of the size of a single tuple
+ 	// (twice the size of an address)
+@@ -1374,7 +1374,7 @@ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
+ func writegdbscript(ctxt *Link, syms []*Symbol) []*Symbol {
+ 
+ 	if gdbscript != "" {
+-		s := Linklookup(ctxt, ".debug_gdb_scripts", 0)
++		s := ctxt.Syms.Lookup(".debug_gdb_scripts", 0)
+ 		s.Type = obj.SDWARFSECT
+ 		syms = append(syms, s)
+ 		Adduint8(ctxt, s, 1) // magic 1 byte?
+@@ -1512,13 +1512,13 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
+ 	if Linkmode != LinkExternal {
+ 		return
+ 	}
+-	sym := Linklookup(ctxt, ".debug_info", 0)
++	sym := ctxt.Syms.Lookup(".debug_info", 0)
+ 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+-	sym = Linklookup(ctxt, ".debug_abbrev", 0)
++	sym = ctxt.Syms.Lookup(".debug_abbrev", 0)
+ 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+-	sym = Linklookup(ctxt, ".debug_line", 0)
++	sym = ctxt.Syms.Lookup(".debug_line", 0)
+ 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+-	sym = Linklookup(ctxt, ".debug_frame", 0)
++	sym = ctxt.Syms.Lookup(".debug_frame", 0)
+ 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 9d0b5ce325..35fc05f41f 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1445,7 +1445,7 @@ func elfdynhash(ctxt *Link) {
+ 	}
+ 
+ 	nsym := Nelfsym
+-	s := Linklookup(ctxt, ".hash", 0)
++	s := ctxt.Syms.Lookup(".hash", 0)
+ 	s.Type = obj.SELFROSECT
+ 	s.Attr |= AttrReachable
+ 
+@@ -1501,9 +1501,9 @@ func elfdynhash(ctxt *Link) {
+ 	}
+ 
+ 	// version symbols
+-	dynstr := Linklookup(ctxt, ".dynstr", 0)
++	dynstr := ctxt.Syms.Lookup(".dynstr", 0)
+ 
+-	s = Linklookup(ctxt, ".gnu.version_r", 0)
++	s = ctxt.Syms.Lookup(".gnu.version_r", 0)
+ 	i = 2
+ 	nfile := 0
+ 	var j int
+@@ -1544,7 +1544,7 @@ func elfdynhash(ctxt *Link) {
+ 	}
+ 
+ 	// version references
+-	s = Linklookup(ctxt, ".gnu.version", 0)
++	s = ctxt.Syms.Lookup(".gnu.version", 0)
+ 
+ 	for i := 0; i < nsym; i++ {
+ 		if i == 0 {
+@@ -1556,15 +1556,15 @@ func elfdynhash(ctxt *Link) {
+ 		}
+ 	}
+ 
+-	s = Linklookup(ctxt, ".dynamic", 0)
++	s = ctxt.Syms.Lookup(".dynamic", 0)
+ 	elfverneed = nfile
+ 	if elfverneed != 0 {
+-		elfwritedynentsym(ctxt, s, DT_VERNEED, Linklookup(ctxt, ".gnu.version_r", 0))
++		elfwritedynentsym(ctxt, s, DT_VERNEED, ctxt.Syms.Lookup(".gnu.version_r", 0))
+ 		Elfwritedynent(ctxt, s, DT_VERNEEDNUM, uint64(nfile))
+-		elfwritedynentsym(ctxt, s, DT_VERSYM, Linklookup(ctxt, ".gnu.version", 0))
++		elfwritedynentsym(ctxt, s, DT_VERSYM, ctxt.Syms.Lookup(".gnu.version", 0))
+ 	}
+ 
+-	sy := Linklookup(ctxt, elfRelType+".plt", 0)
++	sy := ctxt.Syms.Lookup(elfRelType+".plt", 0)
+ 	if sy.Size > 0 {
+ 		if elfRelType == ".rela" {
+ 			Elfwritedynent(ctxt, s, DT_PLTREL, DT_RELA)
+@@ -1807,7 +1807,7 @@ func Elfemitreloc(ctxt *Link) {
+ }
+ 
+ func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
+-	s := Linklookup(ctxt, sectionName, 0)
++	s := ctxt.Syms.Lookup(sectionName, 0)
+ 	s.Attr |= AttrReachable
+ 	s.Type = obj.SELFROSECT
+ 	// namesz
+@@ -1835,7 +1835,7 @@ func (ctxt *Link) doelf() {
+ 	}
+ 
+ 	/* predefine strings we need for section headers */
+-	shstrtab := Linklookup(ctxt, ".shstrtab", 0)
++	shstrtab := ctxt.Syms.Lookup(".shstrtab", 0)
+ 
+ 	shstrtab.Type = obj.SELFROSECT
+ 	shstrtab.Attr |= AttrReachable
+@@ -1946,7 +1946,7 @@ func (ctxt *Link) doelf() {
+ 		Addstring(ctxt, shstrtab, ".gnu.version_r")
+ 
+ 		/* dynamic symbol table - first entry all zeros */
+-		s := Linklookup(ctxt, ".dynsym", 0)
++		s := ctxt.Syms.Lookup(".dynsym", 0)
+ 
+ 		s.Type = obj.SELFROSECT
+ 		s.Attr |= AttrReachable
+@@ -1957,7 +1957,7 @@ func (ctxt *Link) doelf() {
+ 		}
+ 
+ 		/* dynamic string table */
+-		s = Linklookup(ctxt, ".dynstr", 0)
++		s = ctxt.Syms.Lookup(".dynstr", 0)
+ 
+ 		s.Type = obj.SELFROSECT
+ 		s.Attr |= AttrReachable
+@@ -1967,34 +1967,34 @@ func (ctxt *Link) doelf() {
+ 		dynstr := s
+ 
+ 		/* relocation table */
+-		s = Linklookup(ctxt, elfRelType, 0)
++		s = ctxt.Syms.Lookup(elfRelType, 0)
+ 		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFROSECT
+ 
+ 		/* global offset table */
+-		s = Linklookup(ctxt, ".got", 0)
++		s = ctxt.Syms.Lookup(".got", 0)
+ 
+ 		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFGOT // writable
+ 
+ 		/* ppc64 glink resolver */
+ 		if SysArch.Family == sys.PPC64 {
+-			s := Linklookup(ctxt, ".glink", 0)
++			s := ctxt.Syms.Lookup(".glink", 0)
+ 			s.Attr |= AttrReachable
+ 			s.Type = obj.SELFRXSECT
+ 		}
+ 
+ 		/* hash */
+-		s = Linklookup(ctxt, ".hash", 0)
++		s = ctxt.Syms.Lookup(".hash", 0)
+ 
+ 		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFROSECT
+ 
+-		s = Linklookup(ctxt, ".got.plt", 0)
++		s = ctxt.Syms.Lookup(".got.plt", 0)
+ 		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFSECT // writable
+ 
+-		s = Linklookup(ctxt, ".plt", 0)
++		s = ctxt.Syms.Lookup(".plt", 0)
+ 
+ 		s.Attr |= AttrReachable
+ 		if SysArch.Family == sys.PPC64 {
+@@ -2007,20 +2007,20 @@ func (ctxt *Link) doelf() {
+ 
+ 		Thearch.Elfsetupplt(ctxt)
+ 
+-		s = Linklookup(ctxt, elfRelType+".plt", 0)
++		s = ctxt.Syms.Lookup(elfRelType+".plt", 0)
+ 		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFROSECT
+ 
+-		s = Linklookup(ctxt, ".gnu.version", 0)
++		s = ctxt.Syms.Lookup(".gnu.version", 0)
+ 		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFROSECT
+ 
+-		s = Linklookup(ctxt, ".gnu.version_r", 0)
++		s = ctxt.Syms.Lookup(".gnu.version_r", 0)
+ 		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFROSECT
+ 
+ 		/* define dynamic elf table */
+-		s = Linklookup(ctxt, ".dynamic", 0)
++		s = ctxt.Syms.Lookup(".dynamic", 0)
+ 
+ 		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFSECT // writable
+@@ -2028,23 +2028,23 @@ func (ctxt *Link) doelf() {
+ 		/*
+ 		 * .dynamic table
+ 		 */
+-		elfwritedynentsym(ctxt, s, DT_HASH, Linklookup(ctxt, ".hash", 0))
++		elfwritedynentsym(ctxt, s, DT_HASH, ctxt.Syms.Lookup(".hash", 0))
+ 
+-		elfwritedynentsym(ctxt, s, DT_SYMTAB, Linklookup(ctxt, ".dynsym", 0))
++		elfwritedynentsym(ctxt, s, DT_SYMTAB, ctxt.Syms.Lookup(".dynsym", 0))
+ 		if elf64 {
+ 			Elfwritedynent(ctxt, s, DT_SYMENT, ELF64SYMSIZE)
+ 		} else {
+ 			Elfwritedynent(ctxt, s, DT_SYMENT, ELF32SYMSIZE)
+ 		}
+-		elfwritedynentsym(ctxt, s, DT_STRTAB, Linklookup(ctxt, ".dynstr", 0))
+-		elfwritedynentsymsize(ctxt, s, DT_STRSZ, Linklookup(ctxt, ".dynstr", 0))
++		elfwritedynentsym(ctxt, s, DT_STRTAB, ctxt.Syms.Lookup(".dynstr", 0))
++		elfwritedynentsymsize(ctxt, s, DT_STRSZ, ctxt.Syms.Lookup(".dynstr", 0))
+ 		if elfRelType == ".rela" {
+-			elfwritedynentsym(ctxt, s, DT_RELA, Linklookup(ctxt, ".rela", 0))
+-			elfwritedynentsymsize(ctxt, s, DT_RELASZ, Linklookup(ctxt, ".rela", 0))
++			elfwritedynentsym(ctxt, s, DT_RELA, ctxt.Syms.Lookup(".rela", 0))
++			elfwritedynentsymsize(ctxt, s, DT_RELASZ, ctxt.Syms.Lookup(".rela", 0))
+ 			Elfwritedynent(ctxt, s, DT_RELAENT, ELF64RELASIZE)
+ 		} else {
+-			elfwritedynentsym(ctxt, s, DT_REL, Linklookup(ctxt, ".rel", 0))
+-			elfwritedynentsymsize(ctxt, s, DT_RELSZ, Linklookup(ctxt, ".rel", 0))
++			elfwritedynentsym(ctxt, s, DT_REL, ctxt.Syms.Lookup(".rel", 0))
++			elfwritedynentsymsize(ctxt, s, DT_RELSZ, ctxt.Syms.Lookup(".rel", 0))
+ 			Elfwritedynent(ctxt, s, DT_RELENT, ELF32RELSIZE)
+ 		}
+ 
+@@ -2053,11 +2053,11 @@ func (ctxt *Link) doelf() {
+ 		}
+ 
+ 		if SysArch.Family == sys.PPC64 {
+-			elfwritedynentsym(ctxt, s, DT_PLTGOT, Linklookup(ctxt, ".plt", 0))
++			elfwritedynentsym(ctxt, s, DT_PLTGOT, ctxt.Syms.Lookup(".plt", 0))
+ 		} else if SysArch.Family == sys.S390X {
+-			elfwritedynentsym(ctxt, s, DT_PLTGOT, Linklookup(ctxt, ".got", 0))
++			elfwritedynentsym(ctxt, s, DT_PLTGOT, ctxt.Syms.Lookup(".got", 0))
+ 		} else {
+-			elfwritedynentsym(ctxt, s, DT_PLTGOT, Linklookup(ctxt, ".got.plt", 0))
++			elfwritedynentsym(ctxt, s, DT_PLTGOT, ctxt.Syms.Lookup(".got.plt", 0))
+ 		}
+ 
+ 		if SysArch.Family == sys.PPC64 {
+@@ -2074,7 +2074,7 @@ func (ctxt *Link) doelf() {
+ 	if Buildmode == BuildmodeShared {
+ 		// The go.link.abihashbytes symbol will be pointed at the appropriate
+ 		// part of the .note.go.abihash section in data.go:func address().
+-		s := Linklookup(ctxt, "go.link.abihashbytes", 0)
++		s := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
+ 		s.Attr |= AttrLocal
+ 		s.Type = obj.SRODATA
+ 		s.Attr |= AttrSpecial
+@@ -2321,13 +2321,13 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		sh.link = uint32(elfshname(".dynstr").shnum)
+ 
+ 		// sh->info = index of first non-local symbol (number of local symbols)
+-		shsym(ctxt, sh, Linklookup(ctxt, ".dynsym", 0))
++		shsym(ctxt, sh, ctxt.Syms.Lookup(".dynsym", 0))
+ 
+ 		sh = elfshname(".dynstr")
+ 		sh.type_ = SHT_STRTAB
+ 		sh.flags = SHF_ALLOC
+ 		sh.addralign = 1
+-		shsym(ctxt, sh, Linklookup(ctxt, ".dynstr", 0))
++		shsym(ctxt, sh, ctxt.Syms.Lookup(".dynstr", 0))
+ 
+ 		if elfverneed != 0 {
+ 			sh := elfshname(".gnu.version")
+@@ -2336,7 +2336,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.addralign = 2
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+ 			sh.entsize = 2
+-			shsym(ctxt, sh, Linklookup(ctxt, ".gnu.version", 0))
++			shsym(ctxt, sh, ctxt.Syms.Lookup(".gnu.version", 0))
+ 
+ 			sh = elfshname(".gnu.version_r")
+ 			sh.type_ = SHT_GNU_VERNEED
+@@ -2344,7 +2344,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.addralign = uint64(SysArch.RegSize)
+ 			sh.info = uint32(elfverneed)
+ 			sh.link = uint32(elfshname(".dynstr").shnum)
+-			shsym(ctxt, sh, Linklookup(ctxt, ".gnu.version_r", 0))
++			shsym(ctxt, sh, ctxt.Syms.Lookup(".gnu.version_r", 0))
+ 		}
+ 
+ 		if elfRelType == ".rela" {
+@@ -2355,7 +2355,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.addralign = uint64(SysArch.RegSize)
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+ 			sh.info = uint32(elfshname(".plt").shnum)
+-			shsym(ctxt, sh, Linklookup(ctxt, ".rela.plt", 0))
++			shsym(ctxt, sh, ctxt.Syms.Lookup(".rela.plt", 0))
+ 
+ 			sh = elfshname(".rela")
+ 			sh.type_ = SHT_RELA
+@@ -2363,7 +2363,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.entsize = ELF64RELASIZE
+ 			sh.addralign = 8
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+-			shsym(ctxt, sh, Linklookup(ctxt, ".rela", 0))
++			shsym(ctxt, sh, ctxt.Syms.Lookup(".rela", 0))
+ 		} else {
+ 			sh := elfshname(".rel.plt")
+ 			sh.type_ = SHT_REL
+@@ -2371,7 +2371,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.entsize = ELF32RELSIZE
+ 			sh.addralign = 4
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+-			shsym(ctxt, sh, Linklookup(ctxt, ".rel.plt", 0))
++			shsym(ctxt, sh, ctxt.Syms.Lookup(".rel.plt", 0))
+ 
+ 			sh = elfshname(".rel")
+ 			sh.type_ = SHT_REL
+@@ -2379,7 +2379,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.entsize = ELF32RELSIZE
+ 			sh.addralign = 4
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+-			shsym(ctxt, sh, Linklookup(ctxt, ".rel", 0))
++			shsym(ctxt, sh, ctxt.Syms.Lookup(".rel", 0))
+ 		}
+ 
+ 		if eh.machine == EM_PPC64 {
+@@ -2387,7 +2387,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.type_ = SHT_PROGBITS
+ 			sh.flags = SHF_ALLOC + SHF_EXECINSTR
+ 			sh.addralign = 4
+-			shsym(ctxt, sh, Linklookup(ctxt, ".glink", 0))
++			shsym(ctxt, sh, ctxt.Syms.Lookup(".glink", 0))
+ 		}
+ 
+ 		sh = elfshname(".plt")
+@@ -2408,7 +2408,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.entsize = 4
+ 		}
+ 		sh.addralign = sh.entsize
+-		shsym(ctxt, sh, Linklookup(ctxt, ".plt", 0))
++		shsym(ctxt, sh, ctxt.Syms.Lookup(".plt", 0))
+ 
+ 		// On ppc64, .got comes from the input files, so don't
+ 		// create it here, and .got.plt is not used.
+@@ -2418,14 +2418,14 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.flags = SHF_ALLOC + SHF_WRITE
+ 			sh.entsize = uint64(SysArch.RegSize)
+ 			sh.addralign = uint64(SysArch.RegSize)
+-			shsym(ctxt, sh, Linklookup(ctxt, ".got", 0))
++			shsym(ctxt, sh, ctxt.Syms.Lookup(".got", 0))
+ 
+ 			sh = elfshname(".got.plt")
+ 			sh.type_ = SHT_PROGBITS
+ 			sh.flags = SHF_ALLOC + SHF_WRITE
+ 			sh.entsize = uint64(SysArch.RegSize)
+ 			sh.addralign = uint64(SysArch.RegSize)
+-			shsym(ctxt, sh, Linklookup(ctxt, ".got.plt", 0))
++			shsym(ctxt, sh, ctxt.Syms.Lookup(".got.plt", 0))
+ 		}
+ 
+ 		sh = elfshname(".hash")
+@@ -2434,7 +2434,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		sh.entsize = 4
+ 		sh.addralign = uint64(SysArch.RegSize)
+ 		sh.link = uint32(elfshname(".dynsym").shnum)
+-		shsym(ctxt, sh, Linklookup(ctxt, ".hash", 0))
++		shsym(ctxt, sh, ctxt.Syms.Lookup(".hash", 0))
+ 
+ 		/* sh and PT_DYNAMIC for .dynamic section */
+ 		sh = elfshname(".dynamic")
+@@ -2444,7 +2444,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		sh.entsize = 2 * uint64(SysArch.RegSize)
+ 		sh.addralign = uint64(SysArch.RegSize)
+ 		sh.link = uint32(elfshname(".dynstr").shnum)
+-		shsym(ctxt, sh, Linklookup(ctxt, ".dynamic", 0))
++		shsym(ctxt, sh, ctxt.Syms.Lookup(".dynamic", 0))
+ 		ph := newElfPhdr()
+ 		ph.type_ = PT_DYNAMIC
+ 		ph.flags = PF_R + PF_W
+@@ -2489,7 +2489,7 @@ elfobj:
+ 	sh := elfshname(".shstrtab")
+ 	sh.type_ = SHT_STRTAB
+ 	sh.addralign = 1
+-	shsym(ctxt, sh, Linklookup(ctxt, ".shstrtab", 0))
++	shsym(ctxt, sh, ctxt.Syms.Lookup(".shstrtab", 0))
+ 	eh.shstrndx = uint16(sh.shnum)
+ 
+ 	// put these sections early in the list
+@@ -2639,10 +2639,10 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
+ 		s.Dynid = int32(Nelfsym)
+ 		Nelfsym++
+ 
+-		d := Linklookup(ctxt, ".dynsym", 0)
++		d := ctxt.Syms.Lookup(".dynsym", 0)
+ 
+ 		name := s.Extname
+-		Adduint32(ctxt, d, uint32(Addstring(ctxt, Linklookup(ctxt, ".dynstr", 0), name)))
++		Adduint32(ctxt, d, uint32(Addstring(ctxt, ctxt.Syms.Lookup(".dynstr", 0), name)))
+ 
+ 		/* type */
+ 		t := STB_GLOBAL << 4
+@@ -2675,18 +2675,18 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
+ 		Adduint64(ctxt, d, uint64(s.Size))
+ 
+ 		if SysArch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
+-			Elfwritedynent(ctxt, Linklookup(ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, Linklookup(ctxt, ".dynstr", 0), s.Dynimplib)))
++			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib)))
+ 		}
+ 	} else {
+ 		s.Dynid = int32(Nelfsym)
+ 		Nelfsym++
+ 
+-		d := Linklookup(ctxt, ".dynsym", 0)
++		d := ctxt.Syms.Lookup(".dynsym", 0)
+ 
+ 		/* name */
+ 		name := s.Extname
+ 
+-		Adduint32(ctxt, d, uint32(Addstring(ctxt, Linklookup(ctxt, ".dynstr", 0), name)))
++		Adduint32(ctxt, d, uint32(Addstring(ctxt, ctxt.Syms.Lookup(".dynstr", 0), name)))
+ 
+ 		/* value */
+ 		if s.Type == obj.SDYNIMPORT {
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 935beb6648..663caf7639 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -187,7 +187,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			if i := strings.Index(remote, "#"); i >= 0 {
+ 				remote, q = remote[:i], remote[i+1:]
+ 			}
+-			s = Linklookup(ctxt, local, 0)
++			s = ctxt.Syms.Lookup(local, 0)
+ 			if local != f[1] {
+ 			}
+ 			if s.Type == 0 || s.Type == obj.SXREF || s.Type == obj.SHOSTOBJ {
+@@ -208,7 +208,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				goto err
+ 			}
+ 			local = f[1]
+-			s = Linklookup(ctxt, local, 0)
++			s = ctxt.Syms.Lookup(local, 0)
+ 			s.Type = obj.SHOSTOBJ
+ 			s.Size = 0
+ 			continue
+@@ -225,11 +225,11 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				remote = local
+ 			}
+ 			local = expandpkg(local, pkg)
+-			s = Linklookup(ctxt, local, 0)
++			s = ctxt.Syms.Lookup(local, 0)
+ 
+ 			switch Buildmode {
+ 			case BuildmodeCShared, BuildmodeCArchive, BuildmodePlugin:
+-				if s == Linklookup(ctxt, "main", 0) {
++				if s == ctxt.Syms.Lookup("main", 0) {
+ 					continue
+ 				}
+ 			}
+@@ -305,11 +305,11 @@ func adddynlib(ctxt *Link, lib string) {
+ 	seenlib[lib] = true
+ 
+ 	if Iself {
+-		s := Linklookup(ctxt, ".dynstr", 0)
++		s := ctxt.Syms.Lookup(".dynstr", 0)
+ 		if s.Size == 0 {
+ 			Addstring(ctxt, s, "")
+ 		}
+-		Elfwritedynent(ctxt, Linklookup(ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, s, lib)))
++		Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, s, lib)))
+ 	} else {
+ 		Errorf(nil, "adddynlib: unsupported binary format")
+ 	}
+@@ -355,7 +355,7 @@ func fieldtrack(ctxt *Link) {
+ 	if *flagFieldTrack == "" {
+ 		return
+ 	}
+-	s := Linklookup(ctxt, *flagFieldTrack, 0)
++	s := ctxt.Syms.Lookup(*flagFieldTrack, 0)
+ 	if !s.Attr.Reachable() {
+ 		return
+ 	}
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 8468a9102e..e26be08030 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -702,7 +702,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		}
+ 
+ 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
+-		s = Linklookup(ctxt, name, ctxt.Syms.Version)
++		s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
+ 
+ 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
+ 		default:
+@@ -1033,7 +1033,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
+ 		switch sym.bind {
+ 		case ElfSymBindGlobal:
+ 			if needSym != 0 {
+-				s = Linklookup(ctxt, sym.name, 0)
++				s = ctxt.Syms.Lookup(sym.name, 0)
+ 
+ 				// for global scoped hidden symbols we should insert it into
+ 				// symbol hash table, but mark them as hidden.
+@@ -1059,7 +1059,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
+ 				// We need to be able to look this up,
+ 				// so put it in the hash table.
+ 				if needSym != 0 {
+-					s = Linklookup(ctxt, sym.name, ctxt.Syms.Version)
++					s = ctxt.Syms.Lookup(sym.name, ctxt.Syms.Version)
+ 					s.Type |= obj.SHIDDEN
+ 				}
+ 
+@@ -1077,7 +1077,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
+ 
+ 		case ElfSymBindWeak:
+ 			if needSym != 0 {
+-				s = Linklookup(ctxt, sym.name, 0)
++				s = ctxt.Syms.Lookup(sym.name, 0)
+ 				if sym.other == 2 {
+ 					s.Type |= obj.SHIDDEN
+ 				}
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index e78711014c..ab16087440 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -587,7 +587,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			continue
+ 		}
+ 		name = fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
+-		s = Linklookup(ctxt, name, ctxt.Syms.Version)
++		s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
+ 		if s.Type != 0 {
+ 			err = fmt.Errorf("duplicate %s/%s", sect.segname, sect.name)
+ 			goto bad
+@@ -636,7 +636,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		if sym.type_&N_EXT == 0 {
+ 			v = ctxt.Syms.Version
+ 		}
+-		s = Linklookup(ctxt, name, v)
++		s = ctxt.Syms.Lookup(name, v)
+ 		if sym.type_&N_EXT == 0 {
+ 			s.Attr |= AttrDuplicateOK
+ 		}
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index 56f225f50a..a0090a160a 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -246,7 +246,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		}
+ 
+ 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
+-		s = Linklookup(ctxt, name, ctxt.Syms.Version)
++		s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
+ 
+ 		switch sect.sh.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
+ 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
+@@ -511,10 +511,10 @@ func readpesym(ctxt *Link, peobj *PeObj, i int, y **PeSym) (err error) {
+ 	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
+ 		switch sym.sclass {
+ 		case IMAGE_SYM_CLASS_EXTERNAL: //global
+-			s = Linklookup(ctxt, name, 0)
++			s = ctxt.Syms.Lookup(name, 0)
+ 
+ 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
+-			s = Linklookup(ctxt, name, ctxt.Syms.Version)
++			s = ctxt.Syms.Lookup(name, ctxt.Syms.Version)
+ 			s.Attr |= AttrDuplicateOK
+ 
+ 		default:
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 0a524a934a..c288908a86 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -167,7 +167,7 @@ func (ctxt *Link) DynlinkingGo() bool {
+ 	if !ctxt.Loaded {
+ 		panic("DynlinkingGo called before all symbols loaded")
+ 	}
+-	canUsePlugins := Linkrlookup(ctxt, "plugin.Open", 0) != nil
++	canUsePlugins := ctxt.Syms.ROLookup("plugin.Open", 0) != nil
+ 	return Buildmode == BuildmodeShared || *FlagLinkshared || Buildmode == BuildmodePlugin || canUsePlugins
+ }
+ 
+@@ -391,11 +391,11 @@ func (ctxt *Link) findLibPath(libname string) string {
+ func (ctxt *Link) loadlib() {
+ 	switch Buildmode {
+ 	case BuildmodeCShared, BuildmodePlugin:
+-		s := Linklookup(ctxt, "runtime.islibrary", 0)
++		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
+ 		s.Attr |= AttrDuplicateOK
+ 		Adduint8(ctxt, s, 1)
+ 	case BuildmodeCArchive:
+-		s := Linklookup(ctxt, "runtime.isarchive", 0)
++		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
+ 		s.Attr |= AttrDuplicateOK
+ 		Adduint8(ctxt, s, 1)
+ 	}
+@@ -435,7 +435,7 @@ func (ctxt *Link) loadlib() {
+ 	determineLinkMode(ctxt)
+ 
+ 	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
+-		toc := Linklookup(ctxt, ".TOC.", 0)
++		toc := ctxt.Syms.Lookup(".TOC.", 0)
+ 		toc.Type = obj.SDYNIMPORT
+ 	}
+ 
+@@ -476,7 +476,7 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
+-	tlsg := Linklookup(ctxt, "runtime.tlsg", 0)
++	tlsg := ctxt.Syms.Lookup("runtime.tlsg", 0)
+ 
+ 	// runtime.tlsg is used for external linking on platforms that do not define
+ 	// a variable to hold g in assembly (currently only intel).
+@@ -491,10 +491,10 @@ func (ctxt *Link) loadlib() {
+ 
+ 	var moduledata *Symbol
+ 	if Buildmode == BuildmodePlugin {
+-		moduledata = Linklookup(ctxt, "local.pluginmoduledata", 0)
++		moduledata = ctxt.Syms.Lookup("local.pluginmoduledata", 0)
+ 		moduledata.Attr |= AttrLocal
+ 	} else {
+-		moduledata = Linklookup(ctxt, "runtime.firstmoduledata", 0)
++		moduledata = ctxt.Syms.Lookup("runtime.firstmoduledata", 0)
+ 	}
+ 	if moduledata.Type != 0 && moduledata.Type != obj.SDYNIMPORT {
+ 		// If the module (toolchain-speak for "executable or shared
+@@ -507,14 +507,14 @@ func (ctxt *Link) loadlib() {
+ 		// In addition, on ARM, the runtime depends on the linker
+ 		// recording the value of GOARM.
+ 		if SysArch.Family == sys.ARM {
+-			s := Linklookup(ctxt, "runtime.goarm", 0)
++			s := ctxt.Syms.Lookup("runtime.goarm", 0)
+ 			s.Type = obj.SRODATA
+ 			s.Size = 0
+ 			Adduint8(ctxt, s, uint8(obj.GOARM))
+ 		}
+ 
+ 		if obj.Framepointer_enabled(obj.GOOS, obj.GOARCH) {
+-			s := Linklookup(ctxt, "runtime.framepointer_enabled", 0)
++			s := ctxt.Syms.Lookup("runtime.framepointer_enabled", 0)
+ 			s.Type = obj.SRODATA
+ 			s.Size = 0
+ 			Adduint8(ctxt, s, 1)
+@@ -522,7 +522,7 @@ func (ctxt *Link) loadlib() {
+ 	} else {
+ 		// If OTOH the module does not contain the runtime package,
+ 		// create a local symbol for the moduledata.
+-		moduledata = Linklookup(ctxt, "local.moduledata", 0)
++		moduledata = ctxt.Syms.Lookup("local.moduledata", 0)
+ 		moduledata.Attr |= AttrLocal
+ 	}
+ 	// In all cases way we mark the moduledata as noptrdata to hide it from
+@@ -610,7 +610,7 @@ func (ctxt *Link) loadlib() {
+ 
+ 	if SysArch == sys.Arch386 {
+ 		if (Buildmode == BuildmodeCArchive && Iself) || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE || ctxt.DynlinkingGo() {
+-			got := Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
++			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
+ 			got.Type = obj.SDYNIMPORT
+ 			got.Attr |= AttrReachable
+ 		}
+@@ -1414,7 +1414,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
+ 			continue
+ 		}
+-		lsym := Linklookup(ctxt, elfsym.Name, 0)
++		lsym := ctxt.Syms.Lookup(elfsym.Name, 0)
+ 		// Because loadlib above loads all .a files before loading any shared
+ 		// libraries, any non-dynimport symbols we find that duplicate symbols
+ 		// already loaded should be ignored (the symbols from the .a files
+@@ -1564,7 +1564,7 @@ func callsize(ctxt *Link) int {
+ func (ctxt *Link) dostkcheck() {
+ 	var ch chain
+ 
+-	morestack = Linklookup(ctxt, "runtime.morestack", 0)
++	morestack = ctxt.Syms.Lookup("runtime.morestack", 0)
+ 
+ 	// Every splitting function ensures that there are at least StackLimit
+ 	// bytes available below SP when the splitting prologue finishes.
+@@ -1808,11 +1808,11 @@ const (
+ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *Symbol)) {
+ 	// These symbols won't show up in the first loop below because we
+ 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
+-	s := Linklookup(ctxt, "runtime.text", 0)
++	s := ctxt.Syms.Lookup("runtime.text", 0)
+ 	if s.Type == obj.STEXT {
+ 		put(ctxt, s, s.Name, TextSym, s.Value, nil)
+ 	}
+-	s = Linklookup(ctxt, "runtime.etext", 0)
++	s = ctxt.Syms.Lookup("runtime.etext", 0)
+ 	if s.Type == obj.STEXT {
+ 		put(ctxt, s, s.Name, TextSym, s.Value, nil)
+ 	}
+@@ -1942,7 +1942,7 @@ func Symaddr(s *Symbol) int64 {
+ }
+ 
+ func (ctxt *Link) xdefine(p string, t obj.SymKind, v int64) {
+-	s := Linklookup(ctxt, p, 0)
++	s := ctxt.Syms.Lookup(p, 0)
+ 	s.Type = t
+ 	s.Value = v
+ 	s.Attr |= AttrReachable
+@@ -1966,7 +1966,7 @@ func Entryvalue(ctxt *Link) int64 {
+ 	if a[0] >= '0' && a[0] <= '9' {
+ 		return atolwhex(a)
+ 	}
+-	s := Linklookup(ctxt, a, 0)
++	s := ctxt.Syms.Lookup(a, 0)
+ 	if s.Type == 0 {
+ 		return *FlagTextAddr
+ 	}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index cc4f15a6ff..8230f5d733 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -300,32 +300,32 @@ func (ctxt *Link) domacho() {
+ 	}
+ 
+ 	// empirically, string table must begin with " \x00".
+-	s := Linklookup(ctxt, ".machosymstr", 0)
++	s := ctxt.Syms.Lookup(".machosymstr", 0)
+ 
+ 	s.Type = obj.SMACHOSYMSTR
+ 	s.Attr |= AttrReachable
+ 	Adduint8(ctxt, s, ' ')
+ 	Adduint8(ctxt, s, '\x00')
+ 
+-	s = Linklookup(ctxt, ".machosymtab", 0)
++	s = ctxt.Syms.Lookup(".machosymtab", 0)
+ 	s.Type = obj.SMACHOSYMTAB
+ 	s.Attr |= AttrReachable
+ 
+ 	if Linkmode != LinkExternal {
+-		s := Linklookup(ctxt, ".plt", 0) // will be __symbol_stub
++		s := ctxt.Syms.Lookup(".plt", 0) // will be __symbol_stub
+ 		s.Type = obj.SMACHOPLT
+ 		s.Attr |= AttrReachable
+ 
+-		s = Linklookup(ctxt, ".got", 0) // will be __nl_symbol_ptr
++		s = ctxt.Syms.Lookup(".got", 0) // will be __nl_symbol_ptr
+ 		s.Type = obj.SMACHOGOT
+ 		s.Attr |= AttrReachable
+ 		s.Align = 4
+ 
+-		s = Linklookup(ctxt, ".linkedit.plt", 0) // indirect table for .plt
++		s = ctxt.Syms.Lookup(".linkedit.plt", 0) // indirect table for .plt
+ 		s.Type = obj.SMACHOINDIRECTPLT
+ 		s.Attr |= AttrReachable
+ 
+-		s = Linklookup(ctxt, ".linkedit.got", 0) // indirect table for .got
++		s = ctxt.Syms.Lookup(".linkedit.got", 0) // indirect table for .got
+ 		s.Type = obj.SMACHOINDIRECTGOT
+ 		s.Attr |= AttrReachable
+ 	}
+@@ -400,7 +400,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
+ 	if sect.Name == ".got" {
+ 		msect.name = "__nl_symbol_ptr"
+ 		msect.flag = 6                                                     /* section with nonlazy symbol pointers */
+-		msect.res1 = uint32(Linklookup(ctxt, ".linkedit.plt", 0).Size / 4) /* offset into indirect symbol table */
++		msect.res1 = uint32(ctxt.Syms.Lookup(".linkedit.plt", 0).Size / 4) /* offset into indirect symbol table */
+ 	}
+ 
+ 	if sect.Name == ".init_array" {
+@@ -541,10 +541,10 @@ func Asmbmacho(ctxt *Link) {
+ 
+ 	if !*FlagD {
+ 		// must match domacholink below
+-		s1 := Linklookup(ctxt, ".machosymtab", 0)
+-		s2 := Linklookup(ctxt, ".linkedit.plt", 0)
+-		s3 := Linklookup(ctxt, ".linkedit.got", 0)
+-		s4 := Linklookup(ctxt, ".machosymstr", 0)
++		s1 := ctxt.Syms.Lookup(".machosymtab", 0)
++		s2 := ctxt.Syms.Lookup(".linkedit.plt", 0)
++		s3 := ctxt.Syms.Lookup(".linkedit.got", 0)
++		s4 := ctxt.Syms.Lookup(".machosymstr", 0)
+ 
+ 		if Linkmode != LinkExternal {
+ 			ms := newMachoSeg("__LINKEDIT", 0)
+@@ -685,8 +685,8 @@ func machosymorder(ctxt *Link) {
+ }
+ 
+ func machosymtab(ctxt *Link) {
+-	symtab := Linklookup(ctxt, ".machosymtab", 0)
+-	symstr := Linklookup(ctxt, ".machosymstr", 0)
++	symtab := ctxt.Syms.Lookup(".machosymtab", 0)
++	symstr := ctxt.Syms.Lookup(".machosymstr", 0)
+ 
+ 	for i := 0; i < nsortsym; i++ {
+ 		s := sortsym[i]
+@@ -750,10 +750,10 @@ func machodysymtab(ctxt *Link) {
+ 	ml.data[11] = 0 /* nextrefsyms */
+ 
+ 	// must match domacholink below
+-	s1 := Linklookup(ctxt, ".machosymtab", 0)
++	s1 := ctxt.Syms.Lookup(".machosymtab", 0)
+ 
+-	s2 := Linklookup(ctxt, ".linkedit.plt", 0)
+-	s3 := Linklookup(ctxt, ".linkedit.got", 0)
++	s2 := ctxt.Syms.Lookup(".linkedit.plt", 0)
++	s3 := ctxt.Syms.Lookup(".linkedit.got", 0)
+ 	ml.data[12] = uint32(linkoff + s1.Size)       /* indirectsymoff */
+ 	ml.data[13] = uint32((s2.Size + s3.Size) / 4) /* nindirectsyms */
+ 
+@@ -767,11 +767,11 @@ func Domacholink(ctxt *Link) int64 {
+ 	machosymtab(ctxt)
+ 
+ 	// write data that will be linkedit section
+-	s1 := Linklookup(ctxt, ".machosymtab", 0)
++	s1 := ctxt.Syms.Lookup(".machosymtab", 0)
+ 
+-	s2 := Linklookup(ctxt, ".linkedit.plt", 0)
+-	s3 := Linklookup(ctxt, ".linkedit.got", 0)
+-	s4 := Linklookup(ctxt, ".machosymstr", 0)
++	s2 := ctxt.Syms.Lookup(".linkedit.plt", 0)
++	s3 := ctxt.Syms.Lookup(".linkedit.got", 0)
++	s4 := ctxt.Syms.Lookup(".machosymstr", 0)
+ 
+ 	// Force the linkedit section to end on a 16-byte
+ 	// boundary. This allows pure (non-cgo) Go binaries
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 8b49aac7cb..0392ebd7cd 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -454,7 +454,7 @@ func (r *objReader) readRef() {
+ 	if v == 1 {
+ 		v = r.ctxt.Syms.Version
+ 	}
+-	s := Linklookup(r.ctxt, name, v)
++	s := r.ctxt.Syms.Lookup(name, v)
+ 	r.refs = append(r.refs, s)
+ 
+ 	if s == nil || v != 0 {
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index c587d7652e..0709c0b984 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -208,7 +208,7 @@ var pclntabLastFunc *Symbol
+ 
+ func (ctxt *Link) pclntab() {
+ 	funcdataBytes := int64(0)
+-	ftab := Linklookup(ctxt, "runtime.pclntab", 0)
++	ftab := ctxt.Syms.Lookup("runtime.pclntab", 0)
+ 	ftab.Type = obj.SPCLNTAB
+ 	ftab.Attr |= AttrReachable
+ 
+@@ -393,7 +393,7 @@ const (
+ // findfunctab generates a lookup table to quickly find the containing
+ // function for a pc. See src/runtime/symtab.go:findfunc for details.
+ func (ctxt *Link) findfunctab() {
+-	t := Linklookup(ctxt, "runtime.findfunctab", 0)
++	t := ctxt.Syms.Lookup("runtime.findfunctab", 0)
+ 	t.Type = obj.SRODATA
+ 	t.Attr |= AttrReachable
+ 	t.Attr |= AttrLocal
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index ca0fc75573..2a8c77966d 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -527,7 +527,7 @@ func initdynimport(ctxt *Link) *Dll {
+ 				if SysArch.Family == sys.I386 && m.argsize >= 0 {
+ 					dynName += fmt.Sprintf("@%d", m.argsize)
+ 				}
+-				dynSym := Linklookup(ctxt, dynName, 0)
++				dynSym := ctxt.Syms.Lookup(dynName, 0)
+ 				dynSym.Attr |= AttrReachable
+ 				dynSym.Type = obj.SHOSTOBJ
+ 				r := Addrel(m.s)
+@@ -538,7 +538,7 @@ func initdynimport(ctxt *Link) *Dll {
+ 			}
+ 		}
+ 	} else {
+-		dynamic := Linklookup(ctxt, ".windynamic", 0)
++		dynamic := ctxt.Syms.Lookup(".windynamic", 0)
+ 		dynamic.Attr |= AttrReachable
+ 		dynamic.Type = obj.SWINDOWS
+ 		for d := dr; d != nil; d = d.next {
+@@ -571,7 +571,7 @@ func peimporteddlls() []string {
+ 
+ func addimports(ctxt *Link, datsect *IMAGE_SECTION_HEADER) {
+ 	startoff := coutbuf.Offset()
+-	dynamic := Linklookup(ctxt, ".windynamic", 0)
++	dynamic := ctxt.Syms.Lookup(".windynamic", 0)
+ 
+ 	// skip import descriptor table (will write it later)
+ 	n := uint64(0)
+@@ -868,7 +868,7 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
+ 	}
+ 	data.NumberOfRelocations = uint16(n - 1)
+ 
+-	dottext := Linklookup(ctxt, ".text", 0)
++	dottext := ctxt.Syms.Lookup(".text", 0)
+ 	ctors.NumberOfRelocations = 1
+ 	ctors.PointerToRelocations = uint32(coutbuf.Offset())
+ 	sectoff := ctors.VirtualAddress
+@@ -887,7 +887,7 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
+ 
+ func (ctxt *Link) dope() {
+ 	/* relocation table */
+-	rel := Linklookup(ctxt, ".rel", 0)
++	rel := ctxt.Syms.Lookup(".rel", 0)
+ 
+ 	rel.Attr |= AttrReachable
+ 	rel.Type = obj.SELFROSECT
+@@ -1002,7 +1002,7 @@ func writePESymTableRecords(ctxt *Link) int {
+ 			}
+ 		}
+ 
+-		s := Linklookup(ctxt, ".text", 0)
++		s := ctxt.Syms.Lookup(".text", 0)
+ 		if s.Type == obj.STEXT {
+ 			put(ctxt, s, s.Name, TextSym, s.Value, nil)
+ 		}
+@@ -1111,7 +1111,7 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
+ 
+ 	Cseek(int64(c.PointerToRawData))
+ 	chksectoff(ctxt, c, coutbuf.Offset())
+-	init_entry := Linklookup(ctxt, *flagEntrySymbol, 0)
++	init_entry := ctxt.Syms.Lookup(*flagEntrySymbol, 0)
+ 	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
+ 
+ 	switch obj.GOARCH {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 06394cb497..10ac961e4a 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -331,14 +331,14 @@ func (ctxt *Link) symtab() {
+ 	ctxt.xdefine("runtime.esymtab", obj.SRODATA, 0)
+ 
+ 	// garbage collection symbols
+-	s := Linklookup(ctxt, "runtime.gcdata", 0)
++	s := ctxt.Syms.Lookup("runtime.gcdata", 0)
+ 
+ 	s.Type = obj.SRODATA
+ 	s.Size = 0
+ 	s.Attr |= AttrReachable
+ 	ctxt.xdefine("runtime.egcdata", obj.SRODATA, 0)
+ 
+-	s = Linklookup(ctxt, "runtime.gcbss", 0)
++	s = ctxt.Syms.Lookup("runtime.gcbss", 0)
+ 	s.Type = obj.SRODATA
+ 	s.Size = 0
+ 	s.Attr |= AttrReachable
+@@ -348,21 +348,21 @@ func (ctxt *Link) symtab() {
+ 	var symtype *Symbol
+ 	var symtyperel *Symbol
+ 	if UseRelro() && (Buildmode == BuildmodeCArchive || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
+-		s = Linklookup(ctxt, "type.*", 0)
++		s = ctxt.Syms.Lookup("type.*", 0)
+ 
+ 		s.Type = obj.STYPE
+ 		s.Size = 0
+ 		s.Attr |= AttrReachable
+ 		symtype = s
+ 
+-		s = Linklookup(ctxt, "typerel.*", 0)
++		s = ctxt.Syms.Lookup("typerel.*", 0)
+ 
+ 		s.Type = obj.STYPERELRO
+ 		s.Size = 0
+ 		s.Attr |= AttrReachable
+ 		symtyperel = s
+ 	} else if !ctxt.DynlinkingGo() {
+-		s = Linklookup(ctxt, "type.*", 0)
++		s = ctxt.Syms.Lookup("type.*", 0)
+ 
+ 		s.Type = obj.STYPE
+ 		s.Size = 0
+@@ -372,7 +372,7 @@ func (ctxt *Link) symtab() {
+ 	}
+ 
+ 	groupSym := func(name string, t obj.SymKind) *Symbol {
+-		s := Linklookup(ctxt, name, 0)
++		s := ctxt.Syms.Lookup(name, 0)
+ 		s.Type = t
+ 		s.Size = 0
+ 		s.Attr |= AttrLocal | AttrReachable
+@@ -394,13 +394,13 @@ func (ctxt *Link) symtab() {
+ 		}
+ 	}
+ 
+-	symtypelink := Linklookup(ctxt, "runtime.typelink", 0)
++	symtypelink := ctxt.Syms.Lookup("runtime.typelink", 0)
+ 	symtypelink.Type = obj.STYPELINK
+ 
+-	symitablink := Linklookup(ctxt, "runtime.itablink", 0)
++	symitablink := ctxt.Syms.Lookup("runtime.itablink", 0)
+ 	symitablink.Type = obj.SITABLINK
+ 
+-	symt = Linklookup(ctxt, "runtime.symtab", 0)
++	symt = ctxt.Syms.Lookup("runtime.symtab", 0)
+ 	symt.Attr |= AttrLocal
+ 	symt.Type = obj.SSYMTAB
+ 	symt.Size = 0
+@@ -484,10 +484,10 @@ func (ctxt *Link) symtab() {
+ 	}
+ 
+ 	if Buildmode == BuildmodeShared {
+-		abihashgostr := Linklookup(ctxt, "go.link.abihash."+filepath.Base(*flagOutfile), 0)
++		abihashgostr := ctxt.Syms.Lookup("go.link.abihash."+filepath.Base(*flagOutfile), 0)
+ 		abihashgostr.Attr |= AttrReachable
+ 		abihashgostr.Type = obj.SRODATA
+-		hashsym := Linklookup(ctxt, "go.link.abihashbytes", 0)
++		hashsym := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
+ 		Addaddr(ctxt, abihashgostr, hashsym)
+ 		adduint(ctxt, abihashgostr, uint64(hashsym.Size))
+ 	}
+@@ -498,49 +498,49 @@ func (ctxt *Link) symtab() {
+ 	// This code uses several global variables that are set by pcln.go:pclntab.
+ 	moduledata := ctxt.Moduledata
+ 	// The pclntab slice
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.pclntab", 0))
+-	adduint(ctxt, moduledata, uint64(Linklookup(ctxt, "runtime.pclntab", 0).Size))
+-	adduint(ctxt, moduledata, uint64(Linklookup(ctxt, "runtime.pclntab", 0).Size))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0))
++	adduint(ctxt, moduledata, uint64(ctxt.Syms.Lookup("runtime.pclntab", 0).Size))
++	adduint(ctxt, moduledata, uint64(ctxt.Syms.Lookup("runtime.pclntab", 0).Size))
+ 	// The ftab slice
+-	Addaddrplus(ctxt, moduledata, Linklookup(ctxt, "runtime.pclntab", 0), int64(pclntabPclntabOffset))
++	Addaddrplus(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabPclntabOffset))
+ 	adduint(ctxt, moduledata, uint64(pclntabNfunc+1))
+ 	adduint(ctxt, moduledata, uint64(pclntabNfunc+1))
+ 	// The filetab slice
+-	Addaddrplus(ctxt, moduledata, Linklookup(ctxt, "runtime.pclntab", 0), int64(pclntabFiletabOffset))
++	Addaddrplus(ctxt, moduledata, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabFiletabOffset))
+ 	adduint(ctxt, moduledata, uint64(len(ctxt.Filesyms))+1)
+ 	adduint(ctxt, moduledata, uint64(len(ctxt.Filesyms))+1)
+ 	// findfunctab
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.findfunctab", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.findfunctab", 0))
+ 	// minpc, maxpc
+ 	Addaddr(ctxt, moduledata, pclntabFirstFunc)
+ 	Addaddrplus(ctxt, moduledata, pclntabLastFunc, pclntabLastFunc.Size)
+ 	// pointers to specific parts of the module
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.text", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.etext", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.noptrdata", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.enoptrdata", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.data", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.edata", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.bss", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.ebss", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.noptrbss", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.enoptrbss", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.end", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.gcdata", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.gcbss", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.types", 0))
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.etypes", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.text", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.etext", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.noptrdata", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.enoptrdata", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.data", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.edata", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.bss", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.ebss", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.noptrbss", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.enoptrbss", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.end", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.gcdata", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.gcbss", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.types", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.etypes", 0))
+ 	// The typelinks slice
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.typelink", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.typelink", 0))
+ 	adduint(ctxt, moduledata, uint64(ntypelinks))
+ 	adduint(ctxt, moduledata, uint64(ntypelinks))
+ 	// The itablinks slice
+-	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.itablink", 0))
++	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.itablink", 0))
+ 	adduint(ctxt, moduledata, uint64(nitablinks))
+ 	adduint(ctxt, moduledata, uint64(nitablinks))
+ 	// The ptab slice
+ 	if Buildmode == BuildmodePlugin {
+-		ptab := Linkrlookup(ctxt, "go.plugin.tabs", 0)
++		ptab := ctxt.Syms.ROLookup("go.plugin.tabs", 0)
+ 		ptab.Attr |= AttrReachable
+ 		ptab.Attr |= AttrLocal
+ 		ptab.Type = obj.SRODATA
+@@ -564,7 +564,7 @@ func (ctxt *Link) symtab() {
+ 		}
+ 		addgostring(ctxt, moduledata, "go.link.thismodulename", thismodulename)
+ 
+-		modulehashes := Linklookup(ctxt, "go.link.abihashes", 0)
++		modulehashes := ctxt.Syms.Lookup("go.link.abihashes", 0)
+ 		modulehashes.Attr |= AttrReachable
+ 		modulehashes.Attr |= AttrLocal
+ 		modulehashes.Type = obj.SRODATA
+@@ -578,7 +578,7 @@ func (ctxt *Link) symtab() {
+ 			addgostring(ctxt, modulehashes, fmt.Sprintf("go.link.linkhash.%d", i), string(shlib.Hash))
+ 
+ 			// modulehashes[i].runtimehash
+-			abihash := Linklookup(ctxt, "go.link.abihash."+modulename, 0)
++			abihash := ctxt.Syms.Lookup("go.link.abihash."+modulename, 0)
+ 			abihash.Attr |= AttrReachable
+ 			Addaddr(ctxt, modulehashes, abihash)
+ 		}
+@@ -592,11 +592,11 @@ func (ctxt *Link) symtab() {
+ 	// When linking an object that does not contain the runtime we are
+ 	// creating the moduledata from scratch and it does not have a
+ 	// compiler-provided size, so read it from the type data.
+-	moduledatatype := Linkrlookup(ctxt, "type.runtime.moduledata", 0)
++	moduledatatype := ctxt.Syms.ROLookup("type.runtime.moduledata", 0)
+ 	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype)
+ 	Symgrow(ctxt, moduledata, moduledata.Size)
+ 
+-	lastmoduledatap := Linklookup(ctxt, "runtime.lastmoduledatap", 0)
++	lastmoduledatap := ctxt.Syms.Lookup("runtime.lastmoduledatap", 0)
+ 	if lastmoduledatap.Type != obj.SDYNIMPORT {
+ 		lastmoduledatap.Type = obj.SNOPTRDATA
+ 		lastmoduledatap.Size = 0 // overwrite existing value
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index dc015ee0d6..0713365254 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -143,7 +143,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
+ 		return 0
+ 
+ 	case obj.R_ADDRMIPS,
+@@ -266,7 +266,7 @@ func asmb(ctxt *ld.Link) {
+ 			ld.Asmplan9sym(ctxt)
+ 			ld.Cflush()
+ 
+-			sym := ld.Linklookup(ctxt, "pclntab", 0)
++			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index f8892727cf..dd839fb8ae 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -101,7 +101,7 @@ func genplt(ctxt *ld.Link) {
+ 			// Generate call stub
+ 			n := fmt.Sprintf("%s.%s", s.Name, r.Sym.Name)
+ 
+-			stub := ld.Linklookup(ctxt, n, 0)
++			stub := ctxt.Syms.Lookup(n, 0)
+ 			if s.Attr.Reachable() {
+ 				stub.Attr |= ld.AttrReachable
+ 			}
+@@ -124,12 +124,12 @@ func genplt(ctxt *ld.Link) {
+ }
+ 
+ func genaddmoduledata(ctxt *ld.Link) {
+-	addmoduledata := ld.Linkrlookup(ctxt, "runtime.addmoduledata", 0)
++	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
+ 	if addmoduledata.Type == obj.STEXT {
+ 		return
+ 	}
+ 	addmoduledata.Attr |= ld.AttrReachable
+-	initfunc := ld.Linklookup(ctxt, "go.link.addmoduledata", 0)
++	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+ 	initfunc.Attr |= ld.AttrLocal
+ 	initfunc.Attr |= ld.AttrReachable
+@@ -140,7 +140,7 @@ func genaddmoduledata(ctxt *ld.Link) {
+ 	rel := ld.Addrel(initfunc)
+ 	rel.Off = int32(initfunc.Size)
+ 	rel.Siz = 8
+-	rel.Sym = ld.Linklookup(ctxt, ".TOC.", 0)
++	rel.Sym = ctxt.Syms.Lookup(".TOC.", 0)
+ 	rel.Type = obj.R_ADDRPOWER_PCREL
+ 	o(0x3c4c0000)
+ 	// addi r2, r2, .TOC.-func@l
+@@ -153,7 +153,7 @@ func genaddmoduledata(ctxt *ld.Link) {
+ 	rel = ld.Addrel(initfunc)
+ 	rel.Off = int32(initfunc.Size)
+ 	rel.Siz = 8
+-	rel.Sym = ld.Linklookup(ctxt, "local.moduledata", 0)
++	rel.Sym = ctxt.Syms.Lookup("local.moduledata", 0)
+ 	rel.Type = obj.R_ADDRPOWER_GOT
+ 	o(0x3c620000)
+ 	// ld r3, local.moduledata@got@l(r3)
+@@ -177,7 +177,7 @@ func genaddmoduledata(ctxt *ld.Link) {
+ 	o(0x4e800020)
+ 
+ 	ctxt.Textp = append(ctxt.Textp, initfunc)
+-	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
++	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Type = obj.SINITARR
+@@ -203,7 +203,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
+ 		log.Fatalf("gencallstub only implements case 1 calls")
+ 	}
+ 
+-	plt := ld.Linklookup(ctxt, ".plt", 0)
++	plt := ctxt.Syms.Lookup(".plt", 0)
+ 
+ 	stub.Type = obj.STEXT
+ 
+@@ -284,7 +284,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			// These happen in .toc sections
+ 			ld.Adddynsym(ctxt, targ)
+ 
+-			rela := ld.Linklookup(ctxt, ".rela", 0)
++			rela := ctxt.Syms.Lookup(".rela", 0)
+ 			ld.Addaddrplus(ctxt, rela, s, int64(r.Off))
+ 			ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_PPC64_ADDR64))
+ 			ld.Adduint64(ctxt, rela, uint64(r.Add))
+@@ -432,7 +432,7 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ }
+ 
+ func elfsetupplt(ctxt *ld.Link) {
+-	plt := ld.Linklookup(ctxt, ".plt", 0)
++	plt := ctxt.Syms.Lookup(".plt", 0)
+ 	if plt.Size == 0 {
+ 		// The dynamic linker stores the address of the
+ 		// dynamic resolver and the DSO identifier in the two
+@@ -451,9 +451,9 @@ func symtoc(ctxt *ld.Link, s *ld.Symbol) int64 {
+ 	var toc *ld.Symbol
+ 
+ 	if s.Outer != nil {
+-		toc = ld.Linkrlookup(ctxt, ".TOC.", int(s.Outer.Version))
++		toc = ctxt.Syms.ROLookup(".TOC.", int(s.Outer.Version))
+ 	} else {
+-		toc = ld.Linkrlookup(ctxt, ".TOC.", int(s.Version))
++		toc = ctxt.Syms.ROLookup(".TOC.", int(s.Version))
+ 	}
+ 
+ 	if toc == nil {
+@@ -563,7 +563,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
+ 		return 0
+ 
+ 	case obj.R_ADDRPOWER, obj.R_ADDRPOWER_DS:
+@@ -705,8 +705,8 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	ld.Adddynsym(ctxt, s)
+ 
+ 	if ld.Iself {
+-		plt := ld.Linklookup(ctxt, ".plt", 0)
+-		rela := ld.Linklookup(ctxt, ".rela.plt", 0)
++		plt := ctxt.Syms.Lookup(".plt", 0)
++		rela := ctxt.Syms.Lookup(".rela.plt", 0)
+ 		if plt.Size == 0 {
+ 			elfsetupplt(ctxt)
+ 		}
+@@ -744,7 +744,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 
+ // Generate the glink resolver stub if necessary and return the .glink section
+ func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
+-	glink := ld.Linklookup(ctxt, ".glink", 0)
++	glink := ctxt.Syms.Lookup(".glink", 0)
+ 	if glink.Size != 0 {
+ 		return glink
+ 	}
+@@ -774,7 +774,7 @@ func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
+ 	r := ld.Addrel(glink)
+ 
+ 	r.Off = int32(glink.Size)
+-	r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++	r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 	r.Siz = 8
+ 	r.Type = obj.R_ADDRPOWER
+ 
+@@ -795,7 +795,7 @@ func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
+ 
+ 	// Add DT_PPC64_GLINK .dynamic entry, which points to 32 bytes
+ 	// before the first symbol resolver stub.
+-	s := ld.Linklookup(ctxt, ".dynamic", 0)
++	s := ctxt.Syms.Lookup(".dynamic", 0)
+ 
+ 	ld.Elfwritedynentsymplus(ctxt, s, ld.DT_PPC64_GLINK, glink, glink.Size-32)
+ 
+@@ -885,7 +885,7 @@ func asmb(ctxt *ld.Link) {
+ 			ld.Asmplan9sym(ctxt)
+ 			ld.Cflush()
+ 
+-			sym := ld.Linklookup(ctxt, "pclntab", 0)
++			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 5e194974e3..1c0d377b10 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -51,14 +51,14 @@ func gentext(ctxt *ld.Link) {
+ 	if !ctxt.DynlinkingGo() {
+ 		return
+ 	}
+-	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
++	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+ 	if addmoduledata.Type == obj.STEXT {
+ 		// we're linking a module containing the runtime -> no need for
+ 		// an init function
+ 		return
+ 	}
+ 	addmoduledata.Attr |= ld.AttrReachable
+-	initfunc := ld.Linklookup(ctxt, "go.link.addmoduledata", 0)
++	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+ 	initfunc.Attr |= ld.AttrLocal
+ 	initfunc.Attr |= ld.AttrReachable
+@@ -81,7 +81,7 @@ func gentext(ctxt *ld.Link) {
+ 	rel := ld.Addrel(initfunc)
+ 	rel.Off = int32(initfunc.Size)
+ 	rel.Siz = 4
+-	rel.Sym = ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
++	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+ 	rel.Type = obj.R_CALL
+ 	rel.Variant = ld.RV_390_DBL
+ 	rel.Add = 2 + int64(rel.Siz)
+@@ -91,7 +91,7 @@ func gentext(ctxt *ld.Link) {
+ 	ld.Adduint32(ctxt, initfunc, 0)
+ 
+ 	ctxt.Textp = append(ctxt.Textp, initfunc)
+-	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
++	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Type = obj.SINITARR
+@@ -150,7 +150,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		r.Add += int64(r.Siz)
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 			r.Add += int64(targ.Plt)
+ 		}
+ 		return true
+@@ -161,7 +161,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		r.Add += int64(r.Siz)
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 			r.Add += int64(targ.Plt)
+ 		}
+ 		return true
+@@ -191,7 +191,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 
+ 	case 256 + ld.R_390_GOTPC:
+ 		r.Type = obj.R_PCREL
+-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
++		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += int64(r.Siz)
+ 		return true
+ 
+@@ -208,7 +208,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	case 256 + ld.R_390_GOTPCDBL:
+ 		r.Type = obj.R_PCREL
+ 		r.Variant = ld.RV_390_DBL
+-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
++		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += int64(r.Siz)
+ 		return true
+ 
+@@ -217,7 +217,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 
+ 		r.Type = obj.R_PCREL
+ 		r.Variant = ld.RV_390_DBL
+-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
++		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += int64(targ.Got)
+ 		r.Add += int64(r.Siz)
+ 		return true
+@@ -330,8 +330,8 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ }
+ 
+ func elfsetupplt(ctxt *ld.Link) {
+-	plt := ld.Linklookup(ctxt, ".plt", 0)
+-	got := ld.Linklookup(ctxt, ".got", 0)
++	plt := ctxt.Syms.Lookup(".plt", 0)
++	got := ctxt.Syms.Lookup(".got", 0)
+ 	if plt.Size == 0 {
+ 		// stg     %r1,56(%r15)
+ 		ld.Adduint8(ctxt, plt, 0xe3)
+@@ -372,7 +372,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 		ld.Adduint8(ctxt, plt, 0x00)
+ 
+ 		// assume got->size == 0 too
+-		ld.Addaddrplus(ctxt, got, ld.Linklookup(ctxt, ".dynamic", 0), 0)
++		ld.Addaddrplus(ctxt, got, ctxt.Syms.Lookup(".dynamic", 0), 0)
+ 
+ 		ld.Adduint64(ctxt, got, 0)
+ 		ld.Adduint64(ctxt, got, 0)
+@@ -394,7 +394,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
+ 		return 0
+ 	}
+ 
+@@ -426,9 +426,9 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	ld.Adddynsym(ctxt, s)
+ 
+ 	if ld.Iself {
+-		plt := ld.Linklookup(ctxt, ".plt", 0)
+-		got := ld.Linklookup(ctxt, ".got", 0)
+-		rela := ld.Linklookup(ctxt, ".rela.plt", 0)
++		plt := ctxt.Syms.Lookup(".plt", 0)
++		got := ctxt.Syms.Lookup(".got", 0)
++		rela := ctxt.Syms.Lookup(".rela.plt", 0)
+ 		if plt.Size == 0 {
+ 			elfsetupplt(ctxt)
+ 		}
+@@ -487,12 +487,12 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	}
+ 
+ 	ld.Adddynsym(ctxt, s)
+-	got := ld.Linklookup(ctxt, ".got", 0)
++	got := ctxt.Syms.Lookup(".got", 0)
+ 	s.Got = int32(got.Size)
+ 	ld.Adduint64(ctxt, got, 0)
+ 
+ 	if ld.Iself {
+-		rela := ld.Linklookup(ctxt, ".rela", 0)
++		rela := ctxt.Syms.Lookup(".rela", 0)
+ 		ld.Addaddrplus(ctxt, rela, got, int64(s.Got))
+ 		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_390_GLOB_DAT))
+ 		ld.Adduint64(ctxt, rela, 0)
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 34fec5263e..ccae05ff63 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -79,7 +79,7 @@ func gentext(ctxt *ld.Link) {
+ 		{"si", 6},
+ 		{"di", 7},
+ 	} {
+-		thunkfunc := ld.Linklookup(ctxt, "__x86.get_pc_thunk."+r.name, 0)
++		thunkfunc := ctxt.Syms.Lookup("__x86.get_pc_thunk."+r.name, 0)
+ 		thunkfunc.Type = obj.STEXT
+ 		thunkfunc.Attr |= ld.AttrLocal
+ 		thunkfunc.Attr |= ld.AttrReachable //TODO: remove?
+@@ -97,7 +97,7 @@ func gentext(ctxt *ld.Link) {
+ 		ctxt.Textp = append(ctxt.Textp, thunkfunc)
+ 	}
+ 
+-	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
++	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+ 	if addmoduledata.Type == obj.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+ 		// we're linking a module containing the runtime -> no need for
+ 		// an init function
+@@ -106,7 +106,7 @@ func gentext(ctxt *ld.Link) {
+ 
+ 	addmoduledata.Attr |= ld.AttrReachable
+ 
+-	initfunc := ld.Linklookup(ctxt, "go.link.addmoduledata", 0)
++	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+ 	initfunc.Attr |= ld.AttrLocal
+ 	initfunc.Attr |= ld.AttrReachable
+@@ -128,7 +128,7 @@ func gentext(ctxt *ld.Link) {
+ 	o(0x53)
+ 
+ 	o(0xe8)
+-	addcall(ctxt, initfunc, ld.Linklookup(ctxt, "__x86.get_pc_thunk.cx", 0))
++	addcall(ctxt, initfunc, ctxt.Syms.Lookup("__x86.get_pc_thunk.cx", 0))
+ 
+ 	o(0x8d, 0x81)
+ 	ld.Addpcrelplus(ctxt, initfunc, ctxt.Moduledata, 6)
+@@ -138,7 +138,7 @@ func gentext(ctxt *ld.Link) {
+ 	initfunc.Size += 4
+ 	ld.Symgrow(ctxt, initfunc, initfunc.Size)
+ 	r := ld.Addrel(initfunc)
+-	r.Sym = ld.Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
++	r.Sym = ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
+ 	r.Off = int32(i)
+ 	r.Type = obj.R_PCREL
+ 	r.Add = 12
+@@ -155,7 +155,7 @@ func gentext(ctxt *ld.Link) {
+ 	if ld.Buildmode == ld.BuildmodePlugin {
+ 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+ 	}
+-	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
++	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Type = obj.SINITARR
+@@ -189,7 +189,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		r.Add += 4
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 			r.Add += int64(targ.Plt)
+ 		}
+ 
+@@ -232,7 +232,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 
+ 	case 256 + ld.R_386_GOTPC:
+ 		r.Type = obj.R_PCREL
+-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
++		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += 4
+ 		return true
+ 
+@@ -253,7 +253,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	case 512 + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 1:
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+-			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 			r.Add = int64(targ.Plt)
+ 			r.Type = obj.R_PCREL
+ 			return true
+@@ -277,7 +277,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		}
+ 
+ 		addgotsym(ctxt, targ)
+-		r.Sym = ld.Linklookup(ctxt, ".got", 0)
++		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += int64(targ.Got)
+ 		r.Type = obj.R_PCREL
+ 		return true
+@@ -291,7 +291,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	case obj.R_CALL,
+ 		obj.R_PCREL:
+ 		addpltsym(ctxt, targ)
+-		r.Sym = ld.Linklookup(ctxt, ".plt", 0)
++		r.Sym = ctxt.Syms.Lookup(".plt", 0)
+ 		r.Add = int64(targ.Plt)
+ 		return true
+ 
+@@ -301,7 +301,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		}
+ 		if ld.Iself {
+ 			ld.Adddynsym(ctxt, targ)
+-			rel := ld.Linklookup(ctxt, ".rel", 0)
++			rel := ctxt.Syms.Lookup(".rel", 0)
+ 			ld.Addaddrplus(ctxt, rel, s, int64(r.Off))
+ 			ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_386_32))
+ 			r.Type = obj.R_CONST // write r->add during relocsym
+@@ -322,14 +322,14 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			// but we only need to support cgo and that's all it needs.
+ 			ld.Adddynsym(ctxt, targ)
+ 
+-			got := ld.Linklookup(ctxt, ".got", 0)
++			got := ctxt.Syms.Lookup(".got", 0)
+ 			s.Type = got.Type | obj.SSUB
+ 			s.Outer = got
+ 			s.Sub = got.Sub
+ 			got.Sub = s
+ 			s.Value = got.Size
+ 			ld.Adduint32(ctxt, got, 0)
+-			ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(targ.Dynid))
++			ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.got", 0), uint32(targ.Dynid))
+ 			r.Type = 256 // ignore during relocsym
+ 			return true
+ 		}
+@@ -503,7 +503,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
+ 		return 0
+ 	}
+ 
+@@ -516,8 +516,8 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+ }
+ 
+ func elfsetupplt(ctxt *ld.Link) {
+-	plt := ld.Linklookup(ctxt, ".plt", 0)
+-	got := ld.Linklookup(ctxt, ".got.plt", 0)
++	plt := ctxt.Syms.Lookup(".plt", 0)
++	got := ctxt.Syms.Lookup(".got.plt", 0)
+ 	if plt.Size == 0 {
+ 		// pushl got+4
+ 		ld.Adduint8(ctxt, plt, 0xff)
+@@ -535,7 +535,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 		ld.Adduint32(ctxt, plt, 0)
+ 
+ 		// assume got->size == 0 too
+-		ld.Addaddrplus(ctxt, got, ld.Linklookup(ctxt, ".dynamic", 0), 0)
++		ld.Addaddrplus(ctxt, got, ctxt.Syms.Lookup(".dynamic", 0), 0)
+ 
+ 		ld.Adduint32(ctxt, got, 0)
+ 		ld.Adduint32(ctxt, got, 0)
+@@ -550,9 +550,9 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	ld.Adddynsym(ctxt, s)
+ 
+ 	if ld.Iself {
+-		plt := ld.Linklookup(ctxt, ".plt", 0)
+-		got := ld.Linklookup(ctxt, ".got.plt", 0)
+-		rel := ld.Linklookup(ctxt, ".rel.plt", 0)
++		plt := ctxt.Syms.Lookup(".plt", 0)
++		got := ctxt.Syms.Lookup(".got.plt", 0)
++		rel := ctxt.Syms.Lookup(".rel.plt", 0)
+ 		if plt.Size == 0 {
+ 			elfsetupplt(ctxt)
+ 		}
+@@ -585,18 +585,18 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	} else if ld.Headtype == obj.Hdarwin {
+ 		// Same laziness as in 6l.
+ 
+-		plt := ld.Linklookup(ctxt, ".plt", 0)
++		plt := ctxt.Syms.Lookup(".plt", 0)
+ 
+ 		addgotsym(ctxt, s)
+ 
+-		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.plt", 0), uint32(s.Dynid))
++		ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.plt", 0), uint32(s.Dynid))
+ 
+ 		// jmpq *got+size(IP)
+ 		s.Plt = int32(plt.Size)
+ 
+ 		ld.Adduint8(ctxt, plt, 0xff)
+ 		ld.Adduint8(ctxt, plt, 0x25)
+-		ld.Addaddrplus(ctxt, plt, ld.Linklookup(ctxt, ".got", 0), int64(s.Got))
++		ld.Addaddrplus(ctxt, plt, ctxt.Syms.Lookup(".got", 0), int64(s.Got))
+ 	} else {
+ 		ld.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+@@ -608,16 +608,16 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	}
+ 
+ 	ld.Adddynsym(ctxt, s)
+-	got := ld.Linklookup(ctxt, ".got", 0)
++	got := ctxt.Syms.Lookup(".got", 0)
+ 	s.Got = int32(got.Size)
+ 	ld.Adduint32(ctxt, got, 0)
+ 
+ 	if ld.Iself {
+-		rel := ld.Linklookup(ctxt, ".rel", 0)
++		rel := ctxt.Syms.Lookup(".rel", 0)
+ 		ld.Addaddrplus(ctxt, rel, got, int64(s.Got))
+ 		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_386_GLOB_DAT))
+ 	} else if ld.Headtype == obj.Hdarwin {
+-		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(s.Dynid))
++		ld.Adduint32(ctxt, ctxt.Syms.Lookup(".linkedit.got", 0), uint32(s.Dynid))
+ 	} else {
+ 		ld.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+@@ -719,7 +719,7 @@ func asmb(ctxt *ld.Link) {
+ 			ld.Asmplan9sym(ctxt)
+ 			ld.Cflush()
+ 
+-			sym := ld.Linklookup(ctxt, "pclntab", 0)
++			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				for i := 0; int32(i) < ld.Lcsize; i++ {

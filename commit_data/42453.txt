@@ -18,8 +18,104 @@ Date:   Thu Dec 26 19:49:39 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/mgcscavenge.go      |  5 ++++-
  src/runtime/mgcscavenge_test.go | 25 +++++++++++++++++++++++--
  src/runtime/mranges.go          | 14 ++++++++++++++
  3 files changed, 41 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 752c254ab0..8015bf5d19 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -413,7 +413,10 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
+ 
+ 	// Check the chunk containing the scav addr, starting at the addr
+ 	// and see if there are any free and unscavenged pages.
+-	if s.summary[len(s.summary)-1][ci].max() >= uint(minPages) {
++	//
++	// Only check this if s.scavAddr is covered by any address range
++	// in s.inUse, so that we know our check of the summary is safe.
++	if s.inUse.contains(s.scavAddr) && s.summary[len(s.summary)-1][ci].max() >= uint(minPages) {
+ 		// We only bother looking for a candidate if there at least
+ 		// minPages free pages at all. It's important that we only
+ 		// continue if the summary says we can because that's how
+diff --git a/src/runtime/mgcscavenge_test.go b/src/runtime/mgcscavenge_test.go
+index a6eba8d972..58f9e3a80d 100644
+--- a/src/runtime/mgcscavenge_test.go
++++ b/src/runtime/mgcscavenge_test.go
+@@ -282,12 +282,13 @@ func TestPageAllocScavenge(t *testing.T) {
+ 	if minPages < 1 {
+ 		minPages = 1
+ 	}
+-	tests := map[string]struct {
++	type setup struct {
+ 		beforeAlloc map[ChunkIdx][]BitRange
+ 		beforeScav  map[ChunkIdx][]BitRange
+ 		expect      []test
+ 		afterScav   map[ChunkIdx][]BitRange
+-	}{
++	}
++	tests := map[string]setup{
+ 		"AllFreeUnscavExhaust": {
+ 			beforeAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx:     {},
+@@ -396,6 +397,26 @@ func TestPageAllocScavenge(t *testing.T) {
+ 			},
+ 		},
+ 	}
++	if PageAlloc64Bit != 0 {
++		tests["ScavAllVeryDiscontiguous"] = setup{
++			beforeAlloc: map[ChunkIdx][]BitRange{
++				BaseChunkIdx:          {},
++				BaseChunkIdx + 0x1000: {},
++			},
++			beforeScav: map[ChunkIdx][]BitRange{
++				BaseChunkIdx:          {},
++				BaseChunkIdx + 0x1000: {},
++			},
++			expect: []test{
++				{^uintptr(0), 2 * PallocChunkPages * PageSize},
++				{^uintptr(0), 0},
++			},
++			afterScav: map[ChunkIdx][]BitRange{
++				BaseChunkIdx:          {{0, PallocChunkPages}},
++				BaseChunkIdx + 0x1000: {{0, PallocChunkPages}},
++			},
++		}
++	}
+ 	for name, v := range tests {
+ 		v := v
+ 		runTest := func(t *testing.T, locked bool) {
+diff --git a/src/runtime/mranges.go b/src/runtime/mranges.go
+index c14e5c7efd..b13385165b 100644
+--- a/src/runtime/mranges.go
++++ b/src/runtime/mranges.go
+@@ -29,6 +29,11 @@ func (a addrRange) size() uintptr {
+ 	return a.limit - a.base
+ }
+ 
++// contains returns whether or not the range contains a given address.
++func (a addrRange) contains(addr uintptr) bool {
++	return addr >= a.base && addr < a.limit
++}
++
+ // subtract takes the addrRange toPrune and cuts out any overlap with
+ // from, then returns the new range. subtract assumes that a and b
+ // either don't overlap at all, only overlap on one side, or are equal.
+@@ -87,6 +92,15 @@ func (a *addrRanges) findSucc(base uintptr) int {
+ 	return len(a.ranges)
+ }
+ 
++// contains returns true if a covers the address addr.
++func (a *addrRanges) contains(addr uintptr) bool {
++	i := a.findSucc(addr)
++	if i == 0 {
++		return false
++	}
++	return a.ranges[i-1].contains(addr)
++}
++
+ // add inserts a new address range to a.
+ //
+ // r must not overlap with any address range in a.

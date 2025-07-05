@@ -11,6 +11,34 @@ Date:   Tue Feb 24 22:29:33 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/5882
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index e87d80618a..830bf879d4 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -600,18 +600,17 @@ func gcCopySpans() {
+ 
+ // gcResetGState resets the GC state of all G's and returns the length
+ // of allgs.
+-func gcResetGState() int {
++func gcResetGState() (numgs int) {
+ 	// This may be called during a concurrent phase, so make sure
+ 	// allgs doesn't change.
+ 	lock(&allglock)
+-	local_allglen := allglen
+-	for i := uintptr(0); i < local_allglen; i++ {
+-		gp := allgs[i]
++	for _, gp := range allgs {
+ 		gp.gcworkdone = false  // set to true in gcphasework
+ 		gp.gcscanvalid = false // stack has not been scanned
+ 	}
++	numgs = len(allgs)
+ 	unlock(&allglock)
+-	return int(local_allglen)
++	return
+ }
+ 
+ // Hooks for other packages

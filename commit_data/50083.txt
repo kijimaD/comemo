@@ -11,9 +11,94 @@ Date:   Thu Sep 30 14:21:18 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/353397
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/reader2.go    |  2 +-
  src/cmd/compile/internal/types2/interface.go | 19 -------------------
  src/cmd/compile/internal/types2/signature.go | 10 ----------
  src/cmd/compile/internal/types2/universe.go  |  2 +-
  4 files changed, 2 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index d474db2427..9396c0c87c 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -316,7 +316,7 @@ func (r *reader2) signature(recv *types2.Var) *types2.Signature {
+ 	results := r.params()
+ 	variadic := r.bool()
+ 
+-	return types2.NewSignature(recv, params, results, variadic)
++	return types2.NewSignatureType(recv, nil, nil, params, results, variadic)
+ }
+ 
+ func (r *reader2) params() *types2.Tuple {
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 8a6bc75c43..a6faf3267b 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -27,19 +27,6 @@ func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check
+ // emptyInterface represents the empty interface
+ var emptyInterface = Interface{complete: true, tset: &topTypeSet}
+ 
+-// NewInterface returns a new interface for the given methods and embedded types.
+-// NewInterface takes ownership of the provided methods and may modify their types
+-// by setting missing receivers.
+-//
+-// Deprecated: Use NewInterfaceType instead which allows arbitrary embedded types.
+-func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+-	tnames := make([]Type, len(embeddeds))
+-	for i, t := range embeddeds {
+-		tnames[i] = t
+-	}
+-	return NewInterfaceType(methods, tnames)
+-}
+-
+ // NewInterfaceType returns a new interface for the given methods and embedded types.
+ // NewInterfaceType takes ownership of the provided methods and may modify their types
+ // by setting missing receivers.
+@@ -76,12 +63,6 @@ func (t *Interface) ExplicitMethod(i int) *Func { return t.methods[i] }
+ // NumEmbeddeds returns the number of embedded types in interface t.
+ func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
+ 
+-// Embedded returns the i'th embedded defined (*Named) type of interface t for 0 <= i < t.NumEmbeddeds().
+-// The result is nil if the i'th embedded type is not a defined type.
+-//
+-// Deprecated: Use EmbeddedType which is not restricted to defined (*Named) types.
+-func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named); return tname }
+-
+ // EmbeddedType returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
+ func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
+ 
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 803dd8e5e7..5ea3a056a0 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -28,16 +28,6 @@ type Signature struct {
+ 	variadic bool           // true if the last parameter's type is of the form ...T (or string, for append built-in only)
+ }
+ 
+-// NewSignature returns a new function type for the given receiver, parameters,
+-// and results, either of which may be nil. If variadic is set, the function
+-// is variadic, it must have at least one parameter, and the last parameter
+-// must be of unnamed slice type.
+-//
+-// Deprecated: Use NewSignatureType instead which allows for type parameters.
+-func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+-	return NewSignatureType(recv, nil, nil, params, results, variadic)
+-}
+-
+ // NewSignatureType creates a new function type for the given receiver,
+ // receiver type parameters, type parameters, parameters, and results. If
+ // variadic is set, params must hold at least one parameter and the last
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index af3ab97325..27f38de27a 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -86,7 +86,7 @@ func defPredeclaredTypes() {
+ 		obj := NewTypeName(nopos, nil, "error", nil)
+ 		obj.setColor(black)
+ 		res := NewVar(nopos, nil, "", Typ[String])
+-		sig := NewSignature(nil, nil, NewTuple(res), false)
++		sig := NewSignatureType(nil, nil, nil, nil, NewTuple(res), false)
+ 		err := NewFunc(nopos, nil, "Error", sig)
+ 		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, true, nil}
+ 		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset

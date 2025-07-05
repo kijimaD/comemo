@@ -9,7 +9,88 @@ Date:   Fri Jan 20 13:34:19 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5541068
-
+---
  src/cmd/gofix/import_test.go | 37 ++++++++++++++++++++++++++++++++++++-
  src/pkg/go/ast/import.go     |  7 +------
  2 files changed, 37 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gofix/import_test.go b/src/cmd/gofix/import_test.go
+index a2ba2e7b92..7301192058 100644
+--- a/src/cmd/gofix/import_test.go
++++ b/src/cmd/gofix/import_test.go
+@@ -351,7 +351,7 @@ var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
+ `,
+ 	},
+ 	{
+-		Name: "import.3",
++		Name: "import.17",
+ 		Fn:   addImportFn("x/y/z", "x/a/c"),
+ 		In: `package main
+ 
+@@ -382,6 +382,26 @@ import (
+ 
+ 	"d/f"
+ )
++`,
++	},
++	{
++		Name: "import.18",
++		Fn:   addDelImportFn("e", "o"),
++		In: `package main
++
++import (
++	"f"
++	"o"
++	"z"
++)
++`,
++		Out: `package main
++
++import (
++	"e"
++	"f"
++	"z"
++)
+ `,
+ 	},
+ }
+@@ -409,6 +429,21 @@ func deleteImportFn(path string) func(*ast.File) bool {
+ 	}
+ }
+ 
++func addDelImportFn(p1 string, p2 string) func(*ast.File) bool {
++	return func(f *ast.File) bool {
++		fixed := false
++		if !imports(f, p1) {
++			addImport(f, p1)
++			fixed = true
++		}
++		if imports(f, p2) {
++			deleteImport(f, p2)
++			fixed = true
++		}
++		return fixed
++	}
++}
++
+ func rewriteImportFn(oldnew ...string) func(*ast.File) bool {
+ 	return func(f *ast.File) bool {
+ 		fixed := false
+diff --git a/src/pkg/go/ast/import.go b/src/pkg/go/ast/import.go
+index 894fecdaa7..2d4f69aaea 100644
+--- a/src/pkg/go/ast/import.go
++++ b/src/pkg/go/ast/import.go
+@@ -67,12 +67,7 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) {
+ 	// Record positions for specs.
+ 	pos := make([]posSpan, len(specs))
+ 	for i, s := range specs {
+-		// Cannot use s.End(), because it looks at len(s.Path.Value),
+-		// and that string might have gotten longer or shorter.
+-		// Instead, use s.Pos()+1, which is guaranteed to be > s.Pos()
+-		// and still before the original end of the string, since any
+-		// string literal must be at least 2 characters ("" or ``).
+-		pos[i] = posSpan{s.Pos(), s.Pos() + 1}
++		pos[i] = posSpan{s.Pos(), s.End()}
+ 	}
+ 
+ 	// Identify comments in this range.

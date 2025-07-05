@@ -12,7 +12,33 @@ Date:   Fri Apr 14 15:59:40 2023 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Bypass: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/list_goroot_symlink.txt | 1 +
  src/path/filepath/path_test.go                     | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/list_goroot_symlink.txt b/src/cmd/go/testdata/script/list_goroot_symlink.txt
+index 1a34127eb9..041ae55863 100644
+--- a/src/cmd/go/testdata/script/list_goroot_symlink.txt
++++ b/src/cmd/go/testdata/script/list_goroot_symlink.txt
+@@ -7,6 +7,7 @@
+ [short] skip 'copies the cmd/go binary'
+ [!symlink] skip 'tests symlink-specific behavior'
+ [GOOS:darwin] skip 'Lstat on darwin does not conform to POSIX pathname resolution; see #59586'
++[GOOS:ios] skip 'Lstat on ios does not conform to POSIX pathname resolution; see #59586'
+ 
+ # Ensure that the relative path to $WORK/lib/goroot/src from $PWD is a different
+ # number of ".." hops than the relative path to it from $WORK/share/goroot/src.
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index aed8cc8383..0c73e288e5 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -899,7 +899,7 @@ func TestWalkSymlinkRoot(t *testing.T) {
+ 			desc:      "double link with slash",
+ 			root:      linklink + string(filepath.Separator),
+ 			want:      []string{linklink, filepath.Join(linklink, "foo")},
+-			buggyGOOS: []string{"darwin"}, // https://go.dev/issue/59586
++			buggyGOOS: []string{"darwin", "ios"}, // https://go.dev/issue/59586
+ 		},
+ 	} {
+ 		tt := tt

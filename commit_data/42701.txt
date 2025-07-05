@@ -9,6 +9,22 @@ Date:   Wed Feb 5 15:34:50 2020 -0800
     Change-Id: I543957df264367e56c71a25bfaea5cf7935d438f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217979
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.14.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index b3423f8753..ec7f8e4f43 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -829,8 +829,8 @@ appropriately.)
+       The text/template package now correctly reports errors when a
+       parenthesized argument is used as a function.
+       This most commonly shows up in erroneous cases like
+-      <code>{{if (eq .F "a") or (eq .F "b")}}</code>.
+-      This should be written as <code>{{if or (eq .F "a") (eq .F "b")}}</code>.
++      <code>{{"{{"}}if (eq .F "a") or (eq .F "b"){{"}}"}}</code>.
++      This should be written as <code>{{"{{"}}if or (eq .F "a") (eq .F "b"){{"}}"}}</code>.
+       The erroneous case never worked as expected, and will now be
+       reported with an error <code>can't give argument to non-function</code>.
+     </p>

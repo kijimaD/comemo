@@ -9,6 +9,20 @@ Date:   Fri Jul 10 09:31:28 2015 -0600
     Change-Id: Ie5b642d0abb56e8eb3899d69472bc88a85a1c985
     Reviewed-on: https://go-review.googlesource.com/12023
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/print.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index 286152a001..14d88dccd5 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func printFunc(f *Func) {
+-	f.Logf("%s", f.String())
++	f.Logf("%s", f)
+ }
+ 
+ func (f *Func) String() string {

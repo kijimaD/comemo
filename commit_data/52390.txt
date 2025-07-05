@@ -13,7 +13,32 @@ Date:   Sun May 1 15:56:20 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 4df465daf2..64ecb0035a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1429,6 +1429,7 @@ W. Trevor King <wking@tremily.us>
+ Wade Simmons <wade@wades.im>
+ Wander Lairson Costa <wcosta@mozilla.com>
+ Wayne Ashley Berry <wayneashleyberry@gmail.com>
++Wayne Zuo <wdvxdr1123@gmail.com> <wdvxdr@golangcn.org>
+ Weaveworks
+ Wèi Cōngruì <crvv.mail@gmail.com>
+ Wei Fu <fhfuwei@163.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b100617a6c..0196b319d7 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -2735,6 +2735,7 @@ Wander Lairson Costa <wcosta@mozilla.com>
+ Wang Xuerui <git@xen0n.name>
+ Warren Fernandes <warren.f.fernandes@gmail.com>
+ Wayne Ashley Berry <wayneashleyberry@gmail.com>
++Wayne Zuo <wdvxdr1123@gmail.com> <wdvxdr@golangcn.org>
+ Wedson Almeida Filho <wedsonaf@google.com>
+ Weerasak Chongnguluam <singpor@gmail.com>
+ Wèi Cōngruì <crvv.mail@gmail.com>

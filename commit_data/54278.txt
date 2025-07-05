@@ -38,7 +38,7 @@ Date:   Tue Jul 5 15:57:37 2022 +0100
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go                              |  6 +-
  src/cmd/dist/test.go                               |  6 +-
  src/cmd/go/alldocs.go                              | 11 ---
@@ -57,3 +57,681 @@ Date:   Tue Jul 5 15:57:37 2022 +0100
  .../go/testdata/script/vendor_test_issue11864.txt  |  8 ---
  .../go/testdata/script/vendor_test_issue14613.txt  |  4 --
  17 files changed, 14 insertions(+), 324 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index dae8531466..b51f56dc44 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1359,7 +1359,7 @@ func cmdbootstrap() {
+ 	os.Setenv("CC", compilerEnvLookup(defaultcc, goos, goarch))
+ 	// Now that cmd/go is in charge of the build process, enable GOEXPERIMENT.
+ 	os.Setenv("GOEXPERIMENT", goexperiment)
+-	goInstall(goBootstrap, append([]string{"-i"}, toolchain...)...)
++	goInstall(goBootstrap, toolchain...)
+ 	if debug {
+ 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
+ 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
+@@ -1387,13 +1387,12 @@ func cmdbootstrap() {
+ 		xprintf("\n")
+ 	}
+ 	xprintf("Building Go toolchain3 using go_bootstrap and Go toolchain2.\n")
+-	goInstall(goBootstrap, append([]string{"-a", "-i"}, toolchain...)...)
++	goInstall(goBootstrap, append([]string{"-a"}, toolchain...)...)
+ 	if debug {
+ 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
+ 		run("", ShowOutput|CheckExit, pathf("%s/buildid", tooldir), pathf("%s/pkg/%s_%s/runtime/internal/sys.a", goroot, goos, goarch))
+ 		copyfile(pathf("%s/compile3", tooldir), pathf("%s/compile", tooldir), writeExec)
+ 	}
+-	checkNotStale(goBootstrap, append(toolchain, "runtime/internal/sys")...)
+ 
+ 	if goos == oldgoos && goarch == oldgoarch {
+ 		// Common case - not setting up for cross-compilation.
+@@ -1428,6 +1427,7 @@ func cmdbootstrap() {
+ 	}
+ 	targets := []string{"std", "cmd"}
+ 	goInstall(goBootstrap, targets...)
++	checkNotStale(goBootstrap, append(toolchain, "runtime/internal/sys")...)
+ 	checkNotStale(goBootstrap, targets...)
+ 	checkNotStale(cmdGo, targets...)
+ 	if debug {
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index d27afb9fa1..7f85fc1d2d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -136,7 +136,7 @@ func (t *tester) run() {
+ 	if t.rebuild {
+ 		t.out("Building packages and commands.")
+ 		// Force rebuild the whole toolchain.
+-		goInstall("go", append([]string{"-a", "-i"}, toolchain...)...)
++		goInstall("go", append([]string{"-a"}, toolchain...)...)
+ 	}
+ 
+ 	if !t.listMode {
+@@ -153,8 +153,8 @@ func (t *tester) run() {
+ 			// to break if we don't automatically refresh things here.
+ 			// Rebuilding is a shortened bootstrap.
+ 			// See cmdbootstrap for a description of the overall process.
+-			goInstall("go", append([]string{"-i"}, toolchain...)...)
+-			goInstall("go", append([]string{"-i"}, toolchain...)...)
++			goInstall("go", toolchain...)
++			goInstall("go", toolchain...)
+ 			goInstall("go", "std", "cmd")
+ 		} else {
+ 			// The Go builder infrastructure should always begin running tests from a
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 79410f0bad..f83a7e261b 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -97,9 +97,6 @@
+ // ends with a slash or backslash, then any resulting executables
+ // will be written to that directory.
+ //
+-// The -i flag installs the packages that are dependencies of the target.
+-// The -i flag is deprecated. Compiled packages are cached automatically.
+-//
+ // The build flags are shared by the build, clean, get, install, list, run,
+ // and test commands:
+ //
+@@ -744,9 +741,6 @@
+ // directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
+ // other packages are built and cached but not installed.
+ //
+-// The -i flag installs the dependencies of the named packages as well.
+-// The -i flag is deprecated. Compiled packages are cached automatically.
+-//
+ // For more about the build flags, see 'go help build'.
+ // For more about specifying packages, see 'go help packages'.
+ //
+@@ -1744,11 +1738,6 @@
+ //	    Run the test binary using xprog. The behavior is the same as
+ //	    in 'go run'. See 'go help run' for details.
+ //
+-//	-i
+-//	    Install packages that are dependencies of the test.
+-//	    Do not run the test.
+-//	    The -i flag is deprecated. Compiled packages are cached automatically.
+-//
+ //	-json
+ //	    Convert test output to JSON suitable for automated processing.
+ //	    See 'go doc test2json' for the encoding details.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ee1cbc15eb..acc4d66fa7 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -947,7 +947,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 	tg.tempFile("d1/src/p1/p1.go", `package main; func main(){}`)
+ 	tg.setenv("GOPATH", tg.path("d1"))
+ 	// Pass -i flag to rebuild everything outdated.
+-	tg.run("install", "-i", "p1")
++	tg.run("install", "p1")
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, before any changes")
+ 
+ 	// Changing mtime of runtime/internal/sys/sys.go
+@@ -969,13 +969,13 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
+ 	addVar(sys, 2)
+ 	tg.wantStale("p1", "stale dependency: runtime", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go again")
+-	tg.run("install", "-i", "p1")
++	tg.run("install", "p1")
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with new release")
+ 
+ 	// Restore to "old" release.
+ 	restore()
+ 	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after restoring sys.go")
+-	tg.run("install", "-i", "p1")
++	tg.run("install", "p1")
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
+ }
+ 
+@@ -1459,22 +1459,6 @@ func TestGoTestDashOWritesBinary(t *testing.T) {
+ 	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
+ }
+ 
+-func TestGoTestDashIDashOWritesBinary(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no standard packages")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.makeTempdir()
+-
+-	// don't let test -i overwrite runtime
+-	tg.wantNotStale("runtime", "", "must be non-stale before test -i")
+-
+-	tg.run("test", "-v", "-i", "-o", tg.path("myerrors.test"+exeSuffix), "errors")
+-	tg.grepBothNot("PASS|FAIL", "test should not have run")
+-	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
+-}
+-
+ // Issue 4515.
+ func TestInstallWithTags(t *testing.T) {
+ 	tooSlow(t)
+@@ -1811,9 +1795,6 @@ func TestGoInstallPkgdir(t *testing.T) {
+ 	tg.run("install", "-pkgdir", pkg, "sync")
+ 	tg.mustExist(filepath.Join(pkg, "sync.a"))
+ 	tg.mustNotExist(filepath.Join(pkg, "sync/atomic.a"))
+-	tg.run("install", "-i", "-pkgdir", pkg, "sync")
+-	tg.mustExist(filepath.Join(pkg, "sync.a"))
+-	tg.mustExist(filepath.Join(pkg, "sync/atomic.a"))
+ }
+ 
+ // For issue 14337.
+@@ -2626,16 +2607,6 @@ func TestInstallDeps(t *testing.T) {
+ 	tg.run("install", "p2")
+ 	tg.mustExist(p2)
+ 	tg.mustNotExist(p1)
+-
+-	// don't let install -i overwrite runtime
+-	tg.wantNotStale("runtime", "", "must be non-stale before install -i")
+-
+-	tg.run("install", "-i", "main1")
+-	tg.mustExist(p1)
+-	tg.must(os.Remove(p1))
+-
+-	tg.run("install", "-i", "p2")
+-	tg.mustExist(p1)
+ }
+ 
+ // Issue 22986.
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index fbf91be604..ba0294459e 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -70,7 +70,6 @@ var (
+ 	BuildMod               string                  // -mod flag
+ 	BuildModExplicit       bool                    // whether -mod was set explicitly
+ 	BuildModReason         string                  // reason -mod was set, if set by default
+-	BuildI                 bool                    // -i flag
+ 	BuildLinkshared        bool                    // -linkshared flag
+ 	BuildMSan              bool                    // -msan flag
+ 	BuildASan              bool                    // -asan flag
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index d6cec787c2..9a59bba761 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -9,14 +9,12 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
+-	"go/build"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+-	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -150,11 +148,6 @@ In addition to the build flags, the flags handled by 'go test' itself are:
+ 	    Run the test binary using xprog. The behavior is the same as
+ 	    in 'go run'. See 'go help run' for details.
+ 
+-	-i
+-	    Install packages that are dependencies of the test.
+-	    Do not run the test.
+-	    The -i flag is deprecated. Compiled packages are cached automatically.
+-
+ 	-json
+ 	    Convert test output to JSON suitable for automated processing.
+ 	    See 'go doc test2json' for the encoding details.
+@@ -732,11 +725,6 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		testKillTimeout = testTimeout + 1*time.Minute
+ 	}
+ 
+-	// For 'go test -i -o x.test', we want to build x.test. Imply -c to make the logic easier.
+-	if cfg.BuildI && testO != "" {
+-		testC = true
+-	}
+-
+ 	// Read testcache expiration time, if present.
+ 	// (We implement go clean -testcache by writing an expiration date
+ 	// instead of searching out and deleting test result cache entries.)
+@@ -755,74 +743,6 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}()
+ 
+-	if cfg.BuildI {
+-		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
+-		cfg.BuildV = testV
+-
+-		deps := make(map[string]bool)
+-		for _, dep := range load.TestMainDeps {
+-			deps[dep] = true
+-		}
+-
+-		for _, p := range pkgs {
+-			// Dependencies for each test.
+-			for _, path := range p.Imports {
+-				deps[path] = true
+-			}
+-			for _, path := range p.Resolve(p.TestImports) {
+-				deps[path] = true
+-			}
+-			for _, path := range p.Resolve(p.XTestImports) {
+-				deps[path] = true
+-			}
+-		}
+-
+-		// translate C to runtime/cgo
+-		if deps["C"] {
+-			delete(deps, "C")
+-			deps["runtime/cgo"] = true
+-		}
+-		// Ignore pseudo-packages.
+-		delete(deps, "unsafe")
+-
+-		all := []string{}
+-		for path := range deps {
+-			if !build.IsLocalImport(path) {
+-				all = append(all, path)
+-			}
+-		}
+-		sort.Strings(all)
+-
+-		a := &work.Action{Mode: "go test -i"}
+-		pkgs := load.PackagesAndErrors(ctx, pkgOpts, all)
+-		load.CheckPackageErrors(pkgs)
+-		for _, p := range pkgs {
+-			if cfg.BuildToolchainName == "gccgo" && p.Standard {
+-				// gccgo's standard library packages
+-				// can not be reinstalled.
+-				continue
+-			}
+-			a.Deps = append(a.Deps, b.CompileAction(work.ModeInstall, work.ModeInstall, p))
+-		}
+-		b.Do(ctx, a)
+-		if !testC || a.Failed {
+-			return
+-		}
+-
+-		// TODO(bcmills): I have no idea why the Builder must be reset here, but
+-		// without this reset dance, TestGoTestDashIDashOWritesBinary fails with
+-		// lots of "vet config not found" errors. This was added in CL 5699088,
+-		// which had almost no public discussion, a very short commit description,
+-		// and left no comment in the code to explain what is going on here. 🤯
+-		//
+-		// Maybe this has the effect of removing actions that were registered by the
+-		// call to CompileAction above?
+-		if err := b.Close(); err != nil {
+-			base.Fatalf("go: %v", err)
+-		}
+-		b = work.NewBuilder("")
+-	}
+-
+ 	var builds, runs, prints []*work.Action
+ 
+ 	if cfg.BuildCoverPkg != nil {
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 2b2bd87732..55f6ebf9be 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -6,7 +6,6 @@ package test
+ 
+ import (
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/cmdflag"
+ 	"cmd/go/internal/work"
+ 	"errors"
+@@ -31,7 +30,6 @@ func init() {
+ 
+ 	cf := CmdTest.Flag
+ 	cf.BoolVar(&testC, "c", false, "")
+-	cf.BoolVar(&cfg.BuildI, "i", false, "")
+ 	cf.StringVar(&testO, "o", "", "")
+ 	work.AddCoverFlags(CmdTest, &testCoverProfile)
+ 	cf.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
+@@ -337,12 +335,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 
+ 		args = remainingArgs
+ 	}
+-	if firstUnknownFlag != "" && (testC || cfg.BuildI) {
+-		buildFlag := "-c"
+-		if !testC {
+-			buildFlag = "-i"
+-		}
+-		fmt.Fprintf(os.Stderr, "go: unknown flag %s cannot be used with %s\n", firstUnknownFlag, buildFlag)
++	if firstUnknownFlag != "" && testC {
++		fmt.Fprintf(os.Stderr, "go: unknown flag %s cannot be used with -c\n", firstUnknownFlag)
+ 		exitWithUsage()
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 2acc153c3c..6a83ec6232 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -54,9 +54,6 @@ in the last two paragraphs. If the named output is an existing directory or
+ ends with a slash or backslash, then any resulting executables
+ will be written to that directory.
+ 
+-The -i flag installs the packages that are dependencies of the target.
+-The -i flag is deprecated. Compiled packages are cached automatically.
+-
+ The build flags are shared by the build, clean, get, install, list, run,
+ and test commands:
+ 
+@@ -216,11 +213,8 @@ func init() {
+ 	CmdBuild.Run = runBuild
+ 	CmdInstall.Run = runInstall
+ 
+-	CmdBuild.Flag.BoolVar(&cfg.BuildI, "i", false, "")
+ 	CmdBuild.Flag.StringVar(&cfg.BuildO, "o", "", "output file or directory")
+ 
+-	CmdInstall.Flag.BoolVar(&cfg.BuildI, "i", false, "")
+-
+ 	AddBuildFlags(CmdBuild, DefaultBuildFlags)
+ 	AddBuildFlags(CmdInstall, DefaultBuildFlags)
+ 	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
+@@ -475,10 +469,6 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	depMode := ModeBuild
+-	if cfg.BuildI {
+-		depMode = ModeInstall
+-		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
+-	}
+ 
+ 	pkgs = omitTestOnly(pkgsFilter(pkgs))
+ 
+@@ -593,9 +583,6 @@ When module-aware mode is disabled, other packages are installed in the
+ directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
+ other packages are built and cached but not installed.
+ 
+-The -i flag installs the dependencies of the named packages as well.
+-The -i flag is deprecated. Compiled packages are cached automatically.
+-
+ For more about the build flags, see 'go help build'.
+ For more about specifying packages, see 'go help packages'.
+ 
+@@ -666,16 +653,8 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
+ }
+ 
+ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+-	// TODO(golang.org/issue/41696): print a deprecation message for the -i flag
+-	// whenever it's set (or just remove it). For now, we don't print a message
+-	// if all named packages are in GOROOT. cmd/dist (run by make.bash) uses
+-	// 'go install -i' when bootstrapping, and we don't want to show deprecation
+-	// messages in that case.
+ 	for _, arg := range args {
+ 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
+-			if cfg.BuildI {
+-				fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
+-			}
+ 			installOutsideModule(ctx, args)
+ 			return
+ 		}
+@@ -707,18 +686,6 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 	load.CheckPackageErrors(pkgs)
+-	if cfg.BuildI {
+-		allGoroot := true
+-		for _, pkg := range pkgs {
+-			if !pkg.Goroot {
+-				allGoroot = false
+-				break
+-			}
+-		}
+-		if !allGoroot {
+-			fmt.Fprintf(os.Stderr, "go: -i flag is deprecated\n")
+-		}
+-	}
+ 
+ 	if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+ 		load.PrepareForCoverageBuild(pkgs)
+@@ -787,9 +754,6 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
+ 	}()
+ 
+ 	depMode := ModeBuild
+-	if cfg.BuildI {
+-		depMode = ModeInstall
+-	}
+ 	a := &Action{Mode: "go install"}
+ 	var tools []*Action
+ 	for _, p := range pkgs {
+diff --git a/src/cmd/go/testdata/script/build_i.txt b/src/cmd/go/testdata/script/build_i.txt
+deleted file mode 100644
+index 0e7ebed0f9..0000000000
+--- a/src/cmd/go/testdata/script/build_i.txt
++++ /dev/null
+@@ -1,41 +0,0 @@
+-env GO111MODULE=off
+-
+-# Test that 'go build -i' installs dependencies of the requested package.
+-
+-[short] skip
+-
+-# Since we are checking installation of dependencies, use a clean cache
+-# to ensure that multiple runs of the test do not interfere.
+-env GOCACHE=$WORK/cache
+-
+-# The initial 'go build -i' for bar should install its dependency foo.
+-
+-go build -v -i x/y/bar
+-stderr 'x/y/foo'    # should be rebuilt
+-go build -v -i x/y/bar
+-! stderr 'x/y/foo'  # should already be installed
+-
+-# After modifying the source files, both packages should be rebuild.
+-
+-cp x/y/foo/foo.go.next x/y/foo/foo.go
+-cp x/y/bar/bar.go.next x/y/bar/bar.go
+-
+-go build -v -i x/y/bar
+-stderr 'x/y/foo'    # should be rebuilt
+-go build -v -i x/y/bar
+-! stderr 'x/y/foo'  # should already be installed
+-
+--- x/y/foo/foo.go --
+-package foo
+-func F() {}
+--- x/y/bar/bar.go --
+-package bar
+-import "x/y/foo"
+-func F() { foo.F() }
+--- x/y/foo/foo.go.next --
+-package foo
+-func F() { F() }
+--- x/y/bar/bar.go.next --
+-package main
+-import "x/y/foo"
+-func main() { foo.F() }
+diff --git a/src/cmd/go/testdata/script/build_i_deprecate.txt b/src/cmd/go/testdata/script/build_i_deprecate.txt
+deleted file mode 100644
+index 5c17995669..0000000000
+--- a/src/cmd/go/testdata/script/build_i_deprecate.txt
++++ /dev/null
+@@ -1,24 +0,0 @@
+-# Check that deprecation warnings are printed when the -i flag is used.
+-# TODO(golang.org/issue/41696): remove the -i flag after Go 1.16, and this test.
+-
+-go build -n -i
+-stderr '^go: -i flag is deprecated$'
+-
+-go install -n -i
+-stderr '^go: -i flag is deprecated$'
+-
+-go test -n -i
+-stderr '^go: -i flag is deprecated$'
+-
+-
+-# 'go clean -i' should not print a deprecation warning.
+-# It will continue working.
+-go clean -i .
+-! stderr .
+-
+--- go.mod --
+-module m
+-
+-go 1.16
+--- m.go --
+-package m
+diff --git a/src/cmd/go/testdata/script/build_relative_pkgdir.txt b/src/cmd/go/testdata/script/build_relative_pkgdir.txt
+index 0716bcd56a..57f18eefce 100644
+--- a/src/cmd/go/testdata/script/build_relative_pkgdir.txt
++++ b/src/cmd/go/testdata/script/build_relative_pkgdir.txt
+@@ -6,4 +6,4 @@ env GO111MODULE=off
+ 
+ mkdir $WORK/gocache
+ env GOCACHE=$WORK/gocache
+-go build -i -pkgdir=. runtime
++go build -pkgdir=. runtime
+diff --git a/src/cmd/go/testdata/script/install_rebuild_gopath.txt b/src/cmd/go/testdata/script/install_rebuild_gopath.txt
+deleted file mode 100644
+index 14a6c8611e..0000000000
+--- a/src/cmd/go/testdata/script/install_rebuild_gopath.txt
++++ /dev/null
+@@ -1,30 +0,0 @@
+-env GO111MODULE=off
+-
+-# GOPATH with p1 in d1, p2 in d2
+-env GOPATH=$WORK/d1${:}$WORK/d2
+-
+-# build & install p1
+-go install -i p1
+-! stale p1 p2
+-
+-# modify p2 - p1 should appear stale
+-cp $WORK/p2x.go $WORK/d2/src/p2/p2.go
+-stale p1 p2
+-
+-# build & install p1 again
+-go install -i p1
+-! stale p1 p2
+-
+--- $WORK/d1/src/p1/p1.go --
+-package p1
+-import "p2"
+-func F() { p2.F() }
+-
+--- $WORK/d2/src/p2/p2.go --
+-package p2
+-func F() {}
+-
+--- $WORK/p2x.go --
+-package p2
+-func F() {}
+-func G() {}
+diff --git a/src/cmd/go/testdata/script/test_flag.txt b/src/cmd/go/testdata/script/test_flag.txt
+index d168cfe6a8..6ef4529659 100644
+--- a/src/cmd/go/testdata/script/test_flag.txt
++++ b/src/cmd/go/testdata/script/test_flag.txt
+@@ -6,14 +6,12 @@ go test -v flag_test.go -args -v=7 # Two distinct -v flags
+ # Using a custom flag mixed with regular 'go test' flags should be OK.
+ go test -count=1 -custom -args -v=7
+ 
+-# However, it should be an error to use custom flags when -i or -c are used,
++# However, it should be an error to use custom flags when -c is used,
+ # since we know for sure that no test binary will run at all.
+-! go test -i -custom
+-stderr '^go: unknown flag -custom cannot be used with -i$'
+ ! go test -c -custom
+ stderr '^go: unknown flag -custom cannot be used with -c$'
+ 
+-# The same should apply even if -c or -i come after a custom flag.
++# The same should apply even if -c comes after a custom flag.
+ ! go test -custom -c
+ stderr '^go: unknown flag -custom cannot be used with -c$'
+ 
+diff --git a/src/cmd/go/testdata/script/test_race_install.txt b/src/cmd/go/testdata/script/test_race_install.txt
+index a1d47a7dd3..918d7e925b 100644
+--- a/src/cmd/go/testdata/script/test_race_install.txt
++++ b/src/cmd/go/testdata/script/test_race_install.txt
+@@ -4,15 +4,9 @@
+ mkdir $WORKDIR/tmp/pkg
+ go install -race -pkgdir=$WORKDIR/tmp/pkg std
+ 
+-# Make sure go test -i -race doesn't rebuild cached packages
+-go test -race -pkgdir=$WORKDIR/tmp/pkg -i -v empty/pkg
+-cmp stderr stderr.txt
+-
+ -- go.mod --
+ module empty
+ 
+ go 1.16
+ -- pkg/pkg.go --
+ package p
+--- stderr.txt --
+-go: -i flag is deprecated
+diff --git a/src/cmd/go/testdata/script/test_relative_import_dash_i.txt b/src/cmd/go/testdata/script/test_relative_import_dash_i.txt
+deleted file mode 100644
+index b2716d8403..0000000000
+--- a/src/cmd/go/testdata/script/test_relative_import_dash_i.txt
++++ /dev/null
+@@ -1,32 +0,0 @@
+-# Relative imports in go test -i
+-env GO111MODULE=off # relative import not supported in module mode
+-
+-# Run tests outside GOPATH.
+-env GOPATH=$WORK/tmp
+-
+-# Check that it's safe to pass -i (which installs dependencies in $GOPATH/pkg) to go test.
+-! stale runtime # don't let test -i overwrite runtime
+-go test -i ./testimport
+-
+--- testimport/p.go --
+-package p
+-
+-func F() int { return 1 }
+--- testimport/p1/p1.go --
+-package p1
+-
+-func F() int { return 1 }
+--- testimport/p_test.go --
+-package p
+-
+-import (
+-	"./p1"
+-
+-	"testing"
+-)
+-
+-func TestF(t *testing.T) {
+-	if F() != p1.F() {
+-		t.Fatal(F())
+-	}
+-}
+diff --git a/src/cmd/go/testdata/script/vendor_test_issue11864.txt b/src/cmd/go/testdata/script/vendor_test_issue11864.txt
+index cfb43bf343..b9ee434c4c 100644
+--- a/src/cmd/go/testdata/script/vendor_test_issue11864.txt
++++ b/src/cmd/go/testdata/script/vendor_test_issue11864.txt
+@@ -4,14 +4,6 @@ env GO111MODULE=off
+ 
+ go get github.com/rsc/go-get-issue-11864
+ 
+-# build -i should work
+-go build -i github.com/rsc/go-get-issue-11864
+-go build -i github.com/rsc/go-get-issue-11864/t
+-
+-# test -i should work like build -i (golang.org/issue/11988)
+-go test -i github.com/rsc/go-get-issue-11864
+-go test -i github.com/rsc/go-get-issue-11864/t
+-
+ # test should work too
+ go test github.com/rsc/go-get-issue-11864
+ go test github.com/rsc/go-get-issue-11864/t
+diff --git a/src/cmd/go/testdata/script/vendor_test_issue14613.txt b/src/cmd/go/testdata/script/vendor_test_issue14613.txt
+index cfd7e58f4f..8759445aea 100644
+--- a/src/cmd/go/testdata/script/vendor_test_issue14613.txt
++++ b/src/cmd/go/testdata/script/vendor_test_issue14613.txt
+@@ -5,18 +5,14 @@ env GO111MODULE=off
+ cd $GOPATH
+ 
+ go get github.com/clsung/go-vendor-issue-14613
+-go build -o $WORK/a.out -i github.com/clsung/go-vendor-issue-14613
+ 
+ # test folder should work
+-go test -i github.com/clsung/go-vendor-issue-14613
+ go test github.com/clsung/go-vendor-issue-14613
+ 
+ # test with specified _test.go should work too
+ cd $GOPATH/src
+-go test -i github.com/clsung/go-vendor-issue-14613/vendor_test.go
+ go test github.com/clsung/go-vendor-issue-14613/vendor_test.go
+ 
+ # test with imported and not used
+-go test -i github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go
+ ! go test github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go
+ stderr 'imported and not used'

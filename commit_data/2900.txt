@@ -8,10 +8,261 @@ Date:   Thu Aug 6 14:21:21 2009 -0700
     DELTA=147  (145 added, 0 deleted, 2 changed)
     OCL=32840
     CL=32845
-
+---
  test/bench/mandelbrot.c   |  91 ++++++++++++++++++++++++++++++++++++++++++++
  test/bench/mandelbrot.go  |  95 ++++++++++++++++++++++++++++++++++++++++++++++
  test/bench/mandelbrot.txt | Bin 0 -> 5011 bytes
  test/bench/timing.log     |   9 ++++-
  test/bench/timing.sh      |  11 +++++-
  5 files changed, 204 insertions(+), 2 deletions(-)
+
+diff --git a/test/bench/mandelbrot.c b/test/bench/mandelbrot.c
+new file mode 100644
+index 0000000000..c177c088ca
+--- /dev/null
++++ b/test/bench/mandelbrot.c
+@@ -0,0 +1,91 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/* The Computer Language Shootout
++   http://shootout.alioth.debian.org/
++
++   contributed by Greg Buchholz
++
++   for the debian (AMD) machine...
++   compile flags:  -O3 -ffast-math -march=athlon-xp -funroll-loops
++
++   for the gp4 (Intel) machine...
++   compile flags:  -O3 -ffast-math -march=pentium4 -funroll-loops
++*/
++
++#include<stdio.h>
++
++int main (int argc, char **argv)
++{
++    int w, h, bit_num = 0;
++    char byte_acc = 0;
++    int i, iter = 50;
++    double x, y, limit = 2.0;
++    double Zr, Zi, Cr, Ci, Tr, Ti;
++
++    w = h = atoi(argv[1]);
++
++    printf("P4\n%d %d\n",w,h);
++
++    for(y=0;y<h;++y)
++    {
++        for(x=0;x<w;++x)
++        {
++            Zr = Zi = Tr = Ti = 0.0;
++            Cr = (2.0*x/w - 1.5); Ci=(2.0*y/h - 1.0);
++
++            for (i=0;i<iter && (Tr+Ti <= limit*limit);++i)
++            {
++                Zi = 2.0*Zr*Zi + Ci;
++                Zr = Tr - Ti + Cr;
++                Tr = Zr * Zr;
++                Ti = Zi * Zi;
++            }
++
++            byte_acc <<= 1;
++            if(Tr+Ti <= limit*limit) byte_acc |= 0x01;
++
++            ++bit_num;
++
++            if(bit_num == 8)
++            {
++                putc(byte_acc,stdout);
++                byte_acc = 0;
++                bit_num = 0;
++            }
++            else if(x == w-1)
++            {
++                byte_acc <<= (8-w%8);
++                putc(byte_acc,stdout);
++                byte_acc = 0;
++                bit_num = 0;
++            }
++        }
++    }
++}
+diff --git a/test/bench/mandelbrot.go b/test/bench/mandelbrot.go
+new file mode 100644
+index 0000000000..1bd9f6b758
+--- /dev/null
++++ b/test/bench/mandelbrot.go
+@@ -0,0 +1,95 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/* The Computer Language Benchmarks Game
++ * http://shootout.alioth.debian.org/
++ *
++ * contributed by The Go Authors.
++ * Based on mandelbrot.c contributed by Greg Buchholz
++*/
++
++package main
++
++import (
++	"bufio";
++	"flag";
++	"fmt";
++	"os";
++)
++
++var n = flag.Int("n", 200, "size")
++
++func main() {
++	flag.Parse();
++	out := bufio.NewWriter(os.Stdout);
++	defer out.Flush();
++
++	w := *n;
++	h := *n;
++	bit_num := 0;
++	byte_acc := byte(0);
++	const Iter = 50;
++	const Zero float64 = 0;
++	const Limit = 2.0;
++
++	fmt.Fprintf(out, "P4\n%d %d\n", w, h);
++
++	for y := 0; y < h; y++ {
++		for x := 0; x<w; x++ {
++			Zr, Zi, Tr, Ti := Zero, Zero, Zero, Zero;
++			Cr := (2*float64(x)/float64(w) - 1.5);
++			Ci := (2*float64(y)/float64(h) - 1.0);
++
++			for i := 0; i < Iter && (Tr+Ti <= Limit*Limit); i++ {
++				Zi = 2*Zr*Zi + Ci;
++				Zr = Tr - Ti + Cr;
++				Tr = Zr * Zr;
++				Ti = Zi * Zi;
++			}
++
++			byte_acc <<= 1;
++			if Tr+Ti <= Limit*Limit {
++				byte_acc |= 0x01;
++			}
++
++			bit_num++;
++
++			if bit_num == 8 {
++				out.WriteByte(byte_acc);
++				byte_acc = 0;
++				bit_num = 0;
++			} else if x == w-1 {
++				byte_acc <<= uint(8-w%8);
++				out.WriteByte(byte_acc);
++				byte_acc = 0;
++				bit_num = 0;
++			}
++		}
++	}
++}
+diff --git a/test/bench/mandelbrot.txt b/test/bench/mandelbrot.txt
+new file mode 100644
+index 0000000000..2f7bbbc6b0
+Binary files /dev/null and b/test/bench/mandelbrot.txt differ
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index d1731386e8..520b18dd05 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -1,4 +1,4 @@
+-All tests on r45
++All tests on r45 or r70
+ 
+ Aug 3 2009
+ 
+@@ -73,3 +73,10 @@ k-nucleotide 5000000
+ 	gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0	k-nucleotide.c: 10.72u 0.01s 10.74r
+ 	gccgo -O2 k-nucleotide.go	22.69u 0.85s 24.09r
+ 	gc k-nucleotide	15.63u 0.26s 16.41r
++	gc_B k-nucleotide	17.22u 0.04s 17.28r
++
++mandelbrot 5500
++	gcc -O2 mandelbrot.c	56.13u 0.02s 56.17r
++	gccgo -O2 mandelbrot.go	57.49u 0.01s 57.51r
++	gc mandelbrot	74.32u 0.00s 74.35r
++	gc_B mandelbrot	74.28u 0.01s 74.31r
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index 7af19194f5..600cacb91c 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -91,12 +91,21 @@ knucleotide() {
+ 	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
+ 	run 'gccgo -O2 k-nucleotide.go' a.out <x	# warning: pages badly!
+ 	run 'gc k-nucleotide' $O.out <x
++	run 'gc_B k-nucleotide' $O.out <x
+ 	rm x
+ }
+ 
++mandelbrot() {
++	echo 'mandelbrot 16000'
++	run 'gcc -O2 mandelbrot.c' a.out 16000
++	run 'gccgo -O2 mandelbrot.go' a.out -n 16000
++	run 'gc mandelbrot' $O.out -n 16000
++	run 'gc_B mandelbrot' $O.out -n 16000
++}
++
+ case $# in
+ 0)
+-	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide"
++	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot"
+ 	;;
+ *)
+ 	run=$*

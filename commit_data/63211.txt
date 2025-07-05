@@ -12,6 +12,20 @@ Date:   Fri May 23 17:31:53 2025 -0400
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/trace/recorder.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace/recorder.go b/src/runtime/trace/recorder.go
+index 78e003e2a5..bf8d7ce647 100644
+--- a/src/runtime/trace/recorder.go
++++ b/src/runtime/trace/recorder.go
+@@ -107,7 +107,7 @@ func traceTimeNow(freq frequency) eventTime {
+ }
+ 
+ //go:linkname runtime_traceClockNow runtime.traceClockNow
+-func runtime_traceClockNow() int64
++func runtime_traceClockNow() uint64
+ 
+ // frequency is nanoseconds per timestamp unit.
+ type frequency float64

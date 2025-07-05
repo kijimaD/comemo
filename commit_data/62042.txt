@@ -24,9 +24,145 @@ Date:   Tue Jan 21 14:41:15 2025 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/go.mod                |  2 +-
  src/go.sum                |  4 ++--
  src/net/http/h2_bundle.go | 45 ++++++++++++++++++++++++++++++++-------------
  src/vendor/modules.txt    |  2 +-
  4 files changed, 36 insertions(+), 17 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 7a1318dcac..ccfdbd8ea2 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.24
+ 
+ require (
+ 	golang.org/x/crypto v0.30.0
+-	golang.org/x/net v0.32.1-0.20241206180132-552d8ac903a1
++	golang.org/x/net v0.32.1-0.20250121202134-9a960c88dd98
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index 9e661352f1..4d6a33e34a 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.30.0 h1:RwoQn3GkWiMkzlX562cLB7OxWvjH1L8xutO2WoJcRoY=
+ golang.org/x/crypto v0.30.0/go.mod h1:kDsLvtWBEx7MV9tJOj9bnXsPbxwJQ6csT/x4KIN4Ssk=
+-golang.org/x/net v0.32.1-0.20241206180132-552d8ac903a1 h1:+Yk1FZ5E+/ewA0nOO/HRYs9E4yeqpGOShuSAdzCNNoQ=
+-golang.org/x/net v0.32.1-0.20241206180132-552d8ac903a1/go.mod h1:CwU0IoeOlnQQWJ6ioyFrfRuomB8GKF6KbYXZVyeXNfs=
++golang.org/x/net v0.32.1-0.20250121202134-9a960c88dd98 h1:36bTiCRO7f/J3t+LumnLTJDXqxsp1x6Q7754SsRD9u4=
++golang.org/x/net v0.32.1-0.20250121202134-9a960c88dd98/go.mod h1:CwU0IoeOlnQQWJ6ioyFrfRuomB8GKF6KbYXZVyeXNfs=
+ golang.org/x/sys v0.28.0 h1:Fksou7UEQUWlKvIdsqzJmUmCX3cZuD2+P3XyyzwMhlA=
+ golang.org/x/sys v0.28.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.21.0 h1:zyQAAkrwaneQ066sspRyJaG9VNi/YJ1NfzcGB3hZ/qo=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 46a2b79231..22f013f1d4 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -3509,11 +3509,19 @@ func http2canonicalHeader(v string) string {
+ }
+ 
+ var (
+-	http2VerboseLogs                    bool
+-	http2logFrameWrites                 bool
+-	http2logFrameReads                  bool
+-	http2inTests                        bool
+-	http2disableExtendedConnectProtocol bool
++	http2VerboseLogs    bool
++	http2logFrameWrites bool
++	http2logFrameReads  bool
++	http2inTests        bool
++
++	// Enabling extended CONNECT by causes browsers to attempt to use
++	// WebSockets-over-HTTP/2. This results in problems when the server's websocket
++	// package doesn't support extended CONNECT.
++	//
++	// Disable extended CONNECT by default for now.
++	//
++	// Issue #71128.
++	http2disableExtendedConnectProtocol = true
+ )
+ 
+ func init() {
+@@ -3526,8 +3534,8 @@ func init() {
+ 		http2logFrameWrites = true
+ 		http2logFrameReads = true
+ 	}
+-	if strings.Contains(e, "http2xconnect=0") {
+-		http2disableExtendedConnectProtocol = true
++	if strings.Contains(e, "http2xconnect=1") {
++		http2disableExtendedConnectProtocol = false
+ 	}
+ }
+ 
+@@ -9500,10 +9508,6 @@ func http2validateHeaders(hdrs Header) string {
+ 
+ var http2errNilRequestURL = errors.New("http2: Request.URI is nil")
+ 
+-func http2isNormalConnect(req *Request) bool {
+-	return req.Method == "CONNECT" && req.Header.Get(":protocol") == ""
+-}
+-
+ // requires cc.wmu be held.
+ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trailers string, contentLength int64) ([]byte, error) {
+ 	cc.hbuf.Reset()
+@@ -9523,8 +9527,17 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
+ 		return nil, errors.New("http2: invalid Host header")
+ 	}
+ 
++	// isNormalConnect is true if this is a non-extended CONNECT request.
++	isNormalConnect := false
++	protocol := req.Header.Get(":protocol")
++	if req.Method == "CONNECT" && protocol == "" {
++		isNormalConnect = true
++	} else if protocol != "" && req.Method != "CONNECT" {
++		return nil, errors.New("http2: invalid :protocol header in non-CONNECT request")
++	}
++
+ 	var path string
+-	if !http2isNormalConnect(req) {
++	if !isNormalConnect {
+ 		path = req.URL.RequestURI()
+ 		if !http2validPseudoPath(path) {
+ 			orig := path
+@@ -9561,10 +9574,13 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
+ 			m = MethodGet
+ 		}
+ 		f(":method", m)
+-		if !http2isNormalConnect(req) {
++		if !isNormalConnect {
+ 			f(":path", path)
+ 			f(":scheme", req.URL.Scheme)
+ 		}
++		if protocol != "" {
++			f(":protocol", protocol)
++		}
+ 		if trailers != "" {
+ 			f("trailer", trailers)
+ 		}
+@@ -9621,6 +9637,9 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
+ 					}
+ 				}
+ 				continue
++			} else if k == ":protocol" {
++				// :protocol pseudo-header was already sent above.
++				continue
+ 			}
+ 
+ 			for _, v := range vv {
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 1c8de570cc..d42f50b43c 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -6,7 +6,7 @@ golang.org/x/crypto/cryptobyte
+ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.32.1-0.20241206180132-552d8ac903a1
++# golang.org/x/net v0.32.1-0.20250121202134-9a960c88dd98
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

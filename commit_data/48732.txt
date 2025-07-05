@@ -19,7 +19,106 @@ Date:   Fri Jun 11 01:45:24 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/import.go |  8 ++++----
  src/cmd/compile/internal/noder/irgen.go  | 18 ++++++++++--------
  2 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 8076b74650..08e3f77b66 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -31,8 +31,8 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-// Temporary import helper to get type2-based type-checking going.
+ type gcimports struct {
++	check    *types2.Checker
+ 	packages map[string]*types2.Package
+ }
+ 
+@@ -45,7 +45,7 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
+ 		panic("mode must be 0")
+ 	}
+ 
+-	_, pkg, err := readImportFile(path, typecheck.Target, m.packages)
++	_, pkg, err := readImportFile(path, typecheck.Target, m.check, m.packages)
+ 	return pkg, err
+ }
+ 
+@@ -176,7 +176,7 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
+ 		return nil
+ 	}
+ 
+-	pkg, _, err := readImportFile(path, typecheck.Target, nil)
++	pkg, _, err := readImportFile(path, typecheck.Target, nil, nil)
+ 	if err != nil {
+ 		base.Errorf("%s", err)
+ 		return nil
+@@ -208,7 +208,7 @@ func parseImportPath(pathLit *syntax.BasicLit) (string, error) {
+ // readImportFile reads the import file for the given package path and
+ // returns its types.Pkg representation. If packages is non-nil, the
+ // types2.Package representation is also returned.
+-func readImportFile(path string, target *ir.Package, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
++func readImportFile(path string, target *ir.Package, check *types2.Checker, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
+ 	path, err = resolveImportPath(path)
+ 	if err != nil {
+ 		return
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index b70d82d7e6..aac8b5e641 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -20,7 +20,7 @@ import (
+ 
+ // checkFiles configures and runs the types2 checker on the given
+ // parsed source files and then returns the result.
+-func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Package, *types2.Info) {
++func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 	if base.SyntaxErrors() != 0 {
+ 		base.ErrorExit()
+ 	}
+@@ -34,6 +34,9 @@ func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Pack
+ 	}
+ 
+ 	// typechecking
++	importer := gcimports{
++		packages: make(map[string]*types2.Package),
++	}
+ 	conf := types2.Config{
+ 		GoVersion:             base.Flag.Lang,
+ 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
+@@ -43,7 +46,7 @@ func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Pack
+ 			terr := err.(types2.Error)
+ 			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", terr.Msg)
+ 		},
+-		Importer: importer,
++		Importer: &importer,
+ 		Sizes:    &gcSizes{},
+ 	}
+ 	info := &types2.Info{
+@@ -57,7 +60,10 @@ func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Pack
+ 		// expand as needed
+ 	}
+ 
+-	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
++	pkg := types2.NewPackage(base.Ctxt.Pkgpath, "")
++	importer.check = types2.NewChecker(&conf, pkg, info)
++	err := importer.check.Files(files)
++
+ 	base.ExitIfErrors()
+ 	if err != nil {
+ 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
+@@ -69,11 +75,7 @@ func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Pack
+ // check2 type checks a Go package using types2, and then generates IR
+ // using the results.
+ func check2(noders []*noder) {
+-	importer := &gcimports{
+-		packages: make(map[string]*types2.Package),
+-	}
+-
+-	m, pkg, info := checkFiles(noders, importer)
++	m, pkg, info := checkFiles(noders)
+ 
+ 	if base.Flag.G < 2 {
+ 		os.Exit(0)

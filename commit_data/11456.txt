@@ -9,7 +9,7 @@ Date:   Sun Jan 29 17:22:20 2012 -0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5572083
-
+---
  src/cmd/Makefile                   |   1 -
  src/cmd/goinstall/Makefile         |  19 --
  src/cmd/goinstall/doc.go           | 200 --------------
@@ -20,3 +20,1631 @@ Date:   Sun Jan 29 17:22:20 2012 -0200
  src/cmd/goinstall/tag_test.go      |  73 -----
  src/pkg/Makefile                   |   1 -
  9 files changed, 1563 deletions(-)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index ab51c09ceb..2ee585a0f4 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -40,7 +40,6 @@ CLEANDIRS=\
+ 	godoc\
+ 	fix\
+ 	gofmt\
+-	goinstall\
+ 	gotest\
+ 	vet\
+ 	yacc\
+diff --git a/src/cmd/goinstall/Makefile b/src/cmd/goinstall/Makefile
+deleted file mode 100644
+index b90646973b..0000000000
+--- a/src/cmd/goinstall/Makefile
++++ /dev/null
+@@ -1,19 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=goinstall
+-GOFILES=\
+-	download.go\
+-	main.go\
+-	make.go\
+-
+-include ../../Make.cmd
+-
+-test:
+-	gotest
+-
+-testshort:
+-	gotest -test.short
+diff --git a/src/cmd/goinstall/doc.go b/src/cmd/goinstall/doc.go
+deleted file mode 100644
+index 368e1707b6..0000000000
+--- a/src/cmd/goinstall/doc.go
++++ /dev/null
+@@ -1,200 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-Goinstall is an experiment in automatic package installation.
+-It installs packages, possibly downloading them from the internet.
+-It maintains a list of public Go packages at
+-http://godashboard.appspot.com/package.
+-
+-Usage:
+-	goinstall [flags] importpath...
+-	goinstall [flags] -a
+-
+-Flags and default settings:
+-        -a=false          install all previously installed packages
+-	-clean=false      clean the package directory before installing
+-	-dashboard=true   tally public packages on godashboard.appspot.com
+-	-install=true     build and install the package and its dependencies
+-	-nuke=false       remove the target object and clean before installing
+-	-u=false          update already-downloaded packages
+-	-v=false          verbose operation
+-
+-Goinstall installs each of the packages identified on the command line.  It
+-installs a package's prerequisites before trying to install the package
+-itself. Unless -log=false is specified, goinstall logs the import path of each
+-installed package to $GOROOT/goinstall.log for use by goinstall -a.
+-
+-If the -a flag is given, goinstall reinstalls all previously installed
+-packages, reading the list from $GOROOT/goinstall.log.  After updating to a
+-new Go release, which deletes all package binaries, running
+-
+-	goinstall -a
+-
+-will recompile and reinstall goinstalled packages.
+-
+-Another common idiom is to use
+-
+-	goinstall -a -u
+-
+-to update, recompile, and reinstall all goinstalled packages.
+-
+-The source code for a package with import path foo/bar is expected
+-to be in the directory $GOROOT/src/pkg/foo/bar/ or $GOPATH/src/foo/bar/.
+-See "The GOPATH Environment Variable" for more about GOPATH.
+-
+-By default, goinstall prints output only when it encounters an error.
+-The -v flag causes goinstall to print information about packages
+-being considered and installed.
+-
+-Goinstall ignores Makefiles.
+-
+-
+-Remote Repositories
+-
+-If a package import path refers to a remote repository, goinstall will
+-download the code if necessary.
+-
+-Goinstall recognizes packages from a few common code hosting sites:
+-
+-	BitBucket (Git, Mercurial)
+-
+-		import "bitbucket.org/user/project"
+-		import "bitbucket.org/user/project/sub/directory"
+-
+-	GitHub (Git)
+-
+-		import "github.com/user/project"
+-		import "github.com/user/project/sub/directory"
+-
+-	Google Code Project Hosting (Git, Mercurial, Subversion)
+-
+-		import "project.googlecode.com/git"
+-		import "project.googlecode.com/git/sub/directory"
+-
+-		import "project.googlecode.com/hg"
+-		import "project.googlecode.com/hg/sub/directory"
+-
+-		import "project.googlecode.com/svn/trunk"
+-		import "project.googlecode.com/svn/trunk/sub/directory"
+-
+-	Google Code Project Hosting sub-repositories:
+-
+-		import "code.google.com/p/project.subrepo/sub/directory
+-
+-	Launchpad (Bazaar)
+-
+-		import "launchpad.net/project"
+-		import "launchpad.net/project/series"
+-		import "launchpad.net/project/series/sub/directory"
+-
+-		import "launchpad.net/~user/project/branch"
+-		import "launchpad.net/~user/project/branch/sub/directory"
+-
+-If the destination directory (e.g., $GOROOT/src/pkg/bitbucket.org/user/project)
+-already exists and contains an appropriate checkout, goinstall will not
+-attempt to fetch updates.  The -u flag changes this behavior,
+-causing goinstall to update all remote packages encountered during
+-the installation.
+-
+-When downloading or updating, goinstall looks for a tag with the "go." prefix
+-that corresponds to the local Go version. For Go "release.r58" it looks for a
+-tag named "go.r58". For "weekly.2011-06-03" it looks for "go.weekly.2011-06-03".
+-If the specific "go.X" tag is not found, it chooses the closest earlier version.
+-If an appropriate tag is found, goinstall uses that version of the code.
+-Otherwise it uses the default version selected by the version control
+-system, typically HEAD for git, tip for Mercurial.
+-
+-After a successful download and installation of one of these import paths,
+-goinstall reports the installation to godashboard.appspot.com, which
+-increments a count associated with the package and the time of its most
+-recent installation. This mechanism powers the package list at
+-http://godashboard.appspot.com/package, allowing Go programmers to learn about
+-popular packages that might be worth looking at.	 
+-The -dashboard=false flag disables this reporting.
+-
+-For code hosted on other servers, goinstall recognizes the general form
+-
+-	repository.vcs/path
+-
+-as denoting the given repository, with or without the .vcs suffix, using
+-the named version control system, and then the path inside that repository.
+-The supported version control systems are:
+-
+-	Bazaar      .bzr
+-	Git         .git
+-	Mercurial   .hg
+-	Subversion  .svn
+-
+-For example, 
+-
+-	import "example.org/user/foo.hg"
+-
+-denotes the root directory of the Mercurial repository at example.org/user/foo
+-or foo.hg, and
+-
+-	import "example.org/repo.git/foo/bar"
+-
+-denotes the foo/bar directory of the Git repository at example.com/repo or
+-repo.git.
+-
+-When a version control system supports multiple protocols, goinstall tries each
+-in turn.
+-For example, for Git it tries git://, then https://, then http://.
+-
+-
+-The GOPATH Environment Variable
+-
+-GOPATH may be set to a colon-separated list of paths inside which Go code,
+-package objects, and executables may be found.
+-
+-Set a GOPATH to use goinstall to build and install your own code and
+-external libraries outside of the Go tree (and to avoid writing Makefiles).
+-
+-The top-level directory structure of a GOPATH is prescribed:
+-
+-The 'src' directory is for source code. The directory naming inside 'src'
+-determines the package import path or executable name.
+-
+-The 'pkg' directory is for package objects. Like the Go tree, package objects
+-are stored inside a directory named after the target operating system and
+-processor architecture ('pkg/$GOOS_$GOARCH').
+-A package whose source is located at '$GOPATH/src/foo/bar' would be imported
+-as 'foo/bar' and installed as '$GOPATH/pkg/$GOOS_$GOARCH/foo/bar.a'.
+-
+-The 'bin' directory is for executable files.
+-Goinstall installs program binaries using the name of the source folder.
+-A binary whose source is at 'src/foo/qux' would be built and installed to
+-'$GOPATH/bin/qux'. (Note 'bin/qux', not 'bin/foo/qux' - this is such that
+-you can put the bin directory in your PATH.) 
+-
+-Here's an example directory layout:
+-
+-	GOPATH=/home/user/gocode
+-
+-	/home/user/gocode/
+-		src/foo/
+-			bar/               (go code in package bar)
+-			qux/               (go code in package main)
+-		bin/qux                    (executable file)
+-		pkg/linux_amd64/foo/bar.a  (object file)
+-
+-Run 'goinstall foo/bar' to build and install the package 'foo/bar'
+-(and its dependencies).
+-Goinstall will search each GOPATH (in order) for 'src/foo/bar'.
+-If the directory cannot be found, goinstall will attempt to fetch the
+-source from a remote repository and write it to the 'src' directory of the
+-first GOPATH (or $GOROOT/src/pkg if GOPATH is not set).
+-
+-Goinstall recognizes relative and absolute paths (paths beginning with / or .).
+-The following commands would build our example packages:
+-
+-	goinstall /home/user/gocode/src/foo/bar  # build and install foo/bar
+-	cd /home/user/gocode/src/foo
+-	goinstall ./bar  # build and install foo/bar (again)
+-	cd qux
+-	goinstall .      # build and install foo/qux
+-
+-*/
+-package documentation
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+deleted file mode 100644
+index 8e6cb4b373..0000000000
+--- a/src/cmd/goinstall/download.go
++++ /dev/null
+@@ -1,537 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Download remote packages.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"encoding/json"
+-	"errors"
+-	"fmt"
+-	"io/ioutil"
+-	"net/http"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"regexp"
+-	"runtime"
+-	"strconv"
+-	"strings"
+-)
+-
+-const dashboardURL = "http://godashboard.appspot.com/package"
+-
+-// maybeReportToDashboard reports path to dashboard unless
+-// -dashboard=false is on command line.  It ignores errors.
+-func maybeReportToDashboard(path string) {
+-	// if -dashboard=false was on command line, do nothing
+-	if !*reportToDashboard {
+-		return
+-	}
+-
+-	// otherwise lob url to dashboard
+-	r, _ := http.Post(dashboardURL, "application/x-www-form-urlencoded", strings.NewReader("path="+path))
+-	if r != nil && r.Body != nil {
+-		r.Body.Close()
+-	}
+-}
+-
+-// a vcs represents a version control system
+-// like Mercurial, Git, or Subversion.
+-type vcs struct {
+-	name          string
+-	cmd           string
+-	metadir       string
+-	checkout      string
+-	clone         string
+-	update        string
+-	updateRevFlag string
+-	pull          string
+-	pullForceFlag string
+-	tagList       string
+-	tagListRe     *regexp.Regexp
+-	check         string
+-	protocols     []string
+-	suffix        string
+-}
+-
+-func (v *vcs) String() string {
+-	return v.name
+-}
+-
+-var vcsMap = map[string]*vcs{
+-	"hg": {
+-		name:      "Mercurial",
+-		cmd:       "hg",
+-		metadir:   ".hg",
+-		checkout:  "checkout",
+-		clone:     "clone",
+-		update:    "update",
+-		pull:      "pull",
+-		tagList:   "tags",
+-		tagListRe: regexp.MustCompile("([^ ]+)[^\n]+\n"),
+-		check:     "identify",
+-		protocols: []string{"https", "http"},
+-		suffix:    ".hg",
+-	},
+-
+-	"git": {
+-		name:      "Git",
+-		cmd:       "git",
+-		metadir:   ".git",
+-		checkout:  "checkout",
+-		clone:     "clone",
+-		update:    "pull",
+-		pull:      "fetch",
+-		tagList:   "tag",
+-		tagListRe: regexp.MustCompile("([^\n]+)\n"),
+-		check:     "ls-remote",
+-		protocols: []string{"git", "https", "http"},
+-		suffix:    ".git",
+-	},
+-
+-	"svn": {
+-		name:      "Subversion",
+-		cmd:       "svn",
+-		metadir:   ".svn",
+-		checkout:  "checkout",
+-		clone:     "checkout",
+-		update:    "update",
+-		check:     "info",
+-		protocols: []string{"https", "http", "svn"},
+-		suffix:    ".svn",
+-	},
+-
+-	"bzr": {
+-		name:          "Bazaar",
+-		cmd:           "bzr",
+-		metadir:       ".bzr",
+-		checkout:      "update",
+-		clone:         "branch",
+-		update:        "update",
+-		updateRevFlag: "-r",
+-		pull:          "pull",
+-		pullForceFlag: "--overwrite",
+-		tagList:       "tags",
+-		tagListRe:     regexp.MustCompile("([^ ]+)[^\n]+\n"),
+-		check:         "info",
+-		protocols:     []string{"https", "http", "bzr"},
+-		suffix:        ".bzr",
+-	},
+-}
+-
+-type RemoteRepo interface {
+-	// IsCheckedOut returns whether this repository is checked
+-	// out inside the given srcDir (eg, $GOPATH/src).
+-	IsCheckedOut(srcDir string) bool
+-
+-	// Repo returns the information about this repository: its url,
+-	// the part of the import path that forms the repository root,
+-	// and the version control system it uses. It may discover this
+-	// information by using the supplied client to make HTTP requests.
+-	Repo(*http.Client) (url, root string, vcs *vcs, err error)
+-}
+-
+-type host struct {
+-	pattern *regexp.Regexp
+-	repo    func(repo string) (RemoteRepo, error)
+-}
+-
+-var knownHosts = []host{
+-	{
+-		regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+(\.[a-z0-9\-]+)?)(/[a-z0-9A-Z_.\-/]+)?$`),
+-		matchGoogleRepo,
+-	},
+-	{
+-		regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$`),
+-		matchGithubRepo,
+-	},
+-	{
+-		regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$`),
+-		matchBitbucketRepo,
+-	},
+-	{
+-		regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`),
+-		matchLaunchpadRepo,
+-	},
+-}
+-
+-// baseRepo is the base implementation of RemoteRepo.
+-type baseRepo struct {
+-	url, root string
+-	vcs       *vcs
+-}
+-
+-func (r *baseRepo) Repo(*http.Client) (url, root string, vcs *vcs, err error) {
+-	return r.url, r.root, r.vcs, nil
+-}
+-
+-// IsCheckedOut reports whether the repo root inside srcDir contains a
+-// repository metadir. It updates the baseRepo's vcs field if necessary.
+-func (r *baseRepo) IsCheckedOut(srcDir string) bool {
+-	pkgPath := filepath.Join(srcDir, r.root)
+-	if r.vcs == nil {
+-		for _, vcs := range vcsMap {
+-			if isDir(filepath.Join(pkgPath, vcs.metadir)) {
+-				r.vcs = vcs
+-				return true
+-			}
+-		}
+-		return false
+-	}
+-	return isDir(filepath.Join(pkgPath, r.vcs.metadir))
+-}
+-
+-// matchGithubRepo handles matches for github.com repositories.
+-func matchGithubRepo(root string) (RemoteRepo, error) {
+-	if strings.HasSuffix(root, ".git") {
+-		return nil, errors.New("path must not include .git suffix")
+-	}
+-	return &baseRepo{"http://" + root + ".git", root, vcsMap["git"]}, nil
+-}
+-
+-// matchLaunchpadRepo handles matches for launchpad.net repositories.
+-func matchLaunchpadRepo(root string) (RemoteRepo, error) {
+-	return &baseRepo{"https://" + root, root, vcsMap["bzr"]}, nil
+-}
+-
+-// matchGoogleRepo matches repos like "code.google.com/p/repo.subrepo/path".
+-func matchGoogleRepo(id string) (RemoteRepo, error) {
+-	root := "code.google.com/p/" + id
+-	return &googleRepo{baseRepo{"https://" + root, root, nil}}, nil
+-}
+-
+-// googleRepo implements a RemoteRepo that discovers a Google Code
+-// repository's VCS type by scraping the code.google.com source checkout page.
+-type googleRepo struct{ baseRepo }
+-
+-var googleRepoRe = regexp.MustCompile(`id="checkoutcmd">(hg|git|svn)`)
+-
+-func (r *googleRepo) Repo(client *http.Client) (url, root string, vcs *vcs, err error) {
+-	if r.vcs != nil {
+-		return r.url, r.root, r.vcs, nil
+-	}
+-
+-	// Use the code.google.com source checkout page to find the VCS type.
+-	const prefix = "code.google.com/p/"
+-	p := strings.SplitN(r.root[len(prefix):], ".", 2)
+-	u := fmt.Sprintf("https://%s%s/source/checkout", prefix, p[0])
+-	if len(p) == 2 {
+-		u += fmt.Sprintf("?repo=%s", p[1])
+-	}
+-	resp, err := client.Get(u)
+-	if err != nil {
+-		return "", "", nil, err
+-	}
+-	defer resp.Body.Close()
+-	if resp.StatusCode != 200 {
+-		return "", "", nil, fmt.Errorf("fetching %s: %v", u, resp.Status)
+-	}
+-	b, err := ioutil.ReadAll(resp.Body)
+-	if err != nil {
+-		return "", "", nil, fmt.Errorf("fetching %s: %v", u, err)
+-	}
+-
+-	// Scrape result for vcs details.
+-	if m := googleRepoRe.FindSubmatch(b); len(m) == 2 {
+-		s := string(m[1])
+-		if v := vcsMap[s]; v != nil {
+-			if s == "svn" {
+-				// Subversion still uses the old-style URL.
+-				r.url = fmt.Sprintf("http://%s.googlecode.com/svn", p[0])
+-			}
+-			r.vcs = v
+-			return r.url, r.root, r.vcs, nil
+-		}
+-	}
+-
+-	return "", "", nil, errors.New("could not detect googlecode vcs")
+-}
+-
+-// matchBitbucketRepo handles matches for all bitbucket.org repositories.
+-func matchBitbucketRepo(root string) (RemoteRepo, error) {
+-	if strings.HasSuffix(root, ".git") {
+-		return nil, errors.New("path must not include .git suffix")
+-	}
+-	return &bitbucketRepo{baseRepo{root: root}}, nil
+-}
+-
+-// bitbucketRepo implements a RemoteRepo that uses the BitBucket API to
+-// discover the repository's VCS type.
+-type bitbucketRepo struct{ baseRepo }
+-
+-func (r *bitbucketRepo) Repo(client *http.Client) (url, root string, vcs *vcs, err error) {
+-	if r.vcs != nil && r.url != "" {
+-		return r.url, r.root, r.vcs, nil
+-	}
+-
+-	// Use the BitBucket API to find which kind of repository this is.
+-	const apiUrl = "https://api.bitbucket.org/1.0/repositories/"
+-	resp, err := client.Get(apiUrl + strings.SplitN(r.root, "/", 2)[1])
+-	if err != nil {
+-		return "", "", nil, fmt.Errorf("BitBucket API: %v", err)
+-	}
+-	defer resp.Body.Close()
+-	if resp.StatusCode != 200 {
+-		return "", "", nil, fmt.Errorf("BitBucket API: %v", resp.Status)
+-	}
+-	var response struct {
+-		Vcs string `json:"scm"`
+-	}
+-	err = json.NewDecoder(resp.Body).Decode(&response)
+-	if err != nil {
+-		return "", "", nil, fmt.Errorf("BitBucket API: %v", err)
+-	}
+-	switch response.Vcs {
+-	case "git":
+-		r.url = "http://" + r.root + ".git"
+-	case "hg":
+-		r.url = "http://" + r.root
+-	default:
+-		return "", "", nil, errors.New("unsupported bitbucket vcs: " + response.Vcs)
+-	}
+-	if r.vcs = vcsMap[response.Vcs]; r.vcs == nil {
+-		panic("vcs is nil when it should not be")
+-	}
+-	return r.url, r.root, r.vcs, nil
+-}
+-
+-// findPublicRepo checks whether importPath is a well-formed path for one of
+-// the supported code hosting sites and, if so, returns a RemoteRepo.
+-func findPublicRepo(importPath string) (RemoteRepo, error) {
+-	for _, host := range knownHosts {
+-		if hm := host.pattern.FindStringSubmatch(importPath); hm != nil {
+-			return host.repo(hm[1])
+-		}
+-	}
+-	return nil, nil
+-}
+-
+-// findAnyRepo matches import paths with a repo suffix (.git, etc).
+-func findAnyRepo(importPath string) RemoteRepo {
+-	for _, v := range vcsMap {
+-		i := strings.Index(importPath+"/", v.suffix+"/")
+-		if i < 0 {
+-			continue
+-		}
+-		if !strings.Contains(importPath[:i], "/") {
+-			continue // don't match vcs suffix in the host name
+-		}
+-		return &anyRepo{
+-			baseRepo{
+-				root: importPath[:i] + v.suffix,
+-				vcs:  v,
+-			},
+-			importPath[:i],
+-		}
+-	}
+-	return nil
+-}
+-
+-// anyRepo implements an discoverable remote repo with a suffix (.git, etc).
+-type anyRepo struct {
+-	baseRepo
+-	rootWithoutSuffix string
+-}
+-
+-func (r *anyRepo) Repo(*http.Client) (url, root string, vcs *vcs, err error) {
+-	if r.url != "" {
+-		return r.url, r.root, r.vcs, nil
+-	}
+-	url, err = r.vcs.findURL(r.rootWithoutSuffix)
+-	if url == "" && err == nil {
+-		err = fmt.Errorf("couldn't find %s repository", r.vcs.name)
+-	}
+-	if err != nil {
+-		return "", "", nil, err
+-	}
+-	r.url = url
+-	return r.url, r.root, r.vcs, nil
+-}
+-
+-// findURL finds the URL for a given repo root by trying each combination of
+-// protocol and suffix in series.
+-func (v *vcs) findURL(root string) (string, error) {
+-	for _, proto := range v.protocols {
+-		for _, suffix := range []string{"", v.suffix} {
+-			url := proto + "://" + root + suffix
+-			out, err := exec.Command(v.cmd, v.check, url).CombinedOutput()
+-			if err == nil {
+-				printf("find %s: found %s\n", root, url)
+-				return url, nil
+-			}
+-			printf("findURL(%s): %s %s %s: %v\n%s\n", root, v.cmd, v.check, url, err, out)
+-		}
+-	}
+-	return "", nil
+-}
+-
+-var oldGoogleRepo = regexp.MustCompile(`^([a-z0-9\-]+)\.googlecode\.com/(svn|git|hg)(/[a-z0-9A-Z_.\-/]+)?$`)
+-
+-type errOldGoogleRepo struct {
+-	fixedPath string
+-}
+-
+-func (e *errOldGoogleRepo) Error() string {
+-	return fmt.Sprintf("unsupported import path; should be %q", e.fixedPath)
+-}
+-
+-// download checks out or updates the specified package from the remote server.
+-func download(importPath, srcDir string) (public bool, err error) {
+-	if strings.Contains(importPath, "..") {
+-		err = errors.New("invalid path (contains ..)")
+-		return
+-	}
+-
+-	if m := oldGoogleRepo.FindStringSubmatch(importPath); m != nil {
+-		fixedPath := "code.google.com/p/" + m[1] + m[3]
+-		err = &errOldGoogleRepo{fixedPath}
+-		return
+-	}
+-
+-	repo, err := findPublicRepo(importPath)
+-	if err != nil {
+-		return false, err
+-	}
+-	if repo != nil {
+-		public = true
+-	} else {
+-		repo = findAnyRepo(importPath)
+-	}
+-	if repo == nil {
+-		err = errors.New("cannot download: " + importPath)
+-		return
+-	}
+-	err = checkoutRepo(srcDir, repo)
+-	return
+-}
+-
+-// checkoutRepo checks out repo into srcDir (if it's not checked out already)
+-// and, if the -u flag is set, updates the repository.
+-func checkoutRepo(srcDir string, repo RemoteRepo) error {
+-	if !repo.IsCheckedOut(srcDir) {
+-		// do checkout
+-		url, root, vcs, err := repo.Repo(http.DefaultClient)
+-		if err != nil {
+-			return err
+-		}
+-		repoPath := filepath.Join(srcDir, root)
+-		parent, _ := filepath.Split(repoPath)
+-		if err = os.MkdirAll(parent, 0777); err != nil {
+-			return err
+-		}
+-		if err = run(string(filepath.Separator), nil, vcs.cmd, vcs.clone, url, repoPath); err != nil {
+-			return err
+-		}
+-		return vcs.updateRepo(repoPath)
+-	}
+-	if *update {
+-		// do update
+-		_, root, vcs, err := repo.Repo(http.DefaultClient)
+-		if err != nil {
+-			return err
+-		}
+-		repoPath := filepath.Join(srcDir, root)
+-		// Retrieve new revisions from the remote branch, if the VCS
+-		// supports this operation independently (e.g. svn doesn't)
+-		if vcs.pull != "" {
+-			if vcs.pullForceFlag != "" {
+-				if err = run(repoPath, nil, vcs.cmd, vcs.pull, vcs.pullForceFlag); err != nil {
+-					return err
+-				}
+-			} else if err = run(repoPath, nil, vcs.cmd, vcs.pull); err != nil {
+-				return err
+-			}
+-		}
+-		// Update to release or latest revision
+-		return vcs.updateRepo(repoPath)
+-	}
+-	return nil
+-}
+-
+-// updateRepo gets a list of tags in the repository and
+-// checks out the tag closest to the current runtime.Version.
+-// If no matching tag is found, it just updates to tip.
+-func (v *vcs) updateRepo(repoPath string) error {
+-	if v.tagList == "" || v.tagListRe == nil {
+-		// TODO(adg): fix for svn
+-		return run(repoPath, nil, v.cmd, v.update)
+-	}
+-
+-	// Get tag list.
+-	stderr := new(bytes.Buffer)
+-	cmd := exec.Command(v.cmd, v.tagList)
+-	cmd.Dir = repoPath
+-	cmd.Stderr = stderr
+-	out, err := cmd.Output()
+-	if err != nil {
+-		return &RunError{strings.Join(cmd.Args, " "), repoPath, out, err}
+-	}
+-	var tags []string
+-	for _, m := range v.tagListRe.FindAllStringSubmatch(string(out), -1) {
+-		tags = append(tags, m[1])
+-	}
+-
+-	// Only use the tag component of runtime.Version.
+-	ver := strings.Split(runtime.Version(), " ")[0]
+-
+-	// Select tag.
+-	if tag := selectTag(ver, tags); tag != "" {
+-		printf("selecting revision %q\n", tag)
+-		return run(repoPath, nil, v.cmd, v.checkout, v.updateRevFlag+tag)
+-	}
+-
+-	// No matching tag found, make default selection.
+-	printf("selecting tip\n")
+-	return run(repoPath, nil, v.cmd, v.update)
+-}
+-
+-// selectTag returns the closest matching tag for a given version.
+-// Closest means the latest one that is not after the current release.
+-// Version "release.rN" matches tags of the form "go.rN" (N being a decimal).
+-// Version "weekly.YYYY-MM-DD" matches tags like "go.weekly.YYYY-MM-DD".
+-func selectTag(goVersion string, tags []string) (match string) {
+-	const rPrefix = "release.r"
+-	if strings.HasPrefix(goVersion, rPrefix) {
+-		p := "go.r"
+-		v, err := strconv.ParseFloat(goVersion[len(rPrefix):], 64)
+-		if err != nil {
+-			return ""
+-		}
+-		var matchf float64
+-		for _, t := range tags {
+-			if !strings.HasPrefix(t, p) {
+-				continue
+-			}
+-			tf, err := strconv.ParseFloat(t[len(p):], 64)
+-			if err != nil {
+-				continue
+-			}
+-			if matchf < tf && tf <= v {
+-				match, matchf = t, tf
+-			}
+-		}
+-	}
+-	const wPrefix = "weekly."
+-	if strings.HasPrefix(goVersion, wPrefix) {
+-		p := "go.weekly."
+-		v := goVersion[len(wPrefix):]
+-		for _, t := range tags {
+-			if !strings.HasPrefix(t, p) {
+-				continue
+-			}
+-			if match < t && t[len(p):] <= v {
+-				match = t
+-			}
+-		}
+-	}
+-	return match
+-}
+-
+-func isDir(dir string) bool {
+-	fi, err := os.Stat(dir)
+-	return err == nil && fi.IsDir()
+-}
+diff --git a/src/cmd/goinstall/download_test.go b/src/cmd/goinstall/download_test.go
+deleted file mode 100644
+index 2aa6f6184d..0000000000
+--- a/src/cmd/goinstall/download_test.go
++++ /dev/null
+@@ -1,149 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"errors"
+-	"io/ioutil"
+-	"net/http"
+-	"testing"
+-)
+-
+-var FindPublicRepoTests = []struct {
+-	pkg            string
+-	vcs, root, url string
+-	transport      *testTransport
+-}{
+-	{
+-		"code.google.com/p/repo/path/foo",
+-		"hg",
+-		"code.google.com/p/repo",
+-		"https://code.google.com/p/repo",
+-		&testTransport{
+-			"https://code.google.com/p/repo/source/checkout",
+-			`<tt id="checkoutcmd">hg clone https://...`,
+-		},
+-	},
+-	{
+-		"code.google.com/p/repo/path/foo",
+-		"svn",
+-		"code.google.com/p/repo",
+-		"http://repo.googlecode.com/svn",
+-		&testTransport{
+-			"https://code.google.com/p/repo/source/checkout",
+-			`<tt id="checkoutcmd">svn checkout https://...`,
+-		},
+-	},
+-	{
+-		"code.google.com/p/repo/path/foo",
+-		"git",
+-		"code.google.com/p/repo",
+-		"https://code.google.com/p/repo",
+-		&testTransport{
+-			"https://code.google.com/p/repo/source/checkout",
+-			`<tt id="checkoutcmd">git clone https://...`,
+-		},
+-	},
+-	{
+-		"code.google.com/p/repo.sub/path",
+-		"hg",
+-		"code.google.com/p/repo.sub",
+-		"https://code.google.com/p/repo.sub",
+-		&testTransport{
+-			"https://code.google.com/p/repo/source/checkout?repo=sub",
+-			`<tt id="checkoutcmd">hg clone https://...`,
+-		},
+-	},
+-	{
+-		"bitbucket.org/user/repo/path/foo",
+-		"hg",
+-		"bitbucket.org/user/repo",
+-		"http://bitbucket.org/user/repo",
+-		&testTransport{
+-			"https://api.bitbucket.org/1.0/repositories/user/repo",
+-			`{"scm": "hg"}`,
+-		},
+-	},
+-	{
+-		"bitbucket.org/user/repo/path/foo",
+-		"git",
+-		"bitbucket.org/user/repo",
+-		"http://bitbucket.org/user/repo.git",
+-		&testTransport{
+-			"https://api.bitbucket.org/1.0/repositories/user/repo",
+-			`{"scm": "git"}`,
+-		},
+-	},
+-	{
+-		"github.com/user/repo/path/foo",
+-		"git",
+-		"github.com/user/repo",
+-		"http://github.com/user/repo.git",
+-		nil,
+-	},
+-	{
+-		"launchpad.net/project/series/path",
+-		"bzr",
+-		"launchpad.net/project/series",
+-		"https://launchpad.net/project/series",
+-		nil,
+-	},
+-	{
+-		"launchpad.net/~user/project/branch/path",
+-		"bzr",
+-		"launchpad.net/~user/project/branch",
+-		"https://launchpad.net/~user/project/branch",
+-		nil,
+-	},
+-}
+-
+-func TestFindPublicRepo(t *testing.T) {
+-	for _, test := range FindPublicRepoTests {
+-		client := http.DefaultClient
+-		if test.transport != nil {
+-			client = &http.Client{Transport: test.transport}
+-		}
+-		repo, err := findPublicRepo(test.pkg)
+-		if err != nil {
+-			t.Errorf("findPublicRepo(%s): error: %v", test.pkg, err)
+-			continue
+-		}
+-		if repo == nil {
+-			t.Errorf("%s: got nil match", test.pkg)
+-			continue
+-		}
+-		url, root, vcs, err := repo.Repo(client)
+-		if err != nil {
+-			t.Errorf("%s: repo.Repo error: %v", test.pkg, err)
+-			continue
+-		}
+-		if v := vcsMap[test.vcs]; vcs != v {
+-			t.Errorf("%s: got vcs=%v, want %v", test.pkg, vcs, v)
+-		}
+-		if root != test.root {
+-			t.Errorf("%s: got root=%v, want %v", test.pkg, root, test.root)
+-		}
+-		if url != test.url {
+-			t.Errorf("%s: got url=%v, want %v", test.pkg, url, test.url)
+-		}
+-	}
+-}
+-
+-type testTransport struct {
+-	expectURL    string
+-	responseBody string
+-}
+-
+-func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+-	if g, e := req.URL.String(), t.expectURL; g != e {
+-		return nil, errors.New("want " + e)
+-	}
+-	body := ioutil.NopCloser(bytes.NewBufferString(t.responseBody))
+-	return &http.Response{
+-		StatusCode: http.StatusOK,
+-		Body:       body,
+-	}, nil
+-}
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+deleted file mode 100644
+index bbc4b6b765..0000000000
+--- a/src/cmd/goinstall/main.go
++++ /dev/null
+@@ -1,400 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"errors"
+-	"flag"
+-	"fmt"
+-	"go/build"
+-	"go/token"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+-	"path/filepath" // use for file system paths
+-	"regexp"
+-	"runtime"
+-	"strings"
+-)
+-
+-func usage() {
+-	fmt.Fprintln(os.Stderr, "usage: goinstall [flags] importpath...")
+-	fmt.Fprintln(os.Stderr, "       goinstall [flags] -a")
+-	flag.PrintDefaults()
+-	os.Exit(2)
+-}
+-
+-const logfile = "goinstall.log"
+-
+-var (
+-	fset          = token.NewFileSet()
+-	argv0         = os.Args[0]
+-	parents       = make(map[string]string)
+-	visit         = make(map[string]status)
+-	installedPkgs = make(map[string]map[string]bool)
+-	schemeRe      = regexp.MustCompile(`^[a-z]+://`)
+-
+-	allpkg            = flag.Bool("a", false, "install all previously installed packages")
+-	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
+-	update            = flag.Bool("u", false, "update already-downloaded packages")
+-	doGofix           = flag.Bool("fix", false, "gofix each package before building it")
+-	doInstall         = flag.Bool("install", true, "build and install")
+-	clean             = flag.Bool("clean", false, "clean the package directory before installing")
+-	nuke              = flag.Bool("nuke", false, "clean the package directory and target before installing")
+-	useMake           = flag.Bool("make", true, "use make to build and install (obsolete, always true)")
+-	verbose           = flag.Bool("v", false, "verbose")
+-)
+-
+-type status int // status for visited map
+-const (
+-	unvisited status = iota
+-	visiting
+-	done
+-)
+-
+-type PackageError struct {
+-	pkg string
+-	err error
+-}
+-
+-func (e *PackageError) Error() string {
+-	return fmt.Sprintf("%s: %v", e.pkg, e.err)
+-}
+-
+-type DownloadError struct {
+-	pkg    string
+-	goroot bool
+-	err    error
+-}
+-
+-func (e *DownloadError) Error() string {
+-	s := fmt.Sprintf("%s: download failed: %v", e.pkg, e.err)
+-	if e.goroot && os.Getenv("GOPATH") == "" {
+-		s += " ($GOPATH is not set)"
+-	}
+-	return s
+-}
+-
+-type DependencyError PackageError
+-
+-func (e *DependencyError) Error() string {
+-	return fmt.Sprintf("%s: depends on failing packages:\n\t%v", e.pkg, e.err)
+-}
+-
+-type BuildError PackageError
+-
+-func (e *BuildError) Error() string {
+-	return fmt.Sprintf("%s: build failed: %v", e.pkg, e.err)
+-}
+-
+-type RunError struct {
+-	cmd, dir string
+-	out      []byte
+-	err      error
+-}
+-
+-func (e *RunError) Error() string {
+-	return fmt.Sprintf("%v\ncd %q && %q\n%s", e.err, e.dir, e.cmd, e.out)
+-}
+-
+-func logf(format string, args ...interface{}) {
+-	format = "%s: " + format
+-	args = append([]interface{}{argv0}, args...)
+-	fmt.Fprintf(os.Stderr, format, args...)
+-}
+-
+-func printf(format string, args ...interface{}) {
+-	if *verbose {
+-		logf(format, args...)
+-	}
+-}
+-
+-func main() {
+-	flag.Usage = usage
+-	flag.Parse()
+-	if runtime.GOROOT() == "" {
+-		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
+-		os.Exit(1)
+-	}
+-	readPackageList()
+-
+-	// special case - "unsafe" is already installed
+-	visit["unsafe"] = done
+-
+-	args := flag.Args()
+-	if *allpkg {
+-		if len(args) != 0 {
+-			usage() // -a and package list both provided
+-		}
+-		// install all packages that were ever installed
+-		n := 0
+-		for _, pkgs := range installedPkgs {
+-			for pkg := range pkgs {
+-				args = append(args, pkg)
+-				n++
+-			}
+-		}
+-		if n == 0 {
+-			logf("no installed packages\n")
+-			os.Exit(1)
+-		}
+-	}
+-	if len(args) == 0 {
+-		usage()
+-	}
+-	errs := false
+-	for _, path := range args {
+-		if err := install(path, ""); err != nil {
+-			errs = true
+-			fmt.Fprintln(os.Stderr, err)
+-		}
+-	}
+-	if errs {
+-		os.Exit(1)
+-	}
+-}
+-
+-// printDeps prints the dependency path that leads to pkg.
+-func printDeps(pkg string) {
+-	if pkg == "" {
+-		return
+-	}
+-	if visit[pkg] != done {
+-		printDeps(parents[pkg])
+-	}
+-	fmt.Fprintf(os.Stderr, "\t%s ->\n", pkg)
+-}
+-
+-// readPackageList reads the list of installed packages from the
+-// goinstall.log files in GOROOT and the GOPATHs and initializes
+-// the installedPkgs variable.
+-func readPackageList() {
+-	for _, t := range build.Path {
+-		installedPkgs[t.Path] = make(map[string]bool)
+-		name := filepath.Join(t.Path, logfile)
+-		pkglistdata, err := ioutil.ReadFile(name)
+-		if err != nil {
+-			printf("%s\n", err)
+-			continue
+-		}
+-		pkglist := strings.Fields(string(pkglistdata))
+-		for _, pkg := range pkglist {
+-			installedPkgs[t.Path][pkg] = true
+-		}
+-	}
+-}
+-
+-// logPackage logs the named package as installed in the goinstall.log file
+-// in the given tree if the package is not already in that file.
+-func logPackage(pkg string, tree *build.Tree) (logged bool) {
+-	if installedPkgs[tree.Path][pkg] {
+-		return false
+-	}
+-	name := filepath.Join(tree.Path, logfile)
+-	fout, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+-	if err != nil {
+-		printf("package log: %s\n", err)
+-		return false
+-	}
+-	fmt.Fprintf(fout, "%s\n", pkg)
+-	fout.Close()
+-	return true
+-}
+-
+-// install installs the package named by path, which is needed by parent.
+-func install(pkg, parent string) error {
+-	// Basic validation of import path string.
+-	if s := schemeRe.FindString(pkg); s != "" {
+-		return fmt.Errorf("%q used in import path, try %q\n", s, pkg[len(s):])
+-	}
+-	if strings.HasSuffix(pkg, "/") {
+-		return fmt.Errorf("%q should not have trailing '/'\n", pkg)
+-	}
+-
+-	// Make sure we're not already trying to install pkg.
+-	switch visit[pkg] {
+-	case done:
+-		return nil
+-	case visiting:
+-		fmt.Fprintf(os.Stderr, "%s: package dependency cycle\n", argv0)
+-		printDeps(parent)
+-		fmt.Fprintf(os.Stderr, "\t%s\n", pkg)
+-		os.Exit(2)
+-	}
+-	parents[pkg] = parent
+-	visit[pkg] = visiting
+-	defer func() {
+-		visit[pkg] = done
+-	}()
+-
+-	// Check whether package is local or remote.
+-	// If remote, download or update it.
+-	tree, pkg, err := build.FindTree(pkg)
+-	// Don't build the standard library.
+-	if err == nil && tree.Goroot && isStandardPath(pkg) {
+-		if parent == "" {
+-			return &PackageError{pkg, errors.New("cannot goinstall the standard library")}
+-		}
+-		return nil
+-	}
+-
+-	// Download remote packages if not found or forced with -u flag.
+-	remote, public := isRemote(pkg), false
+-	if remote {
+-		if err == build.ErrNotFound || (err == nil && *update) {
+-			// Download remote package.
+-			printf("%s: download\n", pkg)
+-			public, err = download(pkg, tree.SrcDir())
+-			if err != nil {
+-				// only suggest -fix if the bad import was not on the command line
+-				if e, ok := err.(*errOldGoogleRepo); ok && parent != "" {
+-					err = fmt.Errorf("%v\nRun goinstall with -fix to gofix the code.", e)
+-				}
+-				return &DownloadError{pkg, tree.Goroot, err}
+-			}
+-		} else {
+-			// Test if this is a public repository
+-			// (for reporting to dashboard).
+-			repo, e := findPublicRepo(pkg)
+-			public = repo != nil
+-			err = e
+-		}
+-	}
+-	if err != nil {
+-		return &PackageError{pkg, err}
+-	}
+-
+-	// Install the package and its dependencies.
+-	if err := installPackage(pkg, parent, tree, false); err != nil {
+-		return err
+-	}
+-
+-	if remote {
+-		// mark package as installed in goinstall.log
+-		logged := logPackage(pkg, tree)
+-
+-		// report installation to the dashboard if this is the first
+-		// install from a public repository.
+-		if logged && public {
+-			maybeReportToDashboard(pkg)
+-		}
+-	}
+-
+-	return nil
+-}
+-
+-// installPackage installs the specified package and its dependencies.
+-func installPackage(pkg, parent string, tree *build.Tree, retry bool) (installErr error) {
+-	printf("%s: install\n", pkg)
+-
+-	// Read package information.
+-	dir := filepath.Join(tree.SrcDir(), filepath.FromSlash(pkg))
+-	dirInfo, err := build.ScanDir(dir)
+-	if err != nil {
+-		return &PackageError{pkg, err}
+-	}
+-
+-	// We reserve package main to identify commands.
+-	if parent != "" && dirInfo.Package == "main" {
+-		return &PackageError{pkg, fmt.Errorf("found only package main in %s; cannot import", dir)}
+-	}
+-
+-	// Run gofix if we fail to build and -fix is set.
+-	defer func() {
+-		if retry || installErr == nil || !*doGofix {
+-			return
+-		}
+-		if e, ok := (installErr).(*DependencyError); ok {
+-			// If this package failed to build due to a
+-			// DependencyError, only attempt to gofix it if its
+-			// dependency failed for some reason other than a
+-			// DependencyError or BuildError.
+-			// (If a dep or one of its deps doesn't build there's
+-			// no way that gofixing this package can help.)
+-			switch e.err.(type) {
+-			case *DependencyError:
+-				return
+-			case *BuildError:
+-				return
+-			}
+-		}
+-		gofix(pkg, dir, dirInfo)
+-		installErr = installPackage(pkg, parent, tree, true) // retry
+-	}()
+-
+-	// Install prerequisites.
+-	for _, p := range dirInfo.Imports {
+-		if p == "C" {
+-			continue
+-		}
+-		if err := install(p, pkg); err != nil {
+-			return &DependencyError{pkg, err}
+-		}
+-	}
+-
+-	// Install this package.
+-	err = domake(dir, pkg, tree, dirInfo.IsCommand())
+-	if err != nil {
+-		return &BuildError{pkg, err}
+-	}
+-	return nil
+-}
+-
+-// gofix runs gofix against the GoFiles and CgoFiles of dirInfo in dir.
+-func gofix(pkg, dir string, dirInfo *build.DirInfo) {
+-	printf("%s: gofix\n", pkg)
+-	files := append([]string{}, dirInfo.GoFiles...)
+-	files = append(files, dirInfo.CgoFiles...)
+-	for i, file := range files {
+-		files[i] = filepath.Join(dir, file)
+-	}
+-	cmd := exec.Command("gofix", files...)
+-	cmd.Stdout = os.Stdout
+-	cmd.Stderr = os.Stderr
+-	if err := cmd.Run(); err != nil {
+-		logf("%s: gofix: %v", pkg, err)
+-	}
+-}
+-
+-// Is this a standard package path?  strings container/list etc.
+-// Assume that if the first element has a dot, it's a domain name
+-// and is not the standard package path.
+-func isStandardPath(s string) bool {
+-	dot := strings.Index(s, ".")
+-	slash := strings.Index(s, "/")
+-	return dot < 0 || 0 < slash && slash < dot
+-}
+-
+-// run runs the command cmd in directory dir with standard input stdin.
+-// If verbose is set and the command fails it prints the output to stderr.
+-func run(dir string, stdin []byte, arg ...string) error {
+-	cmd := exec.Command(arg[0], arg[1:]...)
+-	cmd.Stdin = bytes.NewBuffer(stdin)
+-	cmd.Dir = dir
+-	printf("cd %s && %s %s\n", dir, cmd.Path, strings.Join(arg[1:], " "))
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		if *verbose {
+-			fmt.Fprintf(os.Stderr, "%v\n%s\n", err, out)
+-		}
+-		return &RunError{strings.Join(arg, " "), dir, out, err}
+-	}
+-	return nil
+-}
+-
+-// isRemote returns true if the first part of the package name looks like a
+-// hostname - i.e. contains at least one '.' and the last part is at least 2
+-// characters.
+-func isRemote(pkg string) bool {
+-	parts := strings.SplitN(pkg, "/", 2)
+-	if len(parts) != 2 {
+-		return false
+-	}
+-	parts = strings.Split(parts[0], ".")
+-	if len(parts) < 2 || len(parts[len(parts)-1]) < 2 {
+-		return false
+-	}
+-	return true
+-}
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+deleted file mode 100644
+index 1e40d6ea37..0000000000
+--- a/src/cmd/goinstall/make.go
++++ /dev/null
+@@ -1,183 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Run "make install" to build package.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"errors"
+-	"go/build"
+-	"path" // use for import paths
+-	"strings"
+-	"text/template"
+-)
+-
+-// domake builds the package in dir.
+-// domake generates a standard Makefile and passes it
+-// to make on standard input.
+-func domake(dir, pkg string, tree *build.Tree, isCmd bool) (err error) {
+-	makefile, err := makeMakefile(dir, pkg, tree, isCmd)
+-	if err != nil {
+-		return err
+-	}
+-	cmd := []string{"bash", "gomake", "-f-"}
+-	if *nuke {
+-		cmd = append(cmd, "nuke")
+-	} else if *clean {
+-		cmd = append(cmd, "clean")
+-	}
+-	if *doInstall {
+-		cmd = append(cmd, "install")
+-	}
+-	if len(cmd) <= 3 { // nothing to do
+-		return nil
+-	}
+-	return run(dir, makefile, cmd...)
+-}
+-
+-// makeMakefile computes the standard Makefile for the directory dir
+-// installing as package pkg.  It includes all *.go files in the directory
+-// except those in package main and those ending in _test.go.
+-func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, error) {
+-	if !safeName(pkg) {
+-		return nil, errors.New("unsafe name: " + pkg)
+-	}
+-	targ := pkg
+-	targDir := tree.PkgDir()
+-	if isCmd {
+-		// use the last part of the package name for targ
+-		_, targ = path.Split(pkg)
+-		targDir = tree.BinDir()
+-	}
+-	dirInfo, err := build.ScanDir(dir)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	cgoFiles := dirInfo.CgoFiles
+-	isCgo := make(map[string]bool, len(cgoFiles))
+-	for _, file := range cgoFiles {
+-		if !safeName(file) {
+-			return nil, errors.New("bad name: " + file)
+-		}
+-		isCgo[file] = true
+-	}
+-
+-	goFiles := make([]string, 0, len(dirInfo.GoFiles))
+-	for _, file := range dirInfo.GoFiles {
+-		if !safeName(file) {
+-			return nil, errors.New("unsafe name: " + file)
+-		}
+-		if !isCgo[file] {
+-			goFiles = append(goFiles, file)
+-		}
+-	}
+-
+-	oFiles := make([]string, 0, len(dirInfo.CFiles)+len(dirInfo.SFiles))
+-	cgoOFiles := make([]string, 0, len(dirInfo.CFiles))
+-	for _, file := range dirInfo.CFiles {
+-		if !safeName(file) {
+-			return nil, errors.New("unsafe name: " + file)
+-		}
+-		// When cgo is in use, C files are compiled with gcc,
+-		// otherwise they're compiled with gc.
+-		if len(cgoFiles) > 0 {
+-			cgoOFiles = append(cgoOFiles, file[:len(file)-2]+".o")
+-		} else {
+-			oFiles = append(oFiles, file[:len(file)-2]+".$O")
+-		}
+-	}
+-
+-	for _, file := range dirInfo.SFiles {
+-		if !safeName(file) {
+-			return nil, errors.New("unsafe name: " + file)
+-		}
+-		oFiles = append(oFiles, file[:len(file)-2]+".$O")
+-	}
+-
+-	var imports []string
+-	for _, t := range build.Path {
+-		imports = append(imports, t.PkgDir())
+-	}
+-
+-	var buf bytes.Buffer
+-	md := makedata{targ, targDir, "pkg", goFiles, oFiles, cgoFiles, cgoOFiles, imports}
+-	if isCmd {
+-		md.Type = "cmd"
+-	}
+-	if err := makefileTemplate.Execute(&buf, &md); err != nil {
+-		return nil, err
+-	}
+-	return buf.Bytes(), nil
+-}
+-
+-var safeBytes = []byte("+-~./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
+-
+-func safeName(s string) bool {
+-	if s == "" {
+-		return false
+-	}
+-	if strings.Contains(s, "..") {
+-		return false
+-	}
+-	if s[0] == '~' {
+-		return false
+-	}
+-	for i := 0; i < len(s); i++ {
+-		if c := s[i]; c < 0x80 && bytes.IndexByte(safeBytes, c) < 0 {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-// makedata is the data type for the makefileTemplate.
+-type makedata struct {
+-	Targ      string   // build target
+-	TargDir   string   // build target directory
+-	Type      string   // build type: "pkg" or "cmd"
+-	GoFiles   []string // list of non-cgo .go files
+-	OFiles    []string // list of .$O files
+-	CgoFiles  []string // list of cgo .go files
+-	CgoOFiles []string // list of cgo .o files, without extension
+-	Imports   []string // gc/ld import paths
+-}
+-
+-var makefileTemplate = template.Must(template.New("Makefile").Parse(`
+-include $(GOROOT)/src/Make.inc
+-
+-TARG={{.Targ}}
+-TARGDIR={{.TargDir}}
+-
+-{{with .GoFiles}}
+-GOFILES=\
+-{{range .}}	{{.}}\
+-{{end}}
+-
+-{{end}}
+-{{with .OFiles}}
+-OFILES=\
+-{{range .}}	{{.}}\
+-{{end}}
+-
+-{{end}}
+-{{with .CgoFiles}}
+-CGOFILES=\
+-{{range .}}	{{.}}\
+-{{end}}
+-
+-{{end}}
+-{{with .CgoOFiles}}
+-CGO_OFILES=\
+-{{range .}}	{{.}}\
+-{{end}}
+-
+-{{end}}
+-GCIMPORTS={{range .Imports}}-I "{{.}}" {{end}}
+-LDIMPORTS={{range .Imports}}-L "{{.}}" {{end}}
+-
+-include $(GOROOT)/src/Make.{{.Type}}
+-`))
+diff --git a/src/cmd/goinstall/tag_test.go b/src/cmd/goinstall/tag_test.go
+deleted file mode 100644
+index a23a7ea82f..0000000000
+--- a/src/cmd/goinstall/tag_test.go
++++ /dev/null
+@@ -1,73 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "testing"
+-
+-var selectTagTestTags = []string{
+-	"go.r58",
+-	"go.r58.1",
+-	"go.r59",
+-	"go.r59.1",
+-	"go.r61",
+-	"go.r61.1",
+-	"go.weekly.2010-01-02",
+-	"go.weekly.2011-10-12",
+-	"go.weekly.2011-10-12.1",
+-	"go.weekly.2011-10-14",
+-	"go.weekly.2011-11-01",
+-	// these should be ignored:
+-	"release.r59",
+-	"release.r59.1",
+-	"release",
+-	"weekly.2011-10-12",
+-	"weekly.2011-10-12.1",
+-	"weekly",
+-	"foo",
+-	"bar",
+-	"go.f00",
+-	"go!r60",
+-	"go.1999-01-01",
+-}
+-
+-var selectTagTests = []struct {
+-	version  string
+-	selected string
+-}{
+-	{"release.r57", ""},
+-	{"release.r58.2", "go.r58.1"},
+-	{"release.r59", "go.r59"},
+-	{"release.r59.1", "go.r59.1"},
+-	{"release.r60", "go.r59.1"},
+-	{"release.r60.1", "go.r59.1"},
+-	{"release.r61", "go.r61"},
+-	{"release.r66", "go.r61.1"},
+-	{"weekly.2010-01-01", ""},
+-	{"weekly.2010-01-02", "go.weekly.2010-01-02"},
+-	{"weekly.2010-01-02.1", "go.weekly.2010-01-02"},
+-	{"weekly.2010-01-03", "go.weekly.2010-01-02"},
+-	{"weekly.2011-10-12", "go.weekly.2011-10-12"},
+-	{"weekly.2011-10-12.1", "go.weekly.2011-10-12.1"},
+-	{"weekly.2011-10-13", "go.weekly.2011-10-12.1"},
+-	{"weekly.2011-10-14", "go.weekly.2011-10-14"},
+-	{"weekly.2011-10-14.1", "go.weekly.2011-10-14"},
+-	{"weekly.2011-11-01", "go.weekly.2011-11-01"},
+-	{"weekly.2014-01-01", "go.weekly.2011-11-01"},
+-	{"weekly.3000-01-01", "go.weekly.2011-11-01"},
+-	// faulty versions:
+-	{"release.f00", ""},
+-	{"weekly.1999-01-01", ""},
+-	{"junk", ""},
+-	{"", ""},
+-}
+-
+-func TestSelectTag(t *testing.T) {
+-	for _, c := range selectTagTests {
+-		selected := selectTag(c.version, selectTagTestTags)
+-		if selected != c.selected {
+-			t.Errorf("selectTag(%q) = %q, want %q", c.version, selected, c.selected)
+-		}
+-	}
+-}
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index c272fa947c..794818d737 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -158,7 +158,6 @@ DIRS=\
+ 	../cmd/godoc\
+ 	../cmd/fix\
+ 	../cmd/gofmt\
+-	../cmd/goinstall\
+ 	../cmd/gotest\
+ 	../cmd/vet\
+ 	../cmd/yacc\

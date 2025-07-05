@@ -9,6 +9,31 @@ Date:   Thu Jun 4 21:11:55 2009 -0700
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=29532
     CL=29917
-
+---
  src/cmd/5g/galign.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index 2633994a3c..9a367797aa 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -16,7 +16,7 @@ Typedef	typedefs[] =
+ {
+ 	"int",		TINT,		TINT32,
+ 	"uint",		TUINT,		TUINT32,
+-	"uintptr",	TUINTPTR,	TUINT64,
++	"uintptr",	TUINTPTR,	TUINT32,
+ 	"float",	TFLOAT,		TFLOAT32,
+ 	0
+ };
+@@ -24,8 +24,8 @@ Typedef	typedefs[] =
+ void
+ betypeinit(void)
+ {
+-	maxround = 8;
+-	widthptr = 8;
++	maxround = 4;
++	widthptr = 4;
+ 
+ 	zprog.link = P;
+ 	zprog.as = AGOK;

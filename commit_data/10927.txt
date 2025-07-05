@@ -8,8 +8,80 @@ Date:   Wed Dec 21 15:43:12 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5504054
-
+---
  misc/dashboard/app/build/build.go | 2 ++
  misc/dashboard/builder/http.go    | 3 ++-
  misc/dashboard/builder/main.go    | 8 +++++---
  3 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+index 8a0bb6b7a6..e7edd7831e 100644
+--- a/misc/dashboard/app/build/build.go
++++ b/misc/dashboard/app/build/build.go
+@@ -180,6 +180,8 @@ type Result struct {
+ 	OK      bool
+ 	Log     string `datastore:"-"`        // for JSON unmarshaling only
+ 	LogHash string `datastore:",noindex"` // Key to the Log record.
++
++	RunTime int64 // time to build+test in nanoseconds 
+ }
+ 
+ func (r *Result) Key(c appengine.Context) *datastore.Key {
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index fb6d3e9264..d4a4d7eea6 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -111,7 +111,7 @@ func (b *Builder) todo(kind, pkg, goHash string) (rev string, err error) {
+ }
+ 
+ // recordResult sends build results to the dashboard
+-func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string) error {
++func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string, runTime time.Duration) error {
+ 	req := obj{
+ 		"Builder":     b.name,
+ 		"PackagePath": pkg,
+@@ -119,6 +119,7 @@ func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string) erro
+ 		"GoHash":      goHash,
+ 		"OK":          ok,
+ 		"Log":         buildLog,
++		"RunTime":     runTime,
+ 	}
+ 	args := url.Values{"key": {b.key}, "builder": {b.name}}
+ 	return dash("POST", "result", args, req, nil)
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 6e571ad35c..804fb3fe3a 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -294,7 +294,9 @@ func (b *Builder) buildHash(hash string) (err error) {
+ 
+ 	// build
+ 	logfile := path.Join(workpath, "build.log")
++	startTime := time.Now()
+ 	buildLog, status, err := runLog(b.envv(), logfile, srcDir, *buildCmd)
++	runTime := time.Now().Sub(startTime)
+ 	if err != nil {
+ 		return fmt.Errorf("%s: %s", *buildCmd, err)
+ 	}
+@@ -309,11 +311,11 @@ func (b *Builder) buildHash(hash string) (err error) {
+ 
+ 	if status != 0 {
+ 		// record failure
+-		return b.recordResult(false, "", hash, "", buildLog)
++		return b.recordResult(false, "", hash, "", buildLog, runTime)
+ 	}
+ 
+ 	// record success
+-	if err = b.recordResult(true, "", hash, "", ""); err != nil {
++	if err = b.recordResult(true, "", hash, "", "", runTime); err != nil {
+ 		return fmt.Errorf("recordResult: %s", err)
+ 	}
+ 
+@@ -378,7 +380,7 @@ func (b *Builder) buildPackages(goRoot, goHash string) {
+ 		}
+ 
+ 		// record the result
+-		err = b.recordResult(ok, pkg, hash, goHash, buildLog)
++		err = b.recordResult(ok, pkg, hash, goHash, buildLog, 0)
+ 		if err != nil {
+ 			log.Printf("buildPackages %s: %v", pkg, err)
+ 		}

@@ -12,10 +12,97 @@ Date:   Mon Mar 5 12:04:18 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5729062
-
+---
  src/pkg/crypto/x509/pkcs1.go          | 2 +-
  src/pkg/encoding/asn1/asn1_test.go    | 2 +-
  src/pkg/encoding/asn1/common.go       | 3 +++
  src/pkg/encoding/asn1/marshal.go      | 4 ++++
  src/pkg/encoding/asn1/marshal_test.go | 6 ++++++
  5 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/pkcs1.go b/src/pkg/crypto/x509/pkcs1.go
+index 3aaa8c5832..873d3966eb 100644
+--- a/src/pkg/crypto/x509/pkcs1.go
++++ b/src/pkg/crypto/x509/pkcs1.go
+@@ -24,7 +24,7 @@ type pkcs1PrivateKey struct {
+ 	Dq   *big.Int `asn1:"optional"`
+ 	Qinv *big.Int `asn1:"optional"`
+ 
+-	AdditionalPrimes []pkcs1AdditionalRSAPrime `asn1:"optional"`
++	AdditionalPrimes []pkcs1AdditionalRSAPrime `asn1:"optional,omitempty"`
+ }
+ 
+ type pkcs1AdditionalRSAPrime struct {
+diff --git a/src/pkg/encoding/asn1/asn1_test.go b/src/pkg/encoding/asn1/asn1_test.go
+index 92c9eb62d2..93803f4353 100644
+--- a/src/pkg/encoding/asn1/asn1_test.go
++++ b/src/pkg/encoding/asn1/asn1_test.go
+@@ -321,7 +321,7 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
+ 	{"default:42", fieldParameters{defaultValue: newInt64(42)}},
+ 	{"tag:17", fieldParameters{tag: newInt(17)}},
+ 	{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
+-	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, false}},
++	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, false, false}},
+ 	{"set", fieldParameters{set: true}},
+ }
+ 
+diff --git a/src/pkg/encoding/asn1/common.go b/src/pkg/encoding/asn1/common.go
+index f7cb3acbb8..03856bc55c 100644
+--- a/src/pkg/encoding/asn1/common.go
++++ b/src/pkg/encoding/asn1/common.go
+@@ -75,6 +75,7 @@ type fieldParameters struct {
+ 	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
+ 	stringType   int    // the string tag to use when marshaling.
+ 	set          bool   // true iff this should be encoded as a SET
++	omitEmpty    bool   // true iff this should be omitted if empty when marshaling.
+ 
+ 	// Invariants:
+ 	//   if explicit is set, tag is non-nil.
+@@ -116,6 +117,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
+ 			if ret.tag == nil {
+ 				ret.tag = new(int)
+ 			}
++		case part == "omitempty":
++			ret.omitEmpty = true
+ 		}
+ 	}
+ 	return
+diff --git a/src/pkg/encoding/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+index 774bee74ba..163bca575d 100644
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -463,6 +463,10 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 		return marshalField(out, v.Elem(), params)
+ 	}
+ 
++	if v.Kind() == reflect.Slice && v.Len() == 0 && params.omitEmpty {
++		return
++	}
++
+ 	if params.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
+ 		return
+ 	}
+diff --git a/src/pkg/encoding/asn1/marshal_test.go b/src/pkg/encoding/asn1/marshal_test.go
+index a7447f9781..f43bcae681 100644
+--- a/src/pkg/encoding/asn1/marshal_test.go
++++ b/src/pkg/encoding/asn1/marshal_test.go
+@@ -54,6 +54,10 @@ type optionalRawValueTest struct {
+ 	A RawValue `asn1:"optional"`
+ }
+ 
++type omitEmptyTest struct {
++	A []string `asn1:"omitempty"`
++}
++
+ type testSET []int
+ 
+ var PST = time.FixedZone("PST", -8*60*60)
+@@ -116,6 +120,8 @@ var marshalTests = []marshalTest{
+ 	{rawContentsStruct{[]byte{0x30, 3, 1, 2, 3}, 64}, "3003010203"},
+ 	{RawValue{Tag: 1, Class: 2, IsCompound: false, Bytes: []byte{1, 2, 3}}, "8103010203"},
+ 	{testSET([]int{10}), "310302010a"},
++	{omitEmptyTest{[]string{}}, "3000"},
++	{omitEmptyTest{[]string{"1"}}, "30053003130131"},
+ }
+ 
+ func TestMarshal(t *testing.T) {

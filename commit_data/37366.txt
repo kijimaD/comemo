@@ -16,7 +16,60 @@ Date:   Sun Jul 15 18:34:55 2018 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go            | 15 +++++++++++++++
  src/cmd/go/internal/work/exec.go | 12 ++++++++----
  2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 6df70a238d..983698cbc1 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5526,6 +5526,21 @@ func TestTestVet(t *testing.T) {
+ 	tg.grepStderrNot(`invalid.*constraint`, "did diagnose bad build constraint in vetxonly mode")
+ }
+ 
++func TestTestSkipVetAfterFailedBuild(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++
++	tg.tempFile("x_test.go", `package x
++		func f() {
++			return 1
++		}
++	`)
++
++	tg.runFail("test", tg.path("x_test.go"))
++	tg.grepStderrNot(`vet`, "vet should be skipped after the failed build")
++}
++
+ func TestTestVetRebuild(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index e00b528522..5d3d2ef77f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -915,13 +915,17 @@ func (b *Builder) vet(a *Action) error {
+ 
+ 	a.Failed = false // vet of dependency may have failed but we can still succeed
+ 
++	if a.Deps[0].Failed {
++		// The build of the package has failed. Skip vet check.
++		// Vet could return export data for non-typecheck errors,
++		// but we ignore it because the package cannot be compiled.
++		return nil
++	}
++
+ 	vcfg := a.Deps[0].vetCfg
+ 	if vcfg == nil {
+ 		// Vet config should only be missing if the build failed.
+-		if !a.Deps[0].Failed {
+-			return fmt.Errorf("vet config not found")
+-		}
+-		return nil
++		return fmt.Errorf("vet config not found")
+ 	}
+ 
+ 	vcfg.VetxOnly = a.VetxOnly

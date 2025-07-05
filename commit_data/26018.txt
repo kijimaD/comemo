@@ -7,6 +7,19 @@ Date:   Fri Dec 11 01:34:16 2015 -0500
     Change-Id: I26fc120e66f559e4da90883ed5c8457a99426a25
     Reviewed-on: https://go-review.googlesource.com/17729
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.6.txt | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index e989604467..529e551a8d 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -27,7 +27,6 @@ bufio: add Scanner.Buffer (https://golang.org/cl/14599/)
+ bufio: add ErrFinalToken as a sentinel value for Scan's split functions (https://golang.org/cl/14924)
+ crypto/aes: dedicated asm version of AES-GCM (https://golang.org/cl/10484)
+ fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
+-fmt: in Scanf, newlines must match even at end of string (https://golang.org/cl/16165/)
+ image: add NYCbCrA types (https://golang.org/cl/15671)
+ math/rand: add Read (https://golang.org/cl/14522)
+ net/http: HTTP/2.0 support (many CLs)

@@ -9,6 +9,24 @@ Date:   Tue Feb 23 02:14:32 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 91280e02e5..89b442796b 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -729,11 +729,7 @@ func importfile(f *Val, indent []byte) {
+ 		if localimport != "" {
+ 			prefix = localimport
+ 		}
+-		cleanbuf := prefix
+-		cleanbuf += "/"
+-		cleanbuf += path_
+-		cleanbuf = path.Clean(cleanbuf)
+-		path_ = cleanbuf
++		path_ = path.Join(prefix, path_)
+ 
+ 		if isbadimport(path_) {
+ 			return

@@ -10,7 +10,34 @@ Date:   Tue Sep 16 09:58:17 2014 -0400
     R=khr, dave
     CC=golang-codereviews
     https://golang.org/cl/143940043
-
+---
  src/cmd/gc/gen.c  | 2 +-
  src/cmd/gc/walk.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 86acd88259..83c46c6504 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -585,7 +585,7 @@ cgen_dcl(Node *n)
+ 	if(!(n->class & PHEAP))
+ 		return;
+ 	if(compiling_runtime)
+-		fatal("%N escapes to heap, not allowed in runtime.", n);
++		yyerror("%N escapes to heap, not allowed in runtime.", n);
+ 	if(n->alloc == nil)
+ 		n->alloc = callnew(n->type);
+ 	cgen_as(n->heapaddr, n->alloc);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a30fa62a6b..713348c0c0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2505,7 +2505,7 @@ paramstoheap(Type **argin, int out)
+ 
+ 		// generate allocation & copying code
+ 		if(compiling_runtime)
+-			fatal("%N escapes to heap, not allowed in runtime.", v);
++			yyerror("%N escapes to heap, not allowed in runtime.", v);
+ 		if(v->alloc == nil)
+ 			v->alloc = callnew(v->type);
+ 		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));

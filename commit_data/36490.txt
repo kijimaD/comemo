@@ -12,7 +12,7 @@ Date:   Mon Apr 30 20:23:37 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/error_nacl.go          |  9 +++++++++
  src/net/error_plan9.go         |  9 +++++++++
  src/net/error_unix.go          | 16 ++++++++++++++++
@@ -22,3 +22,154 @@ Date:   Mon Apr 30 20:23:37 2018 -0700
  src/syscall/syscall_unix.go    |  2 +-
  src/syscall/syscall_windows.go |  2 +-
  8 files changed, 83 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/error_nacl.go b/src/net/error_nacl.go
+new file mode 100644
+index 0000000000..caad133b77
+--- /dev/null
++++ b/src/net/error_nacl.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++func isConnError(err error) bool {
++	return false
++}
+diff --git a/src/net/error_plan9.go b/src/net/error_plan9.go
+new file mode 100644
+index 0000000000..caad133b77
+--- /dev/null
++++ b/src/net/error_plan9.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++func isConnError(err error) bool {
++	return false
++}
+diff --git a/src/net/error_unix.go b/src/net/error_unix.go
+new file mode 100644
+index 0000000000..633861e759
+--- /dev/null
++++ b/src/net/error_unix.go
+@@ -0,0 +1,16 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package net
++
++import "syscall"
++
++func isConnError(err error) bool {
++	if se, ok := err.(syscall.Errno); ok {
++		return se == syscall.ECONNRESET || se == syscall.ECONNABORTED
++	}
++	return false
++}
+diff --git a/src/net/error_windows.go b/src/net/error_windows.go
+new file mode 100644
+index 0000000000..570b97b278
+--- /dev/null
++++ b/src/net/error_windows.go
+@@ -0,0 +1,14 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "syscall"
++
++func isConnError(err error) bool {
++	if se, ok := err.(syscall.Errno); ok {
++		return se == syscall.WSAECONNRESET || se == syscall.WSAECONNABORTED
++	}
++	return false
++}
+diff --git a/src/net/net.go b/src/net/net.go
+index b023d7c93f..94561dd749 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -490,6 +490,12 @@ type temporary interface {
+ }
+ 
+ func (e *OpError) Temporary() bool {
++	// Treat ECONNRESET and ECONNABORTED as temporary errors when
++	// they come from calling accept. See issue 6163.
++	if e.Op == "accept" && isConnError(e.Err) {
++		return true
++	}
++
+ 	if ne, ok := e.Err.(*os.SyscallError); ok {
+ 		t, ok := ne.Err.(temporary)
+ 		return ok && t.Temporary()
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 024505e7c6..c82aa070a2 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -516,3 +516,30 @@ func TestCloseUnblocksRead(t *testing.T) {
+ 	}
+ 	withTCPConnPair(t, client, server)
+ }
++
++// Issue 24808: verify that ECONNRESET is not temporary for read.
++func TestNotTemporaryRead(t *testing.T) {
++	t.Parallel()
++	server := func(cs *TCPConn) error {
++		cs.SetLinger(0)
++		// Give the client time to get stuck in a Read.
++		time.Sleep(20 * time.Millisecond)
++		cs.Close()
++		return nil
++	}
++	client := func(ss *TCPConn) error {
++		_, err := ss.Read([]byte{0})
++		if err == nil {
++			return errors.New("Read succeeded unexpectedly")
++		} else if err == io.EOF {
++			// This happens on NaCl and Plan 9.
++			return nil
++		} else if ne, ok := err.(Error); !ok {
++			return fmt.Errorf("unexpected error %v", err)
++		} else if ne.Temporary() {
++			return fmt.Errorf("unexpected temporary error %v", err)
++		}
++		return nil
++	}
++	withTCPConnPair(t, client, server)
++}
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index a634748273..c9c0f62dd2 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -121,7 +121,7 @@ func (e Errno) Error() string {
+ }
+ 
+ func (e Errno) Temporary() bool {
+-	return e == EINTR || e == EMFILE || e == ECONNRESET || e == ECONNABORTED || e.Timeout()
++	return e == EINTR || e == EMFILE || e.Timeout()
+ }
+ 
+ func (e Errno) Timeout() bool {
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 9026fcdacf..5cfdb76e2b 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -110,7 +110,7 @@ func (e Errno) Error() string {
+ }
+ 
+ func (e Errno) Temporary() bool {
+-	return e == EINTR || e == EMFILE || e == WSAECONNABORTED || e == WSAECONNRESET || e.Timeout()
++	return e == EINTR || e == EMFILE || e.Timeout()
+ }
+ 
+ func (e Errno) Timeout() bool {

@@ -16,6 +16,20 @@ Date:   Wed Aug 4 19:41:19 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/preempt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index a38ab79398..334bac779e 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -399,7 +399,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 		return false, 0
+ 	}
+ 	up, startpc := pcdatavalue2(f, _PCDATA_UnsafePoint, pc)
+-	if up != _PCDATA_UnsafePointSafe {
++	if up == _PCDATA_UnsafePointUnsafe {
+ 		// Unsafe-point marked by compiler. This includes
+ 		// atomic sequences (e.g., write barrier) and nosplit
+ 		// functions (except at calls).

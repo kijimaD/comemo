@@ -15,8 +15,87 @@ Date:   Mon Apr 29 02:04:26 2019 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  doc/debugging_with_gdb.html     |  3 +++
  src/runtime/runtime-gdb.py      | 21 ++++++++++++++++++---
  src/runtime/runtime-gdb_test.go |  7 +++++++
  3 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index 3899ac92d5..36ec0bdf37 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -149,6 +149,9 @@ Inspecting goroutines:
+ (gdb) <b>help goroutine</b></pre>
+ For example:
+ <pre>(gdb) <b>goroutine 12 bt</b></pre>
++You can inspect all goroutines by passing <code>all</code> instead of a specific goroutine's ID.
++For example:
++<pre>(gdb) <b>goroutine all bt</b></pre>
+ </li>
+ </ul>
+ 
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index 72645d289e..6139f99485 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -511,6 +511,10 @@ class GoroutineCmd(gdb.Command):
+ 
+ 	Usage: (gdb) goroutine <goid> <gdbcmd>
+ 
++	You could pass "all" as <goid> to apply <gdbcmd> to all goroutines.
++
++	For example: (gdb) goroutine all <gdbcmd>
++
+ 	Note that it is ill-defined to modify state in the context of a goroutine.
+ 	Restrict yourself to inspecting values.
+ 	"""
+@@ -519,9 +523,20 @@ class GoroutineCmd(gdb.Command):
+ 		gdb.Command.__init__(self, "goroutine", gdb.COMMAND_STACK, gdb.COMPLETE_NONE)
+ 
+ 	def invoke(self, arg, _from_tty):
+-		goid, cmd = arg.split(None, 1)
+-		goid = gdb.parse_and_eval(goid)
+-		pc, sp = find_goroutine(int(goid))
++		goid_str, cmd = arg.split(None, 1)
++		goids = []
++
++		if goid_str == 'all':
++			for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
++				goids.append(int(ptr['goid']))
++		else:
++			goids = [int(gdb.parse_and_eval(goid_str))]
++
++		for goid in goids:
++			self.invoke_per_goid(goid, cmd)
++
++	def invoke_per_goid(self, goid, cmd):
++		pc, sp = find_goroutine(goid)
+ 		if not pc:
+ 			print("No such goroutine: ", goid)
+ 			return
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 63d6e52dea..de1bac65da 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -217,6 +217,9 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		"-ex", "echo BEGIN goroutine 2 bt\n",
+ 		"-ex", "goroutine 2 bt",
+ 		"-ex", "echo END\n",
++		"-ex", "echo BEGIN goroutine all bt\n",
++		"-ex", "goroutine all bt",
++		"-ex", "echo END\n",
+ 		"-ex", "clear main.go:15", // clear the previous break point
+ 		"-ex", fmt.Sprintf("br main.go:%d", nLines), // new break point at the end of main
+ 		"-ex", "c",
+@@ -303,6 +306,10 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		t.Fatalf("goroutine 2 bt failed: %s", bl)
+ 	}
+ 
++	if bl := blocks["goroutine all bt"]; !btGoroutine1Re.MatchString(bl) || !btGoroutine2Re.MatchString(bl) {
++		t.Fatalf("goroutine all bt failed: %s", bl)
++	}
++
+ 	btGoroutine1AtTheEndRe := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
+ 	if bl := blocks["goroutine 1 bt at the end"]; !btGoroutine1AtTheEndRe.MatchString(bl) {
+ 		t.Fatalf("goroutine 1 bt at the end failed: %s", bl)

@@ -34,6 +34,31 @@ Date:   Fri Apr 7 18:21:00 2023 +0100
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/xml/read.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index 43be08eeef..c1c843e4c0 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -284,7 +284,8 @@ func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
+ 		// Slice of element values.
+ 		// Grow slice.
+ 		n := val.Len()
+-		val.Set(reflect.Append(val, reflect.Zero(val.Type().Elem())))
++		val.Grow(1)
++		val.SetLen(n + 1)
+ 
+ 		// Recur to read element into slice.
+ 		if err := d.unmarshalAttr(val.Index(n), attr); err != nil {
+@@ -410,7 +411,8 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) e
+ 		// Slice of element values.
+ 		// Grow slice.
+ 		n := v.Len()
+-		v.Set(reflect.Append(val, reflect.Zero(v.Type().Elem())))
++		v.Grow(1)
++		v.SetLen(n + 1)
+ 
+ 		// Recur to read element into slice.
+ 		if err := d.unmarshal(v.Index(n), start, depth+1); err != nil {

@@ -9,8 +9,61 @@ Date:   Tue May 26 15:58:13 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sizeof_test.go                    | 2 +-
  src/runtime/testdata/testprog/lockosthread.go | 6 +++---
  src/time/example_test.go                      | 2 +-
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/sizeof_test.go b/src/runtime/sizeof_test.go
+index d6156902c1..736e848f8c 100644
+--- a/src/runtime/sizeof_test.go
++++ b/src/runtime/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{runtime.G{}, 216, 376}, // g, but exported for testing
++		{runtime.G{}, 216, 376},   // g, but exported for testing
+ 		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
+ 	}
+ 
+diff --git a/src/runtime/testdata/testprog/lockosthread.go b/src/runtime/testdata/testprog/lockosthread.go
+index 098cc4dd72..e9d7fdbc44 100644
+--- a/src/runtime/testdata/testprog/lockosthread.go
++++ b/src/runtime/testdata/testprog/lockosthread.go
+@@ -220,7 +220,7 @@ func LockOSThreadTemplateThreadRace() {
+ 	}()
+ 
+ 	// Try to synchronize both LockOSThreads.
+-	start := time.Now().Add(10*time.Millisecond)
++	start := time.Now().Add(10 * time.Millisecond)
+ 
+ 	var wg sync.WaitGroup
+ 	wg.Add(2)
+@@ -232,10 +232,10 @@ func LockOSThreadTemplateThreadRace() {
+ 
+ 			// Add work to the local runq to trigger early startm
+ 			// in handoffp.
+-			go func(){}()
++			go func() {}()
+ 
+ 			runtime.LockOSThread()
+-			runtime.Gosched()  // add a preemption point.
++			runtime.Gosched() // add a preemption point.
+ 			wg.Done()
+ 		}()
+ 	}
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 0f9b874944..0afb18aba6 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -51,7 +51,7 @@ func ExampleDuration_Round() {
+ 
+ func ExampleDuration_String() {
+ 	fmt.Println(1*time.Hour + 2*time.Minute + 300*time.Millisecond)
+-	fmt.Println(300*time.Millisecond)
++	fmt.Println(300 * time.Millisecond)
+ 	// Output:
+ 	// 1h2m0.3s
+ 	// 300ms

@@ -10,6 +10,22 @@ Date:   Thu May 7 10:34:12 2015 -0400
     Change-Id: I3fb45fd9bd3996ed96df5be903b9fd6bd97148b0
     Reviewed-on: https://go-review.googlesource.com/9827
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/cmd/internal/gc/gsubr.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 53b3f6c41d..9b75bb6109 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -90,6 +90,10 @@ func Gbranch(as int, t *Type, likely int) *obj.Prog {
+ 		p.From.Offset = int64(obj.Bool2int(likely > 0))
+ 	}
+ 
++	if Debug['g'] != 0 {
++		fmt.Printf("%v\n", p)
++	}
++
+ 	return p
+ }
+ 

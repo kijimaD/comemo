@@ -12,6 +12,20 @@ Date:   Tue Mar 11 14:34:07 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/73840043
-
+---
  src/pkg/path/filepath/path.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 65d29bf9f9..71603cc594 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -67,7 +67,7 @@ const (
+ //	   along with the non-.. element that precedes it.
+ //	4. Eliminate .. elements that begin a rooted path:
+ //	   that is, replace "/.." by "/" at the beginning of a path,
+-//         assuming Separator is '/'.
++//	   assuming Separator is '/'.
+ //
+ // The returned path ends in a slash only if it represents a root directory,
+ // such as "/" on Unix or `C:\` on Windows.

@@ -14,7 +14,7 @@ Date:   Wed Apr 23 15:52:28 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go.mod                                     |   8 +-
  src/cmd/go.sum                                     |  16 +-
  .../vendor/golang.org/x/sync/errgroup/errgroup.go  |   3 +-
@@ -67,3 +67,3169 @@ Date:   Wed Apr 23 15:52:28 2025 -0400
  src/vendor/golang.org/x/sys/cpu/parse.go           |   4 +-
  src/vendor/modules.txt                             |  10 +-
  51 files changed, 1525 insertions(+), 536 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index f541c6182d..799d342434 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,15 +7,15 @@ require (
+ 	golang.org/x/arch v0.14.0
+ 	golang.org/x/build v0.0.0-20250211223606-a5e3f75caa63
+ 	golang.org/x/mod v0.24.0
+-	golang.org/x/sync v0.12.0
+-	golang.org/x/sys v0.31.0
++	golang.org/x/sync v0.13.0
++	golang.org/x/sys v0.32.0
+ 	golang.org/x/telemetry v0.0.0-20250212145848-75305293b65a
+ 	golang.org/x/term v0.29.0
+-	golang.org/x/tools v0.31.1-0.20250328151535-a857356d5cc5
++	golang.org/x/tools v0.32.1-0.20250423190156-68e94bd1775e
+ )
+ 
+ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20240912202439-0a2b6291aafd // indirect
+-	golang.org/x/text v0.22.0 // indirect
++	golang.org/x/text v0.24.0 // indirect
+ 	rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 1a01abb60e..b3cf2633b9 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -12,17 +12,17 @@ golang.org/x/build v0.0.0-20250211223606-a5e3f75caa63 h1:QZ8/V1B4oK7N5t6w0zX5dAx
+ golang.org/x/build v0.0.0-20250211223606-a5e3f75caa63/go.mod h1:JhINjMoWj8G2oLkaBLNDBIr/GLqJNOkCr4XzFWWYCf4=
+ golang.org/x/mod v0.24.0 h1:ZfthKaKaT4NrhGVZHO1/WDTwGES4De8KtWO0SIbNJMU=
+ golang.org/x/mod v0.24.0/go.mod h1:IXM97Txy2VM4PJ3gI61r1YEk/gAj6zAHN3AdZt6S9Ww=
+-golang.org/x/sync v0.12.0 h1:MHc5BpPuC30uJk597Ri8TV3CNZcTLu6B6z4lJy+g6Jw=
+-golang.org/x/sync v0.12.0/go.mod h1:1dzgHSNfp02xaA81J2MS99Qcpr2w7fw1gpm99rleRqA=
+-golang.org/x/sys v0.31.0 h1:ioabZlmFYtWhL+TRYpcnNlLwhyxaM9kWTDEmfnprqik=
+-golang.org/x/sys v0.31.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
++golang.org/x/sync v0.13.0 h1:AauUjRAJ9OSnvULf/ARrrVywoJDy0YS2AwQ98I37610=
++golang.org/x/sync v0.13.0/go.mod h1:1dzgHSNfp02xaA81J2MS99Qcpr2w7fw1gpm99rleRqA=
++golang.org/x/sys v0.32.0 h1:s77OFDvIQeibCmezSnk/q6iAfkdiQaJi4VzroCFrN20=
++golang.org/x/sys v0.32.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
+ golang.org/x/telemetry v0.0.0-20250212145848-75305293b65a h1:3fgycqG+90xOafOruMBVZXa8DUeOt5qbGLjQoNvZ8Ew=
+ golang.org/x/telemetry v0.0.0-20250212145848-75305293b65a/go.mod h1:Ng+6E7PnWNge4EifZkPKeQUnm5iyAoH8qQgw3pLCiF4=
+ golang.org/x/term v0.29.0 h1:L6pJp37ocefwRRtYPKSWOWzOtWSxVajvz2ldH/xi3iU=
+ golang.org/x/term v0.29.0/go.mod h1:6bl4lRlvVuDgSf3179VpIxBF0o10JUpXWOnI7nErv7s=
+-golang.org/x/text v0.22.0 h1:bofq7m3/HAFvbF51jz3Q9wLg3jkvSPuiZu/pD1XwgtM=
+-golang.org/x/text v0.22.0/go.mod h1:YRoo4H8PVmsu+E3Ou7cqLVH8oXWIHVoX0jqUWALQhfY=
+-golang.org/x/tools v0.31.1-0.20250328151535-a857356d5cc5 h1:noURjvaY1txrDU1W+7n5WHPVZdcKoMi7KAak9zwwbL0=
+-golang.org/x/tools v0.31.1-0.20250328151535-a857356d5cc5/go.mod h1:naFTU+Cev749tSJRXJlna0T3WxKvb1kWEx15xA4SdmQ=
++golang.org/x/text v0.24.0 h1:dd5Bzh4yt5KYA8f9CJHCP4FB4D51c2c6JvN37xJJkJ0=
++golang.org/x/text v0.24.0/go.mod h1:L8rBsPeo2pSS+xqN0d5u2ikmjtmoJbDBT1b7nHvFCdU=
++golang.org/x/tools v0.32.1-0.20250423190156-68e94bd1775e h1:t16U5lZsxU6d2R2ax2lfujEzzsctlYTvXppAlsAWP4A=
++golang.org/x/tools v0.32.1-0.20250423190156-68e94bd1775e/go.mod h1:ZxrU41P/wAbZD8EDa6dDCa6XfpkhJ7HFMjHJXfBDu8s=
+ rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef h1:mqLYrXCXYEZOop9/Dbo6RPX11539nwiCNBb1icVPmw8=
+ rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=
+diff --git a/src/cmd/vendor/golang.org/x/sync/errgroup/errgroup.go b/src/cmd/vendor/golang.org/x/sync/errgroup/errgroup.go
+index a4ea5d14f1..f8c3c09265 100644
+--- a/src/cmd/vendor/golang.org/x/sync/errgroup/errgroup.go
++++ b/src/cmd/vendor/golang.org/x/sync/errgroup/errgroup.go
+@@ -18,7 +18,7 @@ import (
+ type token struct{}
+ 
+ // A Group is a collection of goroutines working on subtasks that are part of
+-// the same overall task.
++// the same overall task. A Group should not be reused for different tasks.
+ //
+ // A zero Group is valid, has no limit on the number of active goroutines,
+ // and does not cancel on error.
+@@ -61,6 +61,7 @@ func (g *Group) Wait() error {
+ }
+ 
+ // Go calls the given function in a new goroutine.
++// The first call to Go must happen before a Wait.
+ // It blocks until the new goroutine can be added without the number of
+ // active goroutines in the group exceeding the configured limit.
+ //
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+index 099867deed..798f61ad3b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+@@ -602,7 +602,150 @@ func Connectx(fd int, srcIf uint32, srcAddr, dstAddr Sockaddr, associd SaeAssocI
+ 	return
+ }
+ 
+-//sys	connectx(fd int, endpoints *SaEndpoints, associd SaeAssocID, flags uint32, iov []Iovec, n *uintptr, connid *SaeConnID) (err error)
++// sys	connectx(fd int, endpoints *SaEndpoints, associd SaeAssocID, flags uint32, iov []Iovec, n *uintptr, connid *SaeConnID) (err error)
++const minIovec = 8
++
++func Readv(fd int, iovs [][]byte) (n int, err error) {
++	if !darwinKernelVersionMin(11, 0, 0) {
++		return 0, ENOSYS
++	}
++
++	iovecs := make([]Iovec, 0, minIovec)
++	iovecs = appendBytes(iovecs, iovs)
++	n, err = readv(fd, iovecs)
++	readvRacedetect(iovecs, n, err)
++	return n, err
++}
++
++func Preadv(fd int, iovs [][]byte, offset int64) (n int, err error) {
++	if !darwinKernelVersionMin(11, 0, 0) {
++		return 0, ENOSYS
++	}
++	iovecs := make([]Iovec, 0, minIovec)
++	iovecs = appendBytes(iovecs, iovs)
++	n, err = preadv(fd, iovecs, offset)
++	readvRacedetect(iovecs, n, err)
++	return n, err
++}
++
++func Writev(fd int, iovs [][]byte) (n int, err error) {
++	if !darwinKernelVersionMin(11, 0, 0) {
++		return 0, ENOSYS
++	}
++
++	iovecs := make([]Iovec, 0, minIovec)
++	iovecs = appendBytes(iovecs, iovs)
++	if raceenabled {
++		raceReleaseMerge(unsafe.Pointer(&ioSync))
++	}
++	n, err = writev(fd, iovecs)
++	writevRacedetect(iovecs, n)
++	return n, err
++}
++
++func Pwritev(fd int, iovs [][]byte, offset int64) (n int, err error) {
++	if !darwinKernelVersionMin(11, 0, 0) {
++		return 0, ENOSYS
++	}
++
++	iovecs := make([]Iovec, 0, minIovec)
++	iovecs = appendBytes(iovecs, iovs)
++	if raceenabled {
++		raceReleaseMerge(unsafe.Pointer(&ioSync))
++	}
++	n, err = pwritev(fd, iovecs, offset)
++	writevRacedetect(iovecs, n)
++	return n, err
++}
++
++func appendBytes(vecs []Iovec, bs [][]byte) []Iovec {
++	for _, b := range bs {
++		var v Iovec
++		v.SetLen(len(b))
++		if len(b) > 0 {
++			v.Base = &b[0]
++		} else {
++			v.Base = (*byte)(unsafe.Pointer(&_zero))
++		}
++		vecs = append(vecs, v)
++	}
++	return vecs
++}
++
++func writevRacedetect(iovecs []Iovec, n int) {
++	if !raceenabled {
++		return
++	}
++	for i := 0; n > 0 && i < len(iovecs); i++ {
++		m := int(iovecs[i].Len)
++		if m > n {
++			m = n
++		}
++		n -= m
++		if m > 0 {
++			raceReadRange(unsafe.Pointer(iovecs[i].Base), m)
++		}
++	}
++}
++
++func readvRacedetect(iovecs []Iovec, n int, err error) {
++	if !raceenabled {
++		return
++	}
++	for i := 0; n > 0 && i < len(iovecs); i++ {
++		m := int(iovecs[i].Len)
++		if m > n {
++			m = n
++		}
++		n -= m
++		if m > 0 {
++			raceWriteRange(unsafe.Pointer(iovecs[i].Base), m)
++		}
++	}
++	if err == nil {
++		raceAcquire(unsafe.Pointer(&ioSync))
++	}
++}
++
++func darwinMajorMinPatch() (maj, min, patch int, err error) {
++	var un Utsname
++	err = Uname(&un)
++	if err != nil {
++		return
++	}
++
++	var mmp [3]int
++	c := 0
++Loop:
++	for _, b := range un.Release[:] {
++		switch {
++		case b >= '0' && b <= '9':
++			mmp[c] = 10*mmp[c] + int(b-'0')
++		case b == '.':
++			c++
++			if c > 2 {
++				return 0, 0, 0, ENOTSUP
++			}
++		case b == 0:
++			break Loop
++		default:
++			return 0, 0, 0, ENOTSUP
++		}
++	}
++	if c != 2 {
++		return 0, 0, 0, ENOTSUP
++	}
++	return mmp[0], mmp[1], mmp[2], nil
++}
++
++func darwinKernelVersionMin(maj, min, patch int) bool {
++	actualMaj, actualMin, actualPatch, err := darwinMajorMinPatch()
++	if err != nil {
++		return false
++	}
++	return actualMaj > maj || actualMaj == maj && (actualMin > min || actualMin == min && actualPatch >= patch)
++}
++
+ //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
+ 
+ //sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
+@@ -705,3 +848,7 @@ func Connectx(fd int, srcIf uint32, srcAddr, dstAddr Sockaddr, associd SaeAssocI
+ //sys	write(fd int, p []byte) (n int, err error)
+ //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
+ //sys	munmap(addr uintptr, length uintptr) (err error)
++//sys	readv(fd int, iovecs []Iovec) (n int, err error)
++//sys	preadv(fd int, iovecs []Iovec, offset int64) (n int, err error)
++//sys	writev(fd int, iovecs []Iovec) (n int, err error)
++//sys	pwritev(fd int, iovecs []Iovec, offset int64) (n int, err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index 230a94549a..4958a65708 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -13,6 +13,7 @@ package unix
+ 
+ import (
+ 	"encoding/binary"
++	"slices"
+ 	"strconv"
+ 	"syscall"
+ 	"time"
+@@ -417,7 +418,7 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 		return nil, 0, EINVAL
+ 	}
+ 	sa.raw.Family = AF_UNIX
+-	for i := 0; i < n; i++ {
++	for i := range n {
+ 		sa.raw.Path[i] = int8(name[i])
+ 	}
+ 	// length is family (uint16), name, NUL.
+@@ -507,7 +508,7 @@ func (sa *SockaddrL2) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	psm := (*[2]byte)(unsafe.Pointer(&sa.raw.Psm))
+ 	psm[0] = byte(sa.PSM)
+ 	psm[1] = byte(sa.PSM >> 8)
+-	for i := 0; i < len(sa.Addr); i++ {
++	for i := range len(sa.Addr) {
+ 		sa.raw.Bdaddr[i] = sa.Addr[len(sa.Addr)-1-i]
+ 	}
+ 	cid := (*[2]byte)(unsafe.Pointer(&sa.raw.Cid))
+@@ -589,11 +590,11 @@ func (sa *SockaddrCAN) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	sa.raw.Family = AF_CAN
+ 	sa.raw.Ifindex = int32(sa.Ifindex)
+ 	rx := (*[4]byte)(unsafe.Pointer(&sa.RxID))
+-	for i := 0; i < 4; i++ {
++	for i := range 4 {
+ 		sa.raw.Addr[i] = rx[i]
+ 	}
+ 	tx := (*[4]byte)(unsafe.Pointer(&sa.TxID))
+-	for i := 0; i < 4; i++ {
++	for i := range 4 {
+ 		sa.raw.Addr[i+4] = tx[i]
+ 	}
+ 	return unsafe.Pointer(&sa.raw), SizeofSockaddrCAN, nil
+@@ -618,11 +619,11 @@ func (sa *SockaddrCANJ1939) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	sa.raw.Family = AF_CAN
+ 	sa.raw.Ifindex = int32(sa.Ifindex)
+ 	n := (*[8]byte)(unsafe.Pointer(&sa.Name))
+-	for i := 0; i < 8; i++ {
++	for i := range 8 {
+ 		sa.raw.Addr[i] = n[i]
+ 	}
+ 	p := (*[4]byte)(unsafe.Pointer(&sa.PGN))
+-	for i := 0; i < 4; i++ {
++	for i := range 4 {
+ 		sa.raw.Addr[i+8] = p[i]
+ 	}
+ 	sa.raw.Addr[12] = sa.Addr
+@@ -911,7 +912,7 @@ func (sa *SockaddrIUCV) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	// These are EBCDIC encoded by the kernel, but we still need to pad them
+ 	// with blanks. Initializing with blanks allows the caller to feed in either
+ 	// a padded or an unpadded string.
+-	for i := 0; i < 8; i++ {
++	for i := range 8 {
+ 		sa.raw.Nodeid[i] = ' '
+ 		sa.raw.User_id[i] = ' '
+ 		sa.raw.Name[i] = ' '
+@@ -1148,7 +1149,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		var user [8]byte
+ 		var name [8]byte
+ 
+-		for i := 0; i < 8; i++ {
++		for i := range 8 {
+ 			user[i] = byte(pp.User_id[i])
+ 			name[i] = byte(pp.Name[i])
+ 		}
+@@ -1173,11 +1174,11 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
+ 				Ifindex: int(pp.Ifindex),
+ 			}
+ 			name := (*[8]byte)(unsafe.Pointer(&sa.Name))
+-			for i := 0; i < 8; i++ {
++			for i := range 8 {
+ 				name[i] = pp.Addr[i]
+ 			}
+ 			pgn := (*[4]byte)(unsafe.Pointer(&sa.PGN))
+-			for i := 0; i < 4; i++ {
++			for i := range 4 {
+ 				pgn[i] = pp.Addr[i+8]
+ 			}
+ 			addr := (*[1]byte)(unsafe.Pointer(&sa.Addr))
+@@ -1188,11 +1189,11 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
+ 				Ifindex: int(pp.Ifindex),
+ 			}
+ 			rx := (*[4]byte)(unsafe.Pointer(&sa.RxID))
+-			for i := 0; i < 4; i++ {
++			for i := range 4 {
+ 				rx[i] = pp.Addr[i]
+ 			}
+ 			tx := (*[4]byte)(unsafe.Pointer(&sa.TxID))
+-			for i := 0; i < 4; i++ {
++			for i := range 4 {
+ 				tx[i] = pp.Addr[i+4]
+ 			}
+ 			return sa, nil
+@@ -2216,10 +2217,7 @@ func readvRacedetect(iovecs []Iovec, n int, err error) {
+ 		return
+ 	}
+ 	for i := 0; n > 0 && i < len(iovecs); i++ {
+-		m := int(iovecs[i].Len)
+-		if m > n {
+-			m = n
+-		}
++		m := min(int(iovecs[i].Len), n)
+ 		n -= m
+ 		if m > 0 {
+ 			raceWriteRange(unsafe.Pointer(iovecs[i].Base), m)
+@@ -2270,10 +2268,7 @@ func writevRacedetect(iovecs []Iovec, n int) {
+ 		return
+ 	}
+ 	for i := 0; n > 0 && i < len(iovecs); i++ {
+-		m := int(iovecs[i].Len)
+-		if m > n {
+-			m = n
+-		}
++		m := min(int(iovecs[i].Len), n)
+ 		n -= m
+ 		if m > 0 {
+ 			raceReadRange(unsafe.Pointer(iovecs[i].Base), m)
+@@ -2320,12 +2315,7 @@ func isGroupMember(gid int) bool {
+ 		return false
+ 	}
+ 
+-	for _, g := range groups {
+-		if g == gid {
+-			return true
+-		}
+-	}
+-	return false
++	return slices.Contains(groups, gid)
+ }
+ 
+ func isCapDacOverrideSet() bool {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
+index 24b346e1a3..813c05b664 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
+@@ -2512,6 +2512,90 @@ var libc_munmap_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readv(fd int, iovecs []Iovec) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall_syscall(libc_readv_trampoline_addr, uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_readv_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_readv readv "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func preadv(fd int, iovecs []Iovec, offset int64) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall_syscall6(libc_preadv_trampoline_addr, uintptr(fd), uintptr(_p0), uintptr(len(iovecs)), uintptr(offset), 0, 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_preadv_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_preadv preadv "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func writev(fd int, iovecs []Iovec) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall_syscall(libc_writev_trampoline_addr, uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_writev_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_writev writev "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pwritev(fd int, iovecs []Iovec, offset int64) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall_syscall6(libc_pwritev_trampoline_addr, uintptr(fd), uintptr(_p0), uintptr(len(iovecs)), uintptr(offset), 0, 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pwritev_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pwritev pwritev "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := syscall_syscall(libc_fstat64_trampoline_addr, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
+index ebd213100b..fda328582b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
+@@ -738,6 +738,26 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_munmap_trampoline_addr(SB)/8, $libc_munmap_trampoline<>(SB)
+ 
++TEXT libc_readv_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_readv(SB)
++GLOBL	·libc_readv_trampoline_addr(SB), RODATA, $8
++DATA	·libc_readv_trampoline_addr(SB)/8, $libc_readv_trampoline<>(SB)
++
++TEXT libc_preadv_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_preadv(SB)
++GLOBL	·libc_preadv_trampoline_addr(SB), RODATA, $8
++DATA	·libc_preadv_trampoline_addr(SB)/8, $libc_preadv_trampoline<>(SB)
++
++TEXT libc_writev_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_writev(SB)
++GLOBL	·libc_writev_trampoline_addr(SB), RODATA, $8
++DATA	·libc_writev_trampoline_addr(SB)/8, $libc_writev_trampoline<>(SB)
++
++TEXT libc_pwritev_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pwritev(SB)
++GLOBL	·libc_pwritev_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pwritev_trampoline_addr(SB)/8, $libc_pwritev_trampoline<>(SB)
++
+ TEXT libc_fstat64_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstat64(SB)
+ GLOBL	·libc_fstat64_trampoline_addr(SB), RODATA, $8
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
+index 824b9c2d5e..e6f58f3c6f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
+@@ -2512,6 +2512,90 @@ var libc_munmap_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readv(fd int, iovecs []Iovec) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall_syscall(libc_readv_trampoline_addr, uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_readv_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_readv readv "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func preadv(fd int, iovecs []Iovec, offset int64) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall_syscall6(libc_preadv_trampoline_addr, uintptr(fd), uintptr(_p0), uintptr(len(iovecs)), uintptr(offset), 0, 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_preadv_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_preadv preadv "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func writev(fd int, iovecs []Iovec) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall_syscall(libc_writev_trampoline_addr, uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_writev_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_writev writev "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pwritev(fd int, iovecs []Iovec, offset int64) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall_syscall6(libc_pwritev_trampoline_addr, uintptr(fd), uintptr(_p0), uintptr(len(iovecs)), uintptr(offset), 0, 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pwritev_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pwritev pwritev "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := syscall_syscall(libc_fstat_trampoline_addr, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
+index 4f178a2293..7f8998b905 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
+@@ -738,6 +738,26 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_munmap_trampoline_addr(SB)/8, $libc_munmap_trampoline<>(SB)
+ 
++TEXT libc_readv_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_readv(SB)
++GLOBL	·libc_readv_trampoline_addr(SB), RODATA, $8
++DATA	·libc_readv_trampoline_addr(SB)/8, $libc_readv_trampoline<>(SB)
++
++TEXT libc_preadv_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_preadv(SB)
++GLOBL	·libc_preadv_trampoline_addr(SB), RODATA, $8
++DATA	·libc_preadv_trampoline_addr(SB)/8, $libc_preadv_trampoline<>(SB)
++
++TEXT libc_writev_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_writev(SB)
++GLOBL	·libc_writev_trampoline_addr(SB), RODATA, $8
++DATA	·libc_writev_trampoline_addr(SB)/8, $libc_writev_trampoline<>(SB)
++
++TEXT libc_pwritev_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pwritev(SB)
++GLOBL	·libc_pwritev_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pwritev_trampoline_addr(SB)/8, $libc_pwritev_trampoline<>(SB)
++
+ TEXT libc_fstat_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstat(SB)
+ GLOBL	·libc_fstat_trampoline_addr(SB), RODATA, $8
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+index 9d138de5fe..ad67df2fdb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+@@ -1074,6 +1074,7 @@ const (
+ 	IP_ADD_MEMBERSHIP  = 0xc
+ 	IP_DROP_MEMBERSHIP = 0xd
+ 	IP_PKTINFO         = 0x13
++	IP_MTU_DISCOVER    = 0x47
+ 
+ 	IPV6_V6ONLY         = 0x1b
+ 	IPV6_UNICAST_HOPS   = 0x4
+@@ -1083,6 +1084,7 @@ const (
+ 	IPV6_JOIN_GROUP     = 0xc
+ 	IPV6_LEAVE_GROUP    = 0xd
+ 	IPV6_PKTINFO        = 0x13
++	IPV6_MTU_DISCOVER   = 0x47
+ 
+ 	MSG_OOB       = 0x1
+ 	MSG_PEEK      = 0x2
+@@ -1132,6 +1134,15 @@ const (
+ 	WSASYS_STATUS_LEN  = 128
+ )
+ 
++// enum PMTUD_STATE from ws2ipdef.h
++const (
++	IP_PMTUDISC_NOT_SET = 0
++	IP_PMTUDISC_DO      = 1
++	IP_PMTUDISC_DONT    = 2
++	IP_PMTUDISC_PROBE   = 3
++	IP_PMTUDISC_MAX     = 4
++)
++
+ type WSABuf struct {
+ 	Len uint32
+ 	Buf *byte
+@@ -1146,6 +1157,22 @@ type WSAMsg struct {
+ 	Flags       uint32
+ }
+ 
++type WSACMSGHDR struct {
++	Len   uintptr
++	Level int32
++	Type  int32
++}
++
++type IN_PKTINFO struct {
++	Addr    [4]byte
++	Ifindex uint32
++}
++
++type IN6_PKTINFO struct {
++	Addr    [16]byte
++	Ifindex uint32
++}
++
+ // Flags for WSASocket
+ const (
+ 	WSA_FLAG_OVERLAPPED             = 0x01
+diff --git a/src/cmd/vendor/golang.org/x/text/language/parse.go b/src/cmd/vendor/golang.org/x/text/language/parse.go
+index 4d57222e77..053336e286 100644
+--- a/src/cmd/vendor/golang.org/x/text/language/parse.go
++++ b/src/cmd/vendor/golang.org/x/text/language/parse.go
+@@ -59,7 +59,7 @@ func (c CanonType) Parse(s string) (t Tag, err error) {
+ 	if changed {
+ 		tt.RemakeString()
+ 	}
+-	return makeTag(tt), err
++	return makeTag(tt), nil
+ }
+ 
+ // Compose creates a Tag from individual parts, which may be of type Tag, Base,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+index 60c6afe49f..25c98a97bb 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+@@ -115,7 +115,7 @@ func run(pass *analysis.Pass) (any, error) {
+ 					missingKeys = append(missingKeys, analysis.TextEdit{
+ 						Pos:     e.Pos(),
+ 						End:     e.Pos(),
+-						NewText: []byte(fmt.Sprintf("%s: ", field.Name())),
++						NewText: fmt.Appendf(nil, "%s: ", field.Name()),
+ 					})
+ 				}
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+index 49c14d4980..a4e455d9b3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+@@ -355,7 +355,7 @@ func lockPath(tpkg *types.Package, typ types.Type, seen map[types.Type]bool) typ
+ 	}
+ 
+ 	nfields := styp.NumFields()
+-	for i := 0; i < nfields; i++ {
++	for i := range nfields {
+ 		ftyp := styp.Field(i).Type()
+ 		subpath := lockPath(tpkg, ftyp, seen)
+ 		if subpath != nil {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+index a7fee18092..c0746789e9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+@@ -17,6 +17,7 @@ import (
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/cfg"
+ 	"golang.org/x/tools/internal/analysisinternal"
++	"golang.org/x/tools/internal/astutil"
+ )
+ 
+ //go:embed doc.go
+@@ -83,30 +84,22 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
+ 	// {FuncDecl,FuncLit,CallExpr,SelectorExpr}.
+ 
+ 	// Find the set of cancel vars to analyze.
+-	stack := make([]ast.Node, 0, 32)
+-	ast.Inspect(node, func(n ast.Node) bool {
+-		switch n.(type) {
+-		case *ast.FuncLit:
+-			if len(stack) > 0 {
+-				return false // don't stray into nested functions
+-			}
+-		case nil:
+-			stack = stack[:len(stack)-1] // pop
+-			return true
++	astutil.PreorderStack(node, nil, func(n ast.Node, stack []ast.Node) bool {
++		if _, ok := n.(*ast.FuncLit); ok && len(stack) > 0 {
++			return false // don't stray into nested functions
+ 		}
+-		stack = append(stack, n) // push
+ 
+-		// Look for [{AssignStmt,ValueSpec} CallExpr SelectorExpr]:
++		// Look for n=SelectorExpr beneath stack=[{AssignStmt,ValueSpec} CallExpr]:
+ 		//
+ 		//   ctx, cancel    := context.WithCancel(...)
+ 		//   ctx, cancel     = context.WithCancel(...)
+ 		//   var ctx, cancel = context.WithCancel(...)
+ 		//
+-		if !isContextWithCancel(pass.TypesInfo, n) || !isCall(stack[len(stack)-2]) {
++		if !isContextWithCancel(pass.TypesInfo, n) || !isCall(stack[len(stack)-1]) {
+ 			return true
+ 		}
+ 		var id *ast.Ident // id of cancel var
+-		stmt := stack[len(stack)-3]
++		stmt := stack[len(stack)-2]
+ 		switch stmt := stmt.(type) {
+ 		case *ast.ValueSpec:
+ 			if len(stmt.Names) > 1 {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+index 3ac2dcd490..fa1883b0c3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+@@ -16,7 +16,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+-	"golang.org/x/tools/internal/typeparams"
++	"golang.org/x/tools/internal/typesinternal"
+ )
+ 
+ //go:embed doc.go
+@@ -55,24 +55,8 @@ func run(pass *analysis.Pass) (any, error) {
+ 			return
+ 		}
+ 
+-		// Only want identifiers or selector expressions.
+-		var obj types.Object
+-		switch v := e2.(type) {
+-		case *ast.Ident:
+-			obj = pass.TypesInfo.Uses[v]
+-		case *ast.SelectorExpr:
+-			obj = pass.TypesInfo.Uses[v.Sel]
+-		case *ast.IndexExpr, *ast.IndexListExpr:
+-			// Check generic functions such as "f[T1,T2]".
+-			x, _, _, _ := typeparams.UnpackIndexExpr(v)
+-			if id, ok := x.(*ast.Ident); ok {
+-				obj = pass.TypesInfo.Uses[id]
+-			}
+-		default:
+-			return
+-		}
+-
+ 		// Only want functions.
++		obj := pass.TypesInfo.Uses[typesinternal.UsedIdent(pass.TypesInfo, e2)]
+ 		if _, ok := obj.(*types.Func); !ok {
+ 			return
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+index d926503403..13a9997316 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/types"
+ 	"path/filepath"
+ 	"reflect"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 
+@@ -88,8 +89,7 @@ var checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
+ 
+ // checkCanonicalFieldTag checks a single struct field tag.
+ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, seen *namesSeen) {
+-	switch pass.Pkg.Path() {
+-	case "encoding/json", "encoding/json/v2", "encoding/xml":
++	if strings.HasPrefix(pass.Pkg.Path(), "encoding/") {
+ 		// These packages know how to use their own APIs.
+ 		// Sometimes they are testing what happens to incorrect programs.
+ 		return
+@@ -167,11 +167,8 @@ func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *ty
+ 	if i := strings.Index(val, ","); i >= 0 {
+ 		if key == "xml" {
+ 			// Use a separate namespace for XML attributes.
+-			for _, opt := range strings.Split(val[i:], ",") {
+-				if opt == "attr" {
+-					key += " attribute" // Key is part of the error message.
+-					break
+-				}
++			if slices.Contains(strings.Split(val[i:], ","), "attr") {
++				key += " attribute" // Key is part of the error message.
+ 			}
+ 		}
+ 		val = val[:i]
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+index f49ac4eb1a..360ba0e74d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+@@ -17,6 +17,7 @@ import (
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/types/typeutil"
+ 	"golang.org/x/tools/internal/analysisinternal"
++	"golang.org/x/tools/internal/typesinternal"
+ )
+ 
+ //go:embed doc.go
+@@ -186,7 +187,7 @@ func goAsyncCall(info *types.Info, goStmt *ast.GoStmt, toDecl func(*types.Func)
+ 	call := goStmt.Call
+ 
+ 	fun := ast.Unparen(call.Fun)
+-	if id := funcIdent(fun); id != nil {
++	if id := typesinternal.UsedIdent(info, fun); id != nil {
+ 		if lit := funcLitInScope(id); lit != nil {
+ 			return &asyncCall{region: lit, async: goStmt, scope: nil, fun: fun}
+ 		}
+@@ -217,7 +218,7 @@ func tRunAsyncCall(info *types.Info, call *ast.CallExpr) *asyncCall {
+ 		return &asyncCall{region: lit, async: call, scope: lit, fun: fun}
+ 	}
+ 
+-	if id := funcIdent(fun); id != nil {
++	if id := typesinternal.UsedIdent(info, fun); id != nil {
+ 		if lit := funcLitInScope(id); lit != nil { // function lit in variable?
+ 			return &asyncCall{region: lit, async: call, scope: lit, fun: fun}
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go
+index 027c99e6b0..db2e5f76d1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go
+@@ -7,8 +7,7 @@ package testinggoroutine
+ import (
+ 	"go/ast"
+ 	"go/types"
+-
+-	"golang.org/x/tools/internal/typeparams"
++	"slices"
+ )
+ 
+ // AST and types utilities that not specific to testinggoroutines.
+@@ -48,25 +47,7 @@ func isMethodNamed(f *types.Func, pkgPath string, names ...string) bool {
+ 	if f.Type().(*types.Signature).Recv() == nil {
+ 		return false
+ 	}
+-	for _, n := range names {
+-		if f.Name() == n {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-func funcIdent(fun ast.Expr) *ast.Ident {
+-	switch fun := ast.Unparen(fun).(type) {
+-	case *ast.IndexExpr, *ast.IndexListExpr:
+-		x, _, _, _ := typeparams.UnpackIndexExpr(fun) // necessary?
+-		id, _ := x.(*ast.Ident)
+-		return id
+-	case *ast.Ident:
+-		return fun
+-	default:
+-		return nil
+-	}
++	return slices.Contains(names, f.Name())
+ }
+ 
+ // funcLitInScope returns a FuncLit that id is at least initially assigned to.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
+index fcf5fbd906..317f034992 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
+@@ -188,6 +188,9 @@ func (d *deadState) findDead(stmt ast.Stmt) {
+ 		case *ast.EmptyStmt:
+ 			// do not warn about unreachable empty statements
+ 		default:
++			// (This call to pass.Report is a frequent source
++			// of diagnostics beyond EOF in a truncated file;
++			// see #71659.)
+ 			d.pass.Report(analysis.Diagnostic{
+ 				Pos:     stmt.Pos(),
+ 				End:     stmt.End(),
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
+index 1da4a361f0..674490a65b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
+@@ -48,10 +48,10 @@ type Inspector struct {
+ 	events []event
+ }
+ 
+-//go:linkname events
++//go:linkname events golang.org/x/tools/go/ast/inspector.events
+ func events(in *Inspector) []event { return in.events }
+ 
+-//go:linkname packEdgeKindAndIndex
++//go:linkname packEdgeKindAndIndex golang.org/x/tools/go/ast/inspector.packEdgeKindAndIndex
+ func packEdgeKindAndIndex(ek edge.Kind, index int) int32 {
+ 	return int32(uint32(index+1)<<7 | uint32(ek))
+ }
+@@ -59,7 +59,7 @@ func packEdgeKindAndIndex(ek edge.Kind, index int) int32 {
+ // unpackEdgeKindAndIndex unpacks the edge kind and edge index (within
+ // an []ast.Node slice) from the parent field of a pop event.
+ //
+-//go:linkname unpackEdgeKindAndIndex
++//go:linkname unpackEdgeKindAndIndex golang.org/x/tools/go/ast/inspector.unpackEdgeKindAndIndex
+ func unpackEdgeKindAndIndex(x int32) (edge.Kind, int) {
+ 	// The "parent" field of a pop node holds the
+ 	// edge Kind in the lower 7 bits and the index+1
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
+index 9778448457..e936c67c98 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
+@@ -217,7 +217,7 @@ func typeOf(n ast.Node) uint64 {
+ 	return 0
+ }
+ 
+-//go:linkname maskOf
++//go:linkname maskOf golang.org/x/tools/go/ast/inspector.maskOf
+ func maskOf(nodes []ast.Node) uint64 {
+ 	if len(nodes) == 0 {
+ 		return math.MaxUint64 // match all node types
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
+index 754380351e..5f10f56cba 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
+@@ -7,45 +7,23 @@ package typeutil
+ import (
+ 	"go/ast"
+ 	"go/types"
+-
+-	"golang.org/x/tools/internal/typeparams"
++	_ "unsafe" // for linkname
+ )
+ 
+ // Callee returns the named target of a function call, if any:
+ // a function, method, builtin, or variable.
+ //
+ // Functions and methods may potentially have type parameters.
++//
++// Note: for calls of instantiated functions and methods, Callee returns
++// the corresponding generic function or method on the generic type.
+ func Callee(info *types.Info, call *ast.CallExpr) types.Object {
+-	fun := ast.Unparen(call.Fun)
+-
+-	// Look through type instantiation if necessary.
+-	isInstance := false
+-	switch fun.(type) {
+-	case *ast.IndexExpr, *ast.IndexListExpr:
+-		// When extracting the callee from an *IndexExpr, we need to check that
+-		// it is a *types.Func and not a *types.Var.
+-		// Example: Don't match a slice m within the expression `m[0]()`.
+-		isInstance = true
+-		fun, _, _, _ = typeparams.UnpackIndexExpr(fun)
+-	}
+-
+-	var obj types.Object
+-	switch fun := fun.(type) {
+-	case *ast.Ident:
+-		obj = info.Uses[fun] // type, var, builtin, or declared func
+-	case *ast.SelectorExpr:
+-		if sel, ok := info.Selections[fun]; ok {
+-			obj = sel.Obj() // method or field
+-		} else {
+-			obj = info.Uses[fun.Sel] // qualified identifier?
+-		}
++	obj := info.Uses[usedIdent(info, call.Fun)]
++	if obj == nil {
++		return nil
+ 	}
+ 	if _, ok := obj.(*types.TypeName); ok {
+-		return nil // T(x) is a conversion, not a call
+-	}
+-	// A Func is required to match instantiations.
+-	if _, ok := obj.(*types.Func); isInstance && !ok {
+-		return nil // Was not a Func.
++		return nil
+ 	}
+ 	return obj
+ }
+@@ -56,13 +34,52 @@ func Callee(info *types.Info, call *ast.CallExpr) types.Object {
+ // Note: for calls of instantiated functions and methods, StaticCallee returns
+ // the corresponding generic function or method on the generic type.
+ func StaticCallee(info *types.Info, call *ast.CallExpr) *types.Func {
+-	if f, ok := Callee(info, call).(*types.Func); ok && !interfaceMethod(f) {
+-		return f
++	obj := info.Uses[usedIdent(info, call.Fun)]
++	fn, _ := obj.(*types.Func)
++	if fn == nil || interfaceMethod(fn) {
++		return nil
++	}
++	return fn
++}
++
++// usedIdent is the implementation of [internal/typesinternal.UsedIdent].
++// It returns the identifier associated with e.
++// See typesinternal.UsedIdent for a fuller description.
++// This function should live in typesinternal, but cannot because it would
++// create an import cycle.
++//
++//go:linkname usedIdent golang.org/x/tools/go/types/typeutil.usedIdent
++func usedIdent(info *types.Info, e ast.Expr) *ast.Ident {
++	if info.Types == nil || info.Uses == nil {
++		panic("one of info.Types or info.Uses is nil; both must be populated")
++	}
++	// Look through type instantiation if necessary.
++	switch d := ast.Unparen(e).(type) {
++	case *ast.IndexExpr:
++		if info.Types[d.Index].IsType() {
++			e = d.X
++		}
++	case *ast.IndexListExpr:
++		e = d.X
++	}
++
++	switch e := ast.Unparen(e).(type) {
++	// info.Uses always has the object we want, even for selector expressions.
++	// We don't need info.Selections.
++	// See go/types/recording.go:recordSelection.
++	case *ast.Ident:
++		return e
++	case *ast.SelectorExpr:
++		return e.Sel
+ 	}
+ 	return nil
+ }
+ 
++// interfaceMethod reports whether its argument is a method of an interface.
++// This function should live in typesinternal, but cannot because it would create an import cycle.
++//
++//go:linkname interfaceMethod golang.org/x/tools/go/types/typeutil.interfaceMethod
+ func interfaceMethod(f *types.Func) bool {
+-	recv := f.Type().(*types.Signature).Recv()
++	recv := f.Signature().Recv()
+ 	return recv != nil && types.IsInterface(recv.Type())
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index b22e314cf4..c4d10de3e9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -280,7 +280,15 @@ func AddImport(info *types.Info, file *ast.File, preferredName, pkgpath, member
+ 	// If the first decl is an import group, add this new import at the end.
+ 	if gd, ok := before.(*ast.GenDecl); ok && gd.Tok == token.IMPORT && gd.Rparen.IsValid() {
+ 		pos = gd.Rparen
+-		newText = "\t" + newText + "\n"
++		// if it's a std lib, we should append it at the beginning of import group.
++		// otherwise we may see the std package is put at the last behind a 3rd module which doesn't follow our convention.
++		// besides, gofmt doesn't help in this case.
++		if IsStdPackage(pkgpath) && len(gd.Specs) != 0 {
++			pos = gd.Specs[0].Pos()
++			newText += "\n\t"
++		} else {
++			newText = "\t" + newText + "\n"
++		}
+ 	} else {
+ 		pos = before.Pos()
+ 		newText = "import " + newText + "\n\n"
+@@ -305,10 +313,10 @@ func FreshName(scope *types.Scope, pos token.Pos, preferred string) string {
+ 	return newName
+ }
+ 
+-// Format returns a string representation of the expression e.
+-func Format(fset *token.FileSet, e ast.Expr) string {
++// Format returns a string representation of the node n.
++func Format(fset *token.FileSet, n ast.Node) string {
+ 	var buf strings.Builder
+-	printer.Fprint(&buf, fset, e) // ignore errors
++	printer.Fprint(&buf, fset, n) // ignore errors
+ 	return buf.String()
+ }
+ 
+@@ -431,11 +439,25 @@ func validateFix(fset *token.FileSet, fix *analysis.SuggestedFix) error {
+ 		if file == nil {
+ 			return fmt.Errorf("no token.File for TextEdit.Pos (%v)", edit.Pos)
+ 		}
++		fileEnd := token.Pos(file.Base() + file.Size())
+ 		if end := edit.End; end.IsValid() {
+ 			if end < start {
+ 				return fmt.Errorf("TextEdit.Pos (%v) > TextEdit.End (%v)", edit.Pos, edit.End)
+ 			}
+ 			endFile := fset.File(end)
++			if endFile != file && end < fileEnd+10 {
++				// Relax the checks below in the special case when the end position
++				// is only slightly beyond EOF, as happens when End is computed
++				// (as in ast.{Struct,Interface}Type) rather than based on
++				// actual token positions. In such cases, truncate end to EOF.
++				//
++				// This is a workaround for #71659; see:
++				// https://github.com/golang/go/issues/71659#issuecomment-2651606031
++				// A better fix would be more faithful recording of token
++				// positions (or their absence) in the AST.
++				edit.End = fileEnd
++				continue
++			}
+ 			if endFile == nil {
+ 				return fmt.Errorf("no token.File for TextEdit.End (%v; File(start).FileEnd is %d)", end, file.Base()+file.Size())
+ 			}
+@@ -446,7 +468,7 @@ func validateFix(fset *token.FileSet, fix *analysis.SuggestedFix) error {
+ 		} else {
+ 			edit.End = start // update the SuggestedFix
+ 		}
+-		if eof := token.Pos(file.Base() + file.Size()); edit.End > eof {
++		if eof := fileEnd; edit.End > eof {
+ 			return fmt.Errorf("end is (%v) beyond end of file (%v)", edit.End, eof)
+ 		}
+ 
+@@ -637,3 +659,15 @@ func Comments(file *ast.File, start, end token.Pos) iter.Seq[*ast.Comment] {
+ 		}
+ 	}
+ }
++
++// IsStdPackage reports whether the specified package path belongs to a
++// package in the standard library (including internal dependencies).
++func IsStdPackage(path string) bool {
++	// A standard package has no dot in its first segment.
++	// (It may yet have a dot, e.g. "vendor/golang.org/x/foo".)
++	slash := strings.IndexByte(path, '/')
++	if slash < 0 {
++		slash = len(path)
++	}
++	return !strings.Contains(path[:slash], ".") && path != "testdata"
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/astutil/clone.go b/src/cmd/vendor/golang.org/x/tools/internal/astutil/clone.go
+new file mode 100644
+index 0000000000..2c9b6bb484
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/astutil/clone.go
+@@ -0,0 +1,71 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package astutil
++
++import (
++	"go/ast"
++	"reflect"
++)
++
++// CloneNode returns a deep copy of a Node.
++// It omits pointers to ast.{Scope,Object} variables.
++func CloneNode[T ast.Node](n T) T {
++	return cloneNode(n).(T)
++}
++
++func cloneNode(n ast.Node) ast.Node {
++	var clone func(x reflect.Value) reflect.Value
++	set := func(dst, src reflect.Value) {
++		src = clone(src)
++		if src.IsValid() {
++			dst.Set(src)
++		}
++	}
++	clone = func(x reflect.Value) reflect.Value {
++		switch x.Kind() {
++		case reflect.Pointer:
++			if x.IsNil() {
++				return x
++			}
++			// Skip fields of types potentially involved in cycles.
++			switch x.Interface().(type) {
++			case *ast.Object, *ast.Scope:
++				return reflect.Zero(x.Type())
++			}
++			y := reflect.New(x.Type().Elem())
++			set(y.Elem(), x.Elem())
++			return y
++
++		case reflect.Struct:
++			y := reflect.New(x.Type()).Elem()
++			for i := 0; i < x.Type().NumField(); i++ {
++				set(y.Field(i), x.Field(i))
++			}
++			return y
++
++		case reflect.Slice:
++			if x.IsNil() {
++				return x
++			}
++			y := reflect.MakeSlice(x.Type(), x.Len(), x.Cap())
++			for i := 0; i < x.Len(); i++ {
++				set(y.Index(i), x.Index(i))
++			}
++			return y
++
++		case reflect.Interface:
++			y := reflect.New(x.Type()).Elem()
++			set(y, x.Elem())
++			return y
++
++		case reflect.Array, reflect.Chan, reflect.Func, reflect.Map, reflect.UnsafePointer:
++			panic(x) // unreachable in AST
++
++		default:
++			return x // bool, string, number
++		}
++	}
++	return clone(reflect.ValueOf(n)).Interface().(ast.Node)
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/astutil/comment.go b/src/cmd/vendor/golang.org/x/tools/internal/astutil/comment.go
+new file mode 100644
+index 0000000000..ee4be23f22
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/astutil/comment.go
+@@ -0,0 +1,113 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package astutil
++
++import (
++	"go/ast"
++	"go/token"
++	"strings"
++)
++
++// Deprecation returns the paragraph of the doc comment that starts with the
++// conventional "Deprecation: " marker, as defined by
++// https://go.dev/wiki/Deprecated, or "" if the documented symbol is not
++// deprecated.
++func Deprecation(doc *ast.CommentGroup) string {
++	for _, p := range strings.Split(doc.Text(), "\n\n") {
++		// There is still some ambiguity for deprecation message. This function
++		// only returns the paragraph introduced by "Deprecated: ". More
++		// information related to the deprecation may follow in additional
++		// paragraphs, but the deprecation message should be able to stand on
++		// its own. See golang/go#38743.
++		if strings.HasPrefix(p, "Deprecated: ") {
++			return p
++		}
++	}
++	return ""
++}
++
++// -- plundered from the future (CL 605517, issue #68021) --
++
++// TODO(adonovan): replace with ast.Directive after go1.25 (#68021).
++// Beware of our local mods to handle analysistest
++// "want" comments on the same line.
++
++// A directive is a comment line with special meaning to the Go
++// toolchain or another tool. It has the form:
++//
++//	//tool:name args
++//
++// The "tool:" portion is missing for the three directives named
++// line, extern, and export.
++//
++// See https://go.dev/doc/comment#Syntax for details of Go comment
++// syntax and https://pkg.go.dev/cmd/compile#hdr-Compiler_Directives
++// for details of directives used by the Go compiler.
++type Directive struct {
++	Pos  token.Pos // of preceding "//"
++	Tool string
++	Name string
++	Args string // may contain internal spaces
++}
++
++// isDirective reports whether c is a comment directive.
++// This code is also in go/printer.
++func isDirective(c string) bool {
++	// "//line " is a line directive.
++	// "//extern " is for gccgo.
++	// "//export " is for cgo.
++	// (The // has been removed.)
++	if strings.HasPrefix(c, "line ") || strings.HasPrefix(c, "extern ") || strings.HasPrefix(c, "export ") {
++		return true
++	}
++
++	// "//[a-z0-9]+:[a-z0-9]"
++	// (The // has been removed.)
++	colon := strings.Index(c, ":")
++	if colon <= 0 || colon+1 >= len(c) {
++		return false
++	}
++	for i := 0; i <= colon+1; i++ {
++		if i == colon {
++			continue
++		}
++		b := c[i]
++		if !('a' <= b && b <= 'z' || '0' <= b && b <= '9') {
++			return false
++		}
++	}
++	return true
++}
++
++// Directives returns the directives within the comment.
++func Directives(g *ast.CommentGroup) (res []*Directive) {
++	if g != nil {
++		// Avoid (*ast.CommentGroup).Text() as it swallows directives.
++		for _, c := range g.List {
++			if len(c.Text) > 2 &&
++				c.Text[1] == '/' &&
++				c.Text[2] != ' ' &&
++				isDirective(c.Text[2:]) {
++
++				tool, nameargs, ok := strings.Cut(c.Text[2:], ":")
++				if !ok {
++					// Must be one of {line,extern,export}.
++					tool, nameargs = "", tool
++				}
++				name, args, _ := strings.Cut(nameargs, " ") // tab??
++				// Permit an additional line comment after the args, chiefly to support
++				// [golang.org/x/tools/go/analysis/analysistest].
++				args, _, _ = strings.Cut(args, "//")
++				res = append(res, &Directive{
++					Pos:  c.Slash,
++					Tool: tool,
++					Name: name,
++					Args: strings.TrimSpace(args),
++				})
++			}
++		}
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/astutil/cursor/cursor.go b/src/cmd/vendor/golang.org/x/tools/internal/astutil/cursor/cursor.go
+index 3f015998c5..78d874a86f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/astutil/cursor/cursor.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/astutil/cursor/cursor.go
+@@ -20,7 +20,6 @@ import (
+ 	"go/token"
+ 	"iter"
+ 	"reflect"
+-	"slices"
+ 
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/internal/astutil/edge"
+@@ -46,7 +45,7 @@ func Root(in *inspector.Inspector) Cursor {
+ 
+ // At returns the cursor at the specified index in the traversal,
+ // which must have been obtained from [Cursor.Index] on a Cursor
+-// belonging to the same Inspector.
++// belonging to the same Inspector (see [Cursor.Inspector]).
+ func At(in *inspector.Inspector, index int32) Cursor {
+ 	if index < 0 {
+ 		panic("negative index")
+@@ -61,6 +60,9 @@ func At(in *inspector.Inspector, index int32) Cursor {
+ 	return Cursor{in, index}
+ }
+ 
++// Inspector returns the cursor's Inspector.
++func (c Cursor) Inspector() *inspector.Inspector { return c.in }
++
+ // Index returns the index of this cursor position within the package.
+ //
+ // Clients should not assume anything about the numeric Index value
+@@ -142,10 +144,9 @@ func (c Cursor) Preorder(types ...ast.Node) iter.Seq[Cursor] {
+ }
+ 
+ // Inspect visits the nodes of the subtree represented by c in
+-// depth-first order. It calls f(n, true) for each node n before it
++// depth-first order. It calls f(n) for each node n before it
+ // visits n's children. If f returns true, Inspect invokes f
+-// recursively for each of the non-nil children of the node, followed
+-// by a call of f(n, false).
++// recursively for each of the non-nil children of the node.
+ //
+ // Each node is represented by a Cursor that allows access to the
+ // Node, but may also be used to start a new traversal, or to obtain
+@@ -155,7 +156,7 @@ func (c Cursor) Preorder(types ...ast.Node) iter.Seq[Cursor] {
+ // The types argument, if non-empty, enables type-based filtering of
+ // events. The function f if is called only for nodes whose type
+ // matches an element of the types slice.
+-func (c Cursor) Inspect(types []ast.Node, f func(c Cursor, push bool) (descend bool)) {
++func (c Cursor) Inspect(types []ast.Node, f func(c Cursor) (descend bool)) {
+ 	mask := maskOf(types)
+ 	events := c.events()
+ 	for i, limit := c.indices(); i < limit; {
+@@ -163,46 +164,19 @@ func (c Cursor) Inspect(types []ast.Node, f func(c Cursor, push bool) (descend b
+ 		if ev.index > i {
+ 			// push
+ 			pop := ev.index
+-			if ev.typ&mask != 0 && !f(Cursor{c.in, i}, true) {
+-				i = pop + 1 // past the pop
++			if ev.typ&mask != 0 && !f(Cursor{c.in, i}) ||
++				events[pop].typ&mask == 0 {
++				// The user opted not to descend, or the
++				// subtree does not contain types:
++				// skip past the pop.
++				i = pop + 1
+ 				continue
+ 			}
+-			if events[pop].typ&mask == 0 {
+-				// Subtree does not contain types: skip to pop.
+-				i = pop
+-				continue
+-			}
+-		} else {
+-			// pop
+-			push := ev.index
+-			if events[push].typ&mask != 0 {
+-				f(Cursor{c.in, push}, false)
+-			}
+ 		}
+ 		i++
+ 	}
+ }
+ 
+-// Stack returns the stack of enclosing nodes, outermost first:
+-// from the [ast.File] down to the current cursor's node.
+-//
+-// To amortize allocation, it appends to the provided slice, which
+-// must be empty.
+-//
+-// Stack must not be called on the Root node.
+-func (c Cursor) Stack(stack []Cursor) []Cursor {
+-	if len(stack) > 0 {
+-		panic("stack is non-empty")
+-	}
+-	if c.index < 0 {
+-		panic("Cursor.Stack called on Root node")
+-	}
+-
+-	stack = slices.AppendSeq(stack, c.Enclosing())
+-	slices.Reverse(stack)
+-	return stack
+-}
+-
+ // Enclosing returns an iterator over the nodes enclosing the current
+ // current node, starting with the Cursor itself.
+ //
+@@ -453,7 +427,7 @@ func (c Cursor) FindNode(n ast.Node) (Cursor, bool) {
+ 
+ 	// TODO(adonovan): opt: should we assume Node.Pos is accurate
+ 	// and combine type-based filtering with position filtering
+-	// like FindPos?
++	// like FindByPos?
+ 
+ 	mask := maskOf([]ast.Node{n})
+ 	events := c.events()
+@@ -474,7 +448,7 @@ func (c Cursor) FindNode(n ast.Node) (Cursor, bool) {
+ 	return Cursor{}, false
+ }
+ 
+-// FindPos returns the cursor for the innermost node n in the tree
++// FindByPos returns the cursor for the innermost node n in the tree
+ // rooted at c such that n.Pos() <= start && end <= n.End().
+ // (For an *ast.File, it uses the bounds n.FileStart-n.FileEnd.)
+ //
+@@ -483,7 +457,7 @@ func (c Cursor) FindNode(n ast.Node) (Cursor, bool) {
+ //
+ // See also [astutil.PathEnclosingInterval], which
+ // tolerates adjoining whitespace.
+-func (c Cursor) FindPos(start, end token.Pos) (Cursor, bool) {
++func (c Cursor) FindByPos(start, end token.Pos) (Cursor, bool) {
+ 	if end < start {
+ 		panic("end < start")
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/astutil/util.go b/src/cmd/vendor/golang.org/x/tools/internal/astutil/util.go
+new file mode 100644
+index 0000000000..1862668a7c
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/astutil/util.go
+@@ -0,0 +1,91 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package astutil
++
++import (
++	"fmt"
++	"go/ast"
++	"go/token"
++	"strconv"
++	"unicode/utf8"
++)
++
++// RangeInStringLiteral calculates the positional range within a string literal
++// corresponding to the specified start and end byte offsets within the logical string.
++func RangeInStringLiteral(lit *ast.BasicLit, start, end int) (token.Pos, token.Pos, error) {
++	startPos, err := PosInStringLiteral(lit, start)
++	if err != nil {
++		return 0, 0, fmt.Errorf("start: %v", err)
++	}
++	endPos, err := PosInStringLiteral(lit, end)
++	if err != nil {
++		return 0, 0, fmt.Errorf("end: %v", err)
++	}
++	return startPos, endPos, nil
++}
++
++// PosInStringLiteral returns the position within a string literal
++// corresponding to the specified byte offset within the logical
++// string that it denotes.
++func PosInStringLiteral(lit *ast.BasicLit, offset int) (token.Pos, error) {
++	raw := lit.Value
++
++	value, err := strconv.Unquote(raw)
++	if err != nil {
++		return 0, err
++	}
++	if !(0 <= offset && offset <= len(value)) {
++		return 0, fmt.Errorf("invalid offset")
++	}
++
++	// remove quotes
++	quote := raw[0] // '"' or '`'
++	raw = raw[1 : len(raw)-1]
++
++	var (
++		i   = 0                // byte index within logical value
++		pos = lit.ValuePos + 1 // position within literal
++	)
++	for raw != "" && i < offset {
++		r, _, rest, _ := strconv.UnquoteChar(raw, quote) // can't fail
++		sz := len(raw) - len(rest)                       // length of literal char in raw bytes
++		pos += token.Pos(sz)
++		raw = raw[sz:]
++		i += utf8.RuneLen(r)
++	}
++	return pos, nil
++}
++
++// PreorderStack traverses the tree rooted at root,
++// calling f before visiting each node.
++//
++// Each call to f provides the current node and traversal stack,
++// consisting of the original value of stack appended with all nodes
++// from root to n, excluding n itself. (This design allows calls
++// to PreorderStack to be nested without double counting.)
++//
++// If f returns false, the traversal skips over that subtree. Unlike
++// [ast.Inspect], no second call to f is made after visiting node n.
++// In practice, the second call is nearly always used only to pop the
++// stack, and it is surprisingly tricky to do this correctly; see
++// https://go.dev/issue/73319.
++func PreorderStack(root ast.Node, stack []ast.Node, f func(n ast.Node, stack []ast.Node) bool) {
++	before := len(stack)
++	ast.Inspect(root, func(n ast.Node) bool {
++		if n != nil {
++			if !f(n, stack) {
++				// Do not push, as there will be no corresponding pop.
++				return false
++			}
++			stack = append(stack, n) // push
++		} else {
++			stack = stack[:len(stack)-1] // pop
++		}
++		return true
++	})
++	if len(stack) != before {
++		panic("push/pop mismatch")
++	}
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go b/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
+index 5a7da4871a..7b1d112a7c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
+@@ -320,7 +320,7 @@ func AppendMarker(dst []byte, id uint64) []byte {
+ 	const prefix = "[bisect-match 0x"
+ 	var buf [len(prefix) + 16 + 1]byte
+ 	copy(buf[:], prefix)
+-	for i := 0; i < 16; i++ {
++	for i := range 16 {
+ 		buf[len(prefix)+i] = "0123456789abcdef"[id>>60]
+ 		id <<= 4
+ 	}
+@@ -504,7 +504,7 @@ func fnvString(h uint64, x string) uint64 {
+ }
+ 
+ func fnvUint64(h uint64, x uint64) uint64 {
+-	for i := 0; i < 8; i++ {
++	for range 8 {
+ 		h ^= uint64(x & 0xFF)
+ 		x >>= 8
+ 		h *= prime64
+@@ -513,7 +513,7 @@ func fnvUint64(h uint64, x uint64) uint64 {
+ }
+ 
+ func fnvUint32(h uint64, x uint32) uint64 {
+-	for i := 0; i < 4; i++ {
++	for range 4 {
+ 		h ^= uint64(x & 0xFF)
+ 		x >>= 8
+ 		h *= prime64
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/stdlib/deps.go b/src/cmd/vendor/golang.org/x/tools/internal/stdlib/deps.go
+index 7cca431cd6..c50bf406b7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/stdlib/deps.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/stdlib/deps.go
+@@ -12,348 +12,348 @@ type pkginfo struct {
+ }
+ 
+ var deps = [...]pkginfo{
+-	{"archive/tar", "\x03k\x03E5\x01\v\x01#\x01\x01\x02\x05\t\x02\x01\x02\x02\v"},
+-	{"archive/zip", "\x02\x04a\a\x16\x0205\x01+\x05\x01\x10\x03\x02\r\x04"},
+-	{"bufio", "\x03k}E\x13"},
+-	{"bytes", "n+R\x03\fG\x02\x02"},
++	{"archive/tar", "\x03j\x03E6\x01\v\x01\"\x01\x01\x02\x05\n\x02\x01\x02\x02\v"},
++	{"archive/zip", "\x02\x04`\a\x16\x0206\x01*\x05\x01\x11\x03\x02\r\x04"},
++	{"bufio", "\x03j~E\x13"},
++	{"bytes", "m+S\x03\fG\x02\x02"},
+ 	{"cmp", ""},
+ 	{"compress/bzip2", "\x02\x02\xe7\x01B"},
+-	{"compress/flate", "\x02l\x03z\r\x024\x01\x03"},
+-	{"compress/gzip", "\x02\x04a\a\x03\x15eT"},
+-	{"compress/lzw", "\x02l\x03z"},
+-	{"compress/zlib", "\x02\x04a\a\x03\x13\x01f"},
++	{"compress/flate", "\x02k\x03{\r\x024\x01\x03"},
++	{"compress/gzip", "\x02\x04`\a\x03\x15fT"},
++	{"compress/lzw", "\x02k\x03{"},
++	{"compress/zlib", "\x02\x04`\a\x03\x13\x01g"},
+ 	{"container/heap", "\xae\x02"},
+ 	{"container/list", ""},
+ 	{"container/ring", ""},
+-	{"context", "n\\h\x01\f"},
+-	{"crypto", "\x84\x01gD"},
++	{"context", "m\\i\x01\f"},
++	{"crypto", "\x83\x01hD"},
+ 	{"crypto/aes", "\x10\n\a\x8e\x02"},
+-	{"crypto/cipher", "\x03\x1e\x01\x01\x1d\x11\x1d,Q"},
+-	{"crypto/des", "\x10\x13\x1d.,\x95\x01\x03"},
+-	{"crypto/dsa", "@\x04*}\x0e"},
+-	{"crypto/ecdh", "\x03\v\f\x0e\x04\x14\x04\r\x1d}"},
+-	{"crypto/ecdsa", "\x0e\x05\x03\x04\x01\x0e\x16\x01\x04\f\x01\x1d}\x0e\x04K\x01"},
+-	{"crypto/ed25519", "\x0e\x1c\x16\n\a\x1d}D"},
+-	{"crypto/elliptic", "0>}\x0e9"},
+-	{"crypto/fips140", " \x05\x91\x01"},
+-	{"crypto/hkdf", "-\x12\x01.\x16"},
+-	{"crypto/hmac", "\x1a\x14\x11\x01\x113"},
+-	{"crypto/internal/boring", "\x0e\x02\rg"},
++	{"crypto/cipher", "\x03\x1e\x01\x01\x1d\x11\x1c,R"},
++	{"crypto/des", "\x10\x13\x1d-,\x96\x01\x03"},
++	{"crypto/dsa", "@\x04)~\x0e"},
++	{"crypto/ecdh", "\x03\v\f\x0e\x04\x14\x04\r\x1c~"},
++	{"crypto/ecdsa", "\x0e\x05\x03\x04\x01\x0e\x16\x01\x04\f\x01\x1c~\x0e\x04K\x01"},
++	{"crypto/ed25519", "\x0e\x1c\x16\n\a\x1c~D"},
++	{"crypto/elliptic", "0=~\x0e9"},
++	{"crypto/fips140", " \x05\x90\x01"},
++	{"crypto/hkdf", "-\x12\x01-\x16"},
++	{"crypto/hmac", "\x1a\x14\x11\x01\x112"},
++	{"crypto/internal/boring", "\x0e\x02\rf"},
+ 	{"crypto/internal/boring/bbig", "\x1a\xdf\x01L"},
+ 	{"crypto/internal/boring/bcache", "\xb3\x02\x12"},
+ 	{"crypto/internal/boring/sig", ""},
+-	{"crypto/internal/cryptotest", "\x03\r\n)\x0e\x1a\x06\x13\x12#\a\t\x11\x11\x11\x1b\x01\f\f\x05\n"},
++	{"crypto/internal/cryptotest", "\x03\r\n)\x0e\x19\x06\x13\x12#\a\t\x11\x12\x11\x1a\r\r\x05\n"},
+ 	{"crypto/internal/entropy", "E"},
+-	{"crypto/internal/fips140", ">0}9\f\x15"},
+-	{"crypto/internal/fips140/aes", "\x03\x1d\x03\x02\x13\x04\x01\x01\x05+\x8c\x015"},
+-	{"crypto/internal/fips140/aes/gcm", " \x01\x02\x02\x02\x11\x04\x01\x06+\x8a\x01"},
++	{"crypto/internal/fips140", ">/~8\r\x15"},
++	{"crypto/internal/fips140/aes", "\x03\x1d\x03\x02\x13\x04\x01\x01\x05*\x8d\x015"},
++	{"crypto/internal/fips140/aes/gcm", " \x01\x02\x02\x02\x11\x04\x01\x06*\x8b\x01"},
+ 	{"crypto/internal/fips140/alias", "\xc5\x02"},
+-	{"crypto/internal/fips140/bigmod", "%\x17\x01\x06+\x8c\x01"},
++	{"crypto/internal/fips140/bigmod", "%\x17\x01\x06*\x8d\x01"},
+ 	{"crypto/internal/fips140/check", " \x0e\x06\b\x02\xad\x01Z"},
+-	{"crypto/internal/fips140/check/checktest", "%\xff\x01!"},
+-	{"crypto/internal/fips140/drbg", "\x03\x1c\x01\x01\x04\x13\x04\b\x01)}\x0f8"},
+-	{"crypto/internal/fips140/ecdh", "\x03\x1d\x05\x02\t\f2}\x0f8"},
+-	{"crypto/internal/fips140/ecdsa", "\x03\x1d\x04\x01\x02\a\x02\x068}G"},
+-	{"crypto/internal/fips140/ed25519", "\x03\x1d\x05\x02\x04\v8\xc1\x01\x03"},
+-	{"crypto/internal/fips140/edwards25519", "%\a\f\x042\x8c\x018"},
+-	{"crypto/internal/fips140/edwards25519/field", "%\x13\x042\x8c\x01"},
+-	{"crypto/internal/fips140/hkdf", "\x03\x1d\x05\t\x06:"},
+-	{"crypto/internal/fips140/hmac", "\x03\x1d\x14\x01\x018"},
+-	{"crypto/internal/fips140/mlkem", "\x03\x1d\x05\x02\x0e\x03\x042"},
+-	{"crypto/internal/fips140/nistec", "%\f\a\x042\x8c\x01*\x0e\x13"},
+-	{"crypto/internal/fips140/nistec/fiat", "%\x136\x8c\x01"},
+-	{"crypto/internal/fips140/pbkdf2", "\x03\x1d\x05\t\x06:"},
+-	{"crypto/internal/fips140/rsa", "\x03\x1d\x04\x01\x02\r\x01\x01\x026}G"},
+-	{"crypto/internal/fips140/sha256", "\x03\x1d\x1c\x01\x06+\x8c\x01"},
+-	{"crypto/internal/fips140/sha3", "\x03\x1d\x18\x04\x011\x8c\x01K"},
+-	{"crypto/internal/fips140/sha512", "\x03\x1d\x1c\x01\x06+\x8c\x01"},
++	{"crypto/internal/fips140/check/checktest", "%\xfe\x01\""},
++	{"crypto/internal/fips140/drbg", "\x03\x1c\x01\x01\x04\x13\x04\b\x01(~\x0f8"},
++	{"crypto/internal/fips140/ecdh", "\x03\x1d\x05\x02\t\f1~\x0f8"},
++	{"crypto/internal/fips140/ecdsa", "\x03\x1d\x04\x01\x02\a\x02\x067~G"},
++	{"crypto/internal/fips140/ed25519", "\x03\x1d\x05\x02\x04\v7\xc2\x01\x03"},
++	{"crypto/internal/fips140/edwards25519", "%\a\f\x041\x8d\x018"},
++	{"crypto/internal/fips140/edwards25519/field", "%\x13\x041\x8d\x01"},
++	{"crypto/internal/fips140/hkdf", "\x03\x1d\x05\t\x069"},
++	{"crypto/internal/fips140/hmac", "\x03\x1d\x14\x01\x017"},
++	{"crypto/internal/fips140/mlkem", "\x03\x1d\x05\x02\x0e\x03\x041"},
++	{"crypto/internal/fips140/nistec", "%\f\a\x041\x8d\x01)\x0f\x13"},
++	{"crypto/internal/fips140/nistec/fiat", "%\x135\x8d\x01"},
++	{"crypto/internal/fips140/pbkdf2", "\x03\x1d\x05\t\x069"},
++	{"crypto/internal/fips140/rsa", "\x03\x1d\x04\x01\x02\r\x01\x01\x025~G"},
++	{"crypto/internal/fips140/sha256", "\x03\x1d\x1c\x01\x06*\x8d\x01"},
++	{"crypto/internal/fips140/sha3", "\x03\x1d\x18\x04\x010\x8d\x01K"},
++	{"crypto/internal/fips140/sha512", "\x03\x1d\x1c\x01\x06*\x8d\x01"},
+ 	{"crypto/internal/fips140/ssh", " \x05"},
+-	{"crypto/internal/fips140/subtle", "#\x19\xbe\x01"},
+-	{"crypto/internal/fips140/tls12", "\x03\x1d\x05\t\x06\x028"},
+-	{"crypto/internal/fips140/tls13", "\x03\x1d\x05\b\a\b2"},
++	{"crypto/internal/fips140/subtle", "#"},
++	{"crypto/internal/fips140/tls12", "\x03\x1d\x05\t\x06\x027"},
++	{"crypto/internal/fips140/tls13", "\x03\x1d\x05\b\a\b1"},
+ 	{"crypto/internal/fips140deps", ""},
+-	{"crypto/internal/fips140deps/byteorder", "\x9a\x01"},
+-	{"crypto/internal/fips140deps/cpu", "\xae\x01\a"},
+-	{"crypto/internal/fips140deps/godebug", "\xb6\x01"},
+-	{"crypto/internal/fips140hash", "5\x1a5\xc1\x01"},
+-	{"crypto/internal/fips140only", "'\r\x01\x01N25"},
++	{"crypto/internal/fips140deps/byteorder", "\x99\x01"},
++	{"crypto/internal/fips140deps/cpu", "\xad\x01\a"},
++	{"crypto/internal/fips140deps/godebug", "\xb5\x01"},
++	{"crypto/internal/fips140hash", "5\x1a4\xc2\x01"},
++	{"crypto/internal/fips140only", "'\r\x01\x01M26"},
+ 	{"crypto/internal/fips140test", ""},
+-	{"crypto/internal/hpke", "\x0e\x01\x01\x03\x1a\x1d$,`M"},
++	{"crypto/internal/hpke", "\x0e\x01\x01\x03\x1a\x1d#,aM"},
+ 	{"crypto/internal/impl", "\xb0\x02"},
+ 	{"crypto/internal/randutil", "\xeb\x01\x12"},
+-	{"crypto/internal/sysrand", "\xd7\x01@\x1b\x01\f\x06"},
+-	{"crypto/internal/sysrand/internal/seccomp", "n"},
+-	{"crypto/md5", "\x0e2.\x16\x16`"},
++	{"crypto/internal/sysrand", "mi\"\x1e\r\x0f\x01\x01\v\x06"},
++	{"crypto/internal/sysrand/internal/seccomp", "m"},
++	{"crypto/md5", "\x0e2-\x16\x16a"},
+ 	{"crypto/mlkem", "/"},
+-	{"crypto/pbkdf2", "2\r\x01.\x16"},
+-	{"crypto/rand", "\x1a\x06\a\x19\x04\x01)}\x0eL"},
+-	{"crypto/rc4", "#\x1d.\xc1\x01"},
+-	{"crypto/rsa", "\x0e\f\x01\t\x0f\f\x01\x04\x06\a\x1d\x03\x1325\r\x01"},
+-	{"crypto/sha1", "\x0e\f&.\x16\x16\x14L"},
+-	{"crypto/sha256", "\x0e\f\x1aP"},
+-	{"crypto/sha3", "\x0e'O\xc1\x01"},
+-	{"crypto/sha512", "\x0e\f\x1cN"},
+-	{"crypto/subtle", "8\x98\x01T"},
+-	{"crypto/tls", "\x03\b\x02\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\a\x01\v\x02\n\x01\b\x05\x03\x01\x01\x01\x01\x02\x01\x02\x01\x18\x02\x03\x13\x16\x14\b5\x16\x16\r\t\x01\x01\x01\x02\x01\f\x06\x02\x01"},
++	{"crypto/pbkdf2", "2\r\x01-\x16"},
++	{"crypto/rand", "\x1a\x06\a\x19\x04\x01(~\x0eL"},
++	{"crypto/rc4", "#\x1d-\xc2\x01"},
++	{"crypto/rsa", "\x0e\f\x01\t\x0f\f\x01\x04\x06\a\x1c\x03\x1326\r\x01"},
++	{"crypto/sha1", "\x0e\f&-\x16\x16\x14M"},
++	{"crypto/sha256", "\x0e\f\x1aO"},
++	{"crypto/sha3", "\x0e'N\xc2\x01"},
++	{"crypto/sha512", "\x0e\f\x1cM"},
++	{"crypto/subtle", "8\x96\x01U"},
++	{"crypto/tls", "\x03\b\x02\x01\x01\x01\x01\x02\x01\x01\x01\x03\x01\a\x01\v\x02\n\x01\b\x05\x03\x01\x01\x01\x01\x02\x01\x02\x01\x17\x02\x03\x13\x16\x14\b6\x16\x15\r\n\x01\x01\x01\x02\x01\f\x06\x02\x01"},
+ 	{"crypto/tls/internal/fips140tls", " \x93\x02"},
+-	{"crypto/x509", "\x03\v\x01\x01\x01\x01\x01\x01\x01\x011\x03\x02\x01\x01\x02\x05\x01\x0e\x06\x02\x02\x03E5\x03\t\x01\x01\x01\a\x10\x05\t\x05\v\x01\x02\r\x02\x01\x01\x02\x03\x01"},
+-	{"crypto/x509/internal/macos", "\x03k'\x8f\x01\v\x10\x06"},
+-	{"crypto/x509/pkix", "d\x06\a\x88\x01F"},
+-	{"database/sql", "\x03\nK\x16\x03z\f\x06\"\x05\t\x02\x03\x01\f\x02\x02\x02"},
+-	{"database/sql/driver", "\ra\x03\xae\x01\x10\x10"},
+-	{"debug/buildinfo", "\x03X\x02\x01\x01\b\a\x03`\x18\x02\x01+\x10\x1e"},
+-	{"debug/dwarf", "\x03d\a\x03z1\x12\x01\x01"},
+-	{"debug/elf", "\x03\x06Q\r\a\x03`\x19\x01,\x18\x01\x15"},
+-	{"debug/gosym", "\x03d\n\xbd\x01\x01\x01\x02"},
+-	{"debug/macho", "\x03\x06Q\r\n`\x1a,\x18\x01"},
+-	{"debug/pe", "\x03\x06Q\r\a\x03`\x1a,\x18\x01\x15"},
+-	{"debug/plan9obj", "g\a\x03`\x1a,"},
+-	{"embed", "n+:\x18\x01S"},
++	{"crypto/x509", "\x03\v\x01\x01\x01\x01\x01\x01\x01\x011\x03\x02\x01\x01\x02\x05\x0e\x06\x02\x02\x03E\x033\x01\x02\t\x01\x01\x01\a\x0f\x05\x01\x06\x02\x05\f\x01\x02\r\x02\x01\x01\x02\x03\x01"},
++	{"crypto/x509/pkix", "c\x06\a\x89\x01F"},
++	{"database/sql", "\x03\nJ\x16\x03{\f\x06!\x05\n\x02\x03\x01\f\x02\x02\x02"},
++	{"database/sql/driver", "\r`\x03\xae\x01\x11\x10"},
++	{"debug/buildinfo", "\x03W\x02\x01\x01\b\a\x03`\x19\x02\x01*\x0f "},
++	{"debug/dwarf", "\x03c\a\x03{0\x13\x01\x01"},
++	{"debug/elf", "\x03\x06P\r\a\x03`\x1a\x01+\x19\x01\x15"},
++	{"debug/gosym", "\x03c\n\xbe\x01\x01\x01\x02"},
++	{"debug/macho", "\x03\x06P\r\n`\x1b+\x19\x01"},
++	{"debug/pe", "\x03\x06P\r\a\x03`\x1b+\x19\x01\x15"},
++	{"debug/plan9obj", "f\a\x03`\x1b+"},
++	{"embed", "m+:\x19\x01S"},
+ 	{"embed/internal/embedtest", ""},
+ 	{"encoding", ""},
+ 	{"encoding/ascii85", "\xeb\x01D"},
+-	{"encoding/asn1", "\x03k\x03\x87\x01\x01&\x0e\x02\x01\x0f\x03\x01"},
++	{"encoding/asn1", "\x03j\x03\x88\x01\x01%\x0f\x02\x01\x0f\x03\x01"},
+ 	{"encoding/base32", "\xeb\x01B\x02"},
+-	{"encoding/base64", "\x9a\x01QB\x02"},
+-	{"encoding/binary", "n}\r'\x0e\x05"},
+-	{"encoding/csv", "\x02\x01k\x03zE\x11\x02"},
+-	{"encoding/gob", "\x02`\x05\a\x03`\x1a\f\x01\x02\x1d\b\x13\x01\x0e\x02"},
+-	{"encoding/hex", "n\x03zB\x03"},
+-	{"encoding/json", "\x03\x01^\x04\b\x03z\r'\x0e\x02\x01\x02\x0f\x01\x01\x02"},
+-	{"encoding/pem", "\x03c\b}B\x03"},
+-	{"encoding/xml", "\x02\x01_\f\x03z4\x05\v\x01\x02\x0f\x02"},
+-	{"errors", "\xca\x01{"},
+-	{"expvar", "kK9\t\n\x15\r\t\x02\x03\x01\x10"},
+-	{"flag", "b\f\x03z,\b\x05\t\x02\x01\x0f"},
+-	{"fmt", "nE8\r\x1f\b\x0e\x02\x03\x11"},
+-	{"go/ast", "\x03\x01m\x0f\x01j\x03)\b\x0e\x02\x01"},
++	{"encoding/base64", "f\x85\x01B\x02"},
++	{"encoding/binary", "m~\r&\x0f\x05"},
++	{"encoding/csv", "\x02\x01j\x03{E\x11\x02"},
++	{"encoding/gob", "\x02_\x05\a\x03`\x1b\f\x01\x02\x1c\b\x14\x01\x0e\x02"},
++	{"encoding/hex", "m\x03{B\x03"},
++	{"encoding/json", "\x03\x01]\x04\b\x03{\r&\x0f\x02\x01\x02\x0f\x01\x01\x02"},
++	{"encoding/pem", "\x03b\b~B\x03"},
++	{"encoding/xml", "\x02\x01^\f\x03{3\x05\f\x01\x02\x0f\x02"},
++	{"errors", "\xc9\x01|"},
++	{"expvar", "jK:\t\n\x14\r\n\x02\x03\x01\x10"},
++	{"flag", "a\f\x03{+\b\x05\n\x02\x01\x0f"},
++	{"fmt", "mE9\r\x1e\b\x0f\x02\x03\x11"},
++	{"go/ast", "\x03\x01l\x0f\x01k\x03(\b\x0f\x02\x01"},
+ 	{"go/ast/internal/tests", ""},
+-	{"go/build", "\x02\x01k\x03\x01\x03\x02\a\x02\x01\x17\x1e\x04\x02\t\x14\x12\x01+\x01\x04\x01\a\t\x02\x01\x11\x02\x02"},
+-	{"go/build/constraint", "n\xc1\x01\x01\x11\x02"},
+-	{"go/constant", "q\x10w\x01\x015\x01\x02\x11"},
+-	{"go/doc", "\x04m\x01\x06\t=-1\x11\x02\x01\x11\x02"},
+-	{"go/doc/comment", "\x03n\xbc\x01\x01\x01\x01\x11\x02"},
+-	{"go/format", "\x03n\x01\f\x01\x02jE"},
+-	{"go/importer", "t\a\x01\x01\x04\x01i9"},
+-	{"go/internal/gccgoimporter", "\x02\x01X\x13\x03\x05\v\x01g\x02,\x01\x05\x12\x01\v\b"},
+-	{"go/internal/gcimporter", "\x02o\x10\x01/\x05\x0e',\x16\x03\x02"},
+-	{"go/internal/srcimporter", "q\x01\x02\n\x03\x01i,\x01\x05\x13\x02\x13"},
+-	{"go/parser", "\x03k\x03\x01\x03\v\x01j\x01+\x06\x13"},
+-	{"go/printer", "q\x01\x03\x03\tj\r\x1f\x16\x02\x01\x02\n\x05\x02"},
+-	{"go/scanner", "\x03n\x10j2\x11\x01\x12\x02"},
+-	{"go/token", "\x04m\xbc\x01\x02\x03\x01\x0e\x02"},
+-	{"go/types", "\x03\x01\x06d\x03\x01\x04\b\x03\x02\x15\x1e\x06+\x04\x03\n%\a\t\x01\x01\x01\x02\x01\x0e\x02\x02"},
+-	{"go/version", "\xbb\x01u"},
++	{"go/build", "\x02\x01j\x03\x01\x03\x02\a\x02\x01\x17\x1e\x04\x02\t\x14\x13\x01*\x01\x04\x01\a\n\x02\x01\x11\x02\x02"},
++	{"go/build/constraint", "m\xc2\x01\x01\x11\x02"},
++	{"go/constant", "p\x10x\x01\x015\x01\x02\x11"},
++	{"go/doc", "\x04l\x01\x06\t=.0\x12\x02\x01\x11\x02"},
++	{"go/doc/comment", "\x03m\xbd\x01\x01\x01\x01\x11\x02"},
++	{"go/format", "\x03m\x01\f\x01\x02kE"},
++	{"go/importer", "s\a\x01\x01\x04\x01j8"},
++	{"go/internal/gccgoimporter", "\x02\x01W\x13\x03\x05\v\x01h\x02+\x01\x05\x13\x01\v\b"},
++	{"go/internal/gcimporter", "\x02n\x10\x01/\x05\x0e(+\x17\x03\x02"},
++	{"go/internal/srcimporter", "p\x01\x02\n\x03\x01j+\x01\x05\x14\x02\x13"},
++	{"go/parser", "\x03j\x03\x01\x03\v\x01k\x01*\x06\x14"},
++	{"go/printer", "p\x01\x03\x03\tk\r\x1e\x17\x02\x01\x02\n\x05\x02"},
++	{"go/scanner", "\x03m\x10k1\x12\x01\x12\x02"},
++	{"go/token", "\x04l\xbd\x01\x02\x03\x01\x0e\x02"},
++	{"go/types", "\x03\x01\x06c\x03\x01\x04\b\x03\x02\x15\x1e\x06,\x04\x03\n$\a\n\x01\x01\x01\x02\x01\x0e\x02\x02"},
++	{"go/version", "\xba\x01v"},
+ 	{"hash", "\xeb\x01"},
+-	{"hash/adler32", "n\x16\x16"},
+-	{"hash/crc32", "n\x16\x16\x14\x84\x01\x01"},
+-	{"hash/crc64", "n\x16\x16\x98\x01"},
+-	{"hash/fnv", "n\x16\x16`"},
+-	{"hash/maphash", "\x95\x01\x05\x1b\x03@M"},
++	{"hash/adler32", "m\x16\x16"},
++	{"hash/crc32", "m\x16\x16\x14\x85\x01\x01\x12"},
++	{"hash/crc64", "m\x16\x16\x99\x01"},
++	{"hash/fnv", "m\x16\x16a"},
++	{"hash/maphash", "\x94\x01\x05\x1b\x03AM"},
+ 	{"html", "\xb0\x02\x02\x11"},
+-	{"html/template", "\x03h\x06\x19,5\x01\v \x05\x01\x02\x03\r\x01\x02\v\x01\x03\x02"},
+-	{"image", "\x02l\x1f^\x0f5\x03\x01"},
++	{"html/template", "\x03g\x06\x19,6\x01\v\x1f\x05\x01\x02\x03\x0e\x01\x02\v\x01\x03\x02"},
++	{"image", "\x02k\x1f_\x0f5\x03\x01"},
+ 	{"image/color", ""},
+-	{"image/color/palette", "\x8d\x01"},
+-	{"image/draw", "\x8c\x01\x01\x04"},
+-	{"image/gif", "\x02\x01\x05f\x03\x1b\x01\x01\x01\vQ"},
+-	{"image/internal/imageutil", "\x8c\x01"},
+-	{"image/jpeg", "\x02l\x1e\x01\x04Z"},
+-	{"image/png", "\x02\a^\n\x13\x02\x06\x01^D"},
+-	{"index/suffixarray", "\x03d\a}\r*\v\x01"},
+-	{"internal/abi", "\xb5\x01\x90\x01"},
++	{"image/color/palette", "\x8c\x01"},
++	{"image/draw", "\x8b\x01\x01\x04"},
++	{"image/gif", "\x02\x01\x05e\x03\x1b\x01\x01\x01\vR"},
++	{"image/internal/imageutil", "\x8b\x01"},
++	{"image/jpeg", "\x02k\x1e\x01\x04["},
++	{"image/png", "\x02\a]\n\x13\x02\x06\x01_D"},
++	{"index/suffixarray", "\x03c\a~\r)\f\x01"},
++	{"internal/abi", "\xb4\x01\x91\x01"},
+ 	{"internal/asan", "\xc5\x02"},
+-	{"internal/bisect", "\xa4\x02\x0e\x01"},
+-	{"internal/buildcfg", "qG_\x06\x02\x05\v\x01"},
+-	{"internal/bytealg", "\xae\x01\x97\x01"},
++	{"internal/bisect", "\xa3\x02\x0f\x01"},
++	{"internal/buildcfg", "pG_\x06\x02\x05\f\x01"},
++	{"internal/bytealg", "\xad\x01\x98\x01"},
+ 	{"internal/byteorder", ""},
+ 	{"internal/cfg", ""},
+-	{"internal/chacha8rand", "\x9a\x01\x1b\x90\x01"},
++	{"internal/chacha8rand", "\x99\x01\x1b\x91\x01"},
+ 	{"internal/copyright", ""},
+ 	{"internal/coverage", ""},
+ 	{"internal/coverage/calloc", ""},
+-	{"internal/coverage/cfile", "k\x06\x17\x16\x01\x02\x01\x01\x01\x01\x01\x01\x01$\x01\x1e,\x06\a\v\x01\x03\f\x06"},
+-	{"internal/coverage/cformat", "\x04m-\x04I\f6\x01\x02\f"},
+-	{"internal/coverage/cmerge", "q-Z"},
+-	{"internal/coverage/decodecounter", "g\n-\v\x02@,\x18\x16"},
+-	{"internal/coverage/decodemeta", "\x02e\n\x17\x16\v\x02@,"},
+-	{"internal/coverage/encodecounter", "\x02e\n-\f\x01\x02>\f \x16"},
+-	{"internal/coverage/encodemeta", "\x02\x01d\n\x13\x04\x16\r\x02>,."},
+-	{"internal/coverage/pods", "\x04m-y\x06\x05\v\x02\x01"},
++	{"internal/coverage/cfile", "j\x06\x17\x16\x01\x02\x01\x01\x01\x01\x01\x01\x01#\x01 +\x06\a\f\x01\x03\f\x06"},
++	{"internal/coverage/cformat", "\x04l-\x04J\f6\x01\x02\f"},
++	{"internal/coverage/cmerge", "p-["},
++	{"internal/coverage/decodecounter", "f\n-\v\x02A+\x19\x16"},
++	{"internal/coverage/decodemeta", "\x02d\n\x17\x16\v\x02A+"},
++	{"internal/coverage/encodecounter", "\x02d\n-\f\x01\x02?\f\x1f\x17"},
++	{"internal/coverage/encodemeta", "\x02\x01c\n\x13\x04\x16\r\x02?+/"},
++	{"internal/coverage/pods", "\x04l-y\x06\x05\f\x02\x01"},
+ 	{"internal/coverage/rtcov", "\xc5\x02"},
+-	{"internal/coverage/slicereader", "g\nzZ"},
+-	{"internal/coverage/slicewriter", "qz"},
+-	{"internal/coverage/stringtab", "q8\x04>"},
++	{"internal/coverage/slicereader", "f\n{Z"},
++	{"internal/coverage/slicewriter", "p{"},
++	{"internal/coverage/stringtab", "p8\x04?"},
+ 	{"internal/coverage/test", ""},
+ 	{"internal/coverage/uleb128", ""},
+ 	{"internal/cpu", "\xc5\x02"},
+-	{"internal/dag", "\x04m\xbc\x01\x03"},
+-	{"internal/diff", "\x03n\xbd\x01\x02"},
+-	{"internal/exportdata", "\x02\x01k\x03\x03]\x1a,\x01\x05\x12\x01\x02"},
+-	{"internal/filepathlite", "n+:\x19A"},
+-	{"internal/fmtsort", "\x04\x9b\x02\x0e"},
+-	{"internal/fuzz", "\x03\nA\x19\x04\x03\x03\x01\f\x0355\r\x02\x1d\x01\x05\x02\x05\v\x01\x02\x01\x01\v\x04\x02"},
++	{"internal/dag", "\x04l\xbd\x01\x03"},
++	{"internal/diff", "\x03m\xbe\x01\x02"},
++	{"internal/exportdata", "\x02\x01j\x03\x03]\x1b+\x01\x05\x13\x01\x02"},
++	{"internal/filepathlite", "m+:\x1aA"},
++	{"internal/fmtsort", "\x04\x9a\x02\x0f"},
++	{"internal/fuzz", "\x03\nA\x18\x04\x03\x03\x01\f\x0356\r\x02\x1c\x01\x05\x02\x05\f\x01\x02\x01\x01\v\x04\x02"},
+ 	{"internal/goarch", ""},
+-	{"internal/godebug", "\x97\x01 {\x01\x12"},
++	{"internal/godebug", "\x96\x01 |\x01\x12"},
+ 	{"internal/godebugs", ""},
+ 	{"internal/goexperiment", ""},
+ 	{"internal/goos", ""},
+-	{"internal/goroot", "\x97\x02\x01\x05\x13\x02"},
++	{"internal/goroot", "\x96\x02\x01\x05\x14\x02"},
+ 	{"internal/gover", "\x04"},
+ 	{"internal/goversion", ""},
+ 	{"internal/itoa", ""},
+-	{"internal/lazyregexp", "\x97\x02\v\x0e\x02"},
+-	{"internal/lazytemplate", "\xeb\x01,\x19\x02\v"},
++	{"internal/lazyregexp", "\x96\x02\v\x0f\x02"},
++	{"internal/lazytemplate", "\xeb\x01+\x1a\x02\v"},
+ 	{"internal/msan", "\xc5\x02"},
+ 	{"internal/nettrace", ""},
+-	{"internal/obscuretestdata", "f\x85\x01,"},
+-	{"internal/oserror", "n"},
+-	{"internal/pkgbits", "\x03K\x19\a\x03\x05\vj\x0e\x1e\r\v\x01"},
++	{"internal/obscuretestdata", "e\x86\x01+"},
++	{"internal/oserror", "m"},
++	{"internal/pkgbits", "\x03K\x18\a\x03\x05\vk\x0e\x1d\r\f\x01"},
+ 	{"internal/platform", ""},
+-	{"internal/poll", "nO\x1a\x149\x0e\x01\x01\v\x06"},
+-	{"internal/profile", "\x03\x04g\x03z7\f\x01\x01\x0f"},
++	{"internal/poll", "mO\x1a\x158\x0f\x01\x01\v\x06"},
++	{"internal/profile", "\x03\x04f\x03{6\r\x01\x01\x0f"},
+ 	{"internal/profilerecord", ""},
+-	{"internal/race", "\x95\x01\xb0\x01"},
+-	{"internal/reflectlite", "\x95\x01 3<!"},
+-	{"internal/routebsd", "n,w\x13\x10\x11"},
+-	{"internal/runtime/atomic", "\xae\x01\x97\x01"},
+-	{"internal/runtime/exithook", "\xcc\x01y"},
+-	{"internal/runtime/maps", "\x95\x01\x01\x1f\v\t\x06\x01u"},
+-	{"internal/runtime/math", "\xb5\x01"},
+-	{"internal/runtime/sys", "\xae\x01\a\x04"},
++	{"internal/race", "\x94\x01\xb1\x01"},
++	{"internal/reflectlite", "\x94\x01 4;\""},
++	{"internal/runtime/atomic", "\xc5\x02"},
++	{"internal/runtime/exithook", "\xca\x01{"},
++	{"internal/runtime/maps", "\x94\x01\x01\x1f\v\t\x05\x01w"},
++	{"internal/runtime/math", "\xb4\x01"},
++	{"internal/runtime/sys", "\xb4\x01\x04"},
++	{"internal/runtime/syscall", "\xc5\x02"},
+ 	{"internal/saferio", "\xeb\x01Z"},
+ 	{"internal/singleflight", "\xb2\x02"},
+-	{"internal/stringslite", "\x99\x01\xac\x01"},
+-	{"internal/sync", "\x95\x01 \x14j\x12"},
++	{"internal/stringslite", "\x98\x01\xad\x01"},
++	{"internal/sync", "\x94\x01 \x14k\x12"},
+ 	{"internal/synctest", "\xc5\x02"},
+ 	{"internal/syscall/execenv", "\xb4\x02"},
+-	{"internal/syscall/unix", "\x95\x01\x8f\x01\x10\x11"},
+-	{"internal/sysinfo", "\xae\x01\x84\x01\x02"},
++	{"internal/syscall/unix", "\xa3\x02\x10\x01\x11"},
++	{"internal/sysinfo", "\x02\x01\xaa\x01>+\x1a\x02"},
+ 	{"internal/syslist", ""},
+-	{"internal/testenv", "\x03\na\x02\x01*\x1a\x10'+\x01\x05\a\v\x01\x02\x02\x01\n"},
++	{"internal/testenv", "\x03\n`\x02\x01*\x1a\x10(*\x01\x05\a\f\x01\x02\x02\x01\n"},
+ 	{"internal/testlog", "\xb2\x02\x01\x12"},
+-	{"internal/testpty", "n\x03f@\x1d"},
+-	{"internal/trace", "\x02\x01\x01\x06]\a\x03n\x03\x03\x06\x03\n5\x01\x02\x0f\x06"},
+-	{"internal/trace/internal/testgen", "\x03d\nl\x03\x02\x03\x011\v\x0e"},
+-	{"internal/trace/internal/tracev1", "\x03\x01c\a\x03t\x06\r5\x01"},
+-	{"internal/trace/raw", "\x02e\nq\x03\x06D\x01\x11"},
+-	{"internal/trace/testtrace", "\x02\x01k\x03l\x03\x06\x057\v\x02\x01"},
+-	{"internal/trace/tracev2", ""},
+-	{"internal/trace/traceviewer", "\x02^\v\x06\x1a<\x16\a\a\x04\t\n\x15\x01\x05\a\v\x01\x02\r"},
++	{"internal/testpty", "m\x03\xa6\x01"},
++	{"internal/trace", "\x02\x01\x01\x06\\\a\x03m\x01\x01\x06\x06\x03\n5\x01\x02\x0f"},
++	{"internal/trace/event", ""},
++	{"internal/trace/event/go122", "pm"},
++	{"internal/trace/internal/oldtrace", "\x03\x01b\a\x03m\b\x06\r5\x01"},
++	{"internal/trace/internal/testgen/go122", "\x03c\nl\x01\x01\x03\x04\x010\v\x0f"},
++	{"internal/trace/raw", "\x02d\nm\b\x06D\x01\x11"},
++	{"internal/trace/testtrace", "\x02\x01j\x03l\x05\x05\x056\f\x02\x01"},
++	{"internal/trace/traceviewer", "\x02]\v\x06\x1a<\x16\b\a\x04\t\n\x14\x01\x05\a\f\x01\x02\r"},
+ 	{"internal/trace/traceviewer/format", ""},
+-	{"internal/trace/version", "qq\t"},
+-	{"internal/txtar", "\x03n\xa6\x01\x19"},
++	{"internal/trace/version", "pm\x01\r"},
++	{"internal/txtar", "\x03m\xa6\x01\x1a"},
+ 	{"internal/types/errors", "\xaf\x02"},
+ 	{"internal/unsafeheader", "\xc5\x02"},
+-	{"internal/xcoff", "Z\r\a\x03`\x1a,\x18\x01"},
+-	{"internal/zstd", "g\a\x03z\x0f"},
+-	{"io", "n\xc4\x01"},
+-	{"io/fs", "n+*(1\x11\x12\x04"},
+-	{"io/ioutil", "\xeb\x01\x01+\x16\x03"},
+-	{"iter", "\xc9\x01[!"},
+-	{"log", "qz\x05'\r\x0e\x01\f"},
++	{"internal/xcoff", "Y\r\a\x03`\x1b+\x19\x01"},
++	{"internal/zstd", "f\a\x03{\x0f"},
++	{"io", "m\xc5\x01"},
++	{"io/fs", "m+*)0\x12\x12\x04"},
++	{"io/ioutil", "\xeb\x01\x01*\x17\x03"},
++	{"iter", "\xc8\x01[\""},
++	{"log", "p{\x05&\r\x0f\x01\f"},
+ 	{"log/internal", ""},
+-	{"log/slog", "\x03\nU\t\x03\x03z\x04\x01\x02\x02\x04'\x05\t\x02\x01\x02\x01\f\x02\x02\x02"},
++	{"log/slog", "\x03\nT\t\x03\x03{\x04\x01\x02\x02\x04&\x05\n\x02\x01\x02\x01\f\x02\x02\x02"},
+ 	{"log/slog/internal", ""},
+-	{"log/slog/internal/benchmarks", "\ra\x03z\x06\x03;\x10"},
++	{"log/slog/internal/benchmarks", "\r`\x03{\x06\x03;\x10"},
+ 	{"log/slog/internal/buffer", "\xb2\x02"},
+ 	{"log/slog/internal/slogtest", "\xf1\x01"},
+-	{"log/syslog", "n\x03~\x12\x16\x19\x02\r"},
++	{"log/syslog", "m\x03\x7f\x12\x15\x1a\x02\r"},
+ 	{"maps", "\xee\x01W"},
+-	{"math", "\xfa\x01K"},
+-	{"math/big", "\x03k\x03)Q\r\x02\x021\x02\x01\x02\x13"},
++	{"math", "\xad\x01MK"},
++	{"math/big", "\x03j\x03)\x14>\r\x02\x023\x01\x02\x13"},
+ 	{"math/bits", "\xc5\x02"},
+ 	{"math/cmplx", "\xf8\x01\x02"},
+-	{"math/rand", "\xb6\x01B:\x01\x12"},
+-	{"math/rand/v2", "n,\x02\\\x02K"},
+-	{"mime", "\x02\x01c\b\x03z\f \x16\x03\x02\x0f\x02"},
+-	{"mime/multipart", "\x02\x01G$\x03E5\f\x01\x06\x02\x15\x02\x06\x10\x02\x01\x15"},
+-	{"mime/quotedprintable", "\x02\x01nz"},
+-	{"net", "\x04\ta+\x1d\a\x04\x05\x05\a\x01\x04\x14\x01%\x06\r\t\x05\x01\x01\v\x06\a"},
+-	{"net/http", "\x02\x01\x04\x04\x02=\b\x14\x01\a\x03E5\x01\x03\b\x01\x02\x02\x02\x01\x02\x06\x02\x01\x01\n\x01\x01\x05\x01\x02\x05\t\x01\x01\x01\x02\x01\f\x02\x02\x02\b\x01\x01\x01"},
+-	{"net/http/cgi", "\x02P\x1c\x03z\x04\b\n\x01\x13\x01\x01\x01\x04\x01\x05\x02\t\x02\x01\x0f\x0e"},
+-	{"net/http/cookiejar", "\x04j\x03\x90\x01\x01\b\f\x17\x03\x02\r\x04"},
+-	{"net/http/fcgi", "\x02\x01\nZ\a\x03z\x16\x01\x01\x14\x19\x02\r"},
+-	{"net/http/httptest", "\x02\x01\nE\x02\x1c\x01z\x04\x12\x01\n\t\x02\x18\x01\x02\r\x0e"},
+-	{"net/http/httptrace", "\rEo@\x14\n "},
+-	{"net/http/httputil", "\x02\x01\na\x03z\x04\x0f\x03\x01\x05\x02\x01\v\x01\x1a\x02\r\x0e"},
+-	{"net/http/internal", "\x02\x01k\x03z"},
++	{"math/rand", "\xb5\x01C:\x01\x12"},
++	{"math/rand/v2", "m,\x02]\x02K"},
++	{"mime", "\x02\x01b\b\x03{\f\x1f\x17\x03\x02\x0f\x02"},
++	{"mime/multipart", "\x02\x01G#\x03E6\f\x01\x06\x02\x14\x02\x06\x11\x02\x01\x15"},
++	{"mime/quotedprintable", "\x02\x01m{"},
++	{"net", "\x04\t`+\x1d\a\x04\x05\f\x01\x04\x15\x01$\x06\r\n\x05\x01\x01\v\x06\a"},
++	{"net/http", "\x02\x01\x04\x04\x02=\b\x13\x01\a\x03E6\x01\x03\b\x01\x02\x02\x02\x01\x02\x06\x02\x01\n\x01\x01\x05\x01\x02\x05\n\x01\x01\x01\x02\x01\f\x02\x02\x02\b\x01\x01\x01"},
++	{"net/http/cgi", "\x02P\x1b\x03{\x04\b\n\x01\x12\x01\x01\x01\x04\x01\x05\x02\n\x02\x01\x0f\x0e"},
++	{"net/http/cookiejar", "\x04i\x03\x91\x01\x01\b\v\x18\x03\x02\r\x04"},
++	{"net/http/fcgi", "\x02\x01\nY\a\x03{\x16\x01\x01\x13\x1a\x02\r"},
++	{"net/http/httptest", "\x02\x01\nE\x02\x1b\x01{\x04\x12\x01\t\t\x02\x19\x01\x02\r\x0e"},
++	{"net/http/httptrace", "\rEnA\x13\n!"},
++	{"net/http/httputil", "\x02\x01\n`\x03{\x04\x0f\x03\x01\x05\x02\x01\n\x01\x1b\x02\r\x0e"},
++	{"net/http/internal", "\x02\x01j\x03{"},
+ 	{"net/http/internal/ascii", "\xb0\x02\x11"},
+-	{"net/http/internal/httpcommon", "\ra\x03\x96\x01\x0e\x01\x18\x01\x01\x02\x1b\x02"},
+ 	{"net/http/internal/testcert", "\xb0\x02"},
+-	{"net/http/pprof", "\x02\x01\nd\x19,\x11$\x04\x13\x14\x01\r\x06\x02\x01\x02\x01\x0f"},
+-	{"net/internal/cgotest", "\xd7\x01n"},
+-	{"net/internal/socktest", "q\xc1\x01\x02"},
+-	{"net/mail", "\x02l\x03z\x04\x0f\x03\x14\x1b\x02\r\x04"},
+-	{"net/netip", "\x04j+\x01#;\x025\x15"},
+-	{"net/rpc", "\x02g\x05\x03\x10\n`\x04\x12\x01\x1d\x0e\x03\x02"},
+-	{"net/rpc/jsonrpc", "k\x03\x03z\x16\x11 "},
+-	{"net/smtp", "\x19.\v\x14\b\x03z\x16\x14\x1b"},
+-	{"net/textproto", "\x02\x01k\x03z\r\t.\x01\x02\x13"},
+-	{"net/url", "n\x03\x86\x01%\x11\x02\x01\x15"},
+-	{"os", "n+\x19\v\t\r\x03\x01\x04\x10\x018\t\x05\x01\x01\v\x06"},
+-	{"os/exec", "\x03\naH \x01\x14\x01+\x06\a\v\x01\x04\v"},
++	{"net/http/pprof", "\x02\x01\nc\x19,\x11%\x04\x13\x13\x01\r\x06\x03\x01\x02\x01\x0f"},
++	{"net/internal/cgotest", ""},
++	{"net/internal/socktest", "p\xc2\x01\x02"},
++	{"net/mail", "\x02k\x03{\x04\x0f\x03\x13\x1c\x02\r\x04"},
++	{"net/netip", "\x04i+\x01#<\x025\x15"},
++	{"net/rpc", "\x02f\x05\x03\x10\na\x04\x12\x01\x1c\x0f\x03\x02"},
++	{"net/rpc/jsonrpc", "j\x03\x03{\x16\x10!"},
++	{"net/smtp", "\x19.\v\x13\b\x03{\x16\x13\x1c"},
++	{"net/textproto", "\x02\x01j\x03{\r\t.\x01\x02\x13"},
++	{"net/url", "m\x03\x87\x01$\x12\x02\x01\x15"},
++	{"os", "m+\x01\x18\x03\b\t\r\x03\x01\x04\x11\x017\n\x05\x01\x01\v\x06"},
++	{"os/exec", "\x03\n`H \x01\x15\x01*\x06\a\f\x01\x04\v"},
+ 	{"os/exec/internal/fdtest", "\xb4\x02"},
+-	{"os/signal", "\r\x8a\x02\x16\x05\x02"},
+-	{"os/user", "qfM\v\x01\x02\x02\x11"},
+-	{"path", "n+\xaa\x01"},
+-	{"path/filepath", "n+\x19:+\r\t\x03\x04\x0f"},
+-	{"plugin", "n\xc4\x01\x13"},
+-	{"reflect", "n'\x04\x1c\b\f\x05\x02\x18\x06\n,\v\x03\x0f\x02\x02"},
++	{"os/signal", "\r\x89\x02\x17\x05\x02"},
++	{"os/user", "\x02\x01j\x03{+\r\f\x01\x02"},
++	{"path", "m+\xab\x01"},
++	{"path/filepath", "m+\x19;*\r\n\x03\x04\x0f"},
++	{"plugin", "m"},
++	{"reflect", "m'\x04\x1c\b\f\x04\x02\x1a\x06\n+\f\x03\x0f\x02\x02"},
+ 	{"reflect/internal/example1", ""},
+ 	{"reflect/internal/example2", ""},
+-	{"regexp", "\x03\xe8\x018\n\x02\x01\x02\x0f\x02"},
++	{"regexp", "\x03\xe8\x017\v\x02\x01\x02\x0f\x02"},
+ 	{"regexp/syntax", "\xad\x02\x01\x01\x01\x11\x02"},
+-	{"runtime", "\x95\x01\x04\x01\x02\f\x06\a\x02\x01\x01\x0f\x04\x01\x01\x01\x01\x03\x0fc"},
+-	{"runtime/cgo", "\xd0\x01b\x01\x12"},
+-	{"runtime/coverage", "\xa0\x01K"},
+-	{"runtime/debug", "qUQ\r\t\x02\x01\x0f\x06"},
++	{"runtime", "\x94\x01\x04\x01\x02\f\x06\a\x02\x01\x01\x0f\x03\x01\x01\x01\x01\x01\x03s"},
++	{"runtime/coverage", "\x9f\x01L"},
++	{"runtime/debug", "pUQ\r\n\x02\x01\x0f\x06"},
++	{"runtime/internal/startlinetest", ""},
+ 	{"runtime/internal/wasitest", ""},
+-	{"runtime/metrics", "\xb7\x01A,!"},
+-	{"runtime/pprof", "\x02\x01\x01\x03\x06Z\a\x03$3#\r\x1f\r\t\x01\x01\x01\x02\x02\b\x03\x06"},
+-	{"runtime/race", ""},
+-	{"runtime/trace", "\rdz9\x0e\x01\x12"},
++	{"runtime/metrics", "\xb6\x01B+\""},
++	{"runtime/pprof", "\x02\x01\x01\x03\x06Y\a\x03$3$\r\x1e\r\n\x01\x01\x01\x02\x02\b\x03\x06"},
++	{"runtime/race", "\xab\x02"},
++	{"runtime/race/internal/amd64v1", ""},
++	{"runtime/trace", "\rc{8\x0f\x01\x12"},
+ 	{"slices", "\x04\xea\x01\fK"},
+-	{"sort", "\xca\x0103"},
+-	{"strconv", "n+:%\x02I"},
+-	{"strings", "n'\x04:\x18\x03\f8\x0f\x02\x02"},
++	{"sort", "\xc9\x0113"},
++	{"strconv", "m+:&\x02I"},
++	{"strings", "m'\x04:\x19\x03\f8\x0f\x02\x02"},
+ 	{"structs", ""},
+-	{"sync", "\xc9\x01\vP\x0f\x12"},
++	{"sync", "\xc8\x01\vP\x10\x12"},
+ 	{"sync/atomic", "\xc5\x02"},
+-	{"syscall", "n'\x01\x03\x01\x1b\b\x03\x03\x06[\x0e\x01\x12"},
+-	{"testing", "\x03\na\x02\x01X\x0f\x13\r\x04\x1b\x06\x02\x05\x03\x05\x01\x02\x01\x02\x01\f\x02\x02\x02"},
+-	{"testing/fstest", "n\x03z\x01\v%\x11\x03\b\a"},
+-	{"testing/internal/testdeps", "\x02\v\xa7\x01'\x10,\x03\x05\x03\b\x06\x02\r"},
+-	{"testing/iotest", "\x03k\x03z\x04"},
+-	{"testing/quick", "p\x01\x87\x01\x04#\x11\x0f"},
+-	{"testing/slogtest", "\ra\x03\x80\x01.\x05\x11\n"},
+-	{"text/scanner", "\x03nz,*\x02"},
+-	{"text/tabwriter", "qzX"},
+-	{"text/template", "n\x03B8\x01\v\x1f\x01\x05\x01\x02\x05\f\x02\f\x03\x02"},
+-	{"text/template/parse", "\x03n\xb3\x01\v\x01\x11\x02"},
+-	{"time", "n+\x1d\x1d'*\x0e\x02\x11"},
+-	{"time/tzdata", "n\xc6\x01\x11"},
++	{"syscall", "m(\x03\x01\x1b\b\x03\x03\x06\aT\x0f\x01\x12"},
++	{"testing", "\x03\n`\x02\x01G\x11\x0f\x14\r\x04\x1a\x06\x02\x05\x02\a\x01\x02\x01\x02\x01\f\x02\x02\x02"},
++	{"testing/fstest", "m\x03{\x01\v$\x12\x03\b\a"},
++	{"testing/internal/testdeps", "\x02\v\xa6\x01'\x11+\x03\x05\x03\b\a\x02\r"},
++	{"testing/iotest", "\x03j\x03{\x04"},
++	{"testing/quick", "o\x01\x88\x01\x04\"\x12\x0f"},
++	{"testing/slogtest", "\r`\x03\x81\x01-\x05\x12\n"},
++	{"text/scanner", "\x03m{++\x02"},
++	{"text/tabwriter", "p{X"},
++	{"text/template", "m\x03B9\x01\v\x1e\x01\x05\x01\x02\x05\r\x02\f\x03\x02"},
++	{"text/template/parse", "\x03m\xb3\x01\f\x01\x11\x02"},
++	{"time", "m+\x1d\x1d()\x0f\x02\x11"},
++	{"time/tzdata", "m\xc7\x01\x11"},
+ 	{"unicode", ""},
+ 	{"unicode/utf16", ""},
+ 	{"unicode/utf8", ""},
+-	{"unique", "\x95\x01>\x01P\x0e\x13\x12"},
++	{"unique", "\x94\x01>\x01P\x0f\x13\x12"},
+ 	{"unsafe", ""},
+-	{"vendor/golang.org/x/crypto/chacha20", "\x10W\a\x8c\x01*&"},
+-	{"vendor/golang.org/x/crypto/chacha20poly1305", "\x10W\a\xd8\x01\x04\x01"},
+-	{"vendor/golang.org/x/crypto/cryptobyte", "d\n\x03\x88\x01& \n"},
++	{"vendor/golang.org/x/crypto/chacha20", "\x10V\a\x8d\x01)'"},
++	{"vendor/golang.org/x/crypto/chacha20poly1305", "\x10V\a\xd9\x01\x04\x01\a"},
++	{"vendor/golang.org/x/crypto/cryptobyte", "c\n\x03\x89\x01%!\n"},
+ 	{"vendor/golang.org/x/crypto/cryptobyte/asn1", ""},
+ 	{"vendor/golang.org/x/crypto/internal/alias", "\xc5\x02"},
+-	{"vendor/golang.org/x/crypto/internal/poly1305", "Q\x16\x93\x01"},
+-	{"vendor/golang.org/x/net/dns/dnsmessage", "n"},
+-	{"vendor/golang.org/x/net/http/httpguts", "\x81\x02\x14\x1b\x13\r"},
+-	{"vendor/golang.org/x/net/http/httpproxy", "n\x03\x90\x01\x15\x01\x19\x13\r"},
+-	{"vendor/golang.org/x/net/http2/hpack", "\x03k\x03zG"},
+-	{"vendor/golang.org/x/net/idna", "q\x87\x018\x13\x10\x02\x01"},
+-	{"vendor/golang.org/x/net/nettest", "\x03d\a\x03z\x11\x05\x16\x01\f\v\x01\x02\x02\x01\n"},
+-	{"vendor/golang.org/x/sys/cpu", "\x97\x02\r\v\x01\x15"},
+-	{"vendor/golang.org/x/text/secure/bidirule", "n\xd5\x01\x11\x01"},
+-	{"vendor/golang.org/x/text/transform", "\x03k}X"},
+-	{"vendor/golang.org/x/text/unicode/bidi", "\x03\bf~?\x15"},
+-	{"vendor/golang.org/x/text/unicode/norm", "g\nzG\x11\x11"},
+-	{"weak", "\x95\x01\x8f\x01!"},
++	{"vendor/golang.org/x/crypto/internal/poly1305", "Q\x15\x94\x01"},
++	{"vendor/golang.org/x/net/dns/dnsmessage", "m"},
++	{"vendor/golang.org/x/net/http/httpguts", "\x81\x02\x13\x1c\x13\r"},
++	{"vendor/golang.org/x/net/http/httpproxy", "m\x03\x91\x01\x0f\x05\x01\x1a\x13\r"},
++	{"vendor/golang.org/x/net/http2/hpack", "\x03j\x03{G"},
++	{"vendor/golang.org/x/net/idna", "p\x88\x018\x13\x10\x02\x01"},
++	{"vendor/golang.org/x/net/nettest", "\x03c\a\x03{\x11\x05\x15\x01\f\f\x01\x02\x02\x01\n"},
++	{"vendor/golang.org/x/sys/cpu", "\x96\x02\r\f\x01\x15"},
++	{"vendor/golang.org/x/text/secure/bidirule", "m\xd6\x01\x11\x01"},
++	{"vendor/golang.org/x/text/transform", "\x03j~X"},
++	{"vendor/golang.org/x/text/unicode/bidi", "\x03\be\x7f?\x15"},
++	{"vendor/golang.org/x/text/unicode/norm", "f\n{G\x11\x11"},
++	{"weak", "\x94\x01\x8f\x01\""},
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/stdlib/manifest.go b/src/cmd/vendor/golang.org/x/tools/internal/stdlib/manifest.go
+index 00776a31b6..08838a0eb0 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/stdlib/manifest.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/stdlib/manifest.go
+@@ -988,6 +988,7 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"Conn", Type, 0},
+ 		{"ConnectionState", Type, 0},
+ 		{"ConnectionState.CipherSuite", Field, 0},
++		{"ConnectionState.CurveID", Field, 25},
+ 		{"ConnectionState.DidResume", Field, 1},
+ 		{"ConnectionState.ECHAccepted", Field, 23},
+ 		{"ConnectionState.HandshakeComplete", Field, 0},
+@@ -2682,6 +2683,7 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"PT_OPENBSD_WXNEEDED", Const, 16},
+ 		{"PT_PAX_FLAGS", Const, 16},
+ 		{"PT_PHDR", Const, 0},
++		{"PT_RISCV_ATTRIBUTES", Const, 25},
+ 		{"PT_S390_PGSTE", Const, 16},
+ 		{"PT_SHLIB", Const, 0},
+ 		{"PT_SUNWSTACK", Const, 16},
+@@ -3743,6 +3745,7 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"SHT_PROGBITS", Const, 0},
+ 		{"SHT_REL", Const, 0},
+ 		{"SHT_RELA", Const, 0},
++		{"SHT_RISCV_ATTRIBUTES", Const, 25},
+ 		{"SHT_SHLIB", Const, 0},
+ 		{"SHT_STRTAB", Const, 0},
+ 		{"SHT_SYMTAB", Const, 0},
+@@ -6265,11 +6268,13 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"(*Var).Exported", Method, 5},
+ 		{"(*Var).Id", Method, 5},
+ 		{"(*Var).IsField", Method, 5},
++		{"(*Var).Kind", Method, 25},
+ 		{"(*Var).Name", Method, 5},
+ 		{"(*Var).Origin", Method, 19},
+ 		{"(*Var).Parent", Method, 5},
+ 		{"(*Var).Pkg", Method, 5},
+ 		{"(*Var).Pos", Method, 5},
++		{"(*Var).SetKind", Method, 25},
+ 		{"(*Var).String", Method, 5},
+ 		{"(*Var).Type", Method, 5},
+ 		{"(Checker).ObjectOf", Method, 5},
+@@ -6284,6 +6289,7 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"(TypeAndValue).IsType", Method, 5},
+ 		{"(TypeAndValue).IsValue", Method, 5},
+ 		{"(TypeAndValue).IsVoid", Method, 5},
++		{"(VarKind).String", Method, 25},
+ 		{"Alias", Type, 22},
+ 		{"ArgumentError", Type, 18},
+ 		{"ArgumentError.Err", Field, 18},
+@@ -6327,6 +6333,7 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"Eval", Func, 5},
+ 		{"ExprString", Func, 5},
+ 		{"FieldVal", Const, 5},
++		{"FieldVar", Const, 25},
+ 		{"Float32", Const, 5},
+ 		{"Float64", Const, 5},
+ 		{"Func", Type, 5},
+@@ -6373,7 +6380,9 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"IsUnsigned", Const, 5},
+ 		{"IsUntyped", Const, 5},
+ 		{"Label", Type, 5},
++		{"LocalVar", Const, 25},
+ 		{"LookupFieldOrMethod", Func, 5},
++		{"LookupSelection", Func, 25},
+ 		{"Map", Type, 5},
+ 		{"MethodExpr", Const, 5},
+ 		{"MethodSet", Type, 5},
+@@ -6413,11 +6422,15 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"Object", Type, 5},
+ 		{"ObjectString", Func, 5},
+ 		{"Package", Type, 5},
++		{"PackageVar", Const, 25},
++		{"ParamVar", Const, 25},
+ 		{"PkgName", Type, 5},
+ 		{"Pointer", Type, 5},
+ 		{"Qualifier", Type, 5},
+ 		{"RecvOnly", Const, 5},
++		{"RecvVar", Const, 25},
+ 		{"RelativeTo", Func, 5},
++		{"ResultVar", Const, 25},
+ 		{"Rune", Const, 5},
+ 		{"Satisfies", Func, 20},
+ 		{"Scope", Type, 5},
+@@ -6466,6 +6479,7 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"UntypedRune", Const, 5},
+ 		{"UntypedString", Const, 5},
+ 		{"Var", Type, 5},
++		{"VarKind", Type, 25},
+ 		{"WriteExpr", Func, 5},
+ 		{"WriteSignature", Func, 5},
+ 		{"WriteType", Func, 5},
+@@ -7902,6 +7916,7 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"(*Writer).WriteField", Method, 0},
+ 		{"ErrMessageTooLarge", Var, 9},
+ 		{"File", Type, 0},
++		{"FileContentDisposition", Func, 25},
+ 		{"FileHeader", Type, 0},
+ 		{"FileHeader.Filename", Field, 0},
+ 		{"FileHeader.Header", Field, 0},
+@@ -9151,17 +9166,23 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"(*ProcessState).UserTime", Method, 0},
+ 		{"(*Root).Chmod", Method, 25},
+ 		{"(*Root).Chown", Method, 25},
++		{"(*Root).Chtimes", Method, 25},
+ 		{"(*Root).Close", Method, 24},
+ 		{"(*Root).Create", Method, 24},
+ 		{"(*Root).FS", Method, 24},
++		{"(*Root).Lchown", Method, 25},
++		{"(*Root).Link", Method, 25},
+ 		{"(*Root).Lstat", Method, 24},
+ 		{"(*Root).Mkdir", Method, 24},
+ 		{"(*Root).Name", Method, 24},
+ 		{"(*Root).Open", Method, 24},
+ 		{"(*Root).OpenFile", Method, 24},
+ 		{"(*Root).OpenRoot", Method, 24},
++		{"(*Root).Readlink", Method, 25},
+ 		{"(*Root).Remove", Method, 24},
++		{"(*Root).Rename", Method, 25},
+ 		{"(*Root).Stat", Method, 24},
++		{"(*Root).Symlink", Method, 25},
+ 		{"(*SyscallError).Error", Method, 0},
+ 		{"(*SyscallError).Timeout", Method, 10},
+ 		{"(*SyscallError).Unwrap", Method, 13},
+@@ -10255,6 +10276,7 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"(*RWMutex).Unlock", Method, 0},
+ 		{"(*WaitGroup).Add", Method, 0},
+ 		{"(*WaitGroup).Done", Method, 0},
++		{"(*WaitGroup).Go", Method, 25},
+ 		{"(*WaitGroup).Wait", Method, 0},
+ 		{"Cond", Type, 0},
+ 		{"Cond.L", Field, 0},
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/free.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/free.go
+index 0ade5c2949..709d2fc144 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/free.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/free.go
+@@ -70,7 +70,7 @@ func (w *Free) Has(typ types.Type) (res bool) {
+ 
+ 	case *types.Tuple:
+ 		n := t.Len()
+-		for i := 0; i < n; i++ {
++		for i := range n {
+ 			if w.Has(t.At(i).Type()) {
+ 				return true
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
+index cbd12f8013..9bc29143f6 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
+@@ -1,3 +1,6 @@
++// Code generated by "go test -run=Generate -write=all"; DO NOT EDIT.
++// Source: ../../cmd/compile/internal/types2/termlist.go
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -7,8 +10,8 @@
+ package typeparams
+ 
+ import (
+-	"bytes"
+ 	"go/types"
++	"strings"
+ )
+ 
+ // A termlist represents the type set represented by the union
+@@ -22,15 +25,18 @@ type termlist []*term
+ // It is in normal form.
+ var allTermlist = termlist{new(term)}
+ 
++// termSep is the separator used between individual terms.
++const termSep = " | "
++
+ // String prints the termlist exactly (without normalization).
+ func (xl termlist) String() string {
+ 	if len(xl) == 0 {
+ 		return "∅"
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i, x := range xl {
+ 		if i > 0 {
+-			buf.WriteString(" | ")
++			buf.WriteString(termSep)
+ 		}
+ 		buf.WriteString(x.String())
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
+index 7350bb702a..fa758cdc98 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
+@@ -1,3 +1,6 @@
++// Code generated by "go test -run=Generate -write=all"; DO NOT EDIT.
++// Source: ../../cmd/compile/internal/types2/typeterm.go
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/classify_call.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/classify_call.go
+new file mode 100644
+index 0000000000..649c82b6be
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/classify_call.go
+@@ -0,0 +1,135 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package typesinternal
++
++import (
++	"fmt"
++	"go/ast"
++	"go/types"
++	_ "unsafe"
++)
++
++// CallKind describes the function position of an [*ast.CallExpr].
++type CallKind int
++
++const (
++	CallStatic     CallKind = iota // static call to known function
++	CallInterface                  // dynamic call through an interface method
++	CallDynamic                    // dynamic call of a func value
++	CallBuiltin                    // call to a builtin function
++	CallConversion                 // a conversion (not a call)
++)
++
++var callKindNames = []string{
++	"CallStatic",
++	"CallInterface",
++	"CallDynamic",
++	"CallBuiltin",
++	"CallConversion",
++}
++
++func (k CallKind) String() string {
++	if i := int(k); i >= 0 && i < len(callKindNames) {
++		return callKindNames[i]
++	}
++	return fmt.Sprintf("typeutil.CallKind(%d)", k)
++}
++
++// ClassifyCall classifies the function position of a call expression ([*ast.CallExpr]).
++// It distinguishes among true function calls, calls to builtins, and type conversions,
++// and further classifies function calls as static calls (where the function is known),
++// dynamic interface calls, and other dynamic calls.
++//
++// For the declarations:
++//
++//	func f() {}
++//	func g[T any]() {}
++//	var v func()
++//	var s []func()
++//	type I interface { M() }
++//	var i I
++//
++// ClassifyCall returns the following:
++//
++//	f()           CallStatic
++//	g[int]()      CallStatic
++//	i.M()         CallInterface
++//	min(1, 2)     CallBuiltin
++//	v()           CallDynamic
++//	s[0]()        CallDynamic
++//	int(x)        CallConversion
++//	[]byte("")    CallConversion
++func ClassifyCall(info *types.Info, call *ast.CallExpr) CallKind {
++	if info.Types == nil {
++		panic("ClassifyCall: info.Types is nil")
++	}
++	if info.Types[call.Fun].IsType() {
++		return CallConversion
++	}
++	obj := info.Uses[UsedIdent(info, call.Fun)]
++	// Classify the call by the type of the object, if any.
++	switch obj := obj.(type) {
++	case *types.Builtin:
++		return CallBuiltin
++	case *types.Func:
++		if interfaceMethod(obj) {
++			return CallInterface
++		}
++		return CallStatic
++	default:
++		return CallDynamic
++	}
++}
++
++// UsedIdent returns the identifier such that info.Uses[UsedIdent(info, e)]
++// is the [types.Object] used by e, if any.
++//
++// If e is one of various forms of reference:
++//
++//	f, c, v, T           lexical reference
++//	pkg.X                qualified identifier
++//	f[T] or pkg.F[K,V]   instantiations of the above kinds
++//	expr.f               field or method value selector
++//	T.f                  method expression selector
++//
++// UsedIdent returns the identifier whose is associated value in [types.Info.Uses]
++// is the object to which it refers.
++//
++// For the declarations:
++//
++//	func F[T any] {...}
++//	type I interface { M() }
++//	var (
++//	  x int
++//	  s struct { f  int }
++//	  a []int
++//	  i I
++//	)
++//
++// UsedIdent returns the following:
++//
++//	Expr          UsedIdent
++//	x             x
++//	s.f           f
++//	F[int]        F
++//	i.M           M
++//	I.M           M
++//	min           min
++//	int           int
++//	1             nil
++//	a[0]          nil
++//	[]byte        nil
++//
++// Note: if e is an instantiated function or method, UsedIdent returns
++// the corresponding generic function or method on the generic type.
++func UsedIdent(info *types.Info, e ast.Expr) *ast.Ident {
++	return usedIdent(info, e)
++}
++
++//go:linkname usedIdent golang.org/x/tools/go/types/typeutil.usedIdent
++func usedIdent(info *types.Info, e ast.Expr) *ast.Ident
++
++//go:linkname interfaceMethod golang.org/x/tools/go/types/typeutil.interfaceMethod
++func interfaceMethod(f *types.Func) bool
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go
+index edf0347ec3..cc244689ef 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go
+@@ -7,6 +7,7 @@
+ package typesinternal
+ 
+ import (
++	"go/ast"
+ 	"go/token"
+ 	"go/types"
+ 	"reflect"
+@@ -127,3 +128,17 @@ func Origin(t NamedOrAlias) NamedOrAlias {
+ func IsPackageLevel(obj types.Object) bool {
+ 	return obj.Pkg() != nil && obj.Parent() == obj.Pkg().Scope()
+ }
++
++// NewTypesInfo returns a *types.Info with all maps populated.
++func NewTypesInfo() *types.Info {
++	return &types.Info{
++		Types:        map[ast.Expr]types.TypeAndValue{},
++		Instances:    map[*ast.Ident]types.Instance{},
++		Defs:         map[*ast.Ident]types.Object{},
++		Uses:         map[*ast.Ident]types.Object{},
++		Implicits:    map[ast.Node]types.Object{},
++		Selections:   map[*ast.SelectorExpr]*types.Selection{},
++		Scopes:       map[ast.Node]*types.Scope{},
++		FileVersions: map[*ast.File]string{},
++	}
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index d349d38c7e..991fc8250c 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -39,11 +39,11 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.12.0
++# golang.org/x/sync v0.13.0
+ ## explicit; go 1.23.0
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.31.0
++# golang.org/x/sys v0.32.0
+ ## explicit; go 1.23.0
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+@@ -63,8 +63,8 @@ golang.org/x/telemetry/internal/upload
+ # golang.org/x/term v0.29.0
+ ## explicit; go 1.18
+ golang.org/x/term
+-# golang.org/x/text v0.22.0
+-## explicit; go 1.18
++# golang.org/x/text v0.24.0
++## explicit; go 1.23.0
+ golang.org/x/text/cases
+ golang.org/x/text/internal
+ golang.org/x/text/internal/language
+@@ -73,7 +73,7 @@ golang.org/x/text/internal/tag
+ golang.org/x/text/language
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/norm
+-# golang.org/x/tools v0.31.1-0.20250328151535-a857356d5cc5
++# golang.org/x/tools v0.32.1-0.20250423190156-68e94bd1775e
+ ## explicit; go 1.23.0
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+@@ -123,6 +123,7 @@ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/aliases
+ golang.org/x/tools/internal/analysisinternal
++golang.org/x/tools/internal/astutil
+ golang.org/x/tools/internal/astutil/cursor
+ golang.org/x/tools/internal/astutil/edge
+ golang.org/x/tools/internal/bisect
+diff --git a/src/go.mod b/src/go.mod
+index d7c0cfb6dd..28e250668d 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,11 +3,11 @@ module std
+ go 1.25
+ 
+ require (
+-	golang.org/x/crypto v0.35.0
+-	golang.org/x/net v0.36.0
++	golang.org/x/crypto v0.37.0
++	golang.org/x/net v0.39.0
+ )
+ 
+ require (
+-	golang.org/x/sys v0.31.0 // indirect
+-	golang.org/x/text v0.22.0 // indirect
++	golang.org/x/sys v0.32.0 // indirect
++	golang.org/x/text v0.24.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 834044f135..ca2e7027fa 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+-golang.org/x/crypto v0.35.0 h1:b15kiHdrGCHrP6LvwaQ3c03kgNhhiMgvlhxHQhmg2Xs=
+-golang.org/x/crypto v0.35.0/go.mod h1:dy7dXNW32cAb/6/PRuTNsix8T+vJAqvuIy5Bli/x0YQ=
+-golang.org/x/net v0.36.0 h1:vWF2fRbw4qslQsQzgFqZff+BItCvGFQqKzKIzx1rmoA=
+-golang.org/x/net v0.36.0/go.mod h1:bFmbeoIPfrw4sMHNhb4J9f6+tPziuGjq7Jk/38fxi1I=
+-golang.org/x/sys v0.31.0 h1:ioabZlmFYtWhL+TRYpcnNlLwhyxaM9kWTDEmfnprqik=
+-golang.org/x/sys v0.31.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
+-golang.org/x/text v0.22.0 h1:bofq7m3/HAFvbF51jz3Q9wLg3jkvSPuiZu/pD1XwgtM=
+-golang.org/x/text v0.22.0/go.mod h1:YRoo4H8PVmsu+E3Ou7cqLVH8oXWIHVoX0jqUWALQhfY=
++golang.org/x/crypto v0.37.0 h1:kJNSjF/Xp7kU0iB2Z+9viTPMW4EqqsrywMXLJOOsXSE=
++golang.org/x/crypto v0.37.0/go.mod h1:vg+k43peMZ0pUMhYmVAWysMK35e6ioLh3wB8ZCAfbVc=
++golang.org/x/net v0.39.0 h1:ZCu7HMWDxpXpaiKdhzIfaltL9Lp31x/3fCP11bc6/fY=
++golang.org/x/net v0.39.0/go.mod h1:X7NRbYVEA+ewNkCNyJ513WmMdQ3BineSwVtN2zD/d+E=
++golang.org/x/sys v0.32.0 h1:s77OFDvIQeibCmezSnk/q6iAfkdiQaJi4VzroCFrN20=
++golang.org/x/sys v0.32.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
++golang.org/x/text v0.24.0 h1:dd5Bzh4yt5KYA8f9CJHCP4FB4D51c2c6JvN37xJJkJ0=
++golang.org/x/text v0.24.0/go.mod h1:L8rBsPeo2pSS+xqN0d5u2ikmjtmoJbDBT1b7nHvFCdU=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 7e2b914c89..a55fa8ac63 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -1794,6 +1794,11 @@ var http2fhBytes = sync.Pool{
+ 	},
+ }
+ 
++func http2invalidHTTP1LookingFrameHeader() http2FrameHeader {
++	fh, _ := http2readFrameHeader(make([]byte, http2frameHeaderLen), strings.NewReader("HTTP/1.1 "))
++	return fh
++}
++
+ // ReadFrameHeader reads 9 bytes from r and returns a FrameHeader.
+ // Most users should use Framer.ReadFrame instead.
+ func http2ReadFrameHeader(r io.Reader) (http2FrameHeader, error) {
+@@ -2075,10 +2080,16 @@ func (fr *http2Framer) ReadFrame() (http2Frame, error) {
+ 		return nil, err
+ 	}
+ 	if fh.Length > fr.maxReadSize {
++		if fh == http2invalidHTTP1LookingFrameHeader() {
++			return nil, fmt.Errorf("http2: failed reading the frame payload: %w, note that the frame header looked like an HTTP/1.1 header", err)
++		}
+ 		return nil, http2ErrFrameTooLarge
+ 	}
+ 	payload := fr.getReadBuf(fh.Length)
+ 	if _, err := io.ReadFull(fr.r, payload); err != nil {
++		if fh == http2invalidHTTP1LookingFrameHeader() {
++			return nil, fmt.Errorf("http2: failed reading the frame payload: %w, note that the frame header looked like an HTTP/1.1 header", err)
++		}
+ 		return nil, err
+ 	}
+ 	f, err := http2typeFrameParser(fh.Type)(fr.frameCache, fh, fr.countError, payload)
+@@ -5007,7 +5018,10 @@ func (sc *http2serverConn) serve(conf http2http2Config) {
+ 
+ func (sc *http2serverConn) handlePingTimer(lastFrameReadTime time.Time) {
+ 	if sc.pingSent {
+-		sc.vlogf("timeout waiting for PING response")
++		sc.logf("timeout waiting for PING response")
++		if f := sc.countErrorFunc; f != nil {
++			f("conn_close_lost_ping")
++		}
+ 		sc.conn.Close()
+ 		return
+ 	}
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+index 2492f796af..d25979d9f5 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+@@ -234,7 +234,7 @@ func (b *Builder) AddASN1(tag asn1.Tag, f BuilderContinuation) {
+ 	// Identifiers with the low five bits set indicate high-tag-number format
+ 	// (two or more octets), which we don't support.
+ 	if tag&0x1f == 0x1f {
+-		b.err = fmt.Errorf("cryptobyte: high-tag number identifier octects not supported: 0x%x", tag)
++		b.err = fmt.Errorf("cryptobyte: high-tag number identifier octets not supported: 0x%x", tag)
+ 		return
+ 	}
+ 	b.AddUint8(uint8(tag))
+diff --git a/src/vendor/golang.org/x/crypto/internal/poly1305/mac_noasm.go b/src/vendor/golang.org/x/crypto/internal/poly1305/mac_noasm.go
+index bd896bdc76..8d99551fee 100644
+--- a/src/vendor/golang.org/x/crypto/internal/poly1305/mac_noasm.go
++++ b/src/vendor/golang.org/x/crypto/internal/poly1305/mac_noasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (!amd64 && !ppc64le && !ppc64 && !s390x) || !gc || purego
++//go:build (!amd64 && !loong64 && !ppc64le && !ppc64 && !s390x) || !gc || purego
+ 
+ package poly1305
+ 
+diff --git a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_amd64.go b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_asm.go
+similarity index 94%
+rename from src/vendor/golang.org/x/crypto/internal/poly1305/sum_amd64.go
+rename to src/vendor/golang.org/x/crypto/internal/poly1305/sum_asm.go
+index 164cd47d32..315b84ac39 100644
+--- a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_amd64.go
++++ b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_asm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build gc && !purego
++//go:build gc && !purego && (amd64 || loong64 || ppc64 || ppc64le)
+ 
+ package poly1305
+ 
+diff --git a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_loong64.s b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_loong64.s
+new file mode 100644
+index 0000000000..bc8361da40
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_loong64.s
+@@ -0,0 +1,123 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build gc && !purego
++
++// func update(state *macState, msg []byte)
++TEXT ·update(SB), $0-32
++	MOVV	state+0(FP), R4
++	MOVV	msg_base+8(FP), R5
++	MOVV	msg_len+16(FP), R6
++
++	MOVV	$0x10, R7
++
++	MOVV	(R4), R8	// h0
++	MOVV	8(R4), R9	// h1
++	MOVV	16(R4), R10	// h2
++	MOVV	24(R4), R11	// r0
++	MOVV	32(R4), R12	// r1
++
++	BLT	R6, R7, bytes_between_0_and_15
++
++loop:
++	MOVV	(R5), R14	// msg[0:8]
++	MOVV	8(R5), R16	// msg[8:16]
++	ADDV	R14, R8, R8	// h0 (x1 + y1 = z1', if z1' < x1 then z1' overflow)
++	ADDV	R16, R9, R27
++	SGTU	R14, R8, R24	// h0.carry
++	SGTU	R9, R27, R28
++	ADDV	R27, R24, R9	// h1
++	SGTU	R27, R9, R24
++	OR	R24, R28, R24	// h1.carry
++	ADDV	$0x01, R24, R24
++	ADDV	R10, R24, R10	// h2
++
++	ADDV	$16, R5, R5	// msg = msg[16:]
++
++multiply:
++	MULV	R8, R11, R14	// h0r0.lo
++	MULHVU	R8, R11, R15	// h0r0.hi
++	MULV	R9, R11, R13	// h1r0.lo
++	MULHVU	R9, R11, R16	// h1r0.hi
++	ADDV	R13, R15, R15
++	SGTU	R13, R15, R24
++	ADDV	R24, R16, R16
++	MULV	R10, R11, R25
++	ADDV	R16, R25, R25
++	MULV	R8, R12, R13	// h0r1.lo
++	MULHVU	R8, R12, R16	// h0r1.hi
++	ADDV	R13, R15, R15
++	SGTU	R13, R15, R24
++	ADDV	R24, R16, R16
++	MOVV	R16, R8
++	MULV	R10, R12, R26	// h2r1
++	MULV	R9, R12, R13	// h1r1.lo
++	MULHVU	R9, R12, R16	// h1r1.hi
++	ADDV	R13, R25, R25
++	ADDV	R16, R26, R27
++	SGTU	R13, R25, R24
++	ADDV	R27, R24, R26
++	ADDV	R8, R25, R25
++	SGTU	R8, R25, R24
++	ADDV	R24, R26, R26
++	AND	$3, R25, R10
++	AND	$-4, R25, R17
++	ADDV	R17, R14, R8
++	ADDV	R26, R15, R27
++	SGTU	R17, R8, R24
++	SGTU	R26, R27, R28
++	ADDV	R27, R24, R9
++	SGTU	R27, R9, R24
++	OR	R24, R28, R24
++	ADDV	R24, R10, R10
++	SLLV	$62, R26, R27
++	SRLV	$2, R25, R28
++	SRLV	$2, R26, R26
++	OR	R27, R28, R25
++	ADDV	R25, R8, R8
++	ADDV	R26, R9, R27
++	SGTU	R25, R8, R24
++	SGTU	R26, R27, R28
++	ADDV	R27, R24, R9
++	SGTU	R27, R9, R24
++	OR	R24, R28, R24
++	ADDV	R24, R10, R10
++
++	SUBV	$16, R6, R6
++	BGE	R6, R7, loop
++
++bytes_between_0_and_15:
++	BEQ	R6, R0, done
++	MOVV	$1, R14
++	XOR	R15, R15
++	ADDV	R6, R5, R5
++
++flush_buffer:
++	MOVBU	-1(R5), R25
++	SRLV	$56, R14, R24
++	SLLV	$8, R15, R28
++	SLLV	$8, R14, R14
++	OR	R24, R28, R15
++	XOR	R25, R14, R14
++	SUBV	$1, R6, R6
++	SUBV	$1, R5, R5
++	BNE	R6, R0, flush_buffer
++
++	ADDV	R14, R8, R8
++	SGTU	R14, R8, R24
++	ADDV	R15, R9, R27
++	SGTU	R15, R27, R28
++	ADDV	R27, R24, R9
++	SGTU	R27, R9, R24
++	OR	R24, R28, R24
++	ADDV	R10, R24, R10
++
++	MOVV	$16, R6
++	JMP	multiply
++
++done:
++	MOVV	R8, (R4)
++	MOVV	R9, 8(R4)
++	MOVV	R10, 16(R4)
++	RET
+diff --git a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_ppc64x.go b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_ppc64x.go
+deleted file mode 100644
+index 1a1679aaad..0000000000
+--- a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_ppc64x.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build gc && !purego && (ppc64 || ppc64le)
+-
+-package poly1305
+-
+-//go:noescape
+-func update(state *macState, msg []byte)
+-
+-// mac is a wrapper for macGeneric that redirects calls that would have gone to
+-// updateGeneric to update.
+-//
+-// Its Write and Sum methods are otherwise identical to the macGeneric ones, but
+-// using function pointers would carry a major performance cost.
+-type mac struct{ macGeneric }
+-
+-func (h *mac) Write(p []byte) (int, error) {
+-	nn := len(p)
+-	if h.offset > 0 {
+-		n := copy(h.buffer[h.offset:], p)
+-		if h.offset+n < TagSize {
+-			h.offset += n
+-			return nn, nil
+-		}
+-		p = p[n:]
+-		h.offset = 0
+-		update(&h.macState, h.buffer[:])
+-	}
+-	if n := len(p) - (len(p) % TagSize); n > 0 {
+-		update(&h.macState, p[:n])
+-		p = p[n:]
+-	}
+-	if len(p) > 0 {
+-		h.offset += copy(h.buffer[h.offset:], p)
+-	}
+-	return nn, nil
+-}
+-
+-func (h *mac) Sum(out *[16]byte) {
+-	state := h.macState
+-	if h.offset > 0 {
+-		update(&state, h.buffer[:h.offset])
+-	}
+-	finalize(out, &state.h, &state.s)
+-}
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu.go b/src/vendor/golang.org/x/sys/cpu/cpu.go
+index 9c105f23af..2e73ee1975 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu.go
+@@ -149,6 +149,18 @@ var ARM struct {
+ 	_           CacheLinePad
+ }
+ 
++// The booleans in Loong64 contain the correspondingly named cpu feature bit.
++// The struct is padded to avoid false sharing.
++var Loong64 struct {
++	_         CacheLinePad
++	HasLSX    bool // support 128-bit vector extension
++	HasLASX   bool // support 256-bit vector extension
++	HasCRC32  bool // support CRC instruction
++	HasLAM_BH bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
++	HasLAMCAS bool // support AMCAS[_DB].{B/H/W/D} instruction
++	_         CacheLinePad
++}
++
+ // MIPS64X contains the supported CPU features of the current mips64/mips64le
+ // platforms. If the current platform is not mips64/mips64le or the current
+ // operating system is not Linux then all feature flags are false.
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_linux_loong64.go b/src/vendor/golang.org/x/sys/cpu/cpu_linux_loong64.go
+new file mode 100644
+index 0000000000..4f34114329
+--- /dev/null
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_linux_loong64.go
+@@ -0,0 +1,22 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++// HWCAP bits. These are exposed by the Linux kernel.
++const (
++	hwcap_LOONGARCH_LSX  = 1 << 4
++	hwcap_LOONGARCH_LASX = 1 << 5
++)
++
++func doinit() {
++	// TODO: Features that require kernel support like LSX and LASX can
++	// be detected here once needed in std library or by the compiler.
++	Loong64.HasLSX = hwcIsSet(hwCap, hwcap_LOONGARCH_LSX)
++	Loong64.HasLASX = hwcIsSet(hwCap, hwcap_LOONGARCH_LASX)
++}
++
++func hwcIsSet(hwc uint, val uint) bool {
++	return hwc&val != 0
++}
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_linux_noinit.go b/src/vendor/golang.org/x/sys/cpu/cpu_linux_noinit.go
+index 7d902b6847..a428dec9cd 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_linux_noinit.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_linux_noinit.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && !arm && !arm64 && !mips64 && !mips64le && !ppc64 && !ppc64le && !s390x && !riscv64
++//go:build linux && !arm && !arm64 && !loong64 && !mips64 && !mips64le && !ppc64 && !ppc64le && !s390x && !riscv64
+ 
+ package cpu
+ 
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_loong64.go b/src/vendor/golang.org/x/sys/cpu/cpu_loong64.go
+index 558635850c..45ecb29ae7 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_loong64.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_loong64.go
+@@ -8,5 +8,43 @@ package cpu
+ 
+ const cacheLineSize = 64
+ 
++// Bit fields for CPUCFG registers, Related reference documents:
++// https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html#_cpucfg
++const (
++	// CPUCFG1 bits
++	cpucfg1_CRC32 = 1 << 25
++
++	// CPUCFG2 bits
++	cpucfg2_LAM_BH = 1 << 27
++	cpucfg2_LAMCAS = 1 << 28
++)
++
+ func initOptions() {
++	options = []option{
++		{Name: "lsx", Feature: &Loong64.HasLSX},
++		{Name: "lasx", Feature: &Loong64.HasLASX},
++		{Name: "crc32", Feature: &Loong64.HasCRC32},
++		{Name: "lam_bh", Feature: &Loong64.HasLAM_BH},
++		{Name: "lamcas", Feature: &Loong64.HasLAMCAS},
++	}
++
++	// The CPUCFG data on Loong64 only reflects the hardware capabilities,
++	// not the kernel support status, so features such as LSX and LASX that
++	// require kernel support cannot be obtained from the CPUCFG data.
++	//
++	// These features only require hardware capability support and do not
++	// require kernel specific support, so they can be obtained directly
++	// through CPUCFG
++	cfg1 := get_cpucfg(1)
++	cfg2 := get_cpucfg(2)
++
++	Loong64.HasCRC32 = cfgIsSet(cfg1, cpucfg1_CRC32)
++	Loong64.HasLAMCAS = cfgIsSet(cfg2, cpucfg2_LAMCAS)
++	Loong64.HasLAM_BH = cfgIsSet(cfg2, cpucfg2_LAM_BH)
++}
++
++func get_cpucfg(reg uint32) uint32
++
++func cfgIsSet(cfg uint32, val uint32) bool {
++	return cfg&val != 0
+ }
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_loong64.s b/src/vendor/golang.org/x/sys/cpu/cpu_loong64.s
+new file mode 100644
+index 0000000000..71cbaf1ce2
+--- /dev/null
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_loong64.s
+@@ -0,0 +1,13 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// func get_cpucfg(reg uint32) uint32
++TEXT ·get_cpucfg(SB), NOSPLIT|NOFRAME, $0
++	MOVW	reg+0(FP), R5
++	// CPUCFG R5, R4 = 0x00006ca4
++	WORD	$0x00006ca4
++	MOVW	R4, ret+8(FP)
++	RET
+diff --git a/src/vendor/golang.org/x/sys/cpu/parse.go b/src/vendor/golang.org/x/sys/cpu/parse.go
+index 762b63d688..56a7e1a176 100644
+--- a/src/vendor/golang.org/x/sys/cpu/parse.go
++++ b/src/vendor/golang.org/x/sys/cpu/parse.go
+@@ -13,7 +13,7 @@ import "strconv"
+ // https://golang.org/cl/209597.
+ func parseRelease(rel string) (major, minor, patch int, ok bool) {
+ 	// Strip anything after a dash or plus.
+-	for i := 0; i < len(rel); i++ {
++	for i := range len(rel) {
+ 		if rel[i] == '-' || rel[i] == '+' {
+ 			rel = rel[:i]
+ 			break
+@@ -21,7 +21,7 @@ func parseRelease(rel string) (major, minor, patch int, ok bool) {
+ 	}
+ 
+ 	next := func() (int, bool) {
+-		for i := 0; i < len(rel); i++ {
++		for i := range len(rel) {
+ 			if rel[i] == '.' {
+ 				ver, err := strconv.Atoi(rel[:i])
+ 				rel = rel[i+1:]
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 6eaae03de3..4c87639632 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.35.0
++# golang.org/x/crypto v0.37.0
+ ## explicit; go 1.23.0
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -6,7 +6,7 @@ golang.org/x/crypto/cryptobyte
+ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.36.0
++# golang.org/x/net v0.39.0
+ ## explicit; go 1.23.0
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -15,11 +15,11 @@ golang.org/x/net/http2/hpack
+ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+-# golang.org/x/sys v0.31.0
++# golang.org/x/sys v0.32.0
+ ## explicit; go 1.23.0
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.22.0
+-## explicit; go 1.18
++# golang.org/x/text v0.24.0
++## explicit; go 1.23.0
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/bidi

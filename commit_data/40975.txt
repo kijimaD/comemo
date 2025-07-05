@@ -18,7 +18,7 @@ Date:   Tue Aug 27 17:27:45 2019 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/auth_test.go                   |  8 ---
  src/crypto/tls/cipher_suites.go               | 48 --------------
  src/crypto/tls/common.go                      | 33 ++++------
@@ -36,3 +36,860 @@ Date:   Tue Aug 27 17:27:45 2019 -0400
  src/crypto/tls/testdata/Server-SSLv3-RSA-RC4  | 72 --------------------
  src/crypto/tls/tls_test.go                    |  1 -
  16 files changed, 34 insertions(+), 474 deletions(-)
+
+diff --git a/src/crypto/tls/auth_test.go b/src/crypto/tls/auth_test.go
+index 1d958cf141..8a38ce057c 100644
+--- a/src/crypto/tls/auth_test.go
++++ b/src/crypto/tls/auth_test.go
+@@ -32,7 +32,6 @@ func TestSignatureSelection(t *testing.T) {
+ 		// https://tools.ietf.org/html/rfc4346#page-44
+ 		{rsaCert, nil, nil, VersionTLS11, 0, signaturePKCS1v15, crypto.MD5SHA1},
+ 		{rsaCert, nil, nil, VersionTLS10, 0, signaturePKCS1v15, crypto.MD5SHA1},
+-		{rsaCert, nil, nil, VersionSSL30, 0, signaturePKCS1v15, crypto.MD5SHA1},
+ 
+ 		// Before TLS 1.2, there is no signature_algorithms extension
+ 		// nor field in CertificateRequest and digitally-signed and thus
+@@ -95,13 +94,6 @@ func TestSignatureSelection(t *testing.T) {
+ 		{ecdsaCert, []SignatureScheme{Ed25519}, []SignatureScheme{Ed25519}, VersionTLS12},
+ 		{ed25519Cert, nil, nil, VersionTLS11},
+ 		{ed25519Cert, nil, nil, VersionTLS10},
+-		{ed25519Cert, nil, nil, VersionSSL30},
+-
+-		// ECDSA is unspecified for SSL 3.0 in RFC 4492.
+-		// TODO a SSL 3.0 client cannot advertise signature_algorithms,
+-		// but if an application feeds an ECDSA certificate anyway, it
+-		// will be accepted rather than trigger a handshake failure. Ok?
+-		//{ecdsaCert, nil, nil, VersionSSL30},
+ 	}
+ 
+ 	for testNo, test := range badTests {
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 61bbc9f909..9567a34f2e 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -141,14 +141,6 @@ func cipherAES(key, iv []byte, isRead bool) interface{} {
+ 
+ // macSHA1 returns a macFunction for the given protocol version.
+ func macSHA1(version uint16, key []byte) macFunction {
+-	if version == VersionSSL30 {
+-		mac := ssl30MAC{
+-			h:   sha1.New(),
+-			key: make([]byte, len(key)),
+-		}
+-		copy(mac.key, key)
+-		return mac
+-	}
+ 	return tls10MAC{h: hmac.New(newConstantTimeHash(sha1.New), key)}
+ }
+ 
+@@ -288,46 +280,6 @@ func aeadChaCha20Poly1305(key, nonceMask []byte) aead {
+ 	return ret
+ }
+ 
+-// ssl30MAC implements the SSLv3 MAC function, as defined in
+-// www.mozilla.org/projects/security/pki/nss/ssl/draft302.txt section 5.2.3.1
+-type ssl30MAC struct {
+-	h   hash.Hash
+-	key []byte
+-	buf []byte
+-}
+-
+-func (s ssl30MAC) Size() int {
+-	return s.h.Size()
+-}
+-
+-var ssl30Pad1 = [48]byte{0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36}
+-
+-var ssl30Pad2 = [48]byte{0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c}
+-
+-// MAC does not offer constant timing guarantees for SSL v3.0, since it's deemed
+-// useless considering the similar, protocol-level POODLE vulnerability.
+-func (s ssl30MAC) MAC(seq, header, data, extra []byte) []byte {
+-	padLength := 48
+-	if s.h.Size() == 20 {
+-		padLength = 40
+-	}
+-
+-	s.h.Reset()
+-	s.h.Write(s.key)
+-	s.h.Write(ssl30Pad1[:padLength])
+-	s.h.Write(seq)
+-	s.h.Write(header[:1])
+-	s.h.Write(header[3:5])
+-	s.h.Write(data)
+-	s.buf = s.h.Sum(s.buf[:0])
+-
+-	s.h.Reset()
+-	s.h.Write(s.key)
+-	s.h.Write(ssl30Pad2[:padLength])
+-	s.h.Write(s.buf)
+-	return s.h.Sum(s.buf[:0])
+-}
+-
+ type constantTimeHash interface {
+ 	hash.Hash
+ 	ConstantTimeSum(b []byte) []byte
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index ef0b385848..84390fde9e 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -28,8 +28,8 @@ const (
+ 	VersionTLS12 = 0x0303
+ 	VersionTLS13 = 0x0304
+ 
+-	// Deprecated: SSLv3 is cryptographically broken, and will be
+-	// removed in Go 1.14. See golang.org/issue/32716.
++	// Deprecated: SSLv3 is cryptographically broken, and is no longer
++	// supported by this package. See golang.org/issue/32716.
+ 	VersionSSL30 = 0x0300
+ )
+ 
+@@ -281,7 +281,7 @@ func requiresClientCert(c ClientAuthType) bool {
+ // sessions.
+ type ClientSessionState struct {
+ 	sessionTicket      []uint8               // Encrypted ticket used for session resumption with server
+-	vers               uint16                // SSL/TLS version negotiated for the session
++	vers               uint16                // TLS version negotiated for the session
+ 	cipherSuite        uint16                // Ciphersuite negotiated for the session
+ 	masterSecret       []byte                // Full handshake MasterSecret, or TLS 1.3 resumption_master_secret
+ 	serverCertificates []*x509.Certificate   // Certificate chain presented by the server
+@@ -582,12 +582,12 @@ type Config struct {
+ 	// session resumption. It is only used by clients.
+ 	ClientSessionCache ClientSessionCache
+ 
+-	// MinVersion contains the minimum SSL/TLS version that is acceptable.
+-	// If zero, then TLS 1.0 is taken as the minimum.
++	// MinVersion contains the minimum TLS version that is acceptable.
++	// If zero, TLS 1.0 is currently taken as the minimum.
+ 	MinVersion uint16
+ 
+-	// MaxVersion contains the maximum SSL/TLS version that is acceptable.
+-	// If zero, then the maximum version supported by this package is used,
++	// MaxVersion contains the maximum TLS version that is acceptable.
++	// If zero, the maximum version supported by this package is used,
+ 	// which is currently TLS 1.3.
+ 	MaxVersion uint16
+ 
+@@ -788,26 +788,17 @@ var supportedVersions = []uint16{
+ 	VersionTLS12,
+ 	VersionTLS11,
+ 	VersionTLS10,
+-	VersionSSL30,
+ }
+ 
+-func (c *Config) supportedVersions(isClient bool) []uint16 {
++func (c *Config) supportedVersions() []uint16 {
+ 	versions := make([]uint16, 0, len(supportedVersions))
+ 	for _, v := range supportedVersions {
+-		// TLS 1.0 is the default minimum version.
+-		if (c == nil || c.MinVersion == 0) && v < VersionTLS10 {
+-			continue
+-		}
+ 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
+ 			continue
+ 		}
+ 		if c != nil && c.MaxVersion != 0 && v > c.MaxVersion {
+ 			continue
+ 		}
+-		// TLS 1.0 is the minimum version supported as a client.
+-		if isClient && v < VersionTLS10 {
+-			continue
+-		}
+ 		// TLS 1.3 is opt-out in Go 1.13.
+ 		if v == VersionTLS13 && !isTLS13Supported() {
+ 			continue
+@@ -855,8 +846,8 @@ func goDebugString(key string) string {
+ 	return ""
+ }
+ 
+-func (c *Config) maxSupportedVersion(isClient bool) uint16 {
+-	supportedVersions := c.supportedVersions(isClient)
++func (c *Config) maxSupportedVersion() uint16 {
++	supportedVersions := c.supportedVersions()
+ 	if len(supportedVersions) == 0 {
+ 		return 0
+ 	}
+@@ -888,8 +879,8 @@ func (c *Config) curvePreferences() []CurveID {
+ 
+ // mutualVersion returns the protocol version to use given the advertised
+ // versions of the peer. Priority is given to the peer preference order.
+-func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
+-	supportedVersions := c.supportedVersions(isClient)
++func (c *Config) mutualVersion(peerVersions []uint16) (uint16, bool) {
++	supportedVersions := c.supportedVersions()
+ 	for _, peerVersion := range peerVersions {
+ 		for _, v := range supportedVersions {
+ 			if v == peerVersion {
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 0c7952f7b8..750e45ee4d 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -289,22 +289,6 @@ func extractPadding(payload []byte) (toRemove int, good byte) {
+ 	return
+ }
+ 
+-// extractPaddingSSL30 is a replacement for extractPadding in the case that the
+-// protocol version is SSLv3. In this version, the contents of the padding
+-// are random and cannot be checked.
+-func extractPaddingSSL30(payload []byte) (toRemove int, good byte) {
+-	if len(payload) < 1 {
+-		return 0, 0
+-	}
+-
+-	paddingLen := int(payload[len(payload)-1]) + 1
+-	if paddingLen > len(payload) {
+-		return 0, 0
+-	}
+-
+-	return paddingLen, 255
+-}
+-
+ func roundUp(a, b int) int {
+ 	return a + (b-a%b)%b
+ }
+@@ -382,11 +366,7 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
+ 			// computing the digest. This makes the MAC roughly constant time as
+ 			// long as the digest computation is constant time and does not
+ 			// affect the subsequent write, modulo cache effects.
+-			if hc.version == VersionSSL30 {
+-				paddingLen, paddingGood = extractPaddingSSL30(payload)
+-			} else {
+-				paddingLen, paddingGood = extractPadding(payload)
+-			}
++			paddingLen, paddingGood = extractPadding(payload)
+ 		default:
+ 			panic("unknown cipher type")
+ 		}
+@@ -1110,7 +1090,7 @@ func (c *Conn) Write(b []byte) (int, error) {
+ 		return 0, errShutdown
+ 	}
+ 
+-	// SSL 3.0 and TLS 1.0 are susceptible to a chosen-plaintext
++	// TLS 1.0 is susceptible to a chosen-plaintext
+ 	// attack when using block mode ciphers due to predictable IVs.
+ 	// This can be prevented by splitting each Application Data
+ 	// record into two records, effectively randomizing the IV.
+@@ -1120,7 +1100,7 @@ func (c *Conn) Write(b []byte) (int, error) {
+ 	// https://www.imperialviolet.org/2012/01/15/beastfollowup.html
+ 
+ 	var m int
+-	if len(b) > 1 && c.vers <= VersionTLS10 {
++	if len(b) > 1 && c.vers == VersionTLS10 {
+ 		if _, ok := c.out.cipher.(cipher.BlockMode); ok {
+ 			n, err := c.writeRecordLocked(recordTypeApplicationData, b[:1])
+ 			if err != nil {
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index ed000eb619..5ac2098ceb 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -50,7 +50,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
+ 		return nil, nil, errors.New("tls: NextProtos values too large")
+ 	}
+ 
+-	supportedVersions := config.supportedVersions(true)
++	supportedVersions := config.supportedVersions()
+ 	if len(supportedVersions) == 0 {
+ 		return nil, nil, errors.New("tls: no supported versions satisfy MinVersion and MaxVersion")
+ 	}
+@@ -340,7 +340,7 @@ func (c *Conn) pickTLSVersion(serverHello *serverHelloMsg) error {
+ 		peerVersion = serverHello.supportedVersion
+ 	}
+ 
+-	vers, ok := c.config.mutualVersion(true, []uint16{peerVersion})
++	vers, ok := c.config.mutualVersion([]uint16{peerVersion})
+ 	if !ok {
+ 		c.sendAlert(alertProtocolVersion)
+ 		return fmt.Errorf("tls: server selected unsupported protocol version %x", peerVersion)
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index a3d8848caf..c6c40b360a 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -157,7 +157,7 @@ func (c *Conn) readClientHello() (*clientHelloMsg, error) {
+ 	if len(clientHello.supportedVersions) == 0 {
+ 		clientVersions = supportedVersionsFromMax(clientHello.vers)
+ 	}
+-	c.vers, ok = c.config.mutualVersion(false, clientVersions)
++	c.vers, ok = c.config.mutualVersion(clientVersions)
+ 	if !ok {
+ 		c.sendAlert(alertProtocolVersion)
+ 		return nil, fmt.Errorf("tls: client offered only unsupported versions: %x", clientVersions)
+@@ -213,7 +213,7 @@ Curves:
+ 	hs.hello.random = make([]byte, 32)
+ 	serverRandom := hs.hello.random
+ 	// Downgrade protection canaries. See RFC 8446, Section 4.1.3.
+-	maxVers := c.config.maxSupportedVersion(false)
++	maxVers := c.config.maxSupportedVersion()
+ 	if maxVers >= VersionTLS12 && c.vers < maxVers {
+ 		if c.vers == VersionTLS12 {
+ 			copy(serverRandom[24:], downgradeCanaryTLS12)
+@@ -316,7 +316,7 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
+ 	for _, id := range hs.clientHello.cipherSuites {
+ 		if id == TLS_FALLBACK_SCSV {
+ 			// The client is doing a fallback connection. See RFC 7507.
+-			if hs.clientHello.vers < c.config.maxSupportedVersion(false) {
++			if hs.clientHello.vers < c.config.maxSupportedVersion() {
+ 				c.sendAlert(alertInappropriateFallback)
+ 				return errors.New("tls: client using inappropriate protocol fallback")
+ 			}
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index a9c1c08cbc..149bdffa71 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -61,32 +61,20 @@ func TestSimpleError(t *testing.T) {
+ 	testClientHelloFailure(t, testConfig, &serverHelloDoneMsg{}, "unexpected handshake message")
+ }
+ 
+-var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205}
++var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205, VersionSSL30}
+ 
+ func TestRejectBadProtocolVersion(t *testing.T) {
++	config := testConfig.Clone()
++	config.MinVersion = VersionSSL30
+ 	for _, v := range badProtocolVersions {
+-		testClientHelloFailure(t, testConfig, &clientHelloMsg{
++		testClientHelloFailure(t, config, &clientHelloMsg{
+ 			vers:   v,
+ 			random: make([]byte, 32),
+ 		}, "unsupported versions")
+ 	}
+-	testClientHelloFailure(t, testConfig, &clientHelloMsg{
+-		vers:              VersionTLS12,
+-		supportedVersions: badProtocolVersions,
+-		random:            make([]byte, 32),
+-	}, "unsupported versions")
+-}
+-
+-func TestSSLv3OptIn(t *testing.T) {
+-	config := testConfig.Clone()
+-	config.MinVersion = 0
+-	testClientHelloFailure(t, config, &clientHelloMsg{
+-		vers:   VersionSSL30,
+-		random: make([]byte, 32),
+-	}, "unsupported versions")
+ 	testClientHelloFailure(t, config, &clientHelloMsg{
+ 		vers:              VersionTLS12,
+-		supportedVersions: []uint16{VersionSSL30},
++		supportedVersions: badProtocolVersions,
+ 		random:            make([]byte, 32),
+ 	}, "unsupported versions")
+ }
+@@ -689,10 +677,6 @@ func runServerTestForVersion(t *testing.T, template *serverTest, version, option
+ 	})
+ }
+ 
+-func runServerTestSSLv3(t *testing.T, template *serverTest) {
+-	runServerTestForVersion(t, template, "SSLv3", "-ssl3")
+-}
+-
+ func runServerTestTLS10(t *testing.T, template *serverTest) {
+ 	runServerTestForVersion(t, template, "TLSv10", "-tls1")
+ }
+@@ -714,7 +698,6 @@ func TestHandshakeServerRSARC4(t *testing.T) {
+ 		name:    "RSA-RC4",
+ 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "RC4-SHA"},
+ 	}
+-	runServerTestSSLv3(t, test)
+ 	runServerTestTLS10(t, test)
+ 	runServerTestTLS11(t, test)
+ 	runServerTestTLS12(t, test)
+@@ -725,7 +708,6 @@ func TestHandshakeServerRSA3DES(t *testing.T) {
+ 		name:    "RSA-3DES",
+ 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "DES-CBC3-SHA"},
+ 	}
+-	runServerTestSSLv3(t, test)
+ 	runServerTestTLS10(t, test)
+ 	runServerTestTLS12(t, test)
+ }
+@@ -735,7 +717,6 @@ func TestHandshakeServerRSAAES(t *testing.T) {
+ 		name:    "RSA-AES",
+ 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA"},
+ 	}
+-	runServerTestSSLv3(t, test)
+ 	runServerTestTLS10(t, test)
+ 	runServerTestTLS12(t, test)
+ }
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 74f430cf8a..979ead5f78 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -108,7 +108,7 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
+ 		if id == TLS_FALLBACK_SCSV {
+ 			// Use c.vers instead of max(supported_versions) because an attacker
+ 			// could defeat this by adding an arbitrary high version otherwise.
+-			if c.vers < c.config.maxSupportedVersion(false) {
++			if c.vers < c.config.maxSupportedVersion() {
+ 				c.sendAlert(alertInappropriateFallback)
+ 				return errors.New("tls: client using inappropriate protocol fallback")
+ 			}
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index cfd92908a9..50278db446 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -71,7 +71,7 @@ func checkOpenSSLVersion() error {
+ 	println("to update the test data.")
+ 	println("")
+ 	println("Configure it with:")
+-	println("./Configure enable-weak-ssl-ciphers enable-ssl3 enable-ssl3-method")
++	println("./Configure enable-weak-ssl-ciphers")
+ 	println("and then add the apps/ directory at the front of your PATH.")
+ 	println("***********************************************")
+ 
+@@ -345,7 +345,6 @@ func runMain(m *testing.M) int {
+ 		Rand:               zeroSource{},
+ 		Certificates:       make([]Certificate, 2),
+ 		InsecureSkipVerify: true,
+-		MinVersion:         VersionSSL30,
+ 		MaxVersion:         VersionTLS13,
+ 		CipherSuites:       allCipherSuites(),
+ 	}
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 2922017cc4..3b10cb4542 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -29,15 +29,12 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
+ 	if len(ckx.ciphertext) < 2 {
+ 		return nil, errClientKeyExchange
+ 	}
+-
+-	ciphertext := ckx.ciphertext
+-	if version != VersionSSL30 {
+-		ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
+-		if ciphertextLen != len(ckx.ciphertext)-2 {
+-			return nil, errClientKeyExchange
+-		}
+-		ciphertext = ckx.ciphertext[2:]
++	ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
++	if ciphertextLen != len(ckx.ciphertext)-2 {
++		return nil, errClientKeyExchange
+ 	}
++	ciphertext := ckx.ciphertext[2:]
++
+ 	priv, ok := cert.PrivateKey.(crypto.Decrypter)
+ 	if !ok {
+ 		return nil, errors.New("tls: certificate private key does not implement crypto.Decrypter")
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index 5e97726e79..05b87a9b89 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -74,39 +74,6 @@ func prf12(hashFunc func() hash.Hash) func(result, secret, label, seed []byte) {
+ 	}
+ }
+ 
+-// prf30 implements the SSL 3.0 pseudo-random function, as defined in
+-// www.mozilla.org/projects/security/pki/nss/ssl/draft302.txt section 6.
+-func prf30(result, secret, label, seed []byte) {
+-	hashSHA1 := sha1.New()
+-	hashMD5 := md5.New()
+-
+-	done := 0
+-	i := 0
+-	// RFC 5246 section 6.3 says that the largest PRF output needed is 128
+-	// bytes. Since no more ciphersuites will be added to SSLv3, this will
+-	// remain true. Each iteration gives us 16 bytes so 10 iterations will
+-	// be sufficient.
+-	var b [11]byte
+-	for done < len(result) {
+-		for j := 0; j <= i; j++ {
+-			b[j] = 'A' + byte(i)
+-		}
+-
+-		hashSHA1.Reset()
+-		hashSHA1.Write(b[:i+1])
+-		hashSHA1.Write(secret)
+-		hashSHA1.Write(seed)
+-		digest := hashSHA1.Sum(nil)
+-
+-		hashMD5.Reset()
+-		hashMD5.Write(secret)
+-		hashMD5.Write(digest)
+-
+-		done += copy(result[done:], hashMD5.Sum(nil))
+-		i++
+-	}
+-}
+-
+ const (
+ 	masterSecretLength   = 48 // Length of a master secret in TLS 1.1.
+ 	finishedVerifyLength = 12 // Length of verify_data in a Finished message.
+@@ -119,8 +86,6 @@ var serverFinishedLabel = []byte("server finished")
+ 
+ func prfAndHashForVersion(version uint16, suite *cipherSuite) (func(result, secret, label, seed []byte), crypto.Hash) {
+ 	switch version {
+-	case VersionSSL30:
+-		return prf30, crypto.Hash(0)
+ 	case VersionTLS10, VersionTLS11:
+ 		return prf10, crypto.Hash(0)
+ 	case VersionTLS12:
+@@ -196,7 +161,7 @@ func hashFromSignatureScheme(signatureAlgorithm SignatureScheme) (crypto.Hash, e
+ 
+ func newFinishedHash(version uint16, cipherSuite *cipherSuite) finishedHash {
+ 	var buffer []byte
+-	if version == VersionSSL30 || version >= VersionTLS12 {
++	if version >= VersionTLS12 {
+ 		buffer = []byte{}
+ 	}
+ 
+@@ -251,48 +216,9 @@ func (h finishedHash) Sum() []byte {
+ 	return h.client.Sum(out)
+ }
+ 
+-// finishedSum30 calculates the contents of the verify_data member of a SSLv3
+-// Finished message given the MD5 and SHA1 hashes of a set of handshake
+-// messages.
+-func finishedSum30(md5, sha1 hash.Hash, masterSecret []byte, magic []byte) []byte {
+-	md5.Write(magic)
+-	md5.Write(masterSecret)
+-	md5.Write(ssl30Pad1[:])
+-	md5Digest := md5.Sum(nil)
+-
+-	md5.Reset()
+-	md5.Write(masterSecret)
+-	md5.Write(ssl30Pad2[:])
+-	md5.Write(md5Digest)
+-	md5Digest = md5.Sum(nil)
+-
+-	sha1.Write(magic)
+-	sha1.Write(masterSecret)
+-	sha1.Write(ssl30Pad1[:40])
+-	sha1Digest := sha1.Sum(nil)
+-
+-	sha1.Reset()
+-	sha1.Write(masterSecret)
+-	sha1.Write(ssl30Pad2[:40])
+-	sha1.Write(sha1Digest)
+-	sha1Digest = sha1.Sum(nil)
+-
+-	ret := make([]byte, len(md5Digest)+len(sha1Digest))
+-	copy(ret, md5Digest)
+-	copy(ret[len(md5Digest):], sha1Digest)
+-	return ret
+-}
+-
+-var ssl3ClientFinishedMagic = [4]byte{0x43, 0x4c, 0x4e, 0x54}
+-var ssl3ServerFinishedMagic = [4]byte{0x53, 0x52, 0x56, 0x52}
+-
+ // clientSum returns the contents of the verify_data member of a client's
+ // Finished message.
+ func (h finishedHash) clientSum(masterSecret []byte) []byte {
+-	if h.version == VersionSSL30 {
+-		return finishedSum30(h.clientMD5, h.client, masterSecret, ssl3ClientFinishedMagic[:])
+-	}
+-
+ 	out := make([]byte, finishedVerifyLength)
+ 	h.prf(out, masterSecret, clientFinishedLabel, h.Sum())
+ 	return out
+@@ -301,10 +227,6 @@ func (h finishedHash) clientSum(masterSecret []byte) []byte {
+ // serverSum returns the contents of the verify_data member of a server's
+ // Finished message.
+ func (h finishedHash) serverSum(masterSecret []byte) []byte {
+-	if h.version == VersionSSL30 {
+-		return finishedSum30(h.serverMD5, h.server, masterSecret, ssl3ServerFinishedMagic[:])
+-	}
+-
+ 	out := make([]byte, finishedVerifyLength)
+ 	h.prf(out, masterSecret, serverFinishedLabel, h.Sum())
+ 	return out
+@@ -313,22 +235,10 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
+ // hashForClientCertificate returns the handshake messages so far, pre-hashed if
+ // necessary, suitable for signing by a TLS client certificate.
+ func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) ([]byte, error) {
+-	if (h.version == VersionSSL30 || h.version >= VersionTLS12 || sigType == signatureEd25519) && h.buffer == nil {
++	if (h.version >= VersionTLS12 || sigType == signatureEd25519) && h.buffer == nil {
+ 		panic("tls: handshake hash for a client certificate requested after discarding the handshake buffer")
+ 	}
+ 
+-	if h.version == VersionSSL30 {
+-		if sigType != signaturePKCS1v15 {
+-			return nil, errors.New("tls: unsupported signature type for client certificate")
+-		}
+-
+-		md5Hash := md5.New()
+-		md5Hash.Write(h.buffer)
+-		sha1Hash := sha1.New()
+-		sha1Hash.Write(h.buffer)
+-		return finishedSum30(md5Hash, sha1Hash, masterSecret, nil), nil
+-	}
+-
+ 	if sigType == signatureEd25519 {
+ 		return h.buffer, nil
+ 	}
+diff --git a/src/crypto/tls/prf_test.go b/src/crypto/tls/prf_test.go
+index ec54aac12e..8233985a62 100644
+--- a/src/crypto/tls/prf_test.go
++++ b/src/crypto/tls/prf_test.go
+@@ -137,20 +137,4 @@ var testKeysFromTests = []testKeysFromTest{
+ 		"678b0d43f607de35241dc7e9d1a7388a52c35033a1a0336d4d740060a6638fe2",
+ 		"f3b4ac743f015ef21d79978297a53da3e579ee047133f38c234d829c0f907dab",
+ 	},
+-	{
+-		VersionSSL30,
+-		cipherSuiteByID(TLS_RSA_WITH_RC4_128_SHA),
+-		"832d515f1d61eebb2be56ba0ef79879efb9b527504abb386fb4310ed5d0e3b1f220d3bb6b455033a2773e6d8bdf951d278a187482b400d45deb88a5d5a6bb7d6a7a1decc04eb9ef0642876cd4a82d374d3b6ff35f0351dc5d411104de431375355addc39bfb1f6329fb163b0bc298d658338930d07d313cd980a7e3d9196cac1",
+-		"4ae663b2ee389c0de147c509d8f18f5052afc4aaf9699efe8cb05ece883d3a5e",
+-		"4ae664d503fd4cff50cfc1fb8fc606580f87b0fcdac9554ba0e01d785bdf278e",
+-		"a614863e56299dcffeea2938f22c2ba023768dbe4b3f6877bc9c346c6ae529b51d9cb87ff9695ea4d01f2205584405b2",
+-		"2c450d5b6f6e2013ac6bea6a0b32200d4e1ffb94",
+-		"7a7a7438769536f2fb1ae49a61f0703b79b2dc53",
+-		"f8f6b26c10f12855c9aafb1e0e839ccf",
+-		"2b9d4b4a60cb7f396780ebff50650419",
+-		20,
+-		16,
+-		"d230d8fc4f695be60368635e5268c414ca3ae0995dd93aba9f877272049f35bf",
+-		"6b5e9646e04df8e99482a9b22dbfbe42ddd4725e4b041d02d11e4ef44ad13120",
+-	},
+ }
+diff --git a/src/crypto/tls/testdata/Server-SSLv3-RSA-3DES b/src/crypto/tls/testdata/Server-SSLv3-RSA-3DES
+deleted file mode 100644
+index 869b22bc55..0000000000
+--- a/src/crypto/tls/testdata/Server-SSLv3-RSA-3DES
++++ /dev/null
+@@ -1,76 +0,0 @@
+->>> Flow 1 (client to server)
+-00000000  16 03 00 00 2f 01 00 00  2b 03 00 6b 1d 6c 38 1a  |..../...+..k.l8.|
+-00000010  50 71 9a 32 88 4f 4a fe  47 00 8f 2a 58 08 72 cf  |Pq.2.OJ.G..*X.r.|
+-00000020  b5 f8 27 9d f9 17 76 32  8a 3b 29 00 00 04 00 0a  |..'...v2.;).....|
+-00000030  00 ff 01 00                                       |....|
+->>> Flow 2 (server to client)
+-00000000  16 03 00 00 31 02 00 00  2d 03 00 00 00 00 00 00  |....1...-.......|
+-00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+-00000020  00 00 00 44 4f 57 4e 47  52 44 00 00 00 0a 00 00  |...DOWNGRD......|
+-00000030  05 ff 01 00 01 00 16 03  00 02 59 0b 00 02 55 00  |..........Y...U.|
+-00000040  02 52 00 02 4f 30 82 02  4b 30 82 01 b4 a0 03 02  |.R..O0..K0......|
+-00000050  01 02 02 09 00 e8 f0 9d  3f e2 5b ea a6 30 0d 06  |........?.[..0..|
+-00000060  09 2a 86 48 86 f7 0d 01  01 0b 05 00 30 1f 31 0b  |.*.H........0.1.|
+-00000070  30 09 06 03 55 04 0a 13  02 47 6f 31 10 30 0e 06  |0...U....Go1.0..|
+-00000080  03 55 04 03 13 07 47 6f  20 52 6f 6f 74 30 1e 17  |.U....Go Root0..|
+-00000090  0d 31 36 30 31 30 31 30  30 30 30 30 30 5a 17 0d  |.160101000000Z..|
+-000000a0  32 35 30 31 30 31 30 30  30 30 30 30 5a 30 1a 31  |250101000000Z0.1|
+-000000b0  0b 30 09 06 03 55 04 0a  13 02 47 6f 31 0b 30 09  |.0...U....Go1.0.|
+-000000c0  06 03 55 04 03 13 02 47  6f 30 81 9f 30 0d 06 09  |..U....Go0..0...|
+-000000d0  2a 86 48 86 f7 0d 01 01  01 05 00 03 81 8d 00 30  |*.H............0|
+-000000e0  81 89 02 81 81 00 db 46  7d 93 2e 12 27 06 48 bc  |.......F}...'.H.|
+-000000f0  06 28 21 ab 7e c4 b6 a2  5d fe 1e 52 45 88 7a 36  |.(!.~...]..RE.z6|
+-00000100  47 a5 08 0d 92 42 5b c2  81 c0 be 97 79 98 40 fb  |G....B[.....y.@.|
+-00000110  4f 6d 14 fd 2b 13 8b c2  a5 2e 67 d8 d4 09 9e d6  |Om..+.....g.....|
+-00000120  22 38 b7 4a 0b 74 73 2b  c2 34 f1 d1 93 e5 96 d9  |"8.J.ts+.4......|
+-00000130  74 7b f3 58 9f 6c 61 3c  c0 b0 41 d4 d9 2b 2b 24  |t{.X.la<..A..++$|
+-00000140  23 77 5b 1c 3b bd 75 5d  ce 20 54 cf a1 63 87 1d  |#w[.;.u]. T..c..|
+-00000150  1e 24 c4 f3 1d 1a 50 8b  aa b6 14 43 ed 97 a7 75  |.$....P....C...u|
+-00000160  62 f4 14 c8 52 d7 02 03  01 00 01 a3 81 93 30 81  |b...R.........0.|
+-00000170  90 30 0e 06 03 55 1d 0f  01 01 ff 04 04 03 02 05  |.0...U..........|
+-00000180  a0 30 1d 06 03 55 1d 25  04 16 30 14 06 08 2b 06  |.0...U.%..0...+.|
+-00000190  01 05 05 07 03 01 06 08  2b 06 01 05 05 07 03 02  |........+.......|
+-000001a0  30 0c 06 03 55 1d 13 01  01 ff 04 02 30 00 30 19  |0...U.......0.0.|
+-000001b0  06 03 55 1d 0e 04 12 04  10 9f 91 16 1f 43 43 3e  |..U..........CC>|
+-000001c0  49 a6 de 6d b6 80 d7 9f  60 30 1b 06 03 55 1d 23  |I..m....`0...U.#|
+-000001d0  04 14 30 12 80 10 48 13  49 4d 13 7e 16 31 bb a3  |..0...H.IM.~.1..|
+-000001e0  01 d5 ac ab 6e 7b 30 19  06 03 55 1d 11 04 12 30  |....n{0...U....0|
+-000001f0  10 82 0e 65 78 61 6d 70  6c 65 2e 67 6f 6c 61 6e  |...example.golan|
+-00000200  67 30 0d 06 09 2a 86 48  86 f7 0d 01 01 0b 05 00  |g0...*.H........|
+-00000210  03 81 81 00 9d 30 cc 40  2b 5b 50 a0 61 cb ba e5  |.....0.@+[P.a...|
+-00000220  53 58 e1 ed 83 28 a9 58  1a a9 38 a4 95 a1 ac 31  |SX...(.X..8....1|
+-00000230  5a 1a 84 66 3d 43 d3 2d  d9 0b f2 97 df d3 20 64  |Z..f=C.-...... d|
+-00000240  38 92 24 3a 00 bc cf 9c  7d b7 40 20 01 5f aa d3  |8.$:....}.@ ._..|
+-00000250  16 61 09 a2 76 fd 13 c3  cc e1 0c 5c ee b1 87 82  |.a..v......\....|
+-00000260  f1 6c 04 ed 73 bb b3 43  77 8d 0c 1c f1 0f a1 d8  |.l..s..Cw.......|
+-00000270  40 83 61 c9 4c 72 2b 9d  ae db 46 06 06 4d f4 c1  |@.a.Lr+...F..M..|
+-00000280  b3 3e c0 d1 bd 42 d4 db  fe 3d 13 60 84 5c 21 d3  |.>...B...=.`.\!.|
+-00000290  3b e9 fa e7 16 03 00 00  04 0e 00 00 00           |;............|
+->>> Flow 3 (client to server)
+-00000000  16 03 00 00 84 10 00 00  80 24 e4 7a 2a e8 1b 68  |.........$.z*..h|
+-00000010  c5 87 ac 26 72 70 76 c6  3a 2c 9d ed ff 63 3c 5b  |...&rpv.:,...c<[|
+-00000020  97 17 3e d4 e9 ab 5b f1  30 ed 29 07 1a 6b 69 f6  |..>...[.0.)..ki.|
+-00000030  65 b1 c7 b9 15 9f b1 69  7d 74 c4 73 04 2a 45 77  |e......i}t.s.*Ew|
+-00000040  ba f7 8f 98 65 ed 19 2d  a4 de 74 1e 4e 96 78 11  |....e..-..t.N.x.|
+-00000050  33 9f be a5 20 e4 bd a8  a4 1a 4d 02 e7 7a ac 01  |3... .....M..z..|
+-00000060  f4 12 01 8d 51 9a 52 26  ac a4 f6 52 fc cf 91 97  |....Q.R&...R....|
+-00000070  b5 d7 9f 25 92 b4 16 c4  33 46 bd 41 27 89 a2 72  |...%....3F.A'..r|
+-00000080  7b 50 d3 ed b3 29 17 aa  ab 14 03 00 00 01 01 16  |{P...)..........|
+-00000090  03 00 00 40 ba 01 09 10  84 68 0c 97 25 b5 2d ef  |...@.....h..%.-.|
+-000000a0  be c6 d9 21 85 fe bf ef  d4 f3 24 2f 79 04 fd e6  |...!......$/y...|
+-000000b0  d3 c1 d2 1b a9 94 10 2e  1f dd dd 1f 97 de 63 e9  |..............c.|
+-000000c0  8f 8a c1 d0 ac e1 69 de  92 fa 16 10 2c 9e 5f 3a  |......i.....,._:|
+-000000d0  45 7c 3f 88                                       |E|?.|
+->>> Flow 4 (server to client)
+-00000000  14 03 00 00 01 01 16 03  00 00 40 3b 60 e6 62 bc  |..........@;`.b.|
+-00000010  53 0f 95 32 d8 95 33 1b  29 78 49 fd 1f a9 bf 64  |S..2..3.)xI....d|
+-00000020  71 2d b5 3e 03 80 a0 06  7a ca cd f6 f3 45 e9 d9  |q-.>....z....E..|
+-00000030  c1 fc da 4f 5d 77 a3 07  82 89 3b 77 00 9a 99 a2  |...O]w....;w....|
+-00000040  ac bf 73 78 31 a9 8c bf  eb d1 2c 17 03 00 00 18  |..sx1.....,.....|
+-00000050  e9 c8 b2 91 db fa 9f 3c  d4 ed 7d 43 f6 b3 53 d2  |.......<..}C..S.|
+-00000060  46 12 d2 6c a5 50 bd e1  17 03 00 00 28 2e 6f 91  |F..l.P......(.o.|
+-00000070  21 18 89 7b 94 3d c0 6f  8a 4c b4 95 44 4c fe 1a  |!..{.=.o.L..DL..|
+-00000080  78 f5 6a fd 8f d0 79 c0  12 2f 4c 12 c4 29 9a 88  |x.j...y../L..)..|
+-00000090  43 1c b7 93 3a 15 03 00  00 18 ae 35 00 1f 79 99  |C...:......5..y.|
+-000000a0  cd 9f b1 16 a8 0f d6 28  29 e2 0a 16 e2 c2 de b3  |.......().......|
+-000000b0  5c 41                                             |\A|
+diff --git a/src/crypto/tls/testdata/Server-SSLv3-RSA-AES b/src/crypto/tls/testdata/Server-SSLv3-RSA-AES
+deleted file mode 100644
+index 5b09409ae7..0000000000
+--- a/src/crypto/tls/testdata/Server-SSLv3-RSA-AES
++++ /dev/null
+@@ -1,77 +0,0 @@
+->>> Flow 1 (client to server)
+-00000000  16 03 00 00 2f 01 00 00  2b 03 00 c0 74 e5 6f 1e  |..../...+...t.o.|
+-00000010  3d 51 26 e2 34 31 68 10  ee 99 ca 45 0f 7d d6 7d  |=Q&.41h....E.}.}|
+-00000020  29 82 15 23 3f af d1 48  36 1f ac 00 00 04 00 2f  |)..#?..H6....../|
+-00000030  00 ff 01 00                                       |....|
+->>> Flow 2 (server to client)
+-00000000  16 03 00 00 31 02 00 00  2d 03 00 00 00 00 00 00  |....1...-.......|
+-00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+-00000020  00 00 00 44 4f 57 4e 47  52 44 00 00 00 2f 00 00  |...DOWNGRD.../..|
+-00000030  05 ff 01 00 01 00 16 03  00 02 59 0b 00 02 55 00  |..........Y...U.|
+-00000040  02 52 00 02 4f 30 82 02  4b 30 82 01 b4 a0 03 02  |.R..O0..K0......|
+-00000050  01 02 02 09 00 e8 f0 9d  3f e2 5b ea a6 30 0d 06  |........?.[..0..|
+-00000060  09 2a 86 48 86 f7 0d 01  01 0b 05 00 30 1f 31 0b  |.*.H........0.1.|
+-00000070  30 09 06 03 55 04 0a 13  02 47 6f 31 10 30 0e 06  |0...U....Go1.0..|
+-00000080  03 55 04 03 13 07 47 6f  20 52 6f 6f 74 30 1e 17  |.U....Go Root0..|
+-00000090  0d 31 36 30 31 30 31 30  30 30 30 30 30 5a 17 0d  |.160101000000Z..|
+-000000a0  32 35 30 31 30 31 30 30  30 30 30 30 5a 30 1a 31  |250101000000Z0.1|
+-000000b0  0b 30 09 06 03 55 04 0a  13 02 47 6f 31 0b 30 09  |.0...U....Go1.0.|
+-000000c0  06 03 55 04 03 13 02 47  6f 30 81 9f 30 0d 06 09  |..U....Go0..0...|
+-000000d0  2a 86 48 86 f7 0d 01 01  01 05 00 03 81 8d 00 30  |*.H............0|
+-000000e0  81 89 02 81 81 00 db 46  7d 93 2e 12 27 06 48 bc  |.......F}...'.H.|
+-000000f0  06 28 21 ab 7e c4 b6 a2  5d fe 1e 52 45 88 7a 36  |.(!.~...]..RE.z6|
+-00000100  47 a5 08 0d 92 42 5b c2  81 c0 be 97 79 98 40 fb  |G....B[.....y.@.|
+-00000110  4f 6d 14 fd 2b 13 8b c2  a5 2e 67 d8 d4 09 9e d6  |Om..+.....g.....|
+-00000120  22 38 b7 4a 0b 74 73 2b  c2 34 f1 d1 93 e5 96 d9  |"8.J.ts+.4......|
+-00000130  74 7b f3 58 9f 6c 61 3c  c0 b0 41 d4 d9 2b 2b 24  |t{.X.la<..A..++$|
+-00000140  23 77 5b 1c 3b bd 75 5d  ce 20 54 cf a1 63 87 1d  |#w[.;.u]. T..c..|
+-00000150  1e 24 c4 f3 1d 1a 50 8b  aa b6 14 43 ed 97 a7 75  |.$....P....C...u|
+-00000160  62 f4 14 c8 52 d7 02 03  01 00 01 a3 81 93 30 81  |b...R.........0.|
+-00000170  90 30 0e 06 03 55 1d 0f  01 01 ff 04 04 03 02 05  |.0...U..........|
+-00000180  a0 30 1d 06 03 55 1d 25  04 16 30 14 06 08 2b 06  |.0...U.%..0...+.|
+-00000190  01 05 05 07 03 01 06 08  2b 06 01 05 05 07 03 02  |........+.......|
+-000001a0  30 0c 06 03 55 1d 13 01  01 ff 04 02 30 00 30 19  |0...U.......0.0.|
+-000001b0  06 03 55 1d 0e 04 12 04  10 9f 91 16 1f 43 43 3e  |..U..........CC>|
+-000001c0  49 a6 de 6d b6 80 d7 9f  60 30 1b 06 03 55 1d 23  |I..m....`0...U.#|
+-000001d0  04 14 30 12 80 10 48 13  49 4d 13 7e 16 31 bb a3  |..0...H.IM.~.1..|
+-000001e0  01 d5 ac ab 6e 7b 30 19  06 03 55 1d 11 04 12 30  |....n{0...U....0|
+-000001f0  10 82 0e 65 78 61 6d 70  6c 65 2e 67 6f 6c 61 6e  |...example.golan|
+-00000200  67 30 0d 06 09 2a 86 48  86 f7 0d 01 01 0b 05 00  |g0...*.H........|
+-00000210  03 81 81 00 9d 30 cc 40  2b 5b 50 a0 61 cb ba e5  |.....0.@+[P.a...|
+-00000220  53 58 e1 ed 83 28 a9 58  1a a9 38 a4 95 a1 ac 31  |SX...(.X..8....1|
+-00000230  5a 1a 84 66 3d 43 d3 2d  d9 0b f2 97 df d3 20 64  |Z..f=C.-...... d|
+-00000240  38 92 24 3a 00 bc cf 9c  7d b7 40 20 01 5f aa d3  |8.$:....}.@ ._..|
+-00000250  16 61 09 a2 76 fd 13 c3  cc e1 0c 5c ee b1 87 82  |.a..v......\....|
+-00000260  f1 6c 04 ed 73 bb b3 43  77 8d 0c 1c f1 0f a1 d8  |.l..s..Cw.......|
+-00000270  40 83 61 c9 4c 72 2b 9d  ae db 46 06 06 4d f4 c1  |@.a.Lr+...F..M..|
+-00000280  b3 3e c0 d1 bd 42 d4 db  fe 3d 13 60 84 5c 21 d3  |.>...B...=.`.\!.|
+-00000290  3b e9 fa e7 16 03 00 00  04 0e 00 00 00           |;............|
+->>> Flow 3 (client to server)
+-00000000  16 03 00 00 84 10 00 00  80 62 6a 6e 2e 83 74 fe  |.........bjn..t.|
+-00000010  08 7b e3 38 de be 06 18  ed c3 aa e0 27 5e bb 5d  |.{.8........'^.]|
+-00000020  a3 22 38 92 d4 94 ec 18  02 f1 fd 57 98 ac 84 3c  |."8........W...<|
+-00000030  07 ef c9 e2 c4 05 03 9c  89 69 dd cb 47 7c 61 5c  |.........i..G|a\|
+-00000040  7b c7 02 7b e4 4c 94 28  ea d7 34 ed 03 ef eb de  |{..{.L.(..4.....|
+-00000050  c0 75 e3 75 46 24 8a ed  33 33 5c 19 65 a2 f8 0c  |.u.uF$..33\.e...|
+-00000060  69 f9 ce 3e b6 88 e3 f4  2a ba 5c 0d 85 2f 64 88  |i..>....*.\../d.|
+-00000070  cb 0e af 03 58 1b 54 71  21 fb 4c 13 ff 67 dd e9  |....X.Tq!.L..g..|
+-00000080  1a 83 08 a9 ad 46 85 2b  95 14 03 00 00 01 01 16  |.....F.+........|
+-00000090  03 00 00 40 65 17 83 78  12 b1 50 a8 7e 91 ad cf  |...@e..x..P.~...|
+-000000a0  ff da 1b c3 c2 62 d7 7b  dc 85 6a 1e 64 65 2e fc  |.....b.{..j.de..|
+-000000b0  71 ea bd 4b a6 61 e3 95  27 78 f5 93 e6 6e 4c 83  |q..K.a..'x...nL.|
+-000000c0  78 f4 a0 ac 3b 23 08 61  b5 b6 96 3f a5 fd 50 be  |x...;#.a...?..P.|
+-000000d0  20 ef 8f af                                       | ...|
+->>> Flow 4 (server to client)
+-00000000  14 03 00 00 01 01 16 03  00 00 40 c1 63 5c 1e 81  |..........@.c\..|
+-00000010  ef 1c 55 e7 5b ee 19 2b  89 c9 19 7a 53 96 ae f6  |..U.[..+...zS...|
+-00000020  47 22 4b b2 b9 64 38 06  99 b1 58 39 bc c2 7f 1c  |G"K..d8...X9....|
+-00000030  c4 8e 0a ec f2 3d 41 ac  a9 a2 34 d9 a2 66 4e 35  |.....=A...4..fN5|
+-00000040  a1 a5 a5 ad 70 c2 62 67  f7 83 3f 17 03 00 00 20  |....p.bg..?.... |
+-00000050  bf 4b 66 00 de 5f 75 f1  57 a1 47 e3 35 cb 1a 1b  |.Kf.._u.W.G.5...|
+-00000060  1e f4 3b f5 96 84 bc ed  36 74 8a 8b 62 46 94 fd  |..;.....6t..bF..|
+-00000070  17 03 00 00 30 a2 a7 8c  ac 1b 27 d7 1a 6a 2b 37  |....0.....'..j+7|
+-00000080  cc 76 03 e3 93 6e ee 3d  12 d5 cd d7 b2 fc 59 ae  |.v...n.=......Y.|
+-00000090  a5 e5 d5 9d 61 86 0b bf  2c 61 de ef 38 95 de 0c  |....a...,a..8...|
+-000000a0  01 80 15 04 71 15 03 00  00 20 85 70 23 62 cb 0a  |....q.... .p#b..|
+-000000b0  e0 fd f4 36 a6 7d 1a 85  50 36 70 c1 77 85 0d 94  |...6.}..P6p.w...|
+-000000c0  fd 90 8a eb cd ce a4 b5  d8 fc                    |..........|
+diff --git a/src/crypto/tls/testdata/Server-SSLv3-RSA-RC4 b/src/crypto/tls/testdata/Server-SSLv3-RSA-RC4
+deleted file mode 100644
+index 6feee485ac..0000000000
+--- a/src/crypto/tls/testdata/Server-SSLv3-RSA-RC4
++++ /dev/null
+@@ -1,72 +0,0 @@
+->>> Flow 1 (client to server)
+-00000000  16 03 00 00 2f 01 00 00  2b 03 00 d6 26 87 86 f3  |..../...+...&...|
+-00000010  3f e3 08 85 7a fc 3c fe  91 44 1a 68 9f c8 77 10  |?...z.<..D.h..w.|
+-00000020  5e af fa b9 e1 09 5f fb  fa ad dd 00 00 04 00 05  |^....._.........|
+-00000030  00 ff 01 00                                       |....|
+->>> Flow 2 (server to client)
+-00000000  16 03 00 00 31 02 00 00  2d 03 00 00 00 00 00 00  |....1...-.......|
+-00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+-00000020  00 00 00 44 4f 57 4e 47  52 44 00 00 00 05 00 00  |...DOWNGRD......|
+-00000030  05 ff 01 00 01 00 16 03  00 02 59 0b 00 02 55 00  |..........Y...U.|
+-00000040  02 52 00 02 4f 30 82 02  4b 30 82 01 b4 a0 03 02  |.R..O0..K0......|
+-00000050  01 02 02 09 00 e8 f0 9d  3f e2 5b ea a6 30 0d 06  |........?.[..0..|
+-00000060  09 2a 86 48 86 f7 0d 01  01 0b 05 00 30 1f 31 0b  |.*.H........0.1.|
+-00000070  30 09 06 03 55 04 0a 13  02 47 6f 31 10 30 0e 06  |0...U....Go1.0..|
+-00000080  03 55 04 03 13 07 47 6f  20 52 6f 6f 74 30 1e 17  |.U....Go Root0..|
+-00000090  0d 31 36 30 31 30 31 30  30 30 30 30 30 5a 17 0d  |.160101000000Z..|
+-000000a0  32 35 30 31 30 31 30 30  30 30 30 30 5a 30 1a 31  |250101000000Z0.1|
+-000000b0  0b 30 09 06 03 55 04 0a  13 02 47 6f 31 0b 30 09  |.0...U....Go1.0.|
+-000000c0  06 03 55 04 03 13 02 47  6f 30 81 9f 30 0d 06 09  |..U....Go0..0...|
+-000000d0  2a 86 48 86 f7 0d 01 01  01 05 00 03 81 8d 00 30  |*.H............0|
+-000000e0  81 89 02 81 81 00 db 46  7d 93 2e 12 27 06 48 bc  |.......F}...'.H.|
+-000000f0  06 28 21 ab 7e c4 b6 a2  5d fe 1e 52 45 88 7a 36  |.(!.~...]..RE.z6|
+-00000100  47 a5 08 0d 92 42 5b c2  81 c0 be 97 79 98 40 fb  |G....B[.....y.@.|
+-00000110  4f 6d 14 fd 2b 13 8b c2  a5 2e 67 d8 d4 09 9e d6  |Om..+.....g.....|
+-00000120  22 38 b7 4a 0b 74 73 2b  c2 34 f1 d1 93 e5 96 d9  |"8.J.ts+.4......|
+-00000130  74 7b f3 58 9f 6c 61 3c  c0 b0 41 d4 d9 2b 2b 24  |t{.X.la<..A..++$|
+-00000140  23 77 5b 1c 3b bd 75 5d  ce 20 54 cf a1 63 87 1d  |#w[.;.u]. T..c..|
+-00000150  1e 24 c4 f3 1d 1a 50 8b  aa b6 14 43 ed 97 a7 75  |.$....P....C...u|
+-00000160  62 f4 14 c8 52 d7 02 03  01 00 01 a3 81 93 30 81  |b...R.........0.|
+-00000170  90 30 0e 06 03 55 1d 0f  01 01 ff 04 04 03 02 05  |.0...U..........|
+-00000180  a0 30 1d 06 03 55 1d 25  04 16 30 14 06 08 2b 06  |.0...U.%..0...+.|
+-00000190  01 05 05 07 03 01 06 08  2b 06 01 05 05 07 03 02  |........+.......|
+-000001a0  30 0c 06 03 55 1d 13 01  01 ff 04 02 30 00 30 19  |0...U.......0.0.|
+-000001b0  06 03 55 1d 0e 04 12 04  10 9f 91 16 1f 43 43 3e  |..U..........CC>|
+-000001c0  49 a6 de 6d b6 80 d7 9f  60 30 1b 06 03 55 1d 23  |I..m....`0...U.#|
+-000001d0  04 14 30 12 80 10 48 13  49 4d 13 7e 16 31 bb a3  |..0...H.IM.~.1..|
+-000001e0  01 d5 ac ab 6e 7b 30 19  06 03 55 1d 11 04 12 30  |....n{0...U....0|
+-000001f0  10 82 0e 65 78 61 6d 70  6c 65 2e 67 6f 6c 61 6e  |...example.golan|
+-00000200  67 30 0d 06 09 2a 86 48  86 f7 0d 01 01 0b 05 00  |g0...*.H........|
+-00000210  03 81 81 00 9d 30 cc 40  2b 5b 50 a0 61 cb ba e5  |.....0.@+[P.a...|
+-00000220  53 58 e1 ed 83 28 a9 58  1a a9 38 a4 95 a1 ac 31  |SX...(.X..8....1|
+-00000230  5a 1a 84 66 3d 43 d3 2d  d9 0b f2 97 df d3 20 64  |Z..f=C.-...... d|
+-00000240  38 92 24 3a 00 bc cf 9c  7d b7 40 20 01 5f aa d3  |8.$:....}.@ ._..|
+-00000250  16 61 09 a2 76 fd 13 c3  cc e1 0c 5c ee b1 87 82  |.a..v......\....|
+-00000260  f1 6c 04 ed 73 bb b3 43  77 8d 0c 1c f1 0f a1 d8  |.l..s..Cw.......|
+-00000270  40 83 61 c9 4c 72 2b 9d  ae db 46 06 06 4d f4 c1  |@.a.Lr+...F..M..|
+-00000280  b3 3e c0 d1 bd 42 d4 db  fe 3d 13 60 84 5c 21 d3  |.>...B...=.`.\!.|
+-00000290  3b e9 fa e7 16 03 00 00  04 0e 00 00 00           |;............|
+->>> Flow 3 (client to server)
+-00000000  16 03 00 00 84 10 00 00  80 d2 67 c1 73 bb 95 8d  |..........g.s...|
+-00000010  b2 e7 30 ca 6c 53 eb f0  34 e5 26 11 0b 91 e9 0a  |..0.lS..4.&.....|
+-00000020  cb 7d 9f d8 f9 01 38 06  01 83 29 a7 1d 69 b8 a1  |.}....8...)..i..|
+-00000030  1f aa bf 73 1e 26 82 ed  44 f5 82 ec 95 69 88 4b  |...s.&..D....i.K|
+-00000040  b7 ce dd 52 c1 a6 3f be  b8 02 23 a5 f3 0c 1e 36  |...R..?...#....6|
+-00000050  f9 c9 00 1f da e9 d5 38  48 b0 24 5e 25 c1 d4 cb  |.......8H.$^%...|
+-00000060  64 c2 16 ff 94 d6 bd e2  e1 bf 7a 98 d9 77 09 a1  |d.........z..w..|
+-00000070  c4 f0 99 e6 57 89 02 c8  dd f0 d5 94 d8 44 34 0b  |....W........D4.|
+-00000080  7a 08 52 95 75 20 02 0a  83 14 03 00 00 01 01 16  |z.R.u ..........|
+-00000090  03 00 00 3c e9 19 7a 94  45 9a b0 ec 3f 8f 1d 19  |...<..z.E...?...|
+-000000a0  64 65 45 6c e8 4e e3 c8  c8 c6 dc d3 a1 05 cf ea  |deEl.N..........|
+-000000b0  fa cf 59 74 93 84 53 a3  bd 7b f0 07 64 92 ea a2  |..Yt..S..{..d...|
+-000000c0  f1 2a ea 29 4a 80 c6 99  76 3c 7e c3 f7 b0 e5 e2  |.*.)J...v<~.....|
+->>> Flow 4 (server to client)
+-00000000  14 03 00 00 01 01 16 03  00 00 3c 14 6c 96 8a 5e  |..........<.l..^|
+-00000010  ab 93 c2 65 9b 22 57 31  e6 f1 ce 6a a2 28 31 e8  |...e."W1...j.(1.|
+-00000020  b5 c3 e7 07 98 2f 0b 40  b7 65 ec 92 f5 60 61 c2  |...../.@.e...`a.|
+-00000030  25 40 91 2f fa a4 4e 4a  ad 7b b3 2a 26 23 d3 04  |%@./..NJ.{.*&#..|
+-00000040  0f c2 2e 95 82 9d 4b 17  03 00 00 21 5e c6 1e 2c  |......K....!^..,|
+-00000050  49 23 4d 14 b2 87 4b c2  f9 09 17 f0 1a 11 15 50  |I#M...K........P|
+-00000060  52 d3 85 7b 25 0e e5 2c  7b 74 4b 5e 9d 15 03 00  |R..{%..,{tK^....|
+-00000070  00 16 6b aa 31 b5 e4 ff  02 0a 39 bc d7 57 51 a1  |..k.1.....9..WQ.|
+-00000080  42 07 c9 ba 2b 35 26 b7                           |B...+5&.|
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index b68c074855..98ac02674d 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -1033,7 +1033,6 @@ func TestEscapeRoute(t *testing.T) {
+ 		VersionTLS12,
+ 		VersionTLS11,
+ 		VersionTLS10,
+-		VersionSSL30,
+ 	}
+ 
+ 	expectVersion(t, testConfig, testConfig, VersionTLS12)

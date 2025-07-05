@@ -15,6 +15,20 @@ Date:   Mon Nov 4 19:17:55 2024 +0000
     Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/net/internal/cgotest/resstate.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/internal/cgotest/resstate.go b/src/net/internal/cgotest/resstate.go
+index 1b4871109e..62cfa24e46 100644
+--- a/src/net/internal/cgotest/resstate.go
++++ b/src/net/internal/cgotest/resstate.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && darwin
++//go:build !netgo && cgo && darwin
+ 
+ package cgotest
+ 

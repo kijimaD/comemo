@@ -9,6 +9,20 @@ Date:   Wed May 6 21:34:29 2015 +0900
     Change-Id: Ia04e24fb1fe57e244d7b1cd417f7f419ad610acd
     Reviewed-on: https://go-review.googlesource.com/9776
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  src/net/sendfile_solaris.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/sendfile_solaris.go b/src/net/sendfile_solaris.go
+index 5f7f068964..0966575696 100644
+--- a/src/net/sendfile_solaris.go
++++ b/src/net/sendfile_solaris.go
+@@ -103,5 +103,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	if lr != nil {
+ 		lr.N = remain
+ 	}
++	if err != nil {
++		err = os.NewSyscallError("sendfile", err)
++	}
+ 	return written, err, written > 0
+ }

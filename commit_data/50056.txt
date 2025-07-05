@@ -19,7 +19,7 @@ Date:   Wed Sep 29 09:35:02 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/import.go           |  6 +--
  src/cmd/compile/internal/noder/irgen.go            |  4 +-
  src/cmd/compile/internal/noder/reader2.go          |  4 +-
@@ -47,3 +47,1232 @@ Date:   Wed Sep 29 09:35:02 2021 -0400
  src/go/types/subst.go                              | 18 ++++-----
  src/go/types/typestring.go                         | 28 ++++++-------
  26 files changed, 214 insertions(+), 214 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index f13f8ca7f5..f065c97763 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -43,12 +43,12 @@ var haveLegacyImports = false
+ // for an imported package by overloading writeNewExportFunc, then
+ // that payload will be mapped into memory and passed to
+ // newReadImportFunc.
+-var newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Environment, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
++var newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+ 	panic("unexpected new export data payload")
+ }
+ 
+ type gcimports struct {
+-	env      *types2.Environment
++	env      *types2.Context
+ 	packages map[string]*types2.Package
+ }
+ 
+@@ -224,7 +224,7 @@ func parseImportPath(pathLit *syntax.BasicLit) (string, error) {
+ // readImportFile reads the import file for the given package path and
+ // returns its types.Pkg representation. If packages is non-nil, the
+ // types2.Package representation is also returned.
+-func readImportFile(path string, target *ir.Package, env *types2.Environment, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
++func readImportFile(path string, target *ir.Package, env *types2.Context, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
+ 	path, err = resolveImportPath(path)
+ 	if err != nil {
+ 		return
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index c1a4f30f4a..6a09c2ee0c 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -34,13 +34,13 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 	}
+ 
+ 	// typechecking
+-	env := types2.NewEnvironment()
++	env := types2.NewContext()
+ 	importer := gcimports{
+ 		env:      env,
+ 		packages: map[string]*types2.Package{"unsafe": types2.Unsafe},
+ 	}
+ 	conf := types2.Config{
+-		Environment:           env,
++		Context:               env,
+ 		GoVersion:             base.Flag.Lang,
+ 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
+ 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index dcd9a65f40..de7211305b 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -16,7 +16,7 @@ import (
+ type pkgReader2 struct {
+ 	pkgDecoder
+ 
+-	env     *types2.Environment
++	env     *types2.Context
+ 	imports map[string]*types2.Package
+ 
+ 	posBases []*syntax.PosBase
+@@ -24,7 +24,7 @@ type pkgReader2 struct {
+ 	typs     []types2.Type
+ }
+ 
+-func readPackage2(env *types2.Environment, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
++func readPackage2(env *types2.Context, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
+ 	pr := pkgReader2{
+ 		pkgDecoder: input,
+ 
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 3d4650a01f..ee76ff34af 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -78,7 +78,7 @@ func unified(noders []*noder) {
+ 		base.Errorf("cannot use -G and -d=quirksmode together")
+ 	}
+ 
+-	newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Environment, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
++	newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+ 		pr := newPkgDecoder(pkg1.Path, data)
+ 
+ 		// Read package descriptors for both types2 and compiler backend.
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index b0e86357b7..faf570c32e 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -108,10 +108,9 @@ type ImporterFrom interface {
+ // A Config specifies the configuration for type checking.
+ // The zero value for Config is a ready-to-use default configuration.
+ type Config struct {
+-	// Environment is the environment used for resolving global
+-	// identifiers. If nil, the type checker will initialize this
+-	// field with a newly created environment.
+-	Environment *Environment
++	// Context is the context used for resolving global identifiers. If nil, the
++	// type checker will initialize this field with a newly created context.
++	Context *Context
+ 
+ 	// GoVersion describes the accepted Go language version. The string
+ 	// must follow the format "go%d.%d" (e.g. "go1.12") or ist must be
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index e45598e0ef..5957518c17 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -170,9 +170,9 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 		conf = new(Config)
+ 	}
+ 
+-	// make sure we have an environment
+-	if conf.Environment == nil {
+-		conf.Environment = NewEnvironment()
++	// make sure we have a context
++	if conf.Context == nil {
++		conf.Context = NewContext()
+ 	}
+ 
+ 	// make sure we have an info struct
+diff --git a/src/cmd/compile/internal/types2/environment.go b/src/cmd/compile/internal/types2/context.go
+similarity index 67%
+rename from src/cmd/compile/internal/types2/environment.go
+rename to src/cmd/compile/internal/types2/context.go
+index fe9a3099fe..a8f8591243 100644
+--- a/src/cmd/compile/internal/types2/environment.go
++++ b/src/cmd/compile/internal/types2/context.go
+@@ -9,21 +9,21 @@ import (
+ 	"sync"
+ )
+ 
+-// An Environment is an opaque type checking environment. It may be used to
+-// share identical type instances across type-checked packages or calls to
++// An Context is an opaque type checking context. It may be used to share
++// identical type instances across type-checked packages or calls to
+ // Instantiate.
+ //
+ // It is safe for concurrent use.
+-type Environment struct {
++type Context struct {
+ 	mu      sync.Mutex
+ 	typeMap map[string]*Named // type hash -> instance
+ 	nextID  int               // next unique ID
+ 	seen    map[*Named]int    // assigned unique IDs
+ }
+ 
+-// NewEnvironment creates a new Environment.
+-func NewEnvironment() *Environment {
+-	return &Environment{
++// NewContext creates a new Context.
++func NewContext() *Context {
++	return &Context{
+ 		typeMap: make(map[string]*Named),
+ 		seen:    make(map[*Named]int),
+ 	}
+@@ -33,12 +33,12 @@ func NewEnvironment() *Environment {
+ // type hash: types that are identical produce identical string representations.
+ // If typ is a *Named type and targs is not empty, typ is printed as if it were
+ // instantiated with targs. The result is guaranteed to not contain blanks (" ").
+-func (env *Environment) TypeHash(typ Type, targs []Type) string {
+-	assert(env != nil)
++func (ctxt *Context) TypeHash(typ Type, targs []Type) string {
++	assert(ctxt != nil)
+ 	assert(typ != nil)
+ 	var buf bytes.Buffer
+ 
+-	h := newTypeHasher(&buf, env)
++	h := newTypeHasher(&buf, ctxt)
+ 	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
+ 		// Don't use WriteType because we need to use the provided targs
+ 		// and not any targs that might already be with the *Named type.
+@@ -55,27 +55,27 @@ func (env *Environment) TypeHash(typ Type, targs []Type) string {
+ 
+ // typeForHash returns the recorded type for the type hash h, if it exists.
+ // If no type exists for h and n is non-nil, n is recorded for h.
+-func (env *Environment) typeForHash(h string, n *Named) *Named {
+-	env.mu.Lock()
+-	defer env.mu.Unlock()
+-	if existing := env.typeMap[h]; existing != nil {
++func (ctxt *Context) typeForHash(h string, n *Named) *Named {
++	ctxt.mu.Lock()
++	defer ctxt.mu.Unlock()
++	if existing := ctxt.typeMap[h]; existing != nil {
+ 		return existing
+ 	}
+ 	if n != nil {
+-		env.typeMap[h] = n
++		ctxt.typeMap[h] = n
+ 	}
+ 	return n
+ }
+ 
+ // idForType returns a unique ID for the pointer n.
+-func (env *Environment) idForType(n *Named) int {
+-	env.mu.Lock()
+-	defer env.mu.Unlock()
+-	id, ok := env.seen[n]
++func (ctxt *Context) idForType(n *Named) int {
++	ctxt.mu.Lock()
++	defer ctxt.mu.Unlock()
++	id, ok := ctxt.seen[n]
+ 	if !ok {
+-		id = env.nextID
+-		env.seen[n] = id
+-		env.nextID++
++		id = ctxt.nextID
++		ctxt.seen[n] = id
++		ctxt.nextID++
+ 	}
+ 	return id
+ }
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 326763d9b7..128e89dec6 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -69,7 +69,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
+ 	// Funcs with m.instRecv set have not yet be completed. Complete them now
+ 	// so that they have a type when objDecl exits.
+ 	if m, _ := obj.(*Func); m != nil && m.instRecv != nil {
+-		check.completeMethod(check.conf.Environment, m)
++		check.completeMethod(check.conf.Context, m)
+ 	}
+ 
+ 	// Checking the declaration of obj means inferring its type
+@@ -330,7 +330,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		}
+ 
+ 	case *Named:
+-		t.resolve(check.conf.Environment)
++		t.resolve(check.conf.Context)
+ 
+ 		// don't touch the type if it is from a different package or the Universe scope
+ 		// (doing so would lead to a race condition - was issue #35049)
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 7a9279943c..5da371f201 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -20,9 +20,8 @@ import (
+ // *Signature). Any methods attached to a *Named are simply copied; they are
+ // not instantiated.
+ //
+-// If env is non-nil, it may be used to de-dupe the instance against previous
+-// instances with the same identity. This functionality is implemented for
+-// environments with non-nil Checkers.
++// If ctxt is non-nil, it may be used to de-dupe the instance against previous
++// instances with the same identity.
+ //
+ // If verify is set and constraint satisfaction fails, the returned error may
+ // be of dynamic type ArgumentError indicating which type argument did not
+@@ -30,8 +29,8 @@ import (
+ //
+ // TODO(rfindley): change this function to also return an error if lengths of
+ // tparams and targs do not match.
+-func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type, error) {
+-	inst := (*Checker)(nil).instance(nopos, typ, targs, env)
++func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, error) {
++	inst := (*Checker)(nil).instance(nopos, typ, targs, ctxt)
+ 
+ 	var err error
+ 	if validate {
+@@ -71,7 +70,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
+ 		}()
+ 	}
+ 
+-	inst := check.instance(pos, typ, targs, check.conf.Environment)
++	inst := check.instance(pos, typ, targs, check.conf.Context)
+ 
+ 	assert(len(posList) <= len(targs))
+ 	check.later(func() {
+@@ -103,28 +102,28 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
+ // instance creates a type or function instance using the given original type
+ // typ and arguments targs. For Named types the resulting instance will be
+ // unexpanded.
+-func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, env *Environment) Type {
++func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Context) Type {
+ 	switch t := typ.(type) {
+ 	case *Named:
+ 		var h string
+-		if env != nil {
+-			h = env.TypeHash(t, targs)
++		if ctxt != nil {
++			h = ctxt.TypeHash(t, targs)
+ 			// typ may already have been instantiated with identical type arguments. In
+ 			// that case, re-use the existing instance.
+-			if named := env.typeForHash(h, nil); named != nil {
++			if named := ctxt.typeForHash(h, nil); named != nil {
+ 				return named
+ 			}
+ 		}
+ 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
+ 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is resolved
+ 		named.targs = NewTypeList(targs)
+-		named.resolver = func(env *Environment, n *Named) (*TypeParamList, Type, []*Func) {
+-			return expandNamed(env, n, pos)
++		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
++			return expandNamed(ctxt, n, pos)
+ 		}
+-		if env != nil {
+-			// It's possible that we've lost a race to add named to the environment.
+-			// In this case, use whichever instance is recorded in the environment.
+-			named = env.typeForHash(h, named)
++		if ctxt != nil {
++			// It's possible that we've lost a race to add named to the context.
++			// In this case, use whichever instance is recorded in the context.
++			named = ctxt.typeForHash(h, named)
+ 		}
+ 		return named
+ 
+@@ -136,7 +135,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, env *Envi
+ 		if tparams.Len() == 0 {
+ 			return typ // nothing to do (minor optimization)
+ 		}
+-		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), env).(*Signature)
++		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), ctxt).(*Signature)
+ 		// If the signature doesn't use its type parameters, subst
+ 		// will not make a copy. In that case, make a copy now (so
+ 		// we can set tparams to nil w/o causing side-effects).
+@@ -192,7 +191,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
+ 
+ 	// TODO(rfindley): it would be great if users could pass in a qualifier here,
+ 	// rather than falling back to verbose qualification. Maybe this can be part
+-	// of a the shared environment.
++	// of the shared context.
+ 	var qf Qualifier
+ 	if check != nil {
+ 		qf = check.qualifier
+diff --git a/src/cmd/compile/internal/types2/instantiate_test.go b/src/cmd/compile/internal/types2/instantiate_test.go
+index 5d37f29b6b..a99fc5d032 100644
+--- a/src/cmd/compile/internal/types2/instantiate_test.go
++++ b/src/cmd/compile/internal/types2/instantiate_test.go
+@@ -18,12 +18,12 @@ func TestInstantiateEquality(t *testing.T) {
+ 	T := pkg.Scope().Lookup("T").Type().(*Named)
+ 	// Instantiating the same type twice should result in pointer-equivalent
+ 	// instances.
+-	env := NewEnvironment()
+-	res1, err := Instantiate(env, T, []Type{Typ[Int]}, false)
++	ctxt := NewContext()
++	res1, err := Instantiate(ctxt, T, []Type{Typ[Int]}, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	res2, err := Instantiate(env, T, []Type{Typ[Int]}, false)
++	res2, err := Instantiate(ctxt, T, []Type{Typ[Int]}, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -42,15 +42,15 @@ func TestInstantiateNonEquality(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	// We consider T1 and T2 to be distinct types, so their instances should not
+-	// be deduplicated by the environment.
++	// be deduplicated by the context.
+ 	T1 := pkg1.Scope().Lookup("T").Type().(*Named)
+ 	T2 := pkg2.Scope().Lookup("T").Type().(*Named)
+-	env := NewEnvironment()
+-	res1, err := Instantiate(env, T1, []Type{Typ[Int]}, false)
++	ctxt := NewContext()
++	res1, err := Instantiate(ctxt, T1, []Type{Typ[Int]}, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	res2, err := Instantiate(env, T2, []Type{Typ[Int]}, false)
++	res2, err := Instantiate(ctxt, T2, []Type{Typ[Int]}, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index bc4d4f89c5..3971e03179 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -22,7 +22,7 @@ type Named struct {
+ 	methods    []*Func        // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+ 
+ 	// resolver may be provided to lazily resolve type parameters, underlying, and methods.
+-	resolver func(*Environment, *Named) (tparams *TypeParamList, underlying Type, methods []*Func)
++	resolver func(*Context, *Named) (tparams *TypeParamList, underlying Type, methods []*Func)
+ 	once     sync.Once // ensures that tparams, underlying, and methods are resolved before accessing
+ }
+ 
+@@ -36,7 +36,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
+ }
+ 
+-func (t *Named) resolve(env *Environment) *Named {
++func (t *Named) resolve(ctxt *Context) *Named {
+ 	if t.resolver == nil {
+ 		return t
+ 	}
+@@ -50,7 +50,7 @@ func (t *Named) resolve(env *Environment) *Named {
+ 		// methods would need to support reentrant calls though. It would
+ 		// also make the API more future-proof towards further extensions
+ 		// (like SetTypeParams).
+-		t.tparams, t.underlying, t.methods = t.resolver(env, t)
++		t.tparams, t.underlying, t.methods = t.resolver(ctxt, t)
+ 		t.fromRHS = t.underlying // for cycle detection
+ 	})
+ 	return t
+@@ -217,37 +217,37 @@ func (n *Named) setUnderlying(typ Type) {
+ 	}
+ }
+ 
+-// bestEnv returns the best available environment. In order of preference:
+-// - the given env, if non-nil
+-// - the Checker env, if check is non-nil
+-// - a new environment
+-func (check *Checker) bestEnv(env *Environment) *Environment {
+-	if env != nil {
+-		return env
++// bestContext returns the best available context. In order of preference:
++// - the given ctxt, if non-nil
++// - check.Config.Context, if check is non-nil
++// - a new Context
++func (check *Checker) bestContext(ctxt *Context) *Context {
++	if ctxt != nil {
++		return ctxt
+ 	}
+ 	if check != nil {
+-		assert(check.conf.Environment != nil)
+-		return check.conf.Environment
++		assert(check.conf.Context != nil)
++		return check.conf.Context
+ 	}
+-	return NewEnvironment()
++	return NewContext()
+ }
+ 
+ // expandNamed ensures that the underlying type of n is instantiated.
+ // The underlying type will be Typ[Invalid] if there was an error.
+-func expandNamed(env *Environment, n *Named, instPos syntax.Pos) (tparams *TypeParamList, underlying Type, methods []*Func) {
+-	n.orig.resolve(env)
++func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypeParamList, underlying Type, methods []*Func) {
++	n.orig.resolve(ctxt)
+ 
+ 	check := n.check
+ 
+ 	if check.validateTArgLen(instPos, n.orig.tparams.Len(), n.targs.Len()) {
+-		// We must always have an env, to avoid infinite recursion.
+-		env = check.bestEnv(env)
+-		h := env.TypeHash(n.orig, n.targs.list())
++		// We must always have a context, to avoid infinite recursion.
++		ctxt = check.bestContext(ctxt)
++		h := ctxt.TypeHash(n.orig, n.targs.list())
+ 		// ensure that an instance is recorded for h to avoid infinite recursion.
+-		env.typeForHash(h, n)
++		ctxt.typeForHash(h, n)
+ 
+ 		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
+-		underlying = n.check.subst(instPos, n.orig.underlying, smap, env)
++		underlying = n.check.subst(instPos, n.orig.underlying, smap, ctxt)
+ 
+ 		for i := 0; i < n.orig.NumMethods(); i++ {
+ 			origm := n.orig.Method(i)
+@@ -272,7 +272,7 @@ func expandNamed(env *Environment, n *Named, instPos syntax.Pos) (tparams *TypeP
+ 	completeMethods := func() {
+ 		for _, m := range methods {
+ 			if m.instRecv != nil {
+-				check.completeMethod(env, m)
++				check.completeMethod(ctxt, m)
+ 			}
+ 		}
+ 	}
+@@ -285,7 +285,7 @@ func expandNamed(env *Environment, n *Named, instPos syntax.Pos) (tparams *TypeP
+ 	return n.orig.tparams, underlying, methods
+ }
+ 
+-func (check *Checker) completeMethod(env *Environment, m *Func) {
++func (check *Checker) completeMethod(ctxt *Context, m *Func) {
+ 	assert(m.instRecv != nil)
+ 	rbase := m.instRecv
+ 	m.instRecv = nil
+@@ -306,7 +306,7 @@ func (check *Checker) completeMethod(env *Environment, m *Func) {
+ 	}
+ 
+ 	smap := makeSubstMap(origSig.RecvTypeParams().list(), rbase.targs.list())
+-	sig := check.subst(orig.pos, origSig, smap, env).(*Signature)
++	sig := check.subst(orig.pos, origSig, smap, ctxt).(*Signature)
+ 	if sig == origSig {
+ 		// No substitution occurred, but we still need to create a new signature to
+ 		// hold the instantiated receiver.
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 2e1cd7bff1..affeaf61f2 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -281,7 +281,7 @@ func NewTypeName(pos syntax.Pos, pkg *Package, name string, typ Type) *TypeName
+ func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, load func(named *Named) (tparams []*TypeParam, underlying Type, methods []*Func)) *TypeName {
+ 	obj := NewTypeName(pos, pkg, name, nil)
+ 
+-	resolve := func(_ *Environment, t *Named) (*TypeParamList, Type, []*Func) {
++	resolve := func(_ *Context, t *Named) (*TypeParamList, Type, []*Func) {
+ 		tparams, underlying, methods := load(t)
+ 
+ 		switch underlying.(type) {
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index a5348b3b14..803dd8e5e7 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -234,7 +234,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 			var err string
+ 			switch T := rtyp.(type) {
+ 			case *Named:
+-				T.resolve(check.conf.Environment)
++				T.resolve(check.conf.Context)
+ 				// The receiver type may be an instantiated type referred to
+ 				// by an alias (which cannot have receiver parameters for now).
+ 				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 5e057a6f80..a5ebd416aa 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -37,8 +37,8 @@ func (m substMap) lookup(tpar *TypeParam) Type {
+ // incoming type. If a substitution took place, the result type is different
+ // from the incoming type.
+ //
+-// If the given environment is non-nil, it is used in lieu of check.env.
+-func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, env *Environment) Type {
++// If the given context is non-nil, it is used in lieu of check.Config.Context.
++func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, ctxt *Context) Type {
+ 	if smap.empty() {
+ 		return typ
+ 	}
+@@ -56,7 +56,7 @@ func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, env *Enviro
+ 		pos:   pos,
+ 		smap:  smap,
+ 		check: check,
+-		env:   check.bestEnv(env),
++		ctxt:  check.bestContext(ctxt),
+ 	}
+ 	return subst.typ(typ)
+ }
+@@ -65,7 +65,7 @@ type subster struct {
+ 	pos   syntax.Pos
+ 	smap  substMap
+ 	check *Checker // nil if called via Instantiate
+-	env   *Environment
++	ctxt  *Context
+ }
+ 
+ func (subst *subster) typ(typ Type) Type {
+@@ -205,19 +205,19 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 		// before creating a new named type, check if we have this one already
+-		h := subst.env.TypeHash(t.orig, newTArgs)
++		h := subst.ctxt.TypeHash(t.orig, newTArgs)
+ 		dump(">>> new type hash: %s", h)
+-		if named := subst.env.typeForHash(h, nil); named != nil {
++		if named := subst.ctxt.typeForHash(h, nil); named != nil {
+ 			dump(">>> found %s", named)
+ 			return named
+ 		}
+ 
+-		// Create a new instance and populate the environment to avoid endless
++		// Create a new instance and populate the context to avoid endless
+ 		// recursion. The position used here is irrelevant because validation only
+ 		// occurs on t (we don't call validType on named), but we use subst.pos to
+ 		// help with debugging.
+-		t.orig.resolve(subst.env)
+-		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.env)
++		t.orig.resolve(subst.ctxt)
++		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.ctxt)
+ 
+ 		// Note that if we were to expose substitution more generally (not just in
+ 		// the context of a declaration), we'd have to substitute in
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index bdafcf883d..930acf053a 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -67,20 +67,20 @@ type typeWriter struct {
+ 	buf  *bytes.Buffer
+ 	seen map[Type]bool
+ 	qf   Qualifier
+-	env  *Environment // if non-nil, we are type hashing
++	ctxt *Context // if non-nil, we are type hashing
+ }
+ 
+ func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
+ 	return &typeWriter{buf, make(map[Type]bool), qf, nil}
+ }
+ 
+-func newTypeHasher(buf *bytes.Buffer, env *Environment) *typeWriter {
+-	assert(env != nil)
+-	return &typeWriter{buf, make(map[Type]bool), nil, env}
++func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
++	assert(ctxt != nil)
++	return &typeWriter{buf, make(map[Type]bool), nil, ctxt}
+ }
+ 
+ func (w *typeWriter) byte(b byte) {
+-	if w.env != nil {
++	if w.ctxt != nil {
+ 		if b == ' ' {
+ 			b = '#'
+ 		}
+@@ -98,7 +98,7 @@ func (w *typeWriter) string(s string) {
+ }
+ 
+ func (w *typeWriter) error(msg string) {
+-	if w.env != nil {
++	if w.ctxt != nil {
+ 		panic(msg)
+ 	}
+ 	w.buf.WriteString("<" + msg + ">")
+@@ -154,7 +154,7 @@ func (w *typeWriter) typ(typ Type) {
+ 			if tag := t.Tag(i); tag != "" {
+ 				w.byte(' ')
+ 				// TODO(gri) If tag contains blanks, replacing them with '#'
+-				//           in Environment.TypeHash may produce another tag
++				//           in Context.TypeHash may produce another tag
+ 				//           accidentally.
+ 				w.string(strconv.Quote(tag))
+ 			}
+@@ -247,7 +247,7 @@ func (w *typeWriter) typ(typ Type) {
+ 		if t.targs != nil {
+ 			// instantiated type
+ 			w.typeList(t.targs.list())
+-		} else if w.env == nil && t.TypeParams().Len() != 0 { // For type hashing, don't need to format the TParams
++		} else if w.ctxt == nil && t.TypeParams().Len() != 0 { // For type hashing, don't need to format the TParams
+ 			// parameterized type
+ 			w.tParamList(t.TypeParams().list())
+ 		}
+@@ -276,12 +276,12 @@ func (w *typeWriter) typ(typ Type) {
+ 	}
+ }
+ 
+-// If w.env is non-nil, typePrefix writes a unique prefix for the named type t
+-// based on the types already observed by w.env. If w.env is nil, it does
++// If w.ctxt is non-nil, typePrefix writes a unique prefix for the named type t
++// based on the types already observed by w.ctxt. If w.ctxt is nil, it does
+ // nothing.
+ func (w *typeWriter) typePrefix(t *Named) {
+-	if w.env != nil {
+-		w.string(strconv.Itoa(w.env.idForType(t)))
++	if w.ctxt != nil {
++		w.string(strconv.Itoa(w.ctxt.idForType(t)))
+ 	}
+ }
+ 
+@@ -340,7 +340,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
+ 				w.byte(',')
+ 			}
+ 			// parameter names are ignored for type identity and thus type hashes
+-			if w.env == nil && v.name != "" {
++			if w.ctxt == nil && v.name != "" {
+ 				w.string(v.name)
+ 				w.byte(' ')
+ 			}
+@@ -381,7 +381,7 @@ func (w *typeWriter) signature(sig *Signature) {
+ 	}
+ 
+ 	w.byte(' ')
+-	if n == 1 && (w.env != nil || sig.results.vars[0].name == "") {
++	if n == 1 && (w.ctxt != nil || sig.results.vars[0].name == "") {
+ 		// single unnamed result (if type hashing, name must be ignored)
+ 		w.typ(sig.results.vars[0].typ)
+ 		return
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 0bbd940d07..c115d07b41 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -112,10 +112,9 @@ type ImporterFrom interface {
+ // A Config specifies the configuration for type checking.
+ // The zero value for Config is a ready-to-use default configuration.
+ type Config struct {
+-	// Environment is the environment used for resolving global
+-	// identifiers. If nil, the type checker will initialize this
+-	// field with a newly created environment.
+-	Environment *Environment
++	// Context is the context used for resolving global identifiers. If nil, the
++	// type checker will initialize this field with a newly created context.
++	Context *Context
+ 
+ 	// GoVersion describes the accepted Go language version. The string
+ 	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index a55c01c17d..cfcdd68de3 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -173,9 +173,9 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		conf = new(Config)
+ 	}
+ 
+-	// make sure we have an environment
+-	if conf.Environment == nil {
+-		conf.Environment = NewEnvironment()
++	// make sure we have a context
++	if conf.Context == nil {
++		conf.Context = NewContext()
+ 	}
+ 
+ 	// make sure we have an info struct
+diff --git a/src/go/types/environment.go b/src/go/types/context.go
+similarity index 65%
+rename from src/go/types/environment.go
+rename to src/go/types/context.go
+index b818f81564..bbdaade632 100644
+--- a/src/go/types/environment.go
++++ b/src/go/types/context.go
+@@ -10,21 +10,25 @@ import (
+ 	"sync"
+ )
+ 
+-// An Environment is an opaque type checking environment. It may be used to
+-// share identical type instances across type-checked packages or calls to
++// An Context is an opaque type checking context. It may be used to share
++// identical type instances across type-checked packages or calls to
+ // Instantiate.
+ //
+ // It is safe for concurrent use.
+-type Environment struct {
++type Context struct {
+ 	mu      sync.Mutex
+ 	typeMap map[string]*Named // type hash -> instance
+ 	nextID  int               // next unique ID
+ 	seen    map[*Named]int    // assigned unique IDs
+ }
+ 
+-// NewEnvironment creates a new Environment.
+-func NewEnvironment() *Environment {
+-	return &Environment{
++// Temporary alias to allow x/tools tests to pass.
++// TODO(rfindley): remove the Environment type.
++type Environment = Context
++
++// NewContext creates a new Context.
++func NewContext() *Context {
++	return &Context{
+ 		typeMap: make(map[string]*Named),
+ 		seen:    make(map[*Named]int),
+ 	}
+@@ -34,12 +38,12 @@ func NewEnvironment() *Environment {
+ // type hash: types that are identical produce identical string representations.
+ // If typ is a *Named type and targs is not empty, typ is printed as if it were
+ // instantiated with targs. The result is guaranteed to not contain blanks (" ").
+-func (env *Environment) typeHash(typ Type, targs []Type) string {
+-	assert(env != nil)
++func (ctxt *Context) typeHash(typ Type, targs []Type) string {
++	assert(ctxt != nil)
+ 	assert(typ != nil)
+ 	var buf bytes.Buffer
+ 
+-	h := newTypeHasher(&buf, env)
++	h := newTypeHasher(&buf, ctxt)
+ 	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
+ 		// Don't use WriteType because we need to use the provided targs
+ 		// and not any targs that might already be with the *Named type.
+@@ -56,27 +60,27 @@ func (env *Environment) typeHash(typ Type, targs []Type) string {
+ 
+ // typeForHash returns the recorded type for the type hash h, if it exists.
+ // If no type exists for h and n is non-nil, n is recorded for h.
+-func (env *Environment) typeForHash(h string, n *Named) *Named {
+-	env.mu.Lock()
+-	defer env.mu.Unlock()
+-	if existing := env.typeMap[h]; existing != nil {
++func (ctxt *Context) typeForHash(h string, n *Named) *Named {
++	ctxt.mu.Lock()
++	defer ctxt.mu.Unlock()
++	if existing := ctxt.typeMap[h]; existing != nil {
+ 		return existing
+ 	}
+ 	if n != nil {
+-		env.typeMap[h] = n
++		ctxt.typeMap[h] = n
+ 	}
+ 	return n
+ }
+ 
+ // idForType returns a unique ID for the pointer n.
+-func (env *Environment) idForType(n *Named) int {
+-	env.mu.Lock()
+-	defer env.mu.Unlock()
+-	id, ok := env.seen[n]
++func (ctxt *Context) idForType(n *Named) int {
++	ctxt.mu.Lock()
++	defer ctxt.mu.Unlock()
++	id, ok := ctxt.seen[n]
+ 	if !ok {
+-		id = env.nextID
+-		env.seen[n] = id
+-		env.nextID++
++		id = ctxt.nextID
++		ctxt.seen[n] = id
++		ctxt.nextID++
+ 	}
+ 	return id
+ }
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 77914dd1af..d0809f5a6e 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -68,7 +68,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
+ 	// Funcs with m.instRecv set have not yet be completed. Complete them now
+ 	// so that they have a type when objDecl exits.
+ 	if m, _ := obj.(*Func); m != nil && m.instRecv != nil {
+-		check.completeMethod(check.conf.Environment, m)
++		check.completeMethod(check.conf.Context, m)
+ 	}
+ 
+ 	// Checking the declaration of obj means inferring its type
+@@ -329,7 +329,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		}
+ 
+ 	case *Named:
+-		t.resolve(check.conf.Environment)
++		t.resolve(check.conf.Context)
+ 		// don't touch the type if it is from a different package or the Universe scope
+ 		// (doing so would lead to a race condition - was issue #35049)
+ 		if t.obj.pkg != check.pkg {
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 6cafc2fbed..2a255bcb87 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -20,9 +20,8 @@ import (
+ // *Signature). Any methods attached to a *Named are simply copied; they are
+ // not instantiated.
+ //
+-// If env is non-nil, it may be used to de-dupe the instance against previous
+-// instances with the same identity. This functionality is currently
+-// unimplemented.
++// If ctxt is non-nil, it may be used to de-dupe the instance against previous
++// instances with the same identity.
+ //
+ // If verify is set and constraint satisfaction fails, the returned error may
+ // wrap an *ArgumentError indicating which type argument did not satisfy its
+@@ -30,8 +29,8 @@ import (
+ //
+ // TODO(rfindley): change this function to also return an error if lengths of
+ // tparams and targs do not match.
+-func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type, error) {
+-	inst := (*Checker)(nil).instance(token.NoPos, typ, targs, env)
++func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, error) {
++	inst := (*Checker)(nil).instance(token.NoPos, typ, targs, ctxt)
+ 
+ 	var err error
+ 	if validate {
+@@ -71,7 +70,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
+ 		}()
+ 	}
+ 
+-	inst := check.instance(pos, typ, targs, check.conf.Environment)
++	inst := check.instance(pos, typ, targs, check.conf.Context)
+ 
+ 	assert(len(posList) <= len(targs))
+ 	check.later(func() {
+@@ -103,28 +102,28 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
+ // instance creates a type or function instance using the given original type
+ // typ and arguments targs. For Named types the resulting instance will be
+ // unexpanded.
+-func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, env *Environment) Type {
++func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, ctxt *Context) Type {
+ 	switch t := typ.(type) {
+ 	case *Named:
+ 		var h string
+-		if env != nil {
+-			h = env.typeHash(t, targs)
++		if ctxt != nil {
++			h = ctxt.typeHash(t, targs)
+ 			// typ may already have been instantiated with identical type arguments. In
+ 			// that case, re-use the existing instance.
+-			if named := env.typeForHash(h, nil); named != nil {
++			if named := ctxt.typeForHash(h, nil); named != nil {
+ 				return named
+ 			}
+ 		}
+ 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
+ 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is resolved
+ 		named.targs = NewTypeList(targs)
+-		named.resolver = func(env *Environment, n *Named) (*TypeParamList, Type, []*Func) {
+-			return expandNamed(env, n, pos)
++		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
++			return expandNamed(ctxt, n, pos)
+ 		}
+-		if env != nil {
+-			// It's possible that we've lost a race to add named to the environment.
+-			// In this case, use whichever instance is recorded in the environment.
+-			named = env.typeForHash(h, named)
++		if ctxt != nil {
++			// It's possible that we've lost a race to add named to the context.
++			// In this case, use whichever instance is recorded in the context.
++			named = ctxt.typeForHash(h, named)
+ 		}
+ 		return named
+ 
+@@ -136,7 +135,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, env *Envir
+ 		if tparams.Len() == 0 {
+ 			return typ // nothing to do (minor optimization)
+ 		}
+-		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), env).(*Signature)
++		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), ctxt).(*Signature)
+ 		// If the signature doesn't use its type parameters, subst
+ 		// will not make a copy. In that case, make a copy now (so
+ 		// we can set tparams to nil w/o causing side-effects).
+@@ -191,7 +190,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap
+ 
+ 	// TODO(rfindley): it would be great if users could pass in a qualifier here,
+ 	// rather than falling back to verbose qualification. Maybe this can be part
+-	// of a the shared environment.
++	// of the shared context.
+ 	var qf Qualifier
+ 	if check != nil {
+ 		qf = check.qualifier
+diff --git a/src/go/types/instantiate_test.go b/src/go/types/instantiate_test.go
+index cf6d2a9198..832c822224 100644
+--- a/src/go/types/instantiate_test.go
++++ b/src/go/types/instantiate_test.go
+@@ -22,12 +22,12 @@ func TestInstantiateEquality(t *testing.T) {
+ 
+ 	// Instantiating the same type twice should result in pointer-equivalent
+ 	// instances.
+-	env := NewEnvironment()
+-	res1, err := Instantiate(env, T, []Type{Typ[Int]}, false)
++	ctxt := NewContext()
++	res1, err := Instantiate(ctxt, T, []Type{Typ[Int]}, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	res2, err := Instantiate(env, T, []Type{Typ[Int]}, false)
++	res2, err := Instantiate(ctxt, T, []Type{Typ[Int]}, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -50,16 +50,16 @@ func TestInstantiateNonEquality(t *testing.T) {
+ 	}
+ 
+ 	// We consider T1 and T2 to be distinct types, so their instances should not
+-	// be deduplicated by the environment.
++	// be deduplicated by the context.
+ 	T1 := pkg1.Scope().Lookup("T").Type().(*Named)
+ 	T2 := pkg2.Scope().Lookup("T").Type().(*Named)
+ 
+-	env := NewEnvironment()
+-	res1, err := Instantiate(env, T1, []Type{Typ[Int]}, false)
++	ctxt := NewContext()
++	res1, err := Instantiate(ctxt, T1, []Type{Typ[Int]}, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	res2, err := Instantiate(env, T2, []Type{Typ[Int]}, false)
++	res2, err := Instantiate(ctxt, T2, []Type{Typ[Int]}, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index d29c67d4eb..82b2afcb63 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -22,7 +22,7 @@ type Named struct {
+ 	methods    []*Func        // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+ 
+ 	// resolver may be provided to lazily resolve type parameters, underlying, and methods.
+-	resolver func(*Environment, *Named) (tparams *TypeParamList, underlying Type, methods []*Func)
++	resolver func(*Context, *Named) (tparams *TypeParamList, underlying Type, methods []*Func)
+ 	once     sync.Once // ensures that tparams, underlying, and methods are resolved before accessing
+ }
+ 
+@@ -36,7 +36,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
+ }
+ 
+-func (t *Named) resolve(env *Environment) *Named {
++func (t *Named) resolve(ctxt *Context) *Named {
+ 	if t.resolver == nil {
+ 		return t
+ 	}
+@@ -50,7 +50,7 @@ func (t *Named) resolve(env *Environment) *Named {
+ 		// methods would need to support reentrant calls though. It would
+ 		// also make the API more future-proof towards further extensions
+ 		// (like SetTypeParams).
+-		t.tparams, t.underlying, t.methods = t.resolver(env, t)
++		t.tparams, t.underlying, t.methods = t.resolver(ctxt, t)
+ 		t.fromRHS = t.underlying // for cycle detection
+ 	})
+ 	return t
+@@ -219,37 +219,37 @@ func (n *Named) setUnderlying(typ Type) {
+ 	}
+ }
+ 
+-// bestEnv returns the best available environment. In order of preference:
+-// - the given env, if non-nil
+-// - the Checker env, if check is non-nil
+-// - a new environment
+-func (check *Checker) bestEnv(env *Environment) *Environment {
+-	if env != nil {
+-		return env
++// bestContext returns the best available context. In order of preference:
++// - the given ctxt, if non-nil
++// - check.Config.Context, if check is non-nil
++// - a new Context
++func (check *Checker) bestContext(ctxt *Context) *Context {
++	if ctxt != nil {
++		return ctxt
+ 	}
+ 	if check != nil {
+-		assert(check.conf.Environment != nil)
+-		return check.conf.Environment
++		assert(check.conf.Context != nil)
++		return check.conf.Context
+ 	}
+-	return NewEnvironment()
++	return NewContext()
+ }
+ 
+ // expandNamed ensures that the underlying type of n is instantiated.
+ // The underlying type will be Typ[Invalid] if there was an error.
+-func expandNamed(env *Environment, n *Named, instPos token.Pos) (tparams *TypeParamList, underlying Type, methods []*Func) {
+-	n.orig.resolve(env)
++func expandNamed(ctxt *Context, n *Named, instPos token.Pos) (tparams *TypeParamList, underlying Type, methods []*Func) {
++	n.orig.resolve(ctxt)
+ 
+ 	check := n.check
+ 
+ 	if check.validateTArgLen(instPos, n.orig.tparams.Len(), n.targs.Len()) {
+-		// We must always have an env, to avoid infinite recursion.
+-		env = check.bestEnv(env)
+-		h := env.typeHash(n.orig, n.targs.list())
++		// We must always have a context, to avoid infinite recursion.
++		ctxt = check.bestContext(ctxt)
++		h := ctxt.typeHash(n.orig, n.targs.list())
+ 		// ensure that an instance is recorded for h to avoid infinite recursion.
+-		env.typeForHash(h, n)
++		ctxt.typeForHash(h, n)
+ 
+ 		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
+-		underlying = n.check.subst(instPos, n.orig.underlying, smap, env)
++		underlying = n.check.subst(instPos, n.orig.underlying, smap, ctxt)
+ 
+ 		for i := 0; i < n.orig.NumMethods(); i++ {
+ 			origm := n.orig.Method(i)
+@@ -274,7 +274,7 @@ func expandNamed(env *Environment, n *Named, instPos token.Pos) (tparams *TypePa
+ 	completeMethods := func() {
+ 		for _, m := range methods {
+ 			if m.instRecv != nil {
+-				check.completeMethod(env, m)
++				check.completeMethod(ctxt, m)
+ 			}
+ 		}
+ 	}
+@@ -287,7 +287,7 @@ func expandNamed(env *Environment, n *Named, instPos token.Pos) (tparams *TypePa
+ 	return n.orig.tparams, underlying, methods
+ }
+ 
+-func (check *Checker) completeMethod(env *Environment, m *Func) {
++func (check *Checker) completeMethod(ctxt *Context, m *Func) {
+ 	assert(m.instRecv != nil)
+ 	rbase := m.instRecv
+ 	m.instRecv = nil
+@@ -308,7 +308,7 @@ func (check *Checker) completeMethod(env *Environment, m *Func) {
+ 	}
+ 
+ 	smap := makeSubstMap(origSig.RecvTypeParams().list(), rbase.targs.list())
+-	sig := check.subst(orig.pos, origSig, smap, env).(*Signature)
++	sig := check.subst(orig.pos, origSig, smap, ctxt).(*Signature)
+ 	if sig == origSig {
+ 		// No substitution occurred, but we still need to create a new signature to
+ 		// hold the instantiated receiver.
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 19e7fddeb6..18015fc967 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -235,7 +235,7 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
+ func _NewTypeNameLazy(pos token.Pos, pkg *Package, name string, load func(named *Named) (tparams []*TypeParam, underlying Type, methods []*Func)) *TypeName {
+ 	obj := NewTypeName(pos, pkg, name, nil)
+ 
+-	resolve := func(_ *Environment, t *Named) (*TypeParamList, Type, []*Func) {
++	resolve := func(_ *Context, t *Named) (*TypeParamList, Type, []*Func) {
+ 		tparams, underlying, methods := load(t)
+ 
+ 		switch underlying.(type) {
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index df38e7124b..c26437afe4 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -224,7 +224,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 			var err string
+ 			switch T := rtyp.(type) {
+ 			case *Named:
+-				T.resolve(check.conf.Environment)
++				T.resolve(check.conf.Context)
+ 				// The receiver type may be an instantiated type referred to
+ 				// by an alias (which cannot have receiver parameters for now).
+ 				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 25629dca8a..e539ab54e6 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -37,8 +37,8 @@ func (m substMap) lookup(tpar *TypeParam) Type {
+ // that it doesn't modify the incoming type. If a substitution took place, the
+ // result type is different from the incoming type.
+ //
+-// If the given environment is non-nil, it is used in lieu of check.env.
+-func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environment) Type {
++// If the given context is non-nil, it is used in lieu of check.Config.Context
++func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, ctxt *Context) Type {
+ 	if smap.empty() {
+ 		return typ
+ 	}
+@@ -56,7 +56,7 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environ
+ 		pos:   pos,
+ 		smap:  smap,
+ 		check: check,
+-		env:   check.bestEnv(env),
++		ctxt:  check.bestContext(ctxt),
+ 	}
+ 	return subst.typ(typ)
+ }
+@@ -65,7 +65,7 @@ type subster struct {
+ 	pos   token.Pos
+ 	smap  substMap
+ 	check *Checker // nil if called via Instantiate
+-	env   *Environment
++	ctxt  *Context
+ }
+ 
+ func (subst *subster) typ(typ Type) Type {
+@@ -205,19 +205,19 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 		// before creating a new named type, check if we have this one already
+-		h := subst.env.typeHash(t.orig, newTArgs)
++		h := subst.ctxt.typeHash(t.orig, newTArgs)
+ 		dump(">>> new type hash: %s", h)
+-		if named := subst.env.typeForHash(h, nil); named != nil {
++		if named := subst.ctxt.typeForHash(h, nil); named != nil {
+ 			dump(">>> found %s", named)
+ 			return named
+ 		}
+ 
+-		// Create a new instance and populate the environment to avoid endless
++		// Create a new instance and populate the context to avoid endless
+ 		// recursion. The position used here is irrelevant because validation only
+ 		// occurs on t (we don't call validType on named), but we use subst.pos to
+ 		// help with debugging.
+-		t.orig.resolve(subst.env)
+-		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.env)
++		t.orig.resolve(subst.ctxt)
++		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.ctxt)
+ 
+ 		// Note that if we were to expose substitution more generally (not just in
+ 		// the context of a declaration), we'd have to substitute in
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index e5dafc2e0d..4a087c4ed1 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -68,20 +68,20 @@ type typeWriter struct {
+ 	buf  *bytes.Buffer
+ 	seen map[Type]bool
+ 	qf   Qualifier
+-	env  *Environment // if non-nil, we are type hashing
++	ctxt *Context // if non-nil, we are type hashing
+ }
+ 
+ func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
+ 	return &typeWriter{buf, make(map[Type]bool), qf, nil}
+ }
+ 
+-func newTypeHasher(buf *bytes.Buffer, env *Environment) *typeWriter {
+-	assert(env != nil)
+-	return &typeWriter{buf, make(map[Type]bool), nil, env}
++func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
++	assert(ctxt != nil)
++	return &typeWriter{buf, make(map[Type]bool), nil, ctxt}
+ }
+ 
+ func (w *typeWriter) byte(b byte) {
+-	if w.env != nil {
++	if w.ctxt != nil {
+ 		if b == ' ' {
+ 			b = '#'
+ 		}
+@@ -99,7 +99,7 @@ func (w *typeWriter) string(s string) {
+ }
+ 
+ func (w *typeWriter) error(msg string) {
+-	if w.env != nil {
++	if w.ctxt != nil {
+ 		panic(msg)
+ 	}
+ 	w.buf.WriteString("<" + msg + ">")
+@@ -155,7 +155,7 @@ func (w *typeWriter) typ(typ Type) {
+ 			if tag := t.Tag(i); tag != "" {
+ 				w.byte(' ')
+ 				// TODO(rfindley) If tag contains blanks, replacing them with '#'
+-				//                in Environment.TypeHash may produce another tag
++				//                in Context.TypeHash may produce another tag
+ 				//                accidentally.
+ 				w.string(strconv.Quote(tag))
+ 			}
+@@ -248,7 +248,7 @@ func (w *typeWriter) typ(typ Type) {
+ 		if t.targs != nil {
+ 			// instantiated type
+ 			w.typeList(t.targs.list())
+-		} else if w.env == nil && t.TypeParams().Len() != 0 { // For type hashing, don't need to format the TypeParams
++		} else if w.ctxt == nil && t.TypeParams().Len() != 0 { // For type hashing, don't need to format the TypeParams
+ 			// parameterized type
+ 			w.tParamList(t.TypeParams().list())
+ 		}
+@@ -277,12 +277,12 @@ func (w *typeWriter) typ(typ Type) {
+ 	}
+ }
+ 
+-// If w.env is non-nil, typePrefix writes a unique prefix for the named type t
+-// based on the types already observed by w.env. If w.env is nil, it does
++// If w.ctxt is non-nil, typePrefix writes a unique prefix for the named type t
++// based on the types already observed by w.ctxt. If w.ctxt is nil, it does
+ // nothing.
+ func (w *typeWriter) typePrefix(t *Named) {
+-	if w.env != nil {
+-		w.string(strconv.Itoa(w.env.idForType(t)))
++	if w.ctxt != nil {
++		w.string(strconv.Itoa(w.ctxt.idForType(t)))
+ 	}
+ }
+ 
+@@ -341,7 +341,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
+ 				w.byte(',')
+ 			}
+ 			// parameter names are ignored for type identity and thus type hashes
+-			if w.env == nil && v.name != "" {
++			if w.ctxt == nil && v.name != "" {
+ 				w.string(v.name)
+ 				w.byte(' ')
+ 			}
+@@ -382,7 +382,7 @@ func (w *typeWriter) signature(sig *Signature) {
+ 	}
+ 
+ 	w.byte(' ')
+-	if n == 1 && (w.env != nil || sig.results.vars[0].name == "") {
++	if n == 1 && (w.ctxt != nil || sig.results.vars[0].name == "") {
+ 		// single unnamed result (if type hashing, name must be ignored)
+ 		w.typ(sig.results.vars[0].typ)
+ 		return

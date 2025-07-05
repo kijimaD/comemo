@@ -16,6 +16,20 @@ Date:   Mon Jan 30 15:09:21 2023 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 189cfd0590..10bca33c68 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1087,7 +1087,7 @@ func (t *tester) out(v string) {
+ }
+ 
+ func (t *tester) extLink() bool {
+-	pair := gohostos + "-" + goarch
++	pair := goos + "-" + goarch
+ 	switch pair {
+ 	case "aix-ppc64",
+ 		"android-arm", "android-arm64",

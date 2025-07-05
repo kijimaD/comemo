@@ -10,9 +10,233 @@ Date:   Sat Mar 15 13:43:02 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/75900043
-
+---
  src/pkg/net/fd_mutex_test.go | 27 ++++++++++++++++++---------
  src/pkg/net/net_test.go      | 15 ++++++++++-----
  src/pkg/net/tcp_test.go      | 15 ++++++++++-----
  src/pkg/net/timeout_test.go  | 15 ++++++++++-----
  4 files changed, 48 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/net/fd_mutex_test.go b/src/pkg/net/fd_mutex_test.go
+index 8383084b7a..c34ec59b99 100644
+--- a/src/pkg/net/fd_mutex_test.go
++++ b/src/pkg/net/fd_mutex_test.go
+@@ -63,7 +63,8 @@ func TestMutexCloseUnblock(t *testing.T) {
+ 	for i := 0; i < 4; i++ {
+ 		go func() {
+ 			if mu.RWLock(true) {
+-				t.Fatal("broken")
++				t.Error("broken")
++				return
+ 			}
+ 			c <- true
+ 		}()
+@@ -138,36 +139,44 @@ func TestMutexStress(t *testing.T) {
+ 				switch r.Intn(3) {
+ 				case 0:
+ 					if !mu.Incref() {
+-						t.Fatal("broken")
++						t.Error("broken")
++						return
+ 					}
+ 					if mu.Decref() {
+-						t.Fatal("broken")
++						t.Error("broken")
++						return
+ 					}
+ 				case 1:
+ 					if !mu.RWLock(true) {
+-						t.Fatal("broken")
++						t.Error("broken")
++						return
+ 					}
+ 					// Ensure that it provides mutual exclusion for readers.
+ 					if readState[0] != readState[1] {
+-						t.Fatal("broken")
++						t.Error("broken")
++						return
+ 					}
+ 					readState[0]++
+ 					readState[1]++
+ 					if mu.RWUnlock(true) {
+-						t.Fatal("broken")
++						t.Error("broken")
++						return
+ 					}
+ 				case 2:
+ 					if !mu.RWLock(false) {
+-						t.Fatal("broken")
++						t.Error("broken")
++						return
+ 					}
+ 					// Ensure that it provides mutual exclusion for writers.
+ 					if writeState[0] != writeState[1] {
+-						t.Fatal("broken")
++						t.Error("broken")
++						return
+ 					}
+ 					writeState[0]++
+ 					writeState[1]++
+ 					if mu.RWUnlock(false) {
+-						t.Fatal("broken")
++						t.Error("broken")
++						return
+ 					}
+ 				}
+ 			}
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 93eb8659ea..bfed4d657f 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -28,12 +28,14 @@ func TestShutdown(t *testing.T) {
+ 		defer ln.Close()
+ 		c, err := ln.Accept()
+ 		if err != nil {
+-			t.Fatalf("Accept: %v", err)
++			t.Errorf("Accept: %v", err)
++			return
+ 		}
+ 		var buf [10]byte
+ 		n, err := c.Read(buf[:])
+ 		if n != 0 || err != io.EOF {
+-			t.Fatalf("server Read = %d, %v; want 0, io.EOF", n, err)
++			t.Errorf("server Read = %d, %v; want 0, io.EOF", n, err)
++			return
+ 		}
+ 		c.Write([]byte("response"))
+ 		c.Close()
+@@ -84,12 +86,14 @@ func TestShutdownUnix(t *testing.T) {
+ 	go func() {
+ 		c, err := ln.Accept()
+ 		if err != nil {
+-			t.Fatalf("Accept: %v", err)
++			t.Errorf("Accept: %v", err)
++			return
+ 		}
+ 		var buf [10]byte
+ 		n, err := c.Read(buf[:])
+ 		if n != 0 || err != io.EOF {
+-			t.Fatalf("server Read = %d, %v; want 0, io.EOF", n, err)
++			t.Errorf("server Read = %d, %v; want 0, io.EOF", n, err)
++			return
+ 		}
+ 		c.Write([]byte("response"))
+ 		c.Close()
+@@ -196,7 +200,8 @@ func TestTCPClose(t *testing.T) {
+ 	go func() {
+ 		c, err := Dial("tcp", l.Addr().String())
+ 		if err != nil {
+-			t.Fatal(err)
++			t.Errorf("Dial: %v", err)
++			return
+ 		}
+ 
+ 		go read(c)
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index d3628748a7..8859510bff 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -185,7 +185,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 		for p := 0; p < P; p++ {
+ 			s, err := ln.Accept()
+ 			if err != nil {
+-				b.Fatalf("Accept failed: %v", err)
++				b.Errorf("Accept failed: %v", err)
++				return
+ 			}
+ 			servers[p] = s
+ 		}
+@@ -217,7 +218,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 				buf[0] = v
+ 				_, err := c.Write(buf[:])
+ 				if err != nil {
+-					b.Fatalf("Write failed: %v", err)
++					b.Errorf("Write failed: %v", err)
++					return
+ 				}
+ 			}
+ 		}(clients[p])
+@@ -232,7 +234,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 			for i := 0; i < N; i++ {
+ 				_, err := s.Read(buf[:])
+ 				if err != nil {
+-					b.Fatalf("Read failed: %v", err)
++					b.Errorf("Read failed: %v", err)
++					return
+ 				}
+ 				pipe <- buf[0]
+ 			}
+@@ -250,7 +253,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 				buf[0] = v
+ 				_, err := s.Write(buf[:])
+ 				if err != nil {
+-					b.Fatalf("Write failed: %v", err)
++					b.Errorf("Write failed: %v", err)
++					return
+ 				}
+ 			}
+ 			s.Close()
+@@ -263,7 +267,8 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 			for i := 0; i < N; i++ {
+ 				_, err := c.Read(buf[:])
+ 				if err != nil {
+-					b.Fatalf("Read failed: %v", err)
++					b.Errorf("Read failed: %v", err)
++					return
+ 				}
+ 			}
+ 			c.Close()
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 35d427a69c..40b5068087 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -348,7 +348,8 @@ func TestReadWriteDeadline(t *testing.T) {
+ 	go func() {
+ 		c, err := ln.Accept()
+ 		if err != nil {
+-			t.Fatalf("Accept: %v", err)
++			t.Errorf("Accept: %v", err)
++			return
+ 		}
+ 		defer c.Close()
+ 		lnquit <- true
+@@ -536,7 +537,8 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
+ 	go func() {
+ 		c, err := ln.Accept()
+ 		if err != nil {
+-			t.Fatalf("Accept: %v", err)
++			t.Errorf("Accept: %v", err)
++			return
+ 		}
+ 		defer c.Close()
+ 		n, err := c.Write([]byte(msg))
+@@ -574,7 +576,8 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
+ 	go func() {
+ 		c, err := ln.Accept()
+ 		if err != nil {
+-			t.Fatalf("Accept: %v", err)
++			t.Errorf("Accept: %v", err)
++			return
+ 		}
+ 		defer c.Close()
+ 		c.SetWriteDeadline(time.Now().Add(-5 * time.Second)) // in the past
+@@ -610,7 +613,8 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
+ 	go func() {
+ 		c, err := Dial("tcp", ln.Addr().String())
+ 		if err != nil {
+-			t.Fatalf("Dial: %v", err)
++			t.Errorf("Dial: %v", err)
++			return
+ 		}
+ 		defer c.Close()
+ 		var buf [1]byte
+@@ -669,7 +673,8 @@ func TestProlongTimeout(t *testing.T) {
+ 		s, err := ln.Accept()
+ 		connected <- true
+ 		if err != nil {
+-			t.Fatalf("ln.Accept: %v", err)
++			t.Errorf("ln.Accept: %v", err)
++			return
+ 		}
+ 		defer s.Close()
+ 		s.SetDeadline(time.Now().Add(time.Hour))

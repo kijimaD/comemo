@@ -42,7 +42,7 @@ Date:   Thu Jan 13 12:46:34 2022 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/export_test.go          |  7 ++++
  src/cmd/go/go_test.go              | 78 ++++++++++++++++++++++++++++++++------
  src/cmd/go/internal/work/build.go  |  2 +-
@@ -51,3 +51,321 @@ Date:   Thu Jan 13 12:46:34 2022 +0000
  src/cmd/go/internal/work/testgo.go | 48 -----------------------
  src/cmd/go/script_test.go          |  1 +
  7 files changed, 89 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/go/export_test.go b/src/cmd/go/export_test.go
+new file mode 100644
+index 0000000000..155ab8c1bb
+--- /dev/null
++++ b/src/cmd/go/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func Main() { main() }
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1ea347ca6e..01356f9dd0 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"fmt"
+ 	"go/format"
+ 	"internal/godebug"
+-	"internal/race"
+ 	"internal/testenv"
+ 	"io"
+ 	"io/fs"
+@@ -32,7 +31,11 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/robustio"
++	"cmd/go/internal/search"
++	"cmd/go/internal/work"
+ 	"cmd/internal/sys"
++
++	cmdgo "cmd/go"
+ )
+ 
+ func init() {
+@@ -84,6 +87,43 @@ var testBin string
+ // The TestMain function creates a go command for testing purposes and
+ // deletes it after the tests have been run.
+ func TestMain(m *testing.M) {
++	// When CMDGO_TEST_RUN_MAIN is set, we're reusing the test binary as cmd/go.
++	// Enable the special behavior needed in cmd/go/internal/work,
++	// run the main func exported via export_test.go, and exit.
++	// We set CMDGO_TEST_RUN_MAIN via os.Setenv and testScript.setup.
++	if os.Getenv("CMDGO_TEST_RUN_MAIN") != "" {
++		if v := os.Getenv("TESTGO_VERSION"); v != "" {
++			work.RuntimeVersion = v
++		}
++
++		if testGOROOT := os.Getenv("TESTGO_GOROOT"); testGOROOT != "" {
++			// Disallow installs to the GOROOT from which testgo was built.
++			// Installs to other GOROOTs — such as one set explicitly within a test — are ok.
++			work.AllowInstall = func(a *work.Action) error {
++				if cfg.BuildN {
++					return nil
++				}
++
++				rel := search.InDir(a.Target, testGOROOT)
++				if rel == "" {
++					return nil
++				}
++
++				callerPos := ""
++				if _, file, line, ok := runtime.Caller(1); ok {
++					if shortFile := search.InDir(file, filepath.Join(testGOROOT, "src")); shortFile != "" {
++						file = shortFile
++					}
++					callerPos = fmt.Sprintf("%s:%d: ", file, line)
++				}
++				return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s)", callerPos, filepath.Join("GOROOT", rel))
++			}
++		}
++		cmdgo.Main()
++		os.Exit(0)
++	}
++	os.Setenv("CMDGO_TEST_RUN_MAIN", "true")
++
+ 	// $GO_GCFLAGS a compiler debug flag known to cmd/dist, make.bash, etc.
+ 	// It is not a standard go command flag; use os.Getenv, not cfg.Getenv.
+ 	if os.Getenv("GO_GCFLAGS") != "" {
+@@ -127,10 +167,6 @@ func TestMain(m *testing.M) {
+ 			log.Fatal(err)
+ 		}
+ 		testGo = filepath.Join(testBin, "go"+exeSuffix)
+-		args := []string{"build", "-tags", "testgo", "-o", testGo}
+-		if race.Enabled {
+-			args = append(args, "-race")
+-		}
+ 		gotool, err := testenv.GoTool()
+ 		if err != nil {
+ 			fmt.Fprintln(os.Stderr, "locating go tool: ", err)
+@@ -173,12 +209,32 @@ func TestMain(m *testing.M) {
+ 			return
+ 		}
+ 
+-		buildCmd := exec.Command(gotool, args...)
+-		buildCmd.Env = append(os.Environ(), "GOFLAGS=-mod=vendor")
+-		out, err := buildCmd.CombinedOutput()
++		// Duplicate the test executable into the path at testGo, for $PATH.
++		// If the OS supports symlinks, use them instead of copying bytes.
++		testExe, err := os.Executable()
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
+-			os.Exit(2)
++			log.Fatal(err)
++		}
++		if err := os.Symlink(testExe, testGo); err != nil {
++			// Otherwise, copy the bytes.
++			src, err := os.Open(testExe)
++			if err != nil {
++				log.Fatal(err)
++			}
++			defer src.Close()
++
++			dst, err := os.OpenFile(testGo, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o777)
++			if err != nil {
++				log.Fatal(err)
++			}
++
++			_, err = io.Copy(dst, src)
++			if closeErr := dst.Close(); err == nil {
++				err = closeErr
++			}
++			if err != nil {
++				log.Fatal(err)
++			}
+ 		}
+ 
+ 		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
+@@ -193,7 +249,7 @@ func TestMain(m *testing.M) {
+ 			}
+ 		}
+ 
+-		out, err = exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
++		out, err := exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "could not find testing GOCACHE: %v\n%s", err, out)
+ 			os.Exit(2)
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 0b5848a77d..ce200ec5c2 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -371,7 +371,7 @@ func oneMainPkg(pkgs []*load.Package) []*load.Package {
+ 
+ var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
+ 
+-var runtimeVersion = runtime.Version()
++var RuntimeVersion = runtime.Version()
+ 
+ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.InitWorkfile()
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index ac80f503cd..7d3a16c5f5 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -560,7 +560,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 		return nil
+ 	}
+ 
+-	if err := allowInstall(a); err != nil {
++	if err := AllowInstall(a); err != nil {
+ 		return err
+ 	}
+ 
+@@ -1346,7 +1346,7 @@ func (b *Builder) link(ctx context.Context, a *Action) (err error) {
+ 		return err
+ 	}
+ 
+-	if err := allowInstall(a); err != nil {
++	if err := AllowInstall(a); err != nil {
+ 		return err
+ 	}
+ 
+@@ -1527,7 +1527,7 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string,
+ }
+ 
+ func (b *Builder) installShlibname(ctx context.Context, a *Action) error {
+-	if err := allowInstall(a); err != nil {
++	if err := AllowInstall(a); err != nil {
+ 		return err
+ 	}
+ 
+@@ -1581,7 +1581,7 @@ func (b *Builder) linkShared(ctx context.Context, a *Action) (err error) {
+ 	}
+ 	defer b.flushOutput(a)
+ 
+-	if err := allowInstall(a); err != nil {
++	if err := AllowInstall(a); err != nil {
+ 		return err
+ 	}
+ 
+@@ -1652,7 +1652,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
+ 		if !a.buggyInstall && !b.IsCmdList {
+ 			if cfg.BuildN {
+ 				b.Showcmd("", "touch %s", a.Target)
+-			} else if err := allowInstall(a); err == nil {
++			} else if err := AllowInstall(a); err == nil {
+ 				now := time.Now()
+ 				os.Chtimes(a.Target, now, now)
+ 			}
+@@ -1666,7 +1666,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
+ 		a.built = a1.built
+ 		return nil
+ 	}
+-	if err := allowInstall(a); err != nil {
++	if err := AllowInstall(a); err != nil {
+ 		return err
+ 	}
+ 
+@@ -1698,12 +1698,12 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
+ 	return b.moveOrCopyFile(a.Target, a1.built, perm, false)
+ }
+ 
+-// allowInstall returns a non-nil error if this invocation of the go command is
++// AllowInstall returns a non-nil error if this invocation of the go command is
+ // allowed to install a.Target.
+ //
+-// (The build of cmd/go running under its own test is forbidden from installing
+-// to its original GOROOT.)
+-var allowInstall = func(*Action) error { return nil }
++// The build of cmd/go running under its own test is forbidden from installing
++// to its original GOROOT. The var is exported so it can be set by TestMain.
++var AllowInstall = func(*Action) error { return nil }
+ 
+ // cleanup removes a's object dir to keep the amount of
+ // on-disk garbage down in a large build. On an operating system
+@@ -1868,7 +1868,7 @@ func (b *Builder) installHeader(ctx context.Context, a *Action) error {
+ 		return nil
+ 	}
+ 
+-	if err := allowInstall(a); err != nil {
++	if err := AllowInstall(a); err != nil {
+ 		return err
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 40175324d2..e1e2b11dd7 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -137,8 +137,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	if p.Internal.OmitDebug || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
+ 		defaultGcFlags = append(defaultGcFlags, "-dwarf=false")
+ 	}
+-	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+-		defaultGcFlags = append(defaultGcFlags, "-goversion", runtimeVersion)
++	if strings.HasPrefix(RuntimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
++		defaultGcFlags = append(defaultGcFlags, "-goversion", RuntimeVersion)
+ 	}
+ 	if symabis != "" {
+ 		defaultGcFlags = append(defaultGcFlags, "-symabis", symabis)
+diff --git a/src/cmd/go/internal/work/testgo.go b/src/cmd/go/internal/work/testgo.go
+deleted file mode 100644
+index a09b65a23c..0000000000
+--- a/src/cmd/go/internal/work/testgo.go
++++ /dev/null
+@@ -1,48 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains extra hooks for testing the go command.
+-
+-//go:build testgo
+-
+-package work
+-
+-import (
+-	"cmd/go/internal/cfg"
+-	"cmd/go/internal/search"
+-	"fmt"
+-	"os"
+-	"path/filepath"
+-	"runtime"
+-)
+-
+-func init() {
+-	if v := os.Getenv("TESTGO_VERSION"); v != "" {
+-		runtimeVersion = v
+-	}
+-
+-	if testGOROOT := os.Getenv("TESTGO_GOROOT"); testGOROOT != "" {
+-		// Disallow installs to the GOROOT from which testgo was built.
+-		// Installs to other GOROOTs — such as one set explicitly within a test — are ok.
+-		allowInstall = func(a *Action) error {
+-			if cfg.BuildN {
+-				return nil
+-			}
+-
+-			rel := search.InDir(a.Target, testGOROOT)
+-			if rel == "" {
+-				return nil
+-			}
+-
+-			callerPos := ""
+-			if _, file, line, ok := runtime.Caller(1); ok {
+-				if shortFile := search.InDir(file, filepath.Join(testGOROOT, "src")); shortFile != "" {
+-					file = shortFile
+-				}
+-				callerPos = fmt.Sprintf("%s:%d: ", file, line)
+-			}
+-			return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s)", callerPos, filepath.Join("GOROOT", rel))
+-		}
+-	}
+-}
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 55a88e0e0b..eff2213525 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -188,6 +188,7 @@ func (ts *testScript) setup() {
+ 		"goversion=" + goVersion(ts),
+ 		":=" + string(os.PathListSeparator),
+ 		"/=" + string(os.PathSeparator),
++		"CMDGO_TEST_RUN_MAIN=true",
+ 	}
+ 	if !testenv.HasExternalNetwork() {
+ 		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")

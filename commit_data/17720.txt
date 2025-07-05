@@ -11,6 +11,22 @@ Date:   Tue Oct 1 20:44:57 2013 -0400
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/14174043
-
+---
  src/cmd/go/build.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e614f2f538..b7edd49ce0 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1052,8 +1052,8 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 				dir = filepath.Join(dir, "gccgo_"+goos+"_"+goarch)
+ 			} else {
+ 				dir = filepath.Join(dir, goos+"_"+goarch)
+-				if buildRace {
+-					dir += "_race"
++				if buildContext.InstallSuffix != "" {
++					dir += "_" + buildContext.InstallSuffix
+ 				}
+ 			}
+ 			inc = append(inc, flag, dir)

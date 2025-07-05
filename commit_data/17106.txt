@@ -7,6 +7,51 @@ Date:   Thu Aug 8 15:25:15 2013 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/12603045
-
+---
  src/cmd/api/goapi_test.go | 27 +++++++++++++++++++++++++++
  1 file changed, 27 insertions(+)
+
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index a1e762bafc..b909c32b34 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -10,8 +10,10 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"go/build"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@ -139,3 +141,28 @@ func TestCompareAPI(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkAll(b *testing.B) {
++	stds, err := exec.Command("go", "list", "std").Output()
++	if err != nil {
++		b.Fatal(err)
++	}
++	b.ResetTimer()
++	pkgNames := strings.Fields(string(stds))
++
++	for _, c := range contexts {
++		c.Compiler = build.Default.Compiler
++	}
++
++	for i := 0; i < b.N; i++ {
++		for _, context := range contexts {
++			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src/pkg"))
++			for _, name := range pkgNames {
++				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
++					w.export(w.Import(name))
++				}
++			}
++			w.Features()
++		}
++	}
++}

@@ -13,8 +13,141 @@ Date:   Tue Feb 10 17:26:26 2015 +0300
     Change-Id: Id133d7424f03d90d438bc3478528683dd02b8846
     Reviewed-on: https://go-review.googlesource.com/4371
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/proc.go                  | 14 +++++++++++---
  src/runtime/proc.go             |  8 ++++++++
  src/runtime/race/output_test.go | 36 ++++++++++++++++++++++++++++++------
  3 files changed, 49 insertions(+), 9 deletions(-)
+
+diff --git a/src/os/proc.go b/src/os/proc.go
+index 774f09900e..33a8b26f78 100644
+--- a/src/os/proc.go
++++ b/src/os/proc.go
+@@ -44,6 +44,14 @@ func Getgroups() ([]int, error) {
+ 
+ // Exit causes the current program to exit with the given status code.
+ // Conventionally, code zero indicates success, non-zero an error.
+-// The program terminates immediately; deferred functions are
+-// not run.
+-func Exit(code int) { syscall.Exit(code) }
++// The program terminates immediately; deferred functions are not run.
++func Exit(code int) {
++	if code == 0 {
++		// Give race detector a chance to fail the program.
++		// Racy programs do not have the right to finish successfully.
++		runtime_beforeExit()
++	}
++	syscall.Exit(code)
++}
++
++func runtime_beforeExit() // implemented in runtime
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2953dd6a2b..edab9bfdd6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -105,6 +105,14 @@ func main() {
+ 	}
+ }
+ 
++// os_beforeExit is called from os.Exit(0).
++//go:linkname os_beforeExit os.runtime_beforeExit
++func os_beforeExit() {
++	if raceenabled {
++		racefini()
++	}
++}
++
+ // start forcegc helper goroutine
+ func init() {
+ 	go forcegchelper()
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index d2303f7afa..a9f9f0fbd5 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -23,7 +23,11 @@ func TestOutput(t *testing.T) {
+ 			t.Fatalf("failed to create temp directory: %v", err)
+ 		}
+ 		defer os.RemoveAll(dir)
+-		src := filepath.Join(dir, "main.go")
++		source := "main.go"
++		if test.run == "test" {
++			source = "main_test.go"
++		}
++		src := filepath.Join(dir, source)
+ 		f, err := os.Create(src)
+ 		if err != nil {
+ 			t.Fatalf("failed to create file: %v", err)
+@@ -37,7 +41,7 @@ func TestOutput(t *testing.T) {
+ 			t.Fatalf("failed to close file: %v", err)
+ 		}
+ 		// Pass -l to the compiler to test stack traces.
+-		cmd := exec.Command("go", "run", "-race", "-gcflags=-l", src)
++		cmd := exec.Command("go", test.run, "-race", "-gcflags=-l", src)
+ 		// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
+ 		for _, env := range os.Environ() {
+ 			if strings.HasPrefix(env, "GODEBUG=") ||
+@@ -58,11 +62,12 @@ func TestOutput(t *testing.T) {
+ 
+ var tests = []struct {
+ 	name   string
++	run    string
+ 	gorace string
+ 	source string
+ 	re     string
+ }{
+-	{"simple", "atexit_sleep_ms=0", `
++	{"simple", "run", "atexit_sleep_ms=0", `
+ package main
+ import "time"
+ func main() {
+@@ -107,7 +112,7 @@ Found 1 data race\(s\)
+ exit status 66
+ `},
+ 
+-	{"exitcode", "atexit_sleep_ms=0 exitcode=13", `
++	{"exitcode", "run", "atexit_sleep_ms=0 exitcode=13", `
+ package main
+ func main() {
+ 	done := make(chan bool)
+@@ -121,7 +126,7 @@ func main() {
+ }
+ `, `exit status 13`},
+ 
+-	{"strip_path_prefix", "atexit_sleep_ms=0 strip_path_prefix=/main.", `
++	{"strip_path_prefix", "run", "atexit_sleep_ms=0 strip_path_prefix=/main.", `
+ package main
+ func main() {
+ 	done := make(chan bool)
+@@ -137,7 +142,7 @@ func main() {
+       go:7 \+0x[0-9,a-f]+
+ `},
+ 
+-	{"halt_on_error", "atexit_sleep_ms=0 halt_on_error=1", `
++	{"halt_on_error", "run", "atexit_sleep_ms=0 halt_on_error=1", `
+ package main
+ func main() {
+ 	done := make(chan bool)
+@@ -153,4 +158,23 @@ func main() {
+ ==================
+ exit status 66
+ `},
++
++	{"test_fails_on_race", "test", "atexit_sleep_ms=0", `
++package main_test
++import "testing"
++func TestFail(t *testing.T) {
++	done := make(chan bool)
++	x := 0
++	go func() {
++		x = 42
++		done <- true
++	}()
++	x = 43
++	<-done
++}
++`, `
++==================
++PASS
++Found 1 data race\(s\)
++FAIL`},
+ }

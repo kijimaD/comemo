@@ -9,7 +9,7 @@ Date:   Tue Jan 18 15:59:19 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3994043
-
+---
  src/cmd/gc/builtin.c.boot   |  1 +
  src/cmd/gc/go.h             |  2 +-
  src/cmd/gc/range.c          | 13 ++++++++++---
@@ -19,3 +19,196 @@ Date:   Tue Jan 18 15:59:19 2011 -0500
  src/pkg/runtime/reflect.goc |  2 +-
  src/pkg/runtime/runtime.h   |  2 +-
  8 files changed, 53 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 380abc6423..af16870fe0 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -67,6 +67,7 @@ char *runtimeimport =
+ 	"func \"\".makechan (elem *uint8, hint int64) chan any\n"
+ 	"func \"\".chanrecv1 (hchan <-chan any) any\n"
+ 	"func \"\".chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
++	"func \"\".chanrecv3 (hchan <-chan any) (elem any, closed bool)\n"
+ 	"func \"\".chansend1 (hchan chan<- any, elem any)\n"
+ 	"func \"\".chansend2 (hchan chan<- any, elem any) bool\n"
+ 	"func \"\".closechan (hchan any)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 73ea5b9767..ee31a33575 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -356,7 +356,7 @@ enum
+ 	OARRAY,
+ 	OARRAYBYTESTR, OARRAYRUNESTR,
+ 	OSTRARRAYBYTE, OSTRARRAYRUNE,
+-	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE, OASOP,
++	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2RECVCLOSED, OAS2MAPR, OAS2DOTTYPE, OASOP,
+ 	OBAD,
+ 	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
+ 	OCAP,
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index dca3a54542..4ee8f39a77 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -93,6 +93,7 @@ walkrange(Node *n)
+ 	Node *ohv1, *hv1, *hv2;	// hidden (old) val 1, 2
+ 	Node *ha, *hit;	// hidden aggregate, iterator
+ 	Node *hn, *hp;	// hidden len, pointer
++	Node *hb;  // hidden bool
+ 	Node *a, *v1, *v2;	// not hidden aggregate, val 1, 2
+ 	Node *fn, *tmp;
+ 	NodeList *body, *init;
+@@ -199,9 +200,15 @@ walkrange(Node *n)
+ 	case TCHAN:
+ 		hv1 = nod(OXXX, N, n);
+ 		tempname(hv1, t->type);
+-
+-		n->ntest = nod(ONOT, nod(OCLOSED, ha, N), N);
+-		n->ntest->ninit = list1(nod(OAS, hv1, nod(ORECV, ha, N)));
++		hb = nod(OXXX, N, N);
++		tempname(hb, types[TBOOL]);
++
++		n->ntest = nod(ONOT, hb, N);
++		a = nod(OAS2RECVCLOSED, N, N);
++		a->typecheck = 1;
++		a->list = list(list1(hv1), hb);
++		a->rlist = list1(nod(ORECV, ha, N));
++		n->ntest->ninit = list1(a);
+ 		body = list1(nod(OAS, v1, hv1));
+ 		break;
+ 
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 174bc050e5..59a1171ed0 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -93,6 +93,7 @@ func mapiter2(hiter *any) (key any, val any)
+ func makechan(elem *byte, hint int64) (hchan chan any)
+ func chanrecv1(hchan <-chan any) (elem any)
+ func chanrecv2(hchan <-chan any) (elem any, pres bool)
++func chanrecv3(hchan <-chan any) (elem any, closed bool)
+ func chansend1(hchan chan<- any, elem any)
+ func chansend2(hchan chan<- any, elem any) (pres bool)
+ func closechan(hchan any)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5faf630b88..1d4c5a58e3 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -404,6 +404,7 @@ walkstmt(Node **np)
+ 	case OAS2:
+ 	case OAS2DOTTYPE:
+ 	case OAS2RECV:
++	case OAS2RECVCLOSED:
+ 	case OAS2FUNC:
+ 	case OAS2MAPW:
+ 	case OAS2MAPR:
+@@ -835,6 +836,19 @@ walkexpr(Node **np, NodeList **init)
+ 		n->op = OAS2FUNC;
+ 		goto as2func;
+ 
++	case OAS2RECVCLOSED:
++		// a = <-c; b = closed(c) but atomic
++		*init = concat(*init, n->ninit);
++		n->ninit = nil;
++		r = n->rlist->n;
++		walkexprlistsafe(n->list, init);
++		walkexpr(&r->left, init);
++		fn = chanfn("chanrecv3", 2, r->left->type);
++		r = mkcall1(fn, getoutargx(fn->type), init, r->left);
++		n->rlist->n = r;
++		n->op = OAS2FUNC;
++		goto as2func;
++
+ 	case OAS2MAPR:
+ 		// a,b = m[i];
+ 		*init = concat(*init, n->ninit);
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 94ea513e7a..fad437d379 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -284,7 +284,7 @@ closed:
+ }
+ 
+ void
+-runtime·chanrecv(Hchan* c, byte *ep, bool* pres)
++runtime·chanrecv(Hchan* c, byte *ep, bool *pres, bool *closed)
+ {
+ 	SudoG *sg;
+ 	G *gp;
+@@ -299,6 +299,9 @@ runtime·chanrecv(Hchan* c, byte *ep, bool* pres)
+ 		runtime·printf("chanrecv: chan=%p\n", c);
+ 
+ 	runtime·lock(c);
++	if(closed != nil)
++		*closed = false;
++
+ loop:
+ 	if(c->dataqsiz > 0)
+ 		goto asynch;
+@@ -387,6 +390,8 @@ asynch:
+ 	return;
+ 
+ closed:
++	if(closed != nil)
++		*closed = true;
+ 	c->elemalg->copy(c->elemsize, ep, nil);
+ 	c->closed |= Rclosed;
+ 	incerr(c);
+@@ -441,7 +446,7 @@ runtime·chanrecv1(Hchan* c, ...)
+ 	o = runtime·rnd(sizeof(c), Structrnd);
+ 	ae = (byte*)&c + o;
+ 
+-	runtime·chanrecv(c, ae, nil);
++	runtime·chanrecv(c, ae, nil, nil);
+ }
+ 
+ // chanrecv2(hchan *chan any) (elem any, pres bool);
+@@ -457,7 +462,23 @@ runtime·chanrecv2(Hchan* c, ...)
+ 	o = runtime·rnd(o+c->elemsize, 1);
+ 	ap = (byte*)&c + o;
+ 
+-	runtime·chanrecv(c, ae, ap);
++	runtime·chanrecv(c, ae, ap, nil);
++}
++
++// chanrecv3(hchan *chan any) (elem any, closed bool);
++#pragma textflag 7
++void
++runtime·chanrecv3(Hchan* c, ...)
++{
++	int32 o;
++	byte *ae, *ac;
++
++	o = runtime·rnd(sizeof(c), Structrnd);
++	ae = (byte*)&c + o;
++	o = runtime·rnd(o+c->elemsize, 1);
++	ac = (byte*)&c + o;
++
++	runtime·chanrecv(c, ae, nil, ac);
+ }
+ 
+ // newselect(size uint32) (sel *byte);
+diff --git a/src/pkg/runtime/reflect.goc b/src/pkg/runtime/reflect.goc
+index a2e3c6ee14..71d648266e 100644
+--- a/src/pkg/runtime/reflect.goc
++++ b/src/pkg/runtime/reflect.goc
+@@ -75,7 +75,7 @@ func chansend(ch *byte, val *byte, pres *bool) {
+ }
+ 
+ func chanrecv(ch *byte, val *byte, pres *bool) {
+-	runtime·chanrecv((Hchan*)ch, val, pres);
++	runtime·chanrecv((Hchan*)ch, val, pres, nil);
+ }
+ 
+ func chanclose(ch *byte) {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 7ba7932b2b..3fba06f617 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -581,7 +581,7 @@ Hmap*	runtime·makemap_c(Type*, Type*, int64);
+ 
+ Hchan*	runtime·makechan_c(Type*, int64);
+ void	runtime·chansend(Hchan*, void*, bool*);
+-void	runtime·chanrecv(Hchan*, void*, bool*);
++void	runtime·chanrecv(Hchan*, void*, bool*, bool*);
+ void	runtime·chanclose(Hchan*);
+ bool	runtime·chanclosed(Hchan*);
+ int32	runtime·chanlen(Hchan*);

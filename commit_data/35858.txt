@@ -11,7 +11,46 @@ Date:   Tue Mar 13 14:26:45 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go |  6 ++++++
  test/fixedbugs/issue23116.go       | 15 +++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index c9fb67e916..404a88444a 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -70,6 +70,12 @@ func typecheckswitch(n *Node) {
+ 		if t != nil && !t.IsInterface() {
+ 			yyerrorl(n.Pos, "cannot type switch on non-interface value %L", n.Left.Right)
+ 		}
++		if v := n.Left.Left; v != nil && !isblank(v) && n.List.Len() == 0 {
++			// We don't actually declare the type switch's guarded
++			// declaration itself. So if there are no cases, we
++			// won't notice that it went unused.
++			yyerrorl(v.Pos, "%v declared and not used", v.Sym)
++		}
+ 	} else {
+ 		// expression switch
+ 		top = Erv
+diff --git a/test/fixedbugs/issue23116.go b/test/fixedbugs/issue23116.go
+new file mode 100644
+index 0000000000..1737fee2c8
+--- /dev/null
++++ b/test/fixedbugs/issue23116.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(x interface{}) {
++	switch x.(type) {
++	}
++
++	switch t := x.(type) { // ERROR "declared and not used"
++	}
++}

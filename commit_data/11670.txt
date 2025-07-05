@@ -7,10 +7,204 @@ Date:   Tue Feb 7 14:37:57 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5639043
-
+---
  misc/osx/README       | 10 ++--------
  misc/osx/ReadMe.txt   |  4 ----
  misc/osx/image.bash   | 38 -------------------------------------
  misc/osx/package.bash | 52 +++++++++++++++++++++++++++++++++++----------------
  misc/osx/utils.bash   | 31 ------------------------------
  5 files changed, 38 insertions(+), 97 deletions(-)
+
+diff --git a/misc/osx/README b/misc/osx/README
+index 87476dabc4..2408dc4593 100644
+--- a/misc/osx/README
++++ b/misc/osx/README
+@@ -1,9 +1,3 @@
+-Use image.bash to construct a disk image.
++Use package.bash to construct a package file (Go.pkg) for installation on OS X.
+ 
+-package.bash constructs a package file (Go.pkg) for installation on OS X, and
+-is used by image.bash to construct a disk image. Strictly speaking, the disk
+-image is unnecessary, but they are more common by convention.
+-
+-These scripts depend on PackageMaker (Developer Tools), osascript, and hdiutil.
+-Appropriate checks are run in utils.bash, called at the beginning of each
+-script.
++This script depends on PackageMaker (Developer Tools).
+diff --git a/misc/osx/ReadMe.txt b/misc/osx/ReadMe.txt
+deleted file mode 100644
+index d8de1db790..0000000000
+--- a/misc/osx/ReadMe.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-See http://golang.org/doc/go_tutorial.html for help getting started. Note that
+-the installation steps described in the "getting started" guide are performed
+-for you by the installer packaged in this directory.
+-
+diff --git a/misc/osx/image.bash b/misc/osx/image.bash
+deleted file mode 100755
+index ff8f761729..0000000000
+--- a/misc/osx/image.bash
++++ /dev/null
+@@ -1,38 +0,0 @@
+-#!/bin/bash
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-source utils.bash
+-
+-if ! test -f ../../src/env.bash; then
+-	echo "package.bash must be run from $GOROOT/misc/osx" 1>&2
+-fi
+-
+-ROOT=`hg root`
+-
+-echo "Running package.bash"
+-./package.bash
+-
+-echo "Preparing image directory"
+-IMGDIR=/tmp/"Go `hg id`"
+-rm -rf "${IMGDIR}"
+-mkdir -p "${IMGDIR}"
+-
+-# Copy in files
+-cp "Go `hg id`.pkg" "${IMGDIR}/Go.pkg"
+-cp ${ROOT}/LICENSE "${IMGDIR}/License.txt"
+-cp ReadMe.txt "${IMGDIR}/ReadMe.txt"
+-cp "${ROOT}/doc/gopher/bumper640x360.png" "${IMGDIR}/.background"
+-
+-# Call out to applescript (osascript) to prettify things
+-#${OSASCRIPT} prepare.applescript
+-
+-echo "Creating dmg"
+-${HDIUTIL} create -srcfolder "${IMGDIR}" "Go `hg id`.dmg"
+-
+-echo "Removing image directory"
+-rm -rf ${IMGDIR}
+-
+diff --git a/misc/osx/package.bash b/misc/osx/package.bash
+index 708494eb2e..d4ee5f48fc 100755
+--- a/misc/osx/package.bash
++++ b/misc/osx/package.bash
+@@ -5,45 +5,65 @@
+ 
+ set -e
+ 
+-source utils.bash
++if ! test -f ../../src/all.bash; then
++	echo >&2 "package.bash must be run from $GOROOT/misc/osx"
++	exit 1
++fi
+ 
+-if ! test -f ../../src/env.bash; then
+-	echo "package.bash must be run from $GOROOT/misc/osx" 1>&2
++echo >&2 "Locating PackageMaker..."
++PM=/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
++if [ ! -x $PM ]; then
++	PM=/Developer$PM
++	if [ ! -x $PM ]; then
++		echo >&2 "could not find PackageMaker; aborting"
++		exit 1
++	fi
+ fi
++echo >&2 "  Found: $PM"
+ 
+ BUILD=/tmp/go.build.tmp
+ ROOT=`hg root`
+ export GOROOT=$BUILD/root/usr/local/go
+ export GOROOT_FINAL=/usr/local/go
+ 
+-echo "Removing old images"
++echo >&2 "Removing old images"
+ rm -f *.pkg *.dmg
+ 
+-echo "Preparing temporary directory"
++echo >&2 "Preparing temporary directory"
+ rm -rf $BUILD
+ mkdir -p $BUILD
++trap "rm -rf $BUILD" 0
+ 
+-echo "Copying go source distribution"
++echo >&2 "Copying go source distribution"
+ mkdir -p $BUILD/root/usr/local
+ cp -r $ROOT $GOROOT
+ cp -r etc $BUILD/root/etc
+ 
+-echo "Building go"
+ pushd $GOROOT > /dev/null
+-src/version.bash -save
++
++echo >&2 "Detecting version..."
++pushd src > /dev/null
++./make.bash --dist-tool > /dev/null
++../bin/tool/dist version > /dev/null
++popd > /dev/null
++mv VERSION.cache VERSION
++VERSION="$(cat VERSION | awk '{ print $1 }')"
++echo >&2 "  Version: $VERSION"
++
++echo >&2 "Pruning Mercurial metadata"
+ rm -rf .hg .hgignore .hgtags
+-cd src
+-./all.bash | sed "s/^/  /"
++
++echo >&2 "Building Go"
++pushd src
++./all.bash 2>&1 | sed "s/^/  /" >&2
+ popd > /dev/null
+ 
+-echo "Building package"
+-# $PM came from utils.bahs
+-$PM -v -r $BUILD/root -o "Go `hg id`.pkg" \
++popd > /dev/null
++
++echo >&2 "Building package"
++$PM -v -r $BUILD/root -o "go.darwin.$VERSION.pkg" \
+ 	--scripts scripts \
+ 	--id com.googlecode.go \
+ 	--title Go \
+ 	--version "0.1" \
+ 	--target "10.5"
+-
+-echo "Removing temporary directory"
+-rm -rf $BUILD
+diff --git a/misc/osx/utils.bash b/misc/osx/utils.bash
+deleted file mode 100644
+index 022a0bdc09..0000000000
+--- a/misc/osx/utils.bash
++++ /dev/null
+@@ -1,31 +0,0 @@
+-#!/bin/bash
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-echo "Attempting to locate needed utilities..."
+-
+-# PackageMaker
+-PM=/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
+-if [ ! -x ${PM} ]; then
+-	PM=/Developer${PM}
+-	if [ ! -x ${PM} ]; then
+-		echo "Could not find PackageMaker; aborting!"
+-	fi
+-fi
+-echo "  PackageMaker : ${PM}"
+-
+-# hdiutil. If this doesn't exist, your OS X installation is horribly borked,
+-# but let's check anyway...
+-if which hdiutil > /dev/null; then
+-	HDIUTIL=`which hdiutil`
+-	echo "  hdiutil      : ${HDIUTIL}"
+-fi
+-
+-# Ditto for osascript
+-if which osascript > /dev/null; then
+-	OSASCRIPT=`which osascript`
+-	echo "  osascript    : ${OSASCRIPT}"
+-fi

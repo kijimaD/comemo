@@ -32,9 +32,259 @@ Date:   Wed Nov 2 16:55:51 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/vcs/vcs.go                     | 84 +++++++++++-----------
  src/cmd/go/internal/vcs/vcs_test.go                | 14 ++--
  .../go/testdata/script/version_buildvcs_fossil.txt |  3 +-
  .../go/testdata/script/version_buildvcs_git.txt    | 18 +++++
  4 files changed, 68 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index f6dcd180c0..12ea052482 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -34,8 +34,8 @@ import (
+ // like Mercurial, Git, or Subversion.
+ type Cmd struct {
+ 	Name      string
+-	Cmd       string   // name of binary to invoke command
+-	RootNames []string // filename indicating the root of a checkout directory
++	Cmd       string     // name of binary to invoke command
++	RootNames []rootName // filename and mode indicating the root of a checkout directory
+ 
+ 	CreateCmd   []string // commands to download a fresh copy of a repository
+ 	DownloadCmd []string // commands to download updates into an existing repository
+@@ -150,9 +150,11 @@ func vcsByCmd(cmd string) *Cmd {
+ 
+ // vcsHg describes how to use Mercurial.
+ var vcsHg = &Cmd{
+-	Name:      "Mercurial",
+-	Cmd:       "hg",
+-	RootNames: []string{".hg"},
++	Name: "Mercurial",
++	Cmd:  "hg",
++	RootNames: []rootName{
++		{filename: ".hg", isDir: true},
++	},
+ 
+ 	CreateCmd:   []string{"clone -U -- {repo} {dir}"},
+ 	DownloadCmd: []string{"pull"},
+@@ -238,9 +240,11 @@ func parseRevTime(out []byte) (string, time.Time, error) {
+ 
+ // vcsGit describes how to use Git.
+ var vcsGit = &Cmd{
+-	Name:      "Git",
+-	Cmd:       "git",
+-	RootNames: []string{".git"},
++	Name: "Git",
++	Cmd:  "git",
++	RootNames: []rootName{
++		{filename: ".git", isDir: true},
++	},
+ 
+ 	CreateCmd:   []string{"clone -- {repo} {dir}", "-go-internal-cd {dir} submodule update --init --recursive"},
+ 	DownloadCmd: []string{"pull --ff-only", "submodule update --init --recursive"},
+@@ -352,9 +356,11 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
+ 
+ // vcsBzr describes how to use Bazaar.
+ var vcsBzr = &Cmd{
+-	Name:      "Bazaar",
+-	Cmd:       "bzr",
+-	RootNames: []string{".bzr"},
++	Name: "Bazaar",
++	Cmd:  "bzr",
++	RootNames: []rootName{
++		{filename: ".bzr", isDir: true},
++	},
+ 
+ 	CreateCmd: []string{"branch -- {repo} {dir}"},
+ 
+@@ -473,9 +479,11 @@ func bzrStatus(vcsBzr *Cmd, rootDir string) (Status, error) {
+ 
+ // vcsSvn describes how to use Subversion.
+ var vcsSvn = &Cmd{
+-	Name:      "Subversion",
+-	Cmd:       "svn",
+-	RootNames: []string{".svn"},
++	Name: "Subversion",
++	Cmd:  "svn",
++	RootNames: []rootName{
++		{filename: ".svn", isDir: true},
++	},
+ 
+ 	CreateCmd:   []string{"checkout -- {repo} {dir}"},
+ 	DownloadCmd: []string{"update"},
+@@ -524,9 +532,12 @@ const fossilRepoName = ".fossil"
+ 
+ // vcsFossil describes how to use Fossil (fossil-scm.org)
+ var vcsFossil = &Cmd{
+-	Name:      "Fossil",
+-	Cmd:       "fossil",
+-	RootNames: []string{".fslckout", "_FOSSIL_"},
++	Name: "Fossil",
++	Cmd:  "fossil",
++	RootNames: []rootName{
++		{filename: ".fslckout", isDir: false},
++		{filename: "_FOSSIL_", isDir: false},
++	},
+ 
+ 	CreateCmd:   []string{"-go-internal-mkdir {dir} clone -- {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
+ 	DownloadCmd: []string{"up"},
+@@ -814,7 +825,7 @@ func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cm
+ 	origDir := dir
+ 	for len(dir) > len(srcRoot) {
+ 		for _, vcs := range vcsList {
+-			if _, err := statAny(dir, vcs.RootNames); err == nil {
++			if isVCSRoot(dir, vcs.RootNames) {
+ 				// Record first VCS we find.
+ 				// If allowNesting is false (as it is in GOPATH), keep looking for
+ 				// repositories in parent directories and report an error if one is
+@@ -827,10 +838,6 @@ func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cm
+ 					}
+ 					continue
+ 				}
+-				// Allow .git inside .git, which can arise due to submodules.
+-				if vcsCmd == vcs && vcs.Cmd == "git" {
+-					continue
+-				}
+ 				// Otherwise, we have one VCS inside a different VCS.
+ 				return "", nil, fmt.Errorf("directory %q uses %s, but parent %q uses %s",
+ 					repoDir, vcsCmd.Cmd, dir, vcs.Cmd)
+@@ -850,23 +857,22 @@ func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cm
+ 	return repoDir, vcsCmd, nil
+ }
+ 
+-// statAny provides FileInfo for the first filename found in the directory.
+-// Otherwise, it returns the last error seen.
+-func statAny(dir string, filenames []string) (os.FileInfo, error) {
+-	if len(filenames) == 0 {
+-		return nil, errors.New("invalid argument: no filenames provided")
+-	}
+-
+-	var err error
+-	var fi os.FileInfo
+-	for _, name := range filenames {
+-		fi, err = os.Stat(filepath.Join(dir, name))
+-		if err == nil {
+-			return fi, nil
++// isVCSRoot identifies a VCS root by checking whether the directory contains
++// any of the listed root names.
++func isVCSRoot(dir string, rootNames []rootName) bool {
++	for _, root := range rootNames {
++		fi, err := os.Stat(filepath.Join(dir, root.filename))
++		if err == nil && fi.IsDir() == root.isDir {
++			return true
+ 		}
+ 	}
+ 
+-	return nil, err
++	return false
++}
++
++type rootName struct {
++	filename string
++	isDir    bool
+ }
+ 
+ type vcsNotFoundError struct {
+@@ -1026,15 +1032,11 @@ func CheckNested(vcs *Cmd, dir, srcRoot string) error {
+ 	otherDir := dir
+ 	for len(otherDir) > len(srcRoot) {
+ 		for _, otherVCS := range vcsList {
+-			if _, err := statAny(otherDir, otherVCS.RootNames); err == nil {
++			if isVCSRoot(otherDir, otherVCS.RootNames) {
+ 				// Allow expected vcs in original dir.
+ 				if otherDir == dir && otherVCS == vcs {
+ 					continue
+ 				}
+-				// Allow .git inside .git, which can arise due to submodules.
+-				if otherVCS == vcs && vcs.Cmd == "git" {
+-					continue
+-				}
+ 				// Otherwise, we have one VCS inside a different VCS.
+ 				return fmt.Errorf("directory %q uses %s, but parent %q uses %s", dir, vcs.Cmd, otherDir, otherVCS.Cmd)
+ 			}
+diff --git a/src/cmd/go/internal/vcs/vcs_test.go b/src/cmd/go/internal/vcs/vcs_test.go
+index 943d520d54..2ce85ea210 100644
+--- a/src/cmd/go/internal/vcs/vcs_test.go
++++ b/src/cmd/go/internal/vcs/vcs_test.go
+@@ -215,17 +215,13 @@ func TestRepoRootForImportPath(t *testing.T) {
+ // Test that vcs.FromDir correctly inspects a given directory and returns the
+ // right VCS and repo directory.
+ func TestFromDir(t *testing.T) {
+-	tempDir, err := os.MkdirTemp("", "vcstest")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tempDir)
++	tempDir := t.TempDir()
+ 
+-	for j, vcs := range vcsList {
+-		for r, rootName := range vcs.RootNames {
++	for _, vcs := range vcsList {
++		for r, root := range vcs.RootNames {
+ 			vcsName := fmt.Sprint(vcs.Name, r)
+-			dir := filepath.Join(tempDir, "example.com", vcsName, rootName)
+-			if j&1 == 0 {
++			dir := filepath.Join(tempDir, "example.com", vcsName, root.filename)
++			if root.isDir {
+ 				err := os.MkdirAll(dir, 0755)
+ 				if err != nil {
+ 					t.Fatal(err)
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_fossil.txt b/src/cmd/go/testdata/script/version_buildvcs_fossil.txt
+index 45b5baeaf7..bd6b89d97a 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_fossil.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_fossil.txt
+@@ -25,7 +25,7 @@ rm $GOBIN/a$GOEXE
+ # If there is a repository, but it can't be used for some reason,
+ # there should be an error. It should hint about -buildvcs=false.
+ cd ..
+-mkdir $fslckout
++mv fslckout $fslckout
+ env PATH=$WORK${/}fakebin${:}$oldpath
+ chmod 0755 $WORK/fakebin/fossil
+ ! exec fossil help
+@@ -82,6 +82,7 @@ exit 1
+ -- repo/README --
+ Far out in the uncharted backwaters of the unfashionable end of the western
+ spiral arm of the Galaxy lies a small, unregarded yellow sun.
++-- repo/fslckout --
+ -- repo/a/go.mod --
+ module example.com/a
+ 
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_git.txt b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+index e7ca06d422..680e492320 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_git.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+@@ -14,6 +14,14 @@ go version -m $GOBIN/a$GOEXE
+ ! stdout vcs.revision
+ rm $GOBIN/a$GOEXE
+ 
++# If there's an orphan .git file left by a git submodule, it's not a git
++# repository, and there's no VCS info.
++cd ../gitsubmodule
++go install
++go version -m $GOBIN/gitsubmodule$GOEXE
++! stdout vcs.revision
++rm $GOBIN/gitsubmodule$GOEXE
++
+ # If there is a repository, but it can't be used for some reason,
+ # there should be an error. It should hint about -buildvcs=false.
+ # Also ensure that multiple errors are collected by "go list -e".
+@@ -141,6 +149,16 @@ module example.com/b
+ go 1.18
+ -- repo/b/b.go --
+ package b
++-- repo/gitsubmodule/.git --
++gitdir: ../.git/modules/gitsubmodule
++-- repo/gitsubmodule/go.mod --
++module example.com/gitsubmodule
++
++go 1.18
++-- repo/gitsubmodule/main.go --
++package main
++
++func main() {}
+ -- outside/empty.txt --
+ -- outside/c/go.mod --
+ module example.com/c

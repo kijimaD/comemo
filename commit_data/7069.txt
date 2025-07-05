@@ -10,8 +10,184 @@ Date:   Mon Jan 10 11:26:04 2011 -0800
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/3867045
-
+---
  src/pkg/go/ast/ast.go       | 49 +++++++++++++++++++++++++++------------------
  src/pkg/go/parser/parser.go | 21 ++++++++++---------
  src/pkg/go/printer/nodes.go | 20 +++++++-----------
  3 files changed, 47 insertions(+), 43 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 15fef44565..cf2ce36df8 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -231,15 +231,19 @@ type (
+ 
+ 	// An IndexExpr node represents an expression followed by an index.
+ 	IndexExpr struct {
+-		X     Expr // expression
+-		Index Expr // index expression
++		X      Expr      // expression
++		Lbrack token.Pos // position of "["
++		Index  Expr      // index expression
++		Rbrack token.Pos // position of "]"
+ 	}
+ 
+ 	// An SliceExpr node represents an expression followed by slice indices.
+ 	SliceExpr struct {
+-		X    Expr // expression
+-		Low  Expr // begin of slice range; or nil
+-		High Expr // end of slice range; or nil
++		X      Expr      // expression
++		Lbrack token.Pos // position of "["
++		Low    Expr      // begin of slice range; or nil
++		High   Expr      // end of slice range; or nil
++		Rbrack token.Pos // position of "]"
+ 	}
+ 
+ 	// A TypeAssertExpr node represents an expression followed by a
+@@ -396,21 +400,26 @@ func (x *Ellipsis) End() token.Pos {
+ 	}
+ 	return x.Ellipsis + 3 // len("...")
+ }
+-func (x *BasicLit) End() token.Pos       { return token.Pos(int(x.ValuePos) + len(x.Value)) }
+-func (x *FuncLit) End() token.Pos        { return x.Body.End() }
+-func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
+-func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
+-func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
+-func (x *IndexExpr) End() token.Pos      { return x.Index.End() }
+-func (x *SliceExpr) End() token.Pos      { return x.High.End() }
+-func (x *TypeAssertExpr) End() token.Pos { return x.Type.End() }
+-func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
+-func (x *StarExpr) End() token.Pos       { return x.X.End() }
+-func (x *UnaryExpr) End() token.Pos      { return x.X.End() }
+-func (x *BinaryExpr) End() token.Pos     { return x.Y.End() }
+-func (x *KeyValueExpr) End() token.Pos   { return x.Value.End() }
+-func (x *ArrayType) End() token.Pos      { return x.Elt.End() }
+-func (x *StructType) End() token.Pos     { return x.Fields.End() }
++func (x *BasicLit) End() token.Pos     { return token.Pos(int(x.ValuePos) + len(x.Value)) }
++func (x *FuncLit) End() token.Pos      { return x.Body.End() }
++func (x *CompositeLit) End() token.Pos { return x.Rbrace + 1 }
++func (x *ParenExpr) End() token.Pos    { return x.Rparen + 1 }
++func (x *SelectorExpr) End() token.Pos { return x.Sel.End() }
++func (x *IndexExpr) End() token.Pos    { return x.Rbrack + 1 }
++func (x *SliceExpr) End() token.Pos    { return x.Rbrack + 1 }
++func (x *TypeAssertExpr) End() token.Pos {
++	if x.Type != nil {
++		return x.Type.End()
++	}
++	return x.X.End()
++}
++func (x *CallExpr) End() token.Pos     { return x.Rparen + 1 }
++func (x *StarExpr) End() token.Pos     { return x.X.End() }
++func (x *UnaryExpr) End() token.Pos    { return x.X.End() }
++func (x *BinaryExpr) End() token.Pos   { return x.Y.End() }
++func (x *KeyValueExpr) End() token.Pos { return x.Value.End() }
++func (x *ArrayType) End() token.Pos    { return x.Elt.End() }
++func (x *StructType) End() token.Pos   { return x.Fields.End() }
+ func (x *FuncType) End() token.Pos {
+ 	if x.Results != nil {
+ 		return x.Results.End()
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 357b24bbd5..3b2fe45772 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -867,26 +867,27 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
+ 		defer un(trace(p, "IndexOrSlice"))
+ 	}
+ 
+-	p.expect(token.LBRACK)
++	lbrack := p.expect(token.LBRACK)
+ 	p.exprLev++
+-	var index ast.Expr
++	var low, high ast.Expr
++	isSlice := false
+ 	if p.tok != token.COLON {
+-		index = p.parseExpr()
++		low = p.parseExpr()
+ 	}
+ 	if p.tok == token.COLON {
++		isSlice = true
+ 		p.next()
+-		var end ast.Expr
+ 		if p.tok != token.RBRACK {
+-			end = p.parseExpr()
++			high = p.parseExpr()
+ 		}
+-		x = &ast.SliceExpr{x, index, end}
+-	} else {
+-		x = &ast.IndexExpr{x, index}
+ 	}
+ 	p.exprLev--
+-	p.expect(token.RBRACK)
++	rbrack := p.expect(token.RBRACK)
+ 
+-	return x
++	if isSlice {
++		return &ast.SliceExpr{x, lbrack, low, high, rbrack}
++	}
++	return &ast.IndexExpr{x, lbrack, low, rbrack}
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 44e0bdedef..1ee0846f68 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -139,13 +139,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ 	prev := p.fset.Position(prev0)
+ 	next := p.fset.Position(next0)
+ 	line := p.fset.Position(list[0].Pos()).Line
+-	endLine := next.Line
+-	if endLine == 0 {
+-		// TODO(gri): endLine may be incorrect as it is really the beginning
+-		//            of the last list entry. There may be only one, very long
+-		//            entry in which case line == endLine.
+-		endLine = p.fset.Position(list[len(list)-1].Pos()).Line
+-	}
++	endLine := p.fset.Position(list[len(list)-1].End()).Line
+ 
+ 	if prev.IsValid() && prev.Line == line && line == endLine {
+ 		// all list entries on a single line
+@@ -708,13 +702,13 @@ func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
+ 	case *ast.IndexExpr:
+ 		body, suffix = splitSelector(x.X)
+ 		if body != nil {
+-			suffix = &ast.IndexExpr{suffix, x.Index}
++			suffix = &ast.IndexExpr{suffix, x.Lbrack, x.Index, x.Rbrack}
+ 			return
+ 		}
+ 	case *ast.SliceExpr:
+ 		body, suffix = splitSelector(x.X)
+ 		if body != nil {
+-			suffix = &ast.SliceExpr{suffix, x.Low, x.High}
++			suffix = &ast.SliceExpr{suffix, x.Lbrack, x.Low, x.High, x.Rbrack}
+ 			return
+ 		}
+ 	case *ast.TypeAssertExpr:
+@@ -837,14 +831,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 	case *ast.IndexExpr:
+ 		// TODO(gri): should treat[] like parentheses and undo one level of depth
+ 		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine)
+-		p.print(token.LBRACK)
++		p.print(x.Lbrack, token.LBRACK)
+ 		p.expr0(x.Index, depth+1, multiLine)
+-		p.print(token.RBRACK)
++		p.print(x.Rbrack, token.RBRACK)
+ 
+ 	case *ast.SliceExpr:
+ 		// TODO(gri): should treat[] like parentheses and undo one level of depth
+ 		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine)
+-		p.print(token.LBRACK)
++		p.print(x.Lbrack, token.LBRACK)
+ 		if x.Low != nil {
+ 			p.expr0(x.Low, depth+1, multiLine)
+ 		}
+@@ -857,7 +851,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		if x.High != nil {
+ 			p.expr0(x.High, depth+1, multiLine)
+ 		}
+-		p.print(token.RBRACK)
++		p.print(x.Rbrack, token.RBRACK)
+ 
+ 	case *ast.CallExpr:
+ 		if len(x.Args) > 1 {

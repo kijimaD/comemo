@@ -9,6 +9,26 @@ Date:   Sat May 31 02:30:01 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/101980048
-
+---
  src/pkg/runtime/debug/heapdump_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/debug/heapdump_test.go b/src/pkg/runtime/debug/heapdump_test.go
+index 6ded7e9900..9201901151 100644
+--- a/src/pkg/runtime/debug/heapdump_test.go
++++ b/src/pkg/runtime/debug/heapdump_test.go
+@@ -7,10 +7,14 @@ package debug
+ import (
+ 	"io/ioutil"
+ 	"os"
++	"runtime"
+ 	"testing"
+ )
+ 
+ func TestWriteHeapDumpNonempty(t *testing.T) {
++	if runtime.GOOS == "nacl" {
++		t.Skip("WriteHeapDump is not available on NaCl.")
++	}
+ 	f, err := ioutil.TempFile("", "heapdumptest")
+ 	if err != nil {
+ 		t.Fatalf("TempFile failed: %v", err)

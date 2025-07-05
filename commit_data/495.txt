@@ -8,9 +8,100 @@ Date:   Thu Aug 7 13:27:58 2008 -0700
     R=gri,iant
     OCL=13957
     CL=13957
-
+---
  test/fixedbugs/bug056.go |  2 +-
  test/golden.out          |  1 +
  test/ken/rob1.go         | 13 +++++++------
  test/ken/robfunc.go      |  2 +-
  4 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/test/fixedbugs/bug056.go b/test/fixedbugs/bug056.go
+index 47f3f05ad4..44473191fc 100644
+--- a/test/fixedbugs/bug056.go
++++ b/test/fixedbugs/bug056.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-func frexp() (int, double) {
++func frexp() (a int, b double) {
+ 	return 1, 2.0
+ }
+ 
+diff --git a/test/golden.out b/test/golden.out
+index c0129a21ac..37542bb2fd 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -81,6 +81,7 @@ Hello World!
+ =========== ken/ptrvar.go
+ 
+ =========== ken/rob1.go
++9876543210
+ 
+ =========== ken/rob2.go
+ (defn foo (add 12 34))
+diff --git a/test/ken/rob1.go b/test/ken/rob1.go
+index eeae961d24..ae56962a31 100644
+--- a/test/ken/rob1.go
++++ b/test/ken/rob1.go
+@@ -8,7 +8,7 @@ package main
+ 
+ type Item interface
+ {
+-	Print_BUG	func();
++	Print();
+ }
+ 
+ type ListItem struct
+@@ -42,7 +42,7 @@ Print()
+ {
+ 	i := list.head;
+ 	for i != nil {
+-		i.item.Print_BUG();
++		i.item.Print();
+ 		i = i.next;
+ 	}
+ }
+@@ -54,14 +54,14 @@ type Integer struct
+ }
+ 
+ func (this *Integer)
+-Init_BUG(i int) *Integer
++Init(i int) *Integer
+ {
+ 	this.val = i;
+ 	return this;
+ }
+ 
+ func (this *Integer)
+-Print_BUG()
++Print()
+ {
+ 	print this.val;
+ }
+@@ -73,9 +73,10 @@ main()
+ 	list.Init();
+ 	for i := 0; i < 10; i = i + 1 {
+ 		integer := new(Integer);
+-		integer.Init_BUG(i);
+-		list.Insert(integer); //BUG: this is the failing line
++		integer.Init(i);
++		list.Insert(integer);
+ 	}
+ 
+ 	list.Print();
++	print "\n";
+ }
+diff --git a/test/ken/robfunc.go b/test/ken/robfunc.go
+index d888414065..703e65e2df 100644
+--- a/test/ken/robfunc.go
++++ b/test/ken/robfunc.go
+@@ -35,7 +35,7 @@ func f6(a int) (r int) {
+ 	return 6;
+ }
+ 
+-func f7(a int) (int, float) {
++func f7(a int) (x int, y float) {
+ 	return 7, 7.0;
+ }
+ 

@@ -7,6 +7,22 @@ Date:   Tue Nov 29 12:57:20 2011 +1100
     R=golang-dev, vcc.163
     CC=golang-dev
     https://golang.org/cl/5445051
-
+---
  src/pkg/runtime/windows/amd64/sys.s | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/windows/amd64/sys.s b/src/pkg/runtime/windows/amd64/sys.s
+index 04e3685546..a1e36fe132 100644
+--- a/src/pkg/runtime/windows/amd64/sys.s
++++ b/src/pkg/runtime/windows/amd64/sys.s
+@@ -4,7 +4,9 @@
+ 
+ #include "amd64/asm.h"
+ 
+-#define maxargs 15
++// maxargs should be divisible by 2, as Windows stack
++// must be kept 16-byte aligned on syscall entry.
++#define maxargs 16
+ 
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),7,$0

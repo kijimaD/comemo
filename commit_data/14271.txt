@@ -25,7 +25,7 @@ Date:   Thu Nov 1 14:36:08 2012 +0100
     R=nigeltao, dave, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/6821052
-
+---
  src/cmd/5g/cgen.c | 11 ++++++-----
  src/cmd/5g/ggen.c |  6 +++---
  src/cmd/6g/cgen.c | 11 ++++++-----
@@ -33,3 +33,146 @@ Date:   Thu Nov 1 14:36:08 2012 +0100
  src/cmd/8g/cgen.c | 12 ++++++------
  src/cmd/8g/ggen.c |  6 +++---
  6 files changed, 27 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 36aab03b11..fe8683b5d4 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1356,9 +1356,9 @@ sgen(Node *n, Node *res, int64 w)
+ 		return;
+ 	}
+ 
+-	if(w == 8 || w == 12)
+-		if(componentgen(n, res))
+-			return;
++	// Avoid taking the address for simple enough types.
++	if(componentgen(n, res))
++		return;
+ 	
+ 	// determine alignment.
+ 	// want to avoid unaligned access, so have to use
+@@ -1495,9 +1495,10 @@ cadable(Node *n)
+ }
+ 
+ /*
+- * copy a structure component by component
++ * copy a composite value by moving its individual components.
++ * Slices, strings and interfaces are supported.
++ * nr is N when assigning a zero value.
+  * return 1 if can do, 0 if cant.
+- * nr is N for copy zero
+  */
+ int
+ componentgen(Node *nr, Node *nl)
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 32caf0c903..a60f414943 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -618,9 +618,9 @@ clearfat(Node *nl)
+ 
+ 
+ 	w = nl->type->width;
+-	if(w == 8 || w == 12)
+-		if(componentgen(N, nl))
+-			return;
++	// Avoid taking the address for simple enough types.
++	if(componentgen(N, nl))
++		return;
+ 
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 0d8ce468a4..195011ae90 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1254,9 +1254,9 @@ sgen(Node *n, Node *ns, int64 w)
+ 	if(w < 0)
+ 		fatal("sgen copy %lld", w);
+ 
+-	if(w == 16)
+-		if(componentgen(n, ns))
+-			return;
++	// Avoid taking the address for simple enough types.
++	if(componentgen(n, ns))
++		return;
+ 	
+ 	if(w == 0) {
+ 		// evaluate side effects only
+@@ -1378,9 +1378,10 @@ cadable(Node *n)
+ }
+ 
+ /*
+- * copy a structure component by component
++ * copy a composite value by moving its individual components.
++ * Slices, strings and interfaces are supported.
++ * nr is N when assigning a zero value.
+  * return 1 if can do, 0 if cant.
+- * nr is N for copy zero
+  */
+ int
+ componentgen(Node *nr, Node *nl)
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 74fd0f7c7c..729dda4f28 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1028,9 +1028,9 @@ clearfat(Node *nl)
+ 
+ 
+ 	w = nl->type->width;
+-	if(w == 16)
+-		if(componentgen(N, nl))
+-			return;
++	// Avoid taking the address for simple enough types.
++	if(componentgen(N, nl))
++		return;
+ 
+ 	c = w % 8;	// bytes
+ 	q = w / 8;	// quads
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 04324b6495..7b44bac0d3 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1276,10 +1276,9 @@ sgen(Node *n, Node *res, int64 w)
+ 		return;
+ 	}
+ 
+-	if (w == 8 || w == 12) {
+-		if(componentgen(n, res))
+-			return;
+-	}
++	// Avoid taking the address for simple enough types.
++	if(componentgen(n, res))
++		return;
+ 
+ 	// offset on the stack
+ 	osrc = stkof(n);
+@@ -1381,9 +1380,10 @@ cadable(Node *n)
+ }
+ 
+ /*
+- * copy a structure component by component
++ * copy a composite value by moving its individual components.
++ * Slices, strings and interfaces are supported.
++ * nr is N when assigning a zero value.
+  * return 1 if can do, 0 if cant.
+- * nr is N for copy zero
+  */
+ int
+ componentgen(Node *nr, Node *nl)
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index ba09f59732..5ebd3b417c 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -59,9 +59,9 @@ clearfat(Node *nl)
+ 		dump("\nclearfat", nl);
+ 
+ 	w = nl->type->width;
+-	if(w == 8 || w == 12)
+-		if(componentgen(N, nl))
+-			return;
++	// Avoid taking the address for simple enough types.
++	if(componentgen(N, nl))
++		return;
+ 
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads

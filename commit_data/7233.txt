@@ -12,6 +12,20 @@ Date:   Tue Jan 25 10:19:39 2011 -0500
     R=agl
     CC=golang-dev
     https://golang.org/cl/3979044
-
+---
  src/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 0d0dae61f5..43c70a87ba 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -36,7 +36,7 @@ rm -f "$GOBIN"/gomake
+ ) >"$GOBIN"/gomake
+ chmod +x "$GOBIN"/gomake
+ 
+-if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
++if [ -d /selinux -a -f /selinux/booleans/allow_execstack -a -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled; then
+ 	if ! cat /selinux/booleans/allow_execstack | grep -c '^1 1$' >> /dev/null ; then
+ 		echo "WARNING: the default SELinux policy on, at least, Fedora 12 breaks "
+ 		echo "Go. You can enable the features that Go needs via the following "

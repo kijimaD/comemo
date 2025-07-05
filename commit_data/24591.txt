@@ -21,7 +21,7 @@ Date:   Fri Aug 7 11:48:52 2015 -0400
     Change-Id: I771a556e47893ed540ec2cd33d23c06720157ea3
     Reviewed-on: https://go-review.googlesource.com/13363
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/asm_arm.s         | 5 +++++
  src/runtime/os1_darwin.go     | 9 +++++++--
  src/runtime/os_darwin_arm.go  | 9 ++++++++-
@@ -32,3 +32,177 @@ Date:   Fri Aug 7 11:48:52 2015 -0400
  src/runtime/os_openbsd_arm.go | 9 ++++++++-
  src/runtime/runtime2.go       | 2 ++
  9 files changed, 53 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 91dccdc381..9c32e42afd 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -752,6 +752,8 @@ TEXT runtime·atomicstoreuintptr(SB),NOSPLIT,$0-8
+ 	B	runtime·atomicstore(SB)
+ 
+ // armPublicationBarrier is a native store/store barrier for ARMv7+.
++// On earlier ARM revisions, armPublicationBarrier is a no-op.
++// This will not work on SMP ARMv6 machines, if any are in use.
+ // To implement publiationBarrier in sys_$GOOS_arm.s using the native
+ // instructions, use:
+ //
+@@ -759,6 +761,9 @@ TEXT runtime·atomicstoreuintptr(SB),NOSPLIT,$0-8
+ //		B	runtime·armPublicationBarrier(SB)
+ //
+ TEXT runtime·armPublicationBarrier(SB),NOSPLIT,$-4-0
++	MOVB	runtime·goarm(SB), R11
++	CMP	$7, R11
++	BLT	2(PC)
+ 	WORD $0xf57ff05e	// DMB ST
+ 	RET
+ 
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 08ec611d43..e07022997c 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -34,14 +34,19 @@ func osinit() {
+ 	// bsdthread_register delayed until end of goenvs so that we
+ 	// can look at the environment first.
+ 
++	ncpu = getncpu()
++}
++
++func getncpu() int32 {
+ 	// Use sysctl to fetch hw.ncpu.
+ 	mib := [2]uint32{6, 3}
+ 	out := uint32(0)
+ 	nout := unsafe.Sizeof(out)
+ 	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+-	if ret >= 0 {
+-		ncpu = int32(out)
++	if ret >= 0 && int32(out) > 0 {
++		return int32(out)
+ 	}
++	return 1
+ }
+ 
+ var urandom_dev = []byte("/dev/urandom\x00")
+diff --git a/src/runtime/os_darwin_arm.go b/src/runtime/os_darwin_arm.go
+index d3336c012a..1ccc9592da 100644
+--- a/src/runtime/os_darwin_arm.go
++++ b/src/runtime/os_darwin_arm.go
+@@ -5,7 +5,14 @@
+ package runtime
+ 
+ func checkgoarm() {
+-	return // TODO(minux)
++	// TODO(minux): FP checks like in os_linux_arm.go.
++
++	// osinit not called yet, so ncpu not set: must use getncpu directly.
++	if getncpu() > 1 && goarm < 7 {
++		print("runtime: this system has multiple CPUs and must use\n")
++		print("atomic synchronization instructions. Recompile using GOARM=7.\n")
++		exit(1)
++	}
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index e049cbf9a1..1f2add279f 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -5,7 +5,14 @@
+ package runtime
+ 
+ func checkgoarm() {
+-	// TODO(minux)
++	// TODO(minux): FP checks like in os_linux_arm.go.
++
++	// osinit not called yet, so ncpu not set: must use getncpu directly.
++	if getncpu() > 1 && goarm < 7 {
++		print("runtime: this system has multiple CPUs and must use\n")
++		print("atomic synchronization instructions. Recompile using GOARM=7.\n")
++		exit(1)
++	}
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index 6c74c81859..3749640ee5 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -19,7 +19,6 @@ const (
+ var randomNumber uint32
+ var armArch uint8 = 6 // we default to ARMv6
+ var hwcap uint32      // set by setup_auxv
+-var goarm uint8       // set by 5l
+ 
+ func checkgoarm() {
+ 	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {
+diff --git a/src/runtime/os_nacl_arm.go b/src/runtime/os_nacl_arm.go
+index a43e7c47b7..f94c183e87 100644
+--- a/src/runtime/os_nacl_arm.go
++++ b/src/runtime/os_nacl_arm.go
+@@ -5,7 +5,13 @@
+ package runtime
+ 
+ func checkgoarm() {
+-	return // NaCl/ARM only supports ARMv7
++	// TODO(minux): FP checks like in os_linux_arm.go.
++
++	// NaCl/ARM only supports ARMv7
++	if goarm != 7 {
++		print("runtime: NaCl requires ARMv7. Recompile using GOARM=7.\n")
++		exit(1)
++	}
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_netbsd_arm.go b/src/runtime/os_netbsd_arm.go
+index 83c4c06cf9..03032e8bea 100644
+--- a/src/runtime/os_netbsd_arm.go
++++ b/src/runtime/os_netbsd_arm.go
+@@ -16,7 +16,14 @@ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintp
+ }
+ 
+ func checkgoarm() {
+-	// TODO(minux)
++	// TODO(minux): FP checks like in os_linux_arm.go.
++
++	// osinit not called yet, so ncpu not set: must use getncpu directly.
++	if getncpu() > 1 && goarm < 7 {
++		print("runtime: this system has multiple CPUs and must use\n")
++		print("atomic synchronization instructions. Recompile using GOARM=7.\n")
++		exit(1)
++	}
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_openbsd_arm.go b/src/runtime/os_openbsd_arm.go
+index be3f330dfb..b46fef0090 100644
+--- a/src/runtime/os_openbsd_arm.go
++++ b/src/runtime/os_openbsd_arm.go
+@@ -5,7 +5,14 @@
+ package runtime
+ 
+ func checkgoarm() {
+-	// TODO(minux)
++	// TODO(minux): FP checks like in os_linux_arm.go.
++
++	// osinit not called yet, so ncpu not set: must use getncpu directly.
++	if getncpu() > 1 && goarm < 7 {
++		print("runtime: this system has multiple CPUs and must use\n")
++		print("atomic synchronization instructions. Recompile using GOARM=7.\n")
++		exit(1)
++	}
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index a157f016d1..57cd869d88 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -645,6 +645,8 @@ var (
+ 	cpuid_ecx         uint32
+ 	cpuid_edx         uint32
+ 	lfenceBeforeRdtsc bool
++
++	goarm uint8 // set by cmd/link on arm systems
+ )
+ 
+ // Set by the linker so the runtime can determine the buildmode.

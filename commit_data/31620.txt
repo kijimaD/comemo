@@ -15,7 +15,7 @@ Date:   Fri Mar 3 13:38:49 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/bitset.go   | 10 ++++++
  src/cmd/compile/internal/gc/closure.go  |  4 ---
  src/cmd/compile/internal/gc/dcl.go      |  3 --
@@ -28,3 +28,426 @@ Date:   Fri Mar 3 13:38:49 2017 -0800
  src/cmd/compile/internal/gc/syntax.go   |  6 ++--
  src/cmd/compile/internal/gc/walk.go     | 24 ++++++-------
  11 files changed, 52 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bitset.go b/src/cmd/compile/internal/gc/bitset.go
+index 6e61753b55..a88f0405a5 100644
+--- a/src/cmd/compile/internal/gc/bitset.go
++++ b/src/cmd/compile/internal/gc/bitset.go
+@@ -23,3 +23,13 @@ func (f *bitset16) set(mask uint16, b bool) {
+ 		*(*uint16)(f) &^= mask
+ 	}
+ }
++
++type bitset32 uint32
++
++func (f *bitset32) set(mask uint32, b bool) {
++	if b {
++		*(*uint32)(f) |= mask
++	} else {
++		*(*uint32)(f) &^= mask
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 8dfacd49de..e724c8d73d 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -336,8 +336,6 @@ func transformclosure(xfunc *Node) {
+ 			if v.Name.Byval() {
+ 				// If v is captured by value, we merely downgrade it to PPARAM.
+ 				v.Class = PPARAM
+-
+-				v.Ullman = 1
+ 				fld.Nname = v
+ 			} else {
+ 				// If v of type T is captured by reference,
+@@ -393,7 +391,6 @@ func transformclosure(xfunc *Node) {
+ 			if v.Name.Byval() && v.Type.Width <= int64(2*Widthptr) {
+ 				// If it is a small variable captured by value, downgrade it to PAUTO.
+ 				v.Class = PAUTO
+-				v.Ullman = 1
+ 				xfunc.Func.Dcl = append(xfunc.Func.Dcl, v)
+ 				body = append(body, nod(OAS, v, cv))
+ 			} else {
+@@ -628,7 +625,6 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 	ptr.Sym = lookup("rcvr")
+ 	ptr.Class = PAUTO
+ 	ptr.SetAddable(true)
+-	ptr.Ullman = 1
+ 	ptr.SetUsed(true)
+ 	ptr.Name.Curfn = xfunc
+ 	ptr.Xoffset = 0
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 91d07cdf55..74aea51e26 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -292,7 +292,6 @@ func newname(s *Sym) *Node {
+ 	n := nod(ONAME, nil, nil)
+ 	n.Sym = s
+ 	n.SetAddable(true)
+-	n.Ullman = 1
+ 	n.Xoffset = 0
+ 	return n
+ }
+@@ -305,7 +304,6 @@ func newnoname(s *Sym) *Node {
+ 	n := nod(ONONAME, nil, nil)
+ 	n.Sym = s
+ 	n.SetAddable(true)
+-	n.Ullman = 1
+ 	n.Xoffset = 0
+ 	return n
+ }
+@@ -376,7 +374,6 @@ func oldname(s *Sym) *Node {
+ 			c.SetIsddd(n.Isddd())
+ 			c.Name.Defn = n
+ 			c.SetAddable(false)
+-			c.Ullman = 2
+ 			c.Name.Funcdepth = funcdepth
+ 
+ 			// Link into list of active closure variables.
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index e7cc05a3db..cdf559adfe 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -269,10 +269,6 @@ func (n *Node) Format(s fmt.State, verb rune) {
+ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 	c := flag & FmtShort
+ 
+-	if c == 0 && n.Ullman != 0 {
+-		fmt.Fprintf(s, " u(%d)", n.Ullman)
+-	}
+-
+ 	if c == 0 && n.Addable() {
+ 		fmt.Fprintf(s, " a(%v)", n.Addable())
+ 	}
+@@ -361,6 +357,10 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprint(s, " nonnil")
+ 	}
+ 
++	if c == 0 && n.HasCall() {
++		fmt.Fprintf(s, " hascall")
++	}
++
+ 	if c == 0 && n.Used() {
+ 		fmt.Fprintf(s, " used(%v)", n.Used())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index b88bd51955..30b11ad10d 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -173,7 +173,6 @@ func moveToHeap(n *Node) {
+ 
+ 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
+ 	n.Class = PAUTOHEAP
+-	n.Ullman = 2
+ 	n.Xoffset = 0
+ 	n.Name.Param.Heapaddr = heapaddr
+ 	n.Esc = EscHeap
+@@ -208,7 +207,6 @@ func tempname(nn *Node, t *Type) {
+ 	n.Type = t
+ 	n.Class = PAUTO
+ 	n.SetAddable(true)
+-	n.Ullman = 1
+ 	n.Esc = EscNever
+ 	n.Name.Curfn = Curfn
+ 	n.Name.SetAutoTemp(true)
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index f72511c9a5..a58284feea 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -630,5 +630,5 @@ func appendinit(np **Node, init Nodes) {
+ 	}
+ 
+ 	n.Ninit.AppendNodes(&init)
+-	n.Ullman = UINF
++	n.SetHasCall(true)
+ }
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 2222c0a31c..a19af9f4ec 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -988,7 +988,6 @@ func typename(t *Type) *Node {
+ 	n := nod(OADDR, s.Def, nil)
+ 	n.Type = ptrto(s.Def.Type)
+ 	n.SetAddable(true)
+-	n.Ullman = 2
+ 	n.Typecheck = 1
+ 	return n
+ }
+@@ -1011,7 +1010,6 @@ func itabname(t, itype *Type) *Node {
+ 	n := nod(OADDR, s.Def, nil)
+ 	n.Type = ptrto(s.Def.Type)
+ 	n.SetAddable(true)
+-	n.Ullman = 2
+ 	n.Typecheck = 1
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9017f50fc2..288d069bbb 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4885,7 +4885,6 @@ func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
+ 	n.Type = t
+ 	n.Class = PAUTO
+ 	n.SetAddable(true)
+-	n.Ullman = 1
+ 	n.Esc = EscNever
+ 	n.Xoffset = 0
+ 	n.Name.Curfn = Curfn
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c1c4d04217..defb980ae4 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -426,7 +426,6 @@ func nodintconst(v int64) *Node {
+ 	c.SetVal(Val{new(Mpint)})
+ 	c.Val().U.(*Mpint).SetInt64(v)
+ 	c.Type = Types[TIDEAL]
+-	ullmancalc(c)
+ 	return c
+ }
+ 
+@@ -436,7 +435,6 @@ func nodfltconst(v *Mpflt) *Node {
+ 	c.SetVal(Val{newMpflt()})
+ 	c.Val().U.(*Mpflt).Set(v)
+ 	c.Type = Types[TIDEAL]
+-	ullmancalc(c)
+ 	return c
+ }
+ 
+@@ -444,7 +442,6 @@ func nodconst(n *Node, t *Type, v int64) {
+ 	*n = Node{}
+ 	n.Op = OLITERAL
+ 	n.SetAddable(true)
+-	ullmancalc(n)
+ 	n.SetVal(Val{new(Mpint)})
+ 	n.Val().U.(*Mpint).SetInt64(v)
+ 	n.Type = t
+@@ -1145,73 +1142,55 @@ func printframenode(n *Node) {
+ 	}
+ }
+ 
+-// calculate sethi/ullman number
+-// roughly how many registers needed to
+-// compile a node. used to compile the
+-// hardest side first to minimize registers.
+-func ullmancalc(n *Node) {
++// updateHasCall checks whether expression n contains any function
++// calls and sets the n.HasCall flag if so.
++func updateHasCall(n *Node) {
+ 	if n == nil {
+ 		return
+ 	}
+ 
+-	var ul int
+-	var ur int
++	b := false
+ 	if n.Ninit.Len() != 0 {
+-		ul = UINF
++		// TODO(mdempsky): This seems overly conservative.
++		b = true
+ 		goto out
+ 	}
+ 
+ 	switch n.Op {
+ 	case OLITERAL, ONAME:
+-		ul = 1
+-		if n.Class == PAUTOHEAP {
+-			ul++
+-		}
+-		goto out
+-
+ 	case OAS:
+-		if !needwritebarrier(n.Left) {
+-			break
++		if needwritebarrier(n.Left) {
++			b = true
++			goto out
+ 		}
+-		fallthrough
+ 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
+-		ul = UINF
++		b = true
+ 		goto out
+-
+-		// hard with instrumented code
+ 	case OANDAND, OOROR:
++		// hard with instrumented code
+ 		if instrumenting {
+-			ul = UINF
++			b = true
+ 			goto out
+ 		}
+ 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR,
+ 		OIND, ODOTPTR, ODOTTYPE, ODIV, OMOD:
+ 		// These ops might panic, make sure they are done
+ 		// before we start marshaling args for a call. See issue 16760.
+-		ul = UINF
++		b = true
+ 		goto out
+ 	}
+ 
+-	ul = 1
+-	if n.Left != nil {
+-		ul = int(n.Left.Ullman)
+-	}
+-	ur = 1
+-	if n.Right != nil {
+-		ur = int(n.Right.Ullman)
+-	}
+-	if ul == ur {
+-		ul += 1
++	if n.Left != nil && n.Left.HasCall() {
++		b = true
++		goto out
+ 	}
+-	if ur > ul {
+-		ul = ur
++	if n.Right != nil && n.Right.HasCall() {
++		b = true
++		goto out
+ 	}
+ 
+ out:
+-	if ul > 200 {
+-		ul = 200 // clamp to uchar with room to grow
+-	}
+-	n.Ullman = uint8(ul)
++	n.SetHasCall(b)
+ }
+ 
+ func badtype(op Op, tl *Type, tr *Type) {
+@@ -2032,7 +2011,7 @@ func addinit(n *Node, init []*Node) *Node {
+ 	}
+ 
+ 	n.Ninit.Prepend(init...)
+-	n.Ullman = UINF
++	n.SetHasCall(true)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 65004ca309..c84eace149 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -49,12 +49,11 @@ type Node struct {
+ 
+ 	Pos src.XPos
+ 
+-	flags bitset16
++	flags bitset32
+ 
+ 	Esc uint16 // EscXXX
+ 
+ 	Op        Op
+-	Ullman    uint8 // sethi/ullman number
+ 	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+ 	Class     Class // PPARAM, PAUTO, PEXTERN, etc
+ 	Embedded  uint8 // ODCLFIELD embedded type
+@@ -91,6 +90,7 @@ const (
+ 	nodeBounded  // bounds check unnecessary
+ 	nodeAddable  // addressable
+ 	nodeUsed     // for variable/label declared and not used error
++	nodeHasCall  // expression contains a function call
+ )
+ 
+ func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
+@@ -109,6 +109,7 @@ func (n *Node) Noescape() bool              { return n.flags&nodeNoescape != 0 }
+ func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
+ func (n *Node) Addable() bool               { return n.flags&nodeAddable != 0 }
+ func (n *Node) Used() bool                  { return n.flags&nodeUsed != 0 }
++func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
+ 
+ func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
+ func (n *Node) SetIsClosureVar(b bool)          { n.flags.set(nodeIsClosureVar, b) }
+@@ -126,6 +127,7 @@ func (n *Node) SetNoescape(b bool)              { n.flags.set(nodeNoescape, b) }
+ func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
+ func (n *Node) SetAddable(b bool)               { n.flags.set(nodeAddable, b) }
+ func (n *Node) SetUsed(b bool)                  { n.flags.set(nodeUsed, b) }
++func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
+ 
+ // Val returns the Val for the node.
+ func (n *Node) Val() Val {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b4fea44547..1644418a3e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -685,7 +685,7 @@ opswitch:
+ 		lr := ascompatte(n, n.Isddd(), t.Params(), n.List.Slice(), 0, init)
+ 		ll = append(ll, lr...)
+ 		n.Left.Left = nil
+-		ullmancalc(n.Left)
++		updateHasCall(n.Left)
+ 		n.List.Set(reorder1(ll))
+ 
+ 	case OAS:
+@@ -1617,7 +1617,7 @@ opswitch:
+ 		n = typecheck(n, Erv)
+ 	}
+ 
+-	ullmancalc(n)
++	updateHasCall(n)
+ 
+ 	if Debug['w'] != 0 && n != nil {
+ 		Dump("walk", n)
+@@ -1698,7 +1698,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
+ // evaluating the lv or a function call
+ // in the conversion of the types
+ func fncall(l *Node, rt *Type) bool {
+-	if l.Ullman >= UINF || l.Op == OINDEXMAP {
++	if l.HasCall() || l.Op == OINDEXMAP {
+ 		return true
+ 	}
+ 	if needwritebarrier(l) {
+@@ -1743,8 +1743,8 @@ func ascompatet(op Op, nl Nodes, nr *Type) []*Node {
+ 
+ 		a := nod(OAS, l, nodarg(r, 0))
+ 		a = convas(a, &nn)
+-		ullmancalc(a)
+-		if a.Ullman >= UINF {
++		updateHasCall(a)
++		if a.HasCall() {
+ 			Dump("ascompatet ucount", a)
+ 			ullmanOverflow = true
+ 		}
+@@ -2104,7 +2104,7 @@ func convas(n *Node, init *Nodes) *Node {
+ 	}
+ 
+ out:
+-	ullmancalc(n)
++	updateHasCall(n)
+ 	return n
+ }
+ 
+@@ -2120,8 +2120,8 @@ func reorder1(all []*Node) []*Node {
+ 
+ 	for _, n := range all {
+ 		t++
+-		ullmancalc(n)
+-		if n.Ullman >= UINF {
++		updateHasCall(n)
++		if n.HasCall() {
+ 			c++
+ 		}
+ 	}
+@@ -2136,7 +2136,7 @@ func reorder1(all []*Node) []*Node {
+ 	d := 0
+ 	var a *Node
+ 	for _, n := range all {
+-		if n.Ullman < UINF {
++		if !n.HasCall() {
+ 			r = append(r, n)
+ 			continue
+ 		}
+@@ -2436,10 +2436,10 @@ func vmatch1(l *Node, r *Node) bool {
+ 		case PPARAM, PAUTO:
+ 			break
+ 
+-		// assignment to non-stack variable
+-		// must be delayed if right has function calls.
+ 		default:
+-			if r.Ullman >= UINF {
++			// assignment to non-stack variable must be
++			// delayed if right has function calls.
++			if r.HasCall() {
+ 				return true
+ 			}
+ 		}

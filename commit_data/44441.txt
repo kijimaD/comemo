@@ -21,7 +21,7 @@ Date:   Tue Jun 30 11:30:28 2020 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go            |  2 +-
  src/cmd/link/internal/ld/data.go              |  2 +-
  src/cmd/link/internal/ld/pe.go                |  2 +-
@@ -32,3 +32,233 @@ Date:   Tue Jun 30 11:30:28 2020 -0400
  src/cmd/link/internal/loadmacho/ldmacho.go    |  2 +-
  src/cmd/link/internal/loadpe/ldpe.go          |  2 +-
  9 files changed, 57 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index f9474860c0..a29e588f88 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -371,7 +371,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 			got := ldr.MakeSymbolUpdater(syms.GOT)
+ 			su := ldr.MakeSymbolUpdater(s)
+ 			su.SetType(got.Type())
+-			got.PrependSub(s)
++			got.AddInteriorSym(s)
+ 			su.SetValue(got.Size())
+ 			got.AddUint64(target.Arch, 0)
+ 			leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a19a1451af..e6ca977991 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1629,7 +1629,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 				toc := ldr.Lookup(".TOC.", int(ldr.SymVersion(s)))
+ 				if toc != 0 {
+ 					ldr.SetSymSect(toc, sect)
+-					ldr.PrependSub(s, toc)
++					ldr.AddInteriorSym(s, toc)
+ 					ldr.SetSymValue(toc, 0x8000)
+ 				}
+ 			}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 08849ff380..9a76b3a775 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1119,9 +1119,9 @@ func initdynimport(ctxt *Link) *Dll {
+ 			for m = d.ms; m != nil; m = m.next {
+ 				sb := ldr.MakeSymbolUpdater(m.s)
+ 				sb.SetType(sym.SWINDOWS)
+-				dynamic.PrependSub(m.s)
+ 				sb.SetValue(dynamic.Size())
+ 				dynamic.SetSize(dynamic.Size() + int64(ctxt.Arch.PtrSize))
++				dynamic.AddInteriorSym(m.s)
+ 			}
+ 
+ 			dynamic.SetSize(dynamic.Size() + int64(ctxt.Arch.PtrSize))
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index bb5b4ffc0a..5a39856a3b 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -610,7 +610,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		sb := l.MakeSymbolUpdater(s)
+ 
+ 		sb.SetType(sectsb.Type())
+-		sectsb.PrependSub(s)
++		sectsb.AddInteriorSym(s)
+ 		if !l.AttrCgoExportDynamic(s) {
+ 			sb.SetDynimplib("") // satisfy dynimport
+ 		}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 4580bdc9de..918d381282 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1060,8 +1060,8 @@ func (l *Loader) AttrSubSymbol(i Sym) bool {
+ }
+ 
+ // Note that we don't have a 'SetAttrSubSymbol' method in the loader;
+-// clients should instead use the PrependSub method to establish
+-// outer/sub relationships for host object symbols.
++// clients should instead use the AddInteriorSym method to establish
++// containment relationships for host object symbols.
+ 
+ // Returns whether the i-th symbol has ReflectMethod attribute set.
+ func (l *Loader) IsReflectMethod(i Sym) bool {
+@@ -1560,8 +1560,6 @@ func (l *Loader) Aux2(i Sym, j int) Aux2 {
+ // introduction of the loader, this was done purely using name
+ // lookups, e.f. for function with name XYZ we would then look up
+ // go.info.XYZ, etc.
+-// FIXME: once all of dwarfgen is converted over to the loader,
+-// it would save some space to make these aux symbols nameless.
+ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, auxDwarfRanges, auxDwarfLines Sym) {
+ 	if l.SymType(fnSymIdx) != sym.STEXT {
+ 		log.Fatalf("error: non-function sym %d/%s t=%s passed to GetFuncDwarfAuxSyms", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+@@ -1601,25 +1599,53 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
+ 	return
+ }
+ 
+-// PrependSub prepends 'sub' onto the sub list for outer symbol 'outer'.
+-// Will panic if 'sub' already has an outer sym or sub sym.
+-// FIXME: should this be instead a method on SymbolBuilder?
+-func (l *Loader) PrependSub(outer Sym, sub Sym) {
+-	// NB: this presupposes that an outer sym can't be a sub symbol of
+-	// some other outer-outer sym (I'm assuming this is true, but I
+-	// haven't tested exhaustively).
+-	if l.OuterSym(outer) != 0 {
++// AddInteriorSym sets up 'interior' as an interior symbol of
++// container/payload symbol 'container'. An interior symbol does not
++// itself have data, but gives a name to a subrange of the data in its
++// container symbol. The container itself may or may not have a name.
++// This method is intended primarily for use in the host object
++// loaders, to capture the semantics of symbols and sections in an
++// object file. When reading a host object file, we'll typically
++// encounter a static section symbol (ex: ".text") containing content
++// for a collection of functions, then a series of ELF (or macho, etc)
++// symbol table entries each of which points into a sub-section
++// (offset and length) of its corresponding container symbol. Within
++// the go linker we create a loader.Sym for the container (which is
++// expected to have the actual content/payload) and then a set of
++// interior loader.Sym's that point into a portion of the container.
++func (l *Loader) AddInteriorSym(container Sym, interior Sym) {
++	// Container symbols are expected to have content/data.
++	// NB: this restriction may turn out to be too strict (it's possible
++	// to imagine a zero-sized container with an interior symbol pointing
++	// into it); it's ok to relax or remove it if we counter an
++	// oddball host object that triggers this.
++	if l.SymSize(container) == 0 && len(l.Data(container)) == 0 {
++		panic("unexpected empty container symbol")
++	}
++	// The interior symbols for a container are not expected to have
++	// content/data or relocations.
++	if len(l.Data(interior)) != 0 {
++		panic("unexpected non-empty interior symbol")
++	}
++	// Interior symbol is expected to be in the symbol table.
++	if l.AttrNotInSymbolTable(interior) {
++		panic("interior symbol must be in symtab")
++	}
++	// Only a single level of containment is allowed.
++	if l.OuterSym(container) != 0 {
+ 		panic("outer has outer itself")
+ 	}
+-	if l.SubSym(sub) != 0 {
++	// Interior sym should not already have a sibling.
++	if l.SubSym(interior) != 0 {
+ 		panic("sub set for subsym")
+ 	}
+-	if l.OuterSym(sub) != 0 {
++	// Interior sym should not already point at a container.
++	if l.OuterSym(interior) != 0 {
+ 		panic("outer already set for subsym")
+ 	}
+-	l.sub[sub] = l.sub[outer]
+-	l.sub[outer] = sub
+-	l.outer[sub] = outer
++	l.sub[interior] = l.sub[container]
++	l.sub[container] = interior
++	l.outer[interior] = container
+ }
+ 
+ // OuterSym gets the outer symbol for host object loaded symbols.
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index cf905492ed..0367bc4536 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -359,6 +359,7 @@ func TestOuterSub(t *testing.T) {
+ 	// Populate loader with some symbols.
+ 	addDummyObjSym(t, ldr, or, "type.uint8")
+ 	es1 := ldr.LookupOrCreateSym("outer", 0)
++	ldr.MakeSymbolUpdater(es1).SetSize(101)
+ 	es2 := ldr.LookupOrCreateSym("sub1", 0)
+ 	es3 := ldr.LookupOrCreateSym("sub2", 0)
+ 	es4 := ldr.LookupOrCreateSym("sub3", 0)
+@@ -374,7 +375,7 @@ func TestOuterSub(t *testing.T) {
+ 	}
+ 
+ 	// Establish first outer/sub relationship
+-	ldr.PrependSub(es1, es2)
++	ldr.AddInteriorSym(es1, es2)
+ 	if ldr.OuterSym(es1) != 0 {
+ 		t.Errorf("ldr.OuterSym(es1) got %d wanted %d", ldr.OuterSym(es1), 0)
+ 	}
+@@ -389,7 +390,7 @@ func TestOuterSub(t *testing.T) {
+ 	}
+ 
+ 	// Establish second outer/sub relationship
+-	ldr.PrependSub(es1, es3)
++	ldr.AddInteriorSym(es1, es3)
+ 	if ldr.OuterSym(es1) != 0 {
+ 		t.Errorf("ldr.OuterSym(es1) got %d wanted %d", ldr.OuterSym(es1), 0)
+ 	}
+@@ -407,9 +408,9 @@ func TestOuterSub(t *testing.T) {
+ 	}
+ 
+ 	// Some more
+-	ldr.PrependSub(es1, es4)
+-	ldr.PrependSub(es1, es5)
+-	ldr.PrependSub(es1, es6)
++	ldr.AddInteriorSym(es1, es4)
++	ldr.AddInteriorSym(es1, es5)
++	ldr.AddInteriorSym(es1, es6)
+ 
+ 	// Set values.
+ 	ldr.SetSymValue(es2, 7)
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 9713a282b1..7c8115f0b9 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -240,8 +240,8 @@ func (sb *SymbolBuilder) SortSub() {
+ 	sb.l.SortSub(sb.symIdx)
+ }
+ 
+-func (sb *SymbolBuilder) PrependSub(sub Sym) {
+-	sb.l.PrependSub(sb.symIdx, sub)
++func (sb *SymbolBuilder) AddInteriorSym(sub Sym) {
++	sb.l.AddInteriorSym(sb.symIdx, sub)
+ }
+ 
+ func (sb *SymbolBuilder) AddUint8(v uint8) int64 {
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index dad65ea0fe..864d80835b 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -633,7 +633,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		}
+ 
+ 		bld.SetType(l.SymType(outer))
+-		l.PrependSub(outer, s)
++		l.AddInteriorSym(outer, s)
+ 
+ 		bld.SetValue(int64(machsym.value - sect.addr))
+ 		if !l.AttrCgoExportDynamic(s) {
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index cf76741f43..7677278ec5 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -409,7 +409,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		bld = makeUpdater(l, bld, s)
+ 		sectsym := sectsyms[sect]
+ 		bld.SetType(l.SymType(sectsym))
+-		l.PrependSub(sectsym, s)
++		l.AddInteriorSym(sectsym, s)
+ 		bld.SetValue(int64(pesym.Value))
+ 		bld.SetSize(4)
+ 		if l.SymType(sectsym) == sym.STEXT {

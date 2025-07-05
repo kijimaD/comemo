@@ -12,6 +12,20 @@ Date:   Mon Feb 3 18:15:41 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217297
     Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/encoding/json/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 39cdaebde7..9c043593ce 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -649,7 +649,7 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+ func isValidNumber(s string) bool {
+ 	// This function implements the JSON numbers grammar.
+ 	// See https://tools.ietf.org/html/rfc7159#section-6
+-	// and https://json.org/number.gif
++	// and https://www.json.org/img/number.png
+ 
+ 	if s == "" {
+ 		return false

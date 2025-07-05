@@ -12,8 +12,106 @@ Date:   Mon Aug 25 21:50:42 2014 -0700
     R=dvyukov
     CC=golang-codereviews
     https://golang.org/cl/126610043
-
+---
  src/pkg/net/http/export_test.go    |  6 ++++++
  src/pkg/net/http/transport.go      | 19 +++++++++++++++----
  src/pkg/net/http/transport_test.go | 24 +++++++++++-------------
  3 files changed, 32 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/net/http/export_test.go b/src/pkg/net/http/export_test.go
+index 960563b240..2c87353554 100644
+--- a/src/pkg/net/http/export_test.go
++++ b/src/pkg/net/http/export_test.go
+@@ -70,3 +70,9 @@ func ResetCachedEnvironment() {
+ }
+ 
+ var DefaultUserAgent = defaultUserAgent
++
++// SetPendingDialHooks sets the hooks that run before and after handling
++// pending dials.
++func SetPendingDialHooks(before, after func()) {
++	prePendingDial, postPendingDial = before, after
++}
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index b1cc632a78..7a229c1b71 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -444,6 +444,9 @@ func (t *Transport) dial(network, addr string) (c net.Conn, err error) {
+ 	return net.Dial(network, addr)
+ }
+ 
++// Testing hooks:
++var prePendingDial, postPendingDial func()
++
+ // getConn dials and creates a new persistConn to the target as
+ // specified in the connectMethod.  This includes doing a proxy CONNECT
+ // and/or setting up TLS.  If this doesn't return an error, the persistConn
+@@ -460,9 +463,17 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
+ 	dialc := make(chan dialRes)
+ 
+ 	handlePendingDial := func() {
+-		if v := <-dialc; v.err == nil {
+-			t.putIdleConn(v.pc)
++		if prePendingDial != nil {
++			prePendingDial()
+ 		}
++		go func() {
++			if v := <-dialc; v.err == nil {
++				t.putIdleConn(v.pc)
++			}
++			if postPendingDial != nil {
++				postPendingDial()
++			}
++		}()
+ 	}
+ 
+ 	cancelc := make(chan struct{})
+@@ -484,10 +495,10 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
+ 		// else's dial that they didn't use.
+ 		// But our dial is still going, so give it away
+ 		// when it finishes:
+-		go handlePendingDial()
++		handlePendingDial()
+ 		return pc, nil
+ 	case <-cancelc:
+-		go handlePendingDial()
++		handlePendingDial()
+ 		return nil, errors.New("net/http: request canceled while waiting for connection")
+ 	}
+ }
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 964ca0fca5..b55d30ddf9 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -1063,20 +1063,18 @@ func TestTransportConcurrency(t *testing.T) {
+ 	var wg sync.WaitGroup
+ 	wg.Add(numReqs)
+ 
+-	tr := &Transport{
+-		Dial: func(netw, addr string) (c net.Conn, err error) {
+-			// Due to the Transport's "socket late
+-			// binding" (see idleConnCh in transport.go),
+-			// the numReqs HTTP requests below can finish
+-			// with a dial still outstanding.  So count
+-			// our dials as work too so the leak checker
+-			// doesn't complain at us.
+-			wg.Add(1)
+-			defer wg.Done()
+-			return net.Dial(netw, addr)
+-		},
+-	}
++	// Due to the Transport's "socket late binding" (see
++	// idleConnCh in transport.go), the numReqs HTTP requests
++	// below can finish with a dial still outstanding.  To keep
++	// the leak checker happy, keep track of pending dials and
++	// wait for them to finish (and be closed or returned to the
++	// idle pool) before we close idle connections.
++	SetPendingDialHooks(func() { wg.Add(1) }, wg.Done)
++	defer SetPendingDialHooks(nil, nil)
++
++	tr := &Transport{}
+ 	defer tr.CloseIdleConnections()
++
+ 	c := &Client{Transport: tr}
+ 	reqs := make(chan string)
+ 	defer close(reqs)

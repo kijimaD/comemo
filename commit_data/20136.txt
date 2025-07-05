@@ -11,6 +11,43 @@ Date:   Tue Aug 19 14:24:03 2014 +0400
     R=golang-codereviews, daniel.morsing, khr, rsc
     CC=golang-codereviews, rlh
     https://golang.org/cl/124550043
-
+---
  src/pkg/runtime/stack.c | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index f7d41f44d4..f21d544f33 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -399,6 +399,7 @@ struct CopyableInfo {
+ };
+ 
+ void runtime·main(void);
++void runtime·switchtoM(void(*)(void));
+ 
+ static bool
+ checkframecopy(Stkframe *frame, void *arg)
+@@ -424,6 +425,13 @@ checkframecopy(Stkframe *frame, void *arg)
+ 		cinfo->frames++;
+ 		return false; // stop traceback
+ 	}
++	if(f->entry == (uintptr)runtime·switchtoM) {
++		// A special routine at the bottom of stack of a goroutine that does onM call.
++		// We will allow it to be copied even though we don't
++		// have full GC info for it (because it is written in asm).
++		cinfo->frames++;
++		return true;
++	}
+ 	if(frame->varp != (byte*)frame->sp) { // not in prologue (and has at least one local or outarg)
+ 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+ 		if(stackmap == nil) {
+@@ -648,7 +656,8 @@ adjustframe(Stkframe *frame, void *arg)
+ 	f = frame->fn;
+ 	if(StackDebug >= 2)
+ 		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p continpc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc, frame->continpc);
+-	if(f->entry == (uintptr)runtime·main)
++	if(f->entry == (uintptr)runtime·main ||
++		f->entry == (uintptr)runtime·switchtoM)
+ 		return true;
+ 	targetpc = frame->continpc;
+ 	if(targetpc == 0) {

@@ -13,7 +13,7 @@ Date:   Sun Aug 30 21:19:20 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/14321
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go        |  2 +
  src/cmd/compile/internal/ssa/gen/generic.rules |  6 ++
  src/cmd/compile/internal/ssa/gen/genericOps.go |  6 +-
@@ -21,3 +21,219 @@ Date:   Sun Aug 30 21:19:20 2015 -0500
  src/cmd/compile/internal/ssa/nilcheck_test.go  | 40 +++++++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 80 ++++++++++++++++++++++++++
  6 files changed, 136 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index bff1a8103b..a9365e91e1 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -121,6 +121,8 @@ var passOrder = [...]constraint{
+ 	{"nilcheckelim", "generic deadcode"},
+ 	// nilcheckelim generates sequences of plain basic blocks
+ 	{"nilcheckelim", "fuse"},
++	// nilcheckelim relies on opt to rewrite user nil checks
++	{"opt", "nilcheckelim"},
+ 	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
+ 	{"tighten", "lower"},
+ 	// tighten will be most effective when as many values have been removed as possible
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 8d7b069c67..d2ab9f5421 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -59,6 +59,12 @@
+ (Com32 (Com32 x)) -> x
+ (Com64 (Com64 x)) -> x
+ 
++// user nil checks
++(NeqPtr p (ConstNil)) -> (IsNonNil p)
++(NeqPtr (ConstNil) p) -> (IsNonNil p)
++(EqPtr p (ConstNil)) -> (Not (IsNonNil p))
++(EqPtr (ConstNil) p) -> (Not (IsNonNil p))
++
+ // slice and interface comparisons
+ // the frontend ensures that we can only compare against nil
+ // start by putting nil on the right to simplify the other rules
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 59b90adfe5..8cd8165028 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -313,9 +313,9 @@ var genericOps = []opData{
+ 	{name: "Cvt64Fto32F"},
+ 
+ 	// Automatically inserted safety checks
+-	{name: "IsNonNil"},        // arg0 != nil
+-	{name: "IsInBounds"},      // 0 <= arg0 < arg1
+-	{name: "IsSliceInBounds"}, // 0 <= arg0 <= arg1
++	{name: "IsNonNil", typ: "Bool"},        // arg0 != nil
++	{name: "IsInBounds", typ: "Bool"},      // 0 <= arg0 < arg1
++	{name: "IsSliceInBounds", typ: "Bool"}, // 0 <= arg0 <= arg1
+ 
+ 	// Pseudo-ops
+ 	{name: "PanicNilCheck"},   // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 80b9e668d3..16cb04df98 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -105,12 +105,11 @@ func nilcheckelim(f *Func) {
+ 
+ 		var nilBranch *Block
+ 		for _, w := range domTree[node.block.ID] {
+-			// TODO: Since we handle the false side of OpIsNonNil
+-			// correctly, look into rewriting user nil checks into
+-			// OpIsNonNil so they can be eliminated also
+-
+-			// we are about to traverse down the 'ptr is nil' side
+-			// of a nilcheck block, so save it for later
++			// We are about to traverse down the 'ptr is nil' side
++			// of a nilcheck block, so save it for later.  This doesn't
++			// remove nil checks on the false side of the OpIsNonNil branch.
++			// This is important otherwise we would remove nil checks that
++			// are not redundant.
+ 			if node.block.Kind == BlockIf && node.block.Control.Op == OpIsNonNil &&
+ 				w == node.block.Succs[1] {
+ 				nilBranch = w
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index c54f86a7b4..1d048fbb34 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -342,3 +342,43 @@ func TestNilcheckInFalseBranch(t *testing.T) {
+ 		t.Errorf("removed thirdCheck, but shouldn't have [false branch]")
+ 	}
+ }
++
++// TestNilcheckUser verifies that a user nil check that dominates a generated nil check
++// wil remove the generated nil check.
++func TestNilcheckUser(t *testing.T) {
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	c := NewConfig("amd64", DummyFrontend{t})
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
++			Goto("checkPtr")),
++		Bloc("checkPtr",
++			Valu("ptr1", OpConstPtr, ptrType, 0, nil, "sb"),
++			Valu("nilptr", OpConstNil, ptrType, 0, nil, "sb"),
++			Valu("bool1", OpNeqPtr, TypeBool, 0, nil, "ptr1", "nilptr"),
++			If("bool1", "secondCheck", "exit")),
++		Bloc("secondCheck",
++			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool2", "extra", "exit")),
++		Bloc("extra",
++			Goto("exit")),
++		Bloc("exit",
++			Exit("mem")))
++
++	CheckFunc(fun.f)
++	// we need the opt here to rewrite the user nilcheck
++	opt(fun.f)
++	nilcheckelim(fun.f)
++
++	// clean up the removed nil check
++	fuse(fun.f)
++	deadcode(fun.f)
++
++	CheckFunc(fun.f)
++	for _, b := range fun.f.Blocks {
++		if b == fun.blocks["secondCheck"] && isNilCheck(b) {
++			t.Errorf("secondCheck was not eliminated")
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 3a068058ee..dc6604fe38 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -478,6 +478,49 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto end6f10fb57a906a2c23667c770acb6abf9
+ 	end6f10fb57a906a2c23667c770acb6abf9:
+ 		;
++	case OpEqPtr:
++		// match: (EqPtr p (ConstNil))
++		// cond:
++		// result: (Not (IsNonNil p))
++		{
++			p := v.Args[0]
++			if v.Args[1].Op != OpConstNil {
++				goto ende701cdb6a2c1fff4d4b283b7f8f6178b
++			}
++			v.Op = OpNot
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := b.NewValue0(v.Line, OpIsNonNil, TypeInvalid)
++			v0.AddArg(p)
++			v0.Type = config.fe.TypeBool()
++			v.AddArg(v0)
++			return true
++		}
++		goto ende701cdb6a2c1fff4d4b283b7f8f6178b
++	ende701cdb6a2c1fff4d4b283b7f8f6178b:
++		;
++		// match: (EqPtr (ConstNil) p)
++		// cond:
++		// result: (Not (IsNonNil p))
++		{
++			if v.Args[0].Op != OpConstNil {
++				goto end7cdc0d5c38fbffe6287c8928803b038e
++			}
++			p := v.Args[1]
++			v.Op = OpNot
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := b.NewValue0(v.Line, OpIsNonNil, TypeInvalid)
++			v0.AddArg(p)
++			v0.Type = config.fe.TypeBool()
++			v.AddArg(v0)
++			return true
++		}
++		goto end7cdc0d5c38fbffe6287c8928803b038e
++	end7cdc0d5c38fbffe6287c8928803b038e:
++		;
+ 	case OpIData:
+ 		// match: (IData (IMake _ data))
+ 		// cond:
+@@ -961,6 +1004,43 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto end3ffd7685735a83eaee8dc2577ae89d79
+ 	end3ffd7685735a83eaee8dc2577ae89d79:
+ 		;
++	case OpNeqPtr:
++		// match: (NeqPtr p (ConstNil))
++		// cond:
++		// result: (IsNonNil p)
++		{
++			p := v.Args[0]
++			if v.Args[1].Op != OpConstNil {
++				goto endba798520b4d41172b110347158c44791
++			}
++			v.Op = OpIsNonNil
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(p)
++			return true
++		}
++		goto endba798520b4d41172b110347158c44791
++	endba798520b4d41172b110347158c44791:
++		;
++		// match: (NeqPtr (ConstNil) p)
++		// cond:
++		// result: (IsNonNil p)
++		{
++			if v.Args[0].Op != OpConstNil {
++				goto enddd95e9c3606d9fd48034f1a703561e45
++			}
++			p := v.Args[1]
++			v.Op = OpIsNonNil
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(p)
++			return true
++		}
++		goto enddd95e9c3606d9fd48034f1a703561e45
++	enddd95e9c3606d9fd48034f1a703561e45:
++		;
+ 	case OpOr16:
+ 		// match: (Or16 x x)
+ 		// cond:

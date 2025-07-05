@@ -7,8 +7,51 @@ Date:   Fri Mar 20 13:39:44 2015 -0700
     Change-Id: Iab9a1f814acd53d5707bfcd6c3f9616c79fa7789
     Reviewed-on: https://go-review.googlesource.com/7858
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/buildtool.go       | 1 +
  src/cmd/internal/gc/go.go       | 2 +-
  src/cmd/internal/gc/mparith1.go | 2 +-
  3 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 69e077c002..e25367b25c 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -39,6 +39,7 @@ var bootstrapDirs = []string{
+ 	"asm/internal/flags",
+ 	"asm/internal/lex",
+ 	"internal/asm",
++	"internal/gc/big",
+ 	"internal/gc",
+ 	"internal/ld",
+ 	"internal/obj",
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index c5a7bc4e49..7972231405 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -6,8 +6,8 @@ package gc
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/gc/big"
+ 	"cmd/internal/obj"
+-	"math/big"
+ )
+ 
+ // avoid <ctype.h>
+diff --git a/src/cmd/internal/gc/mparith1.go b/src/cmd/internal/gc/mparith1.go
+index 51d888a5ab..a8bde45a15 100644
+--- a/src/cmd/internal/gc/mparith1.go
++++ b/src/cmd/internal/gc/mparith1.go
+@@ -5,10 +5,10 @@
+ package gc
+ 
+ import (
++	"cmd/internal/gc/big"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"math"
+-	"math/big"
+ )
+ 
+ /// uses arithmetic

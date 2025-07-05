@@ -15,8 +15,97 @@ Date:   Mon Aug 14 20:11:02 2017 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/common.go | 11 +++++++++--
  src/archive/tar/reader.go |  5 -----
  src/archive/tar/writer.go | 10 +---------
  3 files changed, 10 insertions(+), 16 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index fb214c855d..6390ca41c6 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -25,6 +25,13 @@ import (
+ // architectures. If a large value is encountered when decoding, the result
+ // stored in Header will be the truncated version.
+ 
++var (
++	ErrHeader          = errors.New("tar: invalid tar header")
++	ErrWriteTooLong    = errors.New("tar: write too long")
++	ErrFieldTooLong    = errors.New("tar: header field too long")
++	ErrWriteAfterClose = errors.New("tar: write after close")
++)
++
+ // Header type flags.
+ const (
+ 	TypeReg           = '0'    // regular file
+@@ -331,9 +338,9 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
+ 	case fm&os.ModeNamedPipe != 0:
+ 		h.Typeflag = TypeFifo
+ 	case fm&os.ModeSocket != 0:
+-		return nil, fmt.Errorf("archive/tar: sockets not supported")
++		return nil, fmt.Errorf("tar: sockets not supported")
+ 	default:
+-		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fm)
++		return nil, fmt.Errorf("tar: unknown file mode %v", fm)
+ 	}
+ 	if fm&os.ModeSetuid != 0 {
+ 		h.Mode |= c_ISUID
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 98f6ea86fa..fb7cb8891d 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -9,7 +9,6 @@ package tar
+ 
+ import (
+ 	"bytes"
+-	"errors"
+ 	"io"
+ 	"io/ioutil"
+ 	"math"
+@@ -18,10 +17,6 @@ import (
+ 	"time"
+ )
+ 
+-var (
+-	ErrHeader = errors.New("archive/tar: invalid tar header")
+-)
+-
+ // A Reader provides sequential access to the contents of a tar archive.
+ // A tar archive consists of a sequence of files.
+ // The Next method advances to the next file in the archive (including the first),
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 3d75c398e9..65836ec17f 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -9,7 +9,6 @@ package tar
+ 
+ import (
+ 	"bytes"
+-	"errors"
+ 	"fmt"
+ 	"io"
+ 	"path"
+@@ -18,13 +17,6 @@ import (
+ 	"time"
+ )
+ 
+-var (
+-	ErrWriteTooLong    = errors.New("archive/tar: write too long")
+-	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
+-	ErrWriteAfterClose = errors.New("archive/tar: write after close")
+-	errInvalidHeader   = errors.New("archive/tar: header field too long or contains invalid values")
+-)
+-
+ // A Writer provides sequential writing of a tar archive in POSIX.1 format.
+ // A tar archive consists of a sequence of files.
+ // Call WriteHeader to begin a new file, and then call Write to supply that file's data,
+@@ -49,7 +41,7 @@ func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
+ // will implicitly flush out the file's padding.
+ func (tw *Writer) Flush() error {
+ 	if tw.nb > 0 {
+-		tw.err = fmt.Errorf("archive/tar: missed writing %d bytes", tw.nb)
++		tw.err = fmt.Errorf("tar: missed writing %d bytes", tw.nb)
+ 		return tw.err
+ 	}
+ 	if _, tw.err = tw.w.Write(zeroBlock[:tw.pad]); tw.err != nil {

@@ -9,7 +9,113 @@ Date:   Fri Apr 29 10:42:44 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4445074
-
+---
  src/pkg/image/jpeg/writer_test.go | 28 +++++++++++++++++++++++++++
  src/pkg/image/png/writer_test.go  | 40 +++++++++++++++++++++++++++++++++++----
  2 files changed, 64 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/image/jpeg/writer_test.go b/src/pkg/image/jpeg/writer_test.go
+index 00922dd5ce..7aec70f016 100644
+--- a/src/pkg/image/jpeg/writer_test.go
++++ b/src/pkg/image/jpeg/writer_test.go
+@@ -8,6 +8,8 @@ import (
+ 	"bytes"
+ 	"image"
+ 	"image/png"
++	"io/ioutil"
++	"rand"
+ 	"os"
+ 	"testing"
+ )
+@@ -85,3 +87,29 @@ func TestWriter(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkEncodeRGBOpaque(b *testing.B) {
++	b.StopTimer()
++	img := image.NewRGBA(640, 480)
++	// Set all pixels to 0xFF alpha to force opaque mode.
++	bo := img.Bounds()
++	rnd := rand.New(rand.NewSource(123))
++	for y := bo.Min.Y; y < bo.Max.Y; y++ {
++		for x := bo.Min.X; x < bo.Max.X; x++ {
++			img.Set(x, y, image.RGBAColor{
++				uint8(rnd.Intn(256)),
++				uint8(rnd.Intn(256)),
++				uint8(rnd.Intn(256)),
++				255})
++		}
++	}
++	if !img.Opaque() {
++		panic("expected image to be opaque")
++	}
++	b.SetBytes(640 * 480 * 4)
++	b.StartTimer()
++	options := &Options{Quality: 90}
++	for i := 0; i < b.N; i++ {
++		Encode(ioutil.Discard, img, options)
++	}
++}
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index 4d9929f314..6b054aaa89 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -5,10 +5,10 @@
+ package png
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"image"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"testing"
+ )
+@@ -81,10 +81,42 @@ func BenchmarkEncodePaletted(b *testing.B) {
+ 			image.RGBAColor{0, 0, 0, 255},
+ 			image.RGBAColor{255, 255, 255, 255},
+ 		})
++	b.SetBytes(640 * 480 * 1)
+ 	b.StartTimer()
+-	buffer := new(bytes.Buffer)
+ 	for i := 0; i < b.N; i++ {
+-		buffer.Reset()
+-		Encode(buffer, img)
++		Encode(ioutil.Discard, img)
++	}
++}
++
++func BenchmarkEncodeRGBOpaque(b *testing.B) {
++	b.StopTimer()
++	img := image.NewRGBA(640, 480)
++	// Set all pixels to 0xFF alpha to force opaque mode.
++	bo := img.Bounds()
++	for y := bo.Min.Y; y < bo.Max.Y; y++ {
++		for x := bo.Min.X; x < bo.Max.X; x++ {
++			img.Set(x, y, image.RGBAColor{0, 0, 0, 255})
++		}
++	}
++	if !img.Opaque() {
++		panic("expected image to be opaque")
++	}
++	b.SetBytes(640 * 480 * 4)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		Encode(ioutil.Discard, img)
++	}
++}
++
++func BenchmarkEncodeRGBA(b *testing.B) {
++	b.StopTimer()
++	img := image.NewRGBA(640, 480)
++	if img.Opaque() {
++		panic("expected image to not be opaque")
++	}
++	b.SetBytes(640 * 480 * 4)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		Encode(ioutil.Discard, img)
+ 	}
+ }

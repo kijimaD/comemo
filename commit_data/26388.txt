@@ -15,7 +15,96 @@ Date:   Fri Jan 15 10:53:51 2016 -0800
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/h2_bundle.go |  9 +++++----
  src/net/http/transport.go | 14 ++++++++++++--
  2 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index e743737f54..d40fabd021 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -246,11 +246,11 @@ func http2filterOutClientConn(in []*http2ClientConn, exclude *http2ClientConn) [
+ 	return out
+ }
+ 
+-func http2configureTransport(t1 *Transport) error {
++func http2configureTransport(t1 *Transport) (*http2Transport, error) {
+ 	connPool := new(http2clientConnPool)
+ 	t2 := &http2Transport{ConnPool: http2noDialClientConnPool{connPool}}
+ 	if err := http2registerHTTPSProtocol(t1, http2noDialH2RoundTripper{t2}); err != nil {
+-		return err
++		return nil, err
+ 	}
+ 	if t1.TLSClientConfig == nil {
+ 		t1.TLSClientConfig = new(tls.Config)
+@@ -279,7 +279,7 @@ func http2configureTransport(t1 *Transport) error {
+ 	} else {
+ 		m["h2"] = upgradeFn
+ 	}
+-	return nil
++	return t2, nil
+ }
+ 
+ // registerHTTPSProtocol calls Transport.RegisterProtocol but
+@@ -4348,7 +4348,8 @@ var http2errTransportVersion = errors.New("http2: ConfigureTransport is only sup
+ // It requires Go 1.6 or later and returns an error if the net/http package is too old
+ // or if t1 has already been HTTP/2-enabled.
+ func http2ConfigureTransport(t1 *Transport) error {
+-	return http2configureTransport(t1)
++	_, err := http2configureTransport(t1)
++	return err
+ }
+ 
+ func (t *http2Transport) connPool() http2ClientConnPool {
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 9bef9026d4..c7e6e1cfca 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -142,10 +142,14 @@ type Transport struct {
+ 	// If TLSNextProto is nil, HTTP/2 support is enabled automatically.
+ 	TLSNextProto map[string]func(authority string, c *tls.Conn) RoundTripper
+ 
+-	nextProtoOnce sync.Once // guards initialization of TLSNextProto (onceSetNextProtoDefaults)
++	// nextProtoOnce guards initialization of TLSNextProto and
++	// h2transport (via onceSetNextProtoDefaults)
++	nextProtoOnce sync.Once
++	h2transport   *http2Transport // non-nil if http2 wired up
+ 
+ 	// TODO: tunable on global max cached connections
+ 	// TODO: tunable on timeout on cached connections
++	// TODO: tunable on max per-host TCP dials in flight (Issue 13957)
+ }
+ 
+ // onceSetNextProtoDefaults initializes TLSNextProto.
+@@ -157,9 +161,11 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ 	if t.TLSNextProto != nil {
+ 		return
+ 	}
+-	err := http2ConfigureTransport(t)
++	t2, err := http2configureTransport(t)
+ 	if err != nil {
+ 		log.Printf("Error enabling Transport HTTP/2 support: %v", err)
++	} else {
++		t.h2transport = t2
+ 	}
+ }
+ 
+@@ -367,6 +373,7 @@ func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
+ // a "keep-alive" state. It does not interrupt any connections currently
+ // in use.
+ func (t *Transport) CloseIdleConnections() {
++	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
+ 	t.idleMu.Lock()
+ 	m := t.idleConn
+ 	t.idleConn = nil
+@@ -378,6 +385,9 @@ func (t *Transport) CloseIdleConnections() {
+ 			pconn.close(errCloseIdleConns)
+ 		}
+ 	}
++	if t2 := t.h2transport; t2 != nil {
++		t2.CloseIdleConnections()
++	}
+ }
+ 
+ // CancelRequest cancels an in-flight request by closing its connection.

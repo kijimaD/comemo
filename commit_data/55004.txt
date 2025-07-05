@@ -15,7 +15,37 @@ Date:   Mon Nov 28 11:01:36 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/go1.16.txt            | 1 +
  src/archive/tar/common.go | 6 ++++--
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/api/go1.16.txt b/api/go1.16.txt
+index 8f9ca55ccd..11400965d1 100644
+--- a/api/go1.16.txt
++++ b/api/go1.16.txt
+@@ -500,6 +500,7 @@ pkg unicode, var Dives_Akuru *RangeTable
+ pkg unicode, var Khitan_Small_Script *RangeTable
+ pkg unicode, var Yezidi *RangeTable
+ # all deprecations up to and including Go 1.16
++pkg archive/tar, const TypeRegA //deprecated
+ pkg archive/tar, type Header struct, Xattrs //deprecated
+ pkg archive/zip, method (*File) ModTime //deprecated
+ pkg archive/zip, method (*File) SetModTime //deprecated
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 0d5a942024..38216ac13f 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -59,8 +59,10 @@ func (he headerError) Error() string {
+ // Type flags for Header.Typeflag.
+ const (
+ 	// Type '0' indicates a regular file.
+-	TypeReg  = '0'
+-	TypeRegA = '\x00' // Deprecated: Use TypeReg instead.
++	TypeReg = '0'
++
++	// Deprecated: Use TypeReg instead.
++	TypeRegA = '\x00'
+ 
+ 	// Type '1' to '6' are header-only flags and may not have a data body.
+ 	TypeLink    = '1' // Hard link

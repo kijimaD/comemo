@@ -22,7 +22,7 @@ Date:   Sat Apr 22 15:28:58 2017 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/append1.go            | 20 ++++++++++++++++++++
  test/chan/perm.go          |  5 +++++
  test/cmplx.go              | 14 ++++++++++++++
@@ -36,3 +36,290 @@ Date:   Sat Apr 22 15:28:58 2017 +0200
  test/recover5.go           | 16 ++++++++++++++++
  test/shift1.go             |  6 ++++++
  12 files changed, 134 insertions(+), 2 deletions(-)
+
+diff --git a/test/append1.go b/test/append1.go
+new file mode 100644
+index 0000000000..6d42368e42
+--- /dev/null
++++ b/test/append1.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that append arguments requirements are enforced by the
++// compiler.
++
++package main
++
++func main() {
++
++	s := make([]int, 8)
++
++	_ = append()           // ERROR "missing arguments to append"
++	_ = append(s...)       // ERROR "cannot use ... on first argument"
++	_ = append(s, 2, s...) // ERROR "too many arguments to append"
++
++}
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index 919fa30fbf..13269b431b 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -24,6 +24,10 @@ func main() {
+ 	cr = cs // ERROR "illegal types|incompatible|cannot"
+ 	cs = cr // ERROR "illegal types|incompatible|cannot"
+ 
++	var n int
++	<-n    // ERROR "receive from non-chan"
++	n <- 2 // ERROR "send to non-chan"
++
+ 	c <- 0 // ok
+ 	<-c    // ok
+ 	x, ok := <-c	// ok
+@@ -62,4 +66,5 @@ func main() {
+ 	close(c)
+ 	close(cs)
+ 	close(cr)  // ERROR "receive"
++	close(n)   // ERROR "invalid operation.*non-chan type"
+ }
+diff --git a/test/cmplx.go b/test/cmplx.go
+index 2d8a6229d6..dedf2bd8d3 100644
+--- a/test/cmplx.go
++++ b/test/cmplx.go
+@@ -28,6 +28,14 @@ var (
+ 	C128 Complex128
+ )
+ 
++func F1() int {
++	return 1
++}
++
++func F3() (int, int, int) {
++	return 1, 2, 3
++}
++
+ func main() {
+ 	// ok
+ 	c64 = complex(f32, f32)
+@@ -41,6 +49,11 @@ func main() {
+ 	_ = complex(f64, F64) // ERROR "complex"
+ 	_ = complex(F64, f64) // ERROR "complex"
+ 
++	_ = complex(F1()) // ERROR "expects two arguments.*returns 1"
++	_ = complex(F3()) // ERROR "expects two arguments.*returns 3"
++
++	_ = complex() // ERROR "missing argument"
++
+ 	c128 = complex(f32, f32) // ERROR "cannot use"
+ 	c64 = complex(f64, f64)  // ERROR "cannot use"
+ 
+@@ -51,4 +64,5 @@ func main() {
+ 
+ 	C64 = complex(f32, f32)  // ERROR "cannot use"
+ 	C128 = complex(f64, f64) // ERROR "cannot use"
++
+ }
+diff --git a/test/complit1.go b/test/complit1.go
+index 9dde994376..83695a9e88 100644
+--- a/test/complit1.go
++++ b/test/complit1.go
+@@ -22,6 +22,10 @@ var (
+ 	_ = m[0][:]            // ERROR "slice of unaddressable value"
+ 	_ = f()[:]             // ERROR "slice of unaddressable value"
+ 
++	_ = 301[:]  // ERROR "cannot slice"
++	_ = 3.1[:]  // ERROR "cannot slice"
++	_ = true[:] // ERROR "cannot slice"
++
+ 	// these are okay because they are slicing a pointer to an array
+ 	_ = (&[3]int{1, 2, 3})[:]
+ 	_ = mp[0][:]
+@@ -35,10 +39,15 @@ type T struct {
+ 	next *T
+ }
+ 
++type TP *T
++type Ti int
++
+ var (
+ 	_ = &T{0, 0, "", nil}               // ok
+ 	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal|omit types within composite literal"
+ 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal|omit types within composite literal"
++	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid pointer type"
++	_ = &Ti{}                           // ERROR "invalid pointer type"
+ )
+ 
+ type M map[T]T
+diff --git a/test/copy1.go b/test/copy1.go
+new file mode 100644
+index 0000000000..14285498f8
+--- /dev/null
++++ b/test/copy1.go
+@@ -0,0 +1,27 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that copy arguments requirements are enforced by the
++// compiler.
++
++package main
++
++func main() {
++
++	si := make([]int, 8)
++	sf := make([]float64, 8)
++
++	_ = copy()        // ERROR "missing arguments"
++	_ = copy(1, 2, 3) // ERROR "too many arguments"
++
++	_ = copy(si, "hi") // ERROR "have different element types.*int.*string"
++	_ = copy(si, sf)   // ERROR "have different element types.*int.*float64"
++
++	_ = copy(1, 2)  // ERROR "must be slices; have int, int"
++	_ = copy(1, si) // ERROR "first argument to copy should be"
++	_ = copy(si, 2) // ERROR "second argument to copy should be"
++
++}
+diff --git a/test/ddd1.go b/test/ddd1.go
+index cf6a3a5873..4284e32137 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -42,6 +42,8 @@ var (
+ 	_ = funny([]T{}) // ok because []T{} is a T; passes []T{[]T{}}
+ )
+ 
++func Foo(n int) {}
++
+ func bad(args ...int) {
+ 	print(1, 2, args...)	// ERROR "[.][.][.]"
+ 	println(args...)	// ERROR "[.][.][.]"
+@@ -58,4 +60,6 @@ func bad(args ...int) {
+ 	_ = unsafe.Sizeof(x...)	// ERROR "[.][.][.]"
+ 	_ = [...]byte("foo") // ERROR "[.][.][.]"
+ 	_ = [...][...]int{{1,2,3},{4,5,6}}	// ERROR "[.][.][.]"
++
++	Foo(x...) // ERROR "invalid use of [.][.][.] in call"
+ }
+diff --git a/test/initializerr.go b/test/initializerr.go
+index ca05414554..990ab60f96 100644
+--- a/test/initializerr.go
++++ b/test/initializerr.go
+@@ -23,6 +23,7 @@ var a2 = S { Y: 3, Z: 2, Y: 3 } // ERROR "duplicate"
+ var a3 = T { S{}, 2, 3, 4, 5, 6 }	// ERROR "convert|too many"
+ var a4 = [5]byte{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }	// ERROR "index|too many"
+ var a5 = []byte { x: 2 }	// ERROR "index"
++var a6 = []byte{1: 1, 2: 2, 1: 3}	// ERROR "duplicate index"
+ 
+ var ok1 = S { }	// should be ok
+ var ok2 = T { S: ok1 }	// should be ok
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index 3c449b13ad..1fb3b6a05a 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -54,6 +54,11 @@ func main() {
+ 
+ 	e = E(t) // ok
+ 	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
++
++	// cannot type-assert non-interfaces
++	f := 2.0
++	_ = f.(int) // ERROR "non-interface type"
++
+ }
+ 
+ type M interface {
+diff --git a/test/makenew.go b/test/makenew.go
+new file mode 100644
+index 0000000000..058d975898
+--- /dev/null
++++ b/test/makenew.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that make and new arguments requirements are enforced by the
++// compiler.
++
++package main
++
++func main() {
++	_ = make()      // ERROR "missing argument"
++	_ = make(int)   // ERROR "cannot make type"
++	_ = make([]int) // ERROR "missing len argument"
++
++	_ = new()       // ERROR "missing argument"
++	_ = new(int, 2) // ERROR "too many arguments"
++}
+diff --git a/test/map1.go b/test/map1.go
+index d3c0a9093b..498c2ec45b 100644
+--- a/test/map1.go
++++ b/test/map1.go
+@@ -9,8 +9,6 @@
+ 
+ package main
+ 
+-func main() {}
+-
+ type v bool
+ 
+ var (
+@@ -60,3 +58,11 @@ type T5 *int
+ type T6 struct { F T5 }
+ type T7 *T4
+ type T8 struct { F *T7 }
++
++func main() {
++	m := make(map[int]int)
++	delete()        // ERROR "missing arguments"
++	delete(m)       // ERROR "missing second \(key\) argument"
++	delete(m, 2, 3) // ERROR "too many arguments"
++	delete(1, m)    // ERROR "first argument to delete must be map"
++}
+\ No newline at end of file
+diff --git a/test/recover5.go b/test/recover5.go
+new file mode 100644
+index 0000000000..0e93f5ee1d
+--- /dev/null
++++ b/test/recover5.go
+@@ -0,0 +1,16 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that recover arguments requirements are enforced by the
++// compiler.
++
++package main
++
++func main() {
++	_ = recover()     // OK
++	_ = recover(1)    // ERROR "too many arguments"
++	_ = recover(1, 2) // ERROR "too many arguments"
++}
+diff --git a/test/shift1.go b/test/shift1.go
+index aeefbc4517..c81ee5154d 100644
+--- a/test/shift1.go
++++ b/test/shift1.go
+@@ -68,6 +68,12 @@ func _() {
+ 		w  int64   = 1.0 << 33   // 1.0<<33 is a constant shift expression
+ 		_, _, _, _, _, _, _, _, _, _ = j, k, m, n, o, u, u1, u2, v, w
+ 	)
++
++	// non constants arguments trigger a different path
++	f2 := 1.2
++	s2 := "hi"
++	_ = f2 << 2 // ERROR "shift of type float64"
++	_ = s2 << 2 // ERROR "shift of type string"
+ }
+ 
+ // shifts in comparisons w/ untyped operands

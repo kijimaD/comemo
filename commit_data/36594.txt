@@ -17,7 +17,42 @@ Date:   Thu May 3 08:42:45 2018 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go            | 3 +++
  src/cmd/go/internal/list/list.go | 8 +++++++-
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2b2e17a71a..7fc2197a08 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1946,6 +1946,9 @@ func TestGoListTest(t *testing.T) {
+ 	tg.grepStdout(`^cmd/doc\.test$`, "missing cmd/doc test")
+ 	tg.grepStdoutNot(`^cmd/dist\.test$`, "unexpected cmd/dist test")
+ 	tg.grepStdoutNot(`^testing`, "unexpected testing")
++
++	tg.run("list", "-test", "runtime/cgo")
++	tg.grepStdout(`^runtime/cgo$`, "missing runtime/cgo")
+ }
+ 
+ // Issue 4096. Validate the output of unsuccessful go install foo/quxx.
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 4cd9846ce4..5b242a887a 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -318,8 +318,14 @@ func runList(cmd *base.Command, args []string) {
+ 		}
+ 		// Update import path lists to use new strings.
+ 		for _, p := range all {
++			j := 0
+ 			for i := range p.Imports {
+-				p.Imports[i] = p.Internal.Imports[i].ImportPath
++				// Internal skips "C"
++				if p.Imports[i] == "C" {
++					continue
++				}
++				p.Imports[i] = p.Internal.Imports[j].ImportPath
++				j++
+ 			}
+ 		}
+ 		// Recompute deps lists using new strings, from the leaves up.

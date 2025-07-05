@@ -9,6 +9,19 @@ Date:   Sun Dec 28 08:21:58 2014 +0100
     Change-Id: Iebd30cd6326890e9501746113a6d97480949e3d2
     Reviewed-on: https://go-review.googlesource.com/2161
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/gob/encoder_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 0ea4c0ec8e..4af7195209 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -951,6 +951,6 @@ func TestErrorForHugeSlice(t *testing.T) {
+ 		t.Fatal("decode: no error")
+ 	}
+ 	if !strings.Contains(err.Error(), "slice too big") {
+-		t.Fatal("decode: expected slice too big error, got %s", err.Error())
++		t.Fatalf("decode: expected slice too big error, got %s", err.Error())
+ 	}
+ }

@@ -13,8 +13,58 @@ Date:   Thu Mar 16 17:07:26 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38314
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  test/fixedbugs/bug289.go                 | 4 ++--
  test/fixedbugs/bug487.go                 | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 2f67b33381..d55e76b7f1 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3436,7 +3436,7 @@ func typecheckas2(n *Node) {
+ 	}
+ 
+ mismatch:
+-	yyerror("assignment count mismatch: cannot assign %d values to %d variables", cr, cl)
++	yyerror("cannot assign %d values to %d variables", cr, cl)
+ 
+ 	// second half of dance
+ out:
+diff --git a/test/fixedbugs/bug289.go b/test/fixedbugs/bug289.go
+index 5a30979838..a3f729557c 100644
+--- a/test/fixedbugs/bug289.go
++++ b/test/fixedbugs/bug289.go
+@@ -9,14 +9,14 @@
+ package main
+ 
+ func f1() {
+-	a, b := f()	// ERROR "mismatch|does not match"
++	a, b := f()	// ERROR "cannot assign|does not match"
+ 	_ = a
+ 	_ = b
+ }
+ 
+ func f2() {
+ 	var a, b int
+-	a, b = f()	// ERROR "mismatch|does not match"
++	a, b = f()	// ERROR "cannot assign|does not match"
+ 	_ = a
+ 	_ = b
+ }
+diff --git a/test/fixedbugs/bug487.go b/test/fixedbugs/bug487.go
+index e60af6c8e2..60a4ea9808 100644
+--- a/test/fixedbugs/bug487.go
++++ b/test/fixedbugs/bug487.go
+@@ -14,8 +14,8 @@ func G() (int, int, int) {
+ }
+ 
+ func F() {
+-	a, b := G()	// ERROR "mismatch"
+-	a, b = G()	// ERROR "mismatch"
++	a, b := G()	// ERROR "cannot assign"
++	a, b = G()	// ERROR "cannot assign"
+ 	_, _ = a, b
+ }
+ 

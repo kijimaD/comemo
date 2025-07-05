@@ -8,6 +8,31 @@ Date:   Wed Nov 11 22:19:58 2009 -0800
     
     R=r, r1
     https://golang.org/cl/152088
-
+---
  src/cmd/gopack/ar.c | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index d8f2d4800f..dfe2024922 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -784,9 +784,16 @@ hashstr(char *name)
+ 	h = 0;
+ 	for(cp = name; *cp; h += *cp++)
+ 		h *= 1119;
+-	if(h < 0)
+-		h = ~h;
+-	return h;
++	
++	// the code used to say
++	//	if(h < 0)
++	//		h = ~h;
++	// but on gcc 4.3 with -O2 on some systems,
++	// the if(h < 0) gets compiled away as not possible.
++	// use a mask instead, leaving plenty of bits but
++	// definitely not the sign bit.
++
++	return h & 0xfffffff;
+ }
+ 
+ int

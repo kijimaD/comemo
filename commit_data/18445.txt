@@ -10,6 +10,20 @@ Date:   Mon Feb 10 12:48:56 2014 -0800
     R=r
     CC=golang-codereviews
     https://golang.org/cl/50580046
-
+---
  src/pkg/container/heap/heap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index 52c8507b42..3fe2327ad2 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -22,7 +22,7 @@ import "sort"
+ // min-heap with the following invariants (established after
+ // Init has been called or if the data is empty or sorted):
+ //
+-//	!h.Less(j, i) for 0 <= i < h.Len() and j = 2*i+1 or 2*i+2 and j < h.Len()
++//	!h.Less(j, i) for 0 <= i < h.Len() and 2*i+1 <= j <= 2*i+2 and j < h.Len()
+ //
+ // Note that Push and Pop in this interface are for package heap's
+ // implementation to call.  To add and remove things from the heap,

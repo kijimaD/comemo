@@ -13,10 +13,124 @@ Date:   Fri Oct 6 17:16:43 2017 +0200
     Change-Id: I43b181f4c05c219be3ec57327540263b7cb3b2aa
     Reviewed-on: https://go-review.googlesource.com/68890
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/export_test.go   |  1 +
  src/time/internal_test.go |  6 +++---
  src/time/zoneinfo.go      |  2 +-
  src/time/zoneinfo_read.go | 13 +++++++------
  src/time/zoneinfo_test.go | 25 +++++++++++++++++++++++++
  5 files changed, 37 insertions(+), 10 deletions(-)
+
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index 4c08ab13af..ae24ceb99a 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -34,4 +34,5 @@ var (
+ 	GetMono                = (*Time).mono
+ 	ErrLocation            = errLocation
+ 	ReadFile               = readFile
++	LoadTzinfo             = loadTzinfo
+ )
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index 07ebe5e03d..76d5524124 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -18,11 +18,11 @@ func initTestingZone() {
+ 	localLoc = *z
+ }
+ 
+-var origZoneSources = zoneSources
++var OrigZoneSources = zoneSources
+ 
+ func forceZipFileForTesting(zipOnly bool) {
+-	zoneSources = make([]string, len(origZoneSources))
+-	copy(zoneSources, origZoneSources)
++	zoneSources = make([]string, len(OrigZoneSources))
++	copy(zoneSources, OrigZoneSources)
+ 	if zipOnly {
+ 		zoneSources = zoneSources[len(zoneSources)-1:]
+ 	}
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 4424b44106..96ff8d3970 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -294,7 +294,7 @@ func LoadLocation(name string) (*Location, error) {
+ 	})
+ 	if *zoneinfo != "" {
+ 		if zoneData, err := loadTzinfoFromDirOrZip(*zoneinfo, name); err == nil {
+-			if z, err := newLocationFromTzinfo(name, zoneData); err == nil {
++			if z, err := LoadLocationFromTZData(name, zoneData); err == nil {
+ 				return z, nil
+ 			}
+ 		}
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index 6fdcc1a2a8..839b37aac4 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -79,11 +79,12 @@ func byteString(p []byte) string {
+ 
+ var badData = errors.New("malformed time zone information")
+ 
+-// newLocationFromTzinfo returns the Location described by Tzinfo with the given name.
+-// The expected format for Tzinfo is that of a timezone file as they are found in the
+-// the IANA Time Zone database.
+-func newLocationFromTzinfo(name string, Tzinfo []byte) (*Location, error) {
+-	d := dataIO{Tzinfo, false}
++// LoadLocationFromTZData returns a Location with the given name
++// initialized from the IANA Time Zone database-formatted data.
++// The data should be in the format of a standard IANA time zone file
++// (for example, the content of /etc/localtime on Unix systems).
++func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
++	d := dataIO{data, false}
+ 
+ 	// 4-byte magic "TZif"
+ 	if magic := d.read(4); string(magic) != "TZif" {
+@@ -390,7 +391,7 @@ func loadLocation(name string, sources []string) (z *Location, firstErr error) {
+ 	for _, source := range sources {
+ 		var zoneData, err = loadTzinfo(name, source)
+ 		if err == nil {
+-			if z, err = newLocationFromTzinfo(name, zoneData); err == nil {
++			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
+ 				return z, nil
+ 			}
+ 		}
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index 452262f2ca..b9455db025 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -7,6 +7,7 @@ package time_test
+ import (
+ 	"fmt"
+ 	"os"
++	"reflect"
+ 	"testing"
+ 	"time"
+ )
+@@ -116,3 +117,27 @@ func TestLocationNames(t *testing.T) {
+ 		t.Errorf(`invalid UTC location name: got %q want "UTC"`, time.UTC)
+ 	}
+ }
++
++func TestLoadLocationFromTzinfo(t *testing.T) {
++	time.ForceZipFileForTesting(true)
++	defer time.ForceZipFileForTesting(false)
++
++	const locationName = "Asia/Jerusalem"
++	reference, err := time.LoadLocation(locationName)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	tzinfo, err := time.LoadTzinfo(locationName, time.OrigZoneSources[len(time.OrigZoneSources)-1])
++	if err != nil {
++		t.Fatal(err)
++	}
++	sample, err := time.LoadLocationFromTZData(locationName, tzinfo)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if !reflect.DeepEqual(reference, sample) {
++		t.Errorf("return values of LoadLocationFromTZData and LoadLocation don't match")
++	}
++}

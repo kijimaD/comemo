@@ -15,6 +15,27 @@ Date:   Thu May 27 18:41:12 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/reflect/asm_amd64.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/asm_amd64.s b/src/reflect/asm_amd64.s
+index 7491c772ac..d21d498063 100644
+--- a/src/reflect/asm_amd64.s
++++ b/src/reflect/asm_amd64.s
+@@ -59,7 +59,7 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$312
+ 	// NO_LOCAL_POINTERS is a lie. The stack map for the two locals in this
+ 	// frame is specially handled in the runtime. See the comment above LOCAL_RETVALID.
+ 	LEAQ	LOCAL_REGARGS(SP), R12
+-	CALL	runtime·spillArgs<ABIInternal>(SB)
++	CALL	runtime·spillArgs(SB)
+ 	MOVQ	DX, 24(SP) // outside of moveMakeFuncArgPtrs's arg area
+ 	MOVQ	DX, 0(SP)
+ 	MOVQ	R12, 8(SP)
+@@ -75,5 +75,5 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$312
+ 	MOVQ	AX, 24(SP)
+ 	CALL	·callMethod(SB)
+ 	LEAQ	LOCAL_REGARGS(SP), R12
+-	CALL	runtime·unspillArgs<ABIInternal>(SB)
++	CALL	runtime·unspillArgs(SB)
+ 	RET

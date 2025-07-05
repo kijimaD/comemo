@@ -20,7 +20,7 @@ Date:   Wed Jul 29 11:06:02 2020 -0400
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/goobj/read.go                | 46 +++++++++++++--------------
  src/cmd/internal/goobj/readnew.go             | 15 ++++++---
  src/cmd/internal/goobj2/funcinfo.go           | 31 +++++++++---------
@@ -38,3 +38,700 @@ Date:   Wed Jul 29 11:06:02 2020 -0400
  src/cmd/link/internal/loader/loader.go        | 17 +++++-----
  src/cmd/link/internal/sym/compilation_unit.go | 12 +++----
  16 files changed, 126 insertions(+), 143 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 2bbc35d345..cb388a84cd 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -94,20 +94,20 @@ type Var struct {
+ 
+ // Func contains additional per-symbol information specific to functions.
+ type Func struct {
+-	Args     int64      // size in bytes of argument frame: inputs and outputs
+-	Frame    int64      // size in bytes of local variable frame
+-	Align    uint32     // alignment requirement in bytes for the address of the function
+-	Leaf     bool       // function omits save of link register (ARM)
+-	NoSplit  bool       // function omits stack split prologue
+-	TopFrame bool       // function is the top of the call stack
+-	Var      []Var      // detail about local variables
+-	PCSP     Data       // PC → SP offset map
+-	PCFile   Data       // PC → file number map (index into File)
+-	PCLine   Data       // PC → line number map
+-	PCInline Data       // PC → inline tree index map
+-	PCData   []Data     // PC → runtime support data map
+-	FuncData []FuncData // non-PC-specific runtime support data
+-	File     []string   // paths indexed by PCFile
++	Args     int64                           // size in bytes of argument frame: inputs and outputs
++	Frame    int64                           // size in bytes of local variable frame
++	Align    uint32                          // alignment requirement in bytes for the address of the function
++	Leaf     bool                            // function omits save of link register (ARM)
++	NoSplit  bool                            // function omits stack split prologue
++	TopFrame bool                            // function is the top of the call stack
++	Var      []Var                           // detail about local variables
++	PCSP     Data                            // PC → SP offset map
++	PCFile   Data                            // PC → file number map (index into File)
++	PCLine   Data                            // PC → line number map
++	PCInline Data                            // PC → inline tree index map
++	PCData   []Data                          // PC → runtime support data map
++	FuncData []FuncData                      // non-PC-specific runtime support data
++	File     map[goobj2.CUFileIndex]struct{} // set of files used in this function
+ 	InlTree  []InlinedCall
+ }
+ 
+@@ -123,7 +123,7 @@ type FuncData struct {
+ // See cmd/internal/obj.InlTree for details.
+ type InlinedCall struct {
+ 	Parent   int64
+-	File     string
++	File     goobj2.CUFileIndex
+ 	Line     int64
+ 	Func     SymID
+ 	ParentPC int64
+@@ -131,14 +131,14 @@ type InlinedCall struct {
+ 
+ // A Package is a parsed Go object file or archive defining a Go package.
+ type Package struct {
+-	ImportPath    string          // import path denoting this package
+-	Imports       []string        // packages imported by this package
+-	SymRefs       []SymID         // list of symbol names and versions referred to by this pack
+-	Syms          []*Sym          // symbols defined by this package
+-	MaxVersion    int64           // maximum Version in any SymID in Syms
+-	Arch          string          // architecture
+-	Native        []*NativeReader // native object data (e.g. ELF)
+-	DWARFFileList []string        // List of files for the DWARF .debug_lines section
++	ImportPath string          // import path denoting this package
++	Imports    []string        // packages imported by this package
++	SymRefs    []SymID         // list of symbol names and versions referred to by this pack
++	Syms       []*Sym          // symbols defined by this package
++	MaxVersion int64           // maximum Version in any SymID in Syms
++	Arch       string          // architecture
++	Native     []*NativeReader // native object data (e.g. ELF)
++	FileList   []string        // List of files for this package.
+ }
+ 
+ type NativeReader struct {
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index ebac2b5ed1..11847942e8 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -75,6 +75,12 @@ func (r *objReader) readNew() {
+ 
+ 	// Read things for the current goobj API for now.
+ 
++	// File names
++	r.p.FileList = make([]string, rr.NFile())
++	for i := range r.p.FileList {
++		r.p.FileList[i] = rr.File(i)
++	}
++
+ 	// Symbols
+ 	pcdataBase := start + rr.PcdataBase()
+ 	ndef := uint32(rr.NSym() + rr.NHashed64def() + rr.NHasheddef() + rr.NNonpkgdef())
+@@ -166,7 +172,7 @@ func (r *objReader) readNew() {
+ 			PCInline: Data{int64(pcdataBase + info.Pcinline), int64(info.Pcdata[0] - info.Pcinline)},
+ 			PCData:   make([]Data, len(info.Pcdata)-1), // -1 as we appended one above
+ 			FuncData: make([]FuncData, len(info.Funcdataoff)),
+-			File:     make([]string, len(info.File)),
++			File:     make(map[goobj2.CUFileIndex]struct{}, len(info.File)),
+ 			InlTree:  make([]InlinedCall, len(info.InlTree)),
+ 		}
+ 		sym.Func = f
+@@ -177,15 +183,14 @@ func (r *objReader) readNew() {
+ 			symID := resolveSymRef(funcdata[k])
+ 			f.FuncData[k] = FuncData{symID, int64(info.Funcdataoff[k])}
+ 		}
+-		for k := range f.File {
+-			symID := resolveSymRef(info.File[k])
+-			f.File[k] = symID.Name
++		for _, k := range info.File {
++			f.File[k] = struct{}{}
+ 		}
+ 		for k := range f.InlTree {
+ 			inl := &info.InlTree[k]
+ 			f.InlTree[k] = InlinedCall{
+ 				Parent:   int64(inl.Parent),
+-				File:     resolveSymRef(inl.File).Name,
++				File:     inl.File,
+ 				Line:     int64(inl.Line),
+ 				Func:     resolveSymRef(inl.Func),
+ 				ParentPC: int64(inl.ParentPC),
+diff --git a/src/cmd/internal/goobj2/funcinfo.go b/src/cmd/internal/goobj2/funcinfo.go
+index b525c88b13..9d2522d3c2 100644
+--- a/src/cmd/internal/goobj2/funcinfo.go
++++ b/src/cmd/internal/goobj2/funcinfo.go
+@@ -10,6 +10,10 @@ import (
+ 	"encoding/binary"
+ )
+ 
++// CUFileIndex is used to index the filenames that are stored in the
++// per-package/per-CU FileList.
++type CUFileIndex uint32
++
+ // FuncInfo is serialized as a symbol (aux symbol). The symbol data is
+ // the binary encoding of the struct below.
+ //
+@@ -26,7 +30,7 @@ type FuncInfo struct {
+ 	Pcdata      []uint32
+ 	PcdataEnd   uint32
+ 	Funcdataoff []uint32
+-	File        []SymRef // TODO: just use string?
++	File        []CUFileIndex
+ 
+ 	InlTree []InlTreeNode
+ }
+@@ -57,8 +61,7 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
+ 	}
+ 	writeUint32(uint32(len(a.File)))
+ 	for _, f := range a.File {
+-		writeUint32(f.PkgIdx)
+-		writeUint32(f.SymIdx)
++		writeUint32(uint32(f))
+ 	}
+ 	writeUint32(uint32(len(a.InlTree)))
+ 	for i := range a.InlTree {
+@@ -93,9 +96,9 @@ func (a *FuncInfo) Read(b []byte) {
+ 		a.Funcdataoff[i] = readUint32()
+ 	}
+ 	filelen := readUint32()
+-	a.File = make([]SymRef, filelen)
++	a.File = make([]CUFileIndex, filelen)
+ 	for i := range a.File {
+-		a.File[i] = SymRef{readUint32(), readUint32()}
++		a.File[i] = CUFileIndex(readUint32())
+ 	}
+ 	inltreelen := readUint32()
+ 	a.InlTree = make([]InlTreeNode, inltreelen)
+@@ -136,8 +139,7 @@ func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
+ 	result.NumFile = binary.LittleEndian.Uint32(b[numfileOff:])
+ 	result.FileOff = numfileOff + 4
+ 
+-	const symRefSize = 4 + 4
+-	numinltreeOff := result.FileOff + symRefSize*result.NumFile
++	numinltreeOff := result.FileOff + 4*result.NumFile
+ 	result.NumInlTree = binary.LittleEndian.Uint32(b[numinltreeOff:])
+ 	result.InlTreeOff = numinltreeOff + 4
+ 
+@@ -181,14 +183,12 @@ func (*FuncInfo) ReadFuncdataoff(b []byte, funcdataofffoff uint32, k uint32) int
+ 	return int64(binary.LittleEndian.Uint32(b[funcdataofffoff+4*k:]))
+ }
+ 
+-func (*FuncInfo) ReadFile(b []byte, filesoff uint32, k uint32) SymRef {
+-	p := binary.LittleEndian.Uint32(b[filesoff+8*k:])
+-	s := binary.LittleEndian.Uint32(b[filesoff+4+8*k:])
+-	return SymRef{p, s}
++func (*FuncInfo) ReadFile(b []byte, filesoff uint32, k uint32) CUFileIndex {
++	return CUFileIndex(binary.LittleEndian.Uint32(b[filesoff+4*k:]))
+ }
+ 
+ func (*FuncInfo) ReadInlTree(b []byte, inltreeoff uint32, k uint32) InlTreeNode {
+-	const inlTreeNodeSize = 4 * 7
++	const inlTreeNodeSize = 4 * 6
+ 	var result InlTreeNode
+ 	result.Read(b[inltreeoff+k*inlTreeNodeSize:])
+ 	return result
+@@ -197,7 +197,7 @@ func (*FuncInfo) ReadInlTree(b []byte, inltreeoff uint32, k uint32) InlTreeNode
+ // InlTreeNode is the serialized form of FileInfo.InlTree.
+ type InlTreeNode struct {
+ 	Parent   int32
+-	File     SymRef
++	File     CUFileIndex
+ 	Line     int32
+ 	Func     SymRef
+ 	ParentPC int32
+@@ -210,8 +210,7 @@ func (inl *InlTreeNode) Write(w *bytes.Buffer) {
+ 		w.Write(b[:])
+ 	}
+ 	writeUint32(uint32(inl.Parent))
+-	writeUint32(inl.File.PkgIdx)
+-	writeUint32(inl.File.SymIdx)
++	writeUint32(uint32(inl.File))
+ 	writeUint32(uint32(inl.Line))
+ 	writeUint32(inl.Func.PkgIdx)
+ 	writeUint32(inl.Func.SymIdx)
+@@ -226,7 +225,7 @@ func (inl *InlTreeNode) Read(b []byte) []byte {
+ 		return x
+ 	}
+ 	inl.Parent = int32(readUint32())
+-	inl.File = SymRef{readUint32(), readUint32()}
++	inl.File = CUFileIndex(readUint32())
+ 	inl.Line = int32(readUint32())
+ 	inl.Func = SymRef{readUint32(), readUint32()}
+ 	inl.ParentPC = int32(readUint32())
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 6f0df86b06..49f45a7736 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -38,7 +38,7 @@ import (
+ //
+ //    PkgIndex [...]string // referenced packages by index
+ //
+-//    DwarfFiles [...]string
++//    Files [...]string
+ //
+ //    SymbolDefs [...]struct {
+ //       Name  string
+@@ -177,7 +177,7 @@ const (
+ const (
+ 	BlkAutolib = iota
+ 	BlkPkgIdx
+-	BlkDwarfFile
++	BlkFile
+ 	BlkSymdef
+ 	BlkHashed64def
+ 	BlkHasheddef
+@@ -686,12 +686,12 @@ func (r *Reader) Pkg(i int) string {
+ 	return r.StringRef(off)
+ }
+ 
+-func (r *Reader) NDwarfFile() int {
+-	return int(r.h.Offsets[BlkDwarfFile+1]-r.h.Offsets[BlkDwarfFile]) / stringRefSize
++func (r *Reader) NFile() int {
++	return int(r.h.Offsets[BlkFile+1]-r.h.Offsets[BlkFile]) / stringRefSize
+ }
+ 
+-func (r *Reader) DwarfFile(i int) string {
+-	off := r.h.Offsets[BlkDwarfFile] + uint32(i)*stringRefSize
++func (r *Reader) File(i int) string {
++	off := r.h.Offsets[BlkFile] + uint32(i)*stringRefSize
+ 	return r.StringRef(off)
+ }
+ 
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 3fc93081fa..724aea2f8f 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -32,18 +32,6 @@ const (
+ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
+ 	dctxt := dwCtxt{ctxt}
+ 
+-	// The Pcfile table is used to generate the debug_lines section, and the file
+-	// indices for that data could differ from the files we write out for the
+-	// debug_lines section. Here we generate a LUT between those two indices.
+-	fileNums := make(map[int32]int64)
+-	for i, filename := range s.Func.Pcln.File {
+-		if symbolIndex := ctxt.PosTable.FileIndex(filename); symbolIndex >= 0 {
+-			fileNums[int32(i)] = int64(symbolIndex) + 1
+-		} else {
+-			panic(fmt.Sprintf("First time we've seen filename: %q", filename))
+-		}
+-	}
+-
+ 	// Emit a LNE_set_address extended opcode, so as to establish the
+ 	// starting text address of this function.
+ 	dctxt.AddUint8(lines, 0)
+diff --git a/src/cmd/internal/obj/line.go b/src/cmd/internal/obj/line.go
+index 79ecb0068f..54b9c4748c 100644
+--- a/src/cmd/internal/obj/line.go
++++ b/src/cmd/internal/obj/line.go
+@@ -22,3 +22,9 @@ func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f string, l int32) {
+ 	// TODO(gri) Should this use relative or absolute line number?
+ 	return pos.SymFilename(), int32(pos.RelLine())
+ }
++
++// getFileIndexAndLine returns the file index (local to the CU), and the line number for a position.
++func getFileIndexAndLine(ctxt *Link, xpos src.XPos) (int, int32) {
++	f, l := linkgetlineFromPos(ctxt, xpos)
++	return ctxt.PosTable.FileIndex(f), l
++}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 8d189b71f9..62943a7cb3 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -631,10 +631,8 @@ type Pcln struct {
+ 	Pcdata      []Pcdata
+ 	Funcdata    []*LSym
+ 	Funcdataoff []int64
+-	File        []string
+-	Lastfile    string
+-	Lastindex   int
+-	InlTree     InlTree // per-function inlining tree extracted from the global tree
++	UsedFiles   map[goobj2.CUFileIndex]struct{} // file indices used while generating pcfile
++	InlTree     InlTree                         // per-function inlining tree extracted from the global tree
+ }
+ 
+ type Reloc struct {
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 17021d9294..ae1a3646b1 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -16,6 +16,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"path/filepath"
++	"sort"
+ 	"strings"
+ )
+ 
+@@ -69,9 +70,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 		w.StringRef(pkg)
+ 	}
+ 
+-	// DWARF file table
+-	h.Offsets[goobj2.BlkDwarfFile] = w.Offset()
+-	for _, f := range ctxt.PosTable.DebugLinesFileTable() {
++	// File table (for DWARF and pcln generation).
++	h.Offsets[goobj2.BlkFile] = w.Offset()
++	for _, f := range ctxt.PosTable.FileTable() {
+ 		w.StringRef(filepath.ToSlash(f))
+ 	}
+ 
+@@ -248,20 +249,9 @@ func (w *writer) StringTable() {
+ 		}
+ 		w.AddString(s.Name)
+ 	})
+-	w.ctxt.traverseSyms(traverseDefs, func(s *LSym) {
+-		if s.Type != objabi.STEXT {
+-			return
+-		}
+-		pc := &s.Func.Pcln
+-		for _, f := range pc.File {
+-			w.AddString(filepath.ToSlash(f))
+-		}
+-		for _, call := range pc.InlTree.nodes {
+-			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
+-			w.AddString(filepath.ToSlash(f))
+-		}
+-	})
+-	for _, f := range w.ctxt.PosTable.DebugLinesFileTable() {
++
++	// All filenames are in the postable.
++	for _, f := range w.ctxt.PosTable.FileTable() {
+ 		w.AddString(filepath.ToSlash(f))
+ 	}
+ }
+@@ -594,18 +584,19 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		for i, x := range pc.Funcdataoff {
+ 			o.Funcdataoff[i] = uint32(x)
+ 		}
+-		o.File = make([]goobj2.SymRef, len(pc.File))
+-		for i, f := range pc.File {
+-			fsym := ctxt.Lookup(f)
+-			o.File[i] = makeSymRef(fsym)
++		i := 0
++		o.File = make([]goobj2.CUFileIndex, len(pc.UsedFiles))
++		for f := range pc.UsedFiles {
++			o.File[i] = f
++			i++
+ 		}
++		sort.Slice(o.File, func(i, j int) bool { return o.File[i] < o.File[j] })
+ 		o.InlTree = make([]goobj2.InlTreeNode, len(pc.InlTree.nodes))
+ 		for i, inl := range pc.InlTree.nodes {
+-			f, l := linkgetlineFromPos(ctxt, inl.Pos)
+-			fsym := ctxt.Lookup(f)
++			f, l := getFileIndexAndLine(ctxt, inl.Pos)
+ 			o.InlTree[i] = goobj2.InlTreeNode{
+ 				Parent:   int32(inl.Parent),
+-				File:     makeSymRef(fsym),
++				File:     goobj2.CUFileIndex(f),
+ 				Line:     l,
+ 				Func:     makeSymRef(inl.Func),
+ 				ParentPC: inl.ParentPC,
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 58552b9299..b9d58e7ca3 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -5,6 +5,7 @@
+ package obj
+ 
+ import (
++	"cmd/internal/goobj2"
+ 	"encoding/binary"
+ 	"log"
+ )
+@@ -130,28 +131,13 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
+ 	if p.As == ATEXT || p.As == ANOP || p.Pos.Line() == 0 || phase == 1 {
+ 		return oldval
+ 	}
+-	f, l := linkgetlineFromPos(ctxt, p.Pos)
++	f, l := getFileIndexAndLine(ctxt, p.Pos)
+ 	if arg == nil {
+ 		return l
+ 	}
+ 	pcln := arg.(*Pcln)
+-
+-	if f == pcln.Lastfile {
+-		return int32(pcln.Lastindex)
+-	}
+-
+-	for i, file := range pcln.File {
+-		if file == f {
+-			pcln.Lastfile = f
+-			pcln.Lastindex = i
+-			return int32(i)
+-		}
+-	}
+-	i := len(pcln.File)
+-	pcln.File = append(pcln.File, f)
+-	pcln.Lastfile = f
+-	pcln.Lastindex = i
+-	return int32(i)
++	pcln.UsedFiles[goobj2.CUFileIndex(f)] = struct{}{}
++	return int32(f)
+ }
+ 
+ // pcinlineState holds the state used to create a function's inlining
+@@ -263,6 +249,7 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
+ 
+ func linkpcln(ctxt *Link, cursym *LSym) {
+ 	pcln := &cursym.Func.Pcln
++	pcln.UsedFiles = make(map[goobj2.CUFileIndex]struct{})
+ 
+ 	npcdata := 0
+ 	nfuncdata := 0
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 67e4081f74..f62e1f5e58 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -367,8 +367,9 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent
+ 			fn(fsym, d)
+ 		}
+ 	}
+-	for _, f := range pc.File {
+-		if filesym := ctxt.Lookup(f); filesym != nil {
++	files := ctxt.PosTable.FileTable()
++	for f := range pc.UsedFiles {
++		if filesym := ctxt.Lookup(files[f]); filesym != nil {
+ 			fn(fsym, filesym)
+ 		}
+ 	}
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index 7c04b6d5ce..e1c2fd5d5c 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -135,7 +135,7 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+ 			return "", 0, nil
+ 		}
+ 		fileID := int(pcValue(pcfile, pc-uint64(s.Data.Offset), arch))
+-		fileName := s.Func.File[fileID]
++		fileName := f.goobj.FileList[fileID]
+ 		pcline := make([]byte, s.Func.PCLine.Size)
+ 		_, err = f.f.ReadAt(pcline, s.Func.PCLine.Offset)
+ 		if err != nil {
+diff --git a/src/cmd/internal/src/xpos.go b/src/cmd/internal/src/xpos.go
+index 23c8346757..867d0ab069 100644
+--- a/src/cmd/internal/src/xpos.go
++++ b/src/cmd/internal/src/xpos.go
+@@ -163,8 +163,8 @@ func (t *PosTable) FileIndex(filename string) int {
+ 	return -1
+ }
+ 
+-// DebugLinesFiles returns the file table for the debug_lines DWARF section.
+-func (t *PosTable) DebugLinesFileTable() []string {
++// FileTable returns a slice of all files used to build this package.
++func (t *PosTable) FileTable() []string {
+ 	// Create a LUT of the global package level file indices. This table is what
+ 	// is written in the debug_lines header, the file[N] will be referenced as
+ 	// N+1 in the debug_lines table.
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 50eebea47a..dc237e7278 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1224,7 +1224,7 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []
+ 
+ 	// Copy over the file table.
+ 	fileNums := make(map[string]int)
+-	for i, name := range unit.DWARFFileTable {
++	for i, name := range unit.FileTable {
+ 		name := expandFile(name)
+ 		if len(name) == 0 {
+ 			// Can't have empty filenames, and having a unique
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 606736e271..e5dfa837ba 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -5,6 +5,7 @@
+ package ld
+ 
+ import (
++	"cmd/internal/goobj2"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+@@ -32,7 +33,7 @@ import (
+ type oldPclnState struct {
+ 	ldr            *loader.Loader
+ 	deferReturnSym loader.Sym
+-	numberedFiles  map[loader.Sym]int64
++	numberedFiles  map[string]int64
+ 	filepaths      []string
+ }
+ 
+@@ -88,7 +89,7 @@ func makeOldPclnState(ctxt *Link) *oldPclnState {
+ 	state := &oldPclnState{
+ 		ldr:            ldr,
+ 		deferReturnSym: drs,
+-		numberedFiles:  make(map[loader.Sym]int64),
++		numberedFiles:  make(map[string]int64),
+ 		// NB: initial entry in filepaths below is to reserve the zero value,
+ 		// so that when we do a map lookup in numberedFiles fails, it will not
+ 		// return a value slot in filepaths.
+@@ -153,30 +154,37 @@ func ftabaddstring(ftab *loader.SymbolBuilder, s string) int32 {
+ }
+ 
+ // numberfile assigns a file number to the file if it hasn't been assigned already.
+-func (state *oldPclnState) numberfile(file loader.Sym) int64 {
++// This funciton looks at a CU's file at index [i], and if it's a new filename,
++// stores that filename in the global file table, and adds it to the map lookup
++// for renumbering pcfile.
++func (state *oldPclnState) numberfile(cu *sym.CompilationUnit, i goobj2.CUFileIndex) int64 {
++	file := cu.FileTable[i]
+ 	if val, ok := state.numberedFiles[file]; ok {
+ 		return val
+ 	}
+-	sn := state.ldr.SymName(file)
+-	path := sn[len(src.FileSymPrefix):]
++	path := file
++	if strings.HasPrefix(path, src.FileSymPrefix) {
++		path = file[len(src.FileSymPrefix):]
++	}
+ 	val := int64(len(state.filepaths))
+ 	state.numberedFiles[file] = val
+ 	state.filepaths = append(state.filepaths, expandGoroot(path))
+ 	return val
+ }
+ 
+-func (state *oldPclnState) fileVal(file loader.Sym) int64 {
++func (state *oldPclnState) fileVal(cu *sym.CompilationUnit, i int32) int64 {
++	file := cu.FileTable[i]
+ 	if val, ok := state.numberedFiles[file]; ok {
+ 		return val
+ 	}
+ 	panic("should have been numbered first")
+ }
+ 
+-func (state *oldPclnState) renumberfiles(ctxt *Link, fi loader.FuncInfo, d *sym.Pcdata) {
++func (state *oldPclnState) renumberfiles(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, d *sym.Pcdata) {
+ 	// Give files numbers.
+ 	nf := fi.NumFile()
+ 	for i := uint32(0); i < nf; i++ {
+-		state.numberfile(fi.File(int(i)))
++		state.numberfile(cu, fi.File(int(i)))
+ 	}
+ 
+ 	buf := make([]byte, binary.MaxVarintLen32)
+@@ -191,10 +199,10 @@ func (state *oldPclnState) renumberfiles(ctxt *Link, fi loader.FuncInfo, d *sym.
+ 		if oldval == -1 {
+ 			val = -1
+ 		} else {
+-			if oldval < 0 || oldval >= int32(nf) {
++			if oldval < 0 || oldval >= int32(len(cu.FileTable)) {
+ 				log.Fatalf("bad pcdata %d", oldval)
+ 			}
+-			val = int32(state.fileVal(fi.File(int(oldval))))
++			val = int32(state.fileVal(cu, oldval))
+ 		}
+ 
+ 		dv := val - newval
+@@ -287,7 +295,7 @@ func (state *oldPclnState) computeDeferReturn(target *Target, s loader.Sym) uint
+ 
+ // genInlTreeSym generates the InlTree sym for a function with the
+ // specified FuncInfo.
+-func (state *oldPclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch, newState *pclntab) loader.Sym {
++func (state *oldPclnState) genInlTreeSym(cu *sym.CompilationUnit, fi loader.FuncInfo, arch *sys.Arch, newState *pclntab) loader.Sym {
+ 	ldr := state.ldr
+ 	its := ldr.CreateExtSym("", 0)
+ 	inlTreeSym := ldr.MakeSymbolUpdater(its)
+@@ -305,7 +313,7 @@ func (state *oldPclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch, new
+ 		// might overlap exactly so that only the innermost file
+ 		// appears in the Pcfile table. In that case, this assigns
+ 		// the outer file a number.
+-		val := state.numberfile(call.File)
++		val := state.numberfile(cu, call.File)
+ 		nameoff, ok := newState.funcNameOffset[call.Func]
+ 		if !ok {
+ 			panic("couldn't find function name offset")
+@@ -603,11 +611,12 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 		deferreturn := oldState.computeDeferReturn(&ctxt.Target, s)
+ 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), deferreturn))
+ 
++		cu := ldr.SymUnit(s)
+ 		if fi.Valid() {
+ 			pcsp = sym.Pcdata{P: fi.Pcsp()}
+ 			pcfile = sym.Pcdata{P: fi.Pcfile()}
+ 			pcline = sym.Pcdata{P: fi.Pcline()}
+-			oldState.renumberfiles(ctxt, fi, &pcfile)
++			oldState.renumberfiles(ctxt, cu, fi, &pcfile)
+ 			if false {
+ 				// Sanity check the new numbering
+ 				it := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
+@@ -621,7 +630,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 		}
+ 
+ 		if fi.Valid() && fi.NumInlTree() > 0 {
+-			its := oldState.genInlTreeSym(fi, ctxt.Arch, state)
++			its := oldState.genInlTreeSym(cu, fi, ctxt.Arch, state)
+ 			funcdata[objabi.FUNCDATA_InlTree] = its
+ 			pcdata[objabi.PCDATA_InlTreeIndex] = sym.Pcdata{P: fi.Pcinline()}
+ 		}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index d56c748f9c..882799e123 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1961,17 +1961,16 @@ func (fi *FuncInfo) NumFile() uint32 {
+ 	return fi.lengths.NumFile
+ }
+ 
+-func (fi *FuncInfo) File(k int) Sym {
++func (fi *FuncInfo) File(k int) goobj2.CUFileIndex {
+ 	if !fi.lengths.Initialized {
+ 		panic("need to call Preload first")
+ 	}
+-	sr := (*goobj2.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
+-	return fi.l.resolve(fi.r, sr)
++	return (*goobj2.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
+ }
+ 
+ type InlTreeNode struct {
+ 	Parent   int32
+-	File     Sym
++	File     goobj2.CUFileIndex
+ 	Line     int32
+ 	Func     Sym
+ 	ParentPC int32
+@@ -1991,7 +1990,7 @@ func (fi *FuncInfo) InlTree(k int) InlTreeNode {
+ 	node := (*goobj2.FuncInfo)(nil).ReadInlTree(fi.data, fi.lengths.InlTreeOff, uint32(k))
+ 	return InlTreeNode{
+ 		Parent:   node.Parent,
+-		File:     fi.l.resolve(fi.r, node.File),
++		File:     node.File,
+ 		Line:     node.Line,
+ 		Func:     fi.l.resolve(fi.r, node.Func),
+ 		ParentPC: node.ParentPC,
+@@ -2060,10 +2059,10 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
+ 	lib.Autolib = append(lib.Autolib, r.Autolib()...)
+ 
+ 	// DWARF file table
+-	nfile := r.NDwarfFile()
+-	unit.DWARFFileTable = make([]string, nfile)
+-	for i := range unit.DWARFFileTable {
+-		unit.DWARFFileTable[i] = r.DwarfFile(i)
++	nfile := r.NFile()
++	unit.FileTable = make([]string, nfile)
++	for i := range unit.FileTable {
++		unit.FileTable[i] = r.File(i)
+ 	}
+ 
+ 	l.addObj(lib.Pkg, or)
+diff --git a/src/cmd/link/internal/sym/compilation_unit.go b/src/cmd/link/internal/sym/compilation_unit.go
+index dc37a36cba..5d7206db66 100644
+--- a/src/cmd/link/internal/sym/compilation_unit.go
++++ b/src/cmd/link/internal/sym/compilation_unit.go
+@@ -20,12 +20,12 @@ type LoaderSym int
+ //
+ // These are used for both DWARF and pclntab generation.
+ type CompilationUnit struct {
+-	Pkg            string        // The package name, eg ("fmt", or "runtime")
+-	Lib            *Library      // Our library
+-	PclnIndex      int           // Index of this CU in pclntab
+-	PCs            []dwarf.Range // PC ranges, relative to Textp[0]
+-	DWInfo         *dwarf.DWDie  // CU root DIE
+-	DWARFFileTable []string      // The file table used to generate the .debug_lines
++	Pkg       string        // The package name, eg ("fmt", or "runtime")
++	Lib       *Library      // Our library
++	PclnIndex int           // Index of this CU in pclntab
++	PCs       []dwarf.Range // PC ranges, relative to Textp[0]
++	DWInfo    *dwarf.DWDie  // CU root DIE
++	FileTable []string      // The file table used in this compilation unit.
+ 
+ 	Consts    LoaderSym   // Package constants DIEs
+ 	FuncDIEs  []LoaderSym // Function DIE subtrees

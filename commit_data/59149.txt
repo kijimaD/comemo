@@ -12,7 +12,7 @@ Date:   Thu Feb 8 15:35:22 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go      | 8 ++++----
  src/cmd/compile/internal/types2/assignments.go   | 4 ++--
  src/cmd/compile/internal/types2/builtins_test.go | 2 +-
@@ -21,3 +21,140 @@ Date:   Thu Feb 8 15:35:22 2024 -0800
  src/cmd/compile/internal/types2/operand.go       | 2 +-
  src/cmd/compile/internal/types2/util.go          | 3 +++
  7 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index bacba71955..bab120ff93 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -152,7 +152,7 @@ func TestValuesInfo(t *testing.T) {
+ 		// look for expression
+ 		var expr syntax.Expr
+ 		for e := range info.Types {
+-			if syntax.String(e) == test.expr {
++			if ExprString(e) == test.expr {
+ 				expr = e
+ 				break
+ 			}
+@@ -424,7 +424,7 @@ func TestTypesInfo(t *testing.T) {
+ 		// look for expression type
+ 		var typ Type
+ 		for e, tv := range info.Types {
+-			if syntax.String(e) == test.expr {
++			if ExprString(e) == test.expr {
+ 				typ = tv.Type
+ 				break
+ 			}
+@@ -1135,8 +1135,8 @@ func TestPredicatesInfo(t *testing.T) {
+ 		// look for expression predicates
+ 		got := "<missing>"
+ 		for e, tv := range info.Types {
+-			//println(name, syntax.String(e))
+-			if syntax.String(e) == test.expr {
++			//println(name, ExprString(e))
++			if ExprString(e) == test.expr {
+ 				got = predString(tv)
+ 				break
+ 			}
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 8abafdba1b..612c6ca972 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -218,7 +218,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
+ 			var op operand
+ 			check.expr(nil, &op, sel.X)
+ 			if op.mode == mapindex {
+-				check.errorf(&x, UnaddressableFieldAssign, "cannot assign to struct field %s in map", syntax.String(x.expr))
++				check.errorf(&x, UnaddressableFieldAssign, "cannot assign to struct field %s in map", ExprString(x.expr))
+ 				return Typ[Invalid]
+ 			}
+ 		}
+@@ -248,7 +248,7 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
+ 		// avoid calling syntax.String if not needed
+ 		if T != nil {
+ 			if _, ok := under(T).(*Signature); ok {
+-				target = newTarget(T, syntax.String(lhs))
++				target = newTarget(T, ExprString(lhs))
+ 			}
+ 		}
+ 		x = new(operand)
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index 875ee5a4d5..2b4854b6f7 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -207,7 +207,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
+ 		// the recorded type for the built-in must match the wanted signature
+ 		typ := types[fun].Type
+ 		if typ == nil {
+-			t.Errorf("%s: no type recorded for %s", src0, syntax.String(fun))
++			t.Errorf("%s: no type recorded for %s", src0, ExprString(fun))
+ 			return
+ 		}
+ 		if got := typ.String(); got != want {
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index b8414b4849..4326ca67ef 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -102,7 +102,7 @@ func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...interface{}
+ 		case syntax.Pos:
+ 			arg = a.String()
+ 		case syntax.Expr:
+-			arg = syntax.String(a)
++			arg = ExprString(a)
+ 		case []syntax.Expr:
+ 			var buf strings.Builder
+ 			buf.WriteByte('[')
+@@ -110,7 +110,7 @@ func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...interface{}
+ 				if i > 0 {
+ 					buf.WriteString(", ")
+ 				}
+-				buf.WriteString(syntax.String(x))
++				buf.WriteString(ExprString(x))
+ 			}
+ 			buf.WriteByte(']')
+ 			arg = buf.String()
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 0117571f7b..0275fe70d7 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -698,14 +698,14 @@ func TestIssue51093(t *testing.T) {
+ 				n++
+ 				tpar, _ := tv.Type.(*TypeParam)
+ 				if tpar == nil {
+-					t.Fatalf("%s: got type %s, want type parameter", syntax.String(x), tv.Type)
++					t.Fatalf("%s: got type %s, want type parameter", ExprString(x), tv.Type)
+ 				}
+ 				if name := tpar.Obj().Name(); name != "P" {
+-					t.Fatalf("%s: got type parameter name %s, want P", syntax.String(x), name)
++					t.Fatalf("%s: got type parameter name %s, want P", ExprString(x), name)
+ 				}
+ 				// P(val) must not be constant
+ 				if tv.Value != nil {
+-					t.Errorf("%s: got constant value %s (%s), want no constant", syntax.String(x), tv.Value, tv.Value.String())
++					t.Errorf("%s: got constant value %s (%s), want no constant", ExprString(x), tv.Value, tv.Value.String())
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 3f151007e5..236ce41260 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -124,7 +124,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 
+ 	var expr string
+ 	if x.expr != nil {
+-		expr = syntax.String(x.expr)
++		expr = ExprString(x.expr)
+ 	} else {
+ 		switch x.mode {
+ 		case builtin:
+diff --git a/src/cmd/compile/internal/types2/util.go b/src/cmd/compile/internal/types2/util.go
+index d77da478fa..35ab71be2b 100644
+--- a/src/cmd/compile/internal/types2/util.go
++++ b/src/cmd/compile/internal/types2/util.go
+@@ -23,3 +23,6 @@ func cmpPos(p, q syntax.Pos) int { return p.Cmp(q) }
+ 
+ // hasDots reports whether the last argument in the call is followed by ...
+ func hasDots(call *syntax.CallExpr) bool { return call.HasDots }
++
++// ExprString returns a string representation of x.
++func ExprString(x syntax.Node) string { return syntax.String(x) }

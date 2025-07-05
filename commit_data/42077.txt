@@ -9,9 +9,443 @@ Date:   Mon Nov 4 03:51:25 2019 +0900
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/pprof/mprof_test.go | 106 ++++++++++++++++++++++++--------
  src/runtime/pprof/pprof.go      |  26 ++------
  src/runtime/pprof/proto.go      | 130 +++++++++++++++++++++-------------------
  src/runtime/pprof/protomem.go   |  23 ++++---
  4 files changed, 166 insertions(+), 119 deletions(-)
+
+diff --git a/src/runtime/pprof/mprof_test.go b/src/runtime/pprof/mprof_test.go
+index 4c14527e5b..8bc1ae41f2 100644
+--- a/src/runtime/pprof/mprof_test.go
++++ b/src/runtime/pprof/mprof_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package pprof
+ 
+ import (
+@@ -10,6 +12,7 @@ import (
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
++	"runtime/pprof/internal/profile"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -27,6 +30,10 @@ func allocateTransient2M() {
+ 	memSink = make([]byte, 2<<20)
+ }
+ 
++func allocateTransient2MInline() {
++	memSink = make([]byte, 2<<20)
++}
++
+ type Obj32 struct {
+ 	link *Obj32
+ 	pad  [32 - unsafe.Sizeof(uintptr(0))]byte
+@@ -71,42 +78,93 @@ func TestMemoryProfiler(t *testing.T) {
+ 	// Do the interesting allocations.
+ 	allocateTransient1M()
+ 	allocateTransient2M()
++	allocateTransient2MInline()
+ 	allocatePersistent1K()
+ 	allocateReflect()
+ 	memSink = nil
+ 
+ 	runtime.GC() // materialize stats
+-	var buf bytes.Buffer
+-	if err := Lookup("heap").WriteTo(&buf, 1); err != nil {
+-		t.Fatalf("failed to write heap profile: %v", err)
+-	}
+ 
+ 	memoryProfilerRun++
+ 
+-	tests := []string{
+-		fmt.Sprintf(`%v: %v \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime/pprof\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:40
+-#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:74
++	tests := []struct {
++		stk    []string
++		legacy string
++	}{{
++		stk: []string{"runtime/pprof.allocatePersistent1K", "runtime/pprof.TestMemoryProfiler"},
++		legacy: fmt.Sprintf(`%v: %v \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime/pprof\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:47
++#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:82
+ `, 32*memoryProfilerRun, 1024*memoryProfilerRun, 32*memoryProfilerRun, 1024*memoryProfilerRun),
+-
+-		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient1M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:21
+-#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:72
++	}, {
++		stk: []string{"runtime/pprof.allocateTransient1M", "runtime/pprof.TestMemoryProfiler"},
++		legacy: fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient1M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:24
++#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:79
+ `, (1<<10)*memoryProfilerRun, (1<<20)*memoryProfilerRun),
+-
+-		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:27
+-#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:73
++	}, {
++		stk: []string{"runtime/pprof.allocateTransient2M", "runtime/pprof.TestMemoryProfiler"},
++		legacy: fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:30
++#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:80
+ `, memoryProfilerRun, (2<<20)*memoryProfilerRun),
+-
+-		fmt.Sprintf(`0: 0 \[%v: %v\] @( 0x[0-9,a-f]+)+
+-#	0x[0-9,a-f]+	runtime/pprof\.allocateReflectTransient\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:48
++	}, {
++		stk: []string{"runtime/pprof.allocateTransient2MInline", "runtime/pprof.TestMemoryProfiler"},
++		legacy: fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	runtime/pprof\.allocateTransient2MInline\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:34
++#	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:81
+ `, memoryProfilerRun, (2<<20)*memoryProfilerRun),
+-	}
++	}, {
++		stk: []string{"runtime/pprof.allocateReflectTransient"},
++		legacy: fmt.Sprintf(`0: 0 \[%v: %v\] @( 0x[0-9,a-f]+)+
++#	0x[0-9,a-f]+	runtime/pprof\.allocateReflectTransient\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:55
++`, memoryProfilerRun, (2<<20)*memoryProfilerRun),
++	}}
+ 
+-	for _, test := range tests {
+-		if !regexp.MustCompile(test).Match(buf.Bytes()) {
+-			t.Fatalf("The entry did not match:\n%v\n\nProfile:\n%v\n", test, buf.String())
++	t.Run("debug=1", func(t *testing.T) {
++		var buf bytes.Buffer
++		if err := Lookup("heap").WriteTo(&buf, 1); err != nil {
++			t.Fatalf("failed to write heap profile: %v", err)
+ 		}
+-	}
++
++		for _, test := range tests {
++			if !regexp.MustCompile(test.legacy).Match(buf.Bytes()) {
++				t.Fatalf("The entry did not match:\n%v\n\nProfile:\n%v\n", test.legacy, buf.String())
++			}
++		}
++	})
++
++	t.Run("proto", func(t *testing.T) {
++		var buf bytes.Buffer
++		if err := Lookup("heap").WriteTo(&buf, 0); err != nil {
++			t.Fatalf("failed to write heap profile: %v", err)
++		}
++		p, err := profile.Parse(&buf)
++		if err != nil {
++			t.Fatalf("failed to parse heap profile: %v", err)
++		}
++		t.Logf("Profile = %v", p)
++
++		stks := stacks(p)
++		for _, test := range tests {
++			if !containsStack(stks, test.stk) {
++				t.Fatalf("No matching stack entry for %q\n\nProfile:\n%v\n", test.stk, p)
++			}
++		}
++		// Check the inlined function location is encoded correctly.
++		for _, loc := range p.Location {
++			inlinedCaller, inlinedCallee := false, false
++			for _, line := range loc.Line {
++				if line.Function.Name == "runtime/pprof.allocateTransient2MInline" {
++					inlinedCallee = true
++				}
++				if inlinedCallee && line.Function.Name == "runtime/pprof.TestMemoryProfiler" {
++					inlinedCaller = true
++				}
++			}
++			if inlinedCallee != inlinedCaller {
++				t.Errorf("want allocateTransient2MInline after TestMemoryProfiler in one location, got separate location entries:\n%v", loc)
++			}
++		}
++	})
+ }
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 2fc567ef34..a7916bf6fb 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -386,16 +386,9 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler fun
+ 		count, nanosec := scaler(r.Count, float64(r.Cycles)/cpuGHz)
+ 		values[0] = count
+ 		values[1] = int64(nanosec)
+-		locs = locs[:0]
+-		for _, addr := range r.Stack() {
+-			// For count profiles, all stack addresses are
+-			// return PCs, which is what locForPC expects.
+-			l := b.locForPC(addr)
+-			if l == 0 { // runtime.goexit
+-				continue
+-			}
+-			locs = append(locs, l)
+-		}
++		// For count profiles, all stack addresses are
++		// return PCs, which is what appendLocsForStack expects.
++		locs = b.appendLocsForStack(locs[:0], r.Stack())
+ 		b.pbSample(values, locs, nil)
+ 	}
+ 	b.build()
+@@ -451,16 +444,9 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
+ 	var locs []uint64
+ 	for _, k := range keys {
+ 		values[0] = int64(count[k])
+-		locs = locs[:0]
+-		for _, addr := range p.Stack(index[k]) {
+-			// For count profiles, all stack addresses are
+-			// return PCs, which is what locForPC expects.
+-			l := b.locForPC(addr)
+-			if l == 0 { // runtime.goexit
+-				continue
+-			}
+-			locs = append(locs, l)
+-		}
++		// For count profiles, all stack addresses are
++		// return PCs, which is what appendLocsForStack expects.
++		locs = b.appendLocsForStack(locs[:0], p.Stack(index[k]))
+ 		b.pbSample(values, locs, nil)
+ 	}
+ 	b.build()
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 688df4b942..bc4697a8ab 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -44,6 +44,7 @@ type profileBuilder struct {
+ 	locs      map[uintptr]locInfo // list of locInfo starting with the given PC.
+ 	funcs     map[string]int      // Package path-qualified function name to Function.ID
+ 	mem       []memMap
++	deck      pcDeck
+ }
+ 
+ type memMap struct {
+@@ -428,8 +429,6 @@ func (b *profileBuilder) build() {
+ 	}
+ 
+ 	values := []int64{0, 0}
+-
+-	var deck = &pcDeck{}
+ 	var locs []uint64
+ 
+ 	for e := b.m.all; e != nil; e = e.nextAll {
+@@ -445,61 +444,13 @@ func (b *profileBuilder) build() {
+ 			}
+ 		}
+ 
+-		deck.reset()
+-		locs = locs[:0]
+-
+ 		// Addresses from stack traces point to the next instruction after each call,
+ 		// except for the leaf, which points to where the signal occurred.
+-		// deck.add+emitLocation expects return PCs so increment the leaf address to
++		// appendLocsForStack expects return PCs so increment the leaf address to
+ 		// look like a return PC.
+ 		e.stk[0] += 1
+-		for stk := e.stk; len(stk) > 0; {
+-			addr := stk[0]
+-			if l, ok := b.locs[addr]; ok {
+-				// first record the location if there is any pending accumulated info.
+-				if id := b.emitLocation(deck); id > 0 {
+-					locs = append(locs, id)
+-				}
+-
+-				// then, record the cached location.
+-				locs = append(locs, l.id)
+-				stk = stk[len(l.pcs):] // skip the matching pcs.
+-				continue
+-			}
+-
+-			frames, symbolizeResult := allFrames(addr)
+-			if len(frames) == 0 { // runtime.goexit.
+-				if id := b.emitLocation(deck); id > 0 {
+-					locs = append(locs, id)
+-				}
+-				stk = stk[1:]
+-				continue
+-			}
+-
+-			if added := deck.tryAdd(addr, frames, symbolizeResult); added {
+-				stk = stk[1:]
+-				continue
+-			}
+-			// add failed because this addr is not inlined with
+-			// the existing PCs in the deck. Flush the deck and retry to
+-			// handle this pc.
+-			if id := b.emitLocation(deck); id > 0 {
+-				locs = append(locs, id)
+-			}
+-
+-			// check cache again - previous emitLocation added a new entry
+-			if l, ok := b.locs[addr]; ok {
+-				locs = append(locs, l.id)
+-				stk = stk[len(l.pcs):] // skip the matching pcs.
+-			} else {
+-				deck.tryAdd(addr, frames, symbolizeResult) // must succeed.
+-				stk = stk[1:]
+-			}
+-		}
+-		if id := b.emitLocation(deck); id > 0 { // emit remaining location.
+-			locs = append(locs, id)
+-		}
+-		e.stk[0] -= 1 // undo the adjustment on the leaf done before the loop.
++		locs = b.appendLocsForStack(locs[:0], e.stk)
++		e.stk[0] -= 1 // undo the adjustment on the leaf.
+ 
+ 		b.pbSample(values, locs, labels)
+ 	}
+@@ -517,6 +468,62 @@ func (b *profileBuilder) build() {
+ 	b.zw.Close()
+ }
+ 
++// appendLocsForStack appends the location IDs for the given stack trace to the given
++// location ID slice, locs. The addresses in the stack are return PCs or 1 + the PC of
++// an inline marker as the runtime traceback function returns.
++//
++// It may emit to b.pb, so there must be no message encoding in progress.
++func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLocs []uint64) {
++	b.deck.reset()
++	for len(stk) > 0 {
++		addr := stk[0]
++		if l, ok := b.locs[addr]; ok {
++			// first record the location if there is any pending accumulated info.
++			if id := b.emitLocation(); id > 0 {
++				locs = append(locs, id)
++			}
++
++			// then, record the cached location.
++			locs = append(locs, l.id)
++			stk = stk[len(l.pcs):] // skip the matching pcs.
++			continue
++		}
++
++		frames, symbolizeResult := allFrames(addr)
++		if len(frames) == 0 { // runtime.goexit.
++			if id := b.emitLocation(); id > 0 {
++				locs = append(locs, id)
++			}
++			stk = stk[1:]
++			continue
++		}
++
++		if added := b.deck.tryAdd(addr, frames, symbolizeResult); added {
++			stk = stk[1:]
++			continue
++		}
++		// add failed because this addr is not inlined with
++		// the existing PCs in the deck. Flush the deck and retry to
++		// handle this pc.
++		if id := b.emitLocation(); id > 0 {
++			locs = append(locs, id)
++		}
++
++		// check cache again - previous emitLocation added a new entry
++		if l, ok := b.locs[addr]; ok {
++			locs = append(locs, l.id)
++			stk = stk[len(l.pcs):] // skip the matching pcs.
++		} else {
++			b.deck.tryAdd(addr, frames, symbolizeResult) // must succeed.
++			stk = stk[1:]
++		}
++	}
++	if id := b.emitLocation(); id > 0 { // emit remaining location.
++		locs = append(locs, id)
++	}
++	return locs
++}
++
+ // pcDeck is a helper to detect a sequence of inlined functions from
+ // a stack trace returned by the runtime.
+ //
+@@ -583,15 +590,14 @@ func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symb
+ // and returns the location ID encoded in the profile protobuf.
+ // It emits to b.pb, so there must be no message encoding in progress.
+ // It resets the deck.
+-func (b *profileBuilder) emitLocation(deck *pcDeck) uint64 {
+-	defer deck.reset()
+-
+-	if len(deck.pcs) == 0 {
++func (b *profileBuilder) emitLocation() uint64 {
++	if len(b.deck.pcs) == 0 {
+ 		return 0
+ 	}
++	defer b.deck.reset()
+ 
+-	addr := deck.pcs[0]
+-	firstFrame := deck.frames[0]
++	addr := b.deck.pcs[0]
++	firstFrame := b.deck.frames[0]
+ 
+ 	// We can't write out functions while in the middle of the
+ 	// Location message, so record new functions we encounter and
+@@ -603,12 +609,12 @@ func (b *profileBuilder) emitLocation(deck *pcDeck) uint64 {
+ 	newFuncs := make([]newFunc, 0, 8)
+ 
+ 	id := uint64(len(b.locs)) + 1
+-	b.locs[addr] = locInfo{id: id, pcs: append([]uintptr{}, deck.pcs...)}
++	b.locs[addr] = locInfo{id: id, pcs: append([]uintptr{}, b.deck.pcs...)}
+ 
+ 	start := b.pb.startMessage()
+ 	b.pb.uint64Opt(tagLocation_ID, id)
+ 	b.pb.uint64Opt(tagLocation_Address, uint64(firstFrame.PC))
+-	for _, frame := range deck.frames {
++	for _, frame := range b.deck.frames {
+ 		// Write out each line in frame expansion.
+ 		funcID := uint64(b.funcs[frame.Function])
+ 		if funcID == 0 {
+@@ -623,7 +629,7 @@ func (b *profileBuilder) emitLocation(deck *pcDeck) uint64 {
+ 			b.pb.uint64Opt(tagLocation_MappingID, uint64(i+1))
+ 
+ 			m := b.mem[i]
+-			m.funcs |= deck.symbolizeResult
++			m.funcs |= b.deck.symbolizeResult
+ 			b.mem[i] = m
+ 			break
+ 		}
+diff --git a/src/runtime/pprof/protomem.go b/src/runtime/pprof/protomem.go
+index 1c88aae43a..fa75a28c62 100644
+--- a/src/runtime/pprof/protomem.go
++++ b/src/runtime/pprof/protomem.go
+@@ -27,30 +27,27 @@ func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64, defau
+ 	values := []int64{0, 0, 0, 0}
+ 	var locs []uint64
+ 	for _, r := range p {
+-		locs = locs[:0]
+ 		hideRuntime := true
+ 		for tries := 0; tries < 2; tries++ {
+-			for _, addr := range r.Stack() {
+-				// For heap profiles, all stack
+-				// addresses are return PCs, which is
+-				// what locForPC expects.
+-				if hideRuntime {
++			stk := r.Stack()
++			// For heap profiles, all stack
++			// addresses are return PCs, which is
++			// what appendLocsForStack expects.
++			if hideRuntime {
++				for i, addr := range stk {
+ 					if f := runtime.FuncForPC(addr); f != nil && strings.HasPrefix(f.Name(), "runtime.") {
+ 						continue
+ 					}
+ 					// Found non-runtime. Show any runtime uses above it.
+-					hideRuntime = false
++					stk = stk[i:]
++					break
+ 				}
+-				l := b.locForPC(addr)
+-				if l == 0 { // runtime.goexit
+-					continue
+-				}
+-				locs = append(locs, l)
+ 			}
++			locs = b.appendLocsForStack(locs[:0], stk)
+ 			if len(locs) > 0 {
+ 				break
+ 			}
+-			hideRuntime = false // try again, and show all frames
++			hideRuntime = false // try again, and show all frames next time.
+ 		}
+ 
+ 		values[0], values[1] = scaleHeapSample(r.AllocObjects, r.AllocBytes, rate)

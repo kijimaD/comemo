@@ -11,7 +11,51 @@ Date:   Fri Oct 21 13:44:29 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 13 ++++++++-----
  test/fixedbugs/issue16428.go             | 12 ++++++++++++
  2 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 182bf0727a..2f30967e66 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -344,12 +344,15 @@ OpSwitch:
+ 		if n.Left == nil {
+ 			t = typSlice(r.Type)
+ 		} else if n.Left.Op == ODDD {
+-			t = typDDDArray(r.Type)
+-			if top&Ecomplit == 0 && n.Diag == 0 {
+-				t.Broke = true
+-				n.Diag = 1
+-				yyerror("use of [...] array outside of array literal")
++			if top&Ecomplit == 0 {
++				if n.Diag == 0 {
++					n.Diag = 1
++					yyerror("use of [...] array outside of array literal")
++				}
++				n.Type = nil
++				return n
+ 			}
++			t = typDDDArray(r.Type)
+ 		} else {
+ 			n.Left = indexlit(typecheck(n.Left, Erv))
+ 			l := n.Left
+diff --git a/test/fixedbugs/issue16428.go b/test/fixedbugs/issue16428.go
+new file mode 100644
+index 0000000000..5696d186c7
+--- /dev/null
++++ b/test/fixedbugs/issue16428.go
+@@ -0,0 +1,12 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var (
++	b = [...]byte("abc") // ERROR "outside of array literal"
++	s = len(b)
++)

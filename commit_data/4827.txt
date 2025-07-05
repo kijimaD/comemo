@@ -8,7 +8,60 @@ Date:   Tue Feb 9 17:42:51 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/204062
-
+---
  src/pkg/http/request.go  |  5 ++++-
  src/pkg/http/response.go | 12 +++++++++---
  2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 17afc9cc1b..bd8f00d552 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -171,7 +171,10 @@ func (req *Request) Write(w io.Writer) os.Error {
+ 	// from Request, and introduce Request methods along the lines of
+ 	// Response.{GetHeader,AddHeader} and string constants for "Host",
+ 	// "User-Agent" and "Referer".
+-	writeSortedKeyValue(w, req.Header, reqExcludeHeader)
++	err := writeSortedKeyValue(w, req.Header, reqExcludeHeader)
++	if err != nil {
++		return err
++	}
+ 
+ 	io.WriteString(w, "\r\n")
+ 
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index 30f8934917..b3743a88cb 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -459,7 +459,10 @@ func (resp *Response) Write(w io.Writer) os.Error {
+ 	}
+ 
+ 	// Rest of header
+-	writeSortedKeyValue(w, resp.Header, respExcludeHeader)
++	err := writeSortedKeyValue(w, resp.Header, respExcludeHeader)
++	if err != nil {
++		return err
++	}
+ 
+ 	// End-of-header
+ 	io.WriteString(w, "\r\n")
+@@ -494,7 +497,7 @@ func (resp *Response) Write(w io.Writer) os.Error {
+ 	return nil
+ }
+ 
+-func writeSortedKeyValue(w io.Writer, kvm map[string]string, exclude map[string]int) {
++func writeSortedKeyValue(w io.Writer, kvm map[string]string, exclude map[string]int) os.Error {
+ 	kva := make([]string, len(kvm))
+ 	i := 0
+ 	for k, v := range kvm {
+@@ -506,6 +509,9 @@ func writeSortedKeyValue(w io.Writer, kvm map[string]string, exclude map[string]
+ 	kva = kva[0:i]
+ 	sort.SortStrings(kva)
+ 	for _, l := range kva {
+-		io.WriteString(w, l)
++		if _, err := io.WriteString(w, l); err != nil {
++			return err
++		}
+ 	}
++	return nil
+ }

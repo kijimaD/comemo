@@ -11,7 +11,7 @@ Date:   Mon Apr 12 19:05:01 2021 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  misc/cgo/test/setgid_linux.go          | 2 +-
  misc/cgo/testcarchive/carchive_test.go | 2 +-
  src/debug/elf/elf.go                   | 4 ++--
@@ -21,3 +21,119 @@ Date:   Mon Apr 12 19:05:01 2021 -0700
  src/runtime/cgo/gcc_sigaction.c        | 2 +-
  src/runtime/os_linux_be64.go           | 2 +-
  8 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/test/setgid_linux.go b/misc/cgo/test/setgid_linux.go
+index 6773f94d3d..7c64946cb3 100644
+--- a/misc/cgo/test/setgid_linux.go
++++ b/misc/cgo/test/setgid_linux.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test that setgid does not hang on GNU/Linux.
++// Test that setgid does not hang on Linux.
+ // See https://golang.org/issue/3871 for details.
+ 
+ package cgotest
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index ec717c4f8b..55be3c5f70 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -775,7 +775,7 @@ func TestSIGPROF(t *testing.T) {
+ // tool with -buildmode=c-archive, it passes -shared to the compiler,
+ // so we override that. The go tool doesn't work this way, but Bazel
+ // will likely do it in the future. And it ought to work. This test
+-// was added because at one time it did not work on PPC GNU/Linux.
++// was added because at one time it did not work on PPC Linux.
+ func TestCompileWithoutShared(t *testing.T) {
+ 	// For simplicity, reuse the signal forwarding test.
+ 	checkSignalForwardingTest(t)
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index b04d874019..9f8399d4d3 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -123,8 +123,8 @@ const (
+ 	ELFOSABI_NONE       OSABI = 0   /* UNIX System V ABI */
+ 	ELFOSABI_HPUX       OSABI = 1   /* HP-UX operating system */
+ 	ELFOSABI_NETBSD     OSABI = 2   /* NetBSD */
+-	ELFOSABI_LINUX      OSABI = 3   /* GNU/Linux */
+-	ELFOSABI_HURD       OSABI = 4   /* GNU/Hurd */
++	ELFOSABI_LINUX      OSABI = 3   /* Linux */
++	ELFOSABI_HURD       OSABI = 4   /* Hurd */
+ 	ELFOSABI_86OPEN     OSABI = 5   /* 86Open common IA32 ABI */
+ 	ELFOSABI_SOLARIS    OSABI = 6   /* Solaris */
+ 	ELFOSABI_AIX        OSABI = 7   /* AIX */
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index b5d87fcb73..deec41324b 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -174,7 +174,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
+ 		// with the netpoll system. That can happen for
+ 		// a file descriptor that is not supported by
+ 		// epoll/kqueue; for example, disk files on
+-		// GNU/Linux systems. We assume that any real error
++		// Linux systems. We assume that any real error
+ 		// will show up in later I/O.
+ 	} else if pollable {
+ 		// We successfully registered with netpoll, so put
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index a210795849..7af61d2d81 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -50,7 +50,7 @@ If the Go program is started with either SIGHUP or SIGINT ignored
+ If the Go program is started with a non-empty signal mask, that will
+ generally be honored. However, some signals are explicitly unblocked:
+ the synchronous signals, SIGILL, SIGTRAP, SIGSTKFLT, SIGCHLD, SIGPROF,
+-and, on GNU/Linux, signals 32 (SIGCANCEL) and 33 (SIGSETXID)
++and, on Linux, signals 32 (SIGCANCEL) and 33 (SIGSETXID)
+ (SIGCANCEL and SIGSETXID are used internally by glibc). Subprocesses
+ started by os.Exec, or by the os/exec package, will inherit the
+ modified signal mask.
+@@ -176,7 +176,7 @@ will initialize signals at global constructor time.  For
+ shared library is loaded.
+ 
+ If the Go runtime sees an existing signal handler for the SIGCANCEL or
+-SIGSETXID signals (which are used only on GNU/Linux), it will turn on
++SIGSETXID signals (which are used only on Linux), it will turn on
+ the SA_ONSTACK flag and otherwise keep the signal handler.
+ 
+ For the synchronous signals and SIGPIPE, the Go runtime will install a
+diff --git a/src/os/wait_waitid.go b/src/os/wait_waitid.go
+index 1f3cb1cfe2..44962c8534 100644
+--- a/src/os/wait_waitid.go
++++ b/src/os/wait_waitid.go
+@@ -23,7 +23,7 @@ const _P_PID = 1
+ // It does not actually call p.Wait.
+ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	// The waitid system call expects a pointer to a siginfo_t,
+-	// which is 128 bytes on all GNU/Linux systems.
++	// which is 128 bytes on all Linux systems.
+ 	// On darwin/amd64, it requires 104 bytes.
+ 	// We don't care about the values it returns.
+ 	var siginfo [16]uint64
+diff --git a/src/runtime/cgo/gcc_sigaction.c b/src/runtime/cgo/gcc_sigaction.c
+index e510e359fe..890008e327 100644
+--- a/src/runtime/cgo/gcc_sigaction.c
++++ b/src/runtime/cgo/gcc_sigaction.c
+@@ -23,7 +23,7 @@ typedef struct {
+ } go_sigaction_t;
+ 
+ // SA_RESTORER is part of the kernel interface.
+-// This is GNU/Linux i386/amd64 specific.
++// This is Linux i386/amd64 specific.
+ #ifndef SA_RESTORER
+ #define SA_RESTORER 0x4000000
+ #endif
+diff --git a/src/runtime/os_linux_be64.go b/src/runtime/os_linux_be64.go
+index 806d02fee8..498d7cec6d 100644
+--- a/src/runtime/os_linux_be64.go
++++ b/src/runtime/os_linux_be64.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The standard GNU/Linux sigset type on big-endian 64-bit machines.
++// The standard Linux sigset type on big-endian 64-bit machines.
+ 
+ //go:build linux && (ppc64 || s390x)
+ // +build linux

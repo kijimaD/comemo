@@ -7,6 +7,19 @@ Date:   Thu Mar 15 15:08:57 2012 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5820064
-
+---
  src/pkg/go/build/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index ba3bfdf9a0..bf9801c802 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -363,6 +363,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 
+ 	binaryOnly := false
+ 	if IsLocalImport(path) {
++		pkga = "" // local imports have no installed path
+ 		if srcDir == "" {
+ 			return p, fmt.Errorf("import %q: import relative to unknown directory", path)
+ 		}

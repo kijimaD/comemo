@@ -13,7 +13,42 @@ Date:   Mon Sep 10 09:27:47 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/image/png/reader_test.go | 4 ----
  src/image/png/writer_test.go | 4 ++--
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/image/png/reader_test.go b/src/image/png/reader_test.go
+index 66bcfcb437..33dcd3debc 100644
+--- a/src/image/png/reader_test.go
++++ b/src/image/png/reader_test.go
+@@ -364,10 +364,6 @@ func TestReader(t *testing.T) {
+ 		}
+ 		defer sf.Close()
+ 		sb := bufio.NewScanner(sf)
+-		if err != nil {
+-			t.Error(fn, err)
+-			continue
+-		}
+ 
+ 		// Compare the two, in SNG format, line by line.
+ 		for {
+diff --git a/src/image/png/writer_test.go b/src/image/png/writer_test.go
+index 1107ea0e7f..6c5e942310 100644
+--- a/src/image/png/writer_test.go
++++ b/src/image/png/writer_test.go
+@@ -61,12 +61,12 @@ func TestWriter(t *testing.T) {
+ 		m1, err := readPNG(qfn)
+ 		if err != nil {
+ 			t.Error(fn, err)
+-			return
++			continue
+ 		}
+ 		m2, err := encodeDecode(m1)
+ 		if err != nil {
+ 			t.Error(fn, err)
+-			return
++			continue
+ 		}
+ 		// Compare the two.
+ 		err = diff(m0, m2)

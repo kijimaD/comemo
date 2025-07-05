@@ -13,8 +13,82 @@ Date:   Tue Apr 19 06:26:53 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Filippo Valsorda <valsorda@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  doc/go1.19.html                         | 10 ++++++++++
  src/crypto/tls/common.go                |  6 +-----
  src/crypto/tls/handshake_server_test.go | 10 ----------
  3 files changed, 11 insertions(+), 15 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 8305decece..51b5a54e16 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -92,6 +92,16 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: complete this section
+ </p>
+ 
++<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
++  <dd>
++    <p><!-- CL 400974 -->
++      The <code>tls10default</code> <code>GODEBUG</code> option has been
++      removed. It is still possible to enable TLS 1.0 client-side by setting
++      <code>Config.MinVersion</code>.
++    </p>
++  </dd>
++</dl><!-- crypto/tls -->
++
+ <dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
+   <dd>
+     <p><!-- CL 396795 -->
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index e6e7598ce9..59b41effbe 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -18,7 +18,6 @@ import (
+ 	"crypto/x509"
+ 	"errors"
+ 	"fmt"
+-	"internal/godebug"
+ 	"io"
+ 	"net"
+ 	"strings"
+@@ -974,9 +973,6 @@ var supportedVersions = []uint16{
+ 	VersionTLS10,
+ }
+ 
+-// debugEnableTLS10 enables TLS 1.0. See issue 45428.
+-var debugEnableTLS10 = godebug.Get("tls10default") == "1"
+-
+ // roleClient and roleServer are meant to call supportedVersions and parents
+ // with more readability at the callsite.
+ const roleClient = true
+@@ -985,7 +981,7 @@ const roleServer = false
+ func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 	versions := make([]uint16, 0, len(supportedVersions))
+ 	for _, v := range supportedVersions {
+-		if (c == nil || c.MinVersion == 0) && !debugEnableTLS10 &&
++		if (c == nil || c.MinVersion == 0) &&
+ 			isClient && v < VersionTLS12 {
+ 			continue
+ 		}
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 16a22542eb..1f3a174d58 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -400,16 +400,6 @@ func TestVersion(t *testing.T) {
+ 	if err == nil {
+ 		t.Fatalf("expected failure to connect with TLS 1.0/1.1")
+ 	}
+-
+-	defer func(old bool) { debugEnableTLS10 = old }(debugEnableTLS10)
+-	debugEnableTLS10 = true
+-	_, _, err = testHandshake(t, clientConfig, serverConfig)
+-	if err != nil {
+-		t.Fatalf("handshake failed: %s", err)
+-	}
+-	if state.Version != VersionTLS11 {
+-		t.Fatalf("incorrect version %x, should be %x", state.Version, VersionTLS11)
+-	}
+ }
+ 
+ func TestCipherSuitePreference(t *testing.T) {

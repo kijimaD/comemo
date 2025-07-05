@@ -15,6 +15,24 @@ Date:   Tue May 10 07:50:09 2016 +0200
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/internal/gccgoimporter/importer.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/importer.go b/src/go/internal/gccgoimporter/importer.go
+index 65cc2df686..19b9c73568 100644
+--- a/src/go/internal/gccgoimporter/importer.go
++++ b/src/go/internal/gccgoimporter/importer.go
+@@ -88,12 +88,6 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
+ 	if err != nil {
+ 		return
+ 	}
+-	// reset to offset 0 - needed on Plan 9 (see issue #11265)
+-	// TODO: remove once issue #11265 has been resolved.
+-	_, err = f.Seek(0, io.SeekStart)
+-	if err != nil {
+-		return
+-	}
+ 
+ 	var elfreader io.ReaderAt
+ 	switch string(magic[:]) {

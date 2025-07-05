@@ -8,6 +8,21 @@ Date:   Sun Aug 3 00:34:05 2008 -0700
     DELTA=4  (2 added, 2 deleted, 0 changed)
     OCL=13775
     CL=13779
-
+---
  src/runtime/sys_types.h | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_types.h b/src/runtime/sys_types.h
+index 117fae2af1..cffdaa9f68 100644
+--- a/src/runtime/sys_types.h
++++ b/src/runtime/sys_types.h
+@@ -7,7 +7,7 @@
+ #else
+ 	#ifdef amd64_darwin
+ 		#include "amd64_darwin.h"
++	#else
++		You_need_to_write_the_syscall_header
+ 	#endif
+-#else
+-	You_need_to_write_the_syscall_header
+ #endif

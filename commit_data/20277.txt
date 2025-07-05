@@ -8,8 +8,93 @@ Date:   Thu Aug 28 15:04:10 2014 -0700
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/129650043
-
+---
  src/pkg/crypto/md5/gen.go      | 23 +++++++++++++++++++----
  src/pkg/crypto/md5/md5.go      |  2 ++
  src/pkg/crypto/md5/md5block.go |  2 +-
  3 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/md5/gen.go b/src/pkg/crypto/md5/gen.go
+index 75295e4fcb..8cd0a6358e 100644
+--- a/src/pkg/crypto/md5/gen.go
++++ b/src/pkg/crypto/md5/gen.go
+@@ -7,7 +7,7 @@
+ // This program generates md5block.go
+ // Invoke as
+ //
+-//	go run gen.go [-full] |gofmt >md5block.go
++//	go run gen.go [-full] -output md5block.go
+ //
+ // The -full flag causes the generated code to do a full
+ // (16x) unrolling instead of a 4x unrolling.
+@@ -15,18 +15,33 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"flag"
++	"go/format"
++	"io/ioutil"
+ 	"log"
+-	"os"
+ 	"strings"
+ 	"text/template"
+ )
+ 
++var filename = flag.String("output", "md5block.go", "output file name")
++
+ func main() {
+ 	flag.Parse()
+ 
++	var buf bytes.Buffer
++
+ 	t := template.Must(template.New("main").Funcs(funcs).Parse(program))
+-	if err := t.Execute(os.Stdout, data); err != nil {
++	if err := t.Execute(&buf, data); err != nil {
++		log.Fatal(err)
++	}
++
++	data, err := format.Source(buf.Bytes())
++	if err != nil {
++		log.Fatal(err)
++	}
++	err = ioutil.WriteFile(*filename, data, 0644)
++	if err != nil {
+ 		log.Fatal(err)
+ 	}
+ }
+@@ -165,7 +180,7 @@ var program = `// Copyright 2013 The Go Authors. All rights reserved.
+ // license that can be found in the LICENSE file.
+ 
+ // DO NOT EDIT.
+-// Generate with: go run gen.go{{if .Full}} -full{{end}} | gofmt >md5block.go
++// Generate with: go run gen.go{{if .Full}} -full{{end}} -output md5block.go
+ 
+ package md5
+ 
+diff --git a/src/pkg/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+index 1a1f35fabc..8c50c6d0bf 100644
+--- a/src/pkg/crypto/md5/md5.go
++++ b/src/pkg/crypto/md5/md5.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:generate go run gen.go -full -output md5block.go
++
+ // Package md5 implements the MD5 hash algorithm as defined in RFC 1321.
+ package md5
+ 
+diff --git a/src/pkg/crypto/md5/md5block.go b/src/pkg/crypto/md5/md5block.go
+index e2a1767775..64e1e7c1ef 100644
+--- a/src/pkg/crypto/md5/md5block.go
++++ b/src/pkg/crypto/md5/md5block.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // DO NOT EDIT.
+-// Generate with: go run gen.go -full | gofmt >md5block.go
++// Generate with: go run gen.go -full -output md5block.go
+ 
+ package md5
+ 

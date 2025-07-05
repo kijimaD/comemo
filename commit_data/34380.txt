@@ -11,6 +11,29 @@ Date:   Sat Oct 21 12:07:55 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/72450
     Reviewed-by: Tim Cooper <tim.cooper@layeh.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/csv/reader.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index e646740b4f..3f8ff05814 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -80,7 +80,7 @@ func (e *ParseError) Error() string {
+ 	return fmt.Sprintf("parse error on line %d, column %d: %v", e.Line, e.Column, e.Err)
+ }
+ 
+-// These are the errors that can be returned in ParseError.Error
++// These are the errors that can be returned in ParseError.Err.
+ var (
+ 	ErrTrailingComma = errors.New("extra delimiter at end of line") // Deprecated: No longer used.
+ 	ErrBareQuote     = errors.New("bare \" in non-quoted-field")
+@@ -315,7 +315,7 @@ parseField:
+ 						// `"` sequence (bare quote).
+ 						r.recordBuffer = append(r.recordBuffer, '"')
+ 					default:
+-						// `"*` squence (invalid non-escaped quote).
++						// `"*` sequence (invalid non-escaped quote).
+ 						col := utf8.RuneCount(fullLine[:len(fullLine)-len(line)-quoteLen])
+ 						err = &ParseError{RecordLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
+ 						break parseField

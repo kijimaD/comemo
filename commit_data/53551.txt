@@ -13,6 +13,20 @@ Date:   Tue Aug 16 20:45:59 2022 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/debug/pe/section.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/pe/section.go b/src/debug/pe/section.go
+index 997f0ef714..fabb47af2e 100644
+--- a/src/debug/pe/section.go
++++ b/src/debug/pe/section.go
+@@ -98,7 +98,7 @@ type Section struct {
+ 
+ // Data reads and returns the contents of the PE section s.
+ func (s *Section) Data() ([]byte, error) {
+-	return saferio.ReadDataAt(s.sr, uint64(s.sr.Size()), 0)
++	return saferio.ReadDataAt(s.sr, uint64(s.Size), 0)
+ }
+ 
+ // Open returns a new ReadSeeker reading the PE section s.

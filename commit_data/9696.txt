@@ -8,7 +8,70 @@ Date:   Thu Sep 15 12:34:34 2011 -0400
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/5024046
-
+---
  src/pkg/go/build/build_test.go      | 20 +++++---------------
  src/pkg/go/build/cgotest/cgotest.go |  3 ---
  2 files changed, 5 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index f53c7ef68d..68a4180c90 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -45,12 +45,10 @@ var buildPkgs = []struct {
+ 	{
+ 		"go/build/cgotest",
+ 		&DirInfo{
+-			CgoFiles:     []string{"cgotest.go"},
+-			CFiles:       []string{"cgotest.c"},
+-			Imports:      []string{"C", "unsafe"},
+-			Package:      "cgotest",
+-			CgoLDFLAGS:   []string{"-lregexp"},
+-			CgoPkgConfig: []string{"cairo", "moscow"},
++			CgoFiles: []string{"cgotest.go"},
++			CFiles:   []string{"cgotest.c"},
++			Imports:  []string{"C", "unsafe"},
++			Package:  "cgotest",
+ 		},
+ 	},
+ }
+@@ -58,11 +56,10 @@ var buildPkgs = []struct {
+ const cmdtestOutput = "3"
+ 
+ func TestBuild(t *testing.T) {
+-	var ctxt = Context{GOOS: "darwin", GOARCH: "amd64"}
+ 	for _, tt := range buildPkgs {
+ 		tree := Path[0] // Goroot
+ 		dir := filepath.Join(tree.SrcDir(), tt.dir)
+-		info, err := ctxt.ScanDir(dir)
++		info, err := ScanDir(dir)
+ 		if err != nil {
+ 			t.Errorf("ScanDir(%#q): %v", tt.dir, err)
+ 			continue
+@@ -72,13 +69,6 @@ func TestBuild(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if tt.dir == "go/build/cgotest" {
+-			// Don't actually run cgo.
+-			// Among other things our test depends
+-			// on pkg-config, which is not present on all systems.
+-			continue
+-		}
+-
+ 		s, err := Build(tree, tt.dir, info)
+ 		if err != nil {
+ 			t.Errorf("Build(%#q): %v", tt.dir, err)
+diff --git a/src/pkg/go/build/cgotest/cgotest.go b/src/pkg/go/build/cgotest/cgotest.go
+index f62a85dfc4..93bbf06883 100644
+--- a/src/pkg/go/build/cgotest/cgotest.go
++++ b/src/pkg/go/build/cgotest/cgotest.go
+@@ -6,9 +6,6 @@ package cgotest
+ 
+ /*
+ char* greeting = "hello, world";
+-#cgo darwin/amd64 LDFLAGS: -lregexp
+-#cgo linux CFLAGS: -m32
+-#cgo pkg-config: cairo moscow
+ */
+ // #include "cgotest.h"
+ import "C"

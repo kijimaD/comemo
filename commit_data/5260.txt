@@ -7,9 +7,65 @@ Date:   Fri Apr 9 14:37:26 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/831045
-
+---
  src/pkg/cmath/exp.go   | 2 +-
  src/pkg/cmath/polar.go | 2 +-
  src/pkg/cmath/pow.go   | 2 +-
  src/pkg/cmath/sqrt.go  | 4 ++--
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/cmath/exp.go b/src/pkg/cmath/exp.go
+index 7f7e53a640..1a639c5969 100644
+--- a/src/pkg/cmath/exp.go
++++ b/src/pkg/cmath/exp.go
+@@ -47,7 +47,7 @@ import "math"
+ //    DEC       -10,+10      8700       3.7e-17     1.1e-17
+ //    IEEE      -10,+10     30000       3.0e-16     8.7e-17
+ 
+-// Exp returns e^x, the base-e exponential of x.
++// Exp returns e**x, the base-e exponential of x.
+ func Exp(x complex128) complex128 {
+ 	r := math.Exp(real(x))
+ 	s, c := math.Sincos(imag(x))
+diff --git a/src/pkg/cmath/polar.go b/src/pkg/cmath/polar.go
+index 0573a99c5e..f55aef42b0 100644
+--- a/src/pkg/cmath/polar.go
++++ b/src/pkg/cmath/polar.go
+@@ -5,7 +5,7 @@
+ package cmath
+ 
+ // Polar returns the absolute value r and phase θ of x,
+-// such that x = r * e^θi.
++// such that x = r * e**θi.
+ // The phase is in the range (-Pi, Pi].
+ func Polar(x complex128) (r, θ float64) {
+ 	return Abs(x), Phase(x)
+diff --git a/src/pkg/cmath/pow.go b/src/pkg/cmath/pow.go
+index bb86984337..de2c4db56e 100644
+--- a/src/pkg/cmath/pow.go
++++ b/src/pkg/cmath/pow.go
+@@ -42,7 +42,7 @@ import "math"
+ // arithmetic   domain     # trials      peak         rms
+ //    IEEE      -10,+10     30000       9.4e-15     1.5e-15
+ 
+-// Pow returns x^y, the base-x exponential of y.
++// Pow returns x**y, the base-x exponential of y.
+ func Pow(x, y complex128) complex128 {
+ 	modulus := Abs(x)
+ 	if modulus == 0 {
+diff --git a/src/pkg/cmath/sqrt.go b/src/pkg/cmath/sqrt.go
+index d4023184de..58bc4b691d 100644
+--- a/src/pkg/cmath/sqrt.go
++++ b/src/pkg/cmath/sqrt.go
+@@ -81,9 +81,9 @@ func Sqrt(x complex128) complex128 {
+ 		b *= 0.25
+ 		scale = 2
+ 	} else {
+-		a *= 1.8014398509481984e16 // 2^54
++		a *= 1.8014398509481984e16 // 2**54
+ 		b *= 1.8014398509481984e16
+-		scale = 7.450580596923828125e-9 // 2^-27
++		scale = 7.450580596923828125e-9 // 2**-27
+ 	}
+ 	r := math.Hypot(a, b)
+ 	var t float64

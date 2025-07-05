@@ -14,7 +14,67 @@ Date:   Fri Aug 9 10:49:01 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12646043
-
+---
  src/pkg/reflect/all_test.go | 34 ++++++++++++++++++++++++++++++++++
  src/pkg/reflect/value.go    |  3 ++-
  2 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 93df4d1365..fcdf87af81 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -3419,6 +3419,40 @@ func BenchmarkFieldByName3(b *testing.B) {
+ 	}
+ }
+ 
++type S struct {
++	i1 int64
++	i2 int64
++}
++
++func BenchmarkInterfaceBig(b *testing.B) {
++	v := ValueOf(S{})
++	for i := 0; i < b.N; i++ {
++		v.Interface()
++	}
++	b.StopTimer()
++}
++
++func TestAllocsInterfaceBig(t *testing.T) {
++	v := ValueOf(S{})
++	if allocs := testing.AllocsPerRun(100, func() { v.Interface() }); allocs > 0 {
++		t.Errorf("allocs:", allocs)
++	}
++}
++
++func BenchmarkInterfaceSmall(b *testing.B) {
++	v := ValueOf(int64(0))
++	for i := 0; i < b.N; i++ {
++		v.Interface()
++	}
++}
++
++func TestAllocsInterfaceSmall(t *testing.T) {
++	v := ValueOf(int64(0))
++	if allocs := testing.AllocsPerRun(100, func() { v.Interface() }); allocs > 0 {
++		t.Errorf("allocs:", allocs)
++	}
++}
++
+ // An exhaustive is a mechanism for writing exhaustive or stochastic tests.
+ // The basic usage is:
+ //
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 9b2630290a..112e17dff4 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1004,7 +1004,8 @@ func valueInterface(v Value, safe bool) interface{} {
+ 	eface.typ = v.typ
+ 	eface.word = v.iword()
+ 
+-	if v.flag&flagIndir != 0 && v.typ.size > ptrSize {
++	// Don't need to allocate if v is not addressable or fits in one word.
++	if v.flag&flagAddr != 0 && v.typ.size > ptrSize {
+ 		// eface.word is a pointer to the actual data,
+ 		// which might be changed.  We need to return
+ 		// a pointer to unchanging data, so make a copy.

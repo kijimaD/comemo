@@ -12,10 +12,274 @@ Date:   Thu Nov 5 14:03:56 2009 -0800
     
     R=rsc
     http://go/go-review/1017050
-
+---
  src/pkg/go/printer/nodes.go                    |  3 +-
  src/pkg/go/printer/testdata/expressions.golden | 53 ++++++++++++++++++++++----
  src/pkg/go/printer/testdata/expressions.input  | 38 ++++++++++++++++++
  src/pkg/go/printer/testdata/expressions.raw    | 53 ++++++++++++++++++++++----
  src/pkg/go/printer/testdata/linebreaks.golden  |  6 +--
  5 files changed, 133 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 6896348057..ca01e1c18e 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -20,6 +20,7 @@ import (
+ const (
+ 	oneLineFuncDecls = false;
+ 	compositeLitBlank = false;
++	stringListMode = exprListMode(0);  // previously: noIndent
+ )
+ 
+ 
+@@ -113,7 +114,7 @@ func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
+ 	for i, x := range list {
+ 		xlist[i] = x;
+ 	}
+-	p.exprList(noPos, xlist, noIndent, multiLine);
++	p.exprList(noPos, xlist, stringListMode, multiLine);
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 8abee9b4c4..f9cd03e2b5 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -133,17 +133,54 @@ func _() {
+ 	// not not add extra indentation to multi-line string lists
+ 	_ = "foo" "bar";
+ 	_ = "foo"
+-	"bar"
+-	"bah";
++		"bar"
++		"bah";
+ 	_ = []string{
+ 		"abc"
+-		"def",
++			"def",
+ 		"foo"
+-		"bar",
++			"bar",
+ 	};
+ }
+ 
+ 
++const _ = F1 +
++	`string = "%s";`
++		`ptr = *;`
++		`datafmt.T2 = s ["-" p "-"];`
++
++
++const _ = `datafmt "datafmt";`
++	`default = "%v";`
++	`array = *;`
++	`datafmt.T3 = s  {" " a a / ","};`
++
++
++const _ = `datafmt "datafmt";`
++	`default = "%v";`
++	`array = *;`
++	`datafmt.T3 = s  {" " a a / ","};`
++
++
++func _() {
++	_ = F1 +
++		`string = "%s";`
++			`ptr = *;`
++			`datafmt.T2 = s ["-" p "-"];`;
++
++	_ =
++		`datafmt "datafmt";`
++			`default = "%v";`
++			`array = *;`
++			`datafmt.T3 = s  {" " a a / ","};`;
++
++	_ = `datafmt "datafmt";`
++		`default = "%v";`
++		`array = *;`
++		`datafmt.T3 = s  {" " a a / ","};`;
++}
++
++
+ func _() {
+ 	// respect source lines in multi-line expressions
+ 	_ = a +
+@@ -152,8 +189,8 @@ func _() {
+ 	_ = a < b ||
+ 		b < a;
+ 	_ = "933262154439441526816992388562667004907159682643816214685929"
+-	"638952175999932299156089414639761565182862536979208272237582"
+-	"51185210916864000000000000000000000000";	// 100!
++		"638952175999932299156089414639761565182862536979208272237582"
++		"51185210916864000000000000000000000000";	// 100!
+ 	_ = "170141183460469231731687303715884105727";	// prime
+ }
+ 
+@@ -163,8 +200,8 @@ const (
+ 	_	= "991";
+ 	_	= "2432902008176640000";	// 20!
+ 	_	= "933262154439441526816992388562667004907159682643816214685929"
+-	"638952175999932299156089414639761565182862536979208272237582"
+-	"51185210916864000000000000000000000000";	// 100!
++		"638952175999932299156089414639761565182862536979208272237582"
++		"51185210916864000000000000000000000000";	// 100!
+ 	_	= "170141183460469231731687303715884105727";	// prime
+ )
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index c4103ae3f0..0ff4c42ee0 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -152,6 +152,44 @@ func _() {
+ }
+ 
+ 
++const _ = F1 +
++	`string = "%s";`
++	`ptr = *;`
++	`datafmt.T2 = s ["-" p "-"];`
++
++
++const _ =
++	`datafmt "datafmt";`
++	`default = "%v";`
++	`array = *;`
++	`datafmt.T3 = s  {" " a a / ","};`
++
++
++const _ = `datafmt "datafmt";`
++`default = "%v";`
++`array = *;`
++`datafmt.T3 = s  {" " a a / ","};`
++
++
++func _() {
++	_ = F1 +
++		`string = "%s";`
++		`ptr = *;`
++		`datafmt.T2 = s ["-" p "-"];`;
++
++	_ =
++		`datafmt "datafmt";`
++		`default = "%v";`
++		`array = *;`
++		`datafmt.T3 = s  {" " a a / ","};`;
++
++	_ = `datafmt "datafmt";`
++	`default = "%v";`
++	`array = *;`
++	`datafmt.T3 = s  {" " a a / ","};`
++}
++
++
+ func _() {
+ 	// respect source lines in multi-line expressions
+ 	_ = a+
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index d60fa25e18..20b78552b1 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -133,17 +133,54 @@ func _() {
+ 	// not not add extra indentation to multi-line string lists
+ 	_ = "foo" "bar";
+ 	_ = "foo"
+-	"bar"
+-	"bah";
++		"bar"
++		"bah";
+ 	_ = []string{
+ 		"abc"
+-		"def",
++			"def",
+ 		"foo"
+-		"bar",
++			"bar",
+ 	};
+ }
+ 
+ 
++const _ = F1 +
++	`string = "%s";`
++		`ptr = *;`
++		`datafmt.T2 = s ["-" p "-"];`
++
++
++const _ = `datafmt "datafmt";`
++	`default = "%v";`
++	`array = *;`
++	`datafmt.T3 = s  {" " a a / ","};`
++
++
++const _ = `datafmt "datafmt";`
++	`default = "%v";`
++	`array = *;`
++	`datafmt.T3 = s  {" " a a / ","};`
++
++
++func _() {
++	_ = F1 +
++		`string = "%s";`
++			`ptr = *;`
++			`datafmt.T2 = s ["-" p "-"];`;
++
++	_ =
++		`datafmt "datafmt";`
++			`default = "%v";`
++			`array = *;`
++			`datafmt.T3 = s  {" " a a / ","};`;
++
++	_ = `datafmt "datafmt";`
++		`default = "%v";`
++		`array = *;`
++		`datafmt.T3 = s  {" " a a / ","};`;
++}
++
++
+ func _() {
+ 	// respect source lines in multi-line expressions
+ 	_ = a +
+@@ -152,8 +189,8 @@ func _() {
+ 	_ = a < b ||
+ 		b < a;
+ 	_ = "933262154439441526816992388562667004907159682643816214685929"
+-	"638952175999932299156089414639761565182862536979208272237582"
+-	"51185210916864000000000000000000000000";	// 100!
++		"638952175999932299156089414639761565182862536979208272237582"
++		"51185210916864000000000000000000000000";	// 100!
+ 	_ = "170141183460469231731687303715884105727";	// prime
+ }
+ 
+@@ -163,8 +200,8 @@ const (
+ 	_		= "991";
+ 	_		= "2432902008176640000";	// 20!
+ 	_		= "933262154439441526816992388562667004907159682643816214685929"
+-	"638952175999932299156089414639761565182862536979208272237582"
+-	"51185210916864000000000000000000000000";	// 100!
++		"638952175999932299156089414639761565182862536979208272237582"
++		"51185210916864000000000000000000000000";	// 100!
+ 	_		= "170141183460469231731687303715884105727";	// prime
+ )
+ 
+diff --git a/src/pkg/go/printer/testdata/linebreaks.golden b/src/pkg/go/printer/testdata/linebreaks.golden
+index 9777bd62eb..9f92a998cc 100644
+--- a/src/pkg/go/printer/testdata/linebreaks.golden
++++ b/src/pkg/go/printer/testdata/linebreaks.golden
+@@ -178,15 +178,15 @@ var facts = map[int]string{
+ 	10: "3628800",
+ 	20: "2432902008176640000",
+ 	100: "933262154439441526816992388562667004907159682643816214685929"
+-	"638952175999932299156089414639761565182862536979208272237582"
+-	"51185210916864000000000000000000000000",
++		"638952175999932299156089414639761565182862536979208272237582"
++		"51185210916864000000000000000000000000",
+ }
+ 
+ func usage() {
+ 	fmt.Fprintf(os.Stderr,
+ 		// TODO(gri): the 2nd string of this string list should not be indented
+ 		"usage: godoc package [name ...]\n"
+-		"	godoc -http=:6060\n");
++			"	godoc -http=:6060\n");
+ 	flag.PrintDefaults();
+ 	os.Exit(2);
+ }

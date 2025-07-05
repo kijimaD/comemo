@@ -22,8 +22,137 @@ Date:   Fri Apr 16 11:59:15 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/buildlist.go | 16 ++++++++++++----
  src/cmd/go/internal/modload/init.go      |  2 +-
  src/cmd/go/internal/modload/load.go      | 24 +++++++++++++-----------
  3 files changed, 26 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 8be5cc2a1b..2e79e85127 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -416,7 +416,7 @@ func expandGraph(ctx context.Context, rs *Requirements) (*Requirements, *ModuleG
+ 		// roots — but in a lazy module it may pull in previously-irrelevant
+ 		// transitive dependencies.
+ 
+-		newRS, rsErr := updateRoots(ctx, rs.direct, rs)
++		newRS, rsErr := updateRoots(ctx, rs.direct, rs, nil)
+ 		if rsErr != nil {
+ 			// Failed to update roots, perhaps because of an error in a transitive
+ 			// dependency needed for the update. Return the original Requirements
+@@ -631,8 +631,11 @@ func tidyEagerRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Re
+ // 	   (if it is not "none").
+ // 	2. Each root is the selected version of its path. (We say that such a root
+ // 	   set is “consistent”.)
+-// 	3. Every version selected in the graph of rs remains selected.
+-func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements) (*Requirements, error) {
++// 	3. Every version selected in the graph of rs remains selected unless upgraded
++// 	   by a dependency in add.
++// 	4. Every version in add is selected at its given version unless upgraded by
++// 	   an existing root or another module in add.
++func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, add []module.Version) (*Requirements, error) {
+ 	mg, err := rs.Graph(ctx)
+ 	if err != nil {
+ 		// We can't ignore errors in the module graph even if the user passed the -e
+@@ -655,6 +658,11 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements)
+ 				return rs, errGoModDirty
+ 			}
+ 		}
++		for _, m := range add {
++			if m.Version != mg.Selected(m.Path) {
++				return rs, errGoModDirty
++			}
++		}
+ 		for mPath := range direct {
+ 			if _, ok := rs.rootSelected(mPath); !ok {
+ 				// Module m is supposed to be listed explicitly, but isn't.
+@@ -698,7 +706,7 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements)
+ 	if go117LazyTODO {
+ 		// Update the above comment to reflect lazy loading once implemented.
+ 	}
+-	keep := mg.BuildList()[1:]
++	keep := append(mg.BuildList()[1:], add...)
+ 	for _, m := range keep {
+ 		if direct[m.Path] && !inRootPaths[m.Path] {
+ 			rootPaths = append(rootPaths, m.Path)
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 238e471c54..4d240a7b64 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -691,7 +691,7 @@ func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements
+ 	for _, n := range mPathCount {
+ 		if n > 1 {
+ 			var err error
+-			rs, err = updateRoots(ctx, rs.direct, rs)
++			rs, err = updateRoots(ctx, rs.direct, rs, nil)
+ 			if err != nil {
+ 				base.Fatalf("go: %v", err)
+ 			}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 98707eadd7..0c9006e040 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -942,8 +942,8 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		}
+ 		module.Sort(toAdd) // to make errors deterministic
+ 
+-		rs, changed, err := editRequirements(ctx, ld.requirements, toAdd, nil)
+-		if err != nil {
++		prevRS := ld.requirements
++		if err := ld.updateRequirements(ctx, toAdd); err != nil {
+ 			// If an error was found in a newly added module, report the package
+ 			// import stack instead of the module requirement stack. Packages
+ 			// are more descriptive.
+@@ -954,15 +954,16 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			}
+ 			base.Fatalf("go: %v", err)
+ 		}
+-		ld.requirements = rs
+-
+-		if !changed {
+-			break
++		if reflect.DeepEqual(prevRS.rootModules, ld.requirements.rootModules) {
++			// Something is deeply wrong. resolveMissingImports gave us a non-empty
++			// set of modules to add, but adding those modules to the graph had no
++			// effect.
++			panic(fmt.Sprintf("internal error: adding %v to module graph had no effect on root requirements (%v)", toAdd, prevRS.rootModules))
+ 		}
+ 	}
+ 	base.ExitIfErrors() // TODO(bcmills): Is this actually needed?
+ 
+-	if err := ld.updateRequirements(ctx); err != nil {
++	if err := ld.updateRequirements(ctx, nil); err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+@@ -974,8 +975,9 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 	return ld
+ }
+ 
+-// updateRequirements ensures that ld.requirements is consistent with
+-// the information gained from ld.pkgs.
++// updateRequirements ensures that ld.requirements is consistent with the
++// information gained from ld.pkgs and includes the modules in add as roots at
++// at least the given versions.
+ //
+ // In particular:
+ //
+@@ -989,7 +991,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ // 	  not provide any directly-imported package are then marked as indirect.
+ //
+ // 	- Root dependencies are updated to their selected versions.
+-func (ld *loader) updateRequirements(ctx context.Context) error {
++func (ld *loader) updateRequirements(ctx context.Context, add []module.Version) error {
+ 	rs := ld.requirements
+ 
+ 	// Compute directly referenced dependency modules.
+@@ -1042,7 +1044,7 @@ func (ld *loader) updateRequirements(ctx context.Context) error {
+ 		}
+ 	}
+ 
+-	rs, err := updateRoots(ctx, direct, rs)
++	rs, err := updateRoots(ctx, direct, rs, add)
+ 	if err == nil {
+ 		ld.requirements = rs
+ 	}

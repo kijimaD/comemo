@@ -15,8 +15,75 @@ Date:   Mon Jul 27 12:08:56 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go |  2 +-
  src/cmd/compile/internal/gc/esc.go     |  7 +++++++
  test/fixedbugs/issue39292.go           | 29 +++++++++++++++++++++++++++++
  3 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 3bb7bb9834..04fb7d5495 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -526,7 +526,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 	// Create closure in the form of a composite literal.
+ 	// For x.M with receiver (x) type T, the generated code looks like:
+ 	//
+-	//	clos = &struct{F uintptr; R T}{M.T·f, x}
++	//	clos = &struct{F uintptr; R T}{T.M·f, x}
+ 	//
+ 	// Like walkclosure above.
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index f3e9ab78ef..628953741a 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -187,6 +187,13 @@ func mustHeapAlloc(n *Node) bool {
+ 		return true
+ 	}
+ 
++	if n.Op == OCLOSURE && closureType(n).Size() >= maxImplicitStackVarSize {
++		return true
++	}
++	if n.Op == OCALLPART && partialCallType(n).Size() >= maxImplicitStackVarSize {
++		return true
++	}
++
+ 	if n.Op == OMAKESLICE && !isSmallMakeSlice(n) {
+ 		return true
+ 	}
+diff --git a/test/fixedbugs/issue39292.go b/test/fixedbugs/issue39292.go
+new file mode 100644
+index 0000000000..5d6595c234
+--- /dev/null
++++ b/test/fixedbugs/issue39292.go
+@@ -0,0 +1,29 @@
++// errorcheck -0 -m -l
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type t [10000]*int
++
++func (t) f() {
++}
++
++func x() {
++	x := t{}.f // ERROR "t literal.f escapes to heap"
++	x()
++}
++
++func y() {
++	var i int       // ERROR "moved to heap: i"
++	y := (&t{&i}).f // ERROR "\(&t literal\).f escapes to heap" "&t literal escapes to heap"
++	y()
++}
++
++func z() {
++	var i int    // ERROR "moved to heap: i"
++	z := t{&i}.f // ERROR "t literal.f escapes to heap"
++	z()
++}

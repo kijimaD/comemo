@@ -18,9 +18,114 @@ Date:   Sat Feb 12 10:24:38 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../types2/testdata/fixedbugs/issue50755.go2       | 24 ++++++++++++++++++++--
  src/cmd/compile/internal/types2/unify.go           |  2 +-
  src/go/types/testdata/fixedbugs/issue50755.go2     | 24 ++++++++++++++++++++--
  src/go/types/unify.go                              |  2 +-
  4 files changed, 46 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50755.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50755.go2
+index 9fcb6d085e..afc7b2414c 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50755.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50755.go2
+@@ -4,12 +4,32 @@
+ 
+ package p
+ 
+-func f1[M1 map[K1]int, K1 comparable](m1 M1) {}
++// The core type of M2 unifies with the type of m1
++// during function argument type inference.
++// M2's constraint is unnamed.
++func f1[K1 comparable, E1 any](m1 map[K1]E1) {}
+ 
+-func f2[M2 map[K2]int, K2 comparable](m2 M2) {
++func f2[M2 map[string]int](m2 M2) {
+ 	f1(m2)
+ }
+ 
++// The core type of M3 unifies with the type of m1
++// during function argument type inference.
++// M3's constraint is named.
++type Map3 map[string]int
++
++func f3[M3 Map3](m3 M3) {
++	f1(m3)
++}
++
++// The core type of M5 unifies with the core type of M4
++// during constraint type inference.
++func f4[M4 map[K4]int, K4 comparable](m4 M4) {}
++
++func f5[M5 map[K5]int, K5 comparable](m5 M5) {
++	f4(m5)
++}
++
+ // test case from issue
+ 
+ func Copy[MC ~map[KC]VC, KC comparable, VC any](dst, src MC) {
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 3a28b09342..50edce9881 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -27,7 +27,7 @@ import (
+ // parameter P ("x" side), but the argument type P must be left alone so
+ // that unification resolves the type parameter P to P.
+ //
+-// For bidirection unification, both sets are provided. This enables
++// For bidirectional unification, both sets are provided. This enables
+ // unification to go from argument to parameter type and vice versa.
+ // For constraint type inference, we use bidirectional unification
+ // where both the x and y type parameters are identical. This is done
+diff --git a/src/go/types/testdata/fixedbugs/issue50755.go2 b/src/go/types/testdata/fixedbugs/issue50755.go2
+index 9fcb6d085e..afc7b2414c 100644
+--- a/src/go/types/testdata/fixedbugs/issue50755.go2
++++ b/src/go/types/testdata/fixedbugs/issue50755.go2
+@@ -4,12 +4,32 @@
+ 
+ package p
+ 
+-func f1[M1 map[K1]int, K1 comparable](m1 M1) {}
++// The core type of M2 unifies with the type of m1
++// during function argument type inference.
++// M2's constraint is unnamed.
++func f1[K1 comparable, E1 any](m1 map[K1]E1) {}
+ 
+-func f2[M2 map[K2]int, K2 comparable](m2 M2) {
++func f2[M2 map[string]int](m2 M2) {
+ 	f1(m2)
+ }
+ 
++// The core type of M3 unifies with the type of m1
++// during function argument type inference.
++// M3's constraint is named.
++type Map3 map[string]int
++
++func f3[M3 Map3](m3 M3) {
++	f1(m3)
++}
++
++// The core type of M5 unifies with the core type of M4
++// during constraint type inference.
++func f4[M4 map[K4]int, K4 comparable](m4 M4) {}
++
++func f5[M5 map[K5]int, K5 comparable](m5 M5) {
++	f4(m5)
++}
++
+ // test case from issue
+ 
+ func Copy[MC ~map[KC]VC, KC comparable, VC any](dst, src MC) {
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 9ed09cdbc5..ac904d6d6b 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -27,7 +27,7 @@ import (
+ // parameter P ("x" side), but the argument type P must be left alone so
+ // that unification resolves the type parameter P to P.
+ //
+-// For bidirection unification, both sets are provided. This enables
++// For bidirectional unification, both sets are provided. This enables
+ // unification to go from argument to parameter type and vice versa.
+ // For constraint type inference, we use bidirectional unification
+ // where both the x and y type parameters are identical. This is done

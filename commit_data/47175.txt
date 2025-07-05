@@ -12,6 +12,31 @@ Date:   Fri Feb 26 17:21:21 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_retract_versions.txt | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_retract_versions.txt b/src/cmd/go/testdata/script/mod_retract_versions.txt
+new file mode 100644
+index 0000000000..93ce5926e3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_retract_versions.txt
+@@ -0,0 +1,18 @@
++# https://golang.org/issue/44296: the --versions flag should not affect
++# the version reported by 'go list' in case of retractions.
++
++env FMT='{{.Path}}{{with .Error}}: {{printf "%q" .Err}}{{end}} {{printf "%q" .Version}}{{with .Versions}} {{.}}{{end}}'
++
++go list -m -e -f $FMT example.com/retract/self/pseudo
++stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: not a known dependency" ""$'
++
++go list -m -e -f $FMT example.com/retract/self/pseudo@latest
++stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: no matching versions for query \\"latest\\"" "latest"$'
++
++
++	# BUG(#44296): Adding --versions should not cause a retracted version to be reported.
++go list -m -e -f $FMT --versions example.com/retract/self/pseudo
++stdout '^example.com/retract/self/pseudo "v1.9.0"$'
++
++go list -m -e -f $FMT --versions example.com/retract/self/pseudo@latest
++stdout '^example.com/retract/self/pseudo: "module example.com/retract/self/pseudo: no matching versions for query \\"latest\\"" "latest"$'

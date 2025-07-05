@@ -15,7 +15,50 @@ Date:   Thu May 6 09:01:07 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/infer.go                          |  4 ++--
  src/go/types/testdata/fixedbugs/issue45985.go2 | 14 ++++++++++++++
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index da3a521870..5d49351e1f 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -398,7 +398,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ 		if sbound != nil {
+ 			if !u.unify(typ, sbound) {
+ 				if report {
+-					check.errorf(tpar, 0, "%s does not match %s", tpar, sbound)
++					check.errorf(tpar, _Todo, "%s does not match %s", tpar, sbound)
+ 				}
+ 				return nil, 0
+ 			}
+@@ -412,7 +412,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+ 	// remaining type parameters by substituting the type parameters in this type list
+ 	// until nothing changes anymore.
+-	types, index = u.x.types()
++	types, _ = u.x.types()
+ 	if debug {
+ 		for i, targ := range targs {
+ 			assert(targ == nil || types[i] == targ)
+diff --git a/src/go/types/testdata/fixedbugs/issue45985.go2 b/src/go/types/testdata/fixedbugs/issue45985.go2
+new file mode 100644
+index 0000000000..550b9c6712
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue45985.go2
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue45985
++
++// TODO(rFindley): this error should be on app[int] below.
++func app[S /* ERROR "type S = S does not match" */ interface{ type []T }, T any](s S, e T) S {
++    return append(s, e)
++}
++
++func _() {
++	_ = app[int]
++}

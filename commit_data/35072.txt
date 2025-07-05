@@ -7,6 +7,20 @@ Date:   Mon Dec 11 11:17:34 2017 +0800
     Change-Id: I0c387b6286bc18fd00c6ac4e42bdf175cf89ccb1
     Reviewed-on: https://go-review.googlesource.com/83155
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_mutex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/fd_mutex.go b/src/internal/poll/fd_mutex.go
+index 76174e5e9c..2ba7de7da3 100644
+--- a/src/internal/poll/fd_mutex.go
++++ b/src/internal/poll/fd_mutex.go
+@@ -65,7 +65,7 @@ func (mu *fdMutex) incref() bool {
+ }
+ 
+ // increfAndClose sets the state of mu to closed.
+-// It reports whether there is no remaining reference.
++// It returns false if the file was already closed.
+ func (mu *fdMutex) increfAndClose() bool {
+ 	for {
+ 		old := atomic.LoadUint64(&mu.state)

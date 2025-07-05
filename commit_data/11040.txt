@@ -7,8 +7,48 @@ Date:   Thu Jan 5 18:38:01 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5516049
-
+---
  misc/dashboard/app/build/notify.go | 2 +-
  src/cmd/gotest/gotest.go           | 2 +-
  src/pkg/fmt/fmt_test.go            | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/dashboard/app/build/notify.go b/misc/dashboard/app/build/notify.go
+index 54a09bfd87..09975b2908 100644
+--- a/misc/dashboard/app/build/notify.go
++++ b/misc/dashboard/app/build/notify.go
+@@ -119,7 +119,7 @@ func sendFailMail(c appengine.Context, com *Commit, builder string) {
+ 	k := datastore.NewKey(c, "Log", r.LogHash, 0, nil)
+ 	l := new(Log)
+ 	if err := datastore.Get(c, k, l); err != nil {
+-		c.Errorf("finding Log record %v: err", r.LogHash, err)
++		c.Errorf("finding Log record %v: %v", r.LogHash, err)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 8a8dad557a..c97debb064 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -401,7 +401,7 @@ func writeTestmainGo() {
+ 	fmt.Fprintln(b) // for gofmt
+ 
+ 	// Tests.
+-	fmt.Fprintln(b, "var tests = []testing.InternalTest{\n")
++	fmt.Fprintf(b, "var tests = []testing.InternalTest{\n")
+ 	for _, f := range files {
+ 		for _, t := range f.tests {
+ 			fmt.Fprintf(b, "\t{\"%s.%s\", %s.%s},\n", f.pkg, t, renamedPackage(f.pkg), t)
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index d34a4f8fd2..beb410fa11 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -517,7 +517,7 @@ var mallocTest = []struct {
+ 	{1, `Sprintf("xxx")`, func() { Sprintf("xxx") }},
+ 	{1, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
+ 	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
+-	{1, `Sprintf("%x %x")`, func() { Sprintf("%x", 7, 112) }},
++	{1, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
+ 	{1, `Sprintf("%g")`, func() { Sprintf("%g", 3.14159) }},
+ 	{0, `Fprintf(buf, "%x %x %x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x %x %x", 7, 8, 9) }},
+ 	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},

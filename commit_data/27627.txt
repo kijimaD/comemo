@@ -13,7 +13,7 @@ Date:   Tue Apr 5 16:44:07 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21563
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go     | 4 ++--
  src/cmd/compile/internal/gc/bexport.go   | 2 +-
  src/cmd/compile/internal/gc/esc.go       | 2 +-
@@ -25,3 +25,182 @@ Date:   Tue Apr 5 16:44:07 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go | 8 ++++----
  src/cmd/compile/internal/gc/walk.go      | 2 +-
  10 files changed, 19 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index b7ed9f19b9..9d5c3a550c 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -263,7 +263,7 @@ func dowidth(t *Type) {
+ 		}
+ 
+ 	case TSTRUCT:
+-		if t.Funarg {
++		if t.IsFuncArgStruct() {
+ 			Fatalf("dowidth fn struct %v", t)
+ 		}
+ 		w = widstruct(t, t, 0, 1)
+@@ -335,7 +335,7 @@ func checkwidth(t *Type) {
+ 
+ 	// function arg structs should not be checked
+ 	// outside of the enclosing function.
+-	if t.Funarg {
++	if t.IsFuncArgStruct() {
+ 		Fatalf("checkwidth %v", t)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 8968ce8924..f88afd2488 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -742,7 +742,7 @@ func basetypeName(t *Type) string {
+ }
+ 
+ func (p *exporter) paramList(params *Type, numbered bool) {
+-	if !params.IsStruct() || !params.Funarg {
++	if !params.IsFuncArgStruct() {
+ 		Fatalf("exporter: parameter list expected")
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 9b8f134178..d7a63668a6 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1435,7 +1435,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	ll := n.List
+ 	if n.List.Len() == 1 {
+ 		a := n.List.First()
+-		if a.Type.IsStruct() && a.Type.Funarg { // f(g()).
++		if a.Type.IsFuncArgStruct() { // f(g())
+ 			ll = e.nodeEscState(a).Escretval
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 9fc6e56275..6de7da0667 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -592,7 +592,7 @@ func dumpasmhdr() {
+ 
+ 		case OTYPE:
+ 			t := n.Type
+-			if !t.IsStruct() || t.Map != nil || t.Funarg {
++			if !t.IsStruct() || t.Map != nil || t.IsFuncArgStruct() {
+ 				break
+ 			}
+ 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index ab9bad3c2a..27ccdfbdcf 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -690,7 +690,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 		}
+ 
+ 		var buf bytes.Buffer
+-		if t.Funarg {
++		if t.IsFuncArgStruct() {
+ 			buf.WriteString("(")
+ 			var flag1 FmtFlag
+ 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 353d90f593..a2fa5f8b31 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -541,7 +541,7 @@ func nodarg(t interface{}, fp int) *Node {
+ 	switch t := t.(type) {
+ 	case *Type:
+ 		// entire argument struct, not just one arg
+-		if !t.IsStruct() || !t.Funarg {
++		if !t.IsFuncArgStruct() {
+ 			Fatalf("nodarg: bad type %v", t)
+ 		}
+ 		n = Nod(ONAME, nil, nil)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 8410a236cd..3b83e3bcc0 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -324,7 +324,7 @@ func ismulticall(l Nodes) bool {
+ // Copyret emits t1, t2, ... = n, where n is a function call,
+ // and then returns the list t1, t2, ....
+ func copyret(n *Node, order *Order) []*Node {
+-	if !n.Type.IsStruct() || !n.Type.Funarg {
++	if !n.Type.IsFuncArgStruct() {
+ 		Fatalf("copyret %v %d", n.Type, n.Left.Type.Results().NumFields())
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 05e30df271..e04cfcda63 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -127,7 +127,7 @@ type Type struct {
+ 	Chan        ChanDir
+ 	Trecur      uint8 // to detect loops
+ 	Printed     bool
+-	Funarg      bool // on TSTRUCT and TFIELD
++	Funarg      bool // TSTRUCT only: whether this struct represents function parameters
+ 	Local       bool // created in this file
+ 	Deferwidth  bool
+ 	Broke       bool // broken type definition.
+@@ -566,6 +566,11 @@ func (t *Type) SetNname(n *Node) {
+ 	t.nname = n
+ }
+ 
++// IsFuncArgStruct reports whether t is a struct representing function parameters.
++func (t *Type) IsFuncArgStruct() bool {
++	return t.Etype == TSTRUCT && t.Funarg
++}
++
+ func (t *Type) Methods() *Fields {
+ 	// TODO(mdempsky): Validate t?
+ 	return &t.methods
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d21552d180..db74a0d246 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1607,7 +1607,7 @@ OpSwitch:
+ 
+ 		// Unpack multiple-return result before type-checking.
+ 		var funarg *Type
+-		if t.IsStruct() && t.Funarg {
++		if t.IsFuncArgStruct() {
+ 			funarg = t
+ 			t = t.Field(0).Type
+ 		}
+@@ -2159,7 +2159,7 @@ OpSwitch:
+ 	}
+ 
+ 	t := n.Type
+-	if t != nil && !t.Funarg && n.Op != OTYPE {
++	if t != nil && !t.IsFuncArgStruct() && n.Op != OTYPE {
+ 		switch t.Etype {
+ 		case TFUNC, // might have TANY; wait until its called
+ 			TANY,
+@@ -2611,7 +2611,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 	if nl.Len() == 1 {
+ 		n = nl.First()
+ 		if n.Type != nil {
+-			if n.Type.IsStruct() && n.Type.Funarg {
++			if n.Type.IsFuncArgStruct() {
+ 				if !hasddd(tstruct) {
+ 					n1 := tstruct.NumFields()
+ 					n2 := n.Type.NumFields()
+@@ -3359,7 +3359,7 @@ func typecheckas2(n *Node) {
+ 		}
+ 		switch r.Op {
+ 		case OCALLMETH, OCALLINTER, OCALLFUNC:
+-			if !r.Type.IsStruct() || !r.Type.Funarg {
++			if !r.Type.IsFuncArgStruct() {
+ 				break
+ 			}
+ 			cr = r.Type.NumFields()
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b7edae5af4..392dae0fa9 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1783,7 +1783,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
+ 	var nn []*Node
+ 
+ 	// f(g()) where g has multiple return values
+-	if r != nil && len(lr) <= 1 && r.Type.IsStruct() && r.Type.Funarg {
++	if r != nil && len(lr) <= 1 && r.Type.IsFuncArgStruct() {
+ 		// optimization - can do block copy
+ 		if eqtypenoname(r.Type, nl) {
+ 			arg := nodarg(nl, fp)

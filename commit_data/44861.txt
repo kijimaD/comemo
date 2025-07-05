@@ -17,7 +17,7 @@ Date:   Fri Mar 13 16:32:37 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/go1.16.html                        |  14 ++++-
  src/cmd/go/internal/modcmd/tidy.go     |  12 ++++
  src/cmd/go/internal/modcmd/why.go      |   2 +
@@ -25,3 +25,285 @@ Date:   Fri Mar 13 16:32:37 2020 -0400
  src/cmd/go/internal/modload/modfile.go |  22 ++++++++
  src/cmd/go/testdata/script/mod_all.txt | 100 +++++++++++++++++++++++++++++++--
  6 files changed, 154 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 0ffaecc5a9..95e63d0d5a 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -52,7 +52,7 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: write and link to tutorial or blog post
+ </p>
+ 
+-<p><!-= golang.org/issue/29062 -->
++<p><!-- golang.org/issue/29062 -->
+   When using <code>go test</code>, a test that
+   calls <code>os.Exit(0)</code> during execution of a test function
+   will now be considered to fail.
+@@ -62,6 +62,18 @@ Do not send CLs removing the interior tags from such phrases.
+   that is still considered to be a passing test.
+ </p>
+ 
++<h4 id="all-pattern">The <code>all</code> pattern</h4>
++
++<p><!-- golang.org/cl/240623 -->
++  When the main module's <code>go.mod</code> file
++  declares <code>go</code> <code>1.16</code> or higher, the <code>all</code>
++  package pattern now matches only those packages that are transitively imported
++  by a package or test found in the main module. (Packages imported by <em>tests
++  of</em> packages imported by the main module are no longer included.) This is
++  the same set of packages retained
++  by <code>go</code> <code>mod</code> <code>vendor</code> since Go 1.11.
++</p>
++
+ <p>
+   TODO
+ </p>
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index c7c53d7c0c..4dcb62e02f 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -40,6 +40,18 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("go mod tidy: no arguments allowed")
+ 	}
+ 
++	// Tidy aims to make 'go test' reproducible for any package in 'all', so we
++	// need to include test dependencies. For modules that specify go 1.15 or
++	// earlier this is a no-op (because 'all' saturates transitive test
++	// dependencies).
++	//
++	// However, with lazy loading (go 1.16+) 'all' includes only the packages that
++	// are transitively imported by the main module, not the test dependencies of
++	// those packages. In order to make 'go test' reproducible for the packages
++	// that are in 'all' but outside of the main module, we must explicitly
++	// request that their test dependencies be included.
++	modload.LoadTests = true
++
+ 	modload.LoadALL(ctx)
+ 	modload.TidyBuildList()
+ 	modload.TrimGoSum()
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index b16887d318..30b15fc153 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -65,6 +65,8 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+ 	loadALL := modload.LoadALL
+ 	if *whyVendor {
+ 		loadALL = modload.LoadVendor
++	} else {
++		modload.LoadTests = true
+ 	}
+ 	if *whyM {
+ 		listU := false
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 2096dfb636..9cedc219b6 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -231,7 +231,7 @@ func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bo
+ 	loaded = loadFromRoots(loaderParams{
+ 		tags:               tags,
+ 		allPatternIsRoot:   allPatternIsRoot,
+-		allClosesOverTests: true, // until lazy loading in Go 1.16+
++		allClosesOverTests: index.allPatternClosesOverTests(),
+ 
+ 		listRoots: func() (roots []string) {
+ 			updateMatches(nil)
+@@ -450,7 +450,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
+ 			roots = append(roots, testImports...)
+ 			return roots
+ 		},
+-		allClosesOverTests: true, // until lazy loading.
++		allClosesOverTests: index.allPatternClosesOverTests(),
+ 	})
+ 	WriteGoMod()
+ }
+@@ -501,7 +501,7 @@ func ReloadBuildList() []module.Version {
+ 	loaded = loadFromRoots(loaderParams{
+ 		tags:               imports.Tags(),
+ 		listRoots:          func() []string { return nil },
+-		allClosesOverTests: true, // until lazy loading, but doesn't matter because the root list is empty.
++		allClosesOverTests: index.allPatternClosesOverTests(), // but doesn't matter because the root list is empty.
+ 	})
+ 	return buildList
+ }
+@@ -512,9 +512,13 @@ func ReloadBuildList() []module.Version {
+ // It adds modules to the build list as needed to satisfy new imports.
+ // This set is useful for deciding whether a particular import is needed
+ // anywhere in a module.
++//
++// In modules that specify "go 1.16" or higher, ALL follows only one layer of
++// test dependencies. In "go 1.15" or lower, ALL follows the imports of tests of
++// dependencies of tests.
+ func LoadALL(ctx context.Context) []string {
+ 	InitMod(ctx)
+-	return loadAll(ctx, true)
++	return loadAll(ctx, index.allPatternClosesOverTests())
+ }
+ 
+ // LoadVendor is like LoadALL but only follows test dependencies
+@@ -523,7 +527,9 @@ func LoadALL(ctx context.Context) []string {
+ // This set is useful for identifying the which packages to include in a vendor directory.
+ func LoadVendor(ctx context.Context) []string {
+ 	InitMod(ctx)
+-	return loadAll(ctx, false)
++	// 'go mod vendor' has never followed test dependencies since Go 1.11.
++	const closeOverTests = false
++	return loadAll(ctx, closeOverTests)
+ }
+ 
+ func loadAll(ctx context.Context, closeOverTests bool) []string {
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index a45c4a63be..18dd293ac9 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -25,6 +25,11 @@ import (
+ 	"golang.org/x/mod/semver"
+ )
+ 
++// lazyLoadingVersion is the Go version (plus leading "v") at which lazy module
++// loading takes effect.
++const lazyLoadingVersionV = "v1.16"
++const go116EnableLazyLoading = true
++
+ var modFile *modfile.File
+ 
+ // A modFileIndex is an index of data corresponding to a modFile
+@@ -249,6 +254,23 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
+ 	return i
+ }
+ 
++// allPatternClosesOverTests reports whether the "all" pattern includes
++// dependencies of tests outside the main module (as in Go 1.11–1.15).
++// (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
++// transitively *imported by* the packages and tests in the main module.)
++func (i *modFileIndex) allPatternClosesOverTests() bool {
++	if !go116EnableLazyLoading {
++		return true
++	}
++	if i != nil && semver.Compare(i.goVersionV, lazyLoadingVersionV) < 0 {
++		// The module explicitly predates the change in "all" for lazy loading, so
++		// continue to use the older interpretation. (If i == nil, we not in any
++		// module at all and should use the latest semantics.)
++		return true
++	}
++	return false
++}
++
+ // modFileIsDirty reports whether the go.mod file differs meaningfully
+ // from what was indexed.
+ // If modFile has been changed (even cosmetically) since it was first read,
+diff --git a/src/cmd/go/testdata/script/mod_all.txt b/src/cmd/go/testdata/script/mod_all.txt
+index 9f4b0a4e4d..aac66292d6 100644
+--- a/src/cmd/go/testdata/script/mod_all.txt
++++ b/src/cmd/go/testdata/script/mod_all.txt
+@@ -187,17 +187,105 @@ stdout '^example.com/main_test \[example.com/main.test\]$'
+ stdout '^example.com/main/testonly.test$'
+ stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
+ 
+-# TODO(#36460):
++rm vendor
++
++# Convert all modules to go 1.16 to enable lazy loading.
++go mod edit -go=1.16 a/go.mod
++go mod edit -go=1.16 b/go.mod
++go mod edit -go=1.16 c/go.mod
++go mod edit -go=1.16 d/go.mod
++go mod edit -go=1.16 q/go.mod
++go mod edit -go=1.16 r/go.mod
++go mod edit -go=1.16 s/go.mod
++go mod edit -go=1.16 t/go.mod
++go mod edit -go=1.16 u/go.mod
++go mod edit -go=1.16 w/go.mod
++go mod edit -go=1.16 x/go.mod
++go mod edit -go=1.16
++
++# With lazy loading, 'go list all' with neither -mod=vendor nor -test should
++# match -mod=vendor without -test in 1.15.
+ 
+-# With lazy loading, 'go list all' without -mod=vendor should match
+-# 'go mod vendor'.
++go list -f $PKGFMT all
++stdout -count=8 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/main$'
++stdout '^example.com/main/testonly$'
++stdout '^example.com/q$'
++stdout '^example.com/r$'
++stdout '^example.com/t$'
++stdout '^example.com/u$'
+ 
+-# 'go list -test all' should expand that to cover test dependencies
+-# of packages imported by the main module.
++# 'go list -test all' should expand that to include the test variants of the
++# packages in 'all', but not the dependencies of outside tests.
+ 
+-# 'go list -m all' should cover the packages in 'go list -test all'.
++go list -test -f $PKGFMT all
++stdout -count=25 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/main$'
++stdout '^example.com/main/testonly$'
++stdout '^example.com/q$'
++stdout '^example.com/r$'
++stdout '^example.com/t$'
++stdout '^example.com/u$'
++stdout '^example.com/a.test$'
++stdout '^example.com/a_test \[example.com/a.test\]$'
++stdout '^example.com/b.test$'
++stdout '^example.com/b_test \[example.com/b.test\]$'
++stdout '^example.com/main.test$'
++stdout '^example.com/main \[example.com/main.test\]$'
++stdout '^example.com/main_test \[example.com/main.test\]$'
++stdout '^example.com/main/testonly.test$'
++stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
++stdout '^example.com/q.test$'
++stdout '^example.com/q_test \[example.com/q.test\]$'
++stdout '^example.com/r.test$'
++stdout '^example.com/r_test \[example.com/r.test\]$'
++stdout '^example.com/t.test$'
++stdout '^example.com/t_test \[example.com/t.test\]$'
++stdout '^example.com/u.test$'
++stdout '^example.com/u_test \[example.com/u.test\]$'
++
++# 'go list -test -deps all' should include the dependencies of those tests,
++# but not the tests of the dependencies of outside tests.
++
++go list -test -deps -f $PKGFMT all
++stdout -count=28 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/c$'
++stdout '^example.com/main$'
++stdout '^example.com/main/testonly$'
++stdout '^example.com/q$'
++stdout '^example.com/r$'
++stdout '^example.com/s$'
++stdout '^example.com/t$'
++stdout '^example.com/u$'
++stdout '^example.com/w$'
++stdout '^example.com/a.test$'
++stdout '^example.com/a_test \[example.com/a.test\]$'
++stdout '^example.com/b.test$'
++stdout '^example.com/b_test \[example.com/b.test\]$'
++stdout '^example.com/main.test$'
++stdout '^example.com/main \[example.com/main.test\]$'
++stdout '^example.com/main_test \[example.com/main.test\]$'
++stdout '^example.com/main/testonly.test$'
++stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
++stdout '^example.com/q.test$'
++stdout '^example.com/q_test \[example.com/q.test\]$'
++stdout '^example.com/r.test$'
++stdout '^example.com/r_test \[example.com/r.test\]$'
++stdout '^example.com/t.test$'
++stdout '^example.com/t_test \[example.com/t.test\]$'
++stdout '^example.com/u.test$'
++stdout '^example.com/u_test \[example.com/u.test\]$'
+ 
+ 
++# TODO(#36460):
++# 'go list -m all' should exactly cover the packages in 'go list -test all'.
++
+ -- go.mod --
+ module example.com/main
+ 

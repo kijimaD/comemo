@@ -12,7 +12,88 @@ Date:   Tue Nov 13 12:26:20 2012 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6822108
-
+---
  src/pkg/net/multicast_posix_test.go | 23 ++++++++++++++++++-----
  src/pkg/net/sock_posix.go           | 19 ++++++++++---------
  2 files changed, 28 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/net/multicast_posix_test.go b/src/pkg/net/multicast_posix_test.go
+index 3767a6bc17..d4a8a35627 100644
+--- a/src/pkg/net/multicast_posix_test.go
++++ b/src/pkg/net/multicast_posix_test.go
+@@ -118,16 +118,29 @@ func TestSimpleMulticastListener(t *testing.T) {
+ 
+ func checkMulticastListener(t *testing.T, err error, c *UDPConn, gaddr *UDPAddr) {
+ 	if !multicastRIBContains(t, gaddr.IP) {
+-		t.Fatalf("%q not found in RIB", gaddr.String())
++		t.Errorf("%q not found in RIB", gaddr.String())
++		return
++	}
++	la := c.LocalAddr()
++	if la == nil {
++		t.Error("LocalAddr failed")
++		return
+ 	}
+-	if c.LocalAddr().String() != gaddr.String() {
+-		t.Fatalf("LocalAddr returns %q, expected %q", c.LocalAddr().String(), gaddr.String())
++	if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
++		t.Errorf("got %v; expected a proper address with non-zero port number", la)
++		return
+ 	}
+ }
+ 
+ func checkSimpleMulticastListener(t *testing.T, err error, c *UDPConn, gaddr *UDPAddr) {
+-	if c.LocalAddr().String() != gaddr.String() {
+-		t.Fatalf("LocalAddr returns %q, expected %q", c.LocalAddr().String(), gaddr.String())
++	la := c.LocalAddr()
++	if la == nil {
++		t.Error("LocalAddr failed")
++		return
++	}
++	if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
++		t.Errorf("got %v; expected a proper address with non-zero port number", la)
++		return
+ 	}
+ }
+ 
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index a3354eacb1..78417fd2ee 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -33,13 +33,19 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
+ 		return nil, err
+ 	}
+ 
+-	var blsa syscall.Sockaddr
+ 	if ulsa != nil {
+-		if blsa, err = listenerSockaddr(s, f, ulsa, toAddr); err != nil {
++		// We provide a socket that listens to a wildcard
++		// address with reusable UDP port when the given ulsa
++		// is an appropriate UDP multicast address prefix.
++		// This makes it possible for a single UDP listener
++		// to join multiple different group addresses, for
++		// multiple UDP listeners that listen on the same UDP
++		// port to join the same group address.
++		if ulsa, err = listenerSockaddr(s, f, ulsa, toAddr); err != nil {
+ 			closesocket(s)
+ 			return nil, err
+ 		}
+-		if err = syscall.Bind(s, blsa); err != nil {
++		if err = syscall.Bind(s, ulsa); err != nil {
+ 			closesocket(s)
+ 			return nil, err
+ 		}
+@@ -64,12 +70,7 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
+ 	}
+ 
+ 	lsa, _ := syscall.Getsockname(s)
+-	var laddr Addr
+-	if ulsa != nil && blsa != ulsa {
+-		laddr = toAddr(ulsa)
+-	} else {
+-		laddr = toAddr(lsa)
+-	}
++	laddr := toAddr(lsa)
+ 	rsa, _ := syscall.Getpeername(s)
+ 	raddr := toAddr(rsa)
+ 	fd.setAddr(laddr, raddr)

@@ -18,6 +18,25 @@ Date:   Fri Apr 28 07:14:08 2023 -0600
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/serve_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 9b8496e7ad..819152658b 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1744,7 +1744,13 @@ func testServerExpect(t *testing.T, mode testMode) {
+ 		// that doesn't send 100-continue expectations.
+ 		writeBody := test.contentLength != 0 && strings.ToLower(test.expectation) != "100-continue"
+ 
++		wg := sync.WaitGroup{}
++		wg.Add(1)
++		defer wg.Wait()
++
+ 		go func() {
++			defer wg.Done()
++
+ 			contentLen := fmt.Sprintf("Content-Length: %d", test.contentLength)
+ 			if test.chunked {
+ 				contentLen = "Transfer-Encoding: chunked"

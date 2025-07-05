@@ -24,9 +24,209 @@ Date:   Tue Jun 2 17:45:57 2020 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj/readnew.go      | 12 +++++---
  src/cmd/internal/goobj2/objfile.go     | 53 ++++++++++++++++++++++++++++++++++
  src/cmd/internal/obj/objfile2.go       | 39 +++++++++++++++++++++++++
  src/cmd/link/internal/loader/loader.go |  2 +-
  4 files changed, 101 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index 0b89034287..7a84b91d3a 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -7,7 +7,6 @@ package goobj
+ import (
+ 	"cmd/internal/goobj2"
+ 	"cmd/internal/objabi"
+-	"fmt"
+ 	"strings"
+ )
+ 
+@@ -31,7 +30,13 @@ func (r *objReader) readNew() {
+ 		// Ignore fingerprint (for tools like objdump which only reads one object).
+ 	}
+ 
+-	pkglist := rr.Pkglist()
++	// Name of referenced indexed symbols.
++	nrefName := rr.NRefName()
++	refNames := make(map[goobj2.SymRef]string, nrefName)
++	for i := 0; i < nrefName; i++ {
++		rn := rr.RefName(i)
++		refNames[rn.Sym()] = rn.Name(rr)
++	}
+ 
+ 	abiToVer := func(abi uint16) int64 {
+ 		var vers int64
+@@ -58,8 +63,7 @@ func (r *objReader) readNew() {
+ 		case goobj2.PkgIdxSelf:
+ 			i = int(s.SymIdx)
+ 		default:
+-			pkg := pkglist[p]
+-			return SymID{fmt.Sprintf("%s.<#%d>", pkg, s.SymIdx), 0}
++			return SymID{refNames[s], 0}
+ 		}
+ 		sym := rr.Sym(i)
+ 		return SymID{sym.Name(rr), abiToVer(sym.ABI())}
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index ab07624563..7f728e4f76 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -73,6 +73,14 @@ import (
+ //    Data   [...]byte
+ //    Pcdata [...]byte
+ //
++//    // blocks only used by tools (objdump, nm)
++//
++//    RefNames [...]struct { // referenced symbol names
++//       Sym  symRef
++//       Name string
++//       // TODO: include ABI version as well?
++//    }
++//
+ // string is encoded as is a uint32 length followed by a uint32 offset
+ // that points to the corresponding string bytes.
+ //
+@@ -152,6 +160,8 @@ const (
+ 	BlkAux
+ 	BlkData
+ 	BlkPcdata
++	BlkRefName
++	BlkEnd
+ 	NBlk
+ )
+ 
+@@ -369,6 +379,37 @@ func (a *Aux) Write(w *Writer) { w.Bytes(a[:]) }
+ // for testing
+ func (a *Aux) fromBytes(b []byte) { copy(a[:], b) }
+ 
++// Referenced symbol name.
++//
++// Serialized format:
++// RefName struct {
++//    Sym  symRef
++//    Name string
++// }
++type RefName [RefNameSize]byte
++
++const RefNameSize = 8 + stringRefSize
++
++func (n *RefName) Sym() SymRef {
++	return SymRef{binary.LittleEndian.Uint32(n[:]), binary.LittleEndian.Uint32(n[4:])}
++}
++func (n *RefName) Name(r *Reader) string {
++	len := binary.LittleEndian.Uint32(n[8:])
++	off := binary.LittleEndian.Uint32(n[12:])
++	return r.StringAt(off, len)
++}
++
++func (n *RefName) SetSym(x SymRef) {
++	binary.LittleEndian.PutUint32(n[:], x.PkgIdx)
++	binary.LittleEndian.PutUint32(n[4:], x.SymIdx)
++}
++func (n *RefName) SetName(x string, w *Writer) {
++	binary.LittleEndian.PutUint32(n[8:], uint32(len(x)))
++	binary.LittleEndian.PutUint32(n[12:], w.stringOff(x))
++}
++
++func (n *RefName) Write(w *Writer) { w.Bytes(n[:]) }
++
+ type Writer struct {
+ 	wr        *bio.Writer
+ 	stringMap map[string]uint32
+@@ -666,6 +707,18 @@ func (r *Reader) PcdataBase() uint32 {
+ 	return r.h.Offsets[BlkPcdata]
+ }
+ 
++// NRefName returns the number of referenced symbol names.
++func (r *Reader) NRefName() int {
++	return int(r.h.Offsets[BlkRefName+1]-r.h.Offsets[BlkRefName]) / RefNameSize
++}
++
++// RefName returns a pointer to the i-th referenced symbol name.
++// Note: here i is not a local symbol index, just a counter.
++func (r *Reader) RefName(i int) *RefName {
++	off := r.h.Offsets[BlkRefName] + uint32(i*RefNameSize)
++	return (*RefName)(unsafe.Pointer(&r.b[off]))
++}
++
+ // ReadOnly returns whether r.BytesAt returns read-only bytes.
+ func (r *Reader) ReadOnly() bool {
+ 	return r.readonly
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 061e43c434..05400a11e6 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -159,6 +159,14 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
+ 		}
+ 	}
+ 
++	// Blocks used only by tools (objdump, nm).
++
++	// Referenced symbol names from other packages
++	h.Offsets[goobj2.BlkRefName] = w.Offset()
++	w.refNames()
++
++	h.Offsets[goobj2.BlkEnd] = w.Offset()
++
+ 	// Fix up block offsets in the header
+ 	end := start + int64(w.Offset())
+ 	b.MustSeek(start, 0)
+@@ -191,6 +199,9 @@ func (w *writer) StringTable() {
+ 		w.AddString(pkg)
+ 	}
+ 	w.ctxt.traverseSyms(traverseAll, func(s *LSym) {
++		// TODO: this includes references of indexed symbols from other packages,
++		// for which the linker doesn't need the name. Consider moving them to
++		// a separate block (for tools only).
+ 		if w.pkgpath != "" {
+ 			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+ 		}
+@@ -316,6 +327,34 @@ func (w *writer) Aux(s *LSym) {
+ 	}
+ }
+ 
++// Emits names of referenced indexed symbols, used by tools (objdump, nm)
++// only.
++func (w *writer) refNames() {
++	seen := make(map[goobj2.SymRef]bool)
++	w.ctxt.traverseSyms(traverseRefs, func(rs *LSym) { // only traverse refs, not auxs, as tools don't need auxs
++		switch rs.PkgIdx {
++		case goobj2.PkgIdxNone, goobj2.PkgIdxBuiltin, goobj2.PkgIdxSelf: // not an external indexed reference
++			return
++		case goobj2.PkgIdxInvalid:
++			panic("unindexed symbol reference")
++		}
++		symref := makeSymRef(rs)
++		if seen[symref] {
++			return
++		}
++		seen[symref] = true
++		var o goobj2.RefName
++		o.SetSym(symref)
++		o.SetName(rs.Name, w.Writer)
++		o.Write(w.Writer)
++	})
++	// TODO: output in sorted order?
++	// Currently tools (cmd/internal/goobj package) doesn't use mmap,
++	// and it just read it into a map in memory upfront. If it uses
++	// mmap, if the output is sorted, it probably could avoid reading
++	// into memory and just do lookups in the mmap'd object file.
++}
++
+ // return the number of aux symbols s have.
+ func nAuxSym(s *LSym) int {
+ 	n := 0
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 8e6451d270..ab38bc3f5c 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1914,7 +1914,7 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
+ // Does not read symbol data.
+ // Returns the fingerprint of the object.
+ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
+-	roObject, readonly, err := f.Slice(uint64(length))
++	roObject, readonly, err := f.Slice(uint64(length)) // TODO: no need to map blocks that are for tools only (e.g. RefName)
+ 	if err != nil {
+ 		log.Fatal("cannot read object file:", err)
+ 	}

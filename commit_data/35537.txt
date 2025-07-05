@@ -9,7 +9,7 @@ Date:   Tue Feb 20 15:10:49 2018 +0000
     GitHub-Pull-Request: golang/go#23942
     Reviewed-on: https://go-review.googlesource.com/95435
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/common.go            | 2 +-
  src/cmd/internal/objabi/reloctype.go | 2 +-
  src/cmd/link/internal/ld/lib.go      | 2 +-
@@ -20,3 +20,121 @@ Date:   Tue Feb 20 15:10:49 2018 +0000
  src/html/template/escape.go          | 2 +-
  src/runtime/mheap.go                 | 2 +-
  9 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 89d1f38732..dee9e47e4a 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -187,7 +187,7 @@ type Header struct {
+ 	// The key and value should be non-empty UTF-8 strings.
+ 	//
+ 	// When Writer.WriteHeader is called, PAX records derived from the
+-	// the other fields in Header take precedence over PAXRecords.
++	// other fields in Header take precedence over PAXRecords.
+ 	PAXRecords map[string]string
+ 
+ 	// Format specifies the format of the tar header.
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index fb3cae45fc..ac96b3a71b 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -167,7 +167,7 @@ const (
+ 
+ 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
+ 	// inserts the displacement from the place being relocated to the address of the
+-	// the relocated symbol instead of just its address.
++	// relocated symbol instead of just its address.
+ 	R_ADDRPOWER_PCREL
+ 
+ 	// R_ADDRPOWER_TOCREL relocates two D-form instructions like R_ADDRPOWER, but
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index bfff5209a6..030491a550 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -583,7 +583,7 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	// If package versioning is required, generate a hash of the
+-	// the packages used in the link.
++	// packages used in the link.
+ 	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
+ 		for _, lib := range ctxt.Library {
+ 			if lib.Shlib == "" {
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index abb8d40fc0..fd093f77e1 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -1003,7 +1003,7 @@ type rowsCursor struct {
+ 	err    error
+ 
+ 	// a clone of slices to give out to clients, indexed by the
+-	// the original slice's first byte address.  we clone them
++	// original slice's first byte address.  we clone them
+ 	// just so we're able to corrupt them on close.
+ 	bytesClone map[*byte][]byte
+ 
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 5d62eb2b53..5956d6ad46 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2310,7 +2310,7 @@ func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *dr
+ 	}
+ 
+ 	// In a transaction or connection, we always use the connection that the
+-	// the stmt was created on.
++	// stmt was created on.
+ 	if s.cg != nil {
+ 		s.mu.Unlock()
+ 		dc, releaseConn, err = s.cg.grabConn(ctx) // blocks, waiting for the connection.
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index b379544dab..5a51d4c979 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -198,7 +198,7 @@ type Decoder struct {
+ 	// charset-conversion readers, converting from the provided
+ 	// non-UTF-8 charset into UTF-8. If CharsetReader is nil or
+ 	// returns an error, parsing stops with an error. One of the
+-	// the CharsetReader's result values must be non-nil.
++	// CharsetReader's result values must be non-nil.
+ 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
+ 
+ 	// DefaultSpace sets the default name space used for unadorned tags,
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 3e2ff4f5ae..9f6bb4da23 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -197,7 +197,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ 
+ 		// if the previous line and the current line had single-
+ 		// line-expressions and the key sizes are small or the
+-		// the ratio between the key sizes does not exceed a
++		// ratio between the key sizes does not exceed a
+ 		// threshold, align columns and do not use formfeed
+ 		if prevSize > 0 && size > 0 {
+ 			const smallSize = 20
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index c77b23ae68..aaeb2d6bc1 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -417,7 +417,7 @@ func nudge(c context) context {
+ 
+ // join joins the two contexts of a branch template node. The result is an
+ // error context if either of the input contexts are error contexts, or if the
+-// the input contexts differ.
++// input contexts differ.
+ func join(a, b context, node parse.Node, nodeName string) context {
+ 	if a.state == stateError {
+ 		return a
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 8b2ed15dd9..30df753c86 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1546,7 +1546,7 @@ func newMarkBits(nelems uintptr) *gcBits {
+ // to be used for this span's alloc bits.
+ // newAllocBits is used to provide newly initialized spans
+ // allocation bits. For spans not being initialized the
+-// the mark bits are repurposed as allocation bits when
++// mark bits are repurposed as allocation bits when
+ // the span is swept.
+ func newAllocBits(nelems uintptr) *gcBits {
+ 	return newMarkBits(nelems)

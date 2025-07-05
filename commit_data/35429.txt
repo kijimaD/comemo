@@ -14,6 +14,22 @@ Date:   Wed Jan 17 21:00:26 2018 +0100
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 39e36f7c09..b0115fe733 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -762,9 +762,7 @@ func orderstmt(n *Node, order *Order) {
+ 			// hiter contains pointers and needs to be zeroed.
+ 			prealloc[n] = ordertemp(hiter(n.Type), order, true)
+ 		}
+-		for i, n1 := range n.List.Slice() {
+-			n.List.SetIndex(i, orderexprinplace(n1, order))
+-		}
++		orderexprlistinplace(n.List, order)
+ 		orderblockNodes(&n.Nbody)
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)

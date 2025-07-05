@@ -46,6 +46,20 @@ Date:   Thu Mar 15 22:40:23 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index abfdfc1b24..a16353a781 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1969,7 +1969,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
+ 	// be the last copy of v.
+ 	e.erase(loc)
+ 	var x *Value
+-	if c == nil {
++	if c == nil || e.s.values[vid].rematerializeable {
+ 		if !e.s.values[vid].rematerializeable {
+ 			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
+ 		}

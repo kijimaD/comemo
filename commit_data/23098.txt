@@ -32,7 +32,105 @@ Date:   Wed Apr 22 17:44:36 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9291
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go     | 48 +++++++++++++++++++++++++++++++++++++++++-------
  src/runtime/mgcmark.go |  6 ++----
  2 files changed, 43 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 3bc56893b9..9bb1acad20 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -590,7 +590,13 @@ var work struct {
+ 
+ 	bgMarkReady note   // signal background mark worker has started
+ 	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
+-	bgMarkNote  note   // signal background mark completion
++
++	// Background mark completion signaling
++	bgMarkWake struct {
++		lock mutex
++		g    *g
++		wake bool
++	}
+ 
+ 	// Copy of mheap.allspans for marker or sweeper.
+ 	spans []*mspan
+@@ -781,8 +787,18 @@ func gc(mode int) {
+ 		if debug.gctrace > 0 {
+ 			tMark = nanotime()
+ 		}
+-		notetsleepg(&work.bgMarkNote, -1)
+-		noteclear(&work.bgMarkNote)
++
++		// Wait for background mark completion.
++		lock(&work.bgMarkWake.lock)
++		if work.bgMarkWake.wake {
++			// Wakeup already happened
++			unlock(&work.bgMarkWake.lock)
++		} else {
++			work.bgMarkWake.g = getg()
++			goparkunlock(&work.bgMarkWake.lock, "mark wait (idle)", traceEvGoBlock, 1)
++		}
++		work.bgMarkWake.wake = false
++		work.bgMarkWake.g = nil
+ 
+ 		// Begin mark termination.
+ 		gctimer.cycle.markterm = nanotime()
+@@ -1054,10 +1070,10 @@ func gcBgMarkWorker(p *p) {
+ 		}
+ 		gcw.dispose()
+ 
+-		// If this is the first worker to reach a background
+-		// completion point this cycle, signal the coordinator.
+-		if done && cas(&work.bgMarkDone, 0, 1) {
+-			notewakeup(&work.bgMarkNote)
++		// If this worker reached a background mark completion
++		// point, signal the main GC goroutine.
++		if done {
++			gcBgMarkDone()
+ 		}
+ 
+ 		duration := nanotime() - startTime
+@@ -1073,6 +1089,24 @@ func gcBgMarkWorker(p *p) {
+ 	}
+ }
+ 
++// gcBgMarkDone signals the completion of background marking. This can
++// be called multiple times during a cycle; only the first call has
++// any effect.
++func gcBgMarkDone() {
++	if cas(&work.bgMarkDone, 0, 1) {
++		// This is the first worker to reach completion.
++		// Signal the main GC goroutine.
++		lock(&work.bgMarkWake.lock)
++		if work.bgMarkWake.g == nil {
++			// It hasn't parked yet.
++			work.bgMarkWake.wake = true
++		} else {
++			ready(work.bgMarkWake.g, 0)
++		}
++		unlock(&work.bgMarkWake.lock)
++	}
++}
++
+ // gcMark runs the mark (or, for concurrent GC, mark termination)
+ // STW is in effect at this point.
+ //TODO go:nowritebarrier
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 4afdca432b..5d5a0dab75 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -246,10 +246,8 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 		// signal a completion point.
+ 		if xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0 {
+ 			// This has reached a background completion
+-			// point. Is it the first this cycle?
+-			if cas(&work.bgMarkDone, 0, 1) {
+-				notewakeup(&work.bgMarkNote)
+-			}
++			// point.
++			gcBgMarkDone()
+ 		}
+ 
+ 		duration := nanotime() - startTime

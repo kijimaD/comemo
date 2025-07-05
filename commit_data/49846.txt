@@ -17,7 +17,52 @@ Date:   Thu Sep 16 07:10:58 2021 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go         |  5 +----
  src/cmd/go/testdata/script/run_dirs.txt | 14 ++++++++++++--
  2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index f0613a4c0a..4013330bc4 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2674,10 +2674,7 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
+ 		if fi.IsDir() {
+ 			base.Fatalf("%s is a directory, should be a Go file", file)
+ 		}
+-		dir1, _ := filepath.Split(file)
+-		if dir1 == "" {
+-			dir1 = "./"
+-		}
++		dir1 := filepath.Dir(file)
+ 		if dir == "" {
+ 			dir = dir1
+ 		} else if dir != dir1 {
+diff --git a/src/cmd/go/testdata/script/run_dirs.txt b/src/cmd/go/testdata/script/run_dirs.txt
+index 538a6ac6f3..bd5cfbe3fb 100644
+--- a/src/cmd/go/testdata/script/run_dirs.txt
++++ b/src/cmd/go/testdata/script/run_dirs.txt
+@@ -1,11 +1,21 @@
+ cd rundir
+ 
+ ! go run x.go sub/sub.go
+-stderr 'named files must all be in one directory; have ./ and sub/'
++stderr 'named files must all be in one directory; have . and sub'
+ ! go run sub/sub.go x.go
+-stderr 'named files must all be in one directory; have sub/ and ./'
++stderr 'named files must all be in one directory; have sub and .'
++
++cd ../
++go run rundir/foo.go ./rundir/bar.go
++stderr 'hello world'
+ 
+ -- rundir/sub/sub.go --
+ package main
+ -- rundir/x.go --
+ package main
++-- rundir/foo.go --
++package main
++func main() { println(msg) }
++-- rundir/bar.go --
++package main
++const msg = "hello world"

@@ -10,7 +10,48 @@ Date:   Tue Apr 7 00:15:49 2009 -0700
     DELTA=19  (0 added, 19 deleted, 0 changed)
     OCL=27099
     CL=27149
-
+---
  test/bugs/bug138.go | 19 -------------------
  test/golden.out     |  4 ----
  2 files changed, 23 deletions(-)
+
+diff --git a/test/bugs/bug138.go b/test/bugs/bug138.go
+deleted file mode 100644
+index 09c61e05ce..0000000000
+--- a/test/bugs/bug138.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $D/$F.go || echo BUG should compile
+-
+-package main
+-
+-func main() {
+-	const c int = -1;
+-	var i int = -1;
+-	var xc uint = uint(c);  // this does not work
+-	var xi uint = uint(i);  // this works
+-}
+-
+-/*
+-bug138.go:8: overflow converting constant to uint
+-bug138.go:8: illegal combination of literals CONV 7
+-*/
+diff --git a/test/golden.out b/test/golden.out
+index aaeea08e77..0063cffea1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -111,10 +111,6 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug136.go
+ BUG: should not compile
+ 
+-=========== bugs/bug138.go
+-bugs/bug138.go:8: constant -1 overflows uint
+-BUG should compile
+-
+ =========== bugs/bug139.go
+ bugs/bug139.go:7: fatal error: naddr: ONAME class x 5
+ 

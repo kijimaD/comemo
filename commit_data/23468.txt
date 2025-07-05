@@ -12,7 +12,7 @@ Date:   Fri May 15 10:02:19 2015 -0700
     Change-Id: I0dc6d146372012b4cce9cc4064066daa6694eee6
     Reviewed-on: https://go-review.googlesource.com/10144
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/5g/ggen.go               |  2 +-
  src/cmd/5g/gsubr.go              |  2 +-
  src/cmd/6g/ggen.go               |  2 +-
@@ -33,3 +33,454 @@ Date:   Fri May 15 10:02:19 2015 -0700
  src/cmd/internal/gc/typecheck.go |  6 +++---
  src/cmd/internal/gc/walk.go      |  2 +-
  19 files changed, 51 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.go b/src/cmd/5g/ggen.go
+index e4612362a2..2ab5d521bb 100644
+--- a/src/cmd/5g/ggen.go
++++ b/src/cmd/5g/ggen.go
+@@ -30,7 +30,7 @@ func defframe(ptxt *obj.Prog) {
+ 	r0 := uint32(0)
+ 	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
+ 		n = l.N
+-		if !n.Needzero {
++		if !n.Name.Needzero {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+diff --git a/src/cmd/5g/gsubr.go b/src/cmd/5g/gsubr.go
+index 2f70bfd468..2a23580b58 100644
+--- a/src/cmd/5g/gsubr.go
++++ b/src/cmd/5g/gsubr.go
+@@ -89,7 +89,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
+ 		case gc.ONAME:
+ 			if n.Class == gc.PPARAMREF {
+ 				var n1 gc.Node
+-				gc.Cgen(n.Heapaddr, &n1)
++				gc.Cgen(n.Name.Heapaddr, &n1)
+ 				sclean[nsclean-1] = n1
+ 				n = &n1
+ 			}
+diff --git a/src/cmd/6g/ggen.go b/src/cmd/6g/ggen.go
+index 12198d7187..7282ac53e0 100644
+--- a/src/cmd/6g/ggen.go
++++ b/src/cmd/6g/ggen.go
+@@ -32,7 +32,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// iterate through declarations - they are sorted in decreasing xoffset order.
+ 	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
+ 		n = l.N
+-		if !n.Needzero {
++		if !n.Name.Needzero {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+diff --git a/src/cmd/7g/ggen.go b/src/cmd/7g/ggen.go
+index af51c31648..ec2eb09e38 100644
+--- a/src/cmd/7g/ggen.go
++++ b/src/cmd/7g/ggen.go
+@@ -32,7 +32,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// iterate through declarations - they are sorted in decreasing xoffset order.
+ 	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
+ 		n = l.N
+-		if !n.Needzero {
++		if !n.Name.Needzero {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/8g/ggen.go
+index baa1b64d1e..bd2c13e867 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/8g/ggen.go
+@@ -30,7 +30,7 @@ func defframe(ptxt *obj.Prog) {
+ 	ax := uint32(0)
+ 	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
+ 		n = l.N
+-		if !n.Needzero {
++		if !n.Name.Needzero {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+diff --git a/src/cmd/8g/gsubr.go b/src/cmd/8g/gsubr.go
+index b0b0aedabc..99bce6eaba 100644
+--- a/src/cmd/8g/gsubr.go
++++ b/src/cmd/8g/gsubr.go
+@@ -678,7 +678,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
+ 		case gc.ONAME:
+ 			if n.Class == gc.PPARAMREF {
+ 				var n1 gc.Node
+-				gc.Cgen(n.Heapaddr, &n1)
++				gc.Cgen(n.Name.Heapaddr, &n1)
+ 				sclean[nsclean-1] = n1
+ 				n = &n1
+ 			}
+diff --git a/src/cmd/9g/ggen.go b/src/cmd/9g/ggen.go
+index 265536921a..3a10a2a760 100644
+--- a/src/cmd/9g/ggen.go
++++ b/src/cmd/9g/ggen.go
+@@ -32,7 +32,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// iterate through declarations - they are sorted in decreasing xoffset order.
+ 	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
+ 		n = l.N
+-		if !n.Needzero {
++		if !n.Name.Needzero {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 7237e863ca..bb022b8351 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -1579,7 +1579,7 @@ func Agen(n *Node, res *Node) {
+ 			Fatal("agen: bad ONAME class %#x", n.Class)
+ 		}
+ 
+-		Cgen(n.Heapaddr, res)
++		Cgen(n.Name.Heapaddr, res)
+ 		if n.Xoffset != 0 {
+ 			addOffset(res, n.Xoffset)
+ 		}
+@@ -2517,7 +2517,7 @@ func cgen_call(n *Node, proc int) {
+ 	}
+ 
+ 	// call direct
+-	n.Left.Method = true
++	n.Left.Name.Method = true
+ 
+ 	Ginscall(n.Left, proc)
+ }
+diff --git a/src/cmd/internal/gc/closure.go b/src/cmd/internal/gc/closure.go
+index 8d5fd5a600..b51e74b77d 100644
+--- a/src/cmd/internal/gc/closure.go
++++ b/src/cmd/internal/gc/closure.go
+@@ -84,15 +84,15 @@ func typecheckclosure(func_ *Node, top int) {
+ 
+ 	for l := func_.Func.Cvars; l != nil; l = l.Next {
+ 		n = l.N.Closure
+-		if !n.Captured {
+-			n.Captured = true
+-			if n.Decldepth == 0 {
++		if !n.Name.Captured {
++			n.Name.Captured = true
++			if n.Name.Decldepth == 0 {
+ 				Fatal("typecheckclosure: var %v does not have decldepth assigned", Nconv(n, obj.FmtShort))
+ 			}
+ 
+ 			// Ignore assignments to the variable in straightline code
+ 			// preceding the first capturing by a closure.
+-			if n.Decldepth == decldepth {
++			if n.Name.Decldepth == decldepth {
+ 				n.Assigned = false
+ 			}
+ 		}
+@@ -100,7 +100,7 @@ func typecheckclosure(func_ *Node, top int) {
+ 
+ 	for l := func_.Func.Dcl; l != nil; l = l.Next {
+ 		if l.N.Op == ONAME && (l.N.Class == PPARAM || l.N.Class == PPARAMOUT) {
+-			l.N.Decldepth = 1
++			l.N.Name.Decldepth = 1
+ 		}
+ 	}
+ 
+@@ -254,7 +254,7 @@ func capturevars(xfunc *Node) {
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+ 		if outer.Class != PPARAMOUT && !v.Closure.Addrtaken && !v.Closure.Assigned && v.Type.Width <= 128 {
+-			v.Byval = true
++			v.Name.Byval = true
+ 		} else {
+ 			v.Closure.Addrtaken = true
+ 			outer = Nod(OADDR, outer, nil)
+@@ -266,7 +266,7 @@ func capturevars(xfunc *Node) {
+ 				name = v.Curfn.Nname.Sym
+ 			}
+ 			how := "ref"
+-			if v.Byval {
++			if v.Name.Byval {
+ 				how = "value"
+ 			}
+ 			Warnl(int(v.Lineno), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Closure.Addrtaken, v.Closure.Assigned, int32(v.Type.Width))
+@@ -321,7 +321,7 @@ func transformclosure(xfunc *Node) {
+ 			}
+ 			fld = typ(TFIELD)
+ 			fld.Funarg = 1
+-			if v.Byval {
++			if v.Name.Byval {
+ 				// If v is captured by value, we merely downgrade it to PPARAM.
+ 				v.Class = PPARAM
+ 
+@@ -335,7 +335,7 @@ func transformclosure(xfunc *Node) {
+ 				addr = newname(Lookupf("&%s", v.Sym.Name))
+ 				addr.Type = Ptrto(v.Type)
+ 				addr.Class = PPARAM
+-				v.Heapaddr = addr
++				v.Name.Heapaddr = addr
+ 				fld.Nname = addr
+ 			}
+ 
+@@ -375,14 +375,14 @@ func transformclosure(xfunc *Node) {
+ 			cv = Nod(OCLOSUREVAR, nil, nil)
+ 
+ 			cv.Type = v.Type
+-			if !v.Byval {
++			if !v.Name.Byval {
+ 				cv.Type = Ptrto(v.Type)
+ 			}
+ 			offset = Rnd(offset, int64(cv.Type.Align))
+ 			cv.Xoffset = offset
+ 			offset += cv.Type.Width
+ 
+-			if v.Byval && v.Type.Width <= int64(2*Widthptr) && Thearch.Thechar == '6' {
++			if v.Name.Byval && v.Type.Width <= int64(2*Widthptr) && Thearch.Thechar == '6' {
+ 				//  If it is a small variable captured by value, downgrade it to PAUTO.
+ 				// This optimization is currently enabled only for amd64, see:
+ 				// https://github.com/golang/go/issues/9865
+@@ -400,8 +400,8 @@ func transformclosure(xfunc *Node) {
+ 				addr.Used = true
+ 				addr.Curfn = xfunc
+ 				xfunc.Func.Dcl = list(xfunc.Func.Dcl, addr)
+-				v.Heapaddr = addr
+-				if v.Byval {
++				v.Name.Heapaddr = addr
++				if v.Name.Byval {
+ 					cv = Nod(OADDR, cv, nil)
+ 				}
+ 				body = list(body, Nod(OAS, addr, cv))
+@@ -448,7 +448,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
+ 			continue
+ 		}
+ 		typ1 = typenod(v.Type)
+-		if !v.Byval {
++		if !v.Name.Byval {
+ 			typ1 = Nod(OIND, typ1, nil)
+ 		}
+ 		typ.List = list(typ.List, Nod(ODCLFIELD, newname(v.Sym), typ1))
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index c816feaa7f..5fb2095bda 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -834,7 +834,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 				continue
+ 			}
+ 			a = v.Closure
+-			if !v.Byval {
++			if !v.Name.Byval {
+ 				a = Nod(OADDR, a, nil)
+ 				a.Lineno = v.Lineno
+ 				a.Escloopdepth = e.loopdepth
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index cd0e650ca9..d3c6387a4e 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -78,10 +78,10 @@ func addrescapes(n *Node) {
+ 			oldfn := Curfn
+ 
+ 			Curfn = n.Curfn
+-			n.Heapaddr = temp(Ptrto(n.Type))
++			n.Name.Heapaddr = temp(Ptrto(n.Type))
+ 			buf := fmt.Sprintf("&%v", n.Sym)
+-			n.Heapaddr.Sym = Lookup(buf)
+-			n.Heapaddr.Orig.Sym = n.Heapaddr.Sym
++			n.Name.Heapaddr.Sym = Lookup(buf)
++			n.Name.Heapaddr.Orig.Sym = n.Name.Heapaddr.Sym
+ 			n.Esc = EscHeap
+ 			if Debug['m'] != 0 {
+ 				fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
+@@ -262,7 +262,7 @@ func cgen_dcl(n *Node) {
+ 	if n.Alloc == nil {
+ 		n.Alloc = callnew(n.Type)
+ 	}
+-	Cgen_as(n.Heapaddr, n.Alloc)
++	Cgen_as(n.Name.Heapaddr, n.Alloc)
+ }
+ 
+ /*
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 98d6346e2a..5ec4587e74 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -214,7 +214,7 @@ func ggloblnod(nam *Node) {
+ 	p.To.Sym = nil
+ 	p.To.Type = obj.TYPE_CONST
+ 	p.To.Offset = nam.Type.Width
+-	if nam.Readonly {
++	if nam.Name.Readonly {
+ 		p.From3.Offset = obj.RODATA
+ 	}
+ 	if nam.Type != nil && !haspointers(nam.Type) {
+@@ -369,7 +369,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if s == nil {
+ 			s = Lookup(".noname")
+ 		}
+-		if n.Method {
++		if n.Name.Method {
+ 			if n.Type != nil {
+ 				if n.Type.Sym != nil {
+ 					if n.Type.Sym.Pkg != nil {
+diff --git a/src/cmd/internal/gc/inl.go b/src/cmd/internal/gc/inl.go
+index dd2087dec3..22a5d3d9fe 100644
+--- a/src/cmd/internal/gc/inl.go
++++ b/src/cmd/internal/gc/inl.go
+@@ -511,10 +511,10 @@ func mkinlcall(np **Node, fn *Node, isddd bool) {
+ 
+ func tinlvar(t *Type) *Node {
+ 	if t.Nname != nil && !isblank(t.Nname) {
+-		if t.Nname.Inlvar == nil {
++		if t.Nname.Name.Inlvar == nil {
+ 			Fatal("missing inlvar for %v\n", t.Nname)
+ 		}
+-		return t.Nname.Inlvar
++		return t.Nname.Name.Inlvar
+ 	}
+ 
+ 	typecheck(&nblank, Erv|Easgn)
+@@ -577,13 +577,13 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 			continue
+ 		}
+ 		if ll.N.Op == ONAME {
+-			ll.N.Inlvar = inlvar(ll.N)
++			ll.N.Name.Inlvar = inlvar(ll.N)
+ 
+ 			// Typecheck because inlvar is not necessarily a function parameter.
+-			typecheck(&ll.N.Inlvar, Erv)
++			typecheck(&ll.N.Name.Inlvar, Erv)
+ 
+ 			if ll.N.Class&^PHEAP != PAUTO {
+-				ninit = list(ninit, Nod(ODCL, ll.N.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
++				ninit = list(ninit, Nod(ODCL, ll.N.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
+ 			}
+ 		}
+ 	}
+@@ -594,7 +594,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		if t != nil && t.Nname != nil && !isblank(t.Nname) {
+ 			m = inlvar(t.Nname)
+ 			typecheck(&m, Erv)
+-			t.Nname.Inlvar = m
++			t.Nname.Name.Inlvar = m
+ 		} else {
+ 			// anonymous return values, synthesize names for use in assignment that replaces return
+ 			m = retvar(t, i)
+@@ -611,7 +611,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		// method call with a receiver.
+ 		t := getthisx(fn.Type).Type
+ 
+-		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Inlvar == nil {
++		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
+ 			Fatal("missing inlvar for %v\n", t.Nname)
+ 		}
+ 		if n.Left.Left == nil {
+@@ -680,7 +680,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		// append receiver inlvar to LHS.
+ 		t := getthisx(fn.Type).Type
+ 
+-		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Inlvar == nil {
++		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
+ 			Fatal("missing inlvar for %v\n", t.Nname)
+ 		}
+ 		if t == nil {
+@@ -907,11 +907,11 @@ func inlsubst(n *Node) *Node {
+ 
+ 	switch n.Op {
+ 	case ONAME:
+-		if n.Inlvar != nil { // These will be set during inlnode
++		if n.Name.Inlvar != nil { // These will be set during inlnode
+ 			if Debug['m'] > 2 {
+-				fmt.Printf("substituting name %v  ->  %v\n", Nconv(n, obj.FmtSign), Nconv(n.Inlvar, obj.FmtSign))
++				fmt.Printf("substituting name %v  ->  %v\n", Nconv(n, obj.FmtSign), Nconv(n.Name.Inlvar, obj.FmtSign))
+ 			}
+-			return n.Inlvar
++			return n.Name.Inlvar
+ 		}
+ 
+ 		if Debug['m'] > 2 {
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index f247a685ca..1b67cf2c3e 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -200,8 +200,8 @@ func cmpstackvar(a *Node, b *Node) int {
+ 		return bp - ap
+ 	}
+ 
+-	ap = obj.Bool2int(a.Needzero)
+-	bp = obj.Bool2int(b.Needzero)
++	ap = obj.Bool2int(a.Name.Needzero)
++	bp = obj.Bool2int(b.Name.Needzero)
+ 	if ap != bp {
+ 		return bp - ap
+ 	}
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index 040a77814e..977789f3e4 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -1281,8 +1281,8 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 						bvset(all, pos) // silence future warnings in this block
+ 						n = lv.vars[pos]
+-						if !n.Needzero {
+-							n.Needzero = true
++						if !n.Name.Needzero {
++							n.Name.Needzero = true
+ 							if debuglive >= 1 {
+ 								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Curfn.Nname, Nconv(n, obj.FmtLong))
+ 							}
+diff --git a/src/cmd/internal/gc/sinit.go b/src/cmd/internal/gc/sinit.go
+index 4fdb2e9223..dfaec74de2 100644
+--- a/src/cmd/internal/gc/sinit.go
++++ b/src/cmd/internal/gc/sinit.go
+@@ -510,7 +510,7 @@ func staticname(t *Type, ctxt int) *Node {
+ 	n := newname(Lookupf("statictmp_%.4d", statuniqgen))
+ 	statuniqgen++
+ 	if ctxt == 0 {
+-		n.Readonly = true
++		n.Name.Readonly = true
+ 	}
+ 	addvar(n, t, PEXTERN)
+ 	return n
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 9ef00a09cb..818d546970 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -64,7 +64,7 @@ type Node struct {
+ 	Reg int16
+ 
+ 	// ONAME
+-	*Name
++	Name     *Name
+ 	Ntype    *Node
+ 	Defn     *Node // ONAME: initializing assignment; OLABEL: labeled statement
+ 	Pack     *Node // real package for import . names
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 6ad8c82c32..06f8b34305 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -311,8 +311,8 @@ OpSwitch:
+ 		break OpSwitch
+ 
+ 	case ONAME:
+-		if n.Decldepth == 0 {
+-			n.Decldepth = decldepth
++		if n.Name.Decldepth == 0 {
++			n.Name.Decldepth = decldepth
+ 		}
+ 		if n.Etype != 0 {
+ 			ok |= Ecall
+@@ -3521,7 +3521,7 @@ func typecheckfunc(n *Node) {
+ 
+ 	for l := n.Func.Dcl; l != nil; l = l.Next {
+ 		if l.N.Op == ONAME && (l.N.Class == PPARAM || l.N.Class == PPARAMOUT) {
+-			l.N.Decldepth = 1
++			l.N.Name.Decldepth = 1
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 81bb8524b3..a7f5256b19 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -2719,7 +2719,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
+ 		if v.Alloc == nil {
+ 			v.Alloc = callnew(v.Type)
+ 		}
+-		nn = list(nn, Nod(OAS, v.Heapaddr, v.Alloc))
++		nn = list(nn, Nod(OAS, v.Name.Heapaddr, v.Alloc))
+ 		if v.Class&^PHEAP != PPARAMOUT {
+ 			as = Nod(OAS, v, v.Stackparam)
+ 			v.Stackparam.Typecheck = 1

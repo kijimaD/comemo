@@ -14,9 +14,180 @@ Date:   Mon Aug 22 10:53:05 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go    | 55 +++++++++++++++++--------------------
  src/cmd/link/internal/ld/ldelf.go   | 12 +-------
  src/cmd/link/internal/ld/ldmacho.go |  2 +-
  src/cmd/link/internal/ld/ldpe.go    |  2 +-
  4 files changed, 28 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 9887479d61..4fa34a2442 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -238,46 +238,41 @@ func addaddrplus4(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
+ }
+ 
+ /*
+- * divide-and-conquer list-link
+- * sort of Symbol* structures.
+- * Used for the data block.
++ * divide-and-conquer list-link (by Sub) sort of Symbol* by Value.
++ * Used for sub-symbols when loading host objects (see e.g. ldelf.go).
+  */
+ 
+-func listsubp(s *Symbol) **Symbol {
+-	return &s.Sub
+-}
+-
+-func listsort(l *Symbol, cmp func(*Symbol, *Symbol) int, nextp func(*Symbol) **Symbol) *Symbol {
+-	if l == nil || *nextp(l) == nil {
++func listsort(l *Symbol) *Symbol {
++	if l == nil || l.Sub == nil {
+ 		return l
+ 	}
+ 
+ 	l1 := l
+ 	l2 := l
+ 	for {
+-		l2 = *nextp(l2)
++		l2 = l2.Sub
+ 		if l2 == nil {
+ 			break
+ 		}
+-		l2 = *nextp(l2)
++		l2 = l2.Sub
+ 		if l2 == nil {
+ 			break
+ 		}
+-		l1 = *nextp(l1)
++		l1 = l1.Sub
+ 	}
+ 
+-	l2 = *nextp(l1)
+-	*nextp(l1) = nil
+-	l1 = listsort(l, cmp, nextp)
+-	l2 = listsort(l2, cmp, nextp)
++	l2 = l1.Sub
++	l1.Sub = nil
++	l1 = listsort(l)
++	l2 = listsort(l2)
+ 
+ 	/* set up lead element */
+-	if cmp(l1, l2) < 0 {
++	if l1.Value < l2.Value {
+ 		l = l1
+-		l1 = *nextp(l1)
++		l1 = l1.Sub
+ 	} else {
+ 		l = l2
+-		l2 = *nextp(l2)
++		l2 = l2.Sub
+ 	}
+ 
+ 	le := l
+@@ -285,37 +280,37 @@ func listsort(l *Symbol, cmp func(*Symbol, *Symbol) int, nextp func(*Symbol) **S
+ 	for {
+ 		if l1 == nil {
+ 			for l2 != nil {
+-				*nextp(le) = l2
++				le.Sub = l2
+ 				le = l2
+-				l2 = *nextp(l2)
++				l2 = l2.Sub
+ 			}
+ 
+-			*nextp(le) = nil
++			le.Sub = nil
+ 			break
+ 		}
+ 
+ 		if l2 == nil {
+ 			for l1 != nil {
+-				*nextp(le) = l1
++				le.Sub = l1
+ 				le = l1
+-				l1 = *nextp(l1)
++				l1 = l1.Sub
+ 			}
+ 
+ 			break
+ 		}
+ 
+-		if cmp(l1, l2) < 0 {
+-			*nextp(le) = l1
++		if l1.Value < l2.Value {
++			le.Sub = l1
+ 			le = l1
+-			l1 = *nextp(l1)
++			l1 = l1.Sub
+ 		} else {
+-			*nextp(le) = l2
++			le.Sub = l2
+ 			le = l2
+-			l2 = *nextp(l2)
++			l2 = l2.Sub
+ 		}
+ 	}
+ 
+-	*nextp(le) = nil
++	le.Sub = nil
+ 	return l
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index ea3924bc4e..0776aaa132 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -308,16 +308,6 @@ type ElfSym struct {
+ 
+ var ElfMagic = [4]uint8{0x7F, 'E', 'L', 'F'}
+ 
+-func valuecmp(a *Symbol, b *Symbol) int {
+-	if a.Value < b.Value {
+-		return -1
+-	}
+-	if a.Value > b.Value {
+-		return +1
+-	}
+-	return 0
+-}
+-
+ const (
+ 	Tag_file                 = 1
+ 	Tag_CPU_name             = 4
+@@ -835,7 +825,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			continue
+ 		}
+ 		if s.Sub != nil {
+-			s.Sub = listsort(s.Sub, valuecmp, listsubp)
++			s.Sub = listsort(s.Sub)
+ 		}
+ 		if s.Type == obj.STEXT {
+ 			if s.Attr.OnList() {
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 66a2c6d13a..30d3a59fe4 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -690,7 +690,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			continue
+ 		}
+ 		if s.Sub != nil {
+-			s.Sub = listsort(s.Sub, valuecmp, listsubp)
++			s.Sub = listsort(s.Sub)
+ 
+ 			// assign sizes, now that we know symbols in sorted order.
+ 			for s1 = s.Sub; s1 != nil; s1 = s1.Sub {
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index 4deec57761..74f1e71bcb 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -428,7 +428,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			continue
+ 		}
+ 		if s.Sub != nil {
+-			s.Sub = listsort(s.Sub, valuecmp, listsubp)
++			s.Sub = listsort(s.Sub)
+ 		}
+ 		if s.Type == obj.STEXT {
+ 			if s.Attr.OnList() {

@@ -17,6 +17,22 @@ Date:   Fri Oct 24 10:58:13 2014 -0400
     R=dvyukov
     CC=golang-codereviews
     https://golang.org/cl/161990043
-
+---
  src/net/http/pprof/pprof.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 0c7548e3ef..a23f1bc4bc 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -162,6 +162,10 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 		fmt.Fprintf(w, "Unknown profile: %s\n", name)
+ 		return
+ 	}
++	gc, _ := strconv.Atoi(r.FormValue("gc"))
++	if name == "heap" && gc > 0 {
++		runtime.GC()
++	}
+ 	p.WriteTo(w, debug)
+ 	return
+ }

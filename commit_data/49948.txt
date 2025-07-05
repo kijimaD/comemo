@@ -19,7 +19,7 @@ Date:   Wed Sep 22 11:26:40 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go            |  8 +------
  .../internal/types2/testdata/check/typeparams.go2  |  8 +++----
  .../types2/testdata/examples/constraints.go2       |  6 +++---
@@ -35,3 +35,354 @@ Date:   Wed Sep 22 11:26:40 2021 -0700
  test/fixedbugs/issue14652.go                       |  5 +++--
  test/typeparam/tparam1.go                          | 19 ++++++++--------
  14 files changed, 49 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 1926d93a86..994c19ea30 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -625,13 +625,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
+ 		// This also preserves the grouped output of type parameter lists
+ 		// when printing type strings.
+ 		if i == 0 || f.Type != list[i-1].Type {
+-			// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
+-			// If we allow "any" for general use, this if-statement can be removed (issue #33232).
+-			if name, _ := unparen(f.Type).(*syntax.Name); name != nil && name.Value == "any" && check.lookup("any") == universeAny {
+-				bound = universeAny.Type()
+-			} else {
+-				bound = check.typ(f.Type)
+-			}
++			bound = check.typ(f.Type)
+ 		}
+ 		tparams[i].bound = bound
+ 	}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index 765d561f3b..69b6925b9f 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -6,11 +6,9 @@ package p
+ 
+ // import "io" // for type assertion tests
+ 
+-// The predeclared identifier "any" can only be used as a constraint
+-// in a type parameter list.
+-var _ any // ERROR cannot use any outside constraint position
+-func _[_ any /* ok here */ , _ interface{any /* ERROR constraint */ }](any /* ERROR constraint */ ) {
+-        var _ any /* ERROR constraint */
++var _ any // ok to use any anywhere
++func _[_ any, _ interface{any}](any) {
++        var _ any
+ }
+ 
+ func identity[T any](x T) T { return x }
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/constraints.go2 b/src/cmd/compile/internal/types2/testdata/examples/constraints.go2
+index f40d18c63e..ecc75c1a46 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/constraints.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/constraints.go2
+@@ -33,20 +33,20 @@ type (
+ 	_ interface{int|~ /* ERROR overlapping terms ~int */ int }
+ 	_ interface{~int|~ /* ERROR overlapping terms ~int */ int }
+ 	_ interface{~int|MyInt /* ERROR overlapping terms p.MyInt and ~int */ }
+-	_ interface{int|interface{}}
++	_ interface{int|any}
+ 	_ interface{int|~string|union}
+ 	_ interface{int|~string|interface{int}}
+ 	_ interface{union|union /* ERROR overlapping terms p.union and p.union */ }
+ 
+ 	// For now we do not permit interfaces with methods in unions.
+-	_ interface{~ /* ERROR invalid use of ~ */ interface{}}
++	_ interface{~ /* ERROR invalid use of ~ */ any}
+ 	_ interface{int|interface /* ERROR cannot use .* in union */ { m() }}
+ )
+ 
+ type (
+ 	// Tilde is not permitted on defined types or interfaces.
+ 	foo int
+-	bar interface{}
++	bar any
+ 	_ interface{foo}
+ 	_ interface{~ /* ERROR invalid use of ~ */ foo }
+ 	_ interface{~ /* ERROR invalid use of ~ */ bar }
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/types.go2 b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+index 97c9951ada..55b1b0da57 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/types.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+@@ -114,7 +114,7 @@ type I1[T any] interface{
+ }
+ 
+ // There is no such thing as a variadic generic type.
+-type _[T ... /* ERROR invalid use of ... */ interface{}] struct{}
++type _[T ... /* ERROR invalid use of ... */ any] struct{}
+ 
+ // Generic interfaces may be embedded as one would expect.
+ type I2 interface {
+@@ -213,9 +213,9 @@ func Sum[T Adder[T]](list []T) T {
+ }
+ 
+ // Valid and invalid variations.
+-type B0 interface {}
+-type B1[_ any] interface{}
+-type B2[_, _ any] interface{}
++type B0 any
++type B1[_ any] any
++type B2[_, _ any] any
+ 
+ func _[T1 B0]() {}
+ func _[T1 B1[T1]]() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
+index 5334695b5e..166cc680db 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
+@@ -8,13 +8,13 @@
+ 
+ package go1_17
+ 
+-type T[P /* ERROR type parameters require go1\.18 or later */ any] struct{}
++type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
+ 
+ // for init (and main, but we're not in package main) we should only get one error
+-func init[P /* ERROR func init must have no type parameters */ any]()   {}
+-func main[P /* ERROR type parameters require go1\.18 or later */ any]() {}
++func init[P /* ERROR func init must have no type parameters */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]()   {}
++func main[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]() {}
+ 
+-func f[P /* ERROR type parameters require go1\.18 or later */ any](x P) {
++func f[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ](x P) {
+ 	var _ T[ /* ERROR type instantiation requires go1\.18 or later */ int]
+ 	var _ (T[ /* ERROR type instantiation requires go1\.18 or later */ int])
+ 	_ = T[ /* ERROR type instantiation requires go1\.18 or later */ int]{}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 5aacb94a60..7f75a96bd8 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -38,16 +38,10 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 		}
+ 		return
+ 	case universeAny, universeComparable:
+-		// complain if necessary
+ 		if !check.allowVersion(check.pkg, 1, 18) {
+ 			check.errorf(e, "undeclared name: %s (requires version go1.18 or later)", e.Value)
+ 			return // avoid follow-on errors
+ 		}
+-		if obj == universeAny {
+-			// If we allow "any" for general use, this if-statement can be removed (issue #33232).
+-			check.softErrorf(e, "cannot use any outside constraint position")
+-			// ok to continue
+-		}
+ 	}
+ 	check.recordUse(e, obj)
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 0fdcfa8023..061fc01829 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -668,27 +668,18 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 	*dst = bindTParams(tparams)
+ 
+ 	index := 0
+-	var bound Type
+ 	var bounds []Type
+ 	var posns []positioner // bound positions
+ 	for _, f := range list.List {
+-		if f.Type == nil {
+-			goto next
+-		}
+-		// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
+-		// If we allow "any" for general use, this if-statement can be removed (issue #33232).
+-		if name, _ := unparen(f.Type).(*ast.Ident); name != nil && name.Name == "any" && check.lookup("any") == universeAny {
+-			bound = universeAny.Type()
+-		} else {
+-			bound = check.typ(f.Type)
+-		}
+-		bounds = append(bounds, bound)
+-		posns = append(posns, f.Type)
+-		for i := range f.Names {
+-			tparams[index+i].bound = bound
++		// TODO(rfindley) we should be able to rely on f.Type != nil at this point
++		if f.Type != nil {
++			bound := check.typ(f.Type)
++			bounds = append(bounds, bound)
++			posns = append(posns, f.Type)
++			for i := range f.Names {
++				tparams[index+i].bound = bound
++			}
+ 		}
+-
+-	next:
+ 		index += len(f.Names)
+ 	}
+ 
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index 57b6d7a0ad..bfacb3e1e7 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -6,11 +6,9 @@ package p
+ 
+ // import "io" // for type assertion tests
+ 
+-// The predeclared identifier "any" can only be used as a constraint
+-// in a type parameter list.
+-var _ any // ERROR cannot use any outside constraint position
+-func _[_ any /* ok here */ , _ interface{any /* ERROR constraint */ }](any /* ERROR constraint */ ) {
+-        var _ any /* ERROR constraint */
++var _ any // ok to use any anywhere
++func _[_ any, _ interface{any}](any) {
++        var _ any
+ }
+ 
+ func identity[T any](x T) T { return x }
+diff --git a/src/go/types/testdata/examples/constraints.go2 b/src/go/types/testdata/examples/constraints.go2
+index f40d18c63e..ecc75c1a46 100644
+--- a/src/go/types/testdata/examples/constraints.go2
++++ b/src/go/types/testdata/examples/constraints.go2
+@@ -33,20 +33,20 @@ type (
+ 	_ interface{int|~ /* ERROR overlapping terms ~int */ int }
+ 	_ interface{~int|~ /* ERROR overlapping terms ~int */ int }
+ 	_ interface{~int|MyInt /* ERROR overlapping terms p.MyInt and ~int */ }
+-	_ interface{int|interface{}}
++	_ interface{int|any}
+ 	_ interface{int|~string|union}
+ 	_ interface{int|~string|interface{int}}
+ 	_ interface{union|union /* ERROR overlapping terms p.union and p.union */ }
+ 
+ 	// For now we do not permit interfaces with methods in unions.
+-	_ interface{~ /* ERROR invalid use of ~ */ interface{}}
++	_ interface{~ /* ERROR invalid use of ~ */ any}
+ 	_ interface{int|interface /* ERROR cannot use .* in union */ { m() }}
+ )
+ 
+ type (
+ 	// Tilde is not permitted on defined types or interfaces.
+ 	foo int
+-	bar interface{}
++	bar any
+ 	_ interface{foo}
+ 	_ interface{~ /* ERROR invalid use of ~ */ foo }
+ 	_ interface{~ /* ERROR invalid use of ~ */ bar }
+diff --git a/src/go/types/testdata/examples/types.go2 b/src/go/types/testdata/examples/types.go2
+index 6f6f95e781..2e6eeb2204 100644
+--- a/src/go/types/testdata/examples/types.go2
++++ b/src/go/types/testdata/examples/types.go2
+@@ -114,7 +114,7 @@ type I1[T any] interface{
+ }
+ 
+ // There is no such thing as a variadic generic type.
+-type _[T ... /* ERROR invalid use of ... */ interface{}] struct{}
++type _[T ... /* ERROR invalid use of ... */ any] struct{}
+ 
+ // Generic interfaces may be embedded as one would expect.
+ type I2 interface {
+@@ -219,9 +219,9 @@ func Sum[T Adder[T]](list []T) T {
+ }
+ 
+ // Valid and invalid variations.
+-type B0 interface {}
+-type B1[_ any] interface{}
+-type B2[_, _ any] interface{}
++type B0 any
++type B1[_ any] any
++type B2[_, _ any] any
+ 
+ func _[T1 B0]() {}
+ func _[T1 B1[T1]]() {}
+diff --git a/src/go/types/testdata/fixedbugs/issue47818.go2 b/src/go/types/testdata/fixedbugs/issue47818.go2
+index 68c6a94ed4..e3e5a99637 100644
+--- a/src/go/types/testdata/fixedbugs/issue47818.go2
++++ b/src/go/types/testdata/fixedbugs/issue47818.go2
+@@ -8,13 +8,13 @@
+ 
+ package go1_17
+ 
+-type T[P /* ERROR type parameters require go1\.18 or later */ any] struct{}
++type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
+ 
+ // for init (and main, but we're not in package main) we should only get one error
+-func init[P /* ERROR func init must have no type parameters */ any]()   {}
+-func main[P /* ERROR type parameters require go1\.18 or later */ any]() {}
++func init[P /* ERROR func init must have no type parameters */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]()   {}
++func main[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]() {}
+ 
+-func f[P /* ERROR type parameters require go1\.18 or later */ any](x P) {
++func f[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ](x P) {
+ 	var _ T[ /* ERROR type instantiation requires go1\.18 or later */ int]
+ 	var _ (T[ /* ERROR type instantiation requires go1\.18 or later */ int])
+ 	_ = T[ /* ERROR type instantiation requires go1\.18 or later */ int]{}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index a1b8bae3d5..505c639444 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -36,16 +36,10 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 		}
+ 		return
+ 	case universeAny, universeComparable:
+-		// complain if necessary
+ 		if !check.allowVersion(check.pkg, 1, 18) {
+ 			check.errorf(e, _UndeclaredName, "undeclared name: %s (requires version go1.18 or later)", e.Name)
+ 			return // avoid follow-on errors
+ 		}
+-		if obj == universeAny {
+-			// If we allow "any" for general use, this if-statement can be removed (issue #33232).
+-			check.softErrorf(e, _Todo, "cannot use any outside constraint position")
+-			// ok to continue
+-		}
+ 	}
+ 	check.recordUse(e, obj)
+ 
+diff --git a/test/fixedbugs/issue14652.go b/test/fixedbugs/issue14652.go
+index 14a223977b..586663b676 100644
+--- a/test/fixedbugs/issue14652.go
++++ b/test/fixedbugs/issue14652.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// compile
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -6,4 +6,5 @@
+ 
+ package p
+ 
+-var x any // ERROR "undefined: any|undefined type .*any.*|cannot use any outside constraint position"
++// any is now permitted instead of interface{}
++var x any
+diff --git a/test/typeparam/tparam1.go b/test/typeparam/tparam1.go
+index 698877a6f0..3b4260c102 100644
+--- a/test/typeparam/tparam1.go
++++ b/test/typeparam/tparam1.go
+@@ -8,11 +8,10 @@
+ 
+ package tparam1
+ 
+-// The predeclared identifier "any" is only visible as a constraint
+-// in a type parameter list.
+-var _ any     // ERROR "cannot use any outside constraint position"
+-func _(_ any) // ERROR "cannot use any outside constraint position"
+-type _[_ any /* ok here */] struct{}
++// The predeclared identifier "any" may be used in place of interface{}.
++var _ any
++func _(_ any)
++type _[_ any] struct{}
+ 
+ const N = 10
+ 
+@@ -24,16 +23,16 @@ type (
+ 	_[T1, T2 any, T3 any] struct{}
+ )
+ 
+-func _[T any]() {}
+-func _[T, T any]() {} // ERROR "T redeclared"
++func _[T any]()             {}
++func _[T, T any]()          {} // ERROR "T redeclared"
+ func _[T1, T2 any](x T1) T2 { panic(0) }
+ 
+ // Type parameters are visible from opening [ to end of function.
+ type C interface{}
+ 
+-func _[T interface{}]() {}
+-func _[T C]() {}
+-func _[T struct{}]() {}// ERROR "not an interface"
++func _[T interface{}]()        {}
++func _[T C]()                  {}
++func _[T struct{}]()           {} // ERROR "not an interface"
+ func _[T interface{ m() T }]() {}
+ func _[T1 interface{ m() T2 }, T2 interface{ m() T1 }]() {
+ 	var _ T1

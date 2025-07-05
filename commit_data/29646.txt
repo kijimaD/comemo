@@ -13,9 +13,100 @@ Date:   Thu Sep 29 19:09:36 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go   |  2 +-
  src/cmd/compile/internal/gc/gsubr.go |  4 ++--
  src/cmd/compile/internal/gc/pgen.go  | 16 +---------------
  src/cmd/compile/internal/gc/ssa.go   |  3 ++-
  4 files changed, 6 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 3b746344e6..1fa7182705 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -286,7 +286,7 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 	}
+ 
+ 	if c == 0 && n.Xoffset != BADWIDTH {
+-		fmt.Fprintf(s, " x(%d%+d)", n.Xoffset, stkdelta[n])
++		fmt.Fprintf(s, " x(%d)", n.Xoffset)
+ 	}
+ 
+ 	if n.Class != 0 {
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 35f96270d8..b4051fa52d 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -98,11 +98,11 @@ func fixautoused(p *obj.Prog) {
+ 		}
+ 
+ 		if p.From.Name == obj.NAME_AUTO && p.From.Node != nil {
+-			p.From.Offset += stkdelta[p.From.Node.(*Node)]
++			p.From.Offset += p.From.Node.(*Node).Xoffset
+ 		}
+ 
+ 		if p.To.Name == obj.NAME_AUTO && p.To.Node != nil {
+-			p.To.Offset += stkdelta[p.To.Node.(*Node)]
++			p.To.Offset += p.To.Node.(*Node).Xoffset
+ 		}
+ 
+ 		lp = &p.Link
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 9b7cd6ba82..9d977e2fc5 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -214,11 +214,6 @@ func (s byStackVar) Len() int           { return len(s) }
+ func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
+ func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ 
+-// stkdelta records the stack offset delta for a node
+-// during the compaction of the stack frame to remove
+-// unused stack slots.
+-var stkdelta = map[*Node]int64{}
+-
+ // TODO(lvd) find out where the PAUTO/OLITERAL nodes come from.
+ func allocauto(ptxt *obj.Prog) {
+ 	Stksize = 0
+@@ -282,22 +277,13 @@ func allocauto(ptxt *obj.Prog) {
+ 			yyerror("stack frame too large (>2GB)")
+ 		}
+ 
+-		stkdelta[n] = -Stksize - n.Xoffset
++		n.Xoffset = -Stksize
+ 	}
+ 
+ 	Stksize = Rnd(Stksize, int64(Widthreg))
+ 	stkptrsize = Rnd(stkptrsize, int64(Widthreg))
+ 
+ 	fixautoused(ptxt)
+-
+-	// The debug information needs accurate offsets on the symbols.
+-	for _, ln := range Curfn.Func.Dcl {
+-		if ln.Class != PAUTO || ln.Op != ONAME {
+-			continue
+-		}
+-		ln.Xoffset += stkdelta[ln]
+-		delete(stkdelta, ln)
+-	}
+ }
+ 
+ func compile(fn *Node) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a7a7de04c8..f5e1c5f0c7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4374,12 +4374,13 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 		a.Name = obj.NAME_PARAM
+ 		a.Node = n
+ 		a.Sym = Linksym(n.Orig.Sym)
+-		a.Offset += n.Xoffset // TODO: why do I have to add this here?  I don't for auto variables.
++		a.Offset += n.Xoffset
+ 	case *ssa.AutoSymbol:
+ 		n := sym.Node.(*Node)
+ 		a.Name = obj.NAME_AUTO
+ 		a.Node = n
+ 		a.Sym = Linksym(n.Sym)
++		// TODO: a.Offset += n.Xoffset once frame offsets for autos are computed during SSA
+ 	default:
+ 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
+ 	}

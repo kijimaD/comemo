@@ -9,7 +9,58 @@ Date:   Tue Apr 19 14:42:15 2016 -0700
     Change-Id: Id2a349896064c7c9e00e36c55162068bf18162b2
     Reviewed-on: https://go-review.googlesource.com/22272
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strconv/atof.go      |  4 +++-
  src/strconv/atof_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index ce76252340..ada85e9fed 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -244,7 +244,9 @@ func readFloat(s string) (mantissa uint64, exp int, neg, trunc, ok bool) {
+ 		return
+ 	}
+ 
+-	exp = dp - ndMant
++	if mantissa != 0 {
++		exp = dp - ndMant
++	}
+ 	ok = true
+ 	return
+ 
+diff --git a/src/strconv/atof_test.go b/src/strconv/atof_test.go
+index 9f70cc1fd7..0a89c3e0bf 100644
+--- a/src/strconv/atof_test.go
++++ b/src/strconv/atof_test.go
+@@ -42,6 +42,30 @@ var atoftests = []atofTest{
+ 	{"1e-20", "1e-20", nil},
+ 	{"625e-3", "0.625", nil},
+ 
++	// zeros
++	{"0", "0", nil},
++	{"0e0", "0", nil},
++	{"-0e0", "-0", nil},
++	{"+0e0", "0", nil},
++	{"0e-0", "0", nil},
++	{"-0e-0", "-0", nil},
++	{"+0e-0", "0", nil},
++	{"0e+0", "0", nil},
++	{"-0e+0", "-0", nil},
++	{"+0e+0", "0", nil},
++	{"0e+01234567890123456789", "0", nil},
++	{"0.00e-01234567890123456789", "0", nil},
++	{"-0e+01234567890123456789", "-0", nil},
++	{"-0.00e-01234567890123456789", "-0", nil},
++	{"0e291", "0", nil}, // issue 15364
++	{"0e292", "0", nil}, // issue 15364
++	{"0e347", "0", nil}, // issue 15364
++	{"0e348", "0", nil}, // issue 15364
++	{"-0e291", "-0", nil},
++	{"-0e292", "-0", nil},
++	{"-0e347", "-0", nil},
++	{"-0e348", "-0", nil},
++
+ 	// NaNs
+ 	{"nan", "NaN", nil},
+ 	{"NaN", "NaN", nil},

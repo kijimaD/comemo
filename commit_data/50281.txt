@@ -12,10 +12,154 @@ Date:   Wed Oct 13 21:36:03 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/355733
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/decl.go                           | 14 ++++++++++++--
  src/go/types/testdata/check/issues.go2         |  4 ++--
  src/go/types/testdata/fixedbugs/issue39634.go2 |  4 ++--
  src/go/types/testdata/fixedbugs/issue39938.go2 | 12 +++++++-----
  src/go/types/testdata/fixedbugs/issue48951.go2 | 21 +++++++++++++++++++++
  5 files changed, 44 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index f97fa252cb..4aa49b17ca 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -329,7 +329,17 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		}
+ 
+ 	case *Named:
+-		t.resolve(check.conf.Context)
++		// If t is parameterized, we should be considering the instantiated (expanded)
++		// form of t, but in general we can't with this algorithm: if t is an invalid
++		// type it may be so because it infinitely expands through a type parameter.
++		// Instantiating such a type would lead to an infinite sequence of instantiations.
++		// In general, we need "type flow analysis" to recognize those cases.
++		// Example: type A[T any] struct{ x A[*T] } (issue #48951)
++		// In this algorithm we always only consider the orginal, uninstantiated type.
++		// This won't recognize some invalid cases with parameterized types, but it
++		// will terminate.
++		t = t.orig
++
+ 		// don't touch the type if it is from a different package or the Universe scope
+ 		// (doing so would lead to a race condition - was issue #35049)
+ 		if t.obj.pkg != check.pkg {
+@@ -357,7 +367,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 					check.cycleError(path[i:])
+ 					t.info = invalid
+ 					t.underlying = Typ[Invalid]
+-					return t.info
++					return invalid
+ 				}
+ 			}
+ 			panic("cycle start not found")
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index a994d73f66..c46a34e2eb 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -146,8 +146,8 @@ type List3[TElem any] struct {
+ }
+ 
+ // Infinite generic type declarations must lead to an error.
+-type inf1[T any] struct{ _ inf1 /* ERROR illegal cycle */ [T] }
+-type inf2[T any] struct{ inf2 /* ERROR illegal cycle */ [T] }
++type inf1 /* ERROR illegal cycle */ [T any] struct{ _ inf1[T] }
++type inf2 /* ERROR illegal cycle */ [T any] struct{ inf2[T] }
+ 
+ // The implementation of conversions T(x) between integers and floating-point
+ // numbers checks that both T and x have either integer or floating-point
+diff --git a/src/go/types/testdata/fixedbugs/issue39634.go2 b/src/go/types/testdata/fixedbugs/issue39634.go2
+index c46d38f8c4..5cff6e7555 100644
+--- a/src/go/types/testdata/fixedbugs/issue39634.go2
++++ b/src/go/types/testdata/fixedbugs/issue39634.go2
+@@ -37,8 +37,8 @@ func main7() { var _ foo7 = x7[int]{} }
+ // func main8() {}
+ 
+ // crash 9
+-type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
+-func _() { var _ = new(foo9 /* ERROR illegal cycle */ [int]) }
++type foo9 /* ERROR illegal cycle */ [A any] interface { foo9[A] }
++func _() { var _ = new(foo9[int]) }
+ 
+ // crash 12
+ var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undeclared */ /* ERROR undeclared */
+diff --git a/src/go/types/testdata/fixedbugs/issue39938.go2 b/src/go/types/testdata/fixedbugs/issue39938.go2
+index 0da6e103fd..31bec5fb01 100644
+--- a/src/go/types/testdata/fixedbugs/issue39938.go2
++++ b/src/go/types/testdata/fixedbugs/issue39938.go2
+@@ -3,6 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Check "infinite expansion" cycle errors across instantiated types.
++// We can't detect these errors anymore at the moment. See #48962 for
++// details.
+ 
+ package p
+ 
+@@ -11,11 +13,11 @@ type E1[P any] *P
+ type E2[P any] struct{ _ P }
+ type E3[P any] struct{ _ *P }
+ 
+-type T0 /* ERROR illegal cycle */ struct {
++type T0 /* illegal cycle */ struct {
+         _ E0[T0]
+ }
+ 
+-type T0_ /* ERROR illegal cycle */ struct {
++type T0_ /* illegal cycle */ struct {
+         E0[T0_]
+ }
+ 
+@@ -23,7 +25,7 @@ type T1 struct {
+         _ E1[T1]
+ }
+ 
+-type T2 /* ERROR illegal cycle */ struct {
++type T2 /* illegal cycle */ struct {
+         _ E2[T2]
+ }
+ 
+@@ -33,7 +35,7 @@ type T3 struct {
+ 
+ // some more complex cases
+ 
+-type T4 /* ERROR illegal cycle */ struct {
++type T4 /* illegal cycle */ struct {
+ 	_ E0[E2[T4]]
+ }
+ 
+@@ -41,7 +43,7 @@ type T5 struct {
+ 	_ E0[E2[E0[E1[E2[[10]T5]]]]]
+ }
+ 
+-type T6 /* ERROR illegal cycle */ struct {
++type T6 /* illegal cycle */ struct {
+ 	_ E0[[10]E2[E0[E2[E2[T6]]]]]
+ }
+ 
+diff --git a/src/go/types/testdata/fixedbugs/issue48951.go2 b/src/go/types/testdata/fixedbugs/issue48951.go2
+new file mode 100644
+index 0000000000..cf02cc130a
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48951.go2
+@@ -0,0 +1,21 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++        A1 /* ERROR illegal cycle */ [P any] [10]A1[P]
++        A2 /* ERROR illegal cycle */ [P any] [10]A2[*P]
++        A3[P any] [10]*A3[P]
++
++        L1[P any] []L1[P]
++
++        S1 /* ERROR illegal cycle */ [P any] struct{ f S1[P] }
++        S2 /* ERROR illegal cycle */ [P any] struct{ f S2[*P] } // like example in issue
++        S3[P any] struct{ f *S3[P] }
++
++        I1 /* ERROR illegal cycle */ [P any] interface{ I1[P] }
++        I2 /* ERROR illegal cycle */ [P any] interface{ I2[*P] }
++        I3[P any] interface{ *I3 /* ERROR interface contains type constraints */ [P] }
++)

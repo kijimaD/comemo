@@ -15,7 +15,33 @@ Date:   Mon May 8 14:37:02 2017 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/dwarf/dwarf.go   | 1 +
  src/cmd/link/internal/ld/dwarf.go | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 827b146584..042a79b5a6 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -197,6 +197,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_high_pc, DW_FORM_addr},
+ 			{DW_AT_stmt_list, DW_FORM_data4},
+ 			{DW_AT_comp_dir, DW_FORM_string},
++			{DW_AT_producer, DW_FORM_string},
+ 		},
+ 	},
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index c190e537fe..35c450904a 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1024,6 +1024,8 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 	// OS X linker requires compilation dir or absolute path in comp unit name to output debug info.
+ 	compDir := getCompilationDir()
+ 	newattr(dwinfo, dwarf.DW_AT_comp_dir, dwarf.DW_CLS_STRING, int64(len(compDir)), compDir)
++	producer := "Go cmd/compile " + objabi.Version
++	newattr(dwinfo, dwarf.DW_AT_producer, dwarf.DW_CLS_STRING, int64(len(producer)), producer)
+ 
+ 	// Write .debug_line Line Number Program Header (sec 6.2.4)
+ 	// Fields marked with (*) must be changed for 64-bit dwarf

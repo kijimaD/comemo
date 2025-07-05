@@ -40,6 +40,20 @@ Date:   Tue May 9 17:36:42 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 5bb4622f39..91cd1e35d7 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -272,7 +272,7 @@ func compileFunctions() {
+ 			})
+ 		}
+ 		var wg sync.WaitGroup
+-		c := make(chan *Node)
++		c := make(chan *Node, nBackendWorkers)
+ 		for i := 0; i < nBackendWorkers; i++ {
+ 			wg.Add(1)
+ 			go func(worker int) {

@@ -29,9 +29,266 @@ Date:   Tue Nov 3 12:19:15 2015 +0100
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/mgcsweep.go | 46 +++++++++++++++++++++++-------
  src/runtime/mheap.go    |  5 +---
  test/finprofiled.go     | 74 +++++++++++++++++++++++++++++++++++++++++++++++++
  test/tinyfin.go         | 56 ++++++++++++++++++++-----------------
  4 files changed, 142 insertions(+), 39 deletions(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 7c7f1e858b..02d3d6078b 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -197,6 +197,13 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 	}
+ 
+ 	// Unlink & free special records for any objects we're about to free.
++	// Two complications here:
++	// 1. An object can have both finalizer and profile special records.
++	//    In such case we need to queue finalizer for execution,
++	//    mark the object as live and preserve the profile special.
++	// 2. A tiny object can have several finalizers setup for different offsets.
++	//    If such object is not marked, we need to queue all finalizers at once.
++	// Both 1 and 2 are possible at the same time.
+ 	specialp := &s.specials
+ 	special := *specialp
+ 	for special != nil {
+@@ -204,16 +211,35 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 		p := uintptr(s.start<<_PageShift) + uintptr(special.offset)/size*size
+ 		hbits := heapBitsForAddr(p)
+ 		if !hbits.isMarked() {
+-			// Find the exact byte for which the special was setup
+-			// (as opposed to object beginning).
+-			p := uintptr(s.start<<_PageShift) + uintptr(special.offset)
+-			// about to free object: splice out special record
+-			y := special
+-			special = special.next
+-			*specialp = special
+-			if !freespecial(y, unsafe.Pointer(p), size, false) {
+-				// stop freeing of object if it has a finalizer
+-				hbits.setMarkedNonAtomic()
++			// This object is not marked and has at least one special record.
++			// Pass 1: see if it has at least one finalizer.
++			hasFin := false
++			endOffset := p - uintptr(s.start<<_PageShift) + size
++			for tmp := special; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
++				if tmp.kind == _KindSpecialFinalizer {
++					// Stop freeing of object if it has a finalizer.
++					hbits.setMarkedNonAtomic()
++					hasFin = true
++					break
++				}
++			}
++			// Pass 2: queue all finalizers _or_ handle profile record.
++			for special != nil && uintptr(special.offset) < endOffset {
++				// Find the exact byte for which the special was setup
++				// (as opposed to object beginning).
++				p := uintptr(s.start<<_PageShift) + uintptr(special.offset)
++				if special.kind == _KindSpecialFinalizer || !hasFin {
++					// Splice out special record.
++					y := special
++					special = special.next
++					*specialp = special
++					freespecial(y, unsafe.Pointer(p), size, false)
++				} else {
++					// This is profile record, but the object has finalizers (so kept alive).
++					// Keep special record.
++					specialp = &special.next
++					special = *specialp
++				}
+ 			}
+ 		} else {
+ 			// object is still live: keep special record
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 36e895de31..4f01aa7505 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1143,8 +1143,7 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
+ 
+ // Do whatever cleanup needs to be done to deallocate s.  It has
+ // already been unlinked from the MSpan specials list.
+-// Returns true if we should keep working on deallocating p.
+-func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) bool {
++func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) {
+ 	switch s.kind {
+ 	case _KindSpecialFinalizer:
+ 		sf := (*specialfinalizer)(unsafe.Pointer(s))
+@@ -1152,14 +1151,12 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) bool {
+ 		lock(&mheap_.speciallock)
+ 		fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(sf))
+ 		unlock(&mheap_.speciallock)
+-		return false // don't free p until finalizer is done
+ 	case _KindSpecialProfile:
+ 		sp := (*specialprofile)(unsafe.Pointer(s))
+ 		mProf_Free(sp.b, size, freed)
+ 		lock(&mheap_.speciallock)
+ 		fixAlloc_Free(&mheap_.specialprofilealloc, unsafe.Pointer(sp))
+ 		unlock(&mheap_.speciallock)
+-		return true
+ 	default:
+ 		throw("bad special kind")
+ 		panic("not reached")
+diff --git a/test/finprofiled.go b/test/finprofiled.go
+new file mode 100644
+index 0000000000..0eb801a4bd
+--- /dev/null
++++ b/test/finprofiled.go
+@@ -0,0 +1,74 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that tiny allocations with finalizers are correctly profiled.
++// Previously profile special records could have been processed prematurely
++// (while the object is still live).
++
++package main
++
++import (
++	"runtime"
++	"time"
++	"unsafe"
++)
++
++func main() {
++	runtime.MemProfileRate = 1
++	// Allocate 1M 4-byte objects and set a finalizer for every third object.
++	// Assuming that tiny block size is 16, some objects get finalizers setup
++	// only for middle bytes. The finalizer resurrects that object.
++	// As the result, all allocated memory must stay alive.
++	const (
++		N = 1 << 20
++		tinyBlockSize = 16 // runtime._TinySize
++	)
++	hold := make([]*int32, 0, N)
++	for i := 0; i < N; i++ {
++		x := new(int32)
++		if i%3 == 0 {
++			runtime.SetFinalizer(x, func(p *int32) {
++				hold = append(hold, p)
++			})
++		}
++	}
++	// Finalize as much as possible.
++	// Note: the sleep only increases probility of bug detection,
++	// it cannot lead to false failure.
++	for i := 0; i < 5; i++ {
++		runtime.GC()
++		time.Sleep(10 * time.Millisecond)
++	}
++	// Read memory profile.
++	var prof []runtime.MemProfileRecord
++	for {
++		if n, ok := runtime.MemProfile(prof, false); ok {
++			prof = prof[:n]
++			break
++		} else {
++			prof = make([]runtime.MemProfileRecord, n+10)
++		}
++	}
++	// See how much memory in tiny objects is profiled.
++	var totalBytes int64
++	for _, p := range prof {
++		bytes := p.AllocBytes - p.FreeBytes
++		nobj := p.AllocObjects - p.FreeObjects
++		size := bytes / nobj
++		if size == tinyBlockSize {
++			totalBytes += bytes
++		}
++	}
++	// 2*tinyBlockSize slack is for any boundary effects.
++	if want := N*int64(unsafe.Sizeof(int32(0))) - 2*tinyBlockSize; totalBytes < want {
++		println("got", totalBytes, "want >=", want)
++		panic("some of the tiny objects are not profiled")
++	}
++	// Just to keep hold alive.
++	if len(hold) != 0 && hold[0] == nil {
++		panic("bad")
++	}
++}
+diff --git a/test/tinyfin.go b/test/tinyfin.go
+index d9ffa7cab2..5171dfc72e 100644
+--- a/test/tinyfin.go
++++ b/test/tinyfin.go
+@@ -10,7 +10,6 @@ package main
+ 
+ import (
+ 	"runtime"
+-	"sync/atomic"
+ 	"time"
+ )
+ 
+@@ -20,39 +19,46 @@ func main() {
+ 	if runtime.Compiler == "gccgo" {
+ 		return
+ 	}
+-	N := int32(100)
+-	count := N
+-	done := make([]bool, N)
+-	for i := int32(0); i < N; i++ {
++	const N = 100
++	finalized := make(chan int32, N)
++	for i := 0; i < N; i++ {
+ 		x := new(int32) // subject to tiny alloc
+-		*x = i
++		*x = int32(i)
+ 		// the closure must be big enough to be combined
+ 		runtime.SetFinalizer(x, func(p *int32) {
++			finalized <- *p
++		})
++	}
++	runtime.GC()
++	count := 0
++	done := make([]bool, N)
++	timeout := time.After(5*time.Second)
++	for {
++		select {
++		case <-timeout:
++			println("timeout,", count, "finalized so far")
++			panic("not all finalizers are called")
++		case x := <-finalized:
+ 			// Check that p points to the correct subobject of the tiny allocation.
+ 			// It's a bit tricky, because we can't capture another variable
+ 			// with the expected value (it would be combined as well).
+-			if *p < 0 || *p >= N {
+-				println("got", *p)
++			if x < 0 || x >= N {
++				println("got", x)
+ 				panic("corrupted")
+ 			}
+-			if done[*p] {
+-				println("got", *p)
++			if done[x] {
++				println("got", x)
+ 				panic("already finalized")
+ 			}
+-			done[*p] = true
+-			atomic.AddInt32(&count, -1)
+-		})
+-	}
+-	for i := 0; i < 4; i++ {
+-		runtime.GC()
+-		time.Sleep(10 * time.Millisecond)
+-	}
+-	// Some of the finalizers may not be executed,
+-	// if the outermost allocations are combined with something persistent.
+-	// Currently 4 int32's are combined into a 16-byte block,
+-	// ensure that most of them are finalized.
+-	if atomic.LoadInt32(&count) >= N/4 {
+-		println(count, "out of", N, "finalizer are not called")
+-		panic("not all finalizers are called")
++			done[x] = true
++			count++
++			if count > N/10*9 {
++				// Some of the finalizers may not be executed,
++				// if the outermost allocations are combined with something persistent.
++				// Currently 4 int32's are combined into a 16-byte block,
++				// ensure that most of them are finalized.
++				return
++			}
++		}
+ 	}
+ }

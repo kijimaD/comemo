@@ -7,7 +7,48 @@ Date:   Tue Sep 7 23:42:01 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2166042
-
+---
  src/pkg/exp/draw/event.go    | 2 ++
  src/pkg/exp/draw/x11/conn.go | 5 +++--
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/draw/event.go b/src/pkg/exp/draw/event.go
+index 05237c2178..c4ec43702a 100644
+--- a/src/pkg/exp/draw/event.go
++++ b/src/pkg/exp/draw/event.go
+@@ -39,6 +39,8 @@ type MouseEvent struct {
+ 	Buttons int
+ 	// Loc is the location of the cursor.
+ 	Loc image.Point
++	// Nsec is the event's timestamp.
++	Nsec int64
+ }
+ 
+ // A ConfigEvent is sent each time the window's color model or size changes.
+diff --git a/src/pkg/exp/draw/x11/conn.go b/src/pkg/exp/draw/x11/conn.go
+index fd51aa2b8b..7c95883263 100644
+--- a/src/pkg/exp/draw/x11/conn.go
++++ b/src/pkg/exp/draw/x11/conn.go
+@@ -19,6 +19,7 @@ import (
+ 	"os"
+ 	"strconv"
+ 	"strings"
++	"time"
+ )
+ 
+ type resID uint32 // X resource IDs.
+@@ -208,12 +209,12 @@ func (c *conn) pumper() {
+ 			} else {
+ 				c.mouseState.Buttons &^= mask
+ 			}
+-			// TODO(nigeltao): update mouseState's timestamp.
++			c.mouseState.Nsec = time.Nanoseconds()
+ 			c.eventc <- c.mouseState
+ 		case 0x06: // Motion notify.
+ 			c.mouseState.Loc.X = int(c.buf[25])<<8 | int(c.buf[24])
+ 			c.mouseState.Loc.Y = int(c.buf[27])<<8 | int(c.buf[26])
+-			// TODO(nigeltao): update mouseState's timestamp.
++			c.mouseState.Nsec = time.Nanoseconds()
+ 			c.eventc <- c.mouseState
+ 		case 0x0c: // Expose.
+ 			// A single user action could trigger multiple expose events (e.g. if moving another

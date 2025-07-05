@@ -1122,3 +1122,64 @@ Date:   Wed Nov 18 10:55:34 2020 -0800
  test/inline.go                                     |    37 +-
  test/prove.go                                      |     6 +-
  1114 files changed, 58180 insertions(+), 26847 deletions(-)
+
+diff --cc src/crypto/rand/rand_unix.go
+index 2bd77f327f,548a5e4cb9..8bc4abf40c
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@@ -53,8 -47,11 +53,12 @@@ type devReader struct 
+  // urandom-style randomness.
+  var altGetRandom func([]byte) (ok bool)
+  
++ func warnBlocked() {
++ 	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
++ }
++ 
+  func (r *devReader) Read(b []byte) (n int, err error) {
+ +	boring.Unreachable()
+  	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
+  		// First use of randomness. Start timer to warn about
+  		// being blocked on entropy not being available.
+diff --cc src/crypto/tls/cipher_suites.go
+index cbe14f8dbd,9a356758fb..6596562fb1
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@@ -249,30 -247,15 +249,21 @@@ func cipherAES(key, iv []byte, isRead b
+  	return cipher.NewCBCEncrypter(block, iv)
+  }
+  
+- // macSHA1 returns a macFunction for the given protocol version.
+- func macSHA1(version uint16, key []byte) macFunction {
++ // macSHA1 returns a SHA-1 based constant time MAC.
++ func macSHA1(key []byte) hash.Hash {
+ -	return hmac.New(newConstantTimeHash(sha1.New), key)
+ +	h := sha1.New
+ +	// The BoringCrypto SHA1 does not have a constant-time
+ +	// checksum function, so don't try to use it.
+ +	if !boring.Enabled {
+ +		h = newConstantTimeHash(h)
+ +	}
+- 	return tls10MAC{h: hmac.New(h, key)}
+++	return hmac.New(h, key)
+  }
+  
+- // macSHA256 returns a SHA-256 based MAC. These are only supported in TLS 1.2
+- // so the given version is ignored.
+- func macSHA256(version uint16, key []byte) macFunction {
+- 	return tls10MAC{h: hmac.New(sha256.New, key)}
+- }
+- 
+- type macFunction interface {
+- 	// Size returns the length of the MAC.
+- 	Size() int
+- 	// MAC appends the MAC of (seq, header, data) to out. The extra data is fed
+- 	// into the MAC after obtaining the result to normalize timing. The result
+- 	// is only valid until the next invocation of MAC as the buffer is reused.
+- 	MAC(seq, header, data, extra []byte) []byte
++ // macSHA256 returns a SHA-256 based MAC. This is only supported in TLS 1.2 and
++ // is currently only used in disabled-by-default cipher suites.
++ func macSHA256(key []byte) hash.Hash {
++ 	return hmac.New(sha256.New, key)
+  }
+  
+  type aead interface {

@@ -15,7 +15,37 @@ Date:   Mon Mar 27 09:42:22 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/value.go      | 6 ++++--
  src/log/slog/value_test.go | 1 +
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/log/slog/value.go b/src/log/slog/value.go
+index 3a2c41e9e4..b434eb368a 100644
+--- a/src/log/slog/value.go
++++ b/src/log/slog/value.go
+@@ -414,8 +414,10 @@ func (v Value) append(dst []byte) []byte {
+ 		return append(dst, v.duration().String()...)
+ 	case KindTime:
+ 		return append(dst, v.time().String()...)
+-	case KindAny, KindGroup, KindLogValuer:
+-		return append(dst, fmt.Sprint(v.any)...)
++	case KindGroup:
++		return fmt.Append(dst, v.group())
++	case KindAny, KindLogValuer:
++		return fmt.Append(dst, v.any)
+ 	default:
+ 		panic(fmt.Sprintf("bad kind: %s", v.Kind()))
+ 	}
+diff --git a/src/log/slog/value_test.go b/src/log/slog/value_test.go
+index e3c087c5c9..55f3100a80 100644
+--- a/src/log/slog/value_test.go
++++ b/src/log/slog/value_test.go
+@@ -59,6 +59,7 @@ func TestValueString(t *testing.T) {
+ 		{StringValue("foo"), "foo"},
+ 		{TimeValue(testTime), "2000-01-02 03:04:05 +0000 UTC"},
+ 		{AnyValue(time.Duration(3 * time.Second)), "3s"},
++		{GroupValue(Int("a", 1), Bool("b", true)), "[a=1 b=true]"},
+ 	} {
+ 		if got := test.v.String(); got != test.want {
+ 			t.Errorf("%#v:\ngot  %q\nwant %q", test.v, got, test.want)

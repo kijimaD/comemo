@@ -15,9 +15,133 @@ Date:   Tue Sep 7 13:58:49 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/348090
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go            | 19 +++++++++----
  src/cmd/compile/internal/types2/signature.go       |  2 +-
  .../types2/testdata/fixedbugs/issue45550.go2       | 10 +++++++
  .../types2/testdata/fixedbugs/issue47796.go2       | 33 ++++++++++++++++++++++
  4 files changed, 58 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index b61d282b14..278ee76bfa 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -567,7 +567,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 	if tdecl.TParamList != nil {
+ 		check.openScope(tdecl, "type parameters")
+ 		defer check.closeScope()
+-		named.tparams = check.collectTypeParams(tdecl.TParamList)
++		check.collectTypeParams(&named.tparams, tdecl.TParamList)
+ 	}
+ 
+ 	// determine underlying type of named
+@@ -598,7 +598,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 	}
+ }
+ 
+-func (check *Checker) collectTypeParams(list []*syntax.Field) *TParamList {
++func (check *Checker) collectTypeParams(dst **TParamList, list []*syntax.Field) {
+ 	tparams := make([]*TypeParam, len(list))
+ 
+ 	// Declare type parameters up-front.
+@@ -608,6 +608,11 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) *TParamList {
+ 		tparams[i] = check.declareTypeParam(f.Name)
+ 	}
+ 
++	// Set the type parameters before collecting the type constraints because
++	// the parameterized type may be used by the constraints (issue #47887).
++	// Example: type T[P T[P]] interface{}
++	*dst = bindTParams(tparams)
++
+ 	var bound Type
+ 	for i, f := range list {
+ 		// Optimization: Re-use the previous type bound if it hasn't changed.
+@@ -618,13 +623,17 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) *TParamList {
+ 		}
+ 		tparams[i].bound = bound
+ 	}
+-
+-	return bindTParams(tparams)
+ }
+ 
+ func (check *Checker) declareTypeParam(name *syntax.Name) *TypeParam {
++	// Use Typ[Invalid] for the type constraint to ensure that a type
++	// is present even if the actual constraint has not been assigned
++	// yet.
++	// TODO(gri) Need to systematically review all uses of type parameter
++	//           constraints to make sure we don't rely on them if they
++	//           are not properly set yet.
+ 	tname := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
+-	tpar := check.NewTypeParam(tname, nil)                   // assigns type to tname as a side-effect
++	tpar := check.NewTypeParam(tname, Typ[Invalid])          // assigns type to tname as a side-effect
+ 	check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
+ 	return tpar
+ }
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index ddad1f0311..a7d0db624c 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -157,7 +157,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 	}
+ 
+ 	if tparams != nil {
+-		sig.tparams = check.collectTypeParams(tparams)
++		check.collectTypeParams(&sig.tparams, tparams)
+ 		// Always type-check method type parameters but complain if they are not enabled.
+ 		// (A separate check is needed when type-checking interface method signatures because
+ 		// they don't have a receiver specification.)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45550.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45550.go2
+new file mode 100644
+index 0000000000..c3e9e34b87
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45550.go2
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Builder[T interface{ struct{ Builder[T] } }] struct{}
++type myBuilder struct {
++	Builder[myBuilder /* ERROR myBuilder does not satisfy */]
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47796.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47796.go2
+new file mode 100644
+index 0000000000..9c10683e22
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47796.go2
+@@ -0,0 +1,33 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// parameterized types with self-recursive constraints
++type (
++	T1[P T1[P]]                            interface{}
++	T2[P, Q T2[P, Q]]                      interface{}
++	T3[P T2[P, Q], Q interface{ ~string }] interface{}
++
++	T4a[P T4a[P]]                                                        interface{ ~int }
++	T4b[P T4b[int]]                                                      interface{ ~int }
++	T4c[P T4c[string /* ERROR string does not satisfy T4c\[string\] */]] interface{ ~int }
++
++	// mutually recursive constraints
++	T5[P T6[P]] interface{ int }
++	T6[P T5[P]] interface{ int }
++)
++
++// verify that constraints are checked as expected
++var (
++	_ T1[int]
++	_ T2[int, string]
++	_ T3[int, string]
++)
++
++// test case from issue
++
++type Eq[a Eq[a]] interface {
++	Equal(that a) bool
++}

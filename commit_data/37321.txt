@@ -8,6 +8,32 @@ Date:   Wed Jul 18 13:30:41 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/124702
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.11.html | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 70e9358c9d..7d538a53d1 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -136,7 +136,8 @@ Do not send CLs removing the interior tags from such phrases.
+     NOTE: This is not present in go1.11beta1 but will be available in future
+     betas and subsequent releases.
+   </strong>
+-  Go 1.11 adds experimental support for a new concept called “modules,”
++  <!-- TODO s;https://tip.golang.org;; for final release (right now golang.org/cmd/go doesn't have that section) -->
++  Go 1.11 adds preliminary support for a <a href="https://tip.golang.org/cmd/go/#hdr-Modules__module_versions__and_more">new concept called “modules,”</a>
+   an alternative to GOPATH with integrated support for versioning and
+   package distribution.
+   Using modules, developers are no longer confined to working inside GOPATH,
+@@ -155,10 +156,6 @@ Do not send CLs removing the interior tags from such phrases.
+   so we can fix them.
+ </p>
+ 
+-<p>
+-  TODO: Link to intro doc.
+-</p>
+-
+ <h3 id="importpath">Import path restriction</h3>
+ 
+ <p>

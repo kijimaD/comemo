@@ -6,6 +6,31 @@ Date:   Mon Nov 23 12:58:28 2009 -0800
     
     R=ken2
     https://golang.org/cl/160043
-
+---
  src/cmd/8g/cgen.c | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index b6b855de8b..cc93cf3e50 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -548,8 +548,7 @@ agen(Node *n, Node *res)
+ 					nodconst(&n2, types[TUINT32], v);
+ 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+ 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+-					//ginscall(throwindex, 0);
+-					gins(AINT, nodintconst(3), N);
++					ginscall(throwindex, 0);
+ 					patch(p1, pc);
+ 				}
+ 
+@@ -595,8 +594,7 @@ agen(Node *n, Node *res)
+ 				nodconst(&n1, types[TUINT32], nl->type->bound);
+ 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
+ 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-			//ginscall(throwindex, 0);
+-			gins(AINT, nodintconst(3), N);
++			ginscall(throwindex, 0);
+ 			patch(p1, pc);
+ 		}
+ 

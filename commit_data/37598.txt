@@ -9,8 +9,256 @@ Date:   Fri Aug 10 10:19:03 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go  |  25 ++++++-----
  src/runtime/proc.go     | 117 ++++++++++++++++++++++--------------------------
  src/runtime/runtime2.go |  16 ++++---
  3 files changed, 77 insertions(+), 81 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 7850f86bb2..d6ee7ff6fa 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -302,26 +302,27 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
+ //TODO go:nowritebarrier
+ func markrootFreeGStacks() {
+ 	// Take list of dead Gs with stacks.
+-	lock(&sched.gflock)
+-	list := sched.gfreeStack
+-	sched.gfreeStack = nil
+-	unlock(&sched.gflock)
+-	if list == nil {
++	lock(&sched.gFree.lock)
++	list := sched.gFree.stack
++	sched.gFree.stack = gList{}
++	unlock(&sched.gFree.lock)
++	if list.empty() {
+ 		return
+ 	}
+ 
+ 	// Free stacks.
+-	tail := list
+-	for gp := list; gp != nil; gp = gp.schedlink.ptr() {
++	q := gQueue{list.head, list.head}
++	for gp := list.head.ptr(); gp != nil; gp = gp.schedlink.ptr() {
+ 		shrinkstack(gp)
+-		tail = gp
++		// Manipulate the queue directly since the Gs are
++		// already all linked the right way.
++		q.tail.set(gp)
+ 	}
+ 
+ 	// Put Gs back on the free list.
+-	lock(&sched.gflock)
+-	tail.schedlink.set(sched.gfreeNoStack)
+-	sched.gfreeNoStack = list
+-	unlock(&sched.gflock)
++	lock(&sched.gFree.lock)
++	sched.gFree.noStack.pushAll(q)
++	unlock(&sched.gFree.lock)
+ }
+ 
+ // markrootSpans marks roots for one shard of work.spans.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2a780e49ee..5cb7f13016 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3471,25 +3471,21 @@ func gfput(_p_ *p, gp *g) {
+ 		gp.stackguard0 = 0
+ 	}
+ 
+-	gp.schedlink.set(_p_.gfree)
+-	_p_.gfree = gp
+-	_p_.gfreecnt++
+-	if _p_.gfreecnt >= 64 {
+-		lock(&sched.gflock)
+-		for _p_.gfreecnt >= 32 {
+-			_p_.gfreecnt--
+-			gp = _p_.gfree
+-			_p_.gfree = gp.schedlink.ptr()
++	_p_.gFree.push(gp)
++	_p_.gFree.n++
++	if _p_.gFree.n >= 64 {
++		lock(&sched.gFree.lock)
++		for _p_.gFree.n >= 32 {
++			_p_.gFree.n--
++			gp = _p_.gFree.pop()
+ 			if gp.stack.lo == 0 {
+-				gp.schedlink.set(sched.gfreeNoStack)
+-				sched.gfreeNoStack = gp
++				sched.gFree.noStack.push(gp)
+ 			} else {
+-				gp.schedlink.set(sched.gfreeStack)
+-				sched.gfreeStack = gp
++				sched.gFree.stack.push(gp)
+ 			}
+-			sched.ngfree++
++			sched.gFree.n++
+ 		}
+-		unlock(&sched.gflock)
++		unlock(&sched.gFree.lock)
+ 	}
+ }
+ 
+@@ -3497,44 +3493,42 @@ func gfput(_p_ *p, gp *g) {
+ // If local list is empty, grab a batch from global list.
+ func gfget(_p_ *p) *g {
+ retry:
+-	gp := _p_.gfree
+-	if gp == nil && (sched.gfreeStack != nil || sched.gfreeNoStack != nil) {
+-		lock(&sched.gflock)
+-		for _p_.gfreecnt < 32 {
+-			if sched.gfreeStack != nil {
+-				// Prefer Gs with stacks.
+-				gp = sched.gfreeStack
+-				sched.gfreeStack = gp.schedlink.ptr()
+-			} else if sched.gfreeNoStack != nil {
+-				gp = sched.gfreeNoStack
+-				sched.gfreeNoStack = gp.schedlink.ptr()
+-			} else {
+-				break
++	if _p_.gFree.empty() && (!sched.gFree.stack.empty() || !sched.gFree.noStack.empty()) {
++		lock(&sched.gFree.lock)
++		// Move a batch of free Gs to the P.
++		for _p_.gFree.n < 32 {
++			// Prefer Gs with stacks.
++			gp := sched.gFree.stack.pop()
++			if gp == nil {
++				gp = sched.gFree.noStack.pop()
++				if gp == nil {
++					break
++				}
+ 			}
+-			_p_.gfreecnt++
+-			sched.ngfree--
+-			gp.schedlink.set(_p_.gfree)
+-			_p_.gfree = gp
++			sched.gFree.n--
++			_p_.gFree.push(gp)
++			_p_.gFree.n++
+ 		}
+-		unlock(&sched.gflock)
++		unlock(&sched.gFree.lock)
+ 		goto retry
+ 	}
+-	if gp != nil {
+-		_p_.gfree = gp.schedlink.ptr()
+-		_p_.gfreecnt--
+-		if gp.stack.lo == 0 {
+-			// Stack was deallocated in gfput. Allocate a new one.
+-			systemstack(func() {
+-				gp.stack = stackalloc(_FixedStack)
+-			})
+-			gp.stackguard0 = gp.stack.lo + _StackGuard
+-		} else {
+-			if raceenabled {
+-				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+-			}
+-			if msanenabled {
+-				msanmalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+-			}
++	gp := _p_.gFree.pop()
++	if gp == nil {
++		return nil
++	}
++	_p_.gFree.n--
++	if gp.stack.lo == 0 {
++		// Stack was deallocated in gfput. Allocate a new one.
++		systemstack(func() {
++			gp.stack = stackalloc(_FixedStack)
++		})
++		gp.stackguard0 = gp.stack.lo + _StackGuard
++	} else {
++		if raceenabled {
++			racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
++		}
++		if msanenabled {
++			msanmalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+ 		}
+ 	}
+ 	return gp
+@@ -3542,21 +3536,18 @@ retry:
+ 
+ // Purge all cached G's from gfree list to the global list.
+ func gfpurge(_p_ *p) {
+-	lock(&sched.gflock)
+-	for _p_.gfreecnt != 0 {
+-		_p_.gfreecnt--
+-		gp := _p_.gfree
+-		_p_.gfree = gp.schedlink.ptr()
++	lock(&sched.gFree.lock)
++	for !_p_.gFree.empty() {
++		gp := _p_.gFree.pop()
++		_p_.gFree.n--
+ 		if gp.stack.lo == 0 {
+-			gp.schedlink.set(sched.gfreeNoStack)
+-			sched.gfreeNoStack = gp
++			sched.gFree.noStack.push(gp)
+ 		} else {
+-			gp.schedlink.set(sched.gfreeStack)
+-			sched.gfreeStack = gp
++			sched.gFree.stack.push(gp)
+ 		}
+-		sched.ngfree++
++		sched.gFree.n++
+ 	}
+-	unlock(&sched.gflock)
++	unlock(&sched.gFree.lock)
+ }
+ 
+ // Breakpoint executes a breakpoint trap.
+@@ -3669,9 +3660,9 @@ func badunlockosthread() {
+ }
+ 
+ func gcount() int32 {
+-	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
++	n := int32(allglen) - sched.gFree.n - int32(atomic.Load(&sched.ngsys))
+ 	for _, _p_ := range allp {
+-		n -= _p_.gfreecnt
++		n -= _p_.gFree.n
+ 	}
+ 
+ 	// All these variables can be changed concurrently, so the result can be inconsistent.
+@@ -4581,7 +4572,7 @@ func schedtrace(detailed bool) {
+ 			if mp != nil {
+ 				id = mp.id
+ 			}
+-			print("  P", i, ": status=", _p_.status, " schedtick=", _p_.schedtick, " syscalltick=", _p_.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", _p_.gfreecnt, "\n")
++			print("  P", i, ": status=", _p_.status, " schedtick=", _p_.schedtick, " syscalltick=", _p_.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", _p_.gFree.n, "\n")
+ 		} else {
+ 			// In non-detailed mode format lengths of per-P run queues as:
+ 			// [len1 len2 len3 len4]
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 5bd37e49be..bbbe1ee852 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -506,8 +506,10 @@ type p struct {
+ 	runnext guintptr
+ 
+ 	// Available G's (status == Gdead)
+-	gfree    *g
+-	gfreecnt int32
++	gFree struct {
++		gList
++		n int32
++	}
+ 
+ 	sudogcache []*sudog
+ 	sudogbuf   [128]*sudog
+@@ -578,10 +580,12 @@ type schedt struct {
+ 	runqsize int32
+ 
+ 	// Global cache of dead G's.
+-	gflock       mutex
+-	gfreeStack   *g
+-	gfreeNoStack *g
+-	ngfree       int32
++	gFree struct {
++		lock    mutex
++		stack   gList // Gs with stacks
++		noStack gList // Gs without stacks
++		n       int32
++	}
+ 
+ 	// Central cache of sudog structs.
+ 	sudoglock  mutex

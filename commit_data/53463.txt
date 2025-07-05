@@ -14,6 +14,19 @@ Date:   Wed Aug 17 10:49:57 2022 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/lookup_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index ed53465ef6..3a31f56bea 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -416,6 +416,7 @@ func TestLookupGoogleHost(t *testing.T) {
+ }
+ 
+ func TestLookupLongTXT(t *testing.T) {
++	testenv.SkipFlaky(t, 22857)
+ 	mustHaveExternalNetwork(t)
+ 
+ 	defer dnsWaitGroup.Wait()

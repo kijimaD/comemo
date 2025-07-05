@@ -9,6 +9,22 @@ Date:   Fri Apr 22 16:27:34 2016 -0700
     Change-Id: I837a391276eed565cf66d3715ec68b7b959ce143
     Reviewed-on: https://go-review.googlesource.com/22390
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/contribute.html | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 59b3d20a51..1cd6f37d34 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -16,6 +16,10 @@ have <a href="code.html">written and tested your code</a>.
+ see <a href="gccgo_contribute.html">Contributing to gccgo</a>.)
+ </p>
+ 
++<p>
++Sensitive security-related issues should be reported to <a href="mailto:security@golang.org">security@golang.org</a>.
++</p>
++
+ <h2 id="Design">Discuss your design</h2>
+ 
+ <p>

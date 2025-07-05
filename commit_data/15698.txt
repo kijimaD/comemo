@@ -9,7 +9,7 @@ Date:   Mon Mar 11 14:16:55 2013 -0700
     R=golang-dev, r, gri
     CC=golang-dev
     https://golang.org/cl/7712044
-
+---
  src/cmd/api/goapi.go                   | 1 -
  src/cmd/go/build.go                    | 1 -
  src/pkg/bufio/bufio.go                 | 1 -
@@ -43,3 +43,411 @@ Date:   Mon Mar 11 14:16:55 2013 -0700
  src/pkg/net/textproto/reader.go        | 1 -
  src/pkg/os/file_unix.go                | 1 -
  32 files changed, 1 insertion(+), 39 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index adf3ddf6b3..d5e66428b7 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -723,7 +723,6 @@ func (w *Walker) varValueType(vi interface{}) (string, error) {
+ 	default:
+ 		return "", fmt.Errorf("unknown const value type %T", vi)
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // resolveName finds a top-level node named name and returns the node
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 83aeedaca9..1967c8457f 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1291,7 +1291,6 @@ func (b *builder) runOut(dir string, desc string, cmdargs ...interface{}) ([]byt
+ 
+ 		return buf.Bytes(), err
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // mkdir makes the named directory.
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index ee69c2d31e..df3501f2ca 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -274,7 +274,6 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
+ 			return b.buf, ErrBufferFull
+ 		}
+ 	}
+-	panic("not reached")
+ }
+ 
+ // ReadLine is a low-level line-reading primitive. Most callers should use
+diff --git a/src/pkg/bufio/scan.go b/src/pkg/bufio/scan.go
+index 268ce6d1d3..b3c652911c 100644
+--- a/src/pkg/bufio/scan.go
++++ b/src/pkg/bufio/scan.go
+@@ -169,7 +169,6 @@ func (s *Scanner) Scan() bool {
+ 		}
+ 		s.end += n
+ 	}
+-	panic("not reached")
+ }
+ 
+ // advance consumes n bytes of the buffer. It reports whether the advance was legal.
+diff --git a/src/pkg/compress/bzip2/huffman.go b/src/pkg/compress/bzip2/huffman.go
+index 078c1cb895..f755019bb5 100644
+--- a/src/pkg/compress/bzip2/huffman.go
++++ b/src/pkg/compress/bzip2/huffman.go
+@@ -54,8 +54,6 @@ func (t huffmanTree) Decode(br *bitReader) (v uint16) {
+ 			nodeIndex = node.right
+ 		}
+ 	}
+-
+-	panic("unreachable")
+ }
+ 
+ // newHuffmanTree builds a Huffman tree from a slice containing the code
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index 8f4e196b42..8c4a6d6b36 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -158,7 +158,6 @@ func (b *syncBuffer) Read(p []byte) (n int, err error) {
+ 		}
+ 		<-b.ready
+ 	}
+-	panic("unreachable")
+ }
+ 
+ func (b *syncBuffer) signal() {
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index a8d6460192..7fe1749631 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -263,7 +263,6 @@ func (f *decompressor) Read(b []byte) (int, error) {
+ 		}
+ 		f.step(f)
+ 	}
+-	panic("unreachable")
+ }
+ 
+ func (f *decompressor) Close() error {
+@@ -495,7 +494,6 @@ func (f *decompressor) huffmanBlock() {
+ 			return
+ 		}
+ 	}
+-	panic("unreached")
+ }
+ 
+ // copyHist copies f.copyLen bytes from f.hist (f.copyDist bytes ago) to itself.
+diff --git a/src/pkg/compress/flate/token.go b/src/pkg/compress/flate/token.go
+index 38aea5fa65..4d49176871 100644
+--- a/src/pkg/compress/flate/token.go
++++ b/src/pkg/compress/flate/token.go
+@@ -99,5 +99,4 @@ func offsetCode(off uint32) uint32 {
+ 	default:
+ 		return offsetCodes[off>>14] + 28
+ 	}
+-	panic("unreachable")
+ }
+diff --git a/src/pkg/compress/lzw/reader.go b/src/pkg/compress/lzw/reader.go
+index 0ed742c897..cf8ca7c788 100644
+--- a/src/pkg/compress/lzw/reader.go
++++ b/src/pkg/compress/lzw/reader.go
+@@ -121,7 +121,6 @@ func (d *decoder) Read(b []byte) (int, error) {
+ 		}
+ 		d.decode()
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // decode decompresses bytes from r and leaves them in d.toRead.
+diff --git a/src/pkg/crypto/dsa/dsa.go b/src/pkg/crypto/dsa/dsa.go
+index 05766a2f13..5a2a65744e 100644
+--- a/src/pkg/crypto/dsa/dsa.go
++++ b/src/pkg/crypto/dsa/dsa.go
+@@ -144,8 +144,6 @@ GeneratePrimes:
+ 		params.G = g
+ 		return
+ 	}
+-
+-	panic("unreachable")
+ }
+ 
+ // GenerateKey generates a public&private key pair. The Parameters of the
+diff --git a/src/pkg/crypto/x509/pkcs8.go b/src/pkg/crypto/x509/pkcs8.go
+index 30caacb3c5..8e1585e15c 100644
+--- a/src/pkg/crypto/x509/pkcs8.go
++++ b/src/pkg/crypto/x509/pkcs8.go
+@@ -51,6 +51,4 @@ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
+ 	default:
+ 		return nil, fmt.Errorf("crypto/x509: PKCS#8 wrapping contained private key with unknown algorithm: %v", privKey.Algo.Algorithm)
+ 	}
+-
+-	panic("unreachable")
+ }
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index b802bf4ebf..4dfea2c949 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -729,7 +729,6 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
+ 	default:
+ 		return nil, nil
+ 	}
+-	panic("unreachable")
+ }
+ 
+ func parseCertificate(in *certificate) (*Certificate, error) {
+diff --git a/src/pkg/encoding/ascii85/ascii85.go b/src/pkg/encoding/ascii85/ascii85.go
+index 705022792a..e2afc58714 100644
+--- a/src/pkg/encoding/ascii85/ascii85.go
++++ b/src/pkg/encoding/ascii85/ascii85.go
+@@ -296,5 +296,4 @@ func (d *decoder) Read(p []byte) (n int, err error) {
+ 		nn, d.readErr = d.r.Read(d.buf[d.nbuf:])
+ 		d.nbuf += nn
+ 	}
+-	panic("unreachable")
+ }
+diff --git a/src/pkg/encoding/binary/varint.go b/src/pkg/encoding/binary/varint.go
+index 7035529f27..3a2dfa3c74 100644
+--- a/src/pkg/encoding/binary/varint.go
++++ b/src/pkg/encoding/binary/varint.go
+@@ -120,7 +120,6 @@ func ReadUvarint(r io.ByteReader) (uint64, error) {
+ 		x |= uint64(b&0x7f) << s
+ 		s += 7
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // ReadVarint reads an encoded signed integer from r and returns it as an int64.
+diff --git a/src/pkg/encoding/csv/reader.go b/src/pkg/encoding/csv/reader.go
+index db4d988526..336dd6540d 100644
+--- a/src/pkg/encoding/csv/reader.go
++++ b/src/pkg/encoding/csv/reader.go
+@@ -171,7 +171,6 @@ func (r *Reader) ReadAll() (records [][]string, err error) {
+ 		}
+ 		records = append(records, record)
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // readRune reads one rune from r, folding \r\n to \n and keeping track
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index f2ec9cb672..d34e10f838 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -739,6 +739,7 @@ func (d *decodeState) valueInterface() interface{} {
+ 	switch d.scanWhile(scanSkipSpace) {
+ 	default:
+ 		d.error(errPhase)
++		panic("unreachable")
+ 	case scanBeginArray:
+ 		return d.arrayInterface()
+ 	case scanBeginObject:
+@@ -746,7 +747,6 @@ func (d *decodeState) valueInterface() interface{} {
+ 	case scanBeginLiteral:
+ 		return d.literalInterface()
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // arrayInterface is like array but returns []interface{}.
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 344ab514e3..1581705efb 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -493,7 +493,6 @@ Loop:
+ 			return true, nil
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // Skip reads tokens until it has consumed the end element
+@@ -517,5 +516,4 @@ func (d *Decoder) Skip() error {
+ 			return nil
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+diff --git a/src/pkg/go/parser/error_test.go b/src/pkg/go/parser/error_test.go
+index b59fda11a3..d4d4f909d3 100644
+--- a/src/pkg/go/parser/error_test.go
++++ b/src/pkg/go/parser/error_test.go
+@@ -89,8 +89,6 @@ func expectedErrors(t *testing.T, filename string, src []byte) map[token.Pos]str
+ 			prev = pos
+ 		}
+ 	}
+-
+-	panic("unreachable")
+ }
+ 
+ // compareErrors compares the map of expected error messages with the list
+diff --git a/src/pkg/html/template/transition.go b/src/pkg/html/template/transition.go
+index 96a4f6678b..2ea2089c6b 100644
+--- a/src/pkg/html/template/transition.go
++++ b/src/pkg/html/template/transition.go
+@@ -71,7 +71,6 @@ func tText(c context, s []byte) (context, int) {
+ 		}
+ 		k = j
+ 	}
+-	panic("unreachable")
+ }
+ 
+ var elementContentType = [...]state{
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index 8b36948d69..ed493eac2f 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -304,7 +304,6 @@ func (d *decoder) readExtension() error {
+ 			return err
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ func (d *decoder) readGraphicControl() error {
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index 0eb146c0ab..6b395c69bd 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -144,7 +144,6 @@ func (devNull) ReadFrom(r io.Reader) (n int64, err error) {
+ 			return
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // Discard is an io.Writer on which all Write calls succeed
+diff --git a/src/pkg/math/rand/exp.go b/src/pkg/math/rand/exp.go
+index 85da495219..4bc110f913 100644
+--- a/src/pkg/math/rand/exp.go
++++ b/src/pkg/math/rand/exp.go
+@@ -43,7 +43,6 @@ func (r *Rand) ExpFloat64() float64 {
+ 			return x
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ var ke = [256]uint32{
+diff --git a/src/pkg/math/rand/normal.go b/src/pkg/math/rand/normal.go
+index 9ab46db9f5..ba4ea54cac 100644
+--- a/src/pkg/math/rand/normal.go
++++ b/src/pkg/math/rand/normal.go
+@@ -63,7 +63,6 @@ func (r *Rand) NormFloat64() float64 {
+ 			return x
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ var kn = [128]uint32{
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index 77e969b41b..0592f69779 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -265,7 +265,6 @@ func (r *Reader) NextPart() (*Part, error) {
+ 
+ 		return nil, fmt.Errorf("multipart: unexpected line in Next(): %q", line)
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // isFinalBoundary returns whether line is the final boundary line
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index 2e15c06cc9..c0e4a2236e 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -280,7 +280,6 @@ func dialTimeoutRace(net, addr string, timeout time.Duration) (Conn, error) {
+ 	case p := <-ch:
+ 		return p.Conn, p.error
+ 	}
+-	panic("unreachable")
+ }
+ 
+ type stringAddr struct {
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 88649bb167..4d40dc972d 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -51,7 +51,6 @@ func pedanticReadAll(r io.Reader) (b []byte, err error) {
+ 			return b, err
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ func TestClient(t *testing.T) {
+diff --git a/src/pkg/net/http/fcgi/child.go b/src/pkg/net/http/fcgi/child.go
+index c8b9a33c87..e647f9391e 100644
+--- a/src/pkg/net/http/fcgi/child.go
++++ b/src/pkg/net/http/fcgi/child.go
+@@ -267,5 +267,4 @@ func Serve(l net.Listener, handler http.Handler) error {
+ 		c := newChild(rw, handler)
+ 		go c.serve()
+ 	}
+-	panic("unreachable")
+ }
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index b6ab782286..9021767163 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1337,7 +1337,6 @@ func (srv *Server) Serve(l net.Listener) error {
+ 		}
+ 		go c.serve()
+ 	}
+-	panic("not reached")
+ }
+ 
+ // ListenAndServe listens on the TCP network address addr
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index f3aaa79cce..f1c6fb2dcb 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -349,7 +349,6 @@ func (t *Transport) getIdleConn(cm *connectMethod) (pconn *persistConn) {
+ 			return
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ func (t *Transport) setReqConn(r *Request, pc *persistConn) {
+diff --git a/src/pkg/net/rpc/server_test.go b/src/pkg/net/rpc/server_test.go
+index 5b2f9f2ded..eb17210abc 100644
+--- a/src/pkg/net/rpc/server_test.go
++++ b/src/pkg/net/rpc/server_test.go
+@@ -399,12 +399,10 @@ func (WriteFailCodec) WriteRequest(*Request, interface{}) error {
+ 
+ func (WriteFailCodec) ReadResponseHeader(*Response) error {
+ 	select {}
+-	panic("unreachable")
+ }
+ 
+ func (WriteFailCodec) ReadResponseBody(interface{}) error {
+ 	select {}
+-	panic("unreachable")
+ }
+ 
+ func (WriteFailCodec) Close() error {
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index b61bea8621..35e27acb5a 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -489,7 +489,6 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+ 			return m, err
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // CanonicalMIMEHeaderKey returns the canonical format of the
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 4f59c94cb9..898e7634a7 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -198,7 +198,6 @@ func (f *File) write(b []byte) (n int, err error) {
+ 
+ 		return n, err
+ 	}
+-	panic("not reached")
+ }
+ 
+ // pwrite writes len(b) bytes to the File starting at byte offset off.

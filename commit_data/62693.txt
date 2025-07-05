@@ -13,9 +13,89 @@ Date:   Wed Mar 26 15:46:30 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/genericOps.go | 6 +++---
  src/cmd/compile/internal/ssa/_gen/rulegen.go    | 2 +-
  src/cmd/compile/internal/ssa/op.go              | 6 +++---
  src/cmd/compile/internal/ssa/regalloc.go        | 2 +-
  4 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 0acb1fef55..f253fcc0a6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -359,7 +359,7 @@ var genericOps = []opData{
+ 	// If the variable is a global, the base pointer will be SB and
+ 	// the Aux field will be a *obj.LSym.
+ 	// If the variable is a local, the base pointer will be SP and
+-	// the Aux field will be a *gc.Node.
++	// the Aux field will be a *ir.Name
+ 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"},      // Address of a variable.  Arg0=SB.  Aux identifies the variable.
+ 	{name: "LocalAddr", argLength: 2, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP. Arg1=mem. Aux identifies the variable.
+ 
+@@ -543,9 +543,9 @@ var genericOps = []opData{
+ 	// Unknown value. Used for Values whose values don't matter because they are dead code.
+ 	{name: "Unknown"},
+ 
+-	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
++	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *ir.Name of a variable that is about to be initialized.  arg0=mem, returns mem
+ 	// TODO: what's the difference between VarLive and KeepAlive?
+-	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
++	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *ir.Name of a variable that must be kept live.  arg0=mem, returns mem
+ 	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+ 
+ 	// InlMark marks the start of an inlined function body. Its AuxInt field
+diff --git a/src/cmd/compile/internal/ssa/_gen/rulegen.go b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+index 4374d3e153..a3f7e5efbf 100644
+--- a/src/cmd/compile/internal/ssa/_gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+@@ -1771,7 +1771,7 @@ func (op opData) auxType() string {
+ 	case "String":
+ 		return "string"
+ 	case "Sym":
+-		// Note: a Sym can be an *obj.LSym, a *gc.Node, or nil.
++		// Note: a Sym can be an *obj.LSym, a *ir.Name, or nil.
+ 		return "Sym"
+ 	case "SymOff":
+ 		return "Sym"
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 912c5e58d2..b805ebdd60 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -356,7 +356,7 @@ const (
+ 	auxCCop                   // auxInt is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
+ 	auxNameOffsetInt8         // aux is a &struct{Name ir.Name, Offset int64}; auxInt is index in parameter registers array
+ 	auxString                 // aux is a string
+-	auxSym                    // aux is a symbol (a *gc.Node for locals, an *obj.LSym for globals, or nil for none)
++	auxSym                    // aux is a symbol (a *ir.Name for locals, an *obj.LSym for globals, or nil for none)
+ 	auxSymOff                 // aux is a symbol, auxInt is an offset
+ 	auxSymValAndOff           // aux is a symbol, auxInt is a ValAndOff
+ 	auxTyp                    // aux is a type
+@@ -388,12 +388,12 @@ const (
+ 
+ // A Sym represents a symbolic offset from a base register.
+ // Currently a Sym can be one of 3 things:
+-//   - a *gc.Node, for an offset from SP (the stack pointer)
++//   - a *ir.Name, for an offset from SP (the stack pointer)
+ //   - a *obj.LSym, for an offset from SB (the global pointer)
+ //   - nil, for no offset
+ type Sym interface {
++	Aux
+ 	CanBeAnSSASym()
+-	CanBeAnSSAAux()
+ }
+ 
+ // A ValAndOff is used by the several opcodes. It holds
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index d794098b9d..258c23a6f8 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1426,7 +1426,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					// value live at this point.
+ 					v.SetArg(0, s.makeSpill(a, b))
+ 				} else if _, ok := a.Aux.(*ir.Name); ok && vi.rematerializeable {
+-					// Rematerializeable value with a gc.Node. This is the address of
++					// Rematerializeable value with a *ir.Name. This is the address of
+ 					// a stack object (e.g. an LEAQ). Keep the object live.
+ 					// Change it to VarLive, which is what plive expects for locals.
+ 					v.Op = OpVarLive

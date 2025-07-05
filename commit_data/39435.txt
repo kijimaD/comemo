@@ -11,6 +11,33 @@ Date:   Wed Feb 27 20:20:58 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/regexp/example_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/regexp/example_test.go b/src/regexp/example_test.go
+index 3008c56b6b..a44c9396de 100644
+--- a/src/regexp/example_test.go
++++ b/src/regexp/example_test.go
+@@ -7,6 +7,7 @@ package regexp_test
+ import (
+ 	"fmt"
+ 	"regexp"
++	"strings"
+ )
+ 
+ func Example() {
+@@ -204,6 +205,13 @@ func ExampleRegexp_ReplaceAllString() {
+ 	// -W-xxW-
+ }
+ 
++func ExampleRegexp_ReplaceAllStringFunc() {
++	re := regexp.MustCompile(`[^aeiou]`)
++	fmt.Println(re.ReplaceAllStringFunc("seafood fool", strings.ToUpper))
++	// Output:
++	// SeaFooD FooL
++}
++
+ func ExampleRegexp_SubexpNames() {
+ 	re := regexp.MustCompile(`(?P<first>[a-zA-Z]+) (?P<last>[a-zA-Z]+)`)
+ 	fmt.Println(re.MatchString("Alan Turing"))

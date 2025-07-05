@@ -11,6 +11,23 @@ Date:   Tue Jun 3 10:43:55 2025 -0400
     TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  src/go/token/tree.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/token/tree.go b/src/go/token/tree.go
+index 5c00dcf2df..eaa2b30ee5 100644
+--- a/src/go/token/tree.go
++++ b/src/go/token/tree.go
+@@ -390,8 +390,9 @@ func (t *tree) deleteSwap(pos **node) {
+ 	t.rebalanceUp(unbalanced)
+ }
+ 
+-// deleteMin updates *zpos to the minimum (leftmost) element
+-// in that subtree.
++// deleteMin updates the subtree rooted at *zpos to delete its minimum
++// (leftmost) element, which may be *zpos itself. It returns the
++// deleted node.
+ func (t *tree) deleteMin(zpos **node) (z *node) {
+ 	for (*zpos).left != nil {
+ 		zpos = &(*zpos).left

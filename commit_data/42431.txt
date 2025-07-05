@@ -24,7 +24,112 @@ Date:   Thu Dec 19 15:46:06 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go           | 13 ++++-
  src/cmd/go/testdata/script/mod_replace_gopkgin.txt | 57 ++++++++++++++++++++--
  2 files changed, 66 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index de757ecd27..6f71d48b39 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -708,7 +708,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
+ 		return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.pathPrefix, file1, rev, err1)
+ 	}
+ 	mpath1 := modfile.ModulePath(gomod1)
+-	found1 := err1 == nil && isMajor(mpath1, r.pathMajor)
++	found1 := err1 == nil && (isMajor(mpath1, r.pathMajor) || r.canReplaceMismatchedVersionDueToBug(mpath1))
+ 
+ 	var file2 string
+ 	if r.pathMajor != "" && r.codeRoot != r.modPath && !strings.HasPrefix(r.pathMajor, ".") {
+@@ -817,6 +817,17 @@ func isMajor(mpath, pathMajor string) bool {
+ 	return pathMajor[1:] == mpathMajor[1:]
+ }
+ 
++// canReplaceMismatchedVersionDueToBug reports whether versions of r
++// could replace versions of mpath with otherwise-mismatched major versions
++// due to a historical bug in the Go command (golang.org/issue/34254).
++func (r *codeRepo) canReplaceMismatchedVersionDueToBug(mpath string) bool {
++	// The bug caused us to erroneously accept unversioned paths as replacements
++	// for versioned gopkg.in paths.
++	unversioned := r.pathMajor == ""
++	replacingGopkgIn := strings.HasPrefix(mpath, "gopkg.in/")
++	return unversioned && replacingGopkgIn
++}
++
+ func (r *codeRepo) GoMod(version string) (data []byte, err error) {
+ 	if version != module.CanonicalVersion(version) {
+ 		return nil, fmt.Errorf("version %s is not canonical", version)
+diff --git a/src/cmd/go/testdata/script/mod_replace_gopkgin.txt b/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
+index 6608fb1b80..28c1196284 100644
+--- a/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
++++ b/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
+@@ -15,10 +15,28 @@ env GOSUMDB=off
+ # Replacing gopkg.in/[…].vN with a repository with a root go.mod file
+ # specifying […].vN and a compatible version should succeed, even if
+ # the replacement path is not a gopkg.in path.
+-cd dot-to-dot
+-go list gopkg.in/src-d/go-git.v4
++cd 4-to-4
++go list -m gopkg.in/src-d/go-git.v4
+ 
+--- dot-to-dot/go.mod --
++# Previous versions of the "go" command accepted v0 and v1 pseudo-versions
++# as replacements for gopkg.in/[…].v4.
++# As a special case, we continue to accept those.
++
++cd ../4-to-0
++go list -m gopkg.in/src-d/go-git.v4
++
++cd ../4-to-1
++go list -m gopkg.in/src-d/go-git.v4
++
++cd ../4-to-incompatible
++go list -m gopkg.in/src-d/go-git.v4
++
++# A mismatched gopkg.in path should not be able to replace a different major version.
++cd ../3-to-gomod-4
++! go list -m gopkg.in/src-d/go-git.v3
++stderr '^go: gopkg\.in/src-d/go-git\.v3@v3.0.0-20190801152248-0d1a009cbb60: invalid version: go\.mod has non-\.\.\.\.v3 module path "gopkg\.in/src-d/go-git\.v4" at revision 0d1a009cbb60$'
++
++-- 4-to-4/go.mod --
+ module golang.org/issue/34254
+ 
+ go 1.13
+@@ -26,3 +44,36 @@ go 1.13
+ require gopkg.in/src-d/go-git.v4 v4.13.1
+ 
+ replace gopkg.in/src-d/go-git.v4 v4.13.1 => github.com/src-d/go-git/v4 v4.13.1
++-- 4-to-1/go.mod --
++module golang.org/issue/34254
++
++go 1.13
++
++require gopkg.in/src-d/go-git.v4 v4.13.1
++
++replace gopkg.in/src-d/go-git.v4 v4.13.1 => github.com/src-d/go-git v1.0.1-0.20190801152248-0d1a009cbb60
++-- 4-to-0/go.mod --
++module golang.org/issue/34254
++
++go 1.13
++
++require gopkg.in/src-d/go-git.v4 v4.13.1
++
++replace gopkg.in/src-d/go-git.v4 v4.13.1 => github.com/src-d/go-git v0.0.0-20190801152248-0d1a009cbb60
++-- 4-to-incompatible/go.mod --
++module golang.org/issue/34254
++
++go 1.13
++
++require gopkg.in/src-d/go-git.v4 v4.13.1
++
++replace gopkg.in/src-d/go-git.v4 v4.13.1 => github.com/src-d/go-git v4.6.0+incompatible
++-- 3-to-gomod-4/go.mod --
++module golang.org/issue/34254
++go 1.13
++
++require gopkg.in/src-d/go-git.v3 v3.2.0
++
++// This replacement has a go.mod file declaring its path to be
++// gopkg.in/src-d/go-git.v4, so it cannot be used as a replacement for v3.
++replace gopkg.in/src-d/go-git.v3 v3.2.0 => gopkg.in/src-d/go-git.v3 v3.0.0-20190801152248-0d1a009cbb60

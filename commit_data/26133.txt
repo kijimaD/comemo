@@ -7,6 +7,29 @@ Date:   Thu Dec 17 13:34:41 2015 -0800
     Change-Id: Iae05082530891175e9c86da244e610bc92759561
     Reviewed-on: https://go-review.googlesource.com/17918
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  doc/go1.6.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index dbdf3cede6..9f39e7e038 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -33,7 +33,7 @@ We expect almost all Go programs to continue to compile and run as before.
+ <p>
+ The release adds new ports to <a href="#ports">Linux on 64-bit MIPS and Android on 32-bit x86</a>;
+ defined and enforced <a href="#cgo">rules for sharing Go pointers with C</a>;
+-transparent, automatic <a href="#http">support for HTTP/2</a>;
++transparent, automatic <a href="#http2">support for HTTP/2</a>;
+ and a new mechanism for <a href="#template">template reuse</a>.
+ </p>
+ 
+@@ -258,7 +258,7 @@ to implementations of the
+ 
+ <h2 id="library">Core library</h2>
+ 
+-<h3 id="http">HTTP</h3>
++<h3 id="http2">HTTP/2</h3>
+ 
+ <p>
+ Go 1.6 adds transparent support in the

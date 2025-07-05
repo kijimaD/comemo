@@ -32,7 +32,7 @@ Date:   Sat Jan 12 20:33:58 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/157677
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/mpfloat.go          |   6 +-
  src/cmd/compile/internal/gc/mpint.go            |   7 +
  src/cmd/compile/internal/syntax/scanner.go      | 233 +++++++++++++++++-------
@@ -41,3 +41,802 @@ Date:   Sat Jan 12 20:33:58 2019 -0800
  test/fixedbugs/issue9036.go                     |  16 +-
  test/literal2.go                                |  88 +++++++++
  7 files changed, 487 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index d1f5cb1200..846ce4cca7 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"math"
+ 	"math/big"
++	"strings"
+ )
+ 
+ // implements float arithmetic
+@@ -177,11 +178,14 @@ func (a *Mpflt) Neg() {
+ }
+ 
+ func (a *Mpflt) SetString(as string) {
++	// TODO(gri) remove this code once math/big.Float.Parse can handle separators
++	as = strings.Replace(as, "_", "", -1) // strip separators
++
+ 	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
+ 		as = as[1:]
+ 	}
+ 
+-	f, _, err := a.Val.Parse(as, 10)
++	f, _, err := a.Val.Parse(as, 0)
+ 	if err != nil {
+ 		yyerror("malformed constant: %s (%v)", as, err)
+ 		a.Val.SetFloat64(0)
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index e4dd22d0a0..e06f39f8d9 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"fmt"
+ 	"math/big"
++	"strings"
+ )
+ 
+ // implements integer arithmetic
+@@ -281,6 +282,12 @@ func (a *Mpint) SetInt64(c int64) {
+ }
+ 
+ func (a *Mpint) SetString(as string) {
++	// TODO(gri) remove this code once math/big.Int.SetString can handle 0o-octals and separators
++	as = strings.Replace(as, "_", "", -1) // strip separators
++	if len(as) >= 2 && as[0] == '0' && (as[1] == 'o' || as[1] == 'O') {
++		as = "0" + as[2:]
++	}
++
+ 	_, ok := a.Val.SetString(as, 0)
+ 	if !ok {
+ 		// required syntax is [+-][0[x]]d*
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index 112afa5eb6..0a77d48b3d 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -47,6 +47,10 @@ func (s *scanner) init(src io.Reader, errh func(line, col uint, msg string), mod
+ 	s.nlsemi = false
+ }
+ 
++func (s *scanner) errorf(format string, args ...interface{}) {
++	s.error(fmt.Sprintf(format, args...))
++}
++
+ // next advances the scanner by reading the next token.
+ //
+ // If a read, source encoding, or lexical error occurs, next calls
+@@ -149,8 +153,9 @@ redo:
+ 
+ 	case '.':
+ 		c = s.getr()
+-		if isDigit(c) {
+-			s.unread(1)
++		if isDecimal(c) {
++			s.ungetr()
++			s.unread(1) // correct position of '.' (needed by startLit in number)
+ 			s.number('.')
+ 			break
+ 		}
+@@ -304,7 +309,7 @@ redo:
+ 
+ 	default:
+ 		s.tok = 0
+-		s.error(fmt.Sprintf("invalid character %#U", c))
++		s.errorf("invalid character %#U", c)
+ 		goto redo
+ 	}
+ 
+@@ -320,11 +325,7 @@ assignop:
+ }
+ 
+ func isLetter(c rune) bool {
+-	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '_'
+-}
+-
+-func isDigit(c rune) bool {
+-	return '0' <= c && c <= '9'
++	return 'a' <= lower(c) && lower(c) <= 'z' || c == '_'
+ }
+ 
+ func (s *scanner) ident() {
+@@ -332,7 +333,7 @@ func (s *scanner) ident() {
+ 
+ 	// accelerate common case (7bit ASCII)
+ 	c := s.getr()
+-	for isLetter(c) || isDigit(c) {
++	for isLetter(c) || isDecimal(c) {
+ 		c = s.getr()
+ 	}
+ 
+@@ -372,10 +373,10 @@ func (s *scanner) isIdentRune(c rune, first bool) bool {
+ 		// ok
+ 	case unicode.IsDigit(c):
+ 		if first {
+-			s.error(fmt.Sprintf("identifier cannot begin with digit %#U", c))
++			s.errorf("identifier cannot begin with digit %#U", c)
+ 		}
+ 	case c >= utf8.RuneSelf:
+-		s.error(fmt.Sprintf("invalid identifier character %#U", c))
++		s.errorf("invalid identifier character %#U", c)
+ 	default:
+ 		return false
+ 	}
+@@ -401,86 +402,188 @@ func init() {
+ 	}
+ }
+ 
++func lower(c rune) rune     { return ('a' - 'A') | c } // returns lower-case c iff c is ASCII letter
++func isDecimal(c rune) bool { return '0' <= c && c <= '9' }
++func isHex(c rune) bool     { return '0' <= c && c <= '9' || 'a' <= lower(c) && lower(c) <= 'f' }
++
++// digits accepts the sequence { digit | '_' } starting with c0.
++// If base <= 10, digits accepts any decimal digit but records
++// the index (relative to the literal start) of a digit >= base
++// in *invalid, if *invalid < 0.
++// digits returns the first rune that is not part of the sequence
++// anymore, and a bitset describing whether the sequence contained
++// digits (bit 0 is set), or separators '_' (bit 1 is set).
++func (s *scanner) digits(c0 rune, base int, invalid *int) (c rune, digsep int) {
++	c = c0
++	if base <= 10 {
++		max := rune('0' + base)
++		for isDecimal(c) || c == '_' {
++			ds := 1
++			if c == '_' {
++				ds = 2
++			} else if c >= max && *invalid < 0 {
++				*invalid = int(s.col0 - s.col) // record invalid rune index
++			}
++			digsep |= ds
++			c = s.getr()
++		}
++	} else {
++		for isHex(c) || c == '_' {
++			ds := 1
++			if c == '_' {
++				ds = 2
++			}
++			digsep |= ds
++			c = s.getr()
++		}
++	}
++	return
++}
++
+ func (s *scanner) number(c rune) {
+ 	s.startLit()
+ 
++	base := 10        // number base
++	prefix := rune(0) // one of 0 (decimal), '0' (0-octal), 'x', 'o', or 'b'
++	digsep := 0       // bit 0: digit present, bit 1: '_' present
++	invalid := -1     // index of invalid digit in literal, or < 0
++
++	// integer part
++	var ds int
+ 	if c != '.' {
+-		s.kind = IntLit // until proven otherwise
++		s.kind = IntLit
+ 		if c == '0' {
+ 			c = s.getr()
+-			if c == 'x' || c == 'X' {
+-				// hex
++			switch lower(c) {
++			case 'x':
+ 				c = s.getr()
+-				hasDigit := false
+-				for isDigit(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
+-					c = s.getr()
+-					hasDigit = true
+-				}
+-				if !hasDigit {
+-					s.error("malformed hex constant")
+-				}
+-				goto done
+-			}
+-
+-			// decimal 0, octal, or float
+-			has8or9 := false
+-			for isDigit(c) {
+-				if c > '7' {
+-					has8or9 = true
+-				}
++				base, prefix = 16, 'x'
++			case 'o':
+ 				c = s.getr()
+-			}
+-			if c != '.' && c != 'e' && c != 'E' && c != 'i' {
+-				// octal
+-				if has8or9 {
+-					s.error("malformed octal constant")
+-				}
+-				goto done
+-			}
+-
+-		} else {
+-			// decimal or float
+-			for isDigit(c) {
++				base, prefix = 8, 'o'
++			case 'b':
+ 				c = s.getr()
++				base, prefix = 2, 'b'
++			default:
++				base, prefix = 8, '0'
++				digsep = 1 // leading 0
+ 			}
+ 		}
++		c, ds = s.digits(c, base, &invalid)
++		digsep |= ds
+ 	}
+ 
+-	// float
++	// fractional part
+ 	if c == '.' {
+ 		s.kind = FloatLit
+-		c = s.getr()
+-		for isDigit(c) {
+-			c = s.getr()
++		if prefix == 'o' || prefix == 'b' {
++			s.error("invalid radix point in " + litname(prefix))
+ 		}
++		c, ds = s.digits(s.getr(), base, &invalid)
++		digsep |= ds
++	}
++
++	if digsep&1 == 0 {
++		s.error(litname(prefix) + " has no digits")
+ 	}
+ 
+ 	// exponent
+-	if c == 'e' || c == 'E' {
+-		s.kind = FloatLit
++	if e := lower(c); e == 'e' || e == 'p' {
++		switch {
++		case e == 'e' && prefix != 0 && prefix != '0':
++			s.errorf("%q exponent requires decimal mantissa", c)
++		case e == 'p' && prefix != 'x':
++			s.errorf("%q exponent requires hexadecimal mantissa", c)
++		}
+ 		c = s.getr()
+-		if c == '-' || c == '+' {
++		s.kind = FloatLit
++		if c == '+' || c == '-' {
+ 			c = s.getr()
+ 		}
+-		if !isDigit(c) {
+-			s.error("malformed floating-point constant exponent")
+-		}
+-		for isDigit(c) {
+-			c = s.getr()
++		c, ds = s.digits(c, 10, nil)
++		digsep |= ds
++		if ds&1 == 0 {
++			s.error("exponent has no digits")
+ 		}
++	} else if prefix == 'x' && s.kind == FloatLit {
++		s.error("hexadecimal mantissa requires a 'p' exponent")
+ 	}
+ 
+-	// complex
++	// suffix 'i'
+ 	if c == 'i' {
+ 		s.kind = ImagLit
+-		s.getr()
++		if prefix != 0 && prefix != '0' {
++			s.error("invalid suffix 'i' on " + litname(prefix))
++		}
++		c = s.getr()
+ 	}
+-
+-done:
+ 	s.ungetr()
++
+ 	s.nlsemi = true
+ 	s.lit = string(s.stopLit())
+ 	s.tok = _Literal
++
++	if s.kind == IntLit && invalid >= 0 {
++		s.errh(s.line, s.col+uint(invalid), fmt.Sprintf("invalid digit %q in %s", s.lit[invalid], litname(prefix)))
++	}
++
++	if digsep&2 != 0 {
++		if i := invalidSep(s.lit); i >= 0 {
++			s.errh(s.line, s.col+uint(i), "'_' must separate successive digits")
++		}
++	}
++}
++
++func litname(prefix rune) string {
++	switch prefix {
++	case 'x':
++		return "hexadecimal literal"
++	case 'o', '0':
++		return "octal literal"
++	case 'b':
++		return "binary literal"
++	}
++	return "decimal literal"
++}
++
++// invalidSep returns the index of the first invalid separator in x, or -1.
++func invalidSep(x string) int {
++	x1 := ' ' // prefix char, we only care if it's 'x'
++	d := '.'  // digit, one of '_', '0' (a digit), or '.' (anything else)
++	i := 0
++
++	// a prefix counts as a digit
++	if len(x) >= 2 && x[0] == '0' {
++		x1 = lower(rune(x[1]))
++		if x1 == 'x' || x1 == 'o' || x1 == 'b' {
++			d = '0'
++			i = 2
++		}
++	}
++
++	// mantissa and exponent
++	for ; i < len(x); i++ {
++		p := d // previous digit
++		d = rune(x[i])
++		switch {
++		case d == '_':
++			if p != '0' {
++				return i
++			}
++		case isDecimal(d) || x1 == 'x' && isHex(d):
++			d = '0'
++		default:
++			if p == '_' {
++				return i - 1
++			}
++			d = '.'
++		}
++	}
++	if d == '_' {
++		return len(x) - 1
++	}
++
++	return -1
+ }
+ 
+ func (s *scanner) rune() {
+@@ -713,12 +816,10 @@ func (s *scanner) escape(quote rune) bool {
+ 	for i := n; i > 0; i-- {
+ 		d := base
+ 		switch {
+-		case isDigit(c):
++		case isDecimal(c):
+ 			d = uint32(c) - '0'
+-		case 'a' <= c && c <= 'f':
+-			d = uint32(c) - ('a' - 10)
+-		case 'A' <= c && c <= 'F':
+-			d = uint32(c) - ('A' - 10)
++		case 'a' <= lower(c) && lower(c) <= 'f':
++			d = uint32(lower(c)) - ('a' - 10)
+ 		}
+ 		if d >= base {
+ 			if c < 0 {
+@@ -728,7 +829,7 @@ func (s *scanner) escape(quote rune) bool {
+ 			if base == 8 {
+ 				kind = "octal"
+ 			}
+-			s.error(fmt.Sprintf("non-%s character in escape sequence: %c", kind, c))
++			s.errorf("non-%s character in escape sequence: %c", kind, c)
+ 			s.ungetr()
+ 			return false
+ 		}
+@@ -739,7 +840,7 @@ func (s *scanner) escape(quote rune) bool {
+ 	s.ungetr()
+ 
+ 	if x > max && base == 8 {
+-		s.error(fmt.Sprintf("octal escape value > 255: %d", x))
++		s.errorf("octal escape value > 255: %d", x)
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 0b7c2cfe43..0f0579e2a5 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -45,15 +45,17 @@ func TestTokens(t *testing.T) {
+ 	// make source
+ 	var buf bytes.Buffer
+ 	for i, s := range sampleTokens {
+-		buf.WriteString("\t\t\t\t"[:i&3])           // leading indentation
+-		buf.WriteString(s.src)                      // token
+-		buf.WriteString("        "[:i&7])           // trailing spaces
+-		buf.WriteString("/*line foo:1 */ // bar\n") // comments (don't crash w/o directive handler)
++		buf.WriteString("\t\t\t\t"[:i&3])                          // leading indentation
++		buf.WriteString(s.src)                                     // token
++		buf.WriteString("        "[:i&7])                          // trailing spaces
++		fmt.Fprintf(&buf, "/*line foo:%d */ // bar\n", i+linebase) // comments (don't crash w/o directive handler)
+ 	}
+ 
+ 	// scan source
+ 	var got scanner
+-	got.init(&buf, nil, 0)
++	got.init(&buf, func(line, col uint, msg string) {
++		t.Fatalf("%d:%d: %s", line, col, msg)
++	}, 0)
+ 	got.next()
+ 	for i, want := range sampleTokens {
+ 		nlsemi := false
+@@ -140,8 +142,16 @@ var sampleTokens = [...]struct {
+ 	{_Literal, "12345", 0, 0},
+ 	{_Literal, "123456789012345678890123456789012345678890", 0, 0},
+ 	{_Literal, "01234567", 0, 0},
+-	{_Literal, "0x0", 0, 0},
++	{_Literal, "0_1_234_567", 0, 0},
++	{_Literal, "0X0", 0, 0},
+ 	{_Literal, "0xcafebabe", 0, 0},
++	{_Literal, "0x_cafe_babe", 0, 0},
++	{_Literal, "0O0", 0, 0},
++	{_Literal, "0o000", 0, 0},
++	{_Literal, "0o_000", 0, 0},
++	{_Literal, "0B1", 0, 0},
++	{_Literal, "0b01100110", 0, 0},
++	{_Literal, "0b_0110_0110", 0, 0},
+ 	{_Literal, "0.", 0, 0},
+ 	{_Literal, "0.e0", 0, 0},
+ 	{_Literal, "0.e-1", 0, 0},
+@@ -323,6 +333,202 @@ func TestComments(t *testing.T) {
+ 	}
+ }
+ 
++func TestNumbers(t *testing.T) {
++	for _, test := range []struct {
++		kind             LitKind
++		src, tokens, err string
++	}{
++		// binaries
++		{IntLit, "0b0", "0b0", ""},
++		{IntLit, "0b1010", "0b1010", ""},
++		{IntLit, "0B1110", "0B1110", ""},
++
++		{IntLit, "0b", "0b", "binary literal has no digits"},
++		{IntLit, "0b0190", "0b0190", "invalid digit '9' in binary literal"},
++		{IntLit, "0b01a0", "0b01 a0", ""}, // only accept 0-9
++
++		// binary floats and imaginaries (invalid)
++		{FloatLit, "0b.", "0b.", "invalid radix point in binary literal"},
++		{FloatLit, "0b.1", "0b.1", "invalid radix point in binary literal"},
++		{FloatLit, "0b1.0", "0b1.0", "invalid radix point in binary literal"},
++		{FloatLit, "0b1e10", "0b1e10", "'e' exponent requires decimal mantissa"},
++		{FloatLit, "0b1P-1", "0b1P-1", "'P' exponent requires hexadecimal mantissa"},
++		{ImagLit, "0b10i", "0b10i", "invalid suffix 'i' on binary literal"},
++
++		// octals
++		{IntLit, "0o0", "0o0", ""},
++		{IntLit, "0o1234", "0o1234", ""},
++		{IntLit, "0O1234", "0O1234", ""},
++
++		{IntLit, "0o", "0o", "octal literal has no digits"},
++		{IntLit, "0o8123", "0o8123", "invalid digit '8' in octal literal"},
++		{IntLit, "0o1293", "0o1293", "invalid digit '9' in octal literal"},
++		{IntLit, "0o12a3", "0o12 a3", ""}, // only accept 0-9
++
++		// octal floats and imaginaries (invalid)
++		{FloatLit, "0o.", "0o.", "invalid radix point in octal literal"},
++		{FloatLit, "0o.2", "0o.2", "invalid radix point in octal literal"},
++		{FloatLit, "0o1.2", "0o1.2", "invalid radix point in octal literal"},
++		{FloatLit, "0o1E+2", "0o1E+2", "'E' exponent requires decimal mantissa"},
++		{FloatLit, "0o1p10", "0o1p10", "'p' exponent requires hexadecimal mantissa"},
++		{ImagLit, "0o10i", "0o10i", "invalid suffix 'i' on octal literal"},
++
++		// 0-octals
++		{IntLit, "0", "0", ""},
++		{IntLit, "0123", "0123", ""},
++
++		{IntLit, "08123", "08123", "invalid digit '8' in octal literal"},
++		{IntLit, "01293", "01293", "invalid digit '9' in octal literal"},
++		{IntLit, "0F.", "0 F .", ""}, // only accept 0-9
++		{IntLit, "0123F.", "0123 F .", ""},
++		{IntLit, "0123456x", "0123456 x", ""},
++
++		// decimals
++		{IntLit, "1", "1", ""},
++		{IntLit, "1234", "1234", ""},
++
++		{IntLit, "1f", "1 f", ""}, // only accept 0-9
++
++		// decimal floats
++		{FloatLit, "0.", "0.", ""},
++		{FloatLit, "123.", "123.", ""},
++		{FloatLit, "0123.", "0123.", ""},
++
++		{FloatLit, ".0", ".0", ""},
++		{FloatLit, ".123", ".123", ""},
++		{FloatLit, ".0123", ".0123", ""},
++
++		{FloatLit, "0.0", "0.0", ""},
++		{FloatLit, "123.123", "123.123", ""},
++		{FloatLit, "0123.0123", "0123.0123", ""},
++
++		{FloatLit, "0e0", "0e0", ""},
++		{FloatLit, "123e+0", "123e+0", ""},
++		{FloatLit, "0123E-1", "0123E-1", ""},
++
++		{FloatLit, "0.e+1", "0.e+1", ""},
++		{FloatLit, "123.E-10", "123.E-10", ""},
++		{FloatLit, "0123.e123", "0123.e123", ""},
++
++		{FloatLit, ".0e-1", ".0e-1", ""},
++		{FloatLit, ".123E+10", ".123E+10", ""},
++		{FloatLit, ".0123E123", ".0123E123", ""},
++
++		{FloatLit, "0.0e1", "0.0e1", ""},
++		{FloatLit, "123.123E-10", "123.123E-10", ""},
++		{FloatLit, "0123.0123e+456", "0123.0123e+456", ""},
++
++		{FloatLit, "0e", "0e", "exponent has no digits"},
++		{FloatLit, "0E+", "0E+", "exponent has no digits"},
++		{FloatLit, "1e+f", "1e+ f", "exponent has no digits"},
++		{FloatLit, "0p0", "0p0", "'p' exponent requires hexadecimal mantissa"},
++		{FloatLit, "1.0P-1", "1.0P-1", "'P' exponent requires hexadecimal mantissa"},
++
++		// decimal imaginaries
++		{ImagLit, "0.i", "0.i", ""},
++		{ImagLit, ".123i", ".123i", ""},
++		{ImagLit, "123.123i", "123.123i", ""},
++		{ImagLit, "123e+0i", "123e+0i", ""},
++		{ImagLit, "123.E-10i", "123.E-10i", ""},
++		{ImagLit, ".123E+10i", ".123E+10i", ""},
++
++		// hexadecimals
++		{IntLit, "0x0", "0x0", ""},
++		{IntLit, "0x1234", "0x1234", ""},
++		{IntLit, "0xcafef00d", "0xcafef00d", ""},
++		{IntLit, "0XCAFEF00D", "0XCAFEF00D", ""},
++
++		{IntLit, "0x", "0x", "hexadecimal literal has no digits"},
++		{IntLit, "0x1g", "0x1 g", ""},
++
++		// hexadecimal floats
++		{FloatLit, "0x0p0", "0x0p0", ""},
++		{FloatLit, "0x12efp-123", "0x12efp-123", ""},
++		{FloatLit, "0xABCD.p+0", "0xABCD.p+0", ""},
++		{FloatLit, "0x.0189P-0", "0x.0189P-0", ""},
++		{FloatLit, "0x1.ffffp+1023", "0x1.ffffp+1023", ""},
++
++		{FloatLit, "0x.", "0x.", "hexadecimal literal has no digits"},
++		{FloatLit, "0x0.", "0x0.", "hexadecimal mantissa requires a 'p' exponent"},
++		{FloatLit, "0x.0", "0x.0", "hexadecimal mantissa requires a 'p' exponent"},
++		{FloatLit, "0x1.1", "0x1.1", "hexadecimal mantissa requires a 'p' exponent"},
++		{FloatLit, "0x1.1e0", "0x1.1e0", "hexadecimal mantissa requires a 'p' exponent"},
++		{FloatLit, "0x1.2gp1a", "0x1.2 gp1a", "hexadecimal mantissa requires a 'p' exponent"},
++		{FloatLit, "0x0p", "0x0p", "exponent has no digits"},
++		{FloatLit, "0xeP-", "0xeP-", "exponent has no digits"},
++		{FloatLit, "0x1234PAB", "0x1234P AB", "exponent has no digits"},
++		{FloatLit, "0x1.2p1a", "0x1.2p1 a", ""},
++
++		// hexadecimal imaginaries (invalid)
++		{ImagLit, "0xf00i", "0xf00i", "invalid suffix 'i' on hexadecimal literal"},
++		{ImagLit, "0xf00.bap+12i", "0xf00.bap+12i", "invalid suffix 'i' on hexadecimal literal"},
++
++		// separators
++		{IntLit, "0b_1000_0001", "0b_1000_0001", ""},
++		{IntLit, "0o_600", "0o_600", ""},
++		{IntLit, "0_466", "0_466", ""},
++		{IntLit, "1_000", "1_000", ""},
++		{FloatLit, "1_000.000_1", "1_000.000_1", ""},
++		{ImagLit, "10e+1_2_3i", "10e+1_2_3i", ""},
++		{IntLit, "0x_f00d", "0x_f00d", ""},
++		{FloatLit, "0x_f00d.0p1_2", "0x_f00d.0p1_2", ""},
++
++		{IntLit, "0b__1000", "0b__1000", "'_' must separate successive digits"},
++		{IntLit, "0o60___0", "0o60___0", "'_' must separate successive digits"},
++		{IntLit, "0466_", "0466_", "'_' must separate successive digits"},
++		{FloatLit, "1_.", "1_.", "'_' must separate successive digits"},
++		{FloatLit, "0._1", "0._1", "'_' must separate successive digits"},
++		{FloatLit, "2.7_e0", "2.7_e0", "'_' must separate successive digits"},
++		{ImagLit, "10e+12_i", "10e+12_i", "'_' must separate successive digits"},
++		{IntLit, "0x___0", "0x___0", "'_' must separate successive digits"},
++		{FloatLit, "0x1.0_p0", "0x1.0_p0", "'_' must separate successive digits"},
++	} {
++		var s scanner
++		var err string
++		s.init(strings.NewReader(test.src), func(_, _ uint, msg string) {
++			if err == "" {
++				err = msg
++			}
++		}, 0)
++
++		for i, want := range strings.Split(test.tokens, " ") {
++			err = ""
++			s.next()
++
++			// compute lit where where s.lit is not defined
++			var lit string
++			switch s.tok {
++			case _Name, _Literal:
++				lit = s.lit
++			case _Dot:
++				lit = "."
++			}
++
++			if i == 0 {
++				if s.tok != _Literal || s.kind != test.kind {
++					t.Errorf("%q: got token %s (kind = %d); want literal (kind = %d)", test.src, s.tok, s.kind, test.kind)
++				}
++				if err != test.err {
++					t.Errorf("%q: got error %q; want %q", test.src, err, test.err)
++				}
++			}
++
++			if lit != want {
++				t.Errorf("%q: got literal %q (%s); want %s", test.src, lit, s.tok, want)
++			}
++		}
++
++		// make sure we read all
++		s.next()
++		if s.tok == _Semi {
++			s.next()
++		}
++		if s.tok != _EOF {
++			t.Errorf("%q: got %s; want EOF", test.src, s.tok)
++		}
++	}
++}
++
+ func TestScanErrors(t *testing.T) {
+ 	for _, test := range []struct {
+ 		src, msg  string
+@@ -345,12 +551,10 @@ func TestScanErrors(t *testing.T) {
+ 
+ 		{"x + ~y", "invalid character U+007E '~'", 0, 4},
+ 		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
+-		{"const x = 0xyz", "malformed hex constant", 0, 12},
+-		{"0123456789", "malformed octal constant", 0, 10},
++		{"0123456789", "invalid digit '8' in octal literal", 0, 8},
+ 		{"0123456789. /* foobar", "comment not terminated", 0, 12},   // valid float constant
+ 		{"0123456789e0 /*\nfoobar", "comment not terminated", 0, 13}, // valid float constant
+-		{"var a, b = 08, 07\n", "malformed octal constant", 0, 13},
+-		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 0, 10},
++		{"var a, b = 09, 07\n", "invalid digit '9' in octal literal", 0, 12},
+ 
+ 		{`''`, "empty character literal or unescaped ' in character literal", 0, 1},
+ 		{"'\n", "newline in character literal", 0, 1},
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 84908fd190..b63fcc43b0 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -155,6 +155,7 @@ func TestStdTest(t *testing.T) {
+ 	}
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
++		"literal2.go",    // go/scanner cannot handle new number literals yet - TODO(gri) enable once fixed
+ 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ 	)
+ }
+diff --git a/test/fixedbugs/issue9036.go b/test/fixedbugs/issue9036.go
+index 75ffb2ddef..38f06c30c8 100644
+--- a/test/fixedbugs/issue9036.go
++++ b/test/fixedbugs/issue9036.go
+@@ -4,7 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Expects to see error messages on 'p' exponents.
++// Expects to see error messages on 'p' exponents
++// for non-hexadecimal floats.
+ 
+ package main
+ 
+@@ -16,16 +17,9 @@ const (
+ 	x3 = 0x1e10 // integer (e is a hex digit)
+ )
+ 
+-// 'p' exponents are invalid - the 'p' is not considered
+-// part of a floating-point number, but introduces a new
+-// (unexpected) name.
+-//
+-// Error recovery is not ideal and we use a new declaration
+-// each time for the parser to recover.
+-
+-const x4 = 0x1p10 // ERROR "unexpected p10"
+-const x5 = 1p10   // ERROR "unexpected p10"
+-const x6 = 0p0    // ERROR "unexpected p0"
++const x4 = 0x1p10 // valid hexadecimal float
++const x5 = 1p10   // ERROR "'p' exponent requires hexadecimal mantissa"
++const x6 = 0P0    // ERROR "'P' exponent requires hexadecimal mantissa"
+ 
+ func main() {
+ 	fmt.Printf("%g %T\n", x1, x1)
+diff --git a/test/literal2.go b/test/literal2.go
+new file mode 100644
+index 0000000000..dbe22a012e
+--- /dev/null
++++ b/test/literal2.go
+@@ -0,0 +1,88 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test Go2 literal syntax for basic types.
++// TODO add more tests
++
++package main
++
++import "fmt"
++
++func assert(cond bool) {
++	if !cond {
++		panic("assertion failed")
++	}
++}
++
++func equal(x, y float64) bool {
++	if x != y {
++		fmt.Printf("%g != %g\n", x, y)
++		return false
++	}
++	return true
++}
++
++func main() {
++	// 0-octals
++	assert(0_1 == 01)
++	assert(012 == 012)
++	assert(0_1_2 == 012)
++
++	// decimals
++	assert(1_000_000 == 1000000)
++
++	// hexadecimals
++	assert(0x_1 == 0x1)
++	assert(0x1_2 == 0x12)
++	assert(0X_cafe_f00d == 0xcafef00d)
++
++	// octals
++	assert(0o_1 == 01)
++	assert(0o12 == 012)
++	assert(0O_1_2 == 012)
++
++	// binaries
++	assert(0b_1 == 1)
++	assert(0b10 == 2)
++	assert(0b_1_0 == 2)
++
++	// decimal floats
++	assert(0. == 0.0)
++	assert(.0 == 0.0)
++	assert(1_0. == 10.0)
++	assert(.0_1 == 0.01)
++	assert(1_0.0_1 == 10.01)
++
++	assert(0.e1_0 == 0.0e10)
++	assert(.0e1_0 == 0.0e10)
++	assert(1_0.e1_0 == 10.0e10)
++	assert(.0_1e1_0 == 0.01e10)
++	assert(1_0.0_1e1_0 == 10.01e10)
++
++	// hexadecimal floats
++	assert(equal(0x1p-2, 0.25))
++	assert(equal(0x2.p10, 2048.0))
++	assert(equal(0x1.Fp+0, 1.9375))
++	assert(equal(0X.8p-0, 0.5))
++	assert(equal(0X1FFFP-16, 0.1249847412109375))
++	assert(equal(0x1.fffffffffffffp1023, 1.7976931348623157e308))
++
++	assert(equal(0x_1p-2, 0.25))
++	assert(equal(0x2.p1_0, 2048.0))
++	assert(equal(0x1_0.Fp+0, 16.9375))
++	assert(equal(0X_0.8p-0, 0.5))
++	assert(equal(0X_1FF_FP-16, 0.1249847412109375))
++	assert(equal(0x1.f_ffff_ffff_ffffP1_023, 1.7976931348623157e308))
++
++	// imaginaries
++	assert(0i == complex(0, 0))
++	assert(09i == complex(0, 9)) // "09i" is a decimal int followed by "i"
++	assert(1.2e+3i == complex(0, 1.2e+3))
++
++	assert(0_0i == complex(0, 0))
++	assert(0_9i == complex(0, 9)) // "0_9i" is a decimal int followed by "i"
++	assert(1.2_0e+0_3i == complex(0, 1.2e+3))
++}

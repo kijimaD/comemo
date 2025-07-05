@@ -12,6 +12,20 @@ Date:   Sat Jun 4 23:08:19 2016 -0700
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/writer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 426e4434eb..6acc055ca4 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -317,7 +317,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
+ 	var buf bytes.Buffer
+ 
+ 	// Keys are sorted before writing to body to allow deterministic output.
+-	var keys []string
++	keys := make([]string, 0, len(paxHeaders))
+ 	for k := range paxHeaders {
+ 		keys = append(keys, k)
+ 	}

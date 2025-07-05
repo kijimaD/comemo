@@ -9,6 +9,20 @@ Date:   Thu Aug 25 17:19:28 2016 -0700
     Change-Id: I34bcae08cfb43257aeb9086336966ef85f15fe1d
     Reviewed-on: https://go-review.googlesource.com/27815
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/syscall/asm_plan9_386.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/asm_plan9_386.s b/src/syscall/asm_plan9_386.s
+index 59764a7b66..2c45eabfe6 100644
+--- a/src/syscall/asm_plan9_386.s
++++ b/src/syscall/asm_plan9_386.s
+@@ -107,7 +107,7 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 	RET
+ 
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	MOVL	trap+0(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL	8(SP), SI
+ 	LEAL	4(SP), DI

@@ -13,7 +13,51 @@ Date:   Thu May 14 18:17:49 2020 +0900
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go          | 14 +++++++++++++-
  src/cmd/go/testdata/script/issue36000.txt |  6 ++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 6ab3498c3e..071c9d2db9 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2434,13 +2434,25 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
+ 	if b.flagCache == nil {
+ 		b.flagCache = make(map[[2]string]bool)
+ 	}
++
++	tmp := os.DevNull
++	if runtime.GOOS == "windows" {
++		f, err := ioutil.TempFile(b.WorkDir, "")
++		if err != nil {
++			return false
++		}
++		f.Close()
++		tmp = f.Name()
++		defer os.Remove(tmp)
++	}
++
+ 	// We used to write an empty C file, but that gets complicated with
+ 	// go build -n. We tried using a file that does not exist, but that
+ 	// fails on systems with GCC version 4.2.1; that is the last GPLv2
+ 	// version of GCC, so some systems have frozen on it.
+ 	// Now we pass an empty file on stdin, which should work at least for
+ 	// GCC and clang.
+-	cmdArgs := str.StringList(compiler, flag, "-c", "-x", "c", "-", "-o", os.DevNull)
++	cmdArgs := str.StringList(compiler, flag, "-c", "-x", "c", "-", "-o", tmp)
+ 	if cfg.BuildN || cfg.BuildX {
+ 		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
+ 		if cfg.BuildN {
+diff --git a/src/cmd/go/testdata/script/issue36000.txt b/src/cmd/go/testdata/script/issue36000.txt
+new file mode 100644
+index 0000000000..41732751ac
+--- /dev/null
++++ b/src/cmd/go/testdata/script/issue36000.txt
+@@ -0,0 +1,6 @@
++# Tests golang.org/issue/36000
++
++[!cgo] skip
++
++# go env with CGO flags should not make NUL file
++go env CGO_CFLAGS

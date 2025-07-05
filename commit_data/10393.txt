@@ -11,9 +11,296 @@ Date:   Mon Nov 14 13:35:22 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5375092
-
+---
  src/pkg/math/big/int.go      | 30 +++++++++++++++---------------
  src/pkg/math/big/nat.go      | 10 +++++-----
  src/pkg/math/big/nat_test.go | 26 +++++++++++++-------------
  src/pkg/math/big/rat.go      | 14 +++++++-------
  4 files changed, 40 insertions(+), 40 deletions(-)
+
+diff --git a/src/pkg/math/big/int.go b/src/pkg/math/big/int.go
+index 2558be5805..35e2e29418 100644
+--- a/src/pkg/math/big/int.go
++++ b/src/pkg/math/big/int.go
+@@ -176,7 +176,7 @@ func (z *Int) Quo(x, y *Int) *Int {
+ // If y == 0, a division-by-zero run-time panic occurs.
+ // Rem implements truncated modulus (like Go); see QuoRem for more details.
+ func (z *Int) Rem(x, y *Int) *Int {
+-	_, z.abs = nat{}.div(z.abs, x.abs, y.abs)
++	_, z.abs = nat(nil).div(z.abs, x.abs, y.abs)
+ 	z.neg = len(z.abs) > 0 && x.neg // 0 has no sign
+ 	return z
+ }
+@@ -678,7 +678,7 @@ func (z *Int) Bit(i int) uint {
+ 		panic("negative bit index")
+ 	}
+ 	if z.neg {
+-		t := nat{}.sub(z.abs, natOne)
++		t := nat(nil).sub(z.abs, natOne)
+ 		return t.bit(uint(i)) ^ 1
+ 	}
+ 
+@@ -710,8 +710,8 @@ func (z *Int) And(x, y *Int) *Int {
+ 	if x.neg == y.neg {
+ 		if x.neg {
+ 			// (-x) & (-y) == ^(x-1) & ^(y-1) == ^((x-1) | (y-1)) == -(((x-1) | (y-1)) + 1)
+-			x1 := nat{}.sub(x.abs, natOne)
+-			y1 := nat{}.sub(y.abs, natOne)
++			x1 := nat(nil).sub(x.abs, natOne)
++			y1 := nat(nil).sub(y.abs, natOne)
+ 			z.abs = z.abs.add(z.abs.or(x1, y1), natOne)
+ 			z.neg = true // z cannot be zero if x and y are negative
+ 			return z
+@@ -729,7 +729,7 @@ func (z *Int) And(x, y *Int) *Int {
+ 	}
+ 
+ 	// x & (-y) == x & ^(y-1) == x &^ (y-1)
+-	y1 := nat{}.sub(y.abs, natOne)
++	y1 := nat(nil).sub(y.abs, natOne)
+ 	z.abs = z.abs.andNot(x.abs, y1)
+ 	z.neg = false
+ 	return z
+@@ -740,8 +740,8 @@ func (z *Int) AndNot(x, y *Int) *Int {
+ 	if x.neg == y.neg {
+ 		if x.neg {
+ 			// (-x) &^ (-y) == ^(x-1) &^ ^(y-1) == ^(x-1) & (y-1) == (y-1) &^ (x-1)
+-			x1 := nat{}.sub(x.abs, natOne)
+-			y1 := nat{}.sub(y.abs, natOne)
++			x1 := nat(nil).sub(x.abs, natOne)
++			y1 := nat(nil).sub(y.abs, natOne)
+ 			z.abs = z.abs.andNot(y1, x1)
+ 			z.neg = false
+ 			return z
+@@ -755,14 +755,14 @@ func (z *Int) AndNot(x, y *Int) *Int {
+ 
+ 	if x.neg {
+ 		// (-x) &^ y == ^(x-1) &^ y == ^(x-1) & ^y == ^((x-1) | y) == -(((x-1) | y) + 1)
+-		x1 := nat{}.sub(x.abs, natOne)
++		x1 := nat(nil).sub(x.abs, natOne)
+ 		z.abs = z.abs.add(z.abs.or(x1, y.abs), natOne)
+ 		z.neg = true // z cannot be zero if x is negative and y is positive
+ 		return z
+ 	}
+ 
+ 	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
+-	y1 := nat{}.add(y.abs, natOne)
++	y1 := nat(nil).add(y.abs, natOne)
+ 	z.abs = z.abs.and(x.abs, y1)
+ 	z.neg = false
+ 	return z
+@@ -773,8 +773,8 @@ func (z *Int) Or(x, y *Int) *Int {
+ 	if x.neg == y.neg {
+ 		if x.neg {
+ 			// (-x) | (-y) == ^(x-1) | ^(y-1) == ^((x-1) & (y-1)) == -(((x-1) & (y-1)) + 1)
+-			x1 := nat{}.sub(x.abs, natOne)
+-			y1 := nat{}.sub(y.abs, natOne)
++			x1 := nat(nil).sub(x.abs, natOne)
++			y1 := nat(nil).sub(y.abs, natOne)
+ 			z.abs = z.abs.add(z.abs.and(x1, y1), natOne)
+ 			z.neg = true // z cannot be zero if x and y are negative
+ 			return z
+@@ -792,7 +792,7 @@ func (z *Int) Or(x, y *Int) *Int {
+ 	}
+ 
+ 	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
+-	y1 := nat{}.sub(y.abs, natOne)
++	y1 := nat(nil).sub(y.abs, natOne)
+ 	z.abs = z.abs.add(z.abs.andNot(y1, x.abs), natOne)
+ 	z.neg = true // z cannot be zero if one of x or y is negative
+ 	return z
+@@ -803,8 +803,8 @@ func (z *Int) Xor(x, y *Int) *Int {
+ 	if x.neg == y.neg {
+ 		if x.neg {
+ 			// (-x) ^ (-y) == ^(x-1) ^ ^(y-1) == (x-1) ^ (y-1)
+-			x1 := nat{}.sub(x.abs, natOne)
+-			y1 := nat{}.sub(y.abs, natOne)
++			x1 := nat(nil).sub(x.abs, natOne)
++			y1 := nat(nil).sub(y.abs, natOne)
+ 			z.abs = z.abs.xor(x1, y1)
+ 			z.neg = false
+ 			return z
+@@ -822,7 +822,7 @@ func (z *Int) Xor(x, y *Int) *Int {
+ 	}
+ 
+ 	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
+-	y1 := nat{}.sub(y.abs, natOne)
++	y1 := nat(nil).sub(y.abs, natOne)
+ 	z.abs = z.abs.add(z.abs.xor(x.abs, y1), natOne)
+ 	z.neg = true // z cannot be zero if only one of x or y is negative
+ 	return z
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index 3fa41e7565..eee8ee3f66 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -447,10 +447,10 @@ func (z nat) mulRange(a, b uint64) nat {
+ 	case a == b:
+ 		return z.setUint64(a)
+ 	case a+1 == b:
+-		return z.mul(nat{}.setUint64(a), nat{}.setUint64(b))
++		return z.mul(nat(nil).setUint64(a), nat(nil).setUint64(b))
+ 	}
+ 	m := (a + b) / 2
+-	return z.mul(nat{}.mulRange(a, m), nat{}.mulRange(m+1, b))
++	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
+ }
+ 
+ // q = (x-r)/y, with 0 <= r < y
+@@ -785,7 +785,7 @@ func (x nat) string(charset string) string {
+ 	}
+ 
+ 	// preserve x, create local copy for use in repeated divisions
+-	q := nat{}.set(x)
++	q := nat(nil).set(x)
+ 	var r Word
+ 
+ 	// convert
+@@ -1191,11 +1191,11 @@ func (n nat) probablyPrime(reps int) bool {
+ 		return false
+ 	}
+ 
+-	nm1 := nat{}.sub(n, natOne)
++	nm1 := nat(nil).sub(n, natOne)
+ 	// 1<<k * q = nm1;
+ 	q, k := nm1.powersOfTwoDecompose()
+ 
+-	nm3 := nat{}.sub(nm1, natTwo)
++	nm3 := nat(nil).sub(nm1, natTwo)
+ 	rand := rand.New(rand.NewSource(int64(n[0])))
+ 
+ 	var x, y, quotient nat
+diff --git a/src/pkg/math/big/nat_test.go b/src/pkg/math/big/nat_test.go
+index 041a6c4a25..b208646f2f 100644
+--- a/src/pkg/math/big/nat_test.go
++++ b/src/pkg/math/big/nat_test.go
+@@ -16,9 +16,9 @@ var cmpTests = []struct {
+ 	r    int
+ }{
+ 	{nil, nil, 0},
+-	{nil, nat{}, 0},
+-	{nat{}, nil, 0},
+-	{nat{}, nat{}, 0},
++	{nil, nat(nil), 0},
++	{nat(nil), nil, 0},
++	{nat(nil), nat(nil), 0},
+ 	{nat{0}, nat{0}, 0},
+ 	{nat{0}, nat{1}, -1},
+ 	{nat{1}, nat{0}, 1},
+@@ -67,7 +67,7 @@ var prodNN = []argNN{
+ 
+ func TestSet(t *testing.T) {
+ 	for _, a := range sumNN {
+-		z := nat{}.set(a.z)
++		z := nat(nil).set(a.z)
+ 		if z.cmp(a.z) != 0 {
+ 			t.Errorf("got z = %v; want %v", z, a.z)
+ 		}
+@@ -129,7 +129,7 @@ var mulRangesN = []struct {
+ 
+ func TestMulRangeN(t *testing.T) {
+ 	for i, r := range mulRangesN {
+-		prod := nat{}.mulRange(r.a, r.b).decimalString()
++		prod := nat(nil).mulRange(r.a, r.b).decimalString()
+ 		if prod != r.prod {
+ 			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
+ 		}
+@@ -175,7 +175,7 @@ func toString(x nat, charset string) string {
+ 	s := make([]byte, i)
+ 
+ 	// don't destroy x
+-	q := nat{}.set(x)
++	q := nat(nil).set(x)
+ 
+ 	// convert
+ 	for len(q) > 0 {
+@@ -212,7 +212,7 @@ func TestString(t *testing.T) {
+ 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
+ 		}
+ 
+-		x, b, err := nat{}.scan(strings.NewReader(a.s), len(a.c))
++		x, b, err := nat(nil).scan(strings.NewReader(a.s), len(a.c))
+ 		if x.cmp(a.x) != 0 {
+ 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
+ 		}
+@@ -271,7 +271,7 @@ var natScanTests = []struct {
+ func TestScanBase(t *testing.T) {
+ 	for _, a := range natScanTests {
+ 		r := strings.NewReader(a.s)
+-		x, b, err := nat{}.scan(r, a.base)
++		x, b, err := nat(nil).scan(r, a.base)
+ 		if err == nil && !a.ok {
+ 			t.Errorf("scan%+v\n\texpected error", a)
+ 		}
+@@ -651,17 +651,17 @@ var expNNTests = []struct {
+ 
+ func TestExpNN(t *testing.T) {
+ 	for i, test := range expNNTests {
+-		x, _, _ := nat{}.scan(strings.NewReader(test.x), 0)
+-		y, _, _ := nat{}.scan(strings.NewReader(test.y), 0)
+-		out, _, _ := nat{}.scan(strings.NewReader(test.out), 0)
++		x, _, _ := nat(nil).scan(strings.NewReader(test.x), 0)
++		y, _, _ := nat(nil).scan(strings.NewReader(test.y), 0)
++		out, _, _ := nat(nil).scan(strings.NewReader(test.out), 0)
+ 
+ 		var m nat
+ 
+ 		if len(test.m) > 0 {
+-			m, _, _ = nat{}.scan(strings.NewReader(test.m), 0)
++			m, _, _ = nat(nil).scan(strings.NewReader(test.m), 0)
+ 		}
+ 
+-		z := nat{}.expNN(x, y, m)
++		z := nat(nil).expNN(x, y, m)
+ 		if z.cmp(out) != 0 {
+ 			t.Errorf("#%d got %v want %v", i, z, out)
+ 		}
+diff --git a/src/pkg/math/big/rat.go b/src/pkg/math/big/rat.go
+index 3a0add3236..adf412485f 100644
+--- a/src/pkg/math/big/rat.go
++++ b/src/pkg/math/big/rat.go
+@@ -33,7 +33,7 @@ func (z *Rat) SetFrac(a, b *Int) *Rat {
+ 		panic("division by zero")
+ 	}
+ 	if &z.a == b || alias(z.a.abs, babs) {
+-		babs = nat{}.set(babs) // make a copy
++		babs = nat(nil).set(babs) // make a copy
+ 	}
+ 	z.a.abs = z.a.abs.set(a.abs)
+ 	z.b = z.b.set(babs)
+@@ -315,7 +315,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	if _, ok := z.a.SetString(s, 10); !ok {
+ 		return nil, false
+ 	}
+-	powTen := nat{}.expNN(natTen, exp.abs, nil)
++	powTen := nat(nil).expNN(natTen, exp.abs, nil)
+ 	if exp.neg {
+ 		z.b = powTen
+ 		z.norm()
+@@ -357,23 +357,23 @@ func (z *Rat) FloatString(prec int) string {
+ 	}
+ 	// z.b != 0
+ 
+-	q, r := nat{}.div(nat{}, z.a.abs, z.b)
++	q, r := nat(nil).div(nat(nil), z.a.abs, z.b)
+ 
+ 	p := natOne
+ 	if prec > 0 {
+-		p = nat{}.expNN(natTen, nat{}.setUint64(uint64(prec)), nil)
++		p = nat(nil).expNN(natTen, nat(nil).setUint64(uint64(prec)), nil)
+ 	}
+ 
+ 	r = r.mul(r, p)
+-	r, r2 := r.div(nat{}, r, z.b)
++	r, r2 := r.div(nat(nil), r, z.b)
+ 
+ 	// see if we need to round up
+ 	r2 = r2.add(r2, r2)
+ 	if z.b.cmp(r2) <= 0 {
+ 		r = r.add(r, natOne)
+ 		if r.cmp(p) >= 0 {
+-			q = nat{}.add(q, natOne)
+-			r = nat{}.sub(r, p)
++			q = nat(nil).add(q, natOne)
++			r = nat(nil).sub(r, p)
+ 		}
+ 	}
+ 

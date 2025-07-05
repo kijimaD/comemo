@@ -7,7 +7,7 @@ Date:   Tue Mar 19 02:47:04 2013 +0800
     R=golang-dev, jsing
     CC=golang-dev
     https://golang.org/cl/7597046
-
+---
  src/pkg/runtime/defs_netbsd.go       |  1 +
  src/pkg/runtime/defs_netbsd_386.go   |  1 -
  src/pkg/runtime/defs_netbsd_amd64.go |  1 -
@@ -17,3 +17,229 @@ Date:   Tue Mar 19 02:47:04 2013 +0800
  src/pkg/runtime/signal_netbsd_arm.h  | 37 ++++++++++++++++++----------------
  src/pkg/runtime/sys_netbsd_arm.s     | 19 ++++++++++++++++++
  8 files changed, 110 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_netbsd.go b/src/pkg/runtime/defs_netbsd.go
+index 53e061041e..c543593fa4 100644
+--- a/src/pkg/runtime/defs_netbsd.go
++++ b/src/pkg/runtime/defs_netbsd.go
+@@ -9,6 +9,7 @@ Input to cgo.
+ 
+ GOARCH=amd64 go tool cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go >defs_netbsd_amd64.h
+ GOARCH=386 go tool cgo -cdefs defs_netbsd.go defs_netbsd_386.go >defs_netbsd_386.h
++GOARCH=arm go tool cgo -cdefs defs_netbsd.go defs_netbsd_arm.go >defs_netbsd_arm.h
+ */
+ 
+ // +godefs map __fpregset_t [644]byte
+diff --git a/src/pkg/runtime/defs_netbsd_386.go b/src/pkg/runtime/defs_netbsd_386.go
+index e9e36608e4..c26f246077 100644
+--- a/src/pkg/runtime/defs_netbsd_386.go
++++ b/src/pkg/runtime/defs_netbsd_386.go
+@@ -7,7 +7,6 @@
+ /*
+ Input to cgo.
+ 
+-GOARCH=amd64 go tool cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go >defs_netbsd_amd64.h
+ GOARCH=386 go tool cgo -cdefs defs_netbsd.go defs_netbsd_386.go >defs_netbsd_386.h
+ */
+ 
+diff --git a/src/pkg/runtime/defs_netbsd_amd64.go b/src/pkg/runtime/defs_netbsd_amd64.go
+index 68f586b2f9..f18a7b1fe3 100644
+--- a/src/pkg/runtime/defs_netbsd_amd64.go
++++ b/src/pkg/runtime/defs_netbsd_amd64.go
+@@ -8,7 +8,6 @@
+ Input to cgo.
+ 
+ GOARCH=amd64 go tool cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go >defs_netbsd_amd64.h
+-GOARCH=386 go tool cgo -cdefs defs_netbsd.go defs_netbsd_386.go >defs_netbsd_386.h
+ */
+ 
+ package runtime
+diff --git a/src/pkg/runtime/defs_netbsd_arm.go b/src/pkg/runtime/defs_netbsd_arm.go
+new file mode 100644
+index 0000000000..cb0dce66b4
+--- /dev/null
++++ b/src/pkg/runtime/defs_netbsd_arm.go
+@@ -0,0 +1,39 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++/*
++Input to cgo.
++
++GOARCH=arm go tool cgo -cdefs defs_netbsd.go defs_netbsd_arm.go >defs_netbsd_arm.h
++*/
++
++package runtime
++
++/*
++#include <sys/types.h>
++#include <machine/mcontext.h>
++*/
++import "C"
++
++const (
++	REG_R0   = C._REG_R0
++	REG_R1   = C._REG_R1
++	REG_R2   = C._REG_R2
++	REG_R3   = C._REG_R3
++	REG_R4   = C._REG_R4
++	REG_R5   = C._REG_R5
++	REG_R6   = C._REG_R6
++	REG_R7   = C._REG_R7
++	REG_R8   = C._REG_R8
++	REG_R9   = C._REG_R9
++	REG_R10  = C._REG_R10
++	REG_R11  = C._REG_R11
++	REG_R12  = C._REG_R12
++	REG_R13  = C._REG_R13
++	REG_R14  = C._REG_R14
++	REG_R15  = C._REG_R15
++	REG_CPSR = C._REG_CPSR
++)
+diff --git a/src/pkg/runtime/defs_netbsd_arm.h b/src/pkg/runtime/defs_netbsd_arm.h
+index f67475c763..26b55222e2 100644
+--- a/src/pkg/runtime/defs_netbsd_arm.h
++++ b/src/pkg/runtime/defs_netbsd_arm.h
+@@ -1,5 +1,5 @@
+ // Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_netbsd.go
++// cgo -cdefs defs_netbsd.go defs_netbsd_arm.go
+ 
+ 
+ enum {
+@@ -138,3 +138,27 @@ struct UcontextT {
+ };
+ 
+ #pragma pack off
++// Created by cgo -cdefs - DO NOT EDIT
++// cgo -cdefs defs_netbsd.go defs_netbsd_arm.go
++
++
++enum {
++	REG_R0		= 0x0,
++	REG_R1		= 0x1,
++	REG_R2		= 0x2,
++	REG_R3		= 0x3,
++	REG_R4		= 0x4,
++	REG_R5		= 0x5,
++	REG_R6		= 0x6,
++	REG_R7		= 0x7,
++	REG_R8		= 0x8,
++	REG_R9		= 0x9,
++	REG_R10		= 0xa,
++	REG_R11		= 0xb,
++	REG_R12		= 0xc,
++	REG_R13		= 0xd,
++	REG_R14		= 0xe,
++	REG_R15		= 0xf,
++	REG_CPSR	= 0x10,
++};
++
+diff --git a/src/pkg/runtime/os_netbsd_arm.c b/src/pkg/runtime/os_netbsd_arm.c
+index f188a30638..385e6406d0 100644
+--- a/src/pkg/runtime/os_netbsd_arm.c
++++ b/src/pkg/runtime/os_netbsd_arm.c
+@@ -5,15 +5,16 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
++#include "signal_GOOS_GOARCH.h"
+ 
+ void
+ runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
+ {
+-	mc->r15 = (uint32)runtime·lwp_tramp;
+-	mc->r13 = (uint32)stack;
+-	mc->r0 = (uint32)mp;
+-	mc->r1 = (uint32)gp;
+-	mc->r2 = (uint32)fn;
++	mc->__gregs[REG_R15] = (uint32)runtime·lwp_tramp;
++	mc->__gregs[REG_R13] = (uint32)stack;
++	mc->__gregs[REG_R0] = (uint32)mp;
++	mc->__gregs[REG_R1] = (uint32)gp;
++	mc->__gregs[REG_R2] = (uint32)fn;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/signal_netbsd_arm.h b/src/pkg/runtime/signal_netbsd_arm.h
+index cc0da1e9f9..12f5827a6c 100644
+--- a/src/pkg/runtime/signal_netbsd_arm.h
++++ b/src/pkg/runtime/signal_netbsd_arm.h
+@@ -4,24 +4,27 @@
+ 
+ #define SIG_REGS(ctxt) (((UcontextT*)(ctxt))->uc_mcontext)
+ 
+-#define SIG_R0(info, ctxt) (SIG_REGS(ctxt).__gregs[0])
+-#define SIG_R1(info, ctxt) (SIG_REGS(ctxt).__gregs[1])
+-#define SIG_R2(info, ctxt) (SIG_REGS(ctxt).__gregs[2])
+-#define SIG_R3(info, ctxt) (SIG_REGS(ctxt).__gregs[3])
+-#define SIG_R4(info, ctxt) (SIG_REGS(ctxt).__gregs[4])
+-#define SIG_R5(info, ctxt) (SIG_REGS(ctxt).__gregs[5])
+-#define SIG_R6(info, ctxt) (SIG_REGS(ctxt).__gregs[6])
+-#define SIG_R7(info, ctxt) (SIG_REGS(ctxt).__gregs[7])
+-#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).__gregs[8])
+-#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).__gregs[9])
+-#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).__gregs[10])
+-#define SIG_FP(info, ctxt) (SIG_REGS(ctxt).__gregs[11])
+-#define SIG_IP(info, ctxt) (SIG_REGS(ctxt).__gregs[12])
+-#define SIG_SP(info, ctxt) (SIG_REGS(ctxt).__gregs[13])
+-#define SIG_LR(info, ctxt) (SIG_REGS(ctxt).__gregs[14])
+-#define SIG_PC(info, ctxt) (SIG_REGS(ctxt).__gregs[15])
+-#define SIG_CPSR(info, ctxt) (SIG_REGS(ctxt).__gregs[16])
++#define SIG_R0(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R0])
++#define SIG_R1(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R1])
++#define SIG_R2(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R2])
++#define SIG_R3(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R3])
++#define SIG_R4(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R4])
++#define SIG_R5(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R5])
++#define SIG_R6(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R6])
++#define SIG_R7(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R7])
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R8])
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R9])
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R10])
++#define SIG_FP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R11])
++#define SIG_IP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R12])
++#define SIG_SP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R13])
++#define SIG_LR(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R14])
++#define SIG_PC(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R15])
++#define SIG_CPSR(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_CPSR])
+ #define SIG_FAULT(info, ctxt) (*(uintptr*)&(info)->_reason[0])
+ #define SIG_TRAP(info, ctxt) (0)
+ #define SIG_ERROR(info, ctxt) (0)
+ #define SIG_OLDMASK(info, ctxt) (0)
++
++#define SIG_CODE0(info, ctxt) ((info)->_code)
++#define SIG_CODE1(info, ctxt) (*(uintptr*)&(info)->_reason[0])
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index fc64b1096d..3ff335f4df 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -21,6 +21,25 @@ TEXT runtime·exit1(SB),7,$-4
+ 	MOVW $1, R9	// crash
+ 	MOVW R9, (R9)
+ 	RET
++	
++TEXT runtime·open(SB),7,$-8
++	MOVW 0(FP), R0
++	MOVW 4(FP), R1
++	MOVW 8(FP), R2
++	SWI $0xa00005
++	RET
++
++TEXT runtime·close(SB),7,$-8
++	MOVW 0(FP), R0
++	SWI $0xa00006
++	RET
++
++TEXT runtime·read(SB),7,$-8
++	MOVW 0(FP), R0
++	MOVW 4(FP), R1
++	MOVW 8(FP), R2
++	SWI $0xa00003
++	RET
+ 
+ TEXT runtime·write(SB),7,$-4
+ 	MOVW	0(FP), R0	// arg 1 - fd

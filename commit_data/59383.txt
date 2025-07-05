@@ -15,6 +15,20 @@ Date:   Wed Feb 28 22:24:48 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/trace2time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace2time.go b/src/runtime/trace2time.go
+index 8a4499ef61..7a7a53e7d8 100644
+--- a/src/runtime/trace2time.go
++++ b/src/runtime/trace2time.go
+@@ -61,7 +61,7 @@ func traceClockNow() traceTime {
+ func traceClockUnitsPerSecond() uint64 {
+ 	if osHasLowResClock {
+ 		// We're using cputicks as our clock, so we need a real estimate.
+-		return uint64(ticksPerSecond())
++		return uint64(ticksPerSecond() / traceTimeDiv)
+ 	}
+ 	// Our clock is nanotime, so it's just the constant time division.
+ 	// (trace clock units / nanoseconds) * (1e9 nanoseconds / 1 second)

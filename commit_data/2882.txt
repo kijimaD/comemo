@@ -9,7 +9,7 @@ Date:   Tue Aug 4 22:59:23 2009 -0700
     R=ken
     OCL=32770
     CL=32770
-
+---
  src/cmd/5g/ggen.c    |   2 -
  src/cmd/6g/ggen.c    |   5 +-
  src/cmd/8g/ggen.c    |   1 -
@@ -25,3 +25,1295 @@ Date:   Tue Aug 4 22:59:23 2009 -0700
  src/cmd/gc/reflect.c |  47 ++++----
  src/cmd/gc/subr.c    |  44 ++++----
  14 files changed, 210 insertions(+), 418 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 04fe16ce12..337f5f8a0e 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ #undef	EXTERN
+ #define	EXTERN
+ #include "gg.h"
+@@ -59,7 +58,6 @@ compile(Node *fn)
+ 
+ 	pl = newplist();
+ 	pl->name = curfn->nname;
+-	pl->locals = autodcl;
+ 
+ 	nodconst(&nod1, types[TINT32], 0);
+ 	ptxt = gins(ATEXT, curfn->nname, &nod1);
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 63dbd68354..64220bc841 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -59,7 +59,6 @@ compile(Node *fn)
+ 
+ 	pl = newplist();
+ 	pl->name = curfn->nname;
+-	pl->locals = autodcl;
+ 
+ 	nodconst(&nod1, types[TINT32], 0);
+ 	ptxt = gins(ATEXT, curfn->nname, &nod1);
+@@ -573,7 +572,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 
+ 	regfree(&ax);
+ 	regfree(&dx);
+-	
++
+ 	if(oldax.op != 0) {
+ 		gmove(&oldax, &ax);
+ 		regfree(&oldax);
+@@ -582,7 +581,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 		gmove(&olddx, &dx);
+ 		regfree(&olddx);
+ 	}
+-		
++
+ }
+ 
+ /*
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index ee26a61109..3542ae6909 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -57,7 +57,6 @@ compile(Node *fn)
+ 
+ 	pl = newplist();
+ 	pl->name = curfn->nname;
+-	pl->locals = autodcl;
+ 
+ 	nodconst(&nod1, types[TINT32], 0);
+ 	ptxt = gins(ATEXT, curfn->nname, &nod1);
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 683c77d40c..fac2656ef0 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -358,9 +358,9 @@ datastring(char *s, int len, Addr *a)
+ 	*a = ao;
+ 
+ 	// only generate data the first time.
+-	if(ao.sym->uniq)
++	if(ao.sym->flags & SymUniq)
+ 		return;
+-	ao.sym->uniq = 1;
++	ao.sym->flags |= SymUniq;
+ 
+ 	data();
+ 	for(w=0; w<len; w+=8) {
+@@ -438,9 +438,9 @@ datagostring(Strlit *sval, Addr *a)
+ 	}
+ 
+ 	*a = ao;
+-	if(ao.sym->uniq)
++	if(ao.sym->flags & SymUniq)
+ 		return;
+-	ao.sym->uniq = 1;
++	ao.sym->flags |= SymUniq;
+ 
+ 	data();
+ 	// DATA gostring, wp, $cstring
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 7003045bea..8849709ed4 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -25,14 +25,11 @@ static	Sym*	dclstack;
+ void
+ dcopy(Sym *a, Sym *b)
+ {
++	a->package = b->package;
+ 	a->name = b->name;
+ 	a->def = b->def;
+-	a->package = b->package;
+-	a->undef = b->undef;
+-	a->vargen = b->vargen;
+ 	a->block = b->block;
+ 	a->lastlineno = b->lastlineno;
+-	a->offset = b->offset;
+ }
+ 
+ Sym*
+@@ -148,155 +145,79 @@ testdclstack(void)
+ /*
+  * declare individual names - var, typ, const
+  */
+-static void
+-redeclare(char *str, Sym *s)
+-{
+-	if(s->block == block) {
+-		yyerror("%s %S redeclared in this block", str, s);
+-		print("	previous declaration at %L\n", s->lastlineno);
+-	}
+-	s->block = block;
+-	s->lastlineno = lineno;
+-}
+-
+ void
+-addvar(Node *n, Type *t, int ctxt)
++declare(Node *n, int ctxt)
+ {
+-	Dcl *r, *d;
+ 	Sym *s;
++	char *what;
+ 	int gen;
+-
+-	if(n==N || n->sym == S || (n->op != ONAME && n->op != ONONAME) || t == T)
+-		fatal("addvar: n=%N t=%T nil", n, t);
++	static int typegen, vargen;
+ 
+ 	s = n->sym;
+-
+-	if(ctxt == PEXTERN || ctxt == PFUNC) {
+-		r = externdcl;
+-		gen = 0;
++	gen = 0;
++	if(ctxt == PEXTERN) {
++		externdcl = list(externdcl, n);
+ 	} else {
+-		r = autodcl;
+-		vargen++;
+-		gen = vargen;
++		if(autodcl != nil)
++			autodcl = list(autodcl, n);
++		if(n->op == OTYPE)
++			gen = ++typegen;
++		else if(n->op == ONAME)
++			gen = ++vargen;
+ 		pushdcl(s);
+ 	}
+ 
+-	redeclare("variable", s);
+-	n->op = ONAME;
+-	s->vargen = gen;
+-	s->def = n;
+-	s->offset = 0;
++	if(s->block == block) {
++		what = "???";
++		switch(n->op) {
++		case ONAME:
++			what = "variable";
++			break;
++		case OLITERAL:
++			what = "constant";
++			break;
++		case OTYPE:
++			what = "type";
++			break;
++		}
+ 
+-	n->funcdepth = funcdepth;
+-	n->type = t;
++		yyerror("%s %S redeclared in this block", what, s);
++		print("\tprevious declaration at %L\n", s->lastlineno);
++	}
++	s->block = block;
++	s->lastlineno = lineno;
++	s->def = n;
+ 	n->vargen = gen;
++	n->funcdepth = funcdepth;
+ 	n->class = ctxt;
+ 
+-	d = dcl();
+-	d->dsym = s;
+-	d->dnode = n;
+-	d->op = ONAME;
+-
+-	r->back->forw = d;
+-	r->back = d;
+-
+-	if(dflag()) {
+-		if(ctxt == PEXTERN)
+-			print("extern var-dcl %S G%ld %T\n", s, s->vargen, t);
+-		else if(ctxt == PFUNC)
+-			print("extern func-dcl %S G%ld %T\n", s, s->vargen, t);
+-		else
+-			print("auto   var-dcl %S G%ld %T\n", s, s->vargen, t);
+-	}
++	autoexport(n, ctxt);
+ }
+ 
+ void
+-addtyp(Type *n, int ctxt)
++addvar(Node *n, Type *t, int ctxt)
+ {
+-	Dcl *r, *d;
+-	Sym *s;
+-	static int typgen;
+-
+-	if(n==T || n->sym == S)
+-		fatal("addtyp: n=%T t=%T nil", n);
+-
+-	s = n->sym;
+-
+-	if(ctxt == PEXTERN)
+-		r = externdcl;
+-	else {
+-		r = autodcl;
+-		pushdcl(s);
+-		n->vargen = ++typgen;
+-	}
+-
+-	redeclare("type", s);
+-	s->def = typenod(n);
+-
+-	d = dcl();
+-	d->dsym = s;
+-	d->dtype = n;
+-	d->op = OTYPE;
+-
+-	d->back = r->back;
+-	r->back->forw = d;
+-	r->back = d;
+-
+-	d = dcl();
+-	d->dtype = n;
+-	d->op = OTYPE;
+-
+-	r = typelist;
+-	d->back = r->back;
+-	r->back->forw = d;
+-	r->back = d;
++	if(n==N || n->sym == S || (n->op != ONAME && n->op != ONONAME) || t == T)
++		fatal("addvar: n=%N t=%T nil", n, t);
+ 
+-	if(dflag()) {
+-		if(ctxt == PEXTERN)
+-			print("extern typ-dcl %S G%ld %T\n", s, s->vargen, n);
+-		else
+-			print("auto   typ-dcl %S G%ld %T\n", s, s->vargen, n);
+-	}
++	n->op = ONAME;
++	declare(n, ctxt);
++	n->type = t;
+ }
+ 
+-// TODO(rsc): cut
+ void
+-addconst(Node *n, Node *e, int ctxt)
++addtyp(Type *n, int ctxt)
+ {
+-	Sym *s;
+-	Dcl *r, *d;
+-
+-	if(n->op != ONAME && n->op != ONONAME)
+-		fatal("addconst: not a name");
+-
+-	if(e->op != OLITERAL) {
+-		yyerror("expression must be a constant");
+-		return;
+-	}
+-
+-	s = n->sym;
++	Node *def;
+ 
+-	if(ctxt == PEXTERN)
+-		r = externdcl;
+-	else {
+-		r = autodcl;
+-		pushdcl(s);
+-	}
+-
+-	redeclare("constant", s);
+-	s->def = e;
+-	e->sym = s;
++	if(n==T || n->sym == S)
++		fatal("addtyp: n=%T t=%T nil", n);
+ 
+-	d = dcl();
+-	d->dsym = s;
+-	d->dnode = e;
+-	d->op = OLITERAL;
+-	d->back = r->back;
+-	r->back->forw = d;
+-	r->back = d;
++	def = typenod(n);
++	declare(def, ctxt);
++	n->vargen = def->vargen;
+ 
+-	if(dflag())
+-		print("const-dcl %S %N\n", n->sym, n->sym->def);
++	typelist = list(typelist, def);
+ }
+ 
+ /*
+@@ -320,21 +241,10 @@ dodclvar(Node *n, Type *t, NodeList **init)
+ 		t = typ(TFORW);
+ 
+ 	addvar(n, t, dclcontext);
+-	autoexport(n->sym);
+ 	if(funcdepth > 0)
+ 		*init = list(*init, nod(ODCL, n, N));
+ }
+ 
+-// TODO(rsc): cut
+-void
+-dodclconst(Node *n, Node *e)
+-{
+-	if(n == N)
+-		return;
+-	addconst(n, e, dclcontext);
+-	autoexport(n->sym);
+-}
+-
+ /*
+  * introduce a type named n
+  * but it is an unknown type for now
+@@ -354,15 +264,7 @@ dodcltype(Type *n)
+ 			n = s->def->type;
+ 			if(s->block != block) {
+ 				// completing forward struct from other file
+-				Dcl *d, *r;
+-				d = dcl();
+-				d->dsym = s;
+-				d->dtype = n;
+-				d->op = OTYPE;
+-				r = externdcl;
+-				d->back = r->back;
+-				r->back->forw = d;
+-				r->back = d;
++				externdcl = list(externdcl, typenod(n));
+ 			}
+ 			goto found;
+ 		}
+@@ -373,7 +275,7 @@ dodcltype(Type *n)
+ 
+ found:
+ 	n->local = 1;
+-	autoexport(n->sym);
++	autoexport(typenod(n), dclcontext);
+ 	return n;
+ }
+ 
+@@ -458,11 +360,10 @@ updatetype(Type *n, Type *t)
+ NodeList*
+ variter(NodeList *vl, Node *t, NodeList *el)
+ {
+-	int doexpr, gen;
++	int doexpr;
+ 	Node *v, *e;
+ 	NodeList *init;
+ 	Sym *s;
+-	Dcl *r, *d;
+ 
+ 	init = nil;
+ 	doexpr = el != nil;
+@@ -477,28 +378,13 @@ variter(NodeList *vl, Node *t, NodeList *el)
+ 		} else
+ 			e = N;
+ 
+-		v = vl->n;		
++		v = vl->n;
+ 		s = v->sym;
+-		if(dclcontext == PEXTERN || dclcontext == PFUNC) {
+-			r = externdcl;
+-			gen = 0;
+-		} else {
+-			r = autodcl;
+-			gen = ++vargen;
+-			pushdcl(s);
+-		}
+-			
+-		redeclare("variable", s);
+-		s->def = v;
+-		// TODO: vargen
+-		s->offset = 0;
+-		s->block = block;
+ 
+ 		v->op = ONAME;
+-		v->class = dclcontext;
++		declare(v, dclcontext);
+ 		v->ntype = t;
+-		v->funcdepth = funcdepth;
+-		v->vargen = gen;
++
+ 		if(e != N || funcdepth > 0) {
+ 			if(funcdepth > 0)
+ 				init = list(init, nod(ODCL, v, N));
+@@ -507,15 +393,6 @@ variter(NodeList *vl, Node *t, NodeList *el)
+ 			if(e->right != N)
+ 				v->defn = e;
+ 		}
+-		
+-		d = dcl();
+-		d->dsym = s;
+-		d->dnode = v;
+-		d->op = ONAME;
+-		r->back->forw = d;
+-		r->back = d;
+-
+-		autoexport(s);
+ 	}
+ 	if(el != nil)
+ 		yyerror("extra expr in var dcl");
+@@ -531,7 +408,6 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
+ {
+ 	Node *v, *c;
+ 	NodeList *vv;
+-	Sym *s;
+ 
+ 	vv = vl;
+ 	if(cl == nil) {
+@@ -554,16 +430,11 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
+ 		cl = cl->next;
+ 
+ 		v = vl->n;
+-		s = v->sym;
+-		if(dclcontext != PEXTERN)
+-			pushdcl(s);
+-		redeclare("constant", s);
+-		s->def = v;
+-
+ 		v->op = OLITERAL;
++		declare(v, dclcontext);
++
+ 		v->ntype = t;
+ 		v->defn = c;
+-		autoexport(s);
+ 	}
+ 	if(cl != nil)
+ 		yyerror("extra expr in const dcl");
+@@ -572,10 +443,8 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
+ }
+ 
+ /*
+- * this generates a new name that is
+- * pushed down on the declaration list.
+- * no diagnostics are produced as this
+- * name will soon be declared.
++ * this generates a new name node,
++ * typically for labels or other one-off names.
+  */
+ Node*
+ newname(Sym *s)
+@@ -591,6 +460,11 @@ newname(Sym *s)
+ 	return n;
+ }
+ 
++/*
++ * this generates a new name node for a name
++ * being declared.  if at the top level, it might return
++ * an ONONAME node created by an earlier reference.
++ */
+ Node*
+ dclname(Sym *s)
+ {
+@@ -685,42 +559,18 @@ newtype(Sym *s)
+ 	return t;
+ }
+ 
+-Type*
+-oldtype(Sym *s)
+-{
+-	Type *t;
+-
+-	if(s == S)
+-		return T;
+-	if(s->def == N || s->def->op != OTYPE) {
+-		if(!s->undef)
+-			yyerror("%S is not a type", s);
+-		return T;
+-	}
+-	t = s->def->type;
+-
+-	/*
+-	 * If t is lowercase and not in our package
+-	 * and this isn't a reference during the parsing
+-	 * of import data, complain.
+-	 */
+-	if(pkgimportname == S && !exportname(s->name) && strcmp(s->package, package) != 0)
+-		yyerror("cannot use type %T", t);
+-	return t;
+-}
+-
+ /*
+  * type check top level declarations
+  */
+ void
+ dclchecks(void)
+ {
+-	Dcl *d;
+-	
+-	for(d=externdcl; d!=D; d=d->forw) {
+-		if(d->op != ONAME)
++	NodeList *l;
++
++	for(l=externdcl; l; l=l->next) {
++		if(l->n->op != ONAME)
+ 			continue;
+-		typecheck(&d->dnode, Erv);
++		typecheck(&l->n, Erv);
+ 	}
+ }
+ 
+@@ -1228,8 +1078,7 @@ funchdr(Node *n)
+ 	}
+ 
+ 	// change the declaration context from extern to auto
+-	autodcl = dcl();
+-	autodcl->back = autodcl;
++	autodcl = list1(nod(OXXX, N, N));
+ 
+ 	if(funcdepth == 0 && dclcontext != PEXTERN)
+ 		fatal("funchdr: dclcontext");
+@@ -1312,8 +1161,7 @@ funclit0(Node *t)
+ 	funclit = n;
+ 
+ 	// new declaration context
+-	autodcl = dcl();
+-	autodcl->back = autodcl;
++	autodcl = list1(nod(OEMPTY, N, N));
+ 
+ 	typecheck(&t, Etype);
+ 	funcargs(t->type);
+@@ -1330,6 +1178,7 @@ funclit1(Node *ntype, NodeList *body)
+ 	Iter save;
+ 	int narg, shift;
+ 	NodeList *args, *l, *in, *out;
++	static int closgen;
+ 
+ 	type = ntype->type;
+ 	popdcl();
+@@ -1408,8 +1257,7 @@ funclit1(Node *ntype, NodeList *body)
+ 	ft->outnamed = type->outnamed;
+ 
+ 	// declare function.
+-	vargen++;
+-	snprint(namebuf, sizeof(namebuf), "_f%.3ld·%s", vargen, filename);
++	snprint(namebuf, sizeof(namebuf), "_f%.3ld·%s", ++closgen, filename);
+ 	f = newname(lookup(namebuf));
+ 	addvar(f, ft, PFUNC);
+ 	f->funcdepth = 0;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 74df553632..112dd27115 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -8,49 +8,39 @@
+ void dumpsym(Sym*);
+ 
+ void
+-addexportsym(Sym *s)
++addexportsym(Node *n)
+ {
+-	Dcl *d, *r;
+-
+-	d = mal(sizeof(*d));
+-	d->dsym = s;
+-	d->dnode = N;
+-	d->lineno = lineno;
+-
+-	r = exportlist;
+-	d->back = r->back;
+-	r->back->forw = d;
+-	r->back = d;
++	exportlist = list(exportlist, n);
+ }
+ 
+ void
+-exportsym(Sym *s)
++exportsym(Node *n)
+ {
+-	if(s == S)
++	if(n == N || n->sym == S)
+ 		return;
+-	if(s->export != 0) {
+-		if(s->export != 1)
+-			yyerror("export/package mismatch: %S", s);
++	if(n->sym->flags & (SymExport|SymPackage)) {
++		if(n->sym->flags & SymPackage)
++			yyerror("export/package mismatch: %S", n->sym);
+ 		return;
+ 	}
+-	s->export = 1;
++	n->sym->flags |= SymExport;
+ 
+-	addexportsym(s);
++	addexportsym(n);
+ }
+ 
+ void
+-packagesym(Sym *s)
++packagesym(Node *n)
+ {
+-	if(s == S)
++	if(n == N || n->sym == S)
+ 		return;
+-	if(s->export != 0) {
+-		if(s->export != 2)
+-			yyerror("export/package mismatch: %S", s);
++	if(n->sym->flags & (SymExport|SymPackage)) {
++		if(n->sym->flags & SymExport)
++			yyerror("export/package mismatch: %S", n->sym);
+ 		return;
+ 	}
+-	s->export = 2;
++	n->sym->flags |= SymPackage;
+ 
+-	addexportsym(s);
++	addexportsym(n);
+ }
+ 
+ int
+@@ -65,17 +55,16 @@ exportname(char *s)
+ }
+ 
+ void
+-autoexport(Sym *s)
++autoexport(Node *n, int ctxt)
+ {
+-	if(s == S)
++	if(n == N || n->sym == S)
+ 		return;
+-	if(dclcontext != PEXTERN)
++	if((ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN)
+ 		return;
+-	if(exportname(s->name)) {
+-		exportsym(s);
+-	} else {
+-		packagesym(s);
+-	}
++	if(exportname(n->sym->name) || strcmp(n->sym->name, "init") == 0)
++		exportsym(n);
++	else
++		packagesym(n);
+ }
+ 
+ void
+@@ -187,9 +176,9 @@ dumpsym(Sym *s)
+ {
+ 	Type *f, *t;
+ 
+-	if(s->exported != 0)
++	if(s->flags & SymExported)
+ 		return;
+-	s->exported = 1;
++	s->flags |= SymExported;
+ 
+ 	if(s->def == N) {
+ 		yyerror("unknown export symbol: %S", s);
+@@ -236,7 +225,7 @@ dumptype(Type *t)
+ void
+ dumpexport(void)
+ {
+-	Dcl *d;
++	NodeList *l;
+ 	int32 lno;
+ 
+ 	lno = lineno;
+@@ -246,16 +235,16 @@ dumpexport(void)
+ 
+ 	Bprint(bout, "    package %s\n", package);
+ 
+-	for(d=exportlist->forw; d!=D; d=d->forw) {
+-		lineno = d->lineno;
+-		dumpsym(d->dsym);
++	for(l=exportlist; l; l=l->next) {
++		lineno = l->n->lineno;
++		dumpsym(l->n->sym);
+ 	}
+ 
+ 	Bprint(bout, "\n$$  // local types\n");
+ 
+-	for(d=typelist->forw; d!=D; d=d->forw) {
+-		lineno = d->lineno;
+-		dumptype(d->dtype);
++	for(l=typelist; l; l=l->next) {
++		lineno = l->n->lineno;
++		dumptype(l->n->type);
+ 	}
+ 
+ 	Bprint(bout, "\n$$\n");
+@@ -286,10 +275,10 @@ importsym(Sym *s, int op)
+ 	// mark the symbol so it is not reexported
+ 	if(s->def == N) {
+ 		if(exportname(s->name))
+-			s->export = 1;
++			s->flags |= SymExport;
+ 		else
+-			s->export = 2;	// package scope
+-		s->imported = 1;
++			s->flags |= SymPackage;	// package scope
++		s->flags |= SymImported;
+ 	}
+ 	return s;
+ }
+@@ -332,7 +321,12 @@ importconst(Sym *s, Type *t, Node *n)
+ 		return;
+ 	}
+ 
+-	dodclconst(newname(s), n);
++	if(n->op != OLITERAL) {
++		yyerror("expression must be a constant");
++		return;
++	}
++	n->sym = s;
++	declare(n, PEXTERN);
+ 
+ 	if(debug['E'])
+ 		print("import const %S\n", s);
+@@ -341,6 +335,8 @@ importconst(Sym *s, Type *t, Node *n)
+ void
+ importvar(Sym *s, Type *t, int ctxt)
+ {
++	Node *n;
++
+ 	if(!exportname(s->name) && !mypackage(s))
+ 		return;
+ 
+@@ -352,7 +348,9 @@ importvar(Sym *s, Type *t, int ctxt)
+ 			s, s->def->type, t);
+ 	}
+ 	checkwidth(t);
+-	addvar(newname(s), t, ctxt);
++	n = newname(s);
++	n->type = t;
++	declare(n, ctxt);
+ 
+ 	if(debug['E'])
+ 		print("import var %S %lT\n", s, t);
+@@ -393,8 +391,8 @@ importtype(Sym *s, Type *t)
+ 	case TFORWINTER:
+ 	case TFORWSTRUCT:
+ 		// allow re-export in case it gets defined
+-		s->export = 0;
+-		s->imported = 0;
++		s->flags &= ~(SymExport|SymPackage);
++		s->flags &= ~SymImported;
+ 		break;
+ 	default:
+ 		checkwidth(n->type);
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 5fab59cdfa..9872c57734 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -22,7 +22,7 @@ sysfunc(char *name)
+ void
+ allocparams(void)
+ {
+-	Dcl *d;
++	NodeList *l;
+ 	Node *n;
+ 	uint32 w;
+ 
+@@ -31,14 +31,10 @@ allocparams(void)
+ 	 * slots for all automatics.
+ 	 * allocated starting at -w down.
+ 	 */
+-	for(d=autodcl; d!=D; d=d->forw) {
+-		if(d->op != ONAME)
++	for(l=autodcl; l; l=l->next) {
++		n = l->n;
++		if(n->op != ONAME || n->class != PAUTO)
+ 			continue;
+-
+-		n = d->dnode;
+-		if(n->class != PAUTO)
+-			continue;
+-
+ 		typecheck(&n, Erv);
+ 		dowidth(n->type);
+ 		w = n->type->width;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 8a79a1abd4..c403048cf0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -131,7 +131,6 @@ typedef	struct	Sym	Sym;
+ typedef	struct	Node	Node;
+ typedef	struct	NodeList	NodeList;
+ typedef	struct	Type	Type;
+-typedef	struct	Dcl	Dcl;
+ 
+ struct	Type
+ {
+@@ -221,7 +220,7 @@ struct	Node
+ 	NodeList*	enter;
+ 	NodeList*	exit;
+ 	NodeList*	cvars;	// closure params
+-	Dcl*	dcl;	// outer autodcl
++	NodeList*	dcl;	// outer autodcl
+ 
+ 	// OLITERAL/OREGISTER
+ 	Val	val;
+@@ -258,44 +257,32 @@ struct NodeList
+ 	NodeList*	end;
+ };
+ 
+-struct	Sym
++enum
+ {
+-	ushort	block;		// blocknumber to catch redeclaration
++	SymExport	= 1<<0,
++	SymPackage	= 1<<1,
++	SymExported	= 1<<2,
++	SymImported	= 1<<3,
++	SymUniq		= 1<<4,
++	SymSiggen	= 1<<5,
++};
+ 
+-	uchar	undef;		// a diagnostic has been generated
+-	uchar	export;		// marked as export
+-	uchar	exported;	// exported
+-	uchar	imported;	// imported
++struct	Sym
++{
++	ushort	lexical;
++	uchar	flags;
+ 	uchar	sym;		// huffman encoding in object file
+-	uchar	uniq;		// imbedded field name first found
+-	uchar	siggen;		// signature generated
++	Sym*	link;
+ 
++	// saved and restored by dcopy
+ 	char*	package;	// package name
+ 	char*	name;		// variable name
+ 	Node*	def;		// definition: ONAME OTYPE OPACK or OLITERAL
+-	vlong	offset;		// stack location if automatic
+-	int32	lexical;
+-	int32	vargen;		// unique variable number
++	int32	block;		// blocknumber to catch redeclaration
+ 	int32	lastlineno;	// last declaration for diagnostic
+-	Sym*	link;
+ };
+ #define	S	((Sym*)0)
+ 
+-struct	Dcl
+-{
+-	uchar	op;
+-	ushort	block;
+-	int32	lineno;
+-
+-	Sym*	dsym;		// for printing only
+-	Node*	dnode;		// oname
+-	Type*	dtype;		// otype
+-
+-	Dcl*	forw;
+-	Dcl*	back;		// sentinel has pointer to last
+-};
+-#define	D	((Dcl*)0)
+-
+ typedef	struct	Iter	Iter;
+ struct	Iter
+ {
+@@ -636,14 +623,11 @@ EXTERN	Mpint*	maxintval[NTYPE];
+ EXTERN	Mpflt*	minfltval[NTYPE];
+ EXTERN	Mpflt*	maxfltval[NTYPE];
+ 
+-EXTERN	Dcl*	autodcl;
+-EXTERN	Dcl*	paramdcl;
+-EXTERN	Dcl*	externdcl;
+-EXTERN	Dcl*	exportlist;
+-EXTERN	Dcl*	signatlist;
+-EXTERN	Dcl*	typelist;
++EXTERN	NodeList*	autodcl;
++EXTERN	NodeList*	externdcl;
++EXTERN	NodeList*	exportlist;
++EXTERN	NodeList*	typelist;
+ EXTERN	int	dclcontext;		// PEXTERN/PAUTO
+-EXTERN	int	importflag;
+ EXTERN	int	inimportsys;
+ EXTERN	int	initflag;		// compiling the init fn
+ EXTERN	int	statuniqgen;		// name generator for static temps
+@@ -652,13 +636,11 @@ EXTERN	int	loophack;
+ EXTERN	uint32	iota;
+ EXTERN	NodeList*	lastconst;
+ EXTERN	Node*	lasttype;
+-EXTERN	int32	vargen;
+-EXTERN	int32	exportgen;
+ EXTERN	int32	maxarg;
+ EXTERN	int32	stksize;		// stack size for current frame
+ EXTERN	int32	initstksize;		// stack size for init function
+-EXTERN	ushort	blockgen;		// max block number
+-EXTERN	ushort	block;			// current block number
++EXTERN	int32	blockgen;		// max block number
++EXTERN	int32	block;			// current block number
+ EXTERN	int	hasdefer;		// flag that curfn has defer statetment
+ 
+ EXTERN	Node*	curfn;
+@@ -666,8 +648,6 @@ EXTERN	Node*	curfn;
+ EXTERN	int	maxround;
+ EXTERN	int	widthptr;
+ 
+-EXTERN	Node*	retnil;
+-
+ EXTERN	Node*	typeswvar;
+ 
+ EXTERN	char*	structpkg;
+@@ -788,7 +768,6 @@ int32	setlineno(Node*);
+ Node*	nod(int, Node*, Node*);
+ Node*	nodlit(Val);
+ Type*	typ(int);
+-Dcl*	dcl(void);
+ int	algtype(Type*);
+ void	dodump(Node*, int);
+ void	dump(char*, Node*);
+@@ -878,10 +857,10 @@ int	simsimtype(Type*);
+ /*
+  *	dcl.c
+  */
++void	declare(Node*, int);
+ void	dodclvar(Node*, Type*, NodeList**);
+ Type*	dodcltype(Type*);
+ void	updatetype(Type*, Type*);
+-void	dodclconst(Node*, Node*);
+ void	defaultlit(Node**, Type*);
+ void	defaultlit2(Node**, Node**, int);
+ int	structcount(Type*);
+@@ -941,10 +920,10 @@ NodeList*	initfix(NodeList*);
+  *	export.c
+  */
+ void	renameimports(void);
+-void	autoexport(Sym*);
++void	autoexport(Node*, int);
+ int	exportname(char*);
+-void	exportsym(Sym*);
+-void	packagesym(Sym*);
++void	exportsym(Node*);
++void	packagesym(Node*);
+ void	dumpe(Sym*);
+ void	dumpexport(void);
+ void	dumpexporttype(Sym*);
+@@ -1065,7 +1044,6 @@ typedef	struct	Plist	Plist;
+ struct	Plist
+ {
+ 	Node*	name;
+-	Dcl*	locals;
+ 	Prog*	firstpc;
+ 	int	recur;
+ 	Plist*	link;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 7286453189..edb7c676ee 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -274,7 +274,7 @@ xdcl:
+ |	xfndcl
+ 	{
+ 		if($1 != N && $1->nname != N && $1->type->thistuple == 0)
+-			autoexport($1->nname->sym);
++			autoexport($1->nname, dclcontext);
+ 		$$ = nil;
+ 	}
+ |	';'
+@@ -1643,7 +1643,12 @@ hidden_type1:
+ 	}
+ |	LNAME
+ 	{
+-		$$ = oldtype($1);
++		// predefined name like uint8
++		if($1->def == N || $1->def->op != OTYPE) {
++			yyerror("%S is not a type", $1);
++			$$ = T;
++		} else
++			$$ = $1->def->type;
+ 	}
+ |	'[' ']' hidden_type
+ 	{
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index 5fc7f8bbc7..445fa0d54f 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -178,7 +178,7 @@ fninit(NodeList *n)
+ 	a = nod(ORETURN, N, N);
+ 	r = list(r, a);
+ 
+-	exportsym(fn->nname->sym);
++	exportsym(fn->nname);
+ 
+ 	fn->nbody = r;
+ //dump("b", fn);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f79814112a..3a8cba41bb 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -84,16 +84,8 @@ main(int argc, char *argv[])
+ 	curio.peekc = 0;
+ 	curio.peekc1 = 0;
+ 
+-	externdcl = mal(sizeof(*externdcl));
+-	externdcl->back = externdcl;
+ 	dclcontext = PEXTERN;
+ 
+-	exportlist = mal(sizeof(*exportlist));
+-	exportlist->back = exportlist;
+-
+-	typelist = mal(sizeof(*typelist));
+-	typelist->back = typelist;
+-
+ 	nerrors = 0;
+ 	yyparse();
+ 	runifacechecks();
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 6bd66d79db..6d2154b28d 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -38,27 +38,23 @@ dumpobj(void)
+ void
+ dumpglobls(void)
+ {
+-	Dcl *d;
+-	Sym *s;
+ 	Node *n;
++	NodeList *l;
+ 
+ 	// add globals
+-	for(d=externdcl; d!=D; d=d->forw) {
+-		if(d->op != ONAME)
++	for(l=externdcl; l; l=l->next) {
++		n = l->n;
++		if(n->op != ONAME)
+ 			continue;
+ 
+-		s = d->dsym;
+-		if(s == S)
+-			fatal("external nil");
+-		n = d->dnode;
+-		if(n == N || n->type == T)
+-			fatal("external %S nil\n", s);
+-
++		if(n->type == T)
++			fatal("external %#N nil type\n", n);
+ 		if(n->class == PFUNC)
+ 			continue;
+-
+ 		dowidth(n->type);
+-		ggloblnod(s->def, n->type->width);
++
++		// TODO(rsc): why is this not s/n->sym->def/n/ ?
++		ggloblnod(n->sym->def, n->type->width);
+ 	}
+ }
+ 
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 563c74082d..02bc10ca57 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -8,7 +8,8 @@
+  * runtime interface and reflection data structures
+  */
+ 
+-static Sym* dtypesym(Type*);
++static	NodeList*	signatlist;
++static	Sym*	dtypesym(Type*);
+ 
+ static int
+ sigcmp(Sig *a, Sig *b)
+@@ -181,8 +182,8 @@ methods(Type *t)
+ 		a->tsym = methodsym(method, t);
+ 		a->type = methodfunc(f);
+ 
+-		if(!a->isym->siggen) {
+-			a->isym->siggen = 1;
++		if(!(a->isym->flags & SymSiggen)) {
++			a->isym->flags |= SymSiggen;
+ 			if(!eqtype(this, it)) {
+ 				if(oldlist == nil)
+ 					oldlist = pc;
+@@ -198,8 +199,8 @@ methods(Type *t)
+ 			}
+ 		}
+ 
+-		if(!a->tsym->siggen) {
+-			a->tsym->siggen = 1;
++		if(!(a->tsym->flags & SymSiggen)) {
++			a->tsym->flags |= SymSiggen;
+ 			if(!eqtype(this, t)) {
+ 				if(oldlist == nil)
+ 					oldlist = pc;
+@@ -447,7 +448,6 @@ typename(Type *t)
+ {
+ 	Sym *s;
+ 	Node *n;
+-	Dcl *d;
+ 
+ 	s = typesym(t);
+ 	if(s->def == N) {
+@@ -460,13 +460,7 @@ typename(Type *t)
+ 		n->xoffset = 0;
+ 		s->def = n;
+ 
+-		// copy to signatlist
+-		d = dcl();
+-		d->dsym = s;
+-		d->dtype = t;
+-		d->op = OTYPE;
+-		d->forw = signatlist;
+-		signatlist = d;
++		signatlist = list(signatlist, typenod(t));
+ 	}
+ 
+ 	n = nod(OADDR, s->def, N);
+@@ -485,9 +479,9 @@ dtypesym(Type *t)
+ 	Type *t1;
+ 
+ 	s = typesym(t);
+-	if(s->siggen)
++	if(s->flags & SymSiggen)
+ 		return s;
+-	s->siggen = 1;
++	s->flags |= SymSiggen;
+ 
+ 	// special case (look for runtime below):
+ 	// when compiling package runtime,
+@@ -652,27 +646,24 @@ void
+ dumptypestructs(void)
+ {
+ 	int i;
+-	Dcl *d, *x;
++	NodeList *l;
++	Node *n;
+ 	Type *t;
+ 
+ 	// copy types from externdcl list to signatlist
+-	for(d=externdcl; d!=D; d=d->forw) {
+-		if(d->op != OTYPE)
++	for(l=externdcl; l; l=l->next) {
++		n = l->n;
++		if(n->op != OTYPE)
+ 			continue;
+-		t = d->dtype;
+-		x = mal(sizeof(*x));
+-		x->op = OTYPE;
+-		x->dtype = t;
+-		x->forw = signatlist;
+-		x->block = 0;
+-		signatlist = x;
++		signatlist = list(signatlist, n);
+ 	}
+ 
+ 	// process signatlist
+-	for(d=signatlist; d!=D; d=d->forw) {
+-		if(d->op != OTYPE)
++	for(l=signatlist; l; l=l->next) {
++		n = l->n;
++		if(n->op != OTYPE)
+ 			continue;
+-		t = d->dtype;
++		t = n->type;
+ 		dtypesym(t);
+ 		if(t->sym && !isptr[t->etype])
+ 			dtypesym(ptrto(t));
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index a0ef878f1f..9ed434b580 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -307,16 +307,6 @@ remal(void *p, int32 on, int32 n)
+ 	return p;
+ }
+ 
+-Dcl*
+-dcl(void)
+-{
+-	Dcl *d;
+-
+-	d = mal(sizeof(*d));
+-	d->lineno = lineno;
+-	return d;
+-}
+-
+ extern int yychar;
+ Node*
+ nod(int op, Node *nleft, Node *nright)
+@@ -965,9 +955,9 @@ Tpretty(Fmt *fp, Type *t)
+ 				fmtprint(fp, "%lS", s);
+ 			if(strcmp(s->package, package) != 0)
+ 				return 0;
+-			if(s->imported)
++			if(s->flags & SymImported)
+ 				return 0;
+-			if(t->vargen || !s->export) {
++			if(t->vargen || !(s->flags & (SymExport|SymPackage))) {
+ 				fmtprint(fp, "·%s", filename);
+ 				if(t->vargen)
+ 					fmtprint(fp, "·%d", t->vargen);
+@@ -1244,7 +1234,7 @@ Nconv(Fmt *fp)
+ 			break;
+ 		}
+ 		fmtprint(fp, "%O-%S G%ld%J", n->op,
+-			n->sym, n->sym->vargen, n);
++			n->sym, n->vargen, n);
+ 		goto ptyp;
+ 
+ 	case OREGISTER:
+@@ -1284,7 +1274,7 @@ Nconv(Fmt *fp)
+ 		break;
+ 	}
+ 	if(n->sym != S)
+-		fmtprint(fp, " %S G%ld", n->sym, n->sym->vargen);
++		fmtprint(fp, " %S G%ld", n->sym, n->vargen);
+ 
+ ptyp:
+ 	if(n->type != T)
+@@ -1935,30 +1925,32 @@ void
+ frame(int context)
+ {
+ 	char *p;
+-	Dcl *d;
++	NodeList *l;
++	Node *n;
+ 	int flag;
+ 
+ 	p = "stack";
+-	d = autodcl;
++	l = autodcl;
+ 	if(context) {
+ 		p = "external";
+-		d = externdcl;
++		l = externdcl;
+ 	}
+ 
+ 	flag = 1;
+-	for(; d!=D; d=d->forw) {
+-		switch(d->op) {
++	for(; l; l=l->next) {
++		n = l->n;
++		switch(n->op) {
+ 		case ONAME:
+ 			if(flag)
+ 				print("--- %s frame ---\n", p);
+-			print("%O %S G%ld T\n", d->op, d->dsym, d->dnode->vargen, d->dnode->type);
++			print("%O %S G%ld T\n", n->op, n->sym, n->vargen, n->type);
+ 			flag = 0;
+ 			break;
+ 
+ 		case OTYPE:
+ 			if(flag)
+ 				print("--- %s frame ---\n", p);
+-			print("%O %T\n", d->op, d->dnode);
++			print("%O %T\n", n->op, n->type);
+ 			flag = 0;
+ 			break;
+ 		}
+@@ -2520,9 +2512,9 @@ expand0(Type *t, int followptr)
+ 		for(f=u->type; f!=T; f=f->down) {
+ 			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
+ 				continue;
+-			if(f->sym->uniq)
++			if(f->sym->flags & SymUniq)
+ 				continue;
+-			f->sym->uniq = 1;
++			f->sym->flags |= SymUniq;
+ 			sl = mal(sizeof(*sl));
+ 			sl->field = f;
+ 			sl->link = slist;
+@@ -2537,9 +2529,9 @@ expand0(Type *t, int followptr)
+ 		for(f=u->method; f!=T; f=f->down) {
+ 			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
+ 				continue;
+-			if(f->sym->uniq)
++			if(f->sym->flags & SymUniq)
+ 				continue;
+-			f->sym->uniq = 1;
++			f->sym->flags |= SymUniq;
+ 			sl = mal(sizeof(*sl));
+ 			sl->field = f;
+ 			sl->link = slist;
+@@ -2601,7 +2593,7 @@ expandmeth(Sym *s, Type *t)
+ 
+ 	// check each method to be uniquely reachable
+ 	for(sl=slist; sl!=nil; sl=sl->link) {
+-		sl->field->sym->uniq = 0;
++		sl->field->sym->flags &= ~SymUniq;
+ 		for(d=0; d<nelem(dotlist); d++) {
+ 			c = adddot1(sl->field->sym, t, d, &f);
+ 			if(c == 0)

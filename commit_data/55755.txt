@@ -20,6 +20,72 @@ Date:   Mon Feb 13 15:55:21 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/unsafe.go | 26 +++++++++++++++++++++-----
  1 file changed, 21 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/unsafe.go b/src/runtime/unsafe.go
+index 54649e8ff5..d2773bc56d 100644
+--- a/src/runtime/unsafe.go
++++ b/src/runtime/unsafe.go
+@@ -52,21 +52,21 @@ func panicunsafestringnilptr() {
+ // Keep this code in sync with cmd/compile/internal/walk/builtin.go:walkUnsafeSlice
+ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+ 	if len < 0 {
+-		panicunsafeslicelen()
++		panicunsafeslicelen1(getcallerpc())
+ 	}
+ 
+ 	if et.size == 0 {
+ 		if ptr == nil && len > 0 {
+-			panicunsafeslicenilptr()
++			panicunsafeslicenilptr1(getcallerpc())
+ 		}
+ 	}
+ 
+ 	mem, overflow := math.MulUintptr(et.size, uintptr(len))
+ 	if overflow || mem > -uintptr(ptr) {
+ 		if ptr == nil {
+-			panicunsafeslicenilptr()
++			panicunsafeslicenilptr1(getcallerpc())
+ 		}
+-		panicunsafeslicelen()
++		panicunsafeslicelen1(getcallerpc())
+ 	}
+ }
+ 
+@@ -74,7 +74,7 @@ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+ func unsafeslice64(et *_type, ptr unsafe.Pointer, len64 int64) {
+ 	len := int(len64)
+ 	if int64(len) != len64 {
+-		panicunsafeslicelen()
++		panicunsafeslicelen1(getcallerpc())
+ 	}
+ 	unsafeslice(et, ptr, len)
+ }
+@@ -90,9 +90,25 @@ func unsafeslicecheckptr(et *_type, ptr unsafe.Pointer, len64 int64) {
+ }
+ 
+ func panicunsafeslicelen() {
++	// This is called only from compiler-generated code, so we can get the
++	// source of the panic.
++	panicunsafeslicelen1(getcallerpc())
++}
++
++//go:yeswritebarrierrec
++func panicunsafeslicelen1(pc uintptr) {
++	panicCheck1(pc, "unsafe.Slice: len out of range")
+ 	panic(errorString("unsafe.Slice: len out of range"))
+ }
+ 
+ func panicunsafeslicenilptr() {
++	// This is called only from compiler-generated code, so we can get the
++	// source of the panic.
++	panicunsafeslicenilptr1(getcallerpc())
++}
++
++//go:yeswritebarrierrec
++func panicunsafeslicenilptr1(pc uintptr) {
++	panicCheck1(pc, "unsafe.Slice: ptr is nil and len is not zero")
+ 	panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+ }

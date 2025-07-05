@@ -7,9 +7,169 @@ Date:   Mon Apr 13 05:31:44 2009 -0700
     R=ken
     OCL=27353
     CL=27353
-
+---
  src/cmd/gc/obj.c    |  1 -
  src/cmd/gc/walk.c   | 48 ++++++++++++++++++++++++++++--------------------
  test/golden.out     |  4 ----
  test/stringrange.go | 16 +++++++++++++++-
  4 files changed, 43 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index aa7631bd88..037cd4d482 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -500,7 +500,6 @@ void
+ stringpool(Node *n)
+ {
+ 	Pool *p;
+-	int w;
+ 
+ 	if(n->op != OLITERAL || n->val.ctype != CTSTR) {
+ 		if(n->val.ctype == CTNIL)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index fb8b7ca002..5f05c323f2 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3197,7 +3197,7 @@ Node*
+ dorange(Node *nn)
+ {
+ 	Node *k, *v, *m;
+-	Node *n, *hv, *hc, *ha, *hk, *on, *r, *a;
++	Node *n, *hv, *hc, *ha, *hk, *ohk, *on, *r, *a;
+ 	Type *t, *th;
+ 	int local;
+ 
+@@ -3339,9 +3339,17 @@ strng:
+ 	hk = nod(OXXX, N, N);		// hidden key
+ 	tempname(hk, types[TINT]);
+ 
++	ohk = nod(OXXX, N, N);		// old hidden key
++	tempname(ohk, types[TINT]);
++
+ 	ha = nod(OXXX, N, N);		// hidden string
+ 	tempname(ha, t);
+ 
++	hv = N;
++	if(v != N) {
++		hv = nod(OXXX, N, N);		// hidden value
++		tempname(hv, types[TINT]);
++	}
+ 
+ 	if(local) {
+ 		k = old2new(k, types[TINT]);
+@@ -3353,27 +3361,22 @@ strng:
+ 	a = nod(OAS, ha, m);
+ 	n->ninit = a;
+ 
+-	// kh = 0
+-	a = nod(OAS, hk, nodintconst(0));
++	// ohk = 0
++	a = nod(OAS, ohk, nodintconst(0));
+ 	n->ninit = list(n->ninit, a);
+ 
+-	// k = hk
+-	a = nod(OAS, k, hk);
+-	n->ninit = list(n->ninit, a);
+-
+-
+-	// hk[,v] = stringiter(ha,hk)
++	// hk[,hv] = stringiter(ha,hk)
+ 	if(v != N) {
+ 		// hk,v = stringiter2(ha, hk)
+ 		on = syslook("stringiter2", 0);
+ //		argtype(on, v->type);
+-		a = list(ha, hk);
++		a = list(ha, nodintconst(0));
+ 		a = nod(OCALL, on, a);
+-		a = nod(OAS, list(hk, v), a);
++		a = nod(OAS, list(hk, hv), a);
+ 	} else {
+ 		// hk = stringiter(ha, hk)
+ 		on = syslook("stringiter", 0);
+-		a = list(ha, hk);
++		a = list(ha, nodintconst(0));
+ 		a = nod(OCALL, on, a);
+ 		a = nod(OAS, hk, a);
+ 	}
+@@ -3382,18 +3385,13 @@ strng:
+ 	// while(hk != 0)
+ 	n->ntest = nod(ONE, hk, nodintconst(0));
+ 
+-	// k = hk
+-	a = nod(OAS, k, hk);
+-	n->nincr = a;
+-
+-	// hk[,v] = stringiter(ha,hk)
++	// hk[,hv] = stringiter(ha,hk)
+ 	if(v != N) {
+-		// hk,v = stringiter2(ha, hk)
++		// hk,hv = stringiter2(ha, hk)
+ 		on = syslook("stringiter2", 0);
+-//		argtype(on, v->type);
+ 		a = list(ha, hk);
+ 		a = nod(OCALL, on, a);
+-		a = nod(OAS, list(hk, v), a);
++		a = nod(OAS, list(hk, hv), a);
+ 	} else {
+ 		// hk = stringiter(ha, hk)
+ 		on = syslook("stringiter", 0);
+@@ -3403,6 +3401,16 @@ strng:
+ 	}
+ 	n->nincr = list(n->nincr, a);
+ 
++	// k,ohk[,v] = ohk,hk,[,hv]
++	a = nod(OAS, k, ohk);
++	n->nbody = a;
++	a = nod(OAS, ohk, hk);
++	n->nbody = list(n->nbody, a);
++	if(v != N) {
++		a = nod(OAS, v, hv);
++		n->nbody = list(n->nbody, a);
++	}
++
+ 	addtotop(n);
+ 	goto out;
+ 
+diff --git a/test/golden.out b/test/golden.out
+index 7cb408b8e2..b3cc4fb543 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -67,10 +67,6 @@ panic PC=xxx
+ =========== ./sigchld.go
+ survived SIGCHLD
+ 
+-=========== ./stringrange.go
+-after loop i is 18 not 17
+-FAIL
+-
+ =========== ./turing.go
+ Hello World!
+ 
+diff --git a/test/stringrange.go b/test/stringrange.go
+index 66d25e1f4f..4d581d70f2 100644
+--- a/test/stringrange.go
++++ b/test/stringrange.go
+@@ -40,8 +40,22 @@ func main() {
+ 		fmt.Println("after loop i is", i, "not", len(s)-1);
+ 		ok = false;
+ 	}
++
++	i = 12345;
++	c = 23456;
++	for i, c = range "" {
++	}
++	if i != 12345 {
++		fmt.Println("range empty string assigned to index:", i);
++		ok = false;
++	}
++	if c != 23456 {
++		fmt.Println("range empty string assigned to value:", c);
++		ok = false;
++	}
++
+ 	if !ok {
+-		fmt.Println("FAIL");
++		fmt.Println("BUG: stringrange");
+ 		sys.Exit(1)
+ 	}
+ }

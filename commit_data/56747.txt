@@ -21,10 +21,195 @@ Date:   Thu May 18 16:35:11 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/metrics.go             |  5 ++++
  src/runtime/metrics/description.go |  1 -
  src/runtime/metrics/doc.go         |  8 +++---
  src/runtime/mgc.go                 | 47 ++++++++------------------------
  src/runtime/mstats.go              | 55 ++++++++++++++++++++++++++++++++++++++
  5 files changed, 74 insertions(+), 42 deletions(-)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 4c51efaad9..0317cc078a 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -659,6 +659,11 @@ type cpuStatsAggregate struct {
+ // compute populates the cpuStatsAggregate with values from the runtime.
+ func (a *cpuStatsAggregate) compute() {
+ 	a.cpuStats = work.cpuStats
++	// TODO(mknyszek): Update the the CPU stats again so that we're not
++	// just relying on the STW snapshot. The issue here is that currently
++	// this will cause non-monotonicity in the "user" CPU time metric.
++	//
++	// a.cpuStats.accumulate(nanotime(), gcphase == _GCmark)
+ }
+ 
+ // nsToSec takes a duration in nanoseconds and converts it to seconds as
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index b34ffe405d..aea51c7f75 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -73,7 +73,6 @@ var allDesc = []Description{
+ 		Name: "/cpu/classes/gc/mark/dedicated:cpu-seconds",
+ 		Description: "Estimated total CPU time spent performing GC tasks on " +
+ 			"processors (as defined by GOMAXPROCS) dedicated to those tasks. " +
+-			"This includes time spent with the world stopped due to the GC. " +
+ 			"This metric is an overestimate, and not directly comparable to " +
+ 			"system CPU time measurements. Compare only with other /cpu/classes " +
+ 			"metrics.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 44e2676ac5..db6ea686e8 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -66,11 +66,9 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 
+ 	/cpu/classes/gc/mark/dedicated:cpu-seconds
+ 		Estimated total CPU time spent performing GC tasks on processors
+-		(as defined by GOMAXPROCS) dedicated to those tasks. This
+-		includes time spent with the world stopped due to the GC. This
+-		metric is an overestimate, and not directly comparable to system
+-		CPU time measurements. Compare only with other /cpu/classes
+-		metrics.
++		(as defined by GOMAXPROCS) dedicated to those tasks. This metric
++		is an overestimate, and not directly comparable to system CPU
++		time measurements. Compare only with other /cpu/classes metrics.
+ 
+ 	/cpu/classes/gc/mark/idle:cpu-seconds
+ 		Estimated total CPU time spent performing GC tasks on spare CPU
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c44b1164d3..2f0b063fbd 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -728,6 +728,10 @@ func gcStart(trigger gcTrigger) {
+ 		work.tMark = now
+ 		memstats.gcPauseDist.record(now - work.pauseStart)
+ 
++		sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
++		work.cpuStats.gcPauseTime += sweepTermCpu
++		work.cpuStats.gcTotalTime += sweepTermCpu
++
+ 		// Release the CPU limiter.
+ 		gcCPULimiter.finishGCTransition(now)
+ 	})
+@@ -997,43 +1001,14 @@ func gcMarkTermination() {
+ 	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
+ 	memstats.pause_total_ns += uint64(work.pauseNS)
+ 
+-	sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
+-	// We report idle marking time below, but omit it from the
+-	// overall utilization here since it's "free".
+-	markAssistCpu := gcController.assistTime.Load()
+-	markDedicatedCpu := gcController.dedicatedMarkTime.Load()
+-	markFractionalCpu := gcController.fractionalMarkTime.Load()
+-	markIdleCpu := gcController.idleMarkTime.Load()
+ 	markTermCpu := int64(work.stwprocs) * (work.tEnd - work.tMarkTerm)
+-	scavAssistCpu := scavenge.assistTime.Load()
+-	scavBgCpu := scavenge.backgroundTime.Load()
+-
+-	// Update cumulative GC CPU stats.
+-	work.cpuStats.gcAssistTime += markAssistCpu
+-	work.cpuStats.gcDedicatedTime += markDedicatedCpu + markFractionalCpu
+-	work.cpuStats.gcIdleTime += markIdleCpu
+-	work.cpuStats.gcPauseTime += sweepTermCpu + markTermCpu
+-	work.cpuStats.gcTotalTime += sweepTermCpu + markAssistCpu + markDedicatedCpu + markFractionalCpu + markIdleCpu + markTermCpu
+-
+-	// Update cumulative scavenge CPU stats.
+-	work.cpuStats.scavengeAssistTime += scavAssistCpu
+-	work.cpuStats.scavengeBgTime += scavBgCpu
+-	work.cpuStats.scavengeTotalTime += scavAssistCpu + scavBgCpu
+-
+-	// Update total CPU.
+-	work.cpuStats.totalTime = sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
+-	work.cpuStats.idleTime += sched.idleTime.Load()
+-
+-	// Compute userTime. We compute this indirectly as everything that's not the above.
++	work.cpuStats.gcPauseTime += markTermCpu
++	work.cpuStats.gcTotalTime += markTermCpu
++
++	// Accumulate CPU stats.
+ 	//
+-	// Since time spent in _Pgcstop is covered by gcPauseTime, and time spent in _Pidle
+-	// is covered by idleTime, what we're left with is time spent in _Prunning and _Psyscall,
+-	// the latter of which is fine because the P will either go idle or get used for something
+-	// else via sysmon. Meanwhile if we subtract GC time from whatever's left, we get non-GC
+-	// _Prunning time. Note that this still leaves time spent in sweeping and in the scheduler,
+-	// but that's fine. The overwhelming majority of this time will be actual user time.
+-	work.cpuStats.userTime = work.cpuStats.totalTime - (work.cpuStats.gcTotalTime +
+-		work.cpuStats.scavengeTotalTime + work.cpuStats.idleTime)
++	// Pass gcMarkPhase=true so we can get all the latest GC CPU stats in there too.
++	work.cpuStats.accumulate(now, true)
+ 
+ 	// Compute overall GC CPU utilization.
+ 	// Omit idle marking time from the overall utilization here since it's "free".
+@@ -1146,7 +1121,7 @@ func gcMarkTermination() {
+ 		}
+ 		print(" ms clock, ")
+ 		for i, ns := range []int64{
+-			sweepTermCpu,
++			int64(work.stwprocs) * (work.tMark - work.tSweepTerm),
+ 			gcController.assistTime.Load(),
+ 			gcController.dedicatedMarkTime.Load() + gcController.fractionalMarkTime.Load(),
+ 			gcController.idleMarkTime.Load(),
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 3c17c0b29e..ab383dd8e3 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -901,3 +901,58 @@ type cpuStats struct {
+ 
+ 	totalTime int64 // GOMAXPROCS * (monotonic wall clock time elapsed)
+ }
++
++// accumulate takes a cpuStats and adds in the current state of all GC CPU
++// counters.
++//
++// gcMarkPhase indicates that we're in the mark phase and that certain counter
++// values should be used.
++func (s *cpuStats) accumulate(now int64, gcMarkPhase bool) {
++	// N.B. Mark termination and sweep termination pauses are
++	// accumulated in work.cpuStats at the end of their respective pauses.
++	var (
++		markAssistCpu     int64
++		markDedicatedCpu  int64
++		markFractionalCpu int64
++		markIdleCpu       int64
++	)
++	if gcMarkPhase {
++		// N.B. These stats may have stale values if the GC is not
++		// currently in the mark phase.
++		markAssistCpu = gcController.assistTime.Load()
++		markDedicatedCpu = gcController.dedicatedMarkTime.Load()
++		markFractionalCpu = gcController.fractionalMarkTime.Load()
++		markIdleCpu = gcController.idleMarkTime.Load()
++	}
++
++	// The rest of the stats below are either derived from the above or
++	// are reset on each mark termination.
++
++	scavAssistCpu := scavenge.assistTime.Load()
++	scavBgCpu := scavenge.backgroundTime.Load()
++
++	// Update cumulative GC CPU stats.
++	s.gcAssistTime += markAssistCpu
++	s.gcDedicatedTime += markDedicatedCpu + markFractionalCpu
++	s.gcIdleTime += markIdleCpu
++	s.gcTotalTime += markAssistCpu + markDedicatedCpu + markFractionalCpu + markIdleCpu
++
++	// Update cumulative scavenge CPU stats.
++	s.scavengeAssistTime += scavAssistCpu
++	s.scavengeBgTime += scavBgCpu
++	s.scavengeTotalTime += scavAssistCpu + scavBgCpu
++
++	// Update total CPU.
++	s.totalTime = sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
++	s.idleTime += sched.idleTime.Load()
++
++	// Compute userTime. We compute this indirectly as everything that's not the above.
++	//
++	// Since time spent in _Pgcstop is covered by gcPauseTime, and time spent in _Pidle
++	// is covered by idleTime, what we're left with is time spent in _Prunning and _Psyscall,
++	// the latter of which is fine because the P will either go idle or get used for something
++	// else via sysmon. Meanwhile if we subtract GC time from whatever's left, we get non-GC
++	// _Prunning time. Note that this still leaves time spent in sweeping and in the scheduler,
++	// but that's fine. The overwhelming majority of this time will be actual user time.
++	s.userTime = s.totalTime - (s.gcTotalTime + s.scavengeTotalTime + s.idleTime)
++}

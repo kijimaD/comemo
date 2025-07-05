@@ -13,9 +13,177 @@ Date:   Sun Feb 12 23:55:33 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5645091
-
+---
  doc/go1.html                     |  8 --------
  doc/go1.tmpl                     |  8 --------
  src/cmd/fix/go1pkgrename.go      | 25 ++++++++++++++++++++++++-
  src/cmd/fix/go1pkgrename_test.go | 10 ++++++++++
  4 files changed, 34 insertions(+), 17 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index c681eff3b6..8ba97ad77b 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -539,8 +539,6 @@ Running <code>go fix</code> will update all imports and package renames for pack
+ remain inside the standard repository.  Programs that import packages
+ that are no longer in the standard repository will need to be edited
+ by hand.
+-<br>
+-<font color="red">TODO: go fix should warn about deletions.</font>
+ </p>
+ 
+ <h3 id="exp">The package tree exp</h3>
+@@ -581,8 +579,6 @@ If they are installed, they now reside in <code>$GOROOT/bin/tool</code>.
+ Code that uses packages in <code>exp</code> will need to be updated by hand,
+ or else compiled from an installation that has <code>exp</code> available.
+ The go fix tool or the compiler will complain about such uses.
+-<br>
+-<font color="red">TODO: go fix should warn about such uses.</font>
+ </p>
+ 
+ <h3 id="old">The package tree old</h3>
+@@ -608,8 +604,6 @@ The packages in their new locations are:
+ Code that uses packages now in <code>old</code> will need to be updated by hand,
+ or else compiled from an installation that has <code>old</code> available.
+ The go fix tool will warn about such uses.
+-<br>
+-<font color="red">TODO: go fix should warn about such uses.</font>
+ </p>
+ 
+ <h3 id="deleted">Deleted packages</h3>
+@@ -636,8 +630,6 @@ slices directly.  See
+ <a href="http://code.google.com/p/go-wiki/wiki/SliceTricks">the Go
+ Language Community Wiki</a> for some suggestions.
+ Code that uses the other packages (there should be almost zero) will need to be rethought.
+-<br>
+-<font color="red">TODO: go fix should warn such uses.</font>
+ </p>
+ 
+ <h3 id="subrepo">Packages moving to subrepositories</h3>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 9cdbf4bad6..bda9ef48dd 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -463,8 +463,6 @@ Running <code>go fix</code> will update all imports and package renames for pack
+ remain inside the standard repository.  Programs that import packages
+ that are no longer in the standard repository will need to be edited
+ by hand.
+-<br>
+-<font color="red">TODO: go fix should warn about deletions.</font>
+ </p>
+ 
+ <h3 id="exp">The package tree exp</h3>
+@@ -505,8 +503,6 @@ If they are installed, they now reside in <code>$GOROOT/bin/tool</code>.
+ Code that uses packages in <code>exp</code> will need to be updated by hand,
+ or else compiled from an installation that has <code>exp</code> available.
+ The go fix tool or the compiler will complain about such uses.
+-<br>
+-<font color="red">TODO: go fix should warn about such uses.</font>
+ </p>
+ 
+ <h3 id="old">The package tree old</h3>
+@@ -532,8 +528,6 @@ The packages in their new locations are:
+ Code that uses packages now in <code>old</code> will need to be updated by hand,
+ or else compiled from an installation that has <code>old</code> available.
+ The go fix tool will warn about such uses.
+-<br>
+-<font color="red">TODO: go fix should warn about such uses.</font>
+ </p>
+ 
+ <h3 id="deleted">Deleted packages</h3>
+@@ -560,8 +554,6 @@ slices directly.  See
+ <a href="http://code.google.com/p/go-wiki/wiki/SliceTricks">the Go
+ Language Community Wiki</a> for some suggestions.
+ Code that uses the other packages (there should be almost zero) will need to be rethought.
+-<br>
+-<font color="red">TODO: go fix should warn such uses.</font>
+ </p>
+ 
+ <h3 id="subrepo">Packages moving to subrepositories</h3>
+diff --git a/src/cmd/fix/go1pkgrename.go b/src/cmd/fix/go1pkgrename.go
+index c1a11c83c8..f701f62f0a 100644
+--- a/src/cmd/fix/go1pkgrename.go
++++ b/src/cmd/fix/go1pkgrename.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"go/ast"
++	"strings"
+ )
+ 
+ func init() {
+@@ -76,10 +77,24 @@ var go1PackageRenames = []struct{ old, new string }{
+ 	{"net/dict", "code.google.com/p/go.net/dict"},
+ 	{"net/websocket", "code.google.com/p/go.net/websocket"},
+ 	{"exp/spdy", "code.google.com/p/go.net/spdy"},
++	{"http/spdy", "code.google.com/p/go.net/spdy"},
+ 
+ 	// go.codereview sub-repository
+ 	{"encoding/git85", "code.google.com/p/go.codereview/git85"},
+ 	{"patch", "code.google.com/p/go.codereview/patch"},
++
++	// exp
++	{"ebnf", "exp/ebnf"},
++	{"go/types", "exp/types"},
++
++	// deleted
++	{"container/vector", ""},
++	{"exp/datafmt", ""},
++	{"go/typechecker", ""},
++	{"old/netchan", ""},
++	{"old/regexp", ""},
++	{"old/template", ""},
++	{"try", ""},
+ }
+ 
+ var go1PackageNameRenames = []struct{ newPath, old, new string }{
+@@ -92,12 +107,20 @@ func go1pkgrename(f *ast.File) bool {
+ 
+ 	// First update the imports.
+ 	for _, rename := range go1PackageRenames {
+-		if !imports(f, rename.old) {
++		spec := importSpec(f, rename.old)
++		if spec == nil {
++			continue
++		}
++		if rename.new == "" {
++			warn(spec.Pos(), "package %q has been deleted in Go 1", rename.old)
+ 			continue
+ 		}
+ 		if rewriteImport(f, rename.old, rename.new) {
+ 			fixed = true
+ 		}
++		if strings.HasPrefix(rename.new, "exp/") {
++			warn(spec.Pos(), "package %q is not part of Go 1", rename.new)
++		}
+ 	}
+ 	if !fixed {
+ 		return false
+diff --git a/src/cmd/fix/go1pkgrename_test.go b/src/cmd/fix/go1pkgrename_test.go
+index 736e7ed7fc..22443f806b 100644
+--- a/src/cmd/fix/go1pkgrename_test.go
++++ b/src/cmd/fix/go1pkgrename_test.go
+@@ -87,6 +87,11 @@ import (
+ import "cmath"
+ import poot "exp/template/html"
+ 
++import (
++	"ebnf"
++	"old/regexp"
++)
++
+ var _ = cmath.Sin
+ var _ = poot.Poot
+ `,
+@@ -95,6 +100,11 @@ var _ = poot.Poot
+ import "math/cmplx"
+ import poot "html/template"
+ 
++import (
++	"exp/ebnf"
++	"old/regexp"
++)
++
+ var _ = cmplx.Sin
+ var _ = poot.Poot
+ `,

@@ -11,6 +11,28 @@ Date:   Wed Nov 21 14:40:50 2012 -0800
     R=r, rsc, iant, ken, dsymonds
     CC=golang-dev
     https://golang.org/cl/6858049
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 73b65f5311..6115fae67b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of November 17, 2012",
++	"Subtitle": "Version of November 21, 2012",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1529,7 +1529,7 @@ Go is lexically scoped using blocks:
+ 	    or function (but not method) declared at top level (outside any
+ 	    function) is the package block.</li>
+ 
+-	<li>The scope of an imported package identifier is the file block
++	<li>The scope of the package name of an imported package is the file block
+ 	    of the file containing the import declaration.</li>
+ 
+ 	<li>The scope of an identifier denoting a function parameter or

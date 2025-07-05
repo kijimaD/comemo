@@ -18,10 +18,97 @@ Date:   Tue Jul 11 15:15:51 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/gover/gover.go               |  3 +++
  src/cmd/go/internal/gover/gover_test.go          | 19 +++++++++++++++++++
  src/cmd/go/internal/gover/toolchain.go           |  2 +-
  src/cmd/go/internal/toolchain/select.go          |  2 +-
  src/cmd/go/testdata/script/gotoolchain_local.txt |  4 ++--
  5 files changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/gover/gover.go b/src/cmd/go/internal/gover/gover.go
+index ce2242d522..b2a8261feb 100644
+--- a/src/cmd/go/internal/gover/gover.go
++++ b/src/cmd/go/internal/gover/gover.go
+@@ -179,6 +179,9 @@ func parse(x string) version {
+ 	// Parse prerelease.
+ 	i := 0
+ 	for i < len(x) && (x[i] < '0' || '9' < x[i]) {
++		if x[i] < 'a' || 'z' < x[i] {
++			return version{}
++		}
+ 		i++
+ 	}
+ 	if i == 0 {
+diff --git a/src/cmd/go/internal/gover/gover_test.go b/src/cmd/go/internal/gover/gover_test.go
+index 97b3b761c8..3a0bf10fc5 100644
+--- a/src/cmd/go/internal/gover/gover_test.go
++++ b/src/cmd/go/internal/gover/gover_test.go
+@@ -95,6 +95,25 @@ var prevTests = []testCase1[string, string]{
+ 	{"1.40000000000000000", "1.39999999999999999"},
+ }
+ 
++func TestIsValid(t *testing.T) { test1(t, isValidTests, "IsValid", IsValid) }
++
++var isValidTests = []testCase1[string, bool]{
++	{"1.2rc3", true},
++	{"1.2.3", true},
++	{"1.999testmod", true},
++	{"1.600+auto", false},
++	{"1.22", true},
++	{"1.21.0", true},
++	{"1.21rc2", true},
++	{"1.21", true},
++	{"1.20.0", true},
++	{"1.20", true},
++	{"1.19", true},
++	{"1.3", true},
++	{"1.2", true},
++	{"1", true},
++}
++
+ type testCase1[In, Out any] struct {
+ 	in  In
+ 	out Out
+diff --git a/src/cmd/go/internal/gover/toolchain.go b/src/cmd/go/internal/gover/toolchain.go
+index efa2de46a5..b520277618 100644
+--- a/src/cmd/go/internal/gover/toolchain.go
++++ b/src/cmd/go/internal/gover/toolchain.go
+@@ -15,7 +15,7 @@ import (
+ // FromToolchain returns the Go version for the named toolchain,
+ // derived from the name itself (not by running the toolchain).
+ // A toolchain is named "goVERSION".
+-// A suffix after the VERSION introduced by a +, -, space, or tab is removed.
++// A suffix after the VERSION introduced by a -, space, or tab is removed.
+ // Examples:
+ //
+ //	FromToolchain("go1.2.3") == "1.2.3"
+diff --git a/src/cmd/go/internal/toolchain/select.go b/src/cmd/go/internal/toolchain/select.go
+index 8b1a0b94be..a44f393bc0 100644
+--- a/src/cmd/go/internal/toolchain/select.go
++++ b/src/cmd/go/internal/toolchain/select.go
+@@ -131,7 +131,7 @@ func Select() {
+ 	} else {
+ 		min, suffix, plus := strings.Cut(gotoolchain, "+") // go1.2.3+auto
+ 		if min != "local" {
+-			v := gover.FromToolchain(gotoolchain)
++			v := gover.FromToolchain(min)
+ 			if v == "" {
+ 				if plus {
+ 					base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum toolchain %q", gotoolchain, min)
+diff --git a/src/cmd/go/testdata/script/gotoolchain_local.txt b/src/cmd/go/testdata/script/gotoolchain_local.txt
+index 0e08207f45..93f557008a 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_local.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_local.txt
+@@ -34,9 +34,9 @@ env GOTOOLCHAIN=go1.600+auto
+ go version
+ stdout go1.600
+ 
+-env GOTOOLCHAIN=go1.400+auto
++env GOTOOLCHAIN=go1.400.0+auto
+ go version
+-stdout go1.400
++stdout go1.400.0
+ 
+ # GOTOOLCHAIN=version+path sets a minimum too.
+ env GOTOOLCHAIN=go1.600+path

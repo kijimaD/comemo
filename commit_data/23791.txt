@@ -11,6 +11,43 @@ Date:   Sat Jun 13 11:01:16 2015 -0700
     Change-Id: I53c79ff93703f66f5f0266178c94803719ae2074
     Reviewed-on: https://go-review.googlesource.com/11054
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 2e1b5990dc..c71e6d4e38 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -85,6 +85,7 @@ func (b *Block) NewValue0A(line int32, op Op, t Type, aux interface{}) *Value {
+ 		Type:  t,
+ 		Aux:   aux,
+ 		Block: b,
++		Line:  line,
+ 	}
+ 	v.Args = v.argstorage[:0]
+ 	b.Values = append(b.Values, v)
+@@ -143,6 +144,7 @@ func (b *Block) NewValue1A(line int32, op Op, t Type, aux interface{}, arg *Valu
+ 		Type:  t,
+ 		Aux:   aux,
+ 		Block: b,
++		Line:  line,
+ 	}
+ 	v.Args = v.argstorage[:1]
+ 	v.Args[0] = arg
+@@ -173,6 +175,7 @@ func (b *Block) NewValue2(line int32, op Op, t Type, arg0, arg1 *Value) *Value {
+ 		Op:    op,
+ 		Type:  t,
+ 		Block: b,
++		Line:  line,
+ 	}
+ 	v.Args = v.argstorage[:2]
+ 	v.Args[0] = arg0
+@@ -188,6 +191,7 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
+ 		Op:    op,
+ 		Type:  t,
+ 		Block: b,
++		Line:  line,
+ 	}
+ 	v.Args = []*Value{arg0, arg1, arg2}
+ 	b.Values = append(b.Values, v)

@@ -7,7 +7,32 @@ Date:   Fri Feb 26 14:54:28 2010 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/223073
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 11779ec438..f3358bab05 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -52,6 +52,7 @@ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
++Raif S. Naffah <go@naffah-raif.name>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 310dc4dcaa..01d52e9ad4 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -92,6 +92,7 @@ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter McKenzie <petermck@google.com>
+ Péter Szabó <pts@google.com>
+ Phil Pennock <pdp@golang.org>
++Raif S. Naffah <go@naffah-raif.name>
+ Rob Pike <r@golang.org>
+ Robert Griesemer <gri@golang.org>
+ Roger Peppe <rogpeppe@gmail.com>

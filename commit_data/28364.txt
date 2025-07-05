@@ -9,9 +9,177 @@ Date:   Wed May 18 15:42:54 2016 +0000
     Change-Id: I3819ff597d5a0c8e785403bf9d65a054f50655a6
     Reviewed-on: https://go-review.googlesource.com/23207
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/client.go      | 50 ++++++++++++++++++++++++++++++++-------------
  src/net/http/client_test.go | 38 ++++++++++++++++++++++++++++++++++
  src/net/http/request.go     |  5 +++++
  src/net/http/response.go    |  2 +-
  4 files changed, 80 insertions(+), 15 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 1127634bec..993c247eef 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -47,6 +47,9 @@ type Client struct {
+ 	// method returns both the previous Response (with its Body
+ 	// closed) and CheckRedirect's error (wrapped in a url.Error)
+ 	// instead of issuing the Request req.
++	// As a special case, if CheckRedirect returns ErrUseLastResponse,
++	// then the most recent response is returned with its body
++	// unclosed, along with a nil error.
+ 	//
+ 	// If CheckRedirect is nil, the Client uses its default policy,
+ 	// which is to stop after 10 consecutive requests.
+@@ -417,6 +420,12 @@ func (c *Client) Get(url string) (resp *Response, err error) {
+ 
+ func alwaysFalse() bool { return false }
+ 
++// ErrUseLastResponse can be returned by Client.CheckRedirect hooks to
++// control how redirects are processed. If returned, the next request
++// is not sent and the most recent response is returned with its body
++// unclosed.
++var ErrUseLastResponse = errors.New("net/http: use last response")
++
+ // checkRedirect calls either the user's configured CheckRedirect
+ // function, or the default.
+ func (c *Client) checkRedirect(req *Request, via []*Request) error {
+@@ -467,11 +476,12 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
+ 			}
+ 			ireq := reqs[0]
+ 			req = &Request{
+-				Method: ireq.Method,
+-				URL:    u,
+-				Header: make(Header),
+-				Cancel: ireq.Cancel,
+-				ctx:    ireq.ctx,
++				Method:   ireq.Method,
++				Response: resp,
++				URL:      u,
++				Header:   make(Header),
++				Cancel:   ireq.Cancel,
++				ctx:      ireq.ctx,
+ 			}
+ 			if ireq.Method == "POST" || ireq.Method == "PUT" {
+ 				req.Method = "GET"
+@@ -481,7 +491,27 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
+ 			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL); ref != "" {
+ 				req.Header.Set("Referer", ref)
+ 			}
+-			if err := c.checkRedirect(req, reqs); err != nil {
++			err = c.checkRedirect(req, reqs)
++
++			// Sentinel error to let users select the
++			// previous response, without closing its
++			// body. See Issue 10069.
++			if err == ErrUseLastResponse {
++				return resp, nil
++			}
++
++			// Close the previous response's body. But
++			// read at least some of the body so if it's
++			// small the underlying TCP connection will be
++			// re-used. No need to check for errors: if it
++			// fails, the Transport won't reuse it anyway.
++			const maxBodySlurpSize = 2 << 10
++			if resp.ContentLength == -1 || resp.ContentLength <= maxBodySlurpSize {
++				io.CopyN(ioutil.Discard, resp.Body, maxBodySlurpSize)
++			}
++			resp.Body.Close()
++
++			if err != nil {
+ 				// Special case for Go 1 compatibility: return both the response
+ 				// and an error if the CheckRedirect function failed.
+ 				// See https://golang.org/issue/3795
+@@ -508,14 +538,6 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
+ 		if !shouldRedirect(resp.StatusCode) {
+ 			return resp, nil
+ 		}
+-
+-		// Read the body if small so underlying TCP connection will be re-used.
+-		// No need to check for errors: if it fails, Transport won't reuse it anyway.
+-		const maxBodySlurpSize = 2 << 10
+-		if resp.ContentLength == -1 || resp.ContentLength <= maxBodySlurpSize {
+-			io.CopyN(ioutil.Discard, resp.Body, maxBodySlurpSize)
+-		}
+-		resp.Body.Close()
+ 	}
+ }
+ 
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 6f7ab965cb..a9b1948005 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -366,6 +366,44 @@ func TestPostRedirects(t *testing.T) {
+ 	}
+ }
+ 
++func TestClientRedirectUseResponse(t *testing.T) {
++	defer afterTest(t)
++	const body = "Hello, world."
++	var ts *httptest.Server
++	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		if strings.Contains(r.URL.Path, "/other") {
++			io.WriteString(w, "wrong body")
++		} else {
++			w.Header().Set("Location", ts.URL+"/other")
++			w.WriteHeader(StatusFound)
++			io.WriteString(w, body)
++		}
++	}))
++	defer ts.Close()
++
++	c := &Client{CheckRedirect: func(req *Request, via []*Request) error {
++		if req.Response == nil {
++			t.Error("expected non-nil Request.Response")
++		}
++		return ErrUseLastResponse
++	}}
++	res, err := c.Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if res.StatusCode != StatusFound {
++		t.Errorf("status = %d; want %d", res.StatusCode, StatusFound)
++	}
++	defer res.Body.Close()
++	slurp, err := ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if string(slurp) != body {
++		t.Errorf("body = %q; want %q", slurp, body)
++	}
++}
++
+ var expectedCookies = []*Cookie{
+ 	{Name: "ChocolateChip", Value: "tasty"},
+ 	{Name: "First", Value: "Hit"},
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 45507d23d1..e8780dea94 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -255,6 +255,11 @@ type Request struct {
+ 	// set, it is undefined whether Cancel is respected.
+ 	Cancel <-chan struct{}
+ 
++	// Response is the redirect response which caused this request
++	// to be created. This field is only populated during client
++	// redirects.
++	Response *Response
++
+ 	// ctx is either the client or server context. It should only
+ 	// be modified via copying the whole Request using WithContext.
+ 	// It is unexported to prevent people from using Context wrong
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 0164a09c6a..979651c08a 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -96,7 +96,7 @@ type Response struct {
+ 	// any trailer values sent by the server.
+ 	Trailer Header
+ 
+-	// The Request that was sent to obtain this Response.
++	// Request is the request that was sent to obtain this Response.
+ 	// Request's Body is nil (having already been consumed).
+ 	// This is only populated for Client requests.
+ 	Request *Request

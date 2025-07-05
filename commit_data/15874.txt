@@ -8,6 +8,37 @@ Date:   Fri Mar 22 04:00:54 2013 +0800
     R=golang-dev, bradfitz, rsc, alex.brainman
     CC=golang-dev
     https://golang.org/cl/6792043
-
+---
  src/cmd/ld/ldpe.c | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 39c15e6a14..98923bfbf6 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -135,7 +135,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ {
+ 	char *name;
+ 	int32 base;
+-	int i, j, l, numaux;
++	uint32 l;
++	int i, j, numaux;
+ 	PeObj *obj;
+ 	PeSect *sect, *rsect;
+ 	IMAGE_SECTION_HEADER sh;
+@@ -170,11 +171,12 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		// TODO return error if found .cormeta
+ 	}
+ 	// load string table
+-	Bseek(f, base+obj->fh.PointerToSymbolTable+18*obj->fh.NumberOfSymbols, 0);
+-	if(Bread(f, &l, sizeof l) != sizeof l) 
++	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
++	if(Bread(f, symbuf, 4) != 4) 
+ 		goto bad;
++	l = le32(symbuf);
+ 	obj->snames = mal(l);
+-	Bseek(f, base+obj->fh.PointerToSymbolTable+18*obj->fh.NumberOfSymbols, 0);
++	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
+ 	if(Bread(f, obj->snames, l) != l)
+ 		goto bad;
+ 	// read symbols

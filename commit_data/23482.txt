@@ -13,6 +13,22 @@ Date:   Tue Apr 21 10:56:45 2015 +1000
     Change-Id: I627e2f2bdc7755074677f77f21befc070a101914
     Reviewed-on: https://go-review.googlesource.com/9190
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/signal_windows.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index da8a1c5801..b2fce53534 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -131,7 +131,9 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 
+ 	print("PC=", hex(r.ip()), "\n")
+ 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+-		print("signal arrived during cgo execution\n")
++		if iscgo {
++			print("signal arrived during external code execution\n")
++		}
+ 		gp = _g_.m.lockedg
+ 	}
+ 	print("\n")

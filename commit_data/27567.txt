@@ -13,7 +13,7 @@ Date:   Sat Apr 2 16:26:30 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go   |  2 +-
  src/cmd/compile/internal/gc/fmt.go       |  6 +++---
  src/cmd/compile/internal/gc/range.go     |  2 +-
@@ -22,3 +22,156 @@ Date:   Sat Apr 2 16:26:30 2016 -0700
  src/cmd/compile/internal/gc/type.go      | 11 +++++++++--
  src/cmd/compile/internal/gc/typecheck.go |  6 +++---
  7 files changed, 20 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index bfa5a501a0..a63f615267 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -547,7 +547,7 @@ func (p *exporter) typ(t *Type) {
+ 
+ 	case TCHAN:
+ 		p.tag(chanTag)
+-		p.int(int(t.Chan))
++		p.int(int(t.ChanDir()))
+ 		p.typ(t.Elem())
+ 
+ 	default:
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 72e1bc3142..94805594c7 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -596,7 +596,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 		return "[]" + t.Elem().String()
+ 
+ 	case TCHAN:
+-		switch t.Chan {
++		switch t.ChanDir() {
+ 		case Crecv:
+ 			return "<-chan " + t.Elem().String()
+ 
+@@ -604,7 +604,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 			return "chan<- " + t.Elem().String()
+ 		}
+ 
+-		if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().Chan == Crecv {
++		if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().ChanDir() == Crecv {
+ 			return "chan (" + t.Elem().String() + ")"
+ 		}
+ 		return "chan " + t.Elem().String()
+@@ -1102,7 +1102,7 @@ func exprfmt(n *Node, prec int) string {
+ 		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != idealbool && n.Type != idealstring {
+ 			// Need parens when type begins with what might
+ 			// be misinterpreted as a unary operator: * or <-.
+-			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.Chan == Crecv) {
++			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == Crecv) {
+ 				return fmt.Sprintf("(%v)(%v)", n.Type, Vconv(n.Val(), 0))
+ 			} else {
+ 				return fmt.Sprintf("%v(%v)", n.Type, Vconv(n.Val(), 0))
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index e97a628ce3..6a28c3ceb5 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -58,7 +58,7 @@ func typecheckrange(n *Node) {
+ 		t2 = t.Val()
+ 
+ 	case TCHAN:
+-		if t.Chan&Crecv == 0 {
++		if t.ChanDir()&Crecv == 0 {
+ 			Yyerror("invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
+ 			goto out
+ 		}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 95e5214a43..11bcd4cdc6 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1143,7 +1143,7 @@ ok:
+ 
+ 		ot = dcommontype(s, ot, t)
+ 		ot = dsymptr(s, ot, s1, 0)
+-		ot = duintptr(s, ot, uint64(t.Chan))
++		ot = duintptr(s, ot, uint64(t.ChanDir()))
+ 		ot = dextratype(s, ot, t, 0)
+ 
+ 	case TFUNC:
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 2447bccb5c..a61b8bcd27 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -721,7 +721,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
+ 		}
+ 
+ 	case TCHAN:
+-		if t1.Chan != t2.Chan {
++		if t1.ChanDir() != t2.ChanDir() {
+ 			return false
+ 		}
+ 
+@@ -844,7 +844,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 	// 4. src is a bidirectional channel value, dst is a channel type,
+ 	// src and dst have identical element types, and
+ 	// either src or dst is not a named type.
+-	if src.IsChan() && src.Chan == Cboth && dst.IsChan() {
++	if src.IsChan() && src.ChanDir() == Cboth && dst.IsChan() {
+ 		if Eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
+ 			return OCONVNOP
+ 		}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 1aefc9cf24..d207a046d7 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -817,8 +817,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 		}
+ 
+ 	case TCHAN:
+-		if t.Chan != x.Chan {
+-			return cmpForNe(t.Chan < x.Chan)
++		if t.ChanDir() != x.ChanDir() {
++			return cmpForNe(t.ChanDir() < x.ChanDir())
+ 		}
+ 
+ 	default:
+@@ -955,6 +955,13 @@ func (t *Type) SetNumElem(n int64) {
+ 	t.Bound = n
+ }
+ 
++// ChanDir returns the direction of a channel type t.
++// The direction will be one of Crecv, Csend, or Cboth.
++func (t *Type) ChanDir() uint8 {
++	t.wantEtype(TCHAN)
++	return t.Chan
++}
++
+ func (t *Type) IsMemory() bool { return false }
+ func (t *Type) IsFlags() bool  { return false }
+ func (t *Type) IsVoid() bool   { return false }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 828f5bae97..6b566210d7 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1048,7 +1048,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 
+-		if t.Chan&Crecv == 0 {
++		if t.ChanDir()&Crecv == 0 {
+ 			Yyerror("invalid operation: %v (receive from send-only type %v)", n, t)
+ 			n.Type = nil
+ 			return n
+@@ -1075,7 +1075,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 
+-		if t.Chan&Csend == 0 {
++		if t.ChanDir()&Csend == 0 {
+ 			Yyerror("invalid operation: %v (send to receive-only type %v)", n, t)
+ 			n.Type = nil
+ 			return n
+@@ -1528,7 +1528,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 
+-		if t.Chan&Csend == 0 {
++		if t.ChanDir()&Csend == 0 {
+ 			Yyerror("invalid operation: %v (cannot close receive-only channel)", n)
+ 			n.Type = nil
+ 			return n

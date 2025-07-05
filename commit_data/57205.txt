@@ -17,7 +17,42 @@ Date:   Tue Jul 18 03:34:30 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/rpc/server.go      | 6 +++---
  src/net/rpc/server_test.go | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index 109ebba541..5cea2cc507 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -86,9 +86,9 @@ The server calls (for HTTP service):
+ 	arith := new(Arith)
+ 	rpc.Register(arith)
+ 	rpc.HandleHTTP()
+-	l, e := net.Listen("tcp", ":1234")
+-	if e != nil {
+-		log.Fatal("listen error:", e)
++	l, err := net.Listen("tcp", ":1234")
++	if err != nil {
++		log.Fatal("listen error:", err)
+ 	}
+ 	go http.Serve(l, nil)
+ 
+diff --git a/src/net/rpc/server_test.go b/src/net/rpc/server_test.go
+index dc5f5decc7..6a94d6ebe8 100644
+--- a/src/net/rpc/server_test.go
++++ b/src/net/rpc/server_test.go
+@@ -110,9 +110,9 @@ func (BuiltinTypes) Array(args *Args, reply *[2]int) error {
+ }
+ 
+ func listenTCP() (net.Listener, string) {
+-	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
+-	if e != nil {
+-		log.Fatalf("net.Listen tcp :0: %v", e)
++	l, err := net.Listen("tcp", "127.0.0.1:0") // any available address
++	if err != nil {
++		log.Fatalf("net.Listen tcp :0: %v", err)
+ 	}
+ 	return l, l.Addr().String()
+ }

@@ -24,7 +24,7 @@ Date:   Fri Jan 15 12:14:06 2021 -0800
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
     Trust: Roland Shoemaker <roland@golang.org>
-
+---
  src/cmd/api/goapi.go                               |   2 +-
  src/cmd/api/run.go                                 |   2 +-
  src/cmd/cgo/out.go                                 |   2 +-
@@ -66,3 +66,782 @@ Date:   Fri Jan 15 12:14:06 2021 -0800
  src/internal/execabs/execabs_test.go               | 104 +++++++++++++++++++++
  src/internal/goroot/gc.go                          |   2 +-
  40 files changed, 220 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index ba42812fa6..efc2696f8f 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -16,10 +16,10 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"go/types"
++	exec "internal/execabs"
+ 	"io"
+ 	"log"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index a36f1179c1..ecb1d0f81a 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -10,9 +10,9 @@ package main
+ 
+ import (
+ 	"fmt"
++	exec "internal/execabs"
+ 	"log"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index fa6f0efbbe..8e83f02202 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -14,10 +14,10 @@ import (
+ 	"go/ast"
+ 	"go/printer"
+ 	"go/token"
++	exec "internal/execabs"
+ 	"internal/xcoff"
+ 	"io"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"sort"
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 779f7be225..00d931b98a 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -8,9 +8,9 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/token"
++	exec "internal/execabs"
+ 	"io/ioutil"
+ 	"os"
+-	"os/exec"
+ )
+ 
+ // run runs the command argv, feeding in stdin on standard input.
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index a9d52fa4ee..c06b5808e1 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -9,9 +9,9 @@ import (
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"html"
++	exec "internal/execabs"
+ 	"io"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strconv"
+ 	"strings"
+diff --git a/src/cmd/cover/func.go b/src/cmd/cover/func.go
+index 988c4caebf..ce7c771ac9 100644
+--- a/src/cmd/cover/func.go
++++ b/src/cmd/cover/func.go
+@@ -15,9 +15,9 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	exec "internal/execabs"
+ 	"io"
+ 	"os"
+-	"os/exec"
+ 	"path"
+ 	"path/filepath"
+ 	"runtime"
+diff --git a/src/cmd/cover/testdata/toolexec.go b/src/cmd/cover/testdata/toolexec.go
+index 1769efedbe..386de79038 100644
+--- a/src/cmd/cover/testdata/toolexec.go
++++ b/src/cmd/cover/testdata/toolexec.go
+@@ -16,7 +16,7 @@ package main
+ 
+ import (
+ 	"os"
+-	"os/exec"
++	exec "internal/execabs"
+ 	"strings"
+ )
+ 
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index e7bedfb84e..cf85f2ac8e 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -305,8 +305,10 @@ func bootstrapFixImports(srcFile string) string {
+ 			continue
+ 		}
+ 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
+-			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
++			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"") || strings.HasPrefix(line, "\texec \"")) {
+ 			line = strings.Replace(line, `"cmd/`, `"bootstrap/cmd/`, -1)
++			// During bootstrap, must use plain os/exec.
++			line = strings.Replace(line, `exec "internal/execabs"`, `"os/exec"`, -1)
+ 			for _, dir := range bootstrapDirs {
+ 				if strings.HasPrefix(dir, "cmd/") {
+ 					continue
+diff --git a/src/cmd/doc/dirs.go b/src/cmd/doc/dirs.go
+index 38cbe7fa02..661624cfe4 100644
+--- a/src/cmd/doc/dirs.go
++++ b/src/cmd/doc/dirs.go
+@@ -7,9 +7,9 @@ package main
+ import (
+ 	"bytes"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"log"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strings"
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index 40b2287f26..39a53785b7 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -9,8 +9,8 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	exec "internal/execabs"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index 004588c732..954ce47a98 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -10,9 +10,9 @@ import (
+ 	"context"
+ 	"flag"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"log"
+ 	"os"
+-	"os/exec"
+ 	"strings"
+ 	"sync"
+ 
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index 1085feaaee..4aa08b4ff6 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -9,10 +9,10 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"io"
+ 	urlpkg "net/url"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index b1e001c800..a48311d51b 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -12,10 +12,10 @@ import (
+ 	"fmt"
+ 	"go/parser"
+ 	"go/token"
++	exec "internal/execabs"
+ 	"io"
+ 	"log"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strconv"
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 86c1c14d4a..378fbae34f 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -10,10 +10,10 @@ import (
+ 	"bytes"
+ 	"crypto/sha256"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 8abc039e7f..72005e27d5 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -8,11 +8,11 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"io"
+ 	"io/fs"
+ 	"net/url"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"sort"
+ 	"strconv"
+diff --git a/src/cmd/go/internal/test/genflags.go b/src/cmd/go/internal/test/genflags.go
+index 5e83d53980..30334b0f30 100644
+--- a/src/cmd/go/internal/test/genflags.go
++++ b/src/cmd/go/internal/test/genflags.go
+@@ -9,9 +9,9 @@ package main
+ import (
+ 	"bytes"
+ 	"flag"
++	exec "internal/execabs"
+ 	"log"
+ 	"os"
+-	"os/exec"
+ 	"strings"
+ 	"testing"
+ 	"text/template"
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 50fe2dbf39..7fc9e8fbdc 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -11,10 +11,10 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
++	exec "internal/execabs"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+-	"os/exec"
+ 	"path"
+ 	"path/filepath"
+ 	"regexp"
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 6a755bc436..95c90ea7c8 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -8,8 +8,8 @@ package tool
+ import (
+ 	"context"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"os"
+-	"os/exec"
+ 	"os/signal"
+ 	"sort"
+ 	"strings"
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 327ea7cc86..9feffe0765 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -8,13 +8,13 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"internal/lazyregexp"
+ 	"internal/singleflight"
+ 	"io/fs"
+ 	"log"
+ 	urlpkg "net/url"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strings"
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index ef995ef835..5bf5cf4446 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -10,9 +10,9 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"log"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 873d85de4e..780d639c5d 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -9,9 +9,9 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
++	exec "internal/execabs"
+ 	"internal/goroot"
+ 	"os"
+-	"os/exec"
+ 	"path"
+ 	"path/filepath"
+ 	"runtime"
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index d76988145b..c555d4a9f1 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -7,8 +7,8 @@ package work
+ import (
+ 	"bytes"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"os"
+-	"os/exec"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index e750904266..16a4ebaa0f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -13,13 +13,13 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"internal/lazyregexp"
+ 	"io"
+ 	"io/fs"
+ 	"log"
+ 	"math/rand"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 45ff7c9838..b58c8aa885 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -6,8 +6,8 @@ package work
+ 
+ import (
+ 	"fmt"
++	exec "internal/execabs"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"
+diff --git a/src/cmd/go/testdata/addmod.go b/src/cmd/go/testdata/addmod.go
+index 58376b7ed4..09fc8e713b 100644
+--- a/src/cmd/go/testdata/addmod.go
++++ b/src/cmd/go/testdata/addmod.go
+@@ -25,7 +25,7 @@ import (
+ 	"io/fs"
+ 	"log"
+ 	"os"
+-	"os/exec"
++	exec "internal/execabs"
+ 	"path/filepath"
+ 	"strings"
+ 
+diff --git a/src/cmd/internal/browser/browser.go b/src/cmd/internal/browser/browser.go
+index 6867c85d23..577d31789f 100644
+--- a/src/cmd/internal/browser/browser.go
++++ b/src/cmd/internal/browser/browser.go
+@@ -6,8 +6,8 @@
+ package browser
+ 
+ import (
++	exec "internal/execabs"
+ 	"os"
+-	"os/exec"
+ 	"runtime"
+ 	"time"
+ )
+diff --git a/src/cmd/internal/diff/diff.go b/src/cmd/internal/diff/diff.go
+index e9d2c23780..c0ca2f3106 100644
+--- a/src/cmd/internal/diff/diff.go
++++ b/src/cmd/internal/diff/diff.go
+@@ -7,9 +7,9 @@
+ package diff
+ 
+ import (
++	exec "internal/execabs"
+ 	"io/ioutil"
+ 	"os"
+-	"os/exec"
+ 	"runtime"
+ )
+ 
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index e1a70ef853..8de4096f06 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -12,7 +12,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"errors"
+ 	"fmt"
+-	"os/exec"
++	exec "internal/execabs"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+diff --git a/src/cmd/internal/pkgpath/pkgpath.go b/src/cmd/internal/pkgpath/pkgpath.go
+index 40a040a81a..72e3bdb631 100644
+--- a/src/cmd/internal/pkgpath/pkgpath.go
++++ b/src/cmd/internal/pkgpath/pkgpath.go
+@@ -10,9 +10,9 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"io/ioutil"
+ 	"os"
+-	"os/exec"
+ 	"strings"
+ )
+ 
+diff --git a/src/cmd/link/internal/ld/execarchive.go b/src/cmd/link/internal/ld/execarchive.go
+index fe5cc40865..4687c624de 100644
+--- a/src/cmd/link/internal/ld/execarchive.go
++++ b/src/cmd/link/internal/ld/execarchive.go
+@@ -7,8 +7,8 @@
+ package ld
+ 
+ import (
++	exec "internal/execabs"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"syscall"
+ )
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 014969664b..17d5040827 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -49,11 +49,11 @@ import (
+ 	"encoding/base64"
+ 	"encoding/binary"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"sort"
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index e40881ab3f..fdf681a8ff 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -86,9 +86,9 @@ package main
+ import (
+ 	"flag"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"io"
+ 	"os"
+-	"os/exec"
+ 
+ 	"cmd/internal/test2json"
+ )
+diff --git a/src/cmd/trace/pprof.go b/src/cmd/trace/pprof.go
+index a73ff5336a..c4d3742820 100644
+--- a/src/cmd/trace/pprof.go
++++ b/src/cmd/trace/pprof.go
+@@ -9,11 +9,11 @@ package main
+ import (
+ 	"bufio"
+ 	"fmt"
++	exec "internal/execabs"
+ 	"internal/trace"
+ 	"io"
+ 	"net/http"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"sort"
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 72311c7d2c..217fadf5bd 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -11,13 +11,13 @@ import (
+ 	"go/ast"
+ 	"go/doc"
+ 	"go/token"
++	exec "internal/execabs"
+ 	"internal/goroot"
+ 	"internal/goversion"
+ 	"io"
+ 	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+-	"os/exec"
+ 	pathpkg "path"
+ 	"path/filepath"
+ 	"runtime"
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 99cd59e5b5..c97c668cc4 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -178,7 +178,7 @@ var depsRules = `
+ 	reflect !< OS;
+ 
+ 	OS
+-	< golang.org/x/sys/cpu, internal/goroot;
++	< golang.org/x/sys/cpu;
+ 
+ 	# FMT is OS (which includes string routines) plus reflect and fmt.
+ 	# It does not include package log, which should be avoided in core packages.
+@@ -194,6 +194,12 @@ var depsRules = `
+ 
+ 	log !< FMT;
+ 
++	OS, FMT
++	< internal/execabs;
++
++	OS, internal/execabs
++	< internal/goroot;
++
+ 	# Misc packages needing only FMT.
+ 	FMT
+ 	< flag,
+diff --git a/src/go/internal/gccgoimporter/gccgoinstallation.go b/src/go/internal/gccgoimporter/gccgoinstallation.go
+index 8fc7ce3232..e90a3cc0b0 100644
+--- a/src/go/internal/gccgoimporter/gccgoinstallation.go
++++ b/src/go/internal/gccgoimporter/gccgoinstallation.go
+@@ -7,8 +7,8 @@ package gccgoimporter
+ import (
+ 	"bufio"
+ 	"go/types"
++	exec "internal/execabs"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ )
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index c4d501dcd9..438ae0ff2e 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -13,9 +13,9 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"go/types"
++	exec "internal/execabs"
+ 	"io"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"
+diff --git a/src/internal/execabs/execabs.go b/src/internal/execabs/execabs.go
+new file mode 100644
+index 0000000000..9a05d971da
+--- /dev/null
++++ b/src/internal/execabs/execabs.go
+@@ -0,0 +1,70 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package execabs is a drop-in replacement for os/exec
++// that requires PATH lookups to find absolute paths.
++// That is, execabs.Command("cmd") runs the same PATH lookup
++// as exec.Command("cmd"), but if the result is a path
++// which is relative, the Run and Start methods will report
++// an error instead of running the executable.
++package execabs
++
++import (
++	"context"
++	"fmt"
++	"os/exec"
++	"path/filepath"
++	"reflect"
++	"unsafe"
++)
++
++var ErrNotFound = exec.ErrNotFound
++
++type (
++	Cmd       = exec.Cmd
++	Error     = exec.Error
++	ExitError = exec.ExitError
++)
++
++func relError(file, path string) error {
++	return fmt.Errorf("%s resolves to executable relative to current directory (.%c%s)", file, filepath.Separator, path)
++}
++
++func LookPath(file string) (string, error) {
++	path, err := exec.LookPath(file)
++	if err != nil {
++		return "", err
++	}
++	if filepath.Base(file) == file && !filepath.IsAbs(path) {
++		return "", relError(file, path)
++	}
++	return path, nil
++}
++
++func fixCmd(name string, cmd *exec.Cmd) {
++	if filepath.Base(name) == name && !filepath.IsAbs(cmd.Path) {
++		// exec.Command was called with a bare binary name and
++		// exec.LookPath returned a path which is not absolute.
++		// Set cmd.lookPathErr and clear cmd.Path so that it
++		// cannot be run.
++		lookPathErr := (*error)(unsafe.Pointer(reflect.ValueOf(cmd).Elem().FieldByName("lookPathErr").Addr().Pointer()))
++		if *lookPathErr == nil {
++			*lookPathErr = relError(name, cmd.Path)
++		}
++		cmd.Path = ""
++	}
++}
++
++func CommandContext(ctx context.Context, name string, arg ...string) *exec.Cmd {
++	cmd := exec.CommandContext(ctx, name, arg...)
++	fixCmd(name, cmd)
++	return cmd
++
++}
++
++func Command(name string, arg ...string) *exec.Cmd {
++	cmd := exec.Command(name, arg...)
++	fixCmd(name, cmd)
++	return cmd
++}
+diff --git a/src/internal/execabs/execabs_test.go b/src/internal/execabs/execabs_test.go
+new file mode 100644
+index 0000000000..b71458587c
+--- /dev/null
++++ b/src/internal/execabs/execabs_test.go
+@@ -0,0 +1,104 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package execabs
++
++import (
++	"context"
++	"fmt"
++	"internal/testenv"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"testing"
++)
++
++func TestFixCmd(t *testing.T) {
++	cmd := &exec.Cmd{Path: "hello"}
++	fixCmd("hello", cmd)
++	if cmd.Path != "" {
++		t.Error("fixCmd didn't clear cmd.Path")
++	}
++	expectedErr := fmt.Sprintf("hello resolves to executable relative to current directory (.%chello)", filepath.Separator)
++	if err := cmd.Run(); err == nil {
++		t.Fatal("Command.Run didn't fail")
++	} else if err.Error() != expectedErr {
++		t.Fatalf("Command.Run returned unexpected error: want %q, got %q", expectedErr, err.Error())
++	}
++}
++
++func TestCommand(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	for _, cmd := range []func(string) *Cmd{
++		func(s string) *Cmd { return Command(s) },
++		func(s string) *Cmd { return CommandContext(context.Background(), s) },
++	} {
++		tmpDir := t.TempDir()
++		executable := "execabs-test"
++		if runtime.GOOS == "windows" {
++			executable += ".exe"
++		}
++		if err := ioutil.WriteFile(filepath.Join(tmpDir, executable), []byte{1, 2, 3}, 0111); err != nil {
++			t.Fatalf("ioutil.WriteFile failed: %s", err)
++		}
++		cwd, err := os.Getwd()
++		if err != nil {
++			t.Fatalf("os.Getwd failed: %s", err)
++		}
++		defer os.Chdir(cwd)
++		if err = os.Chdir(tmpDir); err != nil {
++			t.Fatalf("os.Chdir failed: %s", err)
++		}
++		if runtime.GOOS != "windows" {
++			// add "." to PATH so that exec.LookPath looks in the current directory on
++			// non-windows platforms as well
++			origPath := os.Getenv("PATH")
++			defer os.Setenv("PATH", origPath)
++			os.Setenv("PATH", fmt.Sprintf(".:%s", origPath))
++		}
++		expectedErr := fmt.Sprintf("execabs-test resolves to executable relative to current directory (.%c%s)", filepath.Separator, executable)
++		if err = cmd("execabs-test").Run(); err == nil {
++			t.Fatalf("Command.Run didn't fail when exec.LookPath returned a relative path")
++		} else if err.Error() != expectedErr {
++			t.Errorf("Command.Run returned unexpected error: want %q, got %q", expectedErr, err.Error())
++		}
++	}
++}
++
++func TestLookPath(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	tmpDir := t.TempDir()
++	executable := "execabs-test"
++	if runtime.GOOS == "windows" {
++		executable += ".exe"
++	}
++	if err := ioutil.WriteFile(filepath.Join(tmpDir, executable), []byte{1, 2, 3}, 0111); err != nil {
++		t.Fatalf("ioutil.WriteFile failed: %s", err)
++	}
++	cwd, err := os.Getwd()
++	if err != nil {
++		t.Fatalf("os.Getwd failed: %s", err)
++	}
++	defer os.Chdir(cwd)
++	if err = os.Chdir(tmpDir); err != nil {
++		t.Fatalf("os.Chdir failed: %s", err)
++	}
++	if runtime.GOOS != "windows" {
++		// add "." to PATH so that exec.LookPath looks in the current directory on
++		// non-windows platforms as well
++		origPath := os.Getenv("PATH")
++		defer os.Setenv("PATH", origPath)
++		os.Setenv("PATH", fmt.Sprintf(".:%s", origPath))
++	}
++	expectedErr := fmt.Sprintf("execabs-test resolves to executable relative to current directory (.%c%s)", filepath.Separator, executable)
++	if _, err := LookPath("execabs-test"); err == nil {
++		t.Fatalf("LookPath didn't fail when finding a non-relative path")
++	} else if err.Error() != expectedErr {
++		t.Errorf("LookPath returned unexpected error: want %q, got %q", expectedErr, err.Error())
++	}
++}
+diff --git a/src/internal/goroot/gc.go b/src/internal/goroot/gc.go
+index 0f541d734b..ce72bc3896 100644
+--- a/src/internal/goroot/gc.go
++++ b/src/internal/goroot/gc.go
+@@ -7,8 +7,8 @@
+ package goroot
+ 
+ import (
++	exec "internal/execabs"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"

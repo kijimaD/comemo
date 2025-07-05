@@ -9,7 +9,7 @@ Date:   Thu Mar 21 16:59:16 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7906043
-
+---
  src/pkg/reflect/all_test.go  | 302 +++++++++++++++++++++++++++++++++++++++----
  src/pkg/reflect/asm_386.s    |  12 +-
  src/pkg/reflect/asm_amd64.s  |  12 +-
@@ -18,3 +18,937 @@ Date:   Thu Mar 21 16:59:16 2013 -0400
  src/pkg/reflect/makefunc.go  |  57 +++++++-
  src/pkg/reflect/value.go     | 232 +++++++++++++++++++++------------
  7 files changed, 512 insertions(+), 117 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 97b3a9f2e5..9a4dd6c315 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1458,7 +1458,7 @@ func (p Point) AnotherMethod(scale int) int {
+ 
+ // This will be index 1.
+ func (p Point) Dist(scale int) int {
+-	//	println("Point.Dist", p.x, p.y, scale)
++	//println("Point.Dist", p.x, p.y, scale)
+ 	return p.x*p.x*scale + p.y*p.y*scale
+ }
+ 
+@@ -1474,23 +1474,23 @@ func TestMethod(t *testing.T) {
+ 	if !ok {
+ 		t.Fatalf("method by name failed")
+ 	}
+-	m.Func.Call([]Value{ValueOf(p), ValueOf(10)})[0].Int()
+-	if i != 250 {
+-		t.Errorf("Type MethodByName returned %d; want 250", i)
++	i = m.Func.Call([]Value{ValueOf(p), ValueOf(11)})[0].Int()
++	if i != 275 {
++		t.Errorf("Type MethodByName returned %d; want 275", i)
+ 	}
+ 
+-	i = TypeOf(&p).Method(1).Func.Call([]Value{ValueOf(&p), ValueOf(10)})[0].Int()
+-	if i != 250 {
+-		t.Errorf("Pointer Type Method returned %d; want 250", i)
++	i = TypeOf(&p).Method(1).Func.Call([]Value{ValueOf(&p), ValueOf(12)})[0].Int()
++	if i != 300 {
++		t.Errorf("Pointer Type Method returned %d; want 300", i)
+ 	}
+ 
+ 	m, ok = TypeOf(&p).MethodByName("Dist")
+ 	if !ok {
+ 		t.Fatalf("ptr method by name failed")
+ 	}
+-	i = m.Func.Call([]Value{ValueOf(&p), ValueOf(10)})[0].Int()
+-	if i != 250 {
+-		t.Errorf("Pointer Type MethodByName returned %d; want 250", i)
++	i = m.Func.Call([]Value{ValueOf(&p), ValueOf(13)})[0].Int()
++	if i != 325 {
++		t.Errorf("Pointer Type MethodByName returned %d; want 325", i)
+ 	}
+ 
+ 	// Curried method of value.
+@@ -1499,7 +1499,74 @@ func TestMethod(t *testing.T) {
+ 	if tt := v.Type(); tt != tfunc {
+ 		t.Errorf("Value Method Type is %s; want %s", tt, tfunc)
+ 	}
+-	i = v.Call([]Value{ValueOf(10)})[0].Int()
++	i = v.Call([]Value{ValueOf(14)})[0].Int()
++	if i != 350 {
++		t.Errorf("Value Method returned %d; want 350", i)
++	}
++	v = ValueOf(p).MethodByName("Dist")
++	if tt := v.Type(); tt != tfunc {
++		t.Errorf("Value MethodByName Type is %s; want %s", tt, tfunc)
++	}
++	i = v.Call([]Value{ValueOf(15)})[0].Int()
++	if i != 375 {
++		t.Errorf("Value MethodByName returned %d; want 375", i)
++	}
++
++	// Curried method of pointer.
++	v = ValueOf(&p).Method(1)
++	if tt := v.Type(); tt != tfunc {
++		t.Errorf("Pointer Value Method Type is %s; want %s", tt, tfunc)
++	}
++	i = v.Call([]Value{ValueOf(16)})[0].Int()
++	if i != 400 {
++		t.Errorf("Pointer Value Method returned %d; want 400", i)
++	}
++	v = ValueOf(&p).MethodByName("Dist")
++	if tt := v.Type(); tt != tfunc {
++		t.Errorf("Pointer Value MethodByName Type is %s; want %s", tt, tfunc)
++	}
++	i = v.Call([]Value{ValueOf(17)})[0].Int()
++	if i != 425 {
++		t.Errorf("Pointer Value MethodByName returned %d; want 425", i)
++	}
++
++	// Curried method of interface value.
++	// Have to wrap interface value in a struct to get at it.
++	// Passing it to ValueOf directly would
++	// access the underlying Point, not the interface.
++	var x interface {
++		Dist(int) int
++	} = p
++	pv := ValueOf(&x).Elem()
++	v = pv.Method(0)
++	if tt := v.Type(); tt != tfunc {
++		t.Errorf("Interface Method Type is %s; want %s", tt, tfunc)
++	}
++	i = v.Call([]Value{ValueOf(18)})[0].Int()
++	if i != 450 {
++		t.Errorf("Interface Method returned %d; want 450", i)
++	}
++	v = pv.MethodByName("Dist")
++	if tt := v.Type(); tt != tfunc {
++		t.Errorf("Interface MethodByName Type is %s; want %s", tt, tfunc)
++	}
++	i = v.Call([]Value{ValueOf(19)})[0].Int()
++	if i != 475 {
++		t.Errorf("Interface MethodByName returned %d; want 475", i)
++	}
++}
++
++func TestMethodValue(t *testing.T) {
++	p := Point{3, 4}
++	var i int64
++
++	// Curried method of value.
++	tfunc := TypeOf((func(int) int)(nil))
++	v := ValueOf(p).Method(1)
++	if tt := v.Type(); tt != tfunc {
++		t.Errorf("Value Method Type is %s; want %s", tt, tfunc)
++	}
++	i = ValueOf(v.Interface()).Call([]Value{ValueOf(10)})[0].Int()
+ 	if i != 250 {
+ 		t.Errorf("Value Method returned %d; want 250", i)
+ 	}
+@@ -1507,9 +1574,9 @@ func TestMethod(t *testing.T) {
+ 	if tt := v.Type(); tt != tfunc {
+ 		t.Errorf("Value MethodByName Type is %s; want %s", tt, tfunc)
+ 	}
+-	i = v.Call([]Value{ValueOf(10)})[0].Int()
+-	if i != 250 {
+-		t.Errorf("Value MethodByName returned %d; want 250", i)
++	i = ValueOf(v.Interface()).Call([]Value{ValueOf(11)})[0].Int()
++	if i != 275 {
++		t.Errorf("Value MethodByName returned %d; want 275", i)
+ 	}
+ 
+ 	// Curried method of pointer.
+@@ -1517,17 +1584,17 @@ func TestMethod(t *testing.T) {
+ 	if tt := v.Type(); tt != tfunc {
+ 		t.Errorf("Pointer Value Method Type is %s; want %s", tt, tfunc)
+ 	}
+-	i = v.Call([]Value{ValueOf(10)})[0].Int()
+-	if i != 250 {
+-		t.Errorf("Pointer Value Method returned %d; want 250", i)
++	i = ValueOf(v.Interface()).Call([]Value{ValueOf(12)})[0].Int()
++	if i != 300 {
++		t.Errorf("Pointer Value Method returned %d; want 300", i)
+ 	}
+ 	v = ValueOf(&p).MethodByName("Dist")
+ 	if tt := v.Type(); tt != tfunc {
+ 		t.Errorf("Pointer Value MethodByName Type is %s; want %s", tt, tfunc)
+ 	}
+-	i = v.Call([]Value{ValueOf(10)})[0].Int()
+-	if i != 250 {
+-		t.Errorf("Pointer Value MethodByName returned %d; want 250", i)
++	i = ValueOf(v.Interface()).Call([]Value{ValueOf(13)})[0].Int()
++	if i != 325 {
++		t.Errorf("Pointer Value MethodByName returned %d; want 325", i)
+ 	}
+ 
+ 	// Curried method of interface value.
+@@ -1544,20 +1611,203 @@ func TestMethod(t *testing.T) {
+ 	if tt := v.Type(); tt != tfunc {
+ 		t.Errorf("Interface Method Type is %s; want %s", tt, tfunc)
+ 	}
+-	i = v.Call([]Value{ValueOf(10)})[0].Int()
+-	if i != 250 {
+-		t.Errorf("Interface Method returned %d; want 250", i)
++	i = ValueOf(v.Interface()).Call([]Value{ValueOf(14)})[0].Int()
++	if i != 350 {
++		t.Errorf("Interface Method returned %d; want 350", i)
+ 	}
+ 	v = pv.MethodByName("Dist")
+ 	if tt := v.Type(); tt != tfunc {
+ 		t.Errorf("Interface MethodByName Type is %s; want %s", tt, tfunc)
+ 	}
+-	i = v.Call([]Value{ValueOf(10)})[0].Int()
+-	if i != 250 {
+-		t.Errorf("Interface MethodByName returned %d; want 250", i)
++	i = ValueOf(v.Interface()).Call([]Value{ValueOf(15)})[0].Int()
++	if i != 375 {
++		t.Errorf("Interface MethodByName returned %d; want 375", i)
+ 	}
+ }
+ 
++// Reflect version of $GOROOT/test/method5.go
++
++// Concrete types implementing M method.
++// Smaller than a word, word-sized, larger than a word.
++// Value and pointer receivers.
++
++type Tinter interface {
++	M(int, byte) (byte, int)
++}
++
++type Tsmallv byte
++
++func (v Tsmallv) M(x int, b byte) (byte, int) { return b, x + int(v) }
++
++type Tsmallp byte
++
++func (p *Tsmallp) M(x int, b byte) (byte, int) { return b, x + int(*p) }
++
++type Twordv uintptr
++
++func (v Twordv) M(x int, b byte) (byte, int) { return b, x + int(v) }
++
++type Twordp uintptr
++
++func (p *Twordp) M(x int, b byte) (byte, int) { return b, x + int(*p) }
++
++type Tbigv [2]uintptr
++
++func (v Tbigv) M(x int, b byte) (byte, int) { return b, x + int(v[0]) + int(v[1]) }
++
++type Tbigp [2]uintptr
++
++func (p *Tbigp) M(x int, b byte) (byte, int) { return b, x + int(p[0]) + int(p[1]) }
++
++// Again, with an unexported method.
++
++type tsmallv byte
++
++func (v tsmallv) m(x int, b byte) (byte, int) { return b, x + int(v) }
++
++type tsmallp byte
++
++func (p *tsmallp) m(x int, b byte) (byte, int) { return b, x + int(*p) }
++
++type twordv uintptr
++
++func (v twordv) m(x int, b byte) (byte, int) { return b, x + int(v) }
++
++type twordp uintptr
++
++func (p *twordp) m(x int, b byte) (byte, int) { return b, x + int(*p) }
++
++type tbigv [2]uintptr
++
++func (v tbigv) m(x int, b byte) (byte, int) { return b, x + int(v[0]) + int(v[1]) }
++
++type tbigp [2]uintptr
++
++func (p *tbigp) m(x int, b byte) (byte, int) { return b, x + int(p[0]) + int(p[1]) }
++
++type tinter interface {
++	m(int, byte) (byte, int)
++}
++
++// Embedding via pointer.
++
++type Tm1 struct {
++	Tm2
++}
++
++type Tm2 struct {
++	*Tm3
++}
++
++type Tm3 struct {
++	*Tm4
++}
++
++type Tm4 struct {
++}
++
++func (t4 Tm4) M(x int, b byte) (byte, int) { return b, x + 40 }
++
++func TestMethod5(t *testing.T) {
++	CheckF := func(name string, f func(int, byte) (byte, int), inc int) {
++		b, x := f(1000, 99)
++		if b != 99 || x != 1000+inc {
++			t.Errorf("%s(1000, 99) = %v, %v, want 99, %v", name, b, x, 1000+inc)
++		}
++	}
++
++	CheckV := func(name string, i Value, inc int) {
++		bx := i.Method(0).Call([]Value{ValueOf(1000), ValueOf(byte(99))})
++		b := bx[0].Interface()
++		x := bx[1].Interface()
++		if b != byte(99) || x != 1000+inc {
++			t.Errorf("direct %s.M(1000, 99) = %v, %v, want 99, %v", name, b, x, 1000+inc)
++		}
++
++		CheckF(name+".M", i.Method(0).Interface().(func(int, byte) (byte, int)), inc)
++	}
++
++	var TinterType = TypeOf(new(Tinter)).Elem()
++	var tinterType = TypeOf(new(tinter)).Elem()
++
++	CheckI := func(name string, i interface{}, inc int) {
++		v := ValueOf(i)
++		CheckV(name, v, inc)
++		CheckV("(i="+name+")", v.Convert(TinterType), inc)
++	}
++
++	sv := Tsmallv(1)
++	CheckI("sv", sv, 1)
++	CheckI("&sv", &sv, 1)
++
++	sp := Tsmallp(2)
++	CheckI("&sp", &sp, 2)
++
++	wv := Twordv(3)
++	CheckI("wv", wv, 3)
++	CheckI("&wv", &wv, 3)
++
++	wp := Twordp(4)
++	CheckI("&wp", &wp, 4)
++
++	bv := Tbigv([2]uintptr{5, 6})
++	CheckI("bv", bv, 11)
++	CheckI("&bv", &bv, 11)
++
++	bp := Tbigp([2]uintptr{7, 8})
++	CheckI("&bp", &bp, 15)
++
++	t4 := Tm4{}
++	t3 := Tm3{&t4}
++	t2 := Tm2{&t3}
++	t1 := Tm1{t2}
++	CheckI("t4", t4, 40)
++	CheckI("&t4", &t4, 40)
++	CheckI("t3", t3, 40)
++	CheckI("&t3", &t3, 40)
++	CheckI("t2", t2, 40)
++	CheckI("&t2", &t2, 40)
++	CheckI("t1", t1, 40)
++	CheckI("&t1", &t1, 40)
++
++	methodShouldPanic := func(name string, i interface{}) {
++		v := ValueOf(i)
++		m := v.Method(0)
++		shouldPanic(func() { m.Call([]Value{ValueOf(1000), ValueOf(byte(99))}) })
++		shouldPanic(func() { m.Interface() })
++
++		v = v.Convert(tinterType)
++		m = v.Method(0)
++		shouldPanic(func() { m.Call([]Value{ValueOf(1000), ValueOf(byte(99))}) })
++		shouldPanic(func() { m.Interface() })
++	}
++
++	_sv := tsmallv(1)
++	methodShouldPanic("_sv", _sv)
++	methodShouldPanic("&_sv", &_sv)
++
++	_sp := tsmallp(2)
++	methodShouldPanic("&_sp", &_sp)
++
++	_wv := twordv(3)
++	methodShouldPanic("_wv", _wv)
++	methodShouldPanic("&_wv", &_wv)
++
++	_wp := twordp(4)
++	methodShouldPanic("&_wp", &_wp)
++
++	_bv := tbigv([2]uintptr{5, 6})
++	methodShouldPanic("_bv", _bv)
++	methodShouldPanic("&_bv", &_bv)
++
++	_bp := tbigp([2]uintptr{7, 8})
++	methodShouldPanic("&_bp", &_bp)
++
++	var tnil Tinter
++	vnil := ValueOf(&tnil).Elem()
++	shouldPanic(func() { vnil.Method(0) })
++}
++
+ func TestInterfaceSet(t *testing.T) {
+ 	p := &Point{3, 4}
+ 
+diff --git a/src/pkg/reflect/asm_386.s b/src/pkg/reflect/asm_386.s
+index 27d3fa21d5..068ab64a62 100644
+--- a/src/pkg/reflect/asm_386.s
++++ b/src/pkg/reflect/asm_386.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+-// See the comment on the declaration of makeFuncStub in value.go
++// See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ TEXT ·makeFuncStub(SB),7,$8
+ 	MOVL	DX, 0(SP)
+@@ -11,3 +11,13 @@ TEXT ·makeFuncStub(SB),7,$8
+ 	MOVL	CX, 4(SP)
+ 	CALL	·callReflect(SB)
+ 	RET
++
++// methodValueCall is the code half of the function returned by makeMethodValue.
++// See the comment on the declaration of methodValueCall in makefunc.go
++// for more details.
++TEXT ·methodValueCall(SB),7,$8
++	MOVL	DX, 0(SP)
++	LEAL	arg+0(FP), CX
++	MOVL	CX, 4(SP)
++	CALL	·callMethod(SB)
++	RET
+diff --git a/src/pkg/reflect/asm_amd64.s b/src/pkg/reflect/asm_amd64.s
+index d51d982a9d..06a593a65f 100644
+--- a/src/pkg/reflect/asm_amd64.s
++++ b/src/pkg/reflect/asm_amd64.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+-// See the comment on the declaration of makeFuncStub in value.go
++// See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ TEXT ·makeFuncStub(SB),7,$16
+ 	MOVQ	DX, 0(SP)
+@@ -11,3 +11,13 @@ TEXT ·makeFuncStub(SB),7,$16
+ 	MOVQ	CX, 8(SP)
+ 	CALL	·callReflect(SB)
+ 	RET
++
++// methodValueCall is the code half of the function returned by makeMethodValue.
++// See the comment on the declaration of methodValueCall in makefunc.go
++// for more details.
++TEXT ·methodValueCall(SB),7,$16
++	MOVQ	DX, 0(SP)
++	LEAQ	arg+0(FP), CX
++	MOVQ	CX, 8(SP)
++	CALL	·callMethod(SB)
++	RET
+diff --git a/src/pkg/reflect/asm_arm.s b/src/pkg/reflect/asm_arm.s
+index db487f8a56..4add1e3211 100644
+--- a/src/pkg/reflect/asm_arm.s
++++ b/src/pkg/reflect/asm_arm.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // makeFuncStub is jumped to by the code generated by MakeFunc.
+-// See the comment on the declaration of makeFuncStub in value.go
++// See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ TEXT ·makeFuncStub(SB),7,$8
+ 	MOVW	R7, 4(R13)
+@@ -11,3 +11,13 @@ TEXT ·makeFuncStub(SB),7,$8
+ 	MOVW	R1, 8(R13)
+ 	BL	·callReflect(SB)
+ 	RET
++
++// methodValueCall is the code half of the function returned by makeMethodValue.
++// See the comment on the declaration of methodValueCall in makefunc.go
++// for more details.
++TEXT ·methodValueCall(SB),7,$8
++	MOVW	R7, 4(R13)
++	MOVW	$arg+0(FP), R1
++	MOVW	R1, 8(R13)
++	BL	·callMethod(SB)
++	RET
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index db047963eb..915afed4cd 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -118,8 +118,6 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) (b bool
+ 		// Normal equality suffices
+ 		return valueInterface(v1, false) == valueInterface(v2, false)
+ 	}
+-
+-	panic("Not reached")
+ }
+ 
+ // DeepEqual tests for deep equality. It uses normal == equality where
+diff --git a/src/pkg/reflect/makefunc.go b/src/pkg/reflect/makefunc.go
+index 024f938f1d..ccdd683a0c 100644
+--- a/src/pkg/reflect/makefunc.go
++++ b/src/pkg/reflect/makefunc.go
+@@ -48,8 +48,8 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+ 	t := typ.common()
+ 	ftyp := (*funcType)(unsafe.Pointer(t))
+ 
+-	// indirect Go func value (dummy) to obtain
+-	// actual code address. (A Go func is a pointer
++	// Indirect Go func value (dummy) to obtain
++	// actual code address. (A Go func value is a pointer
+ 	// to a C function pointer. http://golang.org/s/go11func.)
+ 	dummy := makeFuncStub
+ 	code := **(**uintptr)(unsafe.Pointer(&dummy))
+@@ -65,3 +65,56 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+ // where ctxt is the context register and frame is a pointer to the first
+ // word in the passed-in argument frame.
+ func makeFuncStub()
++
++type methodValue struct {
++	fn     uintptr
++	method int
++	rcvr   Value
++}
++
++// makeMethodValue converts v from the rcvr+method index representation
++// of a method value to an actual method func value, which is
++// basically the receiver value with a special bit set, into a true
++// func value - a value holding an actual func. The output is
++// semantically equivalent to the input as far as the user of package
++// reflect can tell, but the true func representation can be handled
++// by code like Convert and Interface and Assign.
++func makeMethodValue(op string, v Value) Value {
++	if v.flag&flagMethod == 0 {
++		panic("reflect: internal error: invalid use of makePartialFunc")
++	}
++
++	// Ignoring the flagMethod bit, v describes the receiver, not the method type.
++	fl := v.flag & (flagRO | flagAddr | flagIndir)
++	fl |= flag(v.typ.Kind()) << flagKindShift
++	rcvr := Value{v.typ, v.val, fl}
++
++	// v.Type returns the actual type of the method value.
++	funcType := v.Type().(*rtype)
++
++	// Indirect Go func value (dummy) to obtain
++	// actual code address. (A Go func value is a pointer
++	// to a C function pointer. http://golang.org/s/go11func.)
++	dummy := methodValueCall
++	code := **(**uintptr)(unsafe.Pointer(&dummy))
++
++	fv := &methodValue{
++		fn:     code,
++		method: int(v.flag) >> flagMethodShift,
++		rcvr:   rcvr,
++	}
++
++	// Cause panic if method is not appropriate.
++	// The panic would still happen during the call if we omit this,
++	// but we want Interface() and other operations to fail early.
++	methodReceiver(op, fv.rcvr, fv.method)
++
++	return Value{funcType, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)<<flagKindShift}
++}
++
++// methodValueCall is an assembly function that is the code half of
++// the function returned from makeMethodValue. It expects a *methodValue
++// as its context register, and its job is to invoke callMethod(ctxt, frame)
++// where ctxt is the context register and frame is a pointer to the first
++// word in the passed-in argument frame.
++func methodValueCall()
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index c87812c469..5a37204895 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -249,7 +249,7 @@ func (f flag) mustBeExported() {
+ 		panic(&ValueError{methodName(), 0})
+ 	}
+ 	if f&flagRO != 0 {
+-		panic(methodName() + " using value obtained using unexported field")
++		panic("reflect: " + methodName() + " using value obtained using unexported field")
+ 	}
+ }
+ 
+@@ -262,10 +262,10 @@ func (f flag) mustBeAssignable() {
+ 	}
+ 	// Assignable if addressable and not read-only.
+ 	if f&flagRO != 0 {
+-		panic(methodName() + " using value obtained using unexported field")
++		panic("reflect: " + methodName() + " using value obtained using unexported field")
+ 	}
+ 	if f&flagAddr == 0 {
+-		panic(methodName() + " using unaddressable value")
++		panic("reflect: " + methodName() + " using unaddressable value")
+ 	}
+ }
+ 
+@@ -358,7 +358,7 @@ func (v Value) CallSlice(in []Value) []Value {
+ 	return v.call("CallSlice", in)
+ }
+ 
+-func (v Value) call(method string, in []Value) []Value {
++func (v Value) call(op string, in []Value) []Value {
+ 	// Get function pointer, type.
+ 	t := v.typ
+ 	var (
+@@ -366,36 +366,7 @@ func (v Value) call(method string, in []Value) []Value {
+ 		rcvr iword
+ 	)
+ 	if v.flag&flagMethod != 0 {
+-		i := int(v.flag) >> flagMethodShift
+-		if v.typ.Kind() == Interface {
+-			tt := (*interfaceType)(unsafe.Pointer(v.typ))
+-			if i < 0 || i >= len(tt.methods) {
+-				panic("reflect: broken Value")
+-			}
+-			m := &tt.methods[i]
+-			if m.pkgPath != nil {
+-				panic(method + " of unexported method")
+-			}
+-			t = m.typ
+-			iface := (*nonEmptyInterface)(v.val)
+-			if iface.itab == nil {
+-				panic(method + " of method on nil interface value")
+-			}
+-			fn = unsafe.Pointer(&iface.itab.fun[i])
+-			rcvr = iface.word
+-		} else {
+-			ut := v.typ.uncommon()
+-			if ut == nil || i < 0 || i >= len(ut.methods) {
+-				panic("reflect: broken Value")
+-			}
+-			m := &ut.methods[i]
+-			if m.pkgPath != nil {
+-				panic(method + " of unexported method")
+-			}
+-			fn = unsafe.Pointer(&m.ifn)
+-			t = m.mtyp
+-			rcvr = v.iword()
+-		}
++		t, fn, rcvr = methodReceiver(op, v, int(v.flag)>>flagMethodShift)
+ 	} else if v.flag&flagIndir != 0 {
+ 		fn = *(*unsafe.Pointer)(v.val)
+ 	} else {
+@@ -406,7 +377,7 @@ func (v Value) call(method string, in []Value) []Value {
+ 		panic("reflect.Value.Call: call of nil function")
+ 	}
+ 
+-	isSlice := method == "CallSlice"
++	isSlice := op == "CallSlice"
+ 	n := t.NumIn()
+ 	if isSlice {
+ 		if !t.IsVariadic() {
+@@ -431,12 +402,12 @@ func (v Value) call(method string, in []Value) []Value {
+ 	}
+ 	for _, x := range in {
+ 		if x.Kind() == Invalid {
+-			panic("reflect: " + method + " using zero Value argument")
++			panic("reflect: " + op + " using zero Value argument")
+ 		}
+ 	}
+ 	for i := 0; i < n; i++ {
+ 		if xt, targ := in[i].Type(), t.In(i); !xt.AssignableTo(targ) {
+-			panic("reflect: " + method + " using " + xt.String() + " as type " + targ.String())
++			panic("reflect: " + op + " using " + xt.String() + " as type " + targ.String())
+ 		}
+ 	}
+ 	if !isSlice && t.IsVariadic() {
+@@ -447,7 +418,7 @@ func (v Value) call(method string, in []Value) []Value {
+ 		for i := 0; i < m; i++ {
+ 			x := in[n+i]
+ 			if xt := x.Type(); !xt.AssignableTo(elem) {
+-				panic("reflect: cannot use " + xt.String() + " as type " + elem.String() + " in " + method)
++				panic("reflect: cannot use " + xt.String() + " as type " + elem.String() + " in " + op)
+ 			}
+ 			slice.Index(i).Set(x)
+ 		}
+@@ -467,40 +438,11 @@ func (v Value) call(method string, in []Value) []Value {
+ 	// This computation is 5g/6g/8g-dependent
+ 	// and probably wrong for gccgo, but so
+ 	// is most of this function.
+-	size := uintptr(0)
+-	if v.flag&flagMethod != 0 {
+-		// extra word for receiver interface word
+-		size += ptrSize
+-	}
+-	for i := 0; i < nin; i++ {
+-		tv := t.In(i)
+-		a := uintptr(tv.Align())
+-		size = (size + a - 1) &^ (a - 1)
+-		size += tv.Size()
+-	}
+-	size = (size + ptrSize - 1) &^ (ptrSize - 1)
+-	for i := 0; i < nout; i++ {
+-		tv := t.Out(i)
+-		a := uintptr(tv.Align())
+-		size = (size + a - 1) &^ (a - 1)
+-		size += tv.Size()
+-	}
+-
+-	// size must be > 0 in order for &args[0] to be valid.
+-	// the argument copying is going to round it up to
+-	// a multiple of ptrSize anyway, so make it ptrSize to begin with.
+-	if size < ptrSize {
+-		size = ptrSize
+-	}
+-
+-	// round to pointer size
+-	size = (size + ptrSize - 1) &^ (ptrSize - 1)
++	size, _, _, _ := frameSize(t, v.flag&flagMethod != 0)
+ 
+ 	// Copy into args.
+ 	//
+-	// TODO(rsc): revisit when reference counting happens.
+-	// The values are holding up the in references for us,
+-	// but something must be done for the out references.
++	// TODO(rsc): This will need to be updated for any new garbage collector.
+ 	// For now make everything look like a pointer by allocating
+ 	// a []unsafe.Pointer.
+ 	args := make([]unsafe.Pointer, size/ptrSize)
+@@ -616,6 +558,119 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
+ 	}
+ }
+ 
++// methodReceiver returns information about the receiver
++// described by v. The Value v may or may not have the
++// flagMethod bit set, so the kind cached in v.flag should
++// not be used.
++func methodReceiver(op string, v Value, methodIndex int) (t *rtype, fn unsafe.Pointer, rcvr iword) {
++	i := methodIndex
++	if v.typ.Kind() == Interface {
++		tt := (*interfaceType)(unsafe.Pointer(v.typ))
++		if i < 0 || i >= len(tt.methods) {
++			panic("reflect: internal error: invalid method index")
++		}
++		m := &tt.methods[i]
++		if m.pkgPath != nil {
++			panic("reflect: " + op + " of unexported method")
++		}
++		t = m.typ
++		iface := (*nonEmptyInterface)(v.val)
++		if iface.itab == nil {
++			panic("reflect: " + op + " of method on nil interface value")
++		}
++		fn = unsafe.Pointer(&iface.itab.fun[i])
++		rcvr = iface.word
++	} else {
++		ut := v.typ.uncommon()
++		if ut == nil || i < 0 || i >= len(ut.methods) {
++			panic("reflect: internal error: invalid method index")
++		}
++		m := &ut.methods[i]
++		if m.pkgPath != nil {
++			panic("reflect: " + op + " of unexported method")
++		}
++		fn = unsafe.Pointer(&m.ifn)
++		t = m.mtyp
++		rcvr = v.iword()
++	}
++	return
++}
++
++// align returns the result of rounding x up to a multiple of n.
++// n must be a power of two.
++func align(x, n uintptr) uintptr {
++	return (x + n - 1) &^ (n - 1)
++}
++
++// frameSize returns the sizes of the argument and result frame
++// for a function of the given type. The rcvr bool specifies whether
++// a one-word receiver should be included in the total.
++func frameSize(t *rtype, rcvr bool) (total, in, outOffset, out uintptr) {
++	if rcvr {
++		// extra word for receiver interface word
++		total += ptrSize
++	}
++
++	nin := t.NumIn()
++	in = -total
++	for i := 0; i < nin; i++ {
++		tv := t.In(i)
++		total = align(total, uintptr(tv.Align()))
++		total += tv.Size()
++	}
++	in += total
++	total = align(total, ptrSize)
++	nout := t.NumOut()
++	outOffset = total
++	out = -total
++	for i := 0; i < nout; i++ {
++		tv := t.Out(i)
++		total = align(total, uintptr(tv.Align()))
++		total += tv.Size()
++	}
++	out += total
++
++	// total must be > 0 in order for &args[0] to be valid.
++	// the argument copying is going to round it up to
++	// a multiple of ptrSize anyway, so make it ptrSize to begin with.
++	if total < ptrSize {
++		total = ptrSize
++	}
++
++	// round to pointer
++	total = align(total, ptrSize)
++
++	return
++}
++
++// callMethod is the call implementation used by a function returned
++// by makeMethodValue (used by v.Method(i).Interface()).
++// It is a streamlined version of the usual reflect call: the caller has
++// already laid out the argument frame for us, so we don't have
++// to deal with individual Values for each argument.
++// It is in this file so that it can be next to the two similar functions above.
++// The remainder of the makeMethodValue implementation is in makefunc.go.
++func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
++	t, fn, rcvr := methodReceiver("call", ctxt.rcvr, ctxt.method)
++	total, in, outOffset, out := frameSize(t, true)
++
++	// Copy into args.
++	//
++	// TODO(rsc): This will need to be updated for any new garbage collector.
++	// For now make everything look like a pointer by allocating
++	// a []unsafe.Pointer.
++	args := make([]unsafe.Pointer, total/ptrSize)
++	args[0] = unsafe.Pointer(rcvr)
++	base := unsafe.Pointer(&args[0])
++	memmove(unsafe.Pointer(uintptr(base)+ptrSize), frame, in)
++
++	// Call.
++	call(fn, unsafe.Pointer(&args[0]), uint32(total))
++
++	// Copy return values.
++	memmove(unsafe.Pointer(uintptr(frame)+outOffset-ptrSize), unsafe.Pointer(uintptr(base)+outOffset), out)
++}
++
+ // funcName returns the name of f, for use in error messages.
+ func funcName(f func([]Value) []Value) string {
+ 	pc := *(*uintptr)(unsafe.Pointer(&f))
+@@ -902,7 +957,7 @@ func (v Value) CanInterface() bool {
+ 	if v.flag == 0 {
+ 		panic(&ValueError{"reflect.Value.CanInterface", Invalid})
+ 	}
+-	return v.flag&(flagMethod|flagRO) == 0
++	return v.flag&flagRO == 0
+ }
+ 
+ // Interface returns v's current value as an interface{}.
+@@ -921,16 +976,15 @@ func valueInterface(v Value, safe bool) interface{} {
+ 	if v.flag == 0 {
+ 		panic(&ValueError{"reflect.Value.Interface", 0})
+ 	}
+-	if v.flag&flagMethod != 0 {
+-		panic("reflect.Value.Interface: cannot create interface value for method with bound receiver")
+-	}
+-
+ 	if safe && v.flag&flagRO != 0 {
+ 		// Do not allow access to unexported values via Interface,
+ 		// because they might be pointers that should not be
+ 		// writable or methods or function that should not be callable.
+ 		panic("reflect.Value.Interface: cannot return value obtained from unexported field or method")
+ 	}
++	if v.flag&flagMethod != 0 {
++		v = makeMethodValue("Interface", v)
++	}
+ 
+ 	k := v.kind()
+ 	if k == Interface {
+@@ -981,7 +1035,7 @@ func (v Value) IsNil() bool {
+ 	switch k {
+ 	case Chan, Func, Map, Ptr:
+ 		if v.flag&flagMethod != 0 {
+-			panic("reflect: IsNil of method Value")
++			return false
+ 		}
+ 		ptr := v.val
+ 		if v.flag&flagIndir != 0 {
+@@ -1100,7 +1154,7 @@ func (v Value) MapKeys() []Value {
+ // Method returns a function value corresponding to v's i'th method.
+ // The arguments to a Call on the returned function should not include
+ // a receiver; the returned function will always use v as the receiver.
+-// Method panics if i is out of range.
++// Method panics if i is out of range or if v is a nil interface value.
+ func (v Value) Method(i int) Value {
+ 	if v.typ == nil {
+ 		panic(&ValueError{"reflect.Value.Method", Invalid})
+@@ -1108,7 +1162,10 @@ func (v Value) Method(i int) Value {
+ 	if v.flag&flagMethod != 0 || i < 0 || i >= v.typ.NumMethod() {
+ 		panic("reflect: Method index out of range")
+ 	}
+-	fl := v.flag & (flagRO | flagAddr | flagIndir)
++	if v.typ.Kind() == Interface && v.IsNil() {
++		panic("reflect: Method on nil interface value")
++	}
++	fl := v.flag & (flagRO | flagIndir)
+ 	fl |= flag(Func) << flagKindShift
+ 	fl |= flag(i)<<flagMethodShift | flagMethod
+ 	return Value{v.typ, v.val, fl}
+@@ -1232,7 +1289,14 @@ func (v Value) Pointer() uintptr {
+ 		return uintptr(p)
+ 	case Func:
+ 		if v.flag&flagMethod != 0 {
+-			panic("reflect.Value.Pointer of method Value")
++			// As the doc comment says, the returned pointer is an
++			// underlying code pointer but not necessarily enough to
++			// identify a single function uniquely. All method expressions
++			// created via reflect have the same underlying code pointer,
++			// so their Pointers are equal. The function used here must
++			// match the one used in makeMethodValue.
++			f := methodValueCall
++			return **(**uintptr)(unsafe.Pointer(&f))
+ 		}
+ 		p := v.val
+ 		if v.flag&flagIndir != 0 {
+@@ -1267,7 +1331,7 @@ func (v Value) Recv() (x Value, ok bool) {
+ func (v Value) recv(nb bool) (val Value, ok bool) {
+ 	tt := (*chanType)(unsafe.Pointer(v.typ))
+ 	if ChanDir(tt.dir)&RecvDir == 0 {
+-		panic("recv on send-only channel")
++		panic("reflect: recv on send-only channel")
+ 	}
+ 	word, selected, ok := chanrecv(v.typ, v.iword(), nb)
+ 	if selected {
+@@ -1295,7 +1359,7 @@ func (v Value) Send(x Value) {
+ func (v Value) send(x Value, nb bool) (selected bool) {
+ 	tt := (*chanType)(unsafe.Pointer(v.typ))
+ 	if ChanDir(tt.dir)&SendDir == 0 {
+-		panic("send on recv-only channel")
++		panic("reflect: send on recv-only channel")
+ 	}
+ 	x.mustBeExported()
+ 	x = x.assignTo("reflect.Value.Send", tt.elem, nil)
+@@ -1578,7 +1642,7 @@ func (v Value) Type() Type {
+ 		// Method on interface.
+ 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
+ 		if i < 0 || i >= len(tt.methods) {
+-			panic("reflect: broken Value")
++			panic("reflect: internal error: invalid method index")
+ 		}
+ 		m := &tt.methods[i]
+ 		return m.typ
+@@ -1586,7 +1650,7 @@ func (v Value) Type() Type {
+ 	// Method on concrete type.
+ 	ut := v.typ.uncommon()
+ 	if ut == nil || i < 0 || i >= len(ut.methods) {
+-		panic("reflect: broken Value")
++		panic("reflect: internal error: invalid method index")
+ 	}
+ 	m := &ut.methods[i]
+ 	return m.mtyp
+@@ -2030,7 +2094,7 @@ func NewAt(typ Type, p unsafe.Pointer) Value {
+ // For a conversion to an interface type, target is a suggested scratch space to use.
+ func (v Value) assignTo(context string, dst *rtype, target *interface{}) Value {
+ 	if v.flag&flagMethod != 0 {
+-		panic(context + ": cannot assign method value to type " + dst.String())
++		v = makeMethodValue(context, v)
+ 	}
+ 
+ 	switch {
+@@ -2064,7 +2128,7 @@ func (v Value) assignTo(context string, dst *rtype, target *interface{}) Value {
+ // of the value v to type t, Convert panics.
+ func (v Value) Convert(t Type) Value {
+ 	if v.flag&flagMethod != 0 {
+-		panic("reflect.Value.Convert: cannot convert method values")
++		v = makeMethodValue("Convert", v)
+ 	}
+ 	op := convertOp(t.common(), v.typ)
+ 	if op == nil {

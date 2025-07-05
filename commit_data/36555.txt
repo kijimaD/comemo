@@ -41,6 +41,27 @@ Date:   Sat May 5 20:17:49 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/text/tabwriter/tabwriter_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/text/tabwriter/tabwriter_test.go b/src/text/tabwriter/tabwriter_test.go
+index ebcad5e34f..2dddd5233c 100644
+--- a/src/text/tabwriter/tabwriter_test.go
++++ b/src/text/tabwriter/tabwriter_test.go
+@@ -701,6 +701,7 @@ func BenchmarkPyramid(b *testing.B) {
+ 				// Write increasing prefixes of that line.
+ 				for j := 0; j < x; j++ {
+ 					w.Write(line[:j*2])
++					w.Write([]byte{'\n'})
+ 				}
+ 				w.Flush()
+ 			}
+@@ -723,6 +724,7 @@ func BenchmarkRagged(b *testing.B) {
+ 				// Write the lines in turn h times.
+ 				for j := 0; j < h; j++ {
+ 					w.Write(lines[j%len(lines)])
++					w.Write([]byte{'\n'})
+ 				}
+ 				w.Flush()
+ 			}

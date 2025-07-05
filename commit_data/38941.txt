@@ -28,7 +28,7 @@ Date:   Mon Dec 10 15:02:38 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go               | 17 +++++-----
  src/cmd/go/internal/modload/build.go          | 36 ++++++++++++--------
  src/cmd/go/internal/modload/init.go           |  2 +-
@@ -37,3 +37,257 @@ Date:   Mon Dec 10 15:02:38 2018 -0500
  src/cmd/go/testdata/script/mod_outside.txt    | 12 ++++---
  src/cmd/go/testdata/script/mod_test_files.txt | 49 +++++++++++++++++++++++++++
  7 files changed, 91 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 616adcc57a..228be07f24 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -997,10 +997,12 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
+ 	} else {
+ 		// p is in a module, so make it available based on the importer's import path instead
+ 		// of the file path (https://golang.org/issue/23970).
+-		if importerPath == "." {
++		if importer.Internal.CmdlineFiles {
+ 			// The importer is a list of command-line files.
+ 			// Pretend that the import path is the import path of the
+ 			// directory containing them.
++			// If the directory is outside the main module, this will resolve to ".",
++			// which is not a prefix of any valid module.
+ 			importerPath = ModDirImportPath(importer.Dir)
+ 		}
+ 		parentOfInternal := p.ImportPath[:i]
+@@ -1515,11 +1517,13 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	}
+ 
+ 	if cfg.ModulesEnabled {
+-		if !p.Internal.CmdlineFiles {
+-			p.Module = ModPackageModuleInfo(p.ImportPath)
++		mainPath := p.ImportPath
++		if p.Internal.CmdlineFiles {
++			mainPath = "command-line-arguments"
+ 		}
++		p.Module = ModPackageModuleInfo(mainPath)
+ 		if p.Name == "main" {
+-			p.Internal.BuildInfo = ModPackageBuildInfo(p.ImportPath, p.Deps)
++			p.Internal.BuildInfo = ModPackageBuildInfo(mainPath, p.Deps)
+ 		}
+ 	}
+ }
+@@ -1986,11 +1990,6 @@ func GoFilesPackage(gofiles []string) *Package {
+ 	}
+ 
+ 	bp, err := ctxt.ImportDir(dir, 0)
+-	if ModDirImportPath != nil {
+-		// Use the effective import path of the directory
+-		// for deciding visibility during pkg.load.
+-		bp.ImportPath = ModDirImportPath(dir)
+-	}
+ 	pkg := new(Package)
+ 	pkg.Internal.Local = true
+ 	pkg.Internal.CmdlineFiles = true
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index b4856a9419..efeb7a5fd5 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -17,6 +17,7 @@ import (
+ 	"internal/goroot"
+ 	"os"
+ 	"path/filepath"
++	"runtime/debug"
+ 	"strings"
+ )
+ 
+@@ -98,11 +99,13 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 			Path:    m.Path,
+ 			Version: m.Version,
+ 			Main:    true,
+-			Dir:     ModRoot(),
+-			GoMod:   filepath.Join(ModRoot(), "go.mod"),
+ 		}
+-		if modFile.Go != nil {
+-			info.GoVersion = modFile.Go.Version
++		if HasModRoot() {
++			info.Dir = ModRoot()
++			info.GoMod = filepath.Join(info.Dir, "go.mod")
++			if modFile.Go != nil {
++				info.GoVersion = modFile.Go.Version
++			}
+ 		}
+ 		return info
+ 	}
+@@ -184,6 +187,7 @@ func PackageBuildInfo(path string, deps []string) string {
+ 	if isStandardImportPath(path) || !Enabled() {
+ 		return ""
+ 	}
++
+ 	target := findModule(path, path)
+ 	mdeps := make(map[module.Version]bool)
+ 	for _, dep := range deps {
+@@ -223,19 +227,23 @@ func PackageBuildInfo(path string, deps []string) string {
+ 	return buf.String()
+ }
+ 
++// findModule returns the module containing the package at path,
++// needed to build the package at target.
+ func findModule(target, path string) module.Version {
+-	// TODO: This should use loaded.
+-	if path == "." {
+-		return buildList[0]
++	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
++	if ok {
++		if pkg.err != nil {
++			base.Fatalf("build %v: cannot load %v: %v", target, path, pkg.err)
++		}
++		return pkg.mod
+ 	}
+-	if cfg.BuildMod == "vendor" {
+-		readVendorList()
+-		return vendorMap[path]
++
++	if path == "command-line-arguments" {
++		return Target
+ 	}
+-	for _, mod := range buildList {
+-		if maybeInModule(path, mod.Path) {
+-			return mod
+-		}
++
++	if printStackInDie {
++		debug.PrintStack()
+ 	}
+ 	base.Fatalf("build %v: cannot find module for path %v", target, path)
+ 	panic("unreachable")
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 97c48be00e..22d14ccce7 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -314,7 +314,7 @@ func InitMod() {
+ 
+ 	Init()
+ 	if modRoot == "" {
+-		Target = module.Version{Path: "main"}
++		Target = module.Version{Path: "command-line-arguments"}
+ 		buildList = []module.Version{Target}
+ 		return
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_enabled.txt b/src/cmd/go/testdata/script/mod_enabled.txt
+index 1de4719d53..ab5ee3d6df 100644
+--- a/src/cmd/go/testdata/script/mod_enabled.txt
++++ b/src/cmd/go/testdata/script/mod_enabled.txt
+@@ -39,8 +39,8 @@ stdout z[/\\]go.mod
+ cd $GOPATH/src/x/y
+ go env GOMOD
+ stdout 'NUL|/dev/null'
+-! go list -m
+-stderr 'cannot find main module'
++go list -m
++stdout '^command-line-arguments$'
+ 
+ cd $GOPATH/foo
+ go env GOMOD
+diff --git a/src/cmd/go/testdata/script/mod_get_svn.txt b/src/cmd/go/testdata/script/mod_get_svn.txt
+index ad96fa1357..b3436284af 100644
+--- a/src/cmd/go/testdata/script/mod_get_svn.txt
++++ b/src/cmd/go/testdata/script/mod_get_svn.txt
+@@ -10,8 +10,7 @@ env GOPROXY=direct # obtain llvm.org directory, not via svn.
+ ! go get -d llvm.org/llvm/bindings/go/llvm
+ stderr 'ReadZip not implemented for svn'
+ ! go install .
+-# TODO(bcmills): The error message here should mention ReadZip.
+-stderr 'cannot find module for path llvm.org'
++stderr 'ReadZip not implemented for svn'
+ 
+ -- go.mod --
+ module golang/go/issues/28943/main
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 25013b6271..db994a1656 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -12,8 +12,8 @@ stdout 'NUL|/dev/null'
+ # which is not in a module.
+ ! go list
+ stderr 'cannot find main module'
+-! go list -m
+-stderr 'cannot find main module'
++go list -m
++stdout '^command-line-arguments$'
+ # 'go list' in the working directory should fail even if there is a a 'package
+ # main' present: without a main module, we do not know its package path.
+ ! go list ./foo
+@@ -148,6 +148,10 @@ stderr 'no such package'
+ stderr 'can only use path@version syntax with'
+ 
+ 
++# 'go fmt' should be able to format files outside of a module.
++go fmt foo/foo.go
++
++
+ # The remainder of the test checks dependencies by linking and running binaries.
+ [short] stop
+ 
+@@ -185,8 +189,8 @@ stdout 'using example.com/version v1.0.0'
+ 
+ # 'go run' should use 'main' as the effective module and import path.
+ go run ./foo/foo.go
+-stdout 'path is \.$'
+-stdout 'main is main \(devel\)'
++stdout 'path is command-line-arguments$'
++stdout 'main is command-line-arguments \(devel\)'
+ stdout 'using example.com/version v1.1.0'
+ 
+ # 'go generate' should work with file arguments.
+diff --git a/src/cmd/go/testdata/script/mod_test_files.txt b/src/cmd/go/testdata/script/mod_test_files.txt
+new file mode 100644
+index 0000000000..87aecb44f6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_test_files.txt
+@@ -0,0 +1,49 @@
++env GO111MODULE=on
++
++cd foo
++
++# Testing an explicit source file should use the same import visibility as the
++# package in the same directory.
++go list -test -deps
++go list -test -deps foo_test.go
++
++# If the file is inside the main module's vendor directory, it should have
++# visibility based on the vendor-relative import path.
++mkdir vendor/example.com/foo
++cp foo_test.go vendor/example.com/foo
++go list -test -deps vendor/example.com/foo/foo_test.go
++
++# If the file is outside the main module entirely, it should be treated as outside.
++cp foo_test.go ../foo_test.go
++! go list -test -deps ../foo_test.go
++stderr 'use of internal package'
++
++-- foo/go.mod --
++module example.com/foo
++require example.com/internal v0.0.0
++replace example.com/internal => ../internal
++
++-- foo/internal.go --
++package foo
++import _ "example.com/internal"
++
++-- foo/foo_test.go --
++package foo_test
++
++import (
++	"testing"
++	"example.com/internal"
++)
++
++func TestHacksEnabled(t *testing.T) {
++	if !internal.Hacks {
++		t.Fatal("hacks not enabled")
++	}
++}
++
++-- internal/go.mod --
++module example.com/internal
++
++-- internal/internal.go --
++package internal
++const Hacks = true

@@ -15,7 +15,60 @@ Date:   Mon Apr 29 16:34:34 2019 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go   | 16 ++++++++++++++--
  src/cmd/link/internal/ld/xcoff.go |  5 +----
  2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d6555a5633..a3f84dd008 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2265,11 +2265,23 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 		}
+ 	}
+ 
+-	for _, s := range ctxt.Syms.Allsym {
++	shouldBeInSymbolTable := func(s *sym.Symbol) bool {
+ 		if s.Attr.NotInSymbolTable() {
+-			continue
++			return false
++		}
++		if ctxt.HeadType == objabi.Haix && s.Name == ".go.buildinfo" {
++			// On AIX, .go.buildinfo must be in the symbol table as
++			// it has relocations.
++			return true
+ 		}
+ 		if (s.Name == "" || s.Name[0] == '.') && !s.IsFileLocal() && s.Name != ".rathole" && s.Name != ".TOC." {
++			return false
++		}
++		return true
++	}
++
++	for _, s := range ctxt.Syms.Allsym {
++		if !shouldBeInSymbolTable(s) {
+ 			continue
+ 		}
+ 		switch s.Type {
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 7fcd8a3c97..67e558a475 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -513,16 +513,13 @@ func (f *xcoffFile) getXCOFFscnum(sect *sym.Section) int16 {
+ 	case &Segtext:
+ 		return f.sectNameToScnum[".text"]
+ 	case &Segdata:
+-		if sect.Name == ".noptrdata" || sect.Name == ".data" {
+-			return f.sectNameToScnum[".data"]
+-		}
+ 		if sect.Name == ".noptrbss" || sect.Name == ".bss" {
+ 			return f.sectNameToScnum[".bss"]
+ 		}
+ 		if sect.Name == ".tbss" {
+ 			return f.sectNameToScnum[".tbss"]
+ 		}
+-		Errorf(nil, "unknown XCOFF segment data section: %s", sect.Name)
++		return f.sectNameToScnum[".data"]
+ 	case &Segdwarf:
+ 		name, _ := xcoffGetDwarfSubtype(sect.Name)
+ 		return f.sectNameToScnum[name]

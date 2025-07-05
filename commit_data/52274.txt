@@ -17,7 +17,53 @@ Date:   Tue Apr 12 15:17:18 2022 -0400
     Auto-Submit: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go                       | 8 +++++---
  src/cmd/go/testdata/script/work_module_not_in_go_work.txt | 6 ++++--
  2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index e85a33dd50..7f1a88ffe7 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -605,11 +605,13 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
+ 
+ 	pkg := pathInModuleCache(ctx, absDir, rs)
+ 	if pkg == "" {
+-		scope := "main module or its selected dependencies"
+ 		if inWorkspaceMode() {
+-			scope = "modules listed in go.work or their selected dependencies"
++			if mr := findModuleRoot(absDir); mr != "" {
++				return "", fmt.Errorf("directory %s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using go work use %s", base.ShortPath(absDir), base.ShortPath(mr))
++			}
++			return "", fmt.Errorf("directory %s outside modules listed in go.work or their selected dependencies", base.ShortPath(absDir))
+ 		}
+-		return "", fmt.Errorf("directory %s outside %s", base.ShortPath(absDir), scope)
++		return "", fmt.Errorf("directory %s outside main module or its selected dependencies", base.ShortPath(absDir))
+ 	}
+ 	return pkg, nil
+ }
+diff --git a/src/cmd/go/testdata/script/work_module_not_in_go_work.txt b/src/cmd/go/testdata/script/work_module_not_in_go_work.txt
+index 23d908c302..9109b2de7f 100644
+--- a/src/cmd/go/testdata/script/work_module_not_in_go_work.txt
++++ b/src/cmd/go/testdata/script/work_module_not_in_go_work.txt
+@@ -6,8 +6,8 @@
+ ! go list ./...
+ stderr 'pattern ./...: directory prefix . does not contain modules listed in go.work or their selected dependencies'
+ 
+-! go list ./a
+-stderr 'directory a outside modules listed in go.work'
++! go list ./a/c
++stderr 'directory a[\\/]c is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using go work use a'
+ 
+ -- go.work --
+ go 1.18
+@@ -19,6 +19,8 @@ module example.com/a
+ go 1.18
+ -- a/a.go --
+ package a
++-- a/c/c.go --
++package c
+ -- b/go.mod --
+ module example.com/b
+ 

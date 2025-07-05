@@ -12,6 +12,20 @@ Date:   Sat Mar 9 04:09:45 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/time/sleep_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 3339799f1d..7bad49f413 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -259,7 +259,7 @@ func BenchmarkReset(b *testing.B) {
+ 			t.Stop()
+ 		})
+ 	})
+-	b.Run("impl=chan", func(b *testing.B) {
++	b.Run("impl=func", func(b *testing.B) {
+ 		benchmark(b, func(n int) {
+ 			t := newTimerFunc(Hour)
+ 			for i := 0; i < n; i++ {

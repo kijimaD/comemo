@@ -12,6 +12,21 @@ Date:   Fri Mar 12 12:12:48 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/299709
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/doc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 46d4722086..b68ef274f3 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -83,7 +83,8 @@ Flags:
+ 		Without this flag, the -o output is a combination of both
+ 		linker and compiler input.
+ 	-m
+-		Print optimization decisions.
++		Print optimization decisions. Higher values or repetition
++		produce more detail.
+ 	-memprofile file
+ 		Write memory profile for the compilation to file.
+ 	-memprofilerate rate

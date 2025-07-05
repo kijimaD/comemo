@@ -14,7 +14,7 @@ Date:   Fri Feb 8 17:48:17 2019 +0100
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/build/deps_test.go                 |    2 +
  src/internal/reflectlite/all_test.go      | 1046 +++++++++++++++++++++++++++++
  src/internal/reflectlite/asm.s            |    5 +
@@ -28,3 +28,2846 @@ Date:   Fri Feb 8 17:48:17 2019 +0100
  src/runtime/mbarrier.go                   |    5 +
  src/runtime/runtime1.go                   |   12 +
  12 files changed, 2737 insertions(+)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 9d6d038dab..3bf4b7acfa 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -46,6 +46,7 @@ var pkgDeps = map[string][]string{
+ 	"unsafe":                  {},
+ 	"internal/cpu":            {},
+ 	"internal/bytealg":        {"unsafe", "internal/cpu"},
++	"internal/reflectlite":    {"runtime", "unsafe"},
+ 
+ 	"L0": {
+ 		"errors",
+@@ -57,6 +58,7 @@ var pkgDeps = map[string][]string{
+ 		"unsafe",
+ 		"internal/cpu",
+ 		"internal/bytealg",
++		"internal/reflectlite",
+ 	},
+ 
+ 	// L1 adds simple functions and strings processing,
+diff --git a/src/internal/reflectlite/all_test.go b/src/internal/reflectlite/all_test.go
+new file mode 100644
+index 0000000000..e2c4f30487
+--- /dev/null
++++ b/src/internal/reflectlite/all_test.go
+@@ -0,0 +1,1046 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reflectlite_test
++
++import (
++	"encoding/base64"
++	"fmt"
++	. "internal/reflectlite"
++	"math"
++	"reflect"
++	"runtime"
++	"testing"
++	"unsafe"
++)
++
++func ToValue(v Value) reflect.Value {
++	return reflect.ValueOf(ToInterface(v))
++}
++
++func TypeString(t Type) string {
++	return fmt.Sprintf("%T", ToInterface(Zero(t)))
++}
++
++type integer int
++type T struct {
++	a int
++	b float64
++	c string
++	d *int
++}
++
++type pair struct {
++	i interface{}
++	s string
++}
++
++func assert(t *testing.T, s, want string) {
++	t.Helper()
++	if s != want {
++		t.Errorf("have %#q want %#q", s, want)
++	}
++}
++
++var typeTests = []pair{
++	{struct{ x int }{}, "int"},
++	{struct{ x int8 }{}, "int8"},
++	{struct{ x int16 }{}, "int16"},
++	{struct{ x int32 }{}, "int32"},
++	{struct{ x int64 }{}, "int64"},
++	{struct{ x uint }{}, "uint"},
++	{struct{ x uint8 }{}, "uint8"},
++	{struct{ x uint16 }{}, "uint16"},
++	{struct{ x uint32 }{}, "uint32"},
++	{struct{ x uint64 }{}, "uint64"},
++	{struct{ x float32 }{}, "float32"},
++	{struct{ x float64 }{}, "float64"},
++	{struct{ x int8 }{}, "int8"},
++	{struct{ x (**int8) }{}, "**int8"},
++	{struct{ x (**integer) }{}, "**reflectlite_test.integer"},
++	{struct{ x ([32]int32) }{}, "[32]int32"},
++	{struct{ x ([]int8) }{}, "[]int8"},
++	{struct{ x (map[string]int32) }{}, "map[string]int32"},
++	{struct{ x (chan<- string) }{}, "chan<- string"},
++	{struct {
++		x struct {
++			c chan *int32
++			d float32
++		}
++	}{},
++		"struct { c chan *int32; d float32 }",
++	},
++	{struct{ x (func(a int8, b int32)) }{}, "func(int8, int32)"},
++	{struct {
++		x struct {
++			c func(chan *integer, *int8)
++		}
++	}{},
++		"struct { c func(chan *reflectlite_test.integer, *int8) }",
++	},
++	{struct {
++		x struct {
++			a int8
++			b int32
++		}
++	}{},
++		"struct { a int8; b int32 }",
++	},
++	{struct {
++		x struct {
++			a int8
++			b int8
++			c int32
++		}
++	}{},
++		"struct { a int8; b int8; c int32 }",
++	},
++	{struct {
++		x struct {
++			a int8
++			b int8
++			c int8
++			d int32
++		}
++	}{},
++		"struct { a int8; b int8; c int8; d int32 }",
++	},
++	{struct {
++		x struct {
++			a int8
++			b int8
++			c int8
++			d int8
++			e int32
++		}
++	}{},
++		"struct { a int8; b int8; c int8; d int8; e int32 }",
++	},
++	{struct {
++		x struct {
++			a int8
++			b int8
++			c int8
++			d int8
++			e int8
++			f int32
++		}
++	}{},
++		"struct { a int8; b int8; c int8; d int8; e int8; f int32 }",
++	},
++	{struct {
++		x struct {
++			a int8 `reflect:"hi there"`
++		}
++	}{},
++		`struct { a int8 "reflect:\"hi there\"" }`,
++	},
++	{struct {
++		x struct {
++			a int8 `reflect:"hi \x00there\t\n\"\\"`
++		}
++	}{},
++		`struct { a int8 "reflect:\"hi \\x00there\\t\\n\\\"\\\\\"" }`,
++	},
++	{struct {
++		x struct {
++			f func(args ...int)
++		}
++	}{},
++		"struct { f func(...int) }",
++	},
++	// {struct {
++	// 	x (interface {
++	// 		a(func(func(int) int) func(func(int)) int)
++	// 		b()
++	// 	})
++	// }{},
++	// 	"interface { reflectlite_test.a(func(func(int) int) func(func(int)) int); reflectlite_test.b() }",
++	// },
++	{struct {
++		x struct {
++			int32
++			int64
++		}
++	}{},
++		"struct { int32; int64 }",
++	},
++}
++
++var valueTests = []pair{
++	{new(int), "132"},
++	{new(int8), "8"},
++	{new(int16), "16"},
++	{new(int32), "32"},
++	{new(int64), "64"},
++	{new(uint), "132"},
++	{new(uint8), "8"},
++	{new(uint16), "16"},
++	{new(uint32), "32"},
++	{new(uint64), "64"},
++	{new(float32), "256.25"},
++	{new(float64), "512.125"},
++	{new(complex64), "532.125+10i"},
++	{new(complex128), "564.25+1i"},
++	{new(string), "stringy cheese"},
++	{new(bool), "true"},
++	{new(*int8), "*int8(0)"},
++	{new(**int8), "**int8(0)"},
++	{new([5]int32), "[5]int32{0, 0, 0, 0, 0}"},
++	{new(**integer), "**reflectlite_test.integer(0)"},
++	{new(map[string]int32), "map[string]int32{<can't iterate on maps>}"},
++	{new(chan<- string), "chan<- string"},
++	{new(func(a int8, b int32)), "func(int8, int32)(arg)"},
++	{new(struct {
++		c chan *int32
++		d float32
++	}),
++		"struct { c chan *int32; d float32 }{chan *int32, 0}",
++	},
++	{new(struct{ c func(chan *integer, *int8) }),
++		"struct { c func(chan *reflectlite_test.integer, *int8) }{func(chan *reflectlite_test.integer, *int8)(arg)}",
++	},
++	{new(struct {
++		a int8
++		b int32
++	}),
++		"struct { a int8; b int32 }{0, 0}",
++	},
++	{new(struct {
++		a int8
++		b int8
++		c int32
++	}),
++		"struct { a int8; b int8; c int32 }{0, 0, 0}",
++	},
++}
++
++func testType(t *testing.T, i int, typ Type, want string) {
++	s := TypeString(typ)
++	if s != want {
++		t.Errorf("#%d: have %#q, want %#q", i, s, want)
++	}
++}
++
++func testReflectType(t *testing.T, i int, typ Type, want string) {
++	s := TypeString(typ)
++	if s != want {
++		t.Errorf("#%d: have %#q, want %#q", i, s, want)
++	}
++}
++
++func TestTypes(t *testing.T) {
++	for i, tt := range typeTests {
++		testReflectType(t, i, Field(ValueOf(tt.i), 0).Type(), tt.s)
++	}
++}
++
++func TestSetValue(t *testing.T) {
++	for i, tt := range valueTests {
++		v := ValueOf(tt.i).Elem()
++		switch v.Kind() {
++		case Int:
++			v.Set(ValueOf(int(132)))
++		case Int8:
++			v.Set(ValueOf(int8(8)))
++		case Int16:
++			v.Set(ValueOf(int16(16)))
++		case Int32:
++			v.Set(ValueOf(int32(32)))
++		case Int64:
++			v.Set(ValueOf(int64(64)))
++		case Uint:
++			v.Set(ValueOf(uint(132)))
++		case Uint8:
++			v.Set(ValueOf(uint8(8)))
++		case Uint16:
++			v.Set(ValueOf(uint16(16)))
++		case Uint32:
++			v.Set(ValueOf(uint32(32)))
++		case Uint64:
++			v.Set(ValueOf(uint64(64)))
++		case Float32:
++			v.Set(ValueOf(float32(256.25)))
++		case Float64:
++			v.Set(ValueOf(512.125))
++		case Complex64:
++			v.Set(ValueOf(complex64(532.125 + 10i)))
++		case Complex128:
++			v.Set(ValueOf(complex128(564.25 + 1i)))
++		case String:
++			v.Set(ValueOf("stringy cheese"))
++		case Bool:
++			v.Set(ValueOf(true))
++		}
++		s := valueToString(v)
++		if s != tt.s {
++			t.Errorf("#%d: have %#q, want %#q", i, s, tt.s)
++		}
++	}
++}
++
++func TestCanSetField(t *testing.T) {
++	type embed struct{ x, X int }
++	type Embed struct{ x, X int }
++	type S1 struct {
++		embed
++		x, X int
++	}
++	type S2 struct {
++		*embed
++		x, X int
++	}
++	type S3 struct {
++		Embed
++		x, X int
++	}
++	type S4 struct {
++		*Embed
++		x, X int
++	}
++
++	type testCase struct {
++		index  []int
++		canSet bool
++	}
++	tests := []struct {
++		val   Value
++		cases []testCase
++	}{{
++		val: ValueOf(&S1{}),
++		cases: []testCase{
++			{[]int{0}, false},
++			{[]int{0, 0}, false},
++			{[]int{0, 1}, true},
++			{[]int{1}, false},
++			{[]int{2}, true},
++		},
++	}, {
++		val: ValueOf(&S2{embed: &embed{}}),
++		cases: []testCase{
++			{[]int{0}, false},
++			{[]int{0, 0}, false},
++			{[]int{0, 1}, true},
++			{[]int{1}, false},
++			{[]int{2}, true},
++		},
++	}, {
++		val: ValueOf(&S3{}),
++		cases: []testCase{
++			{[]int{0}, true},
++			{[]int{0, 0}, false},
++			{[]int{0, 1}, true},
++			{[]int{1}, false},
++			{[]int{2}, true},
++		},
++	}, {
++		val: ValueOf(&S4{Embed: &Embed{}}),
++		cases: []testCase{
++			{[]int{0}, true},
++			{[]int{0, 0}, false},
++			{[]int{0, 1}, true},
++			{[]int{1}, false},
++			{[]int{2}, true},
++		},
++	}}
++
++	for _, tt := range tests {
++		t.Run(tt.val.Type().Name(), func(t *testing.T) {
++			for _, tc := range tt.cases {
++				f := tt.val
++				for _, i := range tc.index {
++					if f.Kind() == Ptr {
++						f = f.Elem()
++					}
++					f = Field(f, i)
++				}
++				if got := f.CanSet(); got != tc.canSet {
++					t.Errorf("CanSet() = %v, want %v", got, tc.canSet)
++				}
++			}
++		})
++	}
++}
++
++var _i = 7
++
++var valueToStringTests = []pair{
++	{123, "123"},
++	{123.5, "123.5"},
++	{byte(123), "123"},
++	{"abc", "abc"},
++	{T{123, 456.75, "hello", &_i}, "reflectlite_test.T{123, 456.75, hello, *int(&7)}"},
++	{new(chan *T), "*chan *reflectlite_test.T(&chan *reflectlite_test.T)"},
++	{[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}"},
++	{&[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "*[10]int(&[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})"},
++	{[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}"},
++	{&[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "*[]int(&[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})"},
++}
++
++func TestValueToString(t *testing.T) {
++	for i, test := range valueToStringTests {
++		s := valueToString(ValueOf(test.i))
++		if s != test.s {
++			t.Errorf("#%d: have %#q, want %#q", i, s, test.s)
++		}
++	}
++}
++
++func TestPtrSetNil(t *testing.T) {
++	var i int32 = 1234
++	ip := &i
++	vip := ValueOf(&ip)
++	vip.Elem().Set(Zero(vip.Elem().Type()))
++	if ip != nil {
++		t.Errorf("got non-nil (%d), want nil", *ip)
++	}
++}
++
++func TestMapSetNil(t *testing.T) {
++	m := make(map[string]int)
++	vm := ValueOf(&m)
++	vm.Elem().Set(Zero(vm.Elem().Type()))
++	if m != nil {
++		t.Errorf("got non-nil (%p), want nil", m)
++	}
++}
++
++func TestAll(t *testing.T) {
++	testType(t, 1, TypeOf((int8)(0)), "int8")
++	testType(t, 2, TypeOf((*int8)(nil)).Elem(), "int8")
++
++	typ := TypeOf((*struct {
++		c chan *int32
++		d float32
++	})(nil))
++	testType(t, 3, typ, "*struct { c chan *int32; d float32 }")
++	etyp := typ.Elem()
++	testType(t, 4, etyp, "struct { c chan *int32; d float32 }")
++}
++
++func TestInterfaceValue(t *testing.T) {
++	var inter struct {
++		E interface{}
++	}
++	inter.E = 123.456
++	v1 := ValueOf(&inter)
++	v2 := Field(v1.Elem(), 0)
++	// assert(t, TypeString(v2.Type()), "interface {}")
++	v3 := v2.Elem()
++	assert(t, TypeString(v3.Type()), "float64")
++
++	i3 := ToInterface(v2)
++	if _, ok := i3.(float64); !ok {
++		t.Error("v2.Interface() did not return float64, got ", TypeOf(i3))
++	}
++}
++
++func TestFunctionValue(t *testing.T) {
++	var x interface{} = func() {}
++	v := ValueOf(x)
++	if fmt.Sprint(ToInterface(v)) != fmt.Sprint(x) {
++		t.Fatalf("TestFunction returned wrong pointer")
++	}
++	assert(t, TypeString(v.Type()), "func()")
++}
++
++var appendTests = []struct {
++	orig, extra []int
++}{
++	{make([]int, 2, 4), []int{22}},
++	{make([]int, 2, 4), []int{22, 33, 44}},
++}
++
++func sameInts(x, y []int) bool {
++	if len(x) != len(y) {
++		return false
++	}
++	for i, xx := range x {
++		if xx != y[i] {
++			return false
++		}
++	}
++	return true
++}
++
++func TestBigUnnamedStruct(t *testing.T) {
++	b := struct{ a, b, c, d int64 }{1, 2, 3, 4}
++	v := ValueOf(b)
++	b1 := ToInterface(v).(struct {
++		a, b, c, d int64
++	})
++	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d {
++		t.Errorf("ValueOf(%v).Interface().(*Big) = %v", b, b1)
++	}
++}
++
++type big struct {
++	a, b, c, d, e int64
++}
++
++func TestBigStruct(t *testing.T) {
++	b := big{1, 2, 3, 4, 5}
++	v := ValueOf(b)
++	b1 := ToInterface(v).(big)
++	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d || b1.e != b.e {
++		t.Errorf("ValueOf(%v).Interface().(big) = %v", b, b1)
++	}
++}
++
++type Basic struct {
++	x int
++	y float32
++}
++
++type NotBasic Basic
++
++type DeepEqualTest struct {
++	a, b interface{}
++	eq   bool
++}
++
++// Simple functions for DeepEqual tests.
++var (
++	fn1 func()             // nil.
++	fn2 func()             // nil.
++	fn3 = func() { fn1() } // Not nil.
++)
++
++type self struct{}
++
++type Loop *Loop
++type Loopy interface{}
++
++var loop1, loop2 Loop
++var loopy1, loopy2 Loopy
++
++func init() {
++	loop1 = &loop2
++	loop2 = &loop1
++
++	loopy1 = &loopy2
++	loopy2 = &loopy1
++}
++
++var typeOfTests = []DeepEqualTest{
++	// Equalities
++	{nil, nil, true},
++	{1, 1, true},
++	{int32(1), int32(1), true},
++	{0.5, 0.5, true},
++	{float32(0.5), float32(0.5), true},
++	{"hello", "hello", true},
++	{make([]int, 10), make([]int, 10), true},
++	{&[3]int{1, 2, 3}, &[3]int{1, 2, 3}, true},
++	{Basic{1, 0.5}, Basic{1, 0.5}, true},
++	{error(nil), error(nil), true},
++	{map[int]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, true},
++	{fn1, fn2, true},
++
++	// Inequalities
++	{1, 2, false},
++	{int32(1), int32(2), false},
++	{0.5, 0.6, false},
++	{float32(0.5), float32(0.6), false},
++	{"hello", "hey", false},
++	{make([]int, 10), make([]int, 11), false},
++	{&[3]int{1, 2, 3}, &[3]int{1, 2, 4}, false},
++	{Basic{1, 0.5}, Basic{1, 0.6}, false},
++	{Basic{1, 0}, Basic{2, 0}, false},
++	{map[int]string{1: "one", 3: "two"}, map[int]string{2: "two", 1: "one"}, false},
++	{map[int]string{1: "one", 2: "txo"}, map[int]string{2: "two", 1: "one"}, false},
++	{map[int]string{1: "one"}, map[int]string{2: "two", 1: "one"}, false},
++	{map[int]string{2: "two", 1: "one"}, map[int]string{1: "one"}, false},
++	{nil, 1, false},
++	{1, nil, false},
++	{fn1, fn3, false},
++	{fn3, fn3, false},
++	{[][]int{{1}}, [][]int{{2}}, false},
++	{math.NaN(), math.NaN(), false},
++	{&[1]float64{math.NaN()}, &[1]float64{math.NaN()}, false},
++	{&[1]float64{math.NaN()}, self{}, true},
++	{[]float64{math.NaN()}, []float64{math.NaN()}, false},
++	{[]float64{math.NaN()}, self{}, true},
++	{map[float64]float64{math.NaN(): 1}, map[float64]float64{1: 2}, false},
++	{map[float64]float64{math.NaN(): 1}, self{}, true},
++
++	// Nil vs empty: not the same.
++	{[]int{}, []int(nil), false},
++	{[]int{}, []int{}, true},
++	{[]int(nil), []int(nil), true},
++	{map[int]int{}, map[int]int(nil), false},
++	{map[int]int{}, map[int]int{}, true},
++	{map[int]int(nil), map[int]int(nil), true},
++
++	// Mismatched types
++	{1, 1.0, false},
++	{int32(1), int64(1), false},
++	{0.5, "hello", false},
++	{[]int{1, 2, 3}, [3]int{1, 2, 3}, false},
++	{&[3]interface{}{1, 2, 4}, &[3]interface{}{1, 2, "s"}, false},
++	{Basic{1, 0.5}, NotBasic{1, 0.5}, false},
++	{map[uint]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, false},
++
++	// Possible loops.
++	{&loop1, &loop1, true},
++	{&loop1, &loop2, true},
++	{&loopy1, &loopy1, true},
++	{&loopy1, &loopy2, true},
++}
++
++func TestTypeOf(t *testing.T) {
++	// Special case for nil
++	if typ := TypeOf(nil); typ != nil {
++		t.Errorf("expected nil type for nil value; got %v", typ)
++	}
++	for _, test := range typeOfTests {
++		v := ValueOf(test.a)
++		if !v.IsValid() {
++			continue
++		}
++		typ := TypeOf(test.a)
++		if typ != v.Type() {
++			t.Errorf("TypeOf(%v) = %v, but ValueOf(%v).Type() = %v", test.a, typ, test.a, v.Type())
++		}
++	}
++}
++
++func Nil(a interface{}, t *testing.T) {
++	n := Field(ValueOf(a), 0)
++	if !n.IsNil() {
++		t.Errorf("%v should be nil", a)
++	}
++}
++
++func NotNil(a interface{}, t *testing.T) {
++	n := Field(ValueOf(a), 0)
++	if n.IsNil() {
++		t.Errorf("value of type %v should not be nil", TypeString(ValueOf(a).Type()))
++	}
++}
++
++func TestIsNil(t *testing.T) {
++	// These implement IsNil.
++	// Wrap in extra struct to hide interface type.
++	doNil := []interface{}{
++		struct{ x *int }{},
++		struct{ x interface{} }{},
++		struct{ x map[string]int }{},
++		struct{ x func() bool }{},
++		struct{ x chan int }{},
++		struct{ x []string }{},
++		struct{ x unsafe.Pointer }{},
++	}
++	for _, ts := range doNil {
++		ty := TField(TypeOf(ts), 0)
++		v := Zero(ty)
++		v.IsNil() // panics if not okay to call
++	}
++
++	// Check the implementations
++	var pi struct {
++		x *int
++	}
++	Nil(pi, t)
++	pi.x = new(int)
++	NotNil(pi, t)
++
++	var si struct {
++		x []int
++	}
++	Nil(si, t)
++	si.x = make([]int, 10)
++	NotNil(si, t)
++
++	var ci struct {
++		x chan int
++	}
++	Nil(ci, t)
++	ci.x = make(chan int)
++	NotNil(ci, t)
++
++	var mi struct {
++		x map[int]int
++	}
++	Nil(mi, t)
++	mi.x = make(map[int]int)
++	NotNil(mi, t)
++
++	var ii struct {
++		x interface{}
++	}
++	Nil(ii, t)
++	ii.x = 2
++	NotNil(ii, t)
++
++	var fi struct {
++		x func(t *testing.T)
++	}
++	Nil(fi, t)
++	fi.x = TestIsNil
++	NotNil(fi, t)
++}
++
++// Indirect returns the value that v points to.
++// If v is a nil pointer, Indirect returns a zero Value.
++// If v is not a pointer, Indirect returns v.
++func Indirect(v Value) Value {
++	if v.Kind() != Ptr {
++		return v
++	}
++	return v.Elem()
++}
++
++func TestNilPtrValueSub(t *testing.T) {
++	var pi *int
++	if pv := ValueOf(pi); pv.Elem().IsValid() {
++		t.Error("ValueOf((*int)(nil)).Elem().IsValid()")
++	}
++}
++
++type Point struct {
++	x, y int
++}
++
++// This will be index 0.
++func (p Point) AnotherMethod(scale int) int {
++	return -1
++}
++
++// This will be index 1.
++func (p Point) Dist(scale int) int {
++	//println("Point.Dist", p.x, p.y, scale)
++	return p.x*p.x*scale + p.y*p.y*scale
++}
++
++// This will be index 2.
++func (p Point) GCMethod(k int) int {
++	runtime.GC()
++	return k + p.x
++}
++
++// This will be index 3.
++func (p Point) NoArgs() {
++	// Exercise no-argument/no-result paths.
++}
++
++// This will be index 4.
++func (p Point) TotalDist(points ...Point) int {
++	tot := 0
++	for _, q := range points {
++		dx := q.x - p.x
++		dy := q.y - p.y
++		tot += dx*dx + dy*dy // Should call Sqrt, but it's just a test.
++
++	}
++	return tot
++}
++
++type D1 struct {
++	d int
++}
++type D2 struct {
++	d int
++}
++
++func TestImportPath(t *testing.T) {
++	tests := []struct {
++		t    Type
++		path string
++	}{
++		{TypeOf(&base64.Encoding{}).Elem(), "encoding/base64"},
++		{TypeOf(int(0)), ""},
++		{TypeOf(int8(0)), ""},
++		{TypeOf(int16(0)), ""},
++		{TypeOf(int32(0)), ""},
++		{TypeOf(int64(0)), ""},
++		{TypeOf(uint(0)), ""},
++		{TypeOf(uint8(0)), ""},
++		{TypeOf(uint16(0)), ""},
++		{TypeOf(uint32(0)), ""},
++		{TypeOf(uint64(0)), ""},
++		{TypeOf(uintptr(0)), ""},
++		{TypeOf(float32(0)), ""},
++		{TypeOf(float64(0)), ""},
++		{TypeOf(complex64(0)), ""},
++		{TypeOf(complex128(0)), ""},
++		{TypeOf(byte(0)), ""},
++		{TypeOf(rune(0)), ""},
++		{TypeOf([]byte(nil)), ""},
++		{TypeOf([]rune(nil)), ""},
++		{TypeOf(string("")), ""},
++		{TypeOf((*interface{})(nil)).Elem(), ""},
++		{TypeOf((*byte)(nil)), ""},
++		{TypeOf((*rune)(nil)), ""},
++		{TypeOf((*int64)(nil)), ""},
++		{TypeOf(map[string]int{}), ""},
++		{TypeOf((*error)(nil)).Elem(), ""},
++		{TypeOf((*Point)(nil)), ""},
++		{TypeOf((*Point)(nil)).Elem(), "internal/reflectlite_test"},
++	}
++	for _, test := range tests {
++		if path := test.t.PkgPath(); path != test.path {
++			t.Errorf("%v.PkgPath() = %q, want %q", test.t, path, test.path)
++		}
++	}
++}
++
++func noAlloc(t *testing.T, n int, f func(int)) {
++	if testing.Short() {
++		t.Skip("skipping malloc count in short mode")
++	}
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
++	i := -1
++	allocs := testing.AllocsPerRun(n, func() {
++		f(i)
++		i++
++	})
++	if allocs > 0 {
++		t.Errorf("%d iterations: got %v mallocs, want 0", n, allocs)
++	}
++}
++
++func TestAllocations(t *testing.T) {
++	noAlloc(t, 100, func(j int) {
++		var i interface{}
++		var v Value
++
++		// We can uncomment this when compiler escape analysis
++		// is good enough to see that the integer assigned to i
++		// does not escape and therefore need not be allocated.
++		//
++		// i = 42 + j
++		// v = ValueOf(i)
++		// if int(v.Int()) != 42+j {
++		// 	panic("wrong int")
++		// }
++
++		i = func(j int) int { return j }
++		v = ValueOf(i)
++		if ToInterface(v).(func(int) int)(j) != j {
++			panic("wrong result")
++		}
++	})
++}
++
++func TestSetPanic(t *testing.T) {
++	ok := func(f func()) { f() }
++	bad := shouldPanic
++	clear := func(v Value) { v.Set(Zero(v.Type())) }
++
++	type t0 struct {
++		W int
++	}
++
++	type t1 struct {
++		Y int
++		t0
++	}
++
++	type T2 struct {
++		Z       int
++		namedT0 t0
++	}
++
++	type T struct {
++		X int
++		t1
++		T2
++		NamedT1 t1
++		NamedT2 T2
++		namedT1 t1
++		namedT2 T2
++	}
++
++	// not addressable
++	v := ValueOf(T{})
++	bad(func() { clear(Field(v, 0)) })                     // .X
++	bad(func() { clear(Field(v, 1)) })                     // .t1
++	bad(func() { clear(Field(Field(v, 1), 0)) })           // .t1.Y
++	bad(func() { clear(Field(Field(v, 1), 1)) })           // .t1.t0
++	bad(func() { clear(Field(Field(Field(v, 1), 1), 0)) }) // .t1.t0.W
++	bad(func() { clear(Field(v, 2)) })                     // .T2
++	bad(func() { clear(Field(Field(v, 2), 0)) })           // .T2.Z
++	bad(func() { clear(Field(Field(v, 2), 1)) })           // .T2.namedT0
++	bad(func() { clear(Field(Field(Field(v, 2), 1), 0)) }) // .T2.namedT0.W
++	bad(func() { clear(Field(v, 3)) })                     // .NamedT1
++	bad(func() { clear(Field(Field(v, 3), 0)) })           // .NamedT1.Y
++	bad(func() { clear(Field(Field(v, 3), 1)) })           // .NamedT1.t0
++	bad(func() { clear(Field(Field(Field(v, 3), 1), 0)) }) // .NamedT1.t0.W
++	bad(func() { clear(Field(v, 4)) })                     // .NamedT2
++	bad(func() { clear(Field(Field(v, 4), 0)) })           // .NamedT2.Z
++	bad(func() { clear(Field(Field(v, 4), 1)) })           // .NamedT2.namedT0
++	bad(func() { clear(Field(Field(Field(v, 4), 1), 0)) }) // .NamedT2.namedT0.W
++	bad(func() { clear(Field(v, 5)) })                     // .namedT1
++	bad(func() { clear(Field(Field(v, 5), 0)) })           // .namedT1.Y
++	bad(func() { clear(Field(Field(v, 5), 1)) })           // .namedT1.t0
++	bad(func() { clear(Field(Field(Field(v, 5), 1), 0)) }) // .namedT1.t0.W
++	bad(func() { clear(Field(v, 6)) })                     // .namedT2
++	bad(func() { clear(Field(Field(v, 6), 0)) })           // .namedT2.Z
++	bad(func() { clear(Field(Field(v, 6), 1)) })           // .namedT2.namedT0
++	bad(func() { clear(Field(Field(Field(v, 6), 1), 0)) }) // .namedT2.namedT0.W
++
++	// addressable
++	v = ValueOf(&T{}).Elem()
++	ok(func() { clear(Field(v, 0)) })                      // .X
++	bad(func() { clear(Field(v, 1)) })                     // .t1
++	ok(func() { clear(Field(Field(v, 1), 0)) })            // .t1.Y
++	bad(func() { clear(Field(Field(v, 1), 1)) })           // .t1.t0
++	ok(func() { clear(Field(Field(Field(v, 1), 1), 0)) })  // .t1.t0.W
++	ok(func() { clear(Field(v, 2)) })                      // .T2
++	ok(func() { clear(Field(Field(v, 2), 0)) })            // .T2.Z
++	bad(func() { clear(Field(Field(v, 2), 1)) })           // .T2.namedT0
++	bad(func() { clear(Field(Field(Field(v, 2), 1), 0)) }) // .T2.namedT0.W
++	ok(func() { clear(Field(v, 3)) })                      // .NamedT1
++	ok(func() { clear(Field(Field(v, 3), 0)) })            // .NamedT1.Y
++	bad(func() { clear(Field(Field(v, 3), 1)) })           // .NamedT1.t0
++	ok(func() { clear(Field(Field(Field(v, 3), 1), 0)) })  // .NamedT1.t0.W
++	ok(func() { clear(Field(v, 4)) })                      // .NamedT2
++	ok(func() { clear(Field(Field(v, 4), 0)) })            // .NamedT2.Z
++	bad(func() { clear(Field(Field(v, 4), 1)) })           // .NamedT2.namedT0
++	bad(func() { clear(Field(Field(Field(v, 4), 1), 0)) }) // .NamedT2.namedT0.W
++	bad(func() { clear(Field(v, 5)) })                     // .namedT1
++	bad(func() { clear(Field(Field(v, 5), 0)) })           // .namedT1.Y
++	bad(func() { clear(Field(Field(v, 5), 1)) })           // .namedT1.t0
++	bad(func() { clear(Field(Field(Field(v, 5), 1), 0)) }) // .namedT1.t0.W
++	bad(func() { clear(Field(v, 6)) })                     // .namedT2
++	bad(func() { clear(Field(Field(v, 6), 0)) })           // .namedT2.Z
++	bad(func() { clear(Field(Field(v, 6), 1)) })           // .namedT2.namedT0
++	bad(func() { clear(Field(Field(Field(v, 6), 1), 0)) }) // .namedT2.namedT0.W
++}
++
++func shouldPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("did not panic")
++		}
++	}()
++	f()
++}
++
++type S struct {
++	i1 int64
++	i2 int64
++}
++
++func TestBigZero(t *testing.T) {
++	const size = 1 << 10
++	var v [size]byte
++	z := ToInterface(Zero(ValueOf(v).Type())).([size]byte)
++	for i := 0; i < size; i++ {
++		if z[i] != 0 {
++			t.Fatalf("Zero object not all zero, index %d", i)
++		}
++	}
++}
++
++func TestInvalid(t *testing.T) {
++	// Used to have inconsistency between IsValid() and Kind() != Invalid.
++	type T struct{ v interface{} }
++
++	v := Field(ValueOf(T{}), 0)
++	if v.IsValid() != true || v.Kind() != Interface {
++		t.Errorf("field: IsValid=%v, Kind=%v, want true, Interface", v.IsValid(), v.Kind())
++	}
++	v = v.Elem()
++	if v.IsValid() != false || v.Kind() != Invalid {
++		t.Errorf("field elem: IsValid=%v, Kind=%v, want false, Invalid", v.IsValid(), v.Kind())
++	}
++}
++
++type TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678 int
++
++type nameTest struct {
++	v    interface{}
++	want string
++}
++
++var nameTests = []nameTest{
++	{(*int32)(nil), "int32"},
++	{(*D1)(nil), "D1"},
++	{(*[]D1)(nil), ""},
++	{(*chan D1)(nil), ""},
++	{(*func() D1)(nil), ""},
++	{(*<-chan D1)(nil), ""},
++	{(*chan<- D1)(nil), ""},
++	{(*interface{})(nil), ""},
++	{(*interface {
++		F()
++	})(nil), ""},
++	{(*TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678)(nil), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
++}
++
++func TestNames(t *testing.T) {
++	for _, test := range nameTests {
++		typ := TypeOf(test.v).Elem()
++		if got := typ.Name(); got != test.want {
++			t.Errorf("%v Name()=%q, want %q", typ, got, test.want)
++		}
++	}
++}
++
++type embed struct {
++	EmbedWithUnexpMeth
++}
++
++func TestNameBytesAreAligned(t *testing.T) {
++	typ := TypeOf(embed{})
++	b := FirstMethodNameBytes(typ)
++	v := uintptr(unsafe.Pointer(b))
++	if v%unsafe.Alignof((*byte)(nil)) != 0 {
++		t.Errorf("reflect.name.bytes pointer is not aligned: %x", v)
++	}
++}
++
++// TestUnaddressableField tests that the reflect package will not allow
++// a type from another package to be used as a named type with an
++// unexported field.
++//
++// This ensures that unexported fields cannot be modified by other packages.
++func TestUnaddressableField(t *testing.T) {
++	var b Buffer // type defined in reflect, a different package
++	var localBuffer struct {
++		buf []byte
++	}
++	lv := ValueOf(&localBuffer).Elem()
++	rv := ValueOf(b)
++	shouldPanic(func() {
++		lv.Set(rv)
++	})
++}
++
++type Tint int
++
++type Tint2 = Tint
++
++type Talias1 struct {
++	byte
++	uint8
++	int
++	int32
++	rune
++}
++
++type Talias2 struct {
++	Tint
++	Tint2
++}
++
++func TestAliasNames(t *testing.T) {
++	t1 := Talias1{byte: 1, uint8: 2, int: 3, int32: 4, rune: 5}
++	out := fmt.Sprintf("%#v", t1)
++	want := "reflectlite_test.Talias1{byte:0x1, uint8:0x2, int:3, int32:4, rune:5}"
++	if out != want {
++		t.Errorf("Talias1 print:\nhave: %s\nwant: %s", out, want)
++	}
++
++	t2 := Talias2{Tint: 1, Tint2: 2}
++	out = fmt.Sprintf("%#v", t2)
++	want = "reflectlite_test.Talias2{Tint:1, Tint2:2}"
++	if out != want {
++		t.Errorf("Talias2 print:\nhave: %s\nwant: %s", out, want)
++	}
++}
+diff --git a/src/internal/reflectlite/asm.s b/src/internal/reflectlite/asm.s
+new file mode 100644
+index 0000000000..a7b69b65ba
+--- /dev/null
++++ b/src/internal/reflectlite/asm.s
+@@ -0,0 +1,5 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Trigger build without complete flag.
+\ No newline at end of file
+diff --git a/src/internal/reflectlite/export_test.go b/src/internal/reflectlite/export_test.go
+new file mode 100644
+index 0000000000..354ea9dbd0
+--- /dev/null
++++ b/src/internal/reflectlite/export_test.go
+@@ -0,0 +1,115 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reflectlite
++
++import (
++	"unsafe"
++)
++
++// Field returns the i'th field of the struct v.
++// It panics if v's Kind is not Struct or i is out of range.
++func Field(v Value, i int) Value {
++	if v.kind() != Struct {
++		panic(&ValueError{"reflect.Value.Field", v.kind()})
++	}
++	tt := (*structType)(unsafe.Pointer(v.typ))
++	if uint(i) >= uint(len(tt.fields)) {
++		panic("reflect: Field index out of range")
++	}
++	field := &tt.fields[i]
++	typ := field.typ
++
++	// Inherit permission bits from v, but clear flagEmbedRO.
++	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
++	// Using an unexported field forces flagRO.
++	if !field.name.isExported() {
++		if field.embedded() {
++			fl |= flagEmbedRO
++		} else {
++			fl |= flagStickyRO
++		}
++	}
++	// Either flagIndir is set and v.ptr points at struct,
++	// or flagIndir is not set and v.ptr is the actual struct data.
++	// In the former case, we want v.ptr + offset.
++	// In the latter case, we must have field.offset = 0,
++	// so v.ptr + field.offset is still the correct address.
++	ptr := add(v.ptr, field.offset(), "same as non-reflect &v.field")
++	return Value{typ, ptr, fl}
++}
++
++func TField(typ Type, i int) Type {
++	t := typ.(*rtype)
++	if t.Kind() != Struct {
++		panic("reflect: Field of non-struct type")
++	}
++	tt := (*structType)(unsafe.Pointer(t))
++
++	return StructFieldType(tt, i)
++}
++
++// Field returns the i'th struct field.
++func StructFieldType(t *structType, i int) Type {
++	if i < 0 || i >= len(t.fields) {
++		panic("reflect: Field index out of bounds")
++	}
++	p := &t.fields[i]
++	return toType(p.typ)
++}
++
++// Zero returns a Value representing the zero value for the specified type.
++// The result is different from the zero value of the Value struct,
++// which represents no value at all.
++// For example, Zero(TypeOf(42)) returns a Value with Kind Int and value 0.
++// The returned value is neither addressable nor settable.
++func Zero(typ Type) Value {
++	if typ == nil {
++		panic("reflect: Zero(nil)")
++	}
++	t := typ.(*rtype)
++	fl := flag(t.Kind())
++	if ifaceIndir(t) {
++		return Value{t, unsafe_New(t), fl | flagIndir}
++	}
++	return Value{t, nil, fl}
++}
++
++// ToInterface returns v's current value as an interface{}.
++// It is equivalent to:
++//	var i interface{} = (v's underlying value)
++// It panics if the Value was obtained by accessing
++// unexported struct fields.
++func ToInterface(v Value) (i interface{}) {
++	return valueInterface(v)
++}
++
++type EmbedWithUnexpMeth struct{}
++
++func (EmbedWithUnexpMeth) f() {}
++
++type pinUnexpMeth interface {
++	f()
++}
++
++var pinUnexpMethI = pinUnexpMeth(EmbedWithUnexpMeth{})
++
++func FirstMethodNameBytes(t Type) *byte {
++	_ = pinUnexpMethI
++
++	ut := t.uncommon()
++	if ut == nil {
++		panic("type has no methods")
++	}
++	m := ut.methods()[0]
++	mname := t.(*rtype).nameOff(m.name)
++	if *mname.data(0, "name flag field")&(1<<2) == 0 {
++		panic("method name does not have pkgPath *string")
++	}
++	return mname.bytes
++}
++
++type Buffer struct {
++	buf []byte
++}
+diff --git a/src/internal/reflectlite/set_test.go b/src/internal/reflectlite/set_test.go
+new file mode 100644
+index 0000000000..817e4beae1
+--- /dev/null
++++ b/src/internal/reflectlite/set_test.go
+@@ -0,0 +1,92 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reflectlite_test
++
++import (
++	"bytes"
++	"go/ast"
++	"go/token"
++	. "internal/reflectlite"
++	"io"
++	"testing"
++)
++
++func TestImplicitSetConversion(t *testing.T) {
++	// Assume TestImplicitMapConversion covered the basics.
++	// Just make sure conversions are being applied at all.
++	var r io.Reader
++	b := new(bytes.Buffer)
++	rv := ValueOf(&r).Elem()
++	rv.Set(ValueOf(b))
++	if r != b {
++		t.Errorf("after Set: r=%T(%v)", r, r)
++	}
++}
++
++var implementsTests = []struct {
++	x interface{}
++	t interface{}
++	b bool
++}{
++	{new(*bytes.Buffer), new(io.Reader), true},
++	{new(bytes.Buffer), new(io.Reader), false},
++	{new(*bytes.Buffer), new(io.ReaderAt), false},
++	{new(*ast.Ident), new(ast.Expr), true},
++	{new(*notAnExpr), new(ast.Expr), false},
++	{new(*ast.Ident), new(notASTExpr), false},
++	{new(notASTExpr), new(ast.Expr), false},
++	{new(ast.Expr), new(notASTExpr), false},
++	{new(*notAnExpr), new(notASTExpr), true},
++}
++
++type notAnExpr struct{}
++
++func (notAnExpr) Pos() token.Pos { return token.NoPos }
++func (notAnExpr) End() token.Pos { return token.NoPos }
++func (notAnExpr) exprNode()      {}
++
++type notASTExpr interface {
++	Pos() token.Pos
++	End() token.Pos
++	exprNode()
++}
++
++func TestImplements(t *testing.T) {
++	for _, tt := range implementsTests {
++		xv := TypeOf(tt.x).Elem()
++		xt := TypeOf(tt.t).Elem()
++		if b := xv.Implements(xt); b != tt.b {
++			t.Errorf("(%s).Implements(%s) = %v, want %v", TypeString(xv), TypeString(xt), b, tt.b)
++		}
++	}
++}
++
++var assignableTests = []struct {
++	x interface{}
++	t interface{}
++	b bool
++}{
++	{new(chan int), new(<-chan int), true},
++	{new(<-chan int), new(chan int), false},
++	{new(*int), new(IntPtr), true},
++	{new(IntPtr), new(*int), true},
++	{new(IntPtr), new(IntPtr1), false},
++	{new(Ch), new(<-chan interface{}), true},
++	// test runs implementsTests too
++}
++
++type IntPtr *int
++type IntPtr1 *int
++type Ch <-chan interface{}
++
++func TestAssignableTo(t *testing.T) {
++	for i, tt := range append(assignableTests, implementsTests...) {
++		xv := TypeOf(tt.x).Elem()
++		xt := TypeOf(tt.t).Elem()
++		if b := xv.AssignableTo(xt); b != tt.b {
++			t.Errorf("%d:AssignableTo: got %v, want %v", i, b, tt.b)
++		}
++	}
++}
+diff --git a/src/internal/reflectlite/tostring_test.go b/src/internal/reflectlite/tostring_test.go
+new file mode 100644
+index 0000000000..a1e5dae09d
+--- /dev/null
++++ b/src/internal/reflectlite/tostring_test.go
+@@ -0,0 +1,98 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Formatting of reflection types and values for debugging.
++// Not defined as methods so they do not need to be linked into most binaries;
++// the functions are not used by the library itself, only in tests.
++
++package reflectlite_test
++
++import (
++	. "internal/reflectlite"
++	"reflect"
++	"strconv"
++)
++
++// valueToString returns a textual representation of the reflection value val.
++// For debugging only.
++func valueToString(v Value) string {
++	return valueToStringImpl(reflect.ValueOf(ToInterface(v)))
++}
++
++func valueToStringImpl(val reflect.Value) string {
++	var str string
++	if !val.IsValid() {
++		return "<zero Value>"
++	}
++	typ := val.Type()
++	switch val.Kind() {
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		return strconv.FormatInt(val.Int(), 10)
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++		return strconv.FormatUint(val.Uint(), 10)
++	case reflect.Float32, reflect.Float64:
++		return strconv.FormatFloat(val.Float(), 'g', -1, 64)
++	case reflect.Complex64, reflect.Complex128:
++		c := val.Complex()
++		return strconv.FormatFloat(real(c), 'g', -1, 64) + "+" + strconv.FormatFloat(imag(c), 'g', -1, 64) + "i"
++	case reflect.String:
++		return val.String()
++	case reflect.Bool:
++		if val.Bool() {
++			return "true"
++		} else {
++			return "false"
++		}
++	case reflect.Ptr:
++		v := val
++		str = typ.String() + "("
++		if v.IsNil() {
++			str += "0"
++		} else {
++			str += "&" + valueToStringImpl(v.Elem())
++		}
++		str += ")"
++		return str
++	case reflect.Array, reflect.Slice:
++		v := val
++		str += typ.String()
++		str += "{"
++		for i := 0; i < v.Len(); i++ {
++			if i > 0 {
++				str += ", "
++			}
++			str += valueToStringImpl(v.Index(i))
++		}
++		str += "}"
++		return str
++	case reflect.Map:
++		str += typ.String()
++		str += "{"
++		str += "<can't iterate on maps>"
++		str += "}"
++		return str
++	case reflect.Chan:
++		str = typ.String()
++		return str
++	case reflect.Struct:
++		t := typ
++		v := val
++		str += t.String()
++		str += "{"
++		for i, n := 0, v.NumField(); i < n; i++ {
++			if i > 0 {
++				str += ", "
++			}
++			str += valueToStringImpl(v.Field(i))
++		}
++		str += "}"
++		return str
++	case reflect.Interface:
++		return typ.String() + "(" + valueToStringImpl(val.Elem()) + ")"
++	case reflect.Func:
++		return typ.String() + "(arg)"
++	default:
++		panic("valueToString: can't print type " + typ.String())
++	}
++}
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+new file mode 100644
+index 0000000000..35bc0db2c7
+--- /dev/null
++++ b/src/internal/reflectlite/type.go
+@@ -0,0 +1,904 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package reflectlite implements lightweight version of reflect, not using
++// any package except for "runtime" and "unsafe".
++package reflectlite
++
++import (
++	"unsafe"
++)
++
++// Type is the representation of a Go type.
++//
++// Not all methods apply to all kinds of types. Restrictions,
++// if any, are noted in the documentation for each method.
++// Use the Kind method to find out the kind of type before
++// calling kind-specific methods. Calling a method
++// inappropriate to the kind of type causes a run-time panic.
++//
++// Type values are comparable, such as with the == operator,
++// so they can be used as map keys.
++// Two Type values are equal if they represent identical types.
++type Type interface {
++	// Methods applicable to all types.
++
++	// Name returns the type's name within its package for a defined type.
++	// For other (non-defined) types it returns the empty string.
++	Name() string
++
++	// PkgPath returns a defined type's package path, that is, the import path
++	// that uniquely identifies the package, such as "encoding/base64".
++	// If the type was predeclared (string, error) or not defined (*T, struct{},
++	// []int, or A where A is an alias for a non-defined type), the package path
++	// will be the empty string.
++	PkgPath() string
++
++	// Kind returns the specific kind of this type.
++	Kind() Kind
++
++	// Implements reports whether the type implements the interface type u.
++	Implements(u Type) bool
++
++	// AssignableTo reports whether a value of the type is assignable to type u.
++	AssignableTo(u Type) bool
++
++	// Elem returns a type's element type.
++	// It panics if the type's Kind is not Ptr.
++	Elem() Type
++
++	common() *rtype
++	uncommon() *uncommonType
++}
++
++/*
++ * These data structures are known to the compiler (../../cmd/internal/gc/reflect.go).
++ * A few are known to ../runtime/type.go to convey to debuggers.
++ * They are also known to ../runtime/type.go.
++ */
++
++// A Kind represents the specific kind of type that a Type represents.
++// The zero Kind is not a valid kind.
++type Kind uint
++
++const (
++	Invalid Kind = iota
++	Bool
++	Int
++	Int8
++	Int16
++	Int32
++	Int64
++	Uint
++	Uint8
++	Uint16
++	Uint32
++	Uint64
++	Uintptr
++	Float32
++	Float64
++	Complex64
++	Complex128
++	Array
++	Chan
++	Func
++	Interface
++	Map
++	Ptr
++	Slice
++	String
++	Struct
++	UnsafePointer
++)
++
++// tflag is used by an rtype to signal what extra type information is
++// available in the memory directly following the rtype value.
++//
++// tflag values must be kept in sync with copies in:
++//	cmd/compile/internal/gc/reflect.go
++//	cmd/link/internal/ld/decodesym.go
++//	runtime/type.go
++type tflag uint8
++
++const (
++	// tflagUncommon means that there is a pointer, *uncommonType,
++	// just beyond the outer type structure.
++	//
++	// For example, if t.Kind() == Struct and t.tflag&tflagUncommon != 0,
++	// then t has uncommonType data and it can be accessed as:
++	//
++	//	type tUncommon struct {
++	//		structType
++	//		u uncommonType
++	//	}
++	//	u := &(*tUncommon)(unsafe.Pointer(t)).u
++	tflagUncommon tflag = 1 << 0
++
++	// tflagExtraStar means the name in the str field has an
++	// extraneous '*' prefix. This is because for most types T in
++	// a program, the type *T also exists and reusing the str data
++	// saves binary size.
++	tflagExtraStar tflag = 1 << 1
++
++	// tflagNamed means the type has a name.
++	tflagNamed tflag = 1 << 2
++)
++
++// rtype is the common implementation of most values.
++// It is embedded in other struct types.
++//
++// rtype must be kept in sync with ../runtime/type.go:/^type._type.
++type rtype struct {
++	size       uintptr
++	ptrdata    uintptr  // number of bytes in the type that can contain pointers
++	hash       uint32   // hash of type; avoids computation in hash tables
++	tflag      tflag    // extra type information flags
++	align      uint8    // alignment of variable with this type
++	fieldAlign uint8    // alignment of struct field with this type
++	kind       uint8    // enumeration for C
++	alg        *typeAlg // algorithm table
++	gcdata     *byte    // garbage collection data
++	str        nameOff  // string form
++	ptrToThis  typeOff  // type for pointer to this type, may be zero
++}
++
++// a copy of runtime.typeAlg
++type typeAlg struct {
++	// function for hashing objects of this type
++	// (ptr to object, seed) -> hash
++	hash func(unsafe.Pointer, uintptr) uintptr
++	// function for comparing objects of this type
++	// (ptr to object A, ptr to object B) -> ==?
++	equal func(unsafe.Pointer, unsafe.Pointer) bool
++}
++
++// Method on non-interface type
++type method struct {
++	name nameOff // name of method
++	mtyp typeOff // method type (without receiver)
++	ifn  textOff // fn used in interface call (one-word receiver)
++	tfn  textOff // fn used for normal method call
++}
++
++// uncommonType is present only for defined types or types with methods
++// (if T is a defined type, the uncommonTypes for T and *T have methods).
++// Using a pointer to this struct reduces the overall size required
++// to describe a non-defined type with no methods.
++type uncommonType struct {
++	pkgPath nameOff // import path; empty for built-in types like int, string
++	mcount  uint16  // number of methods
++	xcount  uint16  // number of exported methods
++	moff    uint32  // offset from this uncommontype to [mcount]method
++	_       uint32  // unused
++}
++
++// chanDir represents a channel type's direction.
++type chanDir int
++
++const (
++	recvDir chanDir             = 1 << iota // <-chan
++	sendDir                                 // chan<-
++	bothDir = recvDir | sendDir             // chan
++)
++
++// arrayType represents a fixed array type.
++type arrayType struct {
++	rtype
++	elem  *rtype // array element type
++	slice *rtype // slice type
++	len   uintptr
++}
++
++// chanType represents a channel type.
++type chanType struct {
++	rtype
++	elem *rtype  // channel element type
++	dir  uintptr // channel direction (chanDir)
++}
++
++// funcType represents a function type.
++//
++// A *rtype for each in and out parameter is stored in an array that
++// directly follows the funcType (and possibly its uncommonType). So
++// a function type with one method, one input, and one output is:
++//
++//	struct {
++//		funcType
++//		uncommonType
++//		[2]*rtype    // [0] is in, [1] is out
++//	}
++type funcType struct {
++	rtype
++	inCount  uint16
++	outCount uint16 // top bit is set if last input parameter is ...
++}
++
++// imethod represents a method on an interface type
++type imethod struct {
++	name nameOff // name of method
++	typ  typeOff // .(*FuncType) underneath
++}
++
++// interfaceType represents an interface type.
++type interfaceType struct {
++	rtype
++	pkgPath name      // import path
++	methods []imethod // sorted by hash
++}
++
++// mapType represents a map type.
++type mapType struct {
++	rtype
++	key        *rtype // map key type
++	elem       *rtype // map element (value) type
++	keysize    uint8  // size of key slot
++	valuesize  uint8  // size of value slot
++	bucketsize uint16 // size of bucket
++	flags      uint32
++}
++
++// ptrType represents a pointer type.
++type ptrType struct {
++	rtype
++	elem *rtype // pointer element (pointed at) type
++}
++
++// sliceType represents a slice type.
++type sliceType struct {
++	rtype
++	elem *rtype // slice element type
++}
++
++// Struct field
++type structField struct {
++	name        name    // name is always non-empty
++	typ         *rtype  // type of field
++	offsetEmbed uintptr // byte offset of field<<1 | isEmbedded
++}
++
++func (f *structField) offset() uintptr {
++	return f.offsetEmbed >> 1
++}
++
++func (f *structField) embedded() bool {
++	return f.offsetEmbed&1 != 0
++}
++
++// structType represents a struct type.
++type structType struct {
++	rtype
++	pkgPath name
++	fields  []structField // sorted by offset
++}
++
++// name is an encoded type name with optional extra data.
++//
++// The first byte is a bit field containing:
++//
++//	1<<0 the name is exported
++//	1<<1 tag data follows the name
++//	1<<2 pkgPath nameOff follows the name and tag
++//
++// The next two bytes are the data length:
++//
++//	 l := uint16(data[1])<<8 | uint16(data[2])
++//
++// Bytes [3:3+l] are the string data.
++//
++// If tag data follows then bytes 3+l and 3+l+1 are the tag length,
++// with the data following.
++//
++// If the import path follows, then 4 bytes at the end of
++// the data form a nameOff. The import path is only set for concrete
++// methods that are defined in a different package than their type.
++//
++// If a name starts with "*", then the exported bit represents
++// whether the pointed to type is exported.
++type name struct {
++	bytes *byte
++}
++
++func (n name) data(off int, whySafe string) *byte {
++	return (*byte)(add(unsafe.Pointer(n.bytes), uintptr(off), whySafe))
++}
++
++func (n name) isExported() bool {
++	return (*n.bytes)&(1<<0) != 0
++}
++
++func (n name) nameLen() int {
++	return int(uint16(*n.data(1, "name len field"))<<8 | uint16(*n.data(2, "name len field")))
++}
++
++func (n name) tagLen() int {
++	if *n.data(0, "name flag field")&(1<<1) == 0 {
++		return 0
++	}
++	off := 3 + n.nameLen()
++	return int(uint16(*n.data(off, "name taglen field"))<<8 | uint16(*n.data(off+1, "name taglen field")))
++}
++
++func (n name) name() (s string) {
++	if n.bytes == nil {
++		return
++	}
++	b := (*[4]byte)(unsafe.Pointer(n.bytes))
++
++	hdr := (*stringHeader)(unsafe.Pointer(&s))
++	hdr.Data = unsafe.Pointer(&b[3])
++	hdr.Len = int(b[1])<<8 | int(b[2])
++	return s
++}
++
++func (n name) tag() (s string) {
++	tl := n.tagLen()
++	if tl == 0 {
++		return ""
++	}
++	nl := n.nameLen()
++	hdr := (*stringHeader)(unsafe.Pointer(&s))
++	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
++	hdr.Len = tl
++	return s
++}
++
++func (n name) pkgPath() string {
++	if n.bytes == nil || *n.data(0, "name flag field")&(1<<2) == 0 {
++		return ""
++	}
++	off := 3 + n.nameLen()
++	if tl := n.tagLen(); tl > 0 {
++		off += 2 + tl
++	}
++	var nameOff int32
++	// Note that this field may not be aligned in memory,
++	// so we cannot use a direct int32 assignment here.
++	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.data(off, "name offset field")))[:])
++	pkgPathName := name{(*byte)(resolveTypeOff(unsafe.Pointer(n.bytes), nameOff))}
++	return pkgPathName.name()
++}
++
++/*
++ * The compiler knows the exact layout of all the data structures above.
++ * The compiler does not know about the data structures and methods below.
++ */
++
++const (
++	kindDirectIface = 1 << 5
++	kindGCProg      = 1 << 6 // Type.gc points to GC program
++	kindNoPointers  = 1 << 7
++	kindMask        = (1 << 5) - 1
++)
++
++func (t *uncommonType) methods() []method {
++	if t.mcount == 0 {
++		return nil
++	}
++	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.mcount > 0"))[:t.mcount:t.mcount]
++}
++
++func (t *uncommonType) exportedMethods() []method {
++	if t.xcount == 0 {
++		return nil
++	}
++	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.xcount > 0"))[:t.xcount:t.xcount]
++}
++
++// resolveNameOff resolves a name offset from a base pointer.
++// The (*rtype).nameOff method is a convenience wrapper for this function.
++// Implemented in the runtime package.
++func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
++
++// resolveTypeOff resolves an *rtype offset from a base type.
++// The (*rtype).typeOff method is a convenience wrapper for this function.
++// Implemented in the runtime package.
++func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
++
++type nameOff int32 // offset to a name
++type typeOff int32 // offset to an *rtype
++type textOff int32 // offset from top of text section
++
++func (t *rtype) nameOff(off nameOff) name {
++	return name{(*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
++}
++
++func (t *rtype) typeOff(off typeOff) *rtype {
++	return (*rtype)(resolveTypeOff(unsafe.Pointer(t), int32(off)))
++}
++
++func (t *rtype) uncommon() *uncommonType {
++	if t.tflag&tflagUncommon == 0 {
++		return nil
++	}
++	switch t.Kind() {
++	case Struct:
++		return &(*structTypeUncommon)(unsafe.Pointer(t)).u
++	case Ptr:
++		type u struct {
++			ptrType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Func:
++		type u struct {
++			funcType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Slice:
++		type u struct {
++			sliceType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Array:
++		type u struct {
++			arrayType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Chan:
++		type u struct {
++			chanType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Map:
++		type u struct {
++			mapType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Interface:
++		type u struct {
++			interfaceType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	default:
++		type u struct {
++			rtype
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	}
++}
++
++func (t *rtype) String() string {
++	s := t.nameOff(t.str).name()
++	if t.tflag&tflagExtraStar != 0 {
++		return s[1:]
++	}
++	return s
++}
++
++func (t *rtype) Kind() Kind { return Kind(t.kind & kindMask) }
++
++func (t *rtype) common() *rtype { return t }
++
++func (t *rtype) exportedMethods() []method {
++	ut := t.uncommon()
++	if ut == nil {
++		return nil
++	}
++	return ut.exportedMethods()
++}
++
++func (t *rtype) NumMethod() int {
++	if t.Kind() == Interface {
++		tt := (*interfaceType)(unsafe.Pointer(t))
++		return tt.NumMethod()
++	}
++	return len(t.exportedMethods())
++}
++
++func (t *rtype) PkgPath() string {
++	if t.tflag&tflagNamed == 0 {
++		return ""
++	}
++	ut := t.uncommon()
++	if ut == nil {
++		return ""
++	}
++	return t.nameOff(ut.pkgPath).name()
++}
++
++func (t *rtype) Name() string {
++	if t.tflag&tflagNamed == 0 {
++		return ""
++	}
++	s := t.String()
++	i := len(s) - 1
++	for i >= 0 {
++		if s[i] == '.' {
++			break
++		}
++		i--
++	}
++	return s[i+1:]
++}
++
++func (t *rtype) chanDir() chanDir {
++	if t.Kind() != Chan {
++		panic("reflect: chanDir of non-chan type")
++	}
++	tt := (*chanType)(unsafe.Pointer(t))
++	return chanDir(tt.dir)
++}
++
++func (t *rtype) Elem() Type {
++	switch t.Kind() {
++	case Array:
++		tt := (*arrayType)(unsafe.Pointer(t))
++		return toType(tt.elem)
++	case Chan:
++		tt := (*chanType)(unsafe.Pointer(t))
++		return toType(tt.elem)
++	case Map:
++		tt := (*mapType)(unsafe.Pointer(t))
++		return toType(tt.elem)
++	case Ptr:
++		tt := (*ptrType)(unsafe.Pointer(t))
++		return toType(tt.elem)
++	case Slice:
++		tt := (*sliceType)(unsafe.Pointer(t))
++		return toType(tt.elem)
++	}
++	panic("reflect: Elem of invalid type")
++}
++
++func (t *rtype) In(i int) Type {
++	if t.Kind() != Func {
++		panic("reflect: In of non-func type")
++	}
++	tt := (*funcType)(unsafe.Pointer(t))
++	return toType(tt.in()[i])
++}
++
++func (t *rtype) Key() Type {
++	if t.Kind() != Map {
++		panic("reflect: Key of non-map type")
++	}
++	tt := (*mapType)(unsafe.Pointer(t))
++	return toType(tt.key)
++}
++
++func (t *rtype) Len() int {
++	if t.Kind() != Array {
++		panic("reflect: Len of non-array type")
++	}
++	tt := (*arrayType)(unsafe.Pointer(t))
++	return int(tt.len)
++}
++
++func (t *rtype) NumField() int {
++	if t.Kind() != Struct {
++		panic("reflect: NumField of non-struct type")
++	}
++	tt := (*structType)(unsafe.Pointer(t))
++	return len(tt.fields)
++}
++
++func (t *rtype) NumIn() int {
++	if t.Kind() != Func {
++		panic("reflect: NumIn of non-func type")
++	}
++	tt := (*funcType)(unsafe.Pointer(t))
++	return int(tt.inCount)
++}
++
++func (t *rtype) NumOut() int {
++	if t.Kind() != Func {
++		panic("reflect: NumOut of non-func type")
++	}
++	tt := (*funcType)(unsafe.Pointer(t))
++	return len(tt.out())
++}
++
++func (t *rtype) Out(i int) Type {
++	if t.Kind() != Func {
++		panic("reflect: Out of non-func type")
++	}
++	tt := (*funcType)(unsafe.Pointer(t))
++	return toType(tt.out()[i])
++}
++
++func (t *funcType) in() []*rtype {
++	uadd := unsafe.Sizeof(*t)
++	if t.tflag&tflagUncommon != 0 {
++		uadd += unsafe.Sizeof(uncommonType{})
++	}
++	if t.inCount == 0 {
++		return nil
++	}
++	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount]
++}
++
++func (t *funcType) out() []*rtype {
++	uadd := unsafe.Sizeof(*t)
++	if t.tflag&tflagUncommon != 0 {
++		uadd += unsafe.Sizeof(uncommonType{})
++	}
++	outCount := t.outCount & (1<<15 - 1)
++	if outCount == 0 {
++		return nil
++	}
++	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount]
++}
++
++// add returns p+x.
++//
++// The whySafe string is ignored, so that the function still inlines
++// as efficiently as p+x, but all call sites should use the string to
++// record why the addition is safe, which is to say why the addition
++// does not cause x to advance to the very end of p's allocation
++// and therefore point incorrectly at the next block in memory.
++func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
++	return unsafe.Pointer(uintptr(p) + x)
++}
++
++// NumMethod returns the number of interface methods in the type's method set.
++func (t *interfaceType) NumMethod() int { return len(t.methods) }
++
++// TypeOf returns the reflection Type that represents the dynamic type of i.
++// If i is a nil interface value, TypeOf returns nil.
++func TypeOf(i interface{}) Type {
++	eface := *(*emptyInterface)(unsafe.Pointer(&i))
++	return toType(eface.typ)
++}
++
++func (t *rtype) Implements(u Type) bool {
++	if u == nil {
++		panic("reflect: nil type passed to Type.Implements")
++	}
++	if u.Kind() != Interface {
++		panic("reflect: non-interface type passed to Type.Implements")
++	}
++	return implements(u.(*rtype), t)
++}
++
++func (t *rtype) AssignableTo(u Type) bool {
++	if u == nil {
++		panic("reflect: nil type passed to Type.AssignableTo")
++	}
++	uu := u.(*rtype)
++	return directlyAssignable(uu, t) || implements(uu, t)
++}
++
++// implements reports whether the type V implements the interface type T.
++func implements(T, V *rtype) bool {
++	if T.Kind() != Interface {
++		return false
++	}
++	t := (*interfaceType)(unsafe.Pointer(T))
++	if len(t.methods) == 0 {
++		return true
++	}
++
++	// The same algorithm applies in both cases, but the
++	// method tables for an interface type and a concrete type
++	// are different, so the code is duplicated.
++	// In both cases the algorithm is a linear scan over the two
++	// lists - T's methods and V's methods - simultaneously.
++	// Since method tables are stored in a unique sorted order
++	// (alphabetical, with no duplicate method names), the scan
++	// through V's methods must hit a match for each of T's
++	// methods along the way, or else V does not implement T.
++	// This lets us run the scan in overall linear time instead of
++	// the quadratic time  a naive search would require.
++	// See also ../runtime/iface.go.
++	if V.Kind() == Interface {
++		v := (*interfaceType)(unsafe.Pointer(V))
++		i := 0
++		for j := 0; j < len(v.methods); j++ {
++			tm := &t.methods[i]
++			tmName := t.nameOff(tm.name)
++			vm := &v.methods[j]
++			vmName := V.nameOff(vm.name)
++			if vmName.name() == tmName.name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
++				if !tmName.isExported() {
++					tmPkgPath := tmName.pkgPath()
++					if tmPkgPath == "" {
++						tmPkgPath = t.pkgPath.name()
++					}
++					vmPkgPath := vmName.pkgPath()
++					if vmPkgPath == "" {
++						vmPkgPath = v.pkgPath.name()
++					}
++					if tmPkgPath != vmPkgPath {
++						continue
++					}
++				}
++				if i++; i >= len(t.methods) {
++					return true
++				}
++			}
++		}
++		return false
++	}
++
++	v := V.uncommon()
++	if v == nil {
++		return false
++	}
++	i := 0
++	vmethods := v.methods()
++	for j := 0; j < int(v.mcount); j++ {
++		tm := &t.methods[i]
++		tmName := t.nameOff(tm.name)
++		vm := vmethods[j]
++		vmName := V.nameOff(vm.name)
++		if vmName.name() == tmName.name() && V.typeOff(vm.mtyp) == t.typeOff(tm.typ) {
++			if !tmName.isExported() {
++				tmPkgPath := tmName.pkgPath()
++				if tmPkgPath == "" {
++					tmPkgPath = t.pkgPath.name()
++				}
++				vmPkgPath := vmName.pkgPath()
++				if vmPkgPath == "" {
++					vmPkgPath = V.nameOff(v.pkgPath).name()
++				}
++				if tmPkgPath != vmPkgPath {
++					continue
++				}
++			}
++			if i++; i >= len(t.methods) {
++				return true
++			}
++		}
++	}
++	return false
++}
++
++// directlyAssignable reports whether a value x of type V can be directly
++// assigned (using memmove) to a value of type T.
++// https://golang.org/doc/go_spec.html#Assignability
++// Ignoring the interface rules (implemented elsewhere)
++// and the ideal constant rules (no ideal constants at run time).
++func directlyAssignable(T, V *rtype) bool {
++	// x's type V is identical to T?
++	if T == V {
++		return true
++	}
++
++	// Otherwise at least one of T and V must not be defined
++	// and they must have the same kind.
++	if T.Name() != "" && V.Name() != "" || T.Kind() != V.Kind() {
++		return false
++	}
++
++	// x's type T and V must  have identical underlying types.
++	return haveIdenticalUnderlyingType(T, V, true)
++}
++
++func haveIdenticalType(T, V Type, cmpTags bool) bool {
++	if cmpTags {
++		return T == V
++	}
++
++	if T.Name() != V.Name() || T.Kind() != V.Kind() {
++		return false
++	}
++
++	return haveIdenticalUnderlyingType(T.common(), V.common(), false)
++}
++
++func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
++	if T == V {
++		return true
++	}
++
++	kind := T.Kind()
++	if kind != V.Kind() {
++		return false
++	}
++
++	// Non-composite types of equal kind have same underlying type
++	// (the predefined instance of the type).
++	if Bool <= kind && kind <= Complex128 || kind == String || kind == UnsafePointer {
++		return true
++	}
++
++	// Composite types.
++	switch kind {
++	case Array:
++		return T.Len() == V.Len() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
++
++	case Chan:
++		// Special case:
++		// x is a bidirectional channel value, T is a channel type,
++		// and x's type V and T have identical element types.
++		if V.chanDir() == bothDir && haveIdenticalType(T.Elem(), V.Elem(), cmpTags) {
++			return true
++		}
++
++		// Otherwise continue test for identical underlying type.
++		return V.chanDir() == T.chanDir() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
++
++	case Func:
++		t := (*funcType)(unsafe.Pointer(T))
++		v := (*funcType)(unsafe.Pointer(V))
++		if t.outCount != v.outCount || t.inCount != v.inCount {
++			return false
++		}
++		for i := 0; i < t.NumIn(); i++ {
++			if !haveIdenticalType(t.In(i), v.In(i), cmpTags) {
++				return false
++			}
++		}
++		for i := 0; i < t.NumOut(); i++ {
++			if !haveIdenticalType(t.Out(i), v.Out(i), cmpTags) {
++				return false
++			}
++		}
++		return true
++
++	case Interface:
++		t := (*interfaceType)(unsafe.Pointer(T))
++		v := (*interfaceType)(unsafe.Pointer(V))
++		if len(t.methods) == 0 && len(v.methods) == 0 {
++			return true
++		}
++		// Might have the same methods but still
++		// need a run time conversion.
++		return false
++
++	case Map:
++		return haveIdenticalType(T.Key(), V.Key(), cmpTags) && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
++
++	case Ptr, Slice:
++		return haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
++
++	case Struct:
++		t := (*structType)(unsafe.Pointer(T))
++		v := (*structType)(unsafe.Pointer(V))
++		if len(t.fields) != len(v.fields) {
++			return false
++		}
++		if t.pkgPath.name() != v.pkgPath.name() {
++			return false
++		}
++		for i := range t.fields {
++			tf := &t.fields[i]
++			vf := &v.fields[i]
++			if tf.name.name() != vf.name.name() {
++				return false
++			}
++			if !haveIdenticalType(tf.typ, vf.typ, cmpTags) {
++				return false
++			}
++			if cmpTags && tf.name.tag() != vf.name.tag() {
++				return false
++			}
++			if tf.offsetEmbed != vf.offsetEmbed {
++				return false
++			}
++		}
++		return true
++	}
++
++	return false
++}
++
++type structTypeUncommon struct {
++	structType
++	u uncommonType
++}
++
++// toType converts from a *rtype to a Type that can be returned
++// to the client of package reflect. In gc, the only concern is that
++// a nil *rtype must be replaced by a nil Type, but in gccgo this
++// function takes care of ensuring that multiple *rtype for the same
++// type are coalesced into a single Type.
++func toType(t *rtype) Type {
++	if t == nil {
++		return nil
++	}
++	return t
++}
++
++// ifaceIndir reports whether t is stored indirectly in an interface value.
++func ifaceIndir(t *rtype) bool {
++	return t.kind&kindDirectIface == 0
++}
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+new file mode 100644
+index 0000000000..837fa6c638
+--- /dev/null
++++ b/src/internal/reflectlite/value.go
+@@ -0,0 +1,448 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reflectlite
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++// Value is the reflection interface to a Go value.
++//
++// Not all methods apply to all kinds of values. Restrictions,
++// if any, are noted in the documentation for each method.
++// Use the Kind method to find out the kind of value before
++// calling kind-specific methods. Calling a method
++// inappropriate to the kind of type causes a run time panic.
++//
++// The zero Value represents no value.
++// Its IsValid method returns false, its Kind method returns Invalid,
++// its String method returns "<invalid Value>", and all other methods panic.
++// Most functions and methods never return an invalid value.
++// If one does, its documentation states the conditions explicitly.
++//
++// A Value can be used concurrently by multiple goroutines provided that
++// the underlying Go value can be used concurrently for the equivalent
++// direct operations.
++//
++// To compare two Values, compare the results of the Interface method.
++// Using == on two Values does not compare the underlying values
++// they represent.
++type Value struct {
++	// typ holds the type of the value represented by a Value.
++	typ *rtype
++
++	// Pointer-valued data or, if flagIndir is set, pointer to data.
++	// Valid when either flagIndir is set or typ.pointers() is true.
++	ptr unsafe.Pointer
++
++	// flag holds metadata about the value.
++	// The lowest bits are flag bits:
++	//	- flagStickyRO: obtained via unexported not embedded field, so read-only
++	//	- flagEmbedRO: obtained via unexported embedded field, so read-only
++	//	- flagIndir: val holds a pointer to the data
++	//	- flagAddr: v.CanAddr is true (implies flagIndir)
++	// Value cannot represent method values.
++	// The next five bits give the Kind of the value.
++	// This repeats typ.Kind() except for method values.
++	// The remaining 23+ bits give a method number for method values.
++	// If flag.kind() != Func, code can assume that flagMethod is unset.
++	// If ifaceIndir(typ), code can assume that flagIndir is set.
++	flag
++
++	// A method value represents a curried method invocation
++	// like r.Read for some receiver r. The typ+val+flag bits describe
++	// the receiver r, but the flag's Kind bits say Func (methods are
++	// functions), and the top bits of the flag give the method number
++	// in r's type's method table.
++}
++
++type flag uintptr
++
++const (
++	flagKindWidth        = 5 // there are 27 kinds
++	flagKindMask    flag = 1<<flagKindWidth - 1
++	flagStickyRO    flag = 1 << 5
++	flagEmbedRO     flag = 1 << 6
++	flagIndir       flag = 1 << 7
++	flagAddr        flag = 1 << 8
++	flagMethod      flag = 1 << 9
++	flagMethodShift      = 10
++	flagRO          flag = flagStickyRO | flagEmbedRO
++)
++
++func (f flag) kind() Kind {
++	return Kind(f & flagKindMask)
++}
++
++func (f flag) ro() flag {
++	if f&flagRO != 0 {
++		return flagStickyRO
++	}
++	return 0
++}
++
++// packEface converts v to the empty interface.
++func packEface(v Value) interface{} {
++	t := v.typ
++	var i interface{}
++	e := (*emptyInterface)(unsafe.Pointer(&i))
++	// First, fill in the data portion of the interface.
++	switch {
++	case ifaceIndir(t):
++		if v.flag&flagIndir == 0 {
++			panic("bad indir")
++		}
++		// Value is indirect, and so is the interface we're making.
++		ptr := v.ptr
++		if v.flag&flagAddr != 0 {
++			// TODO: pass safe boolean from valueInterface so
++			// we don't need to copy if safe==true?
++			c := unsafe_New(t)
++			typedmemmove(t, c, ptr)
++			ptr = c
++		}
++		e.word = ptr
++	case v.flag&flagIndir != 0:
++		// Value is indirect, but interface is direct. We need
++		// to load the data at v.ptr into the interface data word.
++		e.word = *(*unsafe.Pointer)(v.ptr)
++	default:
++		// Value is direct, and so is the interface.
++		e.word = v.ptr
++	}
++	// Now, fill in the type portion. We're very careful here not
++	// to have any operation between the e.word and e.typ assignments
++	// that would let the garbage collector observe the partially-built
++	// interface value.
++	e.typ = t
++	return i
++}
++
++// unpackEface converts the empty interface i to a Value.
++func unpackEface(i interface{}) Value {
++	e := (*emptyInterface)(unsafe.Pointer(&i))
++	// NOTE: don't read e.word until we know whether it is really a pointer or not.
++	t := e.typ
++	if t == nil {
++		return Value{}
++	}
++	f := flag(t.Kind())
++	if ifaceIndir(t) {
++		f |= flagIndir
++	}
++	return Value{t, e.word, f}
++}
++
++// A ValueError occurs when a Value method is invoked on
++// a Value that does not support it. Such cases are documented
++// in the description of each method.
++type ValueError struct {
++	Method string
++	Kind   Kind
++}
++
++func (e *ValueError) Error() string {
++	return "reflect: call of " + e.Method + " on zero Value"
++}
++
++// methodName returns the name of the calling method,
++// assumed to be two stack frames above.
++func methodName() string {
++	pc, _, _, _ := runtime.Caller(2)
++	f := runtime.FuncForPC(pc)
++	if f == nil {
++		return "unknown method"
++	}
++	return f.Name()
++}
++
++// emptyInterface is the header for an interface{} value.
++type emptyInterface struct {
++	typ  *rtype
++	word unsafe.Pointer
++}
++
++// nonEmptyInterface is the header for an interface value with methods.
++type nonEmptyInterface struct {
++	// see ../runtime/iface.go:/Itab
++	itab *struct {
++		ityp *rtype // static interface type
++		typ  *rtype // dynamic concrete type
++		hash uint32 // copy of typ.hash
++		_    [4]byte
++		fun  [100000]unsafe.Pointer // method table
++	}
++	word unsafe.Pointer
++}
++
++// mustBeExported panics if f records that the value was obtained using
++// an unexported field.
++func (f flag) mustBeExported() {
++	if f == 0 {
++		panic(&ValueError{methodName(), 0})
++	}
++	if f&flagRO != 0 {
++		panic("reflect: " + methodName() + " using value obtained using unexported field")
++	}
++}
++
++// mustBeAssignable panics if f records that the value is not assignable,
++// which is to say that either it was obtained using an unexported field
++// or it is not addressable.
++func (f flag) mustBeAssignable() {
++	if f == 0 {
++		panic(&ValueError{methodName(), Invalid})
++	}
++	// Assignable if addressable and not read-only.
++	if f&flagRO != 0 {
++		panic("reflect: " + methodName() + " using value obtained using unexported field")
++	}
++	if f&flagAddr == 0 {
++		panic("reflect: " + methodName() + " using unaddressable value")
++	}
++}
++
++// CanSet reports whether the value of v can be changed.
++// A Value can be changed only if it is addressable and was not
++// obtained by the use of unexported struct fields.
++// If CanSet returns false, calling Set or any type-specific
++// setter (e.g., SetBool, SetInt) will panic.
++func (v Value) CanSet() bool {
++	return v.flag&(flagAddr|flagRO) == flagAddr
++}
++
++// Elem returns the value that the interface v contains
++// or that the pointer v points to.
++// It panics if v's Kind is not Interface or Ptr.
++// It returns the zero Value if v is nil.
++func (v Value) Elem() Value {
++	k := v.kind()
++	switch k {
++	case Interface:
++		var eface interface{}
++		if v.typ.NumMethod() == 0 {
++			eface = *(*interface{})(v.ptr)
++		} else {
++			eface = (interface{})(*(*interface {
++				M()
++			})(v.ptr))
++		}
++		x := unpackEface(eface)
++		if x.flag != 0 {
++			x.flag |= v.flag.ro()
++		}
++		return x
++	case Ptr:
++		ptr := v.ptr
++		if v.flag&flagIndir != 0 {
++			ptr = *(*unsafe.Pointer)(ptr)
++		}
++		// The returned value's address is v's value.
++		if ptr == nil {
++			return Value{}
++		}
++		tt := (*ptrType)(unsafe.Pointer(v.typ))
++		typ := tt.elem
++		fl := v.flag&flagRO | flagIndir | flagAddr
++		fl |= flag(typ.Kind())
++		return Value{typ, ptr, fl}
++	}
++	panic(&ValueError{"reflectlite.Value.Elem", v.kind()})
++}
++
++func valueInterface(v Value) interface{} {
++	if v.flag == 0 {
++		panic(&ValueError{"reflectlite.Value.Interface", 0})
++	}
++
++	if v.kind() == Interface {
++		// Special case: return the element inside the interface.
++		// Empty interface has one layout, all interfaces with
++		// methods have a second layout.
++		if v.numMethod() == 0 {
++			return *(*interface{})(v.ptr)
++		}
++		return *(*interface {
++			M()
++		})(v.ptr)
++	}
++
++	// TODO: pass safe to packEface so we don't need to copy if safe==true?
++	return packEface(v)
++}
++
++// IsNil reports whether its argument v is nil. The argument must be
++// a chan, func, interface, map, pointer, or slice value; if it is
++// not, IsNil panics. Note that IsNil is not always equivalent to a
++// regular comparison with nil in Go. For example, if v was created
++// by calling ValueOf with an uninitialized interface variable i,
++// i==nil will be true but v.IsNil will panic as v will be the zero
++// Value.
++func (v Value) IsNil() bool {
++	k := v.kind()
++	switch k {
++	case Chan, Func, Map, Ptr, UnsafePointer:
++		// if v.flag&flagMethod != 0 {
++		// 	return false
++		// }
++		ptr := v.ptr
++		if v.flag&flagIndir != 0 {
++			ptr = *(*unsafe.Pointer)(ptr)
++		}
++		return ptr == nil
++	case Interface, Slice:
++		// Both interface and slice are nil if first word is 0.
++		// Both are always bigger than a word; assume flagIndir.
++		return *(*unsafe.Pointer)(v.ptr) == nil
++	}
++	panic(&ValueError{"reflectlite.Value.IsNil", v.kind()})
++}
++
++// IsValid reports whether v represents a value.
++// It returns false if v is the zero Value.
++// If IsValid returns false, all other methods except String panic.
++// Most functions and methods never return an invalid value.
++// If one does, its documentation states the conditions explicitly.
++func (v Value) IsValid() bool {
++	return v.flag != 0
++}
++
++// Kind returns v's Kind.
++// If v is the zero Value (IsValid returns false), Kind returns Invalid.
++func (v Value) Kind() Kind {
++	return v.kind()
++}
++
++// NumMethod returns the number of exported methods in the value's method set.
++func (v Value) numMethod() int {
++	if v.typ == nil {
++		panic(&ValueError{"reflectlite.Value.NumMethod", Invalid})
++	}
++	return v.typ.NumMethod()
++}
++
++// Set assigns x to the value v.
++// It panics if CanSet returns false.
++// As in Go, x's value must be assignable to v's type.
++func (v Value) Set(x Value) {
++	v.mustBeAssignable()
++	x.mustBeExported() // do not let unexported x leak
++	var target unsafe.Pointer
++	if v.kind() == Interface {
++		target = v.ptr
++	}
++	x = x.assignTo("reflectlite.Set", v.typ, target)
++	if x.flag&flagIndir != 0 {
++		typedmemmove(v.typ, v.ptr, x.ptr)
++	} else {
++		*(*unsafe.Pointer)(v.ptr) = x.ptr
++	}
++}
++
++// Type returns v's type.
++func (v Value) Type() Type {
++	f := v.flag
++	if f == 0 {
++		panic(&ValueError{"reflectlite.Value.Type", Invalid})
++	}
++	// Method values not supported.
++	return v.typ
++}
++
++// stringHeader is a safe version of StringHeader used within this package.
++type stringHeader struct {
++	Data unsafe.Pointer
++	Len  int
++}
++
++// sliceHeader is a safe version of SliceHeader used within this package.
++type sliceHeader struct {
++	Data unsafe.Pointer
++	Len  int
++	Cap  int
++}
++
++/*
++ * constructors
++ */
++
++// implemented in package runtime
++func unsafe_New(*rtype) unsafe.Pointer
++
++// ValueOf returns a new Value initialized to the concrete value
++// stored in the interface i. ValueOf(nil) returns the zero Value.
++func ValueOf(i interface{}) Value {
++	if i == nil {
++		return Value{}
++	}
++
++	// TODO: Maybe allow contents of a Value to live on the stack.
++	// For now we make the contents always escape to the heap. It
++	// makes life easier in a few places (see chanrecv/mapassign
++	// comment below).
++	escapes(i)
++
++	return unpackEface(i)
++}
++
++// assignTo returns a value v that can be assigned directly to typ.
++// It panics if v is not assignable to typ.
++// For a conversion to an interface type, target is a suggested scratch space to use.
++func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value {
++	// if v.flag&flagMethod != 0 {
++	// 	v = makeMethodValue(context, v)
++	// }
++
++	switch {
++	case directlyAssignable(dst, v.typ):
++		// Overwrite type so that they match.
++		// Same memory layout, so no harm done.
++		fl := v.flag&(flagAddr|flagIndir) | v.flag.ro()
++		fl |= flag(dst.Kind())
++		return Value{dst, v.ptr, fl}
++
++	case implements(dst, v.typ):
++		if target == nil {
++			target = unsafe_New(dst)
++		}
++		if v.Kind() == Interface && v.IsNil() {
++			// A nil ReadWriter passed to nil Reader is OK,
++			// but using ifaceE2I below will panic.
++			// Avoid the panic by returning a nil dst (e.g., Reader) explicitly.
++			return Value{dst, nil, flag(Interface)}
++		}
++		x := valueInterface(v)
++		if dst.NumMethod() == 0 {
++			*(*interface{})(target) = x
++		} else {
++			ifaceE2I(dst, x, target)
++		}
++		return Value{dst, target, flagIndir | flag(Interface)}
++	}
++
++	// Failed.
++	panic(context + ": value of type " + v.typ.String() + " is not assignable to type " + dst.String())
++}
++
++func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
++
++// typedmemmove copies a value of type t to dst from src.
++//go:noescape
++func typedmemmove(t *rtype, dst, src unsafe.Pointer)
++
++// Dummy annotation marking that the value x escapes,
++// for use in cases where the reflect code is so clever that
++// the compiler cannot follow.
++func escapes(x interface{}) {
++	if dummy.b {
++		dummy.x = x
++	}
++}
++
++var dummy struct {
++	b bool
++	x interface{}
++}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 8eca2e849d..246b63b897 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -492,6 +492,11 @@ func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
+ 	*dst = assertE2I(inter, e)
+ }
+ 
++//go:linkname reflectlite_ifaceE2I internal/reflectlite.ifaceE2I
++func reflectlite_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
++	*dst = assertE2I(inter, e)
++}
++
+ func iterate_itabs(fn func(*itab)) {
+ 	// Note: only runs during stop the world or with itabLock held,
+ 	// so no other locks/atomics needed.
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 8c617bb42b..6695372a3f 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1073,6 +1073,11 @@ func reflect_unsafe_New(typ *_type) unsafe.Pointer {
+ 	return mallocgc(typ.size, typ, true)
+ }
+ 
++//go:linkname reflectlite_unsafe_New internal/reflectlite.unsafe_New
++func reflectlite_unsafe_New(typ *_type) unsafe.Pointer {
++	return mallocgc(typ.size, typ, true)
++}
++
+ // newarray allocates an array of n elements of type typ.
+ func newarray(typ *_type, n int) unsafe.Pointer {
+ 	if n == 1 {
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 6da8cf2ccb..c0bd236313 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -186,6 +186,11 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	typedmemmove(typ, dst, src)
+ }
+ 
++//go:linkname reflectlite_typedmemmove internal/reflectlite.typedmemmove
++func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
++	reflect_typedmemmove(typ, dst, src)
++}
++
+ // typedmemmovepartial is like typedmemmove but assumes that
+ // dst and src point off bytes into the value and only copies size bytes.
+ //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 0c0a31ee6a..a597e1cd7f 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -490,6 +490,18 @@ func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+ 
+ }
+ 
++// reflectlite_resolveNameOff resolves a name offset from a base pointer.
++//go:linkname reflectlite_resolveNameOff internal/reflectlite.resolveNameOff
++func reflectlite_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
++	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
++}
++
++// reflectlite_resolveTypeOff resolves an *rtype offset from a base type.
++//go:linkname reflectlite_resolveTypeOff internal/reflectlite.resolveTypeOff
++func reflectlite_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
++	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
++}
++
+ // reflect_addReflectOff adds a pointer to the reflection offset lookup map.
+ //go:linkname reflect_addReflectOff reflect.addReflectOff
+ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {

@@ -11,7 +11,41 @@ Date:   Mon Dec 14 18:22:23 2015 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup.go      | 5 +++++
  src/net/lookup_test.go | 6 ++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 6e0cf62aec..7aa111ba92 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -123,6 +123,11 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err erro
+ 
+ // LookupPort looks up the port for the given network and service.
+ func LookupPort(network, service string) (port int, err error) {
++	if service == "" {
++		// Lock in the legacy behavior that an empty string
++		// means port 0. See Issue 13610.
++		return 0, nil
++	}
+ 	port, _, ok := dtoi(service, 0)
+ 	if !ok && port != big && port != -big {
+ 		port, err = lookupPort(network, service)
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 07b3686d50..fa2c6367db 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -591,6 +591,12 @@ var lookupPortTests = []struct {
+ 	{"tcp", "65536", 0, false},
+ 	{"udp", "-1", 0, false},
+ 	{"udp", "65536", 0, false},
++
++	// Issue 13610: LookupPort("tcp", "")
++	{"tcp", "", 0, true},
++	{"tcp6", "", 0, true},
++	{"tcp4", "", 0, true},
++	{"udp", "", 0, true},
+ }
+ 
+ func TestLookupPort(t *testing.T) {

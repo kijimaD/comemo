@@ -10,7 +10,7 @@ Date:   Mon Jul 13 23:38:39 2009 -0700
     R=ken
     OCL=31585
     CL=31585
-
+---
  src/cmd/gc/dcl.c  | 156 +++++++++++++++++++++--------------------
  src/cmd/gc/go.h   |   9 ++-
  src/cmd/gc/go.y   | 177 +++++++++++++++++++----------------------------
@@ -18,3 +18,1238 @@ Date:   Mon Jul 13 23:38:39 2009 -0700
  src/cmd/gc/walk.c | 203 ++++++++++++++++++++++++++++++++++++++++++++++--------
  test/golden.out   |  16 ++---
  6 files changed, 376 insertions(+), 235 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 64a4735ae1..7c0485ecb0 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -709,88 +709,97 @@ stotype(Node *n, int et, Type **t)
+ 	Iter save;
+ 	Strlit *note;
+ 	int lno;
++	Node *init;
+ 
++	init = N;
+ 	lno = lineno;
+-	n = listfirst(&save, &n);
+-
+-loop:
+-	note = nil;
+-	if(n == N) {
+-		*t = T;
+-		lineno = lno;
+-		return t;
+-	}
++	for(n = listfirst(&save, &n); n != N; n = listnext(&save)) {
++		note = nil;
+ 
+-	lineno = n->lineno;
+-	if(n->op == OLIST) {
+-		// recursive because it can be lists of lists
+-		t = stotype(n, et, t);
+-		goto next;
+-	}
++		lineno = n->lineno;
++		if(n->op == OLIST) {
++			// recursive because it can be lists of lists
++			t = stotype(n, et, t);
++			continue;
++		}
+ 
+-	if(n->op != ODCLFIELD)
+-		fatal("stotype: oops %N\n", n);
++		if(n->op != ODCLFIELD)
++			fatal("stotype: oops %N\n", n);
++		if(n->right != N) {
++			walkexpr(n->right, Etype, &init);
++			n->type = n->right->type;
++			n->right = N;
++			if(n->embedded && n->type != T) {
++				t1 = n->type;
++				if(t1->sym == S && isptr[t1->etype])
++					t1 = t1->type;
++				if(t1 != T && isptr[t1->etype])
++					yyerror("embedded type cannot be a pointer");
++			}
++		}
+ 
+-	if(n->type == T) {
+-		// assume error already printed
+-		goto next;
+-	}
++		if(n->type == T) {
++			// assume error already printed
++			continue;
++		}
+ 
+-	switch(n->val.ctype) {
+-	case CTSTR:
+-		if(et != TSTRUCT)
+-			yyerror("interface method cannot have annotation");
+-		note = n->val.u.sval;
+-		break;
+-	default:
+-		if(et != TSTRUCT)
+-			yyerror("interface method cannot have annotation");
+-		else
+-			yyerror("field annotation must be string");
+-	case CTxxx:
+-		note = nil;
+-		break;
+-	}
++		switch(n->val.ctype) {
++		case CTSTR:
++			if(et != TSTRUCT)
++				yyerror("interface method cannot have annotation");
++			note = n->val.u.sval;
++			break;
++		default:
++			if(et != TSTRUCT)
++				yyerror("interface method cannot have annotation");
++			else
++				yyerror("field annotation must be string");
++		case CTxxx:
++			note = nil;
++			break;
++		}
+ 
+-	if(et == TINTER && n->left == N) {
+-		// embedded interface - inline the methods
+-		if(n->type->etype != TINTER) {
+-			yyerror("interface contains embedded non-interface %T", t);
+-			goto next;
++		if(et == TINTER && n->left == N) {
++			// embedded interface - inline the methods
++			if(n->type->etype != TINTER) {
++				yyerror("interface contains embedded non-interface %T", t);
++				continue;
++			}
++			for(t1=n->type->type; t1!=T; t1=t1->down) {
++				// TODO(rsc): Is this really an error?
++				if(strcmp(t1->sym->package, package) != 0)
++					yyerror("embedded interface contains unexported method %S", t1->sym);
++				f = typ(TFIELD);
++				f->type = t1->type;
++				f->width = BADWIDTH;
++				f->nname = newname(t1->sym);
++				f->sym = t1->sym;
++				*t = f;
++				t = &f->down;
++			}
++			continue;
+ 		}
+-		for(t1=n->type->type; t1!=T; t1=t1->down) {
+-			if(strcmp(t1->sym->package, package) != 0)
+-				yyerror("embedded interface contains unexported method %S", t1->sym);
+-			f = typ(TFIELD);
+-			f->type = t1->type;
+-			f->width = BADWIDTH;
+-			f->nname = newname(t1->sym);
+-			f->sym = t1->sym;
+-			*t = f;
+-			t = &f->down;
++
++		f = typ(TFIELD);
++		f->type = n->type;
++		f->note = note;
++		f->width = BADWIDTH;
++
++		if(n->left != N && n->left->op == ONAME) {
++			f->nname = n->left;
++			f->embedded = n->embedded;
++			f->sym = f->nname->sym;
++			if(pkgimportname != S && !exportname(f->sym->name))
++				f->sym = pkglookup(f->sym->name, structpkg);
+ 		}
+-		goto next;
+-	}
+ 
+-	f = typ(TFIELD);
+-	f->type = n->type;
+-	f->note = note;
+-	f->width = BADWIDTH;
+-
+-	if(n->left != N && n->left->op == ONAME) {
+-		f->nname = n->left;
+-		f->embedded = n->embedded;
+-		f->sym = f->nname->sym;
+-		if(pkgimportname != S && !exportname(f->sym->name))
+-			f->sym = pkglookup(f->sym->name, structpkg);
++		*t = f;
++		t = &f->down;
+ 	}
+ 
+-	*t = f;
+-	t = &f->down;
+-
+-next:
+-	n = listnext(&save);
+-	goto loop;
++	*t = T;
++	lineno = lno;
++	return t;
+ }
+ 
+ Type*
+@@ -1239,7 +1248,8 @@ oldtype(Sym *s)
+ 	if(s == S)
+ 		return T;
+ 	if(s->def == N || s->def->op != OTYPE) {
+-		yyerror("%S is not a type", s);
++		if(!s->undef)
++			yyerror("%S is not a type", s);
+ 		return T;
+ 	}
+ 	t = s->def->type;
+@@ -1661,9 +1671,7 @@ embedded(Sym *s)
+ 	n->embedded = 1;
+ 	if(s == S)
+ 		return n;
+-	n->type = oldtype(s);
+-	if(n->type != T && isptr[n->type->etype])
+-		yyerror("embedded type cannot be a pointer");
++	n->right = oldname(s);
+ 	return n;
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 011d6dc957..2da248d1d5 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -221,6 +221,9 @@ struct	Node
+ 	// OLITERAL/OREGISTER
+ 	Val	val;
+ 
++	// OTFUNC
++	Node*	rcvr;
++
+ 	// ONAME func param with PHEAP
+ 	Node*	heapaddr;	// temp holding heap address of param
+ 	Node*	stackparam;	// OPARAM node referring to stack copy of param
+@@ -334,6 +337,8 @@ enum
+ 	ODOTTYPE, OTYPESW,
+ 	OBAD,
+ 
++	OTCHAN, OTMAP, OTSTRUCT, OTINTER, OTFUNC, OTARRAY,
++
+ 	OEXTEND,	// 6g internal
+ 
+ 	OEND,
+@@ -420,6 +425,7 @@ enum
+ 	Etop,		// evaluated at statement level
+ 	Elv,		// evaluated in lvalue context
+ 	Erv,		// evaluated in rvalue context
++	Etype = 1<<8,
+ };
+ 
+ #define	BITS	5
+@@ -711,7 +717,7 @@ void	errorexit(void);
+ uint32	stringhash(char*);
+ Sym*	lookup(char*);
+ Sym*	pkglookup(char*, char*);
+-Sym*	opkglookup(char*, char*);
++Sym*	restrictlookup(char*, char*);
+ void	importdot(Sym*);
+ void	yyerror(char*, ...);
+ void	warn(char*, ...);
+@@ -911,6 +917,7 @@ void	walk(Node*);
+ void	walkstmt(Node*);
+ void	walkexpr(Node*, int, Node**);
+ void	walkconv(Node*, Node**);
++void	walkdottype(Node*, Node**);
+ void	walkas(Node*);
+ void	walkbool(Node*);
+ void	walkswitch(Node*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 263b6bf07f..587b676f96 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -54,7 +54,7 @@
+ %type	<sym>	sym packname
+ %type	<val>	oliteral
+ 
+-%type	<node>	stmt
++%type	<node>	stmt ntype
+ %type	<node>	arg_type arg_type_list
+ %type	<node>	arg_type_list_r braced_keyexpr_list case caseblock
+ %type	<node>	caseblock_list_r common_dcl
+@@ -73,10 +73,11 @@
+ %type	<node>	switch_body switch_stmt uexpr vardcl vardcl_list_r
+ %type	<node>	xdcl xdcl_list_r xfndcl
+ 
+-%type	<type>	convtype dotdotdot
+-%type	<type>	fnlitdcl fntype indcl interfacetype
+-%type	<type>	new_type structtype type typedclname
+-%type	<type>	chantype non_chan_type othertype non_fn_type
++%type	<type>	type
++%type	<node>	convtype dotdotdot
++%type	<node>	indcl interfacetype structtype
++%type	<type>	new_type typedclname fnlitdcl fntype
++%type	<node>	chantype non_chan_type othertype non_fn_type
+ 
+ %type	<sym>	hidden_importsym hidden_pkg_importsym
+ 
+@@ -464,6 +465,8 @@ case:
+ 				$$ = nod(OXCASE, $$, N);
+ 				break;
+ 			}
++			e = nerrors;
++			walkexpr($2, Etype | Erv, &top);
+ 			if($2->op == OTYPE) {
+ 				$$ = old2new(typeswvar->right, $2->type, &top);
+ 				$$ = nod(OTYPESW, $$, N);
+@@ -471,11 +474,9 @@ case:
+ 				$$->ninit = top;
+ 				break;
+ 			}
+-			e = nerrors;
+-			gettype($2, nil);
+-			// maybe gettype found problems that keep
++			// maybe walkexpr found problems that keep
+ 			// e from being valid even outside a type switch.
+-			// only complain if gettype didn't print new errors.
++			// only complain if walkexpr didn't print new errors.
+ 			if(nerrors == e)
+ 				yyerror("non-type case in type switch");
+ 			$$ = nod(OXCASE, N, N);
+@@ -791,10 +792,6 @@ uexpr:
+ 	pexpr
+ |	'*' uexpr
+ 	{
+-		if($2->op == OTYPE) {
+-			$$ = typenod(ptrto($2->type));
+-			break;
+-		}
+ 		$$ = nod(OIND, $2, N);
+ 	}
+ |	'&' uexpr
+@@ -837,20 +834,6 @@ pseudocall:
+ 		$$ = unsafenmagic($1, $3);
+ 		if($$)
+ 			break;
+-		if($1->op == OTYPE) {
+-			// type conversion
+-			if($3 == N)
+-				yyerror("conversion to %T missing expr", $1->type);
+-			else if($3->op == OLIST)
+-				yyerror("conversion to %T has too many exprs", $1->type);
+-			$$ = nod(OCONV, $3, N);
+-			$$->type = $1->type;
+-			break;
+-		}
+-		if($1->op == ONAME && $1->etype != 0) {	// builtin OLEN, OCAP, etc
+-			$$ = nod($1->etype, $3, N);
+-			break;
+-		}
+ 		$$ = nod(OCALL, $1, $3);
+ 	}
+ 
+@@ -864,7 +847,7 @@ pexpr:
+ 	{
+ 		if($1->op == OPACK) {
+ 			Sym *s;
+-			s = pkglookup($3->name, $1->sym->name);
++			s = restrictlookup($3->name, $1->sym->name);
+ 			$$ = oldname(s);
+ 			break;
+ 		}
+@@ -877,10 +860,7 @@ pexpr:
+ 	}
+ |	pexpr '.' '(' expr_or_type ')'
+ 	{
+-		$$ = nod(ODOTTYPE, $1, N);
+-		if($4->op != OTYPE)
+-			yyerror("expected type got %O", $4->op);
+-		$$->type = $4->type;
++		$$ = nod(ODOTTYPE, $1, $4);
+ 	}
+ |	pexpr '.' '(' LTYPE ')'
+ 	{
+@@ -898,8 +878,7 @@ pexpr:
+ |	convtype '(' expr ')'
+ 	{
+ 		// conversion
+-		$$ = nod(OCONV, $3, N);
+-		$$->type = $1;
++		$$ = nod(OCALL, $1, $3);
+ 	}
+ |	convtype lbrace braced_keyexpr_list '}'
+ 	{
+@@ -907,8 +886,7 @@ pexpr:
+ 		$$ = rev($3);
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
+-		$$ = nod(OCOMPOS, $$, N);
+-		$$->type = $1;
++		$$ = nod(OCOMPOS, $$, $1);
+ 
+ 		// If the opening brace was an LBODY,
+ 		// set up for another one now that we're done.
+@@ -922,20 +900,13 @@ pexpr:
+ 		$$ = rev($3);
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
+-		$$ = nod(OCOMPOS, $$, N);
+-		if($1->op != OTYPE)
+-			yyerror("expected type in composite literal");
+-		else
+-			$$->type = $1->type;
++		$$ = nod(OCOMPOS, $$, $1);
+ 	}
+ |	fnliteral
+ 
+ expr_or_type:
+ 	expr
+-|	type	%prec PreferToRightParen
+-	{
+-		$$ = typenod($1);
+-	}
++|	ntype	%prec PreferToRightParen
+ 
+ name_or_type:
+ 	dotname
+@@ -996,21 +967,20 @@ labelname:
+ 	name
+ 
+ convtype:
+-	'[' oexpr ']' type
++	'[' oexpr ']' ntype
+ 	{
+ 		// array literal
+-		$$ = aindex($2, $4);
++		$$ = nod(OTARRAY, $2, $4);
+ 	}
+-|	'[' LDDD ']' type
++|	'[' dotdotdot ']' ntype
+ 	{
+ 		// array literal of nelem
+-		$$ = aindex(N, $4);
+-		$$->bound = -100;
++		$$ = nod(OTARRAY, $2, $4);
+ 	}
+-|	LMAP '[' type ']' type
++|	LMAP '[' ntype ']' ntype
+ 	{
+ 		// map literal
+-		$$ = maptype($3, $5);
++		$$ = nod(OTMAP, $3, $5);
+ 	}
+ |	structtype
+ 
+@@ -1026,22 +996,34 @@ convtype:
+ dotdotdot:
+ 	LDDD
+ 	{
+-		$$ = typ(TDDD);
++		$$ = typenod(typ(TDDD));
+ 	}
+ 
+ type:
++	ntype
++	{
++		Node *init;
++
++		init = N;
++		walkexpr($1, Etype, &init);
++		// init can only be set if this was not a type; ignore
++
++		$$ = $1->type;
++	}
++
++ntype:
+ 	chantype
+-|	fntype
++|	fntype { $$ = typenod($1); }
+ |	othertype
+-|	'(' type ')'
++|	'(' ntype ')'
+ 	{
+ 		$$ = $2;
+ 	}
+ 
+ non_chan_type:
+-	fntype
++	fntype { $$ = typenod($1); }
+ |	othertype
+-|	'(' type ')'
++|	'(' ntype ')'
+ 	{
+ 		$$ = $2;
+ 	}
+@@ -1056,7 +1038,7 @@ dotname:
+ 	{
+ 		if($1->op == OPACK) {
+ 			Sym *s;
+-			s = pkglookup($3->name, $1->sym->name);
++			s = restrictlookup($3->name, $1->sym->name);
+ 			$$ = oldname(s);
+ 			break;
+ 		}
+@@ -1067,52 +1049,41 @@ dotname:
+ othertype:
+ 	'[' oexpr ']' type
+ 	{
+-		$$ = aindex($2, $4);
++		$$ = typenod(aindex($2, $4));
+ 	}
+-|	LCOMM LCHAN type
++|	LCOMM LCHAN ntype
+ 	{
+-		$$ = typ(TCHAN);
+-		$$->type = $3;
+-		$$->chan = Crecv;
++		$$ = nod(OTCHAN, $3, N);
++		$$->etype = Crecv;
+ 	}
+ |	LCHAN LCOMM non_chan_type
+ 	{
+-		$$ = typ(TCHAN);
+-		$$->type = $3;
+-		$$->chan = Csend;
++		$$ = nod(OTCHAN, $3, N);
++		$$->etype = Csend;
+ 	}
+-|	LMAP '[' type ']' type
++|	LMAP '[' ntype ']' ntype
+ 	{
+-		$$ = maptype($3, $5);
++		$$ = nod(OTMAP, $3, $5);
+ 	}
+-|	'*' type
++|	'*' ntype
+ 	{
+-		$$ = ptrto($2);
++		$$ = nod(OIND, $2, N);
+ 	}
+ |	structtype
+ |	interfacetype
+ |	dotname
+-	{
+-		if($1->op == ODOT) {
+-			yyerror("%S.%S is not a type", $1->left->sym, $1->right->sym);
+-			$$ = T;
+-			break;
+-		}
+-		$$ = oldtype($1->sym);
+-	}
+ 
+ chantype:
+-	LCHAN type
++	LCHAN ntype
+ 	{
+-		$$ = typ(TCHAN);
+-		$$->type = $2;
+-		$$->chan = Cboth;
++		$$ = nod(OTCHAN, $2, N);
++		$$->etype = Cboth;
+ 	}
+ 
+ structtype:
+ 	LSTRUCT '{' structdcl_list_r osemi '}'
+ 	{
+-		$$ = dostruct(rev($3), TSTRUCT);
++		$$ = nod(OTSTRUCT, rev($3), N);
+ 		// Distinguish closing brace in struct from
+ 		// other closing braces by explicitly marking it.
+ 		// Used above (yylast == LSEMIBRACE).
+@@ -1120,20 +1091,19 @@ structtype:
+ 	}
+ |	LSTRUCT '{' '}'
+ 	{
+-		$$ = dostruct(N, TSTRUCT);
++		$$ = nod(OTSTRUCT, N, N);
+ 		yylast = LSEMIBRACE;
+ 	}
+ 
+ interfacetype:
+ 	LINTERFACE '{' interfacedcl_list_r osemi '}'
+ 	{
+-		$$ = dostruct(rev($3), TINTER);
+-		$$ = sortinter($$);
++		$$ = nod(OTINTER, rev($3), N);
+ 		yylast = LSEMIBRACE;
+ 	}
+ |	LINTERFACE '{' '}'
+ 	{
+-		$$ = dostruct(N, TINTER);
++		$$ = nod(OTINTER, N, N);
+ 		yylast = LSEMIBRACE;
+ 	}
+ 
+@@ -1229,8 +1199,7 @@ fnres:
+ 	}
+ |	non_fn_type
+ 	{
+-		$$ = nod(ODCLFIELD, N, N);
+-		$$->type = $1;
++		$$ = nod(ODCLFIELD, N, $1);
+ 		$$ = cleanidlist($$);
+ 	}
+ |	'(' oarg_type_list ')'
+@@ -1294,10 +1263,9 @@ structdcl:
+ 		$$ = nod(ODCLFIELD, $1, N);
+ 		$$ = nod(OLIST, $$, $3);
+ 	}
+-|	new_field type oliteral
++|	new_field ntype oliteral
+ 	{
+-		$$ = nod(ODCLFIELD, $1, N);
+-		$$->type = $2;
++		$$ = nod(ODCLFIELD, $1, $2);
+ 		$$->val = $3;
+ 	}
+ |	embed oliteral
+@@ -1308,7 +1276,7 @@ structdcl:
+ |	'*' embed oliteral
+ 	{
+ 		$$ = $2;
+-		$$->type = ptrto($$->type);
++		$$->right = nod(OIND, $$->right, N);
+ 		$$->val = $3;
+ 	}
+ 
+@@ -1323,7 +1291,7 @@ packname:
+ 			pkg = $1->name;
+ 		} else
+ 			pkg = $1->def->sym->name;
+-		$$ = pkglookup($3->name, pkg);
++		$$ = restrictlookup($3->name, pkg);
+ 	}
+ 
+ embed:
+@@ -1340,23 +1308,21 @@ interfacedcl1:
+ 	}
+ |	new_name indcl
+ 	{
+-		$$ = nod(ODCLFIELD, $1, N);
+-		$$->type = $2;
++		$$ = nod(ODCLFIELD, $1, $2);
+ 	}
+ 
+ interfacedcl:
+ 	interfacedcl1
+ |	packname
+ 	{
+-		$$ = nod(ODCLFIELD, N, N);
+-		$$->type = oldtype($1);
++		$$ = nod(ODCLFIELD, N, typenod(oldtype($1)));
+ 	}
+ 
+ indcl:
+ 	'(' oarg_type_list ')' fnres
+ 	{
+ 		// without func keyword
+-		$$ = functype(fakethis(), $2, $4);
++		$$ = typenod(functype(fakethis(), $2, $4));
+ 	}
+ 
+ /*
+@@ -1380,12 +1346,9 @@ arg_type:
+ 			$$ = nod(ONONAME, N, N);
+ 			$$->sym = $1;
+ 		}
+-		$$ = nod(OKEY, $$, typenod($2));
++		$$ = nod(OKEY, $$, $2);
+ 	}
+ |	dotdotdot
+-	{
+-		$$ = typenod($1);
+-	}
+ 
+ arg_type_list_r:
+ 	arg_type
+@@ -1804,15 +1767,14 @@ hidden_dcl:
+ hidden_structdcl:
+ 	sym hidden_type oliteral
+ 	{
+-		$$ = nod(ODCLFIELD, newname($1), N);
+-		$$->type = $2;
++		$$ = nod(ODCLFIELD, newname($1), typenod($2));
+ 		$$->val = $3;
+ 	}
+ |	'?' hidden_type oliteral
+ 	{
+ 		if(isptr[$2->etype]) {
+ 			$$ = embedded($2->type->sym);
+-			$$->type = ptrto($$->type);
++			$$->right = nod(OIND, $$->right, N);
+ 		} else
+ 			$$ = embedded($2->sym);
+ 		$$->val = $3;
+@@ -1821,8 +1783,7 @@ hidden_structdcl:
+ hidden_interfacedcl:
+ 	sym '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+-		$$ = nod(ODCLFIELD, newname($1), N);
+-		$$->type = functype(fakethis(), $3, $5);
++		$$ = nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
+ 	}
+ 
+ ohidden_funres:
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1e7b7f408c..06eafc2935 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -178,29 +178,29 @@ lookup(char *p)
+ }
+ 
+ Sym*
+-pkglookup(char *p, char *k)
++pkglookup(char *name, char *pkg)
+ {
+ 	Sym *s;
+ 	uint32 h;
+ 	int c;
+ 
+-	h = stringhash(p) % NHASH;
+-	c = p[0];
++	h = stringhash(name) % NHASH;
++	c = name[0];
+ 	for(s = hash[h]; s != S; s = s->link) {
+ 		if(s->name[0] != c)
+ 			continue;
+-		if(strcmp(s->name, p) == 0)
+-			if(s->package && strcmp(s->package, k) == 0)
++		if(strcmp(s->name, name) == 0)
++			if(s->package && strcmp(s->package, pkg) == 0)
+ 				return s;
+ 	}
+ 
+ 	s = mal(sizeof(*s));
+-	s->name = mal(strlen(p)+1);
+-	strcpy(s->name, p);
++	s->name = mal(strlen(name)+1);
++	strcpy(s->name, name);
+ 
+ 	// botch - should probably try to reuse the pkg string
+-	s->package = mal(strlen(k)+1);
+-	strcpy(s->package, k);
++	s->package = mal(strlen(pkg)+1);
++	strcpy(s->package, pkg);
+ 
+ 	s->link = hash[h];
+ 	hash[h] = s;
+@@ -208,7 +208,16 @@ pkglookup(char *p, char *k)
+ 	return s;
+ }
+ 
+-// find all the symbols in package opkg
++Sym*
++restrictlookup(char *name, char *pkg)
++{
++	if(!exportname(name) && strcmp(pkg, package) != 0)
++		yyerror("cannot refer to %s.%s", pkg, name);
++	return pkglookup(name, pkg);
++}
++	
++
++// find all the exported symbols in package opkg
+ // and make them available in the current package
+ void
+ importdot(Sym *opkg)
+@@ -225,6 +234,8 @@ importdot(Sym *opkg)
+ 		for(s = hash[h]; s != S; s = s->link) {
+ 			if(s->package[0] != c)
+ 				continue;
++			if(!exportname(s->name))
++				continue;
+ 			if(strcmp(s->package, opkg->name) != 0)
+ 				continue;
+ 			s1 = lookup(s->name);
+@@ -758,6 +769,12 @@ opnames[] =
+ 	[OSLICE]	= "SLICE",
+ 	[OSUB]		= "SUB",
+ 	[OSWITCH]	= "SWITCH",
++	[OTCHAN]	= "TCHAN",
++	[OTMAP]	= "TMAP",
++	[OTSTRUCT]	= "TSTRUCT",
++	[OTINTER]	= "TINTER",
++	[OTFUNC]	= "TFUNC",
++	[OTARRAY]	= "TARRAY",
+ 	[OTYPEOF]	= "TYPEOF",
+ 	[OTYPESW]	= "TYPESW",
+ 	[OTYPE]		= "TYPE",
+@@ -2147,18 +2164,19 @@ cleanidlist(Node *na)
+ {
+ 	Node *last, *n;
+ 
+-	if(na->op != OLIST)
++	if(na->op != OLIST) {
++		if(na->op != ODCLFIELD)
++			fatal("cleanidlist: %O", na->op);
++		if(na->right == N)
++			fatal("cleanidlist: no type");
+ 		return na;
++	}
+ 
+ 	for(last=na; last->op == OLIST; last=last->right)
+ 		;
+-	if(last->op != ODCLFIELD)
+-		fatal("cleanidlist: %O", last->op);
+-	if(last->type == T)
+-		fatal("cleanidlist: no type");
+ 
+ 	for(n=na; n->op == OLIST; n=n->right) {
+-		n->left->type = last->type;
++		n->left->right = last->right;
+ 		n->left->val = last->val;
+ 	}
+ 	return na;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 21f19773ba..2a9cb97c7e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -48,10 +48,18 @@ loop:
+ 	// statement of the function
+ 
+ 	case OGOTO:
+-	case OPANIC:
+-	case OPANICN:
+ 	case ORETURN:
+ 		return 0;
++
++	case OCALL:
++		if(n->left->op == ONAME) {
++			switch(n->left->etype) {
++			case OPANIC:
++			case OPANICN:
++				return 0;
++			}
++		}
++		break;
+ 	}
+ 
+ 	// all other statements
+@@ -242,12 +250,14 @@ walkexpr(Node *n, int top, Node **init)
+ 	Node *r, *l;
+ 	Type *t;
+ 	Sym *s;
+-	int et, cl, cr;
++	int et, cl, cr, typeok;
+ 	int32 lno;
+ 
+ 	if(n == N)
+ 		return;
+ 	lno = setlineno(n);
++	typeok = top & Etype;
++	top &= ~Etype;
+ 
+ loop:
+ 	if(n == N)
+@@ -258,6 +268,7 @@ loop:
+ 	if(debug['w'] > 1 && top == Etop && n->op != OLIST)
+ 		dump("walk-before", n);
+ 
++reswitch:
+ 	t = T;
+ 	et = Txxx;
+ 
+@@ -268,15 +279,79 @@ loop:
+ 		goto ret;
+ 
+ 	case OTYPE:
+-		if(!n->diag) {
+-			n->diag = 1;
+-			yyerror("type %T used as expression", n->type);
++		goto ret;
++
++	case OTARRAY:
++		t = typ(TARRAY);
++		l = n->left;
++		r = n->right;
++		if(l == nil) {
++			t->bound = -1;
++		} else {
++			walkexpr(l, Erv | Etype, init);
++			switch(l->op) {
++			default:
++				yyerror("invalid array bound %O", l->op);
++				break;
++
++			case OLITERAL:
++				if(consttype(l) == CTINT) {
++					t->bound = mpgetfix(l->val.u.xval);
++					if(t->bound < 0) {
++						yyerror("array bound must be non-negative");
++						t->bound = 1;
++					}
++				}
++				break;
++
++			case OTYPE:
++				if(l->type == T)
++					break;
++				if(l->type->etype != TDDD)
++					yyerror("invalid array bound %T", l->type);
++				t->bound = -100;
++				break;
++			}
+ 		}
++		walkexpr(r, Etype, init);
++		t->type = r->type;
++		n->op = OTYPE;
++		n->type = t;
++		goto ret;
++
++	case OTMAP:
++		l = n->left;
++		r = n->right;
++		walkexpr(l, Etype, init);
++		walkexpr(r, Etype, init);
++		n->op = OTYPE;
++		n->type = maptype(l->type, r->type);
++		goto ret;
++
++	case OTCHAN:
++		t = typ(TCHAN);
++		l = n->left;
++		walkexpr(l, Etype, init);
++		t->type = l->type;
++		t->chan = n->etype;
++		n->op = OTYPE;
++		n->type = t;
++		goto ret;
++
++	case OTSTRUCT:
++		n->op = OTYPE;
++		n->type = dostruct(n->left, TSTRUCT);
++		goto ret;
++
++	case OTINTER:
++		n->op = OTYPE;
++		n->type = dostruct(n->left, TINTER);
++		n->type = sortinter(n->type);
+ 		goto ret;
+ 
+ 	case OLIST:
+ 	case OKEY:
+-		walkexpr(n->left, top, init);
++		walkexpr(n->left, top | typeok, init);
+ 		n = n->right;
+ 		goto loop;
+ 
+@@ -318,7 +393,8 @@ loop:
+ 		s = n->sym;
+ 		if(s->undef == 0) {
+ 			s->undef = 1;
+-			yyerror("%S: undefined", s);
++			n->diag = 1;
++			yyerror("undefined: %S", s);
+ 			goto ret;
+ 		}
+ 		if(top == Etop)
+@@ -354,7 +430,15 @@ loop:
+ 		if(n->left == N)
+ 			goto ret;
+ 
+-		walkexpr(n->left, Erv, init);
++		if(n->left->op == ONAME && n->left->etype != 0) {
++			// builtin OLEN, OCAP, etc.
++			n->op = n->left->etype;
++			n->left = n->right;
++			n->right = N;
++			goto reswitch;
++		}
++
++		walkexpr(n->left, Erv | Etype, init);
+ 		defaultlit(n->left, T);
+ 
+ 		t = n->left->type;
+@@ -365,6 +449,16 @@ loop:
+ 			n->op = OCALLMETH;
+ 		if(n->left->op == ODOTINTER)
+ 			n->op = OCALLINTER;
++		if(n->left->op == OTYPE) {
++			n->op = OCONV;
++			if(top != Erv)
++				goto nottop;
++			// turn CALL(type, arg) into CONV(arg) w/ type.
++			n->type = n->left->type;
++			n->left = n->right;
++			n->right = N;
++			goto reswitch;
++		}
+ 
+ 		if(t->etype != TFUNC) {
+ 			yyerror("call of a non-function: %T", t);
+@@ -493,9 +587,9 @@ loop:
+ 			break;
+ 
+ 		case ODOTTYPE:
++			walkdottype(r, init);
+ 			if(cl == 2 && cr == 1) {
+ 				// a,b = i.(T)
+-				walkexpr(r->left, Erv, init);
+ 				if(r->left == N)
+ 					break;
+ 				et = ifaceas1(r->type, r->left->type, 1);
+@@ -558,8 +652,10 @@ loop:
+ 	case OEMPTY:
+ 		goto ret;
+ 
+-	case OCONV:
+ 	case ODOTTYPE:
++		walkdottype(n, init);
++		// fall through
++	case OCONV:
+ 		if(top != Erv)
+ 			goto nottop;
+ 		walkconv(n, init);
+@@ -573,9 +669,12 @@ loop:
+ 		goto ret;
+ 
+ 	case OCOMPOS:
+-		t = n->type;
++		walkexpr(n->right, Etype, init);
++		t = n->right->type;
++		n->type = t;
+ 		if(t == T)
+ 			goto ret;
++
+ 		l = n->left;
+ 		if(l == N)
+ 			goto ret;
+@@ -911,7 +1010,12 @@ loop:
+ 		if(top != Erv)
+ 			goto nottop;
+ 		defaultlit(n->left, T);
+-		if(n->left->op == OCOMPOS && n->left->type != T) {
++		if(n->left->op == OCOMPOS) {
++			walkexpr(n->left->right, Etype, init);
++			n->left->type = n->left->right->type;
++			if(n->left->type == T)
++				goto ret;
++
+ 			Node *nvar, *nas, *nstar;
+ 
+ 			// turn &Point(1, 2) or &[]int(1, 2) or &[...]int(1, 2) into allocation.
+@@ -971,10 +1075,15 @@ loop:
+ 			goto nottop;
+ 		if(top == Elv)	// even if n is lvalue, n->left is rvalue
+ 			top = Erv;
+-		walkexpr(n->left, top, init);
+-		defaultlit(n->left, T);
+ 		if(n->left == N)
+ 			goto ret;
++		walkexpr(n->left, top | Etype, init);
++		defaultlit(n->left, T);
++		if(n->left->op == OTYPE) {
++			n->op = OTYPE;
++			n->type = ptrto(n->left->type);
++			goto ret;
++		}
+ 		t = n->left->type;
+ 		if(t == T)
+ 			goto ret;
+@@ -998,12 +1107,11 @@ loop:
+ 		if(top != Erv)
+ 			goto nottop;
+ 		l = n->left;
++		walkexpr(l, Etype, init);
+ 		if(l == N)
+ 			yyerror("missing argument to new");
+ 		else if(n->right != N)
+ 			yyerror("too many arguments to new");
+-		else if(l->op != OTYPE)
+-			yyerror("argument to new must be type");
+ 		else if((t = l->type) == T)
+ 			;
+ 		else
+@@ -1153,9 +1261,12 @@ nottop:
+ 	if(n->diag)
+ 		goto ret;
+ 	n->diag = 1;
+-	switch(top) {
++	switch(top | typeok) {
+ 	default:
+-		yyerror("didn't expect %O here", n->op);
++		yyerror("didn't expect %O here [top=%d]", n->op, top);
++		break;
++	case Etype:
++		yyerror("operation %O not allowed in type context", n->op);
+ 		break;
+ 	case Etop:
+ 		yyerror("operation %O not allowed in statement context", n->op);
+@@ -1164,6 +1275,7 @@ nottop:
+ 		yyerror("operation %O not allowed in assignment context", n->op);
+ 		break;
+ 	case Erv:
++	case Erv | Etype:
+ 		yyerror("operation %O not allowed in expression context", n->op);
+ 		break;
+ 	}
+@@ -1188,6 +1300,21 @@ ret:
+ 	if(debug['w'] && top == Etop && n != N)
+ 		dump("walk", n);
+ 
++	if(typeok && top == 0) {	// must be type
++		if(n->op != OTYPE) {
++			if(n->sym) {
++				if(!n->sym->undef)
++					yyerror("%S is not a type", n->sym);
++			} else {
++				yyerror("expr %O is not type", n->op);
++				n->op = OTYPE;	// leads to fewer errors later
++				n->type = T;
++			}
++		}
++	}
++	if(!typeok && n->op == OTYPE)
++		yyerror("cannot use type %T as expr", n->type);
++
+ 	ullmancalc(n);
+ 	lineno = lno;
+ }
+@@ -1203,6 +1330,22 @@ walkbool(Node *n)
+ 		yyerror("IF and FOR require a boolean type");
+ }
+ 
++void
++walkdottype(Node *n, Node **init)
++{
++	walkexpr(n->left, Erv, init);
++	if(n->left == N)
++		return;
++	defaultlit(n->left, T);
++	if(!isinter(n->left->type))
++		yyerror("type assertion requires interface on left, have %T", n->left->type);
++	if(n->right != N) {
++		walkexpr(n->right, Etype, init);
++		n->type = n->right->type;
++		n->right = N;
++	}
++}
++
+ void
+ walkconv(Node *n, Node **init)
+ {
+@@ -1223,9 +1366,6 @@ walkconv(Node *n, Node **init)
+ 
+ 	// if using .(T), interface assertion.
+ 	if(n->op == ODOTTYPE) {
+-		defaultlit(l, T);
+-		if(!isinter(l->type))
+-			yyerror("type assertion requires interface on left, have %T", l->type);
+ 		et = ifaceas1(t, l->type, 1);
+ 		if(et == I2Isame || et == E2Esame)
+ 			goto nop;
+@@ -1727,7 +1867,7 @@ walkdot(Node *n, Node **init)
+ 	if(!lookdot(n, t)) {
+ 		if(!n->diag) {
+ 			n->diag = 1;
+-			yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
++			yyerror("undefined: %T field %S", n->left->type, n->right->sym);
+ 		}
+ 	}
+ }
+@@ -2300,7 +2440,7 @@ Node*
+ makecompat(Node *n)
+ {
+ 	Type *t;
+-	Node *l, *r;
++	Node *l, *r, *init;
+ 
+ 	l = n->left;
+ 	r = N;
+@@ -2308,6 +2448,8 @@ makecompat(Node *n)
+ 		r = l->right;
+ 		l = l->left;
+ 	}
++	init = N;
++	walkexpr(l, Etype, &init);
+ 	if(l->op != OTYPE) {
+ 		yyerror("cannot make(expr)");
+ 		return n;
+@@ -3455,10 +3597,17 @@ colas(Node *nl, Node *nr, Node **init)
+ 	/* check calls early, to give better message for a := f() */
+ 	if(cr == 1) {
+ 		switch(nr->op) {
++		case OCALL:
++			if(nr->left->op == ONAME && nr->left->etype != 0)
++				break;
++			walkexpr(nr->left, Erv | Etype, init);
++			if(nr->left->op == OTYPE)
++				break;
++			goto call;
+ 		case OCALLMETH:
+ 		case OCALLINTER:
+-		case OCALL:
+ 			walkexpr(nr->left, Erv, init);
++		call:
+ 			convlit(nr->left, types[TFUNC]);
+ 			t = nr->left->type;
+ 			if(t == T)
+@@ -3539,11 +3688,9 @@ multi:
+ 
+ 	case ODOTTYPE:
+ 		// a,b := i.(T)
++		walkdottype(nr, init);
+ 		if(cl != 2)
+ 			goto badt;
+-		walkexpr(nr->left, Erv, init);
+-		if(!isinter(nr->left->type))
+-			goto badt;
+ 		// a,b = iface
+ 		a = mixedoldnew(nl->left, nr->type);
+ 		n = a;
+diff --git a/test/golden.out b/test/golden.out
+index a6845f40b8..24a8714cbc 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -130,8 +130,8 @@ fixedbugs/bug035.go:7: variable f redeclared in this block
+ 	previous declaration at fixedbugs/bug035.go:5
+ 
+ =========== fixedbugs/bug037.go
+-fixedbugs/bug037.go:6: vlong: undefined
+-fixedbugs/bug037.go:6: s: undefined
++fixedbugs/bug037.go:6: undefined: vlong
++fixedbugs/bug037.go:6: undefined: s
+ 
+ =========== fixedbugs/bug039.go
+ fixedbugs/bug039.go:6: variable x redeclared in this block
+@@ -166,7 +166,7 @@ do break
+ broke
+ 
+ =========== fixedbugs/bug072.go
+-fixedbugs/bug072.go:6: bug: undefined
++fixedbugs/bug072.go:6: undefined: bug
+ 
+ =========== fixedbugs/bug073.go
+ fixedbugs/bug073.go:8: illegal types for operand: LSH
+@@ -185,16 +185,16 @@ fixedbugs/bug074.go:6: invalid type for composite literal: string
+ fixedbugs/bug074.go:6: invalid type for composite literal: string
+ 
+ =========== fixedbugs/bug081.go
+-fixedbugs/bug081.go:5: x is not a type
++fixedbugs/bug081.go:5: undefined: x
+ 
+ =========== fixedbugs/bug083.go
+-fixedbugs/bug083.dir/bug1.go:9: cannot use type bug0.t0
++fixedbugs/bug083.dir/bug1.go:9: cannot refer to bug0.t0
+ 
+ =========== fixedbugs/bug086.go
+ fixedbugs/bug086.go:5: function ends without a return statement
+ 
+ =========== fixedbugs/bug091.go
+-fixedbugs/bug091.go:15: c: undefined
++fixedbugs/bug091.go:15: undefined: c
+ fixedbugs/bug091.go:15: illegal types for operand: AS
+ 	undefined
+ 
+@@ -203,7 +203,7 @@ M
+ 
+ =========== fixedbugs/bug103.go
+ fixedbugs/bug103.go:8: assignment count mismatch: 1 = 0
+-fixedbugs/bug103.go:8: x: undefined
++fixedbugs/bug103.go:8: undefined: x
+ fixedbugs/bug103.go:8: function requires a return type
+ fixedbugs/bug103.go:8: illegal types for operand: AS
+ 	int
+@@ -228,6 +228,6 @@ fixedbugs/bug131.go:7: illegal types for operand: AS
+ 	uint64
+ 
+ =========== fixedbugs/bug133.go
+-fixedbugs/bug133.dir/bug2.go:11: undefined DOT i on bug0.T
++fixedbugs/bug133.dir/bug2.go:11: undefined: bug0.T field i
+ fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
+ 	int

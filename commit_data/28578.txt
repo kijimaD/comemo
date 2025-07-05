@@ -29,7 +29,7 @@ Date:   Tue May 31 11:27:16 2016 -0400
     Change-Id: I30937c8ff977271246b068f48224693776804339
     Reviewed-on: https://go-review.googlesource.com/23652
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go            |  97 ++-
  src/cmd/compile/internal/gc/ssa.go             |  14 +
  src/cmd/compile/internal/gc/walk.go            |   4 +-
@@ -40,3 +40,2657 @@ Date:   Tue May 31 11:27:16 2016 -0400
  src/cmd/compile/internal/ssa/opGen.go          | 546 +++++++++++++++--
  src/cmd/compile/internal/ssa/rewriteARM.go     | 796 ++++++++++++++++++++++++-
  9 files changed, 1507 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index f4edbeae3b..afee8beeae 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -5,6 +5,8 @@
+ package arm
+ 
+ import (
++	"math"
++
+ 	"cmd/compile/internal/gc"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/internal/obj"
+@@ -29,6 +31,23 @@ var ssaRegToReg = []int16{
+ 	arm.REG_R14,
+ 	arm.REG_R15,
+ 
++	arm.REG_F0,
++	arm.REG_F1,
++	arm.REG_F2,
++	arm.REG_F3,
++	arm.REG_F4,
++	arm.REG_F5,
++	arm.REG_F6,
++	arm.REG_F7,
++	arm.REG_F8,
++	arm.REG_F9,
++	arm.REG_F10,
++	arm.REG_F11,
++	arm.REG_F12,
++	arm.REG_F13,
++	arm.REG_F14,
++	arm.REG_F15,
++
+ 	arm.REG_CPSR, // flag
+ 	0,            // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
+ }
+@@ -36,7 +55,12 @@ var ssaRegToReg = []int16{
+ // loadByType returns the load instruction of the given type.
+ func loadByType(t ssa.Type) obj.As {
+ 	if t.IsFloat() {
+-		panic("load floating point register is not implemented")
++		switch t.Size() {
++		case 4:
++			return arm.AMOVF
++		case 8:
++			return arm.AMOVD
++		}
+ 	} else {
+ 		switch t.Size() {
+ 		case 1:
+@@ -61,7 +85,12 @@ func loadByType(t ssa.Type) obj.As {
+ // storeByType returns the store instruction of the given type.
+ func storeByType(t ssa.Type) obj.As {
+ 	if t.IsFloat() {
+-		panic("store floating point register is not implemented")
++		switch t.Size() {
++		case 4:
++			return arm.AMOVF
++		case 8:
++			return arm.AMOVD
++		}
+ 	} else {
+ 		switch t.Size() {
+ 		case 1:
+@@ -93,7 +122,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if x == y {
+ 			return
+ 		}
+-		p := gc.Prog(arm.AMOVW)
++		as := arm.AMOVW
++		if v.Type.IsFloat() {
++			switch v.Type.Size() {
++			case 4:
++				as = arm.AMOVF
++			case 8:
++				as = arm.AMOVD
++			default:
++				panic("bad float size")
++			}
++		}
++		p := gc.Prog(as)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = x
+ 		p.To.Type = obj.TYPE_REG
+@@ -172,7 +212,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMOR,
+ 		ssa.OpARMXOR,
+ 		ssa.OpARMBIC,
+-		ssa.OpARMMUL:
++		ssa.OpARMMUL,
++		ssa.OpARMADDF,
++		ssa.OpARMADDD,
++		ssa.OpARMSUBF,
++		ssa.OpARMSUBD,
++		ssa.OpARMMULF,
++		ssa.OpARMMULD,
++		ssa.OpARMDIVF,
++		ssa.OpARMDIVD:
+ 		r := gc.SSARegNum(v)
+ 		r1 := gc.SSARegNum(v.Args[0])
+ 		r2 := gc.SSARegNum(v.Args[1])
+@@ -331,10 +379,19 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpARMMOVFconst,
++		ssa.OpARMMOVDconst:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_FCONST
++		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
+ 	case ssa.OpARMCMP,
+ 		ssa.OpARMCMN,
+ 		ssa.OpARMTST,
+-		ssa.OpARMTEQ:
++		ssa.OpARMTEQ,
++		ssa.OpARMCMPF,
++		ssa.OpARMCMPD:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		// Special layout in ARM assembly
+@@ -354,7 +411,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMMOVBUload,
+ 		ssa.OpARMMOVHload,
+ 		ssa.OpARMMOVHUload,
+-		ssa.OpARMMOVWload:
++		ssa.OpARMMOVWload,
++		ssa.OpARMMOVFload,
++		ssa.OpARMMOVDload:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = gc.SSARegNum(v.Args[0])
+@@ -363,7 +422,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = gc.SSARegNum(v)
+ 	case ssa.OpARMMOVBstore,
+ 		ssa.OpARMMOVHstore,
+-		ssa.OpARMMOVWstore:
++		ssa.OpARMMOVWstore,
++		ssa.OpARMMOVFstore,
++		ssa.OpARMMOVDstore:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = gc.SSARegNum(v.Args[1])
+@@ -374,11 +435,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMMOVBUreg,
+ 		ssa.OpARMMOVHreg,
+ 		ssa.OpARMMOVHUreg,
+-		ssa.OpARMMVN:
+-		if v.Type.IsMemory() {
+-			v.Fatalf("memory operand for %s", v.LongString())
+-		}
++		ssa.OpARMMVN,
++		ssa.OpARMSQRTD,
++		ssa.OpARMMOVWF,
++		ssa.OpARMMOVWD,
++		ssa.OpARMMOVFW,
++		ssa.OpARMMOVDW,
++		ssa.OpARMMOVFD,
++		ssa.OpARMMOVDF:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpARMMOVWUF,
++		ssa.OpARMMOVWUD,
++		ssa.OpARMMOVFWU,
++		ssa.OpARMMOVDWU:
+ 		p := gc.Prog(v.Op.Asm())
++		p.Scond = arm.C_UBIT
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = gc.SSARegNum(v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a2ed15dd4d..08544ff5be 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1323,6 +1323,15 @@ var fpConvOpToSSA = map[twoTypes]twoOpsAndType{
+ 	twoTypes{TFLOAT32, TFLOAT64}: twoOpsAndType{ssa.OpCvt32Fto64F, ssa.OpCopy, TFLOAT64},
+ }
+ 
++// this map is used only for 32-bit arch, and only includes the difference
++// on 32-bit arch, don't use int64<->float conversion for uint32
++var fpConvOpToSSA32 = map[twoTypes]twoOpsAndType{
++	twoTypes{TUINT32, TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt32Uto32F, TUINT32},
++	twoTypes{TUINT32, TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt32Uto64F, TUINT32},
++	twoTypes{TFLOAT32, TUINT32}: twoOpsAndType{ssa.OpCvt32Fto32U, ssa.OpCopy, TUINT32},
++	twoTypes{TFLOAT64, TUINT32}: twoOpsAndType{ssa.OpCvt64Fto32U, ssa.OpCopy, TUINT32},
++}
++
+ var shiftOpToSSA = map[opAndTwoTypes]ssa.Op{
+ 	opAndTwoTypes{OLSH, TINT8, TUINT8}:   ssa.OpLsh8x8,
+ 	opAndTwoTypes{OLSH, TUINT8, TUINT8}:  ssa.OpLsh8x8,
+@@ -1639,6 +1648,11 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 		if ft.IsFloat() || tt.IsFloat() {
+ 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
++			if s.config.IntSize == 4 {
++				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
++					conv = conv1
++				}
++			}
+ 			if !ok {
+ 				s.Fatalf("weird float conversion %s -> %s", ft, tt)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 66eb7e97ac..f2d27f207c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1094,12 +1094,12 @@ opswitch:
+ 
+ 			if n.Type.IsFloat() {
+ 				if n.Left.Type.Etype == TINT64 {
+-					n = mkcall("int64tofloat64", n.Type, init, conv(n.Left, Types[TINT64]))
++					n = conv(mkcall("int64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TINT64])), n.Type)
+ 					break
+ 				}
+ 
+ 				if n.Left.Type.Etype == TUINT64 {
+-					n = mkcall("uint64tofloat64", n.Type, init, conv(n.Left, Types[TUINT64]))
++					n = conv(mkcall("uint64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT64])), n.Type)
+ 					break
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 0ee5f53291..08cc1b9dee 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -94,6 +94,8 @@ func decomposeBuiltIn(f *Func) {
+ 				f.NamedValues[dataName] = append(f.NamedValues[dataName], data)
+ 			}
+ 			delete(f.NamedValues, name)
++		case t.IsFloat():
++			// floats are never decomposed, even ones bigger than IntSize
+ 		case t.Size() > f.Config.IntSize:
+ 			f.Unimplementedf("undecomposed named type %s %s", name, t)
+ 		default:
+@@ -115,6 +117,8 @@ func decomposeBuiltInPhi(v *Value) {
+ 		decomposeSlicePhi(v)
+ 	case v.Type.IsInterface():
+ 		decomposeInterfacePhi(v)
++	case v.Type.IsFloat():
++		// floats are never decomposed, even ones bigger than IntSize
+ 	case v.Type.Size() > v.Block.Func.Config.IntSize:
+ 		v.Unimplementedf("undecomposed type %s", v.Type)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index f36cf6abaa..79d18687ad 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -6,6 +6,8 @@
+ (Add32 x y) -> (ADD x y)
+ (Add16 x y) -> (ADD x y)
+ (Add8 x y) -> (ADD x y)
++(Add32F x y) -> (ADDF x y)
++(Add64F x y) -> (ADDD x y)
+ 
+ (Add32carry x y) -> (ADDS x y)
+ (Add32withcarry x y c) -> (ADC x y c)
+@@ -14,6 +16,8 @@
+ (Sub32 x y) -> (SUB x y)
+ (Sub16 x y) -> (SUB x y)
+ (Sub8 x y) -> (SUB x y)
++(Sub32F x y) -> (SUBF x y)
++(Sub64F x y) -> (SUBD x y)
+ 
+ (Sub32carry x y) -> (SUBS x y)
+ (Sub32withcarry x y c) -> (SBC x y c)
+@@ -21,6 +25,8 @@
+ (Mul32 x y) -> (MUL x y)
+ (Mul16 x y) -> (MUL x y)
+ (Mul8 x y) -> (MUL x y)
++(Mul32F x y) -> (MULF x y)
++(Mul64F x y) -> (MULD x y)
+ 
+ (Hmul32 x y) -> (HMUL x y)
+ (Hmul32u x y) -> (HMULU x y)
+@@ -37,6 +43,8 @@
+ (Div16u x y) -> (DIVU (ZeroExt16to32 x) (ZeroExt16to32 y))
+ (Div8 x y) -> (DIV (SignExt8to32 x) (SignExt8to32 y))
+ (Div8u x y) -> (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y))
++(Div32F x y) -> (DIVF x y)
++(Div64F x y) -> (DIVD x y)
+ 
+ (Mod32 x y) -> (MOD x y)
+ (Mod32u x y) -> (MODU x y)
+@@ -61,11 +69,16 @@
+ (Neg32 x) -> (RSBconst [0] x)
+ (Neg16 x) -> (RSBconst [0] x)
+ (Neg8 x) -> (RSBconst [0] x)
++//TODO: implement NEGF, NEGD in assembler and soft float simulator, and use them.
++(Neg32F x) -> (MULF (MOVFconst [int64(math.Float64bits(-1))]) x)
++(Neg64F x) -> (MULD (MOVDconst [int64(math.Float64bits(-1))]) x)
+ 
+ (Com32 x) -> (MVN x)
+ (Com16 x) -> (MVN x)
+ (Com8 x) -> (MVN x)
+ 
++(Sqrt x) -> (SQRTD x)
++
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB x y) -> (AND x y)
+ (OrB x y) -> (OR x y)
+@@ -143,6 +156,8 @@
+ (Const8 [val]) -> (MOVWconst [val])
+ (Const16 [val]) -> (MOVWconst [val])
+ (Const32 [val]) -> (MOVWconst [val])
++(Const32F [val]) -> (MOVFconst [val])
++(Const64F [val]) -> (MOVDconst [val])
+ (ConstNil) -> (MOVWconst [0])
+ (ConstBool [b]) -> (MOVWconst [b])
+ 
+@@ -164,20 +179,38 @@
+ (Signmask x) -> (SRAconst x [31])
+ (Zeromask x) -> (LoweredZeromask x)
+ 
++// float <-> int conversion
++(Cvt32to32F x) -> (MOVWF x)
++(Cvt32to64F x) -> (MOVWD x)
++(Cvt32Uto32F x) -> (MOVWUF x)
++(Cvt32Uto64F x) -> (MOVWUD x)
++(Cvt32Fto32 x) -> (MOVFW x)
++(Cvt64Fto32 x) -> (MOVDW x)
++(Cvt32Fto32U x) -> (MOVFWU x)
++(Cvt64Fto32U x) -> (MOVDWU x)
++(Cvt32Fto64F x) -> (MOVFD x)
++(Cvt64Fto32F x) -> (MOVDF x)
++
+ // comparisons
+ (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+ (Eq32 x y) -> (Equal (CMP x y))
+ (EqPtr x y) -> (Equal (CMP x y))
++(Eq32F x y) -> (Equal (CMPF x y))
++(Eq64F x y) -> (Equal (CMPD x y))
+ 
+ (Neq8 x y)  -> (NotEqual (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Neq16 x y) -> (NotEqual (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+ (Neq32 x y) -> (NotEqual (CMP x y))
+ (NeqPtr x y) -> (NotEqual (CMP x y))
++(Neq32F x y) -> (NotEqual (CMPF x y))
++(Neq64F x y) -> (NotEqual (CMPD x y))
+ 
+ (Less8 x y)  -> (LessThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
+ (Less16 x y) -> (LessThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
+ (Less32 x y) -> (LessThan (CMP x y))
++(Less32F x y) -> (GreaterThan (CMPF y x)) // reverse operands to work around NaN
++(Less64F x y) -> (GreaterThan (CMPD y x)) // reverse operands to work around NaN
+ 
+ (Less8U x y)  -> (LessThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Less16U x y) -> (LessThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -186,6 +219,8 @@
+ (Leq8 x y)  -> (LessEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
+ (Leq16 x y) -> (LessEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
+ (Leq32 x y) -> (LessEqual (CMP x y))
++(Leq32F x y) -> (GreaterEqual (CMPF y x)) // reverse operands to work around NaN
++(Leq64F x y) -> (GreaterEqual (CMPD y x)) // reverse operands to work around NaN
+ 
+ (Leq8U x y)  -> (LessEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Leq16U x y) -> (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -194,6 +229,8 @@
+ (Greater8 x y)  -> (GreaterThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
+ (Greater16 x y) -> (GreaterThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
+ (Greater32 x y) -> (GreaterThan (CMP x y))
++(Greater32F x y) -> (GreaterThan (CMPF x y))
++(Greater64F x y) -> (GreaterThan (CMPD x y))
+ 
+ (Greater8U x y)  -> (GreaterThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Greater16U x y) -> (GreaterThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -202,6 +239,8 @@
+ (Geq8 x y)  -> (GreaterEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
+ (Geq16 x y) -> (GreaterEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
+ (Geq32 x y) -> (GreaterEqual (CMP x y))
++(Geq32F x y) -> (GreaterEqual (CMPF x y))
++(Geq64F x y) -> (GreaterEqual (CMPD x y))
+ 
+ (Geq8U x y)  -> (GreaterEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Geq16U x y) -> (GreaterEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -218,11 +257,15 @@
+ (Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) -> (MOVHload ptr mem)
+ (Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) -> (MOVHUload ptr mem)
+ (Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) -> (MOVWload ptr mem)
++(Load <t> ptr mem) && is32BitFloat(t) -> (MOVFload ptr mem)
++(Load <t> ptr mem) && is64BitFloat(t) -> (MOVDload ptr mem)
+ 
+ // stores
+ (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+ (Store [2] ptr val mem) -> (MOVHstore ptr val mem)
+-(Store [4] ptr val mem) -> (MOVWstore ptr val mem)
++(Store [4] ptr val mem) && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
++(Store [4] ptr val mem) && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
++(Store [8] ptr val mem) && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
+ 
+ // zero instructions
+ //TODO: check alignment?
+@@ -336,6 +379,10 @@
+   (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVWload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+   (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++(MOVFload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
++  (MOVFload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++(MOVDload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
++  (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 
+ (MOVBstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+   (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+@@ -343,6 +390,10 @@
+   (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ (MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+   (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++(MOVFstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
++  (MOVFstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++(MOVDstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
++  (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 
+ (ADD (MUL x y) a) -> (MULA x y a)
+ (ADD a (MUL x y)) -> (MULA x y a)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 4fc723897c..6a76b0a968 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -22,6 +22,8 @@ import "strings"
+ // HU            = 16 bit unsigned
+ // B (byte)      = 8 bit
+ // BU            = 8 bit unsigned
++// F (float)     = 32 bit float
++// D (double)    = 64 bit float
+ 
+ var regNamesARM = []string{
+ 	"R0",
+@@ -41,6 +43,23 @@ var regNamesARM = []string{
+ 	"R14", // link
+ 	"R15", // pc
+ 
++	"F0",
++	"F1",
++	"F2",
++	"F3",
++	"F4",
++	"F5",
++	"F6",
++	"F7",
++	"F8",
++	"F9",
++	"F10",
++	"F11",
++	"F12",
++	"F13",
++	"F14",
++	"F15", // tmp
++
+ 	// pseudo-registers
+ 	"FLAGS",
+ 	"SB",
+@@ -73,7 +92,8 @@ func init() {
+ 		gpsp       = gp | buildReg("SP")
+ 		gpspsb     = gpsp | buildReg("SB")
+ 		flags      = buildReg("FLAGS")
+-		callerSave = gp | flags
++		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15")
++		callerSave = gp | fp | flags
+ 	)
+ 	// Common regInfo
+ 	var (
+@@ -88,6 +108,14 @@ func init() {
+ 		gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
+ 		gpload    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
+ 		gpstore   = regInfo{inputs: []regMask{gpspsb, gp}, outputs: []regMask{}}
++		fp01      = regInfo{inputs: []regMask{}, outputs: []regMask{fp}}
++		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
++		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
++		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
++		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
++		fp2flags  = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{flags}}
++		fpload    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{fp}}
++		fpstore   = regInfo{inputs: []regMask{gpspsb, fp}, outputs: []regMask{}}
+ 		readflags = regInfo{inputs: []regMask{flags}, outputs: []regMask{gp}}
+ 	)
+ 	ops := []opData{
+@@ -114,6 +142,15 @@ func init() {
+ 		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp &^ buildReg("R0")}, clobbers: buildReg("R0")}, asm: "MULLU", commutative: true}, // arg0 * arg1, results 64-bit, high 32-bit in R0
+ 		{name: "MULA", argLength: 3, reg: gp31, asm: "MULA"},                                                                                                                        // arg0 * arg1 + arg2
+ 
++		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
++		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1
++		{name: "SUBF", argLength: 2, reg: fp21, asm: "SUBF"},                    // arg0 - arg1
++		{name: "SUBD", argLength: 2, reg: fp21, asm: "SUBD"},                    // arg0 - arg1
++		{name: "MULF", argLength: 2, reg: fp21, asm: "MULF", commutative: true}, // arg0 * arg1
++		{name: "MULD", argLength: 2, reg: fp21, asm: "MULD", commutative: true}, // arg0 * arg1
++		{name: "DIVF", argLength: 2, reg: fp21, asm: "DIVF"},                    // arg0 / arg1
++		{name: "DIVD", argLength: 2, reg: fp21, asm: "DIVD"},                    // arg0 / arg1
++
+ 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
+ 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
+ 		{name: "OR", argLength: 2, reg: gp21, asm: "ORR", commutative: true},  // arg0 | arg1
+@@ -126,6 +163,8 @@ func init() {
+ 		// unary ops
+ 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"}, // ^arg0
+ 
++		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
++
+ 		// shifts
+ 		{name: "SLL", argLength: 2, reg: gp21cf, asm: "SLL"},                  // arg0 << arg1, results 0 for large shift
+ 		{name: "SLLconst", argLength: 1, reg: gp11, asm: "SLL", aux: "Int32"}, // arg0 << auxInt
+@@ -143,24 +182,43 @@ func init() {
+ 		{name: "TSTconst", argLength: 1, reg: gp1flags, asm: "TST", aux: "Int32", typ: "Flags"}, // arg0 & auxInt compare to 0
+ 		{name: "TEQ", argLength: 2, reg: gp2flags, asm: "TEQ", typ: "Flags", commutative: true}, // arg0 ^ arg1 compare to 0
+ 		{name: "TEQconst", argLength: 1, reg: gp1flags, asm: "TEQ", aux: "Int32", typ: "Flags"}, // arg0 ^ auxInt compare to 0
++		{name: "CMPF", argLength: 2, reg: fp2flags, asm: "CMPF", typ: "Flags"},                  // arg0 compare to arg1, float32
++		{name: "CMPD", argLength: 2, reg: fp2flags, asm: "CMPD", typ: "Flags"},                  // arg0 compare to arg1, float64
+ 
+-		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", typ: "UInt32", rematerializeable: true}, // 32 low bits of auxint
++		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", typ: "UInt32", rematerializeable: true},    // 32 low bits of auxint
++		{name: "MOVFconst", argLength: 0, reg: fp01, aux: "Float64", asm: "MOVF", typ: "Float32", rematerializeable: true}, // auxint as 64-bit float, convert to 32-bit float
++		{name: "MOVDconst", argLength: 0, reg: fp01, aux: "Float64", asm: "MOVD", typ: "Float64", rematerializeable: true}, // auxint as 64-bit float
+ 
+ 		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8"},     // load from arg0 + auxInt + aux.  arg1=mem.
+ 		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8"},  // load from arg0 + auxInt + aux.  arg1=mem.
+ 		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16"},    // load from arg0 + auxInt + aux.  arg1=mem.
+ 		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16"}, // load from arg0 + auxInt + aux.  arg1=mem.
+ 		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "UInt32"},   // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVFload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVF", typ: "Float32"},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVD", typ: "Float64"},  // load from arg0 + auxInt + aux.  arg1=mem.
+ 
+ 		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem"}, // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
+ 		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+ 		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW", typ: "Mem"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVFstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVF", typ: "Mem"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVD", typ: "Mem"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+ 
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVBS"},  // move from arg0, sign-extended from byte
+ 		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
+ 		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVHS"},  // move from arg0, sign-extended from half
+ 		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU"}, // move from arg0, unsign-extended from half
+ 
++		{name: "MOVWF", argLength: 1, reg: gpfp, asm: "MOVWF"},  // int32 -> float32
++		{name: "MOVWD", argLength: 1, reg: gpfp, asm: "MOVWD"},  // int32 -> float64
++		{name: "MOVWUF", argLength: 1, reg: gpfp, asm: "MOVWF"}, // uint32 -> float32, set U bit in the instruction
++		{name: "MOVWUD", argLength: 1, reg: gpfp, asm: "MOVWD"}, // uint32 -> float64, set U bit in the instruction
++		{name: "MOVFW", argLength: 1, reg: fpgp, asm: "MOVFW"},  // float32 -> int32
++		{name: "MOVDW", argLength: 1, reg: fpgp, asm: "MOVDW"},  // float64 -> int32
++		{name: "MOVFWU", argLength: 1, reg: fpgp, asm: "MOVFW"}, // float32 -> uint32, set U bit in the instruction
++		{name: "MOVDWU", argLength: 1, reg: fpgp, asm: "MOVDW"}, // float64 -> uint32, set U bit in the instruction
++		{name: "MOVFD", argLength: 1, reg: fp11, asm: "MOVFD"},  // float32 -> float64
++		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"},  // float64 -> float32
++
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"},                                // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{[]regMask{gpsp, buildReg("R7"), 0}, callerSave, nil}, aux: "Int64"}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                  // call deferproc.  arg0=mem, auxint=argsize, returns mem
+@@ -290,7 +348,7 @@ func init() {
+ 		blocks:          blocks,
+ 		regnames:        regNamesARM,
+ 		gpregmask:       gp,
+-		fpregmask:       0, // fp not implemented yet
++		fpregmask:       fp,
+ 		flagmask:        flags,
+ 		framepointerreg: -1, // not used
+ 	})
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 72b7f6fe82..e35da2bb64 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -433,6 +433,11 @@ var genericOps = []opData{
+ 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
+ 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
+ 
++	{name: "Cvt32Uto32F", argLength: 1}, // uint32 -> float32, only used on 32-bit arch
++	{name: "Cvt32Uto64F", argLength: 1}, // uint32 -> float64, only used on 32-bit arch
++	{name: "Cvt32Fto32U", argLength: 1}, // float32 -> uint32, only used on 32-bit arch
++	{name: "Cvt64Fto32U", argLength: 1}, // float64 -> uint32, only used on 32-bit arch
++
+ 	// pseudo-ops for breaking Tuple
+ 	{name: "Select0", argLength: 1}, // the first component of a tuple
+ 	{name: "Select1", argLength: 1}, // the second component of a tuple
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 33f700c005..477f16d4f1 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -342,6 +342,14 @@ const (
+ 	OpARMSBC
+ 	OpARMMULLU
+ 	OpARMMULA
++	OpARMADDF
++	OpARMADDD
++	OpARMSUBF
++	OpARMSUBD
++	OpARMMULF
++	OpARMMULD
++	OpARMDIVF
++	OpARMDIVD
+ 	OpARMAND
+ 	OpARMANDconst
+ 	OpARMOR
+@@ -351,6 +359,7 @@ const (
+ 	OpARMBIC
+ 	OpARMBICconst
+ 	OpARMMVN
++	OpARMSQRTD
+ 	OpARMSLL
+ 	OpARMSLLconst
+ 	OpARMSRL
+@@ -366,19 +375,37 @@ const (
+ 	OpARMTSTconst
+ 	OpARMTEQ
+ 	OpARMTEQconst
++	OpARMCMPF
++	OpARMCMPD
+ 	OpARMMOVWconst
++	OpARMMOVFconst
++	OpARMMOVDconst
+ 	OpARMMOVBload
+ 	OpARMMOVBUload
+ 	OpARMMOVHload
+ 	OpARMMOVHUload
+ 	OpARMMOVWload
++	OpARMMOVFload
++	OpARMMOVDload
+ 	OpARMMOVBstore
+ 	OpARMMOVHstore
+ 	OpARMMOVWstore
++	OpARMMOVFstore
++	OpARMMOVDstore
+ 	OpARMMOVBreg
+ 	OpARMMOVBUreg
+ 	OpARMMOVHreg
+ 	OpARMMOVHUreg
++	OpARMMOVWF
++	OpARMMOVWD
++	OpARMMOVWUF
++	OpARMMOVWUD
++	OpARMMOVFW
++	OpARMMOVDW
++	OpARMMOVFWU
++	OpARMMOVDWU
++	OpARMMOVFD
++	OpARMMOVDF
+ 	OpARMCALLstatic
+ 	OpARMCALLclosure
+ 	OpARMCALLdefer
+@@ -702,6 +729,10 @@ const (
+ 	OpMul32uhilo
+ 	OpSignmask
+ 	OpZeromask
++	OpCvt32Uto32F
++	OpCvt32Uto64F
++	OpCvt32Fto32U
++	OpCvt64Fto32U
+ 	OpSelect0
+ 	OpSelect1
+ )
+@@ -3906,7 +3937,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     arm.AADD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4023,7 +4054,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65536, // FLAGS
++			clobbers: 4294967296, // FLAGS
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+@@ -4038,7 +4069,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65536, // FLAGS
++			clobbers: 4294967296, // FLAGS
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+@@ -4053,7 +4084,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65536, // FLAGS
++			clobbers: 4294967296, // FLAGS
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+@@ -4068,7 +4099,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65536, // FLAGS
++			clobbers: 4294967296, // FLAGS
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+@@ -4084,7 +4115,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65536, // FLAGS
++			clobbers: 4294967296, // FLAGS
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+@@ -4097,9 +4128,9 @@ var opcodeTable = [...]opInfo{
+ 		asm:         arm.AADC,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{2, 65536}, // FLAGS
+-				{0, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-				{1, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{2, 4294967296}, // FLAGS
++				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4115,7 +4146,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65536, // FLAGS
++			clobbers: 4294967296, // FLAGS
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+@@ -4127,9 +4158,9 @@ var opcodeTable = [...]opInfo{
+ 		asm:    arm.ASBC,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{2, 65536}, // FLAGS
+-				{0, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-				{1, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{2, 4294967296}, // FLAGS
++				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4167,6 +4198,122 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "ADDF",
++		argLen:      2,
++		commutative: true,
++		asm:         arm.AADDF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:        "ADDD",
++		argLen:      2,
++		commutative: true,
++		asm:         arm.AADDD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "SUBF",
++		argLen: 2,
++		asm:    arm.ASUBF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "SUBD",
++		argLen: 2,
++		asm:    arm.ASUBD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:        "MULF",
++		argLen:      2,
++		commutative: true,
++		asm:         arm.AMULF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:        "MULD",
++		argLen:      2,
++		commutative: true,
++		asm:         arm.AMULD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "DIVF",
++		argLen: 2,
++		asm:    arm.ADIVF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "DIVD",
++		argLen: 2,
++		asm:    arm.ADIVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:        "AND",
+ 		argLen:      2,
+@@ -4295,6 +4442,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SQRTD",
++		argLen: 1,
++		asm:    arm.ASQRTD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:   "SLL",
+ 		argLen: 2,
+@@ -4304,7 +4464,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65536, // FLAGS
++			clobbers: 4294967296, // FLAGS
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+@@ -4333,7 +4493,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65536, // FLAGS
++			clobbers: 4294967296, // FLAGS
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+@@ -4362,7 +4522,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65536, // FLAGS
++			clobbers: 4294967296, // FLAGS
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+@@ -4405,7 +4565,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				65536, // FLAGS
++				4294967296, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4419,7 +4579,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				65536, // FLAGS
++				4294967296, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4433,7 +4593,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				65536, // FLAGS
++				4294967296, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4447,7 +4607,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				65536, // FLAGS
++				4294967296, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4462,7 +4622,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				65536, // FLAGS
++				4294967296, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4476,7 +4636,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				65536, // FLAGS
++				4294967296, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4491,7 +4651,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				65536, // FLAGS
++				4294967296, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4505,7 +4665,35 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				65536, // FLAGS
++				4294967296, // FLAGS
++			},
++		},
++	},
++	{
++		name:   "CMPF",
++		argLen: 2,
++		asm:    arm.ACMPF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294967296, // FLAGS
++			},
++		},
++	},
++	{
++		name:   "CMPD",
++		argLen: 2,
++		asm:    arm.ACMPD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294967296, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4521,6 +4709,30 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:              "MOVFconst",
++		auxType:           auxFloat64,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               arm.AMOVF,
++		reg: regInfo{
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:              "MOVDconst",
++		auxType:           auxFloat64,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               arm.AMOVD,
++		reg: regInfo{
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:    "MOVBload",
+ 		auxType: auxSymOff,
+@@ -4528,7 +4740,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     arm.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4542,7 +4754,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     arm.AMOVBU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4556,7 +4768,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     arm.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4570,7 +4782,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     arm.AMOVHU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4584,13 +4796,41 @@ var opcodeTable = [...]opInfo{
+ 		asm:     arm.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 		},
+ 	},
++	{
++		name:    "MOVFload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     arm.AMOVF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:    "MOVDload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     arm.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:    "MOVBstore",
+ 		auxType: auxSymOff,
+@@ -4598,8 +4838,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     arm.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 5119},   // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+ 			},
+ 		},
+ 	},
+@@ -4610,8 +4850,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     arm.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 5119},   // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+ 			},
+ 		},
+ 	},
+@@ -4622,8 +4862,32 @@ var opcodeTable = [...]opInfo{
+ 		asm:     arm.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 5119},   // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++			},
++		},
++	},
++	{
++		name:    "MOVFstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     arm.AMOVF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:    "MOVDstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     arm.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 		},
+ 	},
+@@ -4679,12 +4943,142 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MOVWF",
++		argLen: 1,
++		asm:    arm.AMOVWF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "MOVWD",
++		argLen: 1,
++		asm:    arm.AMOVWD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "MOVWUF",
++		argLen: 1,
++		asm:    arm.AMOVWF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "MOVWUD",
++		argLen: 1,
++		asm:    arm.AMOVWD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "MOVFW",
++		argLen: 1,
++		asm:    arm.AMOVFW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "MOVDW",
++		argLen: 1,
++		asm:    arm.AMOVDW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "MOVFWU",
++		argLen: 1,
++		asm:    arm.AMOVFW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "MOVDWU",
++		argLen: 1,
++		asm:    arm.AMOVDW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "MOVFD",
++		argLen: 1,
++		asm:    arm.AMOVFD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "MOVDF",
++		argLen: 1,
++		asm:    arm.AMOVDF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:    "CALLstatic",
+ 		auxType: auxSymOff,
+ 		argLen:  1,
+ 		reg: regInfo{
+-			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++			clobbers: 8589874175, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4696,7 +5090,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 128},   // R7
+ 				{0, 13311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+ 			},
+-			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++			clobbers: 8589874175, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4704,7 +5098,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType: auxInt64,
+ 		argLen:  1,
+ 		reg: regInfo{
+-			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++			clobbers: 8589874175, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4712,7 +5106,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType: auxInt64,
+ 		argLen:  1,
+ 		reg: regInfo{
+-			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++			clobbers: 8589874175, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4723,7 +5117,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++			clobbers: 8589874175, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4733,7 +5127,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 13311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+ 			},
+-			clobbers: 65536, // FLAGS
++			clobbers: 4294967296, // FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4741,7 +5135,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // FLAGS
++				{0, 4294967296}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4753,7 +5147,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // FLAGS
++				{0, 4294967296}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4765,7 +5159,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // FLAGS
++				{0, 4294967296}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4777,7 +5171,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // FLAGS
++				{0, 4294967296}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4789,7 +5183,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // FLAGS
++				{0, 4294967296}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4801,7 +5195,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // FLAGS
++				{0, 4294967296}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4813,7 +5207,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // FLAGS
++				{0, 4294967296}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4825,7 +5219,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // FLAGS
++				{0, 4294967296}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4837,7 +5231,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // FLAGS
++				{0, 4294967296}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4849,7 +5243,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65536}, // FLAGS
++				{0, 4294967296}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4861,7 +5255,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			outputs: []regMask{
+-				65536, // FLAGS
++				4294967296, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4932,7 +5326,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65538, // R1 FLAGS
++			clobbers: 4294967298, // R1 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4944,7 +5338,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 2},    // R1
+ 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 65542, // R1 R2 FLAGS
++			clobbers: 4294967302, // R1 R2 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -6512,6 +6906,26 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "Cvt32Uto32F",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Cvt32Uto64F",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Cvt32Fto32U",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Cvt64Fto32U",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Select0",
+ 		argLen:  1,
+@@ -6584,10 +6998,26 @@ var registersARM = [...]Register{
+ 	{13, "SP"},
+ 	{14, "R14"},
+ 	{15, "R15"},
+-	{16, "FLAGS"},
+-	{17, "SB"},
++	{16, "F0"},
++	{17, "F1"},
++	{18, "F2"},
++	{19, "F3"},
++	{20, "F4"},
++	{21, "F5"},
++	{22, "F6"},
++	{23, "F7"},
++	{24, "F8"},
++	{25, "F9"},
++	{26, "F10"},
++	{27, "F11"},
++	{28, "F12"},
++	{29, "F13"},
++	{30, "F14"},
++	{31, "F15"},
++	{32, "FLAGS"},
++	{33, "SB"},
+ }
+ var gpRegMaskARM = regMask(5119)
+-var fpRegMaskARM = regMask(0)
+-var flagRegMaskARM = regMask(65536)
++var fpRegMaskARM = regMask(4294901760)
++var flagRegMaskARM = regMask(4294967296)
+ var framepointerRegARM = int8(-1)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index d1a191e629..90fb528f7d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -14,10 +14,14 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpAdd16(v, config)
+ 	case OpAdd32:
+ 		return rewriteValueARM_OpAdd32(v, config)
++	case OpAdd32F:
++		return rewriteValueARM_OpAdd32F(v, config)
+ 	case OpAdd32carry:
+ 		return rewriteValueARM_OpAdd32carry(v, config)
+ 	case OpAdd32withcarry:
+ 		return rewriteValueARM_OpAdd32withcarry(v, config)
++	case OpAdd64F:
++		return rewriteValueARM_OpAdd64F(v, config)
+ 	case OpAdd8:
+ 		return rewriteValueARM_OpAdd8(v, config)
+ 	case OpAddPtr:
+@@ -44,6 +48,10 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpConst16(v, config)
+ 	case OpConst32:
+ 		return rewriteValueARM_OpConst32(v, config)
++	case OpConst32F:
++		return rewriteValueARM_OpConst32F(v, config)
++	case OpConst64F:
++		return rewriteValueARM_OpConst64F(v, config)
+ 	case OpConst8:
+ 		return rewriteValueARM_OpConst8(v, config)
+ 	case OpConstBool:
+@@ -52,6 +60,26 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpConstNil(v, config)
+ 	case OpConvert:
+ 		return rewriteValueARM_OpConvert(v, config)
++	case OpCvt32Fto32:
++		return rewriteValueARM_OpCvt32Fto32(v, config)
++	case OpCvt32Fto32U:
++		return rewriteValueARM_OpCvt32Fto32U(v, config)
++	case OpCvt32Fto64F:
++		return rewriteValueARM_OpCvt32Fto64F(v, config)
++	case OpCvt32Uto32F:
++		return rewriteValueARM_OpCvt32Uto32F(v, config)
++	case OpCvt32Uto64F:
++		return rewriteValueARM_OpCvt32Uto64F(v, config)
++	case OpCvt32to32F:
++		return rewriteValueARM_OpCvt32to32F(v, config)
++	case OpCvt32to64F:
++		return rewriteValueARM_OpCvt32to64F(v, config)
++	case OpCvt64Fto32:
++		return rewriteValueARM_OpCvt64Fto32(v, config)
++	case OpCvt64Fto32F:
++		return rewriteValueARM_OpCvt64Fto32F(v, config)
++	case OpCvt64Fto32U:
++		return rewriteValueARM_OpCvt64Fto32U(v, config)
+ 	case OpDeferCall:
+ 		return rewriteValueARM_OpDeferCall(v, config)
+ 	case OpDiv16:
+@@ -60,8 +88,12 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpDiv16u(v, config)
+ 	case OpDiv32:
+ 		return rewriteValueARM_OpDiv32(v, config)
++	case OpDiv32F:
++		return rewriteValueARM_OpDiv32F(v, config)
+ 	case OpDiv32u:
+ 		return rewriteValueARM_OpDiv32u(v, config)
++	case OpDiv64F:
++		return rewriteValueARM_OpDiv64F(v, config)
+ 	case OpDiv8:
+ 		return rewriteValueARM_OpDiv8(v, config)
+ 	case OpDiv8u:
+@@ -70,6 +102,10 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpEq16(v, config)
+ 	case OpEq32:
+ 		return rewriteValueARM_OpEq32(v, config)
++	case OpEq32F:
++		return rewriteValueARM_OpEq32F(v, config)
++	case OpEq64F:
++		return rewriteValueARM_OpEq64F(v, config)
+ 	case OpEq8:
+ 		return rewriteValueARM_OpEq8(v, config)
+ 	case OpEqB:
+@@ -82,8 +118,12 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpGeq16U(v, config)
+ 	case OpGeq32:
+ 		return rewriteValueARM_OpGeq32(v, config)
++	case OpGeq32F:
++		return rewriteValueARM_OpGeq32F(v, config)
+ 	case OpGeq32U:
+ 		return rewriteValueARM_OpGeq32U(v, config)
++	case OpGeq64F:
++		return rewriteValueARM_OpGeq64F(v, config)
+ 	case OpGeq8:
+ 		return rewriteValueARM_OpGeq8(v, config)
+ 	case OpGeq8U:
+@@ -98,8 +138,12 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpGreater16U(v, config)
+ 	case OpGreater32:
+ 		return rewriteValueARM_OpGreater32(v, config)
++	case OpGreater32F:
++		return rewriteValueARM_OpGreater32F(v, config)
+ 	case OpGreater32U:
+ 		return rewriteValueARM_OpGreater32U(v, config)
++	case OpGreater64F:
++		return rewriteValueARM_OpGreater64F(v, config)
+ 	case OpGreater8:
+ 		return rewriteValueARM_OpGreater8(v, config)
+ 	case OpGreater8U:
+@@ -130,8 +174,12 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpLeq16U(v, config)
+ 	case OpLeq32:
+ 		return rewriteValueARM_OpLeq32(v, config)
++	case OpLeq32F:
++		return rewriteValueARM_OpLeq32F(v, config)
+ 	case OpLeq32U:
+ 		return rewriteValueARM_OpLeq32U(v, config)
++	case OpLeq64F:
++		return rewriteValueARM_OpLeq64F(v, config)
+ 	case OpLeq8:
+ 		return rewriteValueARM_OpLeq8(v, config)
+ 	case OpLeq8U:
+@@ -142,8 +190,12 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpLess16U(v, config)
+ 	case OpLess32:
+ 		return rewriteValueARM_OpLess32(v, config)
++	case OpLess32F:
++		return rewriteValueARM_OpLess32F(v, config)
+ 	case OpLess32U:
+ 		return rewriteValueARM_OpLess32U(v, config)
++	case OpLess64F:
++		return rewriteValueARM_OpLess64F(v, config)
+ 	case OpLess8:
+ 		return rewriteValueARM_OpLess8(v, config)
+ 	case OpLess8U:
+@@ -186,6 +238,14 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpARMMOVBload(v, config)
+ 	case OpARMMOVBstore:
+ 		return rewriteValueARM_OpARMMOVBstore(v, config)
++	case OpARMMOVDload:
++		return rewriteValueARM_OpARMMOVDload(v, config)
++	case OpARMMOVDstore:
++		return rewriteValueARM_OpARMMOVDstore(v, config)
++	case OpARMMOVFload:
++		return rewriteValueARM_OpARMMOVFload(v, config)
++	case OpARMMOVFstore:
++		return rewriteValueARM_OpARMMOVFstore(v, config)
+ 	case OpARMMOVHUload:
+ 		return rewriteValueARM_OpARMMOVHUload(v, config)
+ 	case OpARMMOVHload:
+@@ -214,20 +274,32 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpMul16(v, config)
+ 	case OpMul32:
+ 		return rewriteValueARM_OpMul32(v, config)
++	case OpMul32F:
++		return rewriteValueARM_OpMul32F(v, config)
+ 	case OpMul32uhilo:
+ 		return rewriteValueARM_OpMul32uhilo(v, config)
++	case OpMul64F:
++		return rewriteValueARM_OpMul64F(v, config)
+ 	case OpMul8:
+ 		return rewriteValueARM_OpMul8(v, config)
+ 	case OpNeg16:
+ 		return rewriteValueARM_OpNeg16(v, config)
+ 	case OpNeg32:
+ 		return rewriteValueARM_OpNeg32(v, config)
++	case OpNeg32F:
++		return rewriteValueARM_OpNeg32F(v, config)
++	case OpNeg64F:
++		return rewriteValueARM_OpNeg64F(v, config)
+ 	case OpNeg8:
+ 		return rewriteValueARM_OpNeg8(v, config)
+ 	case OpNeq16:
+ 		return rewriteValueARM_OpNeq16(v, config)
+ 	case OpNeq32:
+ 		return rewriteValueARM_OpNeq32(v, config)
++	case OpNeq32F:
++		return rewriteValueARM_OpNeq32F(v, config)
++	case OpNeq64F:
++		return rewriteValueARM_OpNeq64F(v, config)
+ 	case OpNeq8:
+ 		return rewriteValueARM_OpNeq8(v, config)
+ 	case OpNeqB:
+@@ -308,6 +380,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpSignExt8to32(v, config)
+ 	case OpSignmask:
+ 		return rewriteValueARM_OpSignmask(v, config)
++	case OpSqrt:
++		return rewriteValueARM_OpSqrt(v, config)
+ 	case OpStaticCall:
+ 		return rewriteValueARM_OpStaticCall(v, config)
+ 	case OpStore:
+@@ -316,10 +390,14 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpSub16(v, config)
+ 	case OpSub32:
+ 		return rewriteValueARM_OpSub32(v, config)
++	case OpSub32F:
++		return rewriteValueARM_OpSub32F(v, config)
+ 	case OpSub32carry:
+ 		return rewriteValueARM_OpSub32carry(v, config)
+ 	case OpSub32withcarry:
+ 		return rewriteValueARM_OpSub32withcarry(v, config)
++	case OpSub64F:
++		return rewriteValueARM_OpSub64F(v, config)
+ 	case OpSub8:
+ 		return rewriteValueARM_OpSub8(v, config)
+ 	case OpSubPtr:
+@@ -448,6 +526,21 @@ func rewriteValueARM_OpAdd32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpAdd32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add32F x y)
++	// cond:
++	// result: (ADDF x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMADDF)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpAdd32carry(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -480,6 +573,21 @@ func rewriteValueARM_OpAdd32withcarry(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpAdd64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add64F x y)
++	// cond:
++	// result: (ADDD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMADDD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpAdd8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -669,6 +777,32 @@ func rewriteValueARM_OpConst32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpConst32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const32F [val])
++	// cond:
++	// result: (MOVFconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpARMMOVFconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValueARM_OpConst64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const64F [val])
++	// cond:
++	// result: (MOVDconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpARMMOVDconst)
++		v.AuxInt = val
++		return true
++	}
++}
+ func rewriteValueARM_OpConst8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -722,6 +856,136 @@ func rewriteValueARM_OpConvert(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpCvt32Fto32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Fto32 x)
++	// cond:
++	// result: (MOVFW x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMOVFW)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCvt32Fto32U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Fto32U x)
++	// cond:
++	// result: (MOVFWU x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMOVFWU)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCvt32Fto64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Fto64F x)
++	// cond:
++	// result: (MOVFD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMOVFD)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCvt32Uto32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Uto32F x)
++	// cond:
++	// result: (MOVWUF x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMOVWUF)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCvt32Uto64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Uto64F x)
++	// cond:
++	// result: (MOVWUD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMOVWUD)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCvt32to32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32to32F x)
++	// cond:
++	// result: (MOVWF x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMOVWF)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCvt32to64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32to64F x)
++	// cond:
++	// result: (MOVWD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMOVWD)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCvt64Fto32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64Fto32 x)
++	// cond:
++	// result: (MOVDW x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMOVDW)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCvt64Fto32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64Fto32F x)
++	// cond:
++	// result: (MOVDF x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMOVDF)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCvt64Fto32U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64Fto32U x)
++	// cond:
++	// result: (MOVDWU x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMOVDWU)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM_OpDeferCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -790,6 +1054,21 @@ func rewriteValueARM_OpDiv32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpDiv32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div32F x y)
++	// cond:
++	// result: (DIVF x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMDIVF)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpDiv32u(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -805,6 +1084,21 @@ func rewriteValueARM_OpDiv32u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpDiv64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div64F x y)
++	// cond:
++	// result: (DIVD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMDIVD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpDiv8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -881,6 +1175,40 @@ func rewriteValueARM_OpEq32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpEq32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq32F x y)
++	// cond:
++	// result: (Equal (CMPF x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM_OpEq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq64F x y)
++	// cond:
++	// result: (Equal (CMPD x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpEq8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -996,6 +1324,23 @@ func rewriteValueARM_OpGeq32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpGeq32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq32F x y)
++	// cond:
++	// result: (GreaterEqual (CMPF x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMGreaterEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpGeq32U(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1013,6 +1358,23 @@ func rewriteValueARM_OpGeq32U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpGeq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq64F x y)
++	// cond:
++	// result: (GreaterEqual (CMPD x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMGreaterEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpGeq8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1140,6 +1502,23 @@ func rewriteValueARM_OpGreater32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpGreater32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater32F x y)
++	// cond:
++	// result: (GreaterThan (CMPF x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMGreaterThan)
++		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpGreater32U(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1157,6 +1536,23 @@ func rewriteValueARM_OpGreater32U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpGreater64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater64F x y)
++	// cond:
++	// result: (GreaterThan (CMPD x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMGreaterThan)
++		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpGreater8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1443,6 +1839,23 @@ func rewriteValueARM_OpLeq32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpLeq32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq32F x y)
++	// cond:
++	// result: (GreaterEqual (CMPF y x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMGreaterEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpLeq32U(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1460,6 +1873,23 @@ func rewriteValueARM_OpLeq32U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpLeq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq64F x y)
++	// cond:
++	// result: (GreaterEqual (CMPD y x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMGreaterEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpLeq8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1561,6 +1991,23 @@ func rewriteValueARM_OpLess32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpLess32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less32F x y)
++	// cond:
++	// result: (GreaterThan (CMPF y x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMGreaterThan)
++		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpLess32U(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1578,6 +2025,23 @@ func rewriteValueARM_OpLess32U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpLess64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less64F x y)
++	// cond:
++	// result: (GreaterThan (CMPD y x))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMGreaterThan)
++		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpLess8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1713,6 +2177,36 @@ func rewriteValueARM_OpLoad(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (Load <t> ptr mem)
++	// cond: is32BitFloat(t)
++	// result: (MOVFload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is32BitFloat(t)) {
++			break
++		}
++		v.reset(OpARMMOVFload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is64BitFloat(t)
++	// result: (MOVDload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is64BitFloat(t)) {
++			break
++		}
++		v.reset(OpARMMOVDload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpLrot16(v *Value, config *Config) bool {
+@@ -2127,6 +2621,126 @@ func rewriteValueARM_OpARMMOVBstore(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpARMMOVDload(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVDload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVDload)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVDstore(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVDstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVDstore)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVFload(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVFload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVFload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVFload)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVFstore(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVFstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVFstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVFstore)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpARMMOVHUload(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2583,6 +3197,21 @@ func rewriteValueARM_OpMul32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpMul32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul32F x y)
++	// cond:
++	// result: (MULF x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMULF)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpMul32uhilo(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2598,6 +3227,21 @@ func rewriteValueARM_OpMul32uhilo(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpMul64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul64F x y)
++	// cond:
++	// result: (MULD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMULD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpMul8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2641,6 +3285,38 @@ func rewriteValueARM_OpNeg32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpNeg32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg32F x)
++	// cond:
++	// result: (MULF (MOVFconst [int64(math.Float64bits(-1))]) x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMULF)
++		v0 := b.NewValue0(v.Line, OpARMMOVFconst, config.fe.TypeFloat32())
++		v0.AuxInt = int64(math.Float64bits(-1))
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpNeg64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg64F x)
++	// cond:
++	// result: (MULD (MOVDconst [int64(math.Float64bits(-1))]) x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMULD)
++		v0 := b.NewValue0(v.Line, OpARMMOVDconst, config.fe.TypeFloat64())
++		v0.AuxInt = int64(math.Float64bits(-1))
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM_OpNeg8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2693,6 +3369,40 @@ func rewriteValueARM_OpNeq32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpNeq32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq32F x y)
++	// cond:
++	// result: (NotEqual (CMPF x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMNotEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM_OpNeq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq64F x y)
++	// cond:
++	// result: (NotEqual (CMPD x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMNotEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpNeq8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3531,6 +4241,19 @@ func rewriteValueARM_OpSignmask(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpSqrt(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sqrt x)
++	// cond:
++	// result: (SQRTD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMSQRTD)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM_OpStaticCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3584,7 +4307,7 @@ func rewriteValueARM_OpStore(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Store [4] ptr val mem)
+-	// cond:
++	// cond: !is32BitFloat(val.Type)
+ 	// result: (MOVWstore ptr val mem)
+ 	for {
+ 		if v.AuxInt != 4 {
+@@ -3593,12 +4316,53 @@ func rewriteValueARM_OpStore(v *Value, config *Config) bool {
+ 		ptr := v.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
++		if !(!is32BitFloat(val.Type)) {
++			break
++		}
+ 		v.reset(OpARMMOVWstore)
+ 		v.AddArg(ptr)
+ 		v.AddArg(val)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (Store [4] ptr val mem)
++	// cond: is32BitFloat(val.Type)
++	// result: (MOVFstore ptr val mem)
++	for {
++		if v.AuxInt != 4 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32BitFloat(val.Type)) {
++			break
++		}
++		v.reset(OpARMMOVFstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Store [8] ptr val mem)
++	// cond: is64BitFloat(val.Type)
++	// result: (MOVDstore ptr val mem)
++	for {
++		if v.AuxInt != 8 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is64BitFloat(val.Type)) {
++			break
++		}
++		v.reset(OpARMMOVDstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpSub16(v *Value, config *Config) bool {
+@@ -3631,6 +4395,21 @@ func rewriteValueARM_OpSub32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpSub32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub32F x y)
++	// cond:
++	// result: (SUBF x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSUBF)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpSub32carry(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3663,6 +4442,21 @@ func rewriteValueARM_OpSub32withcarry(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpSub64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub64F x y)
++	// cond:
++	// result: (SUBD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSUBD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpSub8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

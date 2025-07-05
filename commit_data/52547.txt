@@ -19,7 +19,104 @@ Date:   Fri Apr 22 13:18:15 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/doc/example.go      | 21 +++++++++++++++++++--
  src/go/doc/example_test.go | 19 +++++++++++++++++++
  2 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 3c02e2b454..74e6e77ac3 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -512,7 +512,6 @@ func classifyExamples(p *Package, examples []*Example) {
+ 	if len(examples) == 0 {
+ 		return
+ 	}
+-
+ 	// Mapping of names for funcs, types, and methods to the example listing.
+ 	ids := make(map[string]*[]*Example)
+ 	ids[""] = &p.Examples // package-level examples have an empty name
+@@ -537,7 +536,7 @@ func classifyExamples(p *Package, examples []*Example) {
+ 			if !token.IsExported(m.Name) {
+ 				continue
+ 			}
+-			ids[strings.TrimPrefix(m.Recv, "*")+"_"+m.Name] = &m.Examples
++			ids[strings.TrimPrefix(nameWithoutInst(m.Recv), "*")+"_"+m.Name] = &m.Examples
+ 		}
+ 	}
+ 
+@@ -572,6 +571,24 @@ func classifyExamples(p *Package, examples []*Example) {
+ 	}
+ }
+ 
++// nameWithoutInst returns name if name has no brackets. If name contains
++// brackets, then it returns name with all the contents between (and including)
++// the outermost left and right bracket removed.
++//
++// Adapted from debug/gosym/symtab.go:Sym.nameWithoutInst.
++func nameWithoutInst(name string) string {
++	start := strings.Index(name, "[")
++	if start < 0 {
++		return name
++	}
++	end := strings.LastIndex(name, "]")
++	if end < 0 {
++		// Malformed name, should contain closing bracket too.
++		return name
++	}
++	return name[0:start] + name[end+1:]
++}
++
+ // splitExampleName attempts to split example name s at index i,
+ // and reports if that produces a valid split. The suffix may be
+ // absent. Otherwise, it must start with a lower-case letter and
+diff --git a/src/go/doc/example_test.go b/src/go/doc/example_test.go
+index 030ee6e553..4d87a654c9 100644
+--- a/src/go/doc/example_test.go
++++ b/src/go/doc/example_test.go
+@@ -617,6 +617,12 @@ type (
+ )
+ 
+ func (Conflict) Conflict() {}
++
++func GFunc[T any]() {}
++
++type GType[T any] int
++
++func (GType[T]) M() {}
+ `
+ 	const test = `
+ package p_test
+@@ -676,6 +682,12 @@ func ExampleConflict_Conflict()        {} // ambiguous with either Conflict or C
+ func ExampleConflict_conflict()        {} // ambiguous with either Conflict or Conflict_conflict type
+ func ExampleConflict_Conflict_suffix() {} // ambiguous with either Conflict or Conflict_Conflict type
+ func ExampleConflict_conflict_suffix() {} // ambiguous with either Conflict or Conflict_conflict type
++
++func ExampleGFunc() {}
++func ExampleGFunc_suffix() {}
++
++func ExampleGType_M() {}
++func ExampleGType_M_suffix() {}
+ `
+ 
+ 	// Parse literal source code as a *doc.Package.
+@@ -725,12 +737,19 @@ func ExampleConflict_conflict_suffix() {} // ambiguous with either Conflict or C
+ 		// These are implementation dependent due to the ambiguous parsing.
+ 		"Conflict_Conflict": {"", "suffix"},
+ 		"Conflict_conflict": {"", "suffix"},
++
++		"GFunc":   {"", "suffix"},
++		"GType.M": {"", "suffix"},
+ 	}
+ 
+ 	for id := range got {
+ 		if !reflect.DeepEqual(got[id], want[id]) {
+ 			t.Errorf("classification mismatch for %q:\ngot  %q\nwant %q", id, got[id], want[id])
+ 		}
++		delete(want, id)
++	}
++	if len(want) > 0 {
++		t.Errorf("did not find:\n%q", want)
+ 	}
+ }
+ 

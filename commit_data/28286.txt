@@ -9,9 +9,181 @@ Date:   Sat Dec 26 16:50:01 2015 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/exec/lp_plan9.go        |  8 +++--
  src/os/exec/lp_unix.go         | 10 +++---
  src/os/exec/lp_windows.go      | 69 ++++++++++++------------------------------
  src/os/exec/lp_windows_test.go |  2 +-
  4 files changed, 29 insertions(+), 60 deletions(-)
+
+diff --git a/src/os/exec/lp_plan9.go b/src/os/exec/lp_plan9.go
+index 82678802a9..142f87ed32 100644
+--- a/src/os/exec/lp_plan9.go
++++ b/src/os/exec/lp_plan9.go
+@@ -7,6 +7,7 @@ package exec
+ import (
+ 	"errors"
+ 	"os"
++	"path/filepath"
+ 	"strings"
+ )
+ 
+@@ -44,9 +45,10 @@ func LookPath(file string) (string, error) {
+ 	}
+ 
+ 	path := os.Getenv("path")
+-	for _, dir := range strings.Split(path, "\000") {
+-		if err := findExecutable(dir + "/" + file); err == nil {
+-			return dir + "/" + file, nil
++	for _, dir := range filepath.SplitList(path) {
++		path := filepath.Join(dir, file)
++		if err := findExecutable(path); err == nil {
++			return path, nil
+ 		}
+ 	}
+ 	return "", &Error{file, ErrNotFound}
+diff --git a/src/os/exec/lp_unix.go b/src/os/exec/lp_unix.go
+index 32e3046cb8..7a302752a8 100644
+--- a/src/os/exec/lp_unix.go
++++ b/src/os/exec/lp_unix.go
+@@ -9,6 +9,7 @@ package exec
+ import (
+ 	"errors"
+ 	"os"
++	"path/filepath"
+ 	"strings"
+ )
+ 
+@@ -42,16 +43,13 @@ func LookPath(file string) (string, error) {
+ 		}
+ 		return "", &Error{file, err}
+ 	}
+-	pathenv := os.Getenv("PATH")
+-	if pathenv == "" {
+-		return "", &Error{file, ErrNotFound}
+-	}
+-	for _, dir := range strings.Split(pathenv, ":") {
++	path := os.Getenv("PATH")
++	for _, dir := range filepath.SplitList(path) {
+ 		if dir == "" {
+ 			// Unix shell semantics: path element "" means "."
+ 			dir = "."
+ 		}
+-		path := dir + "/" + file
++		path := filepath.Join(dir, file)
+ 		if err := findExecutable(path); err == nil {
+ 			return path, nil
+ 		}
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index 1c005220d0..793d4d98b3 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -7,6 +7,7 @@ package exec
+ import (
+ 	"errors"
+ 	"os"
++	"path/filepath"
+ 	"strings"
+ )
+ 
+@@ -56,20 +57,22 @@ func findExecutable(file string, exts []string) (string, error) {
+ // a suitable candidate.
+ // The result may be an absolute path or a path relative to the current directory.
+ func LookPath(file string) (string, error) {
++	var exts []string
+ 	x := os.Getenv(`PATHEXT`)
+-	if x == "" {
+-		x = `.COM;.EXE;.BAT;.CMD`
+-	}
+-	exts := []string{}
+-	for _, e := range strings.Split(strings.ToLower(x), `;`) {
+-		if e == "" {
+-			continue
+-		}
+-		if e[0] != '.' {
+-			e = "." + e
++	if x != "" {
++		for _, e := range strings.Split(strings.ToLower(x), `;`) {
++			if e == "" {
++				continue
++			}
++			if e[0] != '.' {
++				e = "." + e
++			}
++			exts = append(exts, e)
+ 		}
+-		exts = append(exts, e)
++	} else {
++		exts = []string{".com", ".exe", ".bat", ".cmd"}
+ 	}
++
+ 	if strings.ContainsAny(file, `:\/`) {
+ 		if f, err := findExecutable(file, exts); err == nil {
+ 			return f, nil
+@@ -77,48 +80,14 @@ func LookPath(file string) (string, error) {
+ 			return "", &Error{file, err}
+ 		}
+ 	}
+-	if f, err := findExecutable(`.\`+file, exts); err == nil {
++	if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
+ 		return f, nil
+ 	}
+-	if pathenv := os.Getenv(`PATH`); pathenv != "" {
+-		for _, dir := range splitList(pathenv) {
+-			if f, err := findExecutable(dir+`\`+file, exts); err == nil {
+-				return f, nil
+-			}
++	path := os.Getenv("path")
++	for _, dir := range filepath.SplitList(path) {
++		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
++			return f, nil
+ 		}
+ 	}
+ 	return "", &Error{file, ErrNotFound}
+ }
+-
+-func splitList(path string) []string {
+-	// The same implementation is used in SplitList in path/filepath;
+-	// consider changing path/filepath when changing this.
+-
+-	if path == "" {
+-		return []string{}
+-	}
+-
+-	// Split path, respecting but preserving quotes.
+-	list := []string{}
+-	start := 0
+-	quo := false
+-	for i := 0; i < len(path); i++ {
+-		switch c := path[i]; {
+-		case c == '"':
+-			quo = !quo
+-		case c == os.PathListSeparator && !quo:
+-			list = append(list, path[start:i])
+-			start = i + 1
+-		}
+-	}
+-	list = append(list, path[start:])
+-
+-	// Remove quotes.
+-	for i, s := range list {
+-		if strings.Contains(s, `"`) {
+-			list[i] = strings.Replace(s, `"`, "", -1)
+-		}
+-	}
+-
+-	return list
+-}
+diff --git a/src/os/exec/lp_windows_test.go b/src/os/exec/lp_windows_test.go
+index 042e5a1389..96a22d843f 100644
+--- a/src/os/exec/lp_windows_test.go
++++ b/src/os/exec/lp_windows_test.go
+@@ -107,7 +107,7 @@ func createEnv(dir, PATH, PATHEXT string) []string {
+ 	env := os.Environ()
+ 	env = updateEnv(env, "PATHEXT", PATHEXT)
+ 	// Add dir in front of every directory in the PATH.
+-	dirs := splitList(PATH)
++	dirs := filepath.SplitList(PATH)
+ 	for i := range dirs {
+ 		dirs[i] = filepath.Join(dir, dirs[i])
+ 	}

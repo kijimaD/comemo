@@ -16,7 +16,7 @@ Date:   Fri Mar 7 09:32:20 2025 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: PRABHAV DOGRA <prabhavdogra1@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/runtime/atomic/atomic_386.s       | 36 ++++++++++++++------------
  src/internal/runtime/atomic/atomic_amd64.s     | 36 ++++++++++++++------------
  src/internal/runtime/atomic/atomic_arm.s       | 13 +++++-----
@@ -28,3 +28,474 @@ Date:   Fri Mar 7 09:32:20 2025 +0000
  src/internal/runtime/atomic/atomic_riscv64.s   | 12 ++++-----
  src/internal/runtime/atomic/sys_nonlinux_arm.s | 13 +++++-----
  10 files changed, 136 insertions(+), 122 deletions(-)
+
+diff --git a/src/internal/runtime/atomic/atomic_386.s b/src/internal/runtime/atomic/atomic_386.s
+index 58a56e63c0..e8745a1bb5 100644
+--- a/src/internal/runtime/atomic/atomic_386.s
++++ b/src/internal/runtime/atomic/atomic_386.s
+@@ -5,13 +5,14 @@
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
+-// bool Cas(int32 *val, int32 old, int32 new)
++// func Cas(ptr *int32, old, new int32) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	}else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Cas(SB), NOSPLIT, $0-13
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	old+4(FP), AX
+@@ -63,13 +64,13 @@ TEXT ·Xaddint32(SB), NOSPLIT, $0-12
+ TEXT ·Xaddint64(SB), NOSPLIT, $0-20
+ 	JMP	·Xadd64(SB)
+ 
+-// bool ·Cas64(uint64 *val, uint64 old, uint64 new)
++// func Cas64(ptr *uint64, old, new uint64) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
+ //	} else {
+-//		return 0;
++//		return false
+ //	}
+ TEXT ·Cas64(SB), NOSPLIT, $0-21
+ 	NO_LOCAL_POINTERS
+@@ -86,13 +87,14 @@ TEXT ·Cas64(SB), NOSPLIT, $0-21
+ 	SETEQ	ret+20(FP)
+ 	RET
+ 
+-// bool Casp1(void **p, void *old, void *new)
++// func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+ // Atomically:
+-//	if(*p == old){
+-//		*p = new;
+-//		return 1;
+-//	}else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Casp1(SB), NOSPLIT, $0-13
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	old+4(FP), AX
+diff --git a/src/internal/runtime/atomic/atomic_amd64.s b/src/internal/runtime/atomic/atomic_amd64.s
+index d6dc7a32d6..301725e6a9 100644
+--- a/src/internal/runtime/atomic/atomic_amd64.s
++++ b/src/internal/runtime/atomic/atomic_amd64.s
+@@ -19,13 +19,14 @@ TEXT ·Loadint32(SB), NOSPLIT, $0-12
+ TEXT ·Loadint64(SB), NOSPLIT, $0-16
+ 	JMP	·Load64(SB)
+ 
+-// bool Cas(int32 *val, int32 old, int32 new)
++// func Cas(ptr *int32, old, new int32) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Cas(SB),NOSPLIT,$0-17
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVL	old+8(FP), AX
+@@ -35,13 +36,13 @@ TEXT ·Cas(SB),NOSPLIT,$0-17
+ 	SETEQ	ret+16(FP)
+ 	RET
+ 
+-// bool	·Cas64(uint64 *val, uint64 old, uint64 new)
++// func Cas64(ptr *uint64, old, new uint64) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
+ //	} else {
+-//		return 0;
++//		return false
+ //	}
+ TEXT ·Cas64(SB), NOSPLIT, $0-25
+ 	MOVQ	ptr+0(FP), BX
+@@ -52,13 +53,14 @@ TEXT ·Cas64(SB), NOSPLIT, $0-25
+ 	SETEQ	ret+24(FP)
+ 	RET
+ 
+-// bool Casp1(void **val, void *old, void *new)
++// func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++// 	}
+ TEXT ·Casp1(SB), NOSPLIT, $0-25
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVQ	old+8(FP), AX
+diff --git a/src/internal/runtime/atomic/atomic_arm.s b/src/internal/runtime/atomic/atomic_arm.s
+index 85cee049af..103f718a04 100644
+--- a/src/internal/runtime/atomic/atomic_arm.s
++++ b/src/internal/runtime/atomic/atomic_arm.s
+@@ -6,13 +6,14 @@
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
+-// bool armcas(int32 *val, int32 old, int32 new)
++// func armcas(ptr *int32, old, new int32) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	}else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ //
+ // To implement ·cas in sys_$GOOS_arm.s
+ // using the native instructions, use:
+diff --git a/src/internal/runtime/atomic/atomic_arm64.s b/src/internal/runtime/atomic/atomic_arm64.s
+index 09f3b53c5c..360f7a2816 100644
+--- a/src/internal/runtime/atomic/atomic_arm64.s
++++ b/src/internal/runtime/atomic/atomic_arm64.s
+@@ -192,13 +192,14 @@ load_store_loop:
+ 	RET
+ #endif
+ 
+-// bool Cas(uint32 *ptr, uint32 old, uint32 new)
++// func Cas(ptr *uint32, old, new uint32) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++// 	}
+ TEXT ·Cas(SB), NOSPLIT, $0-17
+ 	MOVD	ptr+0(FP), R0
+ 	MOVW	old+8(FP), R1
+@@ -226,14 +227,14 @@ ok:
+ 	RET
+ #endif
+ 
+-// bool ·Cas64(uint64 *ptr, uint64 old, uint64 new)
++// func Cas64(ptr *uint64, old, new uint64) bool
+ // Atomically:
+-//      if(*val == old){
+-//              *val = new;
+-//              return 1;
+-//      } else {
+-//              return 0;
+-//      }
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Cas64(SB), NOSPLIT, $0-25
+ 	MOVD	ptr+0(FP), R0
+ 	MOVD	old+8(FP), R1
+diff --git a/src/internal/runtime/atomic/atomic_loong64.s b/src/internal/runtime/atomic/atomic_loong64.s
+index 5222b77e77..95d3e2bdab 100644
+--- a/src/internal/runtime/atomic/atomic_loong64.s
++++ b/src/internal/runtime/atomic/atomic_loong64.s
+@@ -5,13 +5,14 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// bool cas(uint32 *ptr, uint32 old, uint32 new)
++// func Cas(ptr *int32, old, new int32) bool
+ // Atomically:
+-//	if(*ptr == old){
+-//		*ptr = new;
+-//		return 1;
+-//	} else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Cas(SB), NOSPLIT, $0-17
+ 	MOVV	ptr+0(FP), R4
+ 	MOVW	old+8(FP), R5
+@@ -45,13 +46,13 @@ cas_fail1:
+ 	MOVV	$0, R4
+ 	JMP	-4(PC)
+ 
+-// bool	cas64(uint64 *ptr, uint64 old, uint64 new)
++// func Cas64(ptr *uint64, old, new uint64) bool
+ // Atomically:
+-//	if(*ptr == old){
+-//		*ptr = new;
+-//		return 1;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
+ //	} else {
+-//		return 0;
++//		return false
+ //	}
+ TEXT ·Cas64(SB), NOSPLIT, $0-25
+ 	MOVV	ptr+0(FP), R4
+@@ -119,13 +120,14 @@ TEXT ·Xaddint32(SB),NOSPLIT,$0-20
+ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+ 	JMP	·Xadd64(SB)
+ 
+-// bool casp(void **val, void *old, void *new)
++// func Casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Casp1(SB), NOSPLIT, $0-25
+ 	JMP	·Cas64(SB)
+ 
+diff --git a/src/internal/runtime/atomic/atomic_mips64x.s b/src/internal/runtime/atomic/atomic_mips64x.s
+index ce0b5c2f73..ec56cb7c68 100644
+--- a/src/internal/runtime/atomic/atomic_mips64x.s
++++ b/src/internal/runtime/atomic/atomic_mips64x.s
+@@ -8,13 +8,14 @@
+ 
+ #define SYNC	WORD $0xf
+ 
+-// bool cas(uint32 *ptr, uint32 old, uint32 new)
++// func cas(ptr *uint32, old, new uint32) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Cas(SB), NOSPLIT, $0-17
+ 	MOVV	ptr+0(FP), R1
+ 	MOVW	old+8(FP), R2
+@@ -34,13 +35,13 @@ cas_fail:
+ 	MOVV	$0, R1
+ 	JMP	-4(PC)
+ 
+-// bool	cas64(uint64 *ptr, uint64 old, uint64 new)
++// func	Cas64(ptr *uint64, old, new uint64) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
+ //	} else {
+-//		return 0;
++//		return false
+ //	}
+ TEXT ·Cas64(SB), NOSPLIT, $0-25
+ 	MOVV	ptr+0(FP), R1
+@@ -103,13 +104,14 @@ TEXT ·Xaddint32(SB), NOSPLIT, $0-20
+ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+ 	JMP	·Xadd64(SB)
+ 
+-// bool casp(void **val, void *old, void *new)
++// func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Casp1(SB), NOSPLIT, $0-25
+ 	JMP ·Cas64(SB)
+ 
+diff --git a/src/internal/runtime/atomic/atomic_mipsx.s b/src/internal/runtime/atomic/atomic_mipsx.s
+index b725016f7b..e4f80c913e 100644
+--- a/src/internal/runtime/atomic/atomic_mipsx.s
++++ b/src/internal/runtime/atomic/atomic_mipsx.s
+@@ -6,13 +6,14 @@
+ 
+ #include "textflag.h"
+ 
+-// bool Cas(int32 *val, int32 old, int32 new)
++// func Cas(ptr *int32, old, new int32) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Cas(SB),NOSPLIT,$0-13
+ 	MOVW	ptr+0(FP), R1
+ 	MOVW	old+4(FP), R2
+diff --git a/src/internal/runtime/atomic/atomic_ppc64x.s b/src/internal/runtime/atomic/atomic_ppc64x.s
+index 184a30c970..bff7d1902a 100644
+--- a/src/internal/runtime/atomic/atomic_ppc64x.s
++++ b/src/internal/runtime/atomic/atomic_ppc64x.s
+@@ -78,13 +78,14 @@ TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$-8-16
+ 	MOVD   R3, ret+8(FP)
+ 	RET
+ 
+-// bool cas(uint32 *ptr, uint32 old, uint32 new)
++// func Cas(ptr *int32, old, new int32) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Cas(SB), NOSPLIT, $0-17
+ 	MOVD	ptr+0(FP), R3
+ 	MOVWZ	old+8(FP), R4
+@@ -105,13 +106,13 @@ cas_fail:
+ 	MOVB	R0, ret+16(FP)
+ 	RET
+ 
+-// bool	·Cas64(uint64 *ptr, uint64 old, uint64 new)
++// func	Cas64(ptr *uint64, old, new uint64) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
+ //	} else {
+-//		return 0;
++//		return false
+ //	}
+ TEXT ·Cas64(SB), NOSPLIT, $0-25
+ 	MOVD	ptr+0(FP), R3
+@@ -196,13 +197,14 @@ TEXT ·Xaddint32(SB), NOSPLIT, $0-20
+ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+ 	BR	·Xadd64(SB)
+ 
+-// bool casp(void **val, void *old, void *new)
++// func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Casp1(SB), NOSPLIT, $0-25
+ 	BR ·Cas64(SB)
+ 
+diff --git a/src/internal/runtime/atomic/atomic_riscv64.s b/src/internal/runtime/atomic/atomic_riscv64.s
+index 0aa118cc78..f68a607a8c 100644
+--- a/src/internal/runtime/atomic/atomic_riscv64.s
++++ b/src/internal/runtime/atomic/atomic_riscv64.s
+@@ -32,12 +32,12 @@
+ 
+ // func Cas(ptr *uint64, old, new uint64) bool
+ // Atomically:
+-//      if(*val == old){
+-//              *val = new;
+-//              return 1;
+-//      } else {
+-//              return 0;
+-//      }
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT ·Cas(SB), NOSPLIT, $0-17
+ 	MOV	ptr+0(FP), A0
+ 	MOVW	old+8(FP), A1
+diff --git a/src/internal/runtime/atomic/sys_nonlinux_arm.s b/src/internal/runtime/atomic/sys_nonlinux_arm.s
+index b55bf908a2..43a41d4edc 100644
+--- a/src/internal/runtime/atomic/sys_nonlinux_arm.s
++++ b/src/internal/runtime/atomic/sys_nonlinux_arm.s
+@@ -7,13 +7,14 @@
+ #include "textflag.h"
+ 
+ // TODO(minux): this is only valid for ARMv6+
+-// bool armcas(int32 *val, int32 old, int32 new)
++// func armcas(ptr *int32, old int32, new int32) bool
+ // Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	}else
+-//		return 0;
++//	if *ptr == old {
++//		*ptr = new
++//		return true
++//	} else {
++//		return false
++//	}
+ TEXT	·Cas(SB),NOSPLIT,$0
+ 	JMP	·armcas(SB)
+ 

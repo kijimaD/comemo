@@ -14,9 +14,173 @@ Date:   Thu Mar 18 21:01:37 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.17.html                                    | 12 +++++++
  src/cmd/go/internal/modload/init.go                | 42 ++++++++++++++++++----
  src/cmd/go/internal/work/gc.go                     | 10 +++++-
  .../go/testdata/script/mod_go_version_vendor.txt   | 36 +++++++++++++++++++
  4 files changed, 92 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 22b2ff1156..cd61dd8cef 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -67,6 +67,18 @@ Do not send CLs removing the interior tags from such phrases.
+   Go 1.12</a>.)
+ </p>
+ 
++<p><!-- golang.org/issue/44976 -->
++  If a module dependency lacks an explicit <code>go.mod</code> file, or
++  its <code>go.mod</code> file does not contain
++  a <a href="/doc/modules/gomod-ref#go"><code>go</code> directive</a>,
++  the <code>go</code> command now assumes <code>go 1.16</code> for that
++  dependency instead of the current release. (Dependencies developed in GOPATH
++  mode may lack a <code>go.mod</code> file, and
++  the <code>vendor/modules.txt</code> has to date never recorded
++  the <code>go</code> versions indicated by dependencies' <code>go.mod</code>
++  files.)
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p>
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 2466a3bdfd..dd97a6bfb9 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -405,9 +405,38 @@ func LoadModFile(ctx context.Context) {
+ 		readVendorList()
+ 		checkVendorConsistency()
+ 	}
+-	if index.goVersionV == "" && cfg.BuildMod == "mod" {
+-		addGoStmt()
+-		WriteGoMod()
++	if index.goVersionV == "" {
++		// The main module necessarily has a go.mod file, and that file lacks a
++		// 'go' directive. The 'go' command has been adding that directive
++		// automatically since Go 1.12, so this module either dates to Go 1.11 or
++		// has been erroneously hand-edited.
++		//
++		// If we are able to modify the go.mod file, we will add a 'go' directive
++		// to at least make the situation explicit going forward.
++		if cfg.BuildMod == "mod" {
++			// TODO(#44976): If we implicitly upgrade to the latest Go version once
++			// lazy loading is implemented, we could accidentally prune out
++			// dependencies from what was formerly a Go 1.11 module, resulting in
++			// downgrades (if only lower requirements on that module remain) and/or
++			// upgrades (if no requirement remains and we end up re-resolving to
++			// latest).
++			//
++			// We should probably instead load the dependencies using Go 1.11
++			// semantics to ensure that we capture everything that is relevant, or
++			// perhaps error out and let the user tell us which version they intend.
++			//
++			// If we are running 'go mod tidy' in particular, we will have enough
++			// information to upgrade the 'go' version after loading is complete.
++			addGoStmt(latestGoVersion())
++			WriteGoMod()
++		} else {
++			// Reproducibility requires that if we change the semantics of a module,
++			// we write some explicit change to its go.mod file. We cannot write to
++			// the go.mod file (because we are in readonly or vendor mode), so we must
++			// not change its semantics either. The go.mod file looks as if it were
++			// created by Go 1.11, so assume Go 1.11 semantics.
++			rawGoVersion.Store(Target, "1.11")
++		}
+ 	}
+ }
+ 
+@@ -442,7 +471,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	modFile = new(modfile.File)
+ 	modFile.AddModuleStmt(modPath)
+ 	initTarget(modFile.Module.Mod)
+-	addGoStmt() // Add the go directive before converted module requirements.
++	addGoStmt(latestGoVersion()) // Add the go directive before converted module requirements.
+ 
+ 	convertedFrom, err := convertLegacyConfig(modPath)
+ 	if convertedFrom != "" {
+@@ -680,11 +709,10 @@ func convertLegacyConfig(modPath string) (from string, err error) {
+ // addGoStmt adds a go directive to the go.mod file if it does not already
+ // include one. The 'go' version added, if any, is the latest version supported
+ // by this toolchain.
+-func addGoStmt() {
++func addGoStmt(v string) {
+ 	if modFile.Go != nil && modFile.Go.Version != "" {
+ 		return
+ 	}
+-	v := latestGoVersion()
+ 	if err := modFile.AddGoStmt(v); err != nil {
+ 		base.Fatalf("go: internal error: %v", err)
+ 	}
+@@ -692,7 +720,7 @@ func addGoStmt() {
+ }
+ 
+ // latestGoVersion returns the latest version of the Go language supported by
+-// this toolchain.
++// this toolchain, like "1.17".
+ func latestGoVersion() string {
+ 	tags := build.Default.ReleaseTags
+ 	version := tags[len(tags)-1]
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 95fffeabd6..c71196469b 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -70,7 +70,15 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 			// as of Go 1.12, so any module that still lacks such a directive must
+ 			// either have been authored before then, or have a hand-edited go.mod
+ 			// file that hasn't been updated by cmd/go since that edit.
+-			v = "1.11"
++			//
++			// Unfortunately, through at least Go 1.16 we didn't add versions to
++			// vendor/modules.txt. So this could also be a vendored 1.16 dependency.
++			//
++			// Fortunately, there were no breaking changes to the language between Go
++			// 1.11 and 1.16, so if we assume Go 1.16 semantics we will not introduce
++			// any spurious errors — we will only mask errors, and not particularly
++			// important ones at that.
++			v = "1.16"
+ 		}
+ 		if allowedVersion(v) {
+ 			gcargs = append(gcargs, "-lang=go"+v)
+diff --git a/src/cmd/go/testdata/script/mod_go_version_vendor.txt b/src/cmd/go/testdata/script/mod_go_version_vendor.txt
+new file mode 100644
+index 0000000000..05be54886f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_go_version_vendor.txt
+@@ -0,0 +1,36 @@
++# Regression test for https://golang.org/issue/45109:
++# Dependencies that use post-1.11 Go features should build
++# when compiled as vendored dependencies of Go 1.16 modules.
++
++[short] skip
++
++go mod init example.com/foo
++go mod edit -replace=example.com/use113@v0.1.0=./use113
++
++go mod vendor
++! grep 1.13 vendor/modules.txt  # TODO(#36876): record dependency versions.
++go build .
++
++
++# In Go 1.16 and earlier, 'go mod vendor' did not record dependency versions.
++# That still should not cause a build failure.
++
++go mod edit -go=1.16
++go mod vendor
++! grep 1.13 vendor/modules.txt
++go build .
++
++
++-- foo.go --
++package foo
++
++import _ "example.com/use113"
++
++-- use113/go.mod --
++module example.com/use113
++
++go 1.13
++-- use113/use113.go --
++package use113
++
++const x = 1_000

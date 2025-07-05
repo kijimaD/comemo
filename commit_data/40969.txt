@@ -13,8 +13,73 @@ Date:   Mon Aug 26 16:18:24 2019 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.13.html                         | 13 +++++++++----
  src/crypto/tls/common.go                |  4 ++++
  src/crypto/tls/handshake_server_test.go | 14 ++++++++++++++
  3 files changed, 27 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index df8733ec72..220f34f31d 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -593,10 +593,15 @@ godoc
+   <dd>
+     <p>
+       Support for SSL version 3.0 (SSLv3) <a href="https://golang.org/issue/32716">
+-      is now deprecated and will be removed in Go 1.14</a>. Note that SSLv3
+-      <a href="https://tools.ietf.org/html/rfc7568">is cryptographically
+-      broken</a>, is already disabled by default in <code>crypto/tls</code>,
+-      and was never supported by Go clients.
++      is now deprecated and will be removed in Go 1.14</a>. Note that SSLv3 is the
++      <a href="https://tools.ietf.org/html/rfc7568">cryptographically broken</a>
++      protocol predating TLS.
++    </p>
++
++    <p>
++      SSLv3 was always disabled by default, other than in Go 1.12, when it was
++      mistakenly enabled by default server-side. It is now again disabled by
++      default. (SSLv3 was never supported client-side.)
+     </p>
+ 
+     <p><!-- CL 177698 -->
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index da1eae0800..ef0b385848 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -794,6 +794,10 @@ var supportedVersions = []uint16{
+ func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 	versions := make([]uint16, 0, len(supportedVersions))
+ 	for _, v := range supportedVersions {
++		// TLS 1.0 is the default minimum version.
++		if (c == nil || c.MinVersion == 0) && v < VersionTLS10 {
++			continue
++		}
+ 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
+ 			continue
+ 		}
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 22b126fa22..a9c1c08cbc 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -77,6 +77,20 @@ func TestRejectBadProtocolVersion(t *testing.T) {
+ 	}, "unsupported versions")
+ }
+ 
++func TestSSLv3OptIn(t *testing.T) {
++	config := testConfig.Clone()
++	config.MinVersion = 0
++	testClientHelloFailure(t, config, &clientHelloMsg{
++		vers:   VersionSSL30,
++		random: make([]byte, 32),
++	}, "unsupported versions")
++	testClientHelloFailure(t, config, &clientHelloMsg{
++		vers:              VersionTLS12,
++		supportedVersions: []uint16{VersionSSL30},
++		random:            make([]byte, 32),
++	}, "unsupported versions")
++}
++
+ func TestNoSuiteOverlap(t *testing.T) {
+ 	clientHello := &clientHelloMsg{
+ 		vers:               VersionTLS10,

@@ -8,6 +8,23 @@ Date:   Wed Oct 14 18:29:33 2009 -0700
     TBR=r
     OCL=35750
     CL=35750
-
+---
  src/clean.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index f5cd3b0573..2bfc88f22c 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -8,9 +8,9 @@ rm -f $GOROOT/lib/*.a
+ for i in lib9 libbio libcgo libmach libregexp cmd pkg \
+ 	../misc/cgo/gmp ../misc/cgo/stdio \
+ 	../usr/r/rpc ../usr/dsymonds/iterable \
+-	../usr/austin/eval ../usr/austin/ogle ../test/bench
++	../test/bench
+ do(
+-	cd $i
++	cd $i || exit 1
+ 	if test -f clean.bash; then
+ 		bash clean.bash
+ 	else

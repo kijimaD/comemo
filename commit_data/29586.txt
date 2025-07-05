@@ -14,8 +14,249 @@ Date:   Mon Sep 26 10:06:10 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules |   9 ++
  src/cmd/compile/internal/ssa/rewrite.go      |   5 +
  src/cmd/compile/internal/ssa/rewritePPC64.go | 180 +++++++++++++++++++++++++++
  3 files changed, 194 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 2458dec0dc..9bb8cafadc 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -639,3 +639,12 @@
+ (MOVHstore [off] {sym} ptr (MOVHreg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
+ (MOVHstore [off] {sym} ptr (MOVHZreg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
+ 
++(CMP x (MOVDconst [c])) && is16Bit(c) -> (CMPconst x [c])
++(CMP (MOVDconst [c]) y) && is16Bit(c) -> (InvertFlags (CMPconst y [c]))
++(CMPW x (MOVDconst [c])) && is16Bit(c) -> (CMPWconst x [c])
++(CMPW (MOVDconst [c]) y) && is16Bit(c) -> (InvertFlags (CMPWconst y [c]))
++
++(CMPU x (MOVDconst [c])) && isU16Bit(c) -> (CMPUconst x [c])
++(CMPU (MOVDconst [c]) y) && isU16Bit(c) -> (InvertFlags (CMPUconst y [c]))
++(CMPWU x (MOVDconst [c])) && isU16Bit(c) -> (CMPWUconst x [c])
++(CMPWU (MOVDconst [c]) y) && isU16Bit(c) -> (InvertFlags (CMPWUconst y [c]))
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index a90fe4c396..5d6710f042 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -229,6 +229,11 @@ func is16Bit(n int64) bool {
+ 	return n == int64(int16(n))
+ }
+ 
++// is16Bit reports whether n can be represented as an unsigned 16 bit integer.
++func isU16Bit(n int64) bool {
++	return n == int64(uint16(n))
++}
++
+ // is20Bit reports whether n can be represented as a signed 20 bit integer.
+ func is20Bit(n int64) bool {
+ 	return -(1<<19) <= n && n < (1<<19)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 8f58f4cd9e..28b22b9e0a 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -344,8 +344,16 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpPPC64ADDconst(v, config)
+ 	case OpPPC64ANDconst:
+ 		return rewriteValuePPC64_OpPPC64ANDconst(v, config)
++	case OpPPC64CMP:
++		return rewriteValuePPC64_OpPPC64CMP(v, config)
++	case OpPPC64CMPU:
++		return rewriteValuePPC64_OpPPC64CMPU(v, config)
+ 	case OpPPC64CMPUconst:
+ 		return rewriteValuePPC64_OpPPC64CMPUconst(v, config)
++	case OpPPC64CMPW:
++		return rewriteValuePPC64_OpPPC64CMPW(v, config)
++	case OpPPC64CMPWU:
++		return rewriteValuePPC64_OpPPC64CMPWU(v, config)
+ 	case OpPPC64CMPWUconst:
+ 		return rewriteValuePPC64_OpPPC64CMPWUconst(v, config)
+ 	case OpPPC64CMPWconst:
+@@ -4137,6 +4145,92 @@ func rewriteValuePPC64_OpPPC64ANDconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64CMP(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (CMP x (MOVDconst [c]))
++	// cond: is16Bit(c)
++	// result: (CMPconst x [c])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		if !(is16Bit(c)) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	// match: (CMP (MOVDconst [c]) y)
++	// cond: is16Bit(c)
++	// result: (InvertFlags (CMPconst y [c]))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		y := v.Args[1]
++		if !(is16Bit(c)) {
++			break
++		}
++		v.reset(OpPPC64InvertFlags)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPconst, TypeFlags)
++		v0.AuxInt = c
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpPPC64CMPU(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (CMPU x (MOVDconst [c]))
++	// cond: isU16Bit(c)
++	// result: (CMPUconst x [c])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		if !(isU16Bit(c)) {
++			break
++		}
++		v.reset(OpPPC64CMPUconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	// match: (CMPU (MOVDconst [c]) y)
++	// cond: isU16Bit(c)
++	// result: (InvertFlags (CMPUconst y [c]))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		y := v.Args[1]
++		if !(isU16Bit(c)) {
++			break
++		}
++		v.reset(OpPPC64InvertFlags)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPUconst, TypeFlags)
++		v0.AuxInt = c
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64CMPUconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -4190,6 +4284,92 @@ func rewriteValuePPC64_OpPPC64CMPUconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64CMPW(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (CMPW x (MOVDconst [c]))
++	// cond: is16Bit(c)
++	// result: (CMPWconst x [c])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		if !(is16Bit(c)) {
++			break
++		}
++		v.reset(OpPPC64CMPWconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	// match: (CMPW (MOVDconst [c]) y)
++	// cond: is16Bit(c)
++	// result: (InvertFlags (CMPWconst y [c]))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		y := v.Args[1]
++		if !(is16Bit(c)) {
++			break
++		}
++		v.reset(OpPPC64InvertFlags)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWconst, TypeFlags)
++		v0.AuxInt = c
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpPPC64CMPWU(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (CMPWU x (MOVDconst [c]))
++	// cond: isU16Bit(c)
++	// result: (CMPWUconst x [c])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		if !(isU16Bit(c)) {
++			break
++		}
++		v.reset(OpPPC64CMPWUconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	// match: (CMPWU (MOVDconst [c]) y)
++	// cond: isU16Bit(c)
++	// result: (InvertFlags (CMPWUconst y [c]))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		y := v.Args[1]
++		if !(isU16Bit(c)) {
++			break
++		}
++		v.reset(OpPPC64InvertFlags)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWUconst, TypeFlags)
++		v0.AuxInt = c
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64CMPWUconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

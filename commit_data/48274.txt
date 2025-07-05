@@ -18,9 +18,68 @@ Date:   Tue May 4 16:00:08 2021 +0000
     Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/sys_windows_386.s   | 4 +++-
  src/runtime/sys_windows_amd64.s | 2 ++
  src/runtime/sys_windows_arm.s   | 4 ++--
  src/runtime/sys_windows_arm64.s | 4 +++-
  4 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 64b12859ae..0b3933502a 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -58,7 +58,9 @@ TEXT	runtime·badsignal2(SB),NOSPLIT,$24
+ 	MOVL	DX, 12(SP)
+ 	MOVL	$0, 16(SP) // overlapped
+ 	CALL	*runtime·_WriteFile(SB)
+-	MOVL	BP, SI
++
++	// Does not return.
++	CALL	runtime·abort(SB)
+ 	RET
+ 
+ // faster get/set last error
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index e5e2083be2..e7782846b2 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -96,6 +96,8 @@ TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$48
+ 	MOVQ	runtime·_WriteFile(SB), AX
+ 	CALL	AX
+ 
++	// Does not return.
++	CALL	runtime·abort(SB)
+ 	RET
+ 
+ // faster get/set last error
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 189d2f6780..48f8c7dedf 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -97,8 +97,8 @@ TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	runtime·_WriteFile(SB), R12
+ 	BL	(R12)
+ 
+-	MOVW	R4, R13			// restore SP
+-	MOVM.IA.W (R13), [R4, R15]	// pop {r4, pc}
++	// Does not return.
++	B	runtime·abort(SB)
+ 
+ TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	MRC	15, 0, R0, C13, C0, 2
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 33ac091e12..7a2e11f5ae 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -117,7 +117,9 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$16-0
+ 	MOVD	runtime·_WriteFile(SB), R12
+ 	SUB	$16, RSP	// skip over saved frame pointer below RSP
+ 	BL	(R12)
+-	ADD	$16, RSP
++
++	// Does not return.
++	B	runtime·abort(SB)
+ 
+ 	RET
+ 

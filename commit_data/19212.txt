@@ -8,6 +8,20 @@ Date:   Sun Apr 20 20:29:17 2014 +0200
     R=r, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/89710043
-
+---
  doc/go1.3.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 96ea166279..5b623bd2e3 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -403,7 +403,7 @@ when the binary's file name contains no path separators.
+ 
+ <li>
+ If the main goroutine calls 
+-<a href="/pkg/runtime/#Goexit"><code>runtime.Goexit</code>
++<a href="/pkg/runtime/#Goexit"><code>runtime.Goexit</code></a>
+ and all other goroutines finish execution, the program now always crashes,
+ reporting a detected deadlock.
+ Earlier versions of Go handled this situation inconsistently: most instances

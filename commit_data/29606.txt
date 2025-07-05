@@ -14,7 +14,171 @@ Date:   Mon Sep 26 00:45:01 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s | 20 ++++----
  src/cmd/internal/obj/s390x/asmz.go        | 80 +++++++++++++++++--------------
  2 files changed, 55 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 3a01f29419..4b1d573064 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -52,21 +52,23 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 
+ 	ADD	R1, R2                // b9e81022
+ 	ADD	R1, R2, R3            // b9e81032
+-	ADD	$8192, R1             // c21800002000
++	ADD	$8192, R1             // a71b2000
+ 	ADD	$8192, R1, R2         // ec21200000d9
++	ADD	$32768, R1            // c21800008000
++	ADD	$32768, R1, R2        // b9040021c22800008000
+ 	ADDC	R1, R2                // b9ea1022
+-	ADDC	$1, R1, R2            // b9040021c22a00000001
++	ADDC	$1, R1, R2            // ec21000100db
+ 	ADDC	R1, R2, R3            // b9ea1032
+ 	ADDW	R1, R2                // 1a21
+ 	ADDW	R1, R2, R3            // b9f81032
+-	ADDW	$8192, R1             // c21900002000
++	ADDW	$8192, R1             // a71a2000
+ 	ADDW	$8192, R1, R2         // ec21200000d8
+ 	SUB	R3, R4                // b9090043
+ 	SUB	R3, R4, R5            // b9e93054
+-	SUB	$8192, R3             // c238ffffe000
++	SUB	$8192, R3             // a73be000
+ 	SUB	$8192, R3, R4         // ec43e00000d9
+ 	SUBC	R1, R2                // b90b0021
+-	SUBC	$1, R1, R2            // b9040021c22affffffff
++	SUBC	$1, R1, R2            // ec21ffff00db
+ 	SUBC	R2, R3, R4            // b9eb2043
+ 	SUBW	R3, R4                // 1b43
+ 	SUBW	R3, R4, R5            // b9f93054
+@@ -74,10 +76,10 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	SUBW	$8192, R1, R2         // 1821c22500002000
+ 	MULLW	R6, R7                // b91c0076
+ 	MULLW	R6, R7, R8            // b9040087b91c0086
+-	MULLW	$8192, R6             // a76d2000
+-	MULLW	$8192, R6, R7         // b9040076a77d2000
+-	MULLW	$-65537, R8           // c280fffeffff
+-	MULLW   $-65537, R8, R9       // b9040098c290fffeffff
++	MULLW	$8192, R6             // a76c2000
++	MULLW	$8192, R6, R7         // 1876a77c2000
++	MULLW	$-32769, R8           // c281ffff7fff
++	MULLW   $-32769, R8, R9       // 1898c291ffff7fff
+ 	MULLD	$-2147483648, R1      // c21080000000
+ 	MULLD   $-2147483648, R1, R2  // b9040021c22080000000
+ 	MULHD	R9, R8                // b90400b8b98600a9ebb9003f000ab98000b8b90900abebb8003f000ab98000b9b9e9b08a
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 700137c322..0627fd1e20 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -145,8 +145,8 @@ var optab = []Optab{
+ 	Optab{AADD, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
+ 	Optab{AADD, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
+ 	Optab{AADD, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
+-	Optab{ASUB, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
+-	Optab{ASUB, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
++	Optab{ASUB, C_LCON, C_REG, C_NONE, C_REG, 21, 0},
++	Optab{ASUB, C_LCON, C_NONE, C_NONE, C_REG, 21, 0},
+ 	Optab{AMULHD, C_REG, C_NONE, C_NONE, C_REG, 4, 0},
+ 	Optab{AMULHD, C_REG, C_REG, C_NONE, C_REG, 4, 0},
+ 	Optab{ADIVW, C_REG, C_REG, C_NONE, C_REG, 2, 0},
+@@ -2976,41 +2976,13 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 		}
+ 		addrilreloc(ctxt, p.From.Sym, d)
+ 
+-	case 22: // arithmetic op $constant [reg] reg
+-		if p.From.Sym != nil {
+-			ctxt.Diag("%v is not supported", p)
+-		}
++	case 21: // subtract $constant [reg] reg
+ 		v := vregoff(ctxt, &p.From)
+ 		r := p.Reg
+ 		if r == 0 {
+ 			r = p.To.Reg
+ 		}
+ 		switch p.As {
+-		default:
+-		case AADD:
+-			if r == p.To.Reg {
+-				zRIL(_a, op_AGFI, uint32(p.To.Reg), uint32(v), asm)
+-			} else if int64(int16(v)) == v {
+-				zRIE(_d, op_AGHIK, uint32(p.To.Reg), uint32(r), uint32(v), 0, 0, 0, 0, asm)
+-			} else {
+-				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
+-				zRIL(_a, op_AGFI, uint32(p.To.Reg), uint32(v), asm)
+-			}
+-		case AADDC:
+-			if r != p.To.Reg {
+-				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
+-			}
+-			zRIL(_a, op_ALGFI, uint32(p.To.Reg), uint32(v), asm)
+-		case AADDW:
+-			i2 := int32(v)
+-			if r == p.To.Reg {
+-				zRIL(_a, op_AFI, uint32(p.To.Reg), uint32(i2), asm)
+-			} else if int32(int16(i2)) == i2 {
+-				zRIE(_d, op_AHIK, uint32(p.To.Reg), uint32(r), uint32(i2), 0, 0, 0, 0, asm)
+-			} else {
+-				zRR(op_LR, uint32(p.To.Reg), uint32(r), asm)
+-				zRIL(_a, op_AFI, uint32(p.To.Reg), uint32(i2), asm)
+-			}
+ 		case ASUB:
+ 			zRIL(_a, op_LGFI, uint32(REGTMP), uint32(v), asm)
+ 			zRRF(op_SLGRK, uint32(REGTMP), 0, uint32(p.To.Reg), uint32(r), asm)
+@@ -3024,15 +2996,51 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 				zRR(op_LR, uint32(p.To.Reg), uint32(r), asm)
+ 			}
+ 			zRIL(_a, op_SLFI, uint32(p.To.Reg), uint32(v), asm)
+-		case AMULLW, AMULLD:
+-			if r != p.To.Reg {
++		}
++
++	case 22: // add/multiply $constant [reg] reg
++		v := vregoff(ctxt, &p.From)
++		r := p.Reg
++		if r == 0 {
++			r = p.To.Reg
++		}
++		var opri, opril, oprie uint32
++		switch p.As {
++		case AADD:
++			opri = op_AGHI
++			opril = op_AGFI
++			oprie = op_AGHIK
++		case AADDC:
++			opril = op_ALGFI
++			oprie = op_ALGHSIK
++		case AADDW:
++			opri = op_AHI
++			opril = op_AFI
++			oprie = op_AHIK
++		case AMULLW:
++			opri = op_MHI
++			opril = op_MSFI
++		case AMULLD:
++			opri = op_MGHI
++			opril = op_MSGFI
++		}
++		if r != p.To.Reg && (oprie == 0 || int64(int16(v)) != v) {
++			switch p.As {
++			case AADD, AADDC, AMULLD:
+ 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
++			case AADDW, AMULLW:
++				zRR(op_LR, uint32(p.To.Reg), uint32(r), asm)
+ 			}
+-			if int64(int16(v)) == v {
+-				zRI(op_MGHI, uint32(p.To.Reg), uint32(v), asm)
++			r = p.To.Reg
++		}
++		if r == p.To.Reg {
++			if opri != 0 && int64(int16(v)) == v {
++				zRI(opri, uint32(p.To.Reg), uint32(v), asm)
+ 			} else {
+-				zRIL(_a, op_MSGFI, uint32(p.To.Reg), uint32(v), asm)
++				zRIL(_a, opril, uint32(p.To.Reg), uint32(v), asm)
+ 			}
++		} else {
++			zRIE(_d, oprie, uint32(p.To.Reg), uint32(r), uint32(v), 0, 0, 0, 0, asm)
+ 		}
+ 
+ 	case 23: // logical op $constant [reg] reg

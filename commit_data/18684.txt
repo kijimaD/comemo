@@ -10,6 +10,21 @@ Date:   Thu Feb 27 14:16:47 2014 -0800
     R=r
     CC=golang-codereviews
     https://golang.org/cl/69530044
-
+---
  src/pkg/syscall/syscall_linux.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 400fe50dde..704c4ffa6c 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -420,6 +420,9 @@ func Accept4(fd int, flags int) (nfd int, sa Sockaddr, err error) {
+ 	if err != nil {
+ 		return
+ 	}
++	if len > SizeofSockaddrAny {
++		panic("RawSockaddrAny too small")
++	}
+ 	sa, err = anyToSockaddr(&rsa)
+ 	if err != nil {
+ 		Close(nfd)

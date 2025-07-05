@@ -10,7 +10,71 @@ Date:   Wed Jun 18 10:59:25 2014 -0700
     R=golang-codereviews, r, gobot
     CC=golang-codereviews
     https://golang.org/cl/103320043
-
+---
  src/pkg/testing/example.go |  6 +++---
  src/pkg/testing/testing.go | 15 ++++++++++-----
  2 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+index 828c2d3eda..f5762e4db4 100644
+--- a/src/pkg/testing/example.go
++++ b/src/pkg/testing/example.go
+@@ -71,7 +71,7 @@ func runExample(eg InternalExample) (ok bool) {
+ 
+ 	// Clean up in a deferred call so we can recover if the example panics.
+ 	defer func() {
+-		d := time.Now().Sub(start)
++		dstr := fmtDuration(time.Now().Sub(start))
+ 
+ 		// Close pipe, restore stdout, get output.
+ 		w.Close()
+@@ -84,10 +84,10 @@ func runExample(eg InternalExample) (ok bool) {
+ 			fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", g, e)
+ 		}
+ 		if fail != "" || err != nil {
+-			fmt.Printf("--- FAIL: %s (%v)\n%s", eg.Name, d, fail)
++			fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
+ 			ok = false
+ 		} else if *chatty {
+-			fmt.Printf("--- PASS: %s (%v)\n", eg.Name, d)
++			fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
+ 		}
+ 		if err != nil {
+ 			panic(err)
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 8078ba7cc0..731762cb1d 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -223,6 +223,11 @@ func decorate(s string) string {
+ 	return buf.String()
+ }
+ 
++// fmtDuration returns a string representing d in the form "87.00s".
++func fmtDuration(d time.Duration) string {
++	return fmt.Sprintf("%.2fs", d.Seconds())
++}
++
+ // TB is the interface common to T and B.
+ type TB interface {
+ 	Error(args ...interface{})
+@@ -446,15 +451,15 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
+ }
+ 
+ func (t *T) report() {
+-	tstr := fmt.Sprintf("(%.2f seconds)", t.duration.Seconds())
+-	format := "--- %s: %s %s\n%s"
++	dstr := fmtDuration(t.duration)
++	format := "--- %s: %s (%s)\n%s"
+ 	if t.Failed() {
+-		fmt.Printf(format, "FAIL", t.name, tstr, t.output)
++		fmt.Printf(format, "FAIL", t.name, dstr, t.output)
+ 	} else if *chatty {
+ 		if t.Skipped() {
+-			fmt.Printf(format, "SKIP", t.name, tstr, t.output)
++			fmt.Printf(format, "SKIP", t.name, dstr, t.output)
+ 		} else {
+-			fmt.Printf(format, "PASS", t.name, tstr, t.output)
++			fmt.Printf(format, "PASS", t.name, dstr, t.output)
+ 		}
+ 	}
+ }

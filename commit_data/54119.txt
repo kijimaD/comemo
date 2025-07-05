@@ -25,10 +25,342 @@ Date:   Fri Oct 8 11:51:40 2021 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/os/proc.go                                     | 26 ++++---
  src/runtime/ehooks_test.go                         | 88 ++++++++++++++++++++++
  src/runtime/exithook.go                            | 68 +++++++++++++++++
  src/runtime/proc.go                                |  7 +-
  .../testdata/testexithooks/testexithooks.go        | 87 +++++++++++++++++++++
  5 files changed, 262 insertions(+), 14 deletions(-)
+
+diff --git a/src/os/proc.go b/src/os/proc.go
+index cbd5a6aad9..3aae5680ee 100644
+--- a/src/os/proc.go
++++ b/src/os/proc.go
+@@ -60,19 +60,21 @@ func Getgroups() ([]int, error) {
+ //
+ // For portability, the status code should be in the range [0, 125].
+ func Exit(code int) {
+-	if code == 0 {
+-		if testlog.PanicOnExit0() {
+-			// We were told to panic on calls to os.Exit(0).
+-			// This is used to fail tests that make an early
+-			// unexpected call to os.Exit(0).
+-			panic("unexpected call to os.Exit(0) during test")
+-		}
+-
+-		// Give race detector a chance to fail the program.
+-		// Racy programs do not have the right to finish successfully.
+-		runtime_beforeExit()
++	if code == 0 && testlog.PanicOnExit0() {
++		// We were told to panic on calls to os.Exit(0).
++		// This is used to fail tests that make an early
++		// unexpected call to os.Exit(0).
++		panic("unexpected call to os.Exit(0) during test")
+ 	}
++
++	// Inform the runtime that os.Exit is being called. If -race is
++	// enabled, this will give race detector a chance to fail the
++	// program (racy programs do not have the right to finish
++	// successfully). If coverage is enabled, then this call will
++	// enable us to write out a coverage data file.
++	runtime_beforeExit(code)
++
+ 	syscall.Exit(code)
+ }
+ 
+-func runtime_beforeExit() // implemented in runtime
++func runtime_beforeExit(exitCode int) // implemented in runtime
+diff --git a/src/runtime/ehooks_test.go b/src/runtime/ehooks_test.go
+new file mode 100644
+index 0000000000..021495fdf8
+--- /dev/null
++++ b/src/runtime/ehooks_test.go
+@@ -0,0 +1,88 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"os/exec"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++func TestExitHooks(t *testing.T) {
++	bmodes := []string{"", "-race"}
++	if !testing.Short() {
++		bmodes = append(bmodes, "-race")
++	}
++	for _, bmode := range bmodes {
++		// Race detector is not supported everywhere -- limit to just
++		// amd64 to keep things simple.
++		if bmode == "-race" && runtime.GOARCH != "amd64" {
++			t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
++		scenarios := []struct {
++			mode     string
++			expected string
++			musthave string
++		}{
++			{
++				mode:     "simple",
++				expected: "bar foo",
++				musthave: "",
++			},
++			{
++				mode:     "goodexit",
++				expected: "orange apple",
++				musthave: "",
++			},
++			{
++				mode:     "badexit",
++				expected: "blub blix",
++				musthave: "",
++			},
++			{
++				mode:     "panics",
++				expected: "",
++				musthave: "fatal error: internal error: exit hook invoked panic",
++			},
++			{
++				mode:     "callsexit",
++				expected: "",
++				musthave: "fatal error: internal error: exit hook invoked exit",
++			},
++		}
++
++		exe, err := buildTestProg(t, "testexithooks", bmode)
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		bt := ""
++		if bmode != "" {
++			bt = " bmode: " + bmode
++		}
++		for _, s := range scenarios {
++			cmd := exec.Command(exe, []string{"-mode", s.mode}...)
++			out, _ := cmd.CombinedOutput()
++			outs := strings.ReplaceAll(string(out), "\n", " ")
++			outs = strings.TrimSpace(outs)
++			if s.expected != "" {
++				if s.expected != outs {
++					t.Logf("raw output: %q", outs)
++					t.Errorf("failed%s mode %s: wanted %q got %q", bt,
++						s.mode, s.expected, outs)
++				}
++			} else if s.musthave != "" {
++				if !strings.Contains(outs, s.musthave) {
++					t.Logf("raw output: %q", outs)
++					t.Errorf("failed mode %s: output does not contain %q",
++						s.mode, s.musthave)
++				}
++			} else {
++				panic("badly written scenario")
++			}
++		}
++	}
++}
+diff --git a/src/runtime/exithook.go b/src/runtime/exithook.go
+new file mode 100644
+index 0000000000..a94d4ede40
+--- /dev/null
++++ b/src/runtime/exithook.go
+@@ -0,0 +1,68 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// addExitHook registers the specified function 'f' to be run at
++// program termination (e.g. when someone invokes os.Exit(), or when
++// main.main returns). Hooks are run in reverse order of registration:
++// first hook added is the last one run.
++//
++// CAREFUL: the expectation is that addExitHook should only be called
++// from a safe context (e.g. not an error/panic path or signal
++// handler, preemption enabled, allocation allowed, write barriers
++// allowed, etc), and that the exit function 'f' will be invoked under
++// similar circumstances. That is the say, we are expecting that 'f'
++// uses normal / high-level Go code as opposed to one of the more
++// restricted dialects used for the trickier parts of the runtime.
++func addExitHook(f func(), runOnNonZeroExit bool) {
++	exitHooks.hooks = append(exitHooks.hooks, exitHook{f: f, runOnNonZeroExit: runOnNonZeroExit})
++}
++
++// exitHook stores a function to be run on program exit, registered
++// by the utility runtime.addExitHook.
++type exitHook struct {
++	f                func() // func to run
++	runOnNonZeroExit bool   // whether to run on non-zero exit code
++}
++
++// exitHooks stores state related to hook functions registered to
++// run when program execution terminates.
++var exitHooks struct {
++	hooks            []exitHook
++	runningExitHooks bool
++}
++
++// runExitHooks runs any registered exit hook functions (funcs
++// previously registered using runtime.addExitHook). Here 'exitCode'
++// is the status code being passed to os.Exit, or zero if the program
++// is terminating normally without calling os.Exit).
++func runExitHooks(exitCode int) {
++	if exitHooks.runningExitHooks {
++		throw("internal error: exit hook invoked exit")
++	}
++	exitHooks.runningExitHooks = true
++
++	runExitHook := func(f func()) (caughtPanic bool) {
++		defer func() {
++			if x := recover(); x != nil {
++				caughtPanic = true
++			}
++		}()
++		f()
++		return
++	}
++
++	for i := range exitHooks.hooks {
++		h := exitHooks.hooks[len(exitHooks.hooks)-i-1]
++		if exitCode != 0 && !h.runOnNonZeroExit {
++			continue
++		}
++		if caughtPanic := runExitHook(h.f); caughtPanic {
++			throw("internal error: exit hook invoked panic")
++		}
++	}
++	exitHooks.hooks = nil
++	exitHooks.runningExitHooks = false
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2986a30609..62e96e33aa 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -249,6 +249,7 @@ func main() {
+ 	fn := main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
+ 	fn()
+ 	if raceenabled {
++		runExitHooks(0) // run hooks now, since racefini does not return
+ 		racefini()
+ 	}
+ 
+@@ -268,6 +269,7 @@ func main() {
+ 	if panicking.Load() != 0 {
+ 		gopark(nil, nil, waitReasonPanicWait, traceEvGoStop, 1)
+ 	}
++	runExitHooks(0)
+ 
+ 	exit(0)
+ 	for {
+@@ -279,8 +281,9 @@ func main() {
+ // os_beforeExit is called from os.Exit(0).
+ //
+ //go:linkname os_beforeExit os.runtime_beforeExit
+-func os_beforeExit() {
+-	if raceenabled {
++func os_beforeExit(exitCode int) {
++	runExitHooks(exitCode)
++	if exitCode == 0 && raceenabled {
+ 		racefini()
+ 	}
+ }
+diff --git a/src/runtime/testdata/testexithooks/testexithooks.go b/src/runtime/testdata/testexithooks/testexithooks.go
+new file mode 100644
+index 0000000000..57561faf8e
+--- /dev/null
++++ b/src/runtime/testdata/testexithooks/testexithooks.go
+@@ -0,0 +1,87 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"flag"
++	"os"
++	_ "unsafe"
++)
++
++import "C"
++
++var modeflag = flag.String("mode", "", "mode to run in")
++
++func main() {
++	flag.Parse()
++	switch *modeflag {
++	case "simple":
++		testSimple()
++	case "goodexit":
++		testGoodExit()
++	case "badexit":
++		testBadExit()
++	case "panics":
++		testPanics()
++	case "callsexit":
++		testHookCallsExit()
++	default:
++		panic("unknown mode")
++	}
++}
++
++//go:linkname runtime_addExitHook runtime.addExitHook
++func runtime_addExitHook(f func(), runOnNonZeroExit bool)
++
++func testSimple() {
++	f1 := func() { println("foo") }
++	f2 := func() { println("bar") }
++	runtime_addExitHook(f1, false)
++	runtime_addExitHook(f2, false)
++	// no explicit call to os.Exit
++}
++
++func testGoodExit() {
++	f1 := func() { println("apple") }
++	f2 := func() { println("orange") }
++	runtime_addExitHook(f1, false)
++	runtime_addExitHook(f2, false)
++	// explicit call to os.Exit
++	os.Exit(0)
++}
++
++func testBadExit() {
++	f1 := func() { println("blog") }
++	f2 := func() { println("blix") }
++	f3 := func() { println("blek") }
++	f4 := func() { println("blub") }
++	f5 := func() { println("blat") }
++	runtime_addExitHook(f1, false)
++	runtime_addExitHook(f2, true)
++	runtime_addExitHook(f3, false)
++	runtime_addExitHook(f4, true)
++	runtime_addExitHook(f5, false)
++	os.Exit(1)
++}
++
++func testPanics() {
++	f1 := func() { println("ok") }
++	f2 := func() { panic("BADBADBAD") }
++	f3 := func() { println("good") }
++	runtime_addExitHook(f1, true)
++	runtime_addExitHook(f2, true)
++	runtime_addExitHook(f3, true)
++	os.Exit(0)
++}
++
++func testHookCallsExit() {
++	f1 := func() { println("ok") }
++	f2 := func() { os.Exit(1) }
++	f3 := func() { println("good") }
++	runtime_addExitHook(f1, true)
++	runtime_addExitHook(f2, true)
++	runtime_addExitHook(f3, true)
++	os.Exit(1)
++}

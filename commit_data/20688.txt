@@ -10,6 +10,19 @@ Date:   Tue Sep 30 12:30:31 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews, ruiu
     https://golang.org/cl/147390043
-
+---
  src/compress/zlib/reader.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/compress/zlib/reader.go b/src/compress/zlib/reader.go
+index 9e1aafda9b..e1191816d6 100644
+--- a/src/compress/zlib/reader.go
++++ b/src/compress/zlib/reader.go
+@@ -61,6 +61,7 @@ func NewReader(r io.Reader) (io.ReadCloser, error) {
+ 
+ // NewReaderDict is like NewReader but uses a preset dictionary.
+ // NewReaderDict ignores the dictionary if the compressed data does not refer to it.
++// If the compressed data refers to a different dictionary, NewReaderDict returns ErrDictionary.
+ func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
+ 	z := new(reader)
+ 	if fr, ok := r.(flate.Reader); ok {

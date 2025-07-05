@@ -8,7 +8,81 @@ Date:   Mon Jun 3 13:20:17 2013 +0400
     R=golang-dev, cshapiro, iant
     CC=golang-dev
     https://golang.org/cl/9843046
-
+---
  src/pkg/runtime/proc.c  | 41 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/stack.h |  5 +++++
  2 files changed, 46 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 206a3cba19..5b5d9b8a0b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -110,6 +110,8 @@ static G* globrunqget(P*);
+ static P* pidleget(void);
+ static void pidleput(P*);
+ static void injectglist(G*);
++static void preemptall(void);
++static void preemptone(P*);
+ 
+ // The bootstrap sequence is:
+ //
+@@ -2073,6 +2075,45 @@ retake(uint32 *ticks)
+ 	return n;
+ }
+ 
++// Tell all goroutines that they have been preempted and they should stop.
++// This function is purely best-effort.  It can fail to inform a goroutine if a
++// processor just started running it.
++// No locks need to be held.
++static void
++preemptall(void)
++{
++	P *p;
++	int32 i;
++
++	for(i = 0; i < runtime·gomaxprocs; i++) {
++		p = runtime·allp[i];
++		if(p == nil || p->status != Prunning)
++			continue;
++		preemptone(p);
++	}
++}
++
++// Tell the goroutine running on processor P to stop.
++// This function is purely best-effort.  It can incorrectly fail to inform the
++// goroutine.  It can send inform the wrong goroutine.  Even if it informs the
++// correct goroutine, that goroutine might ignore the request if it is
++// simultaneously executing runtime·newstack.
++// No lock needs to be held.
++static void
++preemptone(P *p)
++{
++	M *mp;
++	G *gp;
++
++	mp = p->m;
++	if(mp == nil || mp == m)
++		return;
++	gp = mp->curg;
++	if(gp == nil || gp == mp->g0)
++		return;
++	gp->stackguard0 = StackPreempt;
++}
++
+ // Put mp on midle list.
+ // Sched must be locked.
+ static void
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index 06b0c568c2..0d36c94afb 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -105,4 +105,9 @@ enum {
+ 	// The actual size can be smaller than this but cannot be larger.
+ 	// Checked in proc.c's runtime.malg.
+ 	StackTop = 72,
++
++	// Goroutine preemption request.
++	// Stored into g->stackguard0 to cause split stack check failure.
++	// Must be greater than any real sp.
++	StackPreempt = (uintptr)(intptr)0xfffffade,
+ };

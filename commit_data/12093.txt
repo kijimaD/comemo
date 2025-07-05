@@ -7,7 +7,57 @@ Date:   Tue Feb 21 12:07:38 2012 +0900
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5686049
-
+---
  src/pkg/runtime/cgo/cgo.go     | 12 ++++++++++++
  src/pkg/runtime/cgo/trigger.go | 20 --------------------
  2 files changed, 12 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/cgo.go b/src/pkg/runtime/cgo/cgo.go
+index 5dcced1e42..414f3da360 100644
+--- a/src/pkg/runtime/cgo/cgo.go
++++ b/src/pkg/runtime/cgo/cgo.go
+@@ -9,6 +9,18 @@ for details on using cgo.
+ */
+ package cgo
+ 
++/*
++
++#cgo darwin LDFLAGS: -lpthread
++#cgo freebsd LDFLAGS: -lpthread
++#cgo linux LDFLAGS: -lpthread
++#cgo netbsd LDFLAGS: -lpthread
++#cgo openbsd LDFLAGS: -lpthread
++#cgo windows LDFLAGS: -lm -mthreads
++
++*/
++import "C"
++
+ // Supports _cgo_panic by converting a string constant to an empty
+ // interface.
+ 
+diff --git a/src/pkg/runtime/cgo/trigger.go b/src/pkg/runtime/cgo/trigger.go
+deleted file mode 100644
+index a7788118fa..0000000000
+--- a/src/pkg/runtime/cgo/trigger.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This tells the go tool that this package builds using cgo.
+-// TODO: Once we stop using Make, this import can move into cgo.go.
+-
+-package cgo
+-
+-/*
+-
+-#cgo darwin LDFLAGS: -lpthread
+-#cgo freebsd LDFLAGS: -lpthread
+-#cgo linux LDFLAGS: -lpthread
+-#cgo netbsd LDFLAGS: -lpthread
+-#cgo openbsd LDFLAGS: -lpthread
+-#cgo windows LDFLAGS: -lm -mthreads
+-
+-*/
+-import "C"

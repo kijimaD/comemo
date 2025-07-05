@@ -12,7 +12,50 @@ Date:   Mon Mar 14 20:23:22 2016 -0400
     Change-Id: Ie5dfad8a57f9baa5cca31246af1fd4dd5b1a64ee
     Reviewed-on: https://go-review.googlesource.com/20711
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/path/example_test.go               |  9 ++++++++-
  src/path/filepath/example_unix_test.go | 14 ++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/path/example_test.go b/src/path/example_test.go
+index fa8c28d2e1..e8d684f771 100644
+--- a/src/path/example_test.go
++++ b/src/path/example_test.go
+@@ -54,7 +54,14 @@ func ExampleIsAbs() {
+ 
+ func ExampleJoin() {
+ 	fmt.Println(path.Join("a", "b", "c"))
+-	// Output: a/b/c
++	fmt.Println(path.Join("a", "b/c"))
++	fmt.Println(path.Join("a/b", "c"))
++	fmt.Println(path.Join("a/b", "/c"))
++	// Output:
++	// a/b/c
++	// a/b/c
++	// a/b/c
++	// a/b/c
+ }
+ 
+ func ExampleSplit() {
+diff --git a/src/path/filepath/example_unix_test.go b/src/path/filepath/example_unix_test.go
+index 893be1b198..cd8233ceb6 100644
+--- a/src/path/filepath/example_unix_test.go
++++ b/src/path/filepath/example_unix_test.go
+@@ -65,3 +65,17 @@ func ExampleSplit() {
+ 	// 	dir: "/usr/local//"
+ 	// 	file: "go"
+ }
++
++func ExampleJoin() {
++	fmt.Println("On Unix:")
++	fmt.Println(filepath.Join("a", "b", "c"))
++	fmt.Println(filepath.Join("a", "b/c"))
++	fmt.Println(filepath.Join("a/b", "c"))
++	fmt.Println(filepath.Join("a/b", "/c"))
++	// Output:
++	// On Unix:
++	// a/b/c
++	// a/b/c
++	// a/b/c
++	// a/b/c
++}

@@ -14,6 +14,22 @@ Date:   Thu Mar 6 00:08:03 2014 +1100
     R=golang-codereviews, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/71500044
-
+---
  src/pkg/net/udp_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index 6f4d2152c3..e1778779cf 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -201,6 +201,10 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
+ 		{"udp", "[" + laddr + "%" + ifi.Name + "]:0", false},
+ 		{"udp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
+ 	}
++	// The first udp test fails on DragonFly - see issue 7473.
++	if runtime.GOOS == "dragonfly" {
++		tests = tests[1:]
++	}
+ 	switch runtime.GOOS {
+ 	case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
+ 		tests = append(tests, []test{

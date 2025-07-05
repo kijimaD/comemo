@@ -21,9 +21,465 @@ Date:   Tue Sep 30 12:53:11 2008 -0700
     R=ken
     OCL=16202
     CL=16210
-
+---
  src/cmd/gc/dcl.c  |  86 +++++++++++++++++++++++++++++++++++++++-
  src/cmd/gc/go.h   |   4 ++
  src/cmd/gc/go.y   | 114 +++++++++++++++++++++++++++++++++++-------------------
  src/cmd/gc/subr.c |  92 ++++++++++++++++---------------------------
  4 files changed, 197 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 568f1e3df0..7101673994 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -740,7 +740,7 @@ addvar(Node *n, Type *t, int ctxt)
+ 		} else
+ 			yyerror("var %S redeclared in this block", s);
+ 	}
+-		
++
+ 	if(ctxt != PEXTERN)
+ 		pushdcl(s);
+ 
+@@ -938,6 +938,90 @@ forwdcl(Sym *s)
+ 	return t;
+ }
+ 
++/*
++ * n is a node with a name (or a reversed list of them).
++ * make it an anonymous declaration of that name's type.
++ */
++Node*
++nametoanondcl(Node *na)
++{
++	Node **l, *n;
++	Type *t;
++
++	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
++		n->right = nametoanondcl(n->right);
++
++	if(n->sym->lexical != LATYPE && n->sym->lexical != LBASETYPE) {
++		yyerror("%s is not a type", n->sym->name);
++		t = typ(TINT32);
++	} else
++		t = oldtype(n->sym);
++	n = nod(ODCLFIELD, N, N);
++	n->type = t;
++	*l = n;
++	return na;
++}
++
++/*
++ * n is a node with a name (or a reversed list of them).
++ * make it a declaration of the given type.
++ */
++Node*
++nametodcl(Node *na, Type *t)
++{
++	Node **l, *n;
++
++	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
++		n->right = nametodcl(n->right, t);
++
++	n = nod(ODCLFIELD, n, N);
++	n->type = t;
++	*l = n;
++	return na;
++}
++
++/*
++ * make an anonymous declaration for t
++ */
++Node*
++anondcl(Type *t)
++{
++	Node *n;
++
++	n = nod(ODCLFIELD, N, N);
++	n->type = t;
++	return n;
++}
++
++/*
++ * check that the list of declarations is either all anonymous or all named
++ */
++void
++checkarglist(Node *n)
++{
++	if(n->op != OLIST)
++		return;
++	if(n->left->op != ODCLFIELD)
++		fatal("checkarglist");
++	if(n->left->left != N) {
++		for(n=n->right; n->op == OLIST; n=n->right)
++			if(n->left->left == N)
++				goto mixed;
++		if(n->left == N)
++			goto mixed;
++	} else {
++		for(n=n->right; n->op == OLIST; n=n->right)
++			if(n->left->left != N)
++				goto mixed;
++		if(n->left != N)
++			goto mixed;
++	}
++	return;
++
++mixed:
++	yyerror("cannot mix anonymous and named function arguments");
++}
++
+ // hand-craft the following initialization code
+ //	var	init_<file>_done bool;			(1)
+ //	func	init_<file>_function()			(2)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 024cd8dcef..073001e607 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -562,6 +562,7 @@ Dcl*	dcl(void);
+ int	algtype(Type*);
+ Node*	rev(Node*);
+ Node*	unrev(Node*);
++Node*	appendr(Node*, Node*);
+ void	dodump(Node*, int);
+ void	dump(char*, Node*);
+ Type*	aindex(Node*, Type*);
+@@ -648,6 +649,9 @@ Type*	newtype(Sym*);
+ Type*	oldtype(Sym*);
+ Type*	forwdcl(Sym*);
+ void	fninit(Node*);
++Node*	nametoanondcl(Node*);
++Node*	nametodcl(Node*, Type*);
++Node*	anondcl(Type*);
+ 
+ /*
+  *	export.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 74af515881..e4bcee30b7 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -28,10 +28,10 @@
+ %token			LLSH LRSH LINC LDEC LCOMM
+ %token			LIGNORE
+ 
+-%type	<sym>		sym sym1 sym2 keyword laconst lname latype non_type_sym
++%type	<sym>		sym sym1 sym2 keyword laconst lname latype lpackatype
+ %type	<node>		xdcl xdcl_list_r oxdcl_list
+ %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
+-%type	<node>		oarg_type_list arg_type_list_r arg_type
++%type	<node>		oarg_type_list arg_type_list_r arg_chunk arg_chunk_list_r arg_type_list
+ %type	<node>		else_stmt1 else_stmt2 inc_stmt noninc_stmt
+ %type	<node>		complex_stmt compound_stmt ostmt_list
+ %type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
+@@ -41,7 +41,7 @@
+ %type	<node>		range_header range_body range_stmt select_stmt
+ %type	<node>		simple_stmt osimple_stmt semi_stmt
+ %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
+-%type	<node>		name name_name onew_name new_name new_name_list_r non_type_new_name
++%type	<node>		name onew_name new_name new_name_list_r
+ %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
+ %type	<node>		interfacedcl_list_r interfacedcl
+ %type	<node>		structdcl_list_r structdcl
+@@ -52,6 +52,7 @@
+ %type	<node>		typedcl Atypedcl Btypedcl
+ 
+ %type	<type>		fntype fnlitdcl Afntype Bfntype fullAtype
++%type	<type>		non_name_Atype non_name_type
+ %type	<type>		type Atype Btype indcl new_type fullBtype
+ %type	<type>		structtype interfacetype convtype
+ %type	<type>		Achantype Bchantype
+@@ -837,7 +838,10 @@ lname:
+ 
+ latype:
+ 	LATYPE
+-|	lpack '.' LATYPE
++|	lpackatype
++
++lpackatype:
++	lpack '.' LATYPE
+ 	{
+ 		$$ = $3;
+ 		context = nil;
+@@ -848,24 +852,12 @@ latype:
+  *	newname is used before declared
+  *	oldname is used after declared
+  */
+-name_name:
+-	LNAME
+-	{
+-		$$ = newname($1);
+-	}
+-
+ new_name:
+ 	sym1
+ 	{
+ 		$$ = newname($1);
+ 	}
+ 
+-non_type_new_name:
+-	non_type_sym
+-	{
+-		$$ = newname($1);
+-	}
+-
+ new_type:
+ 	sym1
+ 	{
+@@ -888,12 +880,6 @@ sym1:
+ 	sym
+ |	keyword
+ 
+-non_type_sym:
+-	LNAME
+-|	LACONST
+-|	LPACK
+-|	keyword
+-
+ sym2:
+ 	sym
+ |	keyword
+@@ -945,8 +931,21 @@ type:
+ 	fullAtype
+ |	fullBtype
+ 
++non_name_type:
++	non_name_Atype
++|	Afntype
++|	Achantype
++|	fullBtype
++
+ Atype:
+-	latype
++	LATYPE
++	{
++		$$ = oldtype($1);
++	}
++|	non_name_Atype
++
++non_name_Atype:
++	lpackatype
+ 	{
+ 		$$ = oldtype($1);
+ 	}
+@@ -1296,27 +1295,67 @@ indcl:
+ 			yyerror("illegal type for function literal");
+ 	}
+ 
+-arg_type:
+-	name_name
++/*
++ * function arguments.
++ *
++ * the hard part is that when we're reading a list of names,
++ * we don't know if they are going to be the names of
++ * parameters (like "a,b,c int") or the types of anonymous
++ * parameters (like "int, string, bool").
++ *
++ * an arg_chunk is a comma-separated list of arguments
++ * that ends in an obvious type, either "a, b, c x" or "a, b, c, *x".
++ * in the first case, a, b, c are parameters of type x.
++ * in the second case, a, b, c, and *x are types of anonymous parameters.
++ */
++arg_chunk:
++	new_name_list_r type
+ 	{
+-		$$ = nod(ODCLFIELD, $1, N);
++		$$ = nametodcl($1, $2);
+ 	}
+-|	type
++|	non_name_type
+ 	{
+-		$$ = nod(ODCLFIELD, N, N);
+-		$$->type = $1;
++		$$ = anondcl($1);
+ 	}
+-|	non_type_new_name type
++|	new_name_list_r ',' non_name_type
+ 	{
+-		$$ = nod(ODCLFIELD, $1, N);
+-		$$->type = $2;
++		$1 = nametoanondcl($1);
++		$$ = appendr($1, anondcl($3));
++	}
++
++arg_chunk_list_r:
++	arg_chunk
++|	arg_chunk_list_r ',' arg_chunk
++	{
++		$$ = appendr($1, $3);
+ 	}
+ 
++/*
++ * an arg type list is a sequence of arg chunks,
++ * possibly ending in a list of names (plain "a,b,c"),
++ * which must be the types of anonymous parameters.
++ */
+ arg_type_list_r:
+-	arg_type
+-|	arg_type_list_r ',' arg_type
++	arg_chunk_list_r
++|	arg_chunk_list_r ',' new_name_list_r
+ 	{
+-		$$ = nod(OLIST, $1, $3);
++		$3 = nametoanondcl($3);
++		$$ = appendr($1, $3);
++	}
++|	new_name_list_r
++	{
++		$$ = nametoanondcl($1);
++	}
++
++/*
++ * arg type is just list of arg_chunks, except for the
++ * special case of a simple comma-separated list of names.
++ */
++arg_type_list:
++	arg_type_list_r
++	{
++		$$ = rev($1);
++		checkarglist($$);
+ 	}
+ 
+ /*
+@@ -1550,10 +1589,7 @@ oarg_type_list:
+ 	{
+ 		$$ = N;
+ 	}
+-|	arg_type_list_r
+-	{
+-		$$ = cleanidlist(rev($1));
+-	}
++|	arg_type_list
+ 
+ /*
+  * import syntax from header of
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 20ba25344b..8f73703517 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -392,6 +392,21 @@ unrev(Node *na)
+ 	return i;
+ }
+ 
++/*
++ * na and nb are reversed lists.
++ * append them into one big reversed list.
++ */
++Node*
++appendr(Node *na, Node *nb)
++{
++	Node **l, *n;
++
++	for(l=&nb; (n=*l)->op == OLIST; l=&n->left)
++		;
++	*l = nod(OLIST, na, *l);
++	return nb;
++}
++
+ Type*
+ aindex(Node *b, Type *t)
+ {
+@@ -1071,7 +1086,7 @@ Nconv(Fmt *fp)
+ 		}
+ 		snprint(buf, sizeof(buf), "%O-%s%J", n->op, buf1, n);
+ 		break;
+-		
++
+ 	case OASOP:
+ 		snprint(buf, sizeof(buf), "%O-%O%J", n->op, n->etype, n);
+ 		break;
+@@ -1167,7 +1182,7 @@ loop:
+ 		*p++ = 'n';
+ 		break;
+ 	}
+-	goto loop;	
++	goto loop;
+ 
+ out:
+ 	return fmtstrcpy(fp, buf);
+@@ -1739,69 +1754,28 @@ loop:
+ }
+ 
+ /*
+- * this routine gets the parsing of
+- * a parameter list that can have
+- * name, type and name-type.
+- * it must distribute lone names
+- * with trailing types to give every
+- * name a type. (a,b,c int) comes out
+- * (a int, b int, c int).
++ * this routine gets called to propagate the type
++ * of the last decl up to the arguments before it.
++ * (a,b,c int) comes out (a int, b int, c int).
+  */
+ Node*
+-cleanidlist(Node *r)
++cleanidlist(Node *na)
+ {
+-	Node *t, *n, *nn, *l;
+-	Type *dt;
+-
+-	t = N;		// untyped name
+-	nn = r;		// next node to take
+-
+-loop:
+-	n = nn;
+-	if(n == N) {
+-		if(t != N) {
+-			yyerror("syntax error in parameter list");
+-			dt = types[TINT32];
+-			goto distrib;
+-		}
+-		return r;
+-	}
+-
+-	l = n;
+-	nn = N;
+-	if(l->op == OLIST) {
+-		nn = l->right;
+-		l = l->left;
+-	}
+-
+-	if(l->op != ODCLFIELD)
+-		fatal("cleanformal: %O", n->op);
+-
+-	if(l->type == T) {
+-		if(t == N)
+-			t = n;
+-		goto loop;
+-	}
++	Node *last, *n;
+ 
+-	if(t == N)
+-		goto loop;
++	if(na->op != OLIST)
++		return na;
+ 
+-	dt = l->type;	// type to be distributed
++	for(last=na; last->op == OLIST; last=last->right)
++		;
++	if(last->op != ODCLFIELD)
++		fatal("cleanidlist: %O", last->op);
++	if(last->type == T)
++		fatal("cleanidlist: no type");
+ 
+-distrib:
+-	while(t != n) {
+-		if(t->op != OLIST) {
+-			if(t->type == T)
+-				t->type = dt;
+-			break;
+-		}
+-		if(t->left->type == T)
+-			t->left->type = dt;
+-		t = t->right;
+-	}
+-
+-	t = N;
+-	goto loop;
++	for(n=na; n->op == OLIST; n=n->right)
++		n->left->type = last->type;
++	return na;
+ }
+ 
+ /*

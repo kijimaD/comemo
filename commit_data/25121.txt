@@ -44,6 +44,35 @@ Date:   Fri Sep 25 16:04:30 2015 -0700
     Change-Id: Iaf60ee9ae7f644c83c32d5e130acab0312b0c926
     Reviewed-on: https://go-review.googlesource.com/14999
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/doc/pkg.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index b90019da9f..0aef208c71 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -169,10 +169,12 @@ func (pkg *Package) emit(comment string, node ast.Node) {
+ 			log.Fatal(err)
+ 		}
+ 		if comment != "" {
+-			pkg.newlines(2) // Guarantee blank line before comment.
++			pkg.newlines(1)
+ 			doc.ToText(&pkg.buf, comment, "    ", indent, indentedWidth)
++			pkg.newlines(2) // Blank line after comment to separate from next item.
++		} else {
++			pkg.newlines(1)
+ 		}
+-		pkg.newlines(1)
+ 	}
+ }
+ 
+@@ -247,7 +249,7 @@ func (pkg *Package) packageDoc() {
+ 		return
+ 	}
+ 
+-	pkg.newlines(1)
++	pkg.newlines(2) // Guarantee blank line before the components.
+ 	pkg.valueSummary(pkg.doc.Consts)
+ 	pkg.valueSummary(pkg.doc.Vars)
+ 	pkg.funcSummary(pkg.doc.Funcs)

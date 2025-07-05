@@ -9,6 +9,20 @@ Date:   Tue Jul 15 21:18:18 2014 +0000
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/113180043
-
+---
  src/cmd/ld/dwarf.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index f3e8781641..c2fd07702d 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -266,7 +266,7 @@ static struct DWAbbrev {
+ 		DW_TAG_subrange_type, DW_CHILDREN_no,
+ 		// No name!
+ 		DW_AT_type,	 DW_FORM_ref_addr,
+-		DW_AT_upper_bound, DW_FORM_data1,
++		DW_AT_upper_bound, DW_FORM_udata,
+ 		0, 0
+ 	},
+ 

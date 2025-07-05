@@ -17,8 +17,75 @@ Date:   Thu Jan 4 11:49:17 2024 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/api/api_test.go                    | 19 +++++++++++++++++++
  src/cmd/api/main_test.go                   | 10 +++++-----
  src/cmd/api/testdata/src/issue64958/p/p.go |  3 +++
  3 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/api/api_test.go b/src/cmd/api/api_test.go
+index 910e046f12..ba358d364d 100644
+--- a/src/cmd/api/api_test.go
++++ b/src/cmd/api/api_test.go
+@@ -285,6 +285,25 @@ func TestIssue41358(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue64958(t *testing.T) {
++	defer func() {
++		if x := recover(); x != nil {
++			t.Errorf("expected no panic; recovered %v", x)
++		}
++	}()
++
++	testenv.MustHaveGoBuild(t)
++
++	for _, context := range contexts {
++		w := NewWalker(context, "testdata/src/issue64958")
++		pkg, err := w.importFrom("p", "", 0)
++		if err != nil {
++			t.Errorf("expected no error importing; got %T", err)
++		}
++		w.export(pkg)
++	}
++}
++
+ func TestCheck(t *testing.T) {
+ 	if !*flagCheck {
+ 		t.Skip("-check not specified")
+diff --git a/src/cmd/api/main_test.go b/src/cmd/api/main_test.go
+index 94e159e7d8..7985055b5c 100644
+--- a/src/cmd/api/main_test.go
++++ b/src/cmd/api/main_test.go
+@@ -957,17 +957,17 @@ func (w *Walker) emitType(obj *types.TypeName) {
+ 	if w.isDeprecated(obj) {
+ 		w.emitf("type %s //deprecated", name)
+ 	}
++	typ := obj.Type()
++	if obj.IsAlias() {
++		w.emitf("type %s = %s", name, w.typeString(typ))
++		return
++	}
+ 	if tparams := obj.Type().(*types.Named).TypeParams(); tparams != nil {
+ 		var buf bytes.Buffer
+ 		buf.WriteString(name)
+ 		w.writeTypeParams(&buf, tparams, true)
+ 		name = buf.String()
+ 	}
+-	typ := obj.Type()
+-	if obj.IsAlias() {
+-		w.emitf("type %s = %s", name, w.typeString(typ))
+-		return
+-	}
+ 	switch typ := typ.Underlying().(type) {
+ 	case *types.Struct:
+ 		w.emitStructType(name, typ)
+diff --git a/src/cmd/api/testdata/src/issue64958/p/p.go b/src/cmd/api/testdata/src/issue64958/p/p.go
+new file mode 100644
+index 0000000000..feba86797f
+--- /dev/null
++++ b/src/cmd/api/testdata/src/issue64958/p/p.go
+@@ -0,0 +1,3 @@
++package p
++
++type BasicAlias = uint8

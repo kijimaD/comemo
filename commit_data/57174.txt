@@ -11,6 +11,20 @@ Date:   Fri Jul 7 16:33:39 2023 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Eli Bendersky <eliben@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 0764c7d17a..836fe83e2e 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2949,7 +2949,7 @@ func (rs *Rows) initContextClose(ctx, txctx context.Context) {
+ 	go rs.awaitDone(ctx, txctx, closectx)
+ }
+ 
+-// awaitDone blocks until ctx, txctx, or closectx is canceled. 
++// awaitDone blocks until ctx, txctx, or closectx is canceled.
+ // The ctx is provided from the query context.
+ // If the query was issued in a transaction, the transaction's context
+ // is also provided in txctx, to ensure Rows is closed if the Tx is closed.

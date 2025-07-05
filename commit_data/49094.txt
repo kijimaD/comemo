@@ -11,7 +11,7 @@ Date:   Fri Jul 16 14:20:18 2021 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/instance.go    |  2 +-
  src/go/types/scope.go       |  4 +++-
  src/go/types/sizeof_test.go |  2 +-
@@ -19,3 +19,146 @@ Date:   Fri Jul 16 14:20:18 2021 -0400
  src/go/types/typestring.go  | 29 +++++++++++++++++------------
  src/go/types/universe.go    | 12 ++++++++----
  6 files changed, 30 insertions(+), 21 deletions(-)
+
+diff --git a/src/go/types/instance.go b/src/go/types/instance.go
+index c57a947060..99771104bf 100644
+--- a/src/go/types/instance.go
++++ b/src/go/types/instance.go
+@@ -16,7 +16,7 @@ type instance struct {
+ 	base    *Named      // parameterized type to be instantiated
+ 	targs   []Type      // type arguments
+ 	poslist []token.Pos // position of each targ; for error reporting only
+-	value   Type        // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
++	value   Type        // base[targs...] after instantiation or Typ[Invalid]; nil if not yet set
+ }
+ 
+ // expand returns the instantiated (= expanded) type of t.
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index fa6e0ecb8f..010727eb72 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -23,6 +23,7 @@ import (
+ type Scope struct {
+ 	parent   *Scope
+ 	children []*Scope
++	number   int               // parent.children[number-1] is this scope; 0 if there is no parent
+ 	elems    map[string]Object // lazily allocated
+ 	pos, end token.Pos         // scope extent; may be invalid
+ 	comment  string            // for debugging only
+@@ -32,10 +33,11 @@ type Scope struct {
+ // NewScope returns a new, empty scope contained in the given parent
+ // scope, if any. The comment is for debugging only.
+ func NewScope(parent *Scope, pos, end token.Pos, comment string) *Scope {
+-	s := &Scope{parent, nil, nil, pos, end, comment, false}
++	s := &Scope{parent, nil, 0, nil, pos, end, comment, false}
+ 	// don't add children to Universe scope!
+ 	if parent != nil && parent != Universe {
+ 		parent.children = append(parent.children, s)
++		s.number = len(parent.children)
+ 	}
+ 	return s
+ }
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 8f5f42b415..d03e1ea0cb 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -46,7 +46,7 @@ func TestSizeof(t *testing.T) {
+ 		{Nil{}, 40, 72},
+ 
+ 		// Misc
+-		{Scope{}, 40, 80},
++		{Scope{}, 44, 88},
+ 		{Package{}, 40, 80},
+ 		{TypeSet{}, 20, 40},
+ 	}
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index d8388a948b..4809b8c47a 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -430,8 +430,6 @@ func (subst *subster) typ(typ Type) Type {
+ 
+ var instanceHashing = 0
+ 
+-// TODO(gri) Eventually, this should be more sophisticated.
+-//           It won't work correctly for locally declared types.
+ func instantiatedHash(typ *Named, targs []Type) string {
+ 	assert(instanceHashing == 0)
+ 	instanceHashing++
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index f348d185c5..4e73030613 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -358,22 +358,27 @@ func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {
+ 	buf.WriteString(obj.name)
+ 
+ 	if instanceHashing != 0 {
+-		// For local defined types, use the (original!) TypeName's position
+-		// to disambiguate. This is overkill, and could probably instead
+-		// just be the pointer value (if we assume a non-moving GC) or
+-		// a unique ID (like cmd/compile uses). But this works for now,
+-		// and is convenient for debugging.
+-
+-		// TODO(mdempsky): I still don't fully understand why typ.orig.orig
+-		// can differ from typ.orig, or whether looping more than twice is
+-		// ever necessary.
++		// For local defined types, use the (original!) TypeName's scope
++		// numbers to disambiguate.
+ 		typ := obj.typ.(*Named)
++		// TODO(gri) Figure out why typ.orig != typ.orig.orig sometimes
++		//           and whether the loop can iterate more than twice.
++		//           (It seems somehow connected to instance types.)
+ 		for typ.orig != typ {
+ 			typ = typ.orig
+ 		}
+-		if orig := typ.obj; orig.pkg != nil && orig.parent != orig.pkg.scope {
+-			fmt.Fprintf(buf, "@%q", orig.pos)
+-		}
++		writeScopeNumbers(buf, typ.obj.parent)
++	}
++}
++
++// writeScopeNumbers writes the number sequence for this scope to buf
++// in the form ".i.j.k" where i, j, k, etc. stand for scope numbers.
++// If a scope is nil or has no parent (such as a package scope), nothing
++// is written.
++func writeScopeNumbers(buf *bytes.Buffer, s *Scope) {
++	if s != nil && s.number > 0 {
++		writeScopeNumbers(buf, s.parent)
++		fmt.Fprintf(buf, ".%d", s.number)
+ 	}
+ }
+ 
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 540b0ac118..7c1e29b856 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -87,21 +87,25 @@ func defPredeclaredTypes() {
+ 
+ 	// type error interface{ Error() string }
+ 	{
++		obj := NewTypeName(token.NoPos, nil, "error", nil)
++		obj.setColor(black)
+ 		res := NewVar(token.NoPos, nil, "", Typ[String])
+ 		sig := NewSignature(nil, nil, NewTuple(res), false)
+ 		err := NewFunc(token.NoPos, nil, "Error", sig)
+-		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil)}
++		typ := NewNamed(obj, NewInterfaceType([]*Func{err}, nil), nil)
+ 		sig.recv = NewVar(token.NoPos, nil, "", typ)
+-		def(NewTypeName(token.NoPos, nil, "error", typ))
++		def(obj)
+ 	}
+ 
+ 	// type comparable interface{ ==() }
+ 	{
++		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
++		obj.setColor(black)
+ 		sig := NewSignature(nil, nil, nil, false)
+ 		eql := NewFunc(token.NoPos, nil, "==", sig)
+-		typ := &Named{underlying: NewInterfaceType([]*Func{eql}, nil)}
++		typ := NewNamed(obj, NewInterfaceType([]*Func{eql}, nil), nil)
+ 		sig.recv = NewVar(token.NoPos, nil, "", typ)
+-		def(NewTypeName(token.NoPos, nil, "comparable", typ))
++		def(obj)
+ 	}
+ }
+ 

@@ -14,8 +14,78 @@ Date:   Wed Nov 7 15:15:21 2012 -0500
     R=ken2
     CC=golang-dev, lvd
     https://golang.org/cl/6816103
-
+---
  src/cmd/gc/esc.c  |  4 ++--
  src/cmd/gc/subr.c |  2 ++
  test/escape5.go   | 25 +++++++++++++++++++++++++
  3 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index f789386bc9..f067cc5305 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -1005,8 +1005,8 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 				if((src->esc&EscMask) != EscReturn)
+ 					src->esc = EscReturn;
+ 				src->esc |= 1<<((dst->vargen-1) + EscBits);
++				goto recurse;
+ 			}
+-			goto recurse;
+ 		}
+ 	}
+ 
+@@ -1014,7 +1014,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 
+ 	switch(src->op) {
+ 	case ONAME:
+-		if(src->class == PPARAM && leaks && src->esc == EscNone) {
++		if(src->class == PPARAM && leaks && src->esc != EscHeap) {
+ 			src->esc = EscScope;
+ 			if(debug['m'])
+ 				warnl(src->lineno, "leaking param: %hN", src);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 142921153d..71417bb0a0 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -219,6 +219,8 @@ warnl(int line, char *fmt, ...)
+ 	va_start(arg, fmt);
+ 	adderr(line, fmt, arg);
+ 	va_end(arg);
++	if(debug['m'])
++		flusherrors();
+ }
+ 
+ void
+diff --git a/test/escape5.go b/test/escape5.go
+index 22c324f902..6b327fe9e3 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -117,3 +117,28 @@ func leakrecursive2(p, q *int) (*int, *int) { // ERROR "leaking param: p" "leaki
+ 	return p, q
+ }
+ 
++
++var global interface{}
++
++type T1 struct {
++	X *int
++}
++
++type T2 struct {
++	Y *T1
++}
++
++func f8(p *T1) (k T2) { // ERROR "leaking param: p to result k" "leaking param: p"
++	if p == nil {
++		k = T2{}
++		return
++	}
++
++	global = p // should make p leak always
++	return T2{p}
++}
++
++func f9() {
++	var j T1 // ERROR "moved to heap: j"
++	f8(&j) // ERROR "&j escapes to heap"
++}

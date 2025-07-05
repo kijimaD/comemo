@@ -17,8 +17,171 @@ Date:   Thu Nov 17 18:10:00 2022 +0800
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules |  3 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 58 ++++++++++++-------------
  test/fixedbugs/issue56777.go                    | 56 ++++++++++++++++++++++++
  3 files changed, 87 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 8d985526d1..0406fbbd17 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -961,10 +961,11 @@
+ (NilCheck (GetG mem) mem) => mem
+ 
+ (If (Not cond) yes no) => (If cond no yes)
+-(If (Phi <t> nx:(Not x) ny:(Not y)) yes no) && nx.Uses == 1 && ny.Uses == 1 => (If (Phi <t> x y) no yes)
+ (If (ConstBool [c]) yes no) && c => (First yes no)
+ (If (ConstBool [c]) yes no) && !c => (First no yes)
+ 
++(Phi <t> nx:(Not x) ny:(Not y)) && nx.Uses == 1 && ny.Uses == 1 => (Not (Phi <t> x y))
++
+ // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
+ (Convert (Add(64|32) (Convert ptr mem) off) mem) => (AddPtr ptr off)
+ (Convert (Convert ptr mem) mem) => ptr
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index ad8d33c97d..f8c64e6e06 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -21903,6 +21903,7 @@ func rewriteValuegeneric_OpOrB(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuegeneric_OpPhi(v *Value) bool {
++	b := v.Block
+ 	// match: (Phi (Const8 [c]) (Const8 [c]))
+ 	// result: (Const8 [c])
+ 	for {
+@@ -21983,6 +21984,34 @@ func rewriteValuegeneric_OpPhi(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(c)
+ 		return true
+ 	}
++	// match: (Phi <t> nx:(Not x) ny:(Not y))
++	// cond: nx.Uses == 1 && ny.Uses == 1
++	// result: (Not (Phi <t> x y))
++	for {
++		if len(v.Args) != 2 {
++			break
++		}
++		t := v.Type
++		_ = v.Args[1]
++		nx := v.Args[0]
++		if nx.Op != OpNot {
++			break
++		}
++		x := nx.Args[0]
++		ny := v.Args[1]
++		if ny.Op != OpNot {
++			break
++		}
++		y := ny.Args[0]
++		if !(nx.Uses == 1 && ny.Uses == 1) {
++			break
++		}
++		v.reset(OpNot)
++		v0 := b.NewValue0(v.Pos, OpPhi, t)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpPtrIndex(v *Value) bool {
+@@ -32462,35 +32491,6 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (If (Phi <t> nx:(Not x) ny:(Not y)) yes no)
+-		// cond: nx.Uses == 1 && ny.Uses == 1
+-		// result: (If (Phi <t> x y) no yes)
+-		for b.Controls[0].Op == OpPhi {
+-			v_0 := b.Controls[0]
+-			if len(v_0.Args) != 2 {
+-				break
+-			}
+-			t := v_0.Type
+-			_ = v_0.Args[1]
+-			nx := v_0.Args[0]
+-			if nx.Op != OpNot {
+-				break
+-			}
+-			x := nx.Args[0]
+-			ny := v_0.Args[1]
+-			if ny.Op != OpNot {
+-				break
+-			}
+-			y := ny.Args[0]
+-			if !(nx.Uses == 1 && ny.Uses == 1) {
+-				break
+-			}
+-			v0 := b.NewValue0(v_0.Pos, OpPhi, t)
+-			v0.AddArg2(x, y)
+-			b.resetWithControl(BlockIf, v0)
+-			b.swapSuccessors()
+-			return true
+-		}
+ 		// match: (If (ConstBool [c]) yes no)
+ 		// cond: c
+ 		// result: (First yes no)
+diff --git a/test/fixedbugs/issue56777.go b/test/fixedbugs/issue56777.go
+new file mode 100644
+index 0000000000..8097ce9b02
+--- /dev/null
++++ b/test/fixedbugs/issue56777.go
+@@ -0,0 +1,56 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func fn(setText []rune, negate bool) int {
++	ranges := []singleRange{}
++
++	if len(setText) > 0 {
++		fillFirst := false
++		l := len(setText)
++		if negate {
++			if setText[0] == 0 {
++				setText = setText[1:]
++			} else {
++				l++
++				fillFirst = true
++			}
++		}
++
++		if l%2 == 0 {
++			ranges = make([]singleRange, l/2)
++		} else {
++			ranges = make([]singleRange, l/2+1)
++		}
++
++		first := true
++		if fillFirst {
++			ranges[0] = singleRange{first: 0}
++			first = false
++		}
++
++		i := 0
++		for _, r := range setText {
++			if first {
++				// lower bound in a new range
++				ranges[i] = singleRange{first: r}
++				first = false
++			} else {
++				ranges[i].last = r - 1
++				i++
++				first = true
++			}
++		}
++	}
++
++	return len(ranges)
++}
++
++type singleRange struct {
++	first rune
++	last  rune
++}

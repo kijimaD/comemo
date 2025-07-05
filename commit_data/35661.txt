@@ -35,7 +35,7 @@ Date:   Mon Feb 26 17:35:29 2018 -0800
     Change-Id: I6c3d2dee26709581fba0d0261b1d12e93f1cba1a
     Reviewed-on: https://go-review.googlesource.com/97375
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go           |   8 +-
  src/cmd/compile/internal/syntax/parser.go      |  25 ++--
  src/cmd/compile/internal/syntax/parser_test.go | 170 ++++++++++++-------------
@@ -44,3 +44,663 @@ Date:   Mon Feb 26 17:35:29 2018 -0800
  src/cmd/internal/src/pos_test.go               |  28 ++--
  test/fixedbugs/issue22662b.go                  |  65 ++++++++++
  7 files changed, 272 insertions(+), 151 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 7865550293..e911ac6e42 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -78,13 +78,13 @@ func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
+ 	b1, ok := p.basemap[b0]
+ 	if !ok {
+ 		fn := b0.Filename()
+-		if p0 := b0.Pos(); p0.IsKnown() {
++		if b0.IsFileBase() {
++			b1 = src.NewFileBase(fn, absFilename(fn))
++		} else {
+ 			// line directive base
++			p0 := b0.Pos()
+ 			p1 := src.MakePos(p.makeSrcPosBase(p0.Base()), p0.Line(), p0.Col())
+ 			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
+-		} else {
+-			// file base
+-			b1 = src.NewFileBase(fn, absFilename(fn))
+ 		}
+ 		p.basemap[b0] = b1
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 3bed97b31c..db0fb39c8c 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -85,8 +85,8 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
+ 
+ // updateBase sets the current position base to a new line base at pos.
+ // The base's filename, line, and column values are extracted from text
+-// which is positioned at (line, col) (only needed for error messages).
+-func (p *parser) updateBase(pos Pos, line, col uint, text string) {
++// which is positioned at (tline, tcol) (only needed for error messages).
++func (p *parser) updateBase(pos Pos, tline, tcol uint, text string) {
+ 	i, n, ok := trailingDigits(text)
+ 	if i == 0 {
+ 		return // ignore (not a line directive)
+@@ -95,38 +95,39 @@ func (p *parser) updateBase(pos Pos, line, col uint, text string) {
+ 
+ 	if !ok {
+ 		// text has a suffix :xxx but xxx is not a number
+-		p.errorAt(p.posAt(line, col+i), "invalid line number: "+text[i:])
++		p.errorAt(p.posAt(tline, tcol+i), "invalid line number: "+text[i:])
+ 		return
+ 	}
+ 
++	var line, col uint
+ 	i2, n2, ok2 := trailingDigits(text[:i-1])
+ 	if ok2 {
+ 		//line filename:line:col
+ 		i, i2 = i2, i
+-		n, n2 = n2, n
+-		if n2 == 0 || n2 > PosMax {
+-			p.errorAt(p.posAt(line, col+i2), "invalid column number: "+text[i2:])
++		line, col = n2, n
++		if col == 0 || col > PosMax {
++			p.errorAt(p.posAt(tline, tcol+i2), "invalid column number: "+text[i2:])
+ 			return
+ 		}
+-		text = text[:i2-1] // lop off :col
++		text = text[:i2-1] // lop off ":col"
+ 	} else {
+ 		//line filename:line
+-		n2 = colbase // use start of line for column
++		line = n
+ 	}
+ 
+-	if n == 0 || n > PosMax {
+-		p.errorAt(p.posAt(line, col+i), "invalid line number: "+text[i:])
++	if line == 0 || line > PosMax {
++		p.errorAt(p.posAt(tline, tcol+i), "invalid line number: "+text[i:])
+ 		return
+ 	}
+ 
+ 	// If we have a column (//line filename:line:col form),
+ 	// an empty filename means to use the previous filename.
+-	filename := text[:i-1] // lop off :line
++	filename := text[:i-1] // lop off ":line"
+ 	if filename == "" && ok2 {
+ 		filename = p.base.Filename()
+ 	}
+ 
+-	p.base = NewLineBase(pos, filename, n, n2)
++	p.base = NewLineBase(pos, filename, line, col)
+ }
+ 
+ func commentText(s string) string {
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index c253a5c345..3cf55defc7 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -193,113 +193,113 @@ func TestLineDirectives(t *testing.T) {
+ 	for _, test := range []struct {
+ 		src, msg  string
+ 		filename  string
+-		line, col uint // 0-based
++		line, col uint // 1-based; 0 means unknown
+ 	}{
+ 		// ignored //line directives
+-		{"//\n", valid, filename, 1, 0},            // no directive
+-		{"//line\n", valid, filename, 1, 0},        // missing colon
+-		{"//line foo\n", valid, filename, 1, 0},    // missing colon
+-		{"  //line foo:\n", valid, filename, 1, 0}, // not a line start
+-		{"//  line foo:\n", valid, filename, 1, 0}, // space between // and line
++		{"//\n", valid, filename, 2, 1},            // no directive
++		{"//line\n", valid, filename, 2, 1},        // missing colon
++		{"//line foo\n", valid, filename, 2, 1},    // missing colon
++		{"  //line foo:\n", valid, filename, 2, 1}, // not a line start
++		{"//  line foo:\n", valid, filename, 2, 1}, // space between // and line
+ 
+ 		// invalid //line directives with one colon
+-		{"//line :\n", "invalid line number: ", filename, 0, 8},
+-		{"//line :x\n", "invalid line number: x", filename, 0, 8},
+-		{"//line foo :\n", "invalid line number: ", filename, 0, 12},
+-		{"//line foo:x\n", "invalid line number: x", filename, 0, 11},
+-		{"//line foo:0\n", "invalid line number: 0", filename, 0, 11},
+-		{"//line foo:1 \n", "invalid line number: 1 ", filename, 0, 11},
+-		{"//line foo:-12\n", "invalid line number: -12", filename, 0, 11},
+-		{"//line C:foo:0\n", "invalid line number: 0", filename, 0, 13},
+-		{fmt.Sprintf("//line foo:%d\n", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), filename, 0, 11},
++		{"//line :\n", "invalid line number: ", filename, 1, 9},
++		{"//line :x\n", "invalid line number: x", filename, 1, 9},
++		{"//line foo :\n", "invalid line number: ", filename, 1, 13},
++		{"//line foo:x\n", "invalid line number: x", filename, 1, 12},
++		{"//line foo:0\n", "invalid line number: 0", filename, 1, 12},
++		{"//line foo:1 \n", "invalid line number: 1 ", filename, 1, 12},
++		{"//line foo:-12\n", "invalid line number: -12", filename, 1, 12},
++		{"//line C:foo:0\n", "invalid line number: 0", filename, 1, 14},
++		{fmt.Sprintf("//line foo:%d\n", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), filename, 1, 12},
+ 
+ 		// invalid //line directives with two colons
+-		{"//line ::\n", "invalid line number: ", filename, 0, 9},
+-		{"//line ::x\n", "invalid line number: x", filename, 0, 9},
+-		{"//line foo::123abc\n", "invalid line number: 123abc", filename, 0, 12},
+-		{"//line foo::0\n", "invalid line number: 0", filename, 0, 12},
+-		{"//line foo:0:1\n", "invalid line number: 0", filename, 0, 11},
++		{"//line ::\n", "invalid line number: ", filename, 1, 10},
++		{"//line ::x\n", "invalid line number: x", filename, 1, 10},
++		{"//line foo::123abc\n", "invalid line number: 123abc", filename, 1, 13},
++		{"//line foo::0\n", "invalid line number: 0", filename, 1, 13},
++		{"//line foo:0:1\n", "invalid line number: 0", filename, 1, 12},
+ 
+-		{"//line :123:0\n", "invalid column number: 0", filename, 0, 12},
+-		{"//line foo:123:0\n", "invalid column number: 0", filename, 0, 15},
+-		{fmt.Sprintf("//line foo:10:%d\n", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 0, 14},
++		{"//line :123:0\n", "invalid column number: 0", filename, 1, 13},
++		{"//line foo:123:0\n", "invalid column number: 0", filename, 1, 16},
++		{fmt.Sprintf("//line foo:10:%d\n", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 1, 15},
+ 
+ 		// effect of valid //line directives on lines
+-		{"//line foo:123\n   foo", valid, "foo", 123 - linebase, 3},
+-		{"//line  foo:123\n   foo", valid, " foo", 123 - linebase, 3},
+-		{"//line foo:123\n//line bar:345\nfoo", valid, "bar", 345 - linebase, 0},
+-		{"//line C:foo:123\n", valid, "C:foo", 123 - linebase, 0},
+-		{"//line /src/a/a.go:123\n   foo", valid, "/src/a/a.go", 123 - linebase, 3},
+-		{"//line :x:1\n", valid, ":x", 1 - linebase, 0},
+-		{"//line foo ::1\n", valid, "foo :", 1 - linebase, 0},
+-		{"//line foo:123abc:1\n", valid, "foo:123abc", 0, 0},
+-		{"//line foo :123:1\n", valid, "foo ", 123 - linebase, 0},
+-		{"//line ::123\n", valid, ":", 123 - linebase, 0},
++		{"//line foo:123\n   foo", valid, "foo", 123, 0},
++		{"//line  foo:123\n   foo", valid, " foo", 123, 0},
++		{"//line foo:123\n//line bar:345\nfoo", valid, "bar", 345, 0},
++		{"//line C:foo:123\n", valid, "C:foo", 123, 0},
++		{"//line /src/a/a.go:123\n   foo", valid, "/src/a/a.go", 123, 0},
++		{"//line :x:1\n", valid, ":x", 1, 0},
++		{"//line foo ::1\n", valid, "foo :", 1, 0},
++		{"//line foo:123abc:1\n", valid, "foo:123abc", 1, 0},
++		{"//line foo :123:1\n", valid, "foo ", 123, 1},
++		{"//line ::123\n", valid, ":", 123, 0},
+ 
+ 		// effect of valid //line directives on columns
+-		{"//line :x:1:10\n", valid, ":x", 1 - linebase, 10 - colbase},
+-		{"//line foo ::1:2\n", valid, "foo :", 1 - linebase, 2 - colbase},
+-		{"//line foo:123abc:1:1000\n", valid, "foo:123abc", 1 - linebase, 1000 - colbase},
+-		{"//line foo :123:1000\n\n", valid, "foo ", 124 - linebase, 0},
+-		{"//line ::123:1234\n", valid, ":", 123 - linebase, 1234 - colbase},
++		{"//line :x:1:10\n", valid, ":x", 1, 10},
++		{"//line foo ::1:2\n", valid, "foo :", 1, 2},
++		{"//line foo:123abc:1:1000\n", valid, "foo:123abc", 1, 1000},
++		{"//line foo :123:1000\n\n", valid, "foo ", 124, 1},
++		{"//line ::123:1234\n", valid, ":", 123, 1234},
+ 
+ 		// //line directives with omitted filenames lead to empty filenames
+-		{"//line :10\n", valid, "", 10 - linebase, 0},
+-		{"//line :10:20\n", valid, filename, 10 - linebase, 20 - colbase},
+-		{"//line bar:1\n//line :10\n", valid, "", 10 - linebase, 0},
+-		{"//line bar:1\n//line :10:20\n", valid, "bar", 10 - linebase, 20 - colbase},
++		{"//line :10\n", valid, "", 10, 0},
++		{"//line :10:20\n", valid, filename, 10, 20},
++		{"//line bar:1\n//line :10\n", valid, "", 10, 0},
++		{"//line bar:1\n//line :10:20\n", valid, "bar", 10, 20},
+ 
+ 		// ignored /*line directives
+-		{"/**/", valid, filename, 0, 4},             // no directive
+-		{"/*line*/", valid, filename, 0, 8},         // missing colon
+-		{"/*line foo*/", valid, filename, 0, 12},    // missing colon
+-		{"  //line foo:*/", valid, filename, 0, 15}, // not a line start
+-		{"/*  line foo:*/", valid, filename, 0, 15}, // space between // and line
++		{"/**/", valid, filename, 1, 5},             // no directive
++		{"/*line*/", valid, filename, 1, 9},         // missing colon
++		{"/*line foo*/", valid, filename, 1, 13},    // missing colon
++		{"  //line foo:*/", valid, filename, 1, 16}, // not a line start
++		{"/*  line foo:*/", valid, filename, 1, 16}, // space between // and line
+ 
+ 		// invalid /*line directives with one colon
+-		{"/*line :*/", "invalid line number: ", filename, 0, 8},
+-		{"/*line :x*/", "invalid line number: x", filename, 0, 8},
+-		{"/*line foo :*/", "invalid line number: ", filename, 0, 12},
+-		{"/*line foo:x*/", "invalid line number: x", filename, 0, 11},
+-		{"/*line foo:0*/", "invalid line number: 0", filename, 0, 11},
+-		{"/*line foo:1 */", "invalid line number: 1 ", filename, 0, 11},
+-		{"/*line C:foo:0*/", "invalid line number: 0", filename, 0, 13},
+-		{fmt.Sprintf("/*line foo:%d*/", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), filename, 0, 11},
++		{"/*line :*/", "invalid line number: ", filename, 1, 9},
++		{"/*line :x*/", "invalid line number: x", filename, 1, 9},
++		{"/*line foo :*/", "invalid line number: ", filename, 1, 13},
++		{"/*line foo:x*/", "invalid line number: x", filename, 1, 12},
++		{"/*line foo:0*/", "invalid line number: 0", filename, 1, 12},
++		{"/*line foo:1 */", "invalid line number: 1 ", filename, 1, 12},
++		{"/*line C:foo:0*/", "invalid line number: 0", filename, 1, 14},
++		{fmt.Sprintf("/*line foo:%d*/", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), filename, 1, 12},
+ 
+ 		// invalid /*line directives with two colons
+-		{"/*line ::*/", "invalid line number: ", filename, 0, 9},
+-		{"/*line ::x*/", "invalid line number: x", filename, 0, 9},
+-		{"/*line foo::123abc*/", "invalid line number: 123abc", filename, 0, 12},
+-		{"/*line foo::0*/", "invalid line number: 0", filename, 0, 12},
+-		{"/*line foo:0:1*/", "invalid line number: 0", filename, 0, 11},
++		{"/*line ::*/", "invalid line number: ", filename, 1, 10},
++		{"/*line ::x*/", "invalid line number: x", filename, 1, 10},
++		{"/*line foo::123abc*/", "invalid line number: 123abc", filename, 1, 13},
++		{"/*line foo::0*/", "invalid line number: 0", filename, 1, 13},
++		{"/*line foo:0:1*/", "invalid line number: 0", filename, 1, 12},
+ 
+-		{"/*line :123:0*/", "invalid column number: 0", filename, 0, 12},
+-		{"/*line foo:123:0*/", "invalid column number: 0", filename, 0, 15},
+-		{fmt.Sprintf("/*line foo:10:%d*/", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 0, 14},
++		{"/*line :123:0*/", "invalid column number: 0", filename, 1, 13},
++		{"/*line foo:123:0*/", "invalid column number: 0", filename, 1, 16},
++		{fmt.Sprintf("/*line foo:10:%d*/", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 1, 15},
+ 
+ 		// effect of valid /*line directives on lines
+-		{"/*line foo:123*/   foo", valid, "foo", 123 - linebase, 3},
+-		{"/*line foo:123*/\n//line bar:345\nfoo", valid, "bar", 345 - linebase, 0},
+-		{"/*line C:foo:123*/", valid, "C:foo", 123 - linebase, 0},
+-		{"/*line /src/a/a.go:123*/   foo", valid, "/src/a/a.go", 123 - linebase, 3},
+-		{"/*line :x:1*/", valid, ":x", 1 - linebase, 0},
+-		{"/*line foo ::1*/", valid, "foo :", 1 - linebase, 0},
+-		{"/*line foo:123abc:1*/", valid, "foo:123abc", 1 - linebase, 0},
+-		{"/*line foo :123:10*/", valid, "foo ", 123 - linebase, 10 - colbase},
+-		{"/*line ::123*/", valid, ":", 123 - linebase, 0},
++		{"/*line foo:123*/   foo", valid, "foo", 123, 0},
++		{"/*line foo:123*/\n//line bar:345\nfoo", valid, "bar", 345, 0},
++		{"/*line C:foo:123*/", valid, "C:foo", 123, 0},
++		{"/*line /src/a/a.go:123*/   foo", valid, "/src/a/a.go", 123, 0},
++		{"/*line :x:1*/", valid, ":x", 1, 0},
++		{"/*line foo ::1*/", valid, "foo :", 1, 0},
++		{"/*line foo:123abc:1*/", valid, "foo:123abc", 1, 0},
++		{"/*line foo :123:10*/", valid, "foo ", 123, 10},
++		{"/*line ::123*/", valid, ":", 123, 0},
+ 
+ 		// effect of valid /*line directives on columns
+-		{"/*line :x:1:10*/", valid, ":x", 1 - linebase, 10 - colbase},
+-		{"/*line foo ::1:2*/", valid, "foo :", 1 - linebase, 2 - colbase},
+-		{"/*line foo:123abc:1:1000*/", valid, "foo:123abc", 1 - linebase, 1000 - colbase},
+-		{"/*line foo :123:1000*/\n", valid, "foo ", 124 - linebase, 0},
+-		{"/*line ::123:1234*/", valid, ":", 123 - linebase, 1234 - colbase},
++		{"/*line :x:1:10*/", valid, ":x", 1, 10},
++		{"/*line foo ::1:2*/", valid, "foo :", 1, 2},
++		{"/*line foo:123abc:1:1000*/", valid, "foo:123abc", 1, 1000},
++		{"/*line foo :123:1000*/\n", valid, "foo ", 124, 1},
++		{"/*line ::123:1234*/", valid, ":", 123, 1234},
+ 
+ 		// /*line directives with omitted filenames lead to the previously used filenames
+-		{"/*line :10*/", valid, "", 10 - linebase, 0},
+-		{"/*line :10:20*/", valid, filename, 10 - linebase, 20 - colbase},
+-		{"//line bar:1\n/*line :10*/", valid, "", 10 - linebase, 0},
+-		{"//line bar:1\n/*line :10:20*/", valid, "bar", 10 - linebase, 20 - colbase},
++		{"/*line :10*/", valid, "", 10, 0},
++		{"/*line :10:20*/", valid, filename, 10, 20},
++		{"//line bar:1\n/*line :10*/", valid, "", 10, 0},
++		{"//line bar:1\n/*line :10:20*/", valid, "bar", 10, 20},
+ 	} {
+ 		base := NewFileBase(filename)
+ 		_, err := Parse(base, strings.NewReader(test.src), nil, nil, 0)
+@@ -320,11 +320,11 @@ func TestLineDirectives(t *testing.T) {
+ 		if filename := pos.RelFilename(); filename != test.filename {
+ 			t.Errorf("%s: got filename = %q; want %q", test.src, filename, test.filename)
+ 		}
+-		if line := pos.RelLine(); line != test.line+linebase {
+-			t.Errorf("%s: got line = %d; want %d", test.src, line, test.line+linebase)
++		if line := pos.RelLine(); line != test.line {
++			t.Errorf("%s: got line = %d; want %d", test.src, line, test.line)
+ 		}
+-		if col := pos.RelCol(); col != test.col+colbase {
+-			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col+colbase)
++		if col := pos.RelCol(); col != test.col {
++			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+index 00e603e8d3..c683c7fcfc 100644
+--- a/src/cmd/compile/internal/syntax/pos.go
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -31,10 +31,26 @@ func (pos Pos) Base() *PosBase { return pos.base }
+ func (pos Pos) Line() uint     { return uint(pos.line) }
+ func (pos Pos) Col() uint      { return uint(pos.col) }
+ 
+-func (pos Pos) RelFilename() string { b := pos.Base(); return b.Filename() }
+-func (pos Pos) RelLine() uint       { b := pos.Base(); return b.Line() + (pos.Line() - b.Pos().Line()) }
++func (pos Pos) RelFilename() string { return pos.base.Filename() }
++
++func (pos Pos) RelLine() uint {
++	b := pos.base
++	if b.Line() == 0 {
++		// base line is unknown => relative line is unknown
++		return 0
++	}
++	return b.Line() + (pos.Line() - b.Pos().Line())
++}
++
+ func (pos Pos) RelCol() uint {
+-	b := pos.Base()
++	b := pos.base
++	if b.Col() == 0 {
++		// base column is unknown => relative column is unknown
++		// (the current specification for line directives requires
++		// this to apply until the next PosBase/line directive,
++		// not just until the new newline)
++		return 0
++	}
+ 	if pos.Line() == b.Pos().Line() {
+ 		// pos on same line as pos base => column is relative to pos base
+ 		return b.Col() + (pos.Col() - b.Pos().Col())
+@@ -43,13 +59,34 @@ func (pos Pos) RelCol() uint {
+ }
+ 
+ func (pos Pos) String() string {
+-	s := fmt.Sprintf("%s:%d:%d", pos.RelFilename(), pos.RelLine(), pos.RelCol())
+-	if bpos := pos.Base().Pos(); bpos.IsKnown() {
+-		s += fmt.Sprintf("[%s:%d:%d]", bpos.RelFilename(), pos.Line(), pos.Col())
++	rel := position_{pos.RelFilename(), pos.RelLine(), pos.RelCol()}
++	abs := position_{pos.Base().Pos().RelFilename(), pos.Line(), pos.Col()}
++	s := rel.String()
++	if rel != abs {
++		s += "[" + abs.String() + "]"
+ 	}
+ 	return s
+ }
+ 
++// TODO(gri) cleanup: find better name, avoid conflict with position in error_test.go
++type position_ struct {
++	filename  string
++	line, col uint
++}
++
++func (p position_) String() string {
++	if p.line == 0 {
++		if p.filename == "" {
++			return "<unknown position>"
++		}
++		return p.filename
++	}
++	if p.col == 0 {
++		return fmt.Sprintf("%s:%d", p.filename, p.line)
++	}
++	return fmt.Sprintf("%s:%d:%d", p.filename, p.line, p.col)
++}
++
+ // A PosBase represents the base for relative position information:
+ // At position pos, the relative position is filename:line:col.
+ type PosBase struct {
+@@ -59,9 +96,12 @@ type PosBase struct {
+ }
+ 
+ // NewFileBase returns a new PosBase for the given filename.
+-// The PosBase position is unknown in this case.
++// A file PosBase's position is relative to itself, with the
++// position being filename:1:1.
+ func NewFileBase(filename string) *PosBase {
+-	return &PosBase{filename: filename}
++	base := &PosBase{MakePos(nil, linebase, colbase), filename, linebase, colbase}
++	base.pos.base = base
++	return base
+ }
+ 
+ // NewLineBase returns a new PosBase for a line directive "line filename:line:col"
+@@ -73,6 +113,13 @@ func NewLineBase(pos Pos, filename string, line, col uint) *PosBase {
+ 	return &PosBase{pos, filename, sat32(line), sat32(col)}
+ }
+ 
++func (base *PosBase) IsFileBase() bool {
++	if base == nil {
++		return false
++	}
++	return base.pos.base == base
++}
++
+ func (base *PosBase) Pos() (_ Pos) {
+ 	if base == nil {
+ 		return
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index ca7a10e955..c7b9a8069d 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -69,14 +69,28 @@ func (p *Pos) SetBase(base *PosBase) { p.base = base }
+ func (p Pos) RelFilename() string { return p.base.Filename() }
+ 
+ // RelLine returns the line number relative to the position's base.
+-func (p Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
++func (p Pos) RelLine() uint {
++	b := p.base
++	if b.Line() == 0 {
++		// base line is unknown => relative line is unknown
++		return 0
++	}
++	return b.Line() + (p.Line() - b.Pos().Line())
++}
+ 
+ // RelCol returns the column number relative to the position's base.
+ func (p Pos) RelCol() uint {
+-	b := p.Base()
++	b := p.base
++	if b.Col() == 0 {
++		// base column is unknown => relative column is unknown
++		// (the current specification for line directives requires
++		// this to apply until the next PosBase/line directive,
++		// not just until the new newline)
++		return 0
++	}
+ 	if p.Line() == b.Pos().Line() {
+ 		// p on same line as p's base => column is relative to p's base
+-		return b.Col() + p.Col() - b.Pos().Col()
++		return b.Col() + (p.Col() - b.Pos().Col())
+ 	}
+ 	return p.Col()
+ }
+@@ -93,10 +107,10 @@ func (p Pos) String() string {
+ }
+ 
+ // Format formats a position as "filename:line" or "filename:line:column",
+-// controlled by the showCol flag. A position relative to a line directive
+-// is always formatted without column information. In that case, if showOrig
+-// is set, the original position (again controlled by showCol) is appended
+-// in square brackets: "filename:line[origfile:origline:origcolumn]".
++// controlled by the showCol flag and if the column is known (!= 0).
++// For positions relative to line directives, the original position is
++// shown as well, as in "filename:line[origfile:origline:origcolumn] if
++// showOrig is set.
+ func (p Pos) Format(showCol, showOrig bool) string {
+ 	if !p.IsKnown() {
+ 		return "<unknown line number>"
+@@ -107,9 +121,6 @@ func (p Pos) Format(showCol, showOrig bool) string {
+ 		return format(p.Filename(), p.Line(), p.Col(), showCol)
+ 	}
+ 
+-	// TODO(gri): Column information should be printed if a line
+-	// directive explicitly specified a column, per issue #22662.
+-
+ 	// base is relative
+ 	// Print the column only for the original position since the
+ 	// relative position's column information may be bogus (it's
+@@ -118,7 +129,7 @@ func (p Pos) Format(showCol, showOrig bool) string {
+ 	// that's provided via a line directive).
+ 	// TODO(gri) This may not be true if we have an inlining base.
+ 	// We may want to differentiate at some point.
+-	s := format(p.RelFilename(), p.RelLine(), 0, false)
++	s := format(p.RelFilename(), p.RelLine(), p.RelCol(), showCol)
+ 	if showOrig {
+ 		s += "[" + format(p.Filename(), p.Line(), p.Col(), showCol) + "]"
+ 	}
+@@ -126,11 +137,11 @@ func (p Pos) Format(showCol, showOrig bool) string {
+ }
+ 
+ // format formats a (filename, line, col) tuple as "filename:line" (showCol
+-// is false) or "filename:line:column" (showCol is true).
++// is false or col == 0) or "filename:line:column" (showCol is true and col != 0).
+ func format(filename string, line, col uint, showCol bool) string {
+ 	s := filename + ":" + strconv.FormatUint(uint64(line), 10)
+-	// col == colMax is interpreted as unknown column value
+-	if showCol && col < colMax {
++	// col == 0 and col == colMax are interpreted as unknown column values
++	if showCol && 0 < col && col < colMax {
+ 		s += ":" + strconv.FormatUint(uint64(col), 10)
+ 	}
+ 	return s
+@@ -141,8 +152,6 @@ func format(filename string, line, col uint, showCol bool) string {
+ 
+ // A PosBase encodes a filename and base position.
+ // Typically, each file and line directive introduce a PosBase.
+-// A nil *PosBase is a ready to use file PosBase for an unnamed
+-// file with line numbers starting at 1.
+ type PosBase struct {
+ 	pos         Pos    // position at which the relative position is (line, col)
+ 	filename    string // file name used to open source file, for error messages
+@@ -155,17 +164,16 @@ type PosBase struct {
+ // NewFileBase returns a new *PosBase for a file with the given (relative and
+ // absolute) filenames.
+ func NewFileBase(filename, absFilename string) *PosBase {
+-	if filename != "" {
+-		base := &PosBase{
+-			filename:    filename,
+-			absFilename: absFilename,
+-			symFilename: FileSymPrefix + absFilename,
+-			inl:         -1,
+-		}
+-		base.pos = MakePos(base, 0, 0)
+-		return base
++	base := &PosBase{
++		filename:    filename,
++		absFilename: absFilename,
++		symFilename: FileSymPrefix + absFilename,
++		line:        1,
++		col:         1,
++		inl:         -1,
+ 	}
+-	return nil
++	base.pos = MakePos(base, 1, 1)
++	return base
+ }
+ 
+ // NewLinePragmaBase returns a new *PosBase for a line directive of the form
+@@ -180,8 +188,8 @@ func NewLinePragmaBase(pos Pos, filename, absFilename string, line, col uint) *P
+ // index. If old == nil, the resulting PosBase has no filename.
+ func NewInliningBase(old *PosBase, inlTreeIndex int) *PosBase {
+ 	if old == nil {
+-		base := &PosBase{inl: inlTreeIndex}
+-		base.pos = MakePos(base, 0, 0)
++		base := &PosBase{line: 1, col: 1, inl: inlTreeIndex}
++		base.pos = MakePos(base, 1, 1)
+ 		return base
+ 	}
+ 	copy := *old
+diff --git a/src/cmd/internal/src/pos_test.go b/src/cmd/internal/src/pos_test.go
+index 1cebf6f0f6..3fea45c116 100644
+--- a/src/cmd/internal/src/pos_test.go
++++ b/src/cmd/internal/src/pos_test.go
+@@ -39,23 +39,23 @@ func TestPos(t *testing.T) {
+ 		relLine, relCol uint
+ 	}{
+ 		{Pos{}, "<unknown line number>", "", 0, 0, "", 0, 0},
+-		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2, 3},
++		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 0, 0},
+ 		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2, 3},
+ 		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1, 1},
+-		{MakePos(f2, 7, 10), "f2:17[:7:10]", "", 7, 10, "f2", 17, 10},
+-		{MakePos(f3, 12, 7), "f3:102[f1:12:7]", "f1", 12, 7, "f3", 102, 7},
+-		{MakePos(f4, 25, 1), "f4:115[f3:25:1]", "f3", 25, 1, "f4", 115, 1},
++		{MakePos(f2, 7, 10), "f2:17[:7:10]", "", 7, 10, "f2", 17, 0 /* line base doesn't specify a column */},
++		{MakePos(f3, 12, 7), "f3:102:7[f1:12:7]", "f1", 12, 7, "f3", 102, 7},
++		{MakePos(f4, 25, 1), "f4:115:1[f3:25:1]", "f3", 25, 1, "f4", 115, 1},
+ 
+ 		// line directives with non-1 columns
+-		{MakePos(f5, 5, 5), "f5:10[f1:5:5]", "f1", 5, 5, "f5", 10, 1},
+-		{MakePos(f5, 5, 10), "f5:10[f1:5:10]", "f1", 5, 10, "f5", 10, 6},
+-		{MakePos(f5, 6, 10), "f5:11[f1:6:10]", "f1", 6, 10, "f5", 11, 10},
++		{MakePos(f5, 5, 5), "f5:10:1[f1:5:5]", "f1", 5, 5, "f5", 10, 1},
++		{MakePos(f5, 5, 10), "f5:10:6[f1:5:10]", "f1", 5, 10, "f5", 10, 6},
++		{MakePos(f5, 6, 10), "f5:11:10[f1:6:10]", "f1", 6, 10, "f5", 11, 10},
+ 
+ 		// positions from issue #19392
+-		{MakePos(fc, 4, 1), "c.go:10[p.go:4:1]", "p.go", 4, 1, "c.go", 10, 1},
+-		{MakePos(ft, 7, 1), "t.go:20[p.go:7:1]", "p.go", 7, 1, "t.go", 20, 1},
+-		{MakePos(fv, 10, 1), "v.go:30[p.go:10:1]", "p.go", 10, 1, "v.go", 30, 1},
+-		{MakePos(ff, 13, 1), "f.go:40[p.go:13:1]", "p.go", 13, 1, "f.go", 40, 1},
++		{MakePos(fc, 4, 1), "c.go:10:1[p.go:4:1]", "p.go", 4, 1, "c.go", 10, 1},
++		{MakePos(ft, 7, 1), "t.go:20:1[p.go:7:1]", "p.go", 7, 1, "t.go", 20, 1},
++		{MakePos(fv, 10, 1), "v.go:30:1[p.go:10:1]", "p.go", 10, 1, "v.go", 30, 1},
++		{MakePos(ff, 13, 1), "f.go:40:1[p.go:13:1]", "p.go", 13, 1, "f.go", 40, 1},
+ 	} {
+ 		pos := test.pos
+ 		if got := pos.String(); got != test.string {
+@@ -134,10 +134,10 @@ func TestLico(t *testing.T) {
+ 		string    string
+ 		line, col uint
+ 	}{
+-		{0, ":0:0", 0, 0},
+-		{makeLico(0, 0), ":0:0", 0, 0},
++		{0, ":0", 0, 0},
++		{makeLico(0, 0), ":0", 0, 0},
+ 		{makeLico(0, 1), ":0:1", 0, 1},
+-		{makeLico(1, 0), ":1:0", 1, 0},
++		{makeLico(1, 0), ":1", 1, 0},
+ 		{makeLico(1, 1), ":1:1", 1, 1},
+ 		{makeLico(2, 3), ":2:3", 2, 3},
+ 		{makeLico(lineMax, 1), fmt.Sprintf(":%d:1", lineMax), lineMax, 1},
+diff --git a/test/fixedbugs/issue22662b.go b/test/fixedbugs/issue22662b.go
+new file mode 100644
+index 0000000000..42c2a806d7
+--- /dev/null
++++ b/test/fixedbugs/issue22662b.go
+@@ -0,0 +1,65 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify the impact of line directives on error positions and position formatting.
++
++package main
++
++import (
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"runtime"
++	"strings"
++)
++
++// Each of these tests is expected to fail (missing package clause)
++// at the position determined by the preceeding line directive.
++var tests = []struct {
++	src, pos string
++}{
++	{"//line :10\n", ":10:"},                   // no filename means no filename
++	{"//line :10:4\n", "filename:10:4"},        // no filename means use existing filename
++	{"//line foo.go:10\n", "foo.go:10:"},       // no column means don't print a column
++	{"//line foo.go:10:4\n", "foo.go:10:4:"},   // column means print a column
++	{"//line foo.go:10:4\n\n", "foo.go:11:1:"}, // relative columns start at 1 after newline
++
++	{"/*line :10*/", ":10:"},
++	{"/*line :10:4*/", "filename:10:4"},
++	{"/*line foo.go:10*/", "foo.go:10:"},
++	{"/*line foo.go:10:4*/", "foo.go:10:4:"},
++	{"/*line foo.go:10:4*/\n", "foo.go:11:1:"},
++}
++
++func main() {
++	if runtime.GOOS == "nacl" {
++		return // no file system available on builders
++	}
++
++	f, err := ioutil.TempFile("", "issue22662b.go")
++	if err != nil {
++		log.Fatal(err)
++	}
++	f.Close()
++	defer os.Remove(f.Name())
++
++	for _, test := range tests {
++		if err := ioutil.WriteFile(f.Name(), []byte(test.src), 0660); err != nil {
++			log.Fatal(err)
++		}
++
++		out, err := exec.Command("go", "tool", "compile", f.Name()).CombinedOutput()
++		if err == nil {
++			log.Fatalf("expected compiling\n---\n%s\n---\nto fail", test.src)
++		}
++
++		errmsg := strings.Replace(string(out), f.Name(), "filename", -1) // use "filename" instead of actual (long) filename
++		if !strings.HasPrefix(errmsg, test.pos) {
++			log.Fatalf("%q: got %q; want position %q", test.src, errmsg, test.pos)
++		}
++	}
++}

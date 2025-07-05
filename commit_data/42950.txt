@@ -11,6 +11,20 @@ Date:   Tue Jan 21 01:50:27 2020 +0100
     Change-Id: I5bfaba4e53dab894d113dd5065794d66f1a25f2b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/215478
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/clean.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 39fe36d46d..decfa462f9 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -11,7 +11,7 @@ if [ ! -f run.bash ]; then
+ fi
+ export GOROOT="$(cd .. && pwd)"
+ 
+-gobin="${GOBIN:-../bin}"
++gobin="${GOROOT}"/bin
+ if ! "$gobin"/go help >/dev/null 2>&1; then
+ 	echo 'cannot find go command; nothing to clean' >&2
+ 	exit 1

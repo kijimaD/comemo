@@ -12,6 +12,20 @@ Date:   Tue Feb 20 01:57:37 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/ecdsa/ecdsa_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 08a0903eb1..ae9fd81f93 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -428,7 +428,7 @@ func testZeroSignature(t *testing.T, curve elliptic.Curve) {
+ 	}
+ }
+ 
+-func TestNegtativeSignature(t *testing.T) {
++func TestNegativeSignature(t *testing.T) {
+ 	testAllCurves(t, testNegativeSignature)
+ }
+ 

@@ -14,7 +14,7 @@ Date:   Wed Mar 16 19:03:01 2011 -0700
     R=rsc, dfc, r2, iant2, rsc1
     CC=golang-dev
     https://golang.org/cl/4278055
-
+---
  src/pkg/syscall/asm_darwin_386.s          | 24 +++++++++
  src/pkg/syscall/asm_darwin_amd64.s        | 21 ++++++++
  src/pkg/syscall/asm_freebsd_386.s         | 24 +++++++++
@@ -41,3 +41,3111 @@ Date:   Wed Mar 16 19:03:01 2011 -0700
  src/pkg/syscall/zsyscall_linux_amd64.go   | 82 ++++++++++++++---------------
  src/pkg/syscall/zsyscall_linux_arm.go     | 86 +++++++++++++++----------------
  25 files changed, 579 insertions(+), 383 deletions(-)
+
+diff --git a/src/pkg/syscall/asm_darwin_386.s b/src/pkg/syscall/asm_darwin_386.s
+index fffda6e20e..9e89b89e4c 100644
+--- a/src/pkg/syscall/asm_darwin_386.s
++++ b/src/pkg/syscall/asm_darwin_386.s
+@@ -81,3 +81,27 @@ ok1:
+ 	MOVL	DX, 24(SP)	// r2
+ 	MOVL	$0, 28(SP)	// errno
+ 	RET
++
++TEXT	·RawSyscall6(SB),7,$0
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok2
++	MOVL	$-1, 32(SP)	// r1
++	MOVL	$-1, 36(SP)	// r2
++	MOVL	AX, 40(SP)		// errno
++	RET
++ok2:
++	MOVL	AX, 32(SP)	// r1
++	MOVL	DX, 36(SP)	// r2
++	MOVL	$0, 40(SP)	// errno
++	RET
+diff --git a/src/pkg/syscall/asm_darwin_amd64.s b/src/pkg/syscall/asm_darwin_amd64.s
+index a9e2dfcca1..1613622aac 100644
+--- a/src/pkg/syscall/asm_darwin_amd64.s
++++ b/src/pkg/syscall/asm_darwin_amd64.s
+@@ -78,3 +78,24 @@ ok1:
+ 	MOVQ	DX, 48(SP)	// r2
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
++
++TEXT	·RawSyscall6(SB),7,$0
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	40(SP), R10
++	MOVQ	48(SP), R8
++	MOVQ	56(SP), R9
++	MOVQ	8(SP), AX	// syscall entry
++	ADDQ	$0x2000000, AX
++	SYSCALL
++	JCC	ok2
++	MOVQ	$-1, 64(SP)	// r1
++	MOVQ	$0, 72(SP)	// r2
++	MOVQ	AX, 80(SP)  // errno
++	RET
++ok2:
++	MOVQ	AX, 64(SP)	// r1
++	MOVQ	DX, 72(SP)	// r2
++	MOVQ	$0, 80(SP)	// errno
++	RET
+diff --git a/src/pkg/syscall/asm_freebsd_386.s b/src/pkg/syscall/asm_freebsd_386.s
+index c652dcbd00..80f06a7262 100644
+--- a/src/pkg/syscall/asm_freebsd_386.s
++++ b/src/pkg/syscall/asm_freebsd_386.s
+@@ -81,3 +81,27 @@ ok1:
+ 	MOVL	DX, 24(SP)	// r2
+ 	MOVL	$0, 28(SP)	// errno
+ 	RET
++
++TEXT	·RawSyscall6(SB),7,$0
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok2
++	MOVL	$-1, 32(SP)	// r1
++	MOVL	$-1, 36(SP)	// r2
++	MOVL	AX, 40(SP)		// errno
++	RET
++ok2:
++	MOVL	AX, 32(SP)	// r1
++	MOVL	DX, 36(SP)	// r2
++	MOVL	$0, 40(SP)	// errno
++	RET
+diff --git a/src/pkg/syscall/asm_freebsd_amd64.s b/src/pkg/syscall/asm_freebsd_amd64.s
+index d70620a4e5..022db697a9 100644
+--- a/src/pkg/syscall/asm_freebsd_amd64.s
++++ b/src/pkg/syscall/asm_freebsd_amd64.s
+@@ -75,3 +75,23 @@ ok1:
+ 	MOVQ	DX, 48(SP)	// r2
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
++
++TEXT	·RawSyscall6(SB),7,$0
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	40(SP), R10
++	MOVQ	48(SP), R8
++	MOVQ	56(SP), R9
++	MOVQ	8(SP), AX	// syscall entry
++	SYSCALL
++	JCC	ok2
++	MOVQ	$-1, 64(SP)	// r1
++	MOVQ	$0, 72(SP)	// r2
++	MOVQ	AX, 80(SP)  // errno
++	RET
++ok2:
++	MOVQ	AX, 64(SP)	// r1
++	MOVQ	DX, 72(SP)	// r2
++	MOVQ	$0, 80(SP)	// errno
++	RET
+diff --git a/src/pkg/syscall/asm_linux_386.s b/src/pkg/syscall/asm_linux_386.s
+index 68b5baa65f..52cd6e7419 100644
+--- a/src/pkg/syscall/asm_linux_386.s
++++ b/src/pkg/syscall/asm_linux_386.s
+@@ -82,6 +82,30 @@ ok1:
+ 	MOVL	$0, 28(SP)	// errno
+ 	RET
+ 
++// func RawSyscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
++// Actually RawSyscall5 but the rest of the code expects it to be named RawSyscall6.
++TEXT	·RawSyscall6(SB),7,$0
++	MOVL	4(SP), AX	// syscall entry
++	MOVL	8(SP), BX
++	MOVL	12(SP), CX
++	MOVL	16(SP), DX
++	MOVL	20(SP), SI
++	MOVL	24(SP), DI
++	// 28(SP) is ignored
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	ok2
++	MOVL	$-1, 32(SP)	// r1
++	MOVL	$0, 36(SP)	// r2
++	NEGL	AX
++	MOVL	AX, 40(SP)  // errno
++	RET
++ok2:
++	MOVL	AX, 32(SP)	// r1
++	MOVL	DX, 36(SP)	// r2
++	MOVL	$0, 40(SP)	// errno
++	RET
++
+ #define SYS_SOCKETCALL 102	/* from zsysnum_linux_386.go */
+ 
+ // func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
+@@ -108,6 +132,27 @@ oksock:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
++// func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
++// Kernel interface gets call sub-number and pointer to a0.
++TEXT ·rawsocketcall(SB),7,$0
++	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
++	MOVL	4(SP), BX	// socket call number
++	LEAL		8(SP), CX	// pointer to call arguments
++	MOVL	$0, DX
++	MOVL	$0, SI
++	MOVL	$0,  DI
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	oksock1
++	MOVL	$-1, 32(SP)	// n
++	NEGL	AX
++	MOVL	AX, 36(SP)  // errno
++	RET
++oksock1:
++	MOVL	AX, 32(SP)	// n
++	MOVL	$0, 36(SP)	// errno
++	RET
++
+ #define SYS__LLSEEK 140	/* from zsysnum_linux_386.go */
+ // func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ // Implemented in assembly to avoid allocation when
+diff --git a/src/pkg/syscall/asm_linux_amd64.s b/src/pkg/syscall/asm_linux_amd64.s
+index 20a5a4fb7d..fdc233ca51 100644
+--- a/src/pkg/syscall/asm_linux_amd64.s
++++ b/src/pkg/syscall/asm_linux_amd64.s
+@@ -83,6 +83,28 @@ ok1:
+ 	MOVQ	$0, 56(SP)	// errno
+ 	RET
+ 
++TEXT ·RawSyscall6(SB),7,$0
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	40(SP), R10
++	MOVQ	48(SP), R8
++	MOVQ	56(SP), R9
++	MOVQ	8(SP), AX	// syscall entry
++	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	ok2
++	MOVQ	$-1, 64(SP)	// r1
++	MOVQ	$0, 72(SP)	// r2
++	NEGQ	AX
++	MOVQ	AX, 80(SP)  // errno
++	RET
++ok2:
++	MOVQ	AX, 64(SP)	// r1
++	MOVQ	DX, 72(SP)	// r2
++	MOVQ	$0, 80(SP)	// errno
++	RET
++
+ TEXT ·Gettimeofday(SB),7,$0
+ 	MOVQ	8(SP), DI
+ 	MOVQ	$0, SI
+diff --git a/src/pkg/syscall/asm_linux_arm.s b/src/pkg/syscall/asm_linux_arm.s
+index 04dbdb6248..2651b7284f 100644
+--- a/src/pkg/syscall/asm_linux_arm.s
++++ b/src/pkg/syscall/asm_linux_arm.s
+@@ -67,6 +67,34 @@ ok6:
+ 	BL		runtime·exitsyscall(SB)
+ 	RET
+ 
++// func RawSyscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
++// Actually RawSyscall5 but the rest of the code expects it to be named RawSyscall6.
++TEXT	·RawSyscall6(SB),7,$0
++	MOVW	4(SP), R7	// syscall entry
++	MOVW	8(SP), R0
++	MOVW	12(SP), R1
++	MOVW	16(SP), R2
++	MOVW	20(SP), R3
++	MOVW	24(SP), R4
++	MOVW	28(SP), R5
++	SWI		$0
++	MOVW	$0xfffff001, R6
++	CMP		R6, R0
++	BLS		ok2
++	MOVW	$-1, R1
++	MOVW	R1, 32(SP)	// r1
++	MOVW	$0, R2
++	MOVW	R2, 36(SP)	// r2
++	RSB		$0, R0, R0
++	MOVW	R0, 40(SP)	// errno
++	RET
++ok2:
++	MOVW	R0, 32(SP) // r1
++	MOVW	R1, 36(SP)	// r2
++	MOVW	$0, R0
++	MOVW	R0, 40(SP)	// errno
++	RET
++
+ #define SYS__LLSEEK 140  /* from zsysnum_linux_arm.go */
+ // func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ // Implemented in assembly to avoid allocation when
+diff --git a/src/pkg/syscall/mksyscall.sh b/src/pkg/syscall/mksyscall.sh
+index 0f8098098d..a62809441c 100755
+--- a/src/pkg/syscall/mksyscall.sh
++++ b/src/pkg/syscall/mksyscall.sh
+@@ -13,6 +13,12 @@
+ #	  the (x, y, z int) shorthand is not allowed.
+ #	* If the return parameter is an error number, it must be named errno.
+ 
++# A line beginning with //sysnb is like //sys, except that the
++# goroutine will not be suspended during the execution of the system
++# call.  This must only be used for system calls which can never
++# block, as otherwise the system call could cause all goroutines to
++# hang.
++
+ $cmdline = "mksyscall.sh " . join(' ', @ARGV);
+ $errors = 0;
+ $_32bit = "";
+@@ -61,17 +67,18 @@ while(<>) {
+ 	s/\s+/ /g;
+ 	s/^\s+//;
+ 	s/\s+$//;
+-	next if !/^\/\/sys /;
++	my $nonblock = /^\/\/sysnb /;
++	next if !/^\/\/sys / && !$nonblock;
+ 
+ 	# Line must be of the form
+ 	#	func Open(path string, mode int, perm int) (fd int, errno int)
+ 	# Split into name, in params, out params.
+-	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(SYS_[A-Z0-9_]+))?$/) {
++	if(!/^\/\/sys(nb)? (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(SYS_[A-Z0-9_]+))?$/) {
+ 		print STDERR "$ARGV:$.: malformed //sys declaration\n";
+ 		$errors = 1;
+ 		next;
+ 	}
+-	my ($func, $in, $out, $sysname) = ($1, $2, $3, $4);
++	my ($func, $in, $out, $sysname) = ($2, $3, $4, $5);
+ 
+ 	# Split argument lists on comma.
+ 	my @in = parseparamlist($in);
+@@ -119,12 +126,15 @@ while(<>) {
+ 
+ 	# Determine which form to use; pad args with zeros.
+ 	my $asm = "Syscall";
++	if ($nonblock) {
++		$asm = "RawSyscall";
++	}
+ 	if(@args <= 3) {
+ 		while(@args < 3) {
+ 			push @args, "0";
+ 		}
+ 	} elsif(@args <= 6) {
+-		$asm = "Syscall6";
++		$asm .= "6";
+ 		while(@args < 6) {
+ 			push @args, "0";
+ 		}
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 1f5b2ba9a3..61335dbcea 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -27,8 +27,8 @@ func Getwd() (string, int) { return "", ENOTSUP }
+  * Wrapped
+  */
+ 
+-//sys	getgroups(ngid int, gid *_Gid_t) (n int, errno int)
+-//sys	setgroups(ngid int, gid *_Gid_t) (errno int)
++//sysnb	getgroups(ngid int, gid *_Gid_t) (n int, errno int)
++//sysnb	setgroups(ngid int, gid *_Gid_t) (errno int)
+ 
+ func Getgroups() (gids []int, errno int) {
+ 	n, err := getgroups(0, nil)
+@@ -130,7 +130,7 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
+ 	return
+ }
+ 
+-//sys	pipe() (r int, w int, errno int)
++//sysnb	pipe() (r int, w int, errno int)
+ 
+ func Pipe(p []int) (errno int) {
+ 	if len(p) != 2 {
+@@ -148,10 +148,10 @@ func Sleep(ns int64) (errno int) {
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
+ //sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
+ //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
+-//sys	socket(domain int, typ int, proto int) (fd int, errno int)
++//sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
+ //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+-//sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+-//sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++//sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++//sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	Shutdown(s int, how int) (errno int)
+ 
+ // For testing: clients can set this flag to force
+@@ -355,7 +355,7 @@ func Socket(domain, typ, proto int) (fd, errno int) {
+ 	return
+ }
+ 
+-//sys socketpair(domain int, typ int, proto int, fd *[2]int) (errno int)
++//sysnb socketpair(domain int, typ int, proto int, fd *[2]int) (errno int)
+ 
+ func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
+ 	errno = socketpair(domain, typ, proto, &fd)
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 552c9c1543..1ed2c47c46 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -45,8 +45,8 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
+ //sys	Chown(path string, uid int, gid int) (errno int)
+ //sys	Chroot(path string) (errno int)
+ //sys	Close(fd int) (errno int)
+-//sys	Dup(fd int) (nfd int, errno int)
+-//sys	Dup2(from int, to int) (errno int)
++//sysnb	Dup(fd int) (nfd int, errno int)
++//sysnb	Dup2(from int, to int) (errno int)
+ //sys	Exchangedata(path1 string, path2 string, options int) (errno int)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (errno int)
+@@ -61,20 +61,20 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
+ //sys	Ftruncate(fd int, length int64) (errno int)
+ //sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int) = SYS_GETDIRENTRIES64
+ //sys	Getdtablesize() (size int)
+-//sys	Getegid() (egid int)
+-//sys	Geteuid() (uid int)
++//sysnb	Getegid() (egid int)
++//sysnb	Geteuid() (uid int)
+ //sys	Getfsstat(buf []Statfs_t, flags int) (n int, errno int) = SYS_GETFSSTAT64
+-//sys	Getgid() (gid int)
+-//sys	Getpgid(pid int) (pgid int, errno int)
+-//sys	Getpgrp() (pgrp int)
+-//sys	Getpid() (pid int)
+-//sys	Getppid() (ppid int)
++//sysnb	Getgid() (gid int)
++//sysnb	Getpgid(pid int) (pgid int, errno int)
++//sysnb	Getpgrp() (pgrp int)
++//sysnb	Getpid() (pid int)
++//sysnb	Getppid() (ppid int)
+ //sys	Getpriority(which int, who int) (prio int, errno int)
+-//sys	Getrlimit(which int, lim *Rlimit) (errno int)
+-//sys	Getrusage(who int, rusage *Rusage) (errno int)
+-//sys	Getsid(pid int) (sid int, errno int)
+-//sys	Getuid() (uid int)
+-//sys	Issetugid() (tainted bool)
++//sysnb	Getrlimit(which int, lim *Rlimit) (errno int)
++//sysnb	Getrusage(who int, rusage *Rusage) (errno int)
++//sysnb	Getsid(pid int) (sid int, errno int)
++//sysnb	Getuid() (uid int)
++//sysnb	Issetugid() (tainted bool)
+ //sys	Kqueue() (fd int, errno int)
+ //sys	Lchown(path string, uid int, gid int) (errno int)
+ //sys	Link(path string, link string) (errno int)
+@@ -95,18 +95,18 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
+ //sys	Seek(fd int, offset int64, whence int) (newoffset int64, errno int) = SYS_LSEEK
+ //sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int)
+ //sys	Setegid(egid int) (errno int)
+-//sys	Seteuid(euid int) (errno int)
+-//sys	Setgid(gid int) (errno int)
++//sysnb	Seteuid(euid int) (errno int)
++//sysnb	Setgid(gid int) (errno int)
+ //sys	Setlogin(name string) (errno int)
+-//sys	Setpgid(pid int, pgid int) (errno int)
++//sysnb	Setpgid(pid int, pgid int) (errno int)
+ //sys	Setpriority(which int, who int, prio int) (errno int)
+ //sys	Setprivexec(flag int) (errno int)
+-//sys	Setregid(rgid int, egid int) (errno int)
+-//sys	Setreuid(ruid int, euid int) (errno int)
+-//sys	Setrlimit(which int, lim *Rlimit) (errno int)
+-//sys	Setsid() (pid int, errno int)
+-//sys	Settimeofday(tp *Timeval) (errno int)
+-//sys	Setuid(uid int) (errno int)
++//sysnb	Setregid(rgid int, egid int) (errno int)
++//sysnb	Setreuid(ruid int, euid int) (errno int)
++//sysnb	Setrlimit(which int, lim *Rlimit) (errno int)
++//sysnb	Setsid() (pid int, errno int)
++//sysnb	Settimeofday(tp *Timeval) (errno int)
++//sysnb	Setuid(uid int) (errno int)
+ //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
+ //sys	Statfs(path string, stat *Statfs_t) (errno int) = SYS_STATFS64
+ //sys	Symlink(path string, link string) (errno int)
+diff --git a/src/pkg/syscall/syscall_darwin_386.go b/src/pkg/syscall/syscall_darwin_386.go
+index 3fd72efe3f..dd8e37a296 100644
+--- a/src/pkg/syscall/syscall_darwin_386.go
++++ b/src/pkg/syscall/syscall_darwin_386.go
+@@ -23,7 +23,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return
+ }
+ 
+-//sys	gettimeofday(tp *Timeval) (sec int32, usec int32, errno int)
++//sysnb	gettimeofday(tp *Timeval) (sec int32, usec int32, errno int)
+ func Gettimeofday(tv *Timeval) (errno int) {
+ 	// The tv passed to gettimeofday must be non-nil
+ 	// but is otherwise unused.  The answers come back
+diff --git a/src/pkg/syscall/syscall_darwin_amd64.go b/src/pkg/syscall/syscall_darwin_amd64.go
+index df8d375888..acf7a55548 100644
+--- a/src/pkg/syscall/syscall_darwin_amd64.go
++++ b/src/pkg/syscall/syscall_darwin_amd64.go
+@@ -23,7 +23,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return
+ }
+ 
+-//sys	gettimeofday(tp *Timeval) (sec int64, usec int32, errno int)
++//sysnb	gettimeofday(tp *Timeval) (sec int64, usec int32, errno int)
+ func Gettimeofday(tv *Timeval) (errno int) {
+ 	// The tv passed to gettimeofday must be non-nil
+ 	// but is otherwise unused.  The answers come back
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index ed310663a3..a980b96aa4 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -37,8 +37,8 @@ type SockaddrDatalink struct {
+ //sys	Chown(path string, uid int, gid int) (errno int)
+ //sys	Chroot(path string) (errno int)
+ //sys	Close(fd int) (errno int)
+-//sys	Dup(fd int) (nfd int, errno int)
+-//sys	Dup2(from int, to int) (errno int)
++//sysnb	Dup(fd int) (nfd int, errno int)
++//sysnb	Dup2(from int, to int) (errno int)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (errno int)
+ //sys	Fchflags(path string, flags int) (errno int)
+@@ -52,20 +52,20 @@ type SockaddrDatalink struct {
+ //sys	Ftruncate(fd int, length int64) (errno int)
+ //sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int)
+ //sys	Getdtablesize() (size int)
+-//sys	Getegid() (egid int)
+-//sys	Geteuid() (uid int)
++//sysnb	Getegid() (egid int)
++//sysnb	Geteuid() (uid int)
+ //sys	Getfsstat(buf []Statfs_t, flags int) (n int, errno int)
+-//sys	Getgid() (gid int)
+-//sys	Getpgid(pid int) (pgid int, errno int)
+-//sys	Getpgrp() (pgrp int)
+-//sys	Getpid() (pid int)
+-//sys	Getppid() (ppid int)
++//sysnb	Getgid() (gid int)
++//sysnb	Getpgid(pid int) (pgid int, errno int)
++//sysnb	Getpgrp() (pgrp int)
++//sysnb	Getpid() (pid int)
++//sysnb	Getppid() (ppid int)
+ //sys	Getpriority(which int, who int) (prio int, errno int)
+-//sys	Getrlimit(which int, lim *Rlimit) (errno int)
+-//sys	Getrusage(who int, rusage *Rusage) (errno int)
+-//sys	Getsid(pid int) (sid int, errno int)
+-//sys	Gettimeofday(tv *Timeval) (errno int)
+-//sys	Getuid() (uid int)
++//sysnb	Getrlimit(which int, lim *Rlimit) (errno int)
++//sysnb	Getrusage(who int, rusage *Rusage) (errno int)
++//sysnb	Getsid(pid int) (sid int, errno int)
++//sysnb	Gettimeofday(tv *Timeval) (errno int)
++//sysnb	Getuid() (uid int)
+ //sys	Issetugid() (tainted bool)
+ //sys	Kill(pid int, signum int) (errno int)
+ //sys	Kqueue() (fd int, errno int)
+@@ -88,18 +88,18 @@ type SockaddrDatalink struct {
+ //sys	Rmdir(path string) (errno int)
+ //sys	Seek(fd int, offset int64, whence int) (newoffset int64, errno int) = SYS_LSEEK
+ //sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int)
+-//sys	Setegid(egid int) (errno int)
+-//sys	Seteuid(euid int) (errno int)
+-//sys	Setgid(gid int) (errno int)
++//sysnb	Setegid(egid int) (errno int)
++//sysnb	Seteuid(euid int) (errno int)
++//sysnb	Setgid(gid int) (errno int)
+ //sys	Setlogin(name string) (errno int)
+-//sys	Setpgid(pid int, pgid int) (errno int)
++//sysnb	Setpgid(pid int, pgid int) (errno int)
+ //sys	Setpriority(which int, who int, prio int) (errno int)
+-//sys	Setregid(rgid int, egid int) (errno int)
+-//sys	Setreuid(ruid int, euid int) (errno int)
+-//sys	Setrlimit(which int, lim *Rlimit) (errno int)
+-//sys	Setsid() (pid int, errno int)
+-//sys	Settimeofday(tp *Timeval) (errno int)
+-//sys	Setuid(uid int) (errno int)
++//sysnb	Setregid(rgid int, egid int) (errno int)
++//sysnb	Setreuid(ruid int, euid int) (errno int)
++//sysnb	Setrlimit(which int, lim *Rlimit) (errno int)
++//sysnb	Setsid() (pid int, errno int)
++//sysnb	Settimeofday(tp *Timeval) (errno int)
++//sysnb	Setuid(uid int) (errno int)
+ //sys	Stat(path string, stat *Stat_t) (errno int)
+ //sys	Statfs(path string, stat *Statfs_t) (errno int)
+ //sys	Symlink(path string, link string) (errno int)
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 6bed85fed6..110f2e6ff5 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -29,7 +29,7 @@ func Openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int)
+ 	return openat(dirfd, path, flags|O_LARGEFILE, mode)
+ }
+ 
+-//sys	pipe(p *[2]_C_int) (errno int)
++//sysnb	pipe(p *[2]_C_int) (errno int)
+ func Pipe(p []int) (errno int) {
+ 	if len(p) != 2 {
+ 		return EINVAL
+@@ -688,10 +688,10 @@ func Reboot(cmd int) (errno int) {
+ //sys	Chroot(path string) (errno int)
+ //sys	Close(fd int) (errno int)
+ //sys	Creat(path string, mode uint32) (fd int, errno int)
+-//sys	Dup(oldfd int) (fd int, errno int)
+-//sys	Dup2(oldfd int, newfd int) (fd int, errno int)
+-//sys	EpollCreate(size int) (fd int, errno int)
+-//sys	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int)
++//sysnb	Dup(oldfd int) (fd int, errno int)
++//sysnb	Dup2(oldfd int, newfd int) (fd int, errno int)
++//sysnb	EpollCreate(size int) (fd int, errno int)
++//sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int)
+ //sys	Exit(code int) = SYS_EXIT_GROUP
+ //sys	Faccessat(dirfd int, path string, mode uint32, flags int) (errno int)
+@@ -704,18 +704,18 @@ func Reboot(cmd int) (errno int) {
+ //sys	Fdatasync(fd int) (errno int)
+ //sys	Fsync(fd int) (errno int)
+ //sys	Getdents(fd int, buf []byte) (n int, errno int) = SYS_GETDENTS64
+-//sys	Getpgid(pid int) (pgid int, errno int)
+-//sys	Getpgrp() (pid int)
+-//sys	Getpid() (pid int)
+-//sys	Getppid() (ppid int)
+-//sys	Getrlimit(resource int, rlim *Rlimit) (errno int)
+-//sys	Getrusage(who int, rusage *Rusage) (errno int)
+-//sys	Gettid() (tid int)
+-//sys   InotifyAddWatch(fd int, pathname string, mask uint32) (watchdesc int, errno int)
+-//sys   InotifyInit() (fd int, errno int)
+-//sys   InotifyInit1(flags int) (fd int, errno int)
+-//sys   InotifyRmWatch(fd int, watchdesc uint32) (success int, errno int)
+-//sys	Kill(pid int, sig int) (errno int)
++//sysnb	Getpgid(pid int) (pgid int, errno int)
++//sysnb	Getpgrp() (pid int)
++//sysnb	Getpid() (pid int)
++//sysnb	Getppid() (ppid int)
++//sysnb	Getrlimit(resource int, rlim *Rlimit) (errno int)
++//sysnb	Getrusage(who int, rusage *Rusage) (errno int)
++//sysnb	Gettid() (tid int)
++//sys	InotifyAddWatch(fd int, pathname string, mask uint32) (watchdesc int, errno int)
++//sysnb	InotifyInit() (fd int, errno int)
++//sysnb	InotifyInit1(flags int) (fd int, errno int)
++//sysnb	InotifyRmWatch(fd int, watchdesc uint32) (success int, errno int)
++//sysnb	Kill(pid int, sig int) (errno int)
+ //sys	Klogctl(typ int, buf []byte) (n int, errno int) = SYS_SYSLOG
+ //sys	Link(oldpath string, newpath string) (errno int)
+ //sys	Mkdir(path string, mode uint32) (errno int)
+@@ -733,19 +733,19 @@ func Reboot(cmd int) (errno int) {
+ //sys	Rmdir(path string) (errno int)
+ //sys	Setdomainname(p []byte) (errno int)
+ //sys	Sethostname(p []byte) (errno int)
+-//sys	Setpgid(pid int, pgid int) (errno int)
+-//sys	Setrlimit(resource int, rlim *Rlimit) (errno int)
+-//sys	Setsid() (pid int, errno int)
+-//sys	Settimeofday(tv *Timeval) (errno int)
+-//sys	Setuid(uid int) (errno int)
++//sysnb	Setpgid(pid int, pgid int) (errno int)
++//sysnb	Setrlimit(resource int, rlim *Rlimit) (errno int)
++//sysnb	Setsid() (pid int, errno int)
++//sysnb	Settimeofday(tv *Timeval) (errno int)
++//sysnb	Setuid(uid int) (errno int)
+ //sys	Symlink(oldpath string, newpath string) (errno int)
+ //sys	Sync()
+-//sys	Sysinfo(info *Sysinfo_t) (errno int)
++//sysnb	Sysinfo(info *Sysinfo_t) (errno int)
+ //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, errno int)
+-//sys	Tgkill(tgid int, tid int, sig int) (errno int)
+-//sys	Times(tms *Tms) (ticks uintptr, errno int)
+-//sys	Umask(mask int) (oldmask int)
+-//sys	Uname(buf *Utsname) (errno int)
++//sysnb	Tgkill(tgid int, tid int, sig int) (errno int)
++//sysnb	Times(tms *Tms) (ticks uintptr, errno int)
++//sysnb	Umask(mask int) (oldmask int)
++//sysnb	Uname(buf *Utsname) (errno int)
+ //sys	Unlink(path string) (errno int)
+ //sys	Unlinkat(dirfd int, path string) (errno int)
+ //sys	Unmount(target string, flags int) (errno int) = SYS_UMOUNT2
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 5bd3406de6..dbdb0897da 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -31,10 +31,10 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Fchown(fd int, uid int, gid int) (errno int) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
+ //sys	Ftruncate(fd int, length int64) (errno int) = SYS_FTRUNCATE64
+-//sys	Getegid() (egid int) = SYS_GETEGID32
+-//sys	Geteuid() (euid int) = SYS_GETEUID32
+-//sys	Getgid() (gid int) = SYS_GETGID32
+-//sys	Getuid() (uid int) = SYS_GETUID32
++//sysnb	Getegid() (egid int) = SYS_GETEGID32
++//sysnb	Geteuid() (euid int) = SYS_GETEUID32
++//sysnb	Getgid() (gid int) = SYS_GETGID32
++//sysnb	Getuid() (uid int) = SYS_GETUID32
+ //sys	Ioperm(from int, num int, on int) (errno int)
+ //sys	Iopl(level int) (errno int)
+ //sys	Lchown(path string, uid int, gid int) (errno int) = SYS_LCHOWN32
+@@ -43,17 +43,17 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, errno int) = SYS_PWRITE64
+ //sys	Setfsgid(gid int) (errno int) = SYS_SETFSGID32
+ //sys	Setfsuid(uid int) (errno int) = SYS_SETFSUID32
+-//sys	Setgid(gid int) (errno int) = SYS_SETGID32
+-//sys	Setregid(rgid int, egid int) (errno int) = SYS_SETREGID32
+-//sys	Setresgid(rgid int, egid int, sgid int) (errno int) = SYS_SETRESGID32
+-//sys	Setresuid(ruid int, euid int, suid int) (errno int) = SYS_SETRESUID32
+-//sys	Setreuid(ruid int, euid int) (errno int) = SYS_SETREUID32
++//sysnb	Setgid(gid int) (errno int) = SYS_SETGID32
++//sysnb	Setregid(rgid int, egid int) (errno int) = SYS_SETREGID32
++//sysnb	Setresgid(rgid int, egid int, sgid int) (errno int) = SYS_SETRESGID32
++//sysnb	Setresuid(ruid int, euid int, suid int) (errno int) = SYS_SETRESUID32
++//sysnb	Setreuid(ruid int, euid int) (errno int) = SYS_SETREUID32
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, errno int)
+ //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
+ //sys	Truncate(path string, length int64) (errno int) = SYS_TRUNCATE64
+-//sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
+-//sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
++//sysnb	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
++//sysnb	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
+ 
+ // Underlying system call writes to newoffset via pointer.
+@@ -61,8 +61,8 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ 
+ // Vsyscalls on amd64.
+-//sys	Gettimeofday(tv *Timeval) (errno int)
+-//sys	Time(t *Time_t) (tt Time_t, errno int)
++//sysnb	Gettimeofday(tv *Timeval) (errno int)
++//sysnb	Time(t *Time_t) (tt Time_t, errno int)
+ 
+ // On x86 Linux, all the socket calls go through an extra indirection,
+ // I think because the 5-register system call interface can't handle
+@@ -93,6 +93,7 @@ const (
+ )
+ 
+ func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
++func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
+ 
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	fd, errno = socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+@@ -100,17 +101,17 @@ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ }
+ 
+ func getsockname(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, errno = socketcall(_GETSOCKNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
++	_, errno = rawsocketcall(_GETSOCKNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+ 	return
+ }
+ 
+ func getpeername(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, errno = socketcall(_GETPEERNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
++	_, errno = rawsocketcall(_GETPEERNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+ 	return
+ }
+ 
+ func socketpair(domain int, typ int, flags int, fd *[2]int) (errno int) {
+-	_, errno = socketcall(_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(flags), uintptr(unsafe.Pointer(fd)), 0, 0)
++	_, errno = rawsocketcall(_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(flags), uintptr(unsafe.Pointer(fd)), 0, 0)
+ 	return
+ }
+ 
+@@ -125,7 +126,7 @@ func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
+ }
+ 
+ func socket(domain int, typ int, proto int) (fd int, errno int) {
+-	fd, errno = socketcall(_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto), 0, 0, 0)
++	fd, errno = rawsocketcall(_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto), 0, 0, 0)
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index ae108bd184..15f00eb2d2 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -9,10 +9,10 @@ package syscall
+ //sys	Fstat(fd int, stat *Stat_t) (errno int)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (errno int)
+ //sys	Ftruncate(fd int, length int64) (errno int)
+-//sys	Getegid() (egid int)
+-//sys	Geteuid() (euid int)
+-//sys	Getgid() (gid int)
+-//sys	Getuid() (uid int)
++//sysnb	Getegid() (egid int)
++//sysnb	Geteuid() (euid int)
++//sysnb	Getgid() (gid int)
++//sysnb	Getuid() (uid int)
+ //sys	Ioperm(from int, num int, on int) (errno int)
+ //sys	Iopl(level int) (errno int)
+ //sys	Lchown(path string, uid int, gid int) (errno int)
+@@ -24,11 +24,11 @@ package syscall
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int)
+ //sys	Setfsgid(gid int) (errno int)
+ //sys	Setfsuid(uid int) (errno int)
+-//sys	Setgid(gid int) (errno int)
+-//sys	Setregid(rgid int, egid int) (errno int)
+-//sys	Setresgid(rgid int, egid int, sgid int) (errno int)
+-//sys	Setresuid(ruid int, euid int, suid int) (errno int)
+-//sys	Setreuid(ruid int, euid int) (errno int)
++//sysnb	Setgid(gid int) (errno int)
++//sysnb	Setregid(rgid int, egid int) (errno int)
++//sysnb	Setresgid(rgid int, egid int, sgid int) (errno int)
++//sysnb	Setresuid(ruid int, euid int, suid int) (errno int)
++//sysnb	Setreuid(ruid int, euid int) (errno int)
+ //sys	Shutdown(fd int, how int) (errno int)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int)
+ //sys	Stat(path string, stat *Stat_t) (errno int)
+@@ -38,13 +38,13 @@ package syscall
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
+ //sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
+ //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
+-//sys	getgroups(n int, list *_Gid_t) (nn int, errno int)
+-//sys	setgroups(n int, list *_Gid_t) (errno int)
++//sysnb	getgroups(n int, list *_Gid_t) (nn int, errno int)
++//sysnb	setgroups(n int, list *_Gid_t) (errno int)
+ //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+-//sys	socket(domain int, typ int, proto int) (fd int, errno int)
+-//sys	socketpair(domain int, typ int, proto int, fd *[2]int) (errno int)
+-//sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+-//sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++//sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
++//sysnb	socketpair(domain int, typ int, proto int, fd *[2]int) (errno int)
++//sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++//sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
+ //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 1fc7a7b183..4927aaa168 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -55,15 +55,15 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
+ //sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
+ //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
+-//sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
+-//sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
++//sysnb	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
++//sysnb	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+ //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+-//sys	socket(domain int, typ int, proto int) (fd int, errno int)
+-//sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+-//sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++//sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
++//sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++//sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
+ //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
+-//sys	socketpair(domain int, typ int, flags int, fd *[2]int) (errno int)
++//sysnb	socketpair(domain int, typ int, flags int, fd *[2]int) (errno int)
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (errno int)
+ 
+@@ -72,21 +72,21 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ //sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
+ //sys	Fstatfs(fd int, buf *Statfs_t) (errno int) = SYS_FSTATFS64
+ //sys	Ftruncate(fd int, length int64) (errno int) = SYS_FTRUNCATE64
+-//sys	Getegid() (egid int)
+-//sys	Geteuid() (euid int)
+-//sys	Getgid() (gid int)
+-//sys	Getuid() (uid int)
++//sysnb	Getegid() (egid int)
++//sysnb	Geteuid() (euid int)
++//sysnb	Getgid() (gid int)
++//sysnb	Getuid() (uid int)
+ //sys	Lchown(path string, uid int, gid int) (errno int)
+ //sys	Listen(s int, n int) (errno int)
+ //sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
+ //sys	Setfsgid(gid int) (errno int)
+ //sys	Setfsuid(uid int) (errno int)
+-//sys	Setgid(gid int) (errno int)
+-//sys	Setregid(rgid int, egid int) (errno int)
+-//sys	Setresgid(rgid int, egid int, sgid int) (errno int)
+-//sys	Setresuid(ruid int, euid int, suid int) (errno int)
+-//sys	Setreuid(ruid int, euid int) (errno int)
++//sysnb	Setgid(gid int) (errno int)
++//sysnb	Setregid(rgid int, egid int) (errno int)
++//sysnb	Setresgid(rgid int, egid int, sgid int) (errno int)
++//sysnb	Setresuid(ruid int, euid int, suid int) (errno int)
++//sysnb	Setreuid(ruid int, euid int) (errno int)
+ //sys	Shutdown(fd int, how int) (errno int)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, errno int)
+ //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
+@@ -94,8 +94,8 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ //sys	Truncate(path string, length int64) (errno int) = SYS_TRUNCATE64
+ 
+ // Vsyscalls on amd64.
+-//sys	Gettimeofday(tv *Timeval) (errno int)
+-//sys	Time(t *Time_t) (tt Time_t, errno int)
++//sysnb	Gettimeofday(tv *Timeval) (errno int)
++//sysnb	Time(t *Time_t) (tt Time_t, errno int)
+ 
+ // TODO(kaib): add support for tracing
+ func (r *PtraceRegs) PC() uint64 { return 0 }
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index c01eca17ae..74fe29d020 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -13,6 +13,7 @@ var (
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ 
+ func Errstr(errno int) string {
+ 	if errno < 0 || errno >= int(len(errors)) {
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 973f00ef85..ca16797056 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -8,7 +8,7 @@ import "unsafe"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
++	r0, _, e1 := RawSyscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -17,7 +17,7 @@ func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func setgroups(ngid int, gid *_Gid_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
++	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -34,7 +34,7 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func pipe() (r int, w int, errno int) {
+-	r0, r1, e1 := Syscall(SYS_PIPE, 0, 0, 0)
++	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+ 	r = int(r0)
+ 	w = int(r1)
+ 	errno = int(e1)
+@@ -69,7 +69,7 @@ func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socket(domain int, typ int, proto int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
++	r0, _, e1 := RawSyscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -86,7 +86,7 @@ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -94,7 +94,7 @@ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -110,7 +110,7 @@ func Shutdown(s int, how int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socketpair(domain int, typ int, proto int, fd *[2]int) (errno int) {
+-	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
++	_, _, e1 := RawSyscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -267,7 +267,7 @@ func Close(fd int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -276,7 +276,7 @@ func Dup(fd int) (nfd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (errno int) {
+-	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -403,7 +403,7 @@ func Getdtablesize() (size int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getegid() (egid int) {
+-	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEGID, 0, 0, 0)
+ 	egid = int(r0)
+ 	return
+ }
+@@ -411,7 +411,7 @@ func Getegid() (egid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Geteuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETEUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEUID, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -434,7 +434,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getgid() (gid int) {
+-	r0, _, _ := Syscall(SYS_GETGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETGID, 0, 0, 0)
+ 	gid = int(r0)
+ 	return
+ }
+@@ -442,7 +442,7 @@ func Getgid() (gid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgid(pid int) (pgid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETPGID, uintptr(pid), 0, 0)
+ 	pgid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -451,7 +451,7 @@ func Getpgid(pid int) (pgid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgrp() (pgrp int) {
+-	r0, _, _ := Syscall(SYS_GETPGRP, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPGRP, 0, 0, 0)
+ 	pgrp = int(r0)
+ 	return
+ }
+@@ -459,7 +459,7 @@ func Getpgrp() (pgrp int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpid() (pid int) {
+-	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+ 	pid = int(r0)
+ 	return
+ }
+@@ -467,7 +467,7 @@ func Getpid() (pid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getppid() (ppid int) {
+-	r0, _, _ := Syscall(SYS_GETPPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPPID, 0, 0, 0)
+ 	ppid = int(r0)
+ 	return
+ }
+@@ -484,7 +484,7 @@ func Getpriority(which int, who int) (prio int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrlimit(which int, lim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -492,7 +492,7 @@ func Getrlimit(which int, lim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrusage(who int, rusage *Rusage) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -500,7 +500,7 @@ func Getrusage(who int, rusage *Rusage) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getsid(pid int) (sid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETSID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETSID, uintptr(pid), 0, 0)
+ 	sid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -509,7 +509,7 @@ func Getsid(pid int) (sid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -517,7 +517,7 @@ func Getuid() (uid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Issetugid() (tainted bool) {
+-	r0, _, _ := Syscall(SYS_ISSETUGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_ISSETUGID, 0, 0, 0)
+ 	tainted = bool(r0 != 0)
+ 	return
+ }
+@@ -717,7 +717,7 @@ func Setegid(egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Seteuid(euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETEUID, uintptr(euid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETEUID, uintptr(euid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -725,7 +725,7 @@ func Seteuid(euid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setgid(gid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETGID, uintptr(gid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -741,7 +741,7 @@ func Setlogin(name string) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setpgid(pid int, pgid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
++	_, _, e1 := RawSyscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -765,7 +765,7 @@ func Setprivexec(flag int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setregid(rgid int, egid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -773,7 +773,7 @@ func Setregid(rgid int, egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setreuid(ruid int, euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -781,7 +781,7 @@ func Setreuid(ruid int, euid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setrlimit(which int, lim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
++	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -789,7 +789,7 @@ func Setrlimit(which int, lim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setsid() (pid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
++	r0, _, e1 := RawSyscall(SYS_SETSID, 0, 0, 0)
+ 	pid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -798,7 +798,7 @@ func Setsid() (pid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Settimeofday(tp *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -806,7 +806,7 @@ func Settimeofday(tp *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setuid(uid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETUID, uintptr(uid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETUID, uintptr(uid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -919,7 +919,7 @@ func write(fd int, buf *byte, nbuf int) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func gettimeofday(tp *Timeval) (sec int32, usec int32, errno int) {
+-	r0, r1, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
++	r0, r1, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
+ 	sec = int32(r0)
+ 	usec = int32(r1)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index f7a37b63e7..1edb31883b 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -8,7 +8,7 @@ import "unsafe"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
++	r0, _, e1 := RawSyscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -17,7 +17,7 @@ func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func setgroups(ngid int, gid *_Gid_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
++	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -34,7 +34,7 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func pipe() (r int, w int, errno int) {
+-	r0, r1, e1 := Syscall(SYS_PIPE, 0, 0, 0)
++	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+ 	r = int(r0)
+ 	w = int(r1)
+ 	errno = int(e1)
+@@ -69,7 +69,7 @@ func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socket(domain int, typ int, proto int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
++	r0, _, e1 := RawSyscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -86,7 +86,7 @@ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -94,7 +94,7 @@ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -110,7 +110,7 @@ func Shutdown(s int, how int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socketpair(domain int, typ int, proto int, fd *[2]int) (errno int) {
+-	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
++	_, _, e1 := RawSyscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -267,7 +267,7 @@ func Close(fd int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -276,7 +276,7 @@ func Dup(fd int) (nfd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (errno int) {
+-	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -403,7 +403,7 @@ func Getdtablesize() (size int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getegid() (egid int) {
+-	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEGID, 0, 0, 0)
+ 	egid = int(r0)
+ 	return
+ }
+@@ -411,7 +411,7 @@ func Getegid() (egid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Geteuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETEUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEUID, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -434,7 +434,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getgid() (gid int) {
+-	r0, _, _ := Syscall(SYS_GETGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETGID, 0, 0, 0)
+ 	gid = int(r0)
+ 	return
+ }
+@@ -442,7 +442,7 @@ func Getgid() (gid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgid(pid int) (pgid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETPGID, uintptr(pid), 0, 0)
+ 	pgid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -451,7 +451,7 @@ func Getpgid(pid int) (pgid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgrp() (pgrp int) {
+-	r0, _, _ := Syscall(SYS_GETPGRP, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPGRP, 0, 0, 0)
+ 	pgrp = int(r0)
+ 	return
+ }
+@@ -459,7 +459,7 @@ func Getpgrp() (pgrp int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpid() (pid int) {
+-	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+ 	pid = int(r0)
+ 	return
+ }
+@@ -467,7 +467,7 @@ func Getpid() (pid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getppid() (ppid int) {
+-	r0, _, _ := Syscall(SYS_GETPPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPPID, 0, 0, 0)
+ 	ppid = int(r0)
+ 	return
+ }
+@@ -484,7 +484,7 @@ func Getpriority(which int, who int) (prio int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrlimit(which int, lim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -492,7 +492,7 @@ func Getrlimit(which int, lim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrusage(who int, rusage *Rusage) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -500,7 +500,7 @@ func Getrusage(who int, rusage *Rusage) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getsid(pid int) (sid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETSID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETSID, uintptr(pid), 0, 0)
+ 	sid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -509,7 +509,7 @@ func Getsid(pid int) (sid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -517,7 +517,7 @@ func Getuid() (uid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Issetugid() (tainted bool) {
+-	r0, _, _ := Syscall(SYS_ISSETUGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_ISSETUGID, 0, 0, 0)
+ 	tainted = bool(r0 != 0)
+ 	return
+ }
+@@ -717,7 +717,7 @@ func Setegid(egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Seteuid(euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETEUID, uintptr(euid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETEUID, uintptr(euid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -725,7 +725,7 @@ func Seteuid(euid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setgid(gid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETGID, uintptr(gid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -741,7 +741,7 @@ func Setlogin(name string) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setpgid(pid int, pgid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
++	_, _, e1 := RawSyscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -765,7 +765,7 @@ func Setprivexec(flag int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setregid(rgid int, egid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -773,7 +773,7 @@ func Setregid(rgid int, egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setreuid(ruid int, euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -781,7 +781,7 @@ func Setreuid(ruid int, euid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setrlimit(which int, lim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
++	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -789,7 +789,7 @@ func Setrlimit(which int, lim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setsid() (pid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
++	r0, _, e1 := RawSyscall(SYS_SETSID, 0, 0, 0)
+ 	pid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -798,7 +798,7 @@ func Setsid() (pid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Settimeofday(tp *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -806,7 +806,7 @@ func Settimeofday(tp *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setuid(uid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETUID, uintptr(uid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETUID, uintptr(uid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -919,7 +919,7 @@ func write(fd int, buf *byte, nbuf int) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func gettimeofday(tp *Timeval) (sec int64, usec int32, errno int) {
+-	r0, r1, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
++	r0, r1, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
+ 	sec = int64(r0)
+ 	usec = int32(r1)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 1fab5e2d2f..d5b03f66fc 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -8,7 +8,7 @@ import "unsafe"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
++	r0, _, e1 := RawSyscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -17,7 +17,7 @@ func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func setgroups(ngid int, gid *_Gid_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
++	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -34,7 +34,7 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func pipe() (r int, w int, errno int) {
+-	r0, r1, e1 := Syscall(SYS_PIPE, 0, 0, 0)
++	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+ 	r = int(r0)
+ 	w = int(r1)
+ 	errno = int(e1)
+@@ -69,7 +69,7 @@ func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socket(domain int, typ int, proto int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
++	r0, _, e1 := RawSyscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -86,7 +86,7 @@ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -94,7 +94,7 @@ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -110,7 +110,7 @@ func Shutdown(s int, how int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socketpair(domain int, typ int, proto int, fd *[2]int) (errno int) {
+-	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
++	_, _, e1 := RawSyscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -259,7 +259,7 @@ func Close(fd int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -268,7 +268,7 @@ func Dup(fd int) (nfd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (errno int) {
+-	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -387,7 +387,7 @@ func Getdtablesize() (size int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getegid() (egid int) {
+-	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEGID, 0, 0, 0)
+ 	egid = int(r0)
+ 	return
+ }
+@@ -395,7 +395,7 @@ func Getegid() (egid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Geteuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETEUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEUID, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -418,7 +418,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getgid() (gid int) {
+-	r0, _, _ := Syscall(SYS_GETGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETGID, 0, 0, 0)
+ 	gid = int(r0)
+ 	return
+ }
+@@ -426,7 +426,7 @@ func Getgid() (gid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgid(pid int) (pgid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETPGID, uintptr(pid), 0, 0)
+ 	pgid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -435,7 +435,7 @@ func Getpgid(pid int) (pgid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgrp() (pgrp int) {
+-	r0, _, _ := Syscall(SYS_GETPGRP, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPGRP, 0, 0, 0)
+ 	pgrp = int(r0)
+ 	return
+ }
+@@ -443,7 +443,7 @@ func Getpgrp() (pgrp int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpid() (pid int) {
+-	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+ 	pid = int(r0)
+ 	return
+ }
+@@ -451,7 +451,7 @@ func Getpid() (pid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getppid() (ppid int) {
+-	r0, _, _ := Syscall(SYS_GETPPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPPID, 0, 0, 0)
+ 	ppid = int(r0)
+ 	return
+ }
+@@ -468,7 +468,7 @@ func Getpriority(which int, who int) (prio int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrlimit(which int, lim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -476,7 +476,7 @@ func Getrlimit(which int, lim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrusage(who int, rusage *Rusage) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -484,7 +484,7 @@ func Getrusage(who int, rusage *Rusage) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getsid(pid int) (sid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETSID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETSID, uintptr(pid), 0, 0)
+ 	sid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -493,7 +493,7 @@ func Getsid(pid int) (sid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettimeofday(tv *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -501,7 +501,7 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -717,7 +717,7 @@ func Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setegid(egid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETEGID, uintptr(egid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETEGID, uintptr(egid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -725,7 +725,7 @@ func Setegid(egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Seteuid(euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETEUID, uintptr(euid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETEUID, uintptr(euid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -733,7 +733,7 @@ func Seteuid(euid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setgid(gid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETGID, uintptr(gid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -749,7 +749,7 @@ func Setlogin(name string) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setpgid(pid int, pgid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
++	_, _, e1 := RawSyscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -765,7 +765,7 @@ func Setpriority(which int, who int, prio int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setregid(rgid int, egid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -773,7 +773,7 @@ func Setregid(rgid int, egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setreuid(ruid int, euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -781,7 +781,7 @@ func Setreuid(ruid int, euid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setrlimit(which int, lim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
++	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -789,7 +789,7 @@ func Setrlimit(which int, lim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setsid() (pid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
++	r0, _, e1 := RawSyscall(SYS_SETSID, 0, 0, 0)
+ 	pid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -798,7 +798,7 @@ func Setsid() (pid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Settimeofday(tp *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -806,7 +806,7 @@ func Settimeofday(tp *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setuid(uid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETUID, uintptr(uid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETUID, uintptr(uid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index 53434b263b..f76434a07f 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -8,7 +8,7 @@ import "unsafe"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
++	r0, _, e1 := RawSyscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
+ 	n = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -17,7 +17,7 @@ func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func setgroups(ngid int, gid *_Gid_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
++	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -34,7 +34,7 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func pipe() (r int, w int, errno int) {
+-	r0, r1, e1 := Syscall(SYS_PIPE, 0, 0, 0)
++	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+ 	r = int(r0)
+ 	w = int(r1)
+ 	errno = int(e1)
+@@ -69,7 +69,7 @@ func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socket(domain int, typ int, proto int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
++	r0, _, e1 := RawSyscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -86,7 +86,7 @@ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -94,7 +94,7 @@ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -110,7 +110,7 @@ func Shutdown(s int, how int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socketpair(domain int, typ int, proto int, fd *[2]int) (errno int) {
+-	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
++	_, _, e1 := RawSyscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -259,7 +259,7 @@ func Close(fd int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -268,7 +268,7 @@ func Dup(fd int) (nfd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (errno int) {
+-	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -387,7 +387,7 @@ func Getdtablesize() (size int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getegid() (egid int) {
+-	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEGID, 0, 0, 0)
+ 	egid = int(r0)
+ 	return
+ }
+@@ -395,7 +395,7 @@ func Getegid() (egid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Geteuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETEUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEUID, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -418,7 +418,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getgid() (gid int) {
+-	r0, _, _ := Syscall(SYS_GETGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETGID, 0, 0, 0)
+ 	gid = int(r0)
+ 	return
+ }
+@@ -426,7 +426,7 @@ func Getgid() (gid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgid(pid int) (pgid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETPGID, uintptr(pid), 0, 0)
+ 	pgid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -435,7 +435,7 @@ func Getpgid(pid int) (pgid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgrp() (pgrp int) {
+-	r0, _, _ := Syscall(SYS_GETPGRP, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPGRP, 0, 0, 0)
+ 	pgrp = int(r0)
+ 	return
+ }
+@@ -443,7 +443,7 @@ func Getpgrp() (pgrp int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpid() (pid int) {
+-	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+ 	pid = int(r0)
+ 	return
+ }
+@@ -451,7 +451,7 @@ func Getpid() (pid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getppid() (ppid int) {
+-	r0, _, _ := Syscall(SYS_GETPPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPPID, 0, 0, 0)
+ 	ppid = int(r0)
+ 	return
+ }
+@@ -468,7 +468,7 @@ func Getpriority(which int, who int) (prio int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrlimit(which int, lim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -476,7 +476,7 @@ func Getrlimit(which int, lim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrusage(who int, rusage *Rusage) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -484,7 +484,7 @@ func Getrusage(who int, rusage *Rusage) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getsid(pid int) (sid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETSID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETSID, uintptr(pid), 0, 0)
+ 	sid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -493,7 +493,7 @@ func Getsid(pid int) (sid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettimeofday(tv *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -501,7 +501,7 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -717,7 +717,7 @@ func Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setegid(egid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETEGID, uintptr(egid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETEGID, uintptr(egid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -725,7 +725,7 @@ func Setegid(egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Seteuid(euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETEUID, uintptr(euid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETEUID, uintptr(euid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -733,7 +733,7 @@ func Seteuid(euid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setgid(gid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETGID, uintptr(gid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -749,7 +749,7 @@ func Setlogin(name string) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setpgid(pid int, pgid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
++	_, _, e1 := RawSyscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -765,7 +765,7 @@ func Setpriority(which int, who int, prio int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setregid(rgid int, egid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -773,7 +773,7 @@ func Setregid(rgid int, egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setreuid(ruid int, euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -781,7 +781,7 @@ func Setreuid(ruid int, euid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setrlimit(which int, lim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
++	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -789,7 +789,7 @@ func Setrlimit(which int, lim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setsid() (pid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
++	r0, _, e1 := RawSyscall(SYS_SETSID, 0, 0, 0)
+ 	pid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -798,7 +798,7 @@ func Setsid() (pid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Settimeofday(tp *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -806,7 +806,7 @@ func Settimeofday(tp *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setuid(uid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETUID, uintptr(uid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETUID, uintptr(uid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index bade293e24..6777e6cf94 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -26,7 +26,7 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int)
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func pipe(p *[2]_C_int) (errno int) {
+-	_, _, e1 := Syscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -156,7 +156,7 @@ func Creat(path string, mode uint32) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(oldfd int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_DUP, uintptr(oldfd), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -165,7 +165,7 @@ func Dup(oldfd int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(oldfd int, newfd int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
++	r0, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -174,7 +174,7 @@ func Dup2(oldfd int, newfd int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func EpollCreate(size int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -183,7 +183,7 @@ func EpollCreate(size int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int) {
+-	_, _, e1 := Syscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
++	_, _, e1 := RawSyscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -301,7 +301,7 @@ func Getdents(fd int, buf []byte) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgid(pid int) (pgid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETPGID, uintptr(pid), 0, 0)
+ 	pgid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -310,7 +310,7 @@ func Getpgid(pid int) (pgid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgrp() (pid int) {
+-	r0, _, _ := Syscall(SYS_GETPGRP, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPGRP, 0, 0, 0)
+ 	pid = int(r0)
+ 	return
+ }
+@@ -318,7 +318,7 @@ func Getpgrp() (pid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpid() (pid int) {
+-	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+ 	pid = int(r0)
+ 	return
+ }
+@@ -326,7 +326,7 @@ func Getpid() (pid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getppid() (ppid int) {
+-	r0, _, _ := Syscall(SYS_GETPPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPPID, 0, 0, 0)
+ 	ppid = int(r0)
+ 	return
+ }
+@@ -334,7 +334,7 @@ func Getppid() (ppid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrlimit(resource int, rlim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -342,7 +342,7 @@ func Getrlimit(resource int, rlim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrusage(who int, rusage *Rusage) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -350,7 +350,7 @@ func Getrusage(who int, rusage *Rusage) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettid() (tid int) {
+-	r0, _, _ := Syscall(SYS_GETTID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETTID, 0, 0, 0)
+ 	tid = int(r0)
+ 	return
+ }
+@@ -367,7 +367,7 @@ func InotifyAddWatch(fd int, pathname string, mask uint32) (watchdesc int, errno
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func InotifyInit() (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_INOTIFY_INIT, 0, 0, 0)
++	r0, _, e1 := RawSyscall(SYS_INOTIFY_INIT, 0, 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -376,7 +376,7 @@ func InotifyInit() (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func InotifyInit1(flags int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_INOTIFY_INIT1, uintptr(flags), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_INOTIFY_INIT1, uintptr(flags), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -385,7 +385,7 @@ func InotifyInit1(flags int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func InotifyRmWatch(fd int, watchdesc uint32) (success int, errno int) {
+-	r0, _, e1 := Syscall(SYS_INOTIFY_RM_WATCH, uintptr(fd), uintptr(watchdesc), 0)
++	r0, _, e1 := RawSyscall(SYS_INOTIFY_RM_WATCH, uintptr(fd), uintptr(watchdesc), 0)
+ 	success = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -394,7 +394,7 @@ func InotifyRmWatch(fd int, watchdesc uint32) (success int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Kill(pid int, sig int) (errno int) {
+-	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
++	_, _, e1 := RawSyscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -571,7 +571,7 @@ func Sethostname(p []byte) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setpgid(pid int, pgid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
++	_, _, e1 := RawSyscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -579,7 +579,7 @@ func Setpgid(pid int, pgid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
++	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -587,7 +587,7 @@ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setsid() (pid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
++	r0, _, e1 := RawSyscall(SYS_SETSID, 0, 0, 0)
+ 	pid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -596,7 +596,7 @@ func Setsid() (pid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Settimeofday(tv *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -604,7 +604,7 @@ func Settimeofday(tv *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setuid(uid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETUID, uintptr(uid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETUID, uintptr(uid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -627,7 +627,7 @@ func Sync() {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Sysinfo(info *Sysinfo_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_SYSINFO, uintptr(unsafe.Pointer(info)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SYSINFO, uintptr(unsafe.Pointer(info)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -644,7 +644,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Tgkill(tgid int, tid int, sig int) (errno int) {
+-	_, _, e1 := Syscall(SYS_TGKILL, uintptr(tgid), uintptr(tid), uintptr(sig))
++	_, _, e1 := RawSyscall(SYS_TGKILL, uintptr(tgid), uintptr(tid), uintptr(sig))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -652,7 +652,7 @@ func Tgkill(tgid int, tid int, sig int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Times(tms *Tms) (ticks uintptr, errno int) {
+-	r0, _, e1 := Syscall(SYS_TIMES, uintptr(unsafe.Pointer(tms)), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_TIMES, uintptr(unsafe.Pointer(tms)), 0, 0)
+ 	ticks = uintptr(r0)
+ 	errno = int(e1)
+ 	return
+@@ -661,7 +661,7 @@ func Times(tms *Tms) (ticks uintptr, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Umask(mask int) (oldmask int) {
+-	r0, _, _ := Syscall(SYS_UMASK, uintptr(mask), 0, 0)
++	r0, _, _ := RawSyscall(SYS_UMASK, uintptr(mask), 0, 0)
+ 	oldmask = int(r0)
+ 	return
+ }
+@@ -669,7 +669,7 @@ func Umask(mask int) (oldmask int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Uname(buf *Utsname) (errno int) {
+-	_, _, e1 := Syscall(SYS_UNAME, uintptr(unsafe.Pointer(buf)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_UNAME, uintptr(unsafe.Pointer(buf)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -798,7 +798,7 @@ func Ftruncate(fd int, length int64) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getegid() (egid int) {
+-	r0, _, _ := Syscall(SYS_GETEGID32, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEGID32, 0, 0, 0)
+ 	egid = int(r0)
+ 	return
+ }
+@@ -806,7 +806,7 @@ func Getegid() (egid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Geteuid() (euid int) {
+-	r0, _, _ := Syscall(SYS_GETEUID32, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEUID32, 0, 0, 0)
+ 	euid = int(r0)
+ 	return
+ }
+@@ -814,7 +814,7 @@ func Geteuid() (euid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getgid() (gid int) {
+-	r0, _, _ := Syscall(SYS_GETGID32, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETGID32, 0, 0, 0)
+ 	gid = int(r0)
+ 	return
+ }
+@@ -822,7 +822,7 @@ func Getgid() (gid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETUID32, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETUID32, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -908,7 +908,7 @@ func Setfsuid(uid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setgid(gid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGID32, uintptr(gid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETGID32, uintptr(gid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -916,7 +916,7 @@ func Setgid(gid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setregid(rgid int, egid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREGID32, uintptr(rgid), uintptr(egid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREGID32, uintptr(rgid), uintptr(egid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -924,7 +924,7 @@ func Setregid(rgid int, egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setresgid(rgid int, egid int, sgid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRESGID32, uintptr(rgid), uintptr(egid), uintptr(sgid))
++	_, _, e1 := RawSyscall(SYS_SETRESGID32, uintptr(rgid), uintptr(egid), uintptr(sgid))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -932,7 +932,7 @@ func Setresgid(rgid int, egid int, sgid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setresuid(ruid int, euid int, suid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRESUID32, uintptr(ruid), uintptr(euid), uintptr(suid))
++	_, _, e1 := RawSyscall(SYS_SETRESUID32, uintptr(ruid), uintptr(euid), uintptr(suid))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -940,7 +940,7 @@ func Setresuid(ruid int, euid int, suid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setreuid(ruid int, euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREUID32, uintptr(ruid), uintptr(euid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREUID32, uintptr(ruid), uintptr(euid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -981,7 +981,7 @@ func Truncate(path string, length int64) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getgroups(n int, list *_Gid_t) (nn int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
++	r0, _, e1 := RawSyscall(SYS_GETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+ 	nn = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -990,7 +990,7 @@ func getgroups(n int, list *_Gid_t) (nn int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func setgroups(n int, list *_Gid_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
++	_, _, e1 := RawSyscall(SYS_SETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1007,7 +1007,7 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettimeofday(tv *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1015,7 +1015,7 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Time(t *Time_t) (tt Time_t, errno int) {
+-	r0, _, e1 := Syscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
+ 	tt = Time_t(r0)
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 65ea8dab5c..f29d462d4a 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -26,7 +26,7 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int)
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func pipe(p *[2]_C_int) (errno int) {
+-	_, _, e1 := Syscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -156,7 +156,7 @@ func Creat(path string, mode uint32) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(oldfd int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_DUP, uintptr(oldfd), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -165,7 +165,7 @@ func Dup(oldfd int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(oldfd int, newfd int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
++	r0, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -174,7 +174,7 @@ func Dup2(oldfd int, newfd int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func EpollCreate(size int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -183,7 +183,7 @@ func EpollCreate(size int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int) {
+-	_, _, e1 := Syscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
++	_, _, e1 := RawSyscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -301,7 +301,7 @@ func Getdents(fd int, buf []byte) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgid(pid int) (pgid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETPGID, uintptr(pid), 0, 0)
+ 	pgid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -310,7 +310,7 @@ func Getpgid(pid int) (pgid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgrp() (pid int) {
+-	r0, _, _ := Syscall(SYS_GETPGRP, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPGRP, 0, 0, 0)
+ 	pid = int(r0)
+ 	return
+ }
+@@ -318,7 +318,7 @@ func Getpgrp() (pid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpid() (pid int) {
+-	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+ 	pid = int(r0)
+ 	return
+ }
+@@ -326,7 +326,7 @@ func Getpid() (pid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getppid() (ppid int) {
+-	r0, _, _ := Syscall(SYS_GETPPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPPID, 0, 0, 0)
+ 	ppid = int(r0)
+ 	return
+ }
+@@ -334,7 +334,7 @@ func Getppid() (ppid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrlimit(resource int, rlim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -342,7 +342,7 @@ func Getrlimit(resource int, rlim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrusage(who int, rusage *Rusage) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -350,7 +350,7 @@ func Getrusage(who int, rusage *Rusage) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettid() (tid int) {
+-	r0, _, _ := Syscall(SYS_GETTID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETTID, 0, 0, 0)
+ 	tid = int(r0)
+ 	return
+ }
+@@ -367,7 +367,7 @@ func InotifyAddWatch(fd int, pathname string, mask uint32) (watchdesc int, errno
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func InotifyInit() (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_INOTIFY_INIT, 0, 0, 0)
++	r0, _, e1 := RawSyscall(SYS_INOTIFY_INIT, 0, 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -376,7 +376,7 @@ func InotifyInit() (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func InotifyInit1(flags int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_INOTIFY_INIT1, uintptr(flags), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_INOTIFY_INIT1, uintptr(flags), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -385,7 +385,7 @@ func InotifyInit1(flags int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func InotifyRmWatch(fd int, watchdesc uint32) (success int, errno int) {
+-	r0, _, e1 := Syscall(SYS_INOTIFY_RM_WATCH, uintptr(fd), uintptr(watchdesc), 0)
++	r0, _, e1 := RawSyscall(SYS_INOTIFY_RM_WATCH, uintptr(fd), uintptr(watchdesc), 0)
+ 	success = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -394,7 +394,7 @@ func InotifyRmWatch(fd int, watchdesc uint32) (success int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Kill(pid int, sig int) (errno int) {
+-	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
++	_, _, e1 := RawSyscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -571,7 +571,7 @@ func Sethostname(p []byte) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setpgid(pid int, pgid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
++	_, _, e1 := RawSyscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -579,7 +579,7 @@ func Setpgid(pid int, pgid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
++	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -587,7 +587,7 @@ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setsid() (pid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
++	r0, _, e1 := RawSyscall(SYS_SETSID, 0, 0, 0)
+ 	pid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -596,7 +596,7 @@ func Setsid() (pid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Settimeofday(tv *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -604,7 +604,7 @@ func Settimeofday(tv *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setuid(uid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETUID, uintptr(uid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETUID, uintptr(uid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -627,7 +627,7 @@ func Sync() {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Sysinfo(info *Sysinfo_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_SYSINFO, uintptr(unsafe.Pointer(info)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SYSINFO, uintptr(unsafe.Pointer(info)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -644,7 +644,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Tgkill(tgid int, tid int, sig int) (errno int) {
+-	_, _, e1 := Syscall(SYS_TGKILL, uintptr(tgid), uintptr(tid), uintptr(sig))
++	_, _, e1 := RawSyscall(SYS_TGKILL, uintptr(tgid), uintptr(tid), uintptr(sig))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -652,7 +652,7 @@ func Tgkill(tgid int, tid int, sig int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Times(tms *Tms) (ticks uintptr, errno int) {
+-	r0, _, e1 := Syscall(SYS_TIMES, uintptr(unsafe.Pointer(tms)), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_TIMES, uintptr(unsafe.Pointer(tms)), 0, 0)
+ 	ticks = uintptr(r0)
+ 	errno = int(e1)
+ 	return
+@@ -661,7 +661,7 @@ func Times(tms *Tms) (ticks uintptr, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Umask(mask int) (oldmask int) {
+-	r0, _, _ := Syscall(SYS_UMASK, uintptr(mask), 0, 0)
++	r0, _, _ := RawSyscall(SYS_UMASK, uintptr(mask), 0, 0)
+ 	oldmask = int(r0)
+ 	return
+ }
+@@ -669,7 +669,7 @@ func Umask(mask int) (oldmask int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Uname(buf *Utsname) (errno int) {
+-	_, _, e1 := Syscall(SYS_UNAME, uintptr(unsafe.Pointer(buf)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_UNAME, uintptr(unsafe.Pointer(buf)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -806,7 +806,7 @@ func Ftruncate(fd int, length int64) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getegid() (egid int) {
+-	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEGID, 0, 0, 0)
+ 	egid = int(r0)
+ 	return
+ }
+@@ -814,7 +814,7 @@ func Getegid() (egid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Geteuid() (euid int) {
+-	r0, _, _ := Syscall(SYS_GETEUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEUID, 0, 0, 0)
+ 	euid = int(r0)
+ 	return
+ }
+@@ -822,7 +822,7 @@ func Geteuid() (euid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getgid() (gid int) {
+-	r0, _, _ := Syscall(SYS_GETGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETGID, 0, 0, 0)
+ 	gid = int(r0)
+ 	return
+ }
+@@ -830,7 +830,7 @@ func Getgid() (gid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -942,7 +942,7 @@ func Setfsuid(uid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setgid(gid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETGID, uintptr(gid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -950,7 +950,7 @@ func Setgid(gid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setregid(rgid int, egid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -958,7 +958,7 @@ func Setregid(rgid int, egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setresgid(rgid int, egid int, sgid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
++	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -966,7 +966,7 @@ func Setresgid(rgid int, egid int, sgid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setresuid(ruid int, euid int, suid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
++	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -974,7 +974,7 @@ func Setresuid(ruid int, euid int, suid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setreuid(ruid int, euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1056,7 +1056,7 @@ func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getgroups(n int, list *_Gid_t) (nn int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
++	r0, _, e1 := RawSyscall(SYS_GETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+ 	nn = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -1065,7 +1065,7 @@ func getgroups(n int, list *_Gid_t) (nn int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func setgroups(n int, list *_Gid_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
++	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1081,7 +1081,7 @@ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socket(domain int, typ int, proto int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
++	r0, _, e1 := RawSyscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -1090,7 +1090,7 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socketpair(domain int, typ int, proto int, fd *[2]int) (errno int) {
+-	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
++	_, _, e1 := RawSyscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1098,7 +1098,7 @@ func socketpair(domain int, typ int, proto int, fd *[2]int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1106,7 +1106,7 @@ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 883dd62dd4..2bf007f04c 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -26,7 +26,7 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, errno int)
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func pipe(p *[2]_C_int) (errno int) {
+-	_, _, e1 := Syscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -156,7 +156,7 @@ func Creat(path string, mode uint32) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(oldfd int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_DUP, uintptr(oldfd), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -165,7 +165,7 @@ func Dup(oldfd int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(oldfd int, newfd int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
++	r0, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -174,7 +174,7 @@ func Dup2(oldfd int, newfd int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func EpollCreate(size int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_EPOLL_CREATE, uintptr(size), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -183,7 +183,7 @@ func EpollCreate(size int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func EpollCtl(epfd int, op int, fd int, event *EpollEvent) (errno int) {
+-	_, _, e1 := Syscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
++	_, _, e1 := RawSyscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -301,7 +301,7 @@ func Getdents(fd int, buf []byte) (n int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgid(pid int) (pgid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_GETPGID, uintptr(pid), 0, 0)
+ 	pgid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -310,7 +310,7 @@ func Getpgid(pid int) (pgid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpgrp() (pid int) {
+-	r0, _, _ := Syscall(SYS_GETPGRP, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPGRP, 0, 0, 0)
+ 	pid = int(r0)
+ 	return
+ }
+@@ -318,7 +318,7 @@ func Getpgrp() (pid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getpid() (pid int) {
+-	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+ 	pid = int(r0)
+ 	return
+ }
+@@ -326,7 +326,7 @@ func Getpid() (pid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getppid() (ppid int) {
+-	r0, _, _ := Syscall(SYS_GETPPID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETPPID, 0, 0, 0)
+ 	ppid = int(r0)
+ 	return
+ }
+@@ -334,7 +334,7 @@ func Getppid() (ppid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrlimit(resource int, rlim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -342,7 +342,7 @@ func Getrlimit(resource int, rlim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getrusage(who int, rusage *Rusage) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
++	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -350,7 +350,7 @@ func Getrusage(who int, rusage *Rusage) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettid() (tid int) {
+-	r0, _, _ := Syscall(SYS_GETTID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETTID, 0, 0, 0)
+ 	tid = int(r0)
+ 	return
+ }
+@@ -367,7 +367,7 @@ func InotifyAddWatch(fd int, pathname string, mask uint32) (watchdesc int, errno
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func InotifyInit() (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_INOTIFY_INIT, 0, 0, 0)
++	r0, _, e1 := RawSyscall(SYS_INOTIFY_INIT, 0, 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -376,7 +376,7 @@ func InotifyInit() (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func InotifyInit1(flags int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_INOTIFY_INIT1, uintptr(flags), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_INOTIFY_INIT1, uintptr(flags), 0, 0)
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -385,7 +385,7 @@ func InotifyInit1(flags int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func InotifyRmWatch(fd int, watchdesc uint32) (success int, errno int) {
+-	r0, _, e1 := Syscall(SYS_INOTIFY_RM_WATCH, uintptr(fd), uintptr(watchdesc), 0)
++	r0, _, e1 := RawSyscall(SYS_INOTIFY_RM_WATCH, uintptr(fd), uintptr(watchdesc), 0)
+ 	success = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -394,7 +394,7 @@ func InotifyRmWatch(fd int, watchdesc uint32) (success int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Kill(pid int, sig int) (errno int) {
+-	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
++	_, _, e1 := RawSyscall(SYS_KILL, uintptr(pid), uintptr(sig), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -571,7 +571,7 @@ func Sethostname(p []byte) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setpgid(pid int, pgid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
++	_, _, e1 := RawSyscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -579,7 +579,7 @@ func Setpgid(pid int, pgid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
++	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -587,7 +587,7 @@ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setsid() (pid int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
++	r0, _, e1 := RawSyscall(SYS_SETSID, 0, 0, 0)
+ 	pid = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -596,7 +596,7 @@ func Setsid() (pid int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Settimeofday(tv *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -604,7 +604,7 @@ func Settimeofday(tv *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setuid(uid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETUID, uintptr(uid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETUID, uintptr(uid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -627,7 +627,7 @@ func Sync() {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Sysinfo(info *Sysinfo_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_SYSINFO, uintptr(unsafe.Pointer(info)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SYSINFO, uintptr(unsafe.Pointer(info)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -644,7 +644,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Tgkill(tgid int, tid int, sig int) (errno int) {
+-	_, _, e1 := Syscall(SYS_TGKILL, uintptr(tgid), uintptr(tid), uintptr(sig))
++	_, _, e1 := RawSyscall(SYS_TGKILL, uintptr(tgid), uintptr(tid), uintptr(sig))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -652,7 +652,7 @@ func Tgkill(tgid int, tid int, sig int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Times(tms *Tms) (ticks uintptr, errno int) {
+-	r0, _, e1 := Syscall(SYS_TIMES, uintptr(unsafe.Pointer(tms)), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_TIMES, uintptr(unsafe.Pointer(tms)), 0, 0)
+ 	ticks = uintptr(r0)
+ 	errno = int(e1)
+ 	return
+@@ -661,7 +661,7 @@ func Times(tms *Tms) (ticks uintptr, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Umask(mask int) (oldmask int) {
+-	r0, _, _ := Syscall(SYS_UMASK, uintptr(mask), 0, 0)
++	r0, _, _ := RawSyscall(SYS_UMASK, uintptr(mask), 0, 0)
+ 	oldmask = int(r0)
+ 	return
+ }
+@@ -669,7 +669,7 @@ func Umask(mask int) (oldmask int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Uname(buf *Utsname) (errno int) {
+-	_, _, e1 := Syscall(SYS_UNAME, uintptr(unsafe.Pointer(buf)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_UNAME, uintptr(unsafe.Pointer(buf)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -791,7 +791,7 @@ func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getgroups(n int, list *_Gid_t) (nn int, errno int) {
+-	r0, _, e1 := Syscall(SYS_GETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
++	r0, _, e1 := RawSyscall(SYS_GETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+ 	nn = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -800,7 +800,7 @@ func getgroups(n int, list *_Gid_t) (nn int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func setgroups(n int, list *_Gid_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
++	_, _, e1 := RawSyscall(SYS_SETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -816,7 +816,7 @@ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socket(domain int, typ int, proto int) (fd int, errno int) {
+-	r0, _, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
++	r0, _, e1 := RawSyscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto))
+ 	fd = int(r0)
+ 	errno = int(e1)
+ 	return
+@@ -825,7 +825,7 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -833,7 +833,7 @@ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	_, _, e1 := RawSyscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -870,7 +870,7 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func socketpair(domain int, typ int, flags int, fd *[2]int) (errno int) {
+-	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(flags), uintptr(unsafe.Pointer(fd)), 0, 0)
++	_, _, e1 := RawSyscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(flags), uintptr(unsafe.Pointer(fd)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -935,7 +935,7 @@ func Ftruncate(fd int, length int64) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getegid() (egid int) {
+-	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEGID, 0, 0, 0)
+ 	egid = int(r0)
+ 	return
+ }
+@@ -943,7 +943,7 @@ func Getegid() (egid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Geteuid() (euid int) {
+-	r0, _, _ := Syscall(SYS_GETEUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETEUID, 0, 0, 0)
+ 	euid = int(r0)
+ 	return
+ }
+@@ -951,7 +951,7 @@ func Geteuid() (euid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getgid() (gid int) {
+-	r0, _, _ := Syscall(SYS_GETGID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETGID, 0, 0, 0)
+ 	gid = int(r0)
+ 	return
+ }
+@@ -959,7 +959,7 @@ func Getgid() (gid int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Getuid() (uid int) {
+-	r0, _, _ := Syscall(SYS_GETUID, 0, 0, 0)
++	r0, _, _ := RawSyscall(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+ 	return
+ }
+@@ -1016,7 +1016,7 @@ func Setfsuid(uid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setgid(gid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0)
++	_, _, e1 := RawSyscall(SYS_SETGID, uintptr(gid), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1024,7 +1024,7 @@ func Setgid(gid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setregid(rgid int, egid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1032,7 +1032,7 @@ func Setregid(rgid int, egid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setresgid(rgid int, egid int, sgid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
++	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1040,7 +1040,7 @@ func Setresgid(rgid int, egid int, sgid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setresuid(ruid int, euid int, suid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
++	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1048,7 +1048,7 @@ func Setresuid(ruid int, euid int, suid int) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Setreuid(ruid int, euid int) (errno int) {
+-	_, _, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
++	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1097,7 +1097,7 @@ func Truncate(path string, length int64) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettimeofday(tv *Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
++	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -1105,7 +1105,7 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Time(t *Time_t) (tt Time_t, errno int) {
+-	r0, _, e1 := Syscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
++	r0, _, e1 := RawSyscall(SYS_TIME, uintptr(unsafe.Pointer(t)), 0, 0)
+ 	tt = Time_t(r0)
+ 	errno = int(e1)
+ 	return

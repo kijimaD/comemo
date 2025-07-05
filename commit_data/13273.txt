@@ -12,7 +12,43 @@ Date:   Tue Jun 5 01:38:55 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6247062
-
+---
  misc/cgo/stdio/file.go  |  3 ---
  misc/cgo/stdio/stdio.go | 15 +++++++++++++++
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/stdio/file.go b/misc/cgo/stdio/file.go
+index 6e7d479ad9..a202f358c6 100644
+--- a/misc/cgo/stdio/file.go
++++ b/misc/cgo/stdio/file.go
+@@ -23,9 +23,6 @@ import "unsafe"
+ 
+ type File C.FILE
+ 
+-var Stdout = (*File)(C.stdout)
+-var Stderr = (*File)(C.stderr)
+-
+ // Test reference to library symbol.
+ // Stdout and stderr are too special to be a reliable test.
+ //var  = C.environ
+diff --git a/misc/cgo/stdio/stdio.go b/misc/cgo/stdio/stdio.go
+new file mode 100644
+index 0000000000..67b7aea1e2
+--- /dev/null
++++ b/misc/cgo/stdio/stdio.go
+@@ -0,0 +1,15 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !netbsd
++
++package stdio
++
++/*
++#include <stdio.h>
++*/
++import "C"
++
++var Stdout = (*File)(C.stdout)
++var Stderr = (*File)(C.stderr)

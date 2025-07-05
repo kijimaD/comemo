@@ -7,6 +7,26 @@ Date:   Tue Mar 6 15:16:45 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5754048
-
+---
  lib/godoc/godoc.html | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 09a2cc4c2f..62deed745b 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -61,7 +61,6 @@ Creative Commons Attribution 3.0 License.
+ </div>
+ 
+ </body>
+-<!--
+ <script type="text/javascript">
+   (function() {
+     var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+@@ -69,6 +68,5 @@ Creative Commons Attribution 3.0 License.
+     var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+   })();
+ </script>
+--->
+ </html>
+ 

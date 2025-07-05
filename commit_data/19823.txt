@@ -10,6 +10,19 @@ Date:   Sat Jul 26 17:45:45 2014 -0400
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/120760043
-
+---
  src/cmd/ld/pobj.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 5584eb244a..d78dacd368 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -63,7 +63,6 @@ main(int argc, char *argv[])
+ 	INITRND = -1;
+ 	INITENTRY = 0;
+ 	linkmode = LinkAuto;
+-	nuxiinit();
+ 	
+ 	if(thechar == '5' && ctxt->goarm == 5)
+ 		debug['F'] = 1;

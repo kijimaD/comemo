@@ -24,9 +24,106 @@ Date:   Mon Oct 21 13:01:56 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/621635
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/mem_sbrk.go | 24 ++++++++++++++++++++++--
  src/runtime/mem_wasm.go | 19 +++++++++++++------
  src/runtime/os_wasm.go  |  1 +
  src/runtime/sys_wasm.s  |  6 ++++++
  4 files changed, 42 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/mem_sbrk.go b/src/runtime/mem_sbrk.go
+index dc0a764a2c..1f0b9bf1d7 100644
+--- a/src/runtime/mem_sbrk.go
++++ b/src/runtime/mem_sbrk.go
+@@ -10,8 +10,28 @@ import "unsafe"
+ 
+ const memDebug = false
+ 
+-var bloc uintptr
+-var blocMax uintptr
++// Memory management on sbrk systems (including the linear memory
++// on Wasm).
++
++// bloc is the runtime's sense of the break, which can go up or
++// down. blocMax is the system's break, also the high water mark
++// of bloc. The runtime uses memory up to bloc. The memory
++// between bloc and blocMax is allocated by the OS but not used
++// by the runtime.
++//
++// When the runtime needs to grow the heap address range, it
++// increases bloc. When it needs to grow beyond blocMax, it calls
++// the system sbrk to allocate more memory (and therefore
++// increase blocMax).
++//
++// When the runtime frees memory at the end of the address space,
++// it decreases bloc, but does not reduces the system break (as
++// the OS doesn't support it). When the runtime frees memory in
++// the middle of the address space, the memory goes to a free
++// list.
++
++var bloc uintptr    // The runtime's sense of break. Can go up or down.
++var blocMax uintptr // The break of the OS. Only increase.
+ var memlock mutex
+ 
+ type memHdr struct {
+diff --git a/src/runtime/mem_wasm.go b/src/runtime/mem_wasm.go
+index d9d32705bb..76de88ac3c 100644
+--- a/src/runtime/mem_wasm.go
++++ b/src/runtime/mem_wasm.go
+@@ -7,14 +7,21 @@ package runtime
+ import "unsafe"
+ 
+ func sbrk(n uintptr) unsafe.Pointer {
+-	grow := divRoundUp(n, physPageSize)
+-	size := growMemory(int32(grow))
+-	if size < 0 {
+-		return nil
++	bl := bloc
++	n = memRound(n)
++	if bl+n > blocMax {
++		grow := (bl + n - blocMax) / physPageSize
++		size := growMemory(int32(grow))
++		if size < 0 {
++			return nil
++		}
++		resetMemoryDataView()
++		blocMax = bl + n
+ 	}
+-	resetMemoryDataView()
+-	return unsafe.Pointer(uintptr(size) * physPageSize)
++	bloc += n
++	return unsafe.Pointer(bl)
+ }
+ 
+ // Implemented in src/runtime/sys_wasm.s
+ func growMemory(pages int32) int32
++func currentMemory() int32
+diff --git a/src/runtime/os_wasm.go b/src/runtime/os_wasm.go
+index 15bc3131f1..8046caf45e 100644
+--- a/src/runtime/os_wasm.go
++++ b/src/runtime/os_wasm.go
+@@ -13,6 +13,7 @@ func osinit() {
+ 	// https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
+ 	physPageSize = 64 * 1024
+ 	initBloc()
++	blocMax = uintptr(currentMemory()) * physPageSize // record the initial linear memory size
+ 	ncpu = 1
+ 	getg().m.procid = 2
+ }
+diff --git a/src/runtime/sys_wasm.s b/src/runtime/sys_wasm.s
+index 1e73adadd5..b7965ec3fa 100644
+--- a/src/runtime/sys_wasm.s
++++ b/src/runtime/sys_wasm.s
+@@ -86,6 +86,12 @@ TEXT runtime·exitThread(SB), NOSPLIT, $0-0
+ TEXT runtime·osyield(SB), NOSPLIT, $0-0
+ 	UNDEF
+ 
++TEXT runtime·currentMemory(SB), NOSPLIT, $0
++	Get SP
++	CurrentMemory
++	I32Store ret+0(FP)
++	RET
++
+ TEXT runtime·growMemory(SB), NOSPLIT, $0
+ 	Get SP
+ 	I32Load pages+0(FP)

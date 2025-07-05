@@ -22,7 +22,7 @@ Date:   Fri Aug 2 02:20:38 2019 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |  2 ++
  src/cmd/compile/internal/gc/ssa.go         |  2 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules |  1 +
@@ -31,3 +31,140 @@ Date:   Fri Aug 2 02:20:38 2019 +0000
  src/cmd/compile/internal/ssa/rewriteARM.go | 16 +++++++++++++++-
  test/codegen/mathbits.go                   |  2 ++
  7 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 0b798a52b9..ab0f417117 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -224,6 +224,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpARMSRR:
++		genregshift(s, arm.AMOVW, 0, v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_RR)
+ 	case ssa.OpARMMULAF, ssa.OpARMMULAD, ssa.OpARMMULSF, ssa.OpARMMULSD:
+ 		r := v.Reg()
+ 		r0 := v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e1c464b843..a911b175e8 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3504,7 +3504,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpRotateLeft32, types.Types[TUINT32], args[0], args[1])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
++		sys.AMD64, sys.ARM, sys.ARM64, sys.S390X, sys.PPC64)
+ 	addF("math/bits", "RotateLeft64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpRotateLeft64, types.Types[TUINT64], args[0], args[1])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 87a91b1261..a3ee9046c5 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -1237,6 +1237,7 @@
+ (RotateLeft32 x (MOVWconst [c])) -> (SRRconst [-c&31] x)
+ (RotateLeft16 <t> x (MOVWconst [c])) -> (Or16 (Lsh16x32 <t> x (MOVWconst [c&15])) (Rsh16Ux32 <t> x (MOVWconst [-c&15])))
+ (RotateLeft8 <t> x (MOVWconst [c])) -> (Or8 (Lsh8x32 <t> x (MOVWconst [c&7])) (Rsh8Ux32 <t> x (MOVWconst [-c&7])))
++(RotateLeft32 x y) -> (SRR x (RSBconst [0] <y.Type> y))
+ 
+ // ((x>>8) | (x<<8)) -> (REV16 x), the type of x is uint16, "|" can also be "^" or "+".
+ // UBFX instruction is supported by ARMv6T2, ARMv7 and above versions, REV16 is supported by
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 484f6cfe71..eb0f671d0d 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -225,6 +225,7 @@ func init() {
+ 		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int32"}, // arg0 >> auxInt, unsigned
+ 		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                    // arg0 >> arg1, signed, shift amount is mod 256
+ 		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int32"}, // arg0 >> auxInt, signed
++		{name: "SRR", argLength: 2, reg: gp21},                                // arg0 right rotate by arg1 bits
+ 		{name: "SRRconst", argLength: 1, reg: gp11, aux: "Int32"},             // arg0 right rotate by auxInt bits
+ 
+ 		{name: "ADDshiftLL", argLength: 2, reg: gp21, asm: "ADD", aux: "Int32"}, // arg0 + arg1<<auxInt
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f316ea16e6..d692ed21e8 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -937,6 +937,7 @@ const (
+ 	OpARMSRLconst
+ 	OpARMSRA
+ 	OpARMSRAconst
++	OpARMSRR
+ 	OpARMSRRconst
+ 	OpARMADDshiftLL
+ 	OpARMADDshiftRL
+@@ -12448,6 +12449,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SRR",
++		argLen: 2,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++				{1, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:    "SRRconst",
+ 		auxType: auxInt32,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 8b569781c5..78227c1b1f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -20242,6 +20242,7 @@ func rewriteValueARM_OpRotateLeft16_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM_OpRotateLeft32_0(v *Value) bool {
++	b := v.Block
+ 	// match: (RotateLeft32 x (MOVWconst [c]))
+ 	// cond:
+ 	// result: (SRRconst [-c&31] x)
+@@ -20258,7 +20259,20 @@ func rewriteValueARM_OpRotateLeft32_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	return false
++	// match: (RotateLeft32 x y)
++	// cond:
++	// result: (SRR x (RSBconst [0] <y.Type> y))
++	for {
++		y := v.Args[1]
++		x := v.Args[0]
++		v.reset(OpARMSRR)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Pos, OpARMRSBconst, y.Type)
++		v0.AuxInt = 0
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
+ }
+ func rewriteValueARM_OpRotateLeft8_0(v *Value) bool {
+ 	b := v.Block
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 0d94bd1bc8..ea90e3a50e 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -208,6 +208,7 @@ func RotateLeft64(n uint64) uint64 {
+ 
+ func RotateLeft32(n uint32) uint32 {
+ 	// amd64:"ROLL" 386:"ROLL"
++	// arm:`MOVW\tR[0-9]+@>[$]23`
+ 	// arm64:"RORW"
+ 	// ppc64:"ROTLW"
+ 	// ppc64le:"ROTLW"
+@@ -244,6 +245,7 @@ func RotateLeftVariable64(n uint64, m int) uint64 {
+ }
+ 
+ func RotateLeftVariable32(n uint32, m int) uint32 {
++	// arm:`MOVW\tR[0-9]+@>R[0-9]+`
+ 	// amd64:"ROLL"
+ 	// arm64:"RORW"
+ 	// ppc64:"ROTLW"

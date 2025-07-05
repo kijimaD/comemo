@@ -16,7 +16,7 @@ Date:   Fri Mar 8 21:01:17 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/570275
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/cmd/go/internal/cache/cache.go     | 18 ++++++-------
  src/crypto/x509/x509.go                |  8 +++---
  src/internal/godebug/godebug.go        | 24 +++++++++++++++--
@@ -27,3 +27,350 @@ Date:   Fri Mar 8 21:01:17 2024 -0500
  src/net/http/transfer.go               |  6 ++---
  src/runtime/metrics/doc.go             | 17 ------------
  9 files changed, 100 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 14b2deccd4..c3442eccbf 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -159,22 +159,22 @@ var DebugTest = false
+ func init() { initEnv() }
+ 
+ var (
+-	goCacheVerify = godebug.New("gocacheverify")
+-	goDebugHash   = godebug.New("gocachehash")
+-	goCacheTest   = godebug.New("gocachetest")
++	gocacheverify = godebug.New("gocacheverify")
++	gocachehash   = godebug.New("gocachehash")
++	gocachetest   = godebug.New("gocachetest")
+ )
+ 
+ func initEnv() {
+-	if goCacheVerify.Value() == "1" {
+-		goCacheVerify.IncNonDefault()
++	if gocacheverify.Value() == "1" {
++		gocacheverify.IncNonDefault()
+ 		verify = true
+ 	}
+-	if goDebugHash.Value() == "1" {
+-		goDebugHash.IncNonDefault()
++	if gocachehash.Value() == "1" {
++		gocachehash.IncNonDefault()
+ 		debugHash = true
+ 	}
+-	if goCacheTest.Value() == "1" {
+-		goCacheTest.IncNonDefault()
++	if gocachetest.Value() == "1" {
++		gocachetest.IncNonDefault()
+ 		DebugTest = true
+ 	}
+ }
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index f33283b559..636a345eef 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1101,7 +1101,7 @@ func isIA5String(s string) error {
+ 	return nil
+ }
+ 
+-var usePoliciesField = godebug.New("x509usepolicies")
++var x509usepolicies = godebug.New("x509usepolicies")
+ 
+ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte, subjectKeyId []byte) (ret []pkix.Extension, err error) {
+ 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
+@@ -1188,7 +1188,7 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
+ 		n++
+ 	}
+ 
+-	usePolicies := usePoliciesField.Value() == "1"
++	usePolicies := x509usepolicies.Value() == "1"
+ 	if ((!usePolicies && len(template.PolicyIdentifiers) > 0) || (usePolicies && len(template.Policies) > 0)) &&
+ 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
+ 		ret[n], err = marshalCertificatePolicies(template.Policies, template.PolicyIdentifiers)
+@@ -1381,8 +1381,8 @@ func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectI
+ 
+ 	b := cryptobyte.NewBuilder(make([]byte, 0, 128))
+ 	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+-		if usePoliciesField.Value() == "1" {
+-			usePoliciesField.IncNonDefault()
++		if x509usepolicies.Value() == "1" {
++			x509usepolicies.IncNonDefault()
+ 			for _, v := range policies {
+ 				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+ 					child.AddASN1(cryptobyte_asn1.OBJECT_IDENTIFIER, func(child *cryptobyte.Builder) {
+diff --git a/src/internal/godebug/godebug.go b/src/internal/godebug/godebug.go
+index 36bfeaccc4..0756d313e6 100644
+--- a/src/internal/godebug/godebug.go
++++ b/src/internal/godebug/godebug.go
+@@ -22,8 +22,23 @@
+ //	}
+ //
+ // Each time a non-default setting causes a change in program behavior,
+-// code should call [Setting.IncNonDefault] to increment a counter that can
+-// be reported by [runtime/metrics.Read].
++// code must call [Setting.IncNonDefault] to increment a counter that can
++// be reported by [runtime/metrics.Read]. The call must only happen when
++// the program executes a non-default behavior, not just when the setting
++// is set to a non-default value. This is occasionally (but very rarely)
++// infeasible, in which case the internal/godebugs table entry must set
++// Opaque: true, and the documentation in doc/godebug.md should
++// mention that metrics are unavailable.
++//
++// Conventionally, the global variable representing a godebug is named
++// for the godebug itself, with no case changes:
++//
++//	var gotypesalias = godebug.New("gotypesalias") // this
++//	var goTypesAlias = godebug.New("gotypesalias") // NOT THIS
++//
++// The test in internal/godebugs that checks for use of IncNonDefault
++// requires the use of this convention.
++//
+ // Note that counters used with IncNonDefault must be added to
+ // various tables in other packages. See the [Setting.IncNonDefault]
+ // documentation for details.
+@@ -70,6 +85,11 @@ type value struct {
+ // To disable that panic for access to an undocumented setting,
+ // prefix the name with a #, as in godebug.New("#gofsystrace").
+ // The # is a signal to New but not part of the key used in $GODEBUG.
++//
++// Note that almost all settings should arrange to call [IncNonDefault] precisely
++// when program behavior is changing from the default due to the setting
++// (not just when the setting is different, but when program behavior changes).
++// See the [internal/godebug] package comment for more.
+ func New(name string) *Setting {
+ 	return &Setting{name: name}
+ }
+diff --git a/src/internal/godebugs/godebugs_test.go b/src/internal/godebugs/godebugs_test.go
+index a1cb8d492a..046193b5c6 100644
+--- a/src/internal/godebugs/godebugs_test.go
++++ b/src/internal/godebugs/godebugs_test.go
+@@ -8,12 +8,17 @@ import (
+ 	"internal/godebugs"
+ 	"internal/testenv"
+ 	"os"
++	"os/exec"
++	"path/filepath"
++	"regexp"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestAll(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
+ 	data, err := os.ReadFile("../../../doc/godebug.md")
+ 	if err != nil {
+ 		if os.IsNotExist(err) && (testenv.Builder() == "" || runtime.GOOS != "linux") {
+@@ -23,6 +28,8 @@ func TestAll(t *testing.T) {
+ 	}
+ 	doc := string(data)
+ 
++	incs := incNonDefaults(t)
++
+ 	last := ""
+ 	for _, info := range godebugs.All {
+ 		if info.Name <= last {
+@@ -42,5 +49,46 @@ func TestAll(t *testing.T) {
+ 		if !strings.Contains(doc, "`"+info.Name+"`") {
+ 			t.Errorf("Name=%s not documented in doc/godebug.md", info.Name)
+ 		}
++		if !info.Opaque && !incs[info.Name] {
++			t.Errorf("Name=%s missing IncNonDefault calls; see 'go doc internal/godebug'", info.Name)
++		}
++	}
++}
++
++var incNonDefaultRE = regexp.MustCompile(`([\pL\p{Nd}_]+)\.IncNonDefault\(\)`)
++
++func incNonDefaults(t *testing.T) map[string]bool {
++	// Build list of all files importing internal/godebug.
++	// Tried a more sophisticated search in go list looking for
++	// imports containing "internal/godebug", but that turned
++	// up a bug in go list instead. #66218
++	out, err := exec.Command("go", "list", "-f={{.Dir}}", "std", "cmd").CombinedOutput()
++	if err != nil {
++		t.Fatalf("go list: %v\n%s", err, out)
++	}
++
++	seen := map[string]bool{}
++	for _, dir := range strings.Split(string(out), "\n") {
++		if dir == "" {
++			continue
++		}
++		files, err := os.ReadDir(dir)
++		if err != nil {
++			t.Fatal(err)
++		}
++		for _, file := range files {
++			name := file.Name()
++			if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
++				continue
++			}
++			data, err := os.ReadFile(filepath.Join(dir, name))
++			if err != nil {
++				t.Fatal(err)
++			}
++			for _, m := range incNonDefaultRE.FindAllSubmatch(data, -1) {
++				seen[string(m[1])] = true
++			}
++		}
+ 	}
++	return seen
+ }
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index d5ac707a18..c11f708dd9 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -29,14 +29,14 @@ var All = []Info{
+ 	{Name: "gocachehash", Package: "cmd/go"},
+ 	{Name: "gocachetest", Package: "cmd/go"},
+ 	{Name: "gocacheverify", Package: "cmd/go"},
+-	{Name: "gotypesalias", Package: "go/types"},
++	{Name: "gotypesalias", Package: "go/types", Opaque: true}, // bug #66216: remove Opaque
+ 	{Name: "http2client", Package: "net/http"},
+ 	{Name: "http2debug", Package: "net/http", Opaque: true},
+ 	{Name: "http2server", Package: "net/http"},
+ 	{Name: "httplaxcontentlength", Package: "net/http", Changed: 22, Old: "1"},
+ 	{Name: "httpmuxgo121", Package: "net/http", Changed: 22, Old: "1"},
+ 	{Name: "installgoroot", Package: "go/build"},
+-	{Name: "jstmpllitinterp", Package: "html/template"},
++	{Name: "jstmpllitinterp", Package: "html/template", Opaque: true}, // bug #66217: remove Opaque
+ 	//{Name: "multipartfiles", Package: "mime/multipart"},
+ 	{Name: "multipartmaxheaders", Package: "mime/multipart"},
+ 	{Name: "multipartmaxparts", Package: "mime/multipart"},
+@@ -49,8 +49,8 @@ var All = []Info{
+ 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
+ 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+-	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0"},
+-	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
++	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0", Opaque: true}, // bug #66215: remove Opaque
++	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0", Opaque: true},        // bug #66215: remove Opaque
+ 	{Name: "x509sha1", Package: "crypto/x509"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+ 	{Name: "x509usepolicies", Package: "crypto/x509"},
+diff --git a/src/mime/multipart/formdata.go b/src/mime/multipart/formdata.go
+index 85bad2a4cb..e0a63a66ae 100644
+--- a/src/mime/multipart/formdata.go
++++ b/src/mime/multipart/formdata.go
+@@ -34,8 +34,8 @@ func (r *Reader) ReadForm(maxMemory int64) (*Form, error) {
+ }
+ 
+ var (
+-	multipartFiles    = godebug.New("#multipartfiles") // TODO: document and remove #
+-	multipartMaxParts = godebug.New("multipartmaxparts")
++	multipartfiles    = godebug.New("#multipartfiles") // TODO: document and remove #
++	multipartmaxparts = godebug.New("multipartmaxparts")
+ )
+ 
+ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+@@ -46,15 +46,15 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 	)
+ 	numDiskFiles := 0
+ 	combineFiles := true
+-	if multipartFiles.Value() == "distinct" {
++	if multipartfiles.Value() == "distinct" {
+ 		combineFiles = false
+-		// multipartFiles.IncNonDefault() // TODO: uncomment after documenting
++		// multipartfiles.IncNonDefault() // TODO: uncomment after documenting
+ 	}
+ 	maxParts := 1000
+-	if s := multipartMaxParts.Value(); s != "" {
++	if s := multipartmaxparts.Value(); s != "" {
+ 		if v, err := strconv.Atoi(s); err == nil && v >= 0 {
+ 			maxParts = v
+-			multipartMaxParts.IncNonDefault()
++			multipartmaxparts.IncNonDefault()
+ 		}
+ 	}
+ 	maxHeaders := maxMIMEHeaders()
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index da1f45810e..00a7e5fe46 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -347,15 +347,15 @@ type Reader struct {
+ // including header keys, values, and map overhead.
+ const maxMIMEHeaderSize = 10 << 20
+ 
+-// multipartMaxHeaders is the maximum number of header entries NextPart will return,
++// multipartmaxheaders is the maximum number of header entries NextPart will return,
+ // as well as the maximum combined total of header entries Reader.ReadForm will return
+ // in FileHeaders.
+-var multipartMaxHeaders = godebug.New("multipartmaxheaders")
++var multipartmaxheaders = godebug.New("multipartmaxheaders")
+ 
+ func maxMIMEHeaders() int64 {
+-	if s := multipartMaxHeaders.Value(); s != "" {
++	if s := multipartmaxheaders.Value(); s != "" {
+ 		if v, err := strconv.ParseInt(s, 10, 64); err == nil && v >= 0 {
+-			multipartMaxHeaders.IncNonDefault()
++			multipartmaxheaders.IncNonDefault()
+ 			return v
+ 		}
+ 	}
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 255e8bc45a..ee2107c418 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -1043,7 +1043,7 @@ func (bl bodyLocked) Read(p []byte) (n int, err error) {
+ 	return bl.b.readLocked(p)
+ }
+ 
+-var laxContentLength = godebug.New("httplaxcontentlength")
++var httplaxcontentlength = godebug.New("httplaxcontentlength")
+ 
+ // parseContentLength checks that the header is valid and then trims
+ // whitespace. It returns -1 if no value is set otherwise the value
+@@ -1057,8 +1057,8 @@ func parseContentLength(clHeaders []string) (int64, error) {
+ 	// The Content-Length must be a valid numeric value.
+ 	// See: https://datatracker.ietf.org/doc/html/rfc2616/#section-14.13
+ 	if cl == "" {
+-		if laxContentLength.Value() == "1" {
+-			laxContentLength.IncNonDefault()
++		if httplaxcontentlength.Value() == "1" {
++			httplaxcontentlength.IncNonDefault()
+ 			return -1, nil
+ 		}
+ 		return 0, badStringError("invalid empty Content-Length", cl)
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index e63599e0d9..e1b3387c13 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -246,10 +246,6 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the cmd/go
+ 		package due to a non-default GODEBUG=gocacheverify=... setting.
+ 
+-	/godebug/non-default-behavior/gotypesalias:events
+-		The number of non-default behaviors executed by the go/types
+-		package due to a non-default GODEBUG=gotypesalias=... setting.
+-
+ 	/godebug/non-default-behavior/http2client:events
+ 		The number of non-default behaviors executed by the net/http
+ 		package due to a non-default GODEBUG=http2client=... setting.
+@@ -271,11 +267,6 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the go/build
+ 		package due to a non-default GODEBUG=installgoroot=... setting.
+ 
+-	/godebug/non-default-behavior/jstmpllitinterp:events
+-		The number of non-default behaviors executed by
+-		the html/template package due to a non-default
+-		GODEBUG=jstmpllitinterp=... setting.
+-
+ 	/godebug/non-default-behavior/multipartmaxheaders:events
+ 		The number of non-default behaviors executed by
+ 		the mime/multipart package due to a non-default
+@@ -319,14 +310,6 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the crypto/tls
+ 		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
+ 
+-	/godebug/non-default-behavior/winreadlinkvolume:events
+-		The number of non-default behaviors executed by the os package
+-		due to a non-default GODEBUG=winreadlinkvolume=... setting.
+-
+-	/godebug/non-default-behavior/winsymlink:events
+-		The number of non-default behaviors executed by the os package
+-		due to a non-default GODEBUG=winsymlink=... setting.
+-
+ 	/godebug/non-default-behavior/x509sha1:events
+ 		The number of non-default behaviors executed by the crypto/x509
+ 		package due to a non-default GODEBUG=x509sha1=... setting.

@@ -26,7 +26,44 @@ Date:   Fri Jan 29 10:16:24 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/19101
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/print.go          | 8 ++++----
  src/cmd/vet/testdata/print.go | 3 +++
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 5436c5bf04..a16e864cad 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -445,12 +445,12 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
+ 		return false
+ 	}
+ 	arg := call.Args[argNum]
++	if f.isFunctionValue(arg) && state.verb != 'p' && state.verb != 'T' {
++		f.Badf(call.Pos(), "arg %s in printf call is a function value, not a function call", f.gofmt(arg))
++		return false
++	}
+ 	if !f.matchArgType(v.typ, nil, arg) {
+ 		typeString := ""
+-		if f.isFunctionValue(arg) {
+-			f.Badf(call.Pos(), "arg %s in printf call is a function value, not a function call", f.gofmt(arg))
+-			return false
+-		}
+ 		if typ := f.pkg.types[arg].Type; typ != nil {
+ 			typeString = typ.String()
+ 		}
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index beeb642f2a..c5faa36e89 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -197,7 +197,10 @@ func PrintfTests() {
+ 	et5.error() // ok, not an error method.
+ 	// Can't print a function.
+ 	Printf("%d", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
++	Printf("%v", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
+ 	Println(someFunction)      // ERROR "arg someFunction in Println call is a function value, not a function call"
++	Printf("%p", someFunction) // ok: maybe someone wants to see the pointer
++	Printf("%T", someFunction) // ok: maybe someone wants to see the type
+ 	// Bug: used to recur forever.
+ 	Printf("%p %x", recursiveStructV, recursiveStructV.next)
+ 	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next)

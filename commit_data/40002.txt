@@ -11,6 +11,47 @@ Date:   Tue Apr 9 08:35:36 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/strings.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 5a126a7a19..1805a14bd2 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -559,7 +559,7 @@ func ToUpper(s string) string {
+ 			isASCII = false
+ 			break
+ 		}
+-		hasLower = hasLower || (c >= 'a' && c <= 'z')
++		hasLower = hasLower || ('a' <= c && c <= 'z')
+ 	}
+ 
+ 	if isASCII { // optimize for ASCII-only strings.
+@@ -570,7 +570,7 @@ func ToUpper(s string) string {
+ 		b.Grow(len(s))
+ 		for i := 0; i < len(s); i++ {
+ 			c := s[i]
+-			if c >= 'a' && c <= 'z' {
++			if 'a' <= c && c <= 'z' {
+ 				c -= 'a' - 'A'
+ 			}
+ 			b.WriteByte(c)
+@@ -589,7 +589,7 @@ func ToLower(s string) string {
+ 			isASCII = false
+ 			break
+ 		}
+-		hasUpper = hasUpper || (c >= 'A' && c <= 'Z')
++		hasUpper = hasUpper || ('A' <= c && c <= 'Z')
+ 	}
+ 
+ 	if isASCII { // optimize for ASCII-only strings.
+@@ -600,7 +600,7 @@ func ToLower(s string) string {
+ 		b.Grow(len(s))
+ 		for i := 0; i < len(s); i++ {
+ 			c := s[i]
+-			if c >= 'A' && c <= 'Z' {
++			if 'A' <= c && c <= 'Z' {
+ 				c += 'a' - 'A'
+ 			}
+ 			b.WriteByte(c)

@@ -15,7 +15,38 @@ Date:   Fri Mar 1 08:25:35 2019 +0100
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/android/go_android_exec.go | 4 ++++
  misc/ios/go_darwin_arm_exec.go  | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/misc/android/go_android_exec.go b/misc/android/go_android_exec.go
+index 55461df31a..9a4e2afc80 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@ -156,6 +156,10 @@ func subdir() (pkgpath string, underGoRoot bool) {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
++	cwd, err = filepath.EvalSymlinks(cwd)
++	if err != nil {
++		log.Fatal(err)
++	}
+ 	goroot, err := filepath.EvalSymlinks(runtime.GOROOT())
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 3eb1757e8f..6a3d9def68 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -633,6 +633,10 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
+ 	if err != nil {
+ 		return "", false, err
+ 	}
++	cwd, err = filepath.EvalSymlinks(cwd)
++	if err != nil {
++		log.Fatal(err)
++	}
+ 	goroot, err := filepath.EvalSymlinks(runtime.GOROOT())
+ 	if err != nil {
+ 		return "", false, err

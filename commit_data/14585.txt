@@ -9,10 +9,309 @@ Date:   Sat Dec 8 14:43:00 2012 +0100
     R=rsc, golang-dev, mirtchovski, daniel.morsing, dave, lvd
     CC=golang-dev
     https://golang.org/cl/6856126
-
+---
  src/cmd/gc/export.c                  | 55 ++++++++++++++++++------------------
  src/cmd/gc/lex.c                     | 32 +++++++++++++++------
  test/fixedbugs/issue4252.dir/a.go    | 35 +++++++++++++++++++++++
  test/fixedbugs/issue4252.dir/main.go | 20 +++++++++++++
  test/fixedbugs/issue4252.go          | 11 ++++++++
  5 files changed, 118 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index ad0dc740d6..4d0368ef09 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -22,22 +22,8 @@ exportsym(Node *n)
+ 	}
+ 	n->sym->flags |= SymExport;
+ 
+-	exportlist = list(exportlist, n);
+-}
+-
+-// Mark n's symbol as package-local
+-static void
+-packagesym(Node *n)
+-{
+-	if(n == N || n->sym == S)
+-		return;
+-	if(n->sym->flags & (SymExport|SymPackage)) {
+-		if(n->sym->flags & SymExport)
+-			yyerror("export/package mismatch: %S", n->sym);
+-		return;
+-	}
+-	n->sym->flags |= SymPackage;
+-
++	if(debug['E'])
++		print("export symbol %S\n", n->sym);
+ 	exportlist = list(exportlist, n);
+ }
+ 
+@@ -58,6 +44,18 @@ initname(char *s)
+ 	return strcmp(s, "init") == 0;
+ }
+ 
++// exportedsym returns whether a symbol will be visible
++// to files that import our package.
++static int
++exportedsym(Sym *sym)
++{
++	// Builtins are visible everywhere.
++	if(sym->pkg == builtinpkg || sym->origpkg == builtinpkg)
++		return 1;
++
++	return sym->pkg == localpkg && exportname(sym->name);
++}
++
+ void
+ autoexport(Node *n, int ctxt)
+ {
+@@ -69,8 +67,6 @@ autoexport(Node *n, int ctxt)
+ 		return;
+ 	if(exportname(n->sym->name) || initname(n->sym->name))
+ 		exportsym(n);
+-	else
+-		packagesym(n);
+ }
+ 
+ static void
+@@ -104,17 +100,17 @@ reexportdep(Node *n)
+ 	if(!n)
+ 		return;
+ 
+-//	print("reexportdep %+hN\n", n);
++	//print("reexportdep %+hN\n", n);
+ 	switch(n->op) {
+ 	case ONAME:
+ 		switch(n->class&~PHEAP) {
+ 		case PFUNC:
+ 			// methods will be printed along with their type
+-			if(!n->type || n->type->thistuple > 0)
++			if(n->left && n->left->op == OTYPE)
+ 				break;
+ 			// fallthrough
+ 		case PEXTERN:
+-			if (n->sym && n->sym->pkg != localpkg && n->sym->pkg != builtinpkg)
++			if(n->sym && !exportedsym(n->sym))
+ 				exportlist = list(exportlist, n);
+ 		}
+ 		break;
+@@ -125,7 +121,7 @@ reexportdep(Node *n)
+ 		if(t != types[t->etype] && t != idealbool && t != idealstring) {
+ 			if(isptr[t->etype])
+ 				t = t->type;
+-			if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
++			if(t && t->sym && t->sym->def && !exportedsym(t->sym)) {
+ 				exportlist = list(exportlist, t->sym->def);
+ 			}
+ 		}
+@@ -136,15 +132,19 @@ reexportdep(Node *n)
+ 		if(t != types[n->type->etype] && t != idealbool && t != idealstring) {
+ 			if(isptr[t->etype])
+ 				t = t->type;
+-			if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
+-//				print("reexport literal type %+hN\n", t->sym->def);
++			if(t && t->sym && t->sym->def && !exportedsym(t->sym)) {
++				if(debug['E'])
++					print("reexport literal type %S\n", t->sym);
+ 				exportlist = list(exportlist, t->sym->def);
+ 			}
+ 		}
+ 		// fallthrough
+ 	case OTYPE:
+-		if (n->sym && n->sym->pkg != localpkg && n->sym->pkg != builtinpkg)
++		if(n->sym && !exportedsym(n->sym)) {
++			if(debug['E'])
++				print("reexport literal/type %S\n", n->sym);
+ 			exportlist = list(exportlist, n);
++		}
+ 		break;
+ 
+ 	// for operations that need a type when rendered, put the type on the export list.
+@@ -158,8 +158,9 @@ reexportdep(Node *n)
+ 		t = n->type;
+ 		if(!t->sym && t->type)
+ 			t = t->type;
+-		if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
+-//			print("reexport convnop %+hN\n", t->sym->def);
++		if(t && t->sym && t->sym->def && !exportedsym(t->sym)) {
++			if(debug['E'])
++				print("reexport type for convnop %S\n", t->sym);
+ 			exportlist = list(exportlist, t->sym->def);
+ 		}
+ 		break;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 8e16747efd..1b433a9a24 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -2016,8 +2016,10 @@ lexfini(void)
+ 		s->lexical = lex;
+ 
+ 		etype = syms[i].etype;
+-		if(etype != Txxx && (etype != TANY || debug['A']) && s->def == N)
++		if(etype != Txxx && (etype != TANY || debug['A']) && s->def == N) {
+ 			s->def = typenod(types[etype]);
++			s->origpkg = builtinpkg;
++		}
+ 
+ 		etype = syms[i].op;
+ 		if(etype != OXXX && s->def == N) {
+@@ -2025,54 +2027,68 @@ lexfini(void)
+ 			s->def->sym = s;
+ 			s->def->etype = etype;
+ 			s->def->builtin = 1;
++			s->origpkg = builtinpkg;
+ 		}
+ 	}
+ 
++	// backend-specific builtin types (e.g. int).
+ 	for(i=0; typedefs[i].name; i++) {
+ 		s = lookup(typedefs[i].name);
+-		if(s->def == N)
++		if(s->def == N) {
+ 			s->def = typenod(types[typedefs[i].etype]);
++			s->origpkg = builtinpkg;
++		}
+ 	}
+ 
+ 	// there's only so much table-driven we can handle.
+ 	// these are special cases.
+ 	s = lookup("byte");
+-	if(s->def == N)
++	if(s->def == N) {
+ 		s->def = typenod(bytetype);
+-	
++		s->origpkg = builtinpkg;
++	}
++
+ 	s = lookup("error");
+-	if(s->def == N)
++	if(s->def == N) {
+ 		s->def = typenod(errortype);
++		s->origpkg = builtinpkg;
++	}
+ 
+ 	s = lookup("rune");
+-	if(s->def == N)
++	if(s->def == N) {
+ 		s->def = typenod(runetype);
++		s->origpkg = builtinpkg;
++	}
+ 
+ 	s = lookup("nil");
+ 	if(s->def == N) {
+ 		v.ctype = CTNIL;
+ 		s->def = nodlit(v);
+ 		s->def->sym = s;
++		s->origpkg = builtinpkg;
+ 	}
+-	
++
+ 	s = lookup("iota");
+ 	if(s->def == N) {
+ 		s->def = nod(OIOTA, N, N);
+ 		s->def->sym = s;
++		s->origpkg = builtinpkg;
+ 	}
+ 
+ 	s = lookup("true");
+ 	if(s->def == N) {
+ 		s->def = nodbool(1);
+ 		s->def->sym = s;
++		s->origpkg = builtinpkg;
+ 	}
+ 
+ 	s = lookup("false");
+ 	if(s->def == N) {
+ 		s->def = nodbool(0);
+ 		s->def->sym = s;
++		s->origpkg = builtinpkg;
+ 	}
+-	
++
+ 	nodfp = nod(ONAME, N, N);
+ 	nodfp->type = types[TINT32];
+ 	nodfp->xoffset = 0;
+diff --git a/test/fixedbugs/issue4252.dir/a.go b/test/fixedbugs/issue4252.dir/a.go
+new file mode 100644
+index 0000000000..089b6f20f4
+--- /dev/null
++++ b/test/fixedbugs/issue4252.dir/a.go
+@@ -0,0 +1,35 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// A package that redeclares common builtin names.
++package a
++
++var true = 0 == 1
++var false = 0 == 0
++var nil = 1
++
++const append = 42
++
++type error bool
++type int interface{}
++
++func len(interface{}) int32 { return 42 }
++
++func Test() {
++	var array [append]int
++	if true {
++		panic("unexpected builtin true instead of redeclared one")
++	}
++	if !false {
++		panic("unexpected builtin false instead of redeclared one")
++	}
++	if len(array) != 42 {
++		println(len(array))
++		panic("unexpected call of builtin len")
++	}
++}
++
++func InlinedFakeTrue() error  { return error(true) }
++func InlinedFakeFalse() error { return error(false) }
++func InlinedFakeNil() int     { return nil }
+diff --git a/test/fixedbugs/issue4252.dir/main.go b/test/fixedbugs/issue4252.dir/main.go
+new file mode 100644
+index 0000000000..28e4342247
+--- /dev/null
++++ b/test/fixedbugs/issue4252.dir/main.go
+@@ -0,0 +1,20 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() {
++	if a.InlinedFakeTrue() {
++		panic("returned true was the real one")
++	}
++	if !a.InlinedFakeFalse() {
++		panic("returned false was the real one")
++	}
++	if a.InlinedFakeNil() == nil {
++		panic("returned nil was the real one")
++	}
++	a.Test()
++}
+diff --git a/test/fixedbugs/issue4252.go b/test/fixedbugs/issue4252.go
+new file mode 100644
+index 0000000000..1b0e5b2028
+--- /dev/null
++++ b/test/fixedbugs/issue4252.go
+@@ -0,0 +1,11 @@
++// rundir
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4252: tests that fixing the issue still allow
++// builtins to be redeclared and are not corrupted
++// in export data.
++
++package ignored

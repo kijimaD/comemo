@@ -15,8 +15,69 @@ Date:   Sun Aug 28 11:47:14 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/hash/crc32/crc32.go            | 5 ++++-
  src/hash/crc32/crc32_amd64_test.go | 9 ++++-----
  src/hash/crc32/crc32_test.go       | 3 +++
  3 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index 57089a700d..6eed8ff300 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -57,9 +57,12 @@ func castagnoliInit() {
+ 	needGenericTables := castagnoliInitArch()
+ 
+ 	if needGenericTables {
+-		castagnoliTable = makeTable(Castagnoli)
+ 		castagnoliTable8 = makeTable8(Castagnoli)
+ 	}
++
++	// Even if we don't need the contents of this table, we use it as a handle
++	// returned by MakeTable. We should find a way to clean this up (see #16909).
++	castagnoliTable = makeTable(Castagnoli)
+ }
+ 
+ // IEEETable is the table for the IEEE polynomial.
+diff --git a/src/hash/crc32/crc32_amd64_test.go b/src/hash/crc32/crc32_amd64_test.go
+index 8bbaa10221..e136f788d6 100644
+--- a/src/hash/crc32/crc32_amd64_test.go
++++ b/src/hash/crc32/crc32_amd64_test.go
+@@ -15,11 +15,10 @@ func TestCastagnoliSSE42(t *testing.T) {
+ 	}
+ 
+ 	// Init the SSE42 tables.
+-	MakeTable(Castagnoli)
++	castagnoliOnce.Do(castagnoliInit)
+ 
+-	// Manually init the software implementation to compare against.
+-	castagnoliTable = makeTable(Castagnoli)
+-	castagnoliTable8 = makeTable8(Castagnoli)
++	// Generate a table to use with the non-SSE version.
++	slicingTable := makeTable8(Castagnoli)
+ 
+ 	// The optimized SSE4.2 implementation behaves differently for different
+ 	// lengths (especially around multiples of K*3). Crosscheck against the
+@@ -32,7 +31,7 @@ func TestCastagnoliSSE42(t *testing.T) {
+ 					p := make([]byte, length)
+ 					_, _ = rand.Read(p)
+ 					crcInit := uint32(rand.Int63())
+-					correct := updateSlicingBy8(crcInit, castagnoliTable8, p)
++					correct := updateSlicingBy8(crcInit, slicingTable, p)
+ 					result := updateCastagnoli(crcInit, p)
+ 					if result != correct {
+ 						t.Errorf("SSE42 implementation = 0x%x want 0x%x (buffer length %d)",
+diff --git a/src/hash/crc32/crc32_test.go b/src/hash/crc32/crc32_test.go
+index 113a109698..7f7f0a2f74 100644
+--- a/src/hash/crc32/crc32_test.go
++++ b/src/hash/crc32/crc32_test.go
+@@ -51,6 +51,9 @@ var golden = []test{
+ 
+ func TestGolden(t *testing.T) {
+ 	castagnoliTab := MakeTable(Castagnoli)
++	if castagnoliTab == nil {
++		t.Errorf("nil Castagnoli Table")
++	}
+ 
+ 	for _, g := range golden {
+ 		ieee := NewIEEE()

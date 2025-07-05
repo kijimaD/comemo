@@ -8,7 +8,7 @@ Date:   Wed Mar 18 14:09:16 2009 -0700
     DELTA=103  (36 added, 33 deleted, 34 changed)
     OCL=26442
     CL=26491
-
+---
  doc/go_tutorial.txt      | 58 +++++++++++++++++++++++-------------------------
  doc/progs/cat.go         |  8 ++++---
  doc/progs/cat_rot13.go   |  7 +++---
@@ -25,3 +25,499 @@ Date:   Wed Mar 18 14:09:16 2009 -0700
  doc/progs/strings.go     |  4 +++-
  doc/progs/sum.go         |  4 +++-
  15 files changed, 70 insertions(+), 75 deletions(-)
+
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index 89ac59fa17..164182030e 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -4,7 +4,7 @@ Let's Go
+ Rob Pike
+ 
+ ----
+-(March 17, 2009)
++(March 18, 2009)
+ 
+ 
+ This document is a tutorial introduction to the basics of the Go systems programming
+@@ -36,7 +36,9 @@ Let's start in the usual way:
+ 
+ Every Go source file declares, using a "package" statement, which package it's part of.
+ The "main" package's "main" function is where the program starts running (after
+-any initialization).
++any initialization).  It may also import other packages to use their facilities.
++This program imports the package "fmt" to gain access to
++our old, now capitalized and package-qualified friend, "fmt.Printf".
+ 
+ Function declarations are introduced with the "func" keyword.
+ 
+@@ -44,18 +46,6 @@ Notice that string constants can contain Unicode characters, encoded in UTF-8.
+ Go is defined to accept UTF-8 input.  Strings are arrays of bytes, usually used
+ to store Unicode strings represented in UTF-8.
+ 
+-The built-in function "print()" has been used during the early stages of
+-development of the language but is not guaranteed to last.  Here's a version of the
+-program that doesn't depend on "print()":
+-
+---PROG progs/helloworld2.go
+-
+-This version imports the ''os'' package to acess its "Stdout" variable, of type
+-"*os.File".  The "import" statement is a declaration: it names the identifier ("os")
+-that will be used to access members of the package imported from the file (&quot;os&quot;),
+-found in the current directory or in a standard location.
+-Given "os.Stdout" we can use its "WriteString" method to print the string.
+-
+ The comment convention is the same as in C++:
+ 
+ 	/* ... */
+@@ -84,12 +74,23 @@ Semicolons aren't needed here; in fact, semicolons are unnecessary after any
+ top-level declaration, even though they are needed as separators <i>within</i>
+ a parenthesized list of declarations.
+ 
+-Also notice that we've dropped the explicit name from the imports; by default,
++This program imports the "&quot;os&quot;" package to access its "Stdout" variable, of type
++"*os.File".  The "import" statement is actually a declaration: in its general form,
++as used in our ``hello world'' program,
++it names the identifier ("fmt")
++that will be used to access members of the package imported from the file ("&quot;fmt&quot;"),
++found in the current directory or in a standard location.
++In this program, though, we've dropped the explicit name from the imports; by default,
+ packages are imported using the name defined by the imported package,
+-which by convention is of course the file name itself.  You can specify your
++which by convention is of course the file name itself.  Our ``hello world'' program
++could have said just "import &quot;fmt&quot;".
++
++You can specify your
+ own import names if you want but it's only necessary if you need to resolve
+ a naming conflict.
+ 
++Given "os.Stdout" we can use its "WriteString" method to print the string.
++
+ Having imported the "flag" package, line 8 creates a global variable to hold
+ the value of echo's "-n" flag. The variable "n_flag" has type "*bool", pointer
+ to "bool".
+@@ -407,7 +408,7 @@ Finally, we can use our new package:
+ 
+ --PROG progs/helloworld3.go
+ 
+-and run the program:
++And now we can run the program:
+ 
+ 	% helloworld3
+ 	hello, world
+@@ -424,8 +425,8 @@ Building on the "file" package, here's a simple version of the Unix utility "cat
+ 
+ By now this should be easy to follow, but the "switch" statement introduces some
+ new features.  Like a "for" loop, an "if" or "switch" can include an
+-initialization statement.  The "switch" on line 12 uses one to create variables
+-"nr" and "er" to hold the return values from "f.Read()".  (The "if" on line 19
++initialization statement.  The "switch" on line 14 uses one to create variables
++"nr" and "er" to hold the return values from "f.Read()".  (The "if" on line 21
+ has the same idea.)  The "switch" statement is general: it evaluates the cases
+ from  top to bottom looking for the first case that matches the value; the
+ case expressions don't need to be constants or even integers, as long as
+@@ -437,7 +438,7 @@ in a "for" statement, a missing value means "true".  In fact, such a "switch"
+ is a form of "if-else" chain. While we're here, it should be mentioned that in
+ "switch" statements each "case" has an implicit "break".
+ 
+-Line 19 calls "Write()" by slicing the incoming buffer, which is itself a slice.
++Line 21 calls "Write()" by slicing the incoming buffer, which is itself a slice.
+ Slices provide the standard Go way to handle I/O buffers.
+ 
+ Now let's make a variant of "cat" that optionally does "rot13" on its input.
+@@ -462,7 +463,7 @@ we have a second implementation of the "reader" interface.
+ 
+ --PROG progs/cat_rot13.go /type.rotate13/ /end.of.rotate13/
+ 
+-(The "rot13" function called on line 37 is trivial and not worth reproducing.)
++(The "rot13" function called on line 38 is trivial and not worth reproducing.)
+ 
+ To use the new feature, we define a flag:
+ 
+@@ -474,7 +475,7 @@ and use it from within a mostly unchanged "cat()" function:
+ 
+ (We could also do the wrapping in "main" and leave "cat()" mostly alone, except
+ for changing the type of the argument; consider that an exercise.)
+-Lines 51 through 53 set it all up: If the "rot13" flag is true, wrap the "reader"
++Lines 52 through 55 set it all up: If the "rot13" flag is true, wrap the "reader"
+ we received into a "rotate13" and proceed.  Note that the interface variables
+ are values, not pointers: the argument is of type "reader", not "*reader",
+ even though under the covers it holds a pointer to a "struct".
+@@ -551,11 +552,8 @@ Printing
+ The examples of formatted printing so far have been modest.  In this section
+ we'll talk about how formatted I/O can be done well in Go.
+ 
+-There's a package "fmt" that implements a version of "Printf" (upper case)
+-that should look familiar:
+-
+---PROG progs/printf.go
+-
++We've seen simple uses of the package "fmt", which
++implements "Printf", "Fprintf", and so on.
+ Within the "fmt" package, "Printf" is declared with this signature:
+ 
+ 	Printf(format string, v ...) (n int, errno *os.Error)
+@@ -740,7 +738,7 @@ together:
+ 
+ --PROG progs/sieve.go /func.main/ /^}/
+ 
+-Line 23 creates the initial channel to pass to "generate", which it
++Line 25 creates the initial channel to pass to "generate", which it
+ then starts up.  As each prime pops out of the channel, a new "filter"
+ is added to the pipeline and <i>its</i> output becomes the new value
+ of "ch".
+@@ -756,7 +754,7 @@ channel, launches a goroutine internally using a function literal, and
+ returns the channel to the caller.  It is a factory for concurrent
+ execution, starting the goroutine and returning its connection.
+ 
+-The function literal notation (lines 6-10) allows us to construct an
++The function literal notation (lines 8-12) allows us to construct an
+ anonymous function and invoke it on the spot.
+ 
+ The same change can be made to "filter":
+@@ -789,7 +787,7 @@ code that invokes the operation and responds to the request:
+ 
+ --PROG progs/server.go /type.binOp/ /^}/
+ 
+-Line 8 defines the name "binOp" to be a function taking two integers and
++Line 10 defines the name "binOp" to be a function taking two integers and
+ returning a third.
+ 
+ The "server" routine loops forever, receiving requests and, to avoid blocking due to
+diff --git a/doc/progs/cat.go b/doc/progs/cat.go
+index b46487fd2a..c06a730cef 100644
+--- a/doc/progs/cat.go
++++ b/doc/progs/cat.go
+@@ -7,6 +7,8 @@ package main
+ import (
+ 	"file";
+ 	"flag";
++	"fmt";
++	"os";
+ )
+ 
+ func cat(f *file.File) {
+@@ -15,13 +17,13 @@ func cat(f *file.File) {
+ 	for {
+ 		switch nr, er := f.Read(buf); true {
+ 		case nr < 0:
+-			print("error reading from ", f.String(), ": ", er.String(), "\n");
++			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", f.String(), er.String());
+ 			sys.Exit(1);
+ 		case nr == 0:  // EOF
+ 			return;
+ 		case nr > 0:
+ 			if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
+-				print("error writing from ", f.String(), ": ", ew.String(), "\n");
++				fmt.Fprintf(os.Stderr, "error writing from %s: %s\n", f.String(), ew.String());
+ 			}
+ 		}
+ 	}
+@@ -35,7 +37,7 @@ func main() {
+ 	for i := 0; i < flag.NArg(); i++ {
+ 		f, err := file.Open(flag.Arg(i), 0, 0);
+ 		if f == nil {
+-			print("can't open ", flag.Arg(i), ": error ", err, "\n");
++			fmt.Fprintf(os.Stderr, "can't open %s: error %s\n", flag.Arg(i), err);
+ 			sys.Exit(1);
+ 		}
+ 		cat(f);
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index 27d1e467fe..618ae91116 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"file";
+ 	"flag";
++	"fmt";
+ 	"os";
+ )
+ 
+@@ -58,14 +59,14 @@ func cat(r reader) {
+ 	for {
+ 		switch nr, er := r.Read(buf); {
+ 		case nr < 0:
+-			print("error reading from ", r.String(), ": ", er.String(), "\n");
++			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", r.String(), er.String());
+ 			sys.Exit(1);
+ 		case nr == 0:  // EOF
+ 			return;
+ 		case nr > 0:
+ 			nw, ew := file.Stdout.Write(buf[0:nr]);
+ 			if nw != nr {
+-				print("error writing from ", r.String(), ": ", ew.String(), "\n");
++				fmt.Fprintf(os.Stderr, "error writing from %s: %s\n", r.String(), ew.String());
+ 			}
+ 		}
+ 	}
+@@ -79,7 +80,7 @@ func main() {
+ 	for i := 0; i < flag.NArg(); i++ {
+ 		f, err := file.Open(flag.Arg(i), 0, 0);
+ 		if f == nil {
+-			print("can't open ", flag.Arg(i), ": error ", err, "\n");
++			fmt.Fprintf(os.Stderr, "can't open %s: error %s\n", flag.Arg(i), err);
+ 			sys.Exit(1);
+ 		}
+ 		cat(f);
+diff --git a/doc/progs/helloworld.go b/doc/progs/helloworld.go
+index b77b720881..c4c3855edf 100644
+--- a/doc/progs/helloworld.go
++++ b/doc/progs/helloworld.go
+@@ -4,6 +4,8 @@
+ 
+ package main
+ 
++import fmt "fmt"  // Package implementing formatted I/O.
++
+ func main() {
+-	print("Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n");
++	fmt.Printf("Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n");
+ }
+diff --git a/doc/progs/helloworld2.go b/doc/progs/helloworld2.go
+deleted file mode 100644
+index 66b32ed542..0000000000
+--- a/doc/progs/helloworld2.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import os "os"    // this package contains features for basic I/O
+-
+-func main() {
+-	os.Stdout.WriteString("Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n");
+-}
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index 18fa594f0e..630c49232c 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -4,14 +4,17 @@
+ 
+ package main
+ 
+-import file "file"
++import (
++	"file";
++	"fmt";
++)
+ 
+ func main() {
+ 	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
+ 	file.Stdout.Write(hello);
+ 	file, err := file.Open("/does/not/exist",  0,  0);
+ 	if file == nil {
+-		print("can't open file; err=",  err.String(),  "\n");
++		fmt.Printf("can't open file; err=%s\n",  err.String());
+ 		sys.Exit(1);
+ 	}
+ }
+diff --git a/doc/progs/printf.go b/doc/progs/printf.go
+deleted file mode 100644
+index 3bd70f2640..0000000000
+--- a/doc/progs/printf.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "fmt"
+-
+-func main() {
+-	fmt.Printf("hello, %s\n", "world");
+-}
+diff --git a/doc/progs/run b/doc/progs/run
+index 6f047b1552..c02a632d05 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -8,7 +8,6 @@ rm -f *.6
+ for i in \
+ 	file.go \
+ 	helloworld.go \
+-	helloworld2.go \
+ 	helloworld3.go \
+ 	echo.go \
+ 	cat.go \
+@@ -17,7 +16,6 @@ for i in \
+ 	sort.go \
+ 	sortmain.go \
+ 	print.go \
+-	printf.go \
+ 	print_string.go \
+ 	sieve.go \
+ 	sieve1.go \
+@@ -48,7 +46,6 @@ function testitpipe {
+ 
+ 
+ testit helloworld "" "Hello, world; or Καλημέρα κόσμε; or こんにちは 世界"
+-testit helloworld2 "" "Hello, world; or Καλημέρα κόσμε; or こんにちは 世界"
+ testit helloworld3 "" "hello, world can't open file; err=No such file or directory"
+ testit echo "hello, world" "hello, world"
+ testit sum "" "6"
+@@ -62,7 +59,6 @@ echo $rot13 | testit cat_rot13 "--rot13" $alphabet
+ testit sortmain "" "Sunday Monday Tuesday Thursday Friday"
+ 
+ testit print "" "18446744073709551615 -1 18446744073709551615 {77 Sunset Strip} [1 2 3 4] 18446744073709551615 {77 Sunset Strip} [1 2 3 4] 18446744073709551615 {77 Sunset Strip} [1 2 3 4]"
+-testit printf "" "hello, world"
+ testit print_string "" "77 Sunset Strip"
+ 
+ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+index a5317f27f8..8906e96351 100644
+--- a/doc/progs/server.go
++++ b/doc/progs/server.go
+@@ -4,6 +4,8 @@
+ 
+ package main
+ 
++import "fmt"
++
+ type request struct {
+ 	a, b    int;
+ 	replyc  chan int;
+@@ -42,8 +44,8 @@ func main() {
+ 	}
+ 	for i := N-1; i >= 0; i-- {   // doesn't matter what order
+ 		if <-reqs[i].replyc != N + 2*i {
+-			print("fail at ", i, "\n");
++			fmt.Println("fail at", i);
+ 		}
+ 	}
+-	print("done\n");
++	fmt.Println("done");
+ }
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+index 46d7b4ccf7..591e276066 100644
+--- a/doc/progs/server1.go
++++ b/doc/progs/server1.go
+@@ -4,6 +4,8 @@
+ 
+ package main
+ 
++import "fmt"
++
+ type request struct {
+ 	a, b	int;
+ 	replyc	chan int;
+@@ -47,7 +49,7 @@ func main() {
+ 	}
+ 	for i := N-1; i >= 0; i-- {   // doesn't matter what order
+ 		if <-reqs[i].replyc != N + 2*i {
+-			print("fail at ", i, "\n");
++			fmt.Println("fail at", i);
+ 		}
+ 	}
+ 	quit <- true;
+diff --git a/doc/progs/sieve.go b/doc/progs/sieve.go
+index 2da7df4754..cd011d2931 100644
+--- a/doc/progs/sieve.go
++++ b/doc/progs/sieve.go
+@@ -4,6 +4,8 @@
+ 
+ package main
+ 
++import "fmt"
++
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func generate(ch chan int) {
+ 	for i := 2; ; i++ {
+@@ -28,7 +30,7 @@ func main() {
+ 	go generate(ch);  // Start generate() as a goroutine.
+ 	for {
+ 		prime := <-ch;
+-		print(prime, "\n");
++		fmt.Println(prime);
+ 		ch1 := make(chan int);
+ 		go filter(ch, ch1, prime);
+ 		ch = ch1
+diff --git a/doc/progs/sieve1.go b/doc/progs/sieve1.go
+index c9b27f0612..567f5d9bb6 100644
+--- a/doc/progs/sieve1.go
++++ b/doc/progs/sieve1.go
+@@ -4,6 +4,8 @@
+ 
+ package main
+ 
++import "fmt"
++
+ // Send the sequence 2, 3, 4, ... to returned channel 
+ func generate() chan int {
+ 	ch := make(chan int);
+@@ -44,6 +46,6 @@ func sieve() chan int {
+ func main() {
+ 	primes := sieve();
+ 	for {
+-		print(<-primes, "\n");
++		fmt.Println(<-primes);
+ 	}
+ }
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index 74d1d18408..035ca54427 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -4,7 +4,10 @@
+ 
+ package main
+ 
+-import "sort"
++import (
++	"fmt";
++	"sort";
++)
+ 
+ func ints() {
+ 	data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586};
+@@ -53,9 +56,9 @@ func days() {
+ 		panic()
+ 	}
+ 	for i, d := range data {
+-		print(d.long_name, " ")
++		fmt.Printf("%s ", d.long_name)
+ 	}
+-	print("\n")
++	fmt.Printf("\n")
+ }
+ 
+ 
+diff --git a/doc/progs/strings.go b/doc/progs/strings.go
+index 28553c26aa..ee2596d8f2 100644
+--- a/doc/progs/strings.go
++++ b/doc/progs/strings.go
+@@ -4,9 +4,11 @@
+ 
+ package main
+ 
++import "fmt"
++
+ func main() {
+ 	s := "hello";
+-	if s[1] == 'e' { print("success") }
++	if s[1] != 'e' { sys.Exit(1) }
+ 	s = "good bye";
+ 	var p *string = &s;
+ 	*p = "ciao";
+diff --git a/doc/progs/sum.go b/doc/progs/sum.go
+index 3ca1a58770..19600af066 100644
+--- a/doc/progs/sum.go
++++ b/doc/progs/sum.go
+@@ -4,6 +4,8 @@
+ 
+ package main
+ 
++import "fmt"
++
+ func sum(a []int) int {   // returns an int
+ 	s := 0;
+ 	for i := 0; i < len(a); i++ {
+@@ -15,5 +17,5 @@ func sum(a []int) int {   // returns an int
+ 
+ func main() {
+ 	s := sum([3]int{1,2,3});  // a slice of the array is passed to sum
+-	print(s, "\n");
++	fmt.Print(s, "\n");
+ }

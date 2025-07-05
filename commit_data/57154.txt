@@ -13,6 +13,20 @@ Date:   Thu Jun 29 14:17:00 2023 +0000
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/lex/slice.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/lex/slice.go b/src/cmd/asm/internal/lex/slice.go
+index 8ee0c7035f..61b15dd963 100644
+--- a/src/cmd/asm/internal/lex/slice.go
++++ b/src/cmd/asm/internal/lex/slice.go
+@@ -65,7 +65,7 @@ func (s *Slice) Col() int {
+ 	//	#define A #define B(x) x
+ 	// and
+ 	//	#define A #define B (x) x
+-	// The first has definition of B has an argument, the second doesn't. Because we let
++	// The first definition of B has an argument, the second doesn't. Because we let
+ 	// text/scanner strip the blanks for us, this is extremely rare, hard to fix, and not worth it.
+ 	return s.pos
+ }

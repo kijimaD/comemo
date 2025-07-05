@@ -9,7 +9,49 @@ Date:   Tue Jun 23 16:21:05 2009 -0700
     DELTA=6  (3 added, 0 deleted, 3 changed)
     OCL=30663
     CL=30665
-
+---
  src/cmd/gobuild/gobuild.go | 6 ++++--
  src/cmd/gobuild/util.go    | 3 ++-
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gobuild/gobuild.go b/src/cmd/gobuild/gobuild.go
+index ae1ea938a6..3cca7b4854 100644
+--- a/src/cmd/gobuild/gobuild.go
++++ b/src/cmd/gobuild/gobuild.go
+@@ -71,8 +71,9 @@ func PushPkg(vp *[]*Pkg, p *Pkg) {
+ 		}
+ 		v = a;
+ 	}
+-	*vp = v[0:n+1];
++	v = v[0:n+1];
+ 	v[n] = p;
++	*vp = v;
+ }
+ 
+ func PushFile(vp *[]*File, p *File) {
+@@ -86,8 +87,9 @@ func PushFile(vp *[]*File, p *File) {
+ 		}
+ 		v = a;
+ 	}
+-	*vp = v[0:n+1];
++	v = v[0:n+1];
+ 	v[n] = p;
++	*vp = v;
+ }
+ 
+ // For sorting Files
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index bc826dbafb..7fec135401 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -82,8 +82,9 @@ func PushString(vp *[]string, p string) {
+ 		}
+ 		v = a;
+ 	}
+-	*vp = v[0:n+1];
++	v = v[0:n+1];
+ 	v[n] = p;
++	*vp = v;
+ }
+ 
+ func run(argv []string, flag int) (ok bool) {

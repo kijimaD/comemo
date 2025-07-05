@@ -55,6 +55,34 @@ Date:   Sat Oct 6 21:01:49 2012 +1000
     R=rsc, minux.ma, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/6584056
-
+---
  src/cmd/5g/ggen.c | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 85f63a2f7a..09e8550506 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -371,14 +371,19 @@ cgen_asop(Node *n)
+ 	case OOR:
+ 		a = optoas(n->etype, nl->type);
+ 		if(nl->addable) {
+-			regalloc(&n3, nr->type, N);
+-			cgen(nr, &n3);
++			if(smallintconst(nr))
++				n3 = *nr;
++			else {
++				regalloc(&n3, nr->type, N);
++				cgen(nr, &n3);
++			}
+ 			regalloc(&n2, nl->type, N);
+ 			cgen(nl, &n2);
+ 			gins(a, &n3, &n2);
+ 			cgen(&n2, nl);
+ 			regfree(&n2);
+-			regfree(&n3);
++			if(n3.op != OLITERAL)
++				regfree(&n3);
+ 			goto ret;
+ 		}
+ 		if(nr->ullman < UINF)

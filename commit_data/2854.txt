@@ -11,10 +11,561 @@ Date:   Fri Jul 31 15:51:27 2009 -0700
     DELTA=204  (126 added, 13 deleted, 65 changed)
     OCL=32599
     CL=32605
-
+---
  usr/austin/eval/decls.go |  19 ++++--
  usr/austin/eval/scope.go |  24 +++----
  usr/austin/eval/stmt.go  | 166 ++++++++++++++++++++++++++++++++++++++---------
  usr/austin/eval/type.go  |  42 ++++++------
  usr/austin/eval/value.go |   4 +-
  5 files changed, 184 insertions(+), 71 deletions(-)
+
+diff --git a/usr/austin/eval/decls.go b/usr/austin/eval/decls.go
+index 439b8b2162..1ab5c97a71 100644
+--- a/usr/austin/eval/decls.go
++++ b/usr/austin/eval/decls.go
+@@ -6,6 +6,7 @@ package eval
+ 
+ import (
+ 	"bignum";
++	"go/token";
+ )
+ 
+ /*
+@@ -36,6 +37,8 @@ type Type interface {
+ 	Zero() Value;
+ 	// String returns the string representation of this type.
+ 	String() string;
++	// The position where this type was defined, if any.
++	Pos() token.Position;
+ }
+ 
+ type BoundedType interface {
+@@ -125,7 +128,13 @@ type FuncValue interface {
+  * Scopes
+  */
+ 
++// A definition can be a *Variable, *Constant, or Type.
++type Def interface {
++	Pos() token.Position;
++}
++
+ type Variable struct {
++	token.Position;
+ 	// Index of this variable in the Frame structure
+ 	Index int;
+ 	// Static type of this variable
+@@ -133,13 +142,11 @@ type Variable struct {
+ }
+ 
+ type Constant struct {
++	token.Position;
+ 	Type Type;
+ 	Value Value;
+ }
+ 
+-// A definition can be a *Variable, *Constant, or Type.
+-type Def interface {}
+-
+ type Scope struct
+ 
+ // A block represents a definition block in which a name may not be
+@@ -177,10 +184,10 @@ type Scope struct {
+ func (b *block) enterChild() *block
+ func (b *block) exit()
+ func (b *block) ChildScope() *Scope
+-func (b *block) DefineVar(name string, t Type) *Variable
++func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, Def)
+ func (b *block) DefineSlot(t Type) *Variable
+-func (b *block) DefineConst(name string, t Type, v Value) *Constant
+-func (b *block) DefineType(name string, t Type) Type
++func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) *Constant
++func (b *block) DefineType(name string, pos token.Position, t Type) Type
+ func (b *block) Lookup(name string) (level int, def Def)
+ 
+ // The universal scope
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+index aed896f959..b218110692 100644
+--- a/usr/austin/eval/scope.go
++++ b/usr/austin/eval/scope.go
+@@ -7,6 +7,7 @@ package eval
+ import (
+ 	"eval";
+ 	"fmt";
++	"go/token";
+ 	"log";
+ )
+ 
+@@ -47,15 +48,14 @@ func (b *block) ChildScope() *Scope {
+ 	return sub.scope;
+ }
+ 
+-func (b *block) DefineVar(name string, t Type) *Variable {
+-	if _, ok := b.defs[name]; ok {
+-		return nil;
++func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, Def) {
++	if prev, ok := b.defs[name]; ok {
++		return nil, prev;
+ 	}
+ 	v := b.DefineSlot(t);
+-	if v != nil {
+-		b.defs[name] = v;
+-	}
+-	return v;
++	v.Position = pos;
++	b.defs[name] = v;
++	return v, nil;
+ }
+ 
+ func (b *block) DefineSlot(t Type) *Variable {
+@@ -63,7 +63,7 @@ func (b *block) DefineSlot(t Type) *Variable {
+ 		log.Crash("Failed to exit child block before defining variable");
+ 	}
+ 	index := b.offset+b.numVars;
+-	v := &Variable{index, t};
++	v := &Variable{token.Position{}, index, t};
+ 	b.numVars++;
+ 	if index+1 > b.scope.maxVars {
+ 		b.scope.maxVars = index+1;
+@@ -71,22 +71,22 @@ func (b *block) DefineSlot(t Type) *Variable {
+ 	return v;
+ }
+ 
+-func (b *block) DefineConst(name string, t Type, v Value) *Constant {
++func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) *Constant {
+ 	if _, ok := b.defs[name]; ok {
+ 		return nil;
+ 	}
+-	c := &Constant{t, v};
++	c := &Constant{pos, t, v};
+ 	b.defs[name] = c;
+ 	return c;
+ }
+ 
+-func (b *block) DefineType(name string, t Type) Type {
++func (b *block) DefineType(name string, pos token.Position, t Type) Type {
+ 	if _, ok := b.defs[name]; ok {
+ 		return nil;
+ 	}
+ 	// We take the representative type of t because multiple
+ 	// levels of naming are useless.
+-	nt := &NamedType{name, t.rep()};
++	nt := &NamedType{pos, name, t.rep()};
+ 	b.defs[name] = nt;
+ 	return nt;
+ }
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index 88febdc376..cc3800c82e 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -218,6 +218,35 @@ func (f *flowBuf) gotosObeyScopes(a *compiler) bool {
+ 	return true;
+ }
+ 
++/*
++ * Statement generation helpers
++ */
++
++func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
++	v, prev := a.block.DefineVar(ident.Value, ident.Pos(), t);
++	if prev != nil {
++		// TODO(austin) It's silly that we have to capture
++		// Pos() in a variable.
++		pos := prev.Pos();
++		if pos.IsValid() {
++			a.diagAt(ident, "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Value, &pos);
++		} else {
++			a.diagAt(ident, "variable %s redeclared in this block", ident.Value);
++		}
++		return nil;
++	}
++
++	// Initialize the variable
++	index := v.Index;
++	a.push(func(v *vm) {
++		v.f.Vars[index] = t.Zero();
++	});
++	return v;
++}
++
++// TODO(austin) Move the real definition
++func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token, declTypeExpr ast.Expr)
++
+ /*
+  * Statement visitors
+  */
+@@ -227,7 +256,59 @@ func (a *stmtCompiler) DoBadStmt(s *ast.BadStmt) {
+ }
+ 
+ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
+-	log.Crash("Not implemented");
++	switch decl := s.Decl.(type) {
++	case *ast.BadDecl:
++		// Do nothing.  Already reported by parser.
++		return;
++
++	case *ast.FuncDecl:
++		log.Crash("FuncDecl at statement level");
++
++	case *ast.GenDecl:
++		switch decl.Tok {
++		case token.IMPORT:
++			log.Crash("import at statement level");
++
++		case token.CONST, token.TYPE:
++			log.Crashf("%v not implemented", decl.Tok);
++
++		case token.VAR:
++			ok := true;
++			for _, spec := range decl.Specs {
++				spec := spec.(*ast.ValueSpec);
++				if spec.Values == nil {
++					// Declaration without assignment
++					var t Type;
++					if spec.Type == nil {
++						// Parser should have caught
++						log.Crash("Type and Values nil");
++					}
++					t = a.compileType(a.block, spec.Type);
++					if t == nil {
++						// Define placeholders
++						ok = false;
++					}
++					for _, n := range spec.Names {
++						if a.defineVar(n, t) == nil {
++							ok = false;
++						}
++					}
++				} else {
++					// Decalaration with assignment
++					lhs := make([]ast.Expr, len(spec.Names));
++					for i, n := range spec.Names {
++						lhs[i] = n;
++					}
++					a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
++				}
++			}
++			if ok {
++				a.err = false;
++			}
++		}
++	default:
++		log.Crashf("Unexpected Decl type %T", s.Decl);
++	}
+ }
+ 
+ func (a *stmtCompiler) DoEmptyStmt(s *ast.EmptyStmt) {
+@@ -241,7 +322,7 @@ func (a *stmtCompiler) DoLabeledStmt(s *ast.LabeledStmt) {
+ 	l, ok := a.labels[s.Label.Value];
+ 	if ok {
+ 		if l.resolved.IsValid() {
+-			a.diag("label %s redefined; previous definition at line %d", s.Label.Value, l.resolved.Line);
++			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Value, &l.resolved);
+ 			bad = true;
+ 		}
+ 	} else {
+@@ -341,26 +422,25 @@ func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
+ 	a.err = false;
+ }
+ 
+-func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
++func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token, declTypeExpr ast.Expr) {
+ 	bad := false;
+ 
+ 	// Compile right side first so we have the types when
+ 	// compiling the left side and so we don't see definitions
+ 	// made on the left side.
+-	rs := make([]*exprCompiler, len(s.Rhs));
+-	for i, re := range s.Rhs {
++	rs := make([]*exprCompiler, len(rhs));
++	for i, re := range rhs {
+ 		rs[i] = a.compileExpr(a.block, re, false);
+ 		if rs[i] == nil {
+ 			bad = true;
+-			continue;
+ 		}
+ 	}
+ 
+ 	errOp := "assignment";
+-	if s.Tok == token.DEFINE {
+-		errOp = "definition";
++	if tok == token.DEFINE || tok == token.VAR {
++		errOp = "declaration";
+ 	}
+-	ac, ok := a.checkAssign(s.Pos(), rs, "assignment", "value");
++	ac, ok := a.checkAssign(a.pos, rs, errOp, "value");
+ 	if !ok {
+ 		bad = true;
+ 	}
+@@ -368,18 +448,31 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+ 	// If this is a definition and the LHS is too big, we won't be
+ 	// able to produce the usual error message because we can't
+ 	// begin to infer the types of the LHS.
+-	if s.Tok == token.DEFINE && len(s.Lhs) > len(ac.rmt.Elems) {
++	if (tok == token.DEFINE || tok == token.VAR) && len(lhs) > len(ac.rmt.Elems) {
+ 		a.diag("not enough values for definition");
+ 		bad = true;
+ 	}
+ 
++	// Compile left type if there is one
++	var declType Type;
++	if declTypeExpr != nil {
++		declType = a.compileType(a.block, declTypeExpr);
++		if declType == nil {
++			bad = true;
++		}
++	}
++
+ 	// Compile left side
+-	ls := make([]*exprCompiler, len(s.Lhs));
++	ls := make([]*exprCompiler, len(lhs));
+ 	nDefs := 0;
+-	for i, le := range s.Lhs {
+-		if s.Tok == token.DEFINE {
++	for i, le := range lhs {
++		// If this is a definition, get the identifier and its type
++		var ident *ast.Ident;
++		var lt Type;
++		switch tok {
++		case token.DEFINE:
+ 			// Check that it's an identifier
+-			ident, ok := le.(*ast.Ident);
++			ident, ok = le.(*ast.Ident);
+ 			if !ok {
+ 				a.diagAt(le, "left side of := must be a name");
+ 				bad = true;
+@@ -390,15 +483,27 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+ 
+ 			// Is this simply an assignment?
+ 			if _, ok := a.block.defs[ident.Value]; ok {
+-				goto assignment;
++				ident = nil;
++				break;
+ 			}
+ 			nDefs++;
+ 
++		case token.VAR:
++			ident = le.(*ast.Ident);
++		}
++
++		// If it's a definition, get or infer its type.
++		if ident != nil {
+ 			// Compute the identifier's type from the RHS
+ 			// type.  We use the computed MultiType so we
+ 			// don't have to worry about unpacking.
+-			var lt Type;
+ 			switch {
++			case declTypeExpr != nil:
++				// We have a declaration type, use it.
++				// If declType is nil, we gave an
++				// error when we compiled it.
++				lt = declType;
++
+ 			case i >= len(ac.rmt.Elems):
+ 				// Define a placeholder.  We already
+ 				// gave the "not enough" error above.
+@@ -428,20 +533,17 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+ 			default:
+ 				lt = ac.rmt.Elems[i];
+ 			}
++		}
+ 
+-			// Define identifier
+-			v := a.block.DefineVar(ident.Value, lt);
+-			if v == nil {
+-				log.Crashf("Failed to define %s", ident.Value);
++		// If it's a definition, define the identifier
++		if ident != nil {
++			if a.defineVar(ident, lt) == nil {
++				bad = true;
++				continue;
+ 			}
+-			// Initialize the variable
+-			index := v.Index;
+-			a.push(func(v *vm) {
+-				v.f.Vars[index] = lt.Zero();
+-			});
+ 		}
+ 
+-	assignment:
++		// Compile LHS
+ 		ls[i] = a.compileExpr(a.block, le, false);
+ 		if ls[i] == nil {
+ 			bad = true;
+@@ -459,7 +561,7 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+ 	// provided they were originally declared in the same block
+ 	// with the same type, and at least one of the variables is
+ 	// new.
+-	if s.Tok == token.DEFINE && nDefs == 0 {
++	if tok == token.DEFINE && nDefs == 0 {
+ 		a.diag("at least one new variable must be declared");
+ 		return;
+ 	}
+@@ -470,7 +572,7 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+ 
+ 	// Create assigner
+ 	var lt Type;
+-	n := len(s.Lhs);
++	n := len(lhs);
+ 	if n == 1 {
+ 		lt = ls[0].t;
+ 	} else {
+@@ -492,7 +594,7 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+ 		// Don't need temporaries and can avoid []Value.
+ 		lf := ls[0].evalAddr;
+ 		a.push(func(v *vm) { assign(lf(v.f), v.f) });
+-	} else if s.Tok == token.DEFINE && nDefs == n {
++	} else if tok == token.VAR || (tok == token.DEFINE && nDefs == n) {
+ 		// Don't need temporaries
+ 		lfs := make([]func(*Frame) Value, n);
+ 		for i, l := range ls {
+@@ -587,7 +689,7 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
+ func (a *stmtCompiler) DoAssignStmt(s *ast.AssignStmt) {
+ 	switch s.Tok {
+ 	case token.ASSIGN, token.DEFINE:
+-		a.doAssign(s);
++		a.doAssign(s.Lhs, s.Rhs, s.Tok, nil);
+ 
+ 	default:
+ 		a.doAssignOp(s);
+@@ -949,14 +1051,14 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
+ 	defer bodyScope.exit();
+ 	for i, t := range decl.Type.In {
+ 		if decl.InNames[i] != nil {
+-			bodyScope.DefineVar(decl.InNames[i].Value, t);
++			bodyScope.DefineVar(decl.InNames[i].Value, decl.InNames[i].Pos(), t);
+ 		} else {
+ 			bodyScope.DefineSlot(t);
+ 		}
+ 	}
+ 	for i, t := range decl.Type.Out {
+ 		if decl.OutNames[i] != nil {
+-			bodyScope.DefineVar(decl.OutNames[i].Value, t);
++			bodyScope.DefineVar(decl.OutNames[i].Value, decl.OutNames[i].Pos(), t);
+ 		} else {
+ 			bodyScope.DefineSlot(t);
+ 		}
+diff --git a/usr/austin/eval/type.go b/usr/austin/eval/type.go
+index b189b5379d..f326935878 100644
+--- a/usr/austin/eval/type.go
++++ b/usr/austin/eval/type.go
+@@ -8,6 +8,7 @@ import (
+ 	"bignum";
+ 	"eval";
+ 	"go/ast";
++	"go/token";
+ 	"log";
+ 	"reflect";
+ 	"unsafe";			// For Sizeof
+@@ -26,9 +27,7 @@ import (
+ // sense in the comparison operators section.  The compatibility and
+ // assignment compatibility sections should be rolled into one.
+ 
+-// XXX(Spec) Comparison compatibility: "Values of any type may be
+-// compared to other values of compatible static type."  That should
+-// be *identical* type.
++var universePos = token.Position{"<universe>", 0, 0, 0};
+ 
+ /*
+  * Type array maps.  These are used to memoize composite types.
+@@ -114,6 +113,10 @@ func (commonType) isIdeal() bool {
+ 	return false;
+ }
+ 
++func (commonType) Pos() token.Position {
++	return token.Position{};
++}
++
+ /*
+  * Bool
+  */
+@@ -122,7 +125,7 @@ type boolType struct {
+ 	commonType;
+ }
+ 
+-var BoolType = universe.DefineType("bool", &boolType{});
++var BoolType = universe.DefineType("bool", universePos, &boolType{});
+ 
+ func (t *boolType) literal() Type {
+ 	return t;
+@@ -160,13 +163,13 @@ type uintType struct {
+ }
+ 
+ var (
+-	Uint8Type   = universe.DefineType("uint8",   &uintType{commonType{}, 8,  false, "uint8"});
+-	Uint16Type  = universe.DefineType("uint16",  &uintType{commonType{}, 16, false, "uint16"});
+-	Uint32Type  = universe.DefineType("uint32",  &uintType{commonType{}, 32, false, "uint32"});
+-	Uint64Type  = universe.DefineType("uint64",  &uintType{commonType{}, 64, false, "uint64"});
++	Uint8Type   = universe.DefineType("uint8",   universePos, &uintType{commonType{}, 8,  false, "uint8"});
++	Uint16Type  = universe.DefineType("uint16",  universePos, &uintType{commonType{}, 16, false, "uint16"});
++	Uint32Type  = universe.DefineType("uint32",  universePos, &uintType{commonType{}, 32, false, "uint32"});
++	Uint64Type  = universe.DefineType("uint64",  universePos, &uintType{commonType{}, 64, false, "uint64"});
+ 
+-	UintType    = universe.DefineType("uint",    &uintType{commonType{}, 0,  false, "uint"});
+-	UintptrType = universe.DefineType("uintptr", &uintType{commonType{}, 0,  true,  "uintptr"});
++	UintType    = universe.DefineType("uint",    universePos, &uintType{commonType{}, 0,  false, "uint"});
++	UintptrType = universe.DefineType("uintptr", universePos, &uintType{commonType{}, 0,  true,  "uintptr"});
+ )
+ 
+ func init() {
+@@ -230,12 +233,12 @@ type intType struct {
+ }
+ 
+ var (
+-	Int8Type  = universe.DefineType("int8",  &intType{commonType{}, 8,  "int8"});
+-	Int16Type = universe.DefineType("int16", &intType{commonType{}, 16, "int16"});
+-	Int32Type = universe.DefineType("int32", &intType{commonType{}, 32, "int32"});
+-	Int64Type = universe.DefineType("int64", &intType{commonType{}, 64, "int64"});
++	Int8Type  = universe.DefineType("int8",  universePos, &intType{commonType{}, 8,  "int8"});
++	Int16Type = universe.DefineType("int16", universePos, &intType{commonType{}, 16, "int16"});
++	Int32Type = universe.DefineType("int32", universePos, &intType{commonType{}, 32, "int32"});
++	Int64Type = universe.DefineType("int64", universePos, &intType{commonType{}, 64, "int64"});
+ 
+-	IntType   = universe.DefineType("int",   &intType{commonType{}, 0,  "int"});
++	IntType   = universe.DefineType("int",   universePos, &intType{commonType{}, 0,  "int"});
+ )
+ 
+ func (t *intType) literal() Type {
+@@ -318,9 +321,9 @@ type floatType struct {
+ }
+ 
+ var (
+-	Float32Type = universe.DefineType("float32", &floatType{commonType{}, 32, "float32"});
+-	Float64Type = universe.DefineType("float64", &floatType{commonType{}, 64, "float64"});
+-	FloatType   = universe.DefineType("float",   &floatType{commonType{}, 0,  "float"});
++	Float32Type = universe.DefineType("float32", universePos, &floatType{commonType{}, 32, "float32"});
++	Float64Type = universe.DefineType("float64", universePos, &floatType{commonType{}, 64, "float64"});
++	FloatType   = universe.DefineType("float",   universePos, &floatType{commonType{}, 0,  "float"});
+ )
+ 
+ func (t *floatType) literal() Type {
+@@ -416,7 +419,7 @@ type stringType struct {
+ 	commonType;
+ }
+ 
+-var StringType = universe.DefineType("string", &stringType{});
++var StringType = universe.DefineType("string", universePos, &stringType{});
+ 
+ func (t *stringType) literal() Type {
+ 	return t;
+@@ -672,6 +675,7 @@ type ChanType struct {
+  */
+ 
+ type NamedType struct {
++	token.Position;
+ 	name string;
+ 	// Underlying type
+ 	def Type;
+diff --git a/usr/austin/eval/value.go b/usr/austin/eval/value.go
+index de5813e6d1..7f6a366216 100644
+--- a/usr/austin/eval/value.go
++++ b/usr/austin/eval/value.go
+@@ -578,7 +578,7 @@ func init() {
+ 	s := universe;
+ 
+ 	true := boolV(true);
+-	s.DefineConst("true", BoolType, &true);
++	s.DefineConst("true", universePos, BoolType, &true);
+ 	false := boolV(false);
+-	s.DefineConst("false", BoolType, &false);
++	s.DefineConst("false", universePos, BoolType, &false);
+ }

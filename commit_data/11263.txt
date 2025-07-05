@@ -7,6 +7,21 @@ Date:   Thu Jan 19 06:11:02 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5554063
-
+---
  src/pkg/net/http/doc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/doc.go b/src/pkg/net/http/doc.go
+index 2dbcf8dc97..8962ed31e6 100644
+--- a/src/pkg/net/http/doc.go
++++ b/src/pkg/net/http/doc.go
+@@ -34,7 +34,8 @@ settings, create a Client:
+ 	resp, err := client.Get("http://example.com")
+ 	// ...
+ 
+-	req := http.NewRequest("GET", "http://example.com", nil)
++	req, err := http.NewRequest("GET", "http://example.com", nil)
++	// ...
+ 	req.Header.Add("If-None-Match", `W/"wyzzy"`)
+ 	resp, err := client.Do(req)
+ 	// ...

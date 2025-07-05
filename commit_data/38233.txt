@@ -12,6 +12,20 @@ Date:   Fri Oct 12 10:54:06 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/fd_fsync_posix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/fd_fsync_posix.go b/src/internal/poll/fd_fsync_posix.go
+index 943f59a9ab..30dde0720b 100644
+--- a/src/internal/poll/fd_fsync_posix.go
++++ b/src/internal/poll/fd_fsync_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
++// +build aix dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package poll
+ 

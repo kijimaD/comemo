@@ -7,6 +7,23 @@ Date:   Mon Jun 6 10:11:41 2011 +1000
     R=golang-dev, r, adg
     CC=golang-dev
     https://golang.org/cl/4561062
-
+---
  src/pkg/go/build/cgotest/file.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/build/cgotest/file.go b/src/pkg/go/build/cgotest/file.go
+index 021cbf909c..3b2a2e7d9b 100644
+--- a/src/pkg/go/build/cgotest/file.go
++++ b/src/pkg/go/build/cgotest/file.go
+@@ -23,8 +23,9 @@ import "unsafe"
+ 
+ type File C.FILE
+ 
+-var Stdout = (*File)(C.stdout)
+-var Stderr = (*File)(C.stderr)
++// TODO(brainman): uncomment once stdout and stderr references are working on Windows.
++//var Stdout = (*File)(C.stdout)
++//var Stderr = (*File)(C.stderr)
+ 
+ // Test reference to library symbol.
+ // Stdout and stderr are too special to be a reliable test.

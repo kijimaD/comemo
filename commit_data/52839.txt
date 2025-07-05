@@ -15,7 +15,7 @@ Date:   Tue May 17 16:11:36 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go           | 5 -----
  src/cmd/compile/internal/noder/irgen.go       | 1 -
  src/cmd/compile/internal/noder/reader.go      | 8 +-------
@@ -25,3 +25,149 @@ Date:   Tue May 17 16:11:36 2022 +0700
  src/cmd/compile/internal/typecheck/iimport.go | 6 +-----
  src/cmd/compile/internal/types/pkg.go         | 9 ---------
  8 files changed, 4 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 70f1a2f847..a5a2d56c46 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -75,11 +75,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	types.LocalPkg = types.NewPkg(base.Ctxt.Pkgpath, "")
+ 
+-	// We won't know localpkg's height until after import
+-	// processing. In the mean time, set to MaxPkgHeight to ensure
+-	// height comparisons at least work until then.
+-	types.LocalPkg.Height = types.MaxPkgHeight
+-
+ 	// pseudo-package, for scoping
+ 	types.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
+ 	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 628c0f54fc..74e7401024 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -219,7 +219,6 @@ type typeDelayInfo struct {
+ 
+ func (g *irgen) generate(noders []*noder) {
+ 	types.LocalPkg.Name = g.self.Name()
+-	types.LocalPkg.Height = g.self.Height()
+ 	typecheck.TypecheckAllowed = true
+ 
+ 	// Prevent size calculations until we set the underlying type
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 6614d1693f..0440d324cc 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -288,7 +288,7 @@ func (r *reader) doPkg() *types.Pkg {
+ 	}
+ 
+ 	name := r.String()
+-	height := r.Len()
++	_ = r.Len() // was package height, but not necessary anymore.
+ 
+ 	pkg := types.NewPkg(path, "")
+ 
+@@ -298,12 +298,6 @@ func (r *reader) doPkg() *types.Pkg {
+ 		base.Assertf(pkg.Name == name, "package %q has name %q, but want %q", pkg.Path, pkg.Name, name)
+ 	}
+ 
+-	if pkg.Height == 0 {
+-		pkg.Height = height
+-	} else {
+-		base.Assertf(pkg.Height == height, "package %q has height %v, but want %v", pkg.Path, pkg.Height, height)
+-	}
+-
+ 	return pkg
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 46acdab79e..f7cf7f90b2 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -82,7 +82,6 @@ func unified(noders []*noder) {
+ 	base.Flag.Lang = fmt.Sprintf("go1.%d", goversion.Version)
+ 	types.ParseLangFlag()
+ 
+-	types.LocalPkg.Height = 0 // reset so pkgReader.pkgIdx doesn't complain
+ 	target := typecheck.Target
+ 
+ 	typecheck.TypecheckAllowed = true
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 2d1a7ee457..2fb1583437 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -241,7 +241,7 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
+ 		base.Assertf(path != "builtin" && path != "unsafe", "unexpected path for user-defined package: %q", path)
+ 		w.String(path)
+ 		w.String(pkg.Name())
+-		w.Len(pkg.Height())
++		w.Len(0) // was package height, but not necessary anymore.
+ 
+ 		w.Len(len(pkg.Imports()))
+ 		for _, imp := range pkg.Imports() {
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index d5c4b8e1e8..fa0e292ed2 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -405,7 +405,7 @@ func (w *exportWriter) writeIndex(index map[*types.Sym]uint64, mainIndex bool) {
+ 		w.string(exportPath(pkg))
+ 		if mainIndex {
+ 			w.string(pkg.Name)
+-			w.uint64(uint64(pkg.Height))
++			w.uint64(0) // was package height, but not necessary anymore.
+ 		}
+ 
+ 		// Sort symbols within a package by name.
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 3a51f781f0..1968af7f1c 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -175,10 +175,9 @@ func ReadImports(pkg *types.Pkg, data string) {
+ 	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
+ 		pkg := p.pkgAt(ird.uint64())
+ 		pkgName := p.stringAt(ird.uint64())
+-		pkgHeight := int(ird.uint64())
++		_ = int(ird.uint64()) // was package height, but not necessary anymore.
+ 		if pkg.Name == "" {
+ 			pkg.Name = pkgName
+-			pkg.Height = pkgHeight
+ 			types.NumImport[pkgName]++
+ 
+ 			// TODO(mdempsky): This belongs somewhere else.
+@@ -187,9 +186,6 @@ func ReadImports(pkg *types.Pkg, data string) {
+ 			if pkg.Name != pkgName {
+ 				base.Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
+ 			}
+-			if pkg.Height != pkgHeight {
+-				base.Fatalf("conflicting package heights %v and %v for path %q", pkg.Height, pkgHeight, pkg.Path)
+-			}
+ 		}
+ 
+ 		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index 4bf39a5e9d..9a21494017 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -16,9 +16,6 @@ import (
+ // pkgMap maps a package path to a package.
+ var pkgMap = make(map[string]*Pkg)
+ 
+-// MaxPkgHeight is a height greater than any likely package height.
+-const MaxPkgHeight = 1e9
+-
+ type Pkg struct {
+ 	Path    string // string literal used in import statement, e.g. "runtime/internal/sys"
+ 	Name    string // package name, e.g. "sys"
+@@ -26,12 +23,6 @@ type Pkg struct {
+ 	Syms    map[string]*Sym
+ 	Pathsym *obj.LSym
+ 
+-	// Height is the package's height in the import graph. Leaf
+-	// packages (i.e., packages with no imports) have height 0,
+-	// and all other packages have height 1 plus the maximum
+-	// height of their imported packages.
+-	Height int
+-
+ 	Direct bool // imported directly
+ }
+ 

@@ -17,7 +17,7 @@ Date:   Wed May 8 13:59:48 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176102
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/vet/all/whitelist/aix_ppc64.txt    |  5 -----
  src/cmd/vet/all/whitelist/arm64.txt        |  5 -----
  src/cmd/vet/all/whitelist/linux_ppc64x.txt |  4 ----
@@ -37,3 +37,392 @@ Date:   Wed May 8 13:59:48 2019 -0400
  src/runtime/sys_linux_ppc64x.s             | 13 ++++++++-----
  src/runtime/sys_linux_s390x.s              |  3 +++
  18 files changed, 87 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/aix_ppc64.txt b/src/cmd/vet/all/whitelist/aix_ppc64.txt
+deleted file mode 100644
+index bfd76e9055..0000000000
+--- a/src/cmd/vet/all/whitelist/aix_ppc64.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// aix/ppc64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/asm_ppc64x.s: [ppc64] sigreturn: function sigreturn missing Go declaration
+-runtime/sys_aix_ppc64.s: [ppc64] _asmsyscall6: function _asmsyscall6 missing Go declaration
+-runtime/sys_aix_ppc64.s: [ppc64] _tstart: function _tstart missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+deleted file mode 100644
+index cd9577b7b5..0000000000
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// arm64-specific vet whitelist. See readme.txt for details.
+-
+-// Intentionally missing declarations.
+-runtime/tls_arm64.s: [arm64] load_g: function load_g missing Go declaration
+-runtime/tls_arm64.s: [arm64] save_g: function save_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_ppc64x.txt b/src/cmd/vet/all/whitelist/linux_ppc64x.txt
+deleted file mode 100644
+index 0091d97110..0000000000
+--- a/src/cmd/vet/all/whitelist/linux_ppc64x.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-// linux/ppc64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_linux_ppc64x.s: [GOARCH] _sigtramp: function _sigtramp missing Go declaration
+-runtime/sys_linux_ppc64x.s: [GOARCH] _cgoSigtramp: function _cgoSigtramp missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mips.txt b/src/cmd/vet/all/whitelist/mips.txt
+deleted file mode 100644
+index fa17c6233b..0000000000
+--- a/src/cmd/vet/all/whitelist/mips.txt
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// mips-specific (big endian) vet whitelist. See readme.txt for details.
+-
+-// Work around if-def'd code. Will be fixed by golang.org/issue/17544.
+-runtime/sys_linux_mipsx.s: [mips] walltime: invalid offset sec_lo+0(FP); expected sec_lo+4(FP)
+-runtime/sys_linux_mipsx.s: [mips] walltime: invalid offset sec_hi+4(FP); expected sec_hi+0(FP)
+-runtime/sys_linux_mipsx.s: [mips] nanotime: invalid offset ret_lo+0(FP); expected ret_lo+4(FP)
+-runtime/sys_linux_mipsx.s: [mips] nanotime: invalid offset ret_hi+4(FP); expected ret_hi+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/mipsle.txt b/src/cmd/vet/all/whitelist/mipsle.txt
+deleted file mode 100644
+index 9361dc4353..0000000000
+--- a/src/cmd/vet/all/whitelist/mipsle.txt
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// mipsle-specific vet whitelist. See readme.txt for details.
+-
+-// Work around if-def'd code. Will be fixed by golang.org/issue/17544.
+-runtime/sys_linux_mipsx.s: [mipsle] walltime: invalid offset sec_lo+4(FP); expected sec_lo+0(FP)
+-runtime/sys_linux_mipsx.s: [mipsle] walltime: invalid offset sec_hi+0(FP); expected sec_hi+4(FP)
+-runtime/sys_linux_mipsx.s: [mipsle] nanotime: invalid offset ret_lo+4(FP); expected ret_lo+0(FP)
+-runtime/sys_linux_mipsx.s: [mipsle] nanotime: invalid offset ret_hi+0(FP); expected ret_hi+4(FP)
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 8b850683f7..bb327fe9cc 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -886,9 +886,6 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	MOVD	R0, R0	// NOP
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+-	RET
+-
+ // prepGoExitFrame saves the current TOC pointer (i.e. the TOC pointer for the
+ // module containing runtime) to the frame that goexit will execute in when
+ // the goroutine exits. It's implemented in assembly mainly because that's the
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index e646ea009a..6bab3fd175 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -781,9 +781,6 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	BYTE $0x07; BYTE $0x00; // 2-byte nop
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+-	RET
+-
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+         // Stores are already ordered on s390x, so this is just a
+         // compile barrier.
+diff --git a/src/runtime/memclr_s390x.s b/src/runtime/memclr_s390x.s
+index 1b2aa3c3b2..dd14a441cc 100644
+--- a/src/runtime/memclr_s390x.s
++++ b/src/runtime/memclr_s390x.s
+@@ -110,12 +110,12 @@ clearmt32:
+ clearlt256:
+ 	CMPBEQ	R5, $0, done
+ 	ADD	$-1, R5
+-	EXRL	$runtime·memclr_s390x_exrl_xc(SB), R5
++	EXRL	$memclr_exrl_xc<>(SB), R5
+ done:
+ 	RET
+ 
+ // DO NOT CALL - target for exrl (execute relative long) instruction.
+-TEXT runtime·memclr_s390x_exrl_xc(SB),NOSPLIT|NOFRAME,$0-0
++TEXT memclr_exrl_xc<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	XC	$1, 0(R4), 0(R4)
+ 	MOVD	$0, 0(R0)
+ 	RET
+diff --git a/src/runtime/memmove_s390x.s b/src/runtime/memmove_s390x.s
+index 94d8be5a47..4ce98b0a95 100644
+--- a/src/runtime/memmove_s390x.s
++++ b/src/runtime/memmove_s390x.s
+@@ -66,7 +66,7 @@ forwards_fast:
+ forwards_small:
+ 	CMPBEQ	R5, $0, done
+ 	ADD	$-1, R5
+-	EXRL	$runtime·memmove_s390x_exrl_mvc(SB), R5
++	EXRL	$memmove_exrl_mvc<>(SB), R5
+ 	RET
+ 
+ move0to3:
+@@ -182,7 +182,7 @@ done:
+ 	RET
+ 
+ // DO NOT CALL - target for exrl (execute relative long) instruction.
+-TEXT runtime·memmove_s390x_exrl_mvc(SB),NOSPLIT|NOFRAME,$0-0
++TEXT memmove_exrl_mvc<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MVC	$1, 0(R4), 0(R6)
+ 	MOVD	R0, 0(R0)
+ 	RET
+diff --git a/src/runtime/stubs_arm64.go b/src/runtime/stubs_arm64.go
+new file mode 100644
+index 0000000000..44c566e602
+--- /dev/null
++++ b/src/runtime/stubs_arm64.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// Called from assembly only; declared for go vet.
++func load_g()
++func save_g()
+diff --git a/src/runtime/stubs_mips64x.go b/src/runtime/stubs_mips64x.go
+new file mode 100644
+index 0000000000..4e62c1ce90
+--- /dev/null
++++ b/src/runtime/stubs_mips64x.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++
++package runtime
++
++// Called from assembly only; declared for go vet.
++func load_g()
++func save_g()
+diff --git a/src/runtime/stubs_mipsx.go b/src/runtime/stubs_mipsx.go
+new file mode 100644
+index 0000000000..707b295f7a
+--- /dev/null
++++ b/src/runtime/stubs_mipsx.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips mipsle
++
++package runtime
++
++// Called from assembly only; declared for go vet.
++func load_g()
++func save_g()
+diff --git a/src/runtime/stubs_ppc64x.go b/src/runtime/stubs_ppc64x.go
+new file mode 100644
+index 0000000000..26f5bb20ca
+--- /dev/null
++++ b/src/runtime/stubs_ppc64x.go
+@@ -0,0 +1,12 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++package runtime
++
++// Called from assembly only; declared for go vet.
++func load_g()
++func save_g()
++func reginit()
+diff --git a/src/runtime/stubs_s390x.go b/src/runtime/stubs_s390x.go
+new file mode 100644
+index 0000000000..44c566e602
+--- /dev/null
++++ b/src/runtime/stubs_s390x.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// Called from assembly only; declared for go vet.
++func load_g()
++func save_g()
+diff --git a/src/runtime/sys_aix_ppc64.s b/src/runtime/sys_aix_ppc64.s
+index 9e1a95f31e..9561e11d28 100644
+--- a/src/runtime/sys_aix_ppc64.s
++++ b/src/runtime/sys_aix_ppc64.s
+@@ -15,7 +15,7 @@
+ #include "asm_ppc64x.h"
+ 
+ // This function calls a C function with the function descriptor in R12
+-TEXT runtime·callCfunction(SB),	NOSPLIT|NOFRAME,$0
++TEXT callCfunction<>(SB),	NOSPLIT|NOFRAME,$0
+ 	MOVD	0(R12), R12
+ 	MOVD	R2, 40(R1)
+ 	MOVD	0(R12), R0
+@@ -31,12 +31,12 @@ TEXT runtime·callCfunction(SB),	NOSPLIT|NOFRAME,$0
+ // It reserves a stack of 288 bytes for the C function.
+ // NOT USING GO CALLING CONVENTION
+ // runtime.asmsyscall6 is a function descriptor to the real asmsyscall6.
+-DATA	runtime·asmsyscall6+0(SB)/8, $runtime·_asmsyscall6(SB)
++DATA	runtime·asmsyscall6+0(SB)/8, $asmsyscall6<>(SB)
+ DATA	runtime·asmsyscall6+8(SB)/8, $TOC(SB)
+ DATA	runtime·asmsyscall6+16(SB)/8, $0
+ GLOBL	runtime·asmsyscall6(SB), NOPTR, $24
+ 
+-TEXT runtime·_asmsyscall6(SB),NOSPLIT,$256
++TEXT asmsyscall6<>(SB),NOSPLIT,$256
+ 	MOVD	R3, 48(R1) // Save libcall for later
+ 	MOVD	libcall_fn(R3), R12
+ 	MOVD	libcall_args(R3), R9
+@@ -46,7 +46,7 @@ TEXT runtime·_asmsyscall6(SB),NOSPLIT,$256
+ 	MOVD	24(R9), R6
+ 	MOVD	32(R9), R7
+ 	MOVD	40(R9), R8
+-	BL	runtime·callCfunction(SB)
++	BL	callCfunction<>(SB)
+ 
+ 	// Restore R0 and TOC
+ 	XOR	R0, R0
+@@ -90,15 +90,15 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 
+ 
+ // runtime.sigtramp is a function descriptor to the real sigtramp.
+-DATA	runtime·sigtramp+0(SB)/8, $runtime·_sigtramp(SB)
++DATA	runtime·sigtramp+0(SB)/8, $sigtramp<>(SB)
+ DATA	runtime·sigtramp+8(SB)/8, $TOC(SB)
+ DATA	runtime·sigtramp+16(SB)/8, $0
+ GLOBL	runtime·sigtramp(SB), NOPTR, $24
+ 
+-// This funcion must not have any frame as we want to control how
++// This function must not have any frame as we want to control how
+ // every registers are used.
+ // TODO(aix): Implement SetCgoTraceback handler.
+-TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
++TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	LR, R0
+ 	MOVD	R0, 16(R1)
+ 	// initialize essential registers (just in case)
+@@ -189,12 +189,12 @@ exit:
+ 	BR (LR)
+ 
+ // runtime.tstart is a function descriptor to the real tstart.
+-DATA	runtime·tstart+0(SB)/8, $runtime·_tstart(SB)
++DATA	runtime·tstart+0(SB)/8, $tstart<>(SB)
+ DATA	runtime·tstart+8(SB)/8, $TOC(SB)
+ DATA	runtime·tstart+16(SB)/8, $0
+ GLOBL	runtime·tstart(SB), NOPTR, $24
+ 
+-TEXT runtime·_tstart(SB),NOSPLIT,$0
++TEXT tstart<>(SB),NOSPLIT,$0
+ 	XOR	 R0, R0 // reset R0
+ 
+ 	// set g
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index ee9f9303c7..6e539fbc6f 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -182,12 +182,13 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	SYSCALL
+ 	MOVW	4(R29), R3	// sec
+ 	MOVW	8(R29), R5	// nsec
++	MOVW	$sec+0(FP), R6
+ #ifdef GOARCH_mips
+-	MOVW	R3, sec_lo+4(FP)
+-	MOVW	R0, sec_hi+0(FP)
++	MOVW	R3, 4(R6)
++	MOVW	R0, 0(R6)
+ #else
+-	MOVW	R3, sec_lo+0(FP)
+-	MOVW	R0, sec_hi+4(FP)
++	MOVW	R3, 0(R6)
++	MOVW	R0, 4(R6)
+ #endif
+ 	MOVW	R5, nsec+8(FP)
+ 	RET
+@@ -206,17 +207,18 @@ TEXT runtime·nanotime(SB),NOSPLIT,$8-8
+ 	MOVW	LO, R3
+ 	ADDU	R5, R3
+ 	SGTU	R5, R3, R4
++	MOVW	$ret+0(FP), R6
+ #ifdef GOARCH_mips
+-	MOVW	R3, ret_lo+4(FP)
++	MOVW	R3, 4(R6)
+ #else
+-	MOVW	R3, ret_lo+0(FP)
++	MOVW	R3, 0(R6)
+ #endif
+ 	MOVW	HI, R3
+ 	ADDU	R4, R3
+ #ifdef GOARCH_mips
+-	MOVW	R3, ret_hi+0(FP)
++	MOVW	R3, 0(R6)
+ #else
+-	MOVW	R3, ret_hi+4(FP)
++	MOVW	R3, 4(R6)
+ #endif
+ 	RET
+ 
+@@ -369,6 +371,7 @@ TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0-24
+ 
+ 	// In child, on new stack.
+ 	// Check that SP is as we expect
++	NOP	R29	// tell vet R29/SP changed - stop checking offsets
+ 	MOVW	12(R29), R16
+ 	MOVW	$1234, R1
+ 	BEQ	R16, R1, 2(PC)
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index f1515ec41b..13d23156bd 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -285,16 +285,19 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVD	24(R1), R2
+ 	RET
+ 
++TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
++	RET
++
+ #ifdef GOARCH_ppc64le
+ // ppc64le doesn't need function descriptors
+ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ #else
+ // function descriptor for the real sigtramp
+ TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
+-	DWORD	$runtime·_sigtramp(SB)
++	DWORD	$sigtramp<>(SB)
+ 	DWORD	$0
+ 	DWORD	$0
+-TEXT runtime·_sigtramp(SB),NOSPLIT,$64
++TEXT sigtramp<>(SB),NOSPLIT,$64
+ #endif
+ 	// initialize essential registers (just in case)
+ 	BL	runtime·reginit(SB)
+@@ -410,11 +413,11 @@ sigtrampnog:
+ #else
+ // function descriptor for the real sigtramp
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
+-	DWORD	$runtime·_cgoSigtramp(SB)
++	DWORD	$cgoSigtramp<>(SB)
+ 	DWORD	$0
+ 	DWORD	$0
+-TEXT runtime·_cgoSigtramp(SB),NOSPLIT,$0
+-	JMP	runtime·_sigtramp(SB)
++TEXT cgoSigtramp<>(SB),NOSPLIT,$0
++	JMP	sigtramp<>(SB)
+ #endif
+ 
+ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index d7ee391126..58b36dff0a 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -222,6 +222,9 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	BL	R5
+ 	RET
+ 
++TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
++	RET
++
+ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	// initialize essential registers (just in case)
+ 	XOR	R0, R0

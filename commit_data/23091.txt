@@ -20,6 +20,24 @@ Date:   Thu Apr 23 02:16:31 2015 -0400
     Change-Id: I16c9a9eb980d6a63309e4cacd79eee2fe05769ee
     Reviewed-on: https://go-review.googlesource.com/9223
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 559e5aaf3a..0479fd50ec 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -98,6 +98,12 @@ func (t *tester) run() {
+ 	if t.goarch == "arm" || t.goos == "windows" {
+ 		t.timeoutScale = 2
+ 	}
++	if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
++		t.timeoutScale, err = strconv.Atoi(s)
++		if err != nil {
++			log.Fatalf("failed to parse $GO_TEST_TIMEOUT_SCALE = %q as integer: %v", s, err)
++		}
++	}
+ 
+ 	if t.runRxStr != "" {
+ 		t.runRx = regexp.MustCompile(t.runRxStr)

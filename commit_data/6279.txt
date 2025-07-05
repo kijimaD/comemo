@@ -7,7 +7,62 @@ Date:   Tue Sep 14 16:54:38 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2206041
-
+---
  src/cmd/godoc/godoc.go |  6 ++----
  src/cmd/godoc/utils.go | 22 ++++++++++++++++++++++
  2 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index e174c4e5ae..4840983235 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -170,10 +170,8 @@ func updateFilterFile() {
+ 	})
+ 
+ 	// update filter file
+-	// TODO(gri) should write a tmp file and atomically rename
+-	err := ioutil.WriteFile(*filter, buf.Bytes(), 0666)
+-	if err != nil {
+-		log.Stderrf("ioutil.Writefile(%s): %s", *filter, err)
++	if err := writeFileAtomically(*filter, buf.Bytes()); err != nil {
++		log.Stderrf("writeFileAtomically(%s): %s", *filter, err)
+ 		filterDelay.backoff(24 * 60) // back off exponentially, but try at least once a day
+ 	} else {
+ 		filterDelay.set(*filterMin) // revert to regular filter update schedule
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+index f95ff83f23..55cf878414 100644
+--- a/src/cmd/godoc/utils.go
++++ b/src/cmd/godoc/utils.go
+@@ -7,6 +7,8 @@
+ package main
+ 
+ import (
++	"io"
++	"io/ioutil"
+ 	"os"
+ 	pathutil "path"
+ 	"sort"
+@@ -85,3 +87,23 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
+ 
+ 	return list[0:i]
+ }
++
++
++// writeFileAtomically writes data to a temporary file and then
++// atomically renames that file to the file named by filename.
++//
++func writeFileAtomically(filename string, data []byte) os.Error {
++	f, err := ioutil.TempFile(cwd, filename)
++	if err != nil {
++		return err
++	}
++	n, err := f.Write(data)
++	f.Close()
++	if err != nil {
++		return err
++	}
++	if n < len(data) {
++		return io.ErrShortWrite
++	}
++	return os.Rename(f.Name(), filename)
++}

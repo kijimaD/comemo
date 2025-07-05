@@ -10,8 +10,51 @@ Date:   Thu Mar 6 21:33:00 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/69870055
-
+---
  src/pkg/runtime/malloc.goc | 1 +
  src/pkg/runtime/mcache.c   | 1 -
  src/pkg/runtime/mgc0.c     | 6 +++++-
  3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 0470211506..0e8a812641 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -329,6 +329,7 @@ runtime·free(void *v)
+ 		// it might coalesce v and other blocks into a bigger span
+ 		// and change the bitmap further.
+ 		c->local_nsmallfree[sizeclass]++;
++		c->local_cachealloc -= size;
+ 		if(c->alloc[sizeclass] == s) {
+ 			// We own the span, so we can just add v to the freelist
+ 			runtime·markfreed(v);
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index 0b4bbd90be..26e3db2dca 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -97,7 +97,6 @@ runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size)
+ 	p->next = l->list;
+ 	l->list = p;
+ 	l->nlist++;
+-	c->local_cachealloc -= size;
+ 
+ 	// We transfer a span at a time from MCentral to MCache,
+ 	// so we'll do the same in the other direction.
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index aa3eddbccd..400149c26d 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -2346,8 +2346,12 @@ gc(struct gc_args *args)
+ 		runtime·printf("pause %D\n", t4-t0);
+ 
+ 	if(runtime·debug.gctrace) {
+-		updatememstats(&stats);
+ 		heap1 = mstats.heap_alloc;
++		updatememstats(&stats);
++		if(heap1 != mstats.heap_alloc) {
++			runtime·printf("runtime: mstats skew: heap=%p/%p\n", heap1, mstats.heap_alloc);
++			runtime·throw("mstats skew");
++		}
+ 		obj = mstats.nmalloc - mstats.nfree;
+ 
+ 		stats.nprocyield += work.markfor->nprocyield;

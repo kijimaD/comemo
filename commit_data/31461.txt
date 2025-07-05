@@ -13,6 +13,57 @@ Date:   Mon Feb 20 20:34:36 2017 +0100
     Change-Id: I95f05a72e1c455ed8ddf202c56f4266f03f370fd
     Reviewed-on: https://go-review.googlesource.com/37310
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/all_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index df770a1fe0..967849c036 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -1742,30 +1742,35 @@ var vfy0SC = []float64{
+ 	0,
+ 	Inf(1),
+ 	NaN(),
++	-1,
+ }
+ var y0SC = []float64{
+ 	NaN(),
+ 	Inf(-1),
+ 	0,
+ 	NaN(),
++	NaN(),
+ }
+ var y1SC = []float64{
+ 	NaN(),
+ 	Inf(-1),
+ 	0,
+ 	NaN(),
++	NaN(),
+ }
+ var y2SC = []float64{
+ 	NaN(),
+ 	Inf(-1),
+ 	0,
+ 	NaN(),
++	NaN(),
+ }
+ var yM3SC = []float64{
+ 	NaN(),
+ 	Inf(1),
+ 	0,
+ 	NaN(),
++	NaN(),
+ }
+ 
+ // arguments and expected results for boundary cases
+@@ -2716,6 +2721,9 @@ func TestYn(t *testing.T) {
+ 			t.Errorf("Yn(-3, %g) = %g, want %g", vfy0SC[i], f, yM3SC[i])
+ 		}
+ 	}
++	if f := Yn(0, 0); !alike(Inf(-1), f) {
++		t.Errorf("Yn(0, 0) = %g, want %g", f, Inf(-1))
++	}
+ }
+ 
+ // Check that math functions of high angle values

@@ -9,6 +9,20 @@ Date:   Tue May 3 09:53:04 2011 -0300
     R=adg, rsc1
     CC=golang-dev
     https://golang.org/cl/4437089
-
+---
  src/Make.cmd | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Make.cmd b/src/Make.cmd
+index e769e3072a..26c3ca2fc4 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -25,7 +25,7 @@ _go_.$O: $(GOFILES) $(PREREQ)
+ install: $(TARGDIR)/$(TARG)
+ 
+ $(TARGDIR)/$(TARG): $(TARG)
+-	cp -f $(TARG) $(TARGDIR)
++	mkdir -p $(TARGDIR) && cp -f $(TARG) $(TARGDIR)
+ 
+ CLEANFILES+=$(TARG) _test _testmain.go
+ 

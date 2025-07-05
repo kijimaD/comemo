@@ -16,9 +16,104 @@ Date:   Fri Apr 28 10:55:41 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go         |  8 ++++----
  src/cmd/asm/internal/asm/testdata/arm.s |  2 ++
  src/cmd/internal/obj/arm/asm5.go        | 10 ++++------
  src/cmd/internal/obj/util.go            |  2 +-
  4 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index fa32e76f33..df23856c47 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -639,12 +639,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			// All must be registers.
+ 			p.getRegister(prog, op, &a[0])
+ 			r1 := p.getRegister(prog, op, &a[1])
+-			p.getRegister(prog, op, &a[2])
+-			r3 := p.getRegister(prog, op, &a[3])
++			r2 := p.getRegister(prog, op, &a[2])
++			p.getRegister(prog, op, &a[3])
+ 			prog.From = a[0]
+-			prog.To = a[2]
++			prog.To = a[3]
+ 			prog.To.Type = obj.TYPE_REGREG2
+-			prog.To.Offset = int64(r3)
++			prog.To.Offset = int64(r2)
+ 			prog.Reg = r1
+ 			break
+ 		}
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 969fb66cdf..e814905bec 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -951,6 +951,8 @@ jmp_label_3:
+ 	MULAWT	R1, R2, R3, R4       // c23124e1
+ 	MULAWB	R1, R2, R3, R4       // 823124e1
+ 	MULS	R1, R2, R3, R4       // 923164e0
++	MULA	R1, R2, R3, R4       // 923124e0
++	MULA.S	R1, R2, R3, R4       // 923134e0
+ 	MMULA	R1, R2, R3, R4       // 123154e7
+ 	MMULS	R1, R2, R3, R4       // d23154e7
+ 	MULABB	R1, R2, R3, R4       // 823104e1
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 1770ab6129..28bd7f8020 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -165,7 +165,6 @@ var optab = []Optab{
+ 	{ADIVHW, C_REG, C_REG, C_REG, 105, 4, 0, 0, 0},
+ 	{ADIVHW, C_REG, C_NONE, C_REG, 105, 4, 0, 0, 0},
+ 	{AMULL, C_REG, C_REG, C_REGREG, 17, 4, 0, 0, 0},
+-	{AMULA, C_REG, C_REG, C_REGREG2, 17, 4, 0, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_SAUTO, 20, 4, REGSP, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_SOREG, 20, 4, 0, 0, 0},
+ 	{AMOVB, C_REG, C_NONE, C_SAUTO, 20, 4, REGSP, 0, 0},
+@@ -1526,6 +1525,7 @@ func buildop(ctxt *obj.Link) {
+ 		case AMULAWT:
+ 			opset(AMULAWB, r0)
+ 			opset(AMULABB, r0)
++			opset(AMULA, r0)
+ 			opset(AMULS, r0)
+ 			opset(AMMULA, r0)
+ 			opset(AMMULS, r0)
+@@ -1536,12 +1536,10 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AREVSH, r0)
+ 			opset(ARBIT, r0)
+ 
+-		case AMULA,
+-			ALDREX,
++		case ALDREX,
+ 			ASTREX,
+ 			ALDREXD,
+ 			ASTREXD,
+-			ATST,
+ 			APLD,
+ 			obj.AUNDEF,
+ 			obj.AFUNCDATA,
+@@ -2489,10 +2487,10 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	case 99: /* MULAW{T,B} Rs, Rm, Rn, Rd */
+ 		o1 = c.oprrr(p, p.As, int(p.Scond))
+ 
+-		o1 |= (uint32(p.To.Reg) & 15) << 12
++		o1 |= (uint32(p.To.Reg) & 15) << 16
+ 		o1 |= (uint32(p.From.Reg) & 15) << 8
+ 		o1 |= (uint32(p.Reg) & 15) << 0
+-		o1 |= uint32((p.To.Offset & 15) << 16)
++		o1 |= uint32((p.To.Offset & 15) << 12)
+ 
+ 	// DATABUNDLE: BKPT $0x5be0, signify the start of NaCl data bundle;
+ 	// DATABUNDLEEND: zero width alignment marker
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 2e3ba15542..9bcdbbd127 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -240,7 +240,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 		str = fmt.Sprintf("(%v, %v)", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
+ 
+ 	case TYPE_REGREG2:
+-		str = fmt.Sprintf("%v, %v", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
++		str = fmt.Sprintf("%v, %v", Rconv(int(a.Offset)), Rconv(int(a.Reg)))
+ 
+ 	case TYPE_REGLIST:
+ 		str = regListConv(int(a.Offset))

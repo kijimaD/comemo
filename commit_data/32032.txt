@@ -12,7 +12,7 @@ Date:   Wed Mar 29 15:14:55 2017 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/link.go       |  5 -----
  src/cmd/internal/obj/x86/asm6.go   |  4 ++--
  src/cmd/internal/obj/x86/obj6.go   |  7 +++----
@@ -25,3 +25,375 @@ Date:   Wed Mar 29 15:14:55 2017 +1100
  src/cmd/link/internal/x86/asm.go   |  8 ++++----
  src/cmd/link/internal/x86/obj.go   |  2 +-
  11 files changed, 33 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 91a967f68c..de12c1321f 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -810,7 +810,6 @@ const (
+ 	Hplan9
+ 	Hsolaris
+ 	Hwindows
+-	Hwindowsgui
+ )
+ 
+ func (h *HeadType) Set(s string) error {
+@@ -835,8 +834,6 @@ func (h *HeadType) Set(s string) error {
+ 		*h = Hsolaris
+ 	case "windows":
+ 		*h = Hwindows
+-	case "windowsgui":
+-		*h = Hwindowsgui
+ 	default:
+ 		return fmt.Errorf("invalid headtype: %q", s)
+ 	}
+@@ -865,8 +862,6 @@ func (h *HeadType) String() string {
+ 		return "solaris"
+ 	case Hwindows:
+ 		return "windows"
+-	case Hwindowsgui:
+-		return "windowsgui"
+ 	}
+ 	return fmt.Sprintf("HeadType(%d)", *h)
+ }
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 86dfb28ad0..00a5816ddc 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -4120,7 +4120,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 							asmbuf.Put1(0x8B)
+ 							asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
+ 
+-						case obj.Hwindows, obj.Hwindowsgui:
++						case obj.Hwindows:
+ 							// Windows TLS base is always 0x14(FS).
+ 							pp.From = p.From
+ 
+@@ -4192,7 +4192,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 							0x8B)
+ 						asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
+ 
+-					case obj.Hwindows, obj.Hwindowsgui:
++					case obj.Hwindows:
+ 						// Windows TLS base is always 0x28(GS).
+ 						pp.From = p.From
+ 
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index f4093130a1..b419bc92c9 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -54,8 +54,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
+ 		case obj.Hlinux,
+ 			obj.Hnacl,
+ 			obj.Hplan9,
+-			obj.Hwindows,
+-			obj.Hwindowsgui:
++			obj.Hwindows:
+ 			return false
+ 		}
+ 
+@@ -63,7 +62,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
+ 	}
+ 
+ 	switch ctxt.Headtype {
+-	case obj.Hplan9, obj.Hwindows, obj.Hwindowsgui:
++	case obj.Hplan9, obj.Hwindows:
+ 		return false
+ 	case obj.Hlinux:
+ 		return !ctxt.Flag_shared
+@@ -163,7 +162,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	}
+ 
+ 	// TODO: Remove.
+-	if (ctxt.Headtype == obj.Hwindows || ctxt.Headtype == obj.Hwindowsgui) && ctxt.Arch.Family == sys.AMD64 || ctxt.Headtype == obj.Hplan9 {
++	if ctxt.Headtype == obj.Hwindows && ctxt.Arch.Family == sys.AMD64 || ctxt.Headtype == obj.Hplan9 {
+ 		if p.From.Scale == 1 && p.From.Index == REG_TLS {
+ 			p.From.Scale = 2
+ 		}
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index c1d8339f4b..4084f19092 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -228,7 +228,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			// nothing to do, the relocation will be laid out in reloc
+ 			return true
+ 		}
+-		if ld.Headtype == obj.Hwindows || ld.Headtype == obj.Hwindowsgui {
++		if ld.Headtype == obj.Hwindows {
+ 			// nothing to do, the relocation will be laid out in pereloc1
+ 			return true
+ 		} else {
+@@ -342,7 +342,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			return true
+ 		}
+ 
+-		if ld.Headtype == obj.Hwindows || ld.Headtype == obj.Hwindowsgui {
++		if ld.Headtype == obj.Hwindows {
+ 			// nothing to do, the relocation will be laid out in pereloc1
+ 			return true
+ 		}
+@@ -718,8 +718,7 @@ func asmb(ctxt *ld.Link) {
+ 		ld.Flag8 = true /* 64-bit addresses */
+ 
+ 	case obj.Hnacl,
+-		obj.Hwindows,
+-		obj.Hwindowsgui:
++		obj.Hwindows:
+ 		break
+ 	}
+ 
+@@ -750,8 +749,7 @@ func asmb(ctxt *ld.Link) {
+ 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+ 			symo = ld.Rnd(symo, int64(*ld.FlagRound))
+ 
+-		case obj.Hwindows,
+-			obj.Hwindowsgui:
++		case obj.Hwindows:
+ 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+ 			symo = ld.Rnd(symo, ld.PEFILEALIGN)
+ 		}
+@@ -788,7 +786,7 @@ func asmb(ctxt *ld.Link) {
+ 				ld.Cflush()
+ 			}
+ 
+-		case obj.Hwindows, obj.Hwindowsgui:
++		case obj.Hwindows:
+ 			if ctxt.Debugvlog != 0 {
+ 				ctxt.Logf("%5.2f dwarf\n", obj.Cputime())
+ 			}
+@@ -833,8 +831,7 @@ func asmb(ctxt *ld.Link) {
+ 		obj.Hnacl:
+ 		ld.Asmbelf(ctxt, symo)
+ 
+-	case obj.Hwindows,
+-		obj.Hwindowsgui:
++	case obj.Hwindows:
+ 		ld.Asmbpe(ctxt)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 52ea8ffe0f..aa7b9cd731 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -141,7 +141,7 @@ func archinit(ctxt *ld.Link) {
+ 			*ld.FlagRound = 0x10000
+ 		}
+ 
+-	case obj.Hwindows, obj.Hwindowsgui: /* PE executable */
++	case obj.Hwindows: /* PE executable */
+ 		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
+ 		return
+ 	}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 2ce193570f..094df86dce 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -474,7 +474,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				o = 8 + r.Sym.Value
+ 			} else if Iself || Headtype == obj.Hplan9 || Headtype == obj.Hdarwin || isAndroidX86 {
+ 				o = int64(ctxt.Tlsoffset) + r.Add
+-			} else if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++			} else if Headtype == obj.Hwindows {
+ 				o = r.Add
+ 			} else {
+ 				log.Fatalf("unexpected R_TLS_LE relocation for %v", Headtype)
+@@ -548,7 +548,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 							o += Symaddr(rs)
+ 						}
+ 					}
+-				} else if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++				} else if Headtype == obj.Hwindows {
+ 					// nothing to do
+ 				} else {
+ 					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, Headtype)
+@@ -580,7 +580,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				// IMAGE_REL_I386_DIR32, IMAGE_REL_AMD64_ADDR64 and IMAGE_REL_AMD64_ADDR32.
+ 				// Do not replace R_DWARFREF with R_ADDR for windows -
+ 				// let PE code emit correct relocations.
+-				if Headtype != obj.Hwindows && Headtype != obj.Hwindowsgui {
++				if Headtype != obj.Hwindows {
+ 					r.Type = obj.R_ADDR
+ 				}
+ 
+@@ -659,7 +659,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 					} else {
+ 						o += int64(r.Siz)
+ 					}
+-				} else if (Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui) && SysArch.Family == sys.AMD64 { // only amd64 needs PCREL
++				} else if Headtype == obj.Hwindows && SysArch.Family == sys.AMD64 { // only amd64 needs PCREL
+ 					// PE/COFF's PC32 relocation uses the address after the relocated
+ 					// bytes as the base. Compensate by skewing the addend.
+ 					o += int64(r.Siz)
+@@ -745,7 +745,7 @@ func (ctxt *Link) reloc() {
+ }
+ 
+ func dynrelocsym(ctxt *Link, s *Symbol) {
+-	if (Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui) && Linkmode != LinkExternal {
++	if Headtype == obj.Hwindows && Linkmode != LinkExternal {
+ 		rel := ctxt.Syms.Lookup(".rel", 0)
+ 		if s == rel {
+ 			return
+@@ -813,7 +813,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
+ func dynreloc(ctxt *Link, data *[obj.SXREF][]*Symbol) {
+ 	// -d suppresses dynamic loader format, so we may as well not
+ 	// compute these sections or mark their symbols as reachable.
+-	if *FlagD && Headtype != obj.Hwindows && Headtype != obj.Hwindowsgui {
++	if *FlagD && Headtype != obj.Hwindows {
+ 		return
+ 	}
+ 	if ctxt.Debugvlog != 0 {
+@@ -2197,7 +2197,7 @@ func (ctxt *Link) address() {
+ 	Segdata.Vaddr = va
+ 	Segdata.Fileoff = va - Segtext.Vaddr + Segtext.Fileoff
+ 	Segdata.Filelen = 0
+-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++	if Headtype == obj.Hwindows {
+ 		Segdata.Fileoff = Segtext.Fileoff + uint64(Rnd(int64(Segtext.Length), PEFILEALIGN))
+ 	}
+ 	if Headtype == obj.Hplan9 {
+@@ -2240,7 +2240,7 @@ func (ctxt *Link) address() {
+ 	Segdwarf.Vaddr = va
+ 	Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(*FlagRound)))
+ 	Segdwarf.Filelen = 0
+-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++	if Headtype == obj.Hwindows {
+ 		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
+ 	}
+ 	for s := Segdwarf.Sect; s != nil; s = s.Next {
+@@ -2250,7 +2250,7 @@ func (ctxt *Link) address() {
+ 		}
+ 		s.Vaddr = va
+ 		va += uint64(vlen)
+-		if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++		if Headtype == obj.Hwindows {
+ 			va = uint64(Rnd(int64(va), PEFILEALIGN))
+ 		}
+ 		Segdwarf.Length = va - Segdwarf.Vaddr
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 376f64770e..a5c72cf8b2 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -431,7 +431,7 @@ func (ctxt *Link) loadlib() {
+ 	determineLinkMode(ctxt)
+ 
+ 	// Recalculate pe parameters now that we have Linkmode set.
+-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++	if Headtype == obj.Hwindows {
+ 		Peinit(ctxt)
+ 	}
+ 
+@@ -573,7 +573,7 @@ func (ctxt *Link) loadlib() {
+ 			if *flagLibGCC != "none" {
+ 				hostArchive(ctxt, *flagLibGCC)
+ 			}
+-			if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++			if Headtype == obj.Hwindows {
+ 				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
+ 					hostArchive(ctxt, p)
+ 				}
+@@ -1213,7 +1213,7 @@ func (l *Link) hostlink() {
+ 			}
+ 		}
+ 	}
+-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++	if Headtype == obj.Hwindows {
+ 		// libmingw32 and libmingwex have some inter-dependencies,
+ 		// so must use linker groups.
+ 		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
+@@ -1954,7 +1954,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 			put(ctxt, nil, s.Name, FileSym, s.Value, nil)
+ 
+ 		case obj.SHOSTOBJ:
+-			if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui || Iself {
++			if Headtype == obj.Hwindows || Iself {
+ 				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
+ 			}
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index a8302173ac..89326fd65f 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -148,7 +148,7 @@ func Main() {
+ 
+ 	if *flagOutfile == "" {
+ 		*flagOutfile = "a.out"
+-		if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++		if Headtype == obj.Hwindows {
+ 			*flagOutfile += ".exe"
+ 		}
+ 	}
+@@ -204,7 +204,7 @@ func Main() {
+ 		ctxt.domacho()
+ 	}
+ 	ctxt.dostkcheck()
+-	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++	if Headtype == obj.Hwindows {
+ 		ctxt.dope()
+ 	}
+ 	ctxt.addexport()
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 4908e34608..abe0aa685c 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -63,7 +63,7 @@ func (ctxt *Link) computeTLSOffset() {
+ 	default:
+ 		log.Fatalf("unknown thread-local storage offset for %v", Headtype)
+ 
+-	case obj.Hplan9, obj.Hwindows, obj.Hwindowsgui:
++	case obj.Hplan9, obj.Hwindows:
+ 		break
+ 
+ 		/*
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index e49b07c368..1f4e08bc94 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -336,7 +336,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			return true
+ 		}
+ 
+-		if (ld.Headtype == obj.Hwindows || ld.Headtype == obj.Hwindowsgui) && s.Size == int64(ld.SysArch.PtrSize) {
++		if ld.Headtype == obj.Hwindows && s.Size == int64(ld.SysArch.PtrSize) {
+ 			// nothing to do, the relocation will be laid out in pereloc1
+ 			return true
+ 		}
+@@ -699,7 +699,7 @@ func asmb(ctxt *ld.Link) {
+ 		case obj.Hdarwin:
+ 			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+ 
+-		case obj.Hwindows, obj.Hwindowsgui:
++		case obj.Hwindows:
+ 			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+ 			symo = uint32(ld.Rnd(int64(symo), ld.PEFILEALIGN))
+ 		}
+@@ -734,7 +734,7 @@ func asmb(ctxt *ld.Link) {
+ 				ld.Cflush()
+ 			}
+ 
+-		case obj.Hwindows, obj.Hwindowsgui:
++		case obj.Hwindows:
+ 			if ctxt.Debugvlog != 0 {
+ 				ctxt.Logf("%5.2f dwarf\n", obj.Cputime())
+ 			}
+@@ -774,7 +774,7 @@ func asmb(ctxt *ld.Link) {
+ 		obj.Hnacl:
+ 		ld.Asmbelf(ctxt, int64(symo))
+ 
+-	case obj.Hwindows, obj.Hwindowsgui:
++	case obj.Hwindows:
+ 		ld.Asmbpe(ctxt)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index ba1dfcd4d0..bd85eed4d7 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -133,7 +133,7 @@ func archinit(ctxt *ld.Link) {
+ 			*ld.FlagRound = 0x10000
+ 		}
+ 
+-	case obj.Hwindows, obj.Hwindowsgui: /* PE executable */
++	case obj.Hwindows: /* PE executable */
+ 		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
+ 		return
+ 	}

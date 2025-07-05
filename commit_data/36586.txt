@@ -22,9 +22,520 @@ Date:   Thu May 3 11:27:48 2018 +0100
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
-
+---
  src/syscall/asm_plan9_386.s       |  64 +++++++++++++-------
  src/syscall/asm_plan9_amd64.s     |  66 ++++++++++++++-------
  src/syscall/asm_plan9_arm.s       | 122 +++++++++++++++++++++++++-------------
  src/syscall/syscall_plan9_test.go |  53 +++++++++++++++++
  4 files changed, 224 insertions(+), 81 deletions(-)
+
+diff --git a/src/syscall/asm_plan9_386.s b/src/syscall/asm_plan9_386.s
+index 2e7db8c410..65ae6c77fb 100644
+--- a/src/syscall/asm_plan9_386.s
++++ b/src/syscall/asm_plan9_386.s
+@@ -14,13 +14,16 @@
+ //func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+ //func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ 
++#define SYS_ERRSTR 41	/* from zsysnum_plan9.go */
++
+ // Trap # in AX, args on stack above caller pc.
+-TEXT	·Syscall(SB),NOSPLIT,$0-32
++TEXT	·Syscall(SB),NOSPLIT,$148-32
++	NO_LOCAL_POINTERS
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	trap+0(FP), AX	// syscall entry
+-	// slide args down on top of system call number
++	// copy args down
+ 	LEAL	a1+4(FP), SI
+-	LEAL	trap+0(FP), DI
++	LEAL	sysargs-144(SP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -31,13 +34,20 @@ TEXT	·Syscall(SB),NOSPLIT,$0-32
+ 	CMPL	AX, $-1
+ 	JNE	ok3
+ 
+-	SUBL	$8, SP
+-	CALL	runtime·errstr(SB)
+-	MOVL	SP, SI
+-	ADDL	$8, SP
++	LEAL	errbuf-128(SP), AX
++	MOVL	AX, sysargs-144(SP)
++	MOVL	$128, sysargs1-140(SP)
++	MOVL	$SYS_ERRSTR, AX
++	INT	$64
++	CALL	runtime·exitsyscall(SB)
++	MOVL	sysargs-144(SP), AX
++	MOVL	AX, errbuf-148(SP)
++	CALL	runtime·gostring(SB)
++	LEAL	str-144(SP), SI
+ 	JMP	copyresult3
+ 	
+ ok3:
++	CALL	runtime·exitsyscall(SB)
+ 	LEAL	·emptystring(SB), SI
+ 	
+ copyresult3:
+@@ -47,15 +57,15 @@ copyresult3:
+ 	MOVSL
+ 	MOVSL
+ 
+-	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall6(SB),NOSPLIT,$0-44
++TEXT	·Syscall6(SB),NOSPLIT,$148-44
++	NO_LOCAL_POINTERS
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	trap+0(FP), AX	// syscall entry
+-	// slide args down on top of system call number
++	// copy args down
+ 	LEAL	a1+4(FP), SI
+-	LEAL	trap+0(FP), DI
++	LEAL	sysargs-144(SP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -69,13 +79,20 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-44
+ 	CMPL	AX, $-1
+ 	JNE	ok4
+ 	
+-	SUBL	$8, SP
+-	CALL	runtime·errstr(SB)
+-	MOVL	SP, SI
+-	ADDL	$8, SP
++	LEAL	errbuf-128(SP), AX
++	MOVL	AX, sysargs-144(SP)
++	MOVL	$128, sysargs1-140(SP)
++	MOVL	$SYS_ERRSTR, AX
++	INT	$64
++	CALL	runtime·exitsyscall(SB)
++	MOVL	sysargs-144(SP), AX
++	MOVL	AX, errbuf-148(SP)
++	CALL	runtime·gostring(SB)
++	LEAL	str-144(SP), SI
+ 	JMP	copyresult4
+ 	
+ ok4:
++	CALL	runtime·exitsyscall(SB)
+ 	LEAL	·emptystring(SB), SI
+ 	
+ copyresult4:
+@@ -85,7 +102,6 @@ copyresult4:
+ 	MOVSL
+ 	MOVSL
+ 
+-	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+@@ -121,13 +137,23 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+ 	MOVL	AX, err+36(FP)
+ 	RET
+ 
+-#define SYS_SEEK 39	/* from zsysnum_plan9_386.go */
++#define SYS_SEEK 39	/* from zsysnum_plan9.go */
+ 
+ //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
+-TEXT ·seek(SB),NOSPLIT,$0-36
++TEXT ·seek(SB),NOSPLIT,$24-36
++	NO_LOCAL_POINTERS
+ 	LEAL	newoffset+20(FP), AX
+ 	MOVL	AX, placeholder+0(FP)
+ 	
++	// copy args down
++	LEAL	placeholder+0(FP), SI
++	LEAL	sysargs-20(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
+ 	MOVL	$SYS_SEEK, AX	// syscall entry
+ 	INT	$64
+ 	
+@@ -136,10 +162,8 @@ TEXT ·seek(SB),NOSPLIT,$0-36
+ 	MOVL	AX, newoffset_lo+20(FP)
+ 	MOVL	AX, newoffset_hi+24(FP)
+ 	
+-	SUBL	$8, SP
+ 	CALL	syscall·errstr(SB)
+ 	MOVL	SP, SI
+-	ADDL	$8, SP	
+ 	JMP	copyresult6
+ 	
+ ok6:
+diff --git a/src/syscall/asm_plan9_amd64.s b/src/syscall/asm_plan9_amd64.s
+index da93afabc1..bba4012e5c 100644
+--- a/src/syscall/asm_plan9_amd64.s
++++ b/src/syscall/asm_plan9_amd64.s
+@@ -14,12 +14,15 @@
+ //func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+ //func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ 
+-TEXT	·Syscall(SB),NOSPLIT,$0-64
++#define SYS_ERRSTR 41	/* from zsysnum_plan9.go */
++
++TEXT	·Syscall(SB),NOSPLIT,$168-64
++	NO_LOCAL_POINTERS
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	trap+0(FP), BP	// syscall entry
+-	// slide args down on top of system call number
++	// copy args down
+ 	LEAQ	a1+8(FP), SI
+-	LEAQ	trap+0(FP), DI
++	LEAQ	sysargs-160(SP), DI
+ 	CLD
+ 	MOVSQ
+ 	MOVSQ
+@@ -30,13 +33,20 @@ TEXT	·Syscall(SB),NOSPLIT,$0-64
+ 	CMPL	AX, $-1
+ 	JNE	ok3
+ 
+-	SUBQ	$16, SP
+-	CALL	runtime·errstr(SB)
+-	MOVQ	SP, SI
+-	ADDQ	$16, SP
++	LEAQ	errbuf-128(SP), AX
++	MOVQ	AX, sysargs-160(SP)
++	MOVQ	$128, sysargs1-152(SP)
++	MOVQ	$SYS_ERRSTR, BP
++	SYSCALL
++	CALL	runtime·exitsyscall(SB)
++	MOVQ	sysargs-160(SP), AX
++	MOVQ	AX, errbuf-168(SP)
++	CALL	runtime·gostring(SB)
++	LEAQ	str-160(SP), SI
+ 	JMP	copyresult3
+ 	
+ ok3:
++	CALL	runtime·exitsyscall(SB)
+ 	LEAQ	·emptystring(SB), SI
+ 	
+ copyresult3:
+@@ -46,15 +56,15 @@ copyresult3:
+ 	MOVSQ
+ 	MOVSQ
+ 
+-	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT	·Syscall6(SB),NOSPLIT,$0-88
++TEXT	·Syscall6(SB),NOSPLIT,$168-88
++	NO_LOCAL_POINTERS
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVQ	trap+0(FP), BP	// syscall entry
+-	// slide args down on top of system call number
++	// copy args down
+ 	LEAQ	a1+8(FP), SI
+-	LEAQ	trap+0(FP), DI
++	LEAQ	sysargs-160(SP), DI
+ 	CLD
+ 	MOVSQ
+ 	MOVSQ
+@@ -68,13 +78,20 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-88
+ 	CMPL	AX, $-1
+ 	JNE	ok4
+ 	
+-	SUBQ	$16, SP
+-	CALL	runtime·errstr(SB)
+-	MOVQ	SP, SI
+-	ADDQ	$16, SP
++	LEAQ	errbuf-128(SP), AX
++	MOVQ	AX, sysargs-160(SP)
++	MOVQ	$128, sysargs1-152(SP)
++	MOVQ	$SYS_ERRSTR, BP
++	SYSCALL
++	CALL	runtime·exitsyscall(SB)
++	MOVQ	sysargs-160(SP), AX
++	MOVQ	AX, errbuf-168(SP)
++	CALL	runtime·gostring(SB)
++	LEAQ	str-160(SP), SI
+ 	JMP	copyresult4
+ 	
+ ok4:
++	CALL	runtime·exitsyscall(SB)
+ 	LEAQ	·emptystring(SB), SI
+ 	
+ copyresult4:
+@@ -84,7 +101,6 @@ copyresult4:
+ 	MOVSQ
+ 	MOVSQ
+ 
+-	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+@@ -120,24 +136,32 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVQ	AX, err+72(FP)
+ 	RET
+ 
+-#define SYS_SEEK 39	/* from zsysnum_plan9_amd64.go */
++#define SYS_SEEK 39	/* from zsysnum_plan9.go */
+ 
+ //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
+-TEXT ·seek(SB),NOSPLIT,$0-56
++TEXT ·seek(SB),NOSPLIT,$48-56
++	NO_LOCAL_POINTERS
+ 	LEAQ	newoffset+32(FP), AX
+ 	MOVQ	AX, placeholder+0(FP)
+ 	
++	// copy args down
++	LEAQ	placeholder+0(FP), SI
++	LEAQ	sysargs-40(SP), DI
++	CLD
++	MOVSQ
++	MOVSQ
++	MOVSQ
++	MOVSQ
++	MOVSQ
+ 	MOVQ	$SYS_SEEK, BP	// syscall entry
+ 	SYSCALL
+ 	
+ 	CMPL	AX, $-1
+ 	JNE	ok6
+-	MOVQ	$-1, newoffset+32(FP)
++	MOVQ	AX, newoffset+32(FP)
+ 	
+-	SUBQ	$16, SP
+ 	CALL	syscall·errstr(SB)
+ 	MOVQ	SP, SI
+-	ADDQ	$16, SP	
+ 	JMP	copyresult6
+ 	
+ ok6:
+diff --git a/src/syscall/asm_plan9_arm.s b/src/syscall/asm_plan9_arm.s
+index 4972597c40..d193614aff 100644
+--- a/src/syscall/asm_plan9_arm.s
++++ b/src/syscall/asm_plan9_arm.s
+@@ -5,58 +5,87 @@
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
++#define SYS_ERRSTR 41	/* from zsysnum_plan9.go */
+ #define SYS_SEEK 39	/* from zsysnum_plan9.go */
+ 
+ // System call support for plan9 on arm
+ 
+-TEXT	sysresult<>(SB),NOSPLIT,$12
+-	MOVW	$·emptystring+0(SB), R2
+-	CMP		$-1, R0
+-	B.NE	ok
+-	MOVW	R1, save-4(SP)
+-	BL		runtime·errstr(SB)
+-	MOVW	save-4(SP), R1
+-	MOVW	$err-12(SP), R2
+-ok:
+-	MOVM.IA	(R2), [R3-R4]
+-	MOVM.IA	[R3-R4], (R1)
+-	RET
+-	
+ //func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err ErrorString)
+-TEXT	·Syscall(SB),NOSPLIT,$0-32
++TEXT	·Syscall(SB),NOSPLIT,$144-32
++	NO_LOCAL_POINTERS
+ 	BL		runtime·entersyscall(SB)
++	MOVW	$a1+4(FP), R0	// move syscall args
++	MOVW	$sysargs-144(SP), R1
++	MOVM.IA	(R0), [R2-R4]
++	MOVM.IA	[R2-R4], (R1)
+ 	MOVW	trap+0(FP), R0	// syscall num
+-	MOVM.IA.W	(R13),[R1-R2]	// pop LR and caller's LR
+ 	SWI		$0
+-	MOVM.DB.W	[R1-R2],(R13)	// push LR and caller's LR
+ 	MOVW	$0, R2
+-	MOVW	$r1+16(FP), R1
+-	MOVM.IA.W	[R0,R2], (R1)
+-	BL		sysresult<>(SB)
++	MOVW	$r1+16(FP), R3
++	MOVM.IA	[R0,R2], (R3)
++	CMP		$-1, R0
++	B.EQ	syscallerr
+ 	BL		runtime·exitsyscall(SB)
++	MOVW	$·emptystring+0(SB), R2
++	B		syscallok
++syscallerr:
++	MOVW	$errbuf-128(SP), R2
++	MOVW	$128, R3
++	MOVM.IA	[R2,R3], (R1)
++	MOVW	$SYS_ERRSTR, R0
++	SWI		$0
++	BL		runtime·exitsyscall(SB)
++	BL		runtime·gostring(SB)
++	MOVW	$str-140(SP), R2
++syscallok:
++	MOVW	$err+24(FP), R1
++	MOVM.IA	(R2), [R3-R4]
++	MOVM.IA	[R3-R4], (R1)
+ 	RET
+ 
++
+ //func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err ErrorString)
+ // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
+-TEXT	·Syscall6(SB),NOSPLIT,$0-44
++TEXT	·Syscall6(SB),NOSPLIT,$144-44
++	NO_LOCAL_POINTERS
+ 	BL		runtime·entersyscall(SB)
++	MOVW	$a1+4(FP), R0	// move syscall args
++	MOVW	$sysargs-144(SP), R1
++	MOVM.IA	(R0), [R2-R6]
++	MOVM.IA	[R2-R6], (R1)
+ 	MOVW	trap+0(FP), R0	// syscall num
+-	MOVM.IA.W	(R13),[R1-R2]	// pop LR and caller's LR
+ 	SWI		$0
+-	MOVM.DB.W	[R1-R2],(R13)	// push LR and caller's LR
+-	MOVW	$0, R1
+-	MOVW	$r1+28(FP), R1
+-	MOVM.IA.W	[R0,R2], (R1)
+-	BL		sysresult<>(SB)
++	MOVW	$0, R2
++	MOVW	$r1+28(FP), R3
++	MOVM.IA.W	[R0,R2], (R3)
++	CMP		$-1, R0
++	B.EQ	syscall6err
++	BL		runtime·exitsyscall(SB)
++	MOVW	$·emptystring+0(SB), R2
++	B		syscall6ok
++syscall6err:
++	MOVW	$errbuf-128(SP), R2
++	MOVW	$128, R3
++	MOVM.IA	[R2,R3], (R1)
++	MOVW	$SYS_ERRSTR, R0
++	SWI		$0
+ 	BL		runtime·exitsyscall(SB)
++	BL		runtime·gostring(SB)
++	MOVW	$str-140(SP), R2
++syscall6ok:
++	MOVW	$err+36(FP), R1
++	MOVM.IA	(R2), [R3-R4]
++	MOVM.IA	[R3-R4], (R1)
+ 	RET
+ 
+ //func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-28
++TEXT ·RawSyscall(SB),NOSPLIT,$12-28
++	MOVW	$a1+4(FP), R0	// move syscall args
++	MOVW	$sysargs-12(SP), R1
++	MOVM.IA	(R0), [R2-R4]
++	MOVM.IA	[R2-R4], (R1)
+ 	MOVW	trap+0(FP), R0	// syscall num
+-	MOVM.IA.W	(R13),[R1]		// pop caller's LR
+ 	SWI		$0
+-	MOVM.DB.W	[R1],(R13)		// push caller's LR
+ 	MOVW	R0, r1+16(FP)
+ 	MOVW	R0, r2+20(FP)
+ 	MOVW	R0, err+24(FP)
+@@ -64,27 +93,40 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 
+ //func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ // Actually RawSyscall5 but the rest of the code expects it to be named RawSyscall6.
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
++TEXT	·RawSyscall6(SB),NOSPLIT,$20-40
++	MOVW	$a1+4(FP), R0	// move syscall args
++	MOVW	$sysargs-20(SP), R1
++	MOVM.IA	(R0), [R2-R6]
++	MOVM.IA	[R2-R6], (R1)
+ 	MOVW	trap+0(FP), R0	// syscall num
+-	MOVM.IA.W	(R13),[R1]		// pop caller's LR
+ 	SWI		$0
+-	MOVM.DB.W	[R1],(R13)		// push caller's LR
+ 	MOVW	R0, r1+28(FP)
+ 	MOVW	R0, r2+32(FP)
+ 	MOVW	R0, err+36(FP)
+ 	RET
+ 
+ //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
+-TEXT ·seek(SB),NOSPLIT,$0-36
+-	MOVW	$newoffset_lo+20(FP), R5
+-	MOVW	R5, placeholder+0(FP)	//placeholder = dest for return value
++TEXT ·seek(SB),NOSPLIT,$20-36
++	NO_LOCAL_POINTERS
++	MOVW	$newoffset_lo+20(FP), R6
++	MOVW	R6, sysargs-20(SP)	// dest for return value
++	MOVW	$fd+4(FP), R0		// move syscall args
++	MOVW	$sysarg1-16(SP), R1
++	MOVM.IA	(R0), [R2-R5]
++	MOVM.IA	[R2-R5], (R1)
+ 	MOVW	$SYS_SEEK, R0		// syscall num
+-	MOVM.IA.W	(R13),[R1]		// pop LR
+ 	SWI		$0
+-	MOVM.DB.W	[R1],(R13)		// push LR
+ 	CMP		$-1, R0
+-	MOVW.EQ	R0, 0(R5)
+-	MOVW.EQ	R0, 4(R5)
++	B.EQ	seekerr
++	MOVW	$·emptystring+0(SB), R2
++	B		seekok
++seekerr:
++	MOVW	R0, 0(R6)
++	MOVW	R0, 4(R6)
++	BL		·errstr(SB)
++	MOVW	$ret-20(SP), R2
++seekok:
+ 	MOVW	$err+28(FP), R1
+-	BL		sysresult<>(SB)
++	MOVM.IA	(R2), [R3-R4]
++	MOVM.IA	[R3-R4], (R1)
+ 	RET
+diff --git a/src/syscall/syscall_plan9_test.go b/src/syscall/syscall_plan9_test.go
+new file mode 100644
+index 0000000000..c0b3af55d1
+--- /dev/null
++++ b/src/syscall/syscall_plan9_test.go
+@@ -0,0 +1,53 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall_test
++
++import (
++	"syscall"
++	"testing"
++)
++
++// testalias checks for aliasing of error strings returned by sys1 and sys2,
++// which both call the function named fn in package syscall
++func testalias(t *testing.T, fn string, sys1, sys2 func() error) {
++	err := sys1().Error()
++	errcopy := string([]byte(err))
++	sys2()
++	if err != errcopy {
++		t.Errorf("syscall.%s error string changed from %q to %q\n", fn, errcopy, err)
++	}
++}
++
++// issue 13770: errors cannot be nested in Plan 9
++
++func TestPlan9Syserr(t *testing.T) {
++	testalias(t,
++		"Syscall",
++		func() error {
++			return syscall.Mkdir("/", 0)
++		},
++		func() error {
++			return syscall.Mkdir("#", 0)
++		})
++	testalias(t,
++		"Syscall6",
++		func() error {
++			return syscall.Mount(0, 0, "", 0, "")
++		},
++		func() error {
++			return syscall.Mount(-1, 0, "", 0, "")
++		})
++	// originally failed only on plan9_arm
++	testalias(t,
++		"seek",
++		func() error {
++			_, err := syscall.Seek(0, 0, -1)
++			return err
++		},
++		func() error {
++			_, err := syscall.Seek(-1, 0, 0)
++			return err
++		})
++}

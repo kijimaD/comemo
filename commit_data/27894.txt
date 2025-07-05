@@ -15,6 +15,43 @@ Date:   Tue Apr 19 03:19:12 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/22203
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial_test.go | 11 ++---------
  1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index eb145f476c..ead1e68d46 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -241,9 +241,6 @@ func TestDialParallel(t *testing.T) {
+ 	if !supportsIPv4 || !supportsIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; cannot cancel dialTCP, golang.org/issue/11225")
+-	}
+ 
+ 	closedPortDelay, expectClosedPortDelay := dialClosedPort()
+ 	if closedPortDelay > expectClosedPortDelay {
+@@ -486,9 +483,6 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
+ 	if !supportsIPv4 || !supportsIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; cannot cancel dialTCP, golang.org/issue/11225")
+-	}
+ 
+ 	var wg sync.WaitGroup
+ 	wg.Add(2)
+@@ -813,9 +807,8 @@ func TestDialCancel(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
+-	if runtime.GOOS == "plan9" || runtime.GOOS == "nacl" {
+-		// plan9 is not implemented and nacl doesn't have
+-		// external network access.
++	if runtime.GOOS == "nacl" {
++		// nacl doesn't have external network access.
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+ 

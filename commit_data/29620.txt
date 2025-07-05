@@ -12,6 +12,31 @@ Date:   Wed Sep 28 13:31:33 2016 +1000
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/testing.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 4a4cbcc989..e2350ebc06 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -372,6 +372,7 @@ type TB interface {
+ 	Fatalf(format string, args ...interface{})
+ 	Log(args ...interface{})
+ 	Logf(format string, args ...interface{})
++	Name() string
+ 	Skip(args ...interface{})
+ 	SkipNow()
+ 	Skipf(format string, args ...interface{})
+@@ -404,6 +405,11 @@ type T struct {
+ 
+ func (c *common) private() {}
+ 
++// Name returns the name of the running test or benchmark.
++func (c *common) Name() string {
++	return c.name
++}
++
+ // Fail marks the function as having failed but continues execution.
+ func (c *common) Fail() {
+ 	if c.parent != nil {

@@ -8,6 +8,22 @@ Date:   Fri Jan 15 11:58:24 2010 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/189078
-
+---
  src/pkg/exp/draw/draw.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/draw/draw.go b/src/pkg/exp/draw/draw.go
+index 59adf1f6ac..3455eacb9e 100644
+--- a/src/pkg/exp/draw/draw.go
++++ b/src/pkg/exp/draw/draw.go
+@@ -32,8 +32,8 @@ func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
+ 		if dx > mask.Width() {
+ 			dx = mask.Width()
+ 		}
+-		if dy > mask.Width() {
+-			dy = mask.Width()
++		if dy > mask.Height() {
++			dy = mask.Height()
+ 		}
+ 	}
+ 	dx -= pt.X

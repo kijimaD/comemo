@@ -9,7 +9,90 @@ Date:   Wed Dec 2 10:41:28 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/163083
-
+---
  src/pkg/rpc/server.go      | 12 ++++++------
  src/pkg/rpc/server_test.go | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index cf32eed8df..3e01a9d419 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -214,28 +214,28 @@ func (server *serverType) register(rcvr interface{}) os.Error {
+ 		}
+ 		argType, ok := mtype.In(1).(*reflect.PtrType);
+ 		if !ok {
+-			log.Stderr(mname, "arg type not a pointer:", argType.String());
++			log.Stderr(mname, "arg type not a pointer:", mtype.In(1));
+ 			continue;
+ 		}
+ 		if _, ok := argType.Elem().(*reflect.StructType); !ok {
+-			log.Stderr(mname, "arg type not a pointer to a struct:", argType.String());
++			log.Stderr(mname, "arg type not a pointer to a struct:", argType);
+ 			continue;
+ 		}
+ 		replyType, ok := mtype.In(2).(*reflect.PtrType);
+ 		if !ok {
+-			log.Stderr(mname, "reply type not a pointer:", replyType.String());
++			log.Stderr(mname, "reply type not a pointer:", mtype.In(2));
+ 			continue;
+ 		}
+ 		if _, ok := replyType.Elem().(*reflect.StructType); !ok {
+-			log.Stderr(mname, "reply type not a pointer to a struct:", replyType.String());
++			log.Stderr(mname, "reply type not a pointer to a struct:", replyType);
+ 			continue;
+ 		}
+ 		if !isPublic(argType.Elem().Name()) {
+-			log.Stderr(mname, "argument type not public:", argType.String());
++			log.Stderr(mname, "argument type not public:", argType);
+ 			continue;
+ 		}
+ 		if !isPublic(replyType.Elem().Name()) {
+-			log.Stderr(mname, "reply type not public:", replyType.String());
++			log.Stderr(mname, "reply type not public:", replyType);
+ 			continue;
+ 		}
+ 		// Method needs one out: os.Error.
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 63a241c85a..8ee5ed7232 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -216,3 +216,38 @@ func TestCheckBadType(t *testing.T) {
+ 		t.Error("expected error about type; got", err)
+ 	}
+ }
++
++type Bad int
++type local struct{}
++
++func (t *Bad) ArgNotPointer(args Args, reply *Reply) os.Error {
++	return nil
++}
++
++func (t *Bad) ArgNotPointerToStruct(args *int, reply *Reply) os.Error {
++	return nil
++}
++
++func (t *Bad) ReplyNotPointer(args *Args, reply Reply) os.Error {
++	return nil
++}
++
++func (t *Bad) ReplyNotPointerToStruct(args *Args, reply *int) os.Error {
++	return nil
++}
++
++func (t *Bad) ArgNotPublic(args *local, reply *Reply) os.Error {
++	return nil
++}
++
++func (t *Bad) ReplyNotPublic(args *Args, reply *local) os.Error {
++	return nil
++}
++
++// Check that registration handles lots of bad methods and a type with no suitable methods.
++func TestRegistrationError(t *testing.T) {
++	err := Register(new(Bad));
++	if err == nil {
++		t.Errorf("expected error registering bad type")
++	}
++}

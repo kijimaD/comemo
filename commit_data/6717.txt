@@ -7,7 +7,32 @@ Date:   Fri Nov 5 10:47:35 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2934041
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e3ae943cd9..1c50dde59d 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -24,6 +24,7 @@ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ben Olive <sionide21@gmail.com>
++Benny Siegert <bsiegert@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 68cb9676e0..61f45a0c6a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -52,6 +52,7 @@ Austin Clements <aclements@csail.mit.edu>
+ Balazs Lecz <leczb@google.com>
+ Ben Eitzen <eitzenb@golang.org>
+ Ben Olive <sionide21@gmail.com>
++Benny Siegert <bsiegert@gmail.com>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com>
+ Brad Fitzpatrick <brad@danga.com> <bradfitz@gmail.com>
+ Brendan O'Dea <bod@golang.org>

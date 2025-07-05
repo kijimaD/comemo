@@ -19,6 +19,38 @@ Date:   Thu Jul 14 10:47:28 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/link/internal/ppc64/obj.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index b6d5ad92af..bca8fa9212 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -38,9 +38,12 @@ import (
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+-	arch := sys.ArchPPC64
+-	if buildcfg.GOARCH == "ppc64le" {
+-		arch = sys.ArchPPC64LE
++	arch := sys.ArchPPC64LE
++	dynld := "/lib64/ld64.so.2"
++
++	if buildcfg.GOARCH == "ppc64" {
++		arch = sys.ArchPPC64
++		dynld = "/lib64/ld64.so.1"
+ 	}
+ 
+ 	theArch := ld.Arch{
+@@ -64,9 +67,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Machoreloc1:      machoreloc1,
+ 		Xcoffreloc1:      xcoffreloc1,
+ 
+-		// TODO(austin): ABI v1 uses /usr/lib/ld.so.1,
+-		Linuxdynld: "/lib64/ld64.so.1",
+-
++		Linuxdynld:     dynld,
+ 		Freebsddynld:   "XXX",
+ 		Openbsddynld:   "XXX",
+ 		Netbsddynld:    "XXX",

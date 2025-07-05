@@ -14,7 +14,7 @@ Date:   Thu Dec 8 15:19:47 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go       |  2 +-
  src/cmd/compile/internal/gc/racewalk.go    |  2 +-
  src/cmd/compile/internal/ssa/compile.go    |  2 +-
@@ -27,3 +27,224 @@ Date:   Thu Dec 8 15:19:47 2016 -0800
  src/cmd/compile/internal/ssa/stackalloc.go |  2 +-
  src/cmd/internal/src/src.go                |  3 +++
  11 files changed, 24 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 433a89d0d1..7edb1eaa9d 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -511,7 +511,7 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 		n.Left = orderexpr(n.Left, order, nil)
+ 		n.Left = ordersafeexpr(n.Left, order)
+-		tmp1 := treecopy(n.Left, src.Pos{})
++		tmp1 := treecopy(n.Left, src.NoPos)
+ 		if tmp1.Op == OINDEXMAP {
+ 			tmp1.Etype = 0 // now an rvalue not an lvalue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index f4a02f3553..088fa78e1d 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -496,7 +496,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 			*np = n
+ 		}
+ 
+-		n = treecopy(n, src.Pos{})
++		n = treecopy(n, src.NoPos)
+ 		makeaddable(n)
+ 		var f *Node
+ 		if flag_msan {
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 6fe731d1a3..bbc994d384 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -129,7 +129,7 @@ func (f *Func) dumpFile(phaseName string) {
+ 
+ 	fi, err := os.Create(fname)
+ 	if err != nil {
+-		f.Config.Warnl(src.Pos{}, "Unable to create after-phase dump file %s", fname)
++		f.Config.Warnl(src.NoPos, "Unable to create after-phase dump file %s", fname)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 5704adfb61..577e0ff681 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -270,7 +270,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.hasGReg = true
+ 		c.noDuffDevice = true
+ 	default:
+-		fe.Fatalf(src.Pos{}, "arch %s not implemented", arch)
++		fe.Fatalf(src.NoPos, "arch %s not implemented", arch)
+ 	}
+ 	c.ctxt = ctxt
+ 	c.optimize = optimize
+@@ -310,7 +310,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	if ev != "" {
+ 		v, err := strconv.ParseInt(ev, 10, 64)
+ 		if err != nil {
+-			fe.Fatalf(src.Pos{}, "Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
++			fe.Fatalf(src.NoPos, "Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
+ 		}
+ 		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
+ 	}
+@@ -332,7 +332,7 @@ func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
+ func (c *Config) NewFunc() *Func {
+ 	// TODO(khr): should this function take name, type, etc. as arguments?
+ 	if c.curFunc != nil {
+-		c.Fatalf(src.Pos{}, "NewFunc called without previous Free")
++		c.Fatalf(src.NoPos, "NewFunc called without previous Free")
+ 	}
+ 	f := &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
+ 	c.curFunc = f
+@@ -355,7 +355,7 @@ func (c *Config) logDebugHashMatch(evname, name string) {
+ 			var ok error
+ 			file, ok = os.Create(tmpfile)
+ 			if ok != nil {
+-				c.Fatalf(src.Pos{}, "Could not open hash-testing logfile %s", tmpfile)
++				c.Fatalf(src.NoPos, "Could not open hash-testing logfile %s", tmpfile)
+ 			}
+ 		}
+ 		c.logfiles[evname] = file
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 0a4862be94..68bfb53c2f 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -113,7 +113,7 @@ func dse(f *Func) {
+ 				if sz > 0x7fffffff { // work around sparseMap's int32 value type
+ 					sz = 0x7fffffff
+ 				}
+-				shadowed.set(v.Args[0].ID, int32(sz), src.Pos{})
++				shadowed.set(v.Args[0].ID, int32(sz), src.NoPos)
+ 			}
+ 		}
+ 		// walk to previous store
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 81f1c33cde..2609551f04 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -155,7 +155,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
+ 		blocks[bloc.name] = b
+ 		for _, valu := range bloc.valus {
+ 			// args are filled in the second pass.
+-			values[valu.name] = b.NewValue0IA(src.Pos{}, valu.op, valu.t, valu.auxint, valu.aux)
++			values[valu.name] = b.NewValue0IA(src.NoPos, valu.op, valu.t, valu.auxint, valu.aux)
+ 		}
+ 	}
+ 	// Connect the blocks together and specify control values.
+@@ -429,12 +429,12 @@ func TestConstCache(t *testing.T) {
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Exit("mem")))
+-	v1 := f.f.ConstBool(src.Pos{}, TypeBool, false)
+-	v2 := f.f.ConstBool(src.Pos{}, TypeBool, true)
++	v1 := f.f.ConstBool(src.NoPos, TypeBool, false)
++	v2 := f.f.ConstBool(src.NoPos, TypeBool, true)
+ 	f.f.freeValue(v1)
+ 	f.f.freeValue(v2)
+-	v3 := f.f.ConstBool(src.Pos{}, TypeBool, false)
+-	v4 := f.f.ConstBool(src.Pos{}, TypeBool, true)
++	v3 := f.f.ConstBool(src.NoPos, TypeBool, false)
++	v4 := f.f.ConstBool(src.NoPos, TypeBool, true)
+ 	if v3.AuxInt != 0 {
+ 		t.Errorf("expected %s to have auxint of 0\n", v3.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 355dc75e75..b9a1f29aa4 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -21,7 +21,7 @@ type HTMLWriter struct {
+ func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
+ 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+ 	if err != nil {
+-		logger.Fatalf(src.Pos{}, "%v", err)
++		logger.Fatalf(src.NoPos, "%v", err)
+ 	}
+ 	html := HTMLWriter{File: out, Logger: logger}
+ 	html.start(funcname)
+@@ -329,13 +329,13 @@ func (w *HTMLWriter) WriteColumn(title string, html string) {
+ 
+ func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
+ 	if _, err := fmt.Fprintf(w.File, msg, v...); err != nil {
+-		w.Fatalf(src.Pos{}, "%v", err)
++		w.Fatalf(src.NoPos, "%v", err)
+ 	}
+ }
+ 
+ func (w *HTMLWriter) WriteString(s string) {
+ 	if _, err := w.File.WriteString(s); err != nil {
+-		w.Fatalf(src.Pos{}, "%v", err)
++		w.Fatalf(src.NoPos, "%v", err)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 42f6e0d254..27b5624d66 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -555,7 +555,7 @@ func (s *regAllocState) init(f *Func) {
+ 		case "s390x":
+ 			// nothing to do, R10 & R11 already reserved
+ 		default:
+-			s.f.Config.fe.Fatalf(src.Pos{}, "arch %s not implemented", s.f.Config.arch)
++			s.f.Config.fe.Fatalf(src.NoPos, "arch %s not implemented", s.f.Config.arch)
+ 		}
+ 	}
+ 	if s.f.Config.nacl {
+@@ -1912,13 +1912,13 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
+ 
+ 	// Live registers can be sources.
+ 	for _, x := range srcReg {
+-		e.set(&e.s.registers[x.r], x.v.ID, x.c, false, src.Pos{}) // don't care the position of the source
++		e.set(&e.s.registers[x.r], x.v.ID, x.c, false, src.NoPos) // don't care the position of the source
+ 	}
+ 	// So can all of the spill locations.
+ 	for _, spillID := range stacklive {
+ 		v := e.s.orig[spillID]
+ 		spill := e.s.values[v.ID].spill
+-		e.set(e.s.f.getHome(spillID), v.ID, spill, false, src.Pos{}) // don't care the position of the source
++		e.set(e.s.f.getHome(spillID), v.ID, spill, false, src.NoPos) // don't care the position of the source
+ 	}
+ 
+ 	// Figure out all the destinations we need.
+diff --git a/src/cmd/compile/internal/ssa/sparsemap.go b/src/cmd/compile/internal/ssa/sparsemap.go
+index d2a07e2534..9fb0a7d83d 100644
+--- a/src/cmd/compile/internal/ssa/sparsemap.go
++++ b/src/cmd/compile/internal/ssa/sparsemap.go
+@@ -66,7 +66,7 @@ func (s *sparseMap) setBit(k ID, v uint) {
+ 		s.dense[i].val |= 1 << v
+ 		return
+ 	}
+-	s.dense = append(s.dense, sparseEntry{k, 1 << v, src.Pos{}})
++	s.dense = append(s.dense, sparseEntry{k, 1 << v, src.NoPos})
+ 	s.sparse[k] = int32(len(s.dense)) - 1
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 599dc934f1..f39d7f47e4 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -40,7 +40,7 @@ func newStackAllocState(f *Func) *stackAllocState {
+ 		return new(stackAllocState)
+ 	}
+ 	if s.f != nil {
+-		f.Config.Fatalf(src.Pos{}, "newStackAllocState called without previous free")
++		f.Config.Fatalf(src.NoPos, "newStackAllocState called without previous free")
+ 	}
+ 	return s
+ }
+diff --git a/src/cmd/internal/src/src.go b/src/cmd/internal/src/src.go
+index 8691a9aa74..cfa13286d6 100644
+--- a/src/cmd/internal/src/src.go
++++ b/src/cmd/internal/src/src.go
+@@ -18,6 +18,9 @@ type Pos struct {
+ 	line int32
+ }
+ 
++// NoPos is a valid unknown position.
++var NoPos Pos
++
+ // MakePos creates a new Pos from a line index.
+ // It requires intimate knowledge of the underlying
+ // implementation and should be used with caution.

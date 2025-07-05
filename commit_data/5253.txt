@@ -7,7 +7,7 @@ Date:   Fri Apr 9 11:36:40 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/902042
-
+---
  src/cmd/godoc/godoc.go           | 22 +++++++++---------
  src/cmd/godoc/index.go           |  8 +++----
  src/cmd/gofmt/gofmt.go           | 10 ++++----
@@ -23,3 +23,590 @@ Date:   Fri Apr 9 11:36:40 2010 -0700
  src/pkg/path/path.go             | 16 ++++++-------
  src/pkg/path/path_test.go        |  8 +++----
  14 files changed, 143 insertions(+), 142 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index f302f8c7e9..9c59db287a 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -116,21 +116,21 @@ func registerPublicHandlers(mux *http.ServeMux) {
+ // ----------------------------------------------------------------------------
+ // Predicates and small utility functions
+ 
+-func isGoFile(dir *os.Dir) bool {
+-	return dir.IsRegular() &&
+-		!strings.HasPrefix(dir.Name, ".") && // ignore .files
+-		pathutil.Ext(dir.Name) == ".go"
++func isGoFile(f *os.FileInfo) bool {
++	return f.IsRegular() &&
++		!strings.HasPrefix(f.Name, ".") && // ignore .files
++		pathutil.Ext(f.Name) == ".go"
+ }
+ 
+ 
+-func isPkgFile(dir *os.Dir) bool {
+-	return isGoFile(dir) &&
+-		!strings.HasSuffix(dir.Name, "_test.go") // ignore test files
++func isPkgFile(f *os.FileInfo) bool {
++	return isGoFile(f) &&
++		!strings.HasSuffix(f.Name, "_test.go") // ignore test files
+ }
+ 
+ 
+-func isPkgDir(dir *os.Dir) bool {
+-	return dir.IsDirectory() && len(dir.Name) > 0 && dir.Name[0] != '_'
++func isPkgDir(f *os.FileInfo) bool {
++	return f.IsDirectory() && len(f.Name) > 0 && f.Name[0] != '_'
+ }
+ 
+ 
+@@ -789,7 +789,7 @@ func timeFmt(w io.Writer, x interface{}, format string) {
+ 
+ // Template formatter for "dir/" format.
+ func dirslashFmt(w io.Writer, x interface{}, format string) {
+-	if x.(*os.Dir).IsDirectory() {
++	if x.(*os.FileInfo).IsDirectory() {
+ 		w.Write([]byte{'/'})
+ 	}
+ }
+@@ -1196,7 +1196,7 @@ type httpHandler struct {
+ //
+ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInfoMode) PageInfo {
+ 	// filter function to select the desired .go files
+-	filter := func(d *os.Dir) bool {
++	filter := func(d *os.FileInfo) bool {
+ 		// If we are looking at cmd documentation, only accept
+ 		// the special fakePkgFile containing the documentation.
+ 		return isPkgFile(d) && (h.isPkg || d.Name == fakePkgFile)
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index a2c71c97bd..481519c66f 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -578,17 +578,17 @@ func (x *Indexer) Visit(node interface{}) ast.Visitor {
+ }
+ 
+ 
+-func (x *Indexer) VisitDir(path string, d *os.Dir) bool {
++func (x *Indexer) VisitDir(path string, f *os.FileInfo) bool {
+ 	return true
+ }
+ 
+ 
+-func (x *Indexer) VisitFile(path string, d *os.Dir) {
+-	if !isGoFile(d) {
++func (x *Indexer) VisitFile(path string, f *os.FileInfo) {
++	if !isGoFile(f) {
+ 		return
+ 	}
+ 
+-	if excludeTestFiles && (!isPkgFile(d) || strings.HasPrefix(path, "test/")) {
++	if excludeTestFiles && (!isPkgFile(f) || strings.HasPrefix(path, "test/")) {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index abd30edc89..ffec0325fe 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -80,9 +80,9 @@ func initPrinterMode() {
+ }
+ 
+ 
+-func isGoFile(d *os.Dir) bool {
++func isGoFile(f *os.FileInfo) bool {
+ 	// ignore non-Go files
+-	return d.IsRegular() && !strings.HasPrefix(d.Name, ".") && strings.HasSuffix(d.Name, ".go")
++	return f.IsRegular() && !strings.HasPrefix(f.Name, ".") && strings.HasSuffix(f.Name, ".go")
+ }
+ 
+ 
+@@ -145,13 +145,13 @@ func processFileByName(filename string) (err os.Error) {
+ 
+ type fileVisitor chan os.Error
+ 
+-func (v fileVisitor) VisitDir(path string, d *os.Dir) bool {
++func (v fileVisitor) VisitDir(path string, f *os.FileInfo) bool {
+ 	return true
+ }
+ 
+ 
+-func (v fileVisitor) VisitFile(path string, d *os.Dir) {
+-	if isGoFile(d) {
++func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
++	if isGoFile(f) {
+ 		v <- nil // synchronize error handler
+ 		if err := processFileByName(path); err != nil {
+ 			v <- err
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index fcaa3dfdff..e1ddb37c30 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -173,14 +173,14 @@ func ParseFiles(filenames []string, scope *ast.Scope, mode uint) (map[string]*as
+ 
+ // ParseDir calls ParseFile for the files in the directory specified by path and
+ // returns a map of package name -> package AST with all the packages found. If
+-// filter != nil, only the files with os.Dir entries passing through the filter
++// filter != nil, only the files with os.FileInfo entries passing through the filter
+ // are considered. The mode bits are passed to ParseFile unchanged.
+ //
+ // If the directory couldn't be read, a nil map and the respective error are
+ // returned. If a parse error occured, a non-nil but incomplete map and the
+ // error are returned.
+ //
+-func ParseDir(path string, filter func(*os.Dir) bool, mode uint) (map[string]*ast.Package, os.Error) {
++func ParseDir(path string, filter func(*os.FileInfo) bool, mode uint) (map[string]*ast.Package, os.Error) {
+ 	fd, err := os.Open(path, os.O_RDONLY, 0)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index f3b91a930f..75ebd8cec7 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -79,7 +79,7 @@ func nameFilter(filename string) bool {
+ }
+ 
+ 
+-func dirFilter(d *os.Dir) bool { return nameFilter(d.Name) }
++func dirFilter(f *os.FileInfo) bool { return nameFilter(f.Name) }
+ 
+ 
+ func TestParse4(t *testing.T) {
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index ebdcf224f7..0f5a3a20ef 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -27,12 +27,12 @@ func ReadFile(filename string) ([]byte, os.Error) {
+ 		return nil, err
+ 	}
+ 	defer f.Close()
+-	// It's a good but not certain bet that Stat will tell us exactly how much to
++	// It's a good but not certain bet that FileInfo will tell us exactly how much to
+ 	// read, so let's try it but be prepared for the answer to be wrong.
+-	dir, err := f.Stat()
++	fi, err := f.Stat()
+ 	var n uint64
+-	if err == nil && dir.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
+-		n = dir.Size
++	if err == nil && fi.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
++		n = fi.Size
+ 	}
+ 	// Add a little extra in case Size is zero, and to avoid another allocation after
+ 	// Read has filled the buffer.
+@@ -63,15 +63,15 @@ func WriteFile(filename string, data []byte, perm int) os.Error {
+ }
+ 
+ // A dirList implements sort.Interface.
+-type dirList []*os.Dir
++type fileInfoList []*os.FileInfo
+ 
+-func (d dirList) Len() int           { return len(d) }
+-func (d dirList) Less(i, j int) bool { return d[i].Name < d[j].Name }
+-func (d dirList) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
++func (f fileInfoList) Len() int           { return len(f) }
++func (f fileInfoList) Less(i, j int) bool { return f[i].Name < f[j].Name }
++func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+ 
+ // ReadDir reads the directory named by dirname and returns
+ // a list of sorted directory entries.
+-func ReadDir(dirname string) ([]*os.Dir, os.Error) {
++func ReadDir(dirname string) ([]*os.FileInfo, os.Error) {
+ 	f, err := os.Open(dirname, os.O_RDONLY, 0)
+ 	if err != nil {
+ 		return nil, err
+@@ -81,10 +81,10 @@ func ReadDir(dirname string) ([]*os.Dir, os.Error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	dirs := make(dirList, len(list))
++	fi := make(fileInfoList, len(list))
+ 	for i := range list {
+-		dirs[i] = &list[i]
++		fi[i] = &list[i]
+ 	}
+-	sort.Sort(dirs)
+-	return dirs, nil
++	sort.Sort(fi)
++	return fi, nil
+ }
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index e79c2cdde8..561f36c919 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -258,12 +258,12 @@ func Mkdir(name string, perm int) Error {
+ 	return nil
+ }
+ 
+-// Stat returns a Dir structure describing the named file and an error, if any.
+-// If name names a valid symbolic link, the returned Dir describes
+-// the file pointed at by the link and has dir.FollowedSymlink set to true.
+-// If name names an invalid symbolic link, the returned Dir describes
+-// the link itself and has dir.FollowedSymlink set to false.
+-func Stat(name string) (dir *Dir, err Error) {
++// Stat returns a FileInfo structure describing the named file and an error, if any.
++// If name names a valid symbolic link, the returned FileInfo describes
++// the file pointed at by the link and has fi.FollowedSymlink set to true.
++// If name names an invalid symbolic link, the returned FileInfo describes
++// the link itself and has fi.FollowedSymlink set to false.
++func Stat(name string) (fi *FileInfo, err Error) {
+ 	var lstat, stat syscall.Stat_t
+ 	e := syscall.Lstat(name, &lstat)
+ 	if e != 0 {
+@@ -276,38 +276,39 @@ func Stat(name string) (dir *Dir, err Error) {
+ 			statp = &stat
+ 		}
+ 	}
+-	return dirFromStat(name, new(Dir), &lstat, statp), nil
++	return fileInfoFromStat(name, new(FileInfo), &lstat, statp), nil
+ }
+ 
+-// Stat returns the Dir structure describing file.
+-// It returns the Dir and an error, if any.
+-func (file *File) Stat() (dir *Dir, err Error) {
++// Stat returns the FileInfo structure describing file.
++// It returns the FileInfo and an error, if any.
++func (file *File) Stat() (fi *FileInfo, err Error) {
+ 	var stat syscall.Stat_t
+ 	e := syscall.Fstat(file.fd, &stat)
+ 	if e != 0 {
+ 		return nil, &PathError{"stat", file.name, Errno(e)}
+ 	}
+-	return dirFromStat(file.name, new(Dir), &stat, &stat), nil
++	return fileInfoFromStat(file.name, new(FileInfo), &stat, &stat), nil
+ }
+ 
+-// Lstat returns the Dir structure describing the named file and an error, if any.
+-// If the file is a symbolic link, the returned Dir describes the
+-// symbolic link.  Lstat makes no attempt to follow the link.
+-func Lstat(name string) (dir *Dir, err Error) {
++// Lstat returns the FileInfo structure describing the named file and an
++// error, if any.  If the file is a symbolic link, the returned FileInfo
++// describes the symbolic link.  Lstat makes no attempt to follow the link.
++func Lstat(name string) (fi *FileInfo, err Error) {
+ 	var stat syscall.Stat_t
+ 	e := syscall.Lstat(name, &stat)
+ 	if e != 0 {
+ 		return nil, &PathError{"lstat", name, Errno(e)}
+ 	}
+-	return dirFromStat(name, new(Dir), &stat, &stat), nil
++	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
+ }
+ 
+ // Readdir reads the contents of the directory associated with file and
+-// returns an array of up to count Dir structures, as would be returned
+-// by Stat, in directory order.  Subsequent calls on the same file will yield further Dirs.
++// returns an array of up to count FileInfo structures, as would be returned
++// by Stat, in directory order.  Subsequent calls on the same file will yield
++// further FileInfos.
+ // A negative count means to read until EOF.
+ // Readdir returns the array and an Error, if any.
+-func (file *File) Readdir(count int) (dirs []Dir, err Error) {
++func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+ 	dirname := file.name
+ 	if dirname == "" {
+ 		dirname = "."
+@@ -317,13 +318,13 @@ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
+ 	if err1 != nil {
+ 		return nil, err1
+ 	}
+-	dirs = make([]Dir, len(names))
++	fi = make([]FileInfo, len(names))
+ 	for i, filename := range names {
+-		dirp, err := Lstat(dirname + filename)
+-		if dirp == nil || err != nil {
+-			dirs[i].Name = filename // rest is already zeroed out
++		fip, err := Lstat(dirname + filename)
++		if fip == nil || err != nil {
++			fi[i].Name = filename // rest is already zeroed out
+ 		} else {
+-			dirs[i] = *dirp
++			fi[i] = *fip
+ 		}
+ 	}
+ 	return
+diff --git a/src/pkg/os/stat_darwin.go b/src/pkg/os/stat_darwin.go
+index 003a453516..5ab2c39dfc 100644
+--- a/src/pkg/os/stat_darwin.go
++++ b/src/pkg/os/stat_darwin.go
+@@ -10,29 +10,29 @@ func isSymlink(stat *syscall.Stat_t) bool {
+ 	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+ }
+ 
+-func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+-	dir.Dev = uint64(stat.Dev)
+-	dir.Ino = stat.Ino
+-	dir.Nlink = uint64(stat.Nlink)
+-	dir.Mode = uint32(stat.Mode)
+-	dir.Uid = stat.Uid
+-	dir.Gid = stat.Gid
+-	dir.Rdev = uint64(stat.Rdev)
+-	dir.Size = uint64(stat.Size)
+-	dir.Blksize = uint64(stat.Blksize)
+-	dir.Blocks = uint64(stat.Blocks)
+-	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec))
+-	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec))
+-	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec))
++func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
++	fi.Dev = uint64(stat.Dev)
++	fi.Ino = stat.Ino
++	fi.Nlink = uint64(stat.Nlink)
++	fi.Mode = uint32(stat.Mode)
++	fi.Uid = stat.Uid
++	fi.Gid = stat.Gid
++	fi.Rdev = uint64(stat.Rdev)
++	fi.Size = uint64(stat.Size)
++	fi.Blksize = uint64(stat.Blksize)
++	fi.Blocks = uint64(stat.Blocks)
++	fi.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec))
++	fi.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec))
++	fi.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec))
+ 	for i := len(name) - 1; i >= 0; i-- {
+ 		if name[i] == '/' {
+ 			name = name[i+1:]
+ 			break
+ 		}
+ 	}
+-	dir.Name = name
++	fi.Name = name
+ 	if isSymlink(lstat) && !isSymlink(stat) {
+-		dir.FollowedSymlink = true
++		fi.FollowedSymlink = true
+ 	}
+-	return dir
++	return fi
+ }
+diff --git a/src/pkg/os/stat_linux.go b/src/pkg/os/stat_linux.go
+index 362fae48be..5d3b9ee99c 100644
+--- a/src/pkg/os/stat_linux.go
++++ b/src/pkg/os/stat_linux.go
+@@ -10,29 +10,29 @@ func isSymlink(stat *syscall.Stat_t) bool {
+ 	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+ }
+ 
+-func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+-	dir.Dev = stat.Dev
+-	dir.Ino = uint64(stat.Ino)
+-	dir.Nlink = uint64(stat.Nlink)
+-	dir.Mode = stat.Mode
+-	dir.Uid = stat.Uid
+-	dir.Gid = stat.Gid
+-	dir.Rdev = stat.Rdev
+-	dir.Size = uint64(stat.Size)
+-	dir.Blksize = uint64(stat.Blksize)
+-	dir.Blocks = uint64(stat.Blocks)
+-	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim))
+-	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim))
+-	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim))
++func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
++	fi.Dev = stat.Dev
++	fi.Ino = uint64(stat.Ino)
++	fi.Nlink = uint64(stat.Nlink)
++	fi.Mode = stat.Mode
++	fi.Uid = stat.Uid
++	fi.Gid = stat.Gid
++	fi.Rdev = stat.Rdev
++	fi.Size = uint64(stat.Size)
++	fi.Blksize = uint64(stat.Blksize)
++	fi.Blocks = uint64(stat.Blocks)
++	fi.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim))
++	fi.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim))
++	fi.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim))
+ 	for i := len(name) - 1; i >= 0; i-- {
+ 		if name[i] == '/' {
+ 			name = name[i+1:]
+ 			break
+ 		}
+ 	}
+-	dir.Name = name
++	fi.Name = name
+ 	if isSymlink(lstat) && !isSymlink(stat) {
+-		dir.FollowedSymlink = true
++		fi.FollowedSymlink = true
+ 	}
+-	return dir
++	return fi
+ }
+diff --git a/src/pkg/os/stat_mingw.go b/src/pkg/os/stat_mingw.go
+index 13a7838918..8e2c73cebf 100644
+--- a/src/pkg/os/stat_mingw.go
++++ b/src/pkg/os/stat_mingw.go
+@@ -10,6 +10,6 @@ func isSymlink(stat *syscall.Stat_t) bool {
+ 	panic("windows isSymlink not implemented")
+ }
+ 
+-func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+-	panic("windows dirFromStat not implemented")
++func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
++	panic("windows fileInfoFromStat not implemented")
+ }
+diff --git a/src/pkg/os/stat_nacl.go b/src/pkg/os/stat_nacl.go
+index 65f49c8860..be693e8147 100644
+--- a/src/pkg/os/stat_nacl.go
++++ b/src/pkg/os/stat_nacl.go
+@@ -10,29 +10,29 @@ func isSymlink(stat *syscall.Stat_t) bool {
+ 	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+ }
+ 
+-func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+-	dir.Dev = uint64(stat.Dev)
+-	dir.Ino = uint64(stat.Ino)
+-	dir.Nlink = uint64(stat.Nlink)
+-	dir.Mode = stat.Mode
+-	dir.Uid = stat.Uid
+-	dir.Gid = stat.Gid
+-	dir.Rdev = uint64(stat.Rdev)
+-	dir.Size = uint64(stat.Size)
+-	dir.Blksize = uint64(stat.Blksize)
+-	dir.Blocks = uint64(stat.Blocks)
+-	dir.Atime_ns = uint64(stat.Atime) * 1e9
+-	dir.Mtime_ns = uint64(stat.Mtime) * 1e9
+-	dir.Ctime_ns = uint64(stat.Ctime) * 1e9
++func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
++	fi.Dev = uint64(stat.Dev)
++	fi.Ino = uint64(stat.Ino)
++	fi.Nlink = uint64(stat.Nlink)
++	fi.Mode = stat.Mode
++	fi.Uid = stat.Uid
++	fi.Gid = stat.Gid
++	fi.Rdev = uint64(stat.Rdev)
++	fi.Size = uint64(stat.Size)
++	fi.Blksize = uint64(stat.Blksize)
++	fi.Blocks = uint64(stat.Blocks)
++	fi.Atime_ns = uint64(stat.Atime) * 1e9
++	fi.Mtime_ns = uint64(stat.Mtime) * 1e9
++	fi.Ctime_ns = uint64(stat.Ctime) * 1e9
+ 	for i := len(name) - 1; i >= 0; i-- {
+ 		if name[i] == '/' {
+ 			name = name[i+1:]
+ 			break
+ 		}
+ 	}
+-	dir.Name = name
++	fi.Name = name
+ 	if isSymlink(lstat) && !isSymlink(stat) {
+-		dir.FollowedSymlink = true
++		fi.FollowedSymlink = true
+ 	}
+-	return dir
++	return fi
+ }
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index 673b7f788f..4194ea1772 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -12,8 +12,8 @@ import "syscall"
+ // Getpagesize returns the underlying system's memory page size.
+ func Getpagesize() int { return syscall.Getpagesize() }
+ 
+-// A Dir describes a file and is returned by Stat, Fstat, and Lstat
+-type Dir struct {
++// A FileInfo describes a file and is returned by Stat, Fstat, and Lstat
++type FileInfo struct {
+ 	Dev             uint64 // device number of file system holding file.
+ 	Ino             uint64 // inode number.
+ 	Nlink           uint64 // number of hard links.
+@@ -31,26 +31,26 @@ type Dir struct {
+ 	FollowedSymlink bool   // followed a symlink to get this information
+ }
+ 
+-// IsFifo reports whether the Dir describes a FIFO file.
+-func (dir *Dir) IsFifo() bool { return (dir.Mode & syscall.S_IFMT) == syscall.S_IFIFO }
++// IsFifo reports whether the FileInfo describes a FIFO file.
++func (f *FileInfo) IsFifo() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFIFO }
+ 
+-// IsChar reports whether the Dir describes a character special file.
+-func (dir *Dir) IsChar() bool { return (dir.Mode & syscall.S_IFMT) == syscall.S_IFCHR }
++// IsChar reports whether the FileInfo describes a character special file.
++func (f *FileInfo) IsChar() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFCHR }
+ 
+-// IsDirectory reports whether the Dir describes a directory.
+-func (dir *Dir) IsDirectory() bool { return (dir.Mode & syscall.S_IFMT) == syscall.S_IFDIR }
++// IsDirectory reports whether the FileInfo describes a directory.
++func (f *FileInfo) IsDirectory() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFDIR }
+ 
+-// IsBlock reports whether the Dir describes a block special file.
+-func (dir *Dir) IsBlock() bool { return (dir.Mode & syscall.S_IFMT) == syscall.S_IFBLK }
++// IsBlock reports whether the FileInfo describes a block special file.
++func (f *FileInfo) IsBlock() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFBLK }
+ 
+-// IsRegular reports whether the Dir describes a regular file.
+-func (dir *Dir) IsRegular() bool { return (dir.Mode & syscall.S_IFMT) == syscall.S_IFREG }
++// IsRegular reports whether the FileInfo describes a regular file.
++func (f *FileInfo) IsRegular() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFREG }
+ 
+-// IsSymlink reports whether the Dir describes a symbolic link.
+-func (dir *Dir) IsSymlink() bool { return (dir.Mode & syscall.S_IFMT) == syscall.S_IFLNK }
++// IsSymlink reports whether the FileInfo describes a symbolic link.
++func (f *FileInfo) IsSymlink() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFLNK }
+ 
+-// IsSocket reports whether the Dir describes a socket.
+-func (dir *Dir) IsSocket() bool { return (dir.Mode & syscall.S_IFMT) == syscall.S_IFSOCK }
++// IsSocket reports whether the FileInfo describes a socket.
++func (f *FileInfo) IsSocket() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFSOCK }
+ 
+ // Permission returns the file permission bits.
+-func (dir *Dir) Permission() int { return int(dir.Mode & 0777) }
++func (f *FileInfo) Permission() int { return int(f.Mode & 0777) }
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 71d8b42158..86bfe64555 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -143,17 +143,17 @@ func Ext(path string) string {
+ // visited by Walk. The parameter path is the full path of d relative
+ // to root.
+ type Visitor interface {
+-	VisitDir(path string, d *os.Dir) bool
+-	VisitFile(path string, d *os.Dir)
++	VisitDir(path string, f *os.FileInfo) bool
++	VisitFile(path string, f *os.FileInfo)
+ }
+ 
+-func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
+-	if !d.IsDirectory() {
+-		v.VisitFile(path, d)
++func walk(path string, f *os.FileInfo, v Visitor, errors chan<- os.Error) {
++	if !f.IsDirectory() {
++		v.VisitFile(path, f)
+ 		return
+ 	}
+ 
+-	if !v.VisitDir(path, d) {
++	if !v.VisitDir(path, f) {
+ 		return // skip directory entries
+ 	}
+ 
+@@ -177,12 +177,12 @@ func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
+ // If errors != nil, Walk sends each directory read error
+ // to the channel.  Otherwise Walk discards the error.
+ func Walk(root string, v Visitor, errors chan<- os.Error) {
+-	d, err := os.Lstat(root)
++	f, err := os.Lstat(root)
+ 	if err != nil {
+ 		if errors != nil {
+ 			errors <- err
+ 		}
+ 		return // can't progress
+ 	}
+-	walk(root, d, v, errors)
++	walk(root, f, v, errors)
+ }
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index cd5978c156..e2458f20c4 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -224,13 +224,13 @@ func mark(name string) {
+ 
+ type TestVisitor struct{}
+ 
+-func (v *TestVisitor) VisitDir(path string, d *os.Dir) bool {
+-	mark(d.Name)
++func (v *TestVisitor) VisitDir(path string, f *os.FileInfo) bool {
++	mark(f.Name)
+ 	return true
+ }
+ 
+-func (v *TestVisitor) VisitFile(path string, d *os.Dir) {
+-	mark(d.Name)
++func (v *TestVisitor) VisitFile(path string, f *os.FileInfo) {
++	mark(f.Name)
+ }
+ 
+ func TestWalk(t *testing.T) {

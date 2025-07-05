@@ -29,6 +29,26 @@ Date:   Thu Aug 27 22:16:09 2015 +0200
     Change-Id: Ida66a0ef1928e0461ce248c795827902d785e6cd
     Reviewed-on: https://go-review.googlesource.com/13929
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/internal/syscall/windows/registry/value.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/internal/syscall/windows/registry/value.go b/src/internal/syscall/windows/registry/value.go
+index 322b941593..ac68810ecc 100644
+--- a/src/internal/syscall/windows/registry/value.go
++++ b/src/internal/syscall/windows/registry/value.go
+@@ -131,6 +131,14 @@ func (k Key) GetMUIStringValue(name string) (string, error) {
+ 
+ 	err = regLoadMUIString(syscall.Handle(k), pname, &buf[0], uint32(len(buf)), &buflen, 0, pdir)
+ 	if err == syscall.ERROR_FILE_NOT_FOUND { // Try fallback path
++
++		// Try to resolve the string value using the system directory as
++		// a DLL search path; this assumes the string value is of the form
++		// @[path]\dllname,-strID but with no path given, e.g. @tzres.dll,-320.
++
++		// This approach works with tzres.dll but may have to be revised
++		// in the future to allow callers to provide custom search paths.
++
+ 		var s string
+ 		s, err = ExpandString("%SystemRoot%\\system32\\")
+ 		if err != nil {

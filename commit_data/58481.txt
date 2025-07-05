@@ -33,8 +33,245 @@ Date:   Thu Nov 2 21:48:03 2023 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  api/next/50489.txt           |   1 +
  src/math/big/ratconv.go      |  96 +++++++++++++++++++++++++++++++++++
  src/math/big/ratconv_test.go | 117 +++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 214 insertions(+)
+
+diff --git a/api/next/50489.txt b/api/next/50489.txt
+new file mode 100644
+index 0000000000..5fc8723c9e
+--- /dev/null
++++ b/api/next/50489.txt
+@@ -0,0 +1 @@
++pkg math/big, method (*Rat) FloatPrec() (int, bool) #50489
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 8537a6795f..9fb5711ff9 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -378,3 +378,99 @@ func (x *Rat) FloatString(prec int) string {
+ 
+ 	return string(buf)
+ }
++
++// Note: FloatPrec (below) is in this file rather than rat.go because
++//       its results are relevant for decimal representation/printing.
++
++// FloatPrec returns the number n of non-repeating digits immediately
++// following the decimal point of the decimal representation of x.
++// The boolean result indicates whether a decimal representation of x
++// with that many fractional digits is exact or rounded.
++//
++// Examples:
++//
++//	x      n    exact    decimal representation n fractional digits
++//	0      0    true     0
++//	1      0    true     1
++//	1/2    1    true     0.5
++//	1/3    0    false    0       (0.333... rounded)
++//	1/4    2    true     0.25
++//	1/6    1    false    0.2     (0.166... rounded)
++func (x *Rat) FloatPrec() (n int, exact bool) {
++	// Determine q and largest p2, p5 such that d = q·2^p2·5^p5.
++	// The results n, exact are:
++	//
++	//     n = max(p2, p5)
++	//     exact = q == 1
++	//
++	// See https://en.wikipedia.org/wiki/Repeating_decimal for
++	// details.
++	d := x.Denom().abs // d >= 1
++
++	// Determine p2 by counting factors of 2.
++	// p2 corresponds to the trailing zero bits in d.
++	// Do this first to reduce q as much as possible.
++	var q nat
++	p2 := d.trailingZeroBits()
++	q = q.shr(d, p2)
++
++	// Determine p5 by counting factors of 5.
++
++	// Build a table starting with an initial power of 5,
++	// and using repeated squaring until the factor doesn't
++	// divide q anymore. Then use the table to determine
++	// the power of 5 in q.
++	//
++	// Setting the table limit to 0 turns this off;
++	// a limit of 1 uses just one factor 5^fp.
++	// Larger values build up a more comprehensive table.
++	const fp = 13        // f == 5^fp
++	const limit = 100    // table size limit
++	var tab []nat        // tab[i] == 5^(fp·2^i)
++	f := nat{1220703125} // == 5^fp (must fit into a uint32 Word)
++	var t, r nat         // temporaries
++	for len(tab) < limit {
++		if _, r = t.div(r, q, f); len(r) != 0 {
++			break // f doesn't divide q evenly
++		}
++		tab = append(tab, f)
++		f = f.sqr(f)
++	}
++
++	// TODO(gri) Optimization: don't waste the successful
++	//           division q/f above; instead reduce q and
++	//           count the multiples.
++
++	// Factor q using the table entries, if any.
++	var p5, p uint
++	for i := len(tab) - 1; i >= 0; i-- {
++		q, p = multiples(q, tab[i])
++		p5 += p << i * fp
++	}
++
++	q, p = multiples(q, natFive)
++	p5 += p
++
++	return int(max(p2, p5)), q.cmp(natOne) == 0
++}
++
++// multiples returns d and largest p such that x = d·f^p.
++// x and f must not be 0.
++func multiples(x, f nat) (d nat, p uint) {
++	// Determine p through repeated division.
++	d = d.set(x)
++	// p == 0
++	var q, r nat
++	for {
++		// invariant x == d·f^p
++		q, r = q.div(r, d, f)
++		if len(r) != 0 {
++			return
++		}
++		// q == d/f
++		// x == q·f·f^p
++		p++
++		// x == q·f^p
++		d = d.set(q)
++	}
++}
+diff --git a/src/math/big/ratconv_test.go b/src/math/big/ratconv_test.go
+index 45a35608f4..1f5b47eab4 100644
+--- a/src/math/big/ratconv_test.go
++++ b/src/math/big/ratconv_test.go
+@@ -624,3 +624,120 @@ func TestIssue45910(t *testing.T) {
+ 		}
+ 	}
+ }
++func TestFloatPrec(t *testing.T) {
++	var tests = []struct {
++		f    string
++		prec int
++		ok   bool
++		fdec string
++	}{
++		// examples from the issue #50489
++		{"10/100", 1, true, "0.1"},
++		{"3/100", 2, true, "0.03"},
++		{"10", 0, true, "10"},
++
++		// more examples
++		{"zero", 0, true, "0"},      // test uninitialized zero value for Rat
++		{"0", 0, true, "0"},         // 0
++		{"1", 0, true, "1"},         // 1
++		{"1/2", 1, true, "0.5"},     // 0.5
++		{"1/3", 0, false, "0"},      // 0.(3)
++		{"1/4", 2, true, "0.25"},    // 0.25
++		{"1/5", 1, true, "0.2"},     // 0.2
++		{"1/6", 1, false, "0.2"},    // 0.1(6)
++		{"1/7", 0, false, "0"},      // 0.(142857)
++		{"1/8", 3, true, "0.125"},   // 0.125
++		{"1/9", 0, false, "0"},      // 0.(1)
++		{"1/10", 1, true, "0.1"},    // 0.1
++		{"1/11", 0, false, "0"},     // 0.(09)
++		{"1/12", 2, false, "0.08"},  // 0.08(3)
++		{"1/13", 0, false, "0"},     // 0.(076923)
++		{"1/14", 1, false, "0.1"},   // 0.0(714285)
++		{"1/15", 1, false, "0.1"},   // 0.0(6)
++		{"1/16", 4, true, "0.0625"}, // 0.0625
++
++		{"10/2", 0, true, "5"},                    // 5
++		{"10/3", 0, false, "3"},                   // 3.(3)
++		{"10/6", 0, false, "2"},                   // 1.(6)
++		{"1/10000000", 7, true, "0.0000001"},      // 0.0000001
++		{"1/3125", 5, true, "0.00032"},            // "0.00032"
++		{"1/1024", 10, true, "0.0009765625"},      // 0.0009765625
++		{"1/304000", 7, false, "0.0000033"},       // 0.0000032(894736842105263157)
++		{"1/48828125", 11, true, "0.00000002048"}, // 0.00000002048
++	}
++
++	for _, test := range tests {
++		var f Rat
++
++		// check uninitialized zero value
++		if test.f != "zero" {
++			_, ok := f.SetString(test.f)
++			if !ok {
++				t.Fatalf("invalid test case: f = %s", test.f)
++			}
++		}
++
++		// results for f and -f must be the same
++		fdec := test.fdec
++		for i := 0; i < 2; i++ {
++			prec, ok := f.FloatPrec()
++			if prec != test.prec || ok != test.ok {
++				t.Errorf("%s: FloatPrec(%s): got prec, ok = %d, %v; want %d, %v", test.f, &f, prec, ok, test.prec, test.ok)
++			}
++			s := f.FloatString(test.prec)
++			if s != fdec {
++				t.Errorf("%s: FloatString(%s, %d): got %s; want %s", test.f, &f, prec, s, fdec)
++			}
++			// proceed with -f but don't add a "-" before a "0"
++			if f.Sign() > 0 {
++				f.Neg(&f)
++				fdec = "-" + fdec
++			}
++		}
++	}
++}
++
++func BenchmarkFloatPrecExact(b *testing.B) {
++	for _, n := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
++		// d := 5^n
++		d := NewInt(5)
++		p := NewInt(int64(n))
++		d.Exp(d, p, nil)
++
++		// r := 1/d
++		var r Rat
++		r.SetFrac(NewInt(1), d)
++
++		b.Run(fmt.Sprint(n), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				prec, ok := r.FloatPrec()
++				if prec != n || !ok {
++					b.Fatalf("got exact, ok = %d, %v; want %d, %v", prec, ok, uint64(n), true)
++				}
++			}
++		})
++	}
++}
++
++func BenchmarkFloatPrecInexact(b *testing.B) {
++	for _, n := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
++		// d := 5^n + 1
++		d := NewInt(5)
++		p := NewInt(int64(n))
++		d.Exp(d, p, nil)
++		d.Add(d, NewInt(1))
++
++		// r := 1/d
++		var r Rat
++		r.SetFrac(NewInt(1), d)
++
++		b.Run(fmt.Sprint(n), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				_, ok := r.FloatPrec()
++				if ok {
++					b.Fatalf("got unexpected ok")
++				}
++			}
++		})
++	}
++}

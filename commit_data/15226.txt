@@ -10,7 +10,74 @@ Date:   Wed Feb 13 13:52:00 2013 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7314069
-
+---
  src/pkg/io/io.go      |  8 +++++---
  src/pkg/io/io_test.go | 17 +++++++++++++++++
  2 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index f198448344..23d05e575a 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -292,14 +292,16 @@ func ReadFull(r Reader, buf []byte) (n int, err error) {
+ 
+ // CopyN copies n bytes (or until an error) from src to dst.
+ // It returns the number of bytes copied and the earliest
+-// error encountered while copying.  Because Read can
+-// return the full amount requested as well as an error
+-// (including EOF), so can CopyN.
++// error encountered while copying.
++// On return, written == n if and only if err == nil.
+ //
+ // If dst implements the ReaderFrom interface,
+ // the copy is implemented using it.
+ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
+ 	written, err = Copy(dst, LimitReader(src, n))
++	if written == n {
++		return n, nil
++	}
+ 	if written < n && err == nil {
+ 		// src stopped early; must have been EOF.
+ 		err = EOF
+diff --git a/src/pkg/io/io_test.go b/src/pkg/io/io_test.go
+index 307066825b..1bc451e444 100644
+--- a/src/pkg/io/io_test.go
++++ b/src/pkg/io/io_test.go
+@@ -6,6 +6,7 @@ package io_test
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	. "io"
+ 	"strings"
+@@ -89,6 +90,12 @@ func (w *noReadFrom) Write(p []byte) (n int, err error) {
+ 	return w.w.Write(p)
+ }
+ 
++type wantedAndErrReader struct{}
++
++func (wantedAndErrReader) Read(p []byte) (int, error) {
++	return len(p), errors.New("wantedAndErrReader error")
++}
++
+ func TestCopyNEOF(t *testing.T) {
+ 	// Test that EOF behavior is the same regardless of whether
+ 	// argument to CopyN has ReadFrom.
+@@ -114,6 +121,16 @@ func TestCopyNEOF(t *testing.T) {
+ 	if n != 3 || err != EOF {
+ 		t.Errorf("CopyN(bytes.Buffer, foo, 4) = %d, %v; want 3, EOF", n, err)
+ 	}
++
++	n, err = CopyN(b, wantedAndErrReader{}, 5)
++	if n != 5 || err != nil {
++		t.Errorf("CopyN(bytes.Buffer, wantedAndErrReader, 5) = %d, %v; want 5, nil", n, err)
++	}
++
++	n, err = CopyN(&noReadFrom{b}, wantedAndErrReader{}, 5)
++	if n != 5 || err != nil {
++		t.Errorf("CopyN(noReadFrom, wantedAndErrReader, 5) = %d, %v; want 5, nil", n, err)
++	}
+ }
+ 
+ func TestReadAtLeast(t *testing.T) {

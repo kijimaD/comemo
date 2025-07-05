@@ -13,7 +13,7 @@ Date:   Fri Mar 27 03:07:34 2020 +0000
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/go1.15.html                                |  12 ---
  src/cmd/go/alldocs.go                          |  18 ++--
  src/cmd/go/internal/modfetch/proxy.go          | 109 ++++++++-----------------
@@ -22,3 +22,418 @@ Date:   Fri Mar 27 03:07:34 2020 +0000
  src/cmd/go/testdata/script/mod_proxy_list.txt  |  14 +---
  src/cmd/go/testdata/script/mod_sumdb_proxy.txt |  17 ----
  7 files changed, 96 insertions(+), 174 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index c59fc4f151..aa951eefad 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -43,18 +43,6 @@ TODO
+ 
+ <h3 id="go-command">Go command</h3>
+ 
+-<p><!-- golang.org/issue/37367 -->
+-  The <code>GOPROXY</code> environment variable now supports skipping proxies
+-  that return errors. Proxy URLs may now be separated with either commas
+-  (<code>,</code>) or pipe characters (<code>|</code>). If a proxy URL is
+-  followed by a comma, the <code>go</code> command will only try the next proxy
+-  in the list after a 404 or 410 HTTP response. If a proxy URL is followed by a
+-  pipe character, the <code>go</code> command will try the next proxy in the
+-  list after any error. Note that the default value of <code>GOPROXY</code>
+-  remains <code>https://proxy.golang.org,direct</code>, which does not fall
+-  back to <code>direct</code> in case of errors.
+-</p>
+-
+ <p>
+ TODO
+ </p>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a20a92d03d..ef054c8938 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2694,15 +2694,15 @@
+ // Go module mirror run by Google and fall back to a direct connection
+ // if the proxy reports that it does not have the module (HTTP error 404 or 410).
+ // See https://proxy.golang.org/privacy for the service's privacy policy.
+-//
+-// If GOPROXY is set to the string "direct", downloads use a direct connection to
+-// source control servers. Setting GOPROXY to "off" disallows downloading modules
+-// from any source. Otherwise, GOPROXY is expected to be list of module proxy URLs
+-// separated by either comma (,) or pipe (|) characters, which control error
+-// fallback behavior. For each request, the go command tries each proxy in
+-// sequence. If there is an error, the go command will try the next proxy in the
+-// list if the error is a 404 or 410 HTTP response or if the current proxy is
+-// followed by a pipe character, indicating it is safe to fall back on any error.
++// If GOPROXY is set to the string "direct", downloads use a direct connection
++// to source control servers. Setting GOPROXY to "off" disallows downloading
++// modules from any source. Otherwise, GOPROXY is expected to be a comma-separated
++// list of the URLs of module proxies, in which case the go command will fetch
++// modules from those proxies. For each request, the go command tries each proxy
++// in sequence, only moving to the next if the current proxy returns a 404 or 410
++// HTTP response. The string "direct" may appear in the proxy list,
++// to cause a direct connection to be attempted at that point in the search.
++// Any proxies listed after "direct" are never consulted.
+ //
+ // The GOPRIVATE and GONOPROXY environment variables allow bypassing
+ // the proxy for selected modules. See 'go help module-private' for details.
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 73bf9e3707..dcea71adb3 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -101,51 +101,27 @@ cached module versions with GOPROXY=https://example.com/proxy.
+ 
+ var proxyOnce struct {
+ 	sync.Once
+-	list []proxySpec
++	list []string
+ 	err  error
+ }
+ 
+-type proxySpec struct {
+-	// url is the proxy URL or one of "off", "direct", "noproxy".
+-	url string
+-
+-	// fallBackOnError is true if a request should be attempted on the next proxy
+-	// in the list after any error from this proxy. If fallBackOnError is false,
+-	// the request will only be attempted on the next proxy if the error is
+-	// equivalent to os.ErrNotFound, which is true for 404 and 410 responses.
+-	fallBackOnError bool
+-}
+-
+-func proxyList() ([]proxySpec, error) {
++func proxyURLs() ([]string, error) {
+ 	proxyOnce.Do(func() {
+ 		if cfg.GONOPROXY != "" && cfg.GOPROXY != "direct" {
+-			proxyOnce.list = append(proxyOnce.list, proxySpec{url: "noproxy"})
++			proxyOnce.list = append(proxyOnce.list, "noproxy")
+ 		}
+-
+-		goproxy := cfg.GOPROXY
+-		for goproxy != "" {
+-			var url string
+-			fallBackOnError := false
+-			if i := strings.IndexAny(goproxy, ",|"); i >= 0 {
+-				url = goproxy[:i]
+-				fallBackOnError = goproxy[i] == '|'
+-				goproxy = goproxy[i+1:]
+-			} else {
+-				url = goproxy
+-				goproxy = ""
+-			}
+-
+-			url = strings.TrimSpace(url)
+-			if url == "" {
++		for _, proxyURL := range strings.Split(cfg.GOPROXY, ",") {
++			proxyURL = strings.TrimSpace(proxyURL)
++			if proxyURL == "" {
+ 				continue
+ 			}
+-			if url == "off" {
++			if proxyURL == "off" {
+ 				// "off" always fails hard, so can stop walking list.
+-				proxyOnce.list = append(proxyOnce.list, proxySpec{url: "off"})
++				proxyOnce.list = append(proxyOnce.list, "off")
+ 				break
+ 			}
+-			if url == "direct" {
+-				proxyOnce.list = append(proxyOnce.list, proxySpec{url: "direct"})
++			if proxyURL == "direct" {
++				proxyOnce.list = append(proxyOnce.list, "direct")
+ 				// For now, "direct" is the end of the line. We may decide to add some
+ 				// sort of fallback behavior for them in the future, so ignore
+ 				// subsequent entries for forward-compatibility.
+@@ -155,21 +131,18 @@ func proxyList() ([]proxySpec, error) {
+ 			// Single-word tokens are reserved for built-in behaviors, and anything
+ 			// containing the string ":/" or matching an absolute file path must be a
+ 			// complete URL. For all other paths, implicitly add "https://".
+-			if strings.ContainsAny(url, ".:/") && !strings.Contains(url, ":/") && !filepath.IsAbs(url) && !path.IsAbs(url) {
+-				url = "https://" + url
++			if strings.ContainsAny(proxyURL, ".:/") && !strings.Contains(proxyURL, ":/") && !filepath.IsAbs(proxyURL) && !path.IsAbs(proxyURL) {
++				proxyURL = "https://" + proxyURL
+ 			}
+ 
+ 			// Check that newProxyRepo accepts the URL.
+ 			// It won't do anything with the path.
+-			if _, err := newProxyRepo(url, "golang.org/x/text"); err != nil {
++			_, err := newProxyRepo(proxyURL, "golang.org/x/text")
++			if err != nil {
+ 				proxyOnce.err = err
+ 				return
+ 			}
+-
+-			proxyOnce.list = append(proxyOnce.list, proxySpec{
+-				url:             url,
+-				fallBackOnError: fallBackOnError,
+-			})
++			proxyOnce.list = append(proxyOnce.list, proxyURL)
+ 		}
+ 	})
+ 
+@@ -177,16 +150,15 @@ func proxyList() ([]proxySpec, error) {
+ }
+ 
+ // TryProxies iterates f over each configured proxy (including "noproxy" and
+-// "direct" if applicable) until f returns no error or until f returns an
+-// error that is not equivalent to os.ErrNotExist on a proxy configured
+-// not to fall back on errors.
++// "direct" if applicable) until f returns an error that is not
++// equivalent to os.ErrNotExist.
+ //
+ // TryProxies then returns that final error.
+ //
+ // If GOPROXY is set to "off", TryProxies invokes f once with the argument
+ // "off".
+ func TryProxies(f func(proxy string) error) error {
+-	proxies, err := proxyList()
++	proxies, err := proxyURLs()
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -194,39 +166,28 @@ func TryProxies(f func(proxy string) error) error {
+ 		return f("off")
+ 	}
+ 
+-	// We try to report the most helpful error to the user. "direct" and "noproxy"
+-	// errors are best, followed by proxy errors other than ErrNotExist, followed
+-	// by ErrNotExist. Note that errProxyOff, errNoproxy, and errUseProxy are
+-	// equivalent to ErrNotExist.
+-	const (
+-		notExistRank = iota
+-		proxyRank
+-		directRank
+-	)
+-	var bestErr error
+-	bestErrRank := notExistRank
++	var lastAttemptErr error
+ 	for _, proxy := range proxies {
+-		err := f(proxy.url)
+-		if err == nil {
+-			return nil
+-		}
+-		isNotExistErr := errors.Is(err, os.ErrNotExist)
+-
+-		if (proxy.url == "direct" || proxy.url == "noproxy") && !isNotExistErr {
+-			bestErr = err
+-			bestErrRank = directRank
+-		} else if bestErrRank <= proxyRank && !isNotExistErr {
+-			bestErr = err
+-			bestErrRank = proxyRank
+-		} else if bestErrRank == notExistRank {
+-			bestErr = err
++		err = f(proxy)
++		if !errors.Is(err, os.ErrNotExist) {
++			lastAttemptErr = err
++			break
+ 		}
+ 
+-		if !proxy.fallBackOnError && !isNotExistErr {
+-			break
++		// The error indicates that the module does not exist.
++		// In general we prefer to report the last such error,
++		// because it indicates the error that occurs after all other
++		// options have been exhausted.
++		//
++		// However, for modules in the NOPROXY list, the most useful error occurs
++		// first (with proxy set to "noproxy"), and the subsequent errors are all
++		// errNoProxy (which is not particularly helpful). Do not overwrite a more
++		// useful error with errNoproxy.
++		if lastAttemptErr == nil || !errors.Is(err, errNoproxy) {
++			lastAttemptErr = err
+ 		}
+ 	}
+-	return bestErr
++	return lastAttemptErr
+ }
+ 
+ type proxyRepo struct {
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index ff81ef687e..1ed71dfb85 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -26,7 +26,6 @@ import (
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/web"
+-
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/sumdb"
+ 	"golang.org/x/mod/sumdb/note"
+@@ -147,50 +146,49 @@ func (c *dbClient) initBase() {
+ 	}
+ 
+ 	// Try proxies in turn until we find out how to connect to this database.
+-	//
+-	// Before accessing any checksum database URL using a proxy, the proxy
+-	// client should first fetch <proxyURL>/sumdb/<sumdb-name>/supported.
+-	//
+-	// If that request returns a successful (HTTP 200) response, then the proxy
+-	// supports proxying checksum database requests. In that case, the client
+-	// should use the proxied access method only, never falling back to a direct
+-	// connection to the database.
+-	//
+-	// If the /sumdb/<sumdb-name>/supported check fails with a “not found” (HTTP
+-	// 404) or “gone” (HTTP 410) response, or if the proxy is configured to fall
+-	// back on errors, the client will try the next proxy. If there are no
+-	// proxies left or if the proxy is "direct" or "off", the client should
+-	// connect directly to that database.
+-	//
+-	// Any other response is treated as the database being unavailable.
+-	//
+-	// See https://golang.org/design/25530-sumdb#proxying-a-checksum-database.
+-	err := TryProxies(func(proxy string) error {
+-		switch proxy {
+-		case "noproxy":
+-			return errUseProxy
+-		case "direct", "off":
+-			return errProxyOff
+-		default:
+-			proxyURL, err := url.Parse(proxy)
+-			if err != nil {
+-				return err
+-			}
+-			if _, err := web.GetBytes(web.Join(proxyURL, "sumdb/"+c.name+"/supported")); err != nil {
+-				return err
+-			}
++	urls, err := proxyURLs()
++	if err != nil {
++		c.baseErr = err
++		return
++	}
++	for _, proxyURL := range urls {
++		if proxyURL == "noproxy" {
++			continue
++		}
++		if proxyURL == "direct" || proxyURL == "off" {
++			break
++		}
++		proxy, err := url.Parse(proxyURL)
++		if err != nil {
++			c.baseErr = err
++			return
++		}
++		// Quoting https://golang.org/design/25530-sumdb#proxying-a-checksum-database:
++		//
++		// Before accessing any checksum database URL using a proxy,
++		// the proxy client should first fetch <proxyURL>/sumdb/<sumdb-name>/supported.
++		// If that request returns a successful (HTTP 200) response, then the proxy supports
++		// proxying checksum database requests. In that case, the client should use
++		// the proxied access method only, never falling back to a direct connection to the database.
++		// If the /sumdb/<sumdb-name>/supported check fails with a “not found” (HTTP 404)
++		// or “gone” (HTTP 410) response, the proxy is unwilling to proxy the checksum database,
++		// and the client should connect directly to the database.
++		// Any other response is treated as the database being unavailable.
++		_, err = web.GetBytes(web.Join(proxy, "sumdb/"+c.name+"/supported"))
++		if err == nil {
+ 			// Success! This proxy will help us.
+-			c.base = web.Join(proxyURL, "sumdb/"+c.name)
+-			return nil
++			c.base = web.Join(proxy, "sumdb/"+c.name)
++			return
++		}
++		// If the proxy serves a non-404/410, give up.
++		if !errors.Is(err, os.ErrNotExist) {
++			c.baseErr = err
++			return
+ 		}
+-	})
+-	if errors.Is(err, os.ErrNotExist) {
+-		// No proxies, or all proxies failed (with 404, 410, or were were allowed
+-		// to fall back), or we reached an explicit "direct" or "off".
+-		c.base = c.direct
+-	} else if err != nil {
+-		c.baseErr = err
+ 	}
++
++	// No proxies, or all proxies said 404, or we reached an explicit "direct".
++	c.base = c.direct
+ }
+ 
+ // ReadConfig reads the key from c.key
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index d80206b194..bd19bb43aa 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -363,15 +363,15 @@ variable (see 'go help env'). The default setting for GOPROXY is
+ Go module mirror run by Google and fall back to a direct connection
+ if the proxy reports that it does not have the module (HTTP error 404 or 410).
+ See https://proxy.golang.org/privacy for the service's privacy policy.
+-
+-If GOPROXY is set to the string "direct", downloads use a direct connection to
+-source control servers. Setting GOPROXY to "off" disallows downloading modules
+-from any source. Otherwise, GOPROXY is expected to be list of module proxy URLs
+-separated by either comma (,) or pipe (|) characters, which control error
+-fallback behavior. For each request, the go command tries each proxy in
+-sequence. If there is an error, the go command will try the next proxy in the
+-list if the error is a 404 or 410 HTTP response or if the current proxy is
+-followed by a pipe character, indicating it is safe to fall back on any error.
++If GOPROXY is set to the string "direct", downloads use a direct connection
++to source control servers. Setting GOPROXY to "off" disallows downloading
++modules from any source. Otherwise, GOPROXY is expected to be a comma-separated
++list of the URLs of module proxies, in which case the go command will fetch
++modules from those proxies. For each request, the go command tries each proxy
++in sequence, only moving to the next if the current proxy returns a 404 or 410
++HTTP response. The string "direct" may appear in the proxy list,
++to cause a direct connection to be attempted at that point in the search.
++Any proxies listed after "direct" are never consulted.
+ 
+ The GOPRIVATE and GONOPROXY environment variables allow bypassing
+ the proxy for selected modules. See 'go help module-private' for details.
+diff --git a/src/cmd/go/testdata/script/mod_proxy_list.txt b/src/cmd/go/testdata/script/mod_proxy_list.txt
+index 849cf2c476..a48622814a 100644
+--- a/src/cmd/go/testdata/script/mod_proxy_list.txt
++++ b/src/cmd/go/testdata/script/mod_proxy_list.txt
+@@ -10,25 +10,17 @@ stderr '404 Not Found'
+ env GOPROXY=$proxy/404,$proxy/410,$proxy
+ go get rsc.io/quote@v1.1.0
+ 
+-# get should not walk past other 4xx errors if proxies are separated with ','.
++# get should not walk past other 4xx errors.
+ env GOPROXY=$proxy/403,$proxy
+ ! go get rsc.io/quote@v1.2.0
+ stderr 'reading.*/403/rsc.io/.*: 403 Forbidden'
+ 
+-# get should not walk past non-4xx errors if proxies are separated with ','.
++# get should not walk past non-4xx errors.
+ env GOPROXY=$proxy/500,$proxy
+ ! go get rsc.io/quote@v1.3.0
+ stderr 'reading.*/500/rsc.io/.*: 500 Internal Server Error'
+ 
+-# get should walk past other 4xx errors if proxies are separated with '|'.
+-env GOPROXY=$proxy/403|https://0.0.0.0|$proxy
+-go get rsc.io/quote@v1.2.0
+-
+-# get should walk past non-4xx errors if proxies are separated with '|'.
+-env GOPROXY=$proxy/500|https://0.0.0.0|$proxy
+-go get rsc.io/quote@v1.3.0
+-
+-# get should return the final error if that's all we have.
++# get should return the final 404/410 if that's all we have.
+ env GOPROXY=$proxy/404,$proxy/410
+ ! go get rsc.io/quote@v1.4.0
+ stderr 'reading.*/410/rsc.io/.*: 410 Gone'
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_proxy.txt b/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
+index 7bbc3f9e19..28166913fd 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
+@@ -46,22 +46,5 @@ stderr '503 Service Unavailable'
+ rm $GOPATH/pkg/mod/cache/download/sumdb
+ rm go.sum
+ 
+-# the error from the last attempted proxy should be returned.
+-cp go.mod.orig go.mod
+-env GOSUMDB=$sumdb
+-env GOPROXY=$proxy/sumdb-404,$proxy/sumdb-503
+-! go get -d rsc.io/fortune@v1.0.0
+-stderr '503 Service Unavailable'
+-rm $GOPATH/pkg/mod/cache/download/sumdb
+-rm go.sum
+-
+-# if proxies are separated with '|', fallback is allowed on any error.
+-cp go.mod.orig go.mod
+-env GOSUMDB=$sumdb
+-env GOPROXY=$proxy/sumdb-503|https://0.0.0.0|$proxy
+-go get -d rsc.io/fortune@v1.0.0
+-rm $GOPATH/pkg/mod/cache/download/sumdb
+-rm go.sum
+-
+ -- go.mod.orig --
+ module m

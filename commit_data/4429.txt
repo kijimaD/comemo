@@ -13,10 +13,208 @@ Date:   Tue Dec 15 16:22:04 2009 -0800
     
     R=ken2
     https://golang.org/cl/179069
-
+---
  src/cmd/gc/subr.c        |  6 +++++-
  src/cmd/gc/typecheck.c   | 25 +++++++++++++++----------
  test/fixedbugs/bug229.go | 20 ++++++++++++++++++++
  test/fixedbugs/bug230.go | 25 +++++++++++++++++++++++++
  test/fixedbugs/bug231.go | 22 ++++++++++++++++++++++
  5 files changed, 87 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 407dea023f..d79e5b88c9 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -320,7 +320,7 @@ Sym*
+ restrictlookup(char *name, char *pkg)
+ {
+ 	if(!exportname(name) && strcmp(pkg, package) != 0)
+-		yyerror("cannot refer to %s.%s", pkg, name);
++		yyerror("cannot refer to unexported name %s.%s", pkg, name);
+ 	return pkglookup(name, pkg);
+ }
+ 
+@@ -2871,6 +2871,10 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
+ 					break;
+ 				}
+ 			}
++			if(m->type->etype != TFUNC || m->type->thistuple == 0) {
++				yyerror("%T.%S is a field, not a method", t, s);
++				return T;
++			}
+ 			return m;
+ 		}
+ 	}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index a92b684ae4..d0b8fde89c 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -18,10 +18,10 @@
+ 
+ static void	implicitstar(Node**);
+ static int	onearg(Node*);
+-static int	lookdot(Node*, Type*);
++static int	lookdot(Node*, Type*, int);
+ static void	typecheckaste(int, Type*, NodeList*, char*);
+ static int	exportassignok(Type*, char*);
+-static Type*	lookdot1(Sym *s, Type *t, Type *f);
++static Type*	lookdot1(Sym *s, Type *t, Type *f, int);
+ static int	nokeys(NodeList*);
+ static void	typecheckcomplit(Node**);
+ static void	addrescapes(Node*);
+@@ -102,7 +102,7 @@ reswitch:
+ 	 */
+ 	case OLITERAL:
+ 		ok |= Erv;
+-		if(n->val.ctype == CTSTR)
++		if(n->type == T && n->val.ctype == CTSTR)
+ 			n->type = idealstring;
+ 		goto ret;
+ 
+@@ -459,8 +459,11 @@ reswitch:
+ 			n->op = ODOTPTR;
+ 			checkwidth(t);
+ 		}
+-		if(!lookdot(n, t)) {
+-			yyerror("%#N undefined (type %T has no field %S)", n, t, n->right->sym);
++		if(!lookdot(n, t, 0)) {
++			if(lookdot(n, t, 1))
++				yyerror("%#N undefined (cannot refer to unexported field %S)", n, n->right->sym);
++			else
++				yyerror("%#N undefined (type %T has no field %S)", n, t, n->right->sym);
+ 			goto error;
+ 		}
+ 		switch(n->op) {
+@@ -1168,12 +1171,14 @@ onearg(Node *n)
+ }
+ 
+ static Type*
+-lookdot1(Sym *s, Type *t, Type *f)
++lookdot1(Sym *s, Type *t, Type *f, int dostrcmp)
+ {
+ 	Type *r;
+ 
+ 	r = T;
+ 	for(; f!=T; f=f->down) {
++		if(dostrcmp && strcmp(f->sym->name, s->name) == 0)
++			return f;
+ 		if(f->sym != s)
+ 			continue;
+ 		if(r != T) {
+@@ -1186,7 +1191,7 @@ lookdot1(Sym *s, Type *t, Type *f)
+ }
+ 
+ static int
+-lookdot(Node *n, Type *t)
++lookdot(Node *n, Type *t, int dostrcmp)
+ {
+ 	Type *f1, *f2, *tt, *rcvr;
+ 	Sym *s;
+@@ -1196,11 +1201,11 @@ lookdot(Node *n, Type *t)
+ 	dowidth(t);
+ 	f1 = T;
+ 	if(t->etype == TSTRUCT || t->etype == TINTER)
+-		f1 = lookdot1(s, t, t->type);
++		f1 = lookdot1(s, t, t->type, dostrcmp);
+ 
+ 	f2 = methtype(n->left->type);
+ 	if(f2 != T)
+-		f2 = lookdot1(s, f2, f2->method);
++		f2 = lookdot1(s, f2, f2->method, dostrcmp);
+ 
+ 	if(f1 != T) {
+ 		if(f2 != T)
+@@ -1793,7 +1798,7 @@ typecheckcomplit(Node **np)
+ 				}
+ 				l->left = newname(s);
+ 				l->left->typecheck = 1;
+-				f = lookdot1(s, t, t->type);
++				f = lookdot1(s, t, t->type, 0);
+ 				typecheck(&l->right, Erv);
+ 				if(f == nil) {
+ 					yyerror("unknown %T field '%s' in struct literal", t, s->name);
+diff --git a/test/fixedbugs/bug229.go b/test/fixedbugs/bug229.go
+new file mode 100644
+index 0000000000..fe0f0d8c75
+--- /dev/null
++++ b/test/fixedbugs/bug229.go
+@@ -0,0 +1,20 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "testing"
++
++func main() {
++	var t testing.T
++	
++	// make sure error mentions that
++	// ch is unexported, not just "ch not found".
++
++	t.ch = nil	// ERROR "unexported"
++	
++	println(testing.anyLowercaseName("asdf"))	// ERROR "unexported"
++}
+diff --git a/test/fixedbugs/bug230.go b/test/fixedbugs/bug230.go
+new file mode 100644
+index 0000000000..81b256e314
+--- /dev/null
++++ b/test/fixedbugs/bug230.go
+@@ -0,0 +1,25 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S string
++type I int
++type F float
++
++func (S) m() {}
++func (I) m() {}
++func (F) m() {}
++
++func main() {
++	c := make(chan interface { m() }, 10)
++	c <- I(0)
++	c <- F(1)
++	c <- S("hi")
++	<-c
++	<-c
++	<-c
++}
+diff --git a/test/fixedbugs/bug231.go b/test/fixedbugs/bug231.go
+new file mode 100644
+index 0000000000..e11200b9c5
+--- /dev/null
++++ b/test/fixedbugs/bug231.go
+@@ -0,0 +1,22 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type I interface { m() }
++type T struct { m func() }
++type M struct {}
++func (M) m() {}
++
++func main() {
++	var t T
++	var m M
++	var i I
++	
++	i = m
++	i = t	// ERROR "not a method"
++	_ = i
++}

@@ -24,7 +24,79 @@ Date:   Wed Nov 8 11:54:34 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: roger peppe <rogpeppe@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/go_test.go            |  8 +++++++-
  src/cmd/go/internal/test/test.go | 13 +++++++++++--
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 564fb72b34..e302b2080e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4823,7 +4823,9 @@ func TestTestCache(t *testing.T) {
+ 	tg.setenv("GOPATH", tg.tempdir)
+ 	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
+ 
+-	tg.run("test", "-x", "errors")
++	// timeout here should not affect result being cached
++	// or being retrieved later.
++	tg.run("test", "-x", "-timeout=10s", "errors")
+ 	tg.grepStderr(`[\\/]compile|gccgo`, "did not run compiler")
+ 	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
+ 	tg.grepStderr(`errors\.test`, "did not run test")
+@@ -4835,6 +4837,10 @@ func TestTestCache(t *testing.T) {
+ 	tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
+ 	tg.grepStderrNot("DO NOT USE", "poisoned action status leaked")
+ 
++	// Even very low timeouts do not disqualify cached entries.
++	tg.run("test", "-timeout=1ns", "-x", "errors")
++	tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
++
+ 	// The -p=1 in the commands below just makes the -x output easier to read.
+ 
+ 	t.Log("\n\nINITIAL\n\n")
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 30b5f4a4f4..c8e843cef2 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -105,7 +105,9 @@ go test will redisplay the previous output instead of running the test
+ binary again. In the summary line, go test prints '(cached)' in place of
+ the elapsed time. To disable test caching, use any test flag or argument
+ other than the cacheable flags. The idiomatic way to disable test caching
+-explicitly is to use -count=1.
++explicitly is to use -count=1. A cached result is treated as executing in
++no time at all, so a successful package test result will be cached and reused
++regardless of -timeout setting.
+ 
+ ` + strings.TrimSpace(testFlag1) + ` See 'go help testflag' for details.
+ 
+@@ -1346,6 +1348,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 		return false
+ 	}
+ 
++	var cacheArgs []string
+ 	for _, arg := range testArgs {
+ 		i := strings.Index(arg, "=")
+ 		if i < 0 || !strings.HasPrefix(arg, "-test.") {
+@@ -1362,6 +1365,12 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 			// These are cacheable.
+ 			// Note that this list is documented above,
+ 			// so if you add to this list, update the docs too.
++			cacheArgs = append(cacheArgs, arg)
++
++		case "-test.timeout":
++			// Special case: this is cacheable but ignored during the hash.
++			// Do not add to cacheArgs.
++
+ 		default:
+ 			// nothing else is cacheable
+ 			c.disableCache = true
+@@ -1375,7 +1384,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 	}
+ 
+ 	h := cache.NewHash("testResult")
+-	fmt.Fprintf(h, "test binary %s args %q execcmd %q", id, testArgs, work.ExecCmd)
++	fmt.Fprintf(h, "test binary %s args %q execcmd %q", id, cacheArgs, work.ExecCmd)
+ 	// TODO(rsc): How to handle other test dependencies like environment variables or input files?
+ 	// We could potentially add new API like testing.UsedEnv(envName string)
+ 	// or testing.UsedFile(inputFile string) to let tests declare what external inputs

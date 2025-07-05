@@ -17,7 +17,7 @@ Date:   Fri Dec 9 16:00:02 2016 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-on: https://go-review.googlesource.com/35010
-
+---
  src/cmd/dist/deps.go              |  6 +--
  src/runtime/pprof/label.go        | 16 +++++--
  src/runtime/pprof/runtime.go      | 36 +++++++++++++++
@@ -26,3 +26,290 @@ Date:   Fri Dec 9 16:00:02 2016 -0500
  src/runtime/proflabel.go          | 17 +++++++
  src/runtime/runtime2.go           |  2 +
  7 files changed, 169 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index d929252bae..c1c8b8fff3 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -16,7 +16,7 @@ var builddeps = map[string][]string{
+ 	"cmd/go/internal/fmtcmd":            {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/generate":          {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/get":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "encoding/xml", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/help":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "encoding", "encoding/base64", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "html", "html/template", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/help":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/list":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/load":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/run":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+@@ -52,8 +52,6 @@ var builddeps = map[string][]string{
+ 	"go/token":                          {"errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+ 	"hash":                              {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+ 	"hash/adler32":                      {"errors", "hash", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+-	"html":                              {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"html/template":                     {"bytes", "encoding", "encoding/base64", "encoding/json", "errors", "fmt", "html", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "math", "net/url", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"internal/race":                     {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"internal/singleflight":             {"internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+ 	"internal/syscall/windows":          {"errors", "internal/race", "internal/syscall/windows/sysdll", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
+@@ -87,5 +85,5 @@ var builddeps = map[string][]string{
+ 	"unicode":                 {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"unicode/utf16":           {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"unicode/utf8":            {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"cmd/go":                  {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/bug", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/clean", "cmd/go/internal/doc", "cmd/go/internal/envcmd", "cmd/go/internal/fix", "cmd/go/internal/fmtcmd", "cmd/go/internal/generate", "cmd/go/internal/get", "cmd/go/internal/help", "cmd/go/internal/list", "cmd/go/internal/load", "cmd/go/internal/run", "cmd/go/internal/str", "cmd/go/internal/test", "cmd/go/internal/tool", "cmd/go/internal/version", "cmd/go/internal/vet", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "encoding/xml", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "html", "html/template", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go":                  {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/bug", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/clean", "cmd/go/internal/doc", "cmd/go/internal/envcmd", "cmd/go/internal/fix", "cmd/go/internal/fmtcmd", "cmd/go/internal/generate", "cmd/go/internal/get", "cmd/go/internal/help", "cmd/go/internal/list", "cmd/go/internal/load", "cmd/go/internal/run", "cmd/go/internal/str", "cmd/go/internal/test", "cmd/go/internal/tool", "cmd/go/internal/version", "cmd/go/internal/vet", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "encoding/xml", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ }
+diff --git a/src/runtime/pprof/label.go b/src/runtime/pprof/label.go
+index 6643336db4..44da3f8737 100644
+--- a/src/runtime/pprof/label.go
++++ b/src/runtime/pprof/label.go
+@@ -21,6 +21,14 @@ type LabelSet struct {
+ // labelContextKey is the type of contextKeys used for profiler labels.
+ type labelContextKey struct{}
+ 
++func labelValue(ctx context.Context) labelMap {
++	labels, _ := ctx.Value(labelContextKey{}).(*labelMap)
++	if labels == nil {
++		return labelMap(nil)
++	}
++	return *labels
++}
++
+ // labelMap is the representation of the label set held in the context type.
+ // This is an initial implementation, but it will be replaced with something
+ // that admits incremental immutable modification more efficiently.
+@@ -30,7 +38,7 @@ type labelMap map[string]string
+ // A label overwrites a prior label with the same key.
+ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
+ 	childLabels := make(labelMap)
+-	parentLabels, _ := ctx.Value(labelContextKey{}).(labelMap)
++	parentLabels := labelValue(ctx)
+ 	// TODO(matloob): replace the map implementation with something
+ 	// more efficient so creating a child context WithLabels doesn't need
+ 	// to clone the map.
+@@ -40,7 +48,7 @@ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
+ 	for _, label := range labels.list {
+ 		childLabels[label.key] = label.value
+ 	}
+-	return context.WithValue(ctx, labelContextKey{}, childLabels)
++	return context.WithValue(ctx, labelContextKey{}, &childLabels)
+ }
+ 
+ // Labels takes an even number of strings representing key-value pairs
+@@ -60,7 +68,7 @@ func Labels(args ...string) LabelSet {
+ // Label returns the value of the label with the given key on ctx, and a boolean indicating
+ // whether that label exists.
+ func Label(ctx context.Context, key string) (string, bool) {
+-	ctxLabels, _ := ctx.Value(labelContextKey{}).(labelMap)
++	ctxLabels := labelValue(ctx)
+ 	v, ok := ctxLabels[key]
+ 	return v, ok
+ }
+@@ -68,7 +76,7 @@ func Label(ctx context.Context, key string) (string, bool) {
+ // ForLabels invokes f with each label set on the context.
+ // The function f should return true to continue iteration or false to stop iteration early.
+ func ForLabels(ctx context.Context, f func(key, value string) bool) {
+-	ctxLabels, _ := ctx.Value(labelContextKey{}).(labelMap)
++	ctxLabels := labelValue(ctx)
+ 	for k, v := range ctxLabels {
+ 		if !f(k, v) {
+ 			break
+diff --git a/src/runtime/pprof/runtime.go b/src/runtime/pprof/runtime.go
+new file mode 100644
+index 0000000000..e6aace83e2
+--- /dev/null
++++ b/src/runtime/pprof/runtime.go
+@@ -0,0 +1,36 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import (
++	"context"
++	"unsafe"
++)
++
++// runtime_setProfLabel is defined in runtime/proflabel.go.
++func runtime_setProfLabel(labels unsafe.Pointer)
++
++// runtime_getProfLabel is defined in runtime/proflabel.go.
++func runtime_getProfLabel() unsafe.Pointer
++
++// SetGoroutineLabels sets the current goroutine's labels to match ctx.
++// This is a lower-level API than Do, which should be used instead when possible.
++func SetGoroutineLabels(ctx context.Context) {
++	ctxLabels, _ := ctx.Value(labelContextKey{}).(*labelMap)
++	runtime_setProfLabel(unsafe.Pointer(ctxLabels))
++}
++
++// Do calls f with a copy of the parent context with the
++// given labels added to the parent's label map.
++// Each key/value pair in labels is inserted into the label map in the
++// order provided, overriding any previous value for the same key.
++// The augmented label map will be set for the duration of the call to f
++// and restored once f returns.
++func Do(ctx context.Context, labels LabelSet, f func(context.Context)) {
++	defer SetGoroutineLabels(ctx)
++	ctx = WithLabels(ctx, labels)
++	SetGoroutineLabels(ctx)
++	f(ctx)
++}
+diff --git a/src/runtime/pprof/runtime_test.go b/src/runtime/pprof/runtime_test.go
+new file mode 100644
+index 0000000000..0dd5324b42
+--- /dev/null
++++ b/src/runtime/pprof/runtime_test.go
+@@ -0,0 +1,96 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import (
++	"context"
++	"fmt"
++	"reflect"
++	"testing"
++)
++
++func TestSetGoroutineLabels(t *testing.T) {
++	sync := make(chan struct{})
++
++	wantLabels := map[string]string{}
++	if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++		t.Errorf("Expected parent goroutine's profile labels to be empty before test, got %v", gotLabels)
++	}
++	go func() {
++		if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++			t.Errorf("Expected child goroutine's profile labels to be empty before test, got %v", gotLabels)
++		}
++		sync <- struct{}{}
++	}()
++	<-sync
++
++	wantLabels = map[string]string{"key": "value"}
++	ctx := WithLabels(context.Background(), Labels("key", "value"))
++	SetGoroutineLabels(ctx)
++	if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++		t.Errorf("parent goroutine's profile labels: got %v, want %v", gotLabels, wantLabels)
++	}
++	go func() {
++		if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++			t.Errorf("child goroutine's profile labels: got %v, want %v", gotLabels, wantLabels)
++		}
++		sync <- struct{}{}
++	}()
++	<-sync
++
++	wantLabels = map[string]string{}
++	ctx = context.Background()
++	SetGoroutineLabels(ctx)
++	if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++		t.Errorf("Expected parent goroutine's profile labels to be empty, got %v", gotLabels)
++	}
++	go func() {
++		if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++			t.Errorf("Expected child goroutine's profile labels to be empty, got %v", gotLabels)
++		}
++		sync <- struct{}{}
++	}()
++	<-sync
++}
++
++func TestDo(t *testing.T) {
++	wantLabels := map[string]string{}
++	if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++		t.Errorf("Expected parent goroutine's profile labels to be empty before Do, got %v", gotLabels)
++	}
++
++	Do(context.Background(), Labels("key1", "value1", "key2", "value2"), func(ctx context.Context) {
++		wantLabels := map[string]string{"key1": "value1", "key2": "value2"}
++		if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++			t.Errorf("parent goroutine's profile labels: got %v, want %v", gotLabels, wantLabels)
++		}
++
++		sync := make(chan struct{})
++		go func() {
++			wantLabels := map[string]string{"key1": "value1", "key2": "value2"}
++			if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++				t.Errorf("child goroutine's profile labels: got %v, want %v", gotLabels, wantLabels)
++			}
++			sync <- struct{}{}
++		}()
++		<-sync
++
++	})
++
++	wantLabels = map[string]string{}
++	if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++		fmt.Printf("%#v", gotLabels)
++		fmt.Printf("%#v", wantLabels)
++		t.Errorf("Expected parent goroutine's profile labels to be empty after Do, got %v", gotLabels)
++	}
++}
++
++func getProfLabel() map[string]string {
++	l := (*labelMap)(runtime_getProfLabel())
++	if l == nil {
++		return map[string]string{}
++	}
++	return *l
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f41672de73..9168083a39 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2343,6 +2343,7 @@ func goexit0(gp *g) {
+ 	gp.writebuf = nil
+ 	gp.waitreason = ""
+ 	gp.param = nil
++	gp.labels = nil
+ 
+ 	// Note that gp's stack scan is now "valid" because it has no
+ 	// stack. We could dequeueRescan, but that takes a lock and
+@@ -2920,6 +2921,9 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	gostartcallfn(&newg.sched, fn)
+ 	newg.gopc = callerpc
+ 	newg.startpc = fn.fn
++	if _g_.m.curg != nil {
++		newg.labels = _g_.m.curg.labels
++	}
+ 	if isSystemGoroutine(newg) {
+ 		atomic.Xadd(&sched.ngsys, +1)
+ 	}
+diff --git a/src/runtime/proflabel.go b/src/runtime/proflabel.go
+new file mode 100644
+index 0000000000..9742afafd7
+--- /dev/null
++++ b/src/runtime/proflabel.go
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++//go:linkname runtime_setProfLabel runtime/pprof.runtime_setProfLabel
++func runtime_setProfLabel(labels unsafe.Pointer) {
++	getg().labels = labels
++}
++
++//go:linkname runtime_getProfLabel runtime/pprof.runtime_getProfLabel
++func runtime_getProfLabel() unsafe.Pointer {
++	return getg().labels
++}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index c164c0f7b4..3b649761c9 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -381,6 +381,8 @@ type g struct {
+ 	waiting        *sudog    // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
+ 	cgoCtxt        []uintptr // cgo traceback context
+ 
++	labels unsafe.Pointer // profiler labels
++
+ 	// Per-G GC state
+ 
+ 	// gcRescan is this G's index in work.rescan.list. If this is

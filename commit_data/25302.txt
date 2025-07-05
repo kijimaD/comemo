@@ -12,8 +12,74 @@ Date:   Mon Oct 12 12:19:20 2015 +1300
     Change-Id: I246363840096db22e44beabbe38b61d60c1f31ad
     Reviewed-on: https://go-review.googlesource.com/15675
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go |  5 +----
  src/cmd/link/internal/ld/lib.go   |  7 ++-----
  src/cmd/link/internal/ld/link.go  | 13 +++++++++++++
  3 files changed, 16 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 41d820dc15..dcfd6a8e34 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1717,10 +1717,7 @@ func writelines() {
+ 
+ 			case obj.A_PARAM:
+ 				dt = DW_ABRV_PARAM
+-				offs = int64(a.Aoffset)
+-				if haslinkregister() {
+-					offs += int64(Thearch.Ptrsize)
+-				}
++				offs = int64(a.Aoffset) + Ctxt.FixedFrameSize()
+ 
+ 			default:
+ 				continue
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 764f610bcd..5977bee7f1 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1518,7 +1518,7 @@ var morestack *LSym
+ // allow stack checks here.
+ 
+ func haslinkregister() bool {
+-	return Thearch.Thechar == '5' || Thearch.Thechar == '9' || Thearch.Thechar == '7'
++	return Ctxt.FixedFrameSize() != 0
+ }
+ 
+ func callsize() int {
+@@ -1626,10 +1626,7 @@ func stkcheck(up *Chain, depth int) int {
+ 			return 0
+ 		}
+ 		// Raise limit to allow frame.
+-		limit = int(obj.StackLimit + s.Locals)
+-		if haslinkregister() {
+-			limit += Thearch.Regsize
+-		}
++		limit = int(obj.StackLimit+s.Locals) + int(Ctxt.FixedFrameSize())
+ 	}
+ 
+ 	// Walk through sp adjustments in function, consuming relocs.
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 7a2c1fa296..a384b9508d 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -149,6 +149,19 @@ type Link struct {
+ 	Moduledata *LSym
+ }
+ 
++// The smallest possible offset from the hardware stack pointer to a local
++// variable on the stack. Architectures that use a link register save its value
++// on the stack in the function prologue and so always have a pointer between
++// the hardware stack pointer and the local variable area.
++func (ctxt *Link) FixedFrameSize() int64 {
++	switch ctxt.Arch.Thechar {
++	case '6', '8':
++		return 0
++	default:
++		return int64(ctxt.Arch.Ptrsize)
++	}
++}
++
+ type LinkArch struct {
+ 	ByteOrder binary.ByteOrder
+ 	Name      string

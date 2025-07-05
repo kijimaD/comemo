@@ -11,9 +11,118 @@ Date:   Wed Sep 9 12:06:18 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go |  6 +++---
  src/cmd/compile/internal/gc/ssa.go    |  2 +-
  src/cmd/compile/internal/gc/subr.go   |  4 ++--
  src/cmd/compile/internal/gc/walk.go   | 10 +++++-----
  4 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index d5cca4a38b..dc469e276c 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -485,7 +485,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 		e.discard(max)
+ 
+ 	case OCONV, OCONVNOP:
+-		if checkPtr(e.curfn, 2) && n.Type.Etype == TUNSAFEPTR && n.Left.Type.IsPtr() {
++		if checkPtr(e.curfn, 2) && n.Type.IsUnsafePtr() && n.Left.Type.IsPtr() {
+ 			// When -d=checkptr=2 is enabled, treat
+ 			// conversions to unsafe.Pointer as an
+ 			// escaping operation. This allows better
+@@ -493,7 +493,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 			// easily detect object boundaries on the heap
+ 			// than the stack.
+ 			e.assignHeap(n.Left, "conversion to unsafe.Pointer", n)
+-		} else if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR {
++		} else if n.Type.IsUnsafePtr() && n.Left.Type.Etype == TUINTPTR {
+ 			e.unsafeValue(k, n.Left)
+ 		} else {
+ 			e.expr(k, n.Left)
+@@ -625,7 +625,7 @@ func (e *Escape) unsafeValue(k EscHole, n *Node) {
+ 
+ 	switch n.Op {
+ 	case OCONV, OCONVNOP:
+-		if n.Left.Type.Etype == TUNSAFEPTR {
++		if n.Left.Type.IsUnsafePtr() {
+ 			e.expr(k, n.Left)
+ 		} else {
+ 			e.discard(n.Left)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 52083d999e..89644cd3f2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2113,7 +2113,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		}
+ 
+ 		// unsafe.Pointer <--> *T
+-		if to.Etype == TUNSAFEPTR && from.IsPtrShaped() || from.Etype == TUNSAFEPTR && to.IsPtrShaped() {
++		if to.IsUnsafePtr() && from.IsPtrShaped() || from.IsUnsafePtr() && to.IsPtrShaped() {
+ 			return v
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 8fa3fca50f..6d0a40c287 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -781,12 +781,12 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
+ 	}
+ 
+ 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
+-	if (src.IsPtr() || src.Etype == TUINTPTR) && dst.Etype == TUNSAFEPTR {
++	if (src.IsPtr() || src.Etype == TUINTPTR) && dst.IsUnsafePtr() {
+ 		return OCONVNOP
+ 	}
+ 
+ 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
+-	if src.Etype == TUNSAFEPTR && (dst.IsPtr() || dst.Etype == TUINTPTR) {
++	if src.IsUnsafePtr() && (dst.IsPtr() || dst.Etype == TUINTPTR) {
+ 		return OCONVNOP
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ab7f857031..a9fefb3ddd 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -958,11 +958,11 @@ opswitch:
+ 	case OCONV, OCONVNOP:
+ 		n.Left = walkexpr(n.Left, init)
+ 		if n.Op == OCONVNOP && checkPtr(Curfn, 1) {
+-			if n.Type.IsPtr() && n.Left.Type.Etype == TUNSAFEPTR { // unsafe.Pointer to *T
++			if n.Type.IsPtr() && n.Left.Type.IsUnsafePtr() { // unsafe.Pointer to *T
+ 				n = walkCheckPtrAlignment(n, init, nil)
+ 				break
+ 			}
+-			if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR { // uintptr to unsafe.Pointer
++			if n.Type.IsUnsafePtr() && n.Left.Type.Etype == TUINTPTR { // uintptr to unsafe.Pointer
+ 				n = walkCheckPtrArithmetic(n, init)
+ 				break
+ 			}
+@@ -1127,7 +1127,7 @@ opswitch:
+ 		n.List.SetSecond(walkexpr(n.List.Second(), init))
+ 
+ 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
+-		checkSlice := checkPtr(Curfn, 1) && n.Op == OSLICE3ARR && n.Left.Op == OCONVNOP && n.Left.Left.Type.Etype == TUNSAFEPTR
++		checkSlice := checkPtr(Curfn, 1) && n.Op == OSLICE3ARR && n.Left.Op == OCONVNOP && n.Left.Left.Type.IsUnsafePtr()
+ 		if checkSlice {
+ 			n.Left.Left = walkexpr(n.Left.Left, init)
+ 		} else {
+@@ -3886,7 +3886,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
+ 	t := nod(OTFUNC, nil, nil)
+ 	for i, arg := range n.List.Slice() {
+ 		s := lookupN("a", i)
+-		if !isBuiltinCall && arg.Op == OCONVNOP && arg.Type.Etype == TUINTPTR && arg.Left.Type.Etype == TUNSAFEPTR {
++		if !isBuiltinCall && arg.Op == OCONVNOP && arg.Type.Etype == TUINTPTR && arg.Left.Type.IsUnsafePtr() {
+ 			origArgs[i] = arg
+ 			arg = arg.Left
+ 			n.List.SetIndex(i, arg)
+@@ -4041,7 +4041,7 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
+ 				walk(n.Left)
+ 			}
+ 		case OCONVNOP:
+-			if n.Left.Type.Etype == TUNSAFEPTR {
++			if n.Left.Type.IsUnsafePtr() {
+ 				n.Left = cheapexpr(n.Left, init)
+ 				originals = append(originals, convnop(n.Left, types.Types[TUNSAFEPTR]))
+ 			}

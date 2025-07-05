@@ -10,10 +10,123 @@ Date:   Wed Sep 2 13:25:11 2020 -0400
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/cfg/cfg.go           | 2 ++
  src/cmd/go/internal/get/get.go           | 6 ++----
  src/cmd/go/internal/modfetch/insecure.go | 3 +--
  src/cmd/go/internal/modfetch/sumdb.go    | 3 +--
  src/cmd/go/internal/modget/get.go        | 6 +++---
  5 files changed, 9 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index f874b880a6..9bf1db73ef 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -49,6 +49,8 @@ var (
+ 	ModCacheRW bool   // -modcacherw flag
+ 	ModFile    string // -modfile flag
+ 
++	Insecure bool // -insecure flag
++
+ 	CmdName string // "build", "install", "list", "mod tidy", etc.
+ 
+ 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index d0be3fe1e7..9e4825eb37 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -108,14 +108,12 @@ var (
+ 	getT   = CmdGet.Flag.Bool("t", false, "")
+ 	getU   = CmdGet.Flag.Bool("u", false, "")
+ 	getFix = CmdGet.Flag.Bool("fix", false, "")
+-
+-	Insecure bool
+ )
+ 
+ func init() {
+ 	work.AddBuildFlags(CmdGet, work.OmitModFlag|work.OmitModCommonFlags)
+ 	CmdGet.Run = runGet // break init loop
+-	CmdGet.Flag.BoolVar(&Insecure, "insecure", Insecure, "")
++	CmdGet.Flag.BoolVar(&cfg.Insecure, "insecure", cfg.Insecure, "")
+ }
+ 
+ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+@@ -431,7 +429,7 @@ func downloadPackage(p *load.Package) error {
+ 		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
+ 	}
+ 	security := web.SecureOnly
+-	if Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
++	if cfg.Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
+ 		security = web.Insecure
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modfetch/insecure.go b/src/cmd/go/internal/modfetch/insecure.go
+index b692669cba..012d05f29d 100644
+--- a/src/cmd/go/internal/modfetch/insecure.go
++++ b/src/cmd/go/internal/modfetch/insecure.go
+@@ -6,12 +6,11 @@ package modfetch
+ 
+ import (
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/get"
+ 
+ 	"golang.org/x/mod/module"
+ )
+ 
+ // allowInsecure reports whether we are allowed to fetch this path in an insecure manner.
+ func allowInsecure(path string) bool {
+-	return get.Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, path)
++	return cfg.Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, path)
+ }
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index 783c4a433b..47a2571531 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -22,7 +22,6 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/get"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/web"
+ 
+@@ -33,7 +32,7 @@ import (
+ 
+ // useSumDB reports whether to use the Go checksum database for the given module.
+ func useSumDB(mod module.Version) bool {
+-	return cfg.GOSUMDB != "off" && !get.Insecure && !module.MatchPrefixPatterns(cfg.GONOSUMDB, mod.Path)
++	return cfg.GOSUMDB != "off" && !cfg.Insecure && !module.MatchPrefixPatterns(cfg.GONOSUMDB, mod.Path)
+ }
+ 
+ // lookupSumDB returns the Go checksum database's go.sum lines for the given module,
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index a2a8287d84..829cfe055a 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -17,7 +17,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/get"
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+@@ -181,7 +181,7 @@ var (
+ 	getM   = CmdGet.Flag.Bool("m", false, "")
+ 	getT   = CmdGet.Flag.Bool("t", false, "")
+ 	getU   upgradeFlag
+-	// -insecure is get.Insecure
++	// -insecure is cfg.Insecure
+ 	// -v is cfg.BuildV
+ )
+ 
+@@ -206,7 +206,7 @@ func (v *upgradeFlag) String() string { return "" }
+ func init() {
+ 	work.AddBuildFlags(CmdGet, work.OmitModFlag)
+ 	CmdGet.Run = runGet // break init loop
+-	CmdGet.Flag.BoolVar(&get.Insecure, "insecure", get.Insecure, "")
++	CmdGet.Flag.BoolVar(&cfg.Insecure, "insecure", cfg.Insecure, "")
+ 	CmdGet.Flag.Var(&getU, "u", "")
+ }
+ 

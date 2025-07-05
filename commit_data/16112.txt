@@ -9,8 +9,73 @@ Date:   Sun Apr 7 04:06:11 2013 +0800
     R=golang-dev, minux.ma, iant
     CC=golang-dev
     https://golang.org/cl/8320044
-
+---
  src/cmd/go/doc.go  | 2 +-
  src/cmd/go/help.go | 8 ++++----
  src/cmd/go/vcs.go  | 2 +-
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 3b22e0f04a..dcf6612f1f 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -582,7 +582,7 @@ a revision control system.
+ 
+ A few common code hosting sites have special syntax:
+ 
+-	BitBucket (Mercurial)
++	Bitbucket (Git, Mercurial)
+ 
+ 		import "bitbucket.org/user/project"
+ 		import "bitbucket.org/user/project/sub/directory"
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 6d2bd7dbb9..c70a25fdd7 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -20,13 +20,13 @@ denotes the package in that directory.
+ 
+ Otherwise, the import path P denotes the package found in
+ the directory DIR/src/P for some DIR listed in the GOPATH
+-environment variable (see 'go help gopath'). 
++environment variable (see 'go help gopath').
+ 
+ If no import paths are given, the action applies to the
+ package in the current directory.
+ 
+ The special import path "all" expands to all package directories
+-found in all the GOPATH trees.  For example, 'go list all' 
++found in all the GOPATH trees.  For example, 'go list all'
+ lists all the packages on the local system.
+ 
+ The special import path "std" is like all but expands to just the
+@@ -68,7 +68,7 @@ a revision control system.
+ 
+ A few common code hosting sites have special syntax:
+ 
+-	BitBucket (Mercurial)
++	Bitbucket (Git, Mercurial)
+ 
+ 		import "bitbucket.org/user/project"
+ 		import "bitbucket.org/user/project/sub/directory"
+@@ -232,7 +232,7 @@ Here's an example directory layout:
+                     bar.a          (installed package object)
+ 
+ Go searches each directory listed in GOPATH to find source code,
+-but new packages are always downloaded into the first directory 
++but new packages are always downloaded into the first directory
+ in the list.
+ 	`,
+ }
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index b995794416..39881a6dc7 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -641,7 +641,7 @@ func oldGoogleCode(match map[string]string) error {
+ }
+ 
+ // bitbucketVCS determines the version control system for a
+-// BitBucket repository, by using the BitBucket API.
++// Bitbucket repository, by using the Bitbucket API.
+ func bitbucketVCS(match map[string]string) error {
+ 	if err := noVCSSuffix(match); err != nil {
+ 		return err

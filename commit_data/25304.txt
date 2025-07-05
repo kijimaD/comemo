@@ -11,6 +11,26 @@ Date:   Mon Oct 12 13:20:10 2015 +1300
     Change-Id: I4d5a30c8637a5da7991054e151a536611d5bea46
     Reviewed-on: https://go-review.googlesource.com/15966
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_ppc64x.s | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 27c649257f..1946cc5c47 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -426,7 +426,6 @@ end:						\
+ 	BL	runtime·callwritebarrier(SB);	\
+ 	RET
+ 
+-CALLFN(·call16, 16)
+ CALLFN(·call32, 32)
+ CALLFN(·call64, 64)
+ CALLFN(·call128, 128)
+@@ -1227,3 +1226,6 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+ 
+ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+ 	RET
++
++TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
++        RET

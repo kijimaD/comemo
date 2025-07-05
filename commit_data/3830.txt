@@ -7,6 +7,20 @@ Date:   Thu Nov 5 16:44:55 2009 -0800
     R=rsc, iant
     CC=go-dev
     http://go/go-review/1019003
-
+---
  doc/go_gccgo_setup.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_gccgo_setup.html b/doc/go_gccgo_setup.html
+index 397298cab8..9a8bfc8358 100644
+--- a/doc/go_gccgo_setup.html
++++ b/doc/go_gccgo_setup.html
+@@ -10,7 +10,7 @@ the <a href="http://www.gnu.org/licenses/gpl.html">GNU General Public
+ License</a>.
+ 
+ Note that <code>gccgo</code> is not the <code>6g</code> compiler; see
+-the <a href="go_setup.html"><code>6g</code> set up</a> instructions
++the <a href="install.html"><code>6g</code> set up</a> instructions
+ for that compiler.
+ 
+ <h2 id="Source_code">Source code</h2>

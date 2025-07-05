@@ -16,6 +16,30 @@ Date:   Sun Dec 27 11:11:11 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/func.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index a9d92c668c..ed4f3ad4fe 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -285,15 +285,13 @@ func makepartialcall(dot *ir.SelectorExpr) *ir.Func {
+ 
+ 	// Declare and initialize variable holding receiver.
+ 	cr := ir.NewClosureRead(rcvrtype, types.Rnd(int64(types.PtrSize), int64(rcvrtype.Align)))
+-	ptr := NewName(Lookup(".this"))
+-	Declare(ptr, ir.PAUTO)
+-	ptr.SetUsed(true)
++	var ptr *ir.Name
+ 	var body []ir.Node
+ 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
+-		ptr.SetType(rcvrtype)
++		ptr = Temp(rcvrtype)
+ 		body = append(body, ir.NewAssignStmt(base.Pos, ptr, cr))
+ 	} else {
+-		ptr.SetType(types.NewPtr(rcvrtype))
++		ptr = Temp(types.NewPtr(rcvrtype))
+ 		body = append(body, ir.NewAssignStmt(base.Pos, ptr, NodAddr(cr)))
+ 	}
+ 

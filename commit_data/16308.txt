@@ -8,8 +8,72 @@ Date:   Wed May 15 12:33:29 2013 +0800
     R=golang-dev, dave, iant, bradfitz
     CC=golang-dev
     https://golang.org/cl/9249043
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue5337.go  | 31 +++++++++++++++++++++++++++++++
  misc/cgo/test/issue5337w.go |  9 +++++++++
  3 files changed, 41 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 56e1a0625e..14e1224e9a 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -39,5 +39,6 @@ func TestCthread(t *testing.T)             { testCthread(t) }
+ func TestCallbackCallers(t *testing.T)     { testCallbackCallers(t) }
+ func Test5227(t *testing.T)                { test5227(t) }
+ func TestCflags(t *testing.T)              { testCflags(t) }
++func Test5337(t *testing.T)                { test5337(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue5337.go b/misc/cgo/test/issue5337.go
+new file mode 100644
+index 0000000000..7f14ff4261
+--- /dev/null
++++ b/misc/cgo/test/issue5337.go
+@@ -0,0 +1,31 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++package cgotest
++
++/*
++#include <signal.h>
++#include <pthread.h>
++
++static void *thread(void *p) {
++	(void)p;
++	pthread_kill(pthread_self(), SIGPROF);
++	return NULL;
++}
++void test5337() {
++	pthread_t tid;
++	pthread_create(&tid, 0, thread, NULL);
++	pthread_join(tid, 0);
++}
++*/
++import "C"
++
++import "testing"
++
++// Verify that we can withstand SIGPROF received on foreign threads
++func test5337(t *testing.T) {
++	C.test5337()
++}
+diff --git a/misc/cgo/test/issue5337w.go b/misc/cgo/test/issue5337w.go
+new file mode 100644
+index 0000000000..f2719d3d7e
+--- /dev/null
++++ b/misc/cgo/test/issue5337w.go
+@@ -0,0 +1,9 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package cgotest
++
++func test5337(t *testing.T) {}

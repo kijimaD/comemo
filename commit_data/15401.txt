@@ -9,10 +9,146 @@ Date:   Sun Feb 24 12:07:20 2013 +0900
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7382053
-
+---
  src/pkg/syscall/types_openbsd.go         | 13 ++++++++-----
  src/pkg/syscall/zerrors_openbsd_386.go   |  2 ++
  src/pkg/syscall/zerrors_openbsd_amd64.go |  2 ++
  src/pkg/syscall/ztypes_openbsd_386.go    | 21 ++++++++++++++++-----
  src/pkg/syscall/ztypes_openbsd_amd64.go  | 21 ++++++++++++++++-----
  5 files changed, 44 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/syscall/types_openbsd.go b/src/pkg/syscall/types_openbsd.go
+index 518688833b..2430a166b4 100644
+--- a/src/pkg/syscall/types_openbsd.go
++++ b/src/pkg/syscall/types_openbsd.go
+@@ -187,11 +187,12 @@ type FdSet C.fd_set
+ // Routing and interface messages
+ 
+ const (
+-	SizeofIfMsghdr  = C.sizeof_struct_if_msghdr
+-	SizeofIfData    = C.sizeof_struct_if_data
+-	SizeofIfaMsghdr = C.sizeof_struct_ifa_msghdr
+-	SizeofRtMsghdr  = C.sizeof_struct_rt_msghdr
+-	SizeofRtMetrics = C.sizeof_struct_rt_metrics
++	SizeofIfMsghdr         = C.sizeof_struct_if_msghdr
++	SizeofIfData           = C.sizeof_struct_if_data
++	SizeofIfaMsghdr        = C.sizeof_struct_ifa_msghdr
++	SizeofIfAnnounceMsghdr = C.sizeof_struct_if_announcemsghdr
++	SizeofRtMsghdr         = C.sizeof_struct_rt_msghdr
++	SizeofRtMetrics        = C.sizeof_struct_rt_metrics
+ )
+ 
+ type IfMsghdr C.struct_if_msghdr
+@@ -200,6 +201,8 @@ type IfData C.struct_if_data
+ 
+ type IfaMsghdr C.struct_ifa_msghdr
+ 
++type IfAnnounceMsghdr C.struct_if_announcemsghdr
++
+ type RtMsghdr C.struct_rt_msghdr
+ 
+ type RtMetrics C.struct_rt_metrics
+diff --git a/src/pkg/syscall/zerrors_openbsd_386.go b/src/pkg/syscall/zerrors_openbsd_386.go
+index 1dad64508a..5330d15b15 100644
+--- a/src/pkg/syscall/zerrors_openbsd_386.go
++++ b/src/pkg/syscall/zerrors_openbsd_386.go
+@@ -441,6 +441,8 @@ const (
+ 	ICANON                            = 0x100
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
++	IFAN_ARRIVAL                      = 0x0
++	IFAN_DEPARTURE                    = 0x1
+ 	IFA_ROUTE                         = 0x1
+ 	IFF_ALLMULTI                      = 0x200
+ 	IFF_BROADCAST                     = 0x2
+diff --git a/src/pkg/syscall/zerrors_openbsd_amd64.go b/src/pkg/syscall/zerrors_openbsd_amd64.go
+index 3668602895..5a7edd341b 100644
+--- a/src/pkg/syscall/zerrors_openbsd_amd64.go
++++ b/src/pkg/syscall/zerrors_openbsd_amd64.go
+@@ -447,6 +447,8 @@ const (
+ 	ICANON                            = 0x100
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
++	IFAN_ARRIVAL                      = 0x0
++	IFAN_DEPARTURE                    = 0x1
+ 	IFA_ROUTE                         = 0x1
+ 	IFF_ALLMULTI                      = 0x200
+ 	IFF_BROADCAST                     = 0x2
+diff --git a/src/pkg/syscall/ztypes_openbsd_386.go b/src/pkg/syscall/ztypes_openbsd_386.go
+index 0505f80ef9..528e92c85d 100644
+--- a/src/pkg/syscall/ztypes_openbsd_386.go
++++ b/src/pkg/syscall/ztypes_openbsd_386.go
+@@ -260,11 +260,12 @@ type FdSet struct {
+ }
+ 
+ const (
+-	SizeofIfMsghdr  = 0xe8
+-	SizeofIfData    = 0xd0
+-	SizeofIfaMsghdr = 0x18
+-	SizeofRtMsghdr  = 0x58
+-	SizeofRtMetrics = 0x30
++	SizeofIfMsghdr         = 0xe8
++	SizeofIfData           = 0xd0
++	SizeofIfaMsghdr        = 0x18
++	SizeofIfAnnounceMsghdr = 0x1a
++	SizeofRtMsghdr         = 0x58
++	SizeofRtMetrics        = 0x30
+ )
+ 
+ type IfMsghdr struct {
+@@ -321,6 +322,16 @@ type IfaMsghdr struct {
+ 	Metric  int32
+ }
+ 
++type IfAnnounceMsghdr struct {
++	Msglen  uint16
++	Version uint8
++	Type    uint8
++	Hdrlen  uint16
++	Index   uint16
++	What    uint16
++	Name    [16]int8
++}
++
+ type RtMsghdr struct {
+ 	Msglen   uint16
+ 	Version  uint8
+diff --git a/src/pkg/syscall/ztypes_openbsd_amd64.go b/src/pkg/syscall/ztypes_openbsd_amd64.go
+index 362abac73b..4b93930540 100644
+--- a/src/pkg/syscall/ztypes_openbsd_amd64.go
++++ b/src/pkg/syscall/ztypes_openbsd_amd64.go
+@@ -265,11 +265,12 @@ type FdSet struct {
+ }
+ 
+ const (
+-	SizeofIfMsghdr  = 0xf8
+-	SizeofIfData    = 0xe0
+-	SizeofIfaMsghdr = 0x18
+-	SizeofRtMsghdr  = 0x58
+-	SizeofRtMetrics = 0x30
++	SizeofIfMsghdr         = 0xf8
++	SizeofIfData           = 0xe0
++	SizeofIfaMsghdr        = 0x18
++	SizeofIfAnnounceMsghdr = 0x1a
++	SizeofRtMsghdr         = 0x58
++	SizeofRtMetrics        = 0x30
+ )
+ 
+ type IfMsghdr struct {
+@@ -328,6 +329,16 @@ type IfaMsghdr struct {
+ 	Metric  int32
+ }
+ 
++type IfAnnounceMsghdr struct {
++	Msglen  uint16
++	Version uint8
++	Type    uint8
++	Hdrlen  uint16
++	Index   uint16
++	What    uint16
++	Name    [16]int8
++}
++
+ type RtMsghdr struct {
+ 	Msglen   uint16
+ 	Version  uint8

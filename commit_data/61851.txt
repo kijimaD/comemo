@@ -12,7 +12,42 @@ Date:   Thu Nov 28 16:23:53 2024 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/alldocs.go             | 2 +-
  src/cmd/go/internal/modget/get.go | 3 +--
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 4f0108b5ab..e0899f62d4 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -669,7 +669,7 @@
+ //
+ // Usage:
+ //
+-//	go get [-t] [-u] [-v] [-tool] [build flags] [packages]
++//	go get [-t] [-u] [-tool] [build flags] [packages]
+ //
+ // Get resolves its command-line arguments to packages at specific module versions,
+ // updates go.mod to require those versions, and downloads source code into the
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 05bac54fe7..159a856911 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -54,7 +54,7 @@ import (
+ var CmdGet = &base.Command{
+ 	// Note: flags below are listed explicitly because they're the most common.
+ 	// Do not send CLs removing them because they're covered by [get flags].
+-	UsageLine: "go get [-t] [-u] [-v] [-tool] [build flags] [packages]",
++	UsageLine: "go get [-t] [-u] [-tool] [build flags] [packages]",
+ 	Short:     "add dependencies to current module and install them",
+ 	Long: `
+ Get resolves its command-line arguments to packages at specific module versions,
+@@ -222,7 +222,6 @@ var (
+ 	getU        upgradeFlag
+ 	getTool     = CmdGet.Flag.Bool("tool", false, "")
+ 	getInsecure = CmdGet.Flag.Bool("insecure", false, "")
+-	// -v is cfg.BuildV
+ )
+ 
+ // upgradeFlag is a custom flag.Value for -u.

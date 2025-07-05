@@ -22,7 +22,85 @@ Date:   Tue Nov 1 21:49:44 2011 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5331044
-
+---
  src/pkg/exec/exec.go      | 15 ++++++++++++---
  src/pkg/exec/exec_test.go |  8 ++++----
  2 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index aaad50846e..3b818c2f65 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -203,7 +203,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err os.Error) {
+ // status.
+ //
+ // If the command fails to run or doesn't complete successfully, the
+-// error is of type *os.Waitmsg. Other error types may be
++// error is of type *ExitError. Other error types may be
+ // returned for I/O problems.
+ func (c *Cmd) Run() os.Error {
+ 	if err := c.Start(); err != nil {
+@@ -256,6 +256,15 @@ func (c *Cmd) Start() os.Error {
+ 	return nil
+ }
+ 
++// An ExitError reports an unsuccessful exit by a command.
++type ExitError struct {
++	*os.Waitmsg
++}
++
++func (e *ExitError) String() string {
++	return e.Waitmsg.String()
++}
++
+ // Wait waits for the command to exit.
+ // It must have been started by Start.
+ //
+@@ -264,7 +273,7 @@ func (c *Cmd) Start() os.Error {
+ // status.
+ //
+ // If the command fails to run or doesn't complete successfully, the
+-// error is of type *os.Waitmsg. Other error types may be
++// error is of type *ExitError. Other error types may be
+ // returned for I/O problems.
+ func (c *Cmd) Wait() os.Error {
+ 	if c.Process == nil {
+@@ -290,7 +299,7 @@ func (c *Cmd) Wait() os.Error {
+ 	if err != nil {
+ 		return err
+ 	} else if !msg.Exited() || msg.ExitStatus() != 0 {
+-		return msg
++		return &ExitError{msg}
+ 	}
+ 
+ 	return copyError
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index 2b36e2535a..3183919f67 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -53,8 +53,8 @@ func TestCatStdin(t *testing.T) {
+ func TestCatGoodAndBadFile(t *testing.T) {
+ 	// Testing combined output and error values.
+ 	bs, err := helperCommand("cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
+-	if _, ok := err.(*os.Waitmsg); !ok {
+-		t.Errorf("expected Waitmsg from cat combined; got %T: %v", err, err)
++	if _, ok := err.(*ExitError); !ok {
++		t.Errorf("expected *ExitError from cat combined; got %T: %v", err, err)
+ 	}
+ 	s := string(bs)
+ 	sp := strings.SplitN(s, "\n", 2)
+@@ -81,12 +81,12 @@ func TestNoExistBinary(t *testing.T) {
+ func TestExitStatus(t *testing.T) {
+ 	// Test that exit values are returned correctly
+ 	err := helperCommand("exit", "42").Run()
+-	if werr, ok := err.(*os.Waitmsg); ok {
++	if werr, ok := err.(*ExitError); ok {
+ 		if s, e := werr.String(), "exit status 42"; s != e {
+ 			t.Errorf("from exit 42 got exit %q, want %q", s, e)
+ 		}
+ 	} else {
+-		t.Fatalf("expected Waitmsg from exit 42; got %T: %v", err, err)
++		t.Fatalf("expected *ExitError from exit 42; got %T: %v", err, err)
+ 	}
+ }
+ 

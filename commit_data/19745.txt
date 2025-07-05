@@ -11,7 +11,80 @@ Date:   Wed Jul 16 18:26:50 2014 +0000
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/111230044
-
+---
  src/cmd/ld/dwarf.c          |  9 +++++----
  src/pkg/debug/dwarf/type.go | 14 ++++++++++----
  2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index c2fd07702d..c9bb1bd8f0 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -266,7 +266,7 @@ static struct DWAbbrev {
+ 		DW_TAG_subrange_type, DW_CHILDREN_no,
+ 		// No name!
+ 		DW_AT_type,	 DW_FORM_ref_addr,
+-		DW_AT_upper_bound, DW_FORM_udata,
++		DW_AT_count, DW_FORM_udata,
+ 		0, 0
+ 	},
+ 
+@@ -992,7 +992,8 @@ defgotype(LSym *gotype)
+ 		s = decodetype_arrayelem(gotype);
+ 		newrefattr(die, DW_AT_type, defgotype(s));
+ 		fld = newdie(die, DW_ABRV_ARRAYRANGE, "range");
+-		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, decodetype_arraylen(gotype)-1, 0); // -1: want upper bound, not count.
++		// use actual length not upper bound; correct for 0-length arrays.
++		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, decodetype_arraylen(gotype), 0);
+ 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+ 		break;
+ 
+@@ -1256,7 +1257,7 @@ synthesizemaptypes(DWDie *die)
+ 		newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * keysize, 0);
+ 		newrefattr(dwhk, DW_AT_type, indirect_key ? defptrto(keytype) : keytype);
+ 		fld = newdie(dwhk, DW_ABRV_ARRAYRANGE, "size");
+-		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, BucketSize, 0);
++		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0);
+ 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+ 		
+ 		// Construct type to represent an array of BucketSize values
+@@ -1266,7 +1267,7 @@ synthesizemaptypes(DWDie *die)
+ 		newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * valsize, 0);
+ 		newrefattr(dwhv, DW_AT_type, indirect_val ? defptrto(valtype) : valtype);
+ 		fld = newdie(dwhv, DW_ABRV_ARRAYRANGE, "size");
+-		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, BucketSize, 0);
++		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0);
+ 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+ 
+ 		// Construct bucket<K,V>
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index 68866d0b7b..7b5f1cf7b9 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -370,16 +370,22 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 			// but haven't seen that in the wild yet.
+ 			switch kid.Tag {
+ 			case TagSubrangeType:
+-				max, ok := kid.Val(AttrUpperBound).(int64)
++				count, ok := kid.Val(AttrCount).(int64)
+ 				if !ok {
+-					max = -2 // Count == -1, as in x[].
++					// Old binaries may have an upper bound instead.
++					count, ok = kid.Val(AttrUpperBound).(int64)
++					if ok {
++						count++ // Length is one more than upper bound.
++					} else {
++						count = -1 // As in x[].
++					}
+ 				}
+ 				if ndim == 0 {
+-					t.Count = max + 1
++					t.Count = count
+ 				} else {
+ 					// Multidimensional array.
+ 					// Create new array type underneath this one.
+-					t.Type = &ArrayType{Type: t.Type, Count: max + 1}
++					t.Type = &ArrayType{Type: t.Type, Count: count}
+ 				}
+ 				ndim++
+ 			case TagEnumerationType:

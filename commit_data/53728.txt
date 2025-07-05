@@ -14,7 +14,146 @@ Date:   Sun Aug 28 06:08:02 2022 +1000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules | 10 +++--
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 62 ++++++++++++++++++--------
  2 files changed, 51 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index bf466206c1..11506e837e 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -601,9 +601,9 @@
+ (BNEZ (SEQZ x) yes no) => (BEQZ x yes no)
+ (BNEZ (SNEZ x) yes no) => (BNEZ x yes no)
+ 
+-// Absorb NEG into branch when possible.
+-(BEQZ x:(NEG y) yes no) && x.Uses == 1 => (BEQZ y yes no)
+-(BNEZ x:(NEG y) yes no) && x.Uses == 1 => (BNEZ y yes no)
++// Absorb NEG into branch.
++(BEQZ (NEG x) yes no) => (BEQZ x yes no)
++(BNEZ (NEG x) yes no) => (BNEZ x yes no)
+ 
+ // Convert BEQZ/BNEZ into more optimal branch conditions.
+ (BEQZ (SUB x y) yes no) => (BEQ x y yes no)
+@@ -623,6 +623,10 @@
+ (BGE (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
+ (BGE cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
+ 
++// Remove NEG when used with SEQZ/SNEZ.
++(SEQZ (NEG x)) => (SEQZ x)
++(SNEZ (NEG x)) => (SNEZ x)
++
+ // Store zero
+ (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
+ (MOVHstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 45d82187a5..70eca6c513 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -505,6 +505,8 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpRISCV64OR(v)
+ 	case OpRISCV64ORI:
+ 		return rewriteValueRISCV64_OpRISCV64ORI(v)
++	case OpRISCV64SEQZ:
++		return rewriteValueRISCV64_OpRISCV64SEQZ(v)
+ 	case OpRISCV64SLL:
+ 		return rewriteValueRISCV64_OpRISCV64SLL(v)
+ 	case OpRISCV64SLLI:
+@@ -517,6 +519,8 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpRISCV64SLTIU(v)
+ 	case OpRISCV64SLTU:
+ 		return rewriteValueRISCV64_OpRISCV64SLTU(v)
++	case OpRISCV64SNEZ:
++		return rewriteValueRISCV64_OpRISCV64SNEZ(v)
+ 	case OpRISCV64SRA:
+ 		return rewriteValueRISCV64_OpRISCV64SRA(v)
+ 	case OpRISCV64SRAI:
+@@ -5000,6 +5004,21 @@ func rewriteValueRISCV64_OpRISCV64ORI(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpRISCV64SEQZ(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (SEQZ (NEG x))
++	// result: (SEQZ x)
++	for {
++		if v_0.Op != OpRISCV64NEG {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpRISCV64SEQZ)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueRISCV64_OpRISCV64SLL(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -5102,6 +5121,21 @@ func rewriteValueRISCV64_OpRISCV64SLTU(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpRISCV64SNEZ(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (SNEZ (NEG x))
++	// result: (SNEZ x)
++	for {
++		if v_0.Op != OpRISCV64NEG {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpRISCV64SNEZ)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueRISCV64_OpRISCV64SRA(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -6893,16 +6927,12 @@ func rewriteBlockRISCV64(b *Block) bool {
+ 			b.resetWithControl(BlockRISCV64BEQZ, x)
+ 			return true
+ 		}
+-		// match: (BEQZ x:(NEG y) yes no)
+-		// cond: x.Uses == 1
+-		// result: (BEQZ y yes no)
++		// match: (BEQZ (NEG x) yes no)
++		// result: (BEQZ x yes no)
+ 		for b.Controls[0].Op == OpRISCV64NEG {
+-			x := b.Controls[0]
+-			y := x.Args[0]
+-			if !(x.Uses == 1) {
+-				break
+-			}
+-			b.resetWithControl(BlockRISCV64BEQZ, y)
++			v_0 := b.Controls[0]
++			x := v_0.Args[0]
++			b.resetWithControl(BlockRISCV64BEQZ, x)
+ 			return true
+ 		}
+ 		// match: (BEQZ (SUB x y) yes no)
+@@ -7018,16 +7048,12 @@ func rewriteBlockRISCV64(b *Block) bool {
+ 			b.resetWithControl(BlockRISCV64BNEZ, x)
+ 			return true
+ 		}
+-		// match: (BNEZ x:(NEG y) yes no)
+-		// cond: x.Uses == 1
+-		// result: (BNEZ y yes no)
++		// match: (BNEZ (NEG x) yes no)
++		// result: (BNEZ x yes no)
+ 		for b.Controls[0].Op == OpRISCV64NEG {
+-			x := b.Controls[0]
+-			y := x.Args[0]
+-			if !(x.Uses == 1) {
+-				break
+-			}
+-			b.resetWithControl(BlockRISCV64BNEZ, y)
++			v_0 := b.Controls[0]
++			x := v_0.Args[0]
++			b.resetWithControl(BlockRISCV64BNEZ, x)
+ 			return true
+ 		}
+ 		// match: (BNEZ (SUB x y) yes no)

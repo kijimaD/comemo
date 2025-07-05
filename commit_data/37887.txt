@@ -37,8 +37,114 @@ Date:   Tue Aug 21 04:57:03 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 ++++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 45 ++++++++++++++++++++++++++++
  test/codegen/math.go                         |  1 +
  3 files changed, 51 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index ede7ed3d7a..6c8f3860d1 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -101,6 +101,8 @@
+ 
+ // Load args directly into the register class where it will be used.
+ (FMOVDgpfp <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
++(FMOVDfpgp <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
++
+ // Similarly for stores, if we see a store after FPR <-> GPR move, then redirect store to use the other register set.
+ (MOVDstore ptr (FMOVDfpgp val) mem) -> (FMOVDstore ptr val mem)
+ (FMOVDstore ptr (FMOVDgpfp val) mem) -> (MOVDstore ptr val mem)
+@@ -1626,6 +1628,9 @@
+ (SRLconst [c] (SLLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [1<<uint(64-c)-1] x) // mask out high bits
+ (SLLconst [c] (SRLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [^(1<<uint(c)-1)] x) // mask out low bits
+ 
++// Special case setting bit as 1. An example is math.Copysign(c,-1)
++(ORconst [c1] (ANDconst [c2] x)) && c2|c1 == ^0  -> (ORconst [c1] x)
++
+ // bitfield ops
+ 
+ // sbfiz
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index fbdf352998..219bc3676d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -87,6 +87,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64FADDD_0(v)
+ 	case OpARM64FADDS:
+ 		return rewriteValueARM64_OpARM64FADDS_0(v)
++	case OpARM64FMOVDfpgp:
++		return rewriteValueARM64_OpARM64FMOVDfpgp_0(v)
+ 	case OpARM64FMOVDgpfp:
+ 		return rewriteValueARM64_OpARM64FMOVDgpfp_0(v)
+ 	case OpARM64FMOVDload:
+@@ -3960,6 +3962,30 @@ func rewriteValueARM64_OpARM64FADDS_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64FMOVDfpgp_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	// match: (FMOVDfpgp <t> (Arg [off] {sym}))
++	// cond:
++	// result: @b.Func.Entry (Arg <t> [off] {sym})
++	for {
++		t := v.Type
++		v_0 := v.Args[0]
++		if v_0.Op != OpArg {
++			break
++		}
++		off := v_0.AuxInt
++		sym := v_0.Aux
++		b = b.Func.Entry
++		v0 := b.NewValue0(v.Pos, OpArg, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64FMOVDgpfp_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -21834,6 +21860,25 @@ func rewriteValueARM64_OpARM64ORconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ORconst [c1] (ANDconst [c2] x))
++	// cond: c2|c1 == ^0
++	// result: (ORconst [c1] x)
++	for {
++		c1 := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64ANDconst {
++			break
++		}
++		c2 := v_0.AuxInt
++		x := v_0.Args[0]
++		if !(c2|c1 == ^0) {
++			break
++		}
++		v.reset(OpARM64ORconst)
++		v.AuxInt = c1
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64ORshiftLL_0(v *Value) bool {
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 1ecba26847..99335d2efc 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -74,6 +74,7 @@ func copysign(a, b, c float64) {
+ 	// amd64:"BTSQ\t[$]63"
+ 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
+ 	// ppc64le:"FCPSGN"
++	// arm64:"ORR\t[$]-9223372036854775808"
+ 	sink64[1] = math.Copysign(c, -1)
+ 
+ 	// Like math.Copysign(c, -1), but with integer operations. Useful

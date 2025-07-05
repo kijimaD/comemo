@@ -8,10 +8,275 @@ Date:   Fri Nov 20 13:08:16 2009 -0800
     R=rsc, wjosephson
     CC=golang-dev
     https://golang.org/cl/156113
-
+---
  src/pkg/runtime/freebsd/386/defs.h     | 33 ---------------------
  src/pkg/runtime/freebsd/386/signal.c   | 36 +++++++++++------------
  src/pkg/runtime/freebsd/amd64/defs.h   | 41 --------------------------
  src/pkg/runtime/freebsd/amd64/signal.c | 54 ++++++++++++++++------------------
  src/pkg/runtime/freebsd/defs.c         |  1 -
  5 files changed, 43 insertions(+), 122 deletions(-)
+
+diff --git a/src/pkg/runtime/freebsd/386/defs.h b/src/pkg/runtime/freebsd/386/defs.h
+index a49749311b..df1d32a390 100644
+--- a/src/pkg/runtime/freebsd/386/defs.h
++++ b/src/pkg/runtime/freebsd/386/defs.h
+@@ -124,37 +124,4 @@ struct Ucontext {
+ 	int32 __spare__[4];
+ 	byte pad0[12];
+ };
+-
+-typedef struct Sigcontext Sigcontext;
+-struct Sigcontext {
+-	Sigset sc_mask;
+-	int32 sc_onstack;
+-	int32 sc_gs;
+-	int32 sc_fs;
+-	int32 sc_es;
+-	int32 sc_ds;
+-	int32 sc_edi;
+-	int32 sc_esi;
+-	int32 sc_ebp;
+-	int32 sc_isp;
+-	int32 sc_ebx;
+-	int32 sc_edx;
+-	int32 sc_ecx;
+-	int32 sc_eax;
+-	int32 sc_trapno;
+-	int32 sc_err;
+-	int32 sc_eip;
+-	int32 sc_cs;
+-	int32 sc_efl;
+-	int32 sc_esp;
+-	int32 sc_ss;
+-	int32 sc_len;
+-	int32 sc_fpformat;
+-	int32 sc_ownedfp;
+-	int32 sc_spare1[1];
+-	int32 sc_fpstate[128];
+-	int32 sc_fsbase;
+-	int32 sc_gsbase;
+-	int32 sc_spare2[6];
+-};
+ #pragma pack off
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index ac0e84f13b..96eaa55296 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -15,21 +15,21 @@ typedef struct sigaction {
+ } Sigaction;
+ 
+ void
+-dumpregs(Sigcontext *r)
++dumpregs(Mcontext *r)
+ {
+-	printf("eax     %x\n", r->sc_eax);
+-	printf("ebx     %x\n", r->sc_ebx);
+-	printf("ecx     %x\n", r->sc_ecx);
+-	printf("edx     %x\n", r->sc_edx);
+-	printf("edi     %x\n", r->sc_edi);
+-	printf("esi     %x\n", r->sc_esi);
+-	printf("ebp     %x\n", r->sc_ebp);
+-	printf("esp     %x\n", r->sc_esp);
+-	printf("eip     %x\n", r->sc_eip);
+-	printf("eflags  %x\n", r->sc_efl);
+-	printf("cs      %x\n", r->sc_cs);
+-	printf("fs      %x\n", r->sc_fsbase);
+-	printf("gs      %x\n", r->sc_gsbase);
++	printf("eax     %x\n", r->mc_eax);
++	printf("ebx     %x\n", r->mc_ebx);
++	printf("ecx     %x\n", r->mc_ecx);
++	printf("edx     %x\n", r->mc_edx);
++	printf("edi     %x\n", r->mc_edi);
++	printf("esi     %x\n", r->mc_esi);
++	printf("ebp     %x\n", r->mc_ebp);
++	printf("esp     %x\n", r->mc_esp);
++	printf("eip     %x\n", r->mc_eip);
++	printf("eflags  %x\n", r->mc_eflags);
++	printf("cs      %x\n", r->mc_cs);
++	printf("fs      %x\n", r->mc_fs);
++	printf("gs      %x\n", r->mc_gs);
+ }
+ 
+ void
+@@ -37,7 +37,6 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *mc;
+-	Sigcontext *sc;
+ 
+ 	if(panicking)	// traceback already printed
+ 		exit(2);
+@@ -45,7 +44,6 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 
+ 	uc = context;
+ 	mc = &uc->uc_mcontext;
+-	sc = (Sigcontext*)mc;	// same layout, more conveient names
+ 
+ 	if(sig < 0 || sig >= NSIG)
+ 		printf("Signal %d\n", sig);
+@@ -53,13 +51,13 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		printf("%s\n", sigtab[sig].name);
+ 
+ 	printf("Faulting address: %p\n", info->si_addr);
+-	printf("PC=%X\n", sc->sc_eip);
++	printf("PC=%X\n", mc->mc_eip);
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)sc->sc_eip, (void*)sc->sc_esp, m->curg);
++		traceback((void*)sc->sc_eip, (void*)mc->mc_esp, m->curg);
+ 		tracebackothers(m->curg);
+-		dumpregs(sc);
++		dumpregs(mc);
+ 	}
+ 
+ 	breakpoint();
+diff --git a/src/pkg/runtime/freebsd/amd64/defs.h b/src/pkg/runtime/freebsd/amd64/defs.h
+index 83fd40b1c9..f1ad62411d 100644
+--- a/src/pkg/runtime/freebsd/amd64/defs.h
++++ b/src/pkg/runtime/freebsd/amd64/defs.h
+@@ -135,45 +135,4 @@ struct Ucontext {
+ 	int32 __spare__[4];
+ 	byte pad0[12];
+ };
+-
+-typedef struct Sigcontext Sigcontext;
+-struct Sigcontext {
+-	Sigset sc_mask;
+-	int64 sc_onstack;
+-	int64 sc_rdi;
+-	int64 sc_rsi;
+-	int64 sc_rdx;
+-	int64 sc_rcx;
+-	int64 sc_r8;
+-	int64 sc_r9;
+-	int64 sc_rax;
+-	int64 sc_rbx;
+-	int64 sc_rbp;
+-	int64 sc_r10;
+-	int64 sc_r11;
+-	int64 sc_r12;
+-	int64 sc_r13;
+-	int64 sc_r14;
+-	int64 sc_r15;
+-	int32 sc_trapno;
+-	int16 sc_fs;
+-	int16 sc_gs;
+-	int64 sc_addr;
+-	int32 sc_flags;
+-	int16 sc_es;
+-	int16 sc_ds;
+-	int64 sc_err;
+-	int64 sc_rip;
+-	int64 sc_cs;
+-	int64 sc_rflags;
+-	int64 sc_rsp;
+-	int64 sc_ss;
+-	int64 sc_len;
+-	int64 sc_fpformat;
+-	int64 sc_ownedfp;
+-	int64 sc_fpstate[64];
+-	int64 sc_fsbase;
+-	int64 sc_gsbase;
+-	int64 sc_spare[6];
+-};
+ #pragma pack off
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index 08d89727da..e83a7bc954 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -15,29 +15,29 @@ typedef struct sigaction {
+ } Sigaction;
+ 
+ void
+-dumpregs(Sigcontext *r)
++dumpregs(Mcontext *r)
+ {
+-	printf("rax     %X\n", r->sc_rax);
+-	printf("rbx     %X\n", r->sc_rbx);
+-	printf("rcx     %X\n", r->sc_rcx);
+-	printf("rdx     %X\n", r->sc_rdx);
+-	printf("rdi     %X\n", r->sc_rdi);
+-	printf("rsi     %X\n", r->sc_rsi);
+-	printf("rbp     %X\n", r->sc_rbp);
+-	printf("rsp     %X\n", r->sc_rsp);
+-	printf("r8      %X\n", r->sc_r8 );
+-	printf("r9      %X\n", r->sc_r9 );
+-	printf("r10     %X\n", r->sc_r10);
+-	printf("r11     %X\n", r->sc_r11);
+-	printf("r12     %X\n", r->sc_r12);
+-	printf("r13     %X\n", r->sc_r13);
+-	printf("r14     %X\n", r->sc_r14);
+-	printf("r15     %X\n", r->sc_r15);
+-	printf("rip     %X\n", r->sc_rip);
+-	printf("rflags  %X\n", r->sc_flags);
+-	printf("cs      %X\n", (uint64)r->sc_cs);
+-	printf("fs      %X\n", (uint64)r->sc_fsbase);
+-	printf("gs      %X\n", (uint64)r->sc_gsbase);
++	printf("rax     %X\n", r->mc_rax);
++	printf("rbx     %X\n", r->mc_rbx);
++	printf("rcx     %X\n", r->mc_rcx);
++	printf("rdx     %X\n", r->mc_rdx);
++	printf("rdi     %X\n", r->mc_rdi);
++	printf("rsi     %X\n", r->mc_rsi);
++	printf("rbp     %X\n", r->mc_rbp);
++	printf("rsp     %X\n", r->mc_rsp);
++	printf("r8      %X\n", r->mc_r8 );
++	printf("r9      %X\n", r->mc_r9 );
++	printf("r10     %X\n", r->mc_r10);
++	printf("r11     %X\n", r->mc_r11);
++	printf("r12     %X\n", r->mc_r12);
++	printf("r13     %X\n", r->mc_r13);
++	printf("r14     %X\n", r->mc_r14);
++	printf("r15     %X\n", r->mc_r15);
++	printf("rip     %X\n", r->mc_rip);
++	printf("rflags  %X\n", r->mc_flags);
++	printf("cs      %X\n", r->mc_cs);
++	printf("fs      %X\n", r->mc_fs);
++	printf("gs      %X\n", r->mc_gs);
+ }
+ 
+ void
+@@ -45,7 +45,6 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *mc;
+-	Sigcontext *sc;
+ 
+ 	if(panicking)	// traceback already printed
+ 		exit(2);
+@@ -53,7 +52,6 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 
+ 	uc = context;
+ 	mc = &uc->uc_mcontext;
+-	sc = (Sigcontext*)mc;	// same layout, more conveient names
+ 
+ 	if(sig < 0 || sig >= NSIG)
+ 		printf("Signal %d\n", sig);
+@@ -61,13 +59,13 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		printf("%s\n", sigtab[sig].name);
+ 
+ 	printf("Faulting address: %p\n", info->si_addr);
+-	printf("PC=%X\n", sc->sc_rip);
++	printf("PC=%X\n", mc->mc_rip);
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)sc->sc_rip, (void*)sc->sc_rsp, (void*)sc->sc_r15);
+-		tracebackothers((void*)sc->sc_r15);
+-		dumpregs(sc);
++		traceback((void*)mc->mc_rip, (void*)mc->mc_rsp, (void*)mc->mc_r15);
++		tracebackothers((void*)mc->mc_r15);
++		dumpregs(mc);
+ 	}
+ 
+ 	breakpoint();
+diff --git a/src/pkg/runtime/freebsd/defs.c b/src/pkg/runtime/freebsd/defs.c
+index 93f3f9d159..e4d0f0068c 100644
+--- a/src/pkg/runtime/freebsd/defs.c
++++ b/src/pkg/runtime/freebsd/defs.c
+@@ -50,4 +50,3 @@ typedef siginfo_t $Siginfo;
+ 
+ typedef mcontext_t $Mcontext;
+ typedef ucontext_t $Ucontext;
+-typedef struct sigcontext $Sigcontext;

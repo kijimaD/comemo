@@ -12,7 +12,28 @@ Date:   Thu Jan 7 16:28:35 2021 +0800
     Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/io/fs/glob.go      | 2 +-
  src/io/fs/glob_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/io/fs/glob.go b/src/io/fs/glob.go
+index cde6c49f3d..59bd1939d7 100644
+--- a/src/io/fs/glob.go
++++ b/src/io/fs/glob.go
+@@ -1,4 +1,4 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
++// Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/io/fs/glob_test.go b/src/io/fs/glob_test.go
+index 5c8ac3fbf3..f0d791fab5 100644
+--- a/src/io/fs/glob_test.go
++++ b/src/io/fs/glob_test.go
+@@ -1,4 +1,4 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 

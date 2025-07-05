@@ -15,8 +15,81 @@ Date:   Thu Jan 11 10:48:12 2024 +0800
     Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-
+---
  src/cmd/internal/obj/loong64/a.out.go  |  1 -
  src/cmd/internal/obj/loong64/asm.go    | 23 +----------------------
  src/cmd/internal/obj/loong64/cnames.go |  1 -
  3 files changed, 1 insertion(+), 24 deletions(-)
+
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 6d41b6aa03..a34a2a50c3 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -213,7 +213,6 @@ const (
+ 	C_LACON // $n(REG) where int12 < n <= int32
+ 	C_LECON
+ 	C_DACON // $n(REG) where int32 < n
+-	C_STCON // $tlsvar
+ 	C_SBRA
+ 	C_LBRA
+ 	C_SAUTO
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index fbfa7024d6..6d21767645 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -204,8 +204,6 @@ var optab = []Optab{
+ 	{AMOVV, C_ADDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
+ 	{AMOVW, C_ANDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
+ 	{AMOVV, C_ANDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
+-	{AMOVW, C_STCON, C_NONE, C_NONE, C_REG, C_NONE, 55, 12, 0, 0},
+-	{AMOVV, C_STCON, C_NONE, C_NONE, C_REG, C_NONE, 55, 12, 0, 0},
+ 
+ 	{AMOVW, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 24, 4, 0, 0},
+ 	{AMOVV, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 24, 4, 0, 0},
+@@ -759,7 +757,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 
+ 			c.instoffset = a.Offset
+ 			if s.Type == objabi.STLSBSS {
+-				return C_STCON // address of TLS variable
++				c.ctxt.Diag("taking address of TLS variable is not supported")
+ 			}
+ 			return C_LECON
+ 
+@@ -1770,25 +1768,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
+ 		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
+ 
+-	case 55: //  lu12i.w + ori + add r2, regtmp
+-		// NOTE: this case does not use REGTMP. If it ever does,
+-		// remove the NOTUSETMP flag in optab.
+-		o1 = OP_IR(c.opir(ALU12IW), uint32(0), uint32(REGTMP))
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_LOONG64_TLS_LE_HI
+-		o2 = OP_12IRR(c.opirr(AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.From.Sym
+-		rel2.Add = p.From.Offset
+-		rel2.Type = objabi.R_LOONG64_TLS_LE_LO
+-		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(p.To.Reg))
+-
+ 	case 56: // mov r, tlsvar IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + st.d
+ 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
+ 		rel := obj.Addrel(c.cursym)
+diff --git a/src/cmd/internal/obj/loong64/cnames.go b/src/cmd/internal/obj/loong64/cnames.go
+index 94b1b54c93..3841296f3a 100644
+--- a/src/cmd/internal/obj/loong64/cnames.go
++++ b/src/cmd/internal/obj/loong64/cnames.go
+@@ -25,7 +25,6 @@ var cnames0 = []string{
+ 	"LACON",
+ 	"LECON",
+ 	"DACON",
+-	"STCON",
+ 	"SBRA",
+ 	"LBRA",
+ 	"SAUTO",

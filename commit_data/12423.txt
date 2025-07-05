@@ -7,9 +7,92 @@ Date:   Tue Mar 6 09:07:00 2012 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5756044
-
+---
  src/pkg/runtime/runtime.h          |  2 --
  src/pkg/runtime/signal_plan9_386.c |  6 ------
  src/pkg/runtime/signal_unix.c      |  8 --------
  src/pkg/runtime/thread_windows.c   | 15 ---------------
  4 files changed, 31 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f2669fdb7e..6f5aea11db 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -675,7 +675,6 @@ void	runtime·panicslice(void);
+ /*
+  * runtime c-called (but written in Go)
+  */
+-void	runtime·newError(String, Eface*);
+ void	runtime·printany(Eface);
+ void	runtime·newTypeAssertionError(String*, String*, String*, String*, Eface*);
+ void	runtime·newErrorString(String, Eface*);
+@@ -706,7 +705,6 @@ float64	runtime·ldexp(float64 d, int32 e);
+ float64	runtime·modf(float64 d, float64 *ip);
+ void	runtime·semacquire(uint32*);
+ void	runtime·semrelease(uint32*);
+-String	runtime·signame(int32 sig);
+ int32	runtime·gomaxprocsfunc(int32 n);
+ void	runtime·procyield(uint32);
+ void	runtime·osyield(void);
+diff --git a/src/pkg/runtime/signal_plan9_386.c b/src/pkg/runtime/signal_plan9_386.c
+index 5eb04023f4..d26688516d 100644
+--- a/src/pkg/runtime/signal_plan9_386.c
++++ b/src/pkg/runtime/signal_plan9_386.c
+@@ -4,12 +4,6 @@
+ 
+ #include "runtime.h"
+ 
+-String
+-runtime·signame(int32)
+-{
+-	return runtime·emptystring;
+-}
+-
+ void
+ runtime·sigenable(uint32 sig)
+ {
+diff --git a/src/pkg/runtime/signal_unix.c b/src/pkg/runtime/signal_unix.c
+index 0b9d2a55a1..9b7e8b03a8 100644
+--- a/src/pkg/runtime/signal_unix.c
++++ b/src/pkg/runtime/signal_unix.c
+@@ -10,14 +10,6 @@
+ 
+ extern SigTab runtime·sigtab[];
+ 
+-String
+-runtime·signame(int32 sig)
+-{
+-	if(sig < 0 || sig >= NSIG)
+-		return runtime·emptystring;
+-	return runtime·gostringnocopy((byte*)runtime·sigtab[sig].name);
+-}
+-
+ void
+ runtime·initsig(void)
+ {
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index 8a448bc37c..1147a05e6a 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -302,21 +302,6 @@ runtime·initsig(void)
+ 	USED(p);
+ }
+ 
+-String
+-runtime·signame(int32 sig)
+-{
+-	int8 *s;
+-
+-	switch(sig) {
+-	case SIGINT:
+-		s = "SIGINT: interrupt";
+-		break;
+-	default:
+-		return runtime·emptystring;
+-	}
+-	return runtime·gostringnocopy((byte*)s);
+-}
+-
+ uint32
+ runtime·ctrlhandler1(uint32 type)
+ {

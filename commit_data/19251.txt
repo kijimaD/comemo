@@ -16,6 +16,26 @@ Date:   Mon Apr 28 14:24:14 2014 -0400
     R=golang-codereviews, robert.hencke, gobot, dsymonds
     CC=golang-codereviews
     https://golang.org/cl/96800046
-
+---
  misc/vim/readme.txt | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/misc/vim/readme.txt b/misc/vim/readme.txt
+index b8469f9275..9a9e228709 100644
+--- a/misc/vim/readme.txt
++++ b/misc/vim/readme.txt
+@@ -5,9 +5,11 @@ To use all the Vim plugins, add these lines to your $HOME/.vimrc.
+ 
+   " Some Linux distributions set filetype in /etc/vimrc.
+   " Clear filetype flags before changing runtimepath to force Vim to reload them.
+-  filetype off
+-  filetype plugin indent off
+-  set runtimepath+=$GOROOT/misc/vim
++  if exists("g:did_load_filetypes")
++    filetype off
++    filetype plugin indent off
++  endif
++  set runtimepath+=$GOROOT/misc/vim " replace $GOROOT with the output of: go env GOROOT
+   filetype plugin indent on
+   syntax on
+ 

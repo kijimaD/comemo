@@ -11,7 +11,46 @@ Date:   Mon Feb 23 15:32:08 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/5692
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/verify.go    | 1 +
  src/crypto/x509/x509_test.go | 8 +++++++-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 7a7db75023..7226d0a8d5 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -324,6 +324,7 @@ nextIntermediate:
+ 
+ func matchHostnames(pattern, host string) bool {
+ 	host = strings.TrimSuffix(host, ".")
++	pattern = strings.TrimSuffix(pattern, ".")
+ 
+ 	if len(pattern) == 0 || len(host) == 0 {
+ 		return false
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index f3a9f3cdc9..6414488bd7 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -161,7 +161,6 @@ var matchHostnamesTests = []matchHostnamesTest{
+ 	{"", "b.b.c", false},
+ 	{"a.b.c", "", false},
+ 	{"example.com", "example.com", true},
+-	{"example.com", "example.com.", true},
+ 	{"example.com", "www.example.com", false},
+ 	{"*.example.com", "example.com", false},
+ 	{"*.example.com", "www.example.com", true},
+@@ -174,6 +173,13 @@ var matchHostnamesTests = []matchHostnamesTest{
+ 	{"", ".", false},
+ 	{".", "", false},
+ 	{".", ".", false},
++	{"example.com", "example.com.", true},
++	{"example.com.", "example.com", true},
++	{"example.com.", "example.com.", true},
++	{"*.com.", "example.com.", true},
++	{"*.com.", "example.com", true},
++	{"*.com", "example.com", true},
++	{"*.com", "example.com.", true},
+ }
+ 
+ func TestMatchHostnames(t *testing.T) {

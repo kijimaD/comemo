@@ -11,9 +11,102 @@ Date:   Mon Jan 6 14:08:53 2025 -0500
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/cache/default.go           |  4 +--
  src/cmd/go/internal/cfg/cfg.go                 |  5 +--
  src/cmd/go/internal/envcmd/env.go              |  1 +
  src/cmd/go/testdata/script/env_gocacheprog.txt | 42 ++++++++++++++++++++++++++
  4 files changed, 48 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 074f911593..f8e5696cbd 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -54,8 +54,8 @@ func initDefaultCache() Cache {
+ 		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
+ 	}
+ 
+-	if v := cfg.Getenv("GOCACHEPROG"); v != "" {
+-		return startCacheProg(v, diskCache)
++	if cfg.GOCACHEPROG != "" {
++		return startCacheProg(cfg.GOCACHEPROG, diskCache)
+ 	}
+ 
+ 	return diskCache
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 6c2af99c2d..3b9f27e91d 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -425,8 +425,9 @@ var (
+ 	GOROOTpkg string
+ 	GOROOTsrc string
+ 
+-	GOBIN                         = Getenv("GOBIN")
+-	GOMODCACHE, GOMODCACHEChanged = EnvOrAndChanged("GOMODCACHE", gopathDir("pkg/mod"))
++	GOBIN                           = Getenv("GOBIN")
++	GOCACHEPROG, GOCACHEPROGChanged = EnvOrAndChanged("GOCACHEPROG", "")
++	GOMODCACHE, GOMODCACHEChanged   = EnvOrAndChanged("GOMODCACHE", gopathDir("pkg/mod"))
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+ 	GOARM64, goARM64Changed     = EnvOrAndChanged("GOARM64", buildcfg.DefaultGOARM64)
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 19db68e4f8..7c370d427f 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -85,6 +85,7 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOAUTH", Value: cfg.GOAUTH, Changed: cfg.GOAUTHChanged},
+ 		{Name: "GOBIN", Value: cfg.GOBIN},
+ 		{Name: "GOCACHE"},
++		{Name: "GOCACHEPROG", Value: cfg.GOCACHEPROG, Changed: cfg.GOCACHEPROGChanged},
+ 		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
+ 		{Name: "GOENV", Value: envFile, Changed: envFileChanged},
+ 		{Name: "GOEXE", Value: cfg.ExeSuffix},
+diff --git a/src/cmd/go/testdata/script/env_gocacheprog.txt b/src/cmd/go/testdata/script/env_gocacheprog.txt
+new file mode 100644
+index 0000000000..f5f15ed078
+--- /dev/null
++++ b/src/cmd/go/testdata/script/env_gocacheprog.txt
+@@ -0,0 +1,42 @@
++# GOCACHEPROG unset
++env GOCACHEPROG=
++
++go env
++stdout 'GOCACHEPROG=''?''?'
++
++go env -changed
++! stdout 'GOCACHEPROG'
++
++go env -changed -json
++! stdout 'GOCACHEPROG'
++
++# GOCACHEPROG set
++[short] skip 'compiles and runs a go program'
++
++go build -o cacheprog$GOEXE cacheprog.go
++
++env GOCACHEPROG=$GOPATH/src/cacheprog$GOEXE
++
++go env
++stdout 'GOCACHEPROG=''?'$GOCACHEPROG'''?'
++
++go env -changed
++stdout 'GOCACHEPROG=''?'$GOCACHEPROG'''?'
++
++go env -changed -json
++stdout '"GOCACHEPROG": "'$GOCACHEPROG'"'
++
++-- cacheprog.go --
++// This is a minimal GOCACHEPROG program that can't actually do anything but exit.
++package main
++
++import (
++    "encoding/json"
++    "os"
++)
++
++func main() {
++    json.NewEncoder(os.Stdout).Encode(map[string][]string{"KnownCommands": {"close"}})
++    var res struct{}
++    json.NewDecoder(os.Stdin).Decode(&res)
++}
+\ No newline at end of file

@@ -25,8 +25,144 @@ Date:   Wed Sep 18 15:03:50 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcscavenge.go |  7 +++----
  src/runtime/mheap.go       | 22 ++++++++++++----------
  src/runtime/mstats.go      |  8 ++++----
  3 files changed, 19 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 8592ccaa77..d79a43fb1c 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -57,6 +57,7 @@ package runtime
+ 
+ import (
+ 	"math/bits"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -78,10 +79,8 @@ const (
+ )
+ 
+ // heapRetained returns an estimate of the current heap RSS.
+-//
+-// mheap_.lock must be held or the world must be stopped.
+ func heapRetained() uint64 {
+-	return memstats.heap_sys - memstats.heap_released
++	return atomic.Load64(&memstats.heap_sys) - atomic.Load64(&memstats.heap_released)
+ }
+ 
+ // gcPaceScavenger updates the scavenger's pacing, particularly
+@@ -489,7 +488,7 @@ func (s *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) {
+ 
+ 	// Update global accounting only when not in test, otherwise
+ 	// the runtime's accounting will be wrong.
+-	memstats.heap_released += uint64(npages) * pageSize
++	mSysStatInc(&memstats.heap_released, uintptr(npages)*pageSize)
+ }
+ 
+ // fillAligned returns x but with all zeroes in m-aligned
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index f9039f78ca..6c7102c72d 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1003,7 +1003,7 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
+ 		s.limit = s.base() + s.npages<<_PageShift
+ 		s.state.set(mSpanManual) // Publish the span
+ 		// Manually managed memory doesn't count toward heap_sys.
+-		memstats.heap_sys -= uint64(s.npages << _PageShift)
++		mSysStatDec(&memstats.heap_sys, s.npages*pageSize)
+ 	}
+ 
+ 	// This unlock acts as a release barrier. See mheap.alloc_m.
+@@ -1113,7 +1113,7 @@ HaveBase:
+ 		// sysUsed all the pages that are actually available
+ 		// in the span.
+ 		sysUsed(unsafe.Pointer(base), npage*pageSize)
+-		memstats.heap_released -= uint64(scav)
++		mSysStatDec(&memstats.heap_released, scav)
+ 	}
+ 
+ 	s := (*mspan)(h.spanalloc.alloc())
+@@ -1123,8 +1123,10 @@ HaveBase:
+ 	}
+ 	h.setSpans(s.base(), npage, s)
+ 
+-	*stat += uint64(npage << _PageShift)
+-	memstats.heap_idle -= uint64(npage << _PageShift)
++	// Update stats.
++	nbytes := npage * pageSize
++	mSysStatInc(stat, nbytes)
++	mSysStatDec(&memstats.heap_idle, nbytes)
+ 
+ 	return s
+ }
+@@ -1172,8 +1174,8 @@ func (h *mheap) grow(npage uintptr) bool {
+ 		// The allocation is always aligned to the heap arena
+ 		// size which is always > physPageSize, so its safe to
+ 		// just add directly to heap_released.
+-		memstats.heap_released += uint64(asize)
+-		memstats.heap_idle += uint64(asize)
++		mSysStatInc(&memstats.heap_released, asize)
++		mSysStatInc(&memstats.heap_idle, asize)
+ 
+ 		// Recalculate nBase
+ 		nBase = alignUp(h.curArena.base+ask, physPageSize)
+@@ -1237,8 +1239,8 @@ func (h *mheap) freeSpan(s *mspan) {
+ func (h *mheap) freeManual(s *mspan, stat *uint64) {
+ 	s.needzero = 1
+ 	lock(&h.lock)
+-	*stat -= uint64(s.npages << _PageShift)
+-	memstats.heap_sys += uint64(s.npages << _PageShift)
++	mSysStatDec(stat, s.npages*pageSize)
++	mSysStatInc(&memstats.heap_sys, s.npages*pageSize)
+ 	h.freeSpanLocked(s, false, true)
+ 	unlock(&h.lock)
+ }
+@@ -1264,10 +1266,10 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
+ 	}
+ 
+ 	if acctinuse {
+-		memstats.heap_inuse -= uint64(s.npages << _PageShift)
++		mSysStatDec(&memstats.heap_inuse, s.npages*pageSize)
+ 	}
+ 	if acctidle {
+-		memstats.heap_idle += uint64(s.npages << _PageShift)
++		mSysStatInc(&memstats.heap_idle, s.npages*pageSize)
+ 	}
+ 
+ 	// Mark the space as free.
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index a6866e3a15..f40bccad17 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -31,7 +31,7 @@ type mstats struct {
+ 	nfree       uint64 // number of frees
+ 
+ 	// Statistics about malloc heap.
+-	// Protected by mheap.lock
++	// Updated atomically, or with the world stopped.
+ 	//
+ 	// Like MemStats, heap_sys and heap_inuse do not count memory
+ 	// in manually-managed spans.
+@@ -47,15 +47,15 @@ type mstats struct {
+ 
+ 	// Statistics about allocation of low-level fixed-size structures.
+ 	// Protected by FixAlloc locks.
+-	stacks_inuse uint64 // bytes in manually-managed stack spans
++	stacks_inuse uint64 // bytes in manually-managed stack spans; updated atomically or during STW
+ 	stacks_sys   uint64 // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
+ 	mspan_inuse  uint64 // mspan structures
+ 	mspan_sys    uint64
+ 	mcache_inuse uint64 // mcache structures
+ 	mcache_sys   uint64
+ 	buckhash_sys uint64 // profiling bucket hash table
+-	gc_sys       uint64
+-	other_sys    uint64
++	gc_sys       uint64 // updated atomically or during STW
++	other_sys    uint64 // updated atomically or during STW
+ 
+ 	// Statistics about garbage collector.
+ 	// Protected by mheap or stopping the world during GC.

@@ -7,6 +7,42 @@ Date:   Tue Dec 9 11:45:19 2014 +1100
     Change-Id: I64985f8de7ca09e63208e8c949a5d4f4fc09073f
     Reviewed-on: https://go-review.googlesource.com/1230
     Reviewed-by: David Symonds <dsymonds@golang.org>
-
+---
  src/net/http/sniff.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/sniff.go b/src/net/http/sniff.go
+index 68f519b054..3be8c865d3 100644
+--- a/src/net/http/sniff.go
++++ b/src/net/http/sniff.go
+@@ -38,7 +38,11 @@ func DetectContentType(data []byte) string {
+ }
+ 
+ func isWS(b byte) bool {
+-	return bytes.IndexByte([]byte("\t\n\x0C\r "), b) != -1
++	switch b {
++	case '\t', '\n', '\x0c', '\r', ' ':
++		return true
++	}
++	return false
+ }
+ 
+ type sniffSig interface {
+@@ -161,6 +165,8 @@ func (h htmlSig) match(data []byte, firstNonWS int) string {
+ 	return "text/html; charset=utf-8"
+ }
+ 
++var mp4ftype = []byte("ftyp")
++
+ type mp4Sig int
+ 
+ func (mp4Sig) match(data []byte, firstNonWS int) string {
+@@ -172,7 +178,7 @@ func (mp4Sig) match(data []byte, firstNonWS int) string {
+ 	if boxSize%4 != 0 || len(data) < boxSize {
+ 		return ""
+ 	}
+-	if !bytes.Equal(data[4:8], []byte("ftyp")) {
++	if !bytes.Equal(data[4:8], mp4ftype) {
+ 		return ""
+ 	}
+ 	for st := 8; st < boxSize; st += 4 {

@@ -12,7 +12,7 @@ Date:   Thu Jul 3 21:04:48 2014 -0400
     R=minux, dave
     CC=golang-codereviews
     https://golang.org/cl/108400045
-
+---
  src/pkg/runtime/cgo/gcc_android.c     | 31 +++++++++++++++++++++++++++++++
  src/pkg/runtime/cgo/gcc_android_arm.c |  9 ++-------
  src/pkg/runtime/cgo/gcc_fatalf.c      | 23 +++++++++++++++++++++++
@@ -21,3 +21,176 @@ Date:   Thu Jul 3 21:04:48 2014 -0400
  src/pkg/runtime/cgo/gcc_linux_arm.c   |  6 ++----
  src/pkg/runtime/cgo/libcgo.h          |  5 +++++
  7 files changed, 65 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/gcc_android.c b/src/pkg/runtime/cgo/gcc_android.c
+new file mode 100644
+index 0000000000..be27725680
+--- /dev/null
++++ b/src/pkg/runtime/cgo/gcc_android.c
+@@ -0,0 +1,31 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdarg.h>
++#include <android/log.h>
++#include "libcgo.h"
++
++void
++fatalf(const char* format, ...)
++{
++	va_list ap;
++
++	// Write to both stderr and logcat.
++	//
++	// When running from an .apk, /dev/stderr and /dev/stdout
++	// redirect to /dev/null. And when running a test binary
++	// via adb shell, it's easy to miss logcat.
++
++	fprintf(stderr, "runtime/cgo: ");
++	va_start(ap, format);
++	vfprintf(stderr, format, ap);
++	va_end(ap);
++	fprintf(stderr, "\n");
++
++	va_start(ap, format);
++	__android_log_vprint(ANDROID_LOG_FATAL, "runtime/cgo", format, ap);
++	va_end(ap);
++
++	abort();
++}
+diff --git a/src/pkg/runtime/cgo/gcc_android_arm.c b/src/pkg/runtime/cgo/gcc_android_arm.c
+index 58b5fc4a36..07f7e72e3d 100644
+--- a/src/pkg/runtime/cgo/gcc_android_arm.c
++++ b/src/pkg/runtime/cgo/gcc_android_arm.c
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include <android/log.h>
+ #include <pthread.h>
+ #include <signal.h>
+ #include <stdio.h>
+@@ -28,9 +27,7 @@ inittls(void **tlsg, void **tlsbase)
+ 
+ 	err = pthread_key_create(&k, nil);
+ 	if(err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_key_create failed: %d\n", err);
+-		__android_log_print(ANDROID_LOG_FATAL, "runtime/cgo", "pthread_key_create failed: %d", err);
+-		abort();
++		fatalf("pthread_key_create failed: %d", err);
+ 	}
+ 	pthread_setspecific(k, (void*)magic1);
+ 	for (i=0; i<PTHREAD_KEYS_MAX; i++) {
+@@ -40,9 +37,7 @@ inittls(void **tlsg, void **tlsbase)
+ 			return;
+ 		}
+ 	}
+-	fprintf(stderr, "runtime/cgo: could not find pthread key\n");
+-	__android_log_print(ANDROID_LOG_FATAL, "runtime/cgo", "could not find pthread key");
+-	abort();
++	fatalf("could not find pthread key");
+ }
+ 
+ void (*x_cgo_inittls)(void **tlsg, void **tlsbase) = inittls;
+diff --git a/src/pkg/runtime/cgo/gcc_fatalf.c b/src/pkg/runtime/cgo/gcc_fatalf.c
+new file mode 100644
+index 0000000000..21c1acfaad
+--- /dev/null
++++ b/src/pkg/runtime/cgo/gcc_fatalf.c
+@@ -0,0 +1,23 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !android,linux
++
++#include <stdarg.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include "libcgo.h"
++
++void
++fatalf(const char* format, ...)
++{
++	va_list ap;
++
++	fprintf(stderr, "runtime/cgo: ");
++	va_start(ap, format);
++	vfprintf(stderr, format, ap);
++	va_end(ap);
++	fprintf(stderr, "\n");
++	abort();
++}
+diff --git a/src/pkg/runtime/cgo/gcc_linux_386.c b/src/pkg/runtime/cgo/gcc_linux_386.c
+index 5b282c9b8e..82b156cbb0 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_386.c
++++ b/src/pkg/runtime/cgo/gcc_linux_386.c
+@@ -49,8 +49,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/cgo/gcc_linux_amd64.c b/src/pkg/runtime/cgo/gcc_linux_amd64.c
+index 19ca580b7f..fdbf51c254 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_linux_amd64.c
+@@ -44,8 +44,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/cgo/gcc_linux_arm.c b/src/pkg/runtime/cgo/gcc_linux_arm.c
+index 95c8e16a25..ef16d2341a 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_arm.c
++++ b/src/pkg/runtime/cgo/gcc_linux_arm.c
+@@ -9,6 +9,7 @@
+ 
+ static void *threadentry(void*);
+ 
++void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
+ void (*setg_gcc)(void*);
+ 
+ void
+@@ -36,8 +37,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+@@ -62,8 +62,6 @@ threadentry(void *v)
+ 	return nil;
+ }
+ 
+-void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
+-
+ void
+ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ {
+diff --git a/src/pkg/runtime/cgo/libcgo.h b/src/pkg/runtime/cgo/libcgo.h
+index 251fb4c68e..799af05ead 100644
+--- a/src/pkg/runtime/cgo/libcgo.h
++++ b/src/pkg/runtime/cgo/libcgo.h
+@@ -58,3 +58,8 @@ void crosscall_amd64(void (*fn)(void));
+  * Call fn in the 8c world.
+  */
+ void crosscall_386(void (*fn)(void));
++
++/*
++ * Prints error then calls abort. For linux and android.
++ */
++void fatalf(const char* format, ...);

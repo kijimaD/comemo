@@ -19,10 +19,155 @@ Date:   Wed Sep 22 18:32:45 2021 -0400
     Trust: Cherry Mui <cherryyz@google.com>
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/runtime/pprof/pprof_test.go | 30 ++++++++++++++++++++++++++++++
  src/runtime/sys_linux_arm.s     |  6 ++++--
  src/runtime/sys_linux_arm64.s   |  6 ++++--
  src/runtime/sys_linux_mips64x.s |  6 ++++--
  src/runtime/sys_linux_ppc64x.s  |  8 +++++---
  5 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index e0d32a0f54..5b9ad50746 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1544,3 +1544,33 @@ func TestTryAdd(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestTimeVDSO(t *testing.T) {
++	// Test that time functions have the right stack trace. In particular,
++	// it shouldn't be recursive.
++
++	p := testCPUProfile(t, stackContains, []string{"time.now"}, avoidFunctions(), func(dur time.Duration) {
++		t0 := time.Now()
++		for {
++			t := time.Now()
++			if t.Sub(t0) >= dur {
++				return
++			}
++		}
++	})
++
++	// Check for recursive time.now sample.
++	for _, sample := range p.Sample {
++		var seenNow bool
++		for _, loc := range sample.Location {
++			for _, line := range loc.Line {
++				if line.Function.Name == "time.now" {
++					if seenNow {
++						t.Fatalf("unexpected recursive time.now")
++					}
++					seenNow = true
++				}
++			}
++		}
++	}
++}
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 02a5d4a642..ae99810c10 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -259,8 +259,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	MOVW	R1, 4(R13)
+ 	MOVW	R2, 8(R13)
+ 
++	MOVW	$ret-4(FP), R2 // caller's SP
+ 	MOVW	LR, m_vdsoPC(R5)
+-	MOVW	R13, m_vdsoSP(R5)
++	MOVW	R2, m_vdsoSP(R5)
+ 
+ 	MOVW	m_curg(R5), R0
+ 
+@@ -351,8 +352,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$8-8
+ 	MOVW	R1, 4(R13)
+ 	MOVW	R2, 8(R13)
+ 
++	MOVW	$ret-4(FP), R2 // caller's SP
+ 	MOVW	LR, m_vdsoPC(R5)
+-	MOVW	R13, m_vdsoSP(R5)
++	MOVW	R2, m_vdsoSP(R5)
+ 
+ 	MOVW	m_curg(R5), R0
+ 
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 69ac160278..9289ad5028 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -221,8 +221,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$24-12
+ 	MOVD	R2, 8(RSP)
+ 	MOVD	R3, 16(RSP)
+ 
++	MOVD	$ret-8(FP), R2 // caller's SP
+ 	MOVD	LR, m_vdsoPC(R21)
+-	MOVD	R20, m_vdsoSP(R21)
++	MOVD	R2, m_vdsoSP(R21)
+ 
+ 	MOVD	m_curg(R21), R0
+ 	CMP	g, R0
+@@ -304,8 +305,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
+ 	MOVD	R2, 8(RSP)
+ 	MOVD	R3, 16(RSP)
+ 
++	MOVD	$ret-8(FP), R2 // caller's SP
+ 	MOVD	LR, m_vdsoPC(R21)
+-	MOVD	R20, m_vdsoSP(R21)
++	MOVD	R2, m_vdsoSP(R21)
+ 
+ 	MOVD	m_curg(R21), R0
+ 	CMP	g, R0
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index e18d291445..7529a0ed27 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -229,8 +229,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$16-12
+ 	MOVV	R2, 8(R29)
+ 	MOVV	R3, 16(R29)
+ 
++	MOVV	$ret-8(FP), R2 // caller's SP
+ 	MOVV	R31, m_vdsoPC(R17)
+-	MOVV	R29, m_vdsoSP(R17)
++	MOVV	R2, m_vdsoSP(R17)
+ 
+ 	MOVV	m_curg(R17), R4
+ 	MOVV	g, R5
+@@ -298,8 +299,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 	MOVV	R2, 8(R29)
+ 	MOVV	R3, 16(R29)
+ 
++	MOVV	$ret-8(FP), R2 // caller's SP
+ 	MOVV	R31, m_vdsoPC(R17)
+-	MOVV	R29, m_vdsoSP(R17)
++	MOVV	R2, m_vdsoSP(R17)
+ 
+ 	MOVV	m_curg(R17), R4
+ 	MOVV	g, R5
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 005fa4d2b4..33b6a9409c 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -205,8 +205,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$16-12
+ 	MOVD	R5, 40(R1)
+ 
+ 	MOVD	LR, R14
++	MOVD	$ret-FIXED_FRAME(FP), R5 // caller's SP
+ 	MOVD	R14, m_vdsoPC(R21)
+-	MOVD	R15, m_vdsoSP(R21)
++	MOVD	R5, m_vdsoSP(R21)
+ 
+ 	MOVD	m_curg(R21), R6
+ 	CMP	g, R6
+@@ -297,9 +298,10 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 	MOVD	R4, 32(R1)
+ 	MOVD	R5, 40(R1)
+ 
+-	MOVD	LR, R14		// R14 is unchanged by C code
++	MOVD	LR, R14				// R14 is unchanged by C code
++	MOVD	$ret-FIXED_FRAME(FP), R5	// caller's SP
+ 	MOVD	R14, m_vdsoPC(R21)
+-	MOVD	R15, m_vdsoSP(R21)
++	MOVD	R5, m_vdsoSP(R21)
+ 
+ 	MOVD	m_curg(R21), R6
+ 	CMP	g, R6

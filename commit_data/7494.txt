@@ -7,6 +7,37 @@ Date:   Thu Feb 17 15:14:41 2011 -0500
     R=agl1, rsc
     CC=golang-dev
     https://golang.org/cl/4170056
-
+---
  src/pkg/crypto/rand/rand_unix.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/rand/rand_unix.go b/src/pkg/crypto/rand/rand_unix.go
+index 900b573305..66b72c0766 100644
+--- a/src/pkg/crypto/rand/rand_unix.go
++++ b/src/pkg/crypto/rand/rand_unix.go
+@@ -8,6 +8,7 @@
+ package rand
+ 
+ import (
++	"bufio"
+ 	"crypto/aes"
+ 	"io"
+ 	"os"
+@@ -23,7 +24,7 @@ func init() { Reader = &devReader{name: "/dev/urandom"} }
+ // A devReader satisfies reads by reading the file named name.
+ type devReader struct {
+ 	name string
+-	f    *os.File
++	f    io.Reader
+ 	mu   sync.Mutex
+ }
+ 
+@@ -35,7 +36,7 @@ func (r *devReader) Read(b []byte) (n int, err os.Error) {
+ 		if f == nil {
+ 			return 0, err
+ 		}
+-		r.f = f
++		r.f = bufio.NewReader(f)
+ 	}
+ 	return r.f.Read(b)
+ }

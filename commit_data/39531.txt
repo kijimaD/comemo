@@ -50,7 +50,7 @@ Date:   Sat Nov 10 08:28:44 2018 +0900
     Change-Id: I3f9d1765801fe0b8deb1bc2728b8bba8a7508e23
     Reviewed-on: https://go-review.googlesource.com/c/go/+/148958
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sema.go           | 12 ++++++------
  src/sync/mutex.go             | 12 ++++++++++--
  src/sync/mutex_test.go        |  2 +-
@@ -60,3 +60,210 @@ Date:   Sat Nov 10 08:28:44 2018 +0900
  src/sync/waitgroup.go         |  2 +-
  test/inline_sync.go           | 24 ++++++++++++++++++++++++
  8 files changed, 50 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 18e0a398ba..f848515ae2 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -62,8 +62,8 @@ func poll_runtime_Semacquire(addr *uint32) {
+ }
+ 
+ //go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
+-func sync_runtime_Semrelease(addr *uint32, handoff bool) {
+-	semrelease1(addr, handoff)
++func sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
++	semrelease1(addr, handoff, skipframes)
+ }
+ 
+ //go:linkname sync_runtime_SemacquireMutex sync.runtime_SemacquireMutex
+@@ -153,10 +153,10 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
+ }
+ 
+ func semrelease(addr *uint32) {
+-	semrelease1(addr, false)
++	semrelease1(addr, false, 0)
+ }
+ 
+-func semrelease1(addr *uint32, handoff bool) {
++func semrelease1(addr *uint32, handoff bool, skipframes int) {
+ 	root := semroot(addr)
+ 	atomic.Xadd(addr, 1)
+ 
+@@ -183,7 +183,7 @@ func semrelease1(addr *uint32, handoff bool) {
+ 	if s != nil { // May be slow, so unlock first
+ 		acquiretime := s.acquiretime
+ 		if acquiretime != 0 {
+-			mutexevent(t0-acquiretime, 3)
++			mutexevent(t0-acquiretime, 3+skipframes)
+ 		}
+ 		if s.ticket != 0 {
+ 			throw("corrupted semaphore ticket")
+@@ -191,7 +191,7 @@ func semrelease1(addr *uint32, handoff bool) {
+ 		if handoff && cansemacquire(addr) {
+ 			s.ticket = 1
+ 		}
+-		readyWithTime(s, 5)
++		readyWithTime(s, 5+skipframes)
+ 	}
+ }
+ 
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index 4c5582c809..a809993fe0 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -180,6 +180,14 @@ func (m *Mutex) Unlock() {
+ 
+ 	// Fast path: drop lock bit.
+ 	new := atomic.AddInt32(&m.state, -mutexLocked)
++	if new != 0 {
++		// Outlined slow path to allow inlining the fast path.
++		// To hide unlockSlow during tracing we skip one extra frame when tracing GoUnblock.
++		m.unlockSlow(new)
++	}
++}
++
++func (m *Mutex) unlockSlow(new int32) {
+ 	if (new+mutexLocked)&mutexLocked == 0 {
+ 		throw("sync: unlock of unlocked mutex")
+ 	}
+@@ -198,7 +206,7 @@ func (m *Mutex) Unlock() {
+ 			// Grab the right to wake someone.
+ 			new = (old - 1<<mutexWaiterShift) | mutexWoken
+ 			if atomic.CompareAndSwapInt32(&m.state, old, new) {
+-				runtime_Semrelease(&m.sema, false)
++				runtime_Semrelease(&m.sema, false, 1)
+ 				return
+ 			}
+ 			old = m.state
+@@ -208,6 +216,6 @@ func (m *Mutex) Unlock() {
+ 		// Note: mutexLocked is not set, the waiter will set it after wakeup.
+ 		// But mutex is still considered locked if mutexStarving is set,
+ 		// so new coming goroutines won't acquire it.
+-		runtime_Semrelease(&m.sema, true)
++		runtime_Semrelease(&m.sema, true, 1)
+ 	}
+ }
+diff --git a/src/sync/mutex_test.go b/src/sync/mutex_test.go
+index 521468439a..e61a853642 100644
+--- a/src/sync/mutex_test.go
++++ b/src/sync/mutex_test.go
+@@ -21,7 +21,7 @@ import (
+ func HammerSemaphore(s *uint32, loops int, cdone chan bool) {
+ 	for i := 0; i < loops; i++ {
+ 		Runtime_Semacquire(s)
+-		Runtime_Semrelease(s, false)
++		Runtime_Semrelease(s, false, 0)
+ 	}
+ 	cdone <- true
+ }
+diff --git a/src/sync/runtime.go b/src/sync/runtime.go
+index b6b9e480a4..8b20b0f6f7 100644
+--- a/src/sync/runtime.go
++++ b/src/sync/runtime.go
+@@ -22,7 +22,9 @@ func runtime_SemacquireMutex(s *uint32, lifo bool)
+ // It is intended as a simple wakeup primitive for use by the synchronization
+ // library and should not be used directly.
+ // If handoff is true, pass count directly to the first waiter.
+-func runtime_Semrelease(s *uint32, handoff bool)
++// skipframes is the number of frames to omit during tracing, counting from
++// runtime_Semrelease's caller.
++func runtime_Semrelease(s *uint32, handoff bool, skipframes int)
+ 
+ // Approximation of notifyList in runtime/sema.go. Size and alignment must
+ // agree.
+diff --git a/src/sync/runtime_sema_test.go b/src/sync/runtime_sema_test.go
+index a680847edf..152cf0e94a 100644
+--- a/src/sync/runtime_sema_test.go
++++ b/src/sync/runtime_sema_test.go
+@@ -18,7 +18,7 @@ func BenchmarkSemaUncontended(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		sem := new(PaddedSem)
+ 		for pb.Next() {
+-			Runtime_Semrelease(&sem.sem, false)
++			Runtime_Semrelease(&sem.sem, false, 0)
+ 			Runtime_Semacquire(&sem.sem)
+ 		}
+ 	})
+@@ -44,7 +44,7 @@ func benchmarkSema(b *testing.B, block, work bool) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		foo := 0
+ 		for pb.Next() {
+-			Runtime_Semrelease(&sem, false)
++			Runtime_Semrelease(&sem, false, 0)
+ 			if work {
+ 				for i := 0; i < 100; i++ {
+ 					foo *= 2
+@@ -54,7 +54,7 @@ func benchmarkSema(b *testing.B, block, work bool) {
+ 			Runtime_Semacquire(&sem)
+ 		}
+ 		_ = foo
+-		Runtime_Semrelease(&sem, false)
++		Runtime_Semrelease(&sem, false, 0)
+ 	})
+ }
+ 
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 16a2f9227c..24dd78cbe7 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -73,7 +73,7 @@ func (rw *RWMutex) RUnlock() {
+ 		// A writer is pending.
+ 		if atomic.AddInt32(&rw.readerWait, -1) == 0 {
+ 			// The last reader unblocks the writer.
+-			runtime_Semrelease(&rw.writerSem, false)
++			runtime_Semrelease(&rw.writerSem, false, 0)
+ 		}
+ 	}
+ 	if race.Enabled {
+@@ -125,7 +125,7 @@ func (rw *RWMutex) Unlock() {
+ 	}
+ 	// Unblock blocked readers, if any.
+ 	for i := 0; i < int(r); i++ {
+-		runtime_Semrelease(&rw.readerSem, false)
++		runtime_Semrelease(&rw.readerSem, false, 0)
+ 	}
+ 	// Allow other writers to proceed.
+ 	rw.w.Unlock()
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index 99dd400006..e81a493dea 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -90,7 +90,7 @@ func (wg *WaitGroup) Add(delta int) {
+ 	// Reset waiters count to 0.
+ 	*statep = 0
+ 	for ; w != 0; w-- {
+-		runtime_Semrelease(semap, false)
++		runtime_Semrelease(semap, false, 0)
+ 	}
+ }
+ 
+diff --git a/test/inline_sync.go b/test/inline_sync.go
+new file mode 100644
+index 0000000000..271414d5f0
+--- /dev/null
++++ b/test/inline_sync.go
+@@ -0,0 +1,24 @@
++// +build !nacl,!386
++// errorcheck -0 -m
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test, using compiler diagnostic flags, that inlining of functions
++// imported from the sync package is working.
++// Compiles but does not run.
++// FIXME: nacl-386 is excluded as inlining currently does not work there.
++
++package foo
++
++import (
++	"sync"
++)
++
++var mutex *sync.Mutex
++
++func small5() { // ERROR "can inline small5"
++	// the Unlock fast path should be inlined
++	mutex.Unlock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Unlock" "&sync\.m\.state escapes to heap"
++}

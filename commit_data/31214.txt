@@ -14,7 +14,7 @@ Date:   Mon Feb 6 11:59:01 2017 -0500
     Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go                   | 22 ++++++++++++++++++++++
  src/cmd/go/internal/test/test.go        | 17 +++++++++++++++++
  src/cmd/go/testdata/src/bench/x_test.go |  6 ++++++
@@ -22,3 +22,194 @@ Date:   Mon Feb 6 11:59:01 2017 -0500
  src/testing/internal/testdeps/deps.go   |  7 +++++++
  src/testing/testing.go                  |  4 +++-
  6 files changed, 72 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ef5348bba4..978b930238 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3690,6 +3690,28 @@ func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
+ 	tg.grepBoth(okPattern, "go test did not say ok")
+ }
+ 
++func TestBenchmarkLabels(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	// TODO: tg.parallel()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.run("test", "-run", "^$", "-bench", ".", "bench")
++	tg.grepStdout(`(?m)^goos: `+runtime.GOOS, "go test did not print goos")
++	tg.grepStdout(`(?m)^goarch: `+runtime.GOARCH, "go test did not print goarch")
++	tg.grepStdout(`(?m)^pkg: bench`, "go test did not say pkg: bench")
++	tg.grepBothNot(`(?s)pkg:.*pkg:`, "go test said pkg multiple times")
++}
++
++func TestBenchmarkLabelsOutsideGOPATH(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	// TODO: tg.parallel()
++	tg.run("test", "-run", "^$", "-bench", ".", "testdata/standalone_benchmark_test.go")
++	tg.grepStdout(`(?m)^goos: `+runtime.GOOS, "go test did not print goos")
++	tg.grepStdout(`(?m)^goarch: `+runtime.GOARCH, "go test did not print goarch")
++	tg.grepBothNot(`(?m)^pkg:`, "go test did say pkg:")
++}
++
+ func TestMatchesOnlyTestIsOK(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 366b19a700..feafaad2a8 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1373,6 +1373,19 @@ func (t *testFuncs) CoverEnabled() bool {
+ 	return testCover
+ }
+ 
++// ImportPath returns the import path of the package being tested, if it is within GOPATH.
++// This is printed by the testing package when running benchmarks.
++func (t *testFuncs) ImportPath() string {
++	pkg := t.Package.ImportPath
++	if strings.HasPrefix(pkg, "_/") {
++		return ""
++	}
++	if pkg == "command-line-arguments" {
++		return ""
++	}
++	return pkg
++}
++
+ // Covered returns a string describing which packages are being tested for coverage.
+ // If the covered package is the same as the tested package, it returns the empty string.
+ // Otherwise it is a comma-separated human-readable list of packages beginning with
+@@ -1503,6 +1516,10 @@ var examples = []testing.InternalExample{
+ {{end}}
+ }
+ 
++func init() {
++	testdeps.ImportPath = {{.ImportPath | printf "%q"}}
++}
++
+ {{if .CoverEnabled}}
+ 
+ // Only updated by init functions, so no need for atomicity.
+diff --git a/src/cmd/go/testdata/src/bench/x_test.go b/src/cmd/go/testdata/src/bench/x_test.go
+new file mode 100644
+index 0000000000..32cabf8a7b
+--- /dev/null
++++ b/src/cmd/go/testdata/src/bench/x_test.go
+@@ -0,0 +1,6 @@
++package bench
++
++import "testing"
++
++func Benchmark(b *testing.B) {
++}
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index bcebb418c4..8d3f63d232 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -47,6 +47,7 @@ type InternalBenchmark struct {
+ // affecting benchmark results.
+ type B struct {
+ 	common
++	importPath       string // import path of the package containing the benchmark
+ 	context          *benchContext
+ 	N                int
+ 	previousN        int           // number of iterations in the previous run
+@@ -233,9 +234,18 @@ func (b *B) run1() bool {
+ 	return true
+ }
+ 
++var labelsOnce sync.Once
++
+ // run executes the benchmark in a separate goroutine, including all of its
+ // subbenchmarks. b must not have subbenchmarks.
+ func (b *B) run() BenchmarkResult {
++	labelsOnce.Do(func() {
++		fmt.Fprintf(b.w, "goos: %s\n", runtime.GOOS)
++		fmt.Fprintf(b.w, "goarch: %s\n", runtime.GOARCH)
++		if b.importPath != "" {
++			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
++		}
++	})
+ 	if b.context != nil {
+ 		// Running go test --test.bench
+ 		b.context.processBench(b) // Must call doBench.
+@@ -363,10 +373,10 @@ type benchContext struct {
+ // An internal function but exported because it is cross-package; part of the implementation
+ // of the "go test" command.
+ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
+-	runBenchmarks(matchString, benchmarks)
++	runBenchmarks("", matchString, benchmarks)
+ }
+ 
+-func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
++func runBenchmarks(importPath string, matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
+ 	// If no flag was specified, don't run benchmarks.
+ 	if len(*matchBenchmarks) == 0 {
+ 		return true
+@@ -398,6 +408,7 @@ func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
+ 			w:      os.Stdout,
+ 			chatty: *chatty,
+ 		},
++		importPath: importPath,
+ 		benchFunc: func(b *B) {
+ 			for _, Benchmark := range bs {
+ 				b.Run(Benchmark.Name, Benchmark.F)
+@@ -486,9 +497,10 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 			w:      b.w,
+ 			chatty: b.chatty,
+ 		},
+-		benchFunc: f,
+-		benchTime: b.benchTime,
+-		context:   b.context,
++		importPath: b.importPath,
++		benchFunc:  f,
++		benchTime:  b.benchTime,
++		context:    b.context,
+ 	}
+ 	if sub.run1() {
+ 		sub.run()
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index b08300b5d6..042f69614e 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -49,3 +49,10 @@ func (TestDeps) WriteHeapProfile(w io.Writer) error {
+ func (TestDeps) WriteProfileTo(name string, w io.Writer, debug int) error {
+ 	return pprof.Lookup(name).WriteTo(w, debug)
+ }
++
++// ImportPath is the import path of the testing binary, set by the generated main function.
++var ImportPath string
++
++func (TestDeps) ImportPath() string {
++	return ImportPath
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 5efbc244fe..97c703d8ba 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -766,6 +766,7 @@ func (f matchStringOnly) StartCPUProfile(w io.Writer) error           { return e
+ func (f matchStringOnly) StopCPUProfile()                             {}
+ func (f matchStringOnly) WriteHeapProfile(w io.Writer) error          { return errMain }
+ func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return errMain }
++func (f matchStringOnly) ImportPath() string                          { return "" }
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -795,6 +796,7 @@ type testDeps interface {
+ 	StopCPUProfile()
+ 	WriteHeapProfile(io.Writer) error
+ 	WriteProfileTo(string, io.Writer, int) error
++	ImportPath() string
+ }
+ 
+ // MainStart is meant for use by tests generated by 'go test'.
+@@ -827,7 +829,7 @@ func (m *M) Run() int {
+ 	if !testRan && !exampleRan && *matchBenchmarks == "" {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+ 	}
+-	if !testOk || !exampleOk || !runBenchmarks(m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
++	if !testOk || !exampleOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
+ 		fmt.Println("FAIL")
+ 		m.after()
+ 		return 1

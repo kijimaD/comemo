@@ -18,7 +18,45 @@ Date:   Wed Apr 29 19:48:06 2020 +0000
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/asn1/asn1.go      |  6 ++++++
  src/encoding/asn1/asn1_test.go | 12 ++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index fd4dd68021..90ba5775af 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -313,6 +313,12 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error)
+ 		}
+ 		ret64 <<= 7
+ 		b := bytes[offset]
++		// integers should be minimally encoded, so the leading octet should
++		// never be 0x80
++		if shifted == 0 && b == 0x80 {
++			err = SyntaxError{"integer is not minimally encoded"}
++			return
++		}
+ 		ret64 |= int64(b & 0x7f)
+ 		offset++
+ 		if b&0x80 == 0 {
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index d5649bff9f..8daae97faa 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -1129,3 +1129,15 @@ func TestBMPString(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestNonMinimalEncodedOID(t *testing.T) {
++	h, err := hex.DecodeString("060a2a80864886f70d01010b")
++	if err != nil {
++		t.Fatalf("failed to decode from hex string: %s", err)
++	}
++	var oid ObjectIdentifier
++	_, err = Unmarshal(h, &oid)
++	if err == nil {
++		t.Fatalf("accepted non-minimally encoded oid")
++	}
++}

@@ -11,6 +11,31 @@ Date:   Tue Jan 14 11:26:06 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/poll/fd_unix.go | 13 +++----------
  1 file changed, 3 insertions(+), 10 deletions(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 2535a3ae4d..31e6e21120 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -183,16 +183,9 @@ func (fd *FD) Pread(p []byte, off int64) (int, error) {
+ 	if fd.IsStream && len(p) > maxRW {
+ 		p = p[:maxRW]
+ 	}
+-	var (
+-		n   int
+-		err error
+-	)
+-	for {
+-		n, err = syscall.Pread(fd.Sysfd, p, off)
+-		if err != syscall.EINTR {
+-			break
+-		}
+-	}
++	n, err := ignoringEINTR2(func() (int, error) {
++		return syscall.Pread(fd.Sysfd, p, off)
++	})
+ 	if err != nil {
+ 		n = 0
+ 	}

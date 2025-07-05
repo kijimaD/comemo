@@ -21,8 +21,133 @@ Date:   Sun Feb 4 14:50:42 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/readrequest_test.go | 16 +++++++++++++++
  src/net/http/serve_test.go       |  6 ++++++
  src/net/http/transfer.go         | 42 ++++++++++++++++++++++------------------
  3 files changed, 45 insertions(+), 19 deletions(-)
+
+diff --git a/src/net/http/readrequest_test.go b/src/net/http/readrequest_test.go
+index 5aaf3b9fe2..2da3122879 100644
+--- a/src/net/http/readrequest_test.go
++++ b/src/net/http/readrequest_test.go
+@@ -207,6 +207,22 @@ var reqTests = []reqTest{
+ 		noError,
+ 	},
+ 
++	// Tests chunked body and an invalid Content-Length.
++	{
++		"POST / HTTP/1.1\r\n" +
++			"Host: foo.com\r\n" +
++			"Transfer-Encoding: chunked\r\n" +
++			"Content-Length: notdigits\r\n\r\n" + // raise an error
++			"3\r\nfoo\r\n" +
++			"3\r\nbar\r\n" +
++			"0\r\n" +
++			"\r\n",
++		nil,
++		noBodyStr,
++		noTrailer,
++		`bad Content-Length "notdigits"`,
++	},
++
+ 	// CONNECT request with domain name:
+ 	{
+ 		"CONNECT www.google.com:443 HTTP/1.1\r\n\r\n",
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 301a9fdc4b..9324e0bfc8 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4819,6 +4819,12 @@ func TestServerValidatesHeaders(t *testing.T) {
+ 		// See RFC 7230, Section 3.2.
+ 		{": empty key\r\n", 400},
+ 
++		// Requests with invalid Content-Length headers should be rejected
++		// regardless of the presence of a Transfer-Encoding header.
++		// Check out RFC 9110, Section 8.6 and RFC 9112, Section 6.3.3.
++		{"Content-Length: notdigits\r\n", 400},
++		{"Content-Length: notdigits\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n", 400},
++
+ 		{"foo: foo foo\r\n", 200},    // LWS space is okay
+ 		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
+ 		{"foo: foo\x00foo\r\n", 400}, // CTL 0x00 in value is bad
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 315c6e2723..255e8bc45a 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -650,19 +650,6 @@ func (t *transferReader) parseTransferEncoding() error {
+ 		return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", raw[0])}
+ 	}
+ 
+-	// RFC 7230 3.3.2 says "A sender MUST NOT send a Content-Length header field
+-	// in any message that contains a Transfer-Encoding header field."
+-	//
+-	// but also: "If a message is received with both a Transfer-Encoding and a
+-	// Content-Length header field, the Transfer-Encoding overrides the
+-	// Content-Length. Such a message might indicate an attempt to perform
+-	// request smuggling (Section 9.5) or response splitting (Section 9.4) and
+-	// ought to be handled as an error. A sender MUST remove the received
+-	// Content-Length field prior to forwarding such a message downstream."
+-	//
+-	// Reportedly, these appear in the wild.
+-	delete(t.Header, "Content-Length")
+-
+ 	t.Chunked = true
+ 	return nil
+ }
+@@ -670,7 +657,7 @@ func (t *transferReader) parseTransferEncoding() error {
+ // Determine the expected body length, using RFC 7230 Section 3.3. This
+ // function is not a method, because ultimately it should be shared by
+ // ReadResponse and ReadRequest.
+-func fixLength(isResponse bool, status int, requestMethod string, header Header, chunked bool) (int64, error) {
++func fixLength(isResponse bool, status int, requestMethod string, header Header, chunked bool) (n int64, err error) {
+ 	isRequest := !isResponse
+ 	contentLens := header["Content-Length"]
+ 
+@@ -694,6 +681,14 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 		contentLens = header["Content-Length"]
+ 	}
+ 
++	// Reject requests with invalid Content-Length headers.
++	if len(contentLens) > 0 {
++		n, err = parseContentLength(contentLens)
++		if err != nil {
++			return -1, err
++		}
++	}
++
+ 	// Logic based on response type or status
+ 	if isResponse && noResponseBodyExpected(requestMethod) {
+ 		return 0, nil
+@@ -706,17 +701,26 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 		return 0, nil
+ 	}
+ 
++	// According to RFC 9112, "If a message is received with both a
++	// Transfer-Encoding and a Content-Length header field, the Transfer-Encoding
++	// overrides the Content-Length. Such a message might indicate an attempt to
++	// perform request smuggling (Section 11.2) or response splitting (Section 11.1)
++	// and ought to be handled as an error. An intermediary that chooses to forward
++	// the message MUST first remove the received Content-Length field and process
++	// the Transfer-Encoding (as described below) prior to forwarding the message downstream."
++	//
++	// Chunked-encoding requests with either valid Content-Length
++	// headers or no Content-Length headers are accepted after removing
++	// the Content-Length field from header.
++	//
+ 	// Logic based on Transfer-Encoding
+ 	if chunked {
++		header.Del("Content-Length")
+ 		return -1, nil
+ 	}
+ 
++	// Logic based on Content-Length
+ 	if len(contentLens) > 0 {
+-		// Logic based on Content-Length
+-		n, err := parseContentLength(contentLens)
+-		if err != nil {
+-			return -1, err
+-		}
+ 		return n, nil
+ 	}
+ 

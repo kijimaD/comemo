@@ -8,6 +8,20 @@ Date:   Tue Dec 9 17:43:11 2008 -0800
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=20871
     CL=20873
-
+---
  src/lib/fmt/print.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 05e2087642..12da7d69dd 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -552,7 +552,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			// pointer
+ 			case 'p':
+ 				if v, ok := getPtr(field); ok {
+-					if v == nil {
++					if v == 0 {
+ 						s = "<nil>"
+ 					} else {
+ 						s = "0x" + p.fmt.uX64(uint64(v)).str()

@@ -41,7 +41,47 @@ Date:   Fri Aug 21 22:24:20 2015 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go |  3 +++
  test/fixedbugs/issue10975.go        | 19 +++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index d2d51a0366..3280710b22 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2986,6 +2986,9 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool
+ 	var followptr bool
+ 	var rcvr *Type
+ 	for im := iface.Type; im != nil; im = im.Down {
++		if im.Broke == 1 {
++			continue
++		}
+ 		imtype = methodfunc(im.Type, nil)
+ 		tm = ifacelookdot(im.Sym, t, &followptr, 0)
+ 		if tm == nil || tm.Nointerface || !Eqtype(methodfunc(tm.Type, nil), imtype) {
+diff --git a/test/fixedbugs/issue10975.go b/test/fixedbugs/issue10975.go
+new file mode 100644
+index 0000000000..0a4b7be2a8
+--- /dev/null
++++ b/test/fixedbugs/issue10975.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 10975: Returning an invalid interface would cause 
++// `internal compiler error: getinarg: not a func`. 
++
++package main
++
++type I interface {
++	int	// ERROR "interface contains embedded non-interface int"
++}
++
++func New() I {
++	return struct{}{}
++}
++

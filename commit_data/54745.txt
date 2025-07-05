@@ -12,7 +12,7 @@ Date:   Fri Nov 11 10:05:39 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/op.go      | 2 +-
  src/cmd/compile/internal/ssagen/pgen.go | 2 +-
  src/cmd/compile/internal/types/type.go  | 2 +-
@@ -24,3 +24,143 @@ Date:   Fri Nov 11 10:05:39 2022 +0800
  src/runtime/mgc.go                      | 2 +-
  src/runtime/symtab.go                   | 2 +-
  10 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 81e8d21fe9..fed25794e3 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -525,7 +525,7 @@ func boundsABI(b int64) int {
+ 	}
+ }
+ 
+-// arm64BitFileld is the GO type of ARM64BitField auxInt.
++// arm64BitField is the GO type of ARM64BitField auxInt.
+ // if x is an ARM64BitField, then width=x&0xff, lsb=(x>>8)&0xff, and
+ // width+lsb<64 for 64-bit variant, width+lsb<32 for 32-bit variant.
+ // the meaning of width and lsb are instruction-dependent.
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 6b29e83697..ffd51f19c7 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -61,7 +61,7 @@ func cmpstackvarlt(a, b *ir.Name) bool {
+ 	return a.Sym().Name < b.Sym().Name
+ }
+ 
+-// byStackvar implements sort.Interface for []*Node using cmpstackvarlt.
++// byStackVar implements sort.Interface for []*Node using cmpstackvarlt.
+ type byStackVar []*ir.Name
+ 
+ func (s byStackVar) Len() int           { return len(s) }
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 8329837a30..4bdbc3d931 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -394,7 +394,7 @@ type Struct struct {
+ 	Funarg Funarg // type of function arguments for arg struct
+ }
+ 
+-// Fnstruct records the kind of function argument
++// Funarg records the kind of function argument
+ type Funarg uint8
+ 
+ const (
+diff --git a/src/cmd/go/internal/script/cmds.go b/src/cmd/go/internal/script/cmds.go
+index 90e7fb9570..e0eaad4c43 100644
+--- a/src/cmd/go/internal/script/cmds.go
++++ b/src/cmd/go/internal/script/cmds.go
+@@ -981,7 +981,7 @@ func Stop() Cmd {
+ 		})
+ }
+ 
+-// stoperr is the sentinel error type returned by the Stop command.
++// stopError is the sentinel error type returned by the Stop command.
+ type stopError struct {
+ 	msg string
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index ead37085b3..80370173af 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -319,7 +319,7 @@ type Prog struct {
+ 	Isize    uint8     // for x86 back end: size of the instruction in bytes
+ }
+ 
+-// Pos indicates whether the oprand is the source or the destination.
++// AddrPos indicates whether the operand is the source or the destination.
+ type AddrPos struct {
+ 	Addr
+ 	Pos OperandPos
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 590eedb025..2bc7b2dd7a 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -242,7 +242,7 @@ const (
+ 	// rather than the symbol's address.
+ 	R_ADDRPOWER_TOCREL
+ 
+-	// R_ADDRPOWER_TOCREL relocates a D-form, DS-form instruction sequence like
++	// R_ADDRPOWER_TOCREL_DS relocates a D-form, DS-form instruction sequence like
+ 	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the
+ 	// relocated symbol rather than the symbol's address.
+ 	R_ADDRPOWER_TOCREL_DS
+@@ -252,7 +252,7 @@ const (
+ 	// and the low 16 are stored in the suffix. The address is absolute.
+ 	R_ADDRPOWER_D34
+ 
+-	// R_ADDPOWER_PCREL34 relates a single prefixed D-form load/store/add operation.
++	// R_ADDRPOWER_PCREL34 relates a single prefixed D-form load/store/add operation.
+ 	// All prefixed forms are D form. The resulting address is relative to the
+ 	// PC. It is a signed 34 bit offset.
+ 	R_ADDRPOWER_PCREL34
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 9a1fa3104b..04e6dfe018 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -473,7 +473,7 @@ func (f *prefixNonceAEAD) Open(out, nonce, ciphertext, additionalData []byte) ([
+ 	return f.aead.Open(out, f.nonce[:], ciphertext, additionalData)
+ }
+ 
+-// xoredNonceAEAD wraps an AEAD by XORing in a fixed pattern to the nonce
++// xorNonceAEAD wraps an AEAD by XORing in a fixed pattern to the nonce
+ // before each call.
+ type xorNonceAEAD struct {
+ 	nonceMask [aeadNonceLength]byte
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 0a255149e2..2061dc0cf0 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -626,7 +626,7 @@ func (a *statAggregate) ensure(deps *statDepSet) {
+ 	a.ensured = a.ensured.union(missing)
+ }
+ 
+-// metricValidKind is a runtime copy of runtime/metrics.ValueKind and
++// metricKind is a runtime copy of runtime/metrics.ValueKind and
+ // must be kept structurally identical to that type.
+ type metricKind int
+ 
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 69dc5433b1..1b057070aa 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1223,7 +1223,7 @@ func gcBgMarkPrepare() {
+ 	work.nwait = ^uint32(0)
+ }
+ 
+-// gcBgMarkWorker is an entry in the gcBgMarkWorkerPool. It points to a single
++// gcBgMarkWorkerNode is an entry in the gcBgMarkWorkerPool. It points to a single
+ // gcBgMarkWorker goroutine.
+ type gcBgMarkWorkerNode struct {
+ 	// Unused workers are managed in a lock-free stack. This field must be first.
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index f47f96dd0f..dead27e5f2 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -595,7 +595,7 @@ type textsect struct {
+ const minfunc = 16                 // minimum function size
+ const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup table
+ 
+-// findfunctab is an array of these structures.
++// findfuncbucket is an array of these structures.
+ // Each bucket represents 4096 bytes of the text segment.
+ // Each subbucket represents 256 bytes of the text segment.
+ // To find a function given a pc, locate the bucket and subbucket for

@@ -8,6 +8,20 @@ Date:   Tue Jul 19 15:44:25 2011 +1000
     R=golang-dev, dsymonds, adg
     CC=golang-dev
     https://golang.org/cl/4777041
-
+---
  src/cmd/5l/span.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index d3da0278bf..338c9665bf 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -231,7 +231,7 @@ span(void)
+ 				*bp++ = v;
+ 				*bp++ = v>>8;
+ 				*bp++ = v>>16;
+-				*bp = v>>24;
++				*bp++ = v>>24;
+ 			}
+ 		}
+ 	}

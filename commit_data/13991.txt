@@ -7,6 +7,21 @@ Date:   Sun Sep 30 15:56:23 2012 +1000
     R=gri, iant
     CC=golang-dev
     https://golang.org/cl/6586051
-
+---
  src/pkg/exp/types/gcimporter.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index 64c7b2a09a..8441669129 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -42,7 +42,8 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 	switch {
+ 	default:
+ 		// "x" -> "$GOPATH/pkg/$GOOS_$GOARCH/x.ext", "x"
+-		bp, _ := build.Import(path, srcDir, build.FindOnly)
++		// Don't require the source files to be present.
++		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
+ 		if bp.PkgObj == "" {
+ 			return
+ 		}

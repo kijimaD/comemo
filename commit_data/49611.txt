@@ -15,7 +15,7 @@ Date:   Tue Aug 31 16:56:07 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/unify.go   |  3 +++
  src/go/types/check_test.go                 |  3 ---
  src/go/types/expr.go                       |  4 +--
@@ -28,3 +28,228 @@ Date:   Tue Aug 31 16:56:07 2021 -0400
  src/go/types/tuple.go                      |  2 --
  src/go/types/type.go                       |  1 -
  11 files changed, 23 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 9eb1f63090..a1e5b3679b 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -434,6 +434,9 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 			xargs := x.targs.list()
+ 			yargs := y.targs.list()
+ 
++			// TODO(gri) This is not always correct: two types may have the same names
++			//           in the same package if one of them is nested in a function.
++			//           Extremely unlikely but we need an always correct solution.
+ 			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
+ 				assert(len(xargs) == len(yargs))
+ 				for i, x := range xargs {
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 8c8452c9c6..e9df90c4ea 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -20,9 +20,6 @@
+ //		_ = x /* ERROR "not declared" */ + 1
+ //	}
+ 
+-// TODO(gri) Also collect strict mode errors of the form /* STRICT ... */
+-//           and test against strict mode.
+-
+ package types_test
+ 
+ import (
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 61d57cc4fa..2a204cf5f6 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -114,9 +114,7 @@ func (check *Checker) overflow(x *operand, op token.Token, opPos token.Pos) {
+ }
+ 
+ // opName returns the name of an operation, or the empty string.
+-// For now, only operations that might overflow are handled.
+-// TODO(gri) Expand this to a general mechanism giving names to
+-//           nodes?
++// Only operations that might overflow are handled.
+ func opName(e ast.Expr) string {
+ 	switch e := e.(type) {
+ 	case *ast.BinaryExpr:
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 5f691d5246..09c2ecf8b4 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -116,8 +116,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
+ // instance creates a type or function instance using the given original type
+ // typ and arguments targs. For Named types the resulting instance will be
+ // unexpanded.
+-func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type) {
+-	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
++func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) Type {
+ 	switch t := typ.(type) {
+ 	case *Named:
+ 		h := instantiatedHash(t, targs)
+@@ -128,7 +127,6 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
+ 				return named
+ 			}
+ 		}
+-
+ 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
+ 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is loaded
+ 		named.targs = NewTypeList(targs)
+@@ -136,7 +134,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
+ 		if check != nil {
+ 			check.typMap[h] = named
+ 		}
+-		res = named
++		return named
+ 	case *Signature:
+ 		tparams := t.TParams()
+ 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
+@@ -145,30 +143,21 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
+ 		if tparams.Len() == 0 {
+ 			return typ // nothing to do (minor optimization)
+ 		}
+-		defer func() {
+-			// If we had an unexpected failure somewhere don't panic below when
+-			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
+-			// is returned.
+-			if _, ok := res.(*Signature); !ok {
+-				return
+-			}
+-			// If the signature doesn't use its type parameters, subst
+-			// will not make a copy. In that case, make a copy now (so
+-			// we can set tparams to nil w/o causing side-effects).
+-			if t == res {
+-				copy := *t
+-				res = &copy
+-			}
+-			// After instantiating a generic signature, it is not generic
+-			// anymore; we need to set tparams to nil.
+-			res.(*Signature).tparams = nil
+-		}()
+-		res = check.subst(pos, typ, makeSubstMap(tparams.list(), targs), nil)
+-	default:
+-		// only types and functions can be generic
+-		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
++		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), nil).(*Signature)
++		// If the signature doesn't use its type parameters, subst
++		// will not make a copy. In that case, make a copy now (so
++		// we can set tparams to nil w/o causing side-effects).
++		if sig == t {
++			copy := *sig
++			sig = &copy
++		}
++		// After instantiating a generic signature, it is not generic
++		// anymore; we need to set tparams to nil.
++		sig.tparams = nil
++		return sig
+ 	}
+-	return res
++	// only types and functions can be generic
++	panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+ }
+ 
+ // validateTArgLen verifies that the length of targs and tparams matches,
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 6bc33b9538..6f89922a41 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -9,8 +9,6 @@ import (
+ 	"sync"
+ )
+ 
+-// TODO(rfindley) Clean up Named struct below; specifically the fromRHS field (can we use underlying?).
+-
+ // A Named represents a named (defined) type.
+ type Named struct {
+ 	check      *Checker
+diff --git a/src/go/types/self_test.go b/src/go/types/self_test.go
+index 262dc7b97a..55436d3b62 100644
+--- a/src/go/types/self_test.go
++++ b/src/go/types/self_test.go
+@@ -27,12 +27,7 @@ func TestSelf(t *testing.T) {
+ 	conf := Config{Importer: importer.Default()}
+ 	_, err = conf.Check("go/types", fset, files, nil)
+ 	if err != nil {
+-		// Importing go/constant doesn't work in the
+-		// build dashboard environment. Don't report an error
+-		// for now so that the build remains green.
+-		// TODO(gri) fix this
+-		t.Log(err) // replace w/ t.Fatal eventually
+-		return
++		t.Fatal(err)
+ 	}
+ }
+ 
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index d1d50b38c4..2e6ab4d88a 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -145,12 +145,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 					// bound is (possibly) parameterized in the context of the
+ 					// receiver type declaration. Substitute parameters for the
+ 					// current context.
+-					// TODO(gri) should we assume now that bounds always exist?
+-					//           (no bound == empty interface)
+-					if bound != nil {
+-						bound = check.subst(tpar.obj.pos, bound, smap, nil)
+-						tpar.bound = bound
+-					}
++					tpar.bound = check.subst(tpar.obj.pos, bound, smap, nil)
+ 				}
+ 			}
+ 		}
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 056b21e3d2..5ba57041bd 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -53,11 +53,6 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 		check.error(atPos(body.Rbrace), _MissingReturn, "missing return")
+ 	}
+ 
+-	// TODO(gri) Should we make it an error to declare generic functions
+-	//           where the type parameters are not used?
+-	// 12/19/2018: Probably not - it can make sense to have an API with
+-	//           all functions uniformly sharing the same type parameters.
+-
+ 	// spec: "Implementation restriction: A compiler may make it illegal to
+ 	// declare a variable inside a function body if the variable is never used."
+ 	check.usage(sig.scope)
+diff --git a/src/go/types/testdata/check/tinference.go2 b/src/go/types/testdata/check/tinference.go2
+index 5bd2ba74e7..28516ef639 100644
+--- a/src/go/types/testdata/check/tinference.go2
++++ b/src/go/types/testdata/check/tinference.go2
+@@ -63,9 +63,7 @@ func _() {
+ 	var _ string = x
+ }
+ 
+-// TODO(gri) Need to flag invalid recursive constraints. At the
+-// moment these cause infinite recursions and stack overflow.
+-// func f7[A interface{type B}, B interface{~A}]()
++func f7[A interface{*B}, B interface{~*A}]() {}
+ 
+ // More realistic examples
+ 
+diff --git a/src/go/types/tuple.go b/src/go/types/tuple.go
+index 16d28bc9a6..e85c5aa81b 100644
+--- a/src/go/types/tuple.go
++++ b/src/go/types/tuple.go
+@@ -16,8 +16,6 @@ func NewTuple(x ...*Var) *Tuple {
+ 	if len(x) > 0 {
+ 		return &Tuple{vars: x}
+ 	}
+-	// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
+-	//           it's too subtle and causes problems.
+ 	return nil
+ }
+ 
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 3be42a1584..b9634cf6f6 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -34,7 +34,6 @@ func (t *top) String() string   { return TypeString(t, nil) }
+ // under must only be called when a type is known
+ // to be fully set up.
+ func under(t Type) Type {
+-	// TODO(gri) is this correct for *Union?
+ 	if n := asNamed(t); n != nil {
+ 		return n.under()
+ 	}

@@ -11,7 +11,58 @@ Date:   Mon Oct 31 16:07:17 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5306065
-
+---
  src/pkg/exp/template/html/escape_test.go | 12 ++++++------
  src/pkg/template/exec.go                 |  2 +-
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index a4ea7596cd..1b3b256733 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -1549,8 +1549,8 @@ func TestEnsurePipelineContains(t *testing.T) {
+ 	}
+ }
+ 
+-func expectExecuteFailure(t *testing.T, b *bytes.Buffer) {
+-	if x := recover(); x != nil {
++func expectExecuteFailure(t *testing.T, b *bytes.Buffer, err os.Error) {
++	if err != nil {
+ 		if b.Len() != 0 {
+ 			t.Errorf("output on buffer: %q", b.String())
+ 		}
+@@ -1563,8 +1563,8 @@ func TestEscapeErrorsNotIgnorable(t *testing.T) {
+ 	var b bytes.Buffer
+ 	tmpl := template.Must(template.New("dangerous").Parse("<a"))
+ 	Escape(tmpl)
+-	defer expectExecuteFailure(t, &b)
+-	tmpl.Execute(&b, nil)
++	err := tmpl.Execute(&b, nil)
++	expectExecuteFailure(t, &b, err)
+ }
+ 
+ func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
+@@ -1574,8 +1574,8 @@ func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
+ 	}
+ 	EscapeSet(s, "t")
+ 	var b bytes.Buffer
+-	defer expectExecuteFailure(t, &b)
+-	s.Execute(&b, "t", nil)
++	err = s.Execute(&b, "t", nil)
++	expectExecuteFailure(t, &b, err)
+ }
+ 
+ func TestRedundantFuncs(t *testing.T) {
+diff --git a/src/pkg/template/exec.go b/src/pkg/template/exec.go
+index e7fad72fe7..34c6633232 100644
+--- a/src/pkg/template/exec.go
++++ b/src/pkg/template/exec.go
+@@ -97,7 +97,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
+ 		line: 1,
+ 		vars: []variable{{"$", value}},
+ 	}
+-	if t.Root == nil {
++	if t.Tree == nil || t.Root == nil {
+ 		state.errorf("must be parsed before execution")
+ 	}
+ 	state.walk(value, t.Root)

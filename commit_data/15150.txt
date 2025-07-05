@@ -7,6 +7,20 @@ Date:   Wed Feb 6 18:32:54 2013 +0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/7304053
-
+---
  doc/progs/error4.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/progs/error4.go b/doc/progs/error4.go
+index bf234c98f8..d40fc6eb23 100644
+--- a/doc/progs/error4.go
++++ b/doc/progs/error4.go
+@@ -24,7 +24,7 @@ type appError struct {
+ type appHandler func(http.ResponseWriter, *http.Request) *appError
+ 
+ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+-	if e := fn(w, r); e != nil { // e is *appError, not os.Error.
++	if e := fn(w, r); e != nil { // e is *appError, not error.
+ 		c := appengine.NewContext(r)
+ 		c.Errorf("%v", e.Error)
+ 		http.Error(w, e.Message, e.Code)

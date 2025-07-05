@@ -14,6 +14,26 @@ Date:   Wed Oct 2 21:39:45 2013 -0400
     R=golang-dev, r, alex.brainman
     CC=golang-dev
     https://golang.org/cl/14287043
-
+---
  src/pkg/runtime/syscall_windows.goc | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/runtime/syscall_windows.goc b/src/pkg/runtime/syscall_windows.goc
+index 781ec908d0..173d3ed6a9 100644
+--- a/src/pkg/runtime/syscall_windows.goc
++++ b/src/pkg/runtime/syscall_windows.goc
+@@ -40,9 +40,14 @@ func NewCallback(fn Eface) (code uintptr) {
+ 	code = (uintptr)runtime·compilecallback(fn, true);
+ }
+ 
++/*
++ * If this is needed, uncomment here and add a declaration in package syscall
++ * next to the NewCallback declaration.
++ *
+ func NewCallbackCDecl(fn Eface) (code uintptr) {
+ 	code = (uintptr)runtime·compilecallback(fn, false);
+ }
++ */
+ 
+ func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+ 	WinCall c;

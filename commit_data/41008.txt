@@ -11,8 +11,58 @@ Date:   Tue Aug 20 17:11:43 2019 -0700
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue33739.dir/a.go | 11 +++++++++++
  test/fixedbugs/issue33739.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue33739.go       |  9 +++++++++
  3 files changed, 31 insertions(+)
+
+diff --git a/test/fixedbugs/issue33739.dir/a.go b/test/fixedbugs/issue33739.dir/a.go
+new file mode 100644
+index 0000000000..7eb5b927c4
+--- /dev/null
++++ b/test/fixedbugs/issue33739.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F() func() {
++	return f
++}
++
++func f() {}
+diff --git a/test/fixedbugs/issue33739.dir/b.go b/test/fixedbugs/issue33739.dir/b.go
+new file mode 100644
+index 0000000000..caca1ec686
+--- /dev/null
++++ b/test/fixedbugs/issue33739.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "a"
++
++func main() {
++	a.F()()
++}
+diff --git a/test/fixedbugs/issue33739.go b/test/fixedbugs/issue33739.go
+new file mode 100644
+index 0000000000..b770782286
+--- /dev/null
++++ b/test/fixedbugs/issue33739.go
+@@ -0,0 +1,9 @@
++// rundir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 33739: gccgo undefined symbol with cross-package inlining
++
++package ignored

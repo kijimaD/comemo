@@ -6,6 +6,17 @@ Date:   Fri Aug 8 14:54:04 2014 -0700
     
     CC=golang-codereviews
     https://golang.org/cl/124050043
-
+---
  doc/go1.4.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index e480d9bcd5..198529434a 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -19,3 +19,5 @@ testing: add Coverage (CL 98150043)
+ text/scanner: add IsIdentRune field of Scanner. (CL 108030044)
+ time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)
+ encoding/asn1: optional elements with a default value will now only be omitted if they have that value (CL 86960045).
++
++go.sys subrepo created: http://golang.org/s/go1.4-syscall

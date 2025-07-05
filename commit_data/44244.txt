@@ -16,6 +16,24 @@ Date:   Tue May 12 18:49:34 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/233525
     Reviewed-by: Ryan Sleevi <sleevi@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/verify.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index a058f349c5..be11e730e5 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -744,6 +744,12 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ // the name being validated. Note that DirectoryName constraints are not
+ // supported.
+ //
++// Name constraint validation follows the rules from RFC 5280, with the
++// addition that DNS name constraints may use the leading period format
++// defined for emails and URIs. When a constraint has a leading period
++// it indicates that at least one additional label must be prepended to
++// the constrained name to be considered valid.
++//
+ // Extended Key Usage values are enforced down a chain, so an intermediate or
+ // root that enumerates EKUs prevents a leaf from asserting an EKU not in that
+ // list.

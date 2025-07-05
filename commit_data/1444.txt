@@ -10,7 +10,41 @@ Date:   Thu Jan 8 15:01:22 2009 -0800
     R=ken
     OCL=22341
     CL=22341
-
+---
  src/cmd/6g/cgen.c | 6 ++++++
  src/cmd/gc/walk.c | 4 +++-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 0ab1be5c10..228916417f 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -415,6 +415,12 @@ agen(Node *n, Node *res)
+ 		fatal("agen: unknown op %N", n);
+ 		break;
+ 
++	case OCONV:
++		if(!eqtype(n->type, nl->type, 0))
++			fatal("agen: non-trivial OCONV");
++		agen(nl, res);
++		return;
++
+ 	case OCALLMETH:
+ 		cgen_callmeth(n, 0);
+ 		cgen_aret(n, res);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e0eb648175..cfc3154fdf 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -563,8 +563,10 @@ loop:
+ 
+ 		// nil conversion
+ 		if(eqtype(t, l->type, 0)) {
+-			if(l->op != ONAME)
++			if(l->op != ONAME) {
+ 				indir(n, l);
++				n->type = t;
++			}
+ 			goto ret;
+ 		}
+ 

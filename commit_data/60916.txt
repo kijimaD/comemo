@@ -10,7 +10,7 @@ Date:   Wed Sep 4 18:59:49 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/internal/goobj/objfile_test.go      |  8 ++------
  src/cmd/internal/obj/loong64/asm_test.go    |  6 +-----
  src/cmd/internal/obj/objfile_test.go        |  8 ++------
@@ -19,3 +19,227 @@ Date:   Wed Sep 4 18:59:49 2024 -0700
  src/cmd/internal/obj/x86/obj6_test.go       |  6 +-----
  src/cmd/internal/obj/x86/pcrelative_test.go |  8 ++------
  7 files changed, 18 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/objfile_test.go b/src/cmd/internal/goobj/objfile_test.go
+index f264aefa9c..3fc16a6b9d 100644
+--- a/src/cmd/internal/goobj/objfile_test.go
++++ b/src/cmd/internal/goobj/objfile_test.go
+@@ -96,11 +96,7 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	tmpdir, err := os.MkdirTemp("", "lotsofrelocs")
+-	if err != nil {
+-		t.Fatalf("can't create temp directory: %v\n", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	// Emit testcase.
+ 	var w bytes.Buffer
+@@ -109,7 +105,7 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
+ 		fmt.Fprintf(&w, "\t\"%d\",\n", i)
+ 	}
+ 	w.WriteString(issue41621epilog)
+-	err = os.WriteFile(tmpdir+"/large.go", w.Bytes(), 0666)
++	err := os.WriteFile(tmpdir+"/large.go", w.Bytes(), 0666)
+ 	if err != nil {
+ 		t.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/internal/obj/loong64/asm_test.go b/src/cmd/internal/obj/loong64/asm_test.go
+index 69f97bff57..c89e22ec54 100644
+--- a/src/cmd/internal/obj/loong64/asm_test.go
++++ b/src/cmd/internal/obj/loong64/asm_test.go
+@@ -25,11 +25,7 @@ func TestLargeBranch(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := os.MkdirTemp("", "testlargebranch")
+-	if err != nil {
+-		t.Fatalf("Could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Generate a very large function.
+ 	buf := bytes.NewBuffer(make([]byte, 0, genBufSize))
+diff --git a/src/cmd/internal/obj/objfile_test.go b/src/cmd/internal/obj/objfile_test.go
+index 9e99056803..e4286837ad 100644
+--- a/src/cmd/internal/obj/objfile_test.go
++++ b/src/cmd/internal/obj/objfile_test.go
+@@ -98,14 +98,10 @@ func TestSymbolTooLarge(t *testing.T) { // Issue 42054
+ 		t.Skip("skip on 32-bit architectures")
+ 	}
+ 
+-	tmpdir, err := os.MkdirTemp("", "TestSymbolTooLarge")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "p.go")
+-	err = os.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
++	err := os.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v\n", err)
+ 	}
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index 0ef457e8d0..ab7af2205e 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -167,11 +167,7 @@ PNOP
+ func TestPfxAlign(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := os.MkdirTemp("", "testpfxalign")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	pgms := []struct {
+ 		text   []byte
+@@ -188,7 +184,7 @@ func TestPfxAlign(t *testing.T) {
+ 
+ 	for _, pgm := range pgms {
+ 		tmpfile := filepath.Join(dir, "x.s")
+-		err = os.WriteFile(tmpfile, pgm.text, 0644)
++		err := os.WriteFile(tmpfile, pgm.text, 0644)
+ 		if err != nil {
+ 			t.Fatalf("can't write output: %v\n", err)
+ 		}
+@@ -217,11 +213,7 @@ func TestLarge(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := os.MkdirTemp("", "testlarge")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// A few interesting test cases for long conditional branch fixups
+ 	tests := []struct {
+@@ -281,7 +273,7 @@ func TestLarge(t *testing.T) {
+ 		gen(buf, test.jmpinsn)
+ 
+ 		tmpfile := filepath.Join(dir, "x.s")
+-		err = os.WriteFile(tmpfile, buf.Bytes(), 0644)
++		err := os.WriteFile(tmpfile, buf.Bytes(), 0644)
+ 		if err != nil {
+ 			t.Fatalf("can't write output: %v\n", err)
+ 		}
+@@ -336,16 +328,12 @@ func TestPCalign(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := os.MkdirTemp("", "testpcalign")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// generate a test with valid uses of PCALIGN
+ 
+ 	tmpfile := filepath.Join(dir, "x.s")
+-	err = os.WriteFile(tmpfile, []byte(validPCAlignSrc), 0644)
++	err := os.WriteFile(tmpfile, []byte(validPCAlignSrc), 0644)
+ 	if err != nil {
+ 		t.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/internal/obj/riscv/asm_test.go b/src/cmd/internal/obj/riscv/asm_test.go
+index 96ea230841..c2e1e12acc 100644
+--- a/src/cmd/internal/obj/riscv/asm_test.go
++++ b/src/cmd/internal/obj/riscv/asm_test.go
+@@ -24,11 +24,7 @@ func TestLargeBranch(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := os.MkdirTemp("", "testlargebranch")
+-	if err != nil {
+-		t.Fatalf("Could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Generate a very large function.
+ 	buf := bytes.NewBuffer(make([]byte, 0, 7000000))
+@@ -67,11 +63,7 @@ func TestLargeCall(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := os.MkdirTemp("", "testlargecall")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module largecall"), 0644); err != nil {
+ 		t.Fatalf("Failed to write file: %v\n", err)
+@@ -196,11 +188,7 @@ func genLargeJump(buf *bytes.Buffer) {
+ 
+ // Issue 20348.
+ func TestNoRet(t *testing.T) {
+-	dir, err := os.MkdirTemp("", "testnoret")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 	tmpfile := filepath.Join(dir, "x.s")
+ 	if err := os.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
+ 		t.Fatal(err)
+@@ -213,11 +201,7 @@ func TestNoRet(t *testing.T) {
+ }
+ 
+ func TestImmediateSplitting(t *testing.T) {
+-	dir, err := os.MkdirTemp("", "testimmsplit")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 	tmpfile := filepath.Join(dir, "x.s")
+ 	asm := `
+ TEXT _stub(SB),$0-0
+diff --git a/src/cmd/internal/obj/x86/obj6_test.go b/src/cmd/internal/obj/x86/obj6_test.go
+index d1246be77b..8c848d3394 100644
+--- a/src/cmd/internal/obj/x86/obj6_test.go
++++ b/src/cmd/internal/obj/x86/obj6_test.go
+@@ -83,11 +83,7 @@ func normalize(s string) string {
+ }
+ 
+ func asmOutput(t *testing.T, s string) []byte {
+-	tmpdir, err := os.MkdirTemp("", "progedittest")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 	tmpfile, err := os.Create(filepath.Join(tmpdir, "input.s"))
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/cmd/internal/obj/x86/pcrelative_test.go b/src/cmd/internal/obj/x86/pcrelative_test.go
+index f92b43c72f..1ca9ea22cf 100644
+--- a/src/cmd/internal/obj/x86/pcrelative_test.go
++++ b/src/cmd/internal/obj/x86/pcrelative_test.go
+@@ -31,12 +31,8 @@ func main() {
+ `
+ 
+ func objdumpOutput(t *testing.T, mname, source string) []byte {
+-	tmpdir, err := os.MkdirTemp("", mname)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-	err = os.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
++	tmpdir := t.TempDir()
++	err := os.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

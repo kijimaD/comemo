@@ -7,6 +7,20 @@ Date:   Wed Oct 12 10:55:42 2011 -0700
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/5247055
-
+---
  src/pkg/deps.bash | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index 2095ec1d88..d7919aa2e1 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -47,3 +47,8 @@ for dir in $dirs; do (
+ ) done > $TMP
+ 
+ mv $TMP $OUT
++
++if (egrep -v '^(exp|old)/' $OUT | egrep -q " (exp|old)/"); then
++	echo "$0: $OUT contains dependencies to exp or old packages"
++        exit 1
++fi

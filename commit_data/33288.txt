@@ -28,7 +28,7 @@ Date:   Thu Sep 17 16:39:37 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/14724
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/reader_test.go              | 143 ++++++++++++++++------------
  src/archive/tar/strconv.go                  |  36 ++++++-
  src/archive/tar/strconv_test.go             |  36 ++++---
@@ -38,3 +38,450 @@ Date:   Thu Sep 17 16:39:37 2015 -0700
  src/archive/tar/writer.go                   |   6 +-
  src/archive/tar/writer_test.go              |  81 +++++++++-------
  8 files changed, 191 insertions(+), 111 deletions(-)
+
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 2e5ff72317..3592a14842 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -335,6 +335,34 @@ func TestReader(t *testing.T) {
+ 			ModTime:  time.Unix(0, 0),
+ 			Typeflag: '2',
+ 		}},
++	}, {
++		// Both BSD and GNU tar truncate long names at first NUL even
++		// if there is data following that NUL character.
++		// This is reasonable as GNU long names are C-strings.
++		file: "testdata/gnu-long-nul.tar",
++		headers: []*Header{{
++			Name:     "0123456789",
++			Mode:     0644,
++			Uid:      1000,
++			Gid:      1000,
++			ModTime:  time.Unix(1486082191, 0),
++			Typeflag: '0',
++			Uname:    "rawr",
++			Gname:    "dsnet",
++		}},
++	}, {
++		// BSD tar v3.1.2 and GNU tar v1.27.1 both rejects PAX records
++		// with NULs in the key.
++		file: "testdata/pax-nul-xattrs.tar",
++		err:  ErrHeader,
++	}, {
++		// BSD tar v3.1.2 rejects a PAX path with NUL in the value, while
++		// GNU tar v1.27.1 simply truncates at first NUL.
++		// We emulate the behavior of BSD since it is strange doing NUL
++		// truncations since PAX records are length-prefix strings instead
++		// of NUL-terminated C-strings.
++		file: "testdata/pax-nul-path.tar",
++		err:  ErrHeader,
+ 	}, {
+ 		file: "testdata/neg-size.tar",
+ 		err:  ErrHeader,
+@@ -358,76 +386,71 @@ func TestReader(t *testing.T) {
+ 		}},
+ 	}}
+ 
+-	for i, v := range vectors {
+-		f, err := os.Open(v.file)
+-		if err != nil {
+-			t.Errorf("file %s, test %d: unexpected error: %v", v.file, i, err)
+-			continue
+-		}
+-		defer f.Close()
+-
+-		// Capture all headers and checksums.
+-		var (
+-			tr      = NewReader(f)
+-			hdrs    []*Header
+-			chksums []string
+-			rdbuf   = make([]byte, 8)
+-		)
+-		for {
+-			var hdr *Header
+-			hdr, err = tr.Next()
++	for _, v := range vectors {
++		t.Run(path.Base(v.file), func(t *testing.T) {
++			f, err := os.Open(v.file)
+ 			if err != nil {
+-				if err == io.EOF {
+-					err = nil // Expected error
+-				}
+-				break
++				t.Fatalf("unexpected error: %v", err)
+ 			}
+-			hdrs = append(hdrs, hdr)
++			defer f.Close()
+ 
+-			if v.chksums == nil {
+-				continue
+-			}
+-			h := md5.New()
+-			_, err = io.CopyBuffer(h, tr, rdbuf) // Effectively an incremental read
+-			if err != nil {
+-				break
++			// Capture all headers and checksums.
++			var (
++				tr      = NewReader(f)
++				hdrs    []*Header
++				chksums []string
++				rdbuf   = make([]byte, 8)
++			)
++			for {
++				var hdr *Header
++				hdr, err = tr.Next()
++				if err != nil {
++					if err == io.EOF {
++						err = nil // Expected error
++					}
++					break
++				}
++				hdrs = append(hdrs, hdr)
++
++				if v.chksums == nil {
++					continue
++				}
++				h := md5.New()
++				_, err = io.CopyBuffer(h, tr, rdbuf) // Effectively an incremental read
++				if err != nil {
++					break
++				}
++				chksums = append(chksums, fmt.Sprintf("%x", h.Sum(nil)))
+ 			}
+-			chksums = append(chksums, fmt.Sprintf("%x", h.Sum(nil)))
+-		}
+ 
+-		for j, hdr := range hdrs {
+-			if j >= len(v.headers) {
+-				t.Errorf("file %s, test %d, entry %d: unexpected header:\ngot %+v",
+-					v.file, i, j, *hdr)
+-				continue
++			for i, hdr := range hdrs {
++				if i >= len(v.headers) {
++					t.Fatalf("entry %d: unexpected header:\ngot %+v", i, *hdr)
++					continue
++				}
++				if !reflect.DeepEqual(*hdr, *v.headers[i]) {
++					t.Fatalf("entry %d: incorrect header:\ngot  %+v\nwant %+v", i, *hdr, *v.headers[i])
++				}
+ 			}
+-			if !reflect.DeepEqual(*hdr, *v.headers[j]) {
+-				t.Errorf("file %s, test %d, entry %d: incorrect header:\ngot  %+v\nwant %+v",
+-					v.file, i, j, *hdr, *v.headers[j])
++			if len(hdrs) != len(v.headers) {
++				t.Fatalf("got %d headers, want %d headers", len(hdrs), len(v.headers))
+ 			}
+-		}
+-		if len(hdrs) != len(v.headers) {
+-			t.Errorf("file %s, test %d: got %d headers, want %d headers",
+-				v.file, i, len(hdrs), len(v.headers))
+-		}
+ 
+-		for j, sum := range chksums {
+-			if j >= len(v.chksums) {
+-				t.Errorf("file %s, test %d, entry %d: unexpected sum: got %s",
+-					v.file, i, j, sum)
+-				continue
+-			}
+-			if sum != v.chksums[j] {
+-				t.Errorf("file %s, test %d, entry %d: incorrect checksum: got %s, want %s",
+-					v.file, i, j, sum, v.chksums[j])
++			for i, sum := range chksums {
++				if i >= len(v.chksums) {
++					t.Fatalf("entry %d: unexpected sum: got %s", i, sum)
++					continue
++				}
++				if sum != v.chksums[i] {
++					t.Fatalf("entry %d: incorrect checksum: got %s, want %s", i, sum, v.chksums[i])
++				}
+ 			}
+-		}
+ 
+-		if err != v.err {
+-			t.Errorf("file %s, test %d: unexpected error: got %v, want %v",
+-				v.file, i, err, v.err)
+-		}
+-		f.Close()
++			if err != v.err {
++				t.Fatalf("unexpected error: got %v, want %v", err, v.err)
++			}
++			f.Close()
++		})
+ 	}
+ }
+ 
+diff --git a/src/archive/tar/strconv.go b/src/archive/tar/strconv.go
+index bb5b51c02d..3a635834ff 100644
+--- a/src/archive/tar/strconv.go
++++ b/src/archive/tar/strconv.go
+@@ -12,22 +12,25 @@ import (
+ 	"time"
+ )
+ 
++// isASCII reports whether the input is an ASCII C-style string.
+ func isASCII(s string) bool {
+ 	for _, c := range s {
+-		if c >= 0x80 {
++		if c >= 0x80 || c == 0x00 {
+ 			return false
+ 		}
+ 	}
+ 	return true
+ }
+ 
++// toASCII converts the input to an ASCII C-style string.
++// This a best effort conversion, so invalid characters are dropped.
+ func toASCII(s string) string {
+ 	if isASCII(s) {
+ 		return s
+ 	}
+ 	var buf bytes.Buffer
+ 	for _, c := range s {
+-		if c < 0x80 {
++		if c < 0x80 && c != 0x00 {
+ 			buf.WriteByte(byte(c))
+ 		}
+ 	}
+@@ -232,12 +235,21 @@ func parsePAXRecord(s string) (k, v, r string, err error) {
+ 	if eq == -1 {
+ 		return "", "", s, ErrHeader
+ 	}
+-	return rec[:eq], rec[eq+1:], rem, nil
++	k, v = rec[:eq], rec[eq+1:]
++
++	if !validPAXRecord(k, v) {
++		return "", "", s, ErrHeader
++	}
++	return k, v, rem, nil
+ }
+ 
+ // formatPAXRecord formats a single PAX record, prefixing it with the
+ // appropriate length.
+-func formatPAXRecord(k, v string) string {
++func formatPAXRecord(k, v string) (string, error) {
++	if !validPAXRecord(k, v) {
++		return "", ErrHeader
++	}
++
+ 	const padding = 3 // Extra padding for ' ', '=', and '\n'
+ 	size := len(k) + len(v) + padding
+ 	size += len(strconv.Itoa(size))
+@@ -248,5 +260,19 @@ func formatPAXRecord(k, v string) string {
+ 		size = len(record)
+ 		record = fmt.Sprintf("%d %s=%s\n", size, k, v)
+ 	}
+-	return record
++	return record, nil
++}
++
++// validPAXRecord reports whether the key-value pair is valid.
++// Keys and values should be UTF-8, but the number of bad writers out there
++// forces us to be a more liberal.
++// Thus, we only reject all keys with NUL, and only reject NULs in values
++// for the PAX version of the USTAR string fields.
++func validPAXRecord(k, v string) bool {
++	switch k {
++	case paxPath, paxLinkpath, paxUname, paxGname:
++		return strings.IndexByte(v, 0) < 0
++	default:
++		return strings.IndexByte(k, 0) < 0
++	}
+ }
+diff --git a/src/archive/tar/strconv_test.go b/src/archive/tar/strconv_test.go
+index beb70938bf..36e9413de2 100644
+--- a/src/archive/tar/strconv_test.go
++++ b/src/archive/tar/strconv_test.go
+@@ -256,7 +256,7 @@ func TestParsePAXRecord(t *testing.T) {
+ 		{"18 foo=b=\nar=\n==\x00\n", "", "foo", "b=\nar=\n==\x00", true},
+ 		{"27 foo=hello9 foo=ba\nworld\n", "", "foo", "hello9 foo=ba\nworld", true},
+ 		{"27 ☺☻☹=日a本b語ç\nmeow mix", "meow mix", "☺☻☹", "日a本b語ç", true},
+-		{"17 \x00hello=\x00world\n", "", "\x00hello", "\x00world", true},
++		{"17 \x00hello=\x00world\n", "17 \x00hello=\x00world\n", "", "", false},
+ 		{"1 k=1\n", "1 k=1\n", "", "", false},
+ 		{"6 k~1\n", "6 k~1\n", "", "", false},
+ 		{"6_k=1\n", "6_k=1\n", "", "", false},
+@@ -296,21 +296,33 @@ func TestFormatPAXRecord(t *testing.T) {
+ 		inKey string
+ 		inVal string
+ 		want  string
++		ok    bool
+ 	}{
+-		{"k", "v", "6 k=v\n"},
+-		{"path", "/etc/hosts", "19 path=/etc/hosts\n"},
+-		{"path", longName, "210 path=" + longName + "\n"},
+-		{"path", medName, "110 path=" + medName + "\n"},
+-		{"foo", "ba", "9 foo=ba\n"},
+-		{"foo", "bar", "11 foo=bar\n"},
+-		{"foo", "b=\nar=\n==\x00", "18 foo=b=\nar=\n==\x00\n"},
+-		{"foo", "hello9 foo=ba\nworld", "27 foo=hello9 foo=ba\nworld\n"},
+-		{"☺☻☹", "日a本b語ç", "27 ☺☻☹=日a本b語ç\n"},
+-		{"\x00hello", "\x00world", "17 \x00hello=\x00world\n"},
++		{"k", "v", "6 k=v\n", true},
++		{"path", "/etc/hosts", "19 path=/etc/hosts\n", true},
++		{"path", longName, "210 path=" + longName + "\n", true},
++		{"path", medName, "110 path=" + medName + "\n", true},
++		{"foo", "ba", "9 foo=ba\n", true},
++		{"foo", "bar", "11 foo=bar\n", true},
++		{"foo", "b=\nar=\n==\x00", "18 foo=b=\nar=\n==\x00\n", true},
++		{"foo", "hello9 foo=ba\nworld", "27 foo=hello9 foo=ba\nworld\n", true},
++		{"☺☻☹", "日a本b語ç", "27 ☺☻☹=日a本b語ç\n", true},
++		{"xhello", "\x00world", "17 xhello=\x00world\n", true},
++		{"path", "null\x00", "", false},
++		{"null\x00", "value", "", false},
++		{paxXattr + "key", "null\x00", "26 SCHILY.xattr.key=null\x00\n", true},
+ 	}
+ 
+ 	for _, v := range vectors {
+-		got := formatPAXRecord(v.inKey, v.inVal)
++		got, err := formatPAXRecord(v.inKey, v.inVal)
++		ok := (err == nil)
++		if ok != v.ok {
++			if v.ok {
++				t.Errorf("formatPAXRecord(%q, %q): got format failure, want success", v.inKey, v.inVal)
++			} else {
++				t.Errorf("formatPAXRecord(%q, %q): got format success, want failure", v.inKey, v.inVal)
++			}
++		}
+ 		if got != v.want {
+ 			t.Errorf("formatPAXRecord(%q, %q): got %q, want %q",
+ 				v.inKey, v.inVal, got, v.want)
+diff --git a/src/archive/tar/testdata/gnu-long-nul.tar b/src/archive/tar/testdata/gnu-long-nul.tar
+new file mode 100644
+index 0000000000..28bc812aa6
+Binary files /dev/null and b/src/archive/tar/testdata/gnu-long-nul.tar differ
+diff --git a/src/archive/tar/testdata/pax-nul-path.tar b/src/archive/tar/testdata/pax-nul-path.tar
+new file mode 100644
+index 0000000000..c78f82b16e
+Binary files /dev/null and b/src/archive/tar/testdata/pax-nul-path.tar differ
+diff --git a/src/archive/tar/testdata/pax-nul-xattrs.tar b/src/archive/tar/testdata/pax-nul-xattrs.tar
+new file mode 100644
+index 0000000000..881f51768f
+Binary files /dev/null and b/src/archive/tar/testdata/pax-nul-xattrs.tar differ
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index b75929c894..8d06e1145c 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -308,7 +308,11 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
+ 	sort.Strings(keys)
+ 
+ 	for _, k := range keys {
+-		fmt.Fprint(&buf, formatPAXRecord(k, paxHeaders[k]))
++		rec, err := formatPAXRecord(k, paxHeaders[k])
++		if err != nil {
++			return err
++		}
++		fmt.Fprint(&buf, rec)
+ 	}
+ 
+ 	ext.Size = int64(len(buf.Bytes()))
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 7712217cd8..a246b9387d 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
++	"path"
+ 	"reflect"
+ 	"sort"
+ 	"strings"
+@@ -51,6 +52,7 @@ func TestWriter(t *testing.T) {
+ 	vectors := []struct {
+ 		file    string // filename of expected output
+ 		entries []*entry
++		err     error // expected error on WriteHeader
+ 	}{{
+ 		// The writer test file was produced with this command:
+ 		// tar (GNU tar) 1.26
+@@ -200,44 +202,57 @@ func TestWriter(t *testing.T) {
+ 			},
+ 			// no contents
+ 		}},
++	}, {
++		entries: []*entry{{
++			header: &Header{
++				Name:     "bad-null.txt",
++				Typeflag: '0',
++				Xattrs:   map[string]string{"null\x00null\x00": "fizzbuzz"},
++			},
++		}},
++		err: ErrHeader,
++	}, {
++		entries: []*entry{{
++			header: &Header{
++				Name:     "null\x00.txt",
++				Typeflag: '0',
++			},
++		}},
++		err: ErrHeader,
+ 	}}
+ 
+-testLoop:
+-	for i, v := range vectors {
+-		expected, err := ioutil.ReadFile(v.file)
+-		if err != nil {
+-			t.Errorf("test %d: Unexpected error: %v", i, err)
+-			continue
+-		}
+-
+-		buf := new(bytes.Buffer)
+-		tw := NewWriter(iotest.TruncateWriter(buf, 4<<10)) // only catch the first 4 KB
+-		big := false
+-		for j, entry := range v.entries {
+-			big = big || entry.header.Size > 1<<10
+-			if err := tw.WriteHeader(entry.header); err != nil {
+-				t.Errorf("test %d, entry %d: Failed writing header: %v", i, j, err)
+-				continue testLoop
++	for _, v := range vectors {
++		t.Run(path.Base(v.file), func(t *testing.T) {
++			buf := new(bytes.Buffer)
++			tw := NewWriter(iotest.TruncateWriter(buf, 4<<10)) // only catch the first 4 KB
++			canFail := false
++			for i, entry := range v.entries {
++				canFail = canFail || entry.header.Size > 1<<10 || v.err != nil
++
++				err := tw.WriteHeader(entry.header)
++				if err != v.err {
++					t.Fatalf("entry %d: WriteHeader() = %v, want %v", i, err, v.err)
++				}
++				if _, err := io.WriteString(tw, entry.contents); err != nil {
++					t.Fatalf("entry %d: WriteString() = %v, want nil", i, err)
++				}
+ 			}
+-			if _, err := io.WriteString(tw, entry.contents); err != nil {
+-				t.Errorf("test %d, entry %d: Failed writing contents: %v", i, j, err)
+-				continue testLoop
++			// Only interested in Close failures for the small tests.
++			if err := tw.Close(); err != nil && !canFail {
++				t.Fatalf("Close() = %v, want nil", err)
+ 			}
+-		}
+-		// Only interested in Close failures for the small tests.
+-		if err := tw.Close(); err != nil && !big {
+-			t.Errorf("test %d: Failed closing archive: %v", i, err)
+-			continue testLoop
+-		}
+ 
+-		actual := buf.Bytes()
+-		if !bytes.Equal(expected, actual) {
+-			t.Errorf("test %d: Incorrect result: (-=expected, +=actual)\n%v",
+-				i, bytediff(expected, actual))
+-		}
+-		if testing.Short() { // The second test is expensive.
+-			break
+-		}
++			if v.file != "" {
++				want, err := ioutil.ReadFile(v.file)
++				if err != nil {
++					t.Fatalf("ReadFile() = %v, want nil", err)
++				}
++				got := buf.Bytes()
++				if !bytes.Equal(want, got) {
++					t.Fatalf("incorrect result: (-=want, +=got)\n%v", bytediff(want, got))
++				}
++			}
++		})
+ 	}
+ }
+ 

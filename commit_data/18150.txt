@@ -7,6 +7,38 @@ Date:   Thu Jan 2 09:49:55 2014 +1100
     R=golang-codereviews, shawn.p.smith
     CC=golang-codereviews
     https://golang.org/cl/41960047
-
+---
  src/pkg/encoding/json/decode_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 22c5f89f79..c5a84ab832 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -1316,3 +1316,26 @@ func TestPrefilled(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var invalidUnmarshalTests = []struct {
++	v    interface{}
++	want string
++}{
++	{nil, "json: Unmarshal(nil)"},
++	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
++	{(*int)(nil), "json: Unmarshal(nil *int)"},
++}
++
++func TestInvalidUnmarshal(t *testing.T) {
++	buf := []byte(`{"a":"1"}`)
++	for _, tt := range invalidUnmarshalTests {
++		err := Unmarshal(buf, tt.v)
++		if err == nil {
++			t.Errorf("Unmarshal expecting error, got nil")
++			continue
++		}
++		if got := err.Error(); got != tt.want {
++			t.Errorf("Unmarshal = %q; want %q", got, tt.want)
++		}
++	}
++}

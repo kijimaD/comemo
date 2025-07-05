@@ -25,8 +25,214 @@ Date:   Fri Sep 30 09:03:38 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  11 +++
  src/cmd/compile/internal/ssa/rewritePPC64.go | 114 +++++++++++++++++++++++++++
  test/fixedbugs/issue17194.go                 |  17 ++++
  3 files changed, 142 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 9bb8cafadc..3d885a9aaa 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -523,6 +523,7 @@
+ (ADD (MOVDconst [c]) x) && is32Bit(c) -> (ADDconst [c] x)
+ (ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
+ (ADDconst [c] (ADDconst [d] x)) && is32Bit(c+d) -> (ADDconst [c+d] x)
++(ADDconst [c] (MOVDaddr [d] {sym} x)) -> (MOVDaddr [c+d] {sym} x)
+ (ADDconst [0] x) -> x
+ (ANDconst [-1] x) -> x
+ (ANDconst [0] _) -> (MOVDconst [0])
+@@ -600,6 +601,16 @@
+ (MOVBstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) ->
+     (MOVBstorezero [off1+off2] {sym} x mem)
+ 
++// Fold symbols into storezero
++(MOVDstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2) ->
++    (MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
++(MOVWstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2) ->
++    (MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
++(MOVHstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2) ->
++    (MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
++(MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2) ->
++    (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
++
+ // Lowering extension
+ // Note: we always extend to 64 bits even though some ops don't need that many result bits.
+ (SignExt8to16  x) -> (MOVBreg x)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 28b22b9e0a..e71f7f5a55 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -4101,6 +4101,24 @@ func rewriteValuePPC64_OpPPC64ADDconst(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ADDconst [c] (MOVDaddr [d] {sym} x))
++	// cond:
++	// result: (MOVDaddr [c+d] {sym} x)
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64MOVDaddr {
++			break
++		}
++		d := v_0.AuxInt
++		sym := v_0.Aux
++		x := v_0.Args[0]
++		v.reset(OpPPC64MOVDaddr)
++		v.AuxInt = c + d
++		v.Aux = sym
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ADDconst [0] x)
+ 	// cond:
+ 	// result: x
+@@ -5263,6 +5281,30 @@ func rewriteValuePPC64_OpPPC64MOVBstorezero(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64MOVDaddr {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		x := v_0.Args[0]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpPPC64MOVBstorezero)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64MOVDload(v *Value, config *Config) bool {
+@@ -5422,6 +5464,30 @@ func rewriteValuePPC64_OpPPC64MOVDstorezero(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVDstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64MOVDaddr {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		x := v_0.Args[0]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpPPC64MOVDstorezero)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64MOVHZload(v *Value, config *Config) bool {
+@@ -5737,6 +5803,30 @@ func rewriteValuePPC64_OpPPC64MOVHstorezero(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVHstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64MOVDaddr {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		x := v_0.Args[0]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpPPC64MOVHstorezero)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64MOVWZload(v *Value, config *Config) bool {
+@@ -5948,6 +6038,30 @@ func rewriteValuePPC64_OpPPC64MOVWstorezero(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVWstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64MOVDaddr {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		x := v_0.Args[0]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpPPC64MOVWstorezero)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64NotEqual(v *Value, config *Config) bool {
+diff --git a/test/fixedbugs/issue17194.go b/test/fixedbugs/issue17194.go
+new file mode 100644
+index 0000000000..0594e1cbdc
+--- /dev/null
++++ b/test/fixedbugs/issue17194.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo
++
++func f(x []interface{}) (err error) {
++	for _, d := range x {
++		_, ok := d.(*int)
++		if ok {
++			return
++		}
++	}
++	return
++}

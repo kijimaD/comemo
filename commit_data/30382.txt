@@ -13,8 +13,90 @@ Date:   Fri Oct 21 09:00:07 2016 +0900
     Reviewed-on: https://go-review.googlesource.com/31540
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/asn1/asn1.go      |  7 +++++++
  src/encoding/asn1/asn1_test.go | 31 ++++++++++++++++++++++++++++++-
  src/encoding/asn1/marshal.go   |  6 ++++++
  3 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 2b5ad08551..a442995e92 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -841,6 +841,13 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 	case reflect.Struct:
+ 		structType := fieldType
+ 
++		for i := 0; i < structType.NumField(); i++ {
++			if structType.Field(i).PkgPath != "" {
++				err = StructuralError{"struct contains unexported fields"}
++				return
++			}
++		}
++
+ 		if structType.NumField() > 0 &&
+ 			structType.Field(0).Type == rawContentsType {
+ 			bytes := bytes[initOffset:offset]
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 8ee46d4565..9976656df8 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -967,7 +967,7 @@ func TestUnmarshalInvalidUTF8(t *testing.T) {
+ func TestMarshalNilValue(t *testing.T) {
+ 	nilValueTestData := []interface{}{
+ 		nil,
+-		struct{ v interface{} }{},
++		struct{ V interface{} }{},
+ 	}
+ 	for i, test := range nilValueTestData {
+ 		if _, err := Marshal(test); err == nil {
+@@ -975,3 +975,32 @@ func TestMarshalNilValue(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type unexported struct {
++	X int
++	y int
++}
++
++type exported struct {
++	X int
++	Y int
++}
++
++func TestUnexportedStructField(t *testing.T) {
++	want := StructuralError{"struct contains unexported fields"}
++
++	_, err := Marshal(unexported{X: 5, y: 1})
++	if err != want {
++		t.Errorf("got %v, want %v", err, want)
++	}
++
++	bs, err := Marshal(exported{X: 5, Y: 1})
++	if err != nil {
++		t.Fatal(err)
++	}
++	var u unexported
++	_, err = Unmarshal(bs, &u)
++	if err != want {
++		t.Errorf("got %v, want %v", err, want)
++	}
++}
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 444c7f3642..76d0b0c825 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -427,6 +427,12 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
+ 	case reflect.Struct:
+ 		t := v.Type()
+ 
++		for i := 0; i < t.NumField(); i++ {
++			if t.Field(i).PkgPath != "" {
++				return nil, StructuralError{"struct contains unexported fields"}
++			}
++		}
++
+ 		startingField := 0
+ 
+ 		n := t.NumField()

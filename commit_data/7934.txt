@@ -7,6 +7,20 @@ Date:   Wed Mar 30 16:41:41 2011 +1100
     R=gri
     CC=golang-dev
     https://golang.org/cl/4277087
-
+---
  src/cmd/godoc/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index da1466b21c..5d978fcf0e 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -309,7 +309,7 @@ func rangeSelection(str string) Selection {
+ //
+ var startTags = [][]byte{
+ 	/* 000 */ []byte(``),
+-	/* 001 */ []byte(`<span class ="comment">`),
++	/* 001 */ []byte(`<span class="comment">`),
+ 	/* 010 */ []byte(`<span class="highlight">`),
+ 	/* 011 */ []byte(`<span class="highlight-comment">`),
+ 	/* 100 */ []byte(`<span class="selection">`),

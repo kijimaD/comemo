@@ -14,10 +14,113 @@ Date:   Wed Oct 13 17:11:16 2021 +0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/decl.go         | 11 +++++++++--
  src/cmd/compile/internal/noder/irgen.go        |  8 +++++++-
  src/cmd/compile/internal/types2/stdlib_test.go |  2 +-
  src/go/types/stdlib_test.go                    |  1 +
  test/fixedbugs/issue48230.go                   | 10 ++++++++++
  5 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index f2dad9c302..82455f7d4a 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -132,7 +132,11 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ 		g.target.Inits = append(g.target.Inits, fn)
+ 	}
+ 
++	haveEmbed := g.haveEmbed
+ 	g.later(func() {
++		defer func(b bool) { g.haveEmbed = b }(g.haveEmbed)
++
++		g.haveEmbed = haveEmbed
+ 		if fn.Type().HasTParam() {
+ 			g.topFuncIsGeneric = true
+ 		}
+@@ -241,12 +245,15 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
+ 
+ 	if decl.Pragma != nil {
+ 		pragma := decl.Pragma.(*pragmas)
+-		// TODO(mdempsky): Plumb noder.importedEmbed through to here.
+-		varEmbed(g.makeXPos, names[0], decl, pragma, true)
++		varEmbed(g.makeXPos, names[0], decl, pragma, g.haveEmbed)
+ 		g.reportUnused(pragma)
+ 	}
+ 
++	haveEmbed := g.haveEmbed
+ 	do := func() {
++		defer func(b bool) { g.haveEmbed = b }(g.haveEmbed)
++
++		g.haveEmbed = haveEmbed
+ 		values := g.exprList(decl.Values)
+ 
+ 		var as2 *ir.AssignListStmt
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index a3501fb90b..982e811f5f 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -147,6 +147,9 @@ type irgen struct {
+ 	// laterFuncs records tasks that need to run after all declarations
+ 	// are processed.
+ 	laterFuncs []func()
++	// haveEmbed indicates whether the current node belongs to file that
++	// imports "embed" package.
++	haveEmbed bool
+ 
+ 	// exprStmtOK indicates whether it's safe to generate expressions or
+ 	// statements yet.
+@@ -254,8 +257,11 @@ Outer:
+ 	types.ResumeCheckSize()
+ 
+ 	// 3. Process all remaining declarations.
+-	for _, declList := range declLists {
++	for i, declList := range declLists {
++		old := g.haveEmbed
++		g.haveEmbed = noders[i].importedEmbed
+ 		g.decls((*ir.Nodes)(&g.target.Decls), declList)
++		g.haveEmbed = old
+ 	}
+ 	g.exprStmtOK = true
+ 
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 6e340d0777..9c22f01673 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -193,7 +193,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue42058a.go", // types2 does not have constraints on channel element size
+ 		"issue42058b.go", // types2 does not have constraints on channel element size
+ 		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
+-
++		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
+ 	)
+ }
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 12ed9a54f2..b0d7fdd3d9 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -195,6 +195,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue42058a.go", // go/types does not have constraints on channel element size
+ 		"issue42058b.go", // go/types does not have constraints on channel element size
+ 		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
++		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue48230.go b/test/fixedbugs/issue48230.go
+new file mode 100644
+index 0000000000..5f213762da
+--- /dev/null
++++ b/test/fixedbugs/issue48230.go
+@@ -0,0 +1,10 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++//go:embed issue48230.go // ERROR `go:embed only allowed in Go files that import "embed"`
++var _ string

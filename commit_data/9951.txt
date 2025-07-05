@@ -9,6 +9,23 @@ Date:   Thu Oct 13 10:09:43 2011 +0300
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5272041
-
+---
  doc/docs.html | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 4c00545731..5c217ce1fd 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -165,11 +165,6 @@ Notable articles from the <a href="http://blog.golang.org/">Go Blog</a>.
+ <li><a href="http://code.google.com/p/golang-korea">golang-korea</a> - Go documentation and news.
+ </ul>
+ 
+-<h3 id="docs_ru">Russian &mdash; Русский</h3>
+-<ul>
+-<li><a href="http://golanguage.ru/">golanguage.ru</a> - Go documentation.
+-</ul>
+-
+ </div>
+ 
+ 

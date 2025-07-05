@@ -15,6 +15,40 @@ Date:   Sun Oct 18 20:21:03 2020 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/os/os_test.go | 18 ------------------
  1 file changed, 18 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 50160eac38..865dfcc0de 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+-	"internal/race"
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+@@ -2580,20 +2579,3 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
+ 		t.Errorf("Stat after OpenFile is %v, should be writable", fi.Mode())
+ 	}
+ }
+-
+-// Issue 41474.
+-func TestStdoutWriteDoesNotHeapAllocate(t *testing.T) {
+-	if runtime.GOOS == "js" || runtime.GOOS == "windows" {
+-		t.Skip("Still heap allocates on js/wasm and windows, but it used to too")
+-	}
+-	if race.Enabled {
+-		t.Skip("Heap allocates in race mode")
+-	}
+-
+-	n := testing.AllocsPerRun(10, func() {
+-		Stdout.Write([]byte{'h', 'e', 'l', 'l', 'o', '\n'})
+-	})
+-	if n != 0 {
+-		t.Errorf("AllocsPerRun = %v, want 0", n)
+-	}
+-}

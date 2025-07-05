@@ -19,6 +19,21 @@ Date:   Sun Jul 24 21:44:11 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/bytes/reader.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/bytes/reader.go b/src/bytes/reader.go
+index 5946cf9780..81c22aa029 100644
+--- a/src/bytes/reader.go
++++ b/src/bytes/reader.go
+@@ -32,8 +32,7 @@ func (r *Reader) Len() int {
+ 
+ // Size returns the original length of the underlying byte slice.
+ // Size is the number of bytes available for reading via ReadAt.
+-// The returned value is always the same and is not affected by calls
+-// to any other method.
++// The result is unaffected by any method calls except Reset.
+ func (r *Reader) Size() int64 { return int64(len(r.s)) }
+ 
+ // Read implements the io.Reader interface.

@@ -21,7 +21,92 @@ Date:   Thu Feb 20 15:50:30 2014 -0500
     R=r, dsymonds
     CC=golang-codereviews
     https://golang.org/cl/65630046
-
+---
  src/cmd/pack/pack.go      | 14 ++++++++------
  src/cmd/pack/pack_test.go | 16 ++++++++++++++++
  2 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/pack/pack.go b/src/cmd/pack/pack.go
+index 99e22ed7ea..7276083264 100644
+--- a/src/cmd/pack/pack.go
++++ b/src/cmd/pack/pack.go
+@@ -132,9 +132,10 @@ const (
+ // An Archive represents an open archive file. It is always scanned sequentially
+ // from start to end, without backing up.
+ type Archive struct {
+-	fd    *os.File // Open file descriptor.
+-	files []string // Explicit list of files to be processed.
+-	pad   int      // Padding bytes required at end of current archive file
++	fd       *os.File // Open file descriptor.
++	files    []string // Explicit list of files to be processed.
++	pad      int      // Padding bytes required at end of current archive file
++	matchAll bool     // match all files in archive
+ }
+ 
+ // archive opens (or if necessary creates) the named archive.
+@@ -148,8 +149,9 @@ func archive(name string, mode int, files []string) *Archive {
+ 	}
+ 	mustBeArchive(fd)
+ 	return &Archive{
+-		fd:    fd,
+-		files: files,
++		fd:       fd,
++		files:    files,
++		matchAll: len(files) == 0,
+ 	}
+ }
+ 
+@@ -282,7 +284,7 @@ func (ar *Archive) skip(entry *Entry) {
+ // match reports whether the entry matches the argument list.
+ // If it does, it also drops the file from the to-be-processed list.
+ func (ar *Archive) match(entry *Entry) bool {
+-	if len(ar.files) == 0 {
++	if ar.matchAll {
+ 		return true
+ 	}
+ 	for i, name := range ar.files {
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index b54b0ae432..33abe45a20 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -90,10 +90,12 @@ func TestTableOfContents(t *testing.T) {
+ 	defer os.RemoveAll(dir)
+ 	name := filepath.Join(dir, "pack.a")
+ 	ar := archive(name, os.O_RDWR, nil)
++
+ 	// Add some entries by hand.
+ 	ar.addFile(helloFile.Reset())
+ 	ar.addFile(goodbyeFile.Reset())
+ 	ar.fd.Close()
++
+ 	// Now print it.
+ 	ar = archive(name, os.O_RDONLY, nil)
+ 	var buf bytes.Buffer
+@@ -111,6 +113,7 @@ func TestTableOfContents(t *testing.T) {
+ 	if result != expect {
+ 		t.Fatalf("expected %q got %q", expect, result)
+ 	}
++
+ 	// Do it again without verbose.
+ 	verbose = false
+ 	buf.Reset()
+@@ -123,6 +126,19 @@ func TestTableOfContents(t *testing.T) {
+ 	if result != expect {
+ 		t.Fatalf("expected %q got %q", expect, result)
+ 	}
++
++	// Do it again with file list arguments.
++	verbose = false
++	buf.Reset()
++	ar = archive(name, os.O_RDONLY, []string{helloFile.name})
++	ar.scan(ar.tableOfContents)
++	ar.fd.Close()
++	result = buf.String()
++	// Expect only helloFile.
++	expect = fmt.Sprintf("%s\n", helloFile.name)
++	if result != expect {
++		t.Fatalf("expected %q got %q", expect, result)
++	}
+ }
+ 
+ // Test that we can create an archive, put some files in it, and get back a file.

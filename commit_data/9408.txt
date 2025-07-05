@@ -7,9 +7,214 @@ Date:   Thu Aug 18 11:50:55 2011 +1000
     R=golang-dev, dsymonds, jnwhiteh, n13m3y3r, gustavo
     CC=golang-dev
     https://golang.org/cl/4837051
-
+---
  misc/vim/autoload/go/complete.vim | 49 +++++++++++++++++++++++++++++++++++++++
  misc/vim/ftplugin/go/import.vim   |  6 ++---
  misc/vim/plugin/godoc.vim         | 40 +-------------------------------
  misc/vim/readme.txt               | 35 ++++++++++++++++++++--------
  4 files changed, 78 insertions(+), 52 deletions(-)
+
+diff --git a/misc/vim/autoload/go/complete.vim b/misc/vim/autoload/go/complete.vim
+new file mode 100644
+index 0000000000..d4ae3b97f7
+--- /dev/null
++++ b/misc/vim/autoload/go/complete.vim
+@@ -0,0 +1,49 @@
++" Copyright 2011 The Go Authors. All rights reserved.
++" Use of this source code is governed by a BSD-style
++" license that can be found in the LICENSE file.
++"
++" This file provides a utility function that performs auto-completion of
++" package names, for use by other commands.
++
++let s:goos = $GOOS
++let s:goarch = $GOARCH
++
++if len(s:goos) == 0
++  if exists('g:golang_goos')
++    let s:goos = g:golang_goos
++  elseif has('win32') || has('win64')
++    let s:goos = 'windows'
++  elseif has('macunix')
++    let s:goos = 'darwin'
++  else
++    let s:goos = '*'
++  endif
++endif
++
++if len(s:goarch) == 0
++  if exists('g:golang_goarch')
++    let s:goarch = g:golang_goarch
++  else
++    let s:goarch = '*'
++  endif
++endif
++
++function! go#complete#Package(ArgLead, CmdLine, CursorPos)
++  let goroot = $GOROOT
++  if len(goroot) == 0
++    " should not occur.
++    return []
++  endif
++  let ret = {}
++  let root = expand(goroot.'/pkg/'.s:goos.'_'.s:goarch)
++  for i in split(globpath(root, a:ArgLead.'*'), "\n")
++    if isdirectory(i)
++      let i .= '/'
++    elseif i !~ '\.a$'
++      continue
++    endif
++    let i = substitute(substitute(i[len(root)+1:], '[\\]', '/', 'g'), '\.a$', '', 'g')
++    let ret[i] = i
++  endfor
++  return sort(keys(ret))
++endfunction
+diff --git a/misc/vim/ftplugin/go/import.vim b/misc/vim/ftplugin/go/import.vim
+index b5814ca5df..6705a476b1 100644
+--- a/misc/vim/ftplugin/go/import.vim
++++ b/misc/vim/ftplugin/go/import.vim
+@@ -36,9 +36,9 @@ if exists("b:did_ftplugin")
+     finish
+ endif
+ 
+-command! -buffer -nargs=? Drop call s:SwitchImport(0, '', <f-args>)
+-command! -buffer -nargs=1 Import call s:SwitchImport(1, '', <f-args>)
+-command! -buffer -nargs=* ImportAs call s:SwitchImport(1, <f-args>)
++command! -buffer -nargs=? -complete=customlist,go#complete#Package Drop call s:SwitchImport(0, '', <f-args>)
++command! -buffer -nargs=1 -complete=customlist,go#complete#Package Import call s:SwitchImport(1, '', <f-args>)
++command! -buffer -nargs=* -complete=customlist,go#complete#Package ImportAs call s:SwitchImport(1, <f-args>)
+ map <buffer> <LocalLeader>f :Import fmt<CR>
+ map <buffer> <LocalLeader>F :Drop fmt<CR>
+ 
+diff --git a/misc/vim/plugin/godoc.vim b/misc/vim/plugin/godoc.vim
+index 5d7ce14ad3..fdb4966312 100644
+--- a/misc/vim/plugin/godoc.vim
++++ b/misc/vim/plugin/godoc.vim
+@@ -11,8 +11,6 @@ let g:loaded_godoc = 1
+ 
+ let s:buf_nr = -1
+ let s:last_word = ''
+-let s:goos = $GOOS
+-let s:goarch = $GOARCH
+ 
+ function! s:GodocView()
+   if !bufexists(s:buf_nr)
+@@ -81,43 +79,7 @@ function! s:Godoc(...)
+   call s:GodocWord(word)
+ endfunction
+ 
+-function! s:GodocComplete(ArgLead, CmdLine, CursorPos)
+-  if len($GOROOT) == 0
+-    return []
+-  endif
+-  if len(s:goos) == 0
+-    if exists('g:godoc_goos')
+-      let s:goos = g:godoc_goos
+-    elseif has('win32') || has('win64')
+-      let s:goos = 'windows'
+-    elseif has('macunix')
+-      let s:goos = 'darwin'
+-    else
+-      let s:goos = '*'
+-    endif
+-  endif
+-  if len(s:goarch) == 0
+-    if exists('g:godoc_goarch')
+-      let s:goarch = g:godoc_goarch
+-    else
+-      let s:goarch = g:godoc_goarch
+-    endif
+-  endif
+-  let ret = {}
+-  let root = expand($GOROOT.'/pkg/'.s:goos.'_'.s:goarch)
+-  for i in split(globpath(root, a:ArgLead.'*'), "\n")
+-    if isdirectory(i)
+-      let i .= '/'
+-    elseif i !~ '\.a$'
+-      continue
+-    endif
+-    let i = substitute(substitute(i[len(root)+1:], '[\\]', '/', 'g'), '\.a$', '', 'g')
+-    let ret[i] = i
+-  endfor
+-  return sort(keys(ret))
+-endfunction
+-
+-command! -nargs=* -range -complete=customlist,s:GodocComplete Godoc :call s:Godoc(<q-args>)
++command! -nargs=* -range -complete=customlist,go#complete#Package Godoc :call s:Godoc(<q-args>)
+ nnoremap <silent> <Plug>(godoc-keyword) :<C-u>call <SID>Godoc('')<CR>
+ 
+ " vim:ts=4:sw=4:et
+diff --git a/misc/vim/readme.txt b/misc/vim/readme.txt
+index e6bdf0e116..fe15da9935 100644
+--- a/misc/vim/readme.txt
++++ b/misc/vim/readme.txt
+@@ -1,5 +1,17 @@
+-Vim syntax highlighting for Go (http://golang.org)
+-==================================================
++Vim plugins for Go (http://golang.org)
++======================================
++
++To use all the Vim plugins, add these lines to your vimrc.
++
++  set rtp+=$GOROOT/misc/vim
++  filetype plugin indent on
++  syntax on
++
++If you want to select fewer plugins, use the instructions in the rest of
++this file.
++
++Vim syntax highlighting
++-----------------------
+ 
+ To install automatic syntax highlighting for GO programs:
+ 
+@@ -18,15 +30,17 @@ commands:
+ 
+   mkdir -p $HOME/.vim/ftdetect
+   mkdir -p $HOME/.vim/syntax
++  mkdir -p $HOME/.vim/autoload/go
+   ln -s $GOROOT/misc/vim/ftdetect/gofiletype.vim $HOME/.vim/ftdetect/
+   ln -s $GOROOT/misc/vim/syntax/go.vim $HOME/.vim/syntax
++  ln -s $GOROOT/misc/vim/autoload/go/complete.vim $HOME/.vim/autoload/go
+   echo "syntax on" >> $HOME/.vimrc
+ 
+ 
+-Vim filetype plugins for Go
+-===========================
++Vim filetype plugins
++--------------------
+ 
+-To install one of the available filetype plugins for Go:
++To install one of the available filetype plugins:
+ 
+   1. Same as 1 above.
+   2. Copy or link one or more plugins from ftplugin/go/*.vim to the
+@@ -37,10 +51,10 @@ To install one of the available filetype plugins for Go:
+      filetype plugin on
+ 
+ 
+-Vim indentation plugin for Go
+-=============================
++Vim indentation plugin
++----------------------
+ 
+-To install automatic indentation for Go:
++To install automatic indentation:
+ 
+   1. Same as 1 above.
+   2. Copy or link indent/go.vim to the indent directory underneath your vim
+@@ -51,11 +65,12 @@ To install automatic indentation for Go:
+ 
+ 
+ Godoc plugin
+-============
++------------
+ 
+ To install godoc plugin:
+ 
+   1. Same as 1 above.
+   2. Copy or link plugin/godoc.vim to $HOME/.vim/plugin/godoc,
+      syntax/godoc.vim to $HOME/.vim/syntax/godoc.vim,
+-     and ftplugin/go/godoc.vim to $HOME/.vim/ftplugin/go/godoc.vim.
++     ftplugin/go/godoc.vim to $HOME/.vim/ftplugin/go/godoc.vim.
++     and autoload/go/complete.vim to $HOME/.vim/autoload/go/complete.vim.

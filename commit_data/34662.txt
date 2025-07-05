@@ -13,7 +13,65 @@ Date:   Sun Nov 5 16:31:24 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/76017
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/go_test.go               | 15 +++++++++++++++
  src/cmd/go/internal/work/buildid.go | 11 +++++++----
  2 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a264daa710..9ec2e0b0ee 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4740,6 +4740,21 @@ func TestBuildCache(t *testing.T) {
+ 	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
+ }
+ 
++func TestIssue22588(t *testing.T) {
++	// Don't get confused by stderr coming from tools.
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++
++	if _, err := os.Stat("/usr/bin/time"); err != nil {
++		t.Skip(err)
++	}
++
++	tg.run("list", "-f={{.Stale}}", "runtime")
++	tg.run("list", "-toolexec=/usr/bin/time", "-f={{.Stale}}", "runtime")
++	tg.grepStdout("false", "incorrectly reported runtime as stale")
++}
++
+ func TestIssue22531(t *testing.T) {
+ 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+ 		t.Skip("GODEBUG gocacheverify")
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index b9e1bab0a3..d7cc7a263b 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -5,6 +5,7 @@
+ package work
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
+@@ -175,12 +176,14 @@ func (b *Builder) toolID(name string) string {
+ 	cmdline := str.StringList(cfg.BuildToolexec, base.Tool(name), "-V=full")
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+ 	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		base.Fatalf("go tool %s: %v\n%s", name, err, out)
++	var stdout, stderr bytes.Buffer
++	cmd.Stdout = &stdout
++	cmd.Stderr = &stderr
++	if err := cmd.Run(); err != nil {
++		base.Fatalf("go tool %s: %v\n%s%s", name, err, stdout.Bytes(), stderr.Bytes())
+ 	}
+ 
+-	line := string(out)
++	line := stdout.String()
+ 	f := strings.Fields(line)
+ 	if len(f) < 3 || f[0] != name || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
+ 		base.Fatalf("go tool %s -V=full: unexpected output:\n\t%s", name, line)

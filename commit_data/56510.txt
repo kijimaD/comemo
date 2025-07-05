@@ -24,7 +24,7 @@ Date:   Fri May 5 22:29:11 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  misc/cgo/test/cgo_linux_test.go         | 2 ++
  misc/cgo/test/cgo_test.go               | 2 ++
  misc/cgo/test/cgo_unix_test.go          | 2 +-
@@ -46,3 +46,268 @@ Date:   Fri May 5 22:29:11 2023 -0400
  misc/cgo/test/test26213.go              | 2 ++
  misc/cgo/test/test_unix.go              | 2 +-
  20 files changed, 39 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index 3a1cf98c2a..3defc32ffd 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ package cgotest
+ 
+ import (
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 5b298954f5..5a07c4c0fa 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ package cgotest
+ 
+ import "testing"
+diff --git a/misc/cgo/test/cgo_unix_test.go b/misc/cgo/test/cgo_unix_test.go
+index e6d6ee54b4..5c1f9b7e40 100644
+--- a/misc/cgo/test/cgo_unix_test.go
++++ b/misc/cgo/test/cgo_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !windows
++//go:build cgo && !windows
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/gcc68255.go b/misc/cgo/test/gcc68255.go
+index 7b25e02ad8..954bba9b5c 100644
+--- a/misc/cgo/test/gcc68255.go
++++ b/misc/cgo/test/gcc68255.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ package cgotest
+ 
+ import (
+diff --git a/misc/cgo/test/issue18146.go b/misc/cgo/test/issue18146.go
+index f02fc4476d..d302bd029f 100644
+--- a/misc/cgo/test/issue18146.go
++++ b/misc/cgo/test/issue18146.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !windows
++//go:build cgo && !windows
+ 
+ // Issue 18146: pthread_create failure during syscall.Exec.
+ 
+diff --git a/misc/cgo/test/issue23555.go b/misc/cgo/test/issue23555.go
+index e84c23cfd4..299fdcb914 100644
+--- a/misc/cgo/test/issue23555.go
++++ b/misc/cgo/test/issue23555.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ // Test that we can have two identical cgo packages in a single binary.
+ // No runtime test; just make sure it compiles.
+ 
+diff --git a/misc/cgo/test/issue24161_darwin_test.go b/misc/cgo/test/issue24161_darwin_test.go
+index 7bb2af69a5..9054d6205c 100644
+--- a/misc/cgo/test/issue24161_darwin_test.go
++++ b/misc/cgo/test/issue24161_darwin_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ package cgotest
+ 
+ import (
+diff --git a/misc/cgo/test/issue26430.go b/misc/cgo/test/issue26430.go
+index b55193973d..cf276a0362 100644
+--- a/misc/cgo/test/issue26430.go
++++ b/misc/cgo/test/issue26430.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ // Issue 26430: incomplete typedef leads to inconsistent typedefs error.
+ // No runtime test; just make sure it compiles.
+ 
+diff --git a/misc/cgo/test/issue26743.go b/misc/cgo/test/issue26743.go
+index 716f2e48d9..903caeeada 100644
+--- a/misc/cgo/test/issue26743.go
++++ b/misc/cgo/test/issue26743.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ // Issue 26743: typedef of uint leads to inconsistent typedefs error.
+ // No runtime test; just make sure it compiles.
+ 
+diff --git a/misc/cgo/test/issue27340.go b/misc/cgo/test/issue27340.go
+index 2c51088363..d70f104179 100644
+--- a/misc/cgo/test/issue27340.go
++++ b/misc/cgo/test/issue27340.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ // Failed to resolve typedefs consistently.
+ // No runtime test; just make sure it compiles.
+ 
+diff --git a/misc/cgo/test/issue29563.go b/misc/cgo/test/issue29563.go
+index bbe98bbd48..800b5461af 100644
+--- a/misc/cgo/test/issue29563.go
++++ b/misc/cgo/test/issue29563.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !windows
++//go:build cgo && !windows
+ 
+ // Issue 29563: internal linker fails on duplicate weak symbols.
+ // No runtime test; just make sure it compiles.
+diff --git a/misc/cgo/test/issue30527.go b/misc/cgo/test/issue30527.go
+index e0e18bebdf..982455084d 100644
+--- a/misc/cgo/test/issue30527.go
++++ b/misc/cgo/test/issue30527.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ // Issue 30527: function call rewriting casts untyped
+ // constants to int because of ":=" usage.
+ 
+diff --git a/misc/cgo/test/issue43639.go b/misc/cgo/test/issue43639.go
+index 41e1471059..38dae41d5e 100644
+--- a/misc/cgo/test/issue43639.go
++++ b/misc/cgo/test/issue43639.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ package cgotest
+ 
+ // Issue 43639: No runtime test needed, make sure package misc/cgo/test/issue43639 compiles well.
+diff --git a/misc/cgo/test/issue52611.go b/misc/cgo/test/issue52611.go
+index 2b59d521f7..a190a10884 100644
+--- a/misc/cgo/test/issue52611.go
++++ b/misc/cgo/test/issue52611.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ // Issue 52611: inconsistent compiler behaviour when compiling a C.struct.
+ // No runtime test; just make sure it compiles.
+ 
+diff --git a/misc/cgo/test/issue8828.go b/misc/cgo/test/issue8828.go
+index 3b5765d306..e9ec265268 100644
+--- a/misc/cgo/test/issue8828.go
++++ b/misc/cgo/test/issue8828.go
+@@ -1,9 +1,9 @@
+-// compile
+-
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ // Issue 8828: compiling a file with -compiler=gccgo fails if a .c file
+ // has the same name as compiled directory.
+ 
+diff --git a/misc/cgo/test/issue9026.go b/misc/cgo/test/issue9026.go
+index a30196c99f..fc4df07a3b 100644
+--- a/misc/cgo/test/issue9026.go
++++ b/misc/cgo/test/issue9026.go
+@@ -1,3 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cgo
++
+ package cgotest
+ 
+ import (
+diff --git a/misc/cgo/test/issue9400/stubs.go b/misc/cgo/test/issue9400/stubs.go
+index 08cde2e33b..c2b235abab 100644
+--- a/misc/cgo/test/issue9400/stubs.go
++++ b/misc/cgo/test/issue9400/stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build gc
++//go:build linux && gc
+ 
+ package issue9400
+ 
+diff --git a/misc/cgo/test/issue9510.go b/misc/cgo/test/issue9510.go
+index 325b0cfb4a..9bccfeb5e7 100644
+--- a/misc/cgo/test/issue9510.go
++++ b/misc/cgo/test/issue9510.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ // Test that we can link together two different cgo packages that both
+ // use the same libgcc function.
+ 
+diff --git a/misc/cgo/test/test26213.go b/misc/cgo/test/test26213.go
+index f8149cd7c8..3669590f47 100644
+--- a/misc/cgo/test/test26213.go
++++ b/misc/cgo/test/test26213.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ package cgotest
+ 
+ import (
+diff --git a/misc/cgo/test/test_unix.go b/misc/cgo/test/test_unix.go
+index 50fb0d4db2..664c4850d3 100644
+--- a/misc/cgo/test/test_unix.go
++++ b/misc/cgo/test/test_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !windows
++//go:build unix
+ 
+ package cgotest
+ 

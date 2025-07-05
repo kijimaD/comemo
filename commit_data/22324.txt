@@ -7,7 +7,7 @@ Date:   Wed Mar 4 22:58:27 2015 -0500
     Change-Id: If2872e73da4daa4ff1912883d30c8fc9754ef552
     Reviewed-on: https://go-review.googlesource.com/6894
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/8g/cgen.go        |   76 +--
  src/cmd/8g/cgen64.go      |  236 ++++-----
  src/cmd/8g/galign.go      |    8 +-
@@ -20,3 +20,4751 @@ Date:   Wed Mar 4 22:58:27 2015 -0500
  src/cmd/dist/buildtool.go |    3 +-
  src/cmd/old8a/lex.go      | 1200 ++++++++++++++++++++++-----------------------
  11 files changed, 1412 insertions(+), 1413 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.go b/src/cmd/8g/cgen.go
+index 0b21045e2b..aefae7ed85 100644
+--- a/src/cmd/8g/cgen.go
++++ b/src/cmd/8g/cgen.go
+@@ -7,7 +7,7 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	i386 "cmd/internal/obj/x86"
++	"cmd/internal/obj/x86"
+ 	"fmt"
+ )
+ 
+@@ -272,7 +272,7 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 		gc.OMUL:
+ 		a = optoas(int(n.Op), nl.Type)
+ 
+-		if a == i386.AIMULB {
++		if a == x86.AIMULB {
+ 			cgen_bmul(int(n.Op), nl, nr, res)
+ 			break
+ 		}
+@@ -331,7 +331,7 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 		if gc.Isconst(nl, gc.CTSTR) {
+ 			var n1 gc.Node
+ 			regalloc(&n1, gc.Types[gc.Tptr], res)
+-			p1 := gins(i386.ALEAL, nil, &n1)
++			p1 := gins(x86.ALEAL, nil, &n1)
+ 			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			gmove(&n1, res)
+ 			regfree(&n1)
+@@ -529,9 +529,9 @@ func igenindex(n *gc.Node, res *gc.Node, bounded int) *obj.Prog {
+ 
+ 	var zero gc.Node
+ 	gc.Nodconst(&zero, gc.Types[gc.TINT32], 0)
+-	gins(i386.ACMPL, &hi, &zero)
++	gins(x86.ACMPL, &hi, &zero)
+ 	splitclean()
+-	return gc.Gbranch(i386.AJNE, nil, +1)
++	return gc.Gbranch(x86.AJNE, nil, +1)
+ }
+ 
+ /*
+@@ -565,7 +565,7 @@ func agen(n *gc.Node, res *gc.Node) {
+ 		clearfat(&n1)
+ 		var n2 gc.Node
+ 		regalloc(&n2, gc.Types[gc.Tptr], res)
+-		gins(i386.ALEAL, &n1, &n2)
++		gins(x86.ALEAL, &n1, &n2)
+ 		gmove(&n2, res)
+ 		regfree(&n2)
+ 		return
+@@ -578,7 +578,7 @@ func agen(n *gc.Node, res *gc.Node) {
+ 		}
+ 		var n1 gc.Node
+ 		regalloc(&n1, gc.Types[gc.Tptr], res)
+-		gins(i386.ALEAL, n, &n1)
++		gins(x86.ALEAL, n, &n1)
+ 		gmove(&n1, res)
+ 		regfree(&n1)
+ 		return
+@@ -746,7 +746,7 @@ func agen(n *gc.Node, res *gc.Node) {
+ 
+ 		if gc.Isconst(nl, gc.CTSTR) {
+ 			regalloc(&n3, gc.Types[gc.Tptr], res)
+-			p1 := gins(i386.ALEAL, nil, &n3)
++			p1 := gins(x86.ALEAL, nil, &n3)
+ 			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			p1.From.Scale = 1
+ 			p1.From.Index = n2.Val.U.Reg
+@@ -769,7 +769,7 @@ func agen(n *gc.Node, res *gc.Node) {
+ 		} else // nothing to do
+ 		if w == 1 || w == 2 || w == 4 || w == 8 {
+ 			// LEAL (n3)(n2*w), n3
+-			p1 := gins(i386.ALEAL, &n2, &n3)
++			p1 := gins(x86.ALEAL, &n2, &n3)
+ 
+ 			p1.From.Scale = int16(w)
+ 			p1.From.Type = obj.TYPE_MEM
+@@ -858,7 +858,7 @@ func igen(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 		// Increase the refcount of the register so that igen's caller
+ 	// has to call regfree.
+ 	case gc.OINDREG:
+-		if n.Val.U.Reg != i386.REG_SP {
++		if n.Val.U.Reg != x86.REG_SP {
+ 			reg[n.Val.U.Reg]++
+ 		}
+ 		*a = *n
+@@ -914,7 +914,7 @@ func igen(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 		fp := gc.Structfirst(&flist, gc.Getoutarg(n.Left.Type))
+ 		*a = gc.Node{}
+ 		a.Op = gc.OINDREG
+-		a.Val.U.Reg = i386.REG_SP
++		a.Val.U.Reg = x86.REG_SP
+ 		a.Addable = 1
+ 		a.Xoffset = fp.Width
+ 		a.Type = n.Type
+@@ -1030,9 +1030,9 @@ func bgen(n *gc.Node, true_ bool, likely int, to *obj.Prog) {
+ 		var n1 gc.Node
+ 		gc.Nodconst(&n1, n.Type, 0)
+ 		gins(optoas(gc.OCMP, n.Type), n, &n1)
+-		a := i386.AJNE
++		a := x86.AJNE
+ 		if !true_ {
+-			a = i386.AJEQ
++			a = x86.AJEQ
+ 		}
+ 		gc.Patch(gc.Gbranch(a, n.Type, likely), to)
+ 		return
+@@ -1228,9 +1228,9 @@ def:
+ 	var n2 gc.Node
+ 	gc.Nodconst(&n2, n.Type, 0)
+ 	gins(optoas(gc.OCMP, n.Type), &n1, &n2)
+-	a := i386.AJNE
++	a := x86.AJNE
+ 	if !true_ {
+-		a = i386.AJEQ
++		a = x86.AJEQ
+ 	}
+ 	gc.Patch(gc.Gbranch(a, n.Type, likely), to)
+ 	regfree(&n1)
+@@ -1355,9 +1355,9 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
+ 	}
+ 
+ 	var dst gc.Node
+-	gc.Nodreg(&dst, gc.Types[gc.Tptr], i386.REG_DI)
++	gc.Nodreg(&dst, gc.Types[gc.Tptr], x86.REG_DI)
+ 	var src gc.Node
+-	gc.Nodreg(&src, gc.Types[gc.Tptr], i386.REG_SI)
++	gc.Nodreg(&src, gc.Types[gc.Tptr], x86.REG_SI)
+ 
+ 	var tsrc gc.Node
+ 	gc.Tempname(&tsrc, gc.Types[gc.Tptr])
+@@ -1392,40 +1392,40 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
+ 	// the src and dst overlap, then reverse direction
+ 	if osrc < odst && int64(odst) < int64(osrc)+w {
+ 		// reverse direction
+-		gins(i386.ASTD, nil, nil) // set direction flag
++		gins(x86.ASTD, nil, nil) // set direction flag
+ 		if c > 0 {
+-			gconreg(i386.AADDL, w-1, i386.REG_SI)
+-			gconreg(i386.AADDL, w-1, i386.REG_DI)
++			gconreg(x86.AADDL, w-1, x86.REG_SI)
++			gconreg(x86.AADDL, w-1, x86.REG_DI)
+ 
+-			gconreg(i386.AMOVL, int64(c), i386.REG_CX)
+-			gins(i386.AREP, nil, nil)   // repeat
+-			gins(i386.AMOVSB, nil, nil) // MOVB *(SI)-,*(DI)-
++			gconreg(x86.AMOVL, int64(c), x86.REG_CX)
++			gins(x86.AREP, nil, nil)   // repeat
++			gins(x86.AMOVSB, nil, nil) // MOVB *(SI)-,*(DI)-
+ 		}
+ 
+ 		if q > 0 {
+ 			if c > 0 {
+-				gconreg(i386.AADDL, -3, i386.REG_SI)
+-				gconreg(i386.AADDL, -3, i386.REG_DI)
++				gconreg(x86.AADDL, -3, x86.REG_SI)
++				gconreg(x86.AADDL, -3, x86.REG_DI)
+ 			} else {
+-				gconreg(i386.AADDL, w-4, i386.REG_SI)
+-				gconreg(i386.AADDL, w-4, i386.REG_DI)
++				gconreg(x86.AADDL, w-4, x86.REG_SI)
++				gconreg(x86.AADDL, w-4, x86.REG_DI)
+ 			}
+ 
+-			gconreg(i386.AMOVL, int64(q), i386.REG_CX)
+-			gins(i386.AREP, nil, nil)   // repeat
+-			gins(i386.AMOVSL, nil, nil) // MOVL *(SI)-,*(DI)-
++			gconreg(x86.AMOVL, int64(q), x86.REG_CX)
++			gins(x86.AREP, nil, nil)   // repeat
++			gins(x86.AMOVSL, nil, nil) // MOVL *(SI)-,*(DI)-
+ 		}
+ 
+ 		// we leave with the flag clear
+-		gins(i386.ACLD, nil, nil)
++		gins(x86.ACLD, nil, nil)
+ 	} else {
+-		gins(i386.ACLD, nil, nil) // paranoia.  TODO(rsc): remove?
++		gins(x86.ACLD, nil, nil) // paranoia.  TODO(rsc): remove?
+ 
+ 		// normal direction
+ 		if q > 128 || (q >= 4 && gc.Nacl) {
+-			gconreg(i386.AMOVL, int64(q), i386.REG_CX)
+-			gins(i386.AREP, nil, nil)   // repeat
+-			gins(i386.AMOVSL, nil, nil) // MOVL *(SI)+,*(DI)+
++			gconreg(x86.AMOVL, int64(q), x86.REG_CX)
++			gins(x86.AREP, nil, nil)   // repeat
++			gins(x86.AMOVSL, nil, nil) // MOVL *(SI)+,*(DI)+
+ 		} else if q >= 4 {
+ 			p := gins(obj.ADUFFCOPY, nil, nil)
+ 			p.To.Type = obj.TYPE_ADDR
+@@ -1435,7 +1435,7 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
+ 			p.To.Offset = 10 * (128 - int64(q))
+ 		} else if !gc.Nacl && c == 0 {
+ 			var cx gc.Node
+-			gc.Nodreg(&cx, gc.Types[gc.TINT32], i386.REG_CX)
++			gc.Nodreg(&cx, gc.Types[gc.TINT32], x86.REG_CX)
+ 
+ 			// We don't need the MOVSL side-effect of updating SI and DI,
+ 			// and issuing a sequence of MOVLs directly is faster.
+@@ -1451,13 +1451,13 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
+ 			}
+ 		} else {
+ 			for q > 0 {
+-				gins(i386.AMOVSL, nil, nil) // MOVL *(SI)+,*(DI)+
++				gins(x86.AMOVSL, nil, nil) // MOVL *(SI)+,*(DI)+
+ 				q--
+ 			}
+ 		}
+ 
+ 		for c > 0 {
+-			gins(i386.AMOVSB, nil, nil) // MOVB *(SI)+,*(DI)+
++			gins(x86.AMOVSB, nil, nil) // MOVB *(SI)+,*(DI)+
+ 			c--
+ 		}
+ 	}
+diff --git a/src/cmd/8g/cgen64.go b/src/cmd/8g/cgen64.go
+index aec1e99a00..4c435f6356 100644
+--- a/src/cmd/8g/cgen64.go
++++ b/src/cmd/8g/cgen64.go
+@@ -7,7 +7,7 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	i386 "cmd/internal/obj/x86"
++	"cmd/internal/obj/x86"
+ )
+ 
+ /*
+@@ -31,9 +31,9 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 		var hi1 gc.Node
+ 		var lo1 gc.Node
+ 		split64(res, &lo1, &hi1)
+-		gins(i386.ANEGL, nil, &lo1)
+-		gins(i386.AADCL, ncon(0), &hi1)
+-		gins(i386.ANEGL, nil, &hi1)
++		gins(x86.ANEGL, nil, &lo1)
++		gins(x86.AADCL, ncon(0), &hi1)
++		gins(x86.ANEGL, nil, &hi1)
+ 		splitclean()
+ 		return
+ 
+@@ -42,8 +42,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 		var lo1 gc.Node
+ 		var hi1 gc.Node
+ 		split64(res, &lo1, &hi1)
+-		gins(i386.ANOTL, nil, &lo1)
+-		gins(i386.ANOTL, nil, &hi1)
++		gins(x86.ANOTL, nil, &lo1)
++		gins(x86.ANOTL, nil, &hi1)
+ 		splitclean()
+ 		return
+ 
+@@ -78,11 +78,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	}
+ 
+ 	var ax gc.Node
+-	gc.Nodreg(&ax, gc.Types[gc.TINT32], i386.REG_AX)
++	gc.Nodreg(&ax, gc.Types[gc.TINT32], x86.REG_AX)
+ 	var cx gc.Node
+-	gc.Nodreg(&cx, gc.Types[gc.TINT32], i386.REG_CX)
++	gc.Nodreg(&cx, gc.Types[gc.TINT32], x86.REG_CX)
+ 	var dx gc.Node
+-	gc.Nodreg(&dx, gc.Types[gc.TINT32], i386.REG_DX)
++	gc.Nodreg(&dx, gc.Types[gc.TINT32], x86.REG_DX)
+ 
+ 	// Setup for binary operation.
+ 	var hi1 gc.Node
+@@ -99,19 +99,19 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	switch n.Op {
+ 	// TODO: Constants
+ 	case gc.OADD:
+-		gins(i386.AMOVL, &lo1, &ax)
++		gins(x86.AMOVL, &lo1, &ax)
+ 
+-		gins(i386.AMOVL, &hi1, &dx)
+-		gins(i386.AADDL, &lo2, &ax)
+-		gins(i386.AADCL, &hi2, &dx)
++		gins(x86.AMOVL, &hi1, &dx)
++		gins(x86.AADDL, &lo2, &ax)
++		gins(x86.AADCL, &hi2, &dx)
+ 
+ 		// TODO: Constants.
+ 	case gc.OSUB:
+-		gins(i386.AMOVL, &lo1, &ax)
++		gins(x86.AMOVL, &lo1, &ax)
+ 
+-		gins(i386.AMOVL, &hi1, &dx)
+-		gins(i386.ASUBL, &lo2, &ax)
+-		gins(i386.ASBBL, &hi2, &dx)
++		gins(x86.AMOVL, &hi1, &dx)
++		gins(x86.ASUBL, &lo2, &ax)
++		gins(x86.ASBBL, &hi2, &dx)
+ 
+ 		// let's call the next two EX and FX.
+ 	case gc.OMUL:
+@@ -122,30 +122,30 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 		regalloc(&fx, gc.Types[gc.TPTR32], nil)
+ 
+ 		// load args into DX:AX and EX:CX.
+-		gins(i386.AMOVL, &lo1, &ax)
++		gins(x86.AMOVL, &lo1, &ax)
+ 
+-		gins(i386.AMOVL, &hi1, &dx)
+-		gins(i386.AMOVL, &lo2, &cx)
+-		gins(i386.AMOVL, &hi2, &ex)
++		gins(x86.AMOVL, &hi1, &dx)
++		gins(x86.AMOVL, &lo2, &cx)
++		gins(x86.AMOVL, &hi2, &ex)
+ 
+ 		// if DX and EX are zero, use 32 x 32 -> 64 unsigned multiply.
+-		gins(i386.AMOVL, &dx, &fx)
++		gins(x86.AMOVL, &dx, &fx)
+ 
+-		gins(i386.AORL, &ex, &fx)
+-		p1 := gc.Gbranch(i386.AJNE, nil, 0)
+-		gins(i386.AMULL, &cx, nil) // implicit &ax
++		gins(x86.AORL, &ex, &fx)
++		p1 := gc.Gbranch(x86.AJNE, nil, 0)
++		gins(x86.AMULL, &cx, nil) // implicit &ax
+ 		p2 := gc.Gbranch(obj.AJMP, nil, 0)
+ 		gc.Patch(p1, gc.Pc)
+ 
+ 		// full 64x64 -> 64, from 32x32 -> 64.
+-		gins(i386.AIMULL, &cx, &dx)
+-
+-		gins(i386.AMOVL, &ax, &fx)
+-		gins(i386.AIMULL, &ex, &fx)
+-		gins(i386.AADDL, &dx, &fx)
+-		gins(i386.AMOVL, &cx, &dx)
+-		gins(i386.AMULL, &dx, nil) // implicit &ax
+-		gins(i386.AADDL, &fx, &dx)
++		gins(x86.AIMULL, &cx, &dx)
++
++		gins(x86.AMOVL, &ax, &fx)
++		gins(x86.AIMULL, &ex, &fx)
++		gins(x86.AADDL, &dx, &fx)
++		gins(x86.AMOVL, &cx, &dx)
++		gins(x86.AMULL, &dx, nil) // implicit &ax
++		gins(x86.AADDL, &fx, &dx)
+ 		gc.Patch(p2, gc.Pc)
+ 
+ 		regfree(&ex)
+@@ -168,22 +168,22 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 			// reverse during load to do the first 32 bits of rotate
+ 			v -= 32
+ 
+-			gins(i386.AMOVL, &lo1, &dx)
+-			gins(i386.AMOVL, &hi1, &ax)
++			gins(x86.AMOVL, &lo1, &dx)
++			gins(x86.AMOVL, &hi1, &ax)
+ 		} else {
+-			gins(i386.AMOVL, &lo1, &ax)
+-			gins(i386.AMOVL, &hi1, &dx)
++			gins(x86.AMOVL, &lo1, &ax)
++			gins(x86.AMOVL, &hi1, &dx)
+ 		}
+ 
+ 		if v == 0 {
+ 		} else // done
+ 		{
+-			gins(i386.AMOVL, &dx, &cx)
+-			p1 := gins(i386.ASHLL, ncon(uint32(v)), &dx)
+-			p1.From.Index = i386.REG_AX // double-width shift
++			gins(x86.AMOVL, &dx, &cx)
++			p1 := gins(x86.ASHLL, ncon(uint32(v)), &dx)
++			p1.From.Index = x86.REG_AX // double-width shift
+ 			p1.From.Scale = 0
+-			p1 = gins(i386.ASHLL, ncon(uint32(v)), &ax)
+-			p1.From.Index = i386.REG_CX // double-width shift
++			p1 = gins(x86.ASHLL, ncon(uint32(v)), &ax)
++			p1.From.Index = x86.REG_CX // double-width shift
+ 			p1.From.Scale = 0
+ 		}
+ 
+@@ -196,8 +196,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 				}
+ 				splitclean()
+ 				split64(res, &lo2, &hi2)
+-				gins(i386.AMOVL, ncon(0), &lo2)
+-				gins(i386.AMOVL, ncon(0), &hi2)
++				gins(x86.AMOVL, ncon(0), &lo2)
++				gins(x86.AMOVL, ncon(0), &hi2)
+ 				splitclean()
+ 				return
+ 			}
+@@ -209,71 +209,71 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 				split64(res, &lo2, &hi2)
+ 				gmove(&lo1, &hi2)
+ 				if v > 32 {
+-					gins(i386.ASHLL, ncon(uint32(v-32)), &hi2)
++					gins(x86.ASHLL, ncon(uint32(v-32)), &hi2)
+ 				}
+ 
+-				gins(i386.AMOVL, ncon(0), &lo2)
++				gins(x86.AMOVL, ncon(0), &lo2)
+ 				splitclean()
+ 				splitclean()
+ 				return
+ 			}
+ 
+ 			// general shift
+-			gins(i386.AMOVL, &lo1, &ax)
++			gins(x86.AMOVL, &lo1, &ax)
+ 
+-			gins(i386.AMOVL, &hi1, &dx)
+-			p1 := gins(i386.ASHLL, ncon(uint32(v)), &dx)
+-			p1.From.Index = i386.REG_AX // double-width shift
++			gins(x86.AMOVL, &hi1, &dx)
++			p1 := gins(x86.ASHLL, ncon(uint32(v)), &dx)
++			p1.From.Index = x86.REG_AX // double-width shift
+ 			p1.From.Scale = 0
+-			gins(i386.ASHLL, ncon(uint32(v)), &ax)
++			gins(x86.ASHLL, ncon(uint32(v)), &ax)
+ 			break
+ 		}
+ 
+ 		// load value into DX:AX.
+-		gins(i386.AMOVL, &lo1, &ax)
++		gins(x86.AMOVL, &lo1, &ax)
+ 
+-		gins(i386.AMOVL, &hi1, &dx)
++		gins(x86.AMOVL, &hi1, &dx)
+ 
+ 		// load shift value into register.
+ 		// if high bits are set, zero value.
+ 		var p1 *obj.Prog
+ 
+ 		if gc.Is64(r.Type) {
+-			gins(i386.ACMPL, &hi2, ncon(0))
+-			p1 = gc.Gbranch(i386.AJNE, nil, +1)
+-			gins(i386.AMOVL, &lo2, &cx)
++			gins(x86.ACMPL, &hi2, ncon(0))
++			p1 = gc.Gbranch(x86.AJNE, nil, +1)
++			gins(x86.AMOVL, &lo2, &cx)
+ 		} else {
+ 			cx.Type = gc.Types[gc.TUINT32]
+ 			gmove(r, &cx)
+ 		}
+ 
+ 		// if shift count is >=64, zero value
+-		gins(i386.ACMPL, &cx, ncon(64))
++		gins(x86.ACMPL, &cx, ncon(64))
+ 
+ 		p2 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
+ 		if p1 != nil {
+ 			gc.Patch(p1, gc.Pc)
+ 		}
+-		gins(i386.AXORL, &dx, &dx)
+-		gins(i386.AXORL, &ax, &ax)
++		gins(x86.AXORL, &dx, &dx)
++		gins(x86.AXORL, &ax, &ax)
+ 		gc.Patch(p2, gc.Pc)
+ 
+ 		// if shift count is >= 32, zero low.
+-		gins(i386.ACMPL, &cx, ncon(32))
++		gins(x86.ACMPL, &cx, ncon(32))
+ 
+ 		p1 = gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
+-		gins(i386.AMOVL, &ax, &dx)
+-		gins(i386.ASHLL, &cx, &dx) // SHLL only uses bottom 5 bits of count
+-		gins(i386.AXORL, &ax, &ax)
++		gins(x86.AMOVL, &ax, &dx)
++		gins(x86.ASHLL, &cx, &dx) // SHLL only uses bottom 5 bits of count
++		gins(x86.AXORL, &ax, &ax)
+ 		p2 = gc.Gbranch(obj.AJMP, nil, 0)
+ 		gc.Patch(p1, gc.Pc)
+ 
+ 		// general shift
+-		p1 = gins(i386.ASHLL, &cx, &dx)
++		p1 = gins(x86.ASHLL, &cx, &dx)
+ 
+-		p1.From.Index = i386.REG_AX // double-width shift
++		p1.From.Index = x86.REG_AX // double-width shift
+ 		p1.From.Scale = 0
+-		gins(i386.ASHLL, &cx, &ax)
++		gins(x86.ASHLL, &cx, &ax)
+ 		gc.Patch(p2, gc.Pc)
+ 
+ 	case gc.ORSH:
+@@ -287,12 +287,12 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 				split64(res, &lo2, &hi2)
+ 				if hi1.Type.Etype == gc.TINT32 {
+ 					gmove(&hi1, &lo2)
+-					gins(i386.ASARL, ncon(31), &lo2)
++					gins(x86.ASARL, ncon(31), &lo2)
+ 					gmove(&hi1, &hi2)
+-					gins(i386.ASARL, ncon(31), &hi2)
++					gins(x86.ASARL, ncon(31), &hi2)
+ 				} else {
+-					gins(i386.AMOVL, ncon(0), &lo2)
+-					gins(i386.AMOVL, ncon(0), &hi2)
++					gins(x86.AMOVL, ncon(0), &lo2)
++					gins(x86.AMOVL, ncon(0), &hi2)
+ 				}
+ 
+ 				splitclean()
+@@ -310,9 +310,9 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 				}
+ 				if hi1.Type.Etype == gc.TINT32 {
+ 					gmove(&hi1, &hi2)
+-					gins(i386.ASARL, ncon(31), &hi2)
++					gins(x86.ASARL, ncon(31), &hi2)
+ 				} else {
+-					gins(i386.AMOVL, ncon(0), &hi2)
++					gins(x86.AMOVL, ncon(0), &hi2)
+ 				}
+ 				splitclean()
+ 				splitclean()
+@@ -320,71 +320,71 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 			}
+ 
+ 			// general shift
+-			gins(i386.AMOVL, &lo1, &ax)
++			gins(x86.AMOVL, &lo1, &ax)
+ 
+-			gins(i386.AMOVL, &hi1, &dx)
+-			p1 := gins(i386.ASHRL, ncon(uint32(v)), &ax)
+-			p1.From.Index = i386.REG_DX // double-width shift
++			gins(x86.AMOVL, &hi1, &dx)
++			p1 := gins(x86.ASHRL, ncon(uint32(v)), &ax)
++			p1.From.Index = x86.REG_DX // double-width shift
+ 			p1.From.Scale = 0
+ 			gins(optoas(gc.ORSH, hi1.Type), ncon(uint32(v)), &dx)
+ 			break
+ 		}
+ 
+ 		// load value into DX:AX.
+-		gins(i386.AMOVL, &lo1, &ax)
++		gins(x86.AMOVL, &lo1, &ax)
+ 
+-		gins(i386.AMOVL, &hi1, &dx)
++		gins(x86.AMOVL, &hi1, &dx)
+ 
+ 		// load shift value into register.
+ 		// if high bits are set, zero value.
+ 		var p1 *obj.Prog
+ 
+ 		if gc.Is64(r.Type) {
+-			gins(i386.ACMPL, &hi2, ncon(0))
+-			p1 = gc.Gbranch(i386.AJNE, nil, +1)
+-			gins(i386.AMOVL, &lo2, &cx)
++			gins(x86.ACMPL, &hi2, ncon(0))
++			p1 = gc.Gbranch(x86.AJNE, nil, +1)
++			gins(x86.AMOVL, &lo2, &cx)
+ 		} else {
+ 			cx.Type = gc.Types[gc.TUINT32]
+ 			gmove(r, &cx)
+ 		}
+ 
+ 		// if shift count is >=64, zero or sign-extend value
+-		gins(i386.ACMPL, &cx, ncon(64))
++		gins(x86.ACMPL, &cx, ncon(64))
+ 
+ 		p2 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
+ 		if p1 != nil {
+ 			gc.Patch(p1, gc.Pc)
+ 		}
+ 		if hi1.Type.Etype == gc.TINT32 {
+-			gins(i386.ASARL, ncon(31), &dx)
+-			gins(i386.AMOVL, &dx, &ax)
++			gins(x86.ASARL, ncon(31), &dx)
++			gins(x86.AMOVL, &dx, &ax)
+ 		} else {
+-			gins(i386.AXORL, &dx, &dx)
+-			gins(i386.AXORL, &ax, &ax)
++			gins(x86.AXORL, &dx, &dx)
++			gins(x86.AXORL, &ax, &ax)
+ 		}
+ 
+ 		gc.Patch(p2, gc.Pc)
+ 
+ 		// if shift count is >= 32, sign-extend hi.
+-		gins(i386.ACMPL, &cx, ncon(32))
++		gins(x86.ACMPL, &cx, ncon(32))
+ 
+ 		p1 = gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
+-		gins(i386.AMOVL, &dx, &ax)
++		gins(x86.AMOVL, &dx, &ax)
+ 		if hi1.Type.Etype == gc.TINT32 {
+-			gins(i386.ASARL, &cx, &ax) // SARL only uses bottom 5 bits of count
+-			gins(i386.ASARL, ncon(31), &dx)
++			gins(x86.ASARL, &cx, &ax) // SARL only uses bottom 5 bits of count
++			gins(x86.ASARL, ncon(31), &dx)
+ 		} else {
+-			gins(i386.ASHRL, &cx, &ax)
+-			gins(i386.AXORL, &dx, &dx)
++			gins(x86.ASHRL, &cx, &ax)
++			gins(x86.AXORL, &dx, &dx)
+ 		}
+ 
+ 		p2 = gc.Gbranch(obj.AJMP, nil, 0)
+ 		gc.Patch(p1, gc.Pc)
+ 
+ 		// general shift
+-		p1 = gins(i386.ASHRL, &cx, &ax)
++		p1 = gins(x86.ASHRL, &cx, &ax)
+ 
+-		p1.From.Index = i386.REG_DX // double-width shift
++		p1.From.Index = x86.REG_DX // double-width shift
+ 		p1.From.Scale = 0
+ 		gins(optoas(gc.ORSH, hi1.Type), &cx, &dx)
+ 		gc.Patch(p2, gc.Pc)
+@@ -414,10 +414,10 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 					break
+ 
+ 				case 0xffffffff:
+-					gins(i386.ANOTL, nil, &lo2)
++					gins(x86.ANOTL, nil, &lo2)
+ 
+ 				default:
+-					gins(i386.AXORL, ncon(lv), &lo2)
++					gins(x86.AXORL, ncon(lv), &lo2)
+ 				}
+ 
+ 				switch hv {
+@@ -425,32 +425,32 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 					break
+ 
+ 				case 0xffffffff:
+-					gins(i386.ANOTL, nil, &hi2)
++					gins(x86.ANOTL, nil, &hi2)
+ 
+ 				default:
+-					gins(i386.AXORL, ncon(hv), &hi2)
++					gins(x86.AXORL, ncon(hv), &hi2)
+ 				}
+ 
+ 			case gc.OAND:
+ 				switch lv {
+ 				case 0:
+-					gins(i386.AMOVL, ncon(0), &lo2)
++					gins(x86.AMOVL, ncon(0), &lo2)
+ 
+ 				default:
+ 					gmove(&lo1, &lo2)
+ 					if lv != 0xffffffff {
+-						gins(i386.AANDL, ncon(lv), &lo2)
++						gins(x86.AANDL, ncon(lv), &lo2)
+ 					}
+ 				}
+ 
+ 				switch hv {
+ 				case 0:
+-					gins(i386.AMOVL, ncon(0), &hi2)
++					gins(x86.AMOVL, ncon(0), &hi2)
+ 
+ 				default:
+ 					gmove(&hi1, &hi2)
+ 					if hv != 0xffffffff {
+-						gins(i386.AANDL, ncon(hv), &hi2)
++						gins(x86.AANDL, ncon(hv), &hi2)
+ 					}
+ 				}
+ 
+@@ -460,11 +460,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 					gmove(&lo1, &lo2)
+ 
+ 				case 0xffffffff:
+-					gins(i386.AMOVL, ncon(0xffffffff), &lo2)
++					gins(x86.AMOVL, ncon(0xffffffff), &lo2)
+ 
+ 				default:
+ 					gmove(&lo1, &lo2)
+-					gins(i386.AORL, ncon(lv), &lo2)
++					gins(x86.AORL, ncon(lv), &lo2)
+ 				}
+ 
+ 				switch hv {
+@@ -472,11 +472,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 					gmove(&hi1, &hi2)
+ 
+ 				case 0xffffffff:
+-					gins(i386.AMOVL, ncon(0xffffffff), &hi2)
++					gins(x86.AMOVL, ncon(0xffffffff), &hi2)
+ 
+ 				default:
+ 					gmove(&hi1, &hi2)
+-					gins(i386.AORL, ncon(hv), &hi2)
++					gins(x86.AORL, ncon(hv), &hi2)
+ 				}
+ 			}
+ 
+@@ -485,8 +485,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 			return
+ 		}
+ 
+-		gins(i386.AMOVL, &lo1, &ax)
+-		gins(i386.AMOVL, &hi1, &dx)
++		gins(x86.AMOVL, &lo1, &ax)
++		gins(x86.AMOVL, &hi1, &dx)
+ 		gins(optoas(int(n.Op), lo1.Type), &lo2, &ax)
+ 		gins(optoas(int(n.Op), lo1.Type), &hi2, &dx)
+ 	}
+@@ -497,8 +497,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	splitclean()
+ 
+ 	split64(res, &lo1, &hi1)
+-	gins(i386.AMOVL, &ax, &lo1)
+-	gins(i386.AMOVL, &dx, &hi1)
++	gins(x86.AMOVL, &ax, &lo1)
++	gins(x86.AMOVL, &dx, &hi1)
+ 	splitclean()
+ }
+ 
+@@ -521,11 +521,11 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
+ 	t := hi1.Type
+ 
+ 	if nl.Op == gc.OLITERAL || nr.Op == gc.OLITERAL {
+-		gins(i386.ACMPL, &hi1, &hi2)
++		gins(x86.ACMPL, &hi1, &hi2)
+ 	} else {
+ 		regalloc(&rr, gc.Types[gc.TINT32], nil)
+-		gins(i386.AMOVL, &hi1, &rr)
+-		gins(i386.ACMPL, &rr, &hi2)
++		gins(x86.AMOVL, &hi1, &rr)
++		gins(x86.ACMPL, &rr, &hi2)
+ 		regfree(&rr)
+ 	}
+ 
+@@ -540,14 +540,14 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
+ 	// jeq to
+ 	// L:
+ 	case gc.OEQ:
+-		br = gc.Gbranch(i386.AJNE, nil, -likely)
++		br = gc.Gbranch(x86.AJNE, nil, -likely)
+ 
+ 		// cmp hi
+ 	// jne to
+ 	// cmp lo
+ 	// jne to
+ 	case gc.ONE:
+-		gc.Patch(gc.Gbranch(i386.AJNE, nil, likely), to)
++		gc.Patch(gc.Gbranch(x86.AJNE, nil, likely), to)
+ 
+ 		// cmp hi
+ 	// jgt to
+@@ -578,11 +578,11 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
+ 	t = lo1.Type
+ 
+ 	if nl.Op == gc.OLITERAL || nr.Op == gc.OLITERAL {
+-		gins(i386.ACMPL, &lo1, &lo2)
++		gins(x86.ACMPL, &lo1, &lo2)
+ 	} else {
+ 		regalloc(&rr, gc.Types[gc.TINT32], nil)
+-		gins(i386.AMOVL, &lo1, &rr)
+-		gins(i386.ACMPL, &rr, &lo2)
++		gins(x86.AMOVL, &lo1, &rr)
++		gins(x86.ACMPL, &rr, &lo2)
+ 		regfree(&rr)
+ 	}
+ 
+diff --git a/src/cmd/8g/galign.go b/src/cmd/8g/galign.go
+index 8cb93198f4..7c462f521f 100644
+--- a/src/cmd/8g/galign.go
++++ b/src/cmd/8g/galign.go
+@@ -7,14 +7,14 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	i386 "cmd/internal/obj/x86"
++	"cmd/internal/obj/x86"
+ )
+ 
+ var thechar int = '8'
+ 
+ var thestring string = "386"
+ 
+-var thelinkarch *obj.LinkArch = &i386.Link386
++var thelinkarch *obj.LinkArch = &x86.Link386
+ 
+ func linkarchinit() {
+ }
+@@ -43,8 +43,8 @@ func main() {
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+ 	gc.Thearch.Typedefs = typedefs
+-	gc.Thearch.REGSP = i386.REGSP
+-	gc.Thearch.REGCTXT = i386.REGCTXT
++	gc.Thearch.REGSP = x86.REGSP
++	gc.Thearch.REGCTXT = x86.REGCTXT
+ 	gc.Thearch.MAXWIDTH = MAXWIDTH
+ 	gc.Thearch.Anyregalloc = anyregalloc
+ 	gc.Thearch.Betypeinit = betypeinit
+diff --git a/src/cmd/8g/gg.go b/src/cmd/8g/gg.go
+index 161dcd0093..bfbd12e2fd 100644
+--- a/src/cmd/8g/gg.go
++++ b/src/cmd/8g/gg.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import i386 "cmd/internal/obj/x86"
++import "cmd/internal/obj/x86"
+ import "cmd/internal/gc"
+ 
+ // TODO(rsc):
+@@ -21,7 +21,7 @@ const (
+ 	Fpop2 = 1 << 2
+ )
+ 
+-var reg [i386.MAXREG]uint8
++var reg [x86.MAXREG]uint8
+ 
+ var panicdiv *gc.Node
+ 
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/8g/ggen.go
+index 617551cb79..c153c9380b 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/8g/ggen.go
+@@ -7,7 +7,7 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	i386 "cmd/internal/obj/x86"
++	"cmd/internal/obj/x86"
+ )
+ 
+ func defframe(ptxt *obj.Prog) {
+@@ -65,23 +65,23 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
+ 		return p
+ 	}
+ 	if *ax == 0 {
+-		p = appendpp(p, i386.AMOVL, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, i386.REG_AX, 0)
++		p = appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+ 		*ax = 1
+ 	}
+ 
+ 	if cnt <= int64(4*gc.Widthreg) {
+ 		for i := int64(0); i < cnt; i += int64(gc.Widthreg) {
+-			p = appendpp(p, i386.AMOVL, obj.TYPE_REG, i386.REG_AX, 0, obj.TYPE_MEM, i386.REG_SP, frame+lo+i)
++			p = appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i)
+ 		}
+ 	} else if !gc.Nacl && cnt <= int64(128*gc.Widthreg) {
+-		p = appendpp(p, i386.ALEAL, obj.TYPE_MEM, i386.REG_SP, frame+lo, obj.TYPE_REG, i386.REG_DI, 0)
++		p = appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(gc.Widthreg)))
+ 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
+ 	} else {
+-		p = appendpp(p, i386.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, i386.REG_CX, 0)
+-		p = appendpp(p, i386.ALEAL, obj.TYPE_MEM, i386.REG_SP, frame+lo, obj.TYPE_REG, i386.REG_DI, 0)
+-		p = appendpp(p, i386.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+-		p = appendpp(p, i386.ASTOSL, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
++		p = appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
++		p = appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
++		p = appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
++		p = appendpp(p, x86.ASTOSL, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+ 	}
+ 
+ 	return p
+@@ -140,7 +140,7 @@ func clearfat(nl *gc.Node) {
+ 				break
+ 			}
+ 			n1.Type = z.Type
+-			gins(i386.AMOVL, &z, &n1)
++			gins(x86.AMOVL, &z, &n1)
+ 			n1.Xoffset += 4
+ 		}
+ 
+@@ -152,7 +152,7 @@ func clearfat(nl *gc.Node) {
+ 				break
+ 			}
+ 			n1.Type = z.Type
+-			gins(i386.AMOVB, &z, &n1)
++			gins(x86.AMOVB, &z, &n1)
+ 			n1.Xoffset++
+ 		}
+ 
+@@ -161,14 +161,14 @@ func clearfat(nl *gc.Node) {
+ 	}
+ 
+ 	var n1 gc.Node
+-	gc.Nodreg(&n1, gc.Types[gc.Tptr], i386.REG_DI)
++	gc.Nodreg(&n1, gc.Types[gc.Tptr], x86.REG_DI)
+ 	agen(nl, &n1)
+-	gconreg(i386.AMOVL, 0, i386.REG_AX)
++	gconreg(x86.AMOVL, 0, x86.REG_AX)
+ 
+ 	if q > 128 || (q >= 4 && gc.Nacl) {
+-		gconreg(i386.AMOVL, int64(q), i386.REG_CX)
+-		gins(i386.AREP, nil, nil)   // repeat
+-		gins(i386.ASTOSL, nil, nil) // STOL AL,*(DI)+
++		gconreg(x86.AMOVL, int64(q), x86.REG_CX)
++		gins(x86.AREP, nil, nil)   // repeat
++		gins(x86.ASTOSL, nil, nil) // STOL AL,*(DI)+
+ 	} else if q >= 4 {
+ 		p := gins(obj.ADUFFZERO, nil, nil)
+ 		p.To.Type = obj.TYPE_ADDR
+@@ -178,13 +178,13 @@ func clearfat(nl *gc.Node) {
+ 		p.To.Offset = 1 * (128 - int64(q))
+ 	} else {
+ 		for q > 0 {
+-			gins(i386.ASTOSL, nil, nil) // STOL AL,*(DI)+
++			gins(x86.ASTOSL, nil, nil) // STOL AL,*(DI)+
+ 			q--
+ 		}
+ 	}
+ 
+ 	for c > 0 {
+-		gins(i386.ASTOSB, nil, nil) // STOB AL,*(DI)+
++		gins(x86.ASTOSB, nil, nil) // STOB AL,*(DI)+
+ 		c--
+ 	}
+ }
+@@ -225,9 +225,9 @@ func ginscall(f *gc.Node, proc int) {
+ 				// because the NOP pseudo-instruction will be removed by
+ 				// the linker.
+ 				var reg gc.Node
+-				gc.Nodreg(&reg, gc.Types[gc.TINT], i386.REG_AX)
++				gc.Nodreg(&reg, gc.Types[gc.TINT], x86.REG_AX)
+ 
+-				gins(i386.AXCHGL, &reg, &reg)
++				gins(x86.AXCHGL, &reg, &reg)
+ 			}
+ 
+ 			p := gins(obj.ACALL, nil, f)
+@@ -239,9 +239,9 @@ func ginscall(f *gc.Node, proc int) {
+ 		}
+ 
+ 		var reg gc.Node
+-		gc.Nodreg(&reg, gc.Types[gc.Tptr], i386.REG_DX)
++		gc.Nodreg(&reg, gc.Types[gc.Tptr], x86.REG_DX)
+ 		var r1 gc.Node
+-		gc.Nodreg(&r1, gc.Types[gc.Tptr], i386.REG_BX)
++		gc.Nodreg(&r1, gc.Types[gc.Tptr], x86.REG_BX)
+ 		gmove(f, &reg)
+ 		reg.Op = gc.OINDREG
+ 		gmove(&reg, &r1)
+@@ -256,19 +256,19 @@ func ginscall(f *gc.Node, proc int) {
+ 		var stk gc.Node
+ 
+ 		stk.Op = gc.OINDREG
+-		stk.Val.U.Reg = i386.REG_SP
++		stk.Val.U.Reg = x86.REG_SP
+ 		stk.Xoffset = 0
+ 
+ 		// size of arguments at 0(SP)
+ 		var con gc.Node
+ 		gc.Nodconst(&con, gc.Types[gc.TINT32], int64(gc.Argsize(f.Type)))
+ 
+-		gins(i386.AMOVL, &con, &stk)
++		gins(x86.AMOVL, &con, &stk)
+ 
+ 		// FuncVal* at 4(SP)
+ 		stk.Xoffset = int64(gc.Widthptr)
+ 
+-		gins(i386.AMOVL, f, &stk)
++		gins(x86.AMOVL, f, &stk)
+ 
+ 		if proc == 1 {
+ 			ginscall(gc.Newproc, 0)
+@@ -277,9 +277,9 @@ func ginscall(f *gc.Node, proc int) {
+ 		}
+ 		if proc == 2 {
+ 			var reg gc.Node
+-			gc.Nodreg(&reg, gc.Types[gc.TINT32], i386.REG_AX)
+-			gins(i386.ATESTL, &reg, &reg)
+-			p := gc.Gbranch(i386.AJEQ, nil, +1)
++			gc.Nodreg(&reg, gc.Types[gc.TINT32], x86.REG_AX)
++			gins(x86.ATESTL, &reg, &reg)
++			p := gc.Gbranch(x86.AJEQ, nil, +1)
+ 			cgen_ret(nil)
+ 			gc.Patch(p, gc.Pc)
+ 		}
+@@ -318,7 +318,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
+ 	igen(i, &nodi, res) // REG = &inter
+ 
+ 	var nodsp gc.Node
+-	gc.Nodindreg(&nodsp, gc.Types[gc.Tptr], i386.REG_SP)
++	gc.Nodindreg(&nodsp, gc.Types[gc.Tptr], x86.REG_SP)
+ 
+ 	nodsp.Xoffset = 0
+ 	if proc != 0 {
+@@ -351,7 +351,7 @@ func cgen_callinter(n *gc.Node, res *gc.Node, proc int) {
+ 		proc = 3
+ 	} else {
+ 		// go/defer. generate go func value.
+-		gins(i386.ALEAL, &nodo, &nodr) // REG = &(20+offset(REG)) -- i.tab->fun[f]
++		gins(x86.ALEAL, &nodo, &nodr) // REG = &(20+offset(REG)) -- i.tab->fun[f]
+ 	}
+ 
+ 	nodr.Type = n.Left.Type
+@@ -431,7 +431,7 @@ func cgen_callret(n *gc.Node, res *gc.Node) {
+ 
+ 	var nod gc.Node
+ 	nod.Op = gc.OINDREG
+-	nod.Val.U.Reg = i386.REG_SP
++	nod.Val.U.Reg = x86.REG_SP
+ 	nod.Addable = 1
+ 
+ 	nod.Xoffset = fp.Width
+@@ -458,7 +458,7 @@ func cgen_aret(n *gc.Node, res *gc.Node) {
+ 
+ 	var nod1 gc.Node
+ 	nod1.Op = gc.OINDREG
+-	nod1.Val.U.Reg = i386.REG_SP
++	nod1.Val.U.Reg = x86.REG_SP
+ 	nod1.Addable = 1
+ 
+ 	nod1.Xoffset = fp.Width
+@@ -467,11 +467,11 @@ func cgen_aret(n *gc.Node, res *gc.Node) {
+ 	if res.Op != gc.OREGISTER {
+ 		var nod2 gc.Node
+ 		regalloc(&nod2, gc.Types[gc.Tptr], res)
+-		gins(i386.ALEAL, &nod1, &nod2)
+-		gins(i386.AMOVL, &nod2, res)
++		gins(x86.ALEAL, &nod1, &nod2)
++		gins(x86.AMOVL, &nod2, res)
+ 		regfree(&nod2)
+ 	} else {
+-		gins(i386.ALEAL, &nod1, res)
++		gins(x86.ALEAL, &nod1, res)
+ 	}
+ }
+ 
+@@ -665,10 +665,10 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	}
+ 	var ax gc.Node
+ 	var oldax gc.Node
+-	savex(i386.REG_AX, &ax, &oldax, res, t)
++	savex(x86.REG_AX, &ax, &oldax, res, t)
+ 	var olddx gc.Node
+ 	var dx gc.Node
+-	savex(i386.REG_DX, &dx, &olddx, res, t)
++	savex(x86.REG_DX, &dx, &olddx, res, t)
+ 	dodiv(op, nl, nr, res, &ax, &dx)
+ 	restx(&dx, &olddx)
+ 	restx(&ax, &oldax)
+@@ -711,8 +711,8 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 
+ 	var oldcx gc.Node
+ 	var cx gc.Node
+-	gc.Nodreg(&cx, gc.Types[gc.TUINT32], i386.REG_CX)
+-	if reg[i386.REG_CX] > 1 && !gc.Samereg(&cx, res) {
++	gc.Nodreg(&cx, gc.Types[gc.TUINT32], x86.REG_CX)
++	if reg[x86.REG_CX] > 1 && !gc.Samereg(&cx, res) {
+ 		gc.Tempname(&oldcx, gc.Types[gc.TUINT32])
+ 		gmove(&cx, &oldcx)
+ 	}
+@@ -723,7 +723,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gc.Tempname(&nt, nr.Type)
+ 		n1 = nt
+ 	} else {
+-		gc.Nodreg(&n1, gc.Types[gc.TUINT32], i386.REG_CX)
++		gc.Nodreg(&n1, gc.Types[gc.TUINT32], x86.REG_CX)
+ 		regalloc(&n1, nr.Type, &n1) // to hold the shift type in CX
+ 	}
+ 
+@@ -745,7 +745,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	if bounded {
+ 		if nr.Type.Width > 4 {
+ 			// delayed reg alloc
+-			gc.Nodreg(&n1, gc.Types[gc.TUINT32], i386.REG_CX)
++			gc.Nodreg(&n1, gc.Types[gc.TUINT32], x86.REG_CX)
+ 
+ 			regalloc(&n1, gc.Types[gc.TUINT32], &n1) // to hold the shift type in CX
+ 			var lo gc.Node
+@@ -758,7 +758,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		var p1 *obj.Prog
+ 		if nr.Type.Width > 4 {
+ 			// delayed reg alloc
+-			gc.Nodreg(&n1, gc.Types[gc.TUINT32], i386.REG_CX)
++			gc.Nodreg(&n1, gc.Types[gc.TUINT32], x86.REG_CX)
+ 
+ 			regalloc(&n1, gc.Types[gc.TUINT32], &n1) // to hold the shift type in CX
+ 			var lo gc.Node
+@@ -858,7 +858,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	cgen(nr, &n2)
+ 
+ 	// multiply.
+-	gc.Nodreg(&ax, t, i386.REG_AX)
++	gc.Nodreg(&ax, t, x86.REG_AX)
+ 
+ 	gmove(&n2, &ax)
+ 	gins(a, &n1, nil)
+@@ -866,13 +866,13 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 
+ 	if t.Width == 1 {
+ 		// byte multiply behaves differently.
+-		gc.Nodreg(&ax, t, i386.REG_AH)
++		gc.Nodreg(&ax, t, x86.REG_AH)
+ 
+-		gc.Nodreg(&dx, t, i386.REG_DX)
++		gc.Nodreg(&dx, t, x86.REG_DX)
+ 		gmove(&ax, &dx)
+ 	}
+ 
+-	gc.Nodreg(&dx, t, i386.REG_DX)
++	gc.Nodreg(&dx, t, x86.REG_DX)
+ 	gmove(&dx, res)
+ }
+ 
+@@ -931,8 +931,8 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
+ 
+ 	nl := n.Left
+ 	nr := n.Right
+-	gc.Nodreg(&f0, nl.Type, i386.REG_F0)
+-	gc.Nodreg(&f1, n.Type, i386.REG_F0+1)
++	gc.Nodreg(&f0, nl.Type, x86.REG_F0)
++	gc.Nodreg(&f1, n.Type, x86.REG_F0+1)
+ 	if nr != nil {
+ 		// binary
+ 		if nl.Ullman >= nr.Ullman {
+@@ -1118,22 +1118,22 @@ x87:
+ 		a = gc.Brrev(a)
+ 	}
+ 
+-	gc.Nodreg(&tmp, nr.Type, i386.REG_F0)
+-	gc.Nodreg(&n2, nr.Type, i386.REG_F0+1)
+-	gc.Nodreg(&ax, gc.Types[gc.TUINT16], i386.REG_AX)
++	gc.Nodreg(&tmp, nr.Type, x86.REG_F0)
++	gc.Nodreg(&n2, nr.Type, x86.REG_F0+1)
++	gc.Nodreg(&ax, gc.Types[gc.TUINT16], x86.REG_AX)
+ 	et = gc.Simsimtype(nr.Type)
+ 	if et == gc.TFLOAT64 {
+ 		if nl.Ullman > nr.Ullman {
+ 			cgen(nl, &tmp)
+ 			cgen(nr, &tmp)
+-			gins(i386.AFXCHD, &tmp, &n2)
++			gins(x86.AFXCHD, &tmp, &n2)
+ 		} else {
+ 			cgen(nr, &tmp)
+ 			cgen(nl, &tmp)
+ 		}
+ 
+-		gins(i386.AFUCOMIP, &tmp, &n2)
+-		gins(i386.AFMOVDP, &tmp, &tmp) // annoying pop but still better than STSW+SAHF
++		gins(x86.AFUCOMIP, &tmp, &n2)
++		gins(x86.AFMOVDP, &tmp, &tmp) // annoying pop but still better than STSW+SAHF
+ 	} else {
+ 		// TODO(rsc): The moves back and forth to memory
+ 		// here are for truncating the value to 32 bits.
+@@ -1149,9 +1149,9 @@ x87:
+ 		cgen(nr, &t1)
+ 		cgen(nl, &t2)
+ 		gmove(&t2, &tmp)
+-		gins(i386.AFCOMFP, &t1, &tmp)
+-		gins(i386.AFSTSW, nil, &ax)
+-		gins(i386.ASAHF, nil, nil)
++		gins(x86.AFCOMFP, &t1, &tmp)
++		gins(x86.AFSTSW, nil, &ax)
++		gins(x86.ASAHF, nil, nil)
+ 	}
+ 
+ 	goto ret
+@@ -1159,17 +1159,17 @@ x87:
+ ret:
+ 	if a == gc.OEQ {
+ 		// neither NE nor P
+-		p1 := gc.Gbranch(i386.AJNE, nil, -likely)
++		p1 := gc.Gbranch(x86.AJNE, nil, -likely)
+ 
+-		p2 := gc.Gbranch(i386.AJPS, nil, -likely)
++		p2 := gc.Gbranch(x86.AJPS, nil, -likely)
+ 		gc.Patch(gc.Gbranch(obj.AJMP, nil, 0), to)
+ 		gc.Patch(p1, gc.Pc)
+ 		gc.Patch(p2, gc.Pc)
+ 	} else if a == gc.ONE {
+ 		// either NE or P
+-		gc.Patch(gc.Gbranch(i386.AJNE, nil, likely), to)
++		gc.Patch(gc.Gbranch(x86.AJNE, nil, likely), to)
+ 
+-		gc.Patch(gc.Gbranch(i386.AJPS, nil, likely), to)
++		gc.Patch(gc.Gbranch(x86.AJPS, nil, likely), to)
+ 	} else {
+ 		gc.Patch(gc.Gbranch(optoas(a, nr.Type), nil, likely), to)
+ 	}
+@@ -1205,10 +1205,10 @@ func expandchecks(firstp *obj.Prog) {
+ 		p2.Lineno = p.Lineno
+ 		p1.Pc = 9999
+ 		p2.Pc = 9999
+-		p.As = i386.ACMPL
++		p.As = x86.ACMPL
+ 		p.To.Type = obj.TYPE_CONST
+ 		p.To.Offset = 0
+-		p1.As = i386.AJNE
++		p1.As = x86.AJNE
+ 		p1.From.Type = obj.TYPE_CONST
+ 		p1.From.Offset = 1 // likely
+ 		p1.To.Type = obj.TYPE_BRANCH
+@@ -1217,10 +1217,10 @@ func expandchecks(firstp *obj.Prog) {
+ 		// crash by write to memory address 0.
+ 		// if possible, since we know arg is 0, use 0(arg),
+ 		// which will be shorter to encode than plain 0.
+-		p2.As = i386.AMOVL
++		p2.As = x86.AMOVL
+ 
+ 		p2.From.Type = obj.TYPE_REG
+-		p2.From.Reg = i386.REG_AX
++		p2.From.Reg = x86.REG_AX
+ 		if regtyp(&p.From) {
+ 			p2.To.Type = obj.TYPE_MEM
+ 			p2.To.Reg = p.From.Reg
+diff --git a/src/cmd/8g/gsubr.go b/src/cmd/8g/gsubr.go
+index 91dec418aa..0979cb514a 100644
+--- a/src/cmd/8g/gsubr.go
++++ b/src/cmd/8g/gsubr.go
+@@ -33,7 +33,7 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	i386 "cmd/internal/obj/x86"
++	"cmd/internal/obj/x86"
+ 	"fmt"
+ )
+ 
+@@ -56,7 +56,7 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.Fatal("optoas: no entry %v-%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
+ 
+ 	case gc.OADDR<<16 | gc.TPTR32:
+-		a = i386.ALEAL
++		a = x86.ALEAL
+ 
+ 	case gc.OEQ<<16 | gc.TBOOL,
+ 		gc.OEQ<<16 | gc.TINT8,
+@@ -71,7 +71,7 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OEQ<<16 | gc.TPTR64,
+ 		gc.OEQ<<16 | gc.TFLOAT32,
+ 		gc.OEQ<<16 | gc.TFLOAT64:
+-		a = i386.AJEQ
++		a = x86.AJEQ
+ 
+ 	case gc.ONE<<16 | gc.TBOOL,
+ 		gc.ONE<<16 | gc.TINT8,
+@@ -86,37 +86,37 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.ONE<<16 | gc.TPTR64,
+ 		gc.ONE<<16 | gc.TFLOAT32,
+ 		gc.ONE<<16 | gc.TFLOAT64:
+-		a = i386.AJNE
++		a = x86.AJNE
+ 
+ 	case gc.OLT<<16 | gc.TINT8,
+ 		gc.OLT<<16 | gc.TINT16,
+ 		gc.OLT<<16 | gc.TINT32,
+ 		gc.OLT<<16 | gc.TINT64:
+-		a = i386.AJLT
++		a = x86.AJLT
+ 
+ 	case gc.OLT<<16 | gc.TUINT8,
+ 		gc.OLT<<16 | gc.TUINT16,
+ 		gc.OLT<<16 | gc.TUINT32,
+ 		gc.OLT<<16 | gc.TUINT64:
+-		a = i386.AJCS
++		a = x86.AJCS
+ 
+ 	case gc.OLE<<16 | gc.TINT8,
+ 		gc.OLE<<16 | gc.TINT16,
+ 		gc.OLE<<16 | gc.TINT32,
+ 		gc.OLE<<16 | gc.TINT64:
+-		a = i386.AJLE
++		a = x86.AJLE
+ 
+ 	case gc.OLE<<16 | gc.TUINT8,
+ 		gc.OLE<<16 | gc.TUINT16,
+ 		gc.OLE<<16 | gc.TUINT32,
+ 		gc.OLE<<16 | gc.TUINT64:
+-		a = i386.AJLS
++		a = x86.AJLS
+ 
+ 	case gc.OGT<<16 | gc.TINT8,
+ 		gc.OGT<<16 | gc.TINT16,
+ 		gc.OGT<<16 | gc.TINT32,
+ 		gc.OGT<<16 | gc.TINT64:
+-		a = i386.AJGT
++		a = x86.AJGT
+ 
+ 	case gc.OGT<<16 | gc.TUINT8,
+ 		gc.OGT<<16 | gc.TUINT16,
+@@ -124,13 +124,13 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OGT<<16 | gc.TUINT64,
+ 		gc.OLT<<16 | gc.TFLOAT32,
+ 		gc.OLT<<16 | gc.TFLOAT64:
+-		a = i386.AJHI
++		a = x86.AJHI
+ 
+ 	case gc.OGE<<16 | gc.TINT8,
+ 		gc.OGE<<16 | gc.TINT16,
+ 		gc.OGE<<16 | gc.TINT32,
+ 		gc.OGE<<16 | gc.TINT64:
+-		a = i386.AJGE
++		a = x86.AJGE
+ 
+ 	case gc.OGE<<16 | gc.TUINT8,
+ 		gc.OGE<<16 | gc.TUINT16,
+@@ -138,261 +138,261 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OGE<<16 | gc.TUINT64,
+ 		gc.OLE<<16 | gc.TFLOAT32,
+ 		gc.OLE<<16 | gc.TFLOAT64:
+-		a = i386.AJCC
++		a = x86.AJCC
+ 
+ 	case gc.OCMP<<16 | gc.TBOOL,
+ 		gc.OCMP<<16 | gc.TINT8,
+ 		gc.OCMP<<16 | gc.TUINT8:
+-		a = i386.ACMPB
++		a = x86.ACMPB
+ 
+ 	case gc.OCMP<<16 | gc.TINT16,
+ 		gc.OCMP<<16 | gc.TUINT16:
+-		a = i386.ACMPW
++		a = x86.ACMPW
+ 
+ 	case gc.OCMP<<16 | gc.TINT32,
+ 		gc.OCMP<<16 | gc.TUINT32,
+ 		gc.OCMP<<16 | gc.TPTR32:
+-		a = i386.ACMPL
++		a = x86.ACMPL
+ 
+ 	case gc.OAS<<16 | gc.TBOOL,
+ 		gc.OAS<<16 | gc.TINT8,
+ 		gc.OAS<<16 | gc.TUINT8:
+-		a = i386.AMOVB
++		a = x86.AMOVB
+ 
+ 	case gc.OAS<<16 | gc.TINT16,
+ 		gc.OAS<<16 | gc.TUINT16:
+-		a = i386.AMOVW
++		a = x86.AMOVW
+ 
+ 	case gc.OAS<<16 | gc.TINT32,
+ 		gc.OAS<<16 | gc.TUINT32,
+ 		gc.OAS<<16 | gc.TPTR32:
+-		a = i386.AMOVL
++		a = x86.AMOVL
+ 
+ 	case gc.OAS<<16 | gc.TFLOAT32:
+-		a = i386.AMOVSS
++		a = x86.AMOVSS
+ 
+ 	case gc.OAS<<16 | gc.TFLOAT64:
+-		a = i386.AMOVSD
++		a = x86.AMOVSD
+ 
+ 	case gc.OADD<<16 | gc.TINT8,
+ 		gc.OADD<<16 | gc.TUINT8:
+-		a = i386.AADDB
++		a = x86.AADDB
+ 
+ 	case gc.OADD<<16 | gc.TINT16,
+ 		gc.OADD<<16 | gc.TUINT16:
+-		a = i386.AADDW
++		a = x86.AADDW
+ 
+ 	case gc.OADD<<16 | gc.TINT32,
+ 		gc.OADD<<16 | gc.TUINT32,
+ 		gc.OADD<<16 | gc.TPTR32:
+-		a = i386.AADDL
++		a = x86.AADDL
+ 
+ 	case gc.OSUB<<16 | gc.TINT8,
+ 		gc.OSUB<<16 | gc.TUINT8:
+-		a = i386.ASUBB
++		a = x86.ASUBB
+ 
+ 	case gc.OSUB<<16 | gc.TINT16,
+ 		gc.OSUB<<16 | gc.TUINT16:
+-		a = i386.ASUBW
++		a = x86.ASUBW
+ 
+ 	case gc.OSUB<<16 | gc.TINT32,
+ 		gc.OSUB<<16 | gc.TUINT32,
+ 		gc.OSUB<<16 | gc.TPTR32:
+-		a = i386.ASUBL
++		a = x86.ASUBL
+ 
+ 	case gc.OINC<<16 | gc.TINT8,
+ 		gc.OINC<<16 | gc.TUINT8:
+-		a = i386.AINCB
++		a = x86.AINCB
+ 
+ 	case gc.OINC<<16 | gc.TINT16,
+ 		gc.OINC<<16 | gc.TUINT16:
+-		a = i386.AINCW
++		a = x86.AINCW
+ 
+ 	case gc.OINC<<16 | gc.TINT32,
+ 		gc.OINC<<16 | gc.TUINT32,
+ 		gc.OINC<<16 | gc.TPTR32:
+-		a = i386.AINCL
++		a = x86.AINCL
+ 
+ 	case gc.ODEC<<16 | gc.TINT8,
+ 		gc.ODEC<<16 | gc.TUINT8:
+-		a = i386.ADECB
++		a = x86.ADECB
+ 
+ 	case gc.ODEC<<16 | gc.TINT16,
+ 		gc.ODEC<<16 | gc.TUINT16:
+-		a = i386.ADECW
++		a = x86.ADECW
+ 
+ 	case gc.ODEC<<16 | gc.TINT32,
+ 		gc.ODEC<<16 | gc.TUINT32,
+ 		gc.ODEC<<16 | gc.TPTR32:
+-		a = i386.ADECL
++		a = x86.ADECL
+ 
+ 	case gc.OCOM<<16 | gc.TINT8,
+ 		gc.OCOM<<16 | gc.TUINT8:
+-		a = i386.ANOTB
++		a = x86.ANOTB
+ 
+ 	case gc.OCOM<<16 | gc.TINT16,
+ 		gc.OCOM<<16 | gc.TUINT16:
+-		a = i386.ANOTW
++		a = x86.ANOTW
+ 
+ 	case gc.OCOM<<16 | gc.TINT32,
+ 		gc.OCOM<<16 | gc.TUINT32,
+ 		gc.OCOM<<16 | gc.TPTR32:
+-		a = i386.ANOTL
++		a = x86.ANOTL
+ 
+ 	case gc.OMINUS<<16 | gc.TINT8,
+ 		gc.OMINUS<<16 | gc.TUINT8:
+-		a = i386.ANEGB
++		a = x86.ANEGB
+ 
+ 	case gc.OMINUS<<16 | gc.TINT16,
+ 		gc.OMINUS<<16 | gc.TUINT16:
+-		a = i386.ANEGW
++		a = x86.ANEGW
+ 
+ 	case gc.OMINUS<<16 | gc.TINT32,
+ 		gc.OMINUS<<16 | gc.TUINT32,
+ 		gc.OMINUS<<16 | gc.TPTR32:
+-		a = i386.ANEGL
++		a = x86.ANEGL
+ 
+ 	case gc.OAND<<16 | gc.TINT8,
+ 		gc.OAND<<16 | gc.TUINT8:
+-		a = i386.AANDB
++		a = x86.AANDB
+ 
+ 	case gc.OAND<<16 | gc.TINT16,
+ 		gc.OAND<<16 | gc.TUINT16:
+-		a = i386.AANDW
++		a = x86.AANDW
+ 
+ 	case gc.OAND<<16 | gc.TINT32,
+ 		gc.OAND<<16 | gc.TUINT32,
+ 		gc.OAND<<16 | gc.TPTR32:
+-		a = i386.AANDL
++		a = x86.AANDL
+ 
+ 	case gc.OOR<<16 | gc.TINT8,
+ 		gc.OOR<<16 | gc.TUINT8:
+-		a = i386.AORB
++		a = x86.AORB
+ 
+ 	case gc.OOR<<16 | gc.TINT16,
+ 		gc.OOR<<16 | gc.TUINT16:
+-		a = i386.AORW
++		a = x86.AORW
+ 
+ 	case gc.OOR<<16 | gc.TINT32,
+ 		gc.OOR<<16 | gc.TUINT32,
+ 		gc.OOR<<16 | gc.TPTR32:
+-		a = i386.AORL
++		a = x86.AORL
+ 
+ 	case gc.OXOR<<16 | gc.TINT8,
+ 		gc.OXOR<<16 | gc.TUINT8:
+-		a = i386.AXORB
++		a = x86.AXORB
+ 
+ 	case gc.OXOR<<16 | gc.TINT16,
+ 		gc.OXOR<<16 | gc.TUINT16:
+-		a = i386.AXORW
++		a = x86.AXORW
+ 
+ 	case gc.OXOR<<16 | gc.TINT32,
+ 		gc.OXOR<<16 | gc.TUINT32,
+ 		gc.OXOR<<16 | gc.TPTR32:
+-		a = i386.AXORL
++		a = x86.AXORL
+ 
+ 	case gc.OLROT<<16 | gc.TINT8,
+ 		gc.OLROT<<16 | gc.TUINT8:
+-		a = i386.AROLB
++		a = x86.AROLB
+ 
+ 	case gc.OLROT<<16 | gc.TINT16,
+ 		gc.OLROT<<16 | gc.TUINT16:
+-		a = i386.AROLW
++		a = x86.AROLW
+ 
+ 	case gc.OLROT<<16 | gc.TINT32,
+ 		gc.OLROT<<16 | gc.TUINT32,
+ 		gc.OLROT<<16 | gc.TPTR32:
+-		a = i386.AROLL
++		a = x86.AROLL
+ 
+ 	case gc.OLSH<<16 | gc.TINT8,
+ 		gc.OLSH<<16 | gc.TUINT8:
+-		a = i386.ASHLB
++		a = x86.ASHLB
+ 
+ 	case gc.OLSH<<16 | gc.TINT16,
+ 		gc.OLSH<<16 | gc.TUINT16:
+-		a = i386.ASHLW
++		a = x86.ASHLW
+ 
+ 	case gc.OLSH<<16 | gc.TINT32,
+ 		gc.OLSH<<16 | gc.TUINT32,
+ 		gc.OLSH<<16 | gc.TPTR32:
+-		a = i386.ASHLL
++		a = x86.ASHLL
+ 
+ 	case gc.ORSH<<16 | gc.TUINT8:
+-		a = i386.ASHRB
++		a = x86.ASHRB
+ 
+ 	case gc.ORSH<<16 | gc.TUINT16:
+-		a = i386.ASHRW
++		a = x86.ASHRW
+ 
+ 	case gc.ORSH<<16 | gc.TUINT32,
+ 		gc.ORSH<<16 | gc.TPTR32:
+-		a = i386.ASHRL
++		a = x86.ASHRL
+ 
+ 	case gc.ORSH<<16 | gc.TINT8:
+-		a = i386.ASARB
++		a = x86.ASARB
+ 
+ 	case gc.ORSH<<16 | gc.TINT16:
+-		a = i386.ASARW
++		a = x86.ASARW
+ 
+ 	case gc.ORSH<<16 | gc.TINT32:
+-		a = i386.ASARL
++		a = x86.ASARL
+ 
+ 	case gc.OHMUL<<16 | gc.TINT8,
+ 		gc.OMUL<<16 | gc.TINT8,
+ 		gc.OMUL<<16 | gc.TUINT8:
+-		a = i386.AIMULB
++		a = x86.AIMULB
+ 
+ 	case gc.OHMUL<<16 | gc.TINT16,
+ 		gc.OMUL<<16 | gc.TINT16,
+ 		gc.OMUL<<16 | gc.TUINT16:
+-		a = i386.AIMULW
++		a = x86.AIMULW
+ 
+ 	case gc.OHMUL<<16 | gc.TINT32,
+ 		gc.OMUL<<16 | gc.TINT32,
+ 		gc.OMUL<<16 | gc.TUINT32,
+ 		gc.OMUL<<16 | gc.TPTR32:
+-		a = i386.AIMULL
++		a = x86.AIMULL
+ 
+ 	case gc.OHMUL<<16 | gc.TUINT8:
+-		a = i386.AMULB
++		a = x86.AMULB
+ 
+ 	case gc.OHMUL<<16 | gc.TUINT16:
+-		a = i386.AMULW
++		a = x86.AMULW
+ 
+ 	case gc.OHMUL<<16 | gc.TUINT32,
+ 		gc.OHMUL<<16 | gc.TPTR32:
+-		a = i386.AMULL
++		a = x86.AMULL
+ 
+ 	case gc.ODIV<<16 | gc.TINT8,
+ 		gc.OMOD<<16 | gc.TINT8:
+-		a = i386.AIDIVB
++		a = x86.AIDIVB
+ 
+ 	case gc.ODIV<<16 | gc.TUINT8,
+ 		gc.OMOD<<16 | gc.TUINT8:
+-		a = i386.ADIVB
++		a = x86.ADIVB
+ 
+ 	case gc.ODIV<<16 | gc.TINT16,
+ 		gc.OMOD<<16 | gc.TINT16:
+-		a = i386.AIDIVW
++		a = x86.AIDIVW
+ 
+ 	case gc.ODIV<<16 | gc.TUINT16,
+ 		gc.OMOD<<16 | gc.TUINT16:
+-		a = i386.ADIVW
++		a = x86.ADIVW
+ 
+ 	case gc.ODIV<<16 | gc.TINT32,
+ 		gc.OMOD<<16 | gc.TINT32:
+-		a = i386.AIDIVL
++		a = x86.AIDIVL
+ 
+ 	case gc.ODIV<<16 | gc.TUINT32,
+ 		gc.ODIV<<16 | gc.TPTR32,
+ 		gc.OMOD<<16 | gc.TUINT32,
+ 		gc.OMOD<<16 | gc.TPTR32:
+-		a = i386.ADIVL
++		a = x86.ADIVL
+ 
+ 	case gc.OEXTEND<<16 | gc.TINT16:
+-		a = i386.ACWD
++		a = x86.ACWD
+ 
+ 	case gc.OEXTEND<<16 | gc.TINT32:
+-		a = i386.ACDQ
++		a = x86.ACDQ
+ 	}
+ 
+ 	return a
+@@ -408,40 +408,40 @@ func foptoas(op int, t *gc.Type, flg int) int {
+ 			gc.Fatal("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
+ 
+ 		case gc.OCMP<<16 | gc.TFLOAT32:
+-			a = i386.AUCOMISS
++			a = x86.AUCOMISS
+ 
+ 		case gc.OCMP<<16 | gc.TFLOAT64:
+-			a = i386.AUCOMISD
++			a = x86.AUCOMISD
+ 
+ 		case gc.OAS<<16 | gc.TFLOAT32:
+-			a = i386.AMOVSS
++			a = x86.AMOVSS
+ 
+ 		case gc.OAS<<16 | gc.TFLOAT64:
+-			a = i386.AMOVSD
++			a = x86.AMOVSD
+ 
+ 		case gc.OADD<<16 | gc.TFLOAT32:
+-			a = i386.AADDSS
++			a = x86.AADDSS
+ 
+ 		case gc.OADD<<16 | gc.TFLOAT64:
+-			a = i386.AADDSD
++			a = x86.AADDSD
+ 
+ 		case gc.OSUB<<16 | gc.TFLOAT32:
+-			a = i386.ASUBSS
++			a = x86.ASUBSS
+ 
+ 		case gc.OSUB<<16 | gc.TFLOAT64:
+-			a = i386.ASUBSD
++			a = x86.ASUBSD
+ 
+ 		case gc.OMUL<<16 | gc.TFLOAT32:
+-			a = i386.AMULSS
++			a = x86.AMULSS
+ 
+ 		case gc.OMUL<<16 | gc.TFLOAT64:
+-			a = i386.AMULSD
++			a = x86.AMULSD
+ 
+ 		case gc.ODIV<<16 | gc.TFLOAT32:
+-			a = i386.ADIVSS
++			a = x86.ADIVSS
+ 
+ 		case gc.ODIV<<16 | gc.TFLOAT64:
+-			a = i386.ADIVSD
++			a = x86.ADIVSD
+ 		}
+ 
+ 		return a
+@@ -463,79 +463,79 @@ func foptoas(op int, t *gc.Type, flg int) int {
+ 
+ 	switch uint32(op)<<16 | (uint32(et)<<8 | uint32(flg)) {
+ 	case gc.OADD<<16 | (gc.TFLOAT32<<8 | 0):
+-		return i386.AFADDF
++		return x86.AFADDF
+ 
+ 	case gc.OADD<<16 | (gc.TFLOAT64<<8 | 0):
+-		return i386.AFADDD
++		return x86.AFADDD
+ 
+ 	case gc.OADD<<16 | (gc.TFLOAT64<<8 | Fpop):
+-		return i386.AFADDDP
++		return x86.AFADDDP
+ 
+ 	case gc.OSUB<<16 | (gc.TFLOAT32<<8 | 0):
+-		return i386.AFSUBF
++		return x86.AFSUBF
+ 
+ 	case gc.OSUB<<16 | (gc.TFLOAT32<<8 | Frev):
+-		return i386.AFSUBRF
++		return x86.AFSUBRF
+ 
+ 	case gc.OSUB<<16 | (gc.TFLOAT64<<8 | 0):
+-		return i386.AFSUBD
++		return x86.AFSUBD
+ 
+ 	case gc.OSUB<<16 | (gc.TFLOAT64<<8 | Frev):
+-		return i386.AFSUBRD
++		return x86.AFSUBRD
+ 
+ 	case gc.OSUB<<16 | (gc.TFLOAT64<<8 | Fpop):
+-		return i386.AFSUBDP
++		return x86.AFSUBDP
+ 
+ 	case gc.OSUB<<16 | (gc.TFLOAT64<<8 | (Fpop | Frev)):
+-		return i386.AFSUBRDP
++		return x86.AFSUBRDP
+ 
+ 	case gc.OMUL<<16 | (gc.TFLOAT32<<8 | 0):
+-		return i386.AFMULF
++		return x86.AFMULF
+ 
+ 	case gc.OMUL<<16 | (gc.TFLOAT64<<8 | 0):
+-		return i386.AFMULD
++		return x86.AFMULD
+ 
+ 	case gc.OMUL<<16 | (gc.TFLOAT64<<8 | Fpop):
+-		return i386.AFMULDP
++		return x86.AFMULDP
+ 
+ 	case gc.ODIV<<16 | (gc.TFLOAT32<<8 | 0):
+-		return i386.AFDIVF
++		return x86.AFDIVF
+ 
+ 	case gc.ODIV<<16 | (gc.TFLOAT32<<8 | Frev):
+-		return i386.AFDIVRF
++		return x86.AFDIVRF
+ 
+ 	case gc.ODIV<<16 | (gc.TFLOAT64<<8 | 0):
+-		return i386.AFDIVD
++		return x86.AFDIVD
+ 
+ 	case gc.ODIV<<16 | (gc.TFLOAT64<<8 | Frev):
+-		return i386.AFDIVRD
++		return x86.AFDIVRD
+ 
+ 	case gc.ODIV<<16 | (gc.TFLOAT64<<8 | Fpop):
+-		return i386.AFDIVDP
++		return x86.AFDIVDP
+ 
+ 	case gc.ODIV<<16 | (gc.TFLOAT64<<8 | (Fpop | Frev)):
+-		return i386.AFDIVRDP
++		return x86.AFDIVRDP
+ 
+ 	case gc.OCMP<<16 | (gc.TFLOAT32<<8 | 0):
+-		return i386.AFCOMF
++		return x86.AFCOMF
+ 
+ 	case gc.OCMP<<16 | (gc.TFLOAT32<<8 | Fpop):
+-		return i386.AFCOMFP
++		return x86.AFCOMFP
+ 
+ 	case gc.OCMP<<16 | (gc.TFLOAT64<<8 | 0):
+-		return i386.AFCOMD
++		return x86.AFCOMD
+ 
+ 	case gc.OCMP<<16 | (gc.TFLOAT64<<8 | Fpop):
+-		return i386.AFCOMDP
++		return x86.AFCOMDP
+ 
+ 	case gc.OCMP<<16 | (gc.TFLOAT64<<8 | Fpop2):
+-		return i386.AFCOMDPP
++		return x86.AFCOMDPP
+ 
+ 	case gc.OMINUS<<16 | (gc.TFLOAT32<<8 | 0):
+-		return i386.AFCHS
++		return x86.AFCHS
+ 
+ 	case gc.OMINUS<<16 | (gc.TFLOAT64<<8 | 0):
+-		return i386.AFCHS
++		return x86.AFCHS
+ 	}
+ 
+ 	gc.Fatal("foptoas %v %v %#x", gc.Oconv(int(op), 0), gc.Tconv(t, 0), flg)
+@@ -546,23 +546,23 @@ var resvd = []int{
+ 	//	REG_DI,	// for movstring
+ 	//	REG_SI,	// for movstring
+ 
+-	i386.REG_AX, // for divide
+-	i386.REG_CX, // for shift
+-	i386.REG_DX, // for divide
+-	i386.REG_SP, // for stack
++	x86.REG_AX, // for divide
++	x86.REG_CX, // for shift
++	x86.REG_DX, // for divide
++	x86.REG_SP, // for stack
+ 
+-	i386.REG_BL, // because REG_BX can be allocated
+-	i386.REG_BH,
++	x86.REG_BL, // because REG_BX can be allocated
++	x86.REG_BH,
+ }
+ 
+ func ginit() {
+ 	for i := 0; i < len(reg); i++ {
+ 		reg[i] = 1
+ 	}
+-	for i := i386.REG_AX; i <= i386.REG_DI; i++ {
++	for i := x86.REG_AX; i <= x86.REG_DI; i++ {
+ 		reg[i] = 0
+ 	}
+-	for i := i386.REG_X0; i <= i386.REG_X7; i++ {
++	for i := x86.REG_X0; i <= x86.REG_X7; i++ {
+ 		reg[i] = 0
+ 	}
+ 	for i := 0; i < len(resvd); i++ {
+@@ -570,19 +570,19 @@ func ginit() {
+ 	}
+ }
+ 
+-var regpc [i386.MAXREG]uint32
++var regpc [x86.MAXREG]uint32
+ 
+ func gclean() {
+ 	for i := 0; i < len(resvd); i++ {
+ 		reg[resvd[i]]--
+ 	}
+ 
+-	for i := i386.REG_AX; i <= i386.REG_DI; i++ {
++	for i := x86.REG_AX; i <= x86.REG_DI; i++ {
+ 		if reg[i] != 0 {
+ 			gc.Yyerror("reg %v left allocated at %x", obj.Rconv(i), regpc[i])
+ 		}
+ 	}
+-	for i := i386.REG_X0; i <= i386.REG_X7; i++ {
++	for i := x86.REG_X0; i <= x86.REG_X7; i++ {
+ 		if reg[i] != 0 {
+ 			gc.Yyerror("reg %v left allocated\n", obj.Rconv(i))
+ 		}
+@@ -592,7 +592,7 @@ func gclean() {
+ func anyregalloc() bool {
+ 	var j int
+ 
+-	for i := i386.REG_AX; i <= i386.REG_DI; i++ {
++	for i := x86.REG_AX; i <= x86.REG_DI; i++ {
+ 		if reg[i] == 0 {
+ 			goto ok
+ 		}
+@@ -605,7 +605,7 @@ func anyregalloc() bool {
+ 	ok:
+ 	}
+ 
+-	for i := i386.REG_X0; i <= i386.REG_X7; i++ {
++	for i := x86.REG_X0; i <= x86.REG_X7; i++ {
+ 		if reg[i] != 0 {
+ 			return true
+ 		}
+@@ -641,19 +641,19 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
+ 		gc.TBOOL:
+ 		if o != nil && o.Op == gc.OREGISTER {
+ 			i = int(o.Val.U.Reg)
+-			if i >= i386.REG_AX && i <= i386.REG_DI {
++			if i >= x86.REG_AX && i <= x86.REG_DI {
+ 				goto out
+ 			}
+ 		}
+ 
+-		for i = i386.REG_AX; i <= i386.REG_DI; i++ {
++		for i = x86.REG_AX; i <= x86.REG_DI; i++ {
+ 			if reg[i] == 0 {
+ 				goto out
+ 			}
+ 		}
+ 
+ 		fmt.Printf("registers allocated at\n")
+-		for i := i386.REG_AX; i <= i386.REG_DI; i++ {
++		for i := x86.REG_AX; i <= x86.REG_DI; i++ {
+ 			fmt.Printf("\t%v\t%#x\n", obj.Rconv(i), regpc[i])
+ 		}
+ 		gc.Fatal("out of fixed registers")
+@@ -662,24 +662,24 @@ func regalloc(n *gc.Node, t *gc.Type, o *gc.Node) {
+ 	case gc.TFLOAT32,
+ 		gc.TFLOAT64:
+ 		if gc.Use_sse == 0 {
+-			i = i386.REG_F0
++			i = x86.REG_F0
+ 			goto out
+ 		}
+ 
+ 		if o != nil && o.Op == gc.OREGISTER {
+ 			i = int(o.Val.U.Reg)
+-			if i >= i386.REG_X0 && i <= i386.REG_X7 {
++			if i >= x86.REG_X0 && i <= x86.REG_X7 {
+ 				goto out
+ 			}
+ 		}
+ 
+-		for i = i386.REG_X0; i <= i386.REG_X7; i++ {
++		for i = x86.REG_X0; i <= x86.REG_X7; i++ {
+ 			if reg[i] == 0 {
+ 				goto out
+ 			}
+ 		}
+ 		fmt.Printf("registers allocated at\n")
+-		for i := i386.REG_X0; i <= i386.REG_X7; i++ {
++		for i := x86.REG_X0; i <= x86.REG_X7; i++ {
+ 			fmt.Printf("\t%v\t%#x\n", obj.Rconv(i), regpc[i])
+ 		}
+ 		gc.Fatal("out of floating registers")
+@@ -692,12 +692,12 @@ err:
+ 	return
+ 
+ out:
+-	if i == i386.REG_SP {
++	if i == x86.REG_SP {
+ 		fmt.Printf("alloc SP\n")
+ 	}
+ 	if reg[i] == 0 {
+ 		regpc[i] = uint32(obj.Getcallerpc(&n))
+-		if i == i386.REG_AX || i == i386.REG_CX || i == i386.REG_DX || i == i386.REG_SP {
++		if i == x86.REG_AX || i == x86.REG_CX || i == x86.REG_DX || i == x86.REG_SP {
+ 			gc.Dump("regalloc-o", o)
+ 			gc.Fatal("regalloc %v", obj.Rconv(i))
+ 		}
+@@ -715,7 +715,7 @@ func regfree(n *gc.Node) {
+ 		gc.Fatal("regfree: not a register")
+ 	}
+ 	i := int(n.Val.U.Reg)
+-	if i == i386.REG_SP {
++	if i == x86.REG_SP {
+ 		return
+ 	}
+ 	if i < 0 || i >= len(reg) {
+@@ -725,7 +725,7 @@ func regfree(n *gc.Node) {
+ 		gc.Fatal("regfree: reg not allocated")
+ 	}
+ 	reg[i]--
+-	if reg[i] == 0 && (i == i386.REG_AX || i == i386.REG_CX || i == i386.REG_DX || i == i386.REG_SP) {
++	if reg[i] == 0 && (i == x86.REG_AX || i == x86.REG_CX || i == x86.REG_DX || i == x86.REG_SP) {
+ 		gc.Fatal("regfree %v", obj.Rconv(i))
+ 	}
+ }
+@@ -936,7 +936,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TINT8<<16 | gc.TUINT8,
+ 		gc.TUINT8<<16 | gc.TINT8,
+ 		gc.TUINT8<<16 | gc.TUINT8:
+-		a = i386.AMOVB
++		a = x86.AMOVB
+ 
+ 	case gc.TINT16<<16 | gc.TINT8, // truncate
+ 		gc.TUINT16<<16 | gc.TINT8,
+@@ -946,7 +946,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TUINT16<<16 | gc.TUINT8,
+ 		gc.TINT32<<16 | gc.TUINT8,
+ 		gc.TUINT32<<16 | gc.TUINT8:
+-		a = i386.AMOVB
++		a = x86.AMOVB
+ 
+ 		goto rsrc
+ 
+@@ -959,9 +959,9 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		split64(f, &flo, &fhi)
+ 
+ 		var r1 gc.Node
+-		gc.Nodreg(&r1, t.Type, i386.REG_AX)
++		gc.Nodreg(&r1, t.Type, x86.REG_AX)
+ 		gmove(&flo, &r1)
+-		gins(i386.AMOVB, &r1, t)
++		gins(x86.AMOVB, &r1, t)
+ 		splitclean()
+ 		return
+ 
+@@ -969,13 +969,13 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TINT16<<16 | gc.TUINT16,
+ 		gc.TUINT16<<16 | gc.TINT16,
+ 		gc.TUINT16<<16 | gc.TUINT16:
+-		a = i386.AMOVW
++		a = x86.AMOVW
+ 
+ 	case gc.TINT32<<16 | gc.TINT16, // truncate
+ 		gc.TUINT32<<16 | gc.TINT16,
+ 		gc.TINT32<<16 | gc.TUINT16,
+ 		gc.TUINT32<<16 | gc.TUINT16:
+-		a = i386.AMOVW
++		a = x86.AMOVW
+ 
+ 		goto rsrc
+ 
+@@ -988,9 +988,9 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		split64(f, &flo, &fhi)
+ 
+ 		var r1 gc.Node
+-		gc.Nodreg(&r1, t.Type, i386.REG_AX)
++		gc.Nodreg(&r1, t.Type, x86.REG_AX)
+ 		gmove(&flo, &r1)
+-		gins(i386.AMOVW, &r1, t)
++		gins(x86.AMOVW, &r1, t)
+ 		splitclean()
+ 		return
+ 
+@@ -998,7 +998,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TINT32<<16 | gc.TUINT32,
+ 		gc.TUINT32<<16 | gc.TINT32,
+ 		gc.TUINT32<<16 | gc.TUINT32:
+-		a = i386.AMOVL
++		a = x86.AMOVL
+ 
+ 	case gc.TINT64<<16 | gc.TINT32, // truncate
+ 		gc.TUINT64<<16 | gc.TINT32,
+@@ -1009,9 +1009,9 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		split64(f, &flo, &fhi)
+ 
+ 		var r1 gc.Node
+-		gc.Nodreg(&r1, t.Type, i386.REG_AX)
++		gc.Nodreg(&r1, t.Type, x86.REG_AX)
+ 		gmove(&flo, &r1)
+-		gins(i386.AMOVL, &r1, t)
++		gins(x86.AMOVL, &r1, t)
+ 		splitclean()
+ 		return
+ 
+@@ -1027,17 +1027,17 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		var thi gc.Node
+ 		split64(t, &tlo, &thi)
+ 		if f.Op == gc.OLITERAL {
+-			gins(i386.AMOVL, &flo, &tlo)
+-			gins(i386.AMOVL, &fhi, &thi)
++			gins(x86.AMOVL, &flo, &tlo)
++			gins(x86.AMOVL, &fhi, &thi)
+ 		} else {
+ 			var r1 gc.Node
+-			gc.Nodreg(&r1, gc.Types[gc.TUINT32], i386.REG_AX)
++			gc.Nodreg(&r1, gc.Types[gc.TUINT32], x86.REG_AX)
+ 			var r2 gc.Node
+-			gc.Nodreg(&r2, gc.Types[gc.TUINT32], i386.REG_DX)
+-			gins(i386.AMOVL, &flo, &r1)
+-			gins(i386.AMOVL, &fhi, &r2)
+-			gins(i386.AMOVL, &r1, &tlo)
+-			gins(i386.AMOVL, &r2, &thi)
++			gc.Nodreg(&r2, gc.Types[gc.TUINT32], x86.REG_DX)
++			gins(x86.AMOVL, &flo, &r1)
++			gins(x86.AMOVL, &fhi, &r2)
++			gins(x86.AMOVL, &r1, &tlo)
++			gins(x86.AMOVL, &r2, &thi)
+ 		}
+ 
+ 		splitclean()
+@@ -1049,13 +1049,13 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		 */
+ 	case gc.TINT8<<16 | gc.TINT16, // sign extend int8
+ 		gc.TINT8<<16 | gc.TUINT16:
+-		a = i386.AMOVBWSX
++		a = x86.AMOVBWSX
+ 
+ 		goto rdst
+ 
+ 	case gc.TINT8<<16 | gc.TINT32,
+ 		gc.TINT8<<16 | gc.TUINT32:
+-		a = i386.AMOVBLSX
++		a = x86.AMOVBLSX
+ 		goto rdst
+ 
+ 	case gc.TINT8<<16 | gc.TINT64, // convert via int32
+@@ -1066,13 +1066,13 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	case gc.TUINT8<<16 | gc.TINT16, // zero extend uint8
+ 		gc.TUINT8<<16 | gc.TUINT16:
+-		a = i386.AMOVBWZX
++		a = x86.AMOVBWZX
+ 
+ 		goto rdst
+ 
+ 	case gc.TUINT8<<16 | gc.TINT32,
+ 		gc.TUINT8<<16 | gc.TUINT32:
+-		a = i386.AMOVBLZX
++		a = x86.AMOVBLZX
+ 		goto rdst
+ 
+ 	case gc.TUINT8<<16 | gc.TINT64, // convert via uint32
+@@ -1083,7 +1083,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	case gc.TINT16<<16 | gc.TINT32, // sign extend int16
+ 		gc.TINT16<<16 | gc.TUINT32:
+-		a = i386.AMOVWLSX
++		a = x86.AMOVWLSX
+ 
+ 		goto rdst
+ 
+@@ -1095,7 +1095,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	case gc.TUINT16<<16 | gc.TINT32, // zero extend uint16
+ 		gc.TUINT16<<16 | gc.TUINT32:
+-		a = i386.AMOVWLZX
++		a = x86.AMOVWLZX
+ 
+ 		goto rdst
+ 
+@@ -1112,13 +1112,13 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		split64(t, &tlo, &thi)
+ 
+ 		var flo gc.Node
+-		gc.Nodreg(&flo, tlo.Type, i386.REG_AX)
++		gc.Nodreg(&flo, tlo.Type, x86.REG_AX)
+ 		var fhi gc.Node
+-		gc.Nodreg(&fhi, thi.Type, i386.REG_DX)
++		gc.Nodreg(&fhi, thi.Type, x86.REG_DX)
+ 		gmove(f, &flo)
+-		gins(i386.ACDQ, nil, nil)
+-		gins(i386.AMOVL, &flo, &tlo)
+-		gins(i386.AMOVL, &fhi, &thi)
++		gins(x86.ACDQ, nil, nil)
++		gins(x86.AMOVL, &flo, &tlo)
++		gins(x86.AMOVL, &fhi, &thi)
+ 		splitclean()
+ 		return
+ 
+@@ -1129,7 +1129,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		split64(t, &tlo, &thi)
+ 
+ 		gmove(f, &tlo)
+-		gins(i386.AMOVL, ncon(0), &thi)
++		gins(x86.AMOVL, ncon(0), &thi)
+ 		splitclean()
+ 		return
+ 	}
+@@ -1220,11 +1220,11 @@ func floatmove(f *gc.Node, t *gc.Node) {
+ 		}
+ 
+ 		var r1 gc.Node
+-		gc.Nodreg(&r1, gc.Types[ft], i386.REG_F0)
++		gc.Nodreg(&r1, gc.Types[ft], x86.REG_F0)
+ 		if ft == gc.TFLOAT32 {
+-			gins(i386.AFMOVF, f, &r1)
++			gins(x86.AFMOVF, f, &r1)
+ 		} else {
+-			gins(i386.AFMOVD, f, &r1)
++			gins(x86.AFMOVD, f, &r1)
+ 		}
+ 
+ 		// set round to zero mode during conversion
+@@ -1233,17 +1233,17 @@ func floatmove(f *gc.Node, t *gc.Node) {
+ 
+ 		var t2 gc.Node
+ 		memname(&t2, gc.Types[gc.TUINT16])
+-		gins(i386.AFSTCW, nil, &t1)
+-		gins(i386.AMOVW, ncon(0xf7f), &t2)
+-		gins(i386.AFLDCW, &t2, nil)
++		gins(x86.AFSTCW, nil, &t1)
++		gins(x86.AMOVW, ncon(0xf7f), &t2)
++		gins(x86.AFLDCW, &t2, nil)
+ 		if tt == gc.TINT16 {
+-			gins(i386.AFMOVWP, &r1, t)
++			gins(x86.AFMOVWP, &r1, t)
+ 		} else if tt == gc.TINT32 {
+-			gins(i386.AFMOVLP, &r1, t)
++			gins(x86.AFMOVLP, &r1, t)
+ 		} else {
+-			gins(i386.AFMOVVP, &r1, t)
++			gins(x86.AFMOVVP, &r1, t)
+ 		}
+-		gins(i386.AFLDCW, &t1, nil)
++		gins(x86.AFLDCW, &t1, nil)
+ 		return
+ 
+ 	case gc.TFLOAT32<<16 | gc.TUINT64,
+@@ -1255,36 +1255,36 @@ func floatmove(f *gc.Node, t *gc.Node) {
+ 
+ 		bignodes()
+ 		var f0 gc.Node
+-		gc.Nodreg(&f0, gc.Types[ft], i386.REG_F0)
++		gc.Nodreg(&f0, gc.Types[ft], x86.REG_F0)
+ 		var f1 gc.Node
+-		gc.Nodreg(&f1, gc.Types[ft], i386.REG_F0+1)
++		gc.Nodreg(&f1, gc.Types[ft], x86.REG_F0+1)
+ 		var ax gc.Node
+-		gc.Nodreg(&ax, gc.Types[gc.TUINT16], i386.REG_AX)
++		gc.Nodreg(&ax, gc.Types[gc.TUINT16], x86.REG_AX)
+ 
+ 		if ft == gc.TFLOAT32 {
+-			gins(i386.AFMOVF, f, &f0)
++			gins(x86.AFMOVF, f, &f0)
+ 		} else {
+-			gins(i386.AFMOVD, f, &f0)
++			gins(x86.AFMOVD, f, &f0)
+ 		}
+ 
+ 		// if 0 > v { answer = 0 }
+-		gins(i386.AFMOVD, &zerof, &f0)
++		gins(x86.AFMOVD, &zerof, &f0)
+ 
+-		gins(i386.AFUCOMIP, &f0, &f1)
++		gins(x86.AFUCOMIP, &f0, &f1)
+ 		p1 := gc.Gbranch(optoas(gc.OGT, gc.Types[tt]), nil, 0)
+ 
+ 		// if 1<<64 <= v { answer = 0 too }
+-		gins(i386.AFMOVD, &two64f, &f0)
++		gins(x86.AFMOVD, &two64f, &f0)
+ 
+-		gins(i386.AFUCOMIP, &f0, &f1)
++		gins(x86.AFUCOMIP, &f0, &f1)
+ 		p2 := gc.Gbranch(optoas(gc.OGT, gc.Types[tt]), nil, 0)
+ 		gc.Patch(p1, gc.Pc)
+-		gins(i386.AFMOVVP, &f0, t) // don't care about t, but will pop the stack
++		gins(x86.AFMOVVP, &f0, t) // don't care about t, but will pop the stack
+ 		var thi gc.Node
+ 		var tlo gc.Node
+ 		split64(t, &tlo, &thi)
+-		gins(i386.AMOVL, ncon(0), &tlo)
+-		gins(i386.AMOVL, ncon(0), &thi)
++		gins(x86.AMOVL, ncon(0), &tlo)
++		gins(x86.AMOVL, ncon(0), &thi)
+ 		splitclean()
+ 		p1 = gc.Gbranch(obj.AJMP, nil, 0)
+ 		gc.Patch(p2, gc.Pc)
+@@ -1299,28 +1299,28 @@ func floatmove(f *gc.Node, t *gc.Node) {
+ 
+ 		var t2 gc.Node
+ 		memname(&t2, gc.Types[gc.TUINT16])
+-		gins(i386.AFSTCW, nil, &t1)
+-		gins(i386.AMOVW, ncon(0xf7f), &t2)
+-		gins(i386.AFLDCW, &t2, nil)
++		gins(x86.AFSTCW, nil, &t1)
++		gins(x86.AMOVW, ncon(0xf7f), &t2)
++		gins(x86.AFLDCW, &t2, nil)
+ 
+ 		// actual work
+-		gins(i386.AFMOVD, &two63f, &f0)
++		gins(x86.AFMOVD, &two63f, &f0)
+ 
+-		gins(i386.AFUCOMIP, &f0, &f1)
++		gins(x86.AFUCOMIP, &f0, &f1)
+ 		p2 = gc.Gbranch(optoas(gc.OLE, gc.Types[tt]), nil, 0)
+-		gins(i386.AFMOVVP, &f0, t)
++		gins(x86.AFMOVVP, &f0, t)
+ 		p3 := gc.Gbranch(obj.AJMP, nil, 0)
+ 		gc.Patch(p2, gc.Pc)
+-		gins(i386.AFMOVD, &two63f, &f0)
+-		gins(i386.AFSUBDP, &f0, &f1)
+-		gins(i386.AFMOVVP, &f0, t)
++		gins(x86.AFMOVD, &two63f, &f0)
++		gins(x86.AFSUBDP, &f0, &f1)
++		gins(x86.AFMOVVP, &f0, t)
+ 		split64(t, &tlo, &thi)
+-		gins(i386.AXORL, ncon(0x80000000), &thi) // + 2^63
++		gins(x86.AXORL, ncon(0x80000000), &thi) // + 2^63
+ 		gc.Patch(p3, gc.Pc)
+ 		splitclean()
+ 
+ 		// restore rounding mode
+-		gins(i386.AFLDCW, &t1, nil)
++		gins(x86.AFLDCW, &t1, nil)
+ 
+ 		gc.Patch(p1, gc.Pc)
+ 		return
+@@ -1334,12 +1334,12 @@ func floatmove(f *gc.Node, t *gc.Node) {
+ 			goto hardmem
+ 		}
+ 		var f0 gc.Node
+-		gc.Nodreg(&f0, t.Type, i386.REG_F0)
+-		gins(i386.AFMOVV, f, &f0)
++		gc.Nodreg(&f0, t.Type, x86.REG_F0)
++		gins(x86.AFMOVV, f, &f0)
+ 		if tt == gc.TFLOAT32 {
+-			gins(i386.AFMOVFP, &f0, t)
++			gins(x86.AFMOVFP, &f0, t)
+ 		} else {
+-			gins(i386.AFMOVDP, &f0, t)
++			gins(x86.AFMOVDP, &f0, t)
+ 		}
+ 		return
+ 
+@@ -1349,30 +1349,30 @@ func floatmove(f *gc.Node, t *gc.Node) {
+ 	case gc.TUINT64<<16 | gc.TFLOAT32,
+ 		gc.TUINT64<<16 | gc.TFLOAT64:
+ 		var ax gc.Node
+-		gc.Nodreg(&ax, gc.Types[gc.TUINT32], i386.REG_AX)
++		gc.Nodreg(&ax, gc.Types[gc.TUINT32], x86.REG_AX)
+ 
+ 		var dx gc.Node
+-		gc.Nodreg(&dx, gc.Types[gc.TUINT32], i386.REG_DX)
++		gc.Nodreg(&dx, gc.Types[gc.TUINT32], x86.REG_DX)
+ 		var cx gc.Node
+-		gc.Nodreg(&cx, gc.Types[gc.TUINT32], i386.REG_CX)
++		gc.Nodreg(&cx, gc.Types[gc.TUINT32], x86.REG_CX)
+ 		var t1 gc.Node
+ 		gc.Tempname(&t1, f.Type)
+ 		var tlo gc.Node
+ 		var thi gc.Node
+ 		split64(&t1, &tlo, &thi)
+ 		gmove(f, &t1)
+-		gins(i386.ACMPL, &thi, ncon(0))
+-		p1 := gc.Gbranch(i386.AJLT, nil, 0)
++		gins(x86.ACMPL, &thi, ncon(0))
++		p1 := gc.Gbranch(x86.AJLT, nil, 0)
+ 
+ 		// native
+ 		var r1 gc.Node
+-		gc.Nodreg(&r1, gc.Types[tt], i386.REG_F0)
++		gc.Nodreg(&r1, gc.Types[tt], x86.REG_F0)
+ 
+-		gins(i386.AFMOVV, &t1, &r1)
++		gins(x86.AFMOVV, &t1, &r1)
+ 		if tt == gc.TFLOAT32 {
+-			gins(i386.AFMOVFP, &r1, t)
++			gins(x86.AFMOVFP, &r1, t)
+ 		} else {
+-			gins(i386.AFMOVDP, &r1, t)
++			gins(x86.AFMOVDP, &r1, t)
+ 		}
+ 		p2 := gc.Gbranch(obj.AJMP, nil, 0)
+ 
+@@ -1381,25 +1381,25 @@ func floatmove(f *gc.Node, t *gc.Node) {
+ 
+ 		gmove(&tlo, &ax)
+ 		gmove(&thi, &dx)
+-		p1 = gins(i386.ASHRL, ncon(1), &ax)
+-		p1.From.Index = i386.REG_DX // double-width shift DX -> AX
++		p1 = gins(x86.ASHRL, ncon(1), &ax)
++		p1.From.Index = x86.REG_DX // double-width shift DX -> AX
+ 		p1.From.Scale = 0
+-		gins(i386.AMOVL, ncon(0), &cx)
+-		gins(i386.ASETCC, nil, &cx)
+-		gins(i386.AORL, &cx, &ax)
+-		gins(i386.ASHRL, ncon(1), &dx)
++		gins(x86.AMOVL, ncon(0), &cx)
++		gins(x86.ASETCC, nil, &cx)
++		gins(x86.AORL, &cx, &ax)
++		gins(x86.ASHRL, ncon(1), &dx)
+ 		gmove(&dx, &thi)
+ 		gmove(&ax, &tlo)
+-		gc.Nodreg(&r1, gc.Types[tt], i386.REG_F0)
++		gc.Nodreg(&r1, gc.Types[tt], x86.REG_F0)
+ 		var r2 gc.Node
+-		gc.Nodreg(&r2, gc.Types[tt], i386.REG_F0+1)
+-		gins(i386.AFMOVV, &t1, &r1)
+-		gins(i386.AFMOVD, &r1, &r1)
+-		gins(i386.AFADDDP, &r1, &r2)
++		gc.Nodreg(&r2, gc.Types[tt], x86.REG_F0+1)
++		gins(x86.AFMOVV, &t1, &r1)
++		gins(x86.AFMOVD, &r1, &r1)
++		gins(x86.AFADDDP, &r1, &r2)
+ 		if tt == gc.TFLOAT32 {
+-			gins(i386.AFMOVFP, &r1, t)
++			gins(x86.AFMOVFP, &r1, t)
+ 		} else {
+-			gins(i386.AFMOVDP, &r1, t)
++			gins(x86.AFMOVDP, &r1, t)
+ 		}
+ 		gc.Patch(p2, gc.Pc)
+ 		splitclean()
+@@ -1449,12 +1449,12 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 			goto hardmem
+ 		}
+ 		var r1 gc.Node
+-		gc.Nodreg(&r1, gc.Types[ft], i386.REG_F0)
++		gc.Nodreg(&r1, gc.Types[ft], x86.REG_F0)
+ 		if f.Op != gc.OREGISTER {
+ 			if ft == gc.TFLOAT32 {
+-				gins(i386.AFMOVF, f, &r1)
++				gins(x86.AFMOVF, f, &r1)
+ 			} else {
+-				gins(i386.AFMOVD, f, &r1)
++				gins(x86.AFMOVD, f, &r1)
+ 			}
+ 		}
+ 
+@@ -1464,17 +1464,17 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 
+ 		var t2 gc.Node
+ 		memname(&t2, gc.Types[gc.TUINT16])
+-		gins(i386.AFSTCW, nil, &t1)
+-		gins(i386.AMOVW, ncon(0xf7f), &t2)
+-		gins(i386.AFLDCW, &t2, nil)
++		gins(x86.AFSTCW, nil, &t1)
++		gins(x86.AMOVW, ncon(0xf7f), &t2)
++		gins(x86.AFLDCW, &t2, nil)
+ 		if tt == gc.TINT16 {
+-			gins(i386.AFMOVWP, &r1, t)
++			gins(x86.AFMOVWP, &r1, t)
+ 		} else if tt == gc.TINT32 {
+-			gins(i386.AFMOVLP, &r1, t)
++			gins(x86.AFMOVLP, &r1, t)
+ 		} else {
+-			gins(i386.AFMOVVP, &r1, t)
++			gins(x86.AFMOVVP, &r1, t)
+ 		}
+-		gins(i386.AFLDCW, &t1, nil)
++		gins(x86.AFLDCW, &t1, nil)
+ 		return
+ 
+ 		// convert via int32.
+@@ -1493,9 +1493,9 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 			gc.Fatal("gmove %v", gc.Nconv(t, 0))
+ 
+ 		case gc.TINT8:
+-			gins(i386.ACMPL, &t1, ncon(-0x80&(1<<32-1)))
++			gins(x86.ACMPL, &t1, ncon(-0x80&(1<<32-1)))
+ 			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TINT32]), nil, -1)
+-			gins(i386.ACMPL, &t1, ncon(0x7f))
++			gins(x86.ACMPL, &t1, ncon(0x7f))
+ 			p2 := gc.Gbranch(optoas(gc.OGT, gc.Types[gc.TINT32]), nil, -1)
+ 			p3 := gc.Gbranch(obj.AJMP, nil, 0)
+ 			gc.Patch(p1, gc.Pc)
+@@ -1505,16 +1505,16 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 			gmove(&t1, t)
+ 
+ 		case gc.TUINT8:
+-			gins(i386.ATESTL, ncon(0xffffff00), &t1)
+-			p1 := gc.Gbranch(i386.AJEQ, nil, +1)
+-			gins(i386.AMOVL, ncon(0), &t1)
++			gins(x86.ATESTL, ncon(0xffffff00), &t1)
++			p1 := gc.Gbranch(x86.AJEQ, nil, +1)
++			gins(x86.AMOVL, ncon(0), &t1)
+ 			gc.Patch(p1, gc.Pc)
+ 			gmove(&t1, t)
+ 
+ 		case gc.TUINT16:
+-			gins(i386.ATESTL, ncon(0xffff0000), &t1)
+-			p1 := gc.Gbranch(i386.AJEQ, nil, +1)
+-			gins(i386.AMOVL, ncon(0), &t1)
++			gins(x86.ATESTL, ncon(0xffff0000), &t1)
++			p1 := gc.Gbranch(x86.AJEQ, nil, +1)
++			gins(x86.AMOVL, ncon(0), &t1)
+ 			gc.Patch(p1, gc.Pc)
+ 			gmove(&t1, t)
+ 		}
+@@ -1547,13 +1547,13 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 
+ 		switch ft {
+ 		case gc.TINT16:
+-			a = i386.AFMOVW
++			a = x86.AFMOVW
+ 
+ 		case gc.TINT32:
+-			a = i386.AFMOVL
++			a = x86.AFMOVL
+ 
+ 		default:
+-			a = i386.AFMOVV
++			a = x86.AFMOVV
+ 		}
+ 
+ 		// convert via int32 memory
+@@ -1589,23 +1589,23 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 			goto hard
+ 		}
+ 		if f.Op == gc.OREGISTER && t.Op == gc.OREGISTER {
+-			if f.Val.U.Reg != i386.REG_F0 || t.Val.U.Reg != i386.REG_F0 {
++			if f.Val.U.Reg != x86.REG_F0 || t.Val.U.Reg != x86.REG_F0 {
+ 				goto fatal
+ 			}
+ 			return
+ 		}
+ 
+-		a = i386.AFMOVF
++		a = x86.AFMOVF
+ 		if ft == gc.TFLOAT64 {
+-			a = i386.AFMOVD
++			a = x86.AFMOVD
+ 		}
+ 		if gc.Ismem(t) {
+-			if f.Op != gc.OREGISTER || f.Val.U.Reg != i386.REG_F0 {
++			if f.Op != gc.OREGISTER || f.Val.U.Reg != x86.REG_F0 {
+ 				gc.Fatal("gmove %v", gc.Nconv(f, 0))
+ 			}
+-			a = i386.AFMOVFP
++			a = x86.AFMOVFP
+ 			if ft == gc.TFLOAT64 {
+-				a = i386.AFMOVDP
++				a = x86.AFMOVDP
+ 			}
+ 		}
+ 
+@@ -1614,16 +1614,16 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 			goto hard
+ 		}
+ 		if f.Op == gc.OREGISTER && t.Op == gc.OREGISTER {
+-			if f.Val.U.Reg != i386.REG_F0 || t.Val.U.Reg != i386.REG_F0 {
++			if f.Val.U.Reg != x86.REG_F0 || t.Val.U.Reg != x86.REG_F0 {
+ 				goto fatal
+ 			}
+ 			return
+ 		}
+ 
+ 		if f.Op == gc.OREGISTER {
+-			gins(i386.AFMOVDP, f, t)
++			gins(x86.AFMOVDP, f, t)
+ 		} else {
+-			gins(i386.AFMOVF, f, t)
++			gins(x86.AFMOVF, f, t)
+ 		}
+ 		return
+ 
+@@ -1634,15 +1634,15 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 		if f.Op == gc.OREGISTER && t.Op == gc.OREGISTER {
+ 			var r1 gc.Node
+ 			gc.Tempname(&r1, gc.Types[gc.TFLOAT32])
+-			gins(i386.AFMOVFP, f, &r1)
+-			gins(i386.AFMOVF, &r1, t)
++			gins(x86.AFMOVFP, f, &r1)
++			gins(x86.AFMOVF, &r1, t)
+ 			return
+ 		}
+ 
+ 		if f.Op == gc.OREGISTER {
+-			gins(i386.AFMOVFP, f, t)
++			gins(x86.AFMOVFP, f, t)
+ 		} else {
+-			gins(i386.AFMOVD, f, t)
++			gins(x86.AFMOVD, f, t)
+ 		}
+ 		return
+ 	}
+@@ -1713,11 +1713,11 @@ func floatmove_sse(f *gc.Node, t *gc.Node) {
+ 		goto hardmem
+ 
+ 	case gc.TFLOAT32<<16 | gc.TINT32:
+-		a = i386.ACVTTSS2SL
++		a = x86.ACVTTSS2SL
+ 		goto rdst
+ 
+ 	case gc.TFLOAT64<<16 | gc.TINT32:
+-		a = i386.ACVTTSD2SL
++		a = x86.ACVTTSD2SL
+ 		goto rdst
+ 
+ 		// convert via int32 memory
+@@ -1744,28 +1744,28 @@ func floatmove_sse(f *gc.Node, t *gc.Node) {
+ 		goto hardmem
+ 
+ 	case gc.TINT32<<16 | gc.TFLOAT32:
+-		a = i386.ACVTSL2SS
++		a = x86.ACVTSL2SS
+ 		goto rdst
+ 
+ 	case gc.TINT32<<16 | gc.TFLOAT64:
+-		a = i386.ACVTSL2SD
++		a = x86.ACVTSL2SD
+ 		goto rdst
+ 
+ 		/*
+ 		 * float to float
+ 		 */
+ 	case gc.TFLOAT32<<16 | gc.TFLOAT32:
+-		a = i386.AMOVSS
++		a = x86.AMOVSS
+ 
+ 	case gc.TFLOAT64<<16 | gc.TFLOAT64:
+-		a = i386.AMOVSD
++		a = x86.AMOVSD
+ 
+ 	case gc.TFLOAT32<<16 | gc.TFLOAT64:
+-		a = i386.ACVTSS2SD
++		a = x86.ACVTSS2SD
+ 		goto rdst
+ 
+ 	case gc.TFLOAT64<<16 | gc.TFLOAT32:
+-		a = i386.ACVTSD2SS
++		a = x86.ACVTSD2SS
+ 		goto rdst
+ 	}
+ 
+@@ -1820,25 +1820,25 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
+  *	as f, t
+  */
+ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+-	if as == i386.AFMOVF && f != nil && f.Op == gc.OREGISTER && t != nil && t.Op == gc.OREGISTER {
++	if as == x86.AFMOVF && f != nil && f.Op == gc.OREGISTER && t != nil && t.Op == gc.OREGISTER {
+ 		gc.Fatal("gins MOVF reg, reg")
+ 	}
+-	if as == i386.ACVTSD2SS && f != nil && f.Op == gc.OLITERAL {
++	if as == x86.ACVTSD2SS && f != nil && f.Op == gc.OLITERAL {
+ 		gc.Fatal("gins CVTSD2SS const")
+ 	}
+-	if as == i386.AMOVSD && t != nil && t.Op == gc.OREGISTER && t.Val.U.Reg == i386.REG_F0 {
++	if as == x86.AMOVSD && t != nil && t.Op == gc.OREGISTER && t.Val.U.Reg == x86.REG_F0 {
+ 		gc.Fatal("gins MOVSD into F0")
+ 	}
+ 
+ 	switch as {
+-	case i386.AMOVB,
+-		i386.AMOVW,
+-		i386.AMOVL:
++	case x86.AMOVB,
++		x86.AMOVW,
++		x86.AMOVL:
+ 		if f != nil && t != nil && samaddr(f, t) {
+ 			return nil
+ 		}
+ 
+-	case i386.ALEAL:
++	case x86.ALEAL:
+ 		if f != nil && gc.Isconst(f, gc.CTNIL) {
+ 			gc.Fatal("gins LEAL nil %v", gc.Tconv(f.Type, 0))
+ 		}
+@@ -1865,13 +1865,13 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 
+ 	w := 0
+ 	switch as {
+-	case i386.AMOVB:
++	case x86.AMOVB:
+ 		w = 1
+ 
+-	case i386.AMOVW:
++	case x86.AMOVW:
+ 		w = 2
+ 
+-	case i386.AMOVL:
++	case x86.AMOVL:
+ 		w = 4
+ 	}
+ 
+diff --git a/src/cmd/8g/peep.go b/src/cmd/8g/peep.go
+index a85cdc3a91..1967d5f736 100644
+--- a/src/cmd/8g/peep.go
++++ b/src/cmd/8g/peep.go
+@@ -33,13 +33,13 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	i386 "cmd/internal/obj/x86"
++	"cmd/internal/obj/x86"
+ 	"fmt"
+ )
+ 
+ const (
+ 	REGEXT      = 0
+-	exregoffset = i386.REG_DI
++	exregoffset = x86.REG_DI
+ )
+ 
+ var gactive uint32
+@@ -100,20 +100,20 @@ func peep(firstp *obj.Prog) {
+ 	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+-		case i386.ALEAL:
++		case x86.ALEAL:
+ 			if regtyp(&p.To) {
+ 				if p.From.Sym != nil {
+-					if p.From.Index == i386.REG_NONE {
++					if p.From.Index == x86.REG_NONE {
+ 						conprop(r)
+ 					}
+ 				}
+ 			}
+ 
+-		case i386.AMOVB,
+-			i386.AMOVW,
+-			i386.AMOVL,
+-			i386.AMOVSS,
+-			i386.AMOVSD:
++		case x86.AMOVB,
++			x86.AMOVW,
++			x86.AMOVL,
++			x86.AMOVSS,
++			x86.AMOVSD:
+ 			if regtyp(&p.To) {
+ 				if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_FCONST {
+ 					conprop(r)
+@@ -135,9 +135,9 @@ loop1:
+ 	for r = g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+-		case i386.AMOVL,
+-			i386.AMOVSS,
+-			i386.AMOVSD:
++		case x86.AMOVL,
++			x86.AMOVSS,
++			x86.AMOVSD:
+ 			if regtyp(&p.To) {
+ 				if regtyp(&p.From) {
+ 					if copyprop(g, r) {
+@@ -150,66 +150,66 @@ loop1:
+ 				}
+ 			}
+ 
+-		case i386.AMOVBLZX,
+-			i386.AMOVWLZX,
+-			i386.AMOVBLSX,
+-			i386.AMOVWLSX:
++		case x86.AMOVBLZX,
++			x86.AMOVWLZX,
++			x86.AMOVBLSX,
++			x86.AMOVWLSX:
+ 			if regtyp(&p.To) {
+ 				r1 = rnops(gc.Uniqs(r))
+ 				if r1 != nil {
+ 					p1 = r1.Prog
+ 					if p.As == p1.As && p.To.Type == p1.From.Type && p.To.Reg == p1.From.Reg {
+-						p1.As = i386.AMOVL
++						p1.As = x86.AMOVL
+ 						t++
+ 					}
+ 				}
+ 			}
+ 
+-		case i386.AADDL,
+-			i386.AADDW:
++		case x86.AADDL,
++			x86.AADDW:
+ 			if p.From.Type != obj.TYPE_CONST || needc(p.Link) {
+ 				break
+ 			}
+ 			if p.From.Offset == -1 {
+-				if p.As == i386.AADDL {
+-					p.As = i386.ADECL
++				if p.As == x86.AADDL {
++					p.As = x86.ADECL
+ 				} else {
+-					p.As = i386.ADECW
++					p.As = x86.ADECW
+ 				}
+ 				p.From = obj.Addr{}
+ 				break
+ 			}
+ 
+ 			if p.From.Offset == 1 {
+-				if p.As == i386.AADDL {
+-					p.As = i386.AINCL
++				if p.As == x86.AADDL {
++					p.As = x86.AINCL
+ 				} else {
+-					p.As = i386.AINCW
++					p.As = x86.AINCW
+ 				}
+ 				p.From = obj.Addr{}
+ 				break
+ 			}
+ 
+-		case i386.ASUBL,
+-			i386.ASUBW:
++		case x86.ASUBL,
++			x86.ASUBW:
+ 			if p.From.Type != obj.TYPE_CONST || needc(p.Link) {
+ 				break
+ 			}
+ 			if p.From.Offset == -1 {
+-				if p.As == i386.ASUBL {
+-					p.As = i386.AINCL
++				if p.As == x86.ASUBL {
++					p.As = x86.AINCL
+ 				} else {
+-					p.As = i386.AINCW
++					p.As = x86.AINCW
+ 				}
+ 				p.From = obj.Addr{}
+ 				break
+ 			}
+ 
+ 			if p.From.Offset == 1 {
+-				if p.As == i386.ASUBL {
+-					p.As = i386.ADECL
++				if p.As == x86.ASUBL {
++					p.As = x86.ADECL
+ 				} else {
+-					p.As = i386.ADECW
++					p.As = x86.ADECW
+ 				}
+ 				p.From = obj.Addr{}
+ 				break
+@@ -228,10 +228,10 @@ loop1:
+ 	// the processor can do better if we do moves using both.
+ 	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+-		if p.As == i386.AMOVSD {
++		if p.As == x86.AMOVSD {
+ 			if regtyp(&p.From) {
+ 				if regtyp(&p.To) {
+-					p.As = i386.AMOVAPD
++					p.As = x86.AMOVAPD
+ 				}
+ 			}
+ 		}
+@@ -252,7 +252,7 @@ func excise(r *gc.Flow) {
+ }
+ 
+ func regtyp(a *obj.Addr) bool {
+-	return a.Type == obj.TYPE_REG && (i386.REG_AX <= a.Reg && a.Reg <= i386.REG_DI || i386.REG_X0 <= a.Reg && a.Reg <= i386.REG_X7)
++	return a.Type == obj.TYPE_REG && (x86.REG_AX <= a.Reg && a.Reg <= x86.REG_DI || x86.REG_X0 <= a.Reg && a.Reg <= x86.REG_X7)
+ }
+ 
+ // movb elimination.
+@@ -269,21 +269,21 @@ func elimshortmov(g *gc.Graph) {
+ 		p = r.Prog
+ 		if regtyp(&p.To) {
+ 			switch p.As {
+-			case i386.AINCB,
+-				i386.AINCW:
+-				p.As = i386.AINCL
++			case x86.AINCB,
++				x86.AINCW:
++				p.As = x86.AINCL
+ 
+-			case i386.ADECB,
+-				i386.ADECW:
+-				p.As = i386.ADECL
++			case x86.ADECB,
++				x86.ADECW:
++				p.As = x86.ADECL
+ 
+-			case i386.ANEGB,
+-				i386.ANEGW:
+-				p.As = i386.ANEGL
++			case x86.ANEGB,
++				x86.ANEGW:
++				p.As = x86.ANEGL
+ 
+-			case i386.ANOTB,
+-				i386.ANOTW:
+-				p.As = i386.ANOTL
++			case x86.ANOTB,
++				x86.ANOTW:
++				p.As = x86.ANOTL
+ 			}
+ 
+ 			if regtyp(&p.From) || p.From.Type == obj.TYPE_CONST {
+@@ -292,54 +292,54 @@ func elimshortmov(g *gc.Graph) {
+ 				// we don't switch to 32-bit arithmetic if it can
+ 				// change how the carry bit is set (and the carry bit is needed).
+ 				switch p.As {
+-				case i386.AMOVB,
+-					i386.AMOVW:
+-					p.As = i386.AMOVL
++				case x86.AMOVB,
++					x86.AMOVW:
++					p.As = x86.AMOVL
+ 
+-				case i386.AADDB,
+-					i386.AADDW:
++				case x86.AADDB,
++					x86.AADDW:
+ 					if !needc(p.Link) {
+-						p.As = i386.AADDL
++						p.As = x86.AADDL
+ 					}
+ 
+-				case i386.ASUBB,
+-					i386.ASUBW:
++				case x86.ASUBB,
++					x86.ASUBW:
+ 					if !needc(p.Link) {
+-						p.As = i386.ASUBL
++						p.As = x86.ASUBL
+ 					}
+ 
+-				case i386.AMULB,
+-					i386.AMULW:
+-					p.As = i386.AMULL
++				case x86.AMULB,
++					x86.AMULW:
++					p.As = x86.AMULL
+ 
+-				case i386.AIMULB,
+-					i386.AIMULW:
+-					p.As = i386.AIMULL
++				case x86.AIMULB,
++					x86.AIMULW:
++					p.As = x86.AIMULL
+ 
+-				case i386.AANDB,
+-					i386.AANDW:
+-					p.As = i386.AANDL
++				case x86.AANDB,
++					x86.AANDW:
++					p.As = x86.AANDL
+ 
+-				case i386.AORB,
+-					i386.AORW:
+-					p.As = i386.AORL
++				case x86.AORB,
++					x86.AORW:
++					p.As = x86.AORL
+ 
+-				case i386.AXORB,
+-					i386.AXORW:
+-					p.As = i386.AXORL
++				case x86.AXORB,
++					x86.AXORW:
++					p.As = x86.AXORL
+ 
+-				case i386.ASHLB,
+-					i386.ASHLW:
+-					p.As = i386.ASHLL
++				case x86.ASHLB,
++					x86.ASHLW:
++					p.As = x86.ASHLL
+ 				}
+ 			} else {
+ 				// explicit zero extension
+ 				switch p.As {
+-				case i386.AMOVB:
+-					p.As = i386.AMOVBLZX
++				case x86.AMOVB:
++					p.As = x86.AMOVBLZX
+ 
+-				case i386.AMOVW:
+-					p.As = i386.AMOVWLZX
++				case x86.AMOVW:
++					p.As = x86.AMOVWLZX
+ 				}
+ 			}
+ 		}
+@@ -581,7 +581,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		if REGEXT != 0 /*TypeKind(100016)*/ && v.Type == obj.TYPE_REG && v.Reg <= REGEXT && v.Reg > exregoffset {
+ 			return 2
+ 		}
+-		if i386.REGARG >= 0 && v.Type == obj.TYPE_REG && v.Reg == i386.REGARG {
++		if x86.REGARG >= 0 && v.Type == obj.TYPE_REG && v.Reg == x86.REGARG {
+ 			return 2
+ 		}
+ 		if v.Type == p.From.Type && v.Reg == p.From.Reg {
+@@ -601,7 +601,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		return 3
+ 
+ 	case obj.ATEXT:
+-		if i386.REGARG >= 0 && v.Type == obj.TYPE_REG && v.Reg == i386.REGARG {
++		if x86.REGARG >= 0 && v.Type == obj.TYPE_REG && v.Reg == x86.REGARG {
+ 			return 3
+ 		}
+ 		return 0
+@@ -666,10 +666,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+  * semantics
+  */
+ func copyas(a *obj.Addr, v *obj.Addr) bool {
+-	if i386.REG_AL <= a.Reg && a.Reg <= i386.REG_BL {
++	if x86.REG_AL <= a.Reg && a.Reg <= x86.REG_BL {
+ 		gc.Fatal("use of byte register")
+ 	}
+-	if i386.REG_AL <= v.Reg && v.Reg <= i386.REG_BL {
++	if x86.REG_AL <= v.Reg && v.Reg <= x86.REG_BL {
+ 		gc.Fatal("use of byte register")
+ 	}
+ 
+@@ -728,7 +728,7 @@ func copyau(a *obj.Addr, v *obj.Addr) bool {
+ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
+ 	if copyas(a, v) {
+ 		reg := int(s.Reg)
+-		if reg >= i386.REG_AX && reg <= i386.REG_DI || reg >= i386.REG_X0 && reg <= i386.REG_X7 {
++		if reg >= x86.REG_AX && reg <= x86.REG_DI || reg >= x86.REG_X0 && reg <= x86.REG_X7 {
+ 			if f != 0 {
+ 				a.Reg = int16(reg)
+ 			}
+@@ -740,7 +740,7 @@ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
+ 	if regtyp(v) {
+ 		reg := int(v.Reg)
+ 		if a.Type == obj.TYPE_MEM && int(a.Reg) == reg {
+-			if (s.Reg == i386.REG_BP) && a.Index != obj.TYPE_NONE {
++			if (s.Reg == x86.REG_BP) && a.Index != obj.TYPE_NONE {
+ 				return 1 /* can't use BP-base with index */
+ 			}
+ 			if f != 0 {
+@@ -813,9 +813,9 @@ loop:
+ }
+ 
+ func smallindir(a *obj.Addr, reg *obj.Addr) bool {
+-	return regtyp(reg) && a.Type == obj.TYPE_MEM && a.Reg == reg.Reg && a.Index == i386.REG_NONE && 0 <= a.Offset && a.Offset < 4096
++	return regtyp(reg) && a.Type == obj.TYPE_MEM && a.Reg == reg.Reg && a.Index == x86.REG_NONE && 0 <= a.Offset && a.Offset < 4096
+ }
+ 
+ func stackaddr(a *obj.Addr) bool {
+-	return a.Type == obj.TYPE_REG && a.Reg == i386.REG_SP
++	return a.Type == obj.TYPE_REG && a.Reg == x86.REG_SP
+ }
+diff --git a/src/cmd/8g/prog.go b/src/cmd/8g/prog.go
+index 054ac4985e..3cb6e518a7 100644
+--- a/src/cmd/8g/prog.go
++++ b/src/cmd/8g/prog.go
+@@ -7,16 +7,16 @@ package main
+ import (
+ 	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+-	i386 "cmd/internal/obj/x86"
++	"cmd/internal/obj/x86"
+ )
+ 
+ var (
+-	AX               = RtoB(i386.REG_AX)
+-	BX               = RtoB(i386.REG_BX)
+-	CX               = RtoB(i386.REG_CX)
+-	DX               = RtoB(i386.REG_DX)
+-	DI               = RtoB(i386.REG_DI)
+-	SI               = RtoB(i386.REG_SI)
++	AX               = RtoB(x86.REG_AX)
++	BX               = RtoB(x86.REG_BX)
++	CX               = RtoB(x86.REG_CX)
++	DX               = RtoB(x86.REG_DX)
++	DI               = RtoB(x86.REG_DI)
++	SI               = RtoB(x86.REG_SI)
+ 	LeftRdwr  uint32 = gc.LeftRead | gc.LeftWrite
+ 	RightRdwr uint32 = gc.RightRead | gc.RightWrite
+ )
+@@ -30,7 +30,7 @@ var (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [i386.ALAST]gc.ProgInfo{
++var progtable = [x86.ALAST]gc.ProgInfo{
+ 	obj.ATYPE:     gc.ProgInfo{gc.Pseudo | gc.Skip, 0, 0, 0},
+ 	obj.ATEXT:     gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+ 	obj.AFUNCDATA: gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+@@ -43,217 +43,217 @@ var progtable = [i386.ALAST]gc.ProgInfo{
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+-	obj.ANOP:        gc.ProgInfo{gc.LeftRead | gc.RightWrite, 0, 0, 0},
+-	i386.AADCL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.AADCW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.AADDB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.AADDL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.AADDW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.AADDSD:     gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	i386.AADDSS:     gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	i386.AANDB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.AANDL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.AANDW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	obj.ACALL:       gc.ProgInfo{gc.RightAddr | gc.Call | gc.KillCarry, 0, 0, 0},
+-	i386.ACDQ:       gc.ProgInfo{gc.OK, AX, AX | DX, 0},
+-	i386.ACWD:       gc.ProgInfo{gc.OK, AX, AX | DX, 0},
+-	i386.ACLD:       gc.ProgInfo{gc.OK, 0, 0, 0},
+-	i386.ASTD:       gc.ProgInfo{gc.OK, 0, 0, 0},
+-	i386.ACMPB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	i386.ACMPL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	i386.ACMPW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	i386.ACOMISD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	i386.ACOMISS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	i386.ACVTSD2SL:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.ACVTSD2SS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.ACVTSL2SD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.ACVTSL2SS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.ACVTSS2SD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.ACVTSS2SL:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.ACVTTSD2SL: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.ACVTTSS2SL: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.ADECB:      gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
+-	i386.ADECL:      gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
+-	i386.ADECW:      gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
+-	i386.ADIVB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	i386.ADIVL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	i386.ADIVW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	i386.ADIVSD:     gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	i386.ADIVSS:     gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	i386.AFLDCW:     gc.ProgInfo{gc.SizeW | gc.LeftAddr, 0, 0, 0},
+-	i386.AFSTCW:     gc.ProgInfo{gc.SizeW | gc.RightAddr, 0, 0, 0},
+-	i386.AFSTSW:     gc.ProgInfo{gc.SizeW | gc.RightAddr | gc.RightWrite, 0, 0, 0},
+-	i386.AFADDD:     gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFADDDP:    gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFADDF:     gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFCOMD:     gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	i386.AFCOMDP:    gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	i386.AFCOMDPP:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	i386.AFCOMF:     gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	i386.AFCOMFP:    gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	i386.AFUCOMIP:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	i386.AFCHS:      gc.ProgInfo{gc.SizeD | RightRdwr, 0, 0, 0}, // also SizeF
++	obj.ANOP:       gc.ProgInfo{gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	x86.AADCL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.AADCW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.AADDB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AADDL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AADDW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AADDSD:     gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AADDSS:     gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AANDB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AANDL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AANDW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	obj.ACALL:      gc.ProgInfo{gc.RightAddr | gc.Call | gc.KillCarry, 0, 0, 0},
++	x86.ACDQ:       gc.ProgInfo{gc.OK, AX, AX | DX, 0},
++	x86.ACWD:       gc.ProgInfo{gc.OK, AX, AX | DX, 0},
++	x86.ACLD:       gc.ProgInfo{gc.OK, 0, 0, 0},
++	x86.ASTD:       gc.ProgInfo{gc.OK, 0, 0, 0},
++	x86.ACMPB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACMPL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACMPW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACOMISD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACOMISS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACVTSD2SL:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSD2SS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSL2SD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSL2SS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSS2SD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSS2SL:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTTSD2SL: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTTSS2SL: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ADECB:      gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
++	x86.ADECL:      gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
++	x86.ADECW:      gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
++	x86.ADIVB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.ADIVL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.ADIVW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.ADIVSD:     gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ADIVSS:     gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AFLDCW:     gc.ProgInfo{gc.SizeW | gc.LeftAddr, 0, 0, 0},
++	x86.AFSTCW:     gc.ProgInfo{gc.SizeW | gc.RightAddr, 0, 0, 0},
++	x86.AFSTSW:     gc.ProgInfo{gc.SizeW | gc.RightAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFADDD:     gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFADDDP:    gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFADDF:     gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFCOMD:     gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFCOMDP:    gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFCOMDPP:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFCOMF:     gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFCOMFP:    gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFUCOMIP:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFCHS:      gc.ProgInfo{gc.SizeD | RightRdwr, 0, 0, 0}, // also SizeF
+ 
+-	i386.AFDIVDP:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFDIVF:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFDIVD:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFDIVRDP: gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFDIVRF:  gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFDIVRD:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFXCHD:   gc.ProgInfo{gc.SizeD | LeftRdwr | RightRdwr, 0, 0, 0},
+-	i386.AFSUBD:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFSUBDP:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFSUBF:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFSUBRD:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFSUBRDP: gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFSUBRF:  gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFMOVD:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	i386.AFMOVF:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	i386.AFMOVL:   gc.ProgInfo{gc.SizeL | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	i386.AFMOVW:   gc.ProgInfo{gc.SizeW | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	i386.AFMOVV:   gc.ProgInfo{gc.SizeQ | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFDIVDP:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFDIVF:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFDIVD:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFDIVRDP: gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFDIVRF:  gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFDIVRD:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFXCHD:   gc.ProgInfo{gc.SizeD | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AFSUBD:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFSUBDP:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFSUBF:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFSUBRD:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFSUBRDP: gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFSUBRF:  gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFMOVD:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFMOVF:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFMOVL:   gc.ProgInfo{gc.SizeL | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFMOVW:   gc.ProgInfo{gc.SizeW | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFMOVV:   gc.ProgInfo{gc.SizeQ | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+ 
+ 	// These instructions are marked as RightAddr
+ 	// so that the register optimizer does not try to replace the
+ 	// memory references with integer register references.
+ 	// But they do not use the previous value at the address, so
+ 	// we also mark them RightWrite.
+-	i386.AFMOVDP:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
+-	i386.AFMOVFP:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
+-	i386.AFMOVLP:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
+-	i386.AFMOVWP:  gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
+-	i386.AFMOVVP:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
+-	i386.AFMULD:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFMULDP:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AFMULF:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	i386.AIDIVB:   gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	i386.AIDIVL:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	i386.AIDIVW:   gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	i386.AIMULB:   gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	i386.AIMULL:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
+-	i386.AIMULW:   gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
+-	i386.AINCB:    gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
+-	i386.AINCL:    gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
+-	i386.AINCW:    gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
+-	i386.AJCC:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJCS:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJEQ:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJGE:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJGT:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJHI:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJLE:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJLS:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJLT:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJMI:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJNE:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJOC:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJOS:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJPC:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJPL:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	i386.AJPS:     gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AFMOVDP:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
++	x86.AFMOVFP:   gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
++	x86.AFMOVLP:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
++	x86.AFMOVWP:   gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
++	x86.AFMOVVP:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
++	x86.AFMULD:    gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFMULDP:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFMULF:    gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AIDIVB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.AIDIVL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.AIDIVW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.AIMULB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.AIMULL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
++	x86.AIMULW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
++	x86.AINCB:     gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
++	x86.AINCL:     gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
++	x86.AINCW:     gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
++	x86.AJCC:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJCS:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJEQ:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJGE:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJGT:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJHI:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJLE:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJLS:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJLT:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJMI:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJNE:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJOC:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJOS:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJPC:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJPL:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJPS:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+ 	obj.AJMP:      gc.ProgInfo{gc.Jump | gc.Break | gc.KillCarry, 0, 0, 0},
+-	i386.ALEAL:    gc.ProgInfo{gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	i386.AMOVBLSX: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.AMOVBLZX: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.AMOVBWSX: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.AMOVBWZX: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.AMOVWLSX: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.AMOVWLZX: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	i386.AMOVB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	i386.AMOVL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	i386.AMOVW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	i386.AMOVSB:   gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
+-	i386.AMOVSL:   gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
+-	i386.AMOVSW:   gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
++	x86.ALEAL:     gc.ProgInfo{gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AMOVBLSX:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBLZX:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBWSX:  gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBWZX:  gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVWLSX:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVWLZX:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVSB:    gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
++	x86.AMOVSL:    gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
++	x86.AMOVSW:    gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
+ 	obj.ADUFFCOPY: gc.ProgInfo{gc.OK, DI | SI, DI | SI | CX, 0},
+-	i386.AMOVSD:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	i386.AMOVSS:   gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVSD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVSS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+ 
+ 	// We use MOVAPD as a faster synonym for MOVSD.
+-	i386.AMOVAPD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	i386.AMULB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	i386.AMULL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
+-	i386.AMULW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
+-	i386.AMULSD:   gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	i386.AMULSS:   gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	i386.ANEGB:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.ANEGL:    gc.ProgInfo{gc.SizeL | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.ANEGW:    gc.ProgInfo{gc.SizeW | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.ANOTB:    gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
+-	i386.ANOTL:    gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
+-	i386.ANOTW:    gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
+-	i386.AORB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.AORL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.AORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.APOPL:    gc.ProgInfo{gc.SizeL | gc.RightWrite, 0, 0, 0},
+-	i386.APUSHL:   gc.ProgInfo{gc.SizeL | gc.LeftRead, 0, 0, 0},
+-	i386.ARCLB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.ARCLL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.ARCLW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.ARCRB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.ARCRL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.ARCRW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.AREP:     gc.ProgInfo{gc.OK, CX, CX, 0},
+-	i386.AREPN:    gc.ProgInfo{gc.OK, CX, CX, 0},
++	x86.AMOVAPD:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMULB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.AMULL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
++	x86.AMULW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
++	x86.AMULSD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AMULSS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ANEGB:     gc.ProgInfo{gc.SizeB | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ANEGL:     gc.ProgInfo{gc.SizeL | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ANEGW:     gc.ProgInfo{gc.SizeW | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ANOTB:     gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
++	x86.ANOTL:     gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
++	x86.ANOTW:     gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
++	x86.AORB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AORL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AORW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.APOPL:     gc.ProgInfo{gc.SizeL | gc.RightWrite, 0, 0, 0},
++	x86.APUSHL:    gc.ProgInfo{gc.SizeL | gc.LeftRead, 0, 0, 0},
++	x86.ARCLB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCLL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCLW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCRB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCRL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCRW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.AREP:      gc.ProgInfo{gc.OK, CX, CX, 0},
++	x86.AREPN:     gc.ProgInfo{gc.OK, CX, CX, 0},
+ 	obj.ARET:      gc.ProgInfo{gc.Break | gc.KillCarry, 0, 0, 0},
+-	i386.AROLB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.AROLL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.AROLW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ARORB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ARORL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ARORW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASAHF:    gc.ProgInfo{gc.OK, AX, AX, 0},
+-	i386.ASALB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASALL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASALW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASARB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASARL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASARW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASBBB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.ASBBL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.ASBBW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	i386.ASETCC:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETCS:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETEQ:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETGE:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETGT:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETHI:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETLE:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETLS:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETLT:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETMI:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETNE:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETOC:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETOS:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETPC:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETPL:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASETPS:   gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	i386.ASHLB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASHLL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASHLW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASHRB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASHRL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASHRW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	i386.ASTOSB:   gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	i386.ASTOSL:   gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	i386.ASTOSW:   gc.ProgInfo{gc.OK, AX | DI, DI, 0},
++	x86.AROLB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.AROLL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.AROLW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ARORB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ARORL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ARORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASAHF:     gc.ProgInfo{gc.OK, AX, AX, 0},
++	x86.ASALB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASALL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASALW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASARB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASARL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASARW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASBBB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ASBBL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ASBBW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ASETCC:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETCS:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETEQ:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETGE:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETGT:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETHI:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETLE:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETLS:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETLT:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETMI:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETNE:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETOC:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETOS:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETPC:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETPL:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETPS:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASHLB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHLL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHLW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHRB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHRL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHRW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASTOSB:    gc.ProgInfo{gc.OK, AX | DI, DI, 0},
++	x86.ASTOSL:    gc.ProgInfo{gc.OK, AX | DI, DI, 0},
++	x86.ASTOSW:    gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+ 	obj.ADUFFZERO: gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	i386.ASUBB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.ASUBL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.ASUBW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.ASUBSD:   gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	i386.ASUBSS:   gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	i386.ATESTB:   gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	i386.ATESTL:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	i386.ATESTW:   gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	i386.AUCOMISD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	i386.AUCOMISS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	i386.AXCHGB:   gc.ProgInfo{gc.SizeB | LeftRdwr | RightRdwr, 0, 0, 0},
+-	i386.AXCHGL:   gc.ProgInfo{gc.SizeL | LeftRdwr | RightRdwr, 0, 0, 0},
+-	i386.AXCHGW:   gc.ProgInfo{gc.SizeW | LeftRdwr | RightRdwr, 0, 0, 0},
+-	i386.AXORB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.AXORL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	i386.AXORW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBSD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ASUBSS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ATESTB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ATESTL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ATESTW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.AUCOMISD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	x86.AUCOMISS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	x86.AXCHGB:    gc.ProgInfo{gc.SizeB | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AXCHGL:    gc.ProgInfo{gc.SizeL | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AXCHGW:    gc.ProgInfo{gc.SizeW | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AXORB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AXORL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AXORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+ }
+ 
+ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+@@ -279,13 +279,13 @@ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+ 	if p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_NONE {
+ 		info.Regindex |= RtoB(int(p.From.Reg))
+ 	}
+-	if p.From.Index != i386.REG_NONE {
++	if p.From.Index != x86.REG_NONE {
+ 		info.Regindex |= RtoB(int(p.From.Index))
+ 	}
+ 	if p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_NONE {
+ 		info.Regindex |= RtoB(int(p.To.Reg))
+ 	}
+-	if p.To.Index != i386.REG_NONE {
++	if p.To.Index != x86.REG_NONE {
+ 		info.Regindex |= RtoB(int(p.To.Index))
+ 	}
+ 
+diff --git a/src/cmd/8g/reg.go b/src/cmd/8g/reg.go
+index 4595ad3729..47498552f5 100644
+--- a/src/cmd/8g/reg.go
++++ b/src/cmd/8g/reg.go
+@@ -30,7 +30,7 @@
+ 
+ package main
+ 
+-import i386 "cmd/internal/obj/x86"
++import "cmd/internal/obj/x86"
+ import "cmd/internal/gc"
+ 
+ const (
+@@ -62,28 +62,28 @@ func regnames(n *int) []string {
+ }
+ 
+ func excludedregs() uint64 {
+-	return RtoB(i386.REG_SP)
++	return RtoB(x86.REG_SP)
+ }
+ 
+ func doregbits(r int) uint64 {
+ 	b := uint64(0)
+-	if r >= i386.REG_AX && r <= i386.REG_DI {
++	if r >= x86.REG_AX && r <= x86.REG_DI {
+ 		b |= RtoB(r)
+-	} else if r >= i386.REG_AL && r <= i386.REG_BL {
+-		b |= RtoB(r - i386.REG_AL + i386.REG_AX)
+-	} else if r >= i386.REG_AH && r <= i386.REG_BH {
+-		b |= RtoB(r - i386.REG_AH + i386.REG_AX)
+-	} else if r >= i386.REG_X0 && r <= i386.REG_X0+7 {
++	} else if r >= x86.REG_AL && r <= x86.REG_BL {
++		b |= RtoB(r - x86.REG_AL + x86.REG_AX)
++	} else if r >= x86.REG_AH && r <= x86.REG_BH {
++		b |= RtoB(r - x86.REG_AH + x86.REG_AX)
++	} else if r >= x86.REG_X0 && r <= x86.REG_X0+7 {
+ 		b |= FtoB(r)
+ 	}
+ 	return b
+ }
+ 
+ func RtoB(r int) uint64 {
+-	if r < i386.REG_AX || r > i386.REG_DI {
++	if r < x86.REG_AX || r > x86.REG_DI {
+ 		return 0
+ 	}
+-	return 1 << uint(r-i386.REG_AX)
++	return 1 << uint(r-x86.REG_AX)
+ }
+ 
+ func BtoR(b uint64) int {
+@@ -91,14 +91,14 @@ func BtoR(b uint64) int {
+ 	if b == 0 {
+ 		return 0
+ 	}
+-	return gc.Bitno(b) + i386.REG_AX
++	return gc.Bitno(b) + x86.REG_AX
+ }
+ 
+ func FtoB(f int) uint64 {
+-	if f < i386.REG_X0 || f > i386.REG_X7 {
++	if f < x86.REG_X0 || f > x86.REG_X7 {
+ 		return 0
+ 	}
+-	return 1 << uint(f-i386.REG_X0+8)
++	return 1 << uint(f-x86.REG_X0+8)
+ }
+ 
+ func BtoF(b uint64) int {
+@@ -106,5 +106,5 @@ func BtoF(b uint64) int {
+ 	if b == 0 {
+ 		return 0
+ 	}
+-	return gc.Bitno(b) - 8 + i386.REG_X0
++	return gc.Bitno(b) - 8 + x86.REG_X0
+ }
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 5ed4461f6f..059391b951 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -131,8 +131,7 @@ func bootstrapFixImports(text, srcFile string) string {
+ 			continue
+ 		}
+ 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
+-			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) ||
+-			strings.Contains(line, `i386 "cmd/internal/obj/x86"`) {
++			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
+ 			lines[i] = strings.Replace(line, `"cmd/`, `"bootstrap/`, -1)
+ 		}
+ 	}
+diff --git a/src/cmd/old8a/lex.go b/src/cmd/old8a/lex.go
+index 43db25b4ac..73b633b54a 100644
+--- a/src/cmd/old8a/lex.go
++++ b/src/cmd/old8a/lex.go
+@@ -35,7 +35,7 @@ package main
+ import (
+ 	"cmd/internal/asm"
+ 	"cmd/internal/obj"
+-	i386 "cmd/internal/obj/x86"
++	"cmd/internal/obj/x86"
+ )
+ 
+ var (
+@@ -60,7 +60,7 @@ func main() {
+ 
+ 	asm.Thechar = '8'
+ 	asm.Thestring = "386"
+-	asm.Thelinkarch = &i386.Link386
++	asm.Thelinkarch = &x86.Link386
+ 
+ 	asm.Main()
+ }
+@@ -90,620 +90,620 @@ var lexinit = []asm.Lextab{
+ 	{"SB", LSB, obj.NAME_EXTERN},
+ 	{"FP", LFP, obj.NAME_PARAM},
+ 	{"PC", LPC, obj.TYPE_BRANCH},
+-	{"AL", LBREG, i386.REG_AL},
+-	{"CL", LBREG, i386.REG_CL},
+-	{"DL", LBREG, i386.REG_DL},
+-	{"BL", LBREG, i386.REG_BL},
+-	{"AH", LBREG, i386.REG_AH},
+-	{"CH", LBREG, i386.REG_CH},
+-	{"DH", LBREG, i386.REG_DH},
+-	{"BH", LBREG, i386.REG_BH},
+-	{"AX", LLREG, i386.REG_AX},
+-	{"CX", LLREG, i386.REG_CX},
+-	{"DX", LLREG, i386.REG_DX},
+-	{"BX", LLREG, i386.REG_BX},
++	{"AL", LBREG, x86.REG_AL},
++	{"CL", LBREG, x86.REG_CL},
++	{"DL", LBREG, x86.REG_DL},
++	{"BL", LBREG, x86.REG_BL},
++	{"AH", LBREG, x86.REG_AH},
++	{"CH", LBREG, x86.REG_CH},
++	{"DH", LBREG, x86.REG_DH},
++	{"BH", LBREG, x86.REG_BH},
++	{"AX", LLREG, x86.REG_AX},
++	{"CX", LLREG, x86.REG_CX},
++	{"DX", LLREG, x86.REG_DX},
++	{"BX", LLREG, x86.REG_BX},
+ 	/*	"SP",		LLREG,	REG_SP,	*/
+-	{"BP", LLREG, i386.REG_BP},
+-	{"SI", LLREG, i386.REG_SI},
+-	{"DI", LLREG, i386.REG_DI},
+-	{"F0", LFREG, i386.REG_F0 + 0},
+-	{"F1", LFREG, i386.REG_F0 + 1},
+-	{"F2", LFREG, i386.REG_F0 + 2},
+-	{"F3", LFREG, i386.REG_F0 + 3},
+-	{"F4", LFREG, i386.REG_F0 + 4},
+-	{"F5", LFREG, i386.REG_F0 + 5},
+-	{"F6", LFREG, i386.REG_F0 + 6},
+-	{"F7", LFREG, i386.REG_F0 + 7},
+-	{"X0", LXREG, i386.REG_X0 + 0},
+-	{"X1", LXREG, i386.REG_X0 + 1},
+-	{"X2", LXREG, i386.REG_X0 + 2},
+-	{"X3", LXREG, i386.REG_X0 + 3},
+-	{"X4", LXREG, i386.REG_X0 + 4},
+-	{"X5", LXREG, i386.REG_X0 + 5},
+-	{"X6", LXREG, i386.REG_X0 + 6},
+-	{"X7", LXREG, i386.REG_X0 + 7},
+-	{"CS", LSREG, i386.REG_CS},
+-	{"SS", LSREG, i386.REG_SS},
+-	{"DS", LSREG, i386.REG_DS},
+-	{"ES", LSREG, i386.REG_ES},
+-	{"FS", LSREG, i386.REG_FS},
+-	{"GS", LSREG, i386.REG_GS},
+-	{"TLS", LSREG, i386.REG_TLS},
+-	{"GDTR", LBREG, i386.REG_GDTR},
+-	{"IDTR", LBREG, i386.REG_IDTR},
+-	{"LDTR", LBREG, i386.REG_LDTR},
+-	{"MSW", LBREG, i386.REG_MSW},
+-	{"TASK", LBREG, i386.REG_TASK},
+-	{"CR0", LBREG, i386.REG_CR + 0},
+-	{"CR1", LBREG, i386.REG_CR + 1},
+-	{"CR2", LBREG, i386.REG_CR + 2},
+-	{"CR3", LBREG, i386.REG_CR + 3},
+-	{"CR4", LBREG, i386.REG_CR + 4},
+-	{"CR5", LBREG, i386.REG_CR + 5},
+-	{"CR6", LBREG, i386.REG_CR + 6},
+-	{"CR7", LBREG, i386.REG_CR + 7},
+-	{"DR0", LBREG, i386.REG_DR + 0},
+-	{"DR1", LBREG, i386.REG_DR + 1},
+-	{"DR2", LBREG, i386.REG_DR + 2},
+-	{"DR3", LBREG, i386.REG_DR + 3},
+-	{"DR4", LBREG, i386.REG_DR + 4},
+-	{"DR5", LBREG, i386.REG_DR + 5},
+-	{"DR6", LBREG, i386.REG_DR + 6},
+-	{"DR7", LBREG, i386.REG_DR + 7},
+-	{"TR0", LBREG, i386.REG_TR + 0},
+-	{"TR1", LBREG, i386.REG_TR + 1},
+-	{"TR2", LBREG, i386.REG_TR + 2},
+-	{"TR3", LBREG, i386.REG_TR + 3},
+-	{"TR4", LBREG, i386.REG_TR + 4},
+-	{"TR5", LBREG, i386.REG_TR + 5},
+-	{"TR6", LBREG, i386.REG_TR + 6},
+-	{"TR7", LBREG, i386.REG_TR + 7},
+-	{"AAA", LTYPE0, i386.AAAA},
+-	{"AAD", LTYPE0, i386.AAAD},
+-	{"AAM", LTYPE0, i386.AAAM},
+-	{"AAS", LTYPE0, i386.AAAS},
+-	{"ADCB", LTYPE3, i386.AADCB},
+-	{"ADCL", LTYPE3, i386.AADCL},
+-	{"ADCW", LTYPE3, i386.AADCW},
+-	{"ADDB", LTYPE3, i386.AADDB},
+-	{"ADDL", LTYPE3, i386.AADDL},
+-	{"ADDW", LTYPE3, i386.AADDW},
+-	{"ADJSP", LTYPE2, i386.AADJSP},
+-	{"ANDB", LTYPE3, i386.AANDB},
+-	{"ANDL", LTYPE3, i386.AANDL},
+-	{"ANDW", LTYPE3, i386.AANDW},
+-	{"ARPL", LTYPE3, i386.AARPL},
+-	{"BOUNDL", LTYPE3, i386.ABOUNDL},
+-	{"BOUNDW", LTYPE3, i386.ABOUNDW},
+-	{"BSFL", LTYPE3, i386.ABSFL},
+-	{"BSFW", LTYPE3, i386.ABSFW},
+-	{"BSRL", LTYPE3, i386.ABSRL},
+-	{"BSRW", LTYPE3, i386.ABSRW},
+-	{"BSWAPL", LTYPE1, i386.ABSWAPL},
+-	{"BTCL", LTYPE3, i386.ABTCL},
+-	{"BTCW", LTYPE3, i386.ABTCW},
+-	{"BTL", LTYPE3, i386.ABTL},
+-	{"BTRL", LTYPE3, i386.ABTRL},
+-	{"BTRW", LTYPE3, i386.ABTRW},
+-	{"BTSL", LTYPE3, i386.ABTSL},
+-	{"BTSW", LTYPE3, i386.ABTSW},
+-	{"BTW", LTYPE3, i386.ABTW},
+-	{"BYTE", LTYPE2, i386.ABYTE},
++	{"BP", LLREG, x86.REG_BP},
++	{"SI", LLREG, x86.REG_SI},
++	{"DI", LLREG, x86.REG_DI},
++	{"F0", LFREG, x86.REG_F0 + 0},
++	{"F1", LFREG, x86.REG_F0 + 1},
++	{"F2", LFREG, x86.REG_F0 + 2},
++	{"F3", LFREG, x86.REG_F0 + 3},
++	{"F4", LFREG, x86.REG_F0 + 4},
++	{"F5", LFREG, x86.REG_F0 + 5},
++	{"F6", LFREG, x86.REG_F0 + 6},
++	{"F7", LFREG, x86.REG_F0 + 7},
++	{"X0", LXREG, x86.REG_X0 + 0},
++	{"X1", LXREG, x86.REG_X0 + 1},
++	{"X2", LXREG, x86.REG_X0 + 2},
++	{"X3", LXREG, x86.REG_X0 + 3},
++	{"X4", LXREG, x86.REG_X0 + 4},
++	{"X5", LXREG, x86.REG_X0 + 5},
++	{"X6", LXREG, x86.REG_X0 + 6},
++	{"X7", LXREG, x86.REG_X0 + 7},
++	{"CS", LSREG, x86.REG_CS},
++	{"SS", LSREG, x86.REG_SS},
++	{"DS", LSREG, x86.REG_DS},
++	{"ES", LSREG, x86.REG_ES},
++	{"FS", LSREG, x86.REG_FS},
++	{"GS", LSREG, x86.REG_GS},
++	{"TLS", LSREG, x86.REG_TLS},
++	{"GDTR", LBREG, x86.REG_GDTR},
++	{"IDTR", LBREG, x86.REG_IDTR},
++	{"LDTR", LBREG, x86.REG_LDTR},
++	{"MSW", LBREG, x86.REG_MSW},
++	{"TASK", LBREG, x86.REG_TASK},
++	{"CR0", LBREG, x86.REG_CR + 0},
++	{"CR1", LBREG, x86.REG_CR + 1},
++	{"CR2", LBREG, x86.REG_CR + 2},
++	{"CR3", LBREG, x86.REG_CR + 3},
++	{"CR4", LBREG, x86.REG_CR + 4},
++	{"CR5", LBREG, x86.REG_CR + 5},
++	{"CR6", LBREG, x86.REG_CR + 6},
++	{"CR7", LBREG, x86.REG_CR + 7},
++	{"DR0", LBREG, x86.REG_DR + 0},
++	{"DR1", LBREG, x86.REG_DR + 1},
++	{"DR2", LBREG, x86.REG_DR + 2},
++	{"DR3", LBREG, x86.REG_DR + 3},
++	{"DR4", LBREG, x86.REG_DR + 4},
++	{"DR5", LBREG, x86.REG_DR + 5},
++	{"DR6", LBREG, x86.REG_DR + 6},
++	{"DR7", LBREG, x86.REG_DR + 7},
++	{"TR0", LBREG, x86.REG_TR + 0},
++	{"TR1", LBREG, x86.REG_TR + 1},
++	{"TR2", LBREG, x86.REG_TR + 2},
++	{"TR3", LBREG, x86.REG_TR + 3},
++	{"TR4", LBREG, x86.REG_TR + 4},
++	{"TR5", LBREG, x86.REG_TR + 5},
++	{"TR6", LBREG, x86.REG_TR + 6},
++	{"TR7", LBREG, x86.REG_TR + 7},
++	{"AAA", LTYPE0, x86.AAAA},
++	{"AAD", LTYPE0, x86.AAAD},
++	{"AAM", LTYPE0, x86.AAAM},
++	{"AAS", LTYPE0, x86.AAAS},
++	{"ADCB", LTYPE3, x86.AADCB},
++	{"ADCL", LTYPE3, x86.AADCL},
++	{"ADCW", LTYPE3, x86.AADCW},
++	{"ADDB", LTYPE3, x86.AADDB},
++	{"ADDL", LTYPE3, x86.AADDL},
++	{"ADDW", LTYPE3, x86.AADDW},
++	{"ADJSP", LTYPE2, x86.AADJSP},
++	{"ANDB", LTYPE3, x86.AANDB},
++	{"ANDL", LTYPE3, x86.AANDL},
++	{"ANDW", LTYPE3, x86.AANDW},
++	{"ARPL", LTYPE3, x86.AARPL},
++	{"BOUNDL", LTYPE3, x86.ABOUNDL},
++	{"BOUNDW", LTYPE3, x86.ABOUNDW},
++	{"BSFL", LTYPE3, x86.ABSFL},
++	{"BSFW", LTYPE3, x86.ABSFW},
++	{"BSRL", LTYPE3, x86.ABSRL},
++	{"BSRW", LTYPE3, x86.ABSRW},
++	{"BSWAPL", LTYPE1, x86.ABSWAPL},
++	{"BTCL", LTYPE3, x86.ABTCL},
++	{"BTCW", LTYPE3, x86.ABTCW},
++	{"BTL", LTYPE3, x86.ABTL},
++	{"BTRL", LTYPE3, x86.ABTRL},
++	{"BTRW", LTYPE3, x86.ABTRW},
++	{"BTSL", LTYPE3, x86.ABTSL},
++	{"BTSW", LTYPE3, x86.ABTSW},
++	{"BTW", LTYPE3, x86.ABTW},
++	{"BYTE", LTYPE2, x86.ABYTE},
+ 	{"CALL", LTYPEC, obj.ACALL},
+-	{"CLC", LTYPE0, i386.ACLC},
+-	{"CLD", LTYPE0, i386.ACLD},
+-	{"CLI", LTYPE0, i386.ACLI},
+-	{"CLTS", LTYPE0, i386.ACLTS},
+-	{"CMC", LTYPE0, i386.ACMC},
+-	{"CMPB", LTYPE4, i386.ACMPB},
+-	{"CMPL", LTYPE4, i386.ACMPL},
+-	{"CMPW", LTYPE4, i386.ACMPW},
+-	{"CMPSB", LTYPE0, i386.ACMPSB},
+-	{"CMPSL", LTYPE0, i386.ACMPSL},
+-	{"CMPSW", LTYPE0, i386.ACMPSW},
+-	{"CMPXCHG8B", LTYPE1, i386.ACMPXCHG8B},
+-	{"CMPXCHGB", LTYPE3, i386.ACMPXCHGB},
+-	{"CMPXCHGL", LTYPE3, i386.ACMPXCHGL},
+-	{"CMPXCHGW", LTYPE3, i386.ACMPXCHGW},
+-	{"CPUID", LTYPE0, i386.ACPUID},
+-	{"DAA", LTYPE0, i386.ADAA},
+-	{"DAS", LTYPE0, i386.ADAS},
++	{"CLC", LTYPE0, x86.ACLC},
++	{"CLD", LTYPE0, x86.ACLD},
++	{"CLI", LTYPE0, x86.ACLI},
++	{"CLTS", LTYPE0, x86.ACLTS},
++	{"CMC", LTYPE0, x86.ACMC},
++	{"CMPB", LTYPE4, x86.ACMPB},
++	{"CMPL", LTYPE4, x86.ACMPL},
++	{"CMPW", LTYPE4, x86.ACMPW},
++	{"CMPSB", LTYPE0, x86.ACMPSB},
++	{"CMPSL", LTYPE0, x86.ACMPSL},
++	{"CMPSW", LTYPE0, x86.ACMPSW},
++	{"CMPXCHG8B", LTYPE1, x86.ACMPXCHG8B},
++	{"CMPXCHGB", LTYPE3, x86.ACMPXCHGB},
++	{"CMPXCHGL", LTYPE3, x86.ACMPXCHGL},
++	{"CMPXCHGW", LTYPE3, x86.ACMPXCHGW},
++	{"CPUID", LTYPE0, x86.ACPUID},
++	{"DAA", LTYPE0, x86.ADAA},
++	{"DAS", LTYPE0, x86.ADAS},
+ 	{"DATA", LTYPED, obj.ADATA},
+-	{"DECB", LTYPE1, i386.ADECB},
+-	{"DECL", LTYPE1, i386.ADECL},
+-	{"DECW", LTYPE1, i386.ADECW},
+-	{"DIVB", LTYPE2, i386.ADIVB},
+-	{"DIVL", LTYPE2, i386.ADIVL},
+-	{"DIVW", LTYPE2, i386.ADIVW},
++	{"DECB", LTYPE1, x86.ADECB},
++	{"DECL", LTYPE1, x86.ADECL},
++	{"DECW", LTYPE1, x86.ADECW},
++	{"DIVB", LTYPE2, x86.ADIVB},
++	{"DIVL", LTYPE2, x86.ADIVL},
++	{"DIVW", LTYPE2, x86.ADIVW},
+ 	{"END", LTYPE0, obj.AEND},
+-	{"ENTER", LTYPE2, i386.AENTER},
++	{"ENTER", LTYPE2, x86.AENTER},
+ 	{"GLOBL", LTYPEG, obj.AGLOBL},
+-	{"HLT", LTYPE0, i386.AHLT},
+-	{"IDIVB", LTYPE2, i386.AIDIVB},
+-	{"IDIVL", LTYPE2, i386.AIDIVL},
+-	{"IDIVW", LTYPE2, i386.AIDIVW},
+-	{"IMULB", LTYPE2, i386.AIMULB},
+-	{"IMULL", LTYPEI, i386.AIMULL},
+-	{"IMULW", LTYPEI, i386.AIMULW},
+-	{"INB", LTYPE0, i386.AINB},
+-	{"INL", LTYPE0, i386.AINL},
+-	{"INW", LTYPE0, i386.AINW},
+-	{"INCB", LTYPE1, i386.AINCB},
+-	{"INCL", LTYPE1, i386.AINCL},
+-	{"INCW", LTYPE1, i386.AINCW},
+-	{"INSB", LTYPE0, i386.AINSB},
+-	{"INSL", LTYPE0, i386.AINSL},
+-	{"INSW", LTYPE0, i386.AINSW},
+-	{"INT", LTYPE2, i386.AINT},
+-	{"INTO", LTYPE0, i386.AINTO},
+-	{"IRETL", LTYPE0, i386.AIRETL},
+-	{"IRETW", LTYPE0, i386.AIRETW},
+-	{"JOS", LTYPER, i386.AJOS},  /* overflow set (OF = 1) */
+-	{"JO", LTYPER, i386.AJOS},   /* alternate */
+-	{"JOC", LTYPER, i386.AJOC},  /* overflow clear (OF = 0) */
+-	{"JNO", LTYPER, i386.AJOC},  /* alternate */
+-	{"JCS", LTYPER, i386.AJCS},  /* carry set (CF = 1) */
+-	{"JB", LTYPER, i386.AJCS},   /* alternate */
+-	{"JC", LTYPER, i386.AJCS},   /* alternate */
+-	{"JNAE", LTYPER, i386.AJCS}, /* alternate */
+-	{"JLO", LTYPER, i386.AJCS},  /* alternate */
+-	{"JCC", LTYPER, i386.AJCC},  /* carry clear (CF = 0) */
+-	{"JAE", LTYPER, i386.AJCC},  /* alternate */
+-	{"JNB", LTYPER, i386.AJCC},  /* alternate */
+-	{"JNC", LTYPER, i386.AJCC},  /* alternate */
+-	{"JHS", LTYPER, i386.AJCC},  /* alternate */
+-	{"JEQ", LTYPER, i386.AJEQ},  /* equal (ZF = 1) */
+-	{"JE", LTYPER, i386.AJEQ},   /* alternate */
+-	{"JZ", LTYPER, i386.AJEQ},   /* alternate */
+-	{"JNE", LTYPER, i386.AJNE},  /* not equal (ZF = 0) */
+-	{"JNZ", LTYPER, i386.AJNE},  /* alternate */
+-	{"JLS", LTYPER, i386.AJLS},  /* lower or same (unsigned) (CF = 1 || ZF = 1) */
+-	{"JBE", LTYPER, i386.AJLS},  /* alternate */
+-	{"JNA", LTYPER, i386.AJLS},  /* alternate */
+-	{"JHI", LTYPER, i386.AJHI},  /* higher (unsigned) (CF = 0 && ZF = 0) */
+-	{"JA", LTYPER, i386.AJHI},   /* alternate */
+-	{"JNBE", LTYPER, i386.AJHI}, /* alternate */
+-	{"JMI", LTYPER, i386.AJMI},  /* negative (minus) (SF = 1) */
+-	{"JS", LTYPER, i386.AJMI},   /* alternate */
+-	{"JPL", LTYPER, i386.AJPL},  /* non-negative (plus) (SF = 0) */
+-	{"JNS", LTYPER, i386.AJPL},  /* alternate */
+-	{"JPS", LTYPER, i386.AJPS},  /* parity set (PF = 1) */
+-	{"JP", LTYPER, i386.AJPS},   /* alternate */
+-	{"JPE", LTYPER, i386.AJPS},  /* alternate */
+-	{"JPC", LTYPER, i386.AJPC},  /* parity clear (PF = 0) */
+-	{"JNP", LTYPER, i386.AJPC},  /* alternate */
+-	{"JPO", LTYPER, i386.AJPC},  /* alternate */
+-	{"JLT", LTYPER, i386.AJLT},  /* less than (signed) (SF != OF) */
+-	{"JL", LTYPER, i386.AJLT},   /* alternate */
+-	{"JNGE", LTYPER, i386.AJLT}, /* alternate */
+-	{"JGE", LTYPER, i386.AJGE},  /* greater than or equal (signed) (SF = OF) */
+-	{"JNL", LTYPER, i386.AJGE},  /* alternate */
+-	{"JLE", LTYPER, i386.AJLE},  /* less than or equal (signed) (ZF = 1 || SF != OF) */
+-	{"JNG", LTYPER, i386.AJLE},  /* alternate */
+-	{"JGT", LTYPER, i386.AJGT},  /* greater than (signed) (ZF = 0 && SF = OF) */
+-	{"JG", LTYPER, i386.AJGT},   /* alternate */
+-	{"JNLE", LTYPER, i386.AJGT}, /* alternate */
+-	{"JCXZL", LTYPER, i386.AJCXZL},
+-	{"JCXZW", LTYPER, i386.AJCXZW},
++	{"HLT", LTYPE0, x86.AHLT},
++	{"IDIVB", LTYPE2, x86.AIDIVB},
++	{"IDIVL", LTYPE2, x86.AIDIVL},
++	{"IDIVW", LTYPE2, x86.AIDIVW},
++	{"IMULB", LTYPE2, x86.AIMULB},
++	{"IMULL", LTYPEI, x86.AIMULL},
++	{"IMULW", LTYPEI, x86.AIMULW},
++	{"INB", LTYPE0, x86.AINB},
++	{"INL", LTYPE0, x86.AINL},
++	{"INW", LTYPE0, x86.AINW},
++	{"INCB", LTYPE1, x86.AINCB},
++	{"INCL", LTYPE1, x86.AINCL},
++	{"INCW", LTYPE1, x86.AINCW},
++	{"INSB", LTYPE0, x86.AINSB},
++	{"INSL", LTYPE0, x86.AINSL},
++	{"INSW", LTYPE0, x86.AINSW},
++	{"INT", LTYPE2, x86.AINT},
++	{"INTO", LTYPE0, x86.AINTO},
++	{"IRETL", LTYPE0, x86.AIRETL},
++	{"IRETW", LTYPE0, x86.AIRETW},
++	{"JOS", LTYPER, x86.AJOS},  /* overflow set (OF = 1) */
++	{"JO", LTYPER, x86.AJOS},   /* alternate */
++	{"JOC", LTYPER, x86.AJOC},  /* overflow clear (OF = 0) */
++	{"JNO", LTYPER, x86.AJOC},  /* alternate */
++	{"JCS", LTYPER, x86.AJCS},  /* carry set (CF = 1) */
++	{"JB", LTYPER, x86.AJCS},   /* alternate */
++	{"JC", LTYPER, x86.AJCS},   /* alternate */
++	{"JNAE", LTYPER, x86.AJCS}, /* alternate */
++	{"JLO", LTYPER, x86.AJCS},  /* alternate */
++	{"JCC", LTYPER, x86.AJCC},  /* carry clear (CF = 0) */
++	{"JAE", LTYPER, x86.AJCC},  /* alternate */
++	{"JNB", LTYPER, x86.AJCC},  /* alternate */
++	{"JNC", LTYPER, x86.AJCC},  /* alternate */
++	{"JHS", LTYPER, x86.AJCC},  /* alternate */
++	{"JEQ", LTYPER, x86.AJEQ},  /* equal (ZF = 1) */
++	{"JE", LTYPER, x86.AJEQ},   /* alternate */
++	{"JZ", LTYPER, x86.AJEQ},   /* alternate */
++	{"JNE", LTYPER, x86.AJNE},  /* not equal (ZF = 0) */
++	{"JNZ", LTYPER, x86.AJNE},  /* alternate */
++	{"JLS", LTYPER, x86.AJLS},  /* lower or same (unsigned) (CF = 1 || ZF = 1) */
++	{"JBE", LTYPER, x86.AJLS},  /* alternate */
++	{"JNA", LTYPER, x86.AJLS},  /* alternate */
++	{"JHI", LTYPER, x86.AJHI},  /* higher (unsigned) (CF = 0 && ZF = 0) */
++	{"JA", LTYPER, x86.AJHI},   /* alternate */
++	{"JNBE", LTYPER, x86.AJHI}, /* alternate */
++	{"JMI", LTYPER, x86.AJMI},  /* negative (minus) (SF = 1) */
++	{"JS", LTYPER, x86.AJMI},   /* alternate */
++	{"JPL", LTYPER, x86.AJPL},  /* non-negative (plus) (SF = 0) */
++	{"JNS", LTYPER, x86.AJPL},  /* alternate */
++	{"JPS", LTYPER, x86.AJPS},  /* parity set (PF = 1) */
++	{"JP", LTYPER, x86.AJPS},   /* alternate */
++	{"JPE", LTYPER, x86.AJPS},  /* alternate */
++	{"JPC", LTYPER, x86.AJPC},  /* parity clear (PF = 0) */
++	{"JNP", LTYPER, x86.AJPC},  /* alternate */
++	{"JPO", LTYPER, x86.AJPC},  /* alternate */
++	{"JLT", LTYPER, x86.AJLT},  /* less than (signed) (SF != OF) */
++	{"JL", LTYPER, x86.AJLT},   /* alternate */
++	{"JNGE", LTYPER, x86.AJLT}, /* alternate */
++	{"JGE", LTYPER, x86.AJGE},  /* greater than or equal (signed) (SF = OF) */
++	{"JNL", LTYPER, x86.AJGE},  /* alternate */
++	{"JLE", LTYPER, x86.AJLE},  /* less than or equal (signed) (ZF = 1 || SF != OF) */
++	{"JNG", LTYPER, x86.AJLE},  /* alternate */
++	{"JGT", LTYPER, x86.AJGT},  /* greater than (signed) (ZF = 0 && SF = OF) */
++	{"JG", LTYPER, x86.AJGT},   /* alternate */
++	{"JNLE", LTYPER, x86.AJGT}, /* alternate */
++	{"JCXZL", LTYPER, x86.AJCXZL},
++	{"JCXZW", LTYPER, x86.AJCXZW},
+ 	{"JMP", LTYPEC, obj.AJMP},
+-	{"LAHF", LTYPE0, i386.ALAHF},
+-	{"LARL", LTYPE3, i386.ALARL},
+-	{"LARW", LTYPE3, i386.ALARW},
+-	{"LEAL", LTYPE3, i386.ALEAL},
+-	{"LEAW", LTYPE3, i386.ALEAW},
+-	{"LEAVEL", LTYPE0, i386.ALEAVEL},
+-	{"LEAVEW", LTYPE0, i386.ALEAVEW},
+-	{"LOCK", LTYPE0, i386.ALOCK},
+-	{"LODSB", LTYPE0, i386.ALODSB},
+-	{"LODSL", LTYPE0, i386.ALODSL},
+-	{"LODSW", LTYPE0, i386.ALODSW},
+-	{"LONG", LTYPE2, i386.ALONG},
+-	{"LOOP", LTYPER, i386.ALOOP},
+-	{"LOOPEQ", LTYPER, i386.ALOOPEQ},
+-	{"LOOPNE", LTYPER, i386.ALOOPNE},
+-	{"LSLL", LTYPE3, i386.ALSLL},
+-	{"LSLW", LTYPE3, i386.ALSLW},
+-	{"MOVB", LTYPE3, i386.AMOVB},
+-	{"MOVL", LTYPEM, i386.AMOVL},
+-	{"MOVW", LTYPEM, i386.AMOVW},
+-	{"MOVQ", LTYPEM, i386.AMOVQ},
+-	{"MOVBLSX", LTYPE3, i386.AMOVBLSX},
+-	{"MOVBLZX", LTYPE3, i386.AMOVBLZX},
+-	{"MOVBWSX", LTYPE3, i386.AMOVBWSX},
+-	{"MOVBWZX", LTYPE3, i386.AMOVBWZX},
+-	{"MOVWLSX", LTYPE3, i386.AMOVWLSX},
+-	{"MOVWLZX", LTYPE3, i386.AMOVWLZX},
+-	{"MOVSB", LTYPE0, i386.AMOVSB},
+-	{"MOVSL", LTYPE0, i386.AMOVSL},
+-	{"MOVSW", LTYPE0, i386.AMOVSW},
+-	{"MULB", LTYPE2, i386.AMULB},
+-	{"MULL", LTYPE2, i386.AMULL},
+-	{"MULW", LTYPE2, i386.AMULW},
+-	{"NEGB", LTYPE1, i386.ANEGB},
+-	{"NEGL", LTYPE1, i386.ANEGL},
+-	{"NEGW", LTYPE1, i386.ANEGW},
++	{"LAHF", LTYPE0, x86.ALAHF},
++	{"LARL", LTYPE3, x86.ALARL},
++	{"LARW", LTYPE3, x86.ALARW},
++	{"LEAL", LTYPE3, x86.ALEAL},
++	{"LEAW", LTYPE3, x86.ALEAW},
++	{"LEAVEL", LTYPE0, x86.ALEAVEL},
++	{"LEAVEW", LTYPE0, x86.ALEAVEW},
++	{"LOCK", LTYPE0, x86.ALOCK},
++	{"LODSB", LTYPE0, x86.ALODSB},
++	{"LODSL", LTYPE0, x86.ALODSL},
++	{"LODSW", LTYPE0, x86.ALODSW},
++	{"LONG", LTYPE2, x86.ALONG},
++	{"LOOP", LTYPER, x86.ALOOP},
++	{"LOOPEQ", LTYPER, x86.ALOOPEQ},
++	{"LOOPNE", LTYPER, x86.ALOOPNE},
++	{"LSLL", LTYPE3, x86.ALSLL},
++	{"LSLW", LTYPE3, x86.ALSLW},
++	{"MOVB", LTYPE3, x86.AMOVB},
++	{"MOVL", LTYPEM, x86.AMOVL},
++	{"MOVW", LTYPEM, x86.AMOVW},
++	{"MOVQ", LTYPEM, x86.AMOVQ},
++	{"MOVBLSX", LTYPE3, x86.AMOVBLSX},
++	{"MOVBLZX", LTYPE3, x86.AMOVBLZX},
++	{"MOVBWSX", LTYPE3, x86.AMOVBWSX},
++	{"MOVBWZX", LTYPE3, x86.AMOVBWZX},
++	{"MOVWLSX", LTYPE3, x86.AMOVWLSX},
++	{"MOVWLZX", LTYPE3, x86.AMOVWLZX},
++	{"MOVSB", LTYPE0, x86.AMOVSB},
++	{"MOVSL", LTYPE0, x86.AMOVSL},
++	{"MOVSW", LTYPE0, x86.AMOVSW},
++	{"MULB", LTYPE2, x86.AMULB},
++	{"MULL", LTYPE2, x86.AMULL},
++	{"MULW", LTYPE2, x86.AMULW},
++	{"NEGB", LTYPE1, x86.ANEGB},
++	{"NEGL", LTYPE1, x86.ANEGL},
++	{"NEGW", LTYPE1, x86.ANEGW},
+ 	{"NOP", LTYPEN, obj.ANOP},
+-	{"NOTB", LTYPE1, i386.ANOTB},
+-	{"NOTL", LTYPE1, i386.ANOTL},
+-	{"NOTW", LTYPE1, i386.ANOTW},
+-	{"ORB", LTYPE3, i386.AORB},
+-	{"ORL", LTYPE3, i386.AORL},
+-	{"ORW", LTYPE3, i386.AORW},
+-	{"OUTB", LTYPE0, i386.AOUTB},
+-	{"OUTL", LTYPE0, i386.AOUTL},
+-	{"OUTW", LTYPE0, i386.AOUTW},
+-	{"OUTSB", LTYPE0, i386.AOUTSB},
+-	{"OUTSL", LTYPE0, i386.AOUTSL},
+-	{"OUTSW", LTYPE0, i386.AOUTSW},
+-	{"PAUSE", LTYPEN, i386.APAUSE},
+-	{"PINSRD", LTYPEX, i386.APINSRD},
+-	{"POPAL", LTYPE0, i386.APOPAL},
+-	{"POPAW", LTYPE0, i386.APOPAW},
+-	{"POPFL", LTYPE0, i386.APOPFL},
+-	{"POPFW", LTYPE0, i386.APOPFW},
+-	{"POPL", LTYPE1, i386.APOPL},
+-	{"POPW", LTYPE1, i386.APOPW},
+-	{"PUSHAL", LTYPE0, i386.APUSHAL},
+-	{"PUSHAW", LTYPE0, i386.APUSHAW},
+-	{"PUSHFL", LTYPE0, i386.APUSHFL},
+-	{"PUSHFW", LTYPE0, i386.APUSHFW},
+-	{"PUSHL", LTYPE2, i386.APUSHL},
+-	{"PUSHW", LTYPE2, i386.APUSHW},
+-	{"RCLB", LTYPE3, i386.ARCLB},
+-	{"RCLL", LTYPE3, i386.ARCLL},
+-	{"RCLW", LTYPE3, i386.ARCLW},
+-	{"RCRB", LTYPE3, i386.ARCRB},
+-	{"RCRL", LTYPE3, i386.ARCRL},
+-	{"RCRW", LTYPE3, i386.ARCRW},
+-	{"RDTSC", LTYPE0, i386.ARDTSC},
+-	{"REP", LTYPE0, i386.AREP},
+-	{"REPN", LTYPE0, i386.AREPN},
++	{"NOTB", LTYPE1, x86.ANOTB},
++	{"NOTL", LTYPE1, x86.ANOTL},
++	{"NOTW", LTYPE1, x86.ANOTW},
++	{"ORB", LTYPE3, x86.AORB},
++	{"ORL", LTYPE3, x86.AORL},
++	{"ORW", LTYPE3, x86.AORW},
++	{"OUTB", LTYPE0, x86.AOUTB},
++	{"OUTL", LTYPE0, x86.AOUTL},
++	{"OUTW", LTYPE0, x86.AOUTW},
++	{"OUTSB", LTYPE0, x86.AOUTSB},
++	{"OUTSL", LTYPE0, x86.AOUTSL},
++	{"OUTSW", LTYPE0, x86.AOUTSW},
++	{"PAUSE", LTYPEN, x86.APAUSE},
++	{"PINSRD", LTYPEX, x86.APINSRD},
++	{"POPAL", LTYPE0, x86.APOPAL},
++	{"POPAW", LTYPE0, x86.APOPAW},
++	{"POPFL", LTYPE0, x86.APOPFL},
++	{"POPFW", LTYPE0, x86.APOPFW},
++	{"POPL", LTYPE1, x86.APOPL},
++	{"POPW", LTYPE1, x86.APOPW},
++	{"PUSHAL", LTYPE0, x86.APUSHAL},
++	{"PUSHAW", LTYPE0, x86.APUSHAW},
++	{"PUSHFL", LTYPE0, x86.APUSHFL},
++	{"PUSHFW", LTYPE0, x86.APUSHFW},
++	{"PUSHL", LTYPE2, x86.APUSHL},
++	{"PUSHW", LTYPE2, x86.APUSHW},
++	{"RCLB", LTYPE3, x86.ARCLB},
++	{"RCLL", LTYPE3, x86.ARCLL},
++	{"RCLW", LTYPE3, x86.ARCLW},
++	{"RCRB", LTYPE3, x86.ARCRB},
++	{"RCRL", LTYPE3, x86.ARCRL},
++	{"RCRW", LTYPE3, x86.ARCRW},
++	{"RDTSC", LTYPE0, x86.ARDTSC},
++	{"REP", LTYPE0, x86.AREP},
++	{"REPN", LTYPE0, x86.AREPN},
+ 	{"RET", LTYPE0, obj.ARET},
+-	{"ROLB", LTYPE3, i386.AROLB},
+-	{"ROLL", LTYPE3, i386.AROLL},
+-	{"ROLW", LTYPE3, i386.AROLW},
+-	{"RORB", LTYPE3, i386.ARORB},
+-	{"RORL", LTYPE3, i386.ARORL},
+-	{"RORW", LTYPE3, i386.ARORW},
+-	{"SAHF", LTYPE0, i386.ASAHF},
+-	{"SALB", LTYPE3, i386.ASALB},
+-	{"SALL", LTYPE3, i386.ASALL},
+-	{"SALW", LTYPE3, i386.ASALW},
+-	{"SARB", LTYPE3, i386.ASARB},
+-	{"SARL", LTYPE3, i386.ASARL},
+-	{"SARW", LTYPE3, i386.ASARW},
+-	{"SBBB", LTYPE3, i386.ASBBB},
+-	{"SBBL", LTYPE3, i386.ASBBL},
+-	{"SBBW", LTYPE3, i386.ASBBW},
+-	{"SCASB", LTYPE0, i386.ASCASB},
+-	{"SCASL", LTYPE0, i386.ASCASL},
+-	{"SCASW", LTYPE0, i386.ASCASW},
+-	{"SETCC", LTYPE1, i386.ASETCC}, /* see JCC etc above for condition codes */
+-	{"SETCS", LTYPE1, i386.ASETCS},
+-	{"SETEQ", LTYPE1, i386.ASETEQ},
+-	{"SETGE", LTYPE1, i386.ASETGE},
+-	{"SETGT", LTYPE1, i386.ASETGT},
+-	{"SETHI", LTYPE1, i386.ASETHI},
+-	{"SETLE", LTYPE1, i386.ASETLE},
+-	{"SETLS", LTYPE1, i386.ASETLS},
+-	{"SETLT", LTYPE1, i386.ASETLT},
+-	{"SETMI", LTYPE1, i386.ASETMI},
+-	{"SETNE", LTYPE1, i386.ASETNE},
+-	{"SETOC", LTYPE1, i386.ASETOC},
+-	{"SETOS", LTYPE1, i386.ASETOS},
+-	{"SETPC", LTYPE1, i386.ASETPC},
+-	{"SETPL", LTYPE1, i386.ASETPL},
+-	{"SETPS", LTYPE1, i386.ASETPS},
+-	{"CDQ", LTYPE0, i386.ACDQ},
+-	{"CWD", LTYPE0, i386.ACWD},
+-	{"SHLB", LTYPE3, i386.ASHLB},
+-	{"SHLL", LTYPES, i386.ASHLL},
+-	{"SHLW", LTYPES, i386.ASHLW},
+-	{"SHRB", LTYPE3, i386.ASHRB},
+-	{"SHRL", LTYPES, i386.ASHRL},
+-	{"SHRW", LTYPES, i386.ASHRW},
+-	{"STC", LTYPE0, i386.ASTC},
+-	{"STD", LTYPE0, i386.ASTD},
+-	{"STI", LTYPE0, i386.ASTI},
+-	{"STOSB", LTYPE0, i386.ASTOSB},
+-	{"STOSL", LTYPE0, i386.ASTOSL},
+-	{"STOSW", LTYPE0, i386.ASTOSW},
+-	{"SUBB", LTYPE3, i386.ASUBB},
+-	{"SUBL", LTYPE3, i386.ASUBL},
+-	{"SUBW", LTYPE3, i386.ASUBW},
+-	{"SYSCALL", LTYPE0, i386.ASYSCALL},
+-	{"TESTB", LTYPE3, i386.ATESTB},
+-	{"TESTL", LTYPE3, i386.ATESTL},
+-	{"TESTW", LTYPE3, i386.ATESTW},
++	{"ROLB", LTYPE3, x86.AROLB},
++	{"ROLL", LTYPE3, x86.AROLL},
++	{"ROLW", LTYPE3, x86.AROLW},
++	{"RORB", LTYPE3, x86.ARORB},
++	{"RORL", LTYPE3, x86.ARORL},
++	{"RORW", LTYPE3, x86.ARORW},
++	{"SAHF", LTYPE0, x86.ASAHF},
++	{"SALB", LTYPE3, x86.ASALB},
++	{"SALL", LTYPE3, x86.ASALL},
++	{"SALW", LTYPE3, x86.ASALW},
++	{"SARB", LTYPE3, x86.ASARB},
++	{"SARL", LTYPE3, x86.ASARL},
++	{"SARW", LTYPE3, x86.ASARW},
++	{"SBBB", LTYPE3, x86.ASBBB},
++	{"SBBL", LTYPE3, x86.ASBBL},
++	{"SBBW", LTYPE3, x86.ASBBW},
++	{"SCASB", LTYPE0, x86.ASCASB},
++	{"SCASL", LTYPE0, x86.ASCASL},
++	{"SCASW", LTYPE0, x86.ASCASW},
++	{"SETCC", LTYPE1, x86.ASETCC}, /* see JCC etc above for condition codes */
++	{"SETCS", LTYPE1, x86.ASETCS},
++	{"SETEQ", LTYPE1, x86.ASETEQ},
++	{"SETGE", LTYPE1, x86.ASETGE},
++	{"SETGT", LTYPE1, x86.ASETGT},
++	{"SETHI", LTYPE1, x86.ASETHI},
++	{"SETLE", LTYPE1, x86.ASETLE},
++	{"SETLS", LTYPE1, x86.ASETLS},
++	{"SETLT", LTYPE1, x86.ASETLT},
++	{"SETMI", LTYPE1, x86.ASETMI},
++	{"SETNE", LTYPE1, x86.ASETNE},
++	{"SETOC", LTYPE1, x86.ASETOC},
++	{"SETOS", LTYPE1, x86.ASETOS},
++	{"SETPC", LTYPE1, x86.ASETPC},
++	{"SETPL", LTYPE1, x86.ASETPL},
++	{"SETPS", LTYPE1, x86.ASETPS},
++	{"CDQ", LTYPE0, x86.ACDQ},
++	{"CWD", LTYPE0, x86.ACWD},
++	{"SHLB", LTYPE3, x86.ASHLB},
++	{"SHLL", LTYPES, x86.ASHLL},
++	{"SHLW", LTYPES, x86.ASHLW},
++	{"SHRB", LTYPE3, x86.ASHRB},
++	{"SHRL", LTYPES, x86.ASHRL},
++	{"SHRW", LTYPES, x86.ASHRW},
++	{"STC", LTYPE0, x86.ASTC},
++	{"STD", LTYPE0, x86.ASTD},
++	{"STI", LTYPE0, x86.ASTI},
++	{"STOSB", LTYPE0, x86.ASTOSB},
++	{"STOSL", LTYPE0, x86.ASTOSL},
++	{"STOSW", LTYPE0, x86.ASTOSW},
++	{"SUBB", LTYPE3, x86.ASUBB},
++	{"SUBL", LTYPE3, x86.ASUBL},
++	{"SUBW", LTYPE3, x86.ASUBW},
++	{"SYSCALL", LTYPE0, x86.ASYSCALL},
++	{"TESTB", LTYPE3, x86.ATESTB},
++	{"TESTL", LTYPE3, x86.ATESTL},
++	{"TESTW", LTYPE3, x86.ATESTW},
+ 	{"TEXT", LTYPET, obj.ATEXT},
+-	{"VERR", LTYPE2, i386.AVERR},
+-	{"VERW", LTYPE2, i386.AVERW},
+-	{"WAIT", LTYPE0, i386.AWAIT},
+-	{"WORD", LTYPE2, i386.AWORD},
+-	{"XADDB", LTYPE3, i386.AXADDB},
+-	{"XADDL", LTYPE3, i386.AXADDL},
+-	{"XADDW", LTYPE3, i386.AXADDW},
+-	{"XCHGB", LTYPE3, i386.AXCHGB},
+-	{"XCHGL", LTYPE3, i386.AXCHGL},
+-	{"XCHGW", LTYPE3, i386.AXCHGW},
+-	{"XLAT", LTYPE2, i386.AXLAT},
+-	{"XORB", LTYPE3, i386.AXORB},
+-	{"XORL", LTYPE3, i386.AXORL},
+-	{"XORW", LTYPE3, i386.AXORW},
+-	{"CMOVLCC", LTYPE3, i386.ACMOVLCC},
+-	{"CMOVLCS", LTYPE3, i386.ACMOVLCS},
+-	{"CMOVLEQ", LTYPE3, i386.ACMOVLEQ},
+-	{"CMOVLGE", LTYPE3, i386.ACMOVLGE},
+-	{"CMOVLGT", LTYPE3, i386.ACMOVLGT},
+-	{"CMOVLHI", LTYPE3, i386.ACMOVLHI},
+-	{"CMOVLLE", LTYPE3, i386.ACMOVLLE},
+-	{"CMOVLLS", LTYPE3, i386.ACMOVLLS},
+-	{"CMOVLLT", LTYPE3, i386.ACMOVLLT},
+-	{"CMOVLMI", LTYPE3, i386.ACMOVLMI},
+-	{"CMOVLNE", LTYPE3, i386.ACMOVLNE},
+-	{"CMOVLOC", LTYPE3, i386.ACMOVLOC},
+-	{"CMOVLOS", LTYPE3, i386.ACMOVLOS},
+-	{"CMOVLPC", LTYPE3, i386.ACMOVLPC},
+-	{"CMOVLPL", LTYPE3, i386.ACMOVLPL},
+-	{"CMOVLPS", LTYPE3, i386.ACMOVLPS},
+-	{"CMOVWCC", LTYPE3, i386.ACMOVWCC},
+-	{"CMOVWCS", LTYPE3, i386.ACMOVWCS},
+-	{"CMOVWEQ", LTYPE3, i386.ACMOVWEQ},
+-	{"CMOVWGE", LTYPE3, i386.ACMOVWGE},
+-	{"CMOVWGT", LTYPE3, i386.ACMOVWGT},
+-	{"CMOVWHI", LTYPE3, i386.ACMOVWHI},
+-	{"CMOVWLE", LTYPE3, i386.ACMOVWLE},
+-	{"CMOVWLS", LTYPE3, i386.ACMOVWLS},
+-	{"CMOVWLT", LTYPE3, i386.ACMOVWLT},
+-	{"CMOVWMI", LTYPE3, i386.ACMOVWMI},
+-	{"CMOVWNE", LTYPE3, i386.ACMOVWNE},
+-	{"CMOVWOC", LTYPE3, i386.ACMOVWOC},
+-	{"CMOVWOS", LTYPE3, i386.ACMOVWOS},
+-	{"CMOVWPC", LTYPE3, i386.ACMOVWPC},
+-	{"CMOVWPL", LTYPE3, i386.ACMOVWPL},
+-	{"CMOVWPS", LTYPE3, i386.ACMOVWPS},
+-	{"FMOVB", LTYPE3, i386.AFMOVB},
+-	{"FMOVBP", LTYPE3, i386.AFMOVBP},
+-	{"FMOVD", LTYPE3, i386.AFMOVD},
+-	{"FMOVDP", LTYPE3, i386.AFMOVDP},
+-	{"FMOVF", LTYPE3, i386.AFMOVF},
+-	{"FMOVFP", LTYPE3, i386.AFMOVFP},
+-	{"FMOVL", LTYPE3, i386.AFMOVL},
+-	{"FMOVLP", LTYPE3, i386.AFMOVLP},
+-	{"FMOVV", LTYPE3, i386.AFMOVV},
+-	{"FMOVVP", LTYPE3, i386.AFMOVVP},
+-	{"FMOVW", LTYPE3, i386.AFMOVW},
+-	{"FMOVWP", LTYPE3, i386.AFMOVWP},
+-	{"FMOVX", LTYPE3, i386.AFMOVX},
+-	{"FMOVXP", LTYPE3, i386.AFMOVXP},
+-	{"FCMOVCC", LTYPE3, i386.AFCMOVCC},
+-	{"FCMOVCS", LTYPE3, i386.AFCMOVCS},
+-	{"FCMOVEQ", LTYPE3, i386.AFCMOVEQ},
+-	{"FCMOVHI", LTYPE3, i386.AFCMOVHI},
+-	{"FCMOVLS", LTYPE3, i386.AFCMOVLS},
+-	{"FCMOVNE", LTYPE3, i386.AFCMOVNE},
+-	{"FCMOVNU", LTYPE3, i386.AFCMOVNU},
+-	{"FCMOVUN", LTYPE3, i386.AFCMOVUN},
+-	{"FCOMB", LTYPE3, i386.AFCOMB},
+-	{"FCOMBP", LTYPE3, i386.AFCOMBP},
+-	{"FCOMD", LTYPE3, i386.AFCOMD},
+-	{"FCOMDP", LTYPE3, i386.AFCOMDP},
+-	{"FCOMDPP", LTYPE3, i386.AFCOMDPP},
+-	{"FCOMF", LTYPE3, i386.AFCOMF},
+-	{"FCOMFP", LTYPE3, i386.AFCOMFP},
+-	{"FCOMI", LTYPE3, i386.AFCOMI},
+-	{"FCOMIP", LTYPE3, i386.AFCOMIP},
+-	{"FCOML", LTYPE3, i386.AFCOML},
+-	{"FCOMLP", LTYPE3, i386.AFCOMLP},
+-	{"FCOMW", LTYPE3, i386.AFCOMW},
+-	{"FCOMWP", LTYPE3, i386.AFCOMWP},
+-	{"FUCOM", LTYPE3, i386.AFUCOM},
+-	{"FUCOMI", LTYPE3, i386.AFUCOMI},
+-	{"FUCOMIP", LTYPE3, i386.AFUCOMIP},
+-	{"FUCOMP", LTYPE3, i386.AFUCOMP},
+-	{"FUCOMPP", LTYPE3, i386.AFUCOMPP},
+-	{"FADDW", LTYPE3, i386.AFADDW},
+-	{"FADDL", LTYPE3, i386.AFADDL},
+-	{"FADDF", LTYPE3, i386.AFADDF},
+-	{"FADDD", LTYPE3, i386.AFADDD},
+-	{"FADDDP", LTYPE3, i386.AFADDDP},
+-	{"FSUBDP", LTYPE3, i386.AFSUBDP},
+-	{"FSUBW", LTYPE3, i386.AFSUBW},
+-	{"FSUBL", LTYPE3, i386.AFSUBL},
+-	{"FSUBF", LTYPE3, i386.AFSUBF},
+-	{"FSUBD", LTYPE3, i386.AFSUBD},
+-	{"FSUBRDP", LTYPE3, i386.AFSUBRDP},
+-	{"FSUBRW", LTYPE3, i386.AFSUBRW},
+-	{"FSUBRL", LTYPE3, i386.AFSUBRL},
+-	{"FSUBRF", LTYPE3, i386.AFSUBRF},
+-	{"FSUBRD", LTYPE3, i386.AFSUBRD},
+-	{"FMULDP", LTYPE3, i386.AFMULDP},
+-	{"FMULW", LTYPE3, i386.AFMULW},
+-	{"FMULL", LTYPE3, i386.AFMULL},
+-	{"FMULF", LTYPE3, i386.AFMULF},
+-	{"FMULD", LTYPE3, i386.AFMULD},
+-	{"FDIVDP", LTYPE3, i386.AFDIVDP},
+-	{"FDIVW", LTYPE3, i386.AFDIVW},
+-	{"FDIVL", LTYPE3, i386.AFDIVL},
+-	{"FDIVF", LTYPE3, i386.AFDIVF},
+-	{"FDIVD", LTYPE3, i386.AFDIVD},
+-	{"FDIVRDP", LTYPE3, i386.AFDIVRDP},
+-	{"FDIVRW", LTYPE3, i386.AFDIVRW},
+-	{"FDIVRL", LTYPE3, i386.AFDIVRL},
+-	{"FDIVRF", LTYPE3, i386.AFDIVRF},
+-	{"FDIVRD", LTYPE3, i386.AFDIVRD},
+-	{"FXCHD", LTYPE3, i386.AFXCHD},
+-	{"FFREE", LTYPE1, i386.AFFREE},
+-	{"FLDCW", LTYPE2, i386.AFLDCW},
+-	{"FLDENV", LTYPE1, i386.AFLDENV},
+-	{"FRSTOR", LTYPE2, i386.AFRSTOR},
+-	{"FSAVE", LTYPE1, i386.AFSAVE},
+-	{"FSTCW", LTYPE1, i386.AFSTCW},
+-	{"FSTENV", LTYPE1, i386.AFSTENV},
+-	{"FSTSW", LTYPE1, i386.AFSTSW},
+-	{"F2XM1", LTYPE0, i386.AF2XM1},
+-	{"FABS", LTYPE0, i386.AFABS},
+-	{"FCHS", LTYPE0, i386.AFCHS},
+-	{"FCLEX", LTYPE0, i386.AFCLEX},
+-	{"FCOS", LTYPE0, i386.AFCOS},
+-	{"FDECSTP", LTYPE0, i386.AFDECSTP},
+-	{"FINCSTP", LTYPE0, i386.AFINCSTP},
+-	{"FINIT", LTYPE0, i386.AFINIT},
+-	{"FLD1", LTYPE0, i386.AFLD1},
+-	{"FLDL2E", LTYPE0, i386.AFLDL2E},
+-	{"FLDL2T", LTYPE0, i386.AFLDL2T},
+-	{"FLDLG2", LTYPE0, i386.AFLDLG2},
+-	{"FLDLN2", LTYPE0, i386.AFLDLN2},
+-	{"FLDPI", LTYPE0, i386.AFLDPI},
+-	{"FLDZ", LTYPE0, i386.AFLDZ},
+-	{"FNOP", LTYPE0, i386.AFNOP},
+-	{"FPATAN", LTYPE0, i386.AFPATAN},
+-	{"FPREM", LTYPE0, i386.AFPREM},
+-	{"FPREM1", LTYPE0, i386.AFPREM1},
+-	{"FPTAN", LTYPE0, i386.AFPTAN},
+-	{"FRNDINT", LTYPE0, i386.AFRNDINT},
+-	{"FSCALE", LTYPE0, i386.AFSCALE},
+-	{"FSIN", LTYPE0, i386.AFSIN},
+-	{"FSINCOS", LTYPE0, i386.AFSINCOS},
+-	{"FSQRT", LTYPE0, i386.AFSQRT},
+-	{"FTST", LTYPE0, i386.AFTST},
+-	{"FXAM", LTYPE0, i386.AFXAM},
+-	{"FXTRACT", LTYPE0, i386.AFXTRACT},
+-	{"FYL2X", LTYPE0, i386.AFYL2X},
+-	{"FYL2XP1", LTYPE0, i386.AFYL2XP1},
+-	{"LFENCE", LTYPE0, i386.ALFENCE},
+-	{"MFENCE", LTYPE0, i386.AMFENCE},
+-	{"SFENCE", LTYPE0, i386.ASFENCE},
+-	{"EMMS", LTYPE0, i386.AEMMS},
+-	{"PREFETCHT0", LTYPE2, i386.APREFETCHT0},
+-	{"PREFETCHT1", LTYPE2, i386.APREFETCHT1},
+-	{"PREFETCHT2", LTYPE2, i386.APREFETCHT2},
+-	{"PREFETCHNTA", LTYPE2, i386.APREFETCHNTA},
++	{"VERR", LTYPE2, x86.AVERR},
++	{"VERW", LTYPE2, x86.AVERW},
++	{"WAIT", LTYPE0, x86.AWAIT},
++	{"WORD", LTYPE2, x86.AWORD},
++	{"XADDB", LTYPE3, x86.AXADDB},
++	{"XADDL", LTYPE3, x86.AXADDL},
++	{"XADDW", LTYPE3, x86.AXADDW},
++	{"XCHGB", LTYPE3, x86.AXCHGB},
++	{"XCHGL", LTYPE3, x86.AXCHGL},
++	{"XCHGW", LTYPE3, x86.AXCHGW},
++	{"XLAT", LTYPE2, x86.AXLAT},
++	{"XORB", LTYPE3, x86.AXORB},
++	{"XORL", LTYPE3, x86.AXORL},
++	{"XORW", LTYPE3, x86.AXORW},
++	{"CMOVLCC", LTYPE3, x86.ACMOVLCC},
++	{"CMOVLCS", LTYPE3, x86.ACMOVLCS},
++	{"CMOVLEQ", LTYPE3, x86.ACMOVLEQ},
++	{"CMOVLGE", LTYPE3, x86.ACMOVLGE},
++	{"CMOVLGT", LTYPE3, x86.ACMOVLGT},
++	{"CMOVLHI", LTYPE3, x86.ACMOVLHI},
++	{"CMOVLLE", LTYPE3, x86.ACMOVLLE},
++	{"CMOVLLS", LTYPE3, x86.ACMOVLLS},
++	{"CMOVLLT", LTYPE3, x86.ACMOVLLT},
++	{"CMOVLMI", LTYPE3, x86.ACMOVLMI},
++	{"CMOVLNE", LTYPE3, x86.ACMOVLNE},
++	{"CMOVLOC", LTYPE3, x86.ACMOVLOC},
++	{"CMOVLOS", LTYPE3, x86.ACMOVLOS},
++	{"CMOVLPC", LTYPE3, x86.ACMOVLPC},
++	{"CMOVLPL", LTYPE3, x86.ACMOVLPL},
++	{"CMOVLPS", LTYPE3, x86.ACMOVLPS},
++	{"CMOVWCC", LTYPE3, x86.ACMOVWCC},
++	{"CMOVWCS", LTYPE3, x86.ACMOVWCS},
++	{"CMOVWEQ", LTYPE3, x86.ACMOVWEQ},
++	{"CMOVWGE", LTYPE3, x86.ACMOVWGE},
++	{"CMOVWGT", LTYPE3, x86.ACMOVWGT},
++	{"CMOVWHI", LTYPE3, x86.ACMOVWHI},
++	{"CMOVWLE", LTYPE3, x86.ACMOVWLE},
++	{"CMOVWLS", LTYPE3, x86.ACMOVWLS},
++	{"CMOVWLT", LTYPE3, x86.ACMOVWLT},
++	{"CMOVWMI", LTYPE3, x86.ACMOVWMI},
++	{"CMOVWNE", LTYPE3, x86.ACMOVWNE},
++	{"CMOVWOC", LTYPE3, x86.ACMOVWOC},
++	{"CMOVWOS", LTYPE3, x86.ACMOVWOS},
++	{"CMOVWPC", LTYPE3, x86.ACMOVWPC},
++	{"CMOVWPL", LTYPE3, x86.ACMOVWPL},
++	{"CMOVWPS", LTYPE3, x86.ACMOVWPS},
++	{"FMOVB", LTYPE3, x86.AFMOVB},
++	{"FMOVBP", LTYPE3, x86.AFMOVBP},
++	{"FMOVD", LTYPE3, x86.AFMOVD},
++	{"FMOVDP", LTYPE3, x86.AFMOVDP},
++	{"FMOVF", LTYPE3, x86.AFMOVF},
++	{"FMOVFP", LTYPE3, x86.AFMOVFP},
++	{"FMOVL", LTYPE3, x86.AFMOVL},
++	{"FMOVLP", LTYPE3, x86.AFMOVLP},
++	{"FMOVV", LTYPE3, x86.AFMOVV},
++	{"FMOVVP", LTYPE3, x86.AFMOVVP},
++	{"FMOVW", LTYPE3, x86.AFMOVW},
++	{"FMOVWP", LTYPE3, x86.AFMOVWP},
++	{"FMOVX", LTYPE3, x86.AFMOVX},
++	{"FMOVXP", LTYPE3, x86.AFMOVXP},
++	{"FCMOVCC", LTYPE3, x86.AFCMOVCC},
++	{"FCMOVCS", LTYPE3, x86.AFCMOVCS},
++	{"FCMOVEQ", LTYPE3, x86.AFCMOVEQ},
++	{"FCMOVHI", LTYPE3, x86.AFCMOVHI},
++	{"FCMOVLS", LTYPE3, x86.AFCMOVLS},
++	{"FCMOVNE", LTYPE3, x86.AFCMOVNE},
++	{"FCMOVNU", LTYPE3, x86.AFCMOVNU},
++	{"FCMOVUN", LTYPE3, x86.AFCMOVUN},
++	{"FCOMB", LTYPE3, x86.AFCOMB},
++	{"FCOMBP", LTYPE3, x86.AFCOMBP},
++	{"FCOMD", LTYPE3, x86.AFCOMD},
++	{"FCOMDP", LTYPE3, x86.AFCOMDP},
++	{"FCOMDPP", LTYPE3, x86.AFCOMDPP},
++	{"FCOMF", LTYPE3, x86.AFCOMF},
++	{"FCOMFP", LTYPE3, x86.AFCOMFP},
++	{"FCOMI", LTYPE3, x86.AFCOMI},
++	{"FCOMIP", LTYPE3, x86.AFCOMIP},
++	{"FCOML", LTYPE3, x86.AFCOML},
++	{"FCOMLP", LTYPE3, x86.AFCOMLP},
++	{"FCOMW", LTYPE3, x86.AFCOMW},
++	{"FCOMWP", LTYPE3, x86.AFCOMWP},
++	{"FUCOM", LTYPE3, x86.AFUCOM},
++	{"FUCOMI", LTYPE3, x86.AFUCOMI},
++	{"FUCOMIP", LTYPE3, x86.AFUCOMIP},
++	{"FUCOMP", LTYPE3, x86.AFUCOMP},
++	{"FUCOMPP", LTYPE3, x86.AFUCOMPP},
++	{"FADDW", LTYPE3, x86.AFADDW},
++	{"FADDL", LTYPE3, x86.AFADDL},
++	{"FADDF", LTYPE3, x86.AFADDF},
++	{"FADDD", LTYPE3, x86.AFADDD},
++	{"FADDDP", LTYPE3, x86.AFADDDP},
++	{"FSUBDP", LTYPE3, x86.AFSUBDP},
++	{"FSUBW", LTYPE3, x86.AFSUBW},
++	{"FSUBL", LTYPE3, x86.AFSUBL},
++	{"FSUBF", LTYPE3, x86.AFSUBF},
++	{"FSUBD", LTYPE3, x86.AFSUBD},
++	{"FSUBRDP", LTYPE3, x86.AFSUBRDP},
++	{"FSUBRW", LTYPE3, x86.AFSUBRW},
++	{"FSUBRL", LTYPE3, x86.AFSUBRL},
++	{"FSUBRF", LTYPE3, x86.AFSUBRF},
++	{"FSUBRD", LTYPE3, x86.AFSUBRD},
++	{"FMULDP", LTYPE3, x86.AFMULDP},
++	{"FMULW", LTYPE3, x86.AFMULW},
++	{"FMULL", LTYPE3, x86.AFMULL},
++	{"FMULF", LTYPE3, x86.AFMULF},
++	{"FMULD", LTYPE3, x86.AFMULD},
++	{"FDIVDP", LTYPE3, x86.AFDIVDP},
++	{"FDIVW", LTYPE3, x86.AFDIVW},
++	{"FDIVL", LTYPE3, x86.AFDIVL},
++	{"FDIVF", LTYPE3, x86.AFDIVF},
++	{"FDIVD", LTYPE3, x86.AFDIVD},
++	{"FDIVRDP", LTYPE3, x86.AFDIVRDP},
++	{"FDIVRW", LTYPE3, x86.AFDIVRW},
++	{"FDIVRL", LTYPE3, x86.AFDIVRL},
++	{"FDIVRF", LTYPE3, x86.AFDIVRF},
++	{"FDIVRD", LTYPE3, x86.AFDIVRD},
++	{"FXCHD", LTYPE3, x86.AFXCHD},
++	{"FFREE", LTYPE1, x86.AFFREE},
++	{"FLDCW", LTYPE2, x86.AFLDCW},
++	{"FLDENV", LTYPE1, x86.AFLDENV},
++	{"FRSTOR", LTYPE2, x86.AFRSTOR},
++	{"FSAVE", LTYPE1, x86.AFSAVE},
++	{"FSTCW", LTYPE1, x86.AFSTCW},
++	{"FSTENV", LTYPE1, x86.AFSTENV},
++	{"FSTSW", LTYPE1, x86.AFSTSW},
++	{"F2XM1", LTYPE0, x86.AF2XM1},
++	{"FABS", LTYPE0, x86.AFABS},
++	{"FCHS", LTYPE0, x86.AFCHS},
++	{"FCLEX", LTYPE0, x86.AFCLEX},
++	{"FCOS", LTYPE0, x86.AFCOS},
++	{"FDECSTP", LTYPE0, x86.AFDECSTP},
++	{"FINCSTP", LTYPE0, x86.AFINCSTP},
++	{"FINIT", LTYPE0, x86.AFINIT},
++	{"FLD1", LTYPE0, x86.AFLD1},
++	{"FLDL2E", LTYPE0, x86.AFLDL2E},
++	{"FLDL2T", LTYPE0, x86.AFLDL2T},
++	{"FLDLG2", LTYPE0, x86.AFLDLG2},
++	{"FLDLN2", LTYPE0, x86.AFLDLN2},
++	{"FLDPI", LTYPE0, x86.AFLDPI},
++	{"FLDZ", LTYPE0, x86.AFLDZ},
++	{"FNOP", LTYPE0, x86.AFNOP},
++	{"FPATAN", LTYPE0, x86.AFPATAN},
++	{"FPREM", LTYPE0, x86.AFPREM},
++	{"FPREM1", LTYPE0, x86.AFPREM1},
++	{"FPTAN", LTYPE0, x86.AFPTAN},
++	{"FRNDINT", LTYPE0, x86.AFRNDINT},
++	{"FSCALE", LTYPE0, x86.AFSCALE},
++	{"FSIN", LTYPE0, x86.AFSIN},
++	{"FSINCOS", LTYPE0, x86.AFSINCOS},
++	{"FSQRT", LTYPE0, x86.AFSQRT},
++	{"FTST", LTYPE0, x86.AFTST},
++	{"FXAM", LTYPE0, x86.AFXAM},
++	{"FXTRACT", LTYPE0, x86.AFXTRACT},
++	{"FYL2X", LTYPE0, x86.AFYL2X},
++	{"FYL2XP1", LTYPE0, x86.AFYL2XP1},
++	{"LFENCE", LTYPE0, x86.ALFENCE},
++	{"MFENCE", LTYPE0, x86.AMFENCE},
++	{"SFENCE", LTYPE0, x86.ASFENCE},
++	{"EMMS", LTYPE0, x86.AEMMS},
++	{"PREFETCHT0", LTYPE2, x86.APREFETCHT0},
++	{"PREFETCHT1", LTYPE2, x86.APREFETCHT1},
++	{"PREFETCHT2", LTYPE2, x86.APREFETCHT2},
++	{"PREFETCHNTA", LTYPE2, x86.APREFETCHNTA},
+ 	{"UNDEF", LTYPE0, obj.AUNDEF},
+-	{"ADDPD", LTYPE3, i386.AADDPD},
+-	{"ADDPS", LTYPE3, i386.AADDPS},
+-	{"ADDSD", LTYPE3, i386.AADDSD},
+-	{"ADDSS", LTYPE3, i386.AADDSS},
+-	{"AESENC", LTYPE3, i386.AAESENC},
+-	{"ANDNPD", LTYPE3, i386.AANDNPD},
+-	{"ANDNPS", LTYPE3, i386.AANDNPS},
+-	{"ANDPD", LTYPE3, i386.AANDPD},
+-	{"ANDPS", LTYPE3, i386.AANDPS},
+-	{"CMPPD", LTYPEXC, i386.ACMPPD},
+-	{"CMPPS", LTYPEXC, i386.ACMPPS},
+-	{"CMPSD", LTYPEXC, i386.ACMPSD},
+-	{"CMPSS", LTYPEXC, i386.ACMPSS},
+-	{"COMISD", LTYPE3, i386.ACOMISD},
+-	{"COMISS", LTYPE3, i386.ACOMISS},
+-	{"CVTPL2PD", LTYPE3, i386.ACVTPL2PD},
+-	{"CVTPL2PS", LTYPE3, i386.ACVTPL2PS},
+-	{"CVTPD2PL", LTYPE3, i386.ACVTPD2PL},
+-	{"CVTPD2PS", LTYPE3, i386.ACVTPD2PS},
+-	{"CVTPS2PL", LTYPE3, i386.ACVTPS2PL},
+-	{"CVTPS2PD", LTYPE3, i386.ACVTPS2PD},
+-	{"CVTSD2SL", LTYPE3, i386.ACVTSD2SL},
+-	{"CVTSD2SS", LTYPE3, i386.ACVTSD2SS},
+-	{"CVTSL2SD", LTYPE3, i386.ACVTSL2SD},
+-	{"CVTSL2SS", LTYPE3, i386.ACVTSL2SS},
+-	{"CVTSS2SD", LTYPE3, i386.ACVTSS2SD},
+-	{"CVTSS2SL", LTYPE3, i386.ACVTSS2SL},
+-	{"CVTTPD2PL", LTYPE3, i386.ACVTTPD2PL},
+-	{"CVTTPS2PL", LTYPE3, i386.ACVTTPS2PL},
+-	{"CVTTSD2SL", LTYPE3, i386.ACVTTSD2SL},
+-	{"CVTTSS2SL", LTYPE3, i386.ACVTTSS2SL},
+-	{"DIVPD", LTYPE3, i386.ADIVPD},
+-	{"DIVPS", LTYPE3, i386.ADIVPS},
+-	{"DIVSD", LTYPE3, i386.ADIVSD},
+-	{"DIVSS", LTYPE3, i386.ADIVSS},
+-	{"MASKMOVOU", LTYPE3, i386.AMASKMOVOU},
+-	{"MASKMOVDQU", LTYPE3, i386.AMASKMOVOU}, /* syn */
+-	{"MAXPD", LTYPE3, i386.AMAXPD},
+-	{"MAXPS", LTYPE3, i386.AMAXPS},
+-	{"MAXSD", LTYPE3, i386.AMAXSD},
+-	{"MAXSS", LTYPE3, i386.AMAXSS},
+-	{"MINPD", LTYPE3, i386.AMINPD},
+-	{"MINPS", LTYPE3, i386.AMINPS},
+-	{"MINSD", LTYPE3, i386.AMINSD},
+-	{"MINSS", LTYPE3, i386.AMINSS},
+-	{"MOVAPD", LTYPE3, i386.AMOVAPD},
+-	{"MOVAPS", LTYPE3, i386.AMOVAPS},
+-	{"MOVO", LTYPE3, i386.AMOVO},
+-	{"MOVOA", LTYPE3, i386.AMOVO}, /* syn */
+-	{"MOVOU", LTYPE3, i386.AMOVOU},
+-	{"MOVHLPS", LTYPE3, i386.AMOVHLPS},
+-	{"MOVHPD", LTYPE3, i386.AMOVHPD},
+-	{"MOVHPS", LTYPE3, i386.AMOVHPS},
+-	{"MOVLHPS", LTYPE3, i386.AMOVLHPS},
+-	{"MOVLPD", LTYPE3, i386.AMOVLPD},
+-	{"MOVLPS", LTYPE3, i386.AMOVLPS},
+-	{"MOVMSKPD", LTYPE3, i386.AMOVMSKPD},
+-	{"MOVMSKPS", LTYPE3, i386.AMOVMSKPS},
+-	{"MOVNTO", LTYPE3, i386.AMOVNTO},
+-	{"MOVNTDQ", LTYPE3, i386.AMOVNTO}, /* syn */
+-	{"MOVNTPD", LTYPE3, i386.AMOVNTPD},
+-	{"MOVNTPS", LTYPE3, i386.AMOVNTPS},
+-	{"MOVSD", LTYPE3, i386.AMOVSD},
+-	{"MOVSS", LTYPE3, i386.AMOVSS},
+-	{"MOVUPD", LTYPE3, i386.AMOVUPD},
+-	{"MOVUPS", LTYPE3, i386.AMOVUPS},
+-	{"MULPD", LTYPE3, i386.AMULPD},
+-	{"MULPS", LTYPE3, i386.AMULPS},
+-	{"MULSD", LTYPE3, i386.AMULSD},
+-	{"MULSS", LTYPE3, i386.AMULSS},
+-	{"ORPD", LTYPE3, i386.AORPD},
+-	{"ORPS", LTYPE3, i386.AORPS},
+-	{"PADDQ", LTYPE3, i386.APADDQ},
+-	{"PAND", LTYPE3, i386.APAND},
+-	{"PCMPEQB", LTYPE3, i386.APCMPEQB},
+-	{"PMAXSW", LTYPE3, i386.APMAXSW},
+-	{"PMAXUB", LTYPE3, i386.APMAXUB},
+-	{"PMINSW", LTYPE3, i386.APMINSW},
+-	{"PMINUB", LTYPE3, i386.APMINUB},
+-	{"PMOVMSKB", LTYPE3, i386.APMOVMSKB},
+-	{"PSADBW", LTYPE3, i386.APSADBW},
+-	{"PSHUFB", LTYPE3, i386.APSHUFB},
+-	{"PSHUFHW", LTYPEX, i386.APSHUFHW},
+-	{"PSHUFL", LTYPEX, i386.APSHUFL},
+-	{"PSHUFLW", LTYPEX, i386.APSHUFLW},
+-	{"PSUBB", LTYPE3, i386.APSUBB},
+-	{"PSUBL", LTYPE3, i386.APSUBL},
+-	{"PSUBQ", LTYPE3, i386.APSUBQ},
+-	{"PSUBSB", LTYPE3, i386.APSUBSB},
+-	{"PSUBSW", LTYPE3, i386.APSUBSW},
+-	{"PSUBUSB", LTYPE3, i386.APSUBUSB},
+-	{"PSUBUSW", LTYPE3, i386.APSUBUSW},
+-	{"PSUBW", LTYPE3, i386.APSUBW},
+-	{"PUNPCKHQDQ", LTYPE3, i386.APUNPCKHQDQ},
+-	{"PUNPCKLQDQ", LTYPE3, i386.APUNPCKLQDQ},
+-	{"PXOR", LTYPE3, i386.APXOR},
+-	{"RCPPS", LTYPE3, i386.ARCPPS},
+-	{"RCPSS", LTYPE3, i386.ARCPSS},
+-	{"RSQRTPS", LTYPE3, i386.ARSQRTPS},
+-	{"RSQRTSS", LTYPE3, i386.ARSQRTSS},
+-	{"SQRTPD", LTYPE3, i386.ASQRTPD},
+-	{"SQRTPS", LTYPE3, i386.ASQRTPS},
+-	{"SQRTSD", LTYPE3, i386.ASQRTSD},
+-	{"SQRTSS", LTYPE3, i386.ASQRTSS},
+-	{"SUBPD", LTYPE3, i386.ASUBPD},
+-	{"SUBPS", LTYPE3, i386.ASUBPS},
+-	{"SUBSD", LTYPE3, i386.ASUBSD},
+-	{"SUBSS", LTYPE3, i386.ASUBSS},
+-	{"UCOMISD", LTYPE3, i386.AUCOMISD},
+-	{"UCOMISS", LTYPE3, i386.AUCOMISS},
+-	{"UNPCKHPD", LTYPE3, i386.AUNPCKHPD},
+-	{"UNPCKHPS", LTYPE3, i386.AUNPCKHPS},
+-	{"UNPCKLPD", LTYPE3, i386.AUNPCKLPD},
+-	{"UNPCKLPS", LTYPE3, i386.AUNPCKLPS},
+-	{"XORPD", LTYPE3, i386.AXORPD},
+-	{"XORPS", LTYPE3, i386.AXORPS},
++	{"ADDPD", LTYPE3, x86.AADDPD},
++	{"ADDPS", LTYPE3, x86.AADDPS},
++	{"ADDSD", LTYPE3, x86.AADDSD},
++	{"ADDSS", LTYPE3, x86.AADDSS},
++	{"AESENC", LTYPE3, x86.AAESENC},
++	{"ANDNPD", LTYPE3, x86.AANDNPD},
++	{"ANDNPS", LTYPE3, x86.AANDNPS},
++	{"ANDPD", LTYPE3, x86.AANDPD},
++	{"ANDPS", LTYPE3, x86.AANDPS},
++	{"CMPPD", LTYPEXC, x86.ACMPPD},
++	{"CMPPS", LTYPEXC, x86.ACMPPS},
++	{"CMPSD", LTYPEXC, x86.ACMPSD},
++	{"CMPSS", LTYPEXC, x86.ACMPSS},
++	{"COMISD", LTYPE3, x86.ACOMISD},
++	{"COMISS", LTYPE3, x86.ACOMISS},
++	{"CVTPL2PD", LTYPE3, x86.ACVTPL2PD},
++	{"CVTPL2PS", LTYPE3, x86.ACVTPL2PS},
++	{"CVTPD2PL", LTYPE3, x86.ACVTPD2PL},
++	{"CVTPD2PS", LTYPE3, x86.ACVTPD2PS},
++	{"CVTPS2PL", LTYPE3, x86.ACVTPS2PL},
++	{"CVTPS2PD", LTYPE3, x86.ACVTPS2PD},
++	{"CVTSD2SL", LTYPE3, x86.ACVTSD2SL},
++	{"CVTSD2SS", LTYPE3, x86.ACVTSD2SS},
++	{"CVTSL2SD", LTYPE3, x86.ACVTSL2SD},
++	{"CVTSL2SS", LTYPE3, x86.ACVTSL2SS},
++	{"CVTSS2SD", LTYPE3, x86.ACVTSS2SD},
++	{"CVTSS2SL", LTYPE3, x86.ACVTSS2SL},
++	{"CVTTPD2PL", LTYPE3, x86.ACVTTPD2PL},
++	{"CVTTPS2PL", LTYPE3, x86.ACVTTPS2PL},
++	{"CVTTSD2SL", LTYPE3, x86.ACVTTSD2SL},
++	{"CVTTSS2SL", LTYPE3, x86.ACVTTSS2SL},
++	{"DIVPD", LTYPE3, x86.ADIVPD},
++	{"DIVPS", LTYPE3, x86.ADIVPS},
++	{"DIVSD", LTYPE3, x86.ADIVSD},
++	{"DIVSS", LTYPE3, x86.ADIVSS},
++	{"MASKMOVOU", LTYPE3, x86.AMASKMOVOU},
++	{"MASKMOVDQU", LTYPE3, x86.AMASKMOVOU}, /* syn */
++	{"MAXPD", LTYPE3, x86.AMAXPD},
++	{"MAXPS", LTYPE3, x86.AMAXPS},
++	{"MAXSD", LTYPE3, x86.AMAXSD},
++	{"MAXSS", LTYPE3, x86.AMAXSS},
++	{"MINPD", LTYPE3, x86.AMINPD},
++	{"MINPS", LTYPE3, x86.AMINPS},
++	{"MINSD", LTYPE3, x86.AMINSD},
++	{"MINSS", LTYPE3, x86.AMINSS},
++	{"MOVAPD", LTYPE3, x86.AMOVAPD},
++	{"MOVAPS", LTYPE3, x86.AMOVAPS},
++	{"MOVO", LTYPE3, x86.AMOVO},
++	{"MOVOA", LTYPE3, x86.AMOVO}, /* syn */
++	{"MOVOU", LTYPE3, x86.AMOVOU},
++	{"MOVHLPS", LTYPE3, x86.AMOVHLPS},
++	{"MOVHPD", LTYPE3, x86.AMOVHPD},
++	{"MOVHPS", LTYPE3, x86.AMOVHPS},
++	{"MOVLHPS", LTYPE3, x86.AMOVLHPS},
++	{"MOVLPD", LTYPE3, x86.AMOVLPD},
++	{"MOVLPS", LTYPE3, x86.AMOVLPS},
++	{"MOVMSKPD", LTYPE3, x86.AMOVMSKPD},
++	{"MOVMSKPS", LTYPE3, x86.AMOVMSKPS},
++	{"MOVNTO", LTYPE3, x86.AMOVNTO},
++	{"MOVNTDQ", LTYPE3, x86.AMOVNTO}, /* syn */
++	{"MOVNTPD", LTYPE3, x86.AMOVNTPD},
++	{"MOVNTPS", LTYPE3, x86.AMOVNTPS},
++	{"MOVSD", LTYPE3, x86.AMOVSD},
++	{"MOVSS", LTYPE3, x86.AMOVSS},
++	{"MOVUPD", LTYPE3, x86.AMOVUPD},
++	{"MOVUPS", LTYPE3, x86.AMOVUPS},
++	{"MULPD", LTYPE3, x86.AMULPD},
++	{"MULPS", LTYPE3, x86.AMULPS},
++	{"MULSD", LTYPE3, x86.AMULSD},
++	{"MULSS", LTYPE3, x86.AMULSS},
++	{"ORPD", LTYPE3, x86.AORPD},
++	{"ORPS", LTYPE3, x86.AORPS},
++	{"PADDQ", LTYPE3, x86.APADDQ},
++	{"PAND", LTYPE3, x86.APAND},
++	{"PCMPEQB", LTYPE3, x86.APCMPEQB},
++	{"PMAXSW", LTYPE3, x86.APMAXSW},
++	{"PMAXUB", LTYPE3, x86.APMAXUB},
++	{"PMINSW", LTYPE3, x86.APMINSW},
++	{"PMINUB", LTYPE3, x86.APMINUB},
++	{"PMOVMSKB", LTYPE3, x86.APMOVMSKB},
++	{"PSADBW", LTYPE3, x86.APSADBW},
++	{"PSHUFB", LTYPE3, x86.APSHUFB},
++	{"PSHUFHW", LTYPEX, x86.APSHUFHW},
++	{"PSHUFL", LTYPEX, x86.APSHUFL},
++	{"PSHUFLW", LTYPEX, x86.APSHUFLW},
++	{"PSUBB", LTYPE3, x86.APSUBB},
++	{"PSUBL", LTYPE3, x86.APSUBL},
++	{"PSUBQ", LTYPE3, x86.APSUBQ},
++	{"PSUBSB", LTYPE3, x86.APSUBSB},
++	{"PSUBSW", LTYPE3, x86.APSUBSW},
++	{"PSUBUSB", LTYPE3, x86.APSUBUSB},
++	{"PSUBUSW", LTYPE3, x86.APSUBUSW},
++	{"PSUBW", LTYPE3, x86.APSUBW},
++	{"PUNPCKHQDQ", LTYPE3, x86.APUNPCKHQDQ},
++	{"PUNPCKLQDQ", LTYPE3, x86.APUNPCKLQDQ},
++	{"PXOR", LTYPE3, x86.APXOR},
++	{"RCPPS", LTYPE3, x86.ARCPPS},
++	{"RCPSS", LTYPE3, x86.ARCPSS},
++	{"RSQRTPS", LTYPE3, x86.ARSQRTPS},
++	{"RSQRTSS", LTYPE3, x86.ARSQRTSS},
++	{"SQRTPD", LTYPE3, x86.ASQRTPD},
++	{"SQRTPS", LTYPE3, x86.ASQRTPS},
++	{"SQRTSD", LTYPE3, x86.ASQRTSD},
++	{"SQRTSS", LTYPE3, x86.ASQRTSS},
++	{"SUBPD", LTYPE3, x86.ASUBPD},
++	{"SUBPS", LTYPE3, x86.ASUBPS},
++	{"SUBSD", LTYPE3, x86.ASUBSD},
++	{"SUBSS", LTYPE3, x86.ASUBSS},
++	{"UCOMISD", LTYPE3, x86.AUCOMISD},
++	{"UCOMISS", LTYPE3, x86.AUCOMISS},
++	{"UNPCKHPD", LTYPE3, x86.AUNPCKHPD},
++	{"UNPCKHPS", LTYPE3, x86.AUNPCKHPS},
++	{"UNPCKLPD", LTYPE3, x86.AUNPCKLPD},
++	{"UNPCKLPS", LTYPE3, x86.AUNPCKLPS},
++	{"XORPD", LTYPE3, x86.AXORPD},
++	{"XORPS", LTYPE3, x86.AXORPS},
+ 	{"USEFIELD", LTYPEN, obj.AUSEFIELD},
+ 	{"PCDATA", LTYPEPC, obj.APCDATA},
+ 	{"FUNCDATA", LTYPEF, obj.AFUNCDATA},
+ }
+ 
+ func cinit() {
+-	nullgen.Type = i386.REG_NONE
+-	nullgen.Index = i386.REG_NONE
++	nullgen.Type = x86.REG_NONE
++	nullgen.Index = x86.REG_NONE
+ }
+ 
+ func checkscale(scale int16) {

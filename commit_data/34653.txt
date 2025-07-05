@@ -14,7 +14,63 @@ Date:   Sun Nov 5 16:09:46 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/76014
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/go_test.go            | 27 +++++++++++++++++++++++++++
  src/cmd/go/internal/work/exec.go |  5 +++++
  2 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 854de7968f..1c06ad0afb 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4740,7 +4740,34 @@ func TestBuildCache(t *testing.T) {
+ 
+ 	tg.run("build", "-o", os.DevNull, "-x", "complex")
+ 	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
++}
+ 
++func TestIssue22531(t *testing.T) {
++	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
++		t.Skip("GODEBUG gocacheverify")
++	}
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.tempdir)
++	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
++	tg.tempFile("src/m/main.go", "package main /* c1 */; func main() {}\n")
++	tg.run("install", "-x", "m")
++	tg.run("list", "-f", "{{.Stale}}", "m")
++	tg.grepStdout("false", "reported m as stale after install")
++	tg.run("tool", "buildid", filepath.Join(tg.tempdir, "bin/m"+exeSuffix))
++
++	// The link action ID did not include the full main build ID,
++	// even though the full main build ID is written into the
++	// eventual binary. That caused the following install to
++	// be a no-op, thinking the gofmt binary was up-to-date,
++	// even though .Stale could see it was not.
++	tg.tempFile("src/m/main.go", "package main /* c2 */; func main() {}\n")
++	tg.run("install", "-x", "m")
++	tg.run("list", "-f", "{{.Stale}}", "m")
++	tg.grepStdout("false", "reported m as stale after reinstall")
++	tg.run("tool", "buildid", filepath.Join(tg.tempdir, "bin/m"+exeSuffix))
+ }
+ 
+ func TestTestCache(t *testing.T) {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index da4b5306e9..7a4e62b0a4 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -690,6 +690,11 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
+ 				}
+ 				fmt.Fprintf(h, "packagefile %s=%s\n", p1.ImportPath, contentID(buildID))
+ 			}
++			// Because we put package main's full action ID into the binary's build ID,
++			// we must also put the full action ID into the binary's action ID hash.
++			if p1.Name == "main" {
++				fmt.Fprintf(h, "packagemain %s\n", a1.buildID)
++			}
+ 			if p1.Shlib != "" {
+ 				fmt.Fprintf(h, "pakageshlib %s=%s\n", p1.ImportPath, contentID(b.buildID(p1.Shlib)))
+ 			}

@@ -52,7 +52,67 @@ Date:   Mon Jan 23 13:46:28 2012 -0800
     R=golang-dev, dave, edsrzf, gri
     CC=golang-dev
     https://golang.org/cl/5570044
-
+---
  src/pkg/math/big/arith.go      | 16 ++++++++++++++--
  src/pkg/math/big/arith_test.go | 22 ++++++++++++++++++++++
  2 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/big/arith.go b/src/pkg/math/big/arith.go
+index 0a02a4ef59..f30951ef0f 100644
+--- a/src/pkg/math/big/arith.go
++++ b/src/pkg/math/big/arith.go
+@@ -80,10 +80,22 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+ 
+ // Length of x in bits.
+ func bitLen(x Word) (n int) {
+-	for ; x >= 0x100; x >>= 8 {
++	for ; x >= 0x8000; x >>= 16 {
++		n += 16
++	}
++	if x >= 0x80 {
++		x >>= 8
+ 		n += 8
+ 	}
+-	for ; x > 0; x >>= 1 {
++	if x >= 0x8 {
++		x >>= 4
++		n += 4
++	}
++	if x >= 0x2 {
++		x >>= 2
++		n += 2
++	}
++	if x >= 0x1 {
+ 		n++
+ 	}
+ 	return
+diff --git a/src/pkg/math/big/arith_test.go b/src/pkg/math/big/arith_test.go
+index b6c56c39ef..106cd92d85 100644
+--- a/src/pkg/math/big/arith_test.go
++++ b/src/pkg/math/big/arith_test.go
+@@ -333,3 +333,25 @@ func TestMulAddWWW(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// runs b.N iterations of bitLen called on a Word containing (1 << nbits)-1.
++func benchmarkBitLenN(b *testing.B, nbits uint) {
++	testword := Word((uint64(1) << nbits) - 1)
++	for i := 0; i < b.N; i++ {
++		bitLen(testword)
++	}
++}
++
++// Individual bitLen tests.  Numbers chosen to examine both sides
++// of powers-of-two boundaries.
++func BenchmarkBitLen0(b *testing.B)  { benchmarkBitLenN(b, 0) }
++func BenchmarkBitLen1(b *testing.B)  { benchmarkBitLenN(b, 1) }
++func BenchmarkBitLen2(b *testing.B)  { benchmarkBitLenN(b, 2) }
++func BenchmarkBitLen3(b *testing.B)  { benchmarkBitLenN(b, 3) }
++func BenchmarkBitLen4(b *testing.B)  { benchmarkBitLenN(b, 4) }
++func BenchmarkBitLen5(b *testing.B)  { benchmarkBitLenN(b, 5) }
++func BenchmarkBitLen8(b *testing.B)  { benchmarkBitLenN(b, 8) }
++func BenchmarkBitLen9(b *testing.B)  { benchmarkBitLenN(b, 9) }
++func BenchmarkBitLen16(b *testing.B) { benchmarkBitLenN(b, 16) }
++func BenchmarkBitLen17(b *testing.B) { benchmarkBitLenN(b, 17) }
++func BenchmarkBitLen31(b *testing.B) { benchmarkBitLenN(b, 31) }

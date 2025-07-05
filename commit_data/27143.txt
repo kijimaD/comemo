@@ -11,6 +11,20 @@ Date:   Sat Mar 12 21:09:14 2016 +0200
     Change-Id: I47c2a4da7273e3a97a833f320a650b8c6b59d6b9
     Reviewed-on: https://go-review.googlesource.com/20632
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/pprof/internal/driver/driver.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/pprof/internal/driver/driver.go b/src/cmd/pprof/internal/driver/driver.go
+index df6a2d18b2..7cd1ddc928 100644
+--- a/src/cmd/pprof/internal/driver/driver.go
++++ b/src/cmd/pprof/internal/driver/driver.go
+@@ -139,7 +139,7 @@ func adjustURL(source string, sec int, ui plugin.UI) (adjusted, host string, dur
+ 	if err != nil || (url.Host == "" && url.Scheme != "" && url.Scheme != "file") {
+ 		url, err = url.Parse("http://" + source)
+ 		if err != nil {
+-			return source, url.Host, time.Duration(30) * time.Second
++			return source, "", 0
+ 		}
+ 	}
+ 	if scheme := strings.ToLower(url.Scheme); scheme == "" || scheme == "file" {

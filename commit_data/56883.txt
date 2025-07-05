@@ -14,6 +14,45 @@ Date:   Fri May 26 17:07:49 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.21.html | 20 ++++++++------------
  1 file changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index d3d79a2f25..0be1bdce5f 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -258,6 +258,14 @@ Do not send CLs removing the interior tags from such phrases.
+   of any element type.
+ </p>
+ 
++<h3 id="maps">New maps package</h3>
++
++<p><!-- https://go.dev/issue/57436, CL 464343 -->
++  The new <a href="/pkg/maps/">maps</a> package provides several
++  common operations on maps, using generic functions that work with
++  maps of any key or element type.
++</p>
++
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+ 
+ <p>
+@@ -567,18 +575,6 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- log/slog -->
+ 
+-<dl id="maps"><dt><a href="/pkg/maps/">maps</a></dt>
+-  <dd>
+-    <p><!-- https://go.dev/issue/57436 -->
+-      TODO: <a href="https://go.dev/issue/57436">https://go.dev/issue/57436</a>: new standard library package based on x/exp/maps
+-    </p>
+-
+-    <p><!-- CL 464343 -->
+-      TODO: <a href="https://go.dev/cl/464343">https://go.dev/cl/464343</a>: maps: new package; modified api/next/57436.txt
+-    </p>
+-  </dd>
+-</dl><!-- maps -->
+-
+ <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/56491 -->

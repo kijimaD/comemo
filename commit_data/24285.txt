@@ -8,6 +8,20 @@ Date:   Tue Jul 21 12:49:59 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/12470
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsovar/cgoso_c.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testsovar/cgoso_c.h b/misc/cgo/testsovar/cgoso_c.h
+index ab304cdcaa..640db7b396 100644
+--- a/misc/cgo/testsovar/cgoso_c.h
++++ b/misc/cgo/testsovar/cgoso_c.h
+@@ -11,7 +11,7 @@
+ #    define VAR __declspec(dllimport)
+ #endif
+ #else
+-#    define VAR
++#    define VAR extern
+ #endif
+ 
+ VAR const char *exported_var;

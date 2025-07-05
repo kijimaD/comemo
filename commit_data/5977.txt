@@ -7,7 +7,60 @@ Date:   Mon Aug 9 11:21:20 2010 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/1913047
-
+---
  src/pkg/exec/exec_test.go | 23 +++++++++++++++++++++++
  src/pkg/os/exec.go        |  3 +++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index 3e4ab7d780..898f42582b 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"testing"
++	"os"
+ )
+ 
+ func TestRunCat(t *testing.T) {
+@@ -84,3 +85,25 @@ func TestMergeWithStdout(t *testing.T) {
+ 		t.Fatal("close:", err)
+ 	}
+ }
++
++func TestAddEnvVar(t *testing.T) {
++	err := os.Setenv("NEWVAR", "hello world")
++	if err != nil {
++		t.Fatal("setenv:", err)
++	}
++	cmd, err := Run("/bin/sh", []string{"sh", "-c", "echo $NEWVAR"}, nil, "",
++		DevNull, Pipe, DevNull)
++	if err != nil {
++		t.Fatal("run:", err)
++	}
++	buf, err := ioutil.ReadAll(cmd.Stdout)
++	if err != nil {
++		t.Fatal("read:", err)
++	}
++	if string(buf) != "hello world\n" {
++		t.Fatalf("read: got %q", buf)
++	}
++	if err = cmd.Close(); err != nil {
++		t.Fatal("close:", err)
++	}
++}
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index d55acbaa70..c0831cab69 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -16,6 +16,9 @@ import (
+ // will cause the child to have no open file descriptor with that index.
+ // If dir is not empty, the child chdirs into the directory before execing the program.
+ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File) (pid int, err Error) {
++	if envv == nil {
++		envv = Environ()
++	}
+ 	// Create array of integer (system) fds.
+ 	intfd := make([]int, len(fd))
+ 	for i, f := range fd {

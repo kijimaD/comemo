@@ -9,6 +9,20 @@ Date:   Thu Jul 5 16:52:13 2012 -0400
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6349077
-
+---
  misc/chrome/gophertool/manifest.json | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/chrome/gophertool/manifest.json b/misc/chrome/gophertool/manifest.json
+index 1a2e920300..04386594ae 100644
+--- a/misc/chrome/gophertool/manifest.json
++++ b/misc/chrome/gophertool/manifest.json
+@@ -8,7 +8,7 @@
+   },
+   "browser_action": {
+     "default_icon": "gopher.png",
+-    "popup": "popup.html"
++    "default_popup": "popup.html"
+   },
+   "omnibox": { "keyword": "golang" },
+   "icons": {

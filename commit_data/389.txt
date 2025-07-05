@@ -7,10 +7,582 @@ Date:   Fri Jul 18 14:04:21 2008 -0700
     - various fixes
     
     SVN=128061
-
+---
  usr/gri/gosrc/compilation.go |   6 +-
  usr/gri/gosrc/export.go      |  80 ++++++-----
  usr/gri/gosrc/globals.go     |   1 +
  usr/gri/gosrc/import.go      | 314 +++++++++++++++++++++++++++++++++++++++++++
  usr/gri/gosrc/universe.go    |  14 +-
  5 files changed, 366 insertions(+), 49 deletions(-)
+
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index 93d66a8d1c..bfd6e13d4e 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -65,6 +65,8 @@ func Compile(file_name string, verbose int) {
+ 	}
+ 	
+ 	// export
+-	export_file_name := FixExt(BaseName(file_name));  // strip file dir
+-	Export.Export(comp, export_file_name);
++	/*
++	exp := new(Export.Exporter);
++	exp.Export(comp, FixExt(BaseName(file_name)));
++	*/
+ }
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index e261662bdf..1492ee6aca 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -7,13 +7,12 @@ package Exporter
+ import Globals "globals"
+ import Object "object"
+ import Type "type"
+-//import Compilation "compilation"
++import Universe "universe"
+ 
+ 
++export Exporter  // really only want to export Export()
+ type Exporter struct {
+-	/*
+-	Compilation* comp;
+-	*/
++	comp *Globals.Compilation;
+ 	debug bool;
+ 	buf [4*1024] byte;
+ 	pos int;
+@@ -24,22 +23,26 @@ type Exporter struct {
+ 
+ func (E *Exporter) WriteType(typ *Globals.Type);
+ func (E *Exporter) WriteObject(obj *Globals.Object);
+-func (E *Exporter) WritePackage(pkg *Globals.Package) ;
++func (E *Exporter) WritePackage(pkg *Globals.Package);
+ 
+ 
+ func (E *Exporter) WriteByte(x byte) {
+ 	E.buf[E.pos] = x;
+ 	E.pos++;
++	/*
+ 	if E.debug {
+ 		print " ", x;
+ 	}
++	*/
+ }
+ 
+ 
+ func (E *Exporter) WriteInt(x int) {
++	/*
+ 	if E.debug {
+ 		print " #", x;
+ 	}
++	*/
+ 	for x < -64 || x >= 64 {
+ 		E.WriteByte(byte(x & 127));
+ 		x = int(uint(x >> 7));  // arithmetic shift
+@@ -51,7 +54,7 @@ func (E *Exporter) WriteInt(x int) {
+ 
+ func (E *Exporter) WriteString(s string) {
+ 	if E.debug {
+-		print `"`, s, `"`;
++		print ` "`, s, `"`;
+ 	}
+ 	n := len(s);
+ 	E.WriteInt(n);
+@@ -66,7 +69,7 @@ func (E *Exporter) WriteObjTag(tag int) {
+ 		panic "tag < 0";
+ 	}
+ 	if E.debug {
+-		print "\nO: ", tag;  // obj kind
++		print "\nObj: ", tag;  // obj kind
+ 	}
+ 	E.WriteInt(tag);
+ }
+@@ -75,9 +78,9 @@ func (E *Exporter) WriteObjTag(tag int) {
+ func (E *Exporter) WriteTypeTag(tag int) {
+ 	if E.debug {
+ 		if tag > 0 {
+-			print "\nT", E.type_ref, ": ", tag;  // type form
++			print "\nTyp ", E.type_ref, ": ", tag;  // type form
+ 		} else {
+-			print " [T", -tag, "]";  // type ref
++			print " [Typ ", -tag, "]";  // type ref
+ 		}
+ 	}
+ 	E.WriteInt(tag);
+@@ -87,9 +90,9 @@ func (E *Exporter) WriteTypeTag(tag int) {
+ func (E *Exporter) WritePackageTag(tag int) {
+ 	if E.debug {
+ 		if tag > 0 {
+-			print "\nP", E.pkg_ref, ": ", tag;  // package no
++			print "\nPkg ", E.pkg_ref, ": ", tag;  // package no
+ 		} else {
+-			print " [P", -tag, "]";  // package ref
++			print " [Pkg ", -tag, "]";  // package ref
+ 		}
+ 	}
+ 	E.WriteInt(tag);
+@@ -146,8 +149,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
+ 		E.WriteObjTag(obj.kind);
+ 		E.WriteString(obj.ident);
+ 		E.WriteType(obj.typ);
+-		panic "UNIMPLEMENTED";
+-		//E.WritePackage(E.comp.packages[obj.pnolev]);
++		E.WritePackage(E.comp.pkgs[obj.pnolev]);
+ 
+ 		switch obj.kind {
+ 		case Object.BAD: fallthrough;
+@@ -192,8 +194,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 			panic "typ.obj.type() != typ";  // primary type
+ 		}
+ 		E.WriteString(typ.obj.ident);
+-		panic "UNIMPLEMENTED";
+-		//WritePackage(E.comp.packages[typ.obj.pnolev]);
++		E.WritePackage(E.comp.pkgs[typ.obj.pnolev]);
+ 	} else {
+ 		E.WriteString("");
+ 	}
+@@ -258,27 +259,30 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
+ }
+ 
+ 
+-func (E *Exporter) Export(/*Compilation* comp, BBuffer* buf*/) {
+-	panic "UNIMPLEMENTED";
+-	
+-	/*
++func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 	E.comp = comp;
+-	E.buf = buf;
+-	E.pak_ref = 0;
+-	E.nbytes = 0;
+-	*/
++	E.debug = true;
++	E.pos = 0;
++	E.pkg_ref = 0;
++	E.type_ref = 0;
++	
++	if E.debug {
++		print "exporting to ", file_name;
++	}
+ 
+ 	// Predeclared types are "pre-exported".
+-	/*
+-	#ifdef DEBUG
+-	for (int i = 0; i < Universe.types.len(); i++) {
+-	ASSERT(Universe.types[i].ref == i);
++	// TODO run the loop below only in debug mode
++	{	i := 0;
++		for p := Universe.types.first; p != nil; p = p.next {
++			if p.typ.ref != i {
++				panic "incorrect ref for predeclared type";
++			}
++			i++;
++		}
+ 	}
+-	#endif
+-	E.type_ref = Universe.types.len();
+-	*/
++	E.type_ref = Universe.types.len_;
+ 	
+-	var pkg *Globals.Package = nil; // comp.packages[0];
++	pkg := comp.pkgs[0];
+ 	E.WritePackage(pkg);
+ 	for p := pkg.scope.entries.first; p != nil; p = p.next {
+ 		if p.obj.mark {
+@@ -288,15 +292,9 @@ func (E *Exporter) Export(/*Compilation* comp, BBuffer* buf*/) {
+ 	E.WriteObjTag(0);
+ 
+ 	if E.debug {
+-		print "\n(", E.pos, ")\n";
++		print "\n(", E.pos, " bytes)\n";
+ 	}
+-}
+-
+-
+-export Export
+-func Export(comp *Globals.Compilation, file_name string) {
+-	/*
+-	Exporter exp;
+-	exp.Export(comp, buf);
+-	*/
++	
++	data := string(E.buf)[0 : E.pos];
++	ok := sys.writefile(file_name, data);
+ }
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 4ddfd6b17e..f8842a758d 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -113,6 +113,7 @@ func NewPackage(file_name string) *Package {
+ 	pkg := new(Package);
+ 	pkg.ref = -1;
+ 	pkg.file_name = file_name;
++	pkg.key = "<the package key>";  // TODO fix this
+ 	return pkg;
+ }
+ 
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+new file mode 100755
+index 0000000000..e5c5d15cc1
+--- /dev/null
++++ b/usr/gri/gosrc/import.go
+@@ -0,0 +1,314 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package Importer
++
++import Globals "globals"
++import Object "object"
++import Type "type"
++import Universe "universe"
++
++
++type Importer struct {
++	comp *Globals.Compilation;
++	debug bool;
++	buf string;
++	pos int;
++	pkgs [256] *Globals.Package;
++	npkgs int;
++	types [1024] *Globals.Type;
++	ntypes int;
++};
++
++
++func (I *Importer) ReadType() *Globals.Type;
++func (I *Importer) ReadObject(tag int) *Globals.Object;
++func (I *Importer) ReadPackage() *Globals.Package;
++
++
++func (I *Importer) ReadByte() byte {
++	x := I.buf[I.pos];
++	I.pos++;
++	/*
++	if E.debug {
++		print " ", x;
++	}
++	*/
++	return x;
++}
++
++
++func (I *Importer) ReadInt() int {
++	x := 0;
++	s := 0;  // TODO eventually Go will require this to be a uint!
++	b := I.ReadByte();
++	for b < 128 {
++		x |= int(b) << s;
++		s += 7;
++		b = I.ReadByte();
++	}
++	// b >= 128
++	x |= ((int(b) - 192) << s);
++	/*
++	if I.debug {
++		print " #", x;
++	}
++	*/
++	return x;
++}
++
++
++func (I *Importer) ReadString() string {
++	var buf [256] byte;  // TODO this needs to be fixed
++	n := I.ReadInt();
++	for i := 0; i < n; i++ {
++		buf[i] = I.ReadByte();
++	}
++	s := string(buf)[0 : n];
++	if I.debug {
++		print ` "`, s, `"`;
++	}
++	return s;
++}
++
++
++func (I *Importer) ReadObjTag() int {
++	tag := I.ReadInt();
++	if tag < 0 {
++		panic "tag < 0";
++	}
++	if I.debug {
++		print "\nObj: ", tag;  // obj kind
++	}
++	return tag;
++}
++
++
++func (I *Importer) ReadTypeTag() int {
++	tag := I.ReadInt();
++	if I.debug {
++		if tag > 0 {
++			print "\nTyp ", I.ntypes, ": ", tag;  // type form
++		} else {
++			print " [Typ ", -tag, "]";  // type ref
++		}
++	}
++	return tag;
++}
++
++
++func (I *Importer) ReadPackageTag() int {
++	tag := I.ReadInt();
++	if I.debug {
++		if tag > 0 {
++			print "\nPkg ", I.npkgs, ": ", tag;  // package tag
++		} else {
++			print " [Pkg ", -tag, "]";  // package ref
++		}
++	}
++	return tag;
++}
++
++
++func (I *Importer) ReadTypeField() *Globals.Object {
++	fld := Globals.NewObject(0, Object.VAR, "");
++	fld.typ = I.ReadType();
++	return fld;
++}
++
++
++func (I *Importer) ReadScope() *Globals.Scope {
++	if I.debug {
++		print " {";
++	}
++
++	scope := Globals.NewScope(nil);
++	for n := I.ReadInt(); n > 0; n-- {
++		tag := I.ReadObjTag();
++		scope.Insert(I.ReadObject(tag));
++	}
++
++	if I.debug {
++		print " }";
++	}
++}
++
++
++func (I *Importer) ReadObject(tag int) *Globals.Object {
++	if tag == Object.PTYPE {
++		// primary type object - handled entirely by ReadType()
++		typ := I.ReadType();
++		if typ.obj.typ != typ {
++			panic "incorrect primary type";
++		}
++		return typ.obj;
++
++	} else {
++		ident := I.ReadString();
++		obj := Globals.NewObject(0, tag, ident);
++		obj.typ = I.ReadType();
++		obj.pnolev = I.ReadPackage().obj.pnolev;
++
++		switch (tag) {
++		default: fallthrough;
++		case Object.BAD: fallthrough;
++		case Object.PACKAGE: fallthrough;
++		case Object.PTYPE:
++			panic "UNREACHABLE";
++
++		case Object.CONST:
++			I.ReadInt();  // should set the value field
++
++		case Object.TYPE:
++			// nothing to do
++			
++		case Object.VAR:
++			I.ReadInt();  // should set the address/offset field
++
++		case Object.FUNC:
++			I.ReadInt();  // should set the address/offset field
++		}
++
++		return obj;
++	}
++}
++
++
++func (I *Importer) ReadType() *Globals.Type {
++	tag := I.ReadTypeTag();
++
++	if tag <= 0 {
++		return I.types[-tag];  // type already imported
++	}
++
++	typ := Globals.NewType(tag);
++	ptyp := typ;  // primary type
++	ident := I.ReadString();
++	if (len(ident) > 0) {
++		// primary type
++		obj := Globals.NewObject(0, Object.TYPE, ident);
++		obj.typ = typ;
++		typ.obj = obj;
++
++		// canonicalize type
++		pkg := I.ReadPackage();
++		obj.pnolev = pkg.obj.pnolev;
++		obj = pkg.scope.InsertImport(obj);
++
++		ptyp = obj.typ;
++	}
++	I.types[I.ntypes] = ptyp;
++	I.ntypes++;
++
++	switch (tag) {
++	default: fallthrough;
++	case Type.UNDEF: fallthrough;
++	case Type.BAD: fallthrough;
++	case Type.NIL: fallthrough;
++	case Type.BOOL: fallthrough;
++	case Type.UINT: fallthrough;
++	case Type.INT: fallthrough;
++	case Type.FLOAT: fallthrough;
++	case Type.STRING: fallthrough;
++	case Type.ANY:
++		panic "UNREACHABLE";
++
++	case Type.ARRAY:
++		typ.len_ = I.ReadInt();
++		typ.elt = I.ReadTypeField();
++
++	case Type.MAP:
++		typ.key = I.ReadTypeField();
++		typ.elt = I.ReadTypeField();
++
++	case Type.CHANNEL:
++		typ.flags = I.ReadInt();
++		typ.elt = I.ReadTypeField();
++
++	case Type.FUNCTION:
++		typ.flags = I.ReadInt();
++		fallthrough;
++	case Type.STRUCT: fallthrough;
++	case Type.INTERFACE:
++		typ.scope = I.ReadScope();
++
++	case Type.POINTER: fallthrough;
++	case Type.REFERENCE:
++		typ.elt = I.ReadTypeField();
++	}
++
++	return ptyp;  // only use primary type
++}
++
++
++func (I *Importer) ReadPackage() *Globals.Package {
++	tag := I.ReadPackageTag();
++
++	if (tag <= 0) {
++		return I.pkgs[-tag];  // package already imported
++	}
++
++	ident := I.ReadString();
++	file_name := I.ReadString();
++	key := I.ReadString();
++	pkg := I.comp.Lookup(file_name);
++
++	if pkg == nil {
++		// new package
++		pkg = Globals.NewPackage(file_name);
++		pkg.scope = Globals.NewScope(nil);
++		pkg = I.comp.InsertImport(pkg);
++
++	} else if (key != pkg.key) {
++		// package inconsistency
++		panic "package key inconsistency";
++	}
++	I.pkgs[I.npkgs] = pkg;
++	I.npkgs++;
++
++	return pkg;
++}
++
++
++func (I *Importer) Import(comp* Globals.Compilation, file_name string) {
++	if I.debug {
++		print "importing from ", file_name;
++	}
++	
++	buf, ok := sys.readfile(file_name);
++	if !ok {
++		panic "import failed";
++	}
++	
++	I.comp = comp;
++	I.debug = true;
++	I.buf = buf;
++	I.pos = 0;
++	I.npkgs = 0;
++	I.ntypes = 0;
++	
++	// Predeclared types are "pre-exported".
++	for p := Universe.types.first; p != nil; p = p.next {
++		if p.typ.ref != I.ntypes {
++			panic "incorrect ref for predeclared type";
++		}
++		I.types[I.ntypes] = p.typ;
++		I.ntypes++;
++	}
++
++	pkg := I.ReadPackage();
++	for {
++		tag := I.ReadObjTag();
++		if tag == 0 {
++			break;
++		}
++		obj := I.ReadObject(tag);
++		obj.pnolev = pkg.obj.pnolev;
++		pkg.scope.InsertImport(obj);
++	}
++
++	if I.debug {
++		print "\n(", I.pos, " bytes)\n";
++	}
++}
+diff --git a/usr/gri/gosrc/universe.go b/usr/gri/gosrc/universe.go
+index 8fa8953bc4..10948f5f55 100755
+--- a/usr/gri/gosrc/universe.go
++++ b/usr/gri/gosrc/universe.go
+@@ -11,6 +11,7 @@ import Type "type"
+ 
+ export
+ 	scope,
++	types,
+ 	undef_t, bad_t, nil_t,
+ 	bool_t,
+ 	uint8_t, uint16_t, uint32_t, uint64_t,
+@@ -27,6 +28,7 @@ export
+ 
+ var (
+ 	scope *Globals.Scope;
++	types *Globals.List;
+ 	
+ 	// internal types
+ 	undef_t,
+@@ -90,19 +92,19 @@ func DeclType(form int, ident string, size int) *Globals.Type {
+ 
+ 
+ func Register(typ *Globals.Type) *Globals.Type {
+-	/*
+-	type->ref = Universe::types.len(); // >= 0
+-	Universe::types.Add(type);
+-	*/
++	if types.len_ < 0 {
++		panic "types.len_ < 0";
++	}
++	typ.ref = types.len_;
++	types.AddTyp(typ);
+ 	return typ;
+ }
+ 
+ 
+ export Init
+ func Init() {
+-	// print "initializing universe\n";
+-	
+ 	scope = Globals.NewScope(nil);  // universe has no parent
++	types = Globals.NewList();
+ 	
+ 	// Interal types
+ 	undef_t = Globals.NewType(Type.UNDEF);

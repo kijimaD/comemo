@@ -19,6 +19,29 @@ Date:   Mon Oct 26 19:35:23 2020 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/mstats.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 512a06cffa..07f466ec49 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -720,11 +720,17 @@ func flushallmcaches() {
+ type sysMemStat uint64
+ 
+ // load atomically reads the value of the stat.
++//
++// Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
++//go:nosplit
+ func (s *sysMemStat) load() uint64 {
+ 	return atomic.Load64((*uint64)(s))
+ }
+ 
+ // add atomically adds the sysMemStat by n.
++//
++// Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
++//go:nosplit
+ func (s *sysMemStat) add(n int64) {
+ 	if s == nil {
+ 		return

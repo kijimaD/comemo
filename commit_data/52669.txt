@@ -17,7 +17,39 @@ Date:   Tue May 17 15:38:35 2022 +0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/testplugin/plugin_test.go                                   | 4 ++++
  .../issue52937.go => misc/cgo/testplugin/testdata/issue52937/main.go | 5 -----
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index 53e79a4626..74fb866f6f 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -296,6 +296,10 @@ func TestIssue44956(t *testing.T) {
+ 	run(t, "./issue44956.exe")
+ }
+ 
++func TestIssue52937(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-o", "issue52937.so", "./issue52937/main.go")
++}
++
+ func TestForkExec(t *testing.T) {
+ 	// Issue 38824: importing the plugin package causes it hang in forkExec on darwin.
+ 
+diff --git a/test/typeparam/issue52937.go b/misc/cgo/testplugin/testdata/issue52937/main.go
+similarity index 80%
+rename from test/typeparam/issue52937.go
+rename to misc/cgo/testplugin/testdata/issue52937/main.go
+index efcb69a2c1..66f09effea 100644
+--- a/test/typeparam/issue52937.go
++++ b/misc/cgo/testplugin/testdata/issue52937/main.go
+@@ -1,8 +1,3 @@
+-// build -buildmode=plugin
+-
+-//go:build !js
+-// +build !js
+-
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

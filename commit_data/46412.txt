@@ -160,3 +160,92 @@ Date:   Mon Dec 28 00:39:13 2020 -0800
  test/fixedbugs/issue31053.dir/main.go              |     6 +-
  test/used.go                                       |     1 +
  90 files changed, 8495 insertions(+), 8665 deletions(-)
+
+diff --cc test/fixedbugs/issue27595.go
+index 8277145769,b9328a6813..2fc0eb2a58
+--- a/test/fixedbugs/issue27595.go
++++ b/test/fixedbugs/issue27595.go
+@@@ -6,9 -6,9 +6,9 @@@
+  
+  package main
+  
+ -var a = twoResults()       // ERROR "assignment mismatch: 1 variable but twoResults returns 2 values"
+ -var b, c, d = twoResults() // ERROR "assignment mismatch: 3 variables but twoResults returns 2 values"
+ -var e, f = oneResult()     // ERROR "assignment mismatch: 2 variables but oneResult returns 1 value"
+ +var a = twoResults()       // ERROR "assignment mismatch: 1 variable but twoResults returns 2 values|2\-valued"
+ +var b, c, d = twoResults() // ERROR "assignment mismatch: 3 variables but twoResults returns 2 values|cannot initialize"
+- var e, f = oneResult()     // ERROR "assignment mismatch: 2 variables but oneResult returns 1 values|cannot initialize"
+++var e, f = oneResult()     // ERROR "assignment mismatch: 2 variables but oneResult returns 1 value|cannot initialize"
+  
+  func twoResults() (int, int) {
+  	return 1, 2
+diff --cc test/fixedbugs/issue30087.go
+index e2aec63a52,a8f6202329..3e4b0324a3
+--- a/test/fixedbugs/issue30087.go
++++ b/test/fixedbugs/issue30087.go
+@@@ -7,9 -7,8 +7,9 @@@
+  package main
+  
+  func main() {
+- 	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 values|wrong number of initializations|cannot initialize"
+- 	_ = 1, 2        // ERROR "assignment mismatch: 1 variables but 2 values|number of variables does not match|cannot assign"
+- 	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 values|wrong number of initializations|cannot initialize"
+ -	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 value|wrong number of initializations"
+ -	_ = 1, 2        // ERROR "assignment mismatch: 1 variable but 2 values|number of variables does not match"
+ -	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 value|wrong number of initializations"
+ -	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations"
+++	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 value|wrong number of initializations|cannot initialize"
+++	_ = 1, 2        // ERROR "assignment mismatch: 1 variable but 2 values|number of variables does not match|cannot assign"
+++	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 value|wrong number of initializations|cannot initialize"
+ +	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations|cannot initialize"
+ +	_, _, _, _ = c, d, e, f
+  }
+diff --cc test/used.go
+index a3f0e1270b,76f3fc91cc..5bdc5a7318
+--- a/test/used.go
++++ b/test/used.go
+@@@ -59,26 -59,27 +59,27 @@@ func _() 
+  	f0()                   // ok
+  	f1()                   // ok
+  	f2()                   // ok
+ -	_ = f0()               // ERROR "f0\(\) used as value"
+ +	_ = f0()               // ERROR "f0\(\) .*used as value"
+  	_ = f1()               // ok
+  	_, _ = f2()            // ok
+ -	_ = f2()               // ERROR "assignment mismatch: 1 variable but f2 returns 2 values"
+ -	_ = f1(), 0            // ERROR "assignment mismatch: 1 variable but 2 values"
+ -	T.M0                   // ERROR "T.M0 evaluated but not used"
+ -	t.M0                   // ERROR "t.M0 evaluated but not used"
+ -	cap                    // ERROR "use of builtin cap not in function call"
+ -	cap(slice)             // ERROR "cap\(slice\) evaluated but not used"
+ +	_ = f2()               // ERROR "assignment mismatch: 1 variable but f2 returns 2 values|cannot assign"
+++	_ = f1(), 0            // ERROR "assignment mismatch: 1 variable but 2 values|cannot assign"
+ +	T.M0                   // ERROR "T.M0 .* not used"
+ +	t.M0                   // ERROR "t.M0 .* not used"
+ +	cap                    // ERROR "use of builtin cap not in function call|must be called"
+ +	cap(slice)             // ERROR "cap\(slice\) .* not used"
+  	close(c)               // ok
+ -	_ = close(c)           // ERROR "close\(c\) used as value"
+ -	func() {}              // ERROR "func literal evaluated but not used"
+ +	_ = close(c)           // ERROR "close\(c\) .*used as value"
+ +	func() {}              // ERROR "func literal .* not used|is not used"
+  	X{}                    // ERROR "undefined: X"
+ -	map[string]int{}       // ERROR "map\[string\]int{} evaluated but not used"
+ -	struct{}{}             // ERROR "struct ?{}{} evaluated but not used"
+ -	[1]int{}               // ERROR "\[1\]int{} evaluated but not used"
+ -	[]int{}                // ERROR "\[\]int{} evaluated but not used"
+ -	&struct{}{}            // ERROR "&struct ?{}{} evaluated but not used"
+ -	float32(x)             // ERROR "float32\(x\) evaluated but not used"
+ -	I(t)                   // ERROR "I\(t\) evaluated but not used"
+ -	int(x)                 // ERROR "int\(x\) evaluated but not used"
+ +	map[string]int{}       // ERROR "map\[string\]int{} .* not used"
+ +	struct{}{}             // ERROR "struct ?{}{} .* not used"
+ +	[1]int{}               // ERROR "\[1\]int{} .* not used"
+ +	[]int{}                // ERROR "\[\]int{} .* not used"
+ +	&struct{}{}            // ERROR "&struct ?{}{} .* not used"
+ +	float32(x)             // ERROR "float32\(x\) .* not used"
+ +	I(t)                   // ERROR "I\(t\) .* not used"
+ +	int(x)                 // ERROR "int\(x\) .* not used"
+  	copy(slice, slice)     // ok
+  	_ = copy(slice, slice) // ok
+  	delete(m, 1)           // ok

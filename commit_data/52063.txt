@@ -25,7 +25,7 @@ Date:   Sun Jan 30 20:11:47 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/archive/zip/reader_test.go                   |  1 -
  src/bufio/scan.go                                |  1 -
  src/cmd/asm/internal/asm/parse.go                |  1 -
@@ -177,3 +177,3661 @@ Date:   Sun Jan 30 20:11:47 2022 -0500
  src/unicode/letter.go                            |  1 -
  src/unsafe/unsafe.go                             |  1 -
  150 files changed, 387 deletions(-)
+
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index d1a9bdd334..9bc23642c0 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -865,7 +865,6 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
+ //
+ // It's here in hex for the same reason as rZipBytes above: to avoid
+ // problems with on-disk virus scanners or other zip processors.
+-//
+ func biggestZipBytes() []byte {
+ 	s := `
+ 0000000 50 4b 03 04 14 00 08 00 08 00 00 00 00 00 00 00
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index 4846d4f733..e247cbcf32 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -26,7 +26,6 @@ import (
+ // advanced arbitrarily far past the last token. Programs that need more
+ // control over error handling or large tokens, or must run sequential scans
+ // on a reader, should use bufio.Reader instead.
+-//
+ type Scanner struct {
+ 	r            io.Reader // The reader provided by the client.
+ 	split        SplitFunc // The function to split the tokens.
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 0bdf868f48..59aedbf0cc 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -855,7 +855,6 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
+ //
+ // Anything else beginning with "<" logs an error if issueError is
+ // true, otherwise returns (false, obj.ABI0).
+-//
+ func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
+ 	abi := obj.ABI0
+ 	isStatic := false
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 997a830994..9877182fc4 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -119,7 +119,6 @@ func (p *Package) addToFlag(flag string, args []string) {
+ // Would be parsed as:
+ //
+ //     []string{"a", "b:c d", "ef", `g"`}
+-//
+ func splitQuoted(s string) (r []string, err error) {
+ 	var args []string
+ 	arg := make([]rune, len(s))
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index 6c27f8b332..bcf0480cfc 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -28,7 +28,6 @@ var pkgExts = [...]string{".a", ".o"}
+ // the build.Default build.Context). A relative srcDir is interpreted
+ // relative to the current working directory.
+ // If no file was found, an empty filename is returned.
+-//
+ func FindPkg(path, srcDir string) (filename, id string) {
+ 	if path == "" {
+ 		return
+@@ -84,7 +83,6 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ // Import imports a gc-generated package given its import path and srcDir, adds
+ // the corresponding package object to the packages map, and returns the object.
+ // The packages map must contain all packages already imported.
+-//
+ func Import(packages map[string]*types2.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types2.Package, err error) {
+ 	var rc io.ReadCloser
+ 	var id string
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 12a463c8a4..a00667b309 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -105,7 +105,6 @@ func (o Op) GoString() string {
+ //
+ //	%v	Go syntax ("+", "<-", "print")
+ //	%+v	Debug syntax ("ADD", "RECV", "PRINT")
+-//
+ func (o Op) Format(s fmt.State, verb rune) {
+ 	switch verb {
+ 	default:
+@@ -129,7 +128,6 @@ func (o Op) Format(s fmt.State, verb rune) {
+ //	%v	Go syntax
+ //	%L	Go syntax followed by " (type T)" if type is known.
+ //	%+v	Debug syntax, as in Dump.
+-//
+ func fmtNode(n Node, s fmt.State, verb rune) {
+ 	// %+v prints Dump.
+ 	// Otherwise we print Go syntax.
+@@ -926,7 +924,6 @@ func ellipsisIf(b bool) string {
+ //	%v	Go syntax, semicolon-separated
+ //	%.v	Go syntax, comma-separated
+ //	%+v	Debug syntax, as in DumpList.
+-//
+ func (l Nodes) Format(s fmt.State, verb rune) {
+ 	if s.Flag('+') && verb == 'v' {
+ 		// %+v is DumpList output
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index 801a48a78e..98c0ffa5b0 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -27,7 +27,6 @@ import (
+ // The embedding struct should also fill in n.op in its constructor,
+ // for more useful panic messages when invalid methods are called,
+ // instead of implementing Op itself.
+-//
+ type miniNode struct {
+ 	pos  src.XPos // uint32
+ 	op   Op       // uint8
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 908f81865e..9961c8f65a 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1500,7 +1500,6 @@ func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+ // use bitmaps for objects up to 64 kB in size.
+ //
+ // Also known to reflect/type.go.
+-//
+ const maxPtrmaskBytes = 2048
+ 
+ // GCSym returns a data symbol containing GC information for type t, along
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index d006bf9a3b..f95140eaf9 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -259,7 +259,6 @@ var GenssaDump map[string]bool = make(map[string]bool) // names of functions to
+ // GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash
+ //
+ // BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
+-//
+ func PhaseOption(phase, flag string, val int, valString string) string {
+ 	switch phase {
+ 	case "", "help":
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index aad59fa24e..08dc5c468e 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -428,7 +428,6 @@ func (sc *slotCanonicalizer) canonSlot(idx SlKeyIdx) LocalSlot {
+ // This function examines the live OpArg{Int,Float}Reg values and
+ // synthesizes new (dead) values for the non-live params or the
+ // non-live pieces of partially live params.
+-//
+ func PopulateABIInRegArgOps(f *Func) {
+ 	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type.FuncType())
+ 
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index b20041c1b5..2fc12557c0 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -93,7 +93,6 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
+ // go test debug_test.go -args -u
+ // (for Delve)
+ // go test debug_test.go -args -u -d
+-//
+ func TestNexting(t *testing.T) {
+ 	testenv.SkipFlaky(t, 37404)
+ 
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index ee884ca761..200106e66d 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -145,7 +145,6 @@ type posetNode struct {
+ //       I  extra
+ //           /  \
+ //          J    K
+-//
+ type poset struct {
+ 	lastidx   uint32            // last generated dense index
+ 	flags     uint8             // internal flags
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 6574b01371..f18d526877 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -471,7 +471,6 @@ func isEmptyFuncDecl(dcl Decl) bool {
+ // elements are accepted. list returns the position of the closing token.
+ //
+ // list = [ f { sep f } [sep] ] close .
+-//
+ func (p *parser) list(context string, sep, close token, f func() bool) Pos {
+ 	if debug && (sep != _Comma && sep != _Semi || close != _Rparen && close != _Rbrace && close != _Rbrack) {
+ 		panic("invalid sep or close argument for list")
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index e51b5538b3..83b102da9f 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -63,7 +63,6 @@ type PragmaHandler func(pos Pos, blank bool, text string, current Pragma) Pragma
+ // error, and the returned syntax tree is nil.
+ //
+ // If pragh != nil, it is called with each pragma encountered.
+-//
+ func Parse(base *PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
+ 	defer func() {
+ 		if p := recover(); p != nil {
+diff --git a/src/cmd/compile/internal/test/zerorange_test.go b/src/cmd/compile/internal/test/zerorange_test.go
+index ec87136157..e92b5d342f 100644
+--- a/src/cmd/compile/internal/test/zerorange_test.go
++++ b/src/cmd/compile/internal/test/zerorange_test.go
+@@ -170,7 +170,6 @@ func triggerZerorangeSmall(f, g, h uint64) (rv0 uint64) {
+ // depending on the size of the thing that needs to be zeroed out
+ // (I've verified at the time of the writing of this test that it
+ // exercises the various cases).
+-//
+ func TestZerorange45372(t *testing.T) {
+ 	if r := triggerZerorangeLarge(101, 303, 505); r != 1010 {
+ 		t.Errorf("large: wanted %d got %d", 1010, r)
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index a42d97cd31..bdd3ca1d28 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -83,7 +83,6 @@ const (
+ //	%v	Go syntax: Name for symbols in the local package, PkgName.Name for imported symbols.
+ //	%+v	Debug syntax: always include PkgName. prefix even for local names.
+ //	%S	Short syntax: Name only, no matter what.
+-//
+ func (s *Sym) Format(f fmt.State, verb rune) {
+ 	mode := fmtGo
+ 	switch verb {
+@@ -241,7 +240,6 @@ var fmtBufferPool = sync.Pool{
+ //	%L	Go syntax for underlying type if t is named
+ //	%S	short Go syntax: drop leading "func" in function type
+ //	%-S	special case for method receiver symbol
+-//
+ func (t *Type) Format(s fmt.State, verb rune) {
+ 	mode := fmtGo
+ 	switch verb {
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index d864c96fb6..34bb29cadc 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -285,7 +285,6 @@ type Info struct {
+ 
+ // TypeOf returns the type of expression e, or nil if not found.
+ // Precondition: the Types, Uses and Defs maps are populated.
+-//
+ func (info *Info) TypeOf(e syntax.Expr) Type {
+ 	if t, ok := info.Types[e]; ok {
+ 		return t.Type
+@@ -305,7 +304,6 @@ func (info *Info) TypeOf(e syntax.Expr) Type {
+ // it defines, not the type (*TypeName) it uses.
+ //
+ // Precondition: the Uses and Defs maps are populated.
+-//
+ func (info *Info) ObjectOf(id *syntax.Name) Object {
+ 	if obj := info.Defs[id]; obj != nil {
+ 		return obj
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 428897c628..1bd2fdce06 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -16,7 +16,6 @@ import (
+ // reports whether the call is valid, with *x holding the result;
+ // but x.expr is not set. If the call is invalid, the result is
+ // false, and *x is undefined.
+-//
+ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (_ bool) {
+ 	// append is the only built-in that permits the use of ... for the last argument
+ 	bin := predeclaredFuncs[id]
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 23225c8d0d..1ecb4ff54b 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1211,7 +1211,6 @@ const (
+ // If hint != nil, it is the type of a composite literal element.
+ // If allowGeneric is set, the operand type may be an uninstantiated
+ // parameterized type or function value.
+-//
+ func (check *Checker) rawExpr(x *operand, e syntax.Expr, hint Type, allowGeneric bool) exprKind {
+ 	if check.conf.Trace {
+ 		check.trace(e.Pos(), "-- expr %s", e)
+@@ -1259,7 +1258,6 @@ func (check *Checker) nonGeneric(x *operand) {
+ 
+ // exprInternal contains the core of type checking of expressions.
+ // Must only be called by rawExpr.
+-//
+ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKind {
+ 	// make sure x has a valid state in case of bailout
+ 	// (was issue 5770)
+@@ -1764,7 +1762,6 @@ func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitc
+ // expr typechecks expression e and initializes x with the expression value.
+ // The result must be a single value.
+ // If an error occurred, x.mode is set to invalid.
+-//
+ func (check *Checker) expr(x *operand, e syntax.Expr) {
+ 	check.rawExpr(x, e, nil, false)
+ 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
+@@ -1780,7 +1777,6 @@ func (check *Checker) multiExpr(x *operand, e syntax.Expr) {
+ // exprWithHint typechecks expression e and initializes x with the expression value;
+ // hint is the type of a composite literal element.
+ // If an error occurred, x.mode is set to invalid.
+-//
+ func (check *Checker) exprWithHint(x *operand, e syntax.Expr, hint Type) {
+ 	assert(hint != nil)
+ 	check.rawExpr(x, e, hint, false)
+@@ -1792,7 +1788,6 @@ func (check *Checker) exprWithHint(x *operand, e syntax.Expr, hint Type) {
+ // If allowGeneric is set, the operand type may be an uninstantiated parameterized type or function
+ // value.
+ // If an error occurred, x.mode is set to invalid.
+-//
+ func (check *Checker) exprOrType(x *operand, e syntax.Expr, allowGeneric bool) {
+ 	check.rawExpr(x, e, nil, allowGeneric)
+ 	check.exclude(x, 1<<novalue)
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 335e4d0c23..93defd6618 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -41,7 +41,6 @@ import (
+ //	- If indirect is set, a method with a pointer receiver type was found
+ //      but there was no pointer on the path from the actual receiver type to
+ //	the method's formal receiver base type, nor was the receiver addressable.
+-//
+ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+ 	if T == nil {
+ 		panic("LookupFieldOrMethod on nil type")
+@@ -281,7 +280,6 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
+ // is not set), MissingMethod only checks that methods of T which are also
+ // present in V have matching types (e.g., for a type assertion x.(T) where
+ // x is of interface type V).
+-//
+ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
+ 	m, alt := (*Checker)(nil).missingMethod(V, T, static)
+ 	// Only report a wrong type if the alternative method has the same name as m.
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index ee7c8a8488..9043b372ea 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -16,7 +16,6 @@ import (
+ // An Object describes a named language entity such as a package,
+ // constant, type, variable, function (incl. methods), or label.
+ // All objects implement the Object interface.
+-//
+ type Object interface {
+ 	Parent() *Scope  // scope in which this object is declared; nil for methods and struct fields
+ 	Pos() syntax.Pos // position of object identifier in declaration
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index fce9a11ffa..548244e64d 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -52,7 +52,6 @@ var operandModeString = [...]string{
+ // the operand, the operand's type, a value for constants, and an id
+ // for built-in functions.
+ // The zero value of operand is a ready to use invalid operand.
+-//
+ type operand struct {
+ 	mode operandMode
+ 	expr syntax.Expr
+@@ -63,7 +62,6 @@ type operand struct {
+ 
+ // Pos returns the position of the expression corresponding to x.
+ // If x is invalid the position is nopos.
+-//
+ func (x *operand) Pos() syntax.Pos {
+ 	// x.expr may not be set if x is invalid
+ 	if x.expr == nil {
+@@ -108,7 +106,6 @@ func (x *operand) Pos() syntax.Pos {
+ //
+ // cgofunc    <expr> (<untyped kind> <mode>                    )
+ // cgofunc    <expr> (               <mode>       of type <typ>)
+-//
+ func operandString(x *operand, qf Qualifier) string {
+ 	// special-case nil
+ 	if x.mode == nilvalue {
+diff --git a/src/cmd/compile/internal/types2/selection.go b/src/cmd/compile/internal/types2/selection.go
+index 8128aeee2e..ee63214407 100644
+--- a/src/cmd/compile/internal/types2/selection.go
++++ b/src/cmd/compile/internal/types2/selection.go
+@@ -36,7 +36,6 @@ const (
+ //	p.x         FieldVal      T       x      int        {0}       true
+ //	p.m         MethodVal     *T      m      func()     {1, 0}    true
+ //	T.m         MethodExpr    T       m      func(T)    {1, 0}    false
+-//
+ type Selection struct {
+ 	kind     SelectionKind
+ 	recv     Type   // type of x
+@@ -115,7 +114,6 @@ func (s *Selection) String() string { return SelectionString(s, nil) }
+ //	"field (T) f int"
+ //	"method (T) f(X) Y"
+ //	"method expr (T) f(X) Y"
+-//
+ func SelectionString(s *Selection, qf Qualifier) string {
+ 	var k string
+ 	switch s.kind {
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index 6f981964be..7a34b6474c 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -39,7 +39,6 @@ type Sizes interface {
+ //	  types are naturally aligned with a maximum alignment MaxAlign.
+ //
+ // *StdSizes implements Sizes.
+-//
+ type StdSizes struct {
+ 	WordSize int64 // word size in bytes - must be >= 4 (32bits)
+ 	MaxAlign int64 // maximum alignment in bytes - must be >= 1
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index ada0529929..e0f36fcec4 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -25,7 +25,6 @@ import (
+ //
+ // Using a nil Qualifier is equivalent to using (*Package).Path: the
+ // object is qualified by the import path, e.g., "encoding/json.Marshal".
+-//
+ type Qualifier func(*Package) string
+ 
+ // RelativeTo returns a Qualifier that fully qualifies members of
+diff --git a/src/cmd/compile/internal/types2/typeterm.go b/src/cmd/compile/internal/types2/typeterm.go
+index 1d7223f13c..3d82a37ab8 100644
+--- a/src/cmd/compile/internal/types2/typeterm.go
++++ b/src/cmd/compile/internal/types2/typeterm.go
+@@ -10,7 +10,6 @@ package types2
+ //   𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
+ //   T:  &term{false, T}  == {T}                    // set of type T
+ //  ~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
+-//
+ type term struct {
+ 	tilde bool // valid if typ != nil
+ 	typ   Type
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index afbea06032..8b9976da79 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -17,7 +17,6 @@ import (
+ // If an error occurred, x.mode is set to invalid.
+ // For the meaning of def, see Checker.definedType, below.
+ // If wantType is set, the identifier e is expected to denote a type.
+-//
+ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType bool) {
+ 	x.mode = invalid
+ 	x.expr = e
+@@ -181,7 +180,6 @@ func (check *Checker) validVarType(e syntax.Expr, typ Type) {
+ // If def != nil, e is the type specification for the defined type def, declared
+ // in a type declaration, and def.underlying will be set to the type of e before
+ // any components of e are type-checked.
+-//
+ func (check *Checker) definedType(e syntax.Expr, def *Named) Type {
+ 	typ := check.typInternal(e, def)
+ 	assert(isTyped(typ))
+@@ -216,7 +214,6 @@ func goTypeName(typ Type) string {
+ 
+ // typInternal drives type checking of types.
+ // Must only be called by definedType or genericType.
+-//
+ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 	if check.conf.Trace {
+ 		check.trace(e0.Pos(), "-- type %s", e0)
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 1deff3961f..9292924f23 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -245,7 +245,6 @@ func init() {
+ // Objects with names containing blanks are internal and not entered into
+ // a scope. Objects with exported names are inserted in the unsafe package
+ // scope; other objects are inserted in the universe scope.
+-//
+ func def(obj Object) {
+ 	assert(obj.color() == black)
+ 	name := obj.Name()
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 8fe231161a..7ec5494d99 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -133,7 +133,6 @@ func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+ //	n;
+ //
+ // Also works if b is a string.
+-//
+ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
+ 	if n.X.Type().Elem().HasPointers() {
+ 		ir.CurFunc.SetWBPos(n.Pos())
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 86c95d15c5..8bd31514a0 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -165,7 +165,6 @@ func buildCover(t *testing.T) {
+ // 	go build -o testcover
+ // 	testcover -mode=count -var=CoverTest -o ./testdata/test_cover.go testdata/test_line.go
+ //	go run ./testdata/main.go ./testdata/test.go
+-//
+ func TestCover(t *testing.T) {
+ 	t.Parallel()
+ 	testenv.MustHaveGoRun(t)
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index fdc1d25774..e66a9f009f 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -20,7 +20,6 @@ import (
+ //	package sys
+ //
+ //	const StackGuardMultiplier = <multiplier value>
+-//
+ func mkzversion(dir, file string) {
+ 	var buf bytes.Buffer
+ 	fmt.Fprintf(&buf, "// Code generated by go tool dist; DO NOT EDIT.\n")
+@@ -80,7 +79,6 @@ func mkbuildcfg(file string) {
+ //	package objabi
+ //
+ //	const stackGuardMultiplierDefault = <multiplier value>
+-//
+ func mkobjabi(file string) {
+ 	var buf bytes.Buffer
+ 	fmt.Fprintf(&buf, "// Code generated by go tool dist; DO NOT EDIT.\n")
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 93d7c25658..4ac2b818ff 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -47,7 +47,6 @@ type Cache struct {
+ // to share a cache directory (for example, if the directory were stored
+ // in a network file system). File locking is notoriously unreliable in
+ // network file systems and may not suffice to protect the cache.
+-//
+ func Open(dir string) (*Cache, error) {
+ 	info, err := os.Stat(dir)
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index ff6bea6777..10e90fc216 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -66,7 +66,6 @@ func isGoBuildComment(line []byte) bool {
+ // the purpose of satisfying build tags, in order to estimate
+ // (conservatively) whether a file could ever possibly be used
+ // in any build.
+-//
+ func ShouldBuild(content []byte, tags map[string]bool) bool {
+ 	// Identify leading run of // comments and blank lines,
+ 	// which must be followed by a blank line.
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index d4847efb98..c170699535 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -2151,7 +2151,6 @@ func (ld *loader) buildStacks() {
+ //		other2 tested by
+ //		other2.test imports
+ //		pkg
+-//
+ func (pkg *loadPkg) stackText() string {
+ 	var stack []*loadPkg
+ 	for p := pkg; p != nil; p = p.stack {
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index 3551a5997c..8a55e9cca0 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -35,7 +35,6 @@ import (
+ // implementation. It is also used by tests.
+ //
+ // The default behavior (vetTool=="") runs 'go tool vet'.
+-//
+ var vetTool string // -vettool
+ 
+ func init() {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 6d6837aa8a..4252209f10 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1948,7 +1948,6 @@ func mayberemovefile(s string) {
+ //
+ //	fmtcmd replaces the name of the current directory with dot (.)
+ //	but only when it is at the beginning of a space-separated token.
+-//
+ func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
+ 	cmd := fmt.Sprintf(format, args...)
+ 	if dir != "" && dir != "/" {
+@@ -2005,7 +2004,6 @@ func (b *Builder) Showcmd(dir string, format string, args ...any) {
+ //
+ // If a is not nil and a.output is not nil, showOutput appends to that slice instead of
+ // printing to b.Print.
+-//
+ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
+ 	prefix := "# " + desc
+ 	suffix := "\n" + out
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 76a2b85f96..76c542f32a 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -490,7 +490,6 @@ func isCaseSensitive(t *testing.T) bool {
+ // Keep list and the implementations below sorted by name.
+ //
+ // NOTE: If you make changes here, update testdata/script/README too!
+-//
+ var scriptCmds = map[string]func(*testScript, simpleStatus, []string){
+ 	"addcrlf": (*testScript).cmdAddcrlf,
+ 	"cc":      (*testScript).cmdCc,
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 2c00c87aa2..956d69ee2e 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -324,7 +324,6 @@ func setPCs(p *obj.Prog, pc int64) int64 {
+ //
+ // A nicer version of this diagram can be found on slide 21 of the presentation
+ // attached to https://golang.org/issue/16922#issuecomment-243748180.
+-//
+ func stackOffset(a *obj.Addr, stacksize int64) {
+ 	switch a.Name {
+ 	case obj.NAME_AUTO:
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index a508e484e4..64a0bc96b7 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -59,7 +59,6 @@ var (
+ // is very slight but negative, so the alignment is disabled by
+ // setting MaxLoopPad = 0. The code is here for reference and
+ // for future experiments.
+-//
+ const (
+ 	loopAlign  = 16
+ 	maxLoopPad = 0
+@@ -4167,7 +4166,6 @@ func (ab *AsmBuf) asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uint8)
+ //	REG_X15 => 15
+ //	REG_R9  => 9
+ //	REG_AX  => 0
+-//
+ func regIndex(r int16) int {
+ 	lower3bits := reg[r]
+ 	high4bit := regrex[r] & Rxr << 1
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 2f9bf25d10..1f7b37f892 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1469,7 +1469,6 @@ func TestIssue42484(t *testing.T) {
+ //     i1:0:1 f1:1:1 ~r0:2:2 ~r1:3:2
+ //
+ // where each chunk above is of the form NAME:ORDER:INOUTCLASSIFICATION
+-//
+ func processParams(die *dwarf.Entry, ex *dwtest.Examiner) string {
+ 	// Values in the returned map are of the form <order>:<varparam>
+ 	// where order is the order within the child DIE list of the
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index d102bb35ce..2cbec5d06f 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2579,7 +2579,6 @@ type ErrorReporter struct {
+ //
+ // Logging an error means that on exit cmd/link will delete any
+ // output file and return a non-zero error code.
+-//
+ func (reporter *ErrorReporter) Errorf(s Sym, format string, args ...interface{}) {
+ 	if s != 0 && reporter.ldr.SymName(s) != "" {
+ 		// Note: Replace is needed here because symbol names might have % in them,
+diff --git a/src/container/ring/ring.go b/src/container/ring/ring.go
+index ce15032543..268670bc85 100644
+--- a/src/container/ring/ring.go
++++ b/src/container/ring/ring.go
+@@ -10,7 +10,6 @@ package ring
+ // serves as reference to the entire ring. Empty rings are represented
+ // as nil Ring pointers. The zero value for a Ring is a one-element
+ // ring with a nil Value.
+-//
+ type Ring struct {
+ 	next, prev *Ring
+ 	Value      any // for use by client; untouched by this library
+@@ -40,7 +39,6 @@ func (r *Ring) Prev() *Ring {
+ 
+ // Move moves n % r.Len() elements backward (n < 0) or forward (n >= 0)
+ // in the ring and returns that ring element. r must not be empty.
+-//
+ func (r *Ring) Move(n int) *Ring {
+ 	if r.next == nil {
+ 		return r.init()
+@@ -89,7 +87,6 @@ func New(n int) *Ring {
+ // them creates a single ring with the elements of s inserted
+ // after r. The result points to the element following the
+ // last element of s after insertion.
+-//
+ func (r *Ring) Link(s *Ring) *Ring {
+ 	n := r.Next()
+ 	if s != nil {
+@@ -107,7 +104,6 @@ func (r *Ring) Link(s *Ring) *Ring {
+ // Unlink removes n % r.Len() elements from the ring r, starting
+ // at r.Next(). If n % r.Len() == 0, r remains unchanged.
+ // The result is the removed subring. r must not be empty.
+-//
+ func (r *Ring) Unlink(n int) *Ring {
+ 	if n <= 0 {
+ 		return nil
+@@ -117,7 +113,6 @@ func (r *Ring) Unlink(n int) *Ring {
+ 
+ // Len computes the number of elements in ring r.
+ // It executes in time proportional to the number of elements.
+-//
+ func (r *Ring) Len() int {
+ 	n := 0
+ 	if r != nil {
+diff --git a/src/crypto/elliptic/internal/fiat/p224_fiat64.go b/src/crypto/elliptic/internal/fiat/p224_fiat64.go
+index 4ece3e9220..588e9ea620 100644
+--- a/src/crypto/elliptic/internal/fiat/p224_fiat64.go
++++ b/src/crypto/elliptic/internal/fiat/p224_fiat64.go
+@@ -78,7 +78,6 @@ func p224CmovznzU64(out1 *uint64, arg1 p224Uint1, arg2 uint64, arg3 uint64) {
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg2)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p224Mul(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement, arg2 *p224MontgomeryDomainFieldElement) {
+ 	x1 := arg1[1]
+ 	x2 := arg1[2]
+@@ -383,7 +382,6 @@ func p224Mul(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainF
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg1)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p224Square(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement) {
+ 	x1 := arg1[1]
+ 	x2 := arg1[2]
+@@ -689,7 +687,6 @@ func p224Square(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDoma
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) + eval (from_montgomery arg2)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p224Add(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement, arg2 *p224MontgomeryDomainFieldElement) {
+ 	var x1 uint64
+ 	var x2 uint64
+@@ -739,7 +736,6 @@ func p224Add(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainF
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) - eval (from_montgomery arg2)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p224Sub(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement, arg2 *p224MontgomeryDomainFieldElement) {
+ 	var x1 uint64
+ 	var x2 uint64
+@@ -777,7 +773,6 @@ func p224Sub(out1 *p224MontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainF
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = 1 mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p224SetOne(out1 *p224MontgomeryDomainFieldElement) {
+ 	out1[0] = 0xffffffff00000000
+ 	out1[1] = 0xffffffffffffffff
+@@ -792,7 +787,6 @@ func p224SetOne(out1 *p224MontgomeryDomainFieldElement) {
+ // Postconditions:
+ //   eval out1 mod m = (eval arg1 * ((2^64)⁻¹ mod m)^4) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p224FromMontgomery(out1 *p224NonMontgomeryDomainFieldElement, arg1 *p224MontgomeryDomainFieldElement) {
+ 	x1 := arg1[0]
+ 	var x2 uint64
+@@ -970,7 +964,6 @@ func p224FromMontgomery(out1 *p224NonMontgomeryDomainFieldElement, arg1 *p224Mon
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = eval arg1 mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p224ToMontgomery(out1 *p224MontgomeryDomainFieldElement, arg1 *p224NonMontgomeryDomainFieldElement) {
+ 	x1 := arg1[1]
+ 	x2 := arg1[2]
+diff --git a/src/crypto/elliptic/internal/fiat/p384_fiat64.go b/src/crypto/elliptic/internal/fiat/p384_fiat64.go
+index 493bed47e1..dc48cd38fb 100644
+--- a/src/crypto/elliptic/internal/fiat/p384_fiat64.go
++++ b/src/crypto/elliptic/internal/fiat/p384_fiat64.go
+@@ -78,7 +78,6 @@ func p384CmovznzU64(out1 *uint64, arg1 p384Uint1, arg2 uint64, arg3 uint64) {
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg2)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p384Mul(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainFieldElement, arg2 *p384MontgomeryDomainFieldElement) {
+ 	x1 := arg1[1]
+ 	x2 := arg1[2]
+@@ -783,7 +782,6 @@ func p384Mul(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainF
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg1)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p384Square(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainFieldElement) {
+ 	x1 := arg1[1]
+ 	x2 := arg1[2]
+@@ -1489,7 +1487,6 @@ func p384Square(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDoma
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) + eval (from_montgomery arg2)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p384Add(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainFieldElement, arg2 *p384MontgomeryDomainFieldElement) {
+ 	var x1 uint64
+ 	var x2 uint64
+@@ -1557,7 +1554,6 @@ func p384Add(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainF
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) - eval (from_montgomery arg2)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p384Sub(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainFieldElement, arg2 *p384MontgomeryDomainFieldElement) {
+ 	var x1 uint64
+ 	var x2 uint64
+@@ -1609,7 +1605,6 @@ func p384Sub(out1 *p384MontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainF
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = 1 mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p384SetOne(out1 *p384MontgomeryDomainFieldElement) {
+ 	out1[0] = 0xffffffff00000001
+ 	out1[1] = 0xffffffff
+@@ -1626,7 +1621,6 @@ func p384SetOne(out1 *p384MontgomeryDomainFieldElement) {
+ // Postconditions:
+ //   eval out1 mod m = (eval arg1 * ((2^64)⁻¹ mod m)^6) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p384FromMontgomery(out1 *p384NonMontgomeryDomainFieldElement, arg1 *p384MontgomeryDomainFieldElement) {
+ 	x1 := arg1[0]
+ 	var x2 uint64
+@@ -2096,7 +2090,6 @@ func p384FromMontgomery(out1 *p384NonMontgomeryDomainFieldElement, arg1 *p384Mon
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = eval arg1 mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p384ToMontgomery(out1 *p384MontgomeryDomainFieldElement, arg1 *p384NonMontgomeryDomainFieldElement) {
+ 	x1 := arg1[1]
+ 	x2 := arg1[2]
+diff --git a/src/crypto/elliptic/internal/fiat/p521_fiat64.go b/src/crypto/elliptic/internal/fiat/p521_fiat64.go
+index 9f4f290f4c..ea92c948fd 100644
+--- a/src/crypto/elliptic/internal/fiat/p521_fiat64.go
++++ b/src/crypto/elliptic/internal/fiat/p521_fiat64.go
+@@ -78,7 +78,6 @@ func p521CmovznzU64(out1 *uint64, arg1 p521Uint1, arg2 uint64, arg3 uint64) {
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg2)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p521Mul(out1 *p521MontgomeryDomainFieldElement, arg1 *p521MontgomeryDomainFieldElement, arg2 *p521MontgomeryDomainFieldElement) {
+ 	x1 := arg1[1]
+ 	x2 := arg1[2]
+@@ -1599,7 +1598,6 @@ func p521Mul(out1 *p521MontgomeryDomainFieldElement, arg1 *p521MontgomeryDomainF
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) * eval (from_montgomery arg1)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p521Square(out1 *p521MontgomeryDomainFieldElement, arg1 *p521MontgomeryDomainFieldElement) {
+ 	x1 := arg1[1]
+ 	x2 := arg1[2]
+@@ -3121,7 +3119,6 @@ func p521Square(out1 *p521MontgomeryDomainFieldElement, arg1 *p521MontgomeryDoma
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) + eval (from_montgomery arg2)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p521Add(out1 *p521MontgomeryDomainFieldElement, arg1 *p521MontgomeryDomainFieldElement, arg2 *p521MontgomeryDomainFieldElement) {
+ 	var x1 uint64
+ 	var x2 uint64
+@@ -3216,7 +3213,6 @@ func p521Add(out1 *p521MontgomeryDomainFieldElement, arg1 *p521MontgomeryDomainF
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = (eval (from_montgomery arg1) - eval (from_montgomery arg2)) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p521Sub(out1 *p521MontgomeryDomainFieldElement, arg1 *p521MontgomeryDomainFieldElement, arg2 *p521MontgomeryDomainFieldElement) {
+ 	var x1 uint64
+ 	var x2 uint64
+@@ -3289,7 +3285,6 @@ func p521Sub(out1 *p521MontgomeryDomainFieldElement, arg1 *p521MontgomeryDomainF
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = 1 mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p521SetOne(out1 *p521MontgomeryDomainFieldElement) {
+ 	out1[0] = 0x80000000000000
+ 	out1[1] = uint64(0x0)
+@@ -3309,7 +3304,6 @@ func p521SetOne(out1 *p521MontgomeryDomainFieldElement) {
+ // Postconditions:
+ //   eval out1 mod m = (eval arg1 * ((2^64)⁻¹ mod m)^9) mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p521FromMontgomery(out1 *p521NonMontgomeryDomainFieldElement, arg1 *p521MontgomeryDomainFieldElement) {
+ 	x1 := arg1[0]
+ 	var x2 uint64
+@@ -4263,7 +4257,6 @@ func p521FromMontgomery(out1 *p521NonMontgomeryDomainFieldElement, arg1 *p521Mon
+ // Postconditions:
+ //   eval (from_montgomery out1) mod m = eval arg1 mod m
+ //   0 ≤ eval out1 < m
+-//
+ func p521ToMontgomery(out1 *p521MontgomeryDomainFieldElement, arg1 *p521NonMontgomeryDomainFieldElement) {
+ 	var x1 uint64
+ 	var x2 uint64
+diff --git a/src/crypto/elliptic/p256_ppc64le.go b/src/crypto/elliptic/p256_ppc64le.go
+index e9a6a067a2..dda1157564 100644
+--- a/src/crypto/elliptic/p256_ppc64le.go
++++ b/src/crypto/elliptic/p256_ppc64le.go
+@@ -49,7 +49,6 @@ func (curve p256CurveFast) Params() *CurveParams {
+ func p256MulAsm(res, in1, in2 []byte)
+ 
+ // Montgomery square modulo P256
+-//
+ func p256Sqr(res, in []byte) {
+ 	p256MulAsm(res, in, in)
+ }
+@@ -98,7 +97,6 @@ func p256PointDoubleAsm(res, in *p256Point)
+ // The result should be a slice in LE order, but the slice
+ // from big.Bytes is in BE order.
+ // TODO: For big endian implementation, do not reverse bytes.
+-//
+ func fromBig(big *big.Int) []byte {
+ 	// This could be done a lot more efficiently...
+ 	res := big.Bytes()
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index d164991eec..408a820d13 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -267,7 +267,6 @@ var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
+ //
+ //       The relative order of ECDSA and RSA cipher suites doesn't matter,
+ //       as they depend on the certificate. Pick one to get a stable order.
+-//
+ var cipherSuitesPreferenceOrder = []uint16{
+ 	// AEADs w/ ECDHE
+ 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index c3b9d1ce46..d9b40ff53f 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -1174,7 +1174,6 @@ func (rc *rowsCursor) NextResultSet() error {
+ // This could be surprising behavior to retroactively apply to
+ // driver.String now that Go1 is out, but this is convenient for
+ // our TestPointerParamsAndScans.
+-//
+ type fakeDriverString struct{}
+ 
+ func (fakeDriverString) ConvertValue(v any) (driver.Value, error) {
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index d55cee1210..9a879464d8 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -184,7 +184,6 @@ type RawBytes []byte
+ //  } else {
+ //     // NULL value
+ //  }
+-//
+ type NullString struct {
+ 	String string
+ 	Valid  bool // Valid is true if String is not NULL
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 98c17dc08a..9f3f4971e1 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -381,7 +381,6 @@ func (i Class) GoString() string {
+ // A common idiom is to merge the check for nil return with
+ // the check that the value has the expected dynamic type, as in:
+ //	v, ok := e.Val(AttrSibling).(int64)
+-//
+ func (e *Entry) Val(a Attr) any {
+ 	if f := e.AttrField(a); f != nil {
+ 		return f.Val
+diff --git a/src/encoding/ascii85/ascii85.go b/src/encoding/ascii85/ascii85.go
+index f1f7af863c..1f1fb00ffa 100644
+--- a/src/encoding/ascii85/ascii85.go
++++ b/src/encoding/ascii85/ascii85.go
+@@ -183,7 +183,6 @@ func (e CorruptInputError) Error() string {
+ // than wait for the completion of another 32-bit block.
+ //
+ // NewDecoder wraps an io.Reader interface around Decode.
+-//
+ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err error) {
+ 	var v uint32
+ 	var nb int
+diff --git a/src/encoding/binary/varint.go b/src/encoding/binary/varint.go
+index 8fe20b5c45..bfb4dd193e 100644
+--- a/src/encoding/binary/varint.go
++++ b/src/encoding/binary/varint.go
+@@ -56,7 +56,6 @@ func PutUvarint(buf []byte, x uint64) int {
+ // 	n == 0: buf too small
+ // 	n  < 0: value larger than 64 bits (overflow)
+ // 	        and -n is the number of bytes read
+-//
+ func Uvarint(buf []byte) (uint64, int) {
+ 	var x uint64
+ 	var s uint
+@@ -95,7 +94,6 @@ func PutVarint(buf []byte, x int64) int {
+ // 	n == 0: buf too small
+ // 	n  < 0: value larger than 64 bits (overflow)
+ // 	        and -n is the number of bytes read
+-//
+ func Varint(buf []byte) (int64, int) {
+ 	ux, n := Uvarint(buf) // ok to continue in presence of error
+ 	x := int64(ux >> 1)
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 555df0b7e8..ce9675a62f 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -92,7 +92,6 @@ import (
+ // invalid UTF-16 surrogate pairs are not treated as an error.
+ // Instead, they are replaced by the Unicode replacement
+ // character U+FFFD.
+-//
+ func Unmarshal(data []byte, v any) error {
+ 	// Check for well-formedness.
+ 	// Avoids filling out half a data structure
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 571ac094e2..fc865386ed 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -154,7 +154,6 @@ import (
+ // JSON cannot represent cyclic data structures and Marshal does not
+ // handle them. Passing cyclic structures to Marshal will result in
+ // an error.
+-//
+ func Marshal(v any) ([]byte, error) {
+ 	e := newEncodeState()
+ 
+diff --git a/src/encoding/json/stream.go b/src/encoding/json/stream.go
+index 6362170d5d..b278ee4013 100644
+--- a/src/encoding/json/stream.go
++++ b/src/encoding/json/stream.go
+@@ -287,7 +287,6 @@ var _ Unmarshaler = (*RawMessage)(nil)
+ //	Number, for JSON numbers
+ //	string, for JSON string literals
+ //	nil, for JSON null
+-//
+ type Token any
+ 
+ const (
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index a74a827c8f..61855359f8 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -72,7 +72,6 @@ func (c *Comment) End() token.Pos { return token.Pos(int(c.Slash) + len(c.Text))
+ 
+ // A CommentGroup represents a sequence of comments
+ // with no other tokens and no empty lines between.
+-//
+ type CommentGroup struct {
+ 	List []*Comment // len(List) > 0
+ }
+@@ -273,7 +272,6 @@ func (f *FieldList) NumFields() int {
+ 
+ // An expression is represented by a tree consisting of one
+ // or more of the following concrete expression nodes.
+-//
+ type (
+ 	// A BadExpr node is a placeholder for an expression containing
+ 	// syntax errors for which a correct expression node cannot be
+@@ -417,7 +415,6 @@ type (
+ 
+ // The direction of a channel type is indicated by a bit
+ // mask including one or both of the following constants.
+-//
+ type ChanDir int
+ 
+ const (
+@@ -428,7 +425,6 @@ const (
+ // A type is represented by a tree consisting of one
+ // or more of the following type-specific expression
+ // nodes.
+-//
+ type (
+ 	// An ArrayType node represents an array or slice type.
+ 	ArrayType struct {
+@@ -549,7 +545,6 @@ func (x *ChanType) End() token.Pos      { return x.Value.End() }
+ 
+ // exprNode() ensures that only expression/type nodes can be
+ // assigned to an Expr.
+-//
+ func (*BadExpr) exprNode()        {}
+ func (*Ident) exprNode()          {}
+ func (*Ellipsis) exprNode()       {}
+@@ -580,15 +575,12 @@ func (*ChanType) exprNode()      {}
+ 
+ // NewIdent creates a new Ident without position.
+ // Useful for ASTs generated by code other than the Go parser.
+-//
+ func NewIdent(name string) *Ident { return &Ident{token.NoPos, name, nil} }
+ 
+ // IsExported reports whether name starts with an upper-case letter.
+-//
+ func IsExported(name string) bool { return token.IsExported(name) }
+ 
+ // IsExported reports whether id starts with an upper-case letter.
+-//
+ func (id *Ident) IsExported() bool { return token.IsExported(id.Name) }
+ 
+ func (id *Ident) String() string {
+@@ -603,7 +595,6 @@ func (id *Ident) String() string {
+ 
+ // A statement is represented by a tree consisting of one
+ // or more of the following concrete statement nodes.
+-//
+ type (
+ 	// A BadStmt node is a placeholder for statements containing
+ 	// syntax errors for which no correct statement nodes can be
+@@ -854,7 +845,6 @@ func (s *RangeStmt) End() token.Pos  { return s.Body.End() }
+ 
+ // stmtNode() ensures that only statement nodes can be
+ // assigned to a Stmt.
+-//
+ func (*BadStmt) stmtNode()        {}
+ func (*DeclStmt) stmtNode()       {}
+ func (*EmptyStmt) stmtNode()      {}
+@@ -882,7 +872,6 @@ func (*RangeStmt) stmtNode()      {}
+ 
+ // A Spec node represents a single (non-parenthesized) import,
+ // constant, type, or variable declaration.
+-//
+ type (
+ 	// The Spec type stands for any of *ImportSpec, *ValueSpec, and *TypeSpec.
+ 	Spec interface {
+@@ -952,13 +941,11 @@ func (s *TypeSpec) End() token.Pos { return s.Type.End() }
+ 
+ // specNode() ensures that only spec nodes can be
+ // assigned to a Spec.
+-//
+ func (*ImportSpec) specNode() {}
+ func (*ValueSpec) specNode()  {}
+ func (*TypeSpec) specNode()   {}
+ 
+ // A declaration is represented by one of the following declaration nodes.
+-//
+ type (
+ 	// A BadDecl node is a placeholder for a declaration containing
+ 	// syntax errors for which a correct declaration node cannot be
+@@ -1020,7 +1007,6 @@ func (d *FuncDecl) End() token.Pos {
+ 
+ // declNode() ensures that only declaration nodes can be
+ // assigned to a Decl.
+-//
+ func (*BadDecl) declNode()  {}
+ func (*GenDecl) declNode()  {}
+ func (*FuncDecl) declNode() {}
+@@ -1046,7 +1032,6 @@ func (*FuncDecl) declNode() {}
+ // interpretation of the syntax tree by the manipulating program: Except for Doc
+ // and Comment comments directly associated with nodes, the remaining comments
+ // are "free-floating" (see also issues #18593, #20744).
+-//
+ type File struct {
+ 	Doc        *CommentGroup   // associated documentation; or nil
+ 	Package    token.Pos       // position of "package" keyword
+@@ -1068,7 +1053,6 @@ func (f *File) End() token.Pos {
+ 
+ // A Package node represents a set of source files
+ // collectively building a Go package.
+-//
+ type Package struct {
+ 	Name    string             // package name
+ 	Scope   *Scope             // package scope across all files
+diff --git a/src/go/ast/commentmap.go b/src/go/ast/commentmap.go
+index 5161ea70b7..9f81493f64 100644
+--- a/src/go/ast/commentmap.go
++++ b/src/go/ast/commentmap.go
+@@ -18,7 +18,6 @@ func (a byPos) Less(i, j int) bool { return a[i].Pos() < a[j].Pos() }
+ func (a byPos) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+ 
+ // sortComments sorts the list of comment groups in source order.
+-//
+ func sortComments(list []*CommentGroup) {
+ 	// TODO(gri): Does it make sense to check for sorted-ness
+ 	//            first (because we know that sorted-ness is
+@@ -31,7 +30,6 @@ func sortComments(list []*CommentGroup) {
+ // A CommentMap maps an AST node to a list of comment groups
+ // associated with it. See NewCommentMap for a description of
+ // the association.
+-//
+ type CommentMap map[Node][]*CommentGroup
+ 
+ func (cmap CommentMap) addComment(n Node, c *CommentGroup) {
+@@ -54,7 +52,6 @@ func (a byInterval) Less(i, j int) bool {
+ func (a byInterval) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+ 
+ // nodeList returns the list of nodes of the AST n in source order.
+-//
+ func nodeList(n Node) []Node {
+ 	var list []Node
+ 	Inspect(n, func(n Node) bool {
+@@ -75,7 +72,6 @@ func nodeList(n Node) []Node {
+ }
+ 
+ // A commentListReader helps iterating through a list of comment groups.
+-//
+ type commentListReader struct {
+ 	fset     *token.FileSet
+ 	list     []*CommentGroup
+@@ -99,12 +95,10 @@ func (r *commentListReader) next() {
+ 
+ // A nodeStack keeps track of nested nodes.
+ // A node lower on the stack lexically contains the nodes higher on the stack.
+-//
+ type nodeStack []Node
+ 
+ // push pops all nodes that appear lexically before n
+ // and then pushes n on the stack.
+-//
+ func (s *nodeStack) push(n Node) {
+ 	s.pop(n.Pos())
+ 	*s = append((*s), n)
+@@ -113,7 +107,6 @@ func (s *nodeStack) push(n Node) {
+ // pop pops all nodes that appear lexically before pos
+ // (i.e., whose lexical extent has ended before or at pos).
+ // It returns the last node popped.
+-//
+ func (s *nodeStack) pop(pos token.Pos) (top Node) {
+ 	i := len(*s)
+ 	for i > 0 && (*s)[i-1].End() <= pos {
+@@ -139,7 +132,6 @@ func (s *nodeStack) pop(pos token.Pos) (top Node) {
+ // node possible: For instance, if the comment is a line comment
+ // trailing an assignment, the comment is associated with the entire
+ // assignment rather than just the last operand in the assignment.
+-//
+ func NewCommentMap(fset *token.FileSet, node Node, comments []*CommentGroup) CommentMap {
+ 	if len(comments) == 0 {
+ 		return nil // no comments to map
+@@ -242,7 +234,6 @@ func NewCommentMap(fset *token.FileSet, node Node, comments []*CommentGroup) Com
+ // Update replaces an old node in the comment map with the new node
+ // and returns the new node. Comments that were associated with the
+ // old node are associated with the new node.
+-//
+ func (cmap CommentMap) Update(old, new Node) Node {
+ 	if list := cmap[old]; len(list) > 0 {
+ 		delete(cmap, old)
+@@ -254,7 +245,6 @@ func (cmap CommentMap) Update(old, new Node) Node {
+ // Filter returns a new comment map consisting of only those
+ // entries of cmap for which a corresponding node exists in
+ // the AST specified by node.
+-//
+ func (cmap CommentMap) Filter(node Node) CommentMap {
+ 	umap := make(CommentMap)
+ 	Inspect(node, func(n Node) bool {
+@@ -268,7 +258,6 @@ func (cmap CommentMap) Filter(node Node) CommentMap {
+ 
+ // Comments returns the list of comment groups in the comment map.
+ // The result is sorted in source order.
+-//
+ func (cmap CommentMap) Comments() []*CommentGroup {
+ 	list := make([]*CommentGroup, 0, len(cmap))
+ 	for _, e := range cmap {
+diff --git a/src/go/ast/commentmap_test.go b/src/go/ast/commentmap_test.go
+index 38c62b01ab..281467c41f 100644
+--- a/src/go/ast/commentmap_test.go
++++ b/src/go/ast/commentmap_test.go
+@@ -73,7 +73,6 @@ func f3() {
+ 
+ // res maps a key of the form "line number: node type"
+ // to the associated comments' text.
+-//
+ var res = map[string]string{
+ 	" 5: *ast.File":       "the very first comment\npackage p\n",
+ 	" 5: *ast.Ident":      " the name is p\n",
+diff --git a/src/go/ast/filter.go b/src/go/ast/filter.go
+index c398e6e603..2fc73c4b99 100644
+--- a/src/go/ast/filter.go
++++ b/src/go/ast/filter.go
+@@ -24,7 +24,6 @@ func exportFilter(name string) bool {
+ // stripped. The File.Comments list is not changed.
+ //
+ // FileExports reports whether there are exported declarations.
+-//
+ func FileExports(src *File) bool {
+ 	return filterFile(src, exportFilter, true)
+ }
+@@ -35,7 +34,6 @@ func FileExports(src *File) bool {
+ //
+ // PackageExports reports whether there are exported declarations;
+ // it returns false otherwise.
+-//
+ func PackageExports(pkg *Package) bool {
+ 	return filterPackage(pkg, exportFilter, true)
+ }
+@@ -59,7 +57,6 @@ func filterIdentList(list []*Ident, f Filter) []*Ident {
+ // fieldName assumes that x is the type of an anonymous field and
+ // returns the corresponding field name. If x is not an acceptable
+ // anonymous field, the result is nil.
+-//
+ func fieldName(x Expr) *Ident {
+ 	switch t := x.(type) {
+ 	case *Ident:
+@@ -229,7 +226,6 @@ func filterSpecList(list []Spec, f Filter, export bool) []Spec {
+ //
+ // FilterDecl reports whether there are any declared names left after
+ // filtering.
+-//
+ func FilterDecl(decl Decl, f Filter) bool {
+ 	return filterDecl(decl, f, false)
+ }
+@@ -254,7 +250,6 @@ func filterDecl(decl Decl, f Filter, export bool) bool {
+ //
+ // FilterFile reports whether there are any top-level declarations
+ // left after filtering.
+-//
+ func FilterFile(src *File, f Filter) bool {
+ 	return filterFile(src, f, false)
+ }
+@@ -281,7 +276,6 @@ func filterFile(src *File, f Filter, export bool) bool {
+ //
+ // FilterPackage reports whether there are any top-level declarations
+ // left after filtering.
+-//
+ func FilterPackage(pkg *Package, f Filter) bool {
+ 	return filterPackage(pkg, f, false)
+ }
+@@ -315,7 +309,6 @@ const (
+ // nameOf returns the function (foo) or method name (foo.bar) for
+ // the given function declaration. If the AST is incorrect for the
+ // receiver, it assumes a function instead.
+-//
+ func nameOf(f *FuncDecl) string {
+ 	if r := f.Recv; r != nil && len(r.List) == 1 {
+ 		// looks like a correct receiver declaration
+@@ -335,12 +328,10 @@ func nameOf(f *FuncDecl) string {
+ 
+ // separator is an empty //-style comment that is interspersed between
+ // different comment groups when they are concatenated into a single group
+-//
+ var separator = &Comment{token.NoPos, "//"}
+ 
+ // MergePackageFiles creates a file AST by merging the ASTs of the
+ // files belonging to a package. The mode flags control merging behavior.
+-//
+ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 	// Count the number of package docs, comments and declarations across
+ 	// all package files. Also, compute sorted list of filenames, so that
+diff --git a/src/go/ast/filter_test.go b/src/go/ast/filter_test.go
+index 9fd86cb467..86f396bb8b 100644
+--- a/src/go/ast/filter_test.go
++++ b/src/go/ast/filter_test.go
+@@ -38,7 +38,6 @@ func (x *t2) f2() {}
+ // of one without, and it favors duplicate entries appearing
+ // later in the source over ones appearing earlier. This is why
+ // (*t2).f2 is kept and t2.f2 is eliminated in this test case.
+-//
+ const golden = `package p
+ 
+ type t1 struct{}
+diff --git a/src/go/ast/resolve.go b/src/go/ast/resolve.go
+index 126a27b18c..970aa88ad6 100644
+--- a/src/go/ast/resolve.go
++++ b/src/go/ast/resolve.go
+@@ -70,7 +70,6 @@ type Importer func(imports map[string]*Object, path string) (pkg *Object, err er
+ // belong to different packages, one package name is selected and files with
+ // different package names are reported and then ignored.
+ // The result is a package node and a scanner.ErrorList if there were errors.
+-//
+ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, universe *Scope) (*Package, error) {
+ 	var p pkgBuilder
+ 	p.fset = fset
+diff --git a/src/go/ast/scope.go b/src/go/ast/scope.go
+index d24a5f0e00..02691f8e54 100644
+--- a/src/go/ast/scope.go
++++ b/src/go/ast/scope.go
+@@ -15,7 +15,6 @@ import (
+ // A Scope maintains the set of named language entities declared
+ // in the scope and a link to the immediately surrounding (outer)
+ // scope.
+-//
+ type Scope struct {
+ 	Outer   *Scope
+ 	Objects map[string]*Object
+@@ -30,7 +29,6 @@ func NewScope(outer *Scope) *Scope {
+ // Lookup returns the object with the given name if it is
+ // found in scope s, otherwise it returns nil. Outer scopes
+ // are ignored.
+-//
+ func (s *Scope) Lookup(name string) *Object {
+ 	return s.Objects[name]
+ }
+@@ -39,7 +37,6 @@ func (s *Scope) Lookup(name string) *Object {
+ // If the scope already contains an object alt with the same name,
+ // Insert leaves the scope unchanged and returns alt. Otherwise
+ // it inserts obj and returns nil.
+-//
+ func (s *Scope) Insert(obj *Object) (alt *Object) {
+ 	if alt = s.Objects[obj.Name]; alt == nil {
+ 		s.Objects[obj.Name] = obj
+@@ -72,7 +69,6 @@ func (s *Scope) String() string {
+ //	Kind    Data type         Data value
+ //	Pkg     *Scope            package scope
+ //	Con     int               iota for the respective declaration
+-//
+ type Object struct {
+ 	Kind ObjKind
+ 	Name string // declared name
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index 16b15f11f2..a293c99a10 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -47,7 +47,6 @@ func walkDeclList(v Visitor, list []Decl) {
+ // v.Visit(node) is not nil, Walk is invoked recursively with visitor
+ // w for each of the non-nil children of node, followed by a call of
+ // w.Visit(nil).
+-//
+ func Walk(v Visitor, node Node) {
+ 	if v = v.Visit(node); v == nil {
+ 		return
+@@ -394,7 +393,6 @@ func (f inspector) Visit(node Node) Visitor {
+ // f(node); node must not be nil. If f returns true, Inspect invokes f
+ // recursively for each of the non-nil children of node, followed by a
+ // call of f(nil).
+-//
+ func Inspect(node Node, f func(Node) bool) {
+ 	Walk(inspector(f), node)
+ }
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index cc2585b677..2666b8acb7 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -534,7 +534,6 @@ func nameExt(name string) string {
+ //
+ // If an error occurs, Import returns a non-nil error and a non-nil
+ // *Package containing partial information.
+-//
+ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Package, error) {
+ 	p := &Package{
+ 		ImportPath: path,
+@@ -1813,7 +1812,6 @@ func safeCgoName(s string) bool {
+ // Would be parsed as:
+ //
+ //     []string{"a", "b:c d", "ef", `g"`}
+-//
+ func splitQuoted(s string) (r []string, err error) {
+ 	var args []string
+ 	arg := make([]rune, len(s))
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 5794e3d25e..c4fb2fe0b4 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -66,7 +66,6 @@ import (
+ //
+ // All-caps names are pseudo-names for specific points
+ // in the dependency lattice.
+-//
+ var depsRules = `
+ 	# No dependencies allowed for any of these packages.
+ 	NONE
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 544801bd70..3daa4c2860 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -578,7 +578,6 @@ func Float64Val(x Value) (float64, bool) {
+ //    Int                int64 or *big.Int
+ //    Float              *big.Float or *big.Rat
+ //    everything else    nil
+-//
+ func Val(x Value) any {
+ 	switch x := x.(type) {
+ 	case boolVal:
+@@ -609,7 +608,6 @@ func Val(x Value) any {
+ //    *big.Float       Float
+ //    *big.Rat         Float
+ //    anything else    Unknown
+-//
+ func Make(x any) Value {
+ 	switch x := x.(type) {
+ 	case bool:
+@@ -945,7 +943,6 @@ func is63bit(x int64) bool {
+ // The operation must be defined for the operand.
+ // If prec > 0 it specifies the ^ (xor) result size in bits.
+ // If y is Unknown, the result is Unknown.
+-//
+ func UnaryOp(op token.Token, y Value, prec uint) Value {
+ 	switch op {
+ 	case token.ADD:
+@@ -1035,7 +1032,6 @@ func ord(x Value) int {
+ // smallest complexity for two values x and y. If one of them is
+ // numeric, both of them must be numeric. If one of them is Unknown
+ // or invalid (say, nil) both results are that value.
+-//
+ func match(x, y Value) (_, _ Value) {
+ 	switch ox, oy := ord(x), ord(y); {
+ 	case ox < oy:
+@@ -1092,7 +1088,6 @@ func match0(x, y Value) (_, _ Value) {
+ // To force integer division of Int operands, use op == token.QUO_ASSIGN
+ // instead of token.QUO; the result is guaranteed to be Int in this case.
+ // Division by zero leads to a run-time panic.
+-//
+ func BinaryOp(x_ Value, op token.Token, y_ Value) Value {
+ 	x, y := match(x_, y_)
+ 
+@@ -1272,7 +1267,6 @@ func quo(x, y Value) Value { return BinaryOp(x, token.QUO, y) }
+ // Shift returns the result of the shift expression x op s
+ // with op == token.SHL or token.SHR (<< or >>). x must be
+ // an Int or an Unknown. If x is Unknown, the result is x.
+-//
+ func Shift(x Value, op token.Token, s uint) Value {
+ 	switch x := x.(type) {
+ 	case unknownVal:
+@@ -1328,7 +1322,6 @@ func cmpZero(x int, op token.Token) bool {
+ // The comparison must be defined for the operands.
+ // If one of the operands is Unknown, the result is
+ // false.
+-//
+ func Compare(x_ Value, op token.Token, y_ Value) bool {
+ 	x, y := match(x_, y_)
+ 
+diff --git a/src/go/doc/doc.go b/src/go/doc/doc.go
+index 5ab854d084..f0c1b5dd32 100644
+--- a/src/go/doc/doc.go
++++ b/src/go/doc/doc.go
+@@ -114,7 +114,6 @@ const (
+ // New takes ownership of the AST pkg and may edit or overwrite it.
+ // To have the Examples fields populated, use NewFromFiles and include
+ // the package's _test.go files.
+-//
+ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+ 	var r reader
+ 	r.readPackage(pkg, mode)
+@@ -156,7 +155,6 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+ //
+ // NewFromFiles takes ownership of the AST files and may edit them,
+ // unless the PreserveAST Mode bit is on.
+-//
+ func NewFromFiles(fset *token.FileSet, files []*ast.File, importPath string, opts ...any) (*Package, error) {
+ 	// Check for invalid API usage.
+ 	if fset == nil {
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 0a880cdefb..fcd59e100a 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -462,7 +462,6 @@ func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.Comm
+ // 	  or Foo (with a "bar" suffix).
+ //
+ // Examples with malformed names are not associated with anything.
+-//
+ func classifyExamples(p *Package, examples []*Example) {
+ 	if len(examples) == 0 {
+ 		return
+diff --git a/src/go/doc/exports.go b/src/go/doc/exports.go
+index 671c622205..655e889293 100644
+--- a/src/go/doc/exports.go
++++ b/src/go/doc/exports.go
+@@ -13,7 +13,6 @@ import (
+ 
+ // filterIdentList removes unexported names from list in place
+ // and returns the resulting list.
+-//
+ func filterIdentList(list []*ast.Ident) []*ast.Ident {
+ 	j := 0
+ 	for _, x := range list {
+@@ -69,7 +68,6 @@ func updateIdentList(list []*ast.Ident) (hasExported bool) {
+ }
+ 
+ // hasExportedName reports whether list contains any exported names.
+-//
+ func hasExportedName(list []*ast.Ident) bool {
+ 	for _, x := range list {
+ 		if x.IsExported() {
+@@ -106,7 +104,6 @@ func removeAnonymousField(name string, ityp *ast.InterfaceType) {
+ // in place and reports whether fields were removed. Anonymous fields are
+ // recorded with the parent type. filterType is called with the types of
+ // all remaining fields.
+-//
+ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp *ast.InterfaceType) (removedFields bool) {
+ 	if fields == nil {
+ 		return
+@@ -159,7 +156,6 @@ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp
+ }
+ 
+ // filterParamList applies filterType to each parameter type in fields.
+-//
+ func (r *reader) filterParamList(fields *ast.FieldList) {
+ 	if fields != nil {
+ 		for _, f := range fields.List {
+@@ -171,7 +167,6 @@ func (r *reader) filterParamList(fields *ast.FieldList) {
+ // filterType strips any unexported struct fields or method types from typ
+ // in place. If fields (or methods) have been removed, the corresponding
+ // struct or interface type has the Incomplete field set to true.
+-//
+ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
+ 	switch t := typ.(type) {
+ 	case *ast.Ident:
+@@ -255,7 +250,6 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
+ // copyConstType returns a copy of typ with position pos.
+ // typ must be a valid constant type.
+ // In practice, only (possibly qualified) identifiers are possible.
+-//
+ func copyConstType(typ ast.Expr, pos token.Pos) ast.Expr {
+ 	switch typ := typ.(type) {
+ 	case *ast.Ident:
+@@ -318,7 +312,6 @@ func (r *reader) filterDecl(decl ast.Decl) bool {
+ }
+ 
+ // fileExports removes unexported declarations from src in place.
+-//
+ func (r *reader) fileExports(src *ast.File) {
+ 	j := 0
+ 	for _, d := range src.Decls {
+diff --git a/src/go/doc/filter.go b/src/go/doc/filter.go
+index 9904da150e..f8d3e1fca2 100644
+--- a/src/go/doc/filter.go
++++ b/src/go/doc/filter.go
+@@ -97,7 +97,6 @@ func filterTypes(a []*Type, f Filter) []*Type {
+ 
+ // Filter eliminates documentation for names that don't pass through the filter f.
+ // TODO(gri): Recognize "Type.Method" as a name.
+-//
+ func (p *Package) Filter(f Filter) {
+ 	p.Consts = filterValues(p.Consts, f)
+ 	p.Vars = filterValues(p.Vars, f)
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index d9e721d01b..c591059e5c 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -21,12 +21,10 @@ import (
+ 
+ // A methodSet describes a set of methods. Entries where Decl == nil are conflict
+ // entries (more than one method with the same name at the same embedding level).
+-//
+ type methodSet map[string]*Func
+ 
+ // recvString returns a string representation of recv of the form "T", "*T",
+ // "T[A, ...]", "*T[A, ...]" or "BADRECV" (if not a proper receiver type).
+-//
+ func recvString(recv ast.Expr) string {
+ 	switch t := recv.(type) {
+ 	case *ast.Ident:
+@@ -65,7 +63,6 @@ func recvParam(p ast.Expr) string {
+ // If there are multiple f's with the same name, set keeps the first
+ // one with documentation; conflicts are ignored. The boolean
+ // specifies whether to leave the AST untouched.
+-//
+ func (mset methodSet) set(f *ast.FuncDecl, preserveAST bool) {
+ 	name := f.Name.Name
+ 	if g := mset[name]; g != nil && g.Doc != "" {
+@@ -101,7 +98,6 @@ func (mset methodSet) set(f *ast.FuncDecl, preserveAST bool) {
+ // add adds method m to the method set; m is ignored if the method set
+ // already contains a method with the same name at the same or a higher
+ // level than m.
+-//
+ func (mset methodSet) add(m *Func) {
+ 	old := mset[m.Name]
+ 	if old == nil || m.Level < old.Level {
+@@ -122,7 +118,6 @@ func (mset methodSet) add(m *Func) {
+ 
+ // baseTypeName returns the name of the base type of x (or "")
+ // and whether the type is imported or not.
+-//
+ func baseTypeName(x ast.Expr) (name string, imported bool) {
+ 	switch t := x.(type) {
+ 	case *ast.Ident:
+@@ -151,7 +146,6 @@ type embeddedSet map[*namedType]bool
+ // A namedType represents a named unqualified (package local, or possibly
+ // predeclared) type. The namedType for a type name is always found via
+ // reader.lookupType.
+-//
+ type namedType struct {
+ 	doc  string       // doc comment for type
+ 	name string       // type name
+@@ -176,7 +170,6 @@ type namedType struct {
+ // in the respective AST nodes so that they are not printed
+ // twice (once when printing the documentation and once when
+ // printing the corresponding AST node).
+-//
+ type reader struct {
+ 	mode Mode
+ 
+@@ -206,7 +199,6 @@ func (r *reader) isVisible(name string) bool {
+ // If the base type has not been encountered yet, a new
+ // type with the given name but no associated declaration
+ // is added to the type map.
+-//
+ func (r *reader) lookupType(name string) *namedType {
+ 	if name == "" || name == "_" {
+ 		return nil // no type docs for anonymous types
+@@ -229,7 +221,6 @@ func (r *reader) lookupType(name string) *namedType {
+ // anonymous field in the parent type. If the field is imported
+ // (qualified name) or the parent is nil, the field is ignored.
+ // The function returns the field name.
+-//
+ func (r *reader) recordAnonymousField(parent *namedType, fieldType ast.Expr) (fname string) {
+ 	fname, imp := baseTypeName(fieldType)
+ 	if parent == nil || imp {
+@@ -273,7 +264,6 @@ func specNames(specs []ast.Spec) []string {
+ }
+ 
+ // readValue processes a const or var declaration.
+-//
+ func (r *reader) readValue(decl *ast.GenDecl) {
+ 	// determine if decl should be associated with a type
+ 	// Heuristic: For each typed entry, determine the type name, if any.
+@@ -347,7 +337,6 @@ func (r *reader) readValue(decl *ast.GenDecl) {
+ }
+ 
+ // fields returns a struct's fields or an interface's methods.
+-//
+ func fields(typ ast.Expr) (list []*ast.Field, isStruct bool) {
+ 	var fields *ast.FieldList
+ 	switch t := typ.(type) {
+@@ -364,7 +353,6 @@ func fields(typ ast.Expr) (list []*ast.Field, isStruct bool) {
+ }
+ 
+ // readType processes a type declaration.
+-//
+ func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
+ 	typ := r.lookupType(spec.Name.Name)
+ 	if typ == nil {
+@@ -400,13 +388,11 @@ func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
+ }
+ 
+ // isPredeclared reports whether n denotes a predeclared type.
+-//
+ func (r *reader) isPredeclared(n string) bool {
+ 	return predeclaredTypes[n] && r.types[n] == nil
+ }
+ 
+ // readFunc processes a func or method declaration.
+-//
+ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ 	// strip function body if requested.
+ 	if r.mode&PreserveAST == 0 {
+@@ -500,7 +486,6 @@ var (
+ )
+ 
+ // readNote collects a single note from a sequence of comments.
+-//
+ func (r *reader) readNote(list []*ast.Comment) {
+ 	text := (&ast.CommentGroup{List: list}).Text()
+ 	if m := noteMarkerRx.FindStringSubmatchIndex(text); m != nil {
+@@ -526,7 +511,6 @@ func (r *reader) readNote(list []*ast.Comment) {
+ // and is followed by the note body (e.g., "// BUG(gri): fix this").
+ // The note ends at the end of the comment group or at the start of
+ // another note in the same comment group, whichever comes first.
+-//
+ func (r *reader) readNotes(comments []*ast.CommentGroup) {
+ 	for _, group := range comments {
+ 		i := -1 // comment index of most recent note start, valid if >= 0
+@@ -546,7 +530,6 @@ func (r *reader) readNotes(comments []*ast.CommentGroup) {
+ }
+ 
+ // readFile adds the AST for a source file to the reader.
+-//
+ func (r *reader) readFile(src *ast.File) {
+ 	// add package documentation
+ 	if src.Doc != nil {
+@@ -696,7 +679,6 @@ func customizeRecv(f *Func, recvTypeName string, embeddedIsPtr bool, level int)
+ }
+ 
+ // collectEmbeddedMethods collects the embedded methods of typ in mset.
+-//
+ func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvTypeName string, embeddedIsPtr bool, level int, visited embeddedSet) {
+ 	visited[typ] = true
+ 	for embedded, isPtr := range typ.embedded {
+@@ -720,7 +702,6 @@ func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvType
+ }
+ 
+ // computeMethodSets determines the actual method sets for each type encountered.
+-//
+ func (r *reader) computeMethodSets() {
+ 	for _, t := range r.types {
+ 		// collect embedded methods for t
+@@ -746,7 +727,6 @@ func (r *reader) computeMethodSets() {
+ // types that have no declaration. Instead, these functions and methods
+ // are shown at the package level. It also removes types with missing
+ // declarations or which are not visible.
+-//
+ func (r *reader) cleanupTypes() {
+ 	for _, t := range r.types {
+ 		visible := r.isVisible(t.name)
+@@ -813,7 +793,6 @@ func sortedKeys(m map[string]int) []string {
+ }
+ 
+ // sortingName returns the name to use when sorting d into place.
+-//
+ func sortingName(d *ast.GenDecl) string {
+ 	if len(d.Specs) == 1 {
+ 		if s, ok := d.Specs[0].(*ast.ValueSpec); ok {
+@@ -906,7 +885,6 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
+ 
+ // noteBodies returns a list of note body strings given a list of notes.
+ // This is only used to populate the deprecated Package.Bugs field.
+-//
+ func noteBodies(notes []*Note) []string {
+ 	var list []string
+ 	for _, n := range notes {
+diff --git a/src/go/doc/synopsis.go b/src/go/doc/synopsis.go
+index 3fa1616cd1..ca607cc4e5 100644
+--- a/src/go/doc/synopsis.go
++++ b/src/go/doc/synopsis.go
+@@ -12,7 +12,6 @@ import (
+ // firstSentenceLen returns the length of the first sentence in s.
+ // The sentence ends after the first period followed by space and
+ // not preceded by exactly one uppercase letter.
+-//
+ func firstSentenceLen(s string) int {
+ 	var ppp, pp, p rune
+ 	for i, q := range s {
+@@ -64,7 +63,6 @@ func clean(s string, flags int) string {
+ // has no \n, \r, or \t characters and uses only single spaces between
+ // words. If s starts with any of the IllegalPrefixes, the result
+ // is the empty string.
+-//
+ func Synopsis(s string) string {
+ 	s = clean(s[0:firstSentenceLen(s)], 0)
+ 	for _, prefix := range IllegalPrefixes {
+diff --git a/src/go/format/benchmark_test.go b/src/go/format/benchmark_test.go
+index ac19aa3bf5..d434d6f549 100644
+--- a/src/go/format/benchmark_test.go
++++ b/src/go/format/benchmark_test.go
+@@ -31,7 +31,6 @@ var debug = flag.Bool("debug", false, "write .src files containing formatting in
+ // 	0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+ // 	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+ // 	...
+-//
+ func array1(buf *bytes.Buffer, n int) {
+ 	buf.WriteString("var _ = [...]byte{\n")
+ 	for i := 0; i < n; {
+diff --git a/src/go/format/format.go b/src/go/format/format.go
+index ea8dd20823..fb87e84a4e 100644
+--- a/src/go/format/format.go
++++ b/src/go/format/format.go
+@@ -50,7 +50,6 @@ const parserMode = parser.ParseComments
+ //
+ // The function may return early (before the entire result is written)
+ // and return a formatting error, for instance due to an incorrect AST.
+-//
+ func Node(dst io.Writer, fset *token.FileSet, node any) error {
+ 	// Determine if we have a complete source file (file != nil).
+ 	var file *ast.File
+@@ -99,7 +98,6 @@ func Node(dst io.Writer, fset *token.FileSet, node any) error {
+ // is applied to the result (such that it has the same leading and trailing
+ // space as src), and the result is indented by the same amount as the first
+ // line of src containing code. Imports are not sorted for partial source files.
+-//
+ func Source(src []byte) ([]byte, error) {
+ 	fset := token.NewFileSet()
+ 	file, sourceAdj, indentAdj, err := parse(fset, "", src, true)
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 48335fa6d8..10402fe43e 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -187,7 +187,6 @@ func (p *parser) parseQualifiedNameStr(unquotedName string) (pkgpath, name strin
+ // getPkg returns the package for a given path. If the package is
+ // not found but we have a package name, create the package and
+ // add it to the p.imports map.
+-//
+ func (p *parser) getPkg(pkgpath, name string) *types.Package {
+ 	// package unsafe is not in the imports map - handle explicitly
+ 	if pkgpath == "unsafe" {
+@@ -934,7 +933,6 @@ func lookupBuiltinType(typ int) types.Type {
+ // Type = "<" "type" ( "-" int | int [ TypeSpec ] ) ">" .
+ //
+ // parseType updates the type map to t for all type numbers n.
+-//
+ func (p *parser) parseType(pkg *types.Package, n ...any) types.Type {
+ 	p.expect('<')
+ 	t, _ := p.parseTypeAfterAngle(pkg, n...)
+diff --git a/src/go/internal/gcimporter/exportdata.go b/src/go/internal/gcimporter/exportdata.go
+index c12e459c3d..43e505b47b 100644
+--- a/src/go/internal/gcimporter/exportdata.go
++++ b/src/go/internal/gcimporter/exportdata.go
+@@ -40,7 +40,6 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
+ // file by reading from it. The reader must be positioned at the
+ // start of the file before calling this function. The hdr result
+ // is the string before the export data, either "$$" or "$$B".
+-//
+ func FindExportData(r *bufio.Reader) (hdr string, err error) {
+ 	// Read first line to make sure this is an object file.
+ 	line, err := r.ReadSlice('\n')
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 73cf6334fd..9ed5e0c5e8 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -27,7 +27,6 @@ var pkgExts = [...]string{".a", ".o"}
+ // the build.Default build.Context). A relative srcDir is interpreted
+ // relative to the current working directory.
+ // If no file was found, an empty filename is returned.
+-//
+ func FindPkg(path, srcDir string) (filename, id string) {
+ 	if path == "" {
+ 		return
+@@ -83,7 +82,6 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ // Import imports a gc-generated package given its import path and srcDir, adds
+ // the corresponding package object to the packages map, and returns the object.
+ // The packages map must contain all packages already imported.
+-//
+ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types.Package, err error) {
+ 	var rc io.ReadCloser
+ 	var id string
+diff --git a/src/go/parser/error_test.go b/src/go/parser/error_test.go
+index bedfc265b5..c3a8ec6ad8 100644
+--- a/src/go/parser/error_test.go
++++ b/src/go/parser/error_test.go
+@@ -64,12 +64,10 @@ func getPos(fset *token.FileSet, filename string, offset int) token.Pos {
+ // The special form /* ERROR HERE "rx" */ must be used for error
+ // messages that appear immediately after a token, rather than at
+ // a token's position.
+-//
+ var errRx = regexp.MustCompile(`^/\* *ERROR *(HERE)? *"([^"]*)" *\*/$`)
+ 
+ // expectedErrors collects the regular expressions of ERROR comments found
+ // in files and returns them as a map of error positions to error messages.
+-//
+ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.Pos]string {
+ 	errors := make(map[token.Pos]string)
+ 
+@@ -116,7 +114,6 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
+ 
+ // compareErrors compares the map of expected error messages with the list
+ // of found errors and reports discrepancies.
+-//
+ func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]string, found scanner.ErrorList) {
+ 	t.Helper()
+ 	for _, error := range found {
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index e4f8c281ea..e3468f481f 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -21,7 +21,6 @@ import (
+ // If src != nil, readSource converts src to a []byte if possible;
+ // otherwise it returns an error. If src == nil, readSource returns
+ // the result of reading the file specified by filename.
+-//
+ func readSource(filename string, src any) ([]byte, error) {
+ 	if src != nil {
+ 		switch s := src.(type) {
+@@ -45,7 +44,6 @@ func readSource(filename string, src any) ([]byte, error) {
+ // A Mode value is a set of flags (or 0).
+ // They control the amount of source code parsed and other optional
+ // parser functionality.
+-//
+ type Mode uint
+ 
+ const (
+@@ -81,7 +79,6 @@ const (
+ // errors were found, the result is a partial AST (with ast.Bad* nodes
+ // representing the fragments of erroneous source code). Multiple errors
+ // are returned via a scanner.ErrorList which is sorted by source position.
+-//
+ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast.File, err error) {
+ 	if fset == nil {
+ 		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
+@@ -136,7 +133,6 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
+ // If the directory couldn't be read, a nil map and the respective error are
+ // returned. If a parse error occurred, a non-nil but incomplete map and the
+ // first error encountered are returned.
+-//
+ func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
+ 	list, err := os.ReadDir(path)
+ 	if err != nil {
+@@ -187,7 +183,6 @@ func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, m
+ // errors were found, the result is a partial AST (with ast.Bad* nodes
+ // representing the fragments of erroneous source code). Multiple errors
+ // are returned via a scanner.ErrorList which is sorted by source position.
+-//
+ func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (expr ast.Expr, err error) {
+ 	if fset == nil {
+ 		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
+@@ -232,7 +227,6 @@ func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (ex
+ // If syntax errors were found, the result is a partial AST (with ast.Bad* nodes
+ // representing the fragments of erroneous source code). Multiple errors are
+ // returned via a scanner.ErrorList which is sorted by source position.
+-//
+ func ParseExpr(x string) (ast.Expr, error) {
+ 	return ParseExprFrom(token.NewFileSet(), "", []byte(x), 0)
+ }
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 51a3c3e67f..3eb00e9446 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -154,7 +154,6 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
+ // comments list, and return it together with the line at which
+ // the last comment in the group ends. A non-comment token or n
+ // empty lines terminate a comment group.
+-//
+ func (p *parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline int) {
+ 	var list []*ast.Comment
+ 	endline = p.file.Line(p.pos)
+@@ -185,7 +184,6 @@ func (p *parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline
+ //
+ // Lead and line comments may be considered documentation that is
+ // stored in the AST.
+-//
+ func (p *parser) next() {
+ 	p.leadComment = nil
+ 	p.lineComment = nil
+@@ -288,7 +286,6 @@ func (p *parser) expect2(tok token.Token) (pos token.Pos) {
+ 
+ // expectClosing is like expect but provides a better error message
+ // for the common case of a missing comma before a newline.
+-//
+ func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
+ 	if p.tok != tok && p.tok == token.SEMICOLON && p.lit == "\n" {
+ 		p.error(p.pos, "missing ',' before newline in "+context)
+@@ -406,7 +403,6 @@ var exprEnd = map[token.Token]bool{
+ // token positions are invalid due to parse errors, the resulting end position
+ // may be past the file's EOF position, which would lead to panics if used
+ // later on.
+-//
+ func (p *parser) safePos(pos token.Pos) (res token.Pos) {
+ 	defer func() {
+ 		if recover() != nil {
+@@ -1349,7 +1345,6 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
+ 
+ // parseOperand may return an expression or a raw type (incl. array
+ // types of the form [...]T. Callers must verify the result.
+-//
+ func (p *parser) parseOperand() ast.Expr {
+ 	if p.trace {
+ 		defer un(trace(p, "Operand"))
+@@ -1640,7 +1635,6 @@ func unparen(x ast.Expr) ast.Expr {
+ 
+ // checkExprOrType checks that x is an expression or a type
+ // (and not a raw type such as [...]T).
+-//
+ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
+ 	switch t := unparen(x).(type) {
+ 	case *ast.ParenExpr:
+diff --git a/src/go/parser/resolver.go b/src/go/parser/resolver.go
+index d66a194c12..767a5e20ad 100644
+--- a/src/go/parser/resolver.go
++++ b/src/go/parser/resolver.go
+@@ -188,7 +188,6 @@ var unresolved = new(ast.Object)
+ // the object it denotes. If no object is found and collectUnresolved is
+ // set, x is marked as unresolved and collected in the list of unresolved
+ // identifiers.
+-//
+ func (r *resolver) resolve(ident *ast.Ident, collectUnresolved bool) {
+ 	if ident.Obj != nil {
+ 		panic(r.sprintf("%v: identifier %s already declared or resolved", ident.Pos(), ident.Name))
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 89e8016409..f4fbde8ae6 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -44,7 +44,6 @@ import (
+ // space taken up by them is not considered to reduce the number of
+ // linebreaks. At the moment there is no easy way to know about
+ // future (not yet interspersed) comments in this function.
+-//
+ func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (nbreaks int) {
+ 	n := nlimit(line - p.pos.Line)
+ 	if n < min {
+@@ -745,7 +744,6 @@ func reduceDepth(depth int) int {
+ //	3) If there are no level 4 operators or no level 5 operators, then the
+ //	   cutoff is 6 (always use spaces) in Normal mode
+ //	   and 4 (never use spaces) in Compact mode.
+-//
+ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int) {
+ 	prec := x.Op.Precedence()
+ 	if prec < prec1 {
+@@ -1259,7 +1257,6 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
+ // indentList reports whether an expression list would look better if it
+ // were indented wholesale (starting with the very first element, rather
+ // than starting at the first line break).
+-//
+ func (p *printer) indentList(list []ast.Expr) bool {
+ 	// Heuristic: indentList reports whether there are more than one multi-
+ 	// line element in the list, or if there is any element that is not
+@@ -1503,7 +1500,6 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
+ //	-  V          -  V          true      column must be kept
+ //	-  -          -  -          false
+ //	-  V          V  -          false     V is moved into T column
+-//
+ func keepTypeColumn(specs []ast.Spec) []bool {
+ 	m := make([]bool, len(specs))
+ 
+@@ -1614,7 +1610,6 @@ func sanitizeImportPath(lit *ast.BasicLit) *ast.BasicLit {
+ // The parameter n is the number of specs in the group. If doIndent is set,
+ // multi-line identifier lists in the spec are indented when the first
+ // linebreak is encountered.
+-//
+ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
+ 	switch s := spec.(type) {
+ 	case *ast.ImportSpec:
+@@ -1710,7 +1705,6 @@ func (p *printer) genDecl(d *ast.GenDecl) {
+ // The result is <= maxSize if the node fits on one line with at
+ // most maxSize chars and the formatted output doesn't contain
+ // any control chars. Otherwise, the result is > maxSize.
+-//
+ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
+ 	// nodeSize invokes the printer, which may invoke nodeSize
+ 	// recursively. For deep composite literal nests, this can
+@@ -1784,7 +1778,6 @@ func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
+ // the block is printed on the current line, without line breaks, spaced from the header
+ // by sep. Otherwise the block's opening "{" is printed on the current line, followed by
+ // lines for the block's statements and its closing "}".
+-//
+ func (p *printer) funcBody(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
+ 	if b == nil {
+ 		return
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index e4679b0021..5014f59ab5 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -151,14 +151,12 @@ func (p *printer) nextComment() {
+ // commentBefore reports whether the current comment group occurs
+ // before the next position in the source code and printing it does
+ // not introduce implicit semicolons.
+-//
+ func (p *printer) commentBefore(next token.Position) bool {
+ 	return p.commentOffset < next.Offset && (!p.impliedSemi || !p.commentNewline)
+ }
+ 
+ // commentSizeBefore returns the estimated size of the
+ // comments on the same line before the next position.
+-//
+ func (p *printer) commentSizeBefore(next token.Position) int {
+ 	// save/restore current p.commentInfo (p.nextComment() modifies it)
+ 	defer func(info commentInfo) {
+@@ -179,7 +177,6 @@ func (p *printer) commentSizeBefore(next token.Position) int {
+ // token in *linePtr. It is used to compute an accurate line number for a
+ // formatted construct, independent of pending (not yet emitted) whitespace
+ // or comments.
+-//
+ func (p *printer) recordLine(linePtr *int) {
+ 	p.linePtr = linePtr
+ }
+@@ -188,7 +185,6 @@ func (p *printer) recordLine(linePtr *int) {
+ // output line and the line argument, ignoring any pending (not yet
+ // emitted) whitespace or comments. It is used to compute an accurate
+ // size (in number of lines) for a formatted construct.
+-//
+ func (p *printer) linesFrom(line int) int {
+ 	return p.out.Line - line
+ }
+@@ -282,7 +278,6 @@ func (p *printer) writeByte(ch byte, n int) {
+ // needed (i.e., when we don't know that s contains no tabs or line breaks)
+ // avoids processing extra escape characters and reduces run time of the
+ // printer benchmark by up to 10%.
+-//
+ func (p *printer) writeString(pos token.Position, s string, isLit bool) {
+ 	if p.out.Column == 1 {
+ 		if p.Config.Mode&SourcePos != 0 {
+@@ -352,7 +347,6 @@ func (p *printer) writeString(pos token.Position, s string, isLit bool) {
+ // pos is the comment position, next the position of the item
+ // after all pending comments, prev is the previous comment in
+ // a group of comments (or nil), and tok is the next token.
+-//
+ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment, tok token.Token) {
+ 	if len(p.output) == 0 {
+ 		// the comment is the first item to be printed - don't write any whitespace
+@@ -478,7 +472,6 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
+ 
+ // Returns true if s contains only white space
+ // (only tabs and blanks can appear in the printer's context).
+-//
+ func isBlank(s string) bool {
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] > ' ' {
+@@ -507,7 +500,6 @@ func trimRight(s string) string {
+ // The prefix is computed using heuristics such that is likely that the comment
+ // contents are nicely laid out after re-printing each line using the printer's
+ // current indentation.
+-//
+ func stripCommonPrefix(lines []string) {
+ 	if len(lines) <= 1 {
+ 		return // at most one line - nothing to do
+@@ -695,7 +687,6 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ // pending whitespace. The writeCommentSuffix result indicates if a
+ // newline was written or if a formfeed was dropped from the whitespace
+ // buffer.
+-//
+ func (p *printer) writeCommentSuffix(needsLinebreak bool) (wroteNewline, droppedFF bool) {
+ 	for i, ch := range p.wsbuf {
+ 		switch ch {
+@@ -744,7 +735,6 @@ func (p *printer) containsLinebreak() bool {
+ // that needs to be written before the next token). A heuristic is used to mix
+ // the comments and whitespace. The intersperseComments result indicates if a
+ // newline was written or if a formfeed was dropped from the whitespace buffer.
+-//
+ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wroteNewline, droppedFF bool) {
+ 	var last *ast.Comment
+ 	for p.commentBefore(next) {
+@@ -877,7 +867,6 @@ func mayCombine(prev token.Token, next byte) (b bool) {
+ // taking into account the amount and structure of any pending white-
+ // space for best comment placement. Then, any leftover whitespace is
+ // printed, followed by the actual token.
+-//
+ func (p *printer) print(args ...any) {
+ 	for _, arg := range args {
+ 		// information about the current arg
+@@ -1020,7 +1009,6 @@ func (p *printer) print(args ...any) {
+ // before the position of the next token tok. The flush result indicates
+ // if a newline was written or if a formfeed was dropped from the whitespace
+ // buffer.
+-//
+ func (p *printer) flush(next token.Position, tok token.Token) (wroteNewline, droppedFF bool) {
+ 	if p.commentBefore(next) {
+ 		// if there are comments before the next item, intersperse them
+@@ -1175,7 +1163,6 @@ unsupported:
+ // and vtab characters into newlines and htabs (in case no tabwriter
+ // is used). Text bracketed by tabwriter.Escape characters is passed
+ // through unchanged.
+-//
+ type trimmer struct {
+ 	output io.Writer
+ 	state  int
+@@ -1363,7 +1350,6 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node any, nodeS
+ 
+ // A CommentedNode bundles an AST node and corresponding comments.
+ // It may be provided as argument to any of the Fprint functions.
+-//
+ type CommentedNode struct {
+ 	Node     any // *ast.File, or ast.Expr, ast.Decl, ast.Spec, or ast.Stmt
+ 	Comments []*ast.CommentGroup
+@@ -1373,7 +1359,6 @@ type CommentedNode struct {
+ // Position information is interpreted relative to the file set fset.
+ // The node type must be *ast.File, *CommentedNode, []ast.Decl, []ast.Stmt,
+ // or assignment-compatible to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
+-//
+ func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node any) error {
+ 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
+ }
+@@ -1382,7 +1367,6 @@ func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node any) error
+ // It calls Config.Fprint with default settings.
+ // Note that gofmt uses tabs for indentation but spaces for alignment;
+ // use format.Node (package go/format) for output that matches gofmt.
+-//
+ func Fprint(output io.Writer, fset *token.FileSet, node any) error {
+ 	return (&Config{Tabwidth: 8}).Fprint(output, fset, node)
+ }
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 2071aa8aa6..ad2d86052a 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -212,7 +212,6 @@ func TestFiles(t *testing.T) {
+ // TestLineComments, using a simple test case, checks that consecutive line
+ // comments are properly terminated with a newline even if the AST position
+ // information is incorrect.
+-//
+ func TestLineComments(t *testing.T) {
+ 	const src = `// comment 1
+ 	// comment 2
+diff --git a/src/go/printer/testdata/parser.go b/src/go/printer/testdata/parser.go
+index 615aceebd2..bb06c8dd42 100644
+--- a/src/go/printer/testdata/parser.go
++++ b/src/go/printer/testdata/parser.go
+@@ -19,7 +19,6 @@ import (
+ // The mode parameter to the Parse* functions is a set of flags (or 0).
+ // They control the amount of source code parsed and other optional
+ // parser functionality.
+-//
+ const (
+ 	PackageClauseOnly uint = 1 << iota // parsing stops after package clause
+ 	ImportsOnly                        // parsing stops after import declarations
+@@ -271,7 +270,6 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
+ // comments list, and return it together with the line at which
+ // the last comment in the group ends. An empty line or non-comment
+ // token terminates a comment group.
+-//
+ func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int) {
+ 	var list []*ast.Comment
+ 	endline = p.file.Line(p.pos)
+@@ -302,7 +300,6 @@ func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int)
+ //
+ // Lead and line comments may be considered documentation that is
+ // stored in the AST.
+-//
+ func (p *parser) next() {
+ 	p.leadComment = nil
+ 	p.lineComment = nil
+@@ -947,7 +944,6 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
+ // parseOperand may return an expression or a raw type (incl. array
+ // types of the form [...]T. Callers must verify the result.
+ // If lhs is set and the result is an identifier, it is not resolved.
+-//
+ func (p *parser) parseOperand(lhs bool) ast.Expr {
+ 	if p.trace {
+ 		defer un(trace(p, "Operand"))
+@@ -1214,7 +1210,6 @@ func unparen(x ast.Expr) ast.Expr {
+ 
+ // checkExprOrType checks that x is an expression or a type
+ // (and not a raw type such as [...]T).
+-//
+ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
+ 	switch t := unparen(x).(type) {
+ 	case *ast.ParenExpr:
+diff --git a/src/go/scanner/errors.go b/src/go/scanner/errors.go
+index 3114f4b645..3e9c365cca 100644
+--- a/src/go/scanner/errors.go
++++ b/src/go/scanner/errors.go
+@@ -15,7 +15,6 @@ import (
+ // The position Pos, if valid, points to the beginning of
+ // the offending token, and the error condition is described
+ // by Msg.
+-//
+ type Error struct {
+ 	Pos token.Position
+ 	Msg string
+@@ -33,7 +32,6 @@ func (e Error) Error() string {
+ 
+ // ErrorList is a list of *Errors.
+ // The zero value for an ErrorList is an empty ErrorList ready to use.
+-//
+ type ErrorList []*Error
+ 
+ // Add adds an Error with given position and error message to an ErrorList.
+@@ -69,7 +67,6 @@ func (p ErrorList) Less(i, j int) bool {
+ // Sort sorts an ErrorList. *Error entries are sorted by position,
+ // other errors are sorted by error message, and before any *Error
+ // entry.
+-//
+ func (p ErrorList) Sort() {
+ 	sort.Sort(p)
+ }
+@@ -112,7 +109,6 @@ func (p ErrorList) Err() error {
+ // PrintError is a utility function that prints a list of errors to w,
+ // one error per line, if the err parameter is an ErrorList. Otherwise
+ // it prints the err string.
+-//
+ func PrintError(w io.Writer, err error) {
+ 	if list, ok := err.(ErrorList); ok {
+ 		for _, e := range list {
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 23d8db9d1c..b53de7a427 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -22,13 +22,11 @@ import (
+ // encountered and a handler was installed, the handler is called with a
+ // position and an error message. The position points to the beginning of
+ // the offending token.
+-//
+ type ErrorHandler func(pos token.Position, msg string)
+ 
+ // A Scanner holds the scanner's internal state while processing
+ // a given text. It can be allocated as part of another data
+ // structure but must be initialized via Init before use.
+-//
+ type Scanner struct {
+ 	// immutable state
+ 	file *token.File  // source file handle
+@@ -101,7 +99,6 @@ func (s *Scanner) peek() byte {
+ 
+ // A mode value is a set of flags (or 0).
+ // They control scanner behavior.
+-//
+ type Mode uint
+ 
+ const (
+@@ -123,7 +120,6 @@ const (
+ //
+ // Note that Init may call err if there is an error in the first character
+ // of the file.
+-//
+ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode) {
+ 	// Explicitly initialize all fields since a scanner may be reused.
+ 	if file.Size() != len(src) {
+@@ -825,7 +821,6 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
+ // Scan adds line information to the file added to the file
+ // set with Init. Token positions are relative to that file
+ // and thus relative to the file set.
+-//
+ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
+ scanAgain:
+ 	s.skipWhitespace()
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index ce4af03923..00f24535bf 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -16,7 +16,6 @@ import (
+ // Position describes an arbitrary source position
+ // including the file, line, and column location.
+ // A Position is valid if the line number is > 0.
+-//
+ type Position struct {
+ 	Filename string // filename, if any
+ 	Offset   int    // offset, starting at 0
+@@ -35,7 +34,6 @@ func (pos *Position) IsValid() bool { return pos.Line > 0 }
+ //	line                valid position without file name and no column (column == 0)
+ //	file                invalid position with file name
+ //	-                   invalid position without file name
+-//
+ func (pos Position) String() string {
+ 	s := pos.Filename
+ 	if pos.IsValid() {
+@@ -75,14 +73,12 @@ func (pos Position) String() string {
+ // equivalent to comparing the respective source file offsets. If p and q
+ // are in different files, p < q is true if the file implied by p was added
+ // to the respective file set before the file implied by q.
+-//
+ type Pos int
+ 
+ // The zero value for Pos is NoPos; there is no file and line information
+ // associated with it, and NoPos.IsValid() is false. NoPos is always
+ // smaller than any other Pos value. The corresponding Position value
+ // for NoPos is the zero value for Position.
+-//
+ const NoPos Pos = 0
+ 
+ // IsValid reports whether the position is valid.
+@@ -95,7 +91,6 @@ func (p Pos) IsValid() bool {
+ 
+ // A File is a handle for a file belonging to a FileSet.
+ // A File has a name, size, and line offset table.
+-//
+ type File struct {
+ 	set  *FileSet
+ 	name string // file name as provided to AddFile
+@@ -134,7 +129,6 @@ func (f *File) LineCount() int {
+ // AddLine adds the line offset for a new line.
+ // The line offset must be larger than the offset for the previous line
+ // and smaller than the file size; otherwise the line offset is ignored.
+-//
+ func (f *File) AddLine(offset int) {
+ 	f.mutex.Lock()
+ 	if i := len(f.lines); (i == 0 || f.lines[i-1] < offset) && offset < f.size {
+@@ -147,7 +141,6 @@ func (f *File) AddLine(offset int) {
+ // the newline character at the end of the line with a space (to not change the
+ // remaining offsets). To obtain the line number, consult e.g. Position.Line.
+ // MergeLine will panic if given an invalid line number.
+-//
+ func (f *File) MergeLine(line int) {
+ 	if line < 1 {
+ 		panic(fmt.Sprintf("invalid line number %d (should be >= 1)", line))
+@@ -174,7 +167,6 @@ func (f *File) MergeLine(line int) {
+ // and smaller than the file size; otherwise SetLines fails and returns
+ // false.
+ // Callers must not mutate the provided slice after SetLines returns.
+-//
+ func (f *File) SetLines(lines []int) bool {
+ 	// verify validity of lines table
+ 	size := f.size
+@@ -239,7 +231,6 @@ type lineInfo struct {
+ 
+ // AddLineInfo is like AddLineColumnInfo with a column = 1 argument.
+ // It is here for backward-compatibility for code prior to Go 1.11.
+-//
+ func (f *File) AddLineInfo(offset int, filename string, line int) {
+ 	f.AddLineColumnInfo(offset, filename, line, 1)
+ }
+@@ -252,7 +243,6 @@ func (f *File) AddLineInfo(offset int, filename string, line int) {
+ //
+ // AddLineColumnInfo is typically used to register alternative position
+ // information for line directives such as //line filename:line:column.
+-//
+ func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) {
+ 	f.mutex.Lock()
+ 	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
+@@ -264,7 +254,6 @@ func (f *File) AddLineColumnInfo(offset int, filename string, line, column int)
+ // Pos returns the Pos value for the given file offset;
+ // the offset must be <= f.Size().
+ // f.Pos(f.Offset(p)) == p.
+-//
+ func (f *File) Pos(offset int) Pos {
+ 	if offset > f.size {
+ 		panic(fmt.Sprintf("invalid file offset %d (should be <= %d)", offset, f.size))
+@@ -275,7 +264,6 @@ func (f *File) Pos(offset int) Pos {
+ // Offset returns the offset for the given file position p;
+ // p must be a valid Pos value in that file.
+ // f.Offset(f.Pos(offset)) == offset.
+-//
+ func (f *File) Offset(p Pos) int {
+ 	if int(p) < f.base || int(p) > f.base+f.size {
+ 		panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d])", p, f.base, f.base+f.size))
+@@ -285,7 +273,6 @@ func (f *File) Offset(p Pos) int {
+ 
+ // Line returns the line number for the given file position p;
+ // p must be a Pos value in that file or NoPos.
+-//
+ func (f *File) Line(p Pos) int {
+ 	return f.Position(p).Line
+ }
+@@ -297,7 +284,6 @@ func searchLineInfos(a []lineInfo, x int) int {
+ // unpack returns the filename and line and column number for a file offset.
+ // If adjusted is set, unpack will return the filename and line information
+ // possibly adjusted by //line comments; otherwise those comments are ignored.
+-//
+ func (f *File) unpack(offset int, adjusted bool) (filename string, line, column int) {
+ 	f.mutex.Lock()
+ 	defer f.mutex.Unlock()
+@@ -342,7 +328,6 @@ func (f *File) position(p Pos, adjusted bool) (pos Position) {
+ // If adjusted is set, the position may be adjusted by position-altering
+ // //line comments; otherwise those comments are ignored.
+ // p must be a Pos value in f or NoPos.
+-//
+ func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {
+ 	if p != NoPos {
+ 		if int(p) < f.base || int(p) > f.base+f.size {
+@@ -355,7 +340,6 @@ func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {
+ 
+ // Position returns the Position value for the given file position p.
+ // Calling f.Position(p) is equivalent to calling f.PositionFor(p, true).
+-//
+ func (f *File) Position(p Pos) (pos Position) {
+ 	return f.PositionFor(p, true)
+ }
+@@ -382,7 +366,6 @@ func (f *File) Position(p Pos) (pos Position) {
+ // recently added file, plus one. Unless there is a need to extend an
+ // interval later, using the FileSet.Base should be used as argument
+ // for FileSet.AddFile.
+-//
+ type FileSet struct {
+ 	mutex sync.RWMutex // protects the file set
+ 	base  int          // base offset for the next file
+@@ -399,7 +382,6 @@ func NewFileSet() *FileSet {
+ 
+ // Base returns the minimum base offset that must be provided to
+ // AddFile when adding the next file.
+-//
+ func (s *FileSet) Base() int {
+ 	s.mutex.RLock()
+ 	b := s.base
+@@ -423,7 +405,6 @@ func (s *FileSet) Base() int {
+ // with offs in the range [0, size] and thus p in the range [base, base+size].
+ // For convenience, File.Pos may be used to create file-specific position
+ // values from a file offset.
+-//
+ func (s *FileSet) AddFile(filename string, base, size int) *File {
+ 	s.mutex.Lock()
+ 	defer s.mutex.Unlock()
+@@ -451,7 +432,6 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
+ 
+ // Iterate calls f for the files in the file set in the order they were added
+ // until f returns false.
+-//
+ func (s *FileSet) Iterate(f func(*File) bool) {
+ 	for i := 0; ; i++ {
+ 		var file *File
+@@ -496,7 +476,6 @@ func (s *FileSet) file(p Pos) *File {
+ // File returns the file that contains the position p.
+ // If no such file is found (for instance for p == NoPos),
+ // the result is nil.
+-//
+ func (s *FileSet) File(p Pos) (f *File) {
+ 	if p != NoPos {
+ 		f = s.file(p)
+@@ -508,7 +487,6 @@ func (s *FileSet) File(p Pos) (f *File) {
+ // If adjusted is set, the position may be adjusted by position-altering
+ // //line comments; otherwise those comments are ignored.
+ // p must be a Pos value in s or NoPos.
+-//
+ func (s *FileSet) PositionFor(p Pos, adjusted bool) (pos Position) {
+ 	if p != NoPos {
+ 		if f := s.file(p); f != nil {
+@@ -520,7 +498,6 @@ func (s *FileSet) PositionFor(p Pos, adjusted bool) (pos Position) {
+ 
+ // Position converts a Pos p in the fileset into a Position value.
+ // Calling s.Position(p) is equivalent to calling s.PositionFor(p, true).
+-//
+ func (s *FileSet) Position(p Pos) (pos Position) {
+ 	return s.PositionFor(p, true)
+ }
+diff --git a/src/go/token/token.go b/src/go/token/token.go
+index 17047d8713..b691883261 100644
+--- a/src/go/token/token.go
++++ b/src/go/token/token.go
+@@ -239,7 +239,6 @@ var tokens = [...]string{
+ // token character sequence (e.g., for the token ADD, the string is
+ // "+"). For all other tokens the string corresponds to the token
+ // constant name (e.g. for the token IDENT, the string is "IDENT").
+-//
+ func (tok Token) String() string {
+ 	s := ""
+ 	if 0 <= tok && tok < Token(len(tokens)) {
+@@ -256,7 +255,6 @@ func (tok Token) String() string {
+ // starting with precedence 1 up to unary operators. The highest
+ // precedence serves as "catch-all" precedence for selector,
+ // indexing, and other operator and delimiter tokens.
+-//
+ const (
+ 	LowestPrec  = 0 // non-operators
+ 	UnaryPrec   = 6
+@@ -266,7 +264,6 @@ const (
+ // Precedence returns the operator precedence of the binary
+ // operator op. If op is not a binary operator, the result
+ // is LowestPrecedence.
+-//
+ func (op Token) Precedence() int {
+ 	switch op {
+ 	case LOR:
+@@ -293,7 +290,6 @@ func init() {
+ }
+ 
+ // Lookup maps an identifier to its keyword token or IDENT (if not a keyword).
+-//
+ func Lookup(ident string) Token {
+ 	if tok, is_keyword := keywords[ident]; is_keyword {
+ 		return tok
+@@ -305,30 +301,25 @@ func Lookup(ident string) Token {
+ 
+ // IsLiteral returns true for tokens corresponding to identifiers
+ // and basic type literals; it returns false otherwise.
+-//
+ func (tok Token) IsLiteral() bool { return literal_beg < tok && tok < literal_end }
+ 
+ // IsOperator returns true for tokens corresponding to operators and
+ // delimiters; it returns false otherwise.
+-//
+ func (tok Token) IsOperator() bool {
+ 	return (operator_beg < tok && tok < operator_end) || tok == TILDE
+ }
+ 
+ // IsKeyword returns true for tokens corresponding to keywords;
+ // it returns false otherwise.
+-//
+ func (tok Token) IsKeyword() bool { return keyword_beg < tok && tok < keyword_end }
+ 
+ // IsExported reports whether name starts with an upper-case letter.
+-//
+ func IsExported(name string) bool {
+ 	ch, _ := utf8.DecodeRuneInString(name)
+ 	return unicode.IsUpper(ch)
+ }
+ 
+ // IsKeyword reports whether name is a Go keyword, such as "func" or "return".
+-//
+ func IsKeyword(name string) bool {
+ 	// TODO: opt: use a perfect hash function instead of a global map.
+ 	_, ok := keywords[name]
+@@ -338,7 +329,6 @@ func IsKeyword(name string) bool {
+ // IsIdentifier reports whether name is a Go identifier, that is, a non-empty
+ // string made up of letters, digits, and underscores, where the first character
+ // is not a digit. Keywords are not identifiers.
+-//
+ func IsIdentifier(name string) bool {
+ 	if name == "" || IsKeyword(name) {
+ 		return false
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 2cbabb0a53..04342bfac5 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -280,7 +280,6 @@ type Info struct {
+ 
+ // TypeOf returns the type of expression e, or nil if not found.
+ // Precondition: the Types, Uses and Defs maps are populated.
+-//
+ func (info *Info) TypeOf(e ast.Expr) Type {
+ 	if t, ok := info.Types[e]; ok {
+ 		return t.Type
+@@ -300,7 +299,6 @@ func (info *Info) TypeOf(e ast.Expr) Type {
+ // it defines, not the type (*TypeName) it uses.
+ //
+ // Precondition: the Uses and Defs maps are populated.
+-//
+ func (info *Info) ObjectOf(id *ast.Ident) Object {
+ 	if obj := info.Defs[id]; obj != nil {
+ 		return obj
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index c81e73c828..414c2c3ea0 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -16,7 +16,6 @@ import (
+ // reports whether the call is valid, with *x holding the result;
+ // but x.expr is not set. If the call is invalid, the result is
+ // false, and *x is undefined.
+-//
+ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ bool) {
+ 	// append is the only built-in that permits the use of ... for the last argument
+ 	bin := predeclaredFuncs[id]
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 592ced41ec..5c42d124ea 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -55,7 +55,6 @@ var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(?s)(.*)`)
+ // splitError splits an error's error message into a position string
+ // and the actual error message. If there's no position information,
+ // pos is the empty string, and msg is the entire error message.
+-//
+ func splitError(err error) (pos, msg string) {
+ 	msg = err.Error()
+ 	if m := posMsgRx.FindStringSubmatch(msg); len(m) == 3 {
+@@ -92,7 +91,6 @@ func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode parser.Mod
+ // Space around "rx" or rx is ignored. Use the form `ERROR HERE "rx"`
+ // for error messages that are located immediately after rather than
+ // at a token's position.
+-//
+ var errRx = regexp.MustCompile(`^ *ERROR *(HERE)? *"?([^"]*)"?`)
+ 
+ // errMap collects the regular expressions of ERROR comments found
+diff --git a/src/go/types/eval.go b/src/go/types/eval.go
+index 5700cbf79c..084f746fe6 100644
+--- a/src/go/types/eval.go
++++ b/src/go/types/eval.go
+@@ -53,7 +53,6 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ Type
+ // functions ignore the context in which an expression is used (e.g., an
+ // assignment). Thus, top-level untyped constants will return an
+ // untyped type rather then the respective context-specific type.
+-//
+ func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, info *Info) (err error) {
+ 	// determine scope
+ 	var scope *Scope
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index a3c9041bdd..1def8cc84d 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1194,7 +1194,6 @@ const (
+ // If hint != nil, it is the type of a composite literal element.
+ // If allowGeneric is set, the operand type may be an uninstantiated
+ // parameterized type or function value.
+-//
+ func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
+ 	if trace {
+ 		check.trace(e.Pos(), "-- expr %s", e)
+@@ -1242,7 +1241,6 @@ func (check *Checker) nonGeneric(x *operand) {
+ 
+ // exprInternal contains the core of type checking of expressions.
+ // Must only be called by rawExpr.
+-//
+ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 	// make sure x has a valid state in case of bailout
+ 	// (was issue 5770)
+@@ -1707,7 +1705,6 @@ func (check *Checker) typeAssertion(e ast.Expr, x *operand, T Type, typeSwitch b
+ // expr typechecks expression e and initializes x with the expression value.
+ // The result must be a single value.
+ // If an error occurred, x.mode is set to invalid.
+-//
+ func (check *Checker) expr(x *operand, e ast.Expr) {
+ 	check.rawExpr(x, e, nil, false)
+ 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
+@@ -1723,7 +1720,6 @@ func (check *Checker) multiExpr(x *operand, e ast.Expr) {
+ // exprWithHint typechecks expression e and initializes x with the expression value;
+ // hint is the type of a composite literal element.
+ // If an error occurred, x.mode is set to invalid.
+-//
+ func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
+ 	assert(hint != nil)
+ 	check.rawExpr(x, e, hint, false)
+@@ -1735,7 +1731,6 @@ func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
+ // If allowGeneric is set, the operand type may be an uninstantiated parameterized type or function
+ // value.
+ // If an error occurred, x.mode is set to invalid.
+-//
+ func (check *Checker) exprOrType(x *operand, e ast.Expr, allowGeneric bool) {
+ 	check.rawExpr(x, e, nil, allowGeneric)
+ 	check.exclude(x, 1<<novalue)
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 670c95d621..f963d31196 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -411,7 +411,6 @@ func (check *Checker) isValidIndex(x *operand, code errorCode, what string, allo
+ // against the literal's element type (typ), and the element indices against
+ // the literal length if known (length >= 0). It returns the length of the
+ // literal (maximum index value + 1).
+-//
+ func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64 {
+ 	visited := make(map[int64]bool, len(elts))
+ 	var index, max int64
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 77fc17f5c3..e38f56c956 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -41,7 +41,6 @@ import (
+ //	- If indirect is set, a method with a pointer receiver type was found
+ //      but there was no pointer on the path from the actual receiver type to
+ //	the method's formal receiver base type, nor was the receiver addressable.
+-//
+ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+ 	if T == nil {
+ 		panic("LookupFieldOrMethod on nil type")
+@@ -281,7 +280,6 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
+ // is not set), MissingMethod only checks that methods of T which are also
+ // present in V have matching types (e.g., for a type assertion x.(T) where
+ // x is of interface type V).
+-//
+ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
+ 	m, alt := (*Checker)(nil).missingMethod(V, T, static)
+ 	// Only report a wrong type if the alternative method has the same name as m.
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 8975fc93dc..89dcd83c2d 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -14,7 +14,6 @@ import (
+ // An Object describes a named language entity such as a package,
+ // constant, type, variable, function (incl. methods), or label.
+ // All objects implement the Object interface.
+-//
+ type Object interface {
+ 	Parent() *Scope // scope in which this object is declared; nil for methods and struct fields
+ 	Pos() token.Pos // position of object identifier in declaration
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 4d7f1e3b63..f9f109aa69 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -49,7 +49,6 @@ var operandModeString = [...]string{
+ // the operand, the operand's type, a value for constants, and an id
+ // for built-in functions.
+ // The zero value of operand is a ready to use invalid operand.
+-//
+ type operand struct {
+ 	mode operandMode
+ 	expr ast.Expr
+@@ -60,7 +59,6 @@ type operand struct {
+ 
+ // Pos returns the position of the expression corresponding to x.
+ // If x is invalid the position is token.NoPos.
+-//
+ func (x *operand) Pos() token.Pos {
+ 	// x.expr may not be set if x is invalid
+ 	if x.expr == nil {
+@@ -102,7 +100,6 @@ func (x *operand) Pos() token.Pos {
+ //
+ // cgofunc    <expr> (<untyped kind> <mode>                    )
+ // cgofunc    <expr> (               <mode>       of type <typ>)
+-//
+ func operandString(x *operand, qf Qualifier) string {
+ 	// special-case nil
+ 	if x.mode == value && x.typ == Typ[UntypedNil] {
+diff --git a/src/go/types/selection.go b/src/go/types/selection.go
+index 6ec69d21db..4e06ab16b4 100644
+--- a/src/go/types/selection.go
++++ b/src/go/types/selection.go
+@@ -36,7 +36,6 @@ const (
+ //	p.x         FieldVal      T       x      int        {0}       true
+ //	p.m         MethodVal     *T      m      func()     {1, 0}    true
+ //	T.m         MethodExpr    T       m      func(T)    {1, 0}    false
+-//
+ type Selection struct {
+ 	kind     SelectionKind
+ 	recv     Type   // type of x
+@@ -115,7 +114,6 @@ func (s *Selection) String() string { return SelectionString(s, nil) }
+ //	"field (T) f int"
+ //	"method (T) f(X) Y"
+ //	"method expr (T) f(X) Y"
+-//
+ func SelectionString(s *Selection, qf Qualifier) string {
+ 	var k string
+ 	switch s.kind {
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index dd4b78969f..fd18fc5796 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -39,7 +39,6 @@ type Sizes interface {
+ //	  types are naturally aligned with a maximum alignment MaxAlign.
+ //
+ // *StdSizes implements Sizes.
+-//
+ type StdSizes struct {
+ 	WordSize int64 // word size in bytes - must be >= 4 (32bits)
+ 	MaxAlign int64 // maximum alignment in bytes - must be >= 1
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 80210a2f34..0325d4a77f 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -26,7 +26,6 @@ import (
+ //
+ // Using a nil Qualifier is equivalent to using (*Package).Path: the
+ // object is qualified by the import path, e.g., "encoding/json.Marshal".
+-//
+ type Qualifier func(*Package) string
+ 
+ // RelativeTo returns a Qualifier that fully qualifies members of
+diff --git a/src/go/types/typeterm.go b/src/go/types/typeterm.go
+index 6b67821000..13b6ce6d0d 100644
+--- a/src/go/types/typeterm.go
++++ b/src/go/types/typeterm.go
+@@ -10,7 +10,6 @@ package types
+ //   𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
+ //   T:  &term{false, T}  == {T}                    // set of type T
+ //  ~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
+-//
+ type term struct {
+ 	tilde bool // valid if typ != nil
+ 	typ   Type
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index bae9dc816c..b704372dcf 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -18,7 +18,6 @@ import (
+ // If an error occurred, x.mode is set to invalid.
+ // For the meaning of def, see Checker.definedType, below.
+ // If wantType is set, the identifier e is expected to denote a type.
+-//
+ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool) {
+ 	x.mode = invalid
+ 	x.expr = e
+@@ -177,7 +176,6 @@ func (check *Checker) validVarType(e ast.Expr, typ Type) {
+ // If def != nil, e is the type specification for the defined type def, declared
+ // in a type declaration, and def.underlying will be set to the type of e before
+ // any components of e are type-checked.
+-//
+ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
+ 	typ := check.typInternal(e, def)
+ 	assert(isTyped(typ))
+@@ -214,7 +212,6 @@ func goTypeName(typ Type) string {
+ 
+ // typInternal drives type checking of types.
+ // Must only be called by definedType or genericType.
+-//
+ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 	if trace {
+ 		check.trace(e0.Pos(), "-- type %s", e0)
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index f58128f480..8ac48e506e 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -246,7 +246,6 @@ func init() {
+ // Objects with names containing blanks are internal and not entered into
+ // a scope. Objects with exported names are inserted in the unsafe package
+ // scope; other objects are inserted in the universe scope.
+-//
+ func def(obj Object) {
+ 	assert(obj.color() == black)
+ 	name := obj.Name()
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index 952f52979d..a99f69231c 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -72,7 +72,6 @@ func (t *Template) Templates() []*Template {
+ //		The operation returns the zero value for the map type's element.
+ //	"missingkey=error"
+ //		Execution stops immediately with an error.
+-//
+ func (t *Template) Option(opt ...string) *Template {
+ 	t.text.Option(opt...)
+ 	return t
+diff --git a/src/index/suffixarray/suffixarray.go b/src/index/suffixarray/suffixarray.go
+index 9c169e7aca..cdc6e81a80 100644
+--- a/src/index/suffixarray/suffixarray.go
++++ b/src/index/suffixarray/suffixarray.go
+@@ -230,7 +230,6 @@ func (x *Index) Write(w io.Writer) error {
+ 
+ // Bytes returns the data over which the index was created.
+ // It must not be modified.
+-//
+ func (x *Index) Bytes() []byte {
+ 	return x.data
+ }
+@@ -255,7 +254,6 @@ func (x *Index) lookupAll(s []byte) ints {
+ // The result is nil if s is empty, s is not found, or n == 0.
+ // Lookup time is O(log(N)*len(s) + len(result)) where N is the
+ // size of the indexed data.
+-//
+ func (x *Index) Lookup(s []byte, n int) (result []int) {
+ 	if len(s) > 0 && n != 0 {
+ 		matches := x.lookupAll(s)
+@@ -286,7 +284,6 @@ func (x *Index) Lookup(s []byte, n int) (result []int) {
+ // in successive order. Otherwise, at most n matches are returned and
+ // they may not be successive. The result is nil if there are no matches,
+ // or if n == 0.
+-//
+ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
+ 	// a non-empty literal prefix is used to determine possible
+ 	// match start indices with Lookup
+diff --git a/src/internal/fmtsort/sort.go b/src/internal/fmtsort/sort.go
+index 34c1f477f0..09e987d0e6 100644
+--- a/src/internal/fmtsort/sort.go
++++ b/src/internal/fmtsort/sort.go
+@@ -48,7 +48,6 @@ func (o *SortedMap) Swap(i, j int) {
+ //    Otherwise identical arrays compare by length.
+ //  - interface values compare first by reflect.Type describing the concrete type
+ //    and then by concrete value as described in the previous rules.
+-//
+ func Sort(mapValue reflect.Value) *SortedMap {
+ 	if mapValue.Type().Kind() != reflect.Map {
+ 		return nil
+diff --git a/src/io/fs/walk.go b/src/io/fs/walk.go
+index 52a51bbd37..37800794a2 100644
+--- a/src/io/fs/walk.go
++++ b/src/io/fs/walk.go
+@@ -58,7 +58,6 @@ var SkipDir = errors.New("skip this directory")
+ //     to bypass the directory read entirely.
+ //   - If a directory read fails, the function is called a second time
+ //     for that directory to report the error.
+-//
+ type WalkDirFunc func(path string, d DirEntry, err error) error
+ 
+ // walkDir recursively descends path, calling walkDirFn.
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index a8c91a6e54..70c7b794a4 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -236,7 +236,6 @@ func (x *Float) Acc() Accuracy {
+ //	-1 if x <   0
+ //	 0 if x is ±0
+ //	+1 if x >   0
+-//
+ func (x *Float) Sign() int {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1672,7 +1671,6 @@ func (z *Float) Quo(x, y *Float) *Float {
+ //   -1 if x <  y
+ //    0 if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf)
+ //   +1 if x >  y
+-//
+ func (x *Float) Cmp(y *Float) int {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1707,7 +1705,6 @@ func (x *Float) Cmp(y *Float) int {
+ //	 0 if x == 0 (signed or unsigned)
+ //	+1 if 0 < x < +Inf
+ //	+2 if x == +Inf
+-//
+ func (x *Float) ord() int {
+ 	var m int
+ 	switch x.form {
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index 57b7df3936..93f7195219 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -153,7 +153,6 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+ //	for p, q := uint64(0), uint64(1); p < q; p, q = q, q*5 {
+ //		fmt.Println(q)
+ //	}
+-//
+ var pow5tab = [...]uint64{
+ 	1,
+ 	5,
+@@ -257,7 +256,6 @@ func (z *Float) pow5(n uint64) *Float {
+ //
+ // The returned *Float f is nil and the value of z is valid but not
+ // defined if an error is reported.
+-//
+ func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
+ 	// scan doesn't handle ±Inf
+ 	if len(s) == 3 && (s == "Inf" || s == "inf") {
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 7647346486..700d00d031 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -34,7 +34,6 @@ var intOne = &Int{false, natOne}
+ //	-1 if x <  0
+ //	 0 if x == 0
+ //	+1 if x >  0
+-//
+ func (x *Int) Sign() int {
+ 	if len(x.abs) == 0 {
+ 		return 0
+@@ -234,7 +233,6 @@ func (z *Int) Rem(x, y *Int) *Int {
+ //
+ // (See Daan Leijen, ``Division and Modulus for Computer Scientists''.)
+ // See DivMod for Euclidean division and modulus (unlike Go).
+-//
+ func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
+ 	z.abs, r.abs = z.abs.div(r.abs, x.abs, y.abs)
+ 	z.neg, r.neg = len(z.abs) > 0 && x.neg != y.neg, len(r.abs) > 0 && x.neg // 0 has no sign
+@@ -292,7 +290,6 @@ func (z *Int) Mod(x, y *Int) *Int {
+ // Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
+ // ACM press.)
+ // See QuoRem for T-division and modulus (like Go).
+-//
+ func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
+ 	y0 := y // save y
+ 	if z == y || alias(z.abs, y.abs) {
+@@ -316,7 +313,6 @@ func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
+ //   -1 if x <  y
+ //    0 if x == y
+ //   +1 if x >  y
+-//
+ func (x *Int) Cmp(y *Int) (r int) {
+ 	// x cmp y == x cmp y
+ 	// x cmp (-y) == x
+@@ -343,7 +339,6 @@ func (x *Int) Cmp(y *Int) (r int) {
+ //   -1 if |x| <  |y|
+ //    0 if |x| == |y|
+ //   +1 if |x| >  |y|
+-//
+ func (x *Int) CmpAbs(y *Int) int {
+ 	return x.abs.cmp(y.abs)
+ }
+@@ -420,7 +415,6 @@ func (x *Int) IsUint64() bool {
+ // Incorrect placement of underscores is reported as an error if there
+ // are no other errors. If base != 0, underscores are not recognized
+ // and act like any other character that is not a valid digit.
+-//
+ func (z *Int) SetString(s string, base int) (*Int, bool) {
+ 	return z.setFromScanner(strings.NewReader(s), base)
+ }
+diff --git a/src/math/big/intconv.go b/src/math/big/intconv.go
+index 0567284105..2fe10ff0a2 100644
+--- a/src/math/big/intconv.go
++++ b/src/math/big/intconv.go
+@@ -63,7 +63,6 @@ var _ fmt.Formatter = intOne // *Int must implement fmt.Formatter
+ // specification of minimum digits precision, output field
+ // width, space or zero padding, and '-' for left or right
+ // justification.
+-//
+ func (x *Int) Format(s fmt.State, ch rune) {
+ 	// determine base
+ 	var base int
+@@ -178,7 +177,6 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ // ``0b'' or ``0B'' selects base 2; a ``0'', ``0o'', or ``0O'' prefix selects
+ // base 8, and a ``0x'' or ``0X'' prefix selects base 16. Otherwise the selected
+ // base is 10.
+-//
+ func (z *Int) scan(r io.ByteScanner, base int) (*Int, int, error) {
+ 	// determine sign
+ 	neg, err := scanSign(r)
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 31e1ad8fcf..ee0c63eb28 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -31,7 +31,6 @@ import (
+ // During arithmetic operations, denormalized values may occur but are
+ // always normalized before returning the final result. The normalized
+ // representation of 0 is the empty or nil slice (length = 0).
+-//
+ type nat []Word
+ 
+ var (
+diff --git a/src/math/big/natconv.go b/src/math/big/natconv.go
+index 42d1cccf6f..99488ac833 100644
+--- a/src/math/big/natconv.go
++++ b/src/math/big/natconv.go
+@@ -105,7 +105,6 @@ var (
+ // parsed. A digit count <= 0 indicates the presence of a period (if fracOk
+ // is set, only), and -count is the number of fractional digits found.
+ // In this case, the actual value of the scanned number is res * b**count.
+-//
+ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count int, err error) {
+ 	// reject invalid bases
+ 	baseOk := base == 0 ||
+@@ -366,7 +365,6 @@ func (x nat) itoa(neg bool, base int) []byte {
+ // range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and
+ // ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
+ // specific hardware.
+-//
+ func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []divisor) {
+ 	// split larger blocks recursively
+ 	if table != nil {
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index 731a979ff7..e77da67d1b 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -392,7 +392,6 @@ func (z *Rat) Inv(x *Rat) *Rat {
+ //	-1 if x <  0
+ //	 0 if x == 0
+ //	+1 if x >  0
+-//
+ func (x *Rat) Sign() int {
+ 	return x.a.Sign()
+ }
+@@ -482,7 +481,6 @@ func (z *Int) scaleDenom(x *Int, f nat) {
+ //   -1 if x <  y
+ //    0 if x == y
+ //   +1 if x >  y
+-//
+ func (x *Rat) Cmp(y *Rat) int {
+ 	var a, b Int
+ 	a.scaleDenom(&x.a, y.b.abs)
+diff --git a/src/math/rand/exp.go b/src/math/rand/exp.go
+index 5a8d946c0c..9a07ba1be0 100644
+--- a/src/math/rand/exp.go
++++ b/src/math/rand/exp.go
+@@ -27,7 +27,6 @@ const (
+ // callers can adjust the output using:
+ //
+ //  sample = ExpFloat64() / desiredRateParameter
+-//
+ func (r *Rand) ExpFloat64() float64 {
+ 	for {
+ 		j := r.Uint32()
+diff --git a/src/math/rand/normal.go b/src/math/rand/normal.go
+index 2c5a7aa99b..48ecdd5adb 100644
+--- a/src/math/rand/normal.go
++++ b/src/math/rand/normal.go
+@@ -34,7 +34,6 @@ func absInt32(i int32) uint32 {
+ // adjust the output using:
+ //
+ //  sample = NormFloat64() * desiredStdDev + desiredMean
+-//
+ func (r *Rand) NormFloat64() float64 {
+ 	for {
+ 		j := int32(r.Uint32()) // Possibly negative
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 13f20ca5ef..dfbd1fa4e7 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -366,7 +366,6 @@ func Read(p []byte) (n int, err error) { return globalRand.Read(p) }
+ // adjust the output using:
+ //
+ //  sample = NormFloat64() * desiredStdDev + desiredMean
+-//
+ func NormFloat64() float64 { return globalRand.NormFloat64() }
+ 
+ // ExpFloat64 returns an exponentially distributed float64 in the range
+@@ -376,7 +375,6 @@ func NormFloat64() float64 { return globalRand.NormFloat64() }
+ // callers can adjust the output using:
+ //
+ //  sample = ExpFloat64() / desiredRateParameter
+-//
+ func ExpFloat64() float64 { return globalRand.ExpFloat64() }
+ 
+ type lockedSource struct {
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 465ee0b723..bc0ed1fc50 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -54,7 +54,6 @@ import (
+ // with the expectation that the Jar will insert those mutated cookies
+ // with the updated values (assuming the origin matches).
+ // If Jar is nil, the initial cookies are forwarded without change.
+-//
+ type Client struct {
+ 	// Transport specifies the mechanism by which individual
+ 	// HTTP requests are made.
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 6caee9ed93..d8f924296b 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -836,7 +836,6 @@ func FS(fsys fs.FS) FileSystem {
+ // To use an fs.FS implementation, use http.FS to convert it:
+ //
+ //	http.Handle("/", http.FileServer(http.FS(fsys)))
+-//
+ func FileServer(root FileSystem) Handler {
+ 	return &fileHandler{root}
+ }
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index e41b20a15b..f2d538b04a 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1795,7 +1795,6 @@ var _ io.ReaderFrom = (*persistConnWriter)(nil)
+ //	socks5://proxy.com|https|foo.com  socks5 to proxy, then https to foo.com
+ //	https://proxy.com|https|foo.com   https to proxy, then CONNECT to foo.com
+ //	https://proxy.com|http            https to proxy, http to anywhere after that
+-//
+ type connectMethod struct {
+ 	_            incomparable
+ 	proxyURL     *url.URL // nil for no proxy, else full proxy URL
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index 157c59b17a..ac47f00700 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -88,7 +88,6 @@ func (r *Reader) readLineSlice() ([]byte, error) {
+ // and the second will return "Line 2".
+ //
+ // Empty lines are never continued.
+-//
+ func (r *Reader) ReadContinuedLine() (string, error) {
+ 	line, err := r.readContinuedLineSlice(noValidation)
+ 	return string(line), err
+@@ -230,7 +229,6 @@ func parseCodeLine(line string, expectCode int) (code int, continued bool, messa
+ // If the response is multi-line, ReadCodeLine returns an error.
+ //
+ // An expectCode <= 0 disables the check of the status code.
+-//
+ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err error) {
+ 	code, continued, message, err := r.readCodeLine(expectCode)
+ 	if err == nil && continued {
+@@ -265,7 +263,6 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
+ // the status is not in the range [310,319].
+ //
+ // An expectCode <= 0 disables the check of the status code.
+-//
+ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err error) {
+ 	code, continued, message, err := r.readCodeLine(expectCode)
+ 	multi := continued
+@@ -481,7 +478,6 @@ var colon = []byte(":")
+ //		"My-Key": {"Value 1", "Value 2"},
+ //		"Long-Key": {"Even Longer Value"},
+ //	}
+-//
+ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+ 	// Avoid lots of small slice allocations later by allocating one
+ 	// large one ahead of time which we'll cut up into smaller
+diff --git a/src/net/textproto/textproto.go b/src/net/textproto/textproto.go
+index cc1a847e4e..3487a7dfaf 100644
+--- a/src/net/textproto/textproto.go
++++ b/src/net/textproto/textproto.go
+@@ -110,7 +110,6 @@ func Dial(network, addr string) (*Conn, error) {
+ //		return nil, err
+ //	}
+ //	return c.ReadCodeLine(250)
+-//
+ func (c *Conn) Cmd(format string, args ...any) (id uint, err error) {
+ 	id = c.Next()
+ 	c.StartRequest(id)
+diff --git a/src/path/filepath/match.go b/src/path/filepath/match.go
+index c77a26952a..847a78133d 100644
+--- a/src/path/filepath/match.go
++++ b/src/path/filepath/match.go
+@@ -40,7 +40,6 @@ var ErrBadPattern = errors.New("syntax error in pattern")
+ //
+ // On Windows, escaping is disabled. Instead, '\\' is treated as
+ // path separator.
+-//
+ func Match(pattern, name string) (matched bool, err error) {
+ Pattern:
+ 	for len(pattern) > 0 {
+diff --git a/src/path/match.go b/src/path/match.go
+index 918624c60e..673bbc7ff6 100644
+--- a/src/path/match.go
++++ b/src/path/match.go
+@@ -34,7 +34,6 @@ var ErrBadPattern = errors.New("syntax error in pattern")
+ // Match requires pattern to match all of name, not just a substring.
+ // The only possible returned error is ErrBadPattern, when pattern
+ // is malformed.
+-//
+ func Match(pattern, name string) (matched bool, err error) {
+ Pattern:
+ 	for len(pattern) > 0 {
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 06026232ee..5a35d98b51 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -6291,7 +6291,6 @@ func TestAllocsInterfaceSmall(t *testing.T) {
+ //	[false false false false]
+ //	...
+ //	[true true true true]
+-//
+ type exhaustive struct {
+ 	r    *rand.Rand
+ 	pos  int
+diff --git a/src/reflect/makefunc.go b/src/reflect/makefunc.go
+index d0b0935cb8..e4acdc318b 100644
+--- a/src/reflect/makefunc.go
++++ b/src/reflect/makefunc.go
+@@ -43,7 +43,6 @@ type makeFuncImpl struct {
+ //
+ // The Examples section of the documentation includes an illustration
+ // of how to use MakeFunc to build a swap function for different types.
+-//
+ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+ 	if typ.Kind() != Func {
+ 		panic("reflect: call of MakeFunc with non-Func type")
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 89f0253570..7a20b6bd23 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1830,7 +1830,6 @@ func (iter *MapIter) Reset(v Value) {
+ //		v := iter.Value()
+ //		...
+ //	}
+-//
+ func (v Value) MapRange() *MapIter {
+ 	v.mustBe(Map)
+ 	return &MapIter{m: v}
+@@ -2785,7 +2784,6 @@ const (
+ // Normally Chan's underlying value must be a channel and Send must be a zero Value.
+ // If Chan is a zero Value, then the case is ignored, but Send must still be a zero Value.
+ // When a receive operation is selected, the received Value is returned by Select.
+-//
+ type SelectCase struct {
+ 	Dir  SelectDir // direction of case
+ 	Chan Value     // channel to use (for send or receive)
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 5f8442668c..a6e833050b 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -62,7 +62,6 @@ import (
+ //
+ // At time of writing, re2-exhaustive.txt is 59 MB but compresses to 385 kB,
+ // so we store re2-exhaustive.txt.bz2 in the repository and decompress it on the fly.
+-//
+ func TestRE2Search(t *testing.T) {
+ 	testRE2(t, "testdata/re2-search.txt")
+ }
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 0f6587ab27..fa45def9b7 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -449,7 +449,6 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
+ //     A(B(C|D)|EF)|BC(X|Y)
+ // which simplifies by character class introduction to
+ //     A(B[CD]|EF)|BC[XY]
+-//
+ func (p *parser) factor(sub []*Regexp) []*Regexp {
+ 	if len(sub) < 2 {
+ 		return sub
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 16fec26aeb..a16782ae94 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -683,7 +683,6 @@ func chanparkcommit(gp *g, chanLock unsafe.Pointer) bool {
+ //	} else {
+ //		... bar
+ //	}
+-//
+ func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
+ 	return chansend(c, elem, false, getcallerpc())
+ }
+@@ -704,7 +703,6 @@ func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
+ //	} else {
+ //		... bar
+ //	}
+-//
+ func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected, received bool) {
+ 	return chanrecv(c, elem, false)
+ }
+diff --git a/src/runtime/compiler.go b/src/runtime/compiler.go
+index 1ebc62dea1..f430a27719 100644
+--- a/src/runtime/compiler.go
++++ b/src/runtime/compiler.go
+@@ -9,5 +9,4 @@ package runtime
+ //
+ //	gc      Also known as cmd/compile.
+ //	gccgo   The gccgo front end, part of the GCC compiler suite.
+-//
+ const Compiler = "gc"
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index db36df1f37..6961c2ea9b 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -23,7 +23,6 @@ import (
+ //
+ //	func semawakeup(mp *m)
+ //		Wake up mp, which is or will soon be sleeping on its semaphore.
+-//
+ const (
+ 	locked uintptr = 1
+ 
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index d75efce7a8..e3cd6b9d2a 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -130,7 +130,6 @@ import (
+ // The CPU profile is not available as a Profile. It has a special API,
+ // the StartCPUProfile and StopCPUProfile functions, because it streams
+ // output to a writer during profiling.
+-//
+ type Profile struct {
+ 	name  string
+ 	mu    sync.Mutex
+@@ -276,7 +275,6 @@ func (p *Profile) Count() int {
+ //
+ // Passing skip=0 begins the stack trace at the call to Add inside rpc.NewClient.
+ // Passing skip=1 begins the stack trace at the call to NewClient inside mypkg.Run.
+-//
+ func (p *Profile) Add(value any, skip int) {
+ 	if p.name == "" {
+ 		panic("pprof: use of uninitialized Profile")
+diff --git a/src/runtime/profbuf.go b/src/runtime/profbuf.go
+index f40881aed5..3d907d5612 100644
+--- a/src/runtime/profbuf.go
++++ b/src/runtime/profbuf.go
+@@ -84,7 +84,6 @@ import (
+ //	if uint32(overflow) > 0 {
+ //		emit entry for uint32(overflow), time
+ //	}
+-//
+ type profBuf struct {
+ 	// accessed atomically
+ 	r, w         profAtomic
+diff --git a/src/runtime/trace/annotation.go b/src/runtime/trace/annotation.go
+index d05b5e2261..bf3dbc3d79 100644
+--- a/src/runtime/trace/annotation.go
++++ b/src/runtime/trace/annotation.go
+@@ -149,7 +149,6 @@ func WithRegion(ctx context.Context, regionType string, fn func()) {
+ // Recommended usage is
+ //
+ //     defer trace.StartRegion(ctx, "myTracedRegion").End()
+-//
+ func StartRegion(ctx context.Context, regionType string) *Region {
+ 	if !IsEnabled() {
+ 		return noopRegion
+diff --git a/src/sort/search.go b/src/sort/search.go
+index fcff0f9491..601557a94b 100644
+--- a/src/sort/search.go
++++ b/src/sort/search.go
+@@ -55,7 +55,6 @@ package sort
+ //		})
+ //		fmt.Printf("Your number is %d.\n", answer)
+ //	}
+-//
+ func Search(n int, f func(int) bool) int {
+ 	// Define f(-1) == false and f(n) == true.
+ 	// Invariant: f(i-1) == false, f(j) == true.
+@@ -79,7 +78,6 @@ func Search(n int, f func(int) bool) int {
+ // as specified by Search. The return value is the index to insert x if x is
+ // not present (it could be len(a)).
+ // The slice must be sorted in ascending order.
+-//
+ func SearchInts(a []int, x int) int {
+ 	return Search(len(a), func(i int) bool { return a[i] >= x })
+ }
+@@ -88,7 +86,6 @@ func SearchInts(a []int, x int) int {
+ // as specified by Search. The return value is the index to insert x if x is not
+ // present (it could be len(a)).
+ // The slice must be sorted in ascending order.
+-//
+ func SearchFloat64s(a []float64, x float64) int {
+ 	return Search(len(a), func(i int) bool { return a[i] >= x })
+ }
+@@ -97,7 +94,6 @@ func SearchFloat64s(a []float64, x float64) int {
+ // as specified by Search. The return value is the index to insert x if x is not
+ // present (it could be len(a)).
+ // The slice must be sorted in ascending order.
+-//
+ func SearchStrings(a []string, x string) int {
+ 	return Search(len(a), func(i int) bool { return a[i] >= x })
+ }
+diff --git a/src/sort/search_test.go b/src/sort/search_test.go
+index ded68ebde0..f06897ee21 100644
+--- a/src/sort/search_test.go
++++ b/src/sort/search_test.go
+@@ -59,7 +59,6 @@ func TestSearch(t *testing.T) {
+ 
+ // log2 computes the binary logarithm of x, rounded up to the next integer.
+ // (log2(0) == 0, log2(1) == 0, log2(2) == 1, log2(3) == 2, etc.)
+-//
+ func log2(x int) int {
+ 	n := 0
+ 	for p := 1; p < x; p += p {
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index 2c197afc03..aed0eaba30 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -111,7 +111,6 @@ func (x Float64Slice) Len() int { return len(x) }
+ // This implementation of Less places NaN values before any others, by using:
+ //
+ //	x[i] < x[j] || (math.IsNaN(x[i]) && !math.IsNaN(x[j]))
+-//
+ func (x Float64Slice) Less(i, j int) bool { return x[i] < x[j] || (isNaN(x[i]) && !isNaN(x[j])) }
+ func (x Float64Slice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+ 
+diff --git a/src/strconv/itoa.go b/src/strconv/itoa.go
+index 45e4192c82..b0c2666e7c 100644
+--- a/src/strconv/itoa.go
++++ b/src/strconv/itoa.go
+@@ -85,7 +85,6 @@ const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+ // set, the string is appended to dst and the resulting byte slice is
+ // returned as the first result value; otherwise the string is returned
+ // as the second result value.
+-//
+ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s string) {
+ 	if base < 2 || base > len(digits) {
+ 		panic("strconv: illegal AppendInt/FormatInt base")
+diff --git a/src/sync/cond.go b/src/sync/cond.go
+index b254c9360a..d86ebc8b50 100644
+--- a/src/sync/cond.go
++++ b/src/sync/cond.go
+@@ -48,7 +48,6 @@ func NewCond(l Locker) *Cond {
+ //    }
+ //    ... make use of condition ...
+ //    c.L.Unlock()
+-//
+ func (c *Cond) Wait() {
+ 	c.checker.check()
+ 	t := runtime_notifyListAdd(&c.notify)
+diff --git a/src/sync/once.go b/src/sync/once.go
+index 8844314e7e..e5ba257d87 100644
+--- a/src/sync/once.go
++++ b/src/sync/once.go
+@@ -38,7 +38,6 @@ type Once struct {
+ //
+ // If f panics, Do considers it to have returned; future calls of Do return
+ // without calling f.
+-//
+ func (o *Once) Do(f func()) {
+ 	// Note: Here is an incorrect implementation of Do:
+ 	//
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 9a65fbbd0b..ddb6080882 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -33,7 +33,6 @@ import (
+ //	if err := fstest.TestFS(myFS, "file/that/should/be/present"); err != nil {
+ //		t.Fatal(err)
+ //	}
+-//
+ func TestFS(fsys fs.FS, expected ...string) error {
+ 	if err := testFS(fsys, expected...); err != nil {
+ 		return err
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index 735982afcb..44be0b6bd4 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -60,7 +60,6 @@ func (pos Position) String() string {
+ //
+ // Use GoTokens to configure the Scanner such that it accepts all Go
+ // literal tokens including Go identifiers. Comments will be skipped.
+-//
+ const (
+ 	ScanIdents     = 1 << -Ident
+ 	ScanInts       = 1 << -Int
+diff --git a/src/text/tabwriter/tabwriter.go b/src/text/tabwriter/tabwriter.go
+index 76dec7b358..d4cfcf556a 100644
+--- a/src/text/tabwriter/tabwriter.go
++++ b/src/text/tabwriter/tabwriter.go
+@@ -23,7 +23,6 @@ import (
+ // The text itself is stored in a separate buffer; cell only describes the
+ // segment's size in bytes, its width in runes, and whether it's an htab
+ // ('\t') terminated cell.
+-//
+ type cell struct {
+ 	size  int  // cell size in bytes
+ 	width int  // cell width in runes
+@@ -87,7 +86,6 @@ type cell struct {
+ // The Writer must buffer input internally, because proper spacing
+ // of one line may depend on the cells in future lines. Clients must
+ // call Flush when done calling Write.
+-//
+ type Writer struct {
+ 	// configuration
+ 	output   io.Writer
+@@ -207,7 +205,6 @@ const (
+ //			(for correct-looking results, tabwidth must correspond
+ //			to the tab width in the viewer displaying the result)
+ //	flags		formatting control
+-//
+ func (b *Writer) Init(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
+ 	if minwidth < 0 || tabwidth < 0 || padding < 0 {
+ 		panic("negative minwidth, tabwidth, or padding")
+@@ -350,7 +347,6 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int) {
+ // is the buffer position corresponding to the beginning of line0.
+ // Returns the buffer position corresponding to the beginning of
+ // line1 and an error, if any.
+-//
+ func (b *Writer) format(pos0 int, line0, line1 int) (pos int) {
+ 	pos = pos0
+ 	column := len(b.widths)
+@@ -427,7 +423,6 @@ func (b *Writer) updateWidth() {
+ // width one for formatting purposes.
+ //
+ // The value 0xff was chosen because it cannot appear in a valid UTF-8 sequence.
+-//
+ const Escape = '\xff'
+ 
+ // Start escaped mode.
+@@ -446,7 +441,6 @@ func (b *Writer) startEscape(ch byte) {
+ // is assumed to be zero for formatting purposes; if it was an HTML entity,
+ // its width is assumed to be one. In all other cases, the width is the
+ // unicode width of the text.
+-//
+ func (b *Writer) endEscape() {
+ 	switch b.endChar {
+ 	case Escape:
+@@ -464,7 +458,6 @@ func (b *Writer) endEscape() {
+ 
+ // Terminate the current cell by adding it to the list of cells of the
+ // current line. Returns the number of cells in that line.
+-//
+ func (b *Writer) terminateCell(htab bool) int {
+ 	b.cell.htab = htab
+ 	line := &b.lines[len(b.lines)-1]
+@@ -526,7 +519,6 @@ var hbar = []byte("---\n")
+ // Write writes buf to the writer b.
+ // The only errors returned are ones encountered
+ // while writing to the underlying output stream.
+-//
+ func (b *Writer) Write(buf []byte) (n int, err error) {
+ 	defer b.handlePanic(&err, "Write")
+ 
+@@ -603,7 +595,6 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
+ 
+ // NewWriter allocates and initializes a new tabwriter.Writer.
+ // The parameters are the same as for the Init function.
+-//
+ func NewWriter(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
+ 	return new(Writer).Init(output, minwidth, tabwidth, padding, padchar, flags)
+ }
+diff --git a/src/text/template/option.go b/src/text/template/option.go
+index 1035afad72..8d7d436bd0 100644
+--- a/src/text/template/option.go
++++ b/src/text/template/option.go
+@@ -38,7 +38,6 @@ type option struct {
+ //		The operation returns the zero value for the map type's element.
+ //	"missingkey=error"
+ //		Execution stops immediately with an error.
+-//
+ func (t *Template) Option(opt ...string) *Template {
+ 	t.init()
+ 	for _, s := range opt {
+diff --git a/src/time/format.go b/src/time/format.go
+index 33e6543289..95fe08b772 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -87,7 +87,6 @@ import "errors"
+ //
+ // Some valid layouts are invalid time values for time.Parse, due to formats
+ // such as _ for space padding and Z for zone information.
+-//
+ const (
+ 	Layout      = "01/02 03:04:05PM '06 -0700" // The reference time, in numerical order.
+ 	ANSIC       = "Mon Jan _2 15:04:05 2006"
+diff --git a/src/time/time.go b/src/time/time.go
+index d77074c5c2..88301ec16b 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -123,7 +123,6 @@ import (
+ // to t == u, since t.Equal uses the most accurate comparison available and
+ // correctly handles the case when only one of its arguments has a monotonic
+ // clock reading.
+-//
+ type Time struct {
+ 	// wall and ext encode the wall time seconds, wall time nanoseconds,
+ 	// and optional monotonic clock reading in nanoseconds.
+@@ -603,7 +602,6 @@ const (
+ // To convert an integer number of units to a Duration, multiply:
+ //	seconds := 10
+ //	fmt.Print(time.Duration(seconds)*time.Second) // prints 10s
+-//
+ const (
+ 	Nanosecond  Duration = 1
+ 	Microsecond          = 1000 * Nanosecond
+diff --git a/src/unicode/letter.go b/src/unicode/letter.go
+index 268e457a87..f4c950a883 100644
+--- a/src/unicode/letter.go
++++ b/src/unicode/letter.go
+@@ -334,7 +334,6 @@ type foldPair struct {
+ //	SimpleFold('1') = '1'
+ //
+ //	SimpleFold(-2) = -2
+-//
+ func SimpleFold(r rune) rune {
+ 	if r < 0 || r > MaxRune {
+ 		return r
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index a6a255658b..4a3d7feda7 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -180,7 +180,6 @@ type IntegerType int
+ //	hdr.Data = uintptr(unsafe.Pointer(p))
+ //	hdr.Len = n
+ //	s := *(*string)(unsafe.Pointer(&hdr)) // p possibly already lost
+-//
+ type Pointer *ArbitraryType
+ 
+ // Sizeof takes an expression x of any type and returns the size in bytes

@@ -26,6 +26,21 @@ Date:   Mon Nov 18 22:23:43 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/629475
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/test/test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 534a1e2a5e..52f68183fe 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -933,7 +933,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		var skipInstrumentation = map[string]bool{
+ 			"context":               true,
+ 			"internal/fuzz":         true,
++			"internal/godebug":      true,
+ 			"internal/runtime/maps": true,
++			"internal/sync":         true,
+ 			"reflect":               true,
+ 			"runtime":               true,
+ 			"sync":                  true,

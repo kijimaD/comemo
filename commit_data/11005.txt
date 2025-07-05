@@ -21,10 +21,149 @@ Date:   Sun Dec 25 12:42:47 2011 +1100
     R=andybalholm
     CC=golang-dev
     https://golang.org/cl/5489117
-
+---
  src/pkg/html/foreign.go    | 19 +++++++++++++++++++
  src/pkg/html/parse.go      |  4 ++--
  src/pkg/html/parse_test.go | 17 ++++++++++++++---
  src/pkg/html/render.go     |  8 ++++++++
  src/pkg/html/token.go      |  9 ++++++---
  5 files changed, 49 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/html/foreign.go b/src/pkg/html/foreign.go
+index 0f9b4ad560..9a0520398c 100644
+--- a/src/pkg/html/foreign.go
++++ b/src/pkg/html/foreign.go
+@@ -4,6 +4,25 @@
+ 
+ package html
+ 
++import (
++	"strings"
++)
++
++func adjustForeignAttributes(aa []Attribute) {
++	for i, a := range aa {
++		if a.Key == "" || a.Key[0] != 'x' {
++			continue
++		}
++		switch a.Key {
++		case "xlink:actuate", "xlink:arcrole", "xlink:href", "xlink:role", "xlink:show",
++			"xlink:title", "xlink:type", "xml:base", "xml:lang", "xml:space", "xmlns:xlink":
++			j := strings.Index(a.Key, ":")
++			aa[i].Namespace = a.Key[:j]
++			aa[i].Key = a.Key[j+1:]
++		}
++	}
++}
++
+ // Section 12.2.5.5.
+ var breakout = map[string]bool{
+ 	"b":          true,
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 5b14d71319..b2903b302d 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -807,7 +807,7 @@ func inBodyIM(p *parser) bool {
+ 				// TODO: adjust SVG attributes.
+ 				namespace = "svg"
+ 			}
+-			// TODO: adjust foreign attributes.
++			adjustForeignAttributes(p.tok.Attr)
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 			p.top().Namespace = namespace
+ 			return true
+@@ -1678,7 +1678,7 @@ func parseForeignContent(p *parser) bool {
+ 		default:
+ 			panic("html: bad parser state: unexpected namespace")
+ 		}
+-		// TODO: adjust foreign attributes.
++		adjustForeignAttributes(p.tok.Attr)
+ 		p.addElement(p.tok.Data, p.tok.Attr)
+ 	case EndTagToken:
+ 		for i := len(p.oe) - 1; i >= 0; i-- {
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 46be981893..2f6059b288 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -103,10 +103,21 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
+ 		} else {
+ 			fmt.Fprintf(w, "<%s>", n.Data)
+ 		}
+-		for _, a := range n.Attr {
++		attr := n.Attr
++		if len(attr) == 2 && attr[0].Namespace == "xml" && attr[1].Namespace == "xlink" {
++			// Some of the test cases in tests10.dat change the order of adjusted
++			// foreign attributes, but that behavior is not in the spec, and could
++			// simply be an implementation detail of html5lib's python map ordering.
++			attr[0], attr[1] = attr[1], attr[0]
++		}
++		for _, a := range attr {
+ 			io.WriteString(w, "\n")
+ 			dumpIndent(w, level+1)
+-			fmt.Fprintf(w, `%s="%s"`, a.Key, a.Val)
++			if a.Namespace != "" {
++				fmt.Fprintf(w, `%s %s="%s"`, a.Namespace, a.Key, a.Val)
++			} else {
++				fmt.Fprintf(w, `%s="%s"`, a.Key, a.Val)
++			}
+ 		}
+ 	case TextNode:
+ 		fmt.Fprintf(w, `"%s"`, n.Data)
+@@ -173,7 +184,7 @@ func TestParser(t *testing.T) {
+ 		{"tests4.dat", -1},
+ 		{"tests5.dat", -1},
+ 		{"tests6.dat", 47},
+-		{"tests10.dat", 22},
++		{"tests10.dat", 30},
+ 	}
+ 	for _, tf := range testFiles {
+ 		f, err := os.Open("testdata/webkit/" + tf.filename)
+diff --git a/src/pkg/html/render.go b/src/pkg/html/render.go
+index 20751938d9..07859faa7d 100644
+--- a/src/pkg/html/render.go
++++ b/src/pkg/html/render.go
+@@ -149,6 +149,14 @@ func render1(w writer, n *Node) error {
+ 		if err := w.WriteByte(' '); err != nil {
+ 			return err
+ 		}
++		if a.Namespace != "" {
++			if _, err := w.WriteString(a.Namespace); err != nil {
++				return err
++			}
++			if err := w.WriteByte(':'); err != nil {
++				return err
++			}
++		}
+ 		if _, err := w.WriteString(a.Key); err != nil {
+ 			return err
+ 		}
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index 69af96840c..5a385a1b5c 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -52,11 +52,14 @@ func (t TokenType) String() string {
+ 	return "Invalid(" + strconv.Itoa(int(t)) + ")"
+ }
+ 
+-// An Attribute is an attribute key-value pair. Key is alphabetic (and hence
++// An Attribute is an attribute namespace-key-value triple. Namespace is
++// non-empty for foreign attributes like xlink, Key is alphabetic (and hence
+ // does not contain escapable characters like '&', '<' or '>'), and Val is
+ // unescaped (it looks like "a<b" rather than "a&lt;b").
++//
++// Namespace is only used by the parser, not the tokenizer.
+ type Attribute struct {
+-	Key, Val string
++	Namespace, Key, Val string
+ }
+ 
+ // A Token consists of a TokenType and some Data (tag name for start and end
+@@ -756,7 +759,7 @@ func (z *Tokenizer) Token() Token {
+ 		for moreAttr {
+ 			var key, val []byte
+ 			key, val, moreAttr = z.TagAttr()
+-			attr = append(attr, Attribute{string(key), string(val)})
++			attr = append(attr, Attribute{"", string(key), string(val)})
+ 		}
+ 		t.Data = string(name)
+ 		t.Attr = attr

@@ -17,7 +17,106 @@ Date:   Thu May 19 12:33:05 2022 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/net/http/httputil/reverseproxy.go      | 10 ++++---
  src/net/http/httputil/reverseproxy_test.go | 46 ++++++++++++------------------
  2 files changed, 25 insertions(+), 31 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index a5a3900fb3..0c52497177 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -156,10 +156,6 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
+ 		} else {
+ 			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
+ 		}
+-		if _, ok := req.Header["User-Agent"]; !ok {
+-			// explicitly disable User-Agent so it's not set to default value
+-			req.Header.Set("User-Agent", "")
+-		}
+ 	}
+ 	return &ReverseProxy{Director: director}
+ }
+@@ -321,6 +317,12 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		}
+ 	}
+ 
++	if _, ok := outreq.Header["User-Agent"]; !ok {
++		// If the outbound request doesn't have a User-Agent header set,
++		// don't send the default Go HTTP client User-Agent.
++		outreq.Header.Set("User-Agent", "")
++	}
++
+ 	res, err := transport.RoundTrip(outreq)
+ 	if err != nil {
+ 		p.getErrorHandler()(rw, outreq, err)
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 23453c8bdc..3090e37582 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -614,46 +614,38 @@ func TestNilBody(t *testing.T) {
+ 
+ // Issue 15524
+ func TestUserAgentHeader(t *testing.T) {
+-	const explicitUA = "explicit UA"
++	var gotUA string
+ 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-		if r.URL.Path == "/noua" {
+-			if c := r.Header.Get("User-Agent"); c != "" {
+-				t.Errorf("handler got non-empty User-Agent header %q", c)
+-			}
+-			return
+-		}
+-		if c := r.Header.Get("User-Agent"); c != explicitUA {
+-			t.Errorf("handler got unexpected User-Agent header %q", c)
+-		}
++		gotUA = r.Header.Get("User-Agent")
+ 	}))
+ 	defer backend.Close()
+ 	backendURL, err := url.Parse(backend.URL)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	proxyHandler := NewSingleHostReverseProxy(backendURL)
++
++	proxyHandler := new(ReverseProxy)
+ 	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
++	proxyHandler.Director = func(req *http.Request) {
++		req.URL = backendURL
++	}
+ 	frontend := httptest.NewServer(proxyHandler)
+ 	defer frontend.Close()
+ 	frontendClient := frontend.Client()
+ 
+-	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+-	getReq.Header.Set("User-Agent", explicitUA)
+-	getReq.Close = true
+-	res, err := frontendClient.Do(getReq)
+-	if err != nil {
+-		t.Fatalf("Get: %v", err)
+-	}
+-	res.Body.Close()
+-
+-	getReq, _ = http.NewRequest("GET", frontend.URL+"/noua", nil)
+-	getReq.Header.Set("User-Agent", "")
+-	getReq.Close = true
+-	res, err = frontendClient.Do(getReq)
+-	if err != nil {
+-		t.Fatalf("Get: %v", err)
++	for _, sentUA := range []string{"explicit UA", ""} {
++		getReq, _ := http.NewRequest("GET", frontend.URL, nil)
++		getReq.Header.Set("User-Agent", sentUA)
++		getReq.Close = true
++		res, err := frontendClient.Do(getReq)
++		if err != nil {
++			t.Fatalf("Get: %v", err)
++		}
++		res.Body.Close()
++		if got, want := gotUA, sentUA; got != want {
++			t.Errorf("got forwarded User-Agent %q, want %q", got, want)
++		}
+ 	}
+-	res.Body.Close()
+ }
+ 
+ type bufferPool struct {

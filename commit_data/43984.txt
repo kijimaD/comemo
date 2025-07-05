@@ -11,6 +11,20 @@ Date:   Fri May 1 00:39:34 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 9059225abd..d055f468e9 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -116,6 +116,8 @@ var ignorePrefixes = []string{
+ var ignoreSuffixes = []string{
+ 	"_arm64.s",
+ 	"_arm64.go",
++	"_riscv64.s",
++	"_riscv64.go",
+ 	"_wasm.s",
+ 	"_wasm.go",
+ }

@@ -21,7 +21,127 @@ Date:   Tue Jun 13 11:07:34 2017 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64enc.s | 10 +++---
  src/cmd/internal/obj/arm64/asm7.go           | 48 ++++++++++++++++++++++------
  2 files changed, 43 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index 2c0f32e971..b02e0b32ec 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -246,11 +246,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    MOVKW $(3905<<16), R21                     // MOVKW $255918080, R21         // 35e8a172
+    MOVK $(3905<<32), R21                      // MOVK $16771847290880, R21     // 35e8c1f2
+    MOVD $0, R5                                // 050080d2
+-   // MRS $4567, R16                          // f03a32d5
+-   // MRS $32345, R6                          // 26cb3fd5
+-   // MSR R25, $3452                          // 99af11d5
+-   // MSR R25, $16896                         // 194018d5
+-   // MSR $6, DAIFClr                         // ff4603d5
++   MSR $1, SPSel                              // bf4100d5
++   MSR $9, DAIFSet                            // df4903d5
++   MSR $6, DAIFClr                            // ff4603d5
++   MRS ELR_EL1, R8                            // 284038d5
++   MSR R16, ELR_EL1                           // 304018d5
+    MSUBW R1, R1, R12, R5                      // 8585011b
+    MSUB R19, R16, R26, R2                     // 42c3139b
+    MULW R26, R5, R22                          // b67c1a1b
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index c4aa6b62c8..e15124073a 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -607,14 +607,22 @@ var optab = []Optab{
+  * valid pstate field values, and value to use in instruction
+  */
+ var pstatefield = []struct {
+-	a uint32
+-	b uint32
++	reg int16
++	enc uint32
+ }{
+ 	{REG_SPSel, 0<<16 | 4<<12 | 5<<5},
+ 	{REG_DAIFSet, 3<<16 | 4<<12 | 6<<5},
+ 	{REG_DAIFClr, 3<<16 | 4<<12 | 7<<5},
+ }
+ 
++// the System register values, and value to use in instruction
++var systemreg = []struct {
++	reg int16
++	enc uint32
++}{
++	{REG_ELR_EL1, 8<<16 | 4<<12 | 1<<5},
++}
++
+ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	p := cursym.Func.Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+@@ -2745,21 +2753,41 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	case 35: /* mov SPR,R -> mrs */
+ 		o1 = c.oprrr(p, AMRS)
+ 
+-		v := int32(p.From.Offset)
++		v := uint32(0)
++		for i := 0; i < len(systemreg); i++ {
++			if systemreg[i].reg == p.From.Reg {
++				v = systemreg[i].enc
++				break
++			}
++		}
++		if v == 0 {
++			c.ctxt.Diag("illegal system register:\n%v", p)
++		}
+ 		if (o1 & uint32(v&^(3<<19))) != 0 {
+ 			c.ctxt.Diag("MRS register value overlap\n%v", p)
+ 		}
+-		o1 |= uint32(v)
++
++		o1 |= v
+ 		o1 |= uint32(p.To.Reg & 31)
+ 
+ 	case 36: /* mov R,SPR */
+ 		o1 = c.oprrr(p, AMSR)
+ 
+-		v := int32(p.To.Offset)
++		v := uint32(0)
++		for i := 0; i < len(systemreg); i++ {
++			if systemreg[i].reg == p.To.Reg {
++				v = systemreg[i].enc
++				break
++			}
++		}
++		if v == 0 {
++			c.ctxt.Diag("illegal system register:\n%v", p)
++		}
+ 		if (o1 & uint32(v&^(3<<19))) != 0 {
+ 			c.ctxt.Diag("MSR register value overlap\n%v", p)
+ 		}
+-		o1 |= uint32(v)
++
++		o1 |= v
+ 		o1 |= uint32(p.From.Reg & 31)
+ 
+ 	case 37: /* mov $con,PSTATEfield -> MSR [immediate] */
+@@ -2768,10 +2796,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 = c.opirr(p, AMSR)
+ 		o1 |= uint32((p.From.Offset & 0xF) << 8) /* Crm */
+-		v := int32(0)
++		v := uint32(0)
+ 		for i := 0; i < len(pstatefield); i++ {
+-			if int64(pstatefield[i].a) == p.To.Offset {
+-				v = int32(pstatefield[i].b)
++			if pstatefield[i].reg == p.To.Reg {
++				v = pstatefield[i].enc
+ 				break
+ 			}
+ 		}
+@@ -2779,7 +2807,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if v == 0 {
+ 			c.ctxt.Diag("illegal PSTATE field for immediate move\n%v", p)
+ 		}
+-		o1 |= uint32(v)
++		o1 |= v
+ 
+ 	case 38: /* clrex [$imm] */
+ 		o1 = c.opimm(p, p.As)

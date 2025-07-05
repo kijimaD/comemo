@@ -12,6 +12,21 @@ Date:   Sat Dec 22 22:11:25 2018 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/runtime-gdb.py | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index 4c32c633cf..48960b7f61 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -353,7 +353,8 @@ class IfacePrinter:
+ 			return "<bad dynamic type>"
+ 
+ 		if dtype is None:  # trouble looking up, print something reasonable
+-			return "({0}){0}".format(iface_dtype_name(self.val), self.val['data'])
++			return "({typename}){data}".format(
++				typename=iface_dtype_name(self.val), data=self.val['data'])
+ 
+ 		try:
+ 			return self.val['data'].cast(dtype).dereference()

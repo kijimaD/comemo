@@ -10,7 +10,74 @@ Date:   Mon Apr 6 14:30:03 2015 -0400
     Change-Id: I562fed7981691a84ddf0f9e6fcd9f089f497ac13
     Reviewed-on: https://go-review.googlesource.com/9640
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go      | 28 ++++++++++++++++++++++++++++
  src/runtime/runtime1.go |  2 ++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f56527b106..1f4f549c01 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -434,6 +434,8 @@ func (c *gcControllerState) revise() {
+ // endCycle updates the GC controller state at the end of the
+ // concurrent part of the GC cycle.
+ func (c *gcControllerState) endCycle() {
++	h_t := c.triggerRatio // For debugging
++
+ 	// Proportional response gain for the trigger controller. Must
+ 	// be in [0, 1]. Lower values smooth out transient effects but
+ 	// take longer to respond to phase changes. Higher values
+@@ -487,6 +489,32 @@ func (c *gcControllerState) endCycle() {
+ 
+ 	// Update EWMA of recent scan work ratios.
+ 	c.workRatioAvg = workRatioWeight*workRatio + (1-workRatioWeight)*c.workRatioAvg
++
++	if debug.gcpacertrace > 0 {
++		// Print controller state in terms of the design
++		// document.
++		H_m_prev := memstats.heap_marked
++		H_T := memstats.next_gc
++		h_a := actualGrowthRatio
++		H_a := memstats.heap_live
++		h_g := goalGrowthRatio
++		H_g := int64(float64(H_m_prev) * (1 + h_g))
++		u_a := utilization
++		u_g := gcGoalUtilization
++		W_a := c.scanWork
++		w_a := workRatio
++		w_ewma := c.workRatioAvg
++		print("pacer: H_m_prev=", H_m_prev,
++			" h_t=", h_t, " H_T=", H_T,
++			" h_a=", h_a, " H_a=", H_a,
++			" h_g=", h_g, " H_g=", H_g,
++			" u_a=", u_a, " u_g=", u_g,
++			" W_a=", W_a, " w_a=", w_a, " w_ewma=", w_ewma,
++			" goalΔ=", goalGrowthRatio-h_t,
++			" actualΔ=", h_a-h_t,
++			" u_a/u_g=", u_a/u_g,
++			"\n")
++	}
+ }
+ 
+ // findRunnableGCWorker returns the background mark worker for _p_ if it
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 404d8f0653..2151be59f9 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -317,6 +317,7 @@ var debug struct {
+ 	wbshadow       int32
+ 	gccheckmark    int32
+ 	sbrk           int32
++	gcpacertrace   int32
+ }
+ 
+ var dbgvars = []dbgVar{
+@@ -331,6 +332,7 @@ var dbgvars = []dbgVar{
+ 	{"wbshadow", &debug.wbshadow},
+ 	{"gccheckmark", &debug.gccheckmark},
+ 	{"sbrk", &debug.sbrk},
++	{"gcpacertrace", &debug.gcpacertrace},
+ }
+ 
+ func parsedebugvars() {

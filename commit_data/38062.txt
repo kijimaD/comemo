@@ -10,7 +10,49 @@ Date:   Tue Sep 25 00:01:39 2018 +0300
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/path/filepath/path.go      | 11 ++++++++---
  src/path/filepath/path_test.go |  3 +++
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index aba1717e7d..bbb90306a7 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -96,14 +96,19 @@ func Clean(path string) string {
+ 		}
+ 		return originalPath + "."
+ 	}
++
++	n := len(path)
++	if volLen > 2 && n == 1 && os.IsPathSeparator(path[0]) {
++		// UNC volume name with trailing slash.
++		return FromSlash(originalPath[:volLen])
++	}
+ 	rooted := os.IsPathSeparator(path[0])
+ 
+ 	// Invariants:
+ 	//	reading from path; r is index of next byte to process.
+-	//	writing to buf; w is index of next byte to write.
+-	//	dotdot is index in buf where .. must stop, either because
++	//	writing to out; w is index of next byte to write.
++	//	dotdot is index in out where .. must stop, either because
+ 	//		it is the leading slash or it is a leading ../../.. prefix.
+-	n := len(path)
+ 	out := lazybuf{path: path, volAndPath: originalPath, volLen: volLen}
+ 	r, dotdot := 0, 0
+ 	if rooted {
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index e1b5ad1d40..eddae4755b 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -92,6 +92,9 @@ var wincleantests = []PathTest{
+ 	{`//host/share/foo/../baz`, `\\host\share\baz`},
+ 	{`\\a\b\..\c`, `\\a\b\c`},
+ 	{`\\a\b`, `\\a\b`},
++	{`\\a\b\`, `\\a\b`},
++	{`\\folder\share\foo`, `\\folder\share\foo`},
++	{`\\folder\share\foo\`, `\\folder\share\foo`},
+ }
+ 
+ func TestClean(t *testing.T) {

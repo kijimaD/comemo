@@ -11,6 +11,20 @@ Date:   Sun Sep 3 12:31:14 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index f4089599fe..ed1b2fd565 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -399,7 +399,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		f.Func.Endlineno = lineno
+ 	} else {
+ 		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
+-			yyerrorl(f.Pos, "missing function body for %q", f.funcname())
++			yyerrorl(f.Pos, "missing function body")
+ 		}
+ 	}
+ 

@@ -17,7 +17,45 @@ Date:   Tue Dec 18 16:41:57 2018 -0800
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_windows.go     | 7 +++++++
  src/runtime/os_windows_arm.go | 6 +++++-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 9b34589874..2e1ec58a0d 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -198,6 +198,13 @@ func loadOptionalSyscalls() {
+ 	}
+ 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
+ 
++	if GOARCH == "arm" {
++		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
++		if _QueryPerformanceCounter == nil {
++			throw("could not find QPC syscalls")
++		}
++	}
++
+ 	if windowsFindfunc(n32, []byte("wine_get_version\000")) != nil {
+ 		// running on Wine
+ 		initWine(k32)
+diff --git a/src/runtime/os_windows_arm.go b/src/runtime/os_windows_arm.go
+index 3115f7241d..10aff75e31 100644
+--- a/src/runtime/os_windows_arm.go
++++ b/src/runtime/os_windows_arm.go
+@@ -4,9 +4,13 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ //go:nosplit
+ func cputicks() int64 {
+-	return nanotime()
++	var counter int64
++	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
++	return counter
+ }
+ 
+ func checkgoarm() {

@@ -9,8 +9,78 @@ Date:   Mon Oct 24 10:19:04 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/errors/malloc.go | 23 +++++++++++++++++++++++
  misc/cgo/errors/test.bash | 10 ++++++++++
  src/cmd/cgo/out.go        |  6 ++++++
  3 files changed, 39 insertions(+)
+
+diff --git a/misc/cgo/errors/malloc.go b/misc/cgo/errors/malloc.go
+new file mode 100644
+index 0000000000..7a69736222
+--- /dev/null
++++ b/misc/cgo/errors/malloc.go
+@@ -0,0 +1,23 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that C.malloc does not return nil.
++
++package main
++
++// #include <stdlib.h>
++import "C"
++
++import (
++	"fmt"
++)
++
++func main() {
++	p := C.malloc(C.size_t(^uintptr(0)))
++	if p == nil {
++		fmt.Println("malloc: C.malloc returned nil")
++		// Just exit normally--the test script expects this
++		// program to crash, so exiting normally indicates failure.
++	}
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index cb442507a6..8b892938fc 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -59,5 +59,15 @@ if ! go run ptr.go; then
+ 	exit 1
+ fi
+ 
++# The malloc.go test should crash.
++rm -f malloc.out
++if go run malloc.go >malloc.out 2>&1; then
++	echo "`go run malloc.go` succeeded unexpectedly"
++	cat malloc.out
++	rm -f malloc.out
++	exit 1
++fi
++rm -f malloc.out
++
+ rm -rf errs _obj
+ exit 0
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 25031c8d48..95f90920bf 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1463,9 +1463,15 @@ const cMallocDefGo = `
+ var __cgofn__cgoPREFIX_Cfunc__Cmalloc byte
+ var _cgoPREFIX_Cfunc__Cmalloc = unsafe.Pointer(&__cgofn__cgoPREFIX_Cfunc__Cmalloc)
+ 
++//go:linkname runtime_throw runtime.throw
++func runtime_throw(string)
++
+ //go:cgo_unsafe_args
+ func _cgo_cmalloc(p0 uint64) (r1 unsafe.Pointer) {
+ 	_cgo_runtime_cgocall(_cgoPREFIX_Cfunc__Cmalloc, uintptr(unsafe.Pointer(&p0)))
++	if r1 == nil {
++		runtime_throw("runtime: C malloc failed")
++	}
+ 	return
+ }
+ `

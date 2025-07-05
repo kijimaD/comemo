@@ -91,7 +91,71 @@ Date:   Fri May 19 14:00:10 2023 +0200
     Reviewed-by: M Zhuo <mzh@golangcn.org>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/memclr_riscv64.s |  5 +++--
  src/runtime/memmove_test.go  | 26 ++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/memclr_riscv64.s b/src/runtime/memclr_riscv64.s
+index d12b545b1e..1c1e6ab54d 100644
+--- a/src/runtime/memclr_riscv64.s
++++ b/src/runtime/memclr_riscv64.s
+@@ -16,10 +16,11 @@ TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
+ 	BLT	X11, X9, check4
+ 
+ 	// Check alignment
+-	AND	$3, X10, X5
++	AND	$7, X10, X5
+ 	BEQZ	X5, aligned
+ 
+ 	// Zero one byte at a time until we reach 8 byte alignment.
++	SUB	X5, X9, X5
+ 	SUB	X5, X11, X11
+ align:
+ 	ADD	$-1, X5
+@@ -28,7 +29,7 @@ align:
+ 	BNEZ	X5, align
+ 
+ aligned:
+-	MOV	$8, X9
++	// X9 already contains $8
+ 	BLT	X11, X9, check4
+ 	MOV	$16, X9
+ 	BLT	X11, X9, zero8
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index 73895becd8..f0c9a82bb6 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -400,6 +400,32 @@ func BenchmarkMemclr(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkMemclrUnaligned(b *testing.B) {
++	for _, off := range []int{0, 1, 4, 7} {
++		for _, n := range []int{5, 16, 64, 256, 4096, 65536} {
++			x := make([]byte, n+off)
++			b.Run(fmt.Sprint(off, n), func(b *testing.B) {
++				b.SetBytes(int64(n))
++				for i := 0; i < b.N; i++ {
++					MemclrBytes(x[off:])
++				}
++			})
++		}
++	}
++
++	for _, off := range []int{0, 1, 4, 7} {
++		for _, m := range []int{1, 4, 8, 16, 64} {
++			x := make([]byte, (m<<20)+off)
++			b.Run(fmt.Sprint(off, m, "M"), func(b *testing.B) {
++				b.SetBytes(int64(m << 20))
++				for i := 0; i < b.N; i++ {
++					MemclrBytes(x[off:])
++				}
++			})
++		}
++	}
++}
++
+ func BenchmarkGoMemclr(b *testing.B) {
+ 	benchmarkSizes(b, []int{5, 16, 64, 256}, func(b *testing.B, n int) {
+ 		x := make([]byte, n)

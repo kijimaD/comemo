@@ -9,6 +9,19 @@ Date:   Wed Feb 22 17:10:25 2012 -0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5683074
-
+---
  src/cmd/cgo/gcc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 342a8a530d..98a847e6fa 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1164,6 +1164,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		goIdent[name.Name] = name
+ 		switch dt.Kind {
+ 		case "union", "class":
++			t.Go = c.Opaque(t.Size)
+ 			if t.C.Empty() {
+ 				t.C.Set("typeof(unsigned char[%d])", t.Size)
+ 			}

@@ -7,6 +7,21 @@ Date:   Wed Feb 17 15:50:34 2010 -0800
     R=rsc, r, iant, ken2
     CC=golang-dev
     https://golang.org/cl/211041
-
+---
  doc/go_spec.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 06dcf3918e..bcde026723 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -90,7 +90,8 @@ Each code point is distinct; for instance, upper and lower case letters
+ are different characters.
+ </p>
+ <p>
+-Source code must not contain the NUL character (U+0000).
++Implementation restriction: For compatibility with other tools, a
++compiler may disallow the NUL character (U+0000) in the source text.
+ </p>
+ 
+ <h3 id="Characters">Characters</h3>

@@ -14,7 +14,7 @@ Date:   Sun May 4 10:34:41 2025 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go         |  25 +++++
  src/cmd/compile/internal/ssa/_gen/AMD64.rules |  10 ++
  src/cmd/compile/internal/ssa/_gen/AMD64Ops.go |   5 +
@@ -22,3 +22,306 @@ Date:   Sun May 4 10:34:41 2025 -0700
  src/cmd/compile/internal/ssa/rewrite.go       |  19 ++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go  | 128 ++++++++++++++++++++++++++
  6 files changed, 221 insertions(+)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index c97cdbd5c0..3af513773d 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1154,6 +1154,31 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
+ 
++	case ssa.OpAMD64ADDQconstflags, ssa.OpAMD64ADDLconstflags:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		// Note: the inc/dec instructions do not modify
++		// the carry flag like add$1 / sub$1 do.
++		// We currently never use the CF/OF flags from
++		// these instructions, so that is ok.
++		switch {
++		case p.As == x86.AADDQ && p.From.Offset == 1:
++			p.As = x86.AINCQ
++			p.From.Type = obj.TYPE_NONE
++		case p.As == x86.AADDQ && p.From.Offset == -1:
++			p.As = x86.ADECQ
++			p.From.Type = obj.TYPE_NONE
++		case p.As == x86.AADDL && p.From.Offset == 1:
++			p.As = x86.AINCL
++			p.From.Type = obj.TYPE_NONE
++		case p.As == x86.AADDL && p.From.Offset == -1:
++			p.As = x86.ADECL
++			p.From.Type = obj.TYPE_NONE
++		}
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++
+ 	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD, ssa.OpAMD64SQRTSS:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index c0fb252222..d55dfe70ac 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -1670,3 +1670,13 @@
+ 
+ // Convert atomic logical operations to easier ones if we don't use the result.
+ (Select1 a:(LoweredAtomic(And64|And32|Or64|Or32) ptr val mem)) && a.Uses == 1 && clobber(a) => ((ANDQ|ANDL|ORQ|ORL)lock ptr val mem)
++
++// If we are checking the results of an add, use the flags directly from the add.
++// Note that this only works for EQ/NE. ADD sets the CF/OF flags differently
++// than TEST sets them.
++// Note also that a.Args[0] here refers to the post-flagify'd value.
++((EQ|NE) t:(TESTQ a:(ADDQconst [c] x) a)) && t.Uses == 1 && flagify(a) => ((EQ|NE) (Select1 <types.TypeFlags> a.Args[0]))
++((EQ|NE) t:(TESTL a:(ADDLconst [c] x) a)) && t.Uses == 1 && flagify(a) => ((EQ|NE) (Select1 <types.TypeFlags> a.Args[0]))
++
++// If we don't use the flags any more, just use the standard op.
++(Select0 a:(ADD(Q|L)constflags [c] x)) && a.Uses == 1 => (ADD(Q|L)const [c] x)
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index 1cce32eba3..a8ec2a278c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -303,6 +303,11 @@ func init() {
+ 
+ 		// computes -arg0, flags set for 0-arg0.
+ 		{name: "NEGLflags", argLength: 1, reg: gp11flags, typ: "(UInt32,Flags)", asm: "NEGL", resultInArg0: true},
++		// compute arg0+auxint. flags set for arg0+auxint.
++		// NOTE: we pretend the CF/OF flags are undefined for these instructions,
++		// so we can use INC/DEC instead of ADDQconst if auxint is +/-1. (INC/DEC don't modify CF.)
++		{name: "ADDQconstflags", argLength: 1, reg: gp11flags, aux: "Int32", asm: "ADDQ", resultInArg0: true},
++		{name: "ADDLconstflags", argLength: 1, reg: gp11flags, aux: "Int32", asm: "ADDL", resultInArg0: true},
+ 
+ 		// The following 4 add opcodes return the low 64 bits of the sum in the first result and
+ 		// the carry (the 65th bit) in the carry flag.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 20dfb05741..7b36344f07 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -659,6 +659,8 @@ const (
+ 	OpAMD64DIVLU
+ 	OpAMD64DIVWU
+ 	OpAMD64NEGLflags
++	OpAMD64ADDQconstflags
++	OpAMD64ADDLconstflags
+ 	OpAMD64ADDQcarry
+ 	OpAMD64ADCQ
+ 	OpAMD64ADDQconstcarry
+@@ -7947,6 +7949,38 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "ADDQconstflags",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AADDQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
++	{
++		name:         "ADDLconstflags",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AADDL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
+ 	{
+ 		name:         "ADDQcarry",
+ 		argLen:       2,
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 55521ebcb5..38f75d185a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -2619,3 +2619,22 @@ func bitsMulU32(x, y int32) (r struct{ hi, lo int32 }) {
+ 	r.hi, r.lo = int32(hi), int32(lo)
+ 	return
+ }
++
++// flagify rewrites v which is (X ...) to (Select0 (Xflags ...)).
++func flagify(v *Value) bool {
++	var flagVersion Op
++	switch v.Op {
++	case OpAMD64ADDQconst:
++		flagVersion = OpAMD64ADDQconstflags
++	case OpAMD64ADDLconst:
++		flagVersion = OpAMD64ADDLconstflags
++	default:
++		base.Fatalf("can't flagify op %s", v.Op)
++	}
++	inner := v.copyInto(v.Block)
++	inner.Op = flagVersion
++	inner.Type = types.NewTuple(v.Type, types.TypeFlags)
++	v.reset(OpSelect0)
++	v.AddArg(inner)
++	return true
++}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index c19f4f71dd..3d7af5f365 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -29295,6 +29295,42 @@ func rewriteValueAMD64_OpSelect0(v *Value) bool {
+ 		v.AddArg2(val, v0)
+ 		return true
+ 	}
++	// match: (Select0 a:(ADDQconstflags [c] x))
++	// cond: a.Uses == 1
++	// result: (ADDQconst [c] x)
++	for {
++		a := v_0
++		if a.Op != OpAMD64ADDQconstflags {
++			break
++		}
++		c := auxIntToInt32(a.AuxInt)
++		x := a.Args[0]
++		if !(a.Uses == 1) {
++			break
++		}
++		v.reset(OpAMD64ADDQconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Select0 a:(ADDLconstflags [c] x))
++	// cond: a.Uses == 1
++	// result: (ADDLconst [c] x)
++	for {
++		a := v_0
++		if a.Op != OpAMD64ADDLconstflags {
++			break
++		}
++		c := auxIntToInt32(a.AuxInt)
++		x := a.Args[0]
++		if !(a.Uses == 1) {
++			break
++		}
++		v.reset(OpAMD64ADDLconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpSelect1(v *Value) bool {
+@@ -30450,6 +30486,52 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			}
+ 			break
+ 		}
++		// match: (EQ t:(TESTQ a:(ADDQconst [c] x) a))
++		// cond: t.Uses == 1 && flagify(a)
++		// result: (EQ (Select1 <types.TypeFlags> a.Args[0]))
++		for b.Controls[0].Op == OpAMD64TESTQ {
++			t := b.Controls[0]
++			_ = t.Args[1]
++			t_0 := t.Args[0]
++			t_1 := t.Args[1]
++			for _i0 := 0; _i0 <= 1; _i0, t_0, t_1 = _i0+1, t_1, t_0 {
++				a := t_0
++				if a.Op != OpAMD64ADDQconst {
++					continue
++				}
++				if a != t_1 || !(t.Uses == 1 && flagify(a)) {
++					continue
++				}
++				v0 := b.NewValue0(t.Pos, OpSelect1, types.TypeFlags)
++				v0.AddArg(a.Args[0])
++				b.resetWithControl(BlockAMD64EQ, v0)
++				return true
++			}
++			break
++		}
++		// match: (EQ t:(TESTL a:(ADDLconst [c] x) a))
++		// cond: t.Uses == 1 && flagify(a)
++		// result: (EQ (Select1 <types.TypeFlags> a.Args[0]))
++		for b.Controls[0].Op == OpAMD64TESTL {
++			t := b.Controls[0]
++			_ = t.Args[1]
++			t_0 := t.Args[0]
++			t_1 := t.Args[1]
++			for _i0 := 0; _i0 <= 1; _i0, t_0, t_1 = _i0+1, t_1, t_0 {
++				a := t_0
++				if a.Op != OpAMD64ADDLconst {
++					continue
++				}
++				if a != t_1 || !(t.Uses == 1 && flagify(a)) {
++					continue
++				}
++				v0 := b.NewValue0(t.Pos, OpSelect1, types.TypeFlags)
++				v0.AddArg(a.Args[0])
++				b.resetWithControl(BlockAMD64EQ, v0)
++				return true
++			}
++			break
++		}
+ 	case BlockAMD64GE:
+ 		// match: (GE c:(CMPQconst [128] z) yes no)
+ 		// cond: c.Uses == 1
+@@ -31449,6 +31531,52 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			}
+ 			break
+ 		}
++		// match: (NE t:(TESTQ a:(ADDQconst [c] x) a))
++		// cond: t.Uses == 1 && flagify(a)
++		// result: (NE (Select1 <types.TypeFlags> a.Args[0]))
++		for b.Controls[0].Op == OpAMD64TESTQ {
++			t := b.Controls[0]
++			_ = t.Args[1]
++			t_0 := t.Args[0]
++			t_1 := t.Args[1]
++			for _i0 := 0; _i0 <= 1; _i0, t_0, t_1 = _i0+1, t_1, t_0 {
++				a := t_0
++				if a.Op != OpAMD64ADDQconst {
++					continue
++				}
++				if a != t_1 || !(t.Uses == 1 && flagify(a)) {
++					continue
++				}
++				v0 := b.NewValue0(t.Pos, OpSelect1, types.TypeFlags)
++				v0.AddArg(a.Args[0])
++				b.resetWithControl(BlockAMD64NE, v0)
++				return true
++			}
++			break
++		}
++		// match: (NE t:(TESTL a:(ADDLconst [c] x) a))
++		// cond: t.Uses == 1 && flagify(a)
++		// result: (NE (Select1 <types.TypeFlags> a.Args[0]))
++		for b.Controls[0].Op == OpAMD64TESTL {
++			t := b.Controls[0]
++			_ = t.Args[1]
++			t_0 := t.Args[0]
++			t_1 := t.Args[1]
++			for _i0 := 0; _i0 <= 1; _i0, t_0, t_1 = _i0+1, t_1, t_0 {
++				a := t_0
++				if a.Op != OpAMD64ADDLconst {
++					continue
++				}
++				if a != t_1 || !(t.Uses == 1 && flagify(a)) {
++					continue
++				}
++				v0 := b.NewValue0(t.Pos, OpSelect1, types.TypeFlags)
++				v0.AddArg(a.Args[0])
++				b.resetWithControl(BlockAMD64NE, v0)
++				return true
++			}
++			break
++		}
+ 	case BlockAMD64UGE:
+ 		// match: (UGE (TESTQ x x) yes no)
+ 		// result: (First yes no)

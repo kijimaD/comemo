@@ -16,7 +16,88 @@ Date:   Mon Nov 28 12:18:29 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/33635
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/pprof/profile/legacy_profile.go |  2 ++
  src/runtime/pprof/mprof_test.go              | 29 ++++++++++++++++++++++------
  2 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/pprof/profile/legacy_profile.go b/src/internal/pprof/profile/legacy_profile.go
+index 5ad3e25640..d3041d3b00 100644
+--- a/src/internal/pprof/profile/legacy_profile.go
++++ b/src/internal/pprof/profile/legacy_profile.go
+@@ -1224,6 +1224,8 @@ var allocSkipRxStr = strings.Join([]string{
+ 	// Preserve Go runtime frames that appear in the middle/bottom of
+ 	// the stack.
+ 	`runtime\.panic`,
++	`runtime\.reflectcall`,
++	`runtime\.call[0-9]*`,
+ }, `|`)
+ 
+ var cpuProfilerRxStr = strings.Join([]string{
+diff --git a/src/runtime/pprof/mprof_test.go b/src/runtime/pprof/mprof_test.go
+index 0fff9d46d9..df4f6f8bed 100644
+--- a/src/runtime/pprof/mprof_test.go
++++ b/src/runtime/pprof/mprof_test.go
+@@ -7,6 +7,7 @@ package pprof_test
+ import (
+ 	"bytes"
+ 	"fmt"
++	"reflect"
+ 	"regexp"
+ 	"runtime"
+ 	. "runtime/pprof"
+@@ -42,6 +43,17 @@ func allocatePersistent1K() {
+ 	}
+ }
+ 
++// Allocate transient memory using reflect.Call.
++
++func allocateReflectTransient() {
++	memSink = make([]byte, 2<<20)
++}
++
++func allocateReflect() {
++	rv := reflect.ValueOf(allocateReflectTransient)
++	rv.Call(nil)
++}
++
+ var memoryProfilerRun = 0
+ 
+ func TestMemoryProfiler(t *testing.T) {
+@@ -61,6 +73,7 @@ func TestMemoryProfiler(t *testing.T) {
+ 	allocateTransient1M()
+ 	allocateTransient2M()
+ 	allocatePersistent1K()
++	allocateReflect()
+ 	memSink = nil
+ 
+ 	runtime.GC() // materialize stats
+@@ -73,18 +86,22 @@ func TestMemoryProfiler(t *testing.T) {
+ 
+ 	tests := []string{
+ 		fmt.Sprintf(`%v: %v \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:40
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:63
++#	0x[0-9,a-f]+	runtime/pprof_test\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:41
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:75
+ `, 32*memoryProfilerRun, 1024*memoryProfilerRun, 32*memoryProfilerRun, 1024*memoryProfilerRun),
+ 
+ 		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient1M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:21
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:61
++#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient1M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:22
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:73
+ `, (1<<10)*memoryProfilerRun, (1<<20)*memoryProfilerRun),
+ 
+ 		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:27
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:62
++#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:28
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:74
++`, memoryProfilerRun, (2<<20)*memoryProfilerRun),
++
++		fmt.Sprintf(`0: 0 \[%v: %v\] @( 0x[0-9,a-f]+)+
++#	0x[0-9,a-f]+	runtime/pprof_test\.allocateReflectTransient\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:49
+ `, memoryProfilerRun, (2<<20)*memoryProfilerRun),
+ 	}
+ 

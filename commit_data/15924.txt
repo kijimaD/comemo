@@ -7,7 +7,45 @@ Date:   Mon Mar 25 08:20:22 2013 +0100
     R=golang-dev, dave, minux.ma
     CC=golang-dev
     https://golang.org/cl/7876044
-
+---
  src/cmd/cc/lexbody | 2 +-
  src/cmd/ld/lib.c   | 5 ++---
  2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 5fa980267b..f4a69739c8 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -263,7 +263,7 @@ lookup(void)
+ 	for(s = hash[h]; s != S; s = s->link) {
+ 		if(s->name[0] != c)
+ 			continue;
+-		if(memcmp(s->name, symb, l) == 0)
++		if(strcmp(s->name, symb) == 0)
+ 			return s;
+ 	}
+ 	s = alloc(sizeof(*s));
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 18cae3175c..f42b8dfddf 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -846,17 +846,16 @@ _lookup(char *symb, int v, int creat)
+ 	Sym *s;
+ 	char *p;
+ 	int32 h;
+-	int l, c;
++	int c;
+ 
+ 	h = v;
+ 	for(p=symb; c = *p; p++)
+ 		h = h+h+h + c;
+-	l = (p - symb) + 1;
+ 	// not if(h < 0) h = ~h, because gcc 4.3 -O2 miscompiles it.
+ 	h &= 0xffffff;
+ 	h %= NHASH;
+ 	for(s = hash[h]; s != S; s = s->hash)
+-		if(memcmp(s->name, symb, l) == 0)
++		if(strcmp(s->name, symb) == 0)
+ 			return s;
+ 	if(!creat)
+ 		return nil;

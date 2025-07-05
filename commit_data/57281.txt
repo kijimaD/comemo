@@ -14,6 +14,20 @@ Date:   Sat Jul 22 10:43:45 2023 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/base.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/base.go b/src/cmd/compile/internal/base/base.go
+index 8caeb41d2f..0c374f1661 100644
+--- a/src/cmd/compile/internal/base/base.go
++++ b/src/cmd/compile/internal/base/base.go
+@@ -245,7 +245,7 @@ func Compiling(pkgs []string) bool {
+ // is done during SSA construction rather than a separate SSA pass,
+ // see issue #19054.
+ //
+-// Third we remove calls to racefuncenter and racefuncexit, for leaf
++// Third, we remove calls to racefuncenter and racefuncexit, for leaf
+ // functions without instrumented operations. This is done as part of
+ // ssa opt pass via special rule.
+ 

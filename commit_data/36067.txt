@@ -20,8 +20,92 @@ Date:   Tue Mar 27 15:35:51 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go      | 21 ++++++++++-----------
  src/cmd/compile/internal/gc/main.go     | 12 +++++++++---
  src/cmd/compile/internal/gc/racewalk.go |  2 +-
  3 files changed, 20 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index cab33f17f4..e9c36de639 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -138,17 +138,6 @@ func caninl(fn *Node) {
+ 		Fatalf("caninl on non-typechecked function %v", fn)
+ 	}
+ 
+-	// Runtime package must not be instrumented.
+-	// Instrument skips runtime package. However, some runtime code can be
+-	// inlined into other packages and instrumented there. To avoid this,
+-	// we disable inlining of runtime functions when instrumenting.
+-	// The example that we observed is inlining of LockOSThread,
+-	// which lead to false race reports on m contents.
+-	if instrumenting && myimportpath == "runtime" {
+-		reason = "instrumenting and is runtime function"
+-		return
+-	}
+-
+ 	n := fn.Func.Nname
+ 	if n.Func.InlinabilityChecked() {
+ 		return
+@@ -783,6 +772,16 @@ func mkinlcall1(n, fn *Node) *Node {
+ 		return n
+ 	}
+ 
++	if instrumenting && isRuntimePkg(fn.Sym.Pkg) {
++		// Runtime package must not be instrumented.
++		// Instrument skips runtime package. However, some runtime code can be
++		// inlined into other packages and instrumented there. To avoid this,
++		// we disable inlining of runtime functions when instrumenting.
++		// The example that we observed is inlining of LockOSThread,
++		// which lead to false race reports on m contents.
++		return n
++	}
++
+ 	if Debug_typecheckinl == 0 {
+ 		typecheckinl(fn)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e72bdfa2d6..b42966229d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -290,17 +290,23 @@ func Main(archInit func(*Arch)) {
+ 
+ 	startProfile()
+ 
++	if flag_race && flag_msan {
++		log.Fatal("cannot use both -race and -msan")
++	}
++	if ispkgin(omit_pkgs) {
++		flag_race = false
++		flag_msan = false
++	}
+ 	if flag_race {
+ 		racepkg = types.NewPkg("runtime/race", "race")
+ 	}
+ 	if flag_msan {
+ 		msanpkg = types.NewPkg("runtime/msan", "msan")
+ 	}
+-	if flag_race && flag_msan {
+-		log.Fatal("cannot use both -race and -msan")
+-	} else if flag_race || flag_msan {
++	if flag_race || flag_msan {
+ 		instrumenting = true
+ 	}
++
+ 	if compiling_runtime && Debug['N'] != 0 {
+ 		log.Fatal("cannot disable optimizations while compiling runtime")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 11523f3de3..f1f38f4572 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -52,7 +52,7 @@ func ispkgin(pkgs []string) bool {
+ }
+ 
+ func instrument(fn *Node) {
+-	if ispkgin(omit_pkgs) || fn.Func.Pragma&Norace != 0 {
++	if fn.Func.Pragma&Norace != 0 {
+ 		return
+ 	}
+ 

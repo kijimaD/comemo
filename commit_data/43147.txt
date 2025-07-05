@@ -16,10 +16,92 @@ Date:   Thu Mar 12 09:29:14 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/build_gcflags.txt           | 3 ++-
  src/cmd/go/testdata/script/cgo_flag_contains_space.txt | 9 +++++----
  src/cmd/go/testdata/script/gcflags_patterns.txt        | 2 ++
  src/cmd/go/testdata/script/mod_get_commit.txt          | 3 +++
  src/cmd/go/testdata/script/mod_get_tags.txt            | 3 ++-
  5 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_gcflags.txt b/src/cmd/go/testdata/script/build_gcflags.txt
+index e0accb10d5..b47237410d 100644
+--- a/src/cmd/go/testdata/script/build_gcflags.txt
++++ b/src/cmd/go/testdata/script/build_gcflags.txt
+@@ -7,7 +7,8 @@ env GO111MODULE=off
+ [!linux] skip  # test only works if c-archive implies -shared
+ [short] skip
+ 
+-go build -x -buildmode=c-archive -gcflags=all=-shared=false ./override.go
++env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
++go build -x -n -buildmode=c-archive -gcflags=all=-shared=false ./override.go
+ stderr '^.*/compile (.* )?-shared (.* )?-shared=false'
+ 
+ -- override.go --
+diff --git a/src/cmd/go/testdata/script/cgo_flag_contains_space.txt b/src/cmd/go/testdata/script/cgo_flag_contains_space.txt
+index 940340e98d..a3372bbbc7 100644
+--- a/src/cmd/go/testdata/script/cgo_flag_contains_space.txt
++++ b/src/cmd/go/testdata/script/cgo_flag_contains_space.txt
+@@ -1,15 +1,16 @@
+ [short] skip
+ [!cgo] skip
+ 
+-go run -x main.go
++env GOCACHE=$WORK/gocache  # Looking for compile flags, so need a clean cache.
++go build -x -n main.go
+ stderr '"-I[^"]+c flags"' # find quoted c flags
+-! stderr '"-I[^"]+c flags".*"-I[^"]+c flags"' # don't find too many quoted c flags
++! stderr '"-I[^"]+c flags".*"-I[^"]+c flags"' # don't find too many quoted c flags per line
+ stderr '"-L[^"]+ld flags"' # find quoted ld flags
+-! stderr '"-L[^"]+c flags".*"-L[^"]+c flags"' # don't find too many quoted ld flags
++! stderr '"-L[^"]+c flags".*"-L[^"]+c flags"' # don't find too many quoted ld flags per line
+ 
+ -- main.go --
+ package main
+ // #cgo CFLAGS: -I"c flags"
+ // #cgo LDFLAGS: -L"ld flags"
+ import "C"
+-func main() {}
+\ No newline at end of file
++func main() {}
+diff --git a/src/cmd/go/testdata/script/gcflags_patterns.txt b/src/cmd/go/testdata/script/gcflags_patterns.txt
+index dce8e39715..5374493a43 100644
+--- a/src/cmd/go/testdata/script/gcflags_patterns.txt
++++ b/src/cmd/go/testdata/script/gcflags_patterns.txt
+@@ -3,6 +3,8 @@ env GO111MODULE=off
+ [!gc] skip 'using -gcflags and -ldflags'
+ [short] skip
+ 
++env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
++
+ # -gcflags=-e applies to named packages, not dependencies
+ go build -n -v -gcflags=-e z1 z2
+ stderr 'compile.* -e.* -p z1'
+diff --git a/src/cmd/go/testdata/script/mod_get_commit.txt b/src/cmd/go/testdata/script/mod_get_commit.txt
+index a906babbd5..d108242c70 100644
+--- a/src/cmd/go/testdata/script/mod_get_commit.txt
++++ b/src/cmd/go/testdata/script/mod_get_commit.txt
+@@ -14,6 +14,9 @@ go get -d golang.org/x/text@14c0d48
+ 
+ # dropping -d, we should see a build.
+ [short] skip
++
++env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
++
+ go get -x golang.org/x/text/language@14c0d48
+ stderr 'compile|cp|gccgo .*language\.a$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_tags.txt b/src/cmd/go/testdata/script/mod_get_tags.txt
+index 603c76983f..e9869e3f02 100644
+--- a/src/cmd/go/testdata/script/mod_get_tags.txt
++++ b/src/cmd/go/testdata/script/mod_get_tags.txt
+@@ -14,7 +14,8 @@ stdout 'rsc.io/quote v1.5.2'
+ [short] skip
+ 
+ # Packages that are only imported in excluded files should not be built.
+-go get -x .
++env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
++go get -n -x .
+ stderr 'compile.* -p m '
+ ! stderr 'compile.* -p example.com/version '
+ ! stderr 'compile.* -p rsc.io/quote '

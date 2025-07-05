@@ -28,9 +28,115 @@ Date:   Thu May 4 07:55:00 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go    |  7 ++-----
  src/cmd/compile/internal/gc/main.go   |  2 ++
  src/cmd/compile/internal/gc/ssa.go    |  2 +-
  src/cmd/compile/internal/gc/syntax.go | 37 +++++++++++++++++++----------------
  4 files changed, 25 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 8bdb7fc349..0b4c9c7b3f 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -311,9 +311,8 @@ func genhash(sym *types.Sym, t *types.Type) {
+ 	old_safemode := safemode
+ 	safemode = false
+ 
+-	disable_checknil++
++	fn.Func.SetNilCheckDisabled(true)
+ 	funccompile(fn)
+-	disable_checknil--
+ 
+ 	safemode = old_safemode
+ }
+@@ -500,12 +499,10 @@ func geneq(sym *types.Sym, t *types.Type) {
+ 	// We are comparing a struct or an array,
+ 	// neither of which can be nil, and our comparisons
+ 	// are shallow.
+-	disable_checknil++
+-
++	fn.Func.SetNilCheckDisabled(true)
+ 	funccompile(fn)
+ 
+ 	safemode = old_safemode
+-	disable_checknil--
+ }
+ 
+ // eqfield returns the node
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index ce84024174..058c08ec4f 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1087,6 +1087,8 @@ var concurrentFlagOK = [256]bool{
+ 	'I': true, // add `directory` to import search path
+ 	'N': true, // disable optimizations
+ 	'l': true, // disable inlining
++	'w': true, // all printing happens before compilation
++	'W': true, // all printing happens before compilation
+ }
+ 
+ func concurrentBackendAllowed() bool {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 926bc9d724..d058118f27 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3399,7 +3399,7 @@ func (s *state) exprPtr(n *Node, bounded bool, lineno src.XPos) *ssa.Value {
+ // Used only for automatically inserted nil checks,
+ // not for user code like 'x != nil'.
+ func (s *state) nilCheck(ptr *ssa.Value) {
+-	if disable_checknil != 0 {
++	if disable_checknil != 0 || s.curfn.Func.NilCheckDisabled() {
+ 		return
+ 	}
+ 	s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 234ebad41c..9b1eeaf43e 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -386,25 +386,28 @@ const (
+ 	funcNeedctxt                  // function uses context register (has closure variables)
+ 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
+ 	funcIsHiddenClosure
+-	funcNoFramePointer // Must not use a frame pointer for this function
+-	funcHasDefer       // contains a defer statement
++	funcNoFramePointer   // Must not use a frame pointer for this function
++	funcHasDefer         // contains a defer statement
++	funcNilCheckDisabled // disable nil checks when compiling this function
+ )
+ 
+-func (f *Func) Dupok() bool           { return f.flags&funcDupok != 0 }
+-func (f *Func) Wrapper() bool         { return f.flags&funcWrapper != 0 }
+-func (f *Func) Needctxt() bool        { return f.flags&funcNeedctxt != 0 }
+-func (f *Func) ReflectMethod() bool   { return f.flags&funcReflectMethod != 0 }
+-func (f *Func) IsHiddenClosure() bool { return f.flags&funcIsHiddenClosure != 0 }
+-func (f *Func) NoFramePointer() bool  { return f.flags&funcNoFramePointer != 0 }
+-func (f *Func) HasDefer() bool        { return f.flags&funcHasDefer != 0 }
+-
+-func (f *Func) SetDupok(b bool)           { f.flags.set(funcDupok, b) }
+-func (f *Func) SetWrapper(b bool)         { f.flags.set(funcWrapper, b) }
+-func (f *Func) SetNeedctxt(b bool)        { f.flags.set(funcNeedctxt, b) }
+-func (f *Func) SetReflectMethod(b bool)   { f.flags.set(funcReflectMethod, b) }
+-func (f *Func) SetIsHiddenClosure(b bool) { f.flags.set(funcIsHiddenClosure, b) }
+-func (f *Func) SetNoFramePointer(b bool)  { f.flags.set(funcNoFramePointer, b) }
+-func (f *Func) SetHasDefer(b bool)        { f.flags.set(funcHasDefer, b) }
++func (f *Func) Dupok() bool            { return f.flags&funcDupok != 0 }
++func (f *Func) Wrapper() bool          { return f.flags&funcWrapper != 0 }
++func (f *Func) Needctxt() bool         { return f.flags&funcNeedctxt != 0 }
++func (f *Func) ReflectMethod() bool    { return f.flags&funcReflectMethod != 0 }
++func (f *Func) IsHiddenClosure() bool  { return f.flags&funcIsHiddenClosure != 0 }
++func (f *Func) NoFramePointer() bool   { return f.flags&funcNoFramePointer != 0 }
++func (f *Func) HasDefer() bool         { return f.flags&funcHasDefer != 0 }
++func (f *Func) NilCheckDisabled() bool { return f.flags&funcNilCheckDisabled != 0 }
++
++func (f *Func) SetDupok(b bool)            { f.flags.set(funcDupok, b) }
++func (f *Func) SetWrapper(b bool)          { f.flags.set(funcWrapper, b) }
++func (f *Func) SetNeedctxt(b bool)         { f.flags.set(funcNeedctxt, b) }
++func (f *Func) SetReflectMethod(b bool)    { f.flags.set(funcReflectMethod, b) }
++func (f *Func) SetIsHiddenClosure(b bool)  { f.flags.set(funcIsHiddenClosure, b) }
++func (f *Func) SetNoFramePointer(b bool)   { f.flags.set(funcNoFramePointer, b) }
++func (f *Func) SetHasDefer(b bool)         { f.flags.set(funcHasDefer, b) }
++func (f *Func) SetNilCheckDisabled(b bool) { f.flags.set(funcNilCheckDisabled, b) }
+ 
+ type Op uint8
+ 

@@ -10,6 +10,21 @@ Date:   Thu May 26 09:59:29 2016 -0400
     Change-Id: I425b7e54a2ab95b623ab7a15554b4173078f75e2
     Reviewed-on: https://go-review.googlesource.com/23480
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 366b3af9ae..69a13ddf9d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -680,8 +680,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		switch pair {
+ 		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+-			"linux-amd64", "linux-386", "windows-amd64", "windows-386",
+-			"linux-ppc64le":
++			"linux-amd64", "linux-386", "windows-amd64", "windows-386":
+ 			return true
+ 		}
+ 		return false

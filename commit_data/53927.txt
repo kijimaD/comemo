@@ -11,6 +11,29 @@ Date:   Sun Sep 4 20:08:30 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/fix/main.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index 4e5c08731b..70874d4306 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -141,7 +141,7 @@ func gofmtFile(f *ast.File) ([]byte, error) {
+ func processFile(filename string, useStdin bool) error {
+ 	var f *os.File
+ 	var err error
+-	var fixlog bytes.Buffer
++	var fixlog strings.Builder
+ 
+ 	if useStdin {
+ 		f = os.Stdin
+@@ -240,7 +240,7 @@ func processFile(filename string, useStdin bool) error {
+ }
+ 
+ func gofmt(n any) string {
+-	var gofmtBuf bytes.Buffer
++	var gofmtBuf strings.Builder
+ 	if err := format.Node(&gofmtBuf, fset, n); err != nil {
+ 		return "<" + err.Error() + ">"
+ 	}

@@ -19,6 +19,36 @@ Date:   Wed Sep 29 17:47:19 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 8503dee60d..a8d911f003 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -329,7 +329,11 @@ func methods(t *types.Type) []*typeSig {
+ 		if f.Type.Recv() == nil {
+ 			base.Fatalf("receiver with no type on %v method %v %v", mt, f.Sym, f)
+ 		}
+-		if f.Nointerface() {
++		if f.Nointerface() && !t.IsFullyInstantiated() {
++			// Skip creating method wrappers if f is nointerface. But, if
++			// t is an instantiated type, we still have to call
++			// methodWrapper, because methodWrapper generates the actual
++			// generic method on the type as well.
+ 			continue
+ 		}
+ 
+@@ -348,6 +352,11 @@ func methods(t *types.Type) []*typeSig {
+ 			type_: typecheck.NewMethodType(f.Type, t),
+ 			mtype: typecheck.NewMethodType(f.Type, nil),
+ 		}
++		if f.Nointerface() {
++			// In the case of a nointerface method on an instantiated
++			// type, don't actually apppend the typeSig.
++			continue
++		}
+ 		ms = append(ms, sig)
+ 	}
+ 

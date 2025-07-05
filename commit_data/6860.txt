@@ -9,9 +9,82 @@ Date:   Tue Dec 7 16:16:01 2010 -0500
     R=ken3, rsc
     CC=golang-dev
     https://golang.org/cl/3210041
-
+---
  src/cmd/gc/subr.c              |  2 ++
  test/fixedbugs/bug313.dir/a.go | 11 +++++++++++
  test/fixedbugs/bug313.dir/b.go | 11 +++++++++++
  test/fixedbugs/bug313.go       | 19 +++++++++++++++++++
  4 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 2ebacba6eb..8acf1cdfec 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -363,6 +363,8 @@ importdot(Pkg *opkg, Node *pack)
+ 		for(s = hash[h]; s != S; s = s->link) {
+ 			if(s->pkg != opkg)
+ 				continue;
++			if(s->def == N)
++				continue;
+ 			if(!exportname(s->name) || utfrune(s->name, 0xb7))	// 0xb7 = center dot
+ 				continue;
+ 			s1 = lookup(s->name);
+diff --git a/test/fixedbugs/bug313.dir/a.go b/test/fixedbugs/bug313.dir/a.go
+new file mode 100644
+index 0000000000..cb4ca7256b
+--- /dev/null
++++ b/test/fixedbugs/bug313.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func a() {
++	fmt.DoesNotExist() // ERROR "undefined"
++}
+diff --git a/test/fixedbugs/bug313.dir/b.go b/test/fixedbugs/bug313.dir/b.go
+new file mode 100644
+index 0000000000..7eda72b4f8
+--- /dev/null
++++ b/test/fixedbugs/bug313.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import . "fmt"
++
++func b() {
++	Println()
++}
+diff --git a/test/fixedbugs/bug313.go b/test/fixedbugs/bug313.go
+new file mode 100644
+index 0000000000..eb2a0223b6
+--- /dev/null
++++ b/test/fixedbugs/bug313.go
+@@ -0,0 +1,19 @@
++// errchk $G -e $D/$F.dir/[ab].go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1284
++
++package bug313
++
++/*
++6g bug313.dir/[ab].go
++
++Before:
++bug313.dir/b.go:7: internal compiler error: fault
++
++Now:
++bug313.dir/a.go:10: undefined: fmt.DoesNotExist
++*/

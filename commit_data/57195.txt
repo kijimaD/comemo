@@ -13,6 +13,20 @@ Date:   Thu Jul 13 10:55:55 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/h2_bundle.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 9c0d592061..dc3e099c83 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -8007,7 +8007,7 @@ func (cc *http2ClientConn) canTakeNewRequestLocked() bool {
+ 	return st.canTakeNewRequest
+ }
+ 
+-// tooIdleLocked reports whether this connection has been sitting idle
++// tooIdleLocked reports whether this connection has been been sitting idle
+ // for too much wall time.
+ func (cc *http2ClientConn) tooIdleLocked() bool {
+ 	// The Round(0) strips the monontonic clock reading so the

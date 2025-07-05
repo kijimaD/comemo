@@ -7,7 +7,64 @@ Date:   Thu Sep 8 15:00:49 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4962060
-
+---
  src/pkg/exp/regexp/exec_test.go |  2 +-
  src/pkg/exp/regexp/regexp.go    | 21 ++++++++++++++++++++-
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/regexp/exec_test.go b/src/pkg/exp/regexp/exec_test.go
+index b6d9ecefb2..e8eaff5412 100644
+--- a/src/pkg/exp/regexp/exec_test.go
++++ b/src/pkg/exp/regexp/exec_test.go
+@@ -351,7 +351,7 @@ func TestFowler(t *testing.T) {
+ 	}
+ }
+ 
+-var notab = MustCompile(`[^\t]+`)
++var notab = MustCompilePOSIX(`[^\t]+`)
+ 
+ func testFowler(t *testing.T, file string) {
+ 	f, err := os.Open(file)
+diff --git a/src/pkg/exp/regexp/regexp.go b/src/pkg/exp/regexp/regexp.go
+index 86c35fa724..7480b098c7 100644
+--- a/src/pkg/exp/regexp/regexp.go
++++ b/src/pkg/exp/regexp/regexp.go
+@@ -58,6 +58,7 @@ import (
+ 	"exp/regexp/syntax"
+ 	"io"
+ 	"os"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"utf8"
+@@ -195,11 +196,29 @@ func (re *Regexp) put(z *machine) {
+ func MustCompile(str string) *Regexp {
+ 	regexp, error := Compile(str)
+ 	if error != nil {
+-		panic(`regexp: compiling "` + str + `": ` + error.String())
++		panic(`regexp: Compile(` + quote(str) + `): ` + error.String())
+ 	}
+ 	return regexp
+ }
+ 
++// MustCompilePOSIX is like CompilePOSIX but panics if the expression cannot be parsed.
++// It simplifies safe initialization of global variables holding compiled regular
++// expressions.
++func MustCompilePOSIX(str string) *Regexp {
++	regexp, error := CompilePOSIX(str)
++	if error != nil {
++		panic(`regexp: CompilePOSIX(` + quote(str) + `): ` + error.String())
++	}
++	return regexp
++}
++
++func quote(s string) string {
++	if strconv.CanBackquote(s) {
++		return "`" + s + "`"
++	}
++	return strconv.Quote(s)
++}
++
+ // NumSubexp returns the number of parenthesized subexpressions in this Regexp.
+ func (re *Regexp) NumSubexp() int {
+ 	return re.numSubexp

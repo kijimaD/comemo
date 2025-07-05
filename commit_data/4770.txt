@@ -7,6 +7,29 @@ Date:   Tue Feb 2 18:09:07 2010 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/198074
-
+---
  doc/install.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/install.html b/doc/install.html
+index 5e2cd757f7..6321ce726e 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -86,6 +86,17 @@ plus one optional variable:</p>
+ 	After installing, you will want to arrange to add this
+ 	directory to your <code>$PATH</code>, so you can use the tools.
+ </dd>
++
++<dt>
++<code>$GOARM</code> (optional, arm, default=6)
++</dt>
++<dd>
++	The ARM architecture version the runtime libraries should target.
++	ARMv6 cores have more efficient synchronization primitives. Setting
++	<code>$GOARM</code> to 5 will compile the runtime libraries using
++	just SWP instructions that work on older architectures as well.
++	Running v6 code on an older core will cause an illegal instruction trap.
++</dd>
+ </dl>
+ 
+ <p>

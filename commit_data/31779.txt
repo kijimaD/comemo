@@ -11,7 +11,34 @@ Date:   Tue Mar 7 16:10:59 2017 +0000
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc.go  | 2 +-
  src/runtime/trace.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 45d98de151..159a9bd4bc 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2252,7 +2252,7 @@ func park_m(gp *g) {
+ 	_g_ := getg()
+ 
+ 	if trace.enabled {
+-		traceGoPark(_g_.m.waittraceev, _g_.m.waittraceskip, gp)
++		traceGoPark(_g_.m.waittraceev, _g_.m.waittraceskip)
+ 	}
+ 
+ 	casgstatus(gp, _Grunning, _Gwaiting)
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index c29c162333..4f87d4ce2a 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -982,7 +982,7 @@ func traceGoPreempt() {
+ 	traceEvent(traceEvGoPreempt, 1)
+ }
+ 
+-func traceGoPark(traceEv byte, skip int, gp *g) {
++func traceGoPark(traceEv byte, skip int) {
+ 	if traceEv&traceFutileWakeup != 0 {
+ 		traceEvent(traceEvFutileWakeup, -1)
+ 	}

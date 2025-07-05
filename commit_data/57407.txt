@@ -13,6 +13,20 @@ Date:   Fri Jun 2 20:20:18 2023 +0200
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/io/io.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 01f36e0ce1..ce269a7b9f 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -540,7 +540,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
+ }
+ 
+ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
+-	if off < 0 || off >= s.limit-s.base {
++	if off < 0 || off >= s.Size() {
+ 		return 0, EOF
+ 	}
+ 	off += s.base

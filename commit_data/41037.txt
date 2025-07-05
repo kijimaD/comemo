@@ -22,7 +22,54 @@ Date:   Mon Jun 24 14:23:38 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  7 +++++++
  test/fixedbugs/issue32723.go             | 22 ++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 5e5d692824..03c5528c3d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -763,6 +763,13 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 
+ 		t = l.Type
+ 		if iscmp[n.Op] {
++			// TIDEAL includes complex constant, but only OEQ and ONE are defined for complex,
++			// so check that the n.op is available for complex  here before doing evconst.
++			if !okfor[n.Op][TCOMPLEX128] && (Isconst(l, CTCPLX) || Isconst(r, CTCPLX)) {
++				yyerror("invalid operation: %v (operator %v not defined on untyped complex)", n, n.Op)
++				n.Type = nil
++				return n
++			}
+ 			evconst(n)
+ 			t = types.Idealbool
+ 			if n.Op != OLITERAL {
+diff --git a/test/fixedbugs/issue32723.go b/test/fixedbugs/issue32723.go
+new file mode 100644
+index 0000000000..7d9e403fc0
+--- /dev/null
++++ b/test/fixedbugs/issue32723.go
+@@ -0,0 +1,22 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Complex literal comparison
++
++package p
++
++const x = 1i
++const y = 1i < 2i // ERROR "invalid operation: .*not defined on untyped complex"
++const z = x < 2i  // ERROR "invalid operation: .*not defined on untyped complex"
++
++func f() {
++	_ = 1i < 2i // ERROR "invalid operation: .*not defined on untyped complex"
++	_ = 1i < 2  // ERROR "invalid operation: .*not defined on untyped complex"
++	_ = 1 < 2i  // ERROR "invalid operation: .*not defined on untyped complex"
++
++	c := 1i
++	_ = c < 2i // ERROR "invalid operation: .*not defined on complex128"
++}

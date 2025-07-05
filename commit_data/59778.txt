@@ -14,7 +14,7 @@ Date:   Thu Apr 4 04:51:24 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  api/next/62483.txt                         |   3 +
  doc/next/6-stdlib/2-unique.md              |  13 +++
  doc/next/6-stdlib/99-minor/unique/62483.md |   1 +
@@ -28,3 +28,642 @@ Date:   Thu Apr 4 04:51:24 2024 +0000
  src/unique/handle_bench_test.go            |  63 +++++++++++
  src/unique/handle_test.go                  | 111 ++++++++++++++++++
  12 files changed, 537 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/62483.txt b/api/next/62483.txt
+new file mode 100644
+index 0000000000..11b8ff6fd9
+--- /dev/null
++++ b/api/next/62483.txt
+@@ -0,0 +1,3 @@
++pkg unique, func Make[$0 comparable]($0) Handle[$0] #62483
++pkg unique, method (Handle[$0]) Value() $0 #62483
++pkg unique, type Handle[$0 comparable] struct #62483
+diff --git a/doc/next/6-stdlib/2-unique.md b/doc/next/6-stdlib/2-unique.md
+new file mode 100644
+index 0000000000..b2c3bdfd0d
+--- /dev/null
++++ b/doc/next/6-stdlib/2-unique.md
+@@ -0,0 +1,13 @@
++### New unique package
++
++The new [unique](/pkg/unique) package provides facilites for
++canonicalizing values (like "interning" or "hash-consing").
++
++Any value of comparable type may be canonicalized with the new
++`Make[T]` function, which produces a reference to a canonical copy of
++the value in the form of a `Handle[T]`.
++Two `Handle[T]` are equal if and only if the values used to produce the
++handles are equal, allowing programs to deduplicate values and reduce
++their memory footprint.
++Comparing two `Handle[T]` values is efficient, reducing down to a simple
++pointer comparison.
+diff --git a/doc/next/6-stdlib/99-minor/unique/62483.md b/doc/next/6-stdlib/99-minor/unique/62483.md
+new file mode 100644
+index 0000000000..d281ab290e
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/unique/62483.md
+@@ -0,0 +1 @@
++<!-- This is a new package; covered in 6-stdlib/2-unique.md. -->
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 5954669874..11b6722e22 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -164,6 +164,9 @@ var depsRules = `
+ 	bufio, path, strconv
+ 	< STR;
+ 
++	RUNTIME, internal/concurrent
++	< unique;
++
+ 	# OS is basic OS access, including helpers (path/filepath, os/exec, etc).
+ 	# OS includes string routines, but those must be layered above package os.
+ 	# OS does not include reflection.
+diff --git a/src/go/doc/comment/std.go b/src/go/doc/comment/std.go
+index fd8c8ce3c2..e19792c825 100644
+--- a/src/go/doc/comment/std.go
++++ b/src/go/doc/comment/std.go
+@@ -43,5 +43,6 @@ var stdPkgs = []string{
+ 	"testing",
+ 	"time",
+ 	"unicode",
++	"unique",
+ 	"unsafe",
+ }
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 3d3ecb0f88..83afd55c47 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1694,7 +1694,8 @@ func gcResetMarkState() {
+ // Hooks for other packages
+ 
+ var poolcleanup func()
+-var boringCaches []unsafe.Pointer // for crypto/internal/boring
++var boringCaches []unsafe.Pointer  // for crypto/internal/boring
++var uniqueMapCleanup chan struct{} // for unique
+ 
+ //go:linkname sync_runtime_registerPoolCleanup sync.runtime_registerPoolCleanup
+ func sync_runtime_registerPoolCleanup(f func()) {
+@@ -1706,6 +1707,18 @@ func boring_registerCache(p unsafe.Pointer) {
+ 	boringCaches = append(boringCaches, p)
+ }
+ 
++//go:linkname unique_runtime_registerUniqueMapCleanup unique.runtime_registerUniqueMapCleanup
++func unique_runtime_registerUniqueMapCleanup(f func()) {
++	// Start the goroutine in the runtime so it's counted as a system goroutine.
++	uniqueMapCleanup = make(chan struct{}, 1)
++	go func(cleanup func()) {
++		for {
++			<-uniqueMapCleanup
++			cleanup()
++		}
++	}(f)
++}
++
+ func clearpools() {
+ 	// clear sync.Pools
+ 	if poolcleanup != nil {
+@@ -1717,6 +1730,14 @@ func clearpools() {
+ 		atomicstorep(p, nil)
+ 	}
+ 
++	// clear unique maps
++	if uniqueMapCleanup != nil {
++		select {
++		case uniqueMapCleanup <- struct{}{}:
++		default:
++		}
++	}
++
+ 	// Clear central sudog cache.
+ 	// Leave per-P caches alone, they have strictly bounded size.
+ 	// Disconnect cached list before dropping it on the floor,
+diff --git a/src/unique/clone.go b/src/unique/clone.go
+new file mode 100644
+index 0000000000..b30d44e393
+--- /dev/null
++++ b/src/unique/clone.go
+@@ -0,0 +1,100 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unique
++
++import (
++	"internal/abi"
++	"unsafe"
++)
++
++// clone makes a copy of value, and may update string values found in value
++// with a cloned version of those strings. The purpose of explicitly cloning
++// strings is to avoid accidentally giving a large string a long lifetime.
++//
++// Note that this will clone strings in structs and arrays found in value,
++// and will clone value if it itself is a string. It will not, however, clone
++// strings if value is of interface or slice type (that is, found via an
++// indirection).
++func clone[T comparable](value T, seq *cloneSeq) T {
++	for _, offset := range seq.stringOffsets {
++		ps := (*string)(unsafe.Pointer(uintptr(unsafe.Pointer(&value)) + offset))
++		*ps = cloneString(*ps)
++	}
++	return value
++}
++
++// singleStringClone describes how to clone a single string.
++var singleStringClone = cloneSeq{stringOffsets: []uintptr{0}}
++
++// cloneSeq describes how to clone a value of a particular type.
++type cloneSeq struct {
++	stringOffsets []uintptr
++}
++
++// makeCloneSeq creates a cloneSeq for a type.
++func makeCloneSeq(typ *abi.Type) cloneSeq {
++	if typ == nil {
++		return cloneSeq{}
++	}
++	if typ.Kind() == abi.String {
++		return singleStringClone
++	}
++	var seq cloneSeq
++	switch typ.Kind() {
++	case abi.Struct:
++		buildStructCloneSeq(typ, &seq, 0)
++	case abi.Array:
++		buildArrayCloneSeq(typ, &seq, 0)
++	}
++	return seq
++}
++
++// buildStructCloneSeq populates a cloneSeq for an abi.Type that has Kind abi.Struct.
++func buildStructCloneSeq(typ *abi.Type, seq *cloneSeq, baseOffset uintptr) {
++	styp := typ.StructType()
++	for i := range styp.Fields {
++		f := &styp.Fields[i]
++		switch f.Typ.Kind() {
++		case abi.String:
++			seq.stringOffsets = append(seq.stringOffsets, baseOffset+f.Offset)
++		case abi.Struct:
++			buildStructCloneSeq(f.Typ, seq, baseOffset+f.Offset)
++		case abi.Array:
++			buildArrayCloneSeq(f.Typ, seq, baseOffset+f.Offset)
++		}
++	}
++}
++
++// buildArrayCloneSeq populates a cloneSeq for an abi.Type that has Kind abi.Array.
++func buildArrayCloneSeq(typ *abi.Type, seq *cloneSeq, baseOffset uintptr) {
++	atyp := typ.ArrayType()
++	etyp := atyp.Elem
++	offset := baseOffset
++	for range atyp.Len {
++		switch etyp.Kind() {
++		case abi.String:
++			seq.stringOffsets = append(seq.stringOffsets, offset)
++		case abi.Struct:
++			buildStructCloneSeq(etyp, seq, offset)
++		case abi.Array:
++			buildArrayCloneSeq(etyp, seq, offset)
++		}
++		offset += etyp.Size()
++		align := uintptr(etyp.FieldAlign())
++		offset = (offset + align - 1) &^ (align - 1)
++	}
++}
++
++// cloneString is a copy of strings.Clone, because we can't depend on the strings
++// package here. Several packages that might make use of unique, like net, explicitly
++// forbid depending on unicode, which strings depends on.
++func cloneString(s string) string {
++	if len(s) == 0 {
++		return ""
++	}
++	b := make([]byte, len(s))
++	copy(b, s)
++	return unsafe.String(&b[0], len(b))
++}
+diff --git a/src/unique/clone_test.go b/src/unique/clone_test.go
+new file mode 100644
+index 0000000000..69a9a540c0
+--- /dev/null
++++ b/src/unique/clone_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unique
++
++import (
++	"internal/abi"
++	"internal/goarch"
++	"reflect"
++	"testing"
++)
++
++func TestMakeCloneSeq(t *testing.T) {
++	testCloneSeq[testString](t, cSeq(0))
++	testCloneSeq[testIntArray](t, cSeq())
++	testCloneSeq[testEface](t, cSeq())
++	testCloneSeq[testStringArray](t, cSeq(0, 2*goarch.PtrSize, 4*goarch.PtrSize))
++	testCloneSeq[testStringStruct](t, cSeq(0))
++	testCloneSeq[testStringStructArrayStruct](t, cSeq(0, 2*goarch.PtrSize))
++	testCloneSeq[testStruct](t, cSeq(8))
++}
++
++func cSeq(stringOffsets ...uintptr) cloneSeq {
++	return cloneSeq{stringOffsets: stringOffsets}
++}
++
++func testCloneSeq[T any](t *testing.T, want cloneSeq) {
++	typName := reflect.TypeFor[T]().Name()
++	typ := abi.TypeOf(*new(T))
++	t.Run(typName, func(t *testing.T) {
++		got := makeCloneSeq(typ)
++		if !reflect.DeepEqual(got, want) {
++			t.Errorf("unexpected cloneSeq for type %s: got %#v, want %#v", typName, got, want)
++		}
++	})
++}
+diff --git a/src/unique/doc.go b/src/unique/doc.go
+new file mode 100644
+index 0000000000..01337893c4
+--- /dev/null
++++ b/src/unique/doc.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++The unique package provides facilities for canonicalizing ("interning")
++comparable values.
++*/
++package unique
+diff --git a/src/unique/handle.go b/src/unique/handle.go
+new file mode 100644
+index 0000000000..d98f8022d7
+--- /dev/null
++++ b/src/unique/handle.go
+@@ -0,0 +1,174 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unique
++
++import (
++	"internal/abi"
++	"internal/concurrent"
++	"internal/weak"
++	"runtime"
++	"sync"
++	_ "unsafe"
++)
++
++// Handle is a globally unique identity for some value of type T.
++//
++// Two handles compare equal exactly if the two values used to create the handles
++// would have also compared equal. The comparison of two handles is trivial and
++// typically much more efficient than comparing the values used to create them.
++type Handle[T comparable] struct {
++	value *T
++}
++
++// Value returns a shallow copy of the T value that produced the Handle.
++func (h Handle[T]) Value() T {
++	return *h.value
++}
++
++// Make returns a globally unique handle for a value of type T. Handles
++// are equal if and only if the values used to produce them are equal.
++func Make[T comparable](value T) Handle[T] {
++	// Find the map for type T.
++	typ := abi.TypeOf(value)
++	ma, ok := uniqueMaps.Load(typ)
++	if !ok {
++		// This is a good time to initialize cleanup, since we must go through
++		// this path on the first use of Make, and it's not on the hot path.
++		setupMake.Do(registerCleanup)
++		ma = addUniqueMap[T](typ)
++	}
++	m := ma.(*uniqueMap[T])
++
++	// Keep around any values we allocate for insertion. There
++	// are a few different ways we can race with other threads
++	// and create values that we might discard. By keeping
++	// the first one we make around, we can avoid generating
++	// more than one per racing thread.
++	var (
++		toInsert     *T // Keep this around to keep it alive.
++		toInsertWeak weak.Pointer[T]
++	)
++	newValue := func() weak.Pointer[T] {
++		if toInsert == nil {
++			toInsert = new(T)
++			*toInsert = clone(value, &m.cloneSeq)
++			toInsertWeak = weak.Make(toInsert)
++		}
++		return toInsertWeak
++	}
++	var ptr *T
++	for {
++		// Check the map.
++		wp, ok := m.Load(value)
++		if !ok {
++			// Try to insert a new value into the map.
++			wp, _ = m.LoadOrStore(value, newValue())
++		}
++		// Now that we're sure there's a value in the map, let's
++		// try to get the pointer we need out of it.
++		ptr = wp.Strong()
++		if ptr != nil {
++			break
++		}
++		// The weak pointer is nil, so the old value is truly dead.
++		// Try to remove it and start over.
++		m.CompareAndDelete(value, wp)
++	}
++	runtime.KeepAlive(toInsert)
++	return Handle[T]{ptr}
++}
++
++var (
++	// uniqueMaps is an index of type-specific concurrent maps used for unique.Make.
++	//
++	// The two-level map might seem odd at first since the HashTrieMap could have "any"
++	// as its key type, but the issue is escape analysis. We do not want to force lookups
++	// to escape the argument, and using a type-specific map allows us to avoid that where
++	// possible (for example, for strings and plain-ol'-data structs). We also get the
++	// benefit of not cramming every different type into a single map, but that's certainly
++	// not enough to outweigh the cost of two map lookups. What is worth it though, is saving
++	// on those allocations.
++	uniqueMaps = concurrent.NewHashTrieMap[*abi.Type, any]() // any is always a *uniqueMap[T].
++
++	// cleanupFuncs are functions that clean up dead weak pointers in type-specific
++	// maps in uniqueMaps. We express cleanup this way because there's no way to iterate
++	// over the sync.Map and call functions on the type-specific data structures otherwise.
++	// These cleanup funcs each close over one of these type-specific maps.
++	//
++	// cleanupMu protects cleanupNotify and is held across the entire cleanup. Used for testing.
++	// cleanupNotify is a test-only mechanism that allow tests to wait for the cleanup to run.
++	cleanupMu      sync.Mutex
++	cleanupFuncsMu sync.Mutex
++	cleanupFuncs   []func()
++	cleanupNotify  []func() // One-time notifcations when cleanups finish.
++)
++
++type uniqueMap[T comparable] struct {
++	*concurrent.HashTrieMap[T, weak.Pointer[T]]
++	cloneSeq
++}
++
++func addUniqueMap[T comparable](typ *abi.Type) *uniqueMap[T] {
++	// Create a map for T and try to register it. We could
++	// race with someone else, but that's fine; it's one
++	// small, stray allocation. The number of allocations
++	// this can create is bounded by a small constant.
++	m := &uniqueMap[T]{
++		HashTrieMap: concurrent.NewHashTrieMap[T, weak.Pointer[T]](),
++		cloneSeq:    makeCloneSeq(typ),
++	}
++	a, loaded := uniqueMaps.LoadOrStore(typ, m)
++	if !loaded {
++		// Add a cleanup function for the new map.
++		cleanupFuncsMu.Lock()
++		cleanupFuncs = append(cleanupFuncs, func() {
++			// Delete all the entries whose weak references are nil and clean up
++			// deleted entries.
++			m.Enumerate(func(key T, wp weak.Pointer[T]) bool {
++				if wp.Strong() == nil {
++					m.CompareAndDelete(key, wp)
++				}
++				return true
++			})
++		})
++		cleanupFuncsMu.Unlock()
++	}
++	return a.(*uniqueMap[T])
++}
++
++// setupMake is used to perform initial setup for unique.Make.
++var setupMake sync.Once
++
++// startBackgroundCleanup sets up a background goroutine to occasionally call cleanupFuncs.
++func registerCleanup() {
++	runtime_registerUniqueMapCleanup(func() {
++		// Lock for cleanup.
++		cleanupMu.Lock()
++
++		// Grab funcs to run.
++		cleanupFuncsMu.Lock()
++		cf := cleanupFuncs
++		cleanupFuncsMu.Unlock()
++
++		// Run cleanup.
++		for _, f := range cf {
++			f()
++		}
++
++		// Run cleanup notifications.
++		for _, f := range cleanupNotify {
++			f()
++		}
++		cleanupNotify = nil
++
++		// Finished.
++		cleanupMu.Unlock()
++	})
++}
++
++// Implemented in runtime.
++
++//go:linkname runtime_registerUniqueMapCleanup
++func runtime_registerUniqueMapCleanup(cleanup func())
+diff --git a/src/unique/handle_bench_test.go b/src/unique/handle_bench_test.go
+new file mode 100644
+index 0000000000..51f94c3f91
+--- /dev/null
++++ b/src/unique/handle_bench_test.go
+@@ -0,0 +1,63 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unique
++
++import (
++	"fmt"
++	"runtime"
++	"testing"
++)
++
++func BenchmarkMake(b *testing.B) {
++	benchmarkMake(b, []string{"foo"})
++}
++
++func BenchmarkMakeMany(b *testing.B) {
++	benchmarkMake(b, testData[:])
++}
++
++func BenchmarkMakeManyMany(b *testing.B) {
++	benchmarkMake(b, testDataLarge[:])
++}
++
++func benchmarkMake(b *testing.B, testData []string) {
++	handles := make([]Handle[string], 0, len(testData))
++	for i := range testData {
++		handles = append(handles, Make(testData[i]))
++	}
++
++	b.ReportAllocs()
++	b.ResetTimer()
++
++	b.RunParallel(func(pb *testing.PB) {
++		i := 0
++		for pb.Next() {
++			_ = Make(testData[i])
++			i++
++			if i >= len(testData) {
++				i = 0
++			}
++		}
++	})
++
++	b.StopTimer()
++
++	runtime.GC()
++	runtime.GC()
++}
++
++var (
++	testData      [128]string
++	testDataLarge [128 << 10]string
++)
++
++func init() {
++	for i := range testData {
++		testData[i] = fmt.Sprintf("%b", i)
++	}
++	for i := range testDataLarge {
++		testDataLarge[i] = fmt.Sprintf("%b", i)
++	}
++}
+diff --git a/src/unique/handle_test.go b/src/unique/handle_test.go
+new file mode 100644
+index 0000000000..dffe10ac72
+--- /dev/null
++++ b/src/unique/handle_test.go
+@@ -0,0 +1,111 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unique
++
++import (
++	"fmt"
++	"internal/abi"
++	"reflect"
++	"runtime"
++	"testing"
++)
++
++// Set up special types. Because the internal maps are sharded by type,
++// this will ensure that we're not overlapping with other tests.
++type testString string
++type testIntArray [4]int
++type testEface any
++type testStringArray [3]string
++type testStringStruct struct {
++	a string
++}
++type testStringStructArrayStruct struct {
++	s [2]testStringStruct
++}
++type testStruct struct {
++	z float64
++	b string
++}
++
++func TestHandle(t *testing.T) {
++	testHandle[testString](t, "foo")
++	testHandle[testString](t, "bar")
++	testHandle[testString](t, "")
++	testHandle[testIntArray](t, [4]int{7, 77, 777, 7777})
++	testHandle[testEface](t, nil)
++	testHandle[testStringArray](t, [3]string{"a", "b", "c"})
++	testHandle[testStringStruct](t, testStringStruct{"x"})
++	testHandle[testStringStructArrayStruct](t, testStringStructArrayStruct{
++		s: [2]testStringStruct{testStringStruct{"y"}, testStringStruct{"z"}},
++	})
++	testHandle[testStruct](t, testStruct{0.5, "184"})
++}
++
++func testHandle[T comparable](t *testing.T, value T) {
++	name := reflect.TypeFor[T]().Name()
++	t.Run(fmt.Sprintf("%s/%#v", name, value), func(t *testing.T) {
++		t.Parallel()
++
++		v0 := Make(value)
++		v1 := Make(value)
++
++		if v0.Value() != v1.Value() {
++			t.Error("v0.Value != v1.Value")
++		}
++		if v0.Value() != value {
++			t.Errorf("v0.Value not %#v", value)
++		}
++		if v0 != v1 {
++			t.Error("v0 != v1")
++		}
++
++		drainMaps(t)
++		checkMapsFor(t, value)
++	})
++}
++
++// drainMaps ensures that the internal maps are drained.
++func drainMaps(t *testing.T) {
++	t.Helper()
++
++	wait := make(chan struct{}, 1)
++
++	// Set up a one-time notification for the next time the cleanup runs.
++	// Note: this will only run if there's no other active cleanup, so
++	// we can be sure that the next time cleanup runs, it'll see the new
++	// notification.
++	cleanupMu.Lock()
++	cleanupNotify = append(cleanupNotify, func() {
++		select {
++		case wait <- struct{}{}:
++		default:
++		}
++	})
++
++	runtime.GC()
++	cleanupMu.Unlock()
++
++	// Wait until cleanup runs.
++	<-wait
++}
++
++func checkMapsFor[T comparable](t *testing.T, value T) {
++	// Manually load the value out of the map.
++	typ := abi.TypeOf(value)
++	a, ok := uniqueMaps.Load(typ)
++	if !ok {
++		return
++	}
++	m := a.(*uniqueMap[T])
++	wp, ok := m.Load(value)
++	if !ok {
++		return
++	}
++	if wp.Strong() != nil {
++		t.Errorf("value %v still referenced a handle (or tiny block?) ", value)
++		return
++	}
++	t.Errorf("failed to drain internal maps of %v", value)
++}

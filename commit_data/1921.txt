@@ -8,6 +8,19 @@ Date:   Mon Mar 30 21:39:10 2009 -0700
     R=ken
     OCL=26934
     CL=26934
-
+---
  src/cmd/6g/gg.h | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index b3eddb3d35..22f328f379 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -115,7 +115,6 @@ void	regfree(Node*);
+ Node*	nodarg(Type*, int);
+ void	nodreg(Node*, Type*, int);
+ void	nodindreg(Node*, Type*, int);
+-void	nodconst(Node*, Type*, vlong);
+ void	gconreg(int, vlong, int);
+ void	buildtxt(void);
+ Plist*	newplist(void);

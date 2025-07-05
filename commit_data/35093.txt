@@ -11,8 +11,57 @@ Date:   Wed Dec 13 14:57:44 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                                              | 4 ++--
  src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go | 2 +-
  src/runtime/crash_cgo_test.go                                      | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 643b3b9506..76e3e84232 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -224,7 +224,7 @@ func testgo(t *testing.T) *testgoData {
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	if skipExternal {
+-		t.Skip("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
++		t.Skipf("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+ 	return &testgoData{t: t}
+@@ -2284,7 +2284,7 @@ func TestSymlinkWarning(t *testing.T) {
+ 	tg.tempDir("yy/zz")
+ 	tg.tempFile("yy/zz/zz.go", "package zz\n")
+ 	if err := os.Symlink(tg.path("yy"), tg.path("src/example/xx/yy")); err != nil {
+-		t.Skip("symlink failed: %v", err)
++		t.Skipf("symlink failed: %v", err)
+ 	}
+ 	tg.run("list", "example/xx/z...")
+ 	tg.grepStdoutNot(".", "list should not have matched anything")
+diff --git a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go
+index 8c6ebfb2c3..d3a34809e6 100644
+--- a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go
++++ b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/objdumpext_test.go
+@@ -35,7 +35,7 @@ func testObjdumpArch(t *testing.T, generate func(func([]byte)), arch Mode) {
+ func checkObjdumpAarch64(t *testing.T) {
+ 	out, err := exec.Command(objdumpPath, "-i").Output()
+ 	if err != nil {
+-		t.Skip("cannot run objdump: %v\n%s", err, out)
++		t.Skipf("cannot run objdump: %v\n%s", err, out)
+ 	}
+ 	if !strings.Contains(string(out), "aarch64") {
+ 		t.Skip("objdump does not have aarch64 support")
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 50b634dda4..8993a75ad3 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -472,7 +472,7 @@ func TestWindowsStackMemoryCgo(t *testing.T) {
+ func TestSigStackSwapping(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+-		t.Skip("no sigaltstack on %s", runtime.GOOS)
++		t.Skipf("no sigaltstack on %s", runtime.GOOS)
+ 	}
+ 	t.Parallel()
+ 	got := runTestProg(t, "testprogcgo", "SigStack")

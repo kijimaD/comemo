@@ -11,8 +11,146 @@ Date:   Wed Aug 9 10:27:48 2017 -0600
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/get/get.go      |  8 ++----
  src/cmd/go/internal/get/vcs.go      | 50 +++++++++++++++++++++++++++++++++++++
  src/cmd/go/internal/get/vcs_test.go | 18 +++++++++++++
  3 files changed, 70 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 550321198d..768469c24d 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -452,12 +452,8 @@ func downloadPackage(p *load.Package) error {
+ 	// Check that this is an appropriate place for the repo to be checked out.
+ 	// The target directory must either not exist or have a repo checked out already.
+ 	meta := filepath.Join(root, "."+vcs.cmd)
+-	st, err := os.Stat(meta)
+-	if err == nil && !st.IsDir() {
+-		return fmt.Errorf("%s exists but is not a directory", meta)
+-	}
+-	if err != nil {
+-		// Metadata directory does not exist. Prepare to checkout new copy.
++	if _, err := os.Stat(meta); err != nil {
++		// Metadata file or directory does not exist. Prepare to checkout new copy.
+ 		// Some version control tools require the target directory not to exist.
+ 		// We require that too, just to avoid stepping on existing work.
+ 		if _, err := os.Stat(root); err == nil {
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index 71d0b51344..557912815b 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -93,6 +93,7 @@ var vcsList = []*vcsCmd{
+ 	vcsGit,
+ 	vcsSvn,
+ 	vcsBzr,
++	vcsFossil,
+ }
+ 
+ // vcsByCmd returns the version control system for the given
+@@ -324,6 +325,34 @@ func svnRemoteRepo(vcsSvn *vcsCmd, rootDir string) (remoteRepo string, err error
+ 	return strings.TrimSpace(out), nil
+ }
+ 
++// fossilRepoName is the name go get associates with a fossil repository. In the
++// real world the file can be named anything.
++const fossilRepoName = ".fossil"
++
++// vcsFossil describes how to use Fossil (fossil-scm.org)
++var vcsFossil = &vcsCmd{
++	name: "Fossil",
++	cmd:  "fossil",
++
++	createCmd:   []string{"-go-internal-mkdir {dir} clone {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
++	downloadCmd: []string{"up"},
++
++	tagCmd:         []tagCmd{{"tag ls", `(.*)`}},
++	tagSyncCmd:     []string{"up tag:{tag}"},
++	tagSyncDefault: []string{"up trunk"},
++
++	scheme:     []string{"https", "http"},
++	remoteRepo: fossilRemoteRepo,
++}
++
++func fossilRemoteRepo(vcsFossil *vcsCmd, rootDir string) (remoteRepo string, err error) {
++	out, err := vcsFossil.runOutput(rootDir, "remote-url")
++	if err != nil {
++		return "", err
++	}
++	return strings.TrimSpace(string(out)), nil
++}
++
+ func (v *vcsCmd) String() string {
+ 	return v.name
+ }
+@@ -362,6 +391,19 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
+ 		args[i] = expand(m, arg)
+ 	}
+ 
++	if len(args) >= 2 && args[0] == "-go-internal-mkdir" {
++		var err error
++		if filepath.IsAbs(args[1]) {
++			err = os.Mkdir(args[1], os.ModePerm)
++		} else {
++			err = os.Mkdir(filepath.Join(dir, args[1]), os.ModePerm)
++		}
++		if err != nil {
++			return nil, err
++		}
++		args = args[2:]
++	}
++
+ 	if len(args) >= 2 && args[0] == "-go-internal-cd" {
+ 		if filepath.IsAbs(args[1]) {
+ 			dir = args[1]
+@@ -895,6 +937,14 @@ var vcsPaths = []*vcsPath{
+ 		repo:   "https://{root}",
+ 	},
+ 
++	// chiselapp.com for fossil
++	{
++		prefix: "chiselapp.com",
++		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-za-z0-9_.\-]+)$`,
++		vcs:    "fossil",
++		repo:   "https://{root}",
++	},
++
+ 	// General syntax for any server.
+ 	// Must be last.
+ 	{
+diff --git a/src/cmd/go/internal/get/vcs_test.go b/src/cmd/go/internal/get/vcs_test.go
+index 62d352ae57..e29338aec1 100644
+--- a/src/cmd/go/internal/get/vcs_test.go
++++ b/src/cmd/go/internal/get/vcs_test.go
+@@ -154,6 +154,22 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 				repo: "https://git.apache.org/package-name_2.x.git",
+ 			},
+ 		},
++		{
++			"chiselapp.com/user/kyle/repository/fossilgg",
++			&repoRoot{
++				vcs:  vcsFossil,
++				repo: "https://chiselapp.com/user/kyle/repository/fossilgg",
++			},
++		},
++		{
++			// must have a user/$name/repository/$repo path
++			"chiselapp.com/kyle/repository/fossilgg",
++			nil,
++		},
++		{
++			"chiselapp.com/user/kyle/fossilgg",
++			nil,
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -241,6 +257,8 @@ func TestIsSecure(t *testing.T) {
+ 		{vcsGit, "example.com:path/to/repo.git", false},
+ 		{vcsGit, "path/that/contains/a:colon/repo.git", false},
+ 		{vcsHg, "ssh://user@example.com/path/to/repo.hg", true},
++		{vcsFossil, "http://example.com/foo", false},
++		{vcsFossil, "https://example.com/foo", true},
+ 	}
+ 
+ 	for _, test := range tests {

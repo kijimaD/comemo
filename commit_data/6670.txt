@@ -7,6 +7,27 @@ Date:   Sat Oct 30 21:25:19 2010 -0700
     R=golang-dev, PeterGo, gri
     CC=golang-dev
     https://golang.org/cl/2710044
-
+---
  misc/kate/go.xml | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/kate/go.xml b/misc/kate/go.xml
+index e8728fd847..3a5c39c949 100644
+--- a/misc/kate/go.xml
++++ b/misc/kate/go.xml
+@@ -42,6 +42,7 @@
+       <item> bool </item>
+       <item> byte </item>
+       <item> chan </item>
++      <item> complex </item>
+       <item> complex64 </item>
+       <item> complex128 </item>
+       <item> float </item>
+@@ -62,6 +63,7 @@
+       <item> uint64 </item>
+     </list>
+     <list name="functions">
++      <item> append </item>
+       <item> cap </item>
+       <item> close </item>
+       <item> closed </item>

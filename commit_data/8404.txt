@@ -12,6 +12,20 @@ Date:   Mon May 16 10:27:49 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4535072
-
+---
  src/pkg/os/dir_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/dir_windows.go b/src/pkg/os/dir_windows.go
+index 5a12d00612..a4df9d3eab 100644
+--- a/src/pkg/os/dir_windows.go
++++ b/src/pkg/os/dir_windows.go
+@@ -8,7 +8,7 @@ func (file *File) Readdirnames(n int) (names []string, err Error) {
+ 	fis, err := file.Readdir(n)
+ 	// If n > 0 and we get an error, we return now.
+ 	// If n < 0, we return whatever we got + any error.
+-	if n > 0 && e != nil {
++	if n > 0 && err != nil {
+ 		return nil, err
+ 	}
+ 	names = make([]string, len(fis))

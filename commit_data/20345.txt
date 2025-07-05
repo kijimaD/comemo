@@ -13,6 +13,20 @@ Date:   Tue Sep 2 14:36:25 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews, r
     https://golang.org/cl/140830043
-
+---
  src/cmd/gc/walk.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 26d8011240..30c139200b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1838,7 +1838,7 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 				}
+ 			} else {
+ 				if(et == TUINT64) {
+-					if(t->sym->pkg == runtimepkg && strcmp(t->sym->name, "hex") == 0)
++					if((t->sym->pkg == runtimepkg || compiling_runtime) && strcmp(t->sym->name, "hex") == 0)
+ 						on = syslook("printhex", 0);
+ 					else
+ 						on = syslook("printuint", 0);

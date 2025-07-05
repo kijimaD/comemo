@@ -12,6 +12,30 @@ Date:   Sun Jun 26 15:17:23 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/issue52871.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/test/fixedbugs/issue52871.go b/test/fixedbugs/issue52871.go
+new file mode 100644
+index 0000000000..d3731a183a
+--- /dev/null
++++ b/test/fixedbugs/issue52871.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gofrontend crashed compiling this code.
++
++package p
++
++type S struct {}
++
++func (s *S) test(_ string) {}
++
++var T = [1]func(*S, string) {
++	(*S).test,
++}

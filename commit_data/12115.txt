@@ -7,6 +7,24 @@ Date:   Wed Feb 22 09:25:56 2012 +1100
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5690058
-
+---
  lib/godoc/package.html | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 841ad8df0f..01043b05f2 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -168,7 +168,11 @@
+ 	{{range .List}}
+ 	<tr>
+ 		<td>
+-		{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a>
++		{{if $.DirFlat}}
++			<a href="{{html .Path}}">{{html .Path}}</a>
++		{{else}}
++			{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a>
++		{{end}}
+ 		</td>
+ 		<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+ 		<td style="width: auto">{{html .Synopsis}}</td>

@@ -47,9 +47,138 @@ Date:   Sat Jul 7 15:59:20 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/json/decode_test.go |  2 +-
  src/encoding/json/encode.go      | 27 +++++++++++++++++++++++----
  src/encoding/json/encode_test.go | 15 +++++++++++++++
  src/encoding/json/stream_test.go |  9 +++++++++
  4 files changed, 48 insertions(+), 5 deletions(-)
+
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index ab83b81bb3..127bc494e5 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -142,7 +142,7 @@ var (
+ 	umstructXY   = ustructText{unmarshalerText{"x", "y"}}
+ 
+ 	ummapType = map[unmarshalerText]bool{}
+-	ummapXY   = map[unmarshalerText]bool{unmarshalerText{"x", "y"}: true}
++	ummapXY   = map[unmarshalerText]bool{{"x", "y"}: true}
+ )
+ 
+ // Test data structures for anonymous fields.
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 7ebb04c50a..632c12404a 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -641,8 +641,11 @@ func (se *structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+ 		} else {
+ 			e.WriteByte(',')
+ 		}
+-		e.string(f.name, opts.escapeHTML)
+-		e.WriteByte(':')
++		if opts.escapeHTML {
++			e.WriteString(f.nameEscHTML)
++		} else {
++			e.WriteString(f.nameNonEsc)
++		}
+ 		opts.quoted = f.quoted
+ 		se.fieldEncs[i](e, fv, opts)
+ 	}
+@@ -1036,6 +1039,9 @@ type field struct {
+ 	nameBytes []byte                 // []byte(name)
+ 	equalFold func(s, t []byte) bool // bytes.EqualFold or equivalent
+ 
++	nameNonEsc  string // `"` + name + `":`
++	nameEscHTML string // `"` + HTMLEscape(name) + `":`
++
+ 	tag       bool
+ 	index     []int
+ 	typ       reflect.Type
+@@ -1086,6 +1092,9 @@ func typeFields(t reflect.Type) []field {
+ 	// Fields found.
+ 	var fields []field
+ 
++	// Buffer to run HTMLEscape on field names.
++	var nameEscBuf bytes.Buffer
++
+ 	for len(next) > 0 {
+ 		current, next = next, current[:0]
+ 		count, nextCount = nextCount, map[reflect.Type]int{}
+@@ -1152,14 +1161,24 @@ func typeFields(t reflect.Type) []field {
+ 					if name == "" {
+ 						name = sf.Name
+ 					}
+-					fields = append(fields, fillField(field{
++					field := fillField(field{
+ 						name:      name,
+ 						tag:       tagged,
+ 						index:     index,
+ 						typ:       ft,
+ 						omitEmpty: opts.Contains("omitempty"),
+ 						quoted:    quoted,
+-					}))
++					})
++
++					// Build nameEscHTML and nameNonEsc ahead of time.
++					nameEscBuf.Reset()
++					nameEscBuf.WriteString(`"`)
++					HTMLEscape(&nameEscBuf, field.nameBytes)
++					nameEscBuf.WriteString(`":`)
++					field.nameEscHTML = nameEscBuf.String()
++					field.nameNonEsc = `"` + field.name + `":`
++
++					fields = append(fields, field)
+ 					if count[f.typ] > 1 {
+ 						// If there were multiple instances, add a second,
+ 						// so that the annihilation code will see a duplicate.
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index b90483cf35..1b7838c895 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -995,3 +995,18 @@ func TestMarshalPanic(t *testing.T) {
+ 	Marshal(&marshalPanic{})
+ 	t.Error("Marshal should have panicked")
+ }
++
++func TestMarshalUncommonFieldNames(t *testing.T) {
++	v := struct {
++		A0, À, Aβ int
++	}{}
++	b, err := Marshal(v)
++	if err != nil {
++		t.Fatal("Marshal:", err)
++	}
++	want := `{"A0":0,"À":0,"Aβ":0}`
++	got := string(b)
++	if got != want {
++		t.Fatalf("Marshal: got %s want %s", got, want)
++	}
++}
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index 83c01d170c..0ed1c9e974 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -93,6 +93,10 @@ func TestEncoderIndent(t *testing.T) {
+ func TestEncoderSetEscapeHTML(t *testing.T) {
+ 	var c C
+ 	var ct CText
++	var tagStruct struct {
++		Valid   int `json:"<>&#! "`
++		Invalid int `json:"\\"`
++	}
+ 	for _, tt := range []struct {
+ 		name       string
+ 		v          interface{}
+@@ -102,6 +106,11 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
+ 		{"c", c, `"\u003c\u0026\u003e"`, `"<&>"`},
+ 		{"ct", ct, `"\"\u003c\u0026\u003e\""`, `"\"<&>\""`},
+ 		{`"<&>"`, "<&>", `"\u003c\u0026\u003e"`, `"<&>"`},
++		{
++			"tagStruct", tagStruct,
++			`{"\u003c\u003e\u0026#! ":0,"Invalid":0}`,
++			`{"<>&#! ":0,"Invalid":0}`,
++		},
+ 	} {
+ 		var buf bytes.Buffer
+ 		enc := NewEncoder(&buf)

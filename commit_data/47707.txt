@@ -10,10 +10,166 @@ Date:   Mon Apr 5 15:48:32 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/307215
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/pos.go     | 39 ++++++++++++++++++++++++++++++
  src/cmd/compile/internal/syntax/testing.go |  8 +++---
  src/cmd/compile/internal/types2/decl.go    | 35 +--------------------------
  src/cmd/compile/internal/types2/scope.go   |  4 +--
  src/cmd/compile/internal/types2/stmt.go    |  2 +-
  5 files changed, 47 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+index 99734d42d8..baebcc995c 100644
+--- a/src/cmd/compile/internal/syntax/pos.go
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -59,6 +59,45 @@ func (pos Pos) RelCol() uint {
+ 	return pos.Col()
+ }
+ 
++// Cmp compares the positions p and q and returns a result r as follows:
++//
++//	r <  0: p is before q
++//	r == 0: p and q are the same position (but may not be identical)
++//	r >  0: p is after q
++//
++// If p and q are in different files, p is before q if the filename
++// of p sorts lexicographically before the filename of q.
++func (p Pos) Cmp(q Pos) int {
++	pname := p.RelFilename()
++	qname := q.RelFilename()
++	switch {
++	case pname < qname:
++		return -1
++	case pname > qname:
++		return +1
++	}
++
++	pline := p.Line()
++	qline := q.Line()
++	switch {
++	case pline < qline:
++		return -1
++	case pline > qline:
++		return +1
++	}
++
++	pcol := p.Col()
++	qcol := q.Col()
++	switch {
++	case pcol < qcol:
++		return -1
++	case pcol > qcol:
++		return +1
++	}
++
++	return 0
++}
++
+ func (pos Pos) String() string {
+ 	rel := position_{pos.RelFilename(), pos.RelLine(), pos.RelCol()}
+ 	abs := position_{pos.Base().Pos().RelFilename(), pos.Line(), pos.Col()}
+diff --git a/src/cmd/compile/internal/syntax/testing.go b/src/cmd/compile/internal/syntax/testing.go
+index 3e02dc1c5d..6a97dc0c2a 100644
+--- a/src/cmd/compile/internal/syntax/testing.go
++++ b/src/cmd/compile/internal/syntax/testing.go
+@@ -33,10 +33,10 @@ var errRx = regexp.MustCompile(`^ *ERROR *"?([^"]*)"?`)
+ // for each Error is the position of the token immediately preceding
+ // the comment, the Error message is the message msg extracted from
+ // the comment, with all errors that are on the same line collected
+-// in a slice. If there is no preceding token (the `ERROR` comment
+-// appears in the beginning of the file), then the recorded position
+-// is unknown (line, col = 0, 0). If there are no ERROR comments, the
+-// result is nil.
++// in a slice, in source order. If there is no preceding token (the
++// `ERROR` comment appears in the beginning of the file), then the
++// recorded position is unknown (line, col = 0, 0). If there are no
++// ERROR comments, the result is nil.
+ func ErrorMap(src io.Reader) (errmap map[uint][]Error) {
+ 	// position of previous token
+ 	var base *PosBase
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index fe79b00152..f8559a43bb 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -383,45 +383,12 @@ func (check *Checker) cycleError(cycle []Object) {
+ 	check.report(&err)
+ }
+ 
+-// TODO(gri) This functionality should probably be with the Pos implementation.
+-func cmpPos(p, q syntax.Pos) int {
+-	// TODO(gri) is RelFilename correct here?
+-	pname := p.RelFilename()
+-	qname := q.RelFilename()
+-	switch {
+-	case pname < qname:
+-		return -1
+-	case pname > qname:
+-		return +1
+-	}
+-
+-	pline := p.Line()
+-	qline := q.Line()
+-	switch {
+-	case pline < qline:
+-		return -1
+-	case pline > qline:
+-		return +1
+-	}
+-
+-	pcol := p.Col()
+-	qcol := q.Col()
+-	switch {
+-	case pcol < qcol:
+-		return -1
+-	case pcol > qcol:
+-		return +1
+-	}
+-
+-	return 0
+-}
+-
+ // firstInSrc reports the index of the object with the "smallest"
+ // source position in path. path must not be empty.
+ func firstInSrc(path []Object) int {
+ 	fst, pos := 0, path[0].Pos()
+ 	for i, t := range path[1:] {
+-		if cmpPos(t.Pos(), pos) < 0 {
++		if t.Pos().Cmp(pos) < 0 {
+ 			fst, pos = i+1, t.Pos()
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/scope.go b/src/cmd/compile/internal/types2/scope.go
+index fd0b6241f5..ade0a79b31 100644
+--- a/src/cmd/compile/internal/types2/scope.go
++++ b/src/cmd/compile/internal/types2/scope.go
+@@ -81,7 +81,7 @@ func (s *Scope) Lookup(name string) Object {
+ // whose scope is the scope of the package that exported them.
+ func (s *Scope) LookupParent(name string, pos syntax.Pos) (*Scope, Object) {
+ 	for ; s != nil; s = s.parent {
+-		if obj := s.elems[name]; obj != nil && (!pos.IsKnown() || cmpPos(obj.scopePos(), pos) <= 0) {
++		if obj := s.elems[name]; obj != nil && (!pos.IsKnown() || obj.scopePos().Cmp(pos) <= 0) {
+ 			return s, obj
+ 		}
+ 	}
+@@ -153,7 +153,7 @@ func (s *Scope) End() syntax.Pos { return s.end }
+ // The result is guaranteed to be valid only if the type-checked
+ // AST has complete position information.
+ func (s *Scope) Contains(pos syntax.Pos) bool {
+-	return cmpPos(s.pos, pos) <= 0 && cmpPos(pos, s.end) < 0
++	return s.pos.Cmp(pos) <= 0 && pos.Cmp(s.end) < 0
+ }
+ 
+ // Innermost returns the innermost (child) scope containing
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 8447fa5de2..9e3a45b6a8 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -66,7 +66,7 @@ func (check *Checker) usage(scope *Scope) {
+ 		}
+ 	}
+ 	sort.Slice(unused, func(i, j int) bool {
+-		return cmpPos(unused[i].pos, unused[j].pos) < 0
++		return unused[i].pos.Cmp(unused[j].pos) < 0
+ 	})
+ 	for _, v := range unused {
+ 		check.softErrorf(v.pos, "%s declared but not used", v.name)

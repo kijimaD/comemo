@@ -24,7 +24,7 @@ Date:   Wed Mar 24 21:55:49 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/resolver.go                        | 101 +++++++++++++++++------
  src/go/parser/resolver_test.go                   |   3 +-
  src/go/parser/testdata/resolution/issue45136.src |   6 +-
@@ -32,3 +32,308 @@ Date:   Wed Mar 24 21:55:49 2021 -0400
  src/go/parser/testdata/resolution/resolution.src |  13 ++-
  src/go/parser/testdata/resolution/typeparams.go2 |  32 +++++--
  6 files changed, 119 insertions(+), 38 deletions(-)
+
+diff --git a/src/go/parser/resolver.go b/src/go/parser/resolver.go
+index 1e357e26df..cf92c7e4f5 100644
+--- a/src/go/parser/resolver.go
++++ b/src/go/parser/resolver.go
+@@ -19,12 +19,12 @@ const debugResolve = false
+ // If declErr is non-nil, it is used to report declaration errors during
+ // resolution. tok is used to format position in error messages.
+ func resolveFile(file *ast.File, handle *token.File, declErr func(token.Pos, string)) {
+-	topScope := ast.NewScope(nil)
++	pkgScope := ast.NewScope(nil)
+ 	r := &resolver{
+ 		handle:   handle,
+ 		declErr:  declErr,
+-		topScope: topScope,
+-		pkgScope: topScope,
++		topScope: pkgScope,
++		pkgScope: pkgScope,
+ 	}
+ 
+ 	for _, decl := range file.Decls {
+@@ -245,9 +245,10 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
+ 		r.resolve(n, true)
+ 
+ 	case *ast.FuncLit:
+-		functionScope := ast.NewScope(r.topScope)
+-		r.walkFuncType(functionScope, n.Type)
+-		r.walkBody(functionScope, n.Body)
++		r.openScope(n.Pos())
++		defer r.closeScope()
++		r.walkFuncType(n.Type)
++		r.walkBody(n.Body)
+ 
+ 	case *ast.SelectorExpr:
+ 		ast.Walk(r, n.X)
+@@ -255,12 +256,14 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
+ 		// resolution.
+ 
+ 	case *ast.StructType:
+-		scope := ast.NewScope(nil)
+-		r.walkFieldList(scope, n.Fields, ast.Var)
++		r.openScope(n.Pos())
++		defer r.closeScope()
++		r.walkFieldList(n.Fields, ast.Var)
+ 
+ 	case *ast.FuncType:
+-		scope := ast.NewScope(r.topScope)
+-		r.walkFuncType(scope, n)
++		r.openScope(n.Pos())
++		defer r.closeScope()
++		r.walkFuncType(n)
+ 
+ 	case *ast.CompositeLit:
+ 		if n.Type != nil {
+@@ -283,8 +286,9 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
+ 		}
+ 
+ 	case *ast.InterfaceType:
+-		scope := ast.NewScope(nil)
+-		r.walkFieldList(scope, n.Methods, ast.Fun)
++		r.openScope(n.Pos())
++		defer r.closeScope()
++		r.walkFieldList(n.Methods, ast.Fun)
+ 
+ 	// Statements
+ 	case *ast.LabeledStmt:
+@@ -454,17 +458,36 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
+ 				if tparams := typeparams.Get(spec); tparams != nil {
+ 					r.openScope(spec.Pos())
+ 					defer r.closeScope()
+-					r.walkFieldList(r.topScope, tparams, ast.Typ)
++					r.walkTParams(tparams)
+ 				}
+ 				ast.Walk(r, spec.Type)
+ 			}
+ 		}
+ 
+ 	case *ast.FuncDecl:
+-		scope := ast.NewScope(r.topScope)
+-		r.walkFieldList(scope, n.Recv, ast.Var)
+-		r.walkFuncType(scope, n.Type)
+-		r.walkBody(scope, n.Body)
++		// Open the function scope.
++		r.openScope(n.Pos())
++		defer r.closeScope()
++
++		// Resolve the receiver first, without declaring.
++		r.resolveList(n.Recv)
++
++		// Type parameters are walked normally: they can reference each other, and
++		// can be referenced by normal parameters.
++		if tparams := typeparams.Get(n.Type); tparams != nil {
++			r.walkTParams(tparams)
++			// TODO(rFindley): need to address receiver type parameters.
++		}
++
++		// Resolve and declare parameters in a specific order to get duplicate
++		// declaration errors in the correct location.
++		r.resolveList(n.Type.Params)
++		r.resolveList(n.Type.Results)
++		r.declareList(n.Recv, ast.Var)
++		r.declareList(n.Type.Params, ast.Var)
++		r.declareList(n.Type.Results, ast.Var)
++
++		r.walkBody(n.Body)
+ 		if n.Recv == nil && n.Name.Name != "init" {
+ 			r.declare(n, nil, r.pkgScope, ast.Fun, n.Name)
+ 		}
+@@ -476,12 +499,15 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
+ 	return nil
+ }
+ 
+-func (r *resolver) walkFuncType(scope *ast.Scope, typ *ast.FuncType) {
+-	r.walkFieldList(scope, typ.Params, ast.Var)
+-	r.walkFieldList(scope, typ.Results, ast.Var)
++func (r *resolver) walkFuncType(typ *ast.FuncType) {
++	// typ.TParams must be walked separately for FuncDecls.
++	r.resolveList(typ.Params)
++	r.resolveList(typ.Results)
++	r.declareList(typ.Params, ast.Var)
++	r.declareList(typ.Results, ast.Var)
+ }
+ 
+-func (r *resolver) walkFieldList(scope *ast.Scope, list *ast.FieldList, kind ast.ObjKind) {
++func (r *resolver) resolveList(list *ast.FieldList) {
+ 	if list == nil {
+ 		return
+ 	}
+@@ -489,16 +515,41 @@ func (r *resolver) walkFieldList(scope *ast.Scope, list *ast.FieldList, kind ast
+ 		if f.Type != nil {
+ 			ast.Walk(r, f.Type)
+ 		}
+-		r.declare(f, nil, scope, kind, f.Names...)
+ 	}
+ }
+ 
+-func (r *resolver) walkBody(scope *ast.Scope, body *ast.BlockStmt) {
++func (r *resolver) declareList(list *ast.FieldList, kind ast.ObjKind) {
++	if list == nil {
++		return
++	}
++	for _, f := range list.List {
++		r.declare(f, nil, r.topScope, kind, f.Names...)
++	}
++}
++
++func (r *resolver) walkFieldList(list *ast.FieldList, kind ast.ObjKind) {
++	if list == nil {
++		return
++	}
++	r.resolveList(list)
++	r.declareList(list, kind)
++}
++
++// walkTParams is like walkFieldList, but declares type parameters eagerly so
++// that they may be resolved in the constraint expressions held in the field
++// Type.
++func (r *resolver) walkTParams(list *ast.FieldList) {
++	if list == nil {
++		return
++	}
++	r.declareList(list, ast.Typ)
++	r.resolveList(list)
++}
++
++func (r *resolver) walkBody(body *ast.BlockStmt) {
+ 	if body == nil {
+ 		return
+ 	}
+-	r.topScope = scope // open function scope
+-	defer r.closeScope()
+ 	r.openLabelScope()
+ 	defer r.closeLabelScope()
+ 	r.walkStmts(body.List)
+diff --git a/src/go/parser/resolver_test.go b/src/go/parser/resolver_test.go
+index 80a6638210..625c009c91 100644
+--- a/src/go/parser/resolver_test.go
++++ b/src/go/parser/resolver_test.go
+@@ -86,7 +86,8 @@ func TestResolution(t *testing.T) {
+ func declsFromParser(file *ast.File) map[token.Pos]token.Pos {
+ 	objmap := map[token.Pos]token.Pos{}
+ 	ast.Inspect(file, func(node ast.Node) bool {
+-		if ident, _ := node.(*ast.Ident); ident != nil && ident.Obj != nil {
++		// Ignore blank identifiers to reduce noise.
++		if ident, _ := node.(*ast.Ident); ident != nil && ident.Obj != nil && ident.Name != "_" {
+ 			objmap[ident.Pos()] = ident.Obj.Pos()
+ 		}
+ 		return true
+diff --git a/src/go/parser/testdata/resolution/issue45136.src b/src/go/parser/testdata/resolution/issue45136.src
+index 671001f5a3..e1d63d8377 100644
+--- a/src/go/parser/testdata/resolution/issue45136.src
++++ b/src/go/parser/testdata/resolution/issue45136.src
+@@ -8,7 +8,7 @@ type obj /* =@obj */ struct {
+ 	name /*=@name */ string
+ }
+ 
+-func _ /* =@blank */ () {
++func _() {
+ 	var foo /* =@foo */ = "foo"
+ 	obj /* @obj */ ["foo"]
+ 	obj /* @obj */ .run()
+@@ -19,8 +19,8 @@ func _ /* =@blank */ () {
+ 		name: "bar",
+ 	}.run()
+ 
+-	var _ /* @=blank4 */ = File{key: obj /* @obj */ {}}
+-	var _ /* @=blank3 */ = File{obj /* @obj */ {}}
++	var _ = File{key: obj /* @obj */ {}}
++	var _ = File{obj /* @obj */ {}}
+ 
+ 	[]obj /* @obj */ {foo /* @foo */}
+ 	x /* =@x1 */ := obj /* @obj */{}
+diff --git a/src/go/parser/testdata/resolution/issue45160.src b/src/go/parser/testdata/resolution/issue45160.src
+index 77cf0fa9c0..6be933b783 100644
+--- a/src/go/parser/testdata/resolution/issue45160.src
++++ b/src/go/parser/testdata/resolution/issue45160.src
+@@ -6,7 +6,7 @@ package issue45160
+ 
+ func mklink1 /* =@mklink1func */() {}
+ 
+-func _ /* =@blank */ () {
++func _() {
+ 	var tests /* =@tests */ = []dirLinkTest /* @dirLinkTest */ {
+ 		{
+ 			mklink1 /* @mklink1func */: func() {},
+diff --git a/src/go/parser/testdata/resolution/resolution.src b/src/go/parser/testdata/resolution/resolution.src
+index d76a83d9ed..a880dd1c5e 100644
+--- a/src/go/parser/testdata/resolution/resolution.src
++++ b/src/go/parser/testdata/resolution/resolution.src
+@@ -21,7 +21,7 @@ const (
+ 
+ type T /* =@T */ int
+ 
+-func _ /* =@blankFunc */ (count /* =@count */ T /* @T */) {
++func _(count /* =@count */ T /* @T */) {
+ 	x /* =@x1 */ := c /* @cdecl */{}
+ 	switch x /* =@x2 */ := x /* @x1 */; x /* =@x3 */ := x /* @x2 */.(type) {
+ 	case c /* @cdecl */:
+@@ -39,8 +39,19 @@ loop /* =@loop */:
+ 	case err /* =@err2 */ := <-_:
+ 		return err /* @err2 */
+ 	}
++
++	_ = func(p1 /* =@p1 */ int, p2 /* =@p2 */ p1) {
++		closed /* =@closed */ := p1 // @p1
++		shadowed /* =@shadowed1 */ := p2 // @p2
++		_ = func(shadowed /* =@shadowed2 */ p2 /* @p2 */) {
++			closed /* @closed */ = 1
++			shadowed /* @shadowed2 */ = 2
++		}
++	}
+ }
+ 
++func (r /* =@r */ c /* @cdecl */) m(_ r) c /* @cdecl */ { return r /* @r */ }
++
+ var cycle /* =@cycle */ = cycle /* @cycle */ + 1
+ 
+ type chain /* =@chain */ struct {
+diff --git a/src/go/parser/testdata/resolution/typeparams.go2 b/src/go/parser/testdata/resolution/typeparams.go2
+index c03a596203..0ffecd69b5 100644
+--- a/src/go/parser/testdata/resolution/typeparams.go2
++++ b/src/go/parser/testdata/resolution/typeparams.go2
+@@ -9,17 +9,35 @@ type List /* =@List */ [E /* =@E */ any] []E // @E
+ type Pair /* =@Pair */ [L /* =@L */, R /* =@R */ any] struct {
+ 	Left /* =@Left */ L // @L
+ 	Right /* =@Right */ R // @R
++	L /* =@Lfield */ int
+ }
+ 
+-var _ /* =@blank */ = Pair /* @Pair */ [int, string]{}
++var _ = Pair /* @Pair */ [int, string]{}
+ 
+ type Addable /* =@Addable */ interface {
+ 	type int64, float64
+ }
+ 
+-// TODO (#45221): resolve references to T in the signature below.
+-// TODO(rFindley): re-enable these once type parameter resolution is fixed.
+-// func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T) T {
+-	// var t /* =@t */ T /* @T */
+-	// return l /* @l */ + r /* @r */ + t /* @t */
+-// }
++func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T /* @T */) T /* @T */ {
++	var t /* =@t */ T /* @T */
++	return l /* @l */ + r /* @r */ + t /* @t */
++}
++
++type Receiver /* =@Receiver */[P /* =@P */ any] struct {}
++
++// TODO(rFindley): make a decision on how/whether to resolve identifiers that
++// refer to receiver type parameters, as is the case for the 'P' result
++// parameter below.
++func (r /* =@recv */ Receiver /* @Receiver */ [P]) m() P {}
++
++func f /* =@f */[T1 /* =@T1 */ interface{type []T2 /* @T2 */}, T2 /* =@T2 */ any](
++  x /* =@x */ T1 /* @T1 */, T1 /* =@T1_duplicate */ y,  // Note that this is a bug:
++                                                        // the duplicate T1 should
++							// not be allowed.
++  ){
++  // Note that duplicate short var declarations resolve to their alt declaration.
++  x /* @x */ := 0
++  y /* =@y */ := 0
++  T1 /* @T1 */ := 0
++  var t1var /* =@t1var */ T1 /* @T1 */
++}

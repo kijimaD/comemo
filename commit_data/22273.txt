@@ -11,7 +11,7 @@ Date:   Mon Mar 2 15:22:19 2015 -0500
     Change-Id: Ib9351ba18c80fd89e6a1d4f19dea386d4c657337
     Reviewed-on: https://go-review.googlesource.com/6518
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/5g/peep.go           |  2 +-
  src/cmd/5g/prog.go           |  6 ++++--
  src/cmd/6g/peep.go           |  8 ++++----
@@ -26,3 +26,335 @@ Date:   Mon Mar 2 15:22:19 2015 -0500
  src/cmd/internal/gc/popt.go  | 20 +++++++++++---------
  src/cmd/internal/gc/reg.go   |  2 +-
  13 files changed, 44 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/5g/peep.go b/src/cmd/5g/peep.go
+index 28977e268a..0c304f8b5e 100644
+--- a/src/cmd/5g/peep.go
++++ b/src/cmd/5g/peep.go
+@@ -266,7 +266,7 @@ func subprop(r0 *gc.Flow) bool {
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+-		proginfo(&info, p)
++		info = proginfo(p)
+ 		if info.Flags&gc.Call != 0 {
+ 			return false
+ 		}
+diff --git a/src/cmd/5g/prog.go b/src/cmd/5g/prog.go
+index 3f7715f1fc..8135b8c58a 100644
+--- a/src/cmd/5g/prog.go
++++ b/src/cmd/5g/prog.go
+@@ -133,8 +133,8 @@ var progtable = [arm.ALAST]gc.ProgInfo{
+ 	obj.ARET: gc.ProgInfo{gc.Break, 0, 0, 0},
+ }
+ 
+-func proginfo(info *gc.ProgInfo, p *obj.Prog) {
+-	*info = progtable[p.As]
++func proginfo(p *obj.Prog) (info gc.ProgInfo) {
++	info = progtable[p.As]
+ 	if info.Flags == 0 {
+ 		gc.Fatal("unknown instruction %v", p)
+ 	}
+@@ -160,4 +160,6 @@ func proginfo(info *gc.ProgInfo, p *obj.Prog) {
+ 		arm.AMODU:
+ 		info.Regset |= RtoB(arm.REG_R12)
+ 	}
++
++	return
+ }
+diff --git a/src/cmd/6g/peep.go b/src/cmd/6g/peep.go
+index 9c36c6be30..7eff574556 100644
+--- a/src/cmd/6g/peep.go
++++ b/src/cmd/6g/peep.go
+@@ -48,7 +48,7 @@ func needc(p *obj.Prog) bool {
+ 	var info gc.ProgInfo
+ 
+ 	for p != nil {
+-		proginfo(&info, p)
++		info = proginfo(p)
+ 		if info.Flags&gc.UseCarry != 0 {
+ 			return true
+ 		}
+@@ -514,7 +514,7 @@ func prevl(r0 *gc.Flow, reg int) bool {
+ 	for r := (*gc.Flow)(gc.Uniqp(r0)); r != nil; r = gc.Uniqp(r) {
+ 		p = r.Prog
+ 		if p.To.Type == obj.TYPE_REG && int(p.To.Reg) == reg {
+-			proginfo(&info, p)
++			info = proginfo(p)
+ 			if info.Flags&gc.RightWrite != 0 {
+ 				if info.Flags&gc.SizeL != 0 {
+ 					return true
+@@ -578,7 +578,7 @@ func subprop(r0 *gc.Flow) bool {
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+-		proginfo(&info, p)
++		info = proginfo(p)
+ 		if info.Flags&gc.Call != 0 {
+ 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 				fmt.Printf("\tfound %v; return 0\n", p)
+@@ -826,7 +826,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		return 0
+ 	}
+ 	var info gc.ProgInfo
+-	proginfo(&info, p)
++	info = proginfo(p)
+ 
+ 	if (info.Reguse|info.Regset)&RtoB(int(v.Reg)) != 0 {
+ 		return 2
+diff --git a/src/cmd/6g/prog.go b/src/cmd/6g/prog.go
+index 3f4c19567c..a1895a7017 100644
+--- a/src/cmd/6g/prog.go
++++ b/src/cmd/6g/prog.go
+@@ -237,8 +237,8 @@ var progtable = [x86.ALAST]gc.ProgInfo{
+ 	x86.AXORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+ }
+ 
+-func proginfo(info *gc.ProgInfo, p *obj.Prog) {
+-	*info = progtable[p.As]
++func proginfo(p *obj.Prog) (info gc.ProgInfo) {
++	info = progtable[p.As]
+ 	if info.Flags == 0 {
+ 		gc.Fatal("unknown instruction %v", p)
+ 	}
+@@ -269,4 +269,6 @@ func proginfo(info *gc.ProgInfo, p *obj.Prog) {
+ 	if p.To.Index != x86.REG_NONE {
+ 		info.Regindex |= RtoB(int(p.To.Index))
+ 	}
++
++	return
+ }
+diff --git a/src/cmd/8g/peep.go b/src/cmd/8g/peep.go
+index deb3405057..abb89fdc51 100644
+--- a/src/cmd/8g/peep.go
++++ b/src/cmd/8g/peep.go
+@@ -49,7 +49,7 @@ func needc(p *obj.Prog) bool {
+ 	var info gc.ProgInfo
+ 
+ 	for p != nil {
+-		proginfo(&info, p)
++		info = proginfo(p)
+ 		if info.Flags&gc.UseCarry != 0 {
+ 			return true
+ 		}
+@@ -382,7 +382,7 @@ func subprop(r0 *gc.Flow) bool {
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+-		proginfo(&info, p)
++		info = proginfo(p)
+ 		if info.Flags&gc.Call != 0 {
+ 			return false
+ 		}
+@@ -611,7 +611,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		return 0
+ 	}
+ 	var info gc.ProgInfo
+-	proginfo(&info, p)
++	info = proginfo(p)
+ 
+ 	if (info.Reguse|info.Regset)&RtoB(int(v.Reg)) != 0 {
+ 		return 2
+diff --git a/src/cmd/8g/prog.go b/src/cmd/8g/prog.go
+index d8e46e5108..f5c4ab6991 100644
+--- a/src/cmd/8g/prog.go
++++ b/src/cmd/8g/prog.go
+@@ -256,8 +256,8 @@ var progtable = [i386.ALAST]gc.ProgInfo{
+ 	i386.AXORW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+ }
+ 
+-func proginfo(info *gc.ProgInfo, p *obj.Prog) {
+-	*info = progtable[p.As]
++func proginfo(p *obj.Prog) (info gc.ProgInfo) {
++	info = progtable[p.As]
+ 	if info.Flags == 0 {
+ 		gc.Fatal("unknown instruction %v", p)
+ 	}
+@@ -288,4 +288,6 @@ func proginfo(info *gc.ProgInfo, p *obj.Prog) {
+ 	if p.To.Index != i386.REG_NONE {
+ 		info.Regindex |= RtoB(int(p.To.Index))
+ 	}
++
++	return info
+ }
+diff --git a/src/cmd/9g/peep.go b/src/cmd/9g/peep.go
+index a71d8d2554..03581b1a82 100644
+--- a/src/cmd/9g/peep.go
++++ b/src/cmd/9g/peep.go
+@@ -416,7 +416,7 @@ func subprop(r0 *gc.Flow) bool {
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+-		proginfo(&info, p)
++		info = proginfo(p)
+ 		if info.Flags&gc.Call != 0 {
+ 			return false
+ 		}
+diff --git a/src/cmd/9g/prog.go b/src/cmd/9g/prog.go
+index 12c2304c73..24de65f05b 100644
+--- a/src/cmd/9g/prog.go
++++ b/src/cmd/9g/prog.go
+@@ -133,12 +133,12 @@ func initproginfo() {
+ 	}
+ }
+ 
+-func proginfo(info *gc.ProgInfo, p *obj.Prog) {
++func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+ 	initproginfo()
+ 
+-	*info = progtable[p.As]
++	info = progtable[p.As]
+ 	if info.Flags == 0 {
+-		*info = progtable[ppc64.AADD]
++		info = progtable[ppc64.AADD]
+ 		gc.Fatal("proginfo: unknown instruction %v", p)
+ 	}
+ 
+@@ -177,6 +177,8 @@ func proginfo(info *gc.ProgInfo, p *obj.Prog) {
+ 
+ 		info.Regset |= RtoB(ppc64.REG_R3) | RtoB(ppc64.REG_R4)
+ 	}
++
++	return
+ }
+ 
+ // Instruction variants table.  Initially this contains entries only
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 4818cac754..508042d284 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -1138,7 +1138,7 @@ type Arch struct {
+ 	Igen           func(*Node, *Node, *Node)
+ 	Linkarchinit   func()
+ 	Peep           func(*obj.Prog)
+-	Proginfo       func(*ProgInfo, *obj.Prog)
++	Proginfo       func(*obj.Prog) ProgInfo
+ 	Regalloc       func(*Node, *Type, *Node)
+ 	Regfree        func(*Node)
+ 	Regtyp         func(*obj.Addr) bool
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index c03222b913..319315efde 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -1931,7 +1931,10 @@ func getr() int32 {
+ 			r, w := utf8.DecodeRune(buf[:i+1])
+ 			if r == utf8.RuneError && w == 1 {
+ 				lineno = lexlineno
+-				Yyerror("illegal UTF-8 sequence % x", buf[:i+1])
++				// The string conversion here makes a copy for passing
++				// to fmt.Printf, so that buf itself does not escape and can
++				// be allocated on the stack.
++				Yyerror("illegal UTF-8 sequence % x", string(buf[:i+1]))
+ 			}
+ 			return int32(r)
+ 		}
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index dad53b6f5c..5456435509 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -562,7 +562,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar *Bvec, varkill *Bvec, avari
+ 	bvresetall(varkill)
+ 	bvresetall(avarinit)
+ 
+-	Thearch.Proginfo(&info, prog)
++	info = Thearch.Proginfo(prog)
+ 	if prog.As == obj.ARET {
+ 		// Return instructions implicitly read all the arguments.  For
+ 		// the sake of correctness, out arguments must be read.  For the
+diff --git a/src/cmd/internal/gc/popt.go b/src/cmd/internal/gc/popt.go
+index 1346128d6f..c56dc8e90d 100644
+--- a/src/cmd/internal/gc/popt.go
++++ b/src/cmd/internal/gc/popt.go
+@@ -362,6 +362,8 @@ func fixjmp(firstp *obj.Prog) {
+ // to allocate in every f->data field, for use by the client.
+ // If size == 0, f->data will be nil.
+ 
++var flowmark int
++
+ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+ 	var info ProgInfo
+ 
+@@ -370,11 +372,11 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+ 
+ 	for p := firstp; p != nil; p = p.Link {
+ 		p.Opt = nil // should be already, but just in case
+-		Thearch.Proginfo(&info, p)
++		info = Thearch.Proginfo(p)
+ 		if info.Flags&Skip != 0 {
+ 			continue
+ 		}
+-		p.Opt = interface{}(1)
++		p.Opt = &flowmark
+ 		nf++
+ 	}
+ 
+@@ -417,7 +419,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+ 	var p *obj.Prog
+ 	for f := start; f != nil; f = f.Link {
+ 		p = f.Prog
+-		Thearch.Proginfo(&info, p)
++		info = Thearch.Proginfo(p)
+ 		if info.Flags&Break == 0 {
+ 			f1 = f.Link
+ 			f.S1 = f1
+@@ -726,7 +728,7 @@ func mergetemp(firstp *obj.Prog) {
+ 	var info ProgInfo
+ 	for f := g.Start; f != nil; f = f.Link {
+ 		p = f.Prog
+-		Thearch.Proginfo(&info, p)
++		info = Thearch.Proginfo(p)
+ 
+ 		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt != nil {
+ 			Fatal("double node %v", p)
+@@ -774,7 +776,7 @@ func mergetemp(firstp *obj.Prog) {
+ 		f = v.use
+ 		if f != nil && f.Data.(*Flow) == nil {
+ 			p = f.Prog
+-			Thearch.Proginfo(&info, p)
++			info = Thearch.Proginfo(p)
+ 			if p.To.Node == v.node && (info.Flags&RightWrite != 0) && info.Flags&RightRead == 0 {
+ 				p.As = obj.ANOP
+ 				p.To = obj.Addr{}
+@@ -794,9 +796,9 @@ func mergetemp(firstp *obj.Prog) {
+ 		f = v.use
+ 		if f != nil && f.Link == f.Data.(*Flow) && (f.Data.(*Flow)).Data.(*Flow) == nil && Uniqp(f.Link) == f {
+ 			p = f.Prog
+-			Thearch.Proginfo(&info, p)
++			info = Thearch.Proginfo(p)
+ 			p1 = f.Link.Prog
+-			Thearch.Proginfo(&info1, p1)
++			info1 = Thearch.Proginfo(p1)
+ 			const (
+ 				SizeAny = SizeB | SizeW | SizeL | SizeQ | SizeF | SizeD
+ 			)
+@@ -1122,7 +1124,7 @@ func nilwalkback(fcheck *Flow) {
+ 
+ 	for f := fcheck; f != nil; f = Uniqp(f) {
+ 		p = f.Prog
+-		Thearch.Proginfo(&info, p)
++		info = Thearch.Proginfo(p)
+ 		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
+ 			// Found initialization of value we're checking for nil.
+ 			// without first finding the check, so this one is unchecked.
+@@ -1191,7 +1193,7 @@ func nilwalkfwd(fcheck *Flow) {
+ 
+ 	for f := Uniqs(fcheck); f != nil; f = Uniqs(f) {
+ 		p = f.Prog
+-		Thearch.Proginfo(&info, p)
++		info = Thearch.Proginfo(p)
+ 
+ 		if (info.Flags&LeftRead != 0) && Thearch.Smallindir(&p.From, &fcheck.Prog.From) {
+ 			fcheck.Data = &killed
+diff --git a/src/cmd/internal/gc/reg.go b/src/cmd/internal/gc/reg.go
+index e051c255e2..b4e8cb8e3f 100644
+--- a/src/cmd/internal/gc/reg.go
++++ b/src/cmd/internal/gc/reg.go
+@@ -983,7 +983,7 @@ func regopt(firstp *obj.Prog) {
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+-		Thearch.Proginfo(&info, p)
++		info = Thearch.Proginfo(p)
+ 
+ 		// Avoid making variables for direct-called functions.
+ 		if p.As == obj.ACALL && p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_EXTERN {

@@ -7,10 +7,390 @@ Date:   Thu Jun 23 09:54:57 2011 +1000
     R=mikioh.mikioh, alex.brainman, rsc, vincent.vanackere
     CC=golang-dev
     https://golang.org/cl/4590050
-
+---
  src/pkg/net/Makefile                    |   2 +-
  src/pkg/net/interface_windows.go        | 152 ++++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_windows.go      |   3 +
  src/pkg/syscall/zsyscall_windows_386.go |  32 ++++++-
  src/pkg/syscall/ztypes_windows_386.go   |  93 +++++++++++++++++++
  5 files changed, 280 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 7ccd9567dd..536fe369d1 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -83,7 +83,7 @@ endif
+ 
+ GOFILES_windows=\
+ 	file_windows.go\
+-	interface_stub.go\
++	interface_windows.go\
+ 	lookup_windows.go\
+ 	sendfile_windows.go\
+ 	sock_windows.go\
+diff --git a/src/pkg/net/interface_windows.go b/src/pkg/net/interface_windows.go
+new file mode 100644
+index 0000000000..f54ffed70e
+--- /dev/null
++++ b/src/pkg/net/interface_windows.go
+@@ -0,0 +1,152 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Network interface identification for Windows
++
++package net
++
++import (
++	"os"
++	"syscall"
++	"unsafe"
++)
++
++func bytePtrToString(p *uint8) string {
++	a := (*[10000]uint8)(unsafe.Pointer(p))
++	i := 0
++	for a[i] != 0 {
++		i++
++	}
++	return string(a[:i])
++}
++
++func getAdapterList() (*syscall.IpAdapterInfo, os.Error) {
++	b := make([]byte, 1000)
++	l := uint32(len(b))
++	a := (*syscall.IpAdapterInfo)(unsafe.Pointer(&b[0]))
++	e := syscall.GetAdaptersInfo(a, &l)
++	if e == syscall.ERROR_BUFFER_OVERFLOW {
++		b = make([]byte, l)
++		a = (*syscall.IpAdapterInfo)(unsafe.Pointer(&b[0]))
++		e = syscall.GetAdaptersInfo(a, &l)
++	}
++	if e != 0 {
++		return nil, os.NewSyscallError("GetAdaptersInfo", e)
++	}
++	return a, nil
++}
++
++func getInterfaceList() ([]syscall.InterfaceInfo, os.Error) {
++	s, e := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
++	if e != 0 {
++		return nil, os.NewSyscallError("Socket", e)
++	}
++	defer syscall.Closesocket(int32(s))
++
++	ii := [20]syscall.InterfaceInfo{}
++	ret := uint32(0)
++	size := uint32(unsafe.Sizeof(ii))
++	e = syscall.WSAIoctl(int32(s), syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&ii[0])), size, &ret, nil, 0)
++	if e != 0 {
++		return nil, os.NewSyscallError("WSAIoctl", e)
++	}
++	c := ret / uint32(unsafe.Sizeof(ii[0]))
++	return ii[:c-1], nil
++}
++
++
++// If the ifindex is zero, interfaceTable returns mappings of all
++// network interfaces.  Otheriwse it returns a mapping of a specific
++// interface.
++func interfaceTable(ifindex int) ([]Interface, os.Error) {
++	ai, e := getAdapterList()
++	if e != nil {
++		return nil, e
++	}
++
++	ii, e := getInterfaceList()
++	if e != nil {
++		return nil, e
++	}
++
++	var ift []Interface
++	for ; ai != nil; ai = ai.Next {
++		index := ai.Index
++		if ifindex == 0 || ifindex == int(index) {
++			var flags Flags
++
++			row := syscall.MibIfRow{Index: index}
++			e := syscall.GetIfEntry(&row)
++			if e != 0 {
++				return nil, os.NewSyscallError("GetIfEntry", e)
++			}
++
++			for _, ii := range ii {
++				ip := (*syscall.RawSockaddrInet4)(unsafe.Pointer(&ii.Address)).Addr
++				ipv4 := IPv4(ip[0], ip[1], ip[2], ip[3])
++				ipl := &ai.IpAddressList
++				for ipl != nil {
++					ips := bytePtrToString(&ipl.IpAddress.String[0])
++					if ipv4.Equal(parseIPv4(ips)) {
++						break
++					}
++					ipl = ipl.Next
++				}
++				if ipl == nil {
++					continue
++				}
++				if ii.Flags&syscall.IFF_UP != 0 {
++					flags |= FlagUp
++				}
++				if ii.Flags&syscall.IFF_LOOPBACK != 0 {
++					flags |= FlagLoopback
++				}
++				if ii.Flags&syscall.IFF_BROADCAST != 0 {
++					flags |= FlagBroadcast
++				}
++				if ii.Flags&syscall.IFF_POINTTOPOINT != 0 {
++					flags |= FlagPointToPoint
++				}
++				if ii.Flags&syscall.IFF_MULTICAST != 0 {
++					flags |= FlagMulticast
++				}
++			}
++
++			name := bytePtrToString(&ai.AdapterName[0])
++
++			ifi := Interface{
++				Index:        int(index),
++				MTU:          int(row.Mtu),
++				Name:         name,
++				HardwareAddr: HardwareAddr(row.PhysAddr[:row.PhysAddrLen]),
++				Flags:        flags}
++			ift = append(ift, ifi)
++		}
++	}
++	return ift, nil
++}
++
++// If the ifindex is zero, interfaceAddrTable returns addresses
++// for all network interfaces.  Otherwise it returns addresses
++// for a specific interface.
++func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
++	ai, e := getAdapterList()
++	if e != nil {
++		return nil, e
++	}
++
++	var ifat []Addr
++	for ; ai != nil; ai = ai.Next {
++		index := ai.Index
++		if ifindex == 0 || ifindex == int(index) {
++			ipl := &ai.IpAddressList
++			for ; ipl != nil; ipl = ipl.Next {
++				ifa := IPAddr{}
++				ifa.IP = parseIPv4(bytePtrToString(&ipl.IpAddress.String[0]))
++				ifat = append(ifat, ifa.toAddr())
++			}
++		}
++	}
++	return ifat, nil
++}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index c9bcb37ecb..0e979ff6b5 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -468,6 +468,7 @@ func Chmod(path string, mode uint32) (errno int) {
+ 
+ //sys	WSAStartup(verreq uint32, data *WSAData) (sockerrno int) = wsock32.WSAStartup
+ //sys	WSACleanup() (errno int) [failretval==-1] = wsock32.WSACleanup
++//sys	WSAIoctl(s int32, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (errno int) [failretval==-1] = ws2_32.WSAIoctl
+ //sys	socket(af int32, typ int32, protocol int32) (handle int32, errno int) [failretval==-1] = wsock32.socket
+ //sys	setsockopt(s int32, level int32, optname int32, optval *byte, optlen int32) (errno int) [failretval==-1] = wsock32.setsockopt
+ //sys	bind(s int32, name uintptr, namelen int32) (errno int) [failretval==-1] = wsock32.bind
+@@ -488,6 +489,8 @@ func Chmod(path string, mode uint32) (errno int) {
+ //sys	Ntohs(netshort uint16) (u uint16) = ws2_32.ntohs
+ //sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) = dnsapi.DnsQuery_W
+ //sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
++//sys	GetIfEntry(pIfRow *MibIfRow) (errcode int) = iphlpapi.GetIfEntry
++//sys	GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode int) = iphlpapi.GetAdaptersInfo
+ 
+ // For testing: clients can set this flag to force
+ // creation of IPv6 sockets to return EAFNOSUPPORT.
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index c72cf7351c..fd28d338cc 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -1,4 +1,4 @@
+-// mksyscall_windows.pl -l32 syscall_windows.go syscall_windows_386.go
++// mksyscall_windows.pl 
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+ package syscall
+@@ -12,6 +12,7 @@ var (
+ 	modwsock32  = loadDll("wsock32.dll")
+ 	modws2_32   = loadDll("ws2_32.dll")
+ 	moddnsapi   = loadDll("dnsapi.dll")
++	modiphlpapi = loadDll("iphlpapi.dll")
+ 
+ 	procGetLastError               = getSysProcAddr(modkernel32, "GetLastError")
+ 	procLoadLibraryW               = getSysProcAddr(modkernel32, "LoadLibraryW")
+@@ -80,6 +81,7 @@ var (
+ 	procTransmitFile               = getSysProcAddr(modwsock32, "TransmitFile")
+ 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
+ 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
++	procWSAIoctl                   = getSysProcAddr(modws2_32, "WSAIoctl")
+ 	procsocket                     = getSysProcAddr(modwsock32, "socket")
+ 	procsetsockopt                 = getSysProcAddr(modwsock32, "setsockopt")
+ 	procbind                       = getSysProcAddr(modwsock32, "bind")
+@@ -100,6 +102,8 @@ var (
+ 	procntohs                      = getSysProcAddr(modws2_32, "ntohs")
+ 	procDnsQuery_W                 = getSysProcAddr(moddnsapi, "DnsQuery_W")
+ 	procDnsRecordListFree          = getSysProcAddr(moddnsapi, "DnsRecordListFree")
++	procGetIfEntry                 = getSysProcAddr(modiphlpapi, "GetIfEntry")
++	procGetAdaptersInfo            = getSysProcAddr(modiphlpapi, "GetAdaptersInfo")
+ )
+ 
+ func GetLastError() (lasterrno int) {
+@@ -1043,6 +1047,20 @@ func WSACleanup() (errno int) {
+ 	return
+ }
+ 
++func WSAIoctl(s int32, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (errno int) {
++	r1, _, e1 := Syscall9(procWSAIoctl, 9, uintptr(s), uintptr(iocc), uintptr(unsafe.Pointer(inbuf)), uintptr(cbif), uintptr(unsafe.Pointer(outbuf)), uintptr(cbob), uintptr(unsafe.Pointer(cbbr)), uintptr(unsafe.Pointer(overlapped)), uintptr(completionRoutine))
++	if int(r1) == -1 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func socket(af int32, typ int32, protocol int32) (handle int32, errno int) {
+ 	r0, _, e1 := Syscall(procsocket, 3, uintptr(af), uintptr(typ), uintptr(protocol))
+ 	handle = int32(r0)
+@@ -1291,3 +1309,15 @@ func DnsRecordListFree(rl *DNSRecord, freetype uint32) {
+ 	Syscall(procDnsRecordListFree, 2, uintptr(unsafe.Pointer(rl)), uintptr(freetype), 0)
+ 	return
+ }
++
++func GetIfEntry(pIfRow *MibIfRow) (errcode int) {
++	r0, _, _ := Syscall(procGetIfEntry, 1, uintptr(unsafe.Pointer(pIfRow)), 0, 0)
++	errcode = int(r0)
++	return
++}
++
++func GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode int) {
++	r0, _, _ := Syscall(procGetAdaptersInfo, 2, uintptr(unsafe.Pointer(ai)), uintptr(unsafe.Pointer(ol)), 0)
++	errcode = int(r0)
++	return
++}
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 30939f58f7..6ea85e2b8d 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -23,6 +23,7 @@ const (
+ 	ERROR_PATH_NOT_FOUND      = 3
+ 	ERROR_NO_MORE_FILES       = 18
+ 	ERROR_BROKEN_PIPE         = 109
++	ERROR_BUFFER_OVERFLOW     = 111
+ 	ERROR_INSUFFICIENT_BUFFER = 122
+ 	ERROR_MOD_NOT_FOUND       = 126
+ 	ERROR_PROC_NOT_FOUND      = 127
+@@ -347,6 +348,7 @@ type Timezoneinformation struct {
+ // Socket related.
+ 
+ const (
++	AF_UNSPEC  = 0
+ 	AF_UNIX    = 1
+ 	AF_INET    = 2
+ 	AF_INET6   = 23
+@@ -561,3 +563,94 @@ type TransmitFileBuffers struct {
+ 	Tail       uintptr
+ 	TailLength uint32
+ }
++
++const (
++	IFF_UP           = 1
++	IFF_BROADCAST    = 2
++	IFF_LOOPBACK     = 4
++	IFF_POINTTOPOINT = 8
++	IFF_MULTICAST    = 16
++)
++
++const SIO_GET_INTERFACE_LIST = 0x4004747F
++
++// TODO(mattn): SockaddrGen is union of sockaddr/sockaddr_in/sockaddr_in6_old.
++// will be fixed to change variable type as suitable.
++
++type SockaddrGen [24]byte
++
++type InterfaceInfo struct {
++	Flags            uint32
++	Address          SockaddrGen
++	BroadcastAddress SockaddrGen
++	Netmask          SockaddrGen
++}
++
++type IpAddressString struct {
++	String [16]byte
++}
++
++type IpMaskString IpAddressString
++
++type IpAddrString struct {
++	Next      *IpAddrString
++	IpAddress IpAddressString
++	IpMask    IpMaskString
++	Context   uint32
++}
++
++const MAX_ADAPTER_NAME_LENGTH = 256
++const MAX_ADAPTER_DESCRIPTION_LENGTH = 128
++const MAX_ADAPTER_ADDRESS_LENGTH = 8
++
++type IpAdapterInfo struct {
++	Next                *IpAdapterInfo
++	ComboIndex          uint32
++	AdapterName         [MAX_ADAPTER_NAME_LENGTH + 4]byte
++	Description         [MAX_ADAPTER_DESCRIPTION_LENGTH + 4]byte
++	AddressLength       uint32
++	Address             [MAX_ADAPTER_ADDRESS_LENGTH]byte
++	Index               uint32
++	Type                uint32
++	DhcpEnabled         uint32
++	CurrentIpAddress    *IpAddrString
++	IpAddressList       IpAddrString
++	GatewayList         IpAddrString
++	DhcpServer          IpAddrString
++	HaveWins            bool
++	PrimaryWinsServer   IpAddrString
++	SecondaryWinsServer IpAddrString
++	LeaseObtained       int64
++	LeaseExpires        int64
++}
++
++const MAXLEN_PHYSADDR = 8
++const MAX_INTERFACE_NAME_LEN = 256
++const MAXLEN_IFDESCR = 256
++
++type MibIfRow struct {
++	Name            [MAX_INTERFACE_NAME_LEN]uint16
++	Index           uint32
++	Type            uint32
++	Mtu             uint32
++	Speed           uint32
++	PhysAddrLen     uint32
++	PhysAddr        [MAXLEN_PHYSADDR]byte
++	AdminStatus     uint32
++	OperStatus      uint32
++	LastChange      uint32
++	InOctets        uint32
++	InUcastPkts     uint32
++	InNUcastPkts    uint32
++	InDiscards      uint32
++	InErrors        uint32
++	InUnknownProtos uint32
++	OutOctets       uint32
++	OutUcastPkts    uint32
++	OutNUcastPkts   uint32
++	OutDiscards     uint32
++	OutErrors       uint32
++	OutQLen         uint32
++	DescrLen        uint32
++	Descr           [MAXLEN_IFDESCR]byte
++}

@@ -7,7 +7,32 @@ Date:   Fri Feb 11 16:20:31 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4183046
-
+---
  src/pkg/syscall/zerrors_linux_386.go   | 1 -
  src/pkg/syscall/zerrors_linux_amd64.go | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index fe45d23f14..43d27827cb 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -640,7 +640,6 @@ const (
+ 	SIOCSIFTXQLEN                    = 0x8943
+ 	SIOCSPGRP                        = 0x8902
+ 	SIOCSRARP                        = 0x8962
+-	SIOGIFINDEX                      = 0x8933
+ 	SOCK_CLOEXEC                     = 0x80000
+ 	SOCK_DCCP                        = 0x6
+ 	SOCK_DGRAM                       = 0x2
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index f9404d0894..04f4dad2cd 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -641,7 +641,6 @@ const (
+ 	SIOCSIFTXQLEN                    = 0x8943
+ 	SIOCSPGRP                        = 0x8902
+ 	SIOCSRARP                        = 0x8962
+-	SIOGIFINDEX                      = 0x8933
+ 	SOCK_CLOEXEC                     = 0x80000
+ 	SOCK_DCCP                        = 0x6
+ 	SOCK_DGRAM                       = 0x2

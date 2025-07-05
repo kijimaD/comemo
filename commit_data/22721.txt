@@ -13,7 +13,45 @@ Date:   Thu Apr 2 19:13:17 2015 -0700
     Change-Id: I995fd1a632c31f8004dac772c3d7c43a2a5853b0
     Reviewed-on: https://go-review.googlesource.com/8435
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/dial_gen.go     | 8 ++++----
  src/net/timeout_test.go | 5 -----
  2 files changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/dial_gen.go b/src/net/dial_gen.go
+index 654ef9383a..3816844b26 100644
+--- a/src/net/dial_gen.go
++++ b/src/net/dial_gen.go
+@@ -12,12 +12,12 @@ import "time"
+ // used on operating systems where the deadline hasn't been pushed
+ // down into the pollserver. (Plan 9 and some old versions of Windows)
+ func dialChannel(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline time.Time) (Conn, error) {
+-	var timeout time.Duration
+-	if !deadline.IsZero() {
+-		timeout = deadline.Sub(time.Now())
++	if deadline.IsZero() {
++		return dialer(noDeadline)
+ 	}
++	timeout := deadline.Sub(time.Now())
+ 	if timeout <= 0 {
+-		return dialer(noDeadline)
++		return nil, &OpError{Op: "dial", Net: net, Addr: ra, Err: errTimeout}
+ 	}
+ 	t := time.NewTimer(timeout)
+ 	defer t.Stop()
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index b46321b13b..361f822d9e 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -682,11 +682,6 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
+ // TestConnectDeadlineInThePast tests that connect deadlines work, even
+ // if the connection can be established w/o blocking.
+ func TestConnectDeadlineInThePast(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "plan9":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
+-	}
+-
+ 	ln := newLocalListener(t).(*TCPListener)
+ 	defer ln.Close()
+ 

@@ -14,8 +14,57 @@ Date:   Tue Oct 3 11:20:29 2023 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/syscall/unix/at_sysnum_netbsd.go                  | 10 +++++++---
  .../syscall/unix/{eaccess_freebsd.go => eaccess_bsd.go}        |  2 ++
  src/internal/syscall/unix/eaccess_other.go                     |  2 +-
  3 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at_sysnum_netbsd.go b/src/internal/syscall/unix/at_sysnum_netbsd.go
+index becc1bdf82..ffb1d2eaf8 100644
+--- a/src/internal/syscall/unix/at_sysnum_netbsd.go
++++ b/src/internal/syscall/unix/at_sysnum_netbsd.go
+@@ -10,7 +10,11 @@ const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+ const openatTrap uintptr = syscall.SYS_OPENAT
+ const fstatatTrap uintptr = syscall.SYS_FSTATAT
+ 
+-const AT_REMOVEDIR = 0x800
+-const AT_SYMLINK_NOFOLLOW = 0x200
++const (
++	AT_EACCESS          = 0x100
++	AT_FDCWD            = -0x64
++	AT_REMOVEDIR        = 0x800
++	AT_SYMLINK_NOFOLLOW = 0x200
+ 
+-const UTIME_OMIT = (1 << 30) - 2
++	UTIME_OMIT = (1 << 30) - 2
++)
+diff --git a/src/internal/syscall/unix/eaccess_freebsd.go b/src/internal/syscall/unix/eaccess_bsd.go
+similarity index 95%
+rename from src/internal/syscall/unix/eaccess_freebsd.go
+rename to src/internal/syscall/unix/eaccess_bsd.go
+index f2514c0a84..8f4566ef9b 100644
+--- a/src/internal/syscall/unix/eaccess_freebsd.go
++++ b/src/internal/syscall/unix/eaccess_bsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build freebsd || netbsd
++
+ package unix
+ 
+ import (
+diff --git a/src/internal/syscall/unix/eaccess_other.go b/src/internal/syscall/unix/eaccess_other.go
+index 4fa2265900..f0427db302 100644
+--- a/src/internal/syscall/unix/eaccess_other.go
++++ b/src/internal/syscall/unix/eaccess_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix && !freebsd && !linux
++//go:build unix && !freebsd && !linux && !netbsd
+ 
+ package unix
+ 

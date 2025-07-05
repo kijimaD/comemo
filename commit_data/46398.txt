@@ -17,6 +17,67 @@ Date:   Sat Dec 26 21:43:30 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/func.go | 38 +++++--------------------------------
  1 file changed, 5 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 6bc8cd574c..16d67f6ae0 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -206,50 +206,22 @@ func (f *Func) SetWBPos(pos src.XPos) {
+ }
+ 
+ // funcname returns the name (without the package) of the function n.
+-func FuncName(n Node) string {
+-	var f *Func
+-	switch n := n.(type) {
+-	case *Func:
+-		f = n
+-	case *Name:
+-		f = n.Func
+-	case *CallPartExpr:
+-		f = n.Func
+-	case *ClosureExpr:
+-		f = n.Func
+-	}
++func FuncName(f *Func) string {
+ 	if f == nil || f.Nname == nil {
+ 		return "<nil>"
+ 	}
+-	return f.Nname.Sym().Name
++	return f.Sym().Name
+ }
+ 
+ // pkgFuncName returns the name of the function referenced by n, with package prepended.
+ // This differs from the compiler's internal convention where local functions lack a package
+ // because the ultimate consumer of this is a human looking at an IDE; package is only empty
+ // if the compilation package is actually the empty string.
+-func PkgFuncName(n Node) string {
+-	var s *types.Sym
+-	if n == nil {
++func PkgFuncName(f *Func) string {
++	if f == nil || f.Nname == nil {
+ 		return "<nil>"
+ 	}
+-	if n.Op() == ONAME {
+-		s = n.Sym()
+-	} else {
+-		var f *Func
+-		switch n := n.(type) {
+-		case *CallPartExpr:
+-			f = n.Func
+-		case *ClosureExpr:
+-			f = n.Func
+-		case *Func:
+-			f = n
+-		}
+-		if f == nil || f.Nname == nil {
+-			return "<nil>"
+-		}
+-		s = f.Nname.Sym()
+-	}
++	s := f.Sym()
+ 	pkg := s.Pkg
+ 
+ 	p := base.Ctxt.Pkgpath

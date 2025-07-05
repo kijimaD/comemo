@@ -12,9 +12,105 @@ Date:   Tue Nov 2 11:23:19 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/operand.go                      | 9 ++++-----
  src/go/types/predicates.go                   | 7 ++++---
  src/go/types/testdata/spec/assignability.go2 | 8 +++++---
  src/go/types/unify.go                        | 8 ++++----
  4 files changed, 17 insertions(+), 15 deletions(-)
+
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 0ba3c4bafc..a71449083f 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -267,9 +267,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	// Vu is typed
+ 
+ 	// x's type V and T have identical underlying types
+-	// and at least one of V or T is not a named type
+-	// and neither is a type parameter.
+-	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) && Vp == nil && Tp == nil {
++	// and at least one of V or T is not a named type.
++	if Identical(Vu, Tu) && (!hasName(V) || !hasName(T)) {
+ 		return true, 0
+ 	}
+ 
+@@ -296,10 +295,10 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	// x is a bidirectional channel value, T is a channel
+ 	// type, x's type V and T have identical element types,
+-	// and at least one of V or T is not a named type
++	// and at least one of V or T is not a named type.
+ 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
+ 		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
+-			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
++			return !hasName(V) || !hasName(T), _InvalidChanAssign
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index b802682e8f..2f74397d41 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -8,9 +8,10 @@ package types
+ 
+ import "go/token"
+ 
+-// isNamed reports whether typ has a name.
+-// isNamed may be called with types that are not fully set up.
+-func isNamed(typ Type) bool {
++// hasName reports whether typ has a name. This includes
++// predeclared types, defined types, and type parameters.
++// hasName may be called with types that are not fully set up.
++func hasName(typ Type) bool {
+ 	switch typ.(type) {
+ 	case *Basic, *Named, *TypeParam:
+ 		return true
+diff --git a/src/go/types/testdata/spec/assignability.go2 b/src/go/types/testdata/spec/assignability.go2
+index 4c6774b811..8ec878bf39 100644
+--- a/src/go/types/testdata/spec/assignability.go2
++++ b/src/go/types/testdata/spec/assignability.go2
+@@ -33,8 +33,9 @@ func _[TP any](X TP) {
+ 	X = X
+ }
+ 
+-// "x's type V and T have identical underlying types and at least one
+-// of V or T is not a defined type and neither is a type parameter"
++// "x's type V and T have identical underlying types
++// and at least one of V or T is not a named type."
++// (here a named type is a type with a name)
+ func _[TP1, TP2 Interface](X1 TP1, X2 TP2) {
+ 	b = B // ERROR cannot use B .* as int value
+ 	a = A
+@@ -69,7 +70,8 @@ func _[TP Interface](X TP) {
+ 	X = i // ERROR cannot use i .* as TP value
+ }
+ 
+-// "x is a bidirectional channel value, T is a channel type, x's type V and T have identical element types, and at least one of V or T is not a defined type"
++// "x is a bidirectional channel value, T is a channel type, x's type V and T have identical element types, and at least one of V or T is not a named type"
++// (here a named type is a type with a name)
+ type (
+ 	_SendChan = chan<- int
+ 	_RecvChan = <-chan int
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 99c9c9e614..d3b86008ef 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -235,13 +235,13 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// If exact unification is known to fail because we attempt to
+ 		// match a type name against an unnamed type literal, consider
+ 		// the underlying type of the named type.
+-		// (Subtle: We use isNamed to include any type with a name (incl.
+-		// basic types and type parameters. We use asNamed() because we only
++		// (Subtle: We use hasName to include any type with a name (incl.
++		// basic types and type parameters. We use asNamed because we only
+ 		// want *Named types.)
+ 		switch {
+-		case !isNamed(x) && y != nil && asNamed(y) != nil:
++		case !hasName(x) && y != nil && asNamed(y) != nil:
+ 			return u.nify(x, under(y), p)
+-		case x != nil && asNamed(x) != nil && !isNamed(y):
++		case x != nil && asNamed(x) != nil && !hasName(y):
+ 			return u.nify(under(x), y, p)
+ 		}
+ 	}

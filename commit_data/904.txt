@@ -7,9 +7,185 @@ Date:   Sun Oct 19 20:13:37 2008 -0700
     R=r
     OCL=17437
     CL=17437
-
+---
  src/cmd/gc/dcl.c  |  1 +
  src/cmd/gc/go.h   |  2 ++
  src/cmd/gc/go.y   | 20 +++++++++-------
  src/cmd/gc/walk.c | 69 ++++++++++++++++++++++++++++++++++++-------------------
  4 files changed, 60 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index b65d8c0bb6..95f4e020cb 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -471,6 +471,7 @@ loop:
+ 
+ 	if(n->left != N && n->left->op == ONAME) {
+ 		f->nname = n->left;
++		f->embedded = n->embedded;
+ 	} else {
+ 		vargen++;
+ 		snprint(buf, sizeof(buf), "_e%s_%.3ld", filename, vargen);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 42b068c8d0..c72dbb8c67 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -124,6 +124,7 @@ struct	Type
+ 	uchar	trecur;		// to detect loops
+ 	uchar	methptr;	// 1=direct 2=pointer
+ 	uchar	printed;
++	uchar	embedded;	// TFIELD embedded type
+ 
+ 	// TFUNCT
+ 	uchar	thistuple;
+@@ -161,6 +162,7 @@ struct	Node
+ 	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
+ 	uchar	method;		// OCALLMETH name
+ 	uchar	iota;		// OLITERAL made from iota
++	uchar	embedded;	// ODCLFIELD embedded type
+ 
+ 	// most nodes
+ 	Node*	left;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 4afc1c6e84..3e1c073bc8 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1378,15 +1378,19 @@ structdcl:
+ 		$$ = nod(ODCLFIELD, $1, N);
+ 		$$->type = $2;
+ 	}
+-|	new_name
++|	LATYPE
+ 	{
+-		// must be  latype
+-		$$ = nod(ODCLFIELD, N, N);
+-		$$->type = $1->sym->otype;
+-		if($1->sym->lexical != LATYPE) {
+-			yyerror("unnamed structure field must be a type");
+-			$$->type = types[TINT32];
+-		};
++		$$ = nod(ODCLFIELD, newname($1), N);
++		$$->type = oldtype($1);
++		$$->embedded = 1;
++	}
++|	lpack '.' LATYPE
++	{
++		$$ = newname(lookup($3->name));
++		$$ = nod(ODCLFIELD, $$, N);
++		$$->type = oldtype($3);
++		$$->embedded = 1;
++		context = nil;
+ 	}
+ 
+ interfacedcl:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 610051a50b..1acbd90c69 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1390,38 +1390,57 @@ walkselect(Node *sel)
+ 	lineno = lno;
+ }
+ 
+-/*
+- * allowable type combinations for
+- * normal binary operations.
+- */
+ Type*
+-lookdot(Node *n, Type *f)
++lookdot(Node *n, Type *f, int d)
+ {
+-	Type *r;
+-	Sym *s;
++	Type *r, *r1;
++	Sym *s, *sf;
+ 
+ 	r = T;
+ 	s = n->sym;
+ 
+ 	for(; f!=T; f=f->down) {
+-		if(f->sym == S)
++		sf = f->sym;
++		if(sf == S)
+ 			continue;
+-	//	if(strcmp(f->sym->name, s->name) != 0)
+-		if(f->sym != s)
+-			continue;
+-		if(r != T) {
+-			yyerror("ambiguous DOT reference %S", s);
+-			break;
++
++		// depth=0 -- look directly in structure
++		if(d == 0) {
++			if(sf != s)
++				continue;
++			if(r != T)
++				goto ambig;
++			r = f;
++			n->xoffset = f->width;
++		}
++
++		// depth>0 -- look into unnamed substructures
++		if(d > 0 && f->embedded) {
++			if(f->type == T)
++				continue;
++			if(f->type->etype != TSTRUCT && f->type->etype != TINTER)
++				continue;
++			r1 = lookdot(n, f->type->type, d-1);
++			if(r1 == T)
++				continue;
++			if(r != T)
++				goto ambig;
++			r = r1;
++			n->xoffset += f->width;
+ 		}
+-		r = f;
+ 	}
+ 	return r;
++
++ambig:
++	yyerror("ambiguous DOT reference %S", s);
++	return r;
+ }
+ 
+ void
+ walkdot(Node *n)
+ {
+ 	Type *t, *f;
++	int d;
+ 
+ 	if(n->left == N || n->right == N)
+ 		return;
+@@ -1447,14 +1466,16 @@ walkdot(Node *n)
+ 	}
+ 
+ 	if(t->etype == TSTRUCT || t->etype == TINTER) {
+-		f = lookdot(n->right, t->type);
+-		if(f != T) {
+-			n->xoffset = f->width;
+-			n->right = f->nname;		// substitute real name
+-			n->type = f->type;
+-			if(t->etype == TINTER)
+-				n->op = ODOTINTER;
+-			return;
++		for(d=0; d<=5; d++) {
++			f = lookdot(n->right, t->type, d);
++			if(f != T) {
++				n->xoffset = n->right->xoffset;
++				n->right = f->nname;		// substitute real name
++				n->type = f->type;
++				if(t->etype == TINTER)
++					n->op = ODOTINTER;
++				return;
++			}
+ 		}
+ 	}
+ 
+@@ -1462,7 +1483,7 @@ walkdot(Node *n)
+ 	f = T;
+ 	t = ismethod(n->left->type);
+ 	if(t != T)
+-		f = lookdot(n->right, t->method);
++		f = lookdot(n->right, t->method, 0);
+ 	if(f == T) {
+ 		yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
+ 		return;

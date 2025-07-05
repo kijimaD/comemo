@@ -7,7 +7,7 @@ Date:   Thu Aug 12 16:48:41 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1983043
-
+---
  src/cmd/godoc/codewalk.go           | 4 ++--
  src/cmd/godoc/godoc.go              | 2 +-
  src/cmd/goinstall/download.go       | 8 ++++----
@@ -17,3 +17,144 @@ Date:   Thu Aug 12 16:48:41 2010 +1000
  test/bench/regex-dna-parallel.go    | 4 ++--
  test/bench/regex-dna.go             | 2 +-
  8 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 4e5a9b9da4..02417bfefb 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -451,13 +451,13 @@ func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, os
+ 		// through file, but that seems like overkill.
+ 		return 0, 0, os.NewError("reverse search not implemented")
+ 	}
+-	m := re.Execute(data[hi:])
++	m := re.FindIndex(data[hi:])
+ 	if len(m) > 0 {
+ 		m[0] += hi
+ 		m[1] += hi
+ 	} else if hi > 0 {
+ 		// No match.  Wrap to beginning of data.
+-		m = re.Execute(data)
++		m = re.FindIndex(data)
+ 	}
+ 	if len(m) == 0 {
+ 		return 0, 0, os.NewError("no match for " + pattern)
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index d08fb5beba..c8af916736 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -943,7 +943,7 @@ var (
+ 
+ 
+ func extractString(src []byte, rx *regexp.Regexp) (s string) {
+-	m := rx.Execute(src)
++	m := rx.Find(src)
+ 	if len(m) >= 4 {
+ 		s = strings.TrimSpace(string(src[m[2]:m[3]]))
+ 	}
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 3422e81863..b5e74fe693 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -41,13 +41,13 @@ func download(pkg string) (string, os.Error) {
+ 	if strings.Index(pkg, "..") >= 0 {
+ 		return "", os.ErrorString("invalid path (contains ..)")
+ 	}
+-	if m := bitbucket.MatchStrings(pkg); m != nil {
++	if m := bitbucket.FindStringSubmatch(pkg); m != nil {
+ 		if err := vcsCheckout(&hg, root+m[1], "http://"+m[1], m[1]); err != nil {
+ 			return "", err
+ 		}
+ 		return root + pkg, nil
+ 	}
+-	if m := googlecode.MatchStrings(pkg); m != nil {
++	if m := googlecode.FindStringSubmatch(pkg); m != nil {
+ 		var v *vcs
+ 		switch m[2] {
+ 		case "hg":
+@@ -63,7 +63,7 @@ func download(pkg string) (string, os.Error) {
+ 		}
+ 		return root + pkg, nil
+ 	}
+-	if m := github.MatchStrings(pkg); m != nil {
++	if m := github.FindStringSubmatch(pkg); m != nil {
+ 		if strings.HasSuffix(m[1], ".git") {
+ 			return "", os.ErrorString("repository " + pkg + " should not have .git suffix")
+ 		}
+@@ -72,7 +72,7 @@ func download(pkg string) (string, os.Error) {
+ 		}
+ 		return root + pkg, nil
+ 	}
+-	if m := launchpad.MatchStrings(pkg); m != nil {
++	if m := launchpad.FindStringSubmatch(pkg); m != nil {
+ 		// Either lp.net/<project>[/<series>[/<path>]]
+ 		//	 or lp.net/~<user or team>/<project>/<branch>[/<path>]
+ 		if err := vcsCheckout(&bzr, root+m[1], "https://"+m[1], m[1]); err != nil {
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 55ddf8b755..4c79230999 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -199,8 +199,8 @@ var (
+ // and '' into &rdquo;).
+ func emphasize(w io.Writer, line []byte, words map[string]string, nice bool) {
+ 	for {
+-		m := matchRx.Execute(line)
+-		if len(m) == 0 {
++		m := matchRx.Find(line)
++		if m == nil {
+ 			break
+ 		}
+ 		// m >= 6 (two parenthesized sub-regexps in matchRx, 1st one is identRx)
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index b73fd285c1..a5b9aeb66e 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -309,7 +309,7 @@ func (doc *docReader) addFile(src *ast.File) {
+ 	// collect BUG(...) comments
+ 	for _, c := range src.Comments {
+ 		text := c.List[0].Text
+-		if m := bug_markers.Execute(text); len(m) > 0 {
++		if m := bug_markers.Find(text); m != nil {
+ 			// found a BUG comment; maybe empty
+ 			if btxt := text[m[1]:]; bug_content.Match(btxt) {
+ 				// non-empty BUG comment; collect comment without BUG prefix
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index e009132515..1d855c74c9 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -103,7 +103,7 @@ func (bp *Part) populateHeaders() os.Error {
+ 		if line == "\n" || line == "\r\n" {
+ 			return nil
+ 		}
+-		if matches := headerRegexp.MatchStrings(line); len(matches) == 3 {
++		if matches := headerRegexp.FindStringSubmatch(line); len(matches) == 3 {
+ 			key := matches[1]
+ 			value := matches[2]
+ 			// TODO: canonicalize headers ala http.Request.Header?
+diff --git a/test/bench/regex-dna-parallel.go b/test/bench/regex-dna-parallel.go
+index d33f2466e4..e8e62b806d 100644
+--- a/test/bench/regex-dna-parallel.go
++++ b/test/bench/regex-dna-parallel.go
+@@ -77,8 +77,8 @@ func countMatches(pat string, bytes []byte) int {
+ 	re := regexp.MustCompile(pat)
+ 	n := 0
+ 	for {
+-		e := re.Execute(bytes)
+-		if len(e) == 0 {
++		e := re.FindIndex(bytes)
++		if e == nil {
+ 			break
+ 		}
+ 		n++
+diff --git a/test/bench/regex-dna.go b/test/bench/regex-dna.go
+index 22de2c6aae..dc31db7685 100644
+--- a/test/bench/regex-dna.go
++++ b/test/bench/regex-dna.go
+@@ -76,7 +76,7 @@ func countMatches(pat string, bytes []byte) int {
+ 	re := regexp.MustCompile(pat)
+ 	n := 0
+ 	for {
+-		e := re.Execute(bytes)
++		e := re.FindIndex(bytes)
+ 		if len(e) == 0 {
+ 			break
+ 		}

@@ -18,8 +18,153 @@ Date:   Tue Apr 21 11:29:51 2020 -0400
     Change-Id: I871827299c556f1a9a5b12e7755b221e9d8c6e0e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229243
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go              | 12 +----
  src/cmd/go/internal/load/test.go             |  4 +-
  src/cmd/go/testdata/script/list_load_err.txt | 79 ++++++++++++++++++++++++++++
  3 files changed, 82 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 3c018a0f7f..6605c62eba 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -217,10 +217,7 @@ func (e *NoGoError) Error() string {
+ // setLoadPackageDataError returns true if it's safe to load information about
+ // imported packages, for example, if there was a parse error loading imports
+ // in one file, but other files are okay.
+-//
+-// TODO(jayconrod): we should probably return nothing and always try to load
+-// imported packages.
+-func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportStack) (canLoadImports bool) {
++func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportStack) {
+ 	// Include the path on the import stack unless the error includes it already.
+ 	errHasPath := false
+ 	if impErr, ok := err.(ImportPathError); ok && impErr.ImportPath() == path {
+@@ -263,7 +260,6 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
+ 		scanPos.Filename = base.ShortPath(scanPos.Filename)
+ 		pos = scanPos.String()
+ 		err = errors.New(scanErr[0].Msg)
+-		canLoadImports = true
+ 	}
+ 
+ 	p.Error = &PackageError{
+@@ -271,7 +267,6 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
+ 		Pos:         pos,
+ 		Err:         err,
+ 	}
+-	return canLoadImports
+ }
+ 
+ // Resolve returns the resolved version of imports,
+@@ -1601,10 +1596,7 @@ func (p *Package) load(path string, stk *ImportStack, bp *build.Package, err err
+ 
+ 	if err != nil {
+ 		p.Incomplete = true
+-		canLoadImports := p.setLoadPackageDataError(err, path, stk)
+-		if !canLoadImports {
+-			return
+-		}
++		p.setLoadPackageDataError(err, path, stk)
+ 	}
+ 
+ 	useBindir := p.Name == "main"
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 1c0d01c16c..51b644c4df 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -270,9 +270,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 	// afterward that gathers t.Cover information.
+ 	t, err := loadTestFuncs(ptest)
+ 	if err != nil && pmain.Error == nil {
+-		_ = pmain.setLoadPackageDataError(err, p.ImportPath, &stk)
+-		// Ignore return value. None of the errors from loadTestFuncs should prevent
+-		// us from loading information about imports.
++		pmain.setLoadPackageDataError(err, p.ImportPath, &stk)
+ 	}
+ 	t.Cover = cover
+ 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
+diff --git a/src/cmd/go/testdata/script/list_load_err.txt b/src/cmd/go/testdata/script/list_load_err.txt
+new file mode 100644
+index 0000000000..b3b72713e5
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_load_err.txt
+@@ -0,0 +1,79 @@
++# go list -e -deps should list imports from any file it can read, even if
++# other files in the same package cause go/build.Import to return an error.
++# Verfifies golang.org/issue/38568
++
++
++go list -e -deps ./scan
++stdout m/want
++
++
++go list -e -deps ./multi
++stdout m/want
++
++
++go list -e -deps ./constraint
++stdout m/want
++
++
++[cgo] go list -e -test -deps ./cgotest
++[cgo] stdout m/want
++
++
++[cgo] go list -e -deps ./cgoflag
++[cgo] stdout m/want
++
++-- go.mod --
++module m
++
++go 1.14
++
++-- want/want.go --
++package want
++
++-- scan/scan.go --
++// scan error
++ʕ◔ϖ◔ʔ
++
++-- scan/good.go --
++package scan
++
++import _ "m/want"
++
++-- multi/a.go --
++package a
++
++-- multi/b.go --
++package b
++
++import _ "m/want"
++
++-- constraint/constraint.go --
++// +build !!nope
++
++package constraint
++
++-- constraint/good.go --
++package constraint
++
++import _ "m/want"
++
++-- cgotest/cgo_test.go --
++package cgo_test
++
++// cgo is not allowed in tests.
++// See golang.org/issue/18647
++
++import "C"
++import (
++	"testing"
++	_ "m/want"
++)
++
++func Test(t *testing.T) {}
++
++-- cgoflag/cgoflag.go --
++package cgoflag
++
++// #cgo ʕ◔ϖ◔ʔ:
++
++import _ "m/want"

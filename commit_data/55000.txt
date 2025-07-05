@@ -23,8 +23,105 @@ Date:   Tue Nov 29 18:32:32 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/dist/build.go | 25 ++++++++++++++++++-------
  src/cmd/dist/util.go  | 21 ---------------------
  src/cmd/go/go_test.go |  1 -
  3 files changed, 18 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 2662f80780..c36a12e5e9 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -463,11 +463,16 @@ func setup() {
+ 		xmkdir(p)
+ 	}
+ 
+-	p := pathf("%s/pkg/%s_%s", goroot, gohostos, gohostarch)
++	goosGoarch := pathf("%s/pkg/%s_%s", goroot, gohostos, gohostarch)
+ 	if rebuildall {
+-		xremoveall(p)
++		xremoveall(goosGoarch)
+ 	}
+-	xmkdirall(p)
++	xmkdirall(goosGoarch)
++	xatexit(func() {
++		if files := xreaddir(goosGoarch); len(files) == 0 {
++			xremove(goosGoarch)
++		}
++	})
+ 
+ 	if goos != gohostos || goarch != gohostarch {
+ 		p := pathf("%s/pkg/%s_%s", goroot, goos, goarch)
+@@ -480,7 +485,15 @@ func setup() {
+ 	// Create object directory.
+ 	// We used to use it for C objects.
+ 	// Now we use it for the build cache, to separate dist's cache
+-	// from any other cache the user might have.
++	// from any other cache the user might have, and for the location
++	// to build the bootstrap versions of the standard library.
++	obj := pathf("%s/pkg/obj", goroot)
++	if !isdir(obj) {
++		xmkdir(obj)
++	}
++	xatexit(func() { xremove(obj) })
++
++	// Create build cache directory.
+ 	objGobuild := pathf("%s/pkg/obj/go-build", goroot)
+ 	if rebuildall {
+ 		xremoveall(objGobuild)
+@@ -488,9 +501,7 @@ func setup() {
+ 	xmkdirall(objGobuild)
+ 	xatexit(func() { xremoveall(objGobuild) })
+ 
+-	// Create alternate driectory for intermediate
+-	// standard library .a's to be placed rather than
+-	// the final build's install locations.
++	// Create directory for bootstrap versions of standard library .a files.
+ 	objGoBootstrap := pathf("%s/pkg/obj/go-bootstrap", goroot)
+ 	if rebuildall {
+ 		xremoveall(objGoBootstrap)
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 319866a3b8..fe36230207 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -309,27 +309,6 @@ func xreaddir(dir string) []string {
+ 	return names
+ }
+ 
+-// xreaddirfiles replaces dst with a list of the names of the files in dir.
+-// The names are relative to dir; they are not full paths.
+-func xreaddirfiles(dir string) []string {
+-	f, err := os.Open(dir)
+-	if err != nil {
+-		fatalf("%v", err)
+-	}
+-	defer f.Close()
+-	infos, err := f.Readdir(-1)
+-	if err != nil {
+-		fatalf("reading %s: %v", dir, err)
+-	}
+-	var names []string
+-	for _, fi := range infos {
+-		if !fi.IsDir() {
+-			names = append(names, fi.Name())
+-		}
+-	}
+-	return names
+-}
+-
+ // xworkdir creates a new temporary directory to hold object files
+ // and returns the name of that directory.
+ func xworkdir() string {
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c51f212025..ef22499b87 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -914,7 +914,6 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 		"src/internal/coverage/rtcov",
+ 		"src/math/bits",
+ 		"src/unsafe",
+-		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
+ 		filepath.Join("pkg/tool", goHostOS+"_"+goHostArch),
+ 		"pkg/include",
+ 	} {

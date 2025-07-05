@@ -23,7 +23,52 @@ Date:   Tue Nov 8 14:21:27 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/net/cgo_unix_cgo_res.go  | 4 ++--
  src/net/cgo_unix_cgo_resn.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/cgo_unix_cgo_res.go b/src/net/cgo_unix_cgo_res.go
+index b9bdebadf6..37bbc9a762 100644
+--- a/src/net/cgo_unix_cgo_res.go
++++ b/src/net/cgo_unix_cgo_res.go
+@@ -4,7 +4,7 @@
+ 
+ // res_search, for cgo systems where that is thread-safe.
+ 
+-//go:build cgo && !netgo && (android || openbsd)
++//go:build cgo && !netgo && (linux || openbsd)
+ 
+ package net
+ 
+@@ -18,7 +18,7 @@ package net
+ #include <arpa/nameser.h>
+ #include <resolv.h>
+ 
+-#cgo !openbsd LDFLAGS: -lresolv
++#cgo !android,!openbsd LDFLAGS: -lresolv
+ */
+ import "C"
+ 
+diff --git a/src/net/cgo_unix_cgo_resn.go b/src/net/cgo_unix_cgo_resn.go
+index 5c2d7cdf47..4a5ff165df 100644
+--- a/src/net/cgo_unix_cgo_resn.go
++++ b/src/net/cgo_unix_cgo_resn.go
+@@ -4,7 +4,7 @@
+ 
+ // res_nsearch, for cgo systems where that's available.
+ 
+-//go:build cgo && !netgo && unix && !(android || darwin || openbsd)
++//go:build cgo && !netgo && unix && !(darwin || linux || openbsd)
+ 
+ package net
+ 
+@@ -18,7 +18,7 @@ package net
+ #include <arpa/nameser.h>
+ #include <resolv.h>
+ 
+-#cgo !aix,!freebsd LDFLAGS: -lresolv
++#cgo !aix,!dragonfly,!freebsd LDFLAGS: -lresolv
+ */
+ import "C"
+ 

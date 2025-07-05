@@ -11,6 +11,22 @@ Date:   Thu Apr 28 11:19:53 2016 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/malloc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index ec4939f1dd..2d8905b88d 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -387,6 +387,10 @@ func sysReserveHigh(n uintptr, reserved *bool) unsafe.Pointer {
+ 	return sysReserve(nil, n, reserved)
+ }
+ 
++// sysAlloc allocates the next n bytes from the heap arena. The
++// returned pointer is always _PageSize aligned and between
++// h.arena_start and h.arena_end. sysAlloc returns nil on failure.
++// There is no corresponding free function.
+ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ 	if n > h.arena_end-h.arena_used {
+ 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.

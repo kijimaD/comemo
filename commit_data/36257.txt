@@ -12,7 +12,83 @@ Date:   Sun Apr 15 19:17:41 2018 +0200
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 34 +--------------------------------
  test/codegen/floats.go                  | 22 +++++++++++++++++++++
  2 files changed, 23 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index b71dc20889..27dbfd865b 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -220,39 +220,7 @@ func (ats *asmTests) runGo(t *testing.T, args ...string) string {
+ 	return stdout.String()
+ }
+ 
+-var allAsmTests = []*asmTests{
+-	{
+-		arch:  "amd64",
+-		os:    "plan9",
+-		tests: plan9AMD64Tests,
+-	},
+-}
+-
+-var plan9AMD64Tests = []*asmTest{
+-	// We should make sure that the compiler doesn't generate floating point
+-	// instructions for non-float operations on Plan 9, because floating point
+-	// operations are not allowed in the note handler.
+-	// Array zeroing.
+-	{
+-		fn: `
+-		func $() [16]byte {
+-			var a [16]byte
+-			return a
+-		}
+-		`,
+-		pos: []string{"\tMOVQ\t\\$0, \"\""},
+-	},
+-	// Array copy.
+-	{
+-		fn: `
+-		func $(a [16]byte) (b [16]byte) {
+-			b = a
+-			return
+-		}
+-		`,
+-		pos: []string{"\tMOVQ\t\"\"\\.a\\+[0-9]+\\(SP\\), (AX|CX)", "\tMOVQ\t(AX|CX), \"\"\\.b\\+[0-9]+\\(SP\\)"},
+-	},
+-}
++var allAsmTests = []*asmTests{}
+ 
+ // TestLineNumber checks to make sure the generated assembly has line numbers
+ // see issue #16214
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index cab63488f4..c2847dd939 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -71,3 +71,25 @@ func FusedSub64(x, y, z float64) float64 {
+ 	// ppc64le:"FMSUB\t"
+ 	return x*y - z
+ }
++
++// ---------------- //
++//    Non-floats    //
++// ---------------- //
++
++// We should make sure that the compiler doesn't generate floating point
++// instructions for non-float operations on Plan 9, because floating point
++// operations are not allowed in the note handler.
++
++func ArrayZero() [16]byte {
++	// amd64:"MOVUPS"
++	// plan9/amd64/:-"MOVUPS"
++	var a [16]byte
++	return a
++}
++
++func ArrayCopy(a [16]byte) (b [16]byte) {
++	// amd64:"MOVUPS"
++	// plan9/amd64/:-"MOVUPS"
++	b = a
++	return
++}

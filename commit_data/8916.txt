@@ -7,6 +7,23 @@ Date:   Thu Jun 30 23:16:33 2011 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4636067
-
+---
  src/pkg/html/parse.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 2ef90a8732..c2931773fa 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -413,7 +413,10 @@ func inBodyIM(p *parser) (insertionMode, bool) {
+ 				p.pop()
+ 			}
+ 		default:
+-			// TODO.
++			// TODO: any other end tag
++			if p.tok.Data == p.top().Data {
++				p.pop()
++			}
+ 		}
+ 	}
+ 	if endP {

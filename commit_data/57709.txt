@@ -22,6 +22,24 @@ Date:   Thu Aug 24 15:14:44 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 64b0aae267..0312a58fc5 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2683,7 +2683,11 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ 			}
+ 		}
+ 
+-		if err != nil || os.Getenv("GO_BUILDER_NAME") != "" {
++		if err == nil && os.Getenv("GO_BUILDER_NAME") != "" {
++			output = append(output, "C compiler warning promoted to error on Go builders\n"...)
++			err = errors.New("warning promoted to error")
++		}
++		if err != nil {
+ 			err = formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), b.processOutput(output))
+ 		} else {
+ 			b.showOutput(a, p.Dir, p.Desc(), b.processOutput(output))

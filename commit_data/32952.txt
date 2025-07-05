@@ -13,7 +13,44 @@ Date:   Thu Jun 15 15:05:03 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 7 ++++++-
  src/cmd/compile/internal/gc/bimport.go | 5 +----
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 868bbe73b0..3ac8136704 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -564,7 +564,12 @@ func (p *exporter) pos(n *Node) {
+ 
+ func (p *exporter) path(s string) {
+ 	if i, ok := p.pathIndex[s]; ok {
+-		p.index('p', i) // i >= 0
++		// Note: Using p.index(i) here requires the use of p.tag(-len(c)) below
++		//       to get matching debug markers ('t'). But in trace mode p.tag
++		//       assumes that the tag argument is a valid tag that can be looked
++		//       up in the tagString list, rather then some arbitrary slice length.
++		//       Use p.int instead.
++		p.int(i) // i >= 0
+ 		return
+ 	}
+ 	p.pathIndex[s] = len(p.pathIndex)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 30ee31af55..282f8766e2 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -420,12 +420,9 @@ func (p *importer) pos() src.XPos {
+ }
+ 
+ func (p *importer) path() string {
+-	if p.debugFormat {
+-		p.marker('p')
+-	}
+ 	// if the path was seen before, i is its index (>= 0)
+ 	// (the empty string is at index 0)
+-	i := p.rawInt64()
++	i := p.int()
+ 	if i >= 0 {
+ 		return p.pathList[i]
+ 	}

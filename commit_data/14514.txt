@@ -12,7 +12,7 @@ Date:   Wed Nov 28 06:36:05 2012 +0900
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6842053
-
+---
  src/pkg/net/dial.go       | 13 +++----
  src/pkg/net/ipraw_test.go | 32 ++++++++++++++++
  src/pkg/net/iprawsock.go  | 47 ++++--------------------
@@ -22,3 +22,441 @@ Date:   Wed Nov 28 06:36:05 2012 +0900
  src/pkg/net/udp_test.go   | 28 ++++++++++++++
  src/pkg/net/udpsock.go    | 18 ++++-----
  8 files changed, 174 insertions(+), 101 deletions(-)
+
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index a85e3c673b..0c4608462e 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -15,6 +15,7 @@ func parseDialNetwork(net string) (afnet string, proto int, err error) {
+ 		switch net {
+ 		case "tcp", "tcp4", "tcp6":
+ 		case "udp", "udp4", "udp6":
++		case "ip", "ip4", "ip6":
+ 		case "unix", "unixgram", "unixpacket":
+ 		default:
+ 			return "", 0, UnknownNetworkError(net)
+@@ -54,12 +55,8 @@ func resolveAfnetAddr(afnet, addr string, deadline time.Time) (Addr, error) {
+ 		return nil, nil
+ 	}
+ 	switch afnet {
+-	case "tcp", "tcp4", "tcp6":
+-		return resolveTCPAddr(afnet, addr, deadline)
+-	case "udp", "udp4", "udp6":
+-		return resolveUDPAddr(afnet, addr, deadline)
+-	case "ip", "ip4", "ip6":
+-		return resolveIPAddr(afnet, addr, deadline)
++	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6", "ip", "ip4", "ip6":
++		return resolveInternetAddr(afnet, addr, deadline)
+ 	case "unix", "unixgram", "unixpacket":
+ 		return ResolveUnixAddr(afnet, addr)
+ 	}
+@@ -218,8 +215,8 @@ func Listen(net, laddr string) (Listener, error) {
+ // ListenPacket announces on the local network address laddr.
+ // The network string net must be a packet-oriented network:
+ // "udp", "udp4", "udp6", "ip", "ip4", "ip6" or "unixgram".
+-func ListenPacket(net, addr string) (PacketConn, error) {
+-	afnet, a, err := resolveNetAddr("listen", net, addr, noDeadline)
++func ListenPacket(net, laddr string) (PacketConn, error) {
++	afnet, a, err := resolveNetAddr("listen", net, laddr, noDeadline)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 43b02aef2e..c2d024dab8 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -9,11 +9,43 @@ package net
+ import (
+ 	"bytes"
+ 	"os"
++	"reflect"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+ )
+ 
++var resolveIPAddrTests = []struct {
++	net     string
++	litAddr string
++	addr    *IPAddr
++	err     error
++}{
++	{"ip", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
++	{"ip4", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
++	{"ip4:icmp", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
++
++	{"ip", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
++	{"ip6", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
++	{"ip6:icmp", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
++
++	{"l2tp", "127.0.0.1", nil, UnknownNetworkError("l2tp")},
++	{"l2tp:gre", "127.0.0.1", nil, UnknownNetworkError("l2tp:gre")},
++	{"tcp", "1.2.3.4:123", nil, UnknownNetworkError("tcp")},
++}
++
++func TestResolveIPAddr(t *testing.T) {
++	for _, tt := range resolveIPAddrTests {
++		addr, err := ResolveIPAddr(tt.net, tt.litAddr)
++		if err != tt.err {
++			t.Fatalf("ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
++		}
++		if !reflect.DeepEqual(addr, tt.addr) {
++			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
++		}
++	}
++}
++
+ var icmpTests = []struct {
+ 	net   string
+ 	laddr string
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index a141e6aee7..852c299c45 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -6,10 +6,6 @@
+ 
+ package net
+ 
+-import (
+-	"time"
+-)
+-
+ // IPAddr represents the address of an IP end point.
+ type IPAddr struct {
+ 	IP   IP
+@@ -31,44 +27,15 @@ func (a *IPAddr) String() string {
+ // "ip", "ip4" or "ip6".  A literal IPv6 host address must be
+ // enclosed in square brackets, as in "[::]".
+ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
+-	return resolveIPAddr(net, addr, noDeadline)
+-}
+-
+-func resolveIPAddr(net, addr string, deadline time.Time) (*IPAddr, error) {
+-	ip, err := hostToIP(net, addr, deadline)
++	afnet, _, err := parseDialNetwork(net)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &IPAddr{IP: ip}, nil
+-}
+-
+-// Convert "host" into IP address.
+-func hostToIP(net, host string, deadline time.Time) (ip IP, err error) {
+-	var addr IP
+-	// Try as an IP address.
+-	addr = ParseIP(host)
+-	if addr == nil {
+-		filter := anyaddr
+-		if net != "" && net[len(net)-1] == '4' {
+-			filter = ipv4only
+-		}
+-		if net != "" && net[len(net)-1] == '6' {
+-			filter = ipv6only
+-		}
+-		// Not an IP address.  Try as a DNS name.
+-		addrs, err1 := lookupHostDeadline(host, deadline)
+-		if err1 != nil {
+-			err = err1
+-			goto Error
+-		}
+-		addr = firstFavoriteAddr(filter, addrs)
+-		if addr == nil {
+-			// should not happen
+-			err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
+-			goto Error
+-		}
++	switch afnet {
++	case "ip", "ip4", "ip6":
++	default:
++		return nil, UnknownNetworkError(net)
+ 	}
+-	return addr, nil
+-Error:
+-	return nil, err
++	a, err := resolveInternetAddr(afnet, addr, noDeadline)
++	return a.(*IPAddr), nil
+ }
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index bd6fe7a0e0..5636c85b4f 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -72,15 +72,18 @@ func (e InvalidAddrError) Temporary() bool { return false }
+ // "host:port" or "[host]:port" into host and port.
+ // The latter form must be used when host contains a colon.
+ func SplitHostPort(hostport string) (host, port string, err error) {
++	host, port, _, err = splitHostPort(hostport)
++	return
++}
++
++func splitHostPort(hostport string) (host, port, zone string, err error) {
+ 	// The port starts after the last colon.
+ 	i := last(hostport, ':')
+ 	if i < 0 {
+ 		err = &AddrError{"missing port in address", hostport}
+ 		return
+ 	}
+-
+-	host, port = hostport[0:i], hostport[i+1:]
+-
++	host, port = hostport[:i], hostport[i+1:]
+ 	// Can put brackets around host ...
+ 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
+ 		host = host[1 : len(host)-1]
+@@ -104,44 +107,65 @@ func JoinHostPort(host, port string) string {
+ 	return host + ":" + port
+ }
+ 
+-// Convert "host:port" into IP address and port.
+-func hostPortToIP(net, hostport string, deadline time.Time) (ip IP, iport int, err error) {
+-	host, port, err := SplitHostPort(hostport)
+-	if err != nil {
+-		return nil, 0, err
+-	}
+-
+-	var addr IP
+-	if host != "" {
+-		// Try as an IP address.
+-		addr = ParseIP(host)
+-		if addr == nil {
+-			var filter func(IP) IP
+-			if net != "" && net[len(net)-1] == '4' {
+-				filter = ipv4only
+-			}
+-			if net != "" && net[len(net)-1] == '6' {
+-				filter = ipv6only
+-			}
+-			// Not an IP address.  Try as a DNS name.
+-			addrs, err := lookupHostDeadline(host, deadline)
+-			if err != nil {
+-				return nil, 0, err
++func resolveInternetAddr(net, addr string, deadline time.Time) (Addr, error) {
++	var (
++		err              error
++		host, port, zone string
++		portnum          int
++	)
++	switch net {
++	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
++		if addr != "" {
++			if host, port, zone, err = splitHostPort(addr); err != nil {
++				return nil, err
+ 			}
+-			addr = firstFavoriteAddr(filter, addrs)
+-			if addr == nil {
+-				// should not happen
+-				return nil, 0, &AddrError{"LookupHost returned no suitable address", addrs[0]}
++			if portnum, err = parsePort(net, port); err != nil {
++				return nil, err
+ 			}
+ 		}
++	case "ip", "ip4", "ip6":
++		if addr != "" {
++			host = addr
++		}
++	default:
++		return nil, UnknownNetworkError(net)
+ 	}
+-
+-	p, err := parsePort(net, port)
++	inetaddr := func(net string, ip IP, port int, zone string) Addr {
++		switch net {
++		case "tcp", "tcp4", "tcp6":
++			return &TCPAddr{IP: ip, Port: port, Zone: zone}
++		case "udp", "udp4", "udp6":
++			return &UDPAddr{IP: ip, Port: port, Zone: zone}
++		case "ip", "ip4", "ip6":
++			return &IPAddr{IP: ip, Zone: zone}
++		}
++		return nil
++	}
++	if host == "" {
++		return inetaddr(net, nil, portnum, zone), nil
++	}
++	// Try as an IP address.
++	if ip := ParseIP(host); ip != nil {
++		return inetaddr(net, ip, portnum, zone), nil
++	}
++	var filter func(IP) IP
++	if net != "" && net[len(net)-1] == '4' {
++		filter = ipv4only
++	}
++	if net != "" && net[len(net)-1] == '6' {
++		filter = ipv6only
++	}
++	// Try as a DNS name.
++	addrs, err := lookupHostDeadline(host, deadline)
+ 	if err != nil {
+-		return nil, 0, err
++		return nil, err
+ 	}
+-
+-	return addr, p, nil
++	ip := firstFavoriteAddr(filter, addrs)
++	if ip == nil {
++		// should not happen
++		return nil, &AddrError{"LookupHost returned no suitable address", addrs[0]}
++	}
++	return inetaddr(net, ip, portnum, zone), nil
+ }
+ 
+ func zoneToString(zone int) string {
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index f6e4df30a8..e8588c686f 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"reflect"
+ 	"runtime"
+ 	"testing"
+ 	"time"
+@@ -117,6 +118,33 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool) {
+ 	}
+ }
+ 
++var resolveTCPAddrTests = []struct {
++	net     string
++	litAddr string
++	addr    *TCPAddr
++	err     error
++}{
++	{"tcp", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
++	{"tcp4", "127.0.0.1:65535", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
++
++	{"tcp", "[::1]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1}, nil},
++	{"tcp6", "[::1]:65534", &TCPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
++
++	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
++}
++
++func TestResolveTCPAddr(t *testing.T) {
++	for _, tt := range resolveTCPAddrTests {
++		addr, err := ResolveTCPAddr(tt.net, tt.litAddr)
++		if err != tt.err {
++			t.Fatalf("ResolveTCPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
++		}
++		if !reflect.DeepEqual(addr, tt.addr) {
++			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
++		}
++	}
++}
++
+ var tcpListenerNameTests = []struct {
+ 	net   string
+ 	laddr *TCPAddr
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index acded26528..0a72a534c7 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -6,8 +6,6 @@
+ 
+ package net
+ 
+-import "time"
+-
+ // TCPAddr represents the address of a TCP end point.
+ type TCPAddr struct {
+ 	IP   IP
+@@ -31,13 +29,14 @@ func (a *TCPAddr) String() string {
+ // "tcp4" or "tcp6".  A literal IPv6 host address must be
+ // enclosed in square brackets, as in "[::]:80".
+ func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
+-	return resolveTCPAddr(net, addr, noDeadline)
+-}
+-
+-func resolveTCPAddr(net, addr string, deadline time.Time) (*TCPAddr, error) {
+-	ip, port, err := hostPortToIP(net, addr, deadline)
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	a, err := resolveInternetAddr(net, addr, noDeadline)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &TCPAddr{IP: ip, Port: port}, nil
++	return a.(*TCPAddr), nil
+ }
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index 37b904f324..7c69b3738f 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -5,10 +5,38 @@
+ package net
+ 
+ import (
++	"reflect"
+ 	"runtime"
+ 	"testing"
+ )
+ 
++var resolveUDPAddrTests = []struct {
++	net     string
++	litAddr string
++	addr    *UDPAddr
++	err     error
++}{
++	{"udp", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
++	{"udp4", "127.0.0.1:65535", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
++
++	{"udp", "[::1]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1}, nil},
++	{"udp6", "[::1]:65534", &UDPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
++
++	{"sip", "127.0.0.1:0", nil, UnknownNetworkError("sip")},
++}
++
++func TestResolveUDPAddr(t *testing.T) {
++	for _, tt := range resolveUDPAddrTests {
++		addr, err := ResolveUDPAddr(tt.net, tt.litAddr)
++		if err != tt.err {
++			t.Fatalf("ResolveUDPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
++		}
++		if !reflect.DeepEqual(addr, tt.addr) {
++			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
++		}
++	}
++}
++
+ func TestWriteToUDP(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 66f795185c..e33c6f0a01 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -6,10 +6,7 @@
+ 
+ package net
+ 
+-import (
+-	"errors"
+-	"time"
+-)
++import "errors"
+ 
+ var ErrWriteToConnected = errors.New("use of WriteTo with pre-connected UDP")
+ 
+@@ -36,13 +33,14 @@ func (a *UDPAddr) String() string {
+ // "udp4" or "udp6".  A literal IPv6 host address must be
+ // enclosed in square brackets, as in "[::]:80".
+ func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
+-	return resolveUDPAddr(net, addr, noDeadline)
+-}
+-
+-func resolveUDPAddr(net, addr string, deadline time.Time) (*UDPAddr, error) {
+-	ip, port, err := hostPortToIP(net, addr, deadline)
++	switch net {
++	case "udp", "udp4", "udp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	a, err := resolveInternetAddr(net, addr, noDeadline)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &UDPAddr{IP: ip, Port: port}, nil
++	return a.(*UDPAddr), nil
+ }

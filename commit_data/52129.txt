@@ -17,7 +17,34 @@ Date:   Thu Apr 7 23:53:12 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/bytes/bytes.go     | 2 +-
  src/strings/strings.go | 2 --
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index d9d502927e..979cf1ccf0 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -1142,7 +1142,7 @@ func ReplaceAll(s, old, new []byte) []byte {
+ }
+ 
+ // EqualFold reports whether s and t, interpreted as UTF-8 strings,
+-// are equal under Unicode case-folding, which is a more general
++// are equal under simple Unicode case-folding, which is a more general
+ // form of case-insensitivity.
+ func EqualFold(s, t []byte) bool {
+ 	for len(s) != 0 && len(t) != 0 {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 74e505338e..8294f7ec35 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1043,8 +1043,6 @@ func ReplaceAll(s, old, new string) string {
+ // EqualFold reports whether s and t, interpreted as UTF-8 strings,
+ // are equal under simple Unicode case-folding, which is a more general
+ // form of case-insensitivity.
+-//
+-// EqualFold(s, t) is equivalent to Tolower(s) == Tolower(t).
+ func EqualFold(s, t string) bool {
+ 	for s != "" && t != "" {
+ 		// Extract first rune from each string.

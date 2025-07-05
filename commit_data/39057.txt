@@ -14,7 +14,83 @@ Date:   Mon Dec 17 20:39:48 2018 +1100
     Reviewed-on: https://go-review.googlesource.com/c/154384
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file_windows.go    |  5 ++++-
  src/os/os_windows_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 7ed4fe2f38..85f248774c 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -325,7 +325,10 @@ func tempDir() string {
+ 		if n > uint32(len(b)) {
+ 			continue
+ 		}
+-		if n > 0 && b[n-1] == '\\' {
++		if n == 3 && b[1] == ':' && b[2] == '\\' {
++			// Do nothing for path, like C:\.
++		} else if n > 0 && b[n-1] == '\\' {
++			// Otherwise remove terminating \.
+ 			n--
+ 		}
+ 		return string(utf16.Decode(b[:n]))
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index c555369488..1023b25e22 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -5,6 +5,7 @@
+ package os_test
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"internal/poll"
+ 	"internal/syscall/windows"
+@@ -1003,3 +1004,46 @@ func TestStatOfInvalidName(t *testing.T) {
+ 		t.Fatal(`os.Stat("*.go") unexpectedly succeeded`)
+ 	}
+ }
++
++// findUnusedDriveLetter searches mounted drive list on the system
++// (starting from Z: and ending at D:) for unused drive letter.
++// It returns path to the found drive root directory (like Z:\) or error.
++func findUnusedDriveLetter() (string, error) {
++	// Do not use A: and B:, because they are reserved for floppy drive.
++	// Do not use C:, becasue it is normally used for main drive.
++	for l := 'Z'; l >= 'D'; l-- {
++		p := string(l) + `:\`
++		_, err := os.Stat(p)
++		if os.IsNotExist(err) {
++			return p, nil
++		}
++	}
++	return "", errors.New("Could not find unused drive letter.")
++}
++
++func TestRootDirAsTemp(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		fmt.Print(os.TempDir())
++		os.Exit(0)
++	}
++
++	newtmp, err := findUnusedDriveLetter()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cmd := osexec.Command(os.Args[0], "-test.run=TestRootDirAsTemp")
++	cmd.Env = os.Environ()
++	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
++	cmd.Env = append(cmd.Env, "TMP="+newtmp)
++	cmd.Env = append(cmd.Env, "TEMP="+newtmp)
++	output, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("Failed to spawn child process: %v %q", err, string(output))
++	}
++	if want, have := newtmp, string(output); have != want {
++		t.Fatalf("unexpected child process output %q, want %q", have, want)
++	}
++}

@@ -45,7 +45,77 @@ Date:   Fri Mar 17 00:41:58 2017 +0900
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/regexp/exec.go      |  6 ++++--
  src/regexp/exec_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/regexp/exec.go b/src/regexp/exec.go
+index 977619cb28..f8fe7b5def 100644
+--- a/src/regexp/exec.go
++++ b/src/regexp/exec.go
+@@ -309,12 +309,14 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
+ // onepass runs the machine over the input starting at pos.
+ // It reports whether a match was found.
+ // If so, m.matchcap holds the submatch information.
+-func (m *machine) onepass(i input, pos int) bool {
++// ncap is the number of captures.
++func (m *machine) onepass(i input, pos, ncap int) bool {
+ 	startCond := m.re.cond
+ 	if startCond == ^syntax.EmptyOp(0) { // impossible
+ 		return false
+ 	}
+ 	m.matched = false
++	m.matchcap = m.matchcap[:ncap]
+ 	for i := range m.matchcap {
+ 		m.matchcap[i] = -1
+ 	}
+@@ -428,7 +430,7 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
+ 		size = len(s)
+ 	}
+ 	if m.op != notOnePass {
+-		if !m.onepass(i, pos) {
++		if !m.onepass(i, pos, ncap) {
+ 			re.put(m)
+ 			return nil
+ 		}
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 766394de6e..5f8e747b17 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -681,6 +681,35 @@ func BenchmarkMatch(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkMatch_onepass_regex(b *testing.B) {
++	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
++	r := MustCompile(`(?s)\A.*\z`)
++	if r.get().op == notOnePass {
++		b.Fatalf("want onepass regex, but %q is not onepass", r)
++	}
++	for _, size := range benchSizes {
++		if isRaceBuilder && size.n > 1<<10 {
++			continue
++		}
++		t := makeText(size.n)
++		bs := make([][]byte, len(t))
++		for i, s := range t {
++			bs[i] = []byte{s}
++		}
++		b.Run(size.name, func(b *testing.B) {
++			b.SetBytes(int64(size.n))
++			b.ReportAllocs()
++			for i := 0; i < b.N; i++ {
++				for _, byts := range bs {
++					if !r.Match(byts) {
++						b.Fatal("not match!")
++					}
++				}
++			}
++		})
++	}
++}
++
+ var benchData = []struct{ name, re string }{
+ 	{"Easy0", "ABCDEFGHIJKLMNOPQRSTUVWXYZ$"},
+ 	{"Easy0i", "(?i)ABCDEFGHIJklmnopqrstuvwxyz$"},

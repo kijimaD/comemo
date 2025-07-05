@@ -17,7 +17,88 @@ Date:   Thu Jun 13 10:29:39 2019 +0530
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/httputil/dump.go      | 11 ++++++++++-
  src/net/http/httputil/dump_test.go | 20 ++++++++++++++++++++
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index 7104c37454..81c2795156 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -111,6 +111,10 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 	}
+ 	defer t.CloseIdleConnections()
+ 
++	// We need this channel to ensure that the reader
++	// goroutine exits if t.RoundTrip returns an error.
++	// See golang.org/issue/32571.
++	quitReadCh := make(chan struct{})
+ 	// Wait for the request before replying with a dummy response:
+ 	go func() {
+ 		req, err := http.ReadRequest(bufio.NewReader(pr))
+@@ -120,13 +124,18 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 			io.Copy(ioutil.Discard, req.Body)
+ 			req.Body.Close()
+ 		}
+-		dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
++		select {
++		case dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"):
++		case <-quitReadCh:
++		}
+ 	}()
+ 
+ 	_, err := t.RoundTrip(reqSend)
+ 
+ 	req.Body = save
+ 	if err != nil {
++		pw.Close()
++		quitReadCh <- struct{}{}
+ 		return nil, err
+ 	}
+ 	dump := buf.Bytes()
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index 97954ca88d..85731d36f4 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -26,6 +26,7 @@ type dumpTest struct {
+ 
+ 	WantDump    string
+ 	WantDumpOut string
++	MustError   bool // if true, the test is expected to throw an error
+ 	NoBody      bool // if true, set DumpRequest{,Out} body to false
+ }
+ 
+@@ -206,6 +207,16 @@ var dumpTests = []dumpTest{
+ }
+ 
+ func TestDumpRequest(t *testing.T) {
++	// Make a copy of dumpTests and add 10 new cases with an empty URL
++	// to test that no goroutines are leaked. See golang.org/issue/32571.
++	// 10 seems to be a decent number which always triggers the failure.
++	dumpTests := dumpTests[:]
++	for i := 0; i < 10; i++ {
++		dumpTests = append(dumpTests, dumpTest{
++			Req:       mustNewRequest("GET", "", nil),
++			MustError: true,
++		})
++	}
+ 	numg0 := runtime.NumGoroutine()
+ 	for i, tt := range dumpTests {
+ 		if tt.Req != nil && tt.GetReq != nil || tt.Req == nil && tt.GetReq == nil {
+@@ -250,6 +261,15 @@ func TestDumpRequest(t *testing.T) {
+ 			}
+ 		}
+ 
++		if tt.MustError {
++			req := freshReq(tt)
++			_, err := DumpRequestOut(req, !tt.NoBody)
++			if err == nil {
++				t.Errorf("DumpRequestOut #%d: expected an error, got nil", i)
++			}
++			continue
++		}
++
+ 		if tt.WantDumpOut != "" {
+ 			req := freshReq(tt)
+ 			dump, err := DumpRequestOut(req, !tt.NoBody)

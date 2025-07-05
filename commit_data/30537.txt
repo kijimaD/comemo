@@ -13,6 +13,26 @@ Date:   Thu Nov 10 22:06:08 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/build/build.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 0801565f02..f6aabcb3af 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -264,7 +264,13 @@ func defaultGOPATH() string {
+ 		env = "home"
+ 	}
+ 	if home := os.Getenv(env); home != "" {
+-		return filepath.Join(home, "go")
++		def := filepath.Join(home, "go")
++		if def == runtime.GOROOT() {
++			// Don't set the default GOPATH to GOROOT,
++			// as that will trigger warnings from the go tool.
++			return ""
++		}
++		return def
+ 	}
+ 	return ""
+ }

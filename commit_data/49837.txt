@@ -12,8 +12,102 @@ Date:   Tue Sep 14 15:21:54 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_match.txt |  5 ++---
  src/testing/fuzz.go                            | 18 ++++++++++++------
  src/testing/testing.go                         |  9 +--------
  3 files changed, 15 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_match.txt b/src/cmd/go/testdata/script/test_fuzz_match.txt
+index 9d4c5125d3..47e143952a 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_match.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_match.txt
+@@ -30,11 +30,10 @@ stdout '^ok.*no tests to run'
+ ! stdout 'no targets to fuzz'
+ 
+ # Matches more than one fuzz target for fuzzing.
+-go test -fuzz Fuzz -fuzztime 1x multiple_fuzz_test.go
+-# The tests should run, but not be fuzzed
++! go test -fuzz Fuzz -fuzztime 1x multiple_fuzz_test.go
+ ! stdout 'no tests to run'
+ ! stdout 'no targets to fuzz'
+-stdout ok
++stdout FAIL
+ stdout 'will not fuzz, -fuzz matches more than one target'
+ 
+ -- standalone_fuzz_test.go --
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 65c3437ed4..c2d9db843d 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -593,12 +593,12 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget, deadline ti
+ //
+ // If fuzzing is disabled (-test.fuzz is not set), runFuzzing
+ // returns immediately.
+-func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran bool, matched int, ok bool) {
++func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ok bool) {
+ 	// TODO(katiehockman,jayconrod): Should we do something special to make sure
+ 	// we don't print f.Log statements again with runFuzzing, since we already
+ 	// would have printed them when we ran runFuzzTargets (ie. seed corpus run)?
+ 	if len(fuzzTargets) == 0 || *matchFuzz == "" {
+-		return false, 0, true
++		return true
+ 	}
+ 	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
+ 	tctx := newTestContext(1, m)
+@@ -617,17 +617,23 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran bool, matc
+ 	}
+ 	var target *InternalFuzzTarget
+ 	var targetName string
++	var matched []string
+ 	for i := range fuzzTargets {
+ 		name, ok, _ := tctx.match.fullName(nil, fuzzTargets[i].Name)
+ 		if !ok {
+ 			continue
+ 		}
+-		matched++
++		matched = append(matched, name)
+ 		target = &fuzzTargets[i]
+ 		targetName = name
+ 	}
+-	if matched != 1 {
+-		return false, matched, true
++	if len(matched) == 0 {
++		fmt.Fprintln(os.Stderr, "testing: warning: no targets to fuzz")
++		return true
++	}
++	if len(matched) > 1 {
++		fmt.Fprintf(os.Stderr, "testing: will not fuzz, -fuzz matches more than one target: %v\n", matched)
++		return false
+ 	}
+ 
+ 	f := &F{
+@@ -649,7 +655,7 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran bool, matc
+ 	}
+ 	go fRunner(f, target.Fn)
+ 	<-f.signal
+-	return f.ran, matched, !f.failed
++	return !f.failed
+ }
+ 
+ // fRunner wraps a call to a fuzz target and ensures that cleanup functions are
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 5e66a0610b..f4d2b26650 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1634,14 +1634,7 @@ func (m *M) Run() (code int) {
+ 		}
+ 	}
+ 
+-	fuzzingRan, fuzzingMatched, fuzzingOk := runFuzzing(m.deps, m.fuzzTargets)
+-	if *matchFuzz != "" && !fuzzingRan {
+-		if fuzzingMatched == 0 {
+-			fmt.Fprintln(os.Stderr, "testing: warning: no targets to fuzz")
+-		} else {
+-			fmt.Fprintln(os.Stderr, "testing: warning: will not fuzz, -fuzz matches more than one target")
+-		}
+-	}
++	fuzzingOk := runFuzzing(m.deps, m.fuzzTargets)
+ 	if !*isFuzzWorker && !fuzzingOk {
+ 		fmt.Println("FAIL")
+ 		if *isFuzzWorker {

@@ -15,7 +15,58 @@ Date:   Fri Jul 6 13:59:06 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go            | 24 ++++++++++++++++++++++++
  src/cmd/go/internal/work/exec.go |  4 ++--
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 0186ad51d4..2434f0f5f2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6300,6 +6300,30 @@ echo $* >>`+tg.path("pkg-config.out"))
+ 	}
+ }
+ 
++func TestCgoCache(t *testing.T) {
++	if !canCgo {
++		t.Skip("no cgo")
++	}
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("src/x/a.go", `package main
++		// #ifndef VAL
++		// #define VAL 0
++		// #endif
++		// int val = VAL;
++		import "C"
++		import "fmt"
++		func main() { fmt.Println(C.val) }
++	`)
++	tg.setenv("GOPATH", tg.path("."))
++	exe := tg.path("x.exe")
++	tg.run("build", "-o", exe, "x")
++	tg.setenv("CGO_LDFLAGS", "-lnosuchlibraryexists")
++	tg.runFail("build", "-o", exe, "x")
++	tg.grepStderr(`nosuchlibraryexists`, "did not run linker with changed CGO_LDFLAGS")
++}
++
+ // Issue 23982
+ func TestFilepathUnderCwdFormat(t *testing.T) {
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index e886020cb7..3842594454 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -208,8 +208,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	}
+ 	if len(p.CgoFiles)+len(p.SwigFiles) > 0 {
+ 		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
+-		cppflags, cflags, cxxflags, fflags, _, _ := b.CFlags(p)
+-		fmt.Fprintf(h, "CC=%q %q %q\n", b.ccExe(), cppflags, cflags)
++		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
++		fmt.Fprintf(h, "CC=%q %q %q %q\n", b.ccExe(), cppflags, cflags, ldflags)
+ 		if len(p.CXXFiles)+len(p.SwigFiles) > 0 {
+ 			fmt.Fprintf(h, "CXX=%q %q\n", b.cxxExe(), cxxflags)
+ 		}

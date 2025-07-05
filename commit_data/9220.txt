@@ -9,7 +9,42 @@ Date:   Wed Jul 27 14:45:27 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4828045
-
+---
  src/cmd/gc/lex.c         |  1 +
  test/fixedbugs/bug362.go | 16 ++++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 21ac779a9f..6845a8ecd6 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -218,6 +218,7 @@ main(int argc, char *argv[])
+ 		curio.nlsemi = 0;
+ 
+ 		block = 1;
++		iota = -1000000;
+ 
+ 		yyparse();
+ 		if(nsyntaxerrors != 0)
+diff --git a/test/fixedbugs/bug362.go b/test/fixedbugs/bug362.go
+new file mode 100644
+index 0000000000..7912091030
+--- /dev/null
++++ b/test/fixedbugs/bug362.go
+@@ -0,0 +1,16 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 1662
++// iota inside var
++
++package main
++
++var (
++	a = iota  // ERROR "undefined: iota"
++	b = iota  // ERROR "undefined: iota"
++	c = iota  // ERROR "undefined: iota"
++)

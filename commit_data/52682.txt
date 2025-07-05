@@ -22,7 +22,7 @@ Date:   Thu Mar 24 12:41:25 2022 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/51682.txt                             |  2 +
  src/cmd/compile/internal/types2/api_test.go    | 64 ++++++++++++++++++++------
  src/cmd/compile/internal/types2/named.go       |  2 +-
@@ -35,3 +35,532 @@ Date:   Thu Mar 24 12:41:25 2022 -0400
  src/go/types/sizeof_test.go                    |  4 +-
  src/go/types/subst.go                          | 14 ++++--
  11 files changed, 187 insertions(+), 39 deletions(-)
+
+diff --git a/api/next/51682.txt b/api/next/51682.txt
+new file mode 100644
+index 0000000000..35e471d50f
+--- /dev/null
++++ b/api/next/51682.txt
+@@ -0,0 +1,2 @@
++pkg go/types, method (*Func) Origin() *Func #51682
++pkg go/types, method (*Var) Origin() *Var #51682
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index f7cdd1d21e..8afead9695 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -2349,22 +2349,31 @@ type T[P any] struct {
+ 	field P
+ }
+ 
+-func (recv *T[Q]) concreteMethod() {}
++func (recv *T[Q]) concreteMethod(mParam Q) (mResult Q) { return }
+ 
+-type FT[P any] func(ftp P) (ftrp P)
++type FT[P any] func(ftParam P) (ftResult P)
+ 
+-func F[P any](fp P) (frp P){ return }
++func F[P any](fParam P) (fResult P){ return }
+ 
+ type I[P any] interface {
+ 	interfaceMethod(P)
+ }
+ 
++type R[P any] T[P]
++
++func (R[P]) m() {} // having a method triggers expansion of R
++
+ var (
+ 	t T[int]
+ 	ft FT[int]
+ 	f = F[int]
+ 	i I[int]
+ )
++
++func fn() {
++	var r R[int]
++	_ = r
++}
+ `
+ 	info := &Info{
+ 		Defs: make(map[*syntax.Name]Object),
+@@ -2380,18 +2389,32 @@ var (
+ 	}
+ 
+ 	lookup := func(name string) Type { return pkg.Scope().Lookup(name).Type() }
++	fnScope := pkg.Scope().Lookup("fn").(*Func).Scope()
++
+ 	tests := []struct {
+-		ident string
+-		obj   Object
++		name string
++		obj  Object
+ 	}{
++		// Struct fields
+ 		{"field", lookup("t").Underlying().(*Struct).Field(0)},
++		{"field", fnScope.Lookup("r").Type().Underlying().(*Struct).Field(0)},
++
++		// Methods and method fields
+ 		{"concreteMethod", lookup("t").(*Named).Method(0)},
+ 		{"recv", lookup("t").(*Named).Method(0).Type().(*Signature).Recv()},
+-		{"ftp", lookup("ft").Underlying().(*Signature).Params().At(0)},
+-		{"ftrp", lookup("ft").Underlying().(*Signature).Results().At(0)},
+-		{"fp", lookup("f").(*Signature).Params().At(0)},
+-		{"frp", lookup("f").(*Signature).Results().At(0)},
++		{"mParam", lookup("t").(*Named).Method(0).Type().(*Signature).Params().At(0)},
++		{"mResult", lookup("t").(*Named).Method(0).Type().(*Signature).Results().At(0)},
++
++		// Interface methods
+ 		{"interfaceMethod", lookup("i").Underlying().(*Interface).Method(0)},
++
++		// Function type fields
++		{"ftParam", lookup("ft").Underlying().(*Signature).Params().At(0)},
++		{"ftResult", lookup("ft").Underlying().(*Signature).Results().At(0)},
++
++		// Function fields
++		{"fParam", lookup("f").(*Signature).Params().At(0)},
++		{"fResult", lookup("f").(*Signature).Results().At(0)},
+ 	}
+ 
+ 	// Collect all identifiers by name.
+@@ -2405,14 +2428,17 @@ var (
+ 
+ 	for _, test := range tests {
+ 		test := test
+-		t.Run(test.ident, func(t *testing.T) {
+-			if got := len(idents[test.ident]); got != 1 {
+-				t.Fatalf("found %d identifiers named %s, want 1", got, test.ident)
++		t.Run(test.name, func(t *testing.T) {
++			if got := len(idents[test.name]); got != 1 {
++				t.Fatalf("found %d identifiers named %s, want 1", got, test.name)
+ 			}
+-			ident := idents[test.ident][0]
++			ident := idents[test.name][0]
+ 			def := info.Defs[ident]
+ 			if def == test.obj {
+-				t.Fatalf("info.Defs[%s] contains the test object", test.ident)
++				t.Fatalf("info.Defs[%s] contains the test object", test.name)
++			}
++			if orig := originObject(test.obj); def != orig {
++				t.Errorf("info.Defs[%s] does not match obj.Origin()", test.name)
+ 			}
+ 			if def.Pkg() != test.obj.Pkg() {
+ 				t.Errorf("Pkg() = %v, want %v", def.Pkg(), test.obj.Pkg())
+@@ -2437,6 +2463,16 @@ var (
+ 	}
+ }
+ 
++func originObject(obj Object) Object {
++	switch obj := obj.(type) {
++	case *Var:
++		return obj.Origin()
++	case *Func:
++		return obj.Origin()
++	}
++	return obj
++}
++
+ func TestImplements(t *testing.T) {
+ 	const src = `
+ package p
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 1d3703ffd9..0a150a451c 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -192,7 +192,7 @@ func (t *Named) instantiateMethod(i int) *Func {
+ 	}
+ 
+ 	sig.recv = substVar(origSig.recv, rtyp)
+-	return NewFunc(origm.pos, origm.pkg, origm.name, sig)
++	return substFunc(origm, sig)
+ }
+ 
+ // SetUnderlying sets the underlying type and marks t as complete.
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 9043b372ea..75f7ea5b12 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -327,6 +327,7 @@ type Var struct {
+ 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
+ 	isField  bool // var is struct field
+ 	used     bool // set if the variable was used
++	origin   *Var // if non-nil, the Var from which this one was instantiated
+ }
+ 
+ // NewVar returns a new variable.
+@@ -357,6 +358,20 @@ func (obj *Var) Embedded() bool { return obj.embedded }
+ // IsField reports whether the variable is a struct field.
+ func (obj *Var) IsField() bool { return obj.isField }
+ 
++// Origin returns the canonical Var for its receiver, i.e. the Var object
++// recorded in Info.Defs.
++//
++// For synthetic Vars created during instantiation (such as struct fields or
++// function parameters that depend on type arguments), this will be the
++// corresponding Var on the generic (uninstantiated) type. For all other Vars
++// Origin returns the receiver.
++func (obj *Var) Origin() *Var {
++	if obj.origin != nil {
++		return obj.origin
++	}
++	return obj
++}
++
+ func (*Var) isDependency() {} // a variable may be a dependency of an initialization expression
+ 
+ // A Func represents a declared function, concrete method, or abstract
+@@ -364,7 +379,8 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
+ // An abstract method may belong to many interfaces due to embedding.
+ type Func struct {
+ 	object
+-	hasPtrRecv_ bool // only valid for methods that don't have a type yet; use hasPtrRecv() to read
++	hasPtrRecv_ bool  // only valid for methods that don't have a type yet; use hasPtrRecv() to read
++	origin      *Func // if non-nil, the Func from which this one was instantiated
+ }
+ 
+ // NewFunc returns a new function with the given signature, representing
+@@ -375,7 +391,7 @@ func NewFunc(pos syntax.Pos, pkg *Package, name string, sig *Signature) *Func {
+ 	if sig != nil {
+ 		typ = sig
+ 	}
+-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false}
++	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false, nil}
+ }
+ 
+ // FullName returns the package- or receiver-type-qualified name of
+@@ -391,6 +407,20 @@ func (obj *Func) FullName() string {
+ // (but there is also no mechanism to get to an instantiated function).
+ func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+ 
++// Origin returns the canonical Func for its receiver, i.e. the Func object
++// recorded in Info.Defs.
++//
++// For synthetic functions created during instantiation (such as methods on an
++// instantiated Named type or interface methods that depend on type arguments),
++// this will be the corresponding Func on the generic (uninstantiated) type.
++// For all other Funcs Origin returns the receiver.
++func (obj *Func) Origin() *Func {
++	if obj.origin != nil {
++		return obj.origin
++	}
++	return obj
++}
++
+ // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
+ func (obj *Func) hasPtrRecv() bool {
+ 	// If a method's receiver type is set, use that as the source of truth for the receiver.
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index bd31a041b7..7ab7abb317 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -39,8 +39,8 @@ func TestSizeof(t *testing.T) {
+ 		{PkgName{}, 64, 104},
+ 		{Const{}, 64, 104},
+ 		{TypeName{}, 56, 88},
+-		{Var{}, 60, 96},
+-		{Func{}, 60, 96},
++		{Var{}, 64, 104},
++		{Func{}, 64, 104},
+ 		{Label{}, 60, 96},
+ 		{Builtin{}, 60, 96},
+ 		{Nil{}, 56, 88},
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index c9e8f9676d..6cbe57dab0 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -299,6 +299,7 @@ func (subst *subster) var_(v *Var) *Var {
+ func substVar(v *Var, typ Type) *Var {
+ 	copy := *v
+ 	copy.typ = typ
++	copy.origin = v.Origin()
+ 	return &copy
+ }
+ 
+@@ -332,14 +333,19 @@ func (subst *subster) varList(in []*Var) (out []*Var, copied bool) {
+ func (subst *subster) func_(f *Func) *Func {
+ 	if f != nil {
+ 		if typ := subst.typ(f.typ); typ != f.typ {
+-			copy := *f
+-			copy.typ = typ
+-			return &copy
++			return substFunc(f, typ)
+ 		}
+ 	}
+ 	return f
+ }
+ 
++func substFunc(f *Func, typ Type) *Func {
++	copy := *f
++	copy.typ = typ
++	copy.origin = f.Origin()
++	return &copy
++}
++
+ func (subst *subster) funcList(in []*Func) (out []*Func, copied bool) {
+ 	out = in
+ 	for i, f := range in {
+@@ -415,7 +421,7 @@ func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
+ 			}
+ 			newsig := *sig
+ 			newsig.recv = substVar(sig.recv, new)
+-			out[i] = NewFunc(method.pos, method.pkg, method.name, &newsig)
++			out[i] = substFunc(method, &newsig)
+ 		}
+ 	}
+ 	return
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 0daeff7fc0..21a4421726 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -731,6 +731,8 @@ func TestUsesInfo(t *testing.T) {
+ 			`m`,
+ 			`func (generic_m10.E[int]).m()`,
+ 		},
++		{`package generic_m11; type T[A any] interface{ m(); n() }; func _(t1 T[int], t2 T[string]) { t1.m(); t2.n() }`, `m`, `func (generic_m11.T[int]).m()`},
++		{`package generic_m12; type T[A any] interface{ m(); n() }; func _(t1 T[int], t2 T[string]) { t1.m(); t2.n() }`, `n`, `func (generic_m12.T[string]).n()`},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -2368,22 +2370,31 @@ type T[P any] struct {
+ 	field P
+ }
+ 
+-func (recv *T[Q]) concreteMethod() {}
++func (recv *T[Q]) concreteMethod(mParam Q) (mResult Q) { return }
+ 
+-type FT[P any] func(ftp P) (ftrp P)
++type FT[P any] func(ftParam P) (ftResult P)
+ 
+-func F[P any](fp P) (frp P){ return }
++func F[P any](fParam P) (fResult P){ return }
+ 
+ type I[P any] interface {
+ 	interfaceMethod(P)
+ }
+ 
++type R[P any] T[P]
++
++func (R[P]) m() {} // having a method triggers expansion of R
++
+ var (
+ 	t T[int]
+ 	ft FT[int]
+ 	f = F[int]
+ 	i I[int]
+ )
++
++func fn() {
++	var r R[int]
++	_ = r
++}
+ `
+ 	info := &Info{
+ 		Defs: make(map[*ast.Ident]Object),
+@@ -2400,18 +2411,32 @@ var (
+ 	}
+ 
+ 	lookup := func(name string) Type { return pkg.Scope().Lookup(name).Type() }
++	fnScope := pkg.Scope().Lookup("fn").(*Func).Scope()
++
+ 	tests := []struct {
+ 		name string
+ 		obj  Object
+ 	}{
++		// Struct fields
+ 		{"field", lookup("t").Underlying().(*Struct).Field(0)},
++		{"field", fnScope.Lookup("r").Type().Underlying().(*Struct).Field(0)},
++
++		// Methods and method fields
+ 		{"concreteMethod", lookup("t").(*Named).Method(0)},
+ 		{"recv", lookup("t").(*Named).Method(0).Type().(*Signature).Recv()},
+-		{"ftp", lookup("ft").Underlying().(*Signature).Params().At(0)},
+-		{"ftrp", lookup("ft").Underlying().(*Signature).Results().At(0)},
+-		{"fp", lookup("f").(*Signature).Params().At(0)},
+-		{"frp", lookup("f").(*Signature).Results().At(0)},
++		{"mParam", lookup("t").(*Named).Method(0).Type().(*Signature).Params().At(0)},
++		{"mResult", lookup("t").(*Named).Method(0).Type().(*Signature).Results().At(0)},
++
++		// Interface methods
+ 		{"interfaceMethod", lookup("i").Underlying().(*Interface).Method(0)},
++
++		// Function type fields
++		{"ftParam", lookup("ft").Underlying().(*Signature).Params().At(0)},
++		{"ftResult", lookup("ft").Underlying().(*Signature).Results().At(0)},
++
++		// Function fields
++		{"fParam", lookup("f").(*Signature).Params().At(0)},
++		{"fResult", lookup("f").(*Signature).Results().At(0)},
+ 	}
+ 
+ 	// Collect all identifiers by name.
+@@ -2434,6 +2459,9 @@ var (
+ 			if def == test.obj {
+ 				t.Fatalf("info.Defs[%s] contains the test object", test.name)
+ 			}
++			if orig := originObject(test.obj); def != orig {
++				t.Errorf("info.Defs[%s] does not match obj.Origin()", test.name)
++			}
+ 			if def.Pkg() != test.obj.Pkg() {
+ 				t.Errorf("Pkg() = %v, want %v", def.Pkg(), test.obj.Pkg())
+ 			}
+@@ -2457,6 +2485,16 @@ var (
+ 	}
+ }
+ 
++func originObject(obj Object) Object {
++	switch obj := obj.(type) {
++	case *Var:
++		return obj.Origin()
++	case *Func:
++		return obj.Origin()
++	}
++	return obj
++}
++
+ func TestImplements(t *testing.T) {
+ 	const src = `
+ package p
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index ee35080142..f8d319a5ec 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -194,7 +194,7 @@ func (t *Named) instantiateMethod(i int) *Func {
+ 	}
+ 
+ 	sig.recv = substVar(origSig.recv, rtyp)
+-	return NewFunc(origm.pos, origm.pkg, origm.name, sig)
++	return substFunc(origm, sig)
+ }
+ 
+ // SetUnderlying sets the underlying type and marks t as complete.
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 89dcd83c2d..ae138a5879 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -281,6 +281,7 @@ type Var struct {
+ 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
+ 	isField  bool // var is struct field
+ 	used     bool // set if the variable was used
++	origin   *Var // if non-nil, the Var from which this one was instantiated
+ }
+ 
+ // NewVar returns a new variable.
+@@ -311,6 +312,20 @@ func (obj *Var) Embedded() bool { return obj.embedded }
+ // IsField reports whether the variable is a struct field.
+ func (obj *Var) IsField() bool { return obj.isField }
+ 
++// Origin returns the canonical Var for its receiver, i.e. the Var object
++// recorded in Info.Defs.
++//
++// For synthetic Vars created during instantiation (such as struct fields or
++// function parameters that depend on type arguments), this will be the
++// corresponding Var on the generic (uninstantiated) type. For all other Vars
++// Origin returns the receiver.
++func (obj *Var) Origin() *Var {
++	if obj.origin != nil {
++		return obj.origin
++	}
++	return obj
++}
++
+ func (*Var) isDependency() {} // a variable may be a dependency of an initialization expression
+ 
+ // A Func represents a declared function, concrete method, or abstract
+@@ -318,7 +333,8 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
+ // An abstract method may belong to many interfaces due to embedding.
+ type Func struct {
+ 	object
+-	hasPtrRecv_ bool // only valid for methods that don't have a type yet; use hasPtrRecv() to read
++	hasPtrRecv_ bool  // only valid for methods that don't have a type yet; use hasPtrRecv() to read
++	origin      *Func // if non-nil, the Func from which this one was instantiated
+ }
+ 
+ // NewFunc returns a new function with the given signature, representing
+@@ -329,7 +345,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
+ 	if sig != nil {
+ 		typ = sig
+ 	}
+-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false}
++	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false, nil}
+ }
+ 
+ // FullName returns the package- or receiver-type-qualified name of
+@@ -345,6 +361,20 @@ func (obj *Func) FullName() string {
+ // (but there is also no mechanism to get to an instantiated function).
+ func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+ 
++// Origin returns the canonical Func for its receiver, i.e. the Func object
++// recorded in Info.Defs.
++//
++// For synthetic functions created during instantiation (such as methods on an
++// instantiated Named type or interface methods that depend on type arguments),
++// this will be the corresponding Func on the generic (uninstantiated) type.
++// For all other Funcs Origin returns the receiver.
++func (obj *Func) Origin() *Func {
++	if obj.origin != nil {
++		return obj.origin
++	}
++	return obj
++}
++
+ // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
+ func (obj *Func) hasPtrRecv() bool {
+ 	// If a method's receiver type is set, use that as the source of truth for the receiver.
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index ba8edf8ad5..3428eb9191 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -38,8 +38,8 @@ func TestSizeof(t *testing.T) {
+ 		{PkgName{}, 48, 88},
+ 		{Const{}, 48, 88},
+ 		{TypeName{}, 40, 72},
+-		{Var{}, 44, 80},
+-		{Func{}, 44, 80},
++		{Var{}, 48, 88},
++		{Func{}, 48, 88},
+ 		{Label{}, 44, 80},
+ 		{Builtin{}, 44, 80},
+ 		{Nil{}, 40, 72},
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index ef5593b71f..b1794ac32d 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -299,6 +299,7 @@ func (subst *subster) var_(v *Var) *Var {
+ func substVar(v *Var, typ Type) *Var {
+ 	copy := *v
+ 	copy.typ = typ
++	copy.origin = v.Origin()
+ 	return &copy
+ }
+ 
+@@ -332,14 +333,19 @@ func (subst *subster) varList(in []*Var) (out []*Var, copied bool) {
+ func (subst *subster) func_(f *Func) *Func {
+ 	if f != nil {
+ 		if typ := subst.typ(f.typ); typ != f.typ {
+-			copy := *f
+-			copy.typ = typ
+-			return &copy
++			return substFunc(f, typ)
+ 		}
+ 	}
+ 	return f
+ }
+ 
++func substFunc(f *Func, typ Type) *Func {
++	copy := *f
++	copy.typ = typ
++	copy.origin = f.Origin()
++	return &copy
++}
++
+ func (subst *subster) funcList(in []*Func) (out []*Func, copied bool) {
+ 	out = in
+ 	for i, f := range in {
+@@ -415,7 +421,7 @@ func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
+ 			}
+ 			newsig := *sig
+ 			newsig.recv = substVar(sig.recv, new)
+-			out[i] = NewFunc(method.pos, method.pkg, method.name, &newsig)
++			out[i] = substFunc(method, &newsig)
+ 		}
+ 	}
+ 	return

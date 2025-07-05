@@ -16,6 +16,23 @@ Date:   Mon Oct 4 23:55:52 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/rand/rand.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index fddd1147e6..b6248a4438 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -11,8 +11,9 @@ import "io"
+ // Reader is a global, shared instance of a cryptographically
+ // secure random number generator.
+ //
+-// On Linux and FreeBSD, Reader uses getrandom(2) if available, /dev/urandom otherwise.
+-// On OpenBSD, Reader uses getentropy(2).
++// On Linux, FreeBSD, Dragonfly and Solaris, Reader uses getrandom(2) if
++// available, /dev/urandom otherwise.
++// On OpenBSD and macOS, Reader uses getentropy(2).
+ // On other Unix-like systems, Reader reads from /dev/urandom.
+ // On Windows systems, Reader uses the RtlGenRandom API.
+ // On Wasm, Reader uses the Web Crypto API.

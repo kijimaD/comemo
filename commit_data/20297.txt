@@ -9,6 +9,39 @@ Date:   Fri Aug 29 10:40:45 2014 -0700
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/133290043
-
+---
  src/pkg/text/template/parse/node.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/pkg/text/template/parse/node.go b/src/pkg/text/template/parse/node.go
+index e6d6613250..55c37f6dba 100644
+--- a/src/pkg/text/template/parse/node.go
++++ b/src/pkg/text/template/parse/node.go
+@@ -360,6 +360,13 @@ func (t *Tree) newDot(pos Pos) *DotNode {
+ 	return &DotNode{tr: t, NodeType: NodeDot, Pos: pos}
+ }
+ 
++func (d *DotNode) Type() NodeType {
++	// Override method on embedded NodeType for API compatibility.
++	// TODO: Not really a problem; could change API without effect but
++	// api tool complains.
++	return NodeDot
++}
++
+ func (d *DotNode) String() string {
+ 	return "."
+ }
+@@ -383,6 +390,13 @@ func (t *Tree) newNil(pos Pos) *NilNode {
+ 	return &NilNode{tr: t, NodeType: NodeNil, Pos: pos}
+ }
+ 
++func (n *NilNode) Type() NodeType {
++	// Override method on embedded NodeType for API compatibility.
++	// TODO: Not really a problem; could change API without effect but
++	// api tool complains.
++	return NodeNil
++}
++
+ func (n *NilNode) String() string {
+ 	return "nil"
+ }

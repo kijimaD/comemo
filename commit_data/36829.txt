@@ -47,8 +47,189 @@ Date:   Tue May 15 09:55:46 2018 +0300
     Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/cmd/go/go_test.go   | 32 ++++++++++++++++----------------
  src/testing/sub_test.go | 32 ++++++++++++++++----------------
  src/testing/testing.go  | 10 +++++-----
  3 files changed, 37 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a0fc72aac4..c32be94823 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4892,30 +4892,30 @@ func TestTestRegexps(t *testing.T) {
+ 	//	BenchmarkX/Y is run in full, twice
+ 	want := `=== RUN   TestX
+ === RUN   TestX/Y
+-	x_test.go:6: LOG: X running
+-    	x_test.go:8: LOG: Y running
++    x_test.go:6: LOG: X running
++        x_test.go:8: LOG: Y running
+ === RUN   TestXX
+-	z_test.go:10: LOG: XX running
++    z_test.go:10: LOG: XX running
+ === RUN   TestX
+ === RUN   TestX/Y
+-	x_test.go:6: LOG: X running
+-    	x_test.go:8: LOG: Y running
++    x_test.go:6: LOG: X running
++        x_test.go:8: LOG: Y running
+ === RUN   TestXX
+-	z_test.go:10: LOG: XX running
++    z_test.go:10: LOG: XX running
+ --- BENCH: BenchmarkX/Y
+-	x_test.go:15: LOG: Y running N=1
+-	x_test.go:15: LOG: Y running N=100
+-	x_test.go:15: LOG: Y running N=10000
+-	x_test.go:15: LOG: Y running N=1000000
+-	x_test.go:15: LOG: Y running N=100000000
+-	x_test.go:15: LOG: Y running N=2000000000
++    x_test.go:15: LOG: Y running N=1
++    x_test.go:15: LOG: Y running N=100
++    x_test.go:15: LOG: Y running N=10000
++    x_test.go:15: LOG: Y running N=1000000
++    x_test.go:15: LOG: Y running N=100000000
++    x_test.go:15: LOG: Y running N=2000000000
+ --- BENCH: BenchmarkX/Y
+-	x_test.go:15: LOG: Y running N=1
+-	x_test.go:15: LOG: Y running N=2000000000
++    x_test.go:15: LOG: Y running N=1
++    x_test.go:15: LOG: Y running N=2000000000
+ --- BENCH: BenchmarkX
+-	x_test.go:13: LOG: X running N=1
++    x_test.go:13: LOG: X running N=1
+ --- BENCH: BenchmarkXX
+-	z_test.go:18: LOG: XX running N=1
++    z_test.go:18: LOG: XX running N=1
+ `
+ 
+ 	have := strings.Join(lines, "")
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index a5e6a1fb41..9af3909b35 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -168,7 +168,7 @@ func TestTRun(t *T) {
+ --- FAIL: failure in parallel test propagates upwards (N.NNs)
+     --- FAIL: failure in parallel test propagates upwards/#00 (N.NNs)
+         --- FAIL: failure in parallel test propagates upwards/#00/par (N.NNs)
+-		`,
++        `,
+ 		f: func(t *T) {
+ 			t.Run("", func(t *T) {
+ 				t.Parallel()
+@@ -210,8 +210,8 @@ func TestTRun(t *T) {
+ 		desc: "skipping after error",
+ 		output: `
+ --- FAIL: skipping after error (N.NNs)
+-	sub_test.go:NNN: an error
+-	sub_test.go:NNN: skipped`,
++    sub_test.go:NNN: an error
++    sub_test.go:NNN: skipped`,
+ 		f: func(t *T) {
+ 			t.Error("an error")
+ 			t.Skip("skipped")
+@@ -320,9 +320,9 @@ func TestTRun(t *T) {
+ 		ok:   false,
+ 		output: `
+ --- FAIL: subtest calls error on parent (N.NNs)
+-	sub_test.go:NNN: first this
+-	sub_test.go:NNN: and now this!
+-	sub_test.go:NNN: oh, and this too`,
++    sub_test.go:NNN: first this
++    sub_test.go:NNN: and now this!
++    sub_test.go:NNN: oh, and this too`,
+ 		maxPar: 1,
+ 		f: func(t *T) {
+ 			t.Errorf("first this")
+@@ -337,10 +337,10 @@ func TestTRun(t *T) {
+ 		ok:   false,
+ 		output: `
+ --- FAIL: subtest calls fatal on parent (N.NNs)
+-	sub_test.go:NNN: first this
+-	sub_test.go:NNN: and now this!
++    sub_test.go:NNN: first this
++    sub_test.go:NNN: and now this!
+     --- FAIL: subtest calls fatal on parent/#00 (N.NNs)
+-    	testing.go:NNN: test executed panic(nil) or runtime.Goexit: subtest may have called FailNow on a parent test`,
++        testing.go:NNN: test executed panic(nil) or runtime.Goexit: subtest may have called FailNow on a parent test`,
+ 		maxPar: 1,
+ 		f: func(t *T) {
+ 			outer := t
+@@ -355,10 +355,10 @@ func TestTRun(t *T) {
+ 		ok:   false,
+ 		output: `
+ --- FAIL: subtest calls error on ancestor (N.NNs)
+-	sub_test.go:NNN: Report to ancestor
++    sub_test.go:NNN: Report to ancestor
+     --- FAIL: subtest calls error on ancestor/#00 (N.NNs)
+-    	sub_test.go:NNN: Still do this
+-	sub_test.go:NNN: Also do this`,
++        sub_test.go:NNN: Still do this
++    sub_test.go:NNN: Also do this`,
+ 		maxPar: 1,
+ 		f: func(t *T) {
+ 			outer := t
+@@ -375,7 +375,7 @@ func TestTRun(t *T) {
+ 		ok:   false,
+ 		output: `
+ --- FAIL: subtest calls fatal on ancestor (N.NNs)
+-	sub_test.go:NNN: Nope`,
++    sub_test.go:NNN: Nope`,
+ 		maxPar: 1,
+ 		f: func(t *T) {
+ 			outer := t
+@@ -503,7 +503,7 @@ func TestBRun(t *T) {
+ 		chatty: true,
+ 		output: `
+ --- SKIP: root
+-	sub_test.go:NNN: skipping`,
++    sub_test.go:NNN: skipping`,
+ 		f: func(b *B) { b.Skip("skipping") },
+ 	}, {
+ 		desc:   "chatty with recursion",
+@@ -521,8 +521,8 @@ func TestBRun(t *T) {
+ 		failed: true,
+ 		output: `
+ --- FAIL: root
+-	sub_test.go:NNN: an error
+-	sub_test.go:NNN: skipped`,
++    sub_test.go:NNN: an error
++    sub_test.go:NNN: skipped`,
+ 		f: func(b *B) {
+ 			b.Error("an error")
+ 			b.Skip("skipped")
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 6865645444..a552b36361 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -394,7 +394,7 @@ func (c *common) frameSkip(skip int) runtime.Frame {
+ }
+ 
+ // decorate prefixes the string with the file and line of the call site
+-// and inserts the final newline if needed and indentation tabs for formatting.
++// and inserts the final newline if needed and indentation spaces for formatting.
+ // This function must be called with c.mu held.
+ func (c *common) decorate(s string) string {
+ 	frame := c.frameSkip(3) // decorate + log + public function.
+@@ -414,8 +414,8 @@ func (c *common) decorate(s string) string {
+ 		line = 1
+ 	}
+ 	buf := new(strings.Builder)
+-	// Every line is indented at least one tab.
+-	buf.WriteByte('\t')
++	// Every line is indented at least 4 spaces.
++	buf.WriteString("    ")
+ 	fmt.Fprintf(buf, "%s:%d: ", file, line)
+ 	lines := strings.Split(s, "\n")
+ 	if l := len(lines); l > 1 && lines[l-1] == "" {
+@@ -423,8 +423,8 @@ func (c *common) decorate(s string) string {
+ 	}
+ 	for i, line := range lines {
+ 		if i > 0 {
+-			// Second and subsequent lines are indented an extra tab.
+-			buf.WriteString("\n\t\t")
++			// Second and subsequent lines are indented an additional 4 spaces.
++			buf.WriteString("\n        ")
+ 		}
+ 		buf.WriteString(line)
+ 	}

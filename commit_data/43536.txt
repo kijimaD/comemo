@@ -15,8 +15,136 @@ Date:   Fri Apr 10 09:43:22 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  8 ++++----
  src/cmd/compile/internal/ssa/rewritegeneric.go | 16 ++++++++++++++++
  test/fixedbugs/issue38359.go                   | 19 +++++++++++++++++++
  3 files changed, 39 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 7ae34cec56..28e45376df 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -103,8 +103,8 @@
+ (Add16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c+d))])
+ (Add32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c+d))])
+ (Add64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c+d])
+-(Add32F (Const32F [c]) (Const32F [d])) -> (Const32F [auxFrom32F(auxTo32F(c) + auxTo32F(d))])
+-(Add64F (Const64F [c]) (Const64F [d])) -> (Const64F [auxFrom64F(auxTo64F(c) + auxTo64F(d))])
++(Add32F (Const32F [c]) (Const32F [d])) && !math.IsNaN(float64(auxTo32F(c) + auxTo32F(d))) -> (Const32F [auxFrom32F(auxTo32F(c) + auxTo32F(d))])
++(Add64F (Const64F [c]) (Const64F [d])) && !math.IsNaN(auxTo64F(c) + auxTo64F(d)) -> (Const64F [auxFrom64F(auxTo64F(c) + auxTo64F(d))])
+ (AddPtr <t> x (Const64 [c])) -> (OffPtr <t> x [c])
+ (AddPtr <t> x (Const32 [c])) -> (OffPtr <t> x [c])
+ 
+@@ -112,8 +112,8 @@
+ (Sub16  (Const16 [c]) (Const16 [d]))   -> (Const16 [int64(int16(c-d))])
+ (Sub32  (Const32 [c]) (Const32 [d]))   -> (Const32 [int64(int32(c-d))])
+ (Sub64  (Const64 [c]) (Const64 [d]))   -> (Const64 [c-d])
+-(Sub32F (Const32F [c]) (Const32F [d])) -> (Const32F [auxFrom32F(auxTo32F(c) - auxTo32F(d))])
+-(Sub64F (Const64F [c]) (Const64F [d])) -> (Const64F [auxFrom64F(auxTo64F(c) - auxTo64F(d))])
++(Sub32F (Const32F [c]) (Const32F [d])) && !math.IsNaN(float64(auxTo32F(c) - auxTo32F(d))) -> (Const32F [auxFrom32F(auxTo32F(c) - auxTo32F(d))])
++(Sub64F (Const64F [c]) (Const64F [d])) && !math.IsNaN(auxTo64F(c) - auxTo64F(d)) -> (Const64F [auxFrom64F(auxTo64F(c) - auxTo64F(d))])
+ 
+ (Mul8   (Const8 [c])   (Const8 [d]))   -> (Const8  [int64(int8(c*d))])
+ (Mul16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c*d))])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index d0c6865777..ad573635c7 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -957,6 +957,7 @@ func rewriteValuegeneric_OpAdd32F(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (Add32F (Const32F [c]) (Const32F [d]))
++	// cond: !math.IsNaN(float64(auxTo32F(c) + auxTo32F(d)))
+ 	// result: (Const32F [auxFrom32F(auxTo32F(c) + auxTo32F(d))])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -968,6 +969,9 @@ func rewriteValuegeneric_OpAdd32F(v *Value) bool {
+ 				continue
+ 			}
+ 			d := v_1.AuxInt
++			if !(!math.IsNaN(float64(auxTo32F(c) + auxTo32F(d)))) {
++				continue
++			}
+ 			v.reset(OpConst32F)
+ 			v.AuxInt = auxFrom32F(auxTo32F(c) + auxTo32F(d))
+ 			return true
+@@ -1233,6 +1237,7 @@ func rewriteValuegeneric_OpAdd64F(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (Add64F (Const64F [c]) (Const64F [d]))
++	// cond: !math.IsNaN(auxTo64F(c) + auxTo64F(d))
+ 	// result: (Const64F [auxFrom64F(auxTo64F(c) + auxTo64F(d))])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1244,6 +1249,9 @@ func rewriteValuegeneric_OpAdd64F(v *Value) bool {
+ 				continue
+ 			}
+ 			d := v_1.AuxInt
++			if !(!math.IsNaN(auxTo64F(c) + auxTo64F(d))) {
++				continue
++			}
+ 			v.reset(OpConst64F)
+ 			v.AuxInt = auxFrom64F(auxTo64F(c) + auxTo64F(d))
+ 			return true
+@@ -22641,6 +22649,7 @@ func rewriteValuegeneric_OpSub32F(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (Sub32F (Const32F [c]) (Const32F [d]))
++	// cond: !math.IsNaN(float64(auxTo32F(c) - auxTo32F(d)))
+ 	// result: (Const32F [auxFrom32F(auxTo32F(c) - auxTo32F(d))])
+ 	for {
+ 		if v_0.Op != OpConst32F {
+@@ -22651,6 +22660,9 @@ func rewriteValuegeneric_OpSub32F(v *Value) bool {
+ 			break
+ 		}
+ 		d := v_1.AuxInt
++		if !(!math.IsNaN(float64(auxTo32F(c) - auxTo32F(d)))) {
++			break
++		}
+ 		v.reset(OpConst32F)
+ 		v.AuxInt = auxFrom32F(auxTo32F(c) - auxTo32F(d))
+ 		return true
+@@ -22879,6 +22891,7 @@ func rewriteValuegeneric_OpSub64F(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (Sub64F (Const64F [c]) (Const64F [d]))
++	// cond: !math.IsNaN(auxTo64F(c) - auxTo64F(d))
+ 	// result: (Const64F [auxFrom64F(auxTo64F(c) - auxTo64F(d))])
+ 	for {
+ 		if v_0.Op != OpConst64F {
+@@ -22889,6 +22902,9 @@ func rewriteValuegeneric_OpSub64F(v *Value) bool {
+ 			break
+ 		}
+ 		d := v_1.AuxInt
++		if !(!math.IsNaN(auxTo64F(c) - auxTo64F(d))) {
++			break
++		}
+ 		v.reset(OpConst64F)
+ 		v.AuxInt = auxFrom64F(auxTo64F(c) - auxTo64F(d))
+ 		return true
+diff --git a/test/fixedbugs/issue38359.go b/test/fixedbugs/issue38359.go
+new file mode 100644
+index 0000000000..a7550c7b2c
+--- /dev/null
++++ b/test/fixedbugs/issue38359.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure NaN-NaN compiles correctly.
++
++package p
++
++func f() {
++	var st struct {
++		f    float64
++		_, _ string
++	}
++
++	f := 1e308
++	st.f = 2*f - 2*f
++}

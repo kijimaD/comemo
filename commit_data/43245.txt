@@ -11,6 +11,22 @@ Date:   Fri Mar 20 10:34:58 2020 -0400
     Change-Id: I05287772c18cab861c2df805fa9497103fb00dcc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/224420
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 77b072bcf0..a916c50f19 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1977,7 +1977,9 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
+ 		s := l.Syms[cand]
+ 		relocs := l.Relocs(cand)
+ 		rslice = relocs.ReadAll(rslice)
+-		s.R = make([]sym.Reloc, len(rslice))
++		if len(s.R) != len(rslice) {
++			s.R = make([]sym.Reloc, len(rslice))
++		}
+ 		l.convertRelocations(rslice, s, true)
+ 	}
+ 

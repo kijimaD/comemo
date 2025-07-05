@@ -8,6 +8,21 @@ Date:   Tue Aug 12 21:56:20 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/122460043
-
+---
  src/liblink/obj9.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/liblink/obj9.c b/src/liblink/obj9.c
+index 90145a46f8..321e2c9bf4 100644
+--- a/src/liblink/obj9.c
++++ b/src/liblink/obj9.c
+@@ -639,6 +639,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ static Prog*
+ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ {
++	// TODO(minux)
++	return p;
++
+ 	int32 arg;
+ 	Prog *q, *q1;
+ 

@@ -13,7 +13,7 @@ Date:   Mon Feb 6 13:40:19 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go  |  6 +++---
  src/cmd/compile/internal/arm/ssa.go    |  6 +++---
  src/cmd/compile/internal/arm64/ssa.go  |  6 +++---
@@ -26,3 +26,359 @@ Date:   Mon Feb 6 13:40:19 2017 -0800
  src/cmd/compile/internal/s390x/ssa.go  |  6 +++---
  src/cmd/compile/internal/x86/ssa.go    |  6 +++---
  11 files changed, 45 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index f31e25e5a5..4b0e395495 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -737,7 +737,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			q.To.Reg = r
+ 		}
+ 	case ssa.OpAMD64CALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Linksym(gc.Deferreturn.Sym) {
++		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+ 			// Deferred calls will appear to be returning to
+ 			// the CALL deferreturn(SB) that we are about to emit.
+ 			// However, the stack trace code will show the line
+@@ -766,7 +766,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
++		p.To.Sym = gc.Deferproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+@@ -774,7 +774,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
++		p.To.Sym = gc.Newproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index e3b1d32d99..63488f7116 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -635,7 +635,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpARMCALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Linksym(gc.Deferreturn.Sym) {
++		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+ 			// Deferred calls will appear to be returning to
+ 			// the CALL deferreturn(SB) that we are about to emit.
+ 			// However, the stack trace code will show the line
+@@ -665,7 +665,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
++		p.To.Sym = gc.Deferproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+@@ -673,7 +673,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
++		p.To.Sym = gc.Newproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 11405e60bb..a8101ae844 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -632,7 +632,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p4.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p4, p)
+ 	case ssa.OpARM64CALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Linksym(gc.Deferreturn.Sym) {
++		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+ 			// Deferred calls will appear to be returning to
+ 			// the CALL deferreturn(SB) that we are about to emit.
+ 			// However, the stack trace code will show the line
+@@ -662,7 +662,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
++		p.To.Sym = gc.Deferproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+@@ -670,7 +670,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
++		p.To.Sym = gc.Newproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 22e64b3764..0d5e30d002 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -365,7 +365,8 @@ var Thearch Arch
+ 
+ var (
+ 	staticbytes,
+-	zerobase,
++	zerobase *Node
++
+ 	Newproc,
+ 	Deferproc,
+ 	Deferreturn,
+@@ -378,5 +379,5 @@ var (
+ 	assertE2I,
+ 	assertE2I2,
+ 	assertI2I,
+-	assertI2I2 *Node
++	assertI2I2 *obj.LSym
+ )
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 8d17536269..1796fb3df1 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -297,19 +297,19 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
+ 
+ func compile(fn *Node) {
+ 	if Newproc == nil {
+-		Newproc = Sysfunc("newproc")
+-		Deferproc = Sysfunc("deferproc")
+-		Deferreturn = Sysfunc("deferreturn")
+-		panicindex = Sysfunc("panicindex")
+-		panicslice = Sysfunc("panicslice")
+-		panicdivide = Sysfunc("panicdivide")
+-		growslice = Sysfunc("growslice")
+-		panicdottype = Sysfunc("panicdottype")
+-		panicnildottype = Sysfunc("panicnildottype")
+-		assertE2I = Sysfunc("assertE2I")
+-		assertE2I2 = Sysfunc("assertE2I2")
+-		assertI2I = Sysfunc("assertI2I")
+-		assertI2I2 = Sysfunc("assertI2I2")
++		Newproc = Linksym(Sysfunc("newproc").Sym)
++		Deferproc = Linksym(Sysfunc("deferproc").Sym)
++		Deferreturn = Linksym(Sysfunc("deferreturn").Sym)
++		panicindex = Linksym(Sysfunc("panicindex").Sym)
++		panicslice = Linksym(Sysfunc("panicslice").Sym)
++		panicdivide = Linksym(Sysfunc("panicdivide").Sym)
++		growslice = Linksym(Sysfunc("growslice").Sym)
++		panicdottype = Linksym(Sysfunc("panicdottype").Sym)
++		panicnildottype = Linksym(Sysfunc("panicnildottype").Sym)
++		assertE2I = Linksym(Sysfunc("assertE2I").Sym)
++		assertE2I2 = Linksym(Sysfunc("assertE2I2").Sym)
++		assertI2I = Linksym(Sysfunc("assertI2I").Sym)
++		assertI2I2 = Linksym(Sysfunc("assertI2I2").Sym)
+ 	}
+ 
+ 	defer func(lno src.XPos) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 898421fd01..02ecb98d6a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -250,7 +250,7 @@ type state struct {
+ }
+ 
+ type funcLine struct {
+-	f    *Node
++	f    *obj.LSym
+ 	line src.XPos
+ }
+ 
+@@ -3303,7 +3303,7 @@ func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
+ }
+ 
+ // If cmp (a bool) is false, panic using the given function.
+-func (s *state) check(cmp *ssa.Value, fn *Node) {
++func (s *state) check(cmp *ssa.Value, fn *obj.LSym) {
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.SetControl(cmp)
+@@ -3344,7 +3344,7 @@ func (s *state) intDivide(n *Node, a, b *ssa.Value) *ssa.Value {
+ // Returns a slice of results of the given result types.
+ // The call is added to the end of the current block.
+ // If returns is false, the block is marked as an exit block.
+-func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Value) []*ssa.Value {
++func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa.Value) []*ssa.Value {
+ 	// Write args to the stack
+ 	off := Ctxt.FixedFrameSize()
+ 	for _, arg := range args {
+@@ -3365,7 +3365,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
+ 	}
+ 
+ 	// Issue call
+-	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Linksym(fn.Sym), s.mem())
++	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, fn, s.mem())
+ 	s.vars[&memVar] = call
+ 
+ 	if !returns {
+@@ -4610,7 +4610,7 @@ func sizeAlignAuxInt(t *Type) int64 {
+ 
+ // extendIndex extends v to a full int width.
+ // panic using the given function if v does not fit in an int (only on 32-bit archs).
+-func (s *state) extendIndex(v *ssa.Value, panicfn *Node) *ssa.Value {
++func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
+ 	size := v.Type.Size()
+ 	if size == s.config.IntSize {
+ 		return v
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 87fcab4d40..5c69adf6cd 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -487,7 +487,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p6.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p6, p2)
+ 	case ssa.OpMIPSCALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Linksym(gc.Deferreturn.Sym) {
++		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+ 			// Deferred calls will appear to be returning to
+ 			// the CALL deferreturn(SB) that we are about to emit.
+ 			// However, the stack trace code will show the line
+@@ -517,7 +517,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
++		p.To.Sym = gc.Deferproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+@@ -525,7 +525,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
++		p.To.Sym = gc.Newproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 46a7f51499..067f4c00f1 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -490,7 +490,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p6.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p6, p2)
+ 	case ssa.OpMIPS64CALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Linksym(gc.Deferreturn.Sym) {
++		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+ 			// Deferred calls will appear to be returning to
+ 			// the CALL deferreturn(SB) that we are about to emit.
+ 			// However, the stack trace code will show the line
+@@ -520,7 +520,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
++		p.To.Sym = gc.Deferproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+@@ -528,7 +528,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
++		p.To.Sym = gc.Newproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index b70257ab8f..6548df51ae 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -687,7 +687,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.Patch(p4, p)
+ 
+ 	case ssa.OpPPC64CALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Linksym(gc.Deferreturn.Sym) {
++		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+ 			// Deferred calls will appear to be returning to
+ 			// the CALL deferreturn(SB) that we are about to emit.
+ 			// However, the stack trace code will show the line
+@@ -772,7 +772,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
++		p.To.Sym = gc.Deferproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+@@ -780,7 +780,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
++		p.To.Sym = gc.Newproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 9fca3e094c..f057e7315d 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -473,7 +473,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 	case ssa.OpS390XCALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Linksym(gc.Deferreturn.Sym) {
++		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+ 			// Deferred calls will appear to be returning to
+ 			// the CALL deferreturn(SB) that we are about to emit.
+ 			// However, the stack trace code will show the line
+@@ -502,7 +502,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
++		p.To.Sym = gc.Deferproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+@@ -510,7 +510,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
++		p.To.Sym = gc.Newproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index fb463f7573..65646ad3b5 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -660,7 +660,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			q.To.Reg = r
+ 		}
+ 	case ssa.Op386CALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Linksym(gc.Deferreturn.Sym) {
++		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+ 			// Deferred calls will appear to be returning to
+ 			// the CALL deferreturn(SB) that we are about to emit.
+ 			// However, the stack trace code will show the line
+@@ -689,7 +689,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
++		p.To.Sym = gc.Deferproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+@@ -697,7 +697,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
++		p.To.Sym = gc.Newproc
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}

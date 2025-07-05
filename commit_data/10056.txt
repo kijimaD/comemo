@@ -10,7 +10,58 @@ Date:   Wed Oct 19 12:19:13 2011 -0400
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5315046
-
+---
  src/pkg/crypto/x509/x509.go      |  4 ++--
  src/pkg/crypto/x509/x509_test.go | 11 ++++++++++-
  2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 4b8ecc56c5..73b32e7d58 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -928,11 +928,11 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
+ 		return
+ 	}
+ 
+-	asn1Issuer, err := asn1.Marshal(parent.Issuer.ToRDNSequence())
++	asn1Issuer, err := asn1.Marshal(parent.Subject.ToRDNSequence())
+ 	if err != nil {
+ 		return
+ 	}
+-	asn1Subject, err := asn1.Marshal(parent.Subject.ToRDNSequence())
++	asn1Subject, err := asn1.Marshal(template.Subject.ToRDNSequence())
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index dbc5273ca1..e8449786c2 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -243,10 +243,11 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 		return
+ 	}
+ 
++	commonName := "test.example.com"
+ 	template := Certificate{
+ 		SerialNumber: big.NewInt(1),
+ 		Subject: pkix.Name{
+-			CommonName:   "test.example.com",
++			CommonName:   commonName,
+ 			Organization: []string{"Acme Co"},
+ 		},
+ 		NotBefore: time.SecondsToUTC(1000),
+@@ -283,6 +284,14 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 		t.Errorf("Failed to parse name constraints: %#v", cert.PermittedDNSDomains)
+ 	}
+ 
++	if cert.Subject.CommonName != commonName {
++		t.Errorf("Subject wasn't correctly copied from the template. Got %s, want %s", cert.Subject.CommonName, commonName)
++	}
++
++	if cert.Issuer.CommonName != commonName {
++		t.Errorf("Issuer wasn't correctly copied from the template. Got %s, want %s", cert.Issuer.CommonName, commonName)
++	}
++
+ 	err = cert.CheckSignatureFrom(cert)
+ 	if err != nil {
+ 		t.Errorf("Signature verification failed: %s", err)

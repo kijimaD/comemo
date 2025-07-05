@@ -10,6 +10,29 @@ Date:   Tue Dec 29 12:10:01 2015 -0500
     Change-Id: I41598e936bb088d77f5e44752eda74222a4208c7
     Reviewed-on: https://go-review.googlesource.com/18310
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/testing.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index c33a997372..e4c4772fed 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -428,13 +428,14 @@ func (c *common) Skipped() bool {
+ // Parallel signals that this test is to be run in parallel with (and only with)
+ // other parallel tests.
+ func (t *T) Parallel() {
+-	// We don't want to include the time we spend waiting for serial tests
+-	// in the test duration. Record the elapsed time thus far and reset the
+-	// timer afterwards.
+ 	if t.isParallel {
+ 		panic("testing: t.Parallel called multiple times")
+ 	}
+ 	t.isParallel = true
++
++	// We don't want to include the time we spend waiting for serial tests
++	// in the test duration. Record the elapsed time thus far and reset the
++	// timer afterwards.
+ 	t.duration += time.Since(t.start)
+ 	t.signal <- (*T)(nil) // Release main testing loop
+ 	<-t.startParallel     // Wait for serial tests to finish

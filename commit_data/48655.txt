@@ -21,7 +21,7 @@ Date:   Fri Jun 4 00:01:22 2021 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go           |  10 +-
  src/cmd/compile/internal/noder/expr.go        |   6 +-
  src/cmd/compile/internal/noder/transform.go   |  43 ++++----
@@ -32,3 +32,374 @@ Date:   Fri Jun 4 00:01:22 2021 -0700
  src/cmd/compile/internal/walk/closure.go      |   3 +
  src/cmd/compile/internal/walk/complit.go      |   4 +-
  9 files changed, 108 insertions(+), 113 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 856b255657..bcc0e412d5 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -324,20 +324,18 @@ func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
+ // A StructKeyExpr is an Field: Value composite literal key.
+ type StructKeyExpr struct {
+ 	miniExpr
+-	Field  *types.Sym
+-	Value  Node
+-	Offset int64
++	Field *types.Field
++	Value Node
+ }
+ 
+-func NewStructKeyExpr(pos src.XPos, field *types.Sym, value Node) *StructKeyExpr {
++func NewStructKeyExpr(pos src.XPos, field *types.Field, value Node) *StructKeyExpr {
+ 	n := &StructKeyExpr{Field: field, Value: value}
+ 	n.pos = pos
+ 	n.op = OSTRUCTKEY
+-	n.Offset = types.BADWIDTH
+ 	return n
+ }
+ 
+-func (n *StructKeyExpr) Sym() *types.Sym { return n.Field }
++func (n *StructKeyExpr) Sym() *types.Sym { return n.Field.Sym }
+ 
+ // An InlinedCallExpr is an inlined function call.
+ type InlinedCallExpr struct {
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index c901dc5534..d6c75845ce 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -355,11 +355,13 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
+ 	for i, elem := range lit.ElemList {
+ 		switch elem := elem.(type) {
+ 		case *syntax.KeyValueExpr:
++			var key ir.Node
+ 			if isStruct {
+-				exprs[i] = ir.NewStructKeyExpr(g.pos(elem), g.name(elem.Key.(*syntax.Name)), g.expr(elem.Value))
++				key = ir.NewIdent(g.pos(elem.Key), g.name(elem.Key.(*syntax.Name)))
+ 			} else {
+-				exprs[i] = ir.NewKeyExpr(g.pos(elem), g.expr(elem.Key), g.expr(elem.Value))
++				key = g.expr(elem.Key)
+ 			}
++			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, g.expr(elem.Value))
+ 		default:
+ 			exprs[i] = g.expr(elem)
+ 		}
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 90d38fe514..a084f0b7be 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -937,9 +937,7 @@ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 
+ 				f := t.Field(i)
+ 				n1 = assignconvfn(n1, f.Type)
+-				sk := ir.NewStructKeyExpr(base.Pos, f.Sym, n1)
+-				sk.Offset = f.Offset
+-				ls[i] = sk
++				ls[i] = ir.NewStructKeyExpr(base.Pos, f, n1)
+ 			}
+ 			assert(len(ls) >= t.NumFields())
+ 		} else {
+@@ -948,33 +946,26 @@ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 			for i, l := range ls {
+ 				ir.SetPos(l)
+ 
+-				if l.Op() == ir.OKEY {
+-					kv := l.(*ir.KeyExpr)
+-					key := kv.Key
++				kv := l.(*ir.KeyExpr)
++				key := kv.Key
+ 
+-					// Sym might have resolved to name in other top-level
+-					// package, because of import dot. Redirect to correct sym
+-					// before we do the lookup.
+-					s := key.Sym()
+-					if id, ok := key.(*ir.Ident); ok && typecheck.DotImportRefs[id] != nil {
+-						s = typecheck.Lookup(s.Name)
+-					}
+-
+-					// An OXDOT uses the Sym field to hold
+-					// the field to the right of the dot,
+-					// so s will be non-nil, but an OXDOT
+-					// is never a valid struct literal key.
+-					assert(!(s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank()))
+-
+-					l = ir.NewStructKeyExpr(l.Pos(), s, kv.Value)
+-					ls[i] = l
++				// Sym might have resolved to name in other top-level
++				// package, because of import dot. Redirect to correct sym
++				// before we do the lookup.
++				s := key.Sym()
++				if id, ok := key.(*ir.Ident); ok && typecheck.DotImportRefs[id] != nil {
++					s = typecheck.Lookup(s.Name)
+ 				}
+ 
+-				assert(l.Op() == ir.OSTRUCTKEY)
+-				l := l.(*ir.StructKeyExpr)
++				// An OXDOT uses the Sym field to hold
++				// the field to the right of the dot,
++				// so s will be non-nil, but an OXDOT
++				// is never a valid struct literal key.
++				assert(!(s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank()))
+ 
+-				f := typecheck.Lookdot1(nil, l.Field, t, t.Fields(), 0)
+-				l.Offset = f.Offset
++				f := typecheck.Lookdot1(nil, s, t, t.Fields(), 0)
++				l := ir.NewStructKeyExpr(l.Pos(), f, kv.Value)
++				ls[i] = l
+ 
+ 				l.Value = assignconvfn(l.Value, f.Type)
+ 			}
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 0c97b6de74..9329a46989 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -403,10 +403,10 @@ func (s *Schedule) initplan(n ir.Node) {
+ 				base.Fatalf("initplan structlit")
+ 			}
+ 			a := a.(*ir.StructKeyExpr)
+-			if a.Field.IsBlank() {
++			if a.Sym().IsBlank() {
+ 				continue
+ 			}
+-			s.addvalue(p, a.Offset, a.Value)
++			s.addvalue(p, a.Field.Offset, a.Value)
+ 		}
+ 
+ 	case ir.OMAPLIT:
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 30d864320f..d52f011072 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -327,9 +327,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 				}
+ 				// No pushtype allowed here. Must name fields for that.
+ 				n1 = AssignConv(n1, f.Type, "field value")
+-				sk := ir.NewStructKeyExpr(base.Pos, f.Sym, n1)
+-				sk.Offset = f.Offset
+-				ls[i] = sk
++				ls[i] = ir.NewStructKeyExpr(base.Pos, f, n1)
+ 			}
+ 			if len(ls) < t.NumFields() {
+ 				base.Errorf("too few values in %v", n)
+@@ -339,77 +337,33 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 
+ 			// keyed list
+ 			ls := n.List
+-			for i, l := range ls {
+-				ir.SetPos(l)
+-
+-				if l.Op() == ir.OKEY {
+-					kv := l.(*ir.KeyExpr)
+-					key := kv.Key
+-
+-					// Sym might have resolved to name in other top-level
+-					// package, because of import dot. Redirect to correct sym
+-					// before we do the lookup.
+-					s := key.Sym()
+-					if id, ok := key.(*ir.Ident); ok && DotImportRefs[id] != nil {
+-						s = Lookup(s.Name)
+-					}
+-
+-					// An OXDOT uses the Sym field to hold
+-					// the field to the right of the dot,
+-					// so s will be non-nil, but an OXDOT
+-					// is never a valid struct literal key.
+-					if s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank() {
+-						base.Errorf("invalid field name %v in struct initializer", key)
+-						continue
+-					}
+-
+-					l = ir.NewStructKeyExpr(l.Pos(), s, kv.Value)
+-					ls[i] = l
+-				}
+-
+-				if l.Op() != ir.OSTRUCTKEY {
+-					if !errored {
+-						base.Errorf("mixture of field:value and value initializers")
+-						errored = true
+-					}
+-					ls[i] = Expr(ls[i])
+-					continue
+-				}
+-				l := l.(*ir.StructKeyExpr)
+-
+-				f := Lookdot1(nil, l.Field, t, t.Fields(), 0)
+-				if f == nil {
+-					if ci := Lookdot1(nil, l.Field, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
+-						if visible(ci.Sym) {
+-							base.Errorf("unknown field '%v' in struct literal of type %v (but does have %v)", l.Field, t, ci.Sym)
+-						} else if nonexported(l.Field) && l.Field.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
+-							base.Errorf("cannot refer to unexported field '%v' in struct literal of type %v", l.Field, t)
+-						} else {
+-							base.Errorf("unknown field '%v' in struct literal of type %v", l.Field, t)
++			for i, n := range ls {
++				ir.SetPos(n)
++
++				sk, ok := n.(*ir.StructKeyExpr)
++				if !ok {
++					kv, ok := n.(*ir.KeyExpr)
++					if !ok {
++						if !errored {
++							base.Errorf("mixture of field:value and value initializers")
++							errored = true
+ 						}
++						ls[i] = Expr(n)
+ 						continue
+ 					}
+-					var f *types.Field
+-					p, _ := dotpath(l.Field, t, &f, true)
+-					if p == nil || f.IsMethod() {
+-						base.Errorf("unknown field '%v' in struct literal of type %v", l.Field, t)
++
++					sk = tcStructLitKey(t, kv)
++					if sk == nil {
+ 						continue
+ 					}
+-					// dotpath returns the parent embedded types in reverse order.
+-					var ep []string
+-					for ei := len(p) - 1; ei >= 0; ei-- {
+-						ep = append(ep, p[ei].field.Sym.Name)
+-					}
+-					ep = append(ep, l.Field.Name)
+-					base.Errorf("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), t)
+-					continue
++
++					fielddup(sk.Sym().Name, hash)
+ 				}
+-				fielddup(f.Sym.Name, hash)
+-				l.Offset = f.Offset
+ 
+ 				// No pushtype allowed here. Tried and rejected.
+-				l.Value = Expr(l.Value)
+-				l.Value = AssignConv(l.Value, f.Type, "field value")
++				sk.Value = Expr(sk.Value)
++				sk.Value = AssignConv(sk.Value, sk.Field.Type, "field value")
++				ls[i] = sk
+ 			}
+ 		}
+ 
+@@ -420,6 +374,60 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 	return n
+ }
+ 
++// tcStructLitKey typechecks an OKEY node that appeared within a
++// struct literal.
++func tcStructLitKey(typ *types.Type, kv *ir.KeyExpr) *ir.StructKeyExpr {
++	key := kv.Key
++
++	// Sym might have resolved to name in other top-level
++	// package, because of import dot. Redirect to correct sym
++	// before we do the lookup.
++	sym := key.Sym()
++	if id, ok := key.(*ir.Ident); ok && DotImportRefs[id] != nil {
++		sym = Lookup(sym.Name)
++	}
++
++	// An OXDOT uses the Sym field to hold
++	// the field to the right of the dot,
++	// so s will be non-nil, but an OXDOT
++	// is never a valid struct literal key.
++	if sym == nil || sym.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || sym.IsBlank() {
++		base.Errorf("invalid field name %v in struct initializer", key)
++		return nil
++	}
++
++	if f := Lookdot1(nil, sym, typ, typ.Fields(), 0); f != nil {
++		return ir.NewStructKeyExpr(kv.Pos(), f, kv.Value)
++	}
++
++	if ci := Lookdot1(nil, sym, typ, typ.Fields(), 2); ci != nil { // Case-insensitive lookup.
++		if visible(ci.Sym) {
++			base.Errorf("unknown field '%v' in struct literal of type %v (but does have %v)", sym, typ, ci.Sym)
++		} else if nonexported(sym) && sym.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
++			base.Errorf("cannot refer to unexported field '%v' in struct literal of type %v", sym, typ)
++		} else {
++			base.Errorf("unknown field '%v' in struct literal of type %v", sym, typ)
++		}
++		return nil
++	}
++
++	var f *types.Field
++	p, _ := dotpath(sym, typ, &f, true)
++	if p == nil || f.IsMethod() {
++		base.Errorf("unknown field '%v' in struct literal of type %v", sym, typ)
++		return nil
++	}
++
++	// dotpath returns the parent embedded types in reverse order.
++	var ep []string
++	for ei := len(p) - 1; ei >= 0; ei-- {
++		ep = append(ep, p[ei].field.Sym.Name)
++	}
++	ep = append(ep, sym.Name)
++	base.Errorf("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), typ)
++	return nil
++}
++
+ // tcConv typechecks an OCONV node.
+ func tcConv(n *ir.ConvExpr) ir.Node {
+ 	types.CheckSize(n.Type()) // ensure width is calculated for backend
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 236f6ed789..3bfbea11c0 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -2062,11 +2062,8 @@ func (w *exportWriter) fieldList(list ir.Nodes) {
+ 	for _, n := range list {
+ 		n := n.(*ir.StructKeyExpr)
+ 		w.pos(n.Pos())
+-		w.selector(n.Field)
++		w.exoticField(n.Field)
+ 		w.expr(n.Value)
+-		if go117ExportTypes {
+-			w.uint64(uint64(n.Offset))
+-		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 9e6115cbf7..45a177951e 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1719,11 +1719,7 @@ func (r *importReader) op() ir.Op {
+ func (r *importReader) fieldList() []ir.Node {
+ 	list := make([]ir.Node, r.uint64())
+ 	for i := range list {
+-		x := ir.NewStructKeyExpr(r.pos(), r.selector(), r.expr())
+-		if go117ExportTypes {
+-			x.Offset = int64(r.uint64())
+-		}
+-		list[i] = x
++		list[i] = ir.NewStructKeyExpr(r.pos(), r.exoticField(), r.expr())
+ 	}
+ 	return list
+ }
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 2194e1c5b0..feda3c3b4f 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -122,6 +122,9 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+ 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+ 	clos.SetEsc(clo.Esc())
+ 	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, clofn.Nname)}, closureArgs(clo)...)
++	for i, value := range clos.List {
++		clos.List[i] = ir.NewStructKeyExpr(base.Pos, typ.Field(i), value)
++	}
+ 
+ 	addr := typecheck.NodAddr(clos)
+ 	addr.SetEsc(clo.Esc())
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index abd920d646..6c6b4982a0 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -218,11 +218,11 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node,
+ 	case ir.OSTRUCTLIT:
+ 		splitnode = func(rn ir.Node) (ir.Node, ir.Node) {
+ 			r := rn.(*ir.StructKeyExpr)
+-			if r.Field.IsBlank() || isBlank {
++			if r.Sym().IsBlank() || isBlank {
+ 				return ir.BlankNode, r.Value
+ 			}
+ 			ir.SetPos(r)
+-			return ir.NewSelectorExpr(base.Pos, ir.ODOT, var_, r.Field), r.Value
++			return ir.NewSelectorExpr(base.Pos, ir.ODOT, var_, r.Sym()), r.Value
+ 		}
+ 	default:
+ 		base.Fatalf("fixedlit bad op: %v", n.Op())

@@ -17,7 +17,66 @@ Date:   Wed Oct 30 14:06:54 2019 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go |  1 +
  test/initempty.go   | 40 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5ef9b32417..c3315cd2db 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5361,6 +5361,7 @@ func gcd(a, b uint32) uint32 {
+ }
+ 
+ // An initTask represents the set of initializations that need to be done for a package.
++// Keep in sync with ../../test/initempty.go:initTask
+ type initTask struct {
+ 	// TODO: pack the first 3 fields more tightly?
+ 	state uintptr // 0 = uninitialized, 1 = in progress, 2 = done
+diff --git a/test/initempty.go b/test/initempty.go
+new file mode 100644
+index 0000000000..60bd9fb35e
+--- /dev/null
++++ b/test/initempty.go
+@@ -0,0 +1,40 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that empty init functions are skipped.
++
++package main
++
++import _ "unsafe" // for go:linkname
++
++type initTask struct {
++	state uintptr
++	ndeps uintptr
++	nfns  uintptr
++}
++
++//go:linkname main_inittask main..inittask
++var main_inittask initTask
++
++func main() {
++	if nfns := main_inittask.nfns; nfns != 0 {
++		println(nfns)
++		panic("unexpected init funcs")
++	}
++}
++
++func init() {
++}
++
++func init() {
++	if false {
++	}
++}
++
++func init() {
++	for false {
++	}
++}

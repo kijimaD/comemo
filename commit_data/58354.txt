@@ -15,7 +15,105 @@ Date:   Tue Oct 31 18:34:07 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/bytes/bytes.go              | 20 +-------------------
  src/internal/bytealg/bytealg.go | 37 +++++++++++++++++++++++++++++++------
  2 files changed, 32 insertions(+), 25 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index c84accd8f5..0679b43a20 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -121,25 +121,7 @@ func LastIndex(s, sep []byte) int {
+ 	case n > len(s):
+ 		return -1
+ 	}
+-	// Rabin-Karp search from the end of the string
+-	hashss, pow := bytealg.HashStrRev(sep)
+-	last := len(s) - n
+-	var h uint32
+-	for i := len(s) - 1; i >= last; i-- {
+-		h = h*bytealg.PrimeRK + uint32(s[i])
+-	}
+-	if h == hashss && Equal(s[last:], sep) {
+-		return last
+-	}
+-	for i := last - 1; i >= 0; i-- {
+-		h *= bytealg.PrimeRK
+-		h += uint32(s[i])
+-		h -= pow * uint32(s[i+n])
+-		if h == hashss && Equal(s[i:i+n], sep) {
+-			return i
+-		}
+-	}
+-	return -1
++	return bytealg.LastIndexRabinKarp(s, sep)
+ }
+ 
+ // LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
+diff --git a/src/internal/bytealg/bytealg.go b/src/internal/bytealg/bytealg.go
+index 92be8ea79b..1103891eee 100644
+--- a/src/internal/bytealg/bytealg.go
++++ b/src/internal/bytealg/bytealg.go
+@@ -62,16 +62,16 @@ func HashStrRev[T string | []byte](sep T) (uint32, uint32) {
+ }
+ 
+ // IndexRabinKarp uses the Rabin-Karp search algorithm to return the index of the
+-// first occurrence of substr in s, or -1 if not present.
+-func IndexRabinKarp[T string | []byte](s, substr T) int {
++// first occurrence of sep in s, or -1 if not present.
++func IndexRabinKarp[T string | []byte](s, sep T) int {
+ 	// Rabin-Karp search
+-	hashss, pow := HashStr(substr)
+-	n := len(substr)
++	hashss, pow := HashStr(sep)
++	n := len(sep)
+ 	var h uint32
+ 	for i := 0; i < n; i++ {
+ 		h = h*PrimeRK + uint32(s[i])
+ 	}
+-	if h == hashss && string(s[:n]) == string(substr) {
++	if h == hashss && string(s[:n]) == string(sep) {
+ 		return 0
+ 	}
+ 	for i := n; i < len(s); {
+@@ -79,13 +79,38 @@ func IndexRabinKarp[T string | []byte](s, substr T) int {
+ 		h += uint32(s[i])
+ 		h -= pow * uint32(s[i-n])
+ 		i++
+-		if h == hashss && string(s[i-n:i]) == string(substr) {
++		if h == hashss && string(s[i-n:i]) == string(sep) {
+ 			return i - n
+ 		}
+ 	}
+ 	return -1
+ }
+ 
++// LastIndexRabinKarp uses the Rabin-Karp search algorithm to return the last index of the
++// occurrence of sep in s, or -1 if not present.
++func LastIndexRabinKarp[T string | []byte](s, sep T) int {
++	// Rabin-Karp search from the end of the string
++	hashss, pow := HashStrRev(sep)
++	n := len(sep)
++	last := len(s) - n
++	var h uint32
++	for i := len(s) - 1; i >= last; i-- {
++		h = h*PrimeRK + uint32(s[i])
++	}
++	if h == hashss && string(s[last:]) == string(sep) {
++		return last
++	}
++	for i := last - 1; i >= 0; i-- {
++		h *= PrimeRK
++		h += uint32(s[i])
++		h -= pow * uint32(s[i+n])
++		if h == hashss && string(s[i:i+n]) == string(sep) {
++			return i
++		}
++	}
++	return -1
++}
++
+ // MakeNoZero makes a slice of length and capacity n without zeroing the bytes.
+ // It is the caller's responsibility to ensure uninitialized bytes
+ // do not leak to the end user.

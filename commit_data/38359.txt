@@ -23,6 +23,30 @@ Date:   Sun Jan 21 12:53:53 2018 +0100
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 3d0fa6ceb2..da2b3343a1 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -406,11 +406,13 @@ func (o *Order) copyRet(n *Node) []*Node {
+ 		Fatalf("copyret %v %d", n.Type, n.Left.Type.NumResults())
+ 	}
+ 
+-	var l1, l2 []*Node
+-	for _, f := range n.Type.Fields().Slice() {
+-		tmp := temp(f.Type)
+-		l1 = append(l1, tmp)
+-		l2 = append(l2, tmp)
++	slice := n.Type.Fields().Slice()
++	l1 := make([]*Node, len(slice))
++	l2 := make([]*Node, len(slice))
++	for i, t := range slice {
++		tmp := temp(t.Type)
++		l1[i] = tmp
++		l2[i] = tmp
+ 	}
+ 
+ 	as := nod(OAS2, nil, nil)

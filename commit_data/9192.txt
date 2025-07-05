@@ -15,7 +15,51 @@ Date:   Sat Jul 23 15:47:06 2011 -0400
     R=golang-dev, r, rsc, r
     CC=golang-dev
     https://golang.org/cl/4805051
-
+---
  src/pkg/sort/sort.go      | 4 +++-
  src/pkg/sort/sort_test.go | 3 ++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 067d27901e..0a4a4375f0 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -6,6 +6,8 @@
+ // collections.
+ package sort
+ 
++import "math"
++
+ // A type, typically a collection, that satisfies sort.Interface can be
+ // sorted by the routines in this package.  The methods require that the
+ // elements of the collection be enumerated by an integer index.
+@@ -167,7 +169,7 @@ func (p IntSlice) Sort() { Sort(p) }
+ type Float64Slice []float64
+ 
+ func (p Float64Slice) Len() int           { return len(p) }
+-func (p Float64Slice) Less(i, j int) bool { return p[i] < p[j] }
++func (p Float64Slice) Less(i, j int) bool { return p[i] < p[j] || math.IsNaN(p[i]) && !math.IsNaN(p[j]) }
+ func (p Float64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ 
+ // Sort is a convenience method.
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index 64d486b759..5007a92a56 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -6,6 +6,7 @@ package sort_test
+ 
+ import (
+ 	"fmt"
++	"math"
+ 	"rand"
+ 	. "sort"
+ 	"strconv"
+@@ -13,7 +14,7 @@ import (
+ )
+ 
+ var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
+-var float64s = [...]float64{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
++var float64s = [...]float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN(), math.NaN(), math.Inf(-1), 9845.768, -959.7485, 905, 7.8, 7.8}
+ var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
+ 
+ func TestSortIntSlice(t *testing.T) {

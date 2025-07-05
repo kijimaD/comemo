@@ -11,7 +11,33 @@ Date:   Mon Jun 24 13:28:10 2013 +1000
     R=adg
     CC=dave, dominik.honnef, gobot, golang-dev
     https://golang.org/cl/10476043
-
+---
  misc/notepadplus/go.xml             | 1 +
  misc/notepadplus/userDefineLang.xml | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/misc/notepadplus/go.xml b/misc/notepadplus/go.xml
+index 237ef6b4b2..29031be0ea 100644
+--- a/misc/notepadplus/go.xml
++++ b/misc/notepadplus/go.xml
+@@ -17,6 +17,7 @@
+ 		<KeyWord name="copy" />
+ 		<KeyWord name="default" /> 
+ 		<KeyWord name="defer" /> 
++		<KeyWord name="delete" /> 
+ 		<KeyWord name="else" />
+ 		<KeyWord name="error" />
+ 		<KeyWord name="fallthrough" /> 
+diff --git a/misc/notepadplus/userDefineLang.xml b/misc/notepadplus/userDefineLang.xml
+index 2954aad488..a3312965ee 100644
+--- a/misc/notepadplus/userDefineLang.xml
++++ b/misc/notepadplus/userDefineLang.xml
+@@ -11,7 +11,7 @@
+             <Keywords name="Folder-"></Keywords>
+             <Keywords name="Operators">( ) [ ] { } ... . , _ &amp; ^ %  &gt; &lt; ! = + - *  | :</Keywords>
+             <Keywords name="Comment"> 1/* 2*/ 0//</Keywords>
+-            <Keywords name="Words1">append bool break byte cap case chan close complex complex128 complex64 const continue copy default defer else error fallthrough false float32 float64 for func go goto if iota imag import int int16 int32 int64 int8 interface len make map new nil package panic print println range real recover return rune select string struct switch true type uint uint16 uint32 uint64 uint8 uintptr var</Keywords>
++            <Keywords name="Words1">append bool break byte cap case chan close complex complex128 complex64 const continue copy default defer delete else error fallthrough false float32 float64 for func go goto if iota imag import int int16 int32 int64 int8 interface len make map new nil package panic print println range real recover return rune select string struct switch true type uint uint16 uint32 uint64 uint8 uintptr var</Keywords>
+             <Keywords name="Words2"></Keywords>
+             <Keywords name="Words3"></Keywords>
+             <Keywords name="Words4"></Keywords>

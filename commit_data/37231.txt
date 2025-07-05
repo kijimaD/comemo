@@ -11,6 +11,22 @@ Date:   Wed Jul 11 13:40:14 2018 +0000
     GitHub-Pull-Request: golang/go#26293
     Reviewed-on: https://go-review.googlesource.com/122715
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/tick.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/tick.go b/src/time/tick.go
+index 3d693206a5..e4cd43aa82 100644
+--- a/src/time/tick.go
++++ b/src/time/tick.go
+@@ -40,8 +40,8 @@ func NewTicker(d Duration) *Ticker {
+ }
+ 
+ // Stop turns off a ticker. After Stop, no more ticks will be sent.
+-// Stop does not close the channel, to prevent a read from the channel succeeding
+-// incorrectly.
++// Stop does not close the channel, to prevent a concurrent goroutine
++// reading from the channel from seeing an erroneous "tick".
+ func (t *Ticker) Stop() {
+ 	stopTimer(&t.r)
+ }

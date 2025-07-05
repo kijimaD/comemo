@@ -11,6 +11,33 @@ Date:   Sun Jul 17 22:22:32 2016 -0400
     Change-Id: I3f98628dba32c5afe30495ab495da42b32291e9e
     Reviewed-on: https://go-review.googlesource.com/24965
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 1efbace63c..cd5ddadd49 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1073,9 +1073,8 @@ top:
+ 		// Transition from mark 1 to mark 2.
+ 		//
+ 		// The global work list is empty, but there can still be work
+-		// sitting in the per-P work caches and there can be more
+-		// objects reachable from global roots since they don't have write
+-		// barriers. Rescan some roots and flush work caches.
++		// sitting in the per-P work caches.
++		// Flush and disable work caches.
+ 
+ 		gcMarkRootCheck()
+ 
+@@ -1095,8 +1094,7 @@ top:
+ 			// ensure all Ps see gcBlackenPromptly. This
+ 			// also blocks until any remaining mark 1
+ 			// workers have exited their loop so we can
+-			// start new mark 2 workers that will observe
+-			// the new root marking jobs.
++			// start new mark 2 workers.
+ 			forEachP(func(_p_ *p) {
+ 				_p_.gcw.dispose()
+ 			})

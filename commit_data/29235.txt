@@ -9,6 +9,20 @@ Date:   Thu Sep 1 23:28:26 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/filepath/path_unix.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/path/filepath/path_unix.go b/src/path/filepath/path_unix.go
+index 2d242cc0b5..dddcac0a5c 100644
+--- a/src/path/filepath/path_unix.go
++++ b/src/path/filepath/path_unix.go
+@@ -20,6 +20,8 @@ func volumeNameLen(path string) int {
+ }
+ 
+ // HasPrefix exists for historical compatibility and should not be used.
++//
++// Deprecated: Use strings.HasPrefix instead.
+ func HasPrefix(p, prefix string) bool {
+ 	return strings.HasPrefix(p, prefix)
+ }

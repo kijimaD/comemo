@@ -7,6 +7,23 @@ Date:   Wed Jun 17 03:49:07 2015 +0900
     Change-Id: I2cd58a665d9df26583128c633c443325dcc3f288
     Reviewed-on: https://go-review.googlesource.com/11131
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/go/note_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/note_test.go b/src/cmd/go/note_test.go
+index ae5514188d..0170108672 100644
+--- a/src/cmd/go/note_test.go
++++ b/src/cmd/go/note_test.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+-	"runtime"
+ 	"testing"
+ )
+ 

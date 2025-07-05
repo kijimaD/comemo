@@ -9,7 +9,56 @@ Date:   Tue Jun 11 22:21:51 2013 +0200
     R=golang-dev, rsc, iant, r, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/8601044
-
+---
  src/cmd/gc/sinit.c          |  6 ++----
  test/fixedbugs/issue5244.go | 18 ++++++++++++++++++
  2 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index b84b3afdc4..51c5f70222 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -53,9 +53,7 @@ init1(Node *n, NodeList **out)
+ 		if(isblank(n) && n->curfn == N && n->defn != N && n->defn->initorder == InitNotStarted) {
+ 			// blank names initialization is part of init() but not
+ 			// when they are inside a function.
+-			n->defn->initorder = InitDone;
+-			if(debug['%']) dump("nonstatic", n->defn);
+-			*out = list(*out, n->defn);
++			break;
+ 		}
+ 		return;
+ 	}
+@@ -130,7 +128,7 @@ init1(Node *n, NodeList **out)
+ 				init2(n->defn->right, out);
+ 				if(debug['j'])
+ 					print("%S\n", n->sym);
+-				if(!staticinit(n, out)) {
++				if(isblank(n) || !staticinit(n, out)) {
+ 					if(debug['%']) dump("nonstatic", n->defn);
+ 					*out = list(*out, n->defn);
+ 				}
+diff --git a/test/fixedbugs/issue5244.go b/test/fixedbugs/issue5244.go
+new file mode 100644
+index 0000000000..e26c7b8c45
+--- /dev/null
++++ b/test/fixedbugs/issue5244.go
+@@ -0,0 +1,18 @@
++// run
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5244: the init order computation uses the wrong
++// order for top-level blank identifier assignments.
++// The example used to panic because it tries calling a
++// nil function instead of assigning to f before.
++
++package main
++
++var f = func() int { return 1 }
++var _ = f() + g()
++var g = func() int { return 2 }
++
++func main() {}

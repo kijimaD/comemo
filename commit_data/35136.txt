@@ -9,6 +9,21 @@ Date:   Fri Dec 29 01:15:23 2017 +0000
     Change-Id: Idbe09913c95dc951b9b195eb7ff1e75d2bb4d63d
     Reviewed-on: https://go-review.googlesource.com/85675
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index 1ec94df9e0..58fc4dd59a 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -85,7 +85,8 @@ func FindProcess(pid int) (*Process, error) {
+ }
+ 
+ // StartProcess starts a new process with the program, arguments and attributes
+-// specified by name, argv and attr.
++// specified by name, argv and attr. The argv slice will become os.Args in the
++// new process, and normally starts with the program name.
+ //
+ // StartProcess is a low-level interface. The os/exec package provides
+ // higher-level interfaces.

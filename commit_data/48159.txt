@@ -13,7 +13,7 @@ Date:   Thu Apr 29 05:45:35 2021 +0000
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/dump.go | 4 ++--
  src/cmd/compile/internal/ir/expr.go | 4 ++--
  src/cmd/compile/internal/ir/func.go | 4 ++--
@@ -21,3 +21,133 @@ Date:   Thu Apr 29 05:45:35 2021 +0000
  src/cmd/compile/internal/ir/stmt.go | 2 +-
  src/cmd/compile/internal/ir/val.go  | 6 +++---
  6 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/dump.go b/src/cmd/compile/internal/ir/dump.go
+index fc995cee62..59914baa5c 100644
+--- a/src/cmd/compile/internal/ir/dump.go
++++ b/src/cmd/compile/internal/ir/dump.go
+@@ -20,12 +20,12 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-// dump is like fdump but prints to stderr.
++// DumpAny is like FDumpAny but prints to stderr.
+ func DumpAny(root interface{}, filter string, depth int) {
+ 	FDumpAny(os.Stderr, root, filter, depth)
+ }
+ 
+-// fdump prints the structure of a rooted data structure
++// FDumpAny prints the structure of a rooted data structure
+ // to w by depth-first traversal of the data structure.
+ //
+ // The filter parameter is a regular expression. If it is
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index a9f8c6eae5..94255116a0 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -1060,7 +1060,7 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
+ 	return rpkg.LookupBytes(b.Bytes())
+ }
+ 
+-// MethodName returns the ONAME representing the method
++// MethodExprName returns the ONAME representing the method
+ // referenced by expression n, which must be a method selector,
+ // method expression, or method value.
+ func MethodExprName(n Node) *Name {
+@@ -1068,7 +1068,7 @@ func MethodExprName(n Node) *Name {
+ 	return name
+ }
+ 
+-// MethodFunc is like MethodName, but returns the types.Field instead.
++// MethodExprFunc is like MethodExprName, but returns the types.Field instead.
+ func MethodExprFunc(n Node) *types.Field {
+ 	switch n.Op() {
+ 	case ODOTMETH, OMETHEXPR, OCALLPART:
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index bcedfe138c..385866b3c8 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -238,7 +238,7 @@ func (f *Func) SetWBPos(pos src.XPos) {
+ 	}
+ }
+ 
+-// funcname returns the name (without the package) of the function n.
++// FuncName returns the name (without the package) of the function n.
+ func FuncName(f *Func) string {
+ 	if f == nil || f.Nname == nil {
+ 		return "<nil>"
+@@ -246,7 +246,7 @@ func FuncName(f *Func) string {
+ 	return f.Sym().Name
+ }
+ 
+-// pkgFuncName returns the name of the function referenced by n, with package prepended.
++// PkgFuncName returns the name of the function referenced by n, with package prepended.
+ // This differs from the compiler's internal convention where local functions lack a package
+ // because the ultimate consumer of this is a human looking at an IDE; package is only empty
+ // if the compilation package is actually the empty string.
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index cbc7681d12..a73b81d196 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -80,7 +80,7 @@ func IsAutoTmp(n Node) bool {
+ 	return n.Name().AutoTemp()
+ }
+ 
+-// mayBeShared reports whether n may occur in multiple places in the AST.
++// MayBeShared reports whether n may occur in multiple places in the AST.
+ // Extra care must be taken when mutating such a node.
+ func MayBeShared(n Node) bool {
+ 	switch n.Op() {
+@@ -477,7 +477,7 @@ func IsConst(n Node, ct constant.Kind) bool {
+ 	return ConstType(n) == ct
+ }
+ 
+-// isNil reports whether n represents the universal untyped zero value "nil".
++// IsNil reports whether n represents the universal untyped zero value "nil".
+ func IsNil(n Node) bool {
+ 	// Check n.Orig because constant propagation may produce typed nil constants,
+ 	// which don't exist in the Go spec.
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index c304867e1d..8115012f97 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -224,7 +224,7 @@ func (n *ForStmt) SetOp(op Op) {
+ 
+ // A GoDeferStmt is a go or defer statement: go Call / defer Call.
+ //
+-// The two opcodes use a signle syntax because the implementations
++// The two opcodes use a single syntax because the implementations
+ // are very similar: both are concerned with saving Call and running it
+ // in a different context (a separate goroutine or a later time).
+ type GoDeferStmt struct {
+diff --git a/src/cmd/compile/internal/ir/val.go b/src/cmd/compile/internal/ir/val.go
+index ff45f31074..03c320e205 100644
+--- a/src/cmd/compile/internal/ir/val.go
++++ b/src/cmd/compile/internal/ir/val.go
+@@ -19,7 +19,7 @@ func ConstType(n Node) constant.Kind {
+ 	return n.Val().Kind()
+ }
+ 
+-// ValueInterface returns the constant value stored in n as an interface{}.
++// ConstValue returns the constant value stored in n as an interface{}.
+ // It returns int64s for ints and runes, float64s for floats,
+ // and complex128s for complex values.
+ func ConstValue(n Node) interface{} {
+@@ -40,7 +40,7 @@ func ConstValue(n Node) interface{} {
+ 	}
+ }
+ 
+-// int64Val returns v converted to int64.
++// IntVal returns v converted to int64.
+ // Note: if t is uint64, very large values will be converted to negative int64.
+ func IntVal(t *types.Type, v constant.Value) int64 {
+ 	if t.IsUnsigned() {
+@@ -90,7 +90,7 @@ func ValidTypeForConst(t *types.Type, v constant.Value) bool {
+ 	panic("unreachable")
+ }
+ 
+-// nodlit returns a new untyped constant with value v.
++// NewLiteral returns a new untyped constant with value v.
+ func NewLiteral(v constant.Value) Node {
+ 	return NewBasicLit(base.Pos, v)
+ }

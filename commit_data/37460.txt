@@ -13,9 +13,73 @@ Date:   Wed Aug 1 12:51:19 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/127356
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  misc/cgo/test/issue26743.go   | 10 ++++++++++
  misc/cgo/test/issue26743/a.go | 11 +++++++++++
  misc/cgo/test/issue26743/b.go |  9 +++++++++
  src/cmd/cgo/main.go           |  4 ++++
  4 files changed, 34 insertions(+)
+
+diff --git a/misc/cgo/test/issue26743.go b/misc/cgo/test/issue26743.go
+new file mode 100644
+index 0000000000..35c8473a61
+--- /dev/null
++++ b/misc/cgo/test/issue26743.go
+@@ -0,0 +1,10 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 26743: typedef of uint leads to inconsistent typedefs error.
++// No runtime test; just make sure it compiles.
++
++package cgotest
++
++import _ "./issue26743"
+diff --git a/misc/cgo/test/issue26743/a.go b/misc/cgo/test/issue26743/a.go
+new file mode 100644
+index 0000000000..a3df1797b3
+--- /dev/null
++++ b/misc/cgo/test/issue26743/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue26743
++
++// typedef unsigned int uint;
++// int C1(uint x) { return x; }
++import "C"
++
++var V1 = C.C1(0)
+diff --git a/misc/cgo/test/issue26743/b.go b/misc/cgo/test/issue26743/b.go
+new file mode 100644
+index 0000000000..c5f1ae478c
+--- /dev/null
++++ b/misc/cgo/test/issue26743/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue26743
++
++import "C"
++
++var V2 C.uint
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index f76c2247f5..b6f059001f 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -403,6 +403,10 @@ func (p *Package) Record(f *File) {
+ 				p.Name[k] = v
+ 			} else if p.incompleteTypedef(v.Type) {
+ 				// Nothing to do.
++			} else if _, ok := nameToC[k]; ok {
++				// Names we predefine may appear inconsistent
++				// if some files typedef them and some don't.
++				// Issue 26743.
+ 			} else if !reflect.DeepEqual(p.Name[k], v) {
+ 				error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
+ 			}

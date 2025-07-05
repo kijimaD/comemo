@@ -25,7 +25,7 @@ Date:   Thu Jan 28 16:22:52 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/288802
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_386.s           | 8 ++++++--
  src/runtime/asm_amd64.s         | 8 ++++++--
  src/runtime/asm_arm.s           | 6 +++++-
@@ -42,3 +42,353 @@ Date:   Thu Jan 28 16:22:52 2021 -0500
  src/runtime/sys_windows_arm.s   | 2 +-
  src/runtime/traceback.go        | 5 +----
  15 files changed, 62 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index fcf74a03cf..5b0852f780 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -89,7 +89,7 @@ GLOBL _rt0_386_lib_argc<>(SB),NOPTR, $4
+ DATA _rt0_386_lib_argv<>(SB)/4, $0
+ GLOBL _rt0_386_lib_argv<>(SB),NOPTR, $4
+ 
+-TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	// Copy arguments forward on an even stack.
+ 	// Users of this function jump to it, they don't call it.
+ 	MOVL	0(SP), AX
+@@ -269,6 +269,10 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ 	FLDCW	runtime·controlWord64(SB)
+ 	RET
+ 
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++	CALL	runtime·mstart0(SB)
++	RET // not reached
++
+ /*
+  *  go-routine
+  */
+@@ -1307,7 +1311,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT,$0-0
++TEXT runtime·goexit(SB),NOSPLIT|TOPFRAME,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 8ee2ac2123..a68dc72ae5 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -84,7 +84,7 @@ GLOBL _rt0_amd64_lib_argc<>(SB),NOPTR, $8
+ DATA _rt0_amd64_lib_argv<>(SB)/8, $0
+ GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
+ 
+-TEXT runtime·rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	// copy arguments forward on an even stack
+ 	MOVQ	DI, AX		// argc
+ 	MOVQ	SI, BX		// argv
+@@ -250,6 +250,10 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ 	// No per-thread init.
+ 	RET
+ 
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++	CALL	runtime·mstart0(SB)
++	RET // not reached
++
+ /*
+  *  go-routine
+  */
+@@ -1440,7 +1444,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ // so as to make it identifiable to traceback (this
+ // function it used as a sentinel; traceback wants to
+ // see the func PC, not a wrapper PC).
+-TEXT runtime·goexit<ABIInternal>(SB),NOSPLIT,$0-0
++TEXT runtime·goexit<ABIInternal>(SB),NOSPLIT|TOPFRAME,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 4620f19074..f9535bb1bc 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -112,7 +112,7 @@ GLOBL _rt0_arm_lib_argv<>(SB),NOPTR,$4
+ 
+ // using NOFRAME means do not save LR on stack.
+ // argc is in R0, argv is in R1.
+-TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	MOVW	$0xcafebabe, R12
+ 
+ 	// copy arguments forward on an even stack
+@@ -202,6 +202,10 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ 	WORD	$0xeee1ba10	// vmsr fpscr, r11
+ 	RET
+ 
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++	BL	runtime·mstart0(SB)
++	RET // not reached
++
+ /*
+  *  go-routine
+  */
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 4f0a680fa4..d81759537e 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -8,7 +8,7 @@
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
+-TEXT runtime·rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	// SP = stack; R0 = argc; R1 = argv
+ 
+ 	SUB	$32, RSP
+@@ -109,6 +109,10 @@ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
+ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
+ 	RET
+ 
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++	BL	runtime·mstart0(SB)
++	RET // not reached
++
+ /*
+  *  go-routine
+  */
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index f6d8931a15..af27b9b555 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -11,7 +11,7 @@
+ 
+ #define	REGCTXT	R22
+ 
+-TEXT runtime·rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	// R29 = stack; R4 = argc; R5 = argv
+ 
+ 	ADDV	$-24, R29
+@@ -85,6 +85,10 @@ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
+ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
+ 	RET
+ 
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++	JAL	runtime·mstart0(SB)
++	RET // not reached
++
+ /*
+  *  go-routine
+  */
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index cf4b1b42cc..0c7d28dcf7 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -11,7 +11,7 @@
+ 
+ #define	REGCTXT	R22
+ 
+-TEXT runtime·rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	// R29 = stack; R4 = argc; R5 = argv
+ 
+ 	ADDU	$-12, R29
+@@ -86,6 +86,10 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
+ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ 	RET
+ 
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++	JAL	runtime·mstart0(SB)
++	RET // not reached
++
+ /*
+  *  go-routine
+  */
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 90f14d8e54..56e73742ea 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -16,7 +16,7 @@
+ #define cgoCalleeStackSize 32
+ #endif
+ 
+-TEXT runtime·rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	// R1 = stack; R3 = argc; R4 = argv; R13 = C TLS base pointer
+ 
+ 	// initialize essential registers
+@@ -124,6 +124,10 @@ TEXT runtime·reginit(SB),NOSPLIT|NOFRAME,$0-0
+ 	XOR R0, R0
+ 	RET
+ 
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++	BL	runtime·mstart0(SB)
++	RET // not reached
++
+ /*
+  *  go-routine
+  */
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index d06c77b948..30f2bd2e4a 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -7,7 +7,7 @@
+ #include "textflag.h"
+ 
+ // func rt0_go()
+-TEXT runtime·rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	// X2 = stack; A0 = argc; A1 = argv
+ 	ADD	$-24, X2
+ 	MOV	A0, 8(X2)	// argc
+@@ -70,6 +70,10 @@ nocgo:
+ 	WORD $0 // crash if reached
+ 	RET
+ 
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++	CALL	runtime·mstart0(SB)
++	RET // not reached
++
+ // void setg_gcc(G*); set g called from gcc with g in A0
+ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
+ 	MOV	A0, g
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 203754f32c..f9fb1a4c55 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -84,7 +84,7 @@ GLOBL _rt0_s390x_lib_argc<>(SB), NOPTR, $8
+ DATA _rt0_s90x_lib_argv<>(SB)/8, $0
+ GLOBL _rt0_s390x_lib_argv<>(SB), NOPTR, $8
+ 
+-TEXT runtime·rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	// R2 = argc; R3 = argv; R11 = temp; R13 = g; R15 = stack pointer
+ 	// C TLS base pointer in AR0:AR1
+ 
+@@ -170,6 +170,10 @@ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
+ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
+ 	RET
+ 
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++	CALL	runtime·mstart0(SB)
++	RET // not reached
++
+ /*
+  *  go-routine
+  */
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 3765c756b3..33c335ba5a 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -7,7 +7,7 @@
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
+-TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME, $0
++TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME|TOPFRAME, $0
+ 	// save m->g0 = g0
+ 	MOVD $runtime·g0(SB), runtime·m0+m_g0(SB)
+ 	// save m0 to g0->m
+@@ -24,6 +24,10 @@ TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME, $0
+ 	CALL runtime·mstart(SB) // WebAssembly stack will unwind when switching to another goroutine
+ 	UNDEF
+ 
++TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
++	CALL	runtime·mstart0(SB)
++	RET // not reached
++
+ DATA  runtime·mainPC+0(SB)/8,$runtime·main(SB)
+ GLOBL runtime·mainPC(SB),RODATA,$8
+ 
+@@ -424,7 +428,7 @@ CALLFN(·call268435456, 268435456)
+ CALLFN(·call536870912, 536870912)
+ CALLFN(·call1073741824, 1073741824)
+ 
+-TEXT runtime·goexit(SB), NOSPLIT, $0-0
++TEXT runtime·goexit(SB), NOSPLIT|TOPFRAME, $0-0
+ 	NOP // first PC of goexit is skipped
+ 	CALL runtime·goexit1(SB) // does not return
+ 	UNDEF
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e6670135db..ccfe085691 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1234,7 +1234,10 @@ func mStackIsSystemAllocated() bool {
+ }
+ 
+ // mstart is the entry-point for new Ms.
+-//
++// It is written in assembly, marked TOPFRAME, and calls mstart0.
++func mstart()
++
++// mstart0 is the Go entry-point for new Ms.
+ // This must not split the stack because we may not even have stack
+ // bounds set up yet.
+ //
+@@ -1243,7 +1246,7 @@ func mStackIsSystemAllocated() bool {
+ //
+ //go:nosplit
+ //go:nowritebarrierrec
+-func mstart() {
++func mstart0() {
+ 	_g_ := getg()
+ 
+ 	osStack := _g_.stack.lo == 0
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 576dd28771..4f00c58c16 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -174,7 +174,7 @@ TEXT runtime·profileloop(SB),NOSPLIT,$0
+ 	ADDL	$12, SP
+ 	JMP	CX
+ 
+-TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
++TEXT runtime·externalthreadhandler(SB),NOSPLIT|TOPFRAME,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	PUSHL	BX
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 6f2abb5444..aba2811e59 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -215,7 +215,7 @@ TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$8
+ 	CALL	runtime·externalthreadhandler(SB)
+ 	RET
+ 
+-TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	PUSHQ	BX
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 7d134dd3f4..a55f474d39 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -257,7 +257,7 @@ TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$0
+ // 0 | retval         |
+ //   +----------------+
+ //
+-TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	MOVM.DB.W [R4-R11, R14], (R13)		// push {r4-r11, lr}
+ 	SUB	$(m__size + g__size + 20), R13	// space for locals
+ 	MOVW	R0, 12(R13)
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 18d8a42854..e2bd968919 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1002,12 +1002,9 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
+ 
+ // Does f mark the top of a goroutine stack?
+ func topofstack(f funcInfo, g0 bool) bool {
+-	return f.funcID == funcID_goexit ||
+-		f.funcID == funcID_mstart ||
++	return f.flag&funcFlag_TOPFRAME != 0 ||
+ 		f.funcID == funcID_mcall ||
+ 		f.funcID == funcID_morestack ||
+-		f.funcID == funcID_rt0_go ||
+-		f.funcID == funcID_externalthreadhandler ||
+ 		// asmcgocall is TOS on the system stack because it
+ 		// switches to the system stack, but in this case we
+ 		// can come back to the regular stack and still want

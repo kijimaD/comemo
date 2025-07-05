@@ -14,6 +14,26 @@ Date:   Wed Apr 29 11:33:41 2015 +0200
     Change-Id: I7e9d8d6e51f29ecd6db6bdd63b36017845d95368
     Reviewed-on: https://go-review.googlesource.com/9441
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/parse/lex.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index b829b7e3b4..fe77b3afbe 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -313,14 +313,12 @@ func lexInsideAction(l *lexer) stateFn {
+ 	case r == '(':
+ 		l.emit(itemLeftParen)
+ 		l.parenDepth++
+-		return lexInsideAction
+ 	case r == ')':
+ 		l.emit(itemRightParen)
+ 		l.parenDepth--
+ 		if l.parenDepth < 0 {
+ 			return l.errorf("unexpected right paren %#U", r)
+ 		}
+-		return lexInsideAction
+ 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
+ 		l.emit(itemChar)
+ 		return lexInsideAction

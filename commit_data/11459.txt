@@ -9,9 +9,122 @@ Date:   Mon Jan 30 14:50:36 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5569091
-
+---
  misc/dashboard/app/build/build.go   |  7 +++++++
  misc/dashboard/app/build/handler.go | 37 ++++++++++++++++++++++++++++++++-----
  misc/dashboard/app/build/test.go    |  8 ++++++--
  misc/dashboard/app/build/ui.go      |  2 +-
  4 files changed, 46 insertions(+), 8 deletions(-)
+
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+index 8dbefe9d38..7b73a25215 100644
+--- a/misc/dashboard/app/build/build.go
++++ b/misc/dashboard/app/build/build.go
+@@ -262,6 +262,13 @@ func (t *Tag) Valid() os.Error {
+ 	return nil
+ }
+ 
++// Commit returns the Commit that corresponds with this Tag.
++func (t *Tag) Commit(c appengine.Context) (*Commit, os.Error) {
++	com := &Commit{Hash: t.Hash}
++	err := datastore.Get(c, com.Key(c), com)
++	return com, err
++}
++
+ // GetTag fetches a Tag by name from the datastore.
+ func GetTag(c appengine.Context, tag string) (*Tag, os.Error) {
+ 	t := &Tag{Kind: tag}
+diff --git a/misc/dashboard/app/build/handler.go b/misc/dashboard/app/build/handler.go
+index 9dcf128dc3..4aa161e8d2 100644
+--- a/misc/dashboard/app/build/handler.go
++++ b/misc/dashboard/app/build/handler.go
+@@ -196,17 +196,44 @@ func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interf
+ 		Run(c)
+ 	for {
+ 		com := new(Commit)
+-		if _, err := t.Next(com); err != nil {
+-			if err == datastore.Done {
+-				err = nil
+-			}
++		if _, err := t.Next(com); err == datastore.Done {
++			break
++		} else if err != nil {
+ 			return nil, err
+ 		}
+ 		if com.Result(builder, goHash) == nil {
+ 			return com, nil
+ 		}
+ 	}
+-	panic("unreachable")
++
++	// Nothing left to do if this is a package (not the Go tree).
++	if packagePath != "" {
++		return nil, nil
++	}
++
++	// If there are no Go tree commits left to build,
++	// see if there are any subrepo commits that need to be built at tip.
++	// If so, ask the builder to build a go tree at the tip commit.
++	// TODO(adg): do the same for "weekly" and "release" tags.
++	tag, err := GetTag(c, "tip")
++	if err != nil {
++		return nil, err
++	}
++	pkgs, err := Packages(c, "subrepo")
++	if err != nil {
++		return nil, err
++	}
++	for _, pkg := range pkgs {
++		com, err := pkg.LastCommit(c)
++		if err != nil {
++			c.Warningf("%v: no Commit found: %v", pkg, err)
++			continue
++		}
++		if com.Result(builder, tag.Hash) == nil {
++			return tag.Commit(c)
++		}
++	}
++	return nil, nil
+ }
+ 
+ // packagesHandler returns a list of the non-Go Packages monitored
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index f22eac1a49..6f17de02bc 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -109,7 +109,11 @@ var testRequests = []struct {
+ 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
+ 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, nil},
+ 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1003"}}},
++
++	// re-build Go revision for stale subrepos
++	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0005"}}},
+ 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0005", OK: false, Log: "boo"}, nil},
++	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, nil},
+ }
+ 
+ func testHandler(w http.ResponseWriter, r *http.Request) {
+@@ -215,8 +219,8 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
+ 				errorf("Response.Data not *Commit: %T", g.Data)
+ 				return
+ 			}
+-			if e.Data.(*Commit).Hash != gd.Hash {
+-				errorf("hashes don't match: got %q, want %q", g, e)
++			if eh := e.Data.(*Commit).Hash; eh != gd.Hash {
++				errorf("hashes don't match: got %q, want %q", gd.Hash, eh)
+ 				return
+ 			}
+ 		}
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index 37a1500633..bc5a703455 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -145,7 +145,7 @@ func TagState(c appengine.Context, name string) ([]*PackageState, os.Error) {
+ 	for _, pkg := range pkgs {
+ 		commit, err := pkg.LastCommit(c)
+ 		if err != nil {
+-			c.Errorf("no Commit found: %v", pkg)
++			c.Warningf("%v: no Commit found: %v", pkg, err)
+ 			continue
+ 		}
+ 		results := commit.Results(tag.Hash)

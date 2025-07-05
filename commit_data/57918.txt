@@ -12,7 +12,108 @@ Date:   Sat Aug 19 19:27:43 2023 +0800
     Run-TryBot: Andy Pan <panjf2000@gmail.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/handler.go      | 12 +++++++---
  src/log/slog/handler_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 65 insertions(+), 3 deletions(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 369b0a384e..16044f44c6 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -233,8 +233,11 @@ func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
+ 	state := h2.newHandleState((*buffer.Buffer)(&h2.preformattedAttrs), false, "")
+ 	defer state.free()
+ 	state.prefix.WriteString(h.groupPrefix)
+-	if len(h2.preformattedAttrs) > 0 {
++	if pfa := h2.preformattedAttrs; len(pfa) > 0 {
+ 		state.sep = h.attrSep()
++		if h2.json && pfa[len(pfa)-1] == '{' {
++			state.sep = ""
++		}
+ 	}
+ 	state.openGroups()
+ 	for _, a := range as {
+@@ -310,10 +313,13 @@ func (h *commonHandler) handle(r Record) error {
+ 
+ func (s *handleState) appendNonBuiltIns(r Record) {
+ 	// preformatted Attrs
+-	if len(s.h.preformattedAttrs) > 0 {
++	if pfa := s.h.preformattedAttrs; len(pfa) > 0 {
+ 		s.buf.WriteString(s.sep)
+-		s.buf.Write(s.h.preformattedAttrs)
++		s.buf.Write(pfa)
+ 		s.sep = s.h.attrSep()
++		if s.h.json && pfa[len(pfa)-1] == '{' {
++			s.sep = ""
++		}
+ 	}
+ 	// Attrs in Record -- unlike the built-in ones, they are in groups started
+ 	// from WithGroup.
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 21c31929b1..4ffd74a495 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -435,6 +435,62 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			wantText: `time.mins=3 time.secs=2 msg=message`,
+ 			wantJSON: `{"time":{"mins":3,"secs":2},"msg":"message"}`,
+ 		},
++		{
++			name: "replace empty 1",
++			with: func(h Handler) Handler {
++				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)})
++			},
++			replace:  func([]string, Attr) Attr { return Attr{} },
++			attrs:    []Attr{Group("h", Int("b", 2))},
++			wantText: "",
++			wantJSON: `{"g":{"h":{}}}`,
++		},
++		{
++			name: "replace empty 2",
++			with: func(h Handler) Handler {
++				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
++			},
++			replace:  func([]string, Attr) Attr { return Attr{} },
++			attrs:    []Attr{Group("i", Int("c", 3))},
++			wantText: "",
++			wantJSON: `{"g":{"h":{"i":{}}}}`,
++		},
++		{
++			name: "replace partial empty attrs 1",
++			with: func(h Handler) Handler {
++				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
++			},
++			replace: func(groups []string, attr Attr) Attr {
++				return removeKeys(TimeKey, LevelKey, MessageKey, "a")(groups, attr)
++			},
++			attrs:    []Attr{Group("i", Int("c", 3))},
++			wantText: "g.h.b=2 g.h.i.c=3",
++			wantJSON: `{"g":{"h":{"b":2,"i":{"c":3}}}}`,
++		},
++		{
++			name: "replace partial empty attrs 2",
++			with: func(h Handler) Handler {
++				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)}).WithAttrs([]Attr{Int("n", 4)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
++			},
++			replace: func(groups []string, attr Attr) Attr {
++				return removeKeys(TimeKey, LevelKey, MessageKey, "a", "b")(groups, attr)
++			},
++			attrs:    []Attr{Group("i", Int("c", 3))},
++			wantText: "g.n=4 g.h.i.c=3",
++			wantJSON: `{"g":{"n":4,"h":{"i":{"c":3}}}}`,
++		},
++		{
++			name: "replace partial empty attrs 3",
++			with: func(h Handler) Handler {
++				return h.WithGroup("g").WithAttrs([]Attr{Int("x", 0)}).WithAttrs([]Attr{Int("a", 1)}).WithAttrs([]Attr{Int("n", 4)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
++			},
++			replace: func(groups []string, attr Attr) Attr {
++				return removeKeys(TimeKey, LevelKey, MessageKey, "a", "c")(groups, attr)
++			},
++			attrs:    []Attr{Group("i", Int("c", 3))},
++			wantText: "g.x=0 g.n=4 g.h.b=2",
++			wantJSON: `{"g":{"x":0,"n":4,"h":{"b":2,"i":{}}}}`,
++		},
+ 	} {
+ 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
+ 		line := strconv.Itoa(r.source().Line)

@@ -16,7 +16,129 @@ Date:   Thu Mar 13 08:14:05 2014 +0100
     R=rsc, iant, khr
     CC=golang-codereviews
     https://golang.org/cl/72380043
-
+---
  src/cmd/gc/select.c         | 12 +++++++
  test/fixedbugs/issue6847.go | 85 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 97 insertions(+)
+
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 35da0557b6..d3c04c659e 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -214,6 +214,11 @@ walkselect(Node *sel)
+ 				n->left = nod(OADDR, n->left, N);
+ 				n->left->etype = 1;  // pointer does not escape
+ 				typecheck(&n->left, Erv);
++				if(!eqtype(ch->type->type, n->left->type->type)) {
++					n->left = nod(OCONVNOP, n->left, N);
++					n->left->type = ptrto(ch->type->type);
++					n->left->typecheck = 1;
++				}
+ 			} else {
+ 				tmp = temp(ch->type->type);
+ 				a = nod(OADDR, tmp, N);
+@@ -330,6 +335,13 @@ walkselect(Node *sel)
+ 				n->right = nod(OADDR, n->right, N);
+ 				n->right->etype = 1;  // pointer does not escape
+ 				typecheck(&n->right, Erv);
++				// cast to appropriate type if necessary.
++				if(!eqtype(n->right->type->type, n->left->type->type) &&
++					assignop(n->right->type->type, n->left->type->type, nil) == OCONVNOP) {
++					n->right = nod(OCONVNOP, n->right, N);
++					n->right->type = ptrto(n->left->type->type);
++					n->right->typecheck = 1;
++				}
+ 				r->ntest = mkcall1(chanfn("selectsend", 2, n->left->type), types[TBOOL],
+ 					&r->ninit, var, n->left, n->right);
+ 				break;
+diff --git a/test/fixedbugs/issue6847.go b/test/fixedbugs/issue6847.go
+new file mode 100644
+index 0000000000..e6427e19ac
+--- /dev/null
++++ b/test/fixedbugs/issue6847.go
+@@ -0,0 +1,85 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 6847: select clauses involving implicit conversion
++// of channels trigger a spurious typechecking error during walk.
++
++package p
++
++type I1 interface {
++	String()
++}
++type I2 interface {
++	String()
++}
++
++func F() {
++	var (
++		cr <-chan int
++		cs chan<- int
++		c  chan int
++
++		ccr chan (<-chan int)
++		ccs chan chan<- int
++		cc  chan chan int
++
++		ok bool
++	)
++	// Send cases.
++	select {
++	case ccr <- cr:
++	case ccr <- c:
++	}
++	select {
++	case ccs <- cs:
++	case ccs <- c:
++	}
++	select {
++	case ccr <- c:
++	default:
++	}
++	// Receive cases.
++	select {
++	case cr = <-cc:
++	case cs = <-cc:
++	case c = <-cc:
++	}
++	select {
++	case cr = <-cc:
++	default:
++	}
++	select {
++	case cr, ok = <-cc:
++	case cs, ok = <-cc:
++	case c = <-cc:
++	}
++      // Interfaces.
++	var (
++		c1 chan I1
++		c2 chan I2
++		x1 I1
++		x2 I2
++	)
++	select {
++	case c1 <- x1:
++	case c1 <- x2:
++	case c2 <- x1:
++	case c2 <- x2:
++	}
++	select {
++	case x1 = <-c1:
++	case x1 = <-c2:
++	case x2 = <-c1:
++	case x2 = <-c2:
++	}
++	select {
++	case x1, ok = <-c1:
++	case x1, ok = <-c2:
++	case x2, ok = <-c1:
++	case x2, ok = <-c2:
++	}
++	_ = ok
++}

@@ -13,8 +13,139 @@ Date:   Wed Dec 14 17:17:40 2011 -0500
     R=bradfitz, rsc, go.peter.90
     CC=golang-dev
     https://golang.org/cl/5450073
-
+---
  src/pkg/compress/gzip/gunzip.go    | 12 +++++++++++-
  src/pkg/compress/gzip/gzip.go      | 20 ++++++++++++++++----
  src/pkg/compress/gzip/gzip_test.go | 35 ++++++++++++++++++++++++++++++++---
  3 files changed, 59 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 7c78b9e366..6d60fdd0ff 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -96,6 +96,7 @@ func get4(p []byte) uint32 {
+ 
+ func (z *Decompressor) readString() (string, error) {
+ 	var err error
++	needconv := false
+ 	for i := 0; ; i++ {
+ 		if i >= len(z.buf) {
+ 			return "", HeaderError
+@@ -104,9 +105,18 @@ func (z *Decompressor) readString() (string, error) {
+ 		if err != nil {
+ 			return "", err
+ 		}
++		if z.buf[i] > 0x7f {
++			needconv = true
++		}
+ 		if z.buf[i] == 0 {
+ 			// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
+-			// TODO(nigeltao): Convert from ISO 8859-1 (Latin-1) to UTF-8.
++			if needconv {
++				s := make([]rune, 0, i)
++				for _, v := range z.buf[0:i] {
++					s = append(s, rune(v))
++				}
++				return string(s), nil
++			}
+ 			return string(z.buf[0:i]), nil
+ 		}
+ 	}
+diff --git a/src/pkg/compress/gzip/gzip.go b/src/pkg/compress/gzip/gzip.go
+index 07b91b6682..f2639a688c 100644
+--- a/src/pkg/compress/gzip/gzip.go
++++ b/src/pkg/compress/gzip/gzip.go
+@@ -86,13 +86,25 @@ func (z *Compressor) writeBytes(b []byte) error {
+ // writeString writes a string (in ISO 8859-1 (Latin-1) format) to z.w.
+ func (z *Compressor) writeString(s string) error {
+ 	// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
+-	// TODO(nigeltao): Convert from UTF-8 to ISO 8859-1 (Latin-1).
++	var err error
++	needconv := false
+ 	for _, v := range s {
+-		if v == 0 || v > 0x7f {
+-			return errors.New("gzip.Write: non-ASCII header string")
++		if v == 0 || v > 0xff {
++			return errors.New("gzip.Write: non-Latin-1 header string")
+ 		}
++		if v > 0x7f {
++			needconv = true
++		}
++	}
++	if needconv {
++		b := make([]byte, 0, len(s))
++		for _, v := range s {
++			b = append(b, byte(v))
++		}
++		_, err = z.w.Write(b)
++	} else {
++		_, err = io.WriteString(z.w, s)
+ 	}
+-	_, err := io.WriteString(z.w, s)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/pkg/compress/gzip/gzip_test.go b/src/pkg/compress/gzip/gzip_test.go
+index 815825be99..eb7a7ec089 100644
+--- a/src/pkg/compress/gzip/gzip_test.go
++++ b/src/pkg/compress/gzip/gzip_test.go
+@@ -5,6 +5,8 @@
+ package gzip
+ 
+ import (
++	"bufio"
++	"bytes"
+ 	"io"
+ 	"io/ioutil"
+ 	"testing"
+@@ -52,7 +54,8 @@ func TestEmpty(t *testing.T) {
+ func TestWriter(t *testing.T) {
+ 	pipe(t,
+ 		func(compressor *Compressor) {
+-			compressor.Comment = "comment"
++			compressor.Comment = "Äußerung"
++			//compressor.Comment = "comment"
+ 			compressor.Extra = []byte("extra")
+ 			compressor.ModTime = time.Unix(1e8, 0)
+ 			compressor.Name = "name"
+@@ -69,8 +72,8 @@ func TestWriter(t *testing.T) {
+ 			if string(b) != "payload" {
+ 				t.Fatalf("payload is %q, want %q", string(b), "payload")
+ 			}
+-			if decompressor.Comment != "comment" {
+-				t.Fatalf("comment is %q, want %q", decompressor.Comment, "comment")
++			if decompressor.Comment != "Äußerung" {
++				t.Fatalf("comment is %q, want %q", decompressor.Comment, "Äußerung")
+ 			}
+ 			if string(decompressor.Extra) != "extra" {
+ 				t.Fatalf("extra is %q, want %q", decompressor.Extra, "extra")
+@@ -83,3 +86,29 @@ func TestWriter(t *testing.T) {
+ 			}
+ 		})
+ }
++
++func TestLatin1(t *testing.T) {
++	latin1 := []byte{0xc4, 'u', 0xdf, 'e', 'r', 'u', 'n', 'g', 0}
++	utf8 := "Äußerung"
++	z := Decompressor{r: bufio.NewReader(bytes.NewBuffer(latin1))}
++	s, err := z.readString()
++	if err != nil {
++		t.Fatalf("%v", err)
++	}
++	if s != utf8 {
++		t.Fatalf("string is %q, want %q", s, utf8)
++	}
++
++	buf := bytes.NewBuffer(make([]byte, 0, len(latin1)))
++	c := Compressor{w: buf}
++	if err = c.writeString(utf8); err != nil {
++		t.Fatalf("%v", err)
++	}
++	s = buf.String()
++	if s != string(latin1) {
++		t.Fatalf("string is %v, want %v", s, latin1)
++	}
++	//if s, err = buf.ReadString(0); err != nil {
++	//t.Fatalf("%v", err)
++	//}
++}

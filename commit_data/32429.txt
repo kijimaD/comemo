@@ -13,8 +13,176 @@ Date:   Fri Apr 21 15:42:42 2017 +0900
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_test.go         | 31 +++++++++++++++++--------------
  src/os/os_windows_test.go | 22 ++++++++++++++++------
  src/os/stat_windows.go    | 16 +++++++++-------
  3 files changed, 42 insertions(+), 27 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 895a3e2bc5..c0c8875363 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -712,55 +712,58 @@ func TestSymlink(t *testing.T) {
+ 	Remove(from) // Just in case.
+ 	file, err := Create(to)
+ 	if err != nil {
+-		t.Fatalf("open %q failed: %v", to, err)
++		t.Fatalf("Create(%q) failed: %v", to, err)
+ 	}
+ 	defer Remove(to)
+ 	if err = file.Close(); err != nil {
+-		t.Errorf("close %q failed: %v", to, err)
++		t.Errorf("Close(%q) failed: %v", to, err)
+ 	}
+ 	err = Symlink(to, from)
+ 	if err != nil {
+-		t.Fatalf("symlink %q, %q failed: %v", to, from, err)
++		t.Fatalf("Symlink(%q, %q) failed: %v", to, from, err)
+ 	}
+ 	defer Remove(from)
+ 	tostat, err := Lstat(to)
+ 	if err != nil {
+-		t.Fatalf("stat %q failed: %v", to, err)
++		t.Fatalf("Lstat(%q) failed: %v", to, err)
+ 	}
+ 	if tostat.Mode()&ModeSymlink != 0 {
+-		t.Fatalf("stat %q claims to have found a symlink", to)
++		t.Fatalf("Lstat(%q).Mode()&ModeSymlink = %v, want 0", to, tostat.Mode()&ModeSymlink)
+ 	}
+ 	fromstat, err := Stat(from)
+ 	if err != nil {
+-		t.Fatalf("stat %q failed: %v", from, err)
++		t.Fatalf("Stat(%q) failed: %v", from, err)
+ 	}
+ 	if !SameFile(tostat, fromstat) {
+-		t.Errorf("symlink %q, %q did not create symlink", to, from)
++		t.Errorf("Symlink(%q, %q) did not create symlink", to, from)
+ 	}
+ 	fromstat, err = Lstat(from)
+ 	if err != nil {
+-		t.Fatalf("lstat %q failed: %v", from, err)
++		t.Fatalf("Lstat(%q) failed: %v", from, err)
+ 	}
+ 	if fromstat.Mode()&ModeSymlink == 0 {
+-		t.Fatalf("symlink %q, %q did not create symlink", to, from)
++		t.Fatalf("Lstat(%q).Mode()&ModeSymlink = 0, want %v", from, ModeSymlink)
+ 	}
+ 	fromstat, err = Stat(from)
+ 	if err != nil {
+-		t.Fatalf("stat %q failed: %v", from, err)
++		t.Fatalf("Stat(%q) failed: %v", from, err)
++	}
++	if fromstat.Name() != from {
++		t.Errorf("Stat(%q).Name() = %q, want %q", from, fromstat.Name(), from)
+ 	}
+ 	if fromstat.Mode()&ModeSymlink != 0 {
+-		t.Fatalf("stat %q did not follow symlink", from)
++		t.Fatalf("Stat(%q).Mode()&ModeSymlink = %v, want 0", from, fromstat.Mode()&ModeSymlink)
+ 	}
+ 	s, err := Readlink(from)
+ 	if err != nil {
+-		t.Fatalf("readlink %q failed: %v", from, err)
++		t.Fatalf("Readlink(%q) failed: %v", from, err)
+ 	}
+ 	if s != to {
+-		t.Fatalf("after symlink %q != %q", s, to)
++		t.Fatalf("Readlink(%q) = %q, want %q", from, s, to)
+ 	}
+ 	file, err = Open(from)
+ 	if err != nil {
+-		t.Fatalf("open %q failed: %v", from, err)
++		t.Fatalf("Open(%q) failed: %v", from, err)
+ 	}
+ 	file.Close()
+ }
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index dc8c2fc56e..3e82f6993b 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -105,6 +105,10 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	fi, err := os.Stat(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	err = ioutil.WriteFile(filepath.Join(dir, "abc"), []byte("abc"), 0644)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -113,7 +117,7 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
+ 		link := filepath.Join(tmpdir, test.name+"_link")
+ 		err := test.mklink(link, dir)
+ 		if err != nil {
+-			t.Errorf("creating link for %s test failed: %v", test.name, err)
++			t.Errorf("creating link for %q test failed: %v", test.name, err)
+ 			continue
+ 		}
+ 
+@@ -132,15 +136,21 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
+ 			continue
+ 		}
+ 
+-		fi, err := os.Stat(link)
++		fi1, err := os.Stat(link)
+ 		if err != nil {
+ 			t.Errorf("failed to stat link %v: %v", link, err)
+ 			continue
+ 		}
+-		expected := filepath.Base(dir)
+-		got := fi.Name()
+-		if !fi.IsDir() || expected != got {
+-			t.Errorf("link should point to %v but points to %v instead", expected, got)
++		if !fi1.IsDir() {
++			t.Errorf("%q should be a directory", link)
++			continue
++		}
++		if fi1.Name() != filepath.Base(link) {
++			t.Errorf("Stat(%q).Name() = %q, want %q", link, fi1.Name(), filepath.Base(link))
++			continue
++		}
++		if !os.SameFile(fi, fi1) {
++			t.Errorf("%q should point to %q", link, dir)
+ 			continue
+ 		}
+ 	}
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index bcce81cc56..4e586ab78f 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -63,25 +63,27 @@ func (file *File) Stat() (FileInfo, error) {
+ func Stat(name string) (FileInfo, error) {
+ 	var fi FileInfo
+ 	var err error
++	link := name
+ 	for i := 0; i < 255; i++ {
+-		fi, err = Lstat(name)
++		fi, err = Lstat(link)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 		if fi.Mode()&ModeSymlink == 0 {
++			fi.(*fileStat).name = basename(name)
+ 			return fi, nil
+ 		}
+-		newname, err := Readlink(name)
++		newlink, err := Readlink(link)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 		switch {
+-		case isAbs(newname):
+-			name = newname
+-		case len(newname) > 0 && IsPathSeparator(newname[0]):
+-			name = volumeName(name) + newname
++		case isAbs(newlink):
++			link = newlink
++		case len(newlink) > 0 && IsPathSeparator(newlink[0]):
++			link = volumeName(link) + newlink
+ 		default:
+-			name = dirname(name) + `\` + newname
++			link = dirname(link) + `\` + newlink
+ 		}
+ 	}
+ 	return nil, &PathError{"Stat", name, syscall.ELOOP}

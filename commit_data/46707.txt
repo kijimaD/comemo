@@ -13,8 +13,96 @@ Date:   Fri Jan 22 19:32:43 2021 +1100
     Trust: Joel Sing <joel@sing.id.au>
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/sys_openbsd.go      | 18 ------------------
  src/runtime/sys_openbsd_amd64.s | 18 ------------------
  src/runtime/sys_openbsd_arm64.s | 12 ------------
  3 files changed, 48 deletions(-)
+
+diff --git a/src/runtime/sys_openbsd.go b/src/runtime/sys_openbsd.go
+index 56de00aad5..2d41ed0d46 100644
+--- a/src/runtime/sys_openbsd.go
++++ b/src/runtime/sys_openbsd.go
+@@ -46,21 +46,6 @@ func pthread_create(attr *pthreadattr, start uintptr, arg unsafe.Pointer) int32
+ }
+ func pthread_create_trampoline()
+ 
+-//go:nosplit
+-//go:cgo_unsafe_args
+-func pthread_self() (t pthread) {
+-	libcCall(unsafe.Pointer(funcPC(pthread_self_trampoline)), unsafe.Pointer(&t))
+-	return
+-}
+-func pthread_self_trampoline()
+-
+-//go:nosplit
+-//go:cgo_unsafe_args
+-func pthread_kill(t pthread, sig uint32) {
+-	libcCall(unsafe.Pointer(funcPC(pthread_kill_trampoline)), unsafe.Pointer(&t))
+-}
+-func pthread_kill_trampoline()
+-
+ // Tell the linker that the libc_* functions are to be found
+ // in a system library, with the libc_ prefix missing.
+ 
+@@ -70,8 +55,5 @@ func pthread_kill_trampoline()
+ //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "libpthread.so"
+ //go:cgo_import_dynamic libc_pthread_create pthread_create "libpthread.so"
+ //go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "libpthread.so"
+-//go:cgo_import_dynamic libc_pthread_self pthread_self "libpthread.so"
+-//go:cgo_import_dynamic libc_pthread_kill pthread_kill "libpthread.so"
+ 
+ //go:cgo_import_dynamic _ _ "libpthread.so"
+-//go:cgo_import_dynamic _ _ "libc.so"
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index ac0ae27e45..1086557aab 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -150,24 +150,6 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+-	PUSHQ	BP
+-	MOVQ	SP, BP
+-	MOVQ	DI, BX			// BX is caller-save
+-	CALL	libc_pthread_self(SB)
+-	MOVQ	AX, 0(BX)		// return value
+-	POPQ	BP
+-	RET
+-
+-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+-	PUSHQ	BP
+-	MOVQ	SP, BP
+-	MOVQ	8(DI), SI		// arg 2 - sig
+-	MOVQ	0(DI), DI		// arg 1 - thread
+-	CALL	libc_pthread_kill(SB)
+-	POPQ	BP
+-	RET
+-
+ TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+diff --git a/src/runtime/sys_openbsd_arm64.s b/src/runtime/sys_openbsd_arm64.s
+index 90646bbe85..2ec9d038ba 100644
+--- a/src/runtime/sys_openbsd_arm64.s
++++ b/src/runtime/sys_openbsd_arm64.s
+@@ -188,18 +188,6 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+ 	ADD	$16, RSP
+ 	RET
+ 
+-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+-	MOVD	R0, R19			// pointer to args
+-	CALL	libc_pthread_self(SB)
+-	MOVD	R0, 0(R19)		// return value
+-	RET
+-
+-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+-	MOVW	8(R0), R1		// arg 2 - sig
+-	MOVD	0(R0), R0		// arg 1 - thread
+-	CALL	libc_pthread_kill(SB)
+-	RET
+-
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	code+0(FP), R0		// arg 1 - status

@@ -17,10 +17,134 @@ Date:   Sun Nov 22 10:45:44 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go   | 16 ++++++++++------
  src/cmd/compile/internal/gc/dcl.go       |  3 ++-
  src/cmd/compile/internal/gc/iexport.go   |  5 ++---
  src/cmd/compile/internal/gc/iimport.go   | 11 +++--------
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  5 files changed, 18 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 10f21f86df..f4720f8402 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -12,6 +12,15 @@ type exporter struct {
+ 	marked map[*types.Type]bool // types already seen by markType
+ }
+ 
++// markObject visits a reachable object.
++func (p *exporter) markObject(n *Node) {
++	if n.Op == ONAME && n.Class() == PFUNC {
++		inlFlood(n)
++	}
++
++	p.markType(n.Type)
++}
++
+ // markType recursively visits types reachable from t to identify
+ // functions whose inline bodies may be needed.
+ func (p *exporter) markType(t *types.Type) {
+@@ -28,7 +37,7 @@ func (p *exporter) markType(t *types.Type) {
+ 	if t.Sym != nil && t.Etype != TINTER {
+ 		for _, m := range t.Methods().Slice() {
+ 			if types.IsExported(m.Sym.Name) {
+-				p.markType(m.Type)
++				p.markObject(asNode(m.Type.Nname()))
+ 			}
+ 		}
+ 	}
+@@ -63,11 +72,6 @@ func (p *exporter) markType(t *types.Type) {
+ 		}
+ 
+ 	case TFUNC:
+-		// If t is the type of a function or method, then
+-		// t.Nname() is its ONAME. Mark its inline body and
+-		// any recursively called functions for export.
+-		inlFlood(asNode(t.Nname()))
+-
+ 		for _, f := range t.Results().FieldSlice() {
+ 			p.markType(f.Type)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 96c3a6faba..6af0369246 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -824,7 +824,7 @@ func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
+ // - msym is the method symbol
+ // - t is function type (with receiver)
+ // Returns a pointer to the existing or added Field; or nil if there's an error.
+-func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
++func addmethod(n *Node, msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
+ 	if msym == nil {
+ 		Fatalf("no method symbol")
+ 	}
+@@ -897,6 +897,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
+ 	}
+ 
+ 	f := types.NewField(lineno, msym, t)
++	f.Type.SetNname(asTypesNode(n.Func.Nname))
+ 	f.SetNointerface(nointerface)
+ 
+ 	mt.Methods().Append(f)
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 1f53d8ca7d..af5f1b70e4 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -243,14 +243,13 @@ const (
+ )
+ 
+ func iexport(out *bufio.Writer) {
+-	// Mark inline bodies that are reachable through exported types.
++	// Mark inline bodies that are reachable through exported objects.
+ 	// (Phase 0 of bexport.go.)
+ 	{
+ 		// TODO(mdempsky): Separate from bexport logic.
+ 		p := &exporter{marked: make(map[*types.Type]bool)}
+ 		for _, n := range exportlist {
+-			sym := n.Sym
+-			p.markType(asNode(sym.Def).Type)
++			p.markObject(n)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 376a167e16..de2ea3558c 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -327,19 +327,14 @@ func (r *importReader) doDecl(n *Node) {
+ 			recv := r.param()
+ 			mtyp := r.signature(recv)
+ 
+-			ms[i] = types.NewField(mpos, msym, mtyp)
+-
+ 			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
+ 			m.Type = mtyp
+ 			m.SetClass(PFUNC)
+ 			// methodSym already marked m.Sym as a function.
+ 
+-			// (comment from parser.go)
+-			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
+-			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
+-			// out by typecheck's lookdot as this $$.ttype. So by providing
+-			// this back link here we avoid special casing there.
+-			mtyp.SetNname(asTypesNode(m))
++			f := types.NewField(mpos, msym, mtyp)
++			f.Type.SetNname(asTypesNode(m))
++			ms[i] = f
+ 		}
+ 		t.Methods().Set(ms)
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 1c371c0e9d..d2e805a72f 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3412,7 +3412,7 @@ func typecheckfunc(n *Node) {
+ 	t.FuncType().Nname = asTypesNode(n.Func.Nname)
+ 	rcvr := t.Recv()
+ 	if rcvr != nil && n.Func.Shortname != nil {
+-		m := addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
++		m := addmethod(n, n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
+ 		if m == nil {
+ 			return
+ 		}

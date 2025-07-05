@@ -9,6 +9,19 @@ Date:   Wed Sep 7 14:10:14 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4961066
-
+---
  doc/devel/weekly.html | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 470dc2286e..279396a6a1 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -53,7 +53,6 @@ Other changes:
+ 	added handling for URL attributes.
+ 	differentiate URL-valued attributes (such as href).
+ 	reworked escapeText to recognize attr boundaries.
+-* exp/template: moved from exp to the main tree.
+ * exp/wingui: made compatible with windows/amd64. (thanks Jaroslavas Počepko)
+ * flag: add Parsed, restore Usage.
+ * gc: add openbsd.

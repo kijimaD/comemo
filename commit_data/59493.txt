@@ -14,9 +14,115 @@ Date:   Fri Mar 8 20:00:28 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Commit-Queue: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/go.mod                |  2 +-
  src/go.sum                |  4 ++--
  src/net/http/h2_bundle.go | 19 ++++++++++++++-----
  src/vendor/modules.txt    |  2 +-
  4 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index ec34db73c2..5ea6c94dd2 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.23
+ 
+ require (
+ 	golang.org/x/crypto v0.21.0
+-	golang.org/x/net v0.22.1-0.20240308015937-8c07e20f924f
++	golang.org/x/net v0.22.1-0.20240308174206-57a6a7a86bc0
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index 60c0528091..7d9b29679e 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.21.0 h1:X31++rzVUdKhX5sWmSOFZxx8UW/ldWx55cbf08iNAMA=
+ golang.org/x/crypto v0.21.0/go.mod h1:0BP7YvVV9gBbVKyeTG0Gyn+gZm94bibOW5BjDEYAOMs=
+-golang.org/x/net v0.22.1-0.20240308015937-8c07e20f924f h1:c4fKFo2ZTrRdyG3qANmoyoqSjzzBn2luv+NdTb45Ryw=
+-golang.org/x/net v0.22.1-0.20240308015937-8c07e20f924f/go.mod h1:JKghWKKOSdJwpW2GEx0Ja7fmaKnMsbu+MWVZTokSYmg=
++golang.org/x/net v0.22.1-0.20240308174206-57a6a7a86bc0 h1:+TsP4uJlxz3T+S5UYrfgBP96WIo1eC20c2Fx6TRmMmY=
++golang.org/x/net v0.22.1-0.20240308174206-57a6a7a86bc0/go.mod h1:JKghWKKOSdJwpW2GEx0Ja7fmaKnMsbu+MWVZTokSYmg=
+ golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
+ golang.org/x/sys v0.18.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 029c584a5e..8702ef6165 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -3733,7 +3733,10 @@ func (p *http2pipe) Read(d []byte) (n int, err error) {
+ 	}
+ }
+ 
+-var http2errClosedPipeWrite = errors.New("write on closed buffer")
++var (
++	http2errClosedPipeWrite        = errors.New("write on closed buffer")
++	http2errUninitializedPipeWrite = errors.New("write on uninitialized buffer")
++)
+ 
+ // Write copies bytes from p into the buffer and wakes a reader.
+ // It is an error to write more data than the buffer can hold.
+@@ -3747,6 +3750,12 @@ func (p *http2pipe) Write(d []byte) (n int, err error) {
+ 	if p.err != nil || p.breakErr != nil {
+ 		return 0, http2errClosedPipeWrite
+ 	}
++	// pipe.setBuffer is never invoked, leaving the buffer uninitialized.
++	// We shouldn't try to write to an uninitialized pipe,
++	// but returning an error is better than panicking.
++	if p.b == nil {
++		return 0, http2errUninitializedPipeWrite
++	}
+ 	return p.b.Write(d)
+ }
+ 
+@@ -4213,7 +4222,7 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
+ 	// passes the connection off to us with the deadline already set.
+ 	// Write deadlines are set per stream in serverConn.newStream.
+ 	// Disarm the net.Conn write deadline here.
+-	if sc.hs.WriteTimeout != 0 {
++	if sc.hs.WriteTimeout > 0 {
+ 		sc.conn.SetWriteDeadline(time.Time{})
+ 	}
+ 
+@@ -5801,7 +5810,7 @@ func (sc *http2serverConn) processHeaders(f *http2MetaHeadersFrame) error {
+ 	// similar to how the http1 server works. Here it's
+ 	// technically more like the http1 Server's ReadHeaderTimeout
+ 	// (in Go 1.8), though. That's a more sane option anyway.
+-	if sc.hs.ReadTimeout != 0 {
++	if sc.hs.ReadTimeout > 0 {
+ 		sc.conn.SetReadDeadline(time.Time{})
+ 		st.readDeadline = time.AfterFunc(sc.hs.ReadTimeout, st.onReadTimeout)
+ 	}
+@@ -5822,7 +5831,7 @@ func (sc *http2serverConn) upgradeRequest(req *Request) {
+ 
+ 	// Disable any read deadline set by the net/http package
+ 	// prior to the upgrade.
+-	if sc.hs.ReadTimeout != 0 {
++	if sc.hs.ReadTimeout > 0 {
+ 		sc.conn.SetReadDeadline(time.Time{})
+ 	}
+ 
+@@ -5900,7 +5909,7 @@ func (sc *http2serverConn) newStream(id, pusherID uint32, state http2streamState
+ 	st.flow.conn = &sc.flow // link to conn-level counter
+ 	st.flow.add(sc.initialStreamSendWindowSize)
+ 	st.inflow.init(sc.srv.initialStreamRecvWindowSize())
+-	if sc.hs.WriteTimeout != 0 {
++	if sc.hs.WriteTimeout > 0 {
+ 		st.writeDeadline = time.AfterFunc(sc.hs.WriteTimeout, st.onWriteTimeout)
+ 	}
+ 
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index eb78e2ae9d..9c2019873b 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.22.1-0.20240308015937-8c07e20f924f
++# golang.org/x/net v0.22.1-0.20240308174206-57a6a7a86bc0
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

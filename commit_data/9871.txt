@@ -8,7 +8,7 @@ Date:   Wed Oct 5 10:44:11 2011 -0700
     R=r, mpvl
     CC=golang-dev
     https://golang.org/cl/5166045
-
+---
  src/pkg/exp/norm/Makefile            |   1 +
  src/pkg/exp/norm/composition.go      |  64 ++++++-------
  src/pkg/exp/norm/composition_test.go |  39 +++-----
@@ -18,3 +18,925 @@ Date:   Wed Oct 5 10:44:11 2011 -0700
  src/pkg/exp/norm/normalize_test.go   |  42 +++++++--
  src/pkg/exp/norm/readwriter.go       |  18 +++-
  8 files changed, 318 insertions(+), 190 deletions(-)
+
+diff --git a/src/pkg/exp/norm/Makefile b/src/pkg/exp/norm/Makefile
+index fd32f86965..b3eca1064c 100644
+--- a/src/pkg/exp/norm/Makefile
++++ b/src/pkg/exp/norm/Makefile
+@@ -7,6 +7,7 @@ include ../../../Make.inc
+ TARG=exp/norm
+ GOFILES=\
+ 	composition.go\
++	input.go\
+ 	forminfo.go\
+ 	normalize.go\
+ 	readwriter.go\
+diff --git a/src/pkg/exp/norm/composition.go b/src/pkg/exp/norm/composition.go
+index ea59c81cd8..1d722230d6 100644
+--- a/src/pkg/exp/norm/composition.go
++++ b/src/pkg/exp/norm/composition.go
+@@ -27,6 +27,26 @@ type reorderBuffer struct {
+ 	nrune int                     // Number of runeInfos.
+ 	nbyte uint8                   // Number or bytes.
+ 	f     formInfo
++
++	src       input
++	nsrc      int
++	srcBytes  inputBytes
++	srcString inputString
++	tmpBytes  inputBytes
++}
++
++func (rb *reorderBuffer) init(f Form, src []byte) {
++	rb.f = *formTable[f]
++	rb.srcBytes = inputBytes(src)
++	rb.src = &rb.srcBytes
++	rb.nsrc = len(src)
++}
++
++func (rb *reorderBuffer) initString(f Form, src string) {
++	rb.f = *formTable[f]
++	rb.srcString = inputString(src)
++	rb.src = &rb.srcString
++	rb.nsrc = len(src)
+ }
+ 
+ // reset discards all characters from the buffer.
+@@ -75,45 +95,17 @@ func (rb *reorderBuffer) insertOrdered(info runeInfo) bool {
+ 
+ // insert inserts the given rune in the buffer ordered by CCC.
+ // It returns true if the buffer was large enough to hold the decomposed rune.
+-func (rb *reorderBuffer) insert(src []byte, info runeInfo) bool {
+-	if info.size == 3 && isHangul(src) {
+-		rune, _ := utf8.DecodeRune(src)
+-		return rb.decomposeHangul(uint32(rune))
+-	}
+-	if info.flags.hasDecomposition() {
+-		dcomp := rb.f.decompose(src)
+-		for i := 0; i < len(dcomp); {
+-			info = rb.f.info(dcomp[i:])
+-			pos := rb.nbyte
+-			if !rb.insertOrdered(info) {
+-				return false
+-			}
+-			end := i + int(info.size)
+-			copy(rb.byte[pos:], dcomp[i:end])
+-			i = end
++func (rb *reorderBuffer) insert(src input, i int, info runeInfo) bool {
++	if info.size == 3 {
++		if rune := src.hangul(i); rune != 0 {
++			return rb.decomposeHangul(uint32(rune))
+ 		}
+-	} else {
+-		// insertOrder changes nbyte
+-		pos := rb.nbyte
+-		if !rb.insertOrdered(info) {
+-			return false
+-		}
+-		copy(rb.byte[pos:], src[:info.size])
+-	}
+-	return true
+-}
+-
+-// insertString inserts the given rune in the buffer ordered by CCC.
+-// It returns true if the buffer was large enough to hold the decomposed rune.
+-func (rb *reorderBuffer) insertString(src string, info runeInfo) bool {
+-	if info.size == 3 && isHangulString(src) {
+-		rune, _ := utf8.DecodeRuneInString(src)
+-		return rb.decomposeHangul(uint32(rune))
+ 	}
+ 	if info.flags.hasDecomposition() {
+-		dcomp := rb.f.decomposeString(src)
++		dcomp := rb.f.decompose(src, i)
++		rb.tmpBytes = inputBytes(dcomp)
+ 		for i := 0; i < len(dcomp); {
+-			info = rb.f.info(dcomp[i:])
++			info = rb.f.info(&rb.tmpBytes, i)
+ 			pos := rb.nbyte
+ 			if !rb.insertOrdered(info) {
+ 				return false
+@@ -128,7 +120,7 @@ func (rb *reorderBuffer) insertString(src string, info runeInfo) bool {
+ 		if !rb.insertOrdered(info) {
+ 			return false
+ 		}
+-		copy(rb.byte[pos:], src[:info.size])
++		src.copySlice(rb.byte[pos:], i, i+int(info.size))
+ 	}
+ 	return true
+ }
+diff --git a/src/pkg/exp/norm/composition_test.go b/src/pkg/exp/norm/composition_test.go
+index 195a0c1e8e..ce9caaff16 100644
+--- a/src/pkg/exp/norm/composition_test.go
++++ b/src/pkg/exp/norm/composition_test.go
+@@ -15,21 +15,19 @@ type TestCase struct {
+ type insertFunc func(rb *reorderBuffer, rune int) bool
+ 
+ func insert(rb *reorderBuffer, rune int) bool {
+-	b := []byte(string(rune))
+-	return rb.insert(b, rb.f.info(b))
++	src := inputString(string(rune))
++	return rb.insert(src, 0, rb.f.info(src, 0))
+ }
+ 
+-func insertString(rb *reorderBuffer, rune int) bool {
+-	s := string(rune)
+-	return rb.insertString(s, rb.f.infoString(s))
+-}
+-
+-func runTests(t *testing.T, name string, rb *reorderBuffer, f insertFunc, tests []TestCase) {
++func runTests(t *testing.T, name string, fm Form, f insertFunc, tests []TestCase) {
++	rb := reorderBuffer{}
++	rb.init(fm, nil)
+ 	for i, test := range tests {
+ 		rb.reset()
+ 		for j, rune := range test.in {
+ 			b := []byte(string(rune))
+-			if !rb.insert(b, rb.f.info(b)) {
++			src := inputBytes(b)
++			if !rb.insert(src, 0, rb.f.info(src, 0)) {
+ 				t.Errorf("%s:%d: insert failed for rune %d", name, i, j)
+ 			}
+ 		}
+@@ -50,7 +48,8 @@ func runTests(t *testing.T, name string, rb *reorderBuffer, f insertFunc, tests
+ }
+ 
+ func TestFlush(t *testing.T) {
+-	rb := &reorderBuffer{f: *formTable[NFC]}
++	rb := reorderBuffer{}
++	rb.init(NFC, nil)
+ 	out := make([]byte, 0)
+ 
+ 	out = rb.flush(out)
+@@ -59,7 +58,7 @@ func TestFlush(t *testing.T) {
+ 	}
+ 
+ 	for _, r := range []int("world!") {
+-		insert(rb, r)
++		insert(&rb, r)
+ 	}
+ 
+ 	out = []byte("Hello ")
+@@ -88,13 +87,7 @@ var insertTests = []TestCase{
+ }
+ 
+ func TestInsert(t *testing.T) {
+-	rb := &reorderBuffer{f: *formTable[NFD]}
+-	runTests(t, "TestInsert", rb, insert, insertTests)
+-}
+-
+-func TestInsertString(t *testing.T) {
+-	rb := &reorderBuffer{f: *formTable[NFD]}
+-	runTests(t, "TestInsertString", rb, insertString, insertTests)
++	runTests(t, "TestInsert", NFD, insert, insertTests)
+ }
+ 
+ var decompositionNFDTest = []TestCase{
+@@ -113,11 +106,8 @@ var decompositionNFKDTest = []TestCase{
+ }
+ 
+ func TestDecomposition(t *testing.T) {
+-	rb := &reorderBuffer{}
+-	rb.f = *formTable[NFD]
+-	runTests(t, "TestDecompositionNFD", rb, insert, decompositionNFDTest)
+-	rb.f = *formTable[NFKD]
+-	runTests(t, "TestDecompositionNFKD", rb, insert, decompositionNFKDTest)
++	runTests(t, "TestDecompositionNFD", NFD, insert, decompositionNFDTest)
++	runTests(t, "TestDecompositionNFKD", NFKD, insert, decompositionNFKDTest)
+ }
+ 
+ var compositionTest = []TestCase{
+@@ -133,6 +123,5 @@ var compositionTest = []TestCase{
+ }
+ 
+ func TestComposition(t *testing.T) {
+-	rb := &reorderBuffer{f: *formTable[NFC]}
+-	runTests(t, "TestComposition", rb, insert, compositionTest)
++	runTests(t, "TestComposition", NFC, insert, compositionTest)
+ }
+diff --git a/src/pkg/exp/norm/forminfo.go b/src/pkg/exp/norm/forminfo.go
+index 5e01e89d1f..d06a00602f 100644
+--- a/src/pkg/exp/norm/forminfo.go
++++ b/src/pkg/exp/norm/forminfo.go
+@@ -15,10 +15,8 @@ type runeInfo struct {
+ 
+ // functions dispatchable per form
+ type boundaryFunc func(f *formInfo, info runeInfo) bool
+-type lookupFunc func(b []byte) runeInfo
+-type lookupFuncString func(s string) runeInfo
+-type decompFunc func(b []byte) []byte
+-type decompFuncString func(s string) []byte
++type lookupFunc func(b input, i int) runeInfo
++type decompFunc func(b input, i int) []byte
+ 
+ // formInfo holds Form-specific functions and tables.
+ type formInfo struct {
+@@ -26,12 +24,10 @@ type formInfo struct {
+ 
+ 	composing, compatibility bool // form type
+ 
+-	decompose       decompFunc
+-	decomposeString decompFuncString
+-	info            lookupFunc
+-	infoString      lookupFuncString
+-	boundaryBefore  boundaryFunc
+-	boundaryAfter   boundaryFunc
++	decompose      decompFunc
++	info           lookupFunc
++	boundaryBefore boundaryFunc
++	boundaryAfter  boundaryFunc
+ }
+ 
+ var formTable []*formInfo
+@@ -46,14 +42,10 @@ func init() {
+ 		if Form(i) == NFKD || Form(i) == NFKC {
+ 			f.compatibility = true
+ 			f.decompose = decomposeNFKC
+-			f.decomposeString = decomposeStringNFKC
+ 			f.info = lookupInfoNFKC
+-			f.infoString = lookupInfoStringNFKC
+ 		} else {
+ 			f.decompose = decomposeNFC
+-			f.decomposeString = decomposeStringNFC
+ 			f.info = lookupInfoNFC
+-			f.infoString = lookupInfoStringNFC
+ 		}
+ 		if Form(i) == NFC || Form(i) == NFKC {
+ 			f.composing = true
+@@ -123,29 +115,15 @@ func (r runeInfo) isInert() bool {
+ // array of UTF-8 decomposition sequences. The first byte is the number
+ // of bytes in the decomposition (excluding this length byte). The actual
+ // sequence starts at the offset+1.
+-func decomposeNFC(b []byte) []byte {
+-	p := nfcDecompTrie.lookupUnsafe(b)
++func decomposeNFC(s input, i int) []byte {
++	p := s.decomposeNFC(i)
+ 	n := decomps[p]
+ 	p++
+ 	return decomps[p : p+uint16(n)]
+ }
+ 
+-func decomposeNFKC(b []byte) []byte {
+-	p := nfkcDecompTrie.lookupUnsafe(b)
+-	n := decomps[p]
+-	p++
+-	return decomps[p : p+uint16(n)]
+-}
+-
+-func decomposeStringNFC(s string) []byte {
+-	p := nfcDecompTrie.lookupStringUnsafe(s)
+-	n := decomps[p]
+-	p++
+-	return decomps[p : p+uint16(n)]
+-}
+-
+-func decomposeStringNFKC(s string) []byte {
+-	p := nfkcDecompTrie.lookupStringUnsafe(s)
++func decomposeNFKC(s input, i int) []byte {
++	p := s.decomposeNFKC(i)
+ 	n := decomps[p]
+ 	p++
+ 	return decomps[p : p+uint16(n)]
+@@ -168,22 +146,12 @@ func combine(a, b uint32) uint32 {
+ //    0..7   CCC value.
+ //    8..11  qcInfo for NFC/NFD
+ //   12..15  qcInfo for NFKC/NFKD
+-func lookupInfoNFC(b []byte) runeInfo {
+-	v, sz := charInfoTrie.lookup(b)
+-	return runeInfo{0, uint8(sz), uint8(v), qcInfo(v >> 8)}
+-}
+-
+-func lookupInfoStringNFC(s string) runeInfo {
+-	v, sz := charInfoTrie.lookupString(s)
++func lookupInfoNFC(b input, i int) runeInfo {
++	v, sz := b.charinfo(i)
+ 	return runeInfo{0, uint8(sz), uint8(v), qcInfo(v >> 8)}
+ }
+ 
+-func lookupInfoNFKC(b []byte) runeInfo {
+-	v, sz := charInfoTrie.lookup(b)
+-	return runeInfo{0, uint8(sz), uint8(v), qcInfo(v >> 12)}
+-}
+-
+-func lookupInfoStringNFKC(s string) runeInfo {
+-	v, sz := charInfoTrie.lookupString(s)
++func lookupInfoNFKC(b input, i int) runeInfo {
++	v, sz := b.charinfo(i)
+ 	return runeInfo{0, uint8(sz), uint8(v), qcInfo(v >> 12)}
+ }
+diff --git a/src/pkg/exp/norm/input.go b/src/pkg/exp/norm/input.go
+new file mode 100644
+index 0000000000..12360a8fda
+--- /dev/null
++++ b/src/pkg/exp/norm/input.go
+@@ -0,0 +1,107 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package norm
++
++import "utf8"
++
++type input interface {
++	skipASCII(p int) int
++	skipNonStarter() int
++	appendSlice(buf []byte, s, e int) []byte
++	copySlice(buf []byte, s, e int)
++	charinfo(p int) (uint16, int)
++	decomposeNFC(p int) uint16
++	decomposeNFKC(p int) uint16
++	hangul(p int) uint32
++}
++
++type inputString string
++
++func (s inputString) skipASCII(p int) int {
++	for ; p < len(s) && s[p] < utf8.RuneSelf; p++ {
++	}
++	return p
++}
++
++func (s inputString) skipNonStarter() int {
++	p := 0
++	for ; p < len(s) && !utf8.RuneStart(s[p]); p++ {
++	}
++	return p
++}
++
++func (s inputString) appendSlice(buf []byte, b, e int) []byte {
++	for i := b; i < e; i++ {
++		buf = append(buf, s[i])
++	}
++	return buf
++}
++
++func (s inputString) copySlice(buf []byte, b, e int) {
++	copy(buf, s[b:e])
++}
++
++func (s inputString) charinfo(p int) (uint16, int) {
++	return charInfoTrie.lookupString(string(s[p:]))
++}
++
++func (s inputString) decomposeNFC(p int) uint16 {
++	return nfcDecompTrie.lookupStringUnsafe(string(s[p:]))
++}
++
++func (s inputString) decomposeNFKC(p int) uint16 {
++	return nfkcDecompTrie.lookupStringUnsafe(string(s[p:]))
++}
++
++func (s inputString) hangul(p int) uint32 {
++	if !isHangulString(string(s[p:])) {
++		return 0
++	}
++	rune, _ := utf8.DecodeRuneInString(string(s[p:]))
++	return uint32(rune)
++}
++
++type inputBytes []byte
++
++func (s inputBytes) skipASCII(p int) int {
++	for ; p < len(s) && s[p] < utf8.RuneSelf; p++ {
++	}
++	return p
++}
++
++func (s inputBytes) skipNonStarter() int {
++	p := 0
++	for ; p < len(s) && !utf8.RuneStart(s[p]); p++ {
++	}
++	return p
++}
++
++func (s inputBytes) appendSlice(buf []byte, b, e int) []byte {
++	return append(buf, s[b:e]...)
++}
++
++func (s inputBytes) copySlice(buf []byte, b, e int) {
++	copy(buf, s[b:e])
++}
++
++func (s inputBytes) charinfo(p int) (uint16, int) {
++	return charInfoTrie.lookup(s[p:])
++}
++
++func (s inputBytes) decomposeNFC(p int) uint16 {
++	return nfcDecompTrie.lookupUnsafe(s[p:])
++}
++
++func (s inputBytes) decomposeNFKC(p int) uint16 {
++	return nfkcDecompTrie.lookupUnsafe(s[p:])
++}
++
++func (s inputBytes) hangul(p int) uint32 {
++	if !isHangul(s[p:]) {
++		return 0
++	}
++	rune, _ := utf8.DecodeRune(s[p:])
++	return uint32(rune)
++}
+diff --git a/src/pkg/exp/norm/normalize.go b/src/pkg/exp/norm/normalize.go
+index 0bbf2547b9..f3d4e50b09 100644
+--- a/src/pkg/exp/norm/normalize.go
++++ b/src/pkg/exp/norm/normalize.go
+@@ -56,15 +56,15 @@ func (f Form) String(s string) string {
+ 
+ // IsNormal returns true if b == f(b).
+ func (f Form) IsNormal(b []byte) bool {
+-	fd := formTable[f]
+-	bp := quickSpan(fd, b)
++	rb := reorderBuffer{}
++	rb.init(f, b)
++	bp := quickSpan(&rb, 0)
+ 	if bp == len(b) {
+ 		return true
+ 	}
+-	rb := reorderBuffer{f: *fd}
+ 	for bp < len(b) {
+-		decomposeSegment(&rb, b[bp:])
+-		if fd.composing {
++		decomposeSegment(&rb, bp)
++		if rb.f.composing {
+ 			rb.compose()
+ 		}
+ 		for i := 0; i < rb.nrune; i++ {
+@@ -82,14 +82,42 @@ func (f Form) IsNormal(b []byte) bool {
+ 			}
+ 		}
+ 		rb.reset()
+-		bp += quickSpan(fd, b[bp:])
++		bp = quickSpan(&rb, bp)
+ 	}
+ 	return true
+ }
+ 
+ // IsNormalString returns true if s == f(s).
+ func (f Form) IsNormalString(s string) bool {
+-	panic("not implemented")
++	rb := reorderBuffer{}
++	rb.initString(f, s)
++	bp := quickSpan(&rb, 0)
++	if bp == len(s) {
++		return true
++	}
++	for bp < len(s) {
++		decomposeSegment(&rb, bp)
++		if rb.f.composing {
++			rb.compose()
++		}
++		for i := 0; i < rb.nrune; i++ {
++			info := rb.rune[i]
++			if bp+int(info.size) > len(s) {
++				return false
++			}
++			p := info.pos
++			pe := p + info.size
++			for ; p < pe; p++ {
++				if s[bp] != rb.byte[p] {
++					return false
++				}
++				bp++
++			}
++		}
++		rb.reset()
++		bp = quickSpan(&rb, bp)
++	}
++	return true
+ }
+ 
+ // patchTail fixes a case where a rune may be incorrectly normalized
+@@ -113,12 +141,12 @@ func patchTail(rb *reorderBuffer, buf []byte) ([]byte, int) {
+ 	return buf, 0
+ }
+ 
+-func appendQuick(f *formInfo, dst, src []byte) ([]byte, int) {
+-	if len(src) == 0 {
+-		return dst, 0
++func appendQuick(rb *reorderBuffer, dst []byte, i int) ([]byte, int) {
++	if rb.nsrc == i {
++		return dst, i
+ 	}
+-	end := quickSpan(f, src)
+-	return append(dst, src[:end]...), end
++	end := quickSpan(rb, i)
++	return rb.src.appendSlice(dst, i, end), end
+ }
+ 
+ // Append returns f(append(out, b...)).
+@@ -127,22 +155,21 @@ func (f Form) Append(out []byte, src ...byte) []byte {
+ 	if len(src) == 0 {
+ 		return out
+ 	}
+-	fd := formTable[f]
+-	rb := &reorderBuffer{f: *fd}
+-	return doAppend(rb, out, src)
++	rb := reorderBuffer{}
++	rb.init(f, src)
++	return doAppend(&rb, out)
+ }
+ 
+-func doAppend(rb *reorderBuffer, out, src []byte) []byte {
++func doAppend(rb *reorderBuffer, out []byte) []byte {
++	src, n := rb.src, rb.nsrc
+ 	doMerge := len(out) > 0
+ 	p := 0
+-	if !utf8.RuneStart(src[0]) {
++	if p = src.skipNonStarter(); p > 0 {
+ 		// Move leading non-starters to destination.
+-		for p++; p < len(src) && !utf8.RuneStart(src[p]); p++ {
+-		}
+-		out = append(out, src[:p]...)
++		out = src.appendSlice(out, 0, p)
+ 		buf, ndropped := patchTail(rb, out)
+ 		if ndropped > 0 {
+-			out = append(buf, src[p-ndropped:p]...)
++			out = src.appendSlice(buf, p-ndropped, p)
+ 			doMerge = false // no need to merge, ends with illegal UTF-8
+ 		} else {
+ 			out = decomposeToLastBoundary(rb, buf) // force decomposition
+@@ -151,8 +178,8 @@ func doAppend(rb *reorderBuffer, out, src []byte) []byte {
+ 	fd := &rb.f
+ 	if doMerge {
+ 		var info runeInfo
+-		if p < len(src) {
+-			info = fd.info(src[p:])
++		if p < n {
++			info = fd.info(src, p)
+ 			if p == 0 && !fd.boundaryBefore(fd, info) {
+ 				out = decomposeToLastBoundary(rb, out)
+ 			}
+@@ -164,59 +191,63 @@ func doAppend(rb *reorderBuffer, out, src []byte) []byte {
+ 			out = rb.flush(out)
+ 			if info.size == 0 {
+ 				// Append incomplete UTF-8 encoding.
+-				return append(out, src[p:]...)
++				return src.appendSlice(out, p, n)
+ 			}
+ 		}
+ 	}
+ 	if rb.nrune == 0 {
+-		src = src[p:]
+-		out, p = appendQuick(fd, out, src)
++		out, p = appendQuick(rb, out, p)
+ 	}
+-	for n := 0; p < len(src); p += n {
+-		p += decomposeSegment(rb, src[p:])
++	for p < n {
++		p = decomposeSegment(rb, p)
+ 		if fd.composing {
+ 			rb.compose()
+ 		}
+ 		out = rb.flush(out)
+-		out, n = appendQuick(fd, out, src[p:])
++		out, p = appendQuick(rb, out, p)
+ 	}
+ 	return out
+ }
+ 
+ // AppendString returns f(append(out, []byte(s))).
+ // The buffer out must be nil, empty, or equal to f(out).
+-func (f Form) AppendString(out []byte, s string) []byte {
+-	panic("not implemented")
++func (f Form) AppendString(out []byte, src string) []byte {
++	if len(src) == 0 {
++		return out
++	}
++	rb := reorderBuffer{}
++	rb.initString(f, src)
++	return doAppend(&rb, out)
+ }
+ 
+ // QuickSpan returns a boundary n such that b[0:n] == f(b[0:n]).
+ // It is not guaranteed to return the largest such n.
+ func (f Form) QuickSpan(b []byte) int {
+-	return quickSpan(formTable[f], b)
++	rb := reorderBuffer{}
++	rb.init(f, b)
++	return quickSpan(&rb, 0)
+ }
+ 
+-func quickSpan(fd *formInfo, b []byte) int {
++func quickSpan(rb *reorderBuffer, i int) int {
+ 	var lastCC uint8
+-	var lastSegStart int
+-	var i, nc int
+-	for i < len(b) {
+-		if b[i] < utf8.RuneSelf {
+-			// Keep the loop tight for ASCII processing, as this is where
+-			// most of the time is spent for this case.
+-			for i++; i < len(b) && b[i] < utf8.RuneSelf; i++ {
+-			}
++	var nc int
++	lastSegStart := i
++	src, n := rb.src, rb.nsrc
++	for i < n {
++		if j := src.skipASCII(i); i != j {
++			i = j
+ 			lastSegStart = i - 1
+ 			lastCC = 0
+ 			nc = 0
+ 			continue
+ 		}
+-		info := fd.info(b[i:])
++		info := rb.f.info(src, i)
+ 		if info.size == 0 {
+ 			// include incomplete runes
+-			return len(b)
++			return n
+ 		}
+ 		cc := info.ccc
+-		if fd.composing {
++		if rb.f.composing {
+ 			if !info.flags.isYesC() {
+ 				break
+ 			}
+@@ -243,10 +274,10 @@ func quickSpan(fd *formInfo, b []byte) int {
+ 		lastCC = cc
+ 		i += int(info.size)
+ 	}
+-	if i == len(b) {
+-		return len(b)
++	if i == n {
++		return n
+ 	}
+-	if fd.composing {
++	if rb.f.composing {
+ 		return lastSegStart
+ 	}
+ 	return i
+@@ -255,32 +286,39 @@ func quickSpan(fd *formInfo, b []byte) int {
+ // QuickSpanString returns a boundary n such that b[0:n] == f(s[0:n]).
+ // It is not guaranteed to return the largest such n.
+ func (f Form) QuickSpanString(s string) int {
+-	panic("not implemented")
++	rb := reorderBuffer{}
++	rb.initString(f, s)
++	return quickSpan(&rb, 0)
+ }
+ 
+ // FirstBoundary returns the position i of the first boundary in b
+ // or -1 if b contains no boundary.
+ func (f Form) FirstBoundary(b []byte) int {
+-	i := 0
+-	for ; i < len(b) && !utf8.RuneStart(b[i]); i++ {
+-	}
+-	if i >= len(b) {
++	rb := reorderBuffer{}
++	rb.init(f, b)
++	return firstBoundary(&rb)
++}
++
++func firstBoundary(rb *reorderBuffer) int {
++	src, nsrc := rb.src, rb.nsrc
++	i := src.skipNonStarter()
++	if i >= nsrc {
+ 		return -1
+ 	}
+-	fd := formTable[f]
+-	info := fd.info(b[i:])
++	fd := &rb.f
++	info := fd.info(src, i)
+ 	for n := 0; info.size != 0 && !fd.boundaryBefore(fd, info); {
+ 		i += int(info.size)
+ 		if n++; n >= maxCombiningChars {
+ 			return i
+ 		}
+-		if i >= len(b) {
++		if i >= nsrc {
+ 			if !fd.boundaryAfter(fd, info) {
+ 				return -1
+ 			}
+-			return len(b)
++			return nsrc
+ 		}
+-		info = fd.info(b[i:])
++		info = fd.info(src, i)
+ 	}
+ 	if info.size == 0 {
+ 		return -1
+@@ -290,8 +328,10 @@ func (f Form) FirstBoundary(b []byte) int {
+ 
+ // FirstBoundaryInString returns the position i of the first boundary in s
+ // or -1 if s contains no boundary.
+-func (f Form) FirstBoundaryInString(s string) (i int, ok bool) {
+-	panic("not implemented")
++func (f Form) FirstBoundaryInString(s string) int {
++	rb := reorderBuffer{}
++	rb.initString(f, s)
++	return firstBoundary(&rb)
+ }
+ 
+ // LastBoundary returns the position i of the last boundary in b
+@@ -349,19 +389,18 @@ func (f Form) LastBoundaryInString(s string) int {
+ // It returns the number of bytes consumed from src.
+ // TODO(mpvl): consider inserting U+034f (Combining Grapheme Joiner)
+ // when we detect a sequence of 30+ non-starter chars.
+-func decomposeSegment(rb *reorderBuffer, src []byte) int {
++func decomposeSegment(rb *reorderBuffer, sp int) int {
+ 	// Force one character to be consumed.
+-	info := rb.f.info(src)
++	info := rb.f.info(rb.src, sp)
+ 	if info.size == 0 {
+ 		return 0
+ 	}
+-	sp := 0
+-	for rb.insert(src[sp:], info) {
++	for rb.insert(rb.src, sp, info) {
+ 		sp += int(info.size)
+-		if sp >= len(src) {
++		if sp >= rb.nsrc {
+ 			break
+ 		}
+-		info = rb.f.info(src[sp:])
++		info = rb.f.info(rb.src, sp)
+ 		bound := rb.f.boundaryBefore(&rb.f, info)
+ 		if bound || info.size == 0 {
+ 			break
+@@ -379,7 +418,7 @@ func lastRuneStart(fd *formInfo, buf []byte) (runeInfo, int) {
+ 	if p < 0 {
+ 		return runeInfo{0, 0, 0, 0}, -1
+ 	}
+-	return fd.info(buf[p:]), p
++	return fd.info(inputBytes(buf), p), p
+ }
+ 
+ // decomposeToLastBoundary finds an open segment at the end of the buffer
+@@ -406,9 +445,9 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
+ 		}
+ 		// Check that decomposition doesn't result in overflow.
+ 		if info.flags.hasDecomposition() {
+-			dcomp := rb.f.decompose(buf[p-int(info.size):])
++			dcomp := rb.f.decompose(inputBytes(buf), p-int(info.size))
+ 			for i := 0; i < len(dcomp); {
+-				inf := rb.f.info(dcomp[i:])
++				inf := rb.f.info(inputBytes(dcomp), i)
+ 				i += int(inf.size)
+ 				n++
+ 			}
+@@ -424,7 +463,7 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
+ 	pp := p
+ 	for padd--; padd >= 0; padd-- {
+ 		info = add[padd]
+-		rb.insert(buf[pp:], info)
++		rb.insert(inputBytes(buf), pp, info)
+ 		pp += int(info.size)
+ 	}
+ 	return buf[:p]
+diff --git a/src/pkg/exp/norm/normalize_test.go b/src/pkg/exp/norm/normalize_test.go
+index 66ad223f8d..e374edf0ab 100644
+--- a/src/pkg/exp/norm/normalize_test.go
++++ b/src/pkg/exp/norm/normalize_test.go
+@@ -18,9 +18,12 @@ type PositionTest struct {
+ type positionFunc func(rb *reorderBuffer, s string) int
+ 
+ func runPosTests(t *testing.T, name string, f Form, fn positionFunc, tests []PositionTest) {
+-	rb := reorderBuffer{f: *formTable[f]}
++	rb := reorderBuffer{}
++	rb.init(f, nil)
+ 	for i, test := range tests {
+ 		rb.reset()
++		rb.src = inputString(test.input)
++		rb.nsrc = len(test.input)
+ 		pos := fn(&rb, test.input)
+ 		if pos != test.pos {
+ 			t.Errorf("%s:%d: position is %d; want %d", name, i, pos, test.pos)
+@@ -60,7 +63,9 @@ var decomposeSegmentTests = []PositionTest{
+ }
+ 
+ func decomposeSegmentF(rb *reorderBuffer, s string) int {
+-	return decomposeSegment(rb, []byte(s))
++	rb.src = inputString(s)
++	rb.nsrc = len(s)
++	return decomposeSegment(rb, 0)
+ }
+ 
+ func TestDecomposeSegment(t *testing.T) {
+@@ -90,12 +95,17 @@ var firstBoundaryTests = []PositionTest{
+ 	{strings.Repeat("\u0300", maxCombiningChars+1), 60, ""},
+ }
+ 
+-func firstBoundary(rb *reorderBuffer, s string) int {
++func firstBoundaryF(rb *reorderBuffer, s string) int {
+ 	return rb.f.form.FirstBoundary([]byte(s))
+ }
+ 
++func firstBoundaryStringF(rb *reorderBuffer, s string) int {
++	return rb.f.form.FirstBoundaryInString(s)
++}
++
+ func TestFirstBoundary(t *testing.T) {
+-	runPosTests(t, "TestFirstBoundary", NFC, firstBoundary, firstBoundaryTests)
++	runPosTests(t, "TestFirstBoundary", NFC, firstBoundaryF, firstBoundaryTests)
++	runPosTests(t, "TestFirstBoundaryInString", NFC, firstBoundaryStringF, firstBoundaryTests)
+ }
+ 
+ var decomposeToLastTests = []PositionTest{
+@@ -275,11 +285,20 @@ func doQuickSpan(rb *reorderBuffer, s string) int {
+ 	return rb.f.form.QuickSpan([]byte(s))
+ }
+ 
++func doQuickSpanString(rb *reorderBuffer, s string) int {
++	return rb.f.form.QuickSpanString(s)
++}
++
+ func TestQuickSpan(t *testing.T) {
+ 	runPosTests(t, "TestQuickSpanNFD1", NFD, doQuickSpan, quickSpanTests)
+ 	runPosTests(t, "TestQuickSpanNFD2", NFD, doQuickSpan, quickSpanNFDTests)
+ 	runPosTests(t, "TestQuickSpanNFC1", NFC, doQuickSpan, quickSpanTests)
+ 	runPosTests(t, "TestQuickSpanNFC2", NFC, doQuickSpan, quickSpanNFCTests)
++
++	runPosTests(t, "TestQuickSpanStringNFD1", NFD, doQuickSpanString, quickSpanTests)
++	runPosTests(t, "TestQuickSpanStringNFD2", NFD, doQuickSpanString, quickSpanNFDTests)
++	runPosTests(t, "TestQuickSpanStringNFC1", NFC, doQuickSpanString, quickSpanTests)
++	runPosTests(t, "TestQuickSpanStringNFC2", NFC, doQuickSpanString, quickSpanNFCTests)
+ }
+ 
+ var isNormalTests = []PositionTest{
+@@ -334,7 +353,7 @@ var isNormalNFCTests = []PositionTest{
+ 	{"같은", 1, ""},
+ }
+ 
+-func isNormal(rb *reorderBuffer, s string) int {
++func isNormalF(rb *reorderBuffer, s string) int {
+ 	if rb.f.form.IsNormal([]byte(s)) {
+ 		return 1
+ 	}
+@@ -342,10 +361,10 @@ func isNormal(rb *reorderBuffer, s string) int {
+ }
+ 
+ func TestIsNormal(t *testing.T) {
+-	runPosTests(t, "TestIsNormalNFD1", NFD, isNormal, isNormalTests)
+-	runPosTests(t, "TestIsNormalNFD2", NFD, isNormal, isNormalNFDTests)
+-	runPosTests(t, "TestIsNormalNFC1", NFC, isNormal, isNormalTests)
+-	runPosTests(t, "TestIsNormalNFC2", NFC, isNormal, isNormalNFCTests)
++	runPosTests(t, "TestIsNormalNFD1", NFD, isNormalF, isNormalTests)
++	runPosTests(t, "TestIsNormalNFD2", NFD, isNormalF, isNormalNFDTests)
++	runPosTests(t, "TestIsNormalNFC1", NFC, isNormalF, isNormalTests)
++	runPosTests(t, "TestIsNormalNFC2", NFC, isNormalF, isNormalNFCTests)
+ }
+ 
+ type AppendTest struct {
+@@ -452,8 +471,13 @@ func appendF(f Form, out []byte, s string) []byte {
+ 	return f.Append(out, []byte(s)...)
+ }
+ 
++func appendStringF(f Form, out []byte, s string) []byte {
++	return f.AppendString(out, s)
++}
++
+ func TestAppend(t *testing.T) {
+ 	runAppendTests(t, "TestAppend", NFKC, appendF, appendTests)
++	runAppendTests(t, "TestAppendString", NFKC, appendStringF, appendTests)
+ }
+ 
+ func doFormBenchmark(b *testing.B, f Form, s string) {
+diff --git a/src/pkg/exp/norm/readwriter.go b/src/pkg/exp/norm/readwriter.go
+index fce6c40549..48ae135620 100644
+--- a/src/pkg/exp/norm/readwriter.go
++++ b/src/pkg/exp/norm/readwriter.go
+@@ -28,7 +28,9 @@ func (w *normWriter) Write(data []byte) (n int, err os.Error) {
+ 		if m > chunk {
+ 			m = chunk
+ 		}
+-		w.buf = doAppend(&w.rb, w.buf, data[:m])
++		w.rb.src = inputBytes(data[:m])
++		w.rb.nsrc = m
++		w.buf = doAppend(&w.rb, w.buf)
+ 		data = data[m:]
+ 		n += m
+ 
+@@ -65,7 +67,9 @@ func (w *normWriter) Close() os.Error {
+ // an internal buffer to maintain state across Write calls.
+ // Calling its Close method writes any buffered data to w.
+ func (f Form) Writer(w io.Writer) io.WriteCloser {
+-	return &normWriter{rb: reorderBuffer{f: *formTable[f]}, w: w}
++	wr := &normWriter{rb: reorderBuffer{}, w: w}
++	wr.rb.init(f, nil)
++	return wr
+ }
+ 
+ type normReader struct {
+@@ -97,9 +101,10 @@ func (r *normReader) Read(p []byte) (int, os.Error) {
+ 		r.bufStart = 0
+ 
+ 		n, err := r.r.Read(r.inbuf)
+-		r.err = err // save error for when done with buffer
++		r.rb.src = inputBytes(r.inbuf[0:n])
++		r.rb.nsrc, r.err = n, err
+ 		if n > 0 {
+-			r.outbuf = doAppend(&r.rb, r.outbuf, r.inbuf[0:n])
++			r.outbuf = doAppend(&r.rb, r.outbuf)
+ 		}
+ 		if err == os.EOF {
+ 			r.lastBoundary = len(r.outbuf)
+@@ -117,5 +122,8 @@ func (r *normReader) Read(p []byte) (int, os.Error) {
+ // by reading data from r and returning f(data).
+ func (f Form) Reader(r io.Reader) io.Reader {
+ 	const chunk = 4000
+-	return &normReader{rb: reorderBuffer{f: *formTable[f]}, r: r, inbuf: make([]byte, chunk)}
++	buf := make([]byte, chunk)
++	rr := &normReader{rb: reorderBuffer{}, r: r, inbuf: buf}
++	rr.rb.init(f, buf)
++	return rr
+ }

@@ -9,8 +9,80 @@ Date:   Thu Aug 26 13:32:16 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1742057
-
+---
  src/pkg/http/client.go   |  2 ++
  src/pkg/http/url.go      |  7 ++++++-
  src/pkg/http/url_test.go | 22 ++++++++++++++++++++++
  3 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index ee586bd621..50b6e530d9 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -118,6 +118,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
+ 		if req.URL, err = ParseURL(url); err != nil {
+ 			break
+ 		}
++		url = req.URL.String()
+ 		if r, err = send(&req); err != nil {
+ 			break
+ 		}
+@@ -167,6 +168,7 @@ func Head(url string) (r *Response, err os.Error) {
+ 	if req.URL, err = ParseURL(url); err != nil {
+ 		return
+ 	}
++	url = req.URL.String()
+ 	if r, err = send(&req); err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 12247ca17b..136e6dfe4b 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -389,7 +389,12 @@ func (url *URL) String() string {
+ 	if url.Host != "" || url.Userinfo != "" {
+ 		result += "//"
+ 		if url.Userinfo != "" {
+-			result += urlEscape(url.Userinfo, false) + "@"
++			// hide the password, if any
++			info := url.Userinfo
++			if i := strings.Index(info, ":"); i >= 0 {
++				info = info[0:i] + ":******"
++			}
++			result += urlEscape(info, false) + "@"
+ 		}
+ 		result += url.Host
+ 	}
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index 097669b9c2..5ab512c4fd 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -185,6 +185,28 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
++	URLTest{
++		"http://user:password@google.com",
++		&URL{
++			Raw:       "http://user:password@google.com",
++			Scheme:    "http",
++			Authority: "user:password@google.com",
++			Userinfo:  "user:password",
++			Host:      "google.com",
++		},
++		"http://user:******@google.com",
++	},
++	URLTest{
++		"http://user:longerpass@google.com",
++		&URL{
++			Raw:       "http://user:longerpass@google.com",
++			Scheme:    "http",
++			Authority: "user:longerpass@google.com",
++			Userinfo:  "user:longerpass",
++			Host:      "google.com",
++		},
++		"http://user:******@google.com",
++	},
+ }
+ 
+ var urlnofragtests = []URLTest{

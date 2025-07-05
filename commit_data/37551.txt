@@ -24,6 +24,39 @@ Date:   Fri Aug 17 10:51:53 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/doc/comment.go | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index 7c4490e7c3..d068d8960c 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -232,7 +232,7 @@ func heading(line string) string {
+ 	}
+ 
+ 	// exclude lines with illegal characters. we allow "(),"
+-	if strings.ContainsAny(line, ".;:!?+*/=[]{}_^°&§~%#@<\">\\") {
++	if strings.ContainsAny(line, ";:!?+*/=[]{}_^°&§~%#@<\">\\") {
+ 		return ""
+ 	}
+ 
+@@ -248,6 +248,18 @@ func heading(line string) string {
+ 		b = b[i+2:]
+ 	}
+ 
++	// allow "." when followed by non-space
++	for b := line;; {
++		i := strings.IndexRune(b, '.')
++		if i < 0 {
++			break
++		}
++		if i+1 >= len(b) || b[i+1] == ' ' {
++			return "" // not followed by non-space
++		}
++		b = b[i+1:]
++	}
++
+ 	return line
+ }
+ 

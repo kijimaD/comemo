@@ -10,7 +10,61 @@ Date:   Tue Jul 14 14:52:04 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12192
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/get.go     |  4 ++--
  src/cmd/go/go_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 0e81d7c1c3..09314f563e 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -277,9 +277,9 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 		}
+ 
+ 		// Process dependencies, now that we know what they are.
+-		for _, dep := range p.deps {
++		for _, path := range p.Imports {
+ 			// Don't get test dependencies recursively.
+-			download(dep.ImportPath, p, stk, false)
++			download(path, p, stk, false)
+ 		}
+ 		if getTestDeps {
+ 			// Process test dependencies when -t is specified.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index af5439616f..1f3615f498 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2128,3 +2128,32 @@ func TestGoTestImportErrorStack(t *testing.T) {
+ 		t.Fatal("did not give full import stack:\n\n%s", tg.stderr.String())
+ 	}
+ }
++
++func TestGoGetUpdate(t *testing.T) {
++	// golang.org/issue/9224.
++	// The recursive updating was trying to walk to
++	// former dependencies, not current ones.
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++
++	rewind := func() {
++		tg.run("get", "github.com/rsc/go-get-issue-9224-cmd")
++		cmd := exec.Command("git", "reset", "--hard", "HEAD~")
++		cmd.Dir = tg.path("src/github.com/rsc/go-get-issue-9224-lib")
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			t.Fatalf("git: %v\n%s", err, out)
++		}
++	}
++
++	rewind()
++	tg.run("get", "-u", "github.com/rsc/go-get-issue-9224-cmd")
++
++	// Again with -d -u.
++	rewind()
++	tg.run("get", "-d", "-u", "github.com/rsc/go-get-issue-9224-cmd")
++}

@@ -16,7 +16,72 @@ Date:   Tue Dec 27 09:49:19 2011 -0500
     R=jacek.masiulaniec, agl
     CC=golang-dev
     https://golang.org/cl/5501075
-
+---
  src/pkg/exp/ssh/doc.go       | 28 +++++++++++++++++++++++-----
  src/pkg/exp/ssh/transport.go |  4 +---
  2 files changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/ssh/doc.go b/src/pkg/exp/ssh/doc.go
+index 480f877191..4ea402c5d2 100644
+--- a/src/pkg/exp/ssh/doc.go
++++ b/src/pkg/exp/ssh/doc.go
+@@ -78,8 +78,26 @@ present a simple terminal interface.
+ 		return
+ 	}()
+ 
+-An SSH client is represented with a ClientConn. Currently only the "password"
+-authentication method is supported. 
++To authenticate with the remote server you must pass at least one implementation of 
++ClientAuth via the Auth field in ClientConfig.
++
++	// password implements the ClientPassword interface
++	type password string
++
++	func (p password) Password(user string) (string, error) {
++		return string(p), nil
++	}
++
++	config := &ssh.ClientConfig {
++		User: "username",
++		Auth: []ClientAuth {
++			// ClientAuthPassword wraps a ClientPassword implementation
++			// in a type that implements ClientAuth.
++			ClientAuthPassword(password("yourpassword")),
++		}
++	}
++
++An SSH client is represented with a ClientConn. 
+ 
+ 	config := &ClientConfig{
+ 		User: "username",
+@@ -94,12 +112,12 @@ Each ClientConn can support multiple interactive sessions, represented by a Sess
+ Once a Session is created, you can execute a single command on the remote side 
+ using the Run method.
+ 
++	b := bytes.NewBuffer()
++	session.Stdin = b
+ 	if err := session.Run("/usr/bin/whoami"); err != nil {
+ 		panic("Failed to exec: " + err.String())
+ 	}
+-	reader := bufio.NewReader(session.Stdin)
+-	line, _, _ := reader.ReadLine()
+-	fmt.Println(line)
++	fmt.Println(bytes.String())
+ 	session.Close()
+ */
+ package ssh
+diff --git a/src/pkg/exp/ssh/transport.go b/src/pkg/exp/ssh/transport.go
+index bcd073e7ce..2e7c955a12 100644
+--- a/src/pkg/exp/ssh/transport.go
++++ b/src/pkg/exp/ssh/transport.go
+@@ -117,9 +117,7 @@ func (r *reader) readOnePacket() ([]byte, error) {
+ 		return nil, err
+ 	}
+ 	mac := packet[length-1:]
+-	if r.cipher != nil {
+-		r.cipher.XORKeyStream(packet, packet[:length-1])
+-	}
++	r.cipher.XORKeyStream(packet, packet[:length-1])
+ 
+ 	if r.mac != nil {
+ 		r.mac.Write(packet[:length-1])

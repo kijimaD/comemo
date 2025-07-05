@@ -12,6 +12,23 @@ Date:   Wed May 27 10:44:43 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10537
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/syntax.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index bb9fcbea5a..f76bb392b6 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -21,9 +21,8 @@ type Node struct {
+ 	Rlist *NodeList
+ 
+ 	// most nodes
+-	Type  *Type
+-	Orig  *Node // original form, for printing, and tracking copies of ONAMEs
+-	Nname *Node
++	Type *Type
++	Orig *Node // original form, for printing, and tracking copies of ONAMEs
+ 
+ 	// func
+ 	Func *Func

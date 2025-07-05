@@ -11,6 +11,29 @@ Date:   Fri Nov 20 16:01:45 2015 -0800
     Change-Id: I7eab8df34fe3b78fc376912312fac9d0f94977f1
     Reviewed-on: https://go-review.googlesource.com/17154
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/listen_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index d5627f2556..51ffe67238 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -542,7 +542,7 @@ func TestIPv4MulticastListener(t *testing.T) {
+ 		// routing stuff for finding out an appropriate
+ 		// nexthop containing both network and link layer
+ 		// adjacencies.
+-		if ifi == nil && !*testExternal {
++		if ifi == nil && (testing.Short() || !*testExternal) {
+ 			continue
+ 		}
+ 		for _, tt := range ipv4MulticastListenerTests {
+@@ -618,7 +618,7 @@ func TestIPv6MulticastListener(t *testing.T) {
+ 		// routing stuff for finding out an appropriate
+ 		// nexthop containing both network and link layer
+ 		// adjacencies.
+-		if ifi == nil && (!*testExternal || !*testIPv6) {
++		if ifi == nil && (testing.Short() || !*testExternal || !*testIPv6) {
+ 			continue
+ 		}
+ 		for _, tt := range ipv6MulticastListenerTests {

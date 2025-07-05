@@ -16,10 +16,220 @@ Date:   Wed Oct 6 14:53:32 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/typecheck/builtin.go      | 73 ++++++++++++----------
  .../compile/internal/typecheck/builtin/runtime.go  |  2 +
  src/cmd/compile/internal/walk/convert.go           |  4 +-
  src/runtime/float_test.go                          | 25 ++++++++
  src/runtime/vlrt.go                                | 30 +++++++++
  5 files changed, 98 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 3f177d9173..524360e8df 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -176,30 +176,32 @@ var runtimeDecls = [...]struct {
+ 	{"float64touint64", funcTag, 130},
+ 	{"float64touint32", funcTag, 131},
+ 	{"int64tofloat64", funcTag, 132},
+-	{"uint64tofloat64", funcTag, 133},
+-	{"uint32tofloat64", funcTag, 134},
+-	{"complex128div", funcTag, 135},
+-	{"getcallerpc", funcTag, 136},
+-	{"getcallersp", funcTag, 136},
++	{"int64tofloat32", funcTag, 134},
++	{"uint64tofloat64", funcTag, 135},
++	{"uint64tofloat32", funcTag, 136},
++	{"uint32tofloat64", funcTag, 137},
++	{"complex128div", funcTag, 138},
++	{"getcallerpc", funcTag, 139},
++	{"getcallersp", funcTag, 139},
+ 	{"racefuncenter", funcTag, 31},
+ 	{"racefuncexit", funcTag, 9},
+ 	{"raceread", funcTag, 31},
+ 	{"racewrite", funcTag, 31},
+-	{"racereadrange", funcTag, 137},
+-	{"racewriterange", funcTag, 137},
+-	{"msanread", funcTag, 137},
+-	{"msanwrite", funcTag, 137},
+-	{"msanmove", funcTag, 138},
+-	{"checkptrAlignment", funcTag, 139},
+-	{"checkptrArithmetic", funcTag, 141},
+-	{"libfuzzerTraceCmp1", funcTag, 142},
+-	{"libfuzzerTraceCmp2", funcTag, 143},
+-	{"libfuzzerTraceCmp4", funcTag, 144},
+-	{"libfuzzerTraceCmp8", funcTag, 145},
+-	{"libfuzzerTraceConstCmp1", funcTag, 142},
+-	{"libfuzzerTraceConstCmp2", funcTag, 143},
+-	{"libfuzzerTraceConstCmp4", funcTag, 144},
+-	{"libfuzzerTraceConstCmp8", funcTag, 145},
++	{"racereadrange", funcTag, 140},
++	{"racewriterange", funcTag, 140},
++	{"msanread", funcTag, 140},
++	{"msanwrite", funcTag, 140},
++	{"msanmove", funcTag, 141},
++	{"checkptrAlignment", funcTag, 142},
++	{"checkptrArithmetic", funcTag, 144},
++	{"libfuzzerTraceCmp1", funcTag, 145},
++	{"libfuzzerTraceCmp2", funcTag, 146},
++	{"libfuzzerTraceCmp4", funcTag, 147},
++	{"libfuzzerTraceCmp8", funcTag, 148},
++	{"libfuzzerTraceConstCmp1", funcTag, 145},
++	{"libfuzzerTraceConstCmp2", funcTag, 146},
++	{"libfuzzerTraceConstCmp4", funcTag, 147},
++	{"libfuzzerTraceConstCmp8", funcTag, 148},
+ 	{"x86HasPOPCNT", varTag, 6},
+ 	{"x86HasSSE41", varTag, 6},
+ 	{"x86HasFMA", varTag, 6},
+@@ -222,7 +224,7 @@ func params(tlist ...*types.Type) []*types.Field {
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [146]*types.Type
++	var typs [149]*types.Type
+ 	typs[0] = types.ByteType
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[types.TANY]
+@@ -356,18 +358,21 @@ func runtimeTypes() []*types.Type {
+ 	typs[130] = newSig(params(typs[20]), params(typs[24]))
+ 	typs[131] = newSig(params(typs[20]), params(typs[62]))
+ 	typs[132] = newSig(params(typs[22]), params(typs[20]))
+-	typs[133] = newSig(params(typs[24]), params(typs[20]))
+-	typs[134] = newSig(params(typs[62]), params(typs[20]))
+-	typs[135] = newSig(params(typs[26], typs[26]), params(typs[26]))
+-	typs[136] = newSig(nil, params(typs[5]))
+-	typs[137] = newSig(params(typs[5], typs[5]), nil)
+-	typs[138] = newSig(params(typs[5], typs[5], typs[5]), nil)
+-	typs[139] = newSig(params(typs[7], typs[1], typs[5]), nil)
+-	typs[140] = types.NewSlice(typs[7])
+-	typs[141] = newSig(params(typs[7], typs[140]), nil)
+-	typs[142] = newSig(params(typs[66], typs[66]), nil)
+-	typs[143] = newSig(params(typs[60], typs[60]), nil)
+-	typs[144] = newSig(params(typs[62], typs[62]), nil)
+-	typs[145] = newSig(params(typs[24], typs[24]), nil)
++	typs[133] = types.Types[types.TFLOAT32]
++	typs[134] = newSig(params(typs[22]), params(typs[133]))
++	typs[135] = newSig(params(typs[24]), params(typs[20]))
++	typs[136] = newSig(params(typs[24]), params(typs[133]))
++	typs[137] = newSig(params(typs[62]), params(typs[20]))
++	typs[138] = newSig(params(typs[26], typs[26]), params(typs[26]))
++	typs[139] = newSig(nil, params(typs[5]))
++	typs[140] = newSig(params(typs[5], typs[5]), nil)
++	typs[141] = newSig(params(typs[5], typs[5], typs[5]), nil)
++	typs[142] = newSig(params(typs[7], typs[1], typs[5]), nil)
++	typs[143] = types.NewSlice(typs[7])
++	typs[144] = newSig(params(typs[7], typs[143]), nil)
++	typs[145] = newSig(params(typs[66], typs[66]), nil)
++	typs[146] = newSig(params(typs[60], typs[60]), nil)
++	typs[147] = newSig(params(typs[62], typs[62]), nil)
++	typs[148] = newSig(params(typs[24], typs[24]), nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index 605b904288..66641fb5aa 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -227,7 +227,9 @@ func float64toint64(float64) int64
+ func float64touint64(float64) uint64
+ func float64touint32(float64) uint32
+ func int64tofloat64(int64) float64
++func int64tofloat32(int64) float32
+ func uint64tofloat64(uint64) float64
++func uint64tofloat32(uint64) float32
+ func uint32tofloat64(uint32) float64
+ 
+ func complex128div(num complex128, den complex128) (quo complex128)
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 5d69fc3868..ffc5fd19e8 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -367,7 +367,7 @@ func rtconvfn(src, dst *types.Type) (param, result types.Kind) {
+ 		if dst.IsFloat() {
+ 			switch src.Kind() {
+ 			case types.TINT64, types.TUINT64:
+-				return src.Kind(), types.TFLOAT64
++				return src.Kind(), dst.Kind()
+ 			}
+ 		}
+ 
+@@ -383,7 +383,7 @@ func rtconvfn(src, dst *types.Type) (param, result types.Kind) {
+ 		if dst.IsFloat() {
+ 			switch src.Kind() {
+ 			case types.TINT64, types.TUINT64:
+-				return src.Kind(), types.TFLOAT64
++				return src.Kind(), dst.Kind()
+ 			case types.TUINT32, types.TUINT, types.TUINTPTR:
+ 				return types.TUINT32, types.TFLOAT64
+ 			}
+diff --git a/src/runtime/float_test.go b/src/runtime/float_test.go
+new file mode 100644
+index 0000000000..b2aa43da59
+--- /dev/null
++++ b/src/runtime/float_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"testing"
++)
++
++func TestIssue48807(t *testing.T) {
++	for _, i := range []uint64{
++		0x8234508000000001, // from issue48807
++		1<<56 + 1<<32 + 1,
++	} {
++		got := float32(i)
++		dontwant := float32(float64(i))
++		if got == dontwant {
++			// The test cases above should be uint64s such that
++			// this equality doesn't hold. These examples trigger
++			// the case where using an intermediate float64 doesn't work.
++			t.Errorf("direct float32 conversion doesn't work: arg=%x got=%x dontwant=%x", i, got, dontwant)
++		}
++	}
++}
+diff --git a/src/runtime/vlrt.go b/src/runtime/vlrt.go
+index cf631bdcca..927b585a92 100644
+--- a/src/runtime/vlrt.go
++++ b/src/runtime/vlrt.go
+@@ -59,6 +59,36 @@ func uint64tofloat64(y uint64) float64 {
+ 	return d
+ }
+ 
++func int64tofloat32(y int64) float32 {
++	if y < 0 {
++		return -uint64tofloat32(-uint64(y))
++	}
++	return uint64tofloat32(uint64(y))
++}
++
++func uint64tofloat32(y uint64) float32 {
++	// divide into top 18, mid 23, and bottom 23 bits.
++	// (23-bit integers fit into a float32 without loss.)
++	top := uint32(y >> 46)
++	mid := uint32(y >> 23 & (1<<23 - 1))
++	bot := uint32(y & (1<<23 - 1))
++	if top == 0 {
++		return float32(mid)*(1<<23) + float32(bot)
++	}
++	if bot != 0 {
++		// Top is not zero, so the bits in bot
++		// won't make it into the final mantissa.
++		// In fact, the bottom bit of mid won't
++		// make it into the mantissa either.
++		// We only need to make sure that if top+mid
++		// is about to round down in a round-to-even
++		// scenario, and bot is not zero, we make it
++		// round up instead.
++		mid |= 1
++	}
++	return float32(top)*(1<<46) + float32(mid)*(1<<23)
++}
++
+ func _d2v(y *uint64, d float64) {
+ 	x := *(*uint64)(unsafe.Pointer(&d))
+ 

@@ -56,7 +56,7 @@ Date:   Wed Oct 15 19:33:15 2014 -0400
     R=r
     CC=golang-codereviews, iant, khr, rlh
     https://golang.org/cl/157910047
-
+---
  src/cmd/6g/ggen.c     | 40 ++++++++++++++++++++++++++++++++++------
  src/cmd/8g/ggen.c     | 28 +++++++++++++++++++++++++++-
  src/cmd/gc/gen.c      |  2 +-
@@ -65,3 +65,220 @@ Date:   Wed Oct 15 19:33:15 2014 -0400
  src/cmd/gc/sinit.c    |  4 +---
  src/cmd/gc/walk.c     | 11 ++++++++---
  7 files changed, 74 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 987473ccab..363620769d 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1102,26 +1102,54 @@ clearfat(Node *nl)
+ 	c = w % 8;	// bytes
+ 	q = w / 8;	// quads
+ 
++	if(q < 4) {
++		// Write sequence of MOV 0, off(base) instead of using STOSQ.
++		// The hope is that although the code will be slightly longer,
++		// the MOVs will have no dependencies and pipeline better
++		// than the unrolled STOSQ loop.
++		// NOTE: Must use agen, not igen, so that optimizer sees address
++		// being taken. We are not writing on field boundaries.
++		agenr(nl, &n1, N);
++		n1.op = OINDREG;
++		nodconst(&z, types[TUINT64], 0);
++		while(q-- > 0) {
++			n1.type = z.type;
++			gins(AMOVQ, &z, &n1);
++			n1.xoffset += 8;
++		}
++		if(c >= 4) {
++			nodconst(&z, types[TUINT32], 0);
++			n1.type = z.type;
++			gins(AMOVL, &z, &n1);
++			n1.xoffset += 4;
++			c -= 4;
++		}
++		nodconst(&z, types[TUINT8], 0);
++		while(c-- > 0) {
++			n1.type = z.type;
++			gins(AMOVB, &z, &n1);
++			n1.xoffset++;
++		}
++		regfree(&n1);
++		return;
++	}
++
+ 	savex(D_DI, &n1, &oldn1, N, types[tptr]);
+ 	agen(nl, &n1);
+ 
+ 	savex(D_AX, &ax, &oldax, N, types[tptr]);
+ 	gconreg(AMOVL, 0, D_AX);
+ 
+-	if(q > 128 || (q >= 4 && nacl)) {
++	if(q > 128 || nacl) {
+ 		gconreg(movptr, q, D_CX);
+ 		gins(AREP, N, N);	// repeat
+ 		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
+-	} else if(q >= 4) {
++	} else {
+ 		p = gins(ADUFFZERO, N, N);
+ 		p->to.type = D_ADDR;
+ 		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
+ 		// 2 and 128 = magic constants: see ../../runtime/asm_amd64.s
+ 		p->to.offset = 2*(128-q);
+-	} else
+-	while(q > 0) {
+-		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
+-		q--;
+ 	}
+ 
+ 	z = ax;
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 7c986cc645..6333a60bb8 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -157,7 +157,7 @@ void
+ clearfat(Node *nl)
+ {
+ 	uint32 w, c, q;
+-	Node n1;
++	Node n1, z;
+ 	Prog *p;
+ 
+ 	/* clear a fat object */
+@@ -172,6 +172,32 @@ clearfat(Node *nl)
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads
+ 
++	if(q < 4) {
++		// Write sequence of MOV 0, off(base) instead of using STOSL.
++		// The hope is that although the code will be slightly longer,
++		// the MOVs will have no dependencies and pipeline better
++		// than the unrolled STOSL loop.
++		// NOTE: Must use agen, not igen, so that optimizer sees address
++		// being taken. We are not writing on field boundaries.
++		regalloc(&n1, types[tptr], N);
++		agen(nl, &n1);
++		n1.op = OINDREG;
++		nodconst(&z, types[TUINT64], 0);
++		while(q-- > 0) {
++			n1.type = z.type;
++			gins(AMOVL, &z, &n1);
++			n1.xoffset += 4;
++		}
++		nodconst(&z, types[TUINT8], 0);
++		while(c-- > 0) {
++			n1.type = z.type;
++			gins(AMOVB, &z, &n1);
++			n1.xoffset++;
++		}
++		regfree(&n1);
++		return;
++	}
++
+ 	nodreg(&n1, types[tptr], D_DI);
+ 	agen(nl, &n1);
+ 	gconreg(AMOVL, 0, D_AX);
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index eb9eacca8f..a7db833a1a 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -731,7 +731,7 @@ cgen_as(Node *nl, Node *nr)
+ 		return;
+ 	}
+ 
+-	if(nr == N || isnil(nr)) {
++	if(nr == N || iszero(nr)) {
+ 		// externals and heaps should already be clear
+ 		if(nr == N) {
+ 			if(nl->class == PEXTERN)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 8178f7272f..475754145b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1374,6 +1374,7 @@ int	isnilinter(Type *t);
+ int	isptrto(Type *t, int et);
+ int	isslice(Type *t);
+ int	istype(Type *t, int et);
++int	iszero(Node *n);
+ void	linehist(char *file, int32 off, int relative);
+ NodeList*	list(NodeList *l, Node *n);
+ NodeList*	list1(Node *n);
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index 5cf98c62c6..fd9f591cea 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -656,7 +656,7 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
+ }
+ 
+ static int
+-iszero(Mpint *a)
++mpiszero(Mpint *a)
+ {
+ 	long *a1;
+ 	int i;
+@@ -687,7 +687,7 @@ mpdivfract(Mpint *a, Mpint *b)
+ 		for(j=0; j<Mpscale; j++) {
+ 			x <<= 1;
+ 			if(mpcmp(&d, &n) <= 0) {
+-				if(!iszero(&d))
++				if(!mpiszero(&d))
+ 					x |= 1;
+ 				mpsubfixfix(&n, &d);
+ 			}
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index f050026d9d..2a811513c9 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -17,7 +17,6 @@ enum
+ 	InitPending = 2,
+ };
+ 
+-static int iszero(Node*);
+ static void initplan(Node*);
+ static NodeList *initlist;
+ static void init2(Node*, NodeList**);
+@@ -1356,7 +1355,6 @@ no:
+ 	return 0;
+ }
+ 
+-static int iszero(Node*);
+ static int isvaluelit(Node*);
+ static InitEntry* entry(InitPlan*);
+ static void addvalue(InitPlan*, vlong, Node*, Node*);
+@@ -1440,7 +1438,7 @@ addvalue(InitPlan *p, vlong xoffset, Node *key, Node *n)
+ 	e->expr = n;
+ }
+ 
+-static int
++int
+ iszero(Node *n)
+ {
+ 	NodeList *l;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 241d7d74ad..7f2748c668 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1390,7 +1390,12 @@ walkexpr(Node **np, NodeList **init)
+ 	case OMAPLIT:
+ 	case OSTRUCTLIT:
+ 	case OPTRLIT:
+-		// XXX TODO do we need to clear var?
++		// NOTE(rsc): Race detector cannot handle seeing
++		// a STRUCTLIT or ARRAYLIT representing a zero value,
++		// so make a temporary for those always in race mode.
++		// Otherwise, leave zero values in place.
++		if(iszero(n) && !flag_race)
++			goto ret;
+ 		var = temp(n->type);
+ 		anylit(0, n, var, init);
+ 		n = var;
+@@ -2009,8 +2014,8 @@ needwritebarrier(Node *l, Node *r)
+ 	if(isstack(l))
+ 		return 0;
+ 
+-	// No write barrier for zeroing.
+-	if(r == N)
++	// No write barrier for implicit or explicit zeroing.
++	if(r == N || iszero(r))
+ 		return 0;
+ 
+ 	// No write barrier for initialization to constant.

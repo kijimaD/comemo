@@ -10,6 +10,19 @@ Date:   Thu Apr 20 23:47:07 2017 -0700
     Change-Id: Ib5d0c7119e7f7c9a808dcc02d0d9cc6ba5bbc16e
     Reviewed-on: https://go-review.googlesource.com/41299
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/chan/doubleselect.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/chan/doubleselect.go b/test/chan/doubleselect.go
+index 6be3faf55a..ff69dbe5db 100644
+--- a/test/chan/doubleselect.go
++++ b/test/chan/doubleselect.go
+@@ -61,6 +61,7 @@ func recver(in <-chan int) {
+ func main() {
+ 	runtime.GOMAXPROCS(2)
+ 
++	flag.Parse()
+ 	c1 := make(chan int)
+ 	c2 := make(chan int)
+ 	c3 := make(chan int)

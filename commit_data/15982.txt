@@ -9,6 +9,19 @@ Date:   Wed Mar 27 16:55:16 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8030046
-
+---
  src/cmd/vet/asmdecl.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/vet/asmdecl.go b/src/cmd/vet/asmdecl.go
+index 2cfaa938fc..c23514c28f 100644
+--- a/src/cmd/vet/asmdecl.go
++++ b/src/cmd/vet/asmdecl.go
+@@ -104,6 +104,7 @@ func asmCheck(pkg *Package) {
+ 		if !strings.HasSuffix(f.name, ".s") {
+ 			continue
+ 		}
++		Println("Checking file", f.name)
+ 
+ 		// Determine architecture from file name if possible.
+ 		var arch string

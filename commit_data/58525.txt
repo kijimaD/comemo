@@ -14,8 +14,61 @@ Date:   Thu Nov 16 13:00:55 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/543115
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/base/debug.go       | 2 +-
  src/cmd/compile/internal/base/flag.go        | 2 +-
  src/cmd/compile/internal/devirtualize/pgo.go | 8 ++++++++
  3 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 9d0dc3f4a6..a85f0139fc 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -61,7 +61,7 @@ type DebugFlags struct {
+ 	PGOInline             int    `help:"enable profile-guided inlining" concurrent:"ok"`
+ 	PGOInlineCDFThreshold string `help:"cumulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
+ 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
+-	PGODevirtualize       int    `help:"enable profile-guided devirtualization" concurrent:"ok"`
++	PGODevirtualize       int    `help:"enable profile-guided devirtualization; 0 to disable, 1 to enable interface devirtualization, 2 to enable function devirtualization" concurrent:"ok"`
+ 	RangeFuncCheck        int    `help:"insert code to check behavior of range iterator functions" concurrent:"ok"`
+ 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
+ 	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index d436665129..e2e15c3c9c 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -179,7 +179,7 @@ func ParseFlags() {
+ 	Debug.InlFuncsWithClosures = 1
+ 	Debug.InlStaticInit = 1
+ 	Debug.PGOInline = 1
+-	Debug.PGODevirtualize = 1
++	Debug.PGODevirtualize = 2
+ 	Debug.SyncFrames = -1 // disable sync markers by default
+ 	Debug.ZeroCopy = 1
+ 	Debug.RangeFuncCheck = 1
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index 7b6c8ba0c0..05b37d6be6 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -194,6 +194,10 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
+ // ir.Node if call was devirtualized, and if so also the callee and weight of
+ // the devirtualized edge.
+ func maybeDevirtualizeInterfaceCall(p *pgo.Profile, fn *ir.Func, call *ir.CallExpr) (ir.Node, *ir.Func, int64) {
++	if base.Debug.PGODevirtualize < 1 {
++		return nil, nil, 0
++	}
++
+ 	// Bail if we do not have a hot callee.
+ 	callee, weight := findHotConcreteInterfaceCallee(p, fn, call)
+ 	if callee == nil {
+@@ -220,6 +224,10 @@ func maybeDevirtualizeInterfaceCall(p *pgo.Profile, fn *ir.Func, call *ir.CallEx
+ // ir.Node if call was devirtualized, and if so also the callee and weight of
+ // the devirtualized edge.
+ func maybeDevirtualizeFunctionCall(p *pgo.Profile, fn *ir.Func, call *ir.CallExpr) (ir.Node, *ir.Func, int64) {
++	if base.Debug.PGODevirtualize < 2 {
++		return nil, nil, 0
++	}
++
+ 	// Bail if this is a direct call; no devirtualization necessary.
+ 	callee := pgo.DirectCallee(call.Fun)
+ 	if callee != nil {

@@ -15,6 +15,25 @@ Date:   Sun Nov 17 12:33:22 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_unix_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index e494dcb988..1420b3206a 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -326,13 +326,9 @@ func TestSignalM(t *testing.T) {
+ 	wg.Add(1)
+ 	go func() {
+ 		runtime.LockOSThread()
+-		var errno int32
+ 		want, got = runtime.WaitForSigusr1(r, w, func(mp *runtime.M) {
+ 			ready <- mp
+ 		})
+-		if errno != 0 {
+-			t.Error(syscall.Errno(errno))
+-		}
+ 		runtime.UnlockOSThread()
+ 		wg.Done()
+ 	}()

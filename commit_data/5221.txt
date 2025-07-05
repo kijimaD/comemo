@@ -7,9 +7,93 @@ Date:   Mon Apr 5 17:26:59 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/821048
-
+---
  src/pkg/runtime/darwin/amd64/sys.s  | 10 +++++-----
  src/pkg/runtime/freebsd/amd64/sys.s | 12 ++++++------
  src/pkg/runtime/linux/amd64/sys.s   | 12 ++++++------
  src/pkg/runtime/runtime.h           |  2 +-
  4 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 6d3460ff06..0b85d27db7 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -77,11 +77,11 @@ TEXT sigtramp(SB),7,$40
+ 
+ TEXT	·mmap(SB),7,$0
+ 	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVL	16(SP), SI		// arg 2 len
+-	MOVL	20(SP), DX		// arg 3 prot
+-	MOVL	24(SP), R10		// arg 4 flags
+-	MOVL	28(SP), R8		// arg 5 fid
+-	MOVL	32(SP), R9		// arg 6 offset
++	MOVQ	16(SP), SI		// arg 2 len
++	MOVL	24(SP), DX		// arg 3 prot
++	MOVL	28(SP), R10		// arg 4 flags
++	MOVL	32(SP), R8		// arg 5 fid
++	MOVL	36(SP), R9		// arg 6 offset
+ 	MOVL	$(0x2000000+197), AX	// syscall entry
+ 	SYSCALL
+ 	JCC	2(PC)
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 506db29f8e..604b763ab9 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -91,13 +91,13 @@ TEXT	sigtramp(SB),7,$24-16
+ 	CALL	sighandler(SB)
+ 	RET
+ 
+-TEXT	·mmap(SB),7,$-8
++TEXT	·mmap(SB),7,$0
+ 	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVL	16(SP), SI		// arg 2 len
+-	MOVL	20(SP), DX		// arg 3 prot
+-	MOVL	24(SP), R10		// arg 4 flags
+-	MOVL	28(SP), R8		// arg 5 fid
+-	MOVL	32(SP), R9		// arg 6 offset
++	MOVQ	16(SP), SI		// arg 2 len
++	MOVL	24(SP), DX		// arg 3 prot
++	MOVL	28(SP), R10		// arg 4 flags
++	MOVL	32(SP), R8		// arg 5 fid
++	MOVL	36(SP), R9		// arg 6 offset
+ 	MOVL	$477, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 882ccf1d26..dd04731581 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -76,14 +76,14 @@ TEXT	sigreturn(SB),7,$0
+ 	SYSCALL
+ 	INT $3	// not reached
+ 
+-TEXT	·mmap(SB),7,$0-32
++TEXT	·mmap(SB),7,$0
+ 	MOVQ	8(SP), DI
+ 	MOVQ	$0, SI
+-	MOVL	16(SP), SI
+-	MOVL	20(SP), DX
+-	MOVL	24(SP), R10
+-	MOVL	28(SP), R8
+-	MOVL	32(SP), R9
++	MOVQ	16(SP), SI
++	MOVL	24(SP), DX
++	MOVL	28(SP), R10
++	MOVL	32(SP), R8
++	MOVL	36(SP), R9
+ 
+ 	MOVL	$9, AX			// syscall entry
+ 	SYSCALL
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 0b770ad0e1..e2aedb4cee 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -511,7 +511,7 @@ void	notewakeup(Note*);
+ /*
+  * low level go-called
+  */
+-uint8*	runtime_mmap(byte*, uint32, int32, int32, int32, uint32);
++uint8*	runtime_mmap(byte*, uintptr, int32, int32, int32, uint32);
+ void	runtime_memclr(byte*, uint32);
+ void	runtime_setcallerpc(void*, void*);
+ void*	runtime_getcallerpc(void*);

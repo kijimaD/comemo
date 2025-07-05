@@ -31,7 +31,7 @@ Date:   Mon Aug 24 16:15:21 2009 -0700
     DELTA=161  (141 added, 14 deleted, 6 changed)
     OCL=33783
     CL=33795
-
+---
  src/cmd/6c/swt.c   |  13 +++++++
  src/cmd/ar/ar.c    |   9 ++++-
  src/cmd/cc/cc.h    |  15 ++++++++
@@ -40,3 +40,326 @@ Date:   Mon Aug 24 16:15:21 2009 -0700
  src/cmd/cc/macbody |  14 ++++++--
  src/cmd/ld/go.c    |   6 ++--
  7 files changed, 149 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index b3f31b04d4..9b2381ae93 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -232,6 +232,19 @@ outcode(void)
+ 	Binit(&b, f, OWRITE);
+ 
+ 	Bprint(&b, "%s\n", thestring);
++	if(nffi > 0) {
++		int i;
++
++		if(package == nil) {
++			yyerror("#pragma ffi without #pragma package");
++			package = "_ffi_";
++		}
++		Bprint(&b, "\n$$  // ffi\n", thestring);
++		Bprint(&b, "package %s\n", package);
++		for(i=0; i<nffi; i++)
++			Bprint(&b, "//ffi %c %s %s %s\n", ffi[i].type, ffi[i].local, ffi[i].remote, ffi[i].path);
++		Bprint(&b, "$$\n\n$$\n\n");
++	}
+ 	Bprint(&b, "!\n");
+ 
+ 	outhist(&b);
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 77176b13ad..83ab51c2e3 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -1550,6 +1550,7 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
+ 
+ 	// skip white space
+ 	p = *pp;
++again:
+ 	while(p < ep && (*p == ' ' || *p == '\t'))
+ 		p++;
+ 	if(p == ep)
+@@ -1569,7 +1570,13 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
+ 		p += 5;
+ 	else if(strncmp(p, "const ", 6) == 0)
+ 		p += 6;
+-	else{
++	else if(strncmp(p, "//", 2) == 0) {
++		p = memchr(p, '\n', ep - p);
++		if(p == nil)
++			return 0;
++		p++;
++		goto again;
++	} else {
+ 		fprint(2, "ar: confused in pkg data near <<%.20s>>\n", p);
+ 		errors++;
+ 		return -1;
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 2ebea6f5f6..9964681f11 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -49,6 +49,7 @@ typedef	struct	Hist	Hist;
+ typedef	struct	Term	Term;
+ typedef	struct	Init	Init;
+ typedef	struct	Bits	Bits;
++typedef	struct	Ffi Ffi;
+ 
+ #define	NHUNK		50000L
+ #define	BUFSIZ		8192
+@@ -436,6 +437,18 @@ struct	Funct
+ 	Sym*	castfr[NTYPE];
+ };
+ 
++struct	Ffi
++{
++	char	type;
++	char*	local;
++	char*	remote;
++	char*	path;
++};
++
++EXTERN	Ffi	*ffi;
++EXTERN	int	nffi;
++EXTERN	char*	package;
++
+ EXTERN struct
+ {
+ 	Type*	tenum;		/* type of entire enum */
+@@ -740,6 +753,8 @@ void	pragpack(void);
+ void	pragfpround(void);
+ void	pragtextflag(void);
+ void	pragincomplete(void);
++void	pragffi(void);
++void	pragpackage(void);
+ 
+ /*
+  * calls to machine depend part
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index 9d22e621ed..b1e988b87a 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -200,13 +200,35 @@ arginit(void)
+ 	flagbits['X'] = flagbits['o'];
+ }
+ 
++static char*
++getquoted(void)
++{
++	int c;
++	char *t;
++	Rune r;
++
++	c = getnsc();
++	if(c != '"')
++		return nil;
++	t = fmtbuf;
++	for(;;) {
++		r = getr();
++		if(r == ' ' || r == '\n')
++			return nil;
++		if(r == '"')
++			break;
++		t += runetochar(t, &r);
++	}
++	*t = 0;
++	return strdup(fmtbuf);
++}
++
+ void
+ pragvararg(void)
+ {
+ 	Sym *s;
+ 	int n, c;
+ 	char *t;
+-	Rune r;
+ 	Type *ty;
+ 
+ 	if(!debug['F'])
+@@ -251,20 +273,9 @@ ckflag:
+ 
+ cktype:
+ /*#pragma	varargck	type	O	int*/
+-	c = getnsc();
+-	if(c != '"')
++	t = getquoted();
++	if(t == nil)
+ 		goto bad;
+-	t = fmtbuf;
+-	for(;;) {
+-		r = getr();
+-		if(r == ' ' || r == '\n')
+-			goto bad;
+-		if(r == '"')
+-			break;
+-		t += runetochar(t, &r);
+-	}
+-	*t = 0;
+-	t = strdup(fmtbuf);
+ 	s = getsym();
+ 	if(s == S)
+ 		goto bad;
+@@ -516,3 +527,64 @@ out:
+ 	if(debug['f'])
+ 		print("%s incomplete\n", s->name);
+ }
++
++void
++pragffi(void)
++{
++	Sym *local, *remote, *type;
++	char *path;
++	Ffi *f;
++
++	type = getsym();
++	if(type == nil)
++		goto err;
++
++	local = getsym();
++	if(local == nil)
++		goto err;
++
++	remote = getsym();
++	if(remote == nil)
++		goto err;
++
++	path = getquoted();
++	if(path == nil)
++		goto err;
++
++	if(nffi%32 == 0)
++		ffi = realloc(ffi, (nffi+32)*sizeof ffi[0]);
++	f = &ffi[nffi++];
++	f->type = type->name[0];
++	f->local = local->name;
++	f->remote = remote->name;
++	f->path = path;
++	goto out;
++
++err:
++	yyerror("usage: #pragma ffi typechar local remote \"path\"");
++
++out:
++	while(getnsc() != '\n')
++		;
++}
++
++void
++pragpackage(void)
++{
++	Sym *s;
++
++	s = getsym();
++	if(s == nil)
++		goto err;
++
++	package = s->name;
++	goto out;
++
++err:
++	yyerror("malformed #pragma package");
++
++out:
++	while(getnsc() != '\n')
++		;
++}
++
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 33734c7224..1c979a0f1a 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -46,6 +46,20 @@ pragvararg(void)
+ 		;
+ }
+ 
++void
++pragffi(void)
++{
++	while(getnsc() != '\n')
++		;
++}
++
++void
++pragpackage(void)
++{
++	while(getnsc() != '\n')
++		;
++}
++
+ void
+ pragfpround(void)
+ {
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index 64f04129f4..09ecccf5d2 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -283,7 +283,7 @@ macdef(void)
+ 			continue;
+ 		}
+ 		if(ischr){
+-			if(c == '\\'){ 
++			if(c == '\\'){
+ 				base = allocn(base, len, 1);
+ 				base[len++] = c;
+ 				c = getc();
+@@ -400,7 +400,7 @@ macexpand(Sym *s, char *b)
+ 			print("#expand %s %s\n", s->name, ob);
+ 		return;
+ 	}
+-	
++
+ 	nargs = (char)(*s->macro & ~VARMAC) - 1;
+ 	dots = *s->macro & VARMAC;
+ 
+@@ -737,6 +737,14 @@ macprag(void)
+ 		pragincomplete();
+ 		return;
+ 	}
++	if(s && strcmp(s->name, "ffi") == 0) {
++		pragffi();
++		return;
++	}
++	if(s && strcmp(s->name, "package") == 0) {
++		pragpackage();
++		return;
++	}
+ 	while(getnsc() != '\n')
+ 		;
+ 	return;
+@@ -763,7 +771,7 @@ praglib:
+ 		goto bad;
+ 
+ 	/*
+-	 * put pragma-line in as a funny history 
++	 * put pragma-line in as a funny history
+ 	 */
+ 	c = strlen(symb) + 1;
+ 	hp = alloc(c);
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 4bad524133..b4b75b19b0 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -102,7 +102,7 @@ ldpkg(Biobuf *f, int64 len, char *filename)
+ 	while(*p0 == ' ' || *p0 == '\t' || *p0 == '\n')
+ 		p0++;
+ 	if(strncmp(p0, "package ", 8) != 0) {
+-		fprint(2, "%s: bad package section in %s\n", argv0, filename);
++		fprint(2, "%s: bad package section in %s - %s\n", argv0, filename, p0);
+ 		return;
+ 	}
+ 	p0 += 8;
+@@ -199,8 +199,6 @@ again:
+ 		return 0;
+ 
+ 	// prefix: (var|type|func|const)
+-	prefix = p;
+-
+ 	prefix = p;
+ 	if(p + 6 > ep)
+ 		return -1;
+@@ -251,7 +249,7 @@ again:
+ 		goto again;
+ 	} else {
+ 	err:
+-		fprint(2, "%s: confused in pkg data near <<%.20s>>\n", argv0, prefix);
++		fprint(2, "%s: confused in pkg data near <<%.40s>>\n", argv0, prefix);
+ 		nerrors++;
+ 		return -1;
+ 	}

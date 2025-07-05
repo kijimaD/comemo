@@ -20,6 +20,22 @@ Date:   Sun Sep 22 15:00:36 2024 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/script_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 84692f3a9e..390a367237 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -41,6 +41,10 @@ func TestScript(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.SkipIfShortAndSlow(t)
+ 
++	if testing.Short() && runtime.GOOS == "plan9" {
++		t.Skipf("skipping test in -short mode on %s", runtime.GOOS)
++	}
++
+ 	srv, err := vcstest.NewServer()
+ 	if err != nil {
+ 		t.Fatal(err)

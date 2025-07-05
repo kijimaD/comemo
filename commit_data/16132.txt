@@ -7,6 +7,23 @@ Date:   Mon Apr 8 12:04:50 2013 +1000
     R=golang-dev, adg, adg
     CC=golang-dev
     https://golang.org/cl/8488047
-
+---
  doc/go1.1.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 1332be21ce..6f021fe20b 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -406,9 +406,9 @@ this sense, "<code>go run</code>" replaces "<code>go run *.go</code>".
+ <h3 id="tags">Build constraints</h3>
+ 
+ <p>
+-The <code>"go1.1</code>" tag has been added to the list of default
++The "<code>go1.1</code>" tag has been added to the list of default
+ <a href="/pkg/go/build/#hdr-Build_Constraints">build constraints</a>.
+-This permits packages to take advanage of the new features in Go 1.1 while
++This permits packages to take advantage of the new features in Go 1.1 while
+ remaining compatible with earlier versions of Go.
+ </p>
+ 

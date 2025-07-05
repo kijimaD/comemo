@@ -16,7 +16,217 @@ Date:   Fri Apr 12 09:29:43 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/pcln.go     | 34 +++++++++----------
  src/cmd/link/internal/ld/pcln.go | 72 ++++++++++++++--------------------------
  2 files changed, 40 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 84dd494930..e7f340595f 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -6,6 +6,7 @@ package obj
+ 
+ import (
+ 	"cmd/internal/src"
++	"encoding/binary"
+ 	"log"
+ )
+ 
+@@ -14,13 +15,6 @@ const (
+ 	EpilogueBegin            // overload "is_stmt" to include epilogue_end
+ )
+ 
+-func addvarint(d *Pcdata, v uint32) {
+-	for ; v >= 0x80; v >>= 7 {
+-		d.P = append(d.P, uint8(v|0x80))
+-	}
+-	d.P = append(d.P, uint8(v))
+-}
+-
+ // funcpctab writes to dst a pc-value table mapping the code in func to the values
+ // returned by valfunc parameterized by arg. The invocation of valfunc to update the
+ // current value is, for each p,
+@@ -52,8 +46,8 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Func.Text)
+ 	}
+ 
++	buf := make([]byte, binary.MaxVarintLen32)
+ 	started := false
+-	var delta uint32
+ 	for p := func_.Func.Text; p != nil; p = p.Link {
+ 		// Update val. If it's not changing, keep going.
+ 		val = valfunc(ctxt, func_, val, p, 0, arg)
+@@ -97,17 +91,15 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 		}
+ 
+ 		if started {
+-			addvarint(dst, uint32((p.Pc-pc)/int64(ctxt.Arch.MinLC)))
++			pcdelta := (p.Pc - pc) / int64(ctxt.Arch.MinLC)
++			n := binary.PutUvarint(buf, uint64(pcdelta))
++			dst.P = append(dst.P, buf[:n]...)
+ 			pc = p.Pc
+ 		}
+ 
+-		delta = uint32(val) - uint32(oldval)
+-		if delta>>31 != 0 {
+-			delta = 1 | ^(delta << 1)
+-		} else {
+-			delta <<= 1
+-		}
+-		addvarint(dst, delta)
++		delta := val - oldval
++		n := binary.PutVarint(buf, int64(delta))
++		dst.P = append(dst.P, buf[:n]...)
+ 		oldval = val
+ 		started = true
+ 		val = valfunc(ctxt, func_, val, p, 1, arg)
+@@ -117,8 +109,14 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 		if dbg {
+ 			ctxt.Logf("%6x done\n", uint64(func_.Func.Text.Pc+func_.Size))
+ 		}
+-		addvarint(dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
+-		addvarint(dst, 0) // terminator
++		v := (func_.Size - pc) / int64(ctxt.Arch.MinLC)
++		if v < 0 {
++			ctxt.Diag("negative pc offset: %v", v)
++		}
++		n := binary.PutUvarint(buf, uint64(v))
++		dst.P = append(dst.P, buf[:n]...)
++		// add terminating varint-encoded 0, which is just 0
++		dst.P = append(dst.P, 0)
+ 	}
+ 
+ 	if dbg {
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 5924acc0b0..33bbd37b36 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
++	"encoding/binary"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+@@ -17,22 +18,6 @@ import (
+ 
+ // iteration over encoded pcdata tables.
+ 
+-func getvarint(pp *[]byte) uint32 {
+-	v := uint32(0)
+-	p := *pp
+-	for shift := 0; ; shift += 7 {
+-		v |= uint32(p[0]&0x7F) << uint(shift)
+-		tmp4 := p
+-		p = p[1:]
+-		if tmp4[0]&0x80 == 0 {
+-			break
+-		}
+-	}
+-
+-	*pp = p
+-	return v
+-}
+-
+ func pciternext(it *Pciter) {
+ 	it.pc = it.nextpc
+ 	if it.done != 0 {
+@@ -44,21 +29,28 @@ func pciternext(it *Pciter) {
+ 	}
+ 
+ 	// value delta
+-	v := getvarint(&it.p)
++	val, n := binary.Varint(it.p)
++	if n <= 0 {
++		log.Fatalf("bad value varint in pciternext: read %v", n)
++	}
++	it.p = it.p[n:]
+ 
+-	if v == 0 && it.start == 0 {
++	if val == 0 && it.start == 0 {
+ 		it.done = 1
+ 		return
+ 	}
+ 
+ 	it.start = 0
+-	dv := int32(v>>1) ^ (int32(v<<31) >> 31)
+-	it.value += dv
++	it.value += int32(val)
+ 
+ 	// pc delta
+-	v = getvarint(&it.p)
++	pc, n := binary.Uvarint(it.p)
++	if n <= 0 {
++		log.Fatalf("bad pc varint in pciternext: read %v", n)
++	}
++	it.p = it.p[n:]
+ 
+-	it.nextpc = it.pc + v*it.pcscale
++	it.nextpc = it.pc + uint32(pc)*it.pcscale
+ }
+ 
+ func pciterinit(ctxt *Link, it *Pciter, d *sym.Pcdata) {
+@@ -73,28 +65,6 @@ func pciterinit(ctxt *Link, it *Pciter, d *sym.Pcdata) {
+ 	pciternext(it)
+ }
+ 
+-func addvarint(d *sym.Pcdata, val uint32) {
+-	n := int32(0)
+-	for v := val; v >= 0x80; v >>= 7 {
+-		n++
+-	}
+-	n++
+-
+-	old := len(d.P)
+-	for cap(d.P) < len(d.P)+int(n) {
+-		d.P = append(d.P[:cap(d.P)], 0)
+-	}
+-	d.P = d.P[:old+int(n)]
+-
+-	p := d.P[old:]
+-	var v uint32
+-	for v = val; v >= 0x80; v >>= 7 {
+-		p[0] = byte(v | 0x80)
+-		p = p[1:]
+-	}
+-	p[0] = byte(v)
+-}
+-
+ func addpctab(ctxt *Link, ftab *sym.Symbol, off int32, d *sym.Pcdata) int32 {
+ 	var start int32
+ 	if len(d.P) > 0 {
+@@ -128,6 +98,7 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
+ 		numberfile(ctxt, f)
+ 	}
+ 
++	buf := make([]byte, binary.MaxVarintLen32)
+ 	newval := int32(-1)
+ 	var out sym.Pcdata
+ 	var it Pciter
+@@ -147,15 +118,20 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
+ 
+ 		dv := val - newval
+ 		newval = val
+-		v := (uint32(dv) << 1) ^ uint32(dv>>31)
+-		addvarint(&out, v)
++
++		// value
++		n := binary.PutVarint(buf, int64(dv))
++		out.P = append(out.P, buf[:n]...)
+ 
+ 		// pc delta
+-		addvarint(&out, (it.nextpc-it.pc)/it.pcscale)
++		pc := (it.nextpc - it.pc) / it.pcscale
++		n = binary.PutUvarint(buf, uint64(pc))
++		out.P = append(out.P, buf[:n]...)
+ 	}
+ 
+ 	// terminating value delta
+-	addvarint(&out, 0)
++	// we want to write varint-encoded 0, which is just 0
++	out.P = append(out.P, 0)
+ 
+ 	*d = out
+ }

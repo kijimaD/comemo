@@ -12,6 +12,42 @@ Date:   Wed Jan 22 15:30:03 2020 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Marwan Sulaiman <marwan.sameer@gmail.com>
-
+---
  src/cmd/dist/build.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 206c65f52f..7a6ba52e37 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -110,6 +110,9 @@ func xinit() {
+ 		fatalf("$GOROOT must be set")
+ 	}
+ 	goroot = filepath.Clean(b)
++	if modRoot := findModuleRoot(goroot); modRoot != "" {
++		fatalf("found go.mod file in %s: $GOROOT must not be inside a module", modRoot)
++	}
+ 
+ 	b = os.Getenv("GOROOT_FINAL")
+ 	if b == "" {
+@@ -1590,6 +1593,20 @@ func checkCC() {
+ 	}
+ }
+ 
++func findModuleRoot(dir string) (root string) {
++	for {
++		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
++			return dir
++		}
++		d := filepath.Dir(dir)
++		if d == dir {
++			break
++		}
++		dir = d
++	}
++	return ""
++}
++
+ func defaulttarg() string {
+ 	// xgetwd might return a path with symlinks fully resolved, and if
+ 	// there happens to be symlinks in goroot, then the hasprefix test

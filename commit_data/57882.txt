@@ -20,9 +20,67 @@ Date:   Wed Sep 6 21:48:28 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go      | 3 ---
  src/cmd/compile/internal/ssa/export_test.go | 3 ---
  src/cmd/compile/internal/ssa/func.go        | 3 ++-
  src/cmd/compile/internal/ssagen/ssa.go      | 4 ----
  4 files changed, 2 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 43f9f0affc..8d431085a8 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -167,9 +167,6 @@ type Frontend interface {
+ 	// UseWriteBarrier reports whether write barrier is enabled
+ 	UseWriteBarrier() bool
+ 
+-	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
+-	MyImportPath() string
+-
+ 	// Func returns the ir.Func of the function being compiled.
+ 	Func() *ir.Func
+ }
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index f02cfd2cd4..bc74826c3e 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -105,9 +105,6 @@ func (d TestFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.
+ func (d TestFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
+ func (d TestFrontend) Debug_checknil() bool                               { return false }
+ 
+-func (d TestFrontend) MyImportPath() string {
+-	return d.f.Sym().Pkg.Path
+-}
+ func (d TestFrontend) Func() *ir.Func {
+ 	return d.f
+ }
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index c5716e3a9a..2318d52e0c 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -781,7 +781,8 @@ func (f *Func) DebugHashMatch() bool {
+ 	if !base.HasDebugHash() {
+ 		return true
+ 	}
+-	return base.DebugHashMatchPkgFunc(f.fe.MyImportPath(), f.Name)
++	sym := f.fe.Func().Sym()
++	return base.DebugHashMatchPkgFunc(sym.Pkg.Path, sym.Name)
+ }
+ 
+ func (f *Func) spSb() (sp, sb *Value) {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 2934c8b527..fa8db71255 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -8025,10 +8025,6 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
+ 	return nil
+ }
+ 
+-func (e *ssafn) MyImportPath() string {
+-	return base.Ctxt.Pkgpath
+-}
+-
+ func (e *ssafn) Func() *ir.Func {
+ 	return e.curfn
+ }

@@ -9,6 +9,20 @@ Date:   Fri Oct 12 14:35:16 2018 +0000
     GitHub-Pull-Request: golang/go#28125
     Reviewed-on: https://go-review.googlesource.com/c/141119
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/base64/base64.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index e8afc48859..0bb37b311a 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -270,7 +270,7 @@ func (e CorruptInputError) Error() string {
+ 	return "illegal base64 data at input byte " + strconv.FormatInt(int64(e), 10)
+ }
+ 
+-// decodeQuantum decodes up to 4 base64 bytes. It takes for parameters
++// decodeQuantum decodes up to 4 base64 bytes. The received parameters are
+ // the destination buffer dst, the source buffer src and an index in the
+ // source buffer si.
+ // It returns the number of bytes read from src, the number of bytes written

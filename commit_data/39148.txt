@@ -14,10 +14,162 @@ Date:   Sat Jan 5 14:31:23 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/156364
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/race.go     |  2 +-
  src/runtime/runtime2.go | 11 +++++++++++
  src/runtime/symtab.go   | 40 +++++++++++++++++++++++++++++++++++++---
  test/inline_caller.go   |  6 +++---
  test/inline_callers.go  | 10 +++++-----
  5 files changed, 57 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 08d53a10d2..adb2198c55 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -156,7 +156,7 @@ func racecallback(cmd uintptr, ctx unsafe.Pointer) {
+ }
+ 
+ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
+-	f := FuncForPC(ctx.pc)
++	f := findfunc(ctx.pc)._Func()
+ 	if f != nil {
+ 		file, line := f.FileLine(ctx.pc)
+ 		if line != 0 {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 290a7bd311..df9cbaef20 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -663,6 +663,17 @@ type _func struct {
+ 	nfuncdata uint8   // must be last
+ }
+ 
++// Pseudo-Func that is returned for PCs that occur in inlined code.
++// A *Func can be either a *_func or a *funcinl, and they are distinguished
++// by the first uintptr.
++type funcinl struct {
++	zero  uintptr // set to 0 to distinguish from _func
++	entry uintptr // entry of the real (the "outermost") frame.
++	name  string
++	file  string
++	line  int
++}
++
+ // layout of Itab known to compilers
+ // allocated in non-garbage-collected memory
+ // Needs to be in sync with
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 245a7e6b01..e7ce3de497 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -466,9 +466,28 @@ func moduledataverify1(datap *moduledata) {
+ // given program counter address, or else nil.
+ //
+ // If pc represents multiple functions because of inlining, it returns
+-// the *Func describing the outermost function.
++// the a *Func describing the innermost function, but with an entry
++// of the outermost function.
+ func FuncForPC(pc uintptr) *Func {
+-	return findfunc(pc)._Func()
++	f := findfunc(pc)
++	if !f.valid() {
++		return nil
++	}
++	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
++		if ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil); ix >= 0 {
++			inltree := (*[1 << 20]inlinedCall)(inldata)
++			name := funcnameFromNameoff(f, inltree[ix].func_)
++			file, line := funcline(f, pc)
++			fi := &funcinl{
++				entry: f.entry, // entry of the real (the outermost) function.
++				name:  name,
++				file:  file,
++				line:  int(line),
++			}
++			return (*Func)(unsafe.Pointer(fi))
++		}
++	}
++	return f._Func()
+ }
+ 
+ // Name returns the name of the function.
+@@ -476,12 +495,22 @@ func (f *Func) Name() string {
+ 	if f == nil {
+ 		return ""
+ 	}
++	fn := f.raw()
++	if fn.entry == 0 { // inlined version
++		fi := (*funcinl)(unsafe.Pointer(fn))
++		return fi.name
++	}
+ 	return funcname(f.funcInfo())
+ }
+ 
+ // Entry returns the entry address of the function.
+ func (f *Func) Entry() uintptr {
+-	return f.raw().entry
++	fn := f.raw()
++	if fn.entry == 0 { // inlined version
++		fi := (*funcinl)(unsafe.Pointer(fn))
++		return fi.entry
++	}
++	return fn.entry
+ }
+ 
+ // FileLine returns the file name and line number of the
+@@ -489,6 +518,11 @@ func (f *Func) Entry() uintptr {
+ // The result will not be accurate if pc is not a program
+ // counter within f.
+ func (f *Func) FileLine(pc uintptr) (file string, line int) {
++	fn := f.raw()
++	if fn.entry == 0 { // inlined version
++		fi := (*funcinl)(unsafe.Pointer(fn))
++		return fi.file, fi.line
++	}
+ 	// Pass strict=false here, because anyone can call this function,
+ 	// and they might just be wrong about targetpc belonging to f.
+ 	file, line32 := funcline1(f.funcInfo(), pc, false)
+diff --git a/test/inline_caller.go b/test/inline_caller.go
+index 79039a6bb5..daff145a92 100644
+--- a/test/inline_caller.go
++++ b/test/inline_caller.go
+@@ -54,9 +54,9 @@ type wantFrame struct {
+ 
+ // -1 means don't care
+ var expected = []wantFrame{
+-	0: {"main.testCaller", 36},
+-	1: {"main.testCaller", 31},
+-	2: {"main.testCaller", 27},
++	0: {"main.h", 36},
++	1: {"main.g", 31},
++	2: {"main.f", 27},
+ 	3: {"main.testCaller", 42},
+ 	4: {"main.main", 68},
+ 	5: {"runtime.main", -1},
+diff --git a/test/inline_callers.go b/test/inline_callers.go
+index f2c05622dd..ee7d647072 100644
+--- a/test/inline_callers.go
++++ b/test/inline_callers.go
+@@ -31,7 +31,7 @@ func testCallers(skp int) (frames []string) {
+ 	skip = skp
+ 	f()
+ 	for i := 0; i < npcs; i++ {
+-		fn := runtime.FuncForPC(pcs[i])
++		fn := runtime.FuncForPC(pcs[i] - 1)
+ 		frames = append(frames, fn.Name())
+ 		if fn.Name() == "main.main" {
+ 			break
+@@ -56,10 +56,10 @@ func testCallersFrames(skp int) (frames []string) {
+ }
+ 
+ var expectedFrames [][]string = [][]string{
+-	0: {"runtime.Callers", "main.testCallers", "main.testCallers", "main.testCallers", "main.testCallers", "main.main"},
+-	1: {"main.testCallers", "main.testCallers", "main.testCallers", "main.testCallers", "main.main"},
+-	2: {"main.testCallers", "main.testCallers", "main.testCallers", "main.main"},
+-	3: {"main.testCallers", "main.testCallers", "main.main"},
++	0: {"runtime.Callers", "main.h", "main.g", "main.f", "main.testCallers", "main.main"},
++	1: {"main.h", "main.g", "main.f", "main.testCallers", "main.main"},
++	2: {"main.g", "main.f", "main.testCallers", "main.main"},
++	3: {"main.f", "main.testCallers", "main.main"},
+ 	4: {"main.testCallers", "main.main"},
+ 	5: {"main.main"},
+ }

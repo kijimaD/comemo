@@ -9,6 +9,20 @@ Date:   Thu Sep 19 11:19:11 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13746044
-
+---
  src/cmd/go/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index bdbe490ad6..6f35a87f1e 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -435,7 +435,7 @@ func (b *builder) init() {
+ 			fatalf("%s", err)
+ 		}
+ 		if buildX || buildWork {
+-			fmt.Printf("WORK=%s\n", b.work)
++			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.work)
+ 		}
+ 		if !buildWork {
+ 			atexit(func() { os.RemoveAll(b.work) })

@@ -14,7 +14,58 @@ Date:   Tue Apr 23 17:52:55 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/581275
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/toolchain/select.go            |  8 ++++++++
  .../go/testdata/script/env_gomod_issue61455.txt    | 24 ++++++++++++++++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/go/internal/toolchain/select.go b/src/cmd/go/internal/toolchain/select.go
+index 6181f7c480..79f12f34bd 100644
+--- a/src/cmd/go/internal/toolchain/select.go
++++ b/src/cmd/go/internal/toolchain/select.go
+@@ -110,6 +110,14 @@ func Select() {
+ 		return
+ 	}
+ 
++	// As a special case, let "go env GOMOD" and "go env GOWORK" be handled by
++	// the local toolchain. Users expect to be able to look up GOMOD and GOWORK
++	// since the go.mod and go.work file need to be determined to determine
++	// the minimum toolchain. See issue #61455.
++	if len(os.Args) == 3 && os.Args[1] == "env" && (os.Args[2] == "GOMOD" || os.Args[2] == "GOWORK") {
++		return
++	}
++
+ 	// Interpret GOTOOLCHAIN to select the Go toolchain to run.
+ 	gotoolchain := cfg.Getenv("GOTOOLCHAIN")
+ 	gover.Startup.GOTOOLCHAIN = gotoolchain
+diff --git a/src/cmd/go/testdata/script/env_gomod_issue61455.txt b/src/cmd/go/testdata/script/env_gomod_issue61455.txt
+new file mode 100644
+index 0000000000..8a94549a97
+--- /dev/null
++++ b/src/cmd/go/testdata/script/env_gomod_issue61455.txt
+@@ -0,0 +1,24 @@
++env TESTGO_VERSION=go1.500
++env TESTGO_VERSION_SWITCH=mismatch
++
++# go env GOMOD should not trigger a toolchain download
++cd $GOPATH/mod
++go env GOMOD
++stdout mod[/\\]go.mod
++! stderr 'go: toolchain go1.500 invoked to provide go1.700'
++
++# go env GOWORK should not trigger a toolchain download
++cd $GOPATH/work
++go env GOWORK
++stdout work[/\\]go.work
++! stderr 'go: toolchain go1.500 invoked to provide go1.700'
++
++-- $GOPATH/mod/go.mod --
++module example.com
++
++go 1.700
++
++-- $GOPATH/work/go.work --
++module example.com
++
++go 1.700
+\ No newline at end of file

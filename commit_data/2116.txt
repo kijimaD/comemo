@@ -9,7 +9,116 @@ Date:   Wed Apr 29 22:16:53 2009 -0700
     DELTA=49  (35 added, 0 deleted, 14 changed)
     OCL=28068
     CL=28068
-
+---
  src/lib/reflect/all_test.go | 37 ++++++++++++++++++++++++++++++++++++-
  src/lib/reflect/type.go     | 24 ++++++++++++------------
  2 files changed, 48 insertions(+), 13 deletions(-)
+
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index 080a360a34..d193efde23 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -6,7 +6,8 @@ package reflect
+ 
+ import (
+ 	"reflect";
+-	"testing"
++	"testing";
++	"unsafe";
+ )
+ 
+ var doprint bool = false
+@@ -472,3 +473,37 @@ func TestDeepEqualComplexStructInequality(t *testing.T) {
+ 		t.Error("DeepEqual(complex different) = true, want false");
+ 	}
+ }
++
++
++func check2ndField(x interface{}, offs uintptr, t *testing.T) {
++	s := reflect.NewValue(x).(reflect.StructValue);
++	name, ftype, tag, reflect_offset := s.Type().(reflect.StructType).Field(1);
++	if uintptr(reflect_offset) != offs {
++		t.Error("mismatched offsets in structure alignment:", reflect_offset, offs);
++	}
++}
++
++// Check that structure alignment & offsets viewed through reflect agree with those
++// from the compiler itself.
++func TestAlignment(t *testing.T) {
++	type T1inner struct {
++		a int
++	}
++	type T1 struct {
++		T1inner;
++		f int;
++	}
++	type T2inner struct {
++		a, b int
++	}
++	type T2 struct {
++		T2inner;
++		f int;
++	}
++
++	x := T1{T1inner{2}, 17};
++	check2ndField(x, uintptr(unsafe.Pointer(&x.f)) - uintptr(unsafe.Pointer(&x)), t);
++
++	x1 := T2{T2inner{2, 3}, 17};
++	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f)) - uintptr(unsafe.Pointer(&x1)), t);
++}
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index b073afc22e..1ab2424f1a 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -86,7 +86,7 @@ var (
+ )
+ 
+ const (
+-	minStructAlign = unsafe.Sizeof(minStruct) - 1;
++	minStructAlignMask = unsafe.Sizeof(minStruct) - 1;
+ 	ptrsize = unsafe.Sizeof(&x);
+ 	interfacesize = unsafe.Sizeof(x.xinterface);
+ )
+@@ -383,31 +383,31 @@ func (t *structTypeStruct) Size() int {
+ 		return t.size
+ 	}
+ 	size := 0;
+-	structalign := 0;
++	structAlignMask := 0;
+ 	for i := 0; i < len(t.field); i++ {
+ 		typ := t.field[i].typ.Get();
+ 		elemsize := typ.Size();
+-		align := typ.FieldAlign() - 1;
+-		if align > structalign {
+-			structalign = align
++		alignMask := typ.FieldAlign() - 1;
++		if alignMask > structAlignMask {
++			structAlignMask = alignMask
+ 		}
+-		if align > 0 {
+-			size = (size + align) &^ align;
++		if alignMask > 0 {
++			size = (size + alignMask) &^ alignMask;
+ 		}
+ 		t.field[i].offset = size;
+ 		size += elemsize;
+ 	}
+-	if (structalign > 0) {
++	if (structAlignMask > 0) {
+ 		// 6g etc. always aligns structs to a minimum size, typically int64
+-		if structalign < minStructAlign {
+-			structalign = minStructAlign
++		if structAlignMask < minStructAlignMask {
++			structAlignMask = minStructAlignMask
+ 		}
+ 		// TODO: In the PPC64 ELF ABI, floating point fields
+ 		// in a struct are aligned to a 4-byte boundary, but
+ 		// if the first field in the struct is a 64-bit float,
+ 		// the whole struct is aligned to an 8-byte boundary.
+-		size = (size + structalign) &^ structalign;
+-		t.fieldAlign = structalign + 1;
++		size = (size + structAlignMask) &^ structAlignMask;
++		t.fieldAlign = structAlignMask + 1;
+ 	}
+ 	t.size = size;
+ 	return size;

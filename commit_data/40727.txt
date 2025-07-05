@@ -11,6 +11,19 @@ Date:   Fri Jun 21 11:50:25 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/runtime/cgo/cgo.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/cgo/cgo.go b/src/runtime/cgo/cgo.go
+index eb11c0e100..5a2b5e4271 100644
+--- a/src/runtime/cgo/cgo.go
++++ b/src/runtime/cgo/cgo.go
+@@ -21,6 +21,7 @@ package cgo
+ #cgo netbsd LDFLAGS: -lpthread
+ #cgo openbsd LDFLAGS: -lpthread
+ #cgo aix LDFLAGS: -Wl,-berok
++#cgo solaris LDFLAGS: -lxnet
+ 
+ #cgo CFLAGS: -Wall -Werror
+ 

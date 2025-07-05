@@ -13,7 +13,7 @@ Date:   Mon Mar 18 12:18:49 2013 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7870044
-
+---
  src/pkg/runtime/mem_netbsd.c        | 9 ++++-----
  src/pkg/runtime/mem_openbsd.c       | 9 ++++-----
  src/pkg/runtime/sys_netbsd_386.s    | 2 --
@@ -21,3 +21,126 @@ Date:   Mon Mar 18 12:18:49 2013 +1100
  src/pkg/runtime/sys_openbsd_386.s   | 2 --
  src/pkg/runtime/sys_openbsd_amd64.s | 2 --
  6 files changed, 8 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/runtime/mem_netbsd.c b/src/pkg/runtime/mem_netbsd.c
+index 77ce04c4ee..63a57b94a3 100644
+--- a/src/pkg/runtime/mem_netbsd.c
++++ b/src/pkg/runtime/mem_netbsd.c
+@@ -50,10 +50,9 @@ runtime·SysReserve(void *v, uintptr n)
+ 		return v;
+ 
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if (p == ((void *)-ENOMEM))
++	if(p == (void*)ENOMEM)
+ 		return nil;
+-	else
+-		return p;
++	return p;
+ }
+ 
+ void
+@@ -66,7 +65,7 @@ runtime·SysMap(void *v, uintptr n)
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if(sizeof(void*) == 8) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-		if(p == (void*)-ENOMEM)
++		if(p == (void*)ENOMEM)
+ 			runtime·throw("runtime: out of memory");
+ 		if(p != v) {
+ 			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
+@@ -76,7 +75,7 @@ runtime·SysMap(void *v, uintptr n)
+ 	}
+ 
+ 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+-	if(p == (void*)-ENOMEM)
++	if(p == (void*)ENOMEM)
+ 		runtime·throw("runtime: out of memory");
+ 	if(p != v)
+ 		runtime·throw("runtime: cannot map pages in arena address space");
+diff --git a/src/pkg/runtime/mem_openbsd.c b/src/pkg/runtime/mem_openbsd.c
+index 77ce04c4ee..63a57b94a3 100644
+--- a/src/pkg/runtime/mem_openbsd.c
++++ b/src/pkg/runtime/mem_openbsd.c
+@@ -50,10 +50,9 @@ runtime·SysReserve(void *v, uintptr n)
+ 		return v;
+ 
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if (p == ((void *)-ENOMEM))
++	if(p == (void*)ENOMEM)
+ 		return nil;
+-	else
+-		return p;
++	return p;
+ }
+ 
+ void
+@@ -66,7 +65,7 @@ runtime·SysMap(void *v, uintptr n)
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if(sizeof(void*) == 8) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-		if(p == (void*)-ENOMEM)
++		if(p == (void*)ENOMEM)
+ 			runtime·throw("runtime: out of memory");
+ 		if(p != v) {
+ 			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
+@@ -76,7 +75,7 @@ runtime·SysMap(void *v, uintptr n)
+ 	}
+ 
+ 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+-	if(p == (void*)-ENOMEM)
++	if(p == (void*)ENOMEM)
+ 		runtime·throw("runtime: out of memory");
+ 	if(p != v)
+ 		runtime·throw("runtime: cannot map pages in arena address space");
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 61686e7de4..992eba77da 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -88,8 +88,6 @@ TEXT runtime·mmap(SB),7,$36
+ 	STOSL
+ 	MOVL	$197, AX		// sys_mmap
+ 	INT	$0x80
+-	JCC	2(PC)
+-	NEGL	AX
+ 	RET
+ 
+ TEXT runtime·munmap(SB),7,$-4
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 43399a5eee..574d8a91b5 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -253,8 +253,6 @@ TEXT runtime·mmap(SB),7,$0
+ 	MOVQ	$0, R9			// arg 6 - pad
+ 	MOVL	$197, AX		// sys_mmap
+ 	SYSCALL
+-	JCC	2(PC)
+-	NEGQ	AX
+ 	ADDQ	$16, SP
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index a96e354ab7..37b6ff215a 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -89,8 +89,6 @@ TEXT runtime·mmap(SB),7,$36
+ 	STOSL
+ 	MOVL	$197, AX		// sys_mmap
+ 	INT	$0x80
+-	JCC	2(PC)
+-	NEGL	AX
+ 	RET
+ 
+ TEXT runtime·munmap(SB),7,$-4
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 4d038a89e1..cbd2c2f765 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -242,8 +242,6 @@ TEXT runtime·mmap(SB),7,$0
+ 	MOVQ	$0, R9			// arg 6 - pad
+ 	MOVL	$197, AX
+ 	SYSCALL
+-	JCC	2(PC)
+-	NEGQ	AX
+ 	ADDQ	$16, SP
+ 	RET
+ 

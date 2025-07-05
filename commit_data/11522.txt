@@ -7,7 +7,41 @@ Date:   Tue Jan 31 17:29:59 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5609044
-
+---
  src/cmd/gc/lex.c |  5 +++++
  test/import5.go  | 11 +++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index db6dfc3e11..9a21c93010 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -574,6 +574,11 @@ importfile(Val *f, int line)
+ 		yyerror("import path contains NUL");
+ 		errorexit();
+ 	}
++	
++	if(strchr(f->u.sval->s, '\\')) {
++		yyerror("import path contains backslash; use slash");
++		errorexit();
++	}
+ 
+ 	// The package name main is no longer reserved,
+ 	// but we reserve the import path "main" to identify
+diff --git a/test/import5.go b/test/import5.go
+new file mode 100644
+index 0000000000..ee041709a1
+--- /dev/null
++++ b/test/import5.go
+@@ -0,0 +1,11 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// import paths are slash-separated; reject backslash
++
++package main
++
++import `net\http`  // ERROR "backslash"

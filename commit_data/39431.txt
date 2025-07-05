@@ -29,7 +29,7 @@ Date:   Sun Dec 30 18:46:22 2018 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/get/vcs.go               | 50 ++++++++++++----------------
  src/cmd/go/internal/modfetch/codehost/vcs.go | 10 +++---
  src/cmd/go/internal/modfetch/pseudo.go       |  4 +--
@@ -41,3 +41,435 @@ Date:   Sun Dec 30 18:46:22 2018 +0100
  src/go/doc/headscan.go                       |  4 +--
  src/internal/lazyregexp/lazyre.go            | 20 +++++++++++
  10 files changed, 67 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index a7a2ba32cc..6f60bc0631 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -8,6 +8,7 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"internal/lazyregexp"
+ 	"internal/singleflight"
+ 	"log"
+ 	"net/url"
+@@ -170,7 +171,7 @@ var vcsGit = &vcsCmd{
+ 
+ // scpSyntaxRe matches the SCP-like addresses used by Git to access
+ // repositories by SSH.
+-var scpSyntaxRe = regexp.MustCompile(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
++var scpSyntaxRe = lazyregexp.New(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
+ 
+ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
+ 	cmd := "config remote.origin.url"
+@@ -525,13 +526,11 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
+ // version control system and repository name.
+ type vcsPath struct {
+ 	prefix string                              // prefix this description applies to
+-	re     string                              // pattern for import path
++	regexp *lazyregexp.Regexp                  // compiled pattern for import path
+ 	repo   string                              // repository to use (expand with match of re)
+ 	vcs    string                              // version control system to use (expand with match of re)
+ 	check  func(match map[string]string) error // additional checks
+ 	ping   bool                                // ping for scheme to use to download repo
+-
+-	regexp *regexp.Regexp // cached compiled form of re
+ }
+ 
+ // vcsFromDir inspects dir and its parents to determine the
+@@ -632,7 +631,14 @@ type RepoRoot struct {
+ 	vcs *vcsCmd // internal: vcs command access
+ }
+ 
+-var httpPrefixRE = regexp.MustCompile(`^https?:`)
++func httpPrefix(s string) string {
++	for _, prefix := range [...]string{"http:", "https:"} {
++		if strings.HasPrefix(s, prefix) {
++			return prefix
++		}
++	}
++	return ""
++}
+ 
+ // ModuleMode specifies whether to prefer modules when looking up code sources.
+ type ModuleMode int
+@@ -677,10 +683,10 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
+ func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, vcsPaths []*vcsPath) (*RepoRoot, error) {
+ 	// A common error is to use https://packagepath because that's what
+ 	// hg and git require. Diagnose this helpfully.
+-	if loc := httpPrefixRE.FindStringIndex(importPath); loc != nil {
++	if prefix := httpPrefix(importPath); prefix != "" {
+ 		// The importPath has been cleaned, so has only one slash. The pattern
+ 		// ignores the slashes; the error message puts them back on the RHS at least.
+-		return nil, fmt.Errorf("%q not allowed in import path", importPath[loc[0]:loc[1]]+"//")
++		return nil, fmt.Errorf("%q not allowed in import path", prefix+"//")
+ 	}
+ 	for _, srv := range vcsPaths {
+ 		if !strings.HasPrefix(importPath, srv.prefix) {
+@@ -975,7 +981,7 @@ var vcsPaths = []*vcsPath{
+ 	// Github
+ 	{
+ 		prefix: "github.com/",
+-		re:     `^(?P<root>github\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(/[\p{L}0-9_.\-]+)*$`,
++		regexp: lazyregexp.New(`^(?P<root>github\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(/[\p{L}0-9_.\-]+)*$`),
+ 		vcs:    "git",
+ 		repo:   "https://{root}",
+ 		check:  noVCSSuffix,
+@@ -984,7 +990,7 @@ var vcsPaths = []*vcsPath{
+ 	// Bitbucket
+ 	{
+ 		prefix: "bitbucket.org/",
+-		re:     `^(?P<root>bitbucket\.org/(?P<bitname>[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
++		regexp: lazyregexp.New(`^(?P<root>bitbucket\.org/(?P<bitname>[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`),
+ 		repo:   "https://{root}",
+ 		check:  bitbucketVCS,
+ 	},
+@@ -992,7 +998,7 @@ var vcsPaths = []*vcsPath{
+ 	// IBM DevOps Services (JazzHub)
+ 	{
+ 		prefix: "hub.jazz.net/git/",
+-		re:     `^(?P<root>hub\.jazz\.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
++		regexp: lazyregexp.New(`^(?P<root>hub\.jazz\.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`),
+ 		vcs:    "git",
+ 		repo:   "https://{root}",
+ 		check:  noVCSSuffix,
+@@ -1001,7 +1007,7 @@ var vcsPaths = []*vcsPath{
+ 	// Git at Apache
+ 	{
+ 		prefix: "git.apache.org/",
+-		re:     `^(?P<root>git\.apache\.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
++		regexp: lazyregexp.New(`^(?P<root>git\.apache\.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`),
+ 		vcs:    "git",
+ 		repo:   "https://{root}",
+ 	},
+@@ -1009,7 +1015,7 @@ var vcsPaths = []*vcsPath{
+ 	// Git at OpenStack
+ 	{
+ 		prefix: "git.openstack.org/",
+-		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
++		regexp: lazyregexp.New(`^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`),
+ 		vcs:    "git",
+ 		repo:   "https://{root}",
+ 	},
+@@ -1017,7 +1023,7 @@ var vcsPaths = []*vcsPath{
+ 	// chiselapp.com for fossil
+ 	{
+ 		prefix: "chiselapp.com/",
+-		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`,
++		regexp: lazyregexp.New(`^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`),
+ 		vcs:    "fossil",
+ 		repo:   "https://{root}",
+ 	},
+@@ -1025,8 +1031,8 @@ var vcsPaths = []*vcsPath{
+ 	// General syntax for any server.
+ 	// Must be last.
+ 	{
+-		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|fossil|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`,
+-		ping: true,
++		regexp: lazyregexp.New(`(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|fossil|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`),
++		ping:   true,
+ 	},
+ }
+ 
+@@ -1038,25 +1044,13 @@ var vcsPathsAfterDynamic = []*vcsPath{
+ 	// Launchpad. See golang.org/issue/11436.
+ 	{
+ 		prefix: "launchpad.net/",
+-		re:     `^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
++		regexp: lazyregexp.New(`^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`),
+ 		vcs:    "bzr",
+ 		repo:   "https://{root}",
+ 		check:  launchpadVCS,
+ 	},
+ }
+ 
+-func init() {
+-	// fill in cached regexps.
+-	// Doing this eagerly discovers invalid regexp syntax
+-	// without having to run a command that needs that regexp.
+-	for _, srv := range vcsPaths {
+-		srv.regexp = regexp.MustCompile(srv.re)
+-	}
+-	for _, srv := range vcsPathsAfterDynamic {
+-		srv.regexp = regexp.MustCompile(srv.re)
+-	}
+-}
+-
+ // noVCSSuffix checks that the repository name does not
+ // end in .foo for any version control system foo.
+ // The usual culprit is ".git".
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 59c2b15d19..83f097e00e 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -7,11 +7,11 @@ package codehost
+ import (
+ 	"encoding/xml"
+ 	"fmt"
++	"internal/lazyregexp"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+-	"regexp"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -124,10 +124,10 @@ type vcsCmd struct {
+ 	vcs           string                                            // vcs name "hg"
+ 	init          func(remote string) []string                      // cmd to init repo to track remote
+ 	tags          func(remote string) []string                      // cmd to list local tags
+-	tagRE         *regexp.Regexp                                    // regexp to extract tag names from output of tags cmd
++	tagRE         *lazyregexp.Regexp                                // regexp to extract tag names from output of tags cmd
+ 	branches      func(remote string) []string                      // cmd to list local branches
+-	branchRE      *regexp.Regexp                                    // regexp to extract branch names from output of tags cmd
+-	badLocalRevRE *regexp.Regexp                                    // regexp of names that must not be served out of local cache without doing fetch first
++	branchRE      *lazyregexp.Regexp                                // regexp to extract branch names from output of tags cmd
++	badLocalRevRE *lazyregexp.Regexp                                // regexp of names that must not be served out of local cache without doing fetch first
+ 	statLocal     func(rev, remote string) []string                 // cmd to stat local rev
+ 	parseStat     func(rev, out string) (*RevInfo, error)           // cmd to parse output of statLocal
+ 	fetch         []string                                          // cmd to fetch everything from remote
+@@ -136,7 +136,7 @@ type vcsCmd struct {
+ 	readZip       func(rev, subdir, remote, target string) []string // cmd to read rev's subdir as zip file
+ }
+ 
+-var re = regexp.MustCompile
++var re = lazyregexp.New
+ 
+ var vcsCmds = map[string]*vcsCmd{
+ 	"hg": {
+diff --git a/src/cmd/go/internal/modfetch/pseudo.go b/src/cmd/go/internal/modfetch/pseudo.go
+index 32c7bf883b..f105373cd4 100644
+--- a/src/cmd/go/internal/modfetch/pseudo.go
++++ b/src/cmd/go/internal/modfetch/pseudo.go
+@@ -37,7 +37,7 @@ package modfetch
+ import (
+ 	"cmd/go/internal/semver"
+ 	"fmt"
+-	"regexp"
++	"internal/lazyregexp"
+ 	"strings"
+ 	"time"
+ )
+@@ -86,7 +86,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
+ 	return v + patch + "-0." + segment + build
+ }
+ 
+-var pseudoVersionRE = regexp.MustCompile(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+incompatible)?$`)
++var pseudoVersionRE = lazyregexp.New(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+incompatible)?$`)
+ 
+ // IsPseudoVersion reports whether v is a pseudo-version.
+ func IsPseudoVersion(v string) bool {
+diff --git a/src/cmd/go/internal/modfile/rule.go b/src/cmd/go/internal/modfile/rule.go
+index 7f9a18c6c2..0fd5a7146a 100644
+--- a/src/cmd/go/internal/modfile/rule.go
++++ b/src/cmd/go/internal/modfile/rule.go
+@@ -8,8 +8,8 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
++	"internal/lazyregexp"
+ 	"path/filepath"
+-	"regexp"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -154,7 +154,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
+ 	return f, nil
+ }
+ 
+-var GoVersionRE = regexp.MustCompile(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
++var GoVersionRE = lazyregexp.New(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
+ 
+ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
+ 	// If strict is false, this module is a dependency.
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a0514d425e..20f7389f55 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -21,11 +21,11 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"go/build"
++	"internal/lazyregexp"
+ 	"io/ioutil"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+-	"regexp"
+ 	"runtime/debug"
+ 	"strconv"
+ 	"strings"
+@@ -569,8 +569,8 @@ func findModulePath(dir string) (string, error) {
+ }
+ 
+ var (
+-	gitOriginRE     = regexp.MustCompile(`(?m)^\[remote "origin"\]\r?\n\turl = (?:https://github.com/|git@github.com:|gh:)([^/]+/[^/]+?)(\.git)?\r?\n`)
+-	importCommentRE = regexp.MustCompile(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
++	gitOriginRE     = lazyregexp.New(`(?m)^\[remote "origin"\]\r?\n\turl = (?:https://github.com/|git@github.com:|gh:)([^/]+/[^/]+?)(\.git)?\r?\n`)
++	importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
+ )
+ 
+ func findImportComment(file string) string {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index bbcbdd7568..37766c2ce5 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -11,6 +11,7 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"internal/lazyregexp"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+@@ -1838,8 +1839,8 @@ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
+ // print this error.
+ var errPrintedOutput = errors.New("already printed output - no need to show error")
+ 
+-var cgoLine = regexp.MustCompile(`\[[^\[\]]+\.(cgo1|cover)\.go:[0-9]+(:[0-9]+)?\]`)
+-var cgoTypeSigRe = regexp.MustCompile(`\b_C2?(type|func|var|macro)_\B`)
++var cgoLine = lazyregexp.New(`\[[^\[\]]+\.(cgo1|cover)\.go:[0-9]+(:[0-9]+)?\]`)
++var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
+ 
+ // run runs the command given by cmdline in the directory dir.
+ // If the command fails, run prints information about the failure
+@@ -2412,7 +2413,7 @@ func buildFlags(name, defaults string, fromPackage []string, check func(string,
+ 	return str.StringList(envList("CGO_"+name, defaults), fromPackage), nil
+ }
+ 
+-var cgoRe = regexp.MustCompile(`[/\\:]`)
++var cgoRe = lazyregexp.New(`[/\\:]`)
+ 
+ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, gxxfiles, mfiles, ffiles []string) (outGo, outObj []string, err error) {
+ 	p := a.Package
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 1a401b8981..e3d85e29c1 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -32,14 +32,15 @@ package work
+ import (
+ 	"cmd/go/internal/load"
+ 	"fmt"
++	"internal/lazyregexp"
+ 	"os"
+ 	"regexp"
+ 	"strings"
+ )
+ 
+-var re = regexp.MustCompile
++var re = lazyregexp.New
+ 
+-var validCompilerFlags = []*regexp.Regexp{
++var validCompilerFlags = []*lazyregexp.Regexp{
+ 	re(`-D([A-Za-z_].*)`),
+ 	re(`-F([^@\-].*)`),
+ 	re(`-I([^@\-].*)`),
+@@ -130,7 +131,7 @@ var validCompilerFlagsWithNextArg = []string{
+ 	"-x",
+ }
+ 
+-var validLinkerFlags = []*regexp.Regexp{
++var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`-F([^@\-].*)`),
+ 	re(`-l([^@\-].*)`),
+ 	re(`-L([^@\-].*)`),
+@@ -217,7 +218,7 @@ func checkLinkerFlags(name, source string, list []string) error {
+ 	return checkFlags(name, source, list, validLinkerFlags, validLinkerFlagsWithNextArg)
+ }
+ 
+-func checkFlags(name, source string, list []string, valid []*regexp.Regexp, validNext []string) error {
++func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, validNext []string) error {
+ 	// Let users override rules with $CGO_CFLAGS_ALLOW, $CGO_CFLAGS_DISALLOW, etc.
+ 	var (
+ 		allow    *regexp.Regexp
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 81956f2fdb..7d1a57058a 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -9,8 +9,8 @@ package doc
+ import (
+ 	"go/ast"
+ 	"go/token"
++	"internal/lazyregexp"
+ 	"path"
+-	"regexp"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -104,7 +104,7 @@ func Examples(files ...*ast.File) []*Example {
+ 	return list
+ }
+ 
+-var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*(unordered )?output:`)
++var outputPrefix = lazyregexp.New(`(?i)^[[:space:]]*(unordered )?output:`)
+ 
+ // Extracts the expected output and whether there was a valid output comment
+ func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output string, unordered, ok bool) {
+diff --git a/src/go/doc/headscan.go b/src/go/doc/headscan.go
+index 1ccaa15819..3f782cc1b4 100644
+--- a/src/go/doc/headscan.go
++++ b/src/go/doc/headscan.go
+@@ -22,9 +22,9 @@ import (
+ 	"go/doc"
+ 	"go/parser"
+ 	"go/token"
++	"internal/lazyregexp"
+ 	"os"
+ 	"path/filepath"
+-	"regexp"
+ 	"runtime"
+ 	"strings"
+ )
+@@ -35,7 +35,7 @@ var (
+ )
+ 
+ // ToHTML in comment.go assigns a (possibly blank) ID to each heading
+-var html_h = regexp.MustCompile(`<h3 id="[^"]*">`)
++var html_h = lazyregexp.New(`<h3 id="[^"]*">`)
+ 
+ const html_endh = "</h3>\n"
+ 
+diff --git a/src/internal/lazyregexp/lazyre.go b/src/internal/lazyregexp/lazyre.go
+index e4170683eb..0c744fa39f 100644
+--- a/src/internal/lazyregexp/lazyre.go
++++ b/src/internal/lazyregexp/lazyre.go
+@@ -27,6 +27,14 @@ func (r *Regexp) build() {
+ 	r.str = ""
+ }
+ 
++func (r *Regexp) FindSubmatch(s []byte) [][]byte {
++	return r.re().FindSubmatch(s)
++}
++
++func (r *Regexp) FindStringSubmatch(s string) []string {
++	return r.re().FindStringSubmatch(s)
++}
++
+ func (r *Regexp) FindStringSubmatchIndex(s string) []int {
+ 	return r.re().FindStringSubmatchIndex(s)
+ }
+@@ -35,10 +43,22 @@ func (r *Regexp) ReplaceAllString(src, repl string) string {
+ 	return r.re().ReplaceAllString(src, repl)
+ }
+ 
++func (r *Regexp) FindString(s string) string {
++	return r.re().FindString(s)
++}
++
++func (r *Regexp) FindAllString(s string, n int) []string {
++	return r.re().FindAllString(s, n)
++}
++
+ func (r *Regexp) MatchString(s string) bool {
+ 	return r.re().MatchString(s)
+ }
+ 
++func (r *Regexp) SubexpNames() []string {
++	return r.re().SubexpNames()
++}
++
+ var inTest = len(os.Args) > 0 && strings.HasSuffix(strings.TrimSuffix(os.Args[0], ".exe"), ".test")
+ 
+ func New(str string) *Regexp {

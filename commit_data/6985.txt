@@ -7,6 +7,20 @@ Date:   Thu Dec 16 12:35:38 2010 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3712041
-
+---
  src/cmd/govet/govet.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index 1d775ff28c..2981891ebe 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -312,7 +312,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
+ }
+ 
+ // This function never executes, but it serves as a simple test for the program.
+-// Test with govet --funcs="Bad:1,Badf:1,Warn:1,Warnf:1" govet.go
++// Test with govet -printfuncs="Bad:1,Badf:1,Warn:1,Warnf:1" govet.go
+ func BadFunctionUsedInTests() {
+ 	fmt.Println()                      // niladic call
+ 	fmt.Println("%s", "hi")            // % in call to Println

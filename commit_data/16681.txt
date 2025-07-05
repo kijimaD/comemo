@@ -13,6 +13,32 @@ Date:   Sun Jun 30 19:53:36 2013 -0400
     TBR=iant, r
     CC=golang-dev
     https://golang.org/cl/10814043
-
+---
  src/lib9/fmt/dofmt.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib9/fmt/dofmt.c b/src/lib9/fmt/dofmt.c
+index 95f378704a..94a91a2aac 100644
+--- a/src/lib9/fmt/dofmt.c
++++ b/src/lib9/fmt/dofmt.c
+@@ -387,17 +387,17 @@ __ifmt(Fmt *f)
+ 		if(fl & FmtUnsigned)
+ 			u = (uchar)va_arg(f->args, int);
+ 		else
+-			u = (uchar)(char)va_arg(f->args, int);
++			u = (ulong)(char)va_arg(f->args, int);
+ 	}else if(fl & FmtShort){
+ 		if(fl & FmtUnsigned)
+ 			u = (ushort)va_arg(f->args, int);
+ 		else
+-			u = (ushort)(short)va_arg(f->args, int);
++			u = (ulong)(short)va_arg(f->args, int);
+ 	}else{
+ 		if(fl & FmtUnsigned)
+ 			u = va_arg(f->args, uint);
+ 		else
+-			u = (uint)va_arg(f->args, int);
++			u = (ulong)va_arg(f->args, int);
+ 	}
+ 	conv = "0123456789abcdef";
+ 	grouping = "\4";	/* for hex, octal etc. (undefined by spec but nice) */

@@ -10,6 +10,21 @@ Date:   Wed Jul 29 19:05:07 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12858
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mfinal_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/mfinal_test.go b/src/runtime/mfinal_test.go
+index d2cead2876..e9e3601de6 100644
+--- a/src/runtime/mfinal_test.go
++++ b/src/runtime/mfinal_test.go
+@@ -171,9 +171,6 @@ func adjChunks() (*objtype, *objtype) {
+ 
+ // Make sure an empty slice on the stack doesn't pin the next object in memory.
+ func TestEmptySlice(t *testing.T) {
+-	if true { // disable until bug 7564 is fixed.
+-		return
+-	}
+ 	x, y := adjChunks()
+ 
+ 	// the pointer inside xs points to y.

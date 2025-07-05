@@ -20,7 +20,7 @@ Date:   Mon Apr 27 19:41:14 2020 -0400
     Run-TryBot: Rebecca Stambler <rstambler@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/call.go                 | 21 +++++++++++++++++----
  src/go/types/testdata/decls3.src     | 18 +++++++++---------
  src/go/types/testdata/decls4.src     |  4 ++--
@@ -29,3 +29,254 @@ Date:   Mon Apr 27 19:41:14 2020 -0400
  src/go/types/testdata/issues.src     |  8 ++++++--
  src/go/types/testdata/methodsets.src | 12 ++++++------
  7 files changed, 44 insertions(+), 27 deletions(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 689ef8744c..9ea6a6551d 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -9,6 +9,7 @@ package types
+ import (
+ 	"go/ast"
+ 	"go/token"
++	"unicode"
+ )
+ 
+ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
+@@ -375,12 +376,24 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 		switch {
+ 		case index != nil:
+ 			// TODO(gri) should provide actual type where the conflict happens
+-			check.errorf(e.Sel.Pos(), "ambiguous selector %s", sel)
++			check.errorf(e.Sel.Pos(), "ambiguous selector %s.%s", x.expr, sel)
+ 		case indirect:
+-			// TODO(gri) be more specific with this error message
+-			check.errorf(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
++			check.errorf(e.Sel.Pos(), "cannot call pointer method %s on %s", sel, x.typ)
+ 		default:
+-			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
++			// Check if capitalization of sel matters and provide better error
++			// message in that case.
++			if len(sel) > 0 {
++				var changeCase string
++				if r := rune(sel[0]); unicode.IsUpper(r) {
++					changeCase = string(unicode.ToLower(r)) + sel[1:]
++				} else {
++					changeCase = string(unicode.ToUpper(r)) + sel[1:]
++				}
++				if obj, _, _ = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
++					check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s, but does have %s)", x.expr, sel, x.typ, sel, changeCase)
++					break
++				}
++			}
+ 			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
+ 		}
+ 		goto Error
+diff --git a/src/go/types/testdata/decls3.src b/src/go/types/testdata/decls3.src
+index 18ddf5859c..745175c710 100644
+--- a/src/go/types/testdata/decls3.src
++++ b/src/go/types/testdata/decls3.src
+@@ -19,7 +19,7 @@ func _() {
+ 	)
+ 
+ 	var t T3
+-	_ = t.X /* ERROR "ambiguous selector" */
++	_ = t.X /* ERROR "ambiguous selector t.X" */
+ }
+ 
+ func _() {
+@@ -31,7 +31,7 @@ func _() {
+ 	)
+ 
+ 	var t T4
+-	_ = t.X /* ERROR "ambiguous selector" */
++	_ = t.X /* ERROR "ambiguous selector t.X" */
+ }
+ 
+ func issue4355() {
+@@ -44,7 +44,7 @@ func issue4355() {
+ 	)
+ 
+ 	var t T5
+-	_ = t.X /* ERROR "ambiguous selector" */
++	_ = t.X /* ERROR "ambiguous selector t.X" */
+ }
+ 
+ func _() {
+@@ -54,7 +54,7 @@ func _() {
+ 	type T struct{ A; B }
+ 
+ 	var t T
+-	_ = t.State /* ERROR "ambiguous selector" */
++	_ = t.State /* ERROR "ambiguous selector t.State" */
+ }
+ 
+ // Embedded fields can be predeclared types.
+@@ -221,16 +221,16 @@ func _() {
+ 	_ = S2{}.B
+ 	_ = S2{}.C
+ 	_ = S2{}.D /* ERROR "no field or method" */
+-	_ = S3{}.S1 /* ERROR "ambiguous selector" */
++	_ = S3{}.S1 /* ERROR "ambiguous selector \(S3 literal\).S1" */
+ 	_ = S3{}.A
+-	_ = S3{}.B /* ERROR "ambiguous selector" */
++	_ = S3{}.B /* ERROR "ambiguous selector" \(S3 literal\).B */
+ 	_ = S3{}.D
+ 	_ = S3{}.E
+ 	_ = S4{}.A
+ 	_ = S4{}.B /* ERROR "no field or method" */
+-	_ = S5{}.X /* ERROR "ambiguous selector" */
++	_ = S5{}.X /* ERROR "ambiguous selector \(S5 literal\).X" */
+ 	_ = S5{}.Y
+-	_ = S10{}.X /* ERROR "ambiguous selector" */
++	_ = S10{}.X /* ERROR "ambiguous selector \(S10 literal\).X" */
+ 	_ = S10{}.Y
+ }
+ 
+@@ -306,4 +306,4 @@ type R22 R21
+ type R23 R21
+ type R24 R21
+ 
+-var _ = R0{}.X /* ERROR "ambiguous selector" */
+\ No newline at end of file
++var _ = R0{}.X /* ERROR "ambiguous selector \(R0 literal\).X" */
+\ No newline at end of file
+diff --git a/src/go/types/testdata/decls4.src b/src/go/types/testdata/decls4.src
+index ab7c67988b..140bbfd31f 100644
+--- a/src/go/types/testdata/decls4.src
++++ b/src/go/types/testdata/decls4.src
+@@ -190,8 +190,8 @@ type eD struct {
+ }
+ 
+ var (
+-	_ = eD{}.xf /* ERROR ambiguous selector */
+-	_ = eD{}.xm /* ERROR ambiguous selector */
++	_ = eD{}.xf /* ERROR ambiguous selector \(eD literal\).xf */
++	_ = eD{}.xm /* ERROR ambiguous selector \(eD literal\).xm */
+ )
+ 
+ var (
+diff --git a/src/go/types/testdata/expr3.src b/src/go/types/testdata/expr3.src
+index d562f0b16b..63af9fc867 100644
+--- a/src/go/types/testdata/expr3.src
++++ b/src/go/types/testdata/expr3.src
+@@ -155,10 +155,10 @@ func (*T) m() {}
+ func method_expressions() {
+ 	_ = T.a /* ERROR "no field or method" */
+ 	_ = T.x /* ERROR "has no method" */
+-	_ = T.m /* ERROR "not in method set" */
++	_ = T.m /* ERROR "cannot call pointer method m on T" */
+ 	_ = (*T).m
+ 
+-	var f func(*T) = T.m /* ERROR "not in method set" */
++	var f func(*T) = T.m /* ERROR "cannot call pointer method m on T" */
+ 	var g func(*T) = (*T).m
+ 	_, _ = f, g
+ 
+diff --git a/src/go/types/testdata/issue28251.src b/src/go/types/testdata/issue28251.src
+index a456f5c27e..cd79e0e8b5 100644
+--- a/src/go/types/testdata/issue28251.src
++++ b/src/go/types/testdata/issue28251.src
+@@ -41,7 +41,7 @@ type (
+ )
+ 
+ func (T4) m4() {}
+-func _() { (T{}).m4 /* ERROR m4 is not in method set of T */ () }
++func _() { (T{}).m4 /* ERROR "cannot call pointer method m4 on T" */ () }
+ func _() { (&T{}).m4() }
+ 
+ type (
+@@ -51,7 +51,7 @@ type (
+ )
+ 
+ func (T6) m6() {}
+-func _() { (T{}).m6 /* ERROR m6 is not in method set of T */ () }
++func _() { (T{}).m6 /* ERROR "cannot call pointer method m6 on T" */ () }
+ func _() { (&T{}).m6() }
+ 
+ type (
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 6cf4420e51..4944f6f618 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -130,9 +130,13 @@ func issue10260() {
+ 		t2 *T2
+ 	)
+ 
+-	var x I1 = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
++	var x I1
++	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
+ 	_ = x /* ERROR .* cannot have dynamic type T1 \(missing method foo \(foo has pointer receiver\)\) */ .(T1)
+ 
++	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
++	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
++
+ 	_ = i2 /* ERROR i2 .* cannot have dynamic type \*T1 \(wrong type for method foo \(have func\(\), want func\(x int\)\)\) */ .(*T1)
+ 
+ 	i1 = i0 /* ERROR cannot use .* missing method foo */
+@@ -341,7 +345,7 @@ type E1 struct{ f int }
+ type E2 struct{ f int }
+ 
+ func issue26234b(x T) {
+-	_ = x.f /* ERROR ambiguous selector f */
++	_ = x.f /* ERROR ambiguous selector x.f */
+ }
+ 
+ func issue26234c() {
+diff --git a/src/go/types/testdata/methodsets.src b/src/go/types/testdata/methodsets.src
+index 2f21faf1e4..9fb10deb9a 100644
+--- a/src/go/types/testdata/methodsets.src
++++ b/src/go/types/testdata/methodsets.src
+@@ -29,7 +29,7 @@ type T3 struct {
+ func _() {
+ 	var (
+ 		_ func(T0) = T0.v0
+-		_ = T0.p0 /* ERROR "not in method set" */
++		_ = T0.p0 /* ERROR "cannot call pointer method p0 on T0" */
+ 
+ 		_ func (*T0) = (*T0).v0
+ 		_ func (*T0) = (*T0).p0
+@@ -40,7 +40,7 @@ func _() {
+ 		_ func(T2) = T2.p2
+ 
+ 		_ func(T3) = T3.v0
+-		_ func(T3) = T3.p0 /* ERROR "not in method set" */
++		_ func(T3) = T3.p0 /* ERROR "cannot call pointer method p0 on T3" */
+ 		_ func(T3) = T3.v1
+ 		_ func(T3) = T3.p1
+ 		_ func(T3) = T3.v2
+@@ -135,7 +135,7 @@ func _() {
+ func _() {
+ 	var (
+ 		_ func() = T0{}.v0
+-		_ func() = T0{}.p0 /* ERROR "not in method set" */
++		_ func() = T0{}.p0 /* ERROR "cannot call pointer method p0 on T0" */
+ 
+ 		_ func() = (&T0{}).v0
+ 		_ func() = (&T0{}).p0
+@@ -145,7 +145,7 @@ func _() {
+ 		// no values for T2
+ 
+ 		_ func() = T3{}.v0
+-		_ func() = T3{}.p0 /* ERROR "not in method set" */
++		_ func() = T3{}.p0 /* ERROR "cannot call pointer method p0 on T3" */
+ 		_ func() = T3{}.v1
+ 		_ func() = T3{}.p1
+ 		_ func() = T3{}.v2
+@@ -163,7 +163,7 @@ func _() {
+ // Method calls with value receivers
+ func _() {
+ 	T0{}.v0()
+-	T0{}.p0 /* ERROR "not in method set" */ ()
++	T0{}.p0 /* ERROR "cannot call pointer method p0 on T0" */ ()
+ 
+ 	(&T0{}).v0()
+ 	(&T0{}).p0()
+@@ -173,7 +173,7 @@ func _() {
+ 	// no values for T2
+ 
+ 	T3{}.v0()
+-	T3{}.p0 /* ERROR "not in method set" */ ()
++	T3{}.p0 /* ERROR "cannot call pointer method p0 on T3" */ ()
+ 	T3{}.v1()
+ 	T3{}.p1()
+ 	T3{}.v2()

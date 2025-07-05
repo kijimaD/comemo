@@ -13,7 +13,52 @@ Date:   Fri Mar 8 17:30:55 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/166417
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/mpfloat.go | 4 ----
  src/cmd/compile/internal/gc/mpint.go   | 4 ----
  2 files changed, 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index 0379075406..d15f26784e 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"math"
+ 	"math/big"
+-	"strings"
+ )
+ 
+ // implements float arithmetic
+@@ -180,9 +179,6 @@ func (a *Mpflt) Neg() {
+ }
+ 
+ func (a *Mpflt) SetString(as string) {
+-	// TODO(gri) remove this code once math/big.Float.Parse can handle separators
+-	as = strings.Replace(as, "_", "", -1) // strip separators
+-
+ 	// TODO(gri) why is this needed?
+ 	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
+ 		as = as[1:]
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index 81b60dd278..e4dd22d0a0 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -7,7 +7,6 @@ package gc
+ import (
+ 	"fmt"
+ 	"math/big"
+-	"strings"
+ )
+ 
+ // implements integer arithmetic
+@@ -282,9 +281,6 @@ func (a *Mpint) SetInt64(c int64) {
+ }
+ 
+ func (a *Mpint) SetString(as string) {
+-	// TODO(gri) remove this code once math/big.Int.SetString can handle separators
+-	as = strings.Replace(as, "_", "", -1) // strip separators
+-
+ 	_, ok := a.Val.SetString(as, 0)
+ 	if !ok {
+ 		// required syntax is [+-][0[x]]d*

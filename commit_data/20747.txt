@@ -11,7 +11,58 @@ Date:   Mon Oct 6 17:16:39 2014 -0400
     R=golang-codereviews, r, gobot, rsc
     CC=golang-codereviews
     https://golang.org/cl/116440046
-
+---
  src/cmd/gc/dcl.c | 11 +++++++++++
  test/assign.go   | 12 ++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 73c2581beb..cc010d901c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -488,6 +488,10 @@ colasdefn(NodeList *left, Node *defn)
+ 	NodeList *l;
+ 	Node *n;
+ 
++	for(l=left; l; l=l->next)
++		if(l->n->sym != S)
++			l->n->sym->flags |= SymUniq;
++
+ 	nnew = 0;
+ 	nerr = 0;
+ 	for(l=left; l; l=l->next) {
+@@ -499,6 +503,13 @@ colasdefn(NodeList *left, Node *defn)
+ 			nerr++;
+ 			continue;
+ 		}
++		if((n->sym->flags & SymUniq) == 0) {
++			yyerrorl(defn->lineno, "%S repeated on left side of :=", n->sym);
++			n->diag++;
++			nerr++;
++			continue;
++		}
++		n->sym->flags &= ~SymUniq;
+ 		if(n->sym->block == block)
+ 			continue;
+ 
+diff --git a/test/assign.go b/test/assign.go
+index da0192f838..6611f8ce3e 100644
+--- a/test/assign.go
++++ b/test/assign.go
+@@ -53,4 +53,16 @@ func main() {
+ 		_ = x
+ 		_ = y
+ 	}
++	{
++		var x = 1
++		{
++			x, x := 2, 3 // ERROR "x repeated on left side of :="
++			_ = x
++		}
++		_ = x
++	}
++	{
++		a, a := 1, 2 // ERROR "a repeated on left side of :="
++		_ = a
++	}
+ }

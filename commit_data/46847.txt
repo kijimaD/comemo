@@ -19,8 +19,182 @@ Date:   Thu Feb 4 12:40:04 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asm_amd64.s       | 22 ++++++++++++++--------
  src/runtime/race_amd64.s      | 12 ++++++++++++
  src/runtime/sys_linux_amd64.s | 16 ++++++++++++++++
  3 files changed, 42 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 83c08a52f7..93280eee4a 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -585,18 +585,20 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+ 	MOVQ	0(DX), BX
+ 	JMP	BX	// but first run the deferred function
+ 
+-// Save state of caller into g->sched. Smashes R8, R9.
++// Save state of caller into g->sched. Smashes R9.
+ TEXT gosave<>(SB),NOSPLIT,$0
+-	get_tls(R8)
+-	MOVQ	g(R8), R8
++#ifndef GOEXPERIMENT_REGABI
++	get_tls(R14)
++	MOVQ	g(R14), R14
++#endif
+ 	MOVQ	0(SP), R9
+-	MOVQ	R9, (g_sched+gobuf_pc)(R8)
++	MOVQ	R9, (g_sched+gobuf_pc)(R14)
+ 	LEAQ	8(SP), R9
+-	MOVQ	R9, (g_sched+gobuf_sp)(R8)
+-	MOVQ	$0, (g_sched+gobuf_ret)(R8)
+-	MOVQ	BP, (g_sched+gobuf_bp)(R8)
++	MOVQ	R9, (g_sched+gobuf_sp)(R14)
++	MOVQ	$0, (g_sched+gobuf_ret)(R14)
++	MOVQ	BP, (g_sched+gobuf_bp)(R14)
+ 	// Assert ctxt is zero. See func save.
+-	MOVQ	(g_sched+gobuf_ctxt)(R8), R9
++	MOVQ	(g_sched+gobuf_ctxt)(R14), R9
+ 	TESTQ	R9, R9
+ 	JZ	2(PC)
+ 	CALL	runtime·badctxt(SB)
+@@ -1391,9 +1393,13 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
+ 	MOVQ	R13, 104(SP)
+ 	// TODO: Consider passing g.m.p in as an argument so they can be shared
+ 	// across a sequence of write barriers.
++#ifdef GOEXPERIMENT_REGABI
++	MOVQ	g_m(R14), R13
++#else
+ 	get_tls(R13)
+ 	MOVQ	g(R13), R13
+ 	MOVQ	g_m(R13), R13
++#endif
+ 	MOVQ	m_p(R13), R13
+ 	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12
+ 	// Increment wbBuf.next position.
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 7f97025c1a..c3b7bbfbfe 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -146,8 +146,10 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
+ // If addr (RARG1) is out of range, do nothing.
+ // Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
+ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
++#ifndef GOEXPERIMENT_REGABI
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
++#endif
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
+ 	CMPQ	RARG1, runtime·racearenastart(SB)
+@@ -183,8 +185,10 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+ // R11 = caller's return address
+ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ 	MOVQ	DX, R15		// save function entry context (for closures)
++#ifndef GOEXPERIMENT_REGABI
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
++#endif
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	MOVQ	R11, RARG1
+ 	// void __tsan_func_enter(ThreadState *thr, void *pc);
+@@ -197,8 +201,10 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ // func runtime·racefuncexit()
+ // Called from instrumented code.
+ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
++#ifndef GOEXPERIMENT_REGABI
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
++#endif
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	// void __tsan_func_exit(ThreadState *thr);
+ 	MOVQ	$__tsan_func_exit(SB), AX
+@@ -357,8 +363,10 @@ racecallatomic_data:
+ 	JAE	racecallatomic_ignore
+ racecallatomic_ok:
+ 	// Addr is within the good range, call the atomic function.
++#ifndef GOEXPERIMENT_REGABI
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
++#endif
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	MOVQ	8(SP), RARG1	// caller pc
+ 	MOVQ	(SP), RARG2	// pc
+@@ -370,8 +378,10 @@ racecallatomic_ignore:
+ 	// An attempt to synchronize on the address would cause crash.
+ 	MOVQ	AX, R15	// remember the original function
+ 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
++#ifndef GOEXPERIMENT_REGABI
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
++#endif
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	CALL	racecall<>(SB)
+ 	MOVQ	R15, AX	// restore the original function
+@@ -399,8 +409,10 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
+ 
+ // Switches SP to g0 stack and calls (AX). Arguments already set.
+ TEXT	racecall<>(SB), NOSPLIT, $0-0
++#ifndef GOEXPERIMENT_REGABI
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
++#endif
+ 	MOVQ	g_m(R14), R13
+ 	// Switch to g0 stack.
+ 	MOVQ	SP, R12		// callee-saved, preserved across the CALL
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index b0a201fc6f..d48573c2c5 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -215,9 +215,13 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+ 
+ 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
+ 
++#ifdef GOEXPERIMENT_REGABI
++	MOVQ	g_m(R14), BX // BX unchanged by C code.
++#else
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+ 	MOVQ	g_m(AX), BX // BX unchanged by C code.
++#endif
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+ 	// Save the old values on stack and restore them on exit,
+@@ -232,7 +236,11 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+ 	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	DX, m_vdsoSP(BX)
+ 
++#ifdef GOEXPERIMENT_REGABI
++	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
++#else
+ 	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
++#endif
+ 	JNE	noswitch
+ 
+ 	MOVQ	m_g0(BX), DX
+@@ -275,9 +283,13 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 
+ 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
+ 
++#ifdef GOEXPERIMENT_REGABI
++	MOVQ	g_m(R14), BX // BX unchanged by C code.
++#else
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+ 	MOVQ	g_m(AX), BX // BX unchanged by C code.
++#endif
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+ 	// Save the old values on stack and restore them on exit,
+@@ -292,7 +304,11 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	DX, m_vdsoSP(BX)
+ 
++#ifdef GOEXPERIMENT_REGABI
++	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
++#else
+ 	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
++#endif
+ 	JNE	noswitch
+ 
+ 	MOVQ	m_g0(BX), DX

@@ -16,7 +16,7 @@ Date:   Tue Sep 21 10:20:02 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/351309
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/importer/testdata/a.go             | 1 -
  src/cmd/compile/internal/importer/testdata/b.go             | 1 -
  src/cmd/compile/internal/importer/testdata/exports.go       | 1 -
@@ -27,3 +27,85 @@ Date:   Tue Sep 21 10:20:02 2021 -0700
  src/cmd/compile/internal/importer/testdata/p.go             | 1 -
  src/cmd/compile/internal/importer/testdata/versions/test.go | 1 -
  9 files changed, 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/testdata/a.go b/src/cmd/compile/internal/importer/testdata/a.go
+index 06dafee98c..56e4292cda 100644
+--- a/src/cmd/compile/internal/importer/testdata/a.go
++++ b/src/cmd/compile/internal/importer/testdata/a.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/importer/testdata/b.go b/src/cmd/compile/internal/importer/testdata/b.go
+index a601dbccc5..4196678200 100644
+--- a/src/cmd/compile/internal/importer/testdata/b.go
++++ b/src/cmd/compile/internal/importer/testdata/b.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/importer/testdata/exports.go b/src/cmd/compile/internal/importer/testdata/exports.go
+index 2a720fd2c1..8ba3242102 100644
+--- a/src/cmd/compile/internal/importer/testdata/exports.go
++++ b/src/cmd/compile/internal/importer/testdata/exports.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/importer/testdata/issue15920.go b/src/cmd/compile/internal/importer/testdata/issue15920.go
+index b402026162..c70f7d8267 100644
+--- a/src/cmd/compile/internal/importer/testdata/issue15920.go
++++ b/src/cmd/compile/internal/importer/testdata/issue15920.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/importer/testdata/issue20046.go b/src/cmd/compile/internal/importer/testdata/issue20046.go
+index e412f353ad..c63ee821c9 100644
+--- a/src/cmd/compile/internal/importer/testdata/issue20046.go
++++ b/src/cmd/compile/internal/importer/testdata/issue20046.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/importer/testdata/issue25301.go b/src/cmd/compile/internal/importer/testdata/issue25301.go
+index a9dc1d7f08..e3dc98b4e1 100644
+--- a/src/cmd/compile/internal/importer/testdata/issue25301.go
++++ b/src/cmd/compile/internal/importer/testdata/issue25301.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/importer/testdata/issue25596.go b/src/cmd/compile/internal/importer/testdata/issue25596.go
+index 95bef42280..8923373e5f 100644
+--- a/src/cmd/compile/internal/importer/testdata/issue25596.go
++++ b/src/cmd/compile/internal/importer/testdata/issue25596.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/importer/testdata/p.go b/src/cmd/compile/internal/importer/testdata/p.go
+index 34a20eaa14..9e2e705765 100644
+--- a/src/cmd/compile/internal/importer/testdata/p.go
++++ b/src/cmd/compile/internal/importer/testdata/p.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/importer/testdata/versions/test.go b/src/cmd/compile/internal/importer/testdata/versions/test.go
+index 2f8eb5ced0..227fc09251 100644
+--- a/src/cmd/compile/internal/importer/testdata/versions/test.go
++++ b/src/cmd/compile/internal/importer/testdata/versions/test.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

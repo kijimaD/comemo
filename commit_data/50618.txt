@@ -9,6 +9,22 @@ Date:   Tue Aug 3 21:39:29 2021 +0430
     Reviewed-on: https://go-review.googlesource.com/c/go/+/339291
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/database/sql/sql.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 897bca059b..5131c08b51 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2364,8 +2364,8 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
+ 
+ // Prepare creates a prepared statement for use within a transaction.
+ //
+-// The returned statement operates within the transaction and can no longer
+-// be used once the transaction has been committed or rolled back.
++// The returned statement operates within the transaction and will be closed
++// when the transaction has been committed or rolled back.
+ //
+ // To use an existing prepared statement on this transaction, see Tx.Stmt.
+ //

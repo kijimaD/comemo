@@ -26,6 +26,44 @@ Date:   Fri Apr 1 15:36:17 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/run.bat | 18 ++++++------------
  1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/run.bat b/src/run.bat
+index edcaf52659..1f16c493bb 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -24,26 +24,20 @@ set GOBIN=
+ set GOFLAGS=
+ set GO111MODULE=
+ 
+-rem TODO avoid rebuild if possible
+-
+-if x%1==x--no-rebuild goto norebuild
+-echo ##### Building packages and commands.
+-..\bin\go install -a -v std cmd
+-if errorlevel 1 goto fail
+-echo.
+-:norebuild
+-
+ :: get CGO_ENABLED
+ ..\bin\go env > env.bat
+ if errorlevel 1 goto fail
+ call env.bat
+ del env.bat
+-echo.
+ 
+-..\bin\go tool dist test
++if x%1==x--no-rebuild goto norebuild
++..\bin\go tool dist test --rebuild
+ if errorlevel 1 goto fail
+-echo.
++goto end
+ 
++:norebuild
++..\bin\go tool dist test
++if errorlevel 1 goto fail
+ goto end
+ 
+ :fail

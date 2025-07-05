@@ -18,7 +18,34 @@ Date:   Fri Sep 23 21:29:44 2022 +0000
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/vcs.go | 2 +-
  src/cmd/go/internal/vcs/vcs.go               | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 4d0e863182..99be8646a4 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -587,7 +587,7 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
+ 			if len(f) != 5 || len(f[1]) != 40 || f[4] != "UTC" {
+ 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
+ 			}
+-			t, err := time.Parse("2006-01-02 15:04:05", f[2]+" "+f[3])
++			t, err := time.Parse(time.DateTime, f[2]+" "+f[3])
+ 			if err != nil {
+ 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
+ 			}
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 9ea8eb2bad..baa0876742 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -561,7 +561,7 @@ func fossilStatus(vcsFossil *Cmd, rootDir string) (Status, error) {
+ 	}
+ 	rev := checkout[:i]
+ 
+-	commitTime, err := time.ParseInLocation("2006-01-02 15:04:05", checkout[i+1:], time.UTC)
++	commitTime, err := time.ParseInLocation(time.DateTime, checkout[i+1:], time.UTC)
+ 	if err != nil {
+ 		return Status{}, fmt.Errorf("%v: %v", errFossilInfo, err)
+ 	}

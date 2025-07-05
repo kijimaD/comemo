@@ -7,6 +7,20 @@ Date:   Tue Nov 24 15:01:44 2009 -0800
     
     R=rsc
     https://golang.org/cl/160059
-
+---
  src/pkg/math/sin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/math/sin.go b/src/pkg/math/sin.go
+index 70b7218c96..25f6763558 100644
+--- a/src/pkg/math/sin.go
++++ b/src/pkg/math/sin.go
+@@ -28,7 +28,7 @@ func sinus(x float64, quad int) float64 {
+ 		var e float64;
+ 		e, y = Modf(x);
+ 		e = e + float64(quad);
+-		_, f := Modf(0.25 * e);
++		f, _ := Modf(0.25 * e);
+ 		quad = int(e - 4*f);
+ 	} else {
+ 		k := int32(x);

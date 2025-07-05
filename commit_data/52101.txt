@@ -15,6 +15,66 @@ Date:   Sun Mar 27 03:07:30 2022 +0200
     Trust: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/elliptic/fuzz_test.go | 53 ----------------------------------------
  1 file changed, 53 deletions(-)
+
+diff --git a/src/crypto/elliptic/fuzz_test.go b/src/crypto/elliptic/fuzz_test.go
+deleted file mode 100644
+index 2b5ddae1d9..0000000000
+--- a/src/crypto/elliptic/fuzz_test.go
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build amd64 || arm64 || ppc64le
+-
+-package elliptic
+-
+-import (
+-	"crypto/rand"
+-	"testing"
+-	"time"
+-)
+-
+-func TestFuzz(t *testing.T) {
+-	p256 := P256()
+-	p256Generic := p256.Params()
+-
+-	var scalar1 [32]byte
+-	var scalar2 [32]byte
+-	var timeout *time.Timer
+-
+-	if testing.Short() {
+-		timeout = time.NewTimer(10 * time.Millisecond)
+-	} else {
+-		timeout = time.NewTimer(2 * time.Second)
+-	}
+-
+-	for {
+-		select {
+-		case <-timeout.C:
+-			return
+-		default:
+-		}
+-
+-		rand.Read(scalar1[:])
+-		rand.Read(scalar2[:])
+-
+-		x, y := p256.ScalarBaseMult(scalar1[:])
+-		x2, y2 := p256Generic.ScalarBaseMult(scalar1[:])
+-
+-		xx, yy := p256.ScalarMult(x, y, scalar2[:])
+-		xx2, yy2 := p256Generic.ScalarMult(x2, y2, scalar2[:])
+-
+-		if x.Cmp(x2) != 0 || y.Cmp(y2) != 0 {
+-			t.Fatalf("ScalarBaseMult does not match reference result with scalar: %x, please report this error to security@golang.org", scalar1)
+-		}
+-
+-		if xx.Cmp(xx2) != 0 || yy.Cmp(yy2) != 0 {
+-			t.Fatalf("ScalarMult does not match reference result with scalars: %x and %x, please report this error to security@golang.org", scalar1, scalar2)
+-		}
+-	}
+-}

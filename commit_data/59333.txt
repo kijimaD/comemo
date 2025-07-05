@@ -14,6 +14,20 @@ Date:   Tue Oct 17 08:22:46 2023 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index bd7cce6793..b0a2a1d888 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2379,7 +2379,7 @@ func RedirectHandler(url string, code int) Handler {
+ // There is one exception to this rule, for backwards compatibility:
+ // if two patterns would otherwise conflict and one has a host while the other does not,
+ // then the pattern with the host takes precedence.
+-// If a pattern passed [ServeMux.Handle] or [ServeMux.HandleFunc] conflicts with
++// If a pattern passed to [ServeMux.Handle] or [ServeMux.HandleFunc] conflicts with
+ // another pattern that is already registered, those functions panic.
+ //
+ // As an example of the general rule, "/images/thumbnails/" is more specific than "/images/",

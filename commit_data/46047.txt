@@ -14,7 +14,7 @@ Date:   Wed Dec 2 20:18:47 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  37 ++----
  src/cmd/compile/internal/gc/const.go     |  72 +++++-------
  src/cmd/compile/internal/gc/inl.go       | 192 ++++++++++++-------------------
@@ -23,3 +23,834 @@ Date:   Wed Dec 2 20:18:47 2020 -0500
  src/cmd/compile/internal/gc/typecheck.go |  78 ++++++-------
  src/cmd/compile/internal/gc/walk.go      | 180 +++++++++++++----------------
  7 files changed, 240 insertions(+), 334 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index b2716399a5..c786a27415 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -782,37 +782,14 @@ func geneq(t *types.Type) *obj.LSym {
+ 	return closure
+ }
+ 
+-func hasCall(n ir.Node) bool {
+-	if n.Op() == ir.OCALL || n.Op() == ir.OCALLFUNC {
+-		return true
+-	}
+-	if n.Left() != nil && hasCall(n.Left()) {
+-		return true
+-	}
+-	if n.Right() != nil && hasCall(n.Right()) {
+-		return true
+-	}
+-	for _, x := range n.Init().Slice() {
+-		if hasCall(x) {
+-			return true
+-		}
+-	}
+-	for _, x := range n.Body().Slice() {
+-		if hasCall(x) {
+-			return true
+-		}
+-	}
+-	for _, x := range n.List().Slice() {
+-		if hasCall(x) {
+-			return true
++func hasCall(fn *ir.Func) bool {
++	found := ir.Find(fn, func(n ir.Node) interface{} {
++		if op := n.Op(); op == ir.OCALL || op == ir.OCALLFUNC {
++			return n
+ 		}
+-	}
+-	for _, x := range n.Rlist().Slice() {
+-		if hasCall(x) {
+-			return true
+-		}
+-	}
+-	return false
++		return nil
++	})
++	return found != nil
+ }
+ 
+ // eqfield returns the node
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 9aa65f97b6..6cd414a419 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -553,7 +553,7 @@ func evalConst(n ir.Node) ir.Node {
+ 				return origIntConst(n, int64(len(ir.StringVal(nl))))
+ 			}
+ 		case types.TARRAY:
+-			if !hascallchan(nl) {
++			if !hasCallOrChan(nl) {
+ 				return origIntConst(n, nl.Type().NumElem())
+ 			}
+ 		}
+@@ -779,49 +779,35 @@ func isGoConst(n ir.Node) bool {
+ 	return n.Op() == ir.OLITERAL
+ }
+ 
+-func hascallchan(n ir.Node) bool {
+-	if n == nil {
+-		return false
+-	}
+-	switch n.Op() {
+-	case ir.OAPPEND,
+-		ir.OCALL,
+-		ir.OCALLFUNC,
+-		ir.OCALLINTER,
+-		ir.OCALLMETH,
+-		ir.OCAP,
+-		ir.OCLOSE,
+-		ir.OCOMPLEX,
+-		ir.OCOPY,
+-		ir.ODELETE,
+-		ir.OIMAG,
+-		ir.OLEN,
+-		ir.OMAKE,
+-		ir.ONEW,
+-		ir.OPANIC,
+-		ir.OPRINT,
+-		ir.OPRINTN,
+-		ir.OREAL,
+-		ir.ORECOVER,
+-		ir.ORECV:
+-		return true
+-	}
+-
+-	if hascallchan(n.Left()) || hascallchan(n.Right()) {
+-		return true
+-	}
+-	for _, n1 := range n.List().Slice() {
+-		if hascallchan(n1) {
+-			return true
+-		}
+-	}
+-	for _, n2 := range n.Rlist().Slice() {
+-		if hascallchan(n2) {
+-			return true
++// hasCallOrChan reports whether n contains any calls or channel operations.
++func hasCallOrChan(n ir.Node) bool {
++	found := ir.Find(n, func(n ir.Node) interface{} {
++		switch n.Op() {
++		case ir.OAPPEND,
++			ir.OCALL,
++			ir.OCALLFUNC,
++			ir.OCALLINTER,
++			ir.OCALLMETH,
++			ir.OCAP,
++			ir.OCLOSE,
++			ir.OCOMPLEX,
++			ir.OCOPY,
++			ir.ODELETE,
++			ir.OIMAG,
++			ir.OLEN,
++			ir.OMAKE,
++			ir.ONEW,
++			ir.OPANIC,
++			ir.OPRINT,
++			ir.OPRINTN,
++			ir.OREAL,
++			ir.ORECOVER,
++			ir.ORECV:
++			return n
+ 		}
+-	}
+-
+-	return false
++		return nil
++	})
++	return found != nil
+ }
+ 
+ // A constSet represents a set of Go constant expressions.
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index efd6fea844..09ec0b6f99 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -33,6 +33,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
++	"errors"
+ 	"fmt"
+ 	"go/constant"
+ 	"strings"
+@@ -206,14 +207,10 @@ func caninl(fn *ir.Func) {
+ 		extraCallCost: cc,
+ 		usedLocals:    make(map[ir.Node]bool),
+ 	}
+-	if visitor.visitList(fn.Body()) {
++	if visitor.tooHairy(fn) {
+ 		reason = visitor.reason
+ 		return
+ 	}
+-	if visitor.budget < 0 {
+-		reason = fmt.Sprintf("function too complex: cost %d exceeds budget %d", inlineMaxBudget-visitor.budget, inlineMaxBudget)
+-		return
+-	}
+ 
+ 	n.Func().Inl = &ir.Inline{
+ 		Cost: inlineMaxBudget - visitor.budget,
+@@ -296,21 +293,29 @@ type hairyVisitor struct {
+ 	reason        string
+ 	extraCallCost int32
+ 	usedLocals    map[ir.Node]bool
++	do            func(ir.Node) error
+ }
+ 
+-// Look for anything we want to punt on.
+-func (v *hairyVisitor) visitList(ll ir.Nodes) bool {
+-	for _, n := range ll.Slice() {
+-		if v.visit(n) {
+-			return true
+-		}
++var errBudget = errors.New("too expensive")
++
++func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
++	v.do = v.doNode // cache closure
++
++	err := ir.DoChildren(fn, v.do)
++	if err != nil {
++		v.reason = err.Error()
++		return true
++	}
++	if v.budget < 0 {
++		v.reason = fmt.Sprintf("function too complex: cost %d exceeds budget %d", inlineMaxBudget-v.budget, inlineMaxBudget)
++		return true
+ 	}
+ 	return false
+ }
+ 
+-func (v *hairyVisitor) visit(n ir.Node) bool {
++func (v *hairyVisitor) doNode(n ir.Node) error {
+ 	if n == nil {
+-		return false
++		return nil
+ 	}
+ 
+ 	switch n.Op() {
+@@ -323,8 +328,7 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
+ 		if n.Left().Op() == ir.ONAME && n.Left().Class() == ir.PFUNC && isRuntimePkg(n.Left().Sym().Pkg) {
+ 			fn := n.Left().Sym().Name
+ 			if fn == "getcallerpc" || fn == "getcallersp" {
+-				v.reason = "call to " + fn
+-				return true
++				return errors.New("call to " + fn)
+ 			}
+ 			if fn == "throw" {
+ 				v.budget -= inlineExtraThrowCost
+@@ -380,8 +384,7 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
+ 	case ir.ORECOVER:
+ 		// recover matches the argument frame pointer to find
+ 		// the right panic value, so it needs an argument frame.
+-		v.reason = "call to recover"
+-		return true
++		return errors.New("call to recover")
+ 
+ 	case ir.OCLOSURE,
+ 		ir.ORANGE,
+@@ -390,21 +393,19 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
+ 		ir.ODEFER,
+ 		ir.ODCLTYPE, // can't print yet
+ 		ir.ORETJMP:
+-		v.reason = "unhandled op " + n.Op().String()
+-		return true
++		return errors.New("unhandled op " + n.Op().String())
+ 
+ 	case ir.OAPPEND:
+ 		v.budget -= inlineExtraAppendCost
+ 
+ 	case ir.ODCLCONST, ir.OFALL:
+ 		// These nodes don't produce code; omit from inlining budget.
+-		return false
++		return nil
+ 
+ 	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH:
+ 		// ORANGE, OSELECT in "unhandled" above
+ 		if n.Sym() != nil {
+-			v.reason = "labeled control"
+-			return true
++			return errors.New("labeled control")
+ 		}
+ 
+ 	case ir.OBREAK, ir.OCONTINUE:
+@@ -416,8 +417,17 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
+ 	case ir.OIF:
+ 		if ir.IsConst(n.Left(), constant.Bool) {
+ 			// This if and the condition cost nothing.
+-			return v.visitList(n.Init()) || v.visitList(n.Body()) ||
+-				v.visitList(n.Rlist())
++			// TODO(rsc): It seems strange that we visit the dead branch.
++			if err := ir.DoList(n.Init(), v.do); err != nil {
++				return err
++			}
++			if err := ir.DoList(n.Body(), v.do); err != nil {
++				return err
++			}
++			if err := ir.DoList(n.Rlist(), v.do); err != nil {
++				return err
++			}
++			return nil
+ 		}
+ 
+ 	case ir.ONAME:
+@@ -439,34 +449,22 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
+ 
+ 	// When debugging, don't stop early, to get full cost of inlining this function
+ 	if v.budget < 0 && base.Flag.LowerM < 2 && !logopt.Enabled() {
+-		return true
++		return errBudget
+ 	}
+ 
+-	return v.visit(n.Left()) || v.visit(n.Right()) ||
+-		v.visitList(n.List()) || v.visitList(n.Rlist()) ||
+-		v.visitList(n.Init()) || v.visitList(n.Body())
++	return ir.DoChildren(n, v.do)
+ }
+ 
+-func countNodes(n ir.Node) int {
+-	if n == nil {
+-		return 0
+-	}
+-	cnt := 1
+-	cnt += countNodes(n.Left())
+-	cnt += countNodes(n.Right())
+-	for _, n1 := range n.Init().Slice() {
+-		cnt += countNodes(n1)
+-	}
+-	for _, n1 := range n.Body().Slice() {
+-		cnt += countNodes(n1)
+-	}
+-	for _, n1 := range n.List().Slice() {
+-		cnt += countNodes(n1)
+-	}
+-	for _, n1 := range n.Rlist().Slice() {
+-		cnt += countNodes(n1)
+-	}
+-	return cnt
++func isBigFunc(fn *ir.Func) bool {
++	budget := inlineBigFunctionNodes
++	over := ir.Find(fn, func(n ir.Node) interface{} {
++		budget--
++		if budget <= 0 {
++			return n
++		}
++		return nil
++	})
++	return over != nil
+ }
+ 
+ // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
+@@ -475,7 +473,7 @@ func inlcalls(fn *ir.Func) {
+ 	savefn := Curfn
+ 	Curfn = fn
+ 	maxCost := int32(inlineMaxBudget)
+-	if countNodes(fn) >= inlineBigFunctionNodes {
++	if isBigFunc(fn) {
+ 		maxCost = inlineBigFunctionMaxCost
+ 	}
+ 	// Map to keep track of functions that have been inlined at a particular
+@@ -742,82 +740,45 @@ FindRHS:
+ 		base.Fatalf("RHS is nil: %v", defn)
+ 	}
+ 
+-	unsafe, _ := reassigned(n.(*ir.Name))
+-	if unsafe {
++	if reassigned(n.(*ir.Name)) {
+ 		return nil
+ 	}
+ 
+ 	return rhs
+ }
+ 
++var errFound = errors.New("found")
++
+ // reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
+ // indicating whether the name has any assignments other than its declaration.
+ // The second return value is the first such assignment encountered in the walk, if any. It is mostly
+ // useful for -m output documenting the reason for inhibited optimizations.
+ // NB: global variables are always considered to be re-assigned.
+ // TODO: handle initial declaration not including an assignment and followed by a single assignment?
+-func reassigned(n *ir.Name) (bool, ir.Node) {
+-	if n.Op() != ir.ONAME {
+-		base.Fatalf("reassigned %v", n)
++func reassigned(name *ir.Name) bool {
++	if name.Op() != ir.ONAME {
++		base.Fatalf("reassigned %v", name)
+ 	}
+ 	// no way to reliably check for no-reassignment of globals, assume it can be
+-	if n.Curfn == nil {
+-		return true, nil
+-	}
+-	f := n.Curfn
+-	v := reassignVisitor{name: n}
+-	a := v.visitList(f.Body())
+-	return a != nil, a
+-}
+-
+-type reassignVisitor struct {
+-	name ir.Node
+-}
+-
+-func (v *reassignVisitor) visit(n ir.Node) ir.Node {
+-	if n == nil {
+-		return nil
++	if name.Curfn == nil {
++		return true
+ 	}
+-	switch n.Op() {
+-	case ir.OAS:
+-		if n.Left() == v.name && n != v.name.Name().Defn {
+-			return n
+-		}
+-	case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE:
+-		for _, p := range n.List().Slice() {
+-			if p == v.name && n != v.name.Name().Defn {
++	a := ir.Find(name.Curfn, func(n ir.Node) interface{} {
++		switch n.Op() {
++		case ir.OAS:
++			if n.Left() == name && n != name.Defn {
+ 				return n
+ 			}
++		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE:
++			for _, p := range n.List().Slice() {
++				if p == name && n != name.Defn {
++					return n
++				}
++			}
+ 		}
+-	}
+-	if a := v.visit(n.Left()); a != nil {
+-		return a
+-	}
+-	if a := v.visit(n.Right()); a != nil {
+-		return a
+-	}
+-	if a := v.visitList(n.List()); a != nil {
+-		return a
+-	}
+-	if a := v.visitList(n.Rlist()); a != nil {
+-		return a
+-	}
+-	if a := v.visitList(n.Init()); a != nil {
+-		return a
+-	}
+-	if a := v.visitList(n.Body()); a != nil {
+-		return a
+-	}
+-	return nil
+-}
+-
+-func (v *reassignVisitor) visitList(l ir.Nodes) ir.Node {
+-	for _, n := range l.Slice() {
+-		if a := v.visit(n); a != nil {
+-			return a
+-		}
+-	}
+-	return nil
++		return nil
++	})
++	return a != nil
+ }
+ 
+ func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node {
+@@ -1140,6 +1101,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool)
+ 		bases:        make(map[*src.PosBase]*src.PosBase),
+ 		newInlIndex:  newIndex,
+ 	}
++	subst.edit = subst.node
+ 
+ 	body := subst.list(ir.AsNodes(fn.Inl.Body))
+ 
+@@ -1248,6 +1210,8 @@ type inlsubst struct {
+ 	// newInlIndex is the index of the inlined call frame to
+ 	// insert for inlined nodes.
+ 	newInlIndex int
++
++	edit func(ir.Node) ir.Node // cached copy of subst.node method value closure
+ }
+ 
+ // list inlines a list of nodes.
+@@ -1334,21 +1298,13 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		return m
+ 	}
+ 
+-	m := ir.Copy(n)
+-	m.SetPos(subst.updatedPos(m.Pos()))
+-	m.PtrInit().Set(nil)
+-
+ 	if n.Op() == ir.OCLOSURE {
+ 		base.Fatalf("cannot inline function containing closure: %+v", n)
+ 	}
+ 
+-	m.SetLeft(subst.node(n.Left()))
+-	m.SetRight(subst.node(n.Right()))
+-	m.PtrList().Set(subst.list(n.List()))
+-	m.PtrRlist().Set(subst.list(n.Rlist()))
+-	m.PtrInit().Set(append(m.Init().Slice(), subst.list(n.Init())...))
+-	m.PtrBody().Set(subst.list(n.Body()))
+-
++	m := ir.Copy(n)
++	m.SetPos(subst.updatedPos(m.Pos()))
++	ir.EditChildren(m, subst.edit)
+ 	return m
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 5440806e8e..1680d9d920 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1062,6 +1062,10 @@ func (o *Order) exprListInPlace(l ir.Nodes) {
+ // prealloc[x] records the allocation to use for x.
+ var prealloc = map[ir.Node]ir.Node{}
+ 
++func (o *Order) exprNoLHS(n ir.Node) ir.Node {
++	return o.expr(n, nil)
++}
++
+ // expr orders a single expression, appending side
+ // effects to o.out as needed.
+ // If this is part of an assignment lhs = *np, lhs is given.
+@@ -1079,10 +1083,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
+ 
+ 	switch n.Op() {
+ 	default:
+-		n.SetLeft(o.expr(n.Left(), nil))
+-		n.SetRight(o.expr(n.Right(), nil))
+-		o.exprList(n.List())
+-		o.exprList(n.Rlist())
++		ir.EditChildren(n, o.exprNoLHS)
+ 
+ 	// Addition of strings turns into a function call.
+ 	// Allocate a temporary to hold the strings.
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 3ef976d8aa..20abbfef8c 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -60,7 +60,8 @@ func (s *InitSchedule) tryStaticInit(n ir.Node) bool {
+ 	if n.Op() != ir.OAS {
+ 		return false
+ 	}
+-	if ir.IsBlank(n.Left()) && candiscard(n.Right()) {
++	if ir.IsBlank(n.Left()) && !hasSideEffects(n.Right()) {
++		// Discard.
+ 		return true
+ 	}
+ 	lno := setlineno(n)
+@@ -548,7 +549,8 @@ func fixedlit(ctxt initContext, kind initKind, n ir.Node, var_ ir.Node, init *ir
+ 
+ 	for _, r := range n.List().Slice() {
+ 		a, value := splitnode(r)
+-		if a == ir.BlankNode && candiscard(value) {
++		if a == ir.BlankNode && !hasSideEffects(value) {
++			// Discard.
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e2100481aa..a8acd468c9 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3669,51 +3669,52 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
+ 	return true
+ }
+ 
+-func markbreak(labels *map[*types.Sym]ir.Node, n ir.Node, implicit ir.Node) {
+-	if n == nil {
+-		return
+-	}
++// markBreak marks control statements containing break statements with SetHasBreak(true).
++func markBreak(fn *ir.Func) {
++	var labels map[*types.Sym]ir.Node
++	var implicit ir.Node
+ 
+-	switch n.Op() {
+-	case ir.OBREAK:
+-		if n.Sym() == nil {
+-			if implicit != nil {
+-				implicit.SetHasBreak(true)
++	var mark func(ir.Node) error
++	mark = func(n ir.Node) error {
++		switch n.Op() {
++		default:
++			ir.DoChildren(n, mark)
++
++		case ir.OBREAK:
++			if n.Sym() == nil {
++				if implicit != nil {
++					implicit.SetHasBreak(true)
++				}
++			} else {
++				if lab := labels[n.Sym()]; lab != nil {
++					lab.SetHasBreak(true)
++				}
+ 			}
+-		} else {
+-			if lab := (*labels)[n.Sym()]; lab != nil {
+-				lab.SetHasBreak(true)
++
++		case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OTYPESW, ir.OSELECT, ir.ORANGE:
++			old := implicit
++			implicit = n
++			sym := n.Sym()
++			if sym != nil {
++				if labels == nil {
++					// Map creation delayed until we need it - most functions don't.
++					labels = make(map[*types.Sym]ir.Node)
++				}
++				labels[sym] = n
+ 			}
+-		}
+-	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OTYPESW, ir.OSELECT, ir.ORANGE:
+-		implicit = n
+-		if sym := n.Sym(); sym != nil {
+-			if *labels == nil {
+-				// Map creation delayed until we need it - most functions don't.
+-				*labels = make(map[*types.Sym]ir.Node)
++			ir.DoChildren(n, mark)
++			if sym != nil {
++				delete(labels, sym)
+ 			}
+-			(*labels)[sym] = n
+-			defer delete(*labels, sym)
++			implicit = old
+ 		}
+-		fallthrough
+-	default:
+-		markbreak(labels, n.Left(), implicit)
+-		markbreak(labels, n.Right(), implicit)
+-		markbreaklist(labels, n.Init(), implicit)
+-		markbreaklist(labels, n.Body(), implicit)
+-		markbreaklist(labels, n.List(), implicit)
+-		markbreaklist(labels, n.Rlist(), implicit)
++		return nil
+ 	}
+-}
+ 
+-func markbreaklist(labels *map[*types.Sym]ir.Node, l ir.Nodes, implicit ir.Node) {
+-	s := l.Slice()
+-	for i := 0; i < len(s); i++ {
+-		markbreak(labels, s[i], implicit)
+-	}
++	mark(fn)
+ }
+ 
+-// isterminating reports whether the Nodes list ends with a terminating statement.
++// isTermNodes reports whether the Nodes list ends with a terminating statement.
+ func isTermNodes(l ir.Nodes) bool {
+ 	s := l.Slice()
+ 	c := len(s)
+@@ -3723,7 +3724,7 @@ func isTermNodes(l ir.Nodes) bool {
+ 	return isTermNode(s[c-1])
+ }
+ 
+-// Isterminating reports whether the node n, the last one in a
++// isTermNode reports whether the node n, the last one in a
+ // statement list, is a terminating statement.
+ func isTermNode(n ir.Node) bool {
+ 	switch n.Op() {
+@@ -3776,8 +3777,7 @@ func isTermNode(n ir.Node) bool {
+ // checkreturn makes sure that fn terminates appropriately.
+ func checkreturn(fn *ir.Func) {
+ 	if fn.Type().NumResults() != 0 && fn.Body().Len() != 0 {
+-		var labels map[*types.Sym]ir.Node
+-		markbreaklist(&labels, fn.Body(), nil)
++		markBreak(fn)
+ 		if !isTermNodes(fn.Body()) {
+ 			base.ErrorfAt(fn.Endlineno, "missing return at end of function")
+ 		}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 3d22c66d90..bbc08ab953 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3786,107 +3786,91 @@ func usefield(n ir.Node) {
+ 	Curfn.FieldTrack[sym] = struct{}{}
+ }
+ 
+-func candiscardlist(l ir.Nodes) bool {
+-	for _, n := range l.Slice() {
+-		if !candiscard(n) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-func candiscard(n ir.Node) bool {
+-	if n == nil {
+-		return true
+-	}
+-
+-	switch n.Op() {
+-	default:
+-		return false
+-
+-		// Discardable as long as the subpieces are.
+-	case ir.ONAME,
+-		ir.ONONAME,
+-		ir.OTYPE,
+-		ir.OPACK,
+-		ir.OLITERAL,
+-		ir.ONIL,
+-		ir.OADD,
+-		ir.OSUB,
+-		ir.OOR,
+-		ir.OXOR,
+-		ir.OADDSTR,
+-		ir.OADDR,
+-		ir.OANDAND,
+-		ir.OBYTES2STR,
+-		ir.ORUNES2STR,
+-		ir.OSTR2BYTES,
+-		ir.OSTR2RUNES,
+-		ir.OCAP,
+-		ir.OCOMPLIT,
+-		ir.OMAPLIT,
+-		ir.OSTRUCTLIT,
+-		ir.OARRAYLIT,
+-		ir.OSLICELIT,
+-		ir.OPTRLIT,
+-		ir.OCONV,
+-		ir.OCONVIFACE,
+-		ir.OCONVNOP,
+-		ir.ODOT,
+-		ir.OEQ,
+-		ir.ONE,
+-		ir.OLT,
+-		ir.OLE,
+-		ir.OGT,
+-		ir.OGE,
+-		ir.OKEY,
+-		ir.OSTRUCTKEY,
+-		ir.OLEN,
+-		ir.OMUL,
+-		ir.OLSH,
+-		ir.ORSH,
+-		ir.OAND,
+-		ir.OANDNOT,
+-		ir.ONEW,
+-		ir.ONOT,
+-		ir.OBITNOT,
+-		ir.OPLUS,
+-		ir.ONEG,
+-		ir.OOROR,
+-		ir.OPAREN,
+-		ir.ORUNESTR,
+-		ir.OREAL,
+-		ir.OIMAG,
+-		ir.OCOMPLEX:
+-		break
++// hasSideEffects reports whether n contains any operations that could have observable side effects.
++func hasSideEffects(n ir.Node) bool {
++	found := ir.Find(n, func(n ir.Node) interface{} {
++		switch n.Op() {
++		// Assume side effects unless we know otherwise.
++		default:
++			return n
++
++		// No side effects here (arguments are checked separately).
++		case ir.ONAME,
++			ir.ONONAME,
++			ir.OTYPE,
++			ir.OPACK,
++			ir.OLITERAL,
++			ir.ONIL,
++			ir.OADD,
++			ir.OSUB,
++			ir.OOR,
++			ir.OXOR,
++			ir.OADDSTR,
++			ir.OADDR,
++			ir.OANDAND,
++			ir.OBYTES2STR,
++			ir.ORUNES2STR,
++			ir.OSTR2BYTES,
++			ir.OSTR2RUNES,
++			ir.OCAP,
++			ir.OCOMPLIT,
++			ir.OMAPLIT,
++			ir.OSTRUCTLIT,
++			ir.OARRAYLIT,
++			ir.OSLICELIT,
++			ir.OPTRLIT,
++			ir.OCONV,
++			ir.OCONVIFACE,
++			ir.OCONVNOP,
++			ir.ODOT,
++			ir.OEQ,
++			ir.ONE,
++			ir.OLT,
++			ir.OLE,
++			ir.OGT,
++			ir.OGE,
++			ir.OKEY,
++			ir.OSTRUCTKEY,
++			ir.OLEN,
++			ir.OMUL,
++			ir.OLSH,
++			ir.ORSH,
++			ir.OAND,
++			ir.OANDNOT,
++			ir.ONEW,
++			ir.ONOT,
++			ir.OBITNOT,
++			ir.OPLUS,
++			ir.ONEG,
++			ir.OOROR,
++			ir.OPAREN,
++			ir.ORUNESTR,
++			ir.OREAL,
++			ir.OIMAG,
++			ir.OCOMPLEX:
++			return nil
++
++		// Only possible side effect is division by zero.
++		case ir.ODIV, ir.OMOD:
++			if n.Right().Op() != ir.OLITERAL || constant.Sign(n.Right().Val()) == 0 {
++				return n
++			}
+ 
+-		// Discardable as long as we know it's not division by zero.
+-	case ir.ODIV, ir.OMOD:
+-		if n.Right().Op() == ir.OLITERAL && constant.Sign(n.Right().Val()) != 0 {
+-			break
+-		}
+-		return false
++		// Only possible side effect is panic on invalid size,
++		// but many makechan and makemap use size zero, which is definitely OK.
++		case ir.OMAKECHAN, ir.OMAKEMAP:
++			if !ir.IsConst(n.Left(), constant.Int) || constant.Sign(n.Left().Val()) != 0 {
++				return n
++			}
+ 
+-		// Discardable as long as we know it won't fail because of a bad size.
+-	case ir.OMAKECHAN, ir.OMAKEMAP:
+-		if ir.IsConst(n.Left(), constant.Int) && constant.Sign(n.Left().Val()) == 0 {
+-			break
++		// Only possible side effect is panic on invalid size.
++		// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
++		case ir.OMAKESLICE, ir.OMAKESLICECOPY:
++			return n
+ 		}
+-		return false
+-
+-		// Difficult to tell what sizes are okay.
+-	case ir.OMAKESLICE:
+-		return false
+-
+-	case ir.OMAKESLICECOPY:
+-		return false
+-	}
+-
+-	if !candiscard(n.Left()) || !candiscard(n.Right()) || !candiscardlist(n.Init()) || !candiscardlist(n.Body()) || !candiscardlist(n.List()) || !candiscardlist(n.Rlist()) {
+-		return false
+-	}
+-
+-	return true
++		return nil
++	})
++	return found != nil
+ }
+ 
+ // Rewrite

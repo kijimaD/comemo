@@ -15,7 +15,7 @@ Date:   Tue Aug 1 18:02:41 2023 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go      | 11 ++++++
  src/cmd/compile/internal/types2/api_test.go | 39 ++++++++++++++++++++++
  src/cmd/compile/internal/types2/check.go    | 11 +++++-
@@ -23,3 +23,235 @@ Date:   Tue Aug 1 18:02:41 2023 -0700
  src/go/types/api_test.go                    | 52 +++++++++++++++++++++++++++++
  src/go/types/check.go                       | 11 +++++-
  6 files changed, 133 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index d0c0cdb8f9..48cafe03e7 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -288,6 +288,11 @@ type Info struct {
+ 	// in source order. Variables without an initialization expression do not
+ 	// appear in this list.
+ 	InitOrder []*Initializer
++
++	// FileVersions maps a file's position base to the file's Go version.
++	// If the file doesn't specify a version and Config.GoVersion is not
++	// given, the reported version is the zero version (Major, Minor = 0, 0).
++	FileVersions map[*syntax.PosBase]Version
+ }
+ 
+ func (info *Info) recordTypes() bool {
+@@ -421,6 +426,12 @@ func (init *Initializer) String() string {
+ 	return buf.String()
+ }
+ 
++// A Version represents a released Go version.
++type Version struct {
++	Major int
++	Minor int
++}
++
+ // Check type-checks a package and returns the resulting package object and
+ // the first error if any. Additionally, if info != nil, Check populates each
+ // of the non-nil maps in the Info struct.
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index d76c6cdfd7..4cabad2e9e 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -2764,3 +2764,42 @@ var _ = f(1, 2)
+ 		t.Errorf("src1: unexpected error: got %v", err)
+ 	}
+ }
++
++func TestFileVersions(t *testing.T) {
++	for _, test := range []struct {
++		moduleVersion string
++		fileVersion   string
++		want          Version
++	}{
++		{"", "", Version{0, 0}},              // no versions specified
++		{"go1.19", "", Version{1, 19}},       // module version specified
++		{"", "go1.20", Version{0, 0}},        // file upgrade ignored
++		{"go1.19", "go1.20", Version{1, 20}}, // file upgrade permitted
++		{"go1.20", "go1.19", Version{1, 20}}, // file downgrade not permitted
++		{"go1.21", "go1.19", Version{1, 19}}, // file downgrade permitted (module version is >= go1.21)
++	} {
++		var src string
++		if test.fileVersion != "" {
++			src = "//go:build " + test.fileVersion + "\n"
++		}
++		src += "package p"
++
++		conf := Config{GoVersion: test.moduleVersion}
++		versions := make(map[*syntax.PosBase]Version)
++		var info Info
++		info.FileVersions = versions
++		mustTypecheck(src, &conf, &info)
++
++		n := 0
++		for _, v := range info.FileVersions {
++			want := test.want
++			if v.Major != want.Major || v.Minor != want.Minor {
++				t.Errorf("%q: unexpected file version: got %v, want %v", src, v, want)
++			}
++			n++
++		}
++		if n != 1 {
++			t.Errorf("%q: incorrect number of map entries: got %d", src, n)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 5412e876bd..0a24eb2dab 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -285,6 +285,8 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 	}
+ 
+ 	for _, file := range check.files {
++		fbase := base(file.Pos())                     // fbase may be nil for tests
++		check.recordFileVersion(fbase, check.version) // record package version (possibly zero version)
+ 		v, _ := parseGoVersion(file.GoVersion)
+ 		if v.major > 0 {
+ 			if v.equal(check.version) {
+@@ -309,7 +311,8 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 			if check.posVers == nil {
+ 				check.posVers = make(map[*syntax.PosBase]version)
+ 			}
+-			check.posVers[base(file.Pos())] = v
++			check.posVers[fbase] = v
++			check.recordFileVersion(fbase, v) // overwrite package version
+ 		}
+ 	}
+ }
+@@ -673,3 +676,9 @@ func (check *Checker) recordScope(node syntax.Node, scope *Scope) {
+ 		m[node] = scope
+ 	}
+ }
++
++func (check *Checker) recordFileVersion(fbase *syntax.PosBase, v version) {
++	if m := check.FileVersions; m != nil {
++		m[fbase] = Version{v.major, v.minor}
++	}
++}
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index ad4c1a2e9f..2dd5a3e3c0 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -285,6 +285,11 @@ type Info struct {
+ 	// in source order. Variables without an initialization expression do not
+ 	// appear in this list.
+ 	InitOrder []*Initializer
++
++	// _FileVersions maps a file to the file's Go version.
++	// If the file doesn't specify a version and Config.GoVersion is not
++	// given, the reported version is the zero version (Major, Minor = 0, 0).
++	_FileVersions map[*token.File]_Version
+ }
+ 
+ func (info *Info) recordTypes() bool {
+@@ -409,6 +414,12 @@ func (init *Initializer) String() string {
+ 	return buf.String()
+ }
+ 
++// A _Version represents a released Go version.
++type _Version struct {
++	_Major int
++	_Minor int
++}
++
+ // Check type-checks a package and returns the resulting package object and
+ // the first error if any. Additionally, if info != nil, Check populates each
+ // of the non-nil maps in the Info struct.
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 6a607829ac..6370786772 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2773,3 +2773,55 @@ var _ = f(1, 2)
+ 		t.Errorf("src1: unexpected error: got %v", err)
+ 	}
+ }
++
++func TestFileVersions(t *testing.T) {
++	for _, test := range []struct {
++		moduleVersion string
++		fileVersion   string
++		want          Version
++	}{
++		{"", "", Version{0, 0}},              // no versions specified
++		{"go1.19", "", Version{1, 19}},       // module version specified
++		{"", "go1.20", Version{0, 0}},        // file upgrade ignored
++		{"go1.19", "go1.20", Version{1, 20}}, // file upgrade permitted
++		{"go1.20", "go1.19", Version{1, 20}}, // file downgrade not permitted
++		{"go1.21", "go1.19", Version{1, 19}}, // file downgrade permitted (module version is >= go1.21)
++	} {
++		var src string
++		if test.fileVersion != "" {
++			src = "//go:build " + test.fileVersion + "\n"
++		}
++		src += "package p"
++
++		conf := Config{GoVersion: test.moduleVersion}
++		versions := make(map[*token.File]Version)
++		var info Info
++		*_FileVersionsAddr(&info) = versions
++		mustTypecheck(src, &conf, &info)
++
++		n := 0
++		for _, v := range versions {
++			want := test.want
++			if v.Major != want.Major || v.Minor != want.Minor {
++				t.Errorf("%q: unexpected file version: got %v, want %v", src, v, want)
++			}
++			n++
++		}
++		if n != 1 {
++			t.Errorf("%q: incorrect number of map entries: got %d", src, n)
++		}
++	}
++}
++
++// Version must match types._Version exactly.
++// TODO(gri) remove this declaration once types.Version is exported.
++type Version struct {
++	Major int
++	Minor int
++}
++
++// _FileVersionsAddr(conf) returns the address of the field info._FileVersions.
++func _FileVersionsAddr(info *Info) *map[*token.File]Version {
++	v := reflect.Indirect(reflect.ValueOf(info))
++	return (*map[*token.File]Version)(v.FieldByName("_FileVersions").Addr().UnsafePointer())
++}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 6301323c2a..f3ad85dff9 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -288,6 +288,8 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 	}
+ 
+ 	for _, file := range check.files {
++		tfile := check.fset.File(file.FileStart)
++		check.recordFileVersion(tfile, check.version) // record package version (possibly zero version)
+ 		v, _ := parseGoVersion(file.GoVersion)
+ 		if v.major > 0 {
+ 			if v.equal(check.version) {
+@@ -312,7 +314,8 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 			if check.posVers == nil {
+ 				check.posVers = make(map[*token.File]version)
+ 			}
+-			check.posVers[check.fset.File(file.FileStart)] = v
++			check.posVers[tfile] = v
++			check.recordFileVersion(tfile, v) // overwrite package version
+ 		}
+ 	}
+ }
+@@ -636,3 +639,9 @@ func (check *Checker) recordScope(node ast.Node, scope *Scope) {
+ 		m[node] = scope
+ 	}
+ }
++
++func (check *Checker) recordFileVersion(tfile *token.File, v version) {
++	if m := check._FileVersions; m != nil {
++		m[tfile] = _Version{v.major, v.minor}
++	}
++}

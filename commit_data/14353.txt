@@ -12,6 +12,20 @@ Date:   Wed Nov 7 18:29:31 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6826072
-
+---
  src/pkg/runtime/sys_linux_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 88810ff74a..ca78ffa6f6 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -104,7 +104,7 @@ TEXT runtime·mincore(SB),7,$0-24
+ TEXT time·now(SB), 7, $32
+ 	LEAQ	8(SP), DI
+ 	MOVQ	$0, SI
+-	MOVQ	$0xffffffffff600000, AX
++	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
+ 	CALL	AX
+ 	MOVQ	8(SP), AX	// sec
+ 	MOVL	16(SP), DX	// usec

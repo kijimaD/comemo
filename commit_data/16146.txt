@@ -9,7 +9,32 @@ Date:   Tue Apr 9 13:12:31 2013 +1000
     R=gobot
     CC=golang-dev
     https://golang.org/cl/8556044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index ea1958c863..c21dce7e5c 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -207,6 +207,7 @@ Miquel Sabaté Solà <mikisabate@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ ngmoco, LLC
++Nicholas Presta <nick@nickpresta.ca> <nick1presta@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
+ Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
+ Nigel Kerr <nigel.kerr@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 5b1b4db708..db8096307b 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -306,6 +306,7 @@ Mikkel Krautz <mikkel@krautz.dk> <krautz@gmail.com>
+ Miquel Sabaté Solà <mikisabate@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
++Nicholas Presta <nick@nickpresta.ca> <nick1presta@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
+ Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
+ Nigel Kerr <nigel.kerr@gmail.com>

@@ -16,6 +16,19 @@ Date:   Fri Aug 27 13:45:32 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/worker.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 290e09846b..8a5c8696de 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -667,6 +667,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 	}
+ 
+ 	if args.CoverageOnly {
++		mem.header().count++
+ 		fStart := time.Now()
+ 		err := ws.fuzzFn(CorpusEntry{Values: vals})
+ 		if err != nil {

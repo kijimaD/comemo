@@ -7,6 +7,20 @@ Date:   Mon Nov 23 14:22:56 2009 -0800
     R=r
     CC=eds
     https://golang.org/cl/160045
-
+---
  src/pkg/io/io.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index b2a051596a..b389af45a4 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -69,7 +69,7 @@ type Seeker interface {
+ 	Seek(offset int64, whence int) (ret int64, err os.Error);
+ }
+ 
+-// ReadWrite is the interface that groups the basic Read and Write methods.
++// ReadWriter is the interface that groups the basic Read and Write methods.
+ type ReadWriter interface {
+ 	Reader;
+ 	Writer;

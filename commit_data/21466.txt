@@ -17,7 +17,7 @@ Date:   Mon Dec 22 14:42:37 2014 -0500
     Change-Id: I0c5f0e7dbe5beece79cd24fe36267d37c52f1a0c
     Reviewed-on: https://go-review.googlesource.com/2005
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  include/link.h    | 7 +++++++
  src/cmd/5l/asm.c  | 9 +++++++++
  src/cmd/5l/l.h    | 1 +
@@ -29,3 +29,170 @@ Date:   Mon Dec 22 14:42:37 2014 -0500
  src/cmd/9l/l.h    | 1 +
  src/cmd/ld/data.c | 2 ++
  10 files changed, 49 insertions(+)
+
+diff --git a/include/link.h b/include/link.h
+index 190df7f373..bc163d6e4b 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -77,6 +77,7 @@ struct	Reloc
+ 	uchar	siz;
+ 	uchar	done;
+ 	int32	type;
++	int32	variant; // RV_*: variant on computed value
+ 	int64	add;
+ 	int64	xadd;
+ 	LSym*	sym;
+@@ -257,6 +258,12 @@ enum
+ 	R_USEFIELD,
+ };
+ 
++// Reloc.variant
++enum
++{
++	RV_NONE,		// identity variant
++};
++
+ // Auto.type
+ enum
+ {
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index c95e43bcc0..5993079126 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -371,6 +371,15 @@ archreloc(Reloc *r, LSym *s, vlong *val)
+ 	return -1;
+ }
+ 
++vlong
++archrelocvariant(Reloc *r, LSym *s, vlong t)
++{
++	USED(r);
++	USED(s);
++	sysfatal("unexpected relocation variant");
++	return t;
++}
++
+ static Reloc *
+ addpltreloc(Link *ctxt, LSym *plt, LSym *got, LSym *sym, int typ)
+ {
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index c881a544af..f9cdc5bd7e 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -83,6 +83,7 @@ void	adddynrel(LSym *s, Reloc *r);
+ void	adddynrela(LSym *rel, LSym *s, Reloc *r);
+ void	adddynsym(Link *ctxt, LSym *s);
+ int	archreloc(Reloc *r, LSym *s, vlong *val);
++vlong	archrelocvariant(Reloc *r, LSym *s, vlong t);
+ void	asmb(void);
+ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 20be4d6dbc..032c1eea09 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -396,6 +396,15 @@ archreloc(Reloc *r, LSym *s, vlong *val)
+ 	return -1;
+ }
+ 
++vlong
++archrelocvariant(Reloc *r, LSym *s, vlong t)
++{
++	USED(r);
++	USED(s);
++	sysfatal("unexpected relocation variant");
++	return t;
++}
++
+ void
+ elfsetupplt(void)
+ {
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index ff2e69452e..24eaa453dd 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -90,6 +90,7 @@ void	adddynrel(LSym *s, Reloc *r);
+ void	adddynrela(LSym *rela, LSym *s, Reloc *r);
+ void	adddynsym(Link *ctxt, LSym *s);
+ int	archreloc(Reloc *r, LSym *s, vlong *val);
++vlong	archrelocvariant(Reloc *r, LSym *s, vlong t);
+ void	asmb(void);
+ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index ff4911b88a..44d1ecc035 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -364,6 +364,15 @@ archreloc(Reloc *r, LSym *s, vlong *val)
+ 	return -1;
+ }
+ 
++vlong
++archrelocvariant(Reloc *r, LSym *s, vlong t)
++{
++	USED(r);
++	USED(s);
++	sysfatal("unexpected relocation variant");
++	return t;
++}
++
+ void
+ elfsetupplt(void)
+ {
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 70d3a4bb4f..3c84d1b21f 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -74,6 +74,7 @@ void	adddynrel(LSym *s, Reloc *r);
+ void	adddynrela(LSym *rela, LSym *s, Reloc *r);
+ void	adddynsym(Link *ctxt, LSym *s);
+ int	archreloc(Reloc *r, LSym *s, vlong *val);
++vlong	archrelocvariant(Reloc *r, LSym *s, vlong t);
+ void	asmb(void);
+ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+diff --git a/src/cmd/9l/asm.c b/src/cmd/9l/asm.c
+index 936cf8723e..00651d5714 100644
+--- a/src/cmd/9l/asm.c
++++ b/src/cmd/9l/asm.c
+@@ -177,6 +177,15 @@ archreloc(Reloc *r, LSym *s, vlong *val)
+ 	return -1;
+ }
+ 
++vlong
++archrelocvariant(Reloc *r, LSym *s, vlong t)
++{
++	USED(r);
++	USED(s);
++	sysfatal("unexpected relocation variant");
++	return t;
++}
++
+ void
+ adddynsym(Link *ctxt, LSym *s)
+ {
+diff --git a/src/cmd/9l/l.h b/src/cmd/9l/l.h
+index dda741c56b..9d8a4fae2c 100644
+--- a/src/cmd/9l/l.h
++++ b/src/cmd/9l/l.h
+@@ -86,6 +86,7 @@ void	adddynlib(char *lib);
+ void	adddynrel(LSym *s, Reloc *r);
+ void	adddynsym(Link *ctxt, LSym *s);
+ int	archreloc(Reloc *r, LSym *s, vlong *val);
++vlong	archrelocvariant(Reloc *r, LSym *s, vlong t);
+ void	listinit(void);
+ vlong	rnd(vlong, int32);
+ 
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 3cf0bbdfe1..48e8a58866 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -309,6 +309,8 @@ relocsym(LSym *s)
+ 			o = r->sym->size + r->add;
+ 			break;
+ 		}
++		if(r->variant != RV_NONE)
++			o = archrelocvariant(r, s, o);
+ //print("relocate %s %#llux (%#llux+%#llux, size %d) => %s %#llux +%#llx [%llx]\n", s->name, (uvlong)(s->value+off), (uvlong)s->value, (uvlong)r->off, r->siz, r->sym ? r->sym->name : "<nil>", (uvlong)symaddr(r->sym), (vlong)r->add, (vlong)o);
+ 		switch(siz) {
+ 		default:

@@ -17,8 +17,94 @@ Date:   Mon Apr 19 18:48:16 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../compile/internal/types2/fixedbugs/issue45548.go2  | 13 +++++++++++++
  src/cmd/compile/internal/types2/infer.go              | 19 +++++++++++++++++++
  src/cmd/compile/internal/types2/unify.go              | 18 ++++++++++++++++++
  3 files changed, 50 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/fixedbugs/issue45548.go2 b/src/cmd/compile/internal/types2/fixedbugs/issue45548.go2
+new file mode 100644
+index 0000000000..b1e42497e8
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/fixedbugs/issue45548.go2
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[F interface{type *Q}, G interface{type *R}, Q, R any](q Q, r R) {}
++
++func _() {
++	f[*float64, *int](1, 2)
++	f[*float64](1, 2)
++	f(1, 2)
++}
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 13a9ccda0c..c136823fd8 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -451,6 +451,25 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ 		dirty = dirty[:n]
+ 	}
+ 
++	// Once nothing changes anymore, we may still have type parameters left;
++	// e.g., a structural constraint *P may match a type parameter Q but we
++	// don't have any type arguments to fill in for *P or Q (issue #45548).
++	// Don't let such inferences escape, instead nil them out.
++	for i, typ := range types {
++		if typ != nil && isParameterized(tparams, typ) {
++			types[i] = nil
++		}
++	}
++
++	// update index
++	index = -1
++	for i, typ := range types {
++		if typ == nil {
++			index = i
++			break
++		}
++	}
++
+ 	return
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index d2ea2b952b..e1832bbb2a 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -6,6 +6,8 @@
+ 
+ package types2
+ 
++import "bytes"
++
+ // The unifier maintains two separate sets of type parameters x and y
+ // which are used to resolve type parameters in the x and y arguments
+ // provided to the unify call. For unidirectional unification, only
+@@ -69,6 +71,22 @@ type tparamsList struct {
+ 	indices []int // len(d.indices) == len(d.tparams)
+ }
+ 
++// String returns a string representation for a tparamsList. For debugging.
++func (d *tparamsList) String() string {
++	var buf bytes.Buffer
++	buf.WriteByte('[')
++	for i, tname := range d.tparams {
++		if i > 0 {
++			buf.WriteString(", ")
++		}
++		writeType(&buf, tname.typ, nil, nil)
++		buf.WriteString(": ")
++		writeType(&buf, d.at(i), nil, nil)
++	}
++	buf.WriteByte(']')
++	return buf.String()
++}
++
+ // init initializes d with the given type parameters.
+ // The type parameters must be in the order in which they appear in their declaration
+ // (this ensures that the tparams indices match the respective type parameter index).

@@ -12,7 +12,7 @@ Date:   Mon May 17 16:27:11 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/317191
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
  src/cmd/link/internal/ld/decodesym.go           |  4 ++--
  src/internal/reflectlite/type.go                |  4 ++--
@@ -21,3 +21,173 @@ Date:   Mon May 17 16:27:11 2021 +0000
  src/runtime/select.go                           |  2 +-
  src/runtime/type.go                             |  6 +++---
  7 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index e07294be0f..eb9a8a6c9b 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -669,7 +669,7 @@ var kinds = []int{
+ // tflag is documented in reflect/type.go.
+ //
+ // tflag values must be kept in sync with copies in:
+-//	cmd/compile/internal/gc/reflect.go
++//	cmd/compile/internal/reflectdata/reflect.go
+ //	cmd/link/internal/ld/decodesym.go
+ //	reflect/type.go
+ //	runtime/type.go
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index c41d97706e..629bdcf4ca 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -16,12 +16,12 @@ import (
+ 
+ // Decoding the type.* symbols.	 This has to be in sync with
+ // ../../runtime/type.go, or more specifically, with what
+-// cmd/compile/internal/gc/reflect.go stuffs in these.
++// cmd/compile/internal/reflectdata/reflect.go stuffs in these.
+ 
+ // tflag is documented in reflect/type.go.
+ //
+ // tflag values must be kept in sync with copies in:
+-//	cmd/compile/internal/gc/reflect.go
++//	cmd/compile/internal/reflectdata/reflect.go
+ //	cmd/link/internal/ld/decodesym.go
+ //	reflect/type.go
+ //	runtime/type.go
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index f529f7c5fc..b1899b0191 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -68,7 +68,7 @@ type Type interface {
+ }
+ 
+ /*
+- * These data structures are known to the compiler (../../cmd/internal/gc/reflect.go).
++ * These data structures are known to the compiler (../../cmd/internal/reflectdata/reflect.go).
+  * A few are known to ../runtime/type.go to convey to debuggers.
+  * They are also known to ../runtime/type.go.
+  */
+@@ -111,7 +111,7 @@ const (
+ // available in the memory directly following the rtype value.
+ //
+ // tflag values must be kept in sync with copies in:
+-//	cmd/compile/internal/gc/reflect.go
++//	cmd/compile/internal/reflectdata/reflect.go
+ //	cmd/link/internal/ld/decodesym.go
+ //	runtime/type.go
+ type tflag uint8
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index df863ae106..f672a7a5d5 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -228,7 +228,7 @@ type Type interface {
+ // See https://golang.org/issue/4876 for more details.
+ 
+ /*
+- * These data structures are known to the compiler (../../cmd/internal/gc/reflect.go).
++ * These data structures are known to the compiler (../../cmd/internal/reflectdata/reflect.go).
+  * A few are known to ../runtime/type.go to convey to debuggers.
+  * They are also known to ../runtime/type.go.
+  */
+@@ -271,7 +271,7 @@ const (
+ // available in the memory directly following the rtype value.
+ //
+ // tflag values must be kept in sync with copies in:
+-//	cmd/compile/internal/gc/reflect.go
++//	cmd/compile/internal/reflectdata/reflect.go
+ //	cmd/link/internal/ld/decodesym.go
+ //	runtime/type.go
+ type tflag uint8
+@@ -1910,7 +1910,7 @@ func MapOf(key, elem Type) Type {
+ 
+ 	// Make a map type.
+ 	// Note: flag values must match those used in the TMAP case
+-	// in ../cmd/compile/internal/gc/reflect.go:writeType.
++	// in ../cmd/compile/internal/reflectdata/reflect.go:writeType.
+ 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
+ 	mt := **(**mapType)(unsafe.Pointer(&imap))
+ 	mt.str = resolveReflectName(newName(s, "", false))
+@@ -2841,7 +2841,7 @@ func runtimeStructField(field StructField) (structField, string) {
+ 
+ // typeptrdata returns the length in bytes of the prefix of t
+ // containing pointer data. Anything after this offset is scalar data.
+-// keep in sync with ../cmd/compile/internal/gc/reflect.go
++// keep in sync with ../cmd/compile/internal/reflectdata/reflect.go
+ func typeptrdata(t *rtype) uintptr {
+ 	switch t.Kind() {
+ 	case Struct:
+@@ -2865,7 +2865,7 @@ func typeptrdata(t *rtype) uintptr {
+ 	}
+ }
+ 
+-// See cmd/compile/internal/gc/reflect.go for derivation of constant.
++// See cmd/compile/internal/reflectdata/reflect.go for derivation of constant.
+ const maxPtrmaskBytes = 2048
+ 
+ // ArrayOf returns the array type with the given length and element type.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 0e0eb0b728..2a66826f34 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -895,7 +895,7 @@ type funcinl struct {
+ // layout of Itab known to compilers
+ // allocated in non-garbage-collected memory
+ // Needs to be in sync with
+-// ../cmd/compile/internal/gc/reflect.go:/^func.WriteTabs.
++// ../cmd/compile/internal/reflectdata/reflect.go:/^func.WriteTabs.
+ type itab struct {
+ 	inter *interfacetype
+ 	_type *_type
+@@ -940,7 +940,7 @@ func extendRandom(r []byte, n int) {
+ 
+ // A _defer holds an entry on the list of deferred calls.
+ // If you add a field here, add code to clear it in freedefer and deferProcStack
+-// This struct must match the code in cmd/compile/internal/gc/reflect.go:deferstruct
++// This struct must match the code in cmd/compile/internal/reflectdata/reflect.go:deferstruct
+ // and cmd/compile/internal/gc/ssa.go:(*state).call.
+ // Some defers will be allocated on the stack and some on the heap.
+ // All defers are logically part of the stack, so write barriers to
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index e72761bfa9..06edb69f42 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -15,7 +15,7 @@ const debugSelect = false
+ 
+ // Select case descriptor.
+ // Known to compiler.
+-// Changes here must also be made in src/cmd/internal/gc/select.go's scasetype.
++// Changes here must also be made in src/cmd/compile/internal/walk/select.go's scasetype.
+ type scase struct {
+ 	c    *hchan         // chan
+ 	elem unsafe.Pointer // data element
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 335fc57f4b..4039273695 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -11,7 +11,7 @@ import "unsafe"
+ // tflag is documented in reflect/type.go.
+ //
+ // tflag values must be kept in sync with copies in:
+-//	cmd/compile/internal/gc/reflect.go
++//	cmd/compile/internal/reflectdata/reflect.go
+ //	cmd/link/internal/ld/decodesym.go
+ //	reflect/type.go
+ //      internal/reflectlite/type.go
+@@ -25,7 +25,7 @@ const (
+ )
+ 
+ // Needs to be in sync with ../cmd/link/internal/ld/decodesym.go:/^func.commonsize,
+-// ../cmd/compile/internal/gc/reflect.go:/^func.dcommontype and
++// ../cmd/compile/internal/reflectdata/reflect.go:/^func.dcommontype and
+ // ../reflect/type.go:/^type.rtype.
+ // ../internal/reflectlite/type.go:/^type.rtype.
+ type _type struct {
+@@ -383,7 +383,7 @@ type maptype struct {
+ }
+ 
+ // Note: flag values must match those used in the TMAP case
+-// in ../cmd/compile/internal/gc/reflect.go:writeType.
++// in ../cmd/compile/internal/reflectdata/reflect.go:writeType.
+ func (mt *maptype) indirectkey() bool { // store ptr to key instead of key itself
+ 	return mt.flags&1 != 0
+ }

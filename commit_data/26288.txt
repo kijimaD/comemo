@@ -9,9 +9,182 @@ Date:   Wed Jan 6 14:32:17 2016 -0500
     Change-Id: Id9e827acddc8de139f93c5de0c6486bc4334c7d4
     Reviewed-on: https://go-review.googlesource.com/18330
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.6.html                     | 11 ++++++
  src/encoding/base64/base64.go      | 76 +++++++++++++++++++++++---------------
  src/encoding/base64/base64_test.go | 25 +++++++++++++
  test/bench/go1/jsondata_test.go    |  2 +-
  4 files changed, 84 insertions(+), 30 deletions(-)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 3ae96b82a9..7fdf17c0fa 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -568,6 +568,17 @@ Also in the <a href="/pkg/encoding/asn1/"><code>encoding/asn1</code></a> package
+ <a href="/pkg/encoding/asn1/#Unmarshal"><code>Unmarshal</code></a> now rejects various non-standard integer and length encodings.
+ </li>
+ 
++<li>
++The <a href="/pkg/encoding/base64"><code>encoding/base64</code></a> package's
++<a href="/pkg/encoding/base64/#Decoder"><code>Decoder</code></a> has been fixed
++to process the final bytes of its input. Previously it processed as many four-byte tokens as
++possible but ignore the remainder, up to three bytes.
++The <code>Decoder</code> therefore now handles inputs in unpadded encodings (like
++<a href="/pkg/encoding/base64/#RawURLEncoding">RawURLEncoding</a>) correctly,
++but it also rejects inputs in padded encodings that are truncated or end with invalid bytes,
++such as trailing spaces.
++</li>
++
+ <li>
+ The <a href="/pkg/encoding/json/"><code>encoding/json</code></a> package
+ now checks the syntax of a
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index 4f665d38c9..1bda804c38 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -346,21 +346,18 @@ func (enc *Encoding) DecodeString(s string) ([]byte, error) {
+ }
+ 
+ type decoder struct {
+-	err    error
+-	enc    *Encoding
+-	r      io.Reader
+-	end    bool       // saw end of message
+-	buf    [1024]byte // leftover input
+-	nbuf   int
+-	out    []byte // leftover decoded output
+-	outbuf [1024 / 4 * 3]byte
++	err     error
++	readErr error // error from r.Read
++	enc     *Encoding
++	r       io.Reader
++	end     bool       // saw end of message
++	buf     [1024]byte // leftover input
++	nbuf    int
++	out     []byte // leftover decoded output
++	outbuf  [1024 / 4 * 3]byte
+ }
+ 
+ func (d *decoder) Read(p []byte) (n int, err error) {
+-	if d.err != nil {
+-		return 0, d.err
+-	}
+-
+ 	// Use leftover decoded output from last read.
+ 	if len(d.out) > 0 {
+ 		n = copy(p, d.out)
+@@ -368,19 +365,46 @@ func (d *decoder) Read(p []byte) (n int, err error) {
+ 		return n, nil
+ 	}
+ 
++	if d.err != nil {
++		return 0, d.err
++	}
++
+ 	// This code assumes that d.r strips supported whitespace ('\r' and '\n').
+ 
+-	// Read a chunk.
+-	nn := len(p) / 3 * 4
+-	if nn < 4 {
+-		nn = 4
+-	}
+-	if nn > len(d.buf) {
+-		nn = len(d.buf)
++	// Refill buffer.
++	for d.nbuf < 4 && d.readErr == nil {
++		nn := len(p) / 3 * 4
++		if nn < 4 {
++			nn = 4
++		}
++		if nn > len(d.buf) {
++			nn = len(d.buf)
++		}
++		nn, d.readErr = d.r.Read(d.buf[d.nbuf:nn])
++		d.nbuf += nn
+ 	}
+-	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf:nn], 4-d.nbuf)
+-	d.nbuf += nn
+-	if d.err != nil || d.nbuf < 4 {
++
++	if d.nbuf < 4 {
++		if d.enc.padChar == NoPadding && d.nbuf > 0 {
++			// Decode final fragment, without padding.
++			var nw int
++			nw, _, d.err = d.enc.decode(d.outbuf[:], d.buf[:d.nbuf])
++			d.nbuf = 0
++			d.end = true
++			d.out = d.outbuf[:nw]
++			n = copy(p, d.out)
++			d.out = d.out[n:]
++			if n > 0 || len(p) == 0 && len(d.out) > 0 {
++				return n, nil
++			}
++			if d.err != nil {
++				return 0, d.err
++			}
++		}
++		d.err = d.readErr
++		if d.err == io.EOF && d.nbuf > 0 {
++			d.err = io.ErrUnexpectedEOF
++		}
+ 		return 0, d.err
+ 	}
+ 
+@@ -396,13 +420,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
+ 		n, d.end, d.err = d.enc.decode(p, d.buf[:nr])
+ 	}
+ 	d.nbuf -= nr
+-	for i := 0; i < d.nbuf; i++ {
+-		d.buf[i] = d.buf[i+nr]
+-	}
+-
+-	if d.err == nil {
+-		d.err = err
+-	}
++	copy(d.buf[:d.nbuf], d.buf[nr:])
+ 	return n, d.err
+ }
+ 
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index 4bbb2dd9bf..fc6a1ea654 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -406,3 +406,28 @@ func BenchmarkDecodeString(b *testing.B) {
+ 		StdEncoding.DecodeString(data)
+ 	}
+ }
++
++func TestDecoderRaw(t *testing.T) {
++	source := "AAAAAA"
++	want := []byte{0, 0, 0, 0}
++
++	// Direct.
++	dec1, err := RawURLEncoding.DecodeString(source)
++	if err != nil || !bytes.Equal(dec1, want) {
++		t.Errorf("RawURLEncoding.DecodeString(%q) = %x, %v, want %x, nil", source, dec1, err, want)
++	}
++
++	// Through reader. Used to fail.
++	r := NewDecoder(RawURLEncoding, bytes.NewReader([]byte(source)))
++	dec2, err := ioutil.ReadAll(io.LimitReader(r, 100))
++	if err != nil || !bytes.Equal(dec2, want) {
++		t.Errorf("reading NewDecoder(RawURLEncoding, %q) = %x, %v, want %x, nil", source, dec2, err, want)
++	}
++
++	// Should work with padding.
++	r = NewDecoder(URLEncoding, bytes.NewReader([]byte(source+"==")))
++	dec3, err := ioutil.ReadAll(r)
++	if err != nil || !bytes.Equal(dec3, want) {
++		t.Errorf("reading NewDecoder(URLEncoding, %q) = %x, %v, want %x, nil", source+"==", dec3, err, want)
++	}
++}
+diff --git a/test/bench/go1/jsondata_test.go b/test/bench/go1/jsondata_test.go
+index cf0fac1480..59afe134cb 100644
+--- a/test/bench/go1/jsondata_test.go
++++ b/test/bench/go1/jsondata_test.go
+@@ -1816,4 +1816,4 @@ zJE6zEudHD27ZzbOeSgpk/HnkQbT7twqaaJXNvUzMuUt1hyhU7ceZcph42+VTlXU
+ cZ9UZZJyYojLjaeJHfJU1UZUEmBfLumu8yW5skuyE9uh2BmVxJZi6KxaXBNwSolw
+ BqBcQLj3ucNZIYZLYtirLu3brW6UYgZgZJiDIGiwpsgg7g1AITkgM6FHITxDDnGt
+ 4SDHzZbL5s8fec5PCq5DOzDRdWS+0h5Y2INZak1D29cpVyb2aVrV3Wlt7rQhLa3e
+-m3ZwPNcXywE2Qesk1XN24HvZ2Xa6nlm8Pf/xdyRThQkO1NjuAA== `)
++m3ZwPNcXywE2Qesk1XN24HvZ2Xa6nlm8Pf/xdyRThQkO1NjuAA==`)

@@ -10,6 +10,16 @@ Date:   Sat Jul 12 15:18:36 2014 +1000
     R=golang-codereviews, minux
     CC=golang-codereviews
     https://golang.org/cl/104690043
-
+---
  src/make.bat | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/make.bat b/src/make.bat
+index 23b799e364..22c0b0bf83 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -117,3 +117,4 @@ goto end
+ set GOBUILDFAIL=1
+ 
+ :end
++if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%

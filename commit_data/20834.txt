@@ -8,7 +8,51 @@ Date:   Thu Oct 16 13:58:32 2014 -0700
     R=r
     CC=golang-codereviews
     https://golang.org/cl/160920045
-
+---
  src/reflect/all_test.go | 20 ++++++++++++++++++++
  src/reflect/type.go     |  1 +
  2 files changed, 21 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 6bdc9be9dd..40eae0364c 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -2678,6 +2678,26 @@ func TestFuncArg(t *testing.T) {
+ 	}
+ }
+ 
++func TestStructArg(t *testing.T) {
++	type padded struct {
++		B string
++		C int32
++	}
++	var (
++		gotA  padded
++		gotB  uint32
++		wantA = padded{"3", 4}
++		wantB = uint32(5)
++	)
++	f := func(a padded, b uint32) {
++		gotA, gotB = a, b
++	}
++	ValueOf(f).Call([]Value{ValueOf(wantA), ValueOf(wantB)})
++	if gotA != wantA || gotB != wantB {
++		t.Errorf("function called with (%v, %v), want (%v, %v)", gotA, gotB, wantA, wantB)
++	}
++}
++
+ var tagGetTests = []struct {
+ 	Tag   StructTag
+ 	Key   string
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index b92d524c3b..4ba1d4fccf 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1544,6 +1544,7 @@ func (gc *gcProg) appendProg(t *rtype) {
+ 		for i := 0; i < c; i++ {
+ 			gc.appendProg(t.Field(i).Type.common())
+ 		}
++		gc.align(uintptr(t.align))
+ 	}
+ }
+ 

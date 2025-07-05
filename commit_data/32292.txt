@@ -16,6 +16,40 @@ Date:   Tue Apr 18 15:12:54 2017 -0400
     Run-TryBot: David Lazar <lazard@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/io/multi_test.go | 17 +++++++++++++++--
  1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/io/multi_test.go b/src/io/multi_test.go
+index 710776ad24..0a7eb43032 100644
+--- a/src/io/multi_test.go
++++ b/src/io/multi_test.go
+@@ -175,13 +175,26 @@ func (f readerFunc) Read(p []byte) (int, error) {
+ 	return f(p)
+ }
+ 
++// callDepth returns the logical call depth for the given PCs.
++func callDepth(callers []uintptr) (depth int) {
++	frames := runtime.CallersFrames(callers)
++	more := true
++	for more {
++		_, more = frames.Next()
++		depth++
++	}
++	return
++}
++
+ // Test that MultiReader properly flattens chained multiReaders when Read is called
+ func TestMultiReaderFlatten(t *testing.T) {
+ 	pc := make([]uintptr, 1000) // 1000 should fit the full stack
+-	var myDepth = runtime.Callers(0, pc)
++	n := runtime.Callers(0, pc)
++	var myDepth = callDepth(pc[:n])
+ 	var readDepth int // will contain the depth from which fakeReader.Read was called
+ 	var r Reader = MultiReader(readerFunc(func(p []byte) (int, error) {
+-		readDepth = runtime.Callers(1, pc)
++		n := runtime.Callers(1, pc)
++		readDepth = callDepth(pc[:n])
+ 		return 0, errors.New("irrelevant")
+ 	}))
+ 

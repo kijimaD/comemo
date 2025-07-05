@@ -9,8 +9,71 @@ Date:   Thu Jul 15 15:17:42 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1856042
-
+---
  src/cmd/gc/sinit.c       | 10 ++--------
  test/fixedbugs/bug291.go | 23 +++++++++++++++++++++++
  test/golden.out          |  3 ---
  3 files changed, 25 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 5ac14a5375..e984e99c3e 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -92,15 +92,9 @@ init1(Node *n, NodeList **out)
+ 			break;
+ 		
+ 		case OAS2FUNC:
+-			if(n->defn->initorder)
+-				break;
+-			n->defn->initorder = 1;
+-			for(l=n->defn->rlist; l; l=l->next)
+-				init1(l->n, out);
+-			*out = list(*out, n->defn);
+-			break;
+-		
+ 		case OAS2MAPR:
++		case OAS2DOTTYPE:
++		case OAS2RECV:
+ 			if(n->defn->initorder)
+ 				break;
+ 			n->defn->initorder = 1;
+diff --git a/test/fixedbugs/bug291.go b/test/fixedbugs/bug291.go
+new file mode 100644
+index 0000000000..09334c9211
+--- /dev/null
++++ b/test/fixedbugs/bug291.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// http://code.google.com/p/go/issues/detail?id=915
++
++package main
++
++type T struct {
++	x int
++}
++
++var t = &T{42}
++var i interface{} = t
++var tt, ok = i.(*T)
++
++func main() {
++	if tt == nil || tt.x != 42 {
++		println("BUG")
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index 1bed6599a8..49bca4b874 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -177,6 +177,3 @@ panic PC=xxx
+ =========== bugs/bug260.go
+ FAIL
+ BUG: bug260 failed
+-
+-=========== bugs/bug274.go
+-BUG: errchk: command succeeded unexpectedly

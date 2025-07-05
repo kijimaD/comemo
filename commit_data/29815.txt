@@ -16,7 +16,104 @@ Date:   Fri Jul 22 04:11:58 2016 +0000
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/vcs.go      | 34 ++++++++++++++++++++++++----------
  src/cmd/go/vcs_test.go |  7 +++++++
  2 files changed, 31 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index a161962f15..8a8ee4d349 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -679,10 +679,10 @@ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRo
+ 	// Find the matched meta import.
+ 	mmi, err := matchGoImport(imports, importPath)
+ 	if err != nil {
+-		if err != errNoMatch {
++		if _, ok := err.(ImportMismatchError); !ok {
+ 			return nil, fmt.Errorf("parse %s: %v", urlStr, err)
+ 		}
+-		return nil, fmt.Errorf("parse %s: no go-import meta tags", urlStr)
++		return nil, fmt.Errorf("parse %s: no go-import meta tags (%s)", urlStr, err)
+ 	}
+ 	if buildV {
+ 		log.Printf("get %q: found meta tag %#v at %s", importPath, mmi, urlStr)
+@@ -782,9 +782,6 @@ type metaImport struct {
+ 	Prefix, VCS, RepoRoot string
+ }
+ 
+-// errNoMatch is returned from matchGoImport when there's no applicable match.
+-var errNoMatch = errors.New("no import match")
+-
+ func splitPathHasPrefix(path, prefix []string) bool {
+ 	if len(path) < len(prefix) {
+ 		return false
+@@ -797,28 +794,45 @@ func splitPathHasPrefix(path, prefix []string) bool {
+ 	return true
+ }
+ 
++// A ImportMismatchError is returned where metaImport/s are present
++// but none match our import path.
++type ImportMismatchError struct {
++	importPath string
++	mismatches []string // the meta imports that were discarded for not matching our importPath
++}
++
++func (m ImportMismatchError) Error() string {
++	formattedStrings := make([]string, len(m.mismatches))
++	for i, pre := range m.mismatches {
++		formattedStrings[i] = fmt.Sprintf("meta tag %s did not match import path %s", pre, m.importPath)
++	}
++	return strings.Join(formattedStrings, ", ")
++}
++
+ // matchGoImport returns the metaImport from imports matching importPath.
+ // An error is returned if there are multiple matches.
+ // errNoMatch is returned if none match.
+-func matchGoImport(imports []metaImport, importPath string) (_ metaImport, err error) {
++func matchGoImport(imports []metaImport, importPath string) (metaImport, error) {
+ 	match := -1
+ 	imp := strings.Split(importPath, "/")
++
++	errImportMismatch := ImportMismatchError{importPath: importPath}
+ 	for i, im := range imports {
+ 		pre := strings.Split(im.Prefix, "/")
+ 
+ 		if !splitPathHasPrefix(imp, pre) {
++			errImportMismatch.mismatches = append(errImportMismatch.mismatches, im.Prefix)
+ 			continue
+ 		}
+ 
+ 		if match != -1 {
+-			err = fmt.Errorf("multiple meta tags match import path %q", importPath)
+-			return
++			return metaImport{}, fmt.Errorf("multiple meta tags match import path %q", importPath)
+ 		}
+ 		match = i
+ 	}
++
+ 	if match == -1 {
+-		err = errNoMatch
+-		return
++		return metaImport{}, errImportMismatch
+ 	}
+ 	return imports[match], nil
+ }
+diff --git a/src/cmd/go/vcs_test.go b/src/cmd/go/vcs_test.go
+index e702fdbd97..9d84751398 100644
+--- a/src/cmd/go/vcs_test.go
++++ b/src/cmd/go/vcs_test.go
+@@ -345,6 +345,13 @@ func TestMatchGoImport(t *testing.T) {
+ 			path: "example.com",
+ 			err:  errors.New("pathologically short path"),
+ 		},
++		{
++			imports: []metaImport{
++				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++			},
++			path: "different.example.com/user/foo",
++			err:  errors.New("meta tags do not match import path"),
++		},
+ 	}
+ 
+ 	for _, test := range tests {

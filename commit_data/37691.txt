@@ -9,9 +9,50 @@ Date:   Sun May 20 22:35:02 2018 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/mkalldocs.sh | 2 +-
  src/naclmake.bash       | 2 +-
  src/nacltest.bash       | 2 +-
  src/runtime/mknacl.sh   | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/mkalldocs.sh b/src/cmd/go/mkalldocs.sh
+index 4e7a509805..f37d59d2d7 100755
+--- a/src/cmd/go/mkalldocs.sh
++++ b/src/cmd/go/mkalldocs.sh
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2012 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/naclmake.bash b/src/naclmake.bash
+index 74fd802f41..5e6c3ce05e 100755
+--- a/src/naclmake.bash
++++ b/src/naclmake.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2016 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/nacltest.bash b/src/nacltest.bash
+index 3e929a14a4..dc245b484c 100755
+--- a/src/nacltest.bash
++++ b/src/nacltest.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2014 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/runtime/mknacl.sh b/src/runtime/mknacl.sh
+index 3454b624d6..306ae3d9c1 100644
+--- a/src/runtime/mknacl.sh
++++ b/src/runtime/mknacl.sh
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2013 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.

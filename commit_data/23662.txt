@@ -7,6 +7,20 @@ Date:   Wed Jun 3 15:05:07 2015 -0700
     Change-Id: Ie38742cddc5a256e2f0fc0f720c0ed2f1b2e1bca
     Reviewed-on: https://go-review.googlesource.com/10664
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index b13fea6a6a..c18a4657fc 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -16,7 +16,7 @@ import (
+ 	"math"
+ )
+ 
+-const debugFloat = true // enable for debugging
++const debugFloat = false // enable for debugging
+ 
+ // A nonzero finite Float represents a multi-precision floating point number
+ //

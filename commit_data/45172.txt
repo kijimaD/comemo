@@ -22,10 +22,250 @@ Date:   Fri Oct 9 15:16:13 2020 -0400
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/codehost.go  |  5 +-
  src/cmd/go/internal/modfetch/codehost/git.go       |  7 +-
  src/cmd/go/internal/modfetch/codehost/vcs.go       |  2 +-
  src/cmd/go/internal/modfetch/coderepo.go           | 78 ++++++++++++++++++++--
  .../go/testdata/script/mod_retract_pseudo_base.txt | 62 +++++++++++++++++
  5 files changed, 143 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index d85eddf767..df4cfdab1a 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -79,9 +79,8 @@ type Repo interface {
+ 	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error)
+ 
+ 	// RecentTag returns the most recent tag on rev or one of its predecessors
+-	// with the given prefix and major version.
+-	// An empty major string matches any major version.
+-	RecentTag(rev, prefix, major string) (tag string, err error)
++	// with the given prefix. allowed may be used to filter out unwanted versions.
++	RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error)
+ 
+ 	// DescendsFrom reports whether rev or any of its ancestors has the given tag.
+ 	//
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 31921324a7..5a35829c98 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -644,7 +644,7 @@ func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*F
+ 	return missing, nil
+ }
+ 
+-func (r *gitRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
++func (r *gitRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error) {
+ 	info, err := r.Stat(rev)
+ 	if err != nil {
+ 		return "", err
+@@ -680,7 +680,10 @@ func (r *gitRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
+ 			// NOTE: Do not replace the call to semver.Compare with semver.Max.
+ 			// We want to return the actual tag, not a canonicalized version of it,
+ 			// and semver.Max currently canonicalizes (see golang.org/issue/32700).
+-			if c := semver.Canonical(semtag); c != "" && strings.HasPrefix(semtag, c) && (major == "" || semver.Major(c) == major) && semver.Compare(semtag, highest) > 0 {
++			if c := semver.Canonical(semtag); c == "" || !strings.HasPrefix(semtag, c) || !allowed(semtag) {
++				continue
++			}
++			if semver.Compare(semtag, highest) > 0 {
+ 				highest = semtag
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 7284557f4b..6278cb21e1 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -395,7 +395,7 @@ func (r *vcsRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[s
+ 	return nil, vcsErrorf("ReadFileRevs not implemented")
+ }
+ 
+-func (r *vcsRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
++func (r *vcsRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error) {
+ 	// We don't technically need to lock here since we're returning an error
+ 	// uncondititonally, but doing so anyway will help to avoid baking in
+ 	// lock-inversion bugs.
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index d043903336..d99a31d360 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -419,9 +419,14 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 		tagPrefix = r.codeDir + "/"
+ 	}
+ 
++	isRetracted, err := r.retractedVersions()
++	if err != nil {
++		isRetracted = func(string) bool { return false }
++	}
++
+ 	// tagToVersion returns the version obtained by trimming tagPrefix from tag.
+-	// If the tag is invalid or a pseudo-version, tagToVersion returns an empty
+-	// version.
++	// If the tag is invalid, retracted, or a pseudo-version, tagToVersion returns
++	// an empty version.
+ 	tagToVersion := func(tag string) (v string, tagIsCanonical bool) {
+ 		if !strings.HasPrefix(tag, tagPrefix) {
+ 			return "", false
+@@ -436,6 +441,9 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 		if v == "" || !strings.HasPrefix(trimmed, v) {
+ 			return "", false // Invalid or incomplete version (just vX or vX.Y).
+ 		}
++		if isRetracted(v) {
++			return "", false
++		}
+ 		if v == trimmed {
+ 			tagIsCanonical = true
+ 		}
+@@ -500,15 +508,24 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 		return checkGoMod()
+ 	}
+ 
++	// Find the highest tagged version in the revision's history, subject to
++	// major version and +incompatible constraints. Use that version as the
++	// pseudo-version base so that the pseudo-version sorts higher. Ignore
++	// retracted versions.
++	allowedMajor := func(major string) func(v string) bool {
++		return func(v string) bool {
++			return (major == "" || semver.Major(v) == major) && !isRetracted(v)
++		}
++	}
+ 	if pseudoBase == "" {
+ 		var tag string
+ 		if r.pseudoMajor != "" || canUseIncompatible() {
+-			tag, _ = r.code.RecentTag(info.Name, tagPrefix, r.pseudoMajor)
++			tag, _ = r.code.RecentTag(info.Name, tagPrefix, allowedMajor(r.pseudoMajor))
+ 		} else {
+ 			// Allow either v1 or v0, but not incompatible higher versions.
+-			tag, _ = r.code.RecentTag(info.Name, tagPrefix, "v1")
++			tag, _ = r.code.RecentTag(info.Name, tagPrefix, allowedMajor("v1"))
+ 			if tag == "" {
+-				tag, _ = r.code.RecentTag(info.Name, tagPrefix, "v0")
++				tag, _ = r.code.RecentTag(info.Name, tagPrefix, allowedMajor("v0"))
+ 			}
+ 		}
+ 		pseudoBase, _ = tagToVersion(tag) // empty if the tag is invalid
+@@ -869,6 +886,57 @@ func (r *codeRepo) modPrefix(rev string) string {
+ 	return r.modPath + "@" + rev
+ }
+ 
++func (r *codeRepo) retractedVersions() (func(string) bool, error) {
++	versions, err := r.Versions("")
++	if err != nil {
++		return nil, err
++	}
++
++	for i, v := range versions {
++		if strings.HasSuffix(v, "+incompatible") {
++			versions = versions[:i]
++			break
++		}
++	}
++	if len(versions) == 0 {
++		return func(string) bool { return false }, nil
++	}
++
++	var highest string
++	for i := len(versions) - 1; i >= 0; i-- {
++		v := versions[i]
++		if semver.Prerelease(v) == "" {
++			highest = v
++			break
++		}
++	}
++	if highest == "" {
++		highest = versions[len(versions)-1]
++	}
++
++	data, err := r.GoMod(highest)
++	if err != nil {
++		return nil, err
++	}
++	f, err := modfile.ParseLax("go.mod", data, nil)
++	if err != nil {
++		return nil, err
++	}
++	retractions := make([]modfile.VersionInterval, len(f.Retract))
++	for _, r := range f.Retract {
++		retractions = append(retractions, r.VersionInterval)
++	}
++
++	return func(v string) bool {
++		for _, r := range retractions {
++			if semver.Compare(r.Low, v) <= 0 && semver.Compare(v, r.High) <= 0 {
++				return true
++			}
++		}
++		return false
++	}, nil
++}
++
+ func (r *codeRepo) Zip(dst io.Writer, version string) error {
+ 	if version != module.CanonicalVersion(version) {
+ 		return fmt.Errorf("version %s is not canonical", version)
+diff --git a/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt b/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt
+new file mode 100644
+index 0000000000..93609f36c9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt
+@@ -0,0 +1,62 @@
++# When converting a commit to a pseudo-version, don't use a retracted version
++# as the base.
++# Verifies golang.org/issue/41700.
++
++[!net] skip
++[!exec:git] skip
++env GOPROXY=direct
++env GOSUMDB=off
++go mod init m
++
++# Control: check that v1.0.0 is the only version and is retracted.
++go list -m -versions vcs-test.golang.org/git/retract-pseudo.git
++stdout '^vcs-test.golang.org/git/retract-pseudo.git$'
++go list -m -versions -retracted vcs-test.golang.org/git/retract-pseudo.git
++stdout '^vcs-test.golang.org/git/retract-pseudo.git v1.0.0$'
++
++# 713affd19d7b is a commit after v1.0.0. Don't use v1.0.0 as the base.
++go list -m vcs-test.golang.org/git/retract-pseudo.git@713affd19d7b
++stdout '^vcs-test.golang.org/git/retract-pseudo.git v0.0.0-20201009173747-713affd19d7b$'
++
++# 64c061ed4371 is the commit v1.0.0 refers to. Don't convert to v1.0.0.
++go list -m vcs-test.golang.org/git/retract-pseudo.git@64c061ed4371
++stdout '^vcs-test.golang.org/git/retract-pseudo.git v0.0.0-20201009173747-64c061ed4371'
++
++# A retracted version is a valid base. Retraction should not validate existing
++# pseudo-versions, nor should it turn invalid pseudo-versions valid.
++go get -d vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-713affd19d7b
++go list -m vcs-test.golang.org/git/retract-pseudo.git
++stdout '^vcs-test.golang.org/git/retract-pseudo.git v1.0.1-0.20201009173747-713affd19d7b$'
++
++! go get -d vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371
++stderr '^go get vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371: vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371: invalid pseudo-version: tag \(v1.0.0\) found on revision 64c061ed4371 is already canonical, so should not be replaced with a pseudo-version derived from that tag$'
++
++-- retract-pseudo.sh --
++#!/bin/bash
++
++# This is not part of the test.
++# Run this to generate and update the repository on vcs-test.golang.org.
++
++set -euo pipefail
++
++rm -rf retract-pseudo
++mkdir retract-pseudo
++cd retract-pseudo
++git init
++
++# Create the module.
++# Retract v1.0.0 and tag v1.0.0 at the same commit.
++# The module has no unretracted release versions.
++go mod init vcs-test.golang.org/git/retract-pseudo.git
++go mod edit -retract v1.0.0
++echo 'package p' >p.go
++git add -A
++git commit -m 'create module retract-pseudo'
++git tag v1.0.0
++
++# Commit a trivial change so the default branch does not point to v1.0.0.
++git mv p.go q.go
++git commit -m 'trivial change'
++
++zip -r ../retract-pseudo.zip .
++gsutil cp ../retract-pseudo.zip gs://vcs-test/git/retract-pseudo.zip

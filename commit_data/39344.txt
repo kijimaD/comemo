@@ -12,6 +12,38 @@ Date:   Tue Jan 22 21:27:43 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/subr.go | 20 --------------------
  1 file changed, 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 2a976dc4f0..7dcbc6a9e1 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -537,26 +537,6 @@ func methtype(t *types.Type) *types.Type {
+ 	return nil
+ }
+ 
+-// Are t1 and t2 equal struct types when field names are ignored?
+-// For deciding whether the result struct from g can be copied
+-// directly when compiling f(g()).
+-func eqtypenoname(t1 *types.Type, t2 *types.Type) bool {
+-	if t1 == nil || t2 == nil || !t1.IsStruct() || !t2.IsStruct() {
+-		return false
+-	}
+-
+-	if t1.NumFields() != t2.NumFields() {
+-		return false
+-	}
+-	for i, f1 := range t1.FieldSlice() {
+-		f2 := t2.Field(i)
+-		if !types.Identical(f1.Type, f2.Type) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // Is type src assignment compatible to type dst?
+ // If so, return op code to use in conversion.
+ // If not, return 0.

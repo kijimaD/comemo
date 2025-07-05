@@ -9,6 +9,23 @@ Date:   Thu Sep 30 14:09:19 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2308042
-
+---
  src/pkg/runtime/malloc.goc | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index fa7164ec57..604290b93b 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -236,9 +236,11 @@ allocmcache(void)
+ {
+ 	MCache *c;
+ 
++	lock(&mheap);
+ 	c = FixAlloc_Alloc(&mheap.cachealloc);
+ 	mstats.mcache_inuse = mheap.cachealloc.inuse;
+ 	mstats.mcache_sys = mheap.cachealloc.sys;
++	unlock(&mheap);
+ 	return c;
+ }
+ 

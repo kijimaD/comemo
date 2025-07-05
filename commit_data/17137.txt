@@ -7,6 +7,29 @@ Date:   Fri Aug 9 15:27:45 2013 -0700
     R=bradfitz, dvyukov
     CC=golang-dev
     https://golang.org/cl/12536046
-
+---
  test/fixedbugs/issue6055.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/test/fixedbugs/issue6055.go b/test/fixedbugs/issue6055.go
+index 4cc24d0c2c..698f62ac95 100644
+--- a/test/fixedbugs/issue6055.go
++++ b/test/fixedbugs/issue6055.go
+@@ -6,11 +6,17 @@
+ 
+ package main
+ 
++import "runtime"
++
+ type Closer interface {
+ 	Close()
+ }
+ 
+ func nilInterfaceDeferCall() {
++	defer func() {
++		// make sure a traceback happens with jmpdefer on the stack
++		runtime.GC()
++	}()
+ 	var x Closer
+ 	defer x.Close()
+ }

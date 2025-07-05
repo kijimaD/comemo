@@ -10,6 +10,47 @@ Date:   Mon Apr 10 13:12:51 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/40250
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/build.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 870e4d7762..462f495b5f 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -2499,23 +2499,34 @@ func (gcToolchain) cc(b *Builder, p *load.Package, objdir, ofile, cfile string)
+ type gccgoToolchain struct{}
+ 
+ var GccgoName, GccgoBin string
++var gccgoErr error
+ 
+ func init() {
+ 	GccgoName = os.Getenv("GCCGO")
+ 	if GccgoName == "" {
+ 		GccgoName = "gccgo"
+ 	}
+-	GccgoBin, _ = exec.LookPath(GccgoName)
++	GccgoBin, gccgoErr = exec.LookPath(GccgoName)
+ }
+ 
+ func (gccgoToolchain) compiler() string {
++	checkGccgoBin()
+ 	return GccgoBin
+ }
+ 
+ func (gccgoToolchain) linker() string {
++	checkGccgoBin()
+ 	return GccgoBin
+ }
+ 
++func checkGccgoBin() {
++	if gccgoErr == nil {
++		return
++	}
++	fmt.Fprintf(os.Stderr, "cmd/go: gccgo: %s\n", gccgoErr)
++	os.Exit(2)
++}
++
+ func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
+ 	out := "_go_.o"
+ 	ofile = obj + out

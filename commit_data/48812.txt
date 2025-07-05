@@ -18,8 +18,65 @@ Date:   Wed Jun 16 21:11:32 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/extern.go              | 7 +++++--
  src/runtime/heapdump.go            | 3 +--
  src/runtime/internal/sys/consts.go | 2 --
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 48e1e6603b..1c70e8a361 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -186,7 +186,10 @@ of the run-time system.
+ */
+ package runtime
+ 
+-import "runtime/internal/sys"
++import (
++	"internal/goarch"
++	"runtime/internal/sys"
++)
+ 
+ // Caller reports file and line number information about function invocations on
+ // the calling goroutine's stack. The argument skip is the number of stack frames
+@@ -264,4 +267,4 @@ const GOOS string = sys.GOOS
+ 
+ // GOARCH is the running program's architecture target:
+ // one of 386, amd64, arm, s390x, and so on.
+-const GOARCH string = sys.GOARCH
++const GOARCH string = goarch.GOARCH
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 050628e33e..18e4666fa4 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -12,7 +12,6 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
+ 	"internal/goarch"
+ 	"unsafe"
+ )
+@@ -532,7 +531,7 @@ func dumpparams() {
+ 	}
+ 	dumpint(uint64(arenaStart))
+ 	dumpint(uint64(arenaEnd))
+-	dumpstr(sys.GOARCH)
++	dumpstr(goarch.GOARCH)
+ 	dumpstr(buildVersion)
+ 	dumpint(uint64(ncpu))
+ }
+diff --git a/src/runtime/internal/sys/consts.go b/src/runtime/internal/sys/consts.go
+index 349d2ed4d6..07fbaf4d73 100644
+--- a/src/runtime/internal/sys/consts.go
++++ b/src/runtime/internal/sys/consts.go
+@@ -54,8 +54,6 @@ const MinFrameSize = goarch.MinFrameSize
+ // The stack must be at least word aligned, but some architectures require more.
+ const StackAlign = goarch.StackAlign
+ 
+-const GOARCH = goarch.GOARCH
+-
+ const (
+ 	Goarch386         = goarch.Goarch386
+ 	GoarchAmd64       = goarch.GoarchAmd64

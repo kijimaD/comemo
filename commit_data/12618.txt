@@ -7,7 +7,35 @@ Date:   Wed Mar 14 10:46:21 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5821044
-
+---
  src/pkg/text/template/exec.go      | 1 +
  src/pkg/text/template/exec_test.go | 4 ++++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index ad0118e4e6..9a720cf43e 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -369,6 +369,7 @@ func (s *state) evalVariableNode(dot reflect.Value, v *parse.VariableNode, args
+ 	// $x.Field has $x as the first ident, Field as the second. Eval the var, then the fields.
+ 	value := s.varValue(v.Ident[0])
+ 	if len(v.Ident) == 1 {
++		s.notAFunction(args, final)
+ 		return value
+ 	}
+ 	return s.evalFieldChain(dot, value, v.Ident[1:], args, final)
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 70ab39cad2..5446027ff7 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -466,6 +466,10 @@ var execTests = []execTest{
+ 	{"bug6b", "{{vfunc .V0 .V0}}", "vfunc", tVal, true},
+ 	{"bug6c", "{{vfunc .V1 .V0}}", "vfunc", tVal, true},
+ 	{"bug6d", "{{vfunc .V1 .V1}}", "vfunc", tVal, true},
++	// Legal parse but illegal execution: non-function should have no arguments.
++	{"bug7a", "{{3 2}}", "", tVal, false},
++	{"bug7b", "{{$x := 1}}{{$x 2}}", "", tVal, false},
++	{"bug7c", "{{$x := 1}}{{3 | $x}}", "", tVal, false},
+ }
+ 
+ func zeroArgs() string {

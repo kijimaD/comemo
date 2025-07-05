@@ -9,7 +9,78 @@ Date:   Wed Feb 12 17:50:21 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go        |  4 ++--
  src/cmd/link/internal/loader/loader.go | 16 ++++------------
  2 files changed, 6 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index fd43dd4885..deafb5cae6 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -446,7 +446,7 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	// Add non-package symbols and references of externally defined symbols.
+-	ctxt.loader.LoadNonpkgSyms(ctxt.Arch, ctxt.Syms)
++	ctxt.loader.LoadNonpkgSyms(ctxt.Syms)
+ 
+ 	// Load symbols from shared libraries, after all Go object symbols are loaded.
+ 	for _, lib := range ctxt.Library {
+@@ -1815,7 +1815,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
+ 	f.MustSeek(import1, 0)
+ 
+-	ctxt.loader.Preload(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, 0)
++	ctxt.loader.Preload(ctxt.Syms, f, lib, unit, eof-f.Offset(), 0)
+ 	addImports(ctxt, lib, pn)
+ 	return nil
+ }
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index b80f2c568b..1dcbf503c9 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1476,7 +1476,7 @@ func (x RelocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
+ // Preload a package: add autolibs, add defined package symbols to the symbol table.
+ // Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
+ // Does not read symbol data.
+-func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) {
++func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, flags int) {
+ 	roObject, readonly, err := f.Slice(uint64(length))
+ 	if err != nil {
+ 		log.Fatal("cannot read object file:", err)
+@@ -1554,16 +1554,16 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
+ 
+ // Add non-package symbols and references to external symbols (which are always
+ // named).
+-func (l *Loader) LoadNonpkgSyms(arch *sys.Arch, syms *sym.Symbols) {
++func (l *Loader) LoadNonpkgSyms(syms *sym.Symbols) {
+ 	for _, o := range l.objs[1:] {
+ 		l.preloadSyms(o.r, nonPkgDef)
+ 	}
+ 	for _, o := range l.objs[1:] {
+-		loadObjRefs(l, o.r, arch, syms)
++		loadObjRefs(l, o.r, syms)
+ 	}
+ }
+ 
+-func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch, syms *sym.Symbols) {
++func loadObjRefs(l *Loader, r *oReader, syms *sym.Symbols) {
+ 	ndef := r.NSym() + r.NNonpkgdef()
+ 	for i, n := 0, r.NNonpkgref(); i < n; i++ {
+ 		osym := goobj2.Sym{}
+@@ -1834,14 +1834,6 @@ type funcAllocInfo struct {
+ 	fdOff   uint32 // number of int64's needed in all Funcdataoff slices
+ }
+ 
+-// LookupOrCreate looks up a symbol by name, and creates one if not found.
+-// Either way, it will also create a sym.Symbol for it, if not already.
+-// This should only be called when interacting with parts of the linker
+-// that still works on sym.Symbols (i.e. internal cgo linking, for now).
+-func (l *Loader) LookupOrCreate(name string, version int) *sym.Symbol {
+-	panic("unreachable") // TODO: delete once PE loader is converted
+-}
+-
+ // cloneToExternal takes the existing object file symbol (symIdx)
+ // and creates a new external symbol payload that is a clone with
+ // respect to name, version, type, relocations, etc. The idea here

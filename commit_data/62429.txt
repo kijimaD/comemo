@@ -16,8 +16,87 @@ Date:   Wed Feb 26 15:23:59 2025 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/literals.go         | 6 +++---
  src/go/types/literals.go                            | 6 +++---
  src/internal/types/testdata/fixedbugs/issue51335.go | 4 ++--
  3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/literals.go b/src/cmd/compile/internal/types2/literals.go
+index b81d51564c..da5b03d8ea 100644
+--- a/src/cmd/compile/internal/types2/literals.go
++++ b/src/cmd/compile/internal/types2/literals.go
+@@ -129,7 +129,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
+ 		typ = hint
+ 		base = typ
+ 		// *T implies &T{}
+-		if b, ok := deref(coreType(base)); ok {
++		if b, ok := deref(commonUnder(check, base, nil)); ok {
+ 			base = b
+ 		}
+ 		isElem = true
+@@ -142,7 +142,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
+ 		base = typ
+ 	}
+ 
+-	switch utyp := coreType(base).(type) {
++	switch utyp := commonUnder(check, base, nil).(type) {
+ 	case *Struct:
+ 		// Prevent crash if the struct referred to is not yet set up.
+ 		// See analogous comment for *Array.
+@@ -330,7 +330,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
+ 			}
+ 			var cause string
+ 			if utyp == nil {
+-				cause = " (no core type)"
++				cause = " (no common underlying type)"
+ 			}
+ 			check.errorf(e, InvalidLit, "invalid composite literal%s type %s%s", qualifier, typ, cause)
+ 			x.mode = invalid
+diff --git a/src/go/types/literals.go b/src/go/types/literals.go
+index d3102d4f91..ebc25957ed 100644
+--- a/src/go/types/literals.go
++++ b/src/go/types/literals.go
+@@ -133,7 +133,7 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
+ 		typ = hint
+ 		base = typ
+ 		// *T implies &T{}
+-		if b, ok := deref(coreType(base)); ok {
++		if b, ok := deref(commonUnder(check, base, nil)); ok {
+ 			base = b
+ 		}
+ 		isElem = true
+@@ -146,7 +146,7 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
+ 		base = typ
+ 	}
+ 
+-	switch utyp := coreType(base).(type) {
++	switch utyp := commonUnder(check, base, nil).(type) {
+ 	case *Struct:
+ 		// Prevent crash if the struct referred to is not yet set up.
+ 		// See analogous comment for *Array.
+@@ -334,7 +334,7 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
+ 			}
+ 			var cause string
+ 			if utyp == nil {
+-				cause = " (no core type)"
++				cause = " (no common underlying type)"
+ 			}
+ 			check.errorf(e, InvalidLit, "invalid composite literal%s type %s%s", qualifier, typ, cause)
+ 			x.mode = invalid
+diff --git a/src/internal/types/testdata/fixedbugs/issue51335.go b/src/internal/types/testdata/fixedbugs/issue51335.go
+index 04dc04e1d7..5eb5213843 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51335.go
++++ b/src/internal/types/testdata/fixedbugs/issue51335.go
+@@ -8,9 +8,9 @@ type S1 struct{}
+ type S2 struct{}
+ 
+ func _[P *S1|*S2]() {
+-	_= []P{{ /* ERROR "invalid composite literal element type P (no core type)" */ }}
++	_= []P{{ /* ERROR "invalid composite literal element type P (no common underlying type)" */ }}
+ }
+ 
+ func _[P *S1|S1]() {
+-	_= []P{{ /* ERROR "invalid composite literal element type P (no core type)" */ }}
++	_= []P{{ /* ERROR "invalid composite literal element type P (no common underlying type)" */ }}
+ }

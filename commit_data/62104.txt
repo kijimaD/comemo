@@ -19,7 +19,7 @@ Date:   Mon Nov 25 13:08:34 2024 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go     | 36 +++++++++----
  src/cmd/compile/internal/types2/expr.go       |  5 +-
  src/cmd/compile/internal/types2/signature.go  |  2 +-
@@ -34,3 +34,462 @@ Date:   Mon Nov 25 13:08:34 2024 -0800
  src/internal/types/testdata/check/issues0.go  |  6 +--
  src/internal/types/testdata/examples/types.go |  2 +-
  13 files changed, 96 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 14a737c414..8278685943 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -650,7 +650,7 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 				// d.Name "[" pname ...
+ 				// d.Name "[" pname ptype ...
+ 				// d.Name "[" pname ptype "," ...
+-				d.TParamList = p.paramList(pname, ptype, _Rbrack, true) // ptype may be nil
++				d.TParamList = p.paramList(pname, ptype, _Rbrack, true, false) // ptype may be nil
+ 				d.Alias = p.gotAssign()
+ 				d.Type = p.typeOrNil()
+ 			} else {
+@@ -800,7 +800,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
+ 	var context string
+ 	if p.got(_Lparen) {
+ 		context = "method"
+-		rcvr := p.paramList(nil, nil, _Rparen, false)
++		rcvr := p.paramList(nil, nil, _Rparen, false, false)
+ 		switch len(rcvr) {
+ 		case 0:
+ 			p.error("method has no receiver")
+@@ -1469,12 +1469,12 @@ func (p *parser) funcType(context string) ([]*Field, *FuncType) {
+ 			p.syntaxError("empty type parameter list")
+ 			p.next()
+ 		} else {
+-			tparamList = p.paramList(nil, nil, _Rbrack, true)
++			tparamList = p.paramList(nil, nil, _Rbrack, true, false)
+ 		}
+ 	}
+ 
+ 	p.want(_Lparen)
+-	typ.ParamList = p.paramList(nil, nil, _Rparen, false)
++	typ.ParamList = p.paramList(nil, nil, _Rparen, false, true)
+ 	typ.ResultList = p.funcResult()
+ 
+ 	return tparamList, typ
+@@ -1582,7 +1582,7 @@ func (p *parser) funcResult() []*Field {
+ 	}
+ 
+ 	if p.got(_Lparen) {
+-		return p.paramList(nil, nil, _Rparen, false)
++		return p.paramList(nil, nil, _Rparen, false, false)
+ 	}
+ 
+ 	pos := p.pos()
+@@ -1793,7 +1793,7 @@ func (p *parser) methodDecl() *Field {
+ 
+ 		// A type argument list looks like a parameter list with only
+ 		// types. Parse a parameter list and decide afterwards.
+-		list := p.paramList(nil, nil, _Rbrack, false)
++		list := p.paramList(nil, nil, _Rbrack, false, false)
+ 		if len(list) == 0 {
+ 			// The type parameter list is not [] but we got nothing
+ 			// due to other errors (reported by paramList). Treat
+@@ -1962,10 +1962,11 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
+ 		p.next()
+ 		t.Elem = p.typeOrNil()
+ 		if t.Elem == nil {
+-			t.Elem = p.badExpr()
++			f.Type = p.badExpr()
+ 			p.syntaxError("... is missing type")
++		} else {
++			f.Type = t
+ 		}
+-		f.Type = t
+ 		return f
+ 	}
+ 
+@@ -1995,7 +1996,7 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
+ // If name != nil, it is the first name after "(" or "[".
+ // If typ != nil, name must be != nil, and (name, typ) is the first field in the list.
+ // In the result list, either all fields have a name, or no field has a name.
+-func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool) (list []*Field) {
++func (p *parser) paramList(name *Name, typ Expr, close token, requireNames, dddok bool) (list []*Field) {
+ 	if trace {
+ 		defer p.trace("paramList")()
+ 	}
+@@ -2109,6 +2110,23 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
+ 		}
+ 	}
+ 
++	// check use of ...
++	first := true // only report first occurrence
++	for i, f := range list {
++		if t, _ := f.Type.(*DotsType); t != nil && (!dddok || i+1 < len(list)) {
++			if first {
++				first = false
++				if dddok {
++					p.errorAt(t.pos, "can only use ... with final parameter")
++				} else {
++					p.errorAt(t.pos, "invalid use of ...")
++				}
++			}
++			// use T instead of invalid ...T
++			f.Type = t.Elem
++		}
++	}
++
+ 	return
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 2bf42d1c6f..28a5d78872 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1016,9 +1016,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
+ 		check.ident(x, e, nil, false)
+ 
+ 	case *syntax.DotsType:
+-		// dots are handled explicitly where they are legal
+-		// (array composite literals and parameter lists)
+-		check.error(e, BadDotDotDotSyntax, "invalid use of '...'")
++		// dots are handled explicitly where they are valid
++		check.error(e, InvalidSyntaxTree, "invalid use of ...")
+ 		goto Error
+ 
+ 	case *syntax.BasicLit:
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index de4f1eaa20..622eb1383d 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -344,7 +344,7 @@ func (check *Checker) collectParams(list []*syntax.Field, variadicOk bool) (name
+ 				if variadicOk && i == len(list)-1 {
+ 					variadic = true
+ 				} else {
+-					check.softErrorf(t, MisplacedDotDotDot, "can only use ... with final parameter in list")
++					check.error(t, InvalidSyntaxTree, "invalid use of ...")
+ 					// ignore ... and continue
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index e9b5ca9aa6..0964c53fe0 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -321,10 +321,8 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
+ 		return typ
+ 
+ 	case *syntax.DotsType:
+-		// dots are handled explicitly where they are legal
+-		// (array composite literals and parameter lists)
+-		check.error(e, InvalidDotDotDot, "invalid use of '...'")
+-		check.use(e.Elem)
++		// dots are handled explicitly where they are valid
++		check.error(e, InvalidSyntaxTree, "invalid use of ...")
+ 
+ 	case *syntax.StructType:
+ 		typ := new(Struct)
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 533ee289be..c2906c5bda 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -872,7 +872,7 @@ func (p *parser) parseParamDecl(name *ast.Ident, typeSetsOK bool) (f field) {
+ 	return
+ }
+ 
+-func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing token.Token) (params []*ast.Field) {
++func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing token.Token, dddok bool) (params []*ast.Field) {
+ 	if p.trace {
+ 		defer un(trace(p, "ParameterList"))
+ 	}
+@@ -1006,6 +1006,26 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
+ 		}
+ 	}
+ 
++	// check use of ...
++	first := true // only report first occurrence
++	for i, _ := range list {
++		f := &list[i]
++		if t, _ := f.typ.(*ast.Ellipsis); t != nil && (!dddok || i+1 < len(list)) {
++			if first {
++				first = false
++				if dddok {
++					p.error(t.Ellipsis, "can only use ... with final parameter")
++				} else {
++					p.error(t.Ellipsis, "invalid use of ...")
++				}
++			}
++			// use T instead of invalid ...T
++			// TODO(gri) would like to use `f.typ = t.Elt` but that causes problems
++			//           with the resolver in cases of reuse of the same identifier
++			f.typ = &ast.BadExpr{From: t.Pos(), To: t.End()}
++		}
++	}
++
+ 	// Convert list to []*ast.Field.
+ 	// If list contains types only, each type gets its own ast.Field.
+ 	if named == 0 {
+@@ -1050,7 +1070,7 @@ func (p *parser) parseTypeParameters() *ast.FieldList {
+ 	lbrack := p.expect(token.LBRACK)
+ 	var list []*ast.Field
+ 	if p.tok != token.RBRACK {
+-		list = p.parseParameterList(nil, nil, token.RBRACK)
++		list = p.parseParameterList(nil, nil, token.RBRACK, false)
+ 	}
+ 	rbrack := p.expect(token.RBRACK)
+ 
+@@ -1062,32 +1082,22 @@ func (p *parser) parseTypeParameters() *ast.FieldList {
+ 	return &ast.FieldList{Opening: lbrack, List: list, Closing: rbrack}
+ }
+ 
+-func (p *parser) parseParameters() *ast.FieldList {
++func (p *parser) parseParameters(result bool) *ast.FieldList {
+ 	if p.trace {
+ 		defer un(trace(p, "Parameters"))
+ 	}
+ 
+-	lparen := p.expect(token.LPAREN)
+-	var list []*ast.Field
+-	if p.tok != token.RPAREN {
+-		list = p.parseParameterList(nil, nil, token.RPAREN)
+-	}
+-	rparen := p.expect(token.RPAREN)
+-
+-	return &ast.FieldList{Opening: lparen, List: list, Closing: rparen}
+-}
+-
+-func (p *parser) parseResult() *ast.FieldList {
+-	if p.trace {
+-		defer un(trace(p, "Result"))
+-	}
+-
+-	if p.tok == token.LPAREN {
+-		return p.parseParameters()
++	if !result || p.tok == token.LPAREN {
++		lparen := p.expect(token.LPAREN)
++		var list []*ast.Field
++		if p.tok != token.RPAREN {
++			list = p.parseParameterList(nil, nil, token.RPAREN, !result)
++		}
++		rparen := p.expect(token.RPAREN)
++		return &ast.FieldList{Opening: lparen, List: list, Closing: rparen}
+ 	}
+ 
+-	typ := p.tryIdentOrType()
+-	if typ != nil {
++	if typ := p.tryIdentOrType(); typ != nil {
+ 		list := make([]*ast.Field, 1)
+ 		list[0] = &ast.Field{Type: typ}
+ 		return &ast.FieldList{List: list}
+@@ -1109,8 +1119,8 @@ func (p *parser) parseFuncType() *ast.FuncType {
+ 			p.error(tparams.Opening, "function type must have no type parameters")
+ 		}
+ 	}
+-	params := p.parseParameters()
+-	results := p.parseResult()
++	params := p.parseParameters(false)
++	results := p.parseParameters(true)
+ 
+ 	return &ast.FuncType{Func: pos, Params: params, Results: results}
+ }
+@@ -1138,13 +1148,13 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 				//
+ 				// Interface methods do not have type parameters. We parse them for a
+ 				// better error message and improved error recovery.
+-				_ = p.parseParameterList(name0, nil, token.RBRACK)
++				_ = p.parseParameterList(name0, nil, token.RBRACK, false)
+ 				_ = p.expect(token.RBRACK)
+ 				p.error(lbrack, "interface method must have no type parameters")
+ 
+ 				// TODO(rfindley) refactor to share code with parseFuncType.
+-				params := p.parseParameters()
+-				results := p.parseResult()
++				params := p.parseParameters(false)
++				results := p.parseParameters(true)
+ 				idents = []*ast.Ident{ident}
+ 				typ = &ast.FuncType{
+ 					Func:    token.NoPos,
+@@ -1173,8 +1183,8 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 		case p.tok == token.LPAREN:
+ 			// ordinary method
+ 			// TODO(rfindley) refactor to share code with parseFuncType.
+-			params := p.parseParameters()
+-			results := p.parseResult()
++			params := p.parseParameters(false)
++			results := p.parseParameters(true)
+ 			idents = []*ast.Ident{ident}
+ 			typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
+ 		default:
+@@ -2578,7 +2588,7 @@ func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *
+ 		defer un(trace(p, "parseGenericType"))
+ 	}
+ 
+-	list := p.parseParameterList(name0, typ0, token.RBRACK)
++	list := p.parseParameterList(name0, typ0, token.RBRACK, false)
+ 	closePos := p.expect(token.RBRACK)
+ 	spec.TypeParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
+ 	if p.tok == token.ASSIGN {
+@@ -2775,7 +2785,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 
+ 	var recv *ast.FieldList
+ 	if p.tok == token.LPAREN {
+-		recv = p.parseParameters()
++		recv = p.parseParameters(false)
+ 	}
+ 
+ 	ident := p.parseIdent()
+@@ -2790,8 +2800,8 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 			tparams = nil
+ 		}
+ 	}
+-	params := p.parseParameters()
+-	results := p.parseResult()
++	params := p.parseParameters(false)
++	results := p.parseParameters(true)
+ 
+ 	var body *ast.BlockStmt
+ 	switch p.tok {
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 3a34e8c216..9465fe0e47 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -190,6 +190,14 @@ var invalids = []string{
+ 	`package p; func f() { if true {} else ; /* ERROR "expected if statement or block" */ }`,
+ 	`package p; func f() { if true {} else defer /* ERROR "expected if statement or block" */ f() }`,
+ 
++	// variadic parameter lists
++	`package p; func f(a, b ... /* ERROR "can only use ... with final parameter" */ int)`,
++	`package p; func f(a ... /* ERROR "can only use ... with final parameter" */ int, b int)`,
++	`package p; func f(... /* ERROR "can only use ... with final parameter" */ int, int)`,
++	`package p; func f() (... /* ERROR "invalid use of ..." */ int)`,
++	`package p; func f() (a, b ... /* ERROR "invalid use of ..." */ int)`,
++	`package p; func f[T ... /* ERROR "invalid use of ..." */ C]()() {}`,
++
+ 	// generic code
+ 	`package p; type _[_ any] int; var _ = T[] /* ERROR "expected operand" */ {}`,
+ 	`package p; var _ func[ /* ERROR "must have no type parameters" */ T any](T)`,
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index d4a0892701..e2e8928a12 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1006,9 +1006,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
+ 		check.ident(x, e, nil, false)
+ 
+ 	case *ast.Ellipsis:
+-		// ellipses are handled explicitly where they are legal
+-		// (array composite literals and parameter lists)
+-		check.error(e, BadDotDotDotSyntax, "invalid use of '...'")
++		// ellipses are handled explicitly where they are valid
++		check.error(e, InvalidSyntaxTree, "invalid use of ...")
+ 		goto Error
+ 
+ 	case *ast.BasicLit:
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index ff405318ee..1738384feb 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -364,7 +364,7 @@ func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names
+ 			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
+ 				variadic = true
+ 			} else {
+-				check.softErrorf(t, MisplacedDotDotDot, "can only use ... with final parameter in list")
++				check.softErrorf(t, InvalidSyntaxTree, "invalid use of ...")
+ 				// ignore ... and continue
+ 			}
+ 		}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 7928ed8ef3..549a84b3cc 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -322,10 +322,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
+ 		// report error if we encountered [...]
+ 
+ 	case *ast.Ellipsis:
+-		// dots are handled explicitly where they are legal
+-		// (array composite literals and parameter lists)
+-		check.error(e, InvalidDotDotDot, "invalid use of '...'")
+-		check.use(e.Elt)
++		// dots are handled explicitly where they are valid
++		check.error(e, InvalidSyntaxTree, "invalid use of ...")
+ 
+ 	case *ast.StructType:
+ 		typ := new(Struct)
+diff --git a/src/internal/types/errors/code_string.go b/src/internal/types/errors/code_string.go
+index 9ae675ef84..26d7b48ee7 100644
+--- a/src/internal/types/errors/code_string.go
++++ b/src/internal/types/errors/code_string.go
+@@ -86,7 +86,6 @@ func _() {
+ 	_ = x[MissingFieldOrMethod-76]
+ 	_ = x[BadDotDotDotSyntax-77]
+ 	_ = x[NonVariadicDotDotDot-78]
+-	_ = x[MisplacedDotDotDot-79]
+ 	_ = x[InvalidDotDotDot-81]
+ 	_ = x[UncalledBuiltin-82]
+ 	_ = x[InvalidAppend-83]
+@@ -161,7 +160,7 @@ func _() {
+ const (
+ 	_Code_name_0 = "InvalidSyntaxTree"
+ 	_Code_name_1 = "TestBlankPkgNameMismatchedPkgNameInvalidPkgUseBadImportPathBrokenImportImportCRenamedUnusedImportInvalidInitCycleDuplicateDeclInvalidDeclCycleInvalidTypeCycleInvalidConstInitInvalidConstValInvalidConstTypeUntypedNilUseWrongAssignCountUnassignableOperandNoNewVarMultiValAssignOpInvalidIfaceAssignInvalidChanAssignIncompatibleAssignUnaddressableFieldAssignNotATypeInvalidArrayLenBlankIfaceMethodIncomparableMapKey"
+-	_Code_name_2 = "InvalidPtrEmbedBadRecvInvalidRecvDuplicateFieldAndMethodDuplicateMethodInvalidBlankInvalidIotaMissingInitBodyInvalidInitSigInvalidInitDeclInvalidMainDeclTooManyValuesNotAnExprTruncatedFloatNumericOverflowUndefinedOpMismatchedTypesDivByZeroNonNumericIncDecUnaddressableOperandInvalidIndirectionNonIndexableOperandInvalidIndexSwappedSliceIndicesNonSliceableOperandInvalidSliceExprInvalidShiftCountInvalidShiftOperandInvalidReceiveInvalidSendDuplicateLitKeyMissingLitKeyInvalidLitIndexOversizeArrayLitMixedStructLitInvalidStructLitMissingLitFieldDuplicateLitFieldUnexportedLitFieldInvalidLitFieldUntypedLitInvalidLitAmbiguousSelectorUndeclaredImportedNameUnexportedNameUndeclaredNameMissingFieldOrMethodBadDotDotDotSyntaxNonVariadicDotDotDotMisplacedDotDotDot"
++	_Code_name_2 = "InvalidPtrEmbedBadRecvInvalidRecvDuplicateFieldAndMethodDuplicateMethodInvalidBlankInvalidIotaMissingInitBodyInvalidInitSigInvalidInitDeclInvalidMainDeclTooManyValuesNotAnExprTruncatedFloatNumericOverflowUndefinedOpMismatchedTypesDivByZeroNonNumericIncDecUnaddressableOperandInvalidIndirectionNonIndexableOperandInvalidIndexSwappedSliceIndicesNonSliceableOperandInvalidSliceExprInvalidShiftCountInvalidShiftOperandInvalidReceiveInvalidSendDuplicateLitKeyMissingLitKeyInvalidLitIndexOversizeArrayLitMixedStructLitInvalidStructLitMissingLitFieldDuplicateLitFieldUnexportedLitFieldInvalidLitFieldUntypedLitInvalidLitAmbiguousSelectorUndeclaredImportedNameUnexportedNameUndeclaredNameMissingFieldOrMethodBadDotDotDotSyntaxNonVariadicDotDotDot"
+ 	_Code_name_3 = "InvalidDotDotDotUncalledBuiltinInvalidAppendInvalidCapInvalidCloseInvalidCopyInvalidComplexInvalidDeleteInvalidImagInvalidLenSwappedMakeArgsInvalidMakeInvalidRealInvalidAssertImpossibleAssertInvalidConversionInvalidUntypedConversionBadOffsetofSyntaxInvalidOffsetofUnusedExprUnusedVarMissingReturnWrongResultCountOutOfScopeResultInvalidCondInvalidPostDecl"
+ 	_Code_name_4 = "InvalidIterVarInvalidRangeExprMisplacedBreakMisplacedContinueMisplacedFallthroughDuplicateCaseDuplicateDefaultBadTypeKeywordInvalidTypeSwitchInvalidExprSwitchInvalidSelectCaseUndeclaredLabelDuplicateLabelMisplacedLabelUnusedLabelJumpOverDeclJumpIntoBlockInvalidMethodExprWrongArgCountInvalidCallUnusedResultsInvalidDeferInvalidGoBadDeclRepeatedDeclInvalidUnsafeAddInvalidUnsafeSliceUnsupportedFeatureNotAGenericTypeWrongTypeArgCountCannotInferTypeArgsInvalidTypeArgInvalidInstanceCycleInvalidUnionMisplacedConstraintIfaceInvalidMethodTypeParamsMisplacedTypeParamInvalidUnsafeSliceDataInvalidUnsafeString"
+ 	_Code_name_5 = "InvalidClearTypeTooLargeInvalidMinMaxOperandTooNew"
+@@ -169,7 +168,7 @@ const (
+ 
+ var (
+ 	_Code_index_1 = [...]uint16{0, 4, 16, 33, 46, 59, 71, 85, 97, 113, 126, 142, 158, 174, 189, 205, 218, 234, 253, 261, 277, 295, 312, 330, 354, 362, 377, 393, 411}
+-	_Code_index_2 = [...]uint16{0, 15, 22, 33, 56, 71, 83, 94, 109, 123, 138, 153, 166, 175, 189, 204, 215, 230, 239, 255, 275, 293, 312, 324, 343, 362, 378, 395, 414, 428, 439, 454, 467, 482, 498, 512, 528, 543, 560, 578, 593, 603, 613, 630, 652, 666, 680, 700, 718, 738, 756}
++	_Code_index_2 = [...]uint16{0, 15, 22, 33, 56, 71, 83, 94, 109, 123, 138, 153, 166, 175, 189, 204, 215, 230, 239, 255, 275, 293, 312, 324, 343, 362, 378, 395, 414, 428, 439, 454, 467, 482, 498, 512, 528, 543, 560, 578, 593, 603, 613, 630, 652, 666, 680, 700, 718, 738}
+ 	_Code_index_3 = [...]uint16{0, 16, 31, 44, 54, 66, 77, 91, 104, 115, 125, 140, 151, 162, 175, 191, 208, 232, 249, 264, 274, 283, 296, 312, 328, 339, 354}
+ 	_Code_index_4 = [...]uint16{0, 14, 30, 44, 61, 81, 94, 110, 124, 141, 158, 175, 190, 204, 218, 229, 241, 254, 271, 284, 295, 308, 320, 329, 336, 348, 364, 382, 400, 415, 432, 451, 465, 485, 497, 521, 544, 562, 584, 603}
+ 	_Code_index_5 = [...]uint8{0, 12, 24, 44, 50}
+@@ -182,7 +181,7 @@ func (i Code) String() string {
+ 	case 1 <= i && i <= 28:
+ 		i -= 1
+ 		return _Code_name_1[_Code_index_1[i]:_Code_index_1[i+1]]
+-	case 30 <= i && i <= 79:
++	case 30 <= i && i <= 78:
+ 		i -= 30
+ 		return _Code_name_2[_Code_index_2[i]:_Code_index_2[i+1]]
+ 	case 81 <= i && i <= 106:
+diff --git a/src/internal/types/errors/codes.go b/src/internal/types/errors/codes.go
+index c0e6aa6c2d..f8c9eb920f 100644
+--- a/src/internal/types/errors/codes.go
++++ b/src/internal/types/errors/codes.go
+@@ -719,10 +719,7 @@ const (
+ 
+ 	// MisplacedDotDotDot occurs when a "..." is used somewhere other than the
+ 	// final argument in a function declaration.
+-	//
+-	// Example:
+-	// 	func f(...int, int)
+-	MisplacedDotDotDot
++	_ // not used anymore (error reported by parser)
+ 
+ 	_ // InvalidDotDotDotOperand was removed.
+ 
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index 44a709d66e..2b59a9c9b5 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -326,9 +326,9 @@ func issue28281b(a, b int, c ...int)
+ func issue28281c(a, b, c ... /* ERROR "can only use ... with final parameter" */ int)
+ func issue28281d(... /* ERROR "can only use ... with final parameter" */ int, int)
+ func issue28281e(a, b, c  ... /* ERROR "can only use ... with final parameter" */ int, d int)
+-func issue28281f(... /* ERROR "can only use ... with final parameter" */ int, ... /* ERROR "can only use ... with final parameter" */ int, int)
+-func (... /* ERROR "invalid use of '...'" */ TT) f()
+-func issue28281g() (... /* ERROR "can only use ... with final parameter" */ TT)
++func issue28281f(... /* ERROR "can only use ... with final parameter" */ int, ... int, int)
++func (... /* ERROR "invalid use of ..." */ TT) f()
++func issue28281g() (... /* ERROR "invalid use of ..." */ TT)
+ 
+ // Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
+ func issue26234a(f *syn.Prog) {
+diff --git a/src/internal/types/testdata/examples/types.go b/src/internal/types/testdata/examples/types.go
+index 67f1534be3..d6da2c5f6f 100644
+--- a/src/internal/types/testdata/examples/types.go
++++ b/src/internal/types/testdata/examples/types.go
+@@ -114,7 +114,7 @@ type I1[T any] interface{
+ }
+ 
+ // There is no such thing as a variadic generic type.
+-type _[T ... /* ERROR "invalid use of '...'" */ any] struct{}
++type _[T ... /* ERROR "invalid use of ..." */ any] struct{}
+ 
+ // Generic interfaces may be embedded as one would expect.
+ type I2 interface {

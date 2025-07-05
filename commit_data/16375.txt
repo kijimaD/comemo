@@ -7,6 +7,20 @@ Date:   Thu May 23 02:46:07 2013 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9662043
-
+---
  src/cmd/go/tool.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 2d7db29152..f739aa4da7 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -53,7 +53,7 @@ func tool(toolName string) string {
+ 	// Give a nice message if there is no tool with that name.
+ 	if _, err := os.Stat(toolPath); err != nil {
+ 		if isInGoToolsRepo(toolName) {
+-			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo install code.google.com/p/go.tools/cmd/%s\n", toolName, toolName)
++			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo get code.google.com/p/go.tools/cmd/%s\n", toolName, toolName)
+ 		} else {
+ 			fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
+ 		}

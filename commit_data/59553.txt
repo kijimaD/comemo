@@ -28,7 +28,68 @@ Date:   Thu Mar 21 15:59:30 2024 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/attr.go      |  3 +--
  src/log/slog/attr_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/log/slog/attr.go b/src/log/slog/attr.go
+index 2f459467cb..067c537cc9 100644
+--- a/src/log/slog/attr.go
++++ b/src/log/slog/attr.go
+@@ -5,7 +5,6 @@
+ package slog
+ 
+ import (
+-	"fmt"
+ 	"time"
+ )
+ 
+@@ -92,7 +91,7 @@ func (a Attr) Equal(b Attr) bool {
+ }
+ 
+ func (a Attr) String() string {
+-	return fmt.Sprintf("%s=%s", a.Key, a.Value)
++	return a.Key + "=" + a.Value.String()
+ }
+ 
+ // isEmpty reports whether a has an empty key and a nil value.
+diff --git a/src/log/slog/attr_test.go b/src/log/slog/attr_test.go
+index 1187a856fd..e01447cfed 100644
+--- a/src/log/slog/attr_test.go
++++ b/src/log/slog/attr_test.go
+@@ -41,3 +41,34 @@ func TestAttrNoAlloc(t *testing.T) {
+ 	_ = s
+ 	_ = x
+ }
++
++func BenchmarkAttrString(b *testing.B) {
++	var (
++		is string
++		u  string
++		f  string
++		bn string
++		s  string
++		x  string
++		ds string
++		p  = &is
++		d  time.Duration
++	)
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		is = Int64("key", 1).String()
++		u = Uint64("key", 1).String()
++		f = Float64("key", 1).String()
++		bn = Bool("key", true).String()
++		s = String("key", "foo").String()
++		ds = Duration("key", d).String()
++		x = Any("key", p).String()
++	}
++	_ = u
++	_ = f
++	_ = bn
++	_ = s
++	_ = x
++	_ = ds
++	_ = p
++}

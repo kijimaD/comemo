@@ -14,6 +14,20 @@ Date:   Wed Feb 19 15:01:50 2014 -0800
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/66070044
-
+---
  src/cmd/pack/pack_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 427ba8b30d..a073fa4521 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -195,7 +195,7 @@ func TestHello(t *testing.T) {
+ 	out := run("go", "env")
+ 	i := strings.Index(out, "GOCHAR=\"")
+ 	if i < 0 {
+-		t.Fatal("cannot find GOCHAR in 'go env' output")
++		t.Fatal("cannot find GOCHAR in 'go env' output:\n", out)
+ 	}
+ 	char := out[i+8 : i+9]
+ 	run("go", "build", "cmd/pack") // writes pack binary to dir

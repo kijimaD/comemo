@@ -16,9 +16,198 @@ Date:   Wed Feb 25 19:13:43 2015 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/deps_test.go                          |  2 +-
  src/mime/multipart/multipart.go                    |  2 +-
  .../reader.go}                                     | 27 +++++++++++-----------
  .../reader_test.go}                                | 24 +++++++++----------
  4 files changed, 28 insertions(+), 27 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 8025833639..17f5282e55 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -311,7 +311,7 @@ var pkgDeps = map[string][]string{
+ 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
+ 
+ 	// Simple net+crypto-aware packages.
+-	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto", "mime/internal/quotedprintable"},
++	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto", "mime/quotedprintable"},
+ 	"net/smtp":       {"L4", "CRYPTO", "NET", "crypto/tls"},
+ 
+ 	// HTTP, kingpin of dependencies.
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index 3f06c07dc8..04a9c33aaf 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -19,7 +19,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"mime"
+-	"mime/internal/quotedprintable"
++	"mime/quotedprintable"
+ 	"net/textproto"
+ )
+ 
+diff --git a/src/mime/internal/quotedprintable/quotedprintable.go b/src/mime/quotedprintable/reader.go
+similarity index 79%
+rename from src/mime/internal/quotedprintable/quotedprintable.go
+rename to src/mime/quotedprintable/reader.go
+index 2417bf2148..86c7f58cc8 100644
+--- a/src/mime/internal/quotedprintable/quotedprintable.go
++++ b/src/mime/quotedprintable/reader.go
+@@ -2,12 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The file define a quoted-printable decoder, as specified in RFC 2045.
+-// Deviations:
+-// 1. in addition to "=\r\n", "=\n" is also treated as soft line break.
+-// 2. it will pass through a '\r' or '\n' not preceded by '=', consistent
+-//    with other broken QP encoders & decoders.
+-
++// Package quotedprintable implements quoted-printable encoding as specified by
++// RFC 2045.
+ package quotedprintable
+ 
+ import (
+@@ -17,14 +13,19 @@ import (
+ 	"io"
+ )
+ 
+-type qpReader struct {
++// Deviations from RFC 2045:
++// 1. in addition to "=\r\n", "=\n" is also treated as soft line break.
++// 2. it will pass through a '\r' or '\n' not preceded by '=', consistent
++//    with other broken QP encoders & decoders.
++type reader struct {
+ 	br   *bufio.Reader
+ 	rerr error  // last read error
+ 	line []byte // to be consumed before more of br
+ }
+ 
++// NewReader returns a quoted-printable reader, decoding from r.
+ func NewReader(r io.Reader) io.Reader {
+-	return &qpReader{
++	return &reader{
+ 		br: bufio.NewReader(r),
+ 	}
+ }
+@@ -36,10 +37,10 @@ func fromHex(b byte) (byte, error) {
+ 	case b >= 'A' && b <= 'F':
+ 		return b - 'A' + 10, nil
+ 	}
+-	return 0, fmt.Errorf("multipart: invalid quoted-printable hex byte 0x%02x", b)
++	return 0, fmt.Errorf("quotedprintable: invalid hex byte 0x%02x", b)
+ }
+ 
+-func (q *qpReader) readHexByte(v []byte) (b byte, err error) {
++func (q *reader) readHexByte(v []byte) (b byte, err error) {
+ 	if len(v) < 2 {
+ 		return 0, io.ErrUnexpectedEOF
+ 	}
+@@ -67,7 +68,7 @@ var (
+ 	softSuffix = []byte("=")
+ )
+ 
+-func (q *qpReader) Read(p []byte) (n int, err error) {
++func (q *reader) Read(p []byte) (n int, err error) {
+ 	for len(p) > 0 {
+ 		if len(q.line) == 0 {
+ 			if q.rerr != nil {
+@@ -84,7 +85,7 @@ func (q *qpReader) Read(p []byte) (n int, err error) {
+ 				rightStripped := wholeLine[len(q.line):]
+ 				q.line = q.line[:len(q.line)-1]
+ 				if !bytes.HasPrefix(rightStripped, lf) && !bytes.HasPrefix(rightStripped, crlf) {
+-					q.rerr = fmt.Errorf("multipart: invalid bytes after =: %q", rightStripped)
++					q.rerr = fmt.Errorf("quotedprintable: invalid bytes after =: %q", rightStripped)
+ 				}
+ 			} else if hasLF {
+ 				if hasCR {
+@@ -107,7 +108,7 @@ func (q *qpReader) Read(p []byte) (n int, err error) {
+ 		case b == '\t' || b == '\r' || b == '\n':
+ 			break
+ 		case b < ' ' || b > '~':
+-			return n, fmt.Errorf("multipart: invalid unescaped byte 0x%02x in quoted-printable body", b)
++			return n, fmt.Errorf("quotedprintable: invalid unescaped byte 0x%02x in body", b)
+ 		}
+ 		p[0] = b
+ 		p = p[1:]
+diff --git a/src/mime/internal/quotedprintable/quotedprintable_test.go b/src/mime/quotedprintable/reader_test.go
+similarity index 85%
+rename from src/mime/internal/quotedprintable/quotedprintable_test.go
+rename to src/mime/quotedprintable/reader_test.go
+index 0c7760f4b9..23dae2becb 100644
+--- a/src/mime/internal/quotedprintable/quotedprintable_test.go
++++ b/src/mime/quotedprintable/reader_test.go
+@@ -19,7 +19,7 @@ import (
+ 	"time"
+ )
+ 
+-func TestQuotedPrintable(t *testing.T) {
++func TestReader(t *testing.T) {
+ 	tests := []struct {
+ 		in, want string
+ 		err      interface{}
+@@ -30,14 +30,14 @@ func TestQuotedPrintable(t *testing.T) {
+ 		{in: "foo bar=\n", want: "foo bar"},
+ 		{in: "foo bar\n", want: "foo bar\n"}, // somewhat lax.
+ 		{in: "foo bar=0", want: "foo bar", err: io.ErrUnexpectedEOF},
+-		{in: "foo bar=ab", want: "foo bar", err: "multipart: invalid quoted-printable hex byte 0x61"},
++		{in: "foo bar=ab", want: "foo bar", err: "quotedprintable: invalid hex byte 0x61"},
+ 		{in: "foo bar=0D=0A", want: "foo bar\r\n"},
+ 		{in: " A B        \r\n C ", want: " A B\r\n C"},
+ 		{in: " A B =\r\n C ", want: " A B  C"},
+ 		{in: " A B =\n C ", want: " A B  C"}, // lax. treating LF as CRLF
+ 		{in: "foo=\nbar", want: "foobar"},
+-		{in: "foo\x00bar", want: "foo", err: "multipart: invalid unescaped byte 0x00 in quoted-printable body"},
+-		{in: "foo bar\xff", want: "foo bar", err: "multipart: invalid unescaped byte 0xff in quoted-printable body"},
++		{in: "foo\x00bar", want: "foo", err: "quotedprintable: invalid unescaped byte 0x00 in body"},
++		{in: "foo bar\xff", want: "foo bar", err: "quotedprintable: invalid unescaped byte 0xff in body"},
+ 
+ 		// Equal sign.
+ 		{in: "=3D30\n", want: "=30\n"},
+@@ -56,8 +56,8 @@ func TestQuotedPrintable(t *testing.T) {
+ 		// Different types of soft line-breaks.
+ 		{in: "foo=\r\nbar", want: "foobar"},
+ 		{in: "foo=\nbar", want: "foobar"},
+-		{in: "foo=\rbar", want: "foo", err: "multipart: invalid quoted-printable hex byte 0x0d"},
+-		{in: "foo=\r\r\r \nbar", want: "foo", err: `multipart: invalid bytes after =: "\r\r\r \n"`},
++		{in: "foo=\rbar", want: "foo", err: "quotedprintable: invalid hex byte 0x0d"},
++		{in: "foo=\r\r\r \nbar", want: "foo", err: `quotedprintable: invalid bytes after =: "\r\r\r \n"`},
+ 
+ 		// Example from RFC 2045:
+ 		{in: "Now's the time =\n" + "for all folk to come=\n" + " to the aid of their country.",
+@@ -101,7 +101,7 @@ var useQprint = flag.Bool("qprint", false, "Compare against the 'qprint' program
+ 
+ var badSoftRx = regexp.MustCompile(`=([^\r\n]+?\n)|([^\r\n]+$)|(\r$)|(\r[^\n]+\n)|( \r\n)`)
+ 
+-func TestQPExhaustive(t *testing.T) {
++func TestExhaustive(t *testing.T) {
+ 	if *useQprint {
+ 		_, err := exec.LookPath("qprint")
+ 		if err != nil {
+@@ -123,7 +123,7 @@ func TestQPExhaustive(t *testing.T) {
+ 				errStr = "invalid bytes after ="
+ 			}
+ 			res[errStr]++
+-			if strings.Contains(errStr, "invalid quoted-printable hex byte ") {
++			if strings.Contains(errStr, "invalid hex byte ") {
+ 				if strings.HasSuffix(errStr, "0x20") && (strings.Contains(s, "=0 ") || strings.Contains(s, "=A ") || strings.Contains(s, "= ")) {
+ 					return
+ 				}
+@@ -193,10 +193,10 @@ func TestQPExhaustive(t *testing.T) {
+ 	got := strings.Join(outcomes, "\n")
+ 	want := `OK: 21576
+ invalid bytes after =: 3397
+-multipart: invalid quoted-printable hex byte 0x0a: 1400
+-multipart: invalid quoted-printable hex byte 0x0d: 2700
+-multipart: invalid quoted-printable hex byte 0x20: 2490
+-multipart: invalid quoted-printable hex byte 0x3d: 440
++quotedprintable: invalid hex byte 0x0a: 1400
++quotedprintable: invalid hex byte 0x0d: 2700
++quotedprintable: invalid hex byte 0x20: 2490
++quotedprintable: invalid hex byte 0x3d: 440
+ unexpected EOF: 3122`
+ 	if got != want {
+ 		t.Errorf("Got:\n%s\nWant:\n%s", got, want)

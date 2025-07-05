@@ -6,6 +6,20 @@ Date:   Fri Nov 6 12:52:04 2009 -0800
     
     R=r
     http://go/go-review/1024010
-
+---
  doc/root.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index e7c343e570..ce88fd0a78 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -47,7 +47,7 @@
+       <img style="padding-right: 1em;" src="/doc/go-logo-black.png">
+     </td>
+     <td>
+-      <div><span style="font-size: 2em; font-weight: bold;">a systems programming language</span><br><span style="font-size: 1.5em;">Expressive, concurrent, garbage-collected</span></div>
++      <div><span style="font-size: 2em; font-weight: bold;">a systems programming language</span><br><span style="font-size: 1.5em;">expressive, concurrent, garbage-collected</span></div>
+     </td>
+   </tr>
+ </table>

@@ -11,7 +11,34 @@ Date:   Thu Aug 31 16:26:29 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/named.go | 2 +-
  src/go/types/named.go                    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 82c2cb3a5b..fbe7f8ed12 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -224,7 +224,7 @@ func (n *Named) setState(state namedState) {
+ 	atomic.StoreUint32(&n.state_, uint32(state))
+ }
+ 
+-// newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
++// newNamed is like NewNamed but with a *Checker receiver.
+ func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	typ := &Named{check: check, obj: obj, fromRHS: underlying, underlying: underlying, methods: methods}
+ 	if obj.typ == nil {
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index e57cbbaa61..a27143b6c1 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -226,7 +226,7 @@ func (n *Named) setState(state namedState) {
+ 	atomic.StoreUint32(&n.state_, uint32(state))
+ }
+ 
+-// newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
++// newNamed is like NewNamed but with a *Checker receiver.
+ func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	typ := &Named{check: check, obj: obj, fromRHS: underlying, underlying: underlying, methods: methods}
+ 	if obj.typ == nil {

@@ -29,9 +29,184 @@ Date:   Sat Feb 23 20:24:38 2013 +0800
     R=golang-dev, dave, iant, rsc
     CC=golang-dev
     https://golang.org/cl/7351044
-
+---
  src/cmd/cgo/gcc.go   | 12 ++++++++++++
  src/cmd/dist/build.c |  9 +++++----
  src/cmd/go/build.go  | 38 ++++++++++++++++++++++++--------------
  src/run.bash         |  6 ++----
  4 files changed, 43 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index ad28ec18cb..4b0a521a87 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -783,7 +783,13 @@ func (p *Package) gccCmd() []string {
+ 	if strings.Contains(p.gccName(), "clang") {
+ 		c = append(c,
+ 			"-ferror-limit=0",
++			// Apple clang version 1.7 (tags/Apple/clang-77) (based on LLVM 2.9svn)
++			// doesn't have -Wno-unneeded-internal-declaration, so we need yet another
++			// flag to disable the warning. Yes, really good diagnostics, clang.
++			"-Wno-unknown-warning-option",
+ 			"-Wno-unneeded-internal-declaration",
++			"-Wno-unused-function",
++			"-Qunused-arguments",
+ 		)
+ 	}
+ 
+@@ -1049,6 +1055,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		return t
+ 	}
+ 
++	// clang won't generate DW_AT_byte_size for pointer types,
++	// so we have to fix it here.
++	if dt, ok := base(dtype).(*dwarf.PtrType); ok && dt.ByteSize == -1 {
++		dt.ByteSize = c.ptrSize
++	}
++
+ 	t := new(Type)
+ 	t.Size = dtype.Size()
+ 	t.Align = -1
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index eb72074ec8..cf754a4103 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -409,6 +409,7 @@ static char *proto_gccargs[] = {
+ 	"-Wno-comment",
+ 	"-Werror",
+ 	"-fno-common",
++	"-ggdb",
+ 	"-pipe",
+ 	"-O2",
+ };
+@@ -604,10 +605,10 @@ install(char *dir)
+ 		splitfields(&gccargs, bstr(&b));
+ 		for(i=0; i<nelem(proto_gccargs); i++)
+ 			vadd(&gccargs, proto_gccargs[i]);
+-		if(clang)
+-			vadd(&gccargs, "-g");
+-		else
+-			vadd(&gccargs, "-ggdb");
++		if(clang) {
++			// clang is too smart about unused command-line arguments
++			vadd(&gccargs, "-Qunused-arguments");
++		}
+ 	}
+ 
+ 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index dee87853af..4569e10905 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1609,6 +1609,8 @@ func gccgoCleanPkgpath(p *Package) string {
+ func (b *builder) libgcc(p *Package) (string, error) {
+ 	var buf bytes.Buffer
+ 
++	gccCmd := b.gccCmd(p.Dir)
++
+ 	prev := b.print
+ 	if buildN {
+ 		// In -n mode we temporarily swap out the builder's
+@@ -1619,7 +1621,7 @@ func (b *builder) libgcc(p *Package) (string, error) {
+ 			return fmt.Fprint(&buf, a...)
+ 		}
+ 	}
+-	f, err := b.runOut(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-print-libgcc-file-name")
++	f, err := b.runOut(p.Dir, p.ImportPath, gccCmd, "-print-libgcc-file-name")
+ 	if err != nil {
+ 		return "", fmt.Errorf("gcc -print-libgcc-file-name: %v (%s)", err, f)
+ 	}
+@@ -1629,6 +1631,13 @@ func (b *builder) libgcc(p *Package) (string, error) {
+ 		b.print(s)
+ 		return "$LIBGCC", nil
+ 	}
++
++	// clang might not be able to find libgcc, and in that case,
++	// it will simply return "libgcc.a", which is of no use to us.
++	if strings.Contains(gccCmd[0], "clang") && !filepath.IsAbs(string(f)) {
++		return "", nil
++	}
++
+ 	return strings.Trim(string(f), "\r\n"), nil
+ }
+ 
+@@ -1662,19 +1671,21 @@ func (b *builder) gccCmd(objdir string) []string {
+ 	}
+ 	a = append(a, b.gccArchArgs()...)
+ 	// gcc-4.5 and beyond require explicit "-pthread" flag
+-	// for multithreading with pthread library, but clang whines
+-	// about unused arguments if we pass it.
++	// for multithreading with pthread library.
+ 	if buildContext.CgoEnabled {
+ 		switch goos {
+ 		case "windows":
+ 			a = append(a, "-mthreads")
+ 		default:
+-			if !strings.Contains(a[0], "clang") {
+-				a = append(a, "-pthread")
+-			}
++			a = append(a, "-pthread")
+ 		}
+ 	}
+ 
++	// clang is too smart about command-line arguments
++	if strings.Contains(a[0], "clang") {
++		a = append(a, "-Qunused-arguments")
++	}
++
+ 	// On OS X, some of the compilers behave as if -fno-common
+ 	// is always set, and the Mach-O linker in 6l/8l assumes this.
+ 	// See http://golang.org/issue/3253.
+@@ -1706,6 +1717,7 @@ var cgoRe = regexp.MustCompile(`[/\\:]`)
+ 
+ var (
+ 	cgoLibGccFile     string
++	cgoLibGccErr      error
+ 	cgoLibGccFileOnce sync.Once
+ )
+ 
+@@ -1800,21 +1812,19 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 	}
+ 
+ 	cgoLibGccFileOnce.Do(func() {
+-		cgoLibGccFile, err = b.libgcc(p)
++		cgoLibGccFile, cgoLibGccErr = b.libgcc(p)
+ 	})
+-	if cgoLibGccFile == "" {
+-		if err == nil {
+-			err = errors.New("failed to get libgcc filename")
+-		}
++	if cgoLibGccFile == "" && cgoLibGccErr != nil {
+ 		return nil, nil, err
+ 	}
+ 
+ 	var staticLibs []string
+ 	if goos == "windows" {
+ 		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last
+-		staticLibs = []string{"-lmingwex", "-lmingw32", cgoLibGccFile}
+-	} else {
+-		staticLibs = []string{cgoLibGccFile}
++		staticLibs = []string{"-lmingwex", "-lmingw32"}
++	}
++	if cgoLibGccFile != "" {
++		staticLibs = append(staticLibs, cgoLibGccFile)
+ 	}
+ 
+ 	for _, cfile := range cfiles {
+diff --git a/src/run.bash b/src/run.bash
+index f8716a6ee8..a2abc6797b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -48,10 +48,8 @@ go test sync -short -timeout=120s -cpu=10
+ 
+ # Race detector only supported on Linux and OS X,
+ # and only on amd64, and only when cgo is enabled.
+-# Also, clang can't seem to link the .syso files, so only
+-# run if we're using gcc.
+-case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED-${CC:-gcc}" in
+-linux-linux-amd64-1-*gcc* | darwin-darwin-amd64-1-*gcc*)
++case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
++linux-linux-amd64-1 | darwin-darwin-amd64-1)
+ 	echo
+ 	echo '# Testing race detector.'
+ 	go test -race -i flag

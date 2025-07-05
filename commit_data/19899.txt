@@ -8,7 +8,7 @@ Date:   Wed Aug 6 00:25:41 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/115300044
-
+---
  include/link.h     |  8 +++++++-
  src/liblink/ld.c   | 31 +++++++++++++++++++++++--------
  src/liblink/obj5.c |  1 +
@@ -16,3 +16,145 @@ Date:   Wed Aug 6 00:25:41 2014 -0400
  src/liblink/obj8.c |  1 +
  src/liblink/sym.c  |  2 +-
  6 files changed, 35 insertions(+), 10 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 7cb04ac126..c5f4841d32 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -431,11 +431,17 @@ struct	Link
+ 	LSym*	filesyms;
+ };
+ 
++enum {
++	LittleEndian = 0x04030201,
++	BigEndian = 0x01020304,
++};
++
+ // LinkArch is the definition of a single architecture.
+ struct LinkArch
+ {
+ 	char*	name; // "arm", "amd64", and so on
+ 	int	thechar;	// '5', '6', and so on
++	int32	endian; // LittleEndian or BigEndian
+ 
+ 	void	(*addstacksplit)(Link*, LSym*);
+ 	void	(*assemble)(Link*, LSym*);
+@@ -560,7 +566,7 @@ int	find1(int32 l, int c);
+ void	linkgetline(Link *ctxt, int32 line, LSym **f, int32 *l);
+ void	histtoauto(Link *ctxt);
+ void	mkfwd(LSym*);
+-void	nuxiinit(void);
++void	nuxiinit(LinkArch*);
+ void	savehist(Link *ctxt, int32 line, int32 off);
+ Prog*	copyp(Link*, Prog*);
+ Prog*	appendp(Link*, Prog*);
+diff --git a/src/liblink/ld.c b/src/liblink/ld.c
+index a2fdce56bd..6d0fe4a2a4 100644
+--- a/src/liblink/ld.c
++++ b/src/liblink/ld.c
+@@ -130,16 +130,26 @@ find1(int32 l, int c)
+ }
+ 
+ void
+-nuxiinit(void)
++nuxiinit(LinkArch *arch)
+ {
+ 	int i, c;
+ 
++	if(arch->endian != BigEndian && arch->endian != LittleEndian)
++		sysfatal("unknown endian (%#x) for arch %s", arch->endian, arch->name);
++
+ 	for(i=0; i<4; i++) {
+-		c = find1(0x04030201L, i+1);
+-		if(i < 2)
+-			inuxi2[i] = c;
+-		if(i < 1)
+-			inuxi1[i] = c;
++		c = find1(arch->endian, i+1);
++		if(arch->endian == LittleEndian) {
++			if(i < 2)
++				inuxi2[i] = c;
++			if(i < 1)
++				inuxi1[i] = c;
++		} else {
++			if(i >= 2)
++				inuxi2[i-2] = c;
++			if(i >= 3)
++				inuxi1[i-3] = c;
++		}
+ 		inuxi4[i] = c;
+ 		if(c == i) {
+ 			inuxi8[i] = c;
+@@ -149,8 +159,13 @@ nuxiinit(void)
+ 			inuxi8[i+4] = c;
+ 		}
+ 		fnuxi4[i] = c;
+-		fnuxi8[i] = c;
+-		fnuxi8[i+4] = c+4;
++		if(c == i) {
++			fnuxi8[i] = c;
++			fnuxi8[i+4] = c+4;
++		} else {
++			fnuxi8[i] = c+4;
++			fnuxi8[i+4] = c;
++		}
+ 	}
+ }
+ 
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index 348401930b..de920b029e 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -1033,6 +1033,7 @@ loop:
+ LinkArch linkarm = {
+ 	.name = "arm",
+ 	.thechar = '5',
++	.endian = LittleEndian,
+ 
+ 	.addstacksplit = addstacksplit,
+ 	.assemble = span5,
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 6879e97bec..eef3b4294a 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -1087,6 +1087,7 @@ prg(void)
+ LinkArch linkamd64 = {
+ 	.name = "amd64",
+ 	.thechar = '6',
++	.endian = LittleEndian,
+ 
+ 	.addstacksplit = addstacksplit,
+ 	.assemble = span6,
+@@ -1132,6 +1133,7 @@ LinkArch linkamd64 = {
+ LinkArch linkamd64p32 = {
+ 	.name = "amd64p32",
+ 	.thechar = '6',
++	.endian = LittleEndian,
+ 
+ 	.addstacksplit = addstacksplit,
+ 	.assemble = span6,
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index 2fc48d364e..50e6d8236d 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -816,6 +816,7 @@ loop:
+ LinkArch link386 = {
+ 	.name = "386",
+ 	.thechar = '8',
++	.endian = LittleEndian,
+ 
+ 	.addstacksplit = addstacksplit,
+ 	.assemble = span8,
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index 6ae9e45c7e..ec07957f47 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -91,7 +91,7 @@ linknew(LinkArch *arch)
+ 	char *p;
+ 	char buf[1024];
+ 
+-	nuxiinit();
++	nuxiinit(arch);
+ 	
+ 	ctxt = emallocz(sizeof *ctxt);
+ 	ctxt->arch = arch;

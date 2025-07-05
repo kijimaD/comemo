@@ -24,6 +24,42 @@ Date:   Thu Sep 26 01:14:18 2024 +0200
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/vdso_linux.go | 12 +++++-------
  1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/vdso_linux.go b/src/runtime/vdso_linux.go
+index 4523615711..72b17ce4ac 100644
+--- a/src/runtime/vdso_linux.go
++++ b/src/runtime/vdso_linux.go
+@@ -97,6 +97,8 @@ type vdsoInfo struct {
+ 	verdef *elfVerdef
+ }
+ 
++var vdsoLoadStart, vdsoLoadEnd uintptr
++
+ // see vdso_linux_*.go for vdsoSymbolKeys[] and vdso*Sym vars
+ 
+ func vdsoInitFromSysinfoEhdr(info *vdsoInfo, hdr *elfEhdr) {
+@@ -116,6 +118,8 @@ func vdsoInitFromSysinfoEhdr(info *vdsoInfo, hdr *elfEhdr) {
+ 			if !foundVaddr {
+ 				foundVaddr = true
+ 				info.loadOffset = info.loadAddr + uintptr(pt.p_offset-pt.p_vaddr)
++				vdsoLoadStart = info.loadOffset
++				vdsoLoadEnd = info.loadOffset + uintptr(pt.p_memsz)
+ 			}
+ 
+ 		case _PT_DYNAMIC:
+@@ -285,11 +289,5 @@ func vdsoauxv(tag, val uintptr) {
+ //
+ //go:nosplit
+ func inVDSOPage(pc uintptr) bool {
+-	for _, k := range vdsoSymbolKeys {
+-		if *k.ptr != 0 {
+-			page := *k.ptr &^ (physPageSize - 1)
+-			return pc >= page && pc < page+physPageSize
+-		}
+-	}
+-	return false
++	return pc >= vdsoLoadStart && pc < vdsoLoadEnd
+ }

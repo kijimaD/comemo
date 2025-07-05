@@ -21,8 +21,83 @@ Date:   Sat Jun 27 11:07:30 2015 +1000
     Change-Id: I758f0521caf71630437e43990ec6d6c9a92655e3
     Reviewed-on: https://go-review.googlesource.com/11600
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/fmt/doc.go      |  5 ++++-
  src/fmt/fmt_test.go | 26 +++++++++++++++++++++++---
  src/fmt/format.go   |  2 +-
  3 files changed, 28 insertions(+), 5 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 2efe6ee5b4..ef91368ef0 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -40,7 +40,7 @@
+ 		%F	synonym for %f
+ 		%g	%e for large exponents, %f otherwise
+ 		%G	%E for large exponents, %F otherwise
+-	String and slice of bytes:
++	String and slice of bytes (treated equivalently with these verbs):
+ 		%s	the uninterpreted bytes of the string or slice
+ 		%q	a double-quoted string safely escaped with Go syntax
+ 		%x	base 16, lower-case, two characters per byte
+@@ -164,6 +164,9 @@
+ 	of strings, and %6.2f will control formatting for each element
+ 	of a floating-point array.
+ 
++	However, when printing a byte slice with a string-like verb
++	(%s %q %x %X), it is treated identically to a string, as a single item.
++
+ 	To avoid recursion in cases such as
+ 		type X string
+ 		func (x X) String() string { return Sprintf("<%s>", x) }
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 28b7e0551a..90a4031d5b 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -452,10 +452,30 @@ var fmtTests = []struct {
+ 	{"%q", []string{"a", "b"}, `["a" "b"]`},
+ 	{"% 02x", []byte{1}, "01"},
+ 	{"% 02x", []byte{1, 2, 3}, "01 02 03"},
+-	// Special care for empty slices.
++	// Padding with byte slices.
+ 	{"%x", []byte{}, ""},
+-	{"%02x", []byte{}, ""},
+-	{"% 02x", []byte{}, ""},
++	{"%02x", []byte{}, "00"},
++	{"% 02x", []byte{}, "00"},
++	{"%08x", []byte{0xab}, "000000ab"},
++	{"% 08x", []byte{0xab}, "000000ab"},
++	{"%08x", []byte{0xab, 0xcd}, "0000abcd"},
++	{"% 08x", []byte{0xab, 0xcd}, "000ab cd"},
++	{"%8x", []byte{0xab}, "      ab"},
++	{"% 8x", []byte{0xab}, "      ab"},
++	{"%8x", []byte{0xab, 0xcd}, "    abcd"},
++	{"% 8x", []byte{0xab, 0xcd}, "   ab cd"},
++	// Same for strings
++	{"%x", "", ""},
++	{"%02x", "", "00"},
++	{"% 02x", "", "00"},
++	{"%08x", "\xab", "000000ab"},
++	{"% 08x", "\xab", "000000ab"},
++	{"%08x", "\xab\xcd", "0000abcd"},
++	{"% 08x", "\xab\xcd", "000ab cd"},
++	{"%8x", "\xab", "      ab"},
++	{"% 8x", "\xab", "      ab"},
++	{"%8x", "\xab\xcd", "    abcd"},
++	{"% 8x", "\xab\xcd", "   ab cd"},
+ 
+ 	// renamings
+ 	{"%v", renamedBool(true), "true"},
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index ac9f6d881a..517b18f7d4 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -346,7 +346,7 @@ func (f *fmt) fmt_sbx(s string, b []byte, digits string) {
+ 		}
+ 		buf = append(buf, digits[c>>4], digits[c&0xF])
+ 	}
+-	f.buf.Write(buf)
++	f.pad(buf)
+ }
+ 
+ // fmt_sx formats a string as a hexadecimal encoding of its bytes.

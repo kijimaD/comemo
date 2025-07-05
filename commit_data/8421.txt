@@ -7,6 +7,23 @@ Date:   Tue May 17 14:24:32 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4515092
-
+---
  doc/docs.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 54c2299f5b..50df2213b3 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -79,6 +79,11 @@ An introduction to Go for C++ programmers.
+ <li><a href="http://golang.jp/">golang.jp</a> - Go documentation and news.
+ </ul>
+ 
++<h3 id="docs_kr">Korean &mdash; 한국어</h3>
++<ul>
++<li><a href="http://code.google.com/p/golang-korea">golang-korea</a> - Go documentation and news.
++</ul>
++
+ <h3 id="docs_ru">Russian &mdash; Русский</h3>
+ <ul>
+ <li><a href="http://golanguage.ru/">golanguage.ru</a> - Go documentation.

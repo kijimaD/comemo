@@ -11,6 +11,20 @@ Date:   Sun Nov 8 21:03:18 2020 -0500
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/articles/race_detector.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/race_detector.html b/doc/articles/race_detector.html
+index 63a658f870..09188c15d5 100644
+--- a/doc/articles/race_detector.html
++++ b/doc/articles/race_detector.html
+@@ -418,7 +418,7 @@ close(c)
+   <code>linux/amd64</code>, <code>linux/ppc64le</code>,
+   <code>linux/arm64</code>, <code>freebsd/amd64</code>,
+   <code>netbsd/amd64</code>, <code>darwin/amd64</code>,
+-  and <code>windows/amd64</code>.
++  <code>darwin/arm64</code>, and <code>windows/amd64</code>.
+ </p>
+ 
+ <h2 id="Runtime_Overheads">Runtime Overhead</h2>

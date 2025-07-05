@@ -11,7 +11,7 @@ Date:   Mon Jun 28 16:00:26 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go         |  4 +--
  src/cmd/compile/internal/types2/builtins.go    |  6 ++--
  src/cmd/compile/internal/types2/call.go        |  4 +--
@@ -25,3 +25,553 @@ Date:   Mon Jun 28 16:00:26 2021 -0700
  src/cmd/compile/internal/types2/stmt.go        |  4 +--
  src/cmd/compile/internal/types2/unify.go       | 13 ++++----
  12 files changed, 61 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 4f7f35e61b..ae4fb6ad10 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -430,11 +430,11 @@ func Implements(V Type, T *Interface) bool {
+ // Identical reports whether x and y are identical types.
+ // Receivers of Signature types are ignored.
+ func Identical(x, y Type) bool {
+-	return (*Checker)(nil).identical(x, y)
++	return identical(x, y, true, nil)
+ }
+ 
+ // IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
+ // Receivers of Signature types are ignored.
+ func IdenticalIgnoreTags(x, y Type) bool {
+-	return (*Checker)(nil).identicalIgnoreTags(x, y)
++	return identical(x, y, false, nil)
+ }
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index ffe872e7ab..7ba26509e8 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -281,7 +281,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		// both argument types must be identical
+-		if !check.identical(x.typ, y.typ) {
++		if !Identical(x.typ, y.typ) {
+ 			check.errorf(x, invalidOp+"%v (mismatched types %s and %s)", call, x.typ, y.typ)
+ 			return
+ 		}
+@@ -346,7 +346,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 
+-		if !check.identical(dst, src) {
++		if !Identical(dst, src) {
+ 			check.errorf(x, invalidArg+"arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
+ 			return
+ 		}
+@@ -635,7 +635,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		base := derefStructPtr(x.typ)
+ 		sel := selx.Sel.Value
+-		obj, index, indirect := check.lookupFieldOrMethod(base, false, check.pkg, sel)
++		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
+ 		switch obj.(type) {
+ 		case nil:
+ 			check.errorf(x, invalidArg+"%s has no single field %s", base, sel)
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 8c17a2f808..34dafce8bf 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -467,7 +467,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 
+ 	check.instantiatedOperand(x)
+ 
+-	obj, index, indirect = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
++	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+ 		switch {
+ 		case index != nil:
+@@ -497,7 +497,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 				} else {
+ 					changeCase = string(unicode.ToUpper(r)) + sel[1:]
+ 				}
+-				if obj, _, _ = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
++				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+ 					why += ", but does have " + changeCase
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 30201e2b7f..6c26a4c446 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -93,7 +93,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 	V := x.typ
+ 	Vu := under(V)
+ 	Tu := under(T)
+-	if check.identicalIgnoreTags(Vu, Tu) {
++	if IdenticalIgnoreTags(Vu, Tu) {
+ 		return true
+ 	}
+ 
+@@ -101,7 +101,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 	// have identical underlying types if tags are ignored"
+ 	if V, ok := V.(*Pointer); ok {
+ 		if T, ok := T.(*Pointer); ok {
+-			if check.identicalIgnoreTags(under(V.base), under(T.base)) {
++			if IdenticalIgnoreTags(under(V.base), under(T.base)) {
+ 				return true
+ 			}
+ 		}
+@@ -142,7 +142,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 	if s := asSlice(V); s != nil {
+ 		if p := asPointer(T); p != nil {
+ 			if a := asArray(p.Elem()); a != nil {
+-				if check.identical(s.Elem(), a.Elem()) {
++				if Identical(s.Elem(), a.Elem()) {
+ 					if check == nil || check.allowVersion(check.pkg, 1, 17) {
+ 						return true
+ 					}
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 7fba179e44..1cb0ad4752 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1000,7 +1000,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 		return
+ 	}
+ 
+-	if !check.identical(x.typ, y.typ) {
++	if !Identical(x.typ, y.typ) {
+ 		// only report an error if we have valid types
+ 		// (otherwise we had an error reported elsewhere already)
+ 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
+@@ -1329,7 +1329,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 					xkey := keyVal(x.val)
+ 					if asInterface(utyp.key) != nil {
+ 						for _, vtyp := range visited[xkey] {
+-							if check.identical(vtyp, x.typ) {
++							if Identical(vtyp, x.typ) {
+ 								duplicate = true
+ 								break
+ 							}
+@@ -1550,7 +1550,7 @@ func (check *Checker) typeAssertion(pos syntax.Pos, x *operand, xtyp *Interface,
+ 	}
+ 	var msg string
+ 	if wrongType != nil {
+-		if check.identical(method.typ, wrongType.typ) {
++		if Identical(method.typ, wrongType.typ) {
+ 			msg = fmt.Sprintf("missing method %s (%s has pointer receiver)", method.name, method.name)
+ 		} else {
+ 			msg = fmt.Sprintf("wrong type for method %s (have %s, want %s)", method.name, wrongType.typ, method.typ)
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 791e25e9f0..e5d94e44d9 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -94,7 +94,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeName, targs []Type, p
+ 	// Unify parameter and argument types for generic parameters with typed arguments
+ 	// and collect the indices of generic parameters with untyped arguments.
+ 	// Terminology: generic parameter = function parameter with a type-parameterized type
+-	u := newUnifier(check, false)
++	u := newUnifier(false)
+ 	u.x.init(tparams)
+ 
+ 	// Set the type arguments which we know already.
+@@ -374,7 +374,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ 
+ 	// Setup bidirectional unification between those structural bounds
+ 	// and the corresponding type arguments (which may be nil!).
+-	u := newUnifier(check, false)
++	u := newUnifier(false)
+ 	u.x.init(tparams)
+ 	u.y = u.x // type parameters between LHS and RHS of unification are identical
+ 
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 4dee923422..499b078dc0 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -211,7 +211,7 @@ func newTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *TypeSet {
+ 			}
+ 			// check != nil
+ 			check.later(func() {
+-				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
++				if !check.allowVersion(m.pkg, 1, 14) || !Identical(m.typ, other.Type()) {
+ 					var err error_
+ 					err.errorf(pos, "duplicate method %s", m.name)
+ 					err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 9fcec44d53..d59a2f474c 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -6,6 +6,11 @@
+ 
+ package types2
+ 
++// Internal use of LookupFieldOrMethod: If the obj result is a method
++// associated with a concrete (non-interface) type, the method's signature
++// may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
++// the method's type.
++
+ // LookupFieldOrMethod looks up a field or method with given package and name
+ // in T and returns the corresponding *Var or *Func, an index sequence, and a
+ // bool indicating if there were any pointer indirections on the path to the
+@@ -33,19 +38,6 @@ package types2
+ //	the method's formal receiver base type, nor was the receiver addressable.
+ //
+ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+-	return (*Checker)(nil).lookupFieldOrMethod(T, addressable, pkg, name)
+-}
+-
+-// Internal use of Checker.lookupFieldOrMethod: If the obj result is a method
+-// associated with a concrete (non-interface) type, the method's signature
+-// may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
+-// the method's type.
+-// TODO(gri) Now that we provide the *Checker, we can probably remove this
+-// caveat by calling Checker.objDecl from lookupFieldOrMethod. Investigate.
+-
+-// lookupFieldOrMethod is like the external version but completes interfaces
+-// as necessary.
+-func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+ 	// Methods cannot be associated to a named pointer type
+ 	// (spec: "The type denoted by T is called the receiver base type;
+ 	// it must not be a pointer or interface type and it must be declared
+@@ -55,7 +47,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
+ 	// not have found it for T (see also issue 8590).
+ 	if t := asNamed(T); t != nil {
+ 		if p, _ := t.Underlying().(*Pointer); p != nil {
+-			obj, index, indirect = check.rawLookupFieldOrMethod(p, false, pkg, name)
++			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name)
+ 			if _, ok := obj.(*Func); ok {
+ 				return nil, nil, false
+ 			}
+@@ -63,7 +55,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
+ 		}
+ 	}
+ 
+-	return check.rawLookupFieldOrMethod(T, addressable, pkg, name)
++	return lookupFieldOrMethod(T, addressable, pkg, name)
+ }
+ 
+ // TODO(gri) The named type consolidation and seen maps below must be
+@@ -71,10 +63,9 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
+ //           types always have only one representation (even when imported
+ //           indirectly via different packages.)
+ 
+-// rawLookupFieldOrMethod should only be called by lookupFieldOrMethod and missingMethod.
+-func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
++// lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
++func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+ 	// WARNING: The code in this function is extremely subtle - do not modify casually!
+-	//          This function and NewMethodSet should be kept in sync.
+ 
+ 	if name == "_" {
+ 		return // blank fields/methods are never found
+@@ -228,7 +219,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 			return
+ 		}
+ 
+-		current = check.consolidateMultiples(next)
++		current = consolidateMultiples(next)
+ 	}
+ 
+ 	return nil, nil, false // not found
+@@ -245,7 +236,7 @@ type embeddedType struct {
+ // consolidateMultiples collects multiple list entries with the same type
+ // into a single entry marked as containing multiples. The result is the
+ // consolidated list.
+-func (check *Checker) consolidateMultiples(list []embeddedType) []embeddedType {
++func consolidateMultiples(list []embeddedType) []embeddedType {
+ 	if len(list) <= 1 {
+ 		return list // at most one entry - nothing to do
+ 	}
+@@ -253,7 +244,7 @@ func (check *Checker) consolidateMultiples(list []embeddedType) []embeddedType {
+ 	n := 0                     // number of entries w/ unique type
+ 	prev := make(map[Type]int) // index at which type was previously seen
+ 	for _, e := range list {
+-		if i, found := check.lookupType(prev, e.typ); found {
++		if i, found := lookupType(prev, e.typ); found {
+ 			list[i].multiples = true
+ 			// ignore this entry
+ 		} else {
+@@ -265,14 +256,14 @@ func (check *Checker) consolidateMultiples(list []embeddedType) []embeddedType {
+ 	return list[:n]
+ }
+ 
+-func (check *Checker) lookupType(m map[Type]int, typ Type) (int, bool) {
++func lookupType(m map[Type]int, typ Type) (int, bool) {
+ 	// fast path: maybe the types are equal
+ 	if i, found := m[typ]; found {
+ 		return i, true
+ 	}
+ 
+ 	for t, i := range m {
+-		if check.identical(t, typ) {
++		if Identical(t, typ) {
+ 			return i, true
+ 		}
+ 	}
+@@ -338,7 +329,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 			// to see if they can be made to match.
+ 			// TODO(gri) is this always correct? what about type bounds?
+ 			// (Alternative is to rename/subst type parameters and compare.)
+-			u := newUnifier(check, true)
++			u := newUnifier(true)
+ 			u.x.init(ftyp.tparams)
+ 			if !u.unify(ftyp, mtyp) {
+ 				return m, f
+@@ -353,12 +344,12 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 	Vn := asNamed(Vd)
+ 	for _, m := range T.typeSet().methods {
+ 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
+-		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
++		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name)
+ 
+ 		// Check if *V implements this method of T.
+ 		if obj == nil {
+ 			ptr := NewPointer(V)
+-			obj, _, _ = check.rawLookupFieldOrMethod(ptr, false, m.pkg, m.name)
++			obj, _, _ = lookupFieldOrMethod(ptr, false, m.pkg, m.name)
+ 			if obj != nil {
+ 				return m, obj.(*Func)
+ 			}
+@@ -414,7 +405,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		// to see if they can be made to match.
+ 		// TODO(gri) is this always correct? what about type bounds?
+ 		// (Alternative is to rename/subst type parameters and compare.)
+-		u := newUnifier(check, true)
++		u := newUnifier(true)
+ 		if len(ftyp.tparams) > 0 {
+ 			// We reach here only if we accept method type parameters.
+ 			// In this case, unification must consider any receiver
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index fdc6ec52aa..83cc239d93 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -255,7 +255,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	}
+ 
+ 	// x's type is identical to T
+-	if check.identical(V, T) {
++	if Identical(V, T) {
+ 		return true, 0
+ 	}
+ 
+@@ -287,7 +287,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	// x's type V and T have identical underlying types
+ 	// and at least one of V or T is not a named type
+-	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
++	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+ 		return true, 0
+ 	}
+ 
+@@ -296,7 +296,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
+ 			if reason != nil {
+ 				if wrongType != nil {
+-					if check.identical(m.typ, wrongType.typ) {
++					if Identical(m.typ, wrongType.typ) {
+ 						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
+ 					} else {
+ 						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
+@@ -315,7 +315,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	// type, x's type V and T have identical element types,
+ 	// and at least one of V or T is not a named type
+ 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
+-		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
++		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
+ 			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 73af127188..5ff7840d6f 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -147,18 +147,6 @@ func hasNil(typ Type) bool {
+ 	return false
+ }
+ 
+-// identical reports whether x and y are identical types.
+-// Receivers of Signature types are ignored.
+-func (check *Checker) identical(x, y Type) bool {
+-	return check.identical0(x, y, true, nil)
+-}
+-
+-// identicalIgnoreTags reports whether x and y are identical types if tags are ignored.
+-// Receivers of Signature types are ignored.
+-func (check *Checker) identicalIgnoreTags(x, y Type) bool {
+-	return check.identical0(x, y, false, nil)
+-}
+-
+ // An ifacePair is a node in a stack of interface type pairs compared for identity.
+ type ifacePair struct {
+ 	x, y *Interface
+@@ -170,7 +158,7 @@ func (p *ifacePair) identical(q *ifacePair) bool {
+ }
+ 
+ // For changes to this code the corresponding changes should be made to unifier.nify.
+-func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
++func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	// types must be expanded for comparison
+ 	x = expandf(x)
+ 	y = expandf(y)
+@@ -194,13 +182,13 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		if y, ok := y.(*Array); ok {
+ 			// If one or both array lengths are unknown (< 0) due to some error,
+ 			// assume they are the same to avoid spurious follow-on errors.
+-			return (x.len < 0 || y.len < 0 || x.len == y.len) && check.identical0(x.elem, y.elem, cmpTags, p)
++			return (x.len < 0 || y.len < 0 || x.len == y.len) && identical(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Slice:
+ 		// Two slice types are identical if they have identical element types.
+ 		if y, ok := y.(*Slice); ok {
+-			return check.identical0(x.elem, y.elem, cmpTags, p)
++			return identical(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Struct:
+@@ -215,7 +203,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 					if f.embedded != g.embedded ||
+ 						cmpTags && x.Tag(i) != y.Tag(i) ||
+ 						!f.sameId(g.pkg, g.name) ||
+-						!check.identical0(f.typ, g.typ, cmpTags, p) {
++						!identical(f.typ, g.typ, cmpTags, p) {
+ 						return false
+ 					}
+ 				}
+@@ -226,7 +214,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	case *Pointer:
+ 		// Two pointer types are identical if they have identical base types.
+ 		if y, ok := y.(*Pointer); ok {
+-			return check.identical0(x.base, y.base, cmpTags, p)
++			return identical(x.base, y.base, cmpTags, p)
+ 		}
+ 
+ 	case *Tuple:
+@@ -237,7 +225,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 				if x != nil {
+ 					for i, v := range x.vars {
+ 						w := y.vars[i]
+-						if !check.identical0(v.typ, w.typ, cmpTags, p) {
++						if !identical(v.typ, w.typ, cmpTags, p) {
+ 							return false
+ 						}
+ 					}
+@@ -255,9 +243,9 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		// parameter names.
+ 		if y, ok := y.(*Signature); ok {
+ 			return x.variadic == y.variadic &&
+-				check.identicalTParams(x.tparams, y.tparams, cmpTags, p) &&
+-				check.identical0(x.params, y.params, cmpTags, p) &&
+-				check.identical0(x.results, y.results, cmpTags, p)
++				identicalTParams(x.tparams, y.tparams, cmpTags, p) &&
++				identical(x.params, y.params, cmpTags, p) &&
++				identical(x.results, y.results, cmpTags, p)
+ 		}
+ 
+ 	case *Union:
+@@ -325,7 +313,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 				}
+ 				for i, f := range a {
+ 					g := b[i]
+-					if f.Id() != g.Id() || !check.identical0(f.typ, g.typ, cmpTags, q) {
++					if f.Id() != g.Id() || !identical(f.typ, g.typ, cmpTags, q) {
+ 						return false
+ 					}
+ 				}
+@@ -336,14 +324,14 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	case *Map:
+ 		// Two map types are identical if they have identical key and value types.
+ 		if y, ok := y.(*Map); ok {
+-			return check.identical0(x.key, y.key, cmpTags, p) && check.identical0(x.elem, y.elem, cmpTags, p)
++			return identical(x.key, y.key, cmpTags, p) && identical(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Chan:
+ 		// Two channel types are identical if they have identical value types
+ 		// and the same direction.
+ 		if y, ok := y.(*Chan); ok {
+-			return x.dir == y.dir && check.identical0(x.elem, y.elem, cmpTags, p)
++			return x.dir == y.dir && identical(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Named:
+@@ -376,13 +364,13 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	return false
+ }
+ 
+-func (check *Checker) identicalTParams(x, y []*TypeName, cmpTags bool, p *ifacePair) bool {
++func identicalTParams(x, y []*TypeName, cmpTags bool, p *ifacePair) bool {
+ 	if len(x) != len(y) {
+ 		return false
+ 	}
+ 	for i, x := range x {
+ 		y := y[i]
+-		if !check.identical0(x.typ.(*TypeParam).bound, y.typ.(*TypeParam).bound, cmpTags, p) {
++		if !identical(x.typ.(*TypeParam).bound, y.typ.(*TypeParam).bound, cmpTags, p) {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index ab66432126..b41b23fedb 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -256,7 +256,7 @@ L:
+ 			// look for duplicate types for a given value
+ 			// (quadratic algorithm, but these lists tend to be very short)
+ 			for _, vt := range seen[val] {
+-				if check.identical(v.typ, vt.typ) {
++				if Identical(v.typ, vt.typ) {
+ 					var err error_
+ 					err.errorf(&v, "duplicate case %s in expression switch", &v)
+ 					err.errorf(vt.pos, "previous case")
+@@ -282,7 +282,7 @@ L:
+ 		// look for duplicate types
+ 		// (quadratic algorithm, but type switches tend to be reasonably small)
+ 		for t, other := range seen {
+-			if T == nil && t == nil || T != nil && t != nil && check.identical(T, t) {
++			if T == nil && t == nil || T != nil && t != nil && Identical(T, t) {
+ 				// talk about "case" rather than "type" because of nil case
+ 				Ts := "nil"
+ 				if T != nil {
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 9a51dcb6d4..4e1f832203 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -6,7 +6,10 @@
+ 
+ package types2
+ 
+-import "bytes"
++import (
++	"bytes"
++	"fmt"
++)
+ 
+ // The unifier maintains two separate sets of type parameters x and y
+ // which are used to resolve type parameters in the x and y arguments
+@@ -34,7 +37,6 @@ import "bytes"
+ // and the respective types inferred for each type parameter.
+ // A unifier is created by calling newUnifier.
+ type unifier struct {
+-	check *Checker
+ 	exact bool
+ 	x, y  tparamsList // x and y must initialized via tparamsList.init
+ 	types []Type      // inferred types, shared by x and y
+@@ -45,8 +47,8 @@ type unifier struct {
+ // exactly. If exact is not set, a named type's underlying type
+ // is considered if unification would fail otherwise, and the
+ // direction of channels is ignored.
+-func newUnifier(check *Checker, exact bool) *unifier {
+-	u := &unifier{check: check, exact: exact}
++func newUnifier(exact bool) *unifier {
++	u := &unifier{exact: exact}
+ 	u.x.unifier = u
+ 	u.y.unifier = u
+ 	return u
+@@ -453,8 +455,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// avoid a crash in case of nil type
+ 
+ 	default:
+-		u.check.dump("### u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams)
+-		unreachable()
++		panic(fmt.Sprintf("### u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams))
+ 	}
+ 
+ 	return false

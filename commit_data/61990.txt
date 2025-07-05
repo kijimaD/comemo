@@ -18,6 +18,25 @@ Date:   Mon Dec 16 17:20:46 2024 +0100
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/internal/fips140/check/check.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/crypto/internal/fips140/check/check.go b/src/crypto/internal/fips140/check/check.go
+index 9d2e5d5cf6..f8a5d7a41e 100644
+--- a/src/crypto/internal/fips140/check/check.go
++++ b/src/crypto/internal/fips140/check/check.go
+@@ -93,6 +93,13 @@ func init() {
+ 		panic("fips140: verification mismatch")
+ 	}
+ 
++	// "The temporary value(s) generated during the integrity test of the
++	// module’s software or firmware shall [05.10] be zeroised from the module
++	// upon completion of the integrity test"
++	clear(sum)
++	clear(nbuf[:])
++	h.Reset()
++
+ 	if godebug.Value("#fips140") == "debug" {
+ 		println("fips140: verified code+data")
+ 	}

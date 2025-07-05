@@ -30,7 +30,7 @@ Date:   Mon Apr 15 23:10:50 2019 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/api/goapi.go                   |  2 +-
  src/cmd/compile/internal/gc/dump.go    |  9 +--------
  src/cmd/compile/internal/gc/iexport.go |  3 +--
@@ -44,3 +44,401 @@ Date:   Mon Apr 15 23:10:50 2019 +0900
  src/net/rpc/server.go                  | 13 +++----------
  src/reflect/all_test.go                | 13 ++-----------
  12 files changed, 26 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 1a0242f60c..b728baea1d 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -241,7 +241,7 @@ func (w *Walker) export(pkg *types.Package) {
+ 	w.current = pkg
+ 	scope := pkg.Scope()
+ 	for _, name := range scope.Names() {
+-		if ast.IsExported(name) {
++		if token.IsExported(name) {
+ 			w.emitObj(scope.Lookup(name))
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/dump.go b/src/cmd/compile/internal/gc/dump.go
+index 8de90adf05..29eb1c1e48 100644
+--- a/src/cmd/compile/internal/gc/dump.go
++++ b/src/cmd/compile/internal/gc/dump.go
+@@ -16,8 +16,6 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"regexp"
+-	"unicode"
+-	"unicode/utf8"
+ )
+ 
+ // dump is like fdump but prints to stderr.
+@@ -216,7 +214,7 @@ func (p *dumper) dump(x reflect.Value, depth int) {
+ 		for i, n := 0, typ.NumField(); i < n; i++ {
+ 			// Exclude non-exported fields because their
+ 			// values cannot be accessed via reflection.
+-			if name := typ.Field(i).Name; isExported(name) {
++			if name := typ.Field(i).Name; types.IsExported(name) {
+ 				if !p.fieldrx.MatchString(name) {
+ 					omitted = true
+ 					continue // field name not selected by filter
+@@ -274,11 +272,6 @@ func isZeroVal(x reflect.Value) bool {
+ 	return false
+ }
+ 
+-func isExported(name string) bool {
+-	ch, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(ch)
+-}
+-
+ func commonPrefixLen(a, b string) (i int) {
+ 	for i < len(a) && i < len(b) && a[i] == b[i] {
+ 		i++
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index d50d3e9400..93099bfe3d 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -206,7 +206,6 @@ import (
+ 	"cmd/internal/src"
+ 	"encoding/binary"
+ 	"fmt"
+-	"go/ast"
+ 	"io"
+ 	"math/big"
+ 	"strings"
+@@ -1400,7 +1399,7 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
+ 		name = fmt.Sprintf("%s·%d", name, v)
+ 	}
+ 
+-	if !ast.IsExported(name) && s.Pkg != w.currPkg {
++	if !types.IsExported(name) && s.Pkg != w.currPkg {
+ 		Fatalf("weird package in name: %v => %v, not %q", s, name, w.currPkg.Path)
+ 	}
+ 
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 9b24c5874f..9e3ad0c0e7 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -49,8 +49,6 @@ import (
+ 	"path"
+ 	"path/filepath"
+ 	"strings"
+-	"unicode"
+-	"unicode/utf8"
+ )
+ 
+ var (
+@@ -235,7 +233,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 	// case letter, it can only be a symbol in the current directory.
+ 	// Kills the problem caused by case-insensitive file systems
+ 	// matching an upper case name as a package name.
+-	if isUpper(arg) {
++	if token.IsExported(arg) {
+ 		pkg, err := build.ImportDir(".", build.ImportComment)
+ 		if err == nil {
+ 			return pkg, "", arg, false
+@@ -352,19 +350,13 @@ func parseSymbol(str string) (symbol, method string) {
+ // If the unexported flag (-u) is true, isExported returns true because
+ // it means that we treat the name as if it is exported.
+ func isExported(name string) bool {
+-	return unexported || isUpper(name)
+-}
+-
+-// isUpper reports whether the name starts with an upper case letter.
+-func isUpper(name string) bool {
+-	ch, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(ch)
++	return unexported || token.IsExported(name)
+ }
+ 
+ // findNextPackage returns the next full file name path that matches the
+ // (perhaps partial) package path pkg. The boolean reports if any match was found.
+ func findNextPackage(pkg string) (string, bool) {
+-	if pkg == "" || isUpper(pkg) { // Upper case symbol cannot be a package name.
++	if pkg == "" || token.IsExported(pkg) { // Upper case symbol cannot be a package name.
+ 		return "", false
+ 	}
+ 	if filepath.IsAbs(pkg) {
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 853a7e64c8..c81d313b72 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -443,7 +443,7 @@ var pkgDeps = map[string][]string{
+ 	},
+ 	"net/http/httputil": {"L4", "NET", "OS", "context", "net/http", "net/http/internal", "golang.org/x/net/http/httpguts"},
+ 	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
+-	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
++	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http", "go/token"},
+ 	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
+ }
+ 
+diff --git a/src/go/doc/exports.go b/src/go/doc/exports.go
+index 5f99bf7772..819c030c9b 100644
+--- a/src/go/doc/exports.go
++++ b/src/go/doc/exports.go
+@@ -17,7 +17,7 @@ import (
+ func filterIdentList(list []*ast.Ident) []*ast.Ident {
+ 	j := 0
+ 	for _, x := range list {
+-		if ast.IsExported(x.Name) {
++		if token.IsExported(x.Name) {
+ 			list[j] = x
+ 			j++
+ 		}
+@@ -59,7 +59,7 @@ func filterExprList(list []ast.Expr, filter Filter, export bool) []ast.Expr {
+ // and reports whether at least one exported name exists.
+ func updateIdentList(list []*ast.Ident) (hasExported bool) {
+ 	for i, x := range list {
+-		if ast.IsExported(x.Name) {
++		if token.IsExported(x.Name) {
+ 			hasExported = true
+ 		} else {
+ 			list[i] = underscore
+@@ -121,7 +121,7 @@ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp
+ 		if n := len(field.Names); n == 0 {
+ 			// anonymous field
+ 			fname := r.recordAnonymousField(parent, field.Type)
+-			if ast.IsExported(fname) {
++			if token.IsExported(fname) {
+ 				keepField = true
+ 			} else if ityp != nil && fname == "error" {
+ 				// possibly the predeclared error interface; keep
+@@ -199,7 +199,7 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
+ 		// always keep imports so we can collect them
+ 		return true
+ 	case *ast.ValueSpec:
+-		s.Values = filterExprList(s.Values, ast.IsExported, true)
++		s.Values = filterExprList(s.Values, token.IsExported, true)
+ 		if len(s.Values) > 0 || s.Type == nil && len(s.Values) == 0 {
+ 			// If there are values declared on RHS, just replace the unexported
+ 			// identifiers on the LHS with underscore, so that it matches
+@@ -219,7 +219,7 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
+ 			}
+ 		}
+ 	case *ast.TypeSpec:
+-		if name := s.Name.Name; ast.IsExported(name) {
++		if name := s.Name.Name; token.IsExported(name) {
+ 			r.filterType(r.lookupType(s.Name.Name), s.Type)
+ 			return true
+ 		} else if name == "error" {
+@@ -290,7 +290,7 @@ func (r *reader) filterDecl(decl ast.Decl) bool {
+ 		// conflicting method will be filtered here, too -
+ 		// thus, removing these methods early will not lead
+ 		// to the false removal of possible conflicts
+-		return ast.IsExported(d.Name.Name)
++		return token.IsExported(d.Name.Name)
+ 	}
+ 	return false
+ }
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index 49d2af771a..c277b35e89 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -169,7 +169,7 @@ type reader struct {
+ }
+ 
+ func (r *reader) isVisible(name string) bool {
+-	return r.mode&AllDecls != 0 || ast.IsExported(name)
++	return r.mode&AllDecls != 0 || token.IsExported(name)
+ }
+ 
+ // lookupType returns the base type with the given name.
+@@ -833,7 +833,7 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
+ 		switch {
+ 		case m.Decl == nil:
+ 			// exclude conflict entry
+-		case allMethods, m.Level == 0, !ast.IsExported(removeStar(m.Orig)):
++		case allMethods, m.Level == 0, !token.IsExported(removeStar(m.Orig)):
+ 			// forced inclusion, method not embedded, or method
+ 			// embedded but original receiver type not exported
+ 			list[i] = m
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 4e3023b906..cf03632aa2 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -14,8 +14,6 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+-	"unicode"
+-	"unicode/utf8"
+ )
+ 
+ type importer struct {
+@@ -446,7 +444,7 @@ func (p *importer) typ(parent *types.Package, tname *types.Named) types.Type {
+ 			// TODO(gri) replace this with something closer to fieldName
+ 			pos := p.pos()
+ 			name := p.string()
+-			if !exported(name) {
++			if !token.IsExported(name) {
+ 				p.pkg()
+ 			}
+ 
+@@ -675,7 +673,7 @@ func (p *importer) fieldName(parent *types.Package) (pkg *types.Package, name st
+ 		alias = true
+ 		fallthrough
+ 	default:
+-		if !exported(name) {
++		if !token.IsExported(name) {
+ 			pkg = p.pkg()
+ 		}
+ 	}
+@@ -730,11 +728,6 @@ func (p *importer) param(named bool) (*types.Var, bool) {
+ 	return types.NewVar(token.NoPos, pkg, name, t), isddd
+ }
+ 
+-func exported(name string) bool {
+-	ch, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(ch)
+-}
+-
+ func (p *importer) value() constant.Value {
+ 	switch tag := p.tagOrIndex(); tag {
+ 	case falseTag:
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index cf773238a0..374b24d1ac 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -7,7 +7,6 @@ package types
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"go/ast"
+ 	"go/constant"
+ 	"go/token"
+ )
+@@ -59,7 +58,7 @@ type Object interface {
+ // Id returns name if it is exported, otherwise it
+ // returns the name qualified with the package path.
+ func Id(pkg *Package, name string) string {
+-	if ast.IsExported(name) {
++	if token.IsExported(name) {
+ 		return name
+ 	}
+ 	// unexported names need the package path for differentiation
+@@ -139,7 +138,7 @@ func (obj *object) Type() Type { return obj.typ }
+ // Exported reports whether the object is exported (starts with a capital letter).
+ // It doesn't take into account whether the object is in a local (function) scope
+ // or not.
+-func (obj *object) Exported() bool { return ast.IsExported(obj.name) }
++func (obj *object) Exported() bool { return token.IsExported(obj.name) }
+ 
+ // Id is a wrapper for Id(obj.Pkg(), obj.Name()).
+ func (obj *object) Id() string { return Id(obj.pkg, obj.name) }
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index c46f13f798..ee7f0d0b70 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"compress/gzip"
+ 	"crypto/rand"
+ 	"fmt"
+-	"go/ast"
++	"go/token"
+ 	"io"
+ 	"io/ioutil"
+ 	"net/http/internal"
+@@ -736,7 +736,7 @@ func diff(t *testing.T, prefix string, have, want interface{}) {
+ 	}
+ 	for i := 0; i < hv.NumField(); i++ {
+ 		name := hv.Type().Field(i).Name
+-		if !ast.IsExported(name) {
++		if !token.IsExported(name) {
+ 			continue
+ 		}
+ 		hf := hv.Field(i).Interface()
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index 7bb6476ffa..9cb928240f 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -130,6 +130,7 @@ import (
+ 	"bufio"
+ 	"encoding/gob"
+ 	"errors"
++	"go/token"
+ 	"io"
+ 	"log"
+ 	"net"
+@@ -137,8 +138,6 @@ import (
+ 	"reflect"
+ 	"strings"
+ 	"sync"
+-	"unicode"
+-	"unicode/utf8"
+ )
+ 
+ const (
+@@ -202,12 +201,6 @@ func NewServer() *Server {
+ // DefaultServer is the default instance of *Server.
+ var DefaultServer = NewServer()
+ 
+-// Is this an exported - upper case - name?
+-func isExported(name string) bool {
+-	rune, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(rune)
+-}
+-
+ // Is this type exported or a builtin?
+ func isExportedOrBuiltinType(t reflect.Type) bool {
+ 	for t.Kind() == reflect.Ptr {
+@@ -215,7 +208,7 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
+ 	}
+ 	// PkgPath will be non-empty even for an exported type,
+ 	// so we need to check the type name as well.
+-	return isExported(t.Name()) || t.PkgPath() == ""
++	return token.IsExported(t.Name()) || t.PkgPath() == ""
+ }
+ 
+ // Register publishes in the server the set of methods of the
+@@ -251,7 +244,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
+ 		log.Print(s)
+ 		return errors.New(s)
+ 	}
+-	if !isExported(sname) && !useName {
++	if !token.IsExported(sname) && !useName {
+ 		s := "rpc.Register: type " + sname + " is not exported"
+ 		log.Print(s)
+ 		return errors.New(s)
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index cbf0f5a93f..964d8c6e95 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/base64"
+ 	"flag"
+ 	"fmt"
++	"go/token"
+ 	"io"
+ 	"math"
+ 	"math/rand"
+@@ -22,8 +23,6 @@ import (
+ 	"sync/atomic"
+ 	"testing"
+ 	"time"
+-	"unicode"
+-	"unicode/utf8"
+ 	"unsafe"
+ )
+ 
+@@ -4671,7 +4670,7 @@ func TestStructOfExportRules(t *testing.T) {
+ 			if n == "" {
+ 				panic("field.Name must not be empty")
+ 			}
+-			exported := isExported(n)
++			exported := token.IsExported(n)
+ 			if exported != test.exported {
+ 				t.Errorf("test-%d: got exported=%v want exported=%v", i, exported, test.exported)
+ 			}
+@@ -4679,14 +4678,6 @@ func TestStructOfExportRules(t *testing.T) {
+ 	}
+ }
+ 
+-// isExported reports whether name is an exported Go symbol
+-// (that is, whether it begins with an upper-case letter).
+-//
+-func isExported(name string) bool {
+-	ch, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(ch)
+-}
+-
+ func TestStructOfGC(t *testing.T) {
+ 	type T *uintptr
+ 	tt := TypeOf(T(nil))

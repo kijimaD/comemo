@@ -18,6 +18,33 @@ Date:   Sun Apr 10 17:16:07 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/flate/writer_test.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/compress/flate/writer_test.go b/src/compress/flate/writer_test.go
+index 633cadf2b7..e4c5c8cc72 100644
+--- a/src/compress/flate/writer_test.go
++++ b/src/compress/flate/writer_test.go
+@@ -86,14 +86,18 @@ func (e *errorWriter) Write(b []byte) (int, error) {
+ // Test if errors from the underlying writer is passed upwards.
+ func TestWriteError(t *testing.T) {
+ 	buf := new(bytes.Buffer)
+-	for i := 0; i < 1024*1024; i++ {
++	n := 65536
++	if !testing.Short() {
++		n *= 4
++	}
++	for i := 0; i < n; i++ {
+ 		buf.WriteString(fmt.Sprintf("asdasfasf%d%dfghfgujyut%dyutyu\n", i, i, i))
+ 	}
+ 	in := buf.Bytes()
+ 	// We create our own buffer to control number of writes.
+-	copyBuffer := make([]byte, 1024)
++	copyBuffer := make([]byte, 128)
+ 	for l := 0; l < 10; l++ {
+-		for fail := 1; fail <= 512; fail *= 2 {
++		for fail := 1; fail <= 256; fail *= 2 {
+ 			// Fail after 'fail' writes
+ 			ew := &errorWriter{N: fail}
+ 			w, err := NewWriter(ew, l)

@@ -7,6 +7,20 @@ Date:   Fri Jun 17 16:41:59 2011 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/4643045
-
+---
  src/pkg/go/build/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index d880746fe4..585489279f 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -348,7 +348,7 @@ func (b *build) gccArgs(args ...string) []string {
+ 	return append(a, args...)
+ }
+ 
+-var cgoRe = regexp.MustCompile("[/\\:]")
++var cgoRe = regexp.MustCompile(`[/\\:]`)
+ 
+ func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
+ 	// cgo

@@ -20,7 +20,109 @@ Date:   Sat May 25 01:27:40 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 22 +++++++-------
  test/fixedbugs/issue32187.go        | 60 +++++++++++++++++++++++++++++++++++++
  2 files changed, 70 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a8cc313b76..397f549ab1 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3049,20 +3049,18 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 	n.Left = walkexpr(n.Left, init)
+ 	n.Right = walkexpr(n.Right, init)
+ 
+-	// Given interface value l and concrete value r, rewrite
+-	//   l == r
+-	// into types-equal && data-equal.
++	// Given mixed interface/concrete comparison,
++	// rewrite into types-equal && data-equal.
+ 	// This is efficient, avoids allocations, and avoids runtime calls.
+-	var l, r *Node
+-	if n.Left.Type.IsInterface() && !n.Right.Type.IsInterface() {
+-		l = n.Left
+-		r = n.Right
+-	} else if !n.Left.Type.IsInterface() && n.Right.Type.IsInterface() {
+-		l = n.Right
+-		r = n.Left
+-	}
++	if n.Left.Type.IsInterface() != n.Right.Type.IsInterface() {
++		// Preserve side-effects in case of short-circuiting; see #32187.
++		l := cheapexpr(n.Left, init)
++		r := cheapexpr(n.Right, init)
++		// Swap so that l is the interface value and r is the concrete value.
++		if n.Right.Type.IsInterface() {
++			l, r = r, l
++		}
+ 
+-	if l != nil {
+ 		// Handle both == and !=.
+ 		eq := n.Op
+ 		andor := OOROR
+diff --git a/test/fixedbugs/issue32187.go b/test/fixedbugs/issue32187.go
+new file mode 100644
+index 0000000000..9c8c9c26d7
+--- /dev/null
++++ b/test/fixedbugs/issue32187.go
+@@ -0,0 +1,60 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// short-circuiting interface-to-concrete comparisons
++// will not miss panics
++
++package main
++
++import (
++	"log"
++	"strings"
++)
++
++func main() {
++	var (
++		x interface{}
++		p *int
++		s []int
++		l *interface{}
++		r []*int
++	)
++	tests := []struct {
++		name   string
++		errStr string
++		f      func()
++	}{
++		{"switch case", "", func() {
++			switch x {
++			case x.(*int):
++			}
++		}},
++		{"interface conversion", "", func() { _ = x == x.(error) }},
++		{"type assertion", "", func() { _ = x == x.(*int) }},
++		{"out of bounds", "", func() { _ = x == s[1] }},
++		{"nil pointer dereference #1", "", func() { _ = x == *p }},
++		{"nil pointer dereference #2", "nil pointer dereference", func() { _ = *l == r[0] }},
++	}
++
++	for _, tc := range tests {
++		testFuncShouldPanic(tc.name, tc.errStr, tc.f)
++	}
++}
++
++func testFuncShouldPanic(name, errStr string, f func()) {
++	defer func() {
++		e := recover()
++		if e == nil {
++			log.Fatalf("%s: comparison did not panic\n", name)
++		}
++		if errStr != "" {
++			if !strings.Contains(e.(error).Error(), errStr) {
++				log.Fatalf("%s: wrong panic message\n", name)
++			}
++		}
++	}()
++	f()
++}

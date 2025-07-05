@@ -9,6 +9,20 @@ Date:   Fri Dec 9 14:24:51 2011 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5476054
-
+---
  src/pkg/expvar/expvar.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 40f5441ddc..5ced285804 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -193,7 +193,7 @@ func (f Func) String() string {
+ var vars map[string]Var = make(map[string]Var)
+ var mutex sync.Mutex
+ 
+-// Publish declares an named exported variable. This should be called from a
++// Publish declares a named exported variable. This should be called from a
+ // package's init function when it creates its Vars. If the name is already
+ // registered then this will log.Panic.
+ func Publish(name string, v Var) {

@@ -12,8 +12,88 @@ Date:   Tue Dec 20 18:16:17 2016 -0800
     Change-Id: I2fdc4fe3ec1f92b7da3db3fa66f4e0f806fc899f
     Reviewed-on: https://go-review.googlesource.com/34660
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/cgo.go              | 19 ++++++++++---------
  src/cmd/vet/testdata/cgo/cgo.go |  3 +++
  src/cmd/vet/vet_test.go         |  1 +
  3 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/vet/cgo.go b/src/cmd/vet/cgo.go
+index d233e9a960..984911c489 100644
+--- a/src/cmd/vet/cgo.go
++++ b/src/cmd/vet/cgo.go
+@@ -44,7 +44,7 @@ func checkCgoCall(f *File, node ast.Node) {
+ 	}
+ 
+ 	for _, arg := range x.Args {
+-		if !typeOKForCgoCall(cgoBaseType(f, arg)) {
++		if !typeOKForCgoCall(cgoBaseType(f, arg), make(map[types.Type]bool)) {
+ 			f.Badf(arg.Pos(), "possibly passing Go type with embedded pointer to C")
+ 		}
+ 
+@@ -53,7 +53,7 @@ func checkCgoCall(f *File, node ast.Node) {
+ 			arg = conv.Args[0]
+ 		}
+ 		if u, ok := arg.(*ast.UnaryExpr); ok && u.Op == token.AND {
+-			if !typeOKForCgoCall(cgoBaseType(f, u.X)) {
++			if !typeOKForCgoCall(cgoBaseType(f, u.X), make(map[types.Type]bool)) {
+ 				f.Badf(arg.Pos(), "possibly passing Go type with embedded pointer to C")
+ 			}
+ 		}
+@@ -110,23 +110,24 @@ func cgoBaseType(f *File, arg ast.Expr) types.Type {
+ 	return f.pkg.types[arg].Type
+ }
+ 
+-// typeOKForCgoCall returns true if the type of arg is OK to pass to a
++// typeOKForCgoCall reports whether the type of arg is OK to pass to a
+ // C function using cgo. This is not true for Go types with embedded
+-// pointers.
+-func typeOKForCgoCall(t types.Type) bool {
+-	if t == nil {
++// pointers. m is used to avoid infinite recursion on recursive types.
++func typeOKForCgoCall(t types.Type, m map[types.Type]bool) bool {
++	if t == nil || m[t] {
+ 		return true
+ 	}
++	m[t] = true
+ 	switch t := t.Underlying().(type) {
+ 	case *types.Chan, *types.Map, *types.Signature, *types.Slice:
+ 		return false
+ 	case *types.Pointer:
+-		return typeOKForCgoCall(t.Elem())
++		return typeOKForCgoCall(t.Elem(), m)
+ 	case *types.Array:
+-		return typeOKForCgoCall(t.Elem())
++		return typeOKForCgoCall(t.Elem(), m)
+ 	case *types.Struct:
+ 		for i := 0; i < t.NumFields(); i++ {
+-			if !typeOKForCgoCall(t.Field(i).Type()) {
++			if !typeOKForCgoCall(t.Field(i).Type(), m) {
+ 				return false
+ 			}
+ 		}
+diff --git a/src/cmd/vet/testdata/cgo/cgo.go b/src/cmd/vet/testdata/cgo/cgo.go
+index 25d395b1ea..d0df7cf678 100644
+--- a/src/cmd/vet/testdata/cgo/cgo.go
++++ b/src/cmd/vet/testdata/cgo/cgo.go
+@@ -52,5 +52,8 @@ func CgoTests() {
+ 	C.f(*(*unsafe.Pointer)(unsafe.Pointer(&st2)))
+ 	C.f(unsafe.Pointer(&st2))
+ 
++	type cgoStruct struct{ p *cgoStruct }
++	C.f(unsafe.Pointer(&cgoStruct{}))
++
+ 	C.CBytes([]byte("hello"))
+ }
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 725f013a7d..b3d5c663a7 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -143,6 +143,7 @@ func TestVetDirs(t *testing.T) {
+ 		"divergent",
+ 		"buildtag",
+ 		"incomplete", // incomplete examples
++		"cgo",
+ 	} {
+ 		dir := dir
+ 		t.Run(dir, func(t *testing.T) {

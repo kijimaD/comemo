@@ -15,9 +15,246 @@ Date:   Mon Apr 20 15:57:52 2015 +0300
     Change-Id: Iab68eb31cf38eb6eb6eee427f49c5ca0865a8c64
     Reviewed-on: https://go-review.googlesource.com/9132
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/pprof/trace_test.go |  1 -
  src/runtime/proc1.go            | 25 ++++++---------
  src/runtime/runtime2.go         | 69 +++++++++++++++++++++--------------------
  src/runtime/trace.go            | 20 ++++++++++--
  4 files changed, 64 insertions(+), 51 deletions(-)
+
+diff --git a/src/runtime/pprof/trace_test.go b/src/runtime/pprof/trace_test.go
+index ba6eb66948..b2b745bcf6 100644
+--- a/src/runtime/pprof/trace_test.go
++++ b/src/runtime/pprof/trace_test.go
+@@ -231,7 +231,6 @@ func TestTraceStress(t *testing.T) {
+ // And concurrently with all that start/stop trace 3 times.
+ func TestTraceStressStartStop(t *testing.T) {
+ 	skipTraceTestsIfNeeded(t)
+-	t.Skip("test is unreliable; issue #10476")
+ 
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+ 	outerDone := make(chan bool)
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index e6e11ea697..bce03563ff 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1339,6 +1339,11 @@ func execute(gp *g, inheritTime bool) {
+ 	}
+ 
+ 	if trace.enabled {
++		// GoSysExit has to happen when we have a P, but before GoStart.
++		// So we emit it here.
++		if gp.syscallsp != 0 && gp.sysblocktraced {
++			traceGoSysExit(gp.sysexitticks)
++		}
+ 		traceGoStart()
+ 	}
+ 
+@@ -1824,6 +1829,7 @@ func reentersyscall(pc, sp uintptr) {
+ 	}
+ 
+ 	_g_.m.syscalltick = _g_.m.p.ptr().syscalltick
++	_g_.sysblocktraced = true
+ 	_g_.m.mcache = nil
+ 	_g_.m.p.ptr().m = 0
+ 	atomicstore(&_g_.m.p.ptr().status, _Psyscall)
+@@ -1885,6 +1891,7 @@ func entersyscallblock(dummy int32) {
+ 	_g_.throwsplit = true
+ 	_g_.stackguard0 = stackPreempt // see comment in entersyscall
+ 	_g_.m.syscalltick = _g_.m.p.ptr().syscalltick
++	_g_.sysblocktraced = true
+ 	_g_.m.p.ptr().syscalltick++
+ 
+ 	// Leave SP around for GC and traceback.
+@@ -1970,7 +1977,7 @@ func exitsyscall(dummy int32) {
+ 		return
+ 	}
+ 
+-	var exitTicks int64
++	_g_.sysexitticks = 0
+ 	if trace.enabled {
+ 		// Wait till traceGoSysBlock event is emitted.
+ 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
+@@ -1980,8 +1987,8 @@ func exitsyscall(dummy int32) {
+ 		// We can't trace syscall exit right now because we don't have a P.
+ 		// Tracing code can invoke write barriers that cannot run without a P.
+ 		// So instead we remember the syscall exit time and emit the event
+-		// below when we have a P.
+-		exitTicks = cputicks()
++		// in execute when we have a P.
++		_g_.sysexitticks = cputicks()
+ 	}
+ 
+ 	_g_.m.locks--
+@@ -1989,11 +1996,6 @@ func exitsyscall(dummy int32) {
+ 	// Call the scheduler.
+ 	mcall(exitsyscall0)
+ 
+-	// The goroutine must not be re-scheduled up to traceGoSysExit.
+-	// Otherwise we can emit GoStart but not GoSysExit, that would lead
+-	// no an inconsistent trace.
+-	_g_.m.locks++
+-
+ 	if _g_.m.mcache == nil {
+ 		throw("lost mcache")
+ 	}
+@@ -2007,13 +2009,6 @@ func exitsyscall(dummy int32) {
+ 	_g_.syscallsp = 0
+ 	_g_.m.p.ptr().syscalltick++
+ 	_g_.throwsplit = false
+-
+-	if exitTicks != 0 {
+-		systemstack(func() {
+-			traceGoSysExit(exitTicks)
+-		})
+-	}
+-	_g_.m.locks--
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 4f6a8ec7e3..d2dfa71edd 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -220,39 +220,41 @@ type g struct {
+ 	stackguard0 uintptr // offset known to liblink
+ 	stackguard1 uintptr // offset known to liblink
+ 
+-	_panic       *_panic // innermost panic - offset known to liblink
+-	_defer       *_defer // innermost defer
+-	stackAlloc   uintptr // stack allocation is [stack.lo,stack.lo+stackAlloc)
+-	sched        gobuf
+-	syscallsp    uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
+-	syscallpc    uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
+-	stkbar       []stkbar       // stack barriers, from low to high
+-	stkbarPos    uintptr        // index of lowest stack barrier not hit
+-	param        unsafe.Pointer // passed parameter on wakeup
+-	atomicstatus uint32
+-	goid         int64
+-	waitsince    int64  // approx time when the g become blocked
+-	waitreason   string // if status==Gwaiting
+-	schedlink    guintptr
+-	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
+-	paniconfault bool // panic (instead of crash) on unexpected fault address
+-	preemptscan  bool // preempted g does scan for gc
+-	gcscandone   bool // g has scanned stack; protected by _Gscan bit in status
+-	gcscanvalid  bool // false at start of gc cycle, true if G has not run since last scan
+-	throwsplit   bool // must not split stack
+-	raceignore   int8 // ignore race detection events
+-	m            *m   // for debuggers, but offset not hard-coded
+-	lockedm      *m
+-	sig          uint32
+-	writebuf     []byte
+-	sigcode0     uintptr
+-	sigcode1     uintptr
+-	sigpc        uintptr
+-	gopc         uintptr // pc of go statement that created this goroutine
+-	startpc      uintptr // pc of goroutine function
+-	racectx      uintptr
+-	waiting      *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
+-	readyg       *g     // scratch for readyExecute
++	_panic         *_panic // innermost panic - offset known to liblink
++	_defer         *_defer // innermost defer
++	stackAlloc     uintptr // stack allocation is [stack.lo,stack.lo+stackAlloc)
++	sched          gobuf
++	syscallsp      uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
++	syscallpc      uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
++	stkbar         []stkbar       // stack barriers, from low to high
++	stkbarPos      uintptr        // index of lowest stack barrier not hit
++	param          unsafe.Pointer // passed parameter on wakeup
++	atomicstatus   uint32
++	goid           int64
++	waitsince      int64  // approx time when the g become blocked
++	waitreason     string // if status==Gwaiting
++	schedlink      guintptr
++	preempt        bool  // preemption signal, duplicates stackguard0 = stackpreempt
++	paniconfault   bool  // panic (instead of crash) on unexpected fault address
++	preemptscan    bool  // preempted g does scan for gc
++	gcscandone     bool  // g has scanned stack; protected by _Gscan bit in status
++	gcscanvalid    bool  // false at start of gc cycle, true if G has not run since last scan
++	throwsplit     bool  // must not split stack
++	raceignore     int8  // ignore race detection events
++	sysblocktraced bool  // StartTrace has emitted EvGoInSyscall about this goroutine
++	sysexitticks   int64 // cputicks when syscall has returned (for tracing)
++	m              *m    // for debuggers, but offset not hard-coded
++	lockedm        *m
++	sig            uint32
++	writebuf       []byte
++	sigcode0       uintptr
++	sigcode1       uintptr
++	sigpc          uintptr
++	gopc           uintptr // pc of go statement that created this goroutine
++	startpc        uintptr // pc of goroutine function
++	racectx        uintptr
++	waiting        *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
++	readyg         *g     // scratch for readyExecute
+ 
+ 	// Per-G gcController state
+ 	gcalloc    uintptr // bytes allocated during this GC cycle
+@@ -320,6 +322,7 @@ type m struct {
+ 	waitlock      unsafe.Pointer
+ 	waittraceev   byte
+ 	waittraceskip int
++	startingtrace bool
+ 	syscalltick   uint32
+ 	//#ifdef GOOS_windows
+ 	thread uintptr // thread handle
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 6da7baddc5..7ba9e15ef7 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -149,10 +149,18 @@ func StartTrace() error {
+ 
+ 	trace.ticksStart = cputicks()
+ 	trace.timeStart = nanotime()
+-	trace.enabled = true
+ 	trace.headerWritten = false
+ 	trace.footerWritten = false
+ 
++	// Can't set trace.enabled yet. While the world is stopped, exitsyscall could
++	// already emit a delayed event (see exitTicks in exitsyscall) if we set trace.enabled here.
++	// That would lead to an inconsistent trace:
++	// - either GoSysExit appears before EvGoInSyscall,
++	// - or GoSysExit appears for a goroutine for which we don't emit EvGoInSyscall below.
++	// To instruct traceEvent that it must not ignore events below, we set startingtrace.
++	// trace.enabled is set afterwards once we have emitted all preliminary events.
++	_g_ := getg()
++	_g_.m.startingtrace = true
+ 	for _, gp := range allgs {
+ 		status := readgstatus(gp)
+ 		if status != _Gdead {
+@@ -163,10 +171,14 @@ func StartTrace() error {
+ 		}
+ 		if status == _Gsyscall {
+ 			traceEvent(traceEvGoInSyscall, -1, uint64(gp.goid))
++		} else {
++			gp.sysblocktraced = false
+ 		}
+ 	}
+ 	traceProcStart()
+ 	traceGoStart()
++	_g_.m.startingtrace = false
++	trace.enabled = true
+ 
+ 	unlock(&trace.bufLock)
+ 
+@@ -418,7 +430,7 @@ func traceEvent(ev byte, skip int, args ...uint64) {
+ 	// so if we see trace.enabled == true now, we know it's true for the rest of the function.
+ 	// Exitsyscall can run even during stopTheWorld. The race with StartTrace/StopTrace
+ 	// during tracing in exitsyscall is resolved by locking trace.bufLock in traceLockBuffer.
+-	if !trace.enabled {
++	if !trace.enabled && !mp.startingtrace {
+ 		traceReleaseBuffer(pid)
+ 		return
+ 	}
+@@ -789,6 +801,10 @@ func traceGoSysCall() {
+ }
+ 
+ func traceGoSysExit(ts int64) {
++	if ts != 0 && ts < trace.ticksStart {
++		// The timestamp was obtained during a previous tracing session, ignore.
++		return
++	}
+ 	traceEvent(traceEvGoSysExit, -1, uint64(getg().m.curg.goid), uint64(ts)/traceTickDiv)
+ }
+ 

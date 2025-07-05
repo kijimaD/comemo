@@ -9,7 +9,140 @@ Date:   Fri Aug 9 09:03:25 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12651044
-
+---
  src/cmd/go/pkg.go    | 32 +++++++++++++++++++++++++++-----
  src/cmd/go/test.bash | 44 +++++++++++++++++++++++++++++---------------
  2 files changed, 56 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 79fb196e18..f8dd41c9a0 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -323,6 +323,23 @@ func expandScanner(err error) error {
+ 	return err
+ }
+ 
++var raceExclude = map[string]bool{
++	"runtime/race": true,
++	"runtime/cgo":  true,
++	"cmd/cgo":      true,
++	"syscall":      true,
++	"errors":       true,
++}
++
++var cgoExclude = map[string]bool{
++	"runtime/cgo": true,
++}
++
++var cgoSyscallExclude = map[string]bool{
++	"runtime/cgo":  true,
++	"runtime/race": true,
++}
++
+ // load populates p using information from bp, err, which should
+ // be the result of calling build.Context.Import.
+ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package {
+@@ -375,17 +392,22 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	}
+ 
+ 	importPaths := p.Imports
+-	// Packages that use cgo import runtime/cgo implicitly,
+-	// except runtime/cgo itself.
+-	if len(p.CgoFiles) > 0 && (!p.Standard || p.ImportPath != "runtime/cgo") {
++	// Packages that use cgo import runtime/cgo implicitly.
++	// Packages that use cgo also import syscall implicitly,
++	// to wrap errno.
++	// Exclude certain packages to avoid circular dependencies.
++	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoExclude[p.ImportPath]) {
+ 		importPaths = append(importPaths, "runtime/cgo")
+ 	}
++	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
++		importPaths = append(importPaths, "syscall")
++	}
+ 	// Everything depends on runtime, except runtime and unsafe.
+ 	if !p.Standard || (p.ImportPath != "runtime" && p.ImportPath != "unsafe") {
+ 		importPaths = append(importPaths, "runtime")
+ 		// When race detection enabled everything depends on runtime/race.
+-		// Exclude runtime/cgo and cmd/cgo to avoid circular dependencies.
+-		if buildRace && (!p.Standard || (p.ImportPath != "runtime/race" && p.ImportPath != "runtime/cgo" && p.ImportPath != "cmd/cgo")) {
++		// Exclude certain packages to avoid circular dependencies.
++		if buildRace && (!p.Standard || !raceExclude[p.ImportPath]) {
+ 			importPaths = append(importPaths, "runtime/race")
+ 		}
+ 	}
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 30b8bf4ef8..2a7c1927ed 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -186,21 +186,21 @@ if [ ! -x $GOROOT/bin/godoc ]; then
+ 	ok=false
+ fi
+ 
+-TEST cmd/api installs into tool
++TEST cmd/fix installs into tool
+ GOOS=$(./testgo env GOOS)
+ GOARCH=$(./testgo env GOARCH)
+-rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api
+-./testgo install cmd/api
+-if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api ]; then
+-	echo 'did not install cmd/api to $GOROOT/pkg/tool'
+-	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/api
++rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix
++./testgo install cmd/fix
++if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix ]; then
++	echo 'did not install cmd/fix to $GOROOT/pkg/tool'
++	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/fix
+ 	ok=false
+ fi
+-rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api
+-GOBIN=$d/gobin ./testgo install cmd/api
+-if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/api ]; then
+-	echo 'did not install cmd/api to $GOROOT/pkg/tool with $GOBIN set'
+-	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/api
++rm -f $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix
++GOBIN=$d/gobin ./testgo install cmd/fix
++if [ ! -x $GOROOT/pkg/tool/${GOOS}_${GOARCH}/fix ]; then
++	echo 'did not install cmd/fix to $GOROOT/pkg/tool with $GOBIN set'
++	GOBIN=$d/gobin ./testgo list -f 'Target: {{.Target}}' cmd/fix
+ 	ok=false
+ fi
+ 
+@@ -434,20 +434,34 @@ elif ! grep "case-insensitive file name collision" $d/out >/dev/null; then
+ fi
+ 
+ TEST go get cover
+-./testgo get code.google.com/p/go.tools/cmd/cover
++./testgo get code.google.com/p/go.tools/cmd/cover || ok=false
+ 
+ unset GOPATH
+ rm -rf $d
+ 
+ # Only succeeds if source order is preserved.
+ TEST source file name order preserved
+-./testgo test testdata/example[12]_test.go
++./testgo test testdata/example[12]_test.go || ok=false
+ 
+ # Check that coverage analysis works at all.
+ # Don't worry about the exact numbers
+ TEST coverage runs
+-./testgo test -short -coverpkg=strings strings regexp
+-./testgo test -short -cover strings math regexp
++./testgo test -short -coverpkg=strings strings regexp || ok=false
++./testgo test -short -cover strings math regexp || ok=false
++
++TEST cgo depends on syscall
++rm -rf $GOROOT/pkg/*_race
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++export GOPATH=$d
++mkdir -p $d/src/foo
++echo '
++package foo
++//#include <stdio.h>
++import "C"
++' >$d/src/foo/foo.go
++./testgo build -race foo || ok=false
++rm -rf $d
++unset GOPATH
+ 
+ # clean up
+ if $started; then stop; fi

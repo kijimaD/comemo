@@ -72,7 +72,196 @@ Date:   Thu Aug 16 03:39:43 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM.rules |   4 +
  src/cmd/compile/internal/ssa/rewriteARM.go | 120 +++++++++++++++++++++++++++++
  2 files changed, 124 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 45e68c6aed..2846ef6d2e 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -1337,6 +1337,7 @@
+ (CMP x (RSBconst [0] y)) -> (CMN x y)
+ (CMN x (RSBconst [0] y)) -> (CMP x y)
+ (EQ (CMPconst [0] (SUB x y)) yes no) -> (EQ (CMP x y) yes no)
++(EQ (CMPconst [0] (MULS x y a)) yes no) -> (EQ (CMP a (MUL <x.Type> x y)) yes no)
+ (EQ (CMPconst [0] (SUBconst [c] x)) yes no) -> (EQ (CMPconst [c] x) yes no)
+ (EQ (CMPconst [0] (SUBshiftLL x y [c])) yes no) -> (EQ (CMPshiftLL x y [c]) yes no)
+ (EQ (CMPconst [0] (SUBshiftRL x y [c])) yes no) -> (EQ (CMPshiftRL x y [c]) yes no)
+@@ -1345,6 +1346,7 @@
+ (EQ (CMPconst [0] (SUBshiftRLreg x y z)) yes no) -> (EQ (CMPshiftRLreg x y z) yes no)
+ (EQ (CMPconst [0] (SUBshiftRAreg x y z)) yes no) -> (EQ (CMPshiftRAreg x y z) yes no)
+ (NE (CMPconst [0] (SUB x y)) yes no) -> (NE (CMP x y) yes no)
++(NE (CMPconst [0] (MULS x y a)) yes no) -> (NE (CMP a (MUL <x.Type> x y)) yes no)
+ (NE (CMPconst [0] (SUBconst [c] x)) yes no) -> (NE (CMPconst [c] x) yes no)
+ (NE (CMPconst [0] (SUBshiftLL x y [c])) yes no) -> (NE (CMPshiftLL x y [c]) yes no)
+ (NE (CMPconst [0] (SUBshiftRL x y [c])) yes no) -> (NE (CMPshiftRL x y [c]) yes no)
+@@ -1353,6 +1355,7 @@
+ (NE (CMPconst [0] (SUBshiftRLreg x y z)) yes no) -> (NE (CMPshiftRLreg x y z) yes no)
+ (NE (CMPconst [0] (SUBshiftRAreg x y z)) yes no) -> (NE (CMPshiftRAreg x y z) yes no)
+ (EQ (CMPconst [0] (ADD x y)) yes no) -> (EQ (CMN x y) yes no)
++(EQ (CMPconst [0] (MULA x y a)) yes no) -> (EQ (CMN a (MUL <x.Type> x y)) yes no)
+ (EQ (CMPconst [0] (ADDconst [c] x)) yes no) -> (EQ (CMNconst [c] x) yes no)
+ (EQ (CMPconst [0] (ADDshiftLL x y [c])) yes no) -> (EQ (CMNshiftLL x y [c]) yes no)
+ (EQ (CMPconst [0] (ADDshiftRL x y [c])) yes no) -> (EQ (CMNshiftRL x y [c]) yes no)
+@@ -1361,6 +1364,7 @@
+ (EQ (CMPconst [0] (ADDshiftRLreg x y z)) yes no) -> (EQ (CMNshiftRLreg x y z) yes no)
+ (EQ (CMPconst [0] (ADDshiftRAreg x y z)) yes no) -> (EQ (CMNshiftRAreg x y z) yes no)
+ (NE (CMPconst [0] (ADD x y)) yes no) -> (NE (CMN x y) yes no)
++(NE (CMPconst [0] (MULA x y a)) yes no) -> (NE (CMN a (MUL <x.Type> x y)) yes no)
+ (NE (CMPconst [0] (ADDconst [c] x)) yes no) -> (NE (CMNconst [c] x) yes no)
+ (NE (CMPconst [0] (ADDshiftLL x y [c])) yes no) -> (NE (CMNshiftLL x y [c]) yes no)
+ (NE (CMPconst [0] (ADDshiftRL x y [c])) yes no) -> (NE (CMNshiftRL x y [c]) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 5e9ce5c96c..dc12733279 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -22226,6 +22226,36 @@ func rewriteBlockARM(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (EQ (CMPconst [0] (MULS x y a)) yes no)
++		// cond:
++		// result: (EQ (CMP a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULS {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMEQ
++			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (EQ (CMPconst [0] (SUBconst [c] x)) yes no)
+ 		// cond:
+ 		// result: (EQ (CMPconst [c] x) yes no)
+@@ -22445,6 +22475,36 @@ func rewriteBlockARM(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (EQ (CMPconst [0] (MULA x y a)) yes no)
++		// cond:
++		// result: (EQ (CMN a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULA {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMEQ
++			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (EQ (CMPconst [0] (ADDconst [c] x)) yes no)
+ 		// cond:
+ 		// result: (EQ (CMNconst [c] x) yes no)
+@@ -23879,6 +23939,36 @@ func rewriteBlockARM(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (NE (CMPconst [0] (MULS x y a)) yes no)
++		// cond:
++		// result: (NE (CMP a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULS {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMNE
++			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (NE (CMPconst [0] (SUBconst [c] x)) yes no)
+ 		// cond:
+ 		// result: (NE (CMPconst [c] x) yes no)
+@@ -24098,6 +24188,36 @@ func rewriteBlockARM(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (NE (CMPconst [0] (MULA x y a)) yes no)
++		// cond:
++		// result: (NE (CMN a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULA {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMNE
++			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (NE (CMPconst [0] (ADDconst [c] x)) yes no)
+ 		// cond:
+ 		// result: (NE (CMNconst [c] x) yes no)

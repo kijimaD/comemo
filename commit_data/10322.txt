@@ -32,8 +32,60 @@ Date:   Wed Nov 9 16:01:17 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5316076
-
+---
  src/cmd/6l/l.h     | 2 +-
  src/cmd/6l/optab.c | 5 +++--
  src/cmd/6l/span.c  | 4 ----
  3 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index b291d5f3d8..9457f3afc1 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -163,7 +163,7 @@ struct	Optab
+ 	short	as;
+ 	uchar*	ytab;
+ 	uchar	prefix;
+-	uchar	op[20];
++	uchar	op[22];
+ };
+ struct	Movtab
+ {
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 3d65fe87e4..2308e0dfea 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -200,7 +200,8 @@ uchar	ymovq[] =
+ 	Ymm,	Ymr,	Zm_r_xm,	1,	// MMX MOVD
+ 	Ymr,	Ymm,	Zr_m_xm,	1,	// MMX MOVD
+ 	Yxr,	Ymr,	Zm_r_xm_nr,	2,	// MOVDQ2Q
+-	Yxr,	Ym,	Zr_m_xm_nr,	2,	// MOVQ xmm store
++	Yxm,	Yxr,	Zm_r_xm_nr,	2, // MOVQ xmm1/m64 -> xmm2
++	Yxr,	Yxm,	Zr_m_xm_nr,	2, // MOVQ xmm1 -> xmm2/m64
+ 	Yml,	Yxr,	Zm_r_xm,	2,	// MOVD xmm load
+ 	Yxr,	Yml,	Zr_m_xm,	2,	// MOVD xmm store
+ 	Yiauto,	Yrl,	Zaut_r,	2,	// built-in LEAQ
+@@ -862,7 +863,7 @@ Optab optab[] =
+ 	{ AMOVNTPD,	yxr_ml,	Pe, 0x2b },
+ 	{ AMOVNTPS,	yxr_ml,	Pm, 0x2b },
+ 	{ AMOVNTQ,	ymr_ml,	Pm, 0xe7 },
+-	{ AMOVQ,	ymovq,	Pw, 0x89,0x8b,0x31,0xc7,(00),0xb8,0xc7,(00),0x6f,0x7f,0x6e,0x7e,Pf2,0xd6,Pe,0xd6,Pe,0x6e,Pe,0x7e },
++	{ AMOVQ,	ymovq,	Pw, 0x89, 0x8b, 0x31, 0xc7,(00), 0xb8, 0xc7,(00), 0x6f, 0x7f, 0x6e, 0x7e, Pf2,0xd6, Pf3,0x7e, Pe,0xd6, Pe,0x6e, Pe,0x7e },
+ 	{ AMOVQOZX,	ymrxr,	Pf3, 0xd6,0x7e },
+ 	{ AMOVSB,	ynone,	Pb, 0xa4 },
+ 	{ AMOVSD,	yxmov,	Pf2, 0x10,0x11 },
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 9b869a493c..28eb38f404 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -266,10 +266,6 @@ instinit(void)
+ 	ycover[Ym*Ymax + Ymm] = 1;
+ 	ycover[Ymr*Ymax + Ymm] = 1;
+ 
+-	ycover[Yax*Ymax + Yxm] = 1;
+-	ycover[Ycx*Ymax + Yxm] = 1;
+-	ycover[Yrx*Ymax + Yxm] = 1;
+-	ycover[Yrl*Ymax + Yxm] = 1;
+ 	ycover[Ym*Ymax + Yxm] = 1;
+ 	ycover[Yxr*Ymax + Yxm] = 1;
+ 

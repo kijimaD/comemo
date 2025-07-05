@@ -13,8 +13,84 @@ Date:   Wed Sep 24 14:33:30 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/144540044
-
+---
  src/fmt/doc.go      | 20 ++++++++++++--------
  src/fmt/fmt_test.go |  7 +++++++
  src/fmt/format.go   |  6 ++++++
  3 files changed, 25 insertions(+), 8 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index b7eaedc11e..00dd8d01cd 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -63,16 +63,20 @@
+ 		%9.2f  width 9, precision 2
+ 		%9.f   width 9, precision 0
+ 
+-	Width and precision are measured in units of Unicode code points.
+-	(This differs from C's printf where the units are numbers
+-	of bytes.) Either or both of the flags may be replaced with the
+-	character '*', causing their values to be obtained from the next
+-	operand, which must be of type int.
++	Width and precision are measured in units of Unicode code points,
++	that is, runes. (This differs from C's printf where the
++	units are always measured in bytes.) Either or both of the flags
++	may be replaced with the character '*', causing their values to be
++	obtained from the next operand, which must be of type int.
+ 
+-	For most values, width is the minimum number of characters to output,
++	For most values, width is the minimum number of runes to output,
+ 	padding the formatted form with spaces if necessary.
+-	For strings, precision is the maximum number of characters to output,
+-	truncating if necessary.
++
++	For strings, byte slices and byte arrays, however, precision
++	limits the length of the input to be formatted (not the size of
++	the output), truncating if necessary. Normally it is measured in
++	runes, but for these types when formatted with the %x or %X format
++	it is measured in bytes.
+ 
+ 	For floating-point values, width sets the minimum width of the field and
+ 	precision sets the number of places after the decimal, if appropriate,
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index cca0a495ff..4586fcf933 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -194,8 +194,15 @@ var fmtTests = []struct {
+ 	{"%.5s", "日本語日本語", "日本語日本"},
+ 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
+ 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
++	{"%.5x", "abcdefghijklmnopqrstuvwxyz", `6162636465`},
++	{"%.5q", []byte("abcdefghijklmnopqrstuvwxyz"), `"abcde"`},
++	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), `6162636465`},
+ 	{"%.3q", "日本語日本語", `"日本語"`},
+ 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
++	{"%.1q", "日本語", `"日"`},
++	{"%.1q", []byte("日本語"), `"日"`},
++	{"%.1x", "日本語", `e6`},
++	{"%.1X", []byte("日本語"), `E6`},
+ 	{"%10.1q", "日本語日本語", `       "日"`},
+ 	{"%3c", '⌘', "  ⌘"},
+ 	{"%5q", '\u2026', `  '…'`},
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 255167c8f5..a92f3c2f86 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -340,11 +340,17 @@ func (f *fmt) fmt_sbx(s string, b []byte, digits string) {
+ 
+ // fmt_sx formats a string as a hexadecimal encoding of its bytes.
+ func (f *fmt) fmt_sx(s, digits string) {
++	if f.precPresent && f.prec < len(s) {
++		s = s[:f.prec]
++	}
+ 	f.fmt_sbx(s, nil, digits)
+ }
+ 
+ // fmt_bx formats a byte slice as a hexadecimal encoding of its bytes.
+ func (f *fmt) fmt_bx(b []byte, digits string) {
++	if f.precPresent && f.prec < len(b) {
++		b = b[:f.prec]
++	}
+ 	f.fmt_sbx("", b, digits)
+ }
+ 

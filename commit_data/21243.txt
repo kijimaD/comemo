@@ -9,6 +9,22 @@ Date:   Thu Dec 11 19:09:39 2014 +0100
     Change-Id: I25751632e95978537b656aedfa5c35ab2273089b
     Reviewed-on: https://go-review.googlesource.com/1380
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/nat.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 16a87f5c53..6e65ea1cb4 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -1404,6 +1404,10 @@ func (n nat) probablyPrime(reps int) bool {
+ 		}
+ 	}
+ 
++	if n[0]&1 == 0 {
++		return false // n is even
++	}
++
+ 	const primesProduct32 = 0xC0CFD797         // Π {p ∈ primes, 2 < p <= 29}
+ 	const primesProduct64 = 0xE221F97C30E94E1D // Π {p ∈ primes, 2 < p <= 53}
+ 

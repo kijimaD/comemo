@@ -16,9 +16,302 @@ Date:   Sat Feb 11 20:06:54 2017 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/strings.go         | 28 ++++++++++++++--------------
  src/strings/strings_amd64.go   | 26 +++++++++++++-------------
  src/strings/strings_generic.go | 16 ++++++++--------
  src/strings/strings_s390x.go   | 26 +++++++++++++-------------
  4 files changed, 48 insertions(+), 48 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 2165e15d8f..5bc60e8a85 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -72,21 +72,21 @@ func hashStrRev(sep string) (uint32, uint32) {
+ 	return hash, pow
+ }
+ 
+-// Count counts the number of non-overlapping instances of sep in s.
+-// If sep is an empty string, Count returns 1 + the number of Unicode code points in s.
+-func Count(s, sep string) int {
++// Count counts the number of non-overlapping instances of substr in s.
++// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
++func Count(s, substr string) int {
+ 	n := 0
+ 	// special case
+-	if len(sep) == 0 {
++	if len(substr) == 0 {
+ 		return utf8.RuneCountInString(s) + 1
+ 	}
+ 	for {
+-		i := Index(s, sep)
++		i := Index(s, substr)
+ 		if i == -1 {
+ 			return n
+ 		}
+ 		n++
+-		s = s[i+len(sep):]
++		s = s[i+len(substr):]
+ 	}
+ }
+ 
+@@ -105,16 +105,16 @@ func ContainsRune(s string, r rune) bool {
+ 	return IndexRune(s, r) >= 0
+ }
+ 
+-// LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
+-func LastIndex(s, sep string) int {
+-	n := len(sep)
++// LastIndex returns the index of the last instance of substr in s, or -1 if substr is not present in s.
++func LastIndex(s, substr string) int {
++	n := len(substr)
+ 	switch {
+ 	case n == 0:
+ 		return len(s)
+ 	case n == 1:
+-		return LastIndexByte(s, sep[0])
++		return LastIndexByte(s, substr[0])
+ 	case n == len(s):
+-		if sep == s {
++		if substr == s {
+ 			return 0
+ 		}
+ 		return -1
+@@ -122,20 +122,20 @@ func LastIndex(s, sep string) int {
+ 		return -1
+ 	}
+ 	// Rabin-Karp search from the end of the string
+-	hashsep, pow := hashStrRev(sep)
++	hashss, pow := hashStrRev(substr)
+ 	last := len(s) - n
+ 	var h uint32
+ 	for i := len(s) - 1; i >= last; i-- {
+ 		h = h*primeRK + uint32(s[i])
+ 	}
+-	if h == hashsep && s[last:] == sep {
++	if h == hashss && s[last:] == substr {
+ 		return last
+ 	}
+ 	for i := last - 1; i >= 0; i-- {
+ 		h *= primeRK
+ 		h += uint32(s[i])
+ 		h -= pow * uint32(s[i+n])
+-		if h == hashsep && s[i:i+n] == sep {
++		if h == hashss && s[i:i+n] == substr {
+ 			return i
+ 		}
+ 	}
+diff --git a/src/strings/strings_amd64.go b/src/strings/strings_amd64.go
+index 23a98d5945..8f6ac1de74 100644
+--- a/src/strings/strings_amd64.go
++++ b/src/strings/strings_amd64.go
+@@ -21,27 +21,27 @@ func init() {
+ 	}
+ }
+ 
+-// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+-func Index(s, sep string) int {
+-	n := len(sep)
++// Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
++func Index(s, substr string) int {
++	n := len(substr)
+ 	switch {
+ 	case n == 0:
+ 		return 0
+ 	case n == 1:
+-		return IndexByte(s, sep[0])
++		return IndexByte(s, substr[0])
+ 	case n == len(s):
+-		if sep == s {
++		if substr == s {
+ 			return 0
+ 		}
+ 		return -1
+ 	case n > len(s):
+ 		return -1
+ 	case n <= shortStringLen:
+-		// Use brute force when s and sep both are small
++		// Use brute force when s and substr both are small
+ 		if len(s) <= 64 {
+-			return indexShortStr(s, sep)
++			return indexShortStr(s, substr)
+ 		}
+-		c := sep[0]
++		c := substr[0]
+ 		i := 0
+ 		t := s[:len(s)-n+1]
+ 		fails := 0
+@@ -55,7 +55,7 @@ func Index(s, sep string) int {
+ 				}
+ 				i += o
+ 			}
+-			if s[i:i+n] == sep {
++			if s[i:i+n] == substr {
+ 				return i
+ 			}
+ 			fails++
+@@ -64,7 +64,7 @@ func Index(s, sep string) int {
+ 			// Too many means more that 1 error per 8 characters.
+ 			// Allow some errors in the beginning.
+ 			if fails > (i+16)/8 {
+-				r := indexShortStr(s[i:], sep)
++				r := indexShortStr(s[i:], substr)
+ 				if r >= 0 {
+ 					return r + i
+ 				}
+@@ -74,12 +74,12 @@ func Index(s, sep string) int {
+ 		return -1
+ 	}
+ 	// Rabin-Karp search
+-	hashsep, pow := hashStr(sep)
++	hashss, pow := hashStr(substr)
+ 	var h uint32
+ 	for i := 0; i < n; i++ {
+ 		h = h*primeRK + uint32(s[i])
+ 	}
+-	if h == hashsep && s[:n] == sep {
++	if h == hashss && s[:n] == substr {
+ 		return 0
+ 	}
+ 	for i := n; i < len(s); {
+@@ -87,7 +87,7 @@ func Index(s, sep string) int {
+ 		h += uint32(s[i])
+ 		h -= pow * uint32(s[i-n])
+ 		i++
+-		if h == hashsep && s[i-n:i] == sep {
++		if h == hashss && s[i-n:i] == substr {
+ 			return i - n
+ 		}
+ 	}
+diff --git a/src/strings/strings_generic.go b/src/strings/strings_generic.go
+index 6e8055925f..873d75ee1c 100644
+--- a/src/strings/strings_generic.go
++++ b/src/strings/strings_generic.go
+@@ -9,16 +9,16 @@ package strings
+ // TODO: implements short string optimization on non amd64 platforms
+ // and get rid of strings_amd64.go
+ 
+-// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+-func Index(s, sep string) int {
+-	n := len(sep)
++// Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
++func Index(s, substr string) int {
++	n := len(substr)
+ 	switch {
+ 	case n == 0:
+ 		return 0
+ 	case n == 1:
+-		return IndexByte(s, sep[0])
++		return IndexByte(s, substr[0])
+ 	case n == len(s):
+-		if sep == s {
++		if substr == s {
+ 			return 0
+ 		}
+ 		return -1
+@@ -26,12 +26,12 @@ func Index(s, sep string) int {
+ 		return -1
+ 	}
+ 	// Rabin-Karp search
+-	hashsep, pow := hashStr(sep)
++	hashss, pow := hashStr(substr)
+ 	var h uint32
+ 	for i := 0; i < n; i++ {
+ 		h = h*primeRK + uint32(s[i])
+ 	}
+-	if h == hashsep && s[:n] == sep {
++	if h == hashss && s[:n] == substr {
+ 		return 0
+ 	}
+ 	for i := n; i < len(s); {
+@@ -39,7 +39,7 @@ func Index(s, sep string) int {
+ 		h += uint32(s[i])
+ 		h -= pow * uint32(s[i-n])
+ 		i++
+-		if h == hashsep && s[i-n:i] == sep {
++		if h == hashss && s[i-n:i] == substr {
+ 			return i - n
+ 		}
+ 	}
+diff --git a/src/strings/strings_s390x.go b/src/strings/strings_s390x.go
+index 316a1b896b..32520459be 100644
+--- a/src/strings/strings_s390x.go
++++ b/src/strings/strings_s390x.go
+@@ -24,27 +24,27 @@ func init() {
+ 	}
+ }
+ 
+-// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+-func Index(s, sep string) int {
+-	n := len(sep)
++// Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
++func Index(s, substr string) int {
++	n := len(substr)
+ 	switch {
+ 	case n == 0:
+ 		return 0
+ 	case n == 1:
+-		return IndexByte(s, sep[0])
++		return IndexByte(s, substr[0])
+ 	case n == len(s):
+-		if sep == s {
++		if substr == s {
+ 			return 0
+ 		}
+ 		return -1
+ 	case n > len(s):
+ 		return -1
+ 	case n <= shortStringLen:
+-		// Use brute force when s and sep both are small
++		// Use brute force when s and substr both are small
+ 		if len(s) <= 64 {
+-			return indexShortStr(s, sep)
++			return indexShortStr(s, substr)
+ 		}
+-		c := sep[0]
++		c := substr[0]
+ 		i := 0
+ 		t := s[:len(s)-n+1]
+ 		fails := 0
+@@ -58,7 +58,7 @@ func Index(s, sep string) int {
+ 				}
+ 				i += o
+ 			}
+-			if s[i:i+n] == sep {
++			if s[i:i+n] == substr {
+ 				return i
+ 			}
+ 			fails++
+@@ -67,7 +67,7 @@ func Index(s, sep string) int {
+ 			// Too many means more that 1 error per 8 characters.
+ 			// Allow some errors in the beginning.
+ 			if fails > (i+16)/8 {
+-				r := indexShortStr(s[i:], sep)
++				r := indexShortStr(s[i:], substr)
+ 				if r >= 0 {
+ 					return r + i
+ 				}
+@@ -77,12 +77,12 @@ func Index(s, sep string) int {
+ 		return -1
+ 	}
+ 	// Rabin-Karp search
+-	hashsep, pow := hashStr(sep)
++	hashss, pow := hashStr(substr)
+ 	var h uint32
+ 	for i := 0; i < n; i++ {
+ 		h = h*primeRK + uint32(s[i])
+ 	}
+-	if h == hashsep && s[:n] == sep {
++	if h == hashss && s[:n] == substr {
+ 		return 0
+ 	}
+ 	for i := n; i < len(s); {
+@@ -90,7 +90,7 @@ func Index(s, sep string) int {
+ 		h += uint32(s[i])
+ 		h -= pow * uint32(s[i-n])
+ 		i++
+-		if h == hashsep && s[i-n:i] == sep {
++		if h == hashss && s[i-n:i] == substr {
+ 			return i - n
+ 		}
+ 	}

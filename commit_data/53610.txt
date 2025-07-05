@@ -12,8 +12,104 @@ Date:   Sat Aug 20 19:21:39 2022 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/json/bench_test.go  | 31 +++++++++++++++++++++++++++++++
  src/encoding/json/number_test.go | 15 ---------------
  src/encoding/json/stream_test.go | 15 ---------------
  3 files changed, 31 insertions(+), 30 deletions(-)
+
+diff --git a/src/encoding/json/bench_test.go b/src/encoding/json/bench_test.go
+index 133084976b..d3af0dc0ed 100644
+--- a/src/encoding/json/bench_test.go
++++ b/src/encoding/json/bench_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"reflect"
++	"regexp"
+ 	"runtime"
+ 	"strings"
+ 	"sync"
+@@ -508,3 +509,33 @@ func BenchmarkEncodeMarshaler(b *testing.B) {
+ 		}
+ 	})
+ }
++
++func BenchmarkEncoderEncode(b *testing.B) {
++	b.ReportAllocs()
++	type T struct {
++		X, Y string
++	}
++	v := &T{"foo", "bar"}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			if err := NewEncoder(io.Discard).Encode(v); err != nil {
++				b.Fatal(err)
++			}
++		}
++	})
++}
++
++func BenchmarkNumberIsValid(b *testing.B) {
++	s := "-61657.61667E+61673"
++	for i := 0; i < b.N; i++ {
++		isValidNumber(s)
++	}
++}
++
++func BenchmarkNumberIsValidRegexp(b *testing.B) {
++	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
++	s := "-61657.61667E+61673"
++	for i := 0; i < b.N; i++ {
++		jsonNumberRegexp.MatchString(s)
++	}
++}
+diff --git a/src/encoding/json/number_test.go b/src/encoding/json/number_test.go
+index cc6701814f..c82e6deb83 100644
+--- a/src/encoding/json/number_test.go
++++ b/src/encoding/json/number_test.go
+@@ -116,18 +116,3 @@ func TestNumberIsValid(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func BenchmarkNumberIsValid(b *testing.B) {
+-	s := "-61657.61667E+61673"
+-	for i := 0; i < b.N; i++ {
+-		isValidNumber(s)
+-	}
+-}
+-
+-func BenchmarkNumberIsValidRegexp(b *testing.B) {
+-	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
+-	s := "-61657.61667E+61673"
+-	for i := 0; i < b.N; i++ {
+-		jsonNumberRegexp.MatchString(s)
+-	}
+-}
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index 1f40c79670..712293de0f 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -347,21 +347,6 @@ func TestBlocking(t *testing.T) {
+ 	}
+ }
+ 
+-func BenchmarkEncoderEncode(b *testing.B) {
+-	b.ReportAllocs()
+-	type T struct {
+-		X, Y string
+-	}
+-	v := &T{"foo", "bar"}
+-	b.RunParallel(func(pb *testing.PB) {
+-		for pb.Next() {
+-			if err := NewEncoder(io.Discard).Encode(v); err != nil {
+-				b.Fatal(err)
+-			}
+-		}
+-	})
+-}
+-
+ type tokenStreamCase struct {
+ 	json      string
+ 	expTokens []any

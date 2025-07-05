@@ -7,6 +7,24 @@ Date:   Fri May 27 12:15:04 2016 -0400
     Change-Id: Ia540c890767dcb001d3b3b55d98d9517b13b21da
     Reviewed-on: https://go-review.googlesource.com/23510
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 7945622f6b..46c575452f 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -532,8 +532,11 @@ using small record sizes, gradually increasing to the TLS maximum record size.
+ This heuristic reduces the amount of data that must be received before
+ the first packet can be decrypted, improving communication latency over
+ low-bandwidth networks.
++Setting
+ <a href="/pkg/crypto/tls/#Config"><code>Config</code></a>'s
+-<code>DynamicRecordSizingDisabled</code> field to true.
++<code>DynamicRecordSizingDisabled</code> field to true
++forces the behavior of Go 1.6 and earlier, where packets are
++as large as possible from the start of the connection.
+ </p>
+ 
+ <p>

@@ -10,7 +10,42 @@ Date:   Tue Jan 19 14:17:29 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18738
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go |  2 +-
  test/fixedbugs/issue14010.go       | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 4da60f4c89..64b6e36758 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -419,7 +419,7 @@ func symfmt(s *Sym, flag int) string {
+ 	if s.Pkg != nil && flag&obj.FmtShort == 0 {
+ 		switch fmtmode {
+ 		case FErr: // This is for the user
+-			if s.Pkg == localpkg {
++			if s.Pkg == builtinpkg || s.Pkg == localpkg {
+ 				return s.Name
+ 			}
+ 
+diff --git a/test/fixedbugs/issue14010.go b/test/fixedbugs/issue14010.go
+new file mode 100644
+index 0000000000..4fdbf76b90
+--- /dev/null
++++ b/test/fixedbugs/issue14010.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that built-in types don't get printed with
++// (empty) package qualification.
++
++package main
++
++func main() {
++	true = false // ERROR "cannot assign to true"
++	byte = 0     // ERROR "not an expression" "cannot assign to byte"
++}

@@ -12,7 +12,7 @@ Date:   Tue Jan 13 09:55:24 2009 -0800
     DELTA=94  (44 added, 3 deleted, 47 changed)
     OCL=22303
     CL=22638
-
+---
  src/runtime/malloc.c   | 23 ++++++++-----
  src/runtime/malloc.h   |  2 +-
  src/runtime/mcentral.c |  3 +-
@@ -21,3 +21,317 @@ Date:   Tue Jan 13 09:55:24 2009 -0800
  src/runtime/msize.c    |  4 +--
  src/runtime/runtime.h  | 92 +++++++++++++++++++++++++++++++++++---------------
  7 files changed, 90 insertions(+), 49 deletions(-)
+
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index 1d3c8b958b..52ae3b04c6 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -83,7 +83,7 @@ free(void *v)
+ 		if(sizeclass == 0) {
+ 			// Large object.
+ 			mstats.alloc -= s->npages<<PageShift;
+-			sys·memclr(v, s->npages<<PageShift);
++			sys_memclr(v, s->npages<<PageShift);
+ 			MHeap_Free(&mheap, s);
+ 			return;
+ 		}
+@@ -93,7 +93,7 @@ free(void *v)
+ 	// Small object.
+ 	c = m->mcache;
+ 	size = class_to_size[sizeclass];
+-	sys·memclr(v, size);
++	sys_memclr(v, size);
+ 	mstats.alloc -= size;
+ 	MCache_Free(c, v, sizeclass, size);
+ }
+@@ -164,7 +164,7 @@ void*
+ SysAlloc(uintptr n)
+ {
+ 	mstats.sys += n;
+-	return sys·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
++	return sys_mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
+ }
+ 
+ void
+@@ -195,7 +195,7 @@ mal(uint32 n)
+ 
+ 	if(0) {
+ 		byte *p;
+-		int32 i;
++		uint32 i;
+ 		p = v;
+ 		for(i=0; i<n; i++) {
+ 			if(p[i] != 0) {
+@@ -258,27 +258,34 @@ stackfree(void *v)
+ 
+ // Go function stubs.
+ 
++#ifndef __GNUC__
++#define malloc_Alloc malloc·Alloc
++#define malloc_Free malloc·Free
++#define malloc_Lookup malloc·Lookup
++#define malloc_GetStats malloc·GetStats
++#endif
++
+ void
+-malloc·Alloc(uintptr n, byte *p)
++malloc_Alloc(uintptr n, byte *p)
+ {
+ 	p = malloc(n);
+ 	FLUSH(&p);
+ }
+ 
+ void
+-malloc·Free(byte *p)
++malloc_Free(byte *p)
+ {
+ 	free(p);
+ }
+ 
+ void
+-malloc·Lookup(byte *p, byte *base, uintptr size)
++malloc_Lookup(byte *p, byte *base, uintptr size)
+ {
+ 	mlookup(p, &base, &size);
+ }
+ 
+ void
+-malloc·GetStats(MStats *s)
++malloc_GetStats(MStats *s)
+ {
+ 	s = &mstats;
+ 	FLUSH(&s);
+diff --git a/src/runtime/malloc.h b/src/runtime/malloc.h
+index 5d2916af12..8b4d76919a 100644
+--- a/src/runtime/malloc.h
++++ b/src/runtime/malloc.h
+@@ -208,7 +208,7 @@ struct MSpan
+ 	MSpan	*prev;		// in a span linked list
+ 	PageID	start;		// starting page number
+ 	uintptr	npages;		// number of pages in span
+-	void	*freelist;	// list of free objects
++	MLink	*freelist;	// list of free objects
+ 	uint32	ref;		// number of allocated objects in this span
+ 	uint32	sizeclass;	// size class
+ 	uint32	state;		// MSpanInUse or MSpanFree
+diff --git a/src/runtime/mcentral.c b/src/runtime/mcentral.c
+index badf68eae2..5b07faf11a 100644
+--- a/src/runtime/mcentral.c
++++ b/src/runtime/mcentral.c
+@@ -92,7 +92,7 @@ MCentral_Alloc(MCentral *c)
+ // The objects are linked together by their first words.
+ // On return, *pstart points at the first object and *pend at the last.
+ void
+-MCentral_FreeList(MCentral *c, int32 n, void *start)
++MCentral_FreeList(MCentral *c, int32 n, MLink *start)
+ {
+ 	MLink *v, *next;
+ 
+@@ -190,4 +190,3 @@ MCentral_Grow(MCentral *c)
+ 	MSpanList_Insert(&c->nonempty, s);
+ 	return true;
+ }
+-
+diff --git a/src/runtime/mem.c b/src/runtime/mem.c
+index 8e7a472545..9d6a3969b5 100644
+--- a/src/runtime/mem.c
++++ b/src/runtime/mem.c
+@@ -29,7 +29,7 @@ brk(uint32 n)
+ {
+ 	byte *v;
+ 
+-	v = sys·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
++	v = sys_mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
+ 	m->mem.nmmap += n;
+ 	return v;
+ }
+@@ -61,10 +61,10 @@ oldmal(uint32 n)
+ 			// hunk, and then once brk returned we'd immediately
+ 			// overwrite that hunk with our own.
+ 			// (the net result would be a memory leak, not a crash.)
+-			// so we have to call sys·mmap directly - it is written
++			// so we have to call sys_mmap directly - it is written
+ 			// in assembly and tagged not to grow the stack.
+ 			m->mem.hunk =
+-				sys·mmap(nil, NHUNK, PROT_READ|PROT_WRITE,
++				sys_mmap(nil, NHUNK, PROT_READ|PROT_WRITE,
+ 					MAP_ANON|MAP_PRIVATE, 0, 0);
+ 			m->mem.nhunk = NHUNK;
+ 			m->mem.nmmap += NHUNK;
+@@ -78,7 +78,7 @@ oldmal(uint32 n)
+ }
+ 
+ void
+-sys·mal(uint32 n, uint8 *ret)
++sys_mal(uint32 n, uint8 *ret)
+ {
+ 	ret = mal(n);
+ 	FLUSH(&ret);
+diff --git a/src/runtime/mheap.c b/src/runtime/mheap.c
+index 427d11082f..9f8e916147 100644
+--- a/src/runtime/mheap.c
++++ b/src/runtime/mheap.c
+@@ -25,7 +25,7 @@ static MSpan *BestFit(MSpan*, uintptr, MSpan*);
+ void
+ MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
+ {
+-	int32 i;
++	uint32 i;
+ 
+ 	FixAlloc_Init(&h->spanalloc, sizeof(MSpan), alloc);
+ 	FixAlloc_Init(&h->cachealloc, sizeof(MCache), alloc);
+@@ -305,7 +305,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p2 = m->allocator(sizeof *p2);
+ 			if(p2 == nil)
+ 				return false;
+-			sys·memclr((byte*)p2, sizeof *p2);
++			sys_memclr((byte*)p2, sizeof *p2);
+ 			m->p[i1] = p2;
+ 		}
+ 
+@@ -314,7 +314,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p3 = m->allocator(sizeof *p3);
+ 			if(p3 == nil)
+ 				return false;
+-			sys·memclr((byte*)p3, sizeof *p3);
++			sys_memclr((byte*)p3, sizeof *p3);
+ 			p2->p[i2] = p3;
+ 		}
+ 
+@@ -373,4 +373,3 @@ MSpanList_Insert(MSpan *list, MSpan *span)
+ 	span->next->prev = span;
+ 	span->prev->next = span;
+ }
+-
+diff --git a/src/runtime/msize.c b/src/runtime/msize.c
+index 84de243f6a..ff1ca72009 100644
+--- a/src/runtime/msize.c
++++ b/src/runtime/msize.c
+@@ -57,7 +57,8 @@ SizeToClass(int32 size)
+ void
+ InitSizes(void)
+ {
+-	int32 align, sizeclass, size, i, nextsize, n;
++	int32 align, sizeclass, size, nextsize, n;
++	uint32 i;
+ 	uintptr allocsize, npages;
+ 
+ 	// Initialize the class_to_size table (and choose class sizes in the process).
+@@ -161,4 +162,3 @@ dump:
+ 	}
+ 	throw("InitSizes failed");
+ }
+-
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index ba210aee7c..becf498228 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -343,44 +343,80 @@ void	noteclear(Note*);
+ void	notesleep(Note*);
+ void	notewakeup(Note*);
+ 
++/*
++ * Redefine methods for the benefit of gcc, which does not support
++ * UTF-8 characters in identifiers.
++ */
++#ifndef __GNUC__
++#define sys_exit sys·exit
++#define sys_gosched sys·gosched
++#define sys_memclr sys·memclr
++#define sys_write sys·write
++#define sys_breakpoint sys·breakpoint
++#define sys_bytestorune sys·bytestorune
++#define sys_catstring sys·catstring
++#define sys_cmpstring sys·cmpstring
++#define sys_getcallerpc sys·getcallerpc
++#define sys_goexit sys·goexit
++#define sys_indexstring sys·indexstring
++#define sys_intstring sys·intstring
++#define sys_mal sys·mal
++#define sys_mmap sys·mmap
++#define sys_printarray sys·printarray
++#define sys_printbool sys·printbool
++#define sys_printfloat sys·printfloat
++#define sys_printhex sys·printhex
++#define sys_printint sys·printint
++#define sys_printpc sys·printpc
++#define sys_printpointer sys·printpointer
++#define sys_printstring sys·printstring
++#define sys_printuint sys·printuint
++#define sys_readfile sys·readfile
++#define sys_semacquire sys·semacquire
++#define sys_semrelease sys·semrelease
++#define sys_setcallerpc sys·setcallerpc
++#define sys_slicestring sys·slicestring
++#define sys_stringtorune sys·stringtorune
++#endif
++
+ /*
+  * low level go -called
+  */
+-void	sys·goexit(void);
+-void	sys·gosched(void);
+-void	sys·exit(int32);
+-void	sys·write(int32, void*, int32);
+-void	sys·breakpoint(void);
+-uint8*	sys·mmap(byte*, uint32, int32, int32, int32, uint32);
+-void	sys·memclr(byte*, uint32);
+-void	sys·setcallerpc(void*, void*);
+-void*	sys·getcallerpc(void*);
++void	sys_goexit(void);
++void	sys_gosched(void);
++void	sys_exit(int32);
++void	sys_write(int32, void*, int32);
++void	sys_breakpoint(void);
++uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
++void	sys_memclr(byte*, uint32);
++void	sys_setcallerpc(void*, void*);
++void*	sys_getcallerpc(void*);
+ 
+ /*
+  * runtime go-called
+  */
+-void	sys·printbool(bool);
+-void	sys·printfloat(float64);
+-void	sys·printint(int64);
+-void	sys·printstring(string);
+-void	sys·printpc(void*);
+-void	sys·printpointer(void*);
+-void	sys·printuint(uint64);
+-void	sys·printhex(uint64);
+-void	sys·printarray(Array);
+-void	sys·catstring(string, string, string);
+-void	sys·cmpstring(string, string, int32);
+-void	sys·slicestring(string, int32, int32, string);
+-void	sys·indexstring(string, int32, byte);
+-void	sys·intstring(int64, string);
++void	sys_printbool(bool);
++void	sys_printfloat(float64);
++void	sys_printint(int64);
++void	sys_printstring(string);
++void	sys_printpc(void*);
++void	sys_printpointer(void*);
++void	sys_printuint(uint64);
++void	sys_printhex(uint64);
++void	sys_printarray(Array);
++void	sys_catstring(string, string, string);
++void	sys_cmpstring(string, string, int32);
++void	sys_slicestring(string, int32, int32, string);
++void	sys_indexstring(string, int32, byte);
++void	sys_intstring(int64, string);
+ bool	isInf(float64, int32);
+ bool	isNaN(float64);
+ 
+ /*
+  * User go-called
+  */
+-void	sys·readfile(string, string, bool);
+-void	sys·bytestorune(byte*, int32, int32, int32, int32);
+-void	sys·stringtorune(string, int32, int32, int32);
+-void	sys·semacquire(uint32*);
+-void	sys·semrelease(uint32*);
++void	sys_readfile(string, string, bool);
++void	sys_bytestorune(byte*, int32, int32, int32, int32);
++void	sys_stringtorune(string, int32, int32, int32);
++void	sys_semacquire(uint32*);
++void	sys_semrelease(uint32*);

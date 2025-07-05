@@ -28,7 +28,7 @@ Date:   Tue Feb 12 19:40:42 2019 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  7 ++-
  src/cmd/compile/internal/gc/builtin/runtime.go |  3 ++
  src/cmd/compile/internal/gc/inl.go             |  6 +++
@@ -39,3 +39,302 @@ Date:   Tue Feb 12 19:40:42 2019 -0800
  src/runtime/checkptr.go                        | 50 ++++++++++++++++++
  src/strings/builder.go                         |  1 +
  9 files changed, 159 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 5f2c0b0cbb..a770356ea0 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -181,13 +181,15 @@ var runtimeDecls = [...]struct {
+ 	{"racewriterange", funcTag, 119},
+ 	{"msanread", funcTag, 119},
+ 	{"msanwrite", funcTag, 119},
++	{"checkptrAlignment", funcTag, 120},
++	{"checkptrArithmetic", funcTag, 122},
+ 	{"x86HasPOPCNT", varTag, 15},
+ 	{"x86HasSSE41", varTag, 15},
+ 	{"arm64HasATOMICS", varTag, 15},
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [120]*types.Type
++	var typs [123]*types.Type
+ 	typs[0] = types.Bytetype
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[TANY]
+@@ -308,5 +310,8 @@ func runtimeTypes() []*types.Type {
+ 	typs[117] = functype(nil, []*Node{anonfield(typs[23]), anonfield(typs[23])}, []*Node{anonfield(typs[23])})
+ 	typs[118] = functype(nil, []*Node{anonfield(typs[50])}, nil)
+ 	typs[119] = functype(nil, []*Node{anonfield(typs[50]), anonfield(typs[50])}, nil)
++	typs[120] = functype(nil, []*Node{anonfield(typs[56]), anonfield(typs[1])}, nil)
++	typs[121] = types.NewSlice(typs[56])
++	typs[122] = functype(nil, []*Node{anonfield(typs[56]), anonfield(typs[121])}, nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index a820bde9ef..3e9055b2ac 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -235,6 +235,9 @@ func racewriterange(addr, size uintptr)
+ func msanread(addr, size uintptr)
+ func msanwrite(addr, size uintptr)
+ 
++func checkptrAlignment(unsafe.Pointer, *byte)
++func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)
++
+ // architecture variants
+ var x86HasPOPCNT bool
+ var x86HasSSE41 bool
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 9b2ecc073b..7dfff34c37 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -135,6 +135,12 @@ func caninl(fn *Node) {
+ 		return
+ 	}
+ 
++	// If marked "go:nocheckptr" and -d checkptr compilation, don't inline.
++	if Debug_checkptr != 0 && fn.Func.Pragma&NoCheckPtr != 0 {
++		reason = "marked go:nocheckptr"
++		return
++	}
++
+ 	// If marked "go:cgo_unsafe_args", don't inline, since the
+ 	// function makes assumptions about its argument frame layout.
+ 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 557f98604d..27ad9b5615 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -35,6 +35,7 @@ const (
+ 	Norace                       // func must not have race detector annotations
+ 	Nosplit                      // func should not execute on separate stack
+ 	Noinline                     // func should not be inlined
++	NoCheckPtr                   // func should not be instrumented by checkptr
+ 	CgoUnsafeArgs                // treat a pointer to one arg as a pointer to them all
+ 	UintptrEscapes               // pointers converted to uintptr escape
+ 
+@@ -63,6 +64,8 @@ func pragmaValue(verb string) syntax.Pragma {
+ 		return Nosplit
+ 	case "go:noinline":
+ 		return Noinline
++	case "go:nocheckptr":
++		return NoCheckPtr
+ 	case "go:systemstack":
+ 		return Systemstack
+ 	case "go:nowritebarrier":
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 05aac9ecb2..e7131f10a2 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -40,6 +40,7 @@ var (
+ 
+ var (
+ 	Debug_append       int
++	Debug_checkptr     int
+ 	Debug_closure      int
+ 	Debug_compilelater int
+ 	debug_dclstack     int
+@@ -65,6 +66,7 @@ var debugtab = []struct {
+ 	val  interface{} // must be *int or *string
+ }{
+ 	{"append", "print information about append compilation", &Debug_append},
++	{"checkptr", "instrument unsafe pointer conversions", &Debug_checkptr},
+ 	{"closure", "print information about closure compilation", &Debug_closure},
+ 	{"compilelater", "compile functions as late as possible", &Debug_compilelater},
+ 	{"disablenil", "disable nil checks", &disable_checknil},
+@@ -433,6 +435,11 @@ func Main(archInit func(*Arch)) {
+ 		}
+ 	}
+ 
++	// Runtime can't use -d=checkptr, at least not yet.
++	if compiling_runtime {
++		Debug_checkptr = 0
++	}
++
+ 	// set via a -d flag
+ 	Ctxt.Debugpcln = Debug_pctab
+ 	if flagDWARF {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 39d1ab689d..d8fc0abf3f 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -951,6 +951,16 @@ opswitch:
+ 
+ 	case OCONV, OCONVNOP:
+ 		n.Left = walkexpr(n.Left, init)
++		if n.Op == OCONVNOP && Debug_checkptr != 0 && Curfn.Func.Pragma&NoCheckPtr == 0 {
++			if n.Type.IsPtr() && n.Left.Type.Etype == TUNSAFEPTR { // unsafe.Pointer to *T
++				n = walkCheckPtrAlignment(n, init)
++				break
++			}
++			if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR { // uintptr to unsafe.Pointer
++				n = walkCheckPtrArithmetic(n, init)
++				break
++			}
++		}
+ 		param, result := rtconvfn(n.Left.Type, n.Type)
+ 		if param == Txxx {
+ 			break
+@@ -3898,3 +3908,66 @@ func canMergeLoads() bool {
+ func isRuneCount(n *Node) bool {
+ 	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
+ }
++
++func walkCheckPtrAlignment(n *Node, init *Nodes) *Node {
++	if n.Type.Elem().Alignment() == 1 {
++		return n
++	}
++
++	n.Left = cheapexpr(n.Left, init)
++	init.Append(mkcall("checkptrAlignment", nil, init, n.Left, typename(n.Type.Elem())))
++	return n
++}
++
++var walkCheckPtrArithmeticMarker byte
++
++func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
++	// Calling cheapexpr(n, init) below leads to a recursive call
++	// to walkexpr, which leads us back here again. Use n.Opt to
++	// prevent infinite loops.
++	if n.Opt() == &walkCheckPtrArithmeticMarker {
++		return n
++	}
++	n.SetOpt(&walkCheckPtrArithmeticMarker)
++	defer n.SetOpt(nil)
++
++	// TODO(mdempsky): Make stricter. We only need to exempt
++	// reflect.Value.Pointer and reflect.Value.UnsafeAddr.
++	switch n.Left.Op {
++	case OCALLFUNC, OCALLMETH, OCALLINTER:
++		return n
++	}
++
++	// Find original unsafe.Pointer operands involved in this
++	// arithmetic expression.
++	//
++	// "It is valid both to add and to subtract offsets from a
++	// pointer in this way. It is also valid to use &^ to round
++	// pointers, usually for alignment."
++	var originals []*Node
++	var walk func(n *Node)
++	walk = func(n *Node) {
++		switch n.Op {
++		case OADD:
++			walk(n.Left)
++			walk(n.Right)
++		case OSUB, OANDNOT:
++			walk(n.Left)
++		case OCONVNOP:
++			if n.Left.Type.Etype == TUNSAFEPTR {
++				n.Left = cheapexpr(n.Left, init)
++				originals = append(originals, n.Left)
++			}
++		}
++	}
++	walk(n.Left)
++
++	n = cheapexpr(n, init)
++
++	slice := mkdotargslice(types.NewSlice(types.Types[TUNSAFEPTR]), originals, init, nil)
++	slice.Esc = EscNone
++	slice.SetTransient(true)
++
++	init.Append(mkcall("checkptrArithmetic", nil, init, n, slice))
++	return n
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index ffcb204cda..ab3b9643ee 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1407,6 +1407,11 @@ func (v Value) OverflowUint(x uint64) bool {
+ 	panic(&ValueError{"reflect.Value.OverflowUint", v.kind()})
+ }
+ 
++//go:nocheckptr
++// This prevents inlining Value.Pointer when -d=checkptr is enabled,
++// which ensures cmd/compile can recognize unsafe.Pointer(v.Pointer())
++// and make an exception.
++
+ // Pointer returns v's value as a uintptr.
+ // It returns uintptr instead of unsafe.Pointer so that
+ // code using reflect cannot obtain unsafe.Pointers
+@@ -1914,6 +1919,11 @@ func (v Value) Uint() uint64 {
+ 	panic(&ValueError{"reflect.Value.Uint", v.kind()})
+ }
+ 
++//go:nocheckptr
++// This prevents inlining Value.UnsafeAddr when -d=checkptr is enabled,
++// which ensures cmd/compile can recognize unsafe.Pointer(v.UnsafeAddr())
++// and make an exception.
++
+ // UnsafeAddr returns a pointer to v's data.
+ // It is for advanced clients that also import the "unsafe" package.
+ // It panics if v is not addressable.
+diff --git a/src/runtime/checkptr.go b/src/runtime/checkptr.go
+new file mode 100644
+index 0000000000..040a19a39c
+--- /dev/null
++++ b/src/runtime/checkptr.go
+@@ -0,0 +1,50 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type ptrAlign struct {
++	ptr   unsafe.Pointer
++	align uintptr
++}
++
++func checkptrAlignment(p unsafe.Pointer, elem *_type) {
++	// TODO(mdempsky): What about fieldAlign?
++	if uintptr(p)&(uintptr(elem.align)-1) != 0 {
++		panic(ptrAlign{p, uintptr(elem.align)})
++	}
++}
++
++type ptrArith struct {
++	ptr       unsafe.Pointer
++	originals []unsafe.Pointer
++}
++
++func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
++	if 0 < uintptr(p) && uintptr(p) < minLegalPointer {
++		panic(ptrArith{p, originals})
++	}
++
++	base := checkptrBase(p)
++	if base == 0 {
++		return
++	}
++
++	for _, original := range originals {
++		if base == checkptrBase(original) {
++			return
++		}
++	}
++
++	panic(ptrArith{p, originals})
++}
++
++func checkptrBase(p unsafe.Pointer) uintptr {
++	base, _, _ := findObject(uintptr(p), 0, 0)
++	// TODO(mdempsky): If base == 0, then check if p points to the
++	// stack or a global variable.
++	return base
++}
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index 3f33a87508..6ff151d74b 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -24,6 +24,7 @@ type Builder struct {
+ // USE CAREFULLY!
+ // This was copied from the runtime; see issues 23382 and 7921.
+ //go:nosplit
++//go:nocheckptr
+ func noescape(p unsafe.Pointer) unsafe.Pointer {
+ 	x := uintptr(p)
+ 	return unsafe.Pointer(x ^ 0)

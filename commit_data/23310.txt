@@ -10,6 +10,22 @@ Date:   Mon Mar 23 13:52:46 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/7941
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/net/sendfile_solaris.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/sendfile_solaris.go b/src/net/sendfile_solaris.go
+index 78b8b83220..c7e3df1ddb 100644
+--- a/src/net/sendfile_solaris.go
++++ b/src/net/sendfile_solaris.go
+@@ -10,6 +10,10 @@ import (
+ 	"syscall"
+ )
+ 
++// Not strictly needed, but very helpful for debugging, see issue #10221.
++//go:cgo_import_dynamic _ _ "libsendfile.so"
++//go:cgo_import_dynamic _ _ "libsocket.so"
++
+ // maxSendfileSize is the largest chunk size we ask the kernel to copy
+ // at a time.
+ const maxSendfileSize int = 4 << 20

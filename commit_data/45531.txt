@@ -13,7 +13,46 @@ Date:   Tue Oct 27 21:05:13 2020 -0700
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_cgo_test.go  | 13 +++++++++++++
  src/runtime/crash_unix_test.go |  9 ---------
  2 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index b200984050..0680d07a32 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -600,3 +600,16 @@ func TestEINTR(t *testing.T) {
+ 		t.Fatalf("want %s, got %s\n", want, output)
+ 	}
+ }
++
++// Issue #42207.
++func TestNeedmDeadlock(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Skipf("no signals on %s", runtime.GOOS)
++	}
++	output := runTestProg(t, "testprogcgo", "NeedmDeadlock")
++	want := "OK\n"
++	if output != want {
++		t.Fatalf("want %s, got %s\n", want, output)
++	}
++}
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 7aba3d4846..fc87f37408 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -358,12 +358,3 @@ func TestSignalM(t *testing.T) {
+ 		t.Fatalf("signal sent to M %d, but received on M %d", want, got)
+ 	}
+ }
+-
+-// Issue #42207.
+-func TestNeedmDeadlock(t *testing.T) {
+-	output := runTestProg(t, "testprogcgo", "NeedmDeadlock")
+-	want := "OK\n"
+-	if output != want {
+-		t.Fatalf("want %s, got %s\n", want, output)
+-	}
+-}

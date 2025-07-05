@@ -16,9 +16,146 @@ Date:   Wed Mar 8 16:16:59 2023 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/52600.txt               |  1 +
  src/cmd/go/internal/load/test.go |  8 ++++--
  src/testing/testing.go           | 16 +++++++++++
  src/testing/testing_test.go      | 61 ++++++++++++++++++++++++++++++++++++++++
  4 files changed, 84 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/52600.txt b/api/next/52600.txt
+new file mode 100644
+index 0000000000..a9a34bbc0b
+--- /dev/null
++++ b/api/next/52600.txt
+@@ -0,0 +1 @@
++pkg testing, func Testing() bool #52600
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 64e5b74cc2..7a40cc6b45 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -253,6 +253,10 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
+ 		pxtest.collectDeps()
+ 	}
+ 
++	// Arrange for testing.Testing to report true.
++	ldflags := append(p.Internal.Ldflags, "-X", "testing.testBinary=1")
++	gccgoflags := append(p.Internal.Gccgoflags, "-Wl,--defsym,testing.gccgoTestBinary=1")
++
+ 	// Build main package.
+ 	pmain = &Package{
+ 		PackagePublic: PackagePublic{
+@@ -269,8 +273,8 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
+ 			BuildInfo:      p.Internal.BuildInfo,
+ 			Asmflags:       p.Internal.Asmflags,
+ 			Gcflags:        p.Internal.Gcflags,
+-			Ldflags:        p.Internal.Ldflags,
+-			Gccgoflags:     p.Internal.Gccgoflags,
++			Ldflags:        ldflags,
++			Gccgoflags:     gccgoflags,
+ 			OrigImportPath: p.Internal.OrigImportPath,
+ 			PGOProfile:     p.Internal.PGOProfile,
+ 		},
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 2d0fd89137..c970d05256 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -644,6 +644,22 @@ func Short() bool {
+ 	return *short
+ }
+ 
++// testBinary is set by cmd/go to "1" if this is a binary built by "go test".
++// The value is set to "1" by a -X option to cmd/link. We assume that
++// because this is possible, the compiler will not optimize testBinary
++// into a constant on the basis that it is an unexported package-scope
++// variable that is never changed. If the compiler ever starts implementing
++// such an optimization, we will need some technique to mark this variable
++// as "changed by a cmd/link -X option".
++var testBinary = "0"
++
++// Testing reports whether the current code is being run in a test.
++// This will report true in programs created by "go test",
++// false in programs created by "go build".
++func Testing() bool {
++	return testBinary == "1"
++}
++
+ // CoverMode reports what the test coverage mode is set to. The
+ // values are "set", "count", or "atomic". The return value will be
+ // empty if test coverage is not enabled.
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 3616f04d5f..5e9268779f 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -5,6 +5,8 @@
+ package testing_test
+ 
+ import (
++	"bytes"
++	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+@@ -232,3 +234,62 @@ func TestSetenvWithParallelGrandParentBeforeSetenv(t *testing.T) {
+ 		})
+ 	})
+ }
++
++// testingTrueInInit is part of TestTesting.
++var testingTrueInInit = false
++
++// testingTrueInPackageVarInit is part of TestTesting.
++var testingTrueInPackageVarInit = testing.Testing()
++
++// init is part of TestTesting.
++func init() {
++	if testing.Testing() {
++		testingTrueInInit = true
++	}
++}
++
++var testingProg = `
++package main
++
++import (
++	"fmt"
++	"testing"
++)
++
++func main() {
++	fmt.Println(testing.Testing())
++}
++`
++
++func TestTesting(t *testing.T) {
++	if !testing.Testing() {
++		t.Errorf("testing.Testing() == %t, want %t", testing.Testing(), true)
++	}
++	if !testingTrueInInit {
++		t.Errorf("testing.Testing() called by init function == %t, want %t", testingTrueInInit, true)
++	}
++	if !testingTrueInPackageVarInit {
++		t.Errorf("testing.Testing() variable initialized as %t, want %t", testingTrueInPackageVarInit, true)
++	}
++
++	if testing.Short() {
++		t.Skip("skipping building a binary in short mode")
++	}
++	testenv.MustHaveGoRun(t)
++
++	fn := filepath.Join(t.TempDir(), "x.go")
++	if err := os.WriteFile(fn, []byte(testingProg), 0644); err != nil {
++		t.Fatal(err)
++	}
++
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "run", fn)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%v failed: %v\n%s", cmd, err, out)
++	}
++
++	s := string(bytes.TrimSpace(out))
++	if s != "false" {
++		t.Errorf("in non-test testing.Test() returned %q, want %q", s, "false")
++	}
++}

@@ -13,6 +13,26 @@ Date:   Wed Jan 31 17:12:29 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/reflect/all_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index e51d19efdd..aeeea78ca6 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -170,6 +170,14 @@ var typeTests = []pair{
+ 	}{},
+ 		"interface { reflect_test.a(func(func(int) int) func(func(int)) int); reflect_test.b() }",
+ 	},
++	{struct {
++		x struct {
++			int32
++			int64
++		}
++	}{},
++		"struct { int32; int64 }",
++	},
+ }
+ 
+ var valueTests = []pair{

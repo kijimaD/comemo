@@ -17,7 +17,7 @@ Date:   Fri May 27 16:03:44 2016 -0700
     Change-Id: I4bf679210ef7c51d85cf873c968ce82db8898e3e
     Reviewed-on: https://go-review.googlesource.com/23525
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/internal/objfile/elf.go      |  9 +++++++++
  src/cmd/internal/objfile/goobj.go    |  4 ++++
  src/cmd/internal/objfile/macho.go    |  4 ++++
@@ -31,3 +31,323 @@ Date:   Fri May 27 16:03:44 2016 -0700
  src/runtime/pprof/pprof.go           | 37 ++++++++++++++++++++++++++++++++++++
  src/runtime/pprof/pprof_test.go      | 10 +++++++---
  12 files changed, 128 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/elf.go b/src/cmd/internal/objfile/elf.go
+index 3bad034097..c8114603d7 100644
+--- a/src/cmd/internal/objfile/elf.go
++++ b/src/cmd/internal/objfile/elf.go
+@@ -106,6 +106,15 @@ func (f *elfFile) goarch() string {
+ 	return ""
+ }
+ 
++func (f *elfFile) loadAddress() (uint64, error) {
++	for _, p := range f.elf.Progs {
++		if p.Type == elf.PT_LOAD {
++			return p.Vaddr, nil
++		}
++	}
++	return 0, fmt.Errorf("unknown load address")
++}
++
+ func (f *elfFile) dwarf() (*dwarf.Data, error) {
+ 	return f.elf.DWARF()
+ }
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index 5a084a94be..43435efc68 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -94,6 +94,10 @@ func (f *goobjFile) goarch() string {
+ 	return "GOARCH unimplemented for debug/goobj files"
+ }
+ 
++func (f *goobjFile) loadAddress() (uint64, error) {
++	return 0, fmt.Errorf("unknown load address")
++}
++
+ func (f *goobjFile) dwarf() (*dwarf.Data, error) {
+ 	return nil, errors.New("no DWARF data in go object file")
+ }
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index 754674d757..1d22a09b13 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -125,6 +125,10 @@ func (x uint64s) Len() int           { return len(x) }
+ func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+ func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
+ 
++func (f *machoFile) loadAddress() (uint64, error) {
++	return 0, fmt.Errorf("unknown load address")
++}
++
+ func (f *machoFile) dwarf() (*dwarf.Data, error) {
+ 	return f.macho.DWARF()
+ }
+diff --git a/src/cmd/internal/objfile/objfile.go b/src/cmd/internal/objfile/objfile.go
+index 48ed9ed489..e5d99f086b 100644
+--- a/src/cmd/internal/objfile/objfile.go
++++ b/src/cmd/internal/objfile/objfile.go
+@@ -18,6 +18,7 @@ type rawFile interface {
+ 	pcln() (textStart uint64, symtab, pclntab []byte, err error)
+ 	text() (textStart uint64, text []byte, err error)
+ 	goarch() string
++	loadAddress() (uint64, error)
+ 	dwarf() (*dwarf.Data, error)
+ }
+ 
+@@ -95,6 +96,13 @@ func (f *File) GOARCH() string {
+ 	return f.raw.goarch()
+ }
+ 
++// LoadAddress returns the expected load address of the file.
++// This differs from the actual load address for a position-independent
++// executable.
++func (f *File) LoadAddress() (uint64, error) {
++	return f.raw.loadAddress()
++}
++
+ // DWARF returns DWARF debug data for the file, if any.
+ // This is for cmd/pprof to locate cgo functions.
+ func (f *File) DWARF() (*dwarf.Data, error) {
+diff --git a/src/cmd/internal/objfile/pe.go b/src/cmd/internal/objfile/pe.go
+index c024762371..46b2317242 100644
+--- a/src/cmd/internal/objfile/pe.go
++++ b/src/cmd/internal/objfile/pe.go
+@@ -199,6 +199,10 @@ func (f *peFile) goarch() string {
+ 	return ""
+ }
+ 
++func (f *peFile) loadAddress() (uint64, error) {
++	return 0, fmt.Errorf("unknown load address")
++}
++
+ func (f *peFile) dwarf() (*dwarf.Data, error) {
+ 	return f.pe.DWARF()
+ }
+diff --git a/src/cmd/internal/objfile/plan9obj.go b/src/cmd/internal/objfile/plan9obj.go
+index 6ee389dc2e..3e34f65ae7 100644
+--- a/src/cmd/internal/objfile/plan9obj.go
++++ b/src/cmd/internal/objfile/plan9obj.go
+@@ -147,6 +147,10 @@ func (f *plan9File) goarch() string {
+ 	return ""
+ }
+ 
++func (f *plan9File) loadAddress() (uint64, error) {
++	return 0, fmt.Errorf("unknown load address")
++}
++
+ func (f *plan9File) dwarf() (*dwarf.Data, error) {
+ 	return nil, errors.New("no DWARF data in Plan 9 file")
+ }
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index bce37dcb97..0187045b4a 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -117,6 +117,9 @@ func (*objTool) Open(name string, start uint64) (plugin.ObjFile, error) {
+ 		name: name,
+ 		file: of,
+ 	}
++	if load, err := of.LoadAddress(); err == nil {
++		f.offset = start - load
++	}
+ 	return f, nil
+ }
+ 
+@@ -169,10 +172,11 @@ func (*objTool) SetConfig(config string) {
+ // (instead of invoking GNU binutils).
+ // A file represents a single executable being analyzed.
+ type file struct {
+-	name string
+-	sym  []objfile.Sym
+-	file *objfile.File
+-	pcln *gosym.Table
++	name   string
++	offset uint64
++	sym    []objfile.Sym
++	file   *objfile.File
++	pcln   *gosym.Table
+ 
+ 	triedDwarf bool
+ 	dwarf      *dwarf.Data
+@@ -200,6 +204,7 @@ func (f *file) SourceLine(addr uint64) ([]plugin.Frame, error) {
+ 		}
+ 		f.pcln = pcln
+ 	}
++	addr -= f.offset
+ 	file, line, fn := f.pcln.PCToLine(addr)
+ 	if fn != nil {
+ 		frame := []plugin.Frame{
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index f9a428edd4..335e774a7c 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -173,7 +173,7 @@ var pkgDeps = map[string][]string{
+ 	"regexp":         {"L2", "regexp/syntax"},
+ 	"regexp/syntax":  {"L2"},
+ 	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
+-	"runtime/pprof":  {"L2", "fmt", "text/tabwriter"},
++	"runtime/pprof":  {"L2", "fmt", "os", "text/tabwriter"},
+ 	"runtime/trace":  {"L0"},
+ 	"text/tabwriter": {"L2"},
+ 
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 5d1cc77c98..4f7c10b923 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -263,3 +263,33 @@ func TestCgoPprof(t *testing.T) {
+ 		t.Error("missing cpuHog in pprof output")
+ 	}
+ }
++
++func TestCgoPprofPIE(t *testing.T) {
++	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
++		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++	testenv.MustHaveGoRun(t)
++
++	exe, err := buildTestProg(t, "testprogcgo", "-ldflags=-extldflags=-pie")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	got, err := testEnv(exec.Command(exe, "CgoPprof")).CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++	fn := strings.TrimSpace(string(got))
++	defer os.Remove(fn)
++
++	top, err := exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn).CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	t.Logf("%s", top)
++
++	if !bytes.Contains(top, []byte("cpuHog")) {
++		t.Error("missing cpuHog in pprof output")
++	}
++}
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 2941b8e8f8..ec740990dc 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -69,7 +69,7 @@ func runTestProg(t *testing.T, binary, name string) string {
+ 	return string(got)
+ }
+ 
+-func buildTestProg(t *testing.T, binary string) (string, error) {
++func buildTestProg(t *testing.T, binary string, flags ...string) (string, error) {
+ 	checkStaleRuntime(t)
+ 
+ 	testprog.Lock()
+@@ -86,23 +86,27 @@ func buildTestProg(t *testing.T, binary string) (string, error) {
+ 	if testprog.target == nil {
+ 		testprog.target = make(map[string]buildexe)
+ 	}
+-	target, ok := testprog.target[binary]
++	name := binary
++	if len(flags) > 0 {
++		name += "_" + strings.Join(flags, "_")
++	}
++	target, ok := testprog.target[name]
+ 	if ok {
+ 		return target.exe, target.err
+ 	}
+ 
+-	exe := filepath.Join(testprog.dir, binary+".exe")
+-	cmd := exec.Command("go", "build", "-o", exe)
++	exe := filepath.Join(testprog.dir, name+".exe")
++	cmd := exec.Command("go", append([]string{"build", "-o", exe}, flags...)...)
+ 	cmd.Dir = "testdata/" + binary
+ 	out, err := testEnv(cmd).CombinedOutput()
+ 	if err != nil {
+ 		exe = ""
+-		target.err = fmt.Errorf("building %s: %v\n%s", binary, err, out)
+-		testprog.target[binary] = target
++		target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
++		testprog.target[name] = target
+ 		return "", target.err
+ 	}
+ 	target.exe = exe
+-	testprog.target[binary] = target
++	testprog.target[name] = target
+ 	return exe, nil
+ }
+ 
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 728c3dc24a..b05c925ad1 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -13,6 +13,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"os"
+ 	"runtime"
+ 	"sort"
+ 	"strings"
+@@ -620,6 +621,42 @@ func profileWriter(w io.Writer) {
+ 		}
+ 		w.Write(data)
+ 	}
++
++	// We are emitting the legacy profiling format, which permits
++	// a memory map following the CPU samples. The memory map is
++	// simply a copy of the GNU/Linux /proc/self/maps file. The
++	// profiler uses the memory map to map PC values in shared
++	// libraries to a shared library in the filesystem, in order
++	// to report the correct function and, if the shared library
++	// has debug info, file/line. This is particularly useful for
++	// PIE (position independent executables) as on ELF systems a
++	// PIE is simply an executable shared library.
++	//
++	// Because the profiling format expects the memory map in
++	// GNU/Linux format, we only do this on GNU/Linux for now. To
++	// add support for profiling PIE on other ELF-based systems,
++	// it may be necessary to map the system-specific mapping
++	// information to the GNU/Linux format. For a reasonably
++	// portable C++ version, see the FillProcSelfMaps function in
++	// https://github.com/gperftools/gperftools/blob/master/src/base/sysinfo.cc
++	//
++	// The code that parses this mapping for the pprof tool is
++	// ParseMemoryMap in cmd/internal/pprof/legacy_profile.go, but
++	// don't change that code, as similar code exists in other
++	// (non-Go) pprof readers. Change this code so that that code works.
++	//
++	// We ignore errors reading or copying the memory map; the
++	// profile is likely usable without it, and we have no good way
++	// to report errors.
++	if runtime.GOOS == "linux" {
++		f, err := os.Open("/proc/self/maps")
++		if err == nil {
++			io.WriteString(w, "\nMAPPED_LIBRARIES:\n")
++			io.Copy(w, f)
++			f.Close()
++		}
++	}
++
+ 	cpu.done <- true
+ }
+ 
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 3852d93e72..a6f5eda458 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -86,10 +86,14 @@ func TestCPUProfileMultithreaded(t *testing.T) {
+ 	})
+ }
+ 
+-func parseProfile(t *testing.T, bytes []byte, f func(uintptr, []uintptr)) {
++func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []uintptr)) {
+ 	// Convert []byte to []uintptr.
+-	l := len(bytes) / int(unsafe.Sizeof(uintptr(0)))
+-	val := *(*[]uintptr)(unsafe.Pointer(&bytes))
++	l := len(valBytes)
++	if i := bytes.Index(valBytes, []byte("\nMAPPED_LIBRARIES:\n")); i >= 0 {
++		l = i
++	}
++	l /= int(unsafe.Sizeof(uintptr(0)))
++	val := *(*[]uintptr)(unsafe.Pointer(&valBytes))
+ 	val = val[:l]
+ 
+ 	// 5 for the header, 3 for the trailer.

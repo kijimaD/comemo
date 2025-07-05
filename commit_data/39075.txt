@@ -15,6 +15,20 @@ Date:   Sat Dec 15 21:39:00 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/154459
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/WasmOps.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index 9b4f66d3f1..e0f2f92a3f 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -196,7 +196,7 @@ func init() {
+ 	archs = append(archs, arch{
+ 		name:            "Wasm",
+ 		pkg:             "cmd/internal/obj/wasm",
+-		genfile:         "",
++		genfile:         "../../wasm/ssa.go",
+ 		ops:             WasmOps,
+ 		blocks:          nil,
+ 		regnames:        regNamesWasm,

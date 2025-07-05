@@ -7,6 +7,27 @@ Date:   Fri Feb 26 14:21:52 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/223070
-
+---
  src/cmd/8g/cgen.c | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index f932f99185..1185ee49f8 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -215,14 +215,9 @@ cgen(Node *n, Node *res)
+ 			break;
+ 		}
+ 		mgen(nl, &n1, res);
+-		if(n->type->width > widthptr)
+-			tempname(&n2, n->type);
+-		else
+-			regalloc(&n2, n->type, res);
++		tempname(&n2, n->type);
+ 		gmove(&n1, &n2);
+ 		gmove(&n2, res);
+-		if(n2.op == OREGISTER)
+-			regfree(&n2);
+ 		mfree(&n1);
+ 		break;
+ 

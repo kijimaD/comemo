@@ -17,8 +17,58 @@ Date:   Fri Oct 21 09:19:47 2022 -0500
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64.s | 5 +++++
  src/cmd/internal/obj/ppc64/obj9.go        | 7 +++++--
  src/runtime/sys_linux_ppc64x.s            | 3 +--
  3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 5cff82ff36..367d7b77db 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -28,6 +28,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVW $-32767, R5                // 38a08001
+ 	MOVW $-32768, R6                // 38c08000
+ 	MOVW $1234567, R5               // 6405001260a5d687
++	// Hex constant 0x80000001
++	MOVW $2147483649, R5            // 6405800060a50001
++	MOVD $2147483649, R5            // 6405800060a50001
++	// Hex constant 0xFFFFFFFF80000001
++	MOVD $-2147483647, R5    	// 3ca0800060a50001
+ 	MOVD 8(R3), R4                  // e8830008
+ 	MOVD (R3)(R4), R5               // 7ca4182a
+ 	MOVD (R3)(R0), R5               // 7ca0182a
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 84ba28211d..47ad85e79c 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -78,9 +78,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			}
+ 		}
+ 
+-		// Put >32-bit constants in memory and load them
+ 	case AMOVD:
+-		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
++		// 32b constants (signed and unsigned) can be generated via 1 or 2 instructions.
++		// All others must be placed in memory and loaded.
++		isS32 := int64(int32(p.From.Offset)) == p.From.Offset
++		isU32 := uint64(uint32(p.From.Offset)) == uint64(p.From.Offset)
++		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && !isS32 && !isU32 {
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
+ 			p.From.Name = obj.NAME_EXTERN
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 817d13a9ec..d0427a4807 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -112,8 +112,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 
+ 	// Use magic constant 0x8637bd06 and shift right 51
+ 	// to perform usec/1000000.
+-	ORIS	$0x8637, R0, R4	// Note, R0 always contains 0 here.
+-	OR	$0xbd06, R4, R4
++	MOVD	$0x8637bd06, R4
+ 	MULLD	R3, R4, R4	// Convert usec to S.
+ 	SRD	$51, R4, R4
+ 	MOVD	R4, 8(R1)	// Store to tv_sec

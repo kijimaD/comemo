@@ -12,7 +12,7 @@ Date:   Wed Jun 9 11:00:55 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1619042
-
+---
  src/cmd/gc/go.h            |  1 +
  src/cmd/gc/lex.c           | 90 ++++++++++++++++++++++++++++++++++------------
  src/cmd/gc/subr.c          | 30 ++++++++--------
@@ -20,3 +20,415 @@ Date:   Wed Jun 9 11:00:55 2010 -0700
  src/cmd/gc/unsafe.c        |  2 +-
  test/interface/explicit.go | 21 ++++++++++-
  6 files changed, 120 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 18e87f0cad..2cf408e760 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -659,6 +659,7 @@ EXTERN	char*	outfile;
+ EXTERN	Biobuf*	bout;
+ EXTERN	int	nerrors;
+ EXTERN	int	nsyntaxerrors;
++EXTERN	int	safemode;
+ EXTERN	char	namebuf[NSYMB];
+ EXTERN	char	lexbuf[NSYMB];
+ EXTERN	char	debug[256];
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 7f85271749..5dc6d78cfe 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -21,6 +21,26 @@ enum
+ 	EOF		= -1,
+ };
+ 
++void
++usage(void)
++{
++	print("usage: %cg [flags] file.go...\n");
++	print("flags:\n");
++	// -A is allow use of "any" type, for bootstrapping
++	print("  -I DIR search for packages in DIR\n");
++	print("  -d print declarations\n");
++	print("  -e no limit on number of errors printed\n");
++	print("  -f print stack frame structure\n");
++	print("  -h panic on an error\n");
++	print("  -o file specify output file\n");
++	print("  -S print the assembly language\n");
++	print("  -V print the compiler version\n");
++	print("  -u disable package unsafe\n");
++	print("  -w print the parse tree after typing\n");
++	print("  -x print lex tokens\n");
++	exit(0);
++}
++
+ int
+ main(int argc, char *argv[])
+ {
+@@ -62,19 +82,24 @@ main(int argc, char *argv[])
+ 		break;
+ 
+ 	case 'o':
+-		outfile = ARGF();
++		outfile = EARGF(usage());
+ 		break;
+ 
+ 	case 'I':
+-		addidir(ARGF());
++		addidir(EARGF(usage()));
++		break;
++	
++	case 'u':
++		safemode = 1;
+ 		break;
++
+ 	case 'V':
+ 		print("%cg version %s\n", thechar, getgoversion());
+-		errorexit();
++		exit(0);
+ 	} ARGEND
+ 
+ 	if(argc < 1)
+-		goto usage;
++		usage();
+ 
+ 	// special flag to detect compilation of package runtime
+ 	compiling_runtime = debug['+'];
+@@ -188,22 +213,6 @@ main(int argc, char *argv[])
+ 	flusherrors();
+ 	exit(0);
+ 	return 0;
+-
+-usage:
+-	print("flags:\n");
+-	// -A is allow use of "any" type, for bootstrapping
+-	print("  -I DIR search for packages in DIR\n");
+-	print("  -d print declarations\n");
+-	print("  -e no limit on number of errors printed\n");
+-	print("  -f print stack frame structure\n");
+-	print("  -h panic on an error\n");
+-	print("  -o file specify output file\n");
+-	print("  -S print the assembly language\n");
+-	print("  -V print the compiler version\n");
+-	print("  -w print the parse tree after typing\n");
+-	print("  -x print lex tokens\n");
+-	exit(0);
+-	return 0;
+ }
+ 
+ int
+@@ -336,6 +345,10 @@ importfile(Val *f, int line)
+ 	}
+ 
+ 	if(strcmp(f->u.sval->s, "unsafe") == 0) {
++		if(safemode) {
++			yyerror("cannot import package unsafe");
++			errorexit();
++		}
+ 		importpkg = mkpkg(f->u.sval);
+ 		cannedimports("unsafe.6", unsafeimport);
+ 		return;
+@@ -461,7 +474,7 @@ _yylex(void)
+ {
+ 	int c, c1, clen, escflag, ncp;
+ 	vlong v;
+-	char *cp;
++	char *cp, *ep;
+ 	Rune rune;
+ 	Sym *s;
+ 	static Loophack *lstk;
+@@ -485,11 +498,13 @@ l0:
+ 	if(c >= Runeself) {
+ 		/* all multibyte runes are alpha */
+ 		cp = lexbuf;
++		ep = lexbuf+sizeof lexbuf;
+ 		goto talph;
+ 	}
+ 
+ 	if(isalpha(c)) {
+ 		cp = lexbuf;
++		ep = lexbuf+sizeof lexbuf;
+ 		goto talph;
+ 	}
+ 
+@@ -504,12 +519,14 @@ l0:
+ 
+ 	case '_':
+ 		cp = lexbuf;
++		ep = lexbuf+sizeof lexbuf;
+ 		goto talph;
+ 
+ 	case '.':
+ 		c1 = getc();
+ 		if(isdigit(c1)) {
+ 			cp = lexbuf;
++			ep = lexbuf+sizeof lexbuf;
+ 			*cp++ = c;
+ 			c = c1;
+ 			c1 = 0;
+@@ -862,6 +879,10 @@ talph:
+ 	 * prefix has been stored
+ 	 */
+ 	for(;;) {
++		if(cp+10 >= ep) {
++			yyerror("identifier too long");
++			errorexit();
++		}
+ 		if(c >= Runeself) {
+ 			ungetc(c);
+ 			rune = getr();
+@@ -898,8 +919,13 @@ talph:
+ tnum:
+ 	c1 = 0;
+ 	cp = lexbuf;
++	ep = lexbuf+sizeof lexbuf;
+ 	if(c != '0') {
+ 		for(;;) {
++			if(cp+10 >= ep) {
++				yyerror("identifier too long");
++				errorexit();
++			}
+ 			*cp++ = c;
+ 			c = getc();
+ 			if(isdigit(c))
+@@ -911,6 +937,10 @@ tnum:
+ 	c = getc();
+ 	if(c == 'x' || c == 'X') {
+ 		for(;;) {
++			if(cp+10 >= ep) {
++				yyerror("identifier too long");
++				errorexit();
++			}
+ 			*cp++ = c;
+ 			c = getc();
+ 			if(isdigit(c))
+@@ -930,6 +960,10 @@ tnum:
+ 
+ 	c1 = 0;
+ 	for(;;) {
++		if(cp+10 >= ep) {
++			yyerror("identifier too long");
++			errorexit();
++		}
+ 		if(!isdigit(c))
+ 			break;
+ 		if(c < '0' || c > '7')
+@@ -973,6 +1007,10 @@ ncu:
+ 
+ casedot:
+ 	for(;;) {
++		if(cp+10 >= ep) {
++			yyerror("identifier too long");
++			errorexit();
++		}
+ 		*cp++ = c;
+ 		c = getc();
+ 		if(!isdigit(c))
+@@ -993,6 +1031,10 @@ casee:
+ 	if(!isdigit(c))
+ 		yyerror("malformed fp constant exponent");
+ 	while(isdigit(c)) {
++		if(cp+10 >= ep) {
++			yyerror("identifier too long");
++			errorexit();
++		}
+ 		*cp++ = c;
+ 		c = getc();
+ 	}
+@@ -1010,6 +1052,10 @@ casep:
+ 	if(!isdigit(c))
+ 		yyerror("malformed fp constant exponent");
+ 	while(isdigit(c)) {
++		if(cp+10 >= ep) {
++			yyerror("identifier too long");
++			errorexit();
++		}
+ 		*cp++ = c;
+ 		c = getc();
+ 	}
+@@ -1254,7 +1300,7 @@ hex:
+ 		ungetc(c);
+ 		break;
+ 	}
+-	if(u && l > Runemax) {
++	if(u && (l > Runemax || (0xd800 <= l && l < 0xe000))) {
+ 		yyerror("invalid Unicode code point in escape sequence: %#llx", l);
+ 		l = Runeerror;
+ 	}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 96d03617ce..649b8f5428 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -877,7 +877,6 @@ Oconv(Fmt *fp)
+ int
+ Lconv(Fmt *fp)
+ {
+-	char str[STRINGSZ], s[STRINGSZ];
+ 	struct
+ 	{
+ 		Hist*	incl;	/* start of this include file */
+@@ -917,29 +916,25 @@ Lconv(Fmt *fp)
+ 	if(n > HISTSZ)
+ 		n = HISTSZ;
+ 
+-	str[0] = 0;
+ 	for(i=n-1; i>=0; i--) {
+ 		if(i != n-1) {
+ 			if(fp->flags & ~(FmtWidth|FmtPrec))
+ 				break;
+-			strcat(str, " ");
++			fmtprint(fp, " ");
+ 		}
+ 		if(a[i].line)
+-			snprint(s, STRINGSZ, "%s:%ld[%s:%ld]",
++			fmtprint(fp, "%s:%ld[%s:%ld]",
+ 				a[i].line->name, lno-a[i].ldel+1,
+ 				a[i].incl->name, lno-a[i].idel+1);
+ 		else
+-			snprint(s, STRINGSZ, "%s:%ld",
++			fmtprint(fp, "%s:%ld",
+ 				a[i].incl->name, lno-a[i].idel+1);
+-		if(strlen(s)+strlen(str) >= STRINGSZ-10)
+-			break;
+-		strcat(str, s);
+ 		lno = a[i].incl->line - 1;	/* now print out start of this file */
+ 	}
+ 	if(n == 0)
+-		strcat(str, "<epoch>");
++		fmtprint(fp, "<epoch>");
+ 
+-	return fmtstrcpy(fp, str);
++	return 0;
+ }
+ 
+ /*
+@@ -1135,10 +1130,10 @@ Tpretty(Fmt *fp, Type *t)
+ 	Type *t1;
+ 	Sym *s;
+ 	
+-	if(debug['U']) {
+-		debug['U'] = 0;
++	if(debug['r']) {
++		debug['r'] = 0;
+ 		fmtprint(fp, "%T (orig=%T)", t, t->orig);
+-		debug['U'] = 1;
++		debug['r'] = 1;
+ 		return 0;
+ 	}
+ 
+@@ -1871,6 +1866,11 @@ assignop(Type *src, Type *dst, char **why)
+ 	if(why != nil)
+ 		*why = "";
+ 
++	if(safemode && (isptrto(src, TANY) || isptrto(dst, TANY))) {
++		yyerror("cannot use unsafe.Pointer");
++		errorexit();
++	}
++
+ 	if(src == dst)
+ 		return OCONVNOP;
+ 	if(src == T || dst == T || src->etype == TFORW || dst->etype == TFORW || src->orig == T || dst->orig == T)
+@@ -1894,7 +1894,8 @@ assignop(Type *src, Type *dst, char **why)
+ 				*why = smprint(": %T is pointer to interface, not interface", src);
+ 			else if(have)
+ 				*why = smprint(": %T does not implement %T (wrong type for %S method)\n"
+-					"\thave %T\n\twant %T", src, dst, missing->sym, have->type, missing->type);
++					"\thave %S%hhT\n\twant %S%hhT", src, dst, missing->sym,
++					have->sym, have->type, missing->sym, missing->type);
+ 			else
+ 				*why = smprint(": %T does not implement %T (missing %S method)",
+ 					src, dst, missing->sym);
+@@ -2031,7 +2032,6 @@ convertop(Type *src, Type *dst, char **why)
+ 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
+ 	if(isptrto(src, TANY) && (isptr[dst->etype] || dst->etype == TUINTPTR))
+ 		return OCONVNOP;
+-		
+ 
+ 	return 0;
+ }
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index d285ad0a76..592166c885 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -52,7 +52,7 @@ typecheck(Node **np, int top)
+ 	Node *n, *l, *r;
+ 	NodeList *args;
+ 	int lno, ok, ntop;
+-	Type *t;
++	Type *t, *missing, *have;
+ 	Sym *sym;
+ 	Val v;
+ 	char *why;
+@@ -521,6 +521,18 @@ reswitch:
+ 			if(n->type == T)
+ 				goto error;
+ 		}
++		if(n->type != T && n->type->etype != TINTER)
++		if(!implements(n->type, t, &missing, &have)) {
++			if(have)
++				yyerror("impossible type assertion: %+N cannot have dynamic type %T"
++					" (wrong type for %S method)\n\thave %S%hhT\n\twant %S%hhT",
++					l, n->type, missing->sym, have->sym, have->type,
++					missing->sym, missing->type);
++			else
++				yyerror("impossible type assertion: %+N cannot have dynamic type %T"
++					" (missing %S method)", l, n->type, missing->sym);
++			goto error;
++		}
+ 		goto ret;
+ 
+ 	case OINDEX:
+@@ -1179,6 +1191,8 @@ ret:
+ 			checkwidth(t);
+ 		}
+ 	}
++	if(safemode && isptrto(t, TANY))
++		yyerror("cannot use unsafe.Pointer");
+ 
+ 	evconst(n);
+ 	if(n->op == OTYPE && !(top & Etype)) {
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index 423fc08c6e..dbf6f708a8 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -19,7 +19,7 @@ unsafenmagic(Node *fn, NodeList *args)
+ 	long v;
+ 	Val val;
+ 
+-	if(fn == N || fn->op != ONAME || (s = fn->sym) == S)
++	if(safemode || fn == N || fn->op != ONAME || (s = fn->sym) == S)
+ 		goto no;
+ 	if(s->pkg != unsafepkg)
+ 		goto no;
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index 797cec80e4..120135cb68 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// errchk $G -e $D/$F.go
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -50,3 +50,22 @@ func main() {
+ 	e = E(t) // ok
+ 	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
+ }
++
++type M interface { M() }
++var m M
++
++var _ = m.(int)	// ERROR "impossible type assertion"
++
++type Int int
++func (Int) M(float) {}
++
++var _ = m.(Int)	// ERROR "impossible type assertion"
++
++var ii int
++var jj Int
++
++var m1 M = ii	// ERROR "missing"
++var m2 M = jj	// ERROR "wrong type for M method"
++
++var m3 = M(ii)	// ERROR "missing"
++var m4 = M(jj)	// ERROR "wrong type for M method"

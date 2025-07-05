@@ -7,6 +7,23 @@ Date:   Wed Apr 22 16:45:42 2015 +1000
     Change-Id: I677a5ee273a4d285a8adff71ffcfeac34afc887f
     Reviewed-on: https://go-review.googlesource.com/9235
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/debug/dwarf/class_string.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/dwarf/class_string.go b/src/debug/dwarf/class_string.go
+index 6fd212fe4c..0b1206b9f3 100644
+--- a/src/debug/dwarf/class_string.go
++++ b/src/debug/dwarf/class_string.go
+@@ -4,9 +4,9 @@ package dwarf
+ 
+ import "fmt"
+ 
+-const _Class_name = "ClassAddressClassBlockClassConstantClassExprLocClassFlagClassLinePtrClassLocListPtrClassMacPtrClassRangeListPtrClassReferenceClassStringClassReferenceAltClassStringAlt"
++const _Class_name = "ClassAddressClassBlockClassConstantClassExprLocClassFlagClassLinePtrClassLocListPtrClassMacPtrClassRangeListPtrClassReferenceClassReferenceSigClassStringClassReferenceAltClassStringAlt"
+ 
+-var _Class_index = [...]uint8{0, 12, 22, 35, 47, 56, 68, 83, 94, 111, 125, 136, 153, 167}
++var _Class_index = [...]uint8{0, 12, 22, 35, 47, 56, 68, 83, 94, 111, 125, 142, 153, 170, 184}
+ 
+ func (i Class) String() string {
+ 	i -= 1

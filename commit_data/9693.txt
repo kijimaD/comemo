@@ -7,6 +7,28 @@ Date:   Thu Sep 15 19:26:12 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/5002041
-
+---
  doc/devel/release.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 458a116de2..9ae253ab6b 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -89,6 +89,16 @@ appropriate tag or branch names in their repositories to make their libraries
+ more accessible.
+ </p>
+ 
++<h3 id="r60.minor">Minor revisions</h3>
++
++<p>
++r60.1 includes a 
++<a href="http://code.google.com/p/go/source/detail?r=1824581bf62d">linker
++fix</a> and a pair of
++<a href="http://code.google.com/p/go/source/detail?r=9ef4429c2c64">goplay</a>
++<a href="http://code.google.com/p/go/source/detail?r=d42ed8c3098e">fixes</a>.
++</p>
++
+ <h2 id="r59">r59 (released 2011/08/01)</h2>
+ 
+ <p>

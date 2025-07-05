@@ -11,7 +11,7 @@ Date:   Mon Jun 29 15:24:23 2009 -0700
     R=r
     OCL=30861
     CL=30872
-
+---
  src/cmd/godoc/godoc.go                             | 17 +++++-----
  src/pkg/Make.deps                                  | 22 ++++++-------
  src/pkg/archive/tar/untar_test.go                  |  5 +--
@@ -61,3 +61,1811 @@ Date:   Mon Jun 29 15:24:23 2009 -0700
  src/pkg/template/template_test.go                  |  9 +++---
  src/pkg/utf8/utf8_test.go                          |  6 ++--
  48 files changed, 218 insertions(+), 190 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 4e684aa6ee..d086cefce9 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -27,6 +27,7 @@
+ package main
+ 
+ import (
++	"bytes";
+ 	"container/vector";
+ 	"flag";
+ 	"fmt";
+@@ -198,7 +199,7 @@ func parse(path string, mode uint) (*ast.Program, *parseErrors) {
+ 
+ // Return text for an AST node.
+ func nodeText(node interface{}, mode uint) []byte {
+-	var buf io.ByteBuffer;
++	var buf bytes.Buffer;
+ 	tw := makeTabwriter(&buf);
+ 	printer.Fprint(tw, node, mode);
+ 	tw.Flush();
+@@ -214,15 +215,15 @@ func toText(x interface{}) []byte {
+ 	case []byte:
+ 		return v;
+ 	case string:
+-		return io.StringBytes(v);
++		return strings.Bytes(v);
+ 	case String:
+-		return io.StringBytes(v.String());
++		return strings.Bytes(v.String());
+ 	case ast.Decl:
+ 		return nodeText(v, printer.ExportsOnly);
+ 	case ast.Expr:
+ 		return nodeText(v, printer.ExportsOnly);
+ 	}
+-	var buf io.ByteBuffer;
++	var buf bytes.Buffer;
+ 	fmt.Fprint(&buf, x);
+ 	return buf.Data();
+ }
+@@ -315,7 +316,7 @@ func serveText(c *http.Conn, text []byte) {
+ 
+ func serveParseErrors(c *http.Conn, errors *parseErrors) {
+ 	// format errors
+-	var buf io.ByteBuffer;
++	var buf bytes.Buffer;
+ 	parseerrorHtml.Execute(errors, &buf);
+ 	servePage(c, errors.filename + " - Parse Errors", buf.Data());
+ }
+@@ -328,7 +329,7 @@ func serveGoSource(c *http.Conn, name string) {
+ 		return;
+ 	}
+ 
+-	var buf io.ByteBuffer;
++	var buf bytes.Buffer;
+ 	fmt.Fprintln(&buf, "<pre>");
+ 	template.HtmlEscape(&buf, nodeText(prog, printer.DocComments));
+ 	fmt.Fprintln(&buf, "</pre>");
+@@ -518,7 +519,7 @@ func servePkg(c *http.Conn, r *http.Request) {
+ 		return;
+ 	}
+ 
+-	var buf io.ByteBuffer;
++	var buf bytes.Buffer;
+ 	if false {	// TODO req.Params["format"] == "text"
+ 		err := packageText.Execute(PageInfo{pdoc, dirs}, &buf);
+ 		if err != nil {
+@@ -571,7 +572,7 @@ func exec(c *http.Conn, args []string) bool {
+ 		return false;
+ 	}
+ 
+-	var buf io.ByteBuffer;
++	var buf bytes.Buffer;
+ 	io.Copy(r, &buf);
+ 	wait, err := os.Wait(pid, 0);
+ 	if err != nil {
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 6a5a0c4780..4a8444b3c9 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -2,7 +2,7 @@ archive/tar.install: bufio.install bytes.install io.install os.install strconv.i
+ base64.install: bytes.install io.install os.install strconv.install
+ bignum.install: fmt.install
+ bufio.install: io.install os.install strconv.install utf8.install
+-bytes.install: utf8.install
++bytes.install: os.install utf8.install
+ compress/flate.install: bufio.install io.install os.install strconv.install
+ compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
+ container/list.install:
+@@ -12,41 +12,41 @@ crypto/block.install: fmt.install io.install os.install strconv.install
+ crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
+ crypto/md5.install: hash.install os.install
+ crypto/sha1.install: hash.install os.install
+-datafmt.install: container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
++datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+ exec.install: os.install strings.install
+-exvar.install: fmt.install http.install io.install log.install strconv.install sync.install
++exvar.install: bytes.install fmt.install http.install io.install log.install strconv.install sync.install
+ flag.install: fmt.install os.install strconv.install
+ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+ go/ast.install: go/token.install unicode.install utf8.install
+ go/doc.install: container/vector.install fmt.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
+-go/parser.install: container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install
+-go/printer.install: fmt.install go/ast.install go/token.install io.install os.install reflect.install
++go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install strings.install
++go/printer.install: fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install
+ go/scanner.install: go/token.install strconv.install unicode.install utf8.install
+ go/token.install: strconv.install
+ hash.install: io.install
+ hash/adler32.install: hash.install os.install
+ hash/crc32.install: hash.install os.install
+ http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
+-io.install: bytes.install os.install sync.install
+-json.install: container/vector.install fmt.install io.install math.install reflect.install strconv.install strings.install utf8.install
++io.install: bytes.install os.install strings.install sync.install
++json.install: bytes.install container/vector.install fmt.install io.install math.install reflect.install strconv.install strings.install utf8.install
+ log.install: fmt.install io.install os.install runtime.install time.install
+ malloc.install:
+ math.install:
+ net.install: fmt.install io.install once.install os.install reflect.install strconv.install strings.install sync.install syscall.install
+ once.install: sync.install
+ os.install: once.install syscall.install
+-path.install: io.install
++path.install: strings.install
+ rand.install:
+ reflect.install: strconv.install sync.install utf8.install
+-regexp.install: container/vector.install io.install os.install runtime.install utf8.install
++regexp.install: bytes.install container/vector.install io.install os.install runtime.install utf8.install
+ runtime.install:
+ sort.install:
+ strconv.install: bytes.install math.install os.install utf8.install
+ strings.install: utf8.install
+ sync.install:
+ syscall.install: sync.install
+-tabwriter.install: container/vector.install io.install os.install utf8.install
+-template.install: container/vector.install fmt.install io.install os.install reflect.install runtime.install strings.install
++tabwriter.install: bytes.install container/vector.install io.install os.install utf8.install
++template.install: bytes.install container/vector.install fmt.install io.install os.install reflect.install runtime.install strings.install
+ testing.install: flag.install fmt.install os.install regexp.install runtime.install
+ testing/iotest.install: io.install log.install os.install
+ time.install: io.install once.install os.install syscall.install
+diff --git a/src/pkg/archive/tar/untar_test.go b/src/pkg/archive/tar/untar_test.go
+index 3241c171ec..11f7735f12 100644
+--- a/src/pkg/archive/tar/untar_test.go
++++ b/src/pkg/archive/tar/untar_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io";
+ 	"os";
+ 	"reflect";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -127,7 +128,7 @@ func TestPartialRead(t *testing.T) {
+ 	if n, err := io.ReadFull(tr, buf); err != nil {
+ 		t.Fatalf("Unexpected error: %v", err);
+ 	}
+-	if expected := io.StringBytes("Kilt"); !bytes.Equal(buf, expected) {
++	if expected := strings.Bytes("Kilt"); !bytes.Equal(buf, expected) {
+ 		t.Errorf("Contents = %v, want %v", buf, expected);
+ 	}
+ 
+@@ -140,7 +141,7 @@ func TestPartialRead(t *testing.T) {
+ 	if n, err := io.ReadFull(tr, buf); err != nil {
+ 		t.Fatalf("Unexpected error: %v", err);
+ 	}
+-	if expected := io.StringBytes("Google"); !bytes.Equal(buf, expected) {
++	if expected := strings.Bytes("Google"); !bytes.Equal(buf, expected) {
+ 		t.Errorf("Contents = %v, want %v", buf, expected);
+ 	}
+ }
+diff --git a/src/pkg/base64/base64_test.go b/src/pkg/base64/base64_test.go
+index d11d99a881..a9e3738ceb 100644
+--- a/src/pkg/base64/base64_test.go
++++ b/src/pkg/base64/base64_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"io";
+ 	"os";
+ 	"reflect";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -62,26 +63,26 @@ func testEqual(t *testing.T, msg string, args ...) bool {
+ func TestEncode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		buf := make([]byte, StdEncoding.EncodedLen(len(p.decoded)));
+-		StdEncoding.Encode(io.StringBytes(p.decoded), buf);
++		StdEncoding.Encode(strings.Bytes(p.decoded), buf);
+ 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
+ 	}
+ }
+ 
+ func TestEncoder(t *testing.T) {
+ 	for _, p := range pairs {
+-		bb := &io.ByteBuffer{};
++		bb := &bytes.Buffer{};
+ 		encoder := NewEncoder(StdEncoding, bb);
+-		encoder.Write(io.StringBytes(p.decoded));
++		encoder.Write(strings.Bytes(p.decoded));
+ 		encoder.Close();
+ 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(bb.Data()), p.encoded);
+ 	}
+ }
+ 
+ func TestEncoderBuffering(t *testing.T) {
+-	input := io.StringBytes(bigtest.decoded);
++	input := strings.Bytes(bigtest.decoded);
+ 	for bs := 1; bs <= 12; bs++ {
+ 		buf := make([]byte, bs);
+-		bb := &io.ByteBuffer{};
++		bb := &bytes.Buffer{};
+ 		encoder := NewEncoder(StdEncoding, bb);
+ 		for pos := 0; pos < len(input); pos += bs {
+ 			end := pos+bs;
+@@ -101,7 +102,7 @@ func TestEncoderBuffering(t *testing.T) {
+ func TestDecode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
+-		count, end, err := StdEncoding.decode(io.StringBytes(p.encoded), dbuf);
++		count, end, err := StdEncoding.decode(strings.Bytes(p.encoded), dbuf);
+ 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
+ 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded));
+ 		if len(p.encoded) > 0 {
+@@ -113,7 +114,7 @@ func TestDecode(t *testing.T) {
+ 
+ func TestDecoder(t *testing.T) {
+ 	for _, p := range pairs {
+-		decoder := NewDecoder(StdEncoding, io.NewByteReader(io.StringBytes(p.encoded)));
++		decoder := NewDecoder(StdEncoding, io.NewByteReader(strings.Bytes(p.encoded)));
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
+ 		count, err := decoder.Read(dbuf);
+ 		if err != nil && err != os.EOF {
+@@ -129,7 +130,7 @@ func TestDecoder(t *testing.T) {
+ }
+ 
+ func TestDecoderBuffering(t *testing.T) {
+-	input := io.StringBytes(bigtest.encoded);
++	input := strings.Bytes(bigtest.encoded);
+ 	for bs := 1; bs <= 12; bs++ {
+ 		decoder := NewDecoder(StdEncoding, io.NewByteReader(input));
+ 		buf := make([]byte, len(bigtest.decoded) + 12);
+@@ -159,7 +160,7 @@ func TestDecodeCorrupt(t *testing.T) {
+ 
+ 	for _, e := range examples {
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(e.e)));
+-		count, err := StdEncoding.Decode(io.StringBytes(e.e), dbuf);
++		count, err := StdEncoding.Decode(strings.Bytes(e.e), dbuf);
+ 		switch err := err.(type) {
+ 		case CorruptInputError:
+ 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);
+@@ -176,7 +177,7 @@ func TestBig(t *testing.T) {
+ 	for i := 0; i < n; i++ {
+ 		raw[i] = alpha[i%len(alpha)];
+ 	}
+-	encoded := new(io.ByteBuffer);
++	encoded := new(bytes.Buffer);
+ 	w := NewEncoder(StdEncoding, encoded);
+ 	nn, err := w.Write(raw);
+ 	if nn != n || err != nil {
+@@ -190,7 +191,7 @@ func TestBig(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err);
+ 	}
+-	
++
+ 	if !bytes.Equal(raw, decoded) {
+ 		var i int;
+ 		for i = 0; i < len(decoded) && i < len(raw); i++ {
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index dfb9e3ac81..9aab267292 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -5,10 +5,12 @@
+ package bufio
+ 
+ import (
++	"bytes";
+ 	"bufio";
+ 	"fmt";
+ 	"io";
+ 	"os";
++	"strings";
+ 	"testing";
+ 	"testing/iotest";
+ )
+@@ -59,7 +61,7 @@ func readBytes(buf *Reader) string {
+ }
+ 
+ func TestReaderSimple(t *testing.T) {
+-	data := io.StringBytes("hello world");
++	data := strings.Bytes("hello world");
+ 	b := NewReader(io.NewByteReader(data));
+ 	if s := readBytes(b); s != "hello world" {
+ 		t.Errorf("simple hello world test failed: got %q", s);
+@@ -146,7 +148,7 @@ func TestReader(t *testing.T) {
+ 
+ 	for h := 0; h < len(texts); h++ {
+ 		text := texts[h];
+-		textbytes := io.StringBytes(text);
++		textbytes := strings.Bytes(text);
+ 		for i := 0; i < len(readMakers); i++ {
+ 			for j := 0; j < len(bufreaders); j++ {
+ 				for k := 0; k < len(bufsizes); k++ {
+@@ -172,7 +174,7 @@ func TestWriter(t *testing.T) {
+ 	for i := 0; i < len(data); i++ {
+ 		data[i] = byte(' '+ i%('~'-' '));
+ 	}
+-	w := new(io.ByteBuffer);
++	w := new(bytes.Buffer);
+ 	for i := 0; i < len(bufsizes); i++ {
+ 		for j := 0; j < len(bufsizes); j++ {
+ 			nwrite := bufsizes[i];
+@@ -237,7 +239,7 @@ var errorWriterTests = []errorWriterTest {
+ func TestWriteErrors(t *testing.T) {
+ 	for i, w := range errorWriterTests {
+ 		buf := NewWriter(w);
+-		n, e := buf.Write(io.StringBytes("hello world"));
++		n, e := buf.Write(strings.Bytes("hello world"));
+ 		if e != nil {
+ 			t.Errorf("Write hello to %v: %v", w, e);
+ 			continue;
+@@ -251,7 +253,7 @@ func TestWriteErrors(t *testing.T) {
+ 
+ func TestNewReaderSizeIdempotent(t *testing.T) {
+ 	const BufSize = 1000;
+-	b, err := NewReaderSize(io.NewByteReader(io.StringBytes("hello world")), BufSize);
++	b, err := NewReaderSize(io.NewByteReader(strings.Bytes("hello world")), BufSize);
+ 	if err != nil {
+ 		t.Error("NewReaderSize create fail", err);
+ 	}
+@@ -275,7 +277,7 @@ func TestNewReaderSizeIdempotent(t *testing.T) {
+ 
+ func TestNewWriterSizeIdempotent(t *testing.T) {
+ 	const BufSize = 1000;
+-	b, err := NewWriterSize(new(io.ByteBuffer), BufSize);
++	b, err := NewWriterSize(new(bytes.Buffer), BufSize);
+ 	if err != nil {
+ 		t.Error("NewWriterSize create fail", err);
+ 	}
+diff --git a/src/pkg/bytes/Makefile b/src/pkg/bytes/Makefile
+index 5220d28800..96071221c6 100644
+--- a/src/pkg/bytes/Makefile
++++ b/src/pkg/bytes/Makefile
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++
+ # DO NOT EDIT.  Automatically generated by gobuild.
+ # gobuild -m >Makefile
+ 
+@@ -20,7 +21,7 @@ test: packages
+ 
+ coverage: packages
+ 	gotest
+-	6cov -g `pwd` | grep -v '_test\.go:'
++	6cov -g $$(pwd) | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+ 	$(GC) -I_obj $*.go
+@@ -32,6 +33,7 @@ coverage: packages
+ 	$(AS) $*.s
+ 
+ O1=\
++	buffer.$O\
+ 	bytes.$O\
+ 
+ 
+@@ -39,7 +41,7 @@ phases: a1
+ _obj$D/bytes.a: phases
+ 
+ a1: $(O1)
+-	$(AR) grc _obj$D/bytes.a bytes.$O
++	$(AR) grc _obj$D/bytes.a buffer.$O bytes.$O
+ 	rm -f $(O1)
+ 
+ 
+diff --git a/src/pkg/io/bytebuffer.go b/src/pkg/bytes/buffer.go
+similarity index 75%
+rename from src/pkg/io/bytebuffer.go
+rename to src/pkg/bytes/buffer.go
+index 6971c0e031..58e06e9e4d 100644
+--- a/src/pkg/io/bytebuffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package io
++package bytes
+ 
+ // Simple byte buffer for marshaling data.
+ 
+ import (
+-	"io";
++	"bytes";
+ 	"os";
+ )
+ 
+@@ -19,29 +19,29 @@ func bytecopy(dst []byte, doff int, src []byte, soff int, count int) {
+ 	}
+ }
+ 
+-// A ByteBuffer is a simple implementation of the io.Read and io.Write interfaces
+-// connected to a buffer of bytes.
+-// The zero value for ByteBuffer is an empty buffer ready to use.
+-type ByteBuffer struct {
++// A Buffer is a variable-sized buffer of bytes
++// with Read and Write methods.
++// The zero value for Buffer is an empty buffer ready to use.
++type Buffer struct {
+ 	buf	[]byte;	// contents are the bytes buf[off : len(buf)]
+ 	off	int;	// read at &buf[off], write at &buf[len(buf)]
+ }
+ 
+ // Data returns the contents of the unread portion of the buffer;
+ // len(b.Data()) == b.Len().
+-func (b *ByteBuffer) Data() []byte {
++func (b *Buffer) Data() []byte {
+ 	return b.buf[b.off : len(b.buf)]
+ }
+ 
+ // Len returns the number of bytes of the unread portion of the buffer;
+ // b.Len() == len(b.Data()).
+-func (b *ByteBuffer) Len() int {
++func (b *Buffer) Len() int {
+ 	return len(b.buf) - b.off
+ }
+ 
+ // Truncate discards all but the first n unread bytes from the buffer.
+ // It is an error to call b.Truncate(n) with n > b.Len().
+-func (b *ByteBuffer) Truncate(n int) {
++func (b *Buffer) Truncate(n int) {
+ 	if n == 0 {
+ 		// Reuse buffer space.
+ 		b.off = 0;
+@@ -51,13 +51,13 @@ func (b *ByteBuffer) Truncate(n int) {
+ 
+ // Reset resets the buffer so it has no content.
+ // b.Reset() is the same as b.Truncate(0).
+-func (b *ByteBuffer) Reset() {
++func (b *Buffer) Reset() {
+ 	b.Truncate(0);
+ }
+ 
+ // Write appends the contents of p to the buffer.  The return
+ // value n is the length of p; err is always nil.
+-func (b *ByteBuffer) Write(p []byte) (n int, err os.Error) {
++func (b *Buffer) Write(p []byte) (n int, err os.Error) {
+ 	m := b.Len();
+ 	n = len(p);
+ 
+@@ -81,7 +81,7 @@ func (b *ByteBuffer) Write(p []byte) (n int, err os.Error) {
+ // WriteByte appends the byte c to the buffer.
+ // The returned error is always nil, but is included
+ // to match bufio.Writer's WriteByte.
+-func (b *ByteBuffer) WriteByte(c byte) os.Error {
++func (b *Buffer) WriteByte(c byte) os.Error {
+ 	b.Write([]byte{c});
+ 	return nil;
+ }
+@@ -90,7 +90,7 @@ func (b *ByteBuffer) WriteByte(c byte) os.Error {
+ // is drained.  The return value n is the number of bytes read.  If the
+ // buffer has no data to return, err is os.EOF even if len(p) is zero;
+ // otherwise it is nil.
+-func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
++func (b *Buffer) Read(p []byte) (n int, err os.Error) {
+ 	if b.off >= len(b.buf) {
+ 		return 0, os.EOF
+ 	}
+@@ -109,7 +109,7 @@ func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
+ 
+ // ReadByte reads and returns the next byte from the buffer.
+ // If no byte is available, it returns error os.EOF.
+-func (b *ByteBuffer) ReadByte() (c byte, err os.Error) {
++func (b *Buffer) ReadByte() (c byte, err os.Error) {
+ 	if b.off >= len(b.buf) {
+ 		return 0, os.EOF;
+ 	}
+@@ -118,8 +118,8 @@ func (b *ByteBuffer) ReadByte() (c byte, err os.Error) {
+ 	return c, nil;
+ }
+ 
+-// NewByteBufferFromArray creates and initializes a new ByteBuffer
+-// with buf as its initial contents.
+-func NewByteBufferFromArray(buf []byte) *ByteBuffer {
+-	return &ByteBuffer{buf, 0};
++// NewBuffer creates and initializes a new Buffer
++// using buf as its initial contents.
++func NewBuffer(buf []byte) *Buffer {
++	return &Buffer{buf, 0};
+ }
+diff --git a/src/pkg/io/bytebuffer_test.go b/src/pkg/bytes/buffer_test.go
+similarity index 100%
+rename from src/pkg/io/bytebuffer_test.go
+rename to src/pkg/bytes/buffer_test.go
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 01adbccfd8..a3e44262cc 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -6,7 +6,7 @@ package bytes
+ 
+ import (
+ 	"bytes";
+-	"io";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -59,8 +59,8 @@ var comparetests = []CompareTest {
+ func TestCompare(t *testing.T) {
+ 	for i := 0; i < len(comparetests); i++ {
+ 		tt := comparetests[i];
+-		a := io.StringBytes(tt.a);
+-		b := io.StringBytes(tt.b);
++		a := strings.Bytes(tt.a);
++		b := strings.Bytes(tt.b);
+ 		cmp := Compare(a, b);
+ 		eql := Equal(a, b);
+ 		if cmp != tt.cmp {
+@@ -85,7 +85,7 @@ var explodetests = []ExplodeTest {
+ }
+ func TestExplode(t *testing.T) {
+ 	for _, tt := range(explodetests) {
+-		a := explode(io.StringBytes(tt.s), tt.n);
++		a := explode(strings.Bytes(tt.s), tt.n);
+ 		result := arrayOfString(a);
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Explode("%s", %d) = %v; want %v`, tt.s, tt.n, result, tt.a);
+@@ -122,13 +122,13 @@ var splittests = []SplitTest {
+ }
+ func TestSplit(t *testing.T) {
+ 	for _, tt := range splittests {
+-		a := Split(io.StringBytes(tt.s), io.StringBytes(tt.sep), tt.n);
++		a := Split(strings.Bytes(tt.s), strings.Bytes(tt.sep), tt.n);
+ 		result := arrayOfString(a);
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a);
+ 			continue;
+ 		}
+-		s := Join(a, io.StringBytes(tt.sep));
++		s := Join(a, strings.Bytes(tt.sep));
+ 		if string(s) != tt.s {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s);
+ 		}
+@@ -154,8 +154,8 @@ var copytests = []CopyTest {
+ func TestCopy(t *testing.T) {
+ 	for i := 0; i < len(copytests); i++ {
+ 		tt := copytests[i];
+-		dst := io.StringBytes(tt.a);
+-		n := Copy(dst, io.StringBytes(tt.b));
++		dst := strings.Bytes(tt.a);
++		n := Copy(dst, strings.Bytes(tt.b));
+ 		result := string(dst);
+ 		if result != tt.res || n != tt.n {
+ 			t.Errorf(`Copy(%q, %q) = %d, %q; want %d, %q`, tt.a, tt.b, n, result, tt.n, tt.res);
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 7771b3dae7..b8c9c71898 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -5,6 +5,7 @@
+ package gzip
+ 
+ import (
++	"bytes";
+ 	"compress/gzip";
+ 	"fmt";
+ 	"io";
+@@ -265,7 +266,7 @@ var gzipTests = []gzipTest {
+ }
+ 
+ func TestGzipInflater(t *testing.T) {
+-	b := new(io.ByteBuffer);
++	b := new(bytes.Buffer);
+ 	for i, tt := range gzipTests {
+ 		in := io.NewByteReader(tt.gzip);
+ 		gzip, err := NewGzipInflater(in);
+diff --git a/src/pkg/crypto/block/cbc_aes_test.go b/src/pkg/crypto/block/cbc_aes_test.go
+index 4681c1c071..0c10b171db 100644
+--- a/src/pkg/crypto/block/cbc_aes_test.go
++++ b/src/pkg/crypto/block/cbc_aes_test.go
+@@ -13,6 +13,7 @@ package block
+ // gobuild: $GC ecb_aes_test.go
+ 
+ import (
++	"bytes";
+ 	"crypto/aes";
+ 	"crypto/block";
+ 	"io";
+@@ -80,7 +81,7 @@ func TestCBC_AES(t *testing.T) {
+ 			continue;
+ 		}
+ 
+-		var crypt io.ByteBuffer;
++		var crypt bytes.Buffer;
+ 		w := NewCBCEncrypter(c, tt.iv, &crypt);
+ 		var r io.Reader = io.NewByteReader(tt.in);
+ 		n, err := io.Copy(r, w);
+@@ -90,7 +91,7 @@ func TestCBC_AES(t *testing.T) {
+ 			t.Errorf("%s: CBCEncrypter\nhave %x\nwant %x", test, d, tt.out);
+ 		}
+ 
+-		var plain io.ByteBuffer;
++		var plain bytes.Buffer;
+ 		r = NewCBCDecrypter(c, tt.iv, io.NewByteReader(tt.out));
+ 		w = &plain;
+ 		n, err = io.Copy(r, w);
+diff --git a/src/pkg/crypto/block/cfb_aes_test.go b/src/pkg/crypto/block/cfb_aes_test.go
+index 6c793dba8e..95b2511960 100644
+--- a/src/pkg/crypto/block/cfb_aes_test.go
++++ b/src/pkg/crypto/block/cfb_aes_test.go
+@@ -13,6 +13,7 @@ package block
+ // gobuild: $GC ecb_aes_test.go
+ 
+ import (
++	"bytes";
+ 	"crypto/aes";
+ 	"crypto/block";
+ 	"io";
+@@ -289,7 +290,7 @@ func TestCFB_AES(t *testing.T) {
+ 			continue;
+ 		}
+ 
+-		var crypt io.ByteBuffer;
++		var crypt bytes.Buffer;
+ 		w := NewCFBEncrypter(c, tt.s, tt.iv, &crypt);
+ 		var r io.Reader = io.NewByteReader(tt.in);
+ 		n, err := io.Copy(r, w);
+@@ -299,7 +300,7 @@ func TestCFB_AES(t *testing.T) {
+ 			t.Errorf("%s: CFBEncrypter\nhave %x\nwant %x", test, d, tt.out);
+ 		}
+ 
+-		var plain io.ByteBuffer;
++		var plain bytes.Buffer;
+ 		r = NewCFBDecrypter(c, tt.s, tt.iv, io.NewByteReader(tt.out));
+ 		w = &plain;
+ 		n, err = io.Copy(r, w);
+diff --git a/src/pkg/crypto/block/ctr_aes_test.go b/src/pkg/crypto/block/ctr_aes_test.go
+index a3da1b5bfd..dceb85a8b6 100644
+--- a/src/pkg/crypto/block/ctr_aes_test.go
++++ b/src/pkg/crypto/block/ctr_aes_test.go
+@@ -11,6 +11,7 @@
+ package block
+ 
+ import (
++	"bytes";
+ 	"crypto/aes";
+ 	"crypto/block";
+ 	"io";
+@@ -83,7 +84,7 @@ func TestCTR_AES(t *testing.T) {
+ 		}
+ 
+ 		for j := 0; j <= 5; j += 5 {
+-			var crypt io.ByteBuffer;
++			var crypt bytes.Buffer;
+ 			in := tt.in[0:len(tt.in) - j];
+ 			w := block.NewCTRWriter(c, tt.iv, &crypt);
+ 			var r io.Reader = io.NewByteReader(in);
+@@ -96,7 +97,7 @@ func TestCTR_AES(t *testing.T) {
+ 		}
+ 
+ 		for j := 0; j <= 7; j += 7 {
+-			var plain io.ByteBuffer;
++			var plain bytes.Buffer;
+ 			out := tt.out[0:len(tt.out) - j];
+ 			r := block.NewCTRReader(c, tt.iv, io.NewByteReader(out));
+ 			w := &plain;
+diff --git a/src/pkg/crypto/block/eax_aes_test.go b/src/pkg/crypto/block/eax_aes_test.go
+index f0453be806..b4280ee11e 100644
+--- a/src/pkg/crypto/block/eax_aes_test.go
++++ b/src/pkg/crypto/block/eax_aes_test.go
+@@ -5,6 +5,7 @@
+ package block
+ 
+ import (
++	"bytes";
+ 	"crypto/aes";
+ 	"crypto/block";
+ 	"fmt";
+@@ -195,7 +196,7 @@ var eaxAESTests = []eaxAESTest {
+ }
+ 
+ func TestEAXEncrypt_AES(t *testing.T) {
+-	b := new(io.ByteBuffer);
++	b := new(bytes.Buffer);
+ 	for i, tt := range eaxAESTests {
+ 		test := fmt.Sprintf("test %d", i);
+ 		c, err := aes.NewCipher(tt.key);
+@@ -219,7 +220,7 @@ func TestEAXEncrypt_AES(t *testing.T) {
+ }
+ 
+ func TestEAXDecrypt_AES(t *testing.T) {
+-	b := new(io.ByteBuffer);
++	b := new(bytes.Buffer);
+ 	for i, tt := range eaxAESTests {
+ 		test := fmt.Sprintf("test %d", i);
+ 		c, err := aes.NewCipher(tt.key);
+diff --git a/src/pkg/crypto/block/ecb_aes_test.go b/src/pkg/crypto/block/ecb_aes_test.go
+index de8a624b9f..518897df5a 100644
+--- a/src/pkg/crypto/block/ecb_aes_test.go
++++ b/src/pkg/crypto/block/ecb_aes_test.go
+@@ -11,6 +11,7 @@
+ package block
+ 
+ import (
++	"bytes";
+ 	"crypto/aes";
+ 	"crypto/block";
+ 	"io";
+@@ -109,7 +110,7 @@ func TestECB_AES(t *testing.T) {
+ 			continue;
+ 		}
+ 
+-		var crypt io.ByteBuffer;
++		var crypt bytes.Buffer;
+ 		w := NewECBEncrypter(c, &crypt);
+ 		var r io.Reader = io.NewByteReader(tt.in);
+ 		n, err := io.Copy(r, w);
+@@ -119,7 +120,7 @@ func TestECB_AES(t *testing.T) {
+ 			t.Errorf("%s: ECBReader\nhave %x\nwant %x", test, d, tt.out);
+ 		}
+ 
+-		var plain io.ByteBuffer;
++		var plain bytes.Buffer;
+ 		r = NewECBDecrypter(c, io.NewByteReader(tt.out));
+ 		w = &plain;
+ 		n, err = io.Copy(r, w);
+diff --git a/src/pkg/crypto/block/ecb_test.go b/src/pkg/crypto/block/ecb_test.go
+index 968893a9bb..8722265126 100644
+--- a/src/pkg/crypto/block/ecb_test.go
++++ b/src/pkg/crypto/block/ecb_test.go
+@@ -5,6 +5,7 @@
+ package block
+ 
+ import (
++	"bytes";
+ 	"crypto/block";
+ 	"fmt";
+ 	"io";
+@@ -55,7 +56,7 @@ func TestECBEncrypter(t *testing.T) {
+ 	for i := 0; i < len(plain); i++ {
+ 		plain[i] = byte(i);
+ 	}
+-	b := new(io.ByteBuffer);
++	b := new(bytes.Buffer);
+ 	for block := 1; block <= 64; block *= 2 {
+ 		// compute encrypted version
+ 		delta := byte(0);
+@@ -119,7 +120,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
+ 	for i := 0; i < len(plain); i++ {
+ 		plain[i] = byte(255 - i);
+ 	}
+-	b := new(io.ByteBuffer);
++	b := new(bytes.Buffer);
+ 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
+ 		// compute encrypted version
+ 		delta := byte(0);
+diff --git a/src/pkg/crypto/block/ofb_aes_test.go b/src/pkg/crypto/block/ofb_aes_test.go
+index 3f5f9f482e..96673fecbe 100644
+--- a/src/pkg/crypto/block/ofb_aes_test.go
++++ b/src/pkg/crypto/block/ofb_aes_test.go
+@@ -13,6 +13,7 @@ package block
+ // gotest: $GC ecb_aes_test.go
+ 
+ import (
++	"bytes";
+ 	"crypto/aes";
+ 	"crypto/block";
+ 	"io";
+@@ -81,7 +82,7 @@ func TestOFB_AES(t *testing.T) {
+ 		}
+ 
+ 		for j := 0; j <= 5; j += 5 {
+-			var crypt io.ByteBuffer;
++			var crypt bytes.Buffer;
+ 			in := tt.in[0:len(tt.in) - j];
+ 			w := NewOFBWriter(c, tt.iv, &crypt);
+ 			var r io.Reader = io.NewByteReader(in);
+@@ -94,7 +95,7 @@ func TestOFB_AES(t *testing.T) {
+ 		}
+ 
+ 		for j := 0; j <= 7; j += 7 {
+-			var plain io.ByteBuffer;
++			var plain bytes.Buffer;
+ 			out := tt.out[0:len(tt.out) - j];
+ 			r := NewOFBReader(c, tt.iv, io.NewByteReader(out));
+ 			w := &plain;
+diff --git a/src/pkg/crypto/block/xor_test.go b/src/pkg/crypto/block/xor_test.go
+index 6e6d1a3ce9..1dca92e55b 100644
+--- a/src/pkg/crypto/block/xor_test.go
++++ b/src/pkg/crypto/block/xor_test.go
+@@ -5,6 +5,7 @@
+ package block
+ 
+ import (
++	"bytes";
+ 	"crypto/block";
+ 	"fmt";
+ 	"io";
+@@ -38,7 +39,7 @@ func testXorWriter(t *testing.T, maxio int) {
+ 	for i := 0; i < len(plain); i++ {
+ 		plain[i] = byte(i);
+ 	}
+-	b := new(io.ByteBuffer);
++	b := new(bytes.Buffer);
+ 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
+ 		// compute encrypted version
+ 		n := byte(0);
+@@ -106,7 +107,7 @@ func testXorReader(t *testing.T, maxio int) {
+ 	for i := 0; i < len(plain); i++ {
+ 		plain[i] = byte(255 - i);
+ 	}
+-	b := new(io.ByteBuffer);
++	b := new(bytes.Buffer);
+ 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
+ 		// compute encrypted version
+ 		n := byte(0);
+diff --git a/src/pkg/crypto/hmac/hmac_test.go b/src/pkg/crypto/hmac/hmac_test.go
+index 01e532d9fd..74fcacfb5c 100644
+--- a/src/pkg/crypto/hmac/hmac_test.go
++++ b/src/pkg/crypto/hmac/hmac_test.go
+@@ -9,8 +9,8 @@ package hmac
+ import (
+ 	"hash";
+ 	"crypto/hmac";
+-	"io";
+ 	"fmt";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -36,7 +36,7 @@ var hmacTests = []hmacTest {
+ 			0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+ 			0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+ 		},
+-		io.StringBytes("Sample #1"),
++		strings.Bytes("Sample #1"),
+ 		"4f4ca3d5d68ba7cc0a1208c9c61e9c5da0403c0a",
+ 	},
+ 	hmacTest {
+@@ -46,7 +46,7 @@ var hmacTests = []hmacTest {
+ 			0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+ 			0x40, 0x41, 0x42, 0x43,
+ 		},
+-		io.StringBytes("Sample #2"),
++		strings.Bytes("Sample #2"),
+ 		"0922d3405faa3d194f82a45830737d5cc6c75d24",
+ 	},
+ 	hmacTest {
+@@ -66,15 +66,15 @@ var hmacTests = []hmacTest {
+ 			0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
+ 			0xb0, 0xb1, 0xb2, 0xb3,
+ 		},
+-		io.StringBytes("Sample #3"),
++		strings.Bytes("Sample #3"),
+ 		"bcf41eab8bb2d802f3d05caf7cb092ecf8d1a3aa",
+ 	},
+ 
+ 	// Test from Plan 9.
+ 	hmacTest {
+ 		NewMD5,
+-		io.StringBytes("Jefe"),
+-		io.StringBytes("what do ya want for nothing?"),
++		strings.Bytes("Jefe"),
++		strings.Bytes("what do ya want for nothing?"),
+ 		"750c783e6ab0b503eaa86e310a5db738",
+ 	}
+ }
+diff --git a/src/pkg/datafmt/datafmt.go b/src/pkg/datafmt/datafmt.go
+index 0aedbbbb0a..48c24e7264 100644
+--- a/src/pkg/datafmt/datafmt.go
++++ b/src/pkg/datafmt/datafmt.go
+@@ -12,7 +12,7 @@
+ 	A format specification is a set of package declarations and format rules:
+ 
+ 		Format      = [ Entry { ";" Entry } [ ";" ] ] .
+-		Entry       = PackageDecl | FormatRule . 
++		Entry       = PackageDecl | FormatRule .
+ 
+ 	(The syntax of a format specification is presented in the same EBNF
+ 	notation as used in the Go language specification. The syntax of white
+@@ -111,7 +111,7 @@
+ 
+ 	The following example shows a complete format specification for a
+ 	struct 'myPackage.Point'. Assume the package
+-	
++
+ 		package myPackage  // in directory myDir/myPackage
+ 		type Point struct {
+ 			name string;
+@@ -155,7 +155,7 @@
+ 
+ 		Repetition  = "{" Body [ "/" Separator ] "}" .
+ 		Separator   = Expression .
+-	
++
+ 	A repeated expression is evaluated as follows: The body is evaluated
+ 	repeatedly and its results are concatenated until the body evaluates
+ 	to nil. The result of the repetition is the (possibly empty) concatenation,
+@@ -202,6 +202,7 @@
+ package datafmt
+ 
+ import (
++	"bytes";
+ 	"container/vector";
+ 	"fmt";
+ 	"go/token";
+@@ -306,8 +307,8 @@ type State struct {
+ 	env Environment;  // user-supplied environment
+ 	errors chan os.Error;  // not chan *Error (errors <- nil would be wrong!)
+ 	hasOutput bool;  // true after the first literal has been written
+-	indent io.ByteBuffer;  // current indentation
+-	output io.ByteBuffer;  // format output
++	indent bytes.Buffer;  // current indentation
++	output bytes.Buffer;  // format output
+ 	linePos token.Position;  // position of line beginning (Column == 0)
+ 	default_ expr;  // possibly nil
+ 	separator expr;  // possibly nil
+@@ -418,7 +419,7 @@ func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
+ 	if val.Kind() != reflect.StructKind {
+ 		return nil, 0;
+ 	}
+-	
++
+ 	sval, styp := val.(reflect.StructValue), val.Type().(reflect.StructType);
+ 
+ 	// look for field at the top level
+@@ -450,7 +451,7 @@ func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
+ 			}
+ 		}
+ 	}
+-	
++
+ 	return field, level + 1;
+ }
+ 
+@@ -668,7 +669,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 			s.restore(mark);
+ 			b = false;
+ 		}
+-		
++
+ 		// reset indentation
+ 		s.indent.Truncate(indentLen);
+ 		return b;
+@@ -780,7 +781,7 @@ func (f Format) Print(args ...) (int, os.Error) {
+ // partially formatted result followed by an error message.
+ //
+ func (f Format) Sprint(args ...) string {
+-	var buf io.ByteBuffer;
++	var buf bytes.Buffer;
+ 	n, err := f.Fprint(&buf, nil, args);
+ 	if err != nil {
+ 		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(args), err);
+diff --git a/src/pkg/datafmt/datafmt_test.go b/src/pkg/datafmt/datafmt_test.go
+index 788c013c6e..9535494519 100644
+--- a/src/pkg/datafmt/datafmt_test.go
++++ b/src/pkg/datafmt/datafmt_test.go
+@@ -7,14 +7,14 @@ package datafmt
+ import (
+ 	"fmt";
+ 	"datafmt";
+-	"io";
+ 	"os";
++	"strings";
+ 	"testing";
+ )
+ 
+ 
+ func parse(t *testing.T, form string, fmap FormatterMap) Format {
+-	f, err := Parse(io.StringBytes(form), fmap);
++	f, err := Parse(strings.Bytes(form), fmap);
+ 	if err != nil {
+ 		t.Errorf("Parse(%s): %v", form, err);
+ 		return nil;
+@@ -55,7 +55,7 @@ func formatter(s *State, value interface{}, rule_name string) bool {
+ 	case "nil":
+ 		return false;
+ 	case "testing.T":
+-		s.Write(io.StringBytes("testing.T"));
++		s.Write(strings.Bytes("testing.T"));
+ 		return true;
+ 	}
+ 	panic("unreachable");
+@@ -115,7 +115,7 @@ func TestBasicTypes(t *testing.T) {
+ 	check(t, ``, ``);
+ 	check(t, `bool=":%v"`, `:true:false`, true, false);
+ 	check(t, `int="%b %d %o 0x%x"`, `101010 42 52 0x2a`, 42);
+-	
++
+ 	check(t, `int="%"`, `%`, 42);
+ 	check(t, `int="%%"`, `%`, 42);
+ 	check(t, `int="**%%**"`, `**%**`, 42);
+@@ -259,13 +259,13 @@ const F2a =
+ 	`string = "%s";`
+ 	`ptr = *;`
+ 	`datafmt.T2 = s ["-" p "-"];`
+-	
++
+ const F2b =
+ 	F1 +
+ 	`string = "%s";`
+ 	`ptr = *;`
+ 	`datafmt.T2 = s ("-" p "-" | "empty");`;
+-	
++
+ func TestStruct2(t *testing.T) {
+ 	check(t, F2a, "foo", T2{"foo", nil});
+ 	check(t, F2a, "bar-<17>-", T2{"bar", &T1{17}});
+@@ -366,7 +366,7 @@ func TestStructPoint(t *testing.T) {
+ const FSlice =
+ 	`int = "%b";`
+ 	`array = { * / ", " }`
+-	
++
+ func TestSlice(t *testing.T) {
+ 	check(t, FSlice, "10, 11, 101, 111", []int{2, 3, 5, 7});
+ }
+diff --git a/src/pkg/datafmt/parser.go b/src/pkg/datafmt/parser.go
+index 0d597dcb5f..17d4be982e 100644
+--- a/src/pkg/datafmt/parser.go
++++ b/src/pkg/datafmt/parser.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt";
+ 	"go/scanner";
+ 	"go/token";
+-	"io";
+ 	"os";
+ 	"strconv";
+ 	"strings";
+@@ -194,7 +193,7 @@ func (p *parser) parseString() string {
+ 
+ 
+ func (p *parser) parseLiteral() literal {
+-	s := io.StringBytes(p.parseString());
++	s := strings.Bytes(p.parseString());
+ 
+ 	// A string literal may contain %-format specifiers. To simplify
+ 	// and speed up printing of the literal, split it into segments
+diff --git a/src/pkg/exvar/exvar.go b/src/pkg/exvar/exvar.go
+index 6473f7af62..6275e2d258 100644
+--- a/src/pkg/exvar/exvar.go
++++ b/src/pkg/exvar/exvar.go
+@@ -8,6 +8,7 @@
+ package exvar
+ 
+ import (
++	"bytes";
+ 	"fmt";
+ 	"http";
+ 	"io";
+@@ -52,7 +53,7 @@ type KeyValue struct {
+ func (v *Map) String() string {
+ 	v.mu.Lock();
+ 	defer v.mu.Unlock();
+-	b := new(io.ByteBuffer);
++	b := new(bytes.Buffer);
+ 	fmt.Fprintf(b, "{");
+ 	first := true;
+ 	for key, val := range v.m {
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index d530a0198b..305ab4d2e8 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt";
+ 	"io";
+ 	"math";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -40,12 +41,12 @@ var fmttests = []fmtTest{
+ 	fmtTest{ "%q",	"abc",	`"abc"` },
+ 
+ 	// basic bytes
+-	fmtTest{ "%s",	io.StringBytes("abc"),	"abc" },
+-	fmtTest{ "%x",	io.StringBytes("abc"),	"616263" },
+-	fmtTest{ "% x",	io.StringBytes("abc"),	"61 62 63" },
+-	fmtTest{ "%x",	io.StringBytes("xyz"),	"78797a" },
+-	fmtTest{ "%X",	io.StringBytes("xyz"),	"78797A" },
+-	fmtTest{ "%q",	io.StringBytes("abc"),	`"abc"` },
++	fmtTest{ "%s",	strings.Bytes("abc"),	"abc" },
++	fmtTest{ "%x",	strings.Bytes("abc"),	"616263" },
++	fmtTest{ "% x",	strings.Bytes("abc"),	"61 62 63" },
++	fmtTest{ "%x",	strings.Bytes("xyz"),	"78797a" },
++	fmtTest{ "%X",	strings.Bytes("xyz"),	"78797A" },
++	fmtTest{ "%q",	strings.Bytes("abc"),	`"abc"` },
+ 
+ 	// escaped strings
+ 	fmtTest{ "%#q",	`abc`,		"`abc`" },
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 064080fe76..ac04e82f27 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -142,8 +142,8 @@ func split(text []byte) [][]byte {
+ 
+ 
+ var (
+-	ldquo = io.StringBytes("&ldquo;");
+-	rdquo = io.StringBytes("&rdquo;");
++	ldquo = strings.Bytes("&ldquo;");
++	rdquo = strings.Bytes("&rdquo;");
+ )
+ 
+ // Escape comment text for HTML.
+@@ -168,10 +168,10 @@ func commentEscape(w io.Writer, s []byte) {
+ 
+ 
+ var (
+-	html_p = io.StringBytes("<p>\n");
+-	html_endp = io.StringBytes("</p>\n");
+-	html_pre = io.StringBytes("<pre>");
+-	html_endpre = io.StringBytes("</pre>\n");
++	html_p = strings.Bytes("<p>\n");
++	html_endp = strings.Bytes("</p>\n");
++	html_pre = strings.Bytes("<pre>");
++	html_endpre = strings.Bytes("</pre>\n");
+ )
+ 
+ 
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index aabd2248b0..b8bb3b85aa 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -10,6 +10,7 @@
+ package parser
+ 
+ import (
++	"bytes";
+ 	"container/vector";
+ 	"fmt";
+ 	"go/ast";
+@@ -17,6 +18,7 @@ import (
+ 	"go/token";
+ 	"io";
+ 	"os";
++	"strings";
+ )
+ 
+ 
+@@ -1964,16 +1966,16 @@ func readSource(src interface{}) ([]byte, os.Error) {
+ 	if src != nil {
+ 		switch s := src.(type) {
+ 		case string:
+-			return io.StringBytes(s), nil;
++			return strings.Bytes(s), nil;
+ 		case []byte:
+ 			return s, nil;
+-		case *io.ByteBuffer:
+-			// is io.Read, but src is already available in []byte form
++		case *bytes.Buffer:
++			// is io.Reader, but src is already available in []byte form
+ 			if s != nil {
+ 				return s.Data(), nil;
+ 			}
+ 		case io.Reader:
+-			var buf io.ByteBuffer;
++			var buf bytes.Buffer;
+ 			n, err := io.Copy(s, &buf);
+ 			if err != nil {
+ 				return nil, err;
+@@ -1997,7 +1999,7 @@ func scannerMode(mode uint) uint {
+ // Parse parses a Go program.
+ //
+ // The program source src may be provided in a variety of formats. At the
+-// moment the following types are supported: string, []byte, and io.Read.
++// moment the following types are supported: string, []byte, and io.Reader.
+ // The mode parameter controls the amount of source text parsed and other
+ // optional parser functionality.
+ //
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 4465314bc9..19cb4d1082 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -12,6 +12,7 @@ import (
+ 	"io";
+ 	"os";
+ 	"reflect";
++	"strings";
+ )
+ 
+ 
+@@ -166,9 +167,9 @@ func (p *printer) print(args ...) {
+ 		case []byte:
+ 			p.write(x);
+ 		case string:
+-			p.write(io.StringBytes(x));
++			p.write(strings.Bytes(x));
+ 		case token.Token:
+-			p.write(io.StringBytes(x.String()));
++			p.write(strings.Bytes(x.String()));
+ 		case token.Position:
+ 			// set current position
+ 			p.pos = x;
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 0906d5c0e8..17491e6565 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -7,7 +7,7 @@ package scanner
+ import (
+ 	"go/scanner";
+ 	"go/token";
+-	"io";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -190,7 +190,7 @@ func TestScan(t *testing.T) {
+ 	// verify scan
+ 	index := 0;
+ 	eloc := token.Position{0, 1, 1};
+-	nerrors := scanner.Tokenize(io.StringBytes(src), &TestErrorHandler{t}, scanner.ScanComments,
++	nerrors := scanner.Tokenize(strings.Bytes(src), &TestErrorHandler{t}, scanner.ScanComments,
+ 		func (pos token.Position, tok token.Token, litb []byte) bool {
+ 			e := elt{token.EOF, "", special};
+ 			if index < len(tokens) {
+@@ -236,7 +236,7 @@ func TestInit(t *testing.T) {
+ 	var s scanner.Scanner;
+ 
+ 	// 1st init
+-	s.Init(io.StringBytes("if true { }"), nil, 0);
++	s.Init(strings.Bytes("if true { }"), nil, 0);
+ 	s.Scan();  // if
+ 	s.Scan();  // true
+ 	pos, tok, lit := s.Scan();  // {
+@@ -245,7 +245,7 @@ func TestInit(t *testing.T) {
+ 	}
+ 
+ 	// 2nd init
+-	s.Init(io.StringBytes("go true { ]"), nil, 0);
++	s.Init(strings.Bytes("go true { ]"), nil, 0);
+ 	pos, tok, lit = s.Scan();  // go
+ 	if tok != token.GO {
+ 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO);
+@@ -261,7 +261,7 @@ func TestIllegalChars(t *testing.T) {
+ 	var s scanner.Scanner;
+ 
+ 	const src = "*?*$*@*";
+-	s.Init(io.StringBytes(src), &TestErrorHandler{t}, scanner.AllowIllegalChars);
++	s.Init(strings.Bytes(src), &TestErrorHandler{t}, scanner.AllowIllegalChars);
+ 	for offs, ch := range src {
+ 		pos, tok, lit := s.Scan();
+ 		if pos.Offset != offs {
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 8142aac696..9dca42a885 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -7,7 +7,6 @@ package gob
+ import (
+ 	"bytes";
+ 	"gob";
+-	"io";
+ 	"os";
+ 	"testing";
+ )
+@@ -36,7 +35,7 @@ var encodeT = []EncodeT {
+ 
+ // Test basic encode/decode routines for unsigned integers
+ func TestUintCodec(t *testing.T) {
+-	var b = new(io.ByteBuffer);
++	var b = new(bytes.Buffer);
+ 	for i, tt := range encodeT {
+ 		b.Reset();
+ 		err := EncodeUint(b, tt.x);
+@@ -67,7 +66,7 @@ func TestUintCodec(t *testing.T) {
+ }
+ 
+ func verifyInt(i int64, t *testing.T) {
+-	var b = new(io.ByteBuffer);
++	var b = new(bytes.Buffer);
+ 	err := EncodeInt(b, i);
+ 	if err != nil {
+ 		t.Error("EncodeInt:", i, err)
+@@ -83,7 +82,7 @@ func verifyInt(i int64, t *testing.T) {
+ 
+ // Test basic encode/decode routines for signed integers
+ func TestIntCodec(t *testing.T) {
+-	var b = new(io.ByteBuffer);
++	var b = new(bytes.Buffer);
+ 	for u := uint64(0); ; u = (u+1) * 7 {
+ 		// Do positive and negative values
+ 		i := int64(u);
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index ef6dbe6734..59801e1eb3 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -359,7 +359,7 @@ func CanonicalHeaderKey(s string) string {
+ 	// and upper case after each dash.
+ 	// (Host, User-Agent, If-Modified-Since).
+ 	// HTTP headers are ASCII only, so no Unicode issues.
+-	a := io.StringBytes(s);
++	a := strings.Bytes(s);
+ 	upper := true;
+ 	for i,v := range a {
+ 		if upper && 'a' <= v && v <= 'z' {
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index fc95017697..546f2a75d0 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"bytes";
+ 	"bufio";
+ 	"exvar";
+ 	"flag";
+@@ -41,7 +42,7 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+ 	case "GET":
+ 		ctr.n++;
+ 	case "POST":
+-		buf := new(io.ByteBuffer);
++		buf := new(bytes.Buffer);
+ 		io.Copy(req.Body, buf);
+ 		body := string(buf.Data());
+ 		if n, err := strconv.Atoi(body); err != nil {
+diff --git a/src/pkg/io/Makefile b/src/pkg/io/Makefile
+index c3f0dda884..e265c99cfd 100644
+--- a/src/pkg/io/Makefile
++++ b/src/pkg/io/Makefile
+@@ -35,28 +35,22 @@ coverage: packages
+ O1=\
+ 	io.$O\
+ 	pipe.$O\
++	xxx.$O\
+ 
+ O2=\
+-	bytebuffer.$O\
+-
+-O3=\
+ 	utils.$O\
+ 
+ 
+-phases: a1 a2 a3
++phases: a1 a2
+ _obj$D/io.a: phases
+ 
+ a1: $(O1)
+-	$(AR) grc _obj$D/io.a io.$O pipe.$O
++	$(AR) grc _obj$D/io.a io.$O pipe.$O xxx.$O
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+-	$(AR) grc _obj$D/io.a bytebuffer.$O
+-	rm -f $(O2)
+-
+-a3: $(O3)
+ 	$(AR) grc _obj$D/io.a utils.$O
+-	rm -f $(O3)
++	rm -f $(O2)
+ 
+ 
+ newpkg: clean
+@@ -66,7 +60,6 @@ newpkg: clean
+ $(O1): newpkg
+ $(O2): a1
+ $(O3): a2
+-$(O4): a3
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/io.a
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 7a74061383..12b98921f7 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -12,6 +12,7 @@ package io
+ import (
+ 	"bytes";
+ 	"os";
++	"strings";
+ )
+ 
+ // Error represents an unexpected I/O behavior.
+@@ -83,18 +84,9 @@ type ReadWriteCloser interface {
+ 	Closer;
+ }
+ 
+-// Convert a string to an array of bytes for easy marshaling.
+-func StringBytes(s string) []byte {
+-	b := make([]byte, len(s));
+-	for i := 0; i < len(s); i++ {
+-		b[i] = s[i];
+-	}
+-	return b;
+-}
+-
+ // WriteString writes the contents of the string s to w, which accepts an array of bytes.
+ func WriteString(w Writer, s string) (n int, err os.Error) {
+-	return w.Write(StringBytes(s))
++	return w.Write(strings.Bytes(s))
+ }
+ 
+ // ReadAtLeast reads from r into buf until it has read at least min bytes.
+diff --git a/src/pkg/io/pipe_test.go b/src/pkg/io/pipe_test.go
+index 02d5013f35..6b36cc6fcb 100644
+--- a/src/pkg/io/pipe_test.go
++++ b/src/pkg/io/pipe_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt";
+ 	"io";
+ 	"os";
++	"strings";
+ 	"testing";
+ 	"time";
+ )
+@@ -28,7 +29,7 @@ func TestPipe1(t *testing.T) {
+ 	c := make(chan int);
+ 	r, w := Pipe();
+ 	var buf = make([]byte, 64);
+-	go checkWrite(t, w, StringBytes("hello, world"), c);
++	go checkWrite(t, w, strings.Bytes("hello, world"), c);
+ 	n, err := r.Read(buf);
+ 	if err != nil {
+ 		t.Errorf("read: %v", err);
+diff --git a/src/pkg/io/utils.go b/src/pkg/io/utils.go
+index a4cbb2d9aa..96d23bcf00 100644
+--- a/src/pkg/io/utils.go
++++ b/src/pkg/io/utils.go
+@@ -7,14 +7,15 @@
+ package io
+ 
+ import (
++	"bytes";
+ 	"io";
+ 	"os";
+ )
+ 
+ // ReadAll reads from r until an error or EOF and returns the data it read.
+ func ReadAll(r Reader) ([]byte, os.Error) {
+-	var buf ByteBuffer;
+-	n, err := io.Copy(r, &buf);
++	var buf bytes.Buffer;
++	n, err := Copy(r, &buf);
+ 	return buf.Data(), err;
+ }
+ 
+diff --git a/src/pkg/json/parse.go b/src/pkg/json/parse.go
+index e33b9dbc12..a95d7d215c 100644
+--- a/src/pkg/json/parse.go
++++ b/src/pkg/json/parse.go
+@@ -11,8 +11,8 @@
+ package json
+ 
+ import (
++	"bytes";
+ 	"fmt";
+-	"io";
+ 	"math";
+ 	"strconv";
+ 	"strings";
+@@ -127,7 +127,7 @@ func Unquote(s string) (t string, ok bool) {
+ func Quote(s string) string {
+ 	chr := make([]byte, utf8.UTFMax);
+ 	chr0 := chr[0:1];
+-	b := new(io.ByteBuffer);
++	b := new(bytes.Buffer);
+ 	chr[0] = '"';
+ 	b.Write(chr0);
+ 	for i := 0; i < len(s); i++ {
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index f259cba017..e65aaac308 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"io";
+ 	"net";
+ 	"os";
++	"strings";
+ 	"syscall";
+ 	"testing";
+ )
+@@ -19,7 +20,7 @@ var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
+ // fd is already connected to the destination, port 80.
+ // Run an HTTP request to fetch the appropriate page.
+ func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
+-	req := io.StringBytes("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
++	req := strings.Bytes("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
+ 	n, err := fd.Write(req);
+ 
+ 	buf := make([]byte, 1000);
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index f1c7134e44..92ed683383 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -52,7 +52,7 @@ func connect(t *testing.T, network, addr string) {
+ 		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
+ 	}
+ 
+-	b := io.StringBytes("hello, world\n");
++	b := strings.Bytes("hello, world\n");
+ 	var b1 [100]byte;
+ 
+ 	n, errno := fd.Write(b);
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 3dd975660e..8b50cb5085 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -5,9 +5,11 @@
+ package os
+ 
+ import (
++	"bytes";
+ 	"fmt";
+ 	"io";
+ 	"os";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -322,7 +324,7 @@ func TestForkExec(t *testing.T) {
+ 	}
+ 	w.Close();
+ 
+-	var b io.ByteBuffer;
++	var b bytes.Buffer;
+ 	io.Copy(r, &b);
+ 	output := string(b.Data());
+ 	expect := "/\n";
+@@ -443,7 +445,7 @@ func TestTruncate(t *testing.T) {
+ 	}
+ 
+ 	checkSize(t, Path, 0);
+-	fd.Write(io.StringBytes("hello, world\n"));
++	fd.Write(strings.Bytes("hello, world\n"));
+ 	checkSize(t, Path, 13);
+ 	fd.Truncate(10);
+ 	checkSize(t, Path, 10);
+@@ -451,7 +453,7 @@ func TestTruncate(t *testing.T) {
+ 	checkSize(t, Path, 1024);
+ 	fd.Truncate(0);
+ 	checkSize(t, Path, 0);
+-	fd.Write(io.StringBytes("surprise!"));
++	fd.Write(strings.Bytes("surprise!"));
+ 	checkSize(t, Path, 13 + 9);	// wrote at offset past where hello, world was.
+ 	fd.Close();
+ 	Remove(Path);
+@@ -600,7 +602,7 @@ func run(t *testing.T, cmd []string) string {
+ 	}
+ 	w.Close();
+ 
+-	var b io.ByteBuffer;
++	var b bytes.Buffer;
+ 	io.Copy(r, &b);
+ 	Wait(pid, 0);
+ 	output := string(b.Data());
+@@ -626,4 +628,3 @@ func TestHostname(t *testing.T) {
+ 		t.Errorf("Hostname() = %q, want %q", hostname, want);
+ 	}
+ }
+-
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index a7e2c26c3e..ffc6c6920b 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -6,7 +6,7 @@
+ // slash-separated filename paths.
+ package path
+ 
+-import "io"
++import "strings"
+ 
+ // Clean returns the shortest path name equivalent to path
+ // by purely lexical processing.  It applies the following rules
+@@ -38,7 +38,7 @@ func Clean(path string) string {
+ 	//	writing to buf; w is index of next byte to write.
+ 	//	dotdot is index in buf where .. must stop, either because
+ 	//		it is the leading slash or it is a leading ../../.. prefix.
+-	buf := io.StringBytes(path);
++	buf := strings.Bytes(path);
+ 	r, w, dotdot := 0, 0, 0;
+ 	if rooted {
+ 		r, w, dotdot = 1, 1, 1;
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 5fb606a27e..1ab9246f68 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -23,6 +23,7 @@
+ package regexp
+ 
+ import (
++	"bytes";
+ 	"container/vector";
+ 	"io";
+ 	"os";
+@@ -770,7 +771,7 @@ func Match(pattern string, s string) (matched bool, error os.Error) {
+ func (re *Regexp) ReplaceAll(src, repl string) string {
+ 	lastMatchEnd := 0; // end position of the most recent match
+ 	searchPos := 0; // position where we next look for a match
+-	buf := new(io.ByteBuffer);
++	buf := new(bytes.Buffer);
+ 	for searchPos <= len(src) {
+ 		a := re.doExecute(src, searchPos);
+ 		if len(a) == 0 {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index fedc94066d..6fea924d83 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -130,6 +130,7 @@ sweepspan(MSpan *s)
+ 			free(p);
+ 			break;
+ 		case RefSome:
++//printf("gc-mem 1 %D\n", (uint64)s->npages<<PageShift);
+ 			s->gcref0 = RefNone;	// set up for next mark phase
+ 			break;
+ 		}
+@@ -159,6 +160,7 @@ sweepspan(MSpan *s)
+ 			break;
+ 		}
+ 	}
++//printf("gc-mem %d %d\n", s->ref, size);
+ }
+ 
+ static void
+@@ -215,6 +217,7 @@ gc(int32 force)
+ 	if(gcpercent < 0)
+ 		return;
+ 
++//printf("gc...\n");
+ 	m->gcing = 1;
+ 	semacquire(&gcsema);
+ 	gosave(&g->sched);	// update g's stack pointer for scanstack
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 9b0f031b9a..c76024b6fe 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -202,3 +202,13 @@ func TrimSpaceASCII(s string) string {
+ 	}
+ 	return s[start:end];
+ }
++
++// Bytes returns an array of the bytes in s.
++func Bytes(s string) []byte {
++	b := make([]byte, len(s));
++	for i := 0; i < len(s); i++ {
++		b[i] = s[i];
++	}
++	return b;
++}
++
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index aa942d482e..d57a1b1938 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -10,6 +10,7 @@
+ package tabwriter
+ 
+ import (
++	"bytes";
+ 	"container/vector";
+ 	"io";
+ 	"os";
+@@ -69,7 +70,7 @@ type Writer struct {
+ 	flags uint;
+ 
+ 	// current state
+-	buf io.ByteBuffer;  // collected text w/o tabs, newlines, or form feed chars
++	buf bytes.Buffer;  // collected text w/o tabs, newlines, or form feed chars
+ 	pos int;  // buffer position up to which width of incomplete cell has been computed
+ 	cell cell;  // current incomplete cell; cell.width is up to buf[pos] w/o ignored sections
+ 	html_char byte;  // terminating char of html tag/entity, or 0 ('>', ';', or 0)
+@@ -436,7 +437,7 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
+ 				}
+ 
+ 			case '<', '&':
+-				// possibly an html tag/entity 
++				// possibly an html tag/entity
+ 				if b.flags & FilterHTML != 0 {
+ 					// begin of tag/entity
+ 					b.append(buf[i0 : i], true);
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+index 4fb5393b94..997de4e4a0 100644
+--- a/src/pkg/template/format.go
++++ b/src/pkg/template/format.go
+@@ -7,9 +7,11 @@
+ package template
+ 
+ import (
++	"bytes";
+ 	"fmt";
+ 	"io";
+ 	"reflect";
++	"strings";
+ )
+ 
+ // StringFormatter formats into the default string representation.
+@@ -21,9 +23,9 @@ func StringFormatter(w io.Writer, value interface{}, format string) {
+ }
+ 
+ 
+-var esc_amp = io.StringBytes("&amp;")
+-var esc_lt = io.StringBytes("&lt;")
+-var esc_gt = io.StringBytes("&gt;")
++var esc_amp = strings.Bytes("&amp;")
++var esc_lt = strings.Bytes("&lt;")
++var esc_gt = strings.Bytes("&gt;")
+ 
+ // HtmlEscape writes to w the properly escaped HTML equivalent
+ // of the plain text data s.
+@@ -48,7 +50,7 @@ func HtmlEscape(w io.Writer, s []byte) {
+ 
+ // HtmlFormatter formats arbitrary values for HTML
+ func HtmlFormatter(w io.Writer, value interface{}, format string) {
+-	var b io.ByteBuffer;
++	var b bytes.Buffer;
+ 	fmt.Fprint(&b, value);
+ 	HtmlEscape(w, b.Data());
+ }
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index a5e9b0c7da..d44756b2d2 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -762,7 +762,7 @@ func (t *Template) Parse(s string) os.Error {
+ 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
+ 		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
+ 	}
+-	t.buf = io.StringBytes(s);
++	t.buf = strings.Bytes(s);
+ 	t.p = 0;
+ 	t.linenum = 0;
+ 	go func() {
+@@ -792,8 +792,8 @@ func (t *Template) Execute(data interface{}, wr io.Writer) os.Error {
+ // delimiters are very rarely invalid and Parse has the necessary
+ // error-handling interface already.
+ func (t *Template) SetDelims(left, right string) {
+-	t.ldelim = io.StringBytes(left);
+-	t.rdelim = io.StringBytes(right);
++	t.ldelim = strings.Bytes(left);
++	t.rdelim = strings.Bytes(right);
+ }
+ 
+ // Parse creates a Template with default parameters (such as {} for
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 9a81d274c9..138978b6e5 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -5,6 +5,7 @@
+ package template
+ 
+ import (
++	"bytes";
+ 	"fmt";
+ 	"io";
+ 	"os";
+@@ -236,7 +237,7 @@ func TestAll(t *testing.T) {
+ 	s.empty = []*T{ };
+ 	s.null = nil;
+ 
+-	var buf io.ByteBuffer;
++	var buf bytes.Buffer;
+ 	for i, test := range tests {
+ 		buf.Reset();
+ 		tmpl, err := Parse(test.in, formatters);
+@@ -259,7 +260,7 @@ func TestStringDriverType(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+-	var b io.ByteBuffer;
++	var b bytes.Buffer;
+ 	err = tmpl.Execute("hello", &b);
+ 	if err != nil {
+ 		t.Error("unexpected execute error:", err)
+@@ -275,7 +276,7 @@ func TestTwice(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+-	var b io.ByteBuffer;
++	var b bytes.Buffer;
+ 	err = tmpl.Execute("hello", &b);
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+@@ -320,7 +321,7 @@ func TestCustomDelims(t *testing.T) {
+ 				t.Errorf("expected parse error for empty delimiter: %d %d %q %q", i, j, ldelim, rdelim);
+ 				continue;
+ 			}
+-			var b io.ByteBuffer;
++			var b bytes.Buffer;
+ 			err = tmpl.Execute("hello", &b);
+ 			s := string(b.Data());
+ 			if s != "template: hello" + ldelim + rdelim {
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index f60b0b17ee..1597a94c72 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -7,7 +7,7 @@ package utf8
+ import (
+ 	"bytes";
+ 	"fmt";
+-	"io";
++	"strings";
+ 	"testing";
+ 	"utf8";
+ )
+@@ -45,10 +45,10 @@ var utf8map = []Utf8Map {
+ 	Utf8Map{ 0x10ffff, "\xf4\x8f\xbf\xbf" },
+ }
+ 
+-// io.StringBytes with one extra byte at end
++// strings.Bytes with one extra byte at end
+ func makeBytes(s string) []byte {
+ 	s += "\x00";
+-	b := io.StringBytes(s);
++	b := strings.Bytes(s);
+ 	return b[0:len(s)-1];
+ }
+ 

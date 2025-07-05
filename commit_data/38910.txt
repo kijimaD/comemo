@@ -14,6 +14,20 @@ Date:   Fri Dec 7 12:08:12 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/c/153159
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/testgo.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/testgo.go b/src/cmd/go/internal/modload/testgo.go
+index 6cfba0c68f..663b24a68d 100644
+--- a/src/cmd/go/internal/modload/testgo.go
++++ b/src/cmd/go/internal/modload/testgo.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//+build testgo
++
+ package modload
+ 
+ func init() {

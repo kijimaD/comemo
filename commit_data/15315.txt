@@ -7,6 +7,17 @@ Date:   Tue Feb 19 11:21:18 2013 -0800
     R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
     https://golang.org/cl/7323073
-
+---
  src/pkg/exp/README | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/README b/src/pkg/exp/README
+index e602e3ac9f..e9d2d255a2 100644
+--- a/src/pkg/exp/README
++++ b/src/pkg/exp/README
+@@ -1,3 +1,3 @@
+ This directory tree contains experimental packages and
+-unfinished code that is subject to even more change than the
+-rest of the Go tree.
++unfinished code that is subject to change. It does not
++have stable APIs, and is not present in stable releases.

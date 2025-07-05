@@ -28,6 +28,23 @@ Date:   Wed May 7 22:28:23 2025 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/670735
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgcsweep.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 1a9c3b3e5f..191935dfd5 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -169,9 +169,10 @@ func (a *activeSweep) end(sl sweepLocker) {
+ 			throw("mismatched begin/end of activeSweep")
+ 		}
+ 		if a.state.CompareAndSwap(state, state-1) {
+-			if state != sweepDrainedMask {
++			if state-1 != sweepDrainedMask {
+ 				return
+ 			}
++			// We're the last sweeper, and there's nothing left to sweep.
+ 			if debug.gcpacertrace > 0 {
+ 				live := gcController.heapLive.Load()
+ 				print("pacer: sweep done at heap size ", live>>20, "MB; allocated ", (live-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept.Load(), " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")

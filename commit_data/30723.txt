@@ -7,8 +7,61 @@ Date:   Fri Nov 11 16:56:07 2016 -0800
     Change-Id: I01b2278eb50585331b8ff7ff5e3c1f9c5ba52b63
     Reviewed-on: https://go-review.googlesource.com/33156
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/go.go   | 4 ++++
  src/cmd/compile/internal/gc/main.go | 4 ++++
  src/cmd/compile/internal/gc/subr.go | 2 ++
  3 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index d427755386..ff33e9c1c4 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -119,8 +119,12 @@ var linkobj string
+ 
+ var bout *bio.Writer
+ 
++// nerrors is the number of compiler errors reported
++// since the last call to saveerrors.
+ var nerrors int
+ 
++// nsavederrors is the total number of compiler errors
++// reported before the last call to saveerrors.
+ var nsavederrors int
+ 
+ var nsyntaxerrors int
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index edb37c2c74..75f58a731c 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -98,6 +98,9 @@ func supportsDynlink(arch *sys.Arch) bool {
+ var timings Timings
+ var benchfile string
+ 
++// Main parses flags and Go source files specified in the command-line
++// arguments, type-checks the parsed Go package, compiles functions to machine
++// code, and finally writes the compiled package definition to disk.
+ func Main() {
+ 	timings.Start("fe", "init")
+ 
+@@ -483,6 +486,7 @@ func Main() {
+ 		errorexit()
+ 	}
+ 
++	// Write object data to disk.
+ 	timings.Start("be", "dumpobj")
+ 	dumpobj()
+ 	if asmhdr != "" {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index fb5419f533..a53ba1fffc 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -58,6 +58,8 @@ func (x byLineno) Len() int           { return len(x) }
+ func (x byLineno) Less(i, j int) bool { return x[i].lineno < x[j].lineno }
+ func (x byLineno) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+ 
++// flusherrors sorts errors seen so far by line number, prints them to stdout,
++// and empties the errors array.
+ func flusherrors() {
+ 	Ctxt.Bso.Flush()
+ 	if len(errors) == 0 {

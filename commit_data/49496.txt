@@ -16,6 +16,20 @@ Date:   Tue Jul 20 17:17:14 2021 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/go/token/position.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 0d7982c670..ce4af03923 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -540,7 +540,7 @@ func searchInts(a []int, x int) int {
+ 	// TODO(gri): Remove this when compilers have caught up.
+ 	i, j := 0, len(a)
+ 	for i < j {
+-		h := i + (j-i)>>1 // avoid overflow when computing h
++		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+ 		// i ≤ h < j
+ 		if a[h] <= x {
+ 			i = h + 1

@@ -9,6 +9,31 @@ Date:   Fri Dec 21 13:48:36 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7002043
-
+---
  src/cmd/vet/print.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 0ec01721a5..e8b51a2a82 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -208,8 +208,8 @@ var printVerbs = []printVerb{
+ 	{'G', numFlag},
+ 	{'o', sharpNumFlag},
+ 	{'p', "-#"},
+-	{'q', "-+#."},
+-	{'s', "-."},
++	{'q', " -+.0"},
++	{'s', " -+.0"},
+ 	{'t', "-"},
+ 	{'T', "-"},
+ 	{'U', "-#"},
+@@ -282,6 +282,8 @@ func BadFunctionUsedInTests() {
+ 	fmt.Println("%s", "hi")            // ERROR "possible formatting directive in Println call"
+ 	fmt.Printf("%s", "hi", 3)          // ERROR "wrong number of args in Printf call"
+ 	fmt.Printf("%s%%%d", "hi", 3)      // correct
++	fmt.Printf("%08s", "woo")          // correct
++	fmt.Printf("% 8s", "woo")          // correct
+ 	fmt.Printf("%.*d", 3, 3)           // correct
+ 	fmt.Printf("%.*d", 3, 3, 3)        // ERROR "wrong number of args in Printf call"
+ 	fmt.Printf("%q %q", multi()...)    // ok

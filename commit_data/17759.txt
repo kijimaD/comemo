@@ -11,6 +11,29 @@ Date:   Mon Oct 7 13:08:26 2013 -0400
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/14111043
-
+---
  misc/emacs/go-mode.el | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 02582756f3..349b372ecf 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -907,7 +907,7 @@ If IGNORE-CASE is non-nil, the comparison is case-insensitive."
+   (reverse (remove nil
+                    (mapcar
+                     (lambda (line)
+-                      (if (string-match "^\\(.+\\):\\([[:digit:]]+\\): imported and not used: \".+\"$" line)
++                      (if (string-match "^\\(.+\\):\\([[:digit:]]+\\): imported and not used: \".+\".*$" line)
+                           (if (string= (file-truename (match-string 1 line)) (file-truename buffer-file-name))
+                               (string-to-number (match-string 2 line)))))
+                     (split-string (shell-command-to-string
+@@ -1107,7 +1107,7 @@ divisor for FILE-NAME."
+   "Open a clone of the current buffer and overlay it with
+ coverage information gathered via go test -coverprofile=COVERAGE-FILE.
+ 
+-If COVERAGE-FILE is nil, it will either be infered from the
++If COVERAGE-FILE is nil, it will either be inferred from the
+ current buffer if it's already a coverage buffer, or be prompted
+ for."
+   (interactive)

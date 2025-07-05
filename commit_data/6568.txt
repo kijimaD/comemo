@@ -7,9 +7,154 @@ Date:   Wed Oct 20 00:40:06 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2566042
-
+---
  src/cmd/6g/cgen.c  | 22 +++++++---------------
  src/cmd/6g/gg.h    |  1 +
  src/cmd/6g/ggen.c  | 12 ++++--------
  src/cmd/6g/gsubr.c | 28 +++++++++++++++++++++++++---
  4 files changed, 37 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 8c6bfd99b8..1df6b25dd2 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -537,9 +537,7 @@ agen(Node *n, Node *res)
+ 				gmove(&n1, &n3);
+ 			}
+ 
+-			nodconst(&n2, types[tptr], v*w);
+-			gins(optoas(OADD, types[tptr]), &n2, &n3);
+-
++			ginscon(optoas(OADD, types[tptr]), v*w, &n3);
+ 			gmove(&n3, res);
+ 			regfree(&n3);
+ 			break;
+@@ -596,8 +594,7 @@ agen(Node *n, Node *res)
+ 			p1->from.index = p1->from.type;
+ 			p1->from.type = p1->to.type + D_INDIR;
+ 		} else {
+-			nodconst(&n1, t, w);
+-			gins(optoas(OMUL, t), &n1, &n2);
++			ginscon(optoas(OMUL, t), w, &n2);
+ 			gins(optoas(OADD, types[tptr]), &n2, &n3);
+ 			gmove(&n3, res);
+ 		}
+@@ -621,10 +618,8 @@ agen(Node *n, Node *res)
+ 			fatal("agen: bad ONAME class %#x", n->class);
+ 		}
+ 		cgen(n->heapaddr, res);
+-		if(n->xoffset != 0) {
+-			nodconst(&n1, types[TINT64], n->xoffset);
+-			gins(optoas(OADD, types[tptr]), &n1, res);
+-		}
++		if(n->xoffset != 0)
++			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
+ 		break;
+ 
+ 	case OIND:
+@@ -633,10 +628,8 @@ agen(Node *n, Node *res)
+ 
+ 	case ODOT:
+ 		agen(nl, res);
+-		if(n->xoffset != 0) {
+-			nodconst(&n1, types[TINT64], n->xoffset);
+-			gins(optoas(OADD, types[tptr]), &n1, res);
+-		}
++		if(n->xoffset != 0)
++			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
+ 		break;
+ 
+ 	case ODOTPTR:
+@@ -653,8 +646,7 @@ agen(Node *n, Node *res)
+ 				gins(ATESTB, nodintconst(0), &n1);
+ 				regfree(&n1);
+ 			}
+-			nodconst(&n1, types[TINT64], n->xoffset);
+-			gins(optoas(OADD, types[tptr]), &n1, res);
++			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
+ 		}
+ 		break;
+ 	}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index d578d67529..7efb2c2528 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -123,6 +123,7 @@ Node*	nodarg(Type*, int);
+ void	nodreg(Node*, Type*, int);
+ void	nodindreg(Node*, Type*, int);
+ void	gconreg(int, vlong, int);
++void	ginscon(int, vlong, Node*);
+ void	buildtxt(void);
+ Plist*	newplist(void);
+ int	isfat(Type*);
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 6d005d7ece..ebee6f8103 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1292,10 +1292,8 @@ slicearray:
+ 	if(smallintconst(&nodes[2]) && smallintconst(&nodes[4])) {
+ 		v = mpgetfix(nodes[2].val.u.xval) *
+ 			mpgetfix(nodes[4].val.u.xval);
+-		if(v != 0) {
+-			nodconst(&n1, types[tptr], v);
+-			gins(optoas(OADD, types[tptr]), &n1, &nodes[0]);
+-		}
++		if(v != 0)
++			ginscon(optoas(OADD, types[tptr]), v, &nodes[0]);
+ 	} else {
+ 		regalloc(&n1, types[tptr], &nodes[2]);
+ 		gmove(&nodes[2], &n1);
+@@ -1409,10 +1407,8 @@ sliceslice:
+ 		gins(optoas(OAS, types[tptr]), &n2, &n1);
+ 		v = mpgetfix(nodes[1].val.u.xval) *
+ 			mpgetfix(nodes[3].val.u.xval);
+-		if(v != 0) {
+-			nodconst(&n2, types[tptr], v);
+-			gins(optoas(OADD, types[tptr]), &n2, &n1);
+-		}
++		if(v != 0)
++			ginscon(optoas(OADD, types[tptr]), v, &n1);
+ 	} else {
+ 		gmove(&nodes[1], &n1);
+ 		if(!smallintconst(&nodes[3]) || mpgetfix(nodes[3].val.u.xval) != 1)
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index abece5e50c..1cd5c650bd 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -430,11 +430,33 @@ fatal("shouldnt be used");
+ void
+ gconreg(int as, vlong c, int reg)
+ {
+-	Node n1, n2;
++	Node nr;
++
++	nodreg(&nr, types[TINT64], reg);
++	ginscon(as, c, &nr);
++}
++
++/*
++ * generate
++ *	as $c, n
++ */
++void
++ginscon(int as, vlong c, Node *n2)
++{
++	Node n1, ntmp;
+ 
+ 	nodconst(&n1, types[TINT64], c);
+-	nodreg(&n2, types[TINT64], reg);
+-	gins(as, &n1, &n2);
++
++	if(as != AMOVQ && (c < -1LL<<31 || c >= 1LL<<31)) {
++		// cannot have 64-bit immediokate in ADD, etc.
++		// instead, MOV into register first.
++		regalloc(&ntmp, types[TINT64], N);
++		gins(AMOVQ, &n1, &ntmp);
++		gins(as, &ntmp, n2);
++		regfree(&ntmp);
++		return;
++	}
++	gins(as, &n1, n2);
+ }
+ 
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))

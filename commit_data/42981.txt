@@ -17,7 +17,60 @@ Date:   Thu Feb 27 22:53:18 2020 -0500
     Change-Id: I6bb8155a931b793311991d3cd8e006a2931b167a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221497
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/gofmt/internal.go | 8 ++++----
  src/go/format/internal.go | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gofmt/internal.go b/src/cmd/gofmt/internal.go
+index cbc6983b61..058158ad40 100644
+--- a/src/cmd/gofmt/internal.go
++++ b/src/cmd/gofmt/internal.go
+@@ -37,14 +37,14 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
+ 
+ 	// If this is a declaration list, make it a source file
+ 	// by inserting a package clause.
+-	// Insert using a ;, not a newline, so that the line numbers
++	// Insert using a ';', not a newline, so that the line numbers
+ 	// in psrc match the ones in src.
+ 	psrc := append([]byte("package p;"), src...)
+ 	file, err = parser.ParseFile(fset, filename, psrc, parserMode)
+ 	if err == nil {
+ 		sourceAdj = func(src []byte, indent int) []byte {
+ 			// Remove the package clause.
+-			// Gofmt has turned the ; into a \n.
++			// Gofmt has turned the ';' into a '\n'.
+ 			src = src[indent+len("package p\n"):]
+ 			return bytes.TrimSpace(src)
+ 		}
+@@ -60,7 +60,7 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
+ 	// If this is a statement list, make it a source file
+ 	// by inserting a package clause and turning the list
+ 	// into a function body. This handles expressions too.
+-	// Insert using a ;, not a newline, so that the line numbers
++	// Insert using a ';', not a newline, so that the line numbers
+ 	// in fsrc match the ones in src. Add an extra '\n' before the '}'
+ 	// to make sure comments are flushed before the '}'.
+ 	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '\n', '}')
+@@ -72,7 +72,7 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
+ 				indent = 0
+ 			}
+ 			// Remove the wrapping.
+-			// Gofmt has turned the ; into a \n\n.
++			// Gofmt has turned the "; " into a "\n\n".
+ 			// There will be two non-blank lines with indent, hence 2*indent.
+ 			src = src[2*indent+len("package p\n\nfunc _() {"):]
+ 			// Remove only the "}\n" suffix: remaining whitespaces will be trimmed anyway
+diff --git a/src/go/format/internal.go b/src/go/format/internal.go
+index 4918681de5..2f3b0e43ba 100644
+--- a/src/go/format/internal.go
++++ b/src/go/format/internal.go
+@@ -72,7 +72,7 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
+ 				indent = 0
+ 			}
+ 			// Remove the wrapping.
+-			// Gofmt has turned the ';' into a '\n'.
++			// Gofmt has turned the "; " into a "\n\n".
+ 			// There will be two non-blank lines with indent, hence 2*indent.
+ 			src = src[2*indent+len("package p\n\nfunc _() {"):]
+ 			// Remove only the "}\n" suffix: remaining whitespaces will be trimmed anyway

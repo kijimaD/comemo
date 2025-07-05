@@ -21,7 +21,91 @@ Date:   Fri Dec 9 15:09:46 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/make.bash | 12 ++++++++----
  src/make.rc   | 10 +++++++---
  2 files changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index c07f39bb40..755b3b0b9e 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -162,16 +162,20 @@ if [ -z "$GOROOT_BOOTSTRAP" ]; then
+ fi
+ export GOROOT_BOOTSTRAP
+ 
++nogoenv() {
++	GO111MODULE=off GOENV=off GOOS= GOARCH= GOEXPERIMENT= GOFLAGS= "$@"
++}
++
+ export GOROOT="$(cd .. && pwd)"
+ IFS=$'\n'; for go_exe in $(type -ap go); do
+ 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
+-		goroot=$(GOROOT='' GOOS='' GOARCH='' "$go_exe" env GOROOT)
++		goroot=$(GOROOT= nogoenv "$go_exe" env GOROOT)
+ 		if [ "$goroot" != "$GOROOT" ]; then
+ 			if [ "$goroot_bootstrap_set" = "true" ]; then
+ 				printf 'WARNING: %s does not exist, found %s from env\n' "$GOROOT_BOOTSTRAP/bin/go" "$go_exe" >&2
+ 				printf 'WARNING: set %s as GOROOT_BOOTSTRAP\n' "$goroot" >&2
+ 			fi
+-			GOROOT_BOOTSTRAP=$goroot
++			GOROOT_BOOTSTRAP="$goroot"
+ 		fi
+ 	fi
+ done; unset IFS
+@@ -183,7 +187,7 @@ fi
+ # Get the exact bootstrap toolchain version to help with debugging.
+ # We clear GOOS and GOARCH to avoid an ominous but harmless warning if
+ # the bootstrap doesn't support them.
+-GOROOT_BOOTSTRAP_VERSION=$(GOOS= GOARCH= GOEXPERIMENT= $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
++GOROOT_BOOTSTRAP_VERSION=$(nogoenv "$GOROOT_BOOTSTRAP/bin/go" version | sed 's/go version //')
+ echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
+ if $verbose; then
+ 	echo cmd/dist
+@@ -194,7 +198,7 @@ if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
+ 	exit 1
+ fi
+ rm -f cmd/dist/dist
+-GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off GOEXPERIMENT="" GOENV=off GOFLAGS="" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
++GOROOT="$GOROOT_BOOTSTRAP" nogoenv "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+ 
+ # -e doesn't propagate out of eval, so check success by hand.
+ eval $(./cmd/dist/dist env -p || echo FAIL=true)
+diff --git a/src/make.rc b/src/make.rc
+index e17ee316ad..834c1f1ba6 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -47,6 +47,10 @@ if(~ $1 -v) {
+ 	shift
+ }
+ 
++fn nogoenv {
++	GO111MODULE=off GOENV=off GOOS=() GOARCH=() GOEXPERIMENT=() GOFLAGS=() $*
++}
++
+ bootgo = 1.17.13
+ GOROOT = `{cd .. && pwd}
+ goroot_bootstrap_set = 'true'
+@@ -60,7 +64,7 @@ if(! ~ $#GOROOT_BOOTSTRAP 1){
+ for(p in $path){
+ 	if(! test -x $GOROOT_BOOTSTRAP/bin/go){
+ 		if(go_exe = `{path=$p whatis go}){
+-			goroot = `{GOROOT='' $go_exe env GOROOT}
++			goroot = `{GOROOT=() nogoenv $go_exe env GOROOT}
+ 			if(! ~ $goroot $GOROOT){
+ 				if(~ $goroot_bootstrap_set 'true'){
+ 					echo 'WARNING: '$GOROOT_BOOTSTRAP'/bin/go does not exist, found '$go_exe' from env' >[1=2]
+@@ -85,11 +89,11 @@ if(~ $GOROOT_BOOTSTRAP $GOROOT){
+ # Get the exact bootstrap toolchain version to help with debugging.
+ # We clear GOOS and GOARCH to avoid an ominous but harmless warning if
+ # the bootstrap doesn't support them.
+-GOROOT_BOOTSTRAP_VERSION=`{GOOS='' GOARCH='' GOEXPERIMENT='' $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //'}
++GOROOT_BOOTSTRAP_VERSION=`{nogoenv $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //'}
+ echo 'Building Go cmd/dist using '$GOROOT_BOOTSTRAP'. ('$"GOROOT_BOOTSTRAP_VERSION')'
+ if(~ $#vflag 1)
+ 	echo cmd/dist
+-GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' GOEXPERIMENT='' GO111MODULE=off GOENV=off GOFLAGS='' $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
++GOROOT=$GOROOT_BOOTSTRAP nogoenv $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
+ 
+ eval `{./cmd/dist/dist env -9}
+ if(~ $#vflag 1)

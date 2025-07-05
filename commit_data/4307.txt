@@ -6,6 +6,23 @@ Date:   Thu Dec 3 17:22:43 2009 -0800
     
     R=r
     https://golang.org/cl/164086
-
+---
  src/Make.conf | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/Make.conf b/src/Make.conf
+index 21eee46784..242fb74273 100644
+--- a/src/Make.conf
++++ b/src/Make.conf
+@@ -9,7 +9,10 @@ O=o
+ YFLAGS=-d
+ # GNU Make syntax:
+ ifndef GOBIN
+-GOBIN="$(HOME)/bin"
++nullstring :=
++space := $(nullstring) # a space at the end
++QUOTED_HOME=$(subst $(space),\ ,$(HOME))
++GOBIN=$(QUOTED_HOME)/bin
+ endif
+ PWD=$(shell pwd)
+ 

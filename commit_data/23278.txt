@@ -11,7 +11,39 @@ Date:   Tue May 5 08:59:18 2015 -0700
     Change-Id: Ia7fb88c9ceb1b10197b77a54f729865385288d98
     Reviewed-on: https://go-review.googlesource.com/9709
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/fmt/fmt_test.go | 1 +
  src/fmt/print.go    | 6 ++++--
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 5d3357004f..90112bb2a3 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -538,6 +538,7 @@ var fmtTests = []struct {
+ 	{"%T", nil, "<nil>"},
+ 	{"%-1", 100, "%!(NOVERB)%!(EXTRA int=100)"},
+ 	{"%017091901790959340919092959340919017929593813360", 0, "%!(NOVERB)%!(EXTRA int=0)"},
++	{"%184467440737095516170v", 0, "%!(NOVERB)%!(EXTRA int=0)"},
+ 
+ 	// The "<nil>" show up because maps are printed by
+ 	// first obtaining a list of keys and then looking up
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 9c373145dd..1d8db0aac4 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -291,10 +291,12 @@ func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
+ 		return 0, false, end
+ 	}
+ 	for newi = start; newi < end && '0' <= s[newi] && s[newi] <= '9'; newi++ {
+-		num = num*10 + int(s[newi]-'0')
+-		if num < 0 {
++		const maxInt32 = 1<<31 - 1 // 31 bits is plenty for a width.
++		max := maxInt32/10 - 1
++		if num > max {
+ 			return 0, false, end // Overflow; crazy long number most likely.
+ 		}
++		num = num*10 + int(s[newi]-'0')
+ 		isnum = true
+ 	}
+ 	return

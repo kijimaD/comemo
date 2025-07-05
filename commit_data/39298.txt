@@ -11,7 +11,7 @@ Date:   Tue Feb 19 13:48:15 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go             | 24 ++++++----------------
  .../ld/testdata/httptest/{src => }/main/main.go    |  0
  .../ld/testdata/issue25459/{src => }/a/a.go        |  0
@@ -19,3 +19,100 @@ Date:   Tue Feb 19 13:48:15 2019 -0500
  .../ld/testdata/issue26237/{src => }/b.dir/b.go    |  0
  .../ld/testdata/issue26237/{src => }/main/main.go  |  2 +-
  6 files changed, 8 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 7bbe2b710c..287ad5c99d 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -114,26 +114,14 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
+ 	return &builtFile{f, dst}
+ }
+ 
+-func envWithGoPathSet(gp string) []string {
+-	env := os.Environ()
+-	for i := 0; i < len(env); i++ {
+-		if strings.HasPrefix(env[i], "GOPATH=") {
+-			env[i] = "GOPATH=" + gp
+-			return env
+-		}
+-	}
+-	env = append(env, "GOPATH="+gp)
+-	return env
+-}
+-
+-// Similar to gobuild() above, but runs off a separate GOPATH environment
++// Similar to gobuild() above, but uses a main package instead of a test.go file.
+ 
+-func gobuildTestdata(t *testing.T, tdir string, gopathdir string, packtobuild string, gcflags string) *builtFile {
++func gobuildTestdata(t *testing.T, tdir string, pkgDir string, gcflags string) *builtFile {
+ 	dst := filepath.Join(tdir, "out.exe")
+ 
+ 	// Run a build with an updated GOPATH
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, packtobuild)
+-	cmd.Env = envWithGoPathSet(gopathdir)
++	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst)
++	cmd.Dir = pkgDir
+ 	if b, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("build: %s\n", b)
+ 		t.Fatalf("build error: %v", err)
+@@ -727,7 +715,7 @@ func main() {
+ 	}
+ }
+ 
+-func abstractOriginSanity(t *testing.T, gopathdir string, flags string) {
++func abstractOriginSanity(t *testing.T, pkgDir string, flags string) {
+ 	t.Parallel()
+ 
+ 	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
+@@ -737,7 +725,7 @@ func abstractOriginSanity(t *testing.T, gopathdir string, flags string) {
+ 	defer os.RemoveAll(dir)
+ 
+ 	// Build with inlining, to exercise DWARF inlining support.
+-	f := gobuildTestdata(t, dir, gopathdir, "main", flags)
++	f := gobuildTestdata(t, dir, filepath.Join(pkgDir, "main"), flags)
+ 
+ 	d, err := f.DWARF()
+ 	if err != nil {
+diff --git a/src/cmd/link/internal/ld/testdata/httptest/src/main/main.go b/src/cmd/link/internal/ld/testdata/httptest/main/main.go
+similarity index 100%
+rename from src/cmd/link/internal/ld/testdata/httptest/src/main/main.go
+rename to src/cmd/link/internal/ld/testdata/httptest/main/main.go
+diff --git a/src/cmd/link/internal/ld/testdata/issue25459/src/a/a.go b/src/cmd/link/internal/ld/testdata/issue25459/a/a.go
+similarity index 100%
+rename from src/cmd/link/internal/ld/testdata/issue25459/src/a/a.go
+rename to src/cmd/link/internal/ld/testdata/issue25459/a/a.go
+diff --git a/src/cmd/link/internal/ld/testdata/issue25459/src/main/main.go b/src/cmd/link/internal/ld/testdata/issue25459/main/main.go
+similarity index 65%
+rename from src/cmd/link/internal/ld/testdata/issue25459/src/main/main.go
+rename to src/cmd/link/internal/ld/testdata/issue25459/main/main.go
+index be05f59dac..7b5796d714 100644
+--- a/src/cmd/link/internal/ld/testdata/issue25459/src/main/main.go
++++ b/src/cmd/link/internal/ld/testdata/issue25459/main/main.go
+@@ -1,6 +1,6 @@
+ package main
+ 
+-import "a"
++import "cmd/link/internal/ld/testdata/issue25459/a"
+ 
+ var Glob int
+ 
+diff --git a/src/cmd/link/internal/ld/testdata/issue26237/src/b.dir/b.go b/src/cmd/link/internal/ld/testdata/issue26237/b.dir/b.go
+similarity index 100%
+rename from src/cmd/link/internal/ld/testdata/issue26237/src/b.dir/b.go
+rename to src/cmd/link/internal/ld/testdata/issue26237/b.dir/b.go
+diff --git a/src/cmd/link/internal/ld/testdata/issue26237/src/main/main.go b/src/cmd/link/internal/ld/testdata/issue26237/main/main.go
+similarity index 75%
+rename from src/cmd/link/internal/ld/testdata/issue26237/src/main/main.go
+rename to src/cmd/link/internal/ld/testdata/issue26237/main/main.go
+index 6fdaa0bfa1..fdb1223d86 100644
+--- a/src/cmd/link/internal/ld/testdata/issue26237/src/main/main.go
++++ b/src/cmd/link/internal/ld/testdata/issue26237/main/main.go
+@@ -3,7 +3,7 @@ package main
+ import (
+ 	"fmt"
+ 
+-	b "b.dir"
++	b "cmd/link/internal/ld/testdata/issue26237/b.dir"
+ )
+ 
+ var skyx int

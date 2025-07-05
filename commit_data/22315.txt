@@ -11,7 +11,7 @@ Date:   Thu Mar 5 07:11:40 2015 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/5g/ggen.go           | 2 +-
  src/cmd/6g/ggen.go           | 2 +-
  src/cmd/8g/ggen.go           | 2 +-
@@ -20,3 +20,99 @@ Date:   Thu Mar 5 07:11:40 2015 +1100
  src/cmd/internal/gc/pgen.go  | 4 ++--
  src/cmd/internal/gc/plive.go | 4 ++--
  7 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.go b/src/cmd/5g/ggen.go
+index cb8485dba5..3ee9405b88 100644
+--- a/src/cmd/5g/ggen.go
++++ b/src/cmd/5g/ggen.go
+@@ -30,7 +30,7 @@ func defframe(ptxt *obj.Prog) {
+ 	r0 := uint32(0)
+ 	for l := gc.Curfn.Dcl; l != nil; l = l.Next {
+ 		n = l.N
+-		if n.Needzero == 0 {
++		if !n.Needzero {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+diff --git a/src/cmd/6g/ggen.go b/src/cmd/6g/ggen.go
+index 3e74ce3757..efbbded1d3 100644
+--- a/src/cmd/6g/ggen.go
++++ b/src/cmd/6g/ggen.go
+@@ -32,7 +32,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// iterate through declarations - they are sorted in decreasing xoffset order.
+ 	for l := gc.Curfn.Dcl; l != nil; l = l.Next {
+ 		n = l.N
+-		if n.Needzero == 0 {
++		if !n.Needzero {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/8g/ggen.go
+index eb5eae2bba..550ded9d3f 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/8g/ggen.go
+@@ -30,7 +30,7 @@ func defframe(ptxt *obj.Prog) {
+ 	ax := uint32(0)
+ 	for l := gc.Curfn.Dcl; l != nil; l = l.Next {
+ 		n = l.N
+-		if n.Needzero == 0 {
++		if !n.Needzero {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+diff --git a/src/cmd/9g/ggen.go b/src/cmd/9g/ggen.go
+index 3cca4a5751..6bf1d56373 100644
+--- a/src/cmd/9g/ggen.go
++++ b/src/cmd/9g/ggen.go
+@@ -32,7 +32,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// iterate through declarations - they are sorted in decreasing xoffset order.
+ 	for l := gc.Curfn.Dcl; l != nil; l = l.Next {
+ 		n = l.N
+-		if n.Needzero == 0 {
++		if !n.Needzero {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 2d460f75c0..bab3373680 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -174,7 +174,7 @@ type Node struct {
+ 	Reslice        uint8
+ 	Likely         int8
+ 	Hasbreak       uint8
+-	Needzero       uint8
++	Needzero       bool
+ 	Needctxt       bool
+ 	Esc            uint
+ 	Funcdepth      int
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index 1f3fa01747..e78a0d0326 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -211,8 +211,8 @@ func cmpstackvar(a *Node, b *Node) int {
+ 		return bp - ap
+ 	}
+ 
+-	ap = int(a.Needzero)
+-	bp = int(b.Needzero)
++	ap = bool2int(a.Needzero)
++	bp = bool2int(b.Needzero)
+ 	if ap != bp {
+ 		return bp - ap
+ 	}
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index 229489f025..100b82be06 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -1255,8 +1255,8 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 						bvset(all, pos) // silence future warnings in this block
+ 						n = lv.vars[pos]
+-						if n.Needzero == 0 {
+-							n.Needzero = 1
++						if !n.Needzero {
++							n.Needzero = true
+ 							if debuglive >= 1 {
+ 								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Nconv(Curfn.Nname, 0), Nconv(n, obj.FmtLong))
+ 							}

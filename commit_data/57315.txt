@@ -50,7 +50,130 @@ Date:   Fri Jul 28 19:10:04 2023 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go     | 38 +++++++++++++++++++++++++++
  src/cmd/internal/obj/x86/asm_test.go | 51 ++++++++++++++++++++++++++++++++++++
  2 files changed, 89 insertions(+)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 782b6d4aff..5e988eaf48 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2036,6 +2036,31 @@ type nopPad struct {
+ 	n int32     // Size of the pad
+ }
+ 
++// Padding bytes to add to align code as requested.
++// Alignment is restricted to powers of 2 between 8 and 2048 inclusive.
++//
++// pc: current offset in function, in bytes
++// a: requested alignment, in bytes
++// cursym: current function being assembled
++// returns number of bytes of padding needed
++func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
++	if !((a&(a-1) == 0) && 8 <= a && a <= 2048) {
++		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", a)
++		return 0
++	}
++
++	// By default function alignment is 32 bytes for amd64
++	if cursym.Func().Align < int32(a) {
++		cursym.Func().Align = int32(a)
++	}
++
++	if pc&(a-1) != 0 {
++		return int(a - (pc & (a - 1)))
++	}
++
++	return 0
++}
++
+ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	if ctxt.Retpoline && ctxt.Arch.Family == sys.I386 {
+ 		ctxt.Diag("-spectre=ret not supported on 386")
+@@ -2119,6 +2144,19 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			c0 := c
+ 			c = pjc.padJump(ctxt, s, p, c)
+ 
++			if p.As == obj.APCALIGN {
++				aln := p.From.Offset
++				v := addpad(int64(c), aln, ctxt, s)
++				if v > 0 {
++					s.Grow(int64(c) + int64(v))
++					fillnop(s.P[c:], int(v))
++				}
++
++				c += int32(v)
++				pPrev = p
++				continue
++			}
++
+ 			if maxLoopPad > 0 && p.Back&branchLoopHead != 0 && c&(loopAlign-1) != 0 {
+ 				// pad with NOPs
+ 				v := -c & (loopAlign - 1)
+diff --git a/src/cmd/internal/obj/x86/asm_test.go b/src/cmd/internal/obj/x86/asm_test.go
+index 36c8fce675..458a91258a 100644
+--- a/src/cmd/internal/obj/x86/asm_test.go
++++ b/src/cmd/internal/obj/x86/asm_test.go
+@@ -7,6 +7,10 @@ package x86
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
++	"internal/testenv"
++	"os"
++	"path/filepath"
++	"regexp"
+ 	"testing"
+ )
+ 
+@@ -289,3 +293,50 @@ func TestRegIndex(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TestPCALIGN verifies the correctness of the PCALIGN by checking if the
++// code can be aligned to the alignment value.
++func TestPCALIGN(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	dir := t.TempDir()
++	tmpfile := filepath.Join(dir, "test.s")
++	tmpout := filepath.Join(dir, "test.o")
++
++	var testCases = []struct {
++		name string
++		code string
++		out  string
++	}{
++		{
++			name: "8-byte alignment",
++			code: "TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $8\nMOVQ $1, BX\nRET\n",
++			out:  `0x0008\s00008\s\(.*\)\tMOVQ\t\$1,\sBX`,
++		},
++		{
++			name: "16-byte alignment",
++			code: "TEXT ·foo(SB),$0-0\nMOVQ $0, AX\nPCALIGN $16\nMOVQ $2, CX\nRET\n",
++			out:  `0x0010\s00016\s\(.*\)\tMOVQ\t\$2,\sCX`,
++		},
++	}
++
++	for _, test := range testCases {
++		if err := os.WriteFile(tmpfile, []byte(test.code), 0644); err != nil {
++			t.Fatal(err)
++		}
++		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
++		cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			t.Errorf("The %s build failed: %v, output: %s", test.name, err, out)
++			continue
++		}
++
++		matched, err := regexp.MatchString(test.out, string(out))
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !matched {
++			t.Errorf("The %s testing failed!\ninput: %s\noutput: %s\n", test.name, test.code, out)
++		}
++	}
++}

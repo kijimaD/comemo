@@ -11,6 +11,20 @@ Date:   Wed Jun 1 21:09:58 2016 -0700
     Change-Id: I66d545404665948a27281133cb9050eebf1debbb
     Reviewed-on: https://go-review.googlesource.com/23673
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 9ee377ec8f..37e1e56d24 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -362,7 +362,7 @@ packages.
+ <p>
+ Go 1.7 moves the <code>golang.org/x/net/context</code> package
+ into the standard library as <a href="/pkg/context/"><code>context</code></a>.
+-This allows the use of contexts for cancellation, timeouts, and passing
++This allows the use of contexts for cancelation, timeouts, and passing
+ request-scoped data in other standard library packages,
+ including
+ <a href="#net">net</a>,

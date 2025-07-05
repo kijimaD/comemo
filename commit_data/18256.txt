@@ -7,6 +7,20 @@ Date:   Tue Jan 14 15:34:27 2014 -0800
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/52360044
-
+---
  src/cmd/ld/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 2adda25f22..064a7dfb5f 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -58,6 +58,8 @@ Options new in this version:
+ 		Omit the symbol table and debug information.
+ 	-V
+ 		Print the linker version.
++	-w
++		Omit the DWARF symbol table.
+ 	-X symbol value
+ 		Set the value of an otherwise uninitialized string variable.
+ 		The symbol name should be of the form importpath.name,

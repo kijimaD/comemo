@@ -7,8 +7,95 @@ Date:   Tue Jun 4 17:30:45 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10028043
-
+---
  src/pkg/mime/testdata/test.types.plan9 |  8 +++++
  src/pkg/mime/type_plan9.go             | 53 ++++++++++++++++++++++++++++++++++
  src/pkg/mime/type_unix.go              |  2 +-
  3 files changed, 62 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/mime/testdata/test.types.plan9 b/src/pkg/mime/testdata/test.types.plan9
+new file mode 100644
+index 0000000000..19dbf41cce
+--- /dev/null
++++ b/src/pkg/mime/testdata/test.types.plan9
+@@ -0,0 +1,8 @@
++# Copyright 2013 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++
++ # mime package test
++.t1		application	test		-		y # Simple test	
++.t2		text		test		-		y # Text test	
+diff --git a/src/pkg/mime/type_plan9.go b/src/pkg/mime/type_plan9.go
+new file mode 100644
+index 0000000000..b8f0511ee7
+--- /dev/null
++++ b/src/pkg/mime/type_plan9.go
+@@ -0,0 +1,53 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mime
++
++import (
++	"bufio"
++	"os"
++	"strings"
++)
++
++var typeFiles = []string{
++	"/sys/lib/mimetypes",
++}
++
++func loadMimeFile(filename string) {
++	f, err := os.Open(filename)
++	if err != nil {
++		return
++	}
++	defer f.Close()
++
++	scanner := bufio.NewScanner(f)
++	for scanner.Scan() {
++		fields := strings.Fields(scanner.Text())
++		if len(fields) <= 2 || fields[0][0] != '.' {
++			continue
++		}
++		if fields[1] == "-" || fields[2] == "-" {
++			continue
++		}
++		setExtensionType(fields[0], fields[1]+"/"+fields[2])
++	}
++	if err := scanner.Err(); err != nil {
++		panic(err)
++	}
++}
++
++func initMime() {
++	for _, filename := range typeFiles {
++		loadMimeFile(filename)
++	}
++}
++
++func initMimeForTests() map[string]string {
++	typeFiles = []string{"testdata/test.types.plan9"}
++	return map[string]string{
++		".t1":  "application/test",
++		".t2":  "text/test; charset=utf-8",
++		".png": "image/png",
++	}
++}
+diff --git a/src/pkg/mime/type_unix.go b/src/pkg/mime/type_unix.go
+index 857a0ab676..e0050bb958 100644
+--- a/src/pkg/mime/type_unix.go
++++ b/src/pkg/mime/type_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd plan9
++// +build darwin freebsd linux netbsd openbsd
+ 
+ package mime
+ 

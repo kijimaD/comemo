@@ -16,8 +16,147 @@ Date:   Wed Oct 11 17:28:02 2023 -0400
     Auto-Submit: David Chase <drchase@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/dec.rules |  8 ++---
  src/cmd/compile/internal/ssa/rewritedec.go  | 16 +++++-----
  test/fixedbugs/issue63505.go                | 45 +++++++++++++++++++++++++++++
  3 files changed, 57 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/dec.rules b/src/cmd/compile/internal/ssa/_gen/dec.rules
+index 2adf061874..7944947e06 100644
+--- a/src/cmd/compile/internal/ssa/_gen/dec.rules
++++ b/src/cmd/compile/internal/ssa/_gen/dec.rules
+@@ -118,12 +118,12 @@
+ // More annoying case: (ArraySelect[0] (StructSelect[0] isAPtr))
+ // There, result of the StructSelect is an Array (not a pointer) and
+ // the pre-rewrite input to the ArraySelect is a struct, not a pointer.
+-(StructSelect [0] x) && x.Type.IsPtr()  => x
+-(ArraySelect [0] x) && x.Type.IsPtr()  => x
++(StructSelect [0] x) && x.Type.IsPtrShaped()  => x
++(ArraySelect [0] x) && x.Type.IsPtrShaped()  => x
+ 
+ // These, too.  Bits is bits.
+-(ArrayMake1 x) && x.Type.IsPtr() => x
+-(StructMake1 x) && x.Type.IsPtr() => x
++(ArrayMake1 x) && x.Type.IsPtrShaped() => x
++(StructMake1 x) && x.Type.IsPtrShaped() => x
+ 
+ (Store dst (StructMake1 <t> f0) mem) =>
+   (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index 7468518246..3c481adc15 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -46,11 +46,11 @@ func rewriteValuedec(v *Value) bool {
+ func rewriteValuedec_OpArrayMake1(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (ArrayMake1 x)
+-	// cond: x.Type.IsPtr()
++	// cond: x.Type.IsPtrShaped()
+ 	// result: x
+ 	for {
+ 		x := v_0
+-		if !(x.Type.IsPtr()) {
++		if !(x.Type.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+@@ -62,14 +62,14 @@ func rewriteValuedec_OpArraySelect(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (ArraySelect [0] x)
+-	// cond: x.Type.IsPtr()
++	// cond: x.Type.IsPtrShaped()
+ 	// result: x
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 {
+ 			break
+ 		}
+ 		x := v_0
+-		if !(x.Type.IsPtr()) {
++		if !(x.Type.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+@@ -927,11 +927,11 @@ func rewriteValuedec_OpStringPtr(v *Value) bool {
+ func rewriteValuedec_OpStructMake1(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (StructMake1 x)
+-	// cond: x.Type.IsPtr()
++	// cond: x.Type.IsPtrShaped()
+ 	// result: x
+ 	for {
+ 		x := v_0
+-		if !(x.Type.IsPtr()) {
++		if !(x.Type.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+@@ -1054,14 +1054,14 @@ func rewriteValuedec_OpStructSelect(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (StructSelect [0] x)
+-	// cond: x.Type.IsPtr()
++	// cond: x.Type.IsPtrShaped()
+ 	// result: x
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 {
+ 			break
+ 		}
+ 		x := v_0
+-		if !(x.Type.IsPtr()) {
++		if !(x.Type.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+diff --git a/test/fixedbugs/issue63505.go b/test/fixedbugs/issue63505.go
+new file mode 100644
+index 0000000000..2bec17d10d
+--- /dev/null
++++ b/test/fixedbugs/issue63505.go
+@@ -0,0 +1,45 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type explainer struct {
++	m map[string]string
++}
++
++func init() {
++	RegisterExplainer(newExplainer())
++}
++
++type Explainer interface {
++	Name() string
++	Map() map[string]string
++}
++
++func (e explainer) Name() string {
++	return "HelloWorldExplainer"
++}
++
++func (e explainer) Map() map[string]string {
++	return e.m
++}
++
++//go:noinline
++func newExplainer() explainer {
++	m := make(map[string]string)
++	m["Hello"] = "World!"
++	return explainer{m}
++}
++
++var explainers = make(map[string]Explainer)
++
++func RegisterExplainer(e Explainer) {
++	explainers[e.Name()] = e
++}
++
++func main() {
++
++}

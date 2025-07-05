@@ -8,6 +8,35 @@ Date:   Mon Jul 13 13:55:39 2009 -0700
     DELTA=8  (6 added, 0 deleted, 2 changed)
     OCL=31537
     CL=31537
-
+---
  src/pkg/go/doc/doc.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 3f90397daa..ce58e52f9f 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -77,8 +77,12 @@ func (doc *DocReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
+ func (doc *DocReader) addType(decl *ast.GenDecl) {
+ 	typ := decl.Specs[0].(*ast.TypeSpec);
+ 	name := typ.Name.Value;
+-	tdoc := &typeDoc{decl, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
+-	doc.types[name] = tdoc;
++	if _, found := doc.types[name]; !found {
++		tdoc := &typeDoc{decl, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
++		doc.types[name] = tdoc;
++	}
++	// If the type was found it may have been added as a forward
++	// declaration before, or this is a forward-declaration.
+ }
+ 
+ 
+@@ -90,6 +94,8 @@ func (doc *DocReader) addFunc(fun *ast.FuncDecl) {
+ 	if fun.Recv != nil {
+ 		// method
+ 		// (all receiver types must be declared before they are used)
++		// TODO(gri) Reconsider this logic if no forward-declarations
++		//           are required anymore.
+ 		typ = doc.lookupTypeDoc(fun.Recv.Type);
+ 		if typ != nil {
+ 			// type found (i.e., exported)

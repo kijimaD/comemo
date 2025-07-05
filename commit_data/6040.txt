@@ -13,7 +13,43 @@ Date:   Tue Aug 17 15:12:28 2010 -0700
     R=rsc
     CC=golang-dev, r
     https://golang.org/cl/1938044
-
+---
  src/pkg/reflect/all_test.go | 7 +++++++
  src/pkg/reflect/value.go    | 5 +++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 16b5ef6e96..dc01890945 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -384,6 +384,13 @@ func TestPtrPointTo(t *testing.T) {
+ 	if *ip != 1234 {
+ 		t.Errorf("got %d, want 1234", *ip)
+ 	}
++
++	ip = nil
++	vp := NewValue(ip).(*PtrValue)
++	vp.PointTo(vp.Elem())
++	if ip != nil {
++		t.Errorf("got non-nil (%p), want nil", ip)
++	}
+ }
+ 
+ func TestPtrSetNil(t *testing.T) {
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 56a5d69d86..dd677b4ea8 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1058,7 +1058,12 @@ func (v *PtrValue) SetValue(x Value) {
+ }
+ 
+ // PointTo changes v to point to x.
++// If x is a nil Value, PointTo sets v to nil.
+ func (v *PtrValue) PointTo(x Value) {
++	if x == nil {
++		*(**uintptr)(v.addr) = nil
++		return
++	}
+ 	if !x.CanSet() {
+ 		panic("cannot set x; cannot point to x")
+ 	}

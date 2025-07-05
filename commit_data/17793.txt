@@ -9,9 +9,121 @@ Date:   Tue Oct 15 08:22:04 2013 +1100
     R=dsymonds, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/14434044
-
+---
  src/pkg/net/http/fs.go            | 10 +++++++---
  src/pkg/net/http/fs_test.go       | 18 ++++++++++++------
  src/pkg/net/http/response_test.go | 13 +++++++++++++
  src/pkg/net/http/server.go        |  3 ++-
  4 files changed, 34 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index e7bcefed15..8b32ca1d0e 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -140,9 +140,11 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 
+ 	code := StatusOK
+ 
+-	// If Content-Type isn't set, use the file's extension to find it.
+-	ctype := w.Header().Get("Content-Type")
+-	if ctype == "" {
++	// If Content-Type isn't set, use the file's extension to find it, but
++	// if the Content-Type is unset explicitly, do not sniff the type.
++	ctypes, haveType := w.Header()["Content-Type"]
++	var ctype string
++	if !haveType {
+ 		ctype = mime.TypeByExtension(filepath.Ext(name))
+ 		if ctype == "" {
+ 			// read a chunk to decide between utf-8 text and binary
+@@ -156,6 +158,8 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 			}
+ 		}
+ 		w.Header().Set("Content-Type", ctype)
++	} else if len(ctypes) > 0 {
++		ctype = ctypes[0]
+ 	}
+ 
+ 	size, err := sizeFunc()
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 125d8b438d..ae54edf0cf 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -20,6 +20,7 @@ import (
+ 	"os/exec"
+ 	"path"
+ 	"path/filepath"
++	"reflect"
+ 	"regexp"
+ 	"runtime"
+ 	"strconv"
+@@ -319,24 +320,29 @@ func TestServeFileContentType(t *testing.T) {
+ 	defer afterTest(t)
+ 	const ctype = "icecream/chocolate"
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+-		if r.FormValue("override") == "1" {
++		switch r.FormValue("override") {
++		case "1":
+ 			w.Header().Set("Content-Type", ctype)
++		case "2":
++			// Explicitly inhibit sniffing.
++			w.Header()["Content-Type"] = []string{}
+ 		}
+ 		ServeFile(w, r, "testdata/file")
+ 	}))
+ 	defer ts.Close()
+-	get := func(override, want string) {
++	get := func(override string, want []string) {
+ 		resp, err := Get(ts.URL + "?override=" + override)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		if h := resp.Header.Get("Content-Type"); h != want {
+-			t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
++		if h := resp.Header["Content-Type"]; !reflect.DeepEqual(h, want) {
++			t.Errorf("Content-Type mismatch: got %v, want %v", h, want)
+ 		}
+ 		resp.Body.Close()
+ 	}
+-	get("0", "text/plain; charset=utf-8")
+-	get("1", ctype)
++	get("0", []string{"text/plain; charset=utf-8"})
++	get("1", []string{ctype})
++	get("2", nil)
+ }
+ 
+ func TestServeFileMimeType(t *testing.T) {
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index 181937a782..5044306a87 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -614,3 +614,16 @@ func TestResponseContentLengthShortBody(t *testing.T) {
+ 		t.Errorf("io.Copy error = %#v; want io.ErrUnexpectedEOF", err)
+ 	}
+ }
++
++func TestNeedsSniff(t *testing.T) {
++	// needsSniff returns true with an empty response.
++	r := &response{}
++	if got, want := r.needsSniff(), true; got != want {
++		t.Errorf("needsSniff = %t; want %t", got, want)
++	}
++	// needsSniff returns false when Content-Type = nil.
++	r.handlerHeader = Header{"Content-Type": nil}
++	if got, want := r.needsSniff(), false; got != want {
++		t.Errorf("needsSniff empty Content-Type = %t; want %t", got, want)
++	}
++}
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index cc0b4e237b..0e46863d5a 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -341,7 +341,8 @@ func (w *response) requestTooLarge() {
+ 
+ // needsSniff reports whether a Content-Type still needs to be sniffed.
+ func (w *response) needsSniff() bool {
+-	return !w.cw.wroteHeader && w.handlerHeader.Get("Content-Type") == "" && w.written < sniffLen
++	_, haveType := w.handlerHeader["Content-Type"]
++	return !w.cw.wroteHeader && !haveType && w.written < sniffLen
+ }
+ 
+ // writerOnly hides an io.Writer value's optional ReadFrom method

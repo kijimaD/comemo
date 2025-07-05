@@ -7,7 +7,34 @@ Date:   Wed May 25 09:44:05 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4538095
-
+---
  src/cmd/5l/asm.c | 6 ++++++
  src/cmd/ld/lib.h | 1 +
  2 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 9e9c2c1ebb..81c08e3535 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1977,3 +1977,9 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		Bprint(&bso, "symsize = %ud\n", symsize);
+ 	Bflush(&bso);
+ }
++
++void
++setpersrc(Sym *s)
++{
++	USED(s);
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index cd4608085f..f69f5a35d4 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -202,6 +202,7 @@ void	addexport(void);
+ void	dostkcheck(void);
+ void	undef(void);
+ void	doweak(void);
++void	setpersrc(Sym*);
+ 
+ int	pathchar(void);
+ void*	mal(uint32);

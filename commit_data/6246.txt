@@ -11,6 +11,30 @@ Date:   Sat Sep 11 23:36:06 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2098047
-
+---
  src/libcgo/linux_arm.c | 18 +++++++++++++++++-
  1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/libcgo/linux_arm.c b/src/libcgo/linux_arm.c
+index 32d8629849..d674aca1df 100644
+--- a/src/libcgo/linux_arm.c
++++ b/src/libcgo/linux_arm.c
+@@ -1 +1,17 @@
+-/* unimplemented */
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "libcgo.h"
++
++void
++initcgo(void)
++{
++}
++
++void
++libcgo_sys_thread_start(ThreadStart *ts)
++{
++	// unimplemented
++	*(int*)0 = 0;
++}

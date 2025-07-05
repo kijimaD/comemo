@@ -7,6 +7,36 @@ Date:   Wed Dec 18 10:20:25 2013 -0800
     R=golang-dev, gobot, bradfitz
     CC=golang-dev
     https://golang.org/cl/40810044
-
+---
  src/pkg/html/escape_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/pkg/html/escape_test.go b/src/pkg/html/escape_test.go
+index b405d4b4a7..2d7ad8ac26 100644
+--- a/src/pkg/html/escape_test.go
++++ b/src/pkg/html/escape_test.go
+@@ -64,6 +64,24 @@ var unescapeTests = []unescapeTest{
+ 		"Footnote&#x87;",
+ 		"Footnote‡",
+ 	},
++	// Handle single ampersand.
++	{
++		"copySingleAmpersand",
++		"&",
++		"&",
++	},
++	// Handle ampersand followed by non-entity.
++	{
++		"copyAmpersandNonEntity",
++		"text &test",
++		"text &test",
++	},
++	// Handle "&#".
++	{
++		"copyAmpersandHash",
++		"text &#",
++		"text &#",
++	},
+ }
+ 
+ func TestUnescape(t *testing.T) {

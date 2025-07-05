@@ -13,7 +13,97 @@ Date:   Thu Mar 4 13:02:24 2021 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_chatty.txt | 25 +++++++++++++++++++
  src/testing/testing.go                          | 32 ++++++++++++++-----------
  2 files changed, 43 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_chatty.txt b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+index aaf385f293..ea81bc331d 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_chatty.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+@@ -34,6 +34,17 @@ stdout PASS
+ stdout 'all good here'
+ ! stdout FAIL
+ 
++# Fuzz successful chatty fuzz target that includes a separate unit test.
++go test -v chatty_with_test_fuzz_test.go -fuzz=Fuzz -fuzztime=1s
++stdout ok
++stdout PASS
++! stdout FAIL
++# TODO: It's currently the case that it's logged twice. Fix that, and change
++# this check to verify it.
++stdout 'all good here'
++# Verify that the unit test is only run once.
++! stdout '(?s)logged foo.*logged foo'
++
+ -- chatty_error_fuzz_test.go --
+ package chatty_error_fuzz
+ 
+@@ -79,3 +90,17 @@ func Fuzz(f *testing.F) {
+     f.Log("all good here")
+     f.Fuzz(func(*testing.T, []byte) {})
+ }
++
++-- chatty_with_test_fuzz_test.go --
++package chatty_with_test_fuzz
++
++import "testing"
++
++func TestFoo(t *testing.T) {
++    t.Log("logged foo")
++}
++
++func Fuzz(f *testing.F) {
++    f.Log("all good here")
++    f.Fuzz(func(*testing.T, []byte) {})
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 152483d8ff..7ce794c5a8 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1439,26 +1439,30 @@ func (m *M) Run() (code int) {
+ 
+ 	m.before()
+ 	defer m.after()
+-	deadline := m.startAlarm()
+-	haveExamples = len(m.examples) > 0
+-	testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
+-	fuzzTargetsRan, fuzzTargetsOk := runFuzzTargets(m.deps, m.fuzzTargets)
+-	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
+-	m.stopAlarm()
+-	if !testRan && !exampleRan && !fuzzTargetsRan && *matchBenchmarks == "" && *matchFuzz == "" {
+-		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+-	}
+-	if !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
+-		fmt.Println("FAIL")
+-		m.exitCode = 1
+-		return
++	if !*isFuzzWorker {
++		// The fuzzing coordinator will already run all tests, examples,
++		// and benchmarks. Don't make the workers do redundant work.
++		deadline := m.startAlarm()
++		haveExamples = len(m.examples) > 0
++		testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
++		fuzzTargetsRan, fuzzTargetsOk := runFuzzTargets(m.deps, m.fuzzTargets)
++		exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
++		m.stopAlarm()
++		if !testRan && !exampleRan && !fuzzTargetsRan && *matchBenchmarks == "" && *matchFuzz == "" {
++			fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
++		}
++		if !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
++			fmt.Println("FAIL")
++			m.exitCode = 1
++			return
++		}
+ 	}
+ 
+ 	fuzzingRan, fuzzingOk := runFuzzing(m.deps, m.fuzzTargets)
+ 	if *matchFuzz != "" && !fuzzingRan {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no targets to fuzz")
+ 	}
+-	if !fuzzingOk && !*isFuzzWorker {
++	if !*isFuzzWorker && !fuzzingOk {
+ 		fmt.Println("FAIL")
+ 		m.exitCode = 1
+ 		return

@@ -12,7 +12,75 @@ Date:   Wed Jun 13 15:55:43 2012 -0700
     R=bsiegert, rsc
     CC=golang-dev
     https://golang.org/cl/6294067
-
+---
  src/pkg/encoding/gob/encode.go       | 13 ++++++++++++-
  src/pkg/encoding/gob/encoder_test.go | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/encode.go b/src/pkg/encoding/gob/encode.go
+index 764351db6d..e89f68fa08 100644
+--- a/src/pkg/encoding/gob/encode.go
++++ b/src/pkg/encoding/gob/encode.go
+@@ -704,9 +704,20 @@ func (enc *Encoder) getEncEngine(ut *userTypeInfo) *encEngine {
+ 		error_(err1)
+ 	}
+ 	if info.encoder == nil {
+-		// mark this engine as underway before compiling to handle recursive types.
++		// Assign the encEngine now, so recursive types work correctly. But...
+ 		info.encoder = new(encEngine)
++		// ... if we fail to complete building the engine, don't cache the half-built machine.
++		// Doing this here means we won't cache a type that is itself OK but
++		// that contains a nested type that won't compile. The result is consistent
++		// error behavior when Encode is called multiple times on the top-level type.
++		ok := false
++		defer func() {
++			if !ok {
++				info.encoder = nil
++			}
++		}()
+ 		info.encoder = enc.compileEnc(ut)
++		ok = true
+ 	}
+ 	return info.encoder
+ }
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index c3c87dc4f1..35ca6cacea 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -780,3 +780,36 @@ func TestNilPointerInsideInterface(t *testing.T) {
+ 		t.Fatal("expected error about nil pointer and interface, got:", errMsg)
+ 	}
+ }
++
++type Bug4Public struct {
++	Name   string
++	Secret Bug4Secret
++}
++
++type Bug4Secret struct {
++	a int // error: no exported fields.
++}
++
++// Test that a failed compilation doesn't leave around an executable encoder.
++// Issue 3273.
++func TestMutipleEncodingsOfBadType(t *testing.T) {
++	x := Bug4Public{
++		Name:   "name",
++		Secret: Bug4Secret{1},
++	}
++	buf := new(bytes.Buffer)
++	enc := NewEncoder(buf)
++	err := enc.Encode(x)
++	if err == nil {
++		t.Fatal("first encoding: expected error")
++	}
++	buf.Reset()
++	enc = NewEncoder(buf)
++	err = enc.Encode(x)
++	if err == nil {
++		t.Fatal("second encoding: expected error")
++	}
++	if !strings.Contains(err.Error(), "no exported fields") {
++		t.Errorf("expected error about no exported fields; got %v", err)
++	}
++}

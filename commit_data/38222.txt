@@ -16,6 +16,32 @@ Date:   Tue Oct 2 09:09:10 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/exec_test.go | 10 ++--------
  1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 5f8e747b17..02258e6e74 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -692,18 +692,12 @@ func BenchmarkMatch_onepass_regex(b *testing.B) {
+ 			continue
+ 		}
+ 		t := makeText(size.n)
+-		bs := make([][]byte, len(t))
+-		for i, s := range t {
+-			bs[i] = []byte{s}
+-		}
+ 		b.Run(size.name, func(b *testing.B) {
+ 			b.SetBytes(int64(size.n))
+ 			b.ReportAllocs()
+ 			for i := 0; i < b.N; i++ {
+-				for _, byts := range bs {
+-					if !r.Match(byts) {
+-						b.Fatal("not match!")
+-					}
++				if !r.Match(t) {
++					b.Fatal("not match!")
+ 				}
+ 			}
+ 		})

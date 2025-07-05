@@ -14,9 +14,678 @@ Date:   Mon Sep 28 13:49:35 2015 -0700
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/reader.go      | 156 +++++++++++++++++++++++++----------------
  src/archive/tar/reader_test.go |  57 +++++++++++++--
  src/archive/tar/writer.go      | 133 +++++++++++++++++++----------------
  src/archive/tar/writer_test.go |  48 ++++++++-----
  4 files changed, 252 insertions(+), 142 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index ac607fdb0f..da944359d1 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -37,6 +37,10 @@ type Reader struct {
+ 	hdrBuff [blockSize]byte // buffer to use in readHeader
+ }
+ 
++type parser struct {
++	err error // Last error seen
++}
++
+ // A numBytesReader is an io.Reader with a numBytes method, returning the number
+ // of bytes remaining in the underlying encoded data.
+ type numBytesReader interface {
+@@ -113,6 +117,7 @@ func NewReader(r io.Reader) *Reader { return &Reader{r: r} }
+ //
+ // io.EOF is returned at the end of the input.
+ func (tr *Reader) Next() (*Header, error) {
++	var p parser
+ 	var hdr *Header
+ 	if tr.err == nil {
+ 		tr.skipUnread()
+@@ -176,7 +181,10 @@ func (tr *Reader) Next() (*Header, error) {
+ 		if tr.err != nil {
+ 			return nil, tr.err
+ 		}
+-		hdr.Name = cString(realname)
++		hdr.Name = p.parseString(realname)
++		if p.err != nil {
++			return nil, p.err
++		}
+ 		return hdr, nil
+ 	case TypeGNULongLink:
+ 		// We have a GNU long link header.
+@@ -188,7 +196,10 @@ func (tr *Reader) Next() (*Header, error) {
+ 		if tr.err != nil {
+ 			return nil, tr.err
+ 		}
+-		hdr.Linkname = cString(realname)
++		hdr.Linkname = p.parseString(realname)
++		if p.err != nil {
++			return nil, p.err
++		}
+ 		return hdr, nil
+ 	}
+ 	return hdr, tr.err
+@@ -362,6 +373,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	sbuf := string(buf)
+ 
+ 	// For GNU PAX sparse format 0.0 support.
+ 	// This function transforms the sparse format 0.0 headers into sparse format 0.1 headers.
+@@ -370,35 +382,17 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 	headers := make(map[string]string)
+ 	// Each record is constructed as
+ 	//     "%d %s=%s\n", length, keyword, value
+-	for len(buf) > 0 {
+-		// or the header was empty to start with.
+-		var sp int
+-		// The size field ends at the first space.
+-		sp = bytes.IndexByte(buf, ' ')
+-		if sp == -1 {
+-			return nil, ErrHeader
+-		}
+-		// Parse the first token as a decimal integer.
+-		n, err := strconv.ParseInt(string(buf[:sp]), 10, 0)
+-		if err != nil || n < 5 || int64(len(buf)) < n {
+-			return nil, ErrHeader
+-		}
+-		// Extract everything between the decimal and the n -1 on the
+-		// beginning to eat the ' ', -1 on the end to skip the newline.
+-		var record []byte
+-		record, buf = buf[sp+1:n-1], buf[n:]
+-		// The first equals is guaranteed to mark the end of the key.
+-		// Everything else is value.
+-		eq := bytes.IndexByte(record, '=')
+-		if eq == -1 {
++	for len(sbuf) > 0 {
++		key, value, residual, err := parsePAXRecord(sbuf)
++		if err != nil {
+ 			return nil, ErrHeader
+ 		}
+-		key, value := record[:eq], record[eq+1:]
++		sbuf = residual
+ 
+ 		keyStr := string(key)
+ 		if keyStr == paxGNUSparseOffset || keyStr == paxGNUSparseNumBytes {
+ 			// GNU sparse format 0.0 special key. Write to sparseMap instead of using the headers map.
+-			sparseMap.Write(value)
++			sparseMap.WriteString(value)
+ 			sparseMap.Write([]byte{','})
+ 		} else {
+ 			// Normal key. Set the value in the headers map.
+@@ -413,9 +407,42 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 	return headers, nil
+ }
+ 
+-// cString parses bytes as a NUL-terminated C-style string.
++// parsePAXRecord parses the input PAX record string into a key-value pair.
++// If parsing is successful, it will slice off the currently read record and
++// return the remainder as r.
++//
++// A PAX record is of the following form:
++//	"%d %s=%s\n" % (size, key, value)
++func parsePAXRecord(s string) (k, v, r string, err error) {
++	// The size field ends at the first space.
++	sp := strings.IndexByte(s, ' ')
++	if sp == -1 {
++		return "", "", s, ErrHeader
++	}
++
++	// Parse the first token as a decimal integer.
++	n, perr := strconv.ParseInt(s[:sp], 10, 0) // Intentionally parse as native int
++	if perr != nil || n < 5 || int64(len(s)) < n {
++		return "", "", s, ErrHeader
++	}
++
++	// Extract everything between the space and the final newline.
++	rec, nl, rem := s[sp+1:n-1], s[n-1:n], s[n:]
++	if nl != "\n" {
++		return "", "", s, ErrHeader
++	}
++
++	// The first equals separates the key from the value.
++	eq := strings.IndexByte(rec, '=')
++	if eq == -1 {
++		return "", "", s, ErrHeader
++	}
++	return rec[:eq], rec[eq+1:], rem, nil
++}
++
++// parseString parses bytes as a NUL-terminated C-style string.
+ // If a NUL byte is not found then the whole slice is returned as a string.
+-func cString(b []byte) string {
++func (*parser) parseString(b []byte) string {
+ 	n := 0
+ 	for n < len(b) && b[n] != 0 {
+ 		n++
+@@ -423,7 +450,7 @@ func cString(b []byte) string {
+ 	return string(b[0:n])
+ }
+ 
+-func (tr *Reader) octal(b []byte) int64 {
++func (p *parser) parseNumeric(b []byte) int64 {
+ 	// Check for binary format first.
+ 	if len(b) > 0 && b[0]&0x80 != 0 {
+ 		var x int64
+@@ -436,6 +463,10 @@ func (tr *Reader) octal(b []byte) int64 {
+ 		return x
+ 	}
+ 
++	return p.parseOctal(b)
++}
++
++func (p *parser) parseOctal(b []byte) int64 {
+ 	// Because unused fields are filled with NULs, we need
+ 	// to skip leading NULs. Fields may also be padded with
+ 	// spaces or NULs.
+@@ -446,9 +477,9 @@ func (tr *Reader) octal(b []byte) int64 {
+ 	if len(b) == 0 {
+ 		return 0
+ 	}
+-	x, err := strconv.ParseUint(cString(b), 8, 64)
+-	if err != nil {
+-		tr.err = err
++	x, perr := strconv.ParseUint(p.parseString(b), 8, 64)
++	if perr != nil {
++		p.err = ErrHeader
+ 	}
+ 	return int64(x)
+ }
+@@ -499,9 +530,10 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
+ 		return false
+ 	}
+ 
+-	given := tr.octal(header[148:156])
++	var p parser
++	given := p.parseOctal(header[148:156])
+ 	unsigned, signed := checksum(header)
+-	return given == unsigned || given == signed
++	return p.err == nil && (given == unsigned || given == signed)
+ }
+ 
+ // readHeader reads the next block header and assumes that the underlying reader
+@@ -538,18 +570,19 @@ func (tr *Reader) readHeader() *Header {
+ 	}
+ 
+ 	// Unpack
++	var p parser
+ 	hdr := new(Header)
+ 	s := slicer(header)
+ 
+-	hdr.Name = cString(s.next(100))
+-	hdr.Mode = tr.octal(s.next(8))
+-	hdr.Uid = int(tr.octal(s.next(8)))
+-	hdr.Gid = int(tr.octal(s.next(8)))
+-	hdr.Size = tr.octal(s.next(12))
+-	hdr.ModTime = time.Unix(tr.octal(s.next(12)), 0)
++	hdr.Name = p.parseString(s.next(100))
++	hdr.Mode = p.parseNumeric(s.next(8))
++	hdr.Uid = int(p.parseNumeric(s.next(8)))
++	hdr.Gid = int(p.parseNumeric(s.next(8)))
++	hdr.Size = p.parseNumeric(s.next(12))
++	hdr.ModTime = time.Unix(p.parseNumeric(s.next(12)), 0)
+ 	s.next(8) // chksum
+ 	hdr.Typeflag = s.next(1)[0]
+-	hdr.Linkname = cString(s.next(100))
++	hdr.Linkname = p.parseString(s.next(100))
+ 
+ 	// The remainder of the header depends on the value of magic.
+ 	// The original (v7) version of tar had no explicit magic field,
+@@ -569,30 +602,30 @@ func (tr *Reader) readHeader() *Header {
+ 
+ 	switch format {
+ 	case "posix", "gnu", "star":
+-		hdr.Uname = cString(s.next(32))
+-		hdr.Gname = cString(s.next(32))
++		hdr.Uname = p.parseString(s.next(32))
++		hdr.Gname = p.parseString(s.next(32))
+ 		devmajor := s.next(8)
+ 		devminor := s.next(8)
+ 		if hdr.Typeflag == TypeChar || hdr.Typeflag == TypeBlock {
+-			hdr.Devmajor = tr.octal(devmajor)
+-			hdr.Devminor = tr.octal(devminor)
++			hdr.Devmajor = p.parseNumeric(devmajor)
++			hdr.Devminor = p.parseNumeric(devminor)
+ 		}
+ 		var prefix string
+ 		switch format {
+ 		case "posix", "gnu":
+-			prefix = cString(s.next(155))
++			prefix = p.parseString(s.next(155))
+ 		case "star":
+-			prefix = cString(s.next(131))
+-			hdr.AccessTime = time.Unix(tr.octal(s.next(12)), 0)
+-			hdr.ChangeTime = time.Unix(tr.octal(s.next(12)), 0)
++			prefix = p.parseString(s.next(131))
++			hdr.AccessTime = time.Unix(p.parseNumeric(s.next(12)), 0)
++			hdr.ChangeTime = time.Unix(p.parseNumeric(s.next(12)), 0)
+ 		}
+ 		if len(prefix) > 0 {
+ 			hdr.Name = prefix + "/" + hdr.Name
+ 		}
+ 	}
+ 
+-	if tr.err != nil {
+-		tr.err = ErrHeader
++	if p.err != nil {
++		tr.err = p.err
+ 		return nil
+ 	}
+ 
+@@ -612,7 +645,11 @@ func (tr *Reader) readHeader() *Header {
+ 	// Check for old GNU sparse format entry.
+ 	if hdr.Typeflag == TypeGNUSparse {
+ 		// Get the real size of the file.
+-		hdr.Size = tr.octal(header[483:495])
++		hdr.Size = p.parseNumeric(header[483:495])
++		if p.err != nil {
++			tr.err = p.err
++			return nil
++		}
+ 
+ 		// Read the sparse map.
+ 		sp := tr.readOldGNUSparseMap(header)
+@@ -634,6 +671,7 @@ func (tr *Reader) readHeader() *Header {
+ // The sparse map is stored in the tar header if it's small enough. If it's larger than four entries,
+ // then one or more extension headers are used to store the rest of the sparse map.
+ func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
++	var p parser
+ 	isExtended := header[oldGNUSparseMainHeaderIsExtendedOffset] != 0
+ 	spCap := oldGNUSparseMainHeaderNumEntries
+ 	if isExtended {
+@@ -644,10 +682,10 @@ func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
+ 
+ 	// Read the four entries from the main tar header
+ 	for i := 0; i < oldGNUSparseMainHeaderNumEntries; i++ {
+-		offset := tr.octal(s.next(oldGNUSparseOffsetSize))
+-		numBytes := tr.octal(s.next(oldGNUSparseNumBytesSize))
+-		if tr.err != nil {
+-			tr.err = ErrHeader
++		offset := p.parseNumeric(s.next(oldGNUSparseOffsetSize))
++		numBytes := p.parseNumeric(s.next(oldGNUSparseNumBytesSize))
++		if p.err != nil {
++			tr.err = p.err
+ 			return nil
+ 		}
+ 		if offset == 0 && numBytes == 0 {
+@@ -665,10 +703,10 @@ func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
+ 		isExtended = sparseHeader[oldGNUSparseExtendedHeaderIsExtendedOffset] != 0
+ 		s = slicer(sparseHeader)
+ 		for i := 0; i < oldGNUSparseExtendedHeaderNumEntries; i++ {
+-			offset := tr.octal(s.next(oldGNUSparseOffsetSize))
+-			numBytes := tr.octal(s.next(oldGNUSparseNumBytesSize))
+-			if tr.err != nil {
+-				tr.err = ErrHeader
++			offset := p.parseNumeric(s.next(oldGNUSparseOffsetSize))
++			numBytes := p.parseNumeric(s.next(oldGNUSparseNumBytesSize))
++			if p.err != nil {
++				tr.err = p.err
+ 				return nil
+ 			}
+ 			if offset == 0 && numBytes == 0 {
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 387c92fd25..b3fc68cc7b 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -298,10 +298,7 @@ var untarTests = []*untarTest{
+ 	},
+ 	{
+ 		file: "testdata/issue11169.tar",
+-		// TODO(dsnet): Currently the library does not detect that this file is
+-		// malformed. Instead it incorrectly believes that file just ends.
+-		// At least the library doesn't crash anymore.
+-		// err:  ErrHeader,
++		err:  ErrHeader,
+ 	},
+ 	{
+ 		file: "testdata/issue12435.tar",
+@@ -991,3 +988,55 @@ func TestReadHeaderOnly(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestParsePAXRecord(t *testing.T) {
++	var medName = strings.Repeat("CD", 50)
++	var longName = strings.Repeat("AB", 100)
++
++	var vectors = []struct {
++		input     string
++		residual  string
++		outputKey string
++		outputVal string
++		ok        bool
++	}{
++		{"6 k=v\n\n", "\n", "k", "v", true},
++		{"19 path=/etc/hosts\n", "", "path", "/etc/hosts", true},
++		{"210 path=" + longName + "\nabc", "abc", "path", longName, true},
++		{"110 path=" + medName + "\n", "", "path", medName, true},
++		{"9 foo=ba\n", "", "foo", "ba", true},
++		{"11 foo=bar\n\x00", "\x00", "foo", "bar", true},
++		{"18 foo=b=\nar=\n==\x00\n", "", "foo", "b=\nar=\n==\x00", true},
++		{"27 foo=hello9 foo=ba\nworld\n", "", "foo", "hello9 foo=ba\nworld", true},
++		{"27 ☺☻☹=日a本b語ç\nmeow mix", "meow mix", "☺☻☹", "日a本b語ç", true},
++		{"17 \x00hello=\x00world\n", "", "\x00hello", "\x00world", true},
++		{"1 k=1\n", "1 k=1\n", "", "", false},
++		{"6 k~1\n", "6 k~1\n", "", "", false},
++		{"6_k=1\n", "6_k=1\n", "", "", false},
++		{"6 k=1 ", "6 k=1 ", "", "", false},
++		{"632 k=1\n", "632 k=1\n", "", "", false},
++		{"16 longkeyname=hahaha\n", "16 longkeyname=hahaha\n", "", "", false},
++		{"3 somelongkey=\n", "3 somelongkey=\n", "", "", false},
++		{"50 tooshort=\n", "50 tooshort=\n", "", "", false},
++	}
++
++	for _, v := range vectors {
++		key, val, res, err := parsePAXRecord(v.input)
++		ok := (err == nil)
++		if v.ok != ok {
++			if v.ok {
++				t.Errorf("parsePAXRecord(%q): got parsing failure, want success", v.input)
++			} else {
++				t.Errorf("parsePAXRecord(%q): got parsing success, want failure", v.input)
++			}
++		}
++		if ok && (key != v.outputKey || val != v.outputVal) {
++			t.Errorf("parsePAXRecord(%q): got (%q: %q), want (%q: %q)",
++				v.input, key, val, v.outputKey, v.outputVal)
++		}
++		if res != v.residual {
++			t.Errorf("parsePAXRecord(%q): got residual %q, want residual %q",
++				v.input, res, v.residual)
++		}
++	}
++}
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 0165b2259c..688455d6ba 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -42,6 +42,10 @@ type Writer struct {
+ 	paxHdrBuff [blockSize]byte // buffer to use in writeHeader when writing a pax header
+ }
+ 
++type formatter struct {
++	err error // Last error seen
++}
++
+ // NewWriter creates a new Writer writing to w.
+ func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
+ 
+@@ -68,17 +72,9 @@ func (tw *Writer) Flush() error {
+ }
+ 
+ // Write s into b, terminating it with a NUL if there is room.
+-// If the value is too long for the field and allowPax is true add a paxheader record instead
+-func (tw *Writer) cString(b []byte, s string, allowPax bool, paxKeyword string, paxHeaders map[string]string) {
+-	needsPaxHeader := allowPax && len(s) > len(b) || !isASCII(s)
+-	if needsPaxHeader {
+-		paxHeaders[paxKeyword] = s
+-		return
+-	}
++func (f *formatter) formatString(b []byte, s string) {
+ 	if len(s) > len(b) {
+-		if tw.err == nil {
+-			tw.err = ErrFieldTooLong
+-		}
++		f.err = ErrFieldTooLong
+ 		return
+ 	}
+ 	ascii := toASCII(s)
+@@ -89,35 +85,17 @@ func (tw *Writer) cString(b []byte, s string, allowPax bool, paxKeyword string,
+ }
+ 
+ // Encode x as an octal ASCII string and write it into b with leading zeros.
+-func (tw *Writer) octal(b []byte, x int64) {
++func (f *formatter) formatOctal(b []byte, x int64) {
+ 	s := strconv.FormatInt(x, 8)
+ 	// leading zeros, but leave room for a NUL.
+ 	for len(s)+1 < len(b) {
+ 		s = "0" + s
+ 	}
+-	tw.cString(b, s, false, paxNone, nil)
++	f.formatString(b, s)
+ }
+ 
+-// Write x into b, either as octal or as binary (GNUtar/star extension).
+-// If the value is too long for the field and writingPax is enabled both for the field and the add a paxheader record instead
+-func (tw *Writer) numeric(b []byte, x int64, allowPax bool, paxKeyword string, paxHeaders map[string]string) {
+-	// Try octal first.
+-	s := strconv.FormatInt(x, 8)
+-	if len(s) < len(b) {
+-		tw.octal(b, x)
+-		return
+-	}
+-
+-	// If it is too long for octal, and pax is preferred, use a pax header
+-	if allowPax && tw.preferPax {
+-		tw.octal(b, 0)
+-		s := strconv.FormatInt(x, 10)
+-		paxHeaders[paxKeyword] = s
+-		return
+-	}
+-
+-	// Too big: use binary (big-endian).
+-	tw.usedBinary = true
++// Write x into b, as binary (GNUtar/star extension).
++func (f *formatter) formatNumeric(b []byte, x int64) {
+ 	for i := len(b) - 1; x > 0 && i >= 0; i-- {
+ 		b[i] = byte(x)
+ 		x >>= 8
+@@ -161,6 +139,7 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 	// subsecond time resolution, but for now let's just capture
+ 	// too long fields or non ascii characters
+ 
++	var f formatter
+ 	var header []byte
+ 
+ 	// We need to select which scratch buffer to use carefully,
+@@ -175,10 +154,40 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 	copy(header, zeroBlock)
+ 	s := slicer(header)
+ 
++	// Wrappers around formatter that automatically sets paxHeaders if the
++	// argument extends beyond the capacity of the input byte slice.
++	var formatString = func(b []byte, s string, paxKeyword string) {
++		needsPaxHeader := paxKeyword != paxNone && len(s) > len(b) || !isASCII(s)
++		if needsPaxHeader {
++			paxHeaders[paxKeyword] = s
++			return
++		}
++		f.formatString(b, s)
++	}
++	var formatNumeric = func(b []byte, x int64, paxKeyword string) {
++		// Try octal first.
++		s := strconv.FormatInt(x, 8)
++		if len(s) < len(b) {
++			f.formatOctal(b, x)
++			return
++		}
++
++		// If it is too long for octal, and PAX is preferred, use a PAX header.
++		if paxKeyword != paxNone && tw.preferPax {
++			f.formatOctal(b, 0)
++			s := strconv.FormatInt(x, 10)
++			paxHeaders[paxKeyword] = s
++			return
++		}
++
++		tw.usedBinary = true
++		f.formatNumeric(b, x)
++	}
++
+ 	// keep a reference to the filename to allow to overwrite it later if we detect that we can use ustar longnames instead of pax
+ 	pathHeaderBytes := s.next(fileNameSize)
+ 
+-	tw.cString(pathHeaderBytes, hdr.Name, true, paxPath, paxHeaders)
++	formatString(pathHeaderBytes, hdr.Name, paxPath)
+ 
+ 	// Handle out of range ModTime carefully.
+ 	var modTime int64
+@@ -186,25 +195,25 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 		modTime = hdr.ModTime.Unix()
+ 	}
+ 
+-	tw.octal(s.next(8), hdr.Mode)                                   // 100:108
+-	tw.numeric(s.next(8), int64(hdr.Uid), true, paxUid, paxHeaders) // 108:116
+-	tw.numeric(s.next(8), int64(hdr.Gid), true, paxGid, paxHeaders) // 116:124
+-	tw.numeric(s.next(12), hdr.Size, true, paxSize, paxHeaders)     // 124:136
+-	tw.numeric(s.next(12), modTime, false, paxNone, nil)            // 136:148 --- consider using pax for finer granularity
+-	s.next(8)                                                       // chksum (148:156)
+-	s.next(1)[0] = hdr.Typeflag                                     // 156:157
++	f.formatOctal(s.next(8), hdr.Mode)               // 100:108
++	formatNumeric(s.next(8), int64(hdr.Uid), paxUid) // 108:116
++	formatNumeric(s.next(8), int64(hdr.Gid), paxGid) // 116:124
++	formatNumeric(s.next(12), hdr.Size, paxSize)     // 124:136
++	formatNumeric(s.next(12), modTime, paxNone)      // 136:148 --- consider using pax for finer granularity
++	s.next(8)                                        // chksum (148:156)
++	s.next(1)[0] = hdr.Typeflag                      // 156:157
+ 
+-	tw.cString(s.next(100), hdr.Linkname, true, paxLinkpath, paxHeaders)
++	formatString(s.next(100), hdr.Linkname, paxLinkpath)
+ 
+-	copy(s.next(8), []byte("ustar\x0000"))                        // 257:265
+-	tw.cString(s.next(32), hdr.Uname, true, paxUname, paxHeaders) // 265:297
+-	tw.cString(s.next(32), hdr.Gname, true, paxGname, paxHeaders) // 297:329
+-	tw.numeric(s.next(8), hdr.Devmajor, false, paxNone, nil)      // 329:337
+-	tw.numeric(s.next(8), hdr.Devminor, false, paxNone, nil)      // 337:345
++	copy(s.next(8), []byte("ustar\x0000"))          // 257:265
++	formatString(s.next(32), hdr.Uname, paxUname)   // 265:297
++	formatString(s.next(32), hdr.Gname, paxGname)   // 297:329
++	formatNumeric(s.next(8), hdr.Devmajor, paxNone) // 329:337
++	formatNumeric(s.next(8), hdr.Devminor, paxNone) // 337:345
+ 
+ 	// keep a reference to the prefix to allow to overwrite it later if we detect that we can use ustar longnames instead of pax
+ 	prefixHeaderBytes := s.next(155)
+-	tw.cString(prefixHeaderBytes, "", false, paxNone, nil) // 345:500  prefix
++	formatString(prefixHeaderBytes, "", paxNone) // 345:500  prefix
+ 
+ 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
+ 	if tw.usedBinary {
+@@ -220,19 +229,20 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 			delete(paxHeaders, paxPath)
+ 
+ 			// Update the path fields
+-			tw.cString(pathHeaderBytes, suffix, false, paxNone, nil)
+-			tw.cString(prefixHeaderBytes, prefix, false, paxNone, nil)
++			formatString(pathHeaderBytes, suffix, paxNone)
++			formatString(prefixHeaderBytes, prefix, paxNone)
+ 		}
+ 	}
+ 
+ 	// The chksum field is terminated by a NUL and a space.
+ 	// This is different from the other octal fields.
+ 	chksum, _ := checksum(header)
+-	tw.octal(header[148:155], chksum)
++	f.formatOctal(header[148:155], chksum) // Never fails
+ 	header[155] = ' '
+ 
+-	if tw.err != nil {
+-		// problem with header; probably integer too big for a field.
++	// Check if there were any formatting errors.
++	if f.err != nil {
++		tw.err = f.err
+ 		return tw.err
+ 	}
+ 
+@@ -310,7 +320,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
+ 	sort.Strings(keys)
+ 
+ 	for _, k := range keys {
+-		fmt.Fprint(&buf, paxHeader(k+"="+paxHeaders[k]))
++		fmt.Fprint(&buf, formatPAXRecord(k, paxHeaders[k]))
+ 	}
+ 
+ 	ext.Size = int64(len(buf.Bytes()))
+@@ -326,17 +336,18 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
+ 	return nil
+ }
+ 
+-// paxHeader formats a single pax record, prefixing it with the appropriate length
+-func paxHeader(msg string) string {
+-	const padding = 2 // Extra padding for space and newline
+-	size := len(msg) + padding
++// formatPAXRecord formats a single PAX record, prefixing it with the
++// appropriate length.
++func formatPAXRecord(k, v string) string {
++	const padding = 3 // Extra padding for ' ', '=', and '\n'
++	size := len(k) + len(v) + padding
+ 	size += len(strconv.Itoa(size))
+-	record := fmt.Sprintf("%d %s\n", size, msg)
++	record := fmt.Sprintf("%d %s=%s\n", size, k, v)
++
++	// Final adjustment if adding size field increased the record size.
+ 	if len(record) != size {
+-		// Final adjustment if adding size increased
+-		// the number of digits in size
+ 		size = len(record)
+-		record = fmt.Sprintf("%d %s\n", size, msg)
++		record = fmt.Sprintf("%d %s=%s\n", size, k, v)
+ 	}
+ 	return record
+ }
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 25d88dc7e1..69a44a68b6 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -486,24 +486,6 @@ func TestPaxHeadersSorted(t *testing.T) {
+ 	}
+ }
+ 
+-func TestPAXHeader(t *testing.T) {
+-	medName := strings.Repeat("CD", 50)
+-	longName := strings.Repeat("AB", 100)
+-	paxTests := [][2]string{
+-		{paxPath + "=/etc/hosts", "19 path=/etc/hosts\n"},
+-		{"a=b", "6 a=b\n"},          // Single digit length
+-		{"a=names", "11 a=names\n"}, // Test case involving carries
+-		{paxPath + "=" + longName, fmt.Sprintf("210 path=%s\n", longName)},
+-		{paxPath + "=" + medName, fmt.Sprintf("110 path=%s\n", medName)}}
+-
+-	for _, test := range paxTests {
+-		key, expected := test[0], test[1]
+-		if result := paxHeader(key); result != expected {
+-			t.Fatalf("paxHeader: got %s, expected %s", result, expected)
+-		}
+-	}
+-}
+-
+ func TestUSTARLongName(t *testing.T) {
+ 	// Create an archive with a path that failed to split with USTAR extension in previous versions.
+ 	fileinfo, err := os.Stat("testdata/small.txt")
+@@ -625,3 +607,33 @@ func TestSplitUSTARPath(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestFormatPAXRecord(t *testing.T) {
++	var medName = strings.Repeat("CD", 50)
++	var longName = strings.Repeat("AB", 100)
++
++	var vectors = []struct {
++		inputKey string
++		inputVal string
++		output   string
++	}{
++		{"k", "v", "6 k=v\n"},
++		{"path", "/etc/hosts", "19 path=/etc/hosts\n"},
++		{"path", longName, "210 path=" + longName + "\n"},
++		{"path", medName, "110 path=" + medName + "\n"},
++		{"foo", "ba", "9 foo=ba\n"},
++		{"foo", "bar", "11 foo=bar\n"},
++		{"foo", "b=\nar=\n==\x00", "18 foo=b=\nar=\n==\x00\n"},
++		{"foo", "hello9 foo=ba\nworld", "27 foo=hello9 foo=ba\nworld\n"},
++		{"☺☻☹", "日a本b語ç", "27 ☺☻☹=日a本b語ç\n"},
++		{"\x00hello", "\x00world", "17 \x00hello=\x00world\n"},
++	}
++
++	for _, v := range vectors {
++		output := formatPAXRecord(v.inputKey, v.inputVal)
++		if output != v.output {
++			t.Errorf("formatPAXRecord(%q, %q): got %q, want %q",
++				v.inputKey, v.inputVal, output, v.output)
++		}
++	}
++}

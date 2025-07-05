@@ -16,9 +16,64 @@ Date:   Sat Nov 30 17:52:40 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/internal/fips140/rsa/keygen.go | 2 +-
  src/crypto/internal/fips140/rsa/rsa.go    | 2 +-
  src/crypto/rsa/fips.go                    | 3 ---
  src/crypto/rsa/rsa.go                     | 3 ---
  4 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/rsa/keygen.go b/src/crypto/internal/fips140/rsa/keygen.go
+index df96c1e525..62e0063d60 100644
+--- a/src/crypto/internal/fips140/rsa/keygen.go
++++ b/src/crypto/internal/fips140/rsa/keygen.go
+@@ -22,7 +22,7 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
+ 		return nil, errors.New("rsa: key too small")
+ 	}
+ 	fips140.RecordApproved()
+-	if bits < 2048 || bits > 16384 || bits%2 == 1 {
++	if bits < 2048 || bits%2 == 1 {
+ 		fips140.RecordNonApproved()
+ 	}
+ 
+diff --git a/src/crypto/internal/fips140/rsa/rsa.go b/src/crypto/internal/fips140/rsa/rsa.go
+index 957c266885..a65a31eb43 100644
+--- a/src/crypto/internal/fips140/rsa/rsa.go
++++ b/src/crypto/internal/fips140/rsa/rsa.go
+@@ -320,7 +320,7 @@ func checkPublicKey(pub *PublicKey) (fipsApproved bool, err error) {
+ 	// FIPS 186-5, Section 5.1: "This standard specifies the use of a modulus
+ 	// whose bit length is an even integer and greater than or equal to 2048
+ 	// bits."
+-	if pub.N.BitLen() < 2048 || pub.N.BitLen() > 16384 {
++	if pub.N.BitLen() < 2048 {
+ 		fipsApproved = false
+ 	}
+ 	if pub.N.BitLen()%2 == 1 {
+diff --git a/src/crypto/rsa/fips.go b/src/crypto/rsa/fips.go
+index 0960ef90f2..bc23d59709 100644
+--- a/src/crypto/rsa/fips.go
++++ b/src/crypto/rsa/fips.go
+@@ -381,9 +381,6 @@ func checkFIPS140OnlyPublicKey(pub *PublicKey) error {
+ 	if pub.N.BitLen() < 2048 {
+ 		return errors.New("crypto/rsa: use of keys smaller than 2048 bits is not allowed in FIPS 140-only mode")
+ 	}
+-	if pub.N.BitLen() > 16384 {
+-		return errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
+-	}
+ 	if pub.N.BitLen()%2 == 1 {
+ 		return errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
+ 	}
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 89b70adb76..0f58f2226f 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -319,9 +319,6 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+ 	if fips140only.Enabled && bits < 2048 {
+ 		return nil, errors.New("crypto/rsa: use of keys smaller than 2048 bits is not allowed in FIPS 140-only mode")
+ 	}
+-	if fips140only.Enabled && bits > 16384 {
+-		return nil, errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
+-	}
+ 	if fips140only.Enabled && bits%2 == 1 {
+ 		return nil, errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
+ 	}

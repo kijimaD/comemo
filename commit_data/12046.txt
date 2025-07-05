@@ -11,7 +11,7 @@ Date:   Sun Feb 19 00:11:44 2012 -0500
     R=golang-dev, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/5675093
-
+---
  src/pkg/runtime/debug.go                               | 12 ------------
  src/pkg/runtime/extern.go                              | 11 -----------
  src/pkg/runtime/malloc.goc                             | 12 ------------
@@ -29,3 +29,457 @@ Date:   Sun Feb 19 00:11:44 2012 -0500
  src/pkg/sync/rwmutex.go                                | 13 +++++--------
  src/pkg/sync/waitgroup.go                              |  9 +++------
  16 files changed, 63 insertions(+), 81 deletions(-)
+
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index 861017d5ff..6526f16a04 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -32,18 +32,6 @@ func NumCgoCall() int64
+ // NumGoroutine returns the number of goroutines that currently exist.
+ func NumGoroutine() int32
+ 
+-// Alloc allocates a block of the given size.
+-// FOR TESTING AND DEBUGGING ONLY.
+-func Alloc(uintptr) *byte
+-
+-// Free frees the block starting at the given pointer.
+-// FOR TESTING AND DEBUGGING ONLY.
+-func Free(*byte)
+-
+-// Lookup returns the base and size of the block containing the given pointer.
+-// FOR TESTING AND DEBUGGING ONLY.
+-func Lookup(*byte) (*byte, uintptr)
+-
+ // MemProfileRate controls the fraction of memory allocations
+ // that are recorded and reported in the memory profile.
+ // The profiler aims to sample an average of
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 42caeb0df3..5fbfe547e4 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -68,17 +68,6 @@ func funcline_go(*Func, uintptr) (string, int)
+ // mid returns the current os thread (m) id.
+ func mid() uint32
+ 
+-// Semacquire waits until *s > 0 and then atomically decrements it.
+-// It is intended as a simple sleep primitive for use by the synchronization
+-// library and should not be used directly.
+-func Semacquire(s *uint32)
+-
+-// Semrelease atomically increments *s and notifies a waiting goroutine
+-// if one is blocked in Semacquire.
+-// It is intended as a simple wakeup primitive for use by the synchronization
+-// library and should not be used directly.
+-func Semrelease(s *uint32)
+-
+ // SetFinalizer sets the finalizer associated with x to f.
+ // When the garbage collector finds an unreachable block
+ // with an associated finalizer, it clears the association and runs
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 4d5c80c727..c9f1d67c22 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -446,18 +446,6 @@ runtime·stackfree(void *v, uintptr n)
+ 	runtime·free(v);
+ }
+ 
+-func Alloc(n uintptr) (p *byte) {
+-	p = runtime·malloc(n);
+-}
+-
+-func Free(p *byte) {
+-	runtime·free(p);
+-}
+-
+-func Lookup(p *byte) (base *byte, size uintptr) {
+-	runtime·mlookup(p, &base, &size, nil);
+-}
+-
+ func GC() {
+ 	runtime·gc(1);
+ }
+diff --git a/test/malloc1.go b/src/pkg/runtime/malloc1.go
+similarity index 96%
+rename from test/malloc1.go
+rename to src/pkg/runtime/malloc1.go
+index 3ec7369099..da92f4c2fb 100644
+--- a/test/malloc1.go
++++ b/src/pkg/runtime/malloc1.go
+@@ -1,9 +1,9 @@
+-// run
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // trivial malloc test
+ 
+ package main
+diff --git a/test/mallocrand.go b/src/pkg/runtime/mallocrand.go
+similarity index 99%
+rename from test/mallocrand.go
+rename to src/pkg/runtime/mallocrand.go
+index cdd8c6f44c..f1bcb89cfa 100644
+--- a/test/mallocrand.go
++++ b/src/pkg/runtime/mallocrand.go
+@@ -1,9 +1,9 @@
+-// run
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Random malloc test.
+ 
+ package main
+diff --git a/test/mallocrep.go b/src/pkg/runtime/mallocrep.go
+similarity index 98%
+rename from test/mallocrep.go
+rename to src/pkg/runtime/mallocrep.go
+index 977c6fac24..03ee71edb4 100644
+--- a/test/mallocrep.go
++++ b/src/pkg/runtime/mallocrep.go
+@@ -1,11 +1,11 @@
+-// run
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Repeated malloc test.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/test/mallocrep1.go b/src/pkg/runtime/mallocrep1.go
+similarity index 99%
+rename from test/mallocrep1.go
+rename to src/pkg/runtime/mallocrep1.go
+index d2ad6f38ff..41c104c0ba 100644
+--- a/test/mallocrep1.go
++++ b/src/pkg/runtime/mallocrep1.go
+@@ -1,9 +1,9 @@
+-// run
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Repeated malloc test.
+ 
+ package main
+diff --git a/src/pkg/runtime/sema.goc b/src/pkg/runtime/sema.goc
+index 67c90350b6..2300c56aa3 100644
+--- a/src/pkg/runtime/sema.goc
++++ b/src/pkg/runtime/sema.goc
+@@ -17,7 +17,7 @@
+ // See Mullender and Cox, ``Semaphores in Plan 9,''
+ // http://swtch.com/semaphore.pdf
+ 
+-package runtime
++package sync
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ 
+@@ -169,10 +169,10 @@ runtime·semrelease(uint32 volatile *addr)
+ 		runtime·ready(s->g);
+ }
+ 
+-func Semacquire(addr *uint32) {
++func runtime_Semacquire(addr *uint32) {
+ 	runtime·semacquire(addr);
+ }
+ 
+-func Semrelease(addr *uint32) {
++func runtime_Semrelease(addr *uint32) {
+ 	runtime·semrelease(addr);
+ }
+diff --git a/src/pkg/sync/cond.go b/src/pkg/sync/cond.go
+index 44f19fae3e..1fc3deaf1e 100644
+--- a/src/pkg/sync/cond.go
++++ b/src/pkg/sync/cond.go
+@@ -4,8 +4,6 @@
+ 
+ package sync
+ 
+-import "runtime"
+-
+ // Cond implements a condition variable, a rendezvous point
+ // for goroutines waiting for or announcing the occurrence
+ // of an event.
+@@ -66,7 +64,7 @@ func (c *Cond) Wait() {
+ 	c.newWaiters++
+ 	c.m.Unlock()
+ 	c.L.Unlock()
+-	runtime.Semacquire(s)
++	runtime_Semacquire(s)
+ 	c.L.Lock()
+ }
+ 
+@@ -85,7 +83,7 @@ func (c *Cond) Signal() {
+ 	}
+ 	if c.oldWaiters > 0 {
+ 		c.oldWaiters--
+-		runtime.Semrelease(c.oldSema)
++		runtime_Semrelease(c.oldSema)
+ 	}
+ 	c.m.Unlock()
+ }
+@@ -99,13 +97,13 @@ func (c *Cond) Broadcast() {
+ 	// Wake both generations.
+ 	if c.oldWaiters > 0 {
+ 		for i := 0; i < c.oldWaiters; i++ {
+-			runtime.Semrelease(c.oldSema)
++			runtime_Semrelease(c.oldSema)
+ 		}
+ 		c.oldWaiters = 0
+ 	}
+ 	if c.newWaiters > 0 {
+ 		for i := 0; i < c.newWaiters; i++ {
+-			runtime.Semrelease(c.newSema)
++			runtime_Semrelease(c.newSema)
+ 		}
+ 		c.newWaiters = 0
+ 		c.newSema = nil
+diff --git a/src/pkg/sync/export_test.go b/src/pkg/sync/export_test.go
+new file mode 100644
+index 0000000000..fa5983a2d1
+--- /dev/null
++++ b/src/pkg/sync/export_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync
++
++// Export for testing.
++var Runtime_Semacquire = runtime_Semacquire
++var Runtime_Semrelease = runtime_Semrelease
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index 4fc02743c6..9494cc3f82 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -10,10 +10,7 @@
+ // Values containing the types defined in this package should not be copied.
+ package sync
+ 
+-import (
+-	"runtime"
+-	"sync/atomic"
+-)
++import "sync/atomic"
+ 
+ // A Mutex is a mutual exclusion lock.
+ // Mutexes can be created as part of other structures;
+@@ -60,7 +57,7 @@ func (m *Mutex) Lock() {
+ 			if old&mutexLocked == 0 {
+ 				break
+ 			}
+-			runtime.Semacquire(&m.sema)
++			runtime_Semacquire(&m.sema)
+ 			awoke = true
+ 		}
+ 	}
+@@ -89,7 +86,7 @@ func (m *Mutex) Unlock() {
+ 		// Grab the right to wake someone.
+ 		new = (old - 1<<mutexWaiterShift) | mutexWoken
+ 		if atomic.CompareAndSwapInt32(&m.state, old, new) {
+-			runtime.Semrelease(&m.sema)
++			runtime_Semrelease(&m.sema)
+ 			return
+ 		}
+ 		old = m.state
+diff --git a/src/pkg/sync/mutex_test.go b/src/pkg/sync/mutex_test.go
+index a514b4ad4c..bf78c6f609 100644
+--- a/src/pkg/sync/mutex_test.go
++++ b/src/pkg/sync/mutex_test.go
+@@ -15,8 +15,8 @@ import (
+ 
+ func HammerSemaphore(s *uint32, loops int, cdone chan bool) {
+ 	for i := 0; i < loops; i++ {
+-		runtime.Semacquire(s)
+-		runtime.Semrelease(s)
++		Runtime_Semacquire(s)
++		Runtime_Semrelease(s)
+ 	}
+ 	cdone <- true
+ }
+diff --git a/src/pkg/sync/runtime.go b/src/pkg/sync/runtime.go
+new file mode 100644
+index 0000000000..e99599c11a
+--- /dev/null
++++ b/src/pkg/sync/runtime.go
+@@ -0,0 +1,18 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync
++
++// defined in package runtime
++
++// Semacquire waits until *s > 0 and then atomically decrements it.
++// It is intended as a simple sleep primitive for use by the synchronization
++// library and should not be used directly.
++func runtime_Semacquire(s *uint32)
++
++// Semrelease atomically increments *s and notifies a waiting goroutine
++// if one is blocked in Semacquire.
++// It is intended as a simple wakeup primitive for use by the synchronization
++// library and should not be used directly.
++func runtime_Semrelease(s *uint32)
+diff --git a/src/pkg/runtime/sema_test.go b/src/pkg/sync/runtime_sema_test.go
+similarity index 89%
+rename from src/pkg/runtime/sema_test.go
+rename to src/pkg/sync/runtime_sema_test.go
+index d95bb1ec58..57a8dbee78 100644
+--- a/src/pkg/runtime/sema_test.go
++++ b/src/pkg/sync/runtime_sema_test.go
+@@ -2,10 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package runtime_test
++package sync_test
+ 
+ import (
+ 	"runtime"
++	. "sync"
+ 	"sync/atomic"
+ 	"testing"
+ )
+@@ -25,8 +26,8 @@ func BenchmarkSemaUncontended(b *testing.B) {
+ 			for atomic.AddInt32(&N, -1) >= 0 {
+ 				runtime.Gosched()
+ 				for g := 0; g < CallsPerSched; g++ {
+-					runtime.Semrelease(&sem.sem)
+-					runtime.Semacquire(&sem.sem)
++					Runtime_Semrelease(&sem.sem)
++					Runtime_Semacquire(&sem.sem)
+ 				}
+ 			}
+ 			c <- true
+@@ -48,7 +49,7 @@ func benchmarkSema(b *testing.B, block, work bool) {
+ 	if block {
+ 		for p := 0; p < procs/2; p++ {
+ 			go func() {
+-				runtime.Semacquire(&sem)
++				Runtime_Semacquire(&sem)
+ 				c2 <- true
+ 			}()
+ 		}
+@@ -59,18 +60,18 @@ func benchmarkSema(b *testing.B, block, work bool) {
+ 			for atomic.AddInt32(&N, -1) >= 0 {
+ 				runtime.Gosched()
+ 				for g := 0; g < CallsPerSched; g++ {
+-					runtime.Semrelease(&sem)
++					Runtime_Semrelease(&sem)
+ 					if work {
+ 						for i := 0; i < LocalWork; i++ {
+ 							foo *= 2
+ 							foo /= 2
+ 						}
+ 					}
+-					runtime.Semacquire(&sem)
++					Runtime_Semacquire(&sem)
+ 				}
+ 			}
+ 			c <- foo == 42
+-			runtime.Semrelease(&sem)
++			Runtime_Semrelease(&sem)
+ 		}()
+ 	}
+ 	if block {
+diff --git a/src/pkg/sync/rwmutex.go b/src/pkg/sync/rwmutex.go
+index cb1a47720b..782a9c3196 100644
+--- a/src/pkg/sync/rwmutex.go
++++ b/src/pkg/sync/rwmutex.go
+@@ -4,10 +4,7 @@
+ 
+ package sync
+ 
+-import (
+-	"runtime"
+-	"sync/atomic"
+-)
++import "sync/atomic"
+ 
+ // An RWMutex is a reader/writer mutual exclusion lock.
+ // The lock can be held by an arbitrary number of readers
+@@ -29,7 +26,7 @@ const rwmutexMaxReaders = 1 << 30
+ func (rw *RWMutex) RLock() {
+ 	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
+ 		// A writer is pending, wait for it.
+-		runtime.Semacquire(&rw.readerSem)
++		runtime_Semacquire(&rw.readerSem)
+ 	}
+ }
+ 
+@@ -42,7 +39,7 @@ func (rw *RWMutex) RUnlock() {
+ 		// A writer is pending.
+ 		if atomic.AddInt32(&rw.readerWait, -1) == 0 {
+ 			// The last reader unblocks the writer.
+-			runtime.Semrelease(&rw.writerSem)
++			runtime_Semrelease(&rw.writerSem)
+ 		}
+ 	}
+ }
+@@ -60,7 +57,7 @@ func (rw *RWMutex) Lock() {
+ 	r := atomic.AddInt32(&rw.readerCount, -rwmutexMaxReaders) + rwmutexMaxReaders
+ 	// Wait for active readers.
+ 	if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
+-		runtime.Semacquire(&rw.writerSem)
++		runtime_Semacquire(&rw.writerSem)
+ 	}
+ }
+ 
+@@ -75,7 +72,7 @@ func (rw *RWMutex) Unlock() {
+ 	r := atomic.AddInt32(&rw.readerCount, rwmutexMaxReaders)
+ 	// Unblock blocked readers, if any.
+ 	for i := 0; i < int(r); i++ {
+-		runtime.Semrelease(&rw.readerSem)
++		runtime_Semrelease(&rw.readerSem)
+ 	}
+ 	// Allow other writers to proceed.
+ 	rw.w.Unlock()
+diff --git a/src/pkg/sync/waitgroup.go b/src/pkg/sync/waitgroup.go
+index a4c9b7e43c..3e7d9d3c8f 100644
+--- a/src/pkg/sync/waitgroup.go
++++ b/src/pkg/sync/waitgroup.go
+@@ -4,10 +4,7 @@
+ 
+ package sync
+ 
+-import (
+-	"runtime"
+-	"sync/atomic"
+-)
++import "sync/atomic"
+ 
+ // A WaitGroup waits for a collection of goroutines to finish.
+ // The main goroutine calls Add to set the number of
+@@ -60,7 +57,7 @@ func (wg *WaitGroup) Add(delta int) {
+ 	}
+ 	wg.m.Lock()
+ 	for i := int32(0); i < wg.waiters; i++ {
+-		runtime.Semrelease(wg.sema)
++		runtime_Semrelease(wg.sema)
+ 	}
+ 	wg.waiters = 0
+ 	wg.sema = nil
+@@ -93,5 +90,5 @@ func (wg *WaitGroup) Wait() {
+ 	}
+ 	s := wg.sema
+ 	wg.m.Unlock()
+-	runtime.Semacquire(s)
++	runtime_Semacquire(s)
+ }

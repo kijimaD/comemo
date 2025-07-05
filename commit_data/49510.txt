@@ -15,10 +15,99 @@ Date:   Tue Jun 22 20:26:31 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/330751
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/user/lookup_plan9.go | 1 +
  src/os/user/lookup_stubs.go | 2 +-
  src/os/user/lookup_unix.go  | 8 +++++---
  src/os/user/user.go         | 7 +++++--
  src/os/user/user_test.go    | 9 ++++++++-
  5 files changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/user/lookup_plan9.go b/src/os/user/lookup_plan9.go
+index 51caf55935..07939363e7 100644
+--- a/src/os/user/lookup_plan9.go
++++ b/src/os/user/lookup_plan9.go
+@@ -20,6 +20,7 @@ const (
+ func init() {
+ 	userImplemented = false
+ 	groupImplemented = false
++	groupListImplemented = false
+ }
+ 
+ func current() (*User, error) {
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index c975a11964..d8e3d4866a 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -16,7 +16,7 @@ import (
+ )
+ 
+ func init() {
+-	groupImplemented = false
++	groupListImplemented = false
+ }
+ 
+ func current() (*User, error) {
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index 97c611fad4..dffea4a885 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -18,13 +18,15 @@ import (
+ 	"strings"
+ )
+ 
+-const groupFile = "/etc/group"
+-const userFile = "/etc/passwd"
++const (
++	groupFile = "/etc/group"
++	userFile  = "/etc/passwd"
++)
+ 
+ var colon = []byte{':'}
+ 
+ func init() {
+-	groupImplemented = false
++	groupListImplemented = false
+ }
+ 
+ // lineFunc returns a value, an error, or (nil, nil) to skip the row.
+diff --git a/src/os/user/user.go b/src/os/user/user.go
+index c1b8101c86..4e1b5b3407 100644
+--- a/src/os/user/user.go
++++ b/src/os/user/user.go
+@@ -20,9 +20,12 @@ import (
+ 	"strconv"
+ )
+ 
++// These may be set to false in init() for a particular platform and/or
++// build flags to let the tests know to skip tests of some features.
+ var (
+-	userImplemented  = true // set to false by lookup_stubs.go's init
+-	groupImplemented = true // set to false by lookup_stubs.go's init
++	userImplemented      = true
++	groupImplemented     = true
++	groupListImplemented = true
+ )
+ 
+ // User represents a user account.
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 1112c78c00..d8a465edac 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -119,8 +119,15 @@ func TestLookupGroup(t *testing.T) {
+ 	}
+ }
+ 
++func checkGroupList(t *testing.T) {
++	t.Helper()
++	if !groupListImplemented {
++		t.Skip("user: group list not implemented; skipping test")
++	}
++}
++
+ func TestGroupIds(t *testing.T) {
+-	checkGroup(t)
++	checkGroupList(t)
+ 	if runtime.GOOS == "aix" {
+ 		t.Skip("skipping GroupIds, see golang.org/issue/30563")
+ 	}

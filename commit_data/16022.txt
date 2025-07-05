@@ -11,6 +11,22 @@ Date:   Sat Mar 30 09:54:08 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8155043
-
+---
  misc/emacs/go-mode.el | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 76dad67613..6f0442aff0 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -565,8 +565,8 @@ buffer."
+     (insert "gofmt errors:\n")
+     (while (search-forward-regexp (concat "^\\(" (regexp-quote tmpfile) "\\):") nil t)
+       (replace-match (file-name-nondirectory filename) t t nil 1))
+-    (display-buffer errbuf)
+-    (compilation-mode)))
++    (compilation-mode)
++    (display-buffer errbuf)))
+ 
+ ;;;###autoload
+ (defun gofmt-before-save ()

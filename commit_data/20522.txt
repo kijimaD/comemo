@@ -10,7 +10,51 @@ Date:   Tue Sep 16 10:21:54 2014 -0400
     R=adonovan
     CC=golang-codereviews
     https://golang.org/cl/141510044
-
+---
  src/cmd/gc/typecheck.c   |  5 ++++-
  test/fixedbugs/bug255.go | 19 ++++++++++++-------
  2 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 746feb4d1b..18d20cdd16 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -408,7 +408,10 @@ reswitch:
+ 				v = toint(l->val);
+ 				break;
+ 			default:
+-				yyerror("invalid array bound %N", l);
++				if(l->type != T && isint[l->type->etype] && l->op != OLITERAL)
++					yyerror("non-constant array bound %N", l);
++				else
++					yyerror("invalid array bound %N", l);
+ 				goto error;
+ 			}
+ 			t->bound = mpgetfix(v.u.xval);
+diff --git a/test/fixedbugs/bug255.go b/test/fixedbugs/bug255.go
+index acf4f23910..65ed1b8f6f 100644
+--- a/test/fixedbugs/bug255.go
++++ b/test/fixedbugs/bug255.go
+@@ -6,10 +6,15 @@
+ 
+ package main
+ 
+-var a [10]int	// ok
+-var b [1e1]int	// ok
+-var c [1.5]int	// ERROR "truncated"
+-var d ["abc"]int	// ERROR "invalid array bound|not numeric"
+-var e [nil]int	// ERROR "invalid array bound|not numeric"
+-var f [e]int	// ERROR "invalid array bound|not constant"
+-var g [1<<65]int	// ERROR "array bound is too large|overflows"
++var a [10]int      // ok
++var b [1e1]int     // ok
++var c [1.5]int     // ERROR "truncated"
++var d ["abc"]int   // ERROR "invalid array bound|not numeric"
++var e [nil]int     // ERROR "invalid array bound|not numeric"
++var f [e]int       // ERROR "invalid array bound|not constant"
++var g [1 << 65]int // ERROR "array bound is too large|overflows"
++var h [len(a)]int  // ok
++
++func ff() string
++
++var i [len([1]string{ff()})]int // ERROR "non-constant array bound|not constant"

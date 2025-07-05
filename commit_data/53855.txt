@@ -14,6 +14,36 @@ Date:   Sat Sep 3 19:51:48 2022 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Tatiana Bradley <tatiana@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/triv.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/triv.go b/src/net/http/triv.go
+index 11b19ab30c..9bf0caa37f 100644
+--- a/src/net/http/triv.go
++++ b/src/net/http/triv.go
+@@ -118,7 +118,7 @@ func Logger(w http.ResponseWriter, req *http.Request) {
+ 	http.Error(w, "oops", http.StatusNotFound)
+ }
+ 
+-var webroot = flag.String("root", os.Getenv("HOME"), "web root directory")
++var webroot = flag.String("root", "", "web root directory")
+ 
+ func main() {
+ 	flag.Parse()
+@@ -128,11 +128,13 @@ func main() {
+ 	expvar.Publish("counter", ctr)
+ 	http.Handle("/counter", ctr)
+ 	http.Handle("/", http.HandlerFunc(Logger))
+-	http.Handle("/go/", http.StripPrefix("/go/", http.FileServer(http.Dir(*webroot))))
++	if *webroot != "" {
++		http.Handle("/go/", http.StripPrefix("/go/", http.FileServer(http.Dir(*webroot))))
++	}
+ 	http.Handle("/chan", ChanCreate())
+ 	http.HandleFunc("/flags", FlagServer)
+ 	http.HandleFunc("/args", ArgServer)
+ 	http.HandleFunc("/go/hello", HelloServer)
+ 	http.HandleFunc("/date", DateServer)
+-	log.Fatal(http.ListenAndServe(":12345", nil))
++	log.Fatal(http.ListenAndServe("localhost:12345", nil))
+ }

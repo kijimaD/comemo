@@ -7,7 +7,7 @@ Date:   Tue Oct 12 09:48:56 2010 -0400
     R=rsc, albert.strasheim
     CC=golang-dev
     https://golang.org/cl/2356042
-
+---
  src/pkg/syscall/mkerrors.sh            |  3 ++-
  src/pkg/syscall/syscall_linux.go       | 39 ++++++++++++++++++++++++++++++++
  src/pkg/syscall/types_linux.c          |  6 ++++-
@@ -16,3 +16,294 @@ Date:   Tue Oct 12 09:48:56 2010 -0400
  src/pkg/syscall/ztypes_linux_386.go    | 41 +++++++++++++++++++++-------------
  src/pkg/syscall/ztypes_linux_amd64.go  | 41 +++++++++++++++++++++-------------
  7 files changed, 128 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 48274b9808..a402da6a02 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -26,6 +26,7 @@ includes_Linux='
+ #include <sys/inotify.h>
+ #include <linux/ptrace.h>
+ #include <linux/wait.h>
++#include <netpacket/packet.h>
+ '
+ 
+ includes_Darwin='
+@@ -86,7 +87,7 @@ done
+ 		$2 ~ /^E[A-Z0-9_]+$/ ||
+ 		$2 ~ /^SIG[^_]/ ||
+ 		$2 ~ /^IN_/ ||
+-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP)_/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET)_/ ||
+ 		$2 == "SOMAXCONN" ||
+ 		$2 == "NAME_MAX" ||
+ 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 19c9cc3d90..e97574d50a 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -261,8 +261,47 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
+ 	return uintptr(unsafe.Pointer(&sa.raw)), 1 + _Socklen(n) + 1, 0
+ }
+ 
++type SockaddrLinklayer struct {
++	Protocol uint16
++	Ifindex  int
++	Hatype   uint16
++	Pkttype  uint8
++	Halen    uint8
++	Addr     [8]byte
++	raw      RawSockaddrLinklayer
++}
++
++func (sa *SockaddrLinklayer) sockaddr() (uintptr, _Socklen, int) {
++	if sa.Ifindex < 0 || sa.Ifindex > 0x7fffffff {
++		return 0, 0, EINVAL
++	}
++	sa.raw.Family = AF_PACKET
++	sa.raw.Protocol = sa.Protocol
++	sa.raw.Ifindex = int32(sa.Ifindex)
++	sa.raw.Hatype = sa.Hatype
++	sa.raw.Pkttype = sa.Pkttype
++	sa.raw.Halen = sa.Halen
++	for i := 0; i < len(sa.Addr); i++ {
++		sa.raw.Addr[i] = sa.Addr[i]
++	}
++	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrLinklayer, 0
++}
++
+ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
+ 	switch rsa.Addr.Family {
++	case AF_PACKET:
++		pp := (*RawSockaddrLinklayer)(unsafe.Pointer(rsa))
++		sa := new(SockaddrLinklayer)
++		sa.Protocol = pp.Protocol
++		sa.Ifindex = int(pp.Ifindex)
++		sa.Hatype = pp.Hatype
++		sa.Pkttype = pp.Pkttype
++		sa.Halen = pp.Halen
++		for i := 0; i < len(sa.Addr); i++ {
++			sa.Addr[i] = pp.Addr[i]
++		}
++		return sa, 0
++
+ 	case AF_UNIX:
+ 		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa))
+ 		sa := new(SockaddrUnix)
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+old mode 100755
+new mode 100644
+index 7489bc9f9a..4752e3122a
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -15,6 +15,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ #include <fcntl.h>
+ #include <netinet/in.h>
+ #include <netinet/tcp.h>
++#include <netpacket/packet.h>
+ #include <signal.h>
+ #include <stdio.h>
+ #include <sys/epoll.h>
+@@ -91,6 +92,7 @@ union sockaddr_all {
+ 	struct sockaddr_in s2;	// these pad it out
+ 	struct sockaddr_in6 s3;
+ 	struct sockaddr_un s4;
++	struct sockaddr_ll s5;
+ };
+ 
+ struct sockaddr_any {
+@@ -101,6 +103,7 @@ struct sockaddr_any {
+ typedef struct sockaddr_in $RawSockaddrInet4;
+ typedef struct sockaddr_in6 $RawSockaddrInet6;
+ typedef struct sockaddr_un $RawSockaddrUnix;
++typedef struct sockaddr_ll $RawSockaddrLinklayer;
+ typedef struct sockaddr $RawSockaddr;
+ typedef struct sockaddr_any $RawSockaddrAny;
+ typedef socklen_t $_Socklen;
+@@ -115,6 +118,7 @@ enum {
+ 	$SizeofSockaddrInet6 = sizeof(struct sockaddr_in6),
+ 	$SizeofSockaddrAny = sizeof(struct sockaddr_any),
+ 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
++	$SizeofSockaddrLinklayer = sizeof(struct sockaddr_ll),
+ 	$SizeofLinger = sizeof(struct linger),
+ 	$SizeofMsghdr = sizeof(struct msghdr),
+ 	$SizeofCmsghdr = sizeof(struct cmsghdr),
+@@ -126,7 +130,7 @@ enum {
+ typedef struct inotify_event $InotifyEvent;
+ 
+ enum {
+-        $SizeofInotifyEvent = sizeof(struct inotify_event)
++	$SizeofInotifyEvent = sizeof(struct inotify_event)
+ };
+ 
+ 
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index b4bb19ba70..13b5d6b365 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -408,6 +408,21 @@ const (
+ 	O_SYNC                           = 0x1000
+ 	O_TRUNC                          = 0x200
+ 	O_WRONLY                         = 0x1
++	PACKET_ADD_MEMBERSHIP            = 0x1
++	PACKET_BROADCAST                 = 0x1
++	PACKET_DROP_MEMBERSHIP           = 0x2
++	PACKET_FASTROUTE                 = 0x6
++	PACKET_HOST                      = 0
++	PACKET_LOOPBACK                  = 0x5
++	PACKET_MR_ALLMULTI               = 0x2
++	PACKET_MR_MULTICAST              = 0
++	PACKET_MR_PROMISC                = 0x1
++	PACKET_MULTICAST                 = 0x2
++	PACKET_OTHERHOST                 = 0x3
++	PACKET_OUTGOING                  = 0x4
++	PACKET_RECV_OUTPUT               = 0x3
++	PACKET_RX_RING                   = 0x5
++	PACKET_STATISTICS                = 0x6
+ 	PTRACE_ATTACH                    = 0x10
+ 	PTRACE_BTS_CLEAR                 = 0x2c
+ 	PTRACE_BTS_CONFIG                = 0x28
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index 1893c51bff..af7f924ff5 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -408,6 +408,21 @@ const (
+ 	O_SYNC                           = 0x1000
+ 	O_TRUNC                          = 0x200
+ 	O_WRONLY                         = 0x1
++	PACKET_ADD_MEMBERSHIP            = 0x1
++	PACKET_BROADCAST                 = 0x1
++	PACKET_DROP_MEMBERSHIP           = 0x2
++	PACKET_FASTROUTE                 = 0x6
++	PACKET_HOST                      = 0
++	PACKET_LOOPBACK                  = 0x5
++	PACKET_MR_ALLMULTI               = 0x2
++	PACKET_MR_MULTICAST              = 0
++	PACKET_MR_PROMISC                = 0x1
++	PACKET_MULTICAST                 = 0x2
++	PACKET_OTHERHOST                 = 0x3
++	PACKET_OUTGOING                  = 0x4
++	PACKET_RECV_OUTPUT               = 0x3
++	PACKET_RX_RING                   = 0x5
++	PACKET_STATISTICS                = 0x6
+ 	PTRACE_ARCH_PRCTL                = 0x1e
+ 	PTRACE_ATTACH                    = 0x10
+ 	PTRACE_BTS_CLEAR                 = 0x2c
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index 99ce60819c..0603168aa5 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -6,21 +6,22 @@ package syscall
+ 
+ // Constants
+ const (
+-	sizeofPtr           = 0x4
+-	sizeofShort         = 0x2
+-	sizeofInt           = 0x4
+-	sizeofLong          = 0x4
+-	sizeofLongLong      = 0x8
+-	PathMax             = 0x1000
+-	SizeofSockaddrInet4 = 0x10
+-	SizeofSockaddrInet6 = 0x1c
+-	SizeofSockaddrAny   = 0x70
+-	SizeofSockaddrUnix  = 0x6e
+-	SizeofLinger        = 0x8
+-	SizeofMsghdr        = 0x1c
+-	SizeofCmsghdr       = 0xc
+-	SizeofUcred         = 0xc
+-	SizeofInotifyEvent  = 0x10
++	sizeofPtr               = 0x4
++	sizeofShort             = 0x2
++	sizeofInt               = 0x4
++	sizeofLong              = 0x4
++	sizeofLongLong          = 0x8
++	PathMax                 = 0x1000
++	SizeofSockaddrInet4     = 0x10
++	SizeofSockaddrInet6     = 0x1c
++	SizeofSockaddrAny       = 0x70
++	SizeofSockaddrUnix      = 0x6e
++	SizeofSockaddrLinklayer = 0x14
++	SizeofLinger            = 0x8
++	SizeofMsghdr            = 0x1c
++	SizeofCmsghdr           = 0xc
++	SizeofUcred             = 0xc
++	SizeofInotifyEvent      = 0x10
+ )
+ 
+ // Types
+@@ -181,6 +182,16 @@ type RawSockaddrUnix struct {
+ 	Path   [108]int8
+ }
+ 
++type RawSockaddrLinklayer struct {
++	Family   uint16
++	Protocol uint16
++	Ifindex  int32
++	Hatype   uint16
++	Pkttype  uint8
++	Halen    uint8
++	Addr     [8]uint8
++}
++
+ type RawSockaddr struct {
+ 	Family uint16
+ 	Data   [14]int8
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index 3883a58aa0..b975a87320 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -6,21 +6,22 @@ package syscall
+ 
+ // Constants
+ const (
+-	sizeofPtr           = 0x8
+-	sizeofShort         = 0x2
+-	sizeofInt           = 0x4
+-	sizeofLong          = 0x8
+-	sizeofLongLong      = 0x8
+-	PathMax             = 0x1000
+-	SizeofSockaddrInet4 = 0x10
+-	SizeofSockaddrInet6 = 0x1c
+-	SizeofSockaddrAny   = 0x70
+-	SizeofSockaddrUnix  = 0x6e
+-	SizeofLinger        = 0x8
+-	SizeofMsghdr        = 0x38
+-	SizeofCmsghdr       = 0x10
+-	SizeofUcred         = 0xc
+-	SizeofInotifyEvent  = 0x10
++	sizeofPtr               = 0x8
++	sizeofShort             = 0x2
++	sizeofInt               = 0x4
++	sizeofLong              = 0x8
++	sizeofLongLong          = 0x8
++	PathMax                 = 0x1000
++	SizeofSockaddrInet4     = 0x10
++	SizeofSockaddrInet6     = 0x1c
++	SizeofSockaddrAny       = 0x70
++	SizeofSockaddrUnix      = 0x6e
++	SizeofSockaddrLinklayer = 0x14
++	SizeofLinger            = 0x8
++	SizeofMsghdr            = 0x38
++	SizeofCmsghdr           = 0x10
++	SizeofUcred             = 0xc
++	SizeofInotifyEvent      = 0x10
+ )
+ 
+ // Types
+@@ -181,6 +182,16 @@ type RawSockaddrUnix struct {
+ 	Path   [108]int8
+ }
+ 
++type RawSockaddrLinklayer struct {
++	Family   uint16
++	Protocol uint16
++	Ifindex  int32
++	Hatype   uint16
++	Pkttype  uint8
++	Halen    uint8
++	Addr     [8]uint8
++}
++
+ type RawSockaddr struct {
+ 	Family uint16
+ 	Data   [14]int8

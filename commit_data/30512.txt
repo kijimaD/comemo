@@ -17,6 +17,38 @@ Date:   Thu Nov 10 09:59:42 2016 -0800
     Change-Id: Id0409c7274ce67fe15d910baf587d3220cb53d83
     Reviewed-on: https://go-review.googlesource.com/33070
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/go/pkg.go | 19 +++++++++++++++----
  1 file changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 079412ce8a..23d3114682 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -913,11 +913,22 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		importPaths = append(importPaths, "syscall")
+ 	}
+ 
+-	// Currently build modes c-shared, pie, plugin, and -linkshared force
+-	// external linking mode, and external linking mode forces an
+-	// import of runtime/cgo.
++	// Currently build modes c-shared, pie (on systems that do not
++	// support PIE with internal linking mode), plugin, and
++	// -linkshared force external linking mode, as of course does
++	// -ldflags=-linkmode=external. External linking mode forces
++	// an import of runtime/cgo.
+ 	pieCgo := buildBuildmode == "pie" && (buildContext.GOOS != "linux" || buildContext.GOARCH != "amd64")
+-	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildBuildmode == "plugin" || pieCgo || buildLinkshared) {
++	linkmodeExternal := false
++	for i, a := range buildLdflags {
++		if a == "-linkmode=external" {
++			linkmodeExternal = true
++		}
++		if a == "-linkmode" && i+1 < len(buildLdflags) && buildLdflags[i+1] == "external" {
++			linkmodeExternal = true
++		}
++	}
++	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildBuildmode == "plugin" || pieCgo || buildLinkshared || linkmodeExternal) {
+ 		importPaths = append(importPaths, "runtime/cgo")
+ 	}
+ 

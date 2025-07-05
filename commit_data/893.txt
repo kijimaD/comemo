@@ -8,6 +8,20 @@ Date:   Fri Oct 17 15:52:49 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=17375
     CL=17375
-
+---
  src/cmd/6g/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index 4d27ae811d..74cb06e0ce 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -25,7 +25,7 @@ LIB=\
+ 	../gc/gc.a$O
+ 
+ $(TARG): $(OFILES) $(LIB)
+-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9 -lm
+ 
+ $(OFILES): $(HFILES)
+ 

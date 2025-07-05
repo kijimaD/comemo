@@ -7,7 +7,7 @@ Date:   Thu Jul 15 16:08:53 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1742045
-
+---
  src/pkg/Makefile                  |    1 -
  src/pkg/exp/bignum/Makefile       |   14 -
  src/pkg/exp/bignum/arith.go       |  121 -----
@@ -18,3 +18,2858 @@ Date:   Thu Jul 15 16:08:53 2010 -0700
  src/pkg/exp/bignum/nrdiv_test.go  |  188 -------
  src/pkg/exp/bignum/rational.go    |  205 --------
  9 files changed, 2795 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index d43174f651..5989e888b2 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -63,7 +63,6 @@ DIRS=\
+ 	encoding/hex\
+ 	encoding/pem\
+ 	exec\
+-	exp/bignum\
+ 	exp/datafmt\
+ 	exp/draw\
+ 	exp/draw/x11\
+diff --git a/src/pkg/exp/bignum/Makefile b/src/pkg/exp/bignum/Makefile
+deleted file mode 100644
+index 064cf1eb95..0000000000
+--- a/src/pkg/exp/bignum/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.$(GOARCH)
+-
+-TARG=exp/bignum
+-GOFILES=\
+-	arith.go\
+-	bignum.go\
+-	integer.go\
+-	rational.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/exp/bignum/arith.go b/src/pkg/exp/bignum/arith.go
+deleted file mode 100644
+index aa65dbd7a8..0000000000
+--- a/src/pkg/exp/bignum/arith.go
++++ /dev/null
+@@ -1,121 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Fast versions of the routines in this file are in fast.arith.s.
+-// Simply replace this file with arith.s (renamed from fast.arith.s)
+-// and the bignum package will build and run on a platform that
+-// supports the assembly routines.
+-
+-package bignum
+-
+-import "unsafe"
+-
+-// z1<<64 + z0 = x*y
+-func Mul128(x, y uint64) (z1, z0 uint64) {
+-	// Split x and y into 2 halfwords each, multiply
+-	// the halfwords separately while avoiding overflow,
+-	// and return the product as 2 words.
+-
+-	const (
+-		W  = uint(unsafe.Sizeof(x)) * 8
+-		W2 = W / 2
+-		B2 = 1 << W2
+-		M2 = B2 - 1
+-	)
+-
+-	if x < y {
+-		x, y = y, x
+-	}
+-
+-	if x < B2 {
+-		// y < B2 because y <= x
+-		// sub-digits of x and y are (0, x) and (0, y)
+-		// z = z[0] = x*y
+-		z0 = x * y
+-		return
+-	}
+-
+-	if y < B2 {
+-		// sub-digits of x and y are (x1, x0) and (0, y)
+-		// x = (x1*B2 + x0)
+-		// y = (y1*B2 + y0)
+-		x1, x0 := x>>W2, x&M2
+-
+-		// x*y = t2*B2*B2 + t1*B2 + t0
+-		t0 := x0 * y
+-		t1 := x1 * y
+-
+-		// compute result digits but avoid overflow
+-		// z = z[1]*B + z[0] = x*y
+-		z0 = t1<<W2 + t0
+-		z1 = (t1 + t0>>W2) >> W2
+-		return
+-	}
+-
+-	// general case
+-	// sub-digits of x and y are (x1, x0) and (y1, y0)
+-	// x = (x1*B2 + x0)
+-	// y = (y1*B2 + y0)
+-	x1, x0 := x>>W2, x&M2
+-	y1, y0 := y>>W2, y&M2
+-
+-	// x*y = t2*B2*B2 + t1*B2 + t0
+-	t0 := x0 * y0
+-	t1 := x1*y0 + x0*y1
+-	t2 := x1 * y1
+-
+-	// compute result digits but avoid overflow
+-	// z = z[1]*B + z[0] = x*y
+-	z0 = t1<<W2 + t0
+-	z1 = t2 + (t1+t0>>W2)>>W2
+-	return
+-}
+-
+-
+-// z1<<64 + z0 = x*y + c
+-func MulAdd128(x, y, c uint64) (z1, z0 uint64) {
+-	// Split x and y into 2 halfwords each, multiply
+-	// the halfwords separately while avoiding overflow,
+-	// and return the product as 2 words.
+-
+-	const (
+-		W  = uint(unsafe.Sizeof(x)) * 8
+-		W2 = W / 2
+-		B2 = 1 << W2
+-		M2 = B2 - 1
+-	)
+-
+-	// TODO(gri) Should implement special cases for faster execution.
+-
+-	// general case
+-	// sub-digits of x, y, and c are (x1, x0), (y1, y0), (c1, c0)
+-	// x = (x1*B2 + x0)
+-	// y = (y1*B2 + y0)
+-	x1, x0 := x>>W2, x&M2
+-	y1, y0 := y>>W2, y&M2
+-	c1, c0 := c>>W2, c&M2
+-
+-	// x*y + c = t2*B2*B2 + t1*B2 + t0
+-	t0 := x0*y0 + c0
+-	t1 := x1*y0 + x0*y1 + c1
+-	t2 := x1 * y1
+-
+-	// compute result digits but avoid overflow
+-	// z = z[1]*B + z[0] = x*y
+-	z0 = t1<<W2 + t0
+-	z1 = t2 + (t1+t0>>W2)>>W2
+-	return
+-}
+-
+-
+-// q = (x1<<64 + x0)/y + r
+-func Div128(x1, x0, y uint64) (q, r uint64) {
+-	if x1 == 0 {
+-		q, r = x0/y, x0%y
+-		return
+-	}
+-
+-	// TODO(gri) Implement general case.
+-	panic("Div128 not implemented for x > 1<<64-1")
+-}
+diff --git a/src/pkg/exp/bignum/arith_amd64.s b/src/pkg/exp/bignum/arith_amd64.s
+deleted file mode 100644
+index 37d5a30de6..0000000000
+--- a/src/pkg/exp/bignum/arith_amd64.s
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file provides fast assembly versions
+-// of the routines in arith.go.
+-
+-// func Mul128(x, y uint64) (z1, z0 uint64)
+-// z1<<64 + z0 = x*y
+-//
+-TEXT ·Mul128(SB),7,$0
+-	MOVQ a+0(FP), AX
+-	MULQ a+8(FP)
+-	MOVQ DX, a+16(FP)
+-	MOVQ AX, a+24(FP)
+-	RET
+-
+-
+-// func MulAdd128(x, y, c uint64) (z1, z0 uint64)
+-// z1<<64 + z0 = x*y + c
+-//
+-TEXT ·MulAdd128(SB),7,$0
+-	MOVQ a+0(FP), AX
+-	MULQ a+8(FP)
+-	ADDQ a+16(FP), AX
+-	ADCQ $0, DX
+-	MOVQ DX, a+24(FP)
+-	MOVQ AX, a+32(FP)
+-	RET
+-
+-
+-// func Div128(x1, x0, y uint64) (q, r uint64)
+-// q = (x1<<64 + x0)/y + r
+-//
+-TEXT ·Div128(SB),7,$0
+-	MOVQ a+0(FP), DX
+-	MOVQ a+8(FP), AX
+-	DIVQ a+16(FP)
+-	MOVQ AX, a+24(FP)
+-	MOVQ DX, a+32(FP)
+-	RET
+diff --git a/src/pkg/exp/bignum/bignum.go b/src/pkg/exp/bignum/bignum.go
+deleted file mode 100644
+index 485583199b..0000000000
+--- a/src/pkg/exp/bignum/bignum.go
++++ /dev/null
+@@ -1,1024 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// A package for arbitrary precision arithmethic.
+-// It implements the following numeric types:
+-//
+-//	- Natural	unsigned integers
+-//	- Integer	signed integers
+-//	- Rational	rational numbers
+-//
+-// This package has been designed for ease of use but the functions it provides
+-// are likely to be quite slow. It may be deprecated eventually. Use package
+-// big instead, if possible.
+-//
+-package bignum
+-
+-import (
+-	"fmt"
+-)
+-
+-// TODO(gri) Complete the set of in-place operations.
+-
+-// ----------------------------------------------------------------------------
+-// Internal representation
+-//
+-// A natural number of the form
+-//
+-//   x = x[n-1]*B^(n-1) + x[n-2]*B^(n-2) + ... + x[1]*B + x[0]
+-//
+-// with 0 <= x[i] < B and 0 <= i < n is stored in a slice of length n,
+-// with the digits x[i] as the slice elements.
+-//
+-// A natural number is normalized if the slice contains no leading 0 digits.
+-// During arithmetic operations, denormalized values may occur but are
+-// always normalized before returning the final result. The normalized
+-// representation of 0 is the empty slice (length = 0).
+-//
+-// The operations for all other numeric types are implemented on top of
+-// the operations for natural numbers.
+-//
+-// The base B is chosen as large as possible on a given platform but there
+-// are a few constraints besides the size of the largest unsigned integer
+-// type available:
+-//
+-// 1) To improve conversion speed between strings and numbers, the base B
+-//    is chosen such that division and multiplication by 10 (for decimal
+-//    string representation) can be done without using extended-precision
+-//    arithmetic. This makes addition, subtraction, and conversion routines
+-//    twice as fast. It requires a ``buffer'' of 4 bits per operand digit.
+-//    That is, the size of B must be 4 bits smaller then the size of the
+-//    type (digit) in which these operations are performed. Having this
+-//    buffer also allows for trivial (single-bit) carry computation in
+-//    addition and subtraction (optimization suggested by Ken Thompson).
+-//
+-// 2) Long division requires extended-precision (2-digit) division per digit.
+-//    Instead of sacrificing the largest base type for all other operations,
+-//    for division the operands are unpacked into ``half-digits'', and the
+-//    results are packed again. For faster unpacking/packing, the base size
+-//    in bits must be even.
+-
+-type (
+-	digit  uint64
+-	digit2 uint32 // half-digits for division
+-)
+-
+-
+-const (
+-	logW = 64          // word width
+-	logH = 4           // bits for a hex digit (= small number)
+-	logB = logW - logH // largest bit-width available
+-
+-	// half-digits
+-	_W2 = logB / 2 // width
+-	_B2 = 1 << _W2 // base
+-	_M2 = _B2 - 1  // mask
+-
+-	// full digits
+-	_W = _W2 * 2 // width
+-	_B = 1 << _W // base
+-	_M = _B - 1  // mask
+-)
+-
+-
+-// ----------------------------------------------------------------------------
+-// Support functions
+-
+-func assert(p bool) {
+-	if !p {
+-		panic("assert failed")
+-	}
+-}
+-
+-
+-func isSmall(x digit) bool { return x < 1<<logH }
+-
+-
+-// For debugging. Keep around.
+-/*
+-func dump(x Natural) {
+-	print("[", len(x), "]");
+-	for i := len(x) - 1; i >= 0; i-- {
+-		print(" ", x[i]);
+-	}
+-	println();
+-}
+-*/
+-
+-
+-// ----------------------------------------------------------------------------
+-// Natural numbers
+-
+-// Natural represents an unsigned integer value of arbitrary precision.
+-//
+-type Natural []digit
+-
+-
+-// Nat creates a small natural number with value x.
+-//
+-func Nat(x uint64) Natural {
+-	if x == 0 {
+-		return nil // len == 0
+-	}
+-
+-	// single-digit values
+-	// (note: cannot re-use preallocated values because
+-	//        the in-place operations may overwrite them)
+-	if x < _B {
+-		return Natural{digit(x)}
+-	}
+-
+-	// compute number of digits required to represent x
+-	// (this is usually 1 or 2, but the algorithm works
+-	// for any base)
+-	n := 0
+-	for t := x; t > 0; t >>= _W {
+-		n++
+-	}
+-
+-	// split x into digits
+-	z := make(Natural, n)
+-	for i := 0; i < n; i++ {
+-		z[i] = digit(x & _M)
+-		x >>= _W
+-	}
+-
+-	return z
+-}
+-
+-
+-// Value returns the lowest 64bits of x.
+-//
+-func (x Natural) Value() uint64 {
+-	// single-digit values
+-	n := len(x)
+-	switch n {
+-	case 0:
+-		return 0
+-	case 1:
+-		return uint64(x[0])
+-	}
+-
+-	// multi-digit values
+-	// (this is usually 1 or 2, but the algorithm works
+-	// for any base)
+-	z := uint64(0)
+-	s := uint(0)
+-	for i := 0; i < n && s < 64; i++ {
+-		z += uint64(x[i]) << s
+-		s += _W
+-	}
+-
+-	return z
+-}
+-
+-
+-// Predicates
+-
+-// IsEven returns true iff x is divisible by 2.
+-//
+-func (x Natural) IsEven() bool { return len(x) == 0 || x[0]&1 == 0 }
+-
+-
+-// IsOdd returns true iff x is not divisible by 2.
+-//
+-func (x Natural) IsOdd() bool { return len(x) > 0 && x[0]&1 != 0 }
+-
+-
+-// IsZero returns true iff x == 0.
+-//
+-func (x Natural) IsZero() bool { return len(x) == 0 }
+-
+-
+-// Operations
+-//
+-// Naming conventions
+-//
+-// c      carry
+-// x, y   operands
+-// z      result
+-// n, m   len(x), len(y)
+-
+-func normalize(x Natural) Natural {
+-	n := len(x)
+-	for n > 0 && x[n-1] == 0 {
+-		n--
+-	}
+-	return x[0:n]
+-}
+-
+-
+-// nalloc returns a Natural of n digits. If z is large
+-// enough, z is resized and returned. Otherwise, a new
+-// Natural is allocated.
+-//
+-func nalloc(z Natural, n int) Natural {
+-	size := n
+-	if size <= 0 {
+-		size = 4
+-	}
+-	if size <= cap(z) {
+-		return z[0:n]
+-	}
+-	return make(Natural, n, size)
+-}
+-
+-
+-// Nadd sets *zp to the sum x + y.
+-// *zp may be x or y.
+-//
+-func Nadd(zp *Natural, x, y Natural) {
+-	n := len(x)
+-	m := len(y)
+-	if n < m {
+-		Nadd(zp, y, x)
+-		return
+-	}
+-
+-	z := nalloc(*zp, n+1)
+-	c := digit(0)
+-	i := 0
+-	for i < m {
+-		t := c + x[i] + y[i]
+-		c, z[i] = t>>_W, t&_M
+-		i++
+-	}
+-	for i < n {
+-		t := c + x[i]
+-		c, z[i] = t>>_W, t&_M
+-		i++
+-	}
+-	if c != 0 {
+-		z[i] = c
+-		i++
+-	}
+-	*zp = z[0:i]
+-}
+-
+-
+-// Add returns the sum z = x + y.
+-//
+-func (x Natural) Add(y Natural) Natural {
+-	var z Natural
+-	Nadd(&z, x, y)
+-	return z
+-}
+-
+-
+-// Nsub sets *zp to the difference x - y for x >= y.
+-// If x < y, an underflow run-time error occurs (use Cmp to test if x >= y).
+-// *zp may be x or y.
+-//
+-func Nsub(zp *Natural, x, y Natural) {
+-	n := len(x)
+-	m := len(y)
+-	if n < m {
+-		panic("underflow")
+-	}
+-
+-	z := nalloc(*zp, n)
+-	c := digit(0)
+-	i := 0
+-	for i < m {
+-		t := c + x[i] - y[i]
+-		c, z[i] = digit(int64(t)>>_W), t&_M // requires arithmetic shift!
+-		i++
+-	}
+-	for i < n {
+-		t := c + x[i]
+-		c, z[i] = digit(int64(t)>>_W), t&_M // requires arithmetic shift!
+-		i++
+-	}
+-	if int64(c) < 0 {
+-		panic("underflow")
+-	}
+-	*zp = normalize(z)
+-}
+-
+-
+-// Sub returns the difference x - y for x >= y.
+-// If x < y, an underflow run-time error occurs (use Cmp to test if x >= y).
+-//
+-func (x Natural) Sub(y Natural) Natural {
+-	var z Natural
+-	Nsub(&z, x, y)
+-	return z
+-}
+-
+-
+-// Returns z1 = (x*y + c) div B, z0 = (x*y + c) mod B.
+-//
+-func muladd11(x, y, c digit) (digit, digit) {
+-	z1, z0 := MulAdd128(uint64(x), uint64(y), uint64(c))
+-	return digit(z1<<(64-logB) | z0>>logB), digit(z0 & _M)
+-}
+-
+-
+-func mul1(z, x Natural, y digit) (c digit) {
+-	for i := 0; i < len(x); i++ {
+-		c, z[i] = muladd11(x[i], y, c)
+-	}
+-	return
+-}
+-
+-
+-// Nscale sets *z to the scaled value (*z) * d.
+-//
+-func Nscale(z *Natural, d uint64) {
+-	switch {
+-	case d == 0:
+-		*z = Nat(0)
+-		return
+-	case d == 1:
+-		return
+-	case d >= _B:
+-		*z = z.Mul1(d)
+-		return
+-	}
+-
+-	c := mul1(*z, *z, digit(d))
+-
+-	if c != 0 {
+-		n := len(*z)
+-		if n >= cap(*z) {
+-			zz := make(Natural, n+1)
+-			for i, d := range *z {
+-				zz[i] = d
+-			}
+-			*z = zz
+-		} else {
+-			*z = (*z)[0 : n+1]
+-		}
+-		(*z)[n] = c
+-	}
+-}
+-
+-
+-// Computes x = x*d + c for small d's.
+-//
+-func muladd1(x Natural, d, c digit) Natural {
+-	assert(isSmall(d-1) && isSmall(c))
+-	n := len(x)
+-	z := make(Natural, n+1)
+-
+-	for i := 0; i < n; i++ {
+-		t := c + x[i]*d
+-		c, z[i] = t>>_W, t&_M
+-	}
+-	z[n] = c
+-
+-	return normalize(z)
+-}
+-
+-
+-// Mul1 returns the product x * d.
+-//
+-func (x Natural) Mul1(d uint64) Natural {
+-	switch {
+-	case d == 0:
+-		return Nat(0)
+-	case d == 1:
+-		return x
+-	case isSmall(digit(d)):
+-		muladd1(x, digit(d), 0)
+-	case d >= _B:
+-		return x.Mul(Nat(d))
+-	}
+-
+-	z := make(Natural, len(x)+1)
+-	c := mul1(z, x, digit(d))
+-	z[len(x)] = c
+-	return normalize(z)
+-}
+-
+-
+-// Mul returns the product x * y.
+-//
+-func (x Natural) Mul(y Natural) Natural {
+-	n := len(x)
+-	m := len(y)
+-	if n < m {
+-		return y.Mul(x)
+-	}
+-
+-	if m == 0 {
+-		return Nat(0)
+-	}
+-
+-	if m == 1 && y[0] < _B {
+-		return x.Mul1(uint64(y[0]))
+-	}
+-
+-	z := make(Natural, n+m)
+-	for j := 0; j < m; j++ {
+-		d := y[j]
+-		if d != 0 {
+-			c := digit(0)
+-			for i := 0; i < n; i++ {
+-				c, z[i+j] = muladd11(x[i], d, z[i+j]+c)
+-			}
+-			z[n+j] = c
+-		}
+-	}
+-
+-	return normalize(z)
+-}
+-
+-
+-// DivMod needs multi-precision division, which is not available if digit
+-// is already using the largest uint size. Instead, unpack each operand
+-// into operands with twice as many digits of half the size (digit2), do
+-// DivMod, and then pack the results again.
+-
+-func unpack(x Natural) []digit2 {
+-	n := len(x)
+-	z := make([]digit2, n*2+1) // add space for extra digit (used by DivMod)
+-	for i := 0; i < n; i++ {
+-		t := x[i]
+-		z[i*2] = digit2(t & _M2)
+-		z[i*2+1] = digit2(t >> _W2 & _M2)
+-	}
+-
+-	// normalize result
+-	k := 2 * n
+-	for k > 0 && z[k-1] == 0 {
+-		k--
+-	}
+-	return z[0:k] // trim leading 0's
+-}
+-
+-
+-func pack(x []digit2) Natural {
+-	n := (len(x) + 1) / 2
+-	z := make(Natural, n)
+-	if len(x)&1 == 1 {
+-		// handle odd len(x)
+-		n--
+-		z[n] = digit(x[n*2])
+-	}
+-	for i := 0; i < n; i++ {
+-		z[i] = digit(x[i*2+1])<<_W2 | digit(x[i*2])
+-	}
+-	return normalize(z)
+-}
+-
+-
+-func mul21(z, x []digit2, y digit2) digit2 {
+-	c := digit(0)
+-	f := digit(y)
+-	for i := 0; i < len(x); i++ {
+-		t := c + digit(x[i])*f
+-		c, z[i] = t>>_W2, digit2(t&_M2)
+-	}
+-	return digit2(c)
+-}
+-
+-
+-func div21(z, x []digit2, y digit2) digit2 {
+-	c := digit(0)
+-	d := digit(y)
+-	for i := len(x) - 1; i >= 0; i-- {
+-		t := c<<_W2 + digit(x[i])
+-		c, z[i] = t%d, digit2(t/d)
+-	}
+-	return digit2(c)
+-}
+-
+-
+-// divmod returns q and r with x = y*q + r and 0 <= r < y.
+-// x and y are destroyed in the process.
+-//
+-// The algorithm used here is based on 1). 2) describes the same algorithm
+-// in C. A discussion and summary of the relevant theorems can be found in
+-// 3). 3) also describes an easier way to obtain the trial digit - however
+-// it relies on tripple-precision arithmetic which is why Knuth's method is
+-// used here.
+-//
+-// 1) D. Knuth, The Art of Computer Programming. Volume 2. Seminumerical
+-//    Algorithms. Addison-Wesley, Reading, 1969.
+-//    (Algorithm D, Sec. 4.3.1)
+-//
+-// 2) Henry S. Warren, Jr., Hacker's Delight. Addison-Wesley, 2003.
+-//    (9-2 Multiword Division, p.140ff)
+-//
+-// 3) P. Brinch Hansen, ``Multiple-length division revisited: A tour of the
+-//    minefield''. Software - Practice and Experience 24, (June 1994),
+-//    579-601. John Wiley & Sons, Ltd.
+-
+-func divmod(x, y []digit2) ([]digit2, []digit2) {
+-	n := len(x)
+-	m := len(y)
+-	if m == 0 {
+-		panic("division by zero")
+-	}
+-	assert(n+1 <= cap(x)) // space for one extra digit
+-	x = x[0 : n+1]
+-	assert(x[n] == 0)
+-
+-	if m == 1 {
+-		// division by single digit
+-		// result is shifted left by 1 in place!
+-		x[0] = div21(x[1:n+1], x[0:n], y[0])
+-
+-	} else if m > n {
+-		// y > x => quotient = 0, remainder = x
+-		// TODO in this case we shouldn't even unpack x and y
+-		m = n
+-
+-	} else {
+-		// general case
+-		assert(2 <= m && m <= n)
+-
+-		// normalize x and y
+-		// TODO Instead of multiplying, it would be sufficient to
+-		//      shift y such that the normalization condition is
+-		//      satisfied (as done in Hacker's Delight).
+-		f := _B2 / (digit(y[m-1]) + 1)
+-		if f != 1 {
+-			mul21(x, x, digit2(f))
+-			mul21(y, y, digit2(f))
+-		}
+-		assert(_B2/2 <= y[m-1] && y[m-1] < _B2) // incorrect scaling
+-
+-		y1, y2 := digit(y[m-1]), digit(y[m-2])
+-		for i := n - m; i >= 0; i-- {
+-			k := i + m
+-
+-			// compute trial digit (Knuth)
+-			var q digit
+-			{
+-				x0, x1, x2 := digit(x[k]), digit(x[k-1]), digit(x[k-2])
+-				if x0 != y1 {
+-					q = (x0<<_W2 + x1) / y1
+-				} else {
+-					q = _B2 - 1
+-				}
+-				for y2*q > (x0<<_W2+x1-y1*q)<<_W2+x2 {
+-					q--
+-				}
+-			}
+-
+-			// subtract y*q
+-			c := digit(0)
+-			for j := 0; j < m; j++ {
+-				t := c + digit(x[i+j]) - digit(y[j])*q
+-				c, x[i+j] = digit(int64(t)>>_W2), digit2(t&_M2) // requires arithmetic shift!
+-			}
+-			x[k] = digit2((c + digit(x[k])) & _M2)
+-
+-			// correct if trial digit was too large
+-			if x[k] != 0 {
+-				// add y
+-				c := digit(0)
+-				for j := 0; j < m; j++ {
+-					t := c + digit(x[i+j]) + digit(y[j])
+-					c, x[i+j] = t>>_W2, digit2(t&_M2)
+-				}
+-				x[k] = digit2((c + digit(x[k])) & _M2)
+-				assert(x[k] == 0)
+-				// correct trial digit
+-				q--
+-			}
+-
+-			x[k] = digit2(q)
+-		}
+-
+-		// undo normalization for remainder
+-		if f != 1 {
+-			c := div21(x[0:m], x[0:m], digit2(f))
+-			assert(c == 0)
+-		}
+-	}
+-
+-	return x[m : n+1], x[0:m]
+-}
+-
+-
+-// Div returns the quotient q = x / y for y > 0,
+-// with x = y*q + r and 0 <= r < y.
+-// If y == 0, a division-by-zero run-time error occurs.
+-//
+-func (x Natural) Div(y Natural) Natural {
+-	q, _ := divmod(unpack(x), unpack(y))
+-	return pack(q)
+-}
+-
+-
+-// Mod returns the modulus r of the division x / y for y > 0,
+-// with x = y*q + r and 0 <= r < y.
+-// If y == 0, a division-by-zero run-time error occurs.
+-//
+-func (x Natural) Mod(y Natural) Natural {
+-	_, r := divmod(unpack(x), unpack(y))
+-	return pack(r)
+-}
+-
+-
+-// DivMod returns the pair (x.Div(y), x.Mod(y)) for y > 0.
+-// If y == 0, a division-by-zero run-time error occurs.
+-//
+-func (x Natural) DivMod(y Natural) (Natural, Natural) {
+-	q, r := divmod(unpack(x), unpack(y))
+-	return pack(q), pack(r)
+-}
+-
+-
+-func shl(z, x Natural, s uint) digit {
+-	assert(s <= _W)
+-	n := len(x)
+-	c := digit(0)
+-	for i := 0; i < n; i++ {
+-		c, z[i] = x[i]>>(_W-s), x[i]<<s&_M|c
+-	}
+-	return c
+-}
+-
+-
+-// Shl implements ``shift left'' x << s. It returns x * 2^s.
+-//
+-func (x Natural) Shl(s uint) Natural {
+-	n := uint(len(x))
+-	m := n + s/_W
+-	z := make(Natural, m+1)
+-
+-	z[m] = shl(z[m-n:m], x, s%_W)
+-
+-	return normalize(z)
+-}
+-
+-
+-func shr(z, x Natural, s uint) digit {
+-	assert(s <= _W)
+-	n := len(x)
+-	c := digit(0)
+-	for i := n - 1; i >= 0; i-- {
+-		c, z[i] = x[i]<<(_W-s)&_M, x[i]>>s|c
+-	}
+-	return c
+-}
+-
+-
+-// Shr implements ``shift right'' x >> s. It returns x / 2^s.
+-//
+-func (x Natural) Shr(s uint) Natural {
+-	n := uint(len(x))
+-	m := n - s/_W
+-	if m > n { // check for underflow
+-		m = 0
+-	}
+-	z := make(Natural, m)
+-
+-	shr(z, x[n-m:n], s%_W)
+-
+-	return normalize(z)
+-}
+-
+-
+-// And returns the ``bitwise and'' x & y for the 2's-complement representation of x and y.
+-//
+-func (x Natural) And(y Natural) Natural {
+-	n := len(x)
+-	m := len(y)
+-	if n < m {
+-		return y.And(x)
+-	}
+-
+-	z := make(Natural, m)
+-	for i := 0; i < m; i++ {
+-		z[i] = x[i] & y[i]
+-	}
+-	// upper bits are 0
+-
+-	return normalize(z)
+-}
+-
+-
+-func copy(z, x Natural) {
+-	for i, e := range x {
+-		z[i] = e
+-	}
+-}
+-
+-
+-// AndNot returns the ``bitwise clear'' x &^ y for the 2's-complement representation of x and y.
+-//
+-func (x Natural) AndNot(y Natural) Natural {
+-	n := len(x)
+-	m := len(y)
+-	if n < m {
+-		m = n
+-	}
+-
+-	z := make(Natural, n)
+-	for i := 0; i < m; i++ {
+-		z[i] = x[i] &^ y[i]
+-	}
+-	copy(z[m:n], x[m:n])
+-
+-	return normalize(z)
+-}
+-
+-
+-// Or returns the ``bitwise or'' x | y for the 2's-complement representation of x and y.
+-//
+-func (x Natural) Or(y Natural) Natural {
+-	n := len(x)
+-	m := len(y)
+-	if n < m {
+-		return y.Or(x)
+-	}
+-
+-	z := make(Natural, n)
+-	for i := 0; i < m; i++ {
+-		z[i] = x[i] | y[i]
+-	}
+-	copy(z[m:n], x[m:n])
+-
+-	return z
+-}
+-
+-
+-// Xor returns the ``bitwise exclusive or'' x ^ y for the 2's-complement representation of x and y.
+-//
+-func (x Natural) Xor(y Natural) Natural {
+-	n := len(x)
+-	m := len(y)
+-	if n < m {
+-		return y.Xor(x)
+-	}
+-
+-	z := make(Natural, n)
+-	for i := 0; i < m; i++ {
+-		z[i] = x[i] ^ y[i]
+-	}
+-	copy(z[m:n], x[m:n])
+-
+-	return normalize(z)
+-}
+-
+-
+-// Cmp compares x and y. The result is an int value
+-//
+-//   <  0 if x <  y
+-//   == 0 if x == y
+-//   >  0 if x >  y
+-//
+-func (x Natural) Cmp(y Natural) int {
+-	n := len(x)
+-	m := len(y)
+-
+-	if n != m || n == 0 {
+-		return n - m
+-	}
+-
+-	i := n - 1
+-	for i > 0 && x[i] == y[i] {
+-		i--
+-	}
+-
+-	d := 0
+-	switch {
+-	case x[i] < y[i]:
+-		d = -1
+-	case x[i] > y[i]:
+-		d = 1
+-	}
+-
+-	return d
+-}
+-
+-
+-// log2 computes the binary logarithm of x for x > 0.
+-// The result is the integer n for which 2^n <= x < 2^(n+1).
+-// If x == 0 a run-time error occurs.
+-//
+-func log2(x uint64) uint {
+-	assert(x > 0)
+-	n := uint(0)
+-	for x > 0 {
+-		x >>= 1
+-		n++
+-	}
+-	return n - 1
+-}
+-
+-
+-// Log2 computes the binary logarithm of x for x > 0.
+-// The result is the integer n for which 2^n <= x < 2^(n+1).
+-// If x == 0 a run-time error occurs.
+-//
+-func (x Natural) Log2() uint {
+-	n := len(x)
+-	if n > 0 {
+-		return (uint(n)-1)*_W + log2(uint64(x[n-1]))
+-	}
+-	panic("Log2(0)")
+-}
+-
+-
+-// Computes x = x div d in place (modifies x) for small d's.
+-// Returns updated x and x mod d.
+-//
+-func divmod1(x Natural, d digit) (Natural, digit) {
+-	assert(0 < d && isSmall(d-1))
+-
+-	c := digit(0)
+-	for i := len(x) - 1; i >= 0; i-- {
+-		t := c<<_W + x[i]
+-		c, x[i] = t%d, t/d
+-	}
+-
+-	return normalize(x), c
+-}
+-
+-
+-// ToString converts x to a string for a given base, with 2 <= base <= 16.
+-//
+-func (x Natural) ToString(base uint) string {
+-	if len(x) == 0 {
+-		return "0"
+-	}
+-
+-	// allocate buffer for conversion
+-	assert(2 <= base && base <= 16)
+-	n := (x.Log2()+1)/log2(uint64(base)) + 1 // +1: round up
+-	s := make([]byte, n)
+-
+-	// don't destroy x
+-	t := make(Natural, len(x))
+-	copy(t, x)
+-
+-	// convert
+-	i := n
+-	for !t.IsZero() {
+-		i--
+-		var d digit
+-		t, d = divmod1(t, digit(base))
+-		s[i] = "0123456789abcdef"[d]
+-	}
+-
+-	return string(s[i:n])
+-}
+-
+-
+-// String converts x to its decimal string representation.
+-// x.String() is the same as x.ToString(10).
+-//
+-func (x Natural) String() string { return x.ToString(10) }
+-
+-
+-func fmtbase(c int) uint {
+-	switch c {
+-	case 'b':
+-		return 2
+-	case 'o':
+-		return 8
+-	case 'x':
+-		return 16
+-	}
+-	return 10
+-}
+-
+-
+-// Format is a support routine for fmt.Formatter. It accepts
+-// the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
+-//
+-func (x Natural) Format(h fmt.State, c int) { fmt.Fprintf(h, "%s", x.ToString(fmtbase(c))) }
+-
+-
+-func hexvalue(ch byte) uint {
+-	d := uint(1 << logH)
+-	switch {
+-	case '0' <= ch && ch <= '9':
+-		d = uint(ch - '0')
+-	case 'a' <= ch && ch <= 'f':
+-		d = uint(ch-'a') + 10
+-	case 'A' <= ch && ch <= 'F':
+-		d = uint(ch-'A') + 10
+-	}
+-	return d
+-}
+-
+-
+-// NatFromString returns the natural number corresponding to the
+-// longest possible prefix of s representing a natural number in a
+-// given conversion base, the actual conversion base used, and the
+-// prefix length. The syntax of natural numbers follows the syntax
+-// of unsigned integer literals in Go.
+-//
+-// If the base argument is 0, the string prefix determines the actual
+-// conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
+-// ``0'' prefix selects base 8. Otherwise the selected base is 10.
+-//
+-func NatFromString(s string, base uint) (Natural, uint, int) {
+-	// determine base if necessary
+-	i, n := 0, len(s)
+-	if base == 0 {
+-		base = 10
+-		if n > 0 && s[0] == '0' {
+-			if n > 1 && (s[1] == 'x' || s[1] == 'X') {
+-				base, i = 16, 2
+-			} else {
+-				base, i = 8, 1
+-			}
+-		}
+-	}
+-
+-	// convert string
+-	assert(2 <= base && base <= 16)
+-	x := Nat(0)
+-	for ; i < n; i++ {
+-		d := hexvalue(s[i])
+-		if d < base {
+-			x = muladd1(x, digit(base), digit(d))
+-		} else {
+-			break
+-		}
+-	}
+-
+-	return x, base, i
+-}
+-
+-
+-// Natural number functions
+-
+-func pop1(x digit) uint {
+-	n := uint(0)
+-	for x != 0 {
+-		x &= x - 1
+-		n++
+-	}
+-	return n
+-}
+-
+-
+-// Pop computes the ``population count'' of (the number of 1 bits in) x.
+-//
+-func (x Natural) Pop() uint {
+-	n := uint(0)
+-	for i := len(x) - 1; i >= 0; i-- {
+-		n += pop1(x[i])
+-	}
+-	return n
+-}
+-
+-
+-// Pow computes x to the power of n.
+-//
+-func (xp Natural) Pow(n uint) Natural {
+-	z := Nat(1)
+-	x := xp
+-	for n > 0 {
+-		// z * x^n == x^n0
+-		if n&1 == 1 {
+-			z = z.Mul(x)
+-		}
+-		x, n = x.Mul(x), n/2
+-	}
+-	return z
+-}
+-
+-
+-// MulRange computes the product of all the unsigned integers
+-// in the range [a, b] inclusively.
+-//
+-func MulRange(a, b uint) Natural {
+-	switch {
+-	case a > b:
+-		return Nat(1)
+-	case a == b:
+-		return Nat(uint64(a))
+-	case a+1 == b:
+-		return Nat(uint64(a)).Mul(Nat(uint64(b)))
+-	}
+-	m := (a + b) >> 1
+-	assert(a <= m && m < b)
+-	return MulRange(a, m).Mul(MulRange(m+1, b))
+-}
+-
+-
+-// Fact computes the factorial of n (Fact(n) == MulRange(2, n)).
+-//
+-func Fact(n uint) Natural {
+-	// Using MulRange() instead of the basic for-loop
+-	// lead to faster factorial computation.
+-	return MulRange(2, n)
+-}
+-
+-
+-// Binomial computes the binomial coefficient of (n, k).
+-//
+-func Binomial(n, k uint) Natural { return MulRange(n-k+1, n).Div(MulRange(1, k)) }
+-
+-
+-// Gcd computes the gcd of x and y.
+-//
+-func (x Natural) Gcd(y Natural) Natural {
+-	// Euclidean algorithm.
+-	a, b := x, y
+-	for !b.IsZero() {
+-		a, b = b, a.Mod(b)
+-	}
+-	return a
+-}
+diff --git a/src/pkg/exp/bignum/bignum_test.go b/src/pkg/exp/bignum/bignum_test.go
+deleted file mode 100644
+index 8db93aa96f..0000000000
+--- a/src/pkg/exp/bignum/bignum_test.go
++++ /dev/null
+@@ -1,681 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package bignum
+-
+-import (
+-	"fmt"
+-	"testing"
+-)
+-
+-const (
+-	sa = "991"
+-	sb = "2432902008176640000" // 20!
+-	sc = "933262154439441526816992388562667004907159682643816214685929" +
+-		"638952175999932299156089414639761565182862536979208272237582" +
+-		"51185210916864000000000000000000000000" // 100!
+-	sp = "170141183460469231731687303715884105727" // prime
+-)
+-
+-func natFromString(s string, base uint, slen *int) Natural {
+-	x, _, len := NatFromString(s, base)
+-	if slen != nil {
+-		*slen = len
+-	}
+-	return x
+-}
+-
+-
+-func intFromString(s string, base uint, slen *int) *Integer {
+-	x, _, len := IntFromString(s, base)
+-	if slen != nil {
+-		*slen = len
+-	}
+-	return x
+-}
+-
+-
+-func ratFromString(s string, base uint, slen *int) *Rational {
+-	x, _, len := RatFromString(s, base)
+-	if slen != nil {
+-		*slen = len
+-	}
+-	return x
+-}
+-
+-
+-var (
+-	nat_zero = Nat(0)
+-	nat_one  = Nat(1)
+-	nat_two  = Nat(2)
+-	a        = natFromString(sa, 10, nil)
+-	b        = natFromString(sb, 10, nil)
+-	c        = natFromString(sc, 10, nil)
+-	p        = natFromString(sp, 10, nil)
+-	int_zero = Int(0)
+-	int_one  = Int(1)
+-	int_two  = Int(2)
+-	ip       = intFromString(sp, 10, nil)
+-	rat_zero = Rat(0, 1)
+-	rat_half = Rat(1, 2)
+-	rat_one  = Rat(1, 1)
+-	rat_two  = Rat(2, 1)
+-)
+-
+-
+-var test_msg string
+-var tester *testing.T
+-
+-func test(n uint, b bool) {
+-	if !b {
+-		tester.Fatalf("TEST failed: %s (%d)", test_msg, n)
+-	}
+-}
+-
+-
+-func nat_eq(n uint, x, y Natural) {
+-	if x.Cmp(y) != 0 {
+-		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, &x, &y)
+-	}
+-}
+-
+-
+-func int_eq(n uint, x, y *Integer) {
+-	if x.Cmp(y) != 0 {
+-		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, x, y)
+-	}
+-}
+-
+-
+-func rat_eq(n uint, x, y *Rational) {
+-	if x.Cmp(y) != 0 {
+-		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, x, y)
+-	}
+-}
+-
+-
+-func TestNatConv(t *testing.T) {
+-	tester = t
+-	test_msg = "NatConvA"
+-	type entry1 struct {
+-		x uint64
+-		s string
+-	}
+-	tab := []entry1{
+-		entry1{0, "0"},
+-		entry1{255, "255"},
+-		entry1{65535, "65535"},
+-		entry1{4294967295, "4294967295"},
+-		entry1{18446744073709551615, "18446744073709551615"},
+-	}
+-	for i, e := range tab {
+-		test(100+uint(i), Nat(e.x).String() == e.s)
+-		test(200+uint(i), natFromString(e.s, 0, nil).Value() == e.x)
+-	}
+-
+-	test_msg = "NatConvB"
+-	for i := uint(0); i < 100; i++ {
+-		test(i, Nat(uint64(i)).String() == fmt.Sprintf("%d", i))
+-	}
+-
+-	test_msg = "NatConvC"
+-	z := uint64(7)
+-	for i := uint(0); i <= 64; i++ {
+-		test(i, Nat(z).Value() == z)
+-		z <<= 1
+-	}
+-
+-	test_msg = "NatConvD"
+-	nat_eq(0, a, Nat(991))
+-	nat_eq(1, b, Fact(20))
+-	nat_eq(2, c, Fact(100))
+-	test(3, a.String() == sa)
+-	test(4, b.String() == sb)
+-	test(5, c.String() == sc)
+-
+-	test_msg = "NatConvE"
+-	var slen int
+-	nat_eq(10, natFromString("0", 0, nil), nat_zero)
+-	nat_eq(11, natFromString("123", 0, nil), Nat(123))
+-	nat_eq(12, natFromString("077", 0, nil), Nat(7*8+7))
+-	nat_eq(13, natFromString("0x1f", 0, nil), Nat(1*16+15))
+-	nat_eq(14, natFromString("0x1fg", 0, &slen), Nat(1*16+15))
+-	test(4, slen == 4)
+-
+-	test_msg = "NatConvF"
+-	tmp := c.Mul(c)
+-	for base := uint(2); base <= 16; base++ {
+-		nat_eq(base, natFromString(tmp.ToString(base), base, nil), tmp)
+-	}
+-
+-	test_msg = "NatConvG"
+-	x := Nat(100)
+-	y, _, _ := NatFromString(fmt.Sprintf("%b", &x), 2)
+-	nat_eq(100, y, x)
+-}
+-
+-
+-func abs(x int64) uint64 {
+-	if x < 0 {
+-		x = -x
+-	}
+-	return uint64(x)
+-}
+-
+-
+-func TestIntConv(t *testing.T) {
+-	tester = t
+-	test_msg = "IntConvA"
+-	type entry2 struct {
+-		x int64
+-		s string
+-	}
+-	tab := []entry2{
+-		entry2{0, "0"},
+-		entry2{-128, "-128"},
+-		entry2{127, "127"},
+-		entry2{-32768, "-32768"},
+-		entry2{32767, "32767"},
+-		entry2{-2147483648, "-2147483648"},
+-		entry2{2147483647, "2147483647"},
+-		entry2{-9223372036854775808, "-9223372036854775808"},
+-		entry2{9223372036854775807, "9223372036854775807"},
+-	}
+-	for i, e := range tab {
+-		test(100+uint(i), Int(e.x).String() == e.s)
+-		test(200+uint(i), intFromString(e.s, 0, nil).Value() == e.x)
+-		test(300+uint(i), Int(e.x).Abs().Value() == abs(e.x))
+-	}
+-
+-	test_msg = "IntConvB"
+-	var slen int
+-	int_eq(0, intFromString("0", 0, nil), int_zero)
+-	int_eq(1, intFromString("-0", 0, nil), int_zero)
+-	int_eq(2, intFromString("123", 0, nil), Int(123))
+-	int_eq(3, intFromString("-123", 0, nil), Int(-123))
+-	int_eq(4, intFromString("077", 0, nil), Int(7*8+7))
+-	int_eq(5, intFromString("-077", 0, nil), Int(-(7*8 + 7)))
+-	int_eq(6, intFromString("0x1f", 0, nil), Int(1*16+15))
+-	int_eq(7, intFromString("-0x1f", 0, &slen), Int(-(1*16 + 15)))
+-	test(7, slen == 5)
+-	int_eq(8, intFromString("+0x1f", 0, &slen), Int(+(1*16 + 15)))
+-	test(8, slen == 5)
+-	int_eq(9, intFromString("0x1fg", 0, &slen), Int(1*16+15))
+-	test(9, slen == 4)
+-	int_eq(10, intFromString("-0x1fg", 0, &slen), Int(-(1*16 + 15)))
+-	test(10, slen == 5)
+-}
+-
+-
+-func TestRatConv(t *testing.T) {
+-	tester = t
+-	test_msg = "RatConv"
+-	var slen int
+-	rat_eq(0, ratFromString("0", 0, nil), rat_zero)
+-	rat_eq(1, ratFromString("0/1", 0, nil), rat_zero)
+-	rat_eq(2, ratFromString("0/01", 0, nil), rat_zero)
+-	rat_eq(3, ratFromString("0x14/10", 0, &slen), rat_two)
+-	test(4, slen == 7)
+-	rat_eq(5, ratFromString("0.", 0, nil), rat_zero)
+-	rat_eq(6, ratFromString("0.001f", 10, nil), Rat(1, 1000))
+-	rat_eq(7, ratFromString(".1", 0, nil), Rat(1, 10))
+-	rat_eq(8, ratFromString("10101.0101", 2, nil), Rat(0x155, 1<<4))
+-	rat_eq(9, ratFromString("-0003.145926", 10, &slen), Rat(-3145926, 1000000))
+-	test(10, slen == 12)
+-	rat_eq(11, ratFromString("1e2", 0, nil), Rat(100, 1))
+-	rat_eq(12, ratFromString("1e-2", 0, nil), Rat(1, 100))
+-	rat_eq(13, ratFromString("1.1e2", 0, nil), Rat(110, 1))
+-	rat_eq(14, ratFromString(".1e2x", 0, &slen), Rat(10, 1))
+-	test(15, slen == 4)
+-}
+-
+-
+-func add(x, y Natural) Natural {
+-	z1 := x.Add(y)
+-	z2 := y.Add(x)
+-	if z1.Cmp(z2) != 0 {
+-		tester.Fatalf("addition not symmetric:\n\tx = %v\n\ty = %t", x, y)
+-	}
+-	return z1
+-}
+-
+-
+-func sum(n uint64, scale Natural) Natural {
+-	s := nat_zero
+-	for ; n > 0; n-- {
+-		s = add(s, Nat(n).Mul(scale))
+-	}
+-	return s
+-}
+-
+-
+-func TestNatAdd(t *testing.T) {
+-	tester = t
+-	test_msg = "NatAddA"
+-	nat_eq(0, add(nat_zero, nat_zero), nat_zero)
+-	nat_eq(1, add(nat_zero, c), c)
+-
+-	test_msg = "NatAddB"
+-	for i := uint64(0); i < 100; i++ {
+-		t := Nat(i)
+-		nat_eq(uint(i), sum(i, c), t.Mul(t).Add(t).Shr(1).Mul(c))
+-	}
+-}
+-
+-
+-func mul(x, y Natural) Natural {
+-	z1 := x.Mul(y)
+-	z2 := y.Mul(x)
+-	if z1.Cmp(z2) != 0 {
+-		tester.Fatalf("multiplication not symmetric:\n\tx = %v\n\ty = %t", x, y)
+-	}
+-	if !x.IsZero() && z1.Div(x).Cmp(y) != 0 {
+-		tester.Fatalf("multiplication/division not inverse (A):\n\tx = %v\n\ty = %t", x, y)
+-	}
+-	if !y.IsZero() && z1.Div(y).Cmp(x) != 0 {
+-		tester.Fatalf("multiplication/division not inverse (B):\n\tx = %v\n\ty = %t", x, y)
+-	}
+-	return z1
+-}
+-
+-
+-func TestNatSub(t *testing.T) {
+-	tester = t
+-	test_msg = "NatSubA"
+-	nat_eq(0, nat_zero.Sub(nat_zero), nat_zero)
+-	nat_eq(1, c.Sub(nat_zero), c)
+-
+-	test_msg = "NatSubB"
+-	for i := uint64(0); i < 100; i++ {
+-		t := sum(i, c)
+-		for j := uint64(0); j <= i; j++ {
+-			t = t.Sub(mul(Nat(j), c))
+-		}
+-		nat_eq(uint(i), t, nat_zero)
+-	}
+-}
+-
+-
+-func TestNatMul(t *testing.T) {
+-	tester = t
+-	test_msg = "NatMulA"
+-	nat_eq(0, mul(c, nat_zero), nat_zero)
+-	nat_eq(1, mul(c, nat_one), c)
+-
+-	test_msg = "NatMulB"
+-	nat_eq(0, b.Mul(MulRange(0, 100)), nat_zero)
+-	nat_eq(1, b.Mul(MulRange(21, 100)), c)
+-
+-	test_msg = "NatMulC"
+-	const n = 100
+-	p := b.Mul(c).Shl(n)
+-	for i := uint(0); i < n; i++ {
+-		nat_eq(i, mul(b.Shl(i), c.Shl(n-i)), p)
+-	}
+-}
+-
+-
+-func TestNatDiv(t *testing.T) {
+-	tester = t
+-	test_msg = "NatDivA"
+-	nat_eq(0, c.Div(nat_one), c)
+-	nat_eq(1, c.Div(Nat(100)), Fact(99))
+-	nat_eq(2, b.Div(c), nat_zero)
+-	nat_eq(4, nat_one.Shl(100).Div(nat_one.Shl(90)), nat_one.Shl(10))
+-	nat_eq(5, c.Div(b), MulRange(21, 100))
+-
+-	test_msg = "NatDivB"
+-	const n = 100
+-	p := Fact(n)
+-	for i := uint(0); i < n; i++ {
+-		nat_eq(100+i, p.Div(MulRange(1, i)), MulRange(i+1, n))
+-	}
+-
+-	// a specific test case that exposed a bug in package big
+-	test_msg = "NatDivC"
+-	x := natFromString("69720375229712477164533808935312303556800", 10, nil)
+-	y := natFromString("3099044504245996706400", 10, nil)
+-	q := natFromString("22497377864108980962", 10, nil)
+-	r := natFromString("0", 10, nil)
+-	qc, rc := x.DivMod(y)
+-	nat_eq(0, q, qc)
+-	nat_eq(1, r, rc)
+-}
+-
+-
+-func TestIntQuoRem(t *testing.T) {
+-	tester = t
+-	test_msg = "IntQuoRem"
+-	type T struct {
+-		x, y, q, r int64
+-	}
+-	a := []T{
+-		T{+8, +3, +2, +2},
+-		T{+8, -3, -2, +2},
+-		T{-8, +3, -2, -2},
+-		T{-8, -3, +2, -2},
+-		T{+1, +2, 0, +1},
+-		T{+1, -2, 0, +1},
+-		T{-1, +2, 0, -1},
+-		T{-1, -2, 0, -1},
+-	}
+-	for i := uint(0); i < uint(len(a)); i++ {
+-		e := &a[i]
+-		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip)
+-		q, r := Int(e.q), Int(e.r).Mul(ip)
+-		qq, rr := x.QuoRem(y)
+-		int_eq(4*i+0, x.Quo(y), q)
+-		int_eq(4*i+1, x.Rem(y), r)
+-		int_eq(4*i+2, qq, q)
+-		int_eq(4*i+3, rr, r)
+-	}
+-}
+-
+-
+-func TestIntDivMod(t *testing.T) {
+-	tester = t
+-	test_msg = "IntDivMod"
+-	type T struct {
+-		x, y, q, r int64
+-	}
+-	a := []T{
+-		T{+8, +3, +2, +2},
+-		T{+8, -3, -2, +2},
+-		T{-8, +3, -3, +1},
+-		T{-8, -3, +3, +1},
+-		T{+1, +2, 0, +1},
+-		T{+1, -2, 0, +1},
+-		T{-1, +2, -1, +1},
+-		T{-1, -2, +1, +1},
+-	}
+-	for i := uint(0); i < uint(len(a)); i++ {
+-		e := &a[i]
+-		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip)
+-		q, r := Int(e.q), Int(e.r).Mul(ip)
+-		qq, rr := x.DivMod(y)
+-		int_eq(4*i+0, x.Div(y), q)
+-		int_eq(4*i+1, x.Mod(y), r)
+-		int_eq(4*i+2, qq, q)
+-		int_eq(4*i+3, rr, r)
+-	}
+-}
+-
+-
+-func TestNatMod(t *testing.T) {
+-	tester = t
+-	test_msg = "NatModA"
+-	for i := uint(0); ; i++ {
+-		d := nat_one.Shl(i)
+-		if d.Cmp(c) < 0 {
+-			nat_eq(i, c.Add(d).Mod(c), d)
+-		} else {
+-			nat_eq(i, c.Add(d).Div(c), nat_two)
+-			nat_eq(i, c.Add(d).Mod(c), d.Sub(c))
+-			break
+-		}
+-	}
+-}
+-
+-
+-func TestNatShift(t *testing.T) {
+-	tester = t
+-	test_msg = "NatShift1L"
+-	test(0, b.Shl(0).Cmp(b) == 0)
+-	test(1, c.Shl(1).Cmp(c) > 0)
+-
+-	test_msg = "NatShift1R"
+-	test(3, b.Shr(0).Cmp(b) == 0)
+-	test(4, c.Shr(1).Cmp(c) < 0)
+-
+-	test_msg = "NatShift2"
+-	for i := uint(0); i < 100; i++ {
+-		test(i, c.Shl(i).Shr(i).Cmp(c) == 0)
+-	}
+-
+-	test_msg = "NatShift3L"
+-	{
+-		const m = 3
+-		p := b
+-		f := Nat(1 << m)
+-		for i := uint(0); i < 100; i++ {
+-			nat_eq(i, b.Shl(i*m), p)
+-			p = mul(p, f)
+-		}
+-	}
+-
+-	test_msg = "NatShift3R"
+-	{
+-		p := c
+-		for i := uint(0); !p.IsZero(); i++ {
+-			nat_eq(i, c.Shr(i), p)
+-			p = p.Shr(1)
+-		}
+-	}
+-}
+-
+-
+-func TestIntShift(t *testing.T) {
+-	tester = t
+-	test_msg = "IntShift1L"
+-	test(0, ip.Shl(0).Cmp(ip) == 0)
+-	test(1, ip.Shl(1).Cmp(ip) > 0)
+-
+-	test_msg = "IntShift1R"
+-	test(0, ip.Shr(0).Cmp(ip) == 0)
+-	test(1, ip.Shr(1).Cmp(ip) < 0)
+-
+-	test_msg = "IntShift2"
+-	for i := uint(0); i < 100; i++ {
+-		test(i, ip.Shl(i).Shr(i).Cmp(ip) == 0)
+-	}
+-
+-	test_msg = "IntShift3L"
+-	{
+-		const m = 3
+-		p := ip
+-		f := Int(1 << m)
+-		for i := uint(0); i < 100; i++ {
+-			int_eq(i, ip.Shl(i*m), p)
+-			p = p.Mul(f)
+-		}
+-	}
+-
+-	test_msg = "IntShift3R"
+-	{
+-		p := ip
+-		for i := uint(0); p.IsPos(); i++ {
+-			int_eq(i, ip.Shr(i), p)
+-			p = p.Shr(1)
+-		}
+-	}
+-
+-	test_msg = "IntShift4R"
+-	int_eq(0, Int(-43).Shr(1), Int(-43>>1))
+-	int_eq(0, Int(-1024).Shr(100), Int(-1))
+-	int_eq(1, ip.Neg().Shr(10), ip.Neg().Div(Int(1).Shl(10)))
+-}
+-
+-
+-func TestNatBitOps(t *testing.T) {
+-	tester = t
+-
+-	x := uint64(0xf08e6f56bd8c3941)
+-	y := uint64(0x3984ef67834bc)
+-
+-	bx := Nat(x)
+-	by := Nat(y)
+-
+-	test_msg = "NatAnd"
+-	bz := Nat(x & y)
+-	for i := uint(0); i < 100; i++ {
+-		nat_eq(i, bx.Shl(i).And(by.Shl(i)), bz.Shl(i))
+-	}
+-
+-	test_msg = "NatAndNot"
+-	bz = Nat(x &^ y)
+-	for i := uint(0); i < 100; i++ {
+-		nat_eq(i, bx.Shl(i).AndNot(by.Shl(i)), bz.Shl(i))
+-	}
+-
+-	test_msg = "NatOr"
+-	bz = Nat(x | y)
+-	for i := uint(0); i < 100; i++ {
+-		nat_eq(i, bx.Shl(i).Or(by.Shl(i)), bz.Shl(i))
+-	}
+-
+-	test_msg = "NatXor"
+-	bz = Nat(x ^ y)
+-	for i := uint(0); i < 100; i++ {
+-		nat_eq(i, bx.Shl(i).Xor(by.Shl(i)), bz.Shl(i))
+-	}
+-}
+-
+-
+-func TestIntBitOps1(t *testing.T) {
+-	tester = t
+-	test_msg = "IntBitOps1"
+-	type T struct {
+-		x, y int64
+-	}
+-	a := []T{
+-		T{+7, +3},
+-		T{+7, -3},
+-		T{-7, +3},
+-		T{-7, -3},
+-	}
+-	for i := uint(0); i < uint(len(a)); i++ {
+-		e := &a[i]
+-		int_eq(4*i+0, Int(e.x).And(Int(e.y)), Int(e.x&e.y))
+-		int_eq(4*i+1, Int(e.x).AndNot(Int(e.y)), Int(e.x&^e.y))
+-		int_eq(4*i+2, Int(e.x).Or(Int(e.y)), Int(e.x|e.y))
+-		int_eq(4*i+3, Int(e.x).Xor(Int(e.y)), Int(e.x^e.y))
+-	}
+-}
+-
+-
+-func TestIntBitOps2(t *testing.T) {
+-	tester = t
+-
+-	test_msg = "IntNot"
+-	int_eq(0, Int(-2).Not(), Int(1))
+-	int_eq(0, Int(-1).Not(), Int(0))
+-	int_eq(0, Int(0).Not(), Int(-1))
+-	int_eq(0, Int(1).Not(), Int(-2))
+-	int_eq(0, Int(2).Not(), Int(-3))
+-
+-	test_msg = "IntAnd"
+-	for x := int64(-15); x < 5; x++ {
+-		bx := Int(x)
+-		for y := int64(-5); y < 15; y++ {
+-			by := Int(y)
+-			for i := uint(50); i < 70; i++ { // shift across 64bit boundary
+-				int_eq(i, bx.Shl(i).And(by.Shl(i)), Int(x&y).Shl(i))
+-			}
+-		}
+-	}
+-
+-	test_msg = "IntAndNot"
+-	for x := int64(-15); x < 5; x++ {
+-		bx := Int(x)
+-		for y := int64(-5); y < 15; y++ {
+-			by := Int(y)
+-			for i := uint(50); i < 70; i++ { // shift across 64bit boundary
+-				int_eq(2*i+0, bx.Shl(i).AndNot(by.Shl(i)), Int(x&^y).Shl(i))
+-				int_eq(2*i+1, bx.Shl(i).And(by.Shl(i).Not()), Int(x&^y).Shl(i))
+-			}
+-		}
+-	}
+-
+-	test_msg = "IntOr"
+-	for x := int64(-15); x < 5; x++ {
+-		bx := Int(x)
+-		for y := int64(-5); y < 15; y++ {
+-			by := Int(y)
+-			for i := uint(50); i < 70; i++ { // shift across 64bit boundary
+-				int_eq(i, bx.Shl(i).Or(by.Shl(i)), Int(x|y).Shl(i))
+-			}
+-		}
+-	}
+-
+-	test_msg = "IntXor"
+-	for x := int64(-15); x < 5; x++ {
+-		bx := Int(x)
+-		for y := int64(-5); y < 15; y++ {
+-			by := Int(y)
+-			for i := uint(50); i < 70; i++ { // shift across 64bit boundary
+-				int_eq(i, bx.Shl(i).Xor(by.Shl(i)), Int(x^y).Shl(i))
+-			}
+-		}
+-	}
+-}
+-
+-
+-func TestNatCmp(t *testing.T) {
+-	tester = t
+-	test_msg = "NatCmp"
+-	test(0, a.Cmp(a) == 0)
+-	test(1, a.Cmp(b) < 0)
+-	test(2, b.Cmp(a) > 0)
+-	test(3, a.Cmp(c) < 0)
+-	d := c.Add(b)
+-	test(4, c.Cmp(d) < 0)
+-	test(5, d.Cmp(c) > 0)
+-}
+-
+-
+-func TestNatLog2(t *testing.T) {
+-	tester = t
+-	test_msg = "NatLog2A"
+-	test(0, nat_one.Log2() == 0)
+-	test(1, nat_two.Log2() == 1)
+-	test(2, Nat(3).Log2() == 1)
+-	test(3, Nat(4).Log2() == 2)
+-
+-	test_msg = "NatLog2B"
+-	for i := uint(0); i < 100; i++ {
+-		test(i, nat_one.Shl(i).Log2() == i)
+-	}
+-}
+-
+-
+-func TestNatGcd(t *testing.T) {
+-	tester = t
+-	test_msg = "NatGcdA"
+-	f := Nat(99991)
+-	nat_eq(0, b.Mul(f).Gcd(c.Mul(f)), MulRange(1, 20).Mul(f))
+-}
+-
+-
+-func TestNatPow(t *testing.T) {
+-	tester = t
+-	test_msg = "NatPowA"
+-	nat_eq(0, nat_two.Pow(0), nat_one)
+-
+-	test_msg = "NatPowB"
+-	for i := uint(0); i < 100; i++ {
+-		nat_eq(i, nat_two.Pow(i), nat_one.Shl(i))
+-	}
+-}
+-
+-
+-func TestNatPop(t *testing.T) {
+-	tester = t
+-	test_msg = "NatPopA"
+-	test(0, nat_zero.Pop() == 0)
+-	test(1, nat_one.Pop() == 1)
+-	test(2, Nat(10).Pop() == 2)
+-	test(3, Nat(30).Pop() == 4)
+-	test(4, Nat(0x1248f).Shl(33).Pop() == 8)
+-
+-	test_msg = "NatPopB"
+-	for i := uint(0); i < 100; i++ {
+-		test(i, nat_one.Shl(i).Sub(nat_one).Pop() == i)
+-	}
+-}
+-
+-
+-func TestIssue571(t *testing.T) {
+-	const min_float = "4.940656458412465441765687928682213723651e-324"
+-	RatFromString(min_float, 10) // this must not crash
+-}
+diff --git a/src/pkg/exp/bignum/integer.go b/src/pkg/exp/bignum/integer.go
+deleted file mode 100644
+index a8d26829d1..0000000000
+--- a/src/pkg/exp/bignum/integer.go
++++ /dev/null
+@@ -1,520 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Integer numbers
+-//
+-// Integers are normalized if the mantissa is normalized and the sign is
+-// false for mant == 0. Use MakeInt to create normalized Integers.
+-
+-package bignum
+-
+-import (
+-	"fmt"
+-)
+-
+-// TODO(gri) Complete the set of in-place operations.
+-
+-// Integer represents a signed integer value of arbitrary precision.
+-//
+-type Integer struct {
+-	sign bool
+-	mant Natural
+-}
+-
+-
+-// MakeInt makes an integer given a sign and a mantissa.
+-// The number is positive (>= 0) if sign is false or the
+-// mantissa is zero; it is negative otherwise.
+-//
+-func MakeInt(sign bool, mant Natural) *Integer {
+-	if mant.IsZero() {
+-		sign = false // normalize
+-	}
+-	return &Integer{sign, mant}
+-}
+-
+-
+-// Int creates a small integer with value x.
+-//
+-func Int(x int64) *Integer {
+-	var ux uint64
+-	if x < 0 {
+-		// For the most negative x, -x == x, and
+-		// the bit pattern has the correct value.
+-		ux = uint64(-x)
+-	} else {
+-		ux = uint64(x)
+-	}
+-	return MakeInt(x < 0, Nat(ux))
+-}
+-
+-
+-// Value returns the value of x, if x fits into an int64;
+-// otherwise the result is undefined.
+-//
+-func (x *Integer) Value() int64 {
+-	z := int64(x.mant.Value())
+-	if x.sign {
+-		z = -z
+-	}
+-	return z
+-}
+-
+-
+-// Abs returns the absolute value of x.
+-//
+-func (x *Integer) Abs() Natural { return x.mant }
+-
+-
+-// Predicates
+-
+-// IsEven returns true iff x is divisible by 2.
+-//
+-func (x *Integer) IsEven() bool { return x.mant.IsEven() }
+-
+-
+-// IsOdd returns true iff x is not divisible by 2.
+-//
+-func (x *Integer) IsOdd() bool { return x.mant.IsOdd() }
+-
+-
+-// IsZero returns true iff x == 0.
+-//
+-func (x *Integer) IsZero() bool { return x.mant.IsZero() }
+-
+-
+-// IsNeg returns true iff x < 0.
+-//
+-func (x *Integer) IsNeg() bool { return x.sign && !x.mant.IsZero() }
+-
+-
+-// IsPos returns true iff x >= 0.
+-//
+-func (x *Integer) IsPos() bool { return !x.sign && !x.mant.IsZero() }
+-
+-
+-// Operations
+-
+-// Neg returns the negated value of x.
+-//
+-func (x *Integer) Neg() *Integer { return MakeInt(!x.sign, x.mant) }
+-
+-
+-// Iadd sets z to the sum x + y.
+-// z must exist and may be x or y.
+-//
+-func Iadd(z, x, y *Integer) {
+-	if x.sign == y.sign {
+-		// x + y == x + y
+-		// (-x) + (-y) == -(x + y)
+-		z.sign = x.sign
+-		Nadd(&z.mant, x.mant, y.mant)
+-	} else {
+-		// x + (-y) == x - y == -(y - x)
+-		// (-x) + y == y - x == -(x - y)
+-		if x.mant.Cmp(y.mant) >= 0 {
+-			z.sign = x.sign
+-			Nsub(&z.mant, x.mant, y.mant)
+-		} else {
+-			z.sign = !x.sign
+-			Nsub(&z.mant, y.mant, x.mant)
+-		}
+-	}
+-}
+-
+-
+-// Add returns the sum x + y.
+-//
+-func (x *Integer) Add(y *Integer) *Integer {
+-	var z Integer
+-	Iadd(&z, x, y)
+-	return &z
+-}
+-
+-
+-func Isub(z, x, y *Integer) {
+-	if x.sign != y.sign {
+-		// x - (-y) == x + y
+-		// (-x) - y == -(x + y)
+-		z.sign = x.sign
+-		Nadd(&z.mant, x.mant, y.mant)
+-	} else {
+-		// x - y == x - y == -(y - x)
+-		// (-x) - (-y) == y - x == -(x - y)
+-		if x.mant.Cmp(y.mant) >= 0 {
+-			z.sign = x.sign
+-			Nsub(&z.mant, x.mant, y.mant)
+-		} else {
+-			z.sign = !x.sign
+-			Nsub(&z.mant, y.mant, x.mant)
+-		}
+-	}
+-}
+-
+-
+-// Sub returns the difference x - y.
+-//
+-func (x *Integer) Sub(y *Integer) *Integer {
+-	var z Integer
+-	Isub(&z, x, y)
+-	return &z
+-}
+-
+-
+-// Nscale sets *z to the scaled value (*z) * d.
+-//
+-func Iscale(z *Integer, d int64) {
+-	f := uint64(d)
+-	if d < 0 {
+-		f = uint64(-d)
+-	}
+-	z.sign = z.sign != (d < 0)
+-	Nscale(&z.mant, f)
+-}
+-
+-
+-// Mul1 returns the product x * d.
+-//
+-func (x *Integer) Mul1(d int64) *Integer {
+-	f := uint64(d)
+-	if d < 0 {
+-		f = uint64(-d)
+-	}
+-	return MakeInt(x.sign != (d < 0), x.mant.Mul1(f))
+-}
+-
+-
+-// Mul returns the product x * y.
+-//
+-func (x *Integer) Mul(y *Integer) *Integer {
+-	// x * y == x * y
+-	// x * (-y) == -(x * y)
+-	// (-x) * y == -(x * y)
+-	// (-x) * (-y) == x * y
+-	return MakeInt(x.sign != y.sign, x.mant.Mul(y.mant))
+-}
+-
+-
+-// MulNat returns the product x * y, where y is a (unsigned) natural number.
+-//
+-func (x *Integer) MulNat(y Natural) *Integer {
+-	// x * y == x * y
+-	// (-x) * y == -(x * y)
+-	return MakeInt(x.sign, x.mant.Mul(y))
+-}
+-
+-
+-// Quo returns the quotient q = x / y for y != 0.
+-// If y == 0, a division-by-zero run-time error occurs.
+-//
+-// Quo and Rem implement T-division and modulus (like C99):
+-//
+-//   q = x.Quo(y) = trunc(x/y)  (truncation towards zero)
+-//   r = x.Rem(y) = x - y*q
+-//
+-// (Daan Leijen, ``Division and Modulus for Computer Scientists''.)
+-//
+-func (x *Integer) Quo(y *Integer) *Integer {
+-	// x / y == x / y
+-	// x / (-y) == -(x / y)
+-	// (-x) / y == -(x / y)
+-	// (-x) / (-y) == x / y
+-	return MakeInt(x.sign != y.sign, x.mant.Div(y.mant))
+-}
+-
+-
+-// Rem returns the remainder r of the division x / y for y != 0,
+-// with r = x - y*x.Quo(y). Unless r is zero, its sign corresponds
+-// to the sign of x.
+-// If y == 0, a division-by-zero run-time error occurs.
+-//
+-func (x *Integer) Rem(y *Integer) *Integer {
+-	// x % y == x % y
+-	// x % (-y) == x % y
+-	// (-x) % y == -(x % y)
+-	// (-x) % (-y) == -(x % y)
+-	return MakeInt(x.sign, x.mant.Mod(y.mant))
+-}
+-
+-
+-// QuoRem returns the pair (x.Quo(y), x.Rem(y)) for y != 0.
+-// If y == 0, a division-by-zero run-time error occurs.
+-//
+-func (x *Integer) QuoRem(y *Integer) (*Integer, *Integer) {
+-	q, r := x.mant.DivMod(y.mant)
+-	return MakeInt(x.sign != y.sign, q), MakeInt(x.sign, r)
+-}
+-
+-
+-// Div returns the quotient q = x / y for y != 0.
+-// If y == 0, a division-by-zero run-time error occurs.
+-//
+-// Div and Mod implement Euclidian division and modulus:
+-//
+-//   q = x.Div(y)
+-//   r = x.Mod(y) with: 0 <= r < |q| and: x = y*q + r
+-//
+-// (Raymond T. Boute, ``The Euclidian definition of the functions
+-// div and mod''. ACM Transactions on Programming Languages and
+-// Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
+-// ACM press.)
+-//
+-func (x *Integer) Div(y *Integer) *Integer {
+-	q, r := x.QuoRem(y)
+-	if r.IsNeg() {
+-		if y.IsPos() {
+-			q = q.Sub(Int(1))
+-		} else {
+-			q = q.Add(Int(1))
+-		}
+-	}
+-	return q
+-}
+-
+-
+-// Mod returns the modulus r of the division x / y for y != 0,
+-// with r = x - y*x.Div(y). r is always positive.
+-// If y == 0, a division-by-zero run-time error occurs.
+-//
+-func (x *Integer) Mod(y *Integer) *Integer {
+-	r := x.Rem(y)
+-	if r.IsNeg() {
+-		if y.IsPos() {
+-			r = r.Add(y)
+-		} else {
+-			r = r.Sub(y)
+-		}
+-	}
+-	return r
+-}
+-
+-
+-// DivMod returns the pair (x.Div(y), x.Mod(y)).
+-//
+-func (x *Integer) DivMod(y *Integer) (*Integer, *Integer) {
+-	q, r := x.QuoRem(y)
+-	if r.IsNeg() {
+-		if y.IsPos() {
+-			q = q.Sub(Int(1))
+-			r = r.Add(y)
+-		} else {
+-			q = q.Add(Int(1))
+-			r = r.Sub(y)
+-		}
+-	}
+-	return q, r
+-}
+-
+-
+-// Shl implements ``shift left'' x << s. It returns x * 2^s.
+-//
+-func (x *Integer) Shl(s uint) *Integer { return MakeInt(x.sign, x.mant.Shl(s)) }
+-
+-
+-// The bitwise operations on integers are defined on the 2's-complement
+-// representation of integers. From
+-//
+-//   -x == ^x + 1  (1)  2's complement representation
+-//
+-// follows:
+-//
+-//   -(x) == ^(x) + 1
+-//   -(-x) == ^(-x) + 1
+-//   x-1 == ^(-x)
+-//   ^(x-1) == -x  (2)
+-//
+-// Using (1) and (2), operations on negative integers of the form -x are
+-// converted to operations on negated positive integers of the form ~(x-1).
+-
+-
+-// Shr implements ``shift right'' x >> s. It returns x / 2^s.
+-//
+-func (x *Integer) Shr(s uint) *Integer {
+-	if x.sign {
+-		// (-x) >> s == ^(x-1) >> s == ^((x-1) >> s) == -(((x-1) >> s) + 1)
+-		return MakeInt(true, x.mant.Sub(Nat(1)).Shr(s).Add(Nat(1)))
+-	}
+-
+-	return MakeInt(false, x.mant.Shr(s))
+-}
+-
+-
+-// Not returns the ``bitwise not'' ^x for the 2's-complement representation of x.
+-func (x *Integer) Not() *Integer {
+-	if x.sign {
+-		// ^(-x) == ^(^(x-1)) == x-1
+-		return MakeInt(false, x.mant.Sub(Nat(1)))
+-	}
+-
+-	// ^x == -x-1 == -(x+1)
+-	return MakeInt(true, x.mant.Add(Nat(1)))
+-}
+-
+-
+-// And returns the ``bitwise and'' x & y for the 2's-complement representation of x and y.
+-//
+-func (x *Integer) And(y *Integer) *Integer {
+-	if x.sign == y.sign {
+-		if x.sign {
+-			// (-x) & (-y) == ^(x-1) & ^(y-1) == ^((x-1) | (y-1)) == -(((x-1) | (y-1)) + 1)
+-			return MakeInt(true, x.mant.Sub(Nat(1)).Or(y.mant.Sub(Nat(1))).Add(Nat(1)))
+-		}
+-
+-		// x & y == x & y
+-		return MakeInt(false, x.mant.And(y.mant))
+-	}
+-
+-	// x.sign != y.sign
+-	if x.sign {
+-		x, y = y, x // & is symmetric
+-	}
+-
+-	// x & (-y) == x & ^(y-1) == x &^ (y-1)
+-	return MakeInt(false, x.mant.AndNot(y.mant.Sub(Nat(1))))
+-}
+-
+-
+-// AndNot returns the ``bitwise clear'' x &^ y for the 2's-complement representation of x and y.
+-//
+-func (x *Integer) AndNot(y *Integer) *Integer {
+-	if x.sign == y.sign {
+-		if x.sign {
+-			// (-x) &^ (-y) == ^(x-1) &^ ^(y-1) == ^(x-1) & (y-1) == (y-1) &^ (x-1)
+-			return MakeInt(false, y.mant.Sub(Nat(1)).AndNot(x.mant.Sub(Nat(1))))
+-		}
+-
+-		// x &^ y == x &^ y
+-		return MakeInt(false, x.mant.AndNot(y.mant))
+-	}
+-
+-	if x.sign {
+-		// (-x) &^ y == ^(x-1) &^ y == ^(x-1) & ^y == ^((x-1) | y) == -(((x-1) | y) + 1)
+-		return MakeInt(true, x.mant.Sub(Nat(1)).Or(y.mant).Add(Nat(1)))
+-	}
+-
+-	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
+-	return MakeInt(false, x.mant.And(y.mant.Sub(Nat(1))))
+-}
+-
+-
+-// Or returns the ``bitwise or'' x | y for the 2's-complement representation of x and y.
+-//
+-func (x *Integer) Or(y *Integer) *Integer {
+-	if x.sign == y.sign {
+-		if x.sign {
+-			// (-x) | (-y) == ^(x-1) | ^(y-1) == ^((x-1) & (y-1)) == -(((x-1) & (y-1)) + 1)
+-			return MakeInt(true, x.mant.Sub(Nat(1)).And(y.mant.Sub(Nat(1))).Add(Nat(1)))
+-		}
+-
+-		// x | y == x | y
+-		return MakeInt(false, x.mant.Or(y.mant))
+-	}
+-
+-	// x.sign != y.sign
+-	if x.sign {
+-		x, y = y, x // | or symmetric
+-	}
+-
+-	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
+-	return MakeInt(true, y.mant.Sub(Nat(1)).AndNot(x.mant).Add(Nat(1)))
+-}
+-
+-
+-// Xor returns the ``bitwise xor'' x | y for the 2's-complement representation of x and y.
+-//
+-func (x *Integer) Xor(y *Integer) *Integer {
+-	if x.sign == y.sign {
+-		if x.sign {
+-			// (-x) ^ (-y) == ^(x-1) ^ ^(y-1) == (x-1) ^ (y-1)
+-			return MakeInt(false, x.mant.Sub(Nat(1)).Xor(y.mant.Sub(Nat(1))))
+-		}
+-
+-		// x ^ y == x ^ y
+-		return MakeInt(false, x.mant.Xor(y.mant))
+-	}
+-
+-	// x.sign != y.sign
+-	if x.sign {
+-		x, y = y, x // ^ is symmetric
+-	}
+-
+-	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
+-	return MakeInt(true, x.mant.Xor(y.mant.Sub(Nat(1))).Add(Nat(1)))
+-}
+-
+-
+-// Cmp compares x and y. The result is an int value that is
+-//
+-//   <  0 if x <  y
+-//   == 0 if x == y
+-//   >  0 if x >  y
+-//
+-func (x *Integer) Cmp(y *Integer) int {
+-	// x cmp y == x cmp y
+-	// x cmp (-y) == x
+-	// (-x) cmp y == y
+-	// (-x) cmp (-y) == -(x cmp y)
+-	var r int
+-	switch {
+-	case x.sign == y.sign:
+-		r = x.mant.Cmp(y.mant)
+-		if x.sign {
+-			r = -r
+-		}
+-	case x.sign:
+-		r = -1
+-	case y.sign:
+-		r = 1
+-	}
+-	return r
+-}
+-
+-
+-// ToString converts x to a string for a given base, with 2 <= base <= 16.
+-//
+-func (x *Integer) ToString(base uint) string {
+-	if x.mant.IsZero() {
+-		return "0"
+-	}
+-	var s string
+-	if x.sign {
+-		s = "-"
+-	}
+-	return s + x.mant.ToString(base)
+-}
+-
+-
+-// String converts x to its decimal string representation.
+-// x.String() is the same as x.ToString(10).
+-//
+-func (x *Integer) String() string { return x.ToString(10) }
+-
+-
+-// Format is a support routine for fmt.Formatter. It accepts
+-// the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
+-//
+-func (x *Integer) Format(h fmt.State, c int) { fmt.Fprintf(h, "%s", x.ToString(fmtbase(c))) }
+-
+-
+-// IntFromString returns the integer corresponding to the
+-// longest possible prefix of s representing an integer in a
+-// given conversion base, the actual conversion base used, and
+-// the prefix length. The syntax of integers follows the syntax
+-// of signed integer literals in Go.
+-//
+-// If the base argument is 0, the string prefix determines the actual
+-// conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
+-// ``0'' prefix selects base 8. Otherwise the selected base is 10.
+-//
+-func IntFromString(s string, base uint) (*Integer, uint, int) {
+-	// skip sign, if any
+-	i0 := 0
+-	if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
+-		i0 = 1
+-	}
+-
+-	mant, base, slen := NatFromString(s[i0:], base)
+-
+-	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0 + slen
+-}
+diff --git a/src/pkg/exp/bignum/nrdiv_test.go b/src/pkg/exp/bignum/nrdiv_test.go
+deleted file mode 100644
+index 725b1acea8..0000000000
+--- a/src/pkg/exp/bignum/nrdiv_test.go
++++ /dev/null
+@@ -1,188 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file implements Newton-Raphson division and uses
+-// it as an additional test case for bignum.
+-//
+-// Division of x/y is achieved by computing r = 1/y to
+-// obtain the quotient q = x*r = x*(1/y) = x/y. The
+-// reciprocal r is the solution for f(x) = 1/x - y and
+-// the solution is approximated through iteration. The
+-// iteration does not require division.
+-
+-package bignum
+-
+-import "testing"
+-
+-
+-// An fpNat is a Natural scaled by a power of two
+-// (an unsigned floating point representation). The
+-// value of an fpNat x is x.m * 2^x.e .
+-//
+-type fpNat struct {
+-	m Natural
+-	e int
+-}
+-
+-
+-// sub computes x - y.
+-func (x fpNat) sub(y fpNat) fpNat {
+-	switch d := x.e - y.e; {
+-	case d < 0:
+-		return fpNat{x.m.Sub(y.m.Shl(uint(-d))), x.e}
+-	case d > 0:
+-		return fpNat{x.m.Shl(uint(d)).Sub(y.m), y.e}
+-	}
+-	return fpNat{x.m.Sub(y.m), x.e}
+-}
+-
+-
+-// mul2 computes x*2.
+-func (x fpNat) mul2() fpNat { return fpNat{x.m, x.e + 1} }
+-
+-
+-// mul computes x*y.
+-func (x fpNat) mul(y fpNat) fpNat { return fpNat{x.m.Mul(y.m), x.e + y.e} }
+-
+-
+-// mant computes the (possibly truncated) Natural representation
+-// of an fpNat x.
+-//
+-func (x fpNat) mant() Natural {
+-	switch {
+-	case x.e > 0:
+-		return x.m.Shl(uint(x.e))
+-	case x.e < 0:
+-		return x.m.Shr(uint(-x.e))
+-	}
+-	return x.m
+-}
+-
+-
+-// nrDivEst computes an estimate of the quotient q = x0/y0 and returns q.
+-// q may be too small (usually by 1).
+-//
+-func nrDivEst(x0, y0 Natural) Natural {
+-	if y0.IsZero() {
+-		panic("division by zero")
+-		return nil
+-	}
+-	// y0 > 0
+-
+-	if y0.Cmp(Nat(1)) == 0 {
+-		return x0
+-	}
+-	// y0 > 1
+-
+-	switch d := x0.Cmp(y0); {
+-	case d < 0:
+-		return Nat(0)
+-	case d == 0:
+-		return Nat(1)
+-	}
+-	// x0 > y0 > 1
+-
+-	// Determine maximum result length.
+-	maxLen := int(x0.Log2() - y0.Log2() + 1)
+-
+-	// In the following, each number x is represented
+-	// as a mantissa x.m and an exponent x.e such that
+-	// x = xm * 2^x.e.
+-	x := fpNat{x0, 0}
+-	y := fpNat{y0, 0}
+-
+-	// Determine a scale factor f = 2^e such that
+-	// 0.5 <= y/f == y*(2^-e) < 1.0
+-	// and scale y accordingly.
+-	e := int(y.m.Log2()) + 1
+-	y.e -= e
+-
+-	// t1
+-	var c = 2.9142
+-	const n = 14
+-	t1 := fpNat{Nat(uint64(c * (1 << n))), -n}
+-
+-	// Compute initial value r0 for the reciprocal of y/f.
+-	// r0 = t1 - 2*y
+-	r := t1.sub(y.mul2())
+-	two := fpNat{Nat(2), 0}
+-
+-	// Newton-Raphson iteration
+-	p := Nat(0)
+-	for i := 0; ; i++ {
+-		// check if we are done
+-		// TODO: Need to come up with a better test here
+-		//       as it will reduce computation time significantly.
+-		// q = x*r/f
+-		q := x.mul(r)
+-		q.e -= e
+-		res := q.mant()
+-		if res.Cmp(p) == 0 {
+-			return res
+-		}
+-		p = res
+-
+-		// r' = r*(2 - y*r)
+-		r = r.mul(two.sub(y.mul(r)))
+-
+-		// reduce mantissa size
+-		// TODO: Find smaller bound as it will reduce
+-		//       computation time massively.
+-		d := int(r.m.Log2()+1) - maxLen
+-		if d > 0 {
+-			r = fpNat{r.m.Shr(uint(d)), r.e + d}
+-		}
+-	}
+-
+-	panic("unreachable")
+-	return nil
+-}
+-
+-
+-func nrdiv(x, y Natural) (q, r Natural) {
+-	q = nrDivEst(x, y)
+-	r = x.Sub(y.Mul(q))
+-	// if r is too large, correct q and r
+-	// (usually one iteration)
+-	for r.Cmp(y) >= 0 {
+-		q = q.Add(Nat(1))
+-		r = r.Sub(y)
+-	}
+-	return
+-}
+-
+-
+-func div(t *testing.T, x, y Natural) {
+-	q, r := nrdiv(x, y)
+-	qx, rx := x.DivMod(y)
+-	if q.Cmp(qx) != 0 {
+-		t.Errorf("x = %s, y = %s, got q = %s, want q = %s", x, y, q, qx)
+-	}
+-	if r.Cmp(rx) != 0 {
+-		t.Errorf("x = %s, y = %s, got r = %s, want r = %s", x, y, r, rx)
+-	}
+-}
+-
+-
+-func idiv(t *testing.T, x0, y0 uint64) { div(t, Nat(x0), Nat(y0)) }
+-
+-
+-func TestNRDiv(t *testing.T) {
+-	idiv(t, 17, 18)
+-	idiv(t, 17, 17)
+-	idiv(t, 17, 1)
+-	idiv(t, 17, 16)
+-	idiv(t, 17, 10)
+-	idiv(t, 17, 9)
+-	idiv(t, 17, 8)
+-	idiv(t, 17, 5)
+-	idiv(t, 17, 3)
+-	idiv(t, 1025, 512)
+-	idiv(t, 7489595, 2)
+-	idiv(t, 5404679459, 78495)
+-	idiv(t, 7484890589595, 7484890589594)
+-	div(t, Fact(100), Fact(91))
+-	div(t, Fact(1000), Fact(991))
+-	//div(t, Fact(10000), Fact(9991));  // takes too long - disabled for now
+-}
+diff --git a/src/pkg/exp/bignum/rational.go b/src/pkg/exp/bignum/rational.go
+deleted file mode 100644
+index 378585e5f2..0000000000
+--- a/src/pkg/exp/bignum/rational.go
++++ /dev/null
+@@ -1,205 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Rational numbers
+-
+-package bignum
+-
+-import "fmt"
+-
+-
+-// Rational represents a quotient a/b of arbitrary precision.
+-//
+-type Rational struct {
+-	a *Integer // numerator
+-	b Natural  // denominator
+-}
+-
+-
+-// MakeRat makes a rational number given a numerator a and a denominator b.
+-//
+-func MakeRat(a *Integer, b Natural) *Rational {
+-	f := a.mant.Gcd(b) // f > 0
+-	if f.Cmp(Nat(1)) != 0 {
+-		a = MakeInt(a.sign, a.mant.Div(f))
+-		b = b.Div(f)
+-	}
+-	return &Rational{a, b}
+-}
+-
+-
+-// Rat creates a small rational number with value a0/b0.
+-//
+-func Rat(a0 int64, b0 int64) *Rational {
+-	a, b := Int(a0), Int(b0)
+-	if b.sign {
+-		a = a.Neg()
+-	}
+-	return MakeRat(a, b.mant)
+-}
+-
+-
+-// Value returns the numerator and denominator of x.
+-//
+-func (x *Rational) Value() (numerator *Integer, denominator Natural) {
+-	return x.a, x.b
+-}
+-
+-
+-// Predicates
+-
+-// IsZero returns true iff x == 0.
+-//
+-func (x *Rational) IsZero() bool { return x.a.IsZero() }
+-
+-
+-// IsNeg returns true iff x < 0.
+-//
+-func (x *Rational) IsNeg() bool { return x.a.IsNeg() }
+-
+-
+-// IsPos returns true iff x > 0.
+-//
+-func (x *Rational) IsPos() bool { return x.a.IsPos() }
+-
+-
+-// IsInt returns true iff x can be written with a denominator 1
+-// in the form x == x'/1; i.e., if x is an integer value.
+-//
+-func (x *Rational) IsInt() bool { return x.b.Cmp(Nat(1)) == 0 }
+-
+-
+-// Operations
+-
+-// Neg returns the negated value of x.
+-//
+-func (x *Rational) Neg() *Rational { return MakeRat(x.a.Neg(), x.b) }
+-
+-
+-// Add returns the sum x + y.
+-//
+-func (x *Rational) Add(y *Rational) *Rational {
+-	return MakeRat((x.a.MulNat(y.b)).Add(y.a.MulNat(x.b)), x.b.Mul(y.b))
+-}
+-
+-
+-// Sub returns the difference x - y.
+-//
+-func (x *Rational) Sub(y *Rational) *Rational {
+-	return MakeRat((x.a.MulNat(y.b)).Sub(y.a.MulNat(x.b)), x.b.Mul(y.b))
+-}
+-
+-
+-// Mul returns the product x * y.
+-//
+-func (x *Rational) Mul(y *Rational) *Rational { return MakeRat(x.a.Mul(y.a), x.b.Mul(y.b)) }
+-
+-
+-// Quo returns the quotient x / y for y != 0.
+-// If y == 0, a division-by-zero run-time error occurs.
+-//
+-func (x *Rational) Quo(y *Rational) *Rational {
+-	a := x.a.MulNat(y.b)
+-	b := y.a.MulNat(x.b)
+-	if b.IsNeg() {
+-		a = a.Neg()
+-	}
+-	return MakeRat(a, b.mant)
+-}
+-
+-
+-// Cmp compares x and y. The result is an int value
+-//
+-//   <  0 if x <  y
+-//   == 0 if x == y
+-//   >  0 if x >  y
+-//
+-func (x *Rational) Cmp(y *Rational) int { return (x.a.MulNat(y.b)).Cmp(y.a.MulNat(x.b)) }
+-
+-
+-// ToString converts x to a string for a given base, with 2 <= base <= 16.
+-// The string representation is of the form "n" if x is an integer; otherwise
+-// it is of form "n/d".
+-//
+-func (x *Rational) ToString(base uint) string {
+-	s := x.a.ToString(base)
+-	if !x.IsInt() {
+-		s += "/" + x.b.ToString(base)
+-	}
+-	return s
+-}
+-
+-
+-// String converts x to its decimal string representation.
+-// x.String() is the same as x.ToString(10).
+-//
+-func (x *Rational) String() string { return x.ToString(10) }
+-
+-
+-// Format is a support routine for fmt.Formatter. It accepts
+-// the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
+-//
+-func (x *Rational) Format(h fmt.State, c int) { fmt.Fprintf(h, "%s", x.ToString(fmtbase(c))) }
+-
+-
+-// RatFromString returns the rational number corresponding to the
+-// longest possible prefix of s representing a rational number in a
+-// given conversion base, the actual conversion base used, and the
+-// prefix length. The syntax of a rational number is:
+-//
+-//	rational = mantissa [exponent] .
+-//	mantissa = integer ('/' natural | '.' natural) .
+-//	exponent = ('e'|'E') integer .
+-//
+-// If the base argument is 0, the string prefix determines the actual
+-// conversion base for the mantissa. A prefix of ``0x'' or ``0X'' selects
+-// base 16; the ``0'' prefix selects base 8. Otherwise the selected base is 10.
+-// If the mantissa is represented via a division, both the numerator and
+-// denominator may have different base prefixes; in that case the base of
+-// of the numerator is returned. If the mantissa contains a decimal point,
+-// the base for the fractional part is the same as for the part before the
+-// decimal point and the fractional part does not accept a base prefix.
+-// The base for the exponent is always 10.
+-//
+-func RatFromString(s string, base uint) (*Rational, uint, int) {
+-	// read numerator
+-	a, abase, alen := IntFromString(s, base)
+-	b := Nat(1)
+-
+-	// read denominator or fraction, if any
+-	var blen int
+-	if alen < len(s) {
+-		ch := s[alen]
+-		if ch == '/' {
+-			alen++
+-			b, base, blen = NatFromString(s[alen:], base)
+-		} else if ch == '.' {
+-			alen++
+-			b, base, blen = NatFromString(s[alen:], abase)
+-			assert(base == abase)
+-			f := Nat(uint64(base)).Pow(uint(blen))
+-			a = MakeInt(a.sign, a.mant.Mul(f).Add(b))
+-			b = f
+-		}
+-	}
+-
+-	// read exponent, if any
+-	rlen := alen + blen
+-	if rlen < len(s) {
+-		ch := s[rlen]
+-		if ch == 'e' || ch == 'E' {
+-			rlen++
+-			e, _, elen := IntFromString(s[rlen:], 10)
+-			rlen += elen
+-			m := Nat(10).Pow(uint(e.mant.Value()))
+-			if e.sign {
+-				b = b.Mul(m)
+-			} else {
+-				a = a.MulNat(m)
+-			}
+-		}
+-	}
+-
+-	return MakeRat(a, b), base, rlen
+-}

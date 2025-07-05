@@ -16,6 +16,22 @@ Date:   Fri Feb 12 21:34:11 2021 +0100
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/dist/util.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 0a419e465f..e99375f538 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -389,6 +389,10 @@ func xgetgoarm() string {
+ 		// sense to auto-detect the setting.
+ 		return "7"
+ 	}
++	if goos == "windows" {
++		// windows/arm only works with ARMv7 executables.
++		return "7"
++	}
+ 	if gohostarch != "arm" || goos != gohostos {
+ 		// Conservative default for cross-compilation.
+ 		return "5"

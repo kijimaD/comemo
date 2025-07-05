@@ -7,6 +7,19 @@ Date:   Wed Feb 16 14:10:52 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4175053
-
+---
  src/pkg/os/error.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 75a079c740..635a3fe50a 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -80,7 +80,6 @@ var (
+ 	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG)
+ 	EAFNOSUPPORT Error = Errno(syscall.EAFNOSUPPORT)
+ 	ETIMEDOUT    Error = Errno(syscall.ETIMEDOUT)
+-	ENODATA      Error = Errno(syscall.ENODATA)
+ 	ENOTCONN     Error = Errno(syscall.ENOTCONN)
+ )
+ 

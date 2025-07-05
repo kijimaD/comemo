@@ -10,6 +10,20 @@ Date:   Mon Jun 23 10:29:56 2014 +1000
     R=golang-codereviews, bradfitz, nigeltao
     CC=golang-codereviews
     https://golang.org/cl/105290049
-
+---
  src/pkg/image/png/writer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 629452cbfa..5c232b760a 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -188,7 +188,7 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
+ 	// The Paeth filter.
+ 	sum = 0
+ 	for i := 0; i < bpp; i++ {
+-		cdat4[i] = cdat0[i] - paeth(0, pdat[i], 0)
++		cdat4[i] = cdat0[i] - pdat[i]
+ 		sum += abs8(cdat4[i])
+ 	}
+ 	for i := bpp; i < n; i++ {

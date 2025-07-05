@@ -13,6 +13,72 @@ Date:   Sat Aug 13 16:37:09 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/malloc.go | 47 +++++++++++++++++++++++++++++------------------
  1 file changed, 29 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index f2b93c04f4..c18ed07d49 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -895,24 +895,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 
+ 	// assistG is the G to charge for this allocation, or nil if
+ 	// GC is not currently active.
+-	var assistG *g
+-	if gcBlackenEnabled != 0 {
+-		// Charge the current user G for this allocation.
+-		assistG = getg()
+-		if assistG.m.curg != nil {
+-			assistG = assistG.m.curg
+-		}
+-		// Charge the allocation against the G. We'll account
+-		// for internal fragmentation at the end of mallocgc.
+-		assistG.gcAssistBytes -= int64(size)
+-
+-		if assistG.gcAssistBytes < 0 {
+-			// This G is in debt. Assist the GC to correct
+-			// this before allocating. This must happen
+-			// before disabling preemption.
+-			gcAssistAlloc(assistG)
+-		}
+-	}
++	assistG := deductAssistCredit(size)
+ 
+ 	// Set mp.mallocing to keep from being preempted by GC.
+ 	mp := acquirem()
+@@ -1165,6 +1148,34 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	return x
+ }
+ 
++// deductAssistCredit reduces the current G's assist credit
++// by size bytes, and assists the GC if necessary.
++//
++// Caller must be preemptible.
++//
++// Returns the G for which the assist credit was accounted.
++func deductAssistCredit(size uintptr) *g {
++	var assistG *g
++	if gcBlackenEnabled != 0 {
++		// Charge the current user G for this allocation.
++		assistG = getg()
++		if assistG.m.curg != nil {
++			assistG = assistG.m.curg
++		}
++		// Charge the allocation against the G. We'll account
++		// for internal fragmentation at the end of mallocgc.
++		assistG.gcAssistBytes -= int64(size)
++
++		if assistG.gcAssistBytes < 0 {
++			// This G is in debt. Assist the GC to correct
++			// this before allocating. This must happen
++			// before disabling preemption.
++			gcAssistAlloc(assistG)
++		}
++	}
++	return assistG
++}
++
+ // memclrNoHeapPointersChunked repeatedly calls memclrNoHeapPointers
+ // on chunks of the buffer to be zeroed, with opportunities for preemption
+ // along the way.  memclrNoHeapPointers contains no safepoints and also

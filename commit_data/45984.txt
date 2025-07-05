@@ -18,6 +18,36 @@ Date:   Tue Dec 1 13:38:26 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 06b91ddae6..0b860b5f7a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -85,7 +85,6 @@ func bmap(t *types.Type) *types.Type {
+ 		return t.MapType().Bucket
+ 	}
+ 
+-	bucket := types.New(types.TSTRUCT)
+ 	keytype := t.Key()
+ 	elemtype := t.Elem()
+ 	dowidth(keytype)
+@@ -119,7 +118,7 @@ func bmap(t *types.Type) *types.Type {
+ 	// Arrange for the bucket to have no pointers by changing
+ 	// the type of the overflow field to uintptr in this case.
+ 	// See comment on hmap.overflow in runtime/map.go.
+-	otyp := types.NewPtr(bucket)
++	otyp := types.Types[types.TUNSAFEPTR]
+ 	if !elemtype.HasPointers() && !keytype.HasPointers() {
+ 		otyp = types.Types[types.TUINTPTR]
+ 	}
+@@ -127,6 +126,7 @@ func bmap(t *types.Type) *types.Type {
+ 	field = append(field, overflow)
+ 
+ 	// link up fields
++	bucket := types.New(types.TSTRUCT)
+ 	bucket.SetNoalg(true)
+ 	bucket.SetFields(field[:])
+ 	dowidth(bucket)

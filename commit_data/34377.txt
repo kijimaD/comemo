@@ -17,7 +17,291 @@ Date:   Thu Oct 12 22:03:13 2017 +0300
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/image/gif/reader.go      | 209 ++++++++++++++++++++++---------------------
  src/image/gif/reader_test.go |  33 +++++++
  2 files changed, 141 insertions(+), 101 deletions(-)
+
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index 89ef3c7fc3..c1c9562067 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -244,109 +244,9 @@ func (d *decoder) decode(r io.Reader, configOnly, keepAllFrames bool) error {
+ 			}
+ 
+ 		case sImageDescriptor:
+-			m, err := d.newImageFromDescriptor()
+-			if err != nil {
++			if err = d.readImageDescriptor(keepAllFrames); err != nil {
+ 				return err
+ 			}
+-			useLocalColorTable := d.imageFields&fColorTable != 0
+-			if useLocalColorTable {
+-				m.Palette, err = d.readColorTable(d.imageFields)
+-				if err != nil {
+-					return err
+-				}
+-			} else {
+-				if d.globalColorTable == nil {
+-					return errors.New("gif: no color table")
+-				}
+-				m.Palette = d.globalColorTable
+-			}
+-			if d.hasTransparentIndex {
+-				if !useLocalColorTable {
+-					// Clone the global color table.
+-					m.Palette = append(color.Palette(nil), d.globalColorTable...)
+-				}
+-				if ti := int(d.transparentIndex); ti < len(m.Palette) {
+-					m.Palette[ti] = color.RGBA{}
+-				} else {
+-					// The transparentIndex is out of range, which is an error
+-					// according to the spec, but Firefox and Google Chrome
+-					// seem OK with this, so we enlarge the palette with
+-					// transparent colors. See golang.org/issue/15059.
+-					p := make(color.Palette, ti+1)
+-					copy(p, m.Palette)
+-					for i := len(m.Palette); i < len(p); i++ {
+-						p[i] = color.RGBA{}
+-					}
+-					m.Palette = p
+-				}
+-			}
+-			litWidth, err := readByte(d.r)
+-			if err != nil {
+-				return fmt.Errorf("gif: reading image data: %v", err)
+-			}
+-			if litWidth < 2 || litWidth > 8 {
+-				return fmt.Errorf("gif: pixel size in decode out of range: %d", litWidth)
+-			}
+-			// A wonderfully Go-like piece of magic.
+-			br := &blockReader{d: d}
+-			lzwr := lzw.NewReader(br, lzw.LSB, int(litWidth))
+-			defer lzwr.Close()
+-			if err = readFull(lzwr, m.Pix); err != nil {
+-				if err != io.ErrUnexpectedEOF {
+-					return fmt.Errorf("gif: reading image data: %v", err)
+-				}
+-				return errNotEnough
+-			}
+-			// In theory, both lzwr and br should be exhausted. Reading from them
+-			// should yield (0, io.EOF).
+-			//
+-			// The spec (Appendix F - Compression), says that "An End of
+-			// Information code... must be the last code output by the encoder
+-			// for an image". In practice, though, giflib (a widely used C
+-			// library) does not enforce this, so we also accept lzwr returning
+-			// io.ErrUnexpectedEOF (meaning that the encoded stream hit io.EOF
+-			// before the LZW decoder saw an explicit end code), provided that
+-			// the io.ReadFull call above successfully read len(m.Pix) bytes.
+-			// See https://golang.org/issue/9856 for an example GIF.
+-			if n, err := lzwr.Read(d.tmp[256:257]); n != 0 || (err != io.EOF && err != io.ErrUnexpectedEOF) {
+-				if err != nil {
+-					return fmt.Errorf("gif: reading image data: %v", err)
+-				}
+-				return errTooMuch
+-			}
+-
+-			// In practice, some GIFs have an extra byte in the data sub-block
+-			// stream, which we ignore. See https://golang.org/issue/16146.
+-			if err := br.close(); err == errTooMuch {
+-				return errTooMuch
+-			} else if err != nil {
+-				return fmt.Errorf("gif: reading image data: %v", err)
+-			}
+-
+-			// Check that the color indexes are inside the palette.
+-			if len(m.Palette) < 256 {
+-				for _, pixel := range m.Pix {
+-					if int(pixel) >= len(m.Palette) {
+-						return errBadPixel
+-					}
+-				}
+-			}
+-
+-			// Undo the interlacing if necessary.
+-			if d.imageFields&fInterlace != 0 {
+-				uninterlace(m)
+-			}
+-
+-			if keepAllFrames || len(d.image) == 0 {
+-				d.image = append(d.image, m)
+-				d.delay = append(d.delay, d.delayTime)
+-				d.disposal = append(d.disposal, d.disposalMethod)
+-			}
+-			// The GIF89a spec, Section 23 (Graphic Control Extension) says:
+-			// "The scope of this extension is the first graphic rendering block
+-			// to follow." We therefore reset the GCE fields to zero.
+-			d.delayTime = 0
+-			d.hasTransparentIndex = false
+ 
+ 		case sTrailer:
+ 			if len(d.image) == 0 {
+@@ -470,6 +370,113 @@ func (d *decoder) readGraphicControl() error {
+ 	return nil
+ }
+ 
++func (d *decoder) readImageDescriptor(keepAllFrames bool) error {
++	m, err := d.newImageFromDescriptor()
++	if err != nil {
++		return err
++	}
++	useLocalColorTable := d.imageFields&fColorTable != 0
++	if useLocalColorTable {
++		m.Palette, err = d.readColorTable(d.imageFields)
++		if err != nil {
++			return err
++		}
++	} else {
++		if d.globalColorTable == nil {
++			return errors.New("gif: no color table")
++		}
++		m.Palette = d.globalColorTable
++	}
++	if d.hasTransparentIndex {
++		if !useLocalColorTable {
++			// Clone the global color table.
++			m.Palette = append(color.Palette(nil), d.globalColorTable...)
++		}
++		if ti := int(d.transparentIndex); ti < len(m.Palette) {
++			m.Palette[ti] = color.RGBA{}
++		} else {
++			// The transparentIndex is out of range, which is an error
++			// according to the spec, but Firefox and Google Chrome
++			// seem OK with this, so we enlarge the palette with
++			// transparent colors. See golang.org/issue/15059.
++			p := make(color.Palette, ti+1)
++			copy(p, m.Palette)
++			for i := len(m.Palette); i < len(p); i++ {
++				p[i] = color.RGBA{}
++			}
++			m.Palette = p
++		}
++	}
++	litWidth, err := readByte(d.r)
++	if err != nil {
++		return fmt.Errorf("gif: reading image data: %v", err)
++	}
++	if litWidth < 2 || litWidth > 8 {
++		return fmt.Errorf("gif: pixel size in decode out of range: %d", litWidth)
++	}
++	// A wonderfully Go-like piece of magic.
++	br := &blockReader{d: d}
++	lzwr := lzw.NewReader(br, lzw.LSB, int(litWidth))
++	defer lzwr.Close()
++	if err = readFull(lzwr, m.Pix); err != nil {
++		if err != io.ErrUnexpectedEOF {
++			return fmt.Errorf("gif: reading image data: %v", err)
++		}
++		return errNotEnough
++	}
++	// In theory, both lzwr and br should be exhausted. Reading from them
++	// should yield (0, io.EOF).
++	//
++	// The spec (Appendix F - Compression), says that "An End of
++	// Information code... must be the last code output by the encoder
++	// for an image". In practice, though, giflib (a widely used C
++	// library) does not enforce this, so we also accept lzwr returning
++	// io.ErrUnexpectedEOF (meaning that the encoded stream hit io.EOF
++	// before the LZW decoder saw an explicit end code), provided that
++	// the io.ReadFull call above successfully read len(m.Pix) bytes.
++	// See https://golang.org/issue/9856 for an example GIF.
++	if n, err := lzwr.Read(d.tmp[256:257]); n != 0 || (err != io.EOF && err != io.ErrUnexpectedEOF) {
++		if err != nil {
++			return fmt.Errorf("gif: reading image data: %v", err)
++		}
++		return errTooMuch
++	}
++
++	// In practice, some GIFs have an extra byte in the data sub-block
++	// stream, which we ignore. See https://golang.org/issue/16146.
++	if err := br.close(); err == errTooMuch {
++		return errTooMuch
++	} else if err != nil {
++		return fmt.Errorf("gif: reading image data: %v", err)
++	}
++
++	// Check that the color indexes are inside the palette.
++	if len(m.Palette) < 256 {
++		for _, pixel := range m.Pix {
++			if int(pixel) >= len(m.Palette) {
++				return errBadPixel
++			}
++		}
++	}
++
++	// Undo the interlacing if necessary.
++	if d.imageFields&fInterlace != 0 {
++		uninterlace(m)
++	}
++
++	if keepAllFrames || len(d.image) == 0 {
++		d.image = append(d.image, m)
++		d.delay = append(d.delay, d.delayTime)
++		d.disposal = append(d.disposal, d.disposalMethod)
++	}
++	// The GIF89a spec, Section 23 (Graphic Control Extension) says:
++	// "The scope of this extension is the first graphic rendering block
++	// to follow." We therefore reset the GCE fields to zero.
++	d.delayTime = 0
++	d.hasTransparentIndex = false
++	return nil
++}
++
+ func (d *decoder) newImageFromDescriptor() (*image.Paletted, error) {
+ 	if err := readFull(d.r, d.tmp[:9]); err != nil {
+ 		return nil, fmt.Errorf("gif: can't read image descriptor: %s", err)
+diff --git a/src/image/gif/reader_test.go b/src/image/gif/reader_test.go
+index 261f59192f..220e8f52d4 100644
+--- a/src/image/gif/reader_test.go
++++ b/src/image/gif/reader_test.go
+@@ -9,9 +9,12 @@ import (
+ 	"compress/lzw"
+ 	"image"
+ 	"image/color"
++	"image/color/palette"
+ 	"io"
+ 	"io/ioutil"
+ 	"reflect"
++	"runtime"
++	"runtime/debug"
+ 	"strings"
+ 	"testing"
+ )
+@@ -351,6 +354,36 @@ func TestUnexpectedEOF(t *testing.T) {
+ 	}
+ }
+ 
++// See golang.org/issue/22237
++func TestDecodeMemoryConsumption(t *testing.T) {
++	const frames = 3000
++	img := image.NewPaletted(image.Rectangle{Max: image.Point{1, 1}}, palette.WebSafe)
++	hugeGIF := &GIF{
++		Image:    make([]*image.Paletted, frames),
++		Delay:    make([]int, frames),
++		Disposal: make([]byte, frames),
++	}
++	for i := 0; i < frames; i++ {
++		hugeGIF.Image[i] = img
++		hugeGIF.Delay[i] = 60
++	}
++	buf := new(bytes.Buffer)
++	if err := EncodeAll(buf, hugeGIF); err != nil {
++		t.Fatal("EncodeAll:", err)
++	}
++	s0, s1 := new(runtime.MemStats), new(runtime.MemStats)
++	runtime.GC()
++	defer debug.SetGCPercent(debug.SetGCPercent(5))
++	runtime.ReadMemStats(s0)
++	if _, err := Decode(buf); err != nil {
++		t.Fatal("Decode:", err)
++	}
++	runtime.ReadMemStats(s1)
++	if heapDiff := int64(s1.HeapAlloc - s0.HeapAlloc); heapDiff > 30<<20 {
++		t.Fatalf("Decode of %d frames increased heap by %dMB", frames, heapDiff>>20)
++	}
++}
++
+ func BenchmarkDecode(b *testing.B) {
+ 	data, err := ioutil.ReadFile("../testdata/video-001.gif")
+ 	if err != nil {

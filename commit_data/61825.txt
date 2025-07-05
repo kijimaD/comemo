@@ -21,6 +21,23 @@ Date:   Sun Dec 1 17:22:19 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/testing/testing_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 1e32a1e615..797728c7a8 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -990,9 +990,9 @@ func TestBenchmarkBLoopIterationCorrect(t *testing.T) {
+ 		t.Errorf("got %d loop rampup; want %d", c, want)
+ 	}
+ 
+-	re := regexp.MustCompile(`BenchmarkBLoopPrint-[0-9]+\s*2\s*[0-9]+\s*ns/op.*`)
++	re := regexp.MustCompile(`BenchmarkBLoopPrint(-[0-9]+)?\s+2\s+[0-9]+\s+ns/op`)
+ 	if !re.Match(out) {
+-		t.Errorf("Missing benchmark output")
++		t.Error("missing benchmark output")
+ 	}
+ }
+ 

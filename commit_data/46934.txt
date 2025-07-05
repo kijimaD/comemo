@@ -12,6 +12,20 @@ Date:   Wed Feb 17 12:03:13 2021 -0800
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/linux_syscall.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/linux_syscall.c b/src/runtime/cgo/linux_syscall.c
+index 56f3d67d8b..59761c8b40 100644
+--- a/src/runtime/cgo/linux_syscall.c
++++ b/src/runtime/cgo/linux_syscall.c
+@@ -32,7 +32,7 @@ typedef struct {
+ 
+ #define SET_RETVAL(fn) \
+   uintptr_t ret = (uintptr_t) fn ; \
+-  if (ret == -1) {                 \
++  if (ret == (uintptr_t) -1) {	   \
+     x->retval = (uintptr_t) errno; \
+   } else                           \
+     x->retval = ret

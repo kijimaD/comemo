@@ -26,6 +26,22 @@ Date:   Sat Nov 17 21:28:08 2018 +0000
     GitHub-Pull-Request: golang/go#28823
     Reviewed-on: https://go-review.googlesource.com/c/149857
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/hmac/hmac.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index c8c0617c47..801ece67ae 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -11,8 +11,8 @@ The receiver verifies the hash by recomputing it using the same key.
+ Receivers should be careful to use Equal to compare MACs in order to avoid
+ timing side-channels:
+ 
+-	// CheckMAC reports whether messageMAC is a valid HMAC tag for message.
+-	func CheckMAC(message, messageMAC, key []byte) bool {
++	// ValidMAC reports whether messageMAC is a valid HMAC tag for message.
++	func ValidMAC(message, messageMAC, key []byte) bool {
+ 		mac := hmac.New(sha256.New, key)
+ 		mac.Write(message)
+ 		expectedMAC := mac.Sum(nil)

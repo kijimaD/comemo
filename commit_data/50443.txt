@@ -12,6 +12,29 @@ Date:   Tue Oct 26 09:01:34 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/embed/internal/embedtest/embed_test.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/embed/internal/embedtest/embed_test.go b/src/embed/internal/embedtest/embed_test.go
+index b41359f4c2..bfd94af69d 100644
+--- a/src/embed/internal/embedtest/embed_test.go
++++ b/src/embed/internal/embedtest/embed_test.go
+@@ -89,11 +89,13 @@ func TestDir(t *testing.T) {
+ 	testDir(t, all, "testdata/i/j/k", "k8s.txt")
+ }
+ 
+-//go:embed testdata
+-var testHiddenDir embed.FS
++var (
++	//go:embed testdata
++	testHiddenDir embed.FS
+ 
+-//go:embed testdata/*
+-var testHiddenStar embed.FS
++	//go:embed testdata/*
++	testHiddenStar embed.FS
++)
+ 
+ func TestHidden(t *testing.T) {
+ 	dir := testHiddenDir

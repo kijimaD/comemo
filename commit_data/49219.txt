@@ -21,7 +21,194 @@ Date:   Wed Jul 14 15:37:06 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/internal/str/str.go      | 72 ++++++++++++++++++++++++++++++++++
  src/cmd/internal/str/str_test.go | 83 +++++++++++++++++++++++++++++++++++++++-
  2 files changed, 154 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/str/str.go b/src/cmd/internal/str/str.go
+index 9106ebf74d..409cf8f7b4 100644
+--- a/src/cmd/internal/str/str.go
++++ b/src/cmd/internal/str/str.go
+@@ -7,7 +7,9 @@ package str
+ 
+ import (
+ 	"bytes"
++	"flag"
+ 	"fmt"
++	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -153,3 +155,73 @@ func SplitQuotedFields(s string) ([]string, error) {
+ 	}
+ 	return f, nil
+ }
++
++// JoinAndQuoteFields joins a list of arguments into a string that can be parsed
++// with SplitQuotedFields. Arguments are quoted only if necessary; arguments
++// without spaces or quotes are kept as-is. No argument may contain both
++// single and double quotes.
++func JoinAndQuoteFields(args []string) (string, error) {
++	var buf []byte
++	for i, arg := range args {
++		if i > 0 {
++			buf = append(buf, ' ')
++		}
++		var sawSpace, sawSingleQuote, sawDoubleQuote bool
++		for _, c := range arg {
++			switch {
++			case c > unicode.MaxASCII:
++				continue
++			case isSpaceByte(byte(c)):
++				sawSpace = true
++			case c == '\'':
++				sawSingleQuote = true
++			case c == '"':
++				sawDoubleQuote = true
++			}
++		}
++		switch {
++		case !sawSpace && !sawSingleQuote && !sawDoubleQuote:
++			buf = append(buf, []byte(arg)...)
++
++		case !sawSingleQuote:
++			buf = append(buf, '\'')
++			buf = append(buf, []byte(arg)...)
++			buf = append(buf, '\'')
++
++		case !sawDoubleQuote:
++			buf = append(buf, '"')
++			buf = append(buf, []byte(arg)...)
++			buf = append(buf, '"')
++
++		default:
++			return "", fmt.Errorf("argument %q contains both single and double quotes and cannot be quoted", arg)
++		}
++	}
++	return string(buf), nil
++}
++
++// A QuotedStringListFlag parses a list of string arguments encoded with
++// JoinAndQuoteFields. It is useful for flags like cmd/link's -extldflags.
++type QuotedStringListFlag []string
++
++var _ flag.Value = (*QuotedStringListFlag)(nil)
++
++func (f *QuotedStringListFlag) Set(v string) error {
++	fs, err := SplitQuotedFields(v)
++	if err != nil {
++		return err
++	}
++	*f = fs[:len(fs):len(fs)]
++	return nil
++}
++
++func (f *QuotedStringListFlag) String() string {
++	if f == nil {
++		return ""
++	}
++	s, err := JoinAndQuoteFields(*f)
++	if err != nil {
++		return strings.Join(*f, " ")
++	}
++	return s
++}
+diff --git a/src/cmd/internal/str/str_test.go b/src/cmd/internal/str/str_test.go
+index 147ce1a63e..3609af6a06 100644
+--- a/src/cmd/internal/str/str_test.go
++++ b/src/cmd/internal/str/str_test.go
+@@ -4,7 +4,11 @@
+ 
+ package str
+ 
+-import "testing"
++import (
++	"reflect"
++	"strings"
++	"testing"
++)
+ 
+ var foldDupTests = []struct {
+ 	list   []string
+@@ -25,3 +29,80 @@ func TestFoldDup(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestSplitQuotedFields(t *testing.T) {
++	for _, test := range []struct {
++		name    string
++		value   string
++		want    []string
++		wantErr string
++	}{
++		{name: "empty", value: "", want: nil},
++		{name: "space", value: " ", want: nil},
++		{name: "one", value: "a", want: []string{"a"}},
++		{name: "leading_space", value: " a", want: []string{"a"}},
++		{name: "trailing_space", value: "a ", want: []string{"a"}},
++		{name: "two", value: "a b", want: []string{"a", "b"}},
++		{name: "two_multi_space", value: "a  b", want: []string{"a", "b"}},
++		{name: "two_tab", value: "a\tb", want: []string{"a", "b"}},
++		{name: "two_newline", value: "a\nb", want: []string{"a", "b"}},
++		{name: "quote_single", value: `'a b'`, want: []string{"a b"}},
++		{name: "quote_double", value: `"a b"`, want: []string{"a b"}},
++		{name: "quote_both", value: `'a '"b "`, want: []string{"a ", "b "}},
++		{name: "quote_contains", value: `'a "'"'b"`, want: []string{`a "`, `'b`}},
++		{name: "escape", value: `\'`, want: []string{`\'`}},
++		{name: "quote_unclosed", value: `'a`, wantErr: "unterminated ' string"},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			got, err := SplitQuotedFields(test.value)
++			if err != nil {
++				if test.wantErr == "" {
++					t.Fatalf("unexpected error: %v", err)
++				} else if errMsg := err.Error(); !strings.Contains(errMsg, test.wantErr) {
++					t.Fatalf("error %q does not contain %q", errMsg, test.wantErr)
++				}
++				return
++			}
++			if test.wantErr != "" {
++				t.Fatalf("unexpected success; wanted error containing %q", test.wantErr)
++			}
++			if !reflect.DeepEqual(got, test.want) {
++				t.Errorf("got %q; want %q", got, test.want)
++			}
++		})
++	}
++}
++
++func TestJoinAndQuoteFields(t *testing.T) {
++	for _, test := range []struct {
++		name          string
++		args          []string
++		want, wantErr string
++	}{
++		{name: "empty", args: nil, want: ""},
++		{name: "one", args: []string{"a"}, want: "a"},
++		{name: "two", args: []string{"a", "b"}, want: "a b"},
++		{name: "space", args: []string{"a ", "b"}, want: "'a ' b"},
++		{name: "newline", args: []string{"a\n", "b"}, want: "'a\n' b"},
++		{name: "quote", args: []string{`'a `, "b"}, want: `"'a " b`},
++		{name: "unquoteable", args: []string{`'"`}, wantErr: "contains both single and double quotes and cannot be quoted"},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			got, err := JoinAndQuoteFields(test.args)
++			if err != nil {
++				if test.wantErr == "" {
++					t.Fatalf("unexpected error: %v", err)
++				} else if errMsg := err.Error(); !strings.Contains(errMsg, test.wantErr) {
++					t.Fatalf("error %q does not contain %q", errMsg, test.wantErr)
++				}
++				return
++			}
++			if test.wantErr != "" {
++				t.Fatalf("unexpected success; wanted error containing %q", test.wantErr)
++			}
++			if got != test.want {
++				t.Errorf("got %s; want %s", got, test.want)
++			}
++		})
++	}
++}

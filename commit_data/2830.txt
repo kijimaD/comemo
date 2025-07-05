@@ -8,7 +8,54 @@ Date:   Wed Jul 29 15:39:05 2009 -0700
     DELTA=35  (21 added, 14 deleted, 0 changed)
     OCL=32469
     CL=32474
-
+---
  test/{fixedbugs => bugs}/bug136.go | 9 ++++++++-
  test/golden.out                    | 6 +++---
  2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/test/fixedbugs/bug136.go b/test/bugs/bug136.go
+similarity index 66%
+rename from test/fixedbugs/bug136.go
+rename to test/bugs/bug136.go
+index 5846c654b9..7491b65d88 100644
+--- a/test/fixedbugs/bug136.go
++++ b/test/bugs/bug136.go
+@@ -10,6 +10,13 @@ func main() {
+ 	L: ;  // ';' terminates empty statement => L does not apply to for loop
+ 	for i := 0; i < 10; i++ {
+ 		println(i);
+-		break L  // L does not apply to for loop
++		break L;  // ERROR "L"
++	}
++
++	L1: { // L1 labels block => L1 does not apply to for loop
++		for i := 0; i < 10; i++ {
++			println(i);
++			break L1;  // ERROR "L1"
++		}
+ 	}
+ }
+diff --git a/test/golden.out b/test/golden.out
+index 29b4bcab78..8cadc26b90 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -220,9 +220,6 @@ fixedbugs/bug133.dir/bug2.go:11: undefined: bug0.T field i
+ fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
+ 	int
+ 
+-=========== fixedbugs/bug136.go
+-fixedbugs/bug136.go:9: invalid break label L
+-
+ =========== fixedbugs/bug148.go
+ 2 3
+ interface is main.T, not main.T·bug148·1
+@@ -235,6 +232,9 @@ panic PC=xxx
+ =========== bugs/bug132.go
+ BUG: compilation succeeds incorrectly
+ 
++=========== bugs/bug136.go
++BUG: errchk: bugs/bug136.go:15: missing expected error: 'L1'
++
+ =========== bugs/bug159.go
+ abc: expected 4 5 6 got 4 4 -4
+ BUG: bug159

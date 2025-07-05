@@ -22,7 +22,7 @@ Date:   Mon Nov 15 09:42:03 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/importer/support.go                     | 4 ++++
  src/cmd/compile/internal/noder/types.go                          | 8 ++++++++
  src/cmd/compile/internal/types2/api_test.go                      | 6 +++---
@@ -39,3 +39,318 @@ Date:   Mon Nov 15 09:42:03 2021 -0500
  src/go/types/typestring.go                                       | 7 +++++++
  src/go/types/universe.go                                         | 5 ++++-
  15 files changed, 72 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/support.go b/src/cmd/compile/internal/importer/support.go
+index 6ceb413601..9377d99779 100644
+--- a/src/cmd/compile/internal/importer/support.go
++++ b/src/cmd/compile/internal/importer/support.go
+@@ -118,10 +118,14 @@ var predeclared = []types2.Type{
+ 	types2.Typ[types2.Invalid], // only appears in packages with errors
+ 
+ 	// used internally by gc; never used by this package or in .a files
++	// not to be confused with the universe any
+ 	anyType{},
+ 
+ 	// comparable
+ 	types2.Universe.Lookup("comparable").Type(),
++
++	// any
++	types2.Universe.Lookup("any").Type(),
+ }
+ 
+ type anyType struct{}
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index f035e0da97..fa24ab1844 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -26,6 +26,8 @@ func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
+ 	return types.NewPkg(pkg.Path(), pkg.Name())
+ }
+ 
++var universeAny = types2.Universe.Lookup("any").Type()
++
+ // typ converts a types2.Type to a types.Type, including caching of previously
+ // translated types.
+ func (g *irgen) typ(typ types2.Type) *types.Type {
+@@ -53,6 +55,12 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
+ // constructed part of a recursive type. Should not be called from outside this
+ // file (g.typ is the "external" entry point).
+ func (g *irgen) typ1(typ types2.Type) *types.Type {
++	// See issue 49583: the type checker has trouble keeping track of aliases,
++	// but for such a common alias as any we can improve things by preserving a
++	// pointer identity that can be checked when formatting type strings.
++	if typ == universeAny {
++		return types.AnyType
++	}
+ 	// Cache type2-to-type mappings. Important so that each defined generic
+ 	// type (instantiated or not) has a single types.Type representation.
+ 	// Also saves a lot of computation and memory by avoiding re-translating
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index a59c9a4eee..866ebb8684 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -319,16 +319,16 @@ func TestTypesInfo(t *testing.T) {
+ 		{brokenPkg + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},
+ 
+ 		// parameterized functions
+-		{`package p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[T interface{}](T)`},
++		{`package p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[T any](T)`},
+ 		{`package p1; func f[T any](T) {}; var _ = f[int]`, `f[int]`, `func(int)`},
+ 		{`package p2; func f[T any](T) {}; func _() { f(42) }`, `f`, `func(int)`},
+ 		{`package p3; func f[T any](T) {}; func _() { f[int](42) }`, `f[int]`, `func(int)`},
+-		{`package p4; func f[T any](T) {}; func _() { f[int](42) }`, `f`, `func[T interface{}](T)`},
++		{`package p4; func f[T any](T) {}; func _() { f[int](42) }`, `f`, `func[T any](T)`},
+ 		{`package p5; func f[T any](T) {}; func _() { f(42) }`, `f(42)`, `()`},
+ 
+ 		// type parameters
+ 		{`package t0; type t[] int; var _ t`, `t`, `t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
+-		{`package t1; type t[P any] int; var _ t[int]`, `t`, `t1.t[P interface{}]`},
++		{`package t1; type t[P any] int; var _ t[int]`, `t`, `t1.t[P any]`},
+ 		{`package t2; type t[P interface{}] int; var _ t[int]`, `t`, `t2.t[P interface{}]`},
+ 		{`package t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `t3.t[P, Q interface{}]`},
+ 		{brokenPkg + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t[P, Q interface{m()}]`},
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index da3e1a2abc..c7c64ca9d5 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -528,6 +528,14 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		}
+ 	}
+ 
++	// Special handling for any: because WriteType will format 'any' as 'any',
++	// resulting in the object string `type any = any` rather than `type any =
++	// interface{}`. To avoid this, swap in a different empty interface.
++	if obj == universeAny {
++		assert(Identical(typ, &emptyInterface))
++		typ = &emptyInterface
++	}
++
+ 	buf.WriteByte(' ')
+ 	WriteType(buf, typ, qf)
+ }
+diff --git a/src/cmd/compile/internal/types2/object_test.go b/src/cmd/compile/internal/types2/object_test.go
+index 93b3dfb44b..8f0303d4b2 100644
+--- a/src/cmd/compile/internal/types2/object_test.go
++++ b/src/cmd/compile/internal/types2/object_test.go
+@@ -101,8 +101,8 @@ var testObjects = []struct {
+ 
+ 	{"type t struct{f int}", "t", "type p.t struct{f int}"},
+ 	{"type t func(int)", "t", "type p.t func(int)"},
+-	{"type t[P any] struct{f P}", "t", "type p.t[P interface{}] struct{f P}"},
+-	{"type t[P any] struct{f P}", "t.P", "type parameter P interface{}"},
++	{"type t[P any] struct{f P}", "t", "type p.t[P any] struct{f P}"},
++	{"type t[P any] struct{f P}", "t.P", "type parameter P any"},
+ 	{"type C interface{m()}; type t[P C] struct{}", "t.P", "type parameter P p.C"},
+ 
+ 	{"type t = struct{f int}", "t", "type p.t = struct{f int}"},
+@@ -111,8 +111,9 @@ var testObjects = []struct {
+ 	{"var v int", "v", "var p.v int"},
+ 
+ 	{"func f(int) string", "f", "func p.f(int) string"},
+-	{"func g[P any](x P){}", "g", "func p.g[P interface{}](x P)"},
++	{"func g[P any](x P){}", "g", "func p.g[P any](x P)"},
+ 	{"func g[P interface{~int}](x P){}", "g.P", "type parameter P interface{~int}"},
++	{"", "any", "type any = interface{}"},
+ }
+ 
+ func TestObjectString(t *testing.T) {
+@@ -131,7 +132,7 @@ func TestObjectString(t *testing.T) {
+ 			t.Errorf("%s: invalid object path %s", test.src, test.obj)
+ 			continue
+ 		}
+-		obj := pkg.Scope().Lookup(names[0])
++		_, obj := pkg.Scope().LookupParent(names[0], nopos)
+ 		if obj == nil {
+ 			t.Errorf("%s: %s not found", test.src, names[0])
+ 			continue
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48008.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48008.go2
+index 5c9726875c..6c14c78e4c 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48008.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48008.go2
+@@ -21,7 +21,7 @@ func _(x interface{}) {
+ 	case map[T[int]] string:
+ 	case chan T[int]:
+ 
+-	case T /* ERROR cannot use generic type T\[P interface{}\] without instantiation */ :
++	case T /* ERROR cannot use generic type T\[P any\] without instantiation */ :
+ 	case []T /* ERROR cannot use generic type */ :
+ 	case [10]T /* ERROR cannot use generic type */ :
+ 	case struct{T /* ERROR cannot use generic type */ }:
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index f151f47a5e..0c93a7e6e4 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -197,6 +197,13 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 
+ 	case *Interface:
++		if t == universeAny.Type() && w.ctxt == nil {
++			// When not hashing, we can try to improve type strings by writing "any"
++			// for a type that is pointer-identical to universeAny. This logic should
++			// be deprecated by more robust handling for aliases.
++			w.string("any")
++			break
++		}
+ 		if t.implicit {
+ 			if len(t.methods) == 0 && len(t.embeddeds) == 1 {
+ 				w.typ(t.embeddeds[0])
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index fccab145f8..c16ae3f63e 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -79,7 +79,10 @@ func defPredeclaredTypes() {
+ 	}
+ 
+ 	// type any = interface{}
+-	def(NewTypeName(nopos, nil, "any", &emptyInterface))
++	// Note: don't use &emptyInterface for the type of any. Using a unique
++	// pointer allows us to detect any and format it as "any" rather than
++	// interface{}, which clarifies user-facing error messages significantly.
++	def(NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
+ 
+ 	// type error interface{ Error() string }
+ 	{
+diff --git a/src/go/internal/gcimporter/support.go b/src/go/internal/gcimporter/support.go
+index 5aef63ec1e..965e5d8838 100644
+--- a/src/go/internal/gcimporter/support.go
++++ b/src/go/internal/gcimporter/support.go
+@@ -134,10 +134,14 @@ var predeclared = []types.Type{
+ 	types.Typ[types.Invalid], // only appears in packages with errors
+ 
+ 	// used internally by gc; never used by this package or in .a files
++	// not to be confused with the universe any
+ 	anyType{},
+ 
+ 	// comparable
+ 	types.Universe.Lookup("comparable").Type(),
++
++	// any
++	types.Universe.Lookup("any").Type(),
+ }
+ 
+ type anyType struct{}
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index c9127f366a..d8ca8ad611 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -349,16 +349,16 @@ func TestTypesInfo(t *testing.T) {
+ 		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},
+ 
+ 		// parameterized functions
+-		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[T interface{}](T)`},
++		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[T any](T)`},
+ 		{genericPkg + `p1; func f[T any](T) {}; var _ = f[int]`, `f[int]`, `func(int)`},
+ 		{genericPkg + `p2; func f[T any](T) {}; func _() { f(42) }`, `f`, `func(int)`},
+ 		{genericPkg + `p3; func f[T any](T) {}; func _() { f[int](42) }`, `f[int]`, `func(int)`},
+-		{genericPkg + `p4; func f[T any](T) {}; func _() { f[int](42) }`, `f`, `func[T interface{}](T)`},
++		{genericPkg + `p4; func f[T any](T) {}; func _() { f[int](42) }`, `f`, `func[T any](T)`},
+ 		{genericPkg + `p5; func f[T any](T) {}; func _() { f(42) }`, `f(42)`, `()`},
+ 
+ 		// type parameters
+ 		{genericPkg + `t0; type t[] int; var _ t`, `t`, `generic_t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
+-		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[P interface{}]`},
++		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[P any]`},
+ 		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[P interface{}]`},
+ 		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[P, Q interface{}]`},
+ 
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 9309a529c4..cf05384a87 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -482,6 +482,14 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		}
+ 	}
+ 
++	// Special handling for any: because WriteType will format 'any' as 'any',
++	// resulting in the object string `type any = any` rather than `type any =
++	// interface{}`. To avoid this, swap in a different empty interface.
++	if obj == universeAny {
++		assert(Identical(typ, &emptyInterface))
++		typ = &emptyInterface
++	}
++
+ 	buf.WriteByte(' ')
+ 	WriteType(buf, typ, qf)
+ }
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index 46b92a4006..47c7fcd349 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -104,8 +104,8 @@ var testObjects = []struct {
+ 
+ 	{"type t struct{f int}", "t", "type p.t struct{f int}"},
+ 	{"type t func(int)", "t", "type p.t func(int)"},
+-	{"type t[P any] struct{f P}", "t", "type p.t[P interface{}] struct{f P}"},
+-	{"type t[P any] struct{f P}", "t.P", "type parameter P interface{}"},
++	{"type t[P any] struct{f P}", "t", "type p.t[P any] struct{f P}"},
++	{"type t[P any] struct{f P}", "t.P", "type parameter P any"},
+ 	{"type C interface{m()}; type t[P C] struct{}", "t.P", "type parameter P p.C"},
+ 
+ 	{"type t = struct{f int}", "t", "type p.t = struct{f int}"},
+@@ -114,8 +114,9 @@ var testObjects = []struct {
+ 	{"var v int", "v", "var p.v int"},
+ 
+ 	{"func f(int) string", "f", "func p.f(int) string"},
+-	{"func g[P any](x P){}", "g", "func p.g[P interface{}](x P)"},
++	{"func g[P any](x P){}", "g", "func p.g[P any](x P)"},
+ 	{"func g[P interface{~int}](x P){}", "g.P", "type parameter P interface{~int}"},
++	{"", "any", "type any = interface{}"},
+ }
+ 
+ func TestObjectString(t *testing.T) {
+@@ -134,7 +135,7 @@ func TestObjectString(t *testing.T) {
+ 			t.Errorf("%s: invalid object path %s", test.src, test.obj)
+ 			continue
+ 		}
+-		obj := pkg.Scope().Lookup(names[0])
++		_, obj := pkg.Scope().LookupParent(names[0], token.NoPos)
+ 		if obj == nil {
+ 			t.Errorf("%s: %s not found", test.src, names[0])
+ 			continue
+diff --git a/src/go/types/testdata/fixedbugs/issue48008.go2 b/src/go/types/testdata/fixedbugs/issue48008.go2
+index 5c9726875c..6c14c78e4c 100644
+--- a/src/go/types/testdata/fixedbugs/issue48008.go2
++++ b/src/go/types/testdata/fixedbugs/issue48008.go2
+@@ -21,7 +21,7 @@ func _(x interface{}) {
+ 	case map[T[int]] string:
+ 	case chan T[int]:
+ 
+-	case T /* ERROR cannot use generic type T\[P interface{}\] without instantiation */ :
++	case T /* ERROR cannot use generic type T\[P any\] without instantiation */ :
+ 	case []T /* ERROR cannot use generic type */ :
+ 	case [10]T /* ERROR cannot use generic type */ :
+ 	case struct{T /* ERROR cannot use generic type */ }:
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index f33175f97e..cf86f9f720 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -202,6 +202,13 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 
+ 	case *Interface:
++		if t == universeAny.Type() && w.ctxt == nil {
++			// When not hashing, we can try to improve type strings by writing "any"
++			// for a type that is pointer-identical to universeAny. This logic should
++			// be deprecated by more robust handling for aliases.
++			w.string("any")
++			break
++		}
+ 		if t.implicit {
+ 			if len(t.methods) == 0 && len(t.embeddeds) == 1 {
+ 				w.typ(t.embeddeds[0])
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 519cf0b707..e30ab12bc3 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -80,7 +80,10 @@ func defPredeclaredTypes() {
+ 	}
+ 
+ 	// type any = interface{}
+-	def(NewTypeName(token.NoPos, nil, "any", &emptyInterface))
++	// Note: don't use &emptyInterface for the type of any. Using a unique
++	// pointer allows us to detect any and format it as "any" rather than
++	// interface{}, which clarifies user-facing error messages significantly.
++	def(NewTypeName(token.NoPos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
+ 
+ 	// type error interface{ Error() string }
+ 	{

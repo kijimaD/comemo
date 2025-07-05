@@ -15,6 +15,39 @@ Date:   Thu May 2 18:38:35 2024 +0200
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/testing/testing.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 2289c6717f..60f0c23137 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -72,14 +72,15 @@
+ // A sample benchmark function looks like this:
+ //
+ //	func BenchmarkRandInt(b *testing.B) {
+-//	    for i := 0; i < b.N; i++ {
++//	    for range b.N {
+ //	        rand.Int()
+ //	    }
+ //	}
+ //
+ // The benchmark function must run the target code b.N times.
+-// During benchmark execution, b.N is adjusted until the benchmark function lasts
+-// long enough to be timed reliably. The output
++// It is called multiple times with b.N adjusted until the
++// benchmark function lasts long enough to be timed reliably.
++// The output
+ //
+ //	BenchmarkRandInt-8   	68453040	        17.8 ns/op
+ //
+@@ -91,7 +92,7 @@
+ //	func BenchmarkBigLen(b *testing.B) {
+ //	    big := NewBig()
+ //	    b.ResetTimer()
+-//	    for i := 0; i < b.N; i++ {
++//	    for range b.N {
+ //	        big.Len()
+ //	    }
+ //	}

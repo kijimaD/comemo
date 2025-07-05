@@ -25,7 +25,38 @@ Date:   Fri Dec 17 14:15:42 2021 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asm_riscv64.s | 5 ++++-
  src/runtime/trace.go      | 3 +++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 0e813189d4..2a4837b399 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -81,7 +81,10 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
+ 
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+-	RDCYCLE	A0
++	// RDTIME to emulate cpu ticks
++	// RDCYCLE reads counter that is per HART(core) based
++	// according to the riscv manual, see issue 46737
++	RDTIME	A0
+ 	MOV	A0, ret+0(FP)
+ 	RET
+ 
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 5b14a5f553..71a29d4316 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -426,6 +426,9 @@ func ReadTrace() []byte {
+ 		trace.footerWritten = true
+ 		// Use float64 because (trace.ticksEnd - trace.ticksStart) * 1e9 can overflow int64.
+ 		freq := float64(trace.ticksEnd-trace.ticksStart) * 1e9 / float64(trace.timeEnd-trace.timeStart) / traceTickDiv
++		if freq <= 0 {
++			throw("trace: ReadTrace got invalid frequency")
++		}
+ 		trace.lockOwner = nil
+ 		unlock(&trace.lock)
+ 		var data []byte

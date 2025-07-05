@@ -15,8 +15,112 @@ Date:   Fri May 9 15:40:45 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/100310043
-
+---
  src/cmd/gc/esc.c   |  2 ++
  src/cmd/gc/order.c |  2 +-
  test/escape2.go    | 28 ++++++++++++++++++++--------
  3 files changed, 23 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index b1cf2b1602..028163abbf 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -903,6 +903,7 @@ esccall(EscState *e, Node *n, Node *up)
+ 				src->type = typ(TARRAY);
+ 				src->type->type = lr->n->type->type;
+ 				src->type->bound = count(ll);
++				src->type = ptrto(src->type); // make pointer so it will be tracked
+ 				src->escloopdepth = e->loopdepth;
+ 				src->lineno = n->lineno;
+ 				src->esc = EscNone;  // until we find otherwise
+@@ -960,6 +961,7 @@ esccall(EscState *e, Node *n, Node *up)
+ 			src->type = typ(TARRAY);
+ 			src->type->type = t->type->type;
+ 			src->type->bound = count(ll);
++			src->type = ptrto(src->type); // make pointer so it will be tracked
+ 			src->esc = EscNone;  // until we find otherwise
+ 			e->noesc = list(e->noesc, src);
+ 			n->right = src;
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index d596b0ae18..08d7b5d08d 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -1012,7 +1012,7 @@ orderexpr(Node **np, Order *order)
+ 			// Allocate a temporary that will be cleaned up when this statement
+ 			// completes. We could be more aggressive and try to arrange for it
+ 			// to be cleaned up when the call completes.
+-			n->alloc = ordertemp(n->type, order, 0);
++			n->alloc = ordertemp(n->type->type, order, 0);
+ 		}
+ 		break;
+ 
+diff --git a/test/escape2.go b/test/escape2.go
+index 047adf5149..220f9d91f1 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -80,7 +80,7 @@ func foo12(yyy **int) { // ERROR "leaking param: yyy"
+ 	xxx = yyy
+ }
+ 
+-// Must treat yyy as leaking because *yyy leaks, and the escape analysis 
++// Must treat yyy as leaking because *yyy leaks, and the escape analysis
+ // summaries in exported metadata do not distinguish these two cases.
+ func foo13(yyy **int) { // ERROR "leaking param: yyy"
+ 	*xxx = *yyy
+@@ -1294,15 +1294,15 @@ func F4(x []byte)
+ func G() {
+ 	var buf1 [10]byte
+ 	F1(buf1[:]) // ERROR "buf1 does not escape"
+-	
++
+ 	var buf2 [10]byte // ERROR "moved to heap: buf2"
+-	F2(buf2[:]) // ERROR "buf2 escapes to heap"
++	F2(buf2[:])       // ERROR "buf2 escapes to heap"
+ 
+ 	var buf3 [10]byte
+ 	F3(buf3[:]) // ERROR "buf3 does not escape"
+-	
++
+ 	var buf4 [10]byte // ERROR "moved to heap: buf4"
+-	F4(buf4[:]) // ERROR "buf4 escapes to heap"
++	F4(buf4[:])       // ERROR "buf4 escapes to heap"
+ }
+ 
+ type Tm struct {
+@@ -1314,9 +1314,9 @@ func (t *Tm) M() { // ERROR "t does not escape"
+ 
+ func foo141() {
+ 	var f func()
+-	
++
+ 	t := new(Tm) // ERROR "escapes to heap"
+-	f = t.M // ERROR "t.M does not escape"
++	f = t.M      // ERROR "t.M does not escape"
+ 	_ = f
+ }
+ 
+@@ -1324,7 +1324,7 @@ var gf func()
+ 
+ func foo142() {
+ 	t := new(Tm) // ERROR "escapes to heap"
+-	gf = t.M // ERROR "t.M escapes to heap"
++	gf = t.M     // ERROR "t.M escapes to heap"
+ }
+ 
+ // issue 3888.
+@@ -1399,3 +1399,15 @@ func foo149(l List) { // ERROR " l does not escape"
+ 		}
+ 	}
+ }
++
++// issue 7934: missed ... if element type had no pointers
++
++var save150 []byte
++
++func foo150(x ...byte) { // ERROR "leaking param: x"
++	save150 = x
++}
++
++func bar150() {
++	foo150(1, 2, 3) // ERROR "[.][.][.] argument escapes to heap"
++}

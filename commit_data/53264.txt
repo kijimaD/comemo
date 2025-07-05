@@ -24,8 +24,114 @@ Date:   Fri Aug 5 23:39:55 2022 +1000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/cpu/cpu_arm64_openbsd.go | 60 +++++++++++++++++++++++++++++++++++
  src/internal/cpu/cpu_arm64_other.go   |  2 +-
  src/runtime/os_openbsd.go             | 15 +++++++++
  3 files changed, 76 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/cpu/cpu_arm64_openbsd.go b/src/internal/cpu/cpu_arm64_openbsd.go
+new file mode 100644
+index 0000000000..2b284ebd03
+--- /dev/null
++++ b/src/internal/cpu/cpu_arm64_openbsd.go
+@@ -0,0 +1,60 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build arm64
++
++package cpu
++
++const (
++	// From OpenBSD's sys/sysctl.h.
++	_CTL_MACHDEP = 7
++
++	// From OpenBSD's machine/cpu.h.
++	_CPU_ID_AA64ISAR0 = 2
++	_CPU_ID_AA64ISAR1 = 3
++)
++
++func extractBits(data uint64, start, end uint) uint {
++	return (uint)(data>>start) & ((1 << (end - start + 1)) - 1)
++}
++
++//go:noescape
++func sysctlUint64(mib []uint32) (uint64, bool)
++
++func osInit() {
++	// Get ID_AA64ISAR0 from sysctl.
++	isar0, ok := sysctlUint64([]uint32{_CTL_MACHDEP, _CPU_ID_AA64ISAR0})
++	if !ok {
++		return
++	}
++
++	// ID_AA64ISAR0_EL1
++	switch extractBits(isar0, 4, 7) {
++	case 1:
++		ARM64.HasAES = true
++	case 2:
++		ARM64.HasAES = true
++		ARM64.HasPMULL = true
++	}
++
++	switch extractBits(isar0, 8, 11) {
++	case 1:
++		ARM64.HasSHA1 = true
++	}
++
++	switch extractBits(isar0, 12, 15) {
++	case 1, 2:
++		ARM64.HasSHA2 = true
++	}
++
++	switch extractBits(isar0, 16, 19) {
++	case 1:
++		ARM64.HasCRC32 = true
++	}
++
++	switch extractBits(isar0, 20, 23) {
++	case 2:
++		ARM64.HasATOMICS = true
++	}
++}
+diff --git a/src/internal/cpu/cpu_arm64_other.go b/src/internal/cpu/cpu_arm64_other.go
+index d313648cb7..44592cfced 100644
+--- a/src/internal/cpu/cpu_arm64_other.go
++++ b/src/internal/cpu/cpu_arm64_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build arm64 && !linux && !freebsd && !android && (!darwin || ios)
++//go:build arm64 && !linux && !freebsd && !android && (!darwin || ios) && !openbsd
+ 
+ package cpu
+ 
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index d43414459d..7af6c4afe7 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -51,6 +51,21 @@ func sysctlInt(mib []uint32) (int32, bool) {
+ 	return out, true
+ }
+ 
++func sysctlUint64(mib []uint32) (uint64, bool) {
++	var out uint64
++	nout := unsafe.Sizeof(out)
++	ret := sysctl(&mib[0], uint32(len(mib)), (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
++	if ret < 0 {
++		return 0, false
++	}
++	return out, true
++}
++
++//go:linkname internal_cpu_sysctlUint64 internal/cpu.sysctlUint64
++func internal_cpu_sysctlUint64(mib []uint32) (uint64, bool) {
++	return sysctlUint64(mib)
++}
++
+ func getncpu() int32 {
+ 	// Try hw.ncpuonline first because hw.ncpu would report a number twice as
+ 	// high as the actual CPUs running on OpenBSD 6.4 with hyperthreading

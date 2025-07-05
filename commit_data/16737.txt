@@ -7,7 +7,52 @@ Date:   Fri Jul 12 05:06:43 2013 +0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/11188043
-
+---
  src/pkg/runtime/sys_windows_386.s   | 4 ++--
  src/pkg/runtime/sys_windows_amd64.s | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index 728fb99018..d232bd115d 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -38,7 +38,7 @@ TEXT runtime·asmstdcall(SB),7,$0
+ 
+ 	RET
+ 
+-TEXT	runtime·badsignal(SB),7,$24
++TEXT	runtime·badsignal2(SB),7,$24
+ 	// stderr
+ 	MOVL	$-12, 0(SP)
+ 	MOVL	SP, BP
+@@ -86,7 +86,7 @@ TEXT runtime·sigtramp(SB),7,$28
+ 	MOVL	m(CX), AX
+ 	CMPL	AX, $0
+ 	JNE	2(PC)
+-	CALL	runtime·badsignal(SB)
++	CALL	runtime·badsignal2(SB)
+ 
+ 	MOVL	g(CX), CX
+ 	MOVL	CX, 8(SP)
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index ca07f572b4..4837a02a5a 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -60,7 +60,7 @@ loadregs:
+ 
+ 	RET
+ 
+-TEXT runtime·badsignal(SB),7,$48
++TEXT runtime·badsignal2(SB),7,$48
+ 	// stderr
+ 	MOVQ	$-12, CX // stderr
+ 	MOVQ	CX, 0(SP)
+@@ -118,7 +118,7 @@ TEXT runtime·sigtramp(SB),7,$0
+ 	MOVQ	m(CX), AX
+ 	CMPQ	AX, $0
+ 	JNE	2(PC)
+-	CALL	runtime·badsignal(SB)
++	CALL	runtime·badsignal2(SB)
+ 
+ 	MOVQ	g(CX), CX
+ 	MOVQ	CX, 16(SP)

@@ -10,10 +10,194 @@ Date:   Wed Jun 25 05:01:09 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/101460043
-
+---
  src/pkg/syscall/types_darwin.go         |  9 +++++++++
  src/pkg/syscall/zerrors_darwin_386.go   |  9 +++++++++
  src/pkg/syscall/zerrors_darwin_amd64.go |  9 +++++++++
  src/pkg/syscall/ztypes_darwin_386.go    | 22 ++++++++++++++++++++++
  src/pkg/syscall/ztypes_darwin_amd64.go  | 22 ++++++++++++++++++++++
  5 files changed, 71 insertions(+)
+
+diff --git a/src/pkg/syscall/types_darwin.go b/src/pkg/syscall/types_darwin.go
+index 2f001a5772..93dd297232 100644
+--- a/src/pkg/syscall/types_darwin.go
++++ b/src/pkg/syscall/types_darwin.go
+@@ -142,6 +142,8 @@ type RawSockaddr C.struct_sockaddr
+ 
+ type RawSockaddrAny C.struct_sockaddr_any
+ 
++type RawSockaddrStorage C.struct_sockaddr_storage
++
+ type _Socklen C.socklen_t
+ 
+ type Linger C.struct_linger
+@@ -152,6 +154,10 @@ type IPMreq C.struct_ip_mreq
+ 
+ type IPv6Mreq C.struct_ipv6_mreq
+ 
++type GroupReq C.struct_group_req
++
++type GroupSourceReq C.struct_group_source_req
++
+ type Msghdr C.struct_msghdr
+ 
+ type Cmsghdr C.struct_cmsghdr
+@@ -168,11 +174,14 @@ const (
+ 	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+ 	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+ 	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
++	SizeofSockaddrStorage  = C.sizeof_struct_sockaddr_storage
+ 	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
+ 	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
+ 	SizeofLinger           = C.sizeof_struct_linger
+ 	SizeofIPMreq           = C.sizeof_struct_ip_mreq
+ 	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
++	SizeofGroupReq         = C.sizeof_struct_group_req
++	SizeofGroupSourceReq   = C.sizeof_struct_group_source_req
+ 	SizeofMsghdr           = C.sizeof_struct_msghdr
+ 	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+ 	SizeofInet4Pktinfo     = C.sizeof_struct_in_pktinfo
+diff --git a/src/pkg/syscall/zerrors_darwin_386.go b/src/pkg/syscall/zerrors_darwin_386.go
+index 763b5c4f50..e3d78afa8f 100644
+--- a/src/pkg/syscall/zerrors_darwin_386.go
++++ b/src/pkg/syscall/zerrors_darwin_386.go
+@@ -785,6 +785,15 @@ const (
+ 	MAP_RENAME                        = 0x20
+ 	MAP_RESERVED0080                  = 0x80
+ 	MAP_SHARED                        = 0x1
++	MCAST_BLOCK_SOURCE                = 0x54
++	MCAST_EXCLUDE                     = 0x2
++	MCAST_INCLUDE                     = 0x1
++	MCAST_JOIN_GROUP                  = 0x50
++	MCAST_JOIN_SOURCE_GROUP           = 0x52
++	MCAST_LEAVE_GROUP                 = 0x51
++	MCAST_LEAVE_SOURCE_GROUP          = 0x53
++	MCAST_UNBLOCK_SOURCE              = 0x55
++	MCAST_UNDEFINED                   = 0x0
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
+ 	MSG_CTRUNC                        = 0x20
+diff --git a/src/pkg/syscall/zerrors_darwin_amd64.go b/src/pkg/syscall/zerrors_darwin_amd64.go
+index d0719fe9d8..8128092346 100644
+--- a/src/pkg/syscall/zerrors_darwin_amd64.go
++++ b/src/pkg/syscall/zerrors_darwin_amd64.go
+@@ -785,6 +785,15 @@ const (
+ 	MAP_RENAME                        = 0x20
+ 	MAP_RESERVED0080                  = 0x80
+ 	MAP_SHARED                        = 0x1
++	MCAST_BLOCK_SOURCE                = 0x54
++	MCAST_EXCLUDE                     = 0x2
++	MCAST_INCLUDE                     = 0x1
++	MCAST_JOIN_GROUP                  = 0x50
++	MCAST_JOIN_SOURCE_GROUP           = 0x52
++	MCAST_LEAVE_GROUP                 = 0x51
++	MCAST_LEAVE_SOURCE_GROUP          = 0x53
++	MCAST_UNBLOCK_SOURCE              = 0x55
++	MCAST_UNDEFINED                   = 0x0
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
+ 	MSG_CTRUNC                        = 0x20
+diff --git a/src/pkg/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+index 13724c3cc6..63bec22393 100644
+--- a/src/pkg/syscall/ztypes_darwin_386.go
++++ b/src/pkg/syscall/ztypes_darwin_386.go
+@@ -188,6 +188,14 @@ type RawSockaddrAny struct {
+ 	Pad  [92]int8
+ }
+ 
++type RawSockaddrStorage struct {
++	Len         uint8
++	Family      uint8
++	X__ss_pad1  [6]int8
++	X__ss_align int64
++	X__ss_pad2  [112]int8
++}
++
+ type _Socklen uint32
+ 
+ type Linger struct {
+@@ -210,6 +218,17 @@ type IPv6Mreq struct {
+ 	Interface uint32
+ }
+ 
++type GroupReq struct {
++	Interface uint32
++	Group     RawSockaddrStorage
++}
++
++type GroupSourceReq struct {
++	Interface uint32
++	Group     RawSockaddrStorage
++	Source    RawSockaddrStorage
++}
++
+ type Msghdr struct {
+ 	Name       *byte
+ 	Namelen    uint32
+@@ -250,11 +269,14 @@ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+ 	SizeofSockaddrAny      = 0x6c
++	SizeofSockaddrStorage  = 0x80
+ 	SizeofSockaddrUnix     = 0x6a
+ 	SizeofSockaddrDatalink = 0x14
+ 	SizeofLinger           = 0x8
+ 	SizeofIPMreq           = 0x8
+ 	SizeofIPv6Mreq         = 0x14
++	SizeofGroupReq         = 0x84
++	SizeofGroupSourceReq   = 0x104
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet4Pktinfo     = 0xc
+diff --git a/src/pkg/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+index 65b02ae4f5..6af958a6c1 100644
+--- a/src/pkg/syscall/ztypes_darwin_amd64.go
++++ b/src/pkg/syscall/ztypes_darwin_amd64.go
+@@ -194,6 +194,14 @@ type RawSockaddrAny struct {
+ 	Pad  [92]int8
+ }
+ 
++type RawSockaddrStorage struct {
++	Len         uint8
++	Family      uint8
++	X__ss_pad1  [6]int8
++	X__ss_align int64
++	X__ss_pad2  [112]int8
++}
++
+ type _Socklen uint32
+ 
+ type Linger struct {
+@@ -216,6 +224,17 @@ type IPv6Mreq struct {
+ 	Interface uint32
+ }
+ 
++type GroupReq struct {
++	Interface uint32
++	Pad_cgo_0 [128]byte
++}
++
++type GroupSourceReq struct {
++	Interface uint32
++	Pad_cgo_0 [128]byte
++	Pad_cgo_1 [128]byte
++}
++
+ type Msghdr struct {
+ 	Name       *byte
+ 	Namelen    uint32
+@@ -258,11 +277,14 @@ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+ 	SizeofSockaddrAny      = 0x6c
++	SizeofSockaddrStorage  = 0x80
+ 	SizeofSockaddrUnix     = 0x6a
+ 	SizeofSockaddrDatalink = 0x14
+ 	SizeofLinger           = 0x8
+ 	SizeofIPMreq           = 0x8
+ 	SizeofIPv6Mreq         = 0x14
++	SizeofGroupReq         = 0x84
++	SizeofGroupSourceReq   = 0x104
+ 	SizeofMsghdr           = 0x30
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet4Pktinfo     = 0xc

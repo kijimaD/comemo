@@ -45,7 +45,7 @@ Date:   Fri Nov 2 23:28:26 2018 -0700
     Change-Id: I6c2d10da98bfc6f4f445c755fcaab17fc7b214c5
     Reviewed-on: https://go-review.googlesource.com/c/147286
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go      |  8 ++++++--
  src/cmd/compile/internal/gc/typecheck.go | 12 ++++++++++--
  src/go/types/stdlib_test.go              |  1 +
@@ -55,3 +55,191 @@ Date:   Fri Nov 2 23:28:26 2018 -0700
  test/fixedbugs/issue27232.go             | 19 +++++++++++++++++++
  test/fixedbugs/issue27267.go             | 21 +++++++++++++++++++++
  8 files changed, 68 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 49a4e05d99..78142d3bf8 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -491,13 +491,17 @@ func Main(archInit func(*Arch)) {
+ 	// Phase 1: const, type, and names and types of funcs.
+ 	//   This will gather all the information about types
+ 	//   and methods but doesn't depend on any of it.
++	//
++	//   We also defer type alias declarations until phase 2
++	//   to avoid cycles like #18640.
++	//   TODO(gri) Remove this again once we have a fix for #25838.
+ 	defercheckwidth()
+ 
+ 	// Don't use range--typecheck can add closures to xtop.
+ 	timings.Start("fe", "typecheck", "top1")
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op; op != ODCL && op != OAS && op != OAS2 {
++		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && (op != ODCLTYPE || !n.Left.Name.Param.Alias) {
+ 			xtop[i] = typecheck(n, Etop)
+ 		}
+ 	}
+@@ -509,7 +513,7 @@ func Main(archInit func(*Arch)) {
+ 	timings.Start("fe", "typecheck", "top2")
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op; op == ODCL || op == OAS || op == OAS2 {
++		if op := n.Op; op == ODCL || op == OAS || op == OAS2 || op == ODCLTYPE && n.Left.Name.Param.Alias {
+ 			xtop[i] = typecheck(n, Etop)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 2a59521484..06dd176b37 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -255,8 +255,16 @@ func typecheck(n *Node, top int) (res *Node) {
+ 				// since it would expand indefinitely when aliases
+ 				// are substituted.
+ 				cycle := cycleFor(n)
+-				for _, n := range cycle {
+-					if n.Name != nil && !n.Name.Param.Alias {
++				for _, n1 := range cycle {
++					if n1.Name != nil && !n1.Name.Param.Alias {
++						// Cycle is ok. But if n is an alias type and doesn't
++						// have a type yet, we have a recursive type declaration
++						// with aliases that we can't handle properly yet.
++						// Report an error rather than crashing later.
++						if n.Name != nil && n.Name.Param.Alias && n.Type == nil {
++							lineno = n.Pos
++							Fatalf("cannot handle alias type declaration (issue #25838): %v", n)
++						}
+ 						lineno = lno
+ 						return n
+ 					}
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 84908fd190..a4ff1ab9a8 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -180,6 +180,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue22200b.go", // go/types does not have constraints on stack size
+ 		"issue25507.go",  // go/types does not have constraints on stack size
+ 		"issue20780.go",  // go/types does not have constraints on stack size
++		"issue27232.go",  // go/types has a bug with alias type (issue #28576)
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue18640.go b/test/fixedbugs/issue18640.go
+index 60abd31f76..091bbe596b 100644
+--- a/test/fixedbugs/issue18640.go
++++ b/test/fixedbugs/issue18640.go
+@@ -20,8 +20,7 @@ type (
+ 	d = c
+ )
+ 
+-// The compiler reports an incorrect (non-alias related)
+-// type cycle here (via dowith()). Disabled for now.
++// The compiler cannot handle these cases. Disabled for now.
+ // See issue #25838.
+ /*
+ type (
+@@ -32,7 +31,6 @@ type (
+ 	i = j
+ 	j = e
+ )
+-*/
+ 
+ type (
+ 	a1 struct{ *b1 }
+@@ -45,3 +43,4 @@ type (
+ 	b2 = c2
+ 	c2 struct{ *b2 }
+ )
++*/
+diff --git a/test/fixedbugs/issue23823.go b/test/fixedbugs/issue23823.go
+index 2f802d0988..9297966cbd 100644
+--- a/test/fixedbugs/issue23823.go
++++ b/test/fixedbugs/issue23823.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// compile
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -6,10 +6,14 @@
+ 
+ package p
+ 
++// The compiler cannot handle this. Disabled for now.
++// See issue #25838.
++/*
+ type I1 = interface {
+ 	I2
+ }
+ 
+-type I2 interface { // ERROR "invalid recursive type"
++type I2 interface {
+ 	I1
+ }
++*/
+diff --git a/test/fixedbugs/issue24939.go b/test/fixedbugs/issue24939.go
+index 26530e95b2..0ae6f2b9f2 100644
+--- a/test/fixedbugs/issue24939.go
++++ b/test/fixedbugs/issue24939.go
+@@ -15,7 +15,9 @@ type M interface {
+ }
+ 
+ type P = interface {
+-	I() M
++	// The compiler cannot handle this case. Disabled for now.
++	// See issue #25838.
++	// I() M
+ }
+ 
+ func main() {}
+diff --git a/test/fixedbugs/issue27232.go b/test/fixedbugs/issue27232.go
+new file mode 100644
+index 0000000000..3a1cc87e4c
+--- /dev/null
++++ b/test/fixedbugs/issue27232.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type F = func(T)
++
++type T interface {
++	m(F)
++}
++
++type t struct{}
++
++func (t) m(F) {}
++
++var _ T = &t{}
+diff --git a/test/fixedbugs/issue27267.go b/test/fixedbugs/issue27267.go
+new file mode 100644
+index 0000000000..ebae44f48f
+--- /dev/null
++++ b/test/fixedbugs/issue27267.go
+@@ -0,0 +1,21 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// 1st test case from issue
++type F = func(E) // compiles if not type alias or moved below E struct
++type E struct {
++	f F
++}
++
++var x = E{func(E) {}}
++
++// 2nd test case from issue
++type P = *S
++type S struct {
++	p P
++}

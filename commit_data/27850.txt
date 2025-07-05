@@ -14,7 +14,7 @@ Date:   Thu Apr 14 19:09:36 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/reader.go                |  8 ++++----
  src/archive/tar/writer.go                |  2 +-
  src/bytes/reader.go                      |  2 +-
@@ -66,3 +66,1042 @@ Date:   Thu Apr 14 19:09:36 2016 -0700
  src/time/zoneinfo_windows.go             |  2 +-
  src/unicode/letter.go                    |  2 +-
  50 files changed, 120 insertions(+), 120 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 741fe0152b..b924eeb568 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -306,7 +306,7 @@ func mergePAX(hdr *Header, headers map[string]string) error {
+ 			if err != nil {
+ 				return err
+ 			}
+-			hdr.Size = int64(size)
++			hdr.Size = size
+ 		default:
+ 			if strings.HasPrefix(k, paxXattr) {
+ 				if hdr.Xattrs == nil {
+@@ -346,7 +346,7 @@ func parsePAXTime(t string) (time.Time, error) {
+ 			// Right truncate
+ 			nano_buf = nano_buf[:maxNanoSecondIntSize]
+ 		}
+-		nanoseconds, err = strconv.ParseInt(string(nano_buf), 10, 0)
++		nanoseconds, err = strconv.ParseInt(nano_buf, 10, 0)
+ 		if err != nil {
+ 			return time.Time{}, err
+ 		}
+@@ -378,14 +378,14 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 		}
+ 		sbuf = residual
+ 
+-		keyStr := string(key)
++		keyStr := key
+ 		if keyStr == paxGNUSparseOffset || keyStr == paxGNUSparseNumBytes {
+ 			// GNU sparse format 0.0 special key. Write to sparseMap instead of using the headers map.
+ 			sparseMap.WriteString(value)
+ 			sparseMap.Write([]byte{','})
+ 		} else {
+ 			// Normal key. Set the value in the headers map.
+-			headers[keyStr] = string(value)
++			headers[keyStr] = value
+ 		}
+ 	}
+ 	if sparseMap.Len() != 0 {
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 600ee4be09..944b2d4952 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -278,7 +278,7 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 			return err
+ 		}
+ 	}
+-	tw.nb = int64(hdr.Size)
++	tw.nb = hdr.Size
+ 	tw.pad = (blockSize - (tw.nb % blockSize)) % blockSize
+ 
+ 	_, tw.err = tw.w.Write(header)
+diff --git a/src/bytes/reader.go b/src/bytes/reader.go
+index 7aa30578b3..aa39890f3b 100644
+--- a/src/bytes/reader.go
++++ b/src/bytes/reader.go
+@@ -114,7 +114,7 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+ 	case 0:
+ 		abs = offset
+ 	case 1:
+-		abs = int64(r.i) + offset
++		abs = r.i + offset
+ 	case 2:
+ 		abs = int64(len(r.s)) + offset
+ 	default:
+diff --git a/src/compress/bzip2/bzip2.go b/src/compress/bzip2/bzip2.go
+index 90e9aebab6..42788443bc 100644
+--- a/src/compress/bzip2/bzip2.go
++++ b/src/compress/bzip2/bzip2.go
+@@ -75,7 +75,7 @@ func (bz2 *reader) setup(needMagic bool) error {
+ 	}
+ 
+ 	bz2.fileCRC = 0
+-	bz2.blockSize = 100 * 1000 * (int(level) - '0')
++	bz2.blockSize = 100 * 1000 * (level - '0')
+ 	if bz2.blockSize > len(bz2.tt) {
+ 		bz2.tt = make([]uint32, bz2.blockSize)
+ 	}
+@@ -293,7 +293,7 @@ func (bz2 *reader) readBlock() (err error) {
+ 		if c >= numHuffmanTrees {
+ 			return StructuralError("tree index too large")
+ 		}
+-		treeIndexes[i] = uint8(mtfTreeDecoder.Decode(c))
++		treeIndexes[i] = mtfTreeDecoder.Decode(c)
+ 	}
+ 
+ 	// The list of symbols for the move-to-front transform is taken from
+@@ -399,7 +399,7 @@ func (bz2 *reader) readBlock() (err error) {
+ 				return StructuralError("repeats past end of block")
+ 			}
+ 			for i := 0; i < repeat; i++ {
+-				b := byte(mtf.First())
++				b := mtf.First()
+ 				bz2.tt[bufIndex] = uint32(b)
+ 				bz2.c[b]++
+ 				bufIndex++
+@@ -420,7 +420,7 @@ func (bz2 *reader) readBlock() (err error) {
+ 		// it's always referenced with a run-length of 1. Thus 0
+ 		// doesn't need to be encoded and we have |v-1| in the next
+ 		// line.
+-		b := byte(mtf.Decode(int(v - 1)))
++		b := mtf.Decode(int(v - 1))
+ 		if bufIndex >= bz2.blockSize {
+ 			return StructuralError("data exceeds block size")
+ 		}
+diff --git a/src/compress/flate/huffman_bit_writer.go b/src/compress/flate/huffman_bit_writer.go
+index 23f242f88e..d0206e59cf 100644
+--- a/src/compress/flate/huffman_bit_writer.go
++++ b/src/compress/flate/huffman_bit_writer.go
+@@ -436,7 +436,7 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
+ 	}
+ 	dynamicHeader := int64(3+5+5+4+(3*numCodegens)) +
+ 		w.codegenEncoding.bitLength(w.codegenFreq[:]) +
+-		int64(extraBits) +
++		extraBits +
+ 		int64(w.codegenFreq[16]*2) +
+ 		int64(w.codegenFreq[17]*3) +
+ 		int64(w.codegenFreq[18]*7)
+diff --git a/src/compress/flate/reverse_bits.go b/src/compress/flate/reverse_bits.go
+index c1a02720d1..6b222900c1 100644
+--- a/src/compress/flate/reverse_bits.go
++++ b/src/compress/flate/reverse_bits.go
+@@ -44,5 +44,5 @@ func reverseUint16(v uint16) uint16 {
+ }
+ 
+ func reverseBits(number uint16, bitLength byte) uint16 {
+-	return reverseUint16(number << uint8(16-bitLength))
++	return reverseUint16(number << (16 - bitLength))
+ }
+diff --git a/src/compress/lzw/writer.go b/src/compress/lzw/writer.go
+index 7367c29651..6ddb335f31 100644
+--- a/src/compress/lzw/writer.go
++++ b/src/compress/lzw/writer.go
+@@ -119,7 +119,7 @@ func (e *encoder) incHi() error {
+ 		if err := e.write(e, clear); err != nil {
+ 			return err
+ 		}
+-		e.width = uint(e.litWidth) + 1
++		e.width = e.litWidth + 1
+ 		e.hi = clear + 1
+ 		e.overflow = clear << 1
+ 		for i := range e.table {
+diff --git a/src/crypto/des/block.go b/src/crypto/des/block.go
+index 26355a22e7..99338d62a6 100644
+--- a/src/crypto/des/block.go
++++ b/src/crypto/des/block.go
+@@ -72,7 +72,7 @@ func init() {
+ 		for i := 0; i < 4; i++ {
+ 			for j := 0; j < 16; j++ {
+ 				f := uint64(sBoxes[s][i][j]) << (4 * (7 - uint(s)))
+-				f = permuteBlock(uint64(f), permutationFunction[:])
++				f = permuteBlock(f, permutationFunction[:])
+ 				feistelBox[s][16*i+j] = uint32(f)
+ 			}
+ 		}
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index 13d013a594..3f9a63b110 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -214,7 +214,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		z[4] = byte(l)
+ 		z = z[5:]
+ 		for _, pointFormat := range m.supportedPoints {
+-			z[0] = byte(pointFormat)
++			z[0] = pointFormat
+ 			z = z[1:]
+ 		}
+ 	}
+@@ -589,7 +589,7 @@ func (m *serverHelloMsg) marshal() []byte {
+ 	z := x[39+len(m.sessionId):]
+ 	z[0] = uint8(m.cipherSuite >> 8)
+ 	z[1] = uint8(m.cipherSuite)
+-	z[2] = uint8(m.compressionMethod)
++	z[2] = m.compressionMethod
+ 
+ 	z = z[3:]
+ 	if numExtensions > 0 {
+diff --git a/src/debug/dwarf/buf.go b/src/debug/dwarf/buf.go
+index 7443043c11..24d266db10 100644
+--- a/src/debug/dwarf/buf.go
++++ b/src/debug/dwarf/buf.go
+@@ -157,7 +157,7 @@ func (b *buf) addr() uint64 {
+ 	case 4:
+ 		return uint64(b.uint32())
+ 	case 8:
+-		return uint64(b.uint64())
++		return b.uint64()
+ 	}
+ 	b.error("unknown address size")
+ 	return 0
+diff --git a/src/debug/dwarf/line.go b/src/debug/dwarf/line.go
+index b3b91ade62..ed82feef92 100644
+--- a/src/debug/dwarf/line.go
++++ b/src/debug/dwarf/line.go
+@@ -361,7 +361,7 @@ func (r *LineReader) step(entry *LineEntry) bool {
+ 		// Special opcode [DWARF2 6.2.5.1, DWARF4 6.2.5.1]
+ 		adjustedOpcode := opcode - r.opcodeBase
+ 		r.advancePC(adjustedOpcode / r.lineRange)
+-		lineDelta := r.lineBase + int(adjustedOpcode)%r.lineRange
++		lineDelta := r.lineBase + adjustedOpcode%r.lineRange
+ 		r.state.Line += lineDelta
+ 		goto emit
+ 	}
+diff --git a/src/debug/dwarf/typeunit.go b/src/debug/dwarf/typeunit.go
+index ed42547386..652e02d917 100644
+--- a/src/debug/dwarf/typeunit.go
++++ b/src/debug/dwarf/typeunit.go
+@@ -76,7 +76,7 @@ func (d *Data) parseTypes(name string, types []byte) error {
+ 				data:   b.bytes(int(n - (b.off - hdroff))),
+ 				atable: atable,
+ 				asize:  int(asize),
+-				vers:   int(vers),
++				vers:   vers,
+ 				is64:   dwarf64,
+ 			},
+ 			toff: Offset(toff),
+@@ -101,7 +101,7 @@ func (d *Data) sigToType(sig uint64) (Type, error) {
+ 
+ 	b := makeBuf(d, tu, tu.name, tu.off, tu.data)
+ 	r := &typeUnitReader{d: d, tu: tu, b: b}
+-	t, err := d.readType(tu.name, r, Offset(tu.toff), make(map[Offset]Type), nil)
++	t, err := d.readType(tu.name, r, tu.toff, make(map[Offset]Type), nil)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index af881c2495..3f43d4d896 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -2060,8 +2060,8 @@ type Rela32 struct {
+ 	Addend int32  /* Addend. */
+ }
+ 
+-func R_SYM32(info uint32) uint32      { return uint32(info >> 8) }
+-func R_TYPE32(info uint32) uint32     { return uint32(info & 0xff) }
++func R_SYM32(info uint32) uint32      { return info >> 8 }
++func R_TYPE32(info uint32) uint32     { return info & 0xff }
+ func R_INFO32(sym, typ uint32) uint32 { return sym<<8 | typ }
+ 
+ // ELF32 Symbol.
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 8fbf23fe5a..c173ea9331 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -294,7 +294,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		}
+ 		f.Type = Type(hdr.Type)
+ 		f.Machine = Machine(hdr.Machine)
+-		f.Entry = uint64(hdr.Entry)
++		f.Entry = hdr.Entry
+ 		if v := Version(hdr.Version); v != f.Version {
+ 			return nil, &FormatError{0, "mismatched ELF version", v}
+ 		}
+@@ -341,12 +341,12 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 			p.ProgHeader = ProgHeader{
+ 				Type:   ProgType(ph.Type),
+ 				Flags:  ProgFlag(ph.Flags),
+-				Off:    uint64(ph.Off),
+-				Vaddr:  uint64(ph.Vaddr),
+-				Paddr:  uint64(ph.Paddr),
+-				Filesz: uint64(ph.Filesz),
+-				Memsz:  uint64(ph.Memsz),
+-				Align:  uint64(ph.Align),
++				Off:    ph.Off,
++				Vaddr:  ph.Vaddr,
++				Paddr:  ph.Paddr,
++				Filesz: ph.Filesz,
++				Memsz:  ph.Memsz,
++				Align:  ph.Align,
+ 			}
+ 		}
+ 		p.sr = io.NewSectionReader(r, int64(p.Off), int64(p.Filesz))
+@@ -374,8 +374,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 				Addr:      uint64(sh.Addr),
+ 				Offset:    uint64(sh.Off),
+ 				FileSize:  uint64(sh.Size),
+-				Link:      uint32(sh.Link),
+-				Info:      uint32(sh.Info),
++				Link:      sh.Link,
++				Info:      sh.Info,
+ 				Addralign: uint64(sh.Addralign),
+ 				Entsize:   uint64(sh.Entsize),
+ 			}
+@@ -388,13 +388,13 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 			s.SectionHeader = SectionHeader{
+ 				Type:      SectionType(sh.Type),
+ 				Flags:     SectionFlag(sh.Flags),
+-				Offset:    uint64(sh.Off),
+-				FileSize:  uint64(sh.Size),
+-				Addr:      uint64(sh.Addr),
+-				Link:      uint32(sh.Link),
+-				Info:      uint32(sh.Info),
+-				Addralign: uint64(sh.Addralign),
+-				Entsize:   uint64(sh.Entsize),
++				Offset:    sh.Off,
++				FileSize:  sh.Size,
++				Addr:      sh.Addr,
++				Link:      sh.Link,
++				Info:      sh.Info,
++				Addralign: sh.Addralign,
++				Entsize:   sh.Entsize,
+ 			}
+ 		}
+ 		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.FileSize))
+diff --git a/src/debug/gosym/pclntab.go b/src/debug/gosym/pclntab.go
+index 291f102262..e859d5aed5 100644
+--- a/src/debug/gosym/pclntab.go
++++ b/src/debug/gosym/pclntab.go
+@@ -207,8 +207,8 @@ func (t *LineTable) go12Funcs() []Func {
+ 	funcs := make([]Func, n)
+ 	for i := range funcs {
+ 		f := &funcs[i]
+-		f.Entry = uint64(t.uintptr(t.functab[2*i*int(t.ptrsize):]))
+-		f.End = uint64(t.uintptr(t.functab[(2*i+2)*int(t.ptrsize):]))
++		f.Entry = t.uintptr(t.functab[2*i*int(t.ptrsize):])
++		f.End = t.uintptr(t.functab[(2*i+2)*int(t.ptrsize):])
+ 		info := t.Data[t.uintptr(t.functab[(2*i+1)*int(t.ptrsize):]):]
+ 		f.LineTable = t
+ 		f.FrameSize = int(t.binary.Uint32(info[t.ptrsize+2*4:]))
+diff --git a/src/debug/gosym/symtab.go b/src/debug/gosym/symtab.go
+index 49e154fd8e..c8fa9a0b38 100644
+--- a/src/debug/gosym/symtab.go
++++ b/src/debug/gosym/symtab.go
+@@ -294,8 +294,8 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
+ 		t.Syms = t.Syms[0 : n+1]
+ 		ts := &t.Syms[n]
+ 		ts.Type = s.typ
+-		ts.Value = uint64(s.value)
+-		ts.GoType = uint64(s.gotype)
++		ts.Value = s.value
++		ts.GoType = s.gotype
+ 		switch s.typ {
+ 		default:
+ 			// rewrite name to use . instead of · (c2 b7)
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 2b796c4e75..30797ef099 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -315,9 +315,9 @@ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
+ 
+ 	switch {
+ 	case 1950 <= year && year < 2000:
+-		err = marshalTwoDigits(out, int(year-1900))
++		err = marshalTwoDigits(out, year-1900)
+ 	case 2000 <= year && year < 2050:
+-		err = marshalTwoDigits(out, int(year-2000))
++		err = marshalTwoDigits(out, year-2000)
+ 	default:
+ 		return StructuralError{"cannot represent time as UTCTime"}
+ 	}
+@@ -435,7 +435,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 			return out.WriteByte(0)
+ 		}
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-		return marshalInt64(out, int64(v.Int()))
++		return marshalInt64(out, v.Int())
+ 	case reflect.Struct:
+ 		t := v.Type()
+ 
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index ada5768695..46c6add062 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -269,7 +269,7 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 		case *uint8:
+ 			b[0] = *v
+ 		case uint8:
+-			b[0] = byte(v)
++			b[0] = v
+ 		case []uint8:
+ 			bs = v
+ 		case *int16:
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index 2b3a556eac..50cd6adb46 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -127,7 +127,7 @@ func (state *encoderState) encodeInt(i int64) {
+ 	} else {
+ 		x = uint64(i << 1)
+ 	}
+-	state.encodeUint(uint64(x))
++	state.encodeUint(x)
+ }
+ 
+ // encOp is the signature of an encoding operator for a given type.
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 5ab4283826..cca2d48bbd 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -99,7 +99,7 @@ func (g *CommentGroup) Text() string {
+ 	}
+ 	comments := make([]string, len(g.List))
+ 	for i, c := range g.List {
+-		comments[i] = string(c.Text)
++		comments[i] = c.Text
+ 	}
+ 
+ 	lines := make([]string, 0, 10) // most comments are less than 10 lines
+diff --git a/src/image/color/ycbcr.go b/src/image/color/ycbcr.go
+index d2c5b569a7..2e985fece1 100644
+--- a/src/image/color/ycbcr.go
++++ b/src/image/color/ycbcr.go
+@@ -237,10 +237,10 @@ func RGBToCMYK(r, g, b uint8) (uint8, uint8, uint8, uint8) {
+ 
+ // CMYKToRGB converts a CMYK quadruple to an RGB triple.
+ func CMYKToRGB(c, m, y, k uint8) (uint8, uint8, uint8) {
+-	w := uint32(0xffff - uint32(k)*0x101)
+-	r := uint32(0xffff-uint32(c)*0x101) * w / 0xffff
+-	g := uint32(0xffff-uint32(m)*0x101) * w / 0xffff
+-	b := uint32(0xffff-uint32(y)*0x101) * w / 0xffff
++	w := 0xffff - uint32(k)*0x101
++	r := (0xffff - uint32(c)*0x101) * w / 0xffff
++	g := (0xffff - uint32(m)*0x101) * w / 0xffff
++	b := (0xffff - uint32(y)*0x101) * w / 0xffff
+ 	return uint8(r >> 8), uint8(g >> 8), uint8(b >> 8)
+ }
+ 
+@@ -256,11 +256,11 @@ func (c CMYK) RGBA() (uint32, uint32, uint32, uint32) {
+ 	// This code is a copy of the CMYKToRGB function above, except that it
+ 	// returns values in the range [0, 0xffff] instead of [0, 0xff].
+ 
+-	w := uint32(0xffff - uint32(c.K)*0x101)
+-	r := uint32(0xffff-uint32(c.C)*0x101) * w / 0xffff
+-	g := uint32(0xffff-uint32(c.M)*0x101) * w / 0xffff
+-	b := uint32(0xffff-uint32(c.Y)*0x101) * w / 0xffff
+-	return uint32(r), uint32(g), uint32(b), 0xffff
++	w := 0xffff - uint32(c.K)*0x101
++	r := (0xffff - uint32(c.C)*0x101) * w / 0xffff
++	g := (0xffff - uint32(c.M)*0x101) * w / 0xffff
++	b := (0xffff - uint32(c.Y)*0x101) * w / 0xffff
++	return r, g, b, 0xffff
+ }
+ 
+ // CMYKModel is the Model for CMYK colors.
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 94e3575663..6a16cd39cf 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -634,10 +634,10 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
+ 				if !floydSteinberg {
+ 					continue
+ 				}
+-				er -= int32(palette[bestIndex][0])
+-				eg -= int32(palette[bestIndex][1])
+-				eb -= int32(palette[bestIndex][2])
+-				ea -= int32(palette[bestIndex][3])
++				er -= palette[bestIndex][0]
++				eg -= palette[bestIndex][1]
++				eb -= palette[bestIndex][2]
++				ea -= palette[bestIndex][3]
+ 
+ 			} else {
+ 				out.R = uint16(er)
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 4b8ad388d3..7a9c2b3dfb 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -1008,9 +1008,9 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 		if r.form == inf || e > emax {
+ 			// overflow
+ 			if x.neg {
+-				return float64(math.Inf(-1)), Below
++				return math.Inf(-1), Below
+ 			}
+-			return float64(math.Inf(+1)), Above
++			return math.Inf(+1), Above
+ 		}
+ 		// e <= emax
+ 
+diff --git a/src/math/big/natconv.go b/src/math/big/natconv.go
+index d2ce667fb6..e216bd288c 100644
+--- a/src/math/big/natconv.go
++++ b/src/math/big/natconv.go
+@@ -302,7 +302,7 @@ func (x nat) itoa(neg bool, base int) []byte {
+ 		}
+ 
+ 	} else {
+-		bb, ndigits := maxPow(Word(b))
++		bb, ndigits := maxPow(b)
+ 
+ 		// construct table of successive squares of bb*leafSize to use in subdivisions
+ 		// result (table != nil) <=> (len(x) > leafSize > 0)
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 57df124e88..7c127f8585 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -178,7 +178,7 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
+ 			}
+ 			break // i > 0
+ 		}
+-		digits = append(digits, byte(ch))
++		digits = append(digits, ch)
+ 	}
+ 	// i > 0 => we have at least one digit
+ 
+diff --git a/src/net/interface_bsd.go b/src/net/interface_bsd.go
+index b173fbcefc..17c6dd3dcd 100644
+--- a/src/net/interface_bsd.go
++++ b/src/net/interface_bsd.go
+@@ -61,13 +61,13 @@ func newLink(m *syscall.InterfaceMessage) (*Interface, error) {
+ 		m.Data = m.Data[unsafe.Offsetof(sa.Data):]
+ 		var name [syscall.IFNAMSIZ]byte
+ 		for i := 0; i < int(sa.Nlen); i++ {
+-			name[i] = byte(m.Data[i])
++			name[i] = m.Data[i]
+ 		}
+ 		ifi.Name = string(name[:sa.Nlen])
+ 		ifi.MTU = int(m.Header.Data.Mtu)
+ 		addr := make([]byte, sa.Alen)
+ 		for i := 0; i < int(sa.Alen); i++ {
+-			addr[i] = byte(m.Data[int(sa.Nlen)+i])
++			addr[i] = m.Data[int(sa.Nlen)+i]
+ 		}
+ 		ifi.HardwareAddr = addr[:sa.Alen]
+ 	}
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 9e3a103a4f..b40a314e33 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -477,7 +477,7 @@ func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err er
+ 	if i < p.len() && p.s[i] > 127 {
+ 		return "", errNonASCII
+ 	}
+-	atom, p.s = string(p.s[:i]), p.s[i:]
++	atom, p.s = p.s[:i], p.s[i:]
+ 	if !permissive {
+ 		if strings.HasPrefix(atom, ".") {
+ 			return "", errors.New("mail: leading dot in atom")
+diff --git a/src/net/parse.go b/src/net/parse.go
+index eaaa1edf30..ed82a7769b 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -105,14 +105,14 @@ func splitAtBytes(s string, t string) []string {
+ 	for i := 0; i < len(s); i++ {
+ 		if byteIndex(t, s[i]) >= 0 {
+ 			if last < i {
+-				a[n] = string(s[last:i])
++				a[n] = s[last:i]
+ 				n++
+ 			}
+ 			last = i + 1
+ 		}
+ 	}
+ 	if last < len(s) {
+-		a[n] = string(s[last:])
++		a[n] = s[last:]
+ 		n++
+ 	}
+ 	return a[0:n]
+diff --git a/src/os/exec_windows.go b/src/os/exec_windows.go
+index 3264271b2e..72b5a93199 100644
+--- a/src/os/exec_windows.go
++++ b/src/os/exec_windows.go
+@@ -104,7 +104,7 @@ func init() {
+ 	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(argv))))
+ 	Args = make([]string, argc)
+ 	for i, v := range (*argv)[:argc] {
+-		Args[i] = string(syscall.UTF16ToString((*v)[:]))
++		Args[i] = syscall.UTF16ToString((*v)[:])
+ 	}
+ }
+ 
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 7d04477d42..137f24a0a9 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -181,9 +181,9 @@ func (file *file) close() error {
+ 	}
+ 	var e error
+ 	if file.isdir() {
+-		e = syscall.FindClose(syscall.Handle(file.fd))
++		e = syscall.FindClose(file.fd)
+ 	} else {
+-		e = syscall.CloseHandle(syscall.Handle(file.fd))
++		e = syscall.CloseHandle(file.fd)
+ 	}
+ 	var err error
+ 	if e != nil {
+@@ -216,7 +216,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 	d := &file.dirinfo.data
+ 	for n != 0 && !file.dirinfo.isempty {
+ 		if file.dirinfo.needdata {
+-			e := syscall.FindNextFile(syscall.Handle(file.fd), d)
++			e := syscall.FindNextFile(file.fd, d)
+ 			if e != nil {
+ 				if e == syscall.ERROR_NO_MORE_FILES {
+ 					break
+@@ -230,7 +230,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 			}
+ 		}
+ 		file.dirinfo.needdata = true
+-		name := string(syscall.UTF16ToString(d.FileName[0:]))
++		name := syscall.UTF16ToString(d.FileName[0:])
+ 		if name == "." || name == ".." { // Useless names
+ 			continue
+ 		}
+@@ -288,7 +288,7 @@ func (f *File) readConsole(b []byte) (n int, err error) {
+ 			}
+ 			wchars := make([]uint16, nwc)
+ 			pwc := &wchars[0]
+-			nwc, err = windows.MultiByteToWideChar(acp, 2, pmb, int32(nmb), pwc, int32(nwc))
++			nwc, err = windows.MultiByteToWideChar(acp, 2, pmb, int32(nmb), pwc, nwc)
+ 			if err != nil {
+ 				return 0, err
+ 			}
+@@ -335,7 +335,7 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
+ 		Offset:     uint32(off),
+ 	}
+ 	var done uint32
+-	e = syscall.ReadFile(syscall.Handle(f.fd), b, &done, &o)
++	e = syscall.ReadFile(f.fd, b, &done, &o)
+ 	if e != nil {
+ 		if e == syscall.ERROR_HANDLE_EOF {
+ 			// end of file
+@@ -415,7 +415,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
+ 		Offset:     uint32(off),
+ 	}
+ 	var done uint32
+-	e = syscall.WriteFile(syscall.Handle(f.fd), b, &done, &o)
++	e = syscall.WriteFile(f.fd, b, &done, &o)
+ 	if e != nil {
+ 		return 0, e
+ 	}
+diff --git a/src/os/stat_darwin.go b/src/os/stat_darwin.go
+index 9dc7a99fb7..74214cefa4 100644
+--- a/src/os/stat_darwin.go
++++ b/src/os/stat_darwin.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+-	fs.size = int64(fs.sys.Size)
++	fs.size = fs.sys.Size
+ 	fs.modTime = timespecToTime(fs.sys.Mtimespec)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+diff --git a/src/os/stat_dragonfly.go b/src/os/stat_dragonfly.go
+index 69e63230eb..217bc6726d 100644
+--- a/src/os/stat_dragonfly.go
++++ b/src/os/stat_dragonfly.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+-	fs.size = int64(fs.sys.Size)
++	fs.size = fs.sys.Size
+ 	fs.modTime = timespecToTime(fs.sys.Mtim)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+@@ -42,7 +42,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
++	return time.Unix(ts.Sec, ts.Nsec)
+ }
+ 
+ // For testing.
+diff --git a/src/os/stat_freebsd.go b/src/os/stat_freebsd.go
+index e9d38aa722..bab4ffa798 100644
+--- a/src/os/stat_freebsd.go
++++ b/src/os/stat_freebsd.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+-	fs.size = int64(fs.sys.Size)
++	fs.size = fs.sys.Size
+ 	fs.modTime = timespecToTime(fs.sys.Mtimespec)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+diff --git a/src/os/stat_linux.go b/src/os/stat_linux.go
+index 69e63230eb..d36afa9ffd 100644
+--- a/src/os/stat_linux.go
++++ b/src/os/stat_linux.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+-	fs.size = int64(fs.sys.Size)
++	fs.size = fs.sys.Size
+ 	fs.modTime = timespecToTime(fs.sys.Mtim)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+diff --git a/src/os/stat_nacl.go b/src/os/stat_nacl.go
+index d3bed14e43..0c53f2faa4 100644
+--- a/src/os/stat_nacl.go
++++ b/src/os/stat_nacl.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+-	fs.size = int64(fs.sys.Size)
++	fs.size = fs.sys.Size
+ 	fs.modTime = timespecToTime(fs.sys.Mtime, fs.sys.MtimeNsec)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+diff --git a/src/os/stat_netbsd.go b/src/os/stat_netbsd.go
+index e9d38aa722..11ebcacab8 100644
+--- a/src/os/stat_netbsd.go
++++ b/src/os/stat_netbsd.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+-	fs.size = int64(fs.sys.Size)
++	fs.size = fs.sys.Size
+ 	fs.modTime = timespecToTime(fs.sys.Mtimespec)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+@@ -42,7 +42,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
++	return time.Unix(ts.Sec, int64(ts.Nsec))
+ }
+ 
+ // For testing.
+diff --git a/src/os/stat_openbsd.go b/src/os/stat_openbsd.go
+index 69e63230eb..9df2d7f773 100644
+--- a/src/os/stat_openbsd.go
++++ b/src/os/stat_openbsd.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+-	fs.size = int64(fs.sys.Size)
++	fs.size = fs.sys.Size
+ 	fs.modTime = timespecToTime(fs.sys.Mtim)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+@@ -42,7 +42,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
++	return time.Unix(ts.Sec, int64(ts.Nsec))
+ }
+ 
+ // For testing.
+diff --git a/src/os/stat_plan9.go b/src/os/stat_plan9.go
+index a2df5fe139..96f056c111 100644
+--- a/src/os/stat_plan9.go
++++ b/src/os/stat_plan9.go
+@@ -20,7 +20,7 @@ func sameFile(fs1, fs2 *fileStat) bool {
+ func fileInfoFromStat(d *syscall.Dir) FileInfo {
+ 	fs := &fileStat{
+ 		name:    d.Name,
+-		size:    int64(d.Length),
++		size:    d.Length,
+ 		modTime: time.Unix(int64(d.Mtime), 0),
+ 		sys:     d,
+ 	}
+diff --git a/src/os/stat_solaris.go b/src/os/stat_solaris.go
+index 69e63230eb..217bc6726d 100644
+--- a/src/os/stat_solaris.go
++++ b/src/os/stat_solaris.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+-	fs.size = int64(fs.sys.Size)
++	fs.size = fs.sys.Size
+ 	fs.modTime = timespecToTime(fs.sys.Mtim)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+@@ -42,7 +42,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+-	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
++	return time.Unix(ts.Sec, ts.Nsec)
+ }
+ 
+ // For testing.
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index b8f97ad60a..e55eeb0fdd 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -35,7 +35,7 @@ func (file *File) Stat() (FileInfo, error) {
+ 	}
+ 
+ 	var d syscall.ByHandleFileInformation
+-	err = syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
++	err = syscall.GetFileInformationByHandle(file.fd, &d)
+ 	if err != nil {
+ 		return nil, &PathError{"GetFileInformationByHandle", file.name, err}
+ 	}
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index 900d444b0e..ad4e863fcb 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -73,7 +73,7 @@ func (fs *fileStat) loadFileId() error {
+ 	}
+ 	defer syscall.CloseHandle(h)
+ 	var i syscall.ByHandleFileInformation
+-	err = syscall.GetFileInformationByHandle(syscall.Handle(h), &i)
++	err = syscall.GetFileInformationByHandle(h, &i)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 3c7affcd7f..b8c778cc2b 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -967,7 +967,7 @@ func (t *rtype) Out(i int) Type {
+ }
+ 
+ func (t *funcType) in() []*rtype {
+-	uadd := uintptr(unsafe.Sizeof(*t))
++	uadd := unsafe.Sizeof(*t)
+ 	if t.tflag&tflagUncommon != 0 {
+ 		uadd += unsafe.Sizeof(uncommonType{})
+ 	}
+@@ -975,7 +975,7 @@ func (t *funcType) in() []*rtype {
+ }
+ 
+ func (t *funcType) out() []*rtype {
+-	uadd := uintptr(unsafe.Sizeof(*t))
++	uadd := unsafe.Sizeof(*t)
+ 	if t.tflag&tflagUncommon != 0 {
+ 		uadd += unsafe.Sizeof(uncommonType{})
+ 	}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index d72c14e9e1..d4d317436a 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -666,7 +666,7 @@ func (v Value) Cap() int {
+ 	case Array:
+ 		return v.typ.Len()
+ 	case Chan:
+-		return int(chancap(v.pointer()))
++		return chancap(v.pointer())
+ 	case Slice:
+ 		// Slice is always bigger than a word; assume flagIndir.
+ 		return (*sliceHeader)(v.ptr).Cap
+@@ -885,7 +885,7 @@ func (v Value) Int() int64 {
+ 	case Int32:
+ 		return int64(*(*int32)(p))
+ 	case Int64:
+-		return int64(*(*int64)(p))
++		return *(*int64)(p)
+ 	}
+ 	panic(&ValueError{"reflect.Value.Int", v.kind()})
+ }
+@@ -1436,7 +1436,7 @@ func (v Value) SetCap(n int) {
+ 	v.mustBeAssignable()
+ 	v.mustBe(Slice)
+ 	s := (*sliceHeader)(v.ptr)
+-	if n < int(s.Len) || n > int(s.Cap) {
++	if n < s.Len || n > s.Cap {
+ 		panic("reflect: slice capacity out of range in SetCap")
+ 	}
+ 	s.Cap = n
+@@ -1538,7 +1538,7 @@ func (v Value) Slice(i, j int) Value {
+ 	case Slice:
+ 		typ = (*sliceType)(unsafe.Pointer(v.typ))
+ 		s := (*sliceHeader)(v.ptr)
+-		base = unsafe.Pointer(s.Data)
++		base = s.Data
+ 		cap = s.Cap
+ 
+ 	case String:
+@@ -1710,7 +1710,7 @@ func (v Value) Uint() uint64 {
+ 	case Uint32:
+ 		return uint64(*(*uint32)(p))
+ 	case Uint64:
+-		return uint64(*(*uint64)(p))
++		return *(*uint64)(p)
+ 	case Uintptr:
+ 		return uint64(*(*uintptr)(p))
+ 	}
+@@ -2267,13 +2267,13 @@ func makeInt(f flag, bits uint64, t Type) Value {
+ 	ptr := unsafe_New(typ)
+ 	switch typ.size {
+ 	case 1:
+-		*(*uint8)(unsafe.Pointer(ptr)) = uint8(bits)
++		*(*uint8)(ptr) = uint8(bits)
+ 	case 2:
+-		*(*uint16)(unsafe.Pointer(ptr)) = uint16(bits)
++		*(*uint16)(ptr) = uint16(bits)
+ 	case 4:
+-		*(*uint32)(unsafe.Pointer(ptr)) = uint32(bits)
++		*(*uint32)(ptr) = uint32(bits)
+ 	case 8:
+-		*(*uint64)(unsafe.Pointer(ptr)) = bits
++		*(*uint64)(ptr) = bits
+ 	}
+ 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
+ }
+@@ -2285,9 +2285,9 @@ func makeFloat(f flag, v float64, t Type) Value {
+ 	ptr := unsafe_New(typ)
+ 	switch typ.size {
+ 	case 4:
+-		*(*float32)(unsafe.Pointer(ptr)) = float32(v)
++		*(*float32)(ptr) = float32(v)
+ 	case 8:
+-		*(*float64)(unsafe.Pointer(ptr)) = v
++		*(*float64)(ptr) = v
+ 	}
+ 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
+ }
+@@ -2299,9 +2299,9 @@ func makeComplex(f flag, v complex128, t Type) Value {
+ 	ptr := unsafe_New(typ)
+ 	switch typ.size {
+ 	case 8:
+-		*(*complex64)(unsafe.Pointer(ptr)) = complex64(v)
++		*(*complex64)(ptr) = complex64(v)
+ 	case 16:
+-		*(*complex128)(unsafe.Pointer(ptr)) = v
++		*(*complex128)(ptr) = v
+ 	}
+ 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
+ }
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index 5b82f9666e..4991954820 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -450,7 +450,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 	for !instQueue.empty() {
+ 		visitQueue.clear()
+ 		pc := instQueue.next()
+-		if !check(uint32(pc), m) {
++		if !check(pc, m) {
+ 			p = notOnePass
+ 			break
+ 		}
+diff --git a/src/strconv/extfloat.go b/src/strconv/extfloat.go
+index 019b4eebdc..7033e96c39 100644
+--- a/src/strconv/extfloat.go
++++ b/src/strconv/extfloat.go
+@@ -311,9 +311,9 @@ func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc boo
+ 	var extrabits uint
+ 	if f.exp <= denormalExp {
+ 		// f.mant * 2^f.exp is smaller than 2^(flt.bias+1).
+-		extrabits = uint(63 - flt.mantbits + 1 + uint(denormalExp-f.exp))
++		extrabits = 63 - flt.mantbits + 1 + uint(denormalExp-f.exp)
+ 	} else {
+-		extrabits = uint(63 - flt.mantbits)
++		extrabits = 63 - flt.mantbits
+ 	}
+ 
+ 	halfway := uint64(1) << (extrabits - 1)
+diff --git a/src/strings/reader.go b/src/strings/reader.go
+index 737873c099..74eed4d574 100644
+--- a/src/strings/reader.go
++++ b/src/strings/reader.go
+@@ -113,7 +113,7 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+ 	case 0:
+ 		abs = offset
+ 	case 1:
+-		abs = int64(r.i) + offset
++		abs = r.i + offset
+ 	case 2:
+ 		abs = int64(len(r.s)) + offset
+ 	default:
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index 4fb1a1af9d..2acf505f3c 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -179,8 +179,8 @@ func (p *Pool) pinSlow() *poolLocal {
+ 	// If GOMAXPROCS changes between GCs, we re-allocate the array and lose the old one.
+ 	size := runtime.GOMAXPROCS(0)
+ 	local := make([]poolLocal, size)
+-	atomic.StorePointer((*unsafe.Pointer)(&p.local), unsafe.Pointer(&local[0])) // store-release
+-	atomic.StoreUintptr(&p.localSize, uintptr(size))                            // store-release
++	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0])) // store-release
++	atomic.StoreUintptr(&p.localSize, uintptr(size))         // store-release
+ 	return &local[pid]
+ }
+ 
+diff --git a/src/time/time.go b/src/time/time.go
+index 4b9a0db730..92d635eec5 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -606,7 +606,7 @@ func (d Duration) Hours() float64 {
+ // Add returns the time t+d.
+ func (t Time) Add(d Duration) Time {
+ 	t.sec += int64(d / 1e9)
+-	nsec := int32(t.nsec) + int32(d%1e9)
++	nsec := t.nsec + int32(d%1e9)
+ 	if nsec >= 1e9 {
+ 		t.sec++
+ 		nsec -= 1e9
+@@ -623,7 +623,7 @@ func (t Time) Add(d Duration) Time {
+ // will be returned.
+ // To compute t-d for a duration d, use t.Add(-d).
+ func (t Time) Sub(u Time) Duration {
+-	d := Duration(t.sec-u.sec)*Second + Duration(int32(t.nsec)-int32(u.nsec))
++	d := Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
+ 	// Check for overflow or underflow.
+ 	switch {
+ 	case u.Add(d).Equal(t):
+@@ -1125,7 +1125,7 @@ func (t Time) Round(d Duration) Time {
+ // but it's still here in case we change our minds.
+ func div(t Time, d Duration) (qmod2 int, r Duration) {
+ 	neg := false
+-	nsec := int32(t.nsec)
++	nsec := t.nsec
+ 	if t.sec < 0 {
+ 		// Operate on absolute value.
+ 		neg = true
+@@ -1159,7 +1159,7 @@ func div(t Time, d Duration) (qmod2 int, r Duration) {
+ 		tmp := (sec >> 32) * 1e9
+ 		u1 := tmp >> 32
+ 		u0 := tmp << 32
+-		tmp = uint64(sec&0xFFFFFFFF) * 1e9
++		tmp = (sec & 0xFFFFFFFF) * 1e9
+ 		u0x, u0 := u0, u0+tmp
+ 		if u0 < u0x {
+ 			u1++
+diff --git a/src/time/zoneinfo_windows.go b/src/time/zoneinfo_windows.go
+index bcb8ccd563..c753119d5d 100644
+--- a/src/time/zoneinfo_windows.go
++++ b/src/time/zoneinfo_windows.go
+@@ -83,7 +83,7 @@ func extractCAPS(desc string) string {
+ 	var short []rune
+ 	for _, c := range desc {
+ 		if 'A' <= c && c <= 'Z' {
+-			short = append(short, rune(c))
++			short = append(short, c)
+ 		}
+ 	}
+ 	return string(short)
+diff --git a/src/unicode/letter.go b/src/unicode/letter.go
+index 8443ee51a2..ffa083eb57 100644
+--- a/src/unicode/letter.go
++++ b/src/unicode/letter.go
+@@ -217,7 +217,7 @@ func to(_case int, r rune, caseRange []CaseRange) rune {
+ 		m := lo + (hi-lo)/2
+ 		cr := caseRange[m]
+ 		if rune(cr.Lo) <= r && r <= rune(cr.Hi) {
+-			delta := rune(cr.Delta[_case])
++			delta := cr.Delta[_case]
+ 			if delta > MaxRune {
+ 				// In an Upper-Lower sequence, which always starts with
+ 				// an UpperCase letter, the real deltas always look like:

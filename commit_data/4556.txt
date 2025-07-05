@@ -9,8 +9,190 @@ Date:   Thu Jan 7 18:10:29 2010 -0800
     R=r, hoisie
     CC=golang-dev
     https://golang.org/cl/181179
-
+---
  src/pkg/http/request.go  |  2 +-
  src/pkg/http/url.go      | 38 +++++++++++++++++++++++++-------------
  src/pkg/http/url_test.go | 19 +++++++++++++++----
  3 files changed, 41 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 10dc08c2bd..884fe48fa7 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -134,7 +134,7 @@ const defaultUserAgent = "Go http package"
+ //
+ // If Body is present, "Transfer-Encoding: chunked" is forced as a header.
+ func (req *Request) Write(w io.Writer) os.Error {
+-	uri := URLEscape(req.URL.Path)
++	uri := urlEscape(req.URL.Path, false)
+ 	if req.URL.RawQuery != "" {
+ 		uri += "?" + req.URL.RawQuery
+ 	}
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index f879f8d8fe..40ea86549c 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -128,7 +128,13 @@ func CanonicalPath(path string) string {
+ // converting %AB into the byte 0xAB and '+' into ' ' (space).
+ // It returns an error if any % is not followed
+ // by two hexadecimal digits.
+-func URLUnescape(s string) (string, os.Error) {
++func URLUnescape(s string) (string, os.Error) { return urlUnescape(s, true) }
++
++// urlUnescape is like URLUnescape but can be told not to
++// convert + into space.  URLUnescape implements what is
++// called "URL encoding" but that only applies to query strings.
++// Elsewhere in the URL, + does not mean space.
++func urlUnescape(s string, doPlus bool) (string, os.Error) {
+ 	// Count %, check that they're well-formed.
+ 	n := 0
+ 	hasPlus := false
+@@ -145,7 +151,7 @@ func URLUnescape(s string) (string, os.Error) {
+ 			}
+ 			i += 3
+ 		case '+':
+-			hasPlus = true
++			hasPlus = doPlus
+ 			i++
+ 		default:
+ 			i++
+@@ -165,7 +171,11 @@ func URLUnescape(s string) (string, os.Error) {
+ 			j++
+ 			i += 3
+ 		case '+':
+-			t[j] = ' '
++			if doPlus {
++				t[j] = ' '
++			} else {
++				t[j] = '+'
++			}
+ 			j++
+ 			i++
+ 		default:
+@@ -178,12 +188,14 @@ func URLUnescape(s string) (string, os.Error) {
+ }
+ 
+ // URLEscape converts a string into URL-encoded form.
+-func URLEscape(s string) string {
++func URLEscape(s string) string { return urlEscape(s, true) }
++
++func urlEscape(s string, doPlus bool) string {
+ 	spaceCount, hexCount := 0, 0
+ 	for i := 0; i < len(s); i++ {
+ 		c := s[i]
+ 		if shouldEscape(c) {
+-			if c == ' ' {
++			if c == ' ' && doPlus {
+ 				spaceCount++
+ 			} else {
+ 				hexCount++
+@@ -199,7 +211,7 @@ func URLEscape(s string) string {
+ 	j := 0
+ 	for i := 0; i < len(s); i++ {
+ 		switch c := s[i]; {
+-		case c == ' ':
++		case c == ' ' && doPlus:
+ 			t[j] = '+'
+ 			j++
+ 		case shouldEscape(c):
+@@ -314,16 +326,16 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 		url.Userinfo, url.Host = split(url.Authority, '@', true)
+ 	}
+ 
+-	if url.Path, err = URLUnescape(path); err != nil {
++	if url.Path, err = urlUnescape(path, false); err != nil {
+ 		goto Error
+ 	}
+ 
+ 	// Remove escapes from the Authority and Userinfo fields, and verify
+ 	// that Scheme and Host contain no escapes (that would be illegal).
+-	if url.Authority, err = URLUnescape(url.Authority); err != nil {
++	if url.Authority, err = urlUnescape(url.Authority, false); err != nil {
+ 		goto Error
+ 	}
+-	if url.Userinfo, err = URLUnescape(url.Userinfo); err != nil {
++	if url.Userinfo, err = urlUnescape(url.Userinfo, false); err != nil {
+ 		goto Error
+ 	}
+ 	if strings.Index(url.Scheme, "%") >= 0 {
+@@ -349,7 +361,7 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
+ 	if url, err = ParseURL(rawurl); err != nil {
+ 		return nil, err
+ 	}
+-	if url.Fragment, err = URLUnescape(frag); err != nil {
++	if url.Fragment, err = urlUnescape(frag, false); err != nil {
+ 		return nil, &URLError{"parse", rawurl, err}
+ 	}
+ 	return url, nil
+@@ -368,16 +380,16 @@ func (url *URL) String() string {
+ 	if url.Host != "" || url.Userinfo != "" {
+ 		result += "//"
+ 		if url.Userinfo != "" {
+-			result += URLEscape(url.Userinfo) + "@"
++			result += urlEscape(url.Userinfo, false) + "@"
+ 		}
+ 		result += url.Host
+ 	}
+-	result += URLEscape(url.Path)
++	result += urlEscape(url.Path, false)
+ 	if url.RawQuery != "" {
+ 		result += "?" + url.RawQuery
+ 	}
+ 	if url.Fragment != "" {
+-		result += "#" + URLEscape(url.Fragment)
++		result += "#" + urlEscape(url.Fragment, false)
+ 	}
+ 	return result
+ }
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index 542ad0a38b..a16bbbddf6 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -54,7 +54,7 @@ var urltests = []URLTest{
+ 			"www.google.com", "", "www.google.com",
+ 			"/file one&two", "", "",
+ 		},
+-		"http://www.google.com/file+one%26two",
++		"http://www.google.com/file%20one%26two",
+ 	},
+ 	// user
+ 	URLTest{
+@@ -76,7 +76,7 @@ var urltests = []URLTest{
+ 			"john doe@www.google.com", "john doe", "www.google.com",
+ 			"/", "", "",
+ 		},
+-		"ftp://john+doe@www.google.com/",
++		"ftp://john%20doe@www.google.com/",
+ 	},
+ 	// query
+ 	URLTest{
+@@ -100,6 +100,17 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
++	// %20 outside query
++	URLTest{
++		"http://www.google.com/a%20b?q=c+d",
++		&URL{
++			"http://www.google.com/a%20b?q=c+d",
++			"http", "//www.google.com/a%20b?q=c+d",
++			"www.google.com", "", "www.google.com",
++			"/a b", "q=c+d", "",
++		},
++		"",
++	},
+ 	// path without /, so no query parsing
+ 	URLTest{
+ 		"http:www.google.com/?q=go+language",
+@@ -107,9 +118,9 @@ var urltests = []URLTest{
+ 			"http:www.google.com/?q=go+language",
+ 			"http", "www.google.com/?q=go+language",
+ 			"", "", "",
+-			"www.google.com/?q=go language", "", "",
++			"www.google.com/?q=go+language", "", "",
+ 		},
+-		"http:www.google.com/%3fq%3dgo+language",
++		"http:www.google.com/%3fq%3dgo%2blanguage",
+ 	},
+ 	// non-authority
+ 	URLTest{

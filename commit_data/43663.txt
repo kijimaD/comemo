@@ -19,7 +19,281 @@ Date:   Sat Apr 11 06:52:09 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go   | 129 ++++++++++++++++++++---------------
  src/cmd/compile/internal/gc/sinit.go |  35 ++++------
  2 files changed, 88 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 95a1a3664c..01126dc048 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -427,69 +427,86 @@ func slicesym(n, arr *Node, lencap int64) {
+ 	s.WriteInt(Ctxt, base+sliceCapOffset, Widthptr, lencap)
+ }
+ 
+-func gdata(nam *Node, nr *Node, wid int) {
+-	if nam.Op != ONAME {
+-		Fatalf("gdata nam op %v", nam.Op)
+-	}
+-	if nam.Sym == nil {
+-		Fatalf("gdata nil nam sym")
+-	}
+-	s := nam.Sym.Linksym()
+-
+-	switch nr.Op {
+-	case OLITERAL:
+-		switch u := nr.Val().U.(type) {
+-		case bool:
+-			i := int64(obj.Bool2int(u))
+-			s.WriteInt(Ctxt, nam.Xoffset, wid, i)
+-
+-		case *Mpint:
+-			s.WriteInt(Ctxt, nam.Xoffset, wid, u.Int64())
+-
+-		case *Mpflt:
+-			f := u.Float64()
+-			switch nam.Type.Etype {
+-			case TFLOAT32:
+-				s.WriteFloat32(Ctxt, nam.Xoffset, float32(f))
+-			case TFLOAT64:
+-				s.WriteFloat64(Ctxt, nam.Xoffset, f)
+-			}
+-
+-		case *Mpcplx:
+-			r := u.Real.Float64()
+-			i := u.Imag.Float64()
+-			switch nam.Type.Etype {
+-			case TCOMPLEX64:
+-				s.WriteFloat32(Ctxt, nam.Xoffset, float32(r))
+-				s.WriteFloat32(Ctxt, nam.Xoffset+4, float32(i))
+-			case TCOMPLEX128:
+-				s.WriteFloat64(Ctxt, nam.Xoffset, r)
+-				s.WriteFloat64(Ctxt, nam.Xoffset+8, i)
+-			}
++// addrsym writes the static address of a to n. a must be an ONAME.
++// Neither n nor a is modified.
++func addrsym(n, a *Node) {
++	if n.Op != ONAME {
++		Fatalf("addrsym n op %v", n.Op)
++	}
++	if n.Sym == nil {
++		Fatalf("addrsym nil n sym")
++	}
++	if a.Op != ONAME {
++		Fatalf("addrsym a op %v", a.Op)
++	}
++	s := n.Sym.Linksym()
++	s.WriteAddr(Ctxt, n.Xoffset, Widthptr, a.Sym.Linksym(), a.Xoffset)
++}
+ 
+-		case string:
+-			symdata := stringsym(nam.Pos, u)
+-			s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
+-			s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
++// pfuncsym writes the static address of f to n. f must be a global function.
++// Neither n nor f is modified.
++func pfuncsym(n, f *Node) {
++	if n.Op != ONAME {
++		Fatalf("pfuncsym n op %v", n.Op)
++	}
++	if n.Sym == nil {
++		Fatalf("pfuncsym nil n sym")
++	}
++	if f.Class() != PFUNC {
++		Fatalf("pfuncsym class not PFUNC %d", f.Class())
++	}
++	s := n.Sym.Linksym()
++	s.WriteAddr(Ctxt, n.Xoffset, Widthptr, funcsym(f.Sym).Linksym(), f.Xoffset)
++}
+ 
+-		default:
+-			Fatalf("gdata unhandled OLITERAL %v", nr)
++// litsym writes the static literal c to n.
++// Neither n nor c is modified.
++func litsym(n, c *Node, wid int) {
++	if n.Op != ONAME {
++		Fatalf("litsym n op %v", n.Op)
++	}
++	if c.Op != OLITERAL {
++		Fatalf("litsym c op %v", c.Op)
++	}
++	if n.Sym == nil {
++		Fatalf("litsym nil n sym")
++	}
++	s := n.Sym.Linksym()
++	switch u := c.Val().U.(type) {
++	case bool:
++		i := int64(obj.Bool2int(u))
++		s.WriteInt(Ctxt, n.Xoffset, wid, i)
++
++	case *Mpint:
++		s.WriteInt(Ctxt, n.Xoffset, wid, u.Int64())
++
++	case *Mpflt:
++		f := u.Float64()
++		switch n.Type.Etype {
++		case TFLOAT32:
++			s.WriteFloat32(Ctxt, n.Xoffset, float32(f))
++		case TFLOAT64:
++			s.WriteFloat64(Ctxt, n.Xoffset, f)
+ 		}
+ 
+-	case OADDR:
+-		if nr.Left.Op != ONAME {
+-			Fatalf("gdata ADDR left op %v", nr.Left.Op)
++	case *Mpcplx:
++		r := u.Real.Float64()
++		i := u.Imag.Float64()
++		switch n.Type.Etype {
++		case TCOMPLEX64:
++			s.WriteFloat32(Ctxt, n.Xoffset, float32(r))
++			s.WriteFloat32(Ctxt, n.Xoffset+4, float32(i))
++		case TCOMPLEX128:
++			s.WriteFloat64(Ctxt, n.Xoffset, r)
++			s.WriteFloat64(Ctxt, n.Xoffset+8, i)
+ 		}
+-		to := nr.Left
+-		s.WriteAddr(Ctxt, nam.Xoffset, wid, to.Sym.Linksym(), to.Xoffset)
+ 
+-	case ONAME:
+-		if nr.Class() != PFUNC {
+-			Fatalf("gdata NAME not PFUNC %d", nr.Class())
+-		}
+-		s.WriteAddr(Ctxt, nam.Xoffset, wid, funcsym(nr.Sym).Linksym(), nr.Xoffset)
++	case string:
++		symdata := stringsym(n.Pos, u)
++		s.WriteAddr(Ctxt, n.Xoffset, Widthptr, symdata, 0)
++		s.WriteInt(Ctxt, n.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
+ 
+ 	default:
+-		Fatalf("gdata unhandled op %v %v\n", nr, nr.Op)
++		Fatalf("litsym unhandled OLITERAL %v", c)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 0164576546..0f86179158 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -71,7 +71,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
+ 		return false
+ 	}
+ 	if r.Class() == PFUNC {
+-		gdata(l, r, Widthptr)
++		pfuncsym(l, r)
+ 		return true
+ 	}
+ 	if r.Class() != PEXTERN || r.Sym.Pkg != localpkg {
+@@ -107,13 +107,12 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
+ 		if isZero(r) {
+ 			return true
+ 		}
+-		gdata(l, r, int(l.Type.Width))
++		litsym(l, r, int(l.Type.Width))
+ 		return true
+ 
+ 	case OADDR:
+-		switch r.Left.Op {
+-		case ONAME:
+-			gdata(l, r, int(l.Type.Width))
++		if a := r.Left; a.Op == ONAME {
++			addrsym(l, a)
+ 			return true
+ 		}
+ 
+@@ -121,7 +120,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
+ 		switch r.Left.Op {
+ 		case OARRAYLIT, OSLICELIT, OSTRUCTLIT, OMAPLIT:
+ 			// copy pointer
+-			gdata(l, nod(OADDR, s.inittemps[r], nil), int(l.Type.Width))
++			addrsym(l, s.inittemps[r])
+ 			return true
+ 		}
+ 
+@@ -140,7 +139,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
+ 			n.Xoffset = l.Xoffset + e.Xoffset
+ 			n.Type = e.Expr.Type
+ 			if e.Expr.Op == OLITERAL {
+-				gdata(n, e.Expr, int(n.Type.Width))
++				litsym(n, e.Expr, int(n.Type.Width))
+ 				continue
+ 			}
+ 			ll := n.sepcopy()
+@@ -175,15 +174,13 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 		if isZero(r) {
+ 			return true
+ 		}
+-		gdata(l, r, int(l.Type.Width))
++		litsym(l, r, int(l.Type.Width))
+ 		return true
+ 
+ 	case OADDR:
+ 		var nam Node
+ 		if stataddr(&nam, r.Left) {
+-			n := *r
+-			n.Left = &nam
+-			gdata(l, &n, int(l.Type.Width))
++			addrsym(l, &nam)
+ 			return true
+ 		}
+ 		fallthrough
+@@ -195,7 +192,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 			a := staticname(r.Left.Type)
+ 
+ 			s.inittemps[r] = a
+-			gdata(l, nod(OADDR, a, nil), int(l.Type.Width))
++			addrsym(l, a)
+ 
+ 			// Init underlying literal.
+ 			if !s.staticassign(a, r.Left) {
+@@ -235,7 +232,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 			n.Xoffset = l.Xoffset + e.Xoffset
+ 			n.Type = e.Expr.Type
+ 			if e.Expr.Op == OLITERAL {
+-				gdata(n, e.Expr, int(n.Type.Width))
++				litsym(n, e.Expr, int(n.Type.Width))
+ 				continue
+ 			}
+ 			setlineno(e.Expr)
+@@ -257,7 +254,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 			}
+ 			// Closures with no captured variables are globals,
+ 			// so the assignment can be done at link time.
+-			gdata(l, r.Func.Closure.Func.Nname, Widthptr)
++			pfuncsym(l, r.Func.Closure.Func.Nname)
+ 			return true
+ 		}
+ 		closuredebugruntimecheck(r)
+@@ -291,7 +288,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 		n := l.copy()
+ 
+ 		// Emit itab, advance offset.
+-		gdata(n, itab, Widthptr)
++		addrsym(n, itab.Left) // itab is an OADDR node
+ 		n.Xoffset += int64(Widthptr)
+ 
+ 		// Emit data.
+@@ -314,9 +311,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 			if !s.staticassign(a, val) {
+ 				s.append(nod(OAS, a, val))
+ 			}
+-			ptr := nod(OADDR, a, nil)
+-			n.Type = types.NewPtr(val.Type)
+-			gdata(n, ptr, Widthptr)
++			addrsym(n, a)
+ 		}
+ 
+ 		return true
+@@ -1157,10 +1152,10 @@ func genAsStatic(as *Node) {
+ 
+ 	switch {
+ 	case as.Right.Op == OLITERAL:
++		litsym(&nam, as.Right, int(as.Right.Type.Width))
+ 	case as.Right.Op == ONAME && as.Right.Class() == PFUNC:
++		pfuncsym(&nam, as.Right)
+ 	default:
+ 		Fatalf("genAsStatic: rhs %v", as.Right)
+ 	}
+-
+-	gdata(&nam, as.Right, int(as.Right.Type.Width))
+ }

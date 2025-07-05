@@ -7,9 +7,87 @@ Date:   Tue Apr 10 10:09:09 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5989073
-
+---
  src/cmd/6a/lex.c            |  4 ++++
  src/cmd/6l/6.out.h          |  5 +++++
  src/cmd/6l/optab.c          | 14 ++++++++++++--
  src/pkg/runtime/asm_amd64.s |  3 +--
  4 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 275bcfe1a3..fc6bd36762 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -1001,6 +1001,10 @@ struct
+ 	"XORPS",	LTYPE3,	AXORPS,
+ 	"CRC32B",	LTYPE4, ACRC32B,
+ 	"CRC32Q",	LTYPE4, ACRC32Q,
++	"PREFETCHT0",		LTYPE2,	APREFETCHT0,
++	"PREFETCHT1",		LTYPE2,	APREFETCHT1,
++	"PREFETCHT2",		LTYPE2,	APREFETCHT2,
++	"PREFETCHNTA",		LTYPE2,	APREFETCHNTA,
+ 
+ 	0
+ };
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 8499159543..b1ef050d9e 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -736,6 +736,11 @@ enum	as
+ 	ACRC32B,
+ 	ACRC32Q,
+ 	AIMUL3Q,
++	
++	APREFETCHT0,
++	APREFETCHT1,
++	APREFETCHT2,
++	APREFETCHNTA,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 5746ded19c..f09f3d3414 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -539,6 +539,11 @@ uchar	ycrc32l[] =
+ {
+ 	Yml,	Yrl,	Zlitm_r,	0,
+ };
++uchar	yprefetch[] =
++{
++	Ym,	Ynone,	Zm_o,	2,
++	0,
++};
+ 
+ /*
+  * You are doasm, holding in your hand a Prog* with p->as set to, say, ACRC32,
+@@ -1270,8 +1275,13 @@ Optab optab[] =
+ 	{ AXADDQ,	yrl_ml,	Pw, 0x0f,0xc1 },
+ 	{ AXADDW,	yrl_ml,	Pe, 0x0f,0xc1 },
+ 
+-	{ ACRC32B,       ycrc32l,Px, 0xf2,0x0f,0x38,0xf0,0},
+-	{ ACRC32Q,       ycrc32l,Pw, 0xf2,0x0f,0x38,0xf1,0},
++	{ ACRC32B,       ycrc32l,Px, 0xf2,0x0f,0x38,0xf0,0 },
++	{ ACRC32Q,       ycrc32l,Pw, 0xf2,0x0f,0x38,0xf1,0 },
++	
++	{ APREFETCHT0,	yprefetch,	Pm,	0x18,(01) },
++	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
++	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
++	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
+ 
+ 	{ AEND },
+ 	0
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 7a5dd830b8..928f442033 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -443,8 +443,7 @@ TEXT runtime·atomicstore64(SB), 7, $0
+ 
+ TEXT runtime·prefetch(SB), 7, $0
+ 	MOVQ    8(SP), AX
+-	// PREFETCHNTA (AX)
+-	BYTE $0x0f; BYTE $0x18; BYTE $0x00
++	PREFETCHNTA	(AX)
+ 	RET
+ 
+ // void jmpdefer(fn, sp);

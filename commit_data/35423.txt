@@ -15,7 +15,7 @@ Date:   Thu Jul 13 22:14:37 2017 -0300
     Reviewed-by: Filippo Valsorda <hi@filippo.io>
     Run-TryBot: Filippo Valsorda <hi@filippo.io>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/aes/aes_gcm.go     | 28 ++++++++++++++---------
  src/crypto/aes/gcm_s390x.go   | 46 +++++++++++++++++++++++++-------------
  src/crypto/aes/modes.go       |  2 +-
@@ -23,3 +23,470 @@ Date:   Thu Jul 13 22:14:37 2017 -0300
  src/crypto/cipher/gcm.go      | 52 ++++++++++++++++++++++++++++++++-----------
  src/crypto/cipher/gcm_test.go | 46 +++++++++++++++++++++++++++++++++++++-
  6 files changed, 134 insertions(+), 42 deletions(-)
+
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+index 5e2de02710..39c5aa0b68 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/aes/aes_gcm.go
+@@ -36,6 +36,7 @@ func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint
+ const (
+ 	gcmBlockSize         = 16
+ 	gcmTagSize           = 16
++	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
+ 	gcmStandardNonceSize = 12
+ )
+ 
+@@ -53,8 +54,8 @@ var _ gcmAble = (*aesCipherGCM)(nil)
+ 
+ // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+ // called by crypto/cipher.NewGCM via the gcmAble interface.
+-func (c *aesCipherGCM) NewGCM(nonceSize int) (cipher.AEAD, error) {
+-	g := &gcmAsm{ks: c.enc, nonceSize: nonceSize}
++func (c *aesCipherGCM) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
++	g := &gcmAsm{ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
+ 	gcmAesInit(&g.productTable, g.ks)
+ 	return g, nil
+ }
+@@ -68,14 +69,16 @@ type gcmAsm struct {
+ 	productTable [256]byte
+ 	// nonceSize contains the expected size of the nonce, in bytes.
+ 	nonceSize int
++	// tagSize contains the size of the tag, in bytes.
++	tagSize int
+ }
+ 
+ func (g *gcmAsm) NonceSize() int {
+ 	return g.nonceSize
+ }
+ 
+-func (*gcmAsm) Overhead() int {
+-	return gcmTagSize
++func (g *gcmAsm) Overhead() int {
++	return g.tagSize
+ }
+ 
+ // sliceForAppend takes a slice and a requested number of bytes. It returns a
+@@ -120,7 +123,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	var tagOut [gcmTagSize]byte
+ 	gcmAesData(&g.productTable, data, &tagOut)
+ 
+-	ret, out := sliceForAppend(dst, len(plaintext)+gcmTagSize)
++	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+ 	if len(plaintext) > 0 {
+ 		gcmAesEnc(&g.productTable, out, plaintext, &counter, &tagOut, g.ks)
+ 	}
+@@ -136,16 +139,21 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("cipher: incorrect nonce length given to GCM")
+ 	}
++	// Sanity check to prevent the authentication from always succeeding if an implementation
++	// leaves tagSize uninitialized, for example.
++	if g.tagSize < gcmMinimumTagSize {
++		panic("cipher: incorrect GCM tag size")
++	}
+ 
+-	if len(ciphertext) < gcmTagSize {
++	if len(ciphertext) < g.tagSize {
+ 		return nil, errOpen
+ 	}
+-	if uint64(len(ciphertext)) > ((1<<32)-2)*BlockSize+gcmTagSize {
++	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(BlockSize)+uint64(g.tagSize) {
+ 		return nil, errOpen
+ 	}
+ 
+-	tag := ciphertext[len(ciphertext)-gcmTagSize:]
+-	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
++	tag := ciphertext[len(ciphertext)-g.tagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+ 
+ 	// See GCM spec, section 7.1.
+ 	var counter, tagMask [gcmBlockSize]byte
+@@ -171,7 +179,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	}
+ 	gcmAesFinish(&g.productTable, &tagMask, &expectedTag, uint64(len(ciphertext)), uint64(len(data)))
+ 
+-	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
++	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+ 		for i := range out {
+ 			out[i] = 0
+ 		}
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index 055a9a927d..d9f9b73470 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -58,11 +58,13 @@ type gcmAsm struct {
+ 	block     *aesCipherAsm
+ 	hashKey   gcmHashKey
+ 	nonceSize int
++	tagSize   int
+ }
+ 
+ const (
+ 	gcmBlockSize         = 16
+ 	gcmTagSize           = 16
++	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
+ 	gcmStandardNonceSize = 12
+ )
+ 
+@@ -73,13 +75,14 @@ var _ gcmAble = (*aesCipherAsm)(nil)
+ 
+ // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+ // called by crypto/cipher.NewGCM via the gcmAble interface.
+-func (c *aesCipherAsm) NewGCM(nonceSize int) (cipher.AEAD, error) {
++func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+ 	var hk gcmHashKey
+ 	c.Encrypt(hk[:], hk[:])
+ 	g := gcmAsm{
+ 		block:     c,
+ 		hashKey:   hk,
+ 		nonceSize: nonceSize,
++		tagSize:   tagSize,
+ 	}
+ 	if hasKMA {
+ 		g := gcmKMA{g}
+@@ -92,8 +95,8 @@ func (g *gcmAsm) NonceSize() int {
+ 	return g.nonceSize
+ }
+ 
+-func (*gcmAsm) Overhead() int {
+-	return gcmTagSize
++func (g *gcmAsm) Overhead() int {
++	return g.tagSize
+ }
+ 
+ // sliceForAppend takes a slice and a requested number of bytes. It returns a
+@@ -222,7 +225,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 		panic("cipher: message too large for GCM")
+ 	}
+ 
+-	ret, out := sliceForAppend(dst, len(plaintext)+gcmTagSize)
++	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+ 
+ 	counter := g.deriveCounter(nonce)
+ 
+@@ -230,8 +233,10 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	g.block.Encrypt(tagMask[:], counter[:])
+ 	counter.inc()
+ 
++	var tagOut [gcmTagSize]byte
+ 	g.counterCrypt(out, plaintext, &counter)
+-	g.auth(out[len(plaintext):], out[:len(plaintext)], data, &tagMask)
++	g.auth(tagOut[:], out[:len(plaintext)], data, &tagMask)
++	copy(out[len(plaintext):], tagOut[:])
+ 
+ 	return ret
+ }
+@@ -242,15 +247,20 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("cipher: incorrect nonce length given to GCM")
+ 	}
+-	if len(ciphertext) < gcmTagSize {
++	// Sanity check to prevent the authentication from always succeeding if an implementation
++	// leaves tagSize uninitialized, for example.
++	if g.tagSize < gcmMinimumTagSize {
++		panic("cipher: incorrect GCM tag size")
++	}
++	if len(ciphertext) < g.tagSize {
+ 		return nil, errOpen
+ 	}
+-	if uint64(len(ciphertext)) > ((1<<32)-2)*BlockSize+gcmTagSize {
++	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(BlockSize)+uint64(g.tagSize) {
+ 		return nil, errOpen
+ 	}
+ 
+-	tag := ciphertext[len(ciphertext)-gcmTagSize:]
+-	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
++	tag := ciphertext[len(ciphertext)-g.tagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+ 
+ 	counter := g.deriveCounter(nonce)
+ 
+@@ -263,7 +273,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
+ 
+-	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
++	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+ 		// The AESNI code decrypts and authenticates concurrently, and
+ 		// so overwrites dst in the event of a tag mismatch. That
+ 		// behavior is mimicked here in order to be consistent across
+@@ -316,7 +326,7 @@ func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 		panic("cipher: message too large for GCM")
+ 	}
+ 
+-	ret, out := sliceForAppend(dst, len(plaintext)+gcmTagSize)
++	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+ 
+ 	counter := g.deriveCounter(nonce)
+ 	fc := g.block.function | kmaLAAD | kmaLPC
+@@ -334,24 +344,28 @@ func (g *gcmKMA) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("cipher: incorrect nonce length given to GCM")
+ 	}
+-	if len(ciphertext) < gcmTagSize {
++	if len(ciphertext) < g.tagSize {
+ 		return nil, errOpen
+ 	}
+-	if uint64(len(ciphertext)) > ((1<<32)-2)*BlockSize+gcmTagSize {
++	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(BlockSize)+uint64(g.tagSize) {
+ 		return nil, errOpen
+ 	}
+ 
+-	tag := ciphertext[len(ciphertext)-gcmTagSize:]
+-	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
++	tag := ciphertext[len(ciphertext)-g.tagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
+ 
++	if g.tagSize < gcmMinimumTagSize {
++		panic("cipher: incorrect GCM tag size")
++	}
++
+ 	counter := g.deriveCounter(nonce)
+ 	fc := g.block.function | kmaLAAD | kmaLPC | kmaDecrypt
+ 
+ 	var expectedTag [gcmTagSize]byte
+ 	kmaGCM(fc, g.block.key, out[:len(ciphertext)], ciphertext, data, &expectedTag, &counter)
+ 
+-	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
++	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+ 		// The AESNI code decrypts and authenticates concurrently, and
+ 		// so overwrites dst in the event of a tag mismatch. That
+ 		// behavior is mimicked here in order to be consistent across
+diff --git a/src/crypto/aes/modes.go b/src/crypto/aes/modes.go
+index 1623fc16e2..5c0b08eb6d 100644
+--- a/src/crypto/aes/modes.go
++++ b/src/crypto/aes/modes.go
+@@ -12,7 +12,7 @@ import (
+ // implementation of GCM through the AEAD interface.
+ // See crypto/cipher/gcm.go.
+ type gcmAble interface {
+-	NewGCM(size int) (cipher.AEAD, error)
++	NewGCM(nonceSize, tagSize int) (cipher.AEAD, error)
+ }
+ 
+ // cbcEncAble is implemented by cipher.Blocks that can provide an optimized
+diff --git a/src/crypto/aes/modes_test.go b/src/crypto/aes/modes_test.go
+index 8c2e5f0560..a3364c9b51 100644
+--- a/src/crypto/aes/modes_test.go
++++ b/src/crypto/aes/modes_test.go
+@@ -25,7 +25,7 @@ type testBlock struct{}
+ func (*testBlock) BlockSize() int      { return 0 }
+ func (*testBlock) Encrypt(a, b []byte) {}
+ func (*testBlock) Decrypt(a, b []byte) {}
+-func (*testBlock) NewGCM(int) (cipher.AEAD, error) {
++func (*testBlock) NewGCM(int, int) (cipher.AEAD, error) {
+ 	return &testAEAD{}, nil
+ }
+ func (*testBlock) NewCBCEncrypter([]byte) cipher.BlockMode {
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 28f3ddd6e6..dd2cb9ce31 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -48,7 +48,7 @@ type AEAD interface {
+ // implementation of GCM, like crypto/aes. NewGCM will check for this interface
+ // and return the specific AEAD if found.
+ type gcmAble interface {
+-	NewGCM(int) (AEAD, error)
++	NewGCM(nonceSize, tagSize int) (AEAD, error)
+ }
+ 
+ // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
+@@ -67,6 +67,7 @@ type gcmFieldElement struct {
+ type gcm struct {
+ 	cipher    Block
+ 	nonceSize int
++	tagSize   int
+ 	// productTable contains the first sixteen powers of the key, H.
+ 	// However, they are in bit reversed order. See NewGCMWithNonceSize.
+ 	productTable [16]gcmFieldElement
+@@ -79,7 +80,7 @@ type gcm struct {
+ // An exception is when the underlying Block was created by aes.NewCipher
+ // on systems with hardware support for AES. See the crypto/aes package documentation for details.
+ func NewGCM(cipher Block) (AEAD, error) {
+-	return NewGCMWithNonceSize(cipher, gcmStandardNonceSize)
++	return NewGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, gcmTagSize)
+ }
+ 
+ // NewGCMWithNonceSize returns the given 128-bit, block cipher wrapped in Galois
+@@ -89,8 +90,24 @@ func NewGCM(cipher Block) (AEAD, error) {
+ // cryptosystem that uses non-standard nonce lengths. All other users should use
+ // NewGCM, which is faster and more resistant to misuse.
+ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
++	return NewGCMWithNonceAndTagSize(cipher, size, gcmTagSize)
++}
++
++// NewGCMWithNonceAndTagSize returns the given 128-bit, block cipher wrapped in Galois
++// Counter Mode, which accepts nonces of the given length and generates tags with the given length.
++//
++// Tag sizes between 12 and 16 bytes are allowed.
++//
++// Only use this function if you require compatibility with an existing
++// cryptosystem that uses non-standard tag lengths. All other users should use
++// NewGCM, which is more resistant to misuse.
++func NewGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, error) {
++	if tagSize < gcmMinimumTagSize || tagSize > gcmBlockSize {
++		return nil, errors.New("cipher: incorrect tag size given to GCM")
++	}
++
+ 	if cipher, ok := cipher.(gcmAble); ok {
+-		return cipher.NewGCM(size)
++		return cipher.NewGCM(nonceSize, tagSize)
+ 	}
+ 
+ 	if cipher.BlockSize() != gcmBlockSize {
+@@ -100,7 +117,7 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+ 	var key [gcmBlockSize]byte
+ 	cipher.Encrypt(key[:], key[:])
+ 
+-	g := &gcm{cipher: cipher, nonceSize: size}
++	g := &gcm{cipher: cipher, nonceSize: nonceSize, tagSize: tagSize}
+ 
+ 	// We precompute 16 multiples of |key|. However, when we do lookups
+ 	// into this table we'll be using bits from a field element and
+@@ -124,6 +141,7 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+ const (
+ 	gcmBlockSize         = 16
+ 	gcmTagSize           = 16
++	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
+ 	gcmStandardNonceSize = 12
+ )
+ 
+@@ -131,8 +149,8 @@ func (g *gcm) NonceSize() int {
+ 	return g.nonceSize
+ }
+ 
+-func (*gcm) Overhead() int {
+-	return gcmTagSize
++func (g *gcm) Overhead() int {
++	return g.tagSize
+ }
+ 
+ func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
+@@ -143,7 +161,7 @@ func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 		panic("cipher: message too large for GCM")
+ 	}
+ 
+-	ret, out := sliceForAppend(dst, len(plaintext)+gcmTagSize)
++	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+ 
+ 	var counter, tagMask [gcmBlockSize]byte
+ 	g.deriveCounter(&counter, nonce)
+@@ -152,7 +170,10 @@ func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	gcmInc32(&counter)
+ 
+ 	g.counterCrypt(out, plaintext, &counter)
+-	g.auth(out[len(plaintext):], out[:len(plaintext)], data, &tagMask)
++
++	var tag [gcmTagSize]byte
++	g.auth(tag[:], out[:len(plaintext)], data, &tagMask)
++	copy(out[len(plaintext):], tag[:])
+ 
+ 	return ret
+ }
+@@ -163,16 +184,21 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("cipher: incorrect nonce length given to GCM")
+ 	}
++	// Sanity check to prevent the authentication from always succeeding if an implementation
++	// leaves tagSize uninitialized, for example.
++	if g.tagSize < gcmMinimumTagSize {
++		panic("cipher: incorrect GCM tag size")
++	}
+ 
+-	if len(ciphertext) < gcmTagSize {
++	if len(ciphertext) < g.tagSize {
+ 		return nil, errOpen
+ 	}
+-	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize())+gcmTagSize {
++	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize())+uint64(g.tagSize) {
+ 		return nil, errOpen
+ 	}
+ 
+-	tag := ciphertext[len(ciphertext)-gcmTagSize:]
+-	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
++	tag := ciphertext[len(ciphertext)-g.tagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+ 
+ 	var counter, tagMask [gcmBlockSize]byte
+ 	g.deriveCounter(&counter, nonce)
+@@ -185,7 +211,7 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
+ 
+-	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
++	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+ 		// The AESNI code decrypts and authenticates concurrently, and
+ 		// so overwrites dst in the event of a tag mismatch. That
+ 		// behavior is mimicked here in order to be consistent across
+diff --git a/src/crypto/cipher/gcm_test.go b/src/crypto/cipher/gcm_test.go
+index 6878b4cb42..31f4d95364 100644
+--- a/src/crypto/cipher/gcm_test.go
++++ b/src/crypto/cipher/gcm_test.go
+@@ -188,6 +188,35 @@ var aesGCMTests = []struct {
+ 		"0feccdfae8ed65fa31a0858a1c466f79e8aa658c2f3ba93c3f92158b4e30955e1c62580450beff",
+ 		"b69a7e17bb5af688883274550a4ded0d1aff49a0b18343f4b382f745c163f7f714c9206a32a1ff012427e19431951edd0a755e5f491b0eedfd7df68bbc6085dd2888607a2f998c3e881eb1694109250db28291e71f4ad344a125624fb92e16ea9815047cd1111cabfdc9cb8c3b4b0f40aa91d31774009781231400789ed545404af6c3f76d07ddc984a7bd8f52728159782832e298cc4d529be96d17be898efd83e44dc7b0e2efc645849fd2bba61fef0ae7be0dcab233cc4e2b7ba4e887de9c64b97f2a1818aa54371a8d629dae37975f7784e5e3cc77055ed6e975b1e5f55e6bbacdc9f295ce4ada2c16113cd5b323cf78b7dde39f4a87aa8c141a31174e3584ccbd380cf5ec6d1dba539928b084fa9683e9c0953acf47cc3ac384a2c38914f1da01fb2cfd78905c2b58d36b2574b9df15535d82",
+ 	},
++	// These cases test non-standard tag sizes.
++	{
++		"89c54b0d3bc3c397d5039058c220685f",
++		"bc7f45c00868758d62d4bb4d",
++		"582670b0baf5540a3775b6615605bd05",
++		"48d16cda0337105a50e2ed76fd18e114",
++		"fc2d4c4eee2209ddbba6663c02765e6955e783b00156f5da0446e2970b877f",
++	},
++	{
++		"bad6049678bf75c9087b3e3ae7e72c13",
++		"a0a017b83a67d8f1b883e561",
++		"a1be93012f05a1958440f74a5311f4a1",
++		"f7c27b51d5367161dc2ff1e9e3edc6f2",
++		"36f032f7e3dc3275ca22aedcdc68436b99a2227f8bb69d45ea5d8842cd08",
++	},
++	{
++		"66a3c722ccf9709525650973ecc100a9",
++		"1621d42d3a6d42a2d2bf9494",
++		"61fa9dbbed2190fbc2ffabf5d2ea4ff8",
++		"d7a9b6523b8827068a6354a6d166c6b9",
++		"fef3b20f40e08a49637cc82f4c89b8603fd5c0132acfab97b5fff651c4",
++	},
++	{
++		"562ae8aadb8d23e0f271a99a7d1bd4d1",
++		"f7a5e2399413b89b6ad31aff",
++		"bbdc3504d803682aa08a773cde5f231a",
++		"2b9680b886b3efb7c6354b38c63b5373",
++		"e2b7e5ed5ff27fc8664148f5a628a46dcbf2015184fffb82f2651c36",
++	},
+ }
+ 
+ func TestAESGCM(t *testing.T) {
+@@ -201,7 +230,8 @@ func TestAESGCM(t *testing.T) {
+ 		nonce, _ := hex.DecodeString(test.nonce)
+ 		plaintext, _ := hex.DecodeString(test.plaintext)
+ 		ad, _ := hex.DecodeString(test.ad)
+-		aesgcm, err := cipher.NewGCMWithNonceSize(aes, len(nonce))
++		tagSize := (len(test.result) - len(test.plaintext)) / 2
++		aesgcm, err := cipher.NewGCMWithNonceAndTagSize(aes, len(nonce), tagSize)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -245,6 +275,20 @@ func TestAESGCM(t *testing.T) {
+ 	}
+ }
+ 
++func TestGCMInvalidTagSize(t *testing.T) {
++	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
++	nonce, _ := hex.DecodeString("54cc7dc2c37ec006bcc6d1db")
++
++	aes, _ := aes.NewCipher(key)
++
++	for _, tagSize := range []int{0, 1, aes.BlockSize() + 1} {
++		aesgcm, err := cipher.NewGCMWithNonceAndTagSize(aes, len(nonce), tagSize)
++		if aesgcm != nil || err == nil {
++			t.Fatalf("NewGCMWithNonceAndTagSize was successful with an invalid %d-byte tag size", tagSize)
++		}
++	}
++}
++
+ func TestTagFailureOverwrite(t *testing.T) {
+ 	// The AESNI GCM code decrypts and authenticates concurrently and so
+ 	// overwrites the output buffer before checking the authentication tag.

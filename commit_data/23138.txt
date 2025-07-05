@@ -19,6 +19,19 @@ Date:   Mon Apr 27 16:31:16 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9344
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/race/testdata/mop_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/race/testdata/mop_test.go b/src/runtime/race/testdata/mop_test.go
+index cb17a27d37..095ead6c9a 100644
+--- a/src/runtime/race/testdata/mop_test.go
++++ b/src/runtime/race/testdata/mop_test.go
+@@ -1063,6 +1063,7 @@ func TestRaceCrawl(t *testing.T) {
+ 		}()
+ 		seen[u] = true
+ 		if d <= 0 {
++			wg.Done()
+ 			return
+ 		}
+ 		urls := [...]string{"a", "b", "c"}

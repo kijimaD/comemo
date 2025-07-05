@@ -35,8 +35,62 @@ Date:   Sun Apr 4 12:46:21 2021 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/ssagen/abi.go | 7 -------
  src/cmd/internal/obj/plist.go          | 2 +-
  src/cmd/internal/obj/x86/obj6.go       | 4 ++--
  3 files changed, 3 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 61d065cea8..ecd6a32eb3 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -289,13 +289,6 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 
+ 	fn.SetABIWrapper(true)
+ 	fn.SetDupok(true)
+-	// Set this as a wrapper so it doesn't appear in tracebacks.
+-	// Having both ABIWrapper and Wrapper set suppresses obj's
+-	// usual panic+recover handling for wrappers; that's okay
+-	// because we're never going to defer a wrapper for a function
+-	// that then recovers, so that's would just be unnecessary
+-	// code in the ABI wrapper.
+-	fn.SetWrapper(true)
+ 
+ 	// ABI0-to-ABIInternal wrappers will be mainly loading params from
+ 	// stack into registers (and/or storing stack locations back to
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index b2f2bdcaed..9dbad20589 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -136,7 +136,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 		ctxt.Diag("symbol %s listed multiple times", s.Name)
+ 	}
+ 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
+-	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
++	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
+ 	s.Func().FuncFlag = toFuncFlag(flag)
+ 	s.Set(AttrOnList, true)
+ 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index e81e38ad25..b8c7ad7d1b 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -645,7 +645,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	var regg int16
+-	if !p.From.Sym.NoSplit() || (p.From.Sym.Wrapper() && !p.From.Sym.ABIWrapper()) {
++	if !p.From.Sym.NoSplit() || p.From.Sym.Wrapper() {
+ 		if ctxt.Arch.Family == sys.AMD64 && objabi.Experiment.RegabiG && cursym.ABI() == obj.ABIInternal {
+ 			regg = REGG // use the g register directly in ABIInternal
+ 		} else {
+@@ -713,7 +713,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p.To.Reg = REG_BP
+ 	}
+ 
+-	if cursym.Func().Text.From.Sym.Wrapper() && !cursym.Func().Text.From.Sym.ABIWrapper() {
++	if cursym.Func().Text.From.Sym.Wrapper() {
+ 		// if g._panic != nil && g._panic.argp == FP {
+ 		//   g._panic.argp = bottom-of-frame
+ 		// }

@@ -12,6 +12,19 @@ Date:   Thu Apr 6 12:50:41 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/regexp/onepass.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index f6cd5ac7c1..3ceb461905 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -364,7 +364,6 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 			}
+ 		case syntax.InstMatch, syntax.InstFail:
+ 			m[pc] = inst.Op == syntax.InstMatch
+-			break
+ 		case syntax.InstRune:
+ 			m[pc] = false
+ 			if len(inst.Next) > 0 {

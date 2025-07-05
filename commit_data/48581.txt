@@ -16,6 +16,26 @@ Date:   Wed Jun 2 07:43:57 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/link/cgo_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/cgo_test.go b/src/cmd/link/cgo_test.go
+index 09390daeb7..26ab802454 100644
+--- a/src/cmd/link/cgo_test.go
++++ b/src/cmd/link/cgo_test.go
+@@ -121,11 +121,14 @@ func testCGOLTO(t *testing.T, cc string, test int) {
+ 		t.Logf("go build failed: %v", err)
+ 
+ 		// Error messages we've seen indicating that LTO is not supported.
++		// These errors come from GCC or clang, not Go.
+ 		var noLTO = []string{
+ 			`unrecognized command line option "-flto"`,
+ 			"unable to pass LLVM bit-code files to linker",
+ 			"file not recognized: File format not recognized",
+ 			"LTO support has not been enabled",
++			"linker command failed with exit code",
++			"gcc: can't load library",
+ 		}
+ 		for _, msg := range noLTO {
+ 			if bytes.Contains(out, []byte(msg)) {

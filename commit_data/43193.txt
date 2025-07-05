@@ -15,9 +15,181 @@ Date:   Fri Mar 6 01:15:07 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj2/objfile.go      | 22 +++++++++++++++++
  src/cmd/internal/goobj2/objfile_test.go | 18 +++++++++++---
  src/cmd/link/internal/ld/deadcode2.go   |  7 +++---
  src/cmd/link/internal/loader/loader.go  | 44 ++++++++++++++++++++++++---------
  4 files changed, 71 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index ca254b28e0..3336f6cfff 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -368,6 +368,15 @@ func (a *Aux) Size() int {
+ 	return 1 + a.Sym.Size()
+ }
+ 
++const AuxSize = 9 // TODO: is it possible to not hard-code this?
++
++type Aux2 [AuxSize]byte
++
++func (a *Aux2) Type() uint8 { return a[0] }
++func (a *Aux2) Sym() SymRef {
++	return SymRef{binary.LittleEndian.Uint32(a[1:]), binary.LittleEndian.Uint32(a[5:])}
++}
++
+ type Writer struct {
+ 	wr        *bio.Writer
+ 	stringMap map[string]uint32
+@@ -616,6 +625,19 @@ func (r *Reader) AuxOff(i int, j int) uint32 {
+ 	return r.h.Offsets[BlkAux] + (auxIdx+uint32(j))*uint32(auxsiz)
+ }
+ 
++// Aux2 returns a pointer to the j-th aux symbol of the i-th symbol.
++func (r *Reader) Aux2(i int, j int) *Aux2 {
++	off := r.AuxOff(i, j)
++	return (*Aux2)(unsafe.Pointer(&r.b[off]))
++}
++
++// Auxs2 returns the aux symbols of the i-th symbol.
++func (r *Reader) Auxs2(i int) []Aux2 {
++	off := r.AuxOff(i, 0)
++	n := r.NAux(i)
++	return (*[1 << 20]Aux2)(unsafe.Pointer(&r.b[off]))[:n:n]
++}
++
+ // DataOff returns the offset of the i-th symbol's data.
+ func (r *Reader) DataOff(i int) uint32 {
+ 	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
+diff --git a/src/cmd/internal/goobj2/objfile_test.go b/src/cmd/internal/goobj2/objfile_test.go
+index eea97d4756..ee15136cbe 100644
+--- a/src/cmd/internal/goobj2/objfile_test.go
++++ b/src/cmd/internal/goobj2/objfile_test.go
+@@ -20,10 +20,20 @@ func dummyWriter() *Writer {
+ func TestSize(t *testing.T) {
+ 	// This test checks that hard-coded sizes match the actual sizes
+ 	// in the object file format.
++	tests := []struct {
++		x    interface{ Write(*Writer) }
++		want uint32
++	}{
++		{&Reloc{}, RelocSize},
++		{&Aux{}, AuxSize},
++	}
+ 	w := dummyWriter()
+-	(&Reloc{}).Write(w)
+-	off := w.off
+-	if sz := uint32(RelocSize); off != sz {
+-		t.Errorf("size mismatch: %d bytes written, but size=%d", off, sz)
++	for _, test := range tests {
++		off0 := w.off
++		test.x.Write(w)
++		got := w.off - off0
++		if got != test.want {
++			t.Errorf("size(%T) mismatch: %d bytes written, but size=%d", test.x, got, test.want)
++		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index cbf7e22dbd..5088a6e1be 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -118,7 +118,6 @@ func (d *deadcodePass2) init() {
+ }
+ 
+ func (d *deadcodePass2) flood() {
+-	auxSyms := []loader.Sym{}
+ 	for !d.wq.empty() {
+ 		symIdx := d.wq.pop()
+ 
+@@ -162,9 +161,9 @@ func (d *deadcodePass2) flood() {
+ 			}
+ 			d.mark(r.Sym(), symIdx)
+ 		}
+-		auxSyms = d.ldr.ReadAuxSyms(symIdx, auxSyms)
+-		for i := 0; i < len(auxSyms); i++ {
+-			d.mark(auxSyms[i], symIdx)
++		naux := d.ldr.NAux(symIdx)
++		for i := 0; i < naux; i++ {
++			d.mark(d.ldr.Aux2(symIdx, i).Sym(), symIdx)
+ 		}
+ 		// Some host object symbols have an outer object, which acts like a
+ 		// "carrier" symbol, or it holds all the symbols for a particular
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 93cfd44b8f..a3028fcc86 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -69,6 +69,16 @@ type Reloc2 struct {
+ func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc2.Type()) + rel.typ }
+ func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc2.Sym()) }
+ 
++// Aux2 holds a "handle" to access an aux symbol record from an
++// object file.
++type Aux2 struct {
++	*goobj2.Aux2
++	r *oReader
++	l *Loader
++}
++
++func (a Aux2) Sym() Sym { return a.l.resolve(a.r, a.Aux2.Sym()) }
++
+ // oReader is a wrapper type of obj.Reader, along with some
+ // extra information.
+ // TODO: rename to objReader once the old one is gone?
+@@ -1164,13 +1174,12 @@ func (l *Loader) SymGoType(i Sym) Sym {
+ 		return pp.gotype
+ 	}
+ 	r, li := l.toLocal(i)
+-	naux := r.NAux(li)
+-	for j := 0; j < naux; j++ {
+-		a := goobj2.Aux{}
+-		a.Read(r.Reader, r.AuxOff(li, j))
+-		switch a.Type {
++	auxs := r.Auxs2(li)
++	for j := range auxs {
++		a := &auxs[j]
++		switch a.Type() {
+ 		case goobj2.AuxGotype:
+-			return l.resolve(r, a.Sym)
++			return l.resolve(r, a.Sym())
+ 		}
+ 	}
+ 	return 0
+@@ -1266,6 +1275,18 @@ func (l *Loader) AuxSym(i Sym, j int) Sym {
+ 	return l.resolve(r, a.Sym)
+ }
+ 
++// Returns the "handle" to the j-th aux symbol of the i-th symbol.
++func (l *Loader) Aux2(i Sym, j int) Aux2 {
++	if l.IsExternal(i) {
++		return Aux2{}
++	}
++	r, li := l.toLocal(i)
++	if j >= r.NAux(li) {
++		return Aux2{}
++	}
++	return Aux2{r.Aux2(li, j), r, l}
++}
++
+ // GetFuncDwarfAuxSyms collects and returns the auxiliary DWARF
+ // symbols associated with a given function symbol.  Prior to the
+ // introduction of the loader, this was done purely using name
+@@ -1593,12 +1614,11 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
+ 		return FuncInfo{}
+ 	}
+ 	r, li := l.toLocal(i)
+-	n := r.NAux(li)
+-	for j := 0; j < n; j++ {
+-		a := goobj2.Aux{}
+-		a.Read(r.Reader, r.AuxOff(li, j))
+-		if a.Type == goobj2.AuxFuncInfo {
+-			b := r.Data(int(a.Sym.SymIdx))
++	auxs := r.Auxs2(li)
++	for j := range auxs {
++		a := &auxs[j]
++		if a.Type() == goobj2.AuxFuncInfo {
++			b := r.Data(int(a.Sym().SymIdx))
+ 			return FuncInfo{l, r, b}
+ 		}
+ 	}

@@ -15,6 +15,19 @@ Date:   Sat Oct 24 18:14:51 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/signal_plan9.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/signal_plan9.go b/src/runtime/signal_plan9.go
+index 302f1561b8..19247f2753 100644
+--- a/src/runtime/signal_plan9.go
++++ b/src/runtime/signal_plan9.go
+@@ -51,4 +51,7 @@ var sigtable = [...]sigTabT{
+ 
+ 	// Alarms can be handled if desired, otherwise they're ignored.
+ 	{_SigNotify, "alarm"},
++
++	// Aborts can be handled if desired, otherwise they cause a stack trace.
++	{_SigNotify + _SigThrow, "abort"},
+ }

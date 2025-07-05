@@ -9,6 +9,31 @@ Date:   Tue Jul 14 15:38:46 2015 -0400
     Change-Id: Ica6b8301cc8291785a3c496fb513050813b2d8df
     Reviewed-on: https://go-review.googlesource.com/12201
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/pprof/internal/commands/commands.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/pprof/internal/commands/commands.go b/src/cmd/pprof/internal/commands/commands.go
+index 167e57f1f4..175c7cc99c 100644
+--- a/src/cmd/pprof/internal/commands/commands.go
++++ b/src/cmd/pprof/internal/commands/commands.go
+@@ -82,7 +82,10 @@ func PProf(c Completer, interactive **bool) Commands {
+ // browsers returns a list of commands to attempt for web visualization
+ // on the current platform
+ func browsers() []string {
+-	cmds := []string{"chrome", "google-chrome", "firefox"}
++	var cmds []string
++	if exe := os.Getenv("BROWSER"); exe != "" {
++		cmds = append(cmds, exe)
++	}
+ 	switch runtime.GOOS {
+ 	case "darwin":
+ 		cmds = append(cmds, "/usr/bin/open")
+@@ -91,6 +94,7 @@ func browsers() []string {
+ 	default:
+ 		cmds = append(cmds, "xdg-open")
+ 	}
++	cmds = append(cmds, "chrome", "google-chrome", "firefox")
+ 	return cmds
+ }
+ 

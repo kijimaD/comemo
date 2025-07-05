@@ -12,6 +12,20 @@ Date:   Sat Nov 5 23:49:36 2022 +0900
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/vet/vet_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 1b74fa3fd5..28c39b02d4 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -21,8 +21,6 @@ import (
+ 	"testing"
+ )
+ 
+-const dataDir = "testdata"
+-
+ var binary string
+ 
+ // We implement TestMain so remove the test binary when all is done.

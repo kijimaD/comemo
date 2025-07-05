@@ -13,7 +13,166 @@ Date:   Sat Oct 24 19:07:14 2020 +0200
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM.rules |  8 +--
  src/cmd/compile/internal/ssa/rewriteARM.go | 94 +++++++++++++++++++++++++-----
  2 files changed, 84 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 5d948c1975..f48abcd202 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -169,10 +169,10 @@
+ (Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 => (SRAconst (SLLconst <typ.UInt32> x [24]) [31])
+ 
+ // constants
+-(Const(8|16|32) ...) -> (MOVWconst ...)
+-(Const(32F|64F) ...) -> (MOV(F|D)const ...)
++(Const(8|16|32) [val]) => (MOVWconst [int32(val)])
++(Const(32|64)F [val]) => (MOV(F|D)const [float64(val)])
+ (ConstNil) => (MOVWconst [0])
+-(ConstBool ...) -> (MOVWconst ...)
++(ConstBool [b]) => (MOVWconst [b2i32(b)])
+ 
+ // truncations
+ // Because we ignore high parts of registers, truncates are just copies.
+@@ -246,7 +246,7 @@
+ (OffPtr [off] ptr:(SP)) => (MOVWaddr [int32(off)] ptr)
+ (OffPtr [off] ptr) => (ADDconst [int32(off)] ptr)
+ 
+-(Addr ...) -> (MOVWaddr ...)
++(Addr {sym} base) => (MOVWaddr {sym} base)
+ (LocalAddr {sym} base _) => (MOVWaddr {sym} base)
+ 
+ // loads
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index d92613da02..6ade8283d6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -448,8 +448,7 @@ func rewriteValueARM(v *Value) bool {
+ 		v.Op = OpARMADD
+ 		return true
+ 	case OpAddr:
+-		v.Op = OpARMMOVWaddr
+-		return true
++		return rewriteValueARM_OpAddr(v)
+ 	case OpAnd16:
+ 		v.Op = OpARMAND
+ 		return true
+@@ -481,23 +480,17 @@ func rewriteValueARM(v *Value) bool {
+ 		v.Op = OpARMMVN
+ 		return true
+ 	case OpConst16:
+-		v.Op = OpARMMOVWconst
+-		return true
++		return rewriteValueARM_OpConst16(v)
+ 	case OpConst32:
+-		v.Op = OpARMMOVWconst
+-		return true
++		return rewriteValueARM_OpConst32(v)
+ 	case OpConst32F:
+-		v.Op = OpARMMOVFconst
+-		return true
++		return rewriteValueARM_OpConst32F(v)
+ 	case OpConst64F:
+-		v.Op = OpARMMOVDconst
+-		return true
++		return rewriteValueARM_OpConst64F(v)
+ 	case OpConst8:
+-		v.Op = OpARMMOVWconst
+-		return true
++		return rewriteValueARM_OpConst8(v)
+ 	case OpConstBool:
+-		v.Op = OpARMMOVWconst
+-		return true
++		return rewriteValueARM_OpConstBool(v)
+ 	case OpConstNil:
+ 		return rewriteValueARM_OpConstNil(v)
+ 	case OpCtz16:
+@@ -12873,6 +12866,19 @@ func rewriteValueARM_OpARMXORshiftRR(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpAddr(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Addr {sym} base)
++	// result: (MOVWaddr {sym} base)
++	for {
++		sym := auxToSym(v.Aux)
++		base := v_0
++		v.reset(OpARMMOVWaddr)
++		v.Aux = symToAux(sym)
++		v.AddArg(base)
++		return true
++	}
++}
+ func rewriteValueARM_OpAvg32u(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -12954,6 +12960,66 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpConst16(v *Value) bool {
++	// match: (Const16 [val])
++	// result: (MOVWconst [int32(val)])
++	for {
++		val := auxIntToInt16(v.AuxInt)
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int32ToAuxInt(int32(val))
++		return true
++	}
++}
++func rewriteValueARM_OpConst32(v *Value) bool {
++	// match: (Const32 [val])
++	// result: (MOVWconst [int32(val)])
++	for {
++		val := auxIntToInt32(v.AuxInt)
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int32ToAuxInt(int32(val))
++		return true
++	}
++}
++func rewriteValueARM_OpConst32F(v *Value) bool {
++	// match: (Const32F [val])
++	// result: (MOVFconst [float64(val)])
++	for {
++		val := auxIntToFloat32(v.AuxInt)
++		v.reset(OpARMMOVFconst)
++		v.AuxInt = float64ToAuxInt(float64(val))
++		return true
++	}
++}
++func rewriteValueARM_OpConst64F(v *Value) bool {
++	// match: (Const64F [val])
++	// result: (MOVDconst [float64(val)])
++	for {
++		val := auxIntToFloat64(v.AuxInt)
++		v.reset(OpARMMOVDconst)
++		v.AuxInt = float64ToAuxInt(float64(val))
++		return true
++	}
++}
++func rewriteValueARM_OpConst8(v *Value) bool {
++	// match: (Const8 [val])
++	// result: (MOVWconst [int32(val)])
++	for {
++		val := auxIntToInt8(v.AuxInt)
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int32ToAuxInt(int32(val))
++		return true
++	}
++}
++func rewriteValueARM_OpConstBool(v *Value) bool {
++	// match: (ConstBool [b])
++	// result: (MOVWconst [b2i32(b)])
++	for {
++		b := auxIntToBool(v.AuxInt)
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int32ToAuxInt(b2i32(b))
++		return true
++	}
++}
+ func rewriteValueARM_OpConstNil(v *Value) bool {
+ 	// match: (ConstNil)
+ 	// result: (MOVWconst [0])

@@ -15,6 +15,21 @@ Date:   Tue Nov 13 16:13:42 2018 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  test/run.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/run.go b/test/run.go
+index a01fd6a957..3a9e267940 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -808,7 +808,8 @@ func (t *test) run() {
+ 
+ 		}
+ 		if len(asms) > 0 {
+-			if err := ioutil.WriteFile(filepath.Join(longdir, "go_asm.h"), nil, 0666); err != nil {
++			emptyHdrFile := filepath.Join(t.tempDir, "go_asm.h")
++			if err := ioutil.WriteFile(emptyHdrFile, nil, 0666); err != nil {
+ 				t.err = fmt.Errorf("write empty go_asm.h: %s", err)
+ 				return
+ 			}

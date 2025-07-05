@@ -24,7 +24,7 @@ Date:   Wed Feb 25 10:20:13 2015 +1100
     Reviewed-on: https://go-review.googlesource.com/5833
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_linux.go          | 26 -----------------------
  src/syscall/syscall_linux_386.go      | 26 +++++++++++++++++++++++
  src/syscall/syscall_linux_amd64.go    | 26 +++++++++++++++++++++++
@@ -36,3 +36,436 @@ Date:   Wed Feb 25 10:20:13 2015 +1100
  src/syscall/zsyscall_linux_ppc64.go   | 30 +++++++++-----------------
  src/syscall/zsyscall_linux_ppc64le.go | 30 +++++++++-----------------
  10 files changed, 170 insertions(+), 126 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index c40c718904..409ebbfdde 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -29,32 +29,6 @@ func Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 	return openat(dirfd, path, flags|O_LARGEFILE, mode)
+ }
+ 
+-//sysnb	pipe(p *[2]_C_int) (err error)
+-
+-func Pipe(p []int) (err error) {
+-	if len(p) != 2 {
+-		return EINVAL
+-	}
+-	var pp [2]_C_int
+-	err = pipe(&pp)
+-	p[0] = int(pp[0])
+-	p[1] = int(pp[1])
+-	return
+-}
+-
+-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+-
+-func Pipe2(p []int, flags int) (err error) {
+-	if len(p) != 2 {
+-		return EINVAL
+-	}
+-	var pp [2]_C_int
+-	err = pipe2(&pp, flags)
+-	p[0] = int(pp[0])
+-	p[1] = int(pp[1])
+-	return
+-}
+-
+ //sys	utimes(path string, times *[2]Timeval) (err error)
+ 
+ func Utimes(path string, tv []Timeval) (err error) {
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 827875053d..52527d8848 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -28,6 +28,32 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return
+ }
+ 
++//sysnb	pipe(p *[2]_C_int) (err error)
++
++func Pipe(p []int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var pp [2]_C_int
++	err = pipe(&pp)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
++//sysnb pipe2(p *[2]_C_int, flags int) (err error)
++
++func Pipe2(p []int, flags int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var pp [2]_C_int
++	err = pipe2(&pp, flags)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
+ // 64-bit file system and 32-bit uid calls
+ // (386 default is 32-bit file system and 16-bit uid).
+ //sys	Chown(path string, uid int, gid int) (err error) = SYS_CHOWN32
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 74a89fb671..1ab356bf07 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -97,6 +97,32 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return
+ }
+ 
++//sysnb	pipe(p *[2]_C_int) (err error)
++
++func Pipe(p []int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var pp [2]_C_int
++	err = pipe(&pp)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
++//sysnb pipe2(p *[2]_C_int, flags int) (err error)
++
++func Pipe2(p []int, flags int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var pp [2]_C_int
++	err = pipe2(&pp, flags)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
+ func (r *PtraceRegs) PC() uint64 { return r.Rip }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) { r.Rip = pc }
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index b127345d3f..c0ae748575 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -23,6 +23,30 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return
+ }
+ 
++func Pipe(p []int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var pp [2]_C_int
++	err = pipe2(&pp, 0)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
++//sysnb pipe2(p *[2]_C_int, flags int) (err error)
++
++func Pipe2(p []int, flags int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var pp [2]_C_int
++	err = pipe2(&pp, flags)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
+ // Underlying system call writes to newoffset via pointer.
+ // Implemented in assembly to avoid allocation.
+ func seek(fd int, offset int64, whence int) (newoffset int64, err Errno)
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 65ba3567b2..ca101067be 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -80,6 +80,30 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return
+ }
+ 
++func Pipe(p []int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var pp [2]_C_int
++	err = pipe2(&pp, 0)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
++//sysnb pipe2(p *[2]_C_int, flags int) (err error)
++
++func Pipe2(p []int, flags int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var pp [2]_C_int
++	err = pipe2(&pp, flags)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
+ func (r *PtraceRegs) PC() uint64 { return r.Nip }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) { r.Nip = pc }
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index dee8343134..5d6728df29 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -41,26 +41,6 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe(p *[2]_C_int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func pipe2(p *[2]_C_int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -1396,6 +1376,26 @@ func Munlockall() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func pipe(p *[2]_C_int) (err error) {
++	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pipe2(p *[2]_C_int, flags int) (err error) {
++	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Chown(path string, uid int, gid int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index ed3afd4e0c..573a2fd908 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -41,26 +41,6 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe(p *[2]_C_int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func pipe2(p *[2]_C_int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -1959,3 +1939,23 @@ func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int6
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pipe(p *[2]_C_int) (err error) {
++	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pipe2(p *[2]_C_int, flags int) (err error) {
++	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index fbf69350df..22ecde0ea2 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -41,26 +41,6 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe(p *[2]_C_int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func pipe2(p *[2]_C_int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -1396,6 +1376,16 @@ func Munlockall() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func pipe2(p *[2]_C_int, flags int) (err error) {
++	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 5e60576b51..d0835c6fca 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -41,26 +41,6 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe(p *[2]_C_int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func pipe2(p *[2]_C_int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -1980,3 +1960,13 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pipe2(p *[2]_C_int, flags int) (err error) {
++	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 5e60576b51..d0835c6fca 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -41,26 +41,6 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe(p *[2]_C_int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func pipe2(p *[2]_C_int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -1980,3 +1960,13 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pipe2(p *[2]_C_int, flags int) (err error) {
++	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}

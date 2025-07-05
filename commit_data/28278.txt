@@ -13,8 +13,105 @@ Date:   Tue May 10 14:27:32 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .../user/{getgrouplist_darwin.c => getgrouplist_darwin.go}   | 11 +++++++++--
  src/os/user/{getgrouplist_unix.c => getgrouplist_unix.go}    | 12 ++++++++++--
  src/os/user/listgroups_unix.go                               |  6 ++----
  3 files changed, 21 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/user/getgrouplist_darwin.c b/src/os/user/getgrouplist_darwin.go
+similarity index 64%
+rename from src/os/user/getgrouplist_darwin.c
+rename to src/os/user/getgrouplist_darwin.go
+index 6ad5614898..54a2da3610 100644
+--- a/src/os/user/getgrouplist_darwin.c
++++ b/src/os/user/getgrouplist_darwin.go
+@@ -2,13 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
++package user
+ 
++/*
+ #include <unistd.h>
+ #include <sys/types.h>
+ #include <stdlib.h>
+ 
+-int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups) {
++static int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups) {
+ 	int* buf = malloc(*ngroups * sizeof(int));
+ 	int rv = getgrouplist(user, (int) group, buf, ngroups);
+ 	int i;
+@@ -20,3 +21,9 @@ int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups) {
+ 	free(buf);
+ 	return rv;
+ }
++*/
++import "C"
++
++func getGroupList(name *C.char, userGID C.gid_t, gids *C.gid_t, n *C.int) C.int {
++	return C.mygetgrouplist(name, userGID, gids, n)
++}
+diff --git a/src/os/user/getgrouplist_unix.c b/src/os/user/getgrouplist_unix.go
+similarity index 56%
+rename from src/os/user/getgrouplist_unix.c
+rename to src/os/user/getgrouplist_unix.go
+index eb14f9ab8a..14da7c00a2 100644
+--- a/src/os/user/getgrouplist_unix.c
++++ b/src/os/user/getgrouplist_unix.go
+@@ -2,13 +2,21 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+ // +build dragonfly freebsd !android,linux netbsd openbsd
+ 
++package user
++
++/*
+ #include <unistd.h>
+ #include <sys/types.h>
+ #include <grp.h>
+ 
+-int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups) {
++static int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups) {
+ 	return getgrouplist(user, group, groups, ngroups);
+ }
++*/
++import "C"
++
++func getGroupList(name *C.char, userGID C.gid_t, gids *C.gid_t, n *C.int) C.int {
++	return C.mygetgrouplist(name, userGID, gids, n)
++}
+diff --git a/src/os/user/listgroups_unix.go b/src/os/user/listgroups_unix.go
+index f78baaac1e..db952c64bf 100644
+--- a/src/os/user/listgroups_unix.go
++++ b/src/os/user/listgroups_unix.go
+@@ -16,8 +16,6 @@ import (
+ #include <unistd.h>
+ #include <sys/types.h>
+ #include <stdlib.h>
+-
+-extern int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups);
+ */
+ import "C"
+ 
+@@ -32,7 +30,7 @@ func listGroups(u *User) ([]string, error) {
+ 
+ 	n := C.int(256)
+ 	gidsC := make([]C.gid_t, n)
+-	rv := C.mygetgrouplist(nameC, userGID, &gidsC[0], &n)
++	rv := getGroupList(nameC, userGID, &gidsC[0], &n)
+ 	if rv == -1 {
+ 		// More than initial buffer, but now n contains the correct size.
+ 		const maxGroups = 2048
+@@ -40,7 +38,7 @@ func listGroups(u *User) ([]string, error) {
+ 			return nil, fmt.Errorf("user: list groups for %s: member of more than %d groups", u.Username, maxGroups)
+ 		}
+ 		gidsC = make([]C.gid_t, n)
+-		rv := C.mygetgrouplist(nameC, userGID, &gidsC[0], &n)
++		rv := getGroupList(nameC, userGID, &gidsC[0], &n)
+ 		if rv == -1 {
+ 			return nil, fmt.Errorf("user: list groups for %s failed (changed groups?)", u.Username)
+ 		}

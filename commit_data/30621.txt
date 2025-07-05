@@ -9,6 +9,41 @@ Date:   Wed Nov 16 11:23:53 2016 -0800
     Change-Id: I725704e4c4aae7023fd89edc42af7ba0d242fec8
     Reviewed-on: https://go-review.googlesource.com/33327
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_faq.html | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 37a31ae289..884d98ba6e 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -769,6 +769,29 @@ for i, v := range t {
+ }
+ </pre>
+ 
++<h3 id="convert_slice_with_same_underlying_type">
++Can I convert []T1 to []T2 if T1 and T2 have the same underlying type?</h3>
++
++This last line of this code sample does not compile.
++
++<pre>
++type T1 int
++type T2 int
++var t1 T1
++var x = T2(t1) // OK
++var st1 []T1
++var sx = ([]T2)(st1) // NOT OK
++</pre>
++
++<p>
++In Go, types are closely tied to methods, in that every named type has
++a (possibly empty) method set.
++The general rule is that you can change the name of the type being
++converted (and thus possibly change its method set) but you can't
++change the name (and method set) of elements of a composite type.
++Go requires you to be explicit about type conversions.
++</p>
++
+ <h3 id="nil_error">
+ Why is my nil error value not equal to nil?
+ </h3>

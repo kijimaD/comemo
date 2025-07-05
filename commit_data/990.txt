@@ -8,8 +8,84 @@ Date:   Wed Oct 29 15:23:36 2008 -0700
     DELTA=7  (0 added, 0 deleted, 7 changed)
     OCL=18050
     CL=18069
-
+---
  src/lib/net/fd_linux.go         | 6 +++---
  src/lib/syscall/file_linux.go   | 2 +-
  src/lib/syscall/socket_linux.go | 6 +++---
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/lib/net/fd_linux.go b/src/lib/net/fd_linux.go
+index 5f9687c85f..282be20c47 100644
+--- a/src/lib/net/fd_linux.go
++++ b/src/lib/net/fd_linux.go
+@@ -21,7 +21,7 @@ export type Pollster struct {
+ 	epfd int64;
+ 
+ 	// Events we're already waiting for
+-	events *map[int64] uint;
++	events *map[int64] uint32;
+ }
+ 
+ export func NewPollster() (p *Pollster, err *os.Error) {
+@@ -34,7 +34,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
+ 	if p.epfd, e = syscall.epoll_create(16); e != 0 {
+ 		return nil, os.ErrnoToError(e)
+ 	}
+-	p.events = new(map[int64] uint);
++	p.events = new(map[int64] uint32);
+ 	return p, nil
+ }
+ 
+@@ -81,7 +81,7 @@ func (p *Pollster) StopWaiting(fd int64, bits uint) {
+ 	// Disable the given bits.
+ 	// If we're still waiting for other events, modify the fd
+ 	// event in the kernel.  Otherwise, delete it.
+-	events &= ^bits;
++	events &= ^uint32(bits);
+ 	if int32(events) & ^syscall.EPOLLONESHOT != 0 {
+ 		var ev syscall.EpollEvent;
+ 		ev.fd = int32(fd);
+diff --git a/src/lib/syscall/file_linux.go b/src/lib/syscall/file_linux.go
+index 6b56cc6ab5..af7728a6b1 100644
+--- a/src/lib/syscall/file_linux.go
++++ b/src/lib/syscall/file_linux.go
+@@ -44,7 +44,7 @@ export func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+ }
+ 
+ export func pipe(fds *[2]int64) (ret int64, errno int64) {
+-	var t [2] int;
++	var t [2] int32;
+ 	r1, r2, err := Syscall(SYS_PIPE, Int32Ptr(&t[0]), 0, 0);
+ 	if r1 < 0 {
+ 		return r1, err;
+diff --git a/src/lib/syscall/socket_linux.go b/src/lib/syscall/socket_linux.go
+index e7e6f743d4..69a05308ca 100644
+--- a/src/lib/syscall/socket_linux.go
++++ b/src/lib/syscall/socket_linux.go
+@@ -47,7 +47,7 @@ export func listen(fd, n int64) (ret int64, err int64) {
+ }
+ 
+ export func accept(fd int64, sa *Sockaddr) (ret int64, err int64) {
+-	n := SizeofSockaddr;
++	var n int32 = SizeofSockaddr;
+ 	r1, r2, e := Syscall(SYS_ACCEPT, fd, SockaddrPtr(sa), Int32Ptr(&n));
+ 	return r1, e
+ }
+@@ -61,7 +61,7 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
+ }
+ 
+ export func setsockopt_int(fd, level, opt int64, value int) int64 {
+-	n := int(opt);
++	n := int32(opt);
+ 	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4);
+ 	return e
+ }
+@@ -79,7 +79,7 @@ export func setsockopt_linger(fd, level, opt int64, sec int) int64 {
+ 	var l Linger;
+ 	if sec != 0 {
+ 		l.yes = 1;
+-		l.sec = sec
++		l.sec = int32(sec)
+ 	} else {
+ 		l.yes = 0;
+ 		l.sec = 0

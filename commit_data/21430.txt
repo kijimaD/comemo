@@ -10,6 +10,23 @@ Date:   Sat Jan 3 10:46:45 2015 -0800
     Change-Id: Ie4ded2fdce08f412e4acbcc93acdd76f5791b84a
     Reviewed-on: https://go-review.googlesource.com/2265
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/code.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/code.html b/doc/code.html
+index 2141fb6551..8cbfba04a0 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -127,6 +127,11 @@ to your <code>PATH</code>:
+ $ <b>export PATH=$PATH:$GOPATH/bin</b>
+ </pre>
+ 
++<p>
++To learn more about setting up the <code>GOPATH</code> environment variable,
++please see
++<a href="/cmd/go/#hdr-GOPATH_environment_variable"><code>go help gopath</code></a>
++</p>
+ 
+ <h3 id="PackagePaths">Package paths</h3>
+ 

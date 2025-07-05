@@ -23,8 +23,117 @@ Date:   Mon Aug 15 00:56:01 2011 -0300
     R=golang-dev, r, gustavo
     CC=golang-dev
     https://golang.org/cl/4898043
-
+---
  src/pkg/exp/template/doc.go       | 15 +++++++++++++--
  src/pkg/exp/template/exec.go      | 13 ++++++++++++-
  src/pkg/exp/template/exec_test.go | 12 ++++++++++++
  3 files changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/exp/template/doc.go
+index 46a38040e3..f65946aed9 100644
+--- a/src/pkg/exp/template/doc.go
++++ b/src/pkg/exp/template/doc.go
+@@ -101,6 +101,17 @@ An argument is a simple value, denoted by one of the following.
+ 	    .Field1.Field2
+ 	  Fields can also be evaluated on variables, including chaining:
+ 	    $x.Field1.Field2
++	- The name of a key of the data, which must be a map, preceded
++	  by a period, such as
++		.Key
++	  The result is the map element value indexed by the key.
++	  Key invocations may be chained and combined with fields to any
++	  depth:
++	    .Field1.Key1.Field2.Key2
++	  Although the key must be an alphanumeric identifier, unlike with
++	  field names they do not need to start with an upper case letter.
++	  Keys can also be evaluated on variables, including chaining:
++	    $x.key1.key2
+ 	- The name of a niladic method of the data, preceded by a period,
+ 	  such as
+ 		.Method
+@@ -109,9 +120,9 @@ An argument is a simple value, denoted by one of the following.
+ 	  any type) or two return values, the second of which is an os.Error.
+ 	  If it has two and the returned error is non-nil, execution terminates
+ 	  and an error is returned to the caller as the value of Execute.
+-	  Method invocations may be chained and combined with fields
++	  Method invocations may be chained and combined with fields and keys
+ 	  to any depth:
+-	    .Field1.Method1.Field2.Method2
++	    .Field1.Key1.Method1.Field2.Key2.Method2
+ 	  Methods can also be evaluated on variables, including chaining:
+ 	    $x.Method1.Field
+ 	- The name of a niladic function, such as
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 06e5d2b3b8..08cb390900 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -394,13 +394,14 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
+ 	if method, ok := methodByName(ptr, fieldName); ok {
+ 		return s.evalCall(dot, method, fieldName, args, final)
+ 	}
++	hasArgs := len(args) > 1 || final.IsValid()
+ 	// It's not a method; is it a field of a struct?
+ 	receiver, isNil := indirect(receiver)
+ 	if receiver.Kind() == reflect.Struct {
+ 		tField, ok := receiver.Type().FieldByName(fieldName)
+ 		if ok {
+ 			field := receiver.FieldByIndex(tField.Index)
+-			if len(args) > 1 || final.IsValid() {
++			if hasArgs {
+ 				s.errorf("%s is not a method but has arguments", fieldName)
+ 			}
+ 			if tField.PkgPath == "" { // field is exported
+@@ -408,6 +409,16 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
+ 			}
+ 		}
+ 	}
++	// If it's a map, attempt to use the field name as a key.
++	if receiver.Kind() == reflect.Map {
++		nameVal := reflect.ValueOf(fieldName)
++		if nameVal.Type().AssignableTo(receiver.Type().Key()) {
++			if hasArgs {
++				s.errorf("%s is not a method but has arguments", fieldName)
++			}
++			return receiver.MapIndex(nameVal)
++		}
++	}
+ 	if isNil {
+ 		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+ 	}
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 8a610da63b..82f56e13cb 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -39,6 +39,8 @@ type T struct {
+ 	MSI      map[string]int
+ 	MSIone   map[string]int // one element, for deterministic output
+ 	MSIEmpty map[string]int
++	MXI      map[interface{}]int
++	MII      map[int]int
+ 	SMSI     []map[string]int
+ 	// Empty interfaces; used to see if we can dig inside one.
+ 	Empty0 interface{} // nil
+@@ -85,6 +87,8 @@ var tVal = &T{
+ 	SB:     []bool{true, false},
+ 	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
+ 	MSIone: map[string]int{"one": 1},
++	MXI:    map[interface{}]int{"one": 1},
++	MII:    map[int]int{1: 1},
+ 	SMSI: []map[string]int{
+ 		{"one": 1, "two": 2},
+ 		{"eleven": 11, "twelve": 12},
+@@ -211,6 +215,14 @@ var execTests = []execTest{
+ 	{".X", "-{{.X}}-", "-x-", tVal, true},
+ 	{".U.V", "-{{.U.V}}-", "-v-", tVal, true},
+ 
++	// Fields on maps.
++	{"map .one", "{{.MSI.one}}", "1", tVal, true},
++	{"map .two", "{{.MSI.two}}", "2", tVal, true},
++	{"map .NO", "{{.MSI.NO}}", "<no value>", tVal, true},
++	{"map .one interface", "{{.MXI.one}}", "1", tVal, true},
++	{"map .WRONG args", "{{.MSI.one 1}}", "", tVal, false},
++	{"map .WRONG type", "{{.MII.one}}", "", tVal, false},
++
+ 	// Dots of all kinds to test basic evaluation.
+ 	{"dot int", "<{{.}}>", "<13>", 13, true},
+ 	{"dot uint", "<{{.}}>", "<14>", uint(14), true},

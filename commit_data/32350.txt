@@ -10,6 +10,24 @@ Date:   Wed Apr 19 22:44:03 2017 -0700
     Change-Id: Ifb1c6bb20cbf640a91572d47f14a432f58439261
     Reviewed-on: https://go-review.googlesource.com/41146
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/help.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/help.html b/doc/help.html
+index 62d9a4a6b6..057d75290e 100644
+--- a/doc/help.html
++++ b/doc/help.html
+@@ -59,6 +59,12 @@ The <a href="https://reddit.com/r/golang">golang sub-Reddit</a> is a place
+ for Go news and discussion.
+ </p>
+ 
++<h3 id="gotime"><a href="https://changelog.com/gotime">Go Time Podcast</a></h3>
++<p>
++The <a href="https://changelog.com/gotime">Go Time podcast</a> is a panel of Go experts and special guests
++discussing the Go programming language, the community, and everything in between.
++</p>
++
+ <h2 id="community">Community resources</h2>
+ 
+ <h3 id="go_user_groups"><a href="/wiki/GoUserGroups">Go User Groups</a></h3>

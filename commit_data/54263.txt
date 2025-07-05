@@ -17,7 +17,87 @@ Date:   Fri Sep 23 11:02:41 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/internal/singleflight/singleflight.go      |  4 +-
  src/internal/singleflight/singleflight_test.go | 56 ++++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/singleflight/singleflight.go b/src/internal/singleflight/singleflight.go
+index 19d5a94a0b..755bf1c350 100644
+--- a/src/internal/singleflight/singleflight.go
++++ b/src/internal/singleflight/singleflight.go
+@@ -94,7 +94,9 @@ func (g *Group) doCall(c *call, key string, fn func() (any, error)) {
+ 	c.wg.Done()
+ 
+ 	g.mu.Lock()
+-	delete(g.m, key)
++	if g.m[key] == c {
++		delete(g.m, key)
++	}
+ 	for _, ch := range c.chans {
+ 		ch <- Result{c.val, c.err, c.dups > 0}
+ 	}
+diff --git a/src/internal/singleflight/singleflight_test.go b/src/internal/singleflight/singleflight_test.go
+index 99713c9e14..c8b4a81d52 100644
+--- a/src/internal/singleflight/singleflight_test.go
++++ b/src/internal/singleflight/singleflight_test.go
+@@ -85,3 +85,59 @@ func TestDoDupSuppress(t *testing.T) {
+ 		t.Errorf("number of calls = %d; want over 0 and less than %d", got, n)
+ 	}
+ }
++
++func TestForgetUnshared(t *testing.T) {
++	var g Group
++
++	var firstStarted, firstFinished sync.WaitGroup
++
++	firstStarted.Add(1)
++	firstFinished.Add(1)
++
++	key := "key"
++	firstCh := make(chan struct{})
++	go func() {
++		g.Do(key, func() (i interface{}, e error) {
++			firstStarted.Done()
++			<-firstCh
++			firstFinished.Done()
++			return
++		})
++	}()
++
++	firstStarted.Wait()
++	g.ForgetUnshared(key) // from this point no two function using same key should be executed concurrently
++
++	secondCh := make(chan struct{})
++	go func() {
++		g.Do(key, func() (i interface{}, e error) {
++			// Notify that we started
++			secondCh <- struct{}{}
++			<-secondCh
++			return 2, nil
++		})
++	}()
++
++	<-secondCh
++
++	resultCh := g.DoChan(key, func() (i interface{}, e error) {
++		panic("third must not be started")
++	})
++
++	if g.ForgetUnshared(key) {
++		t.Errorf("Before first goroutine finished, key %q is shared, should return false", key)
++	}
++
++	close(firstCh)
++	firstFinished.Wait()
++
++	if g.ForgetUnshared(key) {
++		t.Errorf("After first goroutine finished, key %q is still shared, should return false", key)
++	}
++
++	secondCh <- struct{}{}
++
++	if result := <-resultCh; result.Val != 2 {
++		t.Errorf("We should receive result produced by second call, expected: 2, got %d", result.Val)
++	}
++}

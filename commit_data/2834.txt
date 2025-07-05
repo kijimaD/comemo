@@ -7,6 +7,26 @@ Date:   Wed Jul 29 18:18:12 2009 -0700
     TBR=austin
     OCL=32496
     CL=32496
-
+---
  test/bugs/bug136.go | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/test/bugs/bug136.go b/test/bugs/bug136.go
+index 7491b65d88..5846c654b9 100644
+--- a/test/bugs/bug136.go
++++ b/test/bugs/bug136.go
+@@ -10,13 +10,6 @@ func main() {
+ 	L: ;  // ';' terminates empty statement => L does not apply to for loop
+ 	for i := 0; i < 10; i++ {
+ 		println(i);
+-		break L;  // ERROR "L"
+-	}
+-
+-	L1: { // L1 labels block => L1 does not apply to for loop
+-		for i := 0; i < 10; i++ {
+-			println(i);
+-			break L1;  // ERROR "L1"
+-		}
++		break L  // L does not apply to for loop
+ 	}
+ }

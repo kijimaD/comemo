@@ -12,6 +12,18 @@ Date:   Wed Oct 23 13:50:15 2019 -0400
     Change-Id: I8c7d65b97e0b3fe367df69a86ae10c7960c05be3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202762
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/benchcmp | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/misc/benchcmp b/misc/benchcmp
+deleted file mode 100755
+index 84d92eefd4..0000000000
+--- a/misc/benchcmp
++++ /dev/null
+@@ -1,5 +0,0 @@
+-#!/bin/bash
+-
+-echo 'misc/benchcmp has moved:' >&2
+-echo '	go get -u golang.org/x/tools/cmd/benchcmp' >&2
+-exit 2

@@ -7,8 +7,87 @@ Date:   Wed Jun 29 13:57:59 2011 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4631076
-
+---
  src/pkg/gob/decode.go |  4 ++--
  src/pkg/gob/encode.go | 15 ++-------------
  src/pkg/gob/type.go   |  5 -----
  3 files changed, 4 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 415b308250..bf7cb95f22 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -741,7 +741,7 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
+ 
+ // decodeGobDecoder decodes something implementing the GobDecoder interface.
+ // The data is encoded as a byte slice.
+-func (dec *Decoder) decodeGobDecoder(state *decoderState, v reflect.Value, index int) {
++func (dec *Decoder) decodeGobDecoder(state *decoderState, v reflect.Value) {
+ 	// Read the bytes for the value.
+ 	b := make([]byte, state.decodeUint())
+ 	_, err := state.b.Read(b)
+@@ -969,7 +969,7 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
+ 		} else {
+ 			v = reflect.ValueOf(unsafe.Unreflect(rcvrType, p))
+ 		}
+-		state.dec.decodeGobDecoder(state, v, methodIndex(rcvrType, gobDecodeMethodName))
++		state.dec.decodeGobDecoder(state, v)
+ 	}
+ 	return &op, int(ut.indir)
+ 
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 743e853e94..941e26052f 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -468,7 +468,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+ 
+ // encGobEncoder encodes a value that implements the GobEncoder interface.
+ // The data is sent as a byte array.
+-func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value, index int) {
++func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value) {
+ 	// TODO: should we catch panics from the called method?
+ 	// We know it's a GobEncoder, so just call the method directly.
+ 	data, err := v.Interface().(GobEncoder).GobEncode()
+@@ -592,17 +592,6 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
+ 	return &op, indir
+ }
+ 
+-// methodIndex returns which method of rt implements the method.
+-func methodIndex(rt reflect.Type, method string) int {
+-	for i := 0; i < rt.NumMethod(); i++ {
+-		if rt.Method(i).Name == method {
+-			return i
+-		}
+-	}
+-	errorf("internal error: can't find method %s", method)
+-	return 0
+-}
+-
+ // gobEncodeOpFor returns the op for a type that is known to implement
+ // GobEncoder.
+ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
+@@ -624,7 +613,7 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
+ 			v = reflect.ValueOf(unsafe.Unreflect(rt, p))
+ 		}
+ 		state.update(i)
+-		state.enc.encodeGobEncoder(state.b, v, methodIndex(rt, gobEncodeMethodName))
++		state.enc.encodeGobEncoder(state.b, v)
+ 	}
+ 	return &op, int(ut.encIndir) // encIndir: op will get called with p == address of receiver.
+ }
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index f8e3843a77..552faa4d69 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -80,11 +80,6 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
+ 	return
+ }
+ 
+-const (
+-	gobEncodeMethodName = "GobEncode"
+-	gobDecodeMethodName = "GobDecode"
+-)
+-
+ var (
+ 	gobEncoderInterfaceType = reflect.TypeOf(new(GobEncoder)).Elem()
+ 	gobDecoderInterfaceType = reflect.TypeOf(new(GobDecoder)).Elem()

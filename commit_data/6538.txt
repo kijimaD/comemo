@@ -7,7 +7,35 @@ Date:   Fri Oct 15 23:37:14 2010 -0400
     R=rsc, brainman
     CC=golang-dev
     https://golang.org/cl/2543042
-
+---
  src/cmd/ld/pe.c | 1 +
  src/cmd/ld/pe.h | 4 ++--
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 0821af2689..ea978a3564 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -96,6 +96,7 @@ pewrite(void)
+ 	for (i=0; i<nsect; i++)
+ 		for (j=0; j<sizeof(sh[i]); j++)
+ 			cput(((char*)&sh[i])[j]);
++	strnput("", PERESERVE-0x400);
+ }
+ 
+ void
+diff --git a/src/cmd/ld/pe.h b/src/cmd/ld/pe.h
+index b64dd97c07..cb9d0e9113 100644
+--- a/src/cmd/ld/pe.h
++++ b/src/cmd/ld/pe.h
+@@ -72,8 +72,8 @@ typedef struct {
+ 	uint32 FirstThunk;
+ } IMAGE_IMPORT_DESCRIPTOR;
+ 
+-#define PERESERVE	0x400
+-#define PEALIGN		0x200
++#define PERESERVE	0x1000
++#define PEALIGN		0x1000
+ #define PEBASE		0x00400000
+ 
+ enum {

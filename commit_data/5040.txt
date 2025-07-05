@@ -9,8 +9,245 @@ Date:   Thu Mar 11 16:44:56 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/460042
-
+---
  src/cmd/godoc/godoc.go        |   2 +-
  src/pkg/go/ast/filter.go      | 108 ++++++++++++++++++++++++++++++++++++++----
  src/pkg/go/printer/printer.go |  26 ++++++++--
  3 files changed, 123 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 65568a8cf8..04393c6dc2 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1150,7 +1150,7 @@ func (h *httpHandler) getPageInfo(dirname, relpath string, genAST, try bool) Pag
+ 	if pkg != nil {
+ 		ast.PackageExports(pkg)
+ 		if genAST {
+-			past = ast.MergePackageFiles(pkg)
++			past = ast.MergePackageFiles(pkg, false)
+ 		} else {
+ 			pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(relpath)) // no trailing '/' in importpath
+ 		}
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 2646ea886b..1c2aea3574 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -195,18 +195,46 @@ func PackageExports(pkg *Package) bool {
+ var separator = &Comment{noPos, []byte("//")}
+ 
+ 
++// lineAfterComment computes the position of the beginning
++// of the line immediately following a comment.
++func lineAfterComment(c *Comment) token.Position {
++	pos := c.Pos()
++	line := pos.Line
++	text := c.Text
++	if text[1] == '*' {
++		/*-style comment - determine endline */
++		for _, ch := range text {
++			if ch == '\n' {
++				line++
++			}
++		}
++	}
++	pos.Offset += len(text) + 1 // +1 for newline
++	pos.Line = line + 1         // line after comment
++	pos.Column = 1              // beginning of line
++	return pos
++}
++
++
+ // MergePackageFiles creates a file AST by merging the ASTs of the
+-// files belonging to a package.
++// files belonging to a package. If complete is set, the package
++// files are assumed to contain the complete, unfiltered package
++// information. In this case, MergePackageFiles collects all entities
++// and all comments. Otherwise (complete == false), MergePackageFiles
++// excludes duplicate entries and does not collect comments that are
++// not attached to AST nodes.
+ //
+-func MergePackageFiles(pkg *Package) *File {
+-	// Count the number of package comments and declarations across
++func MergePackageFiles(pkg *Package, complete bool) *File {
++	// Count the number of package docs, comments and declarations across
+ 	// all package files.
++	ndocs := 0
+ 	ncomments := 0
+ 	ndecls := 0
+ 	for _, f := range pkg.Files {
+ 		if f.Doc != nil {
+-			ncomments += len(f.Doc.List) + 1 // +1 for separator
++			ndocs += len(f.Doc.List) + 1 // +1 for separator
+ 		}
++		ncomments += len(f.Comments)
+ 		ndecls += len(f.Decls)
+ 	}
+ 
+@@ -216,8 +244,9 @@ func MergePackageFiles(pkg *Package) *File {
+ 	// a package comment; but it's better to collect extra comments
+ 	// than drop them on the floor.
+ 	var doc *CommentGroup
+-	if ncomments > 0 {
+-		list := make([]*Comment, ncomments-1) // -1: no separator before first group
++	var pos token.Position
++	if ndocs > 0 {
++		list := make([]*Comment, ndocs-1) // -1: no separator before first group
+ 		i := 0
+ 		for _, f := range pkg.Files {
+ 			if f.Doc != nil {
+@@ -230,6 +259,12 @@ func MergePackageFiles(pkg *Package) *File {
+ 					list[i] = c
+ 					i++
+ 				}
++				end := lineAfterComment(f.Doc.List[len(f.Doc.List)-1])
++				if end.Offset > pos.Offset {
++					// Keep the maximum end position as
++					// position for the package clause.
++					pos = end
++				}
+ 			}
+ 		}
+ 		doc = &CommentGroup{list}
+@@ -239,15 +274,70 @@ func MergePackageFiles(pkg *Package) *File {
+ 	var decls []Decl
+ 	if ndecls > 0 {
+ 		decls = make([]Decl, ndecls)
+-		i := 0
++		funcs := make(map[string]int) // map of global function name -> decls index
++		i := 0                        // current index
++		n := 0                        // number of filtered entries
+ 		for _, f := range pkg.Files {
+ 			for _, d := range f.Decls {
++				if !complete {
++					// A language entity may be declared multiple
++					// times in different package files; only at
++					// build time declarations must be unique.
++					// For now, exclude multiple declarations of
++					// functions - keep the one with documentation.
++					//
++					// TODO(gri): Expand this filtering to other
++					//            entities (const, type, vars) if
++					//            multiple declarations are common.
++					if f, isFun := d.(*FuncDecl); isFun {
++						name := f.Name.Name()
++						if j, exists := funcs[name]; exists {
++							// function declared already
++							if decls[j].(*FuncDecl).Doc == nil {
++								// existing declaration has no documentation;
++								// ignore the existing declaration
++								decls[j] = nil
++							} else {
++								// ignore the new declaration
++								d = nil
++							}
++							n++ // filtered an entry
++						} else {
++							funcs[name] = i
++						}
++					}
++				}
+ 				decls[i] = d
+ 				i++
+ 			}
+ 		}
++
++		// Eliminate nil entries from the decls list if entries were
++		// filtered. We do this using a 2nd pass in order to not disturb
++		// the original declaration order in the source (otherwise, this
++		// would also invalidate the monotonically increasing position
++		// info within a single file).
++		if n > 0 {
++			i = 0
++			for _, d := range decls {
++				if d != nil {
++					decls[i] = d
++					i++
++				}
++			}
++			decls = decls[0:i]
++		}
++	}
++
++	// Collect comments from all package files.
++	var comments []*CommentGroup
++	if complete {
++		comments = make([]*CommentGroup, ncomments)
++		i := 0
++		for _, f := range pkg.Files {
++			i += copy(comments[i:], f.Comments)
++		}
+ 	}
+ 
+-	// TODO(gri) Should collect comments as well.
+-	return &File{doc, noPos, NewIdent(pkg.Name), decls, nil}
++	return &File{doc, pos, NewIdent(pkg.Name), decls, comments}
+ }
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 65979fda7f..f35663eb88 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/token"
+ 	"io"
+ 	"os"
++	"path"
+ 	"reflect"
+ 	"runtime"
+ 	"tabwriter"
+@@ -240,19 +241,30 @@ func (p *printer) writeTaggedItem(data []byte, tag HTMLTag) {
+ // immediately following the data.
+ //
+ func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
++	fileChanged := false
+ 	if pos.IsValid() {
+ 		// continue with previous position if we don't have a valid pos
++		if p.last.IsValid() && p.last.Filename != pos.Filename {
++			// the file has changed - reset state
++			// (used when printing merged ASTs of different files
++			// e.g., the result of ast.MergePackageFiles)
++			p.indent = 0
++			p.escape = false
++			p.buffer = p.buffer[0:0]
++			fileChanged = true
++		}
+ 		p.pos = pos
+ 	}
+ 	if debug {
+ 		// do not update p.pos - use write0
+-		p.write0([]byte(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)))
++		_, filename := path.Split(pos.Filename)
++		p.write0([]byte(fmt.Sprintf("[%s:%d:%d]", filename, pos.Line, pos.Column)))
+ 	}
+ 	if p.Mode&GenHTML != 0 {
+ 		// write line tag if on a new line
+ 		// TODO(gri): should write line tags on each line at the start
+ 		//            will be more useful (e.g. to show line numbers)
+-		if p.Styler != nil && pos.Line > p.lastTaggedLine {
++		if p.Styler != nil && (pos.Line != p.lastTaggedLine || fileChanged) {
+ 			p.writeTaggedItem(p.Styler.LineTag(pos.Line))
+ 			p.lastTaggedLine = pos.Line
+ 		}
+@@ -279,7 +291,13 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
+ 		return
+ 	}
+ 
+-	if pos.Line == p.last.Line {
++	if pos.IsValid() && pos.Filename != p.last.Filename {
++		// comment in a different file - separate with newlines
++		p.writeNewlines(maxNewlines, true)
++		return
++	}
++
++	if pos.IsValid() && pos.Line == p.last.Line {
+ 		// comment on the same line as last item:
+ 		// separate with at least one separator
+ 		hasSep := false
+@@ -353,6 +371,8 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
+ 		// use formfeeds to break columns before a comment;
+ 		// this is analogous to using formfeeds to separate
+ 		// individual lines of /*-style comments
++		// (if !pos.IsValid(), pos.Line == 0, and this will
++		// print no newlines)
+ 		p.writeNewlines(pos.Line-p.last.Line, true)
+ 	}
+ }

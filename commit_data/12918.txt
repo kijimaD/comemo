@@ -14,7 +14,55 @@ Date:   Thu Apr 19 16:31:26 2012 -0700
     R=golang-dev, rsc, rminnich, remyoudompheng, ality, john
     CC=golang-dev, mirtchovski
     https://golang.org/cl/6036051
-
+---
  src/pkg/syscall/asm_plan9_386.s  |  8 ++++++++
  src/pkg/syscall/syscall_plan9.go | 19 +++----------------
  2 files changed, 11 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/syscall/asm_plan9_386.s b/src/pkg/syscall/asm_plan9_386.s
+index 86ebedccce..2ba1376081 100644
+--- a/src/pkg/syscall/asm_plan9_386.s
++++ b/src/pkg/syscall/asm_plan9_386.s
+@@ -149,3 +149,11 @@ copyresult6:
+ 	MOVSL
+ 	MOVSL
+ 	RET
++
++//func exit(code int)
++// Import runtime·exit for cleanly exiting.
++TEXT ·exit(SB),7,$4
++	MOVL	code+0(FP), AX
++	MOVL	AX, 0(SP)
++	CALL	runtime·exit(SB)
++	RET
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index 122a96f26d..c1f45f3a2c 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -69,23 +69,10 @@ func errstr() string {
+ 
+ func Getpagesize() int { return 4096 }
+ 
+-//sys	exits(msg *byte)
+-func Exits(msg *string) {
+-	if msg == nil {
+-		exits(nil)
+-	}
+-
+-	exits(StringBytePtr(*msg))
+-}
++// Implemented in assembly to import from runtime.
++func exit(int)
+ 
+-func Exit(code int) {
+-	if code == 0 {
+-		Exits(nil)
+-	}
+-
+-	msg := itoa(code)
+-	Exits(&msg)
+-}
++func Exit(code int) { exit(code) }
+ 
+ func readnum(path string) (uint, error) {
+ 	var b [12]byte

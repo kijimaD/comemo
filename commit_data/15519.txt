@@ -7,6 +7,20 @@ Date:   Fri Mar 1 14:19:56 2013 +1100
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7439048
-
+---
  src/run.bat | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/run.bat b/src/run.bat
+index 3f950f5414..945cce4262 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -54,6 +54,8 @@ echo.
+ 
+ if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
+ echo # Testing race detector.
++echo # skipping test due to bug (http://code.google.com/p/go/issues/detail?id=4948).
++goto norace
+ go test -race -i flag
+ if errorlevel 1 goto fail
+ go test -race -short flag

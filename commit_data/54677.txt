@@ -17,9 +17,62 @@ Date:   Tue Jun 28 14:25:58 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/cpu/cpu.go             | 2 +-
  src/internal/cpu/cpu_arm64.go       | 2 +-
  src/internal/cpu/cpu_arm64_hwcap.go | 2 +-
  src/runtime/cpuflags_arm64.go       | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 2d3fae12ae..aef9fb3be7 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -67,7 +67,7 @@ var ARM64 struct {
+ 	HasATOMICS   bool
+ 	HasCPUID     bool
+ 	IsNeoverseN1 bool
+-	IsZeus       bool
++	IsNeoverseV1 bool
+ 	_            CacheLinePad
+ }
+ 
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index 1d4431753d..85210aa00c 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -20,7 +20,7 @@ func doinit() {
+ 		{Name: "atomics", Feature: &ARM64.HasATOMICS},
+ 		{Name: "cpuid", Feature: &ARM64.HasCPUID},
+ 		{Name: "isNeoverseN1", Feature: &ARM64.IsNeoverseN1},
+-		{Name: "isZeus", Feature: &ARM64.IsZeus},
++		{Name: "isNeoverseV1", Feature: &ARM64.IsNeoverseV1},
+ 	}
+ 
+ 	// arm64 uses different ways to detect CPU features at runtime depending on the operating system.
+diff --git a/src/internal/cpu/cpu_arm64_hwcap.go b/src/internal/cpu/cpu_arm64_hwcap.go
+index 0baa39f9cf..0fb5fb505a 100644
+--- a/src/internal/cpu/cpu_arm64_hwcap.go
++++ b/src/internal/cpu/cpu_arm64_hwcap.go
+@@ -52,7 +52,7 @@ func hwcapInit(os string) {
+ 			ARM64.IsNeoverseN1 = true
+ 		}
+ 		if implementor == 'A' && part_num == 0xd40 {
+-			ARM64.IsZeus = true
++			ARM64.IsNeoverseV1 = true
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/cpuflags_arm64.go b/src/runtime/cpuflags_arm64.go
+index 7576bef4a7..a0f1d114d8 100644
+--- a/src/runtime/cpuflags_arm64.go
++++ b/src/runtime/cpuflags_arm64.go
+@@ -11,7 +11,7 @@ import (
+ var arm64UseAlignedLoads bool
+ 
+ func init() {
+-	if cpu.ARM64.IsNeoverseN1 || cpu.ARM64.IsZeus {
++	if cpu.ARM64.IsNeoverseN1 || cpu.ARM64.IsNeoverseV1 {
+ 		arm64UseAlignedLoads = true
+ 	}
+ }

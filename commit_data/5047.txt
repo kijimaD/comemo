@@ -9,7 +9,58 @@ Date:   Mon Mar 15 15:42:09 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/576041
-
+---
  src/cmd/gofmt/doc.go     |  4 ++--
  src/cmd/gofmt/rewrite.go | 16 +++++++++++++---
  2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 4b4adba030..2e4c40c216 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -41,8 +41,8 @@ The rewrite rule specified with the -r flag must be a string of the form:
+ 	pattern -> replacement
+ 
+ Both pattern and replacement must be valid Go expressions.
+-In the pattern, single-character lowercase identifers serve as
+-wildcards matching arbitrary subexpressions; those expressions
++In the pattern, single-character lowercase identifiers serve as
++wildcards matching arbitrary sub-expressions; those expressions
+ will be substituted for the same identifiers in the replacement.
+ 
+ 
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index b2b21597db..9c238fab20 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -46,7 +46,7 @@ func parseExpr(s string, what string) ast.Expr {
+ }
+ 
+ 
+-// rewriteFile applys the rewrite rule pattern -> replace to an entire file.
++// rewriteFile applies the rewrite rule 'pattern -> replace' to an entire file.
+ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
+ 	m := make(map[string]reflect.Value)
+ 	pat := reflect.NewValue(pattern)
+@@ -127,9 +127,19 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ 		return false
+ 	}
+ 
+-	// Token positions need not match.
+-	if pattern.Type() == positionType {
++	// Special cases.
++	switch pattern.Type() {
++	case positionType:
++		// token positions don't need to match
+ 		return true
++	case identType:
++		// For identifiers, only the names need to match
++		// (and none of the other *ast.Object information).
++		// This is a common case, handle it all here instead
++		// of recursing down any further via reflection.
++		p := pattern.Interface().(*ast.Ident)
++		v := val.Interface().(*ast.Ident)
++		return p == nil && v == nil || p != nil && v != nil && p.Name() == v.Name()
+ 	}
+ 
+ 	p := reflect.Indirect(pattern)

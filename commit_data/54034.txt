@@ -21,7 +21,32 @@ Date:   Fri Sep 16 19:54:51 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/dist/exec_118.go | 1 +
  src/cmd/dist/exec_119.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/dist/exec_118.go b/src/cmd/dist/exec_118.go
+index 8688f0a01f..a1c3c64d9e 100644
+--- a/src/cmd/dist/exec_118.go
++++ b/src/cmd/dist/exec_118.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !go1.19
++// +build !go1.19
+ 
+ package main
+ 
+diff --git a/src/cmd/dist/exec_119.go b/src/cmd/dist/exec_119.go
+index ed3a101c9f..0b4baa0065 100644
+--- a/src/cmd/dist/exec_119.go
++++ b/src/cmd/dist/exec_119.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build go1.19
++// +build go1.19
+ 
+ package main
+ 

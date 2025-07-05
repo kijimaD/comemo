@@ -9,8 +9,225 @@ Date:   Mon Oct 3 13:31:07 2016 -0700
     Change-Id: Ie2e3338b87e84f45cda0868213bbcd2dae9ab6e3
     Reviewed-on: https://go-review.googlesource.com/30212
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/printer/nodes.go                     | 66 ++++++++++++++++++++++++++---
  src/go/printer/testdata/declarations.golden | 46 ++++++++++++++++++++
  src/go/printer/testdata/declarations.input  | 46 ++++++++++++++++++++
  3 files changed, 151 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 11f26d45ea..4e5cd1e20b 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -1309,13 +1309,26 @@ func keepTypeColumn(specs []ast.Spec) []bool {
+ 		}
+ 	}
+ 
+-	i0 := -1 // if i0 >= 0 we are in a run and i0 is the start of the run
+-	var keepType bool
++	i0 := -1          // if i0 >= 0 we are in a run and i0 is the start of the run
++	var keepType bool // valid if we are in a run (i0 >= 0)
+ 	for i, s := range specs {
+-		t := s.(*ast.ValueSpec)
+-		if t.Values != nil {
++		var hasValues, hasType bool
++		switch t := s.(type) {
++		case *ast.AliasSpec:
++			// like a ValueSpec with values (alias origin), but no type
++			hasValues = true
++
++		case *ast.ValueSpec:
++			hasValues = len(t.Values) > 0
++			hasType = t.Type != nil
++
++		default:
++			panic("internal error: unexpected ast.Spec")
++		}
++
++		if hasValues {
+ 			if i0 < 0 {
+-				// start of a run of ValueSpecs with non-nil Values
++				// start of a run with values
+ 				i0 = i
+ 				keepType = false
+ 			}
+@@ -1326,7 +1339,7 @@ func keepTypeColumn(specs []ast.Spec) []bool {
+ 				i0 = -1
+ 			}
+ 		}
+-		if t.Type != nil {
++		if hasType {
+ 			keepType = true
+ 		}
+ 	}
+@@ -1338,6 +1351,25 @@ func keepTypeColumn(specs []ast.Spec) []bool {
+ 	return m
+ }
+ 
++func (p *printer) aliasSpec(s *ast.AliasSpec, keepTypeCol bool) {
++	p.setComment(s.Doc)
++	p.expr(s.Name)
++	extraTabs := 3
++	if keepTypeCol {
++		p.print(vtab)
++		extraTabs--
++	}
++	p.print(vtab, token.ALIAS, blank)
++	p.expr(s.Orig)
++	extraTabs--
++	if s.Comment != nil {
++		for ; extraTabs > 0; extraTabs-- {
++			p.print(vtab)
++		}
++		p.setComment(s.Comment)
++	}
++}
++
+ func (p *printer) valueSpec(s *ast.ValueSpec, keepType bool) {
+ 	p.setComment(s.Doc)
+ 	p.identList(s.Names, false) // always present
+@@ -1421,6 +1453,17 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
+ 		p.setComment(s.Comment)
+ 		p.print(s.EndPos)
+ 
++	case *ast.AliasSpec:
++		p.setComment(s.Doc)
++		p.expr(s.Name)
++		if n == 1 {
++			p.print(blank)
++		} else {
++			p.print(vtab)
++		}
++		p.print(token.ALIAS, blank)
++		p.expr(s.Orig)
++
+ 	case *ast.ValueSpec:
+ 		if n != 1 {
+ 			p.internalError("expected n = 1; got", n)
+@@ -1472,7 +1515,16 @@ func (p *printer) genDecl(d *ast.GenDecl) {
+ 						p.linebreak(p.lineFor(s.Pos()), 1, ignore, p.linesFrom(line) > 0)
+ 					}
+ 					p.recordLine(&line)
+-					p.valueSpec(s.(*ast.ValueSpec), keepType[i])
++					switch t := s.(type) {
++					case *ast.AliasSpec:
++						p.aliasSpec(t, keepType[i])
++
++					case *ast.ValueSpec:
++						p.valueSpec(t, keepType[i])
++
++					default:
++						p.internalError("unknown ast.Spec type: %T", t)
++					}
+ 				}
+ 			} else {
+ 				var line int
+diff --git a/src/go/printer/testdata/declarations.golden b/src/go/printer/testdata/declarations.golden
+index 82f5e0f914..4d888cc8a4 100644
+--- a/src/go/printer/testdata/declarations.golden
++++ b/src/go/printer/testdata/declarations.golden
+@@ -985,3 +985,49 @@ func _(struct {
+ 	x	int
+ 	y	int
+ })	// no extra comma between } and )
++
++// alias declarations
++const c => C
++const c => p.C
++const (
++	a		= 123
++	b	int	= 456
++	c		=> foo
++	ddd		=> p.Foo
++)
++
++// TODO(gri) Currently = and => line up in the formatted output,
++//           but because = and => have different lengths, the
++//           text following doesn't line up. Consider putting that
++//           text into its own column.
++const (
++	a	int	= iota	// a comment
++	b		=> p.B	// b comment
++	c			// c comment
++	d	=> p.C		// d comment
++	e	=> p.E
++	f
++	g	float32	= 9.8
++)
++
++type c => C
++type c => p.C
++type (
++	s	struct{}
++	a	=> A
++	b	=> A
++	c	=> foo
++	ddd	=> p.Foo
++)
++
++var c => C
++var c => p.C
++var (
++	a		= 123
++	b	int	= 456
++	c		=> foo
++	ddd		=> p.Foo
++)
++
++func f => F
++func f_long => p.F
+diff --git a/src/go/printer/testdata/declarations.input b/src/go/printer/testdata/declarations.input
+index a0a3783b84..c3a76858b7 100644
+--- a/src/go/printer/testdata/declarations.input
++++ b/src/go/printer/testdata/declarations.input
+@@ -999,3 +999,49 @@ func _(struct {
+ 	x int
+ 	y int
+ }) // no extra comma between } and )
++
++// alias declarations
++const c => C
++const c => p.C
++const (
++	a = 123
++	b int = 456
++	c => foo
++	ddd => p.Foo
++)
++
++// TODO(gri) Currently = and => line up in the formatted output,
++//           but because = and => have different lengths, the
++//           text following doesn't line up. Consider putting that
++//           text into its own column.
++const (
++	a int = iota // a comment
++	b => p.B // b comment
++	c // c comment
++	d => p.C // d comment
++	e => p.E
++	f
++	g float32 = 9.8
++)
++
++type c => C
++type c => p.C
++type (
++	s struct{}
++	a => A
++	b = A
++	c = foo
++	ddd => p.Foo
++)
++
++var c => C
++var c => p.C
++var (
++	a = 123
++	b int = 456
++	c => foo
++	ddd => p.Foo
++)
++
++func f => F
++func f_long => p.F
+\ No newline at end of file

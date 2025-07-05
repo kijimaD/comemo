@@ -7,7 +7,54 @@ Date:   Tue Feb 23 16:35:31 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/217108
-
+---
  .hgtags                |  1 -
  doc/devel/release.html | 26 ++++++++++++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/.hgtags b/.hgtags
+index c567868a53..5db7979f1e 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -11,4 +11,3 @@ a6fcf4303b0a92cce4011556b1c96044252d93af release.2009-12-22
+ 0a2770db06efe92b08b5c6f30e14b7e8db012538 release.2010-01-27
+ db4262ce882d8445764312d41547ee8f11a7f7a9 release.2010-02-04
+ 53fec18b83e2b93baafba4733b59bb86b8c1988e release.2010-02-17
+-53fec18b83e2b93baafba4733b59bb86b8c1988e release
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 3a8e0ebac5..36e222ec26 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -5,6 +5,32 @@
+ <p>This page summarizes the changes between tagged releases of Go.
+ For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
+ 
++
++<h3 id="2010-02-23">2010-02-23</h3>
++
++<pre>
++This release is mainly bug fixes and a little new code.
++There are no language changes.
++
++6g/5g/8g: bug fixes
++8a/8l: Added FCMOVcc instructions (thanks Evan Shaw and Charles Dorian)
++crypto/x509: support certificate creation
++dashboard: caching to avoid datastore queries
++exec: add dir argument to Run
++godoc: bug fixes and code cleanups
++http: continued implementation and bug fixes (thanks Petar Maymounkov)
++json: fix quoted strings in Marshal (thanks Sergei Skorobogatov)
++math: more functions, test cases, and benchmarks (thanks Charles L. Dorian)
++misc/bbedit: treat predeclared identifiers as "keywords" (thanks Anthony Starks)
++net: disable UDP server test (flaky on various architectures)
++runtime: work around Linux kernel bug in futex,
++	pchw is now tiny
++sync: fix to work on armv5 (thanks Dean Prichard)
++websocket: fix binary frame size decoding (thanks Timo Savola)
++xml: allow unquoted attribute values in non-Strict mode (thanks Amrut Joshi)
++	treat bool as value in Unmarshal (thanks Michael Hoisie) 
++</pre>
++
+ <h3 id="2010-02-17">2010-02-17</h3>
+ 
+ <pre>

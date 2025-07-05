@@ -15,7 +15,7 @@ Date:   Mon May 15 21:50:51 2023 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/syscall/unix/nonblocking.go        |  4 ++
  src/internal/syscall/unix/nonblocking_js.go     |  4 ++
  src/internal/syscall/unix/nonblocking_libc.go   |  4 ++
@@ -23,3 +23,168 @@ Date:   Mon May 15 21:50:51 2023 -0700
  src/os/fifo_test.go                             | 50 +++++++++++++++++++++++++
  src/os/file_unix.go                             | 17 ++++++---
  6 files changed, 78 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/syscall/unix/nonblocking.go b/src/internal/syscall/unix/nonblocking.go
+index a0becd1e01..6c6f0674d6 100644
+--- a/src/internal/syscall/unix/nonblocking.go
++++ b/src/internal/syscall/unix/nonblocking.go
+@@ -19,3 +19,7 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
+ 	}
+ 	return flag&syscall.O_NONBLOCK != 0, nil
+ }
++
++func HasNonblockFlag(flag int) bool {
++	return flag&syscall.O_NONBLOCK != 0
++}
+diff --git a/src/internal/syscall/unix/nonblocking_js.go b/src/internal/syscall/unix/nonblocking_js.go
+index 8ed40f3f91..cfe78c58d8 100644
+--- a/src/internal/syscall/unix/nonblocking_js.go
++++ b/src/internal/syscall/unix/nonblocking_js.go
+@@ -9,3 +9,7 @@ package unix
+ func IsNonblock(fd int) (nonblocking bool, err error) {
+ 	return false, nil
+ }
++
++func HasNonblockFlag(flag int) bool {
++	return false
++}
+diff --git a/src/internal/syscall/unix/nonblocking_libc.go b/src/internal/syscall/unix/nonblocking_libc.go
+index bff6684962..1310dbf8ce 100644
+--- a/src/internal/syscall/unix/nonblocking_libc.go
++++ b/src/internal/syscall/unix/nonblocking_libc.go
+@@ -19,6 +19,10 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
+ 	return flag&syscall.O_NONBLOCK != 0, nil
+ }
+ 
++func HasNonblockFlag(flag int) bool {
++	return flag&syscall.O_NONBLOCK != 0
++}
++
+ // Implemented in the syscall package.
+ //
+ //go:linkname fcntl syscall.fcntl
+diff --git a/src/internal/syscall/unix/nonblocking_wasip1.go b/src/internal/syscall/unix/nonblocking_wasip1.go
+index 208db28c3e..5b2b53bf5c 100644
+--- a/src/internal/syscall/unix/nonblocking_wasip1.go
++++ b/src/internal/syscall/unix/nonblocking_wasip1.go
+@@ -19,6 +19,10 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
+ 	return flags&syscall.FDFLAG_NONBLOCK != 0, nil
+ }
+ 
++func HasNonblockFlag(flag int) bool {
++	return flag&syscall.FDFLAG_NONBLOCK != 0
++}
++
+ // This helper is implemented in the syscall package. It means we don't have
+ // to redefine the fd_fdstat_get host import or the fdstat struct it
+ // populates.
+diff --git a/src/os/fifo_test.go b/src/os/fifo_test.go
+index 867c294f5e..df4b2ee757 100644
+--- a/src/os/fifo_test.go
++++ b/src/os/fifo_test.go
+@@ -8,6 +8,7 @@ package os_test
+ 
+ import (
+ 	"errors"
++	"internal/syscall/unix"
+ 	"internal/testenv"
+ 	"io/fs"
+ 	"os"
+@@ -155,3 +156,52 @@ func TestNonPollable(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue 60211.
++func TestOpenFileNonBlocking(t *testing.T) {
++	exe, err := os.Executable()
++	if err != nil {
++		t.Skipf("can't find executable: %v", err)
++	}
++	f, err := os.OpenFile(exe, os.O_RDONLY|syscall.O_NONBLOCK, 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	nonblock, err := unix.IsNonblock(int(f.Fd()))
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !nonblock {
++		t.Errorf("file opened with O_NONBLOCK but in blocking mode")
++	}
++}
++
++func TestNewFileNonBlocking(t *testing.T) {
++	var p [2]int
++	if err := syscall.Pipe(p[:]); err != nil {
++		t.Fatal(err)
++	}
++	if err := syscall.SetNonblock(p[0], true); err != nil {
++		t.Fatal(err)
++	}
++	f := os.NewFile(uintptr(p[0]), "pipe")
++	nonblock, err := unix.IsNonblock(p[0])
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !nonblock {
++		t.Error("pipe blocking after NewFile")
++	}
++	fd := f.Fd()
++	if fd != uintptr(p[0]) {
++		t.Errorf("Fd returned %d, want %d", fd, p[0])
++	}
++	nonblock, err = unix.IsNonblock(p[0])
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !nonblock {
++		t.Error("pipe blocking after Fd")
++	}
++}
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index f7f942f5f5..3d3a8b2056 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -116,12 +116,12 @@ const (
+ 	// kindNewFile means that the descriptor was passed to us via NewFile.
+ 	kindNewFile newFileKind = iota
+ 	// kindOpenFile means that the descriptor was opened using
+-	// Open, Create, or OpenFile.
++	// Open, Create, or OpenFile (without O_NONBLOCK).
+ 	kindOpenFile
+ 	// kindPipe means that the descriptor was opened using Pipe.
+ 	kindPipe
+-	// kindNonBlock means that the descriptor was passed to us via NewFile,
+-	// and the descriptor is already in non-blocking mode.
++	// kindNonBlock means that the descriptor is already in
++	// non-blocking mode.
+ 	kindNonBlock
+ 	// kindNoPoll means that we should not put the descriptor into
+ 	// non-blocking mode, because we know it is not a pipe or FIFO.
+@@ -184,7 +184,9 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
+ 	clearNonBlock := false
+ 	if pollable {
+ 		if kind == kindNonBlock {
+-			f.nonblock = true
++			// The descriptor is already in non-blocking mode.
++			// We only set f.nonblock if we put the file into
++			// non-blocking mode.
+ 		} else if err := syscall.SetNonblock(fdi, true); err == nil {
+ 			f.nonblock = true
+ 			clearNonBlock = true
+@@ -263,7 +265,12 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 		syscall.CloseOnExec(r)
+ 	}
+ 
+-	f := newFile(uintptr(r), name, kindOpenFile)
++	kind := kindOpenFile
++	if unix.HasNonblockFlag(flag) {
++		kind = kindNonBlock
++	}
++
++	f := newFile(uintptr(r), name, kind)
+ 	f.pfd.SysFile = s
+ 	return f, nil
+ }

@@ -22,7 +22,106 @@ Date:   Wed May 31 14:45:30 2023 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/proc.go                          | 17 ++++++++---------
  src/runtime/testdata/testprogcgo/callback.go | 22 ++++++++++++++++++++++
  2 files changed, 30 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 886f7bdca9..0c71c3cfab 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1985,10 +1985,10 @@ func needm(signal bool) {
+ 	sigsave(&sigmask)
+ 	sigblock(false)
+ 
+-	// nilokay=false is safe here because of the invariant above,
++	// getExtraM is safe here because of the invariant above,
+ 	// that the extra list always contains or will soon contain
+ 	// at least one m.
+-	mp, last := getExtraM(false)
++	mp, last := getExtraM()
+ 
+ 	// Set needextram when we've just emptied the list,
+ 	// so that the eventual call into cgocallbackg will
+@@ -2260,7 +2260,6 @@ func lockextra(nilokay bool) *m {
+ 			continue
+ 		}
+ 		if extraM.CompareAndSwap(old, locked) {
+-			extraMInUse.Add(1)
+ 			return (*m)(unsafe.Pointer(old))
+ 		}
+ 		osyield_no_g()
+@@ -2277,13 +2276,13 @@ func unlockextra(mp *m, delta int32) {
+ // Return an M from the extra M list. Returns last == true if the list becomes
+ // empty because of this call.
+ //
++// Spins waiting for an extra M, so caller must ensure that the list always
++// contains or will soon contain at least one M.
++//
+ //go:nosplit
+-func getExtraM(nilokay bool) (mp *m, last bool) {
+-	mp = lockextra(nilokay)
+-	if mp == nil {
+-		unlockextra(nil, 0)
+-		return nil, true
+-	}
++func getExtraM() (mp *m, last bool) {
++	mp = lockextra(false)
++	extraMInUse.Add(1)
+ 	unlockextra(mp.schedlink.ptr(), -1)
+ 	return mp, mp.schedlink.ptr() == nil
+ }
+diff --git a/src/runtime/testdata/testprogcgo/callback.go b/src/runtime/testdata/testprogcgo/callback.go
+index 25f07159b8..319572fe10 100644
+--- a/src/runtime/testdata/testprogcgo/callback.go
++++ b/src/runtime/testdata/testprogcgo/callback.go
+@@ -32,6 +32,8 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"runtime"
++	"sync/atomic"
++	_ "unsafe" // for go:linkname
+ )
+ 
+ func init() {
+@@ -40,6 +42,11 @@ func init() {
+ 
+ //export go_callback
+ func go_callback() {
++	if e := extraMInUse.Load(); e == 0 {
++		fmt.Printf("in callback extraMInUse got %d want >0\n", e)
++		os.Exit(1)
++	}
++
+ 	runtime.GC()
+ 	grow()
+ 	runtime.GC()
+@@ -69,6 +76,12 @@ func CgoCallbackGC() {
+ 	if os.Getenv("RUNTIME_TEST_SHORT") != "" {
+ 		P = 10
+ 	}
++
++	if e := extraMInUse.Load(); e != 0 {
++		fmt.Printf("before testing extraMInUse got %d want 0\n", e)
++		os.Exit(1)
++	}
++
+ 	done := make(chan bool)
+ 	// allocate a bunch of stack frames and spray them with pointers
+ 	for i := 0; i < P; i++ {
+@@ -90,5 +103,14 @@ func CgoCallbackGC() {
+ 	for i := 0; i < P; i++ {
+ 		<-done
+ 	}
++
++	if e := extraMInUse.Load(); e != 0 {
++		fmt.Printf("after testing extraMInUse got %d want 0\n", e)
++		os.Exit(1)
++	}
++
+ 	fmt.Printf("OK\n")
+ }
++
++//go:linkname extraMInUse runtime.extraMInUse
++var extraMInUse atomic.Uint32

@@ -16,8 +16,68 @@ Date:   Tue Aug 1 13:33:37 2023 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Marten Seemann <martenseemann@gmail.com>
-
+---
  api/go1.21.txt              | 4 +++-
  src/crypto/tls/quic.go      | 9 +++++++--
  src/crypto/tls/quic_test.go | 3 ++-
  3 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/api/go1.21.txt b/api/go1.21.txt
+index 42b3075fd8..50b6a5c219 100644
+--- a/api/go1.21.txt
++++ b/api/go1.21.txt
+@@ -60,7 +60,9 @@ pkg crypto/tls, method (*QUICConn) Close() error #44886
+ pkg crypto/tls, method (*QUICConn) ConnectionState() ConnectionState #44886
+ pkg crypto/tls, method (*QUICConn) HandleData(QUICEncryptionLevel, []uint8) error #44886
+ pkg crypto/tls, method (*QUICConn) NextEvent() QUICEvent #44886
+-pkg crypto/tls, method (*QUICConn) SendSessionTicket(bool) error #60107
++pkg crypto/tls, method (*QUICConn) SendSessionTicket(QUICSessionTicketOptions) error #60107
++pkg crypto/tls, type QUICSessionTicketOptions struct #60107
++pkg crypto/tls, type QUICSessionTicketOptions struct, EarlyData bool #60107
+ pkg crypto/tls, method (*QUICConn) SetTransportParameters([]uint8) #44886
+ pkg crypto/tls, method (*QUICConn) Start(context.Context) error #44886
+ pkg crypto/tls, method (QUICEncryptionLevel) String() string #44886
+diff --git a/src/crypto/tls/quic.go b/src/crypto/tls/quic.go
+index 6cb10df8ba..286302f0ec 100644
+--- a/src/crypto/tls/quic.go
++++ b/src/crypto/tls/quic.go
+@@ -246,10 +246,15 @@ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
+ 	return nil
+ }
+ 
++type QUICSessionTicketOptions struct {
++	// EarlyData specifies whether the ticket may be used for 0-RTT.
++	EarlyData bool
++}
++
+ // SendSessionTicket sends a session ticket to the client.
+ // It produces connection events, which may be read with NextEvent.
+ // Currently, it can only be called once.
+-func (q *QUICConn) SendSessionTicket(earlyData bool) error {
++func (q *QUICConn) SendSessionTicket(opts QUICSessionTicketOptions) error {
+ 	c := q.conn
+ 	if !c.isHandshakeComplete.Load() {
+ 		return quicError(errors.New("tls: SendSessionTicket called before handshake completed"))
+@@ -261,7 +266,7 @@ func (q *QUICConn) SendSessionTicket(earlyData bool) error {
+ 		return quicError(errors.New("tls: SendSessionTicket called multiple times"))
+ 	}
+ 	q.sessionTicketSent = true
+-	return quicError(c.sendSessionTicket(earlyData))
++	return quicError(c.sendSessionTicket(opts.EarlyData))
+ }
+ 
+ // ConnectionState returns basic TLS details about the connection.
+diff --git a/src/crypto/tls/quic_test.go b/src/crypto/tls/quic_test.go
+index 02503cff82..9a29fa56b8 100644
+--- a/src/crypto/tls/quic_test.go
++++ b/src/crypto/tls/quic_test.go
+@@ -125,7 +125,8 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onHandle
+ 		case QUICHandshakeDone:
+ 			a.complete = true
+ 			if a == srv {
+-				if err := srv.conn.SendSessionTicket(false); err != nil {
++				opts := QUICSessionTicketOptions{}
++				if err := srv.conn.SendSessionTicket(opts); err != nil {
+ 					return err
+ 				}
+ 			}

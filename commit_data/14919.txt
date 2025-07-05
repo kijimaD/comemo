@@ -9,7 +9,43 @@ Date:   Fri Jan 18 22:25:17 2013 +0100
     R=rsc, lvd, golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7098049
-
+---
  src/cmd/gc/dcl.c | 4 ++--
  src/cmd/gc/inl.c | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 1c15e1eb6e..20b0ab904f 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -638,7 +638,7 @@ funcargs(Node *nt)
+ 
+ 		if(n->left == N) {
+ 			// give it a name so escape analysis has nodes to work with
+-			snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
++			snprint(namebuf, sizeof(namebuf), "~anon%d", gen++);
+ 			n->left = newname(lookup(namebuf));
+ 			n->left->orig = N;  // signal that the original was absent
+ 
+@@ -653,7 +653,7 @@ funcargs(Node *nt)
+ 			*nn = *n->left;
+ 			n->left = nn;
+ 			
+-			snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
++			snprint(namebuf, sizeof(namebuf), "~anon%d", gen++);
+ 			n->left->sym = lookup(namebuf);
+ 		}
+ 
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 593533c505..1a6ec3efe0 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -699,7 +699,7 @@ retvar(Type *t, int i)
+ {
+ 	Node *n;
+ 
+-	snprint(namebuf, sizeof(namebuf), ".r%d", i);
++	snprint(namebuf, sizeof(namebuf), "~r%d", i);
+ 	n = newname(lookup(namebuf));
+ 	n->type = t->type;
+ 	n->class = PAUTO;

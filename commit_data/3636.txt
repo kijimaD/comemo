@@ -7,6 +7,17 @@ Date:   Thu Oct 22 23:51:54 2009 -0700
     
     R=rsc
     http://go/go-review/1013010
-
+---
  src/pkg/runtime/linux/os.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/linux/os.h b/src/pkg/runtime/linux/os.h
+index c36813a9bf..fd6ccffc39 100644
+--- a/src/pkg/runtime/linux/os.h
++++ b/src/pkg/runtime/linux/os.h
+@@ -7,4 +7,4 @@ int32	futex(uint32*, int32, uint32, Timespec*, uint32*, uint32);
+ int32	clone(int32, void*, M*, G*, void(*)(void));
+ 
+ struct Sigaction;
+-void	rt_sigaction(int64, struct Sigaction*, void*, uint64);
++void	rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);

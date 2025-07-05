@@ -10,7 +10,118 @@ Date:   Sun Sep 7 07:23:18 2014 -0400
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/141140045
-
+---
  src/liblink/obj6.c             | 22 ++++++++++++++++++++++
  src/pkg/runtime/asm_amd64p32.s | 16 +++-------------
  2 files changed, 25 insertions(+), 13 deletions(-)
+
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index c6b8e0964e..3c62470be9 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -483,11 +483,19 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		p->from.type = D_INDIR+D_CX;
+ 		p->from.offset = 2*ctxt->arch->ptrsize; // G.panic
+ 		p->to.type = D_BX;
++		if(ctxt->headtype == Hnacl) {
++			p->as = AMOVL;
++			p->from.type = D_INDIR+D_R15;
++			p->from.scale = 1;
++			p->from.index = D_CX;
++		}
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = ATESTQ;
+ 		p->from.type = D_BX;
+ 		p->to.type = D_BX;
++		if(ctxt->headtype == Hnacl)
++			p->as = ATESTL;
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = AJEQ;
+@@ -499,12 +507,20 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		p->from.type = D_INDIR+D_SP;
+ 		p->from.offset = autoffset+8;
+ 		p->to.type = D_DI;
++		if(ctxt->headtype == Hnacl)
++			p->as = ALEAL;
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = ACMPQ;
+ 		p->from.type = D_INDIR+D_BX;
+ 		p->from.offset = 0; // Panic.argp
+ 		p->to.type = D_DI;
++		if(ctxt->headtype == Hnacl) {
++			p->as = ACMPL;
++			p->from.type = D_INDIR+D_R15;
++			p->from.scale = 1;
++			p->from.index = D_BX;
++		}
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = AJNE;
+@@ -516,6 +532,12 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		p->from.type = D_SP;
+ 		p->to.type = D_INDIR+D_BX;
+ 		p->to.offset = 0; // Panic.argp
++		if(ctxt->headtype == Hnacl) {
++			p->as = AMOVL;
++			p->to.type = D_INDIR+D_R15;
++			p->to.scale = 1;
++			p->to.index = D_BX;
++		}
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = ANOP;
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 2597b8250f..6c10bec5c3 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -281,7 +281,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	RET
+ 
+ // reflect·call: call a function with the given argument list
+-// func call(f *FuncVal, arg *byte, argsize, retoffset uint32, p *Panic).
++// func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+ // of constant-sized-frame functions to encode a few bits of size in the pc.
+ // Caution: ugly multiline assembly macros in your future!
+@@ -293,7 +293,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT reflect·call(SB), NOSPLIT, $0-20
++TEXT reflect·call(SB), NOSPLIT, $0-16
+ 	MOVLQZX argsize+8(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+@@ -338,7 +338,7 @@ DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
+ GLOBL gclocals_reflectcall<>(SB),RODATA,$8
+ 
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
++TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
+ 	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
+ 	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
+ 	/* copy arguments to stack */		\
+@@ -346,20 +346,10 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
+ 	MOVL	argsize+8(FP), CX;		\
+ 	MOVL	SP, DI;				\
+ 	REP;MOVSB;				\
+-	/* initialize panic argp */		\
+-	MOVL	panic+16(FP), CX;		\
+-	CMPL	CX, $0;				\
+-	JEQ	2(PC);				\
+-	MOVL	SP, panic_argp(CX);		\
+ 	/* call function */			\
+ 	MOVL	f+0(FP), DX;			\
+ 	MOVL	(DX), AX;				\
+ 	CALL	AX; \
+-	/* clear panic argp */			\
+-	MOVL	panic+16(FP), CX;		\
+-	CMPL	CX, $0;				\
+-	JEQ	2(PC);				\
+-	MOVL	$0, panic_argp(CX);		\
+ 	/* copy return values back */		\
+ 	MOVL	argptr+4(FP), DI;		\
+ 	MOVL	argsize+8(FP), CX;		\

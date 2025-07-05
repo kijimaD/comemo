@@ -12,6 +12,33 @@ Date:   Fri Mar 18 07:05:58 2016 -0500
     Change-Id: I5ab2423fb6c85a061928e3206b02185ea8c79cd7
     Reviewed-on: https://go-review.googlesource.com/20826
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/critical.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index 38d4ca40dd..cd6c58b0b1 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -53,6 +53,9 @@ func critical(f *Func) {
+ 				// find or record the block that we used to split
+ 				// critical edges for this argument
+ 				if d = blocks[argID]; d == nil {
++					// splitting doesn't necessarily remove the critical edge,
++					// since we're iterating over len(f.Blocks) above, this forces
++					// the new blocks to be re-examined.
+ 					d = f.NewBlock(BlockPlain)
+ 					d.Line = c.Line
+ 					blocks[argID] = d
+@@ -101,6 +104,11 @@ func critical(f *Func) {
+ 		if phi != nil {
+ 			phi.Args = filterNilValues(phi.Args)
+ 			b.Preds = filterNilBlocks(b.Preds)
++			// splitting occasionally leads to a phi having
++			// a single argument (occurs with -N)
++			if len(phi.Args) == 1 {
++				phi.Op = OpCopy
++			}
+ 		}
+ 	}
+ }

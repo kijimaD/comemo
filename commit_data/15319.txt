@@ -22,9 +22,221 @@ Date:   Tue Feb 19 17:11:17 2013 -0800
     R=rsc, rminnich, ality, dave
     CC=golang-dev
     https://golang.org/cl/7228068
-
+---
  src/pkg/net/fd_plan9.go      | 27 +++++++--------------------
  src/pkg/net/ipsock_plan9.go  | 20 ++++++++++++++------
  src/pkg/net/tcpsock_plan9.go |  2 +-
  src/pkg/net/udpsock_plan9.go | 29 ++++++++++++-----------------
  4 files changed, 34 insertions(+), 44 deletions(-)
+
+diff --git a/src/pkg/net/fd_plan9.go b/src/pkg/net/fd_plan9.go
+index 3462792816..dc5e44ca44 100644
+--- a/src/pkg/net/fd_plan9.go
++++ b/src/pkg/net/fd_plan9.go
+@@ -29,22 +29,16 @@ func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
+ 	return dialTimeoutRace(net, addr, timeout)
+ }
+ 
+-func newFD(proto, name string, ctl *os.File, laddr, raddr Addr) *netFD {
+-	return &netFD{proto, name, "/net/" + proto + "/" + name, ctl, nil, laddr, raddr}
++func newFD(proto, name string, ctl, data *os.File, laddr, raddr Addr) *netFD {
++	return &netFD{proto, name, "/net/" + proto + "/" + name, ctl, data, laddr, raddr}
+ }
+ 
+ func (fd *netFD) ok() bool { return fd != nil && fd.ctl != nil }
+ 
+ func (fd *netFD) Read(b []byte) (n int, err error) {
+-	if !fd.ok() {
++	if !fd.ok() || fd.data == nil {
+ 		return 0, syscall.EINVAL
+ 	}
+-	if fd.data == nil {
+-		fd.data, err = os.OpenFile(fd.dir+"/data", os.O_RDWR, 0)
+-		if err != nil {
+-			return 0, err
+-		}
+-	}
+ 	n, err = fd.data.Read(b)
+ 	if fd.proto == "udp" && err == io.EOF {
+ 		n = 0
+@@ -54,15 +48,9 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
+ }
+ 
+ func (fd *netFD) Write(b []byte) (n int, err error) {
+-	if !fd.ok() {
++	if !fd.ok() || fd.data == nil {
+ 		return 0, syscall.EINVAL
+ 	}
+-	if fd.data == nil {
+-		fd.data, err = os.OpenFile(fd.dir+"/data", os.O_RDWR, 0)
+-		if err != nil {
+-			return 0, err
+-		}
+-	}
+ 	return fd.data.Write(b)
+ }
+ 
+@@ -85,11 +73,10 @@ func (fd *netFD) Close() error {
+ 		return syscall.EINVAL
+ 	}
+ 	err := fd.ctl.Close()
+-	if err != nil {
+-		return err
+-	}
+ 	if fd.data != nil {
+-		err = fd.data.Close()
++		if err1 := fd.data.Close(); err1 != nil && err == nil {
++			err = err1
++		}
+ 	}
+ 	fd.ctl = nil
+ 	fd.data = nil
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index eaef768fd0..2a3ca7e17d 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -114,17 +114,24 @@ func dialPlan9(net string, laddr, raddr Addr) (*netFD, error) {
+ 		f.Close()
+ 		return nil, err
+ 	}
++	data, err := os.OpenFile("/net/"+proto+"/"+name+"/data", os.O_RDWR, 0)
++	if err != nil {
++		f.Close()
++		return nil, err
++	}
+ 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
+ 	if err != nil {
++		data.Close()
+ 		f.Close()
+ 		return nil, err
+ 	}
+ 	raddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/remote")
+ 	if err != nil {
++		data.Close()
+ 		f.Close()
+ 		return nil, err
+ 	}
+-	return newFD(proto, name, f, laddr, raddr), nil
++	return newFD(proto, name, f, data, laddr, raddr), nil
+ }
+ 
+ func listenPlan9(net string, laddr Addr) (*netFD, error) {
+@@ -142,11 +149,11 @@ func listenPlan9(net string, laddr Addr) (*netFD, error) {
+ 		f.Close()
+ 		return nil, err
+ 	}
+-	return &netFD{proto: proto, name: name, dir: "/net/" + proto + "/" + name, ctl: f, laddr: laddr}, nil
++	return newFD(proto, name, f, nil, laddr, nil), nil
+ }
+ 
+ func (l *netFD) netFD() *netFD {
+-	return newFD(l.proto, l.name, l.ctl, l.laddr, nil)
++	return newFD(l.proto, l.name, l.ctl, l.data, l.laddr, l.raddr)
+ }
+ 
+ func (l *netFD) acceptPlan9() (*netFD, error) {
+@@ -161,15 +168,16 @@ func (l *netFD) acceptPlan9() (*netFD, error) {
+ 		return nil, err
+ 	}
+ 	name := string(buf[:n])
+-	laddr, err := readPlan9Addr(l.proto, l.dir+"/local")
++	data, err := os.OpenFile("/net/"+l.proto+"/"+name+"/data", os.O_RDWR, 0)
+ 	if err != nil {
+ 		f.Close()
+ 		return nil, err
+ 	}
+-	raddr, err := readPlan9Addr(l.proto, l.dir+"/remote")
++	raddr, err := readPlan9Addr(l.proto, "/net/"+l.proto+"/"+name+"/remote")
+ 	if err != nil {
++		data.Close()
+ 		f.Close()
+ 		return nil, err
+ 	}
+-	return newFD(l.proto, name, f, laddr, raddr), nil
++	return newFD(l.proto, name, f, data, l.laddr, raddr), nil
+ }
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index 954c99a2d8..26da11a061 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -98,7 +98,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &TCPConn{conn{fd}}, nil
++	return newTCPConn(fd), nil
+ }
+ 
+ // TCPListener is a TCP network listener.  Clients should typically
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index b9ade48bec..2a7e3d19c6 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -19,6 +19,10 @@ type UDPConn struct {
+ 	conn
+ }
+ 
++func newUDPConn(fd *netFD) *UDPConn {
++	return &UDPConn{conn{fd}}
++}
++
+ // ReadFromUDP reads a UDP packet from c, copying the payload into b.
+ // It returns the number of bytes copied into b and the return address
+ // that was on the packet.
+@@ -27,15 +31,9 @@ type UDPConn struct {
+ // Timeout() == true after a fixed time limit; see SetDeadline and
+ // SetReadDeadline.
+ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+-	if !c.ok() {
++	if !c.ok() || c.fd.data == nil {
+ 		return 0, nil, syscall.EINVAL
+ 	}
+-	if c.fd.data == nil {
+-		c.fd.data, err = os.OpenFile(c.fd.dir+"/data", os.O_RDWR, 0)
+-		if err != nil {
+-			return 0, nil, err
+-		}
+-	}
+ 	buf := make([]byte, udpHeaderSize+len(b))
+ 	m, err := c.fd.data.Read(buf)
+ 	if err != nil {
+@@ -76,16 +74,9 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr,
+ // SetWriteDeadline.  On packet-oriented connections, write timeouts
+ // are rare.
+ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+-	if !c.ok() {
++	if !c.ok() || c.fd.data == nil {
+ 		return 0, syscall.EINVAL
+ 	}
+-	if c.fd.data == nil {
+-		f, err := os.OpenFile(c.fd.dir+"/data", os.O_RDWR, 0)
+-		if err != nil {
+-			return 0, err
+-		}
+-		c.fd.data = f
+-	}
+ 	h := new(udpHeader)
+ 	h.raddr = addr.IP.To16()
+ 	h.laddr = c.fd.laddr.(*UDPAddr).IP.To16()
+@@ -141,7 +132,7 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &UDPConn{conn{fd}}, nil
++	return newUDPConn(fd), nil
+ }
+ 
+ const udpHeaderSize = 16*3 + 2*2
+@@ -193,7 +184,11 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &UDPConn{conn{l.netFD()}}, nil
++	l.data, err = os.OpenFile(l.dir+"/data", os.O_RDWR, 0)
++	if err != nil {
++		return nil, err
++	}
++	return newUDPConn(l.netFD()), nil
+ }
+ 
+ // ListenMulticastUDP listens for incoming multicast UDP packets

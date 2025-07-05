@@ -9,6 +9,38 @@ Date:   Thu Apr 14 16:31:52 2016 +0900
     Change-Id: I91fc3d6a2df294b21a67d085da6fe661827a850e
     Reviewed-on: https://go-review.googlesource.com/22079
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/interface_test.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 60225506b4..e158013493 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -183,10 +183,16 @@ func testInterfaceMulticastAddrs(t *testing.T, ifi *Interface) (nmaf4, nmaf6 int
+ }
+ 
+ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
++	// Note: BSD variants allow assigning any IPv4/IPv6 address
++	// prefix to IP interface. For example,
++	//   - 0.0.0.0/0 through 255.255.255.255/32
++	//   - ::/0 through ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128
++	// In other words, there is no tightly-coupled combination of
++	// interface address prefixes and connected routes.
+ 	for _, ifa := range ifat {
+ 		switch ifa := ifa.(type) {
+ 		case *IPNet:
+-			if ifa == nil || ifa.IP == nil || ifa.IP.IsUnspecified() || ifa.IP.IsMulticast() || ifa.Mask == nil {
++			if ifa == nil || ifa.IP == nil || ifa.IP.IsMulticast() || ifa.Mask == nil {
+ 				t.Errorf("unexpected value: %#v", ifa)
+ 				continue
+ 			}
+@@ -219,7 +225,7 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
+ 			}
+ 			t.Logf("interface address %q", ifa.String())
+ 		case *IPAddr:
+-			if ifa == nil || ifa.IP == nil || ifa.IP.IsUnspecified() || ifa.IP.IsMulticast() {
++			if ifa == nil || ifa.IP == nil || ifa.IP.IsMulticast() {
+ 				t.Errorf("unexpected value: %#v", ifa)
+ 				continue
+ 			}

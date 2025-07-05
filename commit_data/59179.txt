@@ -13,7 +13,7 @@ Date:   Wed Feb 21 13:51:28 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 37 ++++++++++++++++++--------
  src/cmd/compile/internal/types2/operand.go     |  4 +--
  src/cmd/compile/internal/types2/util.go        |  7 ++---
@@ -22,3 +22,257 @@ Date:   Wed Feb 21 13:51:28 2024 -0800
  src/go/types/operand.go                        |  2 ++
  src/go/types/util.go                           | 11 ++++----
  7 files changed, 70 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 612c6ca972..92c71a30d6 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -24,7 +24,10 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 	switch x.mode {
+ 	case invalid:
+ 		return // error reported before
+-	case constant_, variable, mapindex, value, nilvalue, commaok, commaerr:
++	case nilvalue:
++		assert(isTypes2)
++		// ok
++	case constant_, variable, mapindex, value, commaok, commaerr:
+ 		// ok
+ 	default:
+ 		// we may get here because of other problems (go.dev/issue/39634, crash 12)
+@@ -41,14 +44,25 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// bool, rune, int, float64, complex128 or string respectively, depending
+ 		// on whether the value is a boolean, rune, integer, floating-point,
+ 		// complex, or string constant."
+-		if x.isNil() {
+-			if T == nil {
+-				check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
+-				x.mode = invalid
+-				return
++		if isTypes2 {
++			if x.isNil() {
++				if T == nil {
++					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
++					x.mode = invalid
++					return
++				}
++			} else if T == nil || isNonTypeParamInterface(T) {
++				target = Default(x.typ)
++			}
++		} else { // go/types
++			if T == nil || isNonTypeParamInterface(T) {
++				if T == nil && x.typ == Typ[UntypedNil] {
++					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
++					x.mode = invalid
++					return
++				}
++				target = Default(x.typ)
+ 			}
+-		} else if T == nil || isNonTypeParamInterface(T) {
+-			target = Default(x.typ)
+ 		}
+ 		newType, val, code := check.implicitTypeAndValue(x, target)
+ 		if code != 0 {
+@@ -245,7 +259,7 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
+ 
+ 	if x == nil {
+ 		var target *target
+-		// avoid calling syntax.String if not needed
++		// avoid calling ExprString if not needed
+ 		if T != nil {
+ 			if _, ok := under(T).(*Signature); ok {
+ 				target = newTarget(T, ExprString(lhs))
+@@ -493,7 +507,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	// orig_rhs[0] was already evaluated
+ }
+ 
+-func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
++func (check *Checker) shortVarDecl(pos poser, lhs, rhs []syntax.Expr) {
+ 	top := len(check.delayed)
+ 	scope := check.scope
+ 
+@@ -506,6 +520,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 		ident, _ := lhs.(*syntax.Name)
+ 		if ident == nil {
+ 			check.useLHS(lhs)
++			// TODO(gri) This is redundant with a go/parser error. Consider omitting in go/types?
+ 			check.errorf(lhs, BadDecl, "non-name %s on left side of :=", lhs)
+ 			hasErr = true
+ 			continue
+@@ -568,7 +583,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 	// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
+ 	// for short variable declarations) and ends at the end of the innermost
+ 	// containing block."
+-	scopePos := syntax.EndPos(rhs[len(rhs)-1])
++	scopePos := endPos(rhs[len(rhs)-1])
+ 	for _, obj := range newVars {
+ 		check.declare(scope, nil, obj, scopePos) // id = nil: recordDef already called
+ 	}
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 236ce41260..7323b0c385 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -27,7 +27,7 @@ const (
+ 	variable                     // operand is an addressable variable
+ 	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
+ 	value                        // operand is a computed value
+-	nilvalue                     // operand is the nil value
++	nilvalue                     // operand is the nil value - only used by types2
+ 	commaok                      // like value, but operand may be used in a comma,ok expression
+ 	commaerr                     // like commaok, but second value is error, not boolean
+ 	cgofunc                      // operand is a cgo function
+@@ -42,7 +42,7 @@ var operandModeString = [...]string{
+ 	variable:  "variable",
+ 	mapindex:  "map index expression",
+ 	value:     "value",
+-	nilvalue:  "nil",
++	nilvalue:  "nil", // only used by types2
+ 	commaok:   "comma, ok expression",
+ 	commaerr:  "comma, error expression",
+ 	cgofunc:   "cgo function",
+diff --git a/src/cmd/compile/internal/types2/util.go b/src/cmd/compile/internal/types2/util.go
+index 3718c6aeaf..219739fba7 100644
+--- a/src/cmd/compile/internal/types2/util.go
++++ b/src/cmd/compile/internal/types2/util.go
+@@ -33,9 +33,10 @@ func dddErrPos(call *syntax.CallExpr) *syntax.CallExpr {
+ }
+ 
+ // argErrPos returns the node (poser) for reportign an invalid argument count.
+-func argErrPos(call *syntax.CallExpr) *syntax.CallExpr {
+-	return call
+-}
++func argErrPos(call *syntax.CallExpr) *syntax.CallExpr { return call }
+ 
+ // ExprString returns a string representation of x.
+ func ExprString(x syntax.Node) string { return syntax.String(x) }
++
++// endPos returns the position of the first character immediately after node n.
++func endPos(n syntax.Node) syntax.Pos { return syntax.EndPos(n) }
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index edf8a158d6..853598b000 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -1,3 +1,5 @@
++// Code generated by "go test -run=Generate -write=all"; DO NOT EDIT.
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -24,6 +26,9 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 	switch x.mode {
+ 	case invalid:
+ 		return // error reported before
++	case nilvalue:
++		assert(isTypes2)
++		// ok
+ 	case constant_, variable, mapindex, value, commaok, commaerr:
+ 		// ok
+ 	default:
+@@ -41,13 +46,25 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// bool, rune, int, float64, complex128 or string respectively, depending
+ 		// on whether the value is a boolean, rune, integer, floating-point,
+ 		// complex, or string constant."
+-		if T == nil || isNonTypeParamInterface(T) {
+-			if T == nil && x.typ == Typ[UntypedNil] {
+-				check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
+-				x.mode = invalid
+-				return
++		if isTypes2 {
++			if x.isNil() {
++				if T == nil {
++					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
++					x.mode = invalid
++					return
++				}
++			} else if T == nil || isNonTypeParamInterface(T) {
++				target = Default(x.typ)
++			}
++		} else { // go/types
++			if T == nil || isNonTypeParamInterface(T) {
++				if T == nil && x.typ == Typ[UntypedNil] {
++					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
++					x.mode = invalid
++					return
++				}
++				target = Default(x.typ)
+ 			}
+-			target = Default(x.typ)
+ 		}
+ 		newType, val, code := check.implicitTypeAndValue(x, target)
+ 		if code != 0 {
+@@ -505,7 +522,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
+ 		ident, _ := lhs.(*ast.Ident)
+ 		if ident == nil {
+ 			check.useLHS(lhs)
+-			// TODO(rFindley) this is redundant with a parser error. Consider omitting?
++			// TODO(gri) This is redundant with a go/parser error. Consider omitting in go/types?
+ 			check.errorf(lhs, BadDecl, "non-name %s on left side of :=", lhs)
+ 			hasErr = true
+ 			continue
+@@ -568,7 +585,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
+ 	// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
+ 	// for short variable declarations) and ends at the end of the innermost
+ 	// containing block."
+-	scopePos := rhs[len(rhs)-1].End()
++	scopePos := endPos(rhs[len(rhs)-1])
+ 	for _, obj := range newVars {
+ 		check.declare(scope, nil, obj, scopePos) // id = nil: recordDef already called
+ 	}
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index 3d1bcc6b7f..1c2a6bc3db 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -95,7 +95,12 @@ func generate(t *testing.T, filename string, write bool) {
+ type action func(in *ast.File)
+ 
+ var filemap = map[string]action{
+-	"alias.go":          nil,
++	"alias.go": nil,
++	"assignments.go": func(f *ast.File) {
++		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
++		renameSelectorExprs(f, "syntax.Name->ast.Ident", "ident.Value->ident.Name", "ast.Pos->token.Pos") // must happen before renaming identifiers
++		renameIdents(f, "syntax->ast", "poser->positioner", "nopos->noposn")
++	},
+ 	"array.go":          nil,
+ 	"api_predicates.go": nil,
+ 	"basic.go":          nil,
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index d5c16346bf..32bc973ef3 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -26,6 +26,7 @@ const (
+ 	variable                     // operand is an addressable variable
+ 	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
+ 	value                        // operand is a computed value
++	nilvalue                     // operand is the nil value - only used by types2
+ 	commaok                      // like value, but operand may be used in a comma,ok expression
+ 	commaerr                     // like commaok, but second value is error, not boolean
+ 	cgofunc                      // operand is a cgo function
+@@ -40,6 +41,7 @@ var operandModeString = [...]string{
+ 	variable:  "variable",
+ 	mapindex:  "map index expression",
+ 	value:     "value",
++	nilvalue:  "nil", // only used by types2
+ 	commaok:   "comma, ok expression",
+ 	commaerr:  "comma, error expression",
+ 	cgofunc:   "cgo function",
+diff --git a/src/go/types/util.go b/src/go/types/util.go
+index 4d6613ea51..ef6ce12c51 100644
+--- a/src/go/types/util.go
++++ b/src/go/types/util.go
+@@ -30,11 +30,10 @@ func cmpPos(p, q token.Pos) int { return int(p - q) }
+ func hasDots(call *ast.CallExpr) bool { return call.Ellipsis.IsValid() }
+ 
+ // dddErrPos returns the positioner for reporting an invalid ... use in a call.
+-func dddErrPos(call *ast.CallExpr) positioner {
+-	return atPos(call.Ellipsis)
+-}
++func dddErrPos(call *ast.CallExpr) positioner { return atPos(call.Ellipsis) }
+ 
+ // argErrPos returns positioner for reportign an invalid argument count.
+-func argErrPos(call *ast.CallExpr) positioner {
+-	return inNode(call, call.Rparen)
+-}
++func argErrPos(call *ast.CallExpr) positioner { return inNode(call, call.Rparen) }
++
++// endPos returns the position of the first character immediately after node n.
++func endPos(n ast.Node) token.Pos { return n.End() }

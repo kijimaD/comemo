@@ -18,7 +18,7 @@ Date:   Thu May 21 13:28:17 2015 -0400
     Change-Id: I4d97a38f372003fb610c9c5241bea440d9dbeb8d
     Reviewed-on: https://go-review.googlesource.com/10289
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt                                 |  2 +
  src/cmd/asm/internal/flags/flags.go           |  4 +-
  src/cmd/asm/main.go                           |  2 +-
@@ -43,3 +43,1063 @@ Date:   Thu May 21 13:28:17 2015 -0400
  test/run.go                                   | 13 ++----
  test/sinit_run.go                             |  9 +---
  23 files changed, 114 insertions(+), 239 deletions(-)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 54a4c6e349..171c1601f0 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -1,6 +1,8 @@
+ Overall:
+ - toolchain in Go
+ - new GC
++- go tool asm, go tool compile, go tool link
++- default output files changed: now file.o and a.out
+ 
+ Language:
+ - permit omission of key type in map composite literals where key is a composite literal (https://golang.org/cl/2591)
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index c74f26974a..bf5cb1eef3 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -51,7 +51,7 @@ func Usage() {
+ 	os.Exit(2)
+ }
+ 
+-func Parse(theChar int) {
++func Parse() {
+ 	flag.Usage = Usage
+ 	flag.Parse()
+ 	if flag.NArg() != 1 {
+@@ -64,6 +64,6 @@ func Parse(theChar int) {
+ 		if strings.HasSuffix(input, ".s") {
+ 			input = input[:len(input)-2]
+ 		}
+-		*OutputFile = fmt.Sprintf("%s.%c", input, theChar)
++		*OutputFile = fmt.Sprintf("%s.o", input)
+ 	}
+ }
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 32bdee6624..db0e28e2e5 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -29,7 +29,7 @@ func main() {
+ 		log.Fatalf("asm: unrecognized architecture %s", GOARCH)
+ 	}
+ 
+-	flags.Parse(architecture.Thechar)
++	flags.Parse()
+ 
+ 	// Create object file, write header.
+ 	fd, err := os.Create(*flags.OutputFile)
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index f9211407fb..3b93207ef1 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -583,7 +583,7 @@ func findpkg(name string) (file string, ok bool) {
+ 		if obj.Access(file, 0) >= 0 {
+ 			return file, true
+ 		}
+-		file = fmt.Sprintf("%s.%c", name, Thearch.Thechar)
++		file = fmt.Sprintf("%s.o", name)
+ 		if obj.Access(file, 0) >= 0 {
+ 			return file, true
+ 		}
+@@ -605,7 +605,7 @@ func findpkg(name string) (file string, ok bool) {
+ 		if obj.Access(file, 0) >= 0 {
+ 			return file, true
+ 		}
+-		file = fmt.Sprintf("%s/%s.%c", p.dir, name, Thearch.Thechar)
++		file = fmt.Sprintf("%s/%s.o", p.dir, name)
+ 		if obj.Access(file, 0) >= 0 {
+ 			return file, true
+ 		}
+@@ -626,7 +626,7 @@ func findpkg(name string) (file string, ok bool) {
+ 		if obj.Access(file, 0) >= 0 {
+ 			return file, true
+ 		}
+-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.%c", goroot, goos, goarch, suffixsep, suffix, name, Thearch.Thechar)
++		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", goroot, goos, goarch, suffixsep, suffix, name)
+ 		if obj.Access(file, 0) >= 0 {
+ 			return file, true
+ 		}
+@@ -637,7 +637,7 @@ func findpkg(name string) (file string, ok bool) {
+ 
+ func fakeimport() {
+ 	importpkg = mkpkg("fake")
+-	cannedimports("fake.6", "$$\n")
++	cannedimports("fake.o", "$$\n")
+ }
+ 
+ func importfile(f *Val, line int) {
+@@ -679,7 +679,7 @@ func importfile(f *Val, line int) {
+ 		}
+ 
+ 		importpkg = mkpkg(f.U.(string))
+-		cannedimports("unsafe.6", unsafeimport)
++		cannedimports("unsafe.o", unsafeimport)
+ 		imported_unsafe = 1
+ 		return
+ 	}
+@@ -2596,6 +2596,6 @@ func mkpackage(pkgname string) {
+ 		if i := strings.LastIndex(p, "."); i >= 0 {
+ 			p = p[:i]
+ 		}
+-		outfile = fmt.Sprintf("%s.%c", p, Thearch.Thechar)
++		outfile = fmt.Sprintf("%s.o", p)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/mkbuiltin.go b/src/cmd/compile/internal/gc/mkbuiltin.go
+index b2362a6f01..f4569b48c2 100644
+--- a/src/cmd/compile/internal/gc/mkbuiltin.go
++++ b/src/cmd/compile/internal/gc/mkbuiltin.go
+@@ -13,21 +13,14 @@ package main
+ import (
+ 	"bufio"
+ 	"fmt"
+-	"go/build"
+ 	"io"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+-	"runtime"
+ 	"strings"
+ )
+ 
+ func main() {
+-	gochar, err := build.ArchChar(runtime.GOARCH)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-
+ 	f, err := os.Create("builtin.go")
+ 	if err != nil {
+ 		log.Fatal(err)
+@@ -40,7 +33,7 @@ func main() {
+ 	fmt.Fprintln(w, "package gc")
+ 
+ 	for _, name := range os.Args[1:] {
+-		mkbuiltin(w, gochar, name)
++		mkbuiltin(w, name)
+ 	}
+ 
+ 	if err := w.Flush(); err != nil {
+@@ -49,11 +42,11 @@ func main() {
+ }
+ 
+ // Compile .go file, import data from .6 file, and write Go string version.
+-func mkbuiltin(w io.Writer, gochar string, name string) {
+-	if err := exec.Command("go", "tool", gochar+"g", "-A", "builtin/"+name+".go").Run(); err != nil {
++func mkbuiltin(w io.Writer, name string) {
++	if err := exec.Command("go", "tool", "compile", "-A", "builtin/"+name+".go").Run(); err != nil {
+ 		log.Fatal(err)
+ 	}
+-	obj := fmt.Sprintf("%s.%s", name, gochar)
++	obj := "name.o"
+ 	defer os.Remove(obj)
+ 
+ 	r, err := os.Open(obj)
+@@ -77,7 +70,7 @@ Begin:
+ 	fmt.Fprintf(w, "\nconst %simport = \"\" +\n", name)
+ 
+ 	// sys.go claims to be in package PACKAGE to avoid
+-	// conflicts during "6g sys.go".  Rename PACKAGE to $2.
++	// conflicts during "go tool compile sys.go".  Rename PACKAGE to $2.
+ 	replacer := strings.NewReplacer("PACKAGE", name)
+ 
+ 	// Process imports, stopping at $$ that closes them.
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 2afd786dc1..9bb334ca34 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -102,8 +102,7 @@ func dumpobj() {
+ 			obj.Bputc(bout, 0)
+ 		}
+ 		obj.Bseek(bout, startobj-ArhdrSize, 0)
+-		name := fmt.Sprintf("_go_.%c", Thearch.Thechar)
+-		formathdr(arhdr[:], name, size)
++		formathdr(arhdr[:], "_go_.o", size)
+ 		bout.Write(arhdr[:])
+ 	}
+ 
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index d6cfaf02cb..0cdb7d69f7 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -20,7 +20,6 @@ var (
+ 	goarch           string
+ 	gobin            string
+ 	gohostarch       string
+-	gohostchar       string
+ 	gohostos         string
+ 	goos             string
+ 	goarm            string
+@@ -30,10 +29,8 @@ var (
+ 	goextlinkenabled string
+ 	workdir          string
+ 	tooldir          string
+-	gochar           string
+ 	oldgoos          string
+ 	oldgoarch        string
+-	oldgochar        string
+ 	slash            string
+ 	exe              string
+ 	defaultcc        string
+@@ -48,17 +45,13 @@ var (
+ 	vflag int  // verbosity
+ )
+ 
+-// The known architecture letters.
+-var gochars = "5667899"
+-
+ // The known architectures.
+ var okgoarch = []string{
+-	// same order as gochars
+-	"arm",
++	"386",
+ 	"amd64",
+ 	"amd64p32",
++	"arm",
+ 	"arm64",
+-	"386",
+ 	"ppc64",
+ 	"ppc64le",
+ }
+@@ -147,22 +140,18 @@ func xinit() {
+ 		gohostarch = b
+ 	}
+ 
+-	i := find(gohostarch, okgoarch)
+-	if i < 0 {
++	if find(gohostarch, okgoarch) < 0 {
+ 		fatal("unknown $GOHOSTARCH %s", gohostarch)
+ 	}
+-	gohostchar = gochars[i : i+1]
+ 
+ 	b = os.Getenv("GOARCH")
+ 	if b == "" {
+ 		b = gohostarch
+ 	}
+ 	goarch = b
+-	i = find(goarch, okgoarch)
+-	if i < 0 {
++	if find(goarch, okgoarch) < 0 {
+ 		fatal("unknown $GOARCH %s", goarch)
+ 	}
+-	gochar = gochars[i : i+1]
+ 
+ 	b = os.Getenv("GO_EXTLINK_ENABLED")
+ 	if b != "" {
+@@ -436,7 +425,7 @@ func setup() {
+ 	}
+ 
+ 	// If $GOBIN is set and has a Go compiler, it must be cleaned.
+-	for _, char := range gochars {
++	for _, char := range "56789" {
+ 		if isfile(pathf("%s%s%c%s", gobin, slash, char, "g")) {
+ 			for _, old := range oldtool {
+ 				xremove(pathf("%s/%s", gobin, old))
+@@ -703,11 +692,7 @@ func install(dir string) {
+ 		b := pathf("%s/%s", workdir, filepath.Base(p))
+ 
+ 		// Change the last character of the output file (which was c or s).
+-		if gohostos == "plan9" {
+-			b = b[:len(b)-1] + gohostchar
+-		} else {
+-			b = b[:len(b)-1] + "o"
+-		}
++		b = b[:len(b)-1] + "o"
+ 		compile = append(compile, "-o", b, p)
+ 		bgrun(path, compile...)
+ 
+@@ -1035,7 +1020,6 @@ func cmdenv() {
+ 	xprintf(format, "GOHOSTARCH", gohostarch)
+ 	xprintf(format, "GOHOSTOS", gohostos)
+ 	xprintf(format, "GOTOOLDIR", tooldir)
+-	xprintf(format, "GOCHAR", gochar)
+ 	if goarch == "arm" {
+ 		xprintf(format, "GOARM", goarm)
+ 	}
+@@ -1080,10 +1064,8 @@ func cmdbootstrap() {
+ 	// For the main bootstrap, building for host os/arch.
+ 	oldgoos = goos
+ 	oldgoarch = goarch
+-	oldgochar = gochar
+ 	goos = gohostos
+ 	goarch = gohostarch
+-	gochar = gohostchar
+ 	os.Setenv("GOHOSTARCH", gohostarch)
+ 	os.Setenv("GOHOSTOS", gohostos)
+ 	os.Setenv("GOARCH", goarch)
+@@ -1097,37 +1079,22 @@ func cmdbootstrap() {
+ 	// than in a standard release like Go 1.4, so don't do this rebuild by default.
+ 	if false {
+ 		xprintf("##### Building Go toolchain using itself.\n")
+-		for _, pattern := range buildorder {
+-			if pattern == "cmd/go" {
++		for _, dir := range buildorder {
++			if dir == "cmd/go" {
+ 				break
+ 			}
+-			dir := pattern
+-			if strings.Contains(pattern, "%s") {
+-				dir = fmt.Sprintf(pattern, gohostchar)
+-			}
+ 			install(dir)
+-			if oldgochar != gohostchar && strings.Contains(pattern, "%s") {
+-				install(fmt.Sprintf(pattern, oldgochar))
+-			}
+ 		}
+ 		xprintf("\n")
+ 	}
+ 
+ 	xprintf("##### Building compilers and go_bootstrap for host, %s/%s.\n", gohostos, gohostarch)
+-	for _, pattern := range buildorder {
+-		dir := pattern
+-		if strings.Contains(pattern, "%s") {
+-			dir = fmt.Sprintf(pattern, gohostchar)
+-		}
++	for _, dir := range buildorder {
+ 		install(dir)
+-		if oldgochar != gohostchar && strings.Contains(pattern, "%s") {
+-			install(fmt.Sprintf(pattern, oldgochar))
+-		}
+ 	}
+ 
+ 	goos = oldgoos
+ 	goarch = oldgoarch
+-	gochar = oldgochar
+ 	os.Setenv("GOARCH", goarch)
+ 	os.Setenv("GOOS", goos)
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index aa9a408eff..17ff7e0cbb 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -547,9 +547,6 @@ var (
+ 	goarch    string
+ 	goos      string
+ 	exeSuffix string
+-
+-	archCharVal string
+-	archCharErr error
+ )
+ 
+ func init() {
+@@ -558,16 +555,6 @@ func init() {
+ 	if goos == "windows" {
+ 		exeSuffix = ".exe"
+ 	}
+-	archCharVal, archCharErr = build.ArchChar(goarch)
+-}
+-
+-// archChar returns the architecture character.  This is only needed
+-// for the gc toolchain, so only fail if we actually need it.
+-func archChar() string {
+-	if archCharErr != nil {
+-		fatalf("%s", archCharErr)
+-	}
+-	return archCharVal
+ }
+ 
+ // A builder holds global state about a build.
+@@ -1208,7 +1195,7 @@ func (b *builder) build(a *action) (err error) {
+ 		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
+ 	}
+ 
+-	if a.p.Standard && a.p.ImportPath == "runtime" && buildContext.Compiler == "gc" && archChar() != "" &&
++	if a.p.Standard && a.p.ImportPath == "runtime" && buildContext.Compiler == "gc" &&
+ 		(!hasString(a.p.GoFiles, "zgoos_"+buildContext.GOOS+".go") ||
+ 			!hasString(a.p.GoFiles, "zgoarch_"+buildContext.GOARCH+".go")) {
+ 		return fmt.Errorf("%s/%s must be bootstrapped using make%v", buildContext.GOOS, buildContext.GOARCH, defaultSuffix())
+@@ -1371,15 +1358,8 @@ func (b *builder) build(a *action) (err error) {
+ 		}
+ 	}
+ 
+-	var objExt string
+-	if _, ok := buildToolchain.(gccgoToolchain); ok {
+-		objExt = "o"
+-	} else {
+-		objExt = archChar()
+-	}
+-
+ 	for _, file := range cfiles {
+-		out := file[:len(file)-len(".c")] + "." + objExt
++		out := file[:len(file)-len(".c")] + ".o"
+ 		if err := buildToolchain.cc(b, a.p, obj, obj+out, file); err != nil {
+ 			return err
+ 		}
+@@ -1388,7 +1368,7 @@ func (b *builder) build(a *action) (err error) {
+ 
+ 	// Assemble .s files.
+ 	for _, file := range sfiles {
+-		out := file[:len(file)-len(".s")] + "." + objExt
++		out := file[:len(file)-len(".s")] + ".o"
+ 		if err := buildToolchain.asm(b, a.p, obj, obj+out, file); err != nil {
+ 			return err
+ 		}
+@@ -2120,7 +2100,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ 	if archive != "" {
+ 		ofile = archive
+ 	} else {
+-		out := "_go_." + archChar()
++		out := "_go_.o"
+ 		ofile = obj + out
+ 	}
+ 
+@@ -2182,9 +2162,22 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	}
+ 	// Disable checks when additional flags are passed, as the old assemblers
+ 	// don't implement some of them (e.g., -shared).
+-	if verifyAsm && goarch != "arm64" && len(buildAsmflags) == 0 {
+-		if err := toolVerify(b, p, "old"+archChar()+"a", ofile, args); err != nil {
+-			return err
++	if verifyAsm && len(buildAsmflags) == 0 {
++		old := ""
++		switch goarch {
++		case "arm":
++			old = "old5a"
++		case "amd64", "amd64p32":
++			old = "old6a"
++		case "386":
++			old = "old8a"
++		case "ppc64", "ppc64le":
++			old = "old9a"
++		}
++		if old != "" {
++			if err := toolVerify(b, p, old, ofile, args); err != nil {
++				return err
++			}
+ 		}
+ 	}
+ 	return nil
+@@ -2785,13 +2778,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 	cgoflags := []string{}
+ 	// TODO: make cgo not depend on $GOARCH?
+ 
+-	var objExt string
+-	if _, ok := buildToolchain.(gccgoToolchain); ok {
+-		objExt = "o"
+-	} else {
+-		objExt = archChar()
+-	}
+-
+ 	if p.Standard && p.ImportPath == "runtime/cgo" {
+ 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
+ 	}
+@@ -2836,7 +2822,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 	// cc _cgo_defun.c
+ 	_, gccgo := buildToolchain.(gccgoToolchain)
+ 	if gccgo {
+-		defunObj := obj + "_cgo_defun." + objExt
++		defunObj := obj + "_cgo_defun.o"
+ 		if err := buildToolchain.cc(b, p, obj, defunObj, defunC); err != nil {
+ 			return nil, nil, err
+ 		}
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 863eb4d26e..8d427b37c2 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -49,10 +49,6 @@ func mkEnv() []envVar {
+ 		{"TERM", "dumb"},
+ 	}
+ 
+-	if archCharErr == nil {
+-		env = append(env, envVar{"GOCHAR", archChar()})
+-	}
+-
+ 	if goos != "plan9" {
+ 		cmd := b.gccCmd(".")
+ 		env = append(env, envVar{"CC", cmd[0]})
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a36cd0f8f4..6cf0b525e5 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1627,7 +1627,7 @@ func Cput(c uint8) {
+ }
+ 
+ func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: %cl [options] obj.%c\n", Thearch.Thechar, Thearch.Thechar)
++	fmt.Fprintf(os.Stderr, "usage: link [options] main.o\n")
+ 	obj.Flagprint(2)
+ 	Exit(2)
+ }
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index 8568744c3d..5b24428059 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -160,10 +160,9 @@ func Ldmain() {
+ 	}
+ 
+ 	if outfile == "" {
++		outfile = "a.out"
+ 		if HEADTYPE == obj.Hwindows {
+-			outfile = fmt.Sprintf("%c.out.exe", Thearch.Thechar)
+-		} else {
+-			outfile = fmt.Sprintf("%c.out", Thearch.Thechar)
++			outfile += ".exe"
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 97992059b9..cd32020501 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"regexp"
+ 	"runtime"
+ 	"testing"
+ 	"time"
+@@ -223,15 +222,13 @@ func TestHello(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	char := findChar(t, dir)
+-
+ 	run := func(args ...string) string {
+ 		return doRun(t, dir, args...)
+ 	}
+ 
+ 	run("go", "build", "cmd/pack") // writes pack binary to dir
+ 	run("go", "tool", "compile", "hello.go")
+-	run("./pack", "grc", "hello.a", "hello."+char)
++	run("./pack", "grc", "hello.a", "hello.o")
+ 	run("go", "tool", "link", "-o", "a.out", "hello.a")
+ 	out := run("./a.out")
+ 	if out != "hello world\n" {
+@@ -297,17 +294,15 @@ func TestLargeDefs(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	char := findChar(t, dir)
+-
+ 	run := func(args ...string) string {
+ 		return doRun(t, dir, args...)
+ 	}
+ 
+ 	run("go", "build", "cmd/pack") // writes pack binary to dir
+ 	run("go", "tool", "compile", "large.go")
+-	run("./pack", "grc", "large.a", "large."+char)
++	run("./pack", "grc", "large.a", "large.o")
+ 	run("go", "tool", "compile", "-I", ".", "main.go")
+-	run("go", "tool", "link", "-L", ".", "-o", "a.out", "main."+char)
++	run("go", "tool", "link", "-L", ".", "-o", "a.out", "main.o")
+ 	out := run("./a.out")
+ 	if out != "ok\n" {
+ 		t.Fatalf("incorrect output: %q, want %q", out, "ok\n")
+@@ -325,20 +320,6 @@ func doRun(t *testing.T, dir string, args ...string) string {
+ 	return string(out)
+ }
+ 
+-// findChar returns the architecture character for the go command.
+-func findChar(t *testing.T, dir string) string {
+-	out := doRun(t, dir, "go", "env")
+-	re, err := regexp.Compile(`\s*GOCHAR=['"]?(\w)['"]?`)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	fields := re.FindStringSubmatch(out)
+-	if fields == nil {
+-		t.Fatal("cannot find GOCHAR in 'go env' output:\n", out)
+-	}
+-	return fields[1]
+-}
+-
+ // Fake implementation of files.
+ 
+ var helloFile = &FakeFile{
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 820434bc4a..1fd06b5d92 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1391,20 +1391,11 @@ func IsLocalImport(path string) bool {
+ 		strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../")
+ }
+ 
+-// ArchChar returns the architecture character for the given goarch.
+-// For example, ArchChar("amd64") returns "6".
++// ArchChar returns "?" and an error.
++// In earlier versions of Go, the returned string was used to derive
++// the compiler and linker tool names, the default object file suffix,
++// and the default linker output name. As of Go 1.5, those strings
++// no longer vary by architecture; they are compile, link, .o, and a.out, respectively.
+ func ArchChar(goarch string) (string, error) {
+-	switch goarch {
+-	case "386":
+-		return "8", nil
+-	case "amd64", "amd64p32":
+-		return "6", nil
+-	case "arm":
+-		return "5", nil
+-	case "arm64":
+-		return "7", nil
+-	case "ppc64", "ppc64le":
+-		return "9", nil
+-	}
+-	return "", errors.New("unsupported GOARCH " + goarch)
++	return "", errors.New("architecture letter no longer used")
+ }
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index ec71d793bd..7278c0c0a0 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -25,7 +25,7 @@ import (
+ // debugging/development support
+ const debug = false
+ 
+-var pkgExts = [...]string{".a", ".5", ".6", ".7", ".8", ".9"}
++var pkgExts = [...]string{".a", ".o"}
+ 
+ // FindPkg returns the filename and unique package id for an import
+ // path based on package information provided by build.Import (using
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 5d4de39712..fe4a758cd4 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -50,9 +50,8 @@ func compile(t *testing.T, dirname, filename string) string {
+ 		t.Logf("%s", out)
+ 		t.Fatalf("%s %s failed: %s", gcPath, filename, err)
+ 	}
+-	archCh, _ := build.ArchChar(runtime.GOARCH)
+ 	// filename should end with ".go"
+-	return filepath.Join(dirname, filename[:len(filename)-2]+archCh)
++	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
+ }
+ 
+ // Use the same global imports map for all tests. The effect is
+diff --git a/test/bench/shootout/timing.sh b/test/bench/shootout/timing.sh
+index b15825cc68..d8b1486480 100755
+--- a/test/bench/shootout/timing.sh
++++ b/test/bench/shootout/timing.sh
+@@ -6,7 +6,6 @@
+ set -e
+ 
+ eval $(go tool dist env)
+-O=$GOCHAR
+ GC="go tool compile"
+ LD="go tool link"
+ 
+@@ -61,11 +60,11 @@ X-test)
+ esac
+ 
+ gc() {
+-	$GC $1.go; $LD -o $O.$EXE $1.$O
++	$GC $1.go; $LD -o a.$EXE $1.o
+ }
+ 
+ gc_B() {
+-	$GC -B $1.go; $LD -o $O.$EXE $1.$O
++	$GC -B $1.go; $LD -o a.$EXE $1.o
+ }
+ 
+ runonly() {
+@@ -115,8 +114,8 @@ fasta() {
+ 	runonly echo 'fasta -n 25000000'
+ 	run "gcc $gccm -O2 fasta.c" a.$EXE 25000000
+ 	run 'gccgo -O2 fasta.go' a.$EXE -n 25000000	#commented out until WriteString is in bufio
+-	run 'gc fasta' $O.$EXE -n 25000000
+-	run 'gc_B fasta' $O.$EXE -n 25000000
++	run 'gc fasta' a.$EXE -n 25000000
++	run 'gc_B fasta' a.$EXE -n 25000000
+ }
+ 
+ revcomp() {
+@@ -125,8 +124,8 @@ revcomp() {
+ 	runonly echo 'reverse-complement < output-of-fasta-25000000'
+ 	run "gcc $gccm -O2 reverse-complement.c" a.$EXE < x
+ 	run 'gccgo -O2 reverse-complement.go' a.$EXE < x
+-	run 'gc reverse-complement' $O.$EXE < x
+-	run 'gc_B reverse-complement' $O.$EXE < x
++	run 'gc reverse-complement' a.$EXE < x
++	run 'gc_B reverse-complement' a.$EXE < x
+ 	rm x
+ }
+ 
+@@ -134,8 +133,8 @@ nbody() {
+ 	runonly echo 'nbody -n 50000000'
+ 	run "gcc $gccm -O2 nbody.c -lm" a.$EXE 50000000
+ 	run 'gccgo -O2 nbody.go' a.$EXE -n 50000000
+-	run 'gc nbody' $O.$EXE -n 50000000
+-	run 'gc_B nbody' $O.$EXE -n 50000000
++	run 'gc nbody' a.$EXE -n 50000000
++	run 'gc_B nbody' a.$EXE -n 50000000
+ }
+ 
+ binarytree() {
+@@ -143,8 +142,8 @@ binarytree() {
+ 	run "gcc $gccm -O2 binary-tree.c -lm" a.$EXE 15
+ 	run 'gccgo -O2 binary-tree.go' a.$EXE -n 15
+ 	run 'gccgo -O2 binary-tree-freelist.go' a.$EXE -n 15
+-	run 'gc binary-tree' $O.$EXE -n 15
+-	run 'gc binary-tree-freelist' $O.$EXE -n 15
++	run 'gc binary-tree' a.$EXE -n 15
++	run 'gc binary-tree-freelist' a.$EXE -n 15
+ }
+ 
+ fannkuch() {
+@@ -152,9 +151,9 @@ fannkuch() {
+ 	run "gcc $gccm -O2 fannkuch.c" a.$EXE 12
+ 	run 'gccgo -O2 fannkuch.go' a.$EXE -n 12
+ 	run 'gccgo -O2 fannkuch-parallel.go' a.$EXE -n 12
+-	run 'gc fannkuch' $O.$EXE -n 12
+-	run 'gc fannkuch-parallel' $O.$EXE -n 12
+-	run 'gc_B fannkuch' $O.$EXE -n 12
++	run 'gc fannkuch' a.$EXE -n 12
++	run 'gc fannkuch-parallel' a.$EXE -n 12
++	run 'gc_B fannkuch' a.$EXE -n 12
+ }
+ 
+ regexdna() {
+@@ -166,9 +165,9 @@ regexdna() {
+ 	fi
+ 	run 'gccgo -O2 regex-dna.go' a.$EXE <x
+ 	run 'gccgo -O2 regex-dna-parallel.go' a.$EXE <x
+-	run 'gc regex-dna' $O.$EXE <x
+-	run 'gc regex-dna-parallel' $O.$EXE <x
+-	run 'gc_B regex-dna' $O.$EXE <x
++	run 'gc regex-dna' a.$EXE <x
++	run 'gc regex-dna-parallel' a.$EXE <x
++	run 'gc_B regex-dna' a.$EXE <x
+ 	rm x
+ }
+ 
+@@ -176,8 +175,8 @@ spectralnorm() {
+ 	runonly echo 'spectral-norm 5500'
+ 	run "gcc $gccm -O2 spectral-norm.c -lm" a.$EXE 5500
+ 	run 'gccgo -O2 spectral-norm.go' a.$EXE -n 5500
+-	run 'gc spectral-norm' $O.$EXE -n 5500
+-	run 'gc_B spectral-norm' $O.$EXE -n 5500
++	run 'gc spectral-norm' a.$EXE -n 5500
++	run 'gc_B spectral-norm' a.$EXE -n 5500
+ }
+ 
+ knucleotide() {
+@@ -189,9 +188,9 @@ knucleotide() {
+ 	fi
+ 	run 'gccgo -O2 k-nucleotide.go' a.$EXE <x
+ 	run 'gccgo -O2 k-nucleotide-parallel.go' a.$EXE <x
+-	run 'gc k-nucleotide' $O.$EXE <x
+-	run 'gc k-nucleotide-parallel' $O.$EXE <x
+-	run 'gc_B k-nucleotide' $O.$EXE <x
++	run 'gc k-nucleotide' a.$EXE <x
++	run 'gc k-nucleotide-parallel' a.$EXE <x
++	run 'gc_B k-nucleotide' a.$EXE <x
+ 	rm x
+ }
+ 
+@@ -199,16 +198,16 @@ mandelbrot() {
+ 	runonly echo 'mandelbrot 16000'
+ 	run "gcc $gccm -O2 mandelbrot.c" a.$EXE 16000
+ 	run 'gccgo -O2 mandelbrot.go' a.$EXE -n 16000
+-	run 'gc mandelbrot' $O.$EXE -n 16000
+-	run 'gc_B mandelbrot' $O.$EXE -n 16000
++	run 'gc mandelbrot' a.$EXE -n 16000
++	run 'gc_B mandelbrot' a.$EXE -n 16000
+ }
+ 
+ meteor() {
+ 	runonly echo 'meteor 2098'
+ 	run "gcc $gccm -O2 meteor-contest.c" a.$EXE 2098
+ 	run 'gccgo -O2 meteor-contest.go' a.$EXE -n 2098
+-	run 'gc meteor-contest' $O.$EXE -n 2098
+-	run 'gc_B  meteor-contest' $O.$EXE -n 2098
++	run 'gc meteor-contest' a.$EXE -n 2098
++	run 'gc_B  meteor-contest' a.$EXE -n 2098
+ }
+ 
+ pidigits() {
+@@ -217,22 +216,22 @@ pidigits() {
+ 		run "gcc $gccm -O2 pidigits.c -lgmp" a.$EXE 10000
+ 	fi
+ 	run 'gccgo -O2 pidigits.go' a.$EXE -n 10000
+-	run 'gc pidigits' $O.$EXE -n 10000
+-	run 'gc_B  pidigits' $O.$EXE -n 10000
++	run 'gc pidigits' a.$EXE -n 10000
++	run 'gc_B  pidigits' a.$EXE -n 10000
+ }
+ 
+ threadring() {
+ 	runonly echo 'threadring 50000000'
+ 	run "gcc $gccm -O2 threadring.c -lpthread" a.$EXE 50000000
+ 	run 'gccgo -O2 threadring.go' a.$EXE -n 50000000
+-	run 'gc threadring' $O.$EXE -n 50000000
++	run 'gc threadring' a.$EXE -n 50000000
+ }
+ 
+ chameneos() {
+ 	runonly echo 'chameneos 6000000'
+ 	run "gcc $gccm -O2 chameneosredux.c -lpthread" a.$EXE 6000000
+ 	run 'gccgo -O2 chameneosredux.go' a.$EXE 6000000
+-	run 'gc chameneosredux' $O.$EXE 6000000
++	run 'gc chameneosredux' a.$EXE 6000000
+ }
+ 
+ case $# in
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+index 2dad1bc654..173b46fd83 100644
+--- a/test/fixedbugs/bug248.go
++++ b/test/fixedbugs/bug248.go
+@@ -9,16 +9,12 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"go/build"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ )
+ 
+ func main() {
+-	a, err := build.ArchChar(build.Default.GOARCH)
+-	check(err)
+-
+ 	// TODO: If we get rid of errchk, re-enable this test on Windows.
+ 	errchk, err := filepath.Abs("errchk")
+ 	check(err)
+@@ -30,13 +26,13 @@ func main() {
+ 	run("go", "tool", "compile", "bug1.go")
+ 	run("go", "tool", "compile", "bug2.go")
+ 	run(errchk, "go", "tool", "compile", "-e", "bug3.go")
+-	run("go", "tool", "link", "bug2."+a)
+-	run(fmt.Sprintf(".%c%s.out", filepath.Separator, a))
++	run("go", "tool", "link", "bug2.o")
++	run(fmt.Sprintf(".%ca.out", filepath.Separator))
+ 
+-	os.Remove("bug0." + a)
+-	os.Remove("bug1." + a)
+-	os.Remove("bug2." + a)
+-	os.Remove(a + ".out")
++	os.Remove("bug0.o")
++	os.Remove("bug1.o")
++	os.Remove("bug2.o")
++	os.Remove("a.out")
+ }
+ 
+ func run(name string, args ...string) {
+diff --git a/test/fixedbugs/bug302.go b/test/fixedbugs/bug302.go
+index faae665035..42345a9562 100644
+--- a/test/fixedbugs/bug302.go
++++ b/test/fixedbugs/bug302.go
+@@ -9,26 +9,18 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"go/build"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ )
+ 
+ func main() {
+-	a, err := build.ArchChar(runtime.GOARCH)
+-	if err != nil {
+-		fmt.Println("BUG:", err)
+-		os.Exit(1)
+-	}
+-
+ 	run("go", "tool", "compile", filepath.Join("fixedbugs", "bug302.dir", "p.go"))
+-	run("go", "tool", "pack", "grc", "pp.a", "p."+a)
++	run("go", "tool", "pack", "grc", "pp.a", "p.o")
+ 	run("go", "tool", "compile", "-I", ".", filepath.Join("fixedbugs", "bug302.dir", "main.go"))
+-	os.Remove("p."+a)
++	os.Remove("p.o")
+ 	os.Remove("pp.a")
+-	os.Remove("main."+a)
++	os.Remove("main.o")
+ }
+ 
+ func run(cmd string, args ...string) {
+diff --git a/test/fixedbugs/bug345.go b/test/fixedbugs/bug345.go
+index 3ef57bd112..e291a55167 100644
+--- a/test/fixedbugs/bug345.go
++++ b/test/fixedbugs/bug345.go
+@@ -9,16 +9,12 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"go/build"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ )
+ 
+ func main() {
+-	a, err := build.ArchChar(build.Default.GOARCH)
+-	check(err)
+-
+ 	// TODO: If we get rid of errchk, re-enable this test on Plan 9 and Windows.
+ 	errchk, err := filepath.Abs("errchk")
+ 	check(err)
+@@ -28,7 +24,7 @@ func main() {
+ 
+ 	run("go", "tool", "compile", "io.go")
+ 	run(errchk, "go", "tool", "compile", "-e", "main.go")
+-	os.Remove("io." + a)
++	os.Remove("io.o")
+ }
+ 
+ func run(name string, args ...string) {
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index b85428be02..dd48da808b 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -11,28 +11,24 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"go/build"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ )
+ 
+ func main() {
+-	a, err := build.ArchChar(build.Default.GOARCH)
++	err := os.Chdir(filepath.Join(".", "fixedbugs", "bug369.dir"))
+ 	check(err)
+ 
+-	err = os.Chdir(filepath.Join(".", "fixedbugs", "bug369.dir"))
+-	check(err)
+-
+-	run("go", "tool", "compile", "-N", "-o", "slow."+a, "pkg.go")
+-	run("go", "tool", "compile", "-o", "fast."+a, "pkg.go")
+-	run("go", "tool", "compile", "-o", "main."+a, "main.go")
+-	run("go", "tool", "link", "-o", "a.exe", "main."+a)
++	run("go", "tool", "compile", "-N", "-o", "slow.o", "pkg.go")
++	run("go", "tool", "compile", "-o", "fast.o", "pkg.go")
++	run("go", "tool", "compile", "-o", "main.o", "main.go")
++	run("go", "tool", "link", "-o", "a.exe", "main.o")
+ 	run("." + string(filepath.Separator) + "a.exe")
+ 
+-	os.Remove("slow." + a)
+-	os.Remove("fast." + a)
+-	os.Remove("main." + a)
++	os.Remove("slow.o")
++	os.Remove("fast.o")
++	os.Remove("main.o")
+ 	os.Remove("a.exe")
+ }
+ 
+diff --git a/test/fixedbugs/issue9355.go b/test/fixedbugs/issue9355.go
+index a841f773ee..40c9ba9161 100644
+--- a/test/fixedbugs/issue9355.go
++++ b/test/fixedbugs/issue9355.go
+@@ -8,7 +8,6 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"go/build"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -20,14 +19,12 @@ func main() {
+ 	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" {
+ 		return
+ 	}
+-	a, err := build.ArchChar(runtime.GOARCH)
+-	check(err)
+ 
+-	err = os.Chdir(filepath.Join("fixedbugs", "issue9355.dir"))
++	err := os.Chdir(filepath.Join("fixedbugs", "issue9355.dir"))
+ 	check(err)
+ 
+ 	out := run("go", "tool", "compile", "-S", "a.go")
+-	os.Remove("a." + a)
++	os.Remove("a.o")
+ 
+ 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
+ 	patterns := []string{
+diff --git a/test/run.go b/test/run.go
+index a3124bba94..47a62980b1 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -15,7 +15,6 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+-	"go/build"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -41,9 +40,6 @@ var (
+ )
+ 
+ var (
+-	// letter is the build.ArchChar
+-	letter string
+-
+ 	goos, goarch string
+ 
+ 	// dirs are the directories to look for *.go files in.
+@@ -81,9 +77,6 @@ func main() {
+ 
+ 	ratec = make(chan bool, *numParallel)
+ 	rungatec = make(chan bool, *runoutputLimit)
+-	var err error
+-	letter, err = build.ArchChar(build.Default.GOARCH)
+-	check(err)
+ 
+ 	var tests []*test
+ 	if flag.NArg() > 0 {
+@@ -199,7 +192,7 @@ func compileInDir(runcmd runCmd, dir string, names ...string) (out []byte, err e
+ }
+ 
+ func linkFile(runcmd runCmd, goname string) (err error) {
+-	pfile := strings.Replace(goname, ".go", "."+letter, -1)
++	pfile := strings.Replace(goname, ".go", ".o", -1)
+ 	_, err = runcmd("go", "tool", "link", "-w", "-o", "a.exe", "-L", ".", pfile)
+ 	return
+ }
+@@ -501,7 +494,7 @@ func (t *test) run() {
+ 		t.err = fmt.Errorf("unimplemented action %q", action)
+ 
+ 	case "errorcheck":
+-		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a." + letter}
++		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a.o"}
+ 		cmdline = append(cmdline, flags...)
+ 		cmdline = append(cmdline, long)
+ 		out, err := runcmd(cmdline...)
+@@ -664,7 +657,7 @@ func (t *test) run() {
+ 			t.err = fmt.Errorf("write tempfile:%s", err)
+ 			return
+ 		}
+-		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a." + letter}
++		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a.o"}
+ 		cmdline = append(cmdline, flags...)
+ 		cmdline = append(cmdline, tfile)
+ 		out, err = runcmd(cmdline...)
+diff --git a/test/sinit_run.go b/test/sinit_run.go
+index cc437bfacf..c9afd3b777 100644
+--- a/test/sinit_run.go
++++ b/test/sinit_run.go
+@@ -12,18 +12,11 @@ package main
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"go/build"
+ 	"os"
+ 	"os/exec"
+ )
+ 
+ func main() {
+-	letter, err := build.ArchChar(build.Default.GOARCH)
+-	if err != nil {
+-		fmt.Println(err)
+-		os.Exit(1)
+-	}
+-
+ 	cmd := exec.Command("go", "tool", "compile", "-S", "sinit.go")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -31,7 +24,7 @@ func main() {
+ 		fmt.Println(err)
+ 		os.Exit(1)
+ 	}
+-	os.Remove("sinit." + letter)
++	os.Remove("sinit.o")
+ 
+ 	if bytes.Contains(out, []byte("initdone")) {
+ 		fmt.Println("sinit generated an init function")

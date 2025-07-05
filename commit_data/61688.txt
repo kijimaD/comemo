@@ -13,7 +13,34 @@ Date:   Fri Nov 15 07:40:49 2024 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/628415
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/work/security.go      | 2 +-
  src/cmd/go/internal/work/security_test.go | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index e48dffdb7f..1e2f81b2d4 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -312,7 +312,7 @@ Args:
+ 		for _, re := range valid {
+ 			if match := re.FindString(arg); match == arg { // must be complete match
+ 				continue Args
+-			} else if match == "-Wl,--push-state" {
++			} else if strings.HasPrefix(arg, "-Wl,--push-state,") {
+ 				// Examples for --push-state are written
+ 				//     -Wl,--push-state,--as-needed
+ 				// Support other commands in the same -Wl arg.
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 1cb0aa8e4a..63dd569f7d 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -250,6 +250,8 @@ var badLinkerFlags = [][]string{
+ 	{"-Wl,-R,-flag"},
+ 	{"-Wl,--push-state,"},
+ 	{"-Wl,--push-state,@foo"},
++	{"-fplugin=./-Wl,--push-state,-R.so"},
++	{"./-Wl,--push-state,-R.c"},
+ }
+ 
+ func TestCheckLinkerFlags(t *testing.T) {

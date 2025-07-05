@@ -10,6 +10,19 @@ Date:   Mon Sep 23 13:08:00 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/13314048
-
+---
  src/cmd/ld/pe.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 090d083f5d..7b9a596fce 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -151,6 +151,7 @@ peinit(void)
+ 
+ 	// some mingw libs depend on this symbol, for example, FindPESectionByName
+ 	xdefine("__image_base__", SDATA, PEBASE);
++	xdefine("_image_base__", SDATA, PEBASE);
+ }
+ 
+ static void

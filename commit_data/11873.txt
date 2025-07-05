@@ -9,6 +9,56 @@ Date:   Mon Feb 13 19:48:27 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5660046
-
+---
  src/pkg/go/parser/parser.go | 17 ++++++++++++++---
  1 file changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index e6dffa3709..6a0b61eb48 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -335,7 +335,7 @@ func (p *parser) errorExpected(pos token.Pos, msg string) {
+ 	if pos == p.pos {
+ 		// the error happened at the current position;
+ 		// make the error message more specific
+-		if p.tok == token.SEMICOLON && p.lit[0] == '\n' {
++		if p.tok == token.SEMICOLON && p.lit == "\n" {
+ 			msg += ", found newline"
+ 		} else {
+ 			msg += ", found '" + p.tok.String() + "'"
+@@ -356,6 +356,17 @@ func (p *parser) expect(tok token.Token) token.Pos {
+ 	return pos
+ }
+ 
++// expectClosing is like expect but provides a better error message
++// for the common case of a missing comma before a newline.
++//
++func (p *parser) expectClosing(tok token.Token, construct string) token.Pos {
++	if p.tok != tok && p.tok == token.SEMICOLON && p.lit == "\n" {
++		p.error(p.pos, "missing ',' before newline in "+construct)
++		p.next()
++	}
++	return p.expect(tok)
++}
++
+ func (p *parser) expectSemi() {
+ 	if p.tok != token.RPAREN && p.tok != token.RBRACE {
+ 		p.expect(token.SEMICOLON)
+@@ -1056,7 +1067,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+ 		p.next()
+ 	}
+ 	p.exprLev--
+-	rparen := p.expect(token.RPAREN)
++	rparen := p.expectClosing(token.RPAREN, "argument list")
+ 
+ 	return &ast.CallExpr{fun, lparen, list, ellipsis, rparen}
+ }
+@@ -1111,7 +1122,7 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
+ 		elts = p.parseElementList()
+ 	}
+ 	p.exprLev--
+-	rbrace := p.expect(token.RBRACE)
++	rbrace := p.expectClosing(token.RBRACE, "composite literal")
+ 	return &ast.CompositeLit{typ, lbrace, elts, rbrace}
+ }
+ 

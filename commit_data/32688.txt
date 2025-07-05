@@ -12,6 +12,52 @@ Date:   Mon May 15 16:54:38 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-
+---
  src/cmd/go/go_test.go | 19 +++++++++++--------
  1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 093119e03e..d09b190781 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3969,9 +3969,13 @@ func TestExecutableGOROOT(t *testing.T) {
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+ 			t.Fatalf("copied go tool failed %v: %s", err, out)
+-			return ""
+ 		}
+-		return strings.TrimSpace(string(out))
++		root := strings.TrimSpace(string(out))
++		resolved, err := filepath.EvalSymlinks(root)
++		if err != nil {
++			t.Fatalf("EvalSymlinks(%q) failed: %v", root, err)
++		}
++		return resolved
+ 	}
+ 
+ 	// Filenames are case insensitive on Windows.
+@@ -3995,7 +3999,11 @@ func TestExecutableGOROOT(t *testing.T) {
+ 
+ 	// Now the executable's path looks like a GOROOT.
+ 	tg.tempDir("newgoroot/pkg/tool")
+-	if got, want := goroot(newGoTool), tg.path("newgoroot"); !equal(got, want) {
++	resolvedNewGOROOT, err := filepath.EvalSymlinks(tg.path("newgoroot"))
++	if err != nil {
++		t.Fatalf("could not eval newgoroot symlinks: %v", err)
++	}
++	if got, want := goroot(newGoTool), resolvedNewGOROOT; !equal(got, want) {
+ 		t.Fatalf("%s env GOROOT = %q with pkg/tool, want %q", newGoTool, got, want)
+ 	}
+ 
+@@ -4005,11 +4013,6 @@ func TestExecutableGOROOT(t *testing.T) {
+ 	symGoTool := tg.path("notgoroot/bin/go" + exeSuffix)
+ 	tg.must(os.Symlink(newGoTool, symGoTool))
+ 
+-	resolvedNewGOROOT, err := filepath.EvalSymlinks(tg.path("newgoroot"))
+-	if err != nil {
+-		t.Fatalf("could not eval newgoroot symlinks: %v", err)
+-	}
+-
+ 	if got, want := goroot(symGoTool), resolvedNewGOROOT; !equal(got, want) {
+ 		t.Fatalf("%s env GOROOT = %q, want %q", symGoTool, got, want)
+ 	}

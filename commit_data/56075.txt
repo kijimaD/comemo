@@ -39,9 +39,86 @@ Date:   Fri Apr 7 10:04:42 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/export_test.go    |  2 +-
  src/net/http/main_test.go      |  1 +
  src/net/http/transport.go      |  5 ++++-
  src/net/http/transport_test.go | 10 +++++++---
  4 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 8a61e651dc..5d198f3f89 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -36,7 +36,7 @@ var (
+ 	Export_is408Message               = is408Message
+ )
+ 
+-const MaxWriteWaitBeforeConnReuse = maxWriteWaitBeforeConnReuse
++var MaxWriteWaitBeforeConnReuse = &maxWriteWaitBeforeConnReuse
+ 
+ func init() {
+ 	// We only want to pay for this cost during testing.
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 1b2fa215ff..1e83ca3c0a 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -20,6 +20,7 @@ import (
+ var quietLog = log.New(io.Discard, "", 0)
+ 
+ func TestMain(m *testing.M) {
++	*http.MaxWriteWaitBeforeConnReuse = 60 * time.Minute
+ 	v := m.Run()
+ 	if v == 0 && goroutineLeaked() {
+ 		os.Exit(1)
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 807cc8f0eb..8de63cdb88 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2452,7 +2452,10 @@ func (pc *persistConn) writeLoop() {
+ // maxWriteWaitBeforeConnReuse is how long the a Transport RoundTrip
+ // will wait to see the Request's Body.Write result after getting a
+ // response from the server. See comments in (*persistConn).wroteRequest.
+-const maxWriteWaitBeforeConnReuse = 50 * time.Millisecond
++//
++// In tests, we set this to a large value to avoid flakiness from inconsistent
++// recycling of connections.
++var maxWriteWaitBeforeConnReuse = 50 * time.Millisecond
+ 
+ // wroteRequest is a check before recycling a connection that the previous write
+ // (from writeLoop above) happened and was successful.
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 268b0a4776..6f57629eff 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3402,9 +3402,13 @@ func (c byteFromChanReader) Read(p []byte) (n int, err error) {
+ // questionable state.
+ // golang.org/issue/7569
+ func TestTransportNoReuseAfterEarlyResponse(t *testing.T) {
+-	run(t, testTransportNoReuseAfterEarlyResponse, []testMode{http1Mode})
++	run(t, testTransportNoReuseAfterEarlyResponse, []testMode{http1Mode}, testNotParallel)
+ }
+ func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
++	defer func(d time.Duration) {
++		*MaxWriteWaitBeforeConnReuse = d
++	}(*MaxWriteWaitBeforeConnReuse)
++	*MaxWriteWaitBeforeConnReuse = 10 * time.Millisecond
+ 	var sconn struct {
+ 		sync.Mutex
+ 		c net.Conn
+@@ -3631,13 +3635,13 @@ func testRetryRequestsOnError(t *testing.T, mode testMode) {
+ 				req := tc.req()
+ 				res, err := c.Do(req)
+ 				if err != nil {
+-					if time.Since(t0) < MaxWriteWaitBeforeConnReuse/2 {
++					if time.Since(t0) < *MaxWriteWaitBeforeConnReuse/2 {
+ 						mu.Lock()
+ 						got := logbuf.String()
+ 						mu.Unlock()
+ 						t.Fatalf("i=%d: Do = %v; log:\n%s", i, err, got)
+ 					}
+-					t.Skipf("connection likely wasn't recycled within %d, interfering with actual test; skipping", MaxWriteWaitBeforeConnReuse)
++					t.Skipf("connection likely wasn't recycled within %d, interfering with actual test; skipping", *MaxWriteWaitBeforeConnReuse)
+ 				}
+ 				res.Body.Close()
+ 				if res.Request != req {

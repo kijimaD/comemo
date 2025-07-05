@@ -14,7 +14,7 @@ Date:   Tue Jun 8 10:21:51 2021 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go                       |   2 +-
  src/go/types/errorcodes.go                     |  11 +-
  src/go/types/infer.go                          |   5 +-
@@ -39,3 +39,804 @@ Date:   Tue Jun 8 10:21:51 2021 -0400
  src/go/types/unify.go                          |   4 +
  src/go/types/union.go                          | 108 +++++++++++++
  23 files changed, 310 insertions(+), 155 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 2a2d54da88..99122dfe7c 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -783,7 +783,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
+ 		ptyp := check.newTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
+ 		tsum := _NewSum(rtypes)
+-		ptyp.bound = &Interface{types: tsum, allMethods: markComplete, allTypes: tsum}
++		ptyp.bound = &Interface{allMethods: markComplete, allTypes: tsum}
+ 
+ 		return ptyp
+ 	}
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index 3d24da7b53..2afb6a383c 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -281,16 +281,7 @@ const (
+ 	_IncomparableMapKey
+ 
+ 	// _InvalidIfaceEmbed occurs when a non-interface type is embedded in an
+-	// interface.
+-	//
+-	// Example:
+-	//  type T struct {}
+-	//
+-	//  func (T) m()
+-	//
+-	//  type I interface {
+-	//  	T
+-	//  }
++	// interface (for go 1.17 or earlier).
+ 	_InvalidIfaceEmbed
+ 
+ 	// _InvalidPtrEmbed occurs when an embedded field is of the pointer form *T,
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 5d49351e1f..951c6b8cbd 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -315,6 +315,9 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 		// Thus, we only need to look at the input and result parameters.
+ 		return w.isParameterized(t.params) || w.isParameterized(t.results)
+ 
++	case *Union:
++		panic("unimplemented")
++
+ 	case *Interface:
+ 		if t.allMethods != nil {
+ 			// TODO(rFindley) at some point we should enforce completeness here
+@@ -332,7 +335,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 					return true
+ 				}
+ 			}
+-			return w.isParameterizedList(unpackType(t.types))
++			return w.isParameterizedList(t.embeddeds)
+ 		}, nil)
+ 
+ 	case *Map:
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index fd3fe0ef91..611f387046 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -13,74 +13,84 @@ import (
+ )
+ 
+ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
+-	var tlist *ast.Ident // "type" name of first entry in a type list declaration
+-	var types []ast.Expr
++	var tlist []ast.Expr
++	var tname *ast.Ident // "type" name of first entry in a type list declaration
++
+ 	for _, f := range iface.Methods.List {
+-		if len(f.Names) > 0 {
+-			// We have a method with name f.Names[0], or a type
+-			// of a type list (name.Name == "type").
+-			// (The parser ensures that there's only one method
+-			// and we don't care if a constructed AST has more.)
+-			name := f.Names[0]
+-			if name.Name == "_" {
+-				check.errorf(name, _BlankIfaceMethod, "invalid method name _")
+-				continue // ignore
+-			}
++		if len(f.Names) == 0 {
++			// We have an embedded type; possibly a union of types.
++			ityp.embeddeds = append(ityp.embeddeds, parseUnion(check, flattenUnion(nil, f.Type)))
++			check.posMap[ityp] = append(check.posMap[ityp], f.Type.Pos())
++			continue
++		}
+ 
+-			if name.Name == "type" {
+-				// Always collect all type list entries, even from
+-				// different type lists, under the assumption that
+-				// the author intended to include all types.
+-				types = append(types, f.Type)
+-				if tlist != nil && tlist != name {
+-					check.errorf(name, _Todo, "cannot have multiple type lists in an interface")
+-				}
+-				tlist = name
+-				continue
+-			}
++		// We have a method with name f.Names[0], or a type
++		// of a type list (name.Name == "type").
++		// (The parser ensures that there's only one method
++		// and we don't care if a constructed AST has more.)
++		name := f.Names[0]
++		if name.Name == "_" {
++			check.errorf(name, _BlankIfaceMethod, "invalid method name _")
++			continue // ignore
++		}
+ 
+-			typ := check.typ(f.Type)
+-			sig, _ := typ.(*Signature)
+-			if sig == nil {
+-				if typ != Typ[Invalid] {
+-					check.invalidAST(f.Type, "%s is not a method signature", typ)
+-				}
+-				continue // ignore
++		if name.Name == "type" {
++			// For now, collect all type list entries as if it
++			// were a single union, where each union element is
++			// of the form ~T.
++			// TODO(rfindley) remove once we disallow type lists
++			op := new(ast.UnaryExpr)
++			op.Op = token.TILDE
++			op.X = f.Type
++			tlist = append(tlist, op)
++			if tname != nil && tname != name {
++				check.errorf(name, _Todo, "cannot have multiple type lists in an interface")
+ 			}
++			tname = name
++			continue
++		}
+ 
+-			// Always type-check method type parameters but complain if they are not enabled.
+-			// (This extra check is needed here because interface method signatures don't have
+-			// a receiver specification.)
+-			if sig.tparams != nil {
+-				var at positioner = f.Type
+-				if tparams := typeparams.Get(f.Type); tparams != nil {
+-					at = tparams
+-				}
+-				check.errorf(at, _Todo, "methods cannot have type parameters")
++		typ := check.typ(f.Type)
++		sig, _ := typ.(*Signature)
++		if sig == nil {
++			if typ != Typ[Invalid] {
++				check.invalidAST(f.Type, "%s is not a method signature", typ)
+ 			}
++			continue // ignore
++		}
+ 
+-			// use named receiver type if available (for better error messages)
+-			var recvTyp Type = ityp
+-			if def != nil {
+-				recvTyp = def
++		// Always type-check method type parameters but complain if they are not enabled.
++		// (This extra check is needed here because interface method signatures don't have
++		// a receiver specification.)
++		if sig.tparams != nil {
++			var at positioner = f.Type
++			if tparams := typeparams.Get(f.Type); tparams != nil {
++				at = tparams
+ 			}
+-			sig.recv = NewVar(name.Pos(), check.pkg, "", recvTyp)
+-
+-			m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
+-			check.recordDef(name, m)
+-			ityp.methods = append(ityp.methods, m)
+-		} else {
+-			// We have an embedded type. completeInterface will
+-			// eventually verify that we have an interface.
+-			ityp.embeddeds = append(ityp.embeddeds, check.typ(f.Type))
+-			check.posMap[ityp] = append(check.posMap[ityp], f.Type.Pos())
++			check.errorf(at, _Todo, "methods cannot have type parameters")
++		}
++
++		// use named receiver type if available (for better error messages)
++		var recvTyp Type = ityp
++		if def != nil {
++			recvTyp = def
+ 		}
++		sig.recv = NewVar(name.Pos(), check.pkg, "", recvTyp)
++
++		m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
++		check.recordDef(name, m)
++		ityp.methods = append(ityp.methods, m)
+ 	}
+ 
+ 	// type constraints
+-	ityp.types = _NewSum(check.collectTypeConstraints(iface.Pos(), types))
++	if tlist != nil {
++		ityp.embeddeds = append(ityp.embeddeds, parseUnion(check, tlist))
++		// Types T in a type list are added as ~T expressions but we don't
++		// have the position of the '~'. Use the first type position instead.
++		check.posMap[ityp] = append(check.posMap[ityp], tlist[0].(*ast.UnaryExpr).X.Pos())
++	}
+ 
+-	if len(ityp.methods) == 0 && ityp.types == nil && len(ityp.embeddeds) == 0 {
++	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
+ 		// empty interface
+ 		ityp.allMethods = markComplete
+ 		return
+@@ -93,32 +103,12 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
+ }
+ 
+-func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []Type {
+-	list := make([]Type, 0, len(types)) // assume all types are correct
+-	for _, texpr := range types {
+-		if texpr == nil {
+-			check.invalidAST(atPos(pos), "missing type constraint")
+-			continue
+-		}
+-		list = append(list, check.varType(texpr))
++func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
++	if o, _ := x.(*ast.BinaryExpr); o != nil && o.Op == token.OR {
++		list = flattenUnion(list, o.X)
++		x = o.Y
+ 	}
+-
+-	// Ensure that each type is only present once in the type list.  Types may be
+-	// interfaces, which may not be complete yet. It's ok to do this check at the
+-	// end because it's not a requirement for correctness of the code.
+-	// Note: This is a quadratic algorithm, but type lists tend to be short.
+-	check.later(func() {
+-		for i, t := range list {
+-			if t := asInterface(t); t != nil {
+-				check.completeInterface(types[i].Pos(), t)
+-			}
+-			if includes(list[:i], t) {
+-				check.softErrorf(types[i], _Todo, "duplicate type %s in type list", t)
+-			}
+-		}
+-	})
+-
+-	return list
++	return append(list, x)
+ }
+ 
+ // includes reports whether typ is in list.
+@@ -146,6 +136,7 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 	completeInterface(check, pos, ityp)
+ }
+ 
++// completeInterface may be called with check == nil.
+ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 	assert(ityp.allMethods == nil)
+ 
+@@ -198,6 +189,7 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 			if check == nil {
+ 				panic(fmt.Sprintf("%v: duplicate method %s", m.pos, m.name))
+ 			}
++			// check != nil
+ 			check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
+ 			check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+ 		default:
+@@ -211,6 +203,7 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 				todo = append(todo, m, other.(*Func))
+ 				break
+ 			}
++			// check != nil
+ 			check.later(func() {
+ 				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
+ 					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
+@@ -224,9 +217,8 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 		addMethod(m.pos, m, true)
+ 	}
+ 
+-	// collect types
+-	allTypes := ityp.types
+-
++	// collect embedded elements
++	var allTypes Type
+ 	var posList []token.Pos
+ 	if check != nil {
+ 		posList = check.posMap[ityp]
+@@ -236,32 +228,36 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 		if posList != nil {
+ 			pos = posList[i]
+ 		}
+-		utyp := under(typ)
+-		etyp := asInterface(utyp)
+-		if etyp == nil {
+-			if utyp != Typ[Invalid] {
+-				var format string
+-				if _, ok := utyp.(*_TypeParam); ok {
+-					format = "%s is a type parameter, not an interface"
+-				} else {
+-					format = "%s is not an interface"
+-				}
+-				if check != nil {
+-					// TODO: correct error code.
+-					check.errorf(atPos(pos), _InvalidIfaceEmbed, format, typ)
+-				} else {
+-					panic(fmt.Sprintf(format, typ))
+-				}
++		var types Type
++		switch t := under(typ).(type) {
++		case *Interface:
++			if t.allMethods == nil {
++				completeInterface(check, pos, t)
+ 			}
+-			continue
+-		}
+-		if etyp.allMethods == nil {
+-			completeInterface(check, pos, etyp)
+-		}
+-		for _, m := range etyp.allMethods {
+-			addMethod(pos, m, false) // use embedding position pos rather than m.pos
++			for _, m := range t.allMethods {
++				addMethod(pos, m, false) // use embedding position pos rather than m.pos
++
++			}
++			types = t.allTypes
++		case *Union:
++			types = NewSum(t.terms)
++		case *TypeParam:
++			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
++				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is a type parameter, not an interface", typ)
++				continue
++			}
++			types = t
++		default:
++			if t == Typ[Invalid] {
++				continue
++			}
++			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
++				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is not an interface", typ)
++				continue
++			}
++			types = t
+ 		}
+-		allTypes = intersect(allTypes, etyp.allTypes)
++		allTypes = intersect(allTypes, types)
+ 	}
+ 
+ 	// process todo's (this only happens if check == nil)
+@@ -281,7 +277,7 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ }
+ 
+ // intersect computes the intersection of the types x and y.
+-// Note: A incomming nil type stands for the top type. A top
++// Note: An incomming nil type stands for the top type. A top
+ // type result is returned as nil.
+ func intersect(x, y Type) (r Type) {
+ 	defer func() {
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 7bb026414f..a72c0dc1fd 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -288,6 +288,9 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 			return true
+ 		}
+ 
++	case *Union:
++		panic("identical0 not implemented for union types")
++
+ 	case *Interface:
+ 		// Two interface types are identical if they have the same set of methods with
+ 		// the same names and identical function types. Lower-case method names from
+diff --git a/src/go/types/sanitize.go b/src/go/types/sanitize.go
+index 88fc3f8377..b9fd56001d 100644
+--- a/src/go/types/sanitize.go
++++ b/src/go/types/sanitize.go
+@@ -110,11 +110,11 @@ func (s sanitizer) typ(typ Type) Type {
+ 	case *_Sum:
+ 		s.typeList(t.types)
+ 
++	case *Union:
++		s.typeList(t.terms)
++
+ 	case *Interface:
+ 		s.funcList(t.methods)
+-		if types := s.typ(t.types); types != t.types {
+-			t.types = types
+-		}
+ 		s.typeList(t.embeddeds)
+ 		s.funcList(t.allMethods)
+ 		if allTypes := s.typ(t.allTypes); allTypes != t.allTypes {
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 3af9079a85..7454831843 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -27,7 +27,8 @@ func TestSizeof(t *testing.T) {
+ 		{Tuple{}, 12, 24},
+ 		{Signature{}, 44, 88},
+ 		{_Sum{}, 12, 24},
+-		{Interface{}, 60, 120},
++		{Union{}, 24, 48},
++		{Interface{}, 52, 104},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+ 		{Named{}, 68, 136},
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 67052bb816..ae5d765a89 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -150,6 +150,8 @@ func (s *StdSizes) Sizeof(T Type) int64 {
+ 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
+ 	case *_Sum:
+ 		panic("Sizeof unimplemented for type sum")
++	case *Union:
++		panic("Sizeof unimplemented for type union")
+ 	case *Interface:
+ 		return s.WordSize * 2
+ 	}
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 47b0c279db..d79c07a2fc 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -311,15 +311,19 @@ func (subst *subster) typ(typ Type) Type {
+ 			return _NewSum(types)
+ 		}
+ 
++	case *Union:
++		terms, copied := subst.typeList(t.terms)
++		if copied {
++			// TODO(gri) Do we need to remove duplicates that may have
++			//           crept in after substitution? It may not matter.
++			return newUnion(terms, t.tilde)
++		}
++
+ 	case *Interface:
+ 		methods, mcopied := subst.funcList(t.methods)
+-		types := t.types
+-		if t.types != nil {
+-			types = subst.typ(t.types)
+-		}
+ 		embeddeds, ecopied := subst.typeList(t.embeddeds)
+-		if mcopied || types != t.types || ecopied {
+-			iface := &Interface{methods: methods, types: types, embeddeds: embeddeds}
++		if mcopied || ecopied {
++			iface := &Interface{methods: methods, embeddeds: embeddeds}
+ 			if subst.check == nil {
+ 				panic("internal error: cannot instantiate interfaces yet")
+ 			}
+diff --git a/src/go/types/testdata/check/decls0.src b/src/go/types/testdata/check/decls0.src
+index 09904bb303..1224e46377 100644
+--- a/src/go/types/testdata/check/decls0.src
++++ b/src/go/types/testdata/check/decls0.src
+@@ -4,7 +4,7 @@
+ 
+ // type declarations
+ 
+-package decls0
++package go1_17 // don't permit non-interface elements in interfaces
+ 
+ import "unsafe"
+ 
+diff --git a/src/go/types/testdata/check/issues.src b/src/go/types/testdata/check/issues.src
+index e2ac06759b..9d9fc7862f 100644
+--- a/src/go/types/testdata/check/issues.src
++++ b/src/go/types/testdata/check/issues.src
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package issues
++package go1_17 // don't permit non-interface elements in interfaces
+ 
+ import (
+ 	"fmt"
+diff --git a/src/go/types/testdata/check/typeinst2.go2 b/src/go/types/testdata/check/typeinst2.go2
+index 6e2104a515..1096bb42eb 100644
+--- a/src/go/types/testdata/check/typeinst2.go2
++++ b/src/go/types/testdata/check/typeinst2.go2
+@@ -164,12 +164,12 @@ type _ interface {
+ // for them to be all in a single list, and we report the error
+ // as well.)
+ type _ interface {
+-	type int, int /* ERROR duplicate type int */
+-	type /* ERROR multiple type lists */ int /* ERROR duplicate type int */
++	type int, int /* ERROR duplicate term int */
++	type /* ERROR multiple type lists */ int /* ERROR duplicate term int */
+ }
+ 
+ type _ interface {
+-	type struct{f int}, struct{g int}, struct /* ERROR duplicate type */ {f int}
++	type struct{f int}, struct{g int}, struct /* ERROR duplicate term */ {f int}
+ }
+ 
+ // Interface type lists can contain any type, incl. *Named types.
+diff --git a/src/go/types/testdata/examples/constraints.go2 b/src/go/types/testdata/examples/constraints.go2
+new file mode 100644
+index 0000000000..e8b3912884
+--- /dev/null
++++ b/src/go/types/testdata/examples/constraints.go2
+@@ -0,0 +1,25 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file shows some examples of generic constraint interfaces.
++
++package p
++
++type (
++	// Arbitrary types may be embedded like interfaces.
++	_ interface{int}
++	_ interface{~int}
++
++	// Types may be combined into a union.
++	_ interface{int|~string}
++
++	// Union terms must be unique independent of whether they are ~ or not.
++	_ interface{int|int /* ERROR duplicate term int */ }
++	_ interface{int|~ /* ERROR duplicate term int */ int }
++	_ interface{~int|~ /* ERROR duplicate term int */ int }
++
++	// For now we do not permit interfaces with ~ or in unions.
++	_ interface{~ /* ERROR cannot use interface */ interface{}}
++	_ interface{int|interface /* ERROR cannot use interface */ {}}
++)
+diff --git a/src/go/types/testdata/fixedbugs/issue39634.go2 b/src/go/types/testdata/fixedbugs/issue39634.go2
+index a13ed13ce5..c759be0d93 100644
+--- a/src/go/types/testdata/fixedbugs/issue39634.go2
++++ b/src/go/types/testdata/fixedbugs/issue39634.go2
+@@ -36,7 +36,7 @@ func bar8[A foo8[A]](a A) {}
+ func main8() {}
+ 
+ // crash 9
+-type foo9[A any] interface { type foo9 /* ERROR interface contains type constraints */ [A] }
++type foo9[A any] interface { type foo9 /* ERROR cannot use interface */ [A] }
+ func _() { var _ = new(foo9 /* ERROR interface contains type constraints */ [int]) }
+ 
+ // crash 12
+diff --git a/src/go/types/testdata/fixedbugs/issue39693.go2 b/src/go/types/testdata/fixedbugs/issue39693.go2
+index 316ab1982e..ec7641902a 100644
+--- a/src/go/types/testdata/fixedbugs/issue39693.go2
++++ b/src/go/types/testdata/fixedbugs/issue39693.go2
+@@ -4,11 +4,20 @@
+ 
+ package p
+ 
+-type Number interface {
+-	int     /* ERROR int is not an interface */
+-	float64 /* ERROR float64 is not an interface */
++type Number1 interface {
++	// embedding non-interface types is permitted
++	int
++	float64
+ }
+ 
+-func Add[T Number](a, b T) T {
++func Add[T Number1](a, b T) T {
+ 	return a /* ERROR not defined */ + b
+ }
++
++type Number2 interface {
++	int|float64
++}
++
++func Add2[T Number2](a, b T) T {
++	return a + b
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue39711.go2 b/src/go/types/testdata/fixedbugs/issue39711.go2
+index df621a4c17..cf1f90545f 100644
+--- a/src/go/types/testdata/fixedbugs/issue39711.go2
++++ b/src/go/types/testdata/fixedbugs/issue39711.go2
+@@ -7,5 +7,7 @@ package p
+ // Do not report a duplicate type error for this type list.
+ // (Check types after interfaces have been completed.)
+ type _ interface {
+-	type interface{ Error() string }, interface{ String() string }
++	// TODO(rfindley) Once we have full type sets we can enable this again.
++	// Fow now we don't permit interfaces in type lists.
++	// type interface{ Error() string }, interface{ String() string }
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue39723.go2 b/src/go/types/testdata/fixedbugs/issue39723.go2
+index 55464e6b77..61bc606789 100644
+--- a/src/go/types/testdata/fixedbugs/issue39723.go2
++++ b/src/go/types/testdata/fixedbugs/issue39723.go2
+@@ -6,4 +6,4 @@ package p
+ 
+ // A constraint must be an interface; it cannot
+ // be a type parameter, for instance.
+-func _[A interface{ type interface{} }, B A /* ERROR not an interface */ ]()
++func _[A interface{ type int }, B A /* ERROR not an interface */ ]()
+diff --git a/src/go/types/testdata/fixedbugs/issue39948.go2 b/src/go/types/testdata/fixedbugs/issue39948.go2
+index c2b460902c..d83084b52a 100644
+--- a/src/go/types/testdata/fixedbugs/issue39948.go2
++++ b/src/go/types/testdata/fixedbugs/issue39948.go2
+@@ -2,7 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package p
++// TODO(rfindley) Eventually, once we disallow type lists, we need to
++//                adjust this code: for 1.17 we don't accept type parameters,
++//                and for 1.18 this code is valid.
++//                Leaving for now so we can see that existing errors
++//                are being reported.
++
++package go1_17 // don't permit non-interface elements in interfaces
+ 
+ type T[P any] interface{
+ 	P // ERROR P is a type parameter, not an interface
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 4a39499905..d487bf66f9 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -305,7 +305,6 @@ func (s *_Sum) is(pred func(Type) bool) bool {
+ // An Interface represents an interface type.
+ type Interface struct {
+ 	methods   []*Func // ordered list of explicitly declared methods
+-	types     Type    // (possibly a Sum) type declared with a type list (TODO(gri) need better field name)
+ 	embeddeds []Type  // ordered list of explicitly embedded types
+ 
+ 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index ff93f3b3c3..9e860dda22 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -159,11 +159,17 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		writeSignature(buf, t, qf, visited)
+ 
+ 	case *_Sum:
+-		for i, t := range t.types {
++		writeTypeList(buf, t.types, qf, visited)
++
++	case *Union:
++		for i, e := range t.terms {
+ 			if i > 0 {
+-				buf.WriteString(", ")
++				buf.WriteString("|")
+ 			}
+-			writeType(buf, t, qf, visited)
++			if t.tilde[i] {
++				buf.WriteByte('~')
++			}
++			writeType(buf, e, qf, visited)
+ 		}
+ 
+ 	case *Interface:
+@@ -208,14 +214,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				writeSignature(buf, m.typ.(*Signature), qf, visited)
+ 				empty = false
+ 			}
+-			if !empty && t.types != nil {
+-				buf.WriteString("; ")
+-			}
+-			if t.types != nil {
+-				buf.WriteString("type ")
+-				writeType(buf, t.types, qf, visited)
+-				empty = false
+-			}
+ 			if !empty && len(t.embeddeds) > 0 {
+ 				buf.WriteString("; ")
+ 			}
+@@ -301,6 +299,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 
+ 	default:
+ 		// For externally defined implementations of Type.
++		// Note: In this case cycles won't be caught.
+ 		buf.WriteString(t.String())
+ 	}
+ }
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 55ee4b987f..0e35a3dbf1 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -95,6 +95,9 @@ var independentTestTypes = []testEntry{
+ 	dup("interface{}"),
+ 	dup("interface{m()}"),
+ 	dup(`interface{String() string; m(int) float32}`),
++	{"interface{type int, float32, complex128}", "interface{~int|~float32|~complex128}"},
++	dup("interface{int|float32|complex128}"),
++	dup("interface{int|~float32|~complex128}"),
+ 
+ 	// TODO(rFindley) uncomment this once this AST is accepted, and add more test
+ 	// cases.
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index db06e21cf7..4b541df4cd 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -356,6 +356,10 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// This should not happen with the current internal use of sum types.
+ 		panic("type inference across sum types not implemented")
+ 
++	case *Union:
++		// This should not happen with the current internal use of union types.
++		panic("type inference across union types not implemented")
++
+ 	case *Interface:
+ 		// Two interface types are identical if they have the same set of methods with
+ 		// the same names and identical function types. Lower-case method names from
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+new file mode 100644
+index 0000000000..0df200c67b
+--- /dev/null
++++ b/src/go/types/union.go
+@@ -0,0 +1,108 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import (
++	"go/ast"
++	"go/token"
++)
++
++// ----------------------------------------------------------------------------
++// API
++
++// A Union represents a union of terms.
++// A term is a type, possibly with a ~ (tilde) indication.
++type Union struct {
++	terms []Type // terms are unique
++	tilde []bool // if tilde[i] is set, terms[i] is of the form ~T
++}
++
++func NewUnion(terms []Type, tilde []bool) Type { return newUnion(terms, tilde) }
++
++func (u *Union) NumTerms() int           { return len(u.terms) }
++func (u *Union) Term(i int) (Type, bool) { return u.terms[i], u.tilde[i] }
++
++func (u *Union) Underlying() Type { return u }
++func (u *Union) String() string   { return TypeString(u, nil) }
++
++// ----------------------------------------------------------------------------
++// Implementation
++
++func newUnion(terms []Type, tilde []bool) Type {
++	assert(len(terms) == len(tilde))
++	if terms == nil {
++		return nil
++	}
++	t := new(Union)
++	t.terms = terms
++	t.tilde = tilde
++	return t
++}
++
++func parseUnion(check *Checker, tlist []ast.Expr) Type {
++	var terms []Type
++	var tilde []bool
++	for _, x := range tlist {
++		t, d := parseTilde(check, x)
++		if len(tlist) == 1 && !d {
++			return t // single type
++		}
++		terms = append(terms, t)
++		tilde = append(tilde, d)
++	}
++
++	// Ensure that each type is only present once in the type list.
++	// It's ok to do this check at the end because it's not a requirement
++	// for correctness of the code.
++	// Note: This is a quadratic algorithm, but unions tend to be short.
++	check.later(func() {
++		for i, t := range terms {
++			t := expand(t)
++			if t == Typ[Invalid] {
++				continue
++			}
++
++			x := tlist[i]
++			pos := x.Pos()
++			// We may not know the position of x if it was a typechecker-
++			// introduced ~T type of a type list entry T. Use the position
++			// of T instead.
++			// TODO(rfindley) remove this test once we don't support type lists anymore
++			if !pos.IsValid() {
++				if op, _ := x.(*ast.UnaryExpr); op != nil {
++					pos = op.X.Pos()
++				}
++			}
++
++			u := under(t)
++			if tilde[i] {
++				// TODO(rfindley) enable this check once we have converted tests
++				// if !Identical(u, t) {
++				// 	check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", t, u)
++				// }
++			}
++			if _, ok := u.(*Interface); ok {
++				check.errorf(atPos(pos), _Todo, "cannot use interface %s with ~ or inside a union (implementation restriction)", t)
++			}
++
++			// Complain about duplicate entries a|a, but also a|~a, and ~a|~a.
++			if includes(terms[:i], t) {
++				// TODO(rfindley) this currently doesn't print the ~ if present
++				check.softErrorf(atPos(pos), _Todo, "duplicate term %s in union element", t)
++			}
++		}
++	})
++
++	return newUnion(terms, tilde)
++}
++
++func parseTilde(check *Checker, x ast.Expr) (Type, bool) {
++	tilde := false
++	if op, _ := x.(*ast.UnaryExpr); op != nil && op.Op == token.TILDE {
++		x = op.X
++		tilde = true
++	}
++	return check.anyType(x), tilde
++}

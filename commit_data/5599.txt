@@ -7,6 +7,20 @@ Date:   Thu Jun 3 13:16:09 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1522041
-
+---
  src/pkg/netchan/netchan_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/netchan/netchan_test.go b/src/pkg/netchan/netchan_test.go
+index 1981a00c9e..ca3f4d4c79 100644
+--- a/src/pkg/netchan/netchan_test.go
++++ b/src/pkg/netchan/netchan_test.go
+@@ -50,7 +50,7 @@ func importReceive(imp *Importer, t *testing.T) {
+ 		v := <-ch
+ 		if closed(ch) {
+ 			if i != closeCount {
+-				t.Errorf("expected close at %d; got one at %d\n", count/2, i)
++				t.Errorf("expected close at %d; got one at %d\n", closeCount, i)
+ 			}
+ 			break
+ 		}

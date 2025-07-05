@@ -12,7 +12,100 @@ Date:   Wed Dec 11 14:24:19 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210177
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go      | 38 +++++++++++++++++++++++++++++
  src/cmd/link/internal/loader/loader_test.go | 11 +++++++++
  2 files changed, 49 insertions(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index b28ba467dd..911fe69ec7 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -15,6 +15,7 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"fmt"
+ 	"log"
++	"math/bits"
+ 	"os"
+ 	"sort"
+ 	"strconv"
+@@ -193,6 +194,8 @@ type Loader struct {
+ 	outer map[Sym]Sym
+ 	sub   map[Sym]Sym
+ 
++	align map[Sym]int32 // stores alignment for symbols
++
+ 	// Used to implement field tracking; created during deadcode if
+ 	// field tracking is enabled. Reachparent[K] contains the index of
+ 	// the symbol that triggered the marking of symbol K as live.
+@@ -230,6 +233,7 @@ func NewLoader(flags uint32) *Loader {
+ 		objByPkg:      make(map[string]*oReader),
+ 		outer:         make(map[Sym]Sym),
+ 		sub:           make(map[Sym]Sym),
++		align:         make(map[Sym]int32),
+ 		overwrite:     make(map[Sym]Sym),
+ 		itablink:      make(map[Sym]struct{}),
+ 		extStaticSyms: make(map[nameVer]Sym),
+@@ -906,6 +910,40 @@ func (l *Loader) Data(i Sym) []byte {
+ 	return r.Data(li)
+ }
+ 
++// SymAlign returns the alignment for a symbol.
++func (l *Loader) SymAlign(i Sym) int32 {
++	// If an alignment has been recorded, return that.
++	if align, ok := l.align[i]; ok {
++		return align
++	}
++	// TODO: would it make sense to return an arch-specific
++	// alignment depending on section type? E.g. STEXT => 32,
++	// SDATA => 1, etc?
++	return 0
++}
++
++// SetSymAlign sets the alignment for a symbol.
++func (l *Loader) SetSymAlign(i Sym, align int32) {
++	// reject bad synbols
++	if i > l.max || i == 0 {
++		panic("bad symbol index in SetSymAlign")
++	}
++	// Reject nonsense alignments.
++	// TODO: do we need this?
++	if align < 0 {
++		panic("bad alignment value")
++	}
++	if align == 0 {
++		delete(l.align, i)
++	} else {
++		// Alignment should be a power of 2.
++		if bits.OnesCount32(uint32(align)) != 1 {
++			panic("bad alignment value")
++		}
++		l.align[i] = align
++	}
++}
++
+ // Returns the number of aux symbols given a global index.
+ func (l *Loader) NAux(i Sym) int {
+ 	if l.IsExternal(i) {
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index a2967831e8..92ade70b8f 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -109,6 +109,17 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 			t.Errorf("ldr.SetValue(%d,%d): expected %d got %d\n", s, nv, nv, v)
+ 		}
+ 	}
++
++	// Check/set alignment
++	es3al := ldr.SymAlign(es3)
++	if es3al != 0 {
++		t.Errorf("SymAlign(es3): expected 0, got %d", es3al)
++	}
++	ldr.SetSymAlign(es3, 128)
++	es3al = ldr.SymAlign(es3)
++	if es3al != 128 {
++		t.Errorf("SymAlign(es3): expected 128, got %d", es3al)
++	}
+ }
+ 
+ func TestOuterSub(t *testing.T) {

@@ -11,8 +11,67 @@ Date:   Fri Jun 20 14:44:09 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/testing/synctest/helper_test.go   | 15 +++++++++++++++
  src/testing/synctest/synctest_test.go | 12 ++++++++++++
  src/testing/testing.go                |  3 +++
  3 files changed, 30 insertions(+)
+
+diff --git a/src/testing/synctest/helper_test.go b/src/testing/synctest/helper_test.go
+new file mode 100644
+index 0000000000..7547d3eac6
+--- /dev/null
++++ b/src/testing/synctest/helper_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package synctest_test
++
++import "testing"
++
++// helperLog is a t.Helper which logs.
++// Since it is a helper, the log prefix should contain
++// the caller's file, not helper_test.go.
++func helperLog(t *testing.T, s string) {
++	t.Helper()
++	t.Log(s)
++}
+diff --git a/src/testing/synctest/synctest_test.go b/src/testing/synctest/synctest_test.go
+index 822fd6fe1c..9c73178750 100644
+--- a/src/testing/synctest/synctest_test.go
++++ b/src/testing/synctest/synctest_test.go
+@@ -140,6 +140,18 @@ func TestRun(t *testing.T) {
+ 	})
+ }
+ 
++func TestHelper(t *testing.T) {
++	runTest(t, []string{"-test.v"}, func() {
++		synctest.Test(t, func(t *testing.T) {
++			helperLog(t, "log in helper")
++		})
++	}, `^=== RUN   TestHelper
++    synctest_test.go:.* log in helper
++--- PASS: TestHelper.*
++PASS
++$`)
++}
++
+ func wantPanic(t *testing.T, want string) {
+ 	if e := recover(); e != nil {
+ 		if got := fmt.Sprint(e); got != want {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index b2d4c0c938..3475bfca4a 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1261,6 +1261,9 @@ func (c *common) Skipped() bool {
+ // When printing file and line information, that function will be skipped.
+ // Helper may be called simultaneously from multiple goroutines.
+ func (c *common) Helper() {
++	if c.isSynctest {
++		c = c.parent
++	}
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+ 	if c.helperPCs == nil {

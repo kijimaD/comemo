@@ -7,6 +7,20 @@ Date:   Wed Sep 22 11:42:40 2010 +1000
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/2213044
-
+---
  misc/dashboard/builder/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index d13e05b733..0302638bd3 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -217,7 +217,7 @@ func (b *Builder) nextCommit() (nextC *Commit, err os.Error) {
+ 	}
+ 	next := c.num + 1
+ 	c, err = getCommit(strconv.Itoa(next))
+-	if err == nil || c.num == next {
++	if err == nil && c.num == next {
+ 		return &c, nil
+ 	}
+ 	return nil, nil

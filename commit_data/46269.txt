@@ -21,6 +21,36 @@ Date:   Mon Dec 14 13:03:06 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 16 ++++++++++++++--
  1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f3c301cc9b..833b3eb9db 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1560,10 +1560,22 @@ func (ctxt *Link) hostlink() {
+ 		checkStatic(p)
+ 	}
+ 	if ctxt.HeadType == objabi.Hwindows {
++		// Determine which linker we're using. Add in the extldflags in
++		// case used has specified "-fuse-ld=...".
++		cmd := exec.Command(*flagExtld, *flagExtldflags, "-Wl,--version")
++		usingLLD := false
++		if out, err := cmd.CombinedOutput(); err == nil {
++			if bytes.Contains(out, []byte("LLD ")) {
++				usingLLD = true
++			}
++		}
++
+ 		// use gcc linker script to work around gcc bug
+ 		// (see https://golang.org/issue/20183 for details).
+-		p := writeGDBLinkerScript()
+-		argv = append(argv, "-Wl,-T,"+p)
++		if !usingLLD {
++			p := writeGDBLinkerScript()
++			argv = append(argv, "-Wl,-T,"+p)
++		}
+ 		// libmingw32 and libmingwex have some inter-dependencies,
+ 		// so must use linker groups.
+ 		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")

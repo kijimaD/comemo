@@ -31,10 +31,515 @@ Date:   Wed Apr 4 13:15:22 2018 +0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/alg.go            |  24 ++-
  src/runtime/asm_arm64.s       | 393 ++++++++++++++++++++++++++++++++++++++++--
  src/runtime/hash64.go         |   3 +-
  src/runtime/os_linux_arm64.go |   4 +-
  src/runtime/runtime2.go       |   2 +
  5 files changed, 402 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 89125f48ba..cc723e49e2 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -272,25 +272,24 @@ func ifaceHash(i interface {
+ 
+ const hashRandomBytes = sys.PtrSize / 4 * 64
+ 
+-// used in asm_{386,amd64}.s to seed the hash function
++// used in asm_{386,amd64,arm64}.s to seed the hash function
+ var aeskeysched [hashRandomBytes]byte
+ 
+ // used in hash{32,64}.go to seed the hash function
+ var hashkey [4]uintptr
+ 
+ func alginit() {
+-	// Install aes hash algorithm if we have the instructions we need
++	// Install AES hash algorithms if the instructions needed are present.
+ 	if (GOARCH == "386" || GOARCH == "amd64") &&
+ 		GOOS != "nacl" &&
+ 		support_aes && // AESENC
+ 		support_ssse3 && // PSHUFB
+ 		support_sse41 { // PINSR{D,Q}
+-		useAeshash = true
+-		algarray[alg_MEM32].hash = aeshash32
+-		algarray[alg_MEM64].hash = aeshash64
+-		algarray[alg_STRING].hash = aeshashstr
+-		// Initialize with random data so hash collisions will be hard to engineer.
+-		getRandomData(aeskeysched[:])
++		initAlgAES()
++		return
++	}
++	if GOARCH == "arm64" && arm64_support_aes {
++		initAlgAES()
+ 		return
+ 	}
+ 	getRandomData((*[len(hashkey) * sys.PtrSize]byte)(unsafe.Pointer(&hashkey))[:])
+@@ -299,3 +298,12 @@ func alginit() {
+ 	hashkey[2] |= 1
+ 	hashkey[3] |= 1
+ }
++
++func initAlgAES() {
++	useAeshash = true
++	algarray[alg_MEM32].hash = aeshash32
++	algarray[alg_MEM64].hash = aeshash64
++	algarray[alg_STRING].hash = aeshashstr
++	// Initialize with random data so hash collisions will be hard to engineer.
++	getRandomData(aeskeysched[:])
++}
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 2b39d2ec72..1e0d71ab3b 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -436,20 +436,385 @@ CALLFN(·call268435456, 268435464 )
+ CALLFN(·call536870912, 536870920 )
+ CALLFN(·call1073741824, 1073741832 )
+ 
+-// AES hashing not implemented for ARM64, issue #10109.
+-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	$0, R0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	$0, R0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	$0, R0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	$0, R0
+-	MOVW	(R0), R1
+-	
++// func aeshash32(p unsafe.Pointer, h uintptr) uintptr
++TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-24
++	MOVD	p+0(FP), R0
++	MOVD	h+8(FP), R1
++	MOVD	$ret+16(FP), R2
++	MOVD	$runtime·aeskeysched+0(SB), R3
++
++	VEOR	V0.B16, V0.B16, V0.B16
++	VLD1	(R3), [V2.B16]
++	VLD1	(R0), V0.S[1]
++	VMOV	R1, V0.S[0]
++
++	AESE	V2.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V2.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V2.B16, V0.B16
++
++	VST1	[V0.D1], (R2)
++	RET
++
++// func aeshash64(p unsafe.Pointer, h uintptr) uintptr
++TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-24
++	MOVD	p+0(FP), R0
++	MOVD	h+8(FP), R1
++	MOVD	$ret+16(FP), R2
++	MOVD	$runtime·aeskeysched+0(SB), R3
++
++	VEOR	V0.B16, V0.B16, V0.B16
++	VLD1	(R3), [V2.B16]
++	VLD1	(R0), V0.D[1]
++	VMOV	R1, V0.D[0]
++
++	AESE	V2.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V2.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	AESE	V2.B16, V0.B16
++
++	VST1	[V0.D1], (R2)
++	RET
++
++// func aeshash(p unsafe.Pointer, h, size uintptr) uintptr
++TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-32
++	MOVD	p+0(FP), R0
++	MOVD	s+16(FP), R1
++	MOVWU	h+8(FP), R3
++	MOVD	$ret+24(FP), R2
++	B	aeshashbody<>(SB)
++
++// func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
++TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-24
++	MOVD	p+0(FP), R10 // string pointer
++	LDP	(R10), (R0, R1) //string data/ length
++	MOVWU	h+8(FP), R3
++	MOVD	$ret+16(FP), R2 // return adddress
++	B	aeshashbody<>(SB)
++
++// R0: data
++// R1: length (maximum 32 bits)
++// R2: address to put return value
++// R3: seed data
++TEXT aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
++	VEOR	V30.B16, V30.B16, V30.B16
++	VMOV	R3, V30.S[0]
++	VMOV	R1, V30.S[1] // load length into seed
++
++	MOVD	$runtime·aeskeysched+0(SB), R4
++	VLD1.P	16(R4), [V0.B16]
++	AESE	V30.B16, V0.B16
++	AESMC	V0.B16, V0.B16
++	CMP	$16, R1
++	BLO	aes0to15
++	BEQ	aes16
++	CMP	$32, R1
++	BLS	aes17to32
++	CMP	$64, R1
++	BLS	aes33to64
++	CMP	$128, R1
++	BLS	aes65to128
++	B	aes129plus
++
++aes0to15:
++	CMP	$0, R1
++	BEQ	aes0
++	VEOR	V2.B16, V2.B16, V2.B16
++	TBZ	$3, R1, less_than_8
++	VLD1.P	8(R0), V2.D[0]
++
++less_than_8:
++	TBZ	$2, R1, less_than_4
++	VLD1.P	4(R0), V2.S[2]
++
++less_than_4:
++	TBZ	$1, R1, less_than_2
++	VLD1.P	2(R0), V2.H[6]
++
++less_than_2:
++	TBZ	$0, R1, done
++	VLD1	(R0), V2.B[14]
++done:
++	AESE	V0.B16, V2.B16
++	AESMC	V2.B16, V2.B16
++	AESE	V0.B16, V2.B16
++	AESMC	V2.B16, V2.B16
++	AESE	V0.B16, V2.B16
++
++	VST1	[V2.D1], (R2)
++	RET
++aes0:
++	VST1	[V0.D1], (R2)
++	RET
++aes16:
++	VLD1	(R0), [V2.B16]
++	B	done
++
++aes17to32:
++	// make second seed
++	VLD1	(R4), [V1.B16]
++	AESE	V30.B16, V1.B16
++	AESMC	V1.B16, V1.B16
++	SUB	$16, R1, R10
++	VLD1.P	(R0)(R10), [V2.B16]
++	VLD1	(R0), [V3.B16]
++
++	AESE	V0.B16, V2.B16
++	AESMC	V2.B16, V2.B16
++	AESE	V1.B16, V3.B16
++	AESMC	V3.B16, V3.B16
++
++	AESE	V0.B16, V2.B16
++	AESMC	V2.B16, V2.B16
++	AESE	V1.B16, V3.B16
++	AESMC	V3.B16, V3.B16
++
++	AESE	V0.B16, V2.B16
++	AESE	V1.B16, V3.B16
++
++	VEOR	V3.B16, V2.B16, V2.B16
++	VST1	[V2.D1], (R2)
++	RET
++
++aes33to64:
++	VLD1	(R4), [V1.B16, V2.B16, V3.B16]
++	AESE	V30.B16, V1.B16
++	AESMC	V1.B16, V1.B16
++	AESE	V30.B16, V2.B16
++	AESMC	V2.B16, V2.B16
++	AESE	V30.B16, V3.B16
++	AESMC	V3.B16, V3.B16
++	SUB	$32, R1, R10
++
++	VLD1.P	(R0)(R10), [V4.B16, V5.B16]
++	VLD1	(R0), [V6.B16, V7.B16]
++
++	AESE	V0.B16, V4.B16
++	AESMC	V4.B16, V4.B16
++	AESE	V1.B16, V5.B16
++	AESMC	V5.B16, V5.B16
++	AESE	V2.B16, V6.B16
++	AESMC	V6.B16, V6.B16
++	AESE	V3.B16, V7.B16
++	AESMC	V7.B16, V7.B16
++
++	AESE	V0.B16, V4.B16
++	AESMC	V4.B16, V4.B16
++	AESE	V1.B16, V5.B16
++	AESMC	V5.B16, V5.B16
++	AESE	V2.B16, V6.B16
++	AESMC	V6.B16, V6.B16
++	AESE	V3.B16, V7.B16
++	AESMC	V7.B16, V7.B16
++
++	AESE	V0.B16, V4.B16
++	AESE	V1.B16, V5.B16
++	AESE	V2.B16, V6.B16
++	AESE	V3.B16, V7.B16
++
++	VEOR	V6.B16, V4.B16, V4.B16
++	VEOR	V7.B16, V5.B16, V5.B16
++	VEOR	V5.B16, V4.B16, V4.B16
++
++	VST1	[V4.D1], (R2)
++	RET
++
++aes65to128:
++	VLD1.P	64(R4), [V1.B16, V2.B16, V3.B16, V4.B16]
++	VLD1	(R4), [V5.B16, V6.B16, V7.B16]
++	AESE	V30.B16, V1.B16
++	AESMC	V1.B16, V1.B16
++	AESE	V30.B16, V2.B16
++	AESMC	V2.B16, V2.B16
++	AESE	V30.B16, V3.B16
++	AESMC	V3.B16, V3.B16
++	AESE	V30.B16, V4.B16
++	AESMC	V4.B16, V4.B16
++	AESE	V30.B16, V5.B16
++	AESMC	V5.B16, V5.B16
++	AESE	V30.B16, V6.B16
++	AESMC	V6.B16, V6.B16
++	AESE	V30.B16, V7.B16
++	AESMC	V7.B16, V7.B16
++
++	SUB	$64, R1, R10
++	VLD1.P	(R0)(R10), [V8.B16, V9.B16, V10.B16, V11.B16]
++	VLD1	(R0), [V12.B16, V13.B16, V14.B16, V15.B16]
++	AESE	V0.B16,	 V8.B16
++	AESMC	V8.B16,  V8.B16
++	AESE	V1.B16,	 V9.B16
++	AESMC	V9.B16,  V9.B16
++	AESE	V2.B16, V10.B16
++	AESMC	V10.B16,  V10.B16
++	AESE	V3.B16, V11.B16
++	AESMC	V11.B16,  V11.B16
++	AESE	V4.B16, V12.B16
++	AESMC	V12.B16,  V12.B16
++	AESE	V5.B16, V13.B16
++	AESMC	V13.B16,  V13.B16
++	AESE	V6.B16, V14.B16
++	AESMC	V14.B16,  V14.B16
++	AESE	V7.B16, V15.B16
++	AESMC	V15.B16,  V15.B16
++
++	AESE	V0.B16,	 V8.B16
++	AESMC	V8.B16,  V8.B16
++	AESE	V1.B16,	 V9.B16
++	AESMC	V9.B16,  V9.B16
++	AESE	V2.B16, V10.B16
++	AESMC	V10.B16,  V10.B16
++	AESE	V3.B16, V11.B16
++	AESMC	V11.B16,  V11.B16
++	AESE	V4.B16, V12.B16
++	AESMC	V12.B16,  V12.B16
++	AESE	V5.B16, V13.B16
++	AESMC	V13.B16,  V13.B16
++	AESE	V6.B16, V14.B16
++	AESMC	V14.B16,  V14.B16
++	AESE	V7.B16, V15.B16
++	AESMC	V15.B16,  V15.B16
++
++	AESE	V0.B16,	 V8.B16
++	AESE	V1.B16,	 V9.B16
++	AESE	V2.B16, V10.B16
++	AESE	V3.B16, V11.B16
++	AESE	V4.B16, V12.B16
++	AESE	V5.B16, V13.B16
++	AESE	V6.B16, V14.B16
++	AESE	V7.B16, V15.B16
++
++	VEOR	V12.B16, V8.B16, V8.B16
++	VEOR	V13.B16, V9.B16, V9.B16
++	VEOR	V14.B16, V10.B16, V10.B16
++	VEOR	V15.B16, V11.B16, V11.B16
++	VEOR	V10.B16, V8.B16, V8.B16
++	VEOR	V11.B16, V9.B16, V9.B16
++	VEOR	V9.B16, V8.B16, V8.B16
++
++	VST1	[V8.D1], (R2)
++	RET
++
++aes129plus:
++	PRFM (R0), PLDL1KEEP
++	VLD1.P	64(R4), [V1.B16, V2.B16, V3.B16, V4.B16]
++	VLD1	(R4), [V5.B16, V6.B16, V7.B16]
++	AESE	V30.B16, V1.B16
++	AESMC	V1.B16, V1.B16
++	AESE	V30.B16, V2.B16
++	AESMC	V2.B16, V2.B16
++	AESE	V30.B16, V3.B16
++	AESMC	V3.B16, V3.B16
++	AESE	V30.B16, V4.B16
++	AESMC	V4.B16, V4.B16
++	AESE	V30.B16, V5.B16
++	AESMC	V5.B16, V5.B16
++	AESE	V30.B16, V6.B16
++	AESMC	V6.B16, V6.B16
++	AESE	V30.B16, V7.B16
++	AESMC	V7.B16, V7.B16
++	ADD	R0, R1, R10
++	SUB	$128, R10, R10
++	VLD1.P	64(R10), [V8.B16, V9.B16, V10.B16, V11.B16]
++	VLD1	(R10), [V12.B16, V13.B16, V14.B16, V15.B16]
++	SUB	$1, R1, R1
++	LSR	$7, R1, R1
++
++aesloop:
++	AESE	V8.B16,	 V0.B16
++	AESMC	V0.B16,  V0.B16
++	AESE	V9.B16,	 V1.B16
++	AESMC	V1.B16,  V1.B16
++	AESE	V10.B16, V2.B16
++	AESMC	V2.B16,  V2.B16
++	AESE	V11.B16, V3.B16
++	AESMC	V3.B16,  V3.B16
++	AESE	V12.B16, V4.B16
++	AESMC	V4.B16,  V4.B16
++	AESE	V13.B16, V5.B16
++	AESMC	V5.B16,  V5.B16
++	AESE	V14.B16, V6.B16
++	AESMC	V6.B16,  V6.B16
++	AESE	V15.B16, V7.B16
++	AESMC	V7.B16,  V7.B16
++
++	VLD1.P	64(R0), [V8.B16, V9.B16, V10.B16, V11.B16]
++	AESE	V8.B16,	 V0.B16
++	AESMC	V0.B16,  V0.B16
++	AESE	V9.B16,	 V1.B16
++	AESMC	V1.B16,  V1.B16
++	AESE	V10.B16, V2.B16
++	AESMC	V2.B16,  V2.B16
++	AESE	V11.B16, V3.B16
++	AESMC	V3.B16,  V3.B16
++
++	VLD1.P	64(R0), [V12.B16, V13.B16, V14.B16, V15.B16]
++	AESE	V12.B16, V4.B16
++	AESMC	V4.B16,  V4.B16
++	AESE	V13.B16, V5.B16
++	AESMC	V5.B16,  V5.B16
++	AESE	V14.B16, V6.B16
++	AESMC	V6.B16,  V6.B16
++	AESE	V15.B16, V7.B16
++	AESMC	V7.B16,  V7.B16
++	SUB	$1, R1, R1
++	CBNZ	R1, aesloop
++
++	AESE	V8.B16,	 V0.B16
++	AESMC	V0.B16,  V0.B16
++	AESE	V9.B16,	 V1.B16
++	AESMC	V1.B16,  V1.B16
++	AESE	V10.B16, V2.B16
++	AESMC	V2.B16,  V2.B16
++	AESE	V11.B16, V3.B16
++	AESMC	V3.B16,  V3.B16
++	AESE	V12.B16, V4.B16
++	AESMC	V4.B16,  V4.B16
++	AESE	V13.B16, V5.B16
++	AESMC	V5.B16,  V5.B16
++	AESE	V14.B16, V6.B16
++	AESMC	V6.B16,  V6.B16
++	AESE	V15.B16, V7.B16
++	AESMC	V7.B16,  V7.B16
++
++	AESE	V8.B16,	 V0.B16
++	AESMC	V0.B16,  V0.B16
++	AESE	V9.B16,	 V1.B16
++	AESMC	V1.B16,  V1.B16
++	AESE	V10.B16, V2.B16
++	AESMC	V2.B16,  V2.B16
++	AESE	V11.B16, V3.B16
++	AESMC	V3.B16,  V3.B16
++	AESE	V12.B16, V4.B16
++	AESMC	V4.B16,  V4.B16
++	AESE	V13.B16, V5.B16
++	AESMC	V5.B16,  V5.B16
++	AESE	V14.B16, V6.B16
++	AESMC	V6.B16,  V6.B16
++	AESE	V15.B16, V7.B16
++	AESMC	V7.B16,  V7.B16
++
++	AESE	V8.B16,	 V0.B16
++	AESE	V9.B16,	 V1.B16
++	AESE	V10.B16, V2.B16
++	AESE	V11.B16, V3.B16
++	AESE	V12.B16, V4.B16
++	AESE	V13.B16, V5.B16
++	AESE	V14.B16, V6.B16
++	AESE	V15.B16, V7.B16
++
++	VEOR	V0.B16, V1.B16, V0.B16
++	VEOR	V2.B16, V3.B16, V2.B16
++	VEOR	V4.B16, V5.B16, V4.B16
++	VEOR	V6.B16, V7.B16, V6.B16
++	VEOR	V0.B16, V2.B16, V0.B16
++	VEOR	V4.B16, V6.B16, V4.B16
++	VEOR	V4.B16, V0.B16, V0.B16
++
++	VST1	[V0.D1], (R2)
++	RET
++
+ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+ 	MOVWU	cycles+0(FP), R0
+ again:
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+index 3cf3f4629b..54098d9d2a 100644
+--- a/src/runtime/hash64.go
++++ b/src/runtime/hash64.go
+@@ -21,7 +21,8 @@ const (
+ )
+ 
+ func memhash(p unsafe.Pointer, seed, s uintptr) uintptr {
+-	if GOARCH == "amd64" && GOOS != "nacl" && useAeshash {
++	if (GOARCH == "amd64" || GOARCH == "arm64") &&
++		GOOS != "nacl" && useAeshash {
+ 		return aeshash(p, seed, s)
+ 	}
+ 	h := uint64(seed + s*hashkey[0])
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index 96827e7c9f..9342a042ac 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -15,8 +15,9 @@ var randomNumber uint32
+ // HWCAP/HWCAP2 bits for hardware capabilities.
+ 
+ //go:linkname cpu_hwcap internal/cpu.arm64_hwcap
+-//go:linkname cpu_hwcap2 internal/cpu.arm64_hwcap2
+ var cpu_hwcap uint
++
++//go:linkname cpu_hwcap2 internal/cpu.arm64_hwcap2
+ var cpu_hwcap2 uint
+ 
+ func archauxv(tag, val uintptr) {
+@@ -28,6 +29,7 @@ func archauxv(tag, val uintptr) {
+ 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+ 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
+ 	case _AT_HWCAP:
++		arm64_support_aes = ((val>>3)&0x1 == 0x1)
+ 		cpu_hwcap = uint(val)
+ 	case _AT_HWCAP2:
+ 		cpu_hwcap2 = uint(val)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 059e14e002..72a80a6907 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -784,6 +784,8 @@ var (
+ 	support_sse42        bool
+ 	support_ssse3        bool
+ 
++	arm64_support_aes bool
++
+ 	goarm                uint8 // set by cmd/link on arm systems
+ 	framepointer_enabled bool  // set by cmd/link
+ )

@@ -11,7 +11,461 @@ Date:   Thu Feb 25 17:27:10 2016 -0800
     Change-Id: I8ea426f986d60d35c3b1a80c056a7aa49d22d802
     Reviewed-on: https://go-review.googlesource.com/19928
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go    | 181 ++++++++++++++++++----------------
  src/cmd/compile/internal/gc/parser.go |  72 +++-----------
  2 files changed, 111 insertions(+), 142 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index c15fefb71d..51cee2d851 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -871,11 +871,24 @@ type lexer struct {
+ 
+ 	// current token
+ 	tok  int32
+-	sym_ *Sym // valid if tok == LNAME
+-	val  Val  // valid if tok == LLITERAL
+-	op   Op   // valid if tok == LASOP
++	sym_ *Sym   // valid if tok == LNAME
++	val  Val    // valid if tok == LLITERAL
++	op   Op     // valid if tok == LASOP or LINCOP, or prec > 0
++	prec OpPrec // operator precedence; 0 if not a binary operator
+ }
+ 
++type OpPrec int
++
++const (
++	// Precedences of binary operators (must be > 0).
++	PCOMM OpPrec = 1 + iota
++	POROR
++	PANDAND
++	PCMP
++	PADD
++	PMUL
++)
++
+ const (
+ 	// The value of single-char tokens is just their character's Unicode value.
+ 	// They are all below utf8.RuneSelf. Shift other tokens up to avoid conflicts.
+@@ -912,12 +925,11 @@ const (
+ 	LANDAND
+ 	LANDNOT
+ 	LCOMM
+-	LDEC
+ 	LEQ
+ 	LGE
+ 	LGT
+ 	LIGNORE
+-	LINC
++	LINCOP
+ 	LLE
+ 	LLSH
+ 	LLT
+@@ -929,6 +941,7 @@ const (
+ func (l *lexer) next() {
+ 	nlsemi := l.nlsemi
+ 	l.nlsemi = false
++	l.prec = 0
+ 
+ l0:
+ 	// skip white space
+@@ -963,6 +976,7 @@ l0:
+ 
+ 	var c1 rune
+ 	var op Op
++	var prec OpPrec
+ 
+ 	switch c {
+ 	case EOF:
+@@ -1056,10 +1070,9 @@ l0:
+ 			}
+ 		}
+ 
+-		if c1 == '=' {
+-			op = ODIV
+-			goto asop
+-		}
++		op = ODIV
++		prec = PMUL
++		goto binop1
+ 
+ 	case ':':
+ 		c1 = l.getr()
+@@ -1069,94 +1082,75 @@ l0:
+ 		}
+ 
+ 	case '*':
+-		c1 = l.getr()
+-		if c1 == '=' {
+-			op = OMUL
+-			goto asop
+-		}
++		op = OMUL
++		prec = PMUL
++		goto binop
+ 
+ 	case '%':
+-		c1 = l.getr()
+-		if c1 == '=' {
+-			op = OMOD
+-			goto asop
+-		}
++		op = OMOD
++		prec = PMUL
++		goto binop
+ 
+ 	case '+':
+-		c1 = l.getr()
+-		if c1 == '+' {
+-			l.nlsemi = true
+-			c = LINC
+-			goto lx
+-		}
+-
+-		if c1 == '=' {
+-			op = OADD
+-			goto asop
+-		}
++		op = OADD
++		goto incop
+ 
+ 	case '-':
+-		c1 = l.getr()
+-		if c1 == '-' {
+-			l.nlsemi = true
+-			c = LDEC
+-			goto lx
+-		}
+-
+-		if c1 == '=' {
+-			op = OSUB
+-			goto asop
+-		}
++		op = OSUB
++		goto incop
+ 
+ 	case '>':
+ 		c1 = l.getr()
+ 		if c1 == '>' {
+ 			c = LRSH
+-			c1 = l.getr()
+-			if c1 == '=' {
+-				op = ORSH
+-				goto asop
+-			}
+-
+-			break
++			op = ORSH
++			prec = PMUL
++			goto binop
+ 		}
+ 
++		l.prec = PCMP
+ 		if c1 == '=' {
+ 			c = LGE
++			l.op = OGE
+ 			goto lx
+ 		}
+-
+ 		c = LGT
++		l.op = OGT
+ 
+ 	case '<':
+ 		c1 = l.getr()
+ 		if c1 == '<' {
+ 			c = LLSH
+-			c1 = l.getr()
+-			if c1 == '=' {
+-				op = OLSH
+-				goto asop
+-			}
+-
+-			break
+-		}
+-
+-		if c1 == '=' {
+-			c = LLE
+-			goto lx
++			op = OLSH
++			prec = PMUL
++			goto binop
+ 		}
+ 
+ 		if c1 == '-' {
+ 			c = LCOMM
++			// Not a binary operator, but parsed as one
++			// so we can give a good error message when used
++			// in an expression context.
++			l.prec = PCOMM
++			l.op = OSEND
+ 			goto lx
+ 		}
+ 
++		l.prec = PCMP
++		if c1 == '=' {
++			c = LLE
++			l.op = OLE
++			goto lx
++		}
+ 		c = LLT
++		l.op = OLT
+ 
+ 	case '=':
+ 		c1 = l.getr()
+ 		if c1 == '=' {
+ 			c = LEQ
++			l.prec = PCMP
++			l.op = OEQ
+ 			goto lx
+ 		}
+ 
+@@ -1164,6 +1158,8 @@ l0:
+ 		c1 = l.getr()
+ 		if c1 == '=' {
+ 			c = LNE
++			l.prec = PCMP
++			l.op = ONE
+ 			goto lx
+ 		}
+ 
+@@ -1171,43 +1167,39 @@ l0:
+ 		c1 = l.getr()
+ 		if c1 == '&' {
+ 			c = LANDAND
++			l.prec = PANDAND
++			l.op = OANDAND
+ 			goto lx
+ 		}
+ 
+ 		if c1 == '^' {
+ 			c = LANDNOT
+-			c1 = l.getr()
+-			if c1 == '=' {
+-				op = OANDNOT
+-				goto asop
+-			}
+-
+-			break
++			op = OANDNOT
++			prec = PMUL
++			goto binop
+ 		}
+ 
+-		if c1 == '=' {
+-			op = OAND
+-			goto asop
+-		}
++		op = OAND
++		prec = PMUL
++		goto binop1
+ 
+ 	case '|':
+ 		c1 = l.getr()
+ 		if c1 == '|' {
+ 			c = LOROR
++			l.prec = POROR
++			l.op = OOROR
+ 			goto lx
+ 		}
+ 
+-		if c1 == '=' {
+-			op = OOR
+-			goto asop
+-		}
++		op = OOR
++		prec = PADD
++		goto binop1
+ 
+ 	case '^':
+-		c1 = l.getr()
+-		if c1 == '=' {
+-			op = OXOR
+-			goto asop
+-		}
++		op = OXOR
++		prec = PADD
++		goto binop
+ 
+ 	case '(', '[', '{', ',', ';':
+ 		goto lx
+@@ -1232,7 +1224,7 @@ l0:
+ 
+ lx:
+ 	if Debug['x'] != 0 {
+-		if c > 0xff {
++		if c >= utf8.RuneSelf {
+ 			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lineno)), lexname(c))
+ 		} else {
+ 			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lineno)), c)
+@@ -1242,7 +1234,27 @@ lx:
+ 	l.tok = c
+ 	return
+ 
+-asop:
++incop:
++	c1 = l.getr()
++	if c1 == c {
++		l.nlsemi = true
++		l.op = op
++		c = LINCOP
++		goto lx
++	}
++	prec = PADD
++	goto binop1
++
++binop:
++	c1 = l.getr()
++binop1:
++	if c1 != '=' {
++		l.ungetr(c1)
++		l.op = op
++		l.prec = prec
++		goto lx
++	}
++
+ 	l.op = op
+ 	if Debug['x'] != 0 {
+ 		fmt.Printf("lex: TOKEN ASOP %s=\n", goopnames[op])
+@@ -2319,7 +2331,6 @@ var lexn = map[rune]string{
+ 	LCONST:     "CONST",
+ 	LCONTINUE:  "CONTINUE",
+ 	LDDD:       "...",
+-	LDEC:       "DEC",
+ 	LDEFAULT:   "DEFAULT",
+ 	LDEFER:     "DEFER",
+ 	LELSE:      "ELSE",
+@@ -2333,7 +2344,7 @@ var lexn = map[rune]string{
+ 	LGT:        "GT",
+ 	LIF:        "IF",
+ 	LIMPORT:    "IMPORT",
+-	LINC:       "INC",
++	LINCOP:     "INCOP",
+ 	LINTERFACE: "INTERFACE",
+ 	LLE:        "LE",
+ 	LLITERAL:   "LITERAL",
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index d42572391d..621be57b50 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -102,6 +102,8 @@ func (p *parser) syntax_error(msg string) {
+ 		}
+ 	case LASOP:
+ 		tok = goopnames[p.op] + "="
++	case LINCOP:
++		tok = goopnames[p.op] + goopnames[p.op]
+ 	default:
+ 		tok = tokstring(p.tok)
+ 	}
+@@ -219,12 +221,11 @@ var tokstrings = map[int32]string{
+ 	LANDAND:    "&&",
+ 	LANDNOT:    "&^",
+ 	LCOMM:      "<-",
+-	LDEC:       "--",
+ 	LEQ:        "==",
+ 	LGE:        ">=",
+ 	LGT:        ">",
+ 	LIGNORE:    "LIGNORE", // we should never see this one
+-	LINC:       "++",
++	LINCOP:     "opop",
+ 	LLE:        "<=",
+ 	LLSH:       "<<",
+ 	LLT:        "<",
+@@ -562,22 +563,13 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
+ 			stmt.Etype = EType(op) // rathole to pass opcode
+ 			return stmt
+ 
+-		case LINC:
+-			// expr LINC
++		case LINCOP:
++			// expr LINCOP
+ 			p.next()
+ 
+ 			stmt := Nod(OASOP, lhs, Nodintconst(1))
+ 			stmt.Implicit = true
+-			stmt.Etype = EType(OADD)
+-			return stmt
+-
+-		case LDEC:
+-			// expr LDEC
+-			p.next()
+-
+-			stmt := Nod(OASOP, lhs, Nodintconst(1))
+-			stmt.Implicit = true
+-			stmt.Etype = EType(OSUB)
++			stmt.Etype = EType(p.op)
+ 			return stmt
+ 
+ 		case ':':
+@@ -1104,54 +1096,20 @@ func (p *parser) select_stmt() *Node {
+ 	return hdr
+ }
+ 
+-// TODO(gri) should have lexer return this info - no need for separate lookup
+-// (issue 13244)
+-var prectab = map[int32]struct {
+-	prec int // > 0 (0 indicates not found)
+-	op   Op
+-}{
+-	// not an expression anymore, but left in so we can give a good error
+-	// message when used in expression context
+-	LCOMM: {1, OSEND},
+-
+-	LOROR: {2, OOROR},
+-
+-	LANDAND: {3, OANDAND},
+-
+-	LEQ: {4, OEQ},
+-	LNE: {4, ONE},
+-	LLE: {4, OLE},
+-	LGE: {4, OGE},
+-	LLT: {4, OLT},
+-	LGT: {4, OGT},
+-
+-	'+': {5, OADD},
+-	'-': {5, OSUB},
+-	'|': {5, OOR},
+-	'^': {5, OXOR},
+-
+-	'*':     {6, OMUL},
+-	'/':     {6, ODIV},
+-	'%':     {6, OMOD},
+-	'&':     {6, OAND},
+-	LLSH:    {6, OLSH},
+-	LRSH:    {6, ORSH},
+-	LANDNOT: {6, OANDNOT},
+-}
+-
+ // Expression = UnaryExpr | Expression binary_op Expression .
+-func (p *parser) bexpr(prec int) *Node {
++func (p *parser) bexpr(prec OpPrec) *Node {
+ 	// don't trace bexpr - only leads to overly nested trace output
+ 
++	// prec is precedence of the prior/enclosing binary operator (if any),
++	// so we only want to parse tokens of greater precedence.
++
+ 	x := p.uexpr()
+-	for {
+-		t := prectab[p.tok]
+-		if t.prec < prec {
+-			return x
+-		}
++	for p.prec > prec {
++		op, prec1 := p.op, p.prec
+ 		p.next()
+-		x = Nod(t.op, x, p.bexpr(t.prec+1))
++		x = Nod(op, x, p.bexpr(prec1))
+ 	}
++	return x
+ }
+ 
+ func (p *parser) expr() *Node {
+@@ -1159,7 +1117,7 @@ func (p *parser) expr() *Node {
+ 		defer p.trace("expr")()
+ 	}
+ 
+-	return p.bexpr(1)
++	return p.bexpr(0)
+ }
+ 
+ func unparen(x *Node) *Node {

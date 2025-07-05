@@ -33,6 +33,54 @@ Date:   Tue Aug 23 02:27:04 2022 +0000
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/go/printer/example_test.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/printer/example_test.go b/src/go/printer/example_test.go
+index 30816931a8..f7d72d136d 100644
+--- a/src/go/printer/example_test.go
++++ b/src/go/printer/example_test.go
+@@ -12,12 +12,8 @@ import (
+ 	"go/printer"
+ 	"go/token"
+ 	"strings"
+-	"testing"
+ )
+ 
+-// Dummy test function so that godoc does not use the entire file as example.
+-func Test(*testing.T) {}
+-
+ func parseFunc(filename, functionname string) (fun *ast.FuncDecl, fset *token.FileSet) {
+ 	fset = token.NewFileSet()
+ 	if file, err := parser.ParseFile(fset, filename, nil, 0); err == nil {
+@@ -31,11 +27,11 @@ func parseFunc(filename, functionname string) (fun *ast.FuncDecl, fset *token.Fi
+ 	panic("function not found")
+ }
+ 
+-func ExampleFprint() {
++func printSelf() {
+ 	// Parse source file and extract the AST without comments for
+ 	// this function, with position information referring to the
+ 	// file set fset.
+-	funcAST, fset := parseFunc("example_test.go", "ExampleFprint")
++	funcAST, fset := parseFunc("example_test.go", "printSelf")
+ 
+ 	// Print the function body into buffer buf.
+ 	// The file set is provided to the printer so that it knows
+@@ -52,9 +48,13 @@ func ExampleFprint() {
+ 
+ 	// Print the cleaned-up body text to stdout.
+ 	fmt.Println(s)
++}
++
++func ExampleFprint() {
++	printSelf()
+ 
+-	// output:
+-	// funcAST, fset := parseFunc("example_test.go", "ExampleFprint")
++	// Output:
++	// funcAST, fset := parseFunc("example_test.go", "printSelf")
+ 	//
+ 	// var buf bytes.Buffer
+ 	// printer.Fprint(&buf, fset, funcAST.Body)

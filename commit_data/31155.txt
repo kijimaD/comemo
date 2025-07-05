@@ -9,7 +9,57 @@ Date:   Fri Jan 20 12:14:22 2017 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 99f8d0a984..7891d42d8a 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -650,6 +650,7 @@
+ (NeqPtr (ConstNil) p) -> (IsNonNil p)
+ (EqPtr p (ConstNil)) -> (Not (IsNonNil p))
+ (EqPtr (ConstNil) p) -> (Not (IsNonNil p))
++(IsNonNil (ConstNil)) -> (ConstBool [0])
+ 
+ // slice and interface comparisons
+ // The frontend ensures that we can only compare against nil,
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 0fde363b3e..9fcffce0c7 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -114,6 +114,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpIMake(v, config)
+ 	case OpIsInBounds:
+ 		return rewriteValuegeneric_OpIsInBounds(v, config)
++	case OpIsNonNil:
++		return rewriteValuegeneric_OpIsNonNil(v, config)
+ 	case OpIsSliceInBounds:
+ 		return rewriteValuegeneric_OpIsSliceInBounds(v, config)
+ 	case OpLeq16:
+@@ -3407,6 +3409,23 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpIsNonNil(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (IsNonNil (ConstNil))
++	// cond:
++	// result: (ConstBool [0])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstNil {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 0
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

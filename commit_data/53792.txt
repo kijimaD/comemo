@@ -13,7 +13,7 @@ Date:   Wed Aug 10 20:01:48 2022 +0700
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/cmd/compile/internal/ir/node.go           |  3 ---
  src/cmd/compile/internal/noder/decl.go        | 26 +-------------------------
  src/cmd/compile/internal/noder/lex.go         |  4 ----
@@ -24,3 +24,186 @@ Date:   Wed Aug 10 20:01:48 2022 +0700
  src/cmd/compile/internal/typecheck/func.go    |  2 +-
  src/cmd/compile/internal/typecheck/subr.go    |  6 +++---
  9 files changed, 7 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 4196622b8a..7a4fb02f25 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -454,9 +454,6 @@ const (
+ 	Nowritebarrierrec  // error on write barrier in this or recursive callees
+ 	Yeswritebarrierrec // cancels Nowritebarrierrec in this function and callees
+ 
+-	// Runtime and cgo type pragmas
+-	NotInHeap // values of this type must not be heap allocated
+-
+ 	// Go command pragmas
+ 	GoBuildPragma
+ 
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 91a90d9e09..07353cc17e 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -212,33 +212,9 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+ 		ntyp.SetVargen()
+ 	}
+ 
+-	pragmas := g.pragmaFlags(decl.Pragma, typePragmas)
++	pragmas := g.pragmaFlags(decl.Pragma, 0)
+ 	name.SetPragma(pragmas) // TODO(mdempsky): Is this still needed?
+ 
+-	if pragmas&ir.NotInHeap != 0 {
+-		ntyp.SetNotInHeap(true)
+-	}
+-
+-	// We need to use g.typeExpr(decl.Type) here to ensure that for
+-	// chained, defined-type declarations like:
+-	//
+-	//	type T U
+-	//
+-	//	//go:notinheap
+-	//	type U struct { … }
+-	//
+-	// we mark both T and U as NotInHeap. If we instead used just
+-	// g.typ(otyp.Underlying()), then we'd instead set T's underlying
+-	// type directly to the struct type (which is not marked NotInHeap)
+-	// and fail to mark T as NotInHeap.
+-	//
+-	// Also, we rely here on Type.SetUnderlying allowing passing a
+-	// defined type and handling forward references like from T to U
+-	// above. Contrast with go/types's Named.SetUnderlying, which
+-	// disallows this.
+-	//
+-	// [mdempsky: Subtleties like these are why I always vehemently
+-	// object to new type pragmas.]
+ 	ntyp.SetUnderlying(g.typeExpr(decl.Type))
+ 
+ 	tparams := otyp.(*types2.Named).TypeParams()
+diff --git a/src/cmd/compile/internal/noder/lex.go b/src/cmd/compile/internal/noder/lex.go
+index cef0f082ca..c964eca678 100644
+--- a/src/cmd/compile/internal/noder/lex.go
++++ b/src/cmd/compile/internal/noder/lex.go
+@@ -36,8 +36,6 @@ const (
+ 		ir.Nowritebarrier |
+ 		ir.Nowritebarrierrec |
+ 		ir.Yeswritebarrierrec
+-
+-	typePragmas = ir.NotInHeap
+ )
+ 
+ func pragmaFlag(verb string) ir.PragmaFlag {
+@@ -77,8 +75,6 @@ func pragmaFlag(verb string) ir.PragmaFlag {
+ 		return ir.UintptrEscapes | ir.UintptrKeepAlive // implies UintptrKeepAlive
+ 	case "go:registerparams": // TODO(register args) remove after register abi is working
+ 		return ir.RegisterParams
+-	case "go:notinheap":
+-		return ir.NotInHeap
+ 	}
+ 	return 0
+ }
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index b68d7b7702..15b1bf7b9f 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -344,9 +344,6 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ 		if flag == 0 && !allowedStdPragmas[verb] && base.Flag.Std {
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
+ 		}
+-		if flag == ir.NotInHeap && *base.Flag.LowerP != "runtime/internal/sys" {
+-			p.error(syntax.Error{Pos: pos, Msg: "//go:notinheap only allowed in runtime/internal/sys"})
+-		}
+ 		pragma.Flag |= flag
+ 		pragma.Pos = append(pragma.Pos, pragmaPos{flag, pos})
+ 	}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 8270c403fe..e69d8edc0b 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1096,9 +1096,6 @@ func (r *reader) typeExt(name *ir.Name) {
+ 	}
+ 
+ 	name.SetPragma(r.pragmaFlag())
+-	if name.Pragma()&ir.NotInHeap != 0 {
+-		typ.SetNotInHeap(true)
+-	}
+ 
+ 	typecheck.SetBaseTypeIndex(typ, r.Int64(), r.Int64())
+ }
+@@ -2440,16 +2437,6 @@ func (r *reader) expr() (res ir.Node) {
+ 		// TODO(mdempsky): Stop constructing expressions of untyped type.
+ 		x = typecheck.DefaultLit(x, typ)
+ 
+-		if op, why := typecheck.Convertop(x.Op() == ir.OLITERAL, x.Type(), typ); op == ir.OXXX {
+-			// types2 ensured that x is convertable to typ under standard Go
+-			// semantics, but cmd/compile also disallows some conversions
+-			// involving //go:notinheap.
+-			//
+-			// TODO(mdempsky): This can be removed after #46731 is implemented.
+-			base.ErrorfAt(pos, "cannot convert %L to type %v%v", x, typ, why)
+-			base.ErrorExit() // harsh, but prevents constructing invalid IR
+-		}
+-
+ 		ce := ir.NewConvExpr(pos, ir.OCONV, typ, x)
+ 		ce.TypeWord, ce.SrcRType = typeWord, srcRType
+ 		if implicit {
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index ebec33b6f4..e7aa5c1c49 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -2355,7 +2355,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
+ 		if n.Alias {
+ 			pw.checkPragmas(n.Pragma, 0, false)
+ 		} else {
+-			pw.checkPragmas(n.Pragma, typePragmas, false)
++			pw.checkPragmas(n.Pragma, 0, false)
+ 
+ 			// Assign a unique ID to function-scoped defined types.
+ 			if c.withinFunc {
+diff --git a/src/cmd/compile/internal/typebits/typebits.go b/src/cmd/compile/internal/typebits/typebits.go
+index fddad6e7e8..06c1d12a34 100644
+--- a/src/cmd/compile/internal/typebits/typebits.go
++++ b/src/cmd/compile/internal/typebits/typebits.go
+@@ -18,7 +18,7 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
+ 		base.Fatalf("typebits.Set: invalid initial alignment: type %v has alignment %d, but offset is %v", t, uint8(t.Alignment()), off)
+ 	}
+ 	if !t.HasPointers() {
+-		// Note: this case ensures that pointers to go:notinheap types
++		// Note: this case ensures that pointers to not-in-heap types
+ 		// are not considered pointers by garbage collection and stack copying.
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 18bc865e26..d62066f33c 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -901,7 +901,7 @@ func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
+ 		base.Errorf("first argument to unsafe.Slice must be pointer; have %L", t)
+ 	} else if t.Elem().NotInHeap() {
+ 		// TODO(mdempsky): This can be relaxed, but should only affect the
+-		// Go runtime itself. End users should only see //go:notinheap
++		// Go runtime itself. End users should only see not-in-heap
+ 		// types due to incomplete C structs in cgo, and those types don't
+ 		// have a meaningful size anyway.
+ 		base.Errorf("unsafe.Slice of incomplete (or unallocatable) type not allowed")
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index b932c2c444..eab71556d3 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -471,15 +471,15 @@ func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
+ 		return ir.OXXX, ""
+ 	}
+ 
+-	// Conversions from regular to go:notinheap are not allowed
++	// Conversions from regular to not-in-heap are not allowed
+ 	// (unless it's unsafe.Pointer). These are runtime-specific
+ 	// rules.
+-	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
++	// (a) Disallow (*T) to (*U) where T is not-in-heap but U isn't.
+ 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
+ 		why := fmt.Sprintf(":\n\t%v is incomplete (or unallocatable), but %v is not", dst.Elem(), src.Elem())
+ 		return ir.OXXX, why
+ 	}
+-	// (b) Disallow string to []T where T is go:notinheap.
++	// (b) Disallow string to []T where T is not-in-heap.
+ 	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Kind() == types.ByteType.Kind() || dst.Elem().Kind() == types.RuneType.Kind()) {
+ 		why := fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
+ 		return ir.OXXX, why

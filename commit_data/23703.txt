@@ -11,9 +11,102 @@ Date:   Thu Jun 4 14:28:14 2015 -0700
     Change-Id: I5f77dda9d1ee3208e1833702f12f68c2731c4b22
     Reviewed-on: https://go-review.googlesource.com/10697
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/alldocs.go               |  4 +++-
  src/cmd/go/test.bash                | 16 ++++++++++++++++
  src/cmd/go/testdata/src/vetpkg/c.go |  9 +++++++++
  src/cmd/go/vet.go                   |  6 ++++--
  4 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 2c4451a0a7..3abe5b91bd 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -699,7 +699,7 @@ Run go tool vet on packages
+ 
+ Usage:
+ 
+-	go vet [-n] [-x] [packages]
++	go vet [-n] [-x] [build flags] [packages]
+ 
+ Vet runs the Go vet command on the packages named by the import paths.
+ 
+@@ -711,6 +711,8 @@ To run the vet tool with specific options, run 'go tool vet'.
+ The -n flag prints commands that would be executed.
+ The -x flag prints commands as they are executed.
+ 
++For more about build flags, see 'go help build'.
++
+ See also: go fmt, go fix.
+ 
+ 
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 4f36584de3..d9ac3f793e 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -1290,6 +1290,22 @@ fi
+ unset GOPATH
+ rm -rf $d
+ 
++TEST go vet with -tags
++d=$(mktemp -d -t testgoXXX)
++export GOPATH=$d
++./testgo get golang.org/x/tools/cmd/vet
++export GOPATH=$(pwd)/testdata
++if ./testgo vet -tags tagtest vetpkg >$d/err 2>&1; then
++	echo "go vet vetpkg passes incorrectly"
++	ok=false
++elif ! grep -q 'c\.go.*wrong number of args for format' $d/err; then
++	echo "go vet vetpkg did not scan tagged file"
++	cat $d/err
++	ok=false
++fi
++unset GOPATH
++rm -rf $d
++
+ TEST go get ./rsc.io/toolstash '(golang.org/issue/9767)'
+ d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+ export GOPATH=$d
+diff --git a/src/cmd/go/testdata/src/vetpkg/c.go b/src/cmd/go/testdata/src/vetpkg/c.go
+new file mode 100644
+index 0000000000..ef5648f059
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vetpkg/c.go
+@@ -0,0 +1,9 @@
++// +build tagtest
++
++package p
++
++import "fmt"
++
++func g() {
++	fmt.Printf("%d", 3, 4)
++}
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index 2634536aff..902edbbe73 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -7,12 +7,12 @@ package main
+ import "path/filepath"
+ 
+ func init() {
+-	addBuildFlagsNX(cmdVet)
++	addBuildFlags(cmdVet)
+ }
+ 
+ var cmdVet = &Command{
+ 	Run:       runVet,
+-	UsageLine: "vet [-n] [-x] [packages]",
++	UsageLine: "vet [-n] [-x] [build flags] [packages]",
+ 	Short:     "run go tool vet on packages",
+ 	Long: `
+ Vet runs the Go vet command on the packages named by the import paths.
+@@ -25,6 +25,8 @@ To run the vet tool with specific options, run 'go tool vet'.
+ The -n flag prints commands that would be executed.
+ The -x flag prints commands as they are executed.
+ 
++For more about build flags, see 'go help build'.
++
+ See also: go fmt, go fix.
+ 	`,
+ }

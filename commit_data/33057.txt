@@ -12,6 +12,20 @@ Date:   Thu Jun 29 00:38:38 2017 -0400
     Change-Id: I28d6926a5da48bd8f6c80aa5e5a1ed6d4990f845
     Reviewed-on: https://go-review.googlesource.com/47132
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_unix_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/root_unix_test.go b/src/crypto/x509/root_unix_test.go
+index 3a997b235d..03f935d4e8 100644
+--- a/src/crypto/x509/root_unix_test.go
++++ b/src/crypto/x509/root_unix_test.go
+@@ -110,7 +110,7 @@ func TestEnvVars(t *testing.T) {
+ 				t.Fatal("nil roots")
+ 			}
+ 
+-			// Verify len(r.certs) == len(tc.cns), otherwise report where the mismatch is.
++			// Verify that the returned certs match, otherwise report where the mismatch is.
+ 			for i, cn := range tc.cns {
+ 				if i >= len(r.certs) {
+ 					t.Errorf("missing cert %v @ %v", cn, i)

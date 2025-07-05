@@ -23,7 +23,7 @@ Date:   Thu Sep 2 11:27:12 2021 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/cmd/go.mod                                     |    2 +-
  src/cmd/go.sum                                     |    4 +-
  src/cmd/vendor/modules.txt                         |    2 +-
@@ -55,3 +55,4400 @@ Date:   Thu Sep 2 11:27:12 2021 -0400
  .../golang.org/x/crypto/poly1305/sum_s390x.s       |    1 +
  src/vendor/modules.txt                             |    3 +-
  30 files changed, 1250 insertions(+), 2884 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index d7b2a985ac..68c3a6c992 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
+ 	golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e
+-	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e // indirect
++	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
+ 	golang.org/x/mod v0.5.1-0.20210827163434-4029241eb1d5
+ 	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
+ 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 6e39f6ff8e..c6b1927eb8 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -7,8 +7,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 h1:mV02weK
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e h1:pv3V0NlNSh5Q6AX/StwGLBjcLS7UN4m4Gq+V+uSecqM=
+ golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+-golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
+-golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
++golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 h1:HWj/xjIHfjYU5nVXpTM0s39J9CbLn7Cc5a7IC5rwsMQ=
++golang.org/x/crypto v0.0.0-20210817164053-32db794688a5/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
+ golang.org/x/mod v0.5.1-0.20210827163434-4029241eb1d5 h1:BJ9Nc92Yf5inqB18HHrMgflMJKHraE07Z29Vjc+Z/Mk=
+ golang.org/x/mod v0.5.1-0.20210827163434-4029241eb1d5/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
+ golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 59ea550f55..10c4b3ad21 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -24,7 +24,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
++# golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+ ## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+diff --git a/src/go.mod b/src/go.mod
+index 08c5a18c1d..3c45b8b073 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,7 +3,7 @@ module std
+ go 1.18
+ 
+ require (
+-	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
++	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+ 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a
+ 	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
+ 	golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f // indirect
+diff --git a/src/go.sum b/src/go.sum
+index e7997591da..c8ecc70460 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,5 +1,5 @@
+-golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
+-golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
++golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 h1:HWj/xjIHfjYU5nVXpTM0s39J9CbLn7Cc5a7IC5rwsMQ=
++golang.org/x/crypto v0.0.0-20210817164053-32db794688a5/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
+ golang.org/x/net v0.0.0-20210825183410-e898025ed96a h1:bRuuGXV8wwSdGTB+CtJf+FjgO1APK1CoO39T4BN/XBw=
+ golang.org/x/net v0.0.0-20210825183410-e898025ed96a/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
+ golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e h1:XMgFehsDnnLGtjvjOfqWSUzt0alpTR1RSEuznObga2c=
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 80f8e1a00d..cbc77cfe72 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -395,7 +395,7 @@ var depsRules = `
+ 	< crypto/subtle
+ 	< crypto/internal/subtle
+ 	< crypto/elliptic/internal/fiat
+-	< crypto/ed25519/internal/edwards25519/field
++	< crypto/ed25519/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
+ 	< crypto/ed25519/internal/edwards25519
+ 	< crypto/cipher
+ 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.s b/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.s
+index 8fb49a13e3..63cae9e6f0 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.s
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build go1.11 && gc && !purego
+ // +build go1.11,gc,!purego
+ 
+ #include "textflag.h"
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s b/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s
+index 3dad4b2fa2..5c0fed26f8 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s
+@@ -19,6 +19,7 @@
+ // The differences in this and the original implementation are
+ // due to the calling conventions and initialization of constants.
+ 
++//go:build gc && !purego
+ // +build gc,!purego
+ 
+ #include "textflag.h"
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s
+index 818161189b..f3ef5a019d 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build gc && !purego
+ // +build gc,!purego
+ 
+ #include "go_asm.h"
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
+index 55226b0e6c..867c181a14 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
+@@ -4,6 +4,7 @@
+ 
+ // This file was originally from https://golang.org/cl/24717 by Vlad Krasnov of CloudFlare.
+ 
++//go:build gc && !purego
+ // +build gc,!purego
+ 
+ #include "textflag.h"
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/curve25519.go b/src/vendor/golang.org/x/crypto/curve25519/curve25519.go
+index 4b9a655d1b..cda3fdd354 100644
+--- a/src/vendor/golang.org/x/crypto/curve25519/curve25519.go
++++ b/src/vendor/golang.org/x/crypto/curve25519/curve25519.go
+@@ -10,6 +10,8 @@ package curve25519 // import "golang.org/x/crypto/curve25519"
+ import (
+ 	"crypto/subtle"
+ 	"fmt"
++
++	"golang.org/x/crypto/curve25519/internal/field"
+ )
+ 
+ // ScalarMult sets dst to the product scalar * point.
+@@ -18,7 +20,55 @@ import (
+ // zeroes, irrespective of the scalar. Instead, use the X25519 function, which
+ // will return an error.
+ func ScalarMult(dst, scalar, point *[32]byte) {
+-	scalarMult(dst, scalar, point)
++	var e [32]byte
++
++	copy(e[:], scalar[:])
++	e[0] &= 248
++	e[31] &= 127
++	e[31] |= 64
++
++	var x1, x2, z2, x3, z3, tmp0, tmp1 field.Element
++	x1.SetBytes(point[:])
++	x2.One()
++	x3.Set(&x1)
++	z3.One()
++
++	swap := 0
++	for pos := 254; pos >= 0; pos-- {
++		b := e[pos/8] >> uint(pos&7)
++		b &= 1
++		swap ^= int(b)
++		x2.Swap(&x3, swap)
++		z2.Swap(&z3, swap)
++		swap = int(b)
++
++		tmp0.Subtract(&x3, &z3)
++		tmp1.Subtract(&x2, &z2)
++		x2.Add(&x2, &z2)
++		z2.Add(&x3, &z3)
++		z3.Multiply(&tmp0, &x2)
++		z2.Multiply(&z2, &tmp1)
++		tmp0.Square(&tmp1)
++		tmp1.Square(&x2)
++		x3.Add(&z3, &z2)
++		z2.Subtract(&z3, &z2)
++		x2.Multiply(&tmp1, &tmp0)
++		tmp1.Subtract(&tmp1, &tmp0)
++		z2.Square(&z2)
++
++		z3.Mult32(&tmp1, 121666)
++		x3.Square(&x3)
++		tmp0.Add(&tmp0, &z3)
++		z3.Multiply(&x1, &z2)
++		z2.Multiply(&tmp1, &tmp0)
++	}
++
++	x2.Swap(&x3, swap)
++	z2.Swap(&z3, swap)
++
++	z2.Invert(&z2)
++	x2.Multiply(&x2, &z2)
++	copy(dst[:], x2.Bytes())
+ }
+ 
+ // ScalarBaseMult sets dst to the product scalar * base where base is the
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.go b/src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.go
+deleted file mode 100644
+index 84858480df..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.go
++++ /dev/null
+@@ -1,241 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build amd64 && gc && !purego
+-// +build amd64,gc,!purego
+-
+-package curve25519
+-
+-// These functions are implemented in the .s files. The names of the functions
+-// in the rest of the file are also taken from the SUPERCOP sources to help
+-// people following along.
+-
+-//go:noescape
+-
+-func cswap(inout *[5]uint64, v uint64)
+-
+-//go:noescape
+-
+-func ladderstep(inout *[5][5]uint64)
+-
+-//go:noescape
+-
+-func freeze(inout *[5]uint64)
+-
+-//go:noescape
+-
+-func mul(dest, a, b *[5]uint64)
+-
+-//go:noescape
+-
+-func square(out, in *[5]uint64)
+-
+-// mladder uses a Montgomery ladder to calculate (xr/zr) *= s.
+-func mladder(xr, zr *[5]uint64, s *[32]byte) {
+-	var work [5][5]uint64
+-
+-	work[0] = *xr
+-	setint(&work[1], 1)
+-	setint(&work[2], 0)
+-	work[3] = *xr
+-	setint(&work[4], 1)
+-
+-	j := uint(6)
+-	var prevbit byte
+-
+-	for i := 31; i >= 0; i-- {
+-		for j < 8 {
+-			bit := ((*s)[i] >> j) & 1
+-			swap := bit ^ prevbit
+-			prevbit = bit
+-			cswap(&work[1], uint64(swap))
+-			ladderstep(&work)
+-			j--
+-		}
+-		j = 7
+-	}
+-
+-	*xr = work[1]
+-	*zr = work[2]
+-}
+-
+-func scalarMult(out, in, base *[32]byte) {
+-	var e [32]byte
+-	copy(e[:], (*in)[:])
+-	e[0] &= 248
+-	e[31] &= 127
+-	e[31] |= 64
+-
+-	var t, z [5]uint64
+-	unpack(&t, base)
+-	mladder(&t, &z, &e)
+-	invert(&z, &z)
+-	mul(&t, &t, &z)
+-	pack(out, &t)
+-}
+-
+-func setint(r *[5]uint64, v uint64) {
+-	r[0] = v
+-	r[1] = 0
+-	r[2] = 0
+-	r[3] = 0
+-	r[4] = 0
+-}
+-
+-// unpack sets r = x where r consists of 5, 51-bit limbs in little-endian
+-// order.
+-func unpack(r *[5]uint64, x *[32]byte) {
+-	r[0] = uint64(x[0]) |
+-		uint64(x[1])<<8 |
+-		uint64(x[2])<<16 |
+-		uint64(x[3])<<24 |
+-		uint64(x[4])<<32 |
+-		uint64(x[5])<<40 |
+-		uint64(x[6]&7)<<48
+-
+-	r[1] = uint64(x[6])>>3 |
+-		uint64(x[7])<<5 |
+-		uint64(x[8])<<13 |
+-		uint64(x[9])<<21 |
+-		uint64(x[10])<<29 |
+-		uint64(x[11])<<37 |
+-		uint64(x[12]&63)<<45
+-
+-	r[2] = uint64(x[12])>>6 |
+-		uint64(x[13])<<2 |
+-		uint64(x[14])<<10 |
+-		uint64(x[15])<<18 |
+-		uint64(x[16])<<26 |
+-		uint64(x[17])<<34 |
+-		uint64(x[18])<<42 |
+-		uint64(x[19]&1)<<50
+-
+-	r[3] = uint64(x[19])>>1 |
+-		uint64(x[20])<<7 |
+-		uint64(x[21])<<15 |
+-		uint64(x[22])<<23 |
+-		uint64(x[23])<<31 |
+-		uint64(x[24])<<39 |
+-		uint64(x[25]&15)<<47
+-
+-	r[4] = uint64(x[25])>>4 |
+-		uint64(x[26])<<4 |
+-		uint64(x[27])<<12 |
+-		uint64(x[28])<<20 |
+-		uint64(x[29])<<28 |
+-		uint64(x[30])<<36 |
+-		uint64(x[31]&127)<<44
+-}
+-
+-// pack sets out = x where out is the usual, little-endian form of the 5,
+-// 51-bit limbs in x.
+-func pack(out *[32]byte, x *[5]uint64) {
+-	t := *x
+-	freeze(&t)
+-
+-	out[0] = byte(t[0])
+-	out[1] = byte(t[0] >> 8)
+-	out[2] = byte(t[0] >> 16)
+-	out[3] = byte(t[0] >> 24)
+-	out[4] = byte(t[0] >> 32)
+-	out[5] = byte(t[0] >> 40)
+-	out[6] = byte(t[0] >> 48)
+-
+-	out[6] ^= byte(t[1]<<3) & 0xf8
+-	out[7] = byte(t[1] >> 5)
+-	out[8] = byte(t[1] >> 13)
+-	out[9] = byte(t[1] >> 21)
+-	out[10] = byte(t[1] >> 29)
+-	out[11] = byte(t[1] >> 37)
+-	out[12] = byte(t[1] >> 45)
+-
+-	out[12] ^= byte(t[2]<<6) & 0xc0
+-	out[13] = byte(t[2] >> 2)
+-	out[14] = byte(t[2] >> 10)
+-	out[15] = byte(t[2] >> 18)
+-	out[16] = byte(t[2] >> 26)
+-	out[17] = byte(t[2] >> 34)
+-	out[18] = byte(t[2] >> 42)
+-	out[19] = byte(t[2] >> 50)
+-
+-	out[19] ^= byte(t[3]<<1) & 0xfe
+-	out[20] = byte(t[3] >> 7)
+-	out[21] = byte(t[3] >> 15)
+-	out[22] = byte(t[3] >> 23)
+-	out[23] = byte(t[3] >> 31)
+-	out[24] = byte(t[3] >> 39)
+-	out[25] = byte(t[3] >> 47)
+-
+-	out[25] ^= byte(t[4]<<4) & 0xf0
+-	out[26] = byte(t[4] >> 4)
+-	out[27] = byte(t[4] >> 12)
+-	out[28] = byte(t[4] >> 20)
+-	out[29] = byte(t[4] >> 28)
+-	out[30] = byte(t[4] >> 36)
+-	out[31] = byte(t[4] >> 44)
+-}
+-
+-// invert calculates r = x^-1 mod p using Fermat's little theorem.
+-func invert(r *[5]uint64, x *[5]uint64) {
+-	var z2, z9, z11, z2_5_0, z2_10_0, z2_20_0, z2_50_0, z2_100_0, t [5]uint64
+-
+-	square(&z2, x)        /* 2 */
+-	square(&t, &z2)       /* 4 */
+-	square(&t, &t)        /* 8 */
+-	mul(&z9, &t, x)       /* 9 */
+-	mul(&z11, &z9, &z2)   /* 11 */
+-	square(&t, &z11)      /* 22 */
+-	mul(&z2_5_0, &t, &z9) /* 2^5 - 2^0 = 31 */
+-
+-	square(&t, &z2_5_0)      /* 2^6 - 2^1 */
+-	for i := 1; i < 5; i++ { /* 2^20 - 2^10 */
+-		square(&t, &t)
+-	}
+-	mul(&z2_10_0, &t, &z2_5_0) /* 2^10 - 2^0 */
+-
+-	square(&t, &z2_10_0)      /* 2^11 - 2^1 */
+-	for i := 1; i < 10; i++ { /* 2^20 - 2^10 */
+-		square(&t, &t)
+-	}
+-	mul(&z2_20_0, &t, &z2_10_0) /* 2^20 - 2^0 */
+-
+-	square(&t, &z2_20_0)      /* 2^21 - 2^1 */
+-	for i := 1; i < 20; i++ { /* 2^40 - 2^20 */
+-		square(&t, &t)
+-	}
+-	mul(&t, &t, &z2_20_0) /* 2^40 - 2^0 */
+-
+-	square(&t, &t)            /* 2^41 - 2^1 */
+-	for i := 1; i < 10; i++ { /* 2^50 - 2^10 */
+-		square(&t, &t)
+-	}
+-	mul(&z2_50_0, &t, &z2_10_0) /* 2^50 - 2^0 */
+-
+-	square(&t, &z2_50_0)      /* 2^51 - 2^1 */
+-	for i := 1; i < 50; i++ { /* 2^100 - 2^50 */
+-		square(&t, &t)
+-	}
+-	mul(&z2_100_0, &t, &z2_50_0) /* 2^100 - 2^0 */
+-
+-	square(&t, &z2_100_0)      /* 2^101 - 2^1 */
+-	for i := 1; i < 100; i++ { /* 2^200 - 2^100 */
+-		square(&t, &t)
+-	}
+-	mul(&t, &t, &z2_100_0) /* 2^200 - 2^0 */
+-
+-	square(&t, &t)            /* 2^201 - 2^1 */
+-	for i := 1; i < 50; i++ { /* 2^250 - 2^50 */
+-		square(&t, &t)
+-	}
+-	mul(&t, &t, &z2_50_0) /* 2^250 - 2^0 */
+-
+-	square(&t, &t) /* 2^251 - 2^1 */
+-	square(&t, &t) /* 2^252 - 2^2 */
+-	square(&t, &t) /* 2^253 - 2^3 */
+-
+-	square(&t, &t) /* 2^254 - 2^4 */
+-
+-	square(&t, &t)   /* 2^255 - 2^5 */
+-	mul(r, &t, &z11) /* 2^255 - 21 */
+-}
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.s b/src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.s
+deleted file mode 100644
+index 6c53380926..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.s
++++ /dev/null
+@@ -1,1793 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This code was translated into a form compatible with 6a from the public
+-// domain sources in SUPERCOP: https://bench.cr.yp.to/supercop.html
+-
+-// +build amd64,gc,!purego
+-
+-#define REDMASK51     0x0007FFFFFFFFFFFF
+-
+-// These constants cannot be encoded in non-MOVQ immediates.
+-// We access them directly from memory instead.
+-
+-DATA ·_121666_213(SB)/8, $996687872
+-GLOBL ·_121666_213(SB), 8, $8
+-
+-DATA ·_2P0(SB)/8, $0xFFFFFFFFFFFDA
+-GLOBL ·_2P0(SB), 8, $8
+-
+-DATA ·_2P1234(SB)/8, $0xFFFFFFFFFFFFE
+-GLOBL ·_2P1234(SB), 8, $8
+-
+-// func freeze(inout *[5]uint64)
+-TEXT ·freeze(SB),7,$0-8
+-	MOVQ inout+0(FP), DI
+-
+-	MOVQ 0(DI),SI
+-	MOVQ 8(DI),DX
+-	MOVQ 16(DI),CX
+-	MOVQ 24(DI),R8
+-	MOVQ 32(DI),R9
+-	MOVQ $REDMASK51,AX
+-	MOVQ AX,R10
+-	SUBQ $18,R10
+-	MOVQ $3,R11
+-REDUCELOOP:
+-	MOVQ SI,R12
+-	SHRQ $51,R12
+-	ANDQ AX,SI
+-	ADDQ R12,DX
+-	MOVQ DX,R12
+-	SHRQ $51,R12
+-	ANDQ AX,DX
+-	ADDQ R12,CX
+-	MOVQ CX,R12
+-	SHRQ $51,R12
+-	ANDQ AX,CX
+-	ADDQ R12,R8
+-	MOVQ R8,R12
+-	SHRQ $51,R12
+-	ANDQ AX,R8
+-	ADDQ R12,R9
+-	MOVQ R9,R12
+-	SHRQ $51,R12
+-	ANDQ AX,R9
+-	IMUL3Q $19,R12,R12
+-	ADDQ R12,SI
+-	SUBQ $1,R11
+-	JA REDUCELOOP
+-	MOVQ $1,R12
+-	CMPQ R10,SI
+-	CMOVQLT R11,R12
+-	CMPQ AX,DX
+-	CMOVQNE R11,R12
+-	CMPQ AX,CX
+-	CMOVQNE R11,R12
+-	CMPQ AX,R8
+-	CMOVQNE R11,R12
+-	CMPQ AX,R9
+-	CMOVQNE R11,R12
+-	NEGQ R12
+-	ANDQ R12,AX
+-	ANDQ R12,R10
+-	SUBQ R10,SI
+-	SUBQ AX,DX
+-	SUBQ AX,CX
+-	SUBQ AX,R8
+-	SUBQ AX,R9
+-	MOVQ SI,0(DI)
+-	MOVQ DX,8(DI)
+-	MOVQ CX,16(DI)
+-	MOVQ R8,24(DI)
+-	MOVQ R9,32(DI)
+-	RET
+-
+-// func ladderstep(inout *[5][5]uint64)
+-TEXT ·ladderstep(SB),0,$296-8
+-	MOVQ inout+0(FP),DI
+-
+-	MOVQ 40(DI),SI
+-	MOVQ 48(DI),DX
+-	MOVQ 56(DI),CX
+-	MOVQ 64(DI),R8
+-	MOVQ 72(DI),R9
+-	MOVQ SI,AX
+-	MOVQ DX,R10
+-	MOVQ CX,R11
+-	MOVQ R8,R12
+-	MOVQ R9,R13
+-	ADDQ ·_2P0(SB),AX
+-	ADDQ ·_2P1234(SB),R10
+-	ADDQ ·_2P1234(SB),R11
+-	ADDQ ·_2P1234(SB),R12
+-	ADDQ ·_2P1234(SB),R13
+-	ADDQ 80(DI),SI
+-	ADDQ 88(DI),DX
+-	ADDQ 96(DI),CX
+-	ADDQ 104(DI),R8
+-	ADDQ 112(DI),R9
+-	SUBQ 80(DI),AX
+-	SUBQ 88(DI),R10
+-	SUBQ 96(DI),R11
+-	SUBQ 104(DI),R12
+-	SUBQ 112(DI),R13
+-	MOVQ SI,0(SP)
+-	MOVQ DX,8(SP)
+-	MOVQ CX,16(SP)
+-	MOVQ R8,24(SP)
+-	MOVQ R9,32(SP)
+-	MOVQ AX,40(SP)
+-	MOVQ R10,48(SP)
+-	MOVQ R11,56(SP)
+-	MOVQ R12,64(SP)
+-	MOVQ R13,72(SP)
+-	MOVQ 40(SP),AX
+-	MULQ 40(SP)
+-	MOVQ AX,SI
+-	MOVQ DX,CX
+-	MOVQ 40(SP),AX
+-	SHLQ $1,AX
+-	MULQ 48(SP)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 40(SP),AX
+-	SHLQ $1,AX
+-	MULQ 56(SP)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 40(SP),AX
+-	SHLQ $1,AX
+-	MULQ 64(SP)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 40(SP),AX
+-	SHLQ $1,AX
+-	MULQ 72(SP)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 48(SP),AX
+-	MULQ 48(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 48(SP),AX
+-	SHLQ $1,AX
+-	MULQ 56(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 48(SP),AX
+-	SHLQ $1,AX
+-	MULQ 64(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 48(SP),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 72(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 56(SP),AX
+-	MULQ 56(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 56(SP),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 64(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 56(SP),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 72(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 64(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 64(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 64(SP),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 72(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 72(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 72(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ $REDMASK51,DX
+-	SHLQ $13,SI,CX
+-	ANDQ DX,SI
+-	SHLQ $13,R8,R9
+-	ANDQ DX,R8
+-	ADDQ CX,R8
+-	SHLQ $13,R10,R11
+-	ANDQ DX,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ DX,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ DX,R14
+-	ADDQ R13,R14
+-	IMUL3Q $19,R15,CX
+-	ADDQ CX,SI
+-	MOVQ SI,CX
+-	SHRQ $51,CX
+-	ADDQ R8,CX
+-	ANDQ DX,SI
+-	MOVQ CX,R8
+-	SHRQ $51,CX
+-	ADDQ R10,CX
+-	ANDQ DX,R8
+-	MOVQ CX,R9
+-	SHRQ $51,CX
+-	ADDQ R12,CX
+-	ANDQ DX,R9
+-	MOVQ CX,AX
+-	SHRQ $51,CX
+-	ADDQ R14,CX
+-	ANDQ DX,AX
+-	MOVQ CX,R10
+-	SHRQ $51,CX
+-	IMUL3Q $19,CX,CX
+-	ADDQ CX,SI
+-	ANDQ DX,R10
+-	MOVQ SI,80(SP)
+-	MOVQ R8,88(SP)
+-	MOVQ R9,96(SP)
+-	MOVQ AX,104(SP)
+-	MOVQ R10,112(SP)
+-	MOVQ 0(SP),AX
+-	MULQ 0(SP)
+-	MOVQ AX,SI
+-	MOVQ DX,CX
+-	MOVQ 0(SP),AX
+-	SHLQ $1,AX
+-	MULQ 8(SP)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 0(SP),AX
+-	SHLQ $1,AX
+-	MULQ 16(SP)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 0(SP),AX
+-	SHLQ $1,AX
+-	MULQ 24(SP)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 0(SP),AX
+-	SHLQ $1,AX
+-	MULQ 32(SP)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 8(SP),AX
+-	MULQ 8(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 8(SP),AX
+-	SHLQ $1,AX
+-	MULQ 16(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 8(SP),AX
+-	SHLQ $1,AX
+-	MULQ 24(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 8(SP),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 32(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 16(SP),AX
+-	MULQ 16(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 16(SP),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 24(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 16(SP),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 32(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 24(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 24(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 24(SP),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 32(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 32(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ $REDMASK51,DX
+-	SHLQ $13,SI,CX
+-	ANDQ DX,SI
+-	SHLQ $13,R8,R9
+-	ANDQ DX,R8
+-	ADDQ CX,R8
+-	SHLQ $13,R10,R11
+-	ANDQ DX,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ DX,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ DX,R14
+-	ADDQ R13,R14
+-	IMUL3Q $19,R15,CX
+-	ADDQ CX,SI
+-	MOVQ SI,CX
+-	SHRQ $51,CX
+-	ADDQ R8,CX
+-	ANDQ DX,SI
+-	MOVQ CX,R8
+-	SHRQ $51,CX
+-	ADDQ R10,CX
+-	ANDQ DX,R8
+-	MOVQ CX,R9
+-	SHRQ $51,CX
+-	ADDQ R12,CX
+-	ANDQ DX,R9
+-	MOVQ CX,AX
+-	SHRQ $51,CX
+-	ADDQ R14,CX
+-	ANDQ DX,AX
+-	MOVQ CX,R10
+-	SHRQ $51,CX
+-	IMUL3Q $19,CX,CX
+-	ADDQ CX,SI
+-	ANDQ DX,R10
+-	MOVQ SI,120(SP)
+-	MOVQ R8,128(SP)
+-	MOVQ R9,136(SP)
+-	MOVQ AX,144(SP)
+-	MOVQ R10,152(SP)
+-	MOVQ SI,SI
+-	MOVQ R8,DX
+-	MOVQ R9,CX
+-	MOVQ AX,R8
+-	MOVQ R10,R9
+-	ADDQ ·_2P0(SB),SI
+-	ADDQ ·_2P1234(SB),DX
+-	ADDQ ·_2P1234(SB),CX
+-	ADDQ ·_2P1234(SB),R8
+-	ADDQ ·_2P1234(SB),R9
+-	SUBQ 80(SP),SI
+-	SUBQ 88(SP),DX
+-	SUBQ 96(SP),CX
+-	SUBQ 104(SP),R8
+-	SUBQ 112(SP),R9
+-	MOVQ SI,160(SP)
+-	MOVQ DX,168(SP)
+-	MOVQ CX,176(SP)
+-	MOVQ R8,184(SP)
+-	MOVQ R9,192(SP)
+-	MOVQ 120(DI),SI
+-	MOVQ 128(DI),DX
+-	MOVQ 136(DI),CX
+-	MOVQ 144(DI),R8
+-	MOVQ 152(DI),R9
+-	MOVQ SI,AX
+-	MOVQ DX,R10
+-	MOVQ CX,R11
+-	MOVQ R8,R12
+-	MOVQ R9,R13
+-	ADDQ ·_2P0(SB),AX
+-	ADDQ ·_2P1234(SB),R10
+-	ADDQ ·_2P1234(SB),R11
+-	ADDQ ·_2P1234(SB),R12
+-	ADDQ ·_2P1234(SB),R13
+-	ADDQ 160(DI),SI
+-	ADDQ 168(DI),DX
+-	ADDQ 176(DI),CX
+-	ADDQ 184(DI),R8
+-	ADDQ 192(DI),R9
+-	SUBQ 160(DI),AX
+-	SUBQ 168(DI),R10
+-	SUBQ 176(DI),R11
+-	SUBQ 184(DI),R12
+-	SUBQ 192(DI),R13
+-	MOVQ SI,200(SP)
+-	MOVQ DX,208(SP)
+-	MOVQ CX,216(SP)
+-	MOVQ R8,224(SP)
+-	MOVQ R9,232(SP)
+-	MOVQ AX,240(SP)
+-	MOVQ R10,248(SP)
+-	MOVQ R11,256(SP)
+-	MOVQ R12,264(SP)
+-	MOVQ R13,272(SP)
+-	MOVQ 224(SP),SI
+-	IMUL3Q $19,SI,AX
+-	MOVQ AX,280(SP)
+-	MULQ 56(SP)
+-	MOVQ AX,SI
+-	MOVQ DX,CX
+-	MOVQ 232(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MOVQ AX,288(SP)
+-	MULQ 48(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 200(SP),AX
+-	MULQ 40(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 200(SP),AX
+-	MULQ 48(SP)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 200(SP),AX
+-	MULQ 56(SP)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 200(SP),AX
+-	MULQ 64(SP)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 200(SP),AX
+-	MULQ 72(SP)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 208(SP),AX
+-	MULQ 40(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 208(SP),AX
+-	MULQ 48(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 208(SP),AX
+-	MULQ 56(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 208(SP),AX
+-	MULQ 64(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 208(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 72(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 216(SP),AX
+-	MULQ 40(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 216(SP),AX
+-	MULQ 48(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 216(SP),AX
+-	MULQ 56(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 216(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 64(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 216(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 72(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 224(SP),AX
+-	MULQ 40(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 224(SP),AX
+-	MULQ 48(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 280(SP),AX
+-	MULQ 64(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 280(SP),AX
+-	MULQ 72(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 232(SP),AX
+-	MULQ 40(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 288(SP),AX
+-	MULQ 56(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 288(SP),AX
+-	MULQ 64(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 288(SP),AX
+-	MULQ 72(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ $REDMASK51,DX
+-	SHLQ $13,SI,CX
+-	ANDQ DX,SI
+-	SHLQ $13,R8,R9
+-	ANDQ DX,R8
+-	ADDQ CX,R8
+-	SHLQ $13,R10,R11
+-	ANDQ DX,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ DX,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ DX,R14
+-	ADDQ R13,R14
+-	IMUL3Q $19,R15,CX
+-	ADDQ CX,SI
+-	MOVQ SI,CX
+-	SHRQ $51,CX
+-	ADDQ R8,CX
+-	MOVQ CX,R8
+-	SHRQ $51,CX
+-	ANDQ DX,SI
+-	ADDQ R10,CX
+-	MOVQ CX,R9
+-	SHRQ $51,CX
+-	ANDQ DX,R8
+-	ADDQ R12,CX
+-	MOVQ CX,AX
+-	SHRQ $51,CX
+-	ANDQ DX,R9
+-	ADDQ R14,CX
+-	MOVQ CX,R10
+-	SHRQ $51,CX
+-	ANDQ DX,AX
+-	IMUL3Q $19,CX,CX
+-	ADDQ CX,SI
+-	ANDQ DX,R10
+-	MOVQ SI,40(SP)
+-	MOVQ R8,48(SP)
+-	MOVQ R9,56(SP)
+-	MOVQ AX,64(SP)
+-	MOVQ R10,72(SP)
+-	MOVQ 264(SP),SI
+-	IMUL3Q $19,SI,AX
+-	MOVQ AX,200(SP)
+-	MULQ 16(SP)
+-	MOVQ AX,SI
+-	MOVQ DX,CX
+-	MOVQ 272(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MOVQ AX,208(SP)
+-	MULQ 8(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 240(SP),AX
+-	MULQ 0(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 240(SP),AX
+-	MULQ 8(SP)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 240(SP),AX
+-	MULQ 16(SP)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 240(SP),AX
+-	MULQ 24(SP)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 240(SP),AX
+-	MULQ 32(SP)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 248(SP),AX
+-	MULQ 0(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 248(SP),AX
+-	MULQ 8(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 248(SP),AX
+-	MULQ 16(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 248(SP),AX
+-	MULQ 24(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 248(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 256(SP),AX
+-	MULQ 0(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 256(SP),AX
+-	MULQ 8(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 256(SP),AX
+-	MULQ 16(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 256(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 24(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 256(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 264(SP),AX
+-	MULQ 0(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 264(SP),AX
+-	MULQ 8(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 200(SP),AX
+-	MULQ 24(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 200(SP),AX
+-	MULQ 32(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 272(SP),AX
+-	MULQ 0(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 208(SP),AX
+-	MULQ 16(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 208(SP),AX
+-	MULQ 24(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 208(SP),AX
+-	MULQ 32(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ $REDMASK51,DX
+-	SHLQ $13,SI,CX
+-	ANDQ DX,SI
+-	SHLQ $13,R8,R9
+-	ANDQ DX,R8
+-	ADDQ CX,R8
+-	SHLQ $13,R10,R11
+-	ANDQ DX,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ DX,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ DX,R14
+-	ADDQ R13,R14
+-	IMUL3Q $19,R15,CX
+-	ADDQ CX,SI
+-	MOVQ SI,CX
+-	SHRQ $51,CX
+-	ADDQ R8,CX
+-	MOVQ CX,R8
+-	SHRQ $51,CX
+-	ANDQ DX,SI
+-	ADDQ R10,CX
+-	MOVQ CX,R9
+-	SHRQ $51,CX
+-	ANDQ DX,R8
+-	ADDQ R12,CX
+-	MOVQ CX,AX
+-	SHRQ $51,CX
+-	ANDQ DX,R9
+-	ADDQ R14,CX
+-	MOVQ CX,R10
+-	SHRQ $51,CX
+-	ANDQ DX,AX
+-	IMUL3Q $19,CX,CX
+-	ADDQ CX,SI
+-	ANDQ DX,R10
+-	MOVQ SI,DX
+-	MOVQ R8,CX
+-	MOVQ R9,R11
+-	MOVQ AX,R12
+-	MOVQ R10,R13
+-	ADDQ ·_2P0(SB),DX
+-	ADDQ ·_2P1234(SB),CX
+-	ADDQ ·_2P1234(SB),R11
+-	ADDQ ·_2P1234(SB),R12
+-	ADDQ ·_2P1234(SB),R13
+-	ADDQ 40(SP),SI
+-	ADDQ 48(SP),R8
+-	ADDQ 56(SP),R9
+-	ADDQ 64(SP),AX
+-	ADDQ 72(SP),R10
+-	SUBQ 40(SP),DX
+-	SUBQ 48(SP),CX
+-	SUBQ 56(SP),R11
+-	SUBQ 64(SP),R12
+-	SUBQ 72(SP),R13
+-	MOVQ SI,120(DI)
+-	MOVQ R8,128(DI)
+-	MOVQ R9,136(DI)
+-	MOVQ AX,144(DI)
+-	MOVQ R10,152(DI)
+-	MOVQ DX,160(DI)
+-	MOVQ CX,168(DI)
+-	MOVQ R11,176(DI)
+-	MOVQ R12,184(DI)
+-	MOVQ R13,192(DI)
+-	MOVQ 120(DI),AX
+-	MULQ 120(DI)
+-	MOVQ AX,SI
+-	MOVQ DX,CX
+-	MOVQ 120(DI),AX
+-	SHLQ $1,AX
+-	MULQ 128(DI)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 120(DI),AX
+-	SHLQ $1,AX
+-	MULQ 136(DI)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 120(DI),AX
+-	SHLQ $1,AX
+-	MULQ 144(DI)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 120(DI),AX
+-	SHLQ $1,AX
+-	MULQ 152(DI)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 128(DI),AX
+-	MULQ 128(DI)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 128(DI),AX
+-	SHLQ $1,AX
+-	MULQ 136(DI)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 128(DI),AX
+-	SHLQ $1,AX
+-	MULQ 144(DI)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 128(DI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 152(DI)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 136(DI),AX
+-	MULQ 136(DI)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 136(DI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 144(DI)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 136(DI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 152(DI)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 144(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 144(DI)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 144(DI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 152(DI)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 152(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 152(DI)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ $REDMASK51,DX
+-	SHLQ $13,SI,CX
+-	ANDQ DX,SI
+-	SHLQ $13,R8,R9
+-	ANDQ DX,R8
+-	ADDQ CX,R8
+-	SHLQ $13,R10,R11
+-	ANDQ DX,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ DX,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ DX,R14
+-	ADDQ R13,R14
+-	IMUL3Q $19,R15,CX
+-	ADDQ CX,SI
+-	MOVQ SI,CX
+-	SHRQ $51,CX
+-	ADDQ R8,CX
+-	ANDQ DX,SI
+-	MOVQ CX,R8
+-	SHRQ $51,CX
+-	ADDQ R10,CX
+-	ANDQ DX,R8
+-	MOVQ CX,R9
+-	SHRQ $51,CX
+-	ADDQ R12,CX
+-	ANDQ DX,R9
+-	MOVQ CX,AX
+-	SHRQ $51,CX
+-	ADDQ R14,CX
+-	ANDQ DX,AX
+-	MOVQ CX,R10
+-	SHRQ $51,CX
+-	IMUL3Q $19,CX,CX
+-	ADDQ CX,SI
+-	ANDQ DX,R10
+-	MOVQ SI,120(DI)
+-	MOVQ R8,128(DI)
+-	MOVQ R9,136(DI)
+-	MOVQ AX,144(DI)
+-	MOVQ R10,152(DI)
+-	MOVQ 160(DI),AX
+-	MULQ 160(DI)
+-	MOVQ AX,SI
+-	MOVQ DX,CX
+-	MOVQ 160(DI),AX
+-	SHLQ $1,AX
+-	MULQ 168(DI)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 160(DI),AX
+-	SHLQ $1,AX
+-	MULQ 176(DI)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 160(DI),AX
+-	SHLQ $1,AX
+-	MULQ 184(DI)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 160(DI),AX
+-	SHLQ $1,AX
+-	MULQ 192(DI)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 168(DI),AX
+-	MULQ 168(DI)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 168(DI),AX
+-	SHLQ $1,AX
+-	MULQ 176(DI)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 168(DI),AX
+-	SHLQ $1,AX
+-	MULQ 184(DI)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 168(DI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 192(DI)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 176(DI),AX
+-	MULQ 176(DI)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 176(DI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 184(DI)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 176(DI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 192(DI)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 184(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 184(DI)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 184(DI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 192(DI)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 192(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 192(DI)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ $REDMASK51,DX
+-	SHLQ $13,SI,CX
+-	ANDQ DX,SI
+-	SHLQ $13,R8,R9
+-	ANDQ DX,R8
+-	ADDQ CX,R8
+-	SHLQ $13,R10,R11
+-	ANDQ DX,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ DX,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ DX,R14
+-	ADDQ R13,R14
+-	IMUL3Q $19,R15,CX
+-	ADDQ CX,SI
+-	MOVQ SI,CX
+-	SHRQ $51,CX
+-	ADDQ R8,CX
+-	ANDQ DX,SI
+-	MOVQ CX,R8
+-	SHRQ $51,CX
+-	ADDQ R10,CX
+-	ANDQ DX,R8
+-	MOVQ CX,R9
+-	SHRQ $51,CX
+-	ADDQ R12,CX
+-	ANDQ DX,R9
+-	MOVQ CX,AX
+-	SHRQ $51,CX
+-	ADDQ R14,CX
+-	ANDQ DX,AX
+-	MOVQ CX,R10
+-	SHRQ $51,CX
+-	IMUL3Q $19,CX,CX
+-	ADDQ CX,SI
+-	ANDQ DX,R10
+-	MOVQ SI,160(DI)
+-	MOVQ R8,168(DI)
+-	MOVQ R9,176(DI)
+-	MOVQ AX,184(DI)
+-	MOVQ R10,192(DI)
+-	MOVQ 184(DI),SI
+-	IMUL3Q $19,SI,AX
+-	MOVQ AX,0(SP)
+-	MULQ 16(DI)
+-	MOVQ AX,SI
+-	MOVQ DX,CX
+-	MOVQ 192(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MOVQ AX,8(SP)
+-	MULQ 8(DI)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 160(DI),AX
+-	MULQ 0(DI)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 160(DI),AX
+-	MULQ 8(DI)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 160(DI),AX
+-	MULQ 16(DI)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 160(DI),AX
+-	MULQ 24(DI)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 160(DI),AX
+-	MULQ 32(DI)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 168(DI),AX
+-	MULQ 0(DI)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 168(DI),AX
+-	MULQ 8(DI)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 168(DI),AX
+-	MULQ 16(DI)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 168(DI),AX
+-	MULQ 24(DI)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 168(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(DI)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 176(DI),AX
+-	MULQ 0(DI)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 176(DI),AX
+-	MULQ 8(DI)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 176(DI),AX
+-	MULQ 16(DI)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 176(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 24(DI)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 176(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(DI)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 184(DI),AX
+-	MULQ 0(DI)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 184(DI),AX
+-	MULQ 8(DI)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 0(SP),AX
+-	MULQ 24(DI)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 0(SP),AX
+-	MULQ 32(DI)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 192(DI),AX
+-	MULQ 0(DI)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 8(SP),AX
+-	MULQ 16(DI)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 8(SP),AX
+-	MULQ 24(DI)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 8(SP),AX
+-	MULQ 32(DI)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ $REDMASK51,DX
+-	SHLQ $13,SI,CX
+-	ANDQ DX,SI
+-	SHLQ $13,R8,R9
+-	ANDQ DX,R8
+-	ADDQ CX,R8
+-	SHLQ $13,R10,R11
+-	ANDQ DX,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ DX,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ DX,R14
+-	ADDQ R13,R14
+-	IMUL3Q $19,R15,CX
+-	ADDQ CX,SI
+-	MOVQ SI,CX
+-	SHRQ $51,CX
+-	ADDQ R8,CX
+-	MOVQ CX,R8
+-	SHRQ $51,CX
+-	ANDQ DX,SI
+-	ADDQ R10,CX
+-	MOVQ CX,R9
+-	SHRQ $51,CX
+-	ANDQ DX,R8
+-	ADDQ R12,CX
+-	MOVQ CX,AX
+-	SHRQ $51,CX
+-	ANDQ DX,R9
+-	ADDQ R14,CX
+-	MOVQ CX,R10
+-	SHRQ $51,CX
+-	ANDQ DX,AX
+-	IMUL3Q $19,CX,CX
+-	ADDQ CX,SI
+-	ANDQ DX,R10
+-	MOVQ SI,160(DI)
+-	MOVQ R8,168(DI)
+-	MOVQ R9,176(DI)
+-	MOVQ AX,184(DI)
+-	MOVQ R10,192(DI)
+-	MOVQ 144(SP),SI
+-	IMUL3Q $19,SI,AX
+-	MOVQ AX,0(SP)
+-	MULQ 96(SP)
+-	MOVQ AX,SI
+-	MOVQ DX,CX
+-	MOVQ 152(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MOVQ AX,8(SP)
+-	MULQ 88(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 120(SP),AX
+-	MULQ 80(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 120(SP),AX
+-	MULQ 88(SP)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 120(SP),AX
+-	MULQ 96(SP)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 120(SP),AX
+-	MULQ 104(SP)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 120(SP),AX
+-	MULQ 112(SP)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 128(SP),AX
+-	MULQ 80(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 128(SP),AX
+-	MULQ 88(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 128(SP),AX
+-	MULQ 96(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 128(SP),AX
+-	MULQ 104(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 128(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 112(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 136(SP),AX
+-	MULQ 80(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 136(SP),AX
+-	MULQ 88(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 136(SP),AX
+-	MULQ 96(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 136(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 104(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 136(SP),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 112(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 144(SP),AX
+-	MULQ 80(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 144(SP),AX
+-	MULQ 88(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 0(SP),AX
+-	MULQ 104(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 0(SP),AX
+-	MULQ 112(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 152(SP),AX
+-	MULQ 80(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 8(SP),AX
+-	MULQ 96(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 8(SP),AX
+-	MULQ 104(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 8(SP),AX
+-	MULQ 112(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ $REDMASK51,DX
+-	SHLQ $13,SI,CX
+-	ANDQ DX,SI
+-	SHLQ $13,R8,R9
+-	ANDQ DX,R8
+-	ADDQ CX,R8
+-	SHLQ $13,R10,R11
+-	ANDQ DX,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ DX,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ DX,R14
+-	ADDQ R13,R14
+-	IMUL3Q $19,R15,CX
+-	ADDQ CX,SI
+-	MOVQ SI,CX
+-	SHRQ $51,CX
+-	ADDQ R8,CX
+-	MOVQ CX,R8
+-	SHRQ $51,CX
+-	ANDQ DX,SI
+-	ADDQ R10,CX
+-	MOVQ CX,R9
+-	SHRQ $51,CX
+-	ANDQ DX,R8
+-	ADDQ R12,CX
+-	MOVQ CX,AX
+-	SHRQ $51,CX
+-	ANDQ DX,R9
+-	ADDQ R14,CX
+-	MOVQ CX,R10
+-	SHRQ $51,CX
+-	ANDQ DX,AX
+-	IMUL3Q $19,CX,CX
+-	ADDQ CX,SI
+-	ANDQ DX,R10
+-	MOVQ SI,40(DI)
+-	MOVQ R8,48(DI)
+-	MOVQ R9,56(DI)
+-	MOVQ AX,64(DI)
+-	MOVQ R10,72(DI)
+-	MOVQ 160(SP),AX
+-	MULQ ·_121666_213(SB)
+-	SHRQ $13,AX
+-	MOVQ AX,SI
+-	MOVQ DX,CX
+-	MOVQ 168(SP),AX
+-	MULQ ·_121666_213(SB)
+-	SHRQ $13,AX
+-	ADDQ AX,CX
+-	MOVQ DX,R8
+-	MOVQ 176(SP),AX
+-	MULQ ·_121666_213(SB)
+-	SHRQ $13,AX
+-	ADDQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 184(SP),AX
+-	MULQ ·_121666_213(SB)
+-	SHRQ $13,AX
+-	ADDQ AX,R9
+-	MOVQ DX,R10
+-	MOVQ 192(SP),AX
+-	MULQ ·_121666_213(SB)
+-	SHRQ $13,AX
+-	ADDQ AX,R10
+-	IMUL3Q $19,DX,DX
+-	ADDQ DX,SI
+-	ADDQ 80(SP),SI
+-	ADDQ 88(SP),CX
+-	ADDQ 96(SP),R8
+-	ADDQ 104(SP),R9
+-	ADDQ 112(SP),R10
+-	MOVQ SI,80(DI)
+-	MOVQ CX,88(DI)
+-	MOVQ R8,96(DI)
+-	MOVQ R9,104(DI)
+-	MOVQ R10,112(DI)
+-	MOVQ 104(DI),SI
+-	IMUL3Q $19,SI,AX
+-	MOVQ AX,0(SP)
+-	MULQ 176(SP)
+-	MOVQ AX,SI
+-	MOVQ DX,CX
+-	MOVQ 112(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MOVQ AX,8(SP)
+-	MULQ 168(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 80(DI),AX
+-	MULQ 160(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 80(DI),AX
+-	MULQ 168(SP)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 80(DI),AX
+-	MULQ 176(SP)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 80(DI),AX
+-	MULQ 184(SP)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 80(DI),AX
+-	MULQ 192(SP)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 88(DI),AX
+-	MULQ 160(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 88(DI),AX
+-	MULQ 168(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 88(DI),AX
+-	MULQ 176(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 88(DI),AX
+-	MULQ 184(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 88(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 192(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 96(DI),AX
+-	MULQ 160(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 96(DI),AX
+-	MULQ 168(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 96(DI),AX
+-	MULQ 176(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 96(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 184(SP)
+-	ADDQ AX,SI
+-	ADCQ DX,CX
+-	MOVQ 96(DI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 192(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 104(DI),AX
+-	MULQ 160(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 104(DI),AX
+-	MULQ 168(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 0(SP),AX
+-	MULQ 184(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 0(SP),AX
+-	MULQ 192(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 112(DI),AX
+-	MULQ 160(SP)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 8(SP),AX
+-	MULQ 176(SP)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 8(SP),AX
+-	MULQ 184(SP)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 8(SP),AX
+-	MULQ 192(SP)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ $REDMASK51,DX
+-	SHLQ $13,SI,CX
+-	ANDQ DX,SI
+-	SHLQ $13,R8,R9
+-	ANDQ DX,R8
+-	ADDQ CX,R8
+-	SHLQ $13,R10,R11
+-	ANDQ DX,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ DX,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ DX,R14
+-	ADDQ R13,R14
+-	IMUL3Q $19,R15,CX
+-	ADDQ CX,SI
+-	MOVQ SI,CX
+-	SHRQ $51,CX
+-	ADDQ R8,CX
+-	MOVQ CX,R8
+-	SHRQ $51,CX
+-	ANDQ DX,SI
+-	ADDQ R10,CX
+-	MOVQ CX,R9
+-	SHRQ $51,CX
+-	ANDQ DX,R8
+-	ADDQ R12,CX
+-	MOVQ CX,AX
+-	SHRQ $51,CX
+-	ANDQ DX,R9
+-	ADDQ R14,CX
+-	MOVQ CX,R10
+-	SHRQ $51,CX
+-	ANDQ DX,AX
+-	IMUL3Q $19,CX,CX
+-	ADDQ CX,SI
+-	ANDQ DX,R10
+-	MOVQ SI,80(DI)
+-	MOVQ R8,88(DI)
+-	MOVQ R9,96(DI)
+-	MOVQ AX,104(DI)
+-	MOVQ R10,112(DI)
+-	RET
+-
+-// func cswap(inout *[4][5]uint64, v uint64)
+-TEXT ·cswap(SB),7,$0
+-	MOVQ inout+0(FP),DI
+-	MOVQ v+8(FP),SI
+-
+-	SUBQ $1, SI
+-	NOTQ SI
+-	MOVQ SI, X15
+-	PSHUFD $0x44, X15, X15
+-
+-	MOVOU 0(DI), X0
+-	MOVOU 16(DI), X2
+-	MOVOU 32(DI), X4
+-	MOVOU 48(DI), X6
+-	MOVOU 64(DI), X8
+-	MOVOU 80(DI), X1
+-	MOVOU 96(DI), X3
+-	MOVOU 112(DI), X5
+-	MOVOU 128(DI), X7
+-	MOVOU 144(DI), X9
+-
+-	MOVO X1, X10
+-	MOVO X3, X11
+-	MOVO X5, X12
+-	MOVO X7, X13
+-	MOVO X9, X14
+-
+-	PXOR X0, X10
+-	PXOR X2, X11
+-	PXOR X4, X12
+-	PXOR X6, X13
+-	PXOR X8, X14
+-	PAND X15, X10
+-	PAND X15, X11
+-	PAND X15, X12
+-	PAND X15, X13
+-	PAND X15, X14
+-	PXOR X10, X0
+-	PXOR X10, X1
+-	PXOR X11, X2
+-	PXOR X11, X3
+-	PXOR X12, X4
+-	PXOR X12, X5
+-	PXOR X13, X6
+-	PXOR X13, X7
+-	PXOR X14, X8
+-	PXOR X14, X9
+-
+-	MOVOU X0, 0(DI)
+-	MOVOU X2, 16(DI)
+-	MOVOU X4, 32(DI)
+-	MOVOU X6, 48(DI)
+-	MOVOU X8, 64(DI)
+-	MOVOU X1, 80(DI)
+-	MOVOU X3, 96(DI)
+-	MOVOU X5, 112(DI)
+-	MOVOU X7, 128(DI)
+-	MOVOU X9, 144(DI)
+-	RET
+-
+-// func mul(dest, a, b *[5]uint64)
+-TEXT ·mul(SB),0,$16-24
+-	MOVQ dest+0(FP), DI
+-	MOVQ a+8(FP), SI
+-	MOVQ b+16(FP), DX
+-
+-	MOVQ DX,CX
+-	MOVQ 24(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MOVQ AX,0(SP)
+-	MULQ 16(CX)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 32(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MOVQ AX,8(SP)
+-	MULQ 8(CX)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 0(SI),AX
+-	MULQ 0(CX)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 0(SI),AX
+-	MULQ 8(CX)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 0(SI),AX
+-	MULQ 16(CX)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 0(SI),AX
+-	MULQ 24(CX)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 0(SI),AX
+-	MULQ 32(CX)
+-	MOVQ AX,BX
+-	MOVQ DX,BP
+-	MOVQ 8(SI),AX
+-	MULQ 0(CX)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 8(SI),AX
+-	MULQ 8(CX)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 8(SI),AX
+-	MULQ 16(CX)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 8(SI),AX
+-	MULQ 24(CX)
+-	ADDQ AX,BX
+-	ADCQ DX,BP
+-	MOVQ 8(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(CX)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 16(SI),AX
+-	MULQ 0(CX)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 16(SI),AX
+-	MULQ 8(CX)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 16(SI),AX
+-	MULQ 16(CX)
+-	ADDQ AX,BX
+-	ADCQ DX,BP
+-	MOVQ 16(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 24(CX)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 16(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(CX)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 24(SI),AX
+-	MULQ 0(CX)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 24(SI),AX
+-	MULQ 8(CX)
+-	ADDQ AX,BX
+-	ADCQ DX,BP
+-	MOVQ 0(SP),AX
+-	MULQ 24(CX)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 0(SP),AX
+-	MULQ 32(CX)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 32(SI),AX
+-	MULQ 0(CX)
+-	ADDQ AX,BX
+-	ADCQ DX,BP
+-	MOVQ 8(SP),AX
+-	MULQ 16(CX)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 8(SP),AX
+-	MULQ 24(CX)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 8(SP),AX
+-	MULQ 32(CX)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ $REDMASK51,SI
+-	SHLQ $13,R8,R9
+-	ANDQ SI,R8
+-	SHLQ $13,R10,R11
+-	ANDQ SI,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ SI,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ SI,R14
+-	ADDQ R13,R14
+-	SHLQ $13,BX,BP
+-	ANDQ SI,BX
+-	ADDQ R15,BX
+-	IMUL3Q $19,BP,DX
+-	ADDQ DX,R8
+-	MOVQ R8,DX
+-	SHRQ $51,DX
+-	ADDQ R10,DX
+-	MOVQ DX,CX
+-	SHRQ $51,DX
+-	ANDQ SI,R8
+-	ADDQ R12,DX
+-	MOVQ DX,R9
+-	SHRQ $51,DX
+-	ANDQ SI,CX
+-	ADDQ R14,DX
+-	MOVQ DX,AX
+-	SHRQ $51,DX
+-	ANDQ SI,R9
+-	ADDQ BX,DX
+-	MOVQ DX,R10
+-	SHRQ $51,DX
+-	ANDQ SI,AX
+-	IMUL3Q $19,DX,DX
+-	ADDQ DX,R8
+-	ANDQ SI,R10
+-	MOVQ R8,0(DI)
+-	MOVQ CX,8(DI)
+-	MOVQ R9,16(DI)
+-	MOVQ AX,24(DI)
+-	MOVQ R10,32(DI)
+-	RET
+-
+-// func square(out, in *[5]uint64)
+-TEXT ·square(SB),7,$0-16
+-	MOVQ out+0(FP), DI
+-	MOVQ in+8(FP), SI
+-
+-	MOVQ 0(SI),AX
+-	MULQ 0(SI)
+-	MOVQ AX,CX
+-	MOVQ DX,R8
+-	MOVQ 0(SI),AX
+-	SHLQ $1,AX
+-	MULQ 8(SI)
+-	MOVQ AX,R9
+-	MOVQ DX,R10
+-	MOVQ 0(SI),AX
+-	SHLQ $1,AX
+-	MULQ 16(SI)
+-	MOVQ AX,R11
+-	MOVQ DX,R12
+-	MOVQ 0(SI),AX
+-	SHLQ $1,AX
+-	MULQ 24(SI)
+-	MOVQ AX,R13
+-	MOVQ DX,R14
+-	MOVQ 0(SI),AX
+-	SHLQ $1,AX
+-	MULQ 32(SI)
+-	MOVQ AX,R15
+-	MOVQ DX,BX
+-	MOVQ 8(SI),AX
+-	MULQ 8(SI)
+-	ADDQ AX,R11
+-	ADCQ DX,R12
+-	MOVQ 8(SI),AX
+-	SHLQ $1,AX
+-	MULQ 16(SI)
+-	ADDQ AX,R13
+-	ADCQ DX,R14
+-	MOVQ 8(SI),AX
+-	SHLQ $1,AX
+-	MULQ 24(SI)
+-	ADDQ AX,R15
+-	ADCQ DX,BX
+-	MOVQ 8(SI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 32(SI)
+-	ADDQ AX,CX
+-	ADCQ DX,R8
+-	MOVQ 16(SI),AX
+-	MULQ 16(SI)
+-	ADDQ AX,R15
+-	ADCQ DX,BX
+-	MOVQ 16(SI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 24(SI)
+-	ADDQ AX,CX
+-	ADCQ DX,R8
+-	MOVQ 16(SI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 32(SI)
+-	ADDQ AX,R9
+-	ADCQ DX,R10
+-	MOVQ 24(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 24(SI)
+-	ADDQ AX,R9
+-	ADCQ DX,R10
+-	MOVQ 24(SI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 32(SI)
+-	ADDQ AX,R11
+-	ADCQ DX,R12
+-	MOVQ 32(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(SI)
+-	ADDQ AX,R13
+-	ADCQ DX,R14
+-	MOVQ $REDMASK51,SI
+-	SHLQ $13,CX,R8
+-	ANDQ SI,CX
+-	SHLQ $13,R9,R10
+-	ANDQ SI,R9
+-	ADDQ R8,R9
+-	SHLQ $13,R11,R12
+-	ANDQ SI,R11
+-	ADDQ R10,R11
+-	SHLQ $13,R13,R14
+-	ANDQ SI,R13
+-	ADDQ R12,R13
+-	SHLQ $13,R15,BX
+-	ANDQ SI,R15
+-	ADDQ R14,R15
+-	IMUL3Q $19,BX,DX
+-	ADDQ DX,CX
+-	MOVQ CX,DX
+-	SHRQ $51,DX
+-	ADDQ R9,DX
+-	ANDQ SI,CX
+-	MOVQ DX,R8
+-	SHRQ $51,DX
+-	ADDQ R11,DX
+-	ANDQ SI,R8
+-	MOVQ DX,R9
+-	SHRQ $51,DX
+-	ADDQ R13,DX
+-	ANDQ SI,R9
+-	MOVQ DX,AX
+-	SHRQ $51,DX
+-	ADDQ R15,DX
+-	ANDQ SI,AX
+-	MOVQ DX,R10
+-	SHRQ $51,DX
+-	IMUL3Q $19,DX,DX
+-	ADDQ DX,CX
+-	ANDQ SI,R10
+-	MOVQ CX,0(DI)
+-	MOVQ R8,8(DI)
+-	MOVQ R9,16(DI)
+-	MOVQ AX,24(DI)
+-	MOVQ R10,32(DI)
+-	RET
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/curve25519_generic.go b/src/vendor/golang.org/x/crypto/curve25519/curve25519_generic.go
+deleted file mode 100644
+index c43b13fc83..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/curve25519_generic.go
++++ /dev/null
+@@ -1,828 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package curve25519
+-
+-import "encoding/binary"
+-
+-// This code is a port of the public domain, "ref10" implementation of
+-// curve25519 from SUPERCOP 20130419 by D. J. Bernstein.
+-
+-// fieldElement represents an element of the field GF(2^255 - 19). An element
+-// t, entries t[0]...t[9], represents the integer t[0]+2^26 t[1]+2^51 t[2]+2^77
+-// t[3]+2^102 t[4]+...+2^230 t[9]. Bounds on each t[i] vary depending on
+-// context.
+-type fieldElement [10]int32
+-
+-func feZero(fe *fieldElement) {
+-	for i := range fe {
+-		fe[i] = 0
+-	}
+-}
+-
+-func feOne(fe *fieldElement) {
+-	feZero(fe)
+-	fe[0] = 1
+-}
+-
+-func feAdd(dst, a, b *fieldElement) {
+-	for i := range dst {
+-		dst[i] = a[i] + b[i]
+-	}
+-}
+-
+-func feSub(dst, a, b *fieldElement) {
+-	for i := range dst {
+-		dst[i] = a[i] - b[i]
+-	}
+-}
+-
+-func feCopy(dst, src *fieldElement) {
+-	for i := range dst {
+-		dst[i] = src[i]
+-	}
+-}
+-
+-// feCSwap replaces (f,g) with (g,f) if b == 1; replaces (f,g) with (f,g) if b == 0.
+-//
+-// Preconditions: b in {0,1}.
+-func feCSwap(f, g *fieldElement, b int32) {
+-	b = -b
+-	for i := range f {
+-		t := b & (f[i] ^ g[i])
+-		f[i] ^= t
+-		g[i] ^= t
+-	}
+-}
+-
+-// load3 reads a 24-bit, little-endian value from in.
+-func load3(in []byte) int64 {
+-	var r int64
+-	r = int64(in[0])
+-	r |= int64(in[1]) << 8
+-	r |= int64(in[2]) << 16
+-	return r
+-}
+-
+-// load4 reads a 32-bit, little-endian value from in.
+-func load4(in []byte) int64 {
+-	return int64(binary.LittleEndian.Uint32(in))
+-}
+-
+-func feFromBytes(dst *fieldElement, src *[32]byte) {
+-	h0 := load4(src[:])
+-	h1 := load3(src[4:]) << 6
+-	h2 := load3(src[7:]) << 5
+-	h3 := load3(src[10:]) << 3
+-	h4 := load3(src[13:]) << 2
+-	h5 := load4(src[16:])
+-	h6 := load3(src[20:]) << 7
+-	h7 := load3(src[23:]) << 5
+-	h8 := load3(src[26:]) << 4
+-	h9 := (load3(src[29:]) & 0x7fffff) << 2
+-
+-	var carry [10]int64
+-	carry[9] = (h9 + 1<<24) >> 25
+-	h0 += carry[9] * 19
+-	h9 -= carry[9] << 25
+-	carry[1] = (h1 + 1<<24) >> 25
+-	h2 += carry[1]
+-	h1 -= carry[1] << 25
+-	carry[3] = (h3 + 1<<24) >> 25
+-	h4 += carry[3]
+-	h3 -= carry[3] << 25
+-	carry[5] = (h5 + 1<<24) >> 25
+-	h6 += carry[5]
+-	h5 -= carry[5] << 25
+-	carry[7] = (h7 + 1<<24) >> 25
+-	h8 += carry[7]
+-	h7 -= carry[7] << 25
+-
+-	carry[0] = (h0 + 1<<25) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-	carry[2] = (h2 + 1<<25) >> 26
+-	h3 += carry[2]
+-	h2 -= carry[2] << 26
+-	carry[4] = (h4 + 1<<25) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-	carry[6] = (h6 + 1<<25) >> 26
+-	h7 += carry[6]
+-	h6 -= carry[6] << 26
+-	carry[8] = (h8 + 1<<25) >> 26
+-	h9 += carry[8]
+-	h8 -= carry[8] << 26
+-
+-	dst[0] = int32(h0)
+-	dst[1] = int32(h1)
+-	dst[2] = int32(h2)
+-	dst[3] = int32(h3)
+-	dst[4] = int32(h4)
+-	dst[5] = int32(h5)
+-	dst[6] = int32(h6)
+-	dst[7] = int32(h7)
+-	dst[8] = int32(h8)
+-	dst[9] = int32(h9)
+-}
+-
+-// feToBytes marshals h to s.
+-// Preconditions:
+-//   |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
+-//
+-// Write p=2^255-19; q=floor(h/p).
+-// Basic claim: q = floor(2^(-255)(h + 19 2^(-25)h9 + 2^(-1))).
+-//
+-// Proof:
+-//   Have |h|<=p so |q|<=1 so |19^2 2^(-255) q|<1/4.
+-//   Also have |h-2^230 h9|<2^230 so |19 2^(-255)(h-2^230 h9)|<1/4.
+-//
+-//   Write y=2^(-1)-19^2 2^(-255)q-19 2^(-255)(h-2^230 h9).
+-//   Then 0<y<1.
+-//
+-//   Write r=h-pq.
+-//   Have 0<=r<=p-1=2^255-20.
+-//   Thus 0<=r+19(2^-255)r<r+19(2^-255)2^255<=2^255-1.
+-//
+-//   Write x=r+19(2^-255)r+y.
+-//   Then 0<x<2^255 so floor(2^(-255)x) = 0 so floor(q+2^(-255)x) = q.
+-//
+-//   Have q+2^(-255)x = 2^(-255)(h + 19 2^(-25) h9 + 2^(-1))
+-//   so floor(2^(-255)(h + 19 2^(-25) h9 + 2^(-1))) = q.
+-func feToBytes(s *[32]byte, h *fieldElement) {
+-	var carry [10]int32
+-
+-	q := (19*h[9] + (1 << 24)) >> 25
+-	q = (h[0] + q) >> 26
+-	q = (h[1] + q) >> 25
+-	q = (h[2] + q) >> 26
+-	q = (h[3] + q) >> 25
+-	q = (h[4] + q) >> 26
+-	q = (h[5] + q) >> 25
+-	q = (h[6] + q) >> 26
+-	q = (h[7] + q) >> 25
+-	q = (h[8] + q) >> 26
+-	q = (h[9] + q) >> 25
+-
+-	// Goal: Output h-(2^255-19)q, which is between 0 and 2^255-20.
+-	h[0] += 19 * q
+-	// Goal: Output h-2^255 q, which is between 0 and 2^255-20.
+-
+-	carry[0] = h[0] >> 26
+-	h[1] += carry[0]
+-	h[0] -= carry[0] << 26
+-	carry[1] = h[1] >> 25
+-	h[2] += carry[1]
+-	h[1] -= carry[1] << 25
+-	carry[2] = h[2] >> 26
+-	h[3] += carry[2]
+-	h[2] -= carry[2] << 26
+-	carry[3] = h[3] >> 25
+-	h[4] += carry[3]
+-	h[3] -= carry[3] << 25
+-	carry[4] = h[4] >> 26
+-	h[5] += carry[4]
+-	h[4] -= carry[4] << 26
+-	carry[5] = h[5] >> 25
+-	h[6] += carry[5]
+-	h[5] -= carry[5] << 25
+-	carry[6] = h[6] >> 26
+-	h[7] += carry[6]
+-	h[6] -= carry[6] << 26
+-	carry[7] = h[7] >> 25
+-	h[8] += carry[7]
+-	h[7] -= carry[7] << 25
+-	carry[8] = h[8] >> 26
+-	h[9] += carry[8]
+-	h[8] -= carry[8] << 26
+-	carry[9] = h[9] >> 25
+-	h[9] -= carry[9] << 25
+-	// h10 = carry9
+-
+-	// Goal: Output h[0]+...+2^255 h10-2^255 q, which is between 0 and 2^255-20.
+-	// Have h[0]+...+2^230 h[9] between 0 and 2^255-1;
+-	// evidently 2^255 h10-2^255 q = 0.
+-	// Goal: Output h[0]+...+2^230 h[9].
+-
+-	s[0] = byte(h[0] >> 0)
+-	s[1] = byte(h[0] >> 8)
+-	s[2] = byte(h[0] >> 16)
+-	s[3] = byte((h[0] >> 24) | (h[1] << 2))
+-	s[4] = byte(h[1] >> 6)
+-	s[5] = byte(h[1] >> 14)
+-	s[6] = byte((h[1] >> 22) | (h[2] << 3))
+-	s[7] = byte(h[2] >> 5)
+-	s[8] = byte(h[2] >> 13)
+-	s[9] = byte((h[2] >> 21) | (h[3] << 5))
+-	s[10] = byte(h[3] >> 3)
+-	s[11] = byte(h[3] >> 11)
+-	s[12] = byte((h[3] >> 19) | (h[4] << 6))
+-	s[13] = byte(h[4] >> 2)
+-	s[14] = byte(h[4] >> 10)
+-	s[15] = byte(h[4] >> 18)
+-	s[16] = byte(h[5] >> 0)
+-	s[17] = byte(h[5] >> 8)
+-	s[18] = byte(h[5] >> 16)
+-	s[19] = byte((h[5] >> 24) | (h[6] << 1))
+-	s[20] = byte(h[6] >> 7)
+-	s[21] = byte(h[6] >> 15)
+-	s[22] = byte((h[6] >> 23) | (h[7] << 3))
+-	s[23] = byte(h[7] >> 5)
+-	s[24] = byte(h[7] >> 13)
+-	s[25] = byte((h[7] >> 21) | (h[8] << 4))
+-	s[26] = byte(h[8] >> 4)
+-	s[27] = byte(h[8] >> 12)
+-	s[28] = byte((h[8] >> 20) | (h[9] << 6))
+-	s[29] = byte(h[9] >> 2)
+-	s[30] = byte(h[9] >> 10)
+-	s[31] = byte(h[9] >> 18)
+-}
+-
+-// feMul calculates h = f * g
+-// Can overlap h with f or g.
+-//
+-// Preconditions:
+-//    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
+-//    |g| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
+-//
+-// Postconditions:
+-//    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
+-//
+-// Notes on implementation strategy:
+-//
+-// Using schoolbook multiplication.
+-// Karatsuba would save a little in some cost models.
+-//
+-// Most multiplications by 2 and 19 are 32-bit precomputations;
+-// cheaper than 64-bit postcomputations.
+-//
+-// There is one remaining multiplication by 19 in the carry chain;
+-// one *19 precomputation can be merged into this,
+-// but the resulting data flow is considerably less clean.
+-//
+-// There are 12 carries below.
+-// 10 of them are 2-way parallelizable and vectorizable.
+-// Can get away with 11 carries, but then data flow is much deeper.
+-//
+-// With tighter constraints on inputs can squeeze carries into int32.
+-func feMul(h, f, g *fieldElement) {
+-	f0 := f[0]
+-	f1 := f[1]
+-	f2 := f[2]
+-	f3 := f[3]
+-	f4 := f[4]
+-	f5 := f[5]
+-	f6 := f[6]
+-	f7 := f[7]
+-	f8 := f[8]
+-	f9 := f[9]
+-	g0 := g[0]
+-	g1 := g[1]
+-	g2 := g[2]
+-	g3 := g[3]
+-	g4 := g[4]
+-	g5 := g[5]
+-	g6 := g[6]
+-	g7 := g[7]
+-	g8 := g[8]
+-	g9 := g[9]
+-	g1_19 := 19 * g1 // 1.4*2^29
+-	g2_19 := 19 * g2 // 1.4*2^30; still ok
+-	g3_19 := 19 * g3
+-	g4_19 := 19 * g4
+-	g5_19 := 19 * g5
+-	g6_19 := 19 * g6
+-	g7_19 := 19 * g7
+-	g8_19 := 19 * g8
+-	g9_19 := 19 * g9
+-	f1_2 := 2 * f1
+-	f3_2 := 2 * f3
+-	f5_2 := 2 * f5
+-	f7_2 := 2 * f7
+-	f9_2 := 2 * f9
+-	f0g0 := int64(f0) * int64(g0)
+-	f0g1 := int64(f0) * int64(g1)
+-	f0g2 := int64(f0) * int64(g2)
+-	f0g3 := int64(f0) * int64(g3)
+-	f0g4 := int64(f0) * int64(g4)
+-	f0g5 := int64(f0) * int64(g5)
+-	f0g6 := int64(f0) * int64(g6)
+-	f0g7 := int64(f0) * int64(g7)
+-	f0g8 := int64(f0) * int64(g8)
+-	f0g9 := int64(f0) * int64(g9)
+-	f1g0 := int64(f1) * int64(g0)
+-	f1g1_2 := int64(f1_2) * int64(g1)
+-	f1g2 := int64(f1) * int64(g2)
+-	f1g3_2 := int64(f1_2) * int64(g3)
+-	f1g4 := int64(f1) * int64(g4)
+-	f1g5_2 := int64(f1_2) * int64(g5)
+-	f1g6 := int64(f1) * int64(g6)
+-	f1g7_2 := int64(f1_2) * int64(g7)
+-	f1g8 := int64(f1) * int64(g8)
+-	f1g9_38 := int64(f1_2) * int64(g9_19)
+-	f2g0 := int64(f2) * int64(g0)
+-	f2g1 := int64(f2) * int64(g1)
+-	f2g2 := int64(f2) * int64(g2)
+-	f2g3 := int64(f2) * int64(g3)
+-	f2g4 := int64(f2) * int64(g4)
+-	f2g5 := int64(f2) * int64(g5)
+-	f2g6 := int64(f2) * int64(g6)
+-	f2g7 := int64(f2) * int64(g7)
+-	f2g8_19 := int64(f2) * int64(g8_19)
+-	f2g9_19 := int64(f2) * int64(g9_19)
+-	f3g0 := int64(f3) * int64(g0)
+-	f3g1_2 := int64(f3_2) * int64(g1)
+-	f3g2 := int64(f3) * int64(g2)
+-	f3g3_2 := int64(f3_2) * int64(g3)
+-	f3g4 := int64(f3) * int64(g4)
+-	f3g5_2 := int64(f3_2) * int64(g5)
+-	f3g6 := int64(f3) * int64(g6)
+-	f3g7_38 := int64(f3_2) * int64(g7_19)
+-	f3g8_19 := int64(f3) * int64(g8_19)
+-	f3g9_38 := int64(f3_2) * int64(g9_19)
+-	f4g0 := int64(f4) * int64(g0)
+-	f4g1 := int64(f4) * int64(g1)
+-	f4g2 := int64(f4) * int64(g2)
+-	f4g3 := int64(f4) * int64(g3)
+-	f4g4 := int64(f4) * int64(g4)
+-	f4g5 := int64(f4) * int64(g5)
+-	f4g6_19 := int64(f4) * int64(g6_19)
+-	f4g7_19 := int64(f4) * int64(g7_19)
+-	f4g8_19 := int64(f4) * int64(g8_19)
+-	f4g9_19 := int64(f4) * int64(g9_19)
+-	f5g0 := int64(f5) * int64(g0)
+-	f5g1_2 := int64(f5_2) * int64(g1)
+-	f5g2 := int64(f5) * int64(g2)
+-	f5g3_2 := int64(f5_2) * int64(g3)
+-	f5g4 := int64(f5) * int64(g4)
+-	f5g5_38 := int64(f5_2) * int64(g5_19)
+-	f5g6_19 := int64(f5) * int64(g6_19)
+-	f5g7_38 := int64(f5_2) * int64(g7_19)
+-	f5g8_19 := int64(f5) * int64(g8_19)
+-	f5g9_38 := int64(f5_2) * int64(g9_19)
+-	f6g0 := int64(f6) * int64(g0)
+-	f6g1 := int64(f6) * int64(g1)
+-	f6g2 := int64(f6) * int64(g2)
+-	f6g3 := int64(f6) * int64(g3)
+-	f6g4_19 := int64(f6) * int64(g4_19)
+-	f6g5_19 := int64(f6) * int64(g5_19)
+-	f6g6_19 := int64(f6) * int64(g6_19)
+-	f6g7_19 := int64(f6) * int64(g7_19)
+-	f6g8_19 := int64(f6) * int64(g8_19)
+-	f6g9_19 := int64(f6) * int64(g9_19)
+-	f7g0 := int64(f7) * int64(g0)
+-	f7g1_2 := int64(f7_2) * int64(g1)
+-	f7g2 := int64(f7) * int64(g2)
+-	f7g3_38 := int64(f7_2) * int64(g3_19)
+-	f7g4_19 := int64(f7) * int64(g4_19)
+-	f7g5_38 := int64(f7_2) * int64(g5_19)
+-	f7g6_19 := int64(f7) * int64(g6_19)
+-	f7g7_38 := int64(f7_2) * int64(g7_19)
+-	f7g8_19 := int64(f7) * int64(g8_19)
+-	f7g9_38 := int64(f7_2) * int64(g9_19)
+-	f8g0 := int64(f8) * int64(g0)
+-	f8g1 := int64(f8) * int64(g1)
+-	f8g2_19 := int64(f8) * int64(g2_19)
+-	f8g3_19 := int64(f8) * int64(g3_19)
+-	f8g4_19 := int64(f8) * int64(g4_19)
+-	f8g5_19 := int64(f8) * int64(g5_19)
+-	f8g6_19 := int64(f8) * int64(g6_19)
+-	f8g7_19 := int64(f8) * int64(g7_19)
+-	f8g8_19 := int64(f8) * int64(g8_19)
+-	f8g9_19 := int64(f8) * int64(g9_19)
+-	f9g0 := int64(f9) * int64(g0)
+-	f9g1_38 := int64(f9_2) * int64(g1_19)
+-	f9g2_19 := int64(f9) * int64(g2_19)
+-	f9g3_38 := int64(f9_2) * int64(g3_19)
+-	f9g4_19 := int64(f9) * int64(g4_19)
+-	f9g5_38 := int64(f9_2) * int64(g5_19)
+-	f9g6_19 := int64(f9) * int64(g6_19)
+-	f9g7_38 := int64(f9_2) * int64(g7_19)
+-	f9g8_19 := int64(f9) * int64(g8_19)
+-	f9g9_38 := int64(f9_2) * int64(g9_19)
+-	h0 := f0g0 + f1g9_38 + f2g8_19 + f3g7_38 + f4g6_19 + f5g5_38 + f6g4_19 + f7g3_38 + f8g2_19 + f9g1_38
+-	h1 := f0g1 + f1g0 + f2g9_19 + f3g8_19 + f4g7_19 + f5g6_19 + f6g5_19 + f7g4_19 + f8g3_19 + f9g2_19
+-	h2 := f0g2 + f1g1_2 + f2g0 + f3g9_38 + f4g8_19 + f5g7_38 + f6g6_19 + f7g5_38 + f8g4_19 + f9g3_38
+-	h3 := f0g3 + f1g2 + f2g1 + f3g0 + f4g9_19 + f5g8_19 + f6g7_19 + f7g6_19 + f8g5_19 + f9g4_19
+-	h4 := f0g4 + f1g3_2 + f2g2 + f3g1_2 + f4g0 + f5g9_38 + f6g8_19 + f7g7_38 + f8g6_19 + f9g5_38
+-	h5 := f0g5 + f1g4 + f2g3 + f3g2 + f4g1 + f5g0 + f6g9_19 + f7g8_19 + f8g7_19 + f9g6_19
+-	h6 := f0g6 + f1g5_2 + f2g4 + f3g3_2 + f4g2 + f5g1_2 + f6g0 + f7g9_38 + f8g8_19 + f9g7_38
+-	h7 := f0g7 + f1g6 + f2g5 + f3g4 + f4g3 + f5g2 + f6g1 + f7g0 + f8g9_19 + f9g8_19
+-	h8 := f0g8 + f1g7_2 + f2g6 + f3g5_2 + f4g4 + f5g3_2 + f6g2 + f7g1_2 + f8g0 + f9g9_38
+-	h9 := f0g9 + f1g8 + f2g7 + f3g6 + f4g5 + f5g4 + f6g3 + f7g2 + f8g1 + f9g0
+-	var carry [10]int64
+-
+-	// |h0| <= (1.1*1.1*2^52*(1+19+19+19+19)+1.1*1.1*2^50*(38+38+38+38+38))
+-	//   i.e. |h0| <= 1.2*2^59; narrower ranges for h2, h4, h6, h8
+-	// |h1| <= (1.1*1.1*2^51*(1+1+19+19+19+19+19+19+19+19))
+-	//   i.e. |h1| <= 1.5*2^58; narrower ranges for h3, h5, h7, h9
+-
+-	carry[0] = (h0 + (1 << 25)) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-	carry[4] = (h4 + (1 << 25)) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-	// |h0| <= 2^25
+-	// |h4| <= 2^25
+-	// |h1| <= 1.51*2^58
+-	// |h5| <= 1.51*2^58
+-
+-	carry[1] = (h1 + (1 << 24)) >> 25
+-	h2 += carry[1]
+-	h1 -= carry[1] << 25
+-	carry[5] = (h5 + (1 << 24)) >> 25
+-	h6 += carry[5]
+-	h5 -= carry[5] << 25
+-	// |h1| <= 2^24; from now on fits into int32
+-	// |h5| <= 2^24; from now on fits into int32
+-	// |h2| <= 1.21*2^59
+-	// |h6| <= 1.21*2^59
+-
+-	carry[2] = (h2 + (1 << 25)) >> 26
+-	h3 += carry[2]
+-	h2 -= carry[2] << 26
+-	carry[6] = (h6 + (1 << 25)) >> 26
+-	h7 += carry[6]
+-	h6 -= carry[6] << 26
+-	// |h2| <= 2^25; from now on fits into int32 unchanged
+-	// |h6| <= 2^25; from now on fits into int32 unchanged
+-	// |h3| <= 1.51*2^58
+-	// |h7| <= 1.51*2^58
+-
+-	carry[3] = (h3 + (1 << 24)) >> 25
+-	h4 += carry[3]
+-	h3 -= carry[3] << 25
+-	carry[7] = (h7 + (1 << 24)) >> 25
+-	h8 += carry[7]
+-	h7 -= carry[7] << 25
+-	// |h3| <= 2^24; from now on fits into int32 unchanged
+-	// |h7| <= 2^24; from now on fits into int32 unchanged
+-	// |h4| <= 1.52*2^33
+-	// |h8| <= 1.52*2^33
+-
+-	carry[4] = (h4 + (1 << 25)) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-	carry[8] = (h8 + (1 << 25)) >> 26
+-	h9 += carry[8]
+-	h8 -= carry[8] << 26
+-	// |h4| <= 2^25; from now on fits into int32 unchanged
+-	// |h8| <= 2^25; from now on fits into int32 unchanged
+-	// |h5| <= 1.01*2^24
+-	// |h9| <= 1.51*2^58
+-
+-	carry[9] = (h9 + (1 << 24)) >> 25
+-	h0 += carry[9] * 19
+-	h9 -= carry[9] << 25
+-	// |h9| <= 2^24; from now on fits into int32 unchanged
+-	// |h0| <= 1.8*2^37
+-
+-	carry[0] = (h0 + (1 << 25)) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-	// |h0| <= 2^25; from now on fits into int32 unchanged
+-	// |h1| <= 1.01*2^24
+-
+-	h[0] = int32(h0)
+-	h[1] = int32(h1)
+-	h[2] = int32(h2)
+-	h[3] = int32(h3)
+-	h[4] = int32(h4)
+-	h[5] = int32(h5)
+-	h[6] = int32(h6)
+-	h[7] = int32(h7)
+-	h[8] = int32(h8)
+-	h[9] = int32(h9)
+-}
+-
+-// feSquare calculates h = f*f. Can overlap h with f.
+-//
+-// Preconditions:
+-//    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
+-//
+-// Postconditions:
+-//    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
+-func feSquare(h, f *fieldElement) {
+-	f0 := f[0]
+-	f1 := f[1]
+-	f2 := f[2]
+-	f3 := f[3]
+-	f4 := f[4]
+-	f5 := f[5]
+-	f6 := f[6]
+-	f7 := f[7]
+-	f8 := f[8]
+-	f9 := f[9]
+-	f0_2 := 2 * f0
+-	f1_2 := 2 * f1
+-	f2_2 := 2 * f2
+-	f3_2 := 2 * f3
+-	f4_2 := 2 * f4
+-	f5_2 := 2 * f5
+-	f6_2 := 2 * f6
+-	f7_2 := 2 * f7
+-	f5_38 := 38 * f5 // 1.31*2^30
+-	f6_19 := 19 * f6 // 1.31*2^30
+-	f7_38 := 38 * f7 // 1.31*2^30
+-	f8_19 := 19 * f8 // 1.31*2^30
+-	f9_38 := 38 * f9 // 1.31*2^30
+-	f0f0 := int64(f0) * int64(f0)
+-	f0f1_2 := int64(f0_2) * int64(f1)
+-	f0f2_2 := int64(f0_2) * int64(f2)
+-	f0f3_2 := int64(f0_2) * int64(f3)
+-	f0f4_2 := int64(f0_2) * int64(f4)
+-	f0f5_2 := int64(f0_2) * int64(f5)
+-	f0f6_2 := int64(f0_2) * int64(f6)
+-	f0f7_2 := int64(f0_2) * int64(f7)
+-	f0f8_2 := int64(f0_2) * int64(f8)
+-	f0f9_2 := int64(f0_2) * int64(f9)
+-	f1f1_2 := int64(f1_2) * int64(f1)
+-	f1f2_2 := int64(f1_2) * int64(f2)
+-	f1f3_4 := int64(f1_2) * int64(f3_2)
+-	f1f4_2 := int64(f1_2) * int64(f4)
+-	f1f5_4 := int64(f1_2) * int64(f5_2)
+-	f1f6_2 := int64(f1_2) * int64(f6)
+-	f1f7_4 := int64(f1_2) * int64(f7_2)
+-	f1f8_2 := int64(f1_2) * int64(f8)
+-	f1f9_76 := int64(f1_2) * int64(f9_38)
+-	f2f2 := int64(f2) * int64(f2)
+-	f2f3_2 := int64(f2_2) * int64(f3)
+-	f2f4_2 := int64(f2_2) * int64(f4)
+-	f2f5_2 := int64(f2_2) * int64(f5)
+-	f2f6_2 := int64(f2_2) * int64(f6)
+-	f2f7_2 := int64(f2_2) * int64(f7)
+-	f2f8_38 := int64(f2_2) * int64(f8_19)
+-	f2f9_38 := int64(f2) * int64(f9_38)
+-	f3f3_2 := int64(f3_2) * int64(f3)
+-	f3f4_2 := int64(f3_2) * int64(f4)
+-	f3f5_4 := int64(f3_2) * int64(f5_2)
+-	f3f6_2 := int64(f3_2) * int64(f6)
+-	f3f7_76 := int64(f3_2) * int64(f7_38)
+-	f3f8_38 := int64(f3_2) * int64(f8_19)
+-	f3f9_76 := int64(f3_2) * int64(f9_38)
+-	f4f4 := int64(f4) * int64(f4)
+-	f4f5_2 := int64(f4_2) * int64(f5)
+-	f4f6_38 := int64(f4_2) * int64(f6_19)
+-	f4f7_38 := int64(f4) * int64(f7_38)
+-	f4f8_38 := int64(f4_2) * int64(f8_19)
+-	f4f9_38 := int64(f4) * int64(f9_38)
+-	f5f5_38 := int64(f5) * int64(f5_38)
+-	f5f6_38 := int64(f5_2) * int64(f6_19)
+-	f5f7_76 := int64(f5_2) * int64(f7_38)
+-	f5f8_38 := int64(f5_2) * int64(f8_19)
+-	f5f9_76 := int64(f5_2) * int64(f9_38)
+-	f6f6_19 := int64(f6) * int64(f6_19)
+-	f6f7_38 := int64(f6) * int64(f7_38)
+-	f6f8_38 := int64(f6_2) * int64(f8_19)
+-	f6f9_38 := int64(f6) * int64(f9_38)
+-	f7f7_38 := int64(f7) * int64(f7_38)
+-	f7f8_38 := int64(f7_2) * int64(f8_19)
+-	f7f9_76 := int64(f7_2) * int64(f9_38)
+-	f8f8_19 := int64(f8) * int64(f8_19)
+-	f8f9_38 := int64(f8) * int64(f9_38)
+-	f9f9_38 := int64(f9) * int64(f9_38)
+-	h0 := f0f0 + f1f9_76 + f2f8_38 + f3f7_76 + f4f6_38 + f5f5_38
+-	h1 := f0f1_2 + f2f9_38 + f3f8_38 + f4f7_38 + f5f6_38
+-	h2 := f0f2_2 + f1f1_2 + f3f9_76 + f4f8_38 + f5f7_76 + f6f6_19
+-	h3 := f0f3_2 + f1f2_2 + f4f9_38 + f5f8_38 + f6f7_38
+-	h4 := f0f4_2 + f1f3_4 + f2f2 + f5f9_76 + f6f8_38 + f7f7_38
+-	h5 := f0f5_2 + f1f4_2 + f2f3_2 + f6f9_38 + f7f8_38
+-	h6 := f0f6_2 + f1f5_4 + f2f4_2 + f3f3_2 + f7f9_76 + f8f8_19
+-	h7 := f0f7_2 + f1f6_2 + f2f5_2 + f3f4_2 + f8f9_38
+-	h8 := f0f8_2 + f1f7_4 + f2f6_2 + f3f5_4 + f4f4 + f9f9_38
+-	h9 := f0f9_2 + f1f8_2 + f2f7_2 + f3f6_2 + f4f5_2
+-	var carry [10]int64
+-
+-	carry[0] = (h0 + (1 << 25)) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-	carry[4] = (h4 + (1 << 25)) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-
+-	carry[1] = (h1 + (1 << 24)) >> 25
+-	h2 += carry[1]
+-	h1 -= carry[1] << 25
+-	carry[5] = (h5 + (1 << 24)) >> 25
+-	h6 += carry[5]
+-	h5 -= carry[5] << 25
+-
+-	carry[2] = (h2 + (1 << 25)) >> 26
+-	h3 += carry[2]
+-	h2 -= carry[2] << 26
+-	carry[6] = (h6 + (1 << 25)) >> 26
+-	h7 += carry[6]
+-	h6 -= carry[6] << 26
+-
+-	carry[3] = (h3 + (1 << 24)) >> 25
+-	h4 += carry[3]
+-	h3 -= carry[3] << 25
+-	carry[7] = (h7 + (1 << 24)) >> 25
+-	h8 += carry[7]
+-	h7 -= carry[7] << 25
+-
+-	carry[4] = (h4 + (1 << 25)) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-	carry[8] = (h8 + (1 << 25)) >> 26
+-	h9 += carry[8]
+-	h8 -= carry[8] << 26
+-
+-	carry[9] = (h9 + (1 << 24)) >> 25
+-	h0 += carry[9] * 19
+-	h9 -= carry[9] << 25
+-
+-	carry[0] = (h0 + (1 << 25)) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-
+-	h[0] = int32(h0)
+-	h[1] = int32(h1)
+-	h[2] = int32(h2)
+-	h[3] = int32(h3)
+-	h[4] = int32(h4)
+-	h[5] = int32(h5)
+-	h[6] = int32(h6)
+-	h[7] = int32(h7)
+-	h[8] = int32(h8)
+-	h[9] = int32(h9)
+-}
+-
+-// feMul121666 calculates h = f * 121666. Can overlap h with f.
+-//
+-// Preconditions:
+-//    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
+-//
+-// Postconditions:
+-//    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
+-func feMul121666(h, f *fieldElement) {
+-	h0 := int64(f[0]) * 121666
+-	h1 := int64(f[1]) * 121666
+-	h2 := int64(f[2]) * 121666
+-	h3 := int64(f[3]) * 121666
+-	h4 := int64(f[4]) * 121666
+-	h5 := int64(f[5]) * 121666
+-	h6 := int64(f[6]) * 121666
+-	h7 := int64(f[7]) * 121666
+-	h8 := int64(f[8]) * 121666
+-	h9 := int64(f[9]) * 121666
+-	var carry [10]int64
+-
+-	carry[9] = (h9 + (1 << 24)) >> 25
+-	h0 += carry[9] * 19
+-	h9 -= carry[9] << 25
+-	carry[1] = (h1 + (1 << 24)) >> 25
+-	h2 += carry[1]
+-	h1 -= carry[1] << 25
+-	carry[3] = (h3 + (1 << 24)) >> 25
+-	h4 += carry[3]
+-	h3 -= carry[3] << 25
+-	carry[5] = (h5 + (1 << 24)) >> 25
+-	h6 += carry[5]
+-	h5 -= carry[5] << 25
+-	carry[7] = (h7 + (1 << 24)) >> 25
+-	h8 += carry[7]
+-	h7 -= carry[7] << 25
+-
+-	carry[0] = (h0 + (1 << 25)) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-	carry[2] = (h2 + (1 << 25)) >> 26
+-	h3 += carry[2]
+-	h2 -= carry[2] << 26
+-	carry[4] = (h4 + (1 << 25)) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-	carry[6] = (h6 + (1 << 25)) >> 26
+-	h7 += carry[6]
+-	h6 -= carry[6] << 26
+-	carry[8] = (h8 + (1 << 25)) >> 26
+-	h9 += carry[8]
+-	h8 -= carry[8] << 26
+-
+-	h[0] = int32(h0)
+-	h[1] = int32(h1)
+-	h[2] = int32(h2)
+-	h[3] = int32(h3)
+-	h[4] = int32(h4)
+-	h[5] = int32(h5)
+-	h[6] = int32(h6)
+-	h[7] = int32(h7)
+-	h[8] = int32(h8)
+-	h[9] = int32(h9)
+-}
+-
+-// feInvert sets out = z^-1.
+-func feInvert(out, z *fieldElement) {
+-	var t0, t1, t2, t3 fieldElement
+-	var i int
+-
+-	feSquare(&t0, z)
+-	for i = 1; i < 1; i++ {
+-		feSquare(&t0, &t0)
+-	}
+-	feSquare(&t1, &t0)
+-	for i = 1; i < 2; i++ {
+-		feSquare(&t1, &t1)
+-	}
+-	feMul(&t1, z, &t1)
+-	feMul(&t0, &t0, &t1)
+-	feSquare(&t2, &t0)
+-	for i = 1; i < 1; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t1, &t1, &t2)
+-	feSquare(&t2, &t1)
+-	for i = 1; i < 5; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t1, &t2, &t1)
+-	feSquare(&t2, &t1)
+-	for i = 1; i < 10; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t2, &t2, &t1)
+-	feSquare(&t3, &t2)
+-	for i = 1; i < 20; i++ {
+-		feSquare(&t3, &t3)
+-	}
+-	feMul(&t2, &t3, &t2)
+-	feSquare(&t2, &t2)
+-	for i = 1; i < 10; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t1, &t2, &t1)
+-	feSquare(&t2, &t1)
+-	for i = 1; i < 50; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t2, &t2, &t1)
+-	feSquare(&t3, &t2)
+-	for i = 1; i < 100; i++ {
+-		feSquare(&t3, &t3)
+-	}
+-	feMul(&t2, &t3, &t2)
+-	feSquare(&t2, &t2)
+-	for i = 1; i < 50; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t1, &t2, &t1)
+-	feSquare(&t1, &t1)
+-	for i = 1; i < 5; i++ {
+-		feSquare(&t1, &t1)
+-	}
+-	feMul(out, &t1, &t0)
+-}
+-
+-func scalarMultGeneric(out, in, base *[32]byte) {
+-	var e [32]byte
+-
+-	copy(e[:], in[:])
+-	e[0] &= 248
+-	e[31] &= 127
+-	e[31] |= 64
+-
+-	var x1, x2, z2, x3, z3, tmp0, tmp1 fieldElement
+-	feFromBytes(&x1, base)
+-	feOne(&x2)
+-	feCopy(&x3, &x1)
+-	feOne(&z3)
+-
+-	swap := int32(0)
+-	for pos := 254; pos >= 0; pos-- {
+-		b := e[pos/8] >> uint(pos&7)
+-		b &= 1
+-		swap ^= int32(b)
+-		feCSwap(&x2, &x3, swap)
+-		feCSwap(&z2, &z3, swap)
+-		swap = int32(b)
+-
+-		feSub(&tmp0, &x3, &z3)
+-		feSub(&tmp1, &x2, &z2)
+-		feAdd(&x2, &x2, &z2)
+-		feAdd(&z2, &x3, &z3)
+-		feMul(&z3, &tmp0, &x2)
+-		feMul(&z2, &z2, &tmp1)
+-		feSquare(&tmp0, &tmp1)
+-		feSquare(&tmp1, &x2)
+-		feAdd(&x3, &z3, &z2)
+-		feSub(&z2, &z3, &z2)
+-		feMul(&x2, &tmp1, &tmp0)
+-		feSub(&tmp1, &tmp1, &tmp0)
+-		feSquare(&z2, &z2)
+-		feMul121666(&z3, &tmp1)
+-		feSquare(&x3, &x3)
+-		feAdd(&tmp0, &tmp0, &z3)
+-		feMul(&z3, &x1, &z2)
+-		feMul(&z2, &tmp1, &tmp0)
+-	}
+-
+-	feCSwap(&x2, &x3, swap)
+-	feCSwap(&z2, &z3, swap)
+-
+-	feInvert(&z2, &z2)
+-	feMul(&x2, &x2, &z2)
+-	feToBytes(out, &x2)
+-}
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/curve25519_noasm.go b/src/vendor/golang.org/x/crypto/curve25519/curve25519_noasm.go
+deleted file mode 100644
+index 259728af7d..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/curve25519_noasm.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !amd64 || !gc || purego
+-// +build !amd64 !gc purego
+-
+-package curve25519
+-
+-func scalarMult(out, in, base *[32]byte) {
+-	scalarMultGeneric(out, in, base)
+-}
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/README b/src/vendor/golang.org/x/crypto/curve25519/internal/field/README
+new file mode 100644
+index 0000000000..e25bca7dc8
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/README
+@@ -0,0 +1,7 @@
++This package is kept in sync with crypto/ed25519/internal/edwards25519/field in
++the standard library.
++
++If there are any changes in the standard library that need to be synced to this
++package, run sync.sh. It will not overwrite any local changes made since the
++previous sync, so it's ok to land changes in this package first, and then sync
++to the standard library later.
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe.go b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe.go
+new file mode 100644
+index 0000000000..ca841ad99e
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe.go
+@@ -0,0 +1,416 @@
++// Copyright (c) 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package field implements fast arithmetic modulo 2^255-19.
++package field
++
++import (
++	"crypto/subtle"
++	"encoding/binary"
++	"math/bits"
++)
++
++// Element represents an element of the field GF(2^255-19). Note that this
++// is not a cryptographically secure group, and should only be used to interact
++// with edwards25519.Point coordinates.
++//
++// This type works similarly to math/big.Int, and all arguments and receivers
++// are allowed to alias.
++//
++// The zero value is a valid zero element.
++type Element struct {
++	// An element t represents the integer
++	//     t.l0 + t.l1*2^51 + t.l2*2^102 + t.l3*2^153 + t.l4*2^204
++	//
++	// Between operations, all limbs are expected to be lower than 2^52.
++	l0 uint64
++	l1 uint64
++	l2 uint64
++	l3 uint64
++	l4 uint64
++}
++
++const maskLow51Bits uint64 = (1 << 51) - 1
++
++var feZero = &Element{0, 0, 0, 0, 0}
++
++// Zero sets v = 0, and returns v.
++func (v *Element) Zero() *Element {
++	*v = *feZero
++	return v
++}
++
++var feOne = &Element{1, 0, 0, 0, 0}
++
++// One sets v = 1, and returns v.
++func (v *Element) One() *Element {
++	*v = *feOne
++	return v
++}
++
++// reduce reduces v modulo 2^255 - 19 and returns it.
++func (v *Element) reduce() *Element {
++	v.carryPropagate()
++
++	// After the light reduction we now have a field element representation
++	// v < 2^255 + 2^13 * 19, but need v < 2^255 - 19.
++
++	// If v >= 2^255 - 19, then v + 19 >= 2^255, which would overflow 2^255 - 1,
++	// generating a carry. That is, c will be 0 if v < 2^255 - 19, and 1 otherwise.
++	c := (v.l0 + 19) >> 51
++	c = (v.l1 + c) >> 51
++	c = (v.l2 + c) >> 51
++	c = (v.l3 + c) >> 51
++	c = (v.l4 + c) >> 51
++
++	// If v < 2^255 - 19 and c = 0, this will be a no-op. Otherwise, it's
++	// effectively applying the reduction identity to the carry.
++	v.l0 += 19 * c
++
++	v.l1 += v.l0 >> 51
++	v.l0 = v.l0 & maskLow51Bits
++	v.l2 += v.l1 >> 51
++	v.l1 = v.l1 & maskLow51Bits
++	v.l3 += v.l2 >> 51
++	v.l2 = v.l2 & maskLow51Bits
++	v.l4 += v.l3 >> 51
++	v.l3 = v.l3 & maskLow51Bits
++	// no additional carry
++	v.l4 = v.l4 & maskLow51Bits
++
++	return v
++}
++
++// Add sets v = a + b, and returns v.
++func (v *Element) Add(a, b *Element) *Element {
++	v.l0 = a.l0 + b.l0
++	v.l1 = a.l1 + b.l1
++	v.l2 = a.l2 + b.l2
++	v.l3 = a.l3 + b.l3
++	v.l4 = a.l4 + b.l4
++	// Using the generic implementation here is actually faster than the
++	// assembly. Probably because the body of this function is so simple that
++	// the compiler can figure out better optimizations by inlining the carry
++	// propagation. TODO
++	return v.carryPropagateGeneric()
++}
++
++// Subtract sets v = a - b, and returns v.
++func (v *Element) Subtract(a, b *Element) *Element {
++	// We first add 2 * p, to guarantee the subtraction won't underflow, and
++	// then subtract b (which can be up to 2^255 + 2^13 * 19).
++	v.l0 = (a.l0 + 0xFFFFFFFFFFFDA) - b.l0
++	v.l1 = (a.l1 + 0xFFFFFFFFFFFFE) - b.l1
++	v.l2 = (a.l2 + 0xFFFFFFFFFFFFE) - b.l2
++	v.l3 = (a.l3 + 0xFFFFFFFFFFFFE) - b.l3
++	v.l4 = (a.l4 + 0xFFFFFFFFFFFFE) - b.l4
++	return v.carryPropagate()
++}
++
++// Negate sets v = -a, and returns v.
++func (v *Element) Negate(a *Element) *Element {
++	return v.Subtract(feZero, a)
++}
++
++// Invert sets v = 1/z mod p, and returns v.
++//
++// If z == 0, Invert returns v = 0.
++func (v *Element) Invert(z *Element) *Element {
++	// Inversion is implemented as exponentiation with exponent p − 2. It uses the
++	// same sequence of 255 squarings and 11 multiplications as [Curve25519].
++	var z2, z9, z11, z2_5_0, z2_10_0, z2_20_0, z2_50_0, z2_100_0, t Element
++
++	z2.Square(z)             // 2
++	t.Square(&z2)            // 4
++	t.Square(&t)             // 8
++	z9.Multiply(&t, z)       // 9
++	z11.Multiply(&z9, &z2)   // 11
++	t.Square(&z11)           // 22
++	z2_5_0.Multiply(&t, &z9) // 31 = 2^5 - 2^0
++
++	t.Square(&z2_5_0) // 2^6 - 2^1
++	for i := 0; i < 4; i++ {
++		t.Square(&t) // 2^10 - 2^5
++	}
++	z2_10_0.Multiply(&t, &z2_5_0) // 2^10 - 2^0
++
++	t.Square(&z2_10_0) // 2^11 - 2^1
++	for i := 0; i < 9; i++ {
++		t.Square(&t) // 2^20 - 2^10
++	}
++	z2_20_0.Multiply(&t, &z2_10_0) // 2^20 - 2^0
++
++	t.Square(&z2_20_0) // 2^21 - 2^1
++	for i := 0; i < 19; i++ {
++		t.Square(&t) // 2^40 - 2^20
++	}
++	t.Multiply(&t, &z2_20_0) // 2^40 - 2^0
++
++	t.Square(&t) // 2^41 - 2^1
++	for i := 0; i < 9; i++ {
++		t.Square(&t) // 2^50 - 2^10
++	}
++	z2_50_0.Multiply(&t, &z2_10_0) // 2^50 - 2^0
++
++	t.Square(&z2_50_0) // 2^51 - 2^1
++	for i := 0; i < 49; i++ {
++		t.Square(&t) // 2^100 - 2^50
++	}
++	z2_100_0.Multiply(&t, &z2_50_0) // 2^100 - 2^0
++
++	t.Square(&z2_100_0) // 2^101 - 2^1
++	for i := 0; i < 99; i++ {
++		t.Square(&t) // 2^200 - 2^100
++	}
++	t.Multiply(&t, &z2_100_0) // 2^200 - 2^0
++
++	t.Square(&t) // 2^201 - 2^1
++	for i := 0; i < 49; i++ {
++		t.Square(&t) // 2^250 - 2^50
++	}
++	t.Multiply(&t, &z2_50_0) // 2^250 - 2^0
++
++	t.Square(&t) // 2^251 - 2^1
++	t.Square(&t) // 2^252 - 2^2
++	t.Square(&t) // 2^253 - 2^3
++	t.Square(&t) // 2^254 - 2^4
++	t.Square(&t) // 2^255 - 2^5
++
++	return v.Multiply(&t, &z11) // 2^255 - 21
++}
++
++// Set sets v = a, and returns v.
++func (v *Element) Set(a *Element) *Element {
++	*v = *a
++	return v
++}
++
++// SetBytes sets v to x, which must be a 32-byte little-endian encoding.
++//
++// Consistent with RFC 7748, the most significant bit (the high bit of the
++// last byte) is ignored, and non-canonical values (2^255-19 through 2^255-1)
++// are accepted. Note that this is laxer than specified by RFC 8032.
++func (v *Element) SetBytes(x []byte) *Element {
++	if len(x) != 32 {
++		panic("edwards25519: invalid field element input size")
++	}
++
++	// Bits 0:51 (bytes 0:8, bits 0:64, shift 0, mask 51).
++	v.l0 = binary.LittleEndian.Uint64(x[0:8])
++	v.l0 &= maskLow51Bits
++	// Bits 51:102 (bytes 6:14, bits 48:112, shift 3, mask 51).
++	v.l1 = binary.LittleEndian.Uint64(x[6:14]) >> 3
++	v.l1 &= maskLow51Bits
++	// Bits 102:153 (bytes 12:20, bits 96:160, shift 6, mask 51).
++	v.l2 = binary.LittleEndian.Uint64(x[12:20]) >> 6
++	v.l2 &= maskLow51Bits
++	// Bits 153:204 (bytes 19:27, bits 152:216, shift 1, mask 51).
++	v.l3 = binary.LittleEndian.Uint64(x[19:27]) >> 1
++	v.l3 &= maskLow51Bits
++	// Bits 204:251 (bytes 24:32, bits 192:256, shift 12, mask 51).
++	// Note: not bytes 25:33, shift 4, to avoid overread.
++	v.l4 = binary.LittleEndian.Uint64(x[24:32]) >> 12
++	v.l4 &= maskLow51Bits
++
++	return v
++}
++
++// Bytes returns the canonical 32-byte little-endian encoding of v.
++func (v *Element) Bytes() []byte {
++	// This function is outlined to make the allocations inline in the caller
++	// rather than happen on the heap.
++	var out [32]byte
++	return v.bytes(&out)
++}
++
++func (v *Element) bytes(out *[32]byte) []byte {
++	t := *v
++	t.reduce()
++
++	var buf [8]byte
++	for i, l := range [5]uint64{t.l0, t.l1, t.l2, t.l3, t.l4} {
++		bitsOffset := i * 51
++		binary.LittleEndian.PutUint64(buf[:], l<<uint(bitsOffset%8))
++		for i, bb := range buf {
++			off := bitsOffset/8 + i
++			if off >= len(out) {
++				break
++			}
++			out[off] |= bb
++		}
++	}
++
++	return out[:]
++}
++
++// Equal returns 1 if v and u are equal, and 0 otherwise.
++func (v *Element) Equal(u *Element) int {
++	sa, sv := u.Bytes(), v.Bytes()
++	return subtle.ConstantTimeCompare(sa, sv)
++}
++
++// mask64Bits returns 0xffffffff if cond is 1, and 0 otherwise.
++func mask64Bits(cond int) uint64 { return ^(uint64(cond) - 1) }
++
++// Select sets v to a if cond == 1, and to b if cond == 0.
++func (v *Element) Select(a, b *Element, cond int) *Element {
++	m := mask64Bits(cond)
++	v.l0 = (m & a.l0) | (^m & b.l0)
++	v.l1 = (m & a.l1) | (^m & b.l1)
++	v.l2 = (m & a.l2) | (^m & b.l2)
++	v.l3 = (m & a.l3) | (^m & b.l3)
++	v.l4 = (m & a.l4) | (^m & b.l4)
++	return v
++}
++
++// Swap swaps v and u if cond == 1 or leaves them unchanged if cond == 0, and returns v.
++func (v *Element) Swap(u *Element, cond int) {
++	m := mask64Bits(cond)
++	t := m & (v.l0 ^ u.l0)
++	v.l0 ^= t
++	u.l0 ^= t
++	t = m & (v.l1 ^ u.l1)
++	v.l1 ^= t
++	u.l1 ^= t
++	t = m & (v.l2 ^ u.l2)
++	v.l2 ^= t
++	u.l2 ^= t
++	t = m & (v.l3 ^ u.l3)
++	v.l3 ^= t
++	u.l3 ^= t
++	t = m & (v.l4 ^ u.l4)
++	v.l4 ^= t
++	u.l4 ^= t
++}
++
++// IsNegative returns 1 if v is negative, and 0 otherwise.
++func (v *Element) IsNegative() int {
++	return int(v.Bytes()[0] & 1)
++}
++
++// Absolute sets v to |u|, and returns v.
++func (v *Element) Absolute(u *Element) *Element {
++	return v.Select(new(Element).Negate(u), u, u.IsNegative())
++}
++
++// Multiply sets v = x * y, and returns v.
++func (v *Element) Multiply(x, y *Element) *Element {
++	feMul(v, x, y)
++	return v
++}
++
++// Square sets v = x * x, and returns v.
++func (v *Element) Square(x *Element) *Element {
++	feSquare(v, x)
++	return v
++}
++
++// Mult32 sets v = x * y, and returns v.
++func (v *Element) Mult32(x *Element, y uint32) *Element {
++	x0lo, x0hi := mul51(x.l0, y)
++	x1lo, x1hi := mul51(x.l1, y)
++	x2lo, x2hi := mul51(x.l2, y)
++	x3lo, x3hi := mul51(x.l3, y)
++	x4lo, x4hi := mul51(x.l4, y)
++	v.l0 = x0lo + 19*x4hi // carried over per the reduction identity
++	v.l1 = x1lo + x0hi
++	v.l2 = x2lo + x1hi
++	v.l3 = x3lo + x2hi
++	v.l4 = x4lo + x3hi
++	// The hi portions are going to be only 32 bits, plus any previous excess,
++	// so we can skip the carry propagation.
++	return v
++}
++
++// mul51 returns lo + hi * 2⁵¹ = a * b.
++func mul51(a uint64, b uint32) (lo uint64, hi uint64) {
++	mh, ml := bits.Mul64(a, uint64(b))
++	lo = ml & maskLow51Bits
++	hi = (mh << 13) | (ml >> 51)
++	return
++}
++
++// Pow22523 set v = x^((p-5)/8), and returns v. (p-5)/8 is 2^252-3.
++func (v *Element) Pow22523(x *Element) *Element {
++	var t0, t1, t2 Element
++
++	t0.Square(x)             // x^2
++	t1.Square(&t0)           // x^4
++	t1.Square(&t1)           // x^8
++	t1.Multiply(x, &t1)      // x^9
++	t0.Multiply(&t0, &t1)    // x^11
++	t0.Square(&t0)           // x^22
++	t0.Multiply(&t1, &t0)    // x^31
++	t1.Square(&t0)           // x^62
++	for i := 1; i < 5; i++ { // x^992
++		t1.Square(&t1)
++	}
++	t0.Multiply(&t1, &t0)     // x^1023 -> 1023 = 2^10 - 1
++	t1.Square(&t0)            // 2^11 - 2
++	for i := 1; i < 10; i++ { // 2^20 - 2^10
++		t1.Square(&t1)
++	}
++	t1.Multiply(&t1, &t0)     // 2^20 - 1
++	t2.Square(&t1)            // 2^21 - 2
++	for i := 1; i < 20; i++ { // 2^40 - 2^20
++		t2.Square(&t2)
++	}
++	t1.Multiply(&t2, &t1)     // 2^40 - 1
++	t1.Square(&t1)            // 2^41 - 2
++	for i := 1; i < 10; i++ { // 2^50 - 2^10
++		t1.Square(&t1)
++	}
++	t0.Multiply(&t1, &t0)     // 2^50 - 1
++	t1.Square(&t0)            // 2^51 - 2
++	for i := 1; i < 50; i++ { // 2^100 - 2^50
++		t1.Square(&t1)
++	}
++	t1.Multiply(&t1, &t0)      // 2^100 - 1
++	t2.Square(&t1)             // 2^101 - 2
++	for i := 1; i < 100; i++ { // 2^200 - 2^100
++		t2.Square(&t2)
++	}
++	t1.Multiply(&t2, &t1)     // 2^200 - 1
++	t1.Square(&t1)            // 2^201 - 2
++	for i := 1; i < 50; i++ { // 2^250 - 2^50
++		t1.Square(&t1)
++	}
++	t0.Multiply(&t1, &t0)     // 2^250 - 1
++	t0.Square(&t0)            // 2^251 - 2
++	t0.Square(&t0)            // 2^252 - 4
++	return v.Multiply(&t0, x) // 2^252 - 3 -> x^(2^252-3)
++}
++
++// sqrtM1 is 2^((p-1)/4), which squared is equal to -1 by Euler's Criterion.
++var sqrtM1 = &Element{1718705420411056, 234908883556509,
++	2233514472574048, 2117202627021982, 765476049583133}
++
++// SqrtRatio sets r to the non-negative square root of the ratio of u and v.
++//
++// If u/v is square, SqrtRatio returns r and 1. If u/v is not square, SqrtRatio
++// sets r according to Section 4.3 of draft-irtf-cfrg-ristretto255-decaf448-00,
++// and returns r and 0.
++func (r *Element) SqrtRatio(u, v *Element) (rr *Element, wasSquare int) {
++	var a, b Element
++
++	// r = (u * v3) * (u * v7)^((p-5)/8)
++	v2 := a.Square(v)
++	uv3 := b.Multiply(u, b.Multiply(v2, v))
++	uv7 := a.Multiply(uv3, a.Square(v2))
++	r.Multiply(uv3, r.Pow22523(uv7))
++
++	check := a.Multiply(v, a.Square(r)) // check = v * r^2
++
++	uNeg := b.Negate(u)
++	correctSignSqrt := check.Equal(u)
++	flippedSignSqrt := check.Equal(uNeg)
++	flippedSignSqrtI := check.Equal(uNeg.Multiply(uNeg, sqrtM1))
++
++	rPrime := b.Multiply(r, sqrtM1) // r_prime = SQRT_M1 * r
++	// r = CT_SELECT(r_prime IF flipped_sign_sqrt | flipped_sign_sqrt_i ELSE r)
++	r.Select(rPrime, r, flippedSignSqrt|flippedSignSqrtI)
++
++	r.Absolute(r) // Choose the nonnegative square root.
++	return r, correctSignSqrt | flippedSignSqrt
++}
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64.go b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64.go
+new file mode 100644
+index 0000000000..44dc8e8caf
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64.go
+@@ -0,0 +1,13 @@
++// Code generated by command: go run fe_amd64_asm.go -out ../fe_amd64.s -stubs ../fe_amd64.go -pkg field. DO NOT EDIT.
++
++// +build amd64,gc,!purego
++
++package field
++
++// feMul sets out = a * b. It works like feMulGeneric.
++//go:noescape
++func feMul(out *Element, a *Element, b *Element)
++
++// feSquare sets out = a * a. It works like feSquareGeneric.
++//go:noescape
++func feSquare(out *Element, a *Element)
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64.s b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64.s
+new file mode 100644
+index 0000000000..293f013c94
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64.s
+@@ -0,0 +1,379 @@
++// Code generated by command: go run fe_amd64_asm.go -out ../fe_amd64.s -stubs ../fe_amd64.go -pkg field. DO NOT EDIT.
++
++//go:build amd64 && gc && !purego
++// +build amd64,gc,!purego
++
++#include "textflag.h"
++
++// func feMul(out *Element, a *Element, b *Element)
++TEXT ·feMul(SB), NOSPLIT, $0-24
++	MOVQ a+8(FP), CX
++	MOVQ b+16(FP), BX
++
++	// r0 = a0×b0
++	MOVQ (CX), AX
++	MULQ (BX)
++	MOVQ AX, DI
++	MOVQ DX, SI
++
++	// r0 += 19×a1×b4
++	MOVQ   8(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   32(BX)
++	ADDQ   AX, DI
++	ADCQ   DX, SI
++
++	// r0 += 19×a2×b3
++	MOVQ   16(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   24(BX)
++	ADDQ   AX, DI
++	ADCQ   DX, SI
++
++	// r0 += 19×a3×b2
++	MOVQ   24(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   16(BX)
++	ADDQ   AX, DI
++	ADCQ   DX, SI
++
++	// r0 += 19×a4×b1
++	MOVQ   32(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   8(BX)
++	ADDQ   AX, DI
++	ADCQ   DX, SI
++
++	// r1 = a0×b1
++	MOVQ (CX), AX
++	MULQ 8(BX)
++	MOVQ AX, R9
++	MOVQ DX, R8
++
++	// r1 += a1×b0
++	MOVQ 8(CX), AX
++	MULQ (BX)
++	ADDQ AX, R9
++	ADCQ DX, R8
++
++	// r1 += 19×a2×b4
++	MOVQ   16(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   32(BX)
++	ADDQ   AX, R9
++	ADCQ   DX, R8
++
++	// r1 += 19×a3×b3
++	MOVQ   24(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   24(BX)
++	ADDQ   AX, R9
++	ADCQ   DX, R8
++
++	// r1 += 19×a4×b2
++	MOVQ   32(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   16(BX)
++	ADDQ   AX, R9
++	ADCQ   DX, R8
++
++	// r2 = a0×b2
++	MOVQ (CX), AX
++	MULQ 16(BX)
++	MOVQ AX, R11
++	MOVQ DX, R10
++
++	// r2 += a1×b1
++	MOVQ 8(CX), AX
++	MULQ 8(BX)
++	ADDQ AX, R11
++	ADCQ DX, R10
++
++	// r2 += a2×b0
++	MOVQ 16(CX), AX
++	MULQ (BX)
++	ADDQ AX, R11
++	ADCQ DX, R10
++
++	// r2 += 19×a3×b4
++	MOVQ   24(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   32(BX)
++	ADDQ   AX, R11
++	ADCQ   DX, R10
++
++	// r2 += 19×a4×b3
++	MOVQ   32(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   24(BX)
++	ADDQ   AX, R11
++	ADCQ   DX, R10
++
++	// r3 = a0×b3
++	MOVQ (CX), AX
++	MULQ 24(BX)
++	MOVQ AX, R13
++	MOVQ DX, R12
++
++	// r3 += a1×b2
++	MOVQ 8(CX), AX
++	MULQ 16(BX)
++	ADDQ AX, R13
++	ADCQ DX, R12
++
++	// r3 += a2×b1
++	MOVQ 16(CX), AX
++	MULQ 8(BX)
++	ADDQ AX, R13
++	ADCQ DX, R12
++
++	// r3 += a3×b0
++	MOVQ 24(CX), AX
++	MULQ (BX)
++	ADDQ AX, R13
++	ADCQ DX, R12
++
++	// r3 += 19×a4×b4
++	MOVQ   32(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   32(BX)
++	ADDQ   AX, R13
++	ADCQ   DX, R12
++
++	// r4 = a0×b4
++	MOVQ (CX), AX
++	MULQ 32(BX)
++	MOVQ AX, R15
++	MOVQ DX, R14
++
++	// r4 += a1×b3
++	MOVQ 8(CX), AX
++	MULQ 24(BX)
++	ADDQ AX, R15
++	ADCQ DX, R14
++
++	// r4 += a2×b2
++	MOVQ 16(CX), AX
++	MULQ 16(BX)
++	ADDQ AX, R15
++	ADCQ DX, R14
++
++	// r4 += a3×b1
++	MOVQ 24(CX), AX
++	MULQ 8(BX)
++	ADDQ AX, R15
++	ADCQ DX, R14
++
++	// r4 += a4×b0
++	MOVQ 32(CX), AX
++	MULQ (BX)
++	ADDQ AX, R15
++	ADCQ DX, R14
++
++	// First reduction chain
++	MOVQ   $0x0007ffffffffffff, AX
++	SHLQ   $0x0d, DI, SI
++	SHLQ   $0x0d, R9, R8
++	SHLQ   $0x0d, R11, R10
++	SHLQ   $0x0d, R13, R12
++	SHLQ   $0x0d, R15, R14
++	ANDQ   AX, DI
++	IMUL3Q $0x13, R14, R14
++	ADDQ   R14, DI
++	ANDQ   AX, R9
++	ADDQ   SI, R9
++	ANDQ   AX, R11
++	ADDQ   R8, R11
++	ANDQ   AX, R13
++	ADDQ   R10, R13
++	ANDQ   AX, R15
++	ADDQ   R12, R15
++
++	// Second reduction chain (carryPropagate)
++	MOVQ   DI, SI
++	SHRQ   $0x33, SI
++	MOVQ   R9, R8
++	SHRQ   $0x33, R8
++	MOVQ   R11, R10
++	SHRQ   $0x33, R10
++	MOVQ   R13, R12
++	SHRQ   $0x33, R12
++	MOVQ   R15, R14
++	SHRQ   $0x33, R14
++	ANDQ   AX, DI
++	IMUL3Q $0x13, R14, R14
++	ADDQ   R14, DI
++	ANDQ   AX, R9
++	ADDQ   SI, R9
++	ANDQ   AX, R11
++	ADDQ   R8, R11
++	ANDQ   AX, R13
++	ADDQ   R10, R13
++	ANDQ   AX, R15
++	ADDQ   R12, R15
++
++	// Store output
++	MOVQ out+0(FP), AX
++	MOVQ DI, (AX)
++	MOVQ R9, 8(AX)
++	MOVQ R11, 16(AX)
++	MOVQ R13, 24(AX)
++	MOVQ R15, 32(AX)
++	RET
++
++// func feSquare(out *Element, a *Element)
++TEXT ·feSquare(SB), NOSPLIT, $0-16
++	MOVQ a+8(FP), CX
++
++	// r0 = l0×l0
++	MOVQ (CX), AX
++	MULQ (CX)
++	MOVQ AX, SI
++	MOVQ DX, BX
++
++	// r0 += 38×l1×l4
++	MOVQ   8(CX), AX
++	IMUL3Q $0x26, AX, AX
++	MULQ   32(CX)
++	ADDQ   AX, SI
++	ADCQ   DX, BX
++
++	// r0 += 38×l2×l3
++	MOVQ   16(CX), AX
++	IMUL3Q $0x26, AX, AX
++	MULQ   24(CX)
++	ADDQ   AX, SI
++	ADCQ   DX, BX
++
++	// r1 = 2×l0×l1
++	MOVQ (CX), AX
++	SHLQ $0x01, AX
++	MULQ 8(CX)
++	MOVQ AX, R8
++	MOVQ DX, DI
++
++	// r1 += 38×l2×l4
++	MOVQ   16(CX), AX
++	IMUL3Q $0x26, AX, AX
++	MULQ   32(CX)
++	ADDQ   AX, R8
++	ADCQ   DX, DI
++
++	// r1 += 19×l3×l3
++	MOVQ   24(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   24(CX)
++	ADDQ   AX, R8
++	ADCQ   DX, DI
++
++	// r2 = 2×l0×l2
++	MOVQ (CX), AX
++	SHLQ $0x01, AX
++	MULQ 16(CX)
++	MOVQ AX, R10
++	MOVQ DX, R9
++
++	// r2 += l1×l1
++	MOVQ 8(CX), AX
++	MULQ 8(CX)
++	ADDQ AX, R10
++	ADCQ DX, R9
++
++	// r2 += 38×l3×l4
++	MOVQ   24(CX), AX
++	IMUL3Q $0x26, AX, AX
++	MULQ   32(CX)
++	ADDQ   AX, R10
++	ADCQ   DX, R9
++
++	// r3 = 2×l0×l3
++	MOVQ (CX), AX
++	SHLQ $0x01, AX
++	MULQ 24(CX)
++	MOVQ AX, R12
++	MOVQ DX, R11
++
++	// r3 += 2×l1×l2
++	MOVQ   8(CX), AX
++	IMUL3Q $0x02, AX, AX
++	MULQ   16(CX)
++	ADDQ   AX, R12
++	ADCQ   DX, R11
++
++	// r3 += 19×l4×l4
++	MOVQ   32(CX), AX
++	IMUL3Q $0x13, AX, AX
++	MULQ   32(CX)
++	ADDQ   AX, R12
++	ADCQ   DX, R11
++
++	// r4 = 2×l0×l4
++	MOVQ (CX), AX
++	SHLQ $0x01, AX
++	MULQ 32(CX)
++	MOVQ AX, R14
++	MOVQ DX, R13
++
++	// r4 += 2×l1×l3
++	MOVQ   8(CX), AX
++	IMUL3Q $0x02, AX, AX
++	MULQ   24(CX)
++	ADDQ   AX, R14
++	ADCQ   DX, R13
++
++	// r4 += l2×l2
++	MOVQ 16(CX), AX
++	MULQ 16(CX)
++	ADDQ AX, R14
++	ADCQ DX, R13
++
++	// First reduction chain
++	MOVQ   $0x0007ffffffffffff, AX
++	SHLQ   $0x0d, SI, BX
++	SHLQ   $0x0d, R8, DI
++	SHLQ   $0x0d, R10, R9
++	SHLQ   $0x0d, R12, R11
++	SHLQ   $0x0d, R14, R13
++	ANDQ   AX, SI
++	IMUL3Q $0x13, R13, R13
++	ADDQ   R13, SI
++	ANDQ   AX, R8
++	ADDQ   BX, R8
++	ANDQ   AX, R10
++	ADDQ   DI, R10
++	ANDQ   AX, R12
++	ADDQ   R9, R12
++	ANDQ   AX, R14
++	ADDQ   R11, R14
++
++	// Second reduction chain (carryPropagate)
++	MOVQ   SI, BX
++	SHRQ   $0x33, BX
++	MOVQ   R8, DI
++	SHRQ   $0x33, DI
++	MOVQ   R10, R9
++	SHRQ   $0x33, R9
++	MOVQ   R12, R11
++	SHRQ   $0x33, R11
++	MOVQ   R14, R13
++	SHRQ   $0x33, R13
++	ANDQ   AX, SI
++	IMUL3Q $0x13, R13, R13
++	ADDQ   R13, SI
++	ANDQ   AX, R8
++	ADDQ   BX, R8
++	ANDQ   AX, R10
++	ADDQ   DI, R10
++	ANDQ   AX, R12
++	ADDQ   R9, R12
++	ANDQ   AX, R14
++	ADDQ   R11, R14
++
++	// Store output
++	MOVQ out+0(FP), AX
++	MOVQ SI, (AX)
++	MOVQ R8, 8(AX)
++	MOVQ R10, 16(AX)
++	MOVQ R12, 24(AX)
++	MOVQ R14, 32(AX)
++	RET
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64_noasm.go b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64_noasm.go
+new file mode 100644
+index 0000000000..ddb6c9b8f7
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64_noasm.go
+@@ -0,0 +1,12 @@
++// Copyright (c) 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !amd64 || !gc || purego
++// +build !amd64 !gc purego
++
++package field
++
++func feMul(v, x, y *Element) { feMulGeneric(v, x, y) }
++
++func feSquare(v, x *Element) { feSquareGeneric(v, x) }
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_arm64.go b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_arm64.go
+new file mode 100644
+index 0000000000..af459ef515
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_arm64.go
+@@ -0,0 +1,16 @@
++// Copyright (c) 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build arm64 && gc && !purego
++// +build arm64,gc,!purego
++
++package field
++
++//go:noescape
++func carryPropagate(v *Element)
++
++func (v *Element) carryPropagate() *Element {
++	carryPropagate(v)
++	return v
++}
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_arm64.s b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_arm64.s
+new file mode 100644
+index 0000000000..5c91e45892
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_arm64.s
+@@ -0,0 +1,43 @@
++// Copyright (c) 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build arm64 && gc && !purego
++// +build arm64,gc,!purego
++
++#include "textflag.h"
++
++// carryPropagate works exactly like carryPropagateGeneric and uses the
++// same AND, ADD, and LSR+MADD instructions emitted by the compiler, but
++// avoids loading R0-R4 twice and uses LDP and STP.
++//
++// See https://golang.org/issues/43145 for the main compiler issue.
++//
++// func carryPropagate(v *Element)
++TEXT ·carryPropagate(SB),NOFRAME|NOSPLIT,$0-8
++	MOVD v+0(FP), R20
++
++	LDP 0(R20), (R0, R1)
++	LDP 16(R20), (R2, R3)
++	MOVD 32(R20), R4
++
++	AND $0x7ffffffffffff, R0, R10
++	AND $0x7ffffffffffff, R1, R11
++	AND $0x7ffffffffffff, R2, R12
++	AND $0x7ffffffffffff, R3, R13
++	AND $0x7ffffffffffff, R4, R14
++
++	ADD R0>>51, R11, R11
++	ADD R1>>51, R12, R12
++	ADD R2>>51, R13, R13
++	ADD R3>>51, R14, R14
++	// R4>>51 * 19 + R10 -> R10
++	LSR $51, R4, R21
++	MOVD $19, R22
++	MADD R22, R10, R21, R10
++
++	STP (R10, R11), 0(R20)
++	STP (R12, R13), 16(R20)
++	MOVD R14, 32(R20)
++
++	RET
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_arm64_noasm.go b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_arm64_noasm.go
+new file mode 100644
+index 0000000000..234a5b2e5d
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_arm64_noasm.go
+@@ -0,0 +1,12 @@
++// Copyright (c) 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !arm64 || !gc || purego
++// +build !arm64 !gc purego
++
++package field
++
++func (v *Element) carryPropagate() *Element {
++	return v.carryPropagateGeneric()
++}
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_generic.go b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_generic.go
+new file mode 100644
+index 0000000000..7b5b78cbd6
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_generic.go
+@@ -0,0 +1,264 @@
++// Copyright (c) 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package field
++
++import "math/bits"
++
++// uint128 holds a 128-bit number as two 64-bit limbs, for use with the
++// bits.Mul64 and bits.Add64 intrinsics.
++type uint128 struct {
++	lo, hi uint64
++}
++
++// mul64 returns a * b.
++func mul64(a, b uint64) uint128 {
++	hi, lo := bits.Mul64(a, b)
++	return uint128{lo, hi}
++}
++
++// addMul64 returns v + a * b.
++func addMul64(v uint128, a, b uint64) uint128 {
++	hi, lo := bits.Mul64(a, b)
++	lo, c := bits.Add64(lo, v.lo, 0)
++	hi, _ = bits.Add64(hi, v.hi, c)
++	return uint128{lo, hi}
++}
++
++// shiftRightBy51 returns a >> 51. a is assumed to be at most 115 bits.
++func shiftRightBy51(a uint128) uint64 {
++	return (a.hi << (64 - 51)) | (a.lo >> 51)
++}
++
++func feMulGeneric(v, a, b *Element) {
++	a0 := a.l0
++	a1 := a.l1
++	a2 := a.l2
++	a3 := a.l3
++	a4 := a.l4
++
++	b0 := b.l0
++	b1 := b.l1
++	b2 := b.l2
++	b3 := b.l3
++	b4 := b.l4
++
++	// Limb multiplication works like pen-and-paper columnar multiplication, but
++	// with 51-bit limbs instead of digits.
++	//
++	//                          a4   a3   a2   a1   a0  x
++	//                          b4   b3   b2   b1   b0  =
++	//                         ------------------------
++	//                        a4b0 a3b0 a2b0 a1b0 a0b0  +
++	//                   a4b1 a3b1 a2b1 a1b1 a0b1       +
++	//              a4b2 a3b2 a2b2 a1b2 a0b2            +
++	//         a4b3 a3b3 a2b3 a1b3 a0b3                 +
++	//    a4b4 a3b4 a2b4 a1b4 a0b4                      =
++	//   ----------------------------------------------
++	//      r8   r7   r6   r5   r4   r3   r2   r1   r0
++	//
++	// We can then use the reduction identity (a * 2²⁵⁵ + b = a * 19 + b) to
++	// reduce the limbs that would overflow 255 bits. r5 * 2²⁵⁵ becomes 19 * r5,
++	// r6 * 2³⁰⁶ becomes 19 * r6 * 2⁵¹, etc.
++	//
++	// Reduction can be carried out simultaneously to multiplication. For
++	// example, we do not compute r5: whenever the result of a multiplication
++	// belongs to r5, like a1b4, we multiply it by 19 and add the result to r0.
++	//
++	//            a4b0    a3b0    a2b0    a1b0    a0b0  +
++	//            a3b1    a2b1    a1b1    a0b1 19×a4b1  +
++	//            a2b2    a1b2    a0b2 19×a4b2 19×a3b2  +
++	//            a1b3    a0b3 19×a4b3 19×a3b3 19×a2b3  +
++	//            a0b4 19×a4b4 19×a3b4 19×a2b4 19×a1b4  =
++	//           --------------------------------------
++	//              r4      r3      r2      r1      r0
++	//
++	// Finally we add up the columns into wide, overlapping limbs.
++
++	a1_19 := a1 * 19
++	a2_19 := a2 * 19
++	a3_19 := a3 * 19
++	a4_19 := a4 * 19
++
++	// r0 = a0×b0 + 19×(a1×b4 + a2×b3 + a3×b2 + a4×b1)
++	r0 := mul64(a0, b0)
++	r0 = addMul64(r0, a1_19, b4)
++	r0 = addMul64(r0, a2_19, b3)
++	r0 = addMul64(r0, a3_19, b2)
++	r0 = addMul64(r0, a4_19, b1)
++
++	// r1 = a0×b1 + a1×b0 + 19×(a2×b4 + a3×b3 + a4×b2)
++	r1 := mul64(a0, b1)
++	r1 = addMul64(r1, a1, b0)
++	r1 = addMul64(r1, a2_19, b4)
++	r1 = addMul64(r1, a3_19, b3)
++	r1 = addMul64(r1, a4_19, b2)
++
++	// r2 = a0×b2 + a1×b1 + a2×b0 + 19×(a3×b4 + a4×b3)
++	r2 := mul64(a0, b2)
++	r2 = addMul64(r2, a1, b1)
++	r2 = addMul64(r2, a2, b0)
++	r2 = addMul64(r2, a3_19, b4)
++	r2 = addMul64(r2, a4_19, b3)
++
++	// r3 = a0×b3 + a1×b2 + a2×b1 + a3×b0 + 19×a4×b4
++	r3 := mul64(a0, b3)
++	r3 = addMul64(r3, a1, b2)
++	r3 = addMul64(r3, a2, b1)
++	r3 = addMul64(r3, a3, b0)
++	r3 = addMul64(r3, a4_19, b4)
++
++	// r4 = a0×b4 + a1×b3 + a2×b2 + a3×b1 + a4×b0
++	r4 := mul64(a0, b4)
++	r4 = addMul64(r4, a1, b3)
++	r4 = addMul64(r4, a2, b2)
++	r4 = addMul64(r4, a3, b1)
++	r4 = addMul64(r4, a4, b0)
++
++	// After the multiplication, we need to reduce (carry) the five coefficients
++	// to obtain a result with limbs that are at most slightly larger than 2⁵¹,
++	// to respect the Element invariant.
++	//
++	// Overall, the reduction works the same as carryPropagate, except with
++	// wider inputs: we take the carry for each coefficient by shifting it right
++	// by 51, and add it to the limb above it. The top carry is multiplied by 19
++	// according to the reduction identity and added to the lowest limb.
++	//
++	// The largest coefficient (r0) will be at most 111 bits, which guarantees
++	// that all carries are at most 111 - 51 = 60 bits, which fits in a uint64.
++	//
++	//     r0 = a0×b0 + 19×(a1×b4 + a2×b3 + a3×b2 + a4×b1)
++	//     r0 < 2⁵²×2⁵² + 19×(2⁵²×2⁵² + 2⁵²×2⁵² + 2⁵²×2⁵² + 2⁵²×2⁵²)
++	//     r0 < (1 + 19 × 4) × 2⁵² × 2⁵²
++	//     r0 < 2⁷ × 2⁵² × 2⁵²
++	//     r0 < 2¹¹¹
++	//
++	// Moreover, the top coefficient (r4) is at most 107 bits, so c4 is at most
++	// 56 bits, and c4 * 19 is at most 61 bits, which again fits in a uint64 and
++	// allows us to easily apply the reduction identity.
++	//
++	//     r4 = a0×b4 + a1×b3 + a2×b2 + a3×b1 + a4×b0
++	//     r4 < 5 × 2⁵² × 2⁵²
++	//     r4 < 2¹⁰⁷
++	//
++
++	c0 := shiftRightBy51(r0)
++	c1 := shiftRightBy51(r1)
++	c2 := shiftRightBy51(r2)
++	c3 := shiftRightBy51(r3)
++	c4 := shiftRightBy51(r4)
++
++	rr0 := r0.lo&maskLow51Bits + c4*19
++	rr1 := r1.lo&maskLow51Bits + c0
++	rr2 := r2.lo&maskLow51Bits + c1
++	rr3 := r3.lo&maskLow51Bits + c2
++	rr4 := r4.lo&maskLow51Bits + c3
++
++	// Now all coefficients fit into 64-bit registers but are still too large to
++	// be passed around as a Element. We therefore do one last carry chain,
++	// where the carries will be small enough to fit in the wiggle room above 2⁵¹.
++	*v = Element{rr0, rr1, rr2, rr3, rr4}
++	v.carryPropagate()
++}
++
++func feSquareGeneric(v, a *Element) {
++	l0 := a.l0
++	l1 := a.l1
++	l2 := a.l2
++	l3 := a.l3
++	l4 := a.l4
++
++	// Squaring works precisely like multiplication above, but thanks to its
++	// symmetry we get to group a few terms together.
++	//
++	//                          l4   l3   l2   l1   l0  x
++	//                          l4   l3   l2   l1   l0  =
++	//                         ------------------------
++	//                        l4l0 l3l0 l2l0 l1l0 l0l0  +
++	//                   l4l1 l3l1 l2l1 l1l1 l0l1       +
++	//              l4l2 l3l2 l2l2 l1l2 l0l2            +
++	//         l4l3 l3l3 l2l3 l1l3 l0l3                 +
++	//    l4l4 l3l4 l2l4 l1l4 l0l4                      =
++	//   ----------------------------------------------
++	//      r8   r7   r6   r5   r4   r3   r2   r1   r0
++	//
++	//            l4l0    l3l0    l2l0    l1l0    l0l0  +
++	//            l3l1    l2l1    l1l1    l0l1 19×l4l1  +
++	//            l2l2    l1l2    l0l2 19×l4l2 19×l3l2  +
++	//            l1l3    l0l3 19×l4l3 19×l3l3 19×l2l3  +
++	//            l0l4 19×l4l4 19×l3l4 19×l2l4 19×l1l4  =
++	//           --------------------------------------
++	//              r4      r3      r2      r1      r0
++	//
++	// With precomputed 2×, 19×, and 2×19× terms, we can compute each limb with
++	// only three Mul64 and four Add64, instead of five and eight.
++
++	l0_2 := l0 * 2
++	l1_2 := l1 * 2
++
++	l1_38 := l1 * 38
++	l2_38 := l2 * 38
++	l3_38 := l3 * 38
++
++	l3_19 := l3 * 19
++	l4_19 := l4 * 19
++
++	// r0 = l0×l0 + 19×(l1×l4 + l2×l3 + l3×l2 + l4×l1) = l0×l0 + 19×2×(l1×l4 + l2×l3)
++	r0 := mul64(l0, l0)
++	r0 = addMul64(r0, l1_38, l4)
++	r0 = addMul64(r0, l2_38, l3)
++
++	// r1 = l0×l1 + l1×l0 + 19×(l2×l4 + l3×l3 + l4×l2) = 2×l0×l1 + 19×2×l2×l4 + 19×l3×l3
++	r1 := mul64(l0_2, l1)
++	r1 = addMul64(r1, l2_38, l4)
++	r1 = addMul64(r1, l3_19, l3)
++
++	// r2 = l0×l2 + l1×l1 + l2×l0 + 19×(l3×l4 + l4×l3) = 2×l0×l2 + l1×l1 + 19×2×l3×l4
++	r2 := mul64(l0_2, l2)
++	r2 = addMul64(r2, l1, l1)
++	r2 = addMul64(r2, l3_38, l4)
++
++	// r3 = l0×l3 + l1×l2 + l2×l1 + l3×l0 + 19×l4×l4 = 2×l0×l3 + 2×l1×l2 + 19×l4×l4
++	r3 := mul64(l0_2, l3)
++	r3 = addMul64(r3, l1_2, l2)
++	r3 = addMul64(r3, l4_19, l4)
++
++	// r4 = l0×l4 + l1×l3 + l2×l2 + l3×l1 + l4×l0 = 2×l0×l4 + 2×l1×l3 + l2×l2
++	r4 := mul64(l0_2, l4)
++	r4 = addMul64(r4, l1_2, l3)
++	r4 = addMul64(r4, l2, l2)
++
++	c0 := shiftRightBy51(r0)
++	c1 := shiftRightBy51(r1)
++	c2 := shiftRightBy51(r2)
++	c3 := shiftRightBy51(r3)
++	c4 := shiftRightBy51(r4)
++
++	rr0 := r0.lo&maskLow51Bits + c4*19
++	rr1 := r1.lo&maskLow51Bits + c0
++	rr2 := r2.lo&maskLow51Bits + c1
++	rr3 := r3.lo&maskLow51Bits + c2
++	rr4 := r4.lo&maskLow51Bits + c3
++
++	*v = Element{rr0, rr1, rr2, rr3, rr4}
++	v.carryPropagate()
++}
++
++// carryPropagate brings the limbs below 52 bits by applying the reduction
++// identity (a * 2²⁵⁵ + b = a * 19 + b) to the l4 carry. TODO inline
++func (v *Element) carryPropagateGeneric() *Element {
++	c0 := v.l0 >> 51
++	c1 := v.l1 >> 51
++	c2 := v.l2 >> 51
++	c3 := v.l3 >> 51
++	c4 := v.l4 >> 51
++
++	v.l0 = v.l0&maskLow51Bits + c4*19
++	v.l1 = v.l1&maskLow51Bits + c0
++	v.l2 = v.l2&maskLow51Bits + c1
++	v.l3 = v.l3&maskLow51Bits + c2
++	v.l4 = v.l4&maskLow51Bits + c3
++
++	return v
++}
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/sync.checkpoint b/src/vendor/golang.org/x/crypto/curve25519/internal/field/sync.checkpoint
+new file mode 100644
+index 0000000000..e3685f95ca
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/sync.checkpoint
+@@ -0,0 +1 @@
++b0c49ae9f59d233526f8934262c5bbbe14d4358d
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/sync.sh b/src/vendor/golang.org/x/crypto/curve25519/internal/field/sync.sh
+new file mode 100644
+index 0000000000..1ba22a8b4c
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/sync.sh
+@@ -0,0 +1,19 @@
++#! /bin/bash
++set -euo pipefail
++
++cd "$(git rev-parse --show-toplevel)"
++
++STD_PATH=src/crypto/ed25519/internal/edwards25519/field
++LOCAL_PATH=curve25519/internal/field
++LAST_SYNC_REF=$(cat $LOCAL_PATH/sync.checkpoint)
++
++git fetch https://go.googlesource.com/go master
++
++if git diff --quiet $LAST_SYNC_REF:$STD_PATH FETCH_HEAD:$STD_PATH; then
++    echo "No changes."
++else
++    NEW_REF=$(git rev-parse FETCH_HEAD | tee $LOCAL_PATH/sync.checkpoint)
++    echo "Applying changes from $LAST_SYNC_REF to $NEW_REF..."
++    git diff $LAST_SYNC_REF:$STD_PATH FETCH_HEAD:$STD_PATH | \
++        git apply -3 --directory=$LOCAL_PATH
++fi
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s
+index 2cb0373140..1d74f0f881 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build gc && !purego
+ // +build gc,!purego
+ 
+ #include "textflag.h"
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
+index 3cede539dc..58422aad23 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build gc && !purego
+ // +build gc,!purego
+ 
+ #include "textflag.h"
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s
+index bdd882c606..69c64f8421 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build gc && !purego
+ // +build gc,!purego
+ 
+ #include "textflag.h"
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 8307072942..0ba3def242 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,10 +1,11 @@
+-# golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
++# golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+ ## explicit; go 1.17
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+ golang.org/x/crypto/cryptobyte
+ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/curve25519
++golang.org/x/crypto/curve25519/internal/field
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305

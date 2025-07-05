@@ -8,7 +8,65 @@ Date:   Fri Sep 19 15:23:16 2008 -0700
     DELTA=20  (6 added, 7 deleted, 7 changed)
     OCL=15569
     CL=15571
-
+---
  src/lib/net/net.go     | 18 ++++++------------
  src/lib/os/os_error.go |  9 +++++++--
  2 files changed, 13 insertions(+), 14 deletions(-)
+
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index cfd34bbab0..6e8f302c2e 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -12,19 +12,13 @@ import (
+ 	"syscall"
+ )
+ 
+-func NewError(s string) *os.Error {
+-	e := new(os.Error);
+-	e.s = s;
+-	return e
+-}
+-
+ export var (
+-	BadAddress = NewError("malformed address");
+-	MissingAddress = NewError("missing address");
+-	UnknownNetwork = NewError("unknown network");
+-	UnknownHost = NewError("unknown host");
+-	UnknownPort = NewError("unknown port");
+-	UnknownSocketFamily = NewError("unknown socket family");
++	BadAddress = os.NewError("malformed address");
++	MissingAddress = os.NewError("missing address");
++	UnknownNetwork = os.NewError("unknown network");
++	UnknownHost = os.NewError("unknown host");
++	UnknownPort = os.NewError("unknown port");
++	UnknownSocketFamily = os.NewError("unknown socket family");
+ )
+ 
+ // Split "host:port" into "host" and "port".
+diff --git a/src/lib/os/os_error.go b/src/lib/os/os_error.go
+index 21e1bc6272..95a6714971 100644
+--- a/src/lib/os/os_error.go
++++ b/src/lib/os/os_error.go
+@@ -14,6 +14,12 @@ export type Error struct {
+ 
+ var ErrorTab = new(map[int64] *Error);
+ 
++export func NewError(s string) *Error {
++	e := new(Error);
++	e.s = s
++	return e
++}
++
+ export func ErrnoToError(errno int64) *Error {
+ 	if errno == 0 {
+ 		return nil
+@@ -22,8 +28,7 @@ export func ErrnoToError(errno int64) *Error {
+ 	if ok {
+ 		return err
+ 	}
+-	e := new(Error);
+-	e.s = syscall.errstr(errno);
++	e := NewError(syscall.errstr(errno));
+ 	ErrorTab[errno] = e;
+ 	return e;
+ }

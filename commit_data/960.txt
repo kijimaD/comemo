@@ -8,7 +8,7 @@ Date:   Fri Oct 24 20:14:28 2008 -0700
     R=r
     OCL=17839
     CL=17839
-
+---
  src/cmd/6g/obj.c        | 514 ++++++++++++++++++++++++++++++------------------
  src/cmd/gc/go.h         |  19 +-
  src/cmd/gc/subr.c       | 248 +++++++++++++++++++++++
@@ -17,3 +17,1113 @@ Date:   Fri Oct 24 20:14:28 2008 -0700
  usr/gri/pretty/Makefile |   2 +-
  usr/gri/pretty/test.sh  |  10 +-
  7 files changed, 595 insertions(+), 316 deletions(-)
+
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index 39e0b95574..8070af4b48 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -455,84 +455,268 @@ sigcmp(Sig *a, Sig *b)
+ 	return strcmp(a->name, b->name);
+ }
+ 
++static	Addr	at, ao, ac, ad;
++static	int	wi, ot;
++
+ void
+-dumpsignatures(void)
++ginsatoa(int fscale, int toffset)
++{
++	Prog *p;
++
++	p = pc;
++	ot = rnd(ot, fscale);
++
++	gins(ADATA, N, N);
++	p->from = at;
++	p->from.offset = ot;
++	p->from.scale = fscale;
++	p->to = ao;
++	p->to.offset = toffset;
++	ot += fscale;
++}
++
++void
++gensatac(int fscale, int toffset)
++{
++	Prog *p;
++
++	p = pc;
++	ot = rnd(ot, fscale);
++
++	gins(ADATA, N, N);
++	p->from = at;
++	p->from.offset = ot;
++	p->from.scale = fscale;
++	p->to = ac;
++	p->to.offset = toffset;
++	ot += fscale;
++}
++
++void
++gensatad(Sym *s)
++{
++	Prog *p;
++
++	p = pc;
++	ot = rnd(ot, widthptr);
++
++	gins(ADATA, N, N);
++	p->from = at;
++	p->from.offset = ot;
++	p->from.scale = widthptr;
++	p->to = ad;
++	p->to.sym = s;
++	ot += widthptr;
++}
++
++void
++gentramp(Type *t, Sig *b)
++{
++	Sym *e;
++	int c, d;
++
++	e = lookup(b->name);
++	for(d=0; d<nelem(dotlist); d++) {
++		c = adddot1(e, t, d);
++		if(c == 1)
++			goto out;
++	}
++	fatal("gentramp");
++
++out:
++	print("gentramp %d\n", d);
++	print("	t    = %lT\n", t);
++	print("	name = %s\n", b->name);
++	print("	sym  = %S\n", b->sym);
++	print("	hash = 0x%ux\n", b->hash);
++
++	for(c=d-1; c>=0; c--) {
++		print("	%d %d %S\n",
++			dotlist[c].ptr,
++			dotlist[c].offset,
++			dotlist[c].sym);
++	}
++
++//TEXT	main·S_test2(SB),7,$0
++//	MOVQ	8(SP), AX
++//	MOVQ	XX(AX), AX
++//	ADDQ	$XX, AX
++//	MOVQ	AX, 8(SP)
++//	JMP	main·Sub_test2(SB)
++}
++
++void
++dumpsigt(void)
+ {
+ 	Dcl *d, *x;
+ 	Type *t, *f;
+ 	Sym *s1, *s;
+-	int et, o, wi, ot;
++	int et, o;
+ 	Sig *a, *b;
+-	Addr at, ao, ac, ad;
+ 	Prog *p;
+ 	char *sp;
+ 	char buf[NSYMB];
+ 
+-	// copy externdcl list to signatlist
+-	for(d=externdcl; d!=D; d=d->forw) {
++	/*
++	 * put all the names into a linked
++	 * list so that it may be generated in sorted order.
++	 * the runtime will be linear rather than quadradic
++	 */
++	for(d=signatlist; d!=D; d=d->forw) {
+ 		if(d->op != OTYPE)
+ 			continue;
+ 
+ 		t = d->dtype;
+-		if(t == T)
++		et = t->etype;
++		if(et == TINTER)
+ 			continue;
+ 
+-		s = signame(t, 0);
++		at.sym = signame(t, d->block);
++		if(at.sym == S)
++			continue;
++
++		// make unique
++		if(at.sym->local != 1)
++			continue;
++		at.sym->local = 2;
++
++		s = d->dsym;
+ 		if(s == S)
+ 			continue;
+ 
+-		x = mal(sizeof(*d));
+-		x->op = OTYPE;
+-		x->dsym = d->dsym;
+-		x->dtype = d->dtype;
+-		x->forw = signatlist;
+-		x->block = 0;
+-		signatlist = x;
+-//print("SIG = %lS %lS %lT\n", d->dsym, s, t);
+-	}
++		if(s->name[0] == '_')
++			continue;
+ 
+-	/*
+-	 * put all the names into a linked
+-	 * list so that it may be generated in sorted order.
+-	 * the runtime will be linear rather than quadradic
+-	 */
++		if(strcmp(s->opackage, package) != 0)
++			continue;
+ 
+-	memset(&at, 0, sizeof(at));
+-	memset(&ao, 0, sizeof(ao));
+-	memset(&ac, 0, sizeof(ac));
+-	memset(&ad, 0, sizeof(ad));
++		expandmeth(s, t);
+ 
+-	// sig structure
+-	at.type = D_EXTERN;
+-	at.index = D_NONE;
+-	at.sym = S;			// fill in
+-	at.offset = 0;			// fill in
++		a = nil;
++		o = 0;
++		for(f=t->method; f!=T; f=f->down) {
++			if(f->type->etype != TFUNC)
++				continue;
+ 
+-	// $string
+-	ao.type = D_ADDR;
+-	ao.index = D_STATIC;
+-	ao.etype = TINT32;
+-	ao.sym = symstringo;
+-	ao.offset = 0;			// fill in
++			if(f->etype != TFIELD)
++				fatal("dumpsignatures: not field");
+ 
+-	// constant
+-	ac.type = D_CONST;
+-	ac.index = D_NONE;
+-	ac.offset = 0;			// fill in
++			s1 = f->sym;
++			if(s1 == nil)
++				continue;
+ 
+-	// $method
+-	ad.type = D_ADDR;
+-	ad.index = D_EXTERN;
+-	ad.sym = S;			// fill in
+-	ad.offset = 0;
++			b = mal(sizeof(*b));
++			b->link = a;
++			a = b;
+ 
+-	wi = types[TINT32]->width;
++			a->name = s1->name;
++			a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
++			a->perm = o;
++			snprint(namebuf, sizeof(namebuf), "%s_%s",
++				at.sym->name+5, f->sym->name);
++			a->sym = lookup(namebuf);
++			a->offset = f->embedded;	// need trampoline
++
++			o++;
++		}
++
++		a = lsort(a, sigcmp);
++		ot = 0;
++		ot = rnd(ot, maxround);	// base structure
++
++		// sigi[0].name = ""
++		ginsatoa(widthptr, stringo);
++
++		// save type name for runtime error message.
++		// TODO(rsc): the * is a botch but right more often than not.
++		snprint(buf, sizeof buf, "*%#T", t);
++		datastring(buf, strlen(buf)+1);
++
++		// first field of an type signature contains
++		// the element parameters and is not a real entry
++
++		t = d->dtype;
++		if(t->methptr & 2)
++			t = types[tptr];
++
++		// sigi[0].hash = elemalg
++		gensatac(wi, algtype(t));
++
++		// sigi[0].offset = width
++		gensatac(wi, t->width);
++
++		// skip the function
++		gensatac(widthptr, 0);
++
++		for(b=a; b!=nil; b=b->link) {
++			ot = rnd(ot, maxround);	// base structure
++
++			// sigx[++].name = "fieldname"
++			ginsatoa(widthptr, stringo);
++
++			// sigx[++].hash = hashcode
++			gensatac(wi, b->hash);
++
++			// sigt[++].offset = of embeded struct
++			gensatac(wi, 0);
++
++			// sigt[++].fun = &method
++			gensatad(b->sym);
++
++			datastring(b->name, strlen(b->name)+1);
++
++			if(b->offset)
++				gentramp(d->dtype, b);
++		}
++
++		// nil field name at end
++		ot = rnd(ot, maxround);
++		gensatac(widthptr, 0);
++
++		p = pc;
++		gins(AGLOBL, N, N);
++		p->from = at;
++		p->to = ac;
++		p->to.offset = ot;
++	}
++
++	if(stringo > 0) {
++		p = pc;
++		gins(AGLOBL, N, N);
++		p->from = ao;
++		p->to = ac;
++		p->to.offset = stringo;
++	}
++
++}
++
++void
++dumpsigi(void)
++{
++	Dcl *d, *x;
++	Type *t, *f;
++	Sym *s1, *s;
++	int et, o;
++	Sig *a, *b;
++	Prog *p;
++	char *sp;
++	char buf[NSYMB];
++
++	/*
++	 * put all the names into a linked
++	 * list so that it may be generated in sorted order.
++	 * the runtime will be linear rather than quadradic
++	 */
+ 
+ 	for(d=signatlist; d!=D; d=d->forw) {
+ 		if(d->op != OTYPE)
+ 			continue;
+ 
+ 		t = d->dtype;
++		et = t->etype;
++		if(et != TINTER)
++			continue;
++
+ 		at.sym = signame(t, d->block);
+ 		if(at.sym == S)
+ 			continue;
+@@ -542,10 +726,6 @@ dumpsignatures(void)
+ 			continue;
+ 		at.sym->local = 2;
+ 
+-//print("SIGNAME = %lS\n", at.sym);
+-
+-		et = t->etype;
+-
+ 		s = d->dsym;
+ 		if(s == S)
+ 			continue;
+@@ -556,14 +736,11 @@ dumpsignatures(void)
+ 		if(strcmp(s->opackage, package) != 0)
+ 			continue;
+ 
++//print("sigi: %S\n", s);
++
+ 		a = nil;
+ 		o = 0;
+-
+-		f = t->method;
+-		if(et == TINTER)
+-			f = t->type;
+-
+-		for(; f!=T; f=f->down) {
++		for(f=t->type; f!=T; f=f->down) {
+ 			if(f->type->etype != TFUNC)
+ 				continue;
+ 
+@@ -597,162 +774,47 @@ dumpsignatures(void)
+ 
+ 		a = lsort(a, sigcmp);
+ 		ot = 0;
++		ot = rnd(ot, maxround);	// base structure
+ 
+ 		// sigi[0].name = ""
+-		ot = rnd(ot, maxround);	// array of structures
+-		p = pc;
+-		gins(ADATA, N, N);
+-		p->from = at;
+-		p->from.offset = ot;
+-		p->from.scale = widthptr;
+-		p->to = ao;
+-		p->to.offset = stringo;
+-		ot += widthptr;
++		ginsatoa(widthptr, stringo);
+ 
+ 		// save type name for runtime error message.
+ 		// TODO(rsc): the * is a botch but right more often than not.
+-		if(et == TINTER)
+-			snprint(buf, sizeof buf, "%#T", t);
+-		else
+-			snprint(buf, sizeof buf, "*%#T", t);
++		snprint(buf, sizeof buf, "%#T", t);
+ 		datastring(buf, strlen(buf)+1);
+ 
+-		if(et == TINTER) {
+-			// first field of an interface signature
+-			// contains the count and is not a real entry
+-			o = 0;
+-			for(b=a; b!=nil; b=b->link)
+-				o++;
+-
+-			// sigi[0].hash = 0
+-			ot = rnd(ot, wi);
+-			p = pc;
+-			gins(ADATA, N, N);
+-			p->from = at;
+-			p->from.offset = ot;
+-			p->from.scale = wi;
+-			p->to = ac;
+-			p->to.offset = 0;
+-			ot += wi;
+-
+-			// sigi[0].offset = count
+-			ot = rnd(ot, wi);
+-			p = pc;
+-			gins(ADATA, N, N);
+-			p->from = at;
+-			p->from.offset = ot;
+-			p->from.scale = wi;
+-			p->to = ac;
+-			p->to.offset = o;
+-			ot += wi;
+-
+-		} else {
+-			// first field of an type signature contains
+-			// the element parameters and is not a real entry
+-
+-			t = d->dtype;
+-			if(t->methptr & 2)
+-				t = types[tptr];
+-
+-			// sigi[0].hash = elemalg
+-			ot = rnd(ot, wi);
+-			p = pc;
+-			gins(ADATA, N, N);
+-			p->from = at;
+-			p->from.offset = ot;
+-			p->from.scale = wi;
+-			p->to = ac;
+-			p->to.offset = algtype(t);
+-			ot += wi;
+-
+-			// sigi[0].offset = width
+-			ot = rnd(ot, wi);
+-			p = pc;
+-			gins(ADATA, N, N);
+-			p->from = at;
+-			p->from.offset = ot;
+-			p->from.scale = wi;
+-			p->to = ac;
+-			p->to.offset = t->width;
+-			ot += wi;
+-
+-			// skip the function
+-			ot = rnd(ot, widthptr);
+-			ot += widthptr;
+-		}
++		// first field of an interface signature
++		// contains the count and is not a real entry
++
++		// sigi[0].hash = 0
++		gensatac(wi, 0);
++
++		// sigi[0].offset = count
++		o = 0;
++		for(b=a; b!=nil; b=b->link)
++			o++;
++		gensatac(wi, o);
+ 
+ 		for(b=a; b!=nil; b=b->link) {
++//print("	%s\n", b->name);
++			ot = rnd(ot, maxround);	// base structure
+ 
+ 			// sigx[++].name = "fieldname"
+-			ot = rnd(ot, maxround);	// array of structures
+-			p = pc;
+-			gins(ADATA, N, N);
+-			p->from = at;
+-			p->from.offset = ot;
+-			p->from.scale = widthptr;
+-			p->to = ao;
+-			p->to.offset = stringo;
+-			ot += widthptr;
++			ginsatoa(widthptr, stringo);
+ 
+ 			// sigx[++].hash = hashcode
+-			ot = rnd(ot, wi);
+-			p = pc;
+-			gins(ADATA, N, N);
+-			p->from = at;
+-			p->from.offset = ot;
+-			p->from.scale = wi;
+-			p->to = ac;
+-			p->to.offset = b->hash;
+-			ot += wi;
+-
+-			if(et == TINTER) {
+-				// sigi[++].perm = mapped offset of method
+-				ot = rnd(ot, wi);
+-				p = pc;
+-				gins(ADATA, N, N);
+-				p->from = at;
+-				p->from.offset = ot;
+-				p->from.scale = wi;
+-				p->to = ac;
+-				p->to.offset = b->perm;
+-				ot += wi;
+-			} else {
+-				// sigt[++].offset = of embeded struct
+-				ot = rnd(ot, wi);
+-				p = pc;
+-				gins(ADATA, N, N);
+-				p->from = at;
+-				p->from.offset = ot;
+-				p->from.scale = wi;
+-				p->to = ac;
+-				p->to.offset = b->offset;
+-				ot += wi;
+-
+-				// sigt[++].fun = &method
+-				ot = rnd(ot, widthptr);
+-				p = pc;
+-				gins(ADATA, N, N);
+-				p->from = at;
+-				p->from.offset = ot;
+-				p->from.scale = widthptr;
+-				p->to = ad;
+-				p->to.sym = b->sym;
+-				ot += widthptr;
+-			}
+-			datastring(b->name, strlen(b->name)+1);
++			gensatac(wi, b->hash);
+ 
++			// sigi[++].perm = mapped offset of method
++			gensatac(wi, b->perm);
++
++			datastring(b->name, strlen(b->name)+1);
+ 		}
+ 
+ 		// nil field name at end
+ 		ot = rnd(ot, maxround);
+-		p = pc;
+-		gins(ADATA, N, N);
+-		p->from = at;
+-		p->from.offset = ot;
+-		p->from.scale = widthptr;
+-		p->to = ac;
+-		p->to.offset = 0;
+-		ot += widthptr;
++		gensatac(widthptr, 0);
+ 
+ 		p = pc;
+ 		gins(AGLOBL, N, N);
+@@ -769,3 +831,67 @@ dumpsignatures(void)
+ 		p->to.offset = stringo;
+ 	}
+ }
++
++void
++dumpsignatures(void)
++{
++	Dcl *d, *x;
++	Type *t;
++	Sym *s;
++
++	memset(&at, 0, sizeof(at));
++	memset(&ao, 0, sizeof(ao));
++	memset(&ac, 0, sizeof(ac));
++	memset(&ad, 0, sizeof(ad));
++
++	wi = types[TINT32]->width;
++
++	// sig structure
++	at.type = D_EXTERN;
++	at.index = D_NONE;
++	at.sym = S;			// fill in
++	at.offset = 0;			// fill in
++
++	// $string
++	ao.type = D_ADDR;
++	ao.index = D_STATIC;
++	ao.etype = TINT32;
++	ao.sym = symstringo;
++	ao.offset = 0;			// fill in
++
++	// constant
++	ac.type = D_CONST;
++	ac.index = D_NONE;
++	ac.offset = 0;			// fill in
++
++	// $method
++	ad.type = D_ADDR;
++	ad.index = D_EXTERN;
++	ad.sym = S;			// fill in
++	ad.offset = 0;
++
++	// copy externdcl list to signatlist
++	for(d=externdcl; d!=D; d=d->forw) {
++		if(d->op != OTYPE)
++			continue;
++
++		t = d->dtype;
++		if(t == T)
++			continue;
++
++		s = signame(t, 0);
++		if(s == S)
++			continue;
++
++		x = mal(sizeof(*d));
++		x->op = OTYPE;
++		x->dsym = d->dsym;
++		x->dtype = d->dtype;
++		x->forw = signatlist;
++		x->block = 0;
++		signatlist = x;
++//print("SIG = %lS %lS %lT\n", d->dsym, s, t);
++	}
++	dumpsigi();
++	dumpsigt();
++}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 25e92bc9c3..b8250b1d4f 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -208,6 +208,7 @@ struct	Sym
+ 	uchar	exported;	// exported
+ 	uchar	sym;		// huffman encoding in object file
+ 	uchar	local;		// created in this file
++	uchar	uniq;		// imbedded field name first found
+ 
+ 	char*	opackage;	// original package name
+ 	char*	package;	// package name
+@@ -398,6 +399,16 @@ struct	Io
+ 	char*	cp;	// used for content when bin==nil
+ };
+ 
++typedef	struct	Dlist	Dlist;
++struct	Dlist
++{
++	Sym*	sym;
++	uchar	ptr;
++	int	offset;
++};
++
++EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
++
+ EXTERN	Io	curio;
+ EXTERN	Io	pushedio;
+ EXTERN	int32	lineno;
+@@ -631,6 +642,13 @@ int	Nconv(Fmt*);
+ int	Wconv(Fmt*);
+ int	Zconv(Fmt*);
+ 
++int	lookdot0(Sym*, Type*);
++int	adddot1(Sym*, Type*, int);
++Node*	adddot(Node*);
++void	expand0(Type*);
++void	expand1(Type*, int);
++void	expandmeth(Sym*, Type*);
++
+ /*
+  *	dcl.c
+  */
+@@ -748,7 +766,6 @@ Node*	arraylit(Node*);
+ Node*	maplit(Node*);
+ Node*	selectas(Node*, Node*);
+ Node*	old2new(Node*, Type*);
+-Node*	adddot(Node*);
+ 
+ /*
+  *	const.c
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 50223cce78..710c12f3de 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2377,3 +2377,251 @@ getinargx(Type *t)
+ {
+ 	return *getinarg(t);
+ }
++
++/*
++ * code to resolve elided DOTs
++ * in embedded types
++ */
++
++// search depth 0 --
++// return count of fields+methods
++// found with a given name
++int
++lookdot0(Sym *s, Type *t)
++{
++	Type *f, *u;
++	int c;
++
++	u = t;
++	if(isptr[u->etype])
++		u = u->type;
++
++	c = 0;
++	if(u->etype == TSTRUCT || u->etype == TINTER) {
++		for(f=u->type; f!=T; f=f->down)
++			if(f->sym == s)
++				c++;
++	}
++	u = methtype(t);
++	if(u != T) {
++		for(f=u->method; f!=T; f=f->down)
++			if(f->sym == s && f->embedded == 0)
++				c++;
++	}
++	return c;
++}
++
++// search depth d --
++// return count of fields+methods
++// found at search depth.
++// answer is in dotlist array and
++// count of number of ways is returned.
++int
++adddot1(Sym *s, Type *t, int d)
++{
++	Type *f, *u;
++	int c, a;
++
++	if(t->trecur)
++		return 0;
++	t->trecur = 1;
++
++	if(d == 0) {
++		c = lookdot0(s, t);
++		goto out;
++	}
++
++	c = 0;
++	u = t;
++	if(isptr[u->etype])
++		u = u->type;
++	if(u->etype != TSTRUCT && u->etype != TINTER)
++		goto out;
++
++	d--;
++	for(f=u->type; f!=T; f=f->down) {
++		if(!f->embedded)
++			continue;
++		if(f->sym == S)
++			continue;
++		a = adddot1(s, f->type, d);
++		if(a != 0 && c == 0) {
++			dotlist[d].sym = f->sym;
++			dotlist[d].offset = f->width;
++			dotlist[d].ptr = 0;
++			if(isptr[f->type->etype])
++				dotlist[d].ptr = 1;
++		}
++		c += a;
++	}
++
++out:
++	t->trecur = 0;
++	return c;
++}
++
++// in T.field
++// find missing fields that
++// will give shortest unique addressing.
++// modify the tree with missing type names.
++Node*
++adddot(Node *n)
++{
++	Type *t;
++	Sym *s;
++	Node *l;
++	int c, d;
++
++	walktype(n->left, Erv);
++	t = n->left->type;
++	if(t == T)
++		return n;
++
++	if(n->right->op != ONAME)
++		return n;
++	s = n->right->sym;
++	if(s == S)
++		return n;
++
++	for(d=0; d<nelem(dotlist); d++) {
++		c = adddot1(s, t, d);
++		if(c > 0)
++			goto out;
++	}
++	return n;
++
++out:
++	if(c > 1)
++		yyerror("ambiguous DOT reference %S", s);
++
++	// rebuild elided dots
++	for(c=d-1; c>=0; c--) {
++		n = nod(ODOT, n, n->right);
++		n->left->right = newname(dotlist[c].sym);
++	}
++	return n;
++}
++
++
++/*
++ * code to help generate trampoline
++ * functions for methods on embedded
++ * subtypes.
++ * these are approx the same as
++ * the corresponding adddot routines
++ * except that they expect to be called
++ * with unique tasks and they return
++ * the actual methods.
++ */
++
++typedef	struct	Symlink	Symlink;
++struct	Symlink
++{
++	Type*		field;
++	uchar		good;
++	Symlink*	link;
++};
++static	Symlink*	slist;
++
++void
++expand0(Type *t)
++{
++	Type *f, *u;
++	Symlink *sl;
++
++	u = t;
++	if(isptr[u->etype])
++		u = u->type;
++
++	u = methtype(t);
++	if(u != T) {
++		for(f=u->method; f!=T; f=f->down) {
++			if(f->sym->uniq)
++				continue;
++			f->sym->uniq = 1;
++			sl = mal(sizeof(*sl));
++			sl->field = f;
++			sl->link = slist;
++			slist = sl;
++		}
++	}
++}
++
++void
++expand1(Type *t, int d)
++{
++	Type *f, *u;
++
++	if(t->trecur)
++		return;
++	if(d == 0)
++		return;
++	t->trecur = 1;
++
++	if(d != nelem(dotlist)-1)
++		expand0(t);
++
++	u = t;
++	if(isptr[u->etype])
++		u = u->type;
++	if(u->etype != TSTRUCT && u->etype != TINTER)
++		goto out;
++
++	for(f=u->type; f!=T; f=f->down) {
++		if(!f->embedded)
++			continue;
++		if(f->sym == S)
++			continue;
++		expand1(f->type, d-1);
++	}
++
++out:
++	t->trecur = 0;
++}
++
++void
++expandmeth(Sym *s, Type *t)
++{
++	Symlink *sl;
++	Type *f;
++	int c, d;
++
++	if(s == S)
++		return;
++	if(t == T)
++		return;
++	if(strcmp(s->name, "S") != 0)
++		return;
++
++	// generate all reachable methods
++	slist = nil;
++	expand1(t, nelem(dotlist)-1);
++
++	// check each method to be uniquely reachable
++	for(sl=slist; sl!=nil; sl=sl->link) {
++		for(d=0; d<nelem(dotlist); d++) {
++			c = adddot1(sl->field->sym, t, d);
++			if(c == 0)
++				continue;
++			if(c == 1)
++				sl->good = 1;
++			break;
++		}
++	}
++
++//print("expand %S: %lT", s, t);
++	for(sl=slist; sl!=nil; sl=sl->link) {
++		if(sl->good) {
++			// add it to the base type method list
++			f = typ(TFIELD);
++			*f = *sl->field;
++			f->embedded = 1;	// needs a trampoline
++
++			f->down = t->method;
++			t->method = f;
++
++//print(" %T", f);
++		}
++	}
++//print("\n");
++}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1b7c1d31b5..094c4e34fa 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3203,116 +3203,3 @@ loop:
+ 	r = listnext(&saver);
+ 	goto loop;
+ }
+-
+-static	int	prdot = 0;
+-
+-int
+-lookdot0(Sym *s, Type *t)
+-{
+-	Type *f, *u;
+-	int c;
+-
+-	u = t;
+-	if(isptr[u->etype])
+-		u = u->type;
+-
+-	c = 0;
+-	if(u->etype == TSTRUCT || u->etype == TINTER) {
+-		for(f=u->type; f!=T; f=f->down)
+-			if(f->sym == s)
+-				c++;
+-	}
+-	u = methtype(t);
+-	if(u != T) {
+-		for(f=u->method; f!=T; f=f->down)
+-			if(f->sym == s)
+-{
+-if(prdot)
+-print("found method %S\n", s);
+-				c++;
+-}
+-	}
+-	return c;
+-}
+-
+-enum	{ maxembed = 10 };	// max depth search for embedded types
+-static	Sym*	dotlist[maxembed+1];	// maxembed..1
+-
+-int
+-adddot1(Sym *s, Type *t, int d)
+-{
+-	Type *f, *u;
+-	int c, a;
+-
+-	if(d == 0)
+-		return lookdot0(s, t);
+-
+-	u = t;
+-	if(isptr[u->etype])
+-		u = u->type;
+-	if(u->etype != TSTRUCT && u->etype != TINTER)
+-		return 0;
+-
+-	c = 0;
+-	for(f=u->type; f!=T; f=f->down) {
+-		if(!f->embedded)
+-			continue;
+-		if(f->sym == S)
+-			continue;
+-		a = adddot1(s, f->type, d-1);
+-		if(a != 0 && c == 0)
+-			dotlist[d] = f->sym;
+-		c += a;
+-	}
+-	return c;
+-}
+-
+-Node*
+-adddot(Node *n)
+-{
+-	Type *t;
+-	Sym *s;
+-	Node *l;
+-	int c, d;
+-
+-	walktype(n->left, Erv);
+-	t = n->left->type;
+-	if(t == T)
+-		return n;
+-
+-	if(n->right->op != ONAME)
+-		return n;
+-	s = n->right->sym;
+-	if(s == S)
+-		return n;
+-
+-	for(d=0; d<maxembed; d++) {
+-		c = adddot1(s, t, d);
+-		if(c > 0)
+-			goto out;
+-	}
+-if(prdot) {
+-print("missed");
+-dump("", n);
+-}
+-	return n;
+-
+-out:
+-	if(c > 1)
+-		yyerror("ambiguous DOT reference %S", s);
+-
+-if(prdot)
+-if(d > 0)
+-print("add dots:");
+-	// rebuild elided dots
+-	for(c=d; c>0; c--) {
+-		n = nod(ODOT, n, n->right);
+-		n->left->right = newname(dotlist[c]);
+-if(prdot)
+-print(" %S", dotlist[c]);
+-	}
+-if(prdot)
+-if(d > 0)
+-print("\n");
+-	return n;
+-}
+diff --git a/src/run.bash b/src/run.bash
+index 45154e0490..ae5b2562b5 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -6,8 +6,9 @@
+ set -e
+ 
+ xcd() {
+-	builtin cd $1
++	echo
+ 	echo --- cd $1
++	builtin cd $1
+ }
+ 
+ (xcd lib/reflect
+@@ -41,7 +42,7 @@ rm -f *.6 6.out
+ 6g printf.go
+ 6g main.go
+ 6l main.6
+-6.out
++./6.out
+ )
+ 
+ (xcd ../test
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 0f66861925..c1c5a15632 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -9,7 +9,7 @@ pretty: pretty.6
+ 	$(L) -o pretty pretty.6
+ 
+ test: pretty
+-	test.sh
++	./test.sh
+ 
+ install: pretty
+ 	cp pretty $(HOME)/bin/pretty
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index ad5998a2e2..ef9c66f0f4 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -61,7 +61,7 @@ cleanup() {
+ 
+ silent() {
+ 	cleanup
+-	pretty -s $1 > $TMP1
++	./pretty -s $1 > $TMP1
+ 	if [ $? != 0 ]; then
+ 		cat $TMP1
+ 		echo "Error (silent mode test): test.sh $1"
+@@ -72,8 +72,8 @@ silent() {
+ 
+ idempotent() {
+ 	cleanup
+-	pretty $1 > $TMP1
+-	pretty $TMP1 > $TMP2
++	./pretty $1 > $TMP1
++	./pretty $TMP1 > $TMP2
+ 	cmp -s $TMP1 $TMP2
+ 	if [ $? != 0 ]; then
+ 		diff $TMP1 $TMP2
+@@ -85,7 +85,7 @@ idempotent() {
+ 
+ valid() {
+ 	cleanup
+-	pretty $1 > $TMP1
++	./pretty $1 > $TMP1
+ 	6g -o /dev/null $TMP1
+ 	if [ $? != 0 ]; then
+ 		echo "Error (validity test): test.sh $1"
+@@ -122,7 +122,7 @@ runtests() {
+ 
+ 
+ # run selftest always
+-pretty -t selftest.go > $TMP1
++./pretty -t selftest.go > $TMP1
+ if [ $? != 0 ]; then
+ 	cat $TMP1
+ 	echo "Error (selftest): pretty -t selftest.go"

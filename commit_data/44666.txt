@@ -15,7 +15,84 @@ Date:   Mon Aug 17 17:31:21 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/248727
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jean de Klerk <deklerk@google.com>
-
+---
  .../go/testdata/script/test_json_interleaved.txt   | 27 ++++++++++++++++++++++
  src/testing/testing.go                             | 25 ++++++++++++++++----
  2 files changed, 47 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_json_interleaved.txt b/src/cmd/go/testdata/script/test_json_interleaved.txt
+new file mode 100644
+index 0000000000..e2d349e3fb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_json_interleaved.txt
+@@ -0,0 +1,27 @@
++# Regression test for https://golang.org/issue/40657: output from the main test
++# function should be attributed correctly even if interleaved with the PAUSE
++# line for a new parallel subtest.
++
++[short] skip
++
++go test -json
++stdout '"Test":"TestWeirdTiming","Output":"[^"]* logging to outer again\\n"'
++
++-- go.mod --
++module example.com
++go 1.15
++-- main_test.go --
++package main
++
++import (
++	"testing"
++)
++
++func TestWeirdTiming(outer *testing.T) {
++	outer.Run("pauser", func(pauser *testing.T) {
++		outer.Logf("logging to outer")
++		pauser.Parallel()
++	})
++
++	outer.Logf("logging to outer again")
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 061142b9ab..6fc8c4fa9f 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -357,10 +357,19 @@ func (p *testPrinter) Fprint(w io.Writer, testName, out string) {
+ 	defer p.lastNameMu.Unlock()
+ 
+ 	if !p.chatty ||
+-		strings.HasPrefix(out, "--- PASS") ||
+-		strings.HasPrefix(out, "--- FAIL") ||
+-		strings.HasPrefix(out, "=== CONT") ||
+-		strings.HasPrefix(out, "=== RUN") {
++		strings.HasPrefix(out, "--- PASS: ") ||
++		strings.HasPrefix(out, "--- FAIL: ") ||
++		strings.HasPrefix(out, "--- SKIP: ") ||
++		strings.HasPrefix(out, "=== RUN   ") ||
++		strings.HasPrefix(out, "=== CONT  ") ||
++		strings.HasPrefix(out, "=== PAUSE ") {
++		// If we're buffering test output (!p.chatty), we don't really care which
++		// test is emitting which line so long as they are serialized.
++		//
++		// If the message already implies an association with a specific new test,
++		// we don't need to check what the old test name was or log an extra CONT
++		// line for it. (We're updating it anyway, and the current message already
++		// includes the test name.)
+ 		p.lastName = testName
+ 		fmt.Fprint(w, out)
+ 		return
+@@ -976,7 +985,13 @@ func (t *T) Parallel() {
+ 		for ; root.parent != nil; root = root.parent {
+ 		}
+ 		root.mu.Lock()
+-		fmt.Fprintf(root.w, "=== PAUSE %s\n", t.name)
++		// Unfortunately, even though PAUSE indicates that the named test is *no
++		// longer* running, cmd/test2json interprets it as changing the active test
++		// for the purpose of log parsing. We could fix cmd/test2json, but that
++		// won't fix existing deployments of third-party tools that already shell
++		// out to older builds of cmd/test2json — so merely fixing cmd/test2json
++		// isn't enough for now.
++		printer.Fprint(root.w, t.name, fmt.Sprintf("=== PAUSE %s\n", t.name))
+ 		root.mu.Unlock()
+ 	}
+ 

@@ -12,7 +12,7 @@ Date:   Sat Apr 18 08:14:08 2015 +1200
     Reviewed-on: https://go-review.googlesource.com/9103
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/6g/prog.go               |  2 +-
  src/cmd/internal/gc/gsubr.go     |  6 +++++-
  src/cmd/internal/gc/obj.go       |  4 ++--
@@ -25,3 +25,281 @@ Date:   Sat Apr 18 08:14:08 2015 +1200
  src/cmd/internal/obj/textflag.go |  3 +++
  src/cmd/internal/obj/x86/obj6.go | 12 +++++++-----
  11 files changed, 55 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/6g/prog.go b/src/cmd/6g/prog.go
+index 5aeaeaa4ed..5f604742c3 100644
+--- a/src/cmd/6g/prog.go
++++ b/src/cmd/6g/prog.go
+@@ -299,7 +299,7 @@ func proginfo(p *obj.Prog) {
+ 		if p.As == x86.ALEAQ || info.Flags == gc.Pseudo || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+ 			return
+ 		}
+-		if p.As == obj.ADUFFZERO || p.As == obj.ADUFFCOPY || p.From.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_EXTERN {
++		if p.As == obj.ADUFFZERO || p.As == obj.ADUFFCOPY || (p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local) || (p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local) {
+ 			info.Reguse |= R15
+ 			info.Regset |= R15
+ 			return
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 1f6b7d2ec6..53b3f6c41d 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -218,11 +218,15 @@ func ggloblnod(nam *Node) {
+ 	}
+ }
+ 
+-func ggloblsym(s *Sym, width int32, flags int8) {
++func ggloblsym(s *Sym, width int32, flags int16) {
+ 	p := Thearch.Gins(obj.AGLOBL, nil, nil)
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Name = obj.NAME_EXTERN
+ 	p.From.Sym = Linksym(s)
++	if flags&obj.LOCAL != 0 {
++		p.From.Sym.Local = true
++		flags &= ^obj.LOCAL
++	}
+ 	p.To.Type = obj.TYPE_CONST
+ 	p.To.Offset = int64(width)
+ 	p.From3.Offset = int64(flags)
+diff --git a/src/cmd/internal/gc/obj.go b/src/cmd/internal/gc/obj.go
+index 5885eb5d7e..891f5548f7 100644
+--- a/src/cmd/internal/gc/obj.go
++++ b/src/cmd/internal/gc/obj.go
+@@ -245,7 +245,7 @@ func stringsym(s string) *Sym {
+ 
+ 	off = duint8(sym, off, 0)                    // terminating NUL for runtime
+ 	off = (off + Widthptr - 1) &^ (Widthptr - 1) // round to pointer alignment
+-	ggloblsym(sym, int32(off), obj.DUPOK|obj.RODATA)
++	ggloblsym(sym, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+ 
+ 	return sym
+ }
+@@ -269,7 +269,7 @@ func slicebytes(nam *Node, s string, len int) {
+ 		off = dsname(sym, off, s[n:n+m])
+ 	}
+ 
+-	ggloblsym(sym, int32(off), obj.NOPTR)
++	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
+ 
+ 	if nam.Op != ONAME {
+ 		Fatal("slicebytes %v", nam)
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index 5848f98af0..1667a5c13e 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -161,7 +161,7 @@ func emitptrargsmap() {
+ 		}
+ 	}
+ 
+-	ggloblsym(sym, int32(off), obj.RODATA)
++	ggloblsym(sym, int32(off), obj.RODATA|obj.LOCAL)
+ }
+ 
+ // Sort the list of stack variables. Autos after anything else,
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 47697befba..824ed0b427 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -814,7 +814,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 			for i := 0; i < 2*Widthptr; i++ {
+ 				duint8(sbits, i, gcmask[i])
+ 			}
+-			ggloblsym(sbits, 2*int32(Widthptr), obj.DUPOK|obj.RODATA)
++			ggloblsym(sbits, 2*int32(Widthptr), obj.DUPOK|obj.RODATA|obj.LOCAL)
+ 		}
+ 
+ 		ot = dsymptr(s, ot, sbits, 0)
+@@ -1203,7 +1203,7 @@ ok:
+ 	}
+ 
+ 	ot = dextratype(s, ot, t, xt)
+-	ggloblsym(s, int32(ot), int8(dupok|obj.RODATA))
++	ggloblsym(s, int32(ot), int16(dupok|obj.RODATA))
+ 
+ 	// generate typelink.foo pointing at s = type.foo.
+ 	// The linker will leave a table of all the typelinks for
+@@ -1229,7 +1229,7 @@ ok:
+ 		case TARRAY, TCHAN, TFUNC, TMAP:
+ 			slink := typelinksym(t)
+ 			dsymptr(slink, 0, s, 0)
+-			ggloblsym(slink, int32(Widthptr), int8(dupok|obj.RODATA))
++			ggloblsym(slink, int32(Widthptr), int16(dupok|obj.RODATA))
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/ld/objfile.go b/src/cmd/internal/ld/objfile.go
+index 1e45d72fd8..41534c857c 100644
+--- a/src/cmd/internal/ld/objfile.go
++++ b/src/cmd/internal/ld/objfile.go
+@@ -72,8 +72,12 @@ func readsym(ctxt *Link, f *Biobuf, pkg string, pn string) {
+ 	if v != 0 && v != 1 {
+ 		log.Fatalf("invalid symbol version %d", v)
+ 	}
+-	dupok := int(rdint(f))
+-	dupok &= 1
++	flags := int(rdint(f))
++	dupok := flags & 1
++	local := false
++	if flags&2 != 0 {
++		local = true
++	}
+ 	size := int(rdint(f))
+ 	typ := rdsym(ctxt, f, pkg)
+ 	var data []byte
+@@ -125,6 +129,7 @@ overwrite:
+ 	if s.Size < int64(size) {
+ 		s.Size = int64(size)
+ 	}
++	s.Local = local
+ 	if typ != nil { // if bss sym defined multiple times, take type from any one def
+ 		s.Gotype = typ
+ 	}
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index 4d57d87c49..31baba010b 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -373,15 +373,7 @@ func symtab() {
+ 	// just defined above will be first.
+ 	// hide the specific symbols.
+ 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+-		if !s.Reachable || s.Special != 0 {
+-			continue
+-		}
+-
+-		if strings.Contains(s.Name, "..gostring.") || strings.Contains(s.Name, "..gobytes.") {
+-			s.Local = true
+-		}
+-
+-		if s.Type != obj.SRODATA {
++		if !s.Reachable || s.Special != 0 || s.Type != obj.SRODATA {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 33b28580ea..39f8941779 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -273,6 +273,7 @@ const (
+ 	A_ARCHSPECIFIC
+ )
+ 
++// An LSym is the sort of symbol that is written to an object file.
+ type LSym struct {
+ 	Name      string
+ 	Type      int16
+@@ -283,18 +284,25 @@ type LSym struct {
+ 	Leaf      uint8
+ 	Seenglobl uint8
+ 	Onlist    uint8
+-	Args      int32
+-	Locals    int32
+-	Value     int64
+-	Size      int64
+-	Next      *LSym
+-	Gotype    *LSym
+-	Autom     *Auto
+-	Text      *Prog
+-	Etext     *Prog
+-	Pcln      *Pcln
+-	P         []byte
+-	R         []Reloc
++	// Local means make the symbol local even when compiling Go code to reference Go
++	// symbols in other shared libraries, as in this mode symbols are global by
++	// default. "local" here means in the sense of the dynamic linker, i.e. not
++	// visible outside of the module (shared library or executable) that contains its
++	// definition. (When not compiling to support Go shared libraries, all symbols are
++	// local in this sense unless there is a cgo_export_* directive).
++	Local  bool
++	Args   int32
++	Locals int32
++	Value  int64
++	Size   int64
++	Next   *LSym
++	Gotype *LSym
++	Autom  *Auto
++	Text   *Prog
++	Etext  *Prog
++	Pcln   *Pcln
++	P      []byte
++	R      []Reloc
+ }
+ 
+ type Pcln struct {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 62426a5d73..473a4bffe2 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -400,7 +400,11 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
+ 	wrint(b, int64(s.Type))
+ 	wrstring(b, s.Name)
+ 	wrint(b, int64(s.Version))
+-	wrint(b, int64(s.Dupok))
++	flags := int64(s.Dupok)
++	if s.Local {
++		flags |= 2
++	}
++	wrint(b, flags)
+ 	wrint(b, s.Size)
+ 	wrsym(b, s.Gotype)
+ 	wrdata(b, s.P)
+diff --git a/src/cmd/internal/obj/textflag.go b/src/cmd/internal/obj/textflag.go
+index e0e641da9b..b5d27a60ee 100644
+--- a/src/cmd/internal/obj/textflag.go
++++ b/src/cmd/internal/obj/textflag.go
+@@ -30,4 +30,7 @@ const (
+ 
+ 	// This function uses its incoming context register.
+ 	NEEDCTXT = 64
++
++	// When passed to ggloblsym, causes Local to be set to true on the LSym it creates.
++	LOCAL = 128
+ )
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index d4c10e61cb..e70bdca9df 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -251,6 +251,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Sym = s
++			p.From.Sym.Local = true
+ 			p.From.Offset = 0
+ 		}
+ 
+@@ -294,6 +295,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Sym = s
++			p.From.Sym.Local = true
+ 			p.From.Offset = 0
+ 		}
+ 	}
+@@ -327,11 +329,11 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	}
+ 
+ 	if ctxt.Flag_dynlink {
+-		if p.As == ALEAQ && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN {
++		if p.As == ALEAQ && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+ 			p.As = AMOVQ
+ 			p.From.Type = obj.TYPE_ADDR
+ 		}
+-		if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN {
++		if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+ 			if p.As != AMOVQ {
+ 				ctxt.Diag("do not know how to handle TYPE_ADDR in %v with -dynlink", p)
+ 			}
+@@ -356,12 +358,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+ 		}
+ 		var source *obj.Addr
+-		if p.From.Name == obj.NAME_EXTERN {
+-			if p.To.Name == obj.NAME_EXTERN {
++		if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
++			if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+ 				ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+ 			}
+ 			source = &p.From
+-		} else if p.To.Name == obj.NAME_EXTERN {
++		} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+ 			source = &p.To
+ 		} else {
+ 			return

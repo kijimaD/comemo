@@ -9,6 +9,20 @@ Date:   Sun Apr 10 20:14:27 2016 +0200
     Change-Id: I1f85590b2c3293463c6476beebcd3256adc1bf23
     Reviewed-on: https://go-review.googlesource.com/21802
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/pprof/report/source.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/pprof/report/source.go b/src/cmd/internal/pprof/report/source.go
+index 7beea39562..608e4d561d 100644
+--- a/src/cmd/internal/pprof/report/source.go
++++ b/src/cmd/internal/pprof/report/source.go
+@@ -257,7 +257,7 @@ func printHeader(w io.Writer, rpt *Report) {
+ // printFunctionHeader prints a function header for a weblist report.
+ func printFunctionHeader(w io.Writer, name, path string, flatSum, cumSum int64, rpt *Report) {
+ 	fmt.Fprintf(w, `<h1>%s</h1>%s
+-<pre onClick="pprof_toggle_asm()">
++<pre onClick="pprof_toggle_asm(event)">
+   Total:  %10s %10s (flat, cum) %s
+ `,
+ 		template.HTMLEscapeString(name), template.HTMLEscapeString(path),

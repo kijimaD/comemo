@@ -79,7 +79,69 @@ Date:   Mon Oct 26 17:07:02 2015 -0400
     Change-Id: I914d8cadded5a230509d118164a4c201601afc06
     Reviewed-on: https://go-review.googlesource.com/16298
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 33 +++++++++++++++++++++++++++++++++
  src/runtime/mgcwork.go |  6 ++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 1ab42a8105..88cee5b8f6 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -574,6 +574,39 @@ func (c *gcControllerState) endCycle() {
+ 	}
+ }
+ 
++// enlistWorker encourages another dedicated mark worker to start on
++// another P if there are spare worker slots. It is used by putfull
++// when more work is made available.
++//
++//go:nowritebarrier
++func (c *gcControllerState) enlistWorker() {
++	if c.dedicatedMarkWorkersNeeded <= 0 {
++		return
++	}
++	// Pick a random other P to preempt.
++	if gomaxprocs <= 1 {
++		return
++	}
++	gp := getg()
++	if gp == nil || gp.m == nil || gp.m.p == 0 {
++		return
++	}
++	myID := gp.m.p.ptr().id
++	for tries := 0; tries < 5; tries++ {
++		id := int32(fastrand1() % uint32(gomaxprocs-1))
++		if id >= myID {
++			id++
++		}
++		p := allp[id]
++		if p.status != _Prunning {
++			continue
++		}
++		if preemptone(p) {
++			return
++		}
++	}
++}
++
+ // findRunnableGCWorker returns the background mark worker for _p_ if it
+ // should be run. This must only be called when gcBlackenEnabled != 0.
+ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 43d5db2fab..1d66200bec 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -363,6 +363,12 @@ func putfull(b *workbuf, entry int) {
+ 	b.checknonempty()
+ 	b.logput(entry)
+ 	lfstackpush(&work.full, &b.node)
++
++	// We just made more work available. Let the GC controller
++	// know so it can encourage more workers to run.
++	if gcphase == _GCmark {
++		gcController.enlistWorker()
++	}
+ }
+ 
+ // trygetfull tries to get a full or partially empty workbuffer.

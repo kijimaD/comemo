@@ -12,7 +12,7 @@ Date:   Thu Apr 16 23:10:56 2015 +0900
     Change-Id: I7de5663094e09be2d78cdb18ce6f1e7ec260888d
     Reviewed-on: https://go-review.googlesource.com/8992
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/error_test.go         | 44 +++++++++++++++++++++++++++++++++++++++++++
  src/net/fd_unix.go            | 15 +++------------
  src/net/fd_windows.go         | 19 +++++--------------
@@ -31,3 +31,571 @@ Date:   Thu Apr 16 23:10:56 2015 +0900
  src/net/unixsock_plan9.go     |  6 +++---
  src/net/unixsock_posix.go     | 11 +++++++++--
  17 files changed, 139 insertions(+), 49 deletions(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index d7f502ef19..4b57d9e457 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"fmt"
++	"io"
+ 	"net/internal/socktest"
+ 	"os"
+ 	"runtime"
+@@ -248,3 +249,46 @@ func TestListenPacketError(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// parseReadError parses nestedErr and reports whether it is a valid
++// error value from Read functions.
++// It returns nil when nestedErr is valid.
++func parseReadError(nestedErr error) error {
++	if nestedErr == nil {
++		return nil
++	}
++
++	switch err := nestedErr.(type) {
++	case *OpError:
++		if err := err.isValid(); err != nil {
++			return err
++		}
++		nestedErr = err.Err
++		goto second
++	}
++	if nestedErr == io.EOF {
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
++
++second:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	switch err := nestedErr.(type) {
++	case *os.SyscallError:
++		nestedErr = err.Err
++		goto third
++	}
++	switch nestedErr {
++	case errClosing, errTimeout:
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
++
++third:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
++}
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 9e1976136d..08c8568a80 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -226,7 +226,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
+ 	}
+ 	defer fd.readUnlock()
+ 	if err := fd.pd.PrepareRead(); err != nil {
+-		return 0, &OpError{"read", fd.net, fd.raddr, err}
++		return 0, err
+ 	}
+ 	for {
+ 		n, err = syscall.Read(int(fd.sysfd), p)
+@@ -241,9 +241,6 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
+ 		err = fd.eofError(n, err)
+ 		break
+ 	}
+-	if err != nil && err != io.EOF {
+-		err = &OpError{"read", fd.net, fd.raddr, err}
+-	}
+ 	return
+ }
+ 
+@@ -253,7 +250,7 @@ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+ 	}
+ 	defer fd.readUnlock()
+ 	if err := fd.pd.PrepareRead(); err != nil {
+-		return 0, nil, &OpError{"read", fd.net, fd.laddr, err}
++		return 0, nil, err
+ 	}
+ 	for {
+ 		n, sa, err = syscall.Recvfrom(fd.sysfd, p, 0)
+@@ -268,9 +265,6 @@ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+ 		err = fd.eofError(n, err)
+ 		break
+ 	}
+-	if err != nil && err != io.EOF {
+-		err = &OpError{"read", fd.net, fd.laddr, err}
+-	}
+ 	return
+ }
+ 
+@@ -280,7 +274,7 @@ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
+ 	}
+ 	defer fd.readUnlock()
+ 	if err := fd.pd.PrepareRead(); err != nil {
+-		return 0, 0, 0, nil, &OpError{"read", fd.net, fd.laddr, err}
++		return 0, 0, 0, nil, err
+ 	}
+ 	for {
+ 		n, oobn, flags, sa, err = syscall.Recvmsg(fd.sysfd, p, oob, 0)
+@@ -295,9 +289,6 @@ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
+ 		err = fd.eofError(n, err)
+ 		break
+ 	}
+-	if err != nil && err != io.EOF {
+-		err = &OpError{"read", fd.net, fd.laddr, err}
+-	}
+ 	return
+ }
+ 
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 3b771aacbc..5bb048c178 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"io"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -455,7 +454,7 @@ func (fd *netFD) closeWrite() error {
+ 
+ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	if err := fd.readLock(); err != nil {
+-		return 0, &OpError{Op: "read", Net: fd.net, Addr: fd.raddr, Err: err}
++		return 0, err
+ 	}
+ 	defer fd.readUnlock()
+ 	o := &fd.rop
+@@ -466,11 +465,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	if raceenabled {
+ 		raceAcquire(unsafe.Pointer(&ioSync))
+ 	}
+-	err = fd.eofError(n, err)
+-	if err != nil && err != io.EOF {
+-		err = &OpError{Op: "read", Net: fd.net, Addr: fd.raddr, Err: err}
+-	}
+-	return n, err
++	return n, fd.eofError(n, err)
+ }
+ 
+ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
+@@ -478,7 +473,7 @@ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 		return 0, nil, nil
+ 	}
+ 	if err := fd.readLock(); err != nil {
+-		return 0, nil, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
++		return 0, nil, err
+ 	}
+ 	defer fd.readUnlock()
+ 	o := &fd.rop
+@@ -490,12 +485,8 @@ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 		o.rsan = int32(unsafe.Sizeof(*o.rsa))
+ 		return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
+ 	})
+-	err = fd.eofError(n, err)
+-	if err != nil && err != io.EOF {
+-		err = &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
+-	}
+ 	sa, _ := o.rsa.Sockaddr()
+-	return n, sa, err
++	return n, sa, fd.eofError(n, err)
+ }
+ 
+ func (fd *netFD) Write(buf []byte) (int, error) {
+@@ -632,7 +623,7 @@ func (fd *netFD) dup() (*os.File, error) {
+ }
+ 
+ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+-	return 0, 0, 0, nil, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: syscall.EWINDOWS}
++	return 0, 0, 0, nil, syscall.EWINDOWS
+ }
+ 
+ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+diff --git a/src/net/iprawsock_plan9.go b/src/net/iprawsock_plan9.go
+index e62d116b81..bdb0d9770f 100644
+--- a/src/net/iprawsock_plan9.go
++++ b/src/net/iprawsock_plan9.go
+@@ -23,12 +23,12 @@ type IPConn struct {
+ // Timeout() == true after a fixed time limit; see SetDeadline and
+ // SetReadDeadline.
+ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
+-	return 0, nil, syscall.EPLAN9
++	return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
+ }
+ 
+ // ReadFrom implements the PacketConn ReadFrom method.
+ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+-	return 0, nil, syscall.EPLAN9
++	return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
+ }
+ 
+ // ReadMsgIP reads a packet from c, copying the payload into b and the
+@@ -36,7 +36,7 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+ // bytes copied into b, the number of bytes copied into oob, the flags
+ // that were set on the packet and the source address of the packet.
+ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err error) {
+-	return 0, 0, 0, nil, syscall.EPLAN9
++	return 0, 0, 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
+ }
+ 
+ // WriteToIP writes an IP packet to addr via c, copying the payload
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index 9095530923..3c9d711b65 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -80,6 +80,9 @@ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
+ 	case *syscall.SockaddrInet6:
+ 		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
+ 	}
++	if err != nil {
++		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
+ 	return n, addr, err
+ }
+ 
+@@ -126,6 +129,9 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
+ 	case *syscall.SockaddrInet6:
+ 		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
+ 	}
++	if err != nil {
++		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
+ 	return
+ }
+ 
+diff --git a/src/net/net.go b/src/net/net.go
+index 439d21cfc1..252a225f26 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -121,7 +121,16 @@ func (c *conn) Read(b []byte) (int, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+ 	}
+-	return c.fd.Read(b)
++	n, err := c.fd.Read(b)
++	if err != nil && err != io.EOF {
++		err = &OpError{Op: "read", Net: c.fd.net, Err: err}
++		if c.fd.raddr != nil {
++			err.(*OpError).Addr = c.fd.raddr
++		} else {
++			err.(*OpError).Addr = c.fd.laddr // for unconnected-mode sockets
++		}
++	}
++	return n, err
+ }
+ 
+ // Write implements the Conn Write method.
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 5cdc769a51..df9373996f 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -33,6 +33,9 @@ func TestShutdown(t *testing.T) {
+ 		}
+ 		var buf [10]byte
+ 		n, err := c.Read(buf[:])
++		if perr := parseReadError(err); perr != nil {
++			t.Error(perr)
++		}
+ 		if n != 0 || err != io.EOF {
+ 			t.Errorf("server Read = %d, %v; want 0, io.EOF", n, err)
+ 			return
+@@ -91,6 +94,9 @@ func TestShutdownUnix(t *testing.T) {
+ 		}
+ 		var buf [10]byte
+ 		n, err := c.Read(buf[:])
++		if perr := parseReadError(err); perr != nil {
++			t.Error(perr)
++		}
+ 		if n != 0 || err != io.EOF {
+ 			t.Errorf("server Read = %d, %v; want 0, io.EOF", n, err)
+ 			return
+@@ -166,6 +172,9 @@ func TestUDPListenClose(t *testing.T) {
+ 	}()
+ 	go func() {
+ 		_, _, err = ln.ReadFrom(buf)
++		if perr := parseReadError(err); perr != nil {
++			t.Error(perr)
++		}
+ 		if err == nil {
+ 			t.Error("ReadFrom succeeded")
+ 		} else {
+diff --git a/src/net/sendfile_dragonfly.go b/src/net/sendfile_dragonfly.go
+index bc88fd3b90..a0025b6ab6 100644
+--- a/src/net/sendfile_dragonfly.go
++++ b/src/net/sendfile_dragonfly.go
+@@ -92,7 +92,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 			// This includes syscall.ENOSYS (no kernel
+ 			// support) and syscall.EINVAL (fd types which
+ 			// don't implement sendfile together)
+-			err = &OpError{"sendfile", c.net, c.raddr, err1}
++			err = err1
+ 			break
+ 		}
+ 	}
+diff --git a/src/net/sendfile_freebsd.go b/src/net/sendfile_freebsd.go
+index ffc147262a..a0324a3289 100644
+--- a/src/net/sendfile_freebsd.go
++++ b/src/net/sendfile_freebsd.go
+@@ -92,7 +92,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 			// This includes syscall.ENOSYS (no kernel
+ 			// support) and syscall.EINVAL (fd types which
+ 			// don't implement sendfile together)
+-			err = &OpError{"sendfile", c.net, c.raddr, err1}
++			err = err1
+ 			break
+ 		}
+ 	}
+diff --git a/src/net/sendfile_linux.go b/src/net/sendfile_linux.go
+index 5e117636a8..e76828d053 100644
+--- a/src/net/sendfile_linux.go
++++ b/src/net/sendfile_linux.go
+@@ -65,7 +65,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 			// This includes syscall.ENOSYS (no kernel
+ 			// support) and syscall.EINVAL (fd types which
+ 			// don't implement sendfile together)
+-			err = &OpError{"sendfile", c.net, c.raddr, err1}
++			err = err1
+ 			break
+ 		}
+ 	}
+diff --git a/src/net/tcpsock_plan9.go b/src/net/tcpsock_plan9.go
+index ae2194277d..2e646edf50 100644
+--- a/src/net/tcpsock_plan9.go
++++ b/src/net/tcpsock_plan9.go
+@@ -23,7 +23,11 @@ func newTCPConn(fd *netFD) *TCPConn {
+ 
+ // ReadFrom implements the io.ReaderFrom ReadFrom method.
+ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
+-	return genericReadFrom(c, r)
++	n, err := genericReadFrom(c, r)
++	if err != nil && err != io.EOF {
++		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
++	}
++	return n, err
+ }
+ 
+ // CloseRead shuts down the reading side of the TCP connection.
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index 024dcd4f83..91c8b0bdbb 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -60,9 +60,16 @@ func newTCPConn(fd *netFD) *TCPConn {
+ // ReadFrom implements the io.ReaderFrom ReadFrom method.
+ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
+ 	if n, err, handled := sendFile(c.fd, r); handled {
++		if err != nil && err != io.EOF {
++			err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
++		}
+ 		return n, err
+ 	}
+-	return genericReadFrom(c, r)
++	n, err := genericReadFrom(c, r)
++	if err != nil && err != io.EOF {
++		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
++	}
++	return n, err
+ }
+ 
+ // CloseRead shuts down the reading side of the TCP connection.
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 7e102c74d5..7ccfef0cc5 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -138,16 +138,28 @@ func TestReadTimeout(t *testing.T) {
+ 	if _, err = c.Read(buf); !isTimeoutError(err) {
+ 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+ 	}
++	if perr := parseReadError(err); perr != nil {
++		t.Error(perr)
++	}
+ 	if _, err = c.Read(buf); !isTimeoutError(err) {
+ 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+ 	}
++	if perr := parseReadError(err); perr != nil {
++		t.Error(perr)
++	}
+ 	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+ 	if _, err = c.Read(buf); !isTimeoutError(err) {
+ 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+ 	}
++	if perr := parseReadError(err); perr != nil {
++		t.Error(perr)
++	}
+ 	if _, err = c.Read(buf); !isTimeoutError(err) {
+ 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+ 	}
++	if perr := parseReadError(err); perr != nil {
++		t.Error(perr)
++	}
+ 	c.SetReadDeadline(noDeadline)
+ 	c.SetWriteDeadline(time.Now().Add(-1 * time.Second))
+ 	errc := make(chan error)
+@@ -164,15 +176,15 @@ func TestReadTimeout(t *testing.T) {
+ 	c.Close()
+ 	switch nerr := <-errc; err := nerr.(type) {
+ 	case *OpError:
+-		if err.Err != errClosing {
+-			t.Fatalf("Read: expected err %v, got %v", errClosing, err)
++		if perr := parseReadError(err); perr != nil {
++			t.Error(perr)
+ 		}
+ 	default:
+ 		if err == io.EOF && runtime.GOOS == "nacl" { // close enough; golang.org/issue/8044
+ 			break
+ 		}
+-		if err != errClosing {
+-			t.Fatalf("Read: expected err %v, got %v", errClosing, err)
++		if perr := parseReadError(err); perr != nil {
++			t.Error(perr)
+ 		}
+ 	}
+ }
+@@ -618,6 +630,9 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
+ 	c.SetReadDeadline(time.Now().Add(-5 * time.Second)) // in the psat.
+ 	buf := make([]byte, len(msg)/2)
+ 	n, err := c.Read(buf)
++	if perr := parseReadError(err); perr != nil {
++		t.Error(perr)
++	}
+ 	if n > 0 || !isTimeoutError(err) {
+ 		t.Fatalf("client read = %d (%q) err=%v; want 0, timeout", n, buf[:n], err)
+ 	}
+diff --git a/src/net/udpsock_plan9.go b/src/net/udpsock_plan9.go
+index 269272632a..ddaaa72093 100644
+--- a/src/net/udpsock_plan9.go
++++ b/src/net/udpsock_plan9.go
+@@ -33,10 +33,10 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	buf := make([]byte, udpHeaderSize+len(b))
+ 	m, err := c.fd.data.Read(buf)
+ 	if err != nil {
+-		return
++		return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
+ 	}
+ 	if m < udpHeaderSize {
+-		return 0, nil, errors.New("short read reading UDP header")
++		return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: errors.New("short read reading UDP header")}
+ 	}
+ 	buf = buf[:m]
+ 
+@@ -59,7 +59,7 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
+ // flags that were set on the packet and the source address of the
+ // packet.
+ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
+-	return 0, 0, 0, nil, syscall.EPLAN9
++	return 0, 0, 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
+ }
+ 
+ // WriteToUDP writes a UDP packet to addr via c, copying the payload
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 31ca8c0420..05a11032ce 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -53,10 +53,11 @@ func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
+ // ReadFromUDP can be made to time out and return an error with
+ // Timeout() == true after a fixed time limit; see SetDeadline and
+ // SetReadDeadline.
+-func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
++func (c *UDPConn) ReadFromUDP(b []byte) (int, *UDPAddr, error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+ 	}
++	var addr *UDPAddr
+ 	n, sa, err := c.fd.readFrom(b)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+@@ -64,7 +65,10 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	case *syscall.SockaddrInet6:
+ 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
+ 	}
+-	return
++	if err != nil {
++		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return n, addr, err
+ }
+ 
+ // ReadFrom implements the PacketConn ReadFrom method.
+@@ -96,6 +100,9 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr,
+ 	case *syscall.SockaddrInet6:
+ 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
+ 	}
++	if err != nil {
++		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
+ 	return
+ }
+ 
+diff --git a/src/net/unixsock_plan9.go b/src/net/unixsock_plan9.go
+index 64a511d648..a122a3dcbe 100644
+--- a/src/net/unixsock_plan9.go
++++ b/src/net/unixsock_plan9.go
+@@ -24,12 +24,12 @@ type UnixConn struct {
+ // Timeout() == true after a fixed time limit; see SetDeadline and
+ // SetReadDeadline.
+ func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
+-	return 0, nil, syscall.EPLAN9
++	return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
+ }
+ 
+ // ReadFrom implements the PacketConn ReadFrom method.
+ func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
+-	return 0, nil, syscall.EPLAN9
++	return 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
+ }
+ 
+ // ReadMsgUnix reads a packet from c, copying the payload into b and
+@@ -37,7 +37,7 @@ func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
+ // bytes copied into b, the number of bytes copied into oob, the flags
+ // that were set on the packet, and the source address of the packet.
+ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err error) {
+-	return 0, 0, 0, nil, syscall.EPLAN9
++	return 0, 0, 0, nil, &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: syscall.EPLAN9}
+ }
+ 
+ // WriteToUnix writes a packet to addr via c, copying the payload from b.
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index c5af8d34f3..07b6134b48 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -113,10 +113,11 @@ func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{conn{fd}} }
+ // ReadFromUnix can be made to time out and return an error with
+ // Timeout() == true after a fixed time limit; see SetDeadline and
+ // SetReadDeadline.
+-func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
++func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+ 	}
++	var addr *UnixAddr
+ 	n, sa, err := c.fd.readFrom(b)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrUnix:
+@@ -124,7 +125,10 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
+ 			addr = &UnixAddr{Name: sa.Name, Net: sotypeToNet(c.fd.sotype)}
+ 		}
+ 	}
+-	return
++	if err != nil {
++		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return n, addr, err
+ }
+ 
+ // ReadFrom implements the PacketConn ReadFrom method.
+@@ -154,6 +158,9 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
+ 			addr = &UnixAddr{Name: sa.Name, Net: sotypeToNet(c.fd.sotype)}
+ 		}
+ 	}
++	if err != nil {
++		err = &OpError{Op: "read", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
+ 	return
+ }
+ 

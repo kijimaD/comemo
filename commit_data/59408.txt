@@ -12,6 +12,20 @@ Date:   Sun Mar 10 13:05:30 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/pgo/irgraph.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index 9ed16d224b..814c40f172 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -241,7 +241,7 @@ func processProto(r io.Reader) (*Profile, error) {
+ 	}, nil
+ }
+ 
+-// processPreprof generates a profile-graph from the pre-procesed profile.
++// processPreprof generates a profile-graph from the pre-processed profile.
+ func processPreprof(r io.Reader) (*Profile, error) {
+ 	namedEdgeMap, totalWeight, err := createNamedEdgeMapFromPreprocess(r)
+ 	if err != nil {

@@ -9,7 +9,7 @@ Date:   Sun Feb 24 12:06:24 2013 +0900
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/7382052
-
+---
  src/pkg/syscall/types_netbsd.go         | 13 ++++++++-----
  src/pkg/syscall/zerrors_netbsd_386.go   |  2 ++
  src/pkg/syscall/zerrors_netbsd_amd64.go |  2 ++
@@ -18,3 +18,188 @@ Date:   Sun Feb 24 12:06:24 2013 +0900
  src/pkg/syscall/ztypes_netbsd_amd64.go  | 20 +++++++++++++++-----
  src/pkg/syscall/ztypes_netbsd_arm.go    | 20 +++++++++++++++-----
  7 files changed, 59 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/syscall/types_netbsd.go b/src/pkg/syscall/types_netbsd.go
+index 5d3018ee59..4906a99ef6 100644
+--- a/src/pkg/syscall/types_netbsd.go
++++ b/src/pkg/syscall/types_netbsd.go
+@@ -171,11 +171,12 @@ type FdSet C.fd_set
+ // Routing and interface messages
+ 
+ const (
+-	SizeofIfMsghdr  = C.sizeof_struct_if_msghdr
+-	SizeofIfData    = C.sizeof_struct_if_data
+-	SizeofIfaMsghdr = C.sizeof_struct_ifa_msghdr
+-	SizeofRtMsghdr  = C.sizeof_struct_rt_msghdr
+-	SizeofRtMetrics = C.sizeof_struct_rt_metrics
++	SizeofIfMsghdr         = C.sizeof_struct_if_msghdr
++	SizeofIfData           = C.sizeof_struct_if_data
++	SizeofIfaMsghdr        = C.sizeof_struct_ifa_msghdr
++	SizeofIfAnnounceMsghdr = C.sizeof_struct_if_announcemsghdr
++	SizeofRtMsghdr         = C.sizeof_struct_rt_msghdr
++	SizeofRtMetrics        = C.sizeof_struct_rt_metrics
+ )
+ 
+ type IfMsghdr C.struct_if_msghdr
+@@ -184,6 +185,8 @@ type IfData C.struct_if_data
+ 
+ type IfaMsghdr C.struct_ifa_msghdr
+ 
++type IfAnnounceMsghdr C.struct_if_announcemsghdr
++
+ type RtMsghdr C.struct_rt_msghdr
+ 
+ type RtMetrics C.struct_rt_metrics
+diff --git a/src/pkg/syscall/zerrors_netbsd_386.go b/src/pkg/syscall/zerrors_netbsd_386.go
+index 3a5967c7f0..68051f9f8a 100644
+--- a/src/pkg/syscall/zerrors_netbsd_386.go
++++ b/src/pkg/syscall/zerrors_netbsd_386.go
+@@ -572,6 +572,8 @@ const (
+ 	ICANON                            = 0x100
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
++	IFAN_ARRIVAL                      = 0x0
++	IFAN_DEPARTURE                    = 0x1
+ 	IFA_ROUTE                         = 0x1
+ 	IFF_ALLMULTI                      = 0x200
+ 	IFF_BROADCAST                     = 0x2
+diff --git a/src/pkg/syscall/zerrors_netbsd_amd64.go b/src/pkg/syscall/zerrors_netbsd_amd64.go
+index 42623f0cb8..f719528a7f 100644
+--- a/src/pkg/syscall/zerrors_netbsd_amd64.go
++++ b/src/pkg/syscall/zerrors_netbsd_amd64.go
+@@ -562,6 +562,8 @@ const (
+ 	ICANON                            = 0x100
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
++	IFAN_ARRIVAL                      = 0x0
++	IFAN_DEPARTURE                    = 0x1
+ 	IFA_ROUTE                         = 0x1
+ 	IFF_ALLMULTI                      = 0x200
+ 	IFF_BROADCAST                     = 0x2
+diff --git a/src/pkg/syscall/zerrors_netbsd_arm.go b/src/pkg/syscall/zerrors_netbsd_arm.go
+index fa5cbedfa7..3899f6ba63 100644
+--- a/src/pkg/syscall/zerrors_netbsd_arm.go
++++ b/src/pkg/syscall/zerrors_netbsd_arm.go
+@@ -562,6 +562,8 @@ const (
+ 	ICANON                            = 0x100
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
++	IFAN_ARRIVAL                      = 0x0
++	IFAN_DEPARTURE                    = 0x1
+ 	IFA_ROUTE                         = 0x1
+ 	IFF_ALLMULTI                      = 0x200
+ 	IFF_BROADCAST                     = 0x2
+diff --git a/src/pkg/syscall/ztypes_netbsd_386.go b/src/pkg/syscall/ztypes_netbsd_386.go
+index 69ed13939d..dd9cf221a2 100644
+--- a/src/pkg/syscall/ztypes_netbsd_386.go
++++ b/src/pkg/syscall/ztypes_netbsd_386.go
+@@ -219,11 +219,12 @@ type FdSet struct {
+ }
+ 
+ const (
+-	SizeofIfMsghdr  = 0x98
+-	SizeofIfData    = 0x84
+-	SizeofIfaMsghdr = 0x18
+-	SizeofRtMsghdr  = 0x78
+-	SizeofRtMetrics = 0x50
++	SizeofIfMsghdr         = 0x98
++	SizeofIfData           = 0x84
++	SizeofIfaMsghdr        = 0x18
++	SizeofIfAnnounceMsghdr = 0x18
++	SizeofRtMsghdr         = 0x78
++	SizeofRtMetrics        = 0x50
+ )
+ 
+ type IfMsghdr struct {
+@@ -272,6 +273,15 @@ type IfaMsghdr struct {
+ 	Pad_cgo_0 [6]byte
+ }
+ 
++type IfAnnounceMsghdr struct {
++	Msglen  uint16
++	Version uint8
++	Type    uint8
++	Index   uint16
++	Name    [16]int8
++	What    uint16
++}
++
+ type RtMsghdr struct {
+ 	Msglen    uint16
+ 	Version   uint8
+diff --git a/src/pkg/syscall/ztypes_netbsd_amd64.go b/src/pkg/syscall/ztypes_netbsd_amd64.go
+index b6795ed5f0..89d1ef8168 100644
+--- a/src/pkg/syscall/ztypes_netbsd_amd64.go
++++ b/src/pkg/syscall/ztypes_netbsd_amd64.go
+@@ -226,11 +226,12 @@ type FdSet struct {
+ }
+ 
+ const (
+-	SizeofIfMsghdr  = 0x98
+-	SizeofIfData    = 0x88
+-	SizeofIfaMsghdr = 0x18
+-	SizeofRtMsghdr  = 0x78
+-	SizeofRtMetrics = 0x50
++	SizeofIfMsghdr         = 0x98
++	SizeofIfData           = 0x88
++	SizeofIfaMsghdr        = 0x18
++	SizeofIfAnnounceMsghdr = 0x18
++	SizeofRtMsghdr         = 0x78
++	SizeofRtMetrics        = 0x50
+ )
+ 
+ type IfMsghdr struct {
+@@ -278,6 +279,15 @@ type IfaMsghdr struct {
+ 	Pad_cgo_0 [6]byte
+ }
+ 
++type IfAnnounceMsghdr struct {
++	Msglen  uint16
++	Version uint8
++	Type    uint8
++	Index   uint16
++	Name    [16]int8
++	What    uint16
++}
++
+ type RtMsghdr struct {
+ 	Msglen    uint16
+ 	Version   uint8
+diff --git a/src/pkg/syscall/ztypes_netbsd_arm.go b/src/pkg/syscall/ztypes_netbsd_arm.go
+index 69ed13939d..dd9cf221a2 100644
+--- a/src/pkg/syscall/ztypes_netbsd_arm.go
++++ b/src/pkg/syscall/ztypes_netbsd_arm.go
+@@ -219,11 +219,12 @@ type FdSet struct {
+ }
+ 
+ const (
+-	SizeofIfMsghdr  = 0x98
+-	SizeofIfData    = 0x84
+-	SizeofIfaMsghdr = 0x18
+-	SizeofRtMsghdr  = 0x78
+-	SizeofRtMetrics = 0x50
++	SizeofIfMsghdr         = 0x98
++	SizeofIfData           = 0x84
++	SizeofIfaMsghdr        = 0x18
++	SizeofIfAnnounceMsghdr = 0x18
++	SizeofRtMsghdr         = 0x78
++	SizeofRtMetrics        = 0x50
+ )
+ 
+ type IfMsghdr struct {
+@@ -272,6 +273,15 @@ type IfaMsghdr struct {
+ 	Pad_cgo_0 [6]byte
+ }
+ 
++type IfAnnounceMsghdr struct {
++	Msglen  uint16
++	Version uint8
++	Type    uint8
++	Index   uint16
++	Name    [16]int8
++	What    uint16
++}
++
+ type RtMsghdr struct {
+ 	Msglen    uint16
+ 	Version   uint8

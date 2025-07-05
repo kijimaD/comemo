@@ -16,8 +16,70 @@ Date:   Wed Mar 15 17:38:35 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/testdata/script/link_external_undef.txt |  2 +-
  src/cmd/link/internal/ld/data.go                   | 13 ++++++++++---
  src/cmd/link/internal/ld/main.go                   |  8 ++++++++
  3 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/link_external_undef.txt b/src/cmd/go/testdata/script/link_external_undef.txt
+index d86b3a374e..f320505459 100644
+--- a/src/cmd/go/testdata/script/link_external_undef.txt
++++ b/src/cmd/go/testdata/script/link_external_undef.txt
+@@ -7,7 +7,7 @@
+ 
+ ! go build -ldflags='-linkmode=external' .
+ ! stderr 'panic'
+-stderr '^.*unreachable sym in relocation.*'
++stderr '^.*undefined symbol in relocation.*'
+ 
+ -- go.mod --
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 488cfa7a44..bd8d17b110 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -444,14 +444,21 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 			if weak && !ldr.AttrReachable(rs) {
+ 				continue
+ 			}
+-			if ldr.SymSect(rs) == nil {
+-				st.err.Errorf(s, "unreachable sym in relocation: %s", ldr.SymName(rs))
++			sect := ldr.SymSect(rs)
++			if sect == nil {
++				if rst == sym.SDYNIMPORT {
++					st.err.Errorf(s, "cannot target DYNIMPORT sym in section-relative reloc: %s", ldr.SymName(rs))
++				} else if rst == sym.SUNDEFEXT {
++					st.err.Errorf(s, "undefined symbol in relocation: %s", ldr.SymName(rs))
++				} else {
++					st.err.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
++				}
+ 				continue
+ 			}
+ 
+ 			// The method offset tables using this relocation expect the offset to be relative
+ 			// to the start of the first text section, even if there are multiple.
+-			if ldr.SymSect(rs).Name == ".text" {
++			if sect.Name == ".text" {
+ 				o = ldr.SymValue(rs) - int64(Segtext.Sections[0].Vaddr) + r.Add()
+ 			} else {
+ 				o = ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr) + r.Add()
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 8511e5de63..9042a4db32 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -159,6 +159,14 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		// dump symbol info on crash
+ 		defer func() { ctxt.loader.Dump() }()
+ 	}
++	if ctxt.Debugvlog > 1 {
++		// dump symbol info on error
++		AtExit(func() {
++			if nerrors > 0 {
++				ctxt.loader.Dump()
++			}
++		})
++	}
+ 
+ 	switch *flagHeadType {
+ 	case "":

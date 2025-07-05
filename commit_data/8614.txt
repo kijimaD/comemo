@@ -11,7 +11,7 @@ Date:   Fri Jun 3 14:35:42 2011 -0400
     R=r, gri, bradfitz, robert.hencke, fullung, rsc
     CC=golang-dev
     https://golang.org/cl/4437087
-
+---
  src/pkg/net/Makefile           |   6 ++
  src/pkg/net/interface.go       | 133 +++++++++++++++++++++++++++++++++
  src/pkg/net/interface_bsd.go   | 148 ++++++++++++++++++++++++++++++++++++
@@ -19,3 +19,644 @@ Date:   Fri Jun 3 14:35:42 2011 -0400
  src/pkg/net/interface_stub.go  |  23 ++++++
  src/pkg/net/interface_test.go  |  90 ++++++++++++++++++++++
  6 files changed, 565 insertions(+)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index d4adbffc0c..5472df3925 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -10,6 +10,7 @@ GOFILES=\
+ 	dnsmsg.go\
+ 	fd_$(GOOS).go\
+ 	hosts.go\
++	interface.go\
+ 	ip.go\
+ 	ipsock.go\
+ 	iprawsock.go\
+@@ -27,6 +28,7 @@ GOFILES_freebsd=\
+ 	dnsconfig.go\
+ 	fd.go\
+ 	file.go\
++	interface_bsd.go\
+ 	newpollserver.go\
+ 	port.go\
+ 	sendfile_stub.go\
+@@ -41,6 +43,7 @@ GOFILES_darwin=\
+ 	dnsconfig.go\
+ 	fd.go\
+ 	file.go\
++	interface_bsd.go\
+ 	newpollserver.go\
+ 	port.go\
+ 	sendfile_stub.go\
+@@ -55,12 +58,14 @@ GOFILES_linux=\
+ 	dnsconfig.go\
+ 	fd.go\
+ 	file.go\
++	interface_linux.go\
+ 	newpollserver.go\
+ 	port.go\
+ 	sendfile_linux.go\
+ 	sock_linux.go\
+ 
+ GOFILES_plan9=\
++	interface_stub.go\
+ 	sendfile_stub.go\
+ 
+ ifeq ($(GOARCH),arm)
+@@ -75,6 +80,7 @@ endif
+ GOFILES_windows=\
+ 	cgo_stub.go\
+ 	file_windows.go\
++	interface_stub.go\
+ 	resolv_windows.go\
+ 	sendfile_stub.go\
+ 	sock_windows.go\
+diff --git a/src/pkg/net/interface.go b/src/pkg/net/interface.go
+new file mode 100644
+index 0000000000..7463a11713
+--- /dev/null
++++ b/src/pkg/net/interface.go
+@@ -0,0 +1,133 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Network interface identification
++
++package net
++
++import (
++	"bytes"
++	"fmt"
++	"os"
++	"syscall"
++)
++
++// A HardwareAddr represents a physical hardware address.
++type HardwareAddr []byte
++
++func (a HardwareAddr) String() string {
++	var buf bytes.Buffer
++	for i, b := range a {
++		if i > 0 {
++			buf.WriteByte(':')
++		}
++		fmt.Fprintf(&buf, "%02x", b)
++	}
++	return buf.String()
++}
++
++// Interface represents a mapping between network interface name
++// and index.  It also represents network interface facility
++// information.
++type Interface struct {
++	Index        int          // positive integer that starts at one, zero is never used
++	MTU          int          // maximum transmission unit
++	Name         string       // e.g., "en0", "lo0", "eth0.100"
++	HardwareAddr HardwareAddr // IEEE MAC-48, EUI-48 and EUI-64 form
++	rawFlags     int
++}
++
++// IsUp returns true if ifi is up.
++func (ifi *Interface) IsUp() bool {
++	if ifi == nil {
++		return false
++	}
++	return ifi.rawFlags&syscall.IFF_UP != 0
++}
++
++// IsLoopback returns true if ifi is a loopback interface.
++func (ifi *Interface) IsLoopback() bool {
++	if ifi == nil {
++		return false
++	}
++	return ifi.rawFlags&syscall.IFF_LOOPBACK != 0
++}
++
++// CanBroadcast returns true if ifi supports a broadcast access
++// capability.
++func (ifi *Interface) CanBroadcast() bool {
++	if ifi == nil {
++		return false
++	}
++	return ifi.rawFlags&syscall.IFF_BROADCAST != 0
++}
++
++// IsPointToPoint returns true if ifi belongs to a point-to-point
++// link.
++func (ifi *Interface) IsPointToPoint() bool {
++	if ifi == nil {
++		return false
++	}
++	return ifi.rawFlags&syscall.IFF_POINTOPOINT != 0
++}
++
++// CanMulticast returns true if ifi supports a multicast access
++// capability.
++func (ifi *Interface) CanMulticast() bool {
++	if ifi == nil {
++		return false
++	}
++	return ifi.rawFlags&syscall.IFF_MULTICAST != 0
++}
++
++// Addrs returns interface addresses for a specific interface.
++func (ifi *Interface) Addrs() ([]Addr, os.Error) {
++	if ifi == nil {
++		return nil, os.NewError("net: invalid interface")
++	}
++	return interfaceAddrTable(ifi.Index)
++}
++
++// Interfaces returns a list of the systems's network interfaces.
++func Interfaces() ([]Interface, os.Error) {
++	return interfaceTable(0)
++}
++
++// InterfaceAddrs returns a list of the system's network interface
++// addresses.
++func InterfaceAddrs() ([]Addr, os.Error) {
++	return interfaceAddrTable(0)
++}
++
++// InterfaceByIndex returns the interface specified by index.
++func InterfaceByIndex(index int) (*Interface, os.Error) {
++	if index <= 0 {
++		return nil, os.NewError("net: invalid interface index")
++	}
++	ift, err := interfaceTable(index)
++	if err != nil {
++		return nil, err
++	}
++	for _, ifi := range ift {
++		return &ifi, nil
++	}
++	return nil, os.NewError("net: no such interface")
++}
++
++// InterfaceByName returns the interface specified by name.
++func InterfaceByName(name string) (*Interface, os.Error) {
++	if name == "" {
++		return nil, os.NewError("net: invalid interface name")
++	}
++	ift, err := interfaceTable(0)
++	if err != nil {
++		return nil, err
++	}
++	for _, ifi := range ift {
++		if name == ifi.Name {
++			return &ifi, nil
++		}
++	}
++	return nil, os.NewError("net: no such interface")
++}
+diff --git a/src/pkg/net/interface_bsd.go b/src/pkg/net/interface_bsd.go
+new file mode 100644
+index 0000000000..c410881dd8
+--- /dev/null
++++ b/src/pkg/net/interface_bsd.go
+@@ -0,0 +1,148 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Network interface identification for BSD variants
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++// If the ifindex is zero, interfaceTable returns mappings of all
++// network interfaces.  Otheriwse it returns a mapping of a specific
++// interface.
++func interfaceTable(ifindex int) ([]Interface, os.Error) {
++	var (
++		tab  []byte
++		e    int
++		msgs []syscall.RoutingMessage
++		ift  []Interface
++	)
++
++	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
++	if e != 0 {
++		return nil, os.NewSyscallError("route rib", e)
++	}
++
++	msgs, e = syscall.ParseRoutingMessage(tab)
++	if e != 0 {
++		return nil, os.NewSyscallError("route message", e)
++	}
++
++	for _, m := range msgs {
++		switch v := m.(type) {
++		case *syscall.InterfaceMessage:
++			if ifindex == 0 || ifindex == int(v.Header.Index) {
++				ifi, err := newLink(v)
++				if err != nil {
++					return nil, err
++				}
++				ift = append(ift, ifi...)
++			}
++		}
++	}
++
++	return ift, nil
++}
++
++func newLink(m *syscall.InterfaceMessage) ([]Interface, os.Error) {
++	var ift []Interface
++
++	sas, e := syscall.ParseRoutingSockaddr(m)
++	if e != 0 {
++		return nil, os.NewSyscallError("route sockaddr", e)
++	}
++
++	for _, s := range sas {
++		switch v := s.(type) {
++		case *syscall.SockaddrDatalink:
++			ifi := Interface{Index: int(m.Header.Index), rawFlags: int(m.Header.Flags)}
++			var name [syscall.IFNAMSIZ]byte
++			for i := 0; i < int(v.Nlen); i++ {
++				name[i] = byte(v.Data[i])
++			}
++			ifi.Name = string(name[:v.Nlen])
++			ifi.MTU = int(m.Header.Data.Mtu)
++			addr := make([]byte, v.Alen)
++			for i := 0; i < int(v.Alen); i++ {
++				addr[i] = byte(v.Data[int(v.Nlen)+i])
++			}
++			ifi.HardwareAddr = addr[:v.Alen]
++			ift = append(ift, ifi)
++		}
++	}
++
++	return ift, nil
++}
++
++// If the ifindex is zero, interfaceAddrTable returns addresses
++// for all network interfaces.  Otherwise it returns addresses
++// for a specific interface.
++func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
++	var (
++		tab  []byte
++		e    int
++		msgs []syscall.RoutingMessage
++		ifat []Addr
++	)
++
++	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
++	if e != 0 {
++		return nil, os.NewSyscallError("route rib", e)
++	}
++
++	msgs, e = syscall.ParseRoutingMessage(tab)
++	if e != 0 {
++		return nil, os.NewSyscallError("route message", e)
++	}
++
++	for _, m := range msgs {
++		switch v := m.(type) {
++		case *syscall.InterfaceAddrMessage:
++			if ifindex == 0 || ifindex == int(v.Header.Index) {
++				ifa, err := newAddr(v)
++				if err != nil {
++					return nil, err
++				}
++				ifat = append(ifat, ifa...)
++			}
++		}
++	}
++
++	return ifat, nil
++}
++
++func newAddr(m *syscall.InterfaceAddrMessage) ([]Addr, os.Error) {
++	var ifat []Addr
++
++	sas, e := syscall.ParseRoutingSockaddr(m)
++	if e != 0 {
++		return nil, os.NewSyscallError("route sockaddr", e)
++	}
++
++	for _, s := range sas {
++		var ifa IPAddr
++		switch v := s.(type) {
++		case *syscall.SockaddrInet4:
++			ifa.IP = IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])
++		case *syscall.SockaddrInet6:
++			ifa.IP = make(IP, IPv6len)
++			copy(ifa.IP, v.Addr[:])
++			// NOTE: KAME based IPv6 protcol stack usually embeds
++			// the interface index in the interface-local or link-
++			// local address as the kernel-internal form.
++			if ifa.IP.IsLinkLocalUnicast() ||
++				ifa.IP.IsInterfaceLocalMulticast() ||
++				ifa.IP.IsLinkLocalMulticast() {
++				// remove embedded scope zone ID
++				ifa.IP[2], ifa.IP[3] = 0, 0
++			}
++		}
++		ifat = append(ifat, ifa.toAddr())
++	}
++
++	return ifat, nil
++}
+diff --git a/src/pkg/net/interface_linux.go b/src/pkg/net/interface_linux.go
+new file mode 100644
+index 0000000000..f41befe69a
+--- /dev/null
++++ b/src/pkg/net/interface_linux.go
+@@ -0,0 +1,165 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Network interface identification for Linux
++
++package net
++
++import (
++	"os"
++	"syscall"
++	"unsafe"
++)
++
++// If the ifindex is zero, interfaceTable returns mappings of all
++// network interfaces.  Otheriwse it returns a mapping of a specific
++// interface.
++func interfaceTable(ifindex int) ([]Interface, os.Error) {
++	var (
++		ift  []Interface
++		tab  []byte
++		msgs []syscall.NetlinkMessage
++		e    int
++	)
++
++	tab, e = syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
++	if e != 0 {
++		return nil, os.NewSyscallError("netlink rib", e)
++	}
++
++	msgs, e = syscall.ParseNetlinkMessage(tab)
++	if e != 0 {
++		return nil, os.NewSyscallError("netlink message", e)
++	}
++
++	for _, m := range msgs {
++		switch m.Header.Type {
++		case syscall.NLMSG_DONE:
++			goto done
++		case syscall.RTM_NEWLINK:
++			ifim := (*syscall.IfInfomsg)(unsafe.Pointer(&m.Data[0]))
++			if ifindex == 0 || ifindex == int(ifim.Index) {
++				attrs, e := syscall.ParseNetlinkRouteAttr(&m)
++				if e != 0 {
++					return nil, os.NewSyscallError("netlink routeattr", e)
++				}
++				ifi := newLink(attrs, ifim)
++				ift = append(ift, ifi)
++			}
++		}
++	}
++
++done:
++	return ift, nil
++}
++
++func newLink(attrs []syscall.NetlinkRouteAttr, ifim *syscall.IfInfomsg) Interface {
++	ifi := Interface{Index: int(ifim.Index), rawFlags: int(ifim.Flags)}
++	for _, a := range attrs {
++		switch a.Attr.Type {
++		case syscall.IFLA_ADDRESS:
++			var nonzero bool
++			for _, b := range a.Value {
++				if b != 0 {
++					nonzero = true
++				}
++			}
++			if nonzero {
++				ifi.HardwareAddr = a.Value[:]
++			}
++		case syscall.IFLA_IFNAME:
++			ifi.Name = string(a.Value[:])
++		case syscall.IFLA_MTU:
++			ifi.MTU = int(uint32(a.Value[3])<<24 | uint32(a.Value[2])<<16 | uint32(a.Value[1])<<8 | uint32(a.Value[0]))
++		}
++	}
++	return ifi
++}
++
++// If the ifindex is zero, interfaceAddrTable returns addresses
++// for all network interfaces.  Otherwise it returns addresses
++// for a specific interface.
++func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
++	var (
++		ifat4 []Addr
++		ifat6 []Addr
++		tab   []byte
++		msgs4 []syscall.NetlinkMessage
++		msgs6 []syscall.NetlinkMessage
++		e     int
++		err   os.Error
++	)
++
++	tab, e = syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_INET)
++	if e != 0 {
++		return nil, os.NewSyscallError("netlink rib", e)
++	}
++	msgs4, e = syscall.ParseNetlinkMessage(tab)
++	if e != 0 {
++		return nil, os.NewSyscallError("netlink message", e)
++	}
++	ifat4, err = addrTable(msgs4, ifindex)
++	if err != nil {
++		return nil, err
++	}
++
++	tab, e = syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_INET6)
++	if e != 0 {
++		return nil, os.NewSyscallError("netlink rib", e)
++	}
++	msgs6, e = syscall.ParseNetlinkMessage(tab)
++	if e != 0 {
++		return nil, os.NewSyscallError("netlink message", e)
++	}
++	ifat6, err = addrTable(msgs6, ifindex)
++	if err != nil {
++		return nil, err
++	}
++
++	return append(ifat4, ifat6...), nil
++}
++
++func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, os.Error) {
++	var ifat []Addr
++
++	for _, m := range msgs {
++		switch m.Header.Type {
++		case syscall.NLMSG_DONE:
++			goto done
++		case syscall.RTM_NEWADDR:
++			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
++			if ifindex == 0 || ifindex == int(ifam.Index) {
++				attrs, e := syscall.ParseNetlinkRouteAttr(&m)
++				if e != 0 {
++					return nil, os.NewSyscallError("netlink routeattr", e)
++				}
++				ifat = append(ifat, newAddr(attrs, int(ifam.Family))...)
++			}
++		}
++	}
++
++done:
++	return ifat, nil
++}
++
++func newAddr(attrs []syscall.NetlinkRouteAttr, family int) []Addr {
++	var ifat []Addr
++
++	for _, a := range attrs {
++		switch a.Attr.Type {
++		case syscall.IFA_ADDRESS:
++			ifa := IPAddr{}
++			switch family {
++			case syscall.AF_INET:
++				ifa.IP = IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3])
++			case syscall.AF_INET6:
++				ifa.IP = make(IP, IPv6len)
++				copy(ifa.IP, a.Value[:])
++			}
++			ifat = append(ifat, ifa.toAddr())
++		}
++	}
++
++	return ifat
++}
+diff --git a/src/pkg/net/interface_stub.go b/src/pkg/net/interface_stub.go
+new file mode 100644
+index 0000000000..24a7431c56
+--- /dev/null
++++ b/src/pkg/net/interface_stub.go
+@@ -0,0 +1,23 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Network interface identification
++
++package net
++
++import "os"
++
++// If the ifindex is zero, interfaceTable returns mappings of all
++// network interfaces.  Otheriwse it returns a mapping of a specific
++// interface.
++func interfaceTable(ifindex int) ([]Interface, os.Error) {
++	return nil, nil
++}
++
++// If the ifindex is zero, interfaceAddrTable returns addresses
++// for all network interfaces.  Otherwise it returns addresses
++// for a specific interface.
++func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
++	return nil, nil
++}
+diff --git a/src/pkg/net/interface_test.go b/src/pkg/net/interface_test.go
+new file mode 100644
+index 0000000000..9384346237
+--- /dev/null
++++ b/src/pkg/net/interface_test.go
+@@ -0,0 +1,90 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"bytes"
++	"testing"
++)
++
++func sameInterface(i, j *Interface) bool {
++	if i == nil || j == nil {
++		return false
++	}
++	if i.Index == j.Index && i.Name == j.Name && bytes.Equal(i.HardwareAddr, j.HardwareAddr) {
++		return true
++	}
++	return false
++}
++
++func interfaceFlagsString(ifi *Interface) string {
++	fs := "<"
++	if ifi.IsUp() {
++		fs += "UP,"
++	}
++	if ifi.CanBroadcast() {
++		fs += "BROADCAST,"
++	}
++	if ifi.IsLoopback() {
++		fs += "LOOPBACK,"
++	}
++	if ifi.IsPointToPoint() {
++		fs += "POINTOPOINT,"
++	}
++	if ifi.CanMulticast() {
++		fs += "MULTICAST,"
++	}
++	if len(fs) > 1 {
++		fs = fs[:len(fs)-1]
++	}
++	fs += ">"
++	return fs
++}
++
++func TestInterfaces(t *testing.T) {
++	ift, err := Interfaces()
++	if err != nil {
++		t.Fatalf("Interfaces() failed: %v", err)
++	}
++	t.Logf("table: len/cap = %v/%v\n", len(ift), cap(ift))
++
++	for _, ifi := range ift {
++		ifxi, err := InterfaceByIndex(ifi.Index)
++		if err != nil {
++			t.Fatalf("InterfaceByIndex(%#q) failed: %v", ifi.Index, err)
++		}
++		if !sameInterface(ifxi, &ifi) {
++			t.Fatalf("InterfaceByIndex(%#q) = %v, want %v", ifi.Index, *ifxi, ifi)
++		}
++		ifxn, err := InterfaceByName(ifi.Name)
++		if err != nil {
++			t.Fatalf("InterfaceByName(%#q) failed: %v", ifi.Name, err)
++		}
++		if !sameInterface(ifxn, &ifi) {
++			t.Fatalf("InterfaceByName(%#q) = %v, want %v", ifi.Name, *ifxn, ifi)
++		}
++		ifat, err := ifi.Addrs()
++		if err != nil {
++			t.Fatalf("Interface.Addrs() failed: %v", err)
++		}
++		t.Logf("%s: flags %s, ifindex %v, mtu %v\n", ifi.Name, interfaceFlagsString(&ifi), ifi.Index, ifi.MTU)
++		for _, ifa := range ifat {
++			t.Logf("\tinterface address %s\n", ifa.String())
++		}
++		t.Logf("\thardware address %v", ifi.HardwareAddr.String())
++	}
++}
++
++func TestInterfaceAddrs(t *testing.T) {
++	ifat, err := InterfaceAddrs()
++	if err != nil {
++		t.Fatalf("InterfaceAddrs() failed: %v", err)
++	}
++	t.Logf("table: len/cap = %v/%v\n", len(ifat), cap(ifat))
++
++	for _, ifa := range ifat {
++		t.Logf("interface address %s\n", ifa.String())
++	}
++}

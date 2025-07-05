@@ -7,7 +7,32 @@ Date:   Mon Oct 18 14:02:24 2010 -0400
     R=r, r2
     CC=florian, golang-dev
     https://golang.org/cl/2554042
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 55aa400b92..5927c9dc60 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -42,6 +42,7 @@ Eric Clark <zerohp@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
++Florian Uekermann <florian@uekermann-online.de> <f1@uekermann-online.de>
+ Giles Lean <giles.lean@pobox.com>
+ Google Inc.
+ Graham Miller <graham.miller@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 99124d23e3..8784a0f0a4 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -76,6 +76,7 @@ Eric Clark <zerohp@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
++Florian Uekermann <florian@uekermann-online.de> <f1@uekermann-online.de>
+ Fumitoshi Ukai <ukai@google.com>
+ Giles Lean <giles.lean@pobox.com>
+ Graham Miller <graham.miller@gmail.com>

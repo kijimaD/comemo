@@ -14,7 +14,7 @@ Date:   Mon Apr 24 16:59:33 2017 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_386.s         |  6 ++--
  src/runtime/asm_amd64.s       |  2 ++
  src/runtime/asm_amd64p32.s    | 11 +++++++
@@ -23,3 +23,217 @@ Date:   Mon Apr 24 16:59:33 2017 +0200
  src/runtime/memmove_amd64.s   |  4 +--
  src/runtime/runtime2.go       |  6 ++--
  7 files changed, 31 insertions(+), 91 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 5d80f13261..eaf8c935ad 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -67,14 +67,16 @@ has_cpuid:
+ 	JNE	notintel
+ 	CMPL	CX, $0x6C65746E  // "ntel"
+ 	JNE	notintel
++	MOVB	$1, runtime·isIntel(SB)
+ 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
+ notintel:
+ 
+ 	// Load EAX=1 cpuid flags
+ 	MOVL	$1, AX
+ 	CPUID
+-	MOVL	CX, AX // Move to global variable clobbers CX when generating PIC
+-	MOVL	AX, runtime·cpuid_ecx(SB)
++	MOVL	CX, DI // Move to global variable clobbers CX when generating PIC
++	MOVL	AX, runtime·cpuid_eax(SB)
++	MOVL	DI, runtime·cpuid_ecx(SB)
+ 	MOVL	DX, runtime·cpuid_edx(SB)
+ 
+ 	// Check for MMX support
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 36da4cc922..65bbf63bf1 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -41,12 +41,14 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	JNE	notintel
+ 	CMPL	CX, $0x6C65746E  // "ntel"
+ 	JNE	notintel
++	MOVB	$1, runtime·isIntel(SB)
+ 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
+ notintel:
+ 
+ 	// Load EAX=1 cpuid flags
+ 	MOVQ	$1, AX
+ 	CPUID
++	MOVL	AX, runtime·cpuid_eax(SB)
+ 	MOVL	CX, runtime·cpuid_ecx(SB)
+ 	MOVL	DX, runtime·cpuid_edx(SB)
+ 
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index a17219891a..14c2213384 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -32,8 +32,19 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	CPUID
+ 	CMPQ	AX, $0
+ 	JE	nocpuinfo
++
++	CMPL	BX, $0x756E6547  // "Genu"
++	JNE	notintel
++	CMPL	DX, $0x49656E69  // "ineI"
++	JNE	notintel
++	CMPL	CX, $0x6C65746E  // "ntel"
++	JNE	notintel
++	MOVB	$1, runtime·isIntel(SB)
++notintel:
++
+ 	MOVQ	$1, AX
+ 	CPUID
++	MOVL	AX, runtime·cpuid_eax(SB)
+ 	MOVL	CX, runtime·cpuid_ecx(SB)
+ 	MOVL	DX, runtime·cpuid_edx(SB)
+ nocpuinfo:	
+diff --git a/src/runtime/cpuflags_amd64.go b/src/runtime/cpuflags_amd64.go
+index 026f0cd88e..3a463487a9 100644
+--- a/src/runtime/cpuflags_amd64.go
++++ b/src/runtime/cpuflags_amd64.go
+@@ -4,72 +4,17 @@
+ 
+ package runtime
+ 
+-var vendorStringBytes [12]byte
+-var maxInputValue uint32
+-var featureFlags uint32
+-var processorVersionInfo uint32
+-
+-var useRepMovs = true
+-
+-func hasFeature(feature uint32) bool {
+-	return (featureFlags & feature) != 0
+-}
+-
+-func cpuid_low(arg1, arg2 uint32) (eax, ebx, ecx, edx uint32) // implemented in cpuidlow_amd64.s
+-func xgetbv_low(arg1 uint32) (eax, edx uint32)                // implemented in cpuidlow_amd64.s
++var useAVXmemmove bool
+ 
+ func init() {
+-	const cfOSXSAVE uint32 = 1 << 27
+-	const cfAVX uint32 = 1 << 28
+-
+-	leaf0()
+-	leaf1()
+-
+-	enabledAVX := false
+-	// Let's check if OS has set CR4.OSXSAVE[bit 18]
+-	// to enable XGETBV instruction.
+-	if hasFeature(cfOSXSAVE) {
+-		eax, _ := xgetbv_low(0)
+-		// Let's check that XCR0[2:1] = ‘11b’
+-		// i.e. XMM state and YMM state are enabled by OS.
+-		enabledAVX = (eax & 0x6) == 0x6
+-	}
+-
+-	isIntelBridgeFamily := (processorVersionInfo == 0x206A0 ||
+-		processorVersionInfo == 0x206D0 ||
+-		processorVersionInfo == 0x306A0 ||
+-		processorVersionInfo == 0x306E0) &&
+-		isIntel()
+-
+-	useRepMovs = !(hasFeature(cfAVX) && enabledAVX) || isIntelBridgeFamily
+-}
+-
+-func leaf0() {
+-	eax, ebx, ecx, edx := cpuid_low(0, 0)
+-	maxInputValue = eax
+-	int32ToBytes(ebx, vendorStringBytes[0:4])
+-	int32ToBytes(edx, vendorStringBytes[4:8])
+-	int32ToBytes(ecx, vendorStringBytes[8:12])
+-}
+-
+-func leaf1() {
+-	if maxInputValue < 1 {
+-		return
+-	}
+-	eax, _, ecx, _ := cpuid_low(1, 0)
+ 	// Let's remove stepping and reserved fields
+-	processorVersionInfo = eax & 0x0FFF3FF0
+-	featureFlags = ecx
+-}
++	processorVersionInfo := cpuid_eax & 0x0FFF3FF0
+ 
+-func int32ToBytes(arg uint32, buffer []byte) {
+-	buffer[3] = byte(arg >> 24)
+-	buffer[2] = byte(arg >> 16)
+-	buffer[1] = byte(arg >> 8)
+-	buffer[0] = byte(arg)
+-}
++	isIntelBridgeFamily := isIntel &&
++		(processorVersionInfo == 0x206A0 ||
++			processorVersionInfo == 0x206D0 ||
++			processorVersionInfo == 0x306A0 ||
++			processorVersionInfo == 0x306E0)
+ 
+-func isIntel() bool {
+-	intelSignature := [12]byte{'G', 'e', 'n', 'u', 'i', 'n', 'e', 'I', 'n', 't', 'e', 'l'}
+-	return vendorStringBytes == intelSignature
++	useAVXmemmove = support_avx && !isIntelBridgeFamily
+ }
+diff --git a/src/runtime/cpuidlow_amd64.s b/src/runtime/cpuidlow_amd64.s
+deleted file mode 100644
+index 64316c9e9f..0000000000
+--- a/src/runtime/cpuidlow_amd64.s
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// func cpuid_low(arg1, arg2 uint32) (eax, ebx, ecx, edx uint32)
+-TEXT ·cpuid_low(SB), 4, $0-24
+-    MOVL    arg1+0(FP), AX
+-    MOVL    arg2+4(FP), CX
+-    CPUID
+-    MOVL AX, eax+8(FP)
+-    MOVL BX, ebx+12(FP)
+-    MOVL CX, ecx+16(FP)
+-    MOVL DX, edx+20(FP)
+-    RET
+-// func xgetbv_low(arg1 uint32) (eax, edx uint32)
+-TEXT ·xgetbv_low(SB), 4, $0-16
+-    MOVL arg1+0(FP), CX
+-    // XGETBV
+-    BYTE $0x0F; BYTE $0x01; BYTE $0xD0
+-    MOVL AX,eax+8(FP)
+-    MOVL DX,edx+12(FP)
+-    RET
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index ed674fe40b..510d0d694b 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -64,8 +64,8 @@ tail:
+ 	JBE	move_129through256
+ 	// TODO: use branch table and BSR to make this just a single dispatch
+ 
+-	TESTB	$1, runtime·useRepMovs(SB)
+-	JZ	avxUnaligned
++	TESTB	$1, runtime·useAVXmemmove(SB)
++	JNZ	avxUnaligned
+ 
+ /*
+  * check and set for backwards
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index f35391b9d1..13360a9ad3 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -727,10 +727,12 @@ var (
+ 	newprocs    int32
+ 
+ 	// Information about what cpu features are available.
+-	// Set on startup in asm_{x86,amd64}.s.
++	// Set on startup in asm_{386,amd64,amd64p32}.s.
++	cpuid_eax         uint32
+ 	cpuid_ecx         uint32
+ 	cpuid_edx         uint32
+-	cpuid_ebx7        uint32
++	cpuid_ebx7        uint32 // not set on amd64p32
++	isIntel           bool
+ 	lfenceBeforeRdtsc bool
+ 	support_avx       bool
+ 	support_avx2      bool

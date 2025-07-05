@@ -10,8 +10,78 @@ Date:   Mon May 27 20:46:53 2013 +0800
     R=golang-dev, iant, capnm9, dave
     CC=golang-dev
     https://golang.org/cl/9251043
-
+---
  src/pkg/runtime/sys_freebsd_arm.s | 7 ++++++-
  src/pkg/runtime/sys_linux_arm.s   | 7 ++++++-
  src/pkg/runtime/sys_netbsd_arm.s  | 7 ++++++-
  3 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index 5531936ffd..e59fb72d08 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -154,12 +154,17 @@ TEXT runtime·sigtramp(SB),7,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+ 	// first save R0, because _cgo_load_gm will clobber it
+-	// TODO(adonovan): call runtime·badsignal if m=0, like other platforms?
+ 	MOVW	R0, 4(R13) // signum
+ 	MOVW	_cgo_load_gm(SB), R0
+ 	CMP 	$0, R0
+ 	BL.NE	(R0)
+ 
++	CMP $0, m
++	BNE 3(PC)
++	// signal number is already prepared in 4(R13)
++	BL runtime·badsignal(SB)
++	RET
++
+ 	// save g
+ 	MOVW R10, R4
+ 	MOVW R10, 20(R13)
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 7f813482d1..ffcb1ec69a 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -286,12 +286,17 @@ TEXT runtime·sigtramp(SB),7,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+ 	// first save R0, because _cgo_load_gm will clobber it
+-	// TODO(adonovan): call runtime·badsignal if m=0, like other platforms?
+ 	MOVW	R0, 4(R13)
+ 	MOVW	_cgo_load_gm(SB), R0
+ 	CMP 	$0, R0
+ 	BL.NE	(R0)
+ 
++	CMP 	$0, m
++	BNE 	3(PC)
++	// signal number is already prepared in 4(R13)
++	BL  	runtime·badsignal(SB)
++	RET
++
+ 	// save g
+ 	MOVW	g, R3
+ 	MOVW	g, 20(R13)
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index 3ff335f4df..2f2052bd37 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -201,12 +201,17 @@ TEXT runtime·sigtramp(SB),7,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+ 	// first save R0, because _cgo_load_gm will clobber it
+-	// TODO(adonovan): call runtime·badsignal if m=0, like other platforms?
+ 	MOVW	R0, 4(R13) // signum
+ 	MOVW	_cgo_load_gm(SB), R0
+ 	CMP 	$0, R0
+ 	BL.NE	(R0)
+ 
++	CMP $0, m
++	BNE 3(PC)
++	// signal number is already prepared in 4(R13)
++	BL runtime·badsignal(SB)
++	RET
++
+ 	// save g
+ 	MOVW R10, R4
+ 	MOVW R10, 20(R13)

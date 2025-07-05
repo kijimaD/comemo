@@ -17,8 +17,52 @@ Date:   Sat Feb 18 16:41:25 2023 +1100
     Reviewed-by: Junxian Zhu <zhujunxian@oss.cipunited.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/61974.txt                     | 2 ++
  src/cmd/link/internal/loadelf/ldelf.go | 3 ++-
  src/debug/elf/elf.go                   | 3 +++
  3 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/61974.txt b/api/next/61974.txt
+new file mode 100644
+index 0000000000..d231a62848
+--- /dev/null
++++ b/api/next/61974.txt
+@@ -0,0 +1,2 @@
++pkg debug/elf, const R_MIPS_PC32 = 248 #61974
++pkg debug/elf, const R_MIPS_PC32 R_MIPS #61974
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index dfa0ad7804..72c2093d4e 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -1018,7 +1018,8 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
+ 		MIPS64 | uint32(elf.R_MIPS_CALL16)<<16,
+ 		MIPS64 | uint32(elf.R_MIPS_GPREL32)<<16,
+ 		MIPS64 | uint32(elf.R_MIPS_64)<<16,
+-		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16:
++		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16,
++		MIPS64 | uint32(elf.R_MIPS_PC32)<<16:
+ 		return 4, 4, nil
+ 
+ 	case LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_PCREL)<<16,
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index c982c684ba..35b0e3bc83 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -2216,6 +2216,8 @@ const (
+ 	R_MIPS_TLS_TPREL64     R_MIPS = 48 /* TP-relative offset, 64 bit */
+ 	R_MIPS_TLS_TPREL_HI16  R_MIPS = 49 /* TP-relative offset, high 16 bits */
+ 	R_MIPS_TLS_TPREL_LO16  R_MIPS = 50 /* TP-relative offset, low 16 bits */
++
++	R_MIPS_PC32 R_MIPS = 248 /* 32 bit PC relative reference */
+ )
+ 
+ var rmipsStrings = []intName{
+@@ -2267,6 +2269,7 @@ var rmipsStrings = []intName{
+ 	{48, "R_MIPS_TLS_TPREL64"},
+ 	{49, "R_MIPS_TLS_TPREL_HI16"},
+ 	{50, "R_MIPS_TLS_TPREL_LO16"},
++	{248, "R_MIPS_PC32"},
+ }
+ 
+ func (i R_MIPS) String() string   { return stringName(uint32(i), rmipsStrings, false) }

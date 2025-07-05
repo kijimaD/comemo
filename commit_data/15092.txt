@@ -14,7 +14,7 @@ Date:   Fri Feb 1 23:10:02 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7278043
-
+---
  src/cmd/gc/const.c          | 134 ++++++++++++++++++++++++++++++++++++++++++--
  src/cmd/gc/go.h             |   1 +
  src/cmd/gc/subr.c           |   1 +
@@ -26,3 +26,339 @@ Date:   Fri Feb 1 23:10:02 2013 -0500
  test/fixedbugs/issue4654.go |   2 +-
  test/run.go                 |  13 +++--
  10 files changed, 161 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index f82ba9420d..83e62bde1d 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -78,6 +78,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 	if(!explicit && !isideal(n->type))
+ 		return;
+ 
++	
+ 	if(n->op == OLITERAL) {
+ 		nn = nod(OXXX, N, N);
+ 		*nn = *n;
+@@ -953,10 +954,6 @@ ret:
+ 	*n = *nl;
+ 	// restore value of n->orig.
+ 	n->orig = norig;
+-	if(norig->op == OCONV) {
+-		dump("N", n);
+-		dump("NORIG", norig);
+-	}
+ 	n->val = v;
+ 
+ 	// check range.
+@@ -1449,3 +1446,132 @@ cmplxdiv(Mpcplx *v, Mpcplx *rv)
+ 	mpsubfltflt(&v->imag, &ad);		// bc-ad
+ 	mpdivfltflt(&v->imag, &cc_plus_dd);	// (bc+ad)/(cc+dd)
+ }
++
++static int hascallchan(Node*);
++
++// Is n a Go language constant (as opposed to a compile-time constant)?
++// Expressions derived from nil, like string([]byte(nil)), while they
++// may be known at compile time, are not Go language constants.
++// Only called for expressions known to evaluated to compile-time
++// constants.
++int
++isgoconst(Node *n)
++{
++	Node *l;
++	Type *t;
++
++	if(n->orig != N)
++		n = n->orig;
++
++	switch(n->op) {
++	case OADD:
++	case OADDSTR:
++	case OAND:
++	case OANDAND:
++	case OANDNOT:
++	case OCOM:
++	case ODIV:
++	case OEQ:
++	case OGE:
++	case OGT:
++	case OLE:
++	case OLSH:
++	case OLT:
++	case OMINUS:
++	case OMOD:
++	case OMUL:
++	case ONE:
++	case ONOT:
++	case OOR:
++	case OOROR:
++	case OPLUS:
++	case ORSH:
++	case OSUB:
++	case OXOR:
++	case OCONV:
++	case OIOTA:
++	case OCOMPLEX:
++	case OREAL:
++	case OIMAG:
++		if(isgoconst(n->left) && (n->right == N || isgoconst(n->right)))
++			return 1;
++		break;
++	
++	case OLEN:
++	case OCAP:
++		l = n->left;
++		if(isgoconst(l))
++			return 1;
++		// Special case: len/cap is constant when applied to array or
++		// pointer to array when the expression does not contain
++		// function calls or channel receive operations.
++		t = l->type;
++		if(t != T && isptr[t->etype])
++			t = t->type;
++		if(isfixedarray(t) && !hascallchan(l))
++			return 1;
++		break;
++
++	case OLITERAL:
++		if(n->val.ctype != CTNIL)
++			return 1;
++		break;
++
++	case ONAME:
++		l = n->sym->def;
++		if(l->op == OLITERAL && n->val.ctype != CTNIL)
++			return 1;
++		break;
++	
++	case ONONAME:
++		if(n->sym->def != N && n->sym->def->op == OIOTA)
++			return 1;
++		break;
++	
++	case OCALL:
++		// Only constant calls are unsafe.Alignof, Offsetof, and Sizeof.
++		l = n->left;
++		while(l->op == OPAREN)
++			l = l->left;
++		if(l->op != ONAME || l->sym->pkg != unsafepkg)
++			break;
++		if(strcmp(l->sym->name, "Alignof") == 0 ||
++		   strcmp(l->sym->name, "Offsetof") == 0 ||
++		   strcmp(l->sym->name, "Sizeof") == 0)
++			return 1;
++		break;		
++	}
++
++	//dump("nonconst", n);
++	return 0;
++}
++
++static int
++hascallchan(Node *n)
++{
++	NodeList *l;
++
++	if(n == N)
++		return 0;
++	switch(n->op) {
++	case OCALL:
++	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++	case ORECV:
++		return 1;
++	}
++	
++	if(hascallchan(n->left) ||
++	   hascallchan(n->right))
++		return 1;
++	
++	for(l=n->list; l; l=l->next)
++		if(hascallchan(l->n))
++			return 1;
++	for(l=n->rlist; l; l=l->next)
++		if(hascallchan(l->n))
++			return 1;
++
++	return 0;
++}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 9d2ff4d466..1f8446bd39 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -997,6 +997,7 @@ void	defaultlit(Node **np, Type *t);
+ void	defaultlit2(Node **lp, Node **rp, int force);
+ void	evconst(Node *n);
+ int	isconst(Node *n, int ct);
++int	isgoconst(Node *n);
+ Node*	nodcplxlit(Val r, Val i);
+ Node*	nodlit(Val v);
+ long	nonnegconst(Node *n);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index afbdd0ccad..01e738bf9d 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -840,6 +840,7 @@ treecopy(Node *n)
+ 	default:
+ 		m = nod(OXXX, N, N);
+ 		*m = *n;
++		m->orig = m;
+ 		m->left = treecopy(n->left);
+ 		m->right = treecopy(n->right);
+ 		m->list = listtreecopy(n->list);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 3771613af8..1bfa0cc471 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1336,6 +1336,9 @@ reswitch:
+ 	case OCONV:
+ 	doconv:
+ 		ok |= Erv;
++		l = nod(OXXX, N, N);
++		n->orig = l;
++		*l = *n;
+ 		typecheck(&n->left, Erv | (top & (Eindir | Eiota)));
+ 		convlit1(&n->left, n->type, 1);
+ 		if((t = n->left->type) == T || n->type == T)
+@@ -3007,14 +3010,14 @@ typecheckdef(Node *n)
+ 			yyerror("xxx");
+ 		}
+ 		typecheck(&e, Erv | Eiota);
+-		if(e->type != T && e->op != OLITERAL) {
+-			yyerror("const initializer must be constant");
+-			goto ret;
+-		}
+ 		if(isconst(e, CTNIL)) {
+ 			yyerror("const initializer cannot be nil");
+ 			goto ret;
+ 		}
++		if(e->type != T && e->op != OLITERAL || !isgoconst(e)) {
++			yyerror("const initializer %N is not a constant", e);
++			goto ret;
++		}
+ 		t = n->type;
+ 		if(t != T) {
+ 			if(!okforconst[t->etype]) {
+diff --git a/test/const1.go b/test/const1.go
+index 1580b76c68..a170ce9e76 100644
+--- a/test/const1.go
++++ b/test/const1.go
+@@ -9,6 +9,8 @@
+ 
+ package main
+ 
++import "unsafe"
++
+ type I interface{}
+ 
+ const (
+@@ -86,3 +88,7 @@ func main() {
+ }
+ 
+ const ptr = nil // ERROR "const.*nil"
++const _ = string([]byte(nil)) // ERROR "is not a constant"
++const _ = uintptr(unsafe.Pointer((*int)(nil))) // ERROR "is not a constant"
++const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil"
++const _ = (*int)(nil) // ERROR "cannot be nil"
+diff --git a/test/const5.go b/test/const5.go
+index d0eed137d1..87fe33a385 100644
+--- a/test/const5.go
++++ b/test/const5.go
+@@ -24,10 +24,10 @@ const (
+ 	n2 = len(m[""])
+ 	n3 = len(s[10])
+ 
+-	n4 = len(f())  // ERROR "must be constant|is not constant"
+-	n5 = len(<-c) // ERROR "must be constant|is not constant"
++	n4 = len(f())  // ERROR "is not a constant|is not constant"
++	n5 = len(<-c) // ERROR "is not a constant|is not constant"
+ 
+-	n6 = cap(f())  // ERROR "must be constant|is not constant"
+-	n7 = cap(<-c) // ERROR "must be constant|is not constant"
++	n6 = cap(f())  // ERROR "is not a constant|is not constant"
++	n7 = cap(<-c) // ERROR "is not a constant|is not constant"
+ )
+ 
+diff --git a/test/fixedbugs/bug297.go b/test/fixedbugs/bug297.go
+index b5dfa8d878..ee2ff92437 100644
+--- a/test/fixedbugs/bug297.go
++++ b/test/fixedbugs/bug297.go
+@@ -11,5 +11,5 @@ package main
+ type ByteSize float64
+ const (
+ 	_ = iota;   // ignore first value by assigning to blank identifier
+-	KB ByteSize = 1<<(10*X) // ERROR "undefined" "as type ByteSize"
++	KB ByteSize = 1<<(10*X) // ERROR "undefined" "is not a constant|as type ByteSize"
+ )
+diff --git a/test/fixedbugs/issue4097.go b/test/fixedbugs/issue4097.go
+index 2c999a8336..fa942c9db7 100644
+--- a/test/fixedbugs/issue4097.go
++++ b/test/fixedbugs/issue4097.go
+@@ -7,5 +7,5 @@
+ package foo
+ 
+ var s [][10]int
+-const m = len(s[len(s)-1]) // ERROR "must be constant" 
++const m = len(s[len(s)-1]) // ERROR "is not a constant" 
+ 
+diff --git a/test/fixedbugs/issue4654.go b/test/fixedbugs/issue4654.go
+index 4c5a55cb43..170594e4b8 100644
+--- a/test/fixedbugs/issue4654.go
++++ b/test/fixedbugs/issue4654.go
+@@ -48,7 +48,7 @@ func f() {
+ 	defer recover() // ok
+ 
+ 	int(0) // ERROR "int\(0\) evaluated but not used"
+-	string([]byte("abc")) // ERROR "string\(\[\]byte literal\) evaluated but not used"
++	string([]byte("abc")) // ERROR "string\(.*\) evaluated but not used"
+ 
+ 	append(x, 1) // ERROR "not used"
+ 	cap(x) // ERROR "not used"
+diff --git a/test/run.go b/test/run.go
+index bc545df10b..36c8b7ad7b 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -683,6 +683,7 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
+ 			continue
+ 		}
+ 		matched := false
++		n := len(out)
+ 		for _, errmsg := range errmsgs {
+ 			if we.re.MatchString(errmsg) {
+ 				matched = true
+@@ -691,7 +692,7 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
+ 			}
+ 		}
+ 		if !matched {
+-			errs = append(errs, fmt.Errorf("%s:%d: no match for %q in%s", we.file, we.lineNum, we.reStr, strings.Join(out, "\n")))
++			errs = append(errs, fmt.Errorf("%s:%d: no match for %#q in:\n\t%s", we.file, we.lineNum, we.reStr, strings.Join(out[n:], "\n\t")))
+ 			continue
+ 		}
+ 	}
+@@ -758,7 +759,7 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
+ 		all := m[1]
+ 		mm := errQuotesRx.FindAllStringSubmatch(all, -1)
+ 		if mm == nil {
+-			log.Fatalf("invalid errchk line in %s: %s", t.goFileName(), line)
++			log.Fatalf("%s:%d: invalid errchk line: %s", t.goFileName(), lineNum, line)
+ 		}
+ 		for _, m := range mm {
+ 			rx := lineRx.ReplaceAllStringFunc(m[1], func(m string) string {
+@@ -772,10 +773,14 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
+ 				}
+ 				return fmt.Sprintf("%s:%d", short, n)
+ 			})
+-			filterPattern := fmt.Sprintf(`^(\w+/)?%s:%d[:[]`, short, lineNum)
++			re, err := regexp.Compile(rx)
++			if err != nil {
++				log.Fatalf("%s:%d: invalid regexp in ERROR line: %v", t.goFileName(), lineNum, err)
++			}
++			filterPattern := fmt.Sprintf(`^(\w+/)?%s:%d[:[]`, regexp.QuoteMeta(short), lineNum)
+ 			errs = append(errs, wantedError{
+ 				reStr:    rx,
+-				re:       regexp.MustCompile(rx),
++				re:       re,
+ 				filterRe: regexp.MustCompile(filterPattern),
+ 				lineNum:  lineNum,
+ 				file:     short,

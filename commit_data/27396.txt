@@ -11,7 +11,84 @@ Date:   Thu Mar 24 20:45:54 2016 +0100
     Change-Id: Id84f65c3908305bde0452b3c8db6df8c5a8881bb
     Reviewed-on: https://go-review.googlesource.com/21100
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/alldocs.go |  8 +++++---
  src/cmd/go/build.go   | 14 +-------------
  2 files changed, 6 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b6c880bb52..0f3747d51d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1,4 +1,4 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
++// Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -86,8 +86,7 @@ and test commands:
+ 	-p n
+ 		the number of programs, such as build commands or
+ 		test binaries, that can be run in parallel.
+-		The default is the number of CPUs available, except
+-		on darwin/arm which defaults to 1.
++		The default is the number of CPUs available.
+ 	-race
+ 		enable data race detection.
+ 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+@@ -577,6 +576,7 @@ syntax of package template.  The default output is equivalent to -f
+         CXXFiles       []string // .cc, .cxx and .cpp source files
+         MFiles         []string // .m source files
+         HFiles         []string // .h, .hh, .hpp and .hxx source files
++        FFiles         []string // .f, .F, .for and .f90 Fortran source files
+         SFiles         []string // .s source files
+         SwigFiles      []string // .swig files
+         SwigCXXFiles   []string // .swigcxx files
+@@ -586,6 +586,7 @@ syntax of package template.  The default output is equivalent to -f
+         CgoCFLAGS    []string // cgo: flags for C compiler
+         CgoCPPFLAGS  []string // cgo: flags for C preprocessor
+         CgoCXXFLAGS  []string // cgo: flags for C++ compiler
++        CgoFFLAGS    []string // cgo: flags for Fortran compiler
+         CgoLDFLAGS   []string // cgo: flags for linker
+         CgoPkgConfig []string // cgo: pkg-config names
+ 
+@@ -1563,6 +1564,7 @@ Here is another example where the ordering of the output is ignored:
+ 		for _, value := range Perm(4) {
+ 			fmt.Println(value)
+ 		}
++
+ 		// Unordered output: 4
+ 		// 2
+ 		// 1
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 6a43e60219..b63c195f78 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -65,8 +65,7 @@ and test commands:
+ 	-p n
+ 		the number of programs, such as build commands or
+ 		test binaries, that can be run in parallel.
+-		The default is the number of CPUs available, except
+-		on darwin/arm which defaults to 1.
++		The default is the number of CPUs available.
+ 	-race
+ 		enable data race detection.
+ 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+@@ -145,17 +144,6 @@ func init() {
+ 
+ 	addBuildFlags(cmdBuild)
+ 	addBuildFlags(cmdInstall)
+-
+-	if buildContext.GOOS == "darwin" {
+-		switch buildContext.GOARCH {
+-		case "arm", "arm64":
+-			// darwin/arm cannot run multiple tests simultaneously.
+-			// Parallelism is limited in go_darwin_arm_exec, but
+-			// also needs to be limited here so go test std does not
+-			// timeout tests that waiting to run.
+-			buildP = 1
+-		}
+-	}
+ }
+ 
+ // Flags set by multiple commands.

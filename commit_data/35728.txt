@@ -11,6 +11,22 @@ Date:   Mon Mar 5 07:11:23 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/bytealg/index_arm64.s | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/internal/bytealg/index_arm64.s b/src/internal/bytealg/index_arm64.s
+index 8cffcd10b5..6c93ef3ce8 100644
+--- a/src/internal/bytealg/index_arm64.s
++++ b/src/internal/bytealg/index_arm64.s
+@@ -31,10 +31,6 @@ TEXT indexbody<>(SB),NOSPLIT,$0-56
+ 	// main idea is to load 'sep' into separate register(s)
+ 	// to avoid repeatedly re-load it again and again
+ 	// for sebsequent substring comparisons
+-	MOVD	a_base+0(FP), R0
+-	MOVD	a_len+8(FP), R1
+-	MOVD	b_base+24(FP), R2
+-	MOVD	b_len+32(FP), R3
+ 	SUB	R3, R1, R4
+ 	// R4 contains the start of last substring for comparsion
+ 	ADD	R0, R4, R4

@@ -18,8 +18,88 @@ Date:   Sat May 29 19:54:10 2021 +0000
     Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/complit1.go | 14 +++++++-------
  test/ddd1.go     | 10 +++++-----
  test/run.go      |  2 --
  3 files changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/test/complit1.go b/test/complit1.go
+index 7c2a4e2996..8cbcd63ee0 100644
+--- a/test/complit1.go
++++ b/test/complit1.go
+@@ -46,20 +46,20 @@ var (
+ 	_ = &T{0, 0, "", nil}               // ok
+ 	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal|omit types within composite literal"
+ 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal|omit types within composite literal"
+-	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid composite literal type TP|omit types within composite literal"
++	_ = TP{i: 0, f: 0, s: ""}           // ERROR "invalid composite literal type TP"
+ 	_ = &Ti{}                           // ERROR "invalid composite literal type Ti|expected.*type for composite literal"
+ )
+ 
+ type M map[T]T
+ 
+ var (
+-	_ = M{{i:1}: {i:2}}
+-	_ = M{T{i:1}: {i:2}}
+-	_ = M{{i:1}: T{i:2}}
+-	_ = M{T{i:1}: T{i:2}}
++	_ = M{{i: 1}: {i: 2}}
++	_ = M{T{i: 1}: {i: 2}}
++	_ = M{{i: 1}: T{i: 2}}
++	_ = M{T{i: 1}: T{i: 2}}
+ )
+ 
+-type S struct { s [1]*M1 }
++type S struct{ s [1]*M1 }
+ type M1 map[S]int
+-var _ = M1{{s:[1]*M1{&M1{{}:1}}}:2}
+ 
++var _ = M1{{s: [1]*M1{&M1{{}: 1}}}: 2}
+diff --git a/test/ddd1.go b/test/ddd1.go
+index ad49b347f4..f7381b7c94 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -17,8 +17,8 @@ var (
+ 	_ = sum(1, 2, 3)
+ 	_ = sum()
+ 	_ = sum(1.0, 2.0)
+-	_ = sum(1.5)      // ERROR "integer"
+-	_ = sum("hello")  // ERROR ".hello. .type untyped string. as type int|incompatible"
++	_ = sum(1.5)      // ERROR "1\.5 .untyped float constant. as int|integer"
++	_ = sum("hello")  // ERROR ".hello. (.untyped string constant. as int|.type untyped string. as type int)|incompatible"
+ 	_ = sum([]int{1}) // ERROR "\[\]int{...}.*as type int|incompatible"
+ )
+ 
+@@ -27,9 +27,9 @@ func tuple() (int, int, int) { return 1, 2, 3 }
+ 
+ var (
+ 	_ = sum(tuple())
+-	_ = sum(tuple()...) // ERROR "multiple-value"
++	_ = sum(tuple()...) // ERROR "\.{3} with 3-valued|multiple-value"
+ 	_ = sum3(tuple())
+-	_ = sum3(tuple()...) // ERROR "multiple-value" ERROR "invalid use of .*[.][.][.]"
++	_ = sum3(tuple()...) // ERROR "\.{3} in call to non-variadic|multiple-value|invalid use of .*[.][.][.]"
+ )
+ 
+ type T []T
+@@ -60,5 +60,5 @@ func bad(args ...int) {
+ 	_ = [...]byte("foo") // ERROR "[.][.][.]"
+ 	_ = [...][...]int{{1,2,3},{4,5,6}}	// ERROR "[.][.][.]"
+ 
+-	Foo(x...) // ERROR "invalid use of .*[.][.][.]"
++	Foo(x...) // ERROR "\.{3} in call to non-variadic|invalid use of .*[.][.][.]"
+ }
+diff --git a/test/run.go b/test/run.go
+index cf1d301598..ef1e9de150 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2023,8 +2023,6 @@ func overlayDir(dstRoot, srcRoot string) error {
+ // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
+ // Temporary scaffolding until we pass all the tests at which point this map can be removed.
+ var excludedFiles = map[string]bool{
+-	"complit1.go":     true, // types2 reports extra errors
+-	"ddd1.go":         true, // issue #42987
+ 	"directive.go":    true, // misplaced compiler directive checks
+ 	"float_lit3.go":   true, // types2 reports extra errors
+ 	"import1.go":      true, // types2 reports extra errors

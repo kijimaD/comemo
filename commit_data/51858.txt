@@ -27,8 +27,176 @@ Date:   Tue Mar 8 17:01:12 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go           | 24 +++++++----
  src/cmd/dist/test.go            |  4 +-
  src/cmd/go/internal/load/pkg.go | 89 +++++++++++++++++++----------------------
  3 files changed, 61 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index d37c3f83ef..ba09ce9a7b 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1502,8 +1502,19 @@ func goInstall(goBinary string, args ...string) {
+ 	goCmd(goBinary, "install", args...)
+ }
+ 
++func appendCompilerFlags(args []string) []string {
++	if gogcflags != "" {
++		args = append(args, "-gcflags=all="+gogcflags)
++	}
++	if goldflags != "" {
++		args = append(args, "-ldflags=all="+goldflags)
++	}
++	return args
++}
++
+ func goCmd(goBinary string, cmd string, args ...string) {
+-	goCmd := []string{goBinary, cmd, "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
++	goCmd := []string{goBinary, cmd}
++	goCmd = appendCompilerFlags(goCmd)
+ 	if vflag > 0 {
+ 		goCmd = append(goCmd, "-v")
+ 	}
+@@ -1517,12 +1528,11 @@ func goCmd(goBinary string, cmd string, args ...string) {
+ }
+ 
+ func checkNotStale(goBinary string, targets ...string) {
+-	out := run(workdir, CheckExit,
+-		append([]string{
+-			goBinary,
+-			"list", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags,
+-			"-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}",
+-		}, targets...)...)
++	goCmd := []string{goBinary, "list"}
++	goCmd = appendCompilerFlags(goCmd)
++	goCmd = append(goCmd, "-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}")
++
++	out := run(workdir, CheckExit, append(goCmd, targets...)...)
+ 	if strings.Contains(out, "\tSTALE ") {
+ 		os.Setenv("GODEBUG", "gocachehash=1")
+ 		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index cd3c26ab3a..a540a2abda 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -397,7 +397,9 @@ func (t *tester) registerStdTest(pkg string) {
+ 				"-short=" + short(),
+ 				t.tags(),
+ 				t.timeout(timeoutSec),
+-				"-gcflags=all=" + gcflags,
++			}
++			if gcflags != "" {
++				args = append(args, "-gcflags=all="+gcflags)
+ 			}
+ 			if t.race {
+ 				args = append(args, "-race")
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 403bc330e7..ab70845959 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2233,11 +2233,6 @@ var vcsStatusCache par.Cache
+ // Note that the GoVersion field is not set here to avoid encoding it twice.
+ // It is stored separately in the binary, mostly for historical reasons.
+ func (p *Package) setBuildInfo(includeVCS bool) {
+-	// TODO: build and vcs information is not embedded for executables in GOROOT.
+-	// cmd/dist uses -gcflags=all= -ldflags=all= by default, which means these
+-	// executables always appear stale unless the user sets the same flags.
+-	// Perhaps it's safe to omit those flags when GO_GCFLAGS and GO_LDFLAGS
+-	// are not set?
+ 	setPkgErrorf := func(format string, args ...any) {
+ 		if p.Error == nil {
+ 			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
+@@ -2313,51 +2308,49 @@ func (p *Package) setBuildInfo(includeVCS bool) {
+ 	// Add command-line flags relevant to the build.
+ 	// This is informational, not an exhaustive list.
+ 	// Please keep the list sorted.
+-	if !p.Standard {
+-		if cfg.BuildASan {
+-			appendSetting("-asan", "true")
+-		}
+-		if BuildAsmflags.present {
+-			appendSetting("-asmflags", BuildAsmflags.String())
+-		}
+-		appendSetting("-compiler", cfg.BuildContext.Compiler)
+-		if BuildGccgoflags.present && cfg.BuildContext.Compiler == "gccgo" {
+-			appendSetting("-gccgoflags", BuildGccgoflags.String())
+-		}
+-		if BuildGcflags.present && cfg.BuildContext.Compiler == "gc" {
+-			appendSetting("-gcflags", BuildGcflags.String())
+-		}
+-		if BuildLdflags.present {
+-			appendSetting("-ldflags", BuildLdflags.String())
+-		}
+-		if cfg.BuildMSan {
+-			appendSetting("-msan", "true")
+-		}
+-		if cfg.BuildRace {
+-			appendSetting("-race", "true")
+-		}
+-		if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
+-			appendSetting("-tags", strings.Join(tags, ","))
+-		}
+-		cgo := "0"
+-		if cfg.BuildContext.CgoEnabled {
+-			cgo = "1"
+-		}
+-		appendSetting("CGO_ENABLED", cgo)
+-		if cfg.BuildContext.CgoEnabled {
+-			for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
+-				appendSetting(name, cfg.Getenv(name))
+-			}
+-		}
+-		appendSetting("GOARCH", cfg.BuildContext.GOARCH)
+-		if cfg.RawGOEXPERIMENT != "" {
+-			appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
+-		}
+-		appendSetting("GOOS", cfg.BuildContext.GOOS)
+-		if key, val := cfg.GetArchEnv(); key != "" && val != "" {
+-			appendSetting(key, val)
++	if cfg.BuildASan {
++		appendSetting("-asan", "true")
++	}
++	if BuildAsmflags.present {
++		appendSetting("-asmflags", BuildAsmflags.String())
++	}
++	appendSetting("-compiler", cfg.BuildContext.Compiler)
++	if gccgoflags := BuildGccgoflags.String(); gccgoflags != "" && cfg.BuildContext.Compiler == "gccgo" {
++		appendSetting("-gccgoflags", gccgoflags)
++	}
++	if gcflags := BuildGcflags.String(); gcflags != "" && cfg.BuildContext.Compiler == "gc" {
++		appendSetting("-gcflags", gcflags)
++	}
++	if ldflags := BuildLdflags.String(); ldflags != "" {
++		appendSetting("-ldflags", ldflags)
++	}
++	if cfg.BuildMSan {
++		appendSetting("-msan", "true")
++	}
++	if cfg.BuildRace {
++		appendSetting("-race", "true")
++	}
++	if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
++		appendSetting("-tags", strings.Join(tags, ","))
++	}
++	cgo := "0"
++	if cfg.BuildContext.CgoEnabled {
++		cgo = "1"
++	}
++	appendSetting("CGO_ENABLED", cgo)
++	if cfg.BuildContext.CgoEnabled {
++		for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
++			appendSetting(name, cfg.Getenv(name))
+ 		}
+ 	}
++	appendSetting("GOARCH", cfg.BuildContext.GOARCH)
++	if cfg.RawGOEXPERIMENT != "" {
++		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
++	}
++	appendSetting("GOOS", cfg.BuildContext.GOOS)
++	if key, val := cfg.GetArchEnv(); key != "" && val != "" {
++		appendSetting(key, val)
++	}
+ 
+ 	// Add VCS status if all conditions are true:
+ 	//

@@ -14,9 +14,122 @@ Date:   Fri Sep 23 16:58:31 2016 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/syscall/windows/registry/zsyscall_windows.go | 8 ++++----
  src/internal/syscall/windows/zsyscall_windows.go          | 8 ++++----
  src/syscall/mksyscall_windows.go                          | 8 ++++++--
  src/syscall/zsyscall_windows.go                           | 8 ++++++--
  4 files changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/src/internal/syscall/windows/registry/zsyscall_windows.go b/src/internal/syscall/windows/registry/zsyscall_windows.go
+index 36ae303aa5..a3a1f5fc8f 100644
+--- a/src/internal/syscall/windows/registry/zsyscall_windows.go
++++ b/src/internal/syscall/windows/registry/zsyscall_windows.go
+@@ -13,11 +13,11 @@ var _ unsafe.Pointer
+ // Do the interface allocations only once for common
+ // Errno values.
+ const (
+-	errnoWSAEINPROGRESS = 10036
++	errnoERROR_IO_PENDING = 997
+ )
+ 
+ var (
+-	errWSAEINPROGRESS error = syscall.Errno(errnoWSAEINPROGRESS)
++	errERROR_IO_PENDING error = syscall.Errno(errnoERROR_IO_PENDING)
+ )
+ 
+ // errnoErr returns common boxed Errno values, to prevent
+@@ -26,8 +26,8 @@ func errnoErr(e syscall.Errno) error {
+ 	switch e {
+ 	case 0:
+ 		return nil
+-	case errnoWSAEINPROGRESS:
+-		return errWSAEINPROGRESS
++	case errnoERROR_IO_PENDING:
++		return errERROR_IO_PENDING
+ 	}
+ 	// TODO: add more here, after collecting data on the common
+ 	// error values see on Windows. (perhaps when running
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 55af05d3e9..9ed977f2bd 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -13,11 +13,11 @@ var _ unsafe.Pointer
+ // Do the interface allocations only once for common
+ // Errno values.
+ const (
+-	errnoWSAEINPROGRESS = 10036
++	errnoERROR_IO_PENDING = 997
+ )
+ 
+ var (
+-	errWSAEINPROGRESS error = syscall.Errno(errnoWSAEINPROGRESS)
++	errERROR_IO_PENDING error = syscall.Errno(errnoERROR_IO_PENDING)
+ )
+ 
+ // errnoErr returns common boxed Errno values, to prevent
+@@ -26,8 +26,8 @@ func errnoErr(e syscall.Errno) error {
+ 	switch e {
+ 	case 0:
+ 		return nil
+-	case errnoWSAEINPROGRESS:
+-		return errWSAEINPROGRESS
++	case errnoERROR_IO_PENDING:
++		return errERROR_IO_PENDING
+ 	}
+ 	// TODO: add more here, after collecting data on the common
+ 	// error values see on Windows. (perhaps when running
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index fcc847616c..37e4a070cd 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -831,8 +831,12 @@ var _ unsafe.Pointer
+ 
+ // Do the interface allocations only once for common
+ // Errno values.
++const (
++	errnoERROR_IO_PENDING = 997
++)
++
+ var (
+-	errERROR_IO_PENDING error = {{syscalldot}}Errno(ERROR_IO_PENDING)
++	errERROR_IO_PENDING error = {{syscalldot}}Errno(errnoERROR_IO_PENDING)
+ )
+ 
+ // errnoErr returns common boxed Errno values, to prevent
+@@ -841,7 +845,7 @@ func errnoErr(e {{syscalldot}}Errno) error {
+ 	switch e {
+ 	case 0:
+ 		return nil
+-	case ERROR_IO_PENDING:
++	case errnoERROR_IO_PENDING:
+ 		return errERROR_IO_PENDING
+ 	}
+ 	// TODO: add more here, after collecting data on the common
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index c99e3cf532..2283c79236 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -11,8 +11,12 @@ var _ unsafe.Pointer
+ 
+ // Do the interface allocations only once for common
+ // Errno values.
++const (
++	errnoERROR_IO_PENDING = 997
++)
++
+ var (
+-	errERROR_IO_PENDING error = Errno(ERROR_IO_PENDING)
++	errERROR_IO_PENDING error = Errno(errnoERROR_IO_PENDING)
+ )
+ 
+ // errnoErr returns common boxed Errno values, to prevent
+@@ -21,7 +25,7 @@ func errnoErr(e Errno) error {
+ 	switch e {
+ 	case 0:
+ 		return nil
+-	case ERROR_IO_PENDING:
++	case errnoERROR_IO_PENDING:
+ 		return errERROR_IO_PENDING
+ 	}
+ 	// TODO: add more here, after collecting data on the common

@@ -7,7 +7,7 @@ Date:   Wed Jul 27 15:23:42 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/4823054
-
+---
  src/pkg/crypto/x509/x509.go     | 11 +++++------
  src/pkg/http/request.go         |  5 +----
  src/pkg/json/decode.go          |  5 ++---
@@ -15,3 +15,217 @@ Date:   Wed Jul 27 15:23:42 2011 -0700
  src/pkg/net/textproto/reader.go |  9 +++------
  src/pkg/websocket/client.go     | 17 ++++++++---------
  6 files changed, 22 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 348727a26e..0add9e3c9d 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -9,7 +9,6 @@ import (
+ 	"asn1"
+ 	"big"
+ 	"bytes"
+-	"container/vector"
+ 	"crypto"
+ 	"crypto/dsa"
+ 	"crypto/rsa"
+@@ -794,7 +793,7 @@ func ParseCertificate(asn1Data []byte) (*Certificate, os.Error) {
+ // ParseCertificates parses one or more certificates from the given ASN.1 DER
+ // data. The certificates must be concatenated with no intermediate padding.
+ func ParseCertificates(asn1Data []byte) ([]*Certificate, os.Error) {
+-	v := new(vector.Vector)
++	var v []interface{}
+ 
+ 	for len(asn1Data) > 0 {
+ 		cert := new(certificate)
+@@ -803,12 +802,12 @@ func ParseCertificates(asn1Data []byte) ([]*Certificate, os.Error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		v.Push(cert)
++		v = append(v, cert)
+ 	}
+ 
+-	ret := make([]*Certificate, v.Len())
+-	for i := 0; i < v.Len(); i++ {
+-		cert, err := parseCertificate(v.At(i).(*certificate))
++	ret := make([]*Certificate, len(v))
++	for i := 0; i < len(v); i++ {
++		cert, err := parseCertificate(v[i].(*certificate))
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 2917cc1e6e..a1c98a1f8f 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -12,7 +12,6 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"crypto/tls"
+-	"container/vector"
+ 	"encoding/base64"
+ 	"fmt"
+ 	"io"
+@@ -674,9 +673,7 @@ func parseQuery(m Values, query string) (err os.Error) {
+ 			err = e
+ 			continue
+ 		}
+-		vec := vector.StringVector(m[key])
+-		vec.Push(value)
+-		m[key] = vec
++		m[key] = append(m[key], value)
+ 	}
+ 	return err
+ }
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 2edbbdafee..7d474fa7b9 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -8,7 +8,6 @@
+ package json
+ 
+ import (
+-	"container/vector"
+ 	"encoding/base64"
+ 	"os"
+ 	"reflect"
+@@ -669,7 +668,7 @@ func (d *decodeState) valueInterface() interface{} {
+ 
+ // arrayInterface is like array but returns []interface{}.
+ func (d *decodeState) arrayInterface() []interface{} {
+-	var v vector.Vector
++	var v []interface{}
+ 	for {
+ 		// Look ahead for ] - can only happen on first iteration.
+ 		op := d.scanWhile(scanSkipSpace)
+@@ -681,7 +680,7 @@ func (d *decodeState) arrayInterface() []interface{} {
+ 		d.off--
+ 		d.scan.undo(op)
+ 
+-		v.Push(d.valueInterface())
++		v = append(v, d.valueInterface())
+ 
+ 		// Next token must be , or ].
+ 		op = d.scanWhile(scanSkipSpace)
+diff --git a/src/pkg/net/dict/dict.go b/src/pkg/net/dict/dict.go
+index 42f6553ad3..b146ea2123 100644
+--- a/src/pkg/net/dict/dict.go
++++ b/src/pkg/net/dict/dict.go
+@@ -7,7 +7,6 @@
+ package dict
+ 
+ import (
+-	"container/vector"
+ 	"net/textproto"
+ 	"os"
+ 	"strconv"
+@@ -144,7 +143,7 @@ func (c *Client) Define(dict, word string) ([]*Defn, os.Error) {
+ // Fields are space separated unquoted words
+ // or quoted with single or double quote.
+ func fields(s string) ([]string, os.Error) {
+-	var v vector.StringVector
++	var v []string
+ 	i := 0
+ 	for {
+ 		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+@@ -170,7 +169,7 @@ func fields(s string) ([]string, os.Error) {
+ 					break
+ 				}
+ 			}
+-			v.Push(unquote(s[i+1 : j-1]))
++			v = append(v, unquote(s[i+1:j-1]))
+ 			i = j
+ 		} else {
+ 			// atom
+@@ -180,7 +179,7 @@ func fields(s string) ([]string, os.Error) {
+ 					break
+ 				}
+ 			}
+-			v.Push(s[i:j])
++			v = append(v, s[i:j])
+ 			i = j
+ 		}
+ 		if i < len(s) {
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index 6031baa3bb..ce0ddc73f8 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -7,7 +7,6 @@ package textproto
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"container/vector"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -400,7 +399,7 @@ func (r *Reader) ReadDotLines() ([]string, os.Error) {
+ 	// We could use ReadDotBytes and then Split it,
+ 	// but reading a line at a time avoids needing a
+ 	// large contiguous block of memory and is simpler.
+-	var v vector.StringVector
++	var v []string
+ 	var err os.Error
+ 	for {
+ 		var line string
+@@ -419,7 +418,7 @@ func (r *Reader) ReadDotLines() ([]string, os.Error) {
+ 			}
+ 			line = line[1:]
+ 		}
+-		v.Push(line)
++		v = append(v, line)
+ 	}
+ 	return v, err
+ }
+@@ -466,9 +465,7 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, os.Error) {
+ 		}
+ 		value := string(kv[i:])
+ 
+-		v := vector.StringVector(m[key])
+-		v.Push(value)
+-		m[key] = v
++		m[key] = append(m[key], value)
+ 
+ 		if err != nil {
+ 			return m, err
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index f066a18320..f24c463608 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -7,7 +7,6 @@ package websocket
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"container/vector"
+ 	"crypto/tls"
+ 	"fmt"
+ 	"http"
+@@ -201,21 +200,21 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
+ 	bw.WriteString("GET " + resourceName + " HTTP/1.1\r\n")
+ 
+ 	// Step 6-14. push request headers in fields.
+-	var fields vector.StringVector
+-	fields.Push("Upgrade: WebSocket\r\n")
+-	fields.Push("Connection: Upgrade\r\n")
+-	fields.Push("Host: " + host + "\r\n")
+-	fields.Push("Origin: " + origin + "\r\n")
++	var fields []string
++	fields = append(fields, "Upgrade: WebSocket\r\n")
++	fields = append(fields, "Connection: Upgrade\r\n")
++	fields = append(fields, "Host: "+host+"\r\n")
++	fields = append(fields, "Origin: "+origin+"\r\n")
+ 	if protocol != "" {
+-		fields.Push("Sec-WebSocket-Protocol: " + protocol + "\r\n")
++		fields = append(fields, "Sec-WebSocket-Protocol: "+protocol+"\r\n")
+ 	}
+ 	// TODO(ukai): Step 15. send cookie if any.
+ 
+ 	// Step 16-23. generate keys and push Sec-WebSocket-Key<n> in fields.
+ 	key1, number1 := generateKeyNumber()
+ 	key2, number2 := generateKeyNumber()
+-	fields.Push("Sec-WebSocket-Key1: " + key1 + "\r\n")
+-	fields.Push("Sec-WebSocket-Key2: " + key2 + "\r\n")
++	fields = append(fields, "Sec-WebSocket-Key1: "+key1+"\r\n")
++	fields = append(fields, "Sec-WebSocket-Key2: "+key2+"\r\n")
+ 
+ 	// Step 24. shuffle fields and send them out.
+ 	for i := 1; i < len(fields); i++ {

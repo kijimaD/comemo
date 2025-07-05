@@ -7,6 +7,22 @@ Date:   Sat Jul 15 12:20:25 2017 -0600
     Change-Id: If581bd4e9d9b4421e2ae20582c596fccb73d9aed
     Reviewed-on: https://go-review.googlesource.com/48866
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 28131db5f5..c51cbd2238 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -550,8 +550,8 @@ func init() {
+ 		{name: "FlagEQ"},     // equal
+ 		{name: "FlagLT_ULT"}, // signed < and unsigned <
+ 		{name: "FlagLT_UGT"}, // signed < and unsigned >
+-		{name: "FlagGT_UGT"}, // signed > and unsigned <
+-		{name: "FlagGT_ULT"}, // signed > and unsigned >
++		{name: "FlagGT_UGT"}, // signed > and unsigned >
++		{name: "FlagGT_ULT"}, // signed > and unsigned <
+ 
+ 		// Atomic loads.  These are just normal loads but return <value,memory> tuples
+ 		// so they can be properly ordered with other loads.

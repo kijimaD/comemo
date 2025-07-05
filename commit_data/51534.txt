@@ -17,7 +17,7 @@ Date:   Wed Feb 9 14:16:05 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/384618
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go                 |  4 ++--
  src/cmd/compile/internal/noder/writer.go               |  4 ++--
  src/cmd/compile/internal/types2/builtins.go            | 18 +++++++++---------
@@ -58,3 +58,1098 @@ Date:   Wed Feb 9 14:16:05 2022 -0800
  test/typeparam/issue50417.go                           |  4 ++--
  test/typeparam/typelist.go                             | 18 ++++++++++--------
  39 files changed, 136 insertions(+), 134 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 8a9afeb095..a4e144554c 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -332,13 +332,13 @@ func (g *irgen) exprs(exprs []syntax.Expr) []ir.Node {
+ }
+ 
+ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
+-	if ptr, ok := types2.StructuralType(typ).(*types2.Pointer); ok {
++	if ptr, ok := types2.CoreType(typ).(*types2.Pointer); ok {
+ 		n := ir.NewAddrExpr(g.pos(lit), g.compLit(ptr.Elem(), lit))
+ 		n.SetOp(ir.OPTRLIT)
+ 		return typed(g.typ(typ), n)
+ 	}
+ 
+-	_, isStruct := types2.StructuralType(typ).(*types2.Struct)
++	_, isStruct := types2.CoreType(typ).(*types2.Struct)
+ 
+ 	exprs := make([]ir.Node, len(lit.ElemList))
+ 	for i, elem := range lit.ElemList {
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 933f577825..46e8339120 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1338,10 +1338,10 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
+ 	w.typ(tv.Type)
+ 
+ 	typ := tv.Type
+-	if ptr, ok := types2.StructuralType(typ).(*types2.Pointer); ok {
++	if ptr, ok := types2.CoreType(typ).(*types2.Pointer); ok {
+ 		typ = ptr.Elem()
+ 	}
+-	str, isStruct := types2.StructuralType(typ).(*types2.Struct)
++	str, isStruct := types2.CoreType(typ).(*types2.Struct)
+ 
+ 	w.len(len(lit.ElemList))
+ 	for i, elem := range lit.ElemList {
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 4b122bc540..428897c628 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -82,7 +82,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// of S and the respective parameter passing rules apply."
+ 		S := x.typ
+ 		var T Type
+-		if s, _ := structuralType(S).(*Slice); s != nil {
++		if s, _ := coreType(S).(*Slice); s != nil {
+ 			T = s.elem
+ 		} else {
+ 			var cause string
+@@ -90,10 +90,10 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			case x.isNil():
+ 				cause = "have untyped nil"
+ 			case isTypeParam(S):
+-				if u := structuralType(S); u != nil {
+-					cause = check.sprintf("%s has structural type %s", x, u)
++				if u := coreType(S); u != nil {
++					cause = check.sprintf("%s has core type %s", x, u)
+ 				} else {
+-					cause = check.sprintf("%s has no structural type", x)
++					cause = check.sprintf("%s has no core type", x)
+ 				}
+ 			default:
+ 				cause = check.sprintf("have %s", x)
+@@ -115,7 +115,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 				if x.mode == invalid {
+ 					return
+ 				}
+-				if t := structuralString(x.typ); t != nil && isString(t) {
++				if t := coreString(x.typ); t != nil && isString(t) {
+ 					if check.Types != nil {
+ 						sig := makeSig(S, S, x.typ)
+ 						sig.variadic = true
+@@ -345,14 +345,14 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Copy:
+ 		// copy(x, y []T) int
+-		dst, _ := structuralType(x.typ).(*Slice)
++		dst, _ := coreType(x.typ).(*Slice)
+ 
+ 		var y operand
+ 		arg(&y, 1)
+ 		if y.mode == invalid {
+ 			return
+ 		}
+-		src0 := structuralString(y.typ)
++		src0 := coreString(y.typ)
+ 		if src0 != nil && isString(src0) {
+ 			src0 = NewSlice(universeByte)
+ 		}
+@@ -486,13 +486,13 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		var min int // minimum number of arguments
+-		switch structuralType(T).(type) {
++		switch coreType(T).(type) {
+ 		case *Slice:
+ 			min = 2
+ 		case *Map, *Chan:
+ 			min = 1
+ 		case nil:
+-			check.errorf(arg0, invalidArg+"cannot make %s: no structural type", arg0)
++			check.errorf(arg0, invalidArg+"cannot make %s: no core type", arg0)
+ 			return
+ 		default:
+ 			check.errorf(arg0, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 15a42ca3dc..22f65ed626 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -168,7 +168,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	cgocall := x.mode == cgofunc
+ 
+ 	// a type parameter may be "called" if all types have the same signature
+-	sig, _ := structuralType(x.typ).(*Signature)
++	sig, _ := coreType(x.typ).(*Signature)
+ 	if sig == nil {
+ 		check.errorf(x, invalidOp+"cannot call non-function %s", x)
+ 		x.mode = invalid
+diff --git a/src/cmd/compile/internal/types2/compilersupport.go b/src/cmd/compile/internal/types2/compilersupport.go
+index b35e752b8f..33dd8e8baa 100644
+--- a/src/cmd/compile/internal/types2/compilersupport.go
++++ b/src/cmd/compile/internal/types2/compilersupport.go
+@@ -19,12 +19,12 @@ func AsSignature(t Type) *Signature {
+ 	return u
+ }
+ 
+-// If typ is a type parameter, structuralType returns the single underlying
++// If typ is a type parameter, CoreType returns the single underlying
+ // type of all types in the corresponding type constraint if it exists, or
+ // nil otherwise. If the type set contains only unrestricted and restricted
+ // channel types (with identical element types), the single underlying type
+ // is the restricted channel type if the restrictions are always the same.
+-// If typ is not a type parameter, structuralType returns the underlying type.
+-func StructuralType(t Type) Type {
+-	return structuralType(t)
++// If typ is not a type parameter, CoreType returns the underlying type.
++func CoreType(t Type) Type {
++	return coreType(t)
+ }
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 4fdabe754e..02ece21e67 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -182,9 +182,9 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 		return
+ 
+ 	case syntax.Recv:
+-		u := structuralType(x.typ)
++		u := coreType(x.typ)
+ 		if u == nil {
+-			check.errorf(x, invalidOp+"cannot receive from %s: no structural type", x)
++			check.errorf(x, invalidOp+"cannot receive from %s: no core type", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -1359,7 +1359,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		case hint != nil:
+ 			// no composite literal type present - use hint (element type of enclosing type)
+ 			typ = hint
+-			base, _ = deref(structuralType(typ)) // *T implies &T{}
++			base, _ = deref(coreType(typ)) // *T implies &T{}
+ 
+ 		default:
+ 			// TODO(gri) provide better error messages depending on context
+@@ -1367,7 +1367,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			goto Error
+ 		}
+ 
+-		switch utyp := structuralType(base).(type) {
++		switch utyp := coreType(base).(type) {
+ 		case *Struct:
+ 			// Prevent crash if the struct referred to is not yet set up.
+ 			// See analogous comment for *Array.
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 4995d2d730..1eaddded9a 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -213,9 +213,9 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+-	switch u := structuralString(x.typ).(type) {
++	switch u := coreString(x.typ).(type) {
+ 	case nil:
+-		check.errorf(x, invalidOp+"cannot slice %s: %s has no structural type", x, x.typ)
++		check.errorf(x, invalidOp+"cannot slice %s: %s has no core type", x, x.typ)
+ 		x.mode = invalid
+ 		return
+ 
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 51b26eb2aa..564e91e60a 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -416,11 +416,11 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 		}
+ 	}
+ 
+-	// If a constraint has a structural type, unify the corresponding type parameter with it.
++	// If a constraint has a core type, unify the corresponding type parameter with it.
+ 	for _, tpar := range tparams {
+-		sbound := structuralType(tpar)
++		sbound := coreType(tpar)
+ 		if sbound != nil {
+-			// If the structural type is the underlying type of a single
++			// If the core type is the underlying type of a single
+ 			// defined type in the constraint, use that defined type instead.
+ 			if named, _ := tpar.singleType().(*Named); named != nil {
+ 				sbound = named
+@@ -435,7 +435,7 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 	}
+ 
+ 	// u.x.types() now contains the incoming type arguments plus any additional type
+-	// arguments which were inferred from structural types. The newly inferred non-
++	// arguments which were inferred from core types. The newly inferred non-
+ 	// nil entries may still contain references to other type parameters.
+ 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+@@ -504,8 +504,8 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 	}
+ 
+ 	// Once nothing changes anymore, we may still have type parameters left;
+-	// e.g., a structural constraint *P may match a type parameter Q but we
+-	// don't have any type arguments to fill in for *P or Q (issue #45548).
++	// e.g., a constraint with core type *P may match a type parameter Q but
++	// we don't have any type arguments to fill in for *P or Q (issue #45548).
+ 	// Don't let such inferences escape, instead nil them out.
+ 	for i, typ := range types {
+ 		if typ != nil && isParameterized(tparams, typ) {
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 9987da4854..0a2d2a5790 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -66,12 +66,12 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 
+ 	obj, index, indirect = lookupFieldOrMethod(T, addressable, pkg, name, false)
+ 
+-	// If we didn't find anything and if we have a type parameter with a structural constraint,
+-	// see if there is a matching field (but not a method, those need to be declared explicitly
+-	// in the constraint). If the structural constraint is a named pointer type (see above), we
+-	// are ok here because only fields are accepted as results.
++	// If we didn't find anything and if we have a type parameter with a core type,
++	// see if there is a matching field (but not a method, those need to be declared
++	// explicitly in the constraint). If the constraint is a named pointer type (see
++	// above), we are ok here because only fields are accepted as results.
+ 	if obj == nil && isTypeParam(T) {
+-		if t := structuralType(T); t != nil {
++		if t := coreType(T); t != nil {
+ 			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name, false)
+ 			if _, ok := obj.(*Var); !ok {
+ 				obj, index, indirect = nil, nil, false // accept fields (variables) only
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 279d0775bd..0e46333af7 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -31,7 +31,7 @@ func isBasic(t Type, info BasicInfo) bool {
+ // The allX predicates below report whether t is an X.
+ // If t is a type parameter the result is true if isX is true
+ // for all specified types of the type parameter's type set.
+-// allX is an optimized version of isX(structuralType(t)) (which
++// allX is an optimized version of isX(coreType(t)) (which
+ // is the same as underIs(t, isX)).
+ 
+ func allBoolean(t Type) bool         { return allBasic(t, IsBoolean) }
+@@ -45,7 +45,7 @@ func allNumericOrString(t Type) bool { return allBasic(t, IsNumeric|IsString) }
+ // allBasic reports whether under(t) is a basic type with the specified info.
+ // If t is a type parameter, the result is true if isBasic(t, info) is true
+ // for all specific types of the type parameter's type set.
+-// allBasic(t, info) is an optimized version of isBasic(structuralType(t), info).
++// allBasic(t, info) is an optimized version of isBasic(coreType(t), info).
+ func allBasic(t Type, info BasicInfo) bool {
+ 	if tpar, _ := t.(*TypeParam); tpar != nil {
+ 		return tpar.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 03da98af34..836b95df8f 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -409,9 +409,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		if ch.mode == invalid || val.mode == invalid {
+ 			return
+ 		}
+-		u := structuralType(ch.typ)
++		u := coreType(ch.typ)
+ 		if u == nil {
+-			check.errorf(s, invalidOp+"cannot send to %s: no structural type", &ch)
++			check.errorf(s, invalidOp+"cannot send to %s: no core type", &ch)
+ 			return
+ 		}
+ 		uch, _ := u.(*Chan)
+@@ -835,9 +835,9 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	// determine key/value types
+ 	var key, val Type
+ 	if x.mode != invalid {
+-		// Ranging over a type parameter is permitted if it has a structural type.
++		// Ranging over a type parameter is permitted if it has a core type.
+ 		var cause string
+-		u := structuralType(x.typ)
++		u := coreType(x.typ)
+ 		if t, _ := u.(*Chan); t != nil {
+ 			if sValue != nil {
+ 				check.softErrorf(sValue, "range over %s permits only one iteration variable", &x)
+@@ -852,7 +852,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 				// ok to continue
+ 			}
+ 			if u == nil {
+-				cause = check.sprintf("%s has no structural type", x.typ)
++				cause = check.sprintf("%s has no core type", x.typ)
+ 			}
+ 		}
+ 		key, val = rangeKeyVal(u)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins.go2 b/src/cmd/compile/internal/types2/testdata/check/builtins.go2
+index 48a39891bf..7c3f0c96ad 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins.go2
+@@ -148,7 +148,7 @@ func _[
+ 	_ = make /* ERROR expects 2 or 3 arguments */ (S1)
+ 	_ = make(S1, 10, 20)
+ 	_ = make /* ERROR expects 2 or 3 arguments */ (S1, 10, 20, 30)
+-	_ = make(S2 /* ERROR cannot make S2: no structural type */ , 10)
++	_ = make(S2 /* ERROR cannot make S2: no core type */ , 10)
+ 
+ 	type M0 map[string]int
+ 	_ = make(map[string]int)
+@@ -156,7 +156,7 @@ func _[
+ 	_ = make(M1)
+ 	_ = make(M1, 10)
+ 	_ = make/* ERROR expects 1 or 2 arguments */(M1, 10, 20)
+-	_ = make(M2 /* ERROR cannot make M2: no structural type */ )
++	_ = make(M2 /* ERROR cannot make M2: no core type */ )
+ 
+ 	type C0 chan int
+ 	_ = make(chan int)
+@@ -164,7 +164,7 @@ func _[
+ 	_ = make(C1)
+ 	_ = make(C1, 10)
+ 	_ = make/* ERROR expects 1 or 2 arguments */(C1, 10, 20)
+-	_ = make(C2 /* ERROR cannot make C2: no structural type */ )
++	_ = make(C2 /* ERROR cannot make C2: no core type */ )
+ 	_ = make(C3)
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index ef58241519..68b1f0f5c5 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -134,11 +134,11 @@ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3
+ type myByte1 []byte
+ type myByte2 []byte
+ func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+-func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x[ /* ERROR no structural type */ i:j:k] }
++func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x[ /* ERROR no core type */ i:j:k] }
+ 
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3-index slice of string */ ] }
+-func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x[ /* ERROR no structural type */ i:j] }
++func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x[ /* ERROR no core type */ i:j] }
+ 
+ // len/cap built-ins
+ 
+@@ -230,7 +230,7 @@ func _[
+         for _, _ = range s1 {}
+ 
+         var s2 S2
+-        for range s2 /* ERROR cannot range over s2.*no structural type */ {}
++        for range s2 /* ERROR cannot range over s2.*no core type */ {}
+ 
+         var a0 []int
+         for range a0 {}
+@@ -243,7 +243,7 @@ func _[
+         for _, _ = range a1 {}
+ 
+         var a2 A2
+-        for range a2 /* ERROR cannot range over a2.*no structural type */ {}
++        for range a2 /* ERROR cannot range over a2.*no core type */ {}
+ 
+         var p0 *[10]int
+         for range p0 {}
+@@ -256,7 +256,7 @@ func _[
+         for _, _ = range p1 {}
+ 
+         var p2 P2
+-        for range p2 /* ERROR cannot range over p2.*no structural type */ {}
++        for range p2 /* ERROR cannot range over p2.*no core type */ {}
+ 
+         var m0 map[string]int
+         for range m0 {}
+@@ -269,7 +269,7 @@ func _[
+         for _, _ = range m1 {}
+ 
+         var m2 M2
+-        for range m2 /* ERROR cannot range over m2.*no structural type */ {}
++        for range m2 /* ERROR cannot range over m2.*no core type */ {}
+ }
+ 
+ // type inference checks
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/inference.go2 b/src/cmd/compile/internal/types2/testdata/examples/inference.go2
+index 0732f06a39..e762f33605 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/inference.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/inference.go2
+@@ -113,7 +113,7 @@ func _() {
+ 	// from the first one through constraint type inference.
+ 	related3[int]()
+ 
+-	// The inferred type is the structural type of the Slice
++	// The inferred type is the core type of the Slice
+ 	// type parameter.
+ 	var _ []int = related3[int]()
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/types.go2 b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+index 077fcfdbb7..ae9c0151d1 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/types.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+@@ -292,7 +292,7 @@ func _[T interface{~int|~float64}]() {
+ 
+ // It is possible to create composite literals of type parameter
+ // type as long as it's possible to create a composite literal
+-// of the structural type of the type parameter's constraint.
++// of the core type of the type parameter's constraint.
+ func _[P interface{ ~[]int }]() P {
+ 	return P{}
+ 	return P{1, 2, 3}
+@@ -307,7 +307,7 @@ func _[P interface{ ~[]E }, E interface{ map[string]P } ]() P {
+ }
+ 
+ // This is a degenerate case with a singleton type set, but we can create
+-// composite literals even if the structural type is a defined type.
++// composite literals even if the core type is a defined type.
+ type MyInts []int
+ 
+ func _[P MyInts]() P {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43671.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43671.go2
+index 46ac51ebdd..3c78f85aa4 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43671.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43671.go2
+@@ -12,7 +12,7 @@ type C4 interface{ chan int | chan<- int }
+ type C5[T any] interface{ ~chan T | <-chan T }
+ 
+ func _[T any](ch T) {
+-	<-ch // ERROR cannot receive from ch .* no structural type
++	<-ch // ERROR cannot receive from ch .* no core type
+ }
+ 
+ func _[T C0](ch T) {
+@@ -28,7 +28,7 @@ func _[T C2](ch T) {
+ }
+ 
+ func _[T C3](ch T) {
+-	<-ch // ERROR cannot receive from ch .* no structural type
++	<-ch // ERROR cannot receive from ch .* no core type
+ }
+ 
+ func _[T C4](ch T) {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go2
+index 83a8f3a5da..5c1fa80b29 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go2
+@@ -12,7 +12,7 @@ type C4 interface{ chan int | chan<- int }
+ type C5[T any] interface{ ~chan T | chan<- T }
+ 
+ func _[T any](ch T) {
+-	ch /* ERROR cannot send to ch .* no structural type */ <- 0
++	ch /* ERROR cannot send to ch .* no core type */ <- 0
+ }
+ 
+ func _[T C0](ch T) {
+@@ -28,7 +28,7 @@ func _[T C2](ch T) {
+ }
+ 
+ func _[T C3](ch T) {
+-	ch /* ERROR cannot send to ch .* no structural type */ <- 0
++	ch /* ERROR cannot send to ch .* no core type */ <- 0
+ }
+ 
+ func _[T C4](ch T) {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49735.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49735.go2
+index 10e8df2776..50870226e4 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49735.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49735.go2
+@@ -6,6 +6,6 @@ package p
+ 
+ func _[P1 any, P2 ~byte](s1 P1, s2 P2) {
+         _ = append(nil /* ERROR first argument to append must be a slice; have untyped nil */ , 0)
+-        _ = append(s1 /* ERROR s1 .* has no structural type */ , 0)
+-        _ = append(s2 /* ERROR s2 .* has structural type byte */ , 0)
++        _ = append(s1 /* ERROR s1 .* has no core type */ , 0)
++        _ = append(s2 /* ERROR s2 .* has core type byte */ , 0)
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2
+index b6454ab003..50487fa2ff 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2
+@@ -51,7 +51,7 @@ func f2[P interface{ Sfm; m() }](p P) {
+ 
+ var _ = f2[Sfm]
+ 
+-// special case: structural type is a named pointer type
++// special case: core type is a named pointer type
+ 
+ type PSfm *Sfm
+ 
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 9487ac5a84..ca8f155791 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -27,13 +27,13 @@ func under(t Type) Type {
+ 	return t.Underlying()
+ }
+ 
+-// If t is not a type parameter, structuralType returns the underlying type.
+-// If t is a type parameter, structuralType returns the single underlying
++// If t is not a type parameter, coreType returns the underlying type.
++// If t is a type parameter, coreType returns the single underlying
+ // type of all types in its type set if it exists, or nil otherwise. If the
+ // type set contains only unrestricted and restricted channel types (with
+ // identical element types), the single underlying type is the restricted
+ // channel type if the restrictions are always the same, or nil otherwise.
+-func structuralType(t Type) Type {
++func coreType(t Type) Type {
+ 	tpar, _ := t.(*TypeParam)
+ 	if tpar == nil {
+ 		return under(t)
+@@ -59,10 +59,10 @@ func structuralType(t Type) Type {
+ 	return nil
+ }
+ 
+-// structuralString is like structuralType but also considers []byte
++// coreString is like coreType but also considers []byte
+ // and strings as identical. In this case, if successful and we saw
+ // a string, the result is of type (possibly untyped) string.
+-func structuralString(t Type) Type {
++func coreString(t Type) Type {
+ 	tpar, _ := t.(*TypeParam)
+ 	if tpar == nil {
+ 		return under(t) // string or untyped string
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index b421b38753..c81e73c828 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -83,7 +83,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// of S and the respective parameter passing rules apply."
+ 		S := x.typ
+ 		var T Type
+-		if s, _ := structuralType(S).(*Slice); s != nil {
++		if s, _ := coreType(S).(*Slice); s != nil {
+ 			T = s.elem
+ 		} else {
+ 			var cause string
+@@ -91,10 +91,10 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			case x.isNil():
+ 				cause = "have untyped nil"
+ 			case isTypeParam(S):
+-				if u := structuralType(S); u != nil {
+-					cause = check.sprintf("%s has structural type %s", x, u)
++				if u := coreType(S); u != nil {
++					cause = check.sprintf("%s has core type %s", x, u)
+ 				} else {
+-					cause = check.sprintf("%s has no structural type", x)
++					cause = check.sprintf("%s has no core type", x)
+ 				}
+ 			default:
+ 				cause = check.sprintf("have %s", x)
+@@ -116,7 +116,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 				if x.mode == invalid {
+ 					return
+ 				}
+-				if t := structuralString(x.typ); t != nil && isString(t) {
++				if t := coreString(x.typ); t != nil && isString(t) {
+ 					if check.Types != nil {
+ 						sig := makeSig(S, S, x.typ)
+ 						sig.variadic = true
+@@ -350,14 +350,14 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Copy:
+ 		// copy(x, y []T) int
+-		dst, _ := structuralType(x.typ).(*Slice)
++		dst, _ := coreType(x.typ).(*Slice)
+ 
+ 		var y operand
+ 		arg(&y, 1)
+ 		if y.mode == invalid {
+ 			return
+ 		}
+-		src0 := structuralString(y.typ)
++		src0 := coreString(y.typ)
+ 		if src0 != nil && isString(src0) {
+ 			src0 = NewSlice(universeByte)
+ 		}
+@@ -495,13 +495,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		}
+ 
+ 		var min int // minimum number of arguments
+-		switch structuralType(T).(type) {
++		switch coreType(T).(type) {
+ 		case *Slice:
+ 			min = 2
+ 		case *Map, *Chan:
+ 			min = 1
+ 		case nil:
+-			check.errorf(arg0, _InvalidMake, "cannot make %s: no structural type", arg0)
++			check.errorf(arg0, _InvalidMake, "cannot make %s: no core type", arg0)
+ 			return
+ 		default:
+ 			check.invalidArg(arg0, _InvalidMake, "cannot make %s; type must be slice, map, or channel", arg0)
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index aa87c48a65..3dab284459 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -171,7 +171,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 	cgocall := x.mode == cgofunc
+ 
+ 	// a type parameter may be "called" if all types have the same signature
+-	sig, _ := structuralType(x.typ).(*Signature)
++	sig, _ := coreType(x.typ).(*Signature)
+ 	if sig == nil {
+ 		check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
+ 		x.mode = invalid
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 0d21a592f9..8747838c4b 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -173,9 +173,9 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 		return
+ 
+ 	case token.ARROW:
+-		u := structuralType(x.typ)
++		u := coreType(x.typ)
+ 		if u == nil {
+-			check.invalidOp(x, _InvalidReceive, "cannot receive from %s: no structural type", x)
++			check.invalidOp(x, _InvalidReceive, "cannot receive from %s: no core type", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -1338,7 +1338,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		case hint != nil:
+ 			// no composite literal type present - use hint (element type of enclosing type)
+ 			typ = hint
+-			base, _ = deref(structuralType(typ)) // *T implies &T{}
++			base, _ = deref(coreType(typ)) // *T implies &T{}
+ 
+ 		default:
+ 			// TODO(gri) provide better error messages depending on context
+@@ -1346,7 +1346,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			goto Error
+ 		}
+ 
+-		switch utyp := structuralType(base).(type) {
++		switch utyp := coreType(base).(type) {
+ 		case *Struct:
+ 			// Prevent crash if the struct referred to is not yet set up.
+ 			// See analogous comment for *Array.
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index db4732c8e0..eac6017ba2 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -214,9 +214,9 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+-	switch u := structuralString(x.typ).(type) {
++	switch u := coreString(x.typ).(type) {
+ 	case nil:
+-		check.invalidOp(x, _NonSliceableOperand, "cannot slice %s: %s has no structural type", x, x.typ)
++		check.invalidOp(x, _NonSliceableOperand, "cannot slice %s: %s has no core type", x, x.typ)
+ 		x.mode = invalid
+ 		return
+ 
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 6a9a662565..450d104510 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -415,11 +415,11 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 		}
+ 	}
+ 
+-	// If a constraint has a structural type, unify the corresponding type parameter with it.
++	// If a constraint has a core type, unify the corresponding type parameter with it.
+ 	for _, tpar := range tparams {
+-		sbound := structuralType(tpar)
++		sbound := coreType(tpar)
+ 		if sbound != nil {
+-			// If the structural type is the underlying type of a single
++			// If the core type is the underlying type of a single
+ 			// defined type in the constraint, use that defined type instead.
+ 			if named, _ := tpar.singleType().(*Named); named != nil {
+ 				sbound = named
+@@ -434,7 +434,7 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 	}
+ 
+ 	// u.x.types() now contains the incoming type arguments plus any additional type
+-	// arguments which were inferred from structural types. The newly inferred non-
++	// arguments which were inferred from core types. The newly inferred non-
+ 	// nil entries may still contain references to other type parameters.
+ 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+@@ -503,8 +503,8 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 	}
+ 
+ 	// Once nothing changes anymore, we may still have type parameters left;
+-	// e.g., a structural constraint *P may match a type parameter Q but we
+-	// don't have any type arguments to fill in for *P or Q (issue #45548).
++	// e.g., a constraint with core type *P may match a type parameter Q but
++	// we don't have any type arguments to fill in for *P or Q (issue #45548).
+ 	// Don't let such inferences escape, instead nil them out.
+ 	for i, typ := range types {
+ 		if typ != nil && isParameterized(tparams, typ) {
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 9f1cd7667c..501c230357 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -66,12 +66,12 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 
+ 	obj, index, indirect = lookupFieldOrMethod(T, addressable, pkg, name, false)
+ 
+-	// If we didn't find anything and if we have a type parameter with a structural constraint,
+-	// see if there is a matching field (but not a method, those need to be declared explicitly
+-	// in the constraint). If the structural constraint is a named pointer type (see above), we
+-	// are ok here because only fields are accepted as results.
++	// If we didn't find anything and if we have a type parameter with a core type,
++	// see if there is a matching field (but not a method, those need to be declared
++	// explicitly in the constraint). If the constraint is a named pointer type (see
++	// above), we are ok here because only fields are accepted as results.
+ 	if obj == nil && isTypeParam(T) {
+-		if t := structuralType(T); t != nil {
++		if t := coreType(T); t != nil {
+ 			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name, false)
+ 			if _, ok := obj.(*Var); !ok {
+ 				obj, index, indirect = nil, nil, false // accept fields (variables) only
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 23dcd7274d..14e99bf426 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -33,7 +33,7 @@ func isBasic(t Type, info BasicInfo) bool {
+ // The allX predicates below report whether t is an X.
+ // If t is a type parameter the result is true if isX is true
+ // for all specified types of the type parameter's type set.
+-// allX is an optimized version of isX(structuralType(t)) (which
++// allX is an optimized version of isX(coreType(t)) (which
+ // is the same as underIs(t, isX)).
+ 
+ func allBoolean(typ Type) bool         { return allBasic(typ, IsBoolean) }
+@@ -47,7 +47,7 @@ func allNumericOrString(typ Type) bool { return allBasic(typ, IsNumeric|IsString
+ // allBasic reports whether under(t) is a basic type with the specified info.
+ // If t is a type parameter, the result is true if isBasic(t, info) is true
+ // for all specific types of the type parameter's type set.
+-// allBasic(t, info) is an optimized version of isBasic(structuralType(t), info).
++// allBasic(t, info) is an optimized version of isBasic(coreType(t), info).
+ func allBasic(t Type, info BasicInfo) bool {
+ 	if tpar, _ := t.(*TypeParam); tpar != nil {
+ 		return tpar.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index b32eb18bef..a5aee482ac 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -418,9 +418,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		if ch.mode == invalid || val.mode == invalid {
+ 			return
+ 		}
+-		u := structuralType(ch.typ)
++		u := coreType(ch.typ)
+ 		if u == nil {
+-			check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to %s: no structural type", &ch)
++			check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to %s: no core type", &ch)
+ 			return
+ 		}
+ 		uch, _ := u.(*Chan)
+@@ -831,12 +831,12 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		// determine key/value types
+ 		var key, val Type
+ 		if x.mode != invalid {
+-			// Ranging over a type parameter is permitted if it has a structural type.
++			// Ranging over a type parameter is permitted if it has a core type.
+ 			var cause string
+-			u := structuralType(x.typ)
++			u := coreType(x.typ)
+ 			switch t := u.(type) {
+ 			case nil:
+-				cause = check.sprintf("%s has no structural type", x.typ)
++				cause = check.sprintf("%s has no core type", x.typ)
+ 			case *Chan:
+ 				if s.Value != nil {
+ 					check.softErrorf(s.Value, _InvalidIterVar, "range over %s permits only one iteration variable", &x)
+diff --git a/src/go/types/testdata/check/builtins.go2 b/src/go/types/testdata/check/builtins.go2
+index c1accff016..861597399e 100644
+--- a/src/go/types/testdata/check/builtins.go2
++++ b/src/go/types/testdata/check/builtins.go2
+@@ -148,7 +148,7 @@ func _[
+ 	_ = make /* ERROR expects 2 or 3 arguments */ (S1)
+ 	_ = make(S1, 10, 20)
+ 	_ = make /* ERROR expects 2 or 3 arguments */ (S1, 10, 20, 30)
+-	_ = make(S2 /* ERROR cannot make S2: no structural type */ , 10)
++	_ = make(S2 /* ERROR cannot make S2: no core type */ , 10)
+ 
+ 	type M0 map[string]int
+ 	_ = make(map[string]int)
+@@ -156,7 +156,7 @@ func _[
+ 	_ = make(M1)
+ 	_ = make(M1, 10)
+ 	_ = make/* ERROR expects 1 or 2 arguments */(M1, 10, 20)
+-	_ = make(M2 /* ERROR cannot make M2: no structural type */ )
++	_ = make(M2 /* ERROR cannot make M2: no core type */ )
+ 
+ 	type C0 chan int
+ 	_ = make(chan int)
+@@ -164,7 +164,7 @@ func _[
+ 	_ = make(C1)
+ 	_ = make(C1, 10)
+ 	_ = make/* ERROR expects 1 or 2 arguments */(C1, 10, 20)
+-	_ = make(C2 /* ERROR cannot make C2: no structural type */ )
++	_ = make(C2 /* ERROR cannot make C2: no core type */ )
+ 	_ = make(C3)
+ }
+ 
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index d5b9ed6e77..29a3b16cd6 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -134,11 +134,11 @@ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3
+ type myByte1 []byte
+ type myByte2 []byte
+ func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+-func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR no structural type */ [i:j:k] }
++func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR no core type */ [i:j:k] }
+ 
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3-index slice of string */ ] }
+-func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR no structural type */ [i:j] }
++func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR no core type */ [i:j] }
+ 
+ // len/cap built-ins
+ 
+@@ -230,7 +230,7 @@ func _[
+         for _, _ = range s1 {}
+ 
+         var s2 S2
+-        for range s2 /* ERROR cannot range over s2.*no structural type */ {}
++        for range s2 /* ERROR cannot range over s2.*no core type */ {}
+ 
+         var a0 []int
+         for range a0 {}
+@@ -243,7 +243,7 @@ func _[
+         for _, _ = range a1 {}
+ 
+         var a2 A2
+-        for range a2 /* ERROR cannot range over a2.*no structural type */ {}
++        for range a2 /* ERROR cannot range over a2.*no core type */ {}
+ 
+         var p0 *[10]int
+         for range p0 {}
+@@ -256,7 +256,7 @@ func _[
+         for _, _ = range p1 {}
+ 
+         var p2 P2
+-        for range p2 /* ERROR cannot range over p2.*no structural type */ {}
++        for range p2 /* ERROR cannot range over p2.*no core type */ {}
+ 
+         var m0 map[string]int
+         for range m0 {}
+@@ -269,7 +269,7 @@ func _[
+         for _, _ = range m1 {}
+ 
+         var m2 M2
+-        for range m2 /* ERROR cannot range over m2.*no structural type */ {}
++        for range m2 /* ERROR cannot range over m2.*no core type */ {}
+ }
+ 
+ // type inference checks
+diff --git a/src/go/types/testdata/examples/inference.go2 b/src/go/types/testdata/examples/inference.go2
+index ffa30ee2cb..70d393b455 100644
+--- a/src/go/types/testdata/examples/inference.go2
++++ b/src/go/types/testdata/examples/inference.go2
+@@ -113,7 +113,7 @@ func _() {
+ 	// from the first one through constraint type inference.
+ 	related3[int]()
+ 
+-	// The inferred type is the structural type of the Slice
++	// The inferred type is the core type of the Slice
+ 	// type parameter.
+ 	var _ []int = related3[int]()
+ 
+diff --git a/src/go/types/testdata/examples/types.go2 b/src/go/types/testdata/examples/types.go2
+index 33642fa42f..1e83f89883 100644
+--- a/src/go/types/testdata/examples/types.go2
++++ b/src/go/types/testdata/examples/types.go2
+@@ -298,7 +298,7 @@ func _[T interface {~int|~float64}]() {
+ 
+ // It is possible to create composite literals of type parameter
+ // type as long as it's possible to create a composite literal
+-// of the structural type of the type parameter's constraint.
++// of the core type of the type parameter's constraint.
+ func _[P interface{ ~[]int }]() P {
+ 	return P{}
+ 	return P{1, 2, 3}
+@@ -313,7 +313,7 @@ func _[P interface{ ~[]E }, E interface{ map[string]P } ]() P {
+ }
+ 
+ // This is a degenerate case with a singleton type set, but we can create
+-// composite literals even if the structural type is a defined type.
++// composite literals even if the core type is a defined type.
+ type MyInts []int
+ 
+ func _[P MyInts]() P {
+diff --git a/src/go/types/testdata/fixedbugs/issue43671.go2 b/src/go/types/testdata/fixedbugs/issue43671.go2
+index 46ac51ebdd..3c78f85aa4 100644
+--- a/src/go/types/testdata/fixedbugs/issue43671.go2
++++ b/src/go/types/testdata/fixedbugs/issue43671.go2
+@@ -12,7 +12,7 @@ type C4 interface{ chan int | chan<- int }
+ type C5[T any] interface{ ~chan T | <-chan T }
+ 
+ func _[T any](ch T) {
+-	<-ch // ERROR cannot receive from ch .* no structural type
++	<-ch // ERROR cannot receive from ch .* no core type
+ }
+ 
+ func _[T C0](ch T) {
+@@ -28,7 +28,7 @@ func _[T C2](ch T) {
+ }
+ 
+ func _[T C3](ch T) {
+-	<-ch // ERROR cannot receive from ch .* no structural type
++	<-ch // ERROR cannot receive from ch .* no core type
+ }
+ 
+ func _[T C4](ch T) {
+diff --git a/src/go/types/testdata/fixedbugs/issue47115.go2 b/src/go/types/testdata/fixedbugs/issue47115.go2
+index f71e06c9b2..a0bfe38de8 100644
+--- a/src/go/types/testdata/fixedbugs/issue47115.go2
++++ b/src/go/types/testdata/fixedbugs/issue47115.go2
+@@ -12,7 +12,7 @@ type C4 interface{ chan int | chan<- int }
+ type C5[T any] interface{ ~chan T | chan<- T }
+ 
+ func _[T any](ch T) {
+-	ch <- /* ERROR cannot send to ch .* no structural type */ 0
++	ch <- /* ERROR cannot send to ch .* no core type */ 0
+ }
+ 
+ func _[T C0](ch T) {
+@@ -28,7 +28,7 @@ func _[T C2](ch T) {
+ }
+ 
+ func _[T C3](ch T) {
+-	ch <- /* ERROR cannot send to ch .* no structural type */ 0
++	ch <- /* ERROR cannot send to ch .* no core type */ 0
+ }
+ 
+ func _[T C4](ch T) {
+diff --git a/src/go/types/testdata/fixedbugs/issue49735.go2 b/src/go/types/testdata/fixedbugs/issue49735.go2
+index 10e8df2776..50870226e4 100644
+--- a/src/go/types/testdata/fixedbugs/issue49735.go2
++++ b/src/go/types/testdata/fixedbugs/issue49735.go2
+@@ -6,6 +6,6 @@ package p
+ 
+ func _[P1 any, P2 ~byte](s1 P1, s2 P2) {
+         _ = append(nil /* ERROR first argument to append must be a slice; have untyped nil */ , 0)
+-        _ = append(s1 /* ERROR s1 .* has no structural type */ , 0)
+-        _ = append(s2 /* ERROR s2 .* has structural type byte */ , 0)
++        _ = append(s1 /* ERROR s1 .* has no core type */ , 0)
++        _ = append(s2 /* ERROR s2 .* has core type byte */ , 0)
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue50417.go2 b/src/go/types/testdata/fixedbugs/issue50417.go2
+index b6454ab003..50487fa2ff 100644
+--- a/src/go/types/testdata/fixedbugs/issue50417.go2
++++ b/src/go/types/testdata/fixedbugs/issue50417.go2
+@@ -51,7 +51,7 @@ func f2[P interface{ Sfm; m() }](p P) {
+ 
+ var _ = f2[Sfm]
+ 
+-// special case: structural type is a named pointer type
++// special case: core type is a named pointer type
+ 
+ type PSfm *Sfm
+ 
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 3acb19c412..323365aefe 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -27,13 +27,13 @@ func under(t Type) Type {
+ 	return t.Underlying()
+ }
+ 
+-// If t is not a type parameter, structuralType returns the underlying type.
+-// If t is a type parameter, structuralType returns the single underlying
++// If t is not a type parameter, coreType returns the underlying type.
++// If t is a type parameter, coreType returns the single underlying
+ // type of all types in its type set if it exists, or nil otherwise. If the
+ // type set contains only unrestricted and restricted channel types (with
+ // identical element types), the single underlying type is the restricted
+ // channel type if the restrictions are always the same, or nil otherwise.
+-func structuralType(t Type) Type {
++func coreType(t Type) Type {
+ 	tpar, _ := t.(*TypeParam)
+ 	if tpar == nil {
+ 		return under(t)
+@@ -59,10 +59,10 @@ func structuralType(t Type) Type {
+ 	return nil
+ }
+ 
+-// structuralString is like structuralType but also considers []byte
++// coreString is like coreType but also considers []byte
+ // and strings as identical. In this case, if successful and we saw
+ // a string, the result is of type (possibly untyped) string.
+-func structuralString(t Type) Type {
++func coreString(t Type) Type {
+ 	tpar, _ := t.(*TypeParam)
+ 	if tpar == nil {
+ 		return under(t) // string or untyped string
+diff --git a/test/typeparam/issue50417.go b/test/typeparam/issue50417.go
+index cd46f3feab..12dbd0efb7 100644
+--- a/test/typeparam/issue50417.go
++++ b/test/typeparam/issue50417.go
+@@ -57,7 +57,7 @@ func f2[P interface {
+ 
+ var _ = f2[Sfm]
+ 
+-// special case: structural type is a named pointer type
++// special case: core type is a named pointer type
+ 
+ type PSfm *Sfm
+ 
+@@ -68,7 +68,7 @@ func f3[P interface{ PSfm }](p P) {
+ 
+ var _ = f3[PSfm]
+ 
+-// special case: structural type is an unnamed pointer type
++// special case: core type is an unnamed pointer type
+ 
+ func f4[P interface{ *Sfm }](p P) {
+ 	_ = p.f
+diff --git a/test/typeparam/typelist.go b/test/typeparam/typelist.go
+index 34ea4b8aa9..477778f8fb 100644
+--- a/test/typeparam/typelist.go
++++ b/test/typeparam/typelist.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file tests type lists & structural constraints.
++// This file tests type lists & constraints with core types.
+ 
+ // Note: This test has been adjusted to use the new
+ //       type set notation rather than type lists.
+@@ -30,28 +30,28 @@ func _[T interface{ ~int }](x T) {
+ 	var _ T = 42
+ 	var _ T = T(myint(42))
+ }
++
+ // TODO: put this type declaration back inside the above function when issue 47631 is fixed.
+ type myint int
+ 
+-// Indexing a generic type which has a structural contraints to be an array.
++// Indexing a generic type which has a an array as core type.
+ func _[T interface{ ~[10]int }](x T) {
+ 	_ = x[9] // ok
+ }
+ 
+-// Dereference of a generic type which has a structural contraint to be a pointer.
++// Dereference of a generic type which has a pointer as core type.
+ func _[T interface{ ~*int }](p T) int {
+ 	return *p
+ }
+ 
+-// Channel send and receive on a generic type which has a structural constraint to
+-// be a channel.
++// Channel send and receive on a generic type which has a channel as core type.
+ func _[T interface{ ~chan int }](ch T) int {
+ 	// This would deadlock if executed (but ok for a compile test)
+ 	ch <- 0
+ 	return <-ch
+ }
+ 
+-// Calling of a generic type which has a structural constraint to be a function.
++// Calling of a generic type which has a function as core type.
+ func _[T interface{ ~func() }](f T) {
+ 	f()
+ 	go f()
+@@ -62,7 +62,7 @@ func _[T interface{ ~func(string) int }](f T) int {
+ 	return f("hello")
+ }
+ 
+-// Map access of a generic type which has a structural constraint to be a map.
++// Map access of a generic type which has a map as core type.
+ func _[V any, T interface{ ~map[string]V }](p T) V {
+ 	return p["test"]
+ }
+@@ -122,7 +122,9 @@ func f5[A interface {
+ 		b B
+ 		c C
+ 	}
+-}, B any, C interface{ ~*B }](x B) A { panic(0) }
++}, B any, C interface{ ~*B }](x B) A {
++	panic(0)
++}
+ func f5x() {
+ 	x := f5(1.2)
+ 	var _ float64 = x.b

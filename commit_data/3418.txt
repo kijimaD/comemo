@@ -11,7 +11,64 @@ Date:   Thu Oct 1 13:52:55 2009 -0700
     DELTA=9  (5 added, 0 deleted, 4 changed)
     OCL=35233
     CL=35243
-
+---
  src/cmd/5g/gsubr.c | 10 ++++++----
  test/arm-pass.txt  |  3 +++
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index dcd3840df0..2f5bc1724c 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -242,7 +242,7 @@ regalloc(Node *n, Type *t, Node *o)
+ 		for(i=REGALLOC_F0; i<=REGALLOC_FMAX; i++)
+ 			if(reg[i] == 0)
+ 				goto out;
+-		yyerror("out of floating registers");
++		yyerror("out of floating point registers");
+ 		goto err;
+ 	}
+ 	yyerror("regalloc: unknown type %T", t);
+@@ -939,11 +939,13 @@ naddr(Node *n, Addr *a)
+ 		break;
+ 
+ 	case OREGISTER:
+-		a->type = D_REG;
+-		if (n->val.u.reg <= REGALLOC_RMAX)
++		if (n->val.u.reg <= REGALLOC_RMAX) {
++			a->type = D_REG;
+ 			a->reg = n->val.u.reg;
+-		else
++		} else {
++			a->type = D_FREG;
+ 			a->reg = n->val.u.reg - REGALLOC_F0;
++		}
+ 		a->sym = S;
+ 		break;
+ 
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index ab77ea504e..789fbedea3 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -14,11 +14,13 @@ cmp3.go
+ cmp4.go
+ cmp5.go
+ compos.go
++const.go
+ const1.go
+ const2.go
+ convert3.go
+ convlit.go
+ convlit1.go
++decl.go
+ declbad.go
+ empty.go
+ escape1.go
+@@ -59,6 +61,7 @@ fixedbugs/bug050.go
+ fixedbugs/bug051.go
+ fixedbugs/bug052.go
+ fixedbugs/bug053.go
++fixedbugs/bug056.go
+ fixedbugs/bug057.go
+ fixedbugs/bug058.go
+ fixedbugs/bug061.go

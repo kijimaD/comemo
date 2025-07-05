@@ -16,6 +16,21 @@ Date:   Fri Jul 21 01:19:42 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filosottile.wiki@gmail.com>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/rsa/rsa.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 1de4fcb473..69a2b58a5a 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -424,8 +424,7 @@ var ErrVerification = errors.New("crypto/rsa: verification error")
+ func modInverse(a, n *big.Int) (ia *big.Int, ok bool) {
+ 	g := new(big.Int)
+ 	x := new(big.Int)
+-	y := new(big.Int)
+-	g.GCD(x, y, a, n)
++	g.GCD(x, nil, a, n)
+ 	if g.Cmp(bigOne) != 0 {
+ 		// In this case, a and n aren't coprime and we cannot calculate
+ 		// the inverse. This happens because the values of n are nearly

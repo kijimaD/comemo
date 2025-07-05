@@ -7,7 +7,34 @@ Date:   Fri Feb 8 16:00:59 2013 -0500
     R=rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/7300063
-
+---
  src/cmd/go/doc.go  | 2 ++
  src/cmd/go/test.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 6de4405625..101ecf1c2d 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -766,6 +766,8 @@ will compile the test binary and then run it as
+ The test flags that generate profiles also leave the test binary in pkg.test
+ for use when analyzing the profiles.
+ 
++Flags not recognized by 'go test' must be placed after any specified packages.
++
+ 
+ Description of testing functions
+ 
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 48c77fc049..9a8e11d27c 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -167,6 +167,8 @@ will compile the test binary and then run it as
+ 
+ The test flags that generate profiles also leave the test binary in pkg.test
+ for use when analyzing the profiles.
++
++Flags not recognized by 'go test' must be placed after any specified packages.
+ `,
+ }
+ 

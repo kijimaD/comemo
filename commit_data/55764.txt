@@ -17,7 +17,77 @@ Date:   Fri Mar 10 16:19:58 2023 +0100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go       | 11 ++++-------
  src/cmd/link/internal/loadpe/ldpe.go |  9 ++++-----
  2 files changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 10c1dc4ab3..266e165920 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -98,11 +98,10 @@ const (
+ // See https://docs.microsoft.com/en-us/windows/win32/debug/pe-format.
+ // TODO(crawshaw): add these constants to debug/pe.
+ const (
+-	// TODO: the Microsoft doco says IMAGE_SYM_DTYPE_ARRAY is 3 and IMAGE_SYM_DTYPE_FUNCTION is 2
+ 	IMAGE_SYM_TYPE_NULL      = 0
+ 	IMAGE_SYM_TYPE_STRUCT    = 8
+-	IMAGE_SYM_DTYPE_FUNCTION = 0x20
+-	IMAGE_SYM_DTYPE_ARRAY    = 0x30
++	IMAGE_SYM_DTYPE_FUNCTION = 2
++	IMAGE_SYM_DTYPE_ARRAY    = 3
+ 	IMAGE_SYM_CLASS_EXTERNAL = 2
+ 	IMAGE_SYM_CLASS_STATIC   = 3
+ 
+@@ -754,14 +753,12 @@ func (f *peFile) writeSymbols(ctxt *Link) {
+ 		if ctxt.IsExternal() {
+ 			peSymType = IMAGE_SYM_TYPE_NULL
+ 		} else {
+-			// TODO: fix IMAGE_SYM_DTYPE_ARRAY value and use following expression, instead of 0x0308
+-			// peSymType = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
+-			peSymType = 0x0308 // "array of structs"
++			peSymType = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
+ 		}
+ 		sect, value, err := f.mapToPESection(ldr, s, ctxt.LinkMode)
+ 		if err != nil {
+ 			if t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
+-				peSymType = IMAGE_SYM_DTYPE_FUNCTION
++				peSymType = IMAGE_SYM_DTYPE_FUNCTION << 8
+ 			} else {
+ 				ctxt.Errorf(s, "addpesym: %v", err)
+ 			}
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index 0d33823e4e..7ad4db9052 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -21,7 +21,6 @@ import (
+ )
+ 
+ const (
+-	// TODO: the Microsoft doco says IMAGE_SYM_DTYPE_ARRAY is 3 (same with IMAGE_SYM_DTYPE_POINTER and IMAGE_SYM_DTYPE_FUNCTION)
+ 	IMAGE_SYM_UNDEFINED              = 0
+ 	IMAGE_SYM_ABSOLUTE               = -1
+ 	IMAGE_SYM_DEBUG                  = -2
+@@ -43,9 +42,9 @@ const (
+ 	IMAGE_SYM_TYPE_DWORD             = 15
+ 	IMAGE_SYM_TYPE_PCODE             = 32768
+ 	IMAGE_SYM_DTYPE_NULL             = 0
+-	IMAGE_SYM_DTYPE_POINTER          = 0x10
+-	IMAGE_SYM_DTYPE_FUNCTION         = 0x20
+-	IMAGE_SYM_DTYPE_ARRAY            = 0x30
++	IMAGE_SYM_DTYPE_POINTER          = 1
++	IMAGE_SYM_DTYPE_FUNCTION         = 2
++	IMAGE_SYM_DTYPE_ARRAY            = 3
+ 	IMAGE_SYM_CLASS_END_OF_FUNCTION  = -1
+ 	IMAGE_SYM_CLASS_NULL             = 0
+ 	IMAGE_SYM_CLASS_AUTOMATIC        = 1
+@@ -673,7 +672,7 @@ func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuild
+ 
+ 	var s loader.Sym
+ 	var bld *loader.SymbolBuilder
+-	switch pesym.Type {
++	switch uint8(pesym.Type >> 8) {
+ 	default:
+ 		return nil, 0, fmt.Errorf("%s: invalid symbol type %d", symname, pesym.Type)
+ 

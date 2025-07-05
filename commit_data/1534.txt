@@ -8,7 +8,45 @@ Date:   Wed Jan 21 14:11:54 2009 -0800
     DELTA=16  (16 added, 0 deleted, 0 changed)
     OCL=23224
     CL=23229
-
+---
  test/bugs/bug132.go | 17 +++++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 20 insertions(+)
+
+diff --git a/test/bugs/bug132.go b/test/bugs/bug132.go
+new file mode 100644
+index 0000000000..958db9dc45
+--- /dev/null
++++ b/test/bugs/bug132.go
+@@ -0,0 +1,17 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct {
++	x, x int  // this should be a compile-time error
++}
++
++/*
++Accessing obj.x for obj of type T will lead to an error so this cannot
++be used in a program, but I would argue that this should be a compile-
++tume error at the declaration point.
++*/
+diff --git a/test/golden.out b/test/golden.out
+index ac8c788b07..889b421818 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -146,6 +146,9 @@ BUG: should run
+ =========== bugs/bug131.go
+ BUG: should not compile
+ 
++=========== bugs/bug132.go
++BUG: compilation succeeds incorrectly
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

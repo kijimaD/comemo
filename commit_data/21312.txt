@@ -25,7 +25,53 @@ Date:   Tue Dec 16 00:24:19 2014 -0800
     Change-Id: If3e1134e7815f5d361efea01873b29aafe3de817
     Reviewed-on: https://go-review.googlesource.com/1862
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fs.go      |  2 +-
  src/net/http/fs_test.go | 16 ++++++++++++----
  2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index e322f710a5..9a80123f6d 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -503,7 +503,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 			r.length = size - r.start
+ 		} else {
+ 			i, err := strconv.ParseInt(start, 10, 64)
+-			if err != nil || i > size || i < 0 {
++			if err != nil || i >= size || i < 0 {
+ 				return nil, errors.New("invalid range")
+ 			}
+ 			r.start = i
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 8770d9b410..72f8c2cf1d 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -50,15 +50,23 @@ var ServeFileRangeTests = []struct {
+ 	{r: "bytes=2-", code: StatusPartialContent, ranges: []wantRange{{2, testFileLen}}},
+ 	{r: "bytes=-5", code: StatusPartialContent, ranges: []wantRange{{testFileLen - 5, testFileLen}}},
+ 	{r: "bytes=3-7", code: StatusPartialContent, ranges: []wantRange{{3, 8}}},
+-	{r: "bytes=20-", code: StatusRequestedRangeNotSatisfiable},
+ 	{r: "bytes=0-0,-2", code: StatusPartialContent, ranges: []wantRange{{0, 1}, {testFileLen - 2, testFileLen}}},
+ 	{r: "bytes=0-1,5-8", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, 9}}},
+ 	{r: "bytes=0-1,5-", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, testFileLen}}},
+ 	{r: "bytes=5-1000", code: StatusPartialContent, ranges: []wantRange{{5, testFileLen}}},
+ 	{r: "bytes=0-,1-,2-,3-,4-", code: StatusOK}, // ignore wasteful range request
+-	{r: "bytes=0-" + itoa(testFileLen-2), code: StatusPartialContent, ranges: []wantRange{{0, testFileLen - 1}}},
+-	{r: "bytes=0-" + itoa(testFileLen-1), code: StatusPartialContent, ranges: []wantRange{{0, testFileLen}}},
+-	{r: "bytes=0-" + itoa(testFileLen), code: StatusPartialContent, ranges: []wantRange{{0, testFileLen}}},
++	{r: "bytes=0-9", code: StatusPartialContent, ranges: []wantRange{{0, testFileLen - 1}}},
++	{r: "bytes=0-10", code: StatusPartialContent, ranges: []wantRange{{0, testFileLen}}},
++	{r: "bytes=0-11", code: StatusPartialContent, ranges: []wantRange{{0, testFileLen}}},
++	{r: "bytes=10-11", code: StatusPartialContent, ranges: []wantRange{{testFileLen - 1, testFileLen}}},
++	{r: "bytes=10-", code: StatusPartialContent, ranges: []wantRange{{testFileLen - 1, testFileLen}}},
++	{r: "bytes=11-", code: StatusRequestedRangeNotSatisfiable},
++	{r: "bytes=11-12", code: StatusRequestedRangeNotSatisfiable},
++	{r: "bytes=12-12", code: StatusRequestedRangeNotSatisfiable},
++	{r: "bytes=11-100", code: StatusRequestedRangeNotSatisfiable},
++	{r: "bytes=12-100", code: StatusRequestedRangeNotSatisfiable},
++	{r: "bytes=100-", code: StatusRequestedRangeNotSatisfiable},
++	{r: "bytes=100-1000", code: StatusRequestedRangeNotSatisfiable},
+ }
+ 
+ func TestServeFile(t *testing.T) {

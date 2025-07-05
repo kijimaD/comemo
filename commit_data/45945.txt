@@ -13,6 +13,24 @@ Date:   Thu Nov 26 23:28:11 2020 +0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/func.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index ec2c67c1fa..e6f899a2c7 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -790,10 +790,10 @@ func (f *Func) spSb() (sp, sb *Value) {
+ 		}
+ 	}
+ 	if sb == nil {
+-		sb = f.Entry.NewValue0(initpos, OpSB, f.Config.Types.Uintptr)
++		sb = f.Entry.NewValue0(initpos.WithNotStmt(), OpSB, f.Config.Types.Uintptr)
+ 	}
+ 	if sp == nil {
+-		sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
++		sp = f.Entry.NewValue0(initpos.WithNotStmt(), OpSP, f.Config.Types.Uintptr)
+ 	}
+ 	return
+ }

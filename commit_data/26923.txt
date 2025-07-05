@@ -19,7 +19,281 @@ Date:   Sat Feb 27 19:47:43 2016 +0100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 96 ++++++++++++++++++++++++++++++++++++++++++-----------
  src/fmt/format.go   | 82 +++++++++++++++++++++++++++++++--------------
  2 files changed, 134 insertions(+), 44 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 69141a156d..47486c4586 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -141,6 +141,10 @@ var fmtTests = []struct {
+ 	{"%x", "abc", "616263"},
+ 	{"%x", "\xff\xf0\x0f\xff", "fff00fff"},
+ 	{"%X", "\xff\xf0\x0f\xff", "FFF00FFF"},
++	{"%x", "", ""},
++	{"% x", "", ""},
++	{"%#x", "", ""},
++	{"%# x", "", ""},
+ 	{"%x", "xyz", "78797a"},
+ 	{"%X", "xyz", "78797A"},
+ 	{"% x", "xyz", "78 79 7a"},
+@@ -156,6 +160,10 @@ var fmtTests = []struct {
+ 	{"%x", []byte("abc"), "616263"},
+ 	{"%x", []byte("\xff\xf0\x0f\xff"), "fff00fff"},
+ 	{"%X", []byte("\xff\xf0\x0f\xff"), "FFF00FFF"},
++	{"%x", []byte(""), ""},
++	{"% x", []byte(""), ""},
++	{"%#x", []byte(""), ""},
++	{"%# x", []byte(""), ""},
+ 	{"%x", []byte("xyz"), "78797a"},
+ 	{"%X", []byte("xyz"), "78797A"},
+ 	{"% x", []byte("xyz"), "78 79 7a"},
+@@ -204,15 +212,15 @@ var fmtTests = []struct {
+ 	{"%.10s", "日本語日本語", "日本語日本語"},
+ 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
+ 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
+-	{"%.5x", "abcdefghijklmnopqrstuvwxyz", `6162636465`},
++	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
+ 	{"%.5q", []byte("abcdefghijklmnopqrstuvwxyz"), `"abcde"`},
+-	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), `6162636465`},
++	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), "6162636465"},
+ 	{"%.3q", "日本語日本語", `"日本語"`},
+ 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
+ 	{"%.1q", "日本語", `"日"`},
+ 	{"%.1q", []byte("日本語"), `"日"`},
+-	{"%.1x", "日本語", `e6`},
+-	{"%.1X", []byte("日本語"), `E6`},
++	{"%.1x", "日本語", "e6"},
++	{"%.1X", []byte("日本語"), "E6"},
+ 	{"%10.1q", "日本語日本語", `       "日"`},
+ 	{"%3c", '⌘', "  ⌘"},
+ 	{"%5q", '\u2026', `  '…'`},
+@@ -471,30 +479,61 @@ var fmtTests = []struct {
+ 	{"%q", []string{"a", "b"}, `["a" "b"]`},
+ 	{"% 02x", []byte{1}, "01"},
+ 	{"% 02x", []byte{1, 2, 3}, "01 02 03"},
++
+ 	// Padding with byte slices.
+-	{"%x", []byte{}, ""},
+-	{"%02x", []byte{}, "00"},
++	{"%2x", []byte{}, "  "},
++	{"%#2x", []byte{}, "  "},
+ 	{"% 02x", []byte{}, "00"},
+-	{"%08x", []byte{0xab}, "000000ab"},
+-	{"% 08x", []byte{0xab}, "000000ab"},
+-	{"%08x", []byte{0xab, 0xcd}, "0000abcd"},
+-	{"% 08x", []byte{0xab, 0xcd}, "000ab cd"},
++	{"%# 02x", []byte{}, "00"},
++	{"%-2x", []byte{}, "  "},
++	{"%-02x", []byte{}, "  "},
+ 	{"%8x", []byte{0xab}, "      ab"},
+ 	{"% 8x", []byte{0xab}, "      ab"},
+-	{"%8x", []byte{0xab, 0xcd}, "    abcd"},
+-	{"% 8x", []byte{0xab, 0xcd}, "   ab cd"},
++	{"%#8x", []byte{0xab}, "    0xab"},
++	{"%# 8x", []byte{0xab}, "    0xab"},
++	{"%08x", []byte{0xab}, "000000ab"},
++	{"% 08x", []byte{0xab}, "000000ab"},
++	{"%#08x", []byte{0xab}, "00000xab"},
++	{"%# 08x", []byte{0xab}, "00000xab"},
++	{"%10x", []byte{0xab, 0xcd}, "      abcd"},
++	{"% 10x", []byte{0xab, 0xcd}, "     ab cd"},
++	{"%#10x", []byte{0xab, 0xcd}, "    0xabcd"},
++	{"%# 10x", []byte{0xab, 0xcd}, " 0xab 0xcd"},
++	{"%010x", []byte{0xab, 0xcd}, "000000abcd"},
++	{"% 010x", []byte{0xab, 0xcd}, "00000ab cd"},
++	{"%#010x", []byte{0xab, 0xcd}, "00000xabcd"},
++	{"%# 010x", []byte{0xab, 0xcd}, "00xab 0xcd"},
++	{"%-10X", []byte{0xab}, "AB        "},
++	{"% -010X", []byte{0xab}, "AB        "},
++	{"%#-10X", []byte{0xab, 0xcd}, "0XABCD    "},
++	{"%# -010X", []byte{0xab, 0xcd}, "0XAB 0XCD "},
+ 	// Same for strings
+-	{"%x", "", ""},
+-	{"%02x", "", "00"},
++	{"%2x", "", "  "},
++	{"%#2x", "", "  "},
+ 	{"% 02x", "", "00"},
+-	{"%08x", "\xab", "000000ab"},
+-	{"% 08x", "\xab", "000000ab"},
+-	{"%08x", "\xab\xcd", "0000abcd"},
+-	{"% 08x", "\xab\xcd", "000ab cd"},
++	{"%# 02x", "", "00"},
++	{"%-2x", "", "  "},
++	{"%-02x", "", "  "},
+ 	{"%8x", "\xab", "      ab"},
+ 	{"% 8x", "\xab", "      ab"},
+-	{"%8x", "\xab\xcd", "    abcd"},
+-	{"% 8x", "\xab\xcd", "   ab cd"},
++	{"%#8x", "\xab", "    0xab"},
++	{"%# 8x", "\xab", "    0xab"},
++	{"%08x", "\xab", "000000ab"},
++	{"% 08x", "\xab", "000000ab"},
++	{"%#08x", "\xab", "00000xab"},
++	{"%# 08x", "\xab", "00000xab"},
++	{"%10x", "\xab\xcd", "      abcd"},
++	{"% 10x", "\xab\xcd", "     ab cd"},
++	{"%#10x", "\xab\xcd", "    0xabcd"},
++	{"%# 10x", "\xab\xcd", " 0xab 0xcd"},
++	{"%010x", "\xab\xcd", "000000abcd"},
++	{"% 010x", "\xab\xcd", "00000ab cd"},
++	{"%#010x", "\xab\xcd", "00000xabcd"},
++	{"%# 010x", "\xab\xcd", "00xab 0xcd"},
++	{"%-10X", "\xab", "AB        "},
++	{"% -010X", "\xab", "AB        "},
++	{"%#-10X", "\xab\xcd", "0XABCD    "},
++	{"%# -010X", "\xab\xcd", "0XAB 0XCD "},
+ 
+ 	// renamings
+ 	{"%v", renamedBool(true), "true"},
+@@ -977,6 +1016,23 @@ func BenchmarkSprintfBoolean(b *testing.B) {
+ 	})
+ }
+ 
++func BenchmarkSprintfHexString(b *testing.B) {
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Sprintf("% #x", "0123456789abcdef")
++		}
++	})
++}
++
++func BenchmarkSprintfHexBytes(b *testing.B) {
++	data := []byte("0123456789abcdef")
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Sprintf("% #x", data)
++		}
++	})
++}
++
+ func BenchmarkManyArgs(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		var buf bytes.Buffer
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 302f82441d..0388d4764c 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -14,8 +14,8 @@ const (
+ 	// Hex can add 0x and we handle it specially.
+ 	nByte = 65
+ 
+-	ldigits = "0123456789abcdef"
+-	udigits = "0123456789ABCDEF"
++	ldigits = "0123456789abcdefx"
++	udigits = "0123456789ABCDEFX"
+ )
+ 
+ const (
+@@ -236,8 +236,9 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 				buf[i] = '0'
+ 			}
+ 		case 16:
++			// Add a leading 0x or 0X.
+ 			i--
+-			buf[i] = 'x' + digits[10] - 'a'
++			buf[i] = digits[16]
+ 			i--
+ 			buf[i] = '0'
+ 		}
+@@ -302,44 +303,77 @@ func (f *fmt) fmt_s(s string) {
+ 
+ // fmt_sbx formats a string or byte slice as a hexadecimal encoding of its bytes.
+ func (f *fmt) fmt_sbx(s string, b []byte, digits string) {
+-	n := len(b)
++	length := len(b)
+ 	if b == nil {
+-		n = len(s)
++		// No byte slice present. Assume string s should be encoded.
++		length = len(s)
++	}
++	// Set length to not process more bytes than the precision demands.
++	if f.precPresent && f.prec < length {
++		length = f.prec
++	}
++	// Compute width of the encoding taking into account the f.sharp and f.space flag.
++	width := 2 * length
++	if width > 0 {
++		if f.space {
++			// Each element encoded by two hexadecimals will get a leading 0x or 0X.
++			if f.sharp {
++				width *= 2
++			}
++			// Elements will be separated by a space.
++			width += length - 1
++		} else if f.sharp {
++			// Only a leading 0x or 0X will be added for the whole string.
++			width += 2
++		}
++	} else { // The byte slice or string that should be encoded is empty.
++		if f.widPresent {
++			f.writePadding(f.wid)
++		}
++		return
++	}
++	// Handle padding to the left.
++	if f.widPresent && f.wid > width && !f.minus {
++		f.writePadding(f.wid - width)
++	}
++	// Write the encoding directly into the output buffer.
++	buf := *f.buf
++	if f.sharp {
++		// Add leading 0x or 0X.
++		buf = append(buf, '0', digits[16])
+ 	}
+-	x := digits[10] - 'a' + 'x'
+-	// TODO: Avoid buffer by pre-padding.
+-	var buf []byte
+-	for i := 0; i < n; i++ {
+-		if i > 0 && f.space {
++	var c byte
++	for i := 0; i < length; i++ {
++		if f.space && i > 0 {
++			// Separate elements with a space.
+ 			buf = append(buf, ' ')
++			if f.sharp {
++				// Add leading 0x or 0X for each element.
++				buf = append(buf, '0', digits[16])
++			}
+ 		}
+-		if f.sharp && (f.space || i == 0) {
+-			buf = append(buf, '0', x)
+-		}
+-		var c byte
+-		if b == nil {
+-			c = s[i]
++		if b != nil {
++			c = b[i] // Take a byte from the input byte slice.
+ 		} else {
+-			c = b[i]
++			c = s[i] // Take a byte from the input string.
+ 		}
++		// Encode each byte as two hexadecimal digits.
+ 		buf = append(buf, digits[c>>4], digits[c&0xF])
+ 	}
+-	f.pad(buf)
++	*f.buf = buf
++	// Handle padding to the right.
++	if f.widPresent && f.wid > width && f.minus {
++		f.writePadding(f.wid - width)
++	}
+ }
+ 
+ // fmt_sx formats a string as a hexadecimal encoding of its bytes.
+ func (f *fmt) fmt_sx(s, digits string) {
+-	if f.precPresent && f.prec < len(s) {
+-		s = s[:f.prec]
+-	}
+ 	f.fmt_sbx(s, nil, digits)
+ }
+ 
+ // fmt_bx formats a byte slice as a hexadecimal encoding of its bytes.
+ func (f *fmt) fmt_bx(b []byte, digits string) {
+-	if f.precPresent && f.prec < len(b) {
+-		b = b[:f.prec]
+-	}
+ 	f.fmt_sbx("", b, digits)
+ }
+ 

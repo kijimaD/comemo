@@ -9,6 +9,31 @@ Date:   Fri Feb 21 14:35:54 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/66910045
-
+---
  src/pkg/testing/testing.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 855f3a9bbe..2e6d55596f 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -8,9 +8,17 @@
+ //     func TestXxx(*testing.T)
+ // where Xxx can be any alphanumeric string (but the first letter must not be in
+ // [a-z]) and serves to identify the test routine.
+-// These TestXxx routines should be declared within the package they are testing.
+ //
+-// Tests and benchmarks may be skipped if not applicable like this:
++// Within these functions, use the Error, Fail or related methods to signal failure.
++//
++// To write a new test suite, create a file whose name ends _test.go that
++// contains the TestXxx functions as described here. Put the file in the same
++// package as the one being tested. The file will be excluded from regular
++// package builds but will be included when the ``go test'' command is run.
++// For more detail, run ``go help test'' and ``go help testflag''.
++//
++// Tests and benchmarks may be skipped if not applicable with a call to
++// the Skip method of *T and *B:
+ //     func TestTimeConsuming(t *testing.T) {
+ //         if testing.Short() {
+ //             t.Skip("skipping test in short mode.")

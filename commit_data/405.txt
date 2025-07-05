@@ -6,6 +6,20 @@ Date:   Mon Jul 21 18:06:39 2008 -0700
     
     OCL=13331
     CL=13331
-
+---
  doc/go_lang.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 1770db54e2..2cede5e8d3 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
+ Robert Griesemer, Rob Pike, Ken Thompson
+ 
+ ----
+-(July 16, 2008)
++(July 21, 2008)
+ 
+ This document is a semi-formal specification/proposal for a new
+ systems programming language.  The document is under active

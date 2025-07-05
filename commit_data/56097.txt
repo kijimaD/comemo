@@ -19,7 +19,43 @@ Date:   Mon Apr 10 11:08:25 2023 +0700
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 8 ++++++++
  test/prove.go                         | 5 +++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 2ca2466086..94d2c525b9 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -867,6 +867,14 @@ func prove(f *Func) {
+ 					logicVars = make(map[*Block][]*Value)
+ 				}
+ 				logicVars[b] = append(logicVars[b], v)
++			case OpOr64, OpOr32, OpOr16, OpOr8:
++				// TODO: investigate how to always add facts without much slowdown, see issue #57959.
++				if v.Args[0].isGenericIntConst() {
++					ft.update(b, v, v.Args[0], unsigned, gt|eq)
++				}
++				if v.Args[1].isGenericIntConst() {
++					ft.update(b, v, v.Args[1], unsigned, gt|eq)
++				}
+ 			case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
+ 				OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
+ 				OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
+diff --git a/test/prove.go b/test/prove.go
+index abc7bfaa21..91d1f55519 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1111,6 +1111,11 @@ func issue51622(b []byte) int {
+ 	return 0
+ }
+ 
++func issue45928(x int) {
++	combinedFrac := x / (x | (1 << 31)) // ERROR "Proved Neq64$"
++	useInt(combinedFrac)
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

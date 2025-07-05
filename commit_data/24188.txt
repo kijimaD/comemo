@@ -9,6 +9,51 @@ Date:   Tue Jul 14 16:28:28 2015 -0400
     Change-Id: I678f9706eccb5a344eeb0244f45b7b7669830bdc
     Reviewed-on: https://go-review.googlesource.com/12204
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/database/sql/sql.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 17afa4966b..aaa4ea28be 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -840,6 +840,8 @@ const maxBadConnRetries = 2
+ // Prepare creates a prepared statement for later queries or executions.
+ // Multiple queries or executions may be run concurrently from the
+ // returned statement.
++// The caller must call the statement's Close method
++// when the statement is no longer needed.
+ func (db *DB) Prepare(query string) (*Stmt, error) {
+ 	var stmt *Stmt
+ 	var err error
+@@ -1074,6 +1076,10 @@ func (db *DB) Driver() driver.Driver {
+ //
+ // After a call to Commit or Rollback, all operations on the
+ // transaction fail with ErrTxDone.
++//
++// The statements prepared for a transaction by calling
++// the transaction's Prepare or Stmt methods are closed
++// by the call to Commit or Rollback.
+ type Tx struct {
+ 	db *DB
+ 
+@@ -1209,6 +1215,9 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
+ //  tx, err := db.Begin()
+ //  ...
+ //  res, err := tx.Stmt(updateMoney).Exec(123.45, 98293203)
++//
++// The returned statement operates within the transaction and can no longer
++// be used once the transaction has been committed or rolled back.
+ func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
+ 	// TODO(bradfitz): optimize this. Currently this re-prepares
+ 	// each time.  This is fine for now to illustrate the API but
+@@ -1300,7 +1309,8 @@ type connStmt struct {
+ 	si driver.Stmt
+ }
+ 
+-// Stmt is a prepared statement. Stmt is safe for concurrent use by multiple goroutines.
++// Stmt is a prepared statement.
++// A Stmt is safe for concurrent use by multiple goroutines.
+ type Stmt struct {
+ 	// Immutable:
+ 	db        *DB    // where we came from

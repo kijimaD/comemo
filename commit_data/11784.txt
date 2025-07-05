@@ -10,7 +10,7 @@ Date:   Fri Feb 10 22:50:55 2012 +0100
     R=rsc, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/5652057
-
+---
  src/cmd/gc/inl.c       | 72 +++++++++++++++++++++++++++++++++++++++++++++-----
  test/golden.out        |  2 ++
  test/run               |  2 +-
@@ -19,3 +19,222 @@ Date:   Fri Feb 10 22:50:55 2012 +0100
  test/safe/pkg.go       | 16 +++++++++++
  test/safe/usesafe.go   |  8 ++++++
  7 files changed, 115 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index ed7a7eb959..96080cbfaf 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -53,22 +53,62 @@ static Node *inlfn;		// function currently being inlined
+ static Node *inlretlabel;	// target of the goto substituted in place of a return
+ static NodeList *inlretvars;	// temp out variables
+ 
+-// Lazy typechecking of imported bodies.
+-// TODO avoid redoing local functions (imporpkg would be wrong)
++// Get the function's package.  For ordinary functions it's on the ->sym, but for imported methods
++// the ->sym can be re-used in the local package, so peel it off the receiver's type.
++static Pkg*
++fnpkg(Node *fn)
++{
++	Type *rcvr;
++	
++	if(fn->type->thistuple) {
++		// method
++		rcvr = getthisx(fn->type)->type->type;
++		if(isptr[rcvr->etype])
++			rcvr = rcvr->type;
++		if(!rcvr->sym)
++			fatal("receiver with no sym: [%S] %lN  (%T)", fn->sym, fn, rcvr);
++		return rcvr->sym->pkg;
++	}
++	// non-method
++	return fn->sym->pkg;
++}
++
++// Lazy typechecking of imported bodies.  For local functions, caninl will set ->typecheck
++// because they're a copy of an already checked body. 
+ void
+ typecheckinl(Node *fn)
+ {
+ 	Node *savefn;
++	Pkg *pkg;
++	int save_safemode, lno;
++
++	if(fn->typecheck)
++		return;
++
++	lno = setlineno(fn);
+ 
+ 	if (debug['m']>2)
+ 		print("typecheck import [%S] %lN { %#H }\n", fn->sym, fn, fn->inl);
+ 
++	// typecheckinl is only used for imported functions;
++	// their bodies may refer to unsafe as long as the package
++	// was marked safe during import (which was checked then).
++	pkg = fnpkg(fn);
++	if (pkg == localpkg || pkg == nil)
++		fatal("typecheckinl on local function %lN", fn);
++
++	save_safemode = safemode;
++	safemode = 0;
++
+ 	savefn = curfn;
+ 	curfn = fn;
+-	importpkg = fn->sym->pkg;
+ 	typechecklist(fn->inl, Etop);
+-	importpkg = nil;
++	fn->typecheck = 1;
+ 	curfn = savefn;
++
++	safemode = save_safemode;
++
++	lineno = lno;
+ }
+ 
+ // Caninl determines whether fn is inlineable. Currently that means:
+@@ -105,6 +145,8 @@ caninl(Node *fn)
+ 
+ 	fn->nname->inl = fn->nbody;
+ 	fn->nbody = inlcopylist(fn->nname->inl);
++	// nbody will have been typechecked, so we can set this:
++	fn->typecheck = 1;
+ 
+ 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
+ 	// this is so export can find the body of a method
+@@ -444,12 +486,30 @@ inlnode(Node **np)
+ 	lineno = lno;
+ }
+ 
++static void	mkinlcall1(Node **np, Node *fn);
++
++static void
++mkinlcall(Node **np, Node *fn)
++{
++	int save_safemode;
++	Pkg *pkg;
++
++	save_safemode = safemode;
++
++	// imported functions may refer to unsafe as long as the
++	// package was marked safe during import (already checked).
++	pkg = fnpkg(fn);
++	if(pkg != localpkg && pkg != nil)
++		safemode = 0;
++	mkinlcall1(np, fn);
++	safemode = save_safemode;
++}
+ // if *np is a call, and fn is a function with an inlinable body, substitute *np with an OINLCALL.
+ // On return ninit has the parameter assignments, the nbody is the
+ // inlined function body and list, rlist contain the input, output
+ // parameters.
+ static void
+-mkinlcall(Node **np, Node *fn)
++mkinlcall1(Node **np, Node *fn)
+ {
+ 	int i;
+ 	Node *n, *call, *saveinlfn, *as, *m;
+@@ -598,7 +658,7 @@ mkinlcall(Node **np, Node *fn)
+ 	*np = call;
+ 
+ 	inlfn =	saveinlfn;
+-	
++
+ 	// transitive inlining
+ 	// TODO do this pre-expansion on fn->inl directly.  requires
+ 	// either supporting exporting statemetns with complex ninits
+diff --git a/test/golden.out b/test/golden.out
+index e0b4cf6e2a..764f561969 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -11,6 +11,8 @@
+ 
+ == dwarf/
+ 
++== safe/
++
+ == fixedbugs/
+ 
+ == bugs/
+diff --git a/test/run b/test/run
+index 714520aee3..4b0481caa8 100755
+--- a/test/run
++++ b/test/run
+@@ -56,7 +56,7 @@ filterout() {
+ 	grep '^'"$2"'$' $1 >/dev/null
+ }
+ 
+-for dir in . ken chan interface syntax dwarf fixedbugs bugs
++for dir in . ken chan interface syntax dwarf safe fixedbugs bugs
+ do
+ 	echo
+ 	echo '==' $dir'/'
+diff --git a/test/safe/main.go b/test/safe/main.go
+new file mode 100644
+index 0000000000..d173ed9266
+--- /dev/null
++++ b/test/safe/main.go
+@@ -0,0 +1,14 @@
++// true
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// can't use local path with -u, use -I. instead
++import "pkg"  // ERROR "import unsafe package"
++
++func main() {
++	print(pkg.Float32bits(1.0))
++}
+diff --git a/test/safe/nousesafe.go b/test/safe/nousesafe.go
+new file mode 100644
+index 0000000000..f61e7fe4f0
+--- /dev/null
++++ b/test/safe/nousesafe.go
+@@ -0,0 +1,8 @@
++// $G $D/pkg.go && pack grc pkg.a pkg.$A 2> /dev/null && rm pkg.$A && errchk $G -I. -u $D/main.go
++// rm -f pkg.a
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/safe/pkg.go b/test/safe/pkg.go
+new file mode 100644
+index 0000000000..bebc43a214
+--- /dev/null
++++ b/test/safe/pkg.go
+@@ -0,0 +1,16 @@
++// true
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// a package that uses unsafe on the inside but not in it's api
++
++package pkg
++
++import "unsafe"
++
++// this should be inlinable
++func Float32bits(f float32) uint32 {
++	return *(*uint32)(unsafe.Pointer(&f))
++}
+\ No newline at end of file
+diff --git a/test/safe/usesafe.go b/test/safe/usesafe.go
+new file mode 100644
+index 0000000000..07c13c1c3a
+--- /dev/null
++++ b/test/safe/usesafe.go
+@@ -0,0 +1,8 @@
++// $G $D/pkg.go && pack grcS pkg.a pkg.$A 2> /dev/null && rm pkg.$A && $G -I. -u $D/main.go
++// rm -f pkg.a
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

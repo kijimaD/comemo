@@ -9,6 +9,23 @@ Date:   Thu Jan 31 07:28:15 2019 +0530
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/example_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/encoding/json/example_test.go b/src/encoding/json/example_test.go
+index 2031cba793..4c075ddaa6 100644
+--- a/src/encoding/json/example_test.go
++++ b/src/encoding/json/example_test.go
+@@ -301,3 +301,11 @@ func ExampleValid() {
+ 	// Output:
+ 	// true false
+ }
++
++func ExampleHTMLEscape() {
++	var out bytes.Buffer
++	json.HTMLEscape(&out, []byte(`{"Name":"<b>HTML content</b>"}`))
++	out.WriteTo(os.Stdout)
++	// Output:
++	//{"Name":"\u003cb\u003eHTML content\u003c/b\u003e"}
++}

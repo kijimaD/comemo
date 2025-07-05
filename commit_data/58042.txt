@@ -17,7 +17,34 @@ Date:   Sat Sep 16 00:07:59 2023 +0000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/signal_freebsd_arm64.go | 2 +-
  src/runtime/signal_openbsd_arm64.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/signal_freebsd_arm64.go b/src/runtime/signal_freebsd_arm64.go
+index 159e965a7d..2b87369815 100644
+--- a/src/runtime/signal_freebsd_arm64.go
++++ b/src/runtime/signal_freebsd_arm64.go
+@@ -52,7 +52,7 @@ func (c *sigctxt) sp() uint64  { return c.regs().mc_gpregs.gp_sp }
+ //go:nowritebarrierrec
+ func (c *sigctxt) pc() uint64 { return c.regs().mc_gpregs.gp_elr }
+ 
+-func (c *sigctxt) fault() uint64 { return c.info.si_addr }
++func (c *sigctxt) fault() uintptr { return uintptr(c.info.si_addr) }
+ 
+ func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
+diff --git a/src/runtime/signal_openbsd_arm64.go b/src/runtime/signal_openbsd_arm64.go
+index 3747b4f91b..bb14c8d6f3 100644
+--- a/src/runtime/signal_openbsd_arm64.go
++++ b/src/runtime/signal_openbsd_arm64.go
+@@ -54,7 +54,7 @@ func (c *sigctxt) sp() uint64  { return (uint64)(c.regs().sc_sp) }
+ //go:nowritebarrierrec
+ func (c *sigctxt) rip() uint64 { return (uint64)(c.regs().sc_lr) } /* XXX */
+ 
+-func (c *sigctxt) fault() uint64   { return c.sigaddr() }
++func (c *sigctxt) fault() uintptr  { return uintptr(c.sigaddr()) }
+ func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 {
+ 	return *(*uint64)(add(unsafe.Pointer(c.info), 16))

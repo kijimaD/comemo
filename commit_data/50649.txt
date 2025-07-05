@@ -13,7 +13,69 @@ Date:   Mon Oct 4 19:52:48 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgcscavenge.go | 8 ++++----
  src/runtime/mheap.go       | 7 +++++--
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index fb9b5c8694..4edeb8739e 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -125,7 +125,7 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
+ 	// information about the heap yet) so this is fine, and avoids a fault
+ 	// or garbage data later.
+ 	if lastHeapGoal == 0 {
+-		mheap_.scavengeGoal = ^uint64(0)
++		atomic.Store64(&mheap_.scavengeGoal, ^uint64(0))
+ 		return
+ 	}
+ 	// Compute our scavenging goal.
+@@ -157,10 +157,10 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
+ 	// the background scavenger. We disable the background scavenger if there's
+ 	// less than one physical page of work to do because it's not worth it.
+ 	if retainedNow <= retainedGoal || retainedNow-retainedGoal < uint64(physPageSize) {
+-		mheap_.scavengeGoal = ^uint64(0)
++		atomic.Store64(&mheap_.scavengeGoal, ^uint64(0))
+ 		return
+ 	}
+-	mheap_.scavengeGoal = retainedGoal
++	atomic.Store64(&mheap_.scavengeGoal, retainedGoal)
+ }
+ 
+ // Sleep/wait state of the background scavenger.
+@@ -299,7 +299,7 @@ func bgscavenge(c chan int) {
+ 			lock(&mheap_.lock)
+ 
+ 			// If background scavenging is disabled or if there's no work to do just park.
+-			retained, goal := heapRetained(), mheap_.scavengeGoal
++			retained, goal := heapRetained(), atomic.Load64(&mheap_.scavengeGoal)
+ 			if retained <= goal {
+ 				unlock(&mheap_.lock)
+ 				return
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 057ab06b1d..f2f6e7f4cf 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -111,6 +111,8 @@ type mheap struct {
+ 	// scavengeGoal is the amount of total retained heap memory (measured by
+ 	// heapRetained) that the runtime will try to maintain by returning memory
+ 	// to the OS.
++	//
++	// Accessed atomically.
+ 	scavengeGoal uint64
+ 
+ 	// Page reclaimer state
+@@ -1399,9 +1401,10 @@ func (h *mheap) grow(npage uintptr) bool {
+ 	// By scavenging inline we deal with the failure to allocate out of
+ 	// memory fragments by scavenging the memory fragments that are least
+ 	// likely to be re-used.
+-	if retained := heapRetained(); retained+uint64(totalGrowth) > h.scavengeGoal {
++	scavengeGoal := atomic.Load64(&h.scavengeGoal)
++	if retained := heapRetained(); retained+uint64(totalGrowth) > scavengeGoal {
+ 		todo := totalGrowth
+-		if overage := uintptr(retained + uint64(totalGrowth) - h.scavengeGoal); todo > overage {
++		if overage := uintptr(retained + uint64(totalGrowth) - scavengeGoal); todo > overage {
+ 			todo = overage
+ 		}
+ 		h.pages.scavenge(todo, false)

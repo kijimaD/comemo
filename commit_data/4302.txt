@@ -6,8 +6,49 @@ Date:   Thu Dec 3 12:46:34 2009 -0800
     
     R=rsc
     https://golang.org/cl/164095
-
+---
  src/cmd/gc/gen.c  | 2 +-
  src/cmd/gc/go.h   | 3 ++-
  src/cmd/gc/subr.c | 2 +-
  3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 475058fa28..56dd752fb7 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -52,7 +52,7 @@ allocparams(void)
+ 			continue;
+ 		dowidth(n->type);
+ 		w = n->type->width;
+-		if(w >= 100000000)
++		if(w >= MAXWIDTH)
+ 			fatal("bad width");
+ 		stksize += w;
+ 		stksize = rnd(stksize, w);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 87362156d3..5df0c5be85 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -53,7 +53,8 @@ enum
+ 	AINTER,
+ 	ANILINTER,
+ 
+-	BADWIDTH	= -1000000000
++	BADWIDTH	= -1000000000,
++	MAXWIDTH        = 1<<30
+ };
+ 
+ /*
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 6b73570e52..407dea023f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2431,7 +2431,7 @@ setmaxarg(Type *t)
+ 
+ 	dowidth(t);
+ 	w = t->argwid;
+-	if(t->argwid >= 100000000)
++	if(t->argwid >= MAXWIDTH)
+ 		fatal("bad argwid %T", t);
+ 	if(w > maxarg)
+ 		maxarg = w;

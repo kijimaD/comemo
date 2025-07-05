@@ -10,6 +10,22 @@ Date:   Thu Jun 3 10:59:35 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/types.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index f34cf146bb..f0061e79d7 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -239,8 +239,9 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 		tlist := make([]*types.Type, nt)
+ 		tildes := make([]bool, nt)
+ 		for i := range tlist {
+-			term, _ := typ.Term(i)
++			term, tilde := typ.Term(i)
+ 			tlist[i] = g.typ1(term)
++			tildes[i] = tilde
+ 		}
+ 		return types.NewUnion(tlist, tildes)
+ 

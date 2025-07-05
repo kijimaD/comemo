@@ -12,7 +12,7 @@ Date:   Thu Apr 20 16:09:48 2023 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/486916
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Bypass: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/objabi/stack.go       | 15 ++++++++++++---
  src/cmd/link/internal/ld/stackcheck.go |  2 +-
  src/internal/abi/stack.go              |  8 --------
@@ -20,3 +20,146 @@ Date:   Thu Apr 20 16:09:48 2023 +0000
  src/runtime/stack.go                   | 19 ++++++++++---------
  test/nosplit.go                        | 13 ++++++++++---
  6 files changed, 34 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/stack.go b/src/cmd/internal/objabi/stack.go
+index 7c7ff4e058..5a2f641a75 100644
+--- a/src/cmd/internal/objabi/stack.go
++++ b/src/cmd/internal/objabi/stack.go
+@@ -9,9 +9,18 @@ import (
+ 	"internal/buildcfg"
+ )
+ 
+-func StackNosplit(race bool) int {
+-	// This arithmetic must match that in runtime/stack.go:stackNosplit.
+-	return abi.StackNosplitBase * stackGuardMultiplier(race)
++// For the linkers. Must match Go definitions.
++
++const (
++	STACKSYSTEM = 0
++	StackSystem = STACKSYSTEM
++)
++
++func StackLimit(race bool) int {
++	// This arithmetic must match that in runtime/stack.go:{_StackGuard,_StackLimit}.
++	stackGuard := 928*stackGuardMultiplier(race) + StackSystem
++	stackLimit := stackGuard - StackSystem - abi.StackSmall
++	return stackLimit
+ }
+ 
+ // stackGuardMultiplier returns a multiplier to apply to the default
+diff --git a/src/cmd/link/internal/ld/stackcheck.go b/src/cmd/link/internal/ld/stackcheck.go
+index 24a96fb996..c82dafe51e 100644
+--- a/src/cmd/link/internal/ld/stackcheck.go
++++ b/src/cmd/link/internal/ld/stackcheck.go
+@@ -61,7 +61,7 @@ func (ctxt *Link) doStackCheck() {
+ 	// The call to morestack in every splittable function ensures
+ 	// that there are at least StackLimit bytes available below SP
+ 	// when morestack returns.
+-	limit := objabi.StackNosplit(*flagRace) - sc.callSize
++	limit := objabi.StackLimit(*flagRace) - sc.callSize
+ 	if buildcfg.GOARCH == "arm64" {
+ 		// Need an extra 8 bytes below SP to save FP.
+ 		limit -= 8
+diff --git a/src/internal/abi/stack.go b/src/internal/abi/stack.go
+index 8e3327ee48..9efd21b167 100644
+--- a/src/internal/abi/stack.go
++++ b/src/internal/abi/stack.go
+@@ -5,14 +5,6 @@
+ package abi
+ 
+ const (
+-	// StackNosplitBase is the base maximum number of bytes that a chain of
+-	// NOSPLIT functions can use.
+-	//
+-	// This value must be multiplied by the stack guard multiplier, so do not
+-	// use it directly. See runtime/stack.go:stackNosplit and
+-	// cmd/internal/objabi/stack.go:StackNosplit.
+-	StackNosplitBase = 800
+-
+ 	// We have three different sequences for stack bounds checks, depending on
+ 	// whether the stack frame of a function is small, big, or huge.
+ 
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index e19e6d3d7a..a6623c0ec2 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -320,7 +320,7 @@ func init() {
+ 	total += funcMaxSPDelta(f)
+ 	// Add some overhead for return PCs, etc.
+ 	asyncPreemptStack = uintptr(total) + 8*goarch.PtrSize
+-	if asyncPreemptStack > stackNosplit {
++	if asyncPreemptStack > _StackLimit {
+ 		// We need more than the nosplit limit. This isn't
+ 		// unsafe, but it may limit asynchronous preemption.
+ 		//
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 708a6ee2e5..39dbed5114 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -85,18 +85,19 @@ const (
+ 	_FixedStack6 = _FixedStack5 | (_FixedStack5 >> 16)
+ 	_FixedStack  = _FixedStack6 + 1
+ 
+-	// stackNosplit is the maximum number of bytes that a chain of NOSPLIT
+-	// functions can use.
+-	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackNosplit.
+-	stackNosplit = abi.StackNosplitBase * sys.StackGuardMultiplier
+-
+ 	// The stack guard is a pointer this many bytes above the
+ 	// bottom of the stack.
+ 	//
+-	// The guard leaves enough room for a stackNosplit chain of NOSPLIT calls
+-	// plus one stackSmall frame plus stackSystem bytes for the OS.
++	// The guard leaves enough room for one _StackSmall frame plus
++	// a _StackLimit chain of NOSPLIT calls plus _StackSystem
++	// bytes for the OS.
++	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
++	_StackGuard = 928*sys.StackGuardMultiplier + _StackSystem
++
++	// The maximum number of bytes that a chain of NOSPLIT
++	// functions can use.
+ 	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
+-	_StackGuard = stackNosplit + _StackSystem + abi.StackSmall
++	_StackLimit = _StackGuard - _StackSystem - abi.StackSmall
+ )
+ 
+ const (
+@@ -1210,7 +1211,7 @@ func shrinkstack(gp *g) {
+ 	// down to the SP plus the stack guard space that ensures
+ 	// there's room for nosplit functions.
+ 	avail := gp.stack.hi - gp.stack.lo
+-	if used := gp.stack.hi - gp.sched.sp + stackNosplit; used >= avail/4 {
++	if used := gp.stack.hi - gp.sched.sp + _StackLimit; used >= avail/4 {
+ 		return
+ 	}
+ 
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 2b1bb5492d..a695654eaf 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -342,15 +342,22 @@ TestCases:
+ 				nosplit := m[3]
+ 				body := m[4]
+ 
+-				// The limit was originally 128 but is now 800.
++				// The limit was originally 128 but is now 800 (928-128).
+ 				// Instead of rewriting the test cases above, adjust
+ 				// the first nosplit frame to use up the extra bytes.
+ 				// This isn't exactly right because we could have
+ 				// nosplit -> split -> nosplit, but it's good enough.
+ 				if !adjusted && nosplit != "" {
+-					const stackNosplitBase = 800 // internal/abi.StackNosplitBase
+ 					adjusted = true
+-					size += stackNosplitBase - 128
++					size += (928 - 128) - 128
++					// Noopt builds have a larger stackguard.
++					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
++					// This increase is included in objabi.StackGuard
++					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
++						if s == "-N" {
++							size += 928
++						}
++					}
+ 				}
+ 
+ 				if nosplit != "" {

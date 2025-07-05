@@ -16,7 +16,41 @@ Date:   Fri Jun 30 15:44:25 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/47354
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/symtab.go      |  3 +++
  src/runtime/symtab_test.go | 11 +++++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 029c2f15af..40add013e4 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -579,6 +579,9 @@ func FuncForPC(pc uintptr) *Func {
+ 
+ // Name returns the name of the function.
+ func (f *Func) Name() string {
++	if f == nil {
++		return ""
++	}
+ 	return funcname(f.funcInfo())
+ }
+ 
+diff --git a/src/runtime/symtab_test.go b/src/runtime/symtab_test.go
+index b75b6b2c2a..01e5002659 100644
+--- a/src/runtime/symtab_test.go
++++ b/src/runtime/symtab_test.go
+@@ -154,3 +154,14 @@ func TestLineNumber(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestNilName(t *testing.T) {
++	defer func() {
++		if ex := recover(); ex != nil {
++			t.Fatalf("expected no nil panic, got=%v", ex)
++		}
++	}()
++	if got := (*runtime.Func)(nil).Name(); got != "" {
++		t.Errorf("Name() = %q, want %q", got, "")
++	}
++}

@@ -9,9 +9,86 @@ Date:   Thu Sep 18 23:09:07 2008 -0700
     R=r
     OCL=15516
     CL=15516
-
+---
  usr/gri/gosrc/base.go    | 5 ++---
  usr/gri/gosrc/decls.go   | 9 ---------
  usr/gri/pretty/Makefile  | 6 ++++--
  usr/gri/pretty/parser.go | 2 +-
  4 files changed, 7 insertions(+), 15 deletions(-)
+
+diff --git a/usr/gri/gosrc/base.go b/usr/gri/gosrc/base.go
+index 456f354f42..7a3e5ebdec 100755
+--- a/usr/gri/gosrc/base.go
++++ b/usr/gri/gosrc/base.go
+@@ -14,11 +14,10 @@ export type Node struct {
+   left, right *Node;
+   val bool;
+   f Foo;
+-  const, type, var, package int;
+ }
+ 
+-export func (p *Node) case(x int) {};
++export func (p *Node) F(x int) {};
+ 
+ export type I interface {
+-  func();
++  f();
+ }
+diff --git a/usr/gri/gosrc/decls.go b/usr/gri/gosrc/decls.go
+index 1e7d3561a1..b923fd1b8f 100755
+--- a/usr/gri/gosrc/decls.go
++++ b/usr/gri/gosrc/decls.go
+@@ -46,15 +46,6 @@ type F5 (a, b int, c float) (z T5, ok bool)
+ type F6 (a int, b float) bool
+ type F7 (a int, b float, c, d *bool) bool
+ 
+-export type M0 (p T5) . ();
+-type (
+-	M1 (p T5) . (a int);
+-	M2 (p T5) . (a, b int, c float);
+-	M3 (p T5) . () bool;
+-	M4 (p T5) . (a int) (z T5, ok bool);
+-)
+-export type M5 (p T5) . (a, b int, c float) (z T5, ok bool);
+-
+ type T6 chan int
+ type T7 <- chan *T6
+ type T8 chan <- *T6
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 81ca81286f..a6e355672e 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -10,8 +10,10 @@ pretty: pretty.6
+ 
+ test: pretty
+ 	pretty *.go
+-	pretty $(GOROOT)/test/fixedbugs/*.go  # some files legally don't compile
++	pretty ../gosrc/*.go
+ 	pretty $(GOROOT)/test/sieve.go
++	pretty $(GOROOT)/test/bugs/*.go  # some files legally don't compile
++	pretty $(GOROOT)/test/fixedbugs/*.go  # some files legally don't compile
+ 	pretty $(GOROOT)/src/pkg/*.go
+ 	pretty $(GOROOT)/src/lib/flag.go
+ 	pretty $(GOROOT)/src/lib/fmt.go
+@@ -19,7 +21,7 @@ test: pretty
+ 	pretty $(GOROOT)/src/lib/math/*.go
+ 	pretty $(GOROOT)/src/lib/container/*.go
+ 	pretty $(GOROOT)/src/syscall/*.go
+-	echo "PASSED"
++	echo "DONE"
+ 
+ install: pretty
+ 	cp pretty $(HOME)/bin/pretty
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 130030365c..d1a0b62305 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -453,7 +453,7 @@ func (P *Parser) TryType() bool {
+ 	case Scanner.LBRACK: P.ParseArrayType();
+ 	case Scanner.CHAN, Scanner.ARROW: P.ParseChannelType();
+ 	case Scanner.INTERFACE: P.ParseInterfaceType();
+-	case Scanner.LPAREN: P.ParseFunctionType();
++	case Scanner.LPAREN: P.ParseSignature();
+ 	case Scanner.MAP: P.ParseMapType();
+ 	case Scanner.STRUCT: P.ParseStructType();
+ 	case Scanner.MUL: P.ParsePointerType();

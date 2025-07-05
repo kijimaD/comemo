@@ -12,6 +12,20 @@ Date:   Tue Feb 25 10:55:26 2014 -0800
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/68080046
-
+---
  src/pkg/crypto/sha1/sha1block_decl.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/sha1/sha1block_decl.go b/src/pkg/crypto/sha1/sha1block_decl.go
+index 2331deb3a9..24e521af1f 100644
+--- a/src/pkg/crypto/sha1/sha1block_decl.go
++++ b/src/pkg/crypto/sha1/sha1block_decl.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 amd64p32 386
++// +build amd64 amd64p32 arm 386
+ 
+ package sha1
+ 

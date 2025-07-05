@@ -17,7 +17,85 @@ Date:   Fri May 24 17:56:31 2024 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/text/template/exec_test.go | 20 ++++++++++++++------
  src/text/template/funcs.go     |  8 +++-----
  2 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 4ec213d8cf..9903e17d0e 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -81,7 +81,8 @@ type T struct {
+ 	NilOKFunc              func(*int) bool
+ 	ErrFunc                func() (string, error)
+ 	PanicFunc              func() string
+-	InvalidReturnCountFunc func() (string, error, int)
++	TooFewReturnCountFunc  func()
++	TooManyReturnCountFunc func() (string, error, int)
+ 	InvalidReturnTypeFunc  func() (string, bool)
+ 	// Template to test evaluation of templates.
+ 	Tmpl *Template
+@@ -170,7 +171,8 @@ var tVal = &T{
+ 	NilOKFunc:                 func(s *int) bool { return s == nil },
+ 	ErrFunc:                   func() (string, error) { return "bla", nil },
+ 	PanicFunc:                 func() string { panic("test panic") },
+-	InvalidReturnCountFunc:    func() (string, error, int) { return "", nil, 0 },
++	TooFewReturnCountFunc:     func() {},
++	TooManyReturnCountFunc:    func() (string, error, int) { return "", nil, 0 },
+ 	InvalidReturnTypeFunc:     func() (string, bool) { return "", false },
+ 	Tmpl:                      Must(New("x").Parse("test template")), // "x" is the value of .X
+ }
+@@ -1746,16 +1748,22 @@ func TestFunctionCheckDuringCall(t *testing.T) {
+ 			wantErr: "error calling call: wrong number of args for .VariadicFuncInt: got 0 want at least 1",
+ 		},
+ 		{
+-			name:    "call invalid return number func",
+-			input:   `{{call .InvalidReturnCountFunc}}`,
++			name:    "call too few return number func",
++			input:   `{{call .TooFewReturnCountFunc}}`,
+ 			data:    tVal,
+-			wantErr: "error calling call: too many return values for .InvalidReturnCountFunc",
++			wantErr: "error calling call: function .TooFewReturnCountFunc has 0 return values; should be 1 or 2",
++		},
++		{
++			name:    "call too many return number func",
++			input:   `{{call .TooManyReturnCountFunc}}`,
++			data:    tVal,
++			wantErr: "error calling call: function .TooManyReturnCountFunc has 3 return values; should be 1 or 2",
+ 		},
+ 		{
+ 			name:    "call invalid return type func",
+ 			input:   `{{call .InvalidReturnTypeFunc}}`,
+ 			data:    tVal,
+-			wantErr: "error calling call: invalid function signature for .InvalidReturnTypeFunc: second argument should be error; is bool",
++			wantErr: "error calling call: invalid function signature for .InvalidReturnTypeFunc: second return value should be error; is bool",
+ 		},
+ 		{
+ 			name:    "call pipeline",
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index 6832ae3682..7d63cf8b7b 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -110,18 +110,16 @@ func addFuncs(out, in FuncMap) {
+ 
+ // goodFunc reports whether the function or method has the right result signature.
+ func goodFunc(name string, typ reflect.Type) error {
+-	numOut := typ.NumOut()
+-
+ 	// We allow functions with 1 result or 2 results where the second is an error.
+-	switch {
++	switch numOut := typ.NumOut(); {
+ 	case numOut == 1:
+ 		return nil
+ 	case numOut == 2 && typ.Out(1) == errorType:
+ 		return nil
+ 	case numOut == 2:
+-		return fmt.Errorf("invalid function signature for %s: second argument should be error; is %s", name, typ.Out(1))
++		return fmt.Errorf("invalid function signature for %s: second return value should be error; is %s", name, typ.Out(1))
+ 	default:
+-		return fmt.Errorf("too many return values for %s", name)
++		return fmt.Errorf("function %s has %d return values; should be 1 or 2", name, typ.NumOut())
+ 	}
+ }
+ 

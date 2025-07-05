@@ -9,6 +9,24 @@ Date:   Thu Dec 6 09:03:59 2018 -0500
     Change-Id: If859221afc683b392f649e79d7ff0a06125cbe10
     Reviewed-on: https://go-review.googlesource.com/c/152918
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.12.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index ec2d7146e3..291c19ace2 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -98,6 +98,12 @@ Go 1.13 will require macOS 10.11 El Capitan or later.
+   has no effect in Go 1.12.
+ </p>
+ 
++<h3 id="binary-only">Binary-only packages</h3>
++
++<p>
++  Go 1.12 is the last release that will support binary-only packages.
++</p>
++
+ <h3 id="modules">Modules</h3>
+ 
+ <p><!-- CL 148517 -->

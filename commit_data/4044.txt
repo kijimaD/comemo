@@ -9,7 +9,29 @@ Date:   Sat Nov 14 14:42:15 2009 -0800
     R=rsc
     CC=agl1
     https://golang.org/cl/154138
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 3b9074ffe3..9da8c91afe 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -12,3 +12,4 @@ Abhinav Gupta <abhinav.g90@gmail.com>
+ David Titarenco <david.titarenco@gmail.com>
+ Google Inc.
+ Kevin Ballard <kevin@sb.org>
++Môshe van der Sterre <moshevds@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 31610420e5..4950b6c190 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -44,6 +44,7 @@ Kai Backman <kaib@golang.org>
+ Ken Thompson <ken@golang.org>
+ Kevin Ballard <kevin@sb.org>
+ Larry Hosken <lahosken@golang.org>
++Môshe van der Sterre <moshevds@gmail.com>
+ Nigel Tao <nigeltao@golang.org>
+ Peter McKenzie <petermck@google.com>
+ Phil Pennock <pdp@golang.org>

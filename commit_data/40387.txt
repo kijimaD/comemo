@@ -11,7 +11,7 @@ Date:   Thu May 9 11:45:38 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176179
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  5 +--
  .../golang.org/x/tools/go/analysis/analysis.go     | 22 +++++++++++++
@@ -24,3 +24,354 @@ Date:   Thu May 9 11:45:38 2019 -0400
  src/cmd/vendor/modules.txt                         |  2 +-
  src/cmd/vet/all/main.go                            |  2 +-
  11 files changed, 106 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 52b66da9d0..f641125f4a 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,5 +8,5 @@ require (
+ 	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
+ 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+-	golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04
++	golang.org/x/tools v0.0.0-20190509153222-73554e0f7805
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 75a8628478..e88f437b1d 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -8,9 +8,10 @@ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACk
+ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c h1:Vj5n4GlwjmQteupaxJ9+0FNOmBrHfq7vN4btdGoDZgI=
+ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dzugGxJ/SQHoNufZJq1w=
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04 h1:SRYGE+BqJRgY8JH4p2NmwTPeuREKqKYw5IuEmthTHKQ=
+-golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04/go.mod h1:LCzVGOaR6xXOjkQ3onu1FJEFr0SW1gC7cKk1uF8kGRs=
++golang.org/x/tools v0.0.0-20190509153222-73554e0f7805 h1:1ufBXAsTpUhSmmPXEEs5PrGQSfnBhsjAd2SmVhp9xrY=
++golang.org/x/tools v0.0.0-20190509153222-73554e0f7805/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index 4d8a6e5e7d..8eb7316259 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -128,10 +128,32 @@ type Pass struct {
+ 	// See comments for ExportObjectFact.
+ 	ExportPackageFact func(fact Fact)
+ 
++	// AllPackageFacts returns a new slice containing all package facts in unspecified order.
++	// WARNING: This is an experimental API and may change in the future.
++	AllPackageFacts func() []PackageFact
++
++	// AllObjectFacts returns a new slice containing all object facts in unspecified order.
++	// WARNING: This is an experimental API and may change in the future.
++	AllObjectFacts func() []ObjectFact
++
+ 	/* Further fields may be added in future. */
+ 	// For example, suggested or applied refactorings.
+ }
+ 
++// PackageFact is a package together with an associated fact.
++// WARNING: This is an experimental API and may change in the future.
++type PackageFact struct {
++	Package *types.Package
++	Fact    Fact
++}
++
++// ObjectFact is an object together with an associated fact.
++// WARNING: This is an experimental API and may change in the future.
++type ObjectFact struct {
++	Object types.Object
++	Fact   Fact
++}
++
+ // Reportf is a helper function that reports a Diagnostic using the
+ // specified position and formatted error message.
+ func (pass *Pass) Reportf(pos token.Pos, format string, args ...interface{}) {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index 6403d7783a..d41c4e97e3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -130,7 +130,7 @@ var (
+ 	asmPlusBuild = re(`//\s+\+build\s+([^\n]+)`)
+ 	asmTEXT      = re(`\bTEXT\b(.*)·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+()]+))?(?:\s*,\s*\$(-?[0-9]+)(?:-([0-9]+))?)?`)
+ 	asmDATA      = re(`\b(DATA|GLOBL)\b`)
+-	asmNamedFP   = re(`([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
++	asmNamedFP   = re(`\$?([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
+ 	asmUnnamedFP = re(`[^+\-0-9](([0-9]+)\(FP\))`)
+ 	asmSP        = re(`[^+\-0-9](([0-9]+)\(([A-Z0-9]+)\))`)
+ 	asmOpcode    = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Z]+)\s*([^,]*)(?:,\s*(.*))?`)
+@@ -184,6 +184,7 @@ Files:
+ 			fnName             string
+ 			localSize, argSize int
+ 			wroteSP            bool
++			noframe            bool
+ 			haveRetArg         bool
+ 			retLine            []int
+ 		)
+@@ -231,6 +232,11 @@ Files:
+ 				}
+ 			}
+ 
++			// Ignore comments and commented-out code.
++			if i := strings.Index(line, "//"); i >= 0 {
++				line = line[:i]
++			}
++
+ 			if m := asmTEXT.FindStringSubmatch(line); m != nil {
+ 				flushRet()
+ 				if arch == "" {
+@@ -254,7 +260,7 @@ Files:
+ 					// identifiers to represent the directory separator.
+ 					pkgPath = strings.Replace(pkgPath, "∕", "/", -1)
+ 					if pkgPath != pass.Pkg.Path() {
+-						log.Printf("%s:%d: [%s] cannot check cross-package assembly function: %s is in package %s", fname, lineno, arch, fnName, pkgPath)
++						// log.Printf("%s:%d: [%s] cannot check cross-package assembly function: %s is in package %s", fname, lineno, arch, fnName, pkgPath)
+ 						fn = nil
+ 						fnName = ""
+ 						continue
+@@ -275,7 +281,8 @@ Files:
+ 					localSize += archDef.intSize
+ 				}
+ 				argSize, _ = strconv.Atoi(m[5])
+-				if fn == nil && !strings.Contains(fnName, "<>") {
++				noframe = strings.Contains(flag, "NOFRAME")
++				if fn == nil && !strings.Contains(fnName, "<>") && !noframe {
+ 					badf("function %s missing Go declaration", fnName)
+ 				}
+ 				wroteSP = false
+@@ -305,13 +312,18 @@ Files:
+ 				continue
+ 			}
+ 
+-			if strings.Contains(line, ", "+archDef.stack) || strings.Contains(line, ",\t"+archDef.stack) {
++			if strings.Contains(line, ", "+archDef.stack) || strings.Contains(line, ",\t"+archDef.stack) || strings.Contains(line, "NOP "+archDef.stack) || strings.Contains(line, "NOP\t"+archDef.stack) {
+ 				wroteSP = true
+ 				continue
+ 			}
+ 
++			if arch == "wasm" && strings.Contains(line, "CallImport") {
++				// CallImport is a call out to magic that can write the result.
++				haveRetArg = true
++			}
++
+ 			for _, m := range asmSP.FindAllStringSubmatch(line, -1) {
+-				if m[3] != archDef.stack || wroteSP {
++				if m[3] != archDef.stack || wroteSP || noframe {
+ 					continue
+ 				}
+ 				off := 0
+@@ -371,7 +383,7 @@ Files:
+ 					}
+ 					continue
+ 				}
+-				asmCheckVar(badf, fn, line, m[0], off, v)
++				asmCheckVar(badf, fn, line, m[0], off, v, archDef)
+ 			}
+ 		}
+ 		flushRet()
+@@ -589,7 +601,7 @@ func asmParseDecl(pass *analysis.Pass, decl *ast.FuncDecl) map[string]*asmFunc {
+ }
+ 
+ // asmCheckVar checks a single variable reference.
+-func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr string, off int, v *asmVar) {
++func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr string, off int, v *asmVar, archDef *asmArch) {
+ 	m := asmOpcode.FindStringSubmatch(line)
+ 	if m == nil {
+ 		if !strings.HasPrefix(strings.TrimSpace(line), "//") {
+@@ -598,6 +610,8 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
+ 		return
+ 	}
+ 
++	addr := strings.HasPrefix(expr, "$")
++
+ 	// Determine operand sizes from instruction.
+ 	// Typically the suffix suffices, but there are exceptions.
+ 	var src, dst, kind asmKind
+@@ -617,10 +631,13 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
+ 	// They just take the address of it.
+ 	case "386.LEAL":
+ 		dst = 4
++		addr = true
+ 	case "amd64.LEAQ":
+ 		dst = 8
++		addr = true
+ 	case "amd64p32.LEAL":
+ 		dst = 4
++		addr = true
+ 	default:
+ 		switch fn.arch.name {
+ 		case "386", "amd64":
+@@ -725,6 +742,11 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
+ 		vs = v.inner[0].size
+ 		vt = v.inner[0].typ
+ 	}
++	if addr {
++		vk = asmKind(archDef.ptrSize)
++		vs = archDef.ptrSize
++		vt = "address"
++	}
+ 
+ 	if off != v.off {
+ 		var inner bytes.Buffer
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+index b5161836a5..e88cf57d8f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+@@ -45,6 +45,8 @@ var contextPackage = "context"
+ // control-flow path from the call to a return statement and that path
+ // does not "use" the cancel function.  Any reference to the variable
+ // counts as a use, even within a nested function literal.
++// If the variable's scope is larger than the function
++// containing the assignment, we assume that other uses exist.
+ //
+ // checkLostCancel analyzes a single named or literal function.
+ func run(pass *analysis.Pass) (interface{}, error) {
+@@ -66,6 +68,15 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ }
+ 
+ func runFunc(pass *analysis.Pass, node ast.Node) {
++	// Find scope of function node
++	var funcScope *types.Scope
++	switch v := node.(type) {
++	case *ast.FuncLit:
++		funcScope = pass.TypesInfo.Scopes[v.Type]
++	case *ast.FuncDecl:
++		funcScope = pass.TypesInfo.Scopes[v.Type]
++	}
++
+ 	// Maps each cancel variable to its defining ValueSpec/AssignStmt.
+ 	cancelvars := make(map[*types.Var]ast.Node)
+ 
+@@ -114,7 +125,11 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
+ 					"the cancel function returned by context.%s should be called, not discarded, to avoid a context leak",
+ 					n.(*ast.SelectorExpr).Sel.Name)
+ 			} else if v, ok := pass.TypesInfo.Uses[id].(*types.Var); ok {
+-				cancelvars[v] = stmt
++				// If the cancel variable is defined outside function scope,
++				// do not analyze it.
++				if funcScope.Contains(v.Pos()) {
++					cancelvars[v] = stmt
++				}
+ 			} else if v, ok := pass.TypesInfo.Defs[id].(*types.Var); ok {
+ 				cancelvars[v] = stmt
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index d4697eac0c..f59e95dc21 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -856,20 +856,28 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) bool {
+ 		return false
+ 	}
+ 
+-	// Is it the receiver r, or &r?
+-	recv := stringMethod.Type().(*types.Signature).Recv()
+-	if recv == nil {
++	sig := stringMethod.Type().(*types.Signature)
++	if !isStringer(sig) {
+ 		return false
+ 	}
++
++	// Is it the receiver r, or &r?
+ 	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
+ 		e = u.X // strip off & from &r
+ 	}
+ 	if id, ok := e.(*ast.Ident); ok {
+-		return pass.TypesInfo.Uses[id] == recv
++		return pass.TypesInfo.Uses[id] == sig.Recv()
+ 	}
+ 	return false
+ }
+ 
++// isStringer reports whether the method signature matches the String() definition in fmt.Stringer.
++func isStringer(sig *types.Signature) bool {
++	return sig.Params().Len() == 0 &&
++		sig.Results().Len() == 1 &&
++		sig.Results().At(0).Type() == types.Typ[types.String]
++}
++
+ // isFunctionValue reports whether the expression is a function as opposed to a function call.
+ // It is almost always a mistake to print a function value.
+ func isFunctionValue(pass *analysis.Pass, e ast.Expr) bool {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+index 72530a0eeb..bc1db7e4c2 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+@@ -116,6 +116,13 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
+ 	args := sign.Params()
+ 	results := sign.Results()
+ 
++	// Special case: WriteTo with more than one argument,
++	// not trying at all to implement io.WriterTo,
++	// comes up often enough to skip.
++	if id.Name == "WriteTo" && args.Len() > 1 {
++		return
++	}
++
+ 	// Do the =s (if any) all match?
+ 	if !matchParams(pass, expect.args, args, "=") || !matchParams(pass, expect.results, results, "=") {
+ 		return
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+index 2b67c376ba..bcdb042920 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+@@ -56,6 +56,13 @@ var checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
+ 
+ // checkCanonicalFieldTag checks a single struct field tag.
+ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, seen *map[[2]string]token.Pos) {
++	switch pass.Pkg.Path() {
++	case "encoding/json", "encoding/xml":
++		// These packages know how to use their own APIs.
++		// Sometimes they are testing what happens to incorrect programs.
++		return
++	}
++
+ 	for _, key := range checkTagDups {
+ 		checkTagDuplicates(pass, tag, key, field, field, seen)
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
+index 6cf4358ab9..d019ecef15 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
+@@ -29,6 +29,13 @@ var Analyzer = &analysis.Analyzer{
+ }
+ 
+ func run(pass *analysis.Pass) (interface{}, error) {
++	switch pass.Pkg.Path() {
++	case "encoding/gob", "encoding/json", "encoding/xml":
++		// These packages know how to use their own APIs.
++		// Sometimes they are testing what happens to incorrect programs.
++		return nil, nil
++	}
++
+ 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+ 
+ 	nodeFilter := []ast.Node{
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 803f6de7c8..abea1654f6 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -26,7 +26,7 @@ golang.org/x/crypto/ssh/terminal
+ # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20190325223049-1d95b17f1b04
++# golang.org/x/tools v0.0.0-20190509153222-73554e0f7805
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+ golang.org/x/tools/go/analysis/internal/facts
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 0c699751ec..b917cb86e7 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -233,7 +233,7 @@ func (p platform) vet() {
+ 		vetTool := filepath.Join(tmpdir, "vet")
+ 		vetCmd = []string{
+ 			vetTool,
+-			"-nilness=0", // expensive, uses SSA
++			// "-nilness=0", // expensive, uses SSA
+ 		}
+ 
+ 		cmd := exec.Command(cmdGoPath, "build", "-o", vetTool, "golang.org/x/tools/go/analysis/cmd/vet")

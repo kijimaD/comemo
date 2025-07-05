@@ -26,8 +26,137 @@ Date:   Wed Oct 31 15:04:04 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/bytealg/compare_native.go |  9 +++++
  src/internal/bytealg/equal_native.go   | 12 ++++++
  src/runtime/race.go                    | 73 ++++++++++++++++++++++++++++++++++
  3 files changed, 94 insertions(+)
+
+diff --git a/src/internal/bytealg/compare_native.go b/src/internal/bytealg/compare_native.go
+index d4ff61938c..b14aa8c72c 100644
+--- a/src/internal/bytealg/compare_native.go
++++ b/src/internal/bytealg/compare_native.go
+@@ -6,5 +6,14 @@
+ 
+ package bytealg
+ 
++import _ "unsafe" // For go:linkname
++
+ //go:noescape
+ func Compare(a, b []byte) int
++
++// The declaration below generates ABI wrappers for functions
++// implemented in assembly in this package but declared in another
++// package.
++
++//go:linkname abigen_runtime_cmpstring runtime.cmpstring
++func abigen_runtime_cmpstring(a, b string) int
+diff --git a/src/internal/bytealg/equal_native.go b/src/internal/bytealg/equal_native.go
+index b5c453086c..995f0749d4 100644
+--- a/src/internal/bytealg/equal_native.go
++++ b/src/internal/bytealg/equal_native.go
+@@ -4,11 +4,23 @@
+ 
+ package bytealg
+ 
++import "unsafe"
++
+ // Note: there's no equal_generic.go because every platform must implement at least memequal_varlen in assembly.
+ 
+ //go:noescape
+ func Equal(a, b []byte) bool
+ 
++// The declarations below generate ABI wrappers for functions
++// implemented in assembly in this package but declared in another
++// package.
++
+ // The compiler generates calls to runtime.memequal and runtime.memequal_varlen.
+ // In addition, the runtime calls runtime.memequal explicitly.
+ // Those functions are implemented in this package.
++
++//go:linkname abigen_runtime_memequal runtime.memequal
++func abigen_runtime_memequal(a, b unsafe.Pointer, size uintptr) bool
++
++//go:linkname abigen_runtime_memequal_varlen runtime.memequal_varlen
++func abigen_runtime_memequal_varlen(a, b unsafe.Pointer) bool
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 0124e231fa..4420c5df2b 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -496,3 +496,76 @@ func racereleasemergeg(gp *g, addr unsafe.Pointer) {
+ func racefingo() {
+ 	racecall(&__tsan_finalizer_goroutine, getg().racectx, 0, 0, 0)
+ }
++
++// The declarations below generate ABI wrappers for functions
++// implemented in assembly in this package but declared in another
++// package.
++
++//go:linkname abigen_sync_atomic_LoadInt32 sync/atomic.LoadInt32
++func abigen_sync_atomic_LoadInt32(addr *int32) (val int32)
++
++//go:linkname abigen_sync_atomic_LoadInt64 sync/atomic.LoadInt64
++func abigen_sync_atomic_LoadInt64(addr *int64) (val int64)
++
++//go:linkname abigen_sync_atomic_LoadUint32 sync/atomic.LoadUint32
++func abigen_sync_atomic_LoadUint32(addr *uint32) (val uint32)
++
++//go:linkname abigen_sync_atomic_LoadUint64 sync/atomic.LoadUint64
++func abigen_sync_atomic_LoadUint64(addr *uint64) (val uint64)
++
++//go:linkname abigen_sync_atomic_LoadUintptr sync/atomic.LoadUintptr
++func abigen_sync_atomic_LoadUintptr(addr *uintptr) (val uintptr)
++
++//go:linkname abigen_sync_atomic_LoadPointer sync/atomic.LoadPointer
++func abigen_sync_atomic_LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
++
++//go:linkname abigen_sync_atomic_StoreInt32 sync/atomic.StoreInt32
++func abigen_sync_atomic_StoreInt32(addr *int32, val int32)
++
++//go:linkname abigen_sync_atomic_StoreInt64 sync/atomic.StoreInt64
++func abigen_sync_atomic_StoreInt64(addr *int64, val int64)
++
++//go:linkname abigen_sync_atomic_StoreUint32 sync/atomic.StoreUint32
++func abigen_sync_atomic_StoreUint32(addr *uint32, val uint32)
++
++//go:linkname abigen_sync_atomic_StoreUint64 sync/atomic.StoreUint64
++func abigen_sync_atomic_StoreUint64(addr *uint64, val uint64)
++
++//go:linkname abigen_sync_atomic_SwapInt32 sync/atomic.SwapInt32
++func abigen_sync_atomic_SwapInt32(addr *int32, new int32) (old int32)
++
++//go:linkname abigen_sync_atomic_SwapInt64 sync/atomic.SwapInt64
++func abigen_sync_atomic_SwapInt64(addr *int64, new int64) (old int64)
++
++//go:linkname abigen_sync_atomic_SwapUint32 sync/atomic.SwapUint32
++func abigen_sync_atomic_SwapUint32(addr *uint32, new uint32) (old uint32)
++
++//go:linkname abigen_sync_atomic_SwapUint64 sync/atomic.SwapUint64
++func abigen_sync_atomic_SwapUint64(addr *uint64, new uint64) (old uint64)
++
++//go:linkname abigen_sync_atomic_AddInt32 sync/atomic.AddInt32
++func abigen_sync_atomic_AddInt32(addr *int32, delta int32) (new int32)
++
++//go:linkname abigen_sync_atomic_AddUint32 sync/atomic.AddUint32
++func abigen_sync_atomic_AddUint32(addr *uint32, delta uint32) (new uint32)
++
++//go:linkname abigen_sync_atomic_AddInt64 sync/atomic.AddInt64
++func abigen_sync_atomic_AddInt64(addr *int64, delta int64) (new int64)
++
++//go:linkname abigen_sync_atomic_AddUint64 sync/atomic.AddUint64
++func abigen_sync_atomic_AddUint64(addr *uint64, delta uint64) (new uint64)
++
++//go:linkname abigen_sync_atomic_AddUintptr sync/atomic.AddUintptr
++func abigen_sync_atomic_AddUintptr(addr *uintptr, delta uintptr) (new uintptr)
++
++//go:linkname abigen_sync_atomic_CompareAndSwapInt32 sync/atomic.CompareAndSwapInt32
++func abigen_sync_atomic_CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)
++
++//go:linkname abigen_sync_atomic_CompareAndSwapInt64 sync/atomic.CompareAndSwapInt64
++func abigen_sync_atomic_CompareAndSwapInt64(addr *int64, old, new int64) (swapped bool)
++
++//go:linkname abigen_sync_atomic_CompareAndSwapUint32 sync/atomic.CompareAndSwapUint32
++func abigen_sync_atomic_CompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool)
++
++//go:linkname abigen_sync_atomic_CompareAndSwapUint64 sync/atomic.CompareAndSwapUint64
++func abigen_sync_atomic_CompareAndSwapUint64(addr *uint64, old, new uint64) (swapped bool)

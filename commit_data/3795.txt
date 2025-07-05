@@ -6,7 +6,38 @@ Date:   Wed Nov 4 23:25:29 2009 -0800
     
     R=rsc
     http://go/go-review/1018057
-
+---
  src/pkg/sort/sort.go       | 2 +-
  src/pkg/sync/mutex_test.go | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 1e9832b408..ce7408b90c 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -53,7 +53,7 @@ func medianOfThree(data Interface, a, b, c int) {
+ 	if data.Less(m1, m0) {
+ 		data.Swap(m1, m0);
+ 	}
+-// now data[m0] <= data[m1] <= data[m2]
++	// now data[m0] <= data[m1] <= data[m2]
+ }
+ 
+ func swapRange(data Interface, a, b, n int) {
+diff --git a/src/pkg/sync/mutex_test.go b/src/pkg/sync/mutex_test.go
+index d7be79fff2..03490af122 100644
+--- a/src/pkg/sync/mutex_test.go
++++ b/src/pkg/sync/mutex_test.go
+@@ -7,9 +7,9 @@
+ package sync_test
+ 
+ import (
+-		"runtime";
+-	.	"sync";
+-		"testing";
++	"runtime";
++	. "sync";
++	"testing";
+ )
+ 
+ func HammerSemaphore(s *uint32, cdone chan bool) {

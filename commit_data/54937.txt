@@ -18,7 +18,7 @@ Date:   Tue Nov 22 11:25:08 2022 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go.mod                                     |   8 +-
  src/cmd/go.sum                                     |  16 +-
  .../vendor/golang.org/x/arch/arm/armasm/decode.go  |   8 +-
@@ -36,3 +36,958 @@ Date:   Tue Nov 22 11:25:08 2022 -0500
  .../golang.org/x/text/unicode/bidi/trieval.go      |  12 --
  src/vendor/modules.txt                             |   6 +-
  16 files changed, 359 insertions(+), 127 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 3b199ef54b..b1b1e0e584 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -4,12 +4,12 @@ go 1.20
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1
+-	golang.org/x/arch v0.0.0-20220722155209-00200b7164a7
++	golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a
+ 	golang.org/x/mod v0.7.0
+ 	golang.org/x/sync v0.1.0
+-	golang.org/x/sys v0.2.0
+-	golang.org/x/term v0.1.0
+-	golang.org/x/tools v0.3.1-0.20221121204139-3b9d20c52192
++	golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669
++	golang.org/x/term v0.2.0
++	golang.org/x/tools v0.3.1-0.20221121233702-060c049c4674
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index b0e04ce913..3db3e50ebb 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -2,15 +2,15 @@ github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1 h1:8pyqKJvrJqUYaKS851
+ github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1/go.mod h1:gSuNB+gJaOiQKLEZ+q+PK9Mq3SOzhRcw2GsGS/FhYDk=
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLhLDA8nozr/K289V1zcntHr3V+SHlXwzz1ZI2g=
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+-golang.org/x/arch v0.0.0-20220722155209-00200b7164a7 h1:VBQqJMNMRfQsWSiCTLgz9XjAfWlgnJAPv8nsp1HF8Tw=
+-golang.org/x/arch v0.0.0-20220722155209-00200b7164a7/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
++golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a h1:TpDpIG2bYSheFxm9xw8NNrBKrurU1ZJ59ZMXnpQwPLQ=
++golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+ golang.org/x/mod v0.7.0 h1:LapD9S96VoQRhi/GrNTqeBJFrUjs5UHCAtTlgwA5oZA=
+ golang.org/x/mod v0.7.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+ golang.org/x/sync v0.1.0 h1:wsuoTGHzEhffawBOhz5CYhcrV4IdKZbEyZjBMuTp12o=
+ golang.org/x/sync v0.1.0/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+-golang.org/x/sys v0.2.0 h1:ljd4t30dBnAvMZaQCevtY0xLLD0A+bRZXbgLMLU1F/A=
+-golang.org/x/sys v0.2.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/term v0.1.0 h1:g6Z6vPFA9dYBAF7DWcH6sCcOntplXsDKcliusYijMlw=
+-golang.org/x/term v0.1.0/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.3.1-0.20221121204139-3b9d20c52192 h1:WKkUAWH1gBo+5k1/MzaZPmDNYJP+fwpZUVn6dXGC1Vo=
+-golang.org/x/tools v0.3.1-0.20221121204139-3b9d20c52192/go.mod h1:/rWhSS2+zyEVwoJf8YAX6L2f0ntZ7Kn/mGgAWcipA5k=
++golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669 h1:pvmSpBoSG0gD2LLPAX15QHPig8xsbU0tu1sSAmResqk=
++golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/term v0.2.0 h1:z85xZCsEl7bi/KwbNADeBYoOP0++7W1ipu+aGnpwzRM=
++golang.org/x/term v0.2.0/go.mod h1:TVmDHMZPmdnySmBfhjOoOdhjzdE1h4u1VwSiw2l1Nuc=
++golang.org/x/tools v0.3.1-0.20221121233702-060c049c4674 h1:Lv0Y+JVwLQF2YThz8ImE7rP2FSv/IzV9lS2k7bvua6U=
++golang.org/x/tools v0.3.1-0.20221121233702-060c049c4674/go.mod h1:/rWhSS2+zyEVwoJf8YAX6L2f0ntZ7Kn/mGgAWcipA5k=
+diff --git a/src/cmd/vendor/golang.org/x/arch/arm/armasm/decode.go b/src/cmd/vendor/golang.org/x/arch/arm/armasm/decode.go
+index 6b4d73841b..f61ac1245a 100644
+--- a/src/cmd/vendor/golang.org/x/arch/arm/armasm/decode.go
++++ b/src/cmd/vendor/golang.org/x/arch/arm/armasm/decode.go
+@@ -17,7 +17,9 @@ import (
+ // If x matches the format, then the rest of the fields describe how to interpret x.
+ // The opBits describe bits that should be extracted from x and added to the opcode.
+ // For example opBits = 0x1234 means that the value
++//
+ //	(2 bits at offset 1) followed by (4 bits at offset 3)
++//
+ // should be added to op.
+ // Finally the args describe how to decode the instruction arguments.
+ // args is stored as a fixed-size array; if there are fewer than len(args) arguments,
+@@ -233,9 +235,9 @@ func decodeArg(aop instArg, x uint32) Arg {
+ 		typ, count := decodeShift(x)
+ 		// ROR #0 here means ROR #0, but decodeShift rewrites to RRX #1.
+ 		if typ == RotateRightExt {
+-			return Reg(Rm)
++			return Rm
+ 		}
+-		return RegShift{Rm, typ, uint8(count)}
++		return RegShift{Rm, typ, count}
+ 
+ 	case arg_R_shift_R:
+ 		Rm := Reg(x & (1<<4 - 1))
+@@ -249,7 +251,7 @@ func decodeArg(aop instArg, x uint32) Arg {
+ 		if typ == ShiftLeft && count == 0 {
+ 			return Reg(Rm)
+ 		}
+-		return RegShift{Rm, typ, uint8(count)}
++		return RegShift{Rm, typ, count}
+ 
+ 	case arg_R1_0:
+ 		return Reg((x & (1<<4 - 1)))
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/decode.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/decode.go
+index 59bd3258ef..b8d857c6a6 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/decode.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/decode.go
+@@ -22,9 +22,12 @@ const prefixOpcode = 1
+ // The Args are stored in the same order as the instruction manual.
+ //
+ // Prefixed instructions are stored as:
+-//   prefix << 32 | suffix,
++//
++//	prefix << 32 | suffix,
++//
+ // Regular instructions are:
+-//   inst << 32
++//
++//	inst << 32
+ type instFormat struct {
+ 	Op       Op
+ 	Mask     uint64
+@@ -77,6 +80,12 @@ func (a argField) Parse(i [2]uint32) Arg {
+ 		return Label(a.BitFields.ParseSigned(i) << a.Shift)
+ 	case TypeOffset:
+ 		return Offset(a.BitFields.ParseSigned(i) << a.Shift)
++	case TypeNegOffset:
++		// An oddball encoding of offset for hashchk and similar.
++		// e.g hashchk offset is 0b1111111000000000 | DX << 8 | D << 3
++		off := a.BitFields.ParseSigned(i) << a.Shift
++		neg := int64(-1) << (int(a.Shift) + a.BitFields.NumBits())
++		return Offset(neg | off)
+ 	}
+ }
+ 
+@@ -98,6 +107,7 @@ const (
+ 	TypeImmSigned            // signed immediate
+ 	TypeImmUnsigned          // unsigned immediate/flag/mask, this is the catch-all type
+ 	TypeOffset               // signed offset in load/store
++	TypeNegOffset            // A negative 16 bit value 0b1111111xxxxx000 encoded as 0bxxxxx (e.g in the hashchk instruction)
+ 	TypeLast                 // must be the last one
+ )
+ 
+@@ -135,6 +145,8 @@ func (t ArgType) String() string {
+ 		return "Label"
+ 	case TypeOffset:
+ 		return "Offset"
++	case TypeNegOffset:
++		return "NegOffset"
+ 	}
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/field.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/field.go
+index 882c91ae12..3779446078 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/field.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/field.go
+@@ -67,7 +67,7 @@ func (bs *BitFields) Append(b BitField) {
+ // the sequence of bitfields is reasonable.
+ func (bs BitFields) parse(i [2]uint32) (u uint64, Bits uint8) {
+ 	for _, b := range bs {
+-		u = (uint64(u) << b.Bits) | uint64(b.Parse(i))
++		u = (u << b.Bits) | uint64(b.Parse(i))
+ 		Bits += b.Bits
+ 	}
+ 	return u, Bits
+@@ -86,3 +86,12 @@ func (bs BitFields) ParseSigned(i [2]uint32) int64 {
+ 	u, l := bs.parse(i)
+ 	return int64(u) << (64 - l) >> (64 - l)
+ }
++
++// Count the number of bits in the aggregate BitFields
++func (bs BitFields) NumBits() int {
++	num := 0
++	for _, b := range bs {
++		num += int(b.Bits)
++	}
++	return num
++}
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/plan9.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/plan9.go
+index 88e8e1c747..fcb2a1288d 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/plan9.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/plan9.go
+@@ -83,7 +83,9 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
+ 		STH, STHU,
+ 		STW, STWU,
+ 		STD, STDU,
+-		STQ, STFD, STFDU, STFS, STFSU:
++		STFD, STFDU,
++		STFS, STFSU,
++		STQ, HASHST, HASHSTP:
+ 		return op + " " + strings.Join(args, ",")
+ 
+ 	case FCMPU, FCMPO, CMPD, CMPDI, CMPLD, CMPLDI, CMPW, CMPWI, CMPLW, CMPLWI:
+@@ -168,8 +170,9 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
+ }
+ 
+ // plan9Arg formats arg (which is the argIndex's arg in inst) according to Plan 9 rules.
++//
+ // NOTE: because Plan9Syntax is the only caller of this func, and it receives a copy
+-//       of inst, it's ok to modify inst.Args here.
++// of inst, it's ok to modify inst.Args here.
+ func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64) (string, uint64)) string {
+ 	// special cases for load/store instructions
+ 	if _, ok := arg.(Offset); ok {
+@@ -211,9 +214,16 @@ func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64)
+ 		return fmt.Sprintf("SPR(%d)", int(arg))
+ 	case PCRel:
+ 		addr := pc + uint64(int64(arg))
+-		if s, base := symname(addr); s != "" && base == addr {
++		s, base := symname(addr)
++		if s != "" && addr == base {
+ 			return fmt.Sprintf("%s(SB)", s)
+ 		}
++		if inst.Op == BL && s != "" && (addr-base) == 8 {
++			// When decoding an object built for PIE, a CALL targeting
++			// a global entry point will be adjusted to the local entry
++			// if any. For now, assume any symname+8 PC is a local call.
++			return fmt.Sprintf("%s+%d(SB)", s, addr-base)
++		}
+ 		return fmt.Sprintf("%#x", addr)
+ 	case Label:
+ 		return fmt.Sprintf("%#x", int(arg))
+@@ -251,7 +261,7 @@ func reverseOperandOrder(op Op) bool {
+ 		return true
+ 	case FADDCC, FADDSCC, FSUBCC, FMULCC, FDIVCC, FDIVSCC:
+ 		return true
+-	case OR, ORC, AND, ANDC, XOR, NAND, EQV, NOR, ANDCC, ORCC, XORCC, EQVCC, NORCC, NANDCC:
++	case OR, ORCC, ORC, ORCCC, AND, ANDCC, ANDC, ANDCCC, XOR, XORCC, NAND, NANDCC, EQV, EQVCC, NOR, NORCC:
+ 		return true
+ 	case SLW, SLWCC, SLD, SLDCC, SRW, SRAW, SRWCC, SRAWCC, SRD, SRDCC, SRAD, SRADCC:
+ 		return true
+@@ -305,6 +315,7 @@ var plan9OpMap = map[Op]string{
+ 	ORI:       "OR",
+ 	ANDICC:    "ANDCC",
+ 	ANDC:      "ANDN",
++	ANDCCC:    "ANDNCC",
+ 	ADDEO:     "ADDEV",
+ 	ADDEOCC:   "ADDEVCC",
+ 	ADDO:      "ADDV",
+@@ -321,8 +332,12 @@ var plan9OpMap = map[Op]string{
+ 	SUBFZECC:  "SUBZECC",
+ 	SUBFZEO:   "SUBZEV",
+ 	SUBFZEOCC: "SUBZEVCC",
++	SUBF:      "SUB",
+ 	SUBFC:     "SUBC",
++	SUBFCC:    "SUBCC",
++	SUBFCCC:   "SUBCCC",
+ 	ORC:       "ORN",
++	ORCCC:     "ORNCC",
+ 	MULLWO:    "MULLWV",
+ 	MULLWOCC:  "MULLWVCC",
+ 	MULLDO:    "MULLDV",
+@@ -334,7 +349,6 @@ var plan9OpMap = map[Op]string{
+ 	ADDI:      "ADD",
+ 	MULLI:     "MULLD",
+ 	SRADI:     "SRAD",
+-	SUBF:      "SUB",
+ 	STBCXCC:   "STBCCC",
+ 	STWCXCC:   "STWCCC",
+ 	STDCXCC:   "STDCCC",
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
+index 9e3b26f170..8705077b60 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
+@@ -1,9 +1,13 @@
+-// Code generated by ppc64map -fmt=decoder pp64.csv DO NOT EDIT.
++// Code generated by ppc64map -fmt=decoder ../pp64.csv DO NOT EDIT.
+ 
+ package ppc64asm
+ 
+ const (
+ 	_ Op = iota
++	HASHCHK
++	HASHCHKP
++	HASHST
++	HASHSTP
+ 	BRD
+ 	BRH
+ 	BRW
+@@ -1420,6 +1424,10 @@ const (
+ )
+ 
+ var opstr = [...]string{
++	HASHCHK:        "hashchk",
++	HASHCHKP:       "hashchkp",
++	HASHST:         "hashst",
++	HASHSTP:        "hashstp",
+ 	BRD:            "brd",
+ 	BRH:            "brh",
+ 	BRW:            "brw",
+@@ -2836,9 +2844,10 @@ var opstr = [...]string{
+ }
+ 
+ var (
++	ap_Reg_16_20                     = &argField{Type: TypeReg, Shift: 0, BitFields: BitFields{{16, 5, 0}}}
++	ap_NegOffset_31_31_6_10_shift3   = &argField{Type: TypeNegOffset, Shift: 3, BitFields: BitFields{{31, 1, 0}, {6, 5, 0}}}
+ 	ap_Reg_11_15                     = &argField{Type: TypeReg, Shift: 0, BitFields: BitFields{{11, 5, 0}}}
+ 	ap_Reg_6_10                      = &argField{Type: TypeReg, Shift: 0, BitFields: BitFields{{6, 5, 0}}}
+-	ap_Reg_16_20                     = &argField{Type: TypeReg, Shift: 0, BitFields: BitFields{{16, 5, 0}}}
+ 	ap_FPReg_6_10                    = &argField{Type: TypeFPReg, Shift: 0, BitFields: BitFields{{6, 5, 0}}}
+ 	ap_VecReg_16_20                  = &argField{Type: TypeVecReg, Shift: 0, BitFields: BitFields{{16, 5, 0}}}
+ 	ap_VecReg_6_10                   = &argField{Type: TypeVecReg, Shift: 0, BitFields: BitFields{{6, 5, 0}}}
+@@ -2906,7 +2915,7 @@ var (
+ 	ap_FPReg_11_15                   = &argField{Type: TypeFPReg, Shift: 0, BitFields: BitFields{{11, 5, 0}}}
+ 	ap_ImmUnsigned_7_10              = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{7, 4, 0}}}
+ 	ap_ImmUnsigned_31_31             = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{31, 1, 0}}}
+-	ap_SpReg_11_20                   = &argField{Type: TypeSpReg, Shift: 0, BitFields: BitFields{{11, 10, 0}}}
++	ap_ImmUnsigned_11_20             = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{11, 10, 0}}}
+ 	ap_ImmUnsigned_20_20             = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{20, 1, 0}}}
+ 	ap_ImmUnsigned_16_16             = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{16, 1, 0}}}
+ 	ap_ImmUnsigned_17_20             = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{17, 4, 0}}}
+@@ -2942,6 +2951,14 @@ var (
+ )
+ 
+ var instFormats = [...]instFormat{
++	{HASHCHK, 0xfc0007fe00000000, 0x7c0005e400000000, 0x0, // Hash Check X-form (hashchk RB,offset(RA))
++		[6]*argField{ap_Reg_16_20, ap_NegOffset_31_31_6_10_shift3, ap_Reg_11_15}},
++	{HASHCHKP, 0xfc0007fe00000000, 0x7c00056400000000, 0x0, // Hash Check Privileged X-form (hashchkp RB,offset(RA))
++		[6]*argField{ap_Reg_16_20, ap_NegOffset_31_31_6_10_shift3, ap_Reg_11_15}},
++	{HASHST, 0xfc0007fe00000000, 0x7c0005a400000000, 0x0, // Hash Store X-form (hashst RB,offset(RA))
++		[6]*argField{ap_Reg_16_20, ap_NegOffset_31_31_6_10_shift3, ap_Reg_11_15}},
++	{HASHSTP, 0xfc0007fe00000000, 0x7c00052400000000, 0x0, // Hash Store Privileged X-form (hashstp RB,offset(RA))
++		[6]*argField{ap_Reg_16_20, ap_NegOffset_31_31_6_10_shift3, ap_Reg_11_15}},
+ 	{BRD, 0xfc0007fe00000000, 0x7c00017600000000, 0xf80100000000, // Byte-Reverse Doubleword X-form (brd RA,RS)
+ 		[6]*argField{ap_Reg_11_15, ap_Reg_6_10}},
+ 	{BRH, 0xfc0007fe00000000, 0x7c0001b600000000, 0xf80100000000, // Byte-Reverse Halfword X-form (brh RA,RS)
+@@ -3344,7 +3361,7 @@ var instFormats = [...]instFormat{
+ 		[6]*argField{ap_MMAReg_6_8, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20}},
+ 	{XVBF16GER2PP, 0xfc0007f800000000, 0xec00019000000000, 0x60000100000000, // VSX Vector bfloat16 GER (Rank-2 Update) Positive multiply, Positive accumulate XX3-form (xvbf16ger2pp AT,XA,XB)
+ 		[6]*argField{ap_MMAReg_6_8, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20}},
+-	{XVCVBF16SPN, 0xfc1f07fc00000000, 0xf010076c00000000, 0x0, // VSX Vector Convert bfloat16 to Single-Precision format XX2-form (xvcvbf16spn XT,XB)
++	{XVCVBF16SPN, 0xfc1f07fc00000000, 0xf010076c00000000, 0x0, // VSX Vector Convert bfloat16 to Single-Precision format Non-signaling XX2-form (xvcvbf16spn XT,XB)
+ 		[6]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},
+ 	{XVCVSPBF16, 0xfc1f07fc00000000, 0xf011076c00000000, 0x0, // VSX Vector Convert with round Single-Precision to bfloat16 format XX2-form (xvcvspbf16 XT,XB)
+ 		[6]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},
+@@ -3883,7 +3900,7 @@ var instFormats = [...]instFormat{
+ 	{LXSSPX, 0xfc0007fe00000000, 0x7c00041800000000, 0x0, // Load VSX Scalar Single-Precision Indexed X-form (lxsspx XT,RA,RB)
+ 		[6]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+ 	{MFBHRBE, 0xfc0007fe00000000, 0x7c00025c00000000, 0x100000000, // Move From BHRB XFX-form (mfbhrbe RT,BHRBE)
+-		[6]*argField{ap_Reg_6_10, ap_SpReg_11_20}},
++		[6]*argField{ap_Reg_6_10, ap_ImmUnsigned_11_20}},
+ 	{MFVSRD, 0xfc0007fe00000000, 0x7c00006600000000, 0xf80000000000, // Move From VSR Doubleword X-form (mfvsrd RA,XS)
+ 		[6]*argField{ap_Reg_11_15, ap_VecSReg_31_31_6_10}},
+ 	{MFVSRWZ, 0xfc0007fe00000000, 0x7c0000e600000000, 0xf80000000000, // Move From VSR Word and Zero X-form (mfvsrwz RA,XS)
+@@ -5334,7 +5351,7 @@ var instFormats = [...]instFormat{
+ 		[6]*argField{ap_Reg_6_10, ap_ImmSigned_16_31}},
+ 	{ADDI, 0xfc00000000000000, 0x3800000000000000, 0x0, // Add Immediate D-form (addi RT,RA,SI)
+ 		[6]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_ImmSigned_16_31}},
+-	{ADDIC, 0xfc00000000000000, 0x3000000000000000, 0x0, // Add Immediate Carrying D-formy (addic RT,RA,SI)
++	{ADDIC, 0xfc00000000000000, 0x3000000000000000, 0x0, // Add Immediate Carrying D-form (addic RT,RA,SI)
+ 		[6]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_ImmSigned_16_31}},
+ 	{ADDICCC, 0xfc00000000000000, 0x3400000000000000, 0x0, // Add Immediate Carrying and Record D-form (addic. RT,RA,SI)
+ 		[6]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_ImmSigned_16_31}},
+diff --git a/src/cmd/vendor/golang.org/x/term/terminal.go b/src/cmd/vendor/golang.org/x/term/terminal.go
+index 4b48a5899d..f636667fb0 100644
+--- a/src/cmd/vendor/golang.org/x/term/terminal.go
++++ b/src/cmd/vendor/golang.org/x/term/terminal.go
+@@ -233,7 +233,6 @@ func (t *Terminal) queue(data []rune) {
+ 	t.outBuf = append(t.outBuf, []byte(string(data))...)
+ }
+ 
+-var eraseUnderCursor = []rune{' ', keyEscape, '[', 'D'}
+ var space = []rune{' '}
+ 
+ func isPrintable(key rune) bool {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+index bb0715c02b..5291d1b2cd 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+@@ -18,24 +18,60 @@ import (
+ 
+ const Doc = `check references to loop variables from within nested functions
+ 
+-This analyzer checks for references to loop variables from within a function
+-literal inside the loop body. It checks for patterns where access to a loop
+-variable is known to escape the current loop iteration:
+- 1. a call to go or defer at the end of the loop body
+- 2. a call to golang.org/x/sync/errgroup.Group.Go at the end of the loop body
+- 3. a call testing.T.Run where the subtest body invokes t.Parallel()
+-
+-In the case of (1) and (2), the analyzer only considers references in the last
+-statement of the loop body as it is not deep enough to understand the effects
+-of subsequent statements which might render the reference benign.
+-
+-For example:
+-
+-	for i, v := range s {
+-		go func() {
+-			println(i, v) // not what you might expect
+-		}()
+-	}
++This analyzer reports places where a function literal references the
++iteration variable of an enclosing loop, and the loop calls the function
++in such a way (e.g. with go or defer) that it may outlive the loop
++iteration and possibly observe the wrong value of the variable.
++
++In this example, all the deferred functions run after the loop has
++completed, so all observe the final value of v.
++
++    for _, v := range list {
++        defer func() {
++            use(v) // incorrect
++        }()
++    }
++
++One fix is to create a new variable for each iteration of the loop:
++
++    for _, v := range list {
++        v := v // new var per iteration
++        defer func() {
++            use(v) // ok
++        }()
++    }
++
++The next example uses a go statement and has a similar problem.
++In addition, it has a data race because the loop updates v
++concurrent with the goroutines accessing it.
++
++    for _, v := range elem {
++        go func() {
++            use(v)  // incorrect, and a data race
++        }()
++    }
++
++A fix is the same as before. The checker also reports problems
++in goroutines started by golang.org/x/sync/errgroup.Group.
++A hard-to-spot variant of this form is common in parallel tests:
++
++    func Test(t *testing.T) {
++        for _, test := range tests {
++            t.Run(test.name, func(t *testing.T) {
++                t.Parallel()
++                use(test) // incorrect, and a data race
++            })
++        }
++    }
++
++The t.Parallel() call causes the rest of the function to execute
++concurrent with the loop.
++
++The analyzer reports references only in the last statement,
++as it is not deep enough to understand the effects of subsequent
++statements that might render the reference benign.
++("Last statement" is defined recursively in compound
++statements such as if, switch, and select.)
+ 
+ See: https://golang.org/doc/go_faq.html#closures_and_goroutines`
+ 
+@@ -91,59 +127,121 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		//
+ 		// For go, defer, and errgroup.Group.Go, we ignore all but the last
+ 		// statement, because it's hard to prove go isn't followed by wait, or
+-		// defer by return.
++		// defer by return. "Last" is defined recursively.
+ 		//
++		// TODO: consider allowing the "last" go/defer/Go statement to be followed by
++		// N "trivial" statements, possibly under a recursive definition of "trivial"
++		// so that that checker could, for example, conclude that a go statement is
++		// followed by an if statement made of only trivial statements and trivial expressions,
++		// and hence the go statement could still be checked.
++		forEachLastStmt(body.List, func(last ast.Stmt) {
++			var stmts []ast.Stmt
++			switch s := last.(type) {
++			case *ast.GoStmt:
++				stmts = litStmts(s.Call.Fun)
++			case *ast.DeferStmt:
++				stmts = litStmts(s.Call.Fun)
++			case *ast.ExprStmt: // check for errgroup.Group.Go
++				if call, ok := s.X.(*ast.CallExpr); ok {
++					stmts = litStmts(goInvoke(pass.TypesInfo, call))
++				}
++			}
++			for _, stmt := range stmts {
++				reportCaptured(pass, vars, stmt)
++			}
++		})
++
++		// Also check for testing.T.Run (with T.Parallel).
+ 		// We consider every t.Run statement in the loop body, because there is
+-		// no such commonly used mechanism for synchronizing parallel subtests.
++		// no commonly used mechanism for synchronizing parallel subtests.
+ 		// It is of course theoretically possible to synchronize parallel subtests,
+ 		// though such a pattern is likely to be exceedingly rare as it would be
+ 		// fighting against the test runner.
+-		lastStmt := len(body.List) - 1
+-		for i, s := range body.List {
+-			var stmts []ast.Stmt // statements that must be checked for escaping references
++		for _, s := range body.List {
+ 			switch s := s.(type) {
+-			case *ast.GoStmt:
+-				if i == lastStmt {
+-					stmts = litStmts(s.Call.Fun)
+-				}
+-
+-			case *ast.DeferStmt:
+-				if i == lastStmt {
+-					stmts = litStmts(s.Call.Fun)
+-				}
+-
+-			case *ast.ExprStmt: // check for errgroup.Group.Go and testing.T.Run (with T.Parallel)
++			case *ast.ExprStmt:
+ 				if call, ok := s.X.(*ast.CallExpr); ok {
+-					if i == lastStmt {
+-						stmts = litStmts(goInvoke(pass.TypesInfo, call))
+-					}
+-					if stmts == nil {
+-						stmts = parallelSubtest(pass.TypesInfo, call)
++					for _, stmt := range parallelSubtest(pass.TypesInfo, call) {
++						reportCaptured(pass, vars, stmt)
+ 					}
++
+ 				}
+ 			}
++		}
++	})
++	return nil, nil
++}
+ 
+-			for _, stmt := range stmts {
+-				ast.Inspect(stmt, func(n ast.Node) bool {
+-					id, ok := n.(*ast.Ident)
+-					if !ok {
+-						return true
+-					}
+-					obj := pass.TypesInfo.Uses[id]
+-					if obj == nil {
+-						return true
+-					}
+-					for _, v := range vars {
+-						if v == obj {
+-							pass.ReportRangef(id, "loop variable %s captured by func literal", id.Name)
+-						}
+-					}
+-					return true
+-				})
++// reportCaptured reports a diagnostic stating a loop variable
++// has been captured by a func literal if checkStmt has escaping
++// references to vars. vars is expected to be variables updated by a loop statement,
++// and checkStmt is expected to be a statements from the body of a func literal in the loop.
++func reportCaptured(pass *analysis.Pass, vars []types.Object, checkStmt ast.Stmt) {
++	ast.Inspect(checkStmt, func(n ast.Node) bool {
++		id, ok := n.(*ast.Ident)
++		if !ok {
++			return true
++		}
++		obj := pass.TypesInfo.Uses[id]
++		if obj == nil {
++			return true
++		}
++		for _, v := range vars {
++			if v == obj {
++				pass.ReportRangef(id, "loop variable %s captured by func literal", id.Name)
+ 			}
+ 		}
++		return true
+ 	})
+-	return nil, nil
++}
++
++// forEachLastStmt calls onLast on each "last" statement in a list of statements.
++// "Last" is defined recursively so, for example, if the last statement is
++// a switch statement, then each switch case is also visited to examine
++// its last statements.
++func forEachLastStmt(stmts []ast.Stmt, onLast func(last ast.Stmt)) {
++	if len(stmts) == 0 {
++		return
++	}
++
++	s := stmts[len(stmts)-1]
++	switch s := s.(type) {
++	case *ast.IfStmt:
++	loop:
++		for {
++			forEachLastStmt(s.Body.List, onLast)
++			switch e := s.Else.(type) {
++			case *ast.BlockStmt:
++				forEachLastStmt(e.List, onLast)
++				break loop
++			case *ast.IfStmt:
++				s = e
++			case nil:
++				break loop
++			}
++		}
++	case *ast.ForStmt:
++		forEachLastStmt(s.Body.List, onLast)
++	case *ast.RangeStmt:
++		forEachLastStmt(s.Body.List, onLast)
++	case *ast.SwitchStmt:
++		for _, c := range s.Body.List {
++			cc := c.(*ast.CaseClause)
++			forEachLastStmt(cc.Body, onLast)
++		}
++	case *ast.TypeSwitchStmt:
++		for _, c := range s.Body.List {
++			cc := c.(*ast.CaseClause)
++			forEachLastStmt(cc.Body, onLast)
++		}
++	case *ast.SelectStmt:
++		for _, c := range s.Body.List {
++			cc := c.(*ast.CommClause)
++			forEachLastStmt(cc.Body, onLast)
++		}
++	default:
++		onLast(s)
++	}
+ }
+ 
+ // litStmts returns all statements from the function body of a function
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index b090daf0ff..a04ca6308a 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -17,7 +17,7 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2
+ ## explicit; go 1.12
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.0.0-20220722155209-00200b7164a7
++# golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a
+ ## explicit; go 1.17
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+@@ -37,16 +37,16 @@ golang.org/x/mod/zip
+ # golang.org/x/sync v0.1.0
+ ## explicit
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.2.0
++# golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669
+ ## explicit; go 1.17
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/term v0.1.0
++# golang.org/x/term v0.2.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.3.1-0.20221121204139-3b9d20c52192
++# golang.org/x/tools v0.3.1-0.20221121233702-060c049c4674
+ ## explicit; go 1.18
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+diff --git a/src/go.mod b/src/go.mod
+index ac0d8929c2..874b035dd2 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,10 +4,10 @@ go 1.20
+ 
+ require (
+ 	golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a
+-	golang.org/x/net v0.2.0
++	golang.org/x/net v0.2.1-0.20221117215542-ecf7fda6a59e
+ )
+ 
+ require (
+-	golang.org/x/sys v0.2.0 // indirect
+-	golang.org/x/text v0.4.0 // indirect
++	golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669 // indirect
++	golang.org/x/text v0.4.1-0.20221110184632-c8236a6712b1 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index cb3d39f122..3ff1619712 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+ golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a h1:diz9pEYuTIuLMJLs3rGDkeaTsNyRs6duYdFyPAxzE/U=
+ golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a/go.mod h1:hebNnKkNXi2UzZN1eVRvBB7co0a+JxK6XbPiWVs/3J4=
+-golang.org/x/net v0.2.0 h1:sZfSu1wtKLGlWI4ZZayP0ck9Y73K1ynO6gqzTdBVdPU=
+-golang.org/x/net v0.2.0/go.mod h1:KqCZLdyyvdV855qA2rE3GC2aiw5xGR5TEjj8smXukLY=
+-golang.org/x/sys v0.2.0 h1:ljd4t30dBnAvMZaQCevtY0xLLD0A+bRZXbgLMLU1F/A=
+-golang.org/x/sys v0.2.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/text v0.4.0 h1:BrVqGRd7+k1DiOgtnFvAkoQEWQvBc25ouMJM6429SFg=
+-golang.org/x/text v0.4.0/go.mod h1:mrYo+phRRbMaCq/xk9113O4dZlRixOauAjOtrjsXDZ8=
++golang.org/x/net v0.2.1-0.20221117215542-ecf7fda6a59e h1:IVOjWZQH/57UDcpX19vSmMz8w3ohroOMWohn8qWpRkg=
++golang.org/x/net v0.2.1-0.20221117215542-ecf7fda6a59e/go.mod h1:KqCZLdyyvdV855qA2rE3GC2aiw5xGR5TEjj8smXukLY=
++golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669 h1:pvmSpBoSG0gD2LLPAX15QHPig8xsbU0tu1sSAmResqk=
++golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/text v0.4.1-0.20221110184632-c8236a6712b1 h1:MeNvOWn/3xRkkONM8Kq3bqSSC5YU33Xf00gGusqEuss=
++golang.org/x/text v0.4.1-0.20221110184632-c8236a6712b1/go.mod h1:mrYo+phRRbMaCq/xk9113O4dZlRixOauAjOtrjsXDZ8=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 26543c2b32..e36b31dfc3 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -3837,6 +3837,19 @@ type http2Server struct {
+ 	// the HTTP/2 spec's recommendations.
+ 	MaxConcurrentStreams uint32
+ 
++	// MaxDecoderHeaderTableSize optionally specifies the http2
++	// SETTINGS_HEADER_TABLE_SIZE to send in the initial settings frame. It
++	// informs the remote endpoint of the maximum size of the header compression
++	// table used to decode header blocks, in octets. If zero, the default value
++	// of 4096 is used.
++	MaxDecoderHeaderTableSize uint32
++
++	// MaxEncoderHeaderTableSize optionally specifies an upper limit for the
++	// header compression table used for encoding request headers. Received
++	// SETTINGS_HEADER_TABLE_SIZE settings are capped at this limit. If zero,
++	// the default value of 4096 is used.
++	MaxEncoderHeaderTableSize uint32
++
+ 	// MaxReadFrameSize optionally specifies the largest frame
+ 	// this server is willing to read. A valid value is between
+ 	// 16k and 16M, inclusive. If zero or otherwise invalid, a
+@@ -3909,6 +3922,20 @@ func (s *http2Server) maxConcurrentStreams() uint32 {
+ 	return http2defaultMaxStreams
+ }
+ 
++func (s *http2Server) maxDecoderHeaderTableSize() uint32 {
++	if v := s.MaxDecoderHeaderTableSize; v > 0 {
++		return v
++	}
++	return http2initialHeaderTableSize
++}
++
++func (s *http2Server) maxEncoderHeaderTableSize() uint32 {
++	if v := s.MaxEncoderHeaderTableSize; v > 0 {
++		return v
++	}
++	return http2initialHeaderTableSize
++}
++
+ // maxQueuedControlFrames is the maximum number of control frames like
+ // SETTINGS, PING and RST_STREAM that will be queued for writing before
+ // the connection is closed to prevent memory exhaustion attacks.
+@@ -4133,7 +4160,6 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
+ 		advMaxStreams:               s.maxConcurrentStreams(),
+ 		initialStreamSendWindowSize: http2initialWindowSize,
+ 		maxFrameSize:                http2initialMaxFrameSize,
+-		headerTableSize:             http2initialHeaderTableSize,
+ 		serveG:                      http2newGoroutineLock(),
+ 		pushEnabled:                 true,
+ 		sawClientPreface:            opts.SawClientPreface,
+@@ -4163,12 +4189,13 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
+ 	sc.flow.add(http2initialWindowSize)
+ 	sc.inflow.add(http2initialWindowSize)
+ 	sc.hpackEncoder = hpack.NewEncoder(&sc.headerWriteBuf)
++	sc.hpackEncoder.SetMaxDynamicTableSizeLimit(s.maxEncoderHeaderTableSize())
+ 
+ 	fr := http2NewFramer(sc.bw, c)
+ 	if s.CountError != nil {
+ 		fr.countError = s.CountError
+ 	}
+-	fr.ReadMetaHeaders = hpack.NewDecoder(http2initialHeaderTableSize, nil)
++	fr.ReadMetaHeaders = hpack.NewDecoder(s.maxDecoderHeaderTableSize(), nil)
+ 	fr.MaxHeaderListSize = sc.maxHeaderListSize()
+ 	fr.SetMaxReadFrameSize(s.maxReadFrameSize())
+ 	sc.framer = fr
+@@ -4298,7 +4325,6 @@ type http2serverConn struct {
+ 	streams                     map[uint32]*http2stream
+ 	initialStreamSendWindowSize int32
+ 	maxFrameSize                int32
+-	headerTableSize             uint32
+ 	peerMaxHeaderListSize       uint32            // zero means unknown (default)
+ 	canonHeader                 map[string]string // http2-lower-case -> Go-Canonical-Case
+ 	writingFrame                bool              // started writing a frame (on serve goroutine or separate)
+@@ -4606,6 +4632,7 @@ func (sc *http2serverConn) serve() {
+ 			{http2SettingMaxFrameSize, sc.srv.maxReadFrameSize()},
+ 			{http2SettingMaxConcurrentStreams, sc.advMaxStreams},
+ 			{http2SettingMaxHeaderListSize, sc.maxHeaderListSize()},
++			{http2SettingHeaderTableSize, sc.srv.maxDecoderHeaderTableSize()},
+ 			{http2SettingInitialWindowSize, uint32(sc.srv.initialStreamRecvWindowSize())},
+ 		},
+ 	})
+@@ -5405,7 +5432,6 @@ func (sc *http2serverConn) processSetting(s http2Setting) error {
+ 	}
+ 	switch s.ID {
+ 	case http2SettingHeaderTableSize:
+-		sc.headerTableSize = s.Val
+ 		sc.hpackEncoder.SetMaxDynamicTableSize(s.Val)
+ 	case http2SettingEnablePush:
+ 		sc.pushEnabled = s.Val != 0
+@@ -7045,6 +7071,28 @@ type http2Transport struct {
+ 	// to mean no limit.
+ 	MaxHeaderListSize uint32
+ 
++	// MaxReadFrameSize is the http2 SETTINGS_MAX_FRAME_SIZE to send in the
++	// initial settings frame. It is the size in bytes of the largest frame
++	// payload that the sender is willing to receive. If 0, no setting is
++	// sent, and the value is provided by the peer, which should be 16384
++	// according to the spec:
++	// https://datatracker.ietf.org/doc/html/rfc7540#section-6.5.2.
++	// Values are bounded in the range 16k to 16M.
++	MaxReadFrameSize uint32
++
++	// MaxDecoderHeaderTableSize optionally specifies the http2
++	// SETTINGS_HEADER_TABLE_SIZE to send in the initial settings frame. It
++	// informs the remote endpoint of the maximum size of the header compression
++	// table used to decode header blocks, in octets. If zero, the default value
++	// of 4096 is used.
++	MaxDecoderHeaderTableSize uint32
++
++	// MaxEncoderHeaderTableSize optionally specifies an upper limit for the
++	// header compression table used for encoding request headers. Received
++	// SETTINGS_HEADER_TABLE_SIZE settings are capped at this limit. If zero,
++	// the default value of 4096 is used.
++	MaxEncoderHeaderTableSize uint32
++
+ 	// StrictMaxConcurrentStreams controls whether the server's
+ 	// SETTINGS_MAX_CONCURRENT_STREAMS should be respected
+ 	// globally. If false, new TCP connections are created to the
+@@ -7098,6 +7146,19 @@ func (t *http2Transport) maxHeaderListSize() uint32 {
+ 	return t.MaxHeaderListSize
+ }
+ 
++func (t *http2Transport) maxFrameReadSize() uint32 {
++	if t.MaxReadFrameSize == 0 {
++		return 0 // use the default provided by the peer
++	}
++	if t.MaxReadFrameSize < http2minMaxFrameSize {
++		return http2minMaxFrameSize
++	}
++	if t.MaxReadFrameSize > http2maxFrameSize {
++		return http2maxFrameSize
++	}
++	return t.MaxReadFrameSize
++}
++
+ func (t *http2Transport) disableCompression() bool {
+ 	return t.DisableCompression || (t.t1 != nil && t.t1.DisableCompression)
+ }
+@@ -7220,10 +7281,11 @@ type http2ClientConn struct {
+ 	lastActive      time.Time
+ 	lastIdle        time.Time // time last idle
+ 	// Settings from peer: (also guarded by wmu)
+-	maxFrameSize          uint32
+-	maxConcurrentStreams  uint32
+-	peerMaxHeaderListSize uint64
+-	initialWindowSize     uint32
++	maxFrameSize           uint32
++	maxConcurrentStreams   uint32
++	peerMaxHeaderListSize  uint64
++	peerMaxHeaderTableSize uint32
++	initialWindowSize      uint32
+ 
+ 	// reqHeaderMu is a 1-element semaphore channel controlling access to sending new requests.
+ 	// Write to reqHeaderMu to lock it, read from it to unlock.
+@@ -7609,6 +7671,20 @@ func (t *http2Transport) expectContinueTimeout() time.Duration {
+ 	return t.t1.ExpectContinueTimeout
+ }
+ 
++func (t *http2Transport) maxDecoderHeaderTableSize() uint32 {
++	if v := t.MaxDecoderHeaderTableSize; v > 0 {
++		return v
++	}
++	return http2initialHeaderTableSize
++}
++
++func (t *http2Transport) maxEncoderHeaderTableSize() uint32 {
++	if v := t.MaxEncoderHeaderTableSize; v > 0 {
++		return v
++	}
++	return http2initialHeaderTableSize
++}
++
+ func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
+ 	return t.newClientConn(c, t.disableKeepAlives())
+ }
+@@ -7649,15 +7725,19 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
+ 	})
+ 	cc.br = bufio.NewReader(c)
+ 	cc.fr = http2NewFramer(cc.bw, cc.br)
++	if t.maxFrameReadSize() != 0 {
++		cc.fr.SetMaxReadFrameSize(t.maxFrameReadSize())
++	}
+ 	if t.CountError != nil {
+ 		cc.fr.countError = t.CountError
+ 	}
+-	cc.fr.ReadMetaHeaders = hpack.NewDecoder(http2initialHeaderTableSize, nil)
++	maxHeaderTableSize := t.maxDecoderHeaderTableSize()
++	cc.fr.ReadMetaHeaders = hpack.NewDecoder(maxHeaderTableSize, nil)
+ 	cc.fr.MaxHeaderListSize = t.maxHeaderListSize()
+ 
+-	// TODO: SetMaxDynamicTableSize, SetMaxDynamicTableSizeLimit on
+-	// henc in response to SETTINGS frames?
+ 	cc.henc = hpack.NewEncoder(&cc.hbuf)
++	cc.henc.SetMaxDynamicTableSizeLimit(t.maxEncoderHeaderTableSize())
++	cc.peerMaxHeaderTableSize = http2initialHeaderTableSize
+ 
+ 	if t.AllowHTTP {
+ 		cc.nextStreamID = 3
+@@ -7672,9 +7752,15 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
+ 		{ID: http2SettingEnablePush, Val: 0},
+ 		{ID: http2SettingInitialWindowSize, Val: http2transportDefaultStreamFlow},
+ 	}
++	if max := t.maxFrameReadSize(); max != 0 {
++		initialSettings = append(initialSettings, http2Setting{ID: http2SettingMaxFrameSize, Val: max})
++	}
+ 	if max := t.maxHeaderListSize(); max != 0 {
+ 		initialSettings = append(initialSettings, http2Setting{ID: http2SettingMaxHeaderListSize, Val: max})
+ 	}
++	if maxHeaderTableSize != http2initialHeaderTableSize {
++		initialSettings = append(initialSettings, http2Setting{ID: http2SettingHeaderTableSize, Val: maxHeaderTableSize})
++	}
+ 
+ 	cc.bw.Write(http2clientPreface)
+ 	cc.fr.WriteSettings(initialSettings...)
+@@ -9701,8 +9787,10 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
+ 			cc.cond.Broadcast()
+ 
+ 			cc.initialWindowSize = s.Val
++		case http2SettingHeaderTableSize:
++			cc.henc.SetMaxDynamicTableSize(s.Val)
++			cc.peerMaxHeaderTableSize = s.Val
+ 		default:
+-			// TODO(bradfitz): handle more settings? SETTINGS_HEADER_TABLE_SIZE probably.
+ 			cc.vlogf("Unhandled Setting: %v", s)
+ 		}
+ 		return nil
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/encode.go b/src/vendor/golang.org/x/net/http2/hpack/encode.go
+index 6886dc163c..46219da2b0 100644
+--- a/src/vendor/golang.org/x/net/http2/hpack/encode.go
++++ b/src/vendor/golang.org/x/net/http2/hpack/encode.go
+@@ -116,6 +116,11 @@ func (e *Encoder) SetMaxDynamicTableSize(v uint32) {
+ 	e.dynTab.setMaxSize(v)
+ }
+ 
++// MaxDynamicTableSize returns the current dynamic header table size.
++func (e *Encoder) MaxDynamicTableSize() (v uint32) {
++	return e.dynTab.maxSize
++}
++
+ // SetMaxDynamicTableSizeLimit changes the maximum value that can be
+ // specified in SetMaxDynamicTableSize to v. By default, it is set to
+ // 4096, which is the same size of the default dynamic header table
+diff --git a/src/vendor/golang.org/x/text/unicode/bidi/trieval.go b/src/vendor/golang.org/x/text/unicode/bidi/trieval.go
+index 4c459c4b72..6a796e2214 100644
+--- a/src/vendor/golang.org/x/text/unicode/bidi/trieval.go
++++ b/src/vendor/golang.org/x/text/unicode/bidi/trieval.go
+@@ -37,18 +37,6 @@ const (
+ 	unknownClass = ^Class(0)
+ )
+ 
+-var controlToClass = map[rune]Class{
+-	0x202D: LRO, // LeftToRightOverride,
+-	0x202E: RLO, // RightToLeftOverride,
+-	0x202A: LRE, // LeftToRightEmbedding,
+-	0x202B: RLE, // RightToLeftEmbedding,
+-	0x202C: PDF, // PopDirectionalFormat,
+-	0x2066: LRI, // LeftToRightIsolate,
+-	0x2067: RLI, // RightToLeftIsolate,
+-	0x2068: FSI, // FirstStrongIsolate,
+-	0x2069: PDI, // PopDirectionalIsolate,
+-}
+-
+ // A trie entry has the following bits:
+ // 7..5  XOR mask for brackets
+ // 4     1: Bracket open, 0: Bracket close
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index a41fde2c8b..0854beacdd 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.2.0
++# golang.org/x/net v0.2.1-0.20221117215542-ecf7fda6a59e
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -17,10 +17,10 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.2.0
++# golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669
+ ## explicit; go 1.17
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.4.0
++# golang.org/x/text v0.4.1-0.20221110184632-c8236a6712b1
+ ## explicit; go 1.17
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

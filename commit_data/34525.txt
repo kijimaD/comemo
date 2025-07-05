@@ -16,10 +16,112 @@ Date:   Fri Oct 27 14:11:21 2017 -0400
     Change-Id: I43bf4bb661d3adde2b2d4aad5e8f64b97bc69ba9
     Reviewed-on: https://go-review.googlesource.com/73994
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/life/main.go   |  5 +++--
  misc/cgo/stdio/chain.go |  2 +-
  misc/cgo/stdio/fib.go   |  2 +-
  misc/cgo/stdio/hello.go |  2 +-
  test/run.go             | 37 +++++++++++++++++++++++++++++++------
  5 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/misc/cgo/life/main.go b/misc/cgo/life/main.go
+index aa2f6d116b..45376fd05a 100644
+--- a/misc/cgo/life/main.go
++++ b/misc/cgo/life/main.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// cmpout -tags=use_go_run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -11,9 +11,10 @@
+ package main
+ 
+ import (
+-	"."
+ 	"flag"
+ 	"fmt"
++
++	"."
+ )
+ 
+ const MAXDIM = 100
+diff --git a/misc/cgo/stdio/chain.go b/misc/cgo/stdio/chain.go
+index 03cddb7688..0fa813cab7 100644
+--- a/misc/cgo/stdio/chain.go
++++ b/misc/cgo/stdio/chain.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// cmpout -tags=use_go_run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/misc/cgo/stdio/fib.go b/misc/cgo/stdio/fib.go
+index 61a1b83728..56e32552ee 100644
+--- a/misc/cgo/stdio/fib.go
++++ b/misc/cgo/stdio/fib.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// cmpout -tags=use_go_run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/misc/cgo/stdio/hello.go b/misc/cgo/stdio/hello.go
+index 47179ba482..63bff4c617 100644
+--- a/misc/cgo/stdio/hello.go
++++ b/misc/cgo/stdio/hello.go
+@@ -1,4 +1,4 @@
+-// cmpout
++// cmpout -tags=use_go_run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index 921a8ee332..e33539eb0f 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -799,13 +799,38 @@ func (t *test) run() {
+ 
+ 	case "run":
+ 		useTmp = false
+-		cmd := []string{"go", "run", goGcflags()}
+-		if *linkshared {
+-			cmd = append(cmd, "-linkshared")
++		var out []byte
++		var err error
++		if len(flags)+len(args) == 0 && goGcflags() == "" && !*linkshared {
++			// If we're not using special go command flags,
++			// skip all the go command machinery.
++			// This avoids any time the go command would
++			// spend checking whether, for example, the installed
++			// package runtime is up to date.
++			// Because we run lots of trivial test programs,
++			// the time adds up.
++			pkg := filepath.Join(t.tempDir, "pkg.a")
++			if _, err := runcmd("go", "tool", "compile", "-o", pkg, t.goFileName()); err != nil {
++				t.err = err
++				return
++			}
++			exe := filepath.Join(t.tempDir, "test.exe")
++			cmd := []string{"go", "tool", "link", "-s", "-w"}
++			cmd = append(cmd, "-o", exe, pkg)
++			if _, err := runcmd(cmd...); err != nil {
++				t.err = err
++				return
++			}
++			out, err = runcmd(append([]string{exe}, args...)...)
++		} else {
++			cmd := []string{"go", "run", goGcflags()}
++			if *linkshared {
++				cmd = append(cmd, "-linkshared")
++			}
++			cmd = append(cmd, flags...)
++			cmd = append(cmd, t.goFileName())
++			out, err = runcmd(append(cmd, args...)...)
+ 		}
+-		cmd = append(cmd, flags...)
+-		cmd = append(cmd, t.goFileName())
+-		out, err := runcmd(append(cmd, args...)...)
+ 		if err != nil {
+ 			t.err = err
+ 			return

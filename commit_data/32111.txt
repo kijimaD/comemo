@@ -86,7 +86,7 @@ Date:   Wed Apr 5 07:05:35 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go |  4 +--
  src/cmd/asm/main.go                       |  2 +-
  src/cmd/compile/internal/gc/gsubr.go      | 54 +++++++++++++++++++++++++------
@@ -95,3 +95,250 @@ Date:   Wed Apr 5 07:05:35 2017 -0700
  src/cmd/internal/obj/plist.go             | 18 +++--------
  src/cmd/internal/obj/util.go              | 17 +++-------
  7 files changed, 59 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index d1a35c017c..a105ce725f 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -179,7 +179,7 @@ Diff:
+ 		t.Errorf(format, args...)
+ 		ok = false
+ 	}
+-	obj.FlushplistNoFree(ctxt, pList)
++	obj.Flushplist(ctxt, pList, nil)
+ 
+ 	for p := top; p != nil; p = p.Link {
+ 		if p.As == obj.ATEXT {
+@@ -283,7 +283,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ 		errBuf.WriteString(s)
+ 	}
+ 	pList.Firstpc, ok = parser.Parse()
+-	obj.Flushplist(ctxt, pList)
++	obj.Flushplist(ctxt, pList, nil)
+ 	if ok && !failed {
+ 		t.Errorf("asm: %s had no errors", goarch)
+ 	}
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 627cce3380..3aab0d00a2 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -69,7 +69,7 @@ func main() {
+ 			break
+ 		}
+ 		// reports errors to parser.Errorf
+-		obj.Flushplist(ctxt, pList)
++		obj.Flushplist(ctxt, pList, nil)
+ 	}
+ 	if ok {
+ 		obj.WriteObjFile(ctxt, buf)
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 353a5afb57..b3ef556029 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -35,22 +35,33 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
++var sharedProgArray *[10000]obj.Prog // *T instead of T to work around issue 19839
++
++func init() {
++	sharedProgArray = new([10000]obj.Prog)
++}
++
+ // Progs accumulates Progs for a function and converts them into machine code.
+ type Progs struct {
+-	Text  *obj.Prog // ATEXT Prog for this function
+-	next  *obj.Prog // next Prog
+-	pc    int64     // virtual PC; count of Progs
+-	pos   src.XPos  // position to use for new Progs
+-	curfn *Node     // fn these Progs are for
++	Text      *obj.Prog  // ATEXT Prog for this function
++	next      *obj.Prog  // next Prog
++	pc        int64      // virtual PC; count of Progs
++	pos       src.XPos   // position to use for new Progs
++	curfn     *Node      // fn these Progs are for
++	progcache []obj.Prog // local progcache
++	cacheidx  int        // first free element of progcache
+ }
+ 
+ // newProgs returns a new Progs for fn.
+ func newProgs(fn *Node) *Progs {
+ 	pp := new(Progs)
++	if Ctxt.CanReuseProgs() {
++		pp.progcache = sharedProgArray[:]
++	}
+ 	pp.curfn = fn
+ 
+ 	// prime the pump
+-	pp.next = Ctxt.NewProg()
++	pp.next = pp.NewProg()
+ 	pp.clearp(pp.next)
+ 
+ 	pp.pos = fn.Pos
+@@ -58,18 +69,41 @@ func newProgs(fn *Node) *Progs {
+ 	return pp
+ }
+ 
++func (pp *Progs) NewProg() *obj.Prog {
++	if pp.cacheidx < len(pp.progcache) {
++		p := &pp.progcache[pp.cacheidx]
++		p.Ctxt = Ctxt
++		pp.cacheidx++
++		return p
++	}
++	p := new(obj.Prog)
++	p.Ctxt = Ctxt
++	return p
++}
++
+ // Flush converts from pp to machine code.
+ func (pp *Progs) Flush() {
+ 	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.curfn}
+-	obj.Flushplist(Ctxt, plist)
+-	// Clear pp to enable GC and avoid abuse.
++	obj.Flushplist(Ctxt, plist, pp.NewProg)
++}
++
++// Free clears pp and any associated resources.
++func (pp *Progs) Free() {
++	if Ctxt.CanReuseProgs() {
++		// Clear progs to enable GC and avoid abuse.
++		s := pp.progcache[:pp.cacheidx]
++		for i := range s {
++			s[i] = obj.Prog{}
++		}
++	}
++	// Clear pp to avoid abuse.
+ 	*pp = Progs{}
+ }
+ 
+ // Prog adds a Prog with instruction As to pp.
+ func (pp *Progs) Prog(as obj.As) *obj.Prog {
+ 	p := pp.next
+-	pp.next = Ctxt.NewProg()
++	pp.next = pp.NewProg()
+ 	pp.clearp(pp.next)
+ 	p.Link = pp.next
+ 
+@@ -90,7 +124,7 @@ func (pp *Progs) clearp(p *obj.Prog) {
+ }
+ 
+ func (pp *Progs) Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset int64, ttype obj.AddrType, treg int16, toffset int64) *obj.Prog {
+-	q := Ctxt.NewProg()
++	q := pp.NewProg()
+ 	pp.clearp(q)
+ 	q.As = as
+ 	q.Pos = p.Pos
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index d835d949de..12bb7bc66b 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -301,11 +301,12 @@ func compile(fn *Node) {
+ 	pp := newProgs(fn)
+ 	genssa(ssafn, pp)
+ 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
+-	if pp.Text.To.Offset >= 1<<31 {
++	if pp.Text.To.Offset < 1<<31 {
++		pp.Flush()
++	} else {
+ 		largeStackFrames = append(largeStackFrames, fn.Pos)
+-		return
+ 	}
+-	pp.Flush()
++	pp.Free()
+ }
+ 
+ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 6800c611e0..53a9428e72 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -749,10 +749,6 @@ type Link struct {
+ 	// state for writing objects
+ 	Text []*LSym
+ 	Data []*LSym
+-
+-	// Cache of Progs
+-	allocIdx int
+-	progs    [10000]Prog
+ }
+ 
+ func (ctxt *Link) Diag(format string, args ...interface{}) {
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index d538e0759e..7f355b135a 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -19,13 +19,7 @@ type Plist struct {
+ // It is used to provide access to cached/bulk-allocated Progs to the assemblers.
+ type ProgAlloc func() *Prog
+ 
+-func Flushplist(ctxt *Link, plist *Plist) {
+-	flushplist(ctxt, plist, !ctxt.Debugasm)
+-}
+-func FlushplistNoFree(ctxt *Link, plist *Plist) {
+-	flushplist(ctxt, plist, false)
+-}
+-func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
++func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+ 	// Build list of symbols, and assign instructions to lists.
+ 	var curtext *LSym
+ 	var etext *Prog
+@@ -101,7 +95,9 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 		etext = p
+ 	}
+ 
+-	newprog := ProgAlloc(ctxt.NewProg)
++	if newprog == nil {
++		newprog = ctxt.NewProg
++	}
+ 
+ 	// Add reference to Go arguments for C or assembly functions without them.
+ 	for _, s := range text {
+@@ -135,16 +131,10 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 		ctxt.Arch.Assemble(ctxt, s, newprog)
+ 		linkpcln(ctxt, s)
+ 		makeFuncDebugEntry(ctxt, plist.Curfn, s)
+-		if freeProgs {
+-			s.Text = nil
+-		}
+ 	}
+ 
+ 	// Add to running list in ctxt.
+ 	ctxt.Text = append(ctxt.Text, text...)
+-	if freeProgs {
+-		ctxt.freeProgs()
+-	}
+ }
+ 
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 3e54b2efc0..97a3fe95bc 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -163,22 +163,13 @@ func (p *Prog) String() string {
+ }
+ 
+ func (ctxt *Link) NewProg() *Prog {
+-	var p *Prog
+-	if i := ctxt.allocIdx; i < len(ctxt.progs) {
+-		p = &ctxt.progs[i]
+-		ctxt.allocIdx = i + 1
+-	} else {
+-		p = new(Prog) // should be the only call to this; all others should use ctxt.NewProg
+-	}
++	p := new(Prog)
+ 	p.Ctxt = ctxt
+ 	return p
+ }
+-func (ctxt *Link) freeProgs() {
+-	s := ctxt.progs[:ctxt.allocIdx]
+-	for i := range s {
+-		s[i] = Prog{}
+-	}
+-	ctxt.allocIdx = 0
++
++func (ctxt *Link) CanReuseProgs() bool {
++	return !ctxt.Debugasm
+ }
+ 
+ func (ctxt *Link) Dconv(a *Addr) string {

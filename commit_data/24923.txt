@@ -9,7 +9,42 @@ Date:   Thu Sep 3 00:39:53 2015 +0200
     Change-Id: Iead77fe34d986cfd5c16bac671fe13c8d012a754
     Reviewed-on: https://go-review.googlesource.com/14178
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/format.go      |  2 +-
  src/time/format_test.go | 10 ++++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 873d3ffde9..6cf7946711 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -518,7 +518,7 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 		case stdZeroMinute:
+ 			b = appendInt(b, min, 2)
+ 		case stdSecond:
+-			b = appendInt(b, sec, 2)
++			b = appendInt(b, sec, 0)
+ 		case stdZeroSecond:
+ 			b = appendInt(b, sec, 2)
+ 		case stdPM:
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index ecc5c8f28a..d44347aed5 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -74,6 +74,16 @@ func TestFormat(t *testing.T) {
+ 	}
+ }
+ 
++// issue 12440.
++func TestFormatSingleDigits(t *testing.T) {
++	time := Date(2001, 2, 3, 4, 5, 6, 700000000, UTC)
++	test := FormatTest{"single digit format", "3:4:5", "4:5:6"}
++	result := time.Format(test.format)
++	if result != test.result {
++		t.Errorf("%s expected %q got %q", test.name, test.result, result)
++	}
++}
++
+ func TestFormatShortYear(t *testing.T) {
+ 	years := []int{
+ 		-100001, -100000, -99999,

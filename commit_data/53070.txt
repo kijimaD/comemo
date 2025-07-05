@@ -19,6 +19,19 @@ Date:   Tue Jun 28 14:47:49 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/base/base.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/base.go b/src/cmd/compile/internal/base/base.go
+index 5e1493e275..39ce8e66f7 100644
+--- a/src/cmd/compile/internal/base/base.go
++++ b/src/cmd/compile/internal/base/base.go
+@@ -70,7 +70,6 @@ var NoInstrumentPkgs = []string{
+ 	"runtime/msan",
+ 	"runtime/asan",
+ 	"internal/cpu",
+-	"buildcfg",
+ }
+ 
+ // Don't insert racefuncenter/racefuncexit into the following packages.

@@ -7,6 +7,27 @@ Date:   Mon Aug 11 21:37:46 2008 -0700
     R=gri
     OCL=14105
     CL=14105
-
+---
  src/lib/fmt.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/fmt.go b/src/lib/fmt.go
+index 2aafb57b3e..d68d9dbf23 100644
+--- a/src/lib/fmt.go
++++ b/src/lib/fmt.go
+@@ -66,13 +66,13 @@ func (f *Fmt) str() string {
+ }
+ 
+ func (f *Fmt) put() {
+-	print f.buf;
++	print(f.buf);
+ 	f.clearbuf();
+ 	f.clearflags();
+ }
+ 
+ func (f *Fmt) putnl() {
+-	print f.buf, "\n";
++	print(f.buf, "\n");
+ 	f.clearbuf();
+ 	f.clearflags();
+ }

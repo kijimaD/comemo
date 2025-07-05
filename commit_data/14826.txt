@@ -7,6 +7,20 @@ Date:   Tue Jan 8 15:22:18 2013 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/7061050
-
+---
  src/cmd/vet/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index d19a42fde1..265575ab6e 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -45,7 +45,7 @@ Struct tags that do not follow the format understood by reflect.StructTag.Get.
+ 
+ 4. Untagged composite literals, flag -composites
+ 
+-Composite struct literals that do not used the type-tagged syntax.
++Composite struct literals that do not use the type-tagged syntax.
+ 
+ 
+ Usage:

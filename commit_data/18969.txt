@@ -11,7 +11,80 @@ Date:   Thu Mar 27 00:29:55 2014 -0400
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/80320043
-
+---
  misc/bash/go | 12 +-----------
  misc/zsh/go  |  5 +++--
  2 files changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/misc/bash/go b/misc/bash/go
+index 90defda827..50f4f720b4 100644
+--- a/misc/bash/go
++++ b/misc/bash/go
+@@ -22,8 +22,7 @@ _go()
+ 
+   local cmds="build clean env fix fmt get
+     install list run test tool version vet"
+-  local addhelp="gopath importpath remote
+-    testflag testfunc"
++  local addhelp="c gopath importpath packages testflag testfunc"
+   local other="help"
+ 
+   if [ "$COMP_CWORD" == 1 ]; then
+@@ -185,15 +184,9 @@ _go()
+           'dist') # TODO: Implement something.
+             #_go_tool_dist
+             ;;
+-          'ebnflint') # TODO: Implement something.
+-            #_go_tool_ebnflint
+-            ;;
+           'fix') # TODO: Implement something.
+             #_go_tool_fix
+             ;;
+-          'gotype') # TODO: Implement something.
+-            #_go_tool_gotype
+-            ;;
+           'nm') # TODO: Implement something.
+             #_go_tool_nm
+             ;;
+@@ -203,9 +196,6 @@ _go()
+           'pprof') # TODO: Implement something.
+             #_go_tool_pprof
+             ;;
+-          'prof') # TODO: Implement something.
+-            #_go_tool_prof
+-            ;;
+           'vet') # TODO: Implement something.
+             #_go_tool_vet
+             ;;
+diff --git a/misc/zsh/go b/misc/zsh/go
+index 18bcaaff28..066cf40654 100644
+--- a/misc/zsh/go
++++ b/misc/zsh/go
+@@ -19,7 +19,6 @@ __go_tool_complete() {
+   commands+=(
+     'build[compile packages and dependencies]'
+     'clean[remove object files]'
+-    'doc[run godoc on package sources]'
+     'env[print Go environment information]'
+     'fix[run go tool fix on packages]'
+     'fmt[run gofmt on package sources]'
+@@ -92,6 +91,7 @@ __go_tool_complete() {
+         "-short[use short mode]" \
+         "-parallel[number of parallel tests]:number" \
+         "-cpu[values of GOMAXPROCS to use]:number list" \
++	"-cover[enable coverage analysis]" \
+         "-run[run tests and examples matching regexp]:regexp" \
+         "-bench[run benchmarks matching regexp]:regexp" \
+         "-benchmem[print memory allocation stats]" \
+@@ -106,9 +106,10 @@ __go_tool_complete() {
+       ;;
+   help)
+       _values "${commands[@]}" \
++        'c[how to call C code]' \
++        'importpath[description of import path]' \
+         'gopath[GOPATH environment variable]' \
+         'packages[description of package lists]' \
+-        'remote[remote import path syntax]' \
+         'testflag[description of testing flags]' \
+         'testfunc[description of testing functions]'
+       ;;

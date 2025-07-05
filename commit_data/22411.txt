@@ -8,6 +8,30 @@ Date:   Wed Dec 24 02:08:58 2014 +1100
     Reviewed-on: https://go-review.googlesource.com/2080
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5l/obj.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5l/obj.go b/src/cmd/5l/obj.go
+index 49ce10718b..075f15f20c 100644
+--- a/src/cmd/5l/obj.go
++++ b/src/cmd/5l/obj.go
+@@ -74,7 +74,7 @@ func linkarchinit() {
+ 
+ 	ld.Thearch.Linuxdynld = "/lib/ld-linux.so.3" // 2 for OABI, 3 for EABI
+ 	ld.Thearch.Freebsddynld = "/usr/libexec/ld-elf.so.1"
+-	ld.Thearch.Openbsddynld = "XXX"
++	ld.Thearch.Openbsddynld = "/usr/libexec/ld.so"
+ 	ld.Thearch.Netbsddynld = "/libexec/ld.elf_so"
+ 	ld.Thearch.Dragonflydynld = "XXX"
+ 	ld.Thearch.Solarisdynld = "XXX"
+@@ -124,7 +124,8 @@ func archinit() {
+ 
+ 	case ld.Hlinux, /* arm elf */
+ 		ld.Hfreebsd,
+-		ld.Hnetbsd:
++		ld.Hnetbsd,
++		ld.Hopenbsd:
+ 		ld.Debug['d'] = 0
+ 		// with dynamic linking
+ 		ld.Elfinit()

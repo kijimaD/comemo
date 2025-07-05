@@ -7,7 +7,68 @@ Date:   Fri Jan 10 14:33:54 2014 +1100
     R=golang-codereviews, alex.brainman, bradfitz, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/11393043
-
+---
  src/pkg/net/tcpsockopt_windows.go | 17 +++++++++++++++--
  src/pkg/syscall/ztypes_windows.go |  8 ++++++++
  2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/tcpsockopt_windows.go b/src/pkg/net/tcpsockopt_windows.go
+index 0bf4312f24..8ef1407977 100644
+--- a/src/pkg/net/tcpsockopt_windows.go
++++ b/src/pkg/net/tcpsockopt_windows.go
+@@ -7,7 +7,10 @@
+ package net
+ 
+ import (
++	"os"
++	"syscall"
+ 	"time"
++	"unsafe"
+ )
+ 
+ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+@@ -16,6 +19,16 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+ 	}
+ 	defer fd.decref()
+ 
+-	// We can't actually set this per connection.  Act as a noop rather than an error.
+-	return nil
++	// Windows expects milliseconds so round to next highest millisecond.
++	d += (time.Millisecond - time.Nanosecond)
++	millis := uint32(d / time.Millisecond)
++	ka := syscall.TCPKeepalive{
++		OnOff:    1,
++		Time:     millis,
++		Interval: millis,
++	}
++	ret := uint32(0)
++	size := uint32(unsafe.Sizeof(ka))
++	err := syscall.WSAIoctl(fd.sysfd, syscall.SIO_KEEPALIVE_VALS, (*byte)(unsafe.Pointer(&ka)), size, nil, 0, &ret, nil, 0)
++	return os.NewSyscallError("WSAIoctl", err)
+ }
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index bdc15ce3bc..28cd3f6169 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -512,9 +512,11 @@ const (
+ 
+ 	IOC_OUT                            = 0x40000000
+ 	IOC_IN                             = 0x80000000
++	IOC_VENDOR                         = 0x18000000
+ 	IOC_INOUT                          = IOC_IN | IOC_OUT
+ 	IOC_WS2                            = 0x08000000
+ 	SIO_GET_EXTENSION_FUNCTION_POINTER = IOC_INOUT | IOC_WS2 | 6
++	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
+ 
+ 	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
+ 
+@@ -1031,3 +1033,9 @@ type WSAProtocolChain struct {
+ 	ChainLen     int32
+ 	ChainEntries [MAX_PROTOCOL_CHAIN]uint32
+ }
++
++type TCPKeepalive struct {
++	OnOff    uint32
++	Time     uint32
++	Interval uint32
++}

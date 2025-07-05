@@ -17,8 +17,88 @@ Date:   Fri Feb 23 13:46:44 2018 -0600
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go              | 10 ++++++-
  src/cmd/compile/internal/ssa/rewrite.go            |  6 +---
  src/cmd/compile/internal/ssa/zeroextension_test.go | 34 ++++++++++++++++++++++
  3 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 49ef415e66..d5e9fd32f0 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -266,7 +266,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 		// Issue -1 fixup code.
+ 		// n / -1 = -n
+-		n1 := s.Prog(x86.ANEGQ)
++		var n1 *obj.Prog
++		switch v.Op {
++		case ssa.OpAMD64DIVQ:
++			n1 = s.Prog(x86.ANEGQ)
++		case ssa.OpAMD64DIVL:
++			n1 = s.Prog(x86.ANEGL)
++		case ssa.OpAMD64DIVW:
++			n1 = s.Prog(x86.ANEGW)
++		}
+ 		n1.To.Type = obj.TYPE_REG
+ 		n1.To.Reg = x86.REG_AX
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index df5f6c9fa4..587a2a6d1a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -782,12 +782,8 @@ func zeroUpper32Bits(x *Value, depth int) bool {
+ 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
+ 		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
+ 		return true
+-	case OpArg:
++	case OpArg, OpSelect0, OpSelect1:
+ 		return x.Type.Width == 4
+-	case OpSelect0, OpSelect1:
+-		// Disabled for now. See issue 23305.
+-		// TODO: we could look into the arg of the Select to decide.
+-		return false
+ 	case OpPhi:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+ 		// just limit recursion depth.
+diff --git a/src/cmd/compile/internal/ssa/zeroextension_test.go b/src/cmd/compile/internal/ssa/zeroextension_test.go
+new file mode 100644
+index 0000000000..692685eaa4
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/zeroextension_test.go
+@@ -0,0 +1,34 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "testing"
++
++type extTest struct {
++	f    func(uint64, uint64) uint64
++	arg1 uint64
++	arg2 uint64
++	res  uint64
++	name string
++}
++
++var extTests = [...]extTest{
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 / op2)) }, arg1: 0x1, arg2: 0xfffffffeffffffff, res: 0xffffffff, name: "div"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 * op2)) }, arg1: 0x1, arg2: 0x100000001, res: 0x1, name: "mul"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 + op2)) }, arg1: 0x1, arg2: 0xfffffffffffffff, res: 0x0, name: "add"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 - op2)) }, arg1: 0x1, arg2: 0xfffffffffffffff, res: 0x2, name: "sub"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 | op2)) }, arg1: 0x1, arg2: 0xfffffffffffffff, res: 0xffffffff, name: "or"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 ^ op2)) }, arg1: 0x1, arg2: 0xfffffffffffffff, res: 0xfffffffe, name: "xor"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 & op2)) }, arg1: 0x1, arg2: 0x100000000000001, res: 0x1, name: "and"},
++}
++
++func TestZeroExtension(t *testing.T) {
++	for _, x := range extTests {
++		r := x.f(x.arg1, x.arg2)
++		if x.res != r {
++			t.Errorf("%s: got %d want %d", x.name, r, x.res)
++		}
++	}
++}

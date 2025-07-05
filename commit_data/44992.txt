@@ -14,7 +14,7 @@ Date:   Thu Sep 10 08:43:21 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                  | 25 ++++++++++------
  .../mod/example.com_retract_rename_v1.0.0-bad.txt  |  6 ++++
  .../mod/example.com_retract_rename_v1.9.0-new.txt  |  9 ++++++
@@ -24,3 +24,225 @@ Date:   Thu Sep 10 08:43:21 2020 -0400
  .../testdata/script/mod_get_downgrade_missing.txt  | 33 ++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_get_errors.txt      | 28 ++++++++++++++++++
  8 files changed, 149 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 52e3ec84fb..7e573bacb7 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -482,14 +482,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		prevBuildList = buildList
+ 	}
+-	if *getD {
+-		// Only print warnings after the last iteration, and only if we aren't going
+-		// to build (to avoid doubled warnings).
+-		//
+-		// Only local patterns in the main module, such as './...', can be unmatched.
+-		// (See the mod_get_nopkgs test for more detail.)
+-		search.WarnUnmatched(matches)
+-	}
+ 
+ 	// Handle downgrades.
+ 	var down []module.Version
+@@ -579,6 +571,23 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("%v", buf.String())
+ 	}
+ 
++	if len(pkgPatterns) > 0 || len(args) == 0 {
++		// Before we write the updated go.mod file, reload the requested packages to
++		// check for errors.
++		loadOpts := modload.PackageOpts{
++			Tags:      imports.AnyTags(),
++			LoadTests: *getT,
++
++			// Only print warnings after the last iteration, and only if we aren't going
++			// to build (to avoid doubled warnings).
++			//
++			// Only local patterns in the main module, such as './...', can be unmatched.
++			// (See the mod_get_nopkgs test for more detail.)
++			SilenceUnmatchedWarnings: !*getD,
++		}
++		modload.LoadPackages(ctx, loadOpts, pkgPatterns...)
++	}
++
+ 	// Everything succeeded. Update go.mod.
+ 	modload.AllowWriteGoMod()
+ 	modload.WriteGoMod()
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rename_v1.0.0-bad.txt b/src/cmd/go/testdata/mod/example.com_retract_rename_v1.0.0-bad.txt
+index 49364751d8..25c4ff1b1f 100644
+--- a/src/cmd/go/testdata/mod/example.com_retract_rename_v1.0.0-bad.txt
++++ b/src/cmd/go/testdata/mod/example.com_retract_rename_v1.0.0-bad.txt
+@@ -8,3 +8,9 @@ is added for the first time with a custom module path.
+ module example.com/retract/rename
+ 
+ go 1.16
++-- go.mod --
++module example.com/retract/rename
++
++go 1.16
++-- rename.go --
++package rename
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rename_v1.9.0-new.txt b/src/cmd/go/testdata/mod/example.com_retract_rename_v1.9.0-new.txt
+index fcbdfdaf94..9c08f713c4 100644
+--- a/src/cmd/go/testdata/mod/example.com_retract_rename_v1.9.0-new.txt
++++ b/src/cmd/go/testdata/mod/example.com_retract_rename_v1.9.0-new.txt
+@@ -11,3 +11,12 @@ go 1.16
+ 
+ // bad
+ retract v1.0.0-bad
++-- go.mod --
++module example.com/retract/newname
++
++go 1.16
++
++// bad
++retract v1.0.0-bad
++-- newname.go --
++package newname
+diff --git a/src/cmd/go/testdata/mod/example.net_pkgadded_v1.0.0.txt b/src/cmd/go/testdata/mod/example.net_pkgadded_v1.0.0.txt
+new file mode 100644
+index 0000000000..207e86a73c
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.net_pkgadded_v1.0.0.txt
+@@ -0,0 +1,17 @@
++Written by hand.
++Test module with a root package added in v1.1.0
++and a subpackage added in v1.2.0.
++
++-- .mod --
++module example.net/pkgadded
++
++go 1.16
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module example.net/pkgadded
++
++go 1.16
++-- README.txt --
++We will add the package example.net/pkgadded in v1.1.0,
++and example.net/pkgadded/subpkg in v1.2.0.
+diff --git a/src/cmd/go/testdata/mod/example.net_pkgadded_v1.1.0.txt b/src/cmd/go/testdata/mod/example.net_pkgadded_v1.1.0.txt
+new file mode 100644
+index 0000000000..1c88de2dd6
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.net_pkgadded_v1.1.0.txt
+@@ -0,0 +1,19 @@
++Written by hand.
++Test module with a root package added in v1.1.0
++and a subpackage added in v1.2.0.
++
++-- .mod --
++module example.net/pkgadded
++
++go 1.16
++-- .info --
++{"Version":"v1.1.0"}
++-- go.mod --
++module example.net/pkgadded
++
++go 1.16
++-- README.txt --
++We will add the package example.net/pkgadded/subpkg in v1.2.0.
++-- pkgadded.go --
++// Package pkgadded was added in v1.1.0.
++package pkgadded
+diff --git a/src/cmd/go/testdata/mod/example.net_pkgadded_v1.2.0.txt b/src/cmd/go/testdata/mod/example.net_pkgadded_v1.2.0.txt
+new file mode 100644
+index 0000000000..922951ac37
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.net_pkgadded_v1.2.0.txt
+@@ -0,0 +1,20 @@
++Written by hand.
++Test module with a root package added in v1.1.0
++and a subpackage added in v1.2.0.
++
++-- .mod --
++module example.net/pkgadded
++
++go 1.16
++-- .info --
++{"Version":"v1.2.0"}
++-- go.mod --
++module example.net/pkgadded
++
++go 1.16
++-- pkgadded.go --
++// Package pkgadded was added in v1.1.0.
++package pkgadded
++-- subpkg/subpkg.go --
++// Package subpkg was added in v1.2.0.
++package subpkg
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt b/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
+new file mode 100644
+index 0000000000..53b789ecc5
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
+@@ -0,0 +1,33 @@
++cp go.mod go.mod.orig
++
++# getting a specific version of a module along with a pattern
++# not yet present in that module should report the version mismatch
++# rather than a "matched no packages" warning.
++! go get example.net/pkgadded@v1.1.0 example.net/pkgadded/subpkg/...
++stderr '^go get: conflicting versions for module example\.net/pkgadded: v1\.1\.0 and v1\.2\.0$'
++! stderr 'matched no packages'
++cmp go.mod.orig go.mod
++
++! go get example.net/pkgadded/...@v1.0.0
++stderr '^go get example\.net/pkgadded/\.\.\.@v1\.0\.0: module example\.net/pkgadded@v1\.0\.0 found, but does not contain packages matching example\.net/pkgadded/\.\.\.$'
++cmp go.mod.orig go.mod
++
++! go get example.net/pkgadded@v1.0.0 .
++stderr -count=1 '^go: found example.net/pkgadded/subpkg in example.net/pkgadded v1\.2\.0$'  # TODO: We shouldn't even try v1.2.0.
++stderr '^example.com/m imports\n\texample.net/pkgadded/subpkg: import missing'  # TODO: better error message
++cmp go.mod.orig go.mod
++
++go get example.net/pkgadded@v1.0.0
++! go list -deps -mod=readonly .
++stderr '^m.go:3:8: cannot find module providing package example\.net/pkgadded/subpkg: '
++
++-- go.mod --
++module example.com/m
++
++go 1.16
++
++require example.net/pkgadded v1.2.0
++-- m.go --
++package m
++
++import _ "example.net/pkgadded/subpkg"
+diff --git a/src/cmd/go/testdata/script/mod_get_errors.txt b/src/cmd/go/testdata/script/mod_get_errors.txt
+new file mode 100644
+index 0000000000..5b1b8367bb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_errors.txt
+@@ -0,0 +1,28 @@
++cp go.mod go.mod.orig
++
++! go get
++stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: import missing$'  # TODO: better error message
++cmp go.mod.orig go.mod
++
++! go get -d
++stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: import missing$'  # TODO: better error message
++cmp go.mod.orig go.mod
++
++-- go.mod --
++module example.com/m
++
++go 1.16
++
++replace example.com/badimport v0.1.0 => ./badimport
++-- m.go --
++package m
++
++import _ "example.com/badimport"
++-- badimport/go.mod --
++module example.com/badimport
++
++go 1.16
++-- badimport/badimport.go --
++package badimport
++
++import "example.net/oops"

@@ -13,10 +13,228 @@ Date:   Wed Aug 2 19:01:17 2017 +0100
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/chan.go     | 18 +++++++++-----
  src/runtime/proc.go     |  4 ++--
  src/runtime/runtime2.go | 14 +++++++----
  src/runtime/select.go   | 64 ++++---------------------------------------------
  src/runtime/stack.go    |  5 ----
  5 files changed, 27 insertions(+), 78 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index b34333e605..872f17bb84 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -222,7 +222,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 	mysg.elem = ep
+ 	mysg.waitlink = nil
+ 	mysg.g = gp
+-	mysg.selectdone = nil
++	mysg.isSelect = false
+ 	mysg.c = c
+ 	gp.waiting = mysg
+ 	gp.param = nil
+@@ -507,7 +507,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 	mysg.waitlink = nil
+ 	gp.waiting = mysg
+ 	mysg.g = gp
+-	mysg.selectdone = nil
++	mysg.isSelect = false
+ 	mysg.c = c
+ 	gp.param = nil
+ 	c.recvq.enqueue(mysg)
+@@ -711,10 +711,16 @@ func (q *waitq) dequeue() *sudog {
+ 			sgp.next = nil // mark as removed (see dequeueSudog)
+ 		}
+ 
+-		// if sgp participates in a select and is already signaled, ignore it
+-		if sgp.selectdone != nil {
+-			// claim the right to signal
+-			if *sgp.selectdone != 0 || !atomic.Cas(sgp.selectdone, 0, 1) {
++		// if a goroutine was put on this queue because of a
++		// select, there is a small window between the goroutine
++		// being woken up by a different case and it grabbing the
++		// channel locks. Once it has the lock
++		// it removes itself from the queue, so we won't see it after that.
++		// We use a flag in the G struct to tell us when someone
++		// else has won the race to signal this goroutine but the goroutine
++		// hasn't removed itself from the queue yet.
++		if sgp.isSelect {
++			if !atomic.Cas(&sgp.g.selectDone, 0, 1) {
+ 				continue
+ 			}
+ 		}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index cc1e30a925..1ab1ed1638 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -332,8 +332,8 @@ func releaseSudog(s *sudog) {
+ 	if s.elem != nil {
+ 		throw("runtime: sudog with non-nil elem")
+ 	}
+-	if s.selectdone != nil {
+-		throw("runtime: sudog with non-nil selectdone")
++	if s.isSelect {
++		throw("runtime: sudog with non-false isSelect")
+ 	}
+ 	if s.next != nil {
+ 		throw("runtime: sudog with non-nil next")
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 21b1758af9..e4b4f91b5e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -272,11 +272,14 @@ type sudog struct {
+ 	// channel this sudog is blocking on. shrinkstack depends on
+ 	// this for sudogs involved in channel ops.
+ 
+-	g          *g
+-	selectdone *uint32 // CAS to 1 to win select race (may point to stack)
+-	next       *sudog
+-	prev       *sudog
+-	elem       unsafe.Pointer // data element (may point to stack)
++	g *g
++
++	// isSelect indicates g is participating in a select, so
++	// g.selectDone must be CAS'd to win the wake-up race.
++	isSelect bool
++	next     *sudog
++	prev     *sudog
++	elem     unsafe.Pointer // data element (may point to stack)
+ 
+ 	// The following fields are never accessed concurrently.
+ 	// For channels, waitlink is only accessed by g.
+@@ -367,6 +370,7 @@ type g struct {
+ 	cgoCtxt        []uintptr      // cgo traceback context
+ 	labels         unsafe.Pointer // profiler labels
+ 	timer          *timer         // cached timer for time.Sleep
++	selectDone     uint32         // are we participating in a select and did someone win the race?
+ 
+ 	// Per-G GC state
+ 
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 715cee8750..bf3a550ea4 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -286,7 +286,6 @@ func selectgo(sel *hselect) int {
+ 
+ 	var (
+ 		gp     *g
+-		done   uint32
+ 		sg     *sudog
+ 		c      *hchan
+ 		k      *scase
+@@ -353,7 +352,6 @@ loop:
+ 
+ 	// pass 2 - enqueue on all chans
+ 	gp = getg()
+-	done = 0
+ 	if gp.waiting != nil {
+ 		throw("gp.waiting != nil")
+ 	}
+@@ -367,8 +365,7 @@ loop:
+ 		c = cas.c
+ 		sg := acquireSudog()
+ 		sg.g = gp
+-		// Note: selectdone is adjusted for stack copies in stack1.go:adjustsudogs
+-		sg.selectdone = (*uint32)(noescape(unsafe.Pointer(&done)))
++		sg.isSelect = true
+ 		// No stack splits between assigning elem and enqueuing
+ 		// sg on gp.waiting where copystack can find it.
+ 		sg.elem = cas.elem
+@@ -394,62 +391,9 @@ loop:
+ 	gp.param = nil
+ 	gopark(selparkcommit, nil, "select", traceEvGoBlockSelect, 1)
+ 
+-	// While we were asleep, some goroutine came along and completed
+-	// one of the cases in the select and woke us up (called ready).
+-	// As part of that process, the goroutine did a cas on done above
+-	// (aka *sg.selectdone for all queued sg) to win the right to
+-	// complete the select. Now done = 1.
+-	//
+-	// If we copy (grow) our own stack, we will update the
+-	// selectdone pointers inside the gp.waiting sudog list to point
+-	// at the new stack. Another goroutine attempting to
+-	// complete one of our (still linked in) select cases might
+-	// see the new selectdone pointer (pointing at the new stack)
+-	// before the new stack has real data; if the new stack has done = 0
+-	// (before the old values are copied over), the goroutine might
+-	// do a cas via sg.selectdone and incorrectly believe that it has
+-	// won the right to complete the select, executing a second
+-	// communication and attempting to wake us (call ready) again.
+-	//
+-	// Then things break.
+-	//
+-	// The best break is that the goroutine doing ready sees the
+-	// _Gcopystack status and throws, as in #17007.
+-	// A worse break would be for us to continue on, start running real code,
+-	// block in a semaphore acquisition (sema.go), and have the other
+-	// goroutine wake us up without having really acquired the semaphore.
+-	// That would result in the goroutine spuriously running and then
+-	// queue up another spurious wakeup when the semaphore really is ready.
+-	// In general the situation can cascade until something notices the
+-	// problem and causes a crash.
+-	//
+-	// A stack shrink does not have this problem, because it locks
+-	// all the channels that are involved first, blocking out the
+-	// possibility of a cas on selectdone.
+-	//
+-	// A stack growth before gopark above does not have this
+-	// problem, because we hold those channel locks (released by
+-	// selparkcommit).
+-	//
+-	// A stack growth after sellock below does not have this
+-	// problem, because again we hold those channel locks.
+-	//
+-	// The only problem is a stack growth during sellock.
+-	// To keep that from happening, run sellock on the system stack.
+-	//
+-	// It might be that we could avoid this if copystack copied the
+-	// stack before calling adjustsudogs. In that case,
+-	// syncadjustsudogs would need to recopy the tiny part that
+-	// it copies today, resulting in a little bit of extra copying.
+-	//
+-	// An even better fix, not for the week before a release candidate,
+-	// would be to put space in every sudog and make selectdone
+-	// point at (say) the space in the first sudog.
+-
+-	systemstack(func() {
+-		sellock(scases, lockorder)
+-	})
++	sellock(scases, lockorder)
+ 
++	gp.selectDone = 0
+ 	sg = (*sudog)(gp.param)
+ 	gp.param = nil
+ 
+@@ -462,7 +406,7 @@ loop:
+ 	sglist = gp.waiting
+ 	// Clear all elem before unlinking from gp.waiting.
+ 	for sg1 := gp.waiting; sg1 != nil; sg1 = sg1.waitlink {
+-		sg1.selectdone = nil
++		sg1.isSelect = false
+ 		sg1.elem = nil
+ 		sg1.c = nil
+ 	}
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 525d0b14c1..d353329a39 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -751,7 +751,6 @@ func adjustsudogs(gp *g, adjinfo *adjustinfo) {
+ 	// might be in the stack.
+ 	for s := gp.waiting; s != nil; s = s.waitlink {
+ 		adjustpointer(adjinfo, unsafe.Pointer(&s.elem))
+-		adjustpointer(adjinfo, unsafe.Pointer(&s.selectdone))
+ 	}
+ }
+ 
+@@ -768,10 +767,6 @@ func findsghi(gp *g, stk stack) uintptr {
+ 		if stk.lo <= p && p < stk.hi && p > sghi {
+ 			sghi = p
+ 		}
+-		p = uintptr(unsafe.Pointer(sg.selectdone)) + unsafe.Sizeof(sg.selectdone)
+-		if stk.lo <= p && p < stk.hi && p > sghi {
+-			sghi = p
+-		}
+ 	}
+ 	return sghi
+ }

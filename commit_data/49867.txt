@@ -14,7 +14,34 @@ Date:   Fri Sep 17 22:34:15 2021 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/internal/help/helpdoc.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 35c60744b8..9753ebba3e 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1988,7 +1988,7 @@
+ // 		For GOARCH=386, how to implement floating point instructions.
+ // 		Valid values are sse2 (default), softfloat.
+ // 	GOAMD64
+-// 		For GOARCH=GOAMD64, the microarchitecture level for which to compile.
++// 		For GOARCH=amd64, the microarchitecture level for which to compile.
+ // 		Valid values are v1 (default), v2, v3, v4.
+ // 		See https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels.
+ // 	GOMIPS
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 91876cefe0..749dcf192b 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -593,7 +593,7 @@ Architecture-specific environment variables:
+ 		For GOARCH=386, how to implement floating point instructions.
+ 		Valid values are sse2 (default), softfloat.
+ 	GOAMD64
+-		For GOARCH=GOAMD64, the microarchitecture level for which to compile.
++		For GOARCH=amd64, the microarchitecture level for which to compile.
+ 		Valid values are v1 (default), v2, v3, v4.
+ 		See https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels.
+ 	GOMIPS

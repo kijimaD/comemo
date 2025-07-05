@@ -20,7 +20,7 @@ Date:   Mon Jun 3 21:46:39 2024 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                     |  18 +-
  src/cmd/go.sum                                     |  36 +-
  src/cmd/vendor/golang.org/x/build/relnote/dump.go  |  30 +-
@@ -65,3 +65,3003 @@ Date:   Mon Jun 3 21:46:39 2024 +0000
  src/vendor/golang.org/x/net/nettest/nettest.go     |   3 +-
  src/vendor/modules.txt                             |   8 +-
  43 files changed, 689 insertions(+), 955 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 385c6f0217..0d29d12d0b 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -4,18 +4,18 @@ go 1.23
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
+-	golang.org/x/arch v0.7.0
+-	golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+-	golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9
++	golang.org/x/arch v0.8.0
++	golang.org/x/build v0.0.0-20240603162849-5dfbda438323
++	golang.org/x/mod v0.18.0
+ 	golang.org/x/sync v0.7.0
+-	golang.org/x/sys v0.20.0
+-	golang.org/x/telemetry v0.0.0-20240531174915-469116581a8e
+-	golang.org/x/term v0.18.0
+-	golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
++	golang.org/x/sys v0.21.0
++	golang.org/x/telemetry v0.0.0-20240603224550-f2b69109f79b
++	golang.org/x/term v0.20.0
++	golang.org/x/tools v0.21.1-0.20240604144337-208808308b70
+ )
+ 
+ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 // indirect
+-	golang.org/x/text v0.14.0 // indirect
+-	rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650 // indirect
++	golang.org/x/text v0.16.0 // indirect
++	rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 8d1f69e587..6bc13e3fda 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -6,23 +6,23 @@ github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 h1:KwWnWVW
+ github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+ github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+-golang.org/x/arch v0.7.0 h1:pskyeJh/3AmoQ8CPE95vxHLqp1G1GfGNXTmcl9NEKTc=
+-golang.org/x/arch v0.7.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+-golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f h1:XQ2eu0I26WsNCKQkRehp+5mwjjChw94trD9LT8LLSq0=
+-golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f/go.mod h1:HTqTCkubWT8epEK9hDWWGkoOOB7LGSrU1qvWZCSwO50=
+-golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9 h1:EfMABMgrJ8+hRjLvhUzJkLKgFv3lYAglGXczg5ggNyk=
+-golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/arch v0.8.0 h1:3wRIsP3pM4yUptoR96otTUOXI367OS0+c9eeRi9doIc=
++golang.org/x/arch v0.8.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
++golang.org/x/build v0.0.0-20240603162849-5dfbda438323 h1:XHj9DzsjpryRW9MnyZq85mQ1dRpSxVC+2TLcMzVZNMo=
++golang.org/x/build v0.0.0-20240603162849-5dfbda438323/go.mod h1:yz9anu0Z63yrVrqnoOxoJuyBRDwtGUoOFJwtfvs+D+U=
++golang.org/x/mod v0.18.0 h1:5+9lSbEzPSdWkH32vYPBwEpX8KwDbM52Ud9xBUvNlb0=
++golang.org/x/mod v0.18.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
+-golang.org/x/sys v0.20.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240531174915-469116581a8e h1:KnHU4oHoGCy3f0KxRlS5LwStte+o8u+f2cyT0flohIU=
+-golang.org/x/telemetry v0.0.0-20240531174915-469116581a8e/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
+-golang.org/x/term v0.18.0 h1:FcHjZXDMxI8mM3nwhX9HlKop4C0YQvCVCdwYl2wOtE8=
+-golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+-golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+-golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+-golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f h1:VNKRNwDFpvmQ9DziicBj7Xs8Xr9zFtHVVCccBLiV+nI=
+-golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f/go.mod h1:EUhO3BJA9eB8d9EAsGPjXxkzI1Rl/NRgB9zrdAzyoWI=
+-rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650 h1:fuOABZYWclLVNotDsHVaFixLdtoC7+UQZJ0KSC1ocm0=
+-rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=
++golang.org/x/sys v0.21.0 h1:rF+pYz3DAGSQAxAu1CbC7catZg4ebC4UIeIhKxBZvws=
++golang.org/x/sys v0.21.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/telemetry v0.0.0-20240603224550-f2b69109f79b h1:z+G4uyTX70zDaJlqYgXBayrAxlae9kGxeM2BJH0zDu8=
++golang.org/x/telemetry v0.0.0-20240603224550-f2b69109f79b/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
++golang.org/x/term v0.20.0 h1:VnkxpohqXaOBYJtBmEppKUG6mXpi+4O6purfc2+sMhw=
++golang.org/x/term v0.20.0/go.mod h1:8UkIAJTvZgivsXaD6/pH6U9ecQzZ45awqEOzuCvwpFY=
++golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
++golang.org/x/text v0.16.0/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
++golang.org/x/tools v0.21.1-0.20240604144337-208808308b70 h1:UmSJS6pdDoRwdDCbOwHnsOCHhVUhmdhF0m1Cfb82ts8=
++golang.org/x/tools v0.21.1-0.20240604144337-208808308b70/go.mod h1:bqv7PJ/TtlrzgJKhOAGdDUkUltQapRik/UEHubLVBWo=
++rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef h1:mqLYrXCXYEZOop9/Dbo6RPX11539nwiCNBb1icVPmw8=
++rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=
+diff --git a/src/cmd/vendor/golang.org/x/build/relnote/dump.go b/src/cmd/vendor/golang.org/x/build/relnote/dump.go
+index 4d43cabeab..44a2e535cd 100644
+--- a/src/cmd/vendor/golang.org/x/build/relnote/dump.go
++++ b/src/cmd/vendor/golang.org/x/build/relnote/dump.go
+@@ -6,6 +6,7 @@ package relnote
+ 
+ import (
+ 	"fmt"
++	"strings"
+ 
+ 	md "rsc.io/markdown"
+ )
+@@ -24,7 +25,8 @@ func dumpBlocks(bs []md.Block, depth int) {
+ }
+ 
+ func dumpBlock(b md.Block, depth int) {
+-	fmt.Printf("%*s%T\n", depth*4, "", b)
++	typeName := strings.TrimPrefix(fmt.Sprintf("%T", b), "*markdown.")
++	dprintf(depth, "%s\n", typeName)
+ 	switch b := b.(type) {
+ 	case *md.Paragraph:
+ 		dumpInlines(b.Text.Inline, depth+1)
+@@ -41,6 +43,30 @@ func dumpBlock(b md.Block, depth int) {
+ 
+ func dumpInlines(ins []md.Inline, depth int) {
+ 	for _, in := range ins {
+-		fmt.Printf("%*s%#v\n", depth*4, "", in)
++		switch in := in.(type) {
++		case *md.Plain:
++			dprintf(depth, "Plain(%q)\n", in.Text)
++		case *md.Code:
++			dprintf(depth, "Code(%q)\n", in.Text)
++		case *md.Link:
++			dprintf(depth, "Link:\n")
++			dumpInlines(in.Inner, depth+1)
++			dprintf(depth+1, "URL: %q\n", in.URL)
++		case *md.Strong:
++			dprintf(depth, "Strong(%q):\n", in.Marker)
++			dumpInlines(in.Inner, depth+1)
++		case *md.Emph:
++			dprintf(depth, "Emph(%q):\n", in.Marker)
++			dumpInlines(in.Inner, depth+1)
++		case *md.Del:
++			dprintf(depth, "Del(%q):\n", in.Marker)
++			dumpInlines(in.Inner, depth+1)
++		default:
++			fmt.Printf("%*s%#v\n", depth*4, "", in)
++		}
+ 	}
+ }
++
++func dprintf(depth int, format string, args ...any) {
++	fmt.Printf("%*s%s", depth*4, "", fmt.Sprintf(format, args...))
++}
+diff --git a/src/cmd/vendor/golang.org/x/build/relnote/links.go b/src/cmd/vendor/golang.org/x/build/relnote/links.go
+index 15d8f632ad..b8e3a0f4b0 100644
+--- a/src/cmd/vendor/golang.org/x/build/relnote/links.go
++++ b/src/cmd/vendor/golang.org/x/build/relnote/links.go
+@@ -55,17 +55,38 @@ func addSymbolLinksBlock(b md.Block, defaultPackage string) {
+ // addSymbolLinksInlines looks for symbol links in the slice of inline markdown
+ // elements. It returns a new slice of inline elements with links added.
+ func addSymbolLinksInlines(ins []md.Inline, defaultPackage string) []md.Inline {
++	ins = splitAtBrackets(ins)
+ 	var res []md.Inline
+-	for _, in := range ins {
+-		switch in := in.(type) {
+-		case *md.Plain:
+-			res = append(res, addSymbolLinksText(in.Text, defaultPackage)...)
++	for i := 0; i < len(ins); i++ {
++		if txt := symbolLinkText(i, ins); txt != "" {
++			link, ok := symbolLink(txt, defaultPackage)
++			if ok {
++				res = append(res, link)
++				i += 2
++				continue
++			}
++		}
++
++		// Handle inline elements with nested content.
++		switch in := ins[i].(type) {
+ 		case *md.Strong:
+-			res = append(res, addSymbolLinksInlines(in.Inner, defaultPackage)...)
++			res = append(res, &md.Strong{
++				Marker: in.Marker,
++				Inner:  addSymbolLinksInlines(in.Inner, defaultPackage),
++			})
++
+ 		case *md.Emph:
+-			res = append(res, addSymbolLinksInlines(in.Inner, defaultPackage)...)
++			res = append(res, &md.Emph{
++				Marker: in.Marker,
++				Inner:  addSymbolLinksInlines(in.Inner, defaultPackage),
++			})
++		// Currently we don't support Del nodes because we don't enable the Strikethrough
++		// extension. But this can't hurt.
+ 		case *md.Del:
+-			res = append(res, addSymbolLinksInlines(in.Inner, defaultPackage)...)
++			res = append(res, &md.Del{
++				Marker: in.Marker,
++				Inner:  addSymbolLinksInlines(in.Inner, defaultPackage),
++			})
+ 		// Don't look for links in anything else.
+ 		default:
+ 			res = append(res, in)
+@@ -74,55 +95,109 @@ func addSymbolLinksInlines(ins []md.Inline, defaultPackage string) []md.Inline {
+ 	return res
+ }
+ 
+-// addSymbolLinksText converts symbol links in the text to markdown links.
+-// The text comes from a single Plain inline element, which may be split
+-// into multiple alternating Plain and Link elements.
+-func addSymbolLinksText(text, defaultPackage string) []md.Inline {
++// splitAtBrackets rewrites ins so that every '[' and ']' is the only character
++// of its Plain.
++// For example, the element
++//
++//	[Plain("the [Buffer] is")]
++//
++// is rewritten to
++//
++//	[Plain("the "), Plain("["), Plain("Buffer"), Plain("]"), Plain(" is")]
++//
++// This transformation simplifies looking for symbol links.
++func splitAtBrackets(ins []md.Inline) []md.Inline {
+ 	var res []md.Inline
+-	last := 0
+-
+-	appendPlain := func(j int) {
+-		if j-last > 0 {
+-			res = append(res, &md.Plain{Text: text[last:j]})
+-		}
+-	}
+-
+-	start := -1
+-	for i := 0; i < len(text); i++ {
+-		switch text[i] {
+-		case '[':
+-			start = i
+-		case ']':
+-			link, ok := symbolLink(text[start+1:i], text[:start], text[i+1:], defaultPackage)
+-			if ok {
+-				appendPlain(start)
+-				res = append(res, link)
+-				last = i + 1
++	for _, in := range ins {
++		if p, ok := in.(*md.Plain); ok {
++			text := p.Text
++			for len(text) > 0 {
++				i := strings.IndexAny(text, "[]")
++				// If there are no brackets, the remaining text is a single
++				// Plain and we are done.
++				if i < 0 {
++					res = append(res, &md.Plain{Text: text})
++					break
++				}
++				// There is a bracket; make Plains for it and the text before it (if any).
++				if i > 0 {
++					res = append(res, &md.Plain{Text: text[:i]})
++				}
++				res = append(res, &md.Plain{Text: text[i : i+1]})
++				text = text[i+1:]
+ 			}
+-			start = -1
++		} else {
++			res = append(res, in)
+ 		}
+-
+ 	}
+-	appendPlain(len(text))
+ 	return res
+ }
+ 
+-// symbolLink convert s into a Link and returns it and true, or nil and false if
+-// s is not a valid link or is surrounded by runes that disqualify it from being
+-// converted to a link.
+-func symbolLink(s, before, after, defaultPackage string) (md.Inline, bool) {
+-	if before != "" {
+-		r, _ := utf8.DecodeLastRuneInString(before)
++// symbolLinkText returns the text of a possible symbol link.
++// It is given a slice of Inline elements and an index into the slice.
++// If the index refers to a sequence of elements
++//
++//	[Plain("["), Plain_or_Code(text), Plain("]")]
++//
++// and the brackets are adjacent to the right kind of runes for a link, then
++// symbolLinkText returns the text of the middle element.
++// Otherwise it returns the empty string.
++func symbolLinkText(i int, ins []md.Inline) string {
++	// plainText returns the text of ins[j] if it is a Plain element, or "" otherwise.
++	plainText := func(j int) string {
++		if j < 0 || j >= len(ins) {
++			return ""
++		}
++		if p, ok := ins[j].(*md.Plain); ok {
++			return p.Text
++		}
++		return ""
++	}
++
++	// ins[i] must be a "[".
++	if plainText(i) != "[" {
++		return ""
++	}
++	// The open bracket must be preceeded by a link-adjacent rune (or by nothing).
++	if t := plainText(i - 1); t != "" {
++		r, _ := utf8.DecodeLastRuneInString(t)
+ 		if !isLinkAdjacentRune(r) {
+-			return nil, false
++			return ""
+ 		}
+ 	}
+-	if after != "" {
+-		r, _ := utf8.DecodeRuneInString(after)
++	// The element after the next must be a ']'.
++	if plainText(i+2) != "]" {
++		return ""
++	}
++	// The ']' must be followed by a link-adjacent rune (or by nothing).
++	if t := plainText(i + 3); t != "" {
++		r, _ := utf8.DecodeRuneInString(t)
+ 		if !isLinkAdjacentRune(r) {
+-			return nil, false
++			return ""
+ 		}
+ 	}
++
++	// ins[i+1] must be a Plain or a Code.
++	// Its text is the symbol to link to.
++	if i+1 >= len(ins) {
++		return ""
++	}
++	switch in := ins[i+1].(type) {
++	case *md.Plain:
++		return in.Text
++	case *md.Code:
++		return in.Text
++	default:
++		return ""
++	}
++}
++
++// symbolLink converts s into a Link and returns it and true, or nil and false if
++// s is not a valid link or is surrounded by runes that disqualify it from being
++// converted to a link.
++//
++// The argument s is the text between '[' and ']'.
++func symbolLink(s, defaultPackage string) (md.Inline, bool) {
+ 	pkg, sym, ok := splitRef(s)
+ 	if !ok {
+ 		return nil, false
+@@ -137,7 +212,7 @@ func symbolLink(s, before, after, defaultPackage string) (md.Inline, bool) {
+ 		sym = "#" + sym
+ 	}
+ 	return &md.Link{
+-		Inner: []md.Inline{&md.Plain{Text: s}},
++		Inner: []md.Inline{&md.Code{Text: s}},
+ 		URL:   fmt.Sprintf("/pkg/%s%s", pkg, sym),
+ 	}, true
+ }
+diff --git a/src/cmd/vendor/golang.org/x/build/relnote/relnote.go b/src/cmd/vendor/golang.org/x/build/relnote/relnote.go
+index 0012df2211..ba48e6f576 100644
+--- a/src/cmd/vendor/golang.org/x/build/relnote/relnote.go
++++ b/src/cmd/vendor/golang.org/x/build/relnote/relnote.go
+@@ -204,7 +204,7 @@ func stdlibPackageHeading(pkg string, lastLine int) *md.Heading {
+ 			Position: pos,
+ 			Inline: []md.Inline{
+ 				&md.Link{
+-					Inner: []md.Inline{&md.Plain{Text: pkg}},
++					Inner: []md.Inline{&md.Code{Text: pkg}},
+ 					URL:   "/pkg/" + pkg + "/",
+ 				},
+ 			},
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index fdcaa974d2..4ed2e488b6 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -263,6 +263,7 @@ struct ltchars {
+ #include <linux/sched.h>
+ #include <linux/seccomp.h>
+ #include <linux/serial.h>
++#include <linux/sock_diag.h>
+ #include <linux/sockios.h>
+ #include <linux/taskstats.h>
+ #include <linux/tipc.h>
+@@ -549,6 +550,7 @@ ccflags="$@"
+ 		$2 !~ "NLA_TYPE_MASK" &&
+ 		$2 !~ /^RTC_VL_(ACCURACY|BACKUP|DATA)/ &&
+ 		$2 ~ /^(NETLINK|NLM|NLMSG|NLA|IFA|IFAN|RT|RTC|RTCF|RTN|RTPROT|RTNH|ARPHRD|ETH_P|NETNSA)_/ ||
++		$2 ~ /^SOCK_|SK_DIAG_|SKNLGRP_$/ ||
+ 		$2 ~ /^FIORDCHK$/ ||
+ 		$2 ~ /^SIOC/ ||
+ 		$2 ~ /^TIOC/ ||
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index 93a38a97d9..877a62b479 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -502,6 +502,7 @@ const (
+ 	BPF_IMM                                     = 0x0
+ 	BPF_IND                                     = 0x40
+ 	BPF_JA                                      = 0x0
++	BPF_JCOND                                   = 0xe0
+ 	BPF_JEQ                                     = 0x10
+ 	BPF_JGE                                     = 0x30
+ 	BPF_JGT                                     = 0x20
+@@ -657,6 +658,9 @@ const (
+ 	CAN_NPROTO                                  = 0x8
+ 	CAN_RAW                                     = 0x1
+ 	CAN_RAW_FILTER_MAX                          = 0x200
++	CAN_RAW_XL_VCID_RX_FILTER                   = 0x4
++	CAN_RAW_XL_VCID_TX_PASS                     = 0x2
++	CAN_RAW_XL_VCID_TX_SET                      = 0x1
+ 	CAN_RTR_FLAG                                = 0x40000000
+ 	CAN_SFF_ID_BITS                             = 0xb
+ 	CAN_SFF_MASK                                = 0x7ff
+@@ -1339,6 +1343,7 @@ const (
+ 	F_OFD_SETLK                                 = 0x25
+ 	F_OFD_SETLKW                                = 0x26
+ 	F_OK                                        = 0x0
++	F_SEAL_EXEC                                 = 0x20
+ 	F_SEAL_FUTURE_WRITE                         = 0x10
+ 	F_SEAL_GROW                                 = 0x4
+ 	F_SEAL_SEAL                                 = 0x1
+@@ -1627,6 +1632,7 @@ const (
+ 	IP_FREEBIND                                 = 0xf
+ 	IP_HDRINCL                                  = 0x3
+ 	IP_IPSEC_POLICY                             = 0x10
++	IP_LOCAL_PORT_RANGE                         = 0x33
+ 	IP_MAXPACKET                                = 0xffff
+ 	IP_MAX_MEMBERSHIPS                          = 0x14
+ 	IP_MF                                       = 0x2000
+@@ -1653,6 +1659,7 @@ const (
+ 	IP_PMTUDISC_OMIT                            = 0x5
+ 	IP_PMTUDISC_PROBE                           = 0x3
+ 	IP_PMTUDISC_WANT                            = 0x1
++	IP_PROTOCOL                                 = 0x34
+ 	IP_RECVERR                                  = 0xb
+ 	IP_RECVERR_RFC4884                          = 0x1a
+ 	IP_RECVFRAGSIZE                             = 0x19
+@@ -2169,7 +2176,7 @@ const (
+ 	NFT_SECMARK_CTX_MAXLEN                      = 0x100
+ 	NFT_SET_MAXNAMELEN                          = 0x100
+ 	NFT_SOCKET_MAX                              = 0x3
+-	NFT_TABLE_F_MASK                            = 0x3
++	NFT_TABLE_F_MASK                            = 0x7
+ 	NFT_TABLE_MAXNAMELEN                        = 0x100
+ 	NFT_TRACETYPE_MAX                           = 0x3
+ 	NFT_TUNNEL_F_MASK                           = 0x7
+@@ -2403,6 +2410,7 @@ const (
+ 	PERF_RECORD_MISC_USER                       = 0x2
+ 	PERF_SAMPLE_BRANCH_PLM_ALL                  = 0x7
+ 	PERF_SAMPLE_WEIGHT_TYPE                     = 0x1004000
++	PID_FS_MAGIC                                = 0x50494446
+ 	PIPEFS_MAGIC                                = 0x50495045
+ 	PPPIOCGNPMODE                               = 0xc008744c
+ 	PPPIOCNEWUNIT                               = 0xc004743e
+@@ -2896,8 +2904,9 @@ const (
+ 	RWF_APPEND                                  = 0x10
+ 	RWF_DSYNC                                   = 0x2
+ 	RWF_HIPRI                                   = 0x1
++	RWF_NOAPPEND                                = 0x20
+ 	RWF_NOWAIT                                  = 0x8
+-	RWF_SUPPORTED                               = 0x1f
++	RWF_SUPPORTED                               = 0x3f
+ 	RWF_SYNC                                    = 0x4
+ 	RWF_WRITE_LIFE_NOT_SET                      = 0x0
+ 	SCHED_BATCH                                 = 0x3
+@@ -2918,7 +2927,9 @@ const (
+ 	SCHED_RESET_ON_FORK                         = 0x40000000
+ 	SCHED_RR                                    = 0x2
+ 	SCM_CREDENTIALS                             = 0x2
++	SCM_PIDFD                                   = 0x4
+ 	SCM_RIGHTS                                  = 0x1
++	SCM_SECURITY                                = 0x3
+ 	SCM_TIMESTAMP                               = 0x1d
+ 	SC_LOG_FLUSH                                = 0x100000
+ 	SECCOMP_ADDFD_FLAG_SEND                     = 0x2
+@@ -3051,6 +3062,8 @@ const (
+ 	SIOCSMIIREG                                 = 0x8949
+ 	SIOCSRARP                                   = 0x8962
+ 	SIOCWANDEV                                  = 0x894a
++	SK_DIAG_BPF_STORAGE_MAX                     = 0x3
++	SK_DIAG_BPF_STORAGE_REQ_MAX                 = 0x1
+ 	SMACK_MAGIC                                 = 0x43415d53
+ 	SMART_AUTOSAVE                              = 0xd2
+ 	SMART_AUTO_OFFLINE                          = 0xdb
+@@ -3071,6 +3084,8 @@ const (
+ 	SOCKFS_MAGIC                                = 0x534f434b
+ 	SOCK_BUF_LOCK_MASK                          = 0x3
+ 	SOCK_DCCP                                   = 0x6
++	SOCK_DESTROY                                = 0x15
++	SOCK_DIAG_BY_FAMILY                         = 0x14
+ 	SOCK_IOC_TYPE                               = 0x89
+ 	SOCK_PACKET                                 = 0xa
+ 	SOCK_RAW                                    = 0x3
+@@ -3260,6 +3275,7 @@ const (
+ 	TCP_MAX_WINSHIFT                            = 0xe
+ 	TCP_MD5SIG                                  = 0xe
+ 	TCP_MD5SIG_EXT                              = 0x20
++	TCP_MD5SIG_FLAG_IFINDEX                     = 0x2
+ 	TCP_MD5SIG_FLAG_PREFIX                      = 0x1
+ 	TCP_MD5SIG_MAXKEYLEN                        = 0x50
+ 	TCP_MSS                                     = 0x200
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+index 42ff8c3c1b..e4bc0bd57c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+@@ -118,6 +118,7 @@ const (
+ 	IXOFF                            = 0x1000
+ 	IXON                             = 0x400
+ 	MAP_32BIT                        = 0x40
++	MAP_ABOVE4G                      = 0x80
+ 	MAP_ANON                         = 0x20
+ 	MAP_ANONYMOUS                    = 0x20
+ 	MAP_DENYWRITE                    = 0x800
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+index dca436004f..689317afdb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+@@ -118,6 +118,7 @@ const (
+ 	IXOFF                            = 0x1000
+ 	IXON                             = 0x400
+ 	MAP_32BIT                        = 0x40
++	MAP_ABOVE4G                      = 0x80
+ 	MAP_ANON                         = 0x20
+ 	MAP_ANONYMOUS                    = 0x20
+ 	MAP_DENYWRITE                    = 0x800
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+index d8cae6d153..14270508b0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+@@ -87,6 +87,7 @@ const (
+ 	FICLONE                          = 0x40049409
+ 	FICLONERANGE                     = 0x4020940d
+ 	FLUSHO                           = 0x1000
++	FPMR_MAGIC                       = 0x46504d52
+ 	FPSIMD_MAGIC                     = 0x46508001
+ 	FS_IOC_ENABLE_VERITY             = 0x40806685
+ 	FS_IOC_GETFLAGS                  = 0x80086601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index 0036746ea1..4740b83485 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -4605,7 +4605,7 @@ const (
+ 	NL80211_ATTR_MAC_HINT                                   = 0xc8
+ 	NL80211_ATTR_MAC_MASK                                   = 0xd7
+ 	NL80211_ATTR_MAX_AP_ASSOC_STA                           = 0xca
+-	NL80211_ATTR_MAX                                        = 0x149
++	NL80211_ATTR_MAX                                        = 0x14a
+ 	NL80211_ATTR_MAX_CRIT_PROT_DURATION                     = 0xb4
+ 	NL80211_ATTR_MAX_CSA_COUNTERS                           = 0xce
+ 	NL80211_ATTR_MAX_MATCH_SETS                             = 0x85
+@@ -5209,7 +5209,7 @@ const (
+ 	NL80211_FREQUENCY_ATTR_GO_CONCURRENT                    = 0xf
+ 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY                      = 0xe
+ 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT                    = 0xf
+-	NL80211_FREQUENCY_ATTR_MAX                              = 0x1f
++	NL80211_FREQUENCY_ATTR_MAX                              = 0x20
+ 	NL80211_FREQUENCY_ATTR_MAX_TX_POWER                     = 0x6
+ 	NL80211_FREQUENCY_ATTR_NO_10MHZ                         = 0x11
+ 	NL80211_FREQUENCY_ATTR_NO_160MHZ                        = 0xc
+@@ -5703,7 +5703,7 @@ const (
+ 	NL80211_STA_FLAG_ASSOCIATED                             = 0x7
+ 	NL80211_STA_FLAG_AUTHENTICATED                          = 0x5
+ 	NL80211_STA_FLAG_AUTHORIZED                             = 0x1
+-	NL80211_STA_FLAG_MAX                                    = 0x7
++	NL80211_STA_FLAG_MAX                                    = 0x8
+ 	NL80211_STA_FLAG_MAX_OLD_API                            = 0x6
+ 	NL80211_STA_FLAG_MFP                                    = 0x4
+ 	NL80211_STA_FLAG_SHORT_PREAMBLE                         = 0x2
+@@ -6001,3 +6001,34 @@ type CachestatRange struct {
+ 	Off uint64
+ 	Len uint64
+ }
++
++const (
++	SK_MEMINFO_RMEM_ALLOC          = 0x0
++	SK_MEMINFO_RCVBUF              = 0x1
++	SK_MEMINFO_WMEM_ALLOC          = 0x2
++	SK_MEMINFO_SNDBUF              = 0x3
++	SK_MEMINFO_FWD_ALLOC           = 0x4
++	SK_MEMINFO_WMEM_QUEUED         = 0x5
++	SK_MEMINFO_OPTMEM              = 0x6
++	SK_MEMINFO_BACKLOG             = 0x7
++	SK_MEMINFO_DROPS               = 0x8
++	SK_MEMINFO_VARS                = 0x9
++	SKNLGRP_NONE                   = 0x0
++	SKNLGRP_INET_TCP_DESTROY       = 0x1
++	SKNLGRP_INET_UDP_DESTROY       = 0x2
++	SKNLGRP_INET6_TCP_DESTROY      = 0x3
++	SKNLGRP_INET6_UDP_DESTROY      = 0x4
++	SK_DIAG_BPF_STORAGE_REQ_NONE   = 0x0
++	SK_DIAG_BPF_STORAGE_REQ_MAP_FD = 0x1
++	SK_DIAG_BPF_STORAGE_REP_NONE   = 0x0
++	SK_DIAG_BPF_STORAGE            = 0x1
++	SK_DIAG_BPF_STORAGE_NONE       = 0x0
++	SK_DIAG_BPF_STORAGE_PAD        = 0x1
++	SK_DIAG_BPF_STORAGE_MAP_ID     = 0x2
++	SK_DIAG_BPF_STORAGE_MAP_VALUE  = 0x3
++)
++
++type SockDiagReq struct {
++	Family   uint8
++	Protocol uint8
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
+index 26be94a8a7..6f7d2ac70a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
+@@ -68,6 +68,7 @@ type UserInfo10 struct {
+ //sys	NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) = netapi32.NetUserGetInfo
+ //sys	NetGetJoinInformation(server *uint16, name **uint16, bufType *uint32) (neterr error) = netapi32.NetGetJoinInformation
+ //sys	NetApiBufferFree(buf *byte) (neterr error) = netapi32.NetApiBufferFree
++//sys   NetUserEnum(serverName *uint16, level uint32, filter uint32, buf **byte, prefMaxLen uint32, entriesRead *uint32, totalEntries *uint32, resumeHandle *uint32) (neterr error) = netapi32.NetUserEnum
+ 
+ const (
+ 	// do not reorder
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 5c6035ddfa..9f73df75b5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -401,6 +401,7 @@ var (
+ 	procTransmitFile                                         = modmswsock.NewProc("TransmitFile")
+ 	procNetApiBufferFree                                     = modnetapi32.NewProc("NetApiBufferFree")
+ 	procNetGetJoinInformation                                = modnetapi32.NewProc("NetGetJoinInformation")
++	procNetUserEnum                                          = modnetapi32.NewProc("NetUserEnum")
+ 	procNetUserGetInfo                                       = modnetapi32.NewProc("NetUserGetInfo")
+ 	procNtCreateFile                                         = modntdll.NewProc("NtCreateFile")
+ 	procNtCreateNamedPipeFile                                = modntdll.NewProc("NtCreateNamedPipeFile")
+@@ -3486,6 +3487,14 @@ func NetGetJoinInformation(server *uint16, name **uint16, bufType *uint32) (nete
+ 	return
+ }
+ 
++func NetUserEnum(serverName *uint16, level uint32, filter uint32, buf **byte, prefMaxLen uint32, entriesRead *uint32, totalEntries *uint32, resumeHandle *uint32) (neterr error) {
++	r0, _, _ := syscall.Syscall9(procNetUserEnum.Addr(), 8, uintptr(unsafe.Pointer(serverName)), uintptr(level), uintptr(filter), uintptr(unsafe.Pointer(buf)), uintptr(prefMaxLen), uintptr(unsafe.Pointer(entriesRead)), uintptr(unsafe.Pointer(totalEntries)), uintptr(unsafe.Pointer(resumeHandle)), 0)
++	if r0 != 0 {
++		neterr = syscall.Errno(r0)
++	}
++	return
++}
++
+ func NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) {
+ 	r0, _, _ := syscall.Syscall6(procNetUserGetInfo.Addr(), 4, uintptr(unsafe.Pointer(serverName)), uintptr(unsafe.Pointer(userName)), uintptr(level), uintptr(unsafe.Pointer(buf)), 0, 0)
+ 	if r0 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+index 7248502424..794879c4b5 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+@@ -313,7 +313,10 @@ func readFile(f *file) (*File, error) {
+ 		return nil, fmt.Errorf("counter is not initialized - was Open called?")
+ 	}
+ 
+-	f.rotate()
++	// Note: don't call f.rotate here as this will enqueue a follow-up rotation.
++	_, cleanup := f.rotate1()
++	cleanup()
++
+ 	if f.err != nil {
+ 		return nil, fmt.Errorf("failed to rotate mapped file - %v", f.err)
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index a0a1bd4cfb..6133ef0b17 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -188,10 +188,10 @@ func fileValidity(now time.Time) (int, error) {
+ 	if _, err := os.ReadFile(weekends); err != nil {
+ 		if err := os.MkdirAll(telemetry.Default.LocalDir(), 0777); err != nil {
+ 			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.Default.LocalDir())
+-			return 7, err
++			return 0, err
+ 		}
+ 		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
+-			return 7, err
++			return 0, err
+ 		}
+ 	}
+ 
+@@ -200,11 +200,11 @@ func fileValidity(now time.Time) (int, error) {
+ 	// There is no reasonable way of recovering from errors
+ 	// so we just fail
+ 	if err != nil {
+-		return 7, err
++		return 0, err
+ 	}
+ 	buf = bytes.TrimSpace(buf)
+ 	if len(buf) == 0 {
+-		return 7, err
++		return 0, fmt.Errorf("empty weekends file")
+ 	}
+ 	dayofweek := time.Weekday(buf[0] - '0') // 0 is Sunday
+ 	// paranoia to make sure the value is legal
+@@ -247,6 +247,8 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
+ 	defer f.mu.Unlock()
+ 
+ 	var previous *mappedFile
++	// TODO(rfindley): refactor. All callers immediately invoke cleanup;
++	// therefore the cleanup here should be deferred.
+ 	cleanup = func() {
+ 		// convert counters to new mapping (or nil)
+ 		// from old mapping (or nil)
+@@ -256,7 +258,7 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
+ 			return
+ 		}
+ 		// now it is safe to clean up the old mapping
+-		// Quim Montel pointed out the previous coeanup was incomplete
++		// Quim Montel pointed out the previous cleanup was incomplete
+ 		previous.close()
+ 	}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index 5211773657..ad27c27d1d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -91,7 +91,7 @@ type Pass struct {
+ 	Analyzer *Analyzer // the identity of the current analyzer
+ 
+ 	// syntax and type information
+-	Fset         *token.FileSet // file position information
++	Fset         *token.FileSet // file position information; Run may add new files
+ 	Files        []*ast.File    // the abstract syntax tree of each file
+ 	OtherFiles   []string       // names of non-Go files of this package
+ 	IgnoredFiles []string       // names of ignored source files in this package
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+index c638f27581..4eb9059980 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+@@ -12,7 +12,8 @@ import "go/token"
+ // which should be a constant, may be used to classify them.
+ // It is primarily intended to make it easy to look up documentation.
+ //
+-// If End is provided, the diagnostic is specified to apply to the range between
++// All Pos values are interpreted relative to Pass.Fset. If End is
++// provided, the diagnostic is specified to apply to the range between
+ // Pos and End.
+ type Diagnostic struct {
+ 	Pos      token.Pos
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+index 8f39159c0f..8f6e7db6a2 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+@@ -31,7 +31,7 @@ values should be referred to through a pointer.`
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "copylocks",
+ 	Doc:              Doc,
+-	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/copylocks",
++	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/copylock",
+ 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
+ 	RunDespiteErrors: true,
+ 	Run:              run,
+@@ -240,7 +240,10 @@ func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
+ 			return nil
+ 		}
+ 	}
+-	return lockPath(pass.Pkg, pass.TypesInfo.Types[x].Type, nil)
++	if tv, ok := pass.TypesInfo.Types[x]; ok && tv.IsValue() {
++		return lockPath(pass.Pkg, tv.Type, nil)
++	}
++	return nil
+ }
+ 
+ // lockPath returns a typePath describing the location of a lock value
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go
+index f6727c5ada..b205402388 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go
+@@ -70,11 +70,7 @@ func checkGoFile(pass *analysis.Pass, f *ast.File) {
+ 	check := newChecker(pass, pass.Fset.File(f.Package).Name(), f)
+ 
+ 	for _, group := range f.Comments {
+-		// A +build comment is ignored after or adjoining the package declaration.
+-		if group.End()+1 >= f.Package {
+-			check.inHeader = false
+-		}
+-		// A //go:build comment is ignored after the package declaration
++		// A //go:build or a //go:debug comment is ignored after the package declaration
+ 		// (but adjoining it is OK, in contrast to +build comments).
+ 		if group.Pos() >= f.Package {
+ 			check.inHeader = false
+@@ -104,8 +100,7 @@ type checker struct {
+ 	pass     *analysis.Pass
+ 	filename string
+ 	file     *ast.File // nil for non-Go file
+-	inHeader bool      // in file header (before package declaration)
+-	inStar   bool      // currently in a /* */ comment
++	inHeader bool      // in file header (before or adjoining package declaration)
+ }
+ 
+ func newChecker(pass *analysis.Pass, filename string, file *ast.File) *checker {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+index 16a4b3e551..c77182daef 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+@@ -59,14 +59,13 @@ func describe(typ, inType types.Type, inName string) string {
+ 	return name
+ }
+ 
+-func typeName(typ types.Type) string {
+-	typ = aliases.Unalias(typ)
+-	// TODO(adonovan): don't discard alias type, return its name.
+-	if v, _ := typ.(*types.Basic); v != nil {
+-		return v.Name()
+-	}
+-	if v, _ := typ.(interface{ Obj() *types.TypeName }); v != nil { // Named, TypeParam
+-		return v.Obj().Name()
++func typeName(t types.Type) string {
++	type hasTypeName interface{ Obj() *types.TypeName } // Alias, Named, TypeParam
++	switch t := t.(type) {
++	case *types.Basic:
++		return t.Name()
++	case hasTypeName:
++		return t.Obj().Name()
+ 	}
+ 	return ""
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index 2c406ded0c..9ba3a8efb9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -399,15 +399,15 @@ func equivalentTypes(want, got types.Type) bool {
+ // MakeReadFile returns a simple implementation of the Pass.ReadFile function.
+ func MakeReadFile(pass *analysis.Pass) func(filename string) ([]byte, error) {
+ 	return func(filename string) ([]byte, error) {
+-		if err := checkReadable(pass, filename); err != nil {
++		if err := CheckReadable(pass, filename); err != nil {
+ 			return nil, err
+ 		}
+ 		return os.ReadFile(filename)
+ 	}
+ }
+ 
+-// checkReadable enforces the access policy defined by the ReadFile field of [analysis.Pass].
+-func checkReadable(pass *analysis.Pass, filename string) error {
++// CheckReadable enforces the access policy defined by the ReadFile field of [analysis.Pass].
++func CheckReadable(pass *analysis.Pass, filename string) error {
+ 	if slicesContains(pass.OtherFiles, filename) ||
+ 		slicesContains(pass.IgnoredFiles, filename) {
+ 		return nil
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go
+index 24933e43da..6e83c6fb1a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go
+@@ -7,8 +7,6 @@ package typeparams
+ import (
+ 	"fmt"
+ 	"go/types"
+-
+-	"golang.org/x/tools/internal/aliases"
+ )
+ 
+ // CoreType returns the core type of T or nil if T does not have a core type.
+@@ -20,7 +18,7 @@ func CoreType(T types.Type) types.Type {
+ 		return U // for non-interface types,
+ 	}
+ 
+-	terms, err := _NormalTerms(U)
++	terms, err := NormalTerms(U)
+ 	if len(terms) == 0 || err != nil {
+ 		// len(terms) -> empty type set of interface.
+ 		// err != nil => U is invalid, exceeds complexity bounds, or has an empty type set.
+@@ -66,7 +64,7 @@ func CoreType(T types.Type) types.Type {
+ 	return ch
+ }
+ 
+-// _NormalTerms returns a slice of terms representing the normalized structural
++// NormalTerms returns a slice of terms representing the normalized structural
+ // type restrictions of a type, if any.
+ //
+ // For all types other than *types.TypeParam, *types.Interface, and
+@@ -96,23 +94,23 @@ func CoreType(T types.Type) types.Type {
+ // expands to ~string|~[]byte|int|string, which reduces to ~string|~[]byte|int,
+ // which when intersected with C (~string|~int) yields ~string|int.
+ //
+-// _NormalTerms computes these expansions and reductions, producing a
++// NormalTerms computes these expansions and reductions, producing a
+ // "normalized" form of the embeddings. A structural restriction is normalized
+ // if it is a single union containing no interface terms, and is minimal in the
+ // sense that removing any term changes the set of types satisfying the
+ // constraint. It is left as a proof for the reader that, modulo sorting, there
+ // is exactly one such normalized form.
+ //
+-// Because the minimal representation always takes this form, _NormalTerms
++// Because the minimal representation always takes this form, NormalTerms
+ // returns a slice of tilde terms corresponding to the terms of the union in
+ // the normalized structural restriction. An error is returned if the type is
+ // invalid, exceeds complexity bounds, or has an empty type set. In the latter
+-// case, _NormalTerms returns ErrEmptyTypeSet.
++// case, NormalTerms returns ErrEmptyTypeSet.
+ //
+-// _NormalTerms makes no guarantees about the order of terms, except that it
++// NormalTerms makes no guarantees about the order of terms, except that it
+ // is deterministic.
+-func _NormalTerms(typ types.Type) ([]*types.Term, error) {
+-	switch typ := aliases.Unalias(typ).(type) {
++func NormalTerms(typ types.Type) ([]*types.Term, error) {
++	switch typ := typ.Underlying().(type) {
+ 	case *types.TypeParam:
+ 		return StructuralTerms(typ)
+ 	case *types.Union:
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/types_go122.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/types_go122.go
+index e8180632a5..aac5db62c9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/versions/types_go122.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/versions/types_go122.go
+@@ -12,7 +12,7 @@ import (
+ 	"go/types"
+ )
+ 
+-// FileVersions returns a file's Go version.
++// FileVersion returns a file's Go version.
+ // The reported version is an unknown Future version if a
+ // version cannot be determined.
+ func FileVersion(info *types.Info, file *ast.File) string {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index dbaa249988..95ec113904 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -16,16 +16,16 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465
+ ## explicit; go 1.13
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.7.0
++# golang.org/x/arch v0.8.0
+ ## explicit; go 1.18
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
++# golang.org/x/build v0.0.0-20240603162849-5dfbda438323
+ ## explicit; go 1.21
+ golang.org/x/build/relnote
+-# golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9
++# golang.org/x/mod v0.18.0
+ ## explicit; go 1.18
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -40,12 +40,12 @@ golang.org/x/mod/zip
+ ## explicit; go 1.18
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.20.0
++# golang.org/x/sys v0.21.0
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240531174915-469116581a8e
++# golang.org/x/telemetry v0.0.0-20240603224550-f2b69109f79b
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter
+@@ -57,10 +57,10 @@ golang.org/x/telemetry/internal/crashmonitor
+ golang.org/x/telemetry/internal/mmap
+ golang.org/x/telemetry/internal/telemetry
+ golang.org/x/telemetry/internal/upload
+-# golang.org/x/term v0.18.0
++# golang.org/x/term v0.20.0
+ ## explicit; go 1.18
+ golang.org/x/term
+-# golang.org/x/text v0.14.0
++# golang.org/x/text v0.16.0
+ ## explicit; go 1.18
+ golang.org/x/text/cases
+ golang.org/x/text/internal
+@@ -70,7 +70,7 @@ golang.org/x/text/internal/tag
+ golang.org/x/text/language
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/norm
+-# golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
++# golang.org/x/tools v0.21.1-0.20240604144337-208808308b70
+ ## explicit; go 1.19
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+@@ -126,6 +126,6 @@ golang.org/x/tools/internal/stdlib
+ golang.org/x/tools/internal/typeparams
+ golang.org/x/tools/internal/typesinternal
+ golang.org/x/tools/internal/versions
+-# rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650
++# rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef
+ ## explicit; go 1.20
+ rsc.io/markdown
+diff --git a/src/cmd/vendor/rsc.io/markdown/inline.go b/src/cmd/vendor/rsc.io/markdown/inline.go
+index da953e8454..8ee043470c 100644
+--- a/src/cmd/vendor/rsc.io/markdown/inline.go
++++ b/src/cmd/vendor/rsc.io/markdown/inline.go
+@@ -112,8 +112,7 @@ func (x *Escaped) printMarkdown(buf *bytes.Buffer) {
+ }
+ 
+ type Code struct {
+-	Text     string
+-	numTicks int
++	Text string
+ }
+ 
+ func (*Code) Inline() {}
+@@ -123,12 +122,42 @@ func (x *Code) PrintHTML(buf *bytes.Buffer) {
+ }
+ 
+ func (x *Code) printMarkdown(buf *bytes.Buffer) {
+-	ticks := strings.Repeat("`", x.numTicks)
++	if len(x.Text) == 0 {
++		return
++	}
++	// Use the fewest backticks we can, and add spaces as needed.
++	ticks := strings.Repeat("`", longestSequence(x.Text, '`')+1)
+ 	buf.WriteString(ticks)
++	if x.Text[0] == '`' {
++		buf.WriteByte(' ')
++	}
+ 	buf.WriteString(x.Text)
++	if x.Text[len(x.Text)-1] == '`' {
++		buf.WriteByte(' ')
++	}
+ 	buf.WriteString(ticks)
+ }
+ 
++// longestSequence returns the length of the longest sequence of consecutive bytes b in s.
++func longestSequence(s string, b byte) int {
++	max := 0
++	cur := 0
++	for i := range s {
++		if s[i] == b {
++			cur++
++		} else {
++			if cur > max {
++				max = cur
++			}
++			cur = 0
++		}
++	}
++	if cur > max {
++		max = cur
++	}
++	return max
++}
++
+ func (x *Code) PrintText(buf *bytes.Buffer) {
+ 	htmlEscaper.WriteString(buf, x.Text)
+ }
+@@ -609,7 +638,7 @@ func (b *backtickParser) parseCodeSpan(p *parseState, s string, i int) (Inline,
+ 				text = text[1 : len(text)-1]
+ 			}
+ 
+-			return &Code{text, n}, start, end, true
++			return &Code{text}, start, end, true
+ 		}
+ 	}
+ 	b.scanned = true
+diff --git a/src/go.mod b/src/go.mod
+index 0141668dc3..b38dee7e6d 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,11 +3,11 @@ module std
+ go 1.23
+ 
+ require (
+-	golang.org/x/crypto v0.22.1-0.20240415215343-5defcc193aab
+-	golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114
++	golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a
++	golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c
+ )
+ 
+ require (
+-	golang.org/x/sys v0.20.0 // indirect
+-	golang.org/x/text v0.14.0 // indirect
++	golang.org/x/sys v0.21.0 // indirect
++	golang.org/x/text v0.16.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 564f8b30a5..c5eab7d4b2 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+-golang.org/x/crypto v0.22.1-0.20240415215343-5defcc193aab h1:7X80n3mDJrqepjWApLRTQmLYC+hKHXsvFi/LO2SE324=
+-golang.org/x/crypto v0.22.1-0.20240415215343-5defcc193aab/go.mod h1:vr6Su+7cTlO45qkww3VDJlzDn0ctJvRgYbC2NvXHt+M=
+-golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114 h1:0+DQSN4OXt0ivfKIOXFQ+8vsRb1pNvvdl7DZ6AR07OQ=
+-golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114/go.mod h1:2Q7sJY5mzlzWjKtYUEXSlBWCdyaioyXzRB2RtU8KVE8=
+-golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
+-golang.org/x/sys v0.20.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+-golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
++golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a h1:37MIv+iGfwMYzWJECGyrPCtd5nuqcciRUeJfkNCkCf0=
++golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a/go.mod h1:CKFgDieR+mRhux2Lsu27y0fO304Db0wZe70UKqHu0v8=
++golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c h1:CR/7/SLUhIJw6g675eeoDiwggElO2MV9rGkNYjqi8GM=
++golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c/go.mod h1:JkAGAh7GEvH74S6FOH42FLoXpXbE/aqXSrIQjXgsiwM=
++golang.org/x/sys v0.21.0 h1:rF+pYz3DAGSQAxAu1CbC7catZg4ebC4UIeIhKxBZvws=
++golang.org/x/sys v0.21.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
++golang.org/x/text v0.16.0/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 5f97a27ac2..0b305844ae 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -3525,13 +3525,6 @@ type http2stringWriter interface {
+ 	WriteString(s string) (n int, err error)
+ }
+ 
+-// A gate lets two goroutines coordinate their activities.
+-type http2gate chan struct{}
+-
+-func (g http2gate) Done() { g <- struct{}{} }
+-
+-func (g http2gate) Wait() { <-g }
+-
+ // A closeWaiter is like a sync.WaitGroup but only goes 1 to 0 (open to closed).
+ type http2closeWaiter chan struct{}
+ 
+@@ -3704,6 +3697,17 @@ func http2validPseudoPath(v string) bool {
+ // any size (as long as it's first).
+ type http2incomparable [0]func()
+ 
++// synctestGroupInterface is the methods of synctestGroup used by Server and Transport.
++// It's defined as an interface here to let us keep synctestGroup entirely test-only
++// and not a part of non-test builds.
++type http2synctestGroupInterface interface {
++	Join()
++	Now() time.Time
++	NewTimer(d time.Duration) http2timer
++	AfterFunc(d time.Duration, f func()) http2timer
++	ContextWithTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc)
++}
++
+ // pipe is a goroutine-safe io.Reader/io.Writer pair. It's like
+ // io.Pipe except there are no PipeReader/PipeWriter halves, and the
+ // underlying buffer is an interface. (io.Pipe is always unbuffered)
+@@ -3980,6 +3984,39 @@ type http2Server struct {
+ 	// so that we don't embed a Mutex in this struct, which will make the
+ 	// struct non-copyable, which might break some callers.
+ 	state *http2serverInternalState
++
++	// Synchronization group used for testing.
++	// Outside of tests, this is nil.
++	group http2synctestGroupInterface
++}
++
++func (s *http2Server) markNewGoroutine() {
++	if s.group != nil {
++		s.group.Join()
++	}
++}
++
++func (s *http2Server) now() time.Time {
++	if s.group != nil {
++		return s.group.Now()
++	}
++	return time.Now()
++}
++
++// newTimer creates a new time.Timer, or a synthetic timer in tests.
++func (s *http2Server) newTimer(d time.Duration) http2timer {
++	if s.group != nil {
++		return s.group.NewTimer(d)
++	}
++	return http2timeTimer{time.NewTimer(d)}
++}
++
++// afterFunc creates a new time.AfterFunc timer, or a synthetic timer in tests.
++func (s *http2Server) afterFunc(d time.Duration, f func()) http2timer {
++	if s.group != nil {
++		return s.group.AfterFunc(d, f)
++	}
++	return http2timeTimer{time.AfterFunc(d, f)}
+ }
+ 
+ func (s *http2Server) initialConnRecvWindowSize() int32 {
+@@ -4226,6 +4263,10 @@ func (o *http2ServeConnOpts) handler() Handler {
+ //
+ // The opts parameter is optional. If nil, default values are used.
+ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
++	s.serveConn(c, opts, nil)
++}
++
++func (s *http2Server) serveConn(c net.Conn, opts *http2ServeConnOpts, newf func(*http2serverConn)) {
+ 	baseCtx, cancel := http2serverConnBaseContext(c, opts)
+ 	defer cancel()
+ 
+@@ -4252,6 +4293,9 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
+ 		pushEnabled:                 true,
+ 		sawClientPreface:            opts.SawClientPreface,
+ 	}
++	if newf != nil {
++		newf(sc)
++	}
+ 
+ 	s.state.registerConn(sc)
+ 	defer s.state.unregisterConn(sc)
+@@ -4425,8 +4469,8 @@ type http2serverConn struct {
+ 	inFrameScheduleLoop         bool              // whether we're in the scheduleFrameWrite loop
+ 	needToSendGoAway            bool              // we need to schedule a GOAWAY frame write
+ 	goAwayCode                  http2ErrCode
+-	shutdownTimer               *time.Timer // nil until used
+-	idleTimer                   *time.Timer // nil if unused
++	shutdownTimer               http2timer // nil until used
++	idleTimer                   http2timer // nil if unused
+ 
+ 	// Owned by the writeFrameAsync goroutine:
+ 	headerWriteBuf bytes.Buffer
+@@ -4475,12 +4519,12 @@ type http2stream struct {
+ 	flow             http2outflow // limits writing from Handler to client
+ 	inflow           http2inflow  // what the client is allowed to POST/etc to us
+ 	state            http2streamState
+-	resetQueued      bool        // RST_STREAM queued for write; set by sc.resetStream
+-	gotTrailerHeader bool        // HEADER frame for trailers was seen
+-	wroteHeaders     bool        // whether we wrote headers (not status 100)
+-	readDeadline     *time.Timer // nil if unused
+-	writeDeadline    *time.Timer // nil if unused
+-	closeErr         error       // set before cw is closed
++	resetQueued      bool       // RST_STREAM queued for write; set by sc.resetStream
++	gotTrailerHeader bool       // HEADER frame for trailers was seen
++	wroteHeaders     bool       // whether we wrote headers (not status 100)
++	readDeadline     http2timer // nil if unused
++	writeDeadline    http2timer // nil if unused
++	closeErr         error      // set before cw is closed
+ 
+ 	trailer    Header // accumulated trailers
+ 	reqTrailer Header // handler's Request.Trailer
+@@ -4561,11 +4605,7 @@ func http2isClosedConnError(err error) bool {
+ 		return false
+ 	}
+ 
+-	// TODO: remove this string search and be more like the Windows
+-	// case below. That might involve modifying the standard library
+-	// to return better error types.
+-	str := err.Error()
+-	if strings.Contains(str, "use of closed network connection") {
++	if errors.Is(err, net.ErrClosed) {
+ 		return true
+ 	}
+ 
+@@ -4644,8 +4684,9 @@ type http2readFrameResult struct {
+ // consumer is done with the frame.
+ // It's run on its own goroutine.
+ func (sc *http2serverConn) readFrames() {
+-	gate := make(http2gate)
+-	gateDone := gate.Done
++	sc.srv.markNewGoroutine()
++	gate := make(chan struct{})
++	gateDone := func() { gate <- struct{}{} }
+ 	for {
+ 		f, err := sc.framer.ReadFrame()
+ 		select {
+@@ -4676,6 +4717,7 @@ type http2frameWriteResult struct {
+ // At most one goroutine can be running writeFrameAsync at a time per
+ // serverConn.
+ func (sc *http2serverConn) writeFrameAsync(wr http2FrameWriteRequest, wd *http2writeData) {
++	sc.srv.markNewGoroutine()
+ 	var err error
+ 	if wd == nil {
+ 		err = wr.write.writeFrame(sc)
+@@ -4755,13 +4797,13 @@ func (sc *http2serverConn) serve() {
+ 	sc.setConnState(StateIdle)
+ 
+ 	if sc.srv.IdleTimeout > 0 {
+-		sc.idleTimer = time.AfterFunc(sc.srv.IdleTimeout, sc.onIdleTimer)
++		sc.idleTimer = sc.srv.afterFunc(sc.srv.IdleTimeout, sc.onIdleTimer)
+ 		defer sc.idleTimer.Stop()
+ 	}
+ 
+ 	go sc.readFrames() // closed by defer sc.conn.Close above
+ 
+-	settingsTimer := time.AfterFunc(http2firstSettingsTimeout, sc.onSettingsTimer)
++	settingsTimer := sc.srv.afterFunc(http2firstSettingsTimeout, sc.onSettingsTimer)
+ 	defer settingsTimer.Stop()
+ 
+ 	loopNum := 0
+@@ -4892,10 +4934,10 @@ func (sc *http2serverConn) readPreface() error {
+ 			errc <- nil
+ 		}
+ 	}()
+-	timer := time.NewTimer(http2prefaceTimeout) // TODO: configurable on *Server?
++	timer := sc.srv.newTimer(http2prefaceTimeout) // TODO: configurable on *Server?
+ 	defer timer.Stop()
+ 	select {
+-	case <-timer.C:
++	case <-timer.C():
+ 		return http2errPrefaceTimeout
+ 	case err := <-errc:
+ 		if err == nil {
+@@ -5260,7 +5302,7 @@ func (sc *http2serverConn) goAway(code http2ErrCode) {
+ 
+ func (sc *http2serverConn) shutDownIn(d time.Duration) {
+ 	sc.serveG.check()
+-	sc.shutdownTimer = time.AfterFunc(d, sc.onShutdownTimer)
++	sc.shutdownTimer = sc.srv.afterFunc(d, sc.onShutdownTimer)
+ }
+ 
+ func (sc *http2serverConn) resetStream(se http2StreamError) {
+@@ -5474,7 +5516,7 @@ func (sc *http2serverConn) closeStream(st *http2stream, err error) {
+ 	delete(sc.streams, st.id)
+ 	if len(sc.streams) == 0 {
+ 		sc.setConnState(StateIdle)
+-		if sc.srv.IdleTimeout > 0 {
++		if sc.srv.IdleTimeout > 0 && sc.idleTimer != nil {
+ 			sc.idleTimer.Reset(sc.srv.IdleTimeout)
+ 		}
+ 		if http2h1ServerKeepAlivesDisabled(sc.hs) {
+@@ -5496,6 +5538,7 @@ func (sc *http2serverConn) closeStream(st *http2stream, err error) {
+ 		}
+ 	}
+ 	st.closeErr = err
++	st.cancelCtx()
+ 	st.cw.Close() // signals Handler's CloseNotifier, unblocks writes, etc
+ 	sc.writeSched.CloseStream(st.id)
+ }
+@@ -5856,7 +5899,7 @@ func (sc *http2serverConn) processHeaders(f *http2MetaHeadersFrame) error {
+ 	// (in Go 1.8), though. That's a more sane option anyway.
+ 	if sc.hs.ReadTimeout > 0 {
+ 		sc.conn.SetReadDeadline(time.Time{})
+-		st.readDeadline = time.AfterFunc(sc.hs.ReadTimeout, st.onReadTimeout)
++		st.readDeadline = sc.srv.afterFunc(sc.hs.ReadTimeout, st.onReadTimeout)
+ 	}
+ 
+ 	return sc.scheduleHandler(id, rw, req, handler)
+@@ -5954,7 +5997,7 @@ func (sc *http2serverConn) newStream(id, pusherID uint32, state http2streamState
+ 	st.flow.add(sc.initialStreamSendWindowSize)
+ 	st.inflow.init(sc.srv.initialStreamRecvWindowSize())
+ 	if sc.hs.WriteTimeout > 0 {
+-		st.writeDeadline = time.AfterFunc(sc.hs.WriteTimeout, st.onWriteTimeout)
++		st.writeDeadline = sc.srv.afterFunc(sc.hs.WriteTimeout, st.onWriteTimeout)
+ 	}
+ 
+ 	sc.streams[id] = st
+@@ -6178,6 +6221,7 @@ func (sc *http2serverConn) handlerDone() {
+ 
+ // Run on its own goroutine.
+ func (sc *http2serverConn) runHandler(rw *http2responseWriter, req *Request, handler func(ResponseWriter, *Request)) {
++	sc.srv.markNewGoroutine()
+ 	defer sc.sendServeMsg(http2handlerDoneMsg)
+ 	didPanic := true
+ 	defer func() {
+@@ -6474,7 +6518,7 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
+ 		var date string
+ 		if _, ok := rws.snapHeader["Date"]; !ok {
+ 			// TODO(bradfitz): be faster here, like net/http? measure.
+-			date = time.Now().UTC().Format(TimeFormat)
++			date = rws.conn.srv.now().UTC().Format(TimeFormat)
+ 		}
+ 
+ 		for _, v := range rws.snapHeader["Trailer"] {
+@@ -6596,7 +6640,7 @@ func (rws *http2responseWriterState) promoteUndeclaredTrailers() {
+ 
+ func (w *http2responseWriter) SetReadDeadline(deadline time.Time) error {
+ 	st := w.rws.stream
+-	if !deadline.IsZero() && deadline.Before(time.Now()) {
++	if !deadline.IsZero() && deadline.Before(w.rws.conn.srv.now()) {
+ 		// If we're setting a deadline in the past, reset the stream immediately
+ 		// so writes after SetWriteDeadline returns will fail.
+ 		st.onReadTimeout()
+@@ -6612,9 +6656,9 @@ func (w *http2responseWriter) SetReadDeadline(deadline time.Time) error {
+ 		if deadline.IsZero() {
+ 			st.readDeadline = nil
+ 		} else if st.readDeadline == nil {
+-			st.readDeadline = time.AfterFunc(deadline.Sub(time.Now()), st.onReadTimeout)
++			st.readDeadline = sc.srv.afterFunc(deadline.Sub(sc.srv.now()), st.onReadTimeout)
+ 		} else {
+-			st.readDeadline.Reset(deadline.Sub(time.Now()))
++			st.readDeadline.Reset(deadline.Sub(sc.srv.now()))
+ 		}
+ 	})
+ 	return nil
+@@ -6622,7 +6666,7 @@ func (w *http2responseWriter) SetReadDeadline(deadline time.Time) error {
+ 
+ func (w *http2responseWriter) SetWriteDeadline(deadline time.Time) error {
+ 	st := w.rws.stream
+-	if !deadline.IsZero() && deadline.Before(time.Now()) {
++	if !deadline.IsZero() && deadline.Before(w.rws.conn.srv.now()) {
+ 		// If we're setting a deadline in the past, reset the stream immediately
+ 		// so writes after SetWriteDeadline returns will fail.
+ 		st.onWriteTimeout()
+@@ -6638,9 +6682,9 @@ func (w *http2responseWriter) SetWriteDeadline(deadline time.Time) error {
+ 		if deadline.IsZero() {
+ 			st.writeDeadline = nil
+ 		} else if st.writeDeadline == nil {
+-			st.writeDeadline = time.AfterFunc(deadline.Sub(time.Now()), st.onWriteTimeout)
++			st.writeDeadline = sc.srv.afterFunc(deadline.Sub(sc.srv.now()), st.onWriteTimeout)
+ 		} else {
+-			st.writeDeadline.Reset(deadline.Sub(time.Now()))
++			st.writeDeadline.Reset(deadline.Sub(sc.srv.now()))
+ 		}
+ 	})
+ 	return nil
+@@ -7116,328 +7160,19 @@ func (sc *http2serverConn) countError(name string, err error) error {
+ 	return err
+ }
+ 
+-// testSyncHooks coordinates goroutines in tests.
+-//
+-// For example, a call to ClientConn.RoundTrip involves several goroutines, including:
+-//   - the goroutine running RoundTrip;
+-//   - the clientStream.doRequest goroutine, which writes the request; and
+-//   - the clientStream.readLoop goroutine, which reads the response.
+-//
+-// Using testSyncHooks, a test can start a RoundTrip and identify when all these goroutines
+-// are blocked waiting for some condition such as reading the Request.Body or waiting for
+-// flow control to become available.
+-//
+-// The testSyncHooks also manage timers and synthetic time in tests.
+-// This permits us to, for example, start a request and cause it to time out waiting for
+-// response headers without resorting to time.Sleep calls.
+-type http2testSyncHooks struct {
+-	// active/inactive act as a mutex and condition variable.
+-	//
+-	//  - neither chan contains a value: testSyncHooks is locked.
+-	//  - active contains a value: unlocked, and at least one goroutine is not blocked
+-	//  - inactive contains a value: unlocked, and all goroutines are blocked
+-	active   chan struct{}
+-	inactive chan struct{}
+-
+-	// goroutine counts
+-	total    int                          // total goroutines
+-	condwait map[*sync.Cond]int           // blocked in sync.Cond.Wait
+-	blocked  []*http2testBlockedGoroutine // otherwise blocked
+-
+-	// fake time
+-	now    time.Time
+-	timers []*http2fakeTimer
+-
+-	// Transport testing: Report various events.
+-	newclientconn func(*http2ClientConn)
+-	newstream     func(*http2clientStream)
+-}
+-
+-// testBlockedGoroutine is a blocked goroutine.
+-type http2testBlockedGoroutine struct {
+-	f  func() bool   // blocked until f returns true
+-	ch chan struct{} // closed when unblocked
+-}
+-
+-func http2newTestSyncHooks() *http2testSyncHooks {
+-	h := &http2testSyncHooks{
+-		active:   make(chan struct{}, 1),
+-		inactive: make(chan struct{}, 1),
+-		condwait: map[*sync.Cond]int{},
+-	}
+-	h.inactive <- struct{}{}
+-	h.now = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+-	return h
+-}
+-
+-// lock acquires the testSyncHooks mutex.
+-func (h *http2testSyncHooks) lock() {
+-	select {
+-	case <-h.active:
+-	case <-h.inactive:
+-	}
+-}
+-
+-// waitInactive waits for all goroutines to become inactive.
+-func (h *http2testSyncHooks) waitInactive() {
+-	for {
+-		<-h.inactive
+-		if !h.unlock() {
+-			break
+-		}
+-	}
+-}
+-
+-// unlock releases the testSyncHooks mutex.
+-// It reports whether any goroutines are active.
+-func (h *http2testSyncHooks) unlock() (active bool) {
+-	// Look for a blocked goroutine which can be unblocked.
+-	blocked := h.blocked[:0]
+-	unblocked := false
+-	for _, b := range h.blocked {
+-		if !unblocked && b.f() {
+-			unblocked = true
+-			close(b.ch)
+-		} else {
+-			blocked = append(blocked, b)
+-		}
+-	}
+-	h.blocked = blocked
+-
+-	// Count goroutines blocked on condition variables.
+-	condwait := 0
+-	for _, count := range h.condwait {
+-		condwait += count
+-	}
+-
+-	if h.total > condwait+len(blocked) {
+-		h.active <- struct{}{}
+-		return true
+-	} else {
+-		h.inactive <- struct{}{}
+-		return false
+-	}
+-}
+-
+-// goRun starts a new goroutine.
+-func (h *http2testSyncHooks) goRun(f func()) {
+-	h.lock()
+-	h.total++
+-	h.unlock()
+-	go func() {
+-		defer func() {
+-			h.lock()
+-			h.total--
+-			h.unlock()
+-		}()
+-		f()
+-	}()
+-}
+-
+-// blockUntil indicates that a goroutine is blocked waiting for some condition to become true.
+-// It waits until f returns true before proceeding.
+-//
+-// Example usage:
+-//
+-//	h.blockUntil(func() bool {
+-//		// Is the context done yet?
+-//		select {
+-//		case <-ctx.Done():
+-//		default:
+-//			return false
+-//		}
+-//		return true
+-//	})
+-//	// Wait for the context to become done.
+-//	<-ctx.Done()
+-//
+-// The function f passed to blockUntil must be non-blocking and idempotent.
+-func (h *http2testSyncHooks) blockUntil(f func() bool) {
+-	if f() {
+-		return
+-	}
+-	ch := make(chan struct{})
+-	h.lock()
+-	h.blocked = append(h.blocked, &http2testBlockedGoroutine{
+-		f:  f,
+-		ch: ch,
+-	})
+-	h.unlock()
+-	<-ch
+-}
+-
+-// broadcast is sync.Cond.Broadcast.
+-func (h *http2testSyncHooks) condBroadcast(cond *sync.Cond) {
+-	h.lock()
+-	delete(h.condwait, cond)
+-	h.unlock()
+-	cond.Broadcast()
+-}
+-
+-// broadcast is sync.Cond.Wait.
+-func (h *http2testSyncHooks) condWait(cond *sync.Cond) {
+-	h.lock()
+-	h.condwait[cond]++
+-	h.unlock()
+-}
+-
+-// newTimer creates a new fake timer.
+-func (h *http2testSyncHooks) newTimer(d time.Duration) http2timer {
+-	h.lock()
+-	defer h.unlock()
+-	t := &http2fakeTimer{
+-		hooks: h,
+-		when:  h.now.Add(d),
+-		c:     make(chan time.Time),
+-	}
+-	h.timers = append(h.timers, t)
+-	return t
+-}
+-
+-// afterFunc creates a new fake AfterFunc timer.
+-func (h *http2testSyncHooks) afterFunc(d time.Duration, f func()) http2timer {
+-	h.lock()
+-	defer h.unlock()
+-	t := &http2fakeTimer{
+-		hooks: h,
+-		when:  h.now.Add(d),
+-		f:     f,
+-	}
+-	h.timers = append(h.timers, t)
+-	return t
+-}
+-
+-func (h *http2testSyncHooks) contextWithTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
+-	ctx, cancel := context.WithCancel(ctx)
+-	t := h.afterFunc(d, cancel)
+-	return ctx, func() {
+-		t.Stop()
+-		cancel()
+-	}
+-}
+-
+-func (h *http2testSyncHooks) timeUntilEvent() time.Duration {
+-	h.lock()
+-	defer h.unlock()
+-	var next time.Time
+-	for _, t := range h.timers {
+-		if next.IsZero() || t.when.Before(next) {
+-			next = t.when
+-		}
+-	}
+-	if d := next.Sub(h.now); d > 0 {
+-		return d
+-	}
+-	return 0
+-}
+-
+-// advance advances time and causes synthetic timers to fire.
+-func (h *http2testSyncHooks) advance(d time.Duration) {
+-	h.lock()
+-	defer h.unlock()
+-	h.now = h.now.Add(d)
+-	timers := h.timers[:0]
+-	for _, t := range h.timers {
+-		t := t // remove after go.mod depends on go1.22
+-		t.mu.Lock()
+-		switch {
+-		case t.when.After(h.now):
+-			timers = append(timers, t)
+-		case t.when.IsZero():
+-			// stopped timer
+-		default:
+-			t.when = time.Time{}
+-			if t.c != nil {
+-				close(t.c)
+-			}
+-			if t.f != nil {
+-				h.total++
+-				go func() {
+-					defer func() {
+-						h.lock()
+-						h.total--
+-						h.unlock()
+-					}()
+-					t.f()
+-				}()
+-			}
+-		}
+-		t.mu.Unlock()
+-	}
+-	h.timers = timers
+-}
+-
+-// A timer wraps a time.Timer, or a synthetic equivalent in tests.
+-// Unlike time.Timer, timer is single-use: The timer channel is closed when the timer expires.
+-type http2timer interface {
++// A timer is a time.Timer, as an interface which can be replaced in tests.
++type http2timer = interface {
+ 	C() <-chan time.Time
+-	Stop() bool
+ 	Reset(d time.Duration) bool
++	Stop() bool
+ }
+ 
+-// timeTimer implements timer using real time.
++// timeTimer adapts a time.Timer to the timer interface.
+ type http2timeTimer struct {
+-	t *time.Timer
+-	c chan time.Time
+-}
+-
+-// newTimeTimer creates a new timer using real time.
+-func http2newTimeTimer(d time.Duration) http2timer {
+-	ch := make(chan time.Time)
+-	t := time.AfterFunc(d, func() {
+-		close(ch)
+-	})
+-	return &http2timeTimer{t, ch}
++	*time.Timer
+ }
+ 
+-// newTimeAfterFunc creates an AfterFunc timer using real time.
+-func http2newTimeAfterFunc(d time.Duration, f func()) http2timer {
+-	return &http2timeTimer{
+-		t: time.AfterFunc(d, f),
+-	}
+-}
+-
+-func (t http2timeTimer) C() <-chan time.Time { return t.c }
+-
+-func (t http2timeTimer) Stop() bool { return t.t.Stop() }
+-
+-func (t http2timeTimer) Reset(d time.Duration) bool { return t.t.Reset(d) }
+-
+-// fakeTimer implements timer using fake time.
+-type http2fakeTimer struct {
+-	hooks *http2testSyncHooks
+-
+-	mu   sync.Mutex
+-	when time.Time      // when the timer will fire
+-	c    chan time.Time // closed when the timer fires; mutually exclusive with f
+-	f    func()         // called when the timer fires; mutually exclusive with c
+-}
+-
+-func (t *http2fakeTimer) C() <-chan time.Time { return t.c }
+-
+-func (t *http2fakeTimer) Stop() bool {
+-	t.mu.Lock()
+-	defer t.mu.Unlock()
+-	stopped := t.when.IsZero()
+-	t.when = time.Time{}
+-	return stopped
+-}
+-
+-func (t *http2fakeTimer) Reset(d time.Duration) bool {
+-	if t.c != nil || t.f == nil {
+-		panic("fakeTimer only supports Reset on AfterFunc timers")
+-	}
+-	t.mu.Lock()
+-	defer t.mu.Unlock()
+-	t.hooks.lock()
+-	defer t.hooks.unlock()
+-	active := !t.when.IsZero()
+-	t.when = t.hooks.now.Add(d)
+-	if !active {
+-		t.hooks.timers = append(t.hooks.timers, t)
+-	}
+-	return active
+-}
++func (t http2timeTimer) C() <-chan time.Time { return t.Timer.C }
+ 
+ const (
+ 	// transportDefaultConnFlow is how many connection-level flow control
+@@ -7586,7 +7321,45 @@ type http2Transport struct {
+ 	connPoolOnce  sync.Once
+ 	connPoolOrDef http2ClientConnPool // non-nil version of ConnPool
+ 
+-	syncHooks *http2testSyncHooks
++	*http2transportTestHooks
++}
++
++// Hook points used for testing.
++// Outside of tests, t.transportTestHooks is nil and these all have minimal implementations.
++// Inside tests, see the testSyncHooks function docs.
++
++type http2transportTestHooks struct {
++	newclientconn func(*http2ClientConn)
++	group         http2synctestGroupInterface
++}
++
++func (t *http2Transport) markNewGoroutine() {
++	if t != nil && t.http2transportTestHooks != nil {
++		t.http2transportTestHooks.group.Join()
++	}
++}
++
++// newTimer creates a new time.Timer, or a synthetic timer in tests.
++func (t *http2Transport) newTimer(d time.Duration) http2timer {
++	if t.http2transportTestHooks != nil {
++		return t.http2transportTestHooks.group.NewTimer(d)
++	}
++	return http2timeTimer{time.NewTimer(d)}
++}
++
++// afterFunc creates a new time.AfterFunc timer, or a synthetic timer in tests.
++func (t *http2Transport) afterFunc(d time.Duration, f func()) http2timer {
++	if t.http2transportTestHooks != nil {
++		return t.http2transportTestHooks.group.AfterFunc(d, f)
++	}
++	return http2timeTimer{time.AfterFunc(d, f)}
++}
++
++func (t *http2Transport) contextWithTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
++	if t.http2transportTestHooks != nil {
++		return t.http2transportTestHooks.group.ContextWithTimeout(ctx, d)
++	}
++	return context.WithTimeout(ctx, d)
+ }
+ 
+ func (t *http2Transport) maxHeaderListSize() uint32 {
+@@ -7753,60 +7526,6 @@ type http2ClientConn struct {
+ 	werr error        // first write error that has occurred
+ 	hbuf bytes.Buffer // HPACK encoder writes into this
+ 	henc *hpack.Encoder
+-
+-	syncHooks *http2testSyncHooks // can be nil
+-}
+-
+-// Hook points used for testing.
+-// Outside of tests, cc.syncHooks is nil and these all have minimal implementations.
+-// Inside tests, see the testSyncHooks function docs.
+-
+-// goRun starts a new goroutine.
+-func (cc *http2ClientConn) goRun(f func()) {
+-	if cc.syncHooks != nil {
+-		cc.syncHooks.goRun(f)
+-		return
+-	}
+-	go f()
+-}
+-
+-// condBroadcast is cc.cond.Broadcast.
+-func (cc *http2ClientConn) condBroadcast() {
+-	if cc.syncHooks != nil {
+-		cc.syncHooks.condBroadcast(cc.cond)
+-	}
+-	cc.cond.Broadcast()
+-}
+-
+-// condWait is cc.cond.Wait.
+-func (cc *http2ClientConn) condWait() {
+-	if cc.syncHooks != nil {
+-		cc.syncHooks.condWait(cc.cond)
+-	}
+-	cc.cond.Wait()
+-}
+-
+-// newTimer creates a new time.Timer, or a synthetic timer in tests.
+-func (cc *http2ClientConn) newTimer(d time.Duration) http2timer {
+-	if cc.syncHooks != nil {
+-		return cc.syncHooks.newTimer(d)
+-	}
+-	return http2newTimeTimer(d)
+-}
+-
+-// afterFunc creates a new time.AfterFunc timer, or a synthetic timer in tests.
+-func (cc *http2ClientConn) afterFunc(d time.Duration, f func()) http2timer {
+-	if cc.syncHooks != nil {
+-		return cc.syncHooks.afterFunc(d, f)
+-	}
+-	return http2newTimeAfterFunc(d, f)
+-}
+-
+-func (cc *http2ClientConn) contextWithTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
+-	if cc.syncHooks != nil {
+-		return cc.syncHooks.contextWithTimeout(ctx, d)
+-	}
+-	return context.WithTimeout(ctx, d)
+ }
+ 
+ // clientStream is the state for a single HTTP/2 stream. One of these
+@@ -7888,7 +7607,7 @@ func (cs *http2clientStream) abortStreamLocked(err error) {
+ 	// TODO(dneil): Clean up tests where cs.cc.cond is nil.
+ 	if cs.cc.cond != nil {
+ 		// Wake up writeRequestBody if it is waiting on flow control.
+-		cs.cc.condBroadcast()
++		cs.cc.cond.Broadcast()
+ 	}
+ }
+ 
+@@ -7898,7 +7617,7 @@ func (cs *http2clientStream) abortRequestBodyWrite() {
+ 	defer cc.mu.Unlock()
+ 	if cs.reqBody != nil && cs.reqBodyClosed == nil {
+ 		cs.closeReqBodyLocked()
+-		cc.condBroadcast()
++		cc.cond.Broadcast()
+ 	}
+ }
+ 
+@@ -7908,10 +7627,11 @@ func (cs *http2clientStream) closeReqBodyLocked() {
+ 	}
+ 	cs.reqBodyClosed = make(chan struct{})
+ 	reqBodyClosed := cs.reqBodyClosed
+-	cs.cc.goRun(func() {
++	go func() {
++		cs.cc.t.markNewGoroutine()
+ 		cs.reqBody.Close()
+ 		close(reqBodyClosed)
+-	})
++	}()
+ }
+ 
+ type http2stickyErrWriter struct {
+@@ -8028,21 +7748,7 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
+ 				backoff := float64(uint(1) << (uint(retry) - 1))
+ 				backoff += backoff * (0.1 * mathrand.Float64())
+ 				d := time.Second * time.Duration(backoff)
+-				var tm http2timer
+-				if t.syncHooks != nil {
+-					tm = t.syncHooks.newTimer(d)
+-					t.syncHooks.blockUntil(func() bool {
+-						select {
+-						case <-tm.C():
+-						case <-req.Context().Done():
+-						default:
+-							return false
+-						}
+-						return true
+-					})
+-				} else {
+-					tm = http2newTimeTimer(d)
+-				}
++				tm := t.newTimer(d)
+ 				select {
+ 				case <-tm.C():
+ 					t.vlogf("RoundTrip retrying after failure: %v", roundTripErr)
+@@ -8127,8 +7833,8 @@ func http2canRetryError(err error) bool {
+ }
+ 
+ func (t *http2Transport) dialClientConn(ctx context.Context, addr string, singleUse bool) (*http2ClientConn, error) {
+-	if t.syncHooks != nil {
+-		return t.newClientConn(nil, singleUse, t.syncHooks)
++	if t.http2transportTestHooks != nil {
++		return t.newClientConn(nil, singleUse)
+ 	}
+ 	host, _, err := net.SplitHostPort(addr)
+ 	if err != nil {
+@@ -8138,7 +7844,7 @@ func (t *http2Transport) dialClientConn(ctx context.Context, addr string, single
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return t.newClientConn(tconn, singleUse, nil)
++	return t.newClientConn(tconn, singleUse)
+ }
+ 
+ func (t *http2Transport) newTLSConfig(host string) *tls.Config {
+@@ -8204,10 +7910,10 @@ func (t *http2Transport) maxEncoderHeaderTableSize() uint32 {
+ }
+ 
+ func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
+-	return t.newClientConn(c, t.disableKeepAlives(), nil)
++	return t.newClientConn(c, t.disableKeepAlives())
+ }
+ 
+-func (t *http2Transport) newClientConn(c net.Conn, singleUse bool, hooks *http2testSyncHooks) (*http2ClientConn, error) {
++func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2ClientConn, error) {
+ 	cc := &http2ClientConn{
+ 		t:                     t,
+ 		tconn:                 c,
+@@ -8222,16 +7928,12 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool, hooks *http2t
+ 		wantSettingsAck:       true,
+ 		pings:                 make(map[[8]byte]chan struct{}),
+ 		reqHeaderMu:           make(chan struct{}, 1),
+-		syncHooks:             hooks,
+ 	}
+-	if hooks != nil {
+-		hooks.newclientconn(cc)
++	if t.http2transportTestHooks != nil {
++		t.markNewGoroutine()
++		t.http2transportTestHooks.newclientconn(cc)
+ 		c = cc.tconn
+ 	}
+-	if d := t.idleConnTimeout(); d != 0 {
+-		cc.idleTimeout = d
+-		cc.idleTimer = cc.afterFunc(d, cc.onIdleTimeout)
+-	}
+ 	if http2VerboseLogs {
+ 		t.vlogf("http2: Transport creating client conn %p to %v", cc, c.RemoteAddr())
+ 	}
+@@ -8295,7 +7997,13 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool, hooks *http2t
+ 		return nil, cc.werr
+ 	}
+ 
+-	cc.goRun(cc.readLoop)
++	// Start the idle timer after the connection is fully initialized.
++	if d := t.idleConnTimeout(); d != 0 {
++		cc.idleTimeout = d
++		cc.idleTimer = t.afterFunc(d, cc.onIdleTimeout)
++	}
++
++	go cc.readLoop()
+ 	return cc, nil
+ }
+ 
+@@ -8303,7 +8011,7 @@ func (cc *http2ClientConn) healthCheck() {
+ 	pingTimeout := cc.t.pingTimeout()
+ 	// We don't need to periodically ping in the health check, because the readLoop of ClientConn will
+ 	// trigger the healthCheck again if there is no frame received.
+-	ctx, cancel := cc.contextWithTimeout(context.Background(), pingTimeout)
++	ctx, cancel := cc.t.contextWithTimeout(context.Background(), pingTimeout)
+ 	defer cancel()
+ 	cc.vlogf("http2: Transport sending health check")
+ 	err := cc.Ping(ctx)
+@@ -8546,7 +8254,8 @@ func (cc *http2ClientConn) Shutdown(ctx context.Context) error {
+ 	// Wait for all in-flight streams to complete or connection to close
+ 	done := make(chan struct{})
+ 	cancelled := false // guarded by cc.mu
+-	cc.goRun(func() {
++	go func() {
++		cc.t.markNewGoroutine()
+ 		cc.mu.Lock()
+ 		defer cc.mu.Unlock()
+ 		for {
+@@ -8558,9 +8267,9 @@ func (cc *http2ClientConn) Shutdown(ctx context.Context) error {
+ 			if cancelled {
+ 				break
+ 			}
+-			cc.condWait()
++			cc.cond.Wait()
+ 		}
+-	})
++	}()
+ 	http2shutdownEnterWaitStateHook()
+ 	select {
+ 	case <-done:
+@@ -8570,7 +8279,7 @@ func (cc *http2ClientConn) Shutdown(ctx context.Context) error {
+ 		cc.mu.Lock()
+ 		// Free the goroutine above
+ 		cancelled = true
+-		cc.condBroadcast()
++		cc.cond.Broadcast()
+ 		cc.mu.Unlock()
+ 		return ctx.Err()
+ 	}
+@@ -8608,7 +8317,7 @@ func (cc *http2ClientConn) closeForError(err error) {
+ 	for _, cs := range cc.streams {
+ 		cs.abortStreamLocked(err)
+ 	}
+-	cc.condBroadcast()
++	cc.cond.Broadcast()
+ 	cc.mu.Unlock()
+ 	cc.closeConn()
+ }
+@@ -8723,23 +8432,30 @@ func (cc *http2ClientConn) roundTrip(req *Request, streamf func(*http2clientStre
+ 		respHeaderRecv:       make(chan struct{}),
+ 		donec:                make(chan struct{}),
+ 	}
+-	cc.goRun(func() {
+-		cs.doRequest(req)
+-	})
++
++	// TODO(bradfitz): this is a copy of the logic in net/http. Unify somewhere?
++	if !cc.t.disableCompression() &&
++		req.Header.Get("Accept-Encoding") == "" &&
++		req.Header.Get("Range") == "" &&
++		!cs.isHead {
++		// Request gzip only, not deflate. Deflate is ambiguous and
++		// not as universally supported anyway.
++		// See: https://zlib.net/zlib_faq.html#faq39
++		//
++		// Note that we don't request this for HEAD requests,
++		// due to a bug in nginx:
++		//   http://trac.nginx.org/nginx/ticket/358
++		//   https://golang.org/issue/5522
++		//
++		// We don't request gzip if the request is for a range, since
++		// auto-decoding a portion of a gzipped document will just fail
++		// anyway. See https://golang.org/issue/8923
++		cs.requestedGzip = true
++	}
++
++	go cs.doRequest(req, streamf)
+ 
+ 	waitDone := func() error {
+-		if cc.syncHooks != nil {
+-			cc.syncHooks.blockUntil(func() bool {
+-				select {
+-				case <-cs.donec:
+-				case <-ctx.Done():
+-				case <-cs.reqCancel:
+-				default:
+-					return false
+-				}
+-				return true
+-			})
+-		}
+ 		select {
+ 		case <-cs.donec:
+ 			return nil
+@@ -8800,24 +8516,7 @@ func (cc *http2ClientConn) roundTrip(req *Request, streamf func(*http2clientStre
+ 		return err
+ 	}
+ 
+-	if streamf != nil {
+-		streamf(cs)
+-	}
+-
+ 	for {
+-		if cc.syncHooks != nil {
+-			cc.syncHooks.blockUntil(func() bool {
+-				select {
+-				case <-cs.respHeaderRecv:
+-				case <-cs.abort:
+-				case <-ctx.Done():
+-				case <-cs.reqCancel:
+-				default:
+-					return false
+-				}
+-				return true
+-			})
+-		}
+ 		select {
+ 		case <-cs.respHeaderRecv:
+ 			return handleResponseHeaders()
+@@ -8847,8 +8546,9 @@ func (cc *http2ClientConn) roundTrip(req *Request, streamf func(*http2clientStre
+ // doRequest runs for the duration of the request lifetime.
+ //
+ // It sends the request and performs post-request cleanup (closing Request.Body, etc.).
+-func (cs *http2clientStream) doRequest(req *Request) {
+-	err := cs.writeRequest(req)
++func (cs *http2clientStream) doRequest(req *Request, streamf func(*http2clientStream)) {
++	cs.cc.t.markNewGoroutine()
++	err := cs.writeRequest(req, streamf)
+ 	cs.cleanupWriteRequest(err)
+ }
+ 
+@@ -8859,7 +8559,7 @@ func (cs *http2clientStream) doRequest(req *Request) {
+ //
+ // It returns non-nil if the request ends otherwise.
+ // If the returned error is StreamError, the error Code may be used in resetting the stream.
+-func (cs *http2clientStream) writeRequest(req *Request) (err error) {
++func (cs *http2clientStream) writeRequest(req *Request, streamf func(*http2clientStream)) (err error) {
+ 	cc := cs.cc
+ 	ctx := cs.ctx
+ 
+@@ -8873,21 +8573,6 @@ func (cs *http2clientStream) writeRequest(req *Request) (err error) {
+ 	if cc.reqHeaderMu == nil {
+ 		panic("RoundTrip on uninitialized ClientConn") // for tests
+ 	}
+-	var newStreamHook func(*http2clientStream)
+-	if cc.syncHooks != nil {
+-		newStreamHook = cc.syncHooks.newstream
+-		cc.syncHooks.blockUntil(func() bool {
+-			select {
+-			case cc.reqHeaderMu <- struct{}{}:
+-				<-cc.reqHeaderMu
+-			case <-cs.reqCancel:
+-			case <-ctx.Done():
+-			default:
+-				return false
+-			}
+-			return true
+-		})
+-	}
+ 	select {
+ 	case cc.reqHeaderMu <- struct{}{}:
+ 	case <-cs.reqCancel:
+@@ -8912,28 +8597,8 @@ func (cs *http2clientStream) writeRequest(req *Request) (err error) {
+ 	}
+ 	cc.mu.Unlock()
+ 
+-	if newStreamHook != nil {
+-		newStreamHook(cs)
+-	}
+-
+-	// TODO(bradfitz): this is a copy of the logic in net/http. Unify somewhere?
+-	if !cc.t.disableCompression() &&
+-		req.Header.Get("Accept-Encoding") == "" &&
+-		req.Header.Get("Range") == "" &&
+-		!cs.isHead {
+-		// Request gzip only, not deflate. Deflate is ambiguous and
+-		// not as universally supported anyway.
+-		// See: https://zlib.net/zlib_faq.html#faq39
+-		//
+-		// Note that we don't request this for HEAD requests,
+-		// due to a bug in nginx:
+-		//   http://trac.nginx.org/nginx/ticket/358
+-		//   https://golang.org/issue/5522
+-		//
+-		// We don't request gzip if the request is for a range, since
+-		// auto-decoding a portion of a gzipped document will just fail
+-		// anyway. See https://golang.org/issue/8923
+-		cs.requestedGzip = true
++	if streamf != nil {
++		streamf(cs)
+ 	}
+ 
+ 	continueTimeout := cc.t.expectContinueTimeout()
+@@ -8996,7 +8661,7 @@ func (cs *http2clientStream) writeRequest(req *Request) (err error) {
+ 	var respHeaderTimer <-chan time.Time
+ 	var respHeaderRecv chan struct{}
+ 	if d := cc.responseHeaderTimeout(); d != 0 {
+-		timer := cc.newTimer(d)
++		timer := cc.t.newTimer(d)
+ 		defer timer.Stop()
+ 		respHeaderTimer = timer.C()
+ 		respHeaderRecv = cs.respHeaderRecv
+@@ -9005,21 +8670,6 @@ func (cs *http2clientStream) writeRequest(req *Request) (err error) {
+ 	// or until the request is aborted (via context, error, or otherwise),
+ 	// whichever comes first.
+ 	for {
+-		if cc.syncHooks != nil {
+-			cc.syncHooks.blockUntil(func() bool {
+-				select {
+-				case <-cs.peerClosed:
+-				case <-respHeaderTimer:
+-				case <-respHeaderRecv:
+-				case <-cs.abort:
+-				case <-ctx.Done():
+-				case <-cs.reqCancel:
+-				default:
+-					return false
+-				}
+-				return true
+-			})
+-		}
+ 		select {
+ 		case <-cs.peerClosed:
+ 			return nil
+@@ -9168,7 +8818,7 @@ func (cc *http2ClientConn) awaitOpenSlotForStreamLocked(cs *http2clientStream) e
+ 			return nil
+ 		}
+ 		cc.pendingRequests++
+-		cc.condWait()
++		cc.cond.Wait()
+ 		cc.pendingRequests--
+ 		select {
+ 		case <-cs.abort:
+@@ -9431,7 +9081,7 @@ func (cs *http2clientStream) awaitFlowControl(maxBytes int) (taken int32, err er
+ 			cs.flow.take(take)
+ 			return take, nil
+ 		}
+-		cc.condWait()
++		cc.cond.Wait()
+ 	}
+ }
+ 
+@@ -9714,7 +9364,7 @@ func (cc *http2ClientConn) forgetStreamID(id uint32) {
+ 	}
+ 	// Wake up writeRequestBody via clientStream.awaitFlowControl and
+ 	// wake up RoundTrip if there is a pending request.
+-	cc.condBroadcast()
++	cc.cond.Broadcast()
+ 
+ 	closeOnIdle := cc.singleUse || cc.doNotReuse || cc.t.disableKeepAlives() || cc.goAway != nil
+ 	if closeOnIdle && cc.streamsReserved == 0 && len(cc.streams) == 0 {
+@@ -9736,6 +9386,7 @@ type http2clientConnReadLoop struct {
+ 
+ // readLoop runs in its own goroutine and reads and dispatches frames.
+ func (cc *http2ClientConn) readLoop() {
++	cc.t.markNewGoroutine()
+ 	rl := &http2clientConnReadLoop{cc: cc}
+ 	defer rl.cleanup()
+ 	cc.readerErr = rl.run()
+@@ -9802,7 +9453,7 @@ func (rl *http2clientConnReadLoop) cleanup() {
+ 			cs.abortStreamLocked(err)
+ 		}
+ 	}
+-	cc.condBroadcast()
++	cc.cond.Broadcast()
+ 	cc.mu.Unlock()
+ }
+ 
+@@ -9839,7 +9490,7 @@ func (rl *http2clientConnReadLoop) run() error {
+ 	readIdleTimeout := cc.t.ReadIdleTimeout
+ 	var t http2timer
+ 	if readIdleTimeout != 0 {
+-		t = cc.afterFunc(readIdleTimeout, cc.healthCheck)
++		t = cc.t.afterFunc(readIdleTimeout, cc.healthCheck)
+ 	}
+ 	for {
+ 		f, err := cc.fr.ReadFrame()
+@@ -10437,7 +10088,7 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
+ 			for _, cs := range cc.streams {
+ 				cs.flow.add(delta)
+ 			}
+-			cc.condBroadcast()
++			cc.cond.Broadcast()
+ 
+ 			cc.initialWindowSize = s.Val
+ 		case http2SettingHeaderTableSize:
+@@ -10492,7 +10143,7 @@ func (rl *http2clientConnReadLoop) processWindowUpdate(f *http2WindowUpdateFrame
+ 
+ 		return http2ConnectionError(http2ErrCodeFlowControl)
+ 	}
+-	cc.condBroadcast()
++	cc.cond.Broadcast()
+ 	return nil
+ }
+ 
+@@ -10536,7 +10187,8 @@ func (cc *http2ClientConn) Ping(ctx context.Context) error {
+ 	}
+ 	var pingError error
+ 	errc := make(chan struct{})
+-	cc.goRun(func() {
++	go func() {
++		cc.t.markNewGoroutine()
+ 		cc.wmu.Lock()
+ 		defer cc.wmu.Unlock()
+ 		if pingError = cc.fr.WritePing(false, p); pingError != nil {
+@@ -10547,20 +10199,7 @@ func (cc *http2ClientConn) Ping(ctx context.Context) error {
+ 			close(errc)
+ 			return
+ 		}
+-	})
+-	if cc.syncHooks != nil {
+-		cc.syncHooks.blockUntil(func() bool {
+-			select {
+-			case <-c:
+-			case <-errc:
+-			case <-ctx.Done():
+-			case <-cc.readerDone:
+-			default:
+-				return false
+-			}
+-			return true
+-		})
+-	}
++	}()
+ 	select {
+ 	case <-c:
+ 		return nil
+@@ -11874,8 +11513,8 @@ func (ws *http2priorityWriteScheduler) addClosedOrIdleNode(list *[]*http2priorit
+ }
+ 
+ func (ws *http2priorityWriteScheduler) removeNode(n *http2priorityNode) {
+-	for k := n.kids; k != nil; k = k.next {
+-		k.setParent(n.parent)
++	for n.kids != nil {
++		n.kids.setParent(n.parent)
+ 	}
+ 	n.setParent(nil)
+ 	delete(ws.nodes, n.id)
+diff --git a/src/vendor/golang.org/x/crypto/sha3/hashes.go b/src/vendor/golang.org/x/crypto/sha3/hashes.go
+index 0d8043fd2a..5eae6cb922 100644
+--- a/src/vendor/golang.org/x/crypto/sha3/hashes.go
++++ b/src/vendor/golang.org/x/crypto/sha3/hashes.go
+@@ -16,39 +16,43 @@ import (
+ // Its generic security strength is 224 bits against preimage attacks,
+ // and 112 bits against collision attacks.
+ func New224() hash.Hash {
+-	if h := new224Asm(); h != nil {
+-		return h
+-	}
+-	return &state{rate: 144, outputLen: 28, dsbyte: 0x06}
++	return new224()
+ }
+ 
+ // New256 creates a new SHA3-256 hash.
+ // Its generic security strength is 256 bits against preimage attacks,
+ // and 128 bits against collision attacks.
+ func New256() hash.Hash {
+-	if h := new256Asm(); h != nil {
+-		return h
+-	}
+-	return &state{rate: 136, outputLen: 32, dsbyte: 0x06}
++	return new256()
+ }
+ 
+ // New384 creates a new SHA3-384 hash.
+ // Its generic security strength is 384 bits against preimage attacks,
+ // and 192 bits against collision attacks.
+ func New384() hash.Hash {
+-	if h := new384Asm(); h != nil {
+-		return h
+-	}
+-	return &state{rate: 104, outputLen: 48, dsbyte: 0x06}
++	return new384()
+ }
+ 
+ // New512 creates a new SHA3-512 hash.
+ // Its generic security strength is 512 bits against preimage attacks,
+ // and 256 bits against collision attacks.
+ func New512() hash.Hash {
+-	if h := new512Asm(); h != nil {
+-		return h
+-	}
++	return new512()
++}
++
++func new224Generic() *state {
++	return &state{rate: 144, outputLen: 28, dsbyte: 0x06}
++}
++
++func new256Generic() *state {
++	return &state{rate: 136, outputLen: 32, dsbyte: 0x06}
++}
++
++func new384Generic() *state {
++	return &state{rate: 104, outputLen: 48, dsbyte: 0x06}
++}
++
++func new512Generic() *state {
+ 	return &state{rate: 72, outputLen: 64, dsbyte: 0x06}
+ }
+ 
+diff --git a/src/vendor/golang.org/x/crypto/sha3/hashes_generic.go b/src/vendor/golang.org/x/crypto/sha3/hashes_generic.go
+deleted file mode 100644
+index fe8c84793c..0000000000
+--- a/src/vendor/golang.org/x/crypto/sha3/hashes_generic.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !gc || purego || !s390x
+-
+-package sha3
+-
+-import (
+-	"hash"
+-)
+-
+-// new224Asm returns an assembly implementation of SHA3-224 if available,
+-// otherwise it returns nil.
+-func new224Asm() hash.Hash { return nil }
+-
+-// new256Asm returns an assembly implementation of SHA3-256 if available,
+-// otherwise it returns nil.
+-func new256Asm() hash.Hash { return nil }
+-
+-// new384Asm returns an assembly implementation of SHA3-384 if available,
+-// otherwise it returns nil.
+-func new384Asm() hash.Hash { return nil }
+-
+-// new512Asm returns an assembly implementation of SHA3-512 if available,
+-// otherwise it returns nil.
+-func new512Asm() hash.Hash { return nil }
+diff --git a/src/vendor/golang.org/x/crypto/sha3/hashes_noasm.go b/src/vendor/golang.org/x/crypto/sha3/hashes_noasm.go
+new file mode 100644
+index 0000000000..9d85fb6214
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/hashes_noasm.go
+@@ -0,0 +1,23 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !gc || purego || !s390x
++
++package sha3
++
++func new224() *state {
++	return new224Generic()
++}
++
++func new256() *state {
++	return new256Generic()
++}
++
++func new384() *state {
++	return new384Generic()
++}
++
++func new512() *state {
++	return new512Generic()
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/sha3.go b/src/vendor/golang.org/x/crypto/sha3/sha3.go
+index 4884d172a4..afedde5abf 100644
+--- a/src/vendor/golang.org/x/crypto/sha3/sha3.go
++++ b/src/vendor/golang.org/x/crypto/sha3/sha3.go
+@@ -23,7 +23,6 @@ const (
+ type state struct {
+ 	// Generic sponge components.
+ 	a    [25]uint64 // main state of the hash
+-	buf  []byte     // points into storage
+ 	rate int        // the number of bytes of state to use
+ 
+ 	// dsbyte contains the "domain separation" bits and the first bit of
+@@ -40,7 +39,8 @@ type state struct {
+ 	//      Extendable-Output Functions (May 2014)"
+ 	dsbyte byte
+ 
+-	storage storageBuf
++	i, n    int // storage[i:n] is the buffer, i is only used while squeezing
++	storage [maxRate]byte
+ 
+ 	// Specific to SHA-3 and SHAKE.
+ 	outputLen int             // the default output size in bytes
+@@ -54,24 +54,18 @@ func (d *state) BlockSize() int { return d.rate }
+ func (d *state) Size() int { return d.outputLen }
+ 
+ // Reset clears the internal state by zeroing the sponge state and
+-// the byte buffer, and setting Sponge.state to absorbing.
++// the buffer indexes, and setting Sponge.state to absorbing.
+ func (d *state) Reset() {
+ 	// Zero the permutation's state.
+ 	for i := range d.a {
+ 		d.a[i] = 0
+ 	}
+ 	d.state = spongeAbsorbing
+-	d.buf = d.storage.asBytes()[:0]
++	d.i, d.n = 0, 0
+ }
+ 
+ func (d *state) clone() *state {
+ 	ret := *d
+-	if ret.state == spongeAbsorbing {
+-		ret.buf = ret.storage.asBytes()[:len(ret.buf)]
+-	} else {
+-		ret.buf = ret.storage.asBytes()[d.rate-cap(d.buf) : d.rate]
+-	}
+-
+ 	return &ret
+ }
+ 
+@@ -82,43 +76,40 @@ func (d *state) permute() {
+ 	case spongeAbsorbing:
+ 		// If we're absorbing, we need to xor the input into the state
+ 		// before applying the permutation.
+-		xorIn(d, d.buf)
+-		d.buf = d.storage.asBytes()[:0]
++		xorIn(d, d.storage[:d.rate])
++		d.n = 0
+ 		keccakF1600(&d.a)
+ 	case spongeSqueezing:
+ 		// If we're squeezing, we need to apply the permutation before
+ 		// copying more output.
+ 		keccakF1600(&d.a)
+-		d.buf = d.storage.asBytes()[:d.rate]
+-		copyOut(d, d.buf)
++		d.i = 0
++		copyOut(d, d.storage[:d.rate])
+ 	}
+ }
+ 
+ // pads appends the domain separation bits in dsbyte, applies
+ // the multi-bitrate 10..1 padding rule, and permutes the state.
+-func (d *state) padAndPermute(dsbyte byte) {
+-	if d.buf == nil {
+-		d.buf = d.storage.asBytes()[:0]
+-	}
++func (d *state) padAndPermute() {
+ 	// Pad with this instance's domain-separator bits. We know that there's
+ 	// at least one byte of space in d.buf because, if it were full,
+ 	// permute would have been called to empty it. dsbyte also contains the
+ 	// first one bit for the padding. See the comment in the state struct.
+-	d.buf = append(d.buf, dsbyte)
+-	zerosStart := len(d.buf)
+-	d.buf = d.storage.asBytes()[:d.rate]
+-	for i := zerosStart; i < d.rate; i++ {
+-		d.buf[i] = 0
++	d.storage[d.n] = d.dsbyte
++	d.n++
++	for d.n < d.rate {
++		d.storage[d.n] = 0
++		d.n++
+ 	}
+ 	// This adds the final one bit for the padding. Because of the way that
+ 	// bits are numbered from the LSB upwards, the final bit is the MSB of
+ 	// the last byte.
+-	d.buf[d.rate-1] ^= 0x80
++	d.storage[d.rate-1] ^= 0x80
+ 	// Apply the permutation
+ 	d.permute()
+ 	d.state = spongeSqueezing
+-	d.buf = d.storage.asBytes()[:d.rate]
+-	copyOut(d, d.buf)
++	d.n = d.rate
++	copyOut(d, d.storage[:d.rate])
+ }
+ 
+ // Write absorbs more data into the hash's state. It panics if any
+@@ -127,28 +118,25 @@ func (d *state) Write(p []byte) (written int, err error) {
+ 	if d.state != spongeAbsorbing {
+ 		panic("sha3: Write after Read")
+ 	}
+-	if d.buf == nil {
+-		d.buf = d.storage.asBytes()[:0]
+-	}
+ 	written = len(p)
+ 
+ 	for len(p) > 0 {
+-		if len(d.buf) == 0 && len(p) >= d.rate {
++		if d.n == 0 && len(p) >= d.rate {
+ 			// The fast path; absorb a full "rate" bytes of input and apply the permutation.
+ 			xorIn(d, p[:d.rate])
+ 			p = p[d.rate:]
+ 			keccakF1600(&d.a)
+ 		} else {
+ 			// The slow path; buffer the input until we can fill the sponge, and then xor it in.
+-			todo := d.rate - len(d.buf)
++			todo := d.rate - d.n
+ 			if todo > len(p) {
+ 				todo = len(p)
+ 			}
+-			d.buf = append(d.buf, p[:todo]...)
++			d.n += copy(d.storage[d.n:], p[:todo])
+ 			p = p[todo:]
+ 
+ 			// If the sponge is full, apply the permutation.
+-			if len(d.buf) == d.rate {
++			if d.n == d.rate {
+ 				d.permute()
+ 			}
+ 		}
+@@ -161,19 +149,19 @@ func (d *state) Write(p []byte) (written int, err error) {
+ func (d *state) Read(out []byte) (n int, err error) {
+ 	// If we're still absorbing, pad and apply the permutation.
+ 	if d.state == spongeAbsorbing {
+-		d.padAndPermute(d.dsbyte)
++		d.padAndPermute()
+ 	}
+ 
+ 	n = len(out)
+ 
+ 	// Now, do the squeezing.
+ 	for len(out) > 0 {
+-		n := copy(out, d.buf)
+-		d.buf = d.buf[n:]
++		n := copy(out, d.storage[d.i:d.n])
++		d.i += n
+ 		out = out[n:]
+ 
+ 		// Apply the permutation if we've squeezed the sponge dry.
+-		if len(d.buf) == 0 {
++		if d.i == d.rate {
+ 			d.permute()
+ 		}
+ 	}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go b/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go
+index b4fbbf8695..00d8034ae6 100644
+--- a/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go
++++ b/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go
+@@ -248,56 +248,56 @@ func (s *asmState) Clone() ShakeHash {
+ 	return s.clone()
+ }
+ 
+-// new224Asm returns an assembly implementation of SHA3-224 if available,
+-// otherwise it returns nil.
+-func new224Asm() hash.Hash {
++// new224 returns an assembly implementation of SHA3-224 if available,
++// otherwise it returns a generic implementation.
++func new224() hash.Hash {
+ 	if cpu.S390X.HasSHA3 {
+ 		return newAsmState(sha3_224)
+ 	}
+-	return nil
++	return new224Generic()
+ }
+ 
+-// new256Asm returns an assembly implementation of SHA3-256 if available,
+-// otherwise it returns nil.
+-func new256Asm() hash.Hash {
++// new256 returns an assembly implementation of SHA3-256 if available,
++// otherwise it returns a generic implementation.
++func new256() hash.Hash {
+ 	if cpu.S390X.HasSHA3 {
+ 		return newAsmState(sha3_256)
+ 	}
+-	return nil
++	return new256Generic()
+ }
+ 
+-// new384Asm returns an assembly implementation of SHA3-384 if available,
+-// otherwise it returns nil.
+-func new384Asm() hash.Hash {
++// new384 returns an assembly implementation of SHA3-384 if available,
++// otherwise it returns a generic implementation.
++func new384() hash.Hash {
+ 	if cpu.S390X.HasSHA3 {
+ 		return newAsmState(sha3_384)
+ 	}
+-	return nil
++	return new384Generic()
+ }
+ 
+-// new512Asm returns an assembly implementation of SHA3-512 if available,
+-// otherwise it returns nil.
+-func new512Asm() hash.Hash {
++// new512 returns an assembly implementation of SHA3-512 if available,
++// otherwise it returns a generic implementation.
++func new512() hash.Hash {
+ 	if cpu.S390X.HasSHA3 {
+ 		return newAsmState(sha3_512)
+ 	}
+-	return nil
++	return new512Generic()
+ }
+ 
+-// newShake128Asm returns an assembly implementation of SHAKE-128 if available,
+-// otherwise it returns nil.
+-func newShake128Asm() ShakeHash {
++// newShake128 returns an assembly implementation of SHAKE-128 if available,
++// otherwise it returns a generic implementation.
++func newShake128() ShakeHash {
+ 	if cpu.S390X.HasSHA3 {
+ 		return newAsmState(shake_128)
+ 	}
+-	return nil
++	return newShake128Generic()
+ }
+ 
+-// newShake256Asm returns an assembly implementation of SHAKE-256 if available,
+-// otherwise it returns nil.
+-func newShake256Asm() ShakeHash {
++// newShake256 returns an assembly implementation of SHAKE-256 if available,
++// otherwise it returns a generic implementation.
++func newShake256() ShakeHash {
+ 	if cpu.S390X.HasSHA3 {
+ 		return newAsmState(shake_256)
+ 	}
+-	return nil
++	return newShake256Generic()
+ }
+diff --git a/src/vendor/golang.org/x/crypto/sha3/shake.go b/src/vendor/golang.org/x/crypto/sha3/shake.go
+index bb69984027..1ea9275b8b 100644
+--- a/src/vendor/golang.org/x/crypto/sha3/shake.go
++++ b/src/vendor/golang.org/x/crypto/sha3/shake.go
+@@ -115,19 +115,21 @@ func (c *state) Clone() ShakeHash {
+ // Its generic security strength is 128 bits against all attacks if at
+ // least 32 bytes of its output are used.
+ func NewShake128() ShakeHash {
+-	if h := newShake128Asm(); h != nil {
+-		return h
+-	}
+-	return &state{rate: rate128, outputLen: 32, dsbyte: dsbyteShake}
++	return newShake128()
+ }
+ 
+ // NewShake256 creates a new SHAKE256 variable-output-length ShakeHash.
+ // Its generic security strength is 256 bits against all attacks if
+ // at least 64 bytes of its output are used.
+ func NewShake256() ShakeHash {
+-	if h := newShake256Asm(); h != nil {
+-		return h
+-	}
++	return newShake256()
++}
++
++func newShake128Generic() *state {
++	return &state{rate: rate128, outputLen: 32, dsbyte: dsbyteShake}
++}
++
++func newShake256Generic() *state {
+ 	return &state{rate: rate256, outputLen: 64, dsbyte: dsbyteShake}
+ }
+ 
+diff --git a/src/vendor/golang.org/x/crypto/sha3/shake_generic.go b/src/vendor/golang.org/x/crypto/sha3/shake_generic.go
+deleted file mode 100644
+index 8d31cf5be2..0000000000
+--- a/src/vendor/golang.org/x/crypto/sha3/shake_generic.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !gc || purego || !s390x
+-
+-package sha3
+-
+-// newShake128Asm returns an assembly implementation of SHAKE-128 if available,
+-// otherwise it returns nil.
+-func newShake128Asm() ShakeHash {
+-	return nil
+-}
+-
+-// newShake256Asm returns an assembly implementation of SHAKE-256 if available,
+-// otherwise it returns nil.
+-func newShake256Asm() ShakeHash {
+-	return nil
+-}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/shake_noasm.go b/src/vendor/golang.org/x/crypto/sha3/shake_noasm.go
+new file mode 100644
+index 0000000000..4276ba4ab2
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/sha3/shake_noasm.go
+@@ -0,0 +1,15 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !gc || purego || !s390x
++
++package sha3
++
++func newShake128() *state {
++	return newShake128Generic()
++}
++
++func newShake256() *state {
++	return newShake256Generic()
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/xor.go b/src/vendor/golang.org/x/crypto/sha3/xor.go
+index 7337cca88e..6ada5c9574 100644
+--- a/src/vendor/golang.org/x/crypto/sha3/xor.go
++++ b/src/vendor/golang.org/x/crypto/sha3/xor.go
+@@ -2,22 +2,39 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (!amd64 && !386 && !ppc64le) || purego
+-
+ package sha3
+ 
+-// A storageBuf is an aligned array of maxRate bytes.
+-type storageBuf [maxRate]byte
+-
+-func (b *storageBuf) asBytes() *[maxRate]byte {
+-	return (*[maxRate]byte)(b)
+-}
++import (
++	"crypto/subtle"
++	"encoding/binary"
++	"unsafe"
+ 
+-var (
+-	xorIn            = xorInGeneric
+-	copyOut          = copyOutGeneric
+-	xorInUnaligned   = xorInGeneric
+-	copyOutUnaligned = copyOutGeneric
++	"golang.org/x/sys/cpu"
+ )
+ 
+-const xorImplementationUnaligned = "generic"
++// xorIn xors the bytes in buf into the state.
++func xorIn(d *state, buf []byte) {
++	if cpu.IsBigEndian {
++		for i := 0; len(buf) >= 8; i++ {
++			a := binary.LittleEndian.Uint64(buf)
++			d.a[i] ^= a
++			buf = buf[8:]
++		}
++	} else {
++		ab := (*[25 * 64 / 8]byte)(unsafe.Pointer(&d.a))
++		subtle.XORBytes(ab[:], ab[:], buf)
++	}
++}
++
++// copyOut copies uint64s to a byte buffer.
++func copyOut(d *state, b []byte) {
++	if cpu.IsBigEndian {
++		for i := 0; len(b) >= 8; i++ {
++			binary.LittleEndian.PutUint64(b, d.a[i])
++			b = b[8:]
++		}
++	} else {
++		ab := (*[25 * 64 / 8]byte)(unsafe.Pointer(&d.a))
++		copy(b, ab[:])
++	}
++}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/xor_generic.go b/src/vendor/golang.org/x/crypto/sha3/xor_generic.go
+deleted file mode 100644
+index 8d94771127..0000000000
+--- a/src/vendor/golang.org/x/crypto/sha3/xor_generic.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sha3
+-
+-import "encoding/binary"
+-
+-// xorInGeneric xors the bytes in buf into the state; it
+-// makes no non-portable assumptions about memory layout
+-// or alignment.
+-func xorInGeneric(d *state, buf []byte) {
+-	n := len(buf) / 8
+-
+-	for i := 0; i < n; i++ {
+-		a := binary.LittleEndian.Uint64(buf)
+-		d.a[i] ^= a
+-		buf = buf[8:]
+-	}
+-}
+-
+-// copyOutGeneric copies uint64s to a byte buffer.
+-func copyOutGeneric(d *state, b []byte) {
+-	for i := 0; len(b) >= 8; i++ {
+-		binary.LittleEndian.PutUint64(b, d.a[i])
+-		b = b[8:]
+-	}
+-}
+diff --git a/src/vendor/golang.org/x/crypto/sha3/xor_unaligned.go b/src/vendor/golang.org/x/crypto/sha3/xor_unaligned.go
+deleted file mode 100644
+index 870e2d16e0..0000000000
+--- a/src/vendor/golang.org/x/crypto/sha3/xor_unaligned.go
++++ /dev/null
+@@ -1,66 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (amd64 || 386 || ppc64le) && !purego
+-
+-package sha3
+-
+-import "unsafe"
+-
+-// A storageBuf is an aligned array of maxRate bytes.
+-type storageBuf [maxRate / 8]uint64
+-
+-func (b *storageBuf) asBytes() *[maxRate]byte {
+-	return (*[maxRate]byte)(unsafe.Pointer(b))
+-}
+-
+-// xorInUnaligned uses unaligned reads and writes to update d.a to contain d.a
+-// XOR buf.
+-func xorInUnaligned(d *state, buf []byte) {
+-	n := len(buf)
+-	bw := (*[maxRate / 8]uint64)(unsafe.Pointer(&buf[0]))[: n/8 : n/8]
+-	if n >= 72 {
+-		d.a[0] ^= bw[0]
+-		d.a[1] ^= bw[1]
+-		d.a[2] ^= bw[2]
+-		d.a[3] ^= bw[3]
+-		d.a[4] ^= bw[4]
+-		d.a[5] ^= bw[5]
+-		d.a[6] ^= bw[6]
+-		d.a[7] ^= bw[7]
+-		d.a[8] ^= bw[8]
+-	}
+-	if n >= 104 {
+-		d.a[9] ^= bw[9]
+-		d.a[10] ^= bw[10]
+-		d.a[11] ^= bw[11]
+-		d.a[12] ^= bw[12]
+-	}
+-	if n >= 136 {
+-		d.a[13] ^= bw[13]
+-		d.a[14] ^= bw[14]
+-		d.a[15] ^= bw[15]
+-		d.a[16] ^= bw[16]
+-	}
+-	if n >= 144 {
+-		d.a[17] ^= bw[17]
+-	}
+-	if n >= 168 {
+-		d.a[18] ^= bw[18]
+-		d.a[19] ^= bw[19]
+-		d.a[20] ^= bw[20]
+-	}
+-}
+-
+-func copyOutUnaligned(d *state, buf []byte) {
+-	ab := (*[maxRate]uint8)(unsafe.Pointer(&d.a[0]))
+-	copy(buf, ab[:])
+-}
+-
+-var (
+-	xorIn   = xorInUnaligned
+-	copyOut = copyOutUnaligned
+-)
+-
+-const xorImplementationUnaligned = "unaligned"
+diff --git a/src/vendor/golang.org/x/net/http/httpguts/httplex.go b/src/vendor/golang.org/x/net/http/httpguts/httplex.go
+index 6e071e8524..9b4de94019 100644
+--- a/src/vendor/golang.org/x/net/http/httpguts/httplex.go
++++ b/src/vendor/golang.org/x/net/http/httpguts/httplex.go
+@@ -12,7 +12,7 @@ import (
+ 	"golang.org/x/net/idna"
+ )
+ 
+-var isTokenTable = [127]bool{
++var isTokenTable = [256]bool{
+ 	'!':  true,
+ 	'#':  true,
+ 	'$':  true,
+@@ -93,12 +93,7 @@ var isTokenTable = [127]bool{
+ }
+ 
+ func IsTokenRune(r rune) bool {
+-	i := int(r)
+-	return i < len(isTokenTable) && isTokenTable[i]
+-}
+-
+-func isNotToken(r rune) bool {
+-	return !IsTokenRune(r)
++	return r < utf8.RuneSelf && isTokenTable[byte(r)]
+ }
+ 
+ // HeaderValuesContainsToken reports whether any string in values
+@@ -202,8 +197,8 @@ func ValidHeaderFieldName(v string) bool {
+ 	if len(v) == 0 {
+ 		return false
+ 	}
+-	for _, r := range v {
+-		if !IsTokenRune(r) {
++	for i := 0; i < len(v); i++ {
++		if !isTokenTable[v[i]] {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/vendor/golang.org/x/net/nettest/conntest.go b/src/vendor/golang.org/x/net/nettest/conntest.go
+index 615f4980c5..4297d408c0 100644
+--- a/src/vendor/golang.org/x/net/nettest/conntest.go
++++ b/src/vendor/golang.org/x/net/nettest/conntest.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"encoding/binary"
+ 	"io"
+-	"io/ioutil"
+ 	"math/rand"
+ 	"net"
+ 	"runtime"
+@@ -173,7 +172,7 @@ func testRacyRead(t *testing.T, c1, c2 net.Conn) {
+ // testRacyWrite tests that it is safe to mutate the input Write buffer
+ // immediately after cancelation has occurred.
+ func testRacyWrite(t *testing.T, c1, c2 net.Conn) {
+-	go chunkedCopy(ioutil.Discard, c2)
++	go chunkedCopy(io.Discard, c2)
+ 
+ 	var wg sync.WaitGroup
+ 	defer wg.Wait()
+@@ -200,7 +199,7 @@ func testRacyWrite(t *testing.T, c1, c2 net.Conn) {
+ 
+ // testReadTimeout tests that Read timeouts do not affect Write.
+ func testReadTimeout(t *testing.T, c1, c2 net.Conn) {
+-	go chunkedCopy(ioutil.Discard, c2)
++	go chunkedCopy(io.Discard, c2)
+ 
+ 	c1.SetReadDeadline(aLongTimeAgo)
+ 	_, err := c1.Read(make([]byte, 1024))
+diff --git a/src/vendor/golang.org/x/net/nettest/nettest.go b/src/vendor/golang.org/x/net/nettest/nettest.go
+index 3656c3c54b..37e6dcb1b4 100644
+--- a/src/vendor/golang.org/x/net/nettest/nettest.go
++++ b/src/vendor/golang.org/x/net/nettest/nettest.go
+@@ -8,7 +8,6 @@ package nettest
+ import (
+ 	"errors"
+ 	"fmt"
+-	"io/ioutil"
+ 	"net"
+ 	"os"
+ 	"os/exec"
+@@ -226,7 +225,7 @@ func LocalPath() (string, error) {
+ 	if runtime.GOOS == "darwin" {
+ 		dir = "/tmp"
+ 	}
+-	f, err := ioutil.TempFile(dir, "go-nettest")
++	f, err := os.CreateTemp(dir, "go-nettest")
+ 	if err != nil {
+ 		return "", err
+ 	}
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 0e723f6634..2868749b89 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.22.1-0.20240415215343-5defcc193aab
++# golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a
+ ## explicit; go 1.18
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -8,7 +8,7 @@ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+ golang.org/x/crypto/sha3
+-# golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114
++# golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -18,10 +18,10 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.20.0
++# golang.org/x/sys v0.21.0
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.14.0
++# golang.org/x/text v0.16.0
+ ## explicit; go 1.18
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

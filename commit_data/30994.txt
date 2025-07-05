@@ -9,6 +9,20 @@ Date:   Sat Jan 7 23:37:57 2017 +0100
     Change-Id: Ic195a8606f09876e2667e4ef720b84a07d316f4a
     Reviewed-on: https://go-review.googlesource.com/34939
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/types/api.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 44949895a7..5b911cb96c 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -5,7 +5,7 @@
+ // Package types declares the data types and implements
+ // the algorithms for type-checking of Go packages. Use
+ // Config.Check to invoke the type checker for a package.
+-// Alternatively, create a new type checked with NewChecker
++// Alternatively, create a new type checker with NewChecker
+ // and invoke it incrementally by calling Checker.Files.
+ //
+ // Type-checking consists of several interdependent phases:

@@ -19,7 +19,7 @@ Date:   Wed Aug 9 13:53:34 2017 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 15 +++++++
  src/cmd/compile/internal/ppc64/ssa.go          |  2 +-
  src/cmd/compile/internal/ssa/gen/PPC64.rules   |  3 ++
@@ -28,3 +28,264 @@ Date:   Wed Aug 9 13:53:34 2017 -0400
  src/cmd/compile/internal/ssa/opGen.go          | 60 ++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewritePPC64.go   | 39 +++++++++++++++++
  7 files changed, 125 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2400af3407..db2fd24a30 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2724,6 +2724,21 @@ func init() {
+ 			return s.newValue1(ssa.OpSqrt, types.Types[TFLOAT64], args[0])
+ 		},
+ 		sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
++	addF("math", "Trunc",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpTrunc, types.Types[TFLOAT64], args[0])
++		},
++		sys.PPC64)
++	addF("math", "Ceil",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpCeil, types.Types[TFLOAT64], args[0])
++		},
++		sys.PPC64)
++	addF("math", "Floor",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpFloor, types.Types[TFLOAT64], args[0])
++		},
++		sys.PPC64)
+ 
+ 	/******** math/bits ********/
+ 	addF("math/bits", "TrailingZeros64",
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 5fe140fdcf..1ad40881c3 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -596,7 +596,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
+ 
+-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB:
++	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB:
+ 		r := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 81ac3c26af..cf0fa49af4 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -74,6 +74,9 @@
+ (Round64F x) -> (LoweredRound64F x)
+ 
+ (Sqrt x) -> (FSQRT x)
++(Floor x) -> (FFLOOR x)
++(Ceil x) -> (FCEIL x)
++(Trunc x) -> (FTRUNC x)
+ 
+ // Lowering constants
+ (Const8   [val]) -> (MOVDconst [val])
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 2e8e239f15..db8a88aec9 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -241,6 +241,9 @@ func init() {
+ 		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                // -arg0 (floating point)
+ 		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                              // sqrt(arg0) (floating point)
+ 		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                            // sqrt(arg0) (floating point, single precision)
++		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                              // floor(arg0), float64
++		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                               // ceil(arg0), float64
++		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                              // trunc(arg0), float64
+ 
+ 		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                                     // arg0|aux
+ 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                                   // arg0^aux
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index d962e4a193..c6452b038d 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -255,7 +255,10 @@ var genericOps = []opData{
+ 	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
+ 	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
+ 
+-	{name: "Sqrt", argLength: 1}, // sqrt(arg0), float64 only
++	{name: "Sqrt", argLength: 1},  // sqrt(arg0), float64 only
++	{name: "Floor", argLength: 1}, // floor(arg0), float64 only
++	{name: "Ceil", argLength: 1},  // ceil(arg0), float64 only
++	{name: "Trunc", argLength: 1}, // trunc(arg0), float64 only
+ 
+ 	// Data movement, max argument length for Phi is indefinite so just pick
+ 	// a really large number
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 17a5e70204..e31ba3a750 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1322,6 +1322,9 @@ const (
+ 	OpPPC64FNEG
+ 	OpPPC64FSQRT
+ 	OpPPC64FSQRTS
++	OpPPC64FFLOOR
++	OpPPC64FCEIL
++	OpPPC64FTRUNC
+ 	OpPPC64ORconst
+ 	OpPPC64XORconst
+ 	OpPPC64ANDconst
+@@ -1800,6 +1803,9 @@ const (
+ 	OpPopCount32
+ 	OpPopCount64
+ 	OpSqrt
++	OpFloor
++	OpCeil
++	OpTrunc
+ 	OpPhi
+ 	OpCopy
+ 	OpConvert
+@@ -16955,6 +16961,45 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FFLOOR",
++		argLen: 1,
++		asm:    ppc64.AFRIM,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FCEIL",
++		argLen: 1,
++		asm:    ppc64.AFRIP,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FTRUNC",
++		argLen: 1,
++		asm:    ppc64.AFRIZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
+ 	{
+ 		name:    "ORconst",
+ 		auxType: auxInt64,
+@@ -21976,6 +22021,21 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "Floor",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Ceil",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Trunc",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Phi",
+ 		argLen:  -1,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 20e354cb4a..8abf3fc619 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -73,6 +73,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpBitLen32_0(v)
+ 	case OpBitLen64:
+ 		return rewriteValuePPC64_OpBitLen64_0(v)
++	case OpCeil:
++		return rewriteValuePPC64_OpCeil_0(v)
+ 	case OpClosureCall:
+ 		return rewriteValuePPC64_OpClosureCall_0(v)
+ 	case OpCom16:
+@@ -161,6 +163,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpEqB_0(v)
+ 	case OpEqPtr:
+ 		return rewriteValuePPC64_OpEqPtr_0(v)
++	case OpFloor:
++		return rewriteValuePPC64_OpFloor_0(v)
+ 	case OpGeq16:
+ 		return rewriteValuePPC64_OpGeq16_0(v)
+ 	case OpGeq16U:
+@@ -583,6 +587,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpSub8_0(v)
+ 	case OpSubPtr:
+ 		return rewriteValuePPC64_OpSubPtr_0(v)
++	case OpTrunc:
++		return rewriteValuePPC64_OpTrunc_0(v)
+ 	case OpTrunc16to8:
+ 		return rewriteValuePPC64_OpTrunc16to8_0(v)
+ 	case OpTrunc32to16:
+@@ -1070,6 +1076,17 @@ func rewriteValuePPC64_OpBitLen64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpCeil_0(v *Value) bool {
++	// match: (Ceil x)
++	// cond:
++	// result: (FCEIL x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64FCEIL)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpClosureCall_0(v *Value) bool {
+ 	// match: (ClosureCall [argwid] entry closure mem)
+ 	// cond:
+@@ -1823,6 +1840,17 @@ func rewriteValuePPC64_OpEqPtr_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpFloor_0(v *Value) bool {
++	// match: (Floor x)
++	// cond:
++	// result: (FFLOOR x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64FFLOOR)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpGeq16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -10463,6 +10491,17 @@ func rewriteValuePPC64_OpSubPtr_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpTrunc_0(v *Value) bool {
++	// match: (Trunc x)
++	// cond:
++	// result: (FTRUNC x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64FTRUNC)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpTrunc16to8_0(v *Value) bool {
+ 	// match: (Trunc16to8 x)
+ 	// cond:

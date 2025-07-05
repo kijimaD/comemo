@@ -18,7 +18,47 @@ Date:   Tue Sep 19 20:28:11 2017 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-on: https://go-review.googlesource.com/70976
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/log/log.go      |  6 +-----
  src/log/log_test.go | 11 +++++++++++
  2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index 587904b11c..e8e0c96636 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -147,11 +147,7 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
+ // provided for generality, although at the moment on all pre-defined
+ // paths it will be 2.
+ func (l *Logger) Output(calldepth int, s string) error {
+-	// Get time early if we need it.
+-	var now time.Time
+-	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
+-		now = time.Now()
+-	}
++	now := time.Now() // get this early.
+ 	var file string
+ 	var line int
+ 	l.mu.Lock()
+diff --git a/src/log/log_test.go b/src/log/log_test.go
+index 966fdf306b..adc15e7e8e 100644
+--- a/src/log/log_test.go
++++ b/src/log/log_test.go
+@@ -88,6 +88,17 @@ func TestOutput(t *testing.T) {
+ 	}
+ }
+ 
++func TestOutputRace(t *testing.T) {
++	var b bytes.Buffer
++	l := New(&b, "", 0)
++	for i := 0; i < 100; i++ {
++		go func() {
++			l.SetFlags(0)
++		}()
++		l.Output(0, "")
++	}
++}
++
+ func TestFlagAndPrefixSetting(t *testing.T) {
+ 	var b bytes.Buffer
+ 	l := New(&b, "Test:", LstdFlags)

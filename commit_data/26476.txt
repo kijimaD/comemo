@@ -17,6 +17,20 @@ Date:   Wed Jan 27 00:09:50 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/proc_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index f3e90bcbd7..34d90a1c9b 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -350,7 +350,7 @@ func TestNumGoroutine(t *testing.T) {
+ 	n := runtime.NumGoroutine()
+ 
+ 	if nstk := strings.Count(string(buf), "goroutine "); n != nstk {
+-		t.Fatalf("NumGoroutine=%d, but found %d goroutines in stack dump", n, nstk)
++		t.Fatalf("NumGoroutine=%d, but found %d goroutines in stack dump: %s", n, nstk, buf)
+ 	}
+ }
+ 

@@ -17,8 +17,105 @@ Date:   Tue Jun 4 07:07:22 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/8650043
-
+---
  src/cmd/ld/data.c   |  9 ++-------
  src/cmd/ld/elf.c    |  6 ------
  src/cmd/ld/symtab.c | 15 +++++++++++++--
  3 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 23fc23e5fc..93718ad1d1 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -1047,13 +1047,8 @@ dodata(void)
+ 		Bprint(&bso, "%5.2f dodata\n", cputime());
+ 	Bflush(&bso);
+ 
+-	// define garbage collection symbols
+ 	gcdata1 = lookup("gcdata", 0);
+-	gcdata1->type = STYPE;
+-	gcdata1->reachable = 1;
+ 	gcbss1 = lookup("gcbss", 0);
+-	gcbss1->type = STYPE;
+-	gcbss1->reachable = 1;
+ 
+ 	// size of .data and .bss section. the zero value is later replaced by the actual size of the section.
+ 	adduintxx(gcdata1, 0, PtrSize);
+@@ -1477,11 +1472,11 @@ address(void)
+ 	}
+ 
+ 	sym = lookup("gcdata", 0);
+-	xdefine("egcdata", STYPE, symaddr(sym) + sym->size);
++	xdefine("egcdata", SRODATA, symaddr(sym) + sym->size);
+ 	lookup("egcdata", 0)->sect = sym->sect;
+ 
+ 	sym = lookup("gcbss", 0);
+-	xdefine("egcbss", STYPE, symaddr(sym) + sym->size);
++	xdefine("egcbss", SRODATA, symaddr(sym) + sym->size);
+ 	lookup("egcbss", 0)->sect = sym->sect;
+ 
+ 	xdefine("symtab", SRODATA, symtab->vaddr);
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 3ab909979f..46d7056665 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -905,8 +905,6 @@ doelf(void)
+ 	addstring(shstrtab, ".typelink");
+ 	if(flag_shared)
+ 		addstring(shstrtab, ".data.rel.ro");
+-	addstring(shstrtab, ".gcdata");
+-	addstring(shstrtab, ".gcbss");
+ 	addstring(shstrtab, ".gosymtab");
+ 	addstring(shstrtab, ".gopclntab");
+ 	
+@@ -918,8 +916,6 @@ doelf(void)
+ 			addstring(shstrtab, ".rela.text");
+ 			addstring(shstrtab, ".rela.rodata");
+ 			addstring(shstrtab, ".rela.typelink");
+-			addstring(shstrtab, ".rela.gcdata");
+-			addstring(shstrtab, ".rela.gcbss");
+ 			addstring(shstrtab, ".rela.gosymtab");
+ 			addstring(shstrtab, ".rela.gopclntab");
+ 			addstring(shstrtab, ".rela.noptrdata");
+@@ -928,8 +924,6 @@ doelf(void)
+ 			addstring(shstrtab, ".rel.text");
+ 			addstring(shstrtab, ".rel.rodata");
+ 			addstring(shstrtab, ".rel.typelink");
+-			addstring(shstrtab, ".rel.gcdata");
+-			addstring(shstrtab, ".rel.gcbss");
+ 			addstring(shstrtab, ".rel.gosymtab");
+ 			addstring(shstrtab, ".rel.gopclntab");
+ 			addstring(shstrtab, ".rel.noptrdata");
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 7c8ba642fb..2764d50ba4 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -481,8 +481,6 @@ symtab(void)
+ 		xdefine("datarelro", SDATARELRO, 0);
+ 		xdefine("edatarelro", SDATARELRO, 0);
+ 	}
+-	xdefine("egcdata", STYPE, 0);
+-	xdefine("egcbss", STYPE, 0);
+ 	xdefine("noptrdata", SNOPTRDATA, 0);
+ 	xdefine("enoptrdata", SNOPTRDATA, 0);
+ 	xdefine("data", SDATA, 0);
+@@ -495,6 +493,19 @@ symtab(void)
+ 	xdefine("epclntab", SRODATA, 0);
+ 	xdefine("esymtab", SRODATA, 0);
+ 
++	// garbage collection symbols
++	s = lookup("gcdata", 0);
++	s->type = SRODATA;
++	s->size = 0;
++	s->reachable = 1;
++	xdefine("egcdata", SRODATA, 0);
++
++	s = lookup("gcbss", 0);
++	s->type = SRODATA;
++	s->size = 0;
++	s->reachable = 1;
++	xdefine("egcbss", SRODATA, 0);
++
+ 	// pseudo-symbols to mark locations of type, string, and go string data.
+ 	s = lookup("type.*", 0);
+ 	s->type = STYPE;

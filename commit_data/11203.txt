@@ -7,6 +7,19 @@ Date:   Tue Jan 17 10:01:12 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5543063
-
+---
  src/cmd/gc/esc.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 43986c6af2..7e20457d9a 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -64,6 +64,7 @@ escapes(void)
+ 	NodeList *l;
+ 
+ 	theSink.op = ONAME;
++	theSink.orig = &theSink;
+ 	theSink.class = PEXTERN;
+ 	theSink.sym = lookup(".sink");
+ 	theSink.escloopdepth = -1;

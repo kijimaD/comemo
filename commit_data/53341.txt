@@ -19,7 +19,115 @@ Date:   Tue Aug 9 17:20:33 2022 +0000
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go | 79 ++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/loader/loader.go |  9 +---
  2 files changed, 81 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index db5be74b9a..4ac3dbdcfd 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1842,3 +1842,82 @@ func main() {
+ 		}
+ 	}
+ }
++func TestIssue54320(t *testing.T) {
++	// Check that when trampolines are used, the DWARF LPT is correctly
++	// emitted in the final binary
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	t.Parallel()
++
++	const prog = `
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Printf("Hello world\n");
++}
++`
++
++	dir := t.TempDir()
++	f := gobuild(t, dir, prog, "-ldflags=-debugtramp=2")
++	defer f.Close()
++
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	rdr := d.Reader()
++	found := false
++	var entry *dwarf.Entry
++	for entry, err = rdr.Next(); entry != nil; entry, err = rdr.Next() {
++		if err != nil {
++			t.Fatalf("error reading DWARF: %v", err)
++		}
++		if entry.Tag != dwarf.TagCompileUnit {
++			continue
++		}
++		name, _ := entry.Val(dwarf.AttrName).(string)
++		if name == "main" {
++			found = true
++			break
++		}
++		rdr.SkipChildren()
++	}
++
++	if !found {
++		t.Fatalf("could not find main compile unit")
++	}
++	lr, err := d.LineReader(entry)
++	if err != nil {
++		t.Fatalf("error obtaining linereader: %v", err)
++	}
++
++	var le dwarf.LineEntry
++	found = false
++	for {
++		if err := lr.Next(&le); err != nil {
++			if err == io.EOF {
++				break
++			}
++			t.Fatalf("error reading linentry: %v", err)
++		}
++		// check LE contains an entry to test.go
++		if le.File == nil {
++			continue
++		}
++		file := filepath.Base(le.File.Name)
++		if file == "test.go" {
++			found = true
++			break
++		}
++	}
++	if !found {
++		t.Errorf("no LPT entries for test.go")
++	}
++}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 52c7d72835..c2baa20d8d 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1611,13 +1611,8 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
+ 	if l.SymType(fnSymIdx) != sym.STEXT {
+ 		log.Fatalf("error: non-function sym %d/%s t=%s passed to GetFuncDwarfAuxSyms", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+ 	}
+-	if l.IsExternal(fnSymIdx) {
+-		// Current expectation is that any external function will
+-		// not have auxsyms.
+-		return
+-	}
+-	r, li := l.toLocal(fnSymIdx)
+-	auxs := r.Auxs(li)
++	r, auxs := l.auxs(fnSymIdx)
++
+ 	for i := range auxs {
+ 		a := &auxs[i]
+ 		switch a.Type() {

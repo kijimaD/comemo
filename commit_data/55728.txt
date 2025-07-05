@@ -16,6 +16,20 @@ Date:   Fri Mar 3 01:23:59 2023 +1100
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/internal/bytealg/index_ppc64x.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/bytealg/index_ppc64x.go b/src/internal/bytealg/index_ppc64x.go
+index ab3cbe5e96..720d51748d 100644
+--- a/src/internal/bytealg/index_ppc64x.go
++++ b/src/internal/bytealg/index_ppc64x.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (aix || linux) && (ppc64 || ppc64le)
++//go:build ppc64 || ppc64le
+ 
+ package bytealg
+ 

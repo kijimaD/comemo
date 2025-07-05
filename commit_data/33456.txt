@@ -12,6 +12,40 @@ Date:   Tue Aug 1 15:06:36 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/issue21253.go | 27 +++++++++++++++++++++++++++
  1 file changed, 27 insertions(+)
+
+diff --git a/test/fixedbugs/issue21253.go b/test/fixedbugs/issue21253.go
+new file mode 100644
+index 0000000000..3531b2b81f
+--- /dev/null
++++ b/test/fixedbugs/issue21253.go
+@@ -0,0 +1,27 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo crashed compiling this code due to failing to finalize
++// interfaces in the right order.
++
++package p
++
++type s1 struct {
++	f m
++	I
++}
++
++type m interface {
++	Mm(*s2)
++}
++
++type s2 struct {
++	*s1
++}
++
++type I interface {
++	MI()
++}

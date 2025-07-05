@@ -7,7 +7,32 @@ Date:   Tue Nov 24 11:29:51 2009 -0800
     R=golang-dev, rsc
     CC=r
     https://golang.org/cl/157072
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index bada5e7174..29cc62b8f1 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -20,6 +20,7 @@ James Meneghello <rawrz0r@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Google Inc.
+ Kevin Ballard <kevin@sb.org>
++Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 39b41bdb9d..c9c10502d2 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -52,6 +52,7 @@ Kai Backman <kaib@golang.org>
+ Ken Thompson <ken@golang.org>
+ Kevin Ballard <kevin@sb.org>
+ Larry Hosken <lahosken@golang.org>
++Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Nigel Tao <nigeltao@golang.org>

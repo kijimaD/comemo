@@ -7,6 +7,28 @@ Date:   Fri Sep 24 17:07:42 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/2220048
-
+---
  test/fixedbugs/bug307.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/test/fixedbugs/bug307.go b/test/fixedbugs/bug307.go
+new file mode 100644
+index 0000000000..a1a30dfb71
+--- /dev/null
++++ b/test/fixedbugs/bug307.go
+@@ -0,0 +1,15 @@
++// $G $D/$F.go
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Valid program, gccgo reported an error.
++// bug307.go:14:6: error: cmplx arguments must have identical types
++
++package main
++
++func main() {
++	var f float64
++	_ = cmplx(1 / f, 0)
++}

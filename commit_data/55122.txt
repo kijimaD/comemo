@@ -16,6 +16,21 @@ Date:   Wed Jan 11 08:31:27 2023 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/mpagecache.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/runtime/mpagecache.go b/src/runtime/mpagecache.go
+index 5bad4f789a..5bc9c84408 100644
+--- a/src/runtime/mpagecache.go
++++ b/src/runtime/mpagecache.go
+@@ -21,8 +21,7 @@ type pageCache struct {
+ 	scav  uint64  // 64-bit bitmap representing scavenged pages (1 means scavenged)
+ }
+ 
+-// empty returns true if the pageCache has any free pages, and false
+-// otherwise.
++// empty reports whether the page cache has no free pages.
+ func (c *pageCache) empty() bool {
+ 	return c.cache == 0
+ }

@@ -8,9 +8,295 @@ Date:   Mon Aug 11 23:43:34 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/125910043
-
+---
  src/pkg/debug/elf/elf.go                           | 178 +++++++++++++++++++++
  src/pkg/debug/elf/file.go                          |  50 +++++-
  src/pkg/debug/elf/file_test.go                     |   6 +
  .../testdata/go-relocation-test-gcc482-ppc64le.obj | Bin 0 -> 3016 bytes
  4 files changed, 233 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/elf/elf.go b/src/pkg/debug/elf/elf.go
+index d622dae2af..51319c0ddc 100644
+--- a/src/pkg/debug/elf/elf.go
++++ b/src/pkg/debug/elf/elf.go
+@@ -1162,6 +1162,184 @@ var rppcStrings = []intName{
+ func (i R_PPC) String() string   { return stringName(uint32(i), rppcStrings, false) }
+ func (i R_PPC) GoString() string { return stringName(uint32(i), rppcStrings, true) }
+ 
++// Relocation types for PowerPC 64.
++type R_PPC64 int
++
++const (
++	R_PPC64_NONE               R_PPC64 = 0
++	R_PPC64_ADDR32             R_PPC64 = 1
++	R_PPC64_ADDR24             R_PPC64 = 2
++	R_PPC64_ADDR16             R_PPC64 = 3
++	R_PPC64_ADDR16_LO          R_PPC64 = 4
++	R_PPC64_ADDR16_HI          R_PPC64 = 5
++	R_PPC64_ADDR16_HA          R_PPC64 = 6
++	R_PPC64_ADDR14             R_PPC64 = 7
++	R_PPC64_ADDR14_BRTAKEN     R_PPC64 = 8
++	R_PPC64_ADDR14_BRNTAKEN    R_PPC64 = 9
++	R_PPC64_REL24              R_PPC64 = 10
++	R_PPC64_REL14              R_PPC64 = 11
++	R_PPC64_REL14_BRTAKEN      R_PPC64 = 12
++	R_PPC64_REL14_BRNTAKEN     R_PPC64 = 13
++	R_PPC64_GOT16              R_PPC64 = 14
++	R_PPC64_GOT16_LO           R_PPC64 = 15
++	R_PPC64_GOT16_HI           R_PPC64 = 16
++	R_PPC64_GOT16_HA           R_PPC64 = 17
++	R_PPC64_JMP_SLOT           R_PPC64 = 21
++	R_PPC64_REL32              R_PPC64 = 26
++	R_PPC64_ADDR64             R_PPC64 = 38
++	R_PPC64_ADDR16_HIGHER      R_PPC64 = 39
++	R_PPC64_ADDR16_HIGHERA     R_PPC64 = 40
++	R_PPC64_ADDR16_HIGHEST     R_PPC64 = 41
++	R_PPC64_ADDR16_HIGHESTA    R_PPC64 = 42
++	R_PPC64_REL64              R_PPC64 = 44
++	R_PPC64_TOC16              R_PPC64 = 47
++	R_PPC64_TOC16_LO           R_PPC64 = 48
++	R_PPC64_TOC16_HI           R_PPC64 = 49
++	R_PPC64_TOC16_HA           R_PPC64 = 50
++	R_PPC64_TOC                R_PPC64 = 51
++	R_PPC64_ADDR16_DS          R_PPC64 = 56
++	R_PPC64_ADDR16_LO_DS       R_PPC64 = 57
++	R_PPC64_GOT16_DS           R_PPC64 = 58
++	R_PPC64_GOT16_LO_DS        R_PPC64 = 59
++	R_PPC64_TOC16_DS           R_PPC64 = 63
++	R_PPC64_TOC16_LO_DS        R_PPC64 = 64
++	R_PPC64_TLS                R_PPC64 = 67
++	R_PPC64_DTPMOD64           R_PPC64 = 68
++	R_PPC64_TPREL16            R_PPC64 = 69
++	R_PPC64_TPREL16_LO         R_PPC64 = 70
++	R_PPC64_TPREL16_HI         R_PPC64 = 71
++	R_PPC64_TPREL16_HA         R_PPC64 = 72
++	R_PPC64_TPREL64            R_PPC64 = 73
++	R_PPC64_DTPREL16           R_PPC64 = 74
++	R_PPC64_DTPREL16_LO        R_PPC64 = 75
++	R_PPC64_DTPREL16_HI        R_PPC64 = 76
++	R_PPC64_DTPREL16_HA        R_PPC64 = 77
++	R_PPC64_DTPREL64           R_PPC64 = 78
++	R_PPC64_GOT_TLSGD16        R_PPC64 = 79
++	R_PPC64_GOT_TLSGD16_LO     R_PPC64 = 80
++	R_PPC64_GOT_TLSGD16_HI     R_PPC64 = 81
++	R_PPC64_GOT_TLSGD16_HA     R_PPC64 = 82
++	R_PPC64_GOT_TLSLD16        R_PPC64 = 83
++	R_PPC64_GOT_TLSLD16_LO     R_PPC64 = 84
++	R_PPC64_GOT_TLSLD16_HI     R_PPC64 = 85
++	R_PPC64_GOT_TLSLD16_HA     R_PPC64 = 86
++	R_PPC64_GOT_TPREL16_DS     R_PPC64 = 87
++	R_PPC64_GOT_TPREL16_LO_DS  R_PPC64 = 88
++	R_PPC64_GOT_TPREL16_HI     R_PPC64 = 89
++	R_PPC64_GOT_TPREL16_HA     R_PPC64 = 90
++	R_PPC64_GOT_DTPREL16_DS    R_PPC64 = 91
++	R_PPC64_GOT_DTPREL16_LO_DS R_PPC64 = 92
++	R_PPC64_GOT_DTPREL16_HI    R_PPC64 = 93
++	R_PPC64_GOT_DTPREL16_HA    R_PPC64 = 94
++	R_PPC64_TPREL16_DS         R_PPC64 = 95
++	R_PPC64_TPREL16_LO_DS      R_PPC64 = 96
++	R_PPC64_TPREL16_HIGHER     R_PPC64 = 97
++	R_PPC64_TPREL16_HIGHERA    R_PPC64 = 98
++	R_PPC64_TPREL16_HIGHEST    R_PPC64 = 99
++	R_PPC64_TPREL16_HIGHESTA   R_PPC64 = 100
++	R_PPC64_DTPREL16_DS        R_PPC64 = 101
++	R_PPC64_DTPREL16_LO_DS     R_PPC64 = 102
++	R_PPC64_DTPREL16_HIGHER    R_PPC64 = 103
++	R_PPC64_DTPREL16_HIGHERA   R_PPC64 = 104
++	R_PPC64_DTPREL16_HIGHEST   R_PPC64 = 105
++	R_PPC64_DTPREL16_HIGHESTA  R_PPC64 = 106
++	R_PPC64_TLSGD              R_PPC64 = 107
++	R_PPC64_TLSLD              R_PPC64 = 108
++	R_PPC64_REL16              R_PPC64 = 249
++	R_PPC64_REL16_LO           R_PPC64 = 250
++	R_PPC64_REL16_HI           R_PPC64 = 251
++	R_PPC64_REL16_HA           R_PPC64 = 252
++)
++
++var rppc64Strings = []intName{
++	{0, "R_PPC64_NONE"},
++	{1, "R_PPC64_ADDR32"},
++	{2, "R_PPC64_ADDR24"},
++	{3, "R_PPC64_ADDR16"},
++	{4, "R_PPC64_ADDR16_LO"},
++	{5, "R_PPC64_ADDR16_HI"},
++	{6, "R_PPC64_ADDR16_HA"},
++	{7, "R_PPC64_ADDR14"},
++	{8, "R_PPC64_ADDR14_BRTAKEN"},
++	{9, "R_PPC64_ADDR14_BRNTAKEN"},
++	{10, "R_PPC64_REL24"},
++	{11, "R_PPC64_REL14"},
++	{12, "R_PPC64_REL14_BRTAKEN"},
++	{13, "R_PPC64_REL14_BRNTAKEN"},
++	{14, "R_PPC64_GOT16"},
++	{15, "R_PPC64_GOT16_LO"},
++	{16, "R_PPC64_GOT16_HI"},
++	{17, "R_PPC64_GOT16_HA"},
++	{21, "R_PPC64_JMP_SLOT"},
++	{26, "R_PPC64_REL32"},
++	{38, "R_PPC64_ADDR64"},
++	{39, "R_PPC64_ADDR16_HIGHER"},
++	{40, "R_PPC64_ADDR16_HIGHERA"},
++	{41, "R_PPC64_ADDR16_HIGHEST"},
++	{42, "R_PPC64_ADDR16_HIGHESTA"},
++	{44, "R_PPC64_REL64"},
++	{47, "R_PPC64_TOC16"},
++	{48, "R_PPC64_TOC16_LO"},
++	{49, "R_PPC64_TOC16_HI"},
++	{50, "R_PPC64_TOC16_HA"},
++	{51, "R_PPC64_TOC"},
++	{56, "R_PPC64_ADDR16_DS"},
++	{57, "R_PPC64_ADDR16_LO_DS"},
++	{58, "R_PPC64_GOT16_DS"},
++	{59, "R_PPC64_GOT16_LO_DS"},
++	{63, "R_PPC64_TOC16_DS"},
++	{64, "R_PPC64_TOC16_LO_DS"},
++	{67, "R_PPC64_TLS"},
++	{68, "R_PPC64_DTPMOD64"},
++	{69, "R_PPC64_TPREL16"},
++	{70, "R_PPC64_TPREL16_LO"},
++	{71, "R_PPC64_TPREL16_HI"},
++	{72, "R_PPC64_TPREL16_HA"},
++	{73, "R_PPC64_TPREL64"},
++	{74, "R_PPC64_DTPREL16"},
++	{75, "R_PPC64_DTPREL16_LO"},
++	{76, "R_PPC64_DTPREL16_HI"},
++	{77, "R_PPC64_DTPREL16_HA"},
++	{78, "R_PPC64_DTPREL64"},
++	{79, "R_PPC64_GOT_TLSGD16"},
++	{80, "R_PPC64_GOT_TLSGD16_LO"},
++	{81, "R_PPC64_GOT_TLSGD16_HI"},
++	{82, "R_PPC64_GOT_TLSGD16_HA"},
++	{83, "R_PPC64_GOT_TLSLD16"},
++	{84, "R_PPC64_GOT_TLSLD16_LO"},
++	{85, "R_PPC64_GOT_TLSLD16_HI"},
++	{86, "R_PPC64_GOT_TLSLD16_HA"},
++	{87, "R_PPC64_GOT_TPREL16_DS"},
++	{88, "R_PPC64_GOT_TPREL16_LO_DS"},
++	{89, "R_PPC64_GOT_TPREL16_HI"},
++	{90, "R_PPC64_GOT_TPREL16_HA"},
++	{91, "R_PPC64_GOT_DTPREL16_DS"},
++	{92, "R_PPC64_GOT_DTPREL16_LO_DS"},
++	{93, "R_PPC64_GOT_DTPREL16_HI"},
++	{94, "R_PPC64_GOT_DTPREL16_HA"},
++	{95, "R_PPC64_TPREL16_DS"},
++	{96, "R_PPC64_TPREL16_LO_DS"},
++	{97, "R_PPC64_TPREL16_HIGHER"},
++	{98, "R_PPC64_TPREL16_HIGHERA"},
++	{99, "R_PPC64_TPREL16_HIGHEST"},
++	{100, "R_PPC64_TPREL16_HIGHESTA"},
++	{101, "R_PPC64_DTPREL16_DS"},
++	{102, "R_PPC64_DTPREL16_LO_DS"},
++	{103, "R_PPC64_DTPREL16_HIGHER"},
++	{104, "R_PPC64_DTPREL16_HIGHERA"},
++	{105, "R_PPC64_DTPREL16_HIGHEST"},
++	{106, "R_PPC64_DTPREL16_HIGHESTA"},
++	{107, "R_PPC64_TLSGD"},
++	{108, "R_PPC64_TLSLD"},
++	{249, "R_PPC64_REL16"},
++	{250, "R_PPC64_REL16_LO"},
++	{251, "R_PPC64_REL16_HI"},
++	{252, "R_PPC64_REL16_HA"},
++}
++
++func (i R_PPC64) String() string   { return stringName(uint32(i), rppc64Strings, false) }
++func (i R_PPC64) GoString() string { return stringName(uint32(i), rppc64Strings, true) }
++
+ // Relocation types for SPARC.
+ type R_SPARC int
+ 
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 7be9deaa5f..5e1c47a04c 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -529,6 +529,9 @@ func (f *File) applyRelocations(dst []byte, rels []byte) error {
+ 	if f.Class == ELFCLASS32 && f.Machine == EM_386 {
+ 		return f.applyRelocations386(dst, rels)
+ 	}
++	if f.Class == ELFCLASS64 && f.Machine == EM_PPC64 {
++		return f.applyRelocationsPPC64(dst, rels)
++	}
+ 
+ 	return errors.New("not implemented")
+ }
+@@ -615,6 +618,51 @@ func (f *File) applyRelocations386(dst []byte, rels []byte) error {
+ 	return nil
+ }
+ 
++func (f *File) applyRelocationsPPC64(dst []byte, rels []byte) error {
++	// 24 is the size of Rela64.
++	if len(rels)%24 != 0 {
++		return errors.New("length of relocation section is not a multiple of 24")
++	}
++
++	symbols, _, err := f.getSymbols(SHT_SYMTAB)
++	if err != nil {
++		return err
++	}
++
++	b := bytes.NewReader(rels)
++	var rela Rela64
++
++	for b.Len() > 0 {
++		binary.Read(b, f.ByteOrder, &rela)
++		symNo := rela.Info >> 32
++		t := R_PPC64(rela.Info & 0xffff)
++
++		if symNo == 0 || symNo > uint64(len(symbols)) {
++			continue
++		}
++		sym := &symbols[symNo-1]
++		if SymType(sym.Info&0xf) != STT_SECTION {
++			// We don't handle non-section relocations for now.
++			continue
++		}
++
++		switch t {
++		case R_PPC64_ADDR64:
++			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
++				continue
++			}
++			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], uint64(rela.Addend))
++		case R_PPC64_ADDR32:
++			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
++				continue
++			}
++			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
++		}
++	}
++
++	return nil
++}
++
+ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// There are many other DWARF sections, but these
+ 	// are the required ones, and the debug/dwarf package
+@@ -637,7 +685,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// If there's a relocation table for .debug_info, we have to process it
+ 	// now otherwise the data in .debug_info is invalid for x86-64 objects.
+ 	rela := f.Section(".rela.debug_info")
+-	if rela != nil && rela.Type == SHT_RELA && f.Machine == EM_X86_64 {
++	if rela != nil && rela.Type == SHT_RELA && (f.Machine == EM_X86_64 || f.Machine == EM_PPC64) {
+ 		data, err := rela.Data()
+ 		if err != nil {
+ 			return nil, err
+diff --git a/src/pkg/debug/elf/file_test.go b/src/pkg/debug/elf/file_test.go
+index 5e4ad5c100..db9a7476c3 100644
+--- a/src/pkg/debug/elf/file_test.go
++++ b/src/pkg/debug/elf/file_test.go
+@@ -260,6 +260,12 @@ var relocationTests = []relocationTest{
+ 			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.2.4 (Ubuntu 4.2.4-1ubuntu4)"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "go-relocation-test-gcc424.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: uint64(0x6)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}}},
+ 		},
+ 	},
++	{
++		"testdata/go-relocation-test-gcc482-ppc64le.obj",
++		[]relocationTestEntry{
++			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{dwarf.Field{Attr: dwarf.AttrProducer, Val: "GNU C 4.8.2 -Asystem=linux -Asystem=unix -Asystem=posix -msecure-plt -mtune=power8 -mcpu=power7 -gdwarf-2 -fstack-protector"}, dwarf.Field{Attr: dwarf.AttrLanguage, Val: int64(1)}, dwarf.Field{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc482-ppc64le.c"}, dwarf.Field{Attr: dwarf.AttrCompDir, Val: "/tmp"}, dwarf.Field{Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, dwarf.Field{Attr: dwarf.AttrHighpc, Val: uint64(0x24)}, dwarf.Field{Attr: dwarf.AttrStmtList, Val: int64(0)}}}},
++		},
++	},
+ 	{
+ 		"testdata/go-relocation-test-clang-x86.obj",
+ 		[]relocationTestEntry{
+diff --git a/src/pkg/debug/elf/testdata/go-relocation-test-gcc482-ppc64le.obj b/src/pkg/debug/elf/testdata/go-relocation-test-gcc482-ppc64le.obj
+new file mode 100644
+index 0000000000..dad7445486
+Binary files /dev/null and b/src/pkg/debug/elf/testdata/go-relocation-test-gcc482-ppc64le.obj differ

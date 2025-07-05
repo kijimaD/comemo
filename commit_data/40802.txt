@@ -15,10 +15,435 @@ Date:   Mon Jul 8 20:33:42 2019 +0530
     Change-Id: I5e16663b308c3b560496da8e66c33befdf9ed9dd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/185040
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/testdata/issue10858.0.golden |  79 -------------------------
  src/go/doc/testdata/issue10858.1.golden |  79 -------------------------
  src/go/doc/testdata/issue10858.2.golden |  79 -------------------------
  src/go/doc/testdata/issue10858.go       | 102 --------------------------------
  src/go/parser/parser.go                 |  15 +----
  5 files changed, 1 insertion(+), 353 deletions(-)
+
+diff --git a/src/go/doc/testdata/issue10858.0.golden b/src/go/doc/testdata/issue10858.0.golden
+deleted file mode 100644
+index 51f8f1e0d3..0000000000
+--- a/src/go/doc/testdata/issue10858.0.golden
++++ /dev/null
+@@ -1,79 +0,0 @@
+-// 
+-PACKAGE issue10858
+-
+-IMPORTPATH
+-	testdata/issue10858
+-
+-IMPORTS
+-	unsafe
+-
+-FILENAMES
+-	testdata/issue10858.go
+-
+-CONSTANTS
+-	// First line  Second line 
+-	const (
+-	
+-		// C1 comment
+-		C1	int	= 1 << 0
+-	
+-		C2	int	= 1 << 1
+-	
+-		// C3 comment
+-		//
+-		// with a line gap
+-		C3	int	= 1 << 2
+-	)
+-
+-
+-TYPES
+-	// StructTag is a comment  with 2 connecting lines 
+-	type StructTag string	// adjacent comment
+-
+-	// Get returns the value associated with key in the tag string. 
+-	func (tag StructTag) Get(key string) string
+-
+-	// First line  Second line 
+-	type Type interface {
+-		// Should be present
+-	
+-		// Align returns the alignment in bytes of a value of
+-		// this type when allocated in memory.
+-		Align() int
+-	
+-		// FieldAlign returns the alignment in bytes of a value of
+-		// this type when used as a field in a struct.
+-		FieldAlign() int	// adjacent comment
+-	
+-		//	Ptr: Elem
+-		//	Slice: Elem
+-	
+-		// Bits returns the size of the type in bits.
+-	
+-		//
+-		// It panics if the type's Kind is not one of the
+-		// sized or unsized Int, Uint, Float, or Complex kinds.
+-		Bits() int
+-	}
+-
+-	// NewType is a comment  ending with this line. 
+-	func NewType() Type
+-
+-	// TypeAlg is a copy of runtime.typeAlg 
+-	type TypeAlg struct {
+-		// function for hashing objects of this type
+-		//
+-		//
+-		// (ptr to object, seed) -> hash
+-		Hash	func(unsafe.Pointer, uintptr) uintptr
+-	
+-		// include
+-		// include
+-	
+-		// include
+-	
+-		// function for comparing objects of this type
+-		// (ptr to object A, ptr to object B) -> ==?
+-		Equal	func(unsafe.Pointer, unsafe.Pointer) bool
+-	}
+-
+diff --git a/src/go/doc/testdata/issue10858.1.golden b/src/go/doc/testdata/issue10858.1.golden
+deleted file mode 100644
+index 51f8f1e0d3..0000000000
+--- a/src/go/doc/testdata/issue10858.1.golden
++++ /dev/null
+@@ -1,79 +0,0 @@
+-// 
+-PACKAGE issue10858
+-
+-IMPORTPATH
+-	testdata/issue10858
+-
+-IMPORTS
+-	unsafe
+-
+-FILENAMES
+-	testdata/issue10858.go
+-
+-CONSTANTS
+-	// First line  Second line 
+-	const (
+-	
+-		// C1 comment
+-		C1	int	= 1 << 0
+-	
+-		C2	int	= 1 << 1
+-	
+-		// C3 comment
+-		//
+-		// with a line gap
+-		C3	int	= 1 << 2
+-	)
+-
+-
+-TYPES
+-	// StructTag is a comment  with 2 connecting lines 
+-	type StructTag string	// adjacent comment
+-
+-	// Get returns the value associated with key in the tag string. 
+-	func (tag StructTag) Get(key string) string
+-
+-	// First line  Second line 
+-	type Type interface {
+-		// Should be present
+-	
+-		// Align returns the alignment in bytes of a value of
+-		// this type when allocated in memory.
+-		Align() int
+-	
+-		// FieldAlign returns the alignment in bytes of a value of
+-		// this type when used as a field in a struct.
+-		FieldAlign() int	// adjacent comment
+-	
+-		//	Ptr: Elem
+-		//	Slice: Elem
+-	
+-		// Bits returns the size of the type in bits.
+-	
+-		//
+-		// It panics if the type's Kind is not one of the
+-		// sized or unsized Int, Uint, Float, or Complex kinds.
+-		Bits() int
+-	}
+-
+-	// NewType is a comment  ending with this line. 
+-	func NewType() Type
+-
+-	// TypeAlg is a copy of runtime.typeAlg 
+-	type TypeAlg struct {
+-		// function for hashing objects of this type
+-		//
+-		//
+-		// (ptr to object, seed) -> hash
+-		Hash	func(unsafe.Pointer, uintptr) uintptr
+-	
+-		// include
+-		// include
+-	
+-		// include
+-	
+-		// function for comparing objects of this type
+-		// (ptr to object A, ptr to object B) -> ==?
+-		Equal	func(unsafe.Pointer, unsafe.Pointer) bool
+-	}
+-
+diff --git a/src/go/doc/testdata/issue10858.2.golden b/src/go/doc/testdata/issue10858.2.golden
+deleted file mode 100644
+index 51f8f1e0d3..0000000000
+--- a/src/go/doc/testdata/issue10858.2.golden
++++ /dev/null
+@@ -1,79 +0,0 @@
+-// 
+-PACKAGE issue10858
+-
+-IMPORTPATH
+-	testdata/issue10858
+-
+-IMPORTS
+-	unsafe
+-
+-FILENAMES
+-	testdata/issue10858.go
+-
+-CONSTANTS
+-	// First line  Second line 
+-	const (
+-	
+-		// C1 comment
+-		C1	int	= 1 << 0
+-	
+-		C2	int	= 1 << 1
+-	
+-		// C3 comment
+-		//
+-		// with a line gap
+-		C3	int	= 1 << 2
+-	)
+-
+-
+-TYPES
+-	// StructTag is a comment  with 2 connecting lines 
+-	type StructTag string	// adjacent comment
+-
+-	// Get returns the value associated with key in the tag string. 
+-	func (tag StructTag) Get(key string) string
+-
+-	// First line  Second line 
+-	type Type interface {
+-		// Should be present
+-	
+-		// Align returns the alignment in bytes of a value of
+-		// this type when allocated in memory.
+-		Align() int
+-	
+-		// FieldAlign returns the alignment in bytes of a value of
+-		// this type when used as a field in a struct.
+-		FieldAlign() int	// adjacent comment
+-	
+-		//	Ptr: Elem
+-		//	Slice: Elem
+-	
+-		// Bits returns the size of the type in bits.
+-	
+-		//
+-		// It panics if the type's Kind is not one of the
+-		// sized or unsized Int, Uint, Float, or Complex kinds.
+-		Bits() int
+-	}
+-
+-	// NewType is a comment  ending with this line. 
+-	func NewType() Type
+-
+-	// TypeAlg is a copy of runtime.typeAlg 
+-	type TypeAlg struct {
+-		// function for hashing objects of this type
+-		//
+-		//
+-		// (ptr to object, seed) -> hash
+-		Hash	func(unsafe.Pointer, uintptr) uintptr
+-	
+-		// include
+-		// include
+-	
+-		// include
+-	
+-		// function for comparing objects of this type
+-		// (ptr to object A, ptr to object B) -> ==?
+-		Equal	func(unsafe.Pointer, unsafe.Pointer) bool
+-	}
+-
+diff --git a/src/go/doc/testdata/issue10858.go b/src/go/doc/testdata/issue10858.go
+deleted file mode 100644
+index aebea50651..0000000000
+--- a/src/go/doc/testdata/issue10858.go
++++ /dev/null
+@@ -1,102 +0,0 @@
+-package issue10858
+-
+-import "unsafe"
+-
+-// Should be ignored
+-
+-// First line
+-//
+-// Second line
+-type Type interface {
+-	// Should be present
+-
+-	// Align returns the alignment in bytes of a value of
+-	// this type when allocated in memory.
+-	Align() int
+-
+-	// FieldAlign returns the alignment in bytes of a value of
+-	// this type when used as a field in a struct.
+-	FieldAlign() int // adjacent comment
+-
+-	//	Ptr: Elem
+-	//	Slice: Elem
+-
+-	// Bits returns the size of the type in bits.
+-
+-	//
+-	// It panics if the type's Kind is not one of the
+-	// sized or unsized Int, Uint, Float, or Complex kinds.
+-	Bits() int
+-
+-	// Should be ignored
+-}
+-
+-// Should be ignored
+-
+-// NewType is a comment
+-//
+-// ending with this line.
+-func NewType() Type {}
+-
+-// Ignore
+-
+-// First line
+-//
+-// Second line
+-const (
+-	// Should be ignored
+-
+-	// C1 comment
+-	C1 int = 1 << 0
+-
+-	// Should
+-	//
+-	// be ignored
+-
+-	C2 int = 1 << 1
+-
+-	// C3 comment
+-	//
+-	// with a line gap
+-	C3 int = 1 << 2
+-
+-	// Should be ignored
+-)
+-
+-// Should be ignored
+-
+-// Should be ignored
+-
+-// TypeAlg is a
+-// copy of runtime.typeAlg
+-type TypeAlg struct {
+-	// function for hashing objects of this type
+-	//
+-	//
+-	// (ptr to object, seed) -> hash
+-	Hash func(unsafe.Pointer, uintptr) uintptr
+-
+-	// include
+-	// include
+-
+-	// include
+-
+-	// function for comparing objects of this type
+-	// (ptr to object A, ptr to object B) -> ==?
+-	Equal func(unsafe.Pointer, unsafe.Pointer) bool
+-	// Should be ignored
+-}
+-
+-// Should be ignored
+-
+-// StructTag is a comment
+-//
+-//
+-// with 2 connecting lines
+-type StructTag string // adjacent comment
+-
+-// Should be ignored
+-
+-// Get returns the value associated with key in the tag string.
+-func (tag StructTag) Get(key string) string {
+-}
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 9294bb6b3e..ba16b65224 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -63,7 +63,6 @@ type parser struct {
+ 	topScope   *ast.Scope        // top-most scope; may be pkgScope
+ 	unresolved []*ast.Ident      // unresolved identifiers
+ 	imports    []*ast.ImportSpec // list of imports
+-	inStruct   bool              // if set, parser is parsing a struct or interface (for comment collection)
+ 
+ 	// Label scopes
+ 	// (maintained by open/close LabelScope)
+@@ -338,15 +337,7 @@ func (p *parser) next() {
+ 		// consume successor comments, if any
+ 		endline = -1
+ 		for p.tok == token.COMMENT {
+-			n := 1
+-			// When inside a struct (or interface), we don't want to lose comments
+-			// separated from individual field (or method) documentation by empty
+-			// lines. Allow for some white space in this case and collect those
+-			// comments as a group. See issue #10858 for details.
+-			if p.inStruct {
+-				n = 2
+-			}
+-			comment, endline = p.consumeCommentGroup(n)
++			comment, endline = p.consumeCommentGroup(1)
+ 		}
+ 
+ 		if endline+1 == p.file.Line(p.pos) {
+@@ -757,7 +748,6 @@ func (p *parser) parseStructType() *ast.StructType {
+ 	}
+ 
+ 	pos := p.expect(token.STRUCT)
+-	p.inStruct = true
+ 	lbrace := p.expect(token.LBRACE)
+ 	scope := ast.NewScope(nil) // struct scope
+ 	var list []*ast.Field
+@@ -768,7 +758,6 @@ func (p *parser) parseStructType() *ast.StructType {
+ 		list = append(list, p.parseFieldDecl(scope))
+ 	}
+ 	rbrace := p.expect(token.RBRACE)
+-	p.inStruct = false
+ 
+ 	return &ast.StructType{
+ 		Struct: pos,
+@@ -970,7 +959,6 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 	}
+ 
+ 	pos := p.expect(token.INTERFACE)
+-	p.inStruct = true
+ 	lbrace := p.expect(token.LBRACE)
+ 	scope := ast.NewScope(nil) // interface scope
+ 	var list []*ast.Field
+@@ -978,7 +966,6 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 		list = append(list, p.parseMethodSpec(scope))
+ 	}
+ 	rbrace := p.expect(token.RBRACE)
+-	p.inStruct = false
+ 
+ 	return &ast.InterfaceType{
+ 		Interface: pos,

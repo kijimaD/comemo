@@ -12,9 +12,188 @@ Date:   Mon Sep 28 19:29:57 2020 +0200
     Trust: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  doc/go1.16.html              | 19 ++++++++++++++++++
  src/crypto/dsa/dsa.go        |  6 ++++++
  src/crypto/x509/x509.go      | 37 ++++++----------------------------
  src/crypto/x509/x509_test.go | 47 ++------------------------------------------
  4 files changed, 33 insertions(+), 76 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index c6e3d92cc6..5e0fa60e2f 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -229,6 +229,25 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO
+ </p>
+ 
++<dl id="crypto/dsa"><dt><a href="/pkg/crypto/dsa/">crypto/dsa</a></dt>
++  <dd>
++    <p><!-- CL 257939 -->
++      The <a href="/pkg/crypto/dsa/"><code>crypto/dsa</code></a> package is now deprecated.
++      See <a href="https://golang.org/issue/40337">issue #40337</a>.
++    </p>
++  </dd>
++</dl><!-- crypto/dsa -->
++
++<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
++  <dd>
++    <p><!-- CL 257939 -->
++      DSA signature verification is no longer supported. Note that DSA signature
++      generation was never supported.
++      See <a href="https://golang.org/issue/40337">issue #40337</a>.
++    </p>
++  </dd>
++</dl><!-- crypto/x509 -->
++
+ <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+   <dd>
+     <p><!-- CL 233637 -->
+diff --git a/src/crypto/dsa/dsa.go b/src/crypto/dsa/dsa.go
+index 43826bcb55..a83359996d 100644
+--- a/src/crypto/dsa/dsa.go
++++ b/src/crypto/dsa/dsa.go
+@@ -5,6 +5,12 @@
+ // Package dsa implements the Digital Signature Algorithm, as defined in FIPS 186-3.
+ //
+ // The DSA operations in this package are not implemented using constant-time algorithms.
++//
++// Deprecated: DSA is a legacy algorithm, and modern alternatives such as
++// Ed25519 (implemented by package crypto/ed25519) should be used instead. Keys
++// with 1024-bit moduli (L1024N160 parameters) are cryptographically weak, while
++// bigger keys are not widely supported. Note that FIPS 186-5 no longer approves
++// DSA for signature generation.
+ package dsa
+ 
+ import (
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 93dca03840..58c4aa360f 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -159,10 +159,6 @@ type dsaAlgorithmParameters struct {
+ 	P, Q, G *big.Int
+ }
+ 
+-type dsaSignature struct {
+-	R, S *big.Int
+-}
+-
+ type validity struct {
+ 	NotBefore, NotAfter time.Time
+ }
+@@ -182,14 +178,15 @@ type SignatureAlgorithm int
+ 
+ const (
+ 	UnknownSignatureAlgorithm SignatureAlgorithm = iota
+-	MD2WithRSA
+-	MD5WithRSA
++
++	MD2WithRSA // Unsupported.
++	MD5WithRSA // Only supported for signing, not verification.
+ 	SHA1WithRSA
+ 	SHA256WithRSA
+ 	SHA384WithRSA
+ 	SHA512WithRSA
+-	DSAWithSHA1
+-	DSAWithSHA256
++	DSAWithSHA1   // Unsupported.
++	DSAWithSHA256 // Unsupported.
+ 	ECDSAWithSHA1
+ 	ECDSAWithSHA256
+ 	ECDSAWithSHA384
+@@ -223,7 +220,7 @@ type PublicKeyAlgorithm int
+ const (
+ 	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
+ 	RSA
+-	DSA
++	DSA // Unsupported.
+ 	ECDSA
+ 	Ed25519
+ )
+@@ -845,28 +842,6 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 		} else {
+ 			return rsa.VerifyPKCS1v15(pub, hashType, signed, signature)
+ 		}
+-	case *dsa.PublicKey:
+-		if pubKeyAlgo != DSA {
+-			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
+-		}
+-		dsaSig := new(dsaSignature)
+-		if rest, err := asn1.Unmarshal(signature, dsaSig); err != nil {
+-			return err
+-		} else if len(rest) != 0 {
+-			return errors.New("x509: trailing data after DSA signature")
+-		}
+-		if dsaSig.R.Sign() <= 0 || dsaSig.S.Sign() <= 0 {
+-			return errors.New("x509: DSA signature contained zero or negative values")
+-		}
+-		// According to FIPS 186-3, section 4.6, the hash must be truncated if it is longer
+-		// than the key length, but crypto/dsa doesn't do it automatically.
+-		if maxHashLen := pub.Q.BitLen() / 8; maxHashLen < len(signed) {
+-			signed = signed[:maxHashLen]
+-		}
+-		if !dsa.Verify(pub, signed, dsaSig.R, dsaSig.S) {
+-			return errors.New("x509: DSA verification failure")
+-		}
+-		return
+ 	case *ecdsa.PublicKey:
+ 		if pubKeyAlgo != ECDSA {
+ 			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index e87294bde5..2d9ace4a16 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -988,51 +988,8 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
+ 		t.Fatalf("Failed to parse certificate: %s", err)
+ 	}
+ 	// test cert is self-signed
+-	if err = cert.CheckSignatureFrom(cert); err != nil {
+-		t.Fatalf("DSA Certificate verification failed: %s", err)
+-	}
+-}
+-
+-const dsaCert1024WithSha256 = `-----BEGIN CERTIFICATE-----
+-MIIDKzCCAumgAwIBAgIUOXWPK4gTRZVVY7OSXTU00QEWQU8wCwYJYIZIAWUDBAMC
+-MEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJ
+-bnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwIBcNMTkxMDAxMDYxODUyWhgPMzAxOTAy
+-MDEwNjE4NTJaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
+-HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwggG4MIIBLAYHKoZIzjgE
+-ATCCAR8CgYEAr79m/1ypU1aUbbLX1jikTyX7w2QYP+EkxNtXUiiTuxkC1KBqqxT3
+-0Aht2vxFR47ODEK4B79rHO+UevhaqDaAHSH7Z/9umS0h0aS32KLDLb+LI5AneCrn
+-eW5YbVhfD03N7uR4kKUCKOnWj5hAk9xiE3y7oFR0bBXzqrrHJF9LMd0CFQCB6lSj
+-HSW0rGmNxIZsBl72u7JFLQKBgQCOFd1PGEQmddn0cdFgby5QQfjrqmoD1zNlFZEt
+-L0x1EbndFwelLlF1ChNh3NPNUkjwRbla07FDlONs1GMJq6w4vW11ns+pUvAZ2+RM
+-EVFjugip8az2ncn3UujGTVdFxnSTLBsRlMP/tFDK3ky//8zn/5ha9SKKw4v1uv6M
+-JuoIbwOBhQACgYEAoeKeR90nwrnoPi5MOUPBLQvuzB87slfr+3kL8vFCmgjA6MtB
+-7TxQKoBTOo5aVgWDp0lMIMxLd6btzBrm6r3VdRlh/cL8/PtbxkFwBa+Upe4o5NAh
+-ISCe2/f2leT1PxtF8xxYjz/fszeUeHsJbVMilE2cuB2SYrR5tMExiqy+QpqjUzBR
+-MB0GA1UdDgQWBBQDMIEL8Z3jc1d9wCxWtksUWc8RkjAfBgNVHSMEGDAWgBQDMIEL
+-8Z3jc1d9wCxWtksUWc8RkjAPBgNVHRMBAf8EBTADAQH/MAsGCWCGSAFlAwQDAgMv
+-ADAsAhQFehZgI4OyKBGpfnXvyJ0Z/0a6nAIUTO265Ane87LfJuQr3FrqvuCI354=
+------END CERTIFICATE-----
+-`
+-
+-func TestVerifyCertificateWithDSATooLongHash(t *testing.T) {
+-	pemBlock, _ := pem.Decode([]byte(dsaCert1024WithSha256))
+-	cert, err := ParseCertificate(pemBlock.Bytes)
+-	if err != nil {
+-		t.Fatalf("Failed to parse certificate: %s", err)
+-	}
+-
+-	// test cert is self-signed
+-	if err = cert.CheckSignatureFrom(cert); err != nil {
+-		t.Fatalf("DSA Certificate self-signature verification failed: %s", err)
+-	}
+-
+-	signed := []byte("A wild Gopher appears!\n")
+-	signature, _ := hex.DecodeString("302c0214417aca7ff458f5b566e43e7b82f994953da84be50214625901e249e33f4e4838f8b5966020c286dd610e")
+-
+-	// This signature is using SHA256, but only has 1024 DSA key. The hash has to be truncated
+-	// in CheckSignature, otherwise it won't pass.
+-	if err = cert.CheckSignature(DSAWithSHA256, signed, signature); err != nil {
+-		t.Fatalf("DSA signature verification failed: %s", err)
++	if err = cert.CheckSignatureFrom(cert); err == nil {
++		t.Fatalf("Expected error verifying DSA certificate")
+ 	}
+ }
+ 

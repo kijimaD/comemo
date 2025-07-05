@@ -11,6 +11,39 @@ Date:   Mon Oct 9 23:56:48 2023 +0200
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/testing/fstest/mapfs.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index b3fc0c8ad7..8912e98930 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -19,8 +19,8 @@ import (
+ //
+ // The map need not include parent directories for files contained
+ // in the map; those will be synthesized if needed.
+-// But a directory can still be included by setting the MapFile.Mode's ModeDir bit;
+-// this may be necessary for detailed control over the directory's FileInfo
++// But a directory can still be included by setting the MapFile.Mode's [fs.ModeDir] bit;
++// this may be necessary for detailed control over the directory's [fs.FileInfo]
+ // or to create an empty directory.
+ //
+ // File system operations read directly from the map,
+@@ -32,12 +32,12 @@ import (
+ // than a few hundred entries or directory reads.
+ type MapFS map[string]*MapFile
+ 
+-// A MapFile describes a single file in a MapFS.
++// A MapFile describes a single file in a [MapFS].
+ type MapFile struct {
+ 	Data    []byte      // file content
+-	Mode    fs.FileMode // FileInfo.Mode
+-	ModTime time.Time   // FileInfo.ModTime
+-	Sys     any         // FileInfo.Sys
++	Mode    fs.FileMode // fs.FileInfo.Mode
++	ModTime time.Time   // fs.FileInfo.ModTime
++	Sys     any         // fs.FileInfo.Sys
+ }
+ 
+ var _ fs.FS = MapFS(nil)

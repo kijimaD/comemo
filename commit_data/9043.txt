@@ -9,8 +9,109 @@ Date:   Wed Jul 13 13:21:18 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev, islandberry
     https://golang.org/cl/4703043
-
+---
  src/pkg/exp/template/parse.go      | 38 +++++++++++++++++++++-----------------
  src/pkg/exp/template/parse_test.go |  3 +++
  src/pkg/exp/template/set_test.go   |  1 +
  3 files changed, 25 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index 774a7dd84b..91d19e5f67 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -33,11 +33,6 @@ func (t *Template) Name() string {
+ 	return t.name
+ }
+ 
+-// popVars trims the variable list to the specified length
+-func (t *Template) popVars(n int) {
+-	t.vars = t.vars[:n]
+-}
+-
+ // next returns the next token.
+ func (t *Template) next() item {
+ 	if t.peekCount > 0 {
+@@ -814,6 +809,8 @@ func (t *Template) templateControl() node {
+ 		name = newIdentifier(token.val)
+ 	case itemDot:
+ 		name = newDot()
++	case itemVariable:
++		name = t.useVar(token.val)
+ 	case itemField:
+ 		name = newField(token.val)
+ 	case itemString, itemRawString:
+@@ -857,18 +854,7 @@ Loop:
+ 		case itemDot:
+ 			cmd.append(newDot())
+ 		case itemVariable:
+-			v := newVariable(token.val)
+-			found := false
+-			for _, varName := range t.vars {
+-				if varName == v.ident[0] {
+-					found = true
+-					break
+-				}
+-			}
+-			if !found {
+-				t.errorf("undefined variable %q", token.val)
+-			}
+-			cmd.append(v)
++			cmd.append(t.useVar(token.val))
+ 		case itemField:
+ 			cmd.append(newField(token.val))
+ 		case itemBool:
+@@ -894,3 +880,21 @@ Loop:
+ 	}
+ 	return cmd
+ }
++
++// popVars trims the variable list to the specified length
++func (t *Template) popVars(n int) {
++	t.vars = t.vars[:n]
++}
++
++// useVar returns a node for a variable reference. It errors if the
++// variable is not defined.
++func (t *Template) useVar(name string) node {
++	v := newVariable(name)
++	for _, varName := range t.vars {
++		if varName == v.ident[0] {
++			return v
++		}
++	}
++	t.errorf("undefined variable %q", v.ident[0])
++	return nil
++}
+diff --git a/src/pkg/exp/template/parse_test.go b/src/pkg/exp/template/parse_test.go
+index 2a2fa648d7..10be3cbb23 100644
+--- a/src/pkg/exp/template/parse_test.go
++++ b/src/pkg/exp/template/parse_test.go
+@@ -211,6 +211,8 @@ var parseTests = []parseTest{
+ 		`[({{with [(command: [F=[X]])]}} [(text: "hello")])]`},
+ 	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
+ 		`[({{with [(command: [F=[X]])]}} [(text: "hello")] {{else}} [(text: "goodbye")])]`},
++	{"variable in template", "{{with $v := `hi`}}{{template $v}}{{end}}", noError,
++		"[({{with [$v] := [(command: [S=`hi`])]}} [{{template V=[$v]}}])]"},
+ 	// Errors.
+ 	{"unclosed action", "hello{{range", hasError, ""},
+ 	{"unmatched end", "{{end}}", hasError, ""},
+@@ -219,6 +221,7 @@ var parseTests = []parseTest{
+ 	{"undefined function", "hello{{undefined}}", hasError, ""},
+ 	{"undefined variable", "{{$x}}", hasError, ""},
+ 	{"variable undefined after end", "{{with $x := 4}}{{end}}{{$x}}", hasError, ""},
++	{"variable undefined in template", "{{template $v}}", hasError, ""},
+ 	{"declare with field", "{{with $x.Y := 4}}{{end}}", hasError, ""},
+ }
+ 
+diff --git a/src/pkg/exp/template/set_test.go b/src/pkg/exp/template/set_test.go
+index 99310b6234..83088af973 100644
+--- a/src/pkg/exp/template/set_test.go
++++ b/src/pkg/exp/template/set_test.go
+@@ -84,6 +84,7 @@ var setExecTests = []execTest{
+ 	{"invoke nested int", `{{template "nested" .I}}`, "17", tVal, true},
+ 	{"invoke template by field", `{{template .X}}`, "TEXT", tVal, true},
+ 	{"invoke template by template", `{{template .Tmpl}}`, "test template", tVal, true},
++	{"invoke template by variable", `{{with $t := "x"}}{{template $t}}{{end}}`, "TEXT", tVal, true},
+ 	{"invalid: invoke template by []int", `{{template .SI}}`, "", tVal, false},
+ 
+ 	// User-defined function: test argument evaluator.

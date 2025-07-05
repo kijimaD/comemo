@@ -8,9 +8,46 @@ Date:   Wed Nov 12 21:59:43 2008 -0800
     DELTA=36  (18 added, 18 deleted, 0 changed)
     OCL=19059
     CL=19133
-
+---
  test/{bugs => fixedbugs}/bug083.dir/bug0.go | 0
  test/{bugs => fixedbugs}/bug083.dir/bug1.go | 0
  test/{bugs => fixedbugs}/bug083.go          | 0
  test/golden.out                             | 6 +++---
  4 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/bugs/bug083.dir/bug0.go b/test/fixedbugs/bug083.dir/bug0.go
+similarity index 100%
+rename from test/bugs/bug083.dir/bug0.go
+rename to test/fixedbugs/bug083.dir/bug0.go
+diff --git a/test/bugs/bug083.dir/bug1.go b/test/fixedbugs/bug083.dir/bug1.go
+similarity index 100%
+rename from test/bugs/bug083.dir/bug1.go
+rename to test/fixedbugs/bug083.dir/bug1.go
+diff --git a/test/bugs/bug083.go b/test/fixedbugs/bug083.go
+similarity index 100%
+rename from test/bugs/bug083.go
+rename to test/fixedbugs/bug083.go
+diff --git a/test/golden.out b/test/golden.out
+index 70b5db2700..cedf02964a 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -103,9 +103,6 @@ bugs/bug080.go:12: illegal types for operand: CALL
+ 	struct { x int; y float }
+ BUG: fails incorrectly
+ 
+-=========== bugs/bug083.go
+-bugs/bug083.dir/bug1.go:5: syntax error near T0
+-
+ =========== bugs/bug085.go
+ bugs/bug085.go:8: P: undefined
+ BUG: fails incorrectly
+@@ -232,6 +229,9 @@ fixedbugs/bug074.go:7: x: undefined
+ =========== fixedbugs/bug081.go
+ fixedbugs/bug081.go:5: syntax error near x
+ 
++=========== fixedbugs/bug083.go
++fixedbugs/bug083.dir/bug1.go:5: syntax error near T0
++
+ =========== fixedbugs/bug086.go
+ fixedbugs/bug086.go:5: function ends without a return statement
+ 

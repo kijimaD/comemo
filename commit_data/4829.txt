@@ -7,7 +7,7 @@ Date:   Tue Feb 9 20:47:45 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/186160
-
+---
  src/pkg/Makefile          |  1 +
  src/pkg/http/fs.go        | 14 ++------
  src/pkg/mime/Makefile     | 11 +++++++
@@ -15,3 +15,207 @@ Date:   Tue Feb 9 20:47:45 2010 -0800
  src/pkg/mime/test.types   |  8 +++++
  src/pkg/mime/type.go      | 83 +++++++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 132 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 7130c66e64..68e4a16d3a 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -87,6 +87,7 @@ DIRS=\
+ 	json\
+ 	log\
+ 	math\
++	mime\
+ 	net\
+ 	once\
+ 	os\
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index fff0b8d0e8..309dd82740 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -9,23 +9,13 @@ package http
+ import (
+ 	"fmt"
+ 	"io"
++	"mime"
+ 	"os"
+ 	"path"
+ 	"strings"
+ 	"utf8"
+ )
+ 
+-// TODO this should be in a mime package somewhere
+-var contentByExt = map[string]string{
+-	".css": "text/css",
+-	".gif": "image/gif",
+-	".html": "text/html; charset=utf-8",
+-	".jpg": "image/jpeg",
+-	".js": "application/x-javascript",
+-	".pdf": "application/pdf",
+-	".png": "image/png",
+-}
+-
+ // Heuristic: b is text if it is valid UTF-8 and doesn't
+ // contain any unprintable ASCII or Unicode characters.
+ func isText(b []byte) bool {
+@@ -136,7 +126,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 	// serve file
+ 	// use extension to find content type.
+ 	ext := path.Ext(name)
+-	if ctype, ok := contentByExt[ext]; ok {
++	if ctype := mime.TypeByExtension(ext); ctype != "" {
+ 		c.SetHeader("Content-Type", ctype)
+ 	} else {
+ 		// read first chunk to decide between utf-8 text and binary
+diff --git a/src/pkg/mime/Makefile b/src/pkg/mime/Makefile
+new file mode 100644
+index 0000000000..57fc7db448
+--- /dev/null
++++ b/src/pkg/mime/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.$(GOARCH)
++
++TARG=mime
++GOFILES=\
++	type.go\
++
++include ../../Make.pkg
+diff --git a/src/pkg/mime/mime_test.go b/src/pkg/mime/mime_test.go
+new file mode 100644
+index 0000000000..24c54e0e80
+--- /dev/null
++++ b/src/pkg/mime/mime_test.go
+@@ -0,0 +1,27 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests for type.go
++
++package mime
++
++import "testing"
++
++var typeTests = map[string]string{
++	".t1": "application/test",
++	".t2": "text/test; charset=utf-8",
++	".png": "image/png",
++}
++
++func TestType(t *testing.T) {
++	typeFiles = []string{"test.types"}
++
++	for ext, want := range typeTests {
++		val := TypeByExtension(ext)
++		if val != want {
++			t.Errorf("TypeByExtension(%q) = %q, want %q", ext, val, want)
++		}
++
++	}
++}
+diff --git a/src/pkg/mime/test.types b/src/pkg/mime/test.types
+new file mode 100644
+index 0000000000..9b040edd7b
+--- /dev/null
++++ b/src/pkg/mime/test.types
+@@ -0,0 +1,8 @@
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++
++ # mime package test
++application/test	t1	# Simple test
++text/test		t2	# Text test
+diff --git a/src/pkg/mime/type.go b/src/pkg/mime/type.go
+new file mode 100644
+index 0000000000..7024417cb0
+--- /dev/null
++++ b/src/pkg/mime/type.go
+@@ -0,0 +1,83 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The mime package translates file name extensions to MIME types.
++// It consults the local system's mime.types file, which must be installed
++// under one of these names:
++//
++//   /etc/mime.types
++//   /etc/apache2/mime.types
++//   /etc/apache/mime.types
++//
++package mime
++
++import (
++	"bufio"
++	"once"
++	"os"
++	"strings"
++)
++
++var typeFiles = []string{
++	"/etc/mime.types",
++	"/etc/apache2/mime.types",
++	"/etc/apache/mime.types",
++}
++
++var mimeTypes = map[string]string{
++	".css": "text/css",
++	".gif": "image/gif",
++	".htm": "text/html; charset=utf-8",
++	".html": "text/html; charset=utf-8",
++	".jpg": "image/jpeg",
++	".js": "application/x-javascript",
++	".pdf": "application/pdf",
++	".png": "image/png",
++	".xml": "text/xml; charset=utf-8",
++}
++
++func loadMimeFile(filename string) {
++	f, err := os.Open(filename, os.O_RDONLY, 0666)
++	if err != nil {
++		return
++	}
++
++	reader := bufio.NewReader(f)
++	for {
++		line, err := reader.ReadString('\n')
++		if err != nil {
++			f.Close()
++			return
++		}
++		fields := strings.Fields(line)
++		if len(fields) <= 1 || fields[0][0] == '#' {
++			continue
++		}
++		typename := fields[0]
++		if strings.HasPrefix(typename, "text/") {
++			typename += "; charset=utf-8"
++		}
++		for _, ext := range fields[1:] {
++			if ext[0] == '#' {
++				break
++			}
++			mimeTypes["."+ext] = typename
++		}
++	}
++}
++
++func initMime() {
++	for _, filename := range typeFiles {
++		loadMimeFile(filename)
++	}
++}
++
++// TypeByExtension returns the MIME type associated with the file extension ext.
++// The extension ext should begin with a leading dot, as in ".html".
++// When ext has no associated type, TypeByExtension returns "".
++func TypeByExtension(ext string) string {
++	once.Do(initMime)
++	typ, _ := mimeTypes[ext]
++	return typ
++}

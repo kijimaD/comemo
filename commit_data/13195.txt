@@ -8,7 +8,55 @@ Date:   Tue May 29 22:30:56 2012 +0400
     R=golang-dev, r, rsc
     CC=golang-dev, patrick.allen.higgins
     https://golang.org/cl/6250072
-
+---
  src/pkg/runtime/time.goc   |  5 ++++-
  src/pkg/time/sleep_test.go | 22 ++++++++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index a6b8352470..b18902f00f 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -61,8 +61,11 @@ runtime·tsleep(int64 ns)
+ {
+ 	Timer t;
+ 
+-	if(ns <= 0)
++	if(ns <= 0) {
++		g->status = Grunning;
++		g->waitreason = nil;
+ 		return;
++	}
+ 
+ 	t.when = runtime·nanotime() + ns;
+ 	t.period = 0;
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 526d58d75e..e05773df6e 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -223,3 +223,25 @@ func TestTimerStopStress(t *testing.T) {
+ 	}
+ 	Sleep(3 * Second)
+ }
++
++func TestSleepZeroDeadlock(t *testing.T) {
++	// Sleep(0) used to hang, the sequence of events was as follows.
++	// Sleep(0) sets G's status to Gwaiting, but then immediately returns leaving the status.
++	// Then the goroutine calls e.g. new and falls down into the scheduler due to pending GC.
++	// After the GC nobody wakes up the goroutine from Gwaiting status.
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
++	c := make(chan bool)
++	go func() {
++		for i := 0; i < 100; i++ {
++			runtime.GC()
++		}
++		c <- true
++	}()
++	for i := 0; i < 100; i++ {
++		Sleep(0)
++		tmp := make(chan bool, 1)
++		tmp <- true
++		<-tmp
++	}
++	<-c
++}

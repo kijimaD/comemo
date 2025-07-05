@@ -10,7 +10,49 @@ Date:   Tue Mar 27 10:29:06 2018 -0700
     Change-Id: I37399528700e2a39d9523d7c41bdc929618eb095
     Reviewed-on: https://go-review.googlesource.com/102619
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go            | 16 ++++++++++++++++
  src/cmd/go/internal/work/exec.go |  6 +++++-
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b5200335ad..74254230a9 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5960,3 +5960,19 @@ func TestFilepathUnderCwdFormat(t *testing.T) {
+ 	tg.run("test", "-x", "-cover", "log")
+ 	tg.grepStderrNot(`\.log\.cover\.go`, "-x output should contain correctly formatted filepath under cwd")
+ }
++
++// Issue 24396.
++func TestDontReportRemoveOfEmptyDir(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("src/a/a.go", `package a`)
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("install", "-x", "a")
++	tg.run("install", "-x", "a")
++	// The second install should have printed only a WORK= line,
++	// nothing else.
++	if bytes.Count(tg.stdout.Bytes(), []byte{'\n'})+bytes.Count(tg.stderr.Bytes(), []byte{'\n'}) > 1 {
++		t.Error("unnecessary output when installing installed package")
++	}
++}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index ee1eac8040..502d0d4132 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1136,7 +1136,11 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
+ func (b *Builder) cleanup(a *Action) {
+ 	if !cfg.BuildWork {
+ 		if cfg.BuildX {
+-			b.Showcmd("", "rm -r %s", a.Objdir)
++			// Don't say we are removing the directory if
++			// we never created it.
++			if _, err := os.Stat(a.Objdir); err == nil || cfg.BuildN {
++				b.Showcmd("", "rm -r %s", a.Objdir)
++			}
+ 		}
+ 		os.RemoveAll(a.Objdir)
+ 	}

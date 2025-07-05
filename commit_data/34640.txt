@@ -22,6 +22,22 @@ Date:   Fri Nov 3 21:57:08 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/bytes/boundary_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/bytes/boundary_test.go b/src/bytes/boundary_test.go
+index f9e20e36c7..ea84f1e40f 100644
+--- a/src/bytes/boundary_test.go
++++ b/src/bytes/boundary_test.go
+@@ -67,6 +67,10 @@ func TestIndexNearPageBoundary(t *testing.T) {
+ 	t.Parallel()
+ 	var q [64]byte
+ 	b := dangerousSlice(t)
++	if len(b) > 256 {
++		// Only worry about when we're near the end of a page.
++		b = b[len(b)-256:]
++	}
+ 	for j := 1; j < len(q); j++ {
+ 		q[j-1] = 1 // difference is only found on the last byte
+ 		for i := range b {

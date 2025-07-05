@@ -44,9 +44,155 @@ Date:   Fri Dec 18 12:25:53 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/180068
-
+---
  src/pkg/runtime/chan.c    |  6 ++--
  src/pkg/runtime/runtime.h |  2 +-
  test/chan/doubleselect.go | 83 +++++++++++++++++++++++++++++++++++++++++++++++
  test/golden.out           |  3 ++
  4 files changed, 89 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index f0202cf66b..b2a0b4facf 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -24,7 +24,7 @@ typedef	struct	Scase	Scase;
+ struct	SudoG
+ {
+ 	G*	g;		// g and selgen constitute
+-	int32	selgen;		// a weak pointer to g
++	uint32	selgen;		// a weak pointer to g
+ 	int16	offset;		// offset of case number
+ 	int8	isfree;		// offset of case number
+ 	SudoG*	link;
+@@ -982,14 +982,12 @@ loop:
+ 	q->first = sgp->link;
+ 
+ 	// if sgp is stale, ignore it
+-	if(sgp->selgen != sgp->g->selgen) {
++	if(!cas(&sgp->g->selgen, sgp->selgen, sgp->selgen + 1)) {
+ 		//prints("INVALID PSEUDOG POINTER\n");
+ 		freesg(c, sgp);
+ 		goto loop;
+ 	}
+ 
+-	// invalidate any others
+-	sgp->g->selgen++;
+ 	return sgp;
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 91130a0052..8052fd09ca 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -167,7 +167,7 @@ struct	G
+ 	void*	param;		// passed parameter on wakeup
+ 	int16	status;
+ 	int32	goid;
+-	int32	selgen;		// valid sudog pointer
++	uint32	selgen;		// valid sudog pointer
+ 	G*	schedlink;
+ 	bool	readyonstop;
+ 	M*	m;		// for debuggers, but offset not hard-coded
+diff --git a/test/chan/doubleselect.go b/test/chan/doubleselect.go
+new file mode 100644
+index 0000000000..53dafeb1aa
+--- /dev/null
++++ b/test/chan/doubleselect.go
+@@ -0,0 +1,83 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test is designed to flush out the case where two cases of a select can
++// both end up running. See http://codereview.appspot.com/180068.
++package main
++
++import (
++	"flag"
++	"runtime"
++)
++
++var iterations *int = flag.Int("n", 100000, "number of iterations")
++
++// sender sends a counter to one of four different channels. If two
++// cases both end up running in the same iteration, the same value will be sent
++// to two different channels.
++func sender(n int, c1, c2, c3, c4 chan<- int) {
++	defer close(c1)
++	defer close(c2)
++
++	for i := 0; i < n; i++ {
++		select {
++		case c1 <- i:
++		case c2 <- i:
++		case c3 <- i:
++		case c4 <- i:
++		}
++	}
++}
++
++// mux receives the values from sender and forwards them onto another channel.
++// It would be simplier to just have sender's four cases all be the same
++// channel, but this doesn't actually trigger the bug.
++func mux(out chan<- int, in <-chan int) {
++	for {
++		v := <-in
++		if closed(in) {
++			close(out)
++			break
++		}
++		out <- v
++	}
++}
++
++// recver gets a steam of values from the four mux's and checks for duplicates.
++func recver(in <-chan int) {
++	seen := make(map[int]bool)
++
++	for {
++		v := <-in
++		if closed(in) {
++			break
++		}
++		if _, ok := seen[v]; ok {
++			panic("got duplicate value: ", v)
++		}
++		seen[v] = true
++	}
++}
++
++func main() {
++	runtime.GOMAXPROCS(2)
++
++	c1 := make(chan int)
++	c2 := make(chan int)
++	c3 := make(chan int)
++	c4 := make(chan int)
++	cmux := make(chan int)
++	go sender(*iterations, c1, c2, c3, c4)
++	go mux(cmux, c1)
++	go mux(cmux, c2)
++	go mux(cmux, c3)
++	go mux(cmux, c4)
++	// We keep the recver because it might catch more bugs in the future.
++	// However, the result of the bug linked to at the top is that we'll
++	// end up panicing with: "throw: bad g->status in ready".
++	recver(cmux)
++	print("PASS\n")
++}
+diff --git a/test/golden.out b/test/golden.out
+index 9813c8313d..063feccd08 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -75,6 +75,9 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ 
+ == chan/
+ 
++=========== chan/doubleselect.go
++PASS
++
+ =========== chan/nonblock.go
+ PASS
+ 

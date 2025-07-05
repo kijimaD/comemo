@@ -17,7 +17,7 @@ Date:   Fri Nov 1 10:58:27 2019 -0400
     Change-Id: I023a4df4429acc8ebf5e185f62e6809198497a78
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204857
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/go.go             | 12 ++++++------
  src/cmd/link/internal/ld/lib.go            | 15 ++++++++++++++-
  src/cmd/link/internal/loadelf/ldelf.go     | 19 +------------------
@@ -25,3 +25,212 @@ Date:   Fri Nov 1 10:58:27 2019 -0400
  src/cmd/link/internal/loadmacho/ldmacho.go | 11 +----------
  src/cmd/link/internal/loadxcoff/ldxcoff.go | 11 +----------
  6 files changed, 47 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 3246747bb7..21457fdfc8 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -149,12 +149,12 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 		// Record the directives. We'll process them later after Symbols are created.
+ 		ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
+ 	} else {
+-		setCgoAttr(ctxt, file, pkg, directives)
++		setCgoAttr(ctxt, ctxt.Syms.Lookup, file, pkg, directives)
+ 	}
+ }
+ 
+ // Set symbol attributes or flags based on cgo directives.
+-func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
++func setCgoAttr(ctxt *Link, lookup func(string, int) *sym.Symbol, file string, pkg string, directives [][]string) {
+ 	for _, f := range directives {
+ 		switch f[0] {
+ 		case "cgo_import_dynamic":
+@@ -196,7 +196,7 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
+ 			if i := strings.Index(remote, "#"); i >= 0 {
+ 				remote, q = remote[:i], remote[i+1:]
+ 			}
+-			s := ctxt.Syms.Lookup(local, 0)
++			s := lookup(local, 0)
+ 			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SBSS || s.Type == sym.SNOPTRBSS || s.Type == sym.SHOSTOBJ {
+ 				s.SetDynimplib(lib)
+ 				s.SetExtname(remote)
+@@ -215,7 +215,7 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
+ 			}
+ 			local := f[1]
+ 
+-			s := ctxt.Syms.Lookup(local, 0)
++			s := lookup(local, 0)
+ 			s.Type = sym.SHOSTOBJ
+ 			s.Size = 0
+ 			continue
+@@ -236,11 +236,11 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
+ 			// functions. Link.loadlib will resolve any
+ 			// ABI aliases we find here (since we may not
+ 			// yet know it's an alias).
+-			s := ctxt.Syms.Lookup(local, 0)
++			s := lookup(local, 0)
+ 
+ 			switch ctxt.BuildMode {
+ 			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
+-				if s == ctxt.Syms.Lookup("main", 0) {
++				if s == lookup("main", 0) {
+ 					continue
+ 				}
+ 			}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index bf43ef36d0..8bf943575f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -444,6 +444,19 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
++		if *flagNewobj {
++			// In newobj mode, we typically create sym.Symbols later therefore
++			// also set cgo attributes later. However, for internal cgo linking,
++			// the host object loaders still work with sym.Symbols (for now),
++			// and they need cgo attributes set to work properly. So process
++			// them now.
++			lookup := func(name string, ver int) *sym.Symbol { return ctxt.loader.LookupOrCreate(name, ver, ctxt.Syms) }
++			for _, d := range ctxt.cgodata {
++				setCgoAttr(ctxt, lookup, d.file, d.pkg, d.directives)
++			}
++			ctxt.cgodata = nil
++		}
++
+ 		// Drop all the cgo_import_static declarations.
+ 		// Turns out we won't be needing them.
+ 		for _, s := range ctxt.Syms.Allsym {
+@@ -2638,7 +2651,7 @@ func (ctxt *Link) loadlibfull() {
+ 
+ 	// Load cgo directives.
+ 	for _, d := range ctxt.cgodata {
+-		setCgoAttr(ctxt, d.file, d.pkg, d.directives)
++		setCgoAttr(ctxt, ctxt.Syms.Lookup, d.file, d.pkg, d.directives)
+ 	}
+ 
+ 	setupdynexp(ctxt)
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 627f836835..072eaf00c8 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -454,24 +454,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags
+ 
+ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, flags uint32) ([]*sym.Symbol, uint32, error) {
+ 	newSym := func(name string, version int) *sym.Symbol {
+-		// If we've seen the symbol, we might need to load it.
+-		i := l.Lookup(name, version)
+-		if i != 0 {
+-			// Already loaded.
+-			if l.Syms[i] != nil {
+-				return l.Syms[i]
+-			}
+-			if l.IsExternal(i) {
+-				panic("Can't load an external symbol.")
+-			}
+-			return l.LoadSymbol(name, version, syms)
+-		}
+-		if i = l.AddExtSym(name, version); i == 0 {
+-			panic("AddExtSym returned bad index")
+-		}
+-		newSym := syms.Newsym(name, version)
+-		l.Syms[i] = newSym
+-		return newSym
++		return l.LookupOrCreate(name, version, syms)
+ 	}
+ 	return load(arch, syms.IncVersion(), newSym, newSym, f, pkg, length, pn, flags)
+ }
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 573c251058..46d93c5124 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -814,6 +814,7 @@ func (l *Loader) addNewSym(i Sym, syms *sym.Symbols, name string, ver int, unit
+ 	}
+ 	s.Type = t
+ 	s.Unit = unit
++	l.growSyms(int(i))
+ 	l.Syms[i] = s
+ 	return s
+ }
+@@ -891,7 +892,7 @@ func (l *Loader) LoadSymbol(name string, version int, syms *sym.Symbols) *sym.Sy
+ 	global := l.Lookup(name, version)
+ 
+ 	// If we're already loaded, bail.
+-	if global != 0 && l.Syms[global] != nil {
++	if global != 0 && int(global) < len(l.Syms) && l.Syms[global] != nil {
+ 		return l.Syms[global]
+ 	}
+ 
+@@ -908,6 +909,28 @@ func (l *Loader) LoadSymbol(name string, version int, syms *sym.Symbols) *sym.Sy
+ 	return l.addNewSym(istart+Sym(i), syms, name, version, r.unit, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
+ }
+ 
++// LookupOrCreate looks up a symbol by name, and creates one if not found.
++// Either way, it will also create a sym.Symbol for it, if not already.
++// This should only be called when interacting with parts of the linker
++// that still works on sym.Symbols (i.e. internal cgo linking, for now).
++func (l *Loader) LookupOrCreate(name string, version int, syms *sym.Symbols) *sym.Symbol {
++	i := l.Lookup(name, version)
++	if i != 0 {
++		// symbol exists
++		if int(i) < len(l.Syms) && l.Syms[i] != nil {
++			return l.Syms[i] // already loaded
++		}
++		if l.IsExternal(i) {
++			panic("Can't load an external symbol.")
++		}
++		return l.LoadSymbol(name, version, syms)
++	}
++	i = l.AddExtSym(name, version)
++	s := syms.Newsym(name, version)
++	l.Syms[i] = s
++	return s
++}
++
+ func loadObjFull(l *Loader, r *oReader) {
+ 	lib := r.unit.Lib
+ 	istart := l.startIndex(r)
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index f21d4bd14f..85a1ebc631 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -426,16 +426,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
+ 
+ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) ([]*sym.Symbol, error) {
+ 	newSym := func(name string, version int) *sym.Symbol {
+-		i := l.Lookup(name, version)
+-		if i != 0 {
+-			return l.LoadSymbol(name, version, syms)
+-		}
+-		if i = l.AddExtSym(name, version); i == 0 {
+-			panic("AddExtSym returned bad index")
+-		}
+-		newSym := syms.Newsym(name, version)
+-		l.Syms[i] = newSym
+-		return newSym
++		return l.LookupOrCreate(name, version, syms)
+ 	}
+ 	return load(arch, syms.IncVersion(), newSym, f, pkg, length, pn)
+ }
+diff --git a/src/cmd/link/internal/loadxcoff/ldxcoff.go b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+index fc5d3cf2bf..759b1769dd 100644
+--- a/src/cmd/link/internal/loadxcoff/ldxcoff.go
++++ b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+@@ -42,16 +42,7 @@ func (f *xcoffBiobuf) ReadAt(p []byte, off int64) (int, error) {
+ // Load loads xcoff files with the indexed object files.
+ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+ 	lookup := func(name string, version int) *sym.Symbol {
+-		i := l.Lookup(name, version)
+-		if i != 0 {
+-			return l.LoadSymbol(name, version, syms)
+-		}
+-		if i = l.AddExtSym(name, version); i == 0 {
+-			panic("AddExtSym returned bad index")
+-		}
+-		newSym := syms.Newsym(name, version)
+-		l.Syms[i] = newSym
+-		return newSym
++		return l.LookupOrCreate(name, version, syms)
+ 	}
+ 	return load(arch, lookup, syms.IncVersion(), input, pkg, length, pn)
+ }

@@ -24,6 +24,23 @@ Date:   Fri Jul 20 16:41:26 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_darwin_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/crypto/x509/root_darwin_test.go b/src/crypto/x509/root_darwin_test.go
+index 2784ce2f0f..68300c7955 100644
+--- a/src/crypto/x509/root_darwin_test.go
++++ b/src/crypto/x509/root_darwin_test.go
+@@ -16,6 +16,11 @@ func TestSystemRoots(t *testing.T) {
+ 		t.Skipf("skipping on %s/%s, no system root", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
++	switch runtime.GOOS {
++	case "darwin":
++		t.Skipf("skipping on %s/%s until golang.org/issue/24652 has been resolved.", runtime.GOOS, runtime.GOARCH)
++	}
++
+ 	t0 := time.Now()
+ 	sysRoots := systemRootsPool() // actual system roots
+ 	sysRootsDuration := time.Since(t0)

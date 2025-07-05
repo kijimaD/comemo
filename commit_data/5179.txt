@@ -11,7 +11,7 @@ Date:   Tue Mar 30 10:53:16 2010 -0700
     R=ken2, r
     CC=golang-dev
     https://golang.org/cl/812043
-
+---
  src/cmd/gc/align.c          |  1 +
  src/cmd/gc/builtin.c.boot   |  3 +-
  src/cmd/gc/go.h             |  1 +
@@ -26,3 +26,406 @@ Date:   Tue Mar 30 10:53:16 2010 -0700
  src/pkg/runtime/runtime.c   | 19 +++++++++----
  src/pkg/runtime/runtime.h   |  4 ++-
  13 files changed, 173 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 278540a249..6d9083bc32 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -542,6 +542,7 @@ typeinit(void)
+ 	/* types used in front end */
+ 	// types[TNIL] got set early in lexinit
+ 	types[TIDEAL] = typ(TIDEAL);
++	types[TINTER] = typ(TINTER);
+ 
+ 	/* simple aliases */
+ 	simtype[TMAP] = tptr;
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index bc39ed65a1..b74e7f5e50 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -4,7 +4,8 @@ char *runtimeimport =
+ 	"func \"\".throwindex ()\n"
+ 	"func \"\".throwreturn ()\n"
+ 	"func \"\".throwinit ()\n"
+-	"func \"\".panicl ()\n"
++	"func \"\".panic (? interface { })\n"
++	"func \"\".recover () interface { }\n"
+ 	"func \"\".printbool (? bool)\n"
+ 	"func \"\".printfloat (? float64)\n"
+ 	"func \"\".printint (? int64)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 9de2361194..7ae5d99287 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -379,6 +379,7 @@ enum
+ 	OPANIC, OPRINT, OPRINTN,
+ 	OSEND, OSENDNB,
+ 	OSLICE, OSLICEARR, OSLICESTR,
++	ORECOVER,
+ 	ORECV,
+ 	ORUNESTR,
+ 	OSELRECV,
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 225a902779..bde1367da0 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1309,6 +1309,7 @@ static	struct
+ 	"print",	LNAME,		Txxx,		OPRINT,
+ 	"println",	LNAME,		Txxx,		OPRINTN,
+ 	"real",		LNAME,		Txxx,		OREAL,
++	"recover",	LNAME,		Txxx,		ORECOVER,
+ 
+ 	"notwithstanding",		LIGNORE,	Txxx,		OXXX,
+ 	"thetruthofthematter",		LIGNORE,	Txxx,		OXXX,
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index e5930790d4..0103c53d9f 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -14,7 +14,9 @@ func mal(int32) *any
+ func throwindex()
+ func throwreturn()
+ func throwinit()
+-func panicl()
++
++func panic(interface{})
++func recover() interface{}
+ 
+ func printbool(bool)
+ func printfloat(float64)
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index c219ad8c53..65c2384778 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1012,13 +1012,31 @@ reswitch:
+ 		n->type = ptrto(t);
+ 		goto ret;
+ 
+-	case OPANIC:
+ 	case OPRINT:
+ 	case OPRINTN:
+ 		ok |= Etop;
+ 		typechecklist(n->list, Erv);
+ 		goto ret;
+ 
++	case OPANIC:
++		ok |= Etop;
++		if(onearg(n) < 0)
++			goto error;
++		typecheck(&n->left, Erv);
++		defaultlit(&n->left, types[TINTER]);
++		if(n->left->type == T)
++			goto error;
++		goto ret;
++	
++	case ORECOVER:
++		ok |= Erv|Etop;
++		if(n->list != nil) {
++			yyerror("too many arguments to recover");
++			goto error;
++		}
++		n->type = types[TINTER];
++		goto ret;
++
+ 	case OCLOSURE:
+ 		ok |= Erv;
+ 		typecheckclosure(n);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b64d58e7fe..1d5db4c045 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -425,7 +425,6 @@ walkstmt(Node **np)
+ 		switch(n->left->op) {
+ 		case OPRINT:
+ 		case OPRINTN:
+-		case OPANIC:
+ 			walkexprlist(n->left->list, &n->ninit);
+ 			n->left = walkprint(n->left, &n->ninit, 1);
+ 			break;
+@@ -623,11 +622,18 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OPRINT:
+ 	case OPRINTN:
+-	case OPANIC:
+ 		walkexprlist(n->list, init);
+ 		n = walkprint(n, init, 0);
+ 		goto ret;
+ 
++	case OPANIC:
++		n = mkcall("panic", T, init, n->left);
++		goto ret;
++
++	case ORECOVER:
++		n = mkcall("recover", n->type, init);
++		goto ret;
++
+ 	case OLITERAL:
+ 		n->addable = 1;
+ 		goto ret;
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index c6c8b4a85b..e2eca81a88 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -360,15 +360,28 @@ TEXT	runcgo(SB),7,$16
+ // check that SP is in range [g->stackbase, g->stackguard)
+ TEXT stackcheck(SB), 7, $0
+ 	get_tls(CX)
+-	MOVL g(CX), AX
+-	CMPL g_stackbase(AX), SP
+-	JHI 2(PC)
+-	INT $3
+-	CMPL SP, g_stackguard(AX)
+-	JHI 2(PC)
+-	INT $3
++	MOVL	g(CX), AX
++	CMPL	g_stackbase(AX), SP
++	JHI	2(PC)
++	INT	$3
++	CMPL	SP, g_stackguard(AX)
++	JHI	2(PC)
++	INT	$3
+ 	RET
+ 
++// callString(f, arg, out)
++// call Go f(arg), which returns a string, and store in out
++TEXT callString(SB), 7, $24
++	MOVL	arg+4(FP), BX
++	MOVL	f+0(FP), CX
++	MOVL	BX, 0(SP)
++	CALL	*CX
++	MOVL	out+8(FP), DI
++	LEAL	4(SP), SI
++	MOVSL
++	MOVSL
++	MOVSL
++	RET
+ 
+ GLOBL m0(SB), $1024
+ GLOBL g0(SB), $1024
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index c8466318c1..fb32be05f9 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -303,11 +303,24 @@ TEXT runcgo(SB),7,$32
+ 
+ // check that SP is in range [g->stackbase, g->stackguard)
+ TEXT stackcheck(SB), 7, $0
+-	CMPQ g_stackbase(g), SP
+-	JHI 2(PC)
+-	INT $3
+-	CMPQ SP, g_stackguard(g)
+-	JHI 2(PC)
+-	INT $3
++	CMPQ	g_stackbase(g), SP
++	JHI	2(PC)
++	INT	$3
++	CMPQ	SP, g_stackguard(g)
++	JHI	2(PC)
++	INT	$3
++	RET
++
++// callString(f, arg, out)
++// call Go f(arg), which returns a string, and store in out
++TEXT callString(SB), 7, $24
++	MOVQ	arg+8(FP), BX
++	MOVQ	f+0(FP), CX
++	MOVQ	BX, 0(SP)
++	CALL	*CX
++	MOVQ	out+16(FP), DI
++	LEAQ	8(SP), SI
++	MOVSQ
++	MOVSQ
+ 	RET
+ 
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 19fa1cc2e3..6be266734d 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -264,3 +264,18 @@ TEXT abort(SB),7,$0
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+ 
++// callString(f, arg, out)
++// call Go f(arg), which returns a string, and store in out
++TEXT callString(SB), 7, $24
++	MOVW	arg+4(FP), R1
++	MOVW	f+0(FP), R0
++	MOVW	R1, 0(SP)
++	BL	R0
++	MOVW	4(SP), R1
++	MOVW	8(SP), R2
++	MOVW	12(SP), R3
++	MOVW	out+8(FP), R0
++	MOVW	R1, 0(R0)
++	MOVW	R2, 4(R0)
++	MOVW	R3, 8(R0)
++	RET
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 26b3de785c..5e4f2f5956 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "type.h"
+ 
+ //static Lock debuglock;
+ 
+@@ -150,7 +151,7 @@ vprintf(int8 *s, byte *arg)
+ 			·printhex(*(uint64*)arg);
+ 			break;
+ 		case '!':
+-			·panicl(-1);
++			panic(-1);
+ 		}
+ 		arg = narg;
+ 		lp = p+1;
+@@ -347,3 +348,68 @@ void
+ {
+ 	write(fd, "\n", 1);
+ }
++
++// print an empty interface, for use by panic.
++// this could be arbitrarily complex in general,
++// so we pick off only a few important cases:
++// int, string, and values with a String() string method.
++void
++printany(Eface e)
++{
++	int32 i;
++	FuncType *ft;
++	Method *m;
++	String s;
++	Type *rt;
++	UncommonType *x;
++
++	if(e.type == nil) {
++		write(fd, "nil", 3);
++		return;
++	}
++
++	if((x=e.type->x) != nil) {
++		for(i=0; i<x->mhdr.len; i++) {
++			// Look for String() string method.
++			m = &x->m[i];
++			if(m->name->len == 6 &&
++			   mcmp(m->name->str, (byte*)"String", 6) == 0 &&
++			   // Found String; check method signature for func() string.
++			   m->mtyp->kind == KindFunc &&
++			   (ft = (FuncType*)m->mtyp)->in.len == 0 &&
++			   ft->out.len == 1 &&
++			   // Found single output.  Is it string?
++			   // Only base types have name != nil but pkgPath == nil.
++			   (rt = *(Type**)ft->out.array)->kind == KindString &&
++			   rt->x != nil &&
++			   rt->x->name != nil && rt->x->pkgPath == nil) {
++				// Found the method!
++				// Have to use assembly to call it
++				// and save the return value.
++				callString(m->ifn, e.data, &s);
++				·printstring(s);
++				return;
++			}
++		}
++	}
++
++	switch(e.type->kind & ~KindNoPointers) {
++	case KindInt:
++		mcpy((byte*)&i, (byte*)&e.data, sizeof(i));
++		·printint(i);
++		break;
++
++	case KindString:
++		·printstring(*(String*)e.data);
++		break;
++
++	default:
++		// Could print the other numeric types,
++		// but that's overkill: good panics have
++		// a string method anyway.
++		·printstring(*e.type->string);
++		write(fd, "(???)", 5);
++		break;
++	}
++
++}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index aa6d82506e..c6655d9ec0 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -20,7 +20,7 @@ gotraceback(void)
+ }
+ 
+ void
+-·panicl(int32 lno)
++panic(int32 unused)
+ {
+ 	uint8 *sp;
+ 
+@@ -31,16 +31,25 @@ void
+ 	}
+ 	panicking++;
+ 
+-	printf("\npanic PC=%X\n", (uint64)(uintptr)&lno);
+-	sp = (uint8*)&lno;
++	printf("\npanic PC=%X\n", (uint64)(uintptr)&unused);
++	sp = (uint8*)&unused;
+ 	if(gotraceback()){
+-		traceback(·getcallerpc(&lno), sp, g);
++		traceback(·getcallerpc(&unused), sp, g);
+ 		tracebackothers(g);
+ 	}
+ 	breakpoint();  // so we can grab it in a debugger
+ 	exit(2);
+ }
+ 
++void
++·panic(Eface e)
++{
++	fd = 2;
++	printf("panic: ");
++	printany(e);
++	panic(0);
++}
++
+ void
+ ·throwindex(void)
+ {
+@@ -70,7 +79,7 @@ throw(int8 *s)
+ {
+ 	fd = 2;
+ 	printf("throw: %s\n", s);
+-	·panicl(-1);
++	panic(-1);
+ 	*(int32*)0 = 0;	// not reached
+ 	exit(1);	// even more not reached
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 2671a05924..a0c0dd7a18 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -344,6 +344,7 @@ int32	charntorune(int32*, uint8*, int32);
+ /*
+  * very low level c-called
+  */
++void	callString(void(*fn)(void), void *arg, String *out);
+ void	gogo(Gobuf*, uintptr);
+ void	gogocall(Gobuf*, void(*)(void));
+ uintptr	gosave(Gobuf*);
+@@ -354,6 +355,7 @@ void*	getu(void);
+ void	throw(int8*);
+ uint32	rnd(uint32, uint32);
+ void	prints(int8*);
++void	printany(Eface);
+ void	printf(int8*, ...);
+ byte*	mchr(byte*, byte, byte*);
+ void	mcpy(byte*, byte*, uint32);
+@@ -510,7 +512,7 @@ void	runtime_printuint(uint64);
+ void	runtime_printhex(uint64);
+ void	runtime_printslice(Slice);
+ void	runtime_printcomplex(Complex128);
+-void	·panicl(int32);
++void	panic(int32);
+ void	reflect·call(byte*, byte*, uint32);
+ 
+ /*

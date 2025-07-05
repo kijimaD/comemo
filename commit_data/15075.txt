@@ -10,6 +10,19 @@ Date:   Thu Jan 31 22:57:30 2013 -0800
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/7229069
-
+---
  src/cmd/dist/windows.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index b23d8af475..385a60577f 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -530,6 +530,7 @@ readfile(Buf *b, char *file)
+ 	HANDLE h;
+ 	Rune *r;
+ 
++	breset(b);
+ 	if(vflag > 2)
+ 		errprintf("read %s\n", file);
+ 	torune(&r, file);

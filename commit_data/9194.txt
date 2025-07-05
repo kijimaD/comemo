@@ -24,8 +24,282 @@ Date:   Sun Jul 24 13:43:08 2011 +1000
     R=rsc, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/4786041
-
+---
  src/cmd/goinstall/doc.go      |  1 -
  src/cmd/goinstall/download.go | 45 +++++++++--------------
  src/cmd/goinstall/main.go     | 84 +++++++++++++++++++++++++------------------
  3 files changed, 66 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/goinstall/doc.go b/src/cmd/goinstall/doc.go
+index 53e6f8783a..8260cb4d72 100644
+--- a/src/cmd/goinstall/doc.go
++++ b/src/cmd/goinstall/doc.go
+@@ -17,7 +17,6 @@ Flags and default settings:
+ 	-clean=false      clean the package directory before installing
+ 	-dashboard=true   tally public packages on godashboard.appspot.com
+ 	-install=true     build and install the package and its dependencies
+-	-log=true         log installed packages to $GOROOT/goinstall.log for use by -a
+ 	-nuke=false       remove the target object and clean before installing
+ 	-u=false          update already-downloaded packages
+ 	-v=false          verbose operation
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 4fdf416715..3e9927c3d6 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -149,9 +149,9 @@ type vcsMatch struct {
+ 	prefix, repo string
+ }
+ 
+-// findHostedRepo checks whether pkg is located at one of
++// findPublicRepo checks whether pkg is located at one of
+ // the supported code hosting sites and, if so, returns a match.
+-func findHostedRepo(pkg string) (*vcsMatch, os.Error) {
++func findPublicRepo(pkg string) (*vcsMatch, os.Error) {
+ 	for _, v := range vcsList {
+ 		for _, host := range v.defaultHosts {
+ 			if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
+@@ -215,17 +215,17 @@ func isRemote(pkg string) bool {
+ }
+ 
+ // download checks out or updates pkg from the remote server.
+-func download(pkg, srcDir string) (dashReport bool, err os.Error) {
++func download(pkg, srcDir string) (public bool, err os.Error) {
+ 	if strings.Contains(pkg, "..") {
+ 		err = os.NewError("invalid path (contains ..)")
+ 		return
+ 	}
+-	m, err := findHostedRepo(pkg)
++	m, err := findPublicRepo(pkg)
+ 	if err != nil {
+ 		return
+ 	}
+ 	if m != nil {
+-		dashReport = true // only report public code hosting sites
++		public = true
+ 	} else {
+ 		m, err = findAnyRepo(pkg)
+ 		if err != nil {
+@@ -236,13 +236,7 @@ func download(pkg, srcDir string) (dashReport bool, err os.Error) {
+ 		err = os.NewError("cannot download: " + pkg)
+ 		return
+ 	}
+-	installed, err := m.checkoutRepo(srcDir, m.prefix, m.repo)
+-	if err != nil {
+-		return
+-	}
+-	if !installed {
+-		dashReport = false
+-	}
++	err = m.checkoutRepo(srcDir, m.prefix, m.repo)
+ 	return
+ }
+ 
+@@ -267,41 +261,36 @@ func (v *vcs) updateRepo(dst string) os.Error {
+ // exists and -u was specified on the command line)
+ // the repository at tag/branch "release".  If there is no
+ // such tag or branch, it falls back to the repository tip.
+-func (vcs *vcs) checkoutRepo(srcDir, pkgprefix, repo string) (installed bool, err os.Error) {
++func (vcs *vcs) checkoutRepo(srcDir, pkgprefix, repo string) os.Error {
+ 	dst := filepath.Join(srcDir, filepath.FromSlash(pkgprefix))
+ 	dir, err := os.Stat(filepath.Join(dst, vcs.metadir))
+ 	if err == nil && !dir.IsDirectory() {
+-		err = os.NewError("not a directory: " + dst)
+-		return
++		return os.NewError("not a directory: " + dst)
+ 	}
+ 	if err != nil {
+ 		parent, _ := filepath.Split(dst)
+ 		if err = os.MkdirAll(parent, 0777); err != nil {
+-			return
++			return err
+ 		}
+ 		if err = run(string(filepath.Separator), nil, vcs.cmd, vcs.clone, repo, dst); err != nil {
+-			return
+-		}
+-		if err = vcs.updateRepo(dst); err != nil {
+-			return
++			return err
+ 		}
+-		installed = true
+-	} else if *update {
++		return vcs.updateRepo(dst)
++	}
++	if *update {
+ 		// Retrieve new revisions from the remote branch, if the VCS
+ 		// supports this operation independently (e.g. svn doesn't)
+ 		if vcs.pull != "" {
+ 			if vcs.pullForceFlag != "" {
+ 				if err = run(dst, nil, vcs.cmd, vcs.pull, vcs.pullForceFlag); err != nil {
+-					return
++					return err
+ 				}
+ 			} else if err = run(dst, nil, vcs.cmd, vcs.pull); err != nil {
+-				return
++				return err
+ 			}
+ 		}
+ 		// Update to release or latest revision
+-		if err = vcs.updateRepo(dst); err != nil {
+-			return
+-		}
++		return vcs.updateRepo(dst)
+ 	}
+-	return
++	return nil
+ }
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 02f9371394..7c04208e8c 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -25,18 +25,18 @@ func usage() {
+ 	os.Exit(2)
+ }
+ 
++const logfile = "goinstall.log"
++
+ var (
+ 	fset          = token.NewFileSet()
+ 	argv0         = os.Args[0]
+ 	errors        = false
+ 	parents       = make(map[string]string)
+ 	visit         = make(map[string]status)
+-	logfile       = filepath.Join(runtime.GOROOT(), "goinstall.log")
+-	installedPkgs = make(map[string]bool)
++	installedPkgs = make(map[string]map[string]bool)
+ 
+ 	allpkg            = flag.Bool("a", false, "install all previously installed packages")
+ 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
+-	logPkgs           = flag.Bool("log", true, "log installed packages to $GOROOT/goinstall.log for use by -a")
+ 	update            = flag.Bool("u", false, "update already-downloaded packages")
+ 	doInstall         = flag.Bool("install", true, "build and install")
+ 	clean             = flag.Bool("clean", false, "clean the package directory before installing")
+@@ -76,28 +76,27 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
+ 		os.Exit(1)
+ 	}
++	readPackageList()
+ 
+ 	// special case - "unsafe" is already installed
+ 	visit["unsafe"] = done
+ 
+ 	args := flag.Args()
+-	if *allpkg || *logPkgs {
+-		readPackageList()
+-	}
+ 	if *allpkg {
+ 		if len(args) != 0 {
+ 			usage() // -a and package list both provided
+ 		}
+ 		// install all packages that were ever installed
+-		if len(installedPkgs) == 0 {
+-			fmt.Fprintf(os.Stderr, "%s: no installed packages\n", argv0)
+-			os.Exit(1)
++		n := 0
++		for _, pkgs := range installedPkgs {
++			for pkg := range pkgs {
++				args = append(args, pkg)
++				n++
++			}
+ 		}
+-		args = make([]string, len(installedPkgs), len(installedPkgs))
+-		i := 0
+-		for pkg := range installedPkgs {
+-			args[i] = pkg
+-			i++
++		if n == 0 {
++			logf("no installed packages\n")
++			os.Exit(1)
+ 		}
+ 	}
+ 	if len(args) == 0 {
+@@ -127,27 +126,40 @@ func printDeps(pkg string) {
+ 	fmt.Fprintf(os.Stderr, "\t%s ->\n", pkg)
+ }
+ 
+-// readPackageList reads the list of installed packages from goinstall.log
++// readPackageList reads the list of installed packages from the
++// goinstall.log files in GOROOT and the GOPATHs and initalizes
++// the installedPkgs variable.
+ func readPackageList() {
+-	pkglistdata, _ := ioutil.ReadFile(logfile)
+-	pkglist := strings.Fields(string(pkglistdata))
+-	for _, pkg := range pkglist {
+-		installedPkgs[pkg] = true
++	for _, t := range build.Path {
++		installedPkgs[t.Path] = make(map[string]bool)
++		name := filepath.Join(t.Path, logfile)
++		pkglistdata, err := ioutil.ReadFile(name)
++		if err != nil {
++			printf("%s\n", err)
++			continue
++		}
++		pkglist := strings.Fields(string(pkglistdata))
++		for _, pkg := range pkglist {
++			installedPkgs[t.Path][pkg] = true
++		}
+ 	}
+ }
+ 
+-// logPackage logs the named package as installed in goinstall.log, if the package is not found in there
+-func logPackage(pkg string) {
+-	if installedPkgs[pkg] {
+-		return
++// logPackage logs the named package as installed in the goinstall.log file
++// in the given tree if the package is not already in that file.
++func logPackage(pkg string, tree *build.Tree) (logged bool) {
++	if installedPkgs[tree.Path][pkg] {
++		return false
+ 	}
+-	fout, err := os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
++	name := filepath.Join(tree.Path, logfile)
++	fout, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "%s: %s\n", argv0, err)
+-		return
++		logf("%s\n", err)
++		return false
+ 	}
+ 	fmt.Fprintf(fout, "%s\n", pkg)
+ 	fout.Close()
++	return true
+ }
+ 
+ // install installs the package named by path, which is needed by parent.
+@@ -181,11 +193,10 @@ func install(pkg, parent string) {
+ 		return
+ 	}
+ 	// Download remote packages if not found or forced with -u flag.
+-	remote := isRemote(pkg)
+-	dashReport := false
++	remote, public := isRemote(pkg), false
+ 	if remote && (err == build.ErrNotFound || (err == nil && *update)) {
+ 		printf("%s: download\n", pkg)
+-		dashReport, err = download(pkg, tree.SrcDir())
++		public, err = download(pkg, tree.SrcDir())
+ 	}
+ 	if err != nil {
+ 		errorf("%s: %v\n", pkg, err)
+@@ -244,14 +255,17 @@ func install(pkg, parent string) {
+ 			}
+ 		}
+ 	}
+-	if dashReport {
+-		maybeReportToDashboard(pkg)
+-	}
++
+ 	if remote {
+-		// mark package as installed in $GOROOT/goinstall.log
+-		logPackage(pkg)
++		// mark package as installed in goinstall.log
++		logged := logPackage(pkg, tree)
++
++		// report installation to the dashboard if this is the first
++		// install from a public repository.
++		if logged && public {
++			maybeReportToDashboard(pkg)
++		}
+ 	}
+-	return
+ }
+ 
+ // Is this a standard package path?  strings container/vector etc.

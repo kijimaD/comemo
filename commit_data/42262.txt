@@ -19,6 +19,19 @@ Date:   Tue Nov 19 14:29:10 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 0bd094e00a..2149c697ea 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1327,7 +1327,6 @@ func (t *tester) runFlag(rx string) string {
+ }
+ 
+ func (t *tester) raceTest(dt *distTest) error {
+-	t.addCmd(dt, "src", t.goTest(), "-race", "runtime/race", "flag", "os", "os/exec")
+ 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
+ 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFdReadRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
+ 	// We don't want the following line, because it

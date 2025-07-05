@@ -18,6 +18,21 @@ Date:   Fri Nov 15 09:34:04 2024 -0500
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/staticinit/sched.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index e013823ee7..fae4eb0d8b 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -767,9 +767,6 @@ var statuniqgen int // name generator for static temps
+ func StaticName(t *types.Type) *ir.Name {
+ 	// Don't use LookupNum; it interns the resulting string, but these are all unique.
+ 	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePrefix, statuniqgen))
+-	if sym.Name == ".stmp_0" && sym.Pkg.Path == "crypto/internal/fips/check" {
+-		panic("bad")
+-	}
+ 	statuniqgen++
+ 
+ 	n := ir.NewNameAt(base.Pos, sym, t)

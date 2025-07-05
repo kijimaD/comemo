@@ -16,6 +16,20 @@ Date:   Mon Oct 9 21:03:10 2023 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index d89a99454d..2a80bf26f4 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1173,7 +1173,7 @@ func (c *common) Cleanup(f func()) {
+ }
+ 
+ // TempDir returns a temporary directory for the test to use.
+-// The directory is automatically removed by Cleanup when the test and
++// The directory is automatically removed when the test and
+ // all its subtests complete.
+ // Each subsequent call to t.TempDir returns a unique directory;
+ // if the directory creation fails, TempDir terminates the test by calling Fatal.

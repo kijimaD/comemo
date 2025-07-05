@@ -14,7 +14,58 @@ Date:   Wed Apr 13 08:10:41 2016 -0700
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/composite.go          | 6 ++++--
  src/cmd/vet/testdata/composite.go | 8 ++++++--
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/vet/composite.go b/src/cmd/vet/composite.go
+index 731c793eac..ac6a598b0b 100644
+--- a/src/cmd/vet/composite.go
++++ b/src/cmd/vet/composite.go
+@@ -68,8 +68,10 @@ func checkUnkeyedLiteral(f *File, node ast.Node) {
+ 	allKeyValue := true
+ 	for _, e := range c.Elts {
+ 		if _, ok := e.(*ast.KeyValueExpr); !ok {
+-			allKeyValue = false
+-			break
++			if cl, ok := e.(*ast.CompositeLit); !ok || cl.Type != nil {
++				allKeyValue = false
++				break
++			}
+ 		}
+ 	}
+ 	if allKeyValue {
+diff --git a/src/cmd/vet/testdata/composite.go b/src/cmd/vet/testdata/composite.go
+index 69e7d7ccb0..0355c0b692 100644
+--- a/src/cmd/vet/testdata/composite.go
++++ b/src/cmd/vet/testdata/composite.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file contains tests for the untagged struct literal checker.
+-
+ // This file contains the test for untagged struct literals.
+ 
+ package testdata
+@@ -11,6 +9,7 @@ package testdata
+ import (
+ 	"flag"
+ 	"go/scanner"
++	"unicode"
+ )
+ 
+ var Okay1 = []string{
+@@ -57,6 +56,11 @@ var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "unkeyed fields"
+ 	"DefValue",
+ }
+ 
++// SpecialCase is an (aptly named) slice of CaseRange to test issue 9171.
++var GoodNamedSliceLiteralUsedInTests = unicode.SpecialCase{
++	{Lo: 1, Hi: 2},
++}
++
+ // Used to test the check for slices and arrays: If that test is disabled and
+ // vet is run with --compositewhitelist=false, this line triggers an error.
+ // Clumsy but sufficient.

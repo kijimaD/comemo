@@ -43,7 +43,7 @@ Date:   Mon May 25 10:30:23 2020 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Fazlul Shahriar <fshahriar@gmail.com>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/runtime/env_plan9.go | 136 ++++++++++++++++++++++++++++++++++++-----------
  src/runtime/env_posix.go |   2 +-
  src/runtime/env_test.go  |   4 --
@@ -51,3 +51,367 @@ Date:   Mon May 25 10:30:23 2020 +0100
  src/syscall/env_plan9.go | 122 ------------------------------------------
  src/syscall/env_unix.go  |  16 ++++--
  6 files changed, 116 insertions(+), 167 deletions(-)
+
+diff --git a/src/runtime/env_plan9.go b/src/runtime/env_plan9.go
+index c95b5db510..b7ea863735 100644
+--- a/src/runtime/env_plan9.go
++++ b/src/runtime/env_plan9.go
+@@ -6,45 +6,117 @@ package runtime
+ 
+ import "unsafe"
+ 
+-var tracebackbuf [128]byte
++const (
++	// Plan 9 environment device
++	envDir = "/env/"
++	// size of buffer to read from a directory
++	dirBufSize = 4096
++	// size of buffer to read an environment variable (may grow)
++	envBufSize = 128
++	// offset of the name field in a 9P directory entry - see syscall.UnmarshalDir()
++	nameOffset = 39
++)
+ 
+-func gogetenv(key string) string {
+-	var file [128]byte
+-	if len(key) > len(file)-6 {
+-		return ""
++// Goenvs caches the Plan 9 environment variables at start of execution into
++// string array envs, to supply the initial contents for os.Environ.
++// Subsequent calls to os.Setenv will change this cache, without writing back
++// to the (possibly shared) Plan 9 environment, so that Setenv and Getenv
++// conform to the same Posix semantics as on other operating systems.
++// For Plan 9 shared environment semantics, instead of Getenv(key) and
++// Setenv(key, value), one can use ioutil.ReadFile("/env/" + key) and
++// ioutil.WriteFile("/env/" + key, value, 0666) respectively.
++//go:nosplit
++func goenvs() {
++	buf := make([]byte, envBufSize)
++	copy(buf, envDir)
++	dirfd := open(&buf[0], _OREAD, 0)
++	if dirfd < 0 {
++		return
+ 	}
++	defer closefd(dirfd)
++	dofiles(dirfd, func(name []byte) {
++		name = append(name, 0)
++		buf = buf[:len(envDir)]
++		copy(buf, envDir)
++		buf = append(buf, name...)
++		fd := open(&buf[0], _OREAD, 0)
++		if fd < 0 {
++			return
++		}
++		defer closefd(fd)
++		n := len(buf)
++		r := 0
++		for {
++			r = int(pread(fd, unsafe.Pointer(&buf[0]), int32(n), 0))
++			if r < n {
++				break
++			}
++			n = int(seek(fd, 0, 2)) + 1
++			if len(buf) < n {
++				buf = make([]byte, n)
++			}
++		}
++		if r <= 0 {
++			r = 0
++		} else if buf[r-1] == 0 {
++			r--
++		}
++		name[len(name)-1] = '='
++		env := make([]byte, len(name)+r)
++		copy(env, name)
++		copy(env[len(name):], buf[:r])
++		envs = append(envs, string(env))
++	})
++}
+ 
+-	copy(file[:], "/env/")
+-	copy(file[5:], key)
++// Dofiles reads the directory opened with file descriptor fd, applying function f
++// to each filename in it.
++//go:nosplit
++func dofiles(dirfd int32, f func([]byte)) {
++	dirbuf := new([dirBufSize]byte)
+ 
+-	fd := open(&file[0], _OREAD, 0)
+-	if fd < 0 {
+-		return ""
+-	}
+-	n := seek(fd, 0, 2)
+-	if n <= 0 {
+-		closefd(fd)
+-		return ""
++	var off int64 = 0
++	for {
++		n := pread(dirfd, unsafe.Pointer(&dirbuf[0]), int32(dirBufSize), off)
++		if n <= 0 {
++			return
++		}
++		for b := dirbuf[:n]; len(b) > 0; {
++			var name []byte
++			name, b = gdirname(b)
++			if name == nil {
++				return
++			}
++			f(name)
++		}
++		off += int64(n)
+ 	}
++}
+ 
+-	p := make([]byte, n)
+-
+-	r := pread(fd, unsafe.Pointer(&p[0]), int32(n), 0)
+-	closefd(fd)
+-	if r < 0 {
+-		return ""
++// Gdirname returns the first filename from a buffer of directory entries,
++// and a slice containing the remaining directory entries.
++// If the buffer doesn't start with a valid directory entry, the returned name is nil.
++//go:nosplit
++func gdirname(buf []byte) (name []byte, rest []byte) {
++	if 2+nameOffset+2 > len(buf) {
++		return
+ 	}
+-
+-	if p[r-1] == 0 {
+-		r--
++	entryLen, buf := gbit16(buf)
++	if entryLen > len(buf) {
++		return
+ 	}
+-
+-	var s string
+-	sp := stringStructOf(&s)
+-	sp.str = unsafe.Pointer(&p[0])
+-	sp.len = int(r)
+-	return s
++	n, b := gbit16(buf[nameOffset:])
++	if n > len(b) {
++		return
++	}
++	name = b[:n]
++	rest = buf[entryLen:]
++	return
+ }
+ 
+-var _cgo_setenv unsafe.Pointer   // pointer to C function
+-var _cgo_unsetenv unsafe.Pointer // pointer to C function
++// Gbit16 reads a 16-bit little-endian binary number from b and returns it
++// with the remaining slice of b.
++//go:nosplit
++func gbit16(b []byte) (int, []byte) {
++	return int(b[0]) | int(b[1])<<8, b[2:]
++}
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index f95ff68545..af353bbcd9 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
++// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows plan9
+ 
+ package runtime
+ 
+diff --git a/src/runtime/env_test.go b/src/runtime/env_test.go
+index 2399e46faa..c009d0f31e 100644
+--- a/src/runtime/env_test.go
++++ b/src/runtime/env_test.go
+@@ -11,10 +11,6 @@ import (
+ )
+ 
+ func TestFixedGOROOT(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skipf("skipping plan9, it is inconsistent by allowing GOROOT to be updated by Setenv")
+-	}
+-
+ 	// Restore both the real GOROOT environment variable, and runtime's copies:
+ 	if orig, ok := syscall.Getenv("GOROOT"); ok {
+ 		defer syscall.Setenv("GOROOT", orig)
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 2bea1058f2..9e187d2220 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -306,9 +306,6 @@ func getRandomData(r []byte) {
+ 	extendRandom(r, 0)
+ }
+ 
+-func goenvs() {
+-}
+-
+ func initsig(preinit bool) {
+ 	if !preinit {
+ 		notify(unsafe.Pointer(funcPC(sigtramp)))
+diff --git a/src/syscall/env_plan9.go b/src/syscall/env_plan9.go
+deleted file mode 100644
+index e403a25e31..0000000000
+--- a/src/syscall/env_plan9.go
++++ /dev/null
+@@ -1,122 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Plan 9 environment variables.
+-
+-package syscall
+-
+-import (
+-	"errors"
+-)
+-
+-var (
+-	errZeroLengthKey = errors.New("zero length key")
+-	errShortWrite    = errors.New("i/o count too small")
+-)
+-
+-func readenv(key string) (string, error) {
+-	fd, err := open("/env/"+key, O_RDONLY)
+-	if err != nil {
+-		return "", err
+-	}
+-	defer Close(fd)
+-	l, _ := Seek(fd, 0, 2)
+-	Seek(fd, 0, 0)
+-	buf := make([]byte, l)
+-	n, err := Read(fd, buf)
+-	if err != nil {
+-		return "", err
+-	}
+-	if n > 0 && buf[n-1] == 0 {
+-		buf = buf[:n-1]
+-	}
+-	return string(buf), nil
+-}
+-
+-func writeenv(key, value string) error {
+-	fd, err := create("/env/"+key, O_RDWR, 0666)
+-	if err != nil {
+-		return err
+-	}
+-	defer Close(fd)
+-	b := []byte(value)
+-	n, err := Write(fd, b)
+-	if err != nil {
+-		return err
+-	}
+-	if n != len(b) {
+-		return errShortWrite
+-	}
+-	return nil
+-}
+-
+-func Getenv(key string) (value string, found bool) {
+-	if len(key) == 0 {
+-		return "", false
+-	}
+-	v, err := readenv(key)
+-	if err != nil {
+-		return "", false
+-	}
+-	return v, true
+-}
+-
+-func Setenv(key, value string) error {
+-	if len(key) == 0 {
+-		return errZeroLengthKey
+-	}
+-	err := writeenv(key, value)
+-	if err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-func Clearenv() {
+-	// Creating a new environment group using rfork(RFCENVG) can race
+-	// with access to files in /env (e.g. from Setenv or Getenv).
+-	// Remove all environment variables in current environment group instead.
+-	fd, err := open("/env", O_RDONLY)
+-	if err != nil {
+-		return
+-	}
+-	defer Close(fd)
+-	files, err := readdirnames(fd)
+-	if err != nil {
+-		return
+-	}
+-	for _, key := range files {
+-		Remove("/env/" + key)
+-	}
+-}
+-
+-func Unsetenv(key string) error {
+-	if len(key) == 0 {
+-		return errZeroLengthKey
+-	}
+-	Remove("/env/" + key)
+-	return nil
+-}
+-
+-func Environ() []string {
+-	fd, err := open("/env", O_RDONLY)
+-	if err != nil {
+-		return nil
+-	}
+-	defer Close(fd)
+-	files, err := readdirnames(fd)
+-	if err != nil {
+-		return nil
+-	}
+-	ret := make([]string, 0, len(files))
+-
+-	for _, key := range files {
+-		v, err := readenv(key)
+-		if err != nil {
+-			continue
+-		}
+-		ret = append(ret, key+"="+v)
+-	}
+-	return ret
+-}
+diff --git a/src/syscall/env_unix.go b/src/syscall/env_unix.go
+index e80a3ff1c9..a4bb28cc45 100644
+--- a/src/syscall/env_unix.go
++++ b/src/syscall/env_unix.go
+@@ -2,13 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris plan9
+ 
+ // Unix environment variables.
+ 
+ package syscall
+ 
+-import "sync"
++import (
++	"runtime"
++	"sync"
++)
+ 
+ var (
+ 	// envOnce guards initialization by copyenv, which populates env.
+@@ -100,9 +103,12 @@ func Setenv(key, value string) error {
+ 			return EINVAL
+ 		}
+ 	}
+-	for i := 0; i < len(value); i++ {
+-		if value[i] == 0 {
+-			return EINVAL
++	// On Plan 9, null is used as a separator, eg in $path.
++	if runtime.GOOS != "plan9" {
++		for i := 0; i < len(value); i++ {
++			if value[i] == 0 {
++				return EINVAL
++			}
+ 		}
+ 	}
+ 

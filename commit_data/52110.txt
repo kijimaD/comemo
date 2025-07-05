@@ -17,7 +17,7 @@ Date:   Thu Feb 3 14:05:46 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/bug/bug.go                      |  2 +-
  src/cmd/go/internal/clean/clean.go                  |  2 +-
  src/cmd/go/internal/doc/doc.go                      |  2 +-
@@ -69,3 +69,810 @@ Date:   Thu Feb 3 14:05:46 2022 -0500
  src/runtime/float.go                                |  2 +-
  src/time/tick.go                                    |  2 +-
  50 files changed, 81 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index 702dc2a14a..b4181b1e44 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package bug implements the ``go bug'' command.
++// Package bug implements the “go bug” command.
+ package bug
+ 
+ import (
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index dc93cdf598..8564411fb6 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package clean implements the ``go clean'' command.
++// Package clean implements the “go clean” command.
+ package clean
+ 
+ import (
+diff --git a/src/cmd/go/internal/doc/doc.go b/src/cmd/go/internal/doc/doc.go
+index 7741a9022c..3b6cd94799 100644
+--- a/src/cmd/go/internal/doc/doc.go
++++ b/src/cmd/go/internal/doc/doc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package doc implements the ``go doc'' command.
++// Package doc implements the “go doc” command.
+ package doc
+ 
+ import (
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index aab21af855..529351dfbd 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package envcmd implements the ``go env'' command.
++// Package envcmd implements the “go env” command.
+ package envcmd
+ 
+ import (
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index d8ba353de6..3705b30ef9 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package fix implements the ``go fix'' command.
++// Package fix implements the “go fix” command.
+ package fix
+ 
+ import (
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 19656eab7f..3dc29d40b2 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package fmtcmd implements the ``go fmt'' command.
++// Package fmtcmd implements the “go fmt” command.
+ package fmtcmd
+ 
+ import (
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 54ccfe78f2..0021bcc75a 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package generate implements the ``go generate'' command.
++// Package generate implements the “go generate” command.
+ package generate
+ 
+ import (
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 8cf8fe6645..1bb67bcf51 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package get implements the ``go get'' command.
++// Package get implements the “go get” command.
+ package get
+ 
+ import (
+diff --git a/src/cmd/go/internal/help/help.go b/src/cmd/go/internal/help/help.go
+index 2a07d2423b..f73097af84 100644
+--- a/src/cmd/go/internal/help/help.go
++++ b/src/cmd/go/internal/help/help.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package help implements the ``go help'' command.
++// Package help implements the “go help” command.
+ package help
+ 
+ import (
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 5fc33989cd..e039b9faa1 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package list implements the ``go list'' command.
++// Package list implements the “go list” command.
+ package list
+ 
+ import (
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index d72d0cacd6..125ba336a0 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package modcmd implements the ``go mod'' command.
++// Package modcmd implements the “go mod” command.
+ package modcmd
+ 
+ import (
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 3d8463e892..751f15aaac 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package modget implements the module-aware ``go get'' command.
++// Package modget implements the module-aware “go get” command.
+ package modget
+ 
+ // The arguments to 'go get' are patterns with optional version queries, with
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 35c5783373..ebe1611819 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package run implements the ``go run'' command.
++// Package run implements the “go run” command.
+ package run
+ 
+ import (
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 4fe4c2baed..e8b55092d8 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package tool implements the ``go tool'' command.
++// Package tool implements the “go tool” command.
+ package tool
+ 
+ import (
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index 1c0eb5407d..5de7b83efa 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package version implements the ``go version'' command.
++// Package version implements the “go version” command.
+ package version
+ 
+ import (
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index d3e0dd8116..a0b11fdd3d 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package vet implements the ``go vet'' command.
++// Package vet implements the “go vet” command.
+ package vet
+ 
+ import (
+diff --git a/src/cmd/go/internal/workcmd/work.go b/src/cmd/go/internal/workcmd/work.go
+index 39c81e8f5d..c99cc2a3fa 100644
+--- a/src/cmd/go/internal/workcmd/work.go
++++ b/src/cmd/go/internal/workcmd/work.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package workcmd implements the ``go work'' command.
++// Package workcmd implements the “go work” command.
+ package workcmd
+ 
+ import (
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 0ec1e526a9..1e98452dc0 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2140,7 +2140,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
+ // Non-ELF binary formats are not always flexible enough to
+ // give us a place to put the Go build ID. On those systems, we put it
+ // at the very beginning of the text segment.
+-// This ``header'' is read by cmd/go.
++// This “header” is read by cmd/go.
+ func (ctxt *Link) textbuildid() {
+ 	if ctxt.IsELF || ctxt.BuildMode == BuildModePlugin || *flagBuildid == "" {
+ 		return
+diff --git a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go
+index 75cff72b03..8eba1fd0cf 100644
+--- a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go
++++ b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ // GNUSyntax returns the GNU assembler syntax for the instruction, as defined by GNU binutils.
+-// This general form is often called ``AT&T syntax'' as a reference to AT&T System V Unix.
++// This general form is often called “AT&T syntax” as a reference to AT&T System V Unix.
+ func GNUSyntax(inst Inst, pc uint64, symname SymLookup) string {
+ 	// Rewrite instruction to mimic GNU peculiarities.
+ 	// Note that inst has been passed by value and contains
+diff --git a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/inst.go b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/inst.go
+index 4632b5064f..e98f1a8418 100644
+--- a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/inst.go
++++ b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/inst.go
+@@ -144,7 +144,7 @@ type Arg interface {
+ // the interface value instead of requiring an allocation.
+ 
+ // A Reg is a single register.
+-// The zero Reg value has no name but indicates ``no register.''
++// The zero Reg value has no name but indicates “no register.”
+ type Reg uint8
+ 
+ const (
+diff --git a/src/compress/bzip2/bzip2.go b/src/compress/bzip2/bzip2.go
+index 0d8c286c16..51054ccabc 100644
+--- a/src/compress/bzip2/bzip2.go
++++ b/src/compress/bzip2/bzip2.go
+@@ -447,11 +447,11 @@ func (bz2 *reader) readBlock() (err error) {
+ 
+ // inverseBWT implements the inverse Burrows-Wheeler transform as described in
+ // http://www.hpl.hp.com/techreports/Compaq-DEC/SRC-RR-124.pdf, section 4.2.
+-// In that document, origPtr is called ``I'' and c is the ``C'' array after the
++// In that document, origPtr is called “I” and c is the “C” array after the
+ // first pass over the data. It's an argument here because we merge the first
+ // pass with the Huffman decoding.
+ //
+-// This also implements the ``single array'' method from the bzip2 source code
++// This also implements the “single array” method from the bzip2 source code
+ // which leaves the output, still shuffled, in the bottom 8 bits of tt with the
+ // index of the next byte in the top 24-bits. The index of the first byte is
+ // returned.
+diff --git a/src/compress/lzw/reader.go b/src/compress/lzw/reader.go
+index 952870a56a..18df97029f 100644
+--- a/src/compress/lzw/reader.go
++++ b/src/compress/lzw/reader.go
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package lzw implements the Lempel-Ziv-Welch compressed data format,
+-// described in T. A. Welch, ``A Technique for High-Performance Data
+-// Compression'', Computer, 17(6) (June 1984), pp 8-19.
++// described in T. A. Welch, “A Technique for High-Performance Data
++// Compression”, Computer, 17(6) (June 1984), pp 8-19.
+ //
+ // In particular, it implements LZW as used by the GIF and PDF file
+ // formats, which means variable-width codes up to 12 bits and the first
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 0cbd6d0045..601b323ff4 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -96,8 +96,8 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byt
+ // session key beforehand and continue the protocol with the resulting value.
+ // This will remove any possibility that an attacker can learn any information
+ // about the plaintext.
+-// See ``Chosen Ciphertext Attacks Against Protocols Based on the RSA
+-// Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
++// See “Chosen Ciphertext Attacks Against Protocols Based on the RSA
++// Encryption Standard PKCS #1”, Daniel Bleichenbacher, Advances in Cryptology
+ // (Crypto '98).
+ //
+ // Note that if the session key is too small then it may be possible for an
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 9f3f4971e1..b1bb591021 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -789,7 +789,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry
+ 	return e
+ }
+ 
+-// A Reader allows reading Entry structures from a DWARF ``info'' section.
++// A Reader allows reading Entry structures from a DWARF “info” section.
+ // The Entry structures are arranged in a tree. The Reader's Next function
+ // return successive entries from a pre-order traversal of the tree.
+ // If an entry has children, its Children field will be true, and the children
+@@ -806,7 +806,7 @@ type Reader struct {
+ }
+ 
+ // Reader returns a new Reader for Data.
+-// The reader is positioned at byte offset 0 in the DWARF ``info'' section.
++// The reader is positioned at byte offset 0 in the DWARF “info” section.
+ func (d *Data) Reader() *Reader {
+ 	r := &Reader{d: d}
+ 	r.Seek(0)
+diff --git a/src/debug/dwarf/type.go b/src/debug/dwarf/type.go
+index 9c15cfb920..2049f46d70 100644
+--- a/src/debug/dwarf/type.go
++++ b/src/debug/dwarf/type.go
+@@ -372,7 +372,7 @@ type typeReader interface {
+ 	AddressSize() int
+ }
+ 
+-// Type reads the type at off in the DWARF ``info'' section.
++// Type reads the type at off in the DWARF “info” section.
+ func (d *Data) Type(off Offset) (Type, error) {
+ 	return d.readType("info", d.Reader(), off, d.typeCache, nil)
+ }
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index cad1d7b08f..c90bba47dc 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -5,7 +5,7 @@
+ // Package asn1 implements parsing of DER-encoded ASN.1 data structures,
+ // as defined in ITU-T Rec X.690.
+ //
+-// See also ``A Layman's Guide to a Subset of ASN.1, BER, and DER,''
++// See also “A Layman's Guide to a Subset of ASN.1, BER, and DER,”
+ // http://luca.ntop.org/Teaching/Appunti/asn1.html.
+ package asn1
+ 
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index 3feea9ba47..5f3af4c8bb 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -56,7 +56,7 @@ func NewEncoding(encoder string) *Encoding {
+ // RFC 4648.
+ var StdEncoding = NewEncoding(encodeStd)
+ 
+-// HexEncoding is the ``Extended Hex Alphabet'' defined in RFC 4648.
++// HexEncoding is the “Extended Hex Alphabet” defined in RFC 4648.
+ // It is typically used in DNS.
+ var HexEncoding = NewEncoding(encodeHex)
+ 
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index ce9675a62f..4319918d1e 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -85,7 +85,7 @@ import (
+ //
+ // The JSON null value unmarshals into an interface, map, pointer, or slice
+ // by setting that Go value to nil. Because null is often used in JSON to mean
+-// ``not present,'' unmarshaling a JSON null into any other Go type has no effect
++// “not present,” unmarshaling a JSON null into any other Go type has no effect
+ // on the value and produces no error.
+ //
+ // When unmarshaling quoted strings, invalid UTF-8 or
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 1c37c3cb7b..33f5541629 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -55,7 +55,7 @@ type Formatter interface {
+ }
+ 
+ // Stringer is implemented by any value that has a String method,
+-// which defines the ``native'' format for that value.
++// which defines the “native” format for that value.
+ // The String method is used to print values passed as an operand
+ // to any format that accepts a string or to an unformatted printer
+ // such as Print.
+diff --git a/src/go/doc/testdata/testing.go b/src/go/doc/testdata/testing.go
+index 80238df283..6365ffceed 100644
+--- a/src/go/doc/testdata/testing.go
++++ b/src/go/doc/testdata/testing.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package testing provides support for automated testing of Go packages.
+-// It is intended to be used in concert with the ``go test'' utility, which automates
++// It is intended to be used in concert with the “go test” utility, which automates
+ // execution of any function of the form
+ //     func TestXxx(*testing.T)
+ // where Xxx can be any alphanumeric string (but the first letter must not be in
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 6ef889b02a..1feb630cf5 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -35,7 +35,7 @@ func Builder() string {
+ 	return os.Getenv("GO_BUILDER_NAME")
+ }
+ 
+-// HasGoBuild reports whether the current system can build programs with ``go build''
++// HasGoBuild reports whether the current system can build programs with “go build”
+ // and then run them with os.StartProcess or exec.Command.
+ func HasGoBuild() bool {
+ 	if os.Getenv("GO_GCFLAGS") != "" {
+@@ -52,7 +52,7 @@ func HasGoBuild() bool {
+ 	return true
+ }
+ 
+-// MustHaveGoBuild checks that the current system can build programs with ``go build''
++// MustHaveGoBuild checks that the current system can build programs with “go build”
+ // and then run them with os.StartProcess or exec.Command.
+ // If not, MustHaveGoBuild calls t.Skip with an explanation.
+ func MustHaveGoBuild(t testing.TB) {
+@@ -64,13 +64,13 @@ func MustHaveGoBuild(t testing.TB) {
+ 	}
+ }
+ 
+-// HasGoRun reports whether the current system can run programs with ``go run.''
++// HasGoRun reports whether the current system can run programs with “go run.”
+ func HasGoRun() bool {
+ 	// For now, having go run and having go build are the same.
+ 	return HasGoBuild()
+ }
+ 
+-// MustHaveGoRun checks that the current system can run programs with ``go run.''
++// MustHaveGoRun checks that the current system can run programs with “go run.”
+ // If not, MustHaveGoRun calls t.Skip with an explanation.
+ func MustHaveGoRun(t testing.TB) {
+ 	if !HasGoRun() {
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index 93f7195219..30b6dc4332 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -215,7 +215,7 @@ func (z *Float) pow5(n uint64) *Float {
+ // point number with a mantissa in the given conversion base (the exponent
+ // is always a decimal number), or a string representing an infinite value.
+ //
+-// For base 0, an underscore character ``_'' may appear between a base
++// For base 0, an underscore character “_” may appear between a base
+ // prefix and an adjacent digit, and between successive digits; such
+ // underscores do not change the value of the number, or the returned
+ // digit count. Incorrect placement of underscores is reported as an
+@@ -243,8 +243,8 @@ func (z *Float) pow5(n uint64) *Float {
+ // argument will lead to a run-time panic.
+ //
+ // For base 0, the number prefix determines the actual base: A prefix of
+-// ``0b'' or ``0B'' selects base 2, ``0o'' or ``0O'' selects base 8, and
+-// ``0x'' or ``0X'' selects base 16. Otherwise, the actual base is 10 and
++// “0b” or “0B” selects base 2, “0o” or “0O” selects base 8, and
++// “0x” or “0X” selects base 16. Otherwise, the actual base is 10 and
+ // no prefix is accepted. The octal prefix "0" is not supported (a leading
+ // "0" is simply considered a "0").
+ //
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 700d00d031..a111451eaf 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -231,7 +231,7 @@ func (z *Int) Rem(x, y *Int) *Int {
+ //	q = x/y      with the result truncated to zero
+ //	r = x - y*q
+ //
+-// (See Daan Leijen, ``Division and Modulus for Computer Scientists''.)
++// (See Daan Leijen, “Division and Modulus for Computer Scientists”.)
+ // See DivMod for Euclidean division and modulus (unlike Go).
+ func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
+ 	z.abs, r.abs = z.abs.div(r.abs, x.abs, y.abs)
+@@ -285,8 +285,8 @@ func (z *Int) Mod(x, y *Int) *Int {
+ //	q = x div y  such that
+ //	m = x - y*q  with 0 <= m < |y|
+ //
+-// (See Raymond T. Boute, ``The Euclidean definition of the functions
+-// div and mod''. ACM Transactions on Programming Languages and
++// (See Raymond T. Boute, “The Euclidean definition of the functions
++// div and mod”. ACM Transactions on Programming Languages and
+ // Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
+ // ACM press.)
+ // See QuoRem for T-division and modulus (like Go).
+@@ -400,8 +400,8 @@ func (x *Int) IsUint64() bool {
+ //
+ // The base argument must be 0 or a value between 2 and MaxBase.
+ // For base 0, the number prefix determines the actual base: A prefix of
+-// ``0b'' or ``0B'' selects base 2, ``0'', ``0o'' or ``0O'' selects base 8,
+-// and ``0x'' or ``0X'' selects base 16. Otherwise, the selected base is 10
++// “0b” or “0B” selects base 2, “0”, “0o” or “0O” selects base 8,
++// and “0x” or “0X” selects base 16. Otherwise, the selected base is 10
+ // and no prefix is accepted.
+ //
+ // For bases <= 36, lower and upper case letters are considered the same:
+@@ -409,7 +409,7 @@ func (x *Int) IsUint64() bool {
+ // For bases > 36, the upper case letters 'A' to 'Z' represent the digit
+ // values 36 to 61.
+ //
+-// For base 0, an underscore character ``_'' may appear between a base
++// For base 0, an underscore character “_” may appear between a base
+ // prefix and an adjacent digit, and between successive digits; such
+ // underscores do not change the value of the number.
+ // Incorrect placement of underscores is reported as an error if there
+diff --git a/src/math/big/intconv.go b/src/math/big/intconv.go
+index 2fe10ff0a2..a3a4023caa 100644
+--- a/src/math/big/intconv.go
++++ b/src/math/big/intconv.go
+@@ -174,8 +174,8 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ //
+ // The base argument must be 0 or a value from 2 through MaxBase. If the base
+ // is 0, the string prefix determines the actual conversion base. A prefix of
+-// ``0b'' or ``0B'' selects base 2; a ``0'', ``0o'', or ``0O'' prefix selects
+-// base 8, and a ``0x'' or ``0X'' prefix selects base 16. Otherwise the selected
++// “0b” or “0B” selects base 2; a “0”, “0o”, or “0O” prefix selects
++// base 8, and a “0x” or “0X” prefix selects base 16. Otherwise the selected
+ // base is 10.
+ func (z *Int) scan(r io.ByteScanner, base int) (*Int, int, error) {
+ 	// determine sign
+diff --git a/src/math/big/natconv.go b/src/math/big/natconv.go
+index 99488ac833..8fdf4b6f9e 100644
+--- a/src/math/big/natconv.go
++++ b/src/math/big/natconv.go
+@@ -66,7 +66,7 @@ var (
+ // scan returns the corresponding natural number res, the actual base b,
+ // a digit count, and a read or syntax error err, if any.
+ //
+-// For base 0, an underscore character ``_'' may appear between a base
++// For base 0, an underscore character “_” may appear between a base
+ // prefix and an adjacent digit, and between successive digits; such
+ // underscores do not change the value of the number, or the returned
+ // digit count. Incorrect placement of underscores is reported as an
+@@ -87,8 +87,8 @@ var (
+ // time panic.
+ //
+ // For base 0, the number prefix determines the actual base: A prefix of
+-// ``0b'' or ``0B'' selects base 2, ``0o'' or ``0O'' selects base 8, and
+-// ``0x'' or ``0X'' selects base 16. If fracOk is false, a ``0'' prefix
++// “0b” or “0B” selects base 2, “0o” or “0O” selects base 8, and
++// “0x” or “0X” selects base 16. If fracOk is false, a “0” prefix
+ // (immediately followed by digits) selects base 8 as well. Otherwise,
+ // the selected base is 10 and no prefix is accepted.
+ //
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index dadd4d7b8e..794a51d007 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -41,16 +41,16 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
+ // success. s can be given as a (possibly signed) fraction "a/b", or as a
+ // floating-point number optionally followed by an exponent.
+ // If a fraction is provided, both the dividend and the divisor may be a
+-// decimal integer or independently use a prefix of ``0b'', ``0'' or ``0o'',
+-// or ``0x'' (or their upper-case variants) to denote a binary, octal, or
++// decimal integer or independently use a prefix of “0b”, “0” or “0o”,
++// or “0x” (or their upper-case variants) to denote a binary, octal, or
+ // hexadecimal integer, respectively. The divisor may not be signed.
+ // If a floating-point number is provided, it may be in decimal form or
+-// use any of the same prefixes as above but for ``0'' to denote a non-decimal
+-// mantissa. A leading ``0'' is considered a decimal leading 0; it does not
++// use any of the same prefixes as above but for “0” to denote a non-decimal
++// mantissa. A leading “0” is considered a decimal leading 0; it does not
+ // indicate octal representation in this case.
+-// An optional base-10 ``e'' or base-2 ``p'' (or their upper-case variants)
++// An optional base-10 “e” or base-2 “p” (or their upper-case variants)
+ // exponent may be provided as well, except for hexadecimal floats which
+-// only accept an (optional) ``p'' exponent (because an ``e'' or ``E'' cannot
++// only accept an (optional) “p” exponent (because an “e” or “E” cannot
+ // be distinguished from a mantissa digit). If the exponent's absolute value
+ // is too large, the operation may fail.
+ // The entire string, not just a prefix, must be valid for success. If the
+@@ -205,10 +205,10 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ }
+ 
+ // scanExponent scans the longest possible prefix of r representing a base 10
+-// (``e'', ``E'') or a base 2 (``p'', ``P'') exponent, if any. It returns the
++// (“e”, “E”) or a base 2 (“p”, “P”) exponent, if any. It returns the
+ // exponent, the exponent base (10 or 2), or a read or syntax error, if any.
+ //
+-// If sepOk is set, an underscore character ``_'' may appear between successive
++// If sepOk is set, an underscore character “_” may appear between successive
+ // exponent digits; such underscores do not change the value of the exponent.
+ // Incorrect placement of underscores is reported as an error if there are no
+ // other errors. If sepOk is not set, underscores are not recognized and thus
+diff --git a/src/math/bits.go b/src/math/bits.go
+index 77bcdbe1ce..c5cb93b159 100644
+--- a/src/math/bits.go
++++ b/src/math/bits.go
+@@ -27,10 +27,10 @@ func Inf(sign int) float64 {
+ 	return Float64frombits(v)
+ }
+ 
+-// NaN returns an IEEE 754 ``not-a-number'' value.
++// NaN returns an IEEE 754 “not-a-number” value.
+ func NaN() float64 { return Float64frombits(uvnan) }
+ 
+-// IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.
++// IsNaN reports whether f is an IEEE 754 “not-a-number” value.
+ func IsNaN(f float64) (is bool) {
+ 	// IEEE 754 says that only NaNs satisfy f != f.
+ 	// To avoid the floating-point hardware, could use:
+diff --git a/src/math/cmplx/isnan.go b/src/math/cmplx/isnan.go
+index d3382c05ee..fed442cb48 100644
+--- a/src/math/cmplx/isnan.go
++++ b/src/math/cmplx/isnan.go
+@@ -18,7 +18,7 @@ func IsNaN(x complex128) bool {
+ 	return false
+ }
+ 
+-// NaN returns a complex ``not-a-number'' value.
++// NaN returns a complex “not-a-number” value.
+ func NaN() complex128 {
+ 	nan := math.NaN()
+ 	return complex(nan, nan)
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index b91069f9a1..bd4ef1bacc 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2101,7 +2101,7 @@ func Error(w ResponseWriter, error string, code int) {
+ func NotFound(w ResponseWriter, r *Request) { Error(w, "404 page not found", StatusNotFound) }
+ 
+ // NotFoundHandler returns a simple request handler
+-// that replies to each request with a ``404 page not found'' reply.
++// that replies to each request with a “404 page not found” reply.
+ func NotFoundHandler() Handler { return HandlerFunc(NotFound) }
+ 
+ // StripPrefix returns a handler that serves HTTP requests by removing the
+@@ -2394,7 +2394,7 @@ func (mux *ServeMux) shouldRedirectRLocked(host, path string) bool {
+ // the pattern that will match after following the redirect.
+ //
+ // If there is no registered handler that applies to the request,
+-// Handler returns a ``page not found'' handler and an empty pattern.
++// Handler returns a “page not found” handler and an empty pattern.
+ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
+ 
+ 	// CONNECT requests are not canonicalized.
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index ecfd1d9e94..bff6513b85 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -381,9 +381,9 @@ func User(username string) *Userinfo {
+ //
+ // This functionality should only be used with legacy web sites.
+ // RFC 2396 warns that interpreting Userinfo this way
+-// ``is NOT RECOMMENDED, because the passing of authentication
++// “is NOT RECOMMENDED, because the passing of authentication
+ // information in clear text (such as URI) has proven to be a
+-// security risk in almost every case where it has been used.''
++// security risk in almost every case where it has been used.”
+ func UserPassword(username, password string) *Userinfo {
+ 	return &Userinfo{username, password, true}
+ }
+@@ -960,7 +960,7 @@ func parseQuery(m Values, query string) (err error) {
+ 	return err
+ }
+ 
+-// Encode encodes the values into ``URL encoded'' form
++// Encode encodes the values into “URL encoded” form
+ // ("bar=baz&foo=quux") sorted by key.
+ func (v Values) Encode() string {
+ 	if v == nil {
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 887e1c8892..93eb233e00 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -66,7 +66,7 @@ type dirInfo struct {
+ func epipecheck(file *File, e error) {
+ }
+ 
+-// DevNull is the name of the operating system's ``null device.''
++// DevNull is the name of the operating system's “null device.”
+ // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+ const DevNull = "/dev/null"
+ 
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 666143b0de..c30a6890de 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -196,7 +196,7 @@ func epipecheck(file *File, e error) {
+ 	}
+ }
+ 
+-// DevNull is the name of the operating system's ``null device.''
++// DevNull is the name of the operating system's “null device.”
+ // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+ const DevNull = "/dev/null"
+ 
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 75b4707eaf..ab5d6a493d 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -95,7 +95,7 @@ type dirInfo struct {
+ func epipecheck(file *File, e error) {
+ }
+ 
+-// DevNull is the name of the operating system's ``null device.''
++// DevNull is the name of the operating system's “null device.”
+ // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+ const DevNull = "NUL"
+ 
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 0554deb2ff..668b87bb24 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -83,8 +83,8 @@ const (
+ // If the result of this process is an empty string, Clean
+ // returns the string ".".
+ //
+-// See also Rob Pike, ``Lexical File Names in Plan 9 or
+-// Getting Dot-Dot Right,''
++// See also Rob Pike, “Lexical File Names in Plan 9 or
++// Getting Dot-Dot Right,”
+ // https://9p.io/sys/doc/lexnames.html
+ func Clean(path string) string {
+ 	originalPath := path
+diff --git a/src/path/path.go b/src/path/path.go
+index f1f3499f63..5c5bc445ac 100644
+--- a/src/path/path.go
++++ b/src/path/path.go
+@@ -64,8 +64,8 @@ func (b *lazybuf) string() string {
+ // If the result of this process is an empty string, Clean
+ // returns the string ".".
+ //
+-// See also Rob Pike, ``Lexical File Names in Plan 9 or
+-// Getting Dot-Dot Right,''
++// See also Rob Pike, “Lexical File Names in Plan 9 or
++// Getting Dot-Dot Right,”
+ // https://9p.io/sys/doc/lexnames.html
+ func Clean(path string) string {
+ 	if path == "" {
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index eaab101221..50b436e5f6 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -174,7 +174,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 	}
+ }
+ 
+-// DeepEqual reports whether x and y are ``deeply equal,'' defined as follows.
++// DeepEqual reports whether x and y are “deeply equal,” defined as follows.
+ // Two values of identical type are deeply equal if one of the following cases applies.
+ // Values of distinct types are never deeply equal.
+ //
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index a6e833050b..1694230345 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -52,8 +52,8 @@ import (
+ // submatch indices. An unmatched subexpression formats
+ // its pair as a single - (not illustrated above).  For now
+ // each regexp run produces two match results, one for a
+-// ``full match'' that restricts the regexp to matching the entire
+-// string or nothing, and one for a ``partial match'' that gives
++// “full match” that restricts the regexp to matching the entire
++// string or nothing, and one for a “partial match” that gives
+ // the leftmost first match found in the string.
+ //
+ // Lines beginning with # are comments. Lines beginning with
+diff --git a/src/regexp/syntax/prog.go b/src/regexp/syntax/prog.go
+index 8583f55e54..ee71decb35 100644
+--- a/src/regexp/syntax/prog.go
++++ b/src/regexp/syntax/prog.go
+@@ -102,7 +102,7 @@ func EmptyOpContext(r1, r2 rune) EmptyOp {
+ 	return op
+ }
+ 
+-// IsWordChar reports whether r is consider a ``word character''
++// IsWordChar reports whether r is consider a “word character”
+ // during the evaluation of the \b and \B zero-width assertions.
+ // These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
+ func IsWordChar(r rune) bool {
+diff --git a/src/runtime/float.go b/src/runtime/float.go
+index 459e58dd7e..7aef78a2ec 100644
+--- a/src/runtime/float.go
++++ b/src/runtime/float.go
+@@ -8,7 +8,7 @@ import "unsafe"
+ 
+ var inf = float64frombits(0x7FF0000000000000)
+ 
+-// isNaN reports whether f is an IEEE 754 ``not-a-number'' value.
++// isNaN reports whether f is an IEEE 754 “not-a-number” value.
+ func isNaN(f float64) (is bool) {
+ 	// IEEE 754 says that only NaNs satisfy f != f.
+ 	return f != f
+diff --git a/src/time/tick.go b/src/time/tick.go
+index babf865aeb..dcfeca8783 100644
+--- a/src/time/tick.go
++++ b/src/time/tick.go
+@@ -6,7 +6,7 @@ package time
+ 
+ import "errors"
+ 
+-// A Ticker holds a channel that delivers ``ticks'' of a clock
++// A Ticker holds a channel that delivers “ticks” of a clock
+ // at intervals.
+ type Ticker struct {
+ 	C <-chan Time // The channel on which the ticks are delivered.

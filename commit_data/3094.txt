@@ -8,7 +8,40 @@ Date:   Wed Aug 26 16:24:51 2009 -0700
     DELTA=18  (18 added, 0 deleted, 0 changed)
     OCL=33914
     CL=33917
-
+---
  test/bugs/bug198.go | 11 +++++++++++
  test/golden.out     |  7 +++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/test/bugs/bug198.go b/test/bugs/bug198.go
+new file mode 100644
+index 0000000000..510658cdd1
+--- /dev/null
++++ b/test/bugs/bug198.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++func f(a T) T {	return a }	// ERROR "T"
++func main() {
++	x := f(0);
++}
+diff --git a/test/golden.out b/test/golden.out
+index 7aac0e1fc5..6c67c0b08b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -174,3 +174,10 @@ BUG should compile and run
+ too many calls: 5
+ panic PC=xxx
+ BUG: bug196
++
++=========== bugs/bug198.go
++bugs/bug198.go:8: undefined: T
++bugs/bug198.go:8: T is not a type
++bugs/bug198.go:8: too many arguments to return
++bugs/bug198.go:10: too many arguments to CALL
++BUG: errchk: compiler crashed

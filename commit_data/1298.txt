@@ -8,8 +8,129 @@ Date:   Mon Dec 8 17:45:50 2008 -0800
     DELTA=46  (21 added, 10 deleted, 15 changed)
     OCL=20785
     CL=20787
-
+---
  src/lib/time/tick.go      | 23 ++++++++++++++++++++---
  src/lib/time/tick_test.go |  4 ++--
  src/lib/time/time.go      | 34 ++++++++++++++--------------------
  3 files changed, 36 insertions(+), 25 deletions(-)
+
+diff --git a/src/lib/time/tick.go b/src/lib/time/tick.go
+index efd5ceb256..d8f7eae09d 100644
+--- a/src/lib/time/tick.go
++++ b/src/lib/time/tick.go
+@@ -26,15 +26,32 @@ import (
+ 
+ func Ticker(ns int64, c *chan int64) {
+ 	var tv syscall.Timeval;
++	now := time.Nanoseconds();
++	when := now;
+ 	for {
+-		syscall.nstotimeval(ns, &tv);
++		when += ns;	// next alarm
++		
++		// if c <- now took too long, skip ahead
++		if when < now {
++			// one big step
++			when += (now-when)/ns * ns;
++		}
++		for when <= now {
++			// little steps until when > now
++			when += ns
++		}
++
++		syscall.nstotimeval(when - now, &tv);
+ 		syscall.Syscall6(syscall.SYS_SELECT, 0, 0, 0, 0, syscall.TimevalPtr(&tv), 0);
+-		nsec, err := time.Nanoseconds();
+-		c <- nsec;
++		now = time.Nanoseconds();
++		c <- now;
+ 	}
+ }
+ 
+ export func Tick(ns int64) *chan int64 {
++	if ns <= 0 {
++		return nil
++	}
+ 	c := new(chan int64);
+ 	go Ticker(ns, c);
+ 	return c;
+diff --git a/src/lib/time/tick_test.go b/src/lib/time/tick_test.go
+index 9530f62778..f9b18fc1d9 100644
+--- a/src/lib/time/tick_test.go
++++ b/src/lib/time/tick_test.go
+@@ -15,11 +15,11 @@ export func TestTick(t *testing.T) {
+ 		Count uint64 = 10;
+ 	);
+ 	c := Tick(Delta);
+-	t0, err := Nanoseconds();
++	t0 := Nanoseconds();
+ 	for i := 0; i < Count; i++ {
+ 		<-c;
+ 	}
+-	t1, err1 := Nanoseconds();
++	t1 := Nanoseconds();
+ 	ns := t1 - t0;
+ 	target := int64(Delta*Count);
+ 	slop := target*2/10;
+diff --git a/src/lib/time/time.go b/src/lib/time/time.go
+index b539c385a6..e71e73b2ef 100644
+--- a/src/lib/time/time.go
++++ b/src/lib/time/time.go
+@@ -10,17 +10,21 @@ import (
+ )
+ 
+ // Seconds since January 1, 1970 00:00:00 GMT
+-export func Seconds() (sec int64, err *os.Error) {
+-	var nsec int64;
+-	sec, nsec, err = os.Time();
+-	return sec, err
++export func Seconds() int64 {
++	sec, nsec, err := os.Time();
++	if err != nil {
++		panic("time: os.Time: ", err.String());
++	}
++	return sec
+ }
+ 
+ // Nanoseconds since January 1, 1970 00:00:00 GMT
+-export func Nanoseconds() (nsec int64, err *os.Error) {
+-	var sec int64;
+-	sec, nsec, err = os.Time();
+-	return sec*1e9 + nsec, err
++export func Nanoseconds() int64 {
++	sec, nsec, err := os.Time();
++	if err != nil {
++		panic("time: os.Time: ", err.String());
++	}
++	return sec*1e9 + nsec
+ }
+ 
+ export const (
+@@ -142,12 +146,7 @@ export func SecondsToUTC(sec int64) *Time {
+ }
+ 
+ export func UTC() (t *Time, err *os.Error) {
+-	var sec int64;
+-	sec, err = Seconds();
+-	if err != nil {
+-		return nil, err
+-	}
+-	return SecondsToUTC(sec), nil
++	return SecondsToUTC(Seconds()), nil
+ }
+ 
+ // TODO: Should this return an error?
+@@ -163,12 +162,7 @@ export func SecondsToLocalTime(sec int64) *Time {
+ }
+ 
+ export func LocalTime() (t *Time, err *os.Error) {
+-	var sec int64;
+-	sec, err = Seconds();
+-	if err != nil {
+-		return nil, err
+-	}
+-	return SecondsToLocalTime(sec), nil
++	return SecondsToLocalTime(Seconds()), nil
+ }
+ 
+ // Compute number of seconds since January 1, 1970.

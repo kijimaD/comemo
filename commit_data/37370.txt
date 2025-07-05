@@ -8,6 +8,19 @@ Date:   Thu Jul 19 16:31:12 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/125096
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  api/go1.11.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/api/go1.11.txt b/api/go1.11.txt
+index b0a7f64c52..4c0bcc7479 100644
+--- a/api/go1.11.txt
++++ b/api/go1.11.txt
+@@ -458,6 +458,7 @@ pkg net/http, type SameSite int
+ pkg net/http, type Transport struct, MaxConnsPerHost int
+ pkg net/http/httptrace, type ClientTrace struct, Got1xxResponse func(int, textproto.MIMEHeader) error
+ pkg net/http/httptrace, type ClientTrace struct, WroteHeaderField func(string, []string)
++pkg net/http/httputil, type ReverseProxy struct, ErrorHandler func(http.ResponseWriter, *http.Request, error)
+ pkg os, const ModeIrregular = 524288
+ pkg os, const ModeIrregular FileMode
+ pkg os, const ModeType = 2399666176

@@ -7,8 +7,218 @@ Date:   Tue Dec 13 16:23:06 2011 -0500
     R=r, rsc, adg
     CC=golang-dev
     https://golang.org/cl/5364056
-
+---
  src/cmd/gofix/Makefile         |   1 +
  src/cmd/gofix/httputil.go      |  63 +++++++++++++++++++++
  src/cmd/gofix/httputil_test.go | 122 +++++++++++++++++++++++++++++++++++++++++
  3 files changed, 186 insertions(+)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 6ae4acc248..2f64a5bfa8 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -16,6 +16,7 @@ GOFILES=\
+ 	httpfs.go\
+ 	httpheaders.go\
+ 	httpserver.go\
++	httputil.go\
+ 	imagecolor.go\
+ 	imagenew.go\
+ 	iocopyn.go\
+diff --git a/src/cmd/gofix/httputil.go b/src/cmd/gofix/httputil.go
+new file mode 100644
+index 0000000000..86c42e1602
+--- /dev/null
++++ b/src/cmd/gofix/httputil.go
+@@ -0,0 +1,63 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "go/ast"
++
++func init() {
++	register(httputilFix)
++}
++
++var httputilFix = fix{
++	"httputil",
++	"2011-11-18",
++	httputil,
++	`Move some functions in http package into httputil package.
++
++http://codereview.appspot.com/5336049
++`,
++}
++
++var httputilFuncs = []string{
++	"DumpRequest",
++	"DumpRequestOut",
++	"DumpResponse",
++	"NewChunkedReader",
++	"NewChunkedWriter",
++	"NewClientConn",
++	"NewProxyClientConn",
++	"NewServerConn",
++	"NewSingleHostReverseProxy",
++}
++
++func httputil(f *ast.File) bool {
++	if imports(f, "net/http/httputil") {
++		return false
++	}
++
++	fixed := false
++
++	walk(f, func(n interface{}) {
++		// Rename package name.
++		if expr, ok := n.(ast.Expr); ok {
++			for _, s := range httputilFuncs {
++				if isPkgDot(expr, "http", s) {
++					if !fixed {
++						addImport(f, "net/http/httputil")
++						fixed = true
++					}
++					expr.(*ast.SelectorExpr).X.(*ast.Ident).Name = "httputil"
++				}
++			}
++		}
++	})
++
++	// Remove the net/http import if no longer needed.
++	if fixed && !usesImport(f, "net/http") {
++		deleteImport(f, "net/http")
++	}
++
++	return fixed
++}
+diff --git a/src/cmd/gofix/httputil_test.go b/src/cmd/gofix/httputil_test.go
+new file mode 100644
+index 0000000000..83e9f6dfb3
+--- /dev/null
++++ b/src/cmd/gofix/httputil_test.go
+@@ -0,0 +1,122 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(httputilTests, httputil)
++}
++
++var httputilTests = []testCase{
++	{
++		Name: "httputil.0",
++		In: `package main
++
++import "net/http"
++
++func f() {
++	http.DumpRequest(nil, false)
++	http.DumpRequestOut(nil, false)
++	http.DumpResponse(nil, false)
++	http.NewChunkedReader(nil)
++	http.NewChunkedWriter(nil)
++	http.NewClientConn(nil, nil)
++	http.NewProxyClientConn(nil, nil)
++	http.NewServerConn(nil, nil)
++	http.NewSingleHostReverseProxy(nil)
++}
++`,
++		Out: `package main
++
++import "net/http/httputil"
++
++func f() {
++	httputil.DumpRequest(nil, false)
++	httputil.DumpRequestOut(nil, false)
++	httputil.DumpResponse(nil, false)
++	httputil.NewChunkedReader(nil)
++	httputil.NewChunkedWriter(nil)
++	httputil.NewClientConn(nil, nil)
++	httputil.NewProxyClientConn(nil, nil)
++	httputil.NewServerConn(nil, nil)
++	httputil.NewSingleHostReverseProxy(nil)
++}
++`,
++	},
++	{
++		Name: "httputil.1",
++		In: `package main
++
++import "net/http"
++
++func f() {
++	http.DumpRequest(nil, false)
++	http.DumpRequestOut(nil, false)
++	http.DumpResponse(nil, false)
++	http.NewChunkedReader(nil)
++	http.NewChunkedWriter(nil)
++	http.NewClientConn(nil, nil)
++	http.NewProxyClientConn(nil, nil)
++	http.NewServerConn(nil, nil)
++	http.NewSingleHostReverseProxy(nil)
++}
++`,
++		Out: `package main
++
++import "net/http/httputil"
++
++func f() {
++	httputil.DumpRequest(nil, false)
++	httputil.DumpRequestOut(nil, false)
++	httputil.DumpResponse(nil, false)
++	httputil.NewChunkedReader(nil)
++	httputil.NewChunkedWriter(nil)
++	httputil.NewClientConn(nil, nil)
++	httputil.NewProxyClientConn(nil, nil)
++	httputil.NewServerConn(nil, nil)
++	httputil.NewSingleHostReverseProxy(nil)
++}
++`,
++	},
++	{
++		Name: "httputil.2",
++		In: `package main
++
++import "net/http"
++
++func f() {
++	http.DumpRequest(nil, false)
++	http.DumpRequestOut(nil, false)
++	http.DumpResponse(nil, false)
++	http.NewChunkedReader(nil)
++	http.NewChunkedWriter(nil)
++	http.NewClientConn(nil, nil)
++	http.NewProxyClientConn(nil, nil)
++	http.NewServerConn(nil, nil)
++	http.NewSingleHostReverseProxy(nil)
++	http.Get("")
++}
++`,
++		Out: `package main
++
++import (
++	"net/http"
++	"net/http/httputil"
++)
++
++func f() {
++	httputil.DumpRequest(nil, false)
++	httputil.DumpRequestOut(nil, false)
++	httputil.DumpResponse(nil, false)
++	httputil.NewChunkedReader(nil)
++	httputil.NewChunkedWriter(nil)
++	httputil.NewClientConn(nil, nil)
++	httputil.NewProxyClientConn(nil, nil)
++	httputil.NewServerConn(nil, nil)
++	httputil.NewSingleHostReverseProxy(nil)
++	http.Get("")
++}
++`,
++	},
++}

@@ -28,7 +28,7 @@ Date:   Tue Aug 6 20:56:56 2024 +0000
     Auto-Submit: Alan Donovan <adonovan@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/3-tools.md                                |  10 ++
  src/cmd/go/alldocs.go                              |   2 +-
  src/cmd/go/internal/test/test.go                   |   4 +-
@@ -40,3 +40,625 @@ Date:   Tue Aug 6 20:56:56 2024 +0000
  .../go/testdata/script/test_match_only_example.txt |   6 +-
  src/cmd/go/testdata/script/test_source_order.txt   |  12 +--
  10 files changed, 96 insertions(+), 80 deletions(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index b141287468..c23b204e91 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -10,3 +10,13 @@ and `void f(double)`, cgo will report an error instead of possibly generating an
+ incorrect call sequence for `f(0)`. New in this release is a better detector for
+ this error condition when the incompatible declarations appear in different
+ files. See [#67699](/issue/67699).
++
++### Vet
++
++The new `tests` analyzer reports common mistakes in declarations of
++tests, fuzzers, benchmarks, and examples in test packages, such as
++malformed names, incorrect signatures, or examples that document
++non-existent identifiers. Some of these mistakes may cause tests not
++to run.
++
++This analyzer is among the subset of analyzers that are run by `go test`.
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 648aa67d05..f86d315f5f 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1826,7 +1826,7 @@
+ // finds any problems, go test reports those and does not run the test
+ // binary. Only a high-confidence subset of the default go vet checks are
+ // used. That subset is: atomic, bool, buildtags, directive, errorsas,
+-// ifaceassert, nilfunc, printf, and stringintconv. You can see
++// ifaceassert, nilfunc, printf, stringintconv, and tests. You can see
+ // the documentation for these and other vet tests via "go doc cmd/vet".
+ // To disable the running of go vet, use the -vet=off flag. To run all
+ // checks, use the -vet=all flag.
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 76635adc7e..7d20e28ade 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -79,7 +79,7 @@ and its test source files to identify significant problems. If go vet
+ finds any problems, go test reports those and does not run the test
+ binary. Only a high-confidence subset of the default go vet checks are
+ used. That subset is: atomic, bool, buildtags, directive, errorsas,
+-ifaceassert, nilfunc, printf, and stringintconv. You can see
++ifaceassert, nilfunc, printf, stringintconv, and tests. You can see
+ the documentation for these and other vet tests via "go doc cmd/vet".
+ To disable the running of go vet, use the -vet=off flag. To run all
+ checks, use the -vet=all flag.
+@@ -668,7 +668,7 @@ var defaultVetFlags = []string{
+ 	"-slog",
+ 	"-stringintconv",
+ 	// "-structtags",
+-	// "-tests",
++	"-tests",
+ 	// "-unreachable",
+ 	// "-unsafeptr",
+ 	// "-unusedresult",
+diff --git a/src/cmd/go/testdata/script/list_test_simple.txt b/src/cmd/go/testdata/script/list_test_simple.txt
+index 954897c663..cb2d5ea30c 100644
+--- a/src/cmd/go/testdata/script/list_test_simple.txt
++++ b/src/cmd/go/testdata/script/list_test_simple.txt
+@@ -10,8 +10,8 @@ stdout BenchmarkSimple
+ 
+ # Examples
+ go test -list=Example
+-stdout ExampleSimple
+-stdout ExampleWithEmptyOutput
++stdout Example_simple
++stdout Example_withEmptyOutput
+ 
+ -- go.mod --
+ module m
+@@ -39,19 +39,19 @@ import (
+ 	"fmt"
+ )
+ 
+-func ExampleSimple() {
++func Example_simple() {
+ 	fmt.Println("Test with Output.")
+ 
+ 	// Output: Test with Output.
+ }
+ 
+-func ExampleWithEmptyOutput() {
++func Example_withEmptyOutput() {
+ 	fmt.Println("")
+ 
+ 	// Output:
+ }
+ 
+-func ExampleNoOutput() {
++func Example_noOutput() {
+ 	_ = fmt.Sprint("Test with no output")
+ }
+ -- test_test.go --
+diff --git a/src/cmd/go/testdata/script/test_bad_example.txt b/src/cmd/go/testdata/script/test_bad_example.txt
+index 1d147b663f..46bc264779 100644
+--- a/src/cmd/go/testdata/script/test_bad_example.txt
++++ b/src/cmd/go/testdata/script/test_bad_example.txt
+@@ -1,6 +1,7 @@
+ # Tests that invalid examples are ignored.
+ # Verifies golang.org/issue/35284
+-go test x_test.go
++# Disable vet, as 'tests' analyzer objects to surplus parameter.
++go test -vet=off x_test.go
+ 
+ -- x_test.go --
+ package  x
+@@ -10,4 +11,4 @@ import "fmt"
+ func ExampleThisShouldNotHaveAParameter(thisShouldntExist int) {
+ 	fmt.Println("X")
+ 	// Output:
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/test_example_goexit.txt b/src/cmd/go/testdata/script/test_example_goexit.txt
+index 984f4349f5..c924534f5a 100644
+--- a/src/cmd/go/testdata/script/test_example_goexit.txt
++++ b/src/cmd/go/testdata/script/test_example_goexit.txt
+@@ -17,13 +17,13 @@ import (
+ 	"runtime"
+ )
+ 
+-func ExamplePass() {
++func Example_pass() {
+ 	fmt.Println("pass")
+ 	// Output:
+ 	// pass
+ }
+ 
+-func ExampleGoexit() {
++func Example_goexit() {
+ 	runtime.Goexit()
+ 	// Output:
+ }
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index 37170bfb2f..bb88ead106 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -2,45 +2,48 @@
+ [short] skip
+ env GOCACHE=$WORK/cache
+ 
++# This test uses -vet=off to suppress vet, as vet's "tests" analyzer would
++# otherwise statically report the problems we are trying to observe dynamically.
++
+ # Test that running a fuzz target that returns without failing or calling
+ # f.Fuzz fails and causes a non-zero exit status.
+-! go test noop_fuzz_test.go
++! go test -vet=off noop_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test that fuzzing a fuzz target that returns without failing or calling
+ # f.Fuzz fails and causes a non-zero exit status.
+-! go test -fuzz=Fuzz -fuzztime=1x noop_fuzz_test.go
++! go test -vet=off -fuzz=Fuzz -fuzztime=1x noop_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test that calling f.Error in a fuzz target causes a non-zero exit status.
+-! go test -fuzz=Fuzz -fuzztime=1x error_fuzz_test.go
++! go test -vet=off -fuzz=Fuzz -fuzztime=1x error_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test that calling f.Fatal in a fuzz target causes a non-zero exit status.
+-! go test fatal_fuzz_test.go
++! go test -vet=off fatal_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test that successful test exits cleanly.
+-go test success_fuzz_test.go
++go test -vet=off success_fuzz_test.go
+ stdout ^ok
+ ! stdout FAIL
+ 
+ # Test that successful fuzzing exits cleanly.
+-go test -fuzz=Fuzz -fuzztime=1x success_fuzz_test.go
++go test -vet=off -fuzz=Fuzz -fuzztime=1x success_fuzz_test.go
+ stdout ok
+ ! stdout FAIL
+ 
+ # Test that calling f.Fatal while fuzzing causes a non-zero exit status.
+-! go test -fuzz=Fuzz -fuzztime=1x fatal_fuzz_test.go
++! go test -vet=off -fuzz=Fuzz -fuzztime=1x fatal_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test error with seed corpus in f.Fuzz
+-! go test -run FuzzError fuzz_add_test.go
++! go test -vet=off -run Fuzz_error -vet=off fuzz_add_test.go
+ ! stdout ^ok
+ stdout FAIL
+ stdout 'error here'
+@@ -48,44 +51,44 @@ stdout 'error here'
+ [short] stop
+ 
+ # Test that calling panic(nil) in a fuzz target causes a non-zero exit status.
+-! go test panic_fuzz_test.go
++! go test -vet=off panic_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test that skipped test exits cleanly.
+-go test skipped_fuzz_test.go
++go test -vet=off skipped_fuzz_test.go
+ stdout ok
+ ! stdout FAIL
+ 
+ # Test that f.Fatal within f.Fuzz panics
+-! go test fatal_fuzz_fn_fuzz_test.go
++! go test -vet=off fatal_fuzz_fn_fuzz_test.go
+ ! stdout ^ok
+ ! stdout 'fatal here'
+ stdout FAIL
+ stdout 'fuzz target'
+ 
+ # Test that f.Error within f.Fuzz panics
+-! go test error_fuzz_fn_fuzz_test.go
++! go test -vet=off error_fuzz_fn_fuzz_test.go
+ ! stdout ^ok
+ ! stdout 'error here'
+ stdout FAIL
+ stdout 'fuzz target'
+ 
+ # Test that f.Fail within f.Fuzz panics
+-! go test fail_fuzz_fn_fuzz_test.go
++! go test -vet=off fail_fuzz_fn_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ stdout 'fuzz target'
+ 
+ # Test that f.Skip within f.Fuzz panics
+-! go test skip_fuzz_fn_fuzz_test.go
++! go test -vet=off skip_fuzz_fn_fuzz_test.go
+ ! stdout ^ok
+ ! stdout 'skip here'
+ stdout FAIL
+ stdout 'fuzz target'
+ 
+ # Test that f.Skipped within f.Fuzz panics
+-! go test skipped_fuzz_fn_fuzz_test.go
++! go test -vet=off skipped_fuzz_fn_fuzz_test.go
+ ! stdout ^ok
+ ! stdout 'f.Skipped is'
+ stdout FAIL
+@@ -93,110 +96,110 @@ stdout 'fuzz target'
+ stdout 't.Skipped is false'
+ 
+ # Test that runtime.Goexit within the fuzz function is an error.
+-! go test goexit_fuzz_fn_fuzz_test.go
++! go test -vet=off goexit_fuzz_fn_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test that a call to f.Fatal after the Fuzz func is executed.
+-! go test fatal_after_fuzz_func_fuzz_test.go
++! go test -vet=off fatal_after_fuzz_func_fuzz_test.go
+ ! stdout ok
+ stdout FAIL
+ 
+ # Test that missing *T in f.Fuzz causes a non-zero exit status.
+-! go test incomplete_fuzz_call_fuzz_test.go
++! go test -vet=off incomplete_fuzz_call_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test that a panic in the Cleanup func is executed.
+-! go test cleanup_fuzz_test.go
++! go test -vet=off cleanup_fuzz_test.go
+ ! stdout ^ok
+ stdout FAIL
+ stdout 'failed some precondition'
+ 
+ # Test success with seed corpus in f.Fuzz
+-go test -run FuzzPass fuzz_add_test.go
++go test -vet=off -run Fuzz_pass -vet=off fuzz_add_test.go
+ stdout ok
+ ! stdout FAIL
+ ! stdout 'off by one error'
+ 
+ # Test fatal with seed corpus in f.Fuzz
+-! go test -run FuzzFatal fuzz_add_test.go
++! go test -vet=off -run Fuzz_fatal -vet=off fuzz_add_test.go
+ ! stdout ^ok
+ stdout FAIL
+ stdout 'fatal here'
+ 
+ # Test panic with seed corpus in f.Fuzz
+-! go test -run FuzzPanic fuzz_add_test.go
++! go test -vet=off -run Fuzz_panic -vet=off fuzz_add_test.go
+ ! stdout ^ok
+ stdout FAIL
+ stdout 'off by one error'
+ 
+ # Test panic(nil) with seed corpus in f.Fuzz
+-! go test -run FuzzNilPanic fuzz_add_test.go
++! go test -vet=off -run Fuzz_nilPanic -vet=off fuzz_add_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test panic with unsupported seed corpus
+-! go test -run FuzzUnsupported fuzz_add_test.go
++! go test -vet=off -run Fuzz_unsupported -vet=off fuzz_add_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test panic with different number of args to f.Add
+-! go test -run FuzzAddDifferentNumber fuzz_add_test.go
++! go test -vet=off -run Fuzz_addDifferentNumber -vet=off fuzz_add_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test panic with different type of args to f.Add
+-! go test -run FuzzAddDifferentType fuzz_add_test.go
++! go test -vet=off -run Fuzz_addDifferentType -vet=off fuzz_add_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test that the wrong type given with f.Add will fail.
+-! go test -run FuzzWrongType fuzz_add_test.go
++! go test -vet=off -run Fuzz_wrongType -vet=off fuzz_add_test.go
+ ! stdout ^ok
+ stdout '\[string int\], want \[\[\]uint8 int8\]'
+ stdout FAIL
+ 
+ # Test fatal with testdata seed corpus
+-! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
++! go test -vet=off -run Fuzz_fail corpustesting/fuzz_testdata_corpus_test.go
+ ! stdout ^ok
+ stdout FAIL
+ stdout 'fatal here'
+ 
+ # Test pass with testdata seed corpus
+-go test -run FuzzPass corpustesting/fuzz_testdata_corpus_test.go
++go test -vet=off -run Fuzz_pass corpustesting/fuzz_testdata_corpus_test.go
+ stdout ok
+ ! stdout FAIL
+ ! stdout 'fatal here'
+ 
+ # Test pass with testdata and f.Add seed corpus
+-go test -run FuzzPassString corpustesting/fuzz_testdata_corpus_test.go
++go test -vet=off -run Fuzz_passString corpustesting/fuzz_testdata_corpus_test.go
+ stdout ok
+ ! stdout FAIL
+ 
+ # Fuzzing pass with testdata and f.Add seed corpus (skip running tests first)
+-go test -run=None -fuzz=FuzzPassString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
++go test -vet=off -run=None -fuzz=Fuzz_passString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
+ stdout ok
+ ! stdout FAIL
+ 
+ # Fuzzing pass with testdata and f.Add seed corpus
+-go test -run=FuzzPassString -fuzz=FuzzPassString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
++go test -vet=off -run=Fuzz_passString -fuzz=Fuzz_passString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
+ stdout ok
+ ! stdout FAIL
+ 
+ # Test panic with malformed seed corpus
+-! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
++! go test -vet=off -run Fuzz_fail corpustesting/fuzz_testdata_corpus_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+ # Test pass with file in other nested testdata directory
+-go test -run FuzzInNestedDir corpustesting/fuzz_testdata_corpus_test.go
++go test -vet=off -run Fuzz_inNestedDir corpustesting/fuzz_testdata_corpus_test.go
+ stdout ok
+ ! stdout FAIL
+ ! stdout 'fatal here'
+ 
+ # Test fails with file containing wrong type
+-! go test -run FuzzWrongType corpustesting/fuzz_testdata_corpus_test.go
++! go test -vet=off -run Fuzz_wrongType corpustesting/fuzz_testdata_corpus_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+@@ -230,7 +233,7 @@ package panic_fuzz
+ 
+ import "testing"
+ 
+-func FuzzPanic(f *testing.F) {
++func Fuzz_panic(f *testing.F) {
+     panic(nil)
+ }
+ 
+@@ -374,7 +377,7 @@ func add(f *testing.F) {
+     f.Add([]byte(""))
+ }
+ 
+-func FuzzPass(f *testing.F) {
++func Fuzz_pass(f *testing.F) {
+     add(f)
+     f.Fuzz(func(t *testing.T, b []byte) {
+         if len(b) == -1 {
+@@ -383,7 +386,7 @@ func FuzzPass(f *testing.F) {
+     })
+ }
+ 
+-func FuzzError(f *testing.F) {
++func Fuzz_error(f *testing.F) {
+     add(f)
+     f.Fuzz(func(t *testing.T, b []byte) {
+         if len(b) == 3 {
+@@ -392,7 +395,7 @@ func FuzzError(f *testing.F) {
+     })
+ }
+ 
+-func FuzzFatal(f *testing.F) {
++func Fuzz_fatal(f *testing.F) {
+     add(f)
+     f.Fuzz(func(t *testing.T, b []byte) {
+         if len(b) == 0 {
+@@ -401,7 +404,7 @@ func FuzzFatal(f *testing.F) {
+     })
+ }
+ 
+-func FuzzPanic(f *testing.F) {
++func Fuzz_panic(f *testing.F) {
+     add(f)
+     f.Fuzz(func(t *testing.T, b []byte) {
+         if len(b) == 5 {
+@@ -410,7 +413,7 @@ func FuzzPanic(f *testing.F) {
+     })
+ }
+ 
+-func FuzzNilPanic(f *testing.F) {
++func Fuzz_nilPanic(f *testing.F) {
+     add(f)
+     f.Fuzz(func(t *testing.T, b []byte) {
+         if len(b) == 3 {
+@@ -419,25 +422,25 @@ func FuzzNilPanic(f *testing.F) {
+     })
+ }
+ 
+-func FuzzUnsupported(f *testing.F) {
++func Fuzz_unsupported(f *testing.F) {
+     m := make(map[string]bool)
+     f.Add(m)
+     f.Fuzz(func(*testing.T, []byte) {})
+ }
+ 
+-func FuzzAddDifferentNumber(f *testing.F) {
++func Fuzz_addDifferentNumber(f *testing.F) {
+     f.Add([]byte("a"))
+     f.Add([]byte("a"), []byte("b"))
+     f.Fuzz(func(*testing.T, []byte) {})
+ }
+ 
+-func FuzzAddDifferentType(f *testing.F) {
++func Fuzz_addDifferentType(f *testing.F) {
+     f.Add(false)
+     f.Add(1234)
+     f.Fuzz(func(*testing.T, []byte) {})
+ }
+ 
+-func FuzzWrongType(f *testing.F) {
++func Fuzz_wrongType(f *testing.F) {
+     f.Add("hello", 50)
+     f.Fuzz(func(*testing.T, []byte, int8) {})
+ }
+@@ -456,45 +459,45 @@ func fuzzFn(f *testing.F) {
+     })
+ }
+ 
+-func FuzzFail(f *testing.F) {
++func Fuzz_fail(f *testing.F) {
+     fuzzFn(f)
+ }
+ 
+-func FuzzPass(f *testing.F) {
++func Fuzz_pass(f *testing.F) {
+     fuzzFn(f)
+ }
+ 
+-func FuzzPassString(f *testing.F) {
++func Fuzz_passString(f *testing.F) {
+     f.Add("some seed corpus")
+     f.Fuzz(func(*testing.T, string) {})
+ }
+ 
+-func FuzzPanic(f *testing.F) {
++func Fuzz_panic(f *testing.F) {
+     f.Fuzz(func(t *testing.T, b []byte) {})
+ }
+ 
+-func FuzzInNestedDir(f *testing.F) {
++func Fuzz_inNestedDir(f *testing.F) {
+     f.Fuzz(func(t *testing.T, b []byte) {})
+ }
+ 
+-func FuzzWrongType(f *testing.F) {
++func Fuzz_wrongType(f *testing.F) {
+     f.Fuzz(func(t *testing.T, b []byte) {})
+ }
+ 
+--- corpustesting/testdata/fuzz/FuzzFail/1 --
++-- corpustesting/testdata/fuzz/Fuzz_fail/1 --
+ go test fuzz v1
+ []byte("12345")
+--- corpustesting/testdata/fuzz/FuzzPass/1 --
++-- corpustesting/testdata/fuzz/Fuzz_pass/1 --
+ go test fuzz v1
+ []byte("00000")
+--- corpustesting/testdata/fuzz/FuzzPassString/1 --
++-- corpustesting/testdata/fuzz/Fuzz_passString/1 --
+ go test fuzz v1
+ string("hello")
+--- corpustesting/testdata/fuzz/FuzzPanic/1 --
++-- corpustesting/testdata/fuzz/Fuzz_panic/1 --
+ malformed
+--- corpustesting/testdata/fuzz/FuzzInNestedDir/anotherdir/1 --
++-- corpustesting/testdata/fuzz/Fuzz_inNestedDir/anotherdir/1 --
+ go test fuzz v1
+ []byte("12345")
+--- corpustesting/testdata/fuzz/FuzzWrongType/1 --
++-- corpustesting/testdata/fuzz/Fuzz_wrongType/1 --
+ go test fuzz v1
+ int("00000")
+diff --git a/src/cmd/go/testdata/script/test_fuzz_return.txt b/src/cmd/go/testdata/script/test_fuzz_return.txt
+index 63275aad01..2f7b85bcc0 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_return.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_return.txt
+@@ -1,6 +1,8 @@
+ [short] skip
+ 
+-! go test .
++# Disable vet, as its "tests" analyzer would report the same problem statically.
++
++! go test -vet=off .
+ stdout '^panic: testing: fuzz target must not return a value \[recovered\]$'
+ 
+ -- go.mod --
+@@ -11,7 +13,7 @@ package test
+ 
+ import "testing"
+ 
+-func FuzzReturnErr(f *testing.F) {
++func Fuzz_returnErr(f *testing.F) {
+ 	f.Add("hello, validation!")
+ 	f.Fuzz(func(t *testing.T, in string) string {
+ 		return in
+diff --git a/src/cmd/go/testdata/script/test_match_only_example.txt b/src/cmd/go/testdata/script/test_match_only_example.txt
+index 515ccb39ad..e35e69c42b 100644
+--- a/src/cmd/go/testdata/script/test_match_only_example.txt
++++ b/src/cmd/go/testdata/script/test_match_only_example.txt
+@@ -10,7 +10,7 @@ stdout '^ok'
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Make sure that go test runs Example_Z before Example_A, preserving source order.
++// Make sure that go test runs Example_z before Example_a, preserving source order.
+ 
+ package p
+ 
+@@ -18,13 +18,13 @@ import "fmt"
+ 
+ var n int
+ 
+-func Example_Z() {
++func Example_z() {
+ 	n++
+ 	fmt.Println(n)
+ 	// Output: 1
+ }
+ 
+-func Example_A() {
++func Example_a() {
+ 	n++
+ 	fmt.Println(n)
+ 	// Output: 2
+diff --git a/src/cmd/go/testdata/script/test_source_order.txt b/src/cmd/go/testdata/script/test_source_order.txt
+index 2865276ff1..b636001b80 100644
+--- a/src/cmd/go/testdata/script/test_source_order.txt
++++ b/src/cmd/go/testdata/script/test_source_order.txt
+@@ -11,7 +11,7 @@ go test example1_test.go example2_test.go
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Make sure that go test runs Example_Z before Example_A, preserving source order.
++// Make sure that go test runs Example_z before Example_a, preserving source order.
+ 
+ package p
+ 
+@@ -19,13 +19,13 @@ import "fmt"
+ 
+ var n int
+ 
+-func Example_Z() {
++func Example_z() {
+ 	n++
+ 	fmt.Println(n)
+ 	// Output: 1
+ }
+ 
+-func Example_A() {
++func Example_a() {
+ 	n++
+ 	fmt.Println(n)
+ 	// Output: 2
+@@ -35,19 +35,19 @@ func Example_A() {
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Make sure that go test runs Example_Y before Example_B, preserving source order.
++// Make sure that go test runs Example_y before Example_b, preserving source order.
+ 
+ package p
+ 
+ import "fmt"
+ 
+-func Example_Y() {
++func Example_y() {
+ 	n++
+ 	fmt.Println(n)
+ 	// Output: 3
+ }
+ 
+-func Example_B() {
++func Example_b() {
+ 	n++
+ 	fmt.Println(n)
+ 	// Output: 4

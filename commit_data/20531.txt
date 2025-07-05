@@ -11,6 +11,38 @@ Date:   Tue Sep 16 15:26:00 2014 -0400
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/143160043
-
+---
  src/os/signal/signal_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index 076fe3f93b..22337a72d4 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -125,7 +125,7 @@ func TestStop(t *testing.T) {
+ 		if sig != syscall.SIGHUP || *sendUncaughtSighup == 1 {
+ 			syscall.Kill(syscall.Getpid(), sig)
+ 		}
+-		time.Sleep(10 * time.Millisecond)
++		time.Sleep(100 * time.Millisecond)
+ 
+ 		// Ask for signal
+ 		c := make(chan os.Signal, 1)
+@@ -140,7 +140,7 @@ func TestStop(t *testing.T) {
+ 		select {
+ 		case s := <-c:
+ 			t.Fatalf("unexpected signal %v", s)
+-		case <-time.After(10 * time.Millisecond):
++		case <-time.After(100 * time.Millisecond):
+ 			// nothing to read - good
+ 		}
+ 
+@@ -154,7 +154,7 @@ func TestStop(t *testing.T) {
+ 		select {
+ 		case s := <-c:
+ 			t.Fatalf("unexpected signal %v", s)
+-		case <-time.After(10 * time.Millisecond):
++		case <-time.After(100 * time.Millisecond):
+ 			// nothing to read - good
+ 		}
+ 	}

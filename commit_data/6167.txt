@@ -11,9 +11,504 @@ Date:   Fri Sep 3 18:03:08 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/2151042
-
+---
  src/pkg/image/format.go      |  49 +++++++++++-----
  src/pkg/image/image.go       |   6 ++
  src/pkg/image/jpeg/reader.go |  29 ++++++++--
  src/pkg/image/png/reader.go  | 135 +++++++++++++++++++++++++++++--------------
  4 files changed, 155 insertions(+), 64 deletions(-)
+
+diff --git a/src/pkg/image/format.go b/src/pkg/image/format.go
+index b20f02e98c..b445c19b02 100644
+--- a/src/pkg/image/format.go
++++ b/src/pkg/image/format.go
+@@ -15,8 +15,9 @@ var UnknownFormatErr = os.NewError("image: unknown format")
+ 
+ // A format holds an image format's name, magic header and how to decode it.
+ type format struct {
+-	name, magic string
+-	decode      func(io.Reader) (Image, os.Error)
++	name, magic  string
++	decode       func(io.Reader) (Image, os.Error)
++	decodeConfig func(io.Reader) (Config, os.Error)
+ }
+ 
+ // Formats is the list of registered formats.
+@@ -26,7 +27,8 @@ var formats []format
+ // Name is the name of the format, like "jpeg" or "png".
+ // Magic is the magic prefix that identifies the format's encoding.
+ // Decode is the function that decodes the encoded image.
+-func RegisterFormat(name, magic string, decode func(io.Reader) (Image, os.Error)) {
++// DecodeConfig is the function that decodes just its configuration.
++func RegisterFormat(name, magic string, decode func(io.Reader) (Image, os.Error), decodeConfig func(io.Reader) (Config, os.Error)) {
+ 	n := len(formats)
+ 	if n == cap(formats) {
+ 		x := make([]format, n+1, 2*n+4)
+@@ -35,7 +37,7 @@ func RegisterFormat(name, magic string, decode func(io.Reader) (Image, os.Error)
+ 	} else {
+ 		formats = formats[0 : n+1]
+ 	}
+-	formats[n] = format{name, magic, decode}
++	formats[n] = format{name, magic, decode, decodeConfig}
+ }
+ 
+ // A reader is an io.Reader that can also peek ahead.
+@@ -52,22 +54,41 @@ func asReader(r io.Reader) reader {
+ 	return bufio.NewReader(r)
+ }
+ 
++// sniff determines the format of r's data.
++func sniff(r reader) format {
++	for _, f := range formats {
++		s, err := r.Peek(len(f.magic))
++		if err == nil && string(s) == f.magic {
++			return f
++		}
++	}
++	return format{}
++}
++
+ // Decode decodes an image that has been encoded in a registered format.
++// The string returned is the format name used during format registration.
+ // Format registration is typically done by the init method of the codec-
+ // specific package.
+-func Decode(r io.Reader) (m Image, formatName string, err os.Error) {
+-	var f format
++func Decode(r io.Reader) (Image, string, os.Error) {
+ 	rr := asReader(r)
+-	for _, g := range formats {
+-		s, err := rr.Peek(len(g.magic))
+-		if err == nil && string(s) == g.magic {
+-			f = g
+-			break
+-		}
+-	}
++	f := sniff(rr)
+ 	if f.decode == nil {
+ 		return nil, "", UnknownFormatErr
+ 	}
+-	m, err = f.decode(rr)
++	m, err := f.decode(rr)
+ 	return m, f.name, err
+ }
++
++// DecodeConfig decodes the color model and dimensions of an image that has
++// been encoded in a registered format. The string returned is the format name
++// used during format registration. Format registration is typically done by
++// the init method of the codec-specific package.
++func DecodeConfig(r io.Reader) (Config, string, os.Error) {
++	rr := asReader(r)
++	f := sniff(rr)
++	if f.decodeConfig == nil {
++		return Config{}, "", UnknownFormatErr
++	}
++	c, err := f.decodeConfig(rr)
++	return c, f.name, err
++}
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index b5a2f0bbcb..c0e96e1f7b 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -5,6 +5,12 @@
+ // The image package implements a basic 2-D image library.
+ package image
+ 
++// A Config consists of an image's color model and dimensions.
++type Config struct {
++	ColorModel    ColorModel
++	Width, Height int
++}
++
+ // An Image is a finite rectangular grid of Colors drawn from a ColorModel.
+ type Image interface {
+ 	// ColorModel returns the Image's ColorModel.
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index 5becf295b4..fb9cb11bb7 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -147,7 +147,6 @@ func (d *decoder) processSOF(n int) os.Error {
+ 			}
+ 		}
+ 	}
+-	d.image = image.NewRGBA(d.width, d.height)
+ 	return nil
+ }
+ 
+@@ -240,7 +239,7 @@ func (d *decoder) convertMCU(mx, my, h0, v0 int) {
+ // Specified in section B.2.3.
+ func (d *decoder) processSOS(n int) os.Error {
+ 	if d.image == nil {
+-		return FormatError("missing SOF segment")
++		d.image = image.NewRGBA(d.width, d.height)
+ 	}
+ 	if n != 4+2*nComponent {
+ 		return UnsupportedError("SOS has wrong length")
+@@ -365,9 +364,8 @@ func (d *decoder) processDRI(n int) os.Error {
+ 	return nil
+ }
+ 
+-// Decode reads a JPEG formatted image from r and returns it as an image.Image.
+-func Decode(r io.Reader) (image.Image, os.Error) {
+-	var d decoder
++// decode reads a JPEG image from r and returns it as an image.Image.
++func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, os.Error) {
+ 	if rr, ok := r.(Reader); ok {
+ 		d.r = rr
+ 	} else {
+@@ -411,6 +409,9 @@ func Decode(r io.Reader) (image.Image, os.Error) {
+ 		switch {
+ 		case marker == sof0Marker: // Start Of Frame (Baseline).
+ 			err = d.processSOF(n)
++			if configOnly {
++				return nil, err
++			}
+ 		case marker == sof2Marker: // Start Of Frame (Progressive).
+ 			err = UnsupportedError("progressive mode")
+ 		case marker == dhtMarker: // Define Huffman Table.
+@@ -433,6 +434,22 @@ func Decode(r io.Reader) (image.Image, os.Error) {
+ 	return d.image, nil
+ }
+ 
++// Decode reads a JPEG image from r and returns it as an image.Image.
++func Decode(r io.Reader) (image.Image, os.Error) {
++	var d decoder
++	return d.decode(r, false)
++}
++
++// DecodeConfig returns the color model and dimensions of a JPEG image without
++// decoding the entire image.
++func DecodeConfig(r io.Reader) (image.Config, os.Error) {
++	var d decoder
++	if _, err := d.decode(r, true); err != nil {
++		return image.Config{}, err
++	}
++	return image.Config{image.RGBAColorModel, d.width, d.height}, nil
++}
++
+ func init() {
+-	image.RegisterFormat("jpeg", "\xff\xd8", Decode)
++	image.RegisterFormat("jpeg", "\xff\xd8", Decode, DecodeConfig)
+ }
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index ef2370b8f9..e2d679bb42 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -28,7 +28,8 @@ const (
+ 
+ // A cb is a combination of color type and bit depth.
+ const (
+-	cbG8 = iota
++	cbInvalid = iota
++	cbG8
+ 	cbTC8
+ 	cbP8
+ 	cbTCA8
+@@ -62,20 +63,25 @@ const (
+ 
+ const pngHeader = "\x89PNG\r\n\x1a\n"
+ 
++type imgOrErr struct {
++	img image.Image
++	err os.Error
++}
++
+ type decoder struct {
+ 	width, height int
+-	image         image.Image
++	palette       image.PalettedColorModel
+ 	cb            int
+ 	stage         int
+ 	idatWriter    io.WriteCloser
+-	idatDone      chan os.Error
++	idatDone      chan imgOrErr
+ 	tmp           [3 * 256]byte
+ }
+ 
+ // A FormatError reports that the input is not a valid PNG.
+ type FormatError string
+ 
+-func (e FormatError) String() string { return "invalid PNG format: " + string(e) }
++func (e FormatError) String() string { return "png: invalid format: " + string(e) }
+ 
+ var chunkOrderError = FormatError("chunk out of order")
+ 
+@@ -84,12 +90,12 @@ type IDATDecodingError struct {
+ 	Err os.Error
+ }
+ 
+-func (e IDATDecodingError) String() string { return "IDAT decoding error: " + e.Err.String() }
++func (e IDATDecodingError) String() string { return "png: IDAT decoding error: " + e.Err.String() }
+ 
+ // An UnsupportedError reports that the input uses a valid but unimplemented PNG feature.
+ type UnsupportedError string
+ 
+-func (e UnsupportedError) String() string { return "unsupported PNG feature: " + string(e) }
++func (e UnsupportedError) String() string { return "png: unsupported feature: " + string(e) }
+ 
+ // Big-endian.
+ func parseUint32(b []uint8) uint32 {
+@@ -131,36 +137,30 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	if nPixels != int64(int(nPixels)) {
+ 		return UnsupportedError("dimension overflow")
+ 	}
++	d.cb = cbInvalid
+ 	switch d.tmp[8] {
+ 	case 8:
+ 		switch d.tmp[9] {
+ 		case ctGrayscale:
+-			d.image = image.NewGray(int(w), int(h))
+ 			d.cb = cbG8
+ 		case ctTrueColor:
+-			d.image = image.NewRGBA(int(w), int(h))
+ 			d.cb = cbTC8
+ 		case ctPaletted:
+-			d.image = image.NewPaletted(int(w), int(h), nil)
+ 			d.cb = cbP8
+ 		case ctTrueColorAlpha:
+-			d.image = image.NewNRGBA(int(w), int(h))
+ 			d.cb = cbTCA8
+ 		}
+ 	case 16:
+ 		switch d.tmp[9] {
+ 		case ctGrayscale:
+-			d.image = image.NewGray16(int(w), int(h))
+ 			d.cb = cbG16
+ 		case ctTrueColor:
+-			d.image = image.NewRGBA64(int(w), int(h))
+ 			d.cb = cbTC16
+ 		case ctTrueColorAlpha:
+-			d.image = image.NewNRGBA64(int(w), int(h))
+ 			d.cb = cbTCA16
+ 		}
+ 	}
+-	if d.image == nil {
++	if d.cb == cbInvalid {
+ 		return UnsupportedError(fmt.Sprintf("bit depth %d, color type %d", d.tmp[8], d.tmp[9]))
+ 	}
+ 	d.width, d.height = int(w), int(h)
+@@ -179,11 +179,10 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	crc.Write(d.tmp[0:n])
+ 	switch d.cb {
+ 	case cbP8:
+-		palette := make([]image.Color, np)
++		d.palette = image.PalettedColorModel(make([]image.Color, np))
+ 		for i := 0; i < np; i++ {
+-			palette[i] = image.RGBAColor{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
++			d.palette[i] = image.RGBAColor{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
+ 		}
+-		d.image.(*image.Paletted).Palette = image.PalettedColorModel(palette)
+ 	case cbTC8, cbTCA8, cbTC16, cbTCA16:
+ 		// As per the PNG spec, a PLTE chunk is optional (and for practical purposes,
+ 		// ignorable) for the ctTrueColor and ctTrueColorAlpha color types (section 4.1.2).
+@@ -208,13 +207,12 @@ func (d *decoder) parsetRNS(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	case cbTC8, cbTC16:
+ 		return UnsupportedError("truecolor transparency")
+ 	case cbP8:
+-		p := d.image.(*image.Paletted).Palette
+-		if n > len(p) {
++		if n > len(d.palette) {
+ 			return FormatError("bad tRNS length")
+ 		}
+ 		for i := 0; i < n; i++ {
+-			rgba := p[i].(image.RGBAColor)
+-			p[i] = image.RGBAColor{rgba.R, rgba.G, rgba.B, d.tmp[i]}
++			rgba := d.palette[i].(image.RGBAColor)
++			d.palette[i] = image.RGBAColor{rgba.R, rgba.G, rgba.B, d.tmp[i]}
+ 		}
+ 	case cbTCA8, cbTCA16:
+ 		return FormatError("tRNS, color type mismatch")
+@@ -236,10 +234,10 @@ func paeth(a, b, c uint8) uint8 {
+ 	return c
+ }
+ 
+-func (d *decoder) idatReader(idat io.Reader) os.Error {
++func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
+ 	r, err := zlib.NewReader(idat)
+ 	if err != nil {
+-		return err
++		return nil, err
+ 	}
+ 	defer r.Close()
+ 	bpp := 0 // Bytes per pixel.
+@@ -252,30 +250,38 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 		gray16   *image.Gray16
+ 		rgba64   *image.RGBA64
+ 		nrgba64  *image.NRGBA64
++		img      image.Image
+ 	)
+ 	switch d.cb {
+ 	case cbG8:
+ 		bpp = 1
+-		gray = d.image.(*image.Gray)
++		gray = image.NewGray(d.width, d.height)
++		img = gray
+ 	case cbTC8:
+ 		bpp = 3
+-		rgba = d.image.(*image.RGBA)
++		rgba = image.NewRGBA(d.width, d.height)
++		img = rgba
+ 	case cbP8:
+ 		bpp = 1
+-		paletted = d.image.(*image.Paletted)
+-		maxPalette = uint8(len(paletted.Palette) - 1)
++		paletted = image.NewPaletted(d.width, d.height, d.palette)
++		img = paletted
++		maxPalette = uint8(len(d.palette) - 1)
+ 	case cbTCA8:
+ 		bpp = 4
+-		nrgba = d.image.(*image.NRGBA)
++		nrgba = image.NewNRGBA(d.width, d.height)
++		img = nrgba
+ 	case cbG16:
+ 		bpp = 2
+-		gray16 = d.image.(*image.Gray16)
++		gray16 = image.NewGray16(d.width, d.height)
++		img = gray16
+ 	case cbTC16:
+ 		bpp = 6
+-		rgba64 = d.image.(*image.RGBA64)
++		rgba64 = image.NewRGBA64(d.width, d.height)
++		img = rgba64
+ 	case cbTCA16:
+ 		bpp = 8
+-		nrgba64 = d.image.(*image.NRGBA64)
++		nrgba64 = image.NewNRGBA64(d.width, d.height)
++		img = nrgba64
+ 	}
+ 	// cr and pr are the bytes for the current and previous row.
+ 	// The +1 is for the per-row filter type, which is at cr[0].
+@@ -286,7 +292,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 		// Read the decompressed bytes.
+ 		_, err := io.ReadFull(r, cr)
+ 		if err != nil {
+-			return err
++			return nil, err
+ 		}
+ 
+ 		// Apply the filter.
+@@ -318,7 +324,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 				cdat[i] += paeth(cdat[i-bpp], pdat[i], pdat[i-bpp])
+ 			}
+ 		default:
+-			return FormatError("bad filter type")
++			return nil, FormatError("bad filter type")
+ 		}
+ 
+ 		// Convert from bytes to colors.
+@@ -334,7 +340,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 		case cbP8:
+ 			for x := 0; x < d.width; x++ {
+ 				if cdat[x] > maxPalette {
+-					return FormatError("palette index out of range")
++					return nil, FormatError("palette index out of range")
+ 				}
+ 				paletted.SetColorIndex(x, y, cdat[x])
+ 			}
+@@ -367,7 +373,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 		// The current row for y is the previous row for y+1.
+ 		pr, cr = cr, pr
+ 	}
+-	return nil
++	return img, nil
+ }
+ 
+ func (d *decoder) parseIDAT(r io.Reader, crc hash.Hash32, length uint32) os.Error {
+@@ -379,14 +385,14 @@ func (d *decoder) parseIDAT(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	if d.idatWriter == nil {
+ 		pr, pw := io.Pipe()
+ 		d.idatWriter = pw
+-		d.idatDone = make(chan os.Error)
++		d.idatDone = make(chan imgOrErr)
+ 		go func() {
+-			err := d.idatReader(pr)
++			img, err := d.idatReader(pr)
+ 			if err == os.EOF {
+ 				err = FormatError("too little IDAT")
+ 			}
+ 			pr.CloseWithError(FormatError("too much IDAT"))
+-			d.idatDone <- err
++			d.idatDone <- imgOrErr{img, err}
+ 		}()
+ 	}
+ 	var buf [4096]byte
+@@ -509,7 +515,7 @@ func (d *decoder) checkHeader(r io.Reader) os.Error {
+ 	return nil
+ }
+ 
+-// Decode reads a PNG formatted image from r and returns it as an image.Image.
++// Decode reads a PNG image from r and returns it as an image.Image.
+ // The type of Image returned depends on the PNG contents.
+ func Decode(r io.Reader) (image.Image, os.Error) {
+ 	var d decoder
+@@ -517,25 +523,66 @@ func Decode(r io.Reader) (image.Image, os.Error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	for d.stage = dsStart; d.stage != dsSeenIEND; {
++	for d.stage != dsSeenIEND {
+ 		err = d.parseChunk(r)
+ 		if err != nil {
+ 			break
+ 		}
+ 	}
++	var img image.Image
+ 	if d.idatWriter != nil {
+ 		d.idatWriter.Close()
+-		err1 := <-d.idatDone
++		ie := <-d.idatDone
+ 		if err == nil {
+-			err = err1
++			img, err = ie.img, ie.err
+ 		}
+ 	}
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return d.image, nil
++	return img, nil
++}
++
++// DecodeConfig returns the color model and dimensions of a PNG image without
++// decoding the entire image.
++func DecodeConfig(r io.Reader) (image.Config, os.Error) {
++	var d decoder
++	err := d.checkHeader(r)
++	if err != nil {
++		return image.Config{}, err
++	}
++	for {
++		err = d.parseChunk(r)
++		if err != nil {
++			return image.Config{}, err
++		}
++		if d.stage == dsSeenIHDR && d.cb != cbP8 {
++			break
++		}
++		if d.stage == dsSeenPLTE && d.cb == cbP8 {
++			break
++		}
++	}
++	var cm image.ColorModel
++	switch d.cb {
++	case cbG8:
++		cm = image.GrayColorModel
++	case cbTC8:
++		cm = image.RGBAColorModel
++	case cbP8:
++		cm = d.palette
++	case cbTCA8:
++		cm = image.NRGBAColorModel
++	case cbG16:
++		cm = image.Gray16ColorModel
++	case cbTC16:
++		cm = image.RGBA64ColorModel
++	case cbTCA16:
++		cm = image.NRGBA64ColorModel
++	}
++	return image.Config{cm, d.width, d.height}, nil
+ }
+ 
+ func init() {
+-	image.RegisterFormat("png", pngHeader, Decode)
++	image.RegisterFormat("png", pngHeader, Decode, DecodeConfig)
+ }

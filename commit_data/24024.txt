@@ -9,6 +9,20 @@ Date:   Mon Jun 29 13:58:18 2015 -0400
     Change-Id: Ib35e4a69a1082e461a1eddf3265544a1d2ff98e5
     Reviewed-on: https://go-review.googlesource.com/11710
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/go_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b3cb4e44f2..f8d784545d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -984,6 +984,8 @@ func TestImportCommentConflict(t *testing.T) {
+ 
+ // cmd/go: custom import path checking should not apply to github.com/xxx/yyy.
+ func TestIssue10952(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
+ 	if _, err := exec.LookPath("git"); err != nil {
+ 		t.Skip("skipping because git binary not found")
+ 	}

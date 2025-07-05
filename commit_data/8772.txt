@@ -7,7 +7,7 @@ Date:   Fri Jun 17 16:12:14 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4640045
-
+---
  src/cmd/gc/builtin.c.boot                 |  6 +++---
  src/cmd/gc/unsafe.c                       |  2 +-
  src/cmd/gc/unsafe.go                      |  8 +++++---
@@ -33,3 +33,429 @@ Date:   Fri Jun 17 16:12:14 2011 -0400
  src/pkg/syscall/zsyscall_linux_arm.go     |  2 +-
  test/sizeof.go                            | 23 +++++++++++++++++++++++
  24 files changed, 66 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 7659ac5bb3..95098c8afa 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -103,9 +103,9 @@ char *unsafeimport =
+ 	"package unsafe\n"
+ 	"import runtime \"runtime\"\n"
+ 	"type \"\".Pointer uintptr\n"
+-	"func \"\".Offsetof (? any) int\n"
+-	"func \"\".Sizeof (? any) int\n"
+-	"func \"\".Alignof (? any) int\n"
++	"func \"\".Offsetof (? any) uintptr\n"
++	"func \"\".Sizeof (? any) uintptr\n"
++	"func \"\".Alignof (? any) uintptr\n"
+ 	"func \"\".Typeof (i interface { }) interface { }\n"
+ 	"func \"\".Reflect (i interface { }) (typ interface { }, addr \"\".Pointer)\n"
+ 	"func \"\".Unreflect (typ interface { }, addr \"\".Pointer) interface { }\n"
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index 540994dddb..d304077c8e 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -92,6 +92,6 @@ ret:
+ 	mpmovecfix(val.u.xval, v);
+ 	n = nod(OLITERAL, N, N);
+ 	n->val = val;
+-	n->type = types[TINT];
++	n->type = types[TUINTPTR];
+ 	return n;
+ }
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+index b2a341d391..db27d7425f 100644
+--- a/src/cmd/gc/unsafe.go
++++ b/src/cmd/gc/unsafe.go
+@@ -10,9 +10,11 @@ package PACKAGE
+ 
+ type Pointer uintptr // not really; filled in by compiler
+ 
+-func Offsetof(any) int
+-func Sizeof(any) int
+-func Alignof(any) int
++// return types here are ignored; see unsafe.c
++func Offsetof(any) uintptr
++func Sizeof(any) uintptr
++func Alignof(any) uintptr
++
+ func Typeof(i interface{}) (typ interface{})
+ func Reflect(i interface{}) (typ interface{}, addr Pointer)
+ func Unreflect(typ interface{}, addr Pointer) (ret interface{})
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 381d44c05a..f56d72a6a6 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -367,7 +367,7 @@ func decComplex64(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 		p = *(*unsafe.Pointer)(p)
+ 	}
+ 	storeFloat32(i, state, p)
+-	storeFloat32(i, state, unsafe.Pointer(uintptr(p)+uintptr(unsafe.Sizeof(float32(0)))))
++	storeFloat32(i, state, unsafe.Pointer(uintptr(p)+unsafe.Sizeof(float32(0))))
+ }
+ 
+ // decComplex128 decodes a pair of unsigned integers, treats them as a
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index f9e691a2fa..743e853e94 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -11,7 +11,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-const uint64Size = unsafe.Sizeof(uint64(0))
++const uint64Size = int(unsafe.Sizeof(uint64(0)))
+ 
+ // encoderState is the global execution state of an instance of the encoder.
+ // Field numbers are delta encoded and always increase. The field
+diff --git a/src/pkg/hash/fnv/fnv.go b/src/pkg/hash/fnv/fnv.go
+index 9a1c6a0f2d..3ff7d7c75d 100644
+--- a/src/pkg/hash/fnv/fnv.go
++++ b/src/pkg/hash/fnv/fnv.go
+@@ -11,7 +11,6 @@ import (
+ 	"encoding/binary"
+ 	"hash"
+ 	"os"
+-	"unsafe"
+ )
+ 
+ type (
+@@ -102,31 +101,31 @@ func (s *sum64a) Write(data []byte) (int, os.Error) {
+ 	return len(data), nil
+ }
+ 
+-func (s *sum32) Size() int  { return unsafe.Sizeof(*s) }
+-func (s *sum32a) Size() int { return unsafe.Sizeof(*s) }
+-func (s *sum64) Size() int  { return unsafe.Sizeof(*s) }
+-func (s *sum64a) Size() int { return unsafe.Sizeof(*s) }
++func (s *sum32) Size() int  { return 4 }
++func (s *sum32a) Size() int { return 4 }
++func (s *sum64) Size() int  { return 8 }
++func (s *sum64a) Size() int { return 8 }
+ 
+ func (s *sum32) Sum() []byte {
+-	a := make([]byte, unsafe.Sizeof(*s))
++	a := make([]byte, 4)
+ 	binary.BigEndian.PutUint32(a, uint32(*s))
+ 	return a
+ }
+ 
+ func (s *sum32a) Sum() []byte {
+-	a := make([]byte, unsafe.Sizeof(*s))
++	a := make([]byte, 4)
+ 	binary.BigEndian.PutUint32(a, uint32(*s))
+ 	return a
+ }
+ 
+ func (s *sum64) Sum() []byte {
+-	a := make([]byte, unsafe.Sizeof(*s))
++	a := make([]byte, 8)
+ 	binary.BigEndian.PutUint64(a, uint64(*s))
+ 	return a
+ }
+ 
+ func (s *sum64a) Sum() []byte {
+-	a := make([]byte, unsafe.Sizeof(*s))
++	a := make([]byte, 8)
+ 	binary.BigEndian.PutUint64(a, uint64(*s))
+ 	return a
+ }
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index aef6370dbc..6c1ab60982 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -827,7 +827,7 @@ func (t *commonType) runtimeType() *runtime.Type {
+ 		i  runtime.Type
+ 		ct commonType
+ 	}
+-	return (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(t)) - uintptr(unsafe.Offsetof(rt.ct))))
++	return (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(t)) - unsafe.Offsetof(rt.ct)))
+ }
+ 
+ // PtrTo returns the pointer type with element t.
+@@ -888,7 +888,7 @@ func PtrTo(t Type) Type {
+ 
+ 	p.uncommonType = nil
+ 	p.ptrToThis = nil
+-	p.elem = (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - uintptr(unsafe.Offsetof(rt.ptrType))))
++	p.elem = (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - unsafe.Offsetof(rt.ptrType)))
+ 
+ 	ptrMap.m[ct] = p
+ 	ptrMap.Unlock()
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 3abe13e04d..b1999aa634 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -11,7 +11,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-const ptrSize = uintptr(unsafe.Sizeof((*byte)(nil)))
++const ptrSize = unsafe.Sizeof((*byte)(nil))
+ const cannotSet = "cannot set value obtained from unexported struct field"
+ 
+ // TODO: This will have to go away when
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index c55be97729..49ab24df86 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -229,7 +229,7 @@ runtime·allocmcache(void)
+ 	return c;
+ }
+ 
+-int32 runtime·sizeof_C_MStats = sizeof(MStats);
++uintptr runtime·sizeof_C_MStats = sizeof(MStats);
+ 
+ #define MaxArena32 (2U<<30)
+ 
+diff --git a/src/pkg/runtime/mem.go b/src/pkg/runtime/mem.go
+index fe505a3292..c3316d44c0 100644
+--- a/src/pkg/runtime/mem.go
++++ b/src/pkg/runtime/mem.go
+@@ -52,7 +52,7 @@ type MemStatsType struct {
+ 	}
+ }
+ 
+-var sizeof_C_MStats int // filled in by malloc.goc
++var sizeof_C_MStats uintptr // filled in by malloc.goc
+ 
+ func init() {
+ 	if sizeof_C_MStats != unsafe.Sizeof(MemStats) {
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index a060917a28..4486d5525f 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -43,7 +43,7 @@ func TestCPUProfile(t *testing.T) {
+ 	// Convert []byte to []uintptr.
+ 	bytes := prof.Bytes()
+ 	val := *(*[]uintptr)(unsafe.Pointer(&bytes))
+-	val = val[:len(bytes)/unsafe.Sizeof(uintptr(0))]
++	val = val[:len(bytes)/int(unsafe.Sizeof(uintptr(0)))]
+ 
+ 	if len(val) < 10 {
+ 		t.Fatalf("profile too short: %#x", val)
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index a6ac3983df..4b3cfe47fc 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -249,7 +249,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ childerror:
+ 	// send error code on pipe
+-	RawSyscall(SYS_WRITE, uintptr(pipe), uintptr(unsafe.Pointer(&err1)), uintptr(unsafe.Sizeof(err1)))
++	RawSyscall(SYS_WRITE, uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
+ 	for {
+ 		RawSyscall(SYS_EXIT, 253, 0, 0)
+ 	}
+@@ -343,10 +343,10 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
+ 
+ 	// Read child error status from pipe.
+ 	Close(p[1])
+-	n, err = read(p[0], (*byte)(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
++	n, err = read(p[0], (*byte)(unsafe.Pointer(&err1)), int(unsafe.Sizeof(err1)))
+ 	Close(p[0])
+ 	if err != 0 || n != 0 {
+-		if n == unsafe.Sizeof(err1) {
++		if n == int(unsafe.Sizeof(err1)) {
+ 			err = int(err1)
+ 		}
+ 		if err == 0 {
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 89bcc7f0e3..321d9d36bb 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -155,7 +155,7 @@ func Sleep(ns int64) (errno int) {
+ //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
+ //sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errno int)
+-//sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
++//sys	setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int)
+ //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	Shutdown(s int, how int) (errno int)
+@@ -451,7 +451,7 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno
+ 
+ // Translate "kern.hostname" to []_C_int{0,1,2,3}.
+ func nametomib(name string) (mib []_C_int, errno int) {
+-	const siz = uintptr(unsafe.Sizeof(mib[0]))
++	const siz = unsafe.Sizeof(mib[0])
+ 
+ 	// NOTE(rsc): It seems strange to set the buffer to have
+ 	// size CTL_MAXNAME+2 but use only CTL_MAXNAME
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 63682d23c4..3b8f36da63 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -472,7 +472,7 @@ func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (errno int) {
+ }
+ 
+ func SetsockoptString(fd, level, opt int, s string) (errno int) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), len(s))
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
+ }
+ 
+ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 5195179a2c..44891de873 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -146,8 +146,8 @@ func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errn
+ 	return
+ }
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
+-	_, errno = socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
++func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int) {
++	_, errno = socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), val, vallen, 0)
+ 	return
+ }
+ 
+@@ -190,13 +190,13 @@ func Shutdown(s, how int) (errno int) {
+ }
+ 
+ func Fstatfs(fd int, buf *Statfs_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)))
++	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Statfs(path string, buf *Statfs_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)))
++	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
+ 	errno = int(e1)
+ 	return
+ }
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index db95246682..8b206ad0a3 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -42,7 +42,7 @@ package syscall
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, errno int)
+ //sysnb	setgroups(n int, list *_Gid_t) (errno int)
+ //sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errno int)
+-//sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
++//sys	setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
+ //sysnb	socketpair(domain int, typ int, proto int, fd *[2]int) (errno int)
+ //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 37845301ff..8c03c765c1 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -71,7 +71,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
+ //sysnb	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+ //sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errno int)
+-//sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
++//sys	setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
+ //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 13a8ed0f67..bbaceee196 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -85,7 +85,7 @@ func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errn
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
++func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index c671d7150e..ee39eadc11 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -85,7 +85,7 @@ func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errn
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
++func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 0ffb9a4b9f..4f7fdefba1 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -85,7 +85,7 @@ func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errn
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
++func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index 38a06ae3b0..609ecdd2a9 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -85,7 +85,7 @@ func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errn
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
++func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index d6e287967b..fa20ff57ab 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -1169,7 +1169,7 @@ func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errn
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
++func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index af5f7c50cf..560a65b12c 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -895,7 +895,7 @@ func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errn
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
++func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	errno = int(e1)
+ 	return
+diff --git a/test/sizeof.go b/test/sizeof.go
+new file mode 100644
+index 0000000000..544e4c52c1
+--- /dev/null
++++ b/test/sizeof.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++type T struct {
++	X int
++}
++
++var t T
++
++func isUintptr(uintptr) {}
++
++func main() {
++	isUintptr(unsafe.Sizeof(t))
++	isUintptr(unsafe.Alignof(t))
++	isUintptr(unsafe.Offsetof(t.X))
++}

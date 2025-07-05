@@ -12,6 +12,64 @@ Date:   Fri Feb 28 22:25:39 2020 -0800
     Change-Id: I27d9c32032eac4e78581205892e4f26947c91bd9
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221600
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/cmd/compile/internal/syntax/parser_test.go | 25 ++++++++++++++++++++++---
  1 file changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 673339d667..81945faee9 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"io/ioutil"
+ 	"path/filepath"
++	"regexp"
+ 	"runtime"
+ 	"strings"
+ 	"sync"
+@@ -17,9 +18,12 @@ import (
+ 	"time"
+ )
+ 
+-var fast = flag.Bool("fast", false, "parse package files in parallel")
+-var src_ = flag.String("src", "parser.go", "source file to parse")
+-var verify = flag.Bool("verify", false, "verify idempotent printing")
++var (
++	fast   = flag.Bool("fast", false, "parse package files in parallel")
++	verify = flag.Bool("verify", false, "verify idempotent printing")
++	src_   = flag.String("src", "parser.go", "source file to parse")
++	skip   = flag.String("skip", "", "files matching this regular expression are skipped by TestStdLib")
++)
+ 
+ func TestParse(t *testing.T) {
+ 	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
+@@ -30,6 +34,15 @@ func TestStdLib(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
++	var skipRx *regexp.Regexp
++	if *skip != "" {
++		var err error
++		skipRx, err = regexp.Compile(*skip)
++		if err != nil {
++			t.Fatalf("invalid argument for -skip (%v)", err)
++		}
++	}
++
+ 	var m1 runtime.MemStats
+ 	runtime.ReadMemStats(&m1)
+ 	start := time.Now()
+@@ -46,6 +59,12 @@ func TestStdLib(t *testing.T) {
+ 			runtime.GOROOT(),
+ 		} {
+ 			walkDirs(t, dir, func(filename string) {
++				if skipRx != nil && skipRx.MatchString(filename) {
++					// Always report skipped files since regexp
++					// typos can lead to surprising results.
++					fmt.Printf("skipping %s\n", filename)
++					return
++				}
+ 				if debug {
+ 					fmt.Printf("parsing %s\n", filename)
+ 				}

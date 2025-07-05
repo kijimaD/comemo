@@ -16,6 +16,23 @@ Date:   Thu Mar 4 21:09:17 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_install_pkg_version.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index e27ebc5cc5..6ed600ff71 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -59,9 +59,9 @@ rm $GOPATH/bin
+ env GO111MODULE=on
+ go mod download rsc.io/fortune@v1.0.0
+ ! go install $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
+-stderr '^go: cannot find main module; see ''go help modules''$'
++stderr '^go: go\.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ ! go install ../pkg/mod/rsc.io/fortune@v1.0.0
+-stderr '^go: cannot find main module; see ''go help modules''$'
++stderr '^go: go\.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ mkdir tmp
+ cd tmp
+ go mod init tmp

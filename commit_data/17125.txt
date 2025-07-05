@@ -7,6 +7,19 @@ Date:   Fri Aug 9 08:56:15 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12578044
-
+---
  misc/emacs/go-mode.el | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 8e613d6d26..a72fd911cb 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -998,6 +998,7 @@ coverage information gathered via go test -coverprofile=INPUT."
+                           (get-buffer gocov-buffer-name)
+                           (clone-indirect-buffer gocov-buffer-name nil))
+       (save-excursion
++        (remove-overlays)
+         (overlay-put
+          (make-overlay
+           (point-min)

@@ -12,9 +12,141 @@ Date:   Mon Aug 22 22:29:24 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go  | 16 ++++++++--------
  src/cmd/link/internal/ld/go.go   |  8 ++++----
  src/cmd/link/internal/ld/lib.go  |  1 +
  src/cmd/link/internal/ld/main.go | 29 ++++++++++++++---------------
  4 files changed, 27 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 9ba2374e75..4ac53eaf50 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2205,29 +2205,29 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		sh.type_ = SHT_PROGBITS
+ 		sh.flags = SHF_ALLOC
+ 		sh.addralign = 1
+-		if *flagInterpreter == "" {
++		if interpreter == "" {
+ 			switch HEADTYPE {
+ 			case obj.Hlinux:
+-				*flagInterpreter = Thearch.Linuxdynld
++				interpreter = Thearch.Linuxdynld
+ 
+ 			case obj.Hfreebsd:
+-				*flagInterpreter = Thearch.Freebsddynld
++				interpreter = Thearch.Freebsddynld
+ 
+ 			case obj.Hnetbsd:
+-				*flagInterpreter = Thearch.Netbsddynld
++				interpreter = Thearch.Netbsddynld
+ 
+ 			case obj.Hopenbsd:
+-				*flagInterpreter = Thearch.Openbsddynld
++				interpreter = Thearch.Openbsddynld
+ 
+ 			case obj.Hdragonfly:
+-				*flagInterpreter = Thearch.Dragonflydynld
++				interpreter = Thearch.Dragonflydynld
+ 
+ 			case obj.Hsolaris:
+-				*flagInterpreter = Thearch.Solarisdynld
++				interpreter = Thearch.Solarisdynld
+ 			}
+ 		}
+ 
+-		resoff -= int64(elfinterp(sh, uint64(startva), uint64(resoff), *flagInterpreter))
++		resoff -= int64(elfinterp(sh, uint64(startva), uint64(resoff), interpreter))
+ 
+ 		ph := newElfPhdr(ctxt)
+ 		ph.type_ = PT_INTERP
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index b89843779b..ffae53eda3 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -267,14 +267,14 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				goto err
+ 			}
+ 
+-			if !flagInterpreterSet {
+-				if *flagInterpreter != "" && *flagInterpreter != f[1] {
+-					fmt.Fprintf(os.Stderr, "%s: conflict dynlinker: %s and %s\n", os.Args[0], *flagInterpreter, f[1])
++			if *flagInterpreter == "" {
++				if interpreter != "" && interpreter != f[1] {
++					fmt.Fprintf(os.Stderr, "%s: conflict dynlinker: %s and %s\n", os.Args[0], interpreter, f[1])
+ 					nerrors++
+ 					return
+ 				}
+ 
+-				*flagInterpreter = f[1]
++				interpreter = f[1]
+ 			}
+ 
+ 			continue
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 4acb34006e..e0dd87819a 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -179,6 +179,7 @@ var (
+ 	Funcalign       int
+ 	iscgo           bool
+ 	elfglobalsymndx int
++	interpreter     string
+ 
+ 	debug_s  bool // backup old value of debug['s']
+ 	HEADR    int32
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 280648a06f..349542bde1 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -73,20 +73,18 @@ var (
+ 	flagExtldflags = flag.String("extldflags", "", "pass `flags` to external linker")
+ 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
+ 
+-	flagA = flag.Bool("a", false, "disassemble output")
+-	FlagC = flag.Bool("c", false, "dump call graph")
+-	FlagD = flag.Bool("d", false, "disable dynamic executable")
+-	flagF = flag.Bool("f", false, "ignore version mismatch")
+-	flagG = flag.Bool("g", false, "disable go package data checks")
+-	flagH = flag.Bool("h", false, "halt on error")
+-	flagN = flag.Bool("n", false, "dump symbol table")
+-	FlagS = flag.Bool("s", false, "disable symbol table")
+-	flagU = flag.Bool("u", false, "reject unsafe packages")
+-	FlagW = flag.Bool("w", false, "disable DWARF generation")
+-	Flag8 bool // use 64-bit addresses in symbol table
+-
+-	flagInterpreter    = flag.String("I", "", "use `linker` as ELF dynamic linker")
+-	flagInterpreterSet bool
++	flagA           = flag.Bool("a", false, "disassemble output")
++	FlagC           = flag.Bool("c", false, "dump call graph")
++	FlagD           = flag.Bool("d", false, "disable dynamic executable")
++	flagF           = flag.Bool("f", false, "ignore version mismatch")
++	flagG           = flag.Bool("g", false, "disable go package data checks")
++	flagH           = flag.Bool("h", false, "halt on error")
++	flagN           = flag.Bool("n", false, "dump symbol table")
++	FlagS           = flag.Bool("s", false, "disable symbol table")
++	flagU           = flag.Bool("u", false, "reject unsafe packages")
++	FlagW           = flag.Bool("w", false, "disable DWARF generation")
++	Flag8           bool // use 64-bit addresses in symbol table
++	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 
+ 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
+@@ -133,7 +131,6 @@ func Main() {
+ 	}
+ 
+ 	obj.Flagparse(usage)
+-	flagInterpreterSet = *flagInterpreter != ""
+ 
+ 	startProfile()
+ 	ctxt.Bso = ctxt.Bso
+@@ -159,6 +156,8 @@ func Main() {
+ 		}
+ 	}
+ 
++	interpreter = *flagInterpreter
++
+ 	libinit(ctxt) // creates outfile
+ 
+ 	if HEADTYPE == -1 {

@@ -21,7 +21,7 @@ Date:   Tue Mar 26 20:21:21 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/import.go                   | 17 ++++++++++++++++-
  src/cmd/go/internal/modload/load.go                     |  3 +++
  .../go/testdata/mod/example.com_missingpkg_v1.0.0.txt   | 11 +++++++++++
@@ -29,3 +29,121 @@ Date:   Tue Mar 26 20:21:21 2019 -0400
  .../testdata/mod/example.com_usemissingpre_v1.0.0.txt   | 13 +++++++++++++
  .../go/testdata/script/mod_missingpkg_prerelease.txt    | 12 ++++++++++++
  6 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 83ef0e0b4f..305e0ddb75 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -28,6 +28,10 @@ import (
+ type ImportMissingError struct {
+ 	ImportPath string
+ 	Module     module.Version
++
++	// newMissingVersion is set to a newer version of Module if one is present
++	// in the build list. When set, we can't automatically upgrade.
++	newMissingVersion string
+ }
+ 
+ func (e *ImportMissingError) Error() string {
+@@ -189,7 +193,18 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		}
+ 		return module.Version{}, "", &ImportMissingError{ImportPath: path}
+ 	}
+-	return m, "", &ImportMissingError{ImportPath: path, Module: m}
++	newMissingVersion := ""
++	for _, bm := range buildList {
++		if bm.Path == m.Path && semver.Compare(bm.Version, m.Version) > 0 {
++			// This typically happens when a package is present at the "@latest"
++			// version (e.g., v1.0.0) of a module, but we have a newer version
++			// of the same module in the build list (e.g., v1.0.1-beta), and
++			// the package is not present there.
++			newMissingVersion = bm.Version
++			break
++		}
++	}
++	return m, "", &ImportMissingError{ImportPath: path, Module: m, newMissingVersion: newMissingVersion}
+ }
+ 
+ // maybeInModule reports whether, syntactically,
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 71b7308c0d..57c2dd25a6 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -547,6 +547,9 @@ func (ld *loader) load(roots func() []string) {
+ 		}
+ 		for _, pkg := range ld.pkgs {
+ 			if err, ok := pkg.err.(*ImportMissingError); ok && err.Module.Path != "" {
++				if err.newMissingVersion != "" {
++					base.Fatalf("go: %s: package provided by %s at latest version %s but not at required version %s", pkg.stackText(), err.Module.Path, err.Module.Version, err.newMissingVersion)
++				}
+ 				if added[pkg.path] {
+ 					base.Fatalf("go: %s: looping trying to add package", pkg.stackText())
+ 				}
+diff --git a/src/cmd/go/testdata/mod/example.com_missingpkg_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_missingpkg_v1.0.0.txt
+new file mode 100644
+index 0000000000..15f3f69557
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_missingpkg_v1.0.0.txt
+@@ -0,0 +1,11 @@
++The deprecated package is present in this version (which is @latest) but
++is deleted in a newer prerelease version.
++
++-- .mod --
++module example.com/missingpkg
++-- .info --
++{"Version":"v1.0.0"}
++-- lib.go --
++package lib
++-- deprecated/deprecated.go --
++package deprecated
+diff --git a/src/cmd/go/testdata/mod/example.com_missingpkg_v1.0.1-beta.txt b/src/cmd/go/testdata/mod/example.com_missingpkg_v1.0.1-beta.txt
+new file mode 100644
+index 0000000000..44580fe4cb
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_missingpkg_v1.0.1-beta.txt
+@@ -0,0 +1,8 @@
++The deprecated package is deleted in this version.
++
++-- .mod --
++module example.com/missingpkg
++-- .info --
++{"Version":"v1.0.1-beta"}
++-- lib.go --
++package lib
+diff --git a/src/cmd/go/testdata/mod/example.com_usemissingpre_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_usemissingpre_v1.0.0.txt
+new file mode 100644
+index 0000000000..5e1c5c815e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_usemissingpre_v1.0.0.txt
+@@ -0,0 +1,13 @@
++This module requires example.com/missingpkg at a prerelease version, which
++is newer than @latest.
++
++-- .mod --
++module example.com/usemissingpre
++
++require example.com/missingpkg v1.0.1-beta
++-- .info --
++{"Version":"v1.0.0"}
++-- use.go --
++package use
++
++import _ "example.com/missingpkg"
+diff --git a/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt b/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
+new file mode 100644
+index 0000000000..e7409d1d86
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
+@@ -0,0 +1,12 @@
++env GO111MODULE=on
++
++! go list use.go
++stderr 'import "example.com/missingpkg/deprecated": package provided by example.com/missingpkg at latest version v1.0.0 but not at required version v1.0.1-beta'
++
++-- use.go --
++package use
++
++import (
++	_ "example.com/missingpkg/deprecated"
++	_ "example.com/usemissingpre"
++)

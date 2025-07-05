@@ -11,7 +11,7 @@ Date:   Sun Feb 19 03:19:52 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5671099
-
+---
  src/cmd/5g/gsubr.c  |  4 ++++
  src/cmd/5l/5.out.h  |  3 ++-
  src/cmd/5l/obj.c    |  6 +++++-
@@ -25,3 +25,294 @@ Date:   Sun Feb 19 03:19:52 2012 -0500
  src/cmd/ld/lib.h    |  1 +
  src/cmd/ld/symtab.c |  2 ++
  12 files changed, 53 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index c938f8b00b..61c91b8273 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -253,6 +253,10 @@ ggloblnod(Node *nam, int32 width)
+ 	p->to.sym = S;
+ 	p->to.type = D_CONST;
+ 	p->to.offset = width;
++	if(nam->readonly)
++		p->from.scale = RODATA;
++	if(nam->type != T && !haspointers(nam->type))
++		p->from.scale |= NOPTR;
+ }
+ 
+ void
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index cf86ae48b8..569536ebd7 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -35,7 +35,8 @@
+ #define NOPROF		(1<<0)
+ #define DUPOK		(1<<1)
+ #define NOSPLIT		(1<<2)
+-#define	ALLTHUMBS	(1<<3)
++#define RODATA	(1<<3)
++#define NOPTR	(1<<4)
+ 
+ #define	REGRET		0
+ /* -1 disables use of REGARG */
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 4a3db99b00..f395925e15 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -540,7 +540,7 @@ loop:
+ 			s->type = SBSS;
+ 			s->value = 0;
+ 		}
+-		if(s->type != SBSS && !s->dupok) {
++		if(s->type != SBSS && s->type != SNOPTRDATA && !s->dupok) {
+ 			diag("redefinition: %s\n%P", s->name, p);
+ 			s->type = SBSS;
+ 			s->value = 0;
+@@ -549,6 +549,10 @@ loop:
+ 			s->size = p->to.offset;
+ 		if(p->reg & DUPOK)
+ 			s->dupok = 1;
++		if(p->from.scale & RODATA)
++			s->type = SRODATA;
++		else if(p->from.scale & NOPTR)
++			s->type = SNOPTRDATA;
+ 		break;
+ 
+ 	case ADATA:
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 2fea7daab8..ededcf6732 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -231,6 +231,8 @@ ggloblnod(Node *nam, int32 width)
+ 	p->to.offset = width;
+ 	if(nam->readonly)
+ 		p->from.scale = RODATA;
++	if(nam->type != T && !haspointers(nam->type))
++		p->from.scale |= NOPTR;
+ }
+ 
+ void
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 9a69c8ad52..559cdc758b 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -34,6 +34,7 @@
+ #define DUPOK	(1<<1)
+ #define NOSPLIT	(1<<2)
+ #define RODATA	(1<<3)
++#define NOPTR	(1<<4)
+ 
+ /*
+  *	amd64
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 5305c4b797..19f85f059e 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -555,7 +555,7 @@ loop:
+ 			s->type = SBSS;
+ 			s->size = 0;
+ 		}
+-		if(s->type != SBSS && !s->dupok) {
++		if(s->type != SBSS && s->type != SNOPTRDATA && !s->dupok) {
+ 			diag("%s: redefinition: %s in %s",
+ 				pn, s->name, TNAME);
+ 			s->type = SBSS;
+@@ -567,6 +567,8 @@ loop:
+ 			s->dupok = 1;
+ 		if(p->from.scale & RODATA)
+ 			s->type = SRODATA;
++		else if(p->from.scale & NOPTR)
++			s->type = SNOPTRDATA;
+ 		goto loop;
+ 
+ 	case ADATA:
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 9cf3645965..5e89af04ab 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -232,6 +232,8 @@ ggloblnod(Node *nam, int32 width)
+ 	p->to.offset = width;
+ 	if(nam->readonly)
+ 		p->from.scale = RODATA;
++	if(nam->type != T && !haspointers(nam->type))
++		p->from.scale |= NOPTR;
+ }
+ 
+ void
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 066192ef47..9d2751cf0a 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -34,6 +34,7 @@
+ #define DUPOK	(1<<1)
+ #define NOSPLIT	(1<<2)
+ #define RODATA	(1<<3)
++#define NOPTR	(1<<4)
+ 
+ enum	as
+ {
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index affdb57b7b..ccb4f7c23a 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -563,7 +563,7 @@ loop:
+ 			s->type = SBSS;
+ 			s->size = 0;
+ 		}
+-		if(s->type != SBSS && !s->dupok) {
++		if(s->type != SBSS && s->type != SNOPTRDATA && !s->dupok) {
+ 			diag("%s: redefinition: %s in %s",
+ 				pn, s->name, TNAME);
+ 			s->type = SBSS;
+@@ -575,6 +575,8 @@ loop:
+ 			s->dupok = 1;
+ 		if(p->from.scale & RODATA)
+ 			s->type = SRODATA;
++		else if(p->from.scale & NOPTR)
++			s->type = SNOPTRDATA;
+ 		goto loop;
+ 
+ 	case ADATA:
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index b5f1b99312..e5e1db6d6e 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -615,7 +615,7 @@ addstring(Sym *s, char *str)
+ 	int32 r;
+ 
+ 	if(s->type == 0)
+-		s->type = SDATA;
++		s->type = SNOPTRDATA;
+ 	s->reachable = 1;
+ 	r = s->size;
+ 	n = strlen(str)+1;
+@@ -782,7 +782,7 @@ void
+ dodata(void)
+ {
+ 	int32 t, datsize;
+-	Section *sect;
++	Section *sect, *noptr;
+ 	Sym *s, *last, **l;
+ 
+ 	if(debug['v'])
+@@ -887,7 +887,7 @@ dodata(void)
+ 
+ 	/* writable ELF sections */
+ 	datsize = 0;
+-	for(; s != nil && s->type < SDATA; s = s->next) {
++	for(; s != nil && s->type < SNOPTRDATA; s = s->next) {
+ 		sect = addsection(&segdata, s->name, 06);
+ 		if(s->align != 0)
+ 			datsize = rnd(datsize, s->align);
+@@ -897,17 +897,26 @@ dodata(void)
+ 		datsize += rnd(s->size, PtrSize);
+ 		sect->len = datsize - sect->vaddr;
+ 	}
+-
+-	/* data */
+-	sect = addsection(&segdata, ".data", 06);
++	
++	/* pointer-free data, then data */
++	sect = addsection(&segdata, ".noptrdata", 06);
+ 	sect->vaddr = datsize;
+-	for(; s != nil && s->type < SBSS; s = s->next) {
++	noptr = sect;
++	for(; ; s = s->next) {
++		if((s == nil || s->type >= SDATA) && sect == noptr) {
++			// finish noptrdata, start data
++			datsize = rnd(datsize, 8);
++			sect->len = datsize - sect->vaddr;
++			sect = addsection(&segdata, ".data", 06);
++			sect->vaddr = datsize;
++		}
++		if(s == nil || s->type >= SBSS) {
++			// finish data
++			sect->len = datsize - sect->vaddr;
++			break;
++		}
+ 		s->type = SDATA;
+ 		t = s->size;
+-		if(t == 0 && s->name[0] != '.') {
+-			diag("%s: no size", s->name);
+-			t = 1;
+-		}
+ 		if(t >= PtrSize)
+ 			t = rnd(t, PtrSize);
+ 		else if(t > 2)
+@@ -925,7 +934,6 @@ dodata(void)
+ 		s->value = datsize;
+ 		datsize += t;
+ 	}
+-	sect->len = datsize - sect->vaddr;
+ 
+ 	/* bss */
+ 	sect = addsection(&segdata, ".bss", 06);
+@@ -996,7 +1004,7 @@ textaddress(void)
+ void
+ address(void)
+ {
+-	Section *s, *text, *data, *rodata, *symtab, *pclntab;
++	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr;
+ 	Sym *sym, *sub;
+ 	uvlong va;
+ 
+@@ -1022,6 +1030,7 @@ address(void)
+ 	if(HEADTYPE == Hplan9x32)
+ 		segdata.fileoff = segtext.fileoff + segtext.filelen;
+ 	data = nil;
++	noptr = nil;
+ 	for(s=segdata.sect; s != nil; s=s->next) {
+ 		s->vaddr = va;
+ 		va += s->len;
+@@ -1029,6 +1038,8 @@ address(void)
+ 		segdata.len = va - segdata.vaddr;
+ 		if(strcmp(s->name, ".data") == 0)
+ 			data = s;
++		if(strcmp(s->name, ".noptrdata") == 0)
++			noptr = s;
+ 	}
+ 	segdata.filelen -= data->next->len; // deduct .bss
+ 
+@@ -1039,7 +1050,7 @@ address(void)
+ 
+ 	for(sym = datap; sym != nil; sym = sym->next) {
+ 		cursym = sym;
+-		if(sym->type < SDATA)
++		if(sym->type < SNOPTRDATA)
+ 			sym->value += rodata->vaddr;
+ 		else
+ 			sym->value += segdata.sect->vaddr;
+@@ -1055,6 +1066,8 @@ address(void)
+ 	xdefine("esymtab", SRODATA, symtab->vaddr + symtab->len);
+ 	xdefine("pclntab", SRODATA, pclntab->vaddr);
+ 	xdefine("epclntab", SRODATA, pclntab->vaddr + pclntab->len);
++	xdefine("noptrdata", SBSS, noptr->vaddr);
++	xdefine("enoptrdata", SBSS, noptr->vaddr + noptr->len);
+ 	xdefine("data", SBSS, data->vaddr);
+ 	xdefine("edata", SBSS, data->vaddr + data->len);
+ 	xdefine("end", SBSS, segdata.vaddr + segdata.len);
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 188ff9f928..a66a571c21 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -43,6 +43,7 @@ enum
+ 	SPCLNTAB,
+ 	SELFROSECT,
+ 	SELFSECT,
++	SNOPTRDATA,
+ 	SDATA,
+ 	SMACHO,	/* Mach-O __nl_symbol_ptr */
+ 	SMACHOGOT,
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 00413af009..d89359958e 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -330,6 +330,8 @@ symtab(void)
+ 	xdefine("etext", STEXT, 0);
+ 	xdefine("rodata", SRODATA, 0);
+ 	xdefine("erodata", SRODATA, 0);
++	xdefine("noptrdata", SBSS, 0);
++	xdefine("enoptrdata", SBSS, 0);
+ 	xdefine("data", SBSS, 0);
+ 	xdefine("edata", SBSS, 0);
+ 	xdefine("end", SBSS, 0);

@@ -29,9 +29,169 @@ Date:   Mon May 16 17:43:38 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/406555
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go            | 44 ++++++++++++++-------
  .../types2/testdata/fixedbugs/issue51610.go        |  9 +++++
  src/go/types/expr.go                               | 46 ++++++++++++++--------
  src/go/types/testdata/fixedbugs/issue51610.go      |  9 +++++
  4 files changed, 77 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 33d329f82d..b11cd1e9d8 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1741,16 +1741,33 @@ Error:
+ 	return statement // avoid follow-up errors
+ }
+ 
++// keyVal maps a complex, float, integer, string or boolean constant value
++// to the corresponding complex128, float64, int64, uint64, string, or bool
++// Go value if possible; otherwise it returns x.
++// A complex constant that can be represented as a float (such as 1.2 + 0i)
++// is returned as a floating point value; if a floating point value can be
++// represented as an integer (such as 1.0) it is returned as an integer value.
++// This ensures that constants of different kind but equal value (such as
++// 1.0 + 0i, 1.0, 1) result in the same value.
+ func keyVal(x constant.Value) interface{} {
+-	// TODO(gri) This function must map 1, 1.0, and 1.0 + 0i to the same (integer) value.
+-	//           Same for 1.1 and 1.1 + 0i.
+-	//           Otherwise we won't get duplicate key errors for certain type parameter
+-	//           key types. See issue #51610.
+ 	switch x.Kind() {
+-	case constant.Bool:
+-		return constant.BoolVal(x)
+-	case constant.String:
+-		return constant.StringVal(x)
++	case constant.Complex:
++		f := constant.ToFloat(x)
++		if f.Kind() != constant.Float {
++			r, _ := constant.Float64Val(constant.Real(x))
++			i, _ := constant.Float64Val(constant.Imag(x))
++			return complex(r, i)
++		}
++		x = f
++		fallthrough
++	case constant.Float:
++		i := constant.ToInt(x)
++		if i.Kind() != constant.Int {
++			v, _ := constant.Float64Val(x)
++			return v
++		}
++		x = i
++		fallthrough
+ 	case constant.Int:
+ 		if v, ok := constant.Int64Val(x); ok {
+ 			return v
+@@ -1758,13 +1775,10 @@ func keyVal(x constant.Value) interface{} {
+ 		if v, ok := constant.Uint64Val(x); ok {
+ 			return v
+ 		}
+-	case constant.Float:
+-		v, _ := constant.Float64Val(x)
+-		return v
+-	case constant.Complex:
+-		r, _ := constant.Float64Val(constant.Real(x))
+-		i, _ := constant.Float64Val(constant.Imag(x))
+-		return complex(r, i)
++	case constant.String:
++		return constant.StringVal(x)
++	case constant.Bool:
++		return constant.BoolVal(x)
+ 	}
+ 	return x
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51610.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51610.go
+new file mode 100644
+index 0000000000..d10c788503
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51610.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[P int | float64 | complex128]() {
++	_ = map[P]int{1: 1, 1.0 /* ERROR duplicate key 1 */ : 2, 1 /* ERROR duplicate key \(1 \+ 0i\) */ + 0i: 3}
++}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 14ca0c20d8..0e8dca3247 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1663,16 +1663,33 @@ Error:
+ 	return statement // avoid follow-up errors
+ }
+ 
+-func keyVal(x constant.Value) any {
+-	// TODO(gri) This function must map 1, 1.0, and 1.0 + 0i to the same (integer) value.
+-	//           Same for 1.1 and 1.1 + 0i.
+-	//           Otherwise we won't get duplicate key errors for certain type parameter
+-	//           key types. See issue #51610.
++// keyVal maps a complex, float, integer, string or boolean constant value
++// to the corresponding complex128, float64, int64, uint64, string, or bool
++// Go value if possible; otherwise it returns x.
++// A complex constant that can be represented as a float (such as 1.2 + 0i)
++// is returned as a floating point value; if a floating point value can be
++// represented as an integer (such as 1.0) it is returned as an integer value.
++// This ensures that constants of different kind but equal value (such as
++// 1.0 + 0i, 1.0, 1) result in the same value.
++func keyVal(x constant.Value) interface{} {
+ 	switch x.Kind() {
+-	case constant.Bool:
+-		return constant.BoolVal(x)
+-	case constant.String:
+-		return constant.StringVal(x)
++	case constant.Complex:
++		f := constant.ToFloat(x)
++		if f.Kind() != constant.Float {
++			r, _ := constant.Float64Val(constant.Real(x))
++			i, _ := constant.Float64Val(constant.Imag(x))
++			return complex(r, i)
++		}
++		x = f
++		fallthrough
++	case constant.Float:
++		i := constant.ToInt(x)
++		if i.Kind() != constant.Int {
++			v, _ := constant.Float64Val(x)
++			return v
++		}
++		x = i
++		fallthrough
+ 	case constant.Int:
+ 		if v, ok := constant.Int64Val(x); ok {
+ 			return v
+@@ -1680,13 +1697,10 @@ func keyVal(x constant.Value) any {
+ 		if v, ok := constant.Uint64Val(x); ok {
+ 			return v
+ 		}
+-	case constant.Float:
+-		v, _ := constant.Float64Val(x)
+-		return v
+-	case constant.Complex:
+-		r, _ := constant.Float64Val(constant.Real(x))
+-		i, _ := constant.Float64Val(constant.Imag(x))
+-		return complex(r, i)
++	case constant.String:
++		return constant.StringVal(x)
++	case constant.Bool:
++		return constant.BoolVal(x)
+ 	}
+ 	return x
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue51610.go b/src/go/types/testdata/fixedbugs/issue51610.go
+new file mode 100644
+index 0000000000..d10c788503
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51610.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[P int | float64 | complex128]() {
++	_ = map[P]int{1: 1, 1.0 /* ERROR duplicate key 1 */ : 2, 1 /* ERROR duplicate key \(1 \+ 0i\) */ + 0i: 3}
++}

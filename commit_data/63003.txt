@@ -12,6 +12,52 @@ Date:   Fri May 9 17:44:35 2025 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/671441
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/poll/splice_linux.go | 13 ++++++-------
  1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/poll/splice_linux.go b/src/internal/poll/splice_linux.go
+index 193a56215c..4409d2f336 100644
+--- a/src/internal/poll/splice_linux.go
++++ b/src/internal/poll/splice_linux.go
+@@ -9,7 +9,6 @@ import (
+ 	"runtime"
+ 	"sync"
+ 	"syscall"
+-	"unsafe"
+ )
+ 
+ const (
+@@ -179,10 +178,7 @@ type splicePipeFields struct {
+ 
+ type splicePipe struct {
+ 	splicePipeFields
+-
+-	// We want to use a finalizer, so ensure that the size is
+-	// large enough to not use the tiny allocator.
+-	_ [24 - unsafe.Sizeof(splicePipeFields{})%24]byte
++	cleanup runtime.Cleanup
+ }
+ 
+ // splicePipePool caches pipes to avoid high-frequency construction and destruction of pipe buffers.
+@@ -197,7 +193,10 @@ func newPoolPipe() any {
+ 	if p == nil {
+ 		return nil
+ 	}
+-	runtime.SetFinalizer(p, destroyPipe)
++
++	p.cleanup = runtime.AddCleanup(p, func(spf splicePipeFields) {
++		destroyPipe(&splicePipe{splicePipeFields: spf})
++	}, p.splicePipeFields)
+ 	return p
+ }
+ 
+@@ -214,7 +213,7 @@ func putPipe(p *splicePipe) {
+ 	// If there is still data left in the pipe,
+ 	// then close and discard it instead of putting it back into the pool.
+ 	if p.data != 0 {
+-		runtime.SetFinalizer(p, nil)
++		p.cleanup.Stop()
+ 		destroyPipe(p)
+ 		return
+ 	}

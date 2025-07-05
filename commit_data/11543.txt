@@ -14,6 +14,21 @@ Date:   Wed Feb 1 16:07:32 2012 -0200
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5610054
-
+---
  src/cmd/go/build.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 5f3cbb4574..bad37df21c 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1148,6 +1148,9 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 		}
+ 	}
+ 
++	// Allows including _cgo_export.h from .[ch] files in the package.
++	cgoCFLAGS = append(cgoCFLAGS, "-I", obj)
++
+ 	// cgo
+ 	// TODO: CGOPKGPATH, CGO_FLAGS?
+ 	gofiles := []string{obj + "_cgo_gotypes.go"}

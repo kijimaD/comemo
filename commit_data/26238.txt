@@ -7,6 +7,22 @@ Date:   Wed Jan 6 10:50:52 2016 -0500
     Change-Id: I8ee338c1244fc4e2fb75deec752a7f83239c33ea
     Reviewed-on: https://go-review.googlesource.com/18257
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/pprof.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 23fc85093b..d32b31578d 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -20,8 +20,8 @@ import (
+ 	"text/tabwriter"
+ )
+ 
+-// BUG(rsc): Profiles are incomplete and inaccurate on NetBSD and OS X.
+-// See https://golang.org/issue/6047 for details.
++// BUG(rsc): Profiles are only as good as the kernel support used to generate them.
++// See https://golang.org/issue/13841 for details about known problems.
+ 
+ // A Profile is a collection of stack traces showing the call sequences
+ // that led to instances of a particular event, such as allocation.

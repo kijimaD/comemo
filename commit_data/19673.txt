@@ -23,6 +23,31 @@ Date:   Mon Jul 7 16:07:24 2014 -0700
     R=rsc, iant, lvd
     CC=golang-codereviews
     https://golang.org/cl/112750043
-
+---
  src/cmd/ld/dwarf.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index cc77b45cd6..a9f9329932 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1696,6 +1696,9 @@ enum
+ static void
+ putpccfadelta(vlong deltapc, vlong cfa)
+ {
++	cput(DW_CFA_def_cfa_offset_sf);
++	sleb128put(cfa / DATAALIGNMENTFACTOR);
++
+ 	if (deltapc < 0x40) {
+ 		cput(DW_CFA_advance_loc + deltapc);
+ 	} else if (deltapc < 0x100) {
+@@ -1708,9 +1711,6 @@ putpccfadelta(vlong deltapc, vlong cfa)
+ 		cput(DW_CFA_advance_loc4);
+ 		LPUT(deltapc);
+ 	}
+-
+-	cput(DW_CFA_def_cfa_offset_sf);
+-	sleb128put(cfa / DATAALIGNMENTFACTOR);
+ }
+ 
+ static void

@@ -15,7 +15,7 @@ Date:   Thu Jul 15 22:49:00 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_typeparams.go          |   4 --
  src/go/types/builtins.go                |   2 +-
  src/go/types/call.go                    |   3 +-
@@ -36,3 +36,920 @@ Date:   Thu Jul 15 22:49:00 2021 -0400
  src/go/types/unify.go                   |  13 +---
  src/go/types/universe.go                |   4 +-
  19 files changed, 210 insertions(+), 203 deletions(-)
+
+diff --git a/src/go/types/api_typeparams.go b/src/go/types/api_typeparams.go
+index 6aaefbb6b2..864103df63 100644
+--- a/src/go/types/api_typeparams.go
++++ b/src/go/types/api_typeparams.go
+@@ -21,10 +21,6 @@ func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+ func (s *Signature) TParams() []*TypeName           { return s._TParams() }
+ func (s *Signature) SetTParams(tparams []*TypeName) { s._SetTParams(tparams) }
+ 
+-func (t *Interface) HasTypeList() bool  { return t._HasTypeList() }
+-func (t *Interface) IsComparable() bool { return t._IsComparable() }
+-func (t *Interface) IsConstraint() bool { return t._IsConstraint() }
+-
+ func (t *Named) TParams() []*TypeName { return t._TParams() }
+ func (t *Named) TArgs() []Type        { return t._TArgs() }
+ func (t *Named) SetTArgs(args []Type) { t._SetTArgs(args) }
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index cfaeab611b..5670790856 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -785,7 +785,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
+ 		ptyp := check.newTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
+ 		tsum := newUnion(rtypes, tildes)
+-		ptyp.bound = &Interface{allMethods: markComplete, allTypes: tsum}
++		ptyp.bound = &Interface{complete: true, tset: &TypeSet{types: tsum}}
+ 
+ 		return ptyp
+ 	}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 337ee741c6..cef5e9fc59 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -109,8 +109,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 					break
+ 				}
+ 				if t := asInterface(T); t != nil {
+-					check.completeInterface(token.NoPos, t)
+-					if t._IsConstraint() {
++					if t.IsConstraint() {
+ 						check.errorf(call, _Todo, "cannot use interface %s in conversion (contains type list or is comparable)", T)
+ 						break
+ 					}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 95f2a8d6ab..c8adea45e2 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -682,7 +682,6 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 			return Typ[UntypedNil], nil, 0
+ 		}
+ 		// cannot assign untyped values to non-empty interfaces
+-		check.completeInterface(token.NoPos, t)
+ 		if !t.Empty() {
+ 			return nil, nil, _InvalidUntypedConversion
+ 		}
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 5a4f939bb1..ae53f68e48 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -316,24 +316,13 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 		return w.isParameterized(t.params) || w.isParameterized(t.results)
+ 
+ 	case *Interface:
+-		if t.allMethods != nil {
+-			// TODO(rFindley) at some point we should enforce completeness here
+-			for _, m := range t.allMethods {
+-				if w.isParameterized(m.typ) {
+-					return true
+-				}
++		tset := t.typeSet()
++		for _, m := range tset.methods {
++			if w.isParameterized(m.typ) {
++				return true
+ 			}
+-			return w.isParameterized(t.allTypes)
+ 		}
+-
+-		return t.iterate(func(t *Interface) bool {
+-			for _, m := range t.methods {
+-				if w.isParameterized(m.typ) {
+-					return true
+-				}
+-			}
+-			return w.isParameterizedList(t.embeddeds)
+-		}, nil)
++		return w.isParameterized(tset.types)
+ 
+ 	case *Map:
+ 		return w.isParameterized(t.key) || w.isParameterized(t.elem)
+@@ -471,15 +460,15 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ // structuralType returns the structural type of a constraint, if any.
+ func (check *Checker) structuralType(constraint Type) Type {
+ 	if iface, _ := under(constraint).(*Interface); iface != nil {
+-		check.completeInterface(token.NoPos, iface)
+-		if u, _ := iface.allTypes.(*Union); u != nil {
++		types := iface.typeSet().types
++		if u, _ := types.(*Union); u != nil {
+ 			if u.NumTerms() == 1 {
+ 				// TODO(gri) do we need to respect tilde?
+ 				return u.types[0]
+ 			}
+ 			return nil
+ 		}
+-		return iface.allTypes
++		return types
+ 	}
+ 	return nil
+ }
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 947e76dc17..3a4da569ab 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -98,9 +98,13 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 		check.posMap[ityp] = append(check.posMap[ityp], tlist[0].(*ast.UnaryExpr).X.Pos())
+ 	}
+ 
++	// All methods and embedded elements for this interface are collected;
++	// i.e., this interface is may be used in a type set computation.
++	ityp.complete = true
++
+ 	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
+ 		// empty interface
+-		ityp.allMethods = markComplete
++		ityp.tset = &topTypeSet
+ 		return
+ 	}
+ 
+@@ -108,7 +112,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	sortMethods(ityp.methods)
+ 	sortTypes(ityp.embeddeds)
+ 
+-	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
++	// Compute type set with a non-nil *Checker as soon as possible
++	// to report any errors. Subsequent uses of type sets should be
++	// using this computed type set and won't need to pass in a *Checker.
++	check.later(func() { newTypeSet(check, iface.Pos(), ityp) })
+ }
+ 
+ func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
+@@ -119,24 +126,26 @@ func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
+ 	return append(list, x)
+ }
+ 
+-func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+-	if ityp.allMethods != nil {
+-		return
++// newTypeSet may be called with check == nil.
++// TODO(gri) move this function into typeset.go eventually
++func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
++	if ityp.tset != nil {
++		return ityp.tset
+ 	}
+ 
+-	// completeInterface may be called via the LookupFieldOrMethod,
+-	// MissingMethod, Identical, or IdenticalIgnoreTags external API
+-	// in which case check will be nil. In this case, type-checking
+-	// must be finished and all interfaces should have been completed.
+-	if check == nil {
+-		panic("internal error: incomplete interface")
++	// If the interface is not fully set up yet, the type set will
++	// not be complete, which may lead to errors when using the the
++	// type set (e.g. missing method). Don't compute a partial type
++	// set (and don't store it!), so that we still compute the full
++	// type set eventually. Instead, return the top type set and
++	// let any follow-on errors play out.
++	//
++	// TODO(gri) Consider recording when this happens and reporting
++	// it as an error (but only if there were no other errors so to
++	// to not have unnecessary follow-on errors).
++	if !ityp.complete {
++		return &topTypeSet
+ 	}
+-	completeInterface(check, pos, ityp)
+-}
+-
+-// completeInterface may be called with check == nil.
+-func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+-	assert(ityp.allMethods == nil)
+ 
+ 	if check != nil && trace {
+ 		// Types don't generally have position information.
+@@ -146,11 +155,11 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 			pos = ityp.methods[0].pos
+ 		}
+ 
+-		check.trace(pos, "complete %s", ityp)
++		check.trace(pos, "type set for %s", ityp)
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+-			check.trace(pos, "=> %s (methods = %v, types = %v)", ityp, ityp.allMethods, ityp.allTypes)
++			check.trace(pos, "=> %s ", ityp.typeSet())
+ 		}()
+ 	}
+ 
+@@ -159,7 +168,7 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 	// have valid interfaces. Mark the interface as complete to avoid
+ 	// infinite recursion if the validType check occurs later for some
+ 	// reason.
+-	ityp.allMethods = markComplete
++	ityp.tset = new(TypeSet) // TODO(gri) is this sufficient?
+ 
+ 	// Methods of embedded interfaces are collected unchanged; i.e., the identity
+ 	// of a method I.m's Func Object of an interface I is the same as that of
+@@ -229,14 +238,12 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 		var types Type
+ 		switch t := under(typ).(type) {
+ 		case *Interface:
+-			if t.allMethods == nil {
+-				completeInterface(check, pos, t)
+-			}
+-			for _, m := range t.allMethods {
++			tset := newTypeSet(check, pos, t)
++			for _, m := range tset.methods {
+ 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
+ 
+ 			}
+-			types = t.allTypes
++			types = tset.types
+ 		case *Union:
+ 			// TODO(gri) combine with default case once we have
+ 			//           converted all tests to new notation and we
+@@ -273,9 +280,11 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 
+ 	if methods != nil {
+ 		sort.Sort(byUniqueMethodName(methods))
+-		ityp.allMethods = methods
++		ityp.tset.methods = methods
+ 	}
+-	ityp.allTypes = allTypes
++	ityp.tset.types = allTypes
++
++	return ityp.tset
+ }
+ 
+ func sortTypes(list []Type) {
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 5b22c4744e..4ce4b3217c 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -186,9 +186,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 
+ 			case *Interface:
+ 				// look for a matching method
+-				// TODO(gri) t.allMethods is sorted - use binary search
+-				check.completeInterface(token.NoPos, t)
+-				if i, m := lookupMethod(t.allMethods, pkg, name); m != nil {
++				if i, m := t.typeSet().LookupMethod(pkg, name); m != nil {
+ 					assert(m.typ != nil)
+ 					index = concat(e.index, i)
+ 					if obj != nil || e.multiples {
+@@ -199,9 +197,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 				}
+ 
+ 			case *_TypeParam:
+-				// only consider explicit methods in the type parameter bound, not
+-				// methods that may be common to all types in the type list.
+-				if i, m := lookupMethod(t.Bound().allMethods, pkg, name); m != nil {
++				if i, m := t.Bound().typeSet().LookupMethod(pkg, name); m != nil {
+ 					assert(m.typ != nil)
+ 					index = concat(e.index, i)
+ 					if obj != nil || e.multiples {
+@@ -307,18 +303,15 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
+ // To improve error messages, also report the wrong signature
+ // when the method exists on *V instead of V.
+ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
+-	check.completeInterface(token.NoPos, T)
+-
+ 	// fast path for common case
+ 	if T.Empty() {
+ 		return
+ 	}
+ 
+ 	if ityp := asInterface(V); ityp != nil {
+-		check.completeInterface(token.NoPos, ityp)
+-		// TODO(gri) allMethods is sorted - can do this more efficiently
+-		for _, m := range T.allMethods {
+-			_, f := lookupMethod(ityp.allMethods, m.pkg, m.name)
++		// TODO(gri) the methods are sorted - could do this more efficiently
++		for _, m := range T.typeSet().methods {
++			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name)
+ 
+ 			if f == nil {
+ 				// if m is the magic method == we're ok (interfaces are comparable)
+@@ -356,7 +349,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 	// A concrete type implements T if it implements all methods of T.
+ 	Vd, _ := deref(V)
+ 	Vn := asNamed(Vd)
+-	for _, m := range T.allMethods {
++	for _, m := range T.typeSet().methods {
+ 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
+ 		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
+ 
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index ae8011a2ee..71d634bf36 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -157,10 +157,10 @@ func NewMethodSet(T Type) *MethodSet {
+ 				}
+ 
+ 			case *Interface:
+-				mset = mset.add(t.allMethods, e.index, true, e.multiples)
++				mset = mset.add(t.typeSet().methods, e.index, true, e.multiples)
+ 
+ 			case *_TypeParam:
+-				mset = mset.add(t.Bound().allMethods, e.index, true, e.multiples)
++				mset = mset.add(t.Bound().typeSet().methods, e.index, true, e.multiples)
+ 			}
+ 		}
+ 
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 9f3e324597..7f6eee8120 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -6,10 +6,6 @@
+ 
+ package types
+ 
+-import (
+-	"go/token"
+-)
+-
+ // isNamed reports whether typ has a name.
+ // isNamed may be called with types that are not fully set up.
+ func isNamed(typ Type) bool {
+@@ -109,7 +105,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 	//
+ 	// is not comparable because []byte is not comparable.
+ 	if t := asTypeParam(T); t != nil && optype(t) == theTop {
+-		return t.Bound()._IsComparable()
++		return t.Bound().IsComparable()
+ 	}
+ 
+ 	switch t := optype(T).(type) {
+@@ -133,7 +129,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 			return comparable(t, seen)
+ 		})
+ 	case *_TypeParam:
+-		return t.Bound()._IsComparable()
++		return t.Bound().IsComparable()
+ 	}
+ 	return false
+ }
+@@ -291,16 +287,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		// the same names and identical function types. Lower-case method names from
+ 		// different packages are always different. The order of the methods is irrelevant.
+ 		if y, ok := y.(*Interface); ok {
+-			// If identical0 is called (indirectly) via an external API entry point
+-			// (such as Identical, IdenticalIgnoreTags, etc.), check is nil. But in
+-			// that case, interfaces are expected to be complete and lazy completion
+-			// here is not needed.
+-			if check != nil {
+-				check.completeInterface(token.NoPos, x)
+-				check.completeInterface(token.NoPos, y)
+-			}
+-			a := x.allMethods
+-			b := y.allMethods
++			a := x.typeSet().methods
++			b := y.typeSet().methods
+ 			if len(a) == len(b) {
+ 				// Interface types are the only types where cycles can occur
+ 				// that are not "terminated" via named types; and such cycles
+diff --git a/src/go/types/sanitize.go b/src/go/types/sanitize.go
+index f54ab68624..df09a6a38f 100644
+--- a/src/go/types/sanitize.go
++++ b/src/go/types/sanitize.go
+@@ -113,9 +113,11 @@ func (s sanitizer) typ(typ Type) Type {
+ 	case *Interface:
+ 		s.funcList(t.methods)
+ 		s.typeList(t.embeddeds)
+-		s.funcList(t.allMethods)
+-		if allTypes := s.typ(t.allTypes); allTypes != t.allTypes {
+-			t.allTypes = allTypes
++		// TODO(gri) do we need to sanitize type sets?
++		tset := t.typeSet()
++		s.funcList(tset.methods)
++		if types := s.typ(tset.types); types != tset.types {
++			tset.types = types
+ 		}
+ 
+ 	case *Map:
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 9710edab15..05a171f498 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -27,7 +27,7 @@ func TestSizeof(t *testing.T) {
+ 		{Tuple{}, 12, 24},
+ 		{Signature{}, 44, 88},
+ 		{Union{}, 24, 48},
+-		{Interface{}, 52, 104},
++		{Interface{}, 40, 80},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+ 		{Named{}, 84, 160},
+@@ -48,6 +48,7 @@ func TestSizeof(t *testing.T) {
+ 		// Misc
+ 		{Scope{}, 40, 80},
+ 		{Package{}, 40, 80},
++		{TypeSet{}, 20, 40},
+ 	}
+ 	for _, test := range tests {
+ 		got := reflect.TypeOf(test.val).Size()
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index dc30bfbe67..0e2e7f408a 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -139,6 +139,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
+ // satisfies reports whether the type argument targ satisfies the constraint of type parameter
+ // parameter tpar (after any of its type parameters have been substituted through smap).
+ // A suitable error is reported if the result is false.
++// TODO(gri) This should be a method of interfaces or type sets.
+ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap *substMap) bool {
+ 	iface := tpar.Bound()
+ 	if iface.Empty() {
+@@ -153,8 +154,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
+ 
+ 	// targ must implement iface (methods)
+ 	// - check only if we have methods
+-	check.completeInterface(token.NoPos, iface)
+-	if len(iface.allMethods) > 0 {
++	if iface.NumMethods() > 0 {
+ 		// If the type argument is a pointer to a type parameter, the type argument's
+ 		// method set is empty.
+ 		// TODO(gri) is this what we want? (spec question)
+@@ -186,7 +186,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
+ 	}
+ 
+ 	// targ's underlying type must also be one of the interface types listed, if any
+-	if iface.allTypes == nil {
++	if iface.typeSet().types == nil {
+ 		return true // nothing to do
+ 	}
+ 
+@@ -194,7 +194,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
+ 	// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
+ 	if targ := asTypeParam(targ); targ != nil {
+ 		targBound := targ.Bound()
+-		if targBound.allTypes == nil {
++		if targBound.typeSet().types == nil {
+ 			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
+ 			return false
+ 		}
+@@ -202,7 +202,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
+ 			// TODO(gri) incorporate tilde information!
+ 			if !iface.isSatisfiedBy(typ) {
+ 				// TODO(gri) match this error message with the one below (or vice versa)
+-				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, typ, iface.allTypes)
++				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, typ, iface.typeSet().types)
+ 				return false
+ 			}
+ 			return true
+@@ -211,7 +211,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
+ 
+ 	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
+ 	if !iface.isSatisfiedBy(targ) {
+-		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface.allTypes)
++		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface.typeSet().types)
+ 		return false
+ 	}
+ 
+@@ -316,12 +316,11 @@ func (subst *subster) typ(typ Type) Type {
+ 		methods, mcopied := subst.funcList(t.methods)
+ 		embeddeds, ecopied := subst.typeList(t.embeddeds)
+ 		if mcopied || ecopied {
+-			iface := &Interface{methods: methods, embeddeds: embeddeds}
++			iface := &Interface{methods: methods, embeddeds: embeddeds, complete: t.complete}
+ 			if subst.check == nil {
+ 				panic("internal error: cannot instantiate interfaces yet")
+ 			}
+ 			subst.check.posMap[iface] = subst.check.posMap[t] // satisfy completeInterface requirement
+-			subst.check.completeInterface(token.NoPos, iface)
+ 			return iface
+ 		}
+ 
+diff --git a/src/go/types/testdata/check/cycles4.src b/src/go/types/testdata/check/cycles4.src
+index 445babca68..924aabf475 100644
+--- a/src/go/types/testdata/check/cycles4.src
++++ b/src/go/types/testdata/check/cycles4.src
+@@ -4,6 +4,8 @@
+ 
+ package p
+ 
++import "unsafe"
++
+ // Check that all methods of T are collected before
+ // determining the result type of m (which embeds
+ // all methods of T).
+@@ -13,7 +15,7 @@ type T interface {
+ 	E
+ }
+ 
+-var _ = T.m(nil).m().e()
++var _ int = T.m(nil).m().e()
+ 
+ type E interface {
+ 	e() int
+@@ -22,7 +24,7 @@ type E interface {
+ // Check that unresolved forward chains are followed
+ // (see also comment in resolver.go, checker.typeDecl).
+ 
+-var _ = C.m(nil).m().e()
++var _ int = C.m(nil).m().e()
+ 
+ type A B
+ 
+@@ -108,3 +110,12 @@ type Element interface {
+ type Event interface {
+ 	Target() Element
+ }
++
++// Check that accessing an interface method too early doesn't lead
++// to follow-on errors due to an incorrectly computed type set.
++
++type T8 interface {
++	m() [unsafe.Sizeof(T8.m /* ERROR undefined */ )]int
++}
++
++var _ = T8.m // no error expected here
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index d555a8f684..4dcc511b93 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -258,18 +258,20 @@ func (s *Signature) Variadic() bool { return s.variadic }
+ 
+ // An Interface represents an interface type.
+ type Interface struct {
++	obj       Object  // type name object defining this interface; or nil (for better error messages)
+ 	methods   []*Func // ordered list of explicitly declared methods
+-	embeddeds []Type  // ordered list of explicitly embedded types
++	embeddeds []Type  // ordered list of explicitly embedded elements
++	complete  bool    // indicates that obj, methods, and embeddeds are set and type set can be computed
+ 
+-	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
+-	allTypes   Type    // intersection of all embedded and locally declared types  (TODO(gri) need better field name)
+-
+-	obj Object // type declaration defining this interface; or nil (for better error messages)
++	tset *TypeSet // type set described by this interface, computed lazily
+ }
+ 
++// typeSet returns the type set for interface t.
++func (t *Interface) typeSet() *TypeSet { return newTypeSet(nil, token.NoPos, t) }
++
+ // is reports whether interface t represents types that all satisfy f.
+ func (t *Interface) is(f func(Type, bool) bool) bool {
+-	switch t := t.allTypes.(type) {
++	switch t := t.typeSet().types.(type) {
+ 	case nil, *top:
+ 		// TODO(gri) should settle on top or nil to represent this case
+ 		return false // we must have at least one type! (was bug)
+@@ -281,20 +283,13 @@ func (t *Interface) is(f func(Type, bool) bool) bool {
+ }
+ 
+ // emptyInterface represents the empty (completed) interface
+-var emptyInterface = Interface{allMethods: markComplete}
+-
+-// markComplete is used to mark an empty interface as completely
+-// set up by setting the allMethods field to a non-nil empty slice.
+-var markComplete = make([]*Func, 0)
++var emptyInterface = Interface{complete: true, tset: &topTypeSet}
+ 
+-// NewInterface returns a new (incomplete) interface for the given methods and embedded types.
+-// Each embedded type must have an underlying type of interface type.
+-// NewInterface takes ownership of the provided methods and may modify their types by setting
+-// missing receivers. To compute the method set of the interface, Complete must be called.
++// NewInterface returns a new interface for the given methods and embedded types.
++// NewInterface takes ownership of the provided methods and may modify their types
++// by setting missing receivers.
+ //
+-// Deprecated: Use NewInterfaceType instead which allows any (even non-defined) interface types
+-// to be embedded. This is necessary for interfaces that embed alias type names referring to
+-// non-defined (literal) interface types.
++// Deprecated: Use NewInterfaceType instead which allows arbitrary embedded types.
+ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+ 	tnames := make([]Type, len(embeddeds))
+ 	for i, t := range embeddeds {
+@@ -303,12 +298,9 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+ 	return NewInterfaceType(methods, tnames)
+ }
+ 
+-// NewInterfaceType returns a new (incomplete) interface for the given methods and embedded types.
+-// Each embedded type must have an underlying type of interface type (this property is not
+-// verified for defined types, which may be in the process of being set up and which don't
+-// have a valid underlying type yet).
+-// NewInterfaceType takes ownership of the provided methods and may modify their types by setting
+-// missing receivers. To compute the method set of the interface, Complete must be called.
++// NewInterfaceType returns a new interface for the given methods and embedded types.
++// NewInterfaceType takes ownership of the provided methods and may modify their types
++// by setting missing receivers.
+ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	if len(methods) == 0 && len(embeddeds) == 0 {
+ 		return &emptyInterface
+@@ -338,6 +330,8 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 
+ 	typ.methods = methods
+ 	typ.embeddeds = embeddeds
++	typ.complete = true
++
+ 	return typ
+ }
+ 
+@@ -361,64 +355,20 @@ func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named)
+ func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
+ 
+ // NumMethods returns the total number of methods of interface t.
+-// The interface must have been completed.
+-func (t *Interface) NumMethods() int { t.Complete(); return len(t.allMethods) }
++func (t *Interface) NumMethods() int { return t.typeSet().NumMethods() }
+ 
+ // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
+ // The methods are ordered by their unique Id.
+-// The interface must have been completed.
+-func (t *Interface) Method(i int) *Func { t.Complete(); return t.allMethods[i] }
++func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
+ 
+ // Empty reports whether t is the empty interface.
+-func (t *Interface) Empty() bool {
+-	t.Complete()
+-	return len(t.allMethods) == 0 && t.allTypes == nil
+-}
+-
+-// _HasTypeList reports whether interface t has a type list, possibly from an embedded type.
+-func (t *Interface) _HasTypeList() bool {
+-	t.Complete()
+-	return t.allTypes != nil
+-}
+-
+-// _IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
+-func (t *Interface) _IsComparable() bool {
+-	t.Complete()
+-	_, m := lookupMethod(t.allMethods, nil, "==")
+-	return m != nil
+-}
++func (t *Interface) Empty() bool { return t.typeSet().IsTop() }
+ 
+-// _IsConstraint reports t.HasTypeList() || t.IsComparable().
+-func (t *Interface) _IsConstraint() bool {
+-	return t._HasTypeList() || t._IsComparable()
+-}
++// IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
++func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+ 
+-// iterate calls f with t and then with any embedded interface of t, recursively, until f returns true.
+-// iterate reports whether any call to f returned true.
+-// TODO(rfindley) This is now only used by infer.go - see if we can eliminate it.
+-func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) bool {
+-	if f(t) {
+-		return true
+-	}
+-	for _, e := range t.embeddeds {
+-		// e should be an interface but be careful (it may be invalid)
+-		if e := asInterface(e); e != nil {
+-			// Cyclic interfaces such as "type E interface { E }" are not permitted
+-			// but they are still constructed and we need to detect such cycles.
+-			if seen[e] {
+-				continue
+-			}
+-			if seen == nil {
+-				seen = make(map[*Interface]bool)
+-			}
+-			seen[e] = true
+-			if e.iterate(f, seen) {
+-				return true
+-			}
+-		}
+-	}
+-	return false
+-}
++// IsConstraint reports whether interface t is not just a method set.
++func (t *Interface) IsConstraint() bool { return !t.typeSet().IsMethodSet() }
+ 
+ // isSatisfiedBy reports whether interface t's type list is satisfied by the type typ.
+ // If the type list is empty (absent), typ trivially satisfies the interface.
+@@ -426,7 +376,7 @@ func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) b
+ //           "implements" predicate.
+ func (t *Interface) isSatisfiedBy(typ Type) bool {
+ 	t.Complete()
+-	switch t := t.allTypes.(type) {
++	switch t := t.typeSet().types.(type) {
+ 	case nil:
+ 		return true // no type restrictions
+ 	case *Union:
+@@ -437,15 +387,22 @@ func (t *Interface) isSatisfiedBy(typ Type) bool {
+ 	}
+ }
+ 
+-// Complete computes the interface's method set. It must be called by users of
++// Complete computes the interface's type set. It must be called by users of
+ // NewInterfaceType and NewInterface after the interface's embedded types are
+ // fully defined and before using the interface type in any way other than to
+ // form other types. The interface must not contain duplicate methods or a
+ // panic occurs. Complete returns the receiver.
++//
++// Deprecated: Type sets are now computed lazily, on demand; this function
++//             is only here for backward-compatibility. It does not have to
++//             be called explicitly anymore.
+ func (t *Interface) Complete() *Interface {
+-	if t.allMethods == nil {
+-		completeInterface(nil, token.NoPos, t)
+-	}
++	// Some tests are still depending on the state change
++	// (string representation of an Interface not containing an
++	// /* incomplete */ marker) caused by the explicit Complete
++	// call, so we compute the type set eagerly here.
++	t.complete = true
++	t.typeSet()
+ 	return t
+ }
+ 
+@@ -668,7 +625,7 @@ func (t *_TypeParam) Bound() *Interface {
+ 		pos = n.obj.pos
+ 	}
+ 	// TODO(rFindley) switch this to an unexported method on Checker.
+-	t.check.completeInterface(pos, iface)
++	newTypeSet(t.check, pos, iface)
+ 	return iface
+ }
+ 
+@@ -685,7 +642,7 @@ func optype(typ Type) Type {
+ 		// for a type parameter list of the form:
+ 		// (type T interface { type T }).
+ 		// See also issue #39680.
+-		if a := t.Bound().allTypes; a != nil && a != typ {
++		if a := t.Bound().typeSet().types; a != nil && a != typ {
+ 			// If we have a union with a single entry, ignore
+ 			// any tilde because under(~t) == under(t).
+ 			if u, _ := a.(*Union); u != nil && u.NumTerms() == 1 {
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+new file mode 100644
+index 0000000000..9ba04b97bf
+--- /dev/null
++++ b/src/go/types/typeset.go
+@@ -0,0 +1,70 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import (
++	"bytes"
++)
++
++// topTypeSet may be used as type set for the empty interface.
++var topTypeSet TypeSet
++
++// A TypeSet represents the type set of an interface.
++type TypeSet struct {
++	// TODO(gri) consider using a set for the methods for faster lookup
++	methods []*Func // all methods of the interface; sorted by unique ID
++	types   Type    // typically a *Union; nil means no type restrictions
++}
++
++func (s *TypeSet) String() string {
++	if s.IsTop() {
++		return "⊤"
++	}
++
++	var buf bytes.Buffer
++	buf.WriteByte('{')
++	for i, m := range s.methods {
++		if i > 0 {
++			buf.WriteByte(';')
++		}
++		buf.WriteByte(' ')
++		buf.WriteString(m.String())
++	}
++	if len(s.methods) > 0 && s.types != nil {
++		buf.WriteByte(';')
++	}
++	if s.types != nil {
++		buf.WriteByte(' ')
++		writeType(&buf, s.types, nil, nil)
++	}
++
++	buf.WriteString(" }") // there was a least one method or type
++	return buf.String()
++}
++
++// IsTop reports whether type set s is the top type set (corresponding to the empty interface).
++func (s *TypeSet) IsTop() bool { return len(s.methods) == 0 && s.types == nil }
++
++// IsMethodSet reports whether the type set s is described by a single set of methods.
++func (s *TypeSet) IsMethodSet() bool { return s.types == nil && !s.IsComparable() }
++
++// IsComparable reports whether each type in the set is comparable.
++func (s *TypeSet) IsComparable() bool {
++	_, m := s.LookupMethod(nil, "==")
++	return m != nil
++}
++
++// NumMethods returns the number of methods available.
++func (s *TypeSet) NumMethods() int { return len(s.methods) }
++
++// Method returns the i'th method of type set s for 0 <= i < s.NumMethods().
++// The methods are ordered by their unique ID.
++func (s *TypeSet) Method(i int) *Func { return s.methods[i] }
++
++// LookupMethod returns the index of and method with matching package and name, or (-1, nil).
++func (s *TypeSet) LookupMethod(pkg *Package, name string) (int, *Func) {
++	// TODO(gri) s.methods is sorted - consider binary search
++	return lookupMethod(s.methods, pkg, name)
++}
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 79b4f74ff3..fb398de502 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -190,7 +190,8 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		if gcCompatibilityMode {
+ 			// print flattened interface
+ 			// (useful to compare against gc-generated interfaces)
+-			for i, m := range t.allMethods {
++			tset := t.typeSet()
++			for i, m := range tset.methods {
+ 				if i > 0 {
+ 					buf.WriteString("; ")
+ 				}
+@@ -198,12 +199,12 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				writeSignature(buf, m.typ.(*Signature), qf, visited)
+ 				empty = false
+ 			}
+-			if !empty && t.allTypes != nil {
++			if !empty && tset.types != nil {
+ 				buf.WriteString("; ")
+ 			}
+-			if t.allTypes != nil {
++			if tset.types != nil {
+ 				buf.WriteString("type ")
+-				writeType(buf, t.allTypes, qf, visited)
++				writeType(buf, tset.types, qf, visited)
+ 			}
+ 		} else {
+ 			// print explicit interface methods and embedded types
+@@ -226,7 +227,9 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				empty = false
+ 			}
+ 		}
+-		if debug && (t.allMethods == nil || len(t.methods) > len(t.allMethods)) {
++		// print /* incomplete */ if needed to satisfy existing tests
++		// TODO(gri) get rid of this eventually
++		if debug && t.tset == nil {
+ 			if !empty {
+ 				buf.WriteByte(' ')
+ 			}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 249a3ac5c5..070b0ade3e 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -140,12 +140,12 @@ func (check *Checker) ordinaryType(pos positioner, typ Type) {
+ 	// type-checking.
+ 	check.later(func() {
+ 		if t := asInterface(typ); t != nil {
+-			check.completeInterface(pos.Pos(), t) // TODO(gri) is this the correct position?
+-			if t.allTypes != nil {
+-				check.softErrorf(pos, _Todo, "interface contains type constraints (%s)", t.allTypes)
++			tset := newTypeSet(check, pos.Pos(), t) // TODO(gri) is this the correct position?
++			if tset.types != nil {
++				check.softErrorf(pos, _Todo, "interface contains type constraints (%s)", tset.types)
+ 				return
+ 			}
+-			if t._IsComparable() {
++			if tset.IsComparable() {
+ 				check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
+ 			}
+ 		}
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 7c58c6c512..bc611db347 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -8,7 +8,6 @@ package types
+ 
+ import (
+ 	"bytes"
+-	"go/token"
+ 	"sort"
+ )
+ 
+@@ -361,16 +360,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// the same names and identical function types. Lower-case method names from
+ 		// different packages are always different. The order of the methods is irrelevant.
+ 		if y, ok := y.(*Interface); ok {
+-			// If identical0 is called (indirectly) via an external API entry point
+-			// (such as Identical, IdenticalIgnoreTags, etc.), check is nil. But in
+-			// that case, interfaces are expected to be complete and lazy completion
+-			// here is not needed.
+-			if u.check != nil {
+-				u.check.completeInterface(token.NoPos, x)
+-				u.check.completeInterface(token.NoPos, y)
+-			}
+-			a := x.allMethods
+-			b := y.allMethods
++			a := x.typeSet().methods
++			b := y.typeSet().methods
+ 			if len(a) == len(b) {
+ 				// Interface types are the only types where cycles can occur
+ 				// that are not "terminated" via named types; and such cycles
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index d7feb2c609..7ce401827e 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -90,7 +90,7 @@ func defPredeclaredTypes() {
+ 		res := NewVar(token.NoPos, nil, "", Typ[String])
+ 		sig := &Signature{results: NewTuple(res)}
+ 		err := NewFunc(token.NoPos, nil, "Error", sig)
+-		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil).Complete()}
++		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil)}
+ 		sig.recv = NewVar(token.NoPos, nil, "", typ)
+ 		def(NewTypeName(token.NoPos, nil, "error", typ))
+ 	}
+@@ -218,7 +218,7 @@ func defPredeclaredComparable() {
+ 	// set up later to match the usual interface method assumptions.
+ 	sig := new(Signature)
+ 	eql := NewFunc(token.NoPos, nil, "==", sig)
+-	iface := NewInterfaceType([]*Func{eql}, nil).Complete()
++	iface := NewInterfaceType([]*Func{eql}, nil)
+ 
+ 	// set up the defined type for the interface
+ 	obj := NewTypeName(token.NoPos, nil, "comparable", nil)

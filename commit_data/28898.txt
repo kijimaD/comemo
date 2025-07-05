@@ -22,9 +22,133 @@ Date:   Mon Jun 6 08:29:52 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 10 ++++++++++
  src/cmd/compile/internal/gc/swt.go  |  6 +-----
  src/cmd/compile/internal/gc/walk.go | 30 +++++++++++++++++++-----------
  src/runtime/iface.go                | 15 ++++++---------
  4 files changed, 36 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c3f2b60509..8c82c22f97 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2317,6 +2317,16 @@ func isdirectiface(t *Type) bool {
+ 	return false
+ }
+ 
++// itabType loads the _type field from a runtime.itab struct.
++func itabType(itab *Node) *Node {
++	typ := NodSym(ODOTPTR, itab, nil)
++	typ.Type = Ptrto(Types[TUINT8])
++	typ.Typecheck = 1
++	typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
++	typ.Bounded = true            // guaranteed not to fault
++	return typ
++}
++
+ // iet returns 'T' if t is a concrete type,
+ // 'I' if t is an interface type, and 'E' if t is an empty interface type.
+ // It is used to build calls to the conv* and assert* runtime routines.
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index f44c747d36..09ce443530 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -589,11 +589,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 
+ 	if !cond.Right.Type.IsEmptyInterface() {
+ 		// Load type from itab.
+-		typ = NodSym(ODOTPTR, typ, nil)
+-		typ.Type = Ptrto(Types[TUINT8])
+-		typ.Typecheck = 1
+-		typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
+-		typ.Bounded = true            // guaranteed not to fault
++		typ = itabType(typ)
+ 	}
+ 	// Load hash from type.
+ 	h := NodSym(ODOTPTR, typ, nil)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 88ac347ad7..4e6647cef7 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -960,19 +960,27 @@ opswitch:
+ 		fromKind := from.Type.iet()
+ 		toKind := t.iet()
+ 
++		res := n.List.First()
++
+ 		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
+ 		// This is faster and shorter and allows the corresponding assertX2X2
+ 		// routines to skip nil checks on their last argument.
+-		if isblank(n.List.First()) {
++		if isblank(res) {
+ 			var fast *Node
+-			switch {
+-			case fromKind == 'E' && toKind == 'T':
+-				tab := Nod(OITAB, from, nil) // type:eface::tab:iface
+-				typ := Nod(OCONVNOP, typename(t), nil)
+-				typ.Type = Ptrto(Types[TUINTPTR])
+-				fast = Nod(OEQ, tab, typ)
+-			case fromKind == 'I' && toKind == 'E',
+-				fromKind == 'E' && toKind == 'E':
++			switch toKind {
++			case 'T':
++				tab := Nod(OITAB, from, nil)
++				if fromKind == 'E' {
++					typ := Nod(OCONVNOP, typename(t), nil)
++					typ.Type = Ptrto(Types[TUINTPTR])
++					fast = Nod(OEQ, tab, typ)
++					break
++				}
++				fast = Nod(OANDAND,
++					Nod(ONE, nodnil(), tab),
++					Nod(OEQ, itabType(tab), typename(t)),
++				)
++			case 'E':
+ 				tab := Nod(OITAB, from, nil)
+ 				fast = Nod(ONE, nodnil(), tab)
+ 			}
+@@ -987,10 +995,10 @@ opswitch:
+ 		}
+ 
+ 		var resptr *Node // &res
+-		if isblank(n.List.First()) {
++		if isblank(res) {
+ 			resptr = nodnil()
+ 		} else {
+-			resptr = Nod(OADDR, n.List.First(), nil)
++			resptr = Nod(OADDR, res, nil)
+ 		}
+ 		resptr.Etype = 1 // addr does not escape
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 1690147fac..7f24a6e69c 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -218,20 +218,17 @@ func assertI2T(t *_type, i iface, r unsafe.Pointer) {
+ 	}
+ }
+ 
++// The compiler ensures that r is non-nil.
+ func assertI2T2(t *_type, i iface, r unsafe.Pointer) bool {
+ 	tab := i.tab
+ 	if tab == nil || tab._type != t {
+-		if r != nil {
+-			memclr(r, t.size)
+-		}
++		memclr(r, t.size)
+ 		return false
+ 	}
+-	if r != nil {
+-		if isDirectIface(t) {
+-			writebarrierptr((*uintptr)(r), uintptr(i.data))
+-		} else {
+-			typedmemmove(t, r, i.data)
+-		}
++	if isDirectIface(t) {
++		writebarrierptr((*uintptr)(r), uintptr(i.data))
++	} else {
++		typedmemmove(t, r, i.data)
+ 	}
+ 	return true
+ }

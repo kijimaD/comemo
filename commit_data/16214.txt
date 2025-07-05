@@ -9,10 +9,120 @@ Date:   Tue Apr 23 04:42:04 2013 +0800
     R=alex.brainman, r
     CC=gobot, golang-dev
     https://golang.org/cl/8764043
-
+---
  misc/cgo/testso/cgoso.c   | 14 ++++++++++++++
  misc/cgo/testso/cgoso.go  |  2 ++
  misc/cgo/testso/cgoso_c.c | 16 +++++++++++++++-
  misc/cgo/testso/test.bat  | 18 ++++++++++++++++++
  src/run.bat               |  8 ++++++++
  5 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testso/cgoso.c b/misc/cgo/testso/cgoso.c
+new file mode 100644
+index 0000000000..917f472d36
+--- /dev/null
++++ b/misc/cgo/testso/cgoso.c
+@@ -0,0 +1,14 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "_cgo_export.h"
++
++#ifdef WIN32
++extern void setCallback(void *);
++void init() {
++	setCallback(goCallback);
++}
++#else
++void init() {}
++#endif
+diff --git a/misc/cgo/testso/cgoso.go b/misc/cgo/testso/cgoso.go
+index 44fb616c11..216cb1f05f 100644
+--- a/misc/cgo/testso/cgoso.go
++++ b/misc/cgo/testso/cgoso.go
+@@ -6,11 +6,13 @@ package cgosotest
+ 
+ /*
+ #cgo LDFLAGS: -L. -lcgosotest
++void init(void);
+ void sofunc(void);
+ */
+ import "C"
+ 
+ func Test() {
++	C.init()
+ 	C.sofunc()
+ }
+ 
+diff --git a/misc/cgo/testso/cgoso_c.c b/misc/cgo/testso/cgoso_c.c
+index 8c15a6b9ff..27155c27f7 100644
+--- a/misc/cgo/testso/cgoso_c.c
++++ b/misc/cgo/testso/cgoso_c.c
+@@ -4,8 +4,22 @@
+ 
+ // +build ignore
+ 
++#ifdef WIN32
++// A Windows DLL is unable to call an arbitrary function in
++// the main executable. Work around that by making the main
++// executable pass the callback function pointer to us.
++void (*goCallback)(void);
++__declspec(dllexport) void setCallback(void *f)
++{
++	goCallback = (void (*)())f;
++}
++__declspec(dllexport) void sofunc(void);
++#else
++extern void goCallback(void);
++void setCallback(void *f) { (void)f; }
++#endif
++
+ void sofunc(void)
+ {
+-	extern void goCallback(void);
+ 	goCallback();
+ }
+diff --git a/misc/cgo/testso/test.bat b/misc/cgo/testso/test.bat
+new file mode 100644
+index 0000000000..b8cc3842bf
+--- /dev/null
++++ b/misc/cgo/testso/test.bat
+@@ -0,0 +1,18 @@
++:: Copyright 2013 The Go Authors.  All rights reserved.
++:: Use of this source code is governed by a BSD-style
++:: license that can be found in the LICENSE file.
++
++@echo off
++
++gcc -c cgoso_c.c
++gcc -shared -o libcgosotest.dll cgoso_c.o
++if not exist libcgosotest.dll goto fail
++go build main.go
++if not exist main.exe goto fail
++main.exe
++goto :end
++
++:fail
++set FAIL=1
++:end
++del /F cgoso_c.o libcgosotest.dll main.exe 2>NUL
+diff --git a/src/run.bat b/src/run.bat
+index 02d19d6c7e..c7b9b9c5a9 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -87,6 +87,14 @@ echo # ..\misc\cgo\test
+ go test ..\misc\cgo\test
+ if errorlevel 1 goto fail
+ echo.
++
++echo # ..\misc\cgo\testso
++cd ..\misc\cgo\testso
++set FAIL=0
++call test.bat
++cd ..\..\..\src
++if %FAIL%==1 goto fail
++echo.
+ :nocgo
+ 
+ echo # ..\doc\progs

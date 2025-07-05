@@ -15,6 +15,16 @@ Date:   Tue Jun 1 23:05:25 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/324133
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/importer/exportdata.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/importer/exportdata.go b/src/cmd/compile/internal/importer/exportdata.go
+index 3925a64314..6a672be9c1 100644
+--- a/src/cmd/compile/internal/importer/exportdata.go
++++ b/src/cmd/compile/internal/importer/exportdata.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

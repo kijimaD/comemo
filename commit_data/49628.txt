@@ -14,7 +14,147 @@ Date:   Tue Mar 9 16:55:18 2021 -0600
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/ppc64/a.out.go | 15 +++----
  src/cmd/internal/obj/ppc64/asm9.go  | 86 +++++++++++++++++++++++++++++--------
  2 files changed, 74 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 428cac528a..e57beb3276 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -329,18 +329,13 @@ const (
+ 	BI_OVF = 3
+ )
+ 
+-// Values for the BO field.  Add the branch type to
+-// the likely bits, if a likely setting is known.
+-// If branch likely or unlikely is not known, don't set it.
+-// e.g. branch on cr+likely = 15
++// Common values for the BO field.
+ 
+ const (
+-	BO_BCTR     = 16 // branch on ctr value
+-	BO_BCR      = 12 // branch on cr value
+-	BO_BCRBCTR  = 8  // branch on ctr and cr value
+-	BO_NOTBCR   = 4  // branch on not cr value
+-	BO_UNLIKELY = 2  // value for unlikely
+-	BO_LIKELY   = 3  // value for likely
++	BO_BCTR    = 16 // decrement ctr, branch on ctr != 0
++	BO_BCR     = 12 // branch on cr value
++	BO_BCRBCTR = 8  // decrement ctr, branch on ctr != 0 and cr value
++	BO_NOTBCR  = 4  // branch on not cr value
+ )
+ 
+ // Bit settings from the CR
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 316959f62d..e642413590 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -642,6 +642,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	var otxt int64
+ 	var q *obj.Prog
++	var out [6]uint32
+ 	for bflag != 0 {
+ 		bflag = 0
+ 		pc = 0
+@@ -653,22 +654,74 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if (o.type_ == 16 || o.type_ == 17) && p.To.Target() != nil {
+ 				otxt = p.To.Target().Pc - pc
+ 				if otxt < -(1<<15)+10 || otxt >= (1<<15)-10 {
+-					q = c.newprog()
+-					q.Link = p.Link
+-					p.Link = q
+-					q.As = ABR
+-					q.To.Type = obj.TYPE_BRANCH
+-					q.To.SetTarget(p.To.Target())
+-					p.To.SetTarget(q)
+-					q = c.newprog()
+-					q.Link = p.Link
+-					p.Link = q
+-					q.As = ABR
+-					q.To.Type = obj.TYPE_BRANCH
+-					q.To.SetTarget(q.Link.Link)
+-
+-					//addnop(p->link);
+-					//addnop(p);
++					// Assemble the instruction with a target not too far to figure out BI and BO fields.
++					// If only the CTR or BI (the CR bit) are tested, the conditional branch can be inverted,
++					// and only one extra branch is needed to reach the target.
++					tgt := p.To.Target()
++					p.To.SetTarget(p.Link)
++					c.asmout(p, o, out[:])
++					p.To.SetTarget(tgt)
++
++					bo := int64(out[0]>>21) & 31
++					bi := int16((out[0] >> 16) & 31)
++					invertible := false
++
++					if bo&0x14 == 0x14 {
++						// A conditional branch that is unconditionally taken. This cannot be inverted.
++					} else if bo&0x10 == 0x10 {
++						// A branch based on the value of CTR. Invert the CTR comparison against zero bit.
++						bo ^= 0x2
++						invertible = true
++					} else if bo&0x04 == 0x04 {
++						// A branch based on CR bit. Invert the BI comparison bit.
++						bo ^= 0x8
++						invertible = true
++					}
++
++					if invertible {
++						// Rewrite
++						//     BC bo,...,far_away_target
++						//     NEXT_INSN
++						// to:
++						//     BC invert(bo),next_insn
++						//     JMP far_away_target
++						//   next_insn:
++						//     NEXT_INSN
++						p.As = ABC
++						p.From = obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: bo}
++						q = c.newprog()
++						q.As = ABR
++						q.To.Type = obj.TYPE_BRANCH
++						q.To.SetTarget(p.To.Target())
++						q.Link = p.Link
++						p.To.SetTarget(p.Link)
++						p.Link = q
++						p.Reg = bi // TODO: This is a hack since BI bits are not enumerated as registers
++					} else {
++						// Rewrite
++						//     BC ...,far_away_target
++						//     NEXT_INSN
++						// to
++						//     BC ...,tmp
++						//     JMP next_insn
++						//   tmp:
++						//     JMP far_away_target
++						//   next_insn:
++						//     NEXT_INSN
++						q = c.newprog()
++						q.Link = p.Link
++						p.Link = q
++						q.As = ABR
++						q.To.Type = obj.TYPE_BRANCH
++						q.To.SetTarget(p.To.Target())
++						p.To.SetTarget(q)
++						q = c.newprog()
++						q.Link = p.Link
++						p.Link = q
++						q.As = ABR
++						q.To.Type = obj.TYPE_BRANCH
++						q.To.SetTarget(q.Link.Link)
++					}
+ 					bflag = 1
+ 				}
+ 			}
+@@ -706,7 +759,6 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	bp := c.cursym.P
+ 	var i int32
+-	var out [6]uint32
+ 	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
+ 		c.pc = p.Pc
+ 		o = c.oplook(p)

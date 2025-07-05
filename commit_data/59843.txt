@@ -9,7 +9,54 @@ Date:   Tue Apr 30 14:46:05 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/file_windows.go |  2 +-
  src/os/path_windows.go | 22 ----------------------
  2 files changed, 1 insertion(+), 23 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 245f994321..cf652ca1bb 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -288,7 +288,7 @@ func Link(oldname, newname string) error {
+ // If there is an error, it will be of type *LinkError.
+ func Symlink(oldname, newname string) error {
+ 	// '/' does not work in link's content
+-	oldname = fromSlash(oldname)
++	oldname = filepathlite.FromSlash(oldname)
+ 
+ 	// need the exact location of the oldname when it's relative to determine if it's a directory
+ 	destpath := oldname
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index 162b63194c..4d7bdb2fa2 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -45,28 +45,6 @@ func basename(name string) string {
+ 	return name
+ }
+ 
+-func fromSlash(path string) string {
+-	// Replace each '/' with '\\' if present
+-	var pathbuf []byte
+-	var lastSlash int
+-	for i, b := range path {
+-		if b == '/' {
+-			if pathbuf == nil {
+-				pathbuf = make([]byte, len(path))
+-			}
+-			copy(pathbuf[lastSlash:], path[lastSlash:i])
+-			pathbuf[i] = '\\'
+-			lastSlash = i + 1
+-		}
+-	}
+-	if pathbuf == nil {
+-		return path
+-	}
+-
+-	copy(pathbuf[lastSlash:], path[lastSlash:])
+-	return string(pathbuf)
+-}
+-
+ func dirname(path string) string {
+ 	vol := filepathlite.VolumeName(path)
+ 	i := len(path) - 1

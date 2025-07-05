@@ -15,7 +15,7 @@ Date:   Fri Jan 17 13:54:30 2020 -0500
     Change-Id: I4f2cb982fa94e44d91e49bd98974fd125619c93a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222661
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/asm/internal/flags/flags.go |  2 ++
  src/cmd/asm/main.go                 | 13 +++++++++++++
  src/cmd/compile/internal/gc/main.go |  3 +++
@@ -30,3 +30,265 @@ Date:   Fri Jan 17 13:54:30 2020 -0500
  src/runtime/stubs_amd64.go          | 17 +++++++++++++++++
  test/codegen/retpoline.go           | 14 ++++++++++++++
  13 files changed, 119 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index fad87b221a..618b08cc36 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -24,6 +24,8 @@ var (
+ 	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
+ 	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+ 	Newobj     = flag.Bool("newobj", false, "use new object file format")
++
++	Spectre = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
+ )
+ 
+ var (
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 6b0a609071..21c8bd963a 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -41,6 +41,19 @@ func main() {
+ 	ctxt.Flag_dynlink = *flags.Dynlink
+ 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+ 	ctxt.Flag_newobj = *flags.Newobj
++	switch *flags.Spectre {
++	default:
++		log.Printf("unknown setting -spectre=%s", *flags.Spectre)
++		os.Exit(2)
++	case "":
++		// nothing
++	case "index":
++		// known to compiler; ignore here so people can use
++		// the same list with -gcflags=-spectre=LIST and -asmflags=-spectrre=LIST
++	case "all", "ret":
++		ctxt.Retpoline = true
++	}
++
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e3a47339be..81d31c2007 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -294,8 +294,11 @@ func Main(archInit func(*Arch)) {
+ 			// nothing
+ 		case "all":
+ 			spectreIndex = true
++			Ctxt.Retpoline = true
+ 		case "index":
+ 			spectreIndex = true
++		case "ret":
++			Ctxt.Retpoline = true
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index bc55dac878..b398de2dac 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -379,6 +379,11 @@ func checkSuffix(c *ctxt5, p *obj.Prog, o *Optab) {
+ }
+ 
+ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
++	if ctxt.Retpoline {
++		ctxt.Diag("-spectre=ret not supported on arm")
++		ctxt.Retpoline = false // don't keep printing
++	}
++
+ 	var p *obj.Prog
+ 	var op *obj.Prog
+ 
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index b7e5b9fc17..54cb556b99 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -881,6 +881,11 @@ var prfopfield = []struct {
+ }
+ 
+ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
++	if ctxt.Retpoline {
++		ctxt.Diag("-spectre=ret not supported on arm64")
++		ctxt.Retpoline = false // don't keep printing
++	}
++
+ 	p := cursym.Func.Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+ 		return
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 76c6f261a3..d1cc536a8c 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -653,6 +653,7 @@ type Link struct {
+ 	Flag_optimize      bool
+ 	Flag_locationlists bool
+ 	Flag_newobj        bool // use new object file format
++	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
+ 	Bso                *bufio.Writer
+ 	Pathname           string
+ 	hashmu             sync.Mutex       // protects hash, funchash
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index c19541522f..5bbcb01444 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -402,6 +402,11 @@ var oprange [ALAST & obj.AMask][]Optab
+ var xcmp [C_NCLASS][C_NCLASS]bool
+ 
+ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
++	if ctxt.Retpoline {
++		ctxt.Diag("-spectre=ret not supported on mips")
++		ctxt.Retpoline = false // don't keep printing
++	}
++
+ 	p := cursym.Func.Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+ 		return
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 1d2c498110..7add8e31c6 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1835,6 +1835,11 @@ func encodingForProg(p *obj.Prog) encoding {
+ // assemble emits machine code.
+ // It is called at the very end of the assembly process.
+ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
++	if ctxt.Retpoline {
++		ctxt.Diag("-spectre=ret not supported on riscv")
++		ctxt.Retpoline = false // don't keep printing
++	}
++
+ 	var symcode []uint32
+ 	for p := cursym.Func.Text; p != nil; p = p.Link {
+ 		switch p.As {
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 1bb79a2eda..ff7cc73fe4 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -442,6 +442,11 @@ var oprange [ALAST & obj.AMask][]Optab
+ var xcmp [C_NCLASS][C_NCLASS]bool
+ 
+ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
++	if ctxt.Retpoline {
++		ctxt.Diag("-spectre=ret not supported on s390x")
++		ctxt.Retpoline = false // don't keep printing
++	}
++
+ 	p := cursym.Func.Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+ 		return
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index cfeb179a86..5597aab019 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1875,6 +1875,17 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 				p.As = spadjop(ctxt, ASUBL, ASUBQ)
+ 			}
+ 		}
++		if ctxt.Retpoline && (p.As == obj.ACALL || p.As == obj.AJMP) && (p.To.Type == obj.TYPE_REG || p.To.Type == obj.TYPE_MEM) {
++			if p.To.Type != obj.TYPE_REG {
++				ctxt.Diag("non-retpoline-compatible: %v", p)
++				continue
++			}
++			p.To.Type = obj.TYPE_BRANCH
++			p.To.Name = obj.NAME_EXTERN
++			p.To.Sym = ctxt.Lookup("runtime.retpoline" + obj.Rconv(int(p.To.Reg)))
++			p.To.Reg = 0
++			p.To.Offset = 0
++		}
+ 	}
+ 
+ 	var count int64 // rough count of number of instructions
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index c191599c28..b872b8834d 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -510,7 +510,8 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-32;		\
+ 	/* call function */			\
+ 	MOVQ	f+8(FP), DX;			\
+ 	PCDATA  $PCDATA_StackMapIndex, $0;	\
+-	CALL	(DX);				\
++	MOVQ	(DX), AX;			\
++	CALL	AX;				\
+ 	/* copy return values back */		\
+ 	MOVQ	argtype+0(FP), DX;		\
+ 	MOVQ	argptr+16(FP), DI;		\
+@@ -1743,3 +1744,34 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+ DATA runtime·tls_g+0(SB)/8, $16
+ GLOBL runtime·tls_g+0(SB), NOPTR, $8
+ #endif
++
++// The compiler and assembler's -spectre=ret mode rewrites
++// all indirect CALL AX / JMP AX instructions to be
++// CALL retpolineAX / JMP retpolineAX.
++// See https://support.google.com/faqs/answer/7625886.
++#define RETPOLINE(reg) \
++	/*   CALL setup */     BYTE $0xE8; BYTE $(2+2); BYTE $0; BYTE $0; BYTE $0;	\
++	/* nospec: */									\
++	/*   PAUSE */           BYTE $0xF3; BYTE $0x90;					\
++	/*   JMP nospec */      BYTE $0xEB; BYTE $-(2+2);				\
++	/* setup: */									\
++	/*   MOVQ AX, 0(SP) */  BYTE $0x48|((reg&8)>>1); BYTE $0x89;			\
++	                        BYTE $0x04|((reg&7)<<3); BYTE $0x24;			\
++	/*   RET */             BYTE $0xC3
++
++TEXT runtime·retpolineAX(SB),NOSPLIT,$0; RETPOLINE(0)
++TEXT runtime·retpolineCX(SB),NOSPLIT,$0; RETPOLINE(1)
++TEXT runtime·retpolineDX(SB),NOSPLIT,$0; RETPOLINE(2)
++TEXT runtime·retpolineBX(SB),NOSPLIT,$0; RETPOLINE(3)
++/* SP is 4, can't happen / magic encodings */
++TEXT runtime·retpolineBP(SB),NOSPLIT,$0; RETPOLINE(5)
++TEXT runtime·retpolineSI(SB),NOSPLIT,$0; RETPOLINE(6)
++TEXT runtime·retpolineDI(SB),NOSPLIT,$0; RETPOLINE(7)
++TEXT runtime·retpolineR8(SB),NOSPLIT,$0; RETPOLINE(8)
++TEXT runtime·retpolineR9(SB),NOSPLIT,$0; RETPOLINE(9)
++TEXT runtime·retpolineR10(SB),NOSPLIT,$0; RETPOLINE(10)
++TEXT runtime·retpolineR11(SB),NOSPLIT,$0; RETPOLINE(11)
++TEXT runtime·retpolineR12(SB),NOSPLIT,$0; RETPOLINE(12)
++TEXT runtime·retpolineR13(SB),NOSPLIT,$0; RETPOLINE(13)
++TEXT runtime·retpolineR14(SB),NOSPLIT,$0; RETPOLINE(14)
++TEXT runtime·retpolineR15(SB),NOSPLIT,$0; RETPOLINE(15)
+diff --git a/src/runtime/stubs_amd64.go b/src/runtime/stubs_amd64.go
+index b4c0df1153..5b79d66762 100644
+--- a/src/runtime/stubs_amd64.go
++++ b/src/runtime/stubs_amd64.go
+@@ -9,3 +9,20 @@ func stackcheck()
+ 
+ // Called from assembly only; declared for go vet.
+ func settls() // argument in DI
++
++// Retpolines, used by -spectre=ret flag in cmd/asm, cmd/compile.
++func retpolineAX()
++func retpolineCX()
++func retpolineDX()
++func retpolineBX()
++func retpolineBP()
++func retpolineSI()
++func retpolineDI()
++func retpolineR8()
++func retpolineR9()
++func retpolineR10()
++func retpolineR11()
++func retpolineR12()
++func retpolineR13()
++func retpolineR14()
++func retpolineR15()
+diff --git a/test/codegen/retpoline.go b/test/codegen/retpoline.go
+new file mode 100644
+index 0000000000..15d6a26615
+--- /dev/null
++++ b/test/codegen/retpoline.go
+@@ -0,0 +1,14 @@
++// +build amd64
++// asmcheck -gcflags=-spectre=ret
++
++package codegen
++
++func CallFunc(f func()) {
++	// amd64:`CALL\truntime.retpoline`
++	f()
++}
++
++func CallInterface(x interface{ M() }) {
++	// amd64:`CALL\truntime.retpoline`
++	x.M()
++}

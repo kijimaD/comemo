@@ -19,10 +19,95 @@ Date:   Wed Mar 30 22:56:00 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/link.go       |  1 -
  src/cmd/internal/obj/sym.go        |  1 -
  src/cmd/link/internal/amd64/asm.go |  6 ++----
  src/cmd/link/internal/amd64/obj.go | 13 -------------
  src/cmd/link/internal/ld/sym.go    |  1 -
  5 files changed, 2 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 152a2acea0..cfe7c958cd 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -716,7 +716,6 @@ const (
+ 	Hunknown = 0 + iota
+ 	Hdarwin
+ 	Hdragonfly
+-	Helf
+ 	Hfreebsd
+ 	Hlinux
+ 	Hnacl
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index a723eb4689..64df62a2ae 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -44,7 +44,6 @@ var headers = []struct {
+ }{
+ 	{"darwin", Hdarwin},
+ 	{"dragonfly", Hdragonfly},
+-	{"elf", Helf},
+ 	{"freebsd", Hfreebsd},
+ 	{"linux", Hlinux},
+ 	{"android", Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 274e246fbc..d809f6e8ed 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -671,8 +671,7 @@ func asmb() {
+ 		ld.Diag("unknown header type %d", ld.HEADTYPE)
+ 		fallthrough
+ 
+-	case obj.Hplan9,
+-		obj.Helf:
++	case obj.Hplan9:
+ 		break
+ 
+ 	case obj.Hdarwin:
+@@ -702,8 +701,7 @@ func asmb() {
+ 		ld.Bso.Flush()
+ 		switch ld.HEADTYPE {
+ 		default:
+-		case obj.Hplan9,
+-			obj.Helf:
++		case obj.Hplan9:
+ 			ld.Debug['s'] = 1
+ 			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index f5c2756fe7..f9e13f2e18 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -136,19 +136,6 @@ func archinit() {
+ 			ld.INITRND = 0x200000
+ 		}
+ 
+-	case obj.Helf: /* elf32 executable */
+-		ld.HEADR = int32(ld.Rnd(52+3*32, 16))
+-
+-		if ld.INITTEXT == -1 {
+-			ld.INITTEXT = 0x80110000
+-		}
+-		if ld.INITDAT == -1 {
+-			ld.INITDAT = 0
+-		}
+-		if ld.INITRND == -1 {
+-			ld.INITRND = 4096
+-		}
+-
+ 	case obj.Hdarwin: /* apple MACH */
+ 		ld.Machoinit()
+ 
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 486b881520..3deb94644e 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -43,7 +43,6 @@ var headers = []struct {
+ }{
+ 	{"darwin", obj.Hdarwin},
+ 	{"dragonfly", obj.Hdragonfly},
+-	{"elf", obj.Helf},
+ 	{"freebsd", obj.Hfreebsd},
+ 	{"linux", obj.Hlinux},
+ 	{"android", obj.Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"

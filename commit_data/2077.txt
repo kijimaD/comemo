@@ -9,6 +9,25 @@ Date:   Tue Apr 21 20:24:28 2009 -0700
     DELTA=6  (0 added, 5 deleted, 1 changed)
     OCL=27708
     CL=27708
-
+---
  src/lib/exvar.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/lib/exvar.go b/src/lib/exvar.go
+index 6b2aaeb7a6..d96e40aaef 100644
+--- a/src/lib/exvar.go
++++ b/src/lib/exvar.go
+@@ -166,12 +166,7 @@ func GetMapInt(name string, key string) int {
+ 	var i int;
+ 	var ok bool;
+ 	workSync(func(state *exVars) {
+-		// This doesn't work:
+-		//   i, ok = state.getOrInitMapVar(name)[key];
+-		// exvar.go:169: assignment count mismatch: 2 = 1
+-		// Should it? Wrapping the method call in () doesn't help.
+-		mv := state.getOrInitMapVar(name);
+-		i, ok = mv[key];
++		i, ok = state.getOrInitMapVar(name)[key]
+ 	});
+ 	return i
+ }

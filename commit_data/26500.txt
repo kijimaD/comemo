@@ -9,6 +9,30 @@ Date:   Thu Jan 28 20:53:41 2016 +0000
     Change-Id: Ic5f4eeb00d705217542db558edc25e206f6b640d
     Reviewed-on: https://go-review.googlesource.com/19050
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.6.html | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 46a8f65db3..92998ad46c 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -752,13 +752,13 @@ Third, the
+ <code>Expect:</code> <code>100-continue</code> header (see
+ <a href="/pkg/net/http/#Transport"><code>Transport.ExpectContinueTimeout</code></a>).
+ Fourth, there are
+-<a href="/pkg/net/http/#pkg-constants">five new error codes</a> from RFC 6585:
++<a href="/pkg/net/http/#pkg-constants">five new error codes</a>:
+ <code>StatusPreconditionRequired</code> (428),
+ <code>StatusTooManyRequests</code> (429),
+-<code>StatusRequestHeaderFieldsTooLarge</code> (431),
+-<code>StatusUnavailableForLegalReasons</code> (451)),
+-and
+-<code>StatusNetworkAuthenticationRequired</code> (511).
++<code>StatusRequestHeaderFieldsTooLarge</code> (431), and
++<code>StatusNetworkAuthenticationRequired</code> (511) from RFC 6585,
++as well as the recently-approved
++<code>StatusUnavailableForLegalReasons</code> (451).
+ Fifth, the implementation and documentation of
+ <a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
+ has been substantially changed.

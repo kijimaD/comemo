@@ -8,6 +8,46 @@ Date:   Fri Apr 3 04:37:24 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/8451
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  misc/cgo/test/issue9400/asm_arm64.s | 33 +++++++++++++++++++++++++++++++++
  1 file changed, 33 insertions(+)
+
+diff --git a/misc/cgo/test/issue9400/asm_arm64.s b/misc/cgo/test/issue9400/asm_arm64.s
+new file mode 100644
+index 0000000000..0c024e8333
+--- /dev/null
++++ b/misc/cgo/test/issue9400/asm_arm64.s
+@@ -0,0 +1,33 @@
++#include "textflag.h"
++
++TEXT ·RewindAndSetgid(SB),NOSPLIT,$-8-0
++	// Save link register
++	MOVD	R30, R9
++
++	// Rewind stack pointer so anything that happens on the stack
++	// will clobber the test pattern created by the caller
++	ADD	$(1024 * 8), RSP
++
++	// Ask signaller to setgid
++	MOVD	$·Baton(SB), R0
++	MOVD	$1, R1
++storeloop:
++	LDAXRW	(R0), R2
++	STLXRW	R1, (R0), R3
++	CBNZ	R3, storeloop
++
++	// Wait for setgid completion
++	MOVW	$0, R1
++	MOVW	$0, R2
++loop:
++	LDAXRW	(R0), R3
++	CMPW	R1, R3
++	BNE	loop
++	STLXRW	R2, (R0), R3
++	CBNZ	R3, loop
++
++	// Restore stack
++	SUB	$(1024 * 8), RSP
++
++	MOVD	R9, R30
++	RET

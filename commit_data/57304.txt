@@ -15,8 +15,48 @@ Date:   Mon Jul 10 19:04:57 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cgo/internal/test/issue8756.go           | 2 +-
  src/cmd/cgo/internal/test/issue8756/issue8756.go | 2 +-
  src/cmd/cgo/internal/test/test.go                | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/test/issue8756.go b/src/cmd/cgo/internal/test/issue8756.go
+index 1ec85a8a5e..817f449e96 100644
+--- a/src/cmd/cgo/internal/test/issue8756.go
++++ b/src/cmd/cgo/internal/test/issue8756.go
+@@ -1,7 +1,7 @@
+ package cgotest
+ 
+ /*
+-#cgo LDFLAGS: -lm
++#cgo !darwin LDFLAGS: -lm
+ #include <math.h>
+ */
+ import "C"
+diff --git a/src/cmd/cgo/internal/test/issue8756/issue8756.go b/src/cmd/cgo/internal/test/issue8756/issue8756.go
+index 5f6b7778ff..223397f067 100644
+--- a/src/cmd/cgo/internal/test/issue8756/issue8756.go
++++ b/src/cmd/cgo/internal/test/issue8756/issue8756.go
+@@ -1,7 +1,7 @@
+ package issue8756
+ 
+ /*
+-#cgo LDFLAGS: -lm
++#cgo !darwin LDFLAGS: -lm
+ #include <math.h>
+ */
+ import "C"
+diff --git a/src/cmd/cgo/internal/test/test.go b/src/cmd/cgo/internal/test/test.go
+index 8e24f2e618..7da5a856b3 100644
+--- a/src/cmd/cgo/internal/test/test.go
++++ b/src/cmd/cgo/internal/test/test.go
+@@ -23,7 +23,7 @@ package cgotest
+ #include <unistd.h>
+ #include <sys/stat.h>
+ #include <errno.h>
+-#cgo LDFLAGS: -lm
++#cgo !darwin LDFLAGS: -lm
+ 
+ #ifndef WIN32
+ #include <pthread.h>

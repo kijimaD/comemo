@@ -8,6 +8,20 @@ Date:   Wed Oct 22 10:51:30 2014 -0400
     R=austin
     CC=bradfitz, golang-codereviews
     https://golang.org/cl/158330045
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b73bce09fc..7679f78742 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -96,7 +96,7 @@ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Asim Shankar <asimshankar@gmail.com>
+ Ato Araki <ato.araki@gmail.com>
+ Aulus Egnatius Varialus <varialus@gmail.com>
+-Austin Clements <aclements@csail.mit.edu>
++Austin Clements <austin@google.com> <aclements@csail.mit.edu>
+ Balazs Lecz <leczb@google.com>
+ Ben Eitzen <eitzenb@golang.org>
+ Ben Fried <ben.fried@gmail.com>

@@ -7,6 +7,21 @@ Date:   Fri Aug 19 13:00:09 2011 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/4873058
-
+---
  src/pkg/syscall/ztypes_windows.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 07f2b85f07..728812b843 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -359,6 +359,9 @@ const (
+ 
+ 	WSADESCRIPTION_LEN = 256
+ 	WSASYS_STATUS_LEN  = 128
++
++	IPV6_JOIN_GROUP  = 12
++	IPV6_LEAVE_GROUP = 13
+ )
+ 
+ type WSABuf struct {

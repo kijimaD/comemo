@@ -9,6 +9,22 @@ Date:   Wed Jun 30 18:05:38 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/1678047
-
+---
  src/pkg/crypto/x509/x509.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index c4c79eb0de..23b7d0b629 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -761,8 +761,8 @@ var (
+ // MaxPathLen, SubjectKeyId, DNSNames.
+ //
+ // The certificate is signed by parent. If parent is equal to template then the
+-// certificate is self-signed. pub is the public key of the signee. priv is the
+-// private key of the signer.
++// certificate is self-signed. The parameter pub is the public key of the
++// signee and priv is the private key of the signer.
+ //
+ // The returned slice is the certificate in DER encoding.
+ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.PublicKey, priv *rsa.PrivateKey) (cert []byte, err os.Error) {

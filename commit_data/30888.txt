@@ -9,7 +9,36 @@ Date:   Tue Dec 13 22:57:18 2016 +0100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go | 4 ++--
  src/cmd/dist/test.go  | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 6fb7884560..4d0b1a0b41 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1107,8 +1107,8 @@ var cgoEnabled = map[string]bool{
+ 	"linux/arm64":     true,
+ 	"linux/ppc64":     false,
+ 	"linux/ppc64le":   true,
+-	"linux/mips":      false,
+-	"linux/mipsle":    false,
++	"linux/mips":      true,
++	"linux/mipsle":    true,
+ 	"linux/mips64":    true,
+ 	"linux/mips64le":  true,
+ 	"linux/s390x":     true,
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 054f4dde45..1d5c9cee49 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -741,7 +741,7 @@ func (t *tester) internalLink() bool {
+ 	// Internally linking cgo is incomplete on some architectures.
+ 	// https://golang.org/issue/10373
+ 	// https://golang.org/issue/14449
+-	if t.goarch == "arm64" || t.goarch == "mips64" || t.goarch == "mips64le" {
++	if t.goarch == "arm64" || t.goarch == "mips64" || t.goarch == "mips64le" || t.goarch == "mips" || t.goarch == "mipsle" {
+ 		return false
+ 	}
+ 	return true

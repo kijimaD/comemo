@@ -12,7 +12,7 @@ Date:   Sun Sep 4 18:30:29 2022 +0800
     Run-TryBot: xie cui <523516579@qq.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/cookie_test.go        |  7 +++----
  src/net/http/fs_test.go            |  2 +-
  src/net/http/header_test.go        |  3 ++-
@@ -24,3 +24,374 @@ Date:   Sun Sep 4 18:30:29 2022 +0800
  src/net/http/serve_test.go         | 12 ++++++------
  src/net/http/transport_test.go     | 18 +++++++++---------
  10 files changed, 35 insertions(+), 36 deletions(-)
+
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index 8fcf1faaa5..e5bd46a744 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -5,7 +5,6 @@
+ package http
+ 
+ import (
+-	"bytes"
+ 	"encoding/json"
+ 	"fmt"
+ 	"log"
+@@ -151,7 +150,7 @@ var writeSetCookiesTests = []struct {
+ 
+ func TestWriteSetCookies(t *testing.T) {
+ 	defer log.SetOutput(os.Stderr)
+-	var logbuf bytes.Buffer
++	var logbuf strings.Builder
+ 	log.SetOutput(&logbuf)
+ 
+ 	for i, tt := range writeSetCookiesTests {
+@@ -482,7 +481,7 @@ func TestSetCookieDoubleQuotes(t *testing.T) {
+ 
+ func TestCookieSanitizeValue(t *testing.T) {
+ 	defer log.SetOutput(os.Stderr)
+-	var logbuf bytes.Buffer
++	var logbuf strings.Builder
+ 	log.SetOutput(&logbuf)
+ 
+ 	tests := []struct {
+@@ -514,7 +513,7 @@ func TestCookieSanitizeValue(t *testing.T) {
+ 
+ func TestCookieSanitizePath(t *testing.T) {
+ 	defer log.SetOutput(os.Stderr)
+-	var logbuf bytes.Buffer
++	var logbuf strings.Builder
+ 	log.SetOutput(&logbuf)
+ 
+ 	tests := []struct {
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 077c037c85..71fc064367 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -1273,7 +1273,7 @@ func TestLinuxSendfile(t *testing.T) {
+ 	}
+ 	defer os.Remove(filepath)
+ 
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	child := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=TestLinuxSendfileChild")
+ 	child.ExtraFiles = append(child.ExtraFiles, lnf)
+ 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
+diff --git a/src/net/http/header_test.go b/src/net/http/header_test.go
+index 0b13d311ac..e98cc5c760 100644
+--- a/src/net/http/header_test.go
++++ b/src/net/http/header_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"internal/race"
+ 	"reflect"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -105,7 +106,7 @@ var headerWriteTests = []struct {
+ }
+ 
+ func TestHeaderWrite(t *testing.T) {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i, test := range headerWriteTests {
+ 		test.h.WriteSubset(&buf, test.exclude)
+ 		if buf.String() != test.expected {
+diff --git a/src/net/http/readrequest_test.go b/src/net/http/readrequest_test.go
+index 1950f4907a..a6a12a0ddd 100644
+--- a/src/net/http/readrequest_test.go
++++ b/src/net/http/readrequest_test.go
+@@ -416,7 +416,7 @@ func TestReadRequest(t *testing.T) {
+ 		req.Body = nil
+ 		testName := fmt.Sprintf("Test %d (%q)", i, tt.Raw)
+ 		diff(t, testName, req, tt.Req)
+-		var bout bytes.Buffer
++		var bout strings.Builder
+ 		if rbody != nil {
+ 			_, err := io.Copy(&bout, rbody)
+ 			if err != nil {
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 672c01c387..2f348284de 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -815,7 +815,7 @@ func TestStarRequest(t *testing.T) {
+ 	clientReq := *req
+ 	clientReq.Body = nil
+ 
+-	var out bytes.Buffer
++	var out strings.Builder
+ 	if err := clientReq.Write(&out); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -823,7 +823,7 @@ func TestStarRequest(t *testing.T) {
+ 	if strings.Contains(out.String(), "chunked") {
+ 		t.Error("wrote chunked request; want no body")
+ 	}
+-	back, err := ReadRequest(bufio.NewReader(bytes.NewReader(out.Bytes())))
++	back, err := ReadRequest(bufio.NewReader(strings.NewReader(out.String())))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -835,7 +835,7 @@ func TestStarRequest(t *testing.T) {
+ 		t.Errorf("Original request doesn't match Request read back.")
+ 		t.Logf("Original: %#v", req)
+ 		t.Logf("Original.URL: %#v", req.URL)
+-		t.Logf("Wrote: %s", out.Bytes())
++		t.Logf("Wrote: %s", out.String())
+ 		t.Logf("Read back (doesn't match Original): %#v", back)
+ 	}
+ }
+@@ -983,7 +983,7 @@ func TestMaxBytesReaderDifferentLimits(t *testing.T) {
+ 			wantErr: false,
+ 		},
+ 		10: { /* Issue 54408 */
+-			limit:   int64(1<<63-1),
++			limit:   int64(1<<63 - 1),
+ 			lenP:    len(testStr),
+ 			wantN:   len(testStr),
+ 			wantErr: false,
+@@ -1172,7 +1172,7 @@ func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectCo
+ 	if fh.Filename != expectFilename {
+ 		t.Errorf("filename = %q, want %q", fh.Filename, expectFilename)
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	_, err = io.Copy(&b, f)
+ 	if err != nil {
+ 		t.Fatal("copying contents:", err)
+diff --git a/src/net/http/requestwrite_test.go b/src/net/http/requestwrite_test.go
+index bdc1e3c508..380ae9dec3 100644
+--- a/src/net/http/requestwrite_test.go
++++ b/src/net/http/requestwrite_test.go
+@@ -629,7 +629,7 @@ func TestRequestWrite(t *testing.T) {
+ 			tt.Req.Header = make(Header)
+ 		}
+ 
+-		var braw bytes.Buffer
++		var braw strings.Builder
+ 		err := tt.Req.Write(&braw)
+ 		if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.WantError); g != e {
+ 			t.Errorf("writing #%d, err = %q, want %q", i, g, e)
+@@ -649,7 +649,7 @@ func TestRequestWrite(t *testing.T) {
+ 
+ 		if tt.WantProxy != "" {
+ 			setBody()
+-			var praw bytes.Buffer
++			var praw strings.Builder
+ 			err = tt.Req.WriteProxy(&praw)
+ 			if err != nil {
+ 				t.Errorf("WriteProxy #%d: %s", i, err)
+@@ -815,7 +815,7 @@ func TestRequestWriteClosesBody(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	buf := new(bytes.Buffer)
++	buf := new(strings.Builder)
+ 	if err := req.Write(buf); err != nil {
+ 		t.Error(err)
+ 	}
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index 2500e420dd..19fb48f23c 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -596,7 +596,7 @@ func TestReadResponse(t *testing.T) {
+ 		rbody := resp.Body
+ 		resp.Body = nil
+ 		diff(t, fmt.Sprintf("#%d Response", i), resp, &tt.Resp)
+-		var bout bytes.Buffer
++		var bout strings.Builder
+ 		if rbody != nil {
+ 			_, err = io.Copy(&bout, rbody)
+ 			if err != nil {
+@@ -809,7 +809,7 @@ func TestResponseStatusStutter(t *testing.T) {
+ 		ProtoMajor: 1,
+ 		ProtoMinor: 3,
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	r.Write(&buf)
+ 	if strings.Contains(buf.String(), "123 123") {
+ 		t.Errorf("stutter in status: %s", buf.String())
+@@ -829,7 +829,7 @@ func TestResponseContentLengthShortBody(t *testing.T) {
+ 	if res.ContentLength != 123 {
+ 		t.Fatalf("Content-Length = %d; want 123", res.ContentLength)
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	n, err := io.Copy(&buf, res.Body)
+ 	if n != int64(len(shortBody)) {
+ 		t.Errorf("Copied %d bytes; want %d, len(%q)", n, len(shortBody), shortBody)
+@@ -989,7 +989,7 @@ func TestResponseWritesOnlySingleConnectionClose(t *testing.T) {
+ 		t.Fatalf("ReadResponse failed %v", err)
+ 	}
+ 
+-	var buf2 bytes.Buffer
++	var buf2 strings.Builder
+ 	if err = res.Write(&buf2); err != nil {
+ 		t.Fatalf("Write failed %v", err)
+ 	}
+diff --git a/src/net/http/responsewrite_test.go b/src/net/http/responsewrite_test.go
+index 1cc87b942e..226ad7225b 100644
+--- a/src/net/http/responsewrite_test.go
++++ b/src/net/http/responsewrite_test.go
+@@ -5,7 +5,6 @@
+ package http
+ 
+ import (
+-	"bytes"
+ 	"io"
+ 	"strings"
+ 	"testing"
+@@ -276,7 +275,7 @@ func TestResponseWrite(t *testing.T) {
+ 
+ 	for i := range respWriteTests {
+ 		tt := &respWriteTests[i]
+-		var braw bytes.Buffer
++		var braw strings.Builder
+ 		err := tt.Resp.Write(&braw)
+ 		if err != nil {
+ 			t.Errorf("error writing #%d: %s", i, err)
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 143874d70a..21f23c652f 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -148,7 +148,7 @@ func newHandlerTest(h Handler) handlerTest {
+ 
+ func (ht *handlerTest) rawResponse(req string) string {
+ 	reqb := reqBytes(req)
+-	var output bytes.Buffer
++	var output strings.Builder
+ 	conn := &rwTestConn{
+ 		Reader: bytes.NewReader(reqb),
+ 		Writer: &output,
+@@ -3742,7 +3742,7 @@ func TestAcceptMaxFds(t *testing.T) {
+ 
+ func TestWriteAfterHijack(t *testing.T) {
+ 	req := reqBytes("GET / HTTP/1.1\nHost: golang.org")
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	wrotec := make(chan bool, 1)
+ 	conn := &rwTestConn{
+ 		Reader: bytes.NewReader(req),
+@@ -4544,7 +4544,7 @@ func TestNoContentLengthIfTransferEncoding(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	bs := bufio.NewScanner(c)
+-	var got bytes.Buffer
++	var got strings.Builder
+ 	for bs.Scan() {
+ 		if strings.TrimSpace(bs.Text()) == "" {
+ 			break
+@@ -4633,7 +4633,7 @@ GET /should-be-ignored HTTP/1.1
+ Host: foo
+ 
+ `)
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	conn := &rwTestConn{
+ 		Reader: bytes.NewReader(req),
+ 		Writer: &buf,
+@@ -6511,7 +6511,7 @@ func TestTimeoutHandlerSuperfluousLogs(t *testing.T) {
+ 				exitHandler <- true
+ 			}
+ 
+-			logBuf := new(bytes.Buffer)
++			logBuf := new(strings.Builder)
+ 			srvLog := log.New(logBuf, "", 0)
+ 			// When expecting to timeout, we'll keep the duration short.
+ 			dur := 20 * time.Millisecond
+@@ -6721,7 +6721,7 @@ func testQuerySemicolon(t *testing.T, query string, wantX string, allowSemicolon
+ 	}
+ 
+ 	ts := httptest.NewUnstartedServer(h)
+-	logBuf := &bytes.Buffer{}
++	logBuf := &strings.Builder{}
+ 	ts.Config.ErrorLog = log.New(logBuf, "", 0)
+ 	ts.Start()
+ 	defer ts.Close()
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index cba35db257..e1f2a24f46 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2444,7 +2444,7 @@ func TestTransportCancelRequestInDial(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping test in -short mode")
+ 	}
+-	var logbuf bytes.Buffer
++	var logbuf strings.Builder
+ 	eventLog := log.New(&logbuf, "", 0)
+ 
+ 	unblockDial := make(chan bool)
+@@ -2931,7 +2931,7 @@ func TestTransportIgnore1xxResponses(t *testing.T) {
+ 	defer cst.close()
+ 	cst.tr.DisableKeepAlives = true // prevent log spam; our test server is hanging up anyway
+ 
+-	var got bytes.Buffer
++	var got strings.Builder
+ 
+ 	req, _ := NewRequest("GET", cst.ts.URL, nil)
+ 	req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+@@ -2949,7 +2949,7 @@ func TestTransportIgnore1xxResponses(t *testing.T) {
+ 	res.Write(&got)
+ 	want := "1xx: code=123, header=map[Foo:[bar]]\nHTTP/1.1 200 OK\r\nContent-Length: 5\r\nBar: baz\r\n\r\nHello"
+ 	if got.String() != want {
+-		t.Errorf(" got: %q\nwant: %q\n", got.Bytes(), want)
++		t.Errorf(" got: %q\nwant: %q\n", got.String(), want)
+ 	}
+ }
+ 
+@@ -3015,7 +3015,7 @@ type proxyFromEnvTest struct {
+ }
+ 
+ func (t proxyFromEnvTest) String() string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	space := func() {
+ 		if buf.Len() > 0 {
+ 			buf.WriteByte(' ')
+@@ -3537,7 +3537,7 @@ func TestRetryRequestsOnError(t *testing.T) {
+ 
+ 			var (
+ 				mu     sync.Mutex
+-				logbuf bytes.Buffer
++				logbuf strings.Builder
+ 			)
+ 			logf := func(format string, args ...any) {
+ 				mu.Lock()
+@@ -4515,7 +4515,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
+ 	cst.tr.ExpectContinueTimeout = 1 * time.Second
+ 
+ 	var mu sync.Mutex // guards buf
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	logf := func(format string, args ...any) {
+ 		mu.Lock()
+ 		defer mu.Unlock()
+@@ -4674,7 +4674,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
+ 
+ func TestTransportEventTraceTLSVerify(t *testing.T) {
+ 	var mu sync.Mutex
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	logf := func(format string, args ...any) {
+ 		mu.Lock()
+ 		defer mu.Unlock()
+@@ -4760,7 +4760,7 @@ func TestTransportEventTraceRealDNS(t *testing.T) {
+ 	c := &Client{Transport: tr}
+ 
+ 	var mu sync.Mutex // guards buf
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	logf := func(format string, args ...any) {
+ 		mu.Lock()
+ 		defer mu.Unlock()
+@@ -5978,7 +5978,7 @@ func TestTransportIgnores408(t *testing.T) {
+ 	// Not parallel. Relies on mutating the log package's global Output.
+ 	defer log.SetOutput(log.Writer())
+ 
+-	var logout bytes.Buffer
++	var logout strings.Builder
+ 	log.SetOutput(&logout)
+ 
+ 	defer afterTest(t)

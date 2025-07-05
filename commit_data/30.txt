@@ -7,7 +7,45 @@ Date:   Wed Mar 12 15:29:57 2008 -0700
     - fixed primary expression syntax in go.atg
     
     SVN=112281
-
+---
  tests/hashmap.go  | 6 +++---
  tests/runtests.sh | 8 ++++++++
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/tests/hashmap.go b/tests/hashmap.go
+index f4b15183c7..8d5d5167d5 100755
+--- a/tests/hashmap.go
++++ b/tests/hashmap.go
+@@ -166,9 +166,9 @@ func MakeNumber (x uint32) *Number {
+ 
+ 
+ func main() {
+-  func (n int) int { return n + 1; }(1);
++  //f unc (n int) int { return n + 1; }(1);
+ 
+-  print "HashMap - gri 2/8/2008\n";
++  //print "HashMap - gri 2/8/2008\n";
+   
+   var hmap *HashMap = new(HashMap);
+   hmap.Initialize(0);
+@@ -182,5 +182,5 @@ func main() {
+   //hmap.Lookup(x2, true);
+   //hmap.Lookup(x3, true);
+   
+-  print "done\n";
++  //print "done\n";
+ }
+diff --git a/tests/runtests.sh b/tests/runtests.sh
+new file mode 100755
+index 0000000000..75b7ae26a6
+--- /dev/null
++++ b/tests/runtests.sh
+@@ -0,0 +1,8 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++#!/bin/bash
++for f in *.go; do
++  ../src/go $f
++done

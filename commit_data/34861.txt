@@ -9,6 +9,34 @@ Date:   Tue Nov 21 19:43:08 2017 +0000
     Change-Id: I419215575ca7975241afb8d2069560c8b1d142c6
     Reviewed-on: https://go-review.googlesource.com/79136
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/zoneinfo_android.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/time/zoneinfo_android.go b/src/time/zoneinfo_android.go
+index 40c8ae04ea..65e0975ab0 100644
+--- a/src/time/zoneinfo_android.go
++++ b/src/time/zoneinfo_android.go
+@@ -47,11 +47,11 @@ func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {
+ 	if err := preadn(fd, buf, 0); err != nil {
+ 		return nil, errors.New("corrupt tzdata file " + file)
+ 	}
+-	d := data{buf, false}
++	d := dataIO{buf, false}
+ 	if magic := d.read(6); string(magic) != "tzdata" {
+ 		return nil, errors.New("corrupt tzdata file " + file)
+ 	}
+-	d = data{buf[12:], false}
++	d = dataIO{buf[12:], false}
+ 	indexOff, _ := d.big4()
+ 	dataOff, _ := d.big4()
+ 	indexSize := dataOff - indexOff
+@@ -66,7 +66,7 @@ func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {
+ 		if string(entry[:len(name)]) != name {
+ 			continue
+ 		}
+-		d := data{entry[namesize:], false}
++		d := dataIO{entry[namesize:], false}
+ 		off, _ := d.big4()
+ 		size, _ := d.big4()
+ 		buf := make([]byte, size)

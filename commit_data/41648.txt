@@ -14,6 +14,29 @@ Date:   Thu Oct 17 12:31:53 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/exec_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 1e8795525d..1f9a7a96e0 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -665,7 +665,7 @@ func BenchmarkMatch(b *testing.B) {
+ 	for _, data := range benchData {
+ 		r := MustCompile(data.re)
+ 		for _, size := range benchSizes {
+-			if isRaceBuilder && size.n > 1<<10 {
++			if (isRaceBuilder || testing.Short()) && size.n > 1<<10 {
+ 				continue
+ 			}
+ 			t := makeText(size.n)
+@@ -688,7 +688,7 @@ func BenchmarkMatch_onepass_regex(b *testing.B) {
+ 		b.Fatalf("want onepass regex, but %q is not onepass", r)
+ 	}
+ 	for _, size := range benchSizes {
+-		if isRaceBuilder && size.n > 1<<10 {
++		if (isRaceBuilder || testing.Short()) && size.n > 1<<10 {
+ 			continue
+ 		}
+ 		t := makeText(size.n)

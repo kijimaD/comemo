@@ -11,6 +11,35 @@ Date:   Tue Dec 5 16:11:20 2023 -0500
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.22.html | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index e5facbd892..07901c82ab 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -786,17 +786,19 @@ defer func() {
+   <code>6</code> and <code>7</code>.
+ </p>
+ 
++<h3 id="loong64">Loong64</h3>
+ <p><!-- CL 481315 -->
+-  TODO: <a href="https://go.dev/cl/481315">https://go.dev/cl/481315</a>: runtime, cmd/go: enable memory sanitizer on linux/loong64
++  The <code>loong64</code> port now supports passing function arguments and results using registers.
+ </p>
++<p><!-- CL 481315,537615,480878 -->
++  The <code>linux/loong64</code> port now supports the memory sanitizer, new-style linker relocations, and the <code>plugin</code> build mode.
++</p>
++
+ 
+ <p><!-- CL 517935 -->
+   TODO: <a href="https://go.dev/cl/517935">https://go.dev/cl/517935</a>: cmd/dist,internal/platform: enable openbsd/ppc64 port
+ </p>
+ 
+-<p><!-- CL 537615 -->
+-  TODO: <a href="https://go.dev/cl/537615">https://go.dev/cl/537615</a>: debug/elf,cmd/link: add additional relocations for loong64; modified api/next/63725.txt
+-</p>
+ 
+ <p><!-- CL 469395 -->
+   TODO: <a href="https://go.dev/cl/469395">https://go.dev/cl/469395</a>: debug/elf,cmd/link: add additional MIPS64 relocation type; modified api/next/61974.txt

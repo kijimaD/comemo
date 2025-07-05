@@ -18,6 +18,20 @@ Date:   Thu Aug 4 12:05:15 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/debug/pe/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index aa0955a133..e8b1a4f5e2 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -322,7 +322,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
+ 		return nil, nil
+ 	}
+ 
+-	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64 || f.Machine == IMAGE_FILE_MACHINE_ARM64
++	_, pe64 := f.OptionalHeader.(*OptionalHeader64)
+ 
+ 	// grab the number of data directory entries
+ 	var dd_length uint32

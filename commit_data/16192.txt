@@ -9,7 +9,40 @@ Date:   Wed Apr 17 13:25:28 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8840043
-
+---
  doc/go1.1.html                      | 3 +++
  src/pkg/mime/multipart/multipart.go | 7 ++++++-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 2900243b85..03a457dc58 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -862,6 +862,9 @@ has a new method for its
+ <a href="/pkg/mime/multipart/#Writer"><code>Writer</code></a>,
+ <a href="/pkg/mime/multipart/#Writer.SetBoundary"><code>SetBoundary</code></a>,
+ to define the boundary separator used to package the output.
++The <a href="/pkg/mime/multipart/#Reader"><code>Reader</code></a> also now
++transparently decodes any <code>quoted-printable</code> parts and removes
++the <code>Content-Transfer-Encoding</code> header when doing so.
+ </li>
+ 
+ <li>
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index a6204d7bdb..2c862a6479 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -28,7 +28,12 @@ var emptyParams = make(map[string]string)
+ type Part struct {
+ 	// The headers of the body, if any, with the keys canonicalized
+ 	// in the same fashion that the Go http.Request headers are.
+-	// i.e. "foo-bar" changes case to "Foo-Bar"
++	// For example, "foo-bar" changes case to "Foo-Bar"
++	//
++	// As a special case, if the "Content-Transfer-Encoding" header
++	// has a value of "quoted-printable", that header is instead
++	// hidden from this map and the body is transparently decoded
++	// during Read calls.
+ 	Header textproto.MIMEHeader
+ 
+ 	buffer    *bytes.Buffer

@@ -11,9 +11,58 @@ Date:   Mon Jan 20 10:23:41 2020 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220421
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/defs_linux_386.go   | 1 -
  src/runtime/defs_linux_amd64.go | 1 -
  src/runtime/defs_linux_arm.go   | 1 -
  src/runtime/defs_linux_arm64.go | 1 -
  4 files changed, 4 deletions(-)
+
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index ba5ef18e02..f4db8cf927 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -95,7 +95,6 @@ const (
+ 	_EPOLL_CTL_MOD = 0x3
+ 
+ 	_AF_UNIX    = 0x1
+-	_F_SETFL    = 0x4
+ 	_SOCK_DGRAM = 0x2
+ )
+ 
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index 8144354d5a..8480d85219 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -91,7 +91,6 @@ const (
+ 	_EPOLL_CTL_MOD = 0x3
+ 
+ 	_AF_UNIX    = 0x1
+-	_F_SETFL    = 0x4
+ 	_SOCK_DGRAM = 0x2
+ )
+ 
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index d24e0a9d6e..ea29fd9d98 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -87,7 +87,6 @@ const (
+ 	_EPOLL_CTL_MOD = 0x3
+ 
+ 	_AF_UNIX    = 0x1
+-	_F_SETFL    = 0x4
+ 	_SOCK_DGRAM = 0x2
+ )
+ 
+diff --git a/src/runtime/defs_linux_arm64.go b/src/runtime/defs_linux_arm64.go
+index 182887d8d5..0690cd35b2 100644
+--- a/src/runtime/defs_linux_arm64.go
++++ b/src/runtime/defs_linux_arm64.go
+@@ -91,7 +91,6 @@ const (
+ 	_EPOLL_CTL_MOD = 0x3
+ 
+ 	_AF_UNIX    = 0x1
+-	_F_SETFL    = 0x4
+ 	_SOCK_DGRAM = 0x2
+ )
+ 

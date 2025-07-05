@@ -26,7 +26,7 @@ Date:   Mon Feb 26 14:03:47 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/crash_test.go                 | 16 +++++++++++
  src/runtime/proc.go                       | 10 +++++--
  src/runtime/runtime2.go                   |  3 ++
@@ -37,3 +37,385 @@ Date:   Mon Feb 26 14:03:47 2018 -0800
  src/runtime/vdso_in_none.go               | 13 +++++++++
  src/runtime/vdso_linux.go                 | 11 ++++++++
  9 files changed, 160 insertions(+), 23 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 0254ebdc5f..cd1aa51542 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -621,3 +621,19 @@ func TestBadTraceback(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestTimePprof(t *testing.T) {
++	fn := runTestProg(t, "testprog", "TimeProf")
++	fn = strings.TrimSpace(fn)
++	defer os.Remove(fn)
++
++	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1", fn))
++	cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
++	top, err := cmd.CombinedOutput()
++	t.Logf("%s", top)
++	if err != nil {
++		t.Error(err)
++	} else if bytes.Contains(top, []byte("ExternalCode")) {
++		t.Error("profiler refers to ExternalCode")
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f20e77eee5..c3c64ebfaf 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3576,6 +3576,7 @@ func _ExternalCode()              { _ExternalCode() }
+ func _LostExternalCode()          { _LostExternalCode() }
+ func _GC()                        { _GC() }
+ func _LostSIGPROFDuringAtomic64() { _LostSIGPROFDuringAtomic64() }
++func _VDSO()                      { _VDSO() }
+ 
+ // Counts SIGPROFs received while in atomic64 critical section, on mips{,le}
+ var lostAtomic64Count uint64
+@@ -3712,11 +3713,16 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 			// Collect Go stack that leads to the call.
+ 			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
+ 		}
++		if n == 0 && mp != nil && mp.vdsoSP != 0 {
++			n = gentraceback(mp.vdsoPC, mp.vdsoSP, 0, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap|_TraceJumpStack)
++		}
+ 		if n == 0 {
+ 			// If all of the above has failed, account it against abstract "System" or "GC".
+ 			n = 2
+-			// "ExternalCode" is better than "etext".
+-			if pc > firstmoduledata.etext {
++			if inVDSOPage(pc) {
++				pc = funcPC(_VDSO) + sys.PCQuantum
++			} else if pc > firstmoduledata.etext {
++				// "ExternalCode" is better than "etext".
+ 				pc = funcPC(_ExternalCode) + sys.PCQuantum
+ 			}
+ 			stk[0] = pc
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 77982c3e80..3db791cb4a 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -467,6 +467,9 @@ type m struct {
+ 	libcallg  guintptr
+ 	syscall   libcall // stores syscall parameters on windows
+ 
++	vdsoSP uintptr // SP for traceback while in VDSO call (0 if not in call)
++	vdsoPC uintptr // PC for traceback while in VDSO call
++
+ 	mOS
+ }
+ 
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 830dc68302..721551faec 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -202,12 +202,18 @@ TEXT runtime·walltime(SB), NOSPLIT, $0-12
+ 
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+-	MOVL	g_m(AX), CX
++	MOVL	g_m(AX), SI // SI unchanged by C code.
+ 
+-	CMPL	AX, m_curg(CX)	// Only switch if on curg.
++	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	MOVL	0(SP), DX
++	MOVL	DX, m_vdsoPC(SI)
++	LEAL	sec+0(SP), DX
++	MOVL	DX, m_vdsoSP(SI)
++
++	CMPL	AX, m_curg(SI)	// Only switch if on curg.
+ 	JNE	noswitch
+ 
+-	MOVL	m_g0(CX), DX
++	MOVL	m_g0(SI), DX
+ 	MOVL	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+ 
+ noswitch:
+@@ -242,6 +248,7 @@ finish:
+ 	MOVL	12(SP), BX	// nsec
+ 
+ 	MOVL	BP, SP		// Restore real SP
++	MOVL	$0, m_vdsoSP(SI)
+ 
+ 	// sec is in AX, nsec in BX
+ 	MOVL	AX, sec_lo+0(FP)
+@@ -258,12 +265,18 @@ TEXT runtime·nanotime(SB), NOSPLIT, $0-8
+ 
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+-	MOVL	g_m(AX), CX
++	MOVL	g_m(AX), SI // SI unchanged by C code.
++
++	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	MOVL	0(SP), DX
++	MOVL	DX, m_vdsoPC(SI)
++	LEAL	ret+0(SP), DX
++	MOVL	DX, m_vdsoSP(SI)
+ 
+-	CMPL	AX, m_curg(CX)	// Only switch if on curg.
++	CMPL	AX, m_curg(SI)	// Only switch if on curg.
+ 	JNE	noswitch
+ 
+-	MOVL	m_g0(CX), DX
++	MOVL	m_g0(SI), DX
+ 	MOVL	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+ 
+ noswitch:
+@@ -291,6 +304,7 @@ finish:
+ 	MOVL	12(SP), BX	// nsec
+ 
+ 	MOVL	BP, SP		// Restore real SP
++	MOVL	$0, m_vdsoSP(SI)
+ 
+ 	// sec is in AX, nsec in BX
+ 	// convert to DX:AX nsec
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 323078f9ea..39003498d5 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -188,12 +188,18 @@ TEXT runtime·walltime(SB),NOSPLIT,$0-12
+ 
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+-	MOVQ	g_m(AX), CX
++	MOVQ	g_m(AX), BX // BX unchanged by C code.
+ 
+-	CMPQ	AX, m_curg(CX)	// Only switch if on curg.
++	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	MOVQ	0(SP), DX
++	MOVQ	DX, m_vdsoPC(BX)
++	LEAQ	sec+0(SP), DX
++	MOVQ	DX, m_vdsoSP(BX)
++
++	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
+ 	JNE	noswitch
+ 
+-	MOVQ	m_g0(CX), DX
++	MOVQ	m_g0(BX), DX
+ 	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+ 
+ noswitch:
+@@ -209,6 +215,7 @@ noswitch:
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVQ	8(SP), DX	// nsec
+ 	MOVQ	BP, SP		// Restore real SP
++	MOVQ	$0, m_vdsoSP(BX)
+ 	MOVQ	AX, sec+0(FP)
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+@@ -221,6 +228,7 @@ fallback:
+ 	MOVL	8(SP), DX	// usec
+ 	IMULQ	$1000, DX
+ 	MOVQ	BP, SP		// Restore real SP
++	MOVQ	$0, m_vdsoSP(BX)
+ 	MOVQ	AX, sec+0(FP)
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+@@ -228,16 +236,22 @@ fallback:
+ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+ 	// Switch to g0 stack. See comment above in runtime·walltime.
+ 
+-	MOVQ	SP, BP	// Save old SP; BX unchanged by C code.
++	MOVQ	SP, BP	// Save old SP; BP unchanged by C code.
+ 
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+-	MOVQ	g_m(AX), CX
++	MOVQ	g_m(AX), BX // BX unchanged by C code.
++
++	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	MOVQ	0(SP), DX
++	MOVQ	DX, m_vdsoPC(BX)
++	LEAQ	ret+0(SP), DX
++	MOVQ	DX, m_vdsoSP(BX)
+ 
+-	CMPQ	AX, m_curg(CX)	// Only switch if on curg.
++	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
+ 	JNE	noswitch
+ 
+-	MOVQ	m_g0(CX), DX
++	MOVQ	m_g0(BX), DX
+ 	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
+ 
+ noswitch:
+@@ -253,6 +267,7 @@ noswitch:
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVQ	8(SP), DX	// nsec
+ 	MOVQ	BP, SP		// Restore real SP
++	MOVQ	$0, m_vdsoSP(BX)
+ 	// sec is in AX, nsec in DX
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+@@ -267,6 +282,7 @@ fallback:
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVL	8(SP), DX	// usec
+ 	MOVQ	BP, SP		// Restore real SP
++	MOVQ	$0, m_vdsoSP(BX)
+ 	IMULQ	$1000, DX
+ 	// sec is in AX, nsec in DX
+ 	// return nsec in AX
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 31923d36a4..4dd773adce 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -218,13 +218,18 @@ TEXT runtime·walltime(SB),NOSPLIT,$0-12
+ 	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
+ 	MOVW	R13, R4	// R4 is unchanged by C code.
+ 
+-	MOVW	g_m(g), R1
+-	MOVW	m_curg(R1), R0
++	MOVW	g_m(g), R5 // R5 is unchanged by C code.
++
++	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	MOVW	LR, m_vdsoPC(R5)
++	MOVW	R13, m_vdsoSP(R5)
++
++	MOVW	m_curg(R5), R0
+ 
+ 	CMP	g, R0		// Only switch if on curg.
+ 	B.NE	noswitch
+ 
+-	MOVW	m_g0(R1), R0
++	MOVW	m_g0(R5), R0
+ 	MOVW	(g_sched+gobuf_sp)(R0), R13	 // Set SP to g0 stack
+ 
+ noswitch:
+@@ -249,9 +254,10 @@ finish:
+ 	MOVW	12(R13), R2  // nsec
+ 
+ 	MOVW	R4, R13		// Restore real SP
++	MOVW	$0, R1
++	MOVW	R1, m_vdsoSP(R5)
+ 
+ 	MOVW	R0, sec_lo+0(FP)
+-	MOVW	$0, R1
+ 	MOVW	R1, sec_hi+4(FP)
+ 	MOVW	R2, nsec+8(FP)
+ 	RET
+@@ -263,13 +269,18 @@ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+ 	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
+ 	MOVW	R13, R4	// R4 is unchanged by C code.
+ 
+-	MOVW	g_m(g), R1
+-	MOVW	m_curg(R1), R0
++	MOVW	g_m(g), R5 // R5 is unchanged by C code.
++
++	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	MOVW	LR, m_vdsoPC(R5)
++	MOVW	R13, m_vdsoSP(R5)
++
++	MOVW	m_curg(R5), R0
+ 
+ 	CMP	g, R0		// Only switch if on curg.
+ 	B.NE	noswitch
+ 
+-	MOVW	m_g0(R1), R0
++	MOVW	m_g0(R5), R0
+ 	MOVW	(g_sched+gobuf_sp)(R0), R13	// Set SP to g0 stack
+ 
+ noswitch:
+@@ -294,10 +305,11 @@ finish:
+ 	MOVW	12(R13), R2	// nsec
+ 
+ 	MOVW	R4, R13		// Restore real SP
++	MOVW	$0, R4
++	MOVW	R4, m_vdsoSP(R5)
+ 
+ 	MOVW	$1000000000, R3
+ 	MULLU	R0, R3, (R1, R0)
+-	MOVW	$0, R4
+ 	ADD.S	R2, R0
+ 	ADC	R4, R1
+ 
+diff --git a/src/runtime/testdata/testprog/timeprof.go b/src/runtime/testdata/testprog/timeprof.go
+new file mode 100644
+index 0000000000..0702885369
+--- /dev/null
++++ b/src/runtime/testdata/testprog/timeprof.go
+@@ -0,0 +1,46 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"io/ioutil"
++	"os"
++	"runtime/pprof"
++	"time"
++)
++
++func init() {
++	register("TimeProf", TimeProf)
++}
++
++func TimeProf() {
++	f, err := ioutil.TempFile("", "timeprof")
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	if err := pprof.StartCPUProfile(f); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	t0 := time.Now()
++	// We should get a profiling signal 100 times a second,
++	// so running for 1/10 second should be sufficient.
++	for time.Since(t0) < time.Second/10 {
++	}
++
++	pprof.StopCPUProfile()
++
++	name := f.Name()
++	if err := f.Close(); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	fmt.Println(name)
++}
+diff --git a/src/runtime/vdso_in_none.go b/src/runtime/vdso_in_none.go
+new file mode 100644
+index 0000000000..f727e1d0e8
+--- /dev/null
++++ b/src/runtime/vdso_in_none.go
+@@ -0,0 +1,13 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,!386,!amd64,!arm !linux
++
++package runtime
++
++// A dummy version of inVDSOPage for targets that don't use a VDSO.
++
++func inVDSOPage(pc uintptr) bool {
++	return false
++}
+diff --git a/src/runtime/vdso_linux.go b/src/runtime/vdso_linux.go
+index 6f4c5bb83e..7939bb54be 100644
+--- a/src/runtime/vdso_linux.go
++++ b/src/runtime/vdso_linux.go
+@@ -279,3 +279,14 @@ func vdsoauxv(tag, val uintptr) {
+ 		vdsoParseSymbols(info1, vdsoFindVersion(info1, &linux26))
+ 	}
+ }
++
++// vdsoMarker returns whether PC is on the VDSO page.
++func inVDSOPage(pc uintptr) bool {
++	for _, k := range vdsoSymbolKeys {
++		if *k.ptr != 0 {
++			page := *k.ptr &^ (physPageSize - 1)
++			return pc >= page && pc < page+physPageSize
++		}
++	}
++	return false
++}

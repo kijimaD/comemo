@@ -7,7 +7,33 @@ Date:   Mon Jul 29 13:52:15 2013 -0700
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/12062043
-
+---
  src/pkg/go/parser/parser.go     | 2 +-
  src/pkg/go/parser/short_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 42a1c5e57c..a0ac8d7131 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1408,7 +1408,7 @@ L:
+ 			}
+ 			switch p.tok {
+ 			case token.IDENT:
+-				x = p.parseSelector(p.checkExpr(x))
++				x = p.parseSelector(p.checkExprOrType(x))
+ 			case token.LPAREN:
+ 				x = p.parseTypeAssertion(p.checkExpr(x))
+ 			default:
+diff --git a/src/pkg/go/parser/short_test.go b/src/pkg/go/parser/short_test.go
+index a581319e05..0ef0c560c4 100644
+--- a/src/pkg/go/parser/short_test.go
++++ b/src/pkg/go/parser/short_test.go
+@@ -34,6 +34,7 @@ var valids = []string{
+ 	`package p; func f() { switch ; {} };`,
+ 	`package p; func f() { for _ = range "foo" + "bar" {} };`,
+ 	`package p; func f() { var s []int; g(s[:], s[i:], s[:j], s[i:j], s[i:j:k], s[:j:k]) };`,
++	`package p; var ( _ = (struct {*T}).m; _ = (interface {T}).m )`,
+ }
+ 
+ func TestValid(t *testing.T) {

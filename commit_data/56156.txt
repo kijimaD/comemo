@@ -26,7 +26,64 @@ Date:   Wed Apr 12 09:43:41 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go | 16 ++++++----------
  src/go/types/infer.go                    | 16 ++++++----------
  2 files changed, 12 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index ed11ae8e4c..ee2bcf79e4 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -694,17 +694,13 @@ func (w *cycleFinder) varList(list []*Var) {
+ 	}
+ }
+ 
+-// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+-// Otherwise, the result is < 0. tpar must not be nil.
++// If tpar is a type parameter in list, tparamIndex returns the index
++// of the type parameter in list. Otherwise the result is < 0.
+ func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+-	// Once a type parameter is bound its index is >= 0. However, there are some
+-	// code paths (namely tracing and type hashing) by which it is possible to
+-	// arrive here with a type parameter that has not been bound, hence the check
+-	// for 0 <= i below.
+-	// TODO(rfindley): investigate a better approach for guarding against using
+-	// unbound type parameters.
+-	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
+-		return i
++	for i, p := range list {
++		if p == tpar {
++			return i
++		}
+ 	}
+ 	return -1
+ }
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index c2138f4a36..0f8e7aeddc 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -696,17 +696,13 @@ func (w *cycleFinder) varList(list []*Var) {
+ 	}
+ }
+ 
+-// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+-// Otherwise, the result is < 0. tpar must not be nil.
++// If tpar is a type parameter in list, tparamIndex returns the index
++// of the type parameter in list. Otherwise the result is < 0.
+ func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+-	// Once a type parameter is bound its index is >= 0. However, there are some
+-	// code paths (namely tracing and type hashing) by which it is possible to
+-	// arrive here with a type parameter that has not been bound, hence the check
+-	// for 0 <= i below.
+-	// TODO(rfindley): investigate a better approach for guarding against using
+-	// unbound type parameters.
+-	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
+-		return i
++	for i, p := range list {
++		if p == tpar {
++			return i
++		}
+ 	}
+ 	return -1
+ }

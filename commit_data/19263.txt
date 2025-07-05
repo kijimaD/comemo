@@ -11,6 +11,21 @@ Date:   Wed Apr 30 13:03:38 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/95900044
-
+---
  src/cmd/go/build.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 03300555de..1e4571b2c7 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -447,7 +447,8 @@ func (b *builder) init() {
+ 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.work)
+ 		}
+ 		if !buildWork {
+-			atexit(func() { os.RemoveAll(b.work) })
++			workdir := b.work
++			atexit(func() { os.RemoveAll(workdir) })
+ 		}
+ 	}
+ }

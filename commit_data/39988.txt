@@ -15,6 +15,34 @@ Date:   Sun Apr 7 16:58:13 2019 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/cmd/dist/build.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index e5d4b2458a..fec3b2cedc 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -657,7 +657,11 @@ func runInstall(dir string, ch chan struct{}) {
+ 		if elem == "go" {
+ 			elem = "go_bootstrap"
+ 		}
+-		link = []string{pathf("%s/link", tooldir), "-o", pathf("%s/%s%s", tooldir, elem, exe)}
++		link = []string{pathf("%s/link", tooldir)}
++		if goos == "android" {
++			link = append(link, "-buildmode=pie")
++		}
++		link = append(link, "-o", pathf("%s/%s%s", tooldir, elem, exe))
+ 		targ = len(link) - 1
+ 	}
+ 	ttarg := mtime(link[targ])
+@@ -862,6 +866,9 @@ func runInstall(dir string, ch chan struct{}) {
+ 		// compiler to generate ABI wrappers for everything.
+ 		compile = append(compile, "-allabis")
+ 	}
++	if goos == "android" {
++		compile = append(compile, "-shared")
++	}
+ 
+ 	compile = append(compile, gofiles...)
+ 	var wg sync.WaitGroup

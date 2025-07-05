@@ -13,7 +13,81 @@ Date:   Wed May 23 14:04:48 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/debug/pe/file.go |  8 ++++----
  src/debug/pe/pe.go   | 29 ++++++++++++++---------------
  2 files changed, 18 insertions(+), 19 deletions(-)
+
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index d1b1407f96..6fc1f3a60f 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -269,9 +269,9 @@ func (f *File) ImportedSymbols() ([]string, error) {
+ 		dd_length = f.OptionalHeader.(*OptionalHeader32).NumberOfRvaAndSizes
+ 	}
+ 
+-	// check that the length of data directory entries is large 
++	// check that the length of data directory entries is large
+ 	// enough to include the imports directory.
+-	if dd_length < IMAGE_DIRECTORY_ENTRY_IMPORT + 1 {
++	if dd_length < IMAGE_DIRECTORY_ENTRY_IMPORT+1 {
+ 		return nil, nil
+ 	}
+ 
+@@ -287,7 +287,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
+ 	var ds *Section
+ 	ds = nil
+ 	for _, s := range f.Sections {
+-		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress < s.VirtualAddress + s.VirtualSize {
++		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress < s.VirtualAddress+s.VirtualSize {
+ 			ds = s
+ 			break
+ 		}
+@@ -304,7 +304,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
+ 	}
+ 
+ 	// seek to the virtual address specified in the import data directory
+-	d = d[idd.VirtualAddress - ds.VirtualAddress:]
++	d = d[idd.VirtualAddress-ds.VirtualAddress:]
+ 
+ 	// start decoding the import directory
+ 	var ida []ImportDirectory
+diff --git a/src/debug/pe/pe.go b/src/debug/pe/pe.go
+index 9eaf33c310..872c977fe3 100644
+--- a/src/debug/pe/pe.go
++++ b/src/debug/pe/pe.go
+@@ -111,20 +111,19 @@ const (
+ 
+ // IMAGE_DIRECTORY_ENTRY constants
+ const (
+-	IMAGE_DIRECTORY_ENTRY_EXPORT = 0
+-	IMAGE_DIRECTORY_ENTRY_IMPORT = 1
+-	IMAGE_DIRECTORY_ENTRY_RESOURCE = 2
+-	IMAGE_DIRECTORY_ENTRY_EXCEPTION = 3
+-	IMAGE_DIRECTORY_ENTRY_SECURITY = 4
+-	IMAGE_DIRECTORY_ENTRY_BASERELOC = 5
+-	IMAGE_DIRECTORY_ENTRY_DEBUG = 6
+-	IMAGE_DIRECTORY_ENTRY_ARCHITECTURE = 7
+-	IMAGE_DIRECTORY_ENTRY_GLOBALPTR = 8
+-	IMAGE_DIRECTORY_ENTRY_TLS = 9
+-	IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG = 10
+-	IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT = 11
+-	IMAGE_DIRECTORY_ENTRY_IAT = 12
+-	IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT = 13
++	IMAGE_DIRECTORY_ENTRY_EXPORT         = 0
++	IMAGE_DIRECTORY_ENTRY_IMPORT         = 1
++	IMAGE_DIRECTORY_ENTRY_RESOURCE       = 2
++	IMAGE_DIRECTORY_ENTRY_EXCEPTION      = 3
++	IMAGE_DIRECTORY_ENTRY_SECURITY       = 4
++	IMAGE_DIRECTORY_ENTRY_BASERELOC      = 5
++	IMAGE_DIRECTORY_ENTRY_DEBUG          = 6
++	IMAGE_DIRECTORY_ENTRY_ARCHITECTURE   = 7
++	IMAGE_DIRECTORY_ENTRY_GLOBALPTR      = 8
++	IMAGE_DIRECTORY_ENTRY_TLS            = 9
++	IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG    = 10
++	IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT   = 11
++	IMAGE_DIRECTORY_ENTRY_IAT            = 12
++	IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT   = 13
+ 	IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 14
+ )
+-

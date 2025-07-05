@@ -7,7 +7,32 @@ Date:   Tue Aug 16 18:15:36 2011 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4901047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 65c77c6a3a..d8bf4b45cf 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -11,6 +11,7 @@
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Albert Strasheim <fullung@gmail.com>
++Aleksandar Dezelin <dezelin@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexey Borzenkov <snaury@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b97eafbc14..293df0bb2e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -35,6 +35,7 @@ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adam Langley <agl@golang.org>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Albert Strasheim <fullung@gmail.com>
++Aleksandar Dezelin <dezelin@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexey Borzenkov <snaury@gmail.com>

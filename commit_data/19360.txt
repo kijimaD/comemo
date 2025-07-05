@@ -10,7 +10,54 @@ Date:   Thu May 15 12:44:29 2014 +1000
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/97500043
-
+---
  src/cmd/addr2line/main.go | 11 ++++++++++-
  src/cmd/objdump/main.go   | 11 ++++++++++-
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/addr2line/main.go b/src/cmd/addr2line/main.go
+index d6d14a7330..f4a7789f9b 100644
+--- a/src/cmd/addr2line/main.go
++++ b/src/cmd/addr2line/main.go
+@@ -138,8 +138,17 @@ func loadTables(f *os.File) (textStart uint64, symtab, pclntab []byte, err error
+ 	}
+ 
+ 	if obj, err := pe.NewFile(f); err == nil {
++		var imageBase uint64
++		switch oh := obj.OptionalHeader.(type) {
++		case *pe.OptionalHeader32:
++			imageBase = uint64(oh.ImageBase)
++		case *pe.OptionalHeader64:
++			imageBase = oh.ImageBase
++		default:
++			return 0, nil, nil, fmt.Errorf("pe file format not recognized")
++		}
+ 		if sect := obj.Section(".text"); sect != nil {
+-			textStart = uint64(sect.VirtualAddress)
++			textStart = imageBase + uint64(sect.VirtualAddress)
+ 		}
+ 		if pclntab, err = loadPETable(obj, "pclntab", "epclntab"); err != nil {
+ 			return 0, nil, nil, err
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 1b6b3d0fc4..fb79ba3a2a 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -318,8 +318,17 @@ func loadTables(f *os.File) (textStart uint64, textData, symtab, pclntab []byte,
+ 	}
+ 
+ 	if obj, err := pe.NewFile(f); err == nil {
++		var imageBase uint64
++		switch oh := obj.OptionalHeader.(type) {
++		case *pe.OptionalHeader32:
++			imageBase = uint64(oh.ImageBase)
++		case *pe.OptionalHeader64:
++			imageBase = oh.ImageBase
++		default:
++			return 0, nil, nil, nil, fmt.Errorf("pe file format not recognized")
++		}
+ 		if sect := obj.Section(".text"); sect != nil {
+-			textStart = uint64(sect.VirtualAddress)
++			textStart = imageBase + uint64(sect.VirtualAddress)
+ 			textData, _ = sect.Data()
+ 		}
+ 		if pclntab, err = loadPETable(obj, "pclntab", "epclntab"); err != nil {

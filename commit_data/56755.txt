@@ -12,6 +12,21 @@ Date:   Sun May 21 15:34:43 2023 +0100
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/json_handler.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/log/slog/json_handler.go b/src/log/slog/json_handler.go
+index ec25771245..cebcfba45a 100644
+--- a/src/log/slog/json_handler.go
++++ b/src/log/slog/json_handler.go
+@@ -66,8 +66,7 @@ func (h *JSONHandler) WithGroup(name string) Handler {
+ // and the value of [Level.String] is output.
+ //
+ // If the AddSource option is set and source information is available,
+-// the key is "source"
+-// and the value is output as "FILE:LINE".
++// the key is "source", and the value is a record of type [Source].
+ //
+ // The message's key is "msg".
+ //

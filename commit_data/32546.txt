@@ -24,8 +24,91 @@ Date:   Tue Mar 21 16:45:12 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/os_windows.go | 19 ++++++++++++++++++-
  src/runtime/proc.go       |  2 ++
  src/runtime/relax_stub.go | 11 +++++++++++
  3 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 672cc100d5..3df3d28ed0 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -50,6 +50,7 @@ const (
+ //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod%1 "winmm.dll"
++//go:cgo_import_dynamic runtime._timeEndPeriod timeEndPeriod%1 "winmm.dll"
+ 
+ type stdFunction unsafe.Pointer
+ 
+@@ -96,6 +97,7 @@ var (
+ 	_WriteConsoleW,
+ 	_WriteFile,
+ 	_timeBeginPeriod,
++	_timeEndPeriod,
+ 	_ stdFunction
+ 
+ 	// Following syscalls are only available on some Windows PCs.
+@@ -268,6 +270,21 @@ var useLoadLibraryEx bool
+ 
+ var timeBeginPeriodRetValue uint32
+ 
++// osRelax is called by the scheduler when transitioning to and from
++// all Ps being idle.
++//
++// On Windows, it adjusts the system-wide timer resolution. Go needs a
++// high resolution timer while running and there's little extra cost
++// if we're already using the CPU, but if all Ps are idle there's no
++// need to consume extra power to drive the high-res timer.
++func osRelax(relax bool) uint32 {
++	if relax {
++		return uint32(stdcall1(_timeEndPeriod, 1))
++	} else {
++		return uint32(stdcall1(_timeBeginPeriod, 1))
++	}
++}
++
+ func osinit() {
+ 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+ 	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
+@@ -287,7 +304,7 @@ func osinit() {
+ 
+ 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
+ 
+-	timeBeginPeriodRetValue = uint32(stdcall1(_timeBeginPeriod, 1))
++	timeBeginPeriodRetValue = osRelax(false)
+ 
+ 	ncpu = getproccount()
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index dae8f135bc..7d6b89016a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3751,7 +3751,9 @@ func sysmon() {
+ 				if scavengelimit < forcegcperiod {
+ 					maxsleep = scavengelimit / 2
+ 				}
++				osRelax(true)
+ 				notetsleep(&sched.sysmonnote, maxsleep)
++				osRelax(false)
+ 				lock(&sched.lock)
+ 				atomic.Store(&sched.sysmonwait, 0)
+ 				noteclear(&sched.sysmonnote)
+diff --git a/src/runtime/relax_stub.go b/src/runtime/relax_stub.go
+new file mode 100644
+index 0000000000..78c32736d7
+--- /dev/null
++++ b/src/runtime/relax_stub.go
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++package runtime
++
++// osRelax is called by the scheduler when transitioning to and from
++// all Ps being idle.
++func osRelax(relax bool) {}

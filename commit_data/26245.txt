@@ -15,7 +15,44 @@ Date:   Wed Jan 6 19:52:51 2016 +0000
     Change-Id: Ib1c123ce1eebdd88642da28a5948ca4f30581907
     Reviewed-on: https://go-review.googlesource.com/18287
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/transport.go      | 6 ++++++
  src/net/http/transport_test.go | 1 -
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 6ca1c5a9fd..01e3a05a3a 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1423,6 +1423,9 @@ WaitResponse:
+ 		select {
+ 		case err := <-writeErrCh:
+ 			if err != nil {
++				if pc.isCanceled() {
++					err = errRequestCanceled
++				}
+ 				re = responseAndError{err: beforeRespHeaderError{err}}
+ 				pc.close(fmt.Errorf("write error: %v", err))
+ 				break WaitResponse
+@@ -1446,6 +1449,9 @@ WaitResponse:
+ 			re = responseAndError{err: errTimeout}
+ 			break WaitResponse
+ 		case re = <-resc:
++			if re.err != nil && pc.isCanceled() {
++				re.err = errRequestCanceled
++			}
+ 			break WaitResponse
+ 		case <-cancelChan:
+ 			pc.t.CancelRequest(req.Request)
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 9b4802f2aa..46e330315b 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1649,7 +1649,6 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
+ 
+ // Issue 11020. The returned error message should be errRequestCanceled
+ func TestTransportCancelBeforeResponseHeaders(t *testing.T) {
+-	setFlaky(t, 11894)
+ 	defer afterTest(t)
+ 
+ 	serverConnCh := make(chan net.Conn, 1)

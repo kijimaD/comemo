@@ -24,6 +24,26 @@ Date:   Mon Nov 17 14:44:41 2014 -0500
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/172600043
-
+---
  src/cmd/pprof/internal/report/source.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/pprof/internal/report/source.go b/src/cmd/pprof/internal/report/source.go
+index 57300dd91a..73ae1b4ea2 100644
+--- a/src/cmd/pprof/internal/report/source.go
++++ b/src/cmd/pprof/internal/report/source.go
+@@ -358,9 +358,13 @@ func getFunctionSource(fun, file string, fns nodes, start, end int) (nodes, stri
+ 	for {
+ 		line, err := buf.ReadString('\n')
+ 		if err != nil {
+-			if line == "" || err != io.EOF {
++			if err != io.EOF {
+ 				return nil, file, err
+ 			}
++			if line == "" {
++				// end was at or past EOF; that's okay
++				break
++			}
+ 		}
+ 		if lineno >= start {
+ 			flat, cum := sumNodes(lineNodes[lineno])

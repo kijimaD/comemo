@@ -23,6 +23,20 @@ Date:   Fri Feb 14 11:42:58 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index f34193cb32..68acf876f8 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -321,7 +321,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		}
+ 
+ 		if isIntrinsicCall(n) {
+-			v.budget--
++			// Treat like any other node.
+ 			break
+ 		}
+ 

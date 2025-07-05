@@ -15,9 +15,268 @@ Date:   Wed Oct 7 14:35:25 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/15552
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go        | 40 +++++++++++++++++++++++--
  src/cmd/compile/internal/gc/type.go       | 41 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/type.go      | 50 +++++++++++++++++++------------
  src/cmd/compile/internal/ssa/type_test.go | 42 +++++++++++++++-----------
  4 files changed, 134 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7e00fc9162..69a9b8639b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1801,6 +1801,31 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OEFACE:
+ 		tab := s.expr(n.Left)
+ 		data := s.expr(n.Right)
++		// The frontend allows putting things like struct{*byte} in
++		// the data portion of an eface.  But we don't want struct{*byte}
++		// as a register type because (among other reasons) the liveness
++		// analysis is confused by the "fat" variables that result from
++		// such types being spilled.
++		// So here we ensure that we are selecting the underlying pointer
++		// when we build an eface.
++		for !data.Type.IsPtr() {
++			switch {
++			case data.Type.IsArray():
++				data = s.newValue2(ssa.OpArrayIndex, data.Type.Elem(), data, s.constInt(Types[TINT], 0))
++			case data.Type.IsStruct():
++				for i := data.Type.NumFields() - 1; i >= 0; i-- {
++					f := data.Type.FieldType(i)
++					if f.Size() == 0 {
++						// eface type could also be struct{p *byte; q [0]int}
++						continue
++					}
++					data = s.newValue1I(ssa.OpStructSelect, f, data.Type.FieldOff(i), data)
++					break
++				}
++			default:
++				s.Fatalf("type being put into an eface isn't a pointer")
++			}
++		}
+ 		return s.newValue2(ssa.OpIMake, n.Type, tab, data)
+ 
+ 	case OSLICE, OSLICEARR:
+@@ -1898,8 +1923,15 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 		// Evaluate args
+ 		args := make([]*ssa.Value, 0, nargs)
++		store := make([]bool, 0, nargs)
+ 		for l := n.List.Next; l != nil; l = l.Next {
+-			args = append(args, s.expr(l.N))
++			if canSSAType(l.N.Type) {
++				args = append(args, s.expr(l.N))
++				store = append(store, true)
++			} else {
++				args = append(args, s.addr(l.N))
++				store = append(store, false)
++			}
+ 		}
+ 
+ 		p = s.variable(&ptrVar, pt)          // generates phi for ptr
+@@ -1907,7 +1939,11 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
+ 		for i, arg := range args {
+ 			addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TUINTPTR], int64(i)))
+-			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
++			if store[i] {
++				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
++			} else {
++				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg, s.mem())
++			}
+ 			if haspointers(et) {
+ 				// TODO: just one write barrier call for all of these writes?
+ 				// TODO: maybe just one writeBarrierEnabled check?
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 3e07df367d..87af2860e8 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -88,6 +88,10 @@ func (t *Type) IsArray() bool {
+ 	return t.Etype == TARRAY && t.Bound >= 0
+ }
+ 
++func (t *Type) IsStruct() bool {
++	return t.Etype == TSTRUCT
++}
++
+ func (t *Type) IsInterface() bool {
+ 	return t.Etype == TINTER
+ }
+@@ -99,5 +103,42 @@ func (t *Type) PtrTo() ssa.Type {
+ 	return Ptrto(t)
+ }
+ 
++func (t *Type) NumFields() int64 {
++	return int64(countfield(t))
++}
++func (t *Type) FieldType(i int64) ssa.Type {
++	// TODO: store fields in a slice so we can
++	// look them up by index in constant time.
++	for t1 := t.Type; t1 != nil; t1 = t1.Down {
++		if t1.Etype != TFIELD {
++			panic("non-TFIELD in a TSTRUCT")
++		}
++		if i == 0 {
++			return t1.Type
++		}
++		i--
++	}
++	panic("not enough fields")
++}
++func (t *Type) FieldOff(i int64) int64 {
++	for t1 := t.Type; t1 != nil; t1 = t1.Down {
++		if t1.Etype != TFIELD {
++			panic("non-TFIELD in a TSTRUCT")
++		}
++		if i == 0 {
++			return t1.Width
++		}
++		i--
++	}
++	panic("not enough fields")
++}
++
++func (t *Type) NumElem() int64 {
++	if t.Etype != TARRAY {
++		panic("NumElem on non-TARRAY")
++	}
++	return int64(t.Bound)
++}
++
+ func (t *Type) IsMemory() bool { return false }
+ func (t *Type) IsFlags() bool  { return false }
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index 6800731de6..d558881b2f 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -21,14 +21,21 @@ type Type interface {
+ 	IsString() bool
+ 	IsSlice() bool
+ 	IsArray() bool
++	IsStruct() bool
+ 	IsInterface() bool
+ 
+ 	IsMemory() bool // special ssa-package-only types
+ 	IsFlags() bool
+ 
+-	Elem() Type  // given []T or *T, return T
++	Elem() Type  // given []T or *T or [n]T, return T
+ 	PtrTo() Type // given T, return *T
+ 
++	NumFields() int64       // # of fields of a struct
++	FieldType(i int64) Type // type of ith field of the struct
++	FieldOff(i int64) int64 // offset of ith field of the struct
++
++	NumElem() int64 // # of elements of an array
++
+ 	String() string
+ 	SimpleString() string // a coarser generic description of T, e.g. T's underlying type
+ 	Equal(Type) bool
+@@ -41,24 +48,29 @@ type CompilerType struct {
+ 	Flags  bool
+ }
+ 
+-func (t *CompilerType) Size() int64          { return 0 } // Size in bytes
+-func (t *CompilerType) Alignment() int64     { return 0 }
+-func (t *CompilerType) IsBoolean() bool      { return false }
+-func (t *CompilerType) IsInteger() bool      { return false }
+-func (t *CompilerType) IsSigned() bool       { return false }
+-func (t *CompilerType) IsFloat() bool        { return false }
+-func (t *CompilerType) IsComplex() bool      { return false }
+-func (t *CompilerType) IsPtr() bool          { return false }
+-func (t *CompilerType) IsString() bool       { return false }
+-func (t *CompilerType) IsSlice() bool        { return false }
+-func (t *CompilerType) IsArray() bool        { return false }
+-func (t *CompilerType) IsInterface() bool    { return false }
+-func (t *CompilerType) IsMemory() bool       { return t.Memory }
+-func (t *CompilerType) IsFlags() bool        { return t.Flags }
+-func (t *CompilerType) String() string       { return t.Name }
+-func (t *CompilerType) SimpleString() string { return t.Name }
+-func (t *CompilerType) Elem() Type           { panic("not implemented") }
+-func (t *CompilerType) PtrTo() Type          { panic("not implemented") }
++func (t *CompilerType) Size() int64            { return 0 } // Size in bytes
++func (t *CompilerType) Alignment() int64       { return 0 }
++func (t *CompilerType) IsBoolean() bool        { return false }
++func (t *CompilerType) IsInteger() bool        { return false }
++func (t *CompilerType) IsSigned() bool         { return false }
++func (t *CompilerType) IsFloat() bool          { return false }
++func (t *CompilerType) IsComplex() bool        { return false }
++func (t *CompilerType) IsPtr() bool            { return false }
++func (t *CompilerType) IsString() bool         { return false }
++func (t *CompilerType) IsSlice() bool          { return false }
++func (t *CompilerType) IsArray() bool          { return false }
++func (t *CompilerType) IsStruct() bool         { return false }
++func (t *CompilerType) IsInterface() bool      { return false }
++func (t *CompilerType) IsMemory() bool         { return t.Memory }
++func (t *CompilerType) IsFlags() bool          { return t.Flags }
++func (t *CompilerType) String() string         { return t.Name }
++func (t *CompilerType) SimpleString() string   { return t.Name }
++func (t *CompilerType) Elem() Type             { panic("not implemented") }
++func (t *CompilerType) PtrTo() Type            { panic("not implemented") }
++func (t *CompilerType) NumFields() int64       { panic("not implemented") }
++func (t *CompilerType) FieldType(i int64) Type { panic("not implemented") }
++func (t *CompilerType) FieldOff(i int64) int64 { panic("not implemented") }
++func (t *CompilerType) NumElem() int64         { panic("not implemented") }
+ 
+ func (t *CompilerType) Equal(u Type) bool {
+ 	x, ok := u.(*CompilerType)
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index f3ac0aec2c..c8889608db 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -17,30 +17,36 @@ type TypeImpl struct {
+ 	string  bool
+ 	slice   bool
+ 	array   bool
++	struct_ bool
+ 	inter   bool
+ 	Elem_   Type
+ 
+ 	Name string
+ }
+ 
+-func (t *TypeImpl) Size() int64          { return t.Size_ }
+-func (t *TypeImpl) Alignment() int64     { return t.Align }
+-func (t *TypeImpl) IsBoolean() bool      { return t.Boolean }
+-func (t *TypeImpl) IsInteger() bool      { return t.Integer }
+-func (t *TypeImpl) IsSigned() bool       { return t.Signed }
+-func (t *TypeImpl) IsFloat() bool        { return t.Float }
+-func (t *TypeImpl) IsComplex() bool      { return t.Complex }
+-func (t *TypeImpl) IsPtr() bool          { return t.Ptr }
+-func (t *TypeImpl) IsString() bool       { return t.string }
+-func (t *TypeImpl) IsSlice() bool        { return t.slice }
+-func (t *TypeImpl) IsArray() bool        { return t.array }
+-func (t *TypeImpl) IsInterface() bool    { return t.inter }
+-func (t *TypeImpl) IsMemory() bool       { return false }
+-func (t *TypeImpl) IsFlags() bool        { return false }
+-func (t *TypeImpl) String() string       { return t.Name }
+-func (t *TypeImpl) SimpleString() string { return t.Name }
+-func (t *TypeImpl) Elem() Type           { return t.Elem_ }
+-func (t *TypeImpl) PtrTo() Type          { panic("not implemented") }
++func (t *TypeImpl) Size() int64            { return t.Size_ }
++func (t *TypeImpl) Alignment() int64       { return t.Align }
++func (t *TypeImpl) IsBoolean() bool        { return t.Boolean }
++func (t *TypeImpl) IsInteger() bool        { return t.Integer }
++func (t *TypeImpl) IsSigned() bool         { return t.Signed }
++func (t *TypeImpl) IsFloat() bool          { return t.Float }
++func (t *TypeImpl) IsComplex() bool        { return t.Complex }
++func (t *TypeImpl) IsPtr() bool            { return t.Ptr }
++func (t *TypeImpl) IsString() bool         { return t.string }
++func (t *TypeImpl) IsSlice() bool          { return t.slice }
++func (t *TypeImpl) IsArray() bool          { return t.array }
++func (t *TypeImpl) IsStruct() bool         { return t.struct_ }
++func (t *TypeImpl) IsInterface() bool      { return t.inter }
++func (t *TypeImpl) IsMemory() bool         { return false }
++func (t *TypeImpl) IsFlags() bool          { return false }
++func (t *TypeImpl) String() string         { return t.Name }
++func (t *TypeImpl) SimpleString() string   { return t.Name }
++func (t *TypeImpl) Elem() Type             { return t.Elem_ }
++func (t *TypeImpl) PtrTo() Type            { panic("not implemented") }
++func (t *TypeImpl) NumFields() int64       { panic("not implemented") }
++func (t *TypeImpl) FieldType(i int64) Type { panic("not implemented") }
++func (t *TypeImpl) FieldOff(i int64) int64 { panic("not implemented") }
++func (t *TypeImpl) NumElem() int64         { panic("not implemented") }
+ 
+ func (t *TypeImpl) Equal(u Type) bool {
+ 	x, ok := u.(*TypeImpl)

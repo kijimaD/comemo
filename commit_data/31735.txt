@@ -13,7 +13,33 @@ Date:   Mon Mar 13 03:21:21 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/proxy_test.go     | 2 +-
  src/net/http/transport_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/proxy_test.go b/src/net/http/proxy_test.go
+index 823d1447ee..8d3a78b962 100644
+--- a/src/net/http/proxy_test.go
++++ b/src/net/http/proxy_test.go
+@@ -75,7 +75,7 @@ func TestCacheKeys(t *testing.T) {
+ 
+ func ResetProxyEnv() {
+ 	for _, v := range []string{"HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy"} {
+-		os.Setenv(v, "")
++		os.Unsetenv(v)
+ 	}
+ 	ResetCachedEnvironment()
+ }
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 09bfef4b10..8e211aad27 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2243,6 +2243,7 @@ var proxyFromEnvTests = []proxyFromEnvTest{
+ 
+ func TestProxyFromEnvironment(t *testing.T) {
+ 	ResetProxyEnv()
++	defer ResetProxyEnv()
+ 	for _, tt := range proxyFromEnvTests {
+ 		os.Setenv("HTTP_PROXY", tt.env)
+ 		os.Setenv("HTTPS_PROXY", tt.httpsenv)

@@ -18,6 +18,24 @@ Date:   Thu Sep 4 17:13:22 2014 -0700
     R=dave, adg, minux
     CC=golang-codereviews
     https://golang.org/cl/140290043
-
+---
  src/cmd/api/run.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index 896b2b4a1a..c323deb603 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -98,11 +98,9 @@ func prepGoPath() string {
+ 	if err == nil {
+ 		username = u.Username
+ 	} else {
+-		// Only need to handle Unix here, as Windows's os/user uses
+-		// native syscall and should work fine without cgo.
+ 		username = os.Getenv("USER")
+ 		if username == "" {
+-			log.Fatalf("Error getting current user: %v", err)
++			username = "nobody"
+ 		}
+ 	}
+ 

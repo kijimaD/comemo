@@ -17,8 +17,69 @@ Date:   Thu Dec 30 11:09:42 2021 +0800
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Trust: Fannie Zhang <Fannie.Zhang@arm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/testsanitizers/asan_test.go           |  1 +
  misc/cgo/testsanitizers/testdata/asan5_fail.go | 21 +++++++++++++++++++++
  src/runtime/asan.go                            |  4 ++++
  3 files changed, 26 insertions(+)
+
+diff --git a/misc/cgo/testsanitizers/asan_test.go b/misc/cgo/testsanitizers/asan_test.go
+index 27bd8a5b1f..1b70bce3d1 100644
+--- a/misc/cgo/testsanitizers/asan_test.go
++++ b/misc/cgo/testsanitizers/asan_test.go
+@@ -39,6 +39,7 @@ func TestASAN(t *testing.T) {
+ 		{src: "asan2_fail.go", memoryAccessError: "heap-buffer-overflow", errorLocation: "asan2_fail.go:31"},
+ 		{src: "asan3_fail.go", memoryAccessError: "use-after-poison", errorLocation: "asan3_fail.go:13"},
+ 		{src: "asan4_fail.go", memoryAccessError: "use-after-poison", errorLocation: "asan4_fail.go:13"},
++		{src: "asan5_fail.go", memoryAccessError: "use-after-poison", errorLocation: "asan5_fail.go:18"},
+ 		{src: "asan_useAfterReturn.go"},
+ 	}
+ 	for _, tc := range cases {
+diff --git a/misc/cgo/testsanitizers/testdata/asan5_fail.go b/misc/cgo/testsanitizers/testdata/asan5_fail.go
+new file mode 100644
+index 0000000000..d6853eab73
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan5_fail.go
+@@ -0,0 +1,21 @@
++package main
++
++import (
++	"fmt"
++	"runtime"
++	"unsafe"
++)
++
++func main() {
++	p := new([1024 * 1000]int)
++	p[0] = 10
++	r := bar(&p[1024*1000-1])
++	fmt.Printf("r value is %d", r)
++}
++
++func bar(a *int) int {
++	p := unsafe.Add(unsafe.Pointer(a), 2*unsafe.Sizeof(int(1)))
++	runtime.ASanWrite(p, 8) // BOOM
++	*((*int)(p)) = 10
++	return *((*int)(p))
++}
+diff --git a/src/runtime/asan.go b/src/runtime/asan.go
+index affafd4d8d..26656cd975 100644
+--- a/src/runtime/asan.go
++++ b/src/runtime/asan.go
+@@ -26,12 +26,16 @@ func ASanWrite(addr unsafe.Pointer, len int) {
+ // Private interface for the runtime.
+ const asanenabled = true
+ 
++// Mark asan(read, write) as NOSPLIT, because they may run
++// on stacks that cannot grow. See issue #50391.
++//go:nosplit
+ func asanread(addr unsafe.Pointer, sz uintptr) {
+ 	sp := getcallersp()
+ 	pc := getcallerpc()
+ 	doasanread(addr, sz, sp, pc)
+ }
+ 
++//go:nosplit
+ func asanwrite(addr unsafe.Pointer, sz uintptr) {
+ 	sp := getcallersp()
+ 	pc := getcallerpc()

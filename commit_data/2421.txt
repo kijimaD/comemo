@@ -8,7 +8,7 @@ Date:   Sat Jun 6 22:04:39 2009 -0700
     R=r
     OCL=30002
     CL=30007
-
+---
  src/{ => lib}/runtime/386/asm.s             |   0
  src/{ => lib}/runtime/386/closure.c         |   0
  src/{ => lib}/runtime/386/traceback.c       |   0
@@ -85,3 +85,447 @@ Date:   Sat Jun 6 22:04:39 2009 -0700
  src/{ => lib}/runtime/symtab.c              |   0
  src/runtime/Makefile                        | 119 ----------------------------
  75 files changed, 15 insertions(+), 119 deletions(-)
+
+diff --git a/src/runtime/386/asm.s b/src/lib/runtime/386/asm.s
+similarity index 100%
+rename from src/runtime/386/asm.s
+rename to src/lib/runtime/386/asm.s
+diff --git a/src/runtime/386/closure.c b/src/lib/runtime/386/closure.c
+similarity index 100%
+rename from src/runtime/386/closure.c
+rename to src/lib/runtime/386/closure.c
+diff --git a/src/runtime/386/traceback.c b/src/lib/runtime/386/traceback.c
+similarity index 100%
+rename from src/runtime/386/traceback.c
+rename to src/lib/runtime/386/traceback.c
+diff --git a/src/runtime/386/vlop.s b/src/lib/runtime/386/vlop.s
+similarity index 100%
+rename from src/runtime/386/vlop.s
+rename to src/lib/runtime/386/vlop.s
+diff --git a/src/runtime/386/vlrt.c b/src/lib/runtime/386/vlrt.c
+similarity index 100%
+rename from src/runtime/386/vlrt.c
+rename to src/lib/runtime/386/vlrt.c
+diff --git a/src/runtime/amd64/asm.s b/src/lib/runtime/amd64/asm.s
+similarity index 100%
+rename from src/runtime/amd64/asm.s
+rename to src/lib/runtime/amd64/asm.s
+diff --git a/src/runtime/amd64/closure.c b/src/lib/runtime/amd64/closure.c
+similarity index 100%
+rename from src/runtime/amd64/closure.c
+rename to src/lib/runtime/amd64/closure.c
+diff --git a/src/runtime/amd64/traceback.c b/src/lib/runtime/amd64/traceback.c
+similarity index 100%
+rename from src/runtime/amd64/traceback.c
+rename to src/lib/runtime/amd64/traceback.c
+diff --git a/src/runtime/arm/asm.s b/src/lib/runtime/arm/asm.s
+similarity index 100%
+rename from src/runtime/arm/asm.s
+rename to src/lib/runtime/arm/asm.s
+diff --git a/src/runtime/arm/closure.c b/src/lib/runtime/arm/closure.c
+similarity index 100%
+rename from src/runtime/arm/closure.c
+rename to src/lib/runtime/arm/closure.c
+diff --git a/src/runtime/arm/traceback.s b/src/lib/runtime/arm/traceback.s
+similarity index 100%
+rename from src/runtime/arm/traceback.s
+rename to src/lib/runtime/arm/traceback.s
+diff --git a/src/runtime/array.c b/src/lib/runtime/array.c
+similarity index 100%
+rename from src/runtime/array.c
+rename to src/lib/runtime/array.c
+diff --git a/src/runtime/cgo2c.c b/src/lib/runtime/cgo2c.c
+similarity index 100%
+rename from src/runtime/cgo2c.c
+rename to src/lib/runtime/cgo2c.c
+diff --git a/src/runtime/chan.c b/src/lib/runtime/chan.c
+similarity index 100%
+rename from src/runtime/chan.c
+rename to src/lib/runtime/chan.c
+diff --git a/src/runtime/darwin/386/defs.h b/src/lib/runtime/darwin/386/defs.h
+similarity index 100%
+rename from src/runtime/darwin/386/defs.h
+rename to src/lib/runtime/darwin/386/defs.h
+diff --git a/src/runtime/darwin/386/rt0.s b/src/lib/runtime/darwin/386/rt0.s
+similarity index 100%
+rename from src/runtime/darwin/386/rt0.s
+rename to src/lib/runtime/darwin/386/rt0.s
+diff --git a/src/runtime/darwin/386/signal.c b/src/lib/runtime/darwin/386/signal.c
+similarity index 100%
+rename from src/runtime/darwin/386/signal.c
+rename to src/lib/runtime/darwin/386/signal.c
+diff --git a/src/runtime/darwin/386/sys.s b/src/lib/runtime/darwin/386/sys.s
+similarity index 100%
+rename from src/runtime/darwin/386/sys.s
+rename to src/lib/runtime/darwin/386/sys.s
+diff --git a/src/runtime/darwin/amd64/defs.h b/src/lib/runtime/darwin/amd64/defs.h
+similarity index 100%
+rename from src/runtime/darwin/amd64/defs.h
+rename to src/lib/runtime/darwin/amd64/defs.h
+diff --git a/src/runtime/darwin/amd64/rt0.s b/src/lib/runtime/darwin/amd64/rt0.s
+similarity index 100%
+rename from src/runtime/darwin/amd64/rt0.s
+rename to src/lib/runtime/darwin/amd64/rt0.s
+diff --git a/src/runtime/darwin/amd64/signal.c b/src/lib/runtime/darwin/amd64/signal.c
+similarity index 100%
+rename from src/runtime/darwin/amd64/signal.c
+rename to src/lib/runtime/darwin/amd64/signal.c
+diff --git a/src/runtime/darwin/amd64/sys.s b/src/lib/runtime/darwin/amd64/sys.s
+similarity index 100%
+rename from src/runtime/darwin/amd64/sys.s
+rename to src/lib/runtime/darwin/amd64/sys.s
+diff --git a/src/runtime/darwin/defs.c b/src/lib/runtime/darwin/defs.c
+similarity index 100%
+rename from src/runtime/darwin/defs.c
+rename to src/lib/runtime/darwin/defs.c
+diff --git a/src/runtime/darwin/os.h b/src/lib/runtime/darwin/os.h
+similarity index 100%
+rename from src/runtime/darwin/os.h
+rename to src/lib/runtime/darwin/os.h
+diff --git a/src/runtime/darwin/signals.h b/src/lib/runtime/darwin/signals.h
+similarity index 100%
+rename from src/runtime/darwin/signals.h
+rename to src/lib/runtime/darwin/signals.h
+diff --git a/src/runtime/darwin/thread.c b/src/lib/runtime/darwin/thread.c
+similarity index 100%
+rename from src/runtime/darwin/thread.c
+rename to src/lib/runtime/darwin/thread.c
+diff --git a/src/lib/runtime/runtime.go b/src/lib/runtime/extern.go
+similarity index 100%
+rename from src/lib/runtime/runtime.go
+rename to src/lib/runtime/extern.go
+diff --git a/src/runtime/float.c b/src/lib/runtime/float.c
+similarity index 100%
+rename from src/runtime/float.c
+rename to src/lib/runtime/float.c
+diff --git a/src/runtime/float_go.cgo b/src/lib/runtime/float_go.cgo
+similarity index 100%
+rename from src/runtime/float_go.cgo
+rename to src/lib/runtime/float_go.cgo
+diff --git a/src/runtime/hashmap.c b/src/lib/runtime/hashmap.c
+similarity index 100%
+rename from src/runtime/hashmap.c
+rename to src/lib/runtime/hashmap.c
+diff --git a/src/runtime/hashmap.h b/src/lib/runtime/hashmap.h
+similarity index 100%
+rename from src/runtime/hashmap.h
+rename to src/lib/runtime/hashmap.h
+diff --git a/src/runtime/iface.c b/src/lib/runtime/iface.c
+similarity index 100%
+rename from src/runtime/iface.c
+rename to src/lib/runtime/iface.c
+diff --git a/src/runtime/linux/386/defs.h b/src/lib/runtime/linux/386/defs.h
+similarity index 100%
+rename from src/runtime/linux/386/defs.h
+rename to src/lib/runtime/linux/386/defs.h
+diff --git a/src/runtime/linux/386/rt0.s b/src/lib/runtime/linux/386/rt0.s
+similarity index 100%
+rename from src/runtime/linux/386/rt0.s
+rename to src/lib/runtime/linux/386/rt0.s
+diff --git a/src/runtime/linux/386/signal.c b/src/lib/runtime/linux/386/signal.c
+similarity index 100%
+rename from src/runtime/linux/386/signal.c
+rename to src/lib/runtime/linux/386/signal.c
+diff --git a/src/runtime/linux/386/sys.s b/src/lib/runtime/linux/386/sys.s
+similarity index 100%
+rename from src/runtime/linux/386/sys.s
+rename to src/lib/runtime/linux/386/sys.s
+diff --git a/src/runtime/linux/amd64/defs.h b/src/lib/runtime/linux/amd64/defs.h
+similarity index 100%
+rename from src/runtime/linux/amd64/defs.h
+rename to src/lib/runtime/linux/amd64/defs.h
+diff --git a/src/runtime/linux/amd64/rt0.s b/src/lib/runtime/linux/amd64/rt0.s
+similarity index 100%
+rename from src/runtime/linux/amd64/rt0.s
+rename to src/lib/runtime/linux/amd64/rt0.s
+diff --git a/src/runtime/linux/amd64/signal.c b/src/lib/runtime/linux/amd64/signal.c
+similarity index 100%
+rename from src/runtime/linux/amd64/signal.c
+rename to src/lib/runtime/linux/amd64/signal.c
+diff --git a/src/runtime/linux/amd64/sys.s b/src/lib/runtime/linux/amd64/sys.s
+similarity index 100%
+rename from src/runtime/linux/amd64/sys.s
+rename to src/lib/runtime/linux/amd64/sys.s
+diff --git a/src/runtime/linux/arm/defs.h b/src/lib/runtime/linux/arm/defs.h
+similarity index 100%
+rename from src/runtime/linux/arm/defs.h
+rename to src/lib/runtime/linux/arm/defs.h
+diff --git a/src/runtime/linux/arm/rt0.s b/src/lib/runtime/linux/arm/rt0.s
+similarity index 100%
+rename from src/runtime/linux/arm/rt0.s
+rename to src/lib/runtime/linux/arm/rt0.s
+diff --git a/src/runtime/linux/arm/signal.c b/src/lib/runtime/linux/arm/signal.c
+similarity index 100%
+rename from src/runtime/linux/arm/signal.c
+rename to src/lib/runtime/linux/arm/signal.c
+diff --git a/src/runtime/linux/arm/sys.s b/src/lib/runtime/linux/arm/sys.s
+similarity index 100%
+rename from src/runtime/linux/arm/sys.s
+rename to src/lib/runtime/linux/arm/sys.s
+diff --git a/src/runtime/linux/defs.c b/src/lib/runtime/linux/defs.c
+similarity index 100%
+rename from src/runtime/linux/defs.c
+rename to src/lib/runtime/linux/defs.c
+diff --git a/src/runtime/linux/defs1.c b/src/lib/runtime/linux/defs1.c
+similarity index 100%
+rename from src/runtime/linux/defs1.c
+rename to src/lib/runtime/linux/defs1.c
+diff --git a/src/runtime/linux/defs2.c b/src/lib/runtime/linux/defs2.c
+similarity index 100%
+rename from src/runtime/linux/defs2.c
+rename to src/lib/runtime/linux/defs2.c
+diff --git a/src/runtime/linux/defs_arm.c b/src/lib/runtime/linux/defs_arm.c
+similarity index 100%
+rename from src/runtime/linux/defs_arm.c
+rename to src/lib/runtime/linux/defs_arm.c
+diff --git a/src/runtime/linux/os.h b/src/lib/runtime/linux/os.h
+similarity index 100%
+rename from src/runtime/linux/os.h
+rename to src/lib/runtime/linux/os.h
+diff --git a/src/runtime/linux/signals.h b/src/lib/runtime/linux/signals.h
+similarity index 100%
+rename from src/runtime/linux/signals.h
+rename to src/lib/runtime/linux/signals.h
+diff --git a/src/runtime/linux/thread.c b/src/lib/runtime/linux/thread.c
+similarity index 100%
+rename from src/runtime/linux/thread.c
+rename to src/lib/runtime/linux/thread.c
+diff --git a/src/runtime/malloc.c b/src/lib/runtime/malloc.c
+similarity index 100%
+rename from src/runtime/malloc.c
+rename to src/lib/runtime/malloc.c
+diff --git a/src/runtime/malloc.h b/src/lib/runtime/malloc.h
+similarity index 100%
+rename from src/runtime/malloc.h
+rename to src/lib/runtime/malloc.h
+diff --git a/src/runtime/malloc_go.cgo b/src/lib/runtime/malloc_go.cgo
+similarity index 100%
+rename from src/runtime/malloc_go.cgo
+rename to src/lib/runtime/malloc_go.cgo
+diff --git a/src/runtime/mcache.c b/src/lib/runtime/mcache.c
+similarity index 100%
+rename from src/runtime/mcache.c
+rename to src/lib/runtime/mcache.c
+diff --git a/src/runtime/mcentral.c b/src/lib/runtime/mcentral.c
+similarity index 100%
+rename from src/runtime/mcentral.c
+rename to src/lib/runtime/mcentral.c
+diff --git a/src/runtime/mem.c b/src/lib/runtime/mem.c
+similarity index 100%
+rename from src/runtime/mem.c
+rename to src/lib/runtime/mem.c
+diff --git a/src/runtime/mfixalloc.c b/src/lib/runtime/mfixalloc.c
+similarity index 100%
+rename from src/runtime/mfixalloc.c
+rename to src/lib/runtime/mfixalloc.c
+diff --git a/src/runtime/mgc0.c b/src/lib/runtime/mgc0.c
+similarity index 100%
+rename from src/runtime/mgc0.c
+rename to src/lib/runtime/mgc0.c
+diff --git a/src/runtime/mheap.c b/src/lib/runtime/mheap.c
+similarity index 100%
+rename from src/runtime/mheap.c
+rename to src/lib/runtime/mheap.c
+diff --git a/src/runtime/mheapmap32.c b/src/lib/runtime/mheapmap32.c
+similarity index 100%
+rename from src/runtime/mheapmap32.c
+rename to src/lib/runtime/mheapmap32.c
+diff --git a/src/runtime/mheapmap32.h b/src/lib/runtime/mheapmap32.h
+similarity index 100%
+rename from src/runtime/mheapmap32.h
+rename to src/lib/runtime/mheapmap32.h
+diff --git a/src/runtime/mheapmap64.c b/src/lib/runtime/mheapmap64.c
+similarity index 100%
+rename from src/runtime/mheapmap64.c
+rename to src/lib/runtime/mheapmap64.c
+diff --git a/src/runtime/mheapmap64.h b/src/lib/runtime/mheapmap64.h
+similarity index 100%
+rename from src/runtime/mheapmap64.h
+rename to src/lib/runtime/mheapmap64.h
+diff --git a/src/runtime/msize.c b/src/lib/runtime/msize.c
+similarity index 100%
+rename from src/runtime/msize.c
+rename to src/lib/runtime/msize.c
+diff --git a/src/runtime/print.c b/src/lib/runtime/print.c
+similarity index 100%
+rename from src/runtime/print.c
+rename to src/lib/runtime/print.c
+diff --git a/src/runtime/proc.c b/src/lib/runtime/proc.c
+similarity index 100%
+rename from src/runtime/proc.c
+rename to src/lib/runtime/proc.c
+diff --git a/src/runtime/rune.c b/src/lib/runtime/rune.c
+similarity index 86%
+rename from src/runtime/rune.c
+rename to src/lib/runtime/rune.c
+index 2acf421cb0..ca4f9ac6aa 100644
+--- a/src/runtime/rune.c
++++ b/src/lib/runtime/rune.c
+@@ -1,3 +1,18 @@
++/*
++ * The authors of this software are Rob Pike and Ken Thompson.
++ *              Copyright (c) 2002 by Lucent Technologies.
++ *              Portions Copyright 2009 The Go Authors. All rights reserved.
++ * Permission to use, copy, modify, and distribute this software for any
++ * purpose without fee is hereby granted, provided that this entire notice
++ * is included in all copies of any software which is or includes a copy
++ * or modification of this software and in all copies of the supporting
++ * documentation for such software.
++ * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
++ * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES MAKE ANY
++ * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
++ * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
++ */
++
+ /*
+  * The authors of this software are Rob Pike and Ken Thompson.
+  *              Copyright (c) 2002 by Lucent Technologies.
+diff --git a/src/runtime/runtime.c b/src/lib/runtime/runtime.c
+similarity index 100%
+rename from src/runtime/runtime.c
+rename to src/lib/runtime/runtime.c
+diff --git a/src/runtime/runtime.h b/src/lib/runtime/runtime.h
+similarity index 100%
+rename from src/runtime/runtime.h
+rename to src/lib/runtime/runtime.h
+diff --git a/src/runtime/sema.c b/src/lib/runtime/sema.c
+similarity index 100%
+rename from src/runtime/sema.c
+rename to src/lib/runtime/sema.c
+diff --git a/src/runtime/sema_go.cgo b/src/lib/runtime/sema_go.cgo
+similarity index 100%
+rename from src/runtime/sema_go.cgo
+rename to src/lib/runtime/sema_go.cgo
+diff --git a/src/runtime/string.c b/src/lib/runtime/string.c
+similarity index 100%
+rename from src/runtime/string.c
+rename to src/lib/runtime/string.c
+diff --git a/src/runtime/symtab.c b/src/lib/runtime/symtab.c
+similarity index 100%
+rename from src/runtime/symtab.c
+rename to src/lib/runtime/symtab.c
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+deleted file mode 100644
+index ad236491f2..0000000000
+--- a/src/runtime/Makefile
++++ /dev/null
+@@ -1,119 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# Set SIZE to 32 or 64.
+-SIZE_386=32
+-SIZE_amd64=64
+-SIZE_arm=32
+-SIZE=$(SIZE_$(GOARCH))
+-
+-# Setup CFLAGS.  Add -D_64BIT on 64-bit platforms (sorry).
+-CFLAGS_64=-D_64BIT
+-CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE))
+-
+-# Set O to right letter.
+-O_386=8
+-O_amd64=6
+-O_arm=5
+-O=$(O_$(GOARCH))
+-
+-# Tools
+-CC=$(O)c
+-AS=$(O)a
+-AR=6ar  # sic
+-
+-LIB=lib.a
+-
+-# 386-specific object files
+-OFILES_386=\
+-	vlop.$O\
+-	vlrt.$O\
+-
+-OFILES=\
+-	array.$O\
+-	asm.$O\
+-	chan.$O\
+-	closure.$O\
+-	float.$O\
+-	float_go.$O\
+-	hashmap.$O\
+-	iface.$O\
+-	malloc.$O\
+-	malloc_go.$O\
+-	mcache.$O\
+-	mcentral.$O\
+-	mem.$O\
+-	mfixalloc.$O\
+-	mgc0.$O\
+-	mheap.$O\
+-	mheapmap$(SIZE).$O\
+-	msize.$O\
+-	print.$O\
+-	proc.$O\
+-	rune.$O\
+-	runtime.$O\
+-	rt0.$O\
+-	sema.$O\
+-	sema_go.$O\
+-	signal.$O\
+-	string.$O\
+-	symtab.$O\
+-	sys.$O\
+-	thread.$O\
+-	traceback.$O\
+-	$(OFILES_$(GOARCH))\
+-
+-HFILES=\
+-	runtime.h\
+-	hashmap.h\
+-	malloc.h\
+-	$(GOOS)/os.h\
+-	$(GOOS)/$(GOARCH)/defs.h\
+-
+-install: $(LIB) runtime.acid
+-	cp $(LIB) $(GOROOT)/lib/lib_$(GOARCH)_$(GOOS).a
+-	cp runtime.acid $(GOROOT)/acid/runtime.acid
+-
+-$(LIB): $(OFILES)
+-	$(AR) rc $(LIB) $(OFILES)
+-
+-$(OFILES): $(HFILES)
+-
+-nuke:
+-	rm -f *.[568] *.a $(GOROOT)/lib/$(LIB)
+-
+-clean:
+-	rm -f *.[568] *.a runtime.acid cgo2c
+-
+-%.$O:	%.c
+-	$(CC) $(CFLAGS) $<
+-
+-%.$O:	$(GOARCH)/%.c
+-	$(CC) $(CFLAGS) $<
+-
+-%.$O:	$(GOOS)/%.c
+-	$(CC) $(CFLAGS) $<
+-
+-%.$O:	$(GOOS)/$(GOARCH)/%.c
+-	$(CC) $(CFLAGS) $<
+-
+-%.$O:	$(GOARCH)/%.s
+-	$(AS) $<
+-
+-%.$O:	$(GOOS)/$(GOARCH)/%.s
+-	$(AS) $<
+-
+-cgo2c: cgo2c.c
+-	quietgcc -o $@ $<
+-
+-%.c:	%.cgo cgo2c
+-	./cgo2c $< > $@.tmp
+-	mv -f $@.tmp $@
+-
+-runtime.acid: runtime.h proc.c
+-	$(CC) -a proc.c >runtime.acid
+-
+-chan.acid: runtime.h chan.c
+-	$(CC) -a chan.c >chan.acid
+-

@@ -7,6 +7,20 @@ Date:   Fri Dec 11 11:35:36 2015 -0500
     Change-Id: Iae2bf44ec15975f440d026fd52fcccfbd9c598d9
     Reviewed-on: https://go-review.googlesource.com/17740
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go_faq.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index f198379fe5..bcd12075b6 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -885,7 +885,7 @@ Go separates the notion of what a
+ type does&mdash;its methods&mdash;from the type's implementation.
+ If two methods return different types, they are not doing the same thing.
+ Programmers who want covariant result types are often trying to
+-express a type heirarchy through interfaces.
++express a type hierarchy through interfaces.
+ In Go it's more natural to have a clean separation between interface
+ and implementation.
+ </p>

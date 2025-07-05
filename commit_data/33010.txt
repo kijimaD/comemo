@@ -13,6 +13,20 @@ Date:   Fri Jun 23 07:08:56 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/wait_waitid.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/wait_waitid.go b/src/os/wait_waitid.go
+index a6c5c729d2..5a62b27f19 100644
+--- a/src/os/wait_waitid.go
++++ b/src/os/wait_waitid.go
+@@ -26,7 +26,7 @@ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	// On Darwin, it requires greater than or equal to 64 bytes
+ 	// for darwin/{386,arm} and 104 bytes for darwin/amd64.
+ 	// We don't care about the values it returns.
+-	var siginfo [128]byte
++	var siginfo [16]uint64
+ 	psig := &siginfo[0]
+ 	_, _, e := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+ 	runtime.KeepAlive(p)

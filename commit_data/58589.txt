@@ -16,9 +16,174 @@ Date:   Sun Apr 2 23:54:35 2023 +0900
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: qiulaidongfeng <2645477756@qq.com>
-
+---
  src/runtime/export_test.go | 18 +----------------
  src/runtime/mfinal.go      | 21 +++++++++++++++++++
  src/sync/oncefunc.go       |  5 ++++-
  src/sync/oncefunc_test.go  | 50 ++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 76 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d2f3563956..2b34929ba0 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1920,24 +1920,8 @@ func UserArenaClone[T any](s T) T {
+ 
+ var AlignUp = alignUp
+ 
+-// BlockUntilEmptyFinalizerQueue blocks until either the finalizer
+-// queue is emptied (and the finalizers have executed) or the timeout
+-// is reached. Returns true if the finalizer queue was emptied.
+ func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
+-	start := nanotime()
+-	for nanotime()-start < timeout {
+-		lock(&finlock)
+-		// We know the queue has been drained when both finq is nil
+-		// and the finalizer g has stopped executing.
+-		empty := finq == nil
+-		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
+-		unlock(&finlock)
+-		if empty {
+-			return true
+-		}
+-		Gosched()
+-	}
+-	return false
++	return blockUntilEmptyFinalizerQueue(timeout)
+ }
+ 
+ func FrameStartLine(f *Frame) int {
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index be501e6fca..7d9d547c0f 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -300,6 +300,27 @@ func isGoPointerWithoutSpan(p unsafe.Pointer) bool {
+ 	return false
+ }
+ 
++// blockUntilEmptyFinalizerQueue blocks until either the finalizer
++// queue is emptied (and the finalizers have executed) or the timeout
++// is reached. Returns true if the finalizer queue was emptied.
++// This is used by the runtime and sync tests.
++func blockUntilEmptyFinalizerQueue(timeout int64) bool {
++	start := nanotime()
++	for nanotime()-start < timeout {
++		lock(&finlock)
++		// We know the queue has been drained when both finq is nil
++		// and the finalizer g has stopped executing.
++		empty := finq == nil
++		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
++		unlock(&finlock)
++		if empty {
++			return true
++		}
++		Gosched()
++	}
++	return false
++}
++
+ // SetFinalizer sets the finalizer associated with obj to the provided
+ // finalizer function. When the garbage collector finds an unreachable block
+ // with an associated finalizer, it clears the association and runs
+diff --git a/src/sync/oncefunc.go b/src/sync/oncefunc.go
+index 9ef8344132..db286283d1 100644
+--- a/src/sync/oncefunc.go
++++ b/src/sync/oncefunc.go
+@@ -25,7 +25,8 @@ func OnceFunc(f func()) func() {
+ 			}
+ 		}()
+ 		f()
+-		valid = true // Set only if f does not panic
++		f = nil      // Do not keep f alive after invoking it.
++		valid = true // Set only if f does not panic.
+ 	}
+ 	return func() {
+ 		once.Do(g)
+@@ -54,6 +55,7 @@ func OnceValue[T any](f func() T) func() T {
+ 			}
+ 		}()
+ 		result = f()
++		f = nil
+ 		valid = true
+ 	}
+ 	return func() T {
+@@ -85,6 +87,7 @@ func OnceValues[T1, T2 any](f func() (T1, T2)) func() (T1, T2) {
+ 			}
+ 		}()
+ 		r1, r2 = f()
++		f = nil
+ 		valid = true
+ 	}
+ 	return func() (T1, T2) {
+diff --git a/src/sync/oncefunc_test.go b/src/sync/oncefunc_test.go
+index 3c523a5b62..5f0d564063 100644
+--- a/src/sync/oncefunc_test.go
++++ b/src/sync/oncefunc_test.go
+@@ -6,10 +6,13 @@ package sync_test
+ 
+ import (
+ 	"bytes"
++	"math"
+ 	"runtime"
+ 	"runtime/debug"
+ 	"sync"
++	"sync/atomic"
+ 	"testing"
++	_ "unsafe"
+ )
+ 
+ // We assume that the Once.Do tests have already covered parallelism.
+@@ -182,6 +185,53 @@ func onceFuncPanic() {
+ 	panic("x")
+ }
+ 
++func TestOnceXGC(t *testing.T) {
++	fns := map[string]func([]byte) func(){
++		"OnceFunc": func(buf []byte) func() {
++			return sync.OnceFunc(func() { buf[0] = 1 })
++		},
++		"OnceValue": func(buf []byte) func() {
++			f := sync.OnceValue(func() any { buf[0] = 1; return nil })
++			return func() { f() }
++		},
++		"OnceValues": func(buf []byte) func() {
++			f := sync.OnceValues(func() (any, any) { buf[0] = 1; return nil, nil })
++			return func() { f() }
++		},
++	}
++	for n, fn := range fns {
++		t.Run(n, func(t *testing.T) {
++			buf := make([]byte, 1024)
++			var gc atomic.Bool
++			runtime.SetFinalizer(&buf[0], func(_ *byte) {
++				gc.Store(true)
++			})
++			f := fn(buf)
++			gcwaitfin()
++			if gc.Load() != false {
++				t.Fatal("wrapped function garbage collected too early")
++			}
++			f()
++			gcwaitfin()
++			if gc.Load() != true {
++				// Even if f is still alive, the function passed to Once(Func|Value|Values)
++				// is not kept alive after the first call to f.
++				t.Fatal("wrapped function should be garbage collected, but still live")
++			}
++			f()
++		})
++	}
++}
++
++// gcwaitfin performs garbage collection and waits for all finalizers to run.
++func gcwaitfin() {
++	runtime.GC()
++	runtime_blockUntilEmptyFinalizerQueue(math.MaxInt64)
++}
++
++//go:linkname runtime_blockUntilEmptyFinalizerQueue runtime.blockUntilEmptyFinalizerQueue
++func runtime_blockUntilEmptyFinalizerQueue(int64) bool
++
+ var (
+ 	onceFunc = sync.OnceFunc(func() {})
+ 

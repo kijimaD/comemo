@@ -17,7 +17,69 @@ Date:   Mon Sep 2 00:07:40 2019 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/decode_test.go | 35 +++++++++++++++++++++++++++++++++++
  src/encoding/json/stream.go      |  4 ++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 8dcb08cbd2..31ab61c733 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -2345,6 +2345,41 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
+ 	}
+ }
+ 
++func TestUnmarshalErrorAfterMultipleJSON(t *testing.T) {
++	tests := []struct {
++		in  string
++		err error
++	}{{
++		in:  `1 false null :`,
++		err: &SyntaxError{"invalid character ':' looking for beginning of value", 14},
++	}, {
++		in:  `1 [] [,]`,
++		err: &SyntaxError{"invalid character ',' looking for beginning of value", 7},
++	}, {
++		in:  `1 [] [true:]`,
++		err: &SyntaxError{"invalid character ':' after array element", 11},
++	}, {
++		in:  `1  {}    {"x"=}`,
++		err: &SyntaxError{"invalid character '=' after object key", 14},
++	}, {
++		in:  `falsetruenul#`,
++		err: &SyntaxError{"invalid character '#' in literal null (expecting 'l')", 13},
++	}}
++	for i, tt := range tests {
++		dec := NewDecoder(strings.NewReader(tt.in))
++		var err error
++		for {
++			var v interface{}
++			if err = dec.Decode(&v); err != nil {
++				break
++			}
++		}
++		if !reflect.DeepEqual(err, tt.err) {
++			t.Errorf("#%d: got %#v, want %#v", i, err, tt.err)
++		}
++	}
++}
++
+ type unmarshalPanic struct{}
+ 
+ func (unmarshalPanic) UnmarshalJSON([]byte) error { panic(0xdead) }
+diff --git a/src/encoding/json/stream.go b/src/encoding/json/stream.go
+index e29127499b..3d30322ce2 100644
+--- a/src/encoding/json/stream.go
++++ b/src/encoding/json/stream.go
+@@ -102,6 +102,10 @@ Input:
+ 			dec.scan.bytes++
+ 			switch dec.scan.step(&dec.scan, c) {
+ 			case scanEnd:
++				// scanEnd is delayed one byte so we decrement
++				// the scanner bytes count by 1 to ensure that
++				// this value is correct in the next call of Decode.
++				dec.scan.bytes--
+ 				break Input
+ 			case scanEndObject, scanEndArray:
+ 				// scanEnd is delayed one byte.

@@ -25,6 +25,39 @@ Date:   Fri Mar 20 15:26:46 2020 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d5a5614ba2..76832ca829 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3522,13 +3522,6 @@ func init() {
+ 	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas64", p8...)
+ 	alias("runtime/internal/atomic", "CasRel", "runtime/internal/atomic", "Cas", lwatomics...)
+ 
+-	alias("runtime/internal/sys", "Ctz8", "math/bits", "TrailingZeros8", all...)
+-	alias("runtime/internal/sys", "TrailingZeros8", "math/bits", "TrailingZeros8", all...)
+-	alias("runtime/internal/sys", "TrailingZeros64", "math/bits", "TrailingZeros64", all...)
+-	alias("runtime/internal/sys", "Len8", "math/bits", "Len8", all...)
+-	alias("runtime/internal/sys", "Len64", "math/bits", "Len64", all...)
+-	alias("runtime/internal/sys", "OnesCount64", "math/bits", "OnesCount64", all...)
+-
+ 	/******** math ********/
+ 	addF("math", "Sqrt",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+@@ -3950,6 +3943,13 @@ func init() {
+ 		sys.AMD64)
+ 	alias("math/bits", "Div", "math/bits", "Div64", sys.ArchAMD64)
+ 
++	alias("runtime/internal/sys", "Ctz8", "math/bits", "TrailingZeros8", all...)
++	alias("runtime/internal/sys", "TrailingZeros8", "math/bits", "TrailingZeros8", all...)
++	alias("runtime/internal/sys", "TrailingZeros64", "math/bits", "TrailingZeros64", all...)
++	alias("runtime/internal/sys", "Len8", "math/bits", "Len8", all...)
++	alias("runtime/internal/sys", "Len64", "math/bits", "Len64", all...)
++	alias("runtime/internal/sys", "OnesCount64", "math/bits", "OnesCount64", all...)
++
+ 	/******** sync/atomic ********/
+ 
+ 	// Note: these are disabled by flag_race in findIntrinsic below.

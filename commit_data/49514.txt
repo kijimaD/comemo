@@ -1939,3 +1939,665 @@ Date:   Tue Aug 24 17:24:19 2021 -0400
  test/uintptrescapes2.go                            |    2 +-
  test/writebarrier.go                               |   14 +
  1159 files changed, 42231 insertions(+), 20399 deletions(-)
+
+diff --cc src/cmd/go.mod
+index b0a3f48045,ccfff09885..b12d1991b9
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@@ -7,9 -7,9 +7,9 @@@ require 
+  	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
+  	golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e
+  	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e // indirect
+ -	golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a
+ +	golang.org/x/mod v0.4.3-0.20210723200715-e41a6a4f3b61
+  	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
+  	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+- 	golang.org/x/tools v0.1.6-0.20210726171848-ebce39e5e3d6
++ 	golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151
+  	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+  )
+diff --cc src/cmd/go.sum
+index bf237d40bc,f4d41f0d10..1db50ca302
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@@ -5,41 -5,18 +5,18 @@@ github.com/google/pprof v0.0.0-20210506
+  github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
+  github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 h1:mV02weKRL81bEnm8A0HT1/CAelMQDBuQIfLw8n+d6xI=
+  github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+- github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
+  golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e h1:pv3V0NlNSh5Q6AX/StwGLBjcLS7UN4m4Gq+V+uSecqM=
+  golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+- golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+- golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+  golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
+  golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
+- golang.org/x/mod v0.4.2/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ -golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a h1:e8qnjKz4EE6OjRki9wTadWSIogINvq10sMcuBRORxMY=
+ -golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
+ +golang.org/x/mod v0.4.3-0.20210723200715-e41a6a4f3b61 h1:gQY3CVezomIImcWCpxp6Mhj+fXCOZ+gD8/88326LVqw=
+ +golang.org/x/mod v0.4.3-0.20210723200715-e41a6a4f3b61/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
+- golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+- golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+- golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
+- golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4/go.mod h1:p54w0d4576C0XHj96bSt6lcn1PtDYWL6XObtHCRCNQM=
+- golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+- golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+- golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+- golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+  golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+- golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+- golang.org/x/sys v0.0.0-20210330210617-4fbd30eecc44/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+- golang.org/x/sys v0.0.0-20210510120138-977fb7262007/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+  golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 h1:yhBbb4IRs2HS9PPlAg6DMC6mUOKexJBNsLf4Z+6En1Q=
+  golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+- golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+  golang.org/x/term v0.0.0-20210503060354-a79de5458b56 h1:b8jxX3zqjpqb2LklXPzKSGJhzyxCOZSz8ncv8Nv+y7w=
+  golang.org/x/term v0.0.0-20210503060354-a79de5458b56/go.mod h1:tfny5GFUkzUvx4ps4ajbZsCe5lw1metzhBm9T3x7oIY=
+- golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+- golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+- golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+- golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+- golang.org/x/tools v0.1.6-0.20210726171848-ebce39e5e3d6 h1:er++nfKy5Irv8JPDfJ68QzoVKQ6MBF7cf5xC15O4Zy0=
+- golang.org/x/tools v0.1.6-0.20210726171848-ebce39e5e3d6/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
+- golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+- golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++ golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151 h1:jHjT6WuVKEMzjJgrS1+r1wk54oxwqumUnvtn0QZXyXE=
++ golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
+  golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+  golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+- rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
+diff --cc src/cmd/go/internal/modload/buildlist.go
+index 4fbe563cb8,bf69567316..9989bb5b2a
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@@ -196,6 -191,19 +196,19 @@@ func (rs *Requirements) rootSelected(pa
+  	return "", false
+  }
+  
++ // hasRedundantRoot returns true if the root list contains multiple requirements
++ // of the same module or a requirement on any version of the main module.
++ // Redundant requirements should be pruned, but they may influence version
++ // selection.
++ func (rs *Requirements) hasRedundantRoot() bool {
++ 	for i, m := range rs.rootModules {
+ -		if m.Path == Target.Path || (i > 0 && m.Path == rs.rootModules[i-1].Path) {
+++		if MainModules.Contains(m.Path) || (i > 0 && m.Path == rs.rootModules[i-1].Path) {
++ 			return true
++ 		}
++ 	}
++ 	return false
++ }
++ 
+  // Graph returns the graph of module requirements loaded from the current
+  // root modules (as reported by RootModules).
+  //
+diff --cc src/cmd/go/internal/modload/init.go
+index 1a91b83148,862b007739..896c61d19d
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@@ -610,71 -411,61 +610,83 @@@ func loadModFile(ctx context.Context) (
+  		return requirements, false
+  	}
+  
+ -	gomod := ModFilePath()
+ -	var data []byte
+ -	var err error
+ -	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+ -		// Don't lock go.mod if it's part of the overlay.
+ -		// On Plan 9, locking requires chmod, and we don't want to modify any file
+ -		// in the overlay. See #44700.
+ -		data, err = os.ReadFile(gomodActual)
+ -	} else {
+ -		data, err = lockedfile.Read(gomodActual)
+ -	}
+ -	if err != nil {
+ -		base.Fatalf("go: %v", err)
+ -	}
+ +	var modFiles []*modfile.File
+ +	var mainModules []module.Version
+ +	var indices []*modFileIndex
+ +	for _, modroot := range modRoots {
+ +		gomod := modFilePath(modroot)
+ +		var data []byte
+ +		var err error
+ +		if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+ +			// Don't lock go.mod if it's part of the overlay.
+ +			// On Plan 9, locking requires chmod, and we don't want to modify any file
+ +			// in the overlay. See #44700.
+ +			data, err = os.ReadFile(gomodActual)
+ +		} else {
+ +			data, err = lockedfile.Read(gomodActual)
+ +		}
+ +		if err != nil {
+ +			base.Fatalf("go: %v", err)
+ +		}
+  
+ -	var fixed bool
+ -	f, err := modfile.Parse(gomod, data, fixVersion(ctx, &fixed))
+ -	if err != nil {
+ -		// Errors returned by modfile.Parse begin with file:line.
+ -		base.Fatalf("go: errors parsing go.mod:\n%s\n", err)
+ -	}
+ -	if f.Module == nil {
+ -		// No module declaration. Must add module path.
+ -		base.Fatalf("go: no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod")
+ -	}
+ +		var fixed bool
+ +		f, err := modfile.Parse(gomod, data, fixVersion(ctx, &fixed))
+ +		if err != nil {
+ +			// Errors returned by modfile.Parse begin with file:line.
+ +			base.Fatalf("go: errors parsing go.mod:\n%s\n", err)
+ +		}
+ +		if f.Module == nil {
+ +			// No module declaration. Must add module path.
+ +			base.Fatalf("go: no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod")
+ +		}
+  
+ -	modFile = f
+ -	initTarget(f.Module.Mod)
+ -	index = indexModFile(data, f, fixed)
+ +		modFiles = append(modFiles, f)
+ +		mainModule := f.Module.Mod
+ +		mainModules = append(mainModules, mainModule)
+ +		indices = append(indices, indexModFile(data, f, mainModule, fixed))
+  
+ -	if err := module.CheckImportPath(f.Module.Mod.Path); err != nil {
+ -		if pathErr, ok := err.(*module.InvalidPathError); ok {
+ -			pathErr.Kind = "module"
+ +		if err := module.CheckImportPath(f.Module.Mod.Path); err != nil {
+ +			if pathErr, ok := err.(*module.InvalidPathError); ok {
+ +				pathErr.Kind = "module"
+ +			}
+ +			base.Fatalf("go: %v", err)
+  		}
+ -		base.Fatalf("go: %v", err)
+  	}
+  
+ +	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices)
+  	setDefaultBuildMod() // possibly enable automatic vendoring
+ -	rs = requirementsFromModFile()
+ +	rs = requirementsFromModFiles(ctx, modFiles)
+ +
+ +	if inWorkspaceMode() {
+ +		// We don't need to do anything for vendor or update the mod file so
+ +		// return early.
+ +
+ +		_ = TODOWorkspaces("don't worry about commits for now, but eventually will want to update go.work files")
+ +		return rs, false
+ +	}
+ +
+ +	mainModule := MainModules.mustGetSingleMainModule()
+ +
+  	if cfg.BuildMod == "vendor" {
+ -		readVendorList()
+ -		checkVendorConsistency()
+ +		readVendorList(mainModule)
+ +		index := MainModules.Index(mainModule)
+ +		modFile := MainModules.ModFile(mainModule)
+ +		checkVendorConsistency(index, modFile)
+  		rs.initVendor(vendorList)
+  	}
+++
++ 	if rs.hasRedundantRoot() {
++ 		// If any module path appears more than once in the roots, we know that the
++ 		// go.mod file needs to be updated even though we have not yet loaded any
++ 		// transitive dependencies.
+++		var err error
++ 		rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
++ 		if err != nil {
++ 			base.Fatalf("go: %v", err)
++ 		}
++ 	}
++ 
+ -	if index.goVersionV == "" {
+ +	if MainModules.Index(mainModule).goVersionV == "" {
+  		// TODO(#45551): Do something more principled instead of checking
+  		// cfg.CmdName directly here.
+  		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
+@@@ -750,7 -546,12 +769,12 @@@ func CreateModFile(ctx context.Context
+  		base.Fatalf("go: %v", err)
+  	}
+  
+- 	commitRequirements(ctx, modFileGoVersion(), requirementsFromModFiles(ctx, []*modfile.File{modFile}))
+ -	rs := requirementsFromModFile()
+++	rs := requirementsFromModFiles(ctx, []*modfile.File{modFile})
++ 	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
++ 	if err != nil {
++ 		base.Fatalf("go: %v", err)
++ 	}
++ 	commitRequirements(ctx, modFileGoVersion(), rs)
+  
+  	// Suggest running 'go mod tidy' unless the project is empty. Even if we
+  	// imported all the correct requirements above, we're probably missing
+@@@ -856,84 -639,45 +880,83 @@@ func AllowMissingModuleImports() 
+  	allowMissingModuleImports = true
+  }
+  
+ -// initTarget sets Target and associated variables according to modFile,
+ -func initTarget(m module.Version) {
+ -	Target = m
+ -	targetPrefix = m.Path
+ -
+ -	if rel := search.InDir(base.Cwd(), cfg.GOROOTsrc); rel != "" {
+ -		targetInGorootSrc = true
+ -		if m.Path == "std" {
+ -			// The "std" module in GOROOT/src is the Go standard library. Unlike other
+ -			// modules, the packages in the "std" module have no import-path prefix.
+ -			//
+ -			// Modules named "std" outside of GOROOT/src do not receive this special
+ -			// treatment, so it is possible to run 'go test .' in other GOROOTs to
+ -			// test individual packages using a combination of the modified package
+ -			// and the ordinary standard library.
+ -			// (See https://golang.org/issue/30756.)
+ -			targetPrefix = ""
+ +// makeMainModules creates a MainModuleSet and associated variables according to
+ +// the given main modules.
+ +func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile.File, indices []*modFileIndex) *MainModuleSet {
+ +	for _, m := range ms {
+ +		if m.Version != "" {
+ +			panic("mainModulesCalled with module.Version with non empty Version field: " + fmt.Sprintf("%#v", m))
+ +		}
+ +	}
+ +	modRootContainingCWD := findModuleRoot(base.Cwd())
+ +	mainModules := &MainModuleSet{
+ +		versions:    ms[:len(ms):len(ms)],
+ +		inGorootSrc: map[module.Version]bool{},
+ +		pathPrefix:  map[module.Version]string{},
+ +		modRoot:     map[module.Version]string{},
+ +		modFiles:    map[module.Version]*modfile.File{},
+ +		indices:     map[module.Version]*modFileIndex{},
+ +	}
+ +	for i, m := range ms {
+ +		mainModules.pathPrefix[m] = m.Path
+ +		mainModules.modRoot[m] = rootDirs[i]
+ +		mainModules.modFiles[m] = modFiles[i]
+ +		mainModules.indices[m] = indices[i]
+ +
+ +		if mainModules.modRoot[m] == modRootContainingCWD {
+ +			mainModules.modContainingCWD = m
+ +		}
+ +
+ +		if rel := search.InDir(rootDirs[i], cfg.GOROOTsrc); rel != "" {
+ +			mainModules.inGorootSrc[m] = true
+ +			if m.Path == "std" {
+ +				// The "std" module in GOROOT/src is the Go standard library. Unlike other
+ +				// modules, the packages in the "std" module have no import-path prefix.
+ +				//
+ +				// Modules named "std" outside of GOROOT/src do not receive this special
+ +				// treatment, so it is possible to run 'go test .' in other GOROOTs to
+ +				// test individual packages using a combination of the modified package
+ +				// and the ordinary standard library.
+ +				// (See https://golang.org/issue/30756.)
+ +				mainModules.pathPrefix[m] = ""
+ +			}
+  		}
+  	}
+ +	return mainModules
+  }
+  
+ -// requirementsFromModFile returns the set of non-excluded requirements from
+ +// requirementsFromModFiles returns the set of non-excluded requirements from
+  // the global modFile.
+ -func requirementsFromModFile() *Requirements {
+ -	roots := make([]module.Version, 0, len(modFile.Require))
+ +func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Requirements {
+ +	rootCap := 0
+ +	for i := range modFiles {
+ +		rootCap += len(modFiles[i].Require)
+ +	}
+ +	roots := make([]module.Version, 0, rootCap)
+ +	mPathCount := make(map[string]int)
+ +	for _, m := range MainModules.Versions() {
+ +		mPathCount[m.Path] = 1
+ +	}
+  	direct := map[string]bool{}
+ -	for _, r := range modFile.Require {
+ -		if index != nil && index.exclude[r.Mod] {
+ -			if cfg.BuildMod == "mod" {
+ -				fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+ -			} else {
+ -				fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+ +	for _, modFile := range modFiles {
+ +	requirement:
+ +		for _, r := range modFile.Require {
+ +			// TODO(#45713): Maybe join
+ +			for _, mainModule := range MainModules.Versions() {
+ +				if index := MainModules.Index(mainModule); index != nil && index.exclude[r.Mod] {
+ +					if cfg.BuildMod == "mod" {
+ +						fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+ +					} else {
+ +						fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+ +					}
+ +					continue requirement
+ +				}
+  			}
+ -			continue
+ -		}
+  
+ -		roots = append(roots, r.Mod)
+ -		if !r.Indirect {
+ -			direct[r.Mod.Path] = true
+ +			roots = append(roots, r.Mod)
+- 			mPathCount[r.Mod.Path]++
+ +			if !r.Indirect {
+ +				direct[r.Mod.Path] = true
+ +			}
+  		}
+  	}
+  	module.Sort(roots)
+diff --cc src/cmd/go/testdata/script/work.txt
+index 095d6ff174,0000000000..529c1c0bfd
+mode 100644,000000..100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@@ -1,140 -1,0 +1,140 @@@
+ +go mod initwork ./a ./b
+ +cmp go.work go.work.want
+ +
+ +! go run  example.com/b
+ +stderr 'a(\\|/)a.go:4:8: no required module provides package rsc.io/quote; to add it:\n\tcd '$WORK(\\|/)gopath(\\|/)src(\\|/)a'\n\tgo get rsc.io/quote'
+ +cd a
+ +go get rsc.io/quote
+ +go env GOMOD # go env GOMOD reports the module in a single module context
+ +stdout $GOPATH(\\|/)src(\\|/)a(\\|/)go.mod
+ +cd ..
+ +go run example.com/b
+ +stdout 'Hello, world.'
+ +
+ +# And try from a different directory
+ +cd c
+ +go run  example.com/b
+ +stdout 'Hello, world.'
+ +cd $GOPATH/src
+ +
+ +go list all # all includes both modules
+ +stdout 'example.com/a'
+ +stdout 'example.com/b'
+ +
+ +# -mod can only be set to readonly in workspace mode
+ +go list -mod=readonly all
+ +! go list -mod=mod all
+ +stderr '^go: -mod may only be set to readonly when in workspace mode'
+ +go list -mod=mod -workfile=off all
+ +
+ +# Test that duplicates in the directory list return an error
+ +cp go.work go.work.backup
+ +cp go.work.dup go.work
+ +! go run example.com/b
+ +stderr 'reading go.work: path .* appears multiple times in workspace'
+ +cp go.work.backup go.work
+ +
+ +cp go.work.d go.work
+ +go run example.com/d
+ +
+ +# Test that we don't run into "newRequirements called with unsorted roots"
+ +# panic with unsorted main modules.
+ +cp go.work.backwards go.work
+ +go run example.com/d
+ +
+ +# Test that command-line-arguments work inside and outside modules.
+ +# This exercises the code that determines which module command-line-arguments
+ +# belongs to.
+ +go list ./b/main.go
+ +go build -n -workfile=off -o foo foo.go
+ +go build -n -o foo foo.go
+ +
+ +-- go.work.dup --
+- go 1.17
+++go 1.18
+ +
+ +directory (
+ +  a
+ +  b
+ +  ../src/a
+ +)
+ +-- go.work.want --
+- go 1.17
+++go 1.18
+ +
+ +directory (
+ +	./a
+ +	./b
+ +)
+ +-- go.work.d --
+- go 1.17
+++go 1.18
+ +
+ +directory (
+ +	a
+ +	b
+ +	d
+ +)
+ +-- a/go.mod --
+ +
+ +module example.com/a
+ +
+ +-- a/a.go --
+ +package a
+ +
+ +import "fmt"
+ +import "rsc.io/quote"
+ +
+ +func HelloFromA() {
+ +  fmt.Println(quote.Hello())
+ +}
+ +
+ +-- b/go.mod --
+ +
+ +module example.com/b
+ +
+ +-- b/main.go --
+ +package main
+ +
+ +import "example.com/a"
+ +
+ +func main() {
+ +  a.HelloFromA()
+ +}
+ +-- b/lib/hello.go --
+ +package lib
+ +
+ +import "example.com/a"
+ +
+ +func Hello() {
+ +	a.HelloFromA()
+ +}
+ +
+ +-- c/README --
+ +Create this directory so we can cd to
+ +it and make sure paths are interpreted
+ +relative to the go.work, not the cwd.
+ +-- d/go.mod --
+ +module example.com/d
+ +
+ +-- d/main.go --
+ +package main
+ +
+ +import "example.com/b/lib"
+ +
+ +func main() {
+ +	lib.Hello()
+ +}
+ +
+ +-- go.work.backwards --
+ +go 1.18
+ +
+ +directory (
+ +    d
+ +    b
+ +    a
+ +)
+ +
+ +-- foo.go --
+ +package main
+ +import "fmt"
+ +func main() {
+ +	fmt.Println("Hello, World")
+ +}
+diff --cc src/cmd/go/testdata/script/work_edit.txt
+index 0717086ee7,0000000000..0de4069865
+mode 100644,000000..100644
+--- a/src/cmd/go/testdata/script/work_edit.txt
++++ b/src/cmd/go/testdata/script/work_edit.txt
+@@@ -1,157 -1,0 +1,157 @@@
+ +# Test editing go.work files.
+ +
+ +go mod initwork m
+ +cmp go.work go.work.want_initial
+ +
+ +go mod editwork -directory n
+ +cmp go.work go.work.want_directory_n
+ +
+ +go mod editwork -go 1.18
+ +cmp go.work go.work.want_go_118
+ +
+ +go mod editwork -dropdirectory m
+ +cmp go.work go.work.want_dropdirectory_m
+ +
+ +go mod editwork -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
+ +cmp go.work go.work.want_add_replaces
+ +
+ +go mod editwork -directory n -directory ../a -directory /b -directory c -directory c
+ +cmp go.work go.work.want_multidirectory
+ +
+ +go mod editwork -dropdirectory /b -dropdirectory n
+ +cmp go.work go.work.want_multidropdirectory
+ +
+ +go mod editwork -dropreplace='x.1@v1.4.0'
+ +cmp go.work go.work.want_dropreplace
+ +
+ +go mod editwork -print -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+ +cmp stdout go.work.want_print
+ +
+ +go mod editwork -json -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+ +cmp stdout go.work.want_json
+ +
+ +go mod editwork -print -fmt -workfile unformatted
+ +cmp stdout formatted
+ +
+ +-- go.work.want_initial --
+- go 1.17
+++go 1.18
+ +
+ +directory m
+ +-- go.work.want_directory_n --
+- go 1.17
+++go 1.18
+ +
+ +directory (
+ +	m
+ +	n
+ +)
+ +-- go.work.want_go_118 --
+ +go 1.18
+ +
+ +directory (
+ +	m
+ +	n
+ +)
+ +-- go.work.want_dropdirectory_m --
+ +go 1.18
+ +
+ +directory n
+ +-- go.work.want_add_replaces --
+ +go 1.18
+ +
+ +directory n
+ +
+ +replace (
+ +	x.1 v1.3.0 => y.1 v1.4.0
+ +	x.1 v1.4.0 => ../z
+ +)
+ +-- go.work.want_multidirectory --
+ +go 1.18
+ +
+ +directory (
+ +	../a
+ +	/b
+ +	c
+ +	n
+ +)
+ +
+ +replace (
+ +	x.1 v1.3.0 => y.1 v1.4.0
+ +	x.1 v1.4.0 => ../z
+ +)
+ +-- go.work.want_multidropdirectory --
+ +go 1.18
+ +
+ +directory (
+ +	../a
+ +	c
+ +)
+ +
+ +replace (
+ +	x.1 v1.3.0 => y.1 v1.4.0
+ +	x.1 v1.4.0 => ../z
+ +)
+ +-- go.work.want_dropreplace --
+ +go 1.18
+ +
+ +directory (
+ +	../a
+ +	c
+ +)
+ +
+ +replace x.1 v1.3.0 => y.1 v1.4.0
+ +-- go.work.want_print --
+ +go 1.19
+ +
+ +directory (
+ +	../a
+ +	b
+ +)
+ +
+ +replace x.1 v1.4.0 => ../z
+ +-- go.work.want_json --
+ +{
+ +	"Go": "1.19",
+ +	"Directory": [
+ +		{
+ +			"DiskPath": "../a"
+ +		},
+ +		{
+ +			"DiskPath": "b"
+ +		}
+ +	],
+ +	"Replace": [
+ +		{
+ +			"Old": {
+ +				"Path": "x.1",
+ +				"Version": "v1.4.0"
+ +			},
+ +			"New": {
+ +				"Path": "../z"
+ +			}
+ +		}
+ +	]
+ +}
+ +-- unformatted --
+- go 1.17
+++go 1.18
+ + directory (
+ + a
+ +  b
+ +  c
+ +  )
+ +  replace (
+ +  x.1 v1.3.0 => y.1 v1.4.0
+ +                            x.1 v1.4.0 => ../z
+ +                            )
+ +-- formatted --
+- go 1.17
+++go 1.18
+ +
+ +directory (
+ +	a
+ +	b
+ +	c
+ +)
+ +
+ +replace (
+ +	x.1 v1.3.0 => y.1 v1.4.0
+ +	x.1 v1.4.0 => ../z
+ +)

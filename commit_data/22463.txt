@@ -8,6 +8,20 @@ Date:   Sun Mar 8 13:33:39 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/7624
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/dist/util.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index fd4d2a62df..0bbdbad0e8 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -110,7 +110,7 @@ func run(dir string, mode int, cmd ...string) string {
+ 		if mode&Background != 0 {
+ 			bgdied.Done()
+ 		}
+-		fatal("FAILED: %v", strings.Join(cmd, " "))
++		fatal("FAILED: %v: %v", strings.Join(cmd, " "), err)
+ 	}
+ 	if mode&ShowOutput != 0 {
+ 		outputLock.Lock()

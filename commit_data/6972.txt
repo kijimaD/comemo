@@ -7,7 +7,7 @@ Date:   Wed Dec 15 17:20:26 2010 -0500
     R=iant, r
     CC=dho, golang-dev
     https://golang.org/cl/3687041
-
+---
  src/cmd/6l/asm.c                    |  3 +--
  src/cmd/6l/obj.c                    |  1 +
  src/cmd/8l/asm.c                    |  3 +--
@@ -21,3 +21,193 @@ Date:   Wed Dec 15 17:20:26 2010 -0500
  src/pkg/runtime/cgo/freebsd_386.c   |  3 ---
  src/pkg/runtime/cgo/freebsd_amd64.c |  3 ---
  12 files changed, 37 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index de18b3e299..bd25d7942b 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -163,7 +163,6 @@ needlib(char *name)
+ 
+ int nelfsym = 1;
+ 
+-static void	adddynsym(Sym*);
+ static void addpltsym(Sym*);
+ static void addgotsym(Sym*);
+ 
+@@ -437,7 +436,7 @@ addgotsym(Sym *s)
+ 	}
+ }
+ 
+-static void
++void
+ adddynsym(Sym *s)
+ {
+ 	Sym *d, *str;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 41c0f93cc6..96d78c3b99 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -245,6 +245,7 @@ main(int argc, char *argv[])
+ 		else
+ 			doprof2();
+ 	span();
++	addexport();
+ 	textaddress();
+ 	pclntab();
+ 	symtab();
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 882f5d447d..8ffa43e02e 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -153,7 +153,6 @@ needlib(char *name)
+ 
+ int	nelfsym = 1;
+ 
+-static void	adddynsym(Sym*);
+ static void	addpltsym(Sym*);
+ static void	addgotsym(Sym*);
+ 
+@@ -420,7 +419,7 @@ addgotsym(Sym *s)
+ 	}
+ }
+ 
+-static void
++void
+ adddynsym(Sym *s)
+ {
+ 	Sym *d, *str;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 4a724d10cc..18b2112fe1 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -313,6 +313,7 @@ main(int argc, char *argv[])
+ 		else
+ 			doprof2();
+ 	span();
++	addexport();
+ 	textaddress();
+ 	pclntab();
+ 	symtab();
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index eedfd7930e..043798c455 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -165,9 +165,9 @@ relocsym(Sym *s)
+ 		if(r->type >= 256)
+ 			continue;
+ 
+-		if(r->sym != S && (r->sym->type == SDYNIMPORT || r->sym->dynimpname != nil))
++		if(r->sym != S && r->sym->type == SDYNIMPORT)
+ 			if (thechar != '8' || HEADTYPE != 10) // Windows PE supports relocation references to dynamic import symbols
+-				diag("unhandled relocation for %s (rtype %d)", r->sym->name, r->type);
++				diag("unhandled relocation for %s (type %d rtype %d)", r->sym->name, r->sym->type, r->type);
+ 
+ 		if(r->sym != S && !r->sym->reachable)
+ 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 607cc3f3ad..00318fe115 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -658,3 +658,12 @@ deadcode(void)
+ 	else
+ 		last->next = nil;
+ }
++
++void
++addexport(void)
++{
++	int i;
++	
++	for(i=0; i<ndynexp; i++)
++		adddynsym(dynexp[i]);
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 0f933013df..450135a7f5 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -161,6 +161,8 @@ void	genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*));
+ vlong	datoff(vlong);
+ void	adddynlib(char*);
+ int	archreloc(Reloc*, Sym*, vlong*);
++void	adddynsym(Sym*);
++void	addexport(void);
+ 
+ int	pathchar(void);
+ void*	mal(uint32);
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index 8e51f40b17..3a29188ce5 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -14,7 +14,7 @@ if [ -f $OUT ] && ! [ -w $OUT ]; then
+ fi
+ 
+ # Get list of directories from Makefile
+-dirs=$(make echo-dirs)
++dirs=$(gomake echo-dirs)
+ dirpat=$(echo $dirs C | sed 's/ /|/g; s/.*/^(&)$/')
+ 
+ for dir in $dirs; do (
+diff --git a/src/pkg/runtime/cgo/Makefile b/src/pkg/runtime/cgo/Makefile
+index 7499276387..917166e069 100644
+--- a/src/pkg/runtime/cgo/Makefile
++++ b/src/pkg/runtime/cgo/Makefile
+@@ -31,6 +31,12 @@ OFILES=\
+ 
+ CGO_LDFLAGS=-lpthread
+ 
++ifeq ($(GOOS),freebsd)
++OFILES+=\
++	freebsd.$O\
++
++endif
++
+ endif
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/runtime/cgo/freebsd.c b/src/pkg/runtime/cgo/freebsd.c
+new file mode 100644
+index 0000000000..dfcfa3a213
+--- /dev/null
++++ b/src/pkg/runtime/cgo/freebsd.c
+@@ -0,0 +1,13 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Supply environ and __progname, because we don't
++// link against the standard FreeBSD crt0.o and the
++// libc dynamic library needs them.
++
++char *environ[1];
++char *__progname;
++
++#pragma dynexport environ environ
++#pragma dynexport __progname __progname
+diff --git a/src/pkg/runtime/cgo/freebsd_386.c b/src/pkg/runtime/cgo/freebsd_386.c
+index 449a8ef108..d08e1dee8c 100644
+--- a/src/pkg/runtime/cgo/freebsd_386.c
++++ b/src/pkg/runtime/cgo/freebsd_386.c
+@@ -7,9 +7,6 @@
+ 
+ static void* threadentry(void*);
+ 
+-char *environ[] = { 0 };
+-char *__progname;
+-
+ static void
+ xinitcgo(void)
+ {
+diff --git a/src/pkg/runtime/cgo/freebsd_amd64.c b/src/pkg/runtime/cgo/freebsd_amd64.c
+index daac403c11..a02fbf1519 100644
+--- a/src/pkg/runtime/cgo/freebsd_amd64.c
++++ b/src/pkg/runtime/cgo/freebsd_amd64.c
+@@ -7,9 +7,6 @@
+ 
+ static void* threadentry(void*);
+ 
+-char *environ[] = { 0 };
+-char *__progname;
+-
+ static void
+ xinitcgo(void)
+ {

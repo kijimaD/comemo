@@ -16,7 +16,7 @@ Date:   Mon Dec 18 12:01:43 2023 -0800
     Run-TryBot: Tim King <taking@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../go/analysis/passes/composite/composite.go      |   4 +-
@@ -51,3 +51,1675 @@ Date:   Mon Dec 18 12:01:43 2023 -0800
  .../x/tools/internal/versions/versions_go122.go    |  38 --
  src/cmd/vendor/modules.txt                         |   3 +-
  33 files changed, 473 insertions(+), 503 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 68ded94ba8..7a426887b4 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/sync v0.5.0
+ 	golang.org/x/sys v0.15.0
+ 	golang.org/x/term v0.15.0
+-	golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a
++	golang.org/x/tools v0.16.2-0.20231218185909-83bceaf2424d
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 680616da07..8ea3d75bd1 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -12,5 +12,5 @@ golang.org/x/sys v0.15.0 h1:h48lPFYpsTvQJZF4EKyI4aLHaev3CxivZmv7yZig9pc=
+ golang.org/x/sys v0.15.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/term v0.15.0 h1:y/Oo/a/q3IXu26lQgl04j/gjuBDOBlx7X6Om1j2CPW4=
+ golang.org/x/term v0.15.0/go.mod h1:BDl952bC7+uMoWR75FIrCDx79TPU9oHkTZ9yRbYOrX0=
+-golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a h1:0+Cdrtl1VNF5TeDTr0mLLPN4dMJFHnstbqMo/o1aReI=
+-golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a/go.mod h1:kYVVN6I1mBNoB1OX+noeBjbRk4IUEPa7JJ+TJMEooJ0=
++golang.org/x/tools v0.16.2-0.20231218185909-83bceaf2424d h1:9YOyUBubvYqtjjtZBnI62JT9/QB9jfPwOQ7xLeyuOIU=
++golang.org/x/tools v0.16.2-0.20231218185909-83bceaf2424d/go.mod h1:kYVVN6I1mBNoB1OX+noeBjbRk4IUEPa7JJ+TJMEooJ0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+index c7a49776fe..847063bb32 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+@@ -72,7 +72,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		}
+ 		var structuralTypes []types.Type
+ 		switch typ := typ.(type) {
+-		case *typeparams.TypeParam:
++		case *types.TypeParam:
+ 			terms, err := typeparams.StructuralTerms(typ)
+ 			if err != nil {
+ 				return // invalid type
+@@ -163,7 +163,7 @@ func isLocalType(pass *analysis.Pass, typ types.Type) bool {
+ 	case *types.Named:
+ 		// names in package foo are local to foo_test too
+ 		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
+-	case *typeparams.TypeParam:
++	case *types.TypeParam:
+ 		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
+ 	}
+ 	return false
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+index 2eeb0a330a..6cbbc7e814 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+@@ -255,7 +255,7 @@ func lockPath(tpkg *types.Package, typ types.Type, seen map[types.Type]bool) typ
+ 	}
+ 	seen[typ] = true
+ 
+-	if tpar, ok := typ.(*typeparams.TypeParam); ok {
++	if tpar, ok := typ.(*types.TypeParam); ok {
+ 		terms, err := typeparams.StructuralTerms(tpar)
+ 		if err != nil {
+ 			return nil // invalid type
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
+index b84577fcf8..12507f9967 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
+@@ -95,14 +95,14 @@ func (w *tpWalker) isParameterized(typ types.Type) (res bool) {
+ 		return w.isParameterized(t.Elem())
+ 
+ 	case *types.Named:
+-		list := typeparams.NamedTypeArgs(t)
++		list := t.TypeArgs()
+ 		for i, n := 0, list.Len(); i < n; i++ {
+ 			if w.isParameterized(list.At(i)) {
+ 				return true
+ 			}
+ 		}
+ 
+-	case *typeparams.TypeParam:
++	case *types.TypeParam:
+ 		return true
+ 
+ 	default:
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+index c0060753f9..3f01b3b55d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+@@ -13,6 +13,8 @@ import (
+ 	"go/token"
+ 	"go/types"
+ 	"os"
++
++	"golang.org/x/tools/internal/analysisinternal"
+ )
+ 
+ // Format returns a string representation of the expression.
+@@ -150,3 +152,5 @@ func IsFunctionNamed(f *types.Func, pkgPath string, names ...string) bool {
+ 	}
+ 	return false
+ }
++
++var MustExtractDoc = analysisinternal.MustExtractDoc
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+index 6df134399a..778f7f1f8f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+@@ -62,7 +62,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			obj = pass.TypesInfo.Uses[v]
+ 		case *ast.SelectorExpr:
+ 			obj = pass.TypesInfo.Uses[v.Sel]
+-		case *ast.IndexExpr, *typeparams.IndexListExpr:
++		case *ast.IndexExpr, *ast.IndexListExpr:
+ 			// Check generic functions such as "f[T1,T2]".
+ 			x, _, _, _ := typeparams.UnpackIndexExpr(v)
+ 			if id, ok := x.(*ast.Ident); ok {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+index 7cbb0bdbf5..ab98e56998 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+@@ -72,7 +72,7 @@ func (m *argMatcher) match(typ types.Type, topLevel bool) bool {
+ 		return true
+ 	}
+ 
+-	if typ, _ := typ.(*typeparams.TypeParam); typ != nil {
++	if typ, _ := typ.(*types.TypeParam); typ != nil {
+ 		// Avoid infinite recursion through type parameters.
+ 		if m.seen[typ] {
+ 			return true
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+index bafb9112e1..e272df709f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+@@ -99,7 +99,7 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
+ 	}
+ 	var structuralTypes []types.Type
+ 	switch t := t.(type) {
+-	case *typeparams.TypeParam:
++	case *types.TypeParam:
+ 		terms, err := typeparams.StructuralTerms(t)
+ 		if err != nil {
+ 			return // invalid type
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+index bb04dae626..b2591ccff5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+@@ -195,7 +195,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ func structuralTypes(t types.Type) ([]types.Type, error) {
+ 	var structuralTypes []types.Type
+ 	switch t := t.(type) {
+-	case *typeparams.TypeParam:
++	case *types.TypeParam:
+ 		terms, err := typeparams.StructuralTerms(t)
+ 		if err != nil {
+ 			return nil, err
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go
+index 805ccf49e4..d156851db1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go
+@@ -57,7 +57,7 @@ func isMethodNamed(f *types.Func, pkgPath string, names ...string) bool {
+ 
+ func funcIdent(fun ast.Expr) *ast.Ident {
+ 	switch fun := astutil.Unparen(fun).(type) {
+-	case *ast.IndexExpr, *typeparams.IndexListExpr:
++	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		x, _, _, _ := typeparams.UnpackIndexExpr(fun) // necessary?
+ 		id, _ := x.(*ast.Ident)
+ 		return id
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+index d0b0ebb101..6db12f3cb9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+@@ -17,7 +17,6 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+-	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ //go:embed doc.go
+@@ -391,7 +390,7 @@ func checkExampleName(pass *analysis.Pass, fn *ast.FuncDecl) {
+ 	if results := fn.Type.Results; results != nil && len(results.List) != 0 {
+ 		pass.Reportf(fn.Pos(), "%s should return nothing", fnName)
+ 	}
+-	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
++	if tparams := fn.Type.TypeParams; tparams != nil && len(tparams.List) > 0 {
+ 		pass.Reportf(fn.Pos(), "%s should not have type params", fnName)
+ 	}
+ 
+@@ -460,7 +459,7 @@ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
+ 		return
+ 	}
+ 
+-	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
++	if tparams := fn.Type.TypeParams; tparams != nil && len(tparams.List) > 0 {
+ 		// Note: cmd/go/internal/load also errors about TestXXX and BenchmarkXXX functions with type parameters.
+ 		// We have currently decided to also warn before compilation/package loading. This can help users in IDEs.
+ 		// TODO(adonovan): use ReportRangef(tparams).
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
+index 7043baa899..f4e73528b4 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
+@@ -14,7 +14,6 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/types/typeutil"
+-	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ //go:embed doc.go
+@@ -92,7 +91,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 
+ 		t := pass.TypesInfo.Types[call.Args[argidx]].Type
+ 		switch t.Underlying().(type) {
+-		case *types.Pointer, *types.Interface, *typeparams.TypeParam:
++		case *types.Pointer, *types.Interface, *types.TypeParam:
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 36eed808d8..1fa0d1f68f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -50,7 +50,6 @@ import (
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/internal/analysisflags"
+ 	"golang.org/x/tools/internal/facts"
+-	"golang.org/x/tools/internal/typeparams"
+ 	"golang.org/x/tools/internal/versions"
+ )
+ 
+@@ -259,10 +258,10 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 		Defs:       make(map[*ast.Ident]types.Object),
+ 		Uses:       make(map[*ast.Ident]types.Object),
+ 		Implicits:  make(map[ast.Node]types.Object),
++		Instances:  make(map[*ast.Ident]types.Instance),
+ 		Scopes:     make(map[ast.Node]*types.Scope),
+ 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+ 	}
+-	typeparams.InitInstanceInfo(info)
+ 	versions.InitFileVersions(info)
+ 
+ 	pkg, err := tc.Check(cfg.ImportPath, fset, files, info)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go
+index 9fa5aa192c..2c4c4e2328 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go
+@@ -11,8 +11,6 @@ import (
+ 	"go/ast"
+ 	"go/token"
+ 	"sort"
+-
+-	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ // PathEnclosingInterval returns the node that encloses the source
+@@ -322,7 +320,7 @@ func childrenOf(n ast.Node) []ast.Node {
+ 			children = append(children, n.Recv)
+ 		}
+ 		children = append(children, n.Name)
+-		if tparams := typeparams.ForFuncType(n.Type); tparams != nil {
++		if tparams := n.Type.TypeParams; tparams != nil {
+ 			children = append(children, tparams)
+ 		}
+ 		if n.Type.Params != nil {
+@@ -377,7 +375,7 @@ func childrenOf(n ast.Node) []ast.Node {
+ 			tok(n.Lbrack, len("[")),
+ 			tok(n.Rbrack, len("]")))
+ 
+-	case *typeparams.IndexListExpr:
++	case *ast.IndexListExpr:
+ 		children = append(children,
+ 			tok(n.Lbrack, len("[")),
+ 			tok(n.Rbrack, len("]")))
+@@ -588,7 +586,7 @@ func NodeDescription(n ast.Node) string {
+ 		return "decrement statement"
+ 	case *ast.IndexExpr:
+ 		return "index expression"
+-	case *typeparams.IndexListExpr:
++	case *ast.IndexListExpr:
+ 		return "index list expression"
+ 	case *ast.InterfaceType:
+ 		return "interface type"
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
+index f430b21b9b..58934f7663 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
+@@ -9,8 +9,6 @@ import (
+ 	"go/ast"
+ 	"reflect"
+ 	"sort"
+-
+-	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ // An ApplyFunc is invoked by Apply for each node n, even if n is nil,
+@@ -252,7 +250,7 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
+ 		a.apply(n, "X", nil, n.X)
+ 		a.apply(n, "Index", nil, n.Index)
+ 
+-	case *typeparams.IndexListExpr:
++	case *ast.IndexListExpr:
+ 		a.apply(n, "X", nil, n.X)
+ 		a.applyList(n, "Indices")
+ 
+@@ -293,7 +291,7 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
+ 		a.apply(n, "Fields", nil, n.Fields)
+ 
+ 	case *ast.FuncType:
+-		if tparams := typeparams.ForFuncType(n); tparams != nil {
++		if tparams := n.TypeParams; tparams != nil {
+ 			a.apply(n, "TypeParams", nil, tparams)
+ 		}
+ 		a.apply(n, "Params", nil, n.Params)
+@@ -408,7 +406,7 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
+ 	case *ast.TypeSpec:
+ 		a.apply(n, "Doc", nil, n.Doc)
+ 		a.apply(n, "Name", nil, n.Name)
+-		if tparams := typeparams.ForTypeSpec(n); tparams != nil {
++		if tparams := n.TypeParams; tparams != nil {
+ 			a.apply(n, "TypeParams", nil, tparams)
+ 		}
+ 		a.apply(n, "Type", nil, n.Type)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
+index 703c813954..2a872f89d4 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
+@@ -12,8 +12,6 @@ package inspector
+ import (
+ 	"go/ast"
+ 	"math"
+-
+-	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ const (
+@@ -171,7 +169,7 @@ func typeOf(n ast.Node) uint64 {
+ 		return 1 << nIncDecStmt
+ 	case *ast.IndexExpr:
+ 		return 1 << nIndexExpr
+-	case *typeparams.IndexListExpr:
++	case *ast.IndexListExpr:
+ 		return 1 << nIndexListExpr
+ 	case *ast.InterfaceType:
+ 		return 1 << nInterfaceType
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index e742ecc464..11d5c8c3ad 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -223,7 +223,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
+ 	//    Reject obviously non-viable cases.
+ 	switch obj := obj.(type) {
+ 	case *types.TypeName:
+-		if _, ok := obj.Type().(*typeparams.TypeParam); !ok {
++		if _, ok := obj.Type().(*types.TypeParam); !ok {
+ 			// With the exception of type parameters, only package-level type names
+ 			// have a path.
+ 			return "", fmt.Errorf("no path for %v", obj)
+@@ -283,7 +283,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
+ 			}
+ 		} else {
+ 			if named, _ := T.(*types.Named); named != nil {
+-				if r := findTypeParam(obj, typeparams.ForNamed(named), path, nil); r != nil {
++				if r := findTypeParam(obj, named.TypeParams(), path, nil); r != nil {
+ 					// generic named type
+ 					return Path(r), nil
+ 				}
+@@ -462,7 +462,7 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
+ 		}
+ 		return find(obj, T.Elem(), append(path, opElem), seen)
+ 	case *types.Signature:
+-		if r := findTypeParam(obj, typeparams.ForSignature(T), path, seen); r != nil {
++		if r := findTypeParam(obj, T.TypeParams(), path, seen); r != nil {
+ 			return r
+ 		}
+ 		if r := find(obj, T.Params(), append(path, opParams), seen); r != nil {
+@@ -505,7 +505,7 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
+ 			}
+ 		}
+ 		return nil
+-	case *typeparams.TypeParam:
++	case *types.TypeParam:
+ 		name := T.Obj()
+ 		if name == obj {
+ 			return append(path, opObj)
+@@ -525,7 +525,7 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
+ 	panic(T)
+ }
+ 
+-func findTypeParam(obj types.Object, list *typeparams.TypeParamList, path []byte, seen map[*types.TypeName]bool) []byte {
++func findTypeParam(obj types.Object, list *types.TypeParamList, path []byte, seen map[*types.TypeName]bool) []byte {
+ 	for i := 0; i < list.Len(); i++ {
+ 		tparam := list.At(i)
+ 		path2 := appendOpArg(path, opTypeParam, i)
+@@ -562,7 +562,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
+ 	}
+ 	// abstraction of *types.{Named,Signature}
+ 	type hasTypeParams interface {
+-		TypeParams() *typeparams.TypeParamList
++		TypeParams() *types.TypeParamList
+ 	}
+ 	// abstraction of *types.{Named,TypeParam}
+ 	type hasObj interface {
+@@ -664,7 +664,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
+ 			t = tparams.At(index)
+ 
+ 		case opConstraint:
+-			tparam, ok := t.(*typeparams.TypeParam)
++			tparam, ok := t.(*types.TypeParam)
+ 			if !ok {
+ 				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want type parameter)", code, t, t)
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
+index 90b3ab0e21..90dc541adf 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
+@@ -22,7 +22,7 @@ func Callee(info *types.Info, call *ast.CallExpr) types.Object {
+ 	// Look through type instantiation if necessary.
+ 	isInstance := false
+ 	switch fun.(type) {
+-	case *ast.IndexExpr, *typeparams.IndexListExpr:
++	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		// When extracting the callee from an *IndexExpr, we need to check that
+ 		// it is a *types.Func and not a *types.Var.
+ 		// Example: Don't match a slice m within the expression `m[0]()`.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+index 7bd2fdb38b..544246dac1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+@@ -219,7 +219,7 @@ type Hasher struct {
+ 	// generic types or functions, and instantiated signatures do not have type
+ 	// parameter lists, we should never encounter a second non-empty type
+ 	// parameter list when hashing a generic signature.
+-	sigTParams *typeparams.TypeParamList
++	sigTParams *types.TypeParamList
+ }
+ 
+ // MakeHasher returns a new Hasher instance.
+@@ -297,7 +297,7 @@ func (h Hasher) hashFor(t types.Type) uint32 {
+ 		// We should never encounter a generic signature while hashing another
+ 		// generic signature, but defensively set sigTParams only if h.mask is
+ 		// unset.
+-		tparams := typeparams.ForSignature(t)
++		tparams := t.TypeParams()
+ 		if h.sigTParams == nil && tparams.Len() != 0 {
+ 			h = Hasher{
+ 				// There may be something more efficient than discarding the existing
+@@ -318,7 +318,7 @@ func (h Hasher) hashFor(t types.Type) uint32 {
+ 
+ 		return hash + 3*h.hashTuple(t.Params()) + 5*h.hashTuple(t.Results())
+ 
+-	case *typeparams.Union:
++	case *types.Union:
+ 		return h.hashUnion(t)
+ 
+ 	case *types.Interface:
+@@ -354,14 +354,14 @@ func (h Hasher) hashFor(t types.Type) uint32 {
+ 
+ 	case *types.Named:
+ 		hash := h.hashPtr(t.Obj())
+-		targs := typeparams.NamedTypeArgs(t)
++		targs := t.TypeArgs()
+ 		for i := 0; i < targs.Len(); i++ {
+ 			targ := targs.At(i)
+ 			hash += 2 * h.Hash(targ)
+ 		}
+ 		return hash
+ 
+-	case *typeparams.TypeParam:
++	case *types.TypeParam:
+ 		return h.hashTypeParam(t)
+ 
+ 	case *types.Tuple:
+@@ -381,7 +381,7 @@ func (h Hasher) hashTuple(tuple *types.Tuple) uint32 {
+ 	return hash
+ }
+ 
+-func (h Hasher) hashUnion(t *typeparams.Union) uint32 {
++func (h Hasher) hashUnion(t *types.Union) uint32 {
+ 	// Hash type restrictions.
+ 	terms, err := typeparams.UnionTermSet(t)
+ 	// if err != nil t has invalid type restrictions. Fall back on a non-zero
+@@ -392,7 +392,7 @@ func (h Hasher) hashUnion(t *typeparams.Union) uint32 {
+ 	return h.hashTermSet(terms)
+ }
+ 
+-func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
++func (h Hasher) hashTermSet(terms []*types.Term) uint32 {
+ 	hash := 9157 + 2*uint32(len(terms))
+ 	for _, term := range terms {
+ 		// term order is not significant.
+@@ -416,7 +416,7 @@ func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
+ // are not identical.
+ //
+ // Otherwise the hash of t depends only on t's pointer identity.
+-func (h Hasher) hashTypeParam(t *typeparams.TypeParam) uint32 {
++func (h Hasher) hashTypeParam(t *types.TypeParam) uint32 {
+ 	if h.sigTParams != nil {
+ 		i := t.Index()
+ 		if i >= 0 && i < h.sigTParams.Len() && t == h.sigTParams.At(i) {
+@@ -489,7 +489,7 @@ func (h Hasher) shallowHash(t types.Type) uint32 {
+ 	case *types.Pointer:
+ 		return 4393139
+ 
+-	case *typeparams.Union:
++	case *types.Union:
+ 		return 562448657
+ 
+ 	case *types.Interface:
+@@ -504,7 +504,7 @@ func (h Hasher) shallowHash(t types.Type) uint32 {
+ 	case *types.Named:
+ 		return h.hashPtr(t.Obj())
+ 
+-	case *typeparams.TypeParam:
++	case *types.TypeParam:
+ 		return h.hashPtr(t.Obj())
+ 	}
+ 	panic(fmt.Sprintf("shallowHash: %T: %v", t, t))
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+new file mode 100644
+index 0000000000..2b29168047
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -0,0 +1,386 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package analysisinternal provides gopls' internal analyses with a
++// number of helper functions that operate on typed syntax trees.
++package analysisinternal
++
++import (
++	"bytes"
++	"fmt"
++	"go/ast"
++	"go/token"
++	"go/types"
++	"strconv"
++)
++
++func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
++	// Get the end position for the type error.
++	offset, end := fset.PositionFor(start, false).Offset, start
++	if offset >= len(src) {
++		return end
++	}
++	if width := bytes.IndexAny(src[offset:], " \n,():;[]+-*"); width > 0 {
++		end = start + token.Pos(width)
++	}
++	return end
++}
++
++func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
++	under := typ
++	if n, ok := typ.(*types.Named); ok {
++		under = n.Underlying()
++	}
++	switch u := under.(type) {
++	case *types.Basic:
++		switch {
++		case u.Info()&types.IsNumeric != 0:
++			return &ast.BasicLit{Kind: token.INT, Value: "0"}
++		case u.Info()&types.IsBoolean != 0:
++			return &ast.Ident{Name: "false"}
++		case u.Info()&types.IsString != 0:
++			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
++		default:
++			panic(fmt.Sprintf("unknown basic type %v", u))
++		}
++	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
++		return ast.NewIdent("nil")
++	case *types.Struct:
++		texpr := TypeExpr(f, pkg, typ) // typ because we want the name here.
++		if texpr == nil {
++			return nil
++		}
++		return &ast.CompositeLit{
++			Type: texpr,
++		}
++	}
++	return nil
++}
++
++// IsZeroValue checks whether the given expression is a 'zero value' (as determined by output of
++// analysisinternal.ZeroValue)
++func IsZeroValue(expr ast.Expr) bool {
++	switch e := expr.(type) {
++	case *ast.BasicLit:
++		return e.Value == "0" || e.Value == `""`
++	case *ast.Ident:
++		return e.Name == "nil" || e.Name == "false"
++	default:
++		return false
++	}
++}
++
++// TypeExpr returns syntax for the specified type. References to
++// named types from packages other than pkg are qualified by an appropriate
++// package name, as defined by the import environment of file.
++func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
++	switch t := typ.(type) {
++	case *types.Basic:
++		switch t.Kind() {
++		case types.UnsafePointer:
++			return &ast.SelectorExpr{X: ast.NewIdent("unsafe"), Sel: ast.NewIdent("Pointer")}
++		default:
++			return ast.NewIdent(t.Name())
++		}
++	case *types.Pointer:
++		x := TypeExpr(f, pkg, t.Elem())
++		if x == nil {
++			return nil
++		}
++		return &ast.UnaryExpr{
++			Op: token.MUL,
++			X:  x,
++		}
++	case *types.Array:
++		elt := TypeExpr(f, pkg, t.Elem())
++		if elt == nil {
++			return nil
++		}
++		return &ast.ArrayType{
++			Len: &ast.BasicLit{
++				Kind:  token.INT,
++				Value: fmt.Sprintf("%d", t.Len()),
++			},
++			Elt: elt,
++		}
++	case *types.Slice:
++		elt := TypeExpr(f, pkg, t.Elem())
++		if elt == nil {
++			return nil
++		}
++		return &ast.ArrayType{
++			Elt: elt,
++		}
++	case *types.Map:
++		key := TypeExpr(f, pkg, t.Key())
++		value := TypeExpr(f, pkg, t.Elem())
++		if key == nil || value == nil {
++			return nil
++		}
++		return &ast.MapType{
++			Key:   key,
++			Value: value,
++		}
++	case *types.Chan:
++		dir := ast.ChanDir(t.Dir())
++		if t.Dir() == types.SendRecv {
++			dir = ast.SEND | ast.RECV
++		}
++		value := TypeExpr(f, pkg, t.Elem())
++		if value == nil {
++			return nil
++		}
++		return &ast.ChanType{
++			Dir:   dir,
++			Value: value,
++		}
++	case *types.Signature:
++		var params []*ast.Field
++		for i := 0; i < t.Params().Len(); i++ {
++			p := TypeExpr(f, pkg, t.Params().At(i).Type())
++			if p == nil {
++				return nil
++			}
++			params = append(params, &ast.Field{
++				Type: p,
++				Names: []*ast.Ident{
++					{
++						Name: t.Params().At(i).Name(),
++					},
++				},
++			})
++		}
++		var returns []*ast.Field
++		for i := 0; i < t.Results().Len(); i++ {
++			r := TypeExpr(f, pkg, t.Results().At(i).Type())
++			if r == nil {
++				return nil
++			}
++			returns = append(returns, &ast.Field{
++				Type: r,
++			})
++		}
++		return &ast.FuncType{
++			Params: &ast.FieldList{
++				List: params,
++			},
++			Results: &ast.FieldList{
++				List: returns,
++			},
++		}
++	case *types.Named:
++		if t.Obj().Pkg() == nil {
++			return ast.NewIdent(t.Obj().Name())
++		}
++		if t.Obj().Pkg() == pkg {
++			return ast.NewIdent(t.Obj().Name())
++		}
++		pkgName := t.Obj().Pkg().Name()
++
++		// If the file already imports the package under another name, use that.
++		for _, cand := range f.Imports {
++			if path, _ := strconv.Unquote(cand.Path.Value); path == t.Obj().Pkg().Path() {
++				if cand.Name != nil && cand.Name.Name != "" {
++					pkgName = cand.Name.Name
++				}
++			}
++		}
++		if pkgName == "." {
++			return ast.NewIdent(t.Obj().Name())
++		}
++		return &ast.SelectorExpr{
++			X:   ast.NewIdent(pkgName),
++			Sel: ast.NewIdent(t.Obj().Name()),
++		}
++	case *types.Struct:
++		return ast.NewIdent(t.String())
++	case *types.Interface:
++		return ast.NewIdent(t.String())
++	default:
++		return nil
++	}
++}
++
++// StmtToInsertVarBefore returns the ast.Stmt before which we can safely insert a new variable.
++// Some examples:
++//
++// Basic Example:
++// z := 1
++// y := z + x
++// If x is undeclared, then this function would return `y := z + x`, so that we
++// can insert `x := ` on the line before `y := z + x`.
++//
++// If stmt example:
++// if z == 1 {
++// } else if z == y {}
++// If y is undeclared, then this function would return `if z == 1 {`, because we cannot
++// insert a statement between an if and an else if statement. As a result, we need to find
++// the top of the if chain to insert `y := ` before.
++func StmtToInsertVarBefore(path []ast.Node) ast.Stmt {
++	enclosingIndex := -1
++	for i, p := range path {
++		if _, ok := p.(ast.Stmt); ok {
++			enclosingIndex = i
++			break
++		}
++	}
++	if enclosingIndex == -1 {
++		return nil
++	}
++	enclosingStmt := path[enclosingIndex]
++	switch enclosingStmt.(type) {
++	case *ast.IfStmt:
++		// The enclosingStmt is inside of the if declaration,
++		// We need to check if we are in an else-if stmt and
++		// get the base if statement.
++		return baseIfStmt(path, enclosingIndex)
++	case *ast.CaseClause:
++		// Get the enclosing switch stmt if the enclosingStmt is
++		// inside of the case statement.
++		for i := enclosingIndex + 1; i < len(path); i++ {
++			if node, ok := path[i].(*ast.SwitchStmt); ok {
++				return node
++			} else if node, ok := path[i].(*ast.TypeSwitchStmt); ok {
++				return node
++			}
++		}
++	}
++	if len(path) <= enclosingIndex+1 {
++		return enclosingStmt.(ast.Stmt)
++	}
++	// Check if the enclosing statement is inside another node.
++	switch expr := path[enclosingIndex+1].(type) {
++	case *ast.IfStmt:
++		// Get the base if statement.
++		return baseIfStmt(path, enclosingIndex+1)
++	case *ast.ForStmt:
++		if expr.Init == enclosingStmt || expr.Post == enclosingStmt {
++			return expr
++		}
++	}
++	return enclosingStmt.(ast.Stmt)
++}
++
++// baseIfStmt walks up the if/else-if chain until we get to
++// the top of the current if chain.
++func baseIfStmt(path []ast.Node, index int) ast.Stmt {
++	stmt := path[index]
++	for i := index + 1; i < len(path); i++ {
++		if node, ok := path[i].(*ast.IfStmt); ok && node.Else == stmt {
++			stmt = node
++			continue
++		}
++		break
++	}
++	return stmt.(ast.Stmt)
++}
++
++// WalkASTWithParent walks the AST rooted at n. The semantics are
++// similar to ast.Inspect except it does not call f(nil).
++func WalkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
++	var ancestors []ast.Node
++	ast.Inspect(n, func(n ast.Node) (recurse bool) {
++		if n == nil {
++			ancestors = ancestors[:len(ancestors)-1]
++			return false
++		}
++
++		var parent ast.Node
++		if len(ancestors) > 0 {
++			parent = ancestors[len(ancestors)-1]
++		}
++		ancestors = append(ancestors, n)
++		return f(n, parent)
++	})
++}
++
++// MatchingIdents finds the names of all identifiers in 'node' that match any of the given types.
++// 'pos' represents the position at which the identifiers may be inserted. 'pos' must be within
++// the scope of each of identifier we select. Otherwise, we will insert a variable at 'pos' that
++// is unrecognized.
++func MatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *types.Info, pkg *types.Package) map[types.Type][]string {
++
++	// Initialize matches to contain the variable types we are searching for.
++	matches := make(map[types.Type][]string)
++	for _, typ := range typs {
++		if typ == nil {
++			continue // TODO(adonovan): is this reachable?
++		}
++		matches[typ] = nil // create entry
++	}
++
++	seen := map[types.Object]struct{}{}
++	ast.Inspect(node, func(n ast.Node) bool {
++		if n == nil {
++			return false
++		}
++		// Prevent circular definitions. If 'pos' is within an assignment statement, do not
++		// allow any identifiers in that assignment statement to be selected. Otherwise,
++		// we could do the following, where 'x' satisfies the type of 'f0':
++		//
++		// x := fakeStruct{f0: x}
++		//
++		if assign, ok := n.(*ast.AssignStmt); ok && pos > assign.Pos() && pos <= assign.End() {
++			return false
++		}
++		if n.End() > pos {
++			return n.Pos() <= pos
++		}
++		ident, ok := n.(*ast.Ident)
++		if !ok || ident.Name == "_" {
++			return true
++		}
++		obj := info.Defs[ident]
++		if obj == nil || obj.Type() == nil {
++			return true
++		}
++		if _, ok := obj.(*types.TypeName); ok {
++			return true
++		}
++		// Prevent duplicates in matches' values.
++		if _, ok = seen[obj]; ok {
++			return true
++		}
++		seen[obj] = struct{}{}
++		// Find the scope for the given position. Then, check whether the object
++		// exists within the scope.
++		innerScope := pkg.Scope().Innermost(pos)
++		if innerScope == nil {
++			return true
++		}
++		_, foundObj := innerScope.LookupParent(ident.Name, pos)
++		if foundObj != obj {
++			return true
++		}
++		// The object must match one of the types that we are searching for.
++		// TODO(adonovan): opt: use typeutil.Map?
++		if names, ok := matches[obj.Type()]; ok {
++			matches[obj.Type()] = append(names, ident.Name)
++		} else {
++			// If the object type does not exactly match
++			// any of the target types, greedily find the first
++			// target type that the object type can satisfy.
++			for typ := range matches {
++				if equivalentTypes(obj.Type(), typ) {
++					matches[typ] = append(matches[typ], ident.Name)
++				}
++			}
++		}
++		return true
++	})
++	return matches
++}
++
++func equivalentTypes(want, got types.Type) bool {
++	if types.Identical(want, got) {
++		return true
++	}
++	// Code segment to help check for untyped equality from (golang/go#32146).
++	if rhs, ok := want.(*types.Basic); ok && rhs.Info()&types.IsUntyped > 0 {
++		if lhs, ok := got.Underlying().(*types.Basic); ok {
++			return rhs.Info()&types.IsConstType == lhs.Info()&types.IsConstType
++		}
++	}
++	return types.AssignableTo(want, got)
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/extractdoc.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/extractdoc.go
+similarity index 99%
+rename from src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/extractdoc.go
+rename to src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/extractdoc.go
+index 0e175ca06f..39507723d3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/extractdoc.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/extractdoc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package analysisutil
++package analysisinternal
+ 
+ import (
+ 	"fmt"
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+index f64695ea52..1fe63ca6b5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+@@ -6,8 +6,6 @@ package facts
+ 
+ import (
+ 	"go/types"
+-
+-	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ // importMap computes the import map for a package by traversing the
+@@ -55,7 +53,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 			// infinite expansions:
+ 			//     type N[T any] struct { F *N[N[T]] }
+ 			// importMap() is called on such types when Analyzer.RunDespiteErrors is true.
+-			T = typeparams.NamedTypeOrigin(T)
++			T = T.Origin()
+ 			if !typs[T] {
+ 				typs[T] = true
+ 				addObj(T.Obj())
+@@ -63,12 +61,12 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 				for i := 0; i < T.NumMethods(); i++ {
+ 					addObj(T.Method(i))
+ 				}
+-				if tparams := typeparams.ForNamed(T); tparams != nil {
++				if tparams := T.TypeParams(); tparams != nil {
+ 					for i := 0; i < tparams.Len(); i++ {
+ 						addType(tparams.At(i))
+ 					}
+ 				}
+-				if targs := typeparams.NamedTypeArgs(T); targs != nil {
++				if targs := T.TypeArgs(); targs != nil {
+ 					for i := 0; i < targs.Len(); i++ {
+ 						addType(targs.At(i))
+ 					}
+@@ -88,7 +86,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 		case *types.Signature:
+ 			addType(T.Params())
+ 			addType(T.Results())
+-			if tparams := typeparams.ForSignature(T); tparams != nil {
++			if tparams := T.TypeParams(); tparams != nil {
+ 				for i := 0; i < tparams.Len(); i++ {
+ 					addType(tparams.At(i))
+ 				}
+@@ -108,11 +106,11 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 			for i := 0; i < T.NumEmbeddeds(); i++ {
+ 				addType(T.EmbeddedType(i)) // walk Embedded for implicits
+ 			}
+-		case *typeparams.Union:
++		case *types.Union:
+ 			for i := 0; i < T.Len(); i++ {
+ 				addType(T.Term(i).Type())
+ 			}
+-		case *typeparams.TypeParam:
++		case *types.TypeParam:
+ 			if !typs[T] {
+ 				typs[T] = true
+ 				addObj(T.Obj())
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+index d0d0649fe2..cdab988531 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+@@ -42,7 +42,7 @@ func UnpackIndexExpr(n ast.Node) (x ast.Expr, lbrack token.Pos, indices []ast.Ex
+ 	switch e := n.(type) {
+ 	case *ast.IndexExpr:
+ 		return e.X, e.Lbrack, []ast.Expr{e.Index}, e.Rbrack
+-	case *IndexListExpr:
++	case *ast.IndexListExpr:
+ 		return e.X, e.Lbrack, e.Indices, e.Rbrack
+ 	}
+ 	return nil, token.NoPos, nil, token.NoPos
+@@ -63,7 +63,7 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack toke
+ 			Rbrack: rbrack,
+ 		}
+ 	default:
+-		return &IndexListExpr{
++		return &ast.IndexListExpr{
+ 			X:       x,
+ 			Lbrack:  lbrack,
+ 			Indices: indices,
+@@ -74,7 +74,7 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack toke
+ 
+ // IsTypeParam reports whether t is a type parameter.
+ func IsTypeParam(t types.Type) bool {
+-	_, ok := t.(*TypeParam)
++	_, ok := t.(*types.TypeParam)
+ 	return ok
+ }
+ 
+@@ -100,11 +100,11 @@ func OriginMethod(fn *types.Func) *types.Func {
+ 		// Receiver is a *types.Interface.
+ 		return fn
+ 	}
+-	if ForNamed(named).Len() == 0 {
++	if named.TypeParams().Len() == 0 {
+ 		// Receiver base has no type parameters, so we can avoid the lookup below.
+ 		return fn
+ 	}
+-	orig := NamedTypeOrigin(named)
++	orig := named.Origin()
+ 	gfn, _, _ := types.LookupFieldOrMethod(orig, true, fn.Pkg(), fn.Name())
+ 
+ 	// This is a fix for a gopls crash (#60628) due to a go/types bug (#60634). In:
+@@ -157,7 +157,7 @@ func OriginMethod(fn *types.Func) *types.Func {
+ //
+ // In this case, GenericAssignableTo reports that instantiations of Container
+ // are assignable to the corresponding instantiation of Interface.
+-func GenericAssignableTo(ctxt *Context, V, T types.Type) bool {
++func GenericAssignableTo(ctxt *types.Context, V, T types.Type) bool {
+ 	// If V and T are not both named, or do not have matching non-empty type
+ 	// parameter lists, fall back on types.AssignableTo.
+ 
+@@ -167,9 +167,9 @@ func GenericAssignableTo(ctxt *Context, V, T types.Type) bool {
+ 		return types.AssignableTo(V, T)
+ 	}
+ 
+-	vtparams := ForNamed(VN)
+-	ttparams := ForNamed(TN)
+-	if vtparams.Len() == 0 || vtparams.Len() != ttparams.Len() || NamedTypeArgs(VN).Len() != 0 || NamedTypeArgs(TN).Len() != 0 {
++	vtparams := VN.TypeParams()
++	ttparams := TN.TypeParams()
++	if vtparams.Len() == 0 || vtparams.Len() != ttparams.Len() || VN.TypeArgs().Len() != 0 || TN.TypeArgs().Len() != 0 {
+ 		return types.AssignableTo(V, T)
+ 	}
+ 
+@@ -182,7 +182,7 @@ func GenericAssignableTo(ctxt *Context, V, T types.Type) bool {
+ 	// Minor optimization: ensure we share a context across the two
+ 	// instantiations below.
+ 	if ctxt == nil {
+-		ctxt = NewContext()
++		ctxt = types.NewContext()
+ 	}
+ 
+ 	var targs []types.Type
+@@ -190,12 +190,12 @@ func GenericAssignableTo(ctxt *Context, V, T types.Type) bool {
+ 		targs = append(targs, vtparams.At(i))
+ 	}
+ 
+-	vinst, err := Instantiate(ctxt, V, targs, true)
++	vinst, err := types.Instantiate(ctxt, V, targs, true)
+ 	if err != nil {
+ 		panic("type parameters should satisfy their own constraints")
+ 	}
+ 
+-	tinst, err := Instantiate(ctxt, T, targs, true)
++	tinst, err := types.Instantiate(ctxt, T, targs, true)
+ 	if err != nil {
+ 		return false
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go
+index 71248209ee..7ea8840eab 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go
+@@ -108,15 +108,15 @@ func CoreType(T types.Type) types.Type {
+ //
+ // _NormalTerms makes no guarantees about the order of terms, except that it
+ // is deterministic.
+-func _NormalTerms(typ types.Type) ([]*Term, error) {
++func _NormalTerms(typ types.Type) ([]*types.Term, error) {
+ 	switch typ := typ.(type) {
+-	case *TypeParam:
++	case *types.TypeParam:
+ 		return StructuralTerms(typ)
+-	case *Union:
++	case *types.Union:
+ 		return UnionTermSet(typ)
+ 	case *types.Interface:
+ 		return InterfaceTermSet(typ)
+ 	default:
+-		return []*Term{NewTerm(false, typ)}, nil
++		return []*types.Term{types.NewTerm(false, typ)}, nil
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/enabled_go117.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/enabled_go117.go
+deleted file mode 100644
+index 18212390e1..0000000000
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/enabled_go117.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !go1.18
+-// +build !go1.18
+-
+-package typeparams
+-
+-// Enabled reports whether type parameters are enabled in the current build
+-// environment.
+-const Enabled = false
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/enabled_go118.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/enabled_go118.go
+deleted file mode 100644
+index d67148823c..0000000000
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/enabled_go118.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build go1.18
+-// +build go1.18
+-
+-package typeparams
+-
+-// Note: this constant is in a separate file as this is the only acceptable
+-// diff between the <1.18 API of this package and the 1.18 API.
+-
+-// Enabled reports whether type parameters are enabled in the current build
+-// environment.
+-const Enabled = true
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
+index 9c631b6512..93c80fdc96 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
+@@ -60,7 +60,7 @@ var ErrEmptyTypeSet = errors.New("empty type set")
+ //
+ // StructuralTerms makes no guarantees about the order of terms, except that it
+ // is deterministic.
+-func StructuralTerms(tparam *TypeParam) ([]*Term, error) {
++func StructuralTerms(tparam *types.TypeParam) ([]*types.Term, error) {
+ 	constraint := tparam.Constraint()
+ 	if constraint == nil {
+ 		return nil, fmt.Errorf("%s has nil constraint", tparam)
+@@ -78,7 +78,7 @@ func StructuralTerms(tparam *TypeParam) ([]*Term, error) {
+ //
+ // See the documentation of StructuralTerms for more information on
+ // normalization.
+-func InterfaceTermSet(iface *types.Interface) ([]*Term, error) {
++func InterfaceTermSet(iface *types.Interface) ([]*types.Term, error) {
+ 	return computeTermSet(iface)
+ }
+ 
+@@ -88,11 +88,11 @@ func InterfaceTermSet(iface *types.Interface) ([]*Term, error) {
+ //
+ // See the documentation of StructuralTerms for more information on
+ // normalization.
+-func UnionTermSet(union *Union) ([]*Term, error) {
++func UnionTermSet(union *types.Union) ([]*types.Term, error) {
+ 	return computeTermSet(union)
+ }
+ 
+-func computeTermSet(typ types.Type) ([]*Term, error) {
++func computeTermSet(typ types.Type) ([]*types.Term, error) {
+ 	tset, err := computeTermSetInternal(typ, make(map[types.Type]*termSet), 0)
+ 	if err != nil {
+ 		return nil, err
+@@ -103,9 +103,9 @@ func computeTermSet(typ types.Type) ([]*Term, error) {
+ 	if tset.terms.isAll() {
+ 		return nil, nil
+ 	}
+-	var terms []*Term
++	var terms []*types.Term
+ 	for _, term := range tset.terms {
+-		terms = append(terms, NewTerm(term.tilde, term.typ))
++		terms = append(terms, types.NewTerm(term.tilde, term.typ))
+ 	}
+ 	return terms, nil
+ }
+@@ -162,7 +162,7 @@ func computeTermSetInternal(t types.Type, seen map[types.Type]*termSet, depth in
+ 		tset.terms = allTermlist
+ 		for i := 0; i < u.NumEmbeddeds(); i++ {
+ 			embedded := u.EmbeddedType(i)
+-			if _, ok := embedded.Underlying().(*TypeParam); ok {
++			if _, ok := embedded.Underlying().(*types.TypeParam); ok {
+ 				return nil, fmt.Errorf("invalid embedded type %T", embedded)
+ 			}
+ 			tset2, err := computeTermSetInternal(embedded, seen, depth+1)
+@@ -171,7 +171,7 @@ func computeTermSetInternal(t types.Type, seen map[types.Type]*termSet, depth in
+ 			}
+ 			tset.terms = tset.terms.intersect(tset2.terms)
+ 		}
+-	case *Union:
++	case *types.Union:
+ 		// The term set of a union is the union of term sets of its terms.
+ 		tset.terms = nil
+ 		for i := 0; i < u.Len(); i++ {
+@@ -184,7 +184,7 @@ func computeTermSetInternal(t types.Type, seen map[types.Type]*termSet, depth in
+ 					return nil, err
+ 				}
+ 				terms = tset2.terms
+-			case *TypeParam, *Union:
++			case *types.TypeParam, *types.Union:
+ 				// A stand-alone type parameter or union is not permitted as union
+ 				// term.
+ 				return nil, fmt.Errorf("invalid union term %T", t)
+@@ -199,7 +199,7 @@ func computeTermSetInternal(t types.Type, seen map[types.Type]*termSet, depth in
+ 				return nil, fmt.Errorf("exceeded max term count %d", maxTermCount)
+ 			}
+ 		}
+-	case *TypeParam:
++	case *types.TypeParam:
+ 		panic("unreachable")
+ 	default:
+ 		// For all other types, the term set is just a single non-tilde term
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+deleted file mode 100644
+index 7ed86e1711..0000000000
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
++++ /dev/null
+@@ -1,197 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !go1.18
+-// +build !go1.18
+-
+-package typeparams
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-	"go/types"
+-)
+-
+-func unsupported() {
+-	panic("type parameters are unsupported at this go version")
+-}
+-
+-// IndexListExpr is a placeholder type, as type parameters are not supported at
+-// this Go version. Its methods panic on use.
+-type IndexListExpr struct {
+-	ast.Expr
+-	X       ast.Expr   // expression
+-	Lbrack  token.Pos  // position of "["
+-	Indices []ast.Expr // index expressions
+-	Rbrack  token.Pos  // position of "]"
+-}
+-
+-// ForTypeSpec returns an empty field list, as type parameters on not supported
+-// at this Go version.
+-func ForTypeSpec(*ast.TypeSpec) *ast.FieldList {
+-	return nil
+-}
+-
+-// ForFuncType returns an empty field list, as type parameters are not
+-// supported at this Go version.
+-func ForFuncType(*ast.FuncType) *ast.FieldList {
+-	return nil
+-}
+-
+-// TypeParam is a placeholder type, as type parameters are not supported at
+-// this Go version. Its methods panic on use.
+-type TypeParam struct{ types.Type }
+-
+-func (*TypeParam) Index() int             { unsupported(); return 0 }
+-func (*TypeParam) Constraint() types.Type { unsupported(); return nil }
+-func (*TypeParam) Obj() *types.TypeName   { unsupported(); return nil }
+-
+-// TypeParamList is a placeholder for an empty type parameter list.
+-type TypeParamList struct{}
+-
+-func (*TypeParamList) Len() int          { return 0 }
+-func (*TypeParamList) At(int) *TypeParam { unsupported(); return nil }
+-
+-// TypeList is a placeholder for an empty type list.
+-type TypeList struct{}
+-
+-func (*TypeList) Len() int          { return 0 }
+-func (*TypeList) At(int) types.Type { unsupported(); return nil }
+-
+-// NewTypeParam is unsupported at this Go version, and panics.
+-func NewTypeParam(name *types.TypeName, constraint types.Type) *TypeParam {
+-	unsupported()
+-	return nil
+-}
+-
+-// SetTypeParamConstraint is unsupported at this Go version, and panics.
+-func SetTypeParamConstraint(tparam *TypeParam, constraint types.Type) {
+-	unsupported()
+-}
+-
+-// NewSignatureType calls types.NewSignature, panicking if recvTypeParams or
+-// typeParams is non-empty.
+-func NewSignatureType(recv *types.Var, recvTypeParams, typeParams []*TypeParam, params, results *types.Tuple, variadic bool) *types.Signature {
+-	if len(recvTypeParams) != 0 || len(typeParams) != 0 {
+-		panic("signatures cannot have type parameters at this Go version")
+-	}
+-	return types.NewSignature(recv, params, results, variadic)
+-}
+-
+-// ForSignature returns an empty slice.
+-func ForSignature(*types.Signature) *TypeParamList {
+-	return nil
+-}
+-
+-// RecvTypeParams returns a nil slice.
+-func RecvTypeParams(sig *types.Signature) *TypeParamList {
+-	return nil
+-}
+-
+-// IsComparable returns false, as no interfaces are type-restricted at this Go
+-// version.
+-func IsComparable(*types.Interface) bool {
+-	return false
+-}
+-
+-// IsMethodSet returns true, as no interfaces are type-restricted at this Go
+-// version.
+-func IsMethodSet(*types.Interface) bool {
+-	return true
+-}
+-
+-// IsImplicit returns false, as no interfaces are implicit at this Go version.
+-func IsImplicit(*types.Interface) bool {
+-	return false
+-}
+-
+-// MarkImplicit does nothing, because this Go version does not have implicit
+-// interfaces.
+-func MarkImplicit(*types.Interface) {}
+-
+-// ForNamed returns an empty type parameter list, as type parameters are not
+-// supported at this Go version.
+-func ForNamed(*types.Named) *TypeParamList {
+-	return nil
+-}
+-
+-// SetForNamed panics if tparams is non-empty.
+-func SetForNamed(_ *types.Named, tparams []*TypeParam) {
+-	if len(tparams) > 0 {
+-		unsupported()
+-	}
+-}
+-
+-// NamedTypeArgs returns nil.
+-func NamedTypeArgs(*types.Named) *TypeList {
+-	return nil
+-}
+-
+-// NamedTypeOrigin is the identity method at this Go version.
+-func NamedTypeOrigin(named *types.Named) *types.Named {
+-	return named
+-}
+-
+-// Term holds information about a structural type restriction.
+-type Term struct {
+-	tilde bool
+-	typ   types.Type
+-}
+-
+-func (m *Term) Tilde() bool      { return m.tilde }
+-func (m *Term) Type() types.Type { return m.typ }
+-func (m *Term) String() string {
+-	pre := ""
+-	if m.tilde {
+-		pre = "~"
+-	}
+-	return pre + m.typ.String()
+-}
+-
+-// NewTerm is unsupported at this Go version, and panics.
+-func NewTerm(tilde bool, typ types.Type) *Term {
+-	return &Term{tilde, typ}
+-}
+-
+-// Union is a placeholder type, as type parameters are not supported at this Go
+-// version. Its methods panic on use.
+-type Union struct{ types.Type }
+-
+-func (*Union) Len() int         { return 0 }
+-func (*Union) Term(i int) *Term { unsupported(); return nil }
+-
+-// NewUnion is unsupported at this Go version, and panics.
+-func NewUnion(terms []*Term) *Union {
+-	unsupported()
+-	return nil
+-}
+-
+-// InitInstanceInfo is a noop at this Go version.
+-func InitInstanceInfo(*types.Info) {}
+-
+-// Instance is a placeholder type, as type parameters are not supported at this
+-// Go version.
+-type Instance struct {
+-	TypeArgs *TypeList
+-	Type     types.Type
+-}
+-
+-// GetInstances returns a nil map, as type parameters are not supported at this
+-// Go version.
+-func GetInstances(info *types.Info) map[*ast.Ident]Instance { return nil }
+-
+-// Context is a placeholder type, as type parameters are not supported at
+-// this Go version.
+-type Context struct{}
+-
+-// NewContext returns a placeholder Context instance.
+-func NewContext() *Context {
+-	return &Context{}
+-}
+-
+-// Instantiate is unsupported on this Go version, and panics.
+-func Instantiate(ctxt *Context, typ types.Type, targs []types.Type, validate bool) (types.Type, error) {
+-	unsupported()
+-	return nil, nil
+-}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
+deleted file mode 100644
+index cf301af1db..0000000000
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
++++ /dev/null
+@@ -1,151 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build go1.18
+-// +build go1.18
+-
+-package typeparams
+-
+-import (
+-	"go/ast"
+-	"go/types"
+-)
+-
+-// IndexListExpr is an alias for ast.IndexListExpr.
+-type IndexListExpr = ast.IndexListExpr
+-
+-// ForTypeSpec returns n.TypeParams.
+-func ForTypeSpec(n *ast.TypeSpec) *ast.FieldList {
+-	if n == nil {
+-		return nil
+-	}
+-	return n.TypeParams
+-}
+-
+-// ForFuncType returns n.TypeParams.
+-func ForFuncType(n *ast.FuncType) *ast.FieldList {
+-	if n == nil {
+-		return nil
+-	}
+-	return n.TypeParams
+-}
+-
+-// TypeParam is an alias for types.TypeParam
+-type TypeParam = types.TypeParam
+-
+-// TypeParamList is an alias for types.TypeParamList
+-type TypeParamList = types.TypeParamList
+-
+-// TypeList is an alias for types.TypeList
+-type TypeList = types.TypeList
+-
+-// NewTypeParam calls types.NewTypeParam.
+-func NewTypeParam(name *types.TypeName, constraint types.Type) *TypeParam {
+-	return types.NewTypeParam(name, constraint)
+-}
+-
+-// SetTypeParamConstraint calls tparam.SetConstraint(constraint).
+-func SetTypeParamConstraint(tparam *TypeParam, constraint types.Type) {
+-	tparam.SetConstraint(constraint)
+-}
+-
+-// NewSignatureType calls types.NewSignatureType.
+-func NewSignatureType(recv *types.Var, recvTypeParams, typeParams []*TypeParam, params, results *types.Tuple, variadic bool) *types.Signature {
+-	return types.NewSignatureType(recv, recvTypeParams, typeParams, params, results, variadic)
+-}
+-
+-// ForSignature returns sig.TypeParams()
+-func ForSignature(sig *types.Signature) *TypeParamList {
+-	return sig.TypeParams()
+-}
+-
+-// RecvTypeParams returns sig.RecvTypeParams().
+-func RecvTypeParams(sig *types.Signature) *TypeParamList {
+-	return sig.RecvTypeParams()
+-}
+-
+-// IsComparable calls iface.IsComparable().
+-func IsComparable(iface *types.Interface) bool {
+-	return iface.IsComparable()
+-}
+-
+-// IsMethodSet calls iface.IsMethodSet().
+-func IsMethodSet(iface *types.Interface) bool {
+-	return iface.IsMethodSet()
+-}
+-
+-// IsImplicit calls iface.IsImplicit().
+-func IsImplicit(iface *types.Interface) bool {
+-	return iface.IsImplicit()
+-}
+-
+-// MarkImplicit calls iface.MarkImplicit().
+-func MarkImplicit(iface *types.Interface) {
+-	iface.MarkImplicit()
+-}
+-
+-// ForNamed extracts the (possibly empty) type parameter object list from
+-// named.
+-func ForNamed(named *types.Named) *TypeParamList {
+-	return named.TypeParams()
+-}
+-
+-// SetForNamed sets the type params tparams on n. Each tparam must be of
+-// dynamic type *types.TypeParam.
+-func SetForNamed(n *types.Named, tparams []*TypeParam) {
+-	n.SetTypeParams(tparams)
+-}
+-
+-// NamedTypeArgs returns named.TypeArgs().
+-func NamedTypeArgs(named *types.Named) *TypeList {
+-	return named.TypeArgs()
+-}
+-
+-// NamedTypeOrigin returns named.Orig().
+-func NamedTypeOrigin(named *types.Named) *types.Named {
+-	return named.Origin()
+-}
+-
+-// Term is an alias for types.Term.
+-type Term = types.Term
+-
+-// NewTerm calls types.NewTerm.
+-func NewTerm(tilde bool, typ types.Type) *Term {
+-	return types.NewTerm(tilde, typ)
+-}
+-
+-// Union is an alias for types.Union
+-type Union = types.Union
+-
+-// NewUnion calls types.NewUnion.
+-func NewUnion(terms []*Term) *Union {
+-	return types.NewUnion(terms)
+-}
+-
+-// InitInstanceInfo initializes info to record information about type and
+-// function instances.
+-func InitInstanceInfo(info *types.Info) {
+-	info.Instances = make(map[*ast.Ident]types.Instance)
+-}
+-
+-// Instance is an alias for types.Instance.
+-type Instance = types.Instance
+-
+-// GetInstances returns info.Instances.
+-func GetInstances(info *types.Info) map[*ast.Ident]Instance {
+-	return info.Instances
+-}
+-
+-// Context is an alias for types.Context.
+-type Context = types.Context
+-
+-// NewContext calls types.NewContext.
+-func NewContext() *Context {
+-	return types.NewContext()
+-}
+-
+-// Instantiate calls types.Instantiate.
+-func Instantiate(ctxt *Context, typ types.Type, targs []types.Type, validate bool) (types.Type, error) {
+-	return types.Instantiate(ctxt, typ, targs, validate)
+-}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go121.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/versions.go
+similarity index 80%
+rename from src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go121.go
+rename to src/cmd/vendor/golang.org/x/tools/internal/versions/versions.go
+index cf4a7d0360..e16f6c33a5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go121.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/versions/versions.go
+@@ -2,11 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !go1.22
+-// +build !go1.22
+-
+ package versions
+ 
++// Note: If we use build tags to use go/versions when go >=1.22,
++// we run into go.dev/issue/53737. Under some operations users would see an
++// import of "go/versions" even if they would not compile the file.
++// For example, during `go get -u ./...` (go.dev/issue/64490) we do not try to include
++// For this reason, this library just a clone of go/versions for the moment.
++
+ // Lang returns the Go language version for version x.
+ // If x is not a valid version, Lang returns the empty string.
+ // For example:
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go122.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go122.go
+deleted file mode 100644
+index c1c1814b28..0000000000
+--- a/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go122.go
++++ /dev/null
+@@ -1,38 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build go1.22
+-// +build go1.22
+-
+-package versions
+-
+-import (
+-	"go/version"
+-)
+-
+-// Lang returns the Go language version for version x.
+-// If x is not a valid version, Lang returns the empty string.
+-// For example:
+-//
+-//	Lang("go1.21rc2") = "go1.21"
+-//	Lang("go1.21.2") = "go1.21"
+-//	Lang("go1.21") = "go1.21"
+-//	Lang("go1") = "go1"
+-//	Lang("bad") = ""
+-//	Lang("1.21") = ""
+-func Lang(x string) string { return version.Lang(x) }
+-
+-// Compare returns -1, 0, or +1 depending on whether
+-// x < y, x == y, or x > y, interpreted as Go versions.
+-// The versions x and y must begin with a "go" prefix: "go1.21" not "1.21".
+-// Invalid versions, including the empty string, compare less than
+-// valid versions and equal to each other.
+-// The language version "go1.21" compares less than the
+-// release candidate and eventual releases "go1.21rc1" and "go1.21.0".
+-// Custom toolchain suffixes are ignored during comparison:
+-// "go1.21.0" and "go1.21.0-bigcorp" are equal.
+-func Compare(x, y string) int { return version.Compare(x, y) }
+-
+-// IsValid reports whether the version x is valid.
+-func IsValid(x string) bool { return version.IsValid(x) }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index fa05367a8a..d2caf1ffb0 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.15.0
+ ## explicit; go 1.18
+ golang.org/x/term
+-# golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a
++# golang.org/x/tools v0.16.2-0.20231218185909-83bceaf2424d
+ ## explicit; go 1.18
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+@@ -92,6 +92,7 @@ golang.org/x/tools/go/ast/inspector
+ golang.org/x/tools/go/cfg
+ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
++golang.org/x/tools/internal/analysisinternal
+ golang.org/x/tools/internal/bisect
+ golang.org/x/tools/internal/facts
+ golang.org/x/tools/internal/typeparams

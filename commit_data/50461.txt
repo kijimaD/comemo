@@ -23,7 +23,7 @@ Date:   Tue Oct 26 17:07:32 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/359015
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        | 26 +++++++++++-----------
  src/cmd/compile/internal/types2/call.go            |  2 +-
  src/cmd/compile/internal/types2/expr.go            |  2 +-
@@ -36,3 +36,271 @@ Date:   Tue Oct 26 17:07:32 2021 -0700
  src/cmd/compile/internal/types2/typeparam.go       |  6 ++---
  src/cmd/compile/internal/types2/typeset.go         |  4 ++--
  11 files changed, 59 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 7897dafa46..e8de0077d4 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -82,7 +82,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// of S and the respective parameter passing rules apply."
+ 		S := x.typ
+ 		var T Type
+-		if s, _ := singleUnder(S).(*Slice); s != nil {
++		if s, _ := structure(S).(*Slice); s != nil {
+ 			T = s.elem
+ 		} else {
+ 			check.errorf(x, invalidArg+"%s is not a slice", x)
+@@ -327,14 +327,14 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Copy:
+ 		// copy(x, y []T) int
+-		dst, _ := singleUnder(x.typ).(*Slice)
++		dst, _ := structure(x.typ).(*Slice)
+ 
+ 		var y operand
+ 		arg(&y, 1)
+ 		if y.mode == invalid {
+ 			return
+ 		}
+-		src, _ := singleUnderString(y.typ).(*Slice)
++		src, _ := structureString(y.typ).(*Slice)
+ 
+ 		if dst == nil || src == nil {
+ 			check.errorf(x, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)
+@@ -464,7 +464,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		var min int // minimum number of arguments
+-		switch singleUnder(T).(type) {
++		switch structure(T).(type) {
+ 		case *Slice:
+ 			min = 2
+ 		case *Map, *Chan:
+@@ -767,11 +767,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	return true
+ }
+ 
+-// If typ is a type parameter, single under returns the single underlying
+-// type of all types in the corresponding type constraint if it exists, or
+-// nil if it doesn't exist. If typ is not a type parameter, singleUnder
+-// just returns the underlying type.
+-func singleUnder(typ Type) Type {
++// If typ is a type parameter, structure returns the single underlying
++// type of all types in the corresponding type constraint if it exists,
++// or nil otherwise. If typ is not a type parameter, structure returns
++// the underlying type.
++func structure(typ Type) Type {
+ 	var su Type
+ 	if underIs(typ, func(u Type) bool {
+ 		if su != nil && !Identical(su, u) {
+@@ -786,10 +786,10 @@ func singleUnder(typ Type) Type {
+ 	return nil
+ }
+ 
+-// singleUnderString is like singleUnder but also considers []byte and
+-// string as "identical". In this case, if successful, the result is always
+-// []byte.
+-func singleUnderString(typ Type) Type {
++// structureString is like structure but also considers []byte and
++// string as "identical". In this case, if successful, the result
++// is always []byte.
++func structureString(typ Type) Type {
+ 	var su Type
+ 	if underIs(typ, func(u Type) bool {
+ 		if isString(u) {
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 1618e88fef..220ba940b3 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -168,7 +168,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	cgocall := x.mode == cgofunc
+ 
+ 	// a type parameter may be "called" if all types have the same signature
+-	sig, _ := singleUnder(x.typ).(*Signature)
++	sig, _ := structure(x.typ).(*Signature)
+ 	if sig == nil {
+ 		check.errorf(x, invalidOp+"cannot call non-function %s", x)
+ 		x.mode = invalid
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 9142eee85c..ae7b205e53 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1257,7 +1257,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			goto Error
+ 		}
+ 
+-		switch utyp := singleUnder(base).(type) {
++		switch utyp := structure(base).(type) {
+ 		case *Struct:
+ 			if len(e.ElemList) == 0 {
+ 				break
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 62f49b95da..23e433ac6a 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -207,7 +207,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+-	switch u := singleUnder(x.typ).(type) {
++	switch u := structure(x.typ).(type) {
+ 	case nil:
+ 		check.errorf(x, invalidOp+"cannot slice %s: type set has no single underlying type", x)
+ 		x.mode = invalid
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 9b892029f9..156c2290f7 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -363,7 +363,7 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
+ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, index int) {
+ 	assert(len(tparams) >= len(targs) && len(targs) > 0)
+ 
+-	// Setup bidirectional unification between those structural bounds
++	// Setup bidirectional unification between constraints
+ 	// and the corresponding type arguments (which may be nil!).
+ 	u := newUnifier(false)
+ 	u.x.init(tparams)
+@@ -376,11 +376,16 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 		}
+ 	}
+ 
+-	// Unify type parameters with their structural constraints, if any.
++	// If a constraint has a structural type, unify the corresponding type parameter with it.
+ 	for _, tpar := range tparams {
+ 		typ := tpar
+-		sbound := typ.structuralType()
++		sbound := structure(tpar)
+ 		if sbound != nil {
++			// If the structural type is the underlying type of a single
++			// defined type in the constraint, use that defined type instead.
++			if named, _ := tpar.singleType().(*Named); named != nil {
++				sbound = named
++			}
+ 			if !u.unify(typ, sbound) {
+ 				check.errorf(tpar.obj, "%s does not match %s", tpar.obj, sbound)
+ 				return nil, 0
+@@ -389,7 +394,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 	}
+ 
+ 	// u.x.types() now contains the incoming type arguments plus any additional type
+-	// arguments for which there were structural constraints. The newly inferred non-
++	// arguments which were inferred from structural types. The newly inferred non-
+ 	// nil entries may still contain references to other type parameters.
+ 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 10741a90e2..dd2100f711 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -836,7 +836,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	if x.mode != invalid {
+ 		// Ranging over a type parameter is permitted if it has a single underlying type.
+ 		var cause string
+-		u := singleUnder(x.typ)
++		u := structure(x.typ)
+ 		switch t := u.(type) {
+ 		case nil:
+ 			cause = "type set has no single underlying type"
+diff --git a/src/cmd/compile/internal/types2/termlist.go b/src/cmd/compile/internal/types2/termlist.go
+index 378ba6b8f4..844e39e3bf 100644
+--- a/src/cmd/compile/internal/types2/termlist.go
++++ b/src/cmd/compile/internal/types2/termlist.go
+@@ -93,8 +93,8 @@ func (xl termlist) norm() termlist {
+ }
+ 
+ // If the type set represented by xl is specified by a single (non-𝓤) term,
+-// structuralType returns that type. Otherwise it returns nil.
+-func (xl termlist) structuralType() Type {
++// singleType returns that type. Otherwise it returns nil.
++func (xl termlist) singleType() Type {
+ 	if nl := xl.norm(); len(nl) == 1 {
+ 		return nl[0].typ // if nl.isAll() then typ is nil, which is ok
+ 	}
+diff --git a/src/cmd/compile/internal/types2/termlist_test.go b/src/cmd/compile/internal/types2/termlist_test.go
+index ed1330d26f..1bdf9e1386 100644
+--- a/src/cmd/compile/internal/types2/termlist_test.go
++++ b/src/cmd/compile/internal/types2/termlist_test.go
+@@ -106,7 +106,7 @@ func TestTermlistNorm(t *testing.T) {
+ 	}
+ }
+ 
+-func TestTermlistStructuralType(t *testing.T) {
++func TestTermlistSingleType(t *testing.T) {
+ 	// helper to deal with nil types
+ 	tstring := func(typ Type) string {
+ 		if typ == nil {
+@@ -128,9 +128,9 @@ func TestTermlistStructuralType(t *testing.T) {
+ 		"∅ ∪ ~int ∪ string": "nil",
+ 	} {
+ 		xl := maketl(test)
+-		got := tstring(xl.structuralType())
++		got := tstring(xl.singleType())
+ 		if got != want {
+-			t.Errorf("(%v).structuralType() == %v; want %v", test, got, want)
++			t.Errorf("(%v).singleType() == %v; want %v", test, got, want)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/inference.go2 b/src/cmd/compile/internal/types2/testdata/examples/inference.go2
+index e169aec746..4eb18eb239 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/inference.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/inference.go2
+@@ -99,3 +99,26 @@ func _() {
+ 	related2(1.0, []int{})
+ 	related2( /* ERROR does not satisfy */ float64(1.0), []int{}) // TODO(gri) fix error position
+ }
++
++type List[P any] []P
++
++func related3[Elem any, Slice []Elem | List[Elem]]() Slice { return nil }
++
++func _() {
++	// related3 can be instantiated explicitly
++	related3[int, []int]()
++	related3[byte, List[byte]]()
++
++	// Alternatively, the 2nd type argument can be inferred
++	// from the first one through constraint type inference.
++	related3[int]()
++
++	// The inferred type is the structural type of the Slice
++	// type parameter.
++	var _ []int = related3[int]()
++
++	// It is not the defined parameterized type List.
++	type anotherList []float32
++	var _ anotherList = related3[float32]() // valid
++	var _ anotherList = related3 /* ERROR cannot use .* \(value of type List\[float32\]\) as anotherList */ [float32, List[float32]]()
++}
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 75e2fe8f0e..099bc429c3 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -114,9 +114,9 @@ func (t *TypeParam) iface() *Interface {
+ 	return ityp
+ }
+ 
+-// structuralType returns the structural type of the type parameter's constraint; or nil.
+-func (t *TypeParam) structuralType() Type {
+-	return t.iface().typeSet().structuralType()
++// singleType returns the single type of the type parameter constraint; or nil.
++func (t *TypeParam) singleType() Type {
++	return t.iface().typeSet().singleType()
+ }
+ 
+ // hasTerms reports whether the type parameter constraint has specific type terms.
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index c99d02744b..445a62f9e0 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -104,8 +104,8 @@ func (s *_TypeSet) String() string {
+ // hasTerms reports whether the type set has specific type terms.
+ func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll() }
+ 
+-// structuralType returns the single type in s if there is exactly one; otherwise the result is nil.
+-func (s *_TypeSet) structuralType() Type { return s.terms.structuralType() }
++// singleType returns the single type in s if there is exactly one; otherwise the result is nil.
++func (s *_TypeSet) singleType() Type { return s.terms.singleType() }
+ 
+ // includes reports whether t ∈ s.
+ func (s *_TypeSet) includes(t Type) bool { return s.terms.includes(t) }

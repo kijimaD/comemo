@@ -18,10 +18,97 @@ Date:   Wed Nov 1 14:24:06 2017 -0700
     Change-Id: If58cc17b2f0615a16f33ea262f50dffd0e86d0f0
     Reviewed-on: https://go-review.googlesource.com/75251
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/expr.go              | 9 +++++++++
  src/go/types/scope.go             | 3 ++-
  src/go/types/stmt.go              | 6 +++++-
  src/go/types/testdata/vardecl.src | 7 +++++++
  src/go/types/typexpr.go           | 1 +
  5 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 01c97afc07..ea778fd188 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1030,6 +1030,15 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			// Anonymous functions are considered part of the
+ 			// init expression/func declaration which contains
+ 			// them: use existing package-level declaration info.
++			//
++			// TODO(gri) We delay type-checking of regular (top-level)
++			//           function bodies until later. Why don't we do
++			//           it for closures of top-level expressions?
++			//           (We can't easily do it for local closures
++			//           because the surrounding scopes must reflect
++			//           the exact position where the closure appears
++			//           in the source; e.g., variables declared below
++			//           must not be visible).
+ 			check.funcBody(check.decl, "", sig, e.Body)
+ 			x.mode = value
+ 			x.typ = sig
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index b5d34d6e65..39e42d758a 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -28,12 +28,13 @@ type Scope struct {
+ 	elems    map[string]Object // lazily allocated
+ 	pos, end token.Pos         // scope extent; may be invalid
+ 	comment  string            // for debugging only
++	isFunc   bool              // set if this is a function scope (internal use only)
+ }
+ 
+ // NewScope returns a new, empty scope contained in the given parent
+ // scope, if any. The comment is for debugging only.
+ func NewScope(parent *Scope, pos, end token.Pos, comment string) *Scope {
+-	s := &Scope{parent, nil, nil, pos, end, comment}
++	s := &Scope{parent, nil, nil, pos, end, comment, false}
+ 	// don't add children to Universe scope!
+ 	if parent != nil && parent != Universe {
+ 		parent.children = append(parent.children, s)
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 618d1e5fbf..1292f5cec1 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -72,7 +72,11 @@ func (check *Checker) usage(scope *Scope) {
+ 	}
+ 
+ 	for _, scope := range scope.children {
+-		check.usage(scope)
++		// Don't go inside closure scopes a second time;
++		// they are handled explicitly by funcBody.
++		if !scope.isFunc {
++			check.usage(scope)
++		}
+ 	}
+ }
+ 
+diff --git a/src/go/types/testdata/vardecl.src b/src/go/types/testdata/vardecl.src
+index 35f44e6c48..197dec2d5d 100644
+--- a/src/go/types/testdata/vardecl.src
++++ b/src/go/types/testdata/vardecl.src
+@@ -151,6 +151,13 @@ func (r T) _(a, b, c int) (u, v, w int) {
+ 	return
+ }
+ 
++// Unused variables in closures must lead to only one error (issue #22524).
++func _() {
++	_ = func() {
++		var x /* ERROR declared but not used */ int
++	}
++}
++
+ // Invalid (unused) expressions must not lead to spurious "declared but not used errors"
+ func _() {
+ 	var a, b, c int
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 5f1587bf0f..2272ac0645 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -143,6 +143,7 @@ func (check *Checker) typ(e ast.Expr) Type {
+ // funcType type-checks a function or method type.
+ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
+ 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
++	scope.isFunc = true
+ 	check.recordScope(ftyp, scope)
+ 
+ 	recvList, _ := check.collectParams(scope, recvPar, false)

@@ -14,9 +14,116 @@ Date:   Thu Oct 27 08:28:06 2022 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules |  7 +++++
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 40 +++++++++++++++++++++++++
  test/codegen/issue56440.go                      | 18 +++++++++++
  test/prove.go                                   |  2 +-
  4 files changed, 66 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index ccdb1d8a77..0fc0f54433 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2539,6 +2539,13 @@
+ (SelectN [0] call:(StaticLECall {sym} a x)) && needRaceCleanup(sym, call) && clobber(call) => x
+ (SelectN [0] call:(StaticLECall {sym} x)) && needRaceCleanup(sym, call) && clobber(call) => x
+ 
++// When rewriting append to growslice, we use as the the new length the result of
++// growslice so that we don't have to spill/restore the new length around the growslice call.
++// The exception here is that if the new length is a constant, avoiding spilling it
++// is pointless and its constantness is sometimes useful for subsequent optimizations.
++// See issue 56440.
++(SliceLen (SelectN [0] (StaticLECall {sym} _ newLen:(Const(64|32)) _ _ _ _))) && isSameCall(sym, "runtime.growslice") => newLen
++
+ // Collapse moving A -> B -> C into just A -> C.
+ // Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.
+ // This happens most commonly when B is an autotmp inserted earlier
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index de7f3e8bc7..6598c0e483 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -26977,6 +26977,46 @@ func rewriteValuegeneric_OpSliceLen(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SliceLen (SelectN [0] (StaticLECall {sym} _ newLen:(Const64) _ _ _ _)))
++	// cond: isSameCall(sym, "runtime.growslice")
++	// result: newLen
++	for {
++		if v_0.Op != OpSelectN || auxIntToInt64(v_0.AuxInt) != 0 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpStaticLECall || len(v_0_0.Args) != 6 {
++			break
++		}
++		sym := auxToCall(v_0_0.Aux)
++		_ = v_0_0.Args[1]
++		newLen := v_0_0.Args[1]
++		if newLen.Op != OpConst64 || !(isSameCall(sym, "runtime.growslice")) {
++			break
++		}
++		v.copyOf(newLen)
++		return true
++	}
++	// match: (SliceLen (SelectN [0] (StaticLECall {sym} _ newLen:(Const32) _ _ _ _)))
++	// cond: isSameCall(sym, "runtime.growslice")
++	// result: newLen
++	for {
++		if v_0.Op != OpSelectN || auxIntToInt64(v_0.AuxInt) != 0 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpStaticLECall || len(v_0_0.Args) != 6 {
++			break
++		}
++		sym := auxToCall(v_0_0.Aux)
++		_ = v_0_0.Args[1]
++		newLen := v_0_0.Args[1]
++		if newLen.Op != OpConst32 || !(isSameCall(sym, "runtime.growslice")) {
++			break
++		}
++		v.copyOf(newLen)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSlicePtr(v *Value) bool {
+diff --git a/test/codegen/issue56440.go b/test/codegen/issue56440.go
+new file mode 100644
+index 0000000000..36b52ace03
+--- /dev/null
++++ b/test/codegen/issue56440.go
+@@ -0,0 +1,18 @@
++// asmcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check to make sure that we recognize when the length of an append
++// is constant. We check this by making sure that the constant length
++// is folded into a load offset.
++
++package p
++
++func f(x []int) int {
++	s := make([]int, 3)
++	s = append(s, 4, 5)
++	// amd64:`MOVQ\t40\(.*\),`
++	return x[len(s)]
++}
+diff --git a/test/prove.go b/test/prove.go
+index 1be257f206..7792b432f9 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -500,7 +500,7 @@ func f19() (e int64, err error) {
+ 	last := len(stack) - 1
+ 	e = stack[last]
+ 	// Buggy compiler prints "Disproved Leq64" for the next line.
+-	stack = stack[:last] // ERROR "Proved IsSliceInBounds"
++	stack = stack[:last]
+ 	return e, nil
+ }
+ 

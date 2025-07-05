@@ -14,6 +14,22 @@ Date:   Sun Sep 3 23:53:38 2017 +1000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index dfa13e3c3b..f9f273f5a8 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -279,6 +279,10 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		ORETJMP:
+ 		v.reason = "unhandled op " + n.Op.String()
+ 		return true
++
++	case ODCLCONST, OEMPTY, OFALL, OLABEL:
++		// These nodes don't produce code; omit from inlining budget.
++		return false
+ 	}
+ 
+ 	v.budget--

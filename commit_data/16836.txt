@@ -9,6 +9,20 @@ Date:   Mon Jul 22 12:42:42 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/11656043
-
+---
  src/pkg/runtime/proc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 18ddce8018..9530b9984a 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1310,7 +1310,7 @@ goexit0(G *gp)
+ 	m->curg = nil;
+ 	m->lockedg = nil;
+ 	if(m->locked & ~LockExternal) {
+-		runtime·printf("invalid m->locked = %d", m->locked);
++		runtime·printf("invalid m->locked = %d\n", m->locked);
+ 		runtime·throw("internal lockOSThread error");
+ 	}	
+ 	m->locked = 0;

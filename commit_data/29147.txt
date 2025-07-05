@@ -13,6 +13,22 @@ Date:   Sun Aug 28 08:53:20 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/androidtest.bash | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/androidtest.bash b/src/androidtest.bash
+index 823b83b934..a11165bbc5 100755
+--- a/src/androidtest.bash
++++ b/src/androidtest.bash
+@@ -30,6 +30,10 @@ if [ "$GOARM" != "7" ]; then
+ 	echo "android only supports GOARM=7, got GOARM=$GOARM" 1>&2
+ 	exit 1
+ fi
++if [ "$GOARCH" = "" ]; then
++	echo "GOARCH must be set" 1>&2
++	exit 1
++fi
+ 
+ export CGO_ENABLED=1
+ unset GOBIN

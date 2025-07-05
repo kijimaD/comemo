@@ -8,6 +8,25 @@ Date:   Wed Oct 8 15:33:18 2008 -0700
     DELTA=8  (8 added, 0 deleted, 0 changed)
     OCL=16765
     CL=16767
-
+---
  test/empty.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/test/empty.go b/test/empty.go
+new file mode 100644
+index 0000000000..fa10d6931d
+--- /dev/null
++++ b/test/empty.go
+@@ -0,0 +1,12 @@
++// $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package P
++
++import ( )
++const ( )
++var ( )
++type ( )

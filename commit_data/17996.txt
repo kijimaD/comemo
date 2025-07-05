@@ -22,7 +22,7 @@ Date:   Mon Dec 16 12:51:58 2013 -0500
     R=golang-dev, dave, iant
     CC=golang-dev
     https://golang.org/cl/39680043
-
+---
  include/link.h        |  82 +++----
  src/cmd/5l/obj.c      |   4 +-
  src/cmd/6l/obj.c      |  12 -
@@ -51,3 +51,5709 @@ Date:   Mon Dec 16 12:51:58 2013 -0500
  src/liblink/rdobj8.c  | 466 -----------------------------------
  src/liblink/sym.c     |  96 +++++++-
  27 files changed, 1417 insertions(+), 3209 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index abaa6ad401..c5089fc84c 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -34,7 +34,6 @@ typedef	struct	LSym	LSym;
+ typedef	struct	Reloc	Reloc;
+ typedef	struct	Auto	Auto;
+ typedef	struct	Hist	Hist;
+-typedef	struct	Hist2	Hist2;
+ typedef	struct	Link	Link;
+ typedef	struct	Plist	Plist;
+ typedef	struct	LinkArch	LinkArch;
+@@ -42,6 +41,7 @@ typedef	struct	Library	Library;
+ 
+ typedef	struct	Pcln	Pcln;
+ typedef	struct	Pcdata	Pcdata;
++typedef	struct	Pciter	Pciter;
+ 
+ // prevent incompatible type signatures between liblink and 8l on Plan 9
+ #pragma incomplete struct Node
+@@ -154,11 +154,11 @@ struct	LSym
+ 	char*	dynimplib;
+ 	char*	dynimpvers;
+ 	struct Section*	sect;
+-	Hist2*	hist;	// for ATEXT
+ 	
+ 	// STEXT
+ 	Auto*	autom;
+ 	Prog*	text;
++	Prog*	etext;
+ 	Pcln*	pcln;
+ 
+ 	// SDATA, SBSS
+@@ -286,18 +286,21 @@ struct Pcln
+ 	int lastindex;
+ };
+ 
+-enum
++// Pcdata iterator.
++//	for(pciterinit(&it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
++struct Pciter
+ {
+-	LinkMaxHist = 40,
++	Pcdata d;
++	uchar *p;
++	uint32 pc;
++	uint32 nextpc;
++	int32 value;
++	int start;
++	int done;
+ };
+ 
+-// TODO: Replace uses of Hist2 with Hist and delete this.
+-struct Hist2
+-{
+-	int32 line;
+-	int32 off;
+-	LSym *file;
+-};
++void	pciterinit(Pciter*, Pcdata*);
++void	pciternext(Pciter*);
+ 
+ // symbol version, incremented each time a file is loaded.
+ // version==1 is reserved for savehist.
+@@ -377,20 +380,13 @@ struct	Link
+ 	int	nlibrary;
+ 	int	tlsoffset;
+ 	void	(*diag)(char*, ...);
+-	void	(*dwarfaddfrag)(int, char*);
+-	LSym*	histfrog[LinkMaxHist];
+-	int	histfrogp;
+-	int	histgen;
++	int	mode;
+ 	Auto*	curauto;
+ 	Auto*	curhist;
+ 	LSym*	cursym;
+ 	int	version;
+ 	LSym*	textp;
+ 	LSym*	etextp;
+-	Hist2*	histcopy;
+-	Hist2*	hist2;
+-	int32	nhist2;
+-	int32	maxhist2;
+ 	int32	histdepth;
+ 	int32	nhistfile;
+ 	LSym*	filesyms;
+@@ -400,6 +396,7 @@ struct	Link
+ struct LinkArch
+ {
+ 	char*	name; // "arm", "amd64", and so on
++	int	thechar;	// '5', '6', and so on
+ 
+ 	void	(*addstacksplit)(Link*, LSym*);
+ 	void	(*assemble)(Link*, LSym*);
+@@ -407,17 +404,11 @@ struct LinkArch
+ 	void	(*follow)(Link*, LSym*);
+ 	int	(*iscall)(Prog*);
+ 	int	(*isdata)(Prog*);
+-	void	(*ldobj)(Link*, Biobuf*, char*, int64, char*);
+-	void	(*nopout)(Prog*);
+ 	Prog*	(*prg)(void);
+ 	void	(*progedit)(Link*, Prog*);
+ 	void	(*settextflag)(Prog*, int);
+ 	int	(*symtype)(Addr*);
+ 	int	(*textflag)(Prog*);
+-	void	(*zfile)(Biobuf*, char*, int);
+-	void	(*zhist)(Biobuf*, int, vlong);
+-	void	(*zprog)(Link*, Biobuf*, Prog*, int, int, int, int);
+-	void (*zname)(Biobuf*, LSym*, int);
+ 
+ 	int	minlc;
+ 	int	ptrsize;
+@@ -432,14 +423,19 @@ struct LinkArch
+ 	int	D_PCREL;
+ 	int	D_SCONST;
+ 	int	D_SIZE;
++	int	D_STATIC;
+ 
+ 	int	ACALL;
++	int	ADATA;
++	int	AEND;
+ 	int	AFUNCDATA;
++	int	AGLOBL;
+ 	int	AJMP;
+ 	int	ANOP;
+ 	int	APCDATA;
+ 	int	ARET;
+ 	int	ATEXT;
++	int	ATYPE;
+ 	int	AUSEFIELD;
+ };
+ 
+@@ -473,6 +469,8 @@ extern	uchar	inuxi8[8];
+ 
+ // asm5.c
+ void	span5(Link *ctxt, LSym *s);
++int	chipfloat5(Link *ctxt, float64 e);
++int	chipzero5(Link *ctxt, float64 e);
+ 
+ // asm6.c
+ void	span6(Link *ctxt, LSym *s);
+@@ -504,23 +502,20 @@ vlong	setuintxx(Link *ctxt, LSym *s, vlong off, uint64 v, vlong wid);
+ void	symgrow(Link *ctxt, LSym *s, int32 siz);
+ 
+ // go.c
++void	double2ieee(uint64 *ieee, double native);
+ void*	emallocz(long n);
+ void*	erealloc(void *p, long n);
+ char*	estrdup(char *p);
+ char*	expandpkg(char *t0, char *pkg);
+ 
+-// ieee.c
+-void	double2ieee(uint64 *ieee, double native);
+-
+ // ld.c
+ void	addhist(Link *ctxt, int32 line, int type);
+-void	addlib(Link *ctxt, char *src, char *obj);
++void	addlib(Link *ctxt, char *src, char *obj, char *path);
+ void	addlibpath(Link *ctxt, char *srcref, char *objref, char *file, char *pkg);
+ void	collapsefrog(Link *ctxt, LSym *s);
+ void	copyhistfrog(Link *ctxt, char *buf, int nbuf);
+ int	find1(int32 l, int c);
+-Hist2*	gethist(Link *ctxt);
+-void	linkgetline(Link *ctxt, Hist2 *h, int32 line, LSym **f, int32 *l);
++void	linkgetline(Link *ctxt, int32 line, LSym **f, int32 *l);
+ void	histtoauto(Link *ctxt);
+ void	mkfwd(LSym*);
+ void	nuxiinit(void);
+@@ -529,13 +524,20 @@ Prog*	copyp(Link*, Prog*);
+ Prog*	appendp(Link*, Prog*);
+ vlong	atolwhex(char*);
+ 
++// list[568].c
++void	listinit5(void);
++void	listinit6(void);
++void	listinit8(void);
++
+ // obj.c
+ int	linklinefmt(Link *ctxt, Fmt *fp);
+ void	linklinehist(Link *ctxt, int lineno, char *f, int offset);
+ Plist*	linknewplist(Link *ctxt);
+-void	linkouthist(Link *ctxt, Biobuf *b);
+ void	linkprfile(Link *ctxt, int32 l);
+-void	linkwritefuncs(Link *ctxt, Biobuf *b);
++
++// objfile.c
++void	ldobjfile(Link *ctxt, Biobuf *b, char *pkg, int64 len, char *path);
++void	linkwriteobj(Link *ctxt, Biobuf *b);
+ 
+ // pass.c
+ Prog*	brchain(Link *ctxt, Prog *p);
+@@ -545,24 +547,14 @@ void	linkpatch(Link *ctxt, LSym *sym);
+ // pcln.c
+ void	linkpcln(Link*, LSym*);
+ 
+-// rdobj5.c
+-void	ldobj5(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn);
+-void	nopout5(Prog *p);
+-
+-// rdobj6.c
+-void	ldobj6(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn);
+-void	nopout6(Prog *p);
+-
+-// rdobj8.c
+-void	ldobj8(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn);
+-void	nopout8(Prog *p);
+-
+ // sym.c
+ LSym*	linklookup(Link *ctxt, char *name, int v);
+ Link*	linknew(LinkArch*);
+ LSym*	linknewsym(Link *ctxt, char *symb, int v);
+ LSym*	linkrlookup(Link *ctxt, char *name, int v);
+ int	linksymfmt(Fmt *f);
++int	headtype(char*);
++char*	headstr(int);
+ 
+ extern	char*	anames5[];
+ extern	char*	anames6[];
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 591aef8590..c004744f2d 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -77,8 +77,6 @@ archinit(void)
+ 	case Hfreebsd:
+ 	case Hnetbsd:
+ 		debug['d'] = 0;	// with dynamic linking
+-		ctxt->tlsoffset = -8; // hardcoded number, first 4-byte word for g, and then 4-byte word for m
+-		                // this number is known to ../../pkg/runtime/rt0_*_arm.s
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+@@ -96,5 +94,5 @@ archinit(void)
+ 	// embed goarm to runtime.goarm
+ 	s = linklookup(ctxt, "runtime.goarm", 0);
+ 	s->type = SRODATA;
+-	adduint8(ctxt, s, goarm);
++	adduint8(ctxt, s, ctxt->goarm);
+ }
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index ac3273f939..a2f1465748 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -92,11 +92,6 @@ archinit(void)
+ 			INITRND = 4096;
+ 		break;
+ 	case Hdarwin:		/* apple MACH */
+-		/*
+-		 * OS X system constant - offset from 0(GS) to our TLS.
+-		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_amd64.c.
+-		 */
+-		ctxt->tlsoffset = 0x8a0;
+ 		machoinit();
+ 		HEADR = INITIAL_MACHO_HEADR;
+ 		if(INITRND == -1)
+@@ -111,13 +106,6 @@ archinit(void)
+ 	case Hnetbsd:		/* netbsd */
+ 	case Hopenbsd:		/* openbsd */
+ 	case Hdragonfly:	/* dragonfly */
+-		/*
+-		 * ELF uses TLS offset negative from FS.
+-		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
+-		 * Also known to ../../pkg/runtime/sys_linux_amd64.s
+-		 * and ../../pkg/runtime/cgo/gcc_linux_amd64.c.
+-		 */
+-		ctxt->tlsoffset = -16;
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 2a5c222a04..8acb5cab11 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -72,7 +72,6 @@ archinit(void)
+ 		errorexit();
+ 
+ 	case Hplan9:	/* plan 9 */
+-		ctxt->tlsoffset = -8;
+ 		HEADR = 32L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 4096+32;
+@@ -82,11 +81,6 @@ archinit(void)
+ 			INITRND = 4096;
+ 		break;
+ 	case Hdarwin:	/* apple MACH */
+-		/*
+-		 * OS X system constant - offset from %gs to our TLS.
+-		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_386.c.
+-		 */
+-		ctxt->tlsoffset = 0x468;
+ 		machoinit();
+ 		HEADR = INITIAL_MACHO_HEADR;
+ 		if(INITTEXT == -1)
+@@ -101,13 +95,6 @@ archinit(void)
+ 	case Hnetbsd:
+ 	case Hopenbsd:
+ 	case Hdragonfly:
+-		/*
+-		 * ELF uses TLS offsets negative from %gs.
+-		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
+-		 * Also known to ../../pkg/runtime/sys_linux_386.s
+-		 * and ../../pkg/runtime/cgo/gcc_linux_386.c.
+-		 */
+-		ctxt->tlsoffset = -8;
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 9b799fe0b2..db01463930 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -401,8 +401,7 @@ void
+ codeblk(int32 addr, int32 size)
+ {
+ 	LSym *sym;
+-	int32 eaddr, n, epc;
+-	Prog *p;
++	int32 eaddr, n;
+ 	uchar *q;
+ 
+ 	if(debug['a'])
+@@ -434,36 +433,20 @@ codeblk(int32 addr, int32 size)
+ 				Bprint(&bso, " %.2ux", 0);
+ 			Bprint(&bso, "\n");
+ 		}
+-		p = sym->text;
+-		if(p == nil) {
+-			Bprint(&bso, "%.6llux\t%-20s | foreign text\n", (vlong)addr, sym->name);
+-			n = sym->size;
+-			q = sym->p;
+-
+-			while(n >= 16) {
+-				Bprint(&bso, "%.6ux\t%-20.16I\n", addr, q);
+-				addr += 16;
+-				q += 16;
+-				n -= 16;
+-			}
+-			if(n > 0)
+-				Bprint(&bso, "%.6ux\t%-20.*I\n", addr, (int)n, q);
+-			addr += n;
+-			continue;
+-		}
+ 
+-		Bprint(&bso, "%.6llux\t%-20s | %P\n", (vlong)sym->value, sym->name, p);
+-		for(p = p->link; p != P; p = p->link) {
+-			if(p->link != P)
+-				epc = p->link->pc;
+-			else
+-				epc = sym->value + sym->size;
+-			Bprint(&bso, "%.6llux\t", (uvlong)p->pc);
+-			q = sym->p + p->pc - sym->value;
+-			n = epc - p->pc;
+-			Bprint(&bso, "%-20.*I | %P\n", (int)n, q, p);
+-			addr += n;
++		Bprint(&bso, "%.6llux\t%-20s\n", (vlong)addr, sym->name);
++		n = sym->size;
++		q = sym->p;
++
++		while(n >= 16) {
++			Bprint(&bso, "%.6ux\t%-20.16I\n", addr, q);
++			addr += 16;
++			q += 16;
++			n -= 16;
+ 		}
++		if(n > 0)
++			Bprint(&bso, "%.6ux\t%-20.*I\n", addr, (int)n, q);
++		addr += n;
+ 	}
+ 
+ 	if(addr < eaddr) {
+@@ -1031,7 +1014,6 @@ void
+ textaddress(void)
+ {
+ 	uvlong va;
+-	Prog *p;
+ 	Section *sect;
+ 	LSym *sym, *sub;
+ 
+@@ -1052,17 +1034,11 @@ textaddress(void)
+ 			continue;
+ 		if(sym->align != 0)
+ 			va = rnd(va, sym->align);
+-		else if(sym->text != P)
+-			va = rnd(va, FuncAlign);
+ 		sym->value = 0;
+-		for(sub = sym; sub != S; sub = sub->sub) {
++		for(sub = sym; sub != S; sub = sub->sub)
+ 			sub->value += va;
+-			for(p = sub->text; p != P; p = p->link)
+-				p->pc += sub->value;
+-		}
+-		if(sym->size == 0 && sym->sub != S) {
++		if(sym->size == 0 && sym->sub != S)
+ 			ctxt->cursym = sym;
+-		}
+ 		va += sym->size;
+ 	}
+ 	sect->len = va - sect->vaddr;
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 8170abe335..c4f6b9d016 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1371,140 +1371,25 @@ defdwsymb(LSym* sym, char *s, int t, vlong v, vlong size, int ver, LSym *gotype)
+ 		newrefattr(dv, DW_AT_type, dt);
+ }
+ 
+-// TODO(lvd) For now, just append them all to the first compilation
+-// unit (that should be main), in the future distribute them to the
+-// appropriate compilation units.
+ static void
+ movetomodule(DWDie *parent)
+ {
+ 	DWDie *die;
+ 
+-	for (die = dwroot.child->child; die->link != nil; die = die->link) /* nix */;
++	die = dwroot.child->child;
++	while(die->link != nil)
++		die = die->link;
+ 	die->link = parent->child;
+ }
+ 
+-/*
+- * Filename fragments for the line history stack.
+- */
+-
+-static char **ftab;
+-static int ftabsize;
+-
+-void
+-dwarfaddfrag(int n, char *frag)
+-{
+-	int s;
+-
+-	if (n >= ftabsize) {
+-		s = ftabsize;
+-		ftabsize = 1 + n + (n >> 2);
+-		ftab = erealloc(ftab, ftabsize * sizeof(ftab[0]));
+-		memset(ftab + s, 0, (ftabsize - s) * sizeof(ftab[0]));
+-	}
+-
+-	if (*frag == '<')
+-		frag++;
+-	ftab[n] = frag;
+-}
+-
+-// Returns a malloc'ed string, piecewise copied from the ftab.
+-static char *
+-decodez(char *s)
+-{
+-	int len, o;
+-	char *ss, *f;
+-	char *r, *rb, *re;
+-
+-	len = 0;
+-	ss = s + 1;	// first is 0
+-	while((o = ((uint8)ss[0] << 8) | (uint8)ss[1]) != 0) {
+-		if (o < 0 || o >= ftabsize) {
+-			diag("dwarf: corrupt z entry");
+-			return 0;
+-		}
+-		f = ftab[o];
+-		if (f == nil) {
+-			diag("dwarf: corrupt z entry");
+-			return 0;
+-		}
+-		len += strlen(f) + 1;	// for the '/'
+-		ss += 2;
+-	}
+-
+-	if (len == 0)
+-		return 0;
+-
+-	r = malloc(len + 1);
+-	if(r == nil) {
+-		diag("out of memory");
+-		errorexit();
+-	}
+-	rb = r;
+-	re = rb + len + 1;
+-
+-	s++;
+-	while((o = ((uint8)s[0] << 8) | (uint8)s[1]) != 0) {
+-		f = ftab[o];
+-		if (rb == r || rb[-1] == '/')
+-			rb = seprint(rb, re, "%s", f);
+-		else
+-			rb = seprint(rb, re, "/%s", f);
+-		s += 2;
+-	}
+-	return r;
+-}
+-
+-/*
+- * The line history itself
+- */
+-
+-static char **histfile;	   // [0] holds "<eof>", DW_LNS_set_file arguments must be > 0.
+-static int  histfilesize;
+-static int  histfilecap;
+-
+-static void
+-clearhistfile(void)
+-{
+-	int i;
+-
+-	// [0] holds "<eof>"
+-	for (i = 1; i < histfilesize; i++)
+-		free(histfile[i]);
+-	histfilesize = 0;
+-}
+-
+-static int
+-addhistfile(char *zentry)
+-{
+-	char *fname;
+-
+-	if (histfilesize == histfilecap) {
+-		histfilecap = 2 * histfilecap + 2;
+-		histfile = erealloc(histfile, histfilecap * sizeof(char*));
+-	}
+-	if (histfilesize == 0)
+-		histfile[histfilesize++] = "<eof>";
+-
+-	fname = decodez(zentry);
+-//	print("addhistfile %d: %s\n", histfilesize, fname);
+-	if (fname == 0)
+-		return -1;
+-
+-	// Don't fill with duplicates (check only top one).
+-	if (strcmp(fname, histfile[histfilesize-1]) == 0) {
+-		free(fname);
+-		return histfilesize - 1;
+-	}
+-
+-	histfile[histfilesize++] = fname;
+-	return histfilesize - 1;
+-}
+-
+ // if the histfile stack contains ..../runtime/runtime_defs.go
+ // use that to set gdbscript
+ static void
+-finddebugruntimepath(void)
++finddebugruntimepath(LSym *s)
+ {
++	USED(s);
++
++/* TODO
+ 	int i, l;
+ 	char *c;
+ 
+@@ -1516,139 +1401,7 @@ finddebugruntimepath(void)
+ 			break;
+ 		}
+ 	}
+-}
+-
+-// Go's runtime C sources are sane, and Go sources nest only 1 level,
+-// so a handful would be plenty, if it weren't for the fact that line
+-// directives can push an unlimited number of them.
+-static struct {
+-	int file;
+-	vlong line;
+-} *includestack;
+-static int includestacksize;
+-static int includetop;
+-static vlong absline;
+-
+-typedef struct Linehist Linehist;
+-struct Linehist {
+-	Linehist *link;
+-	vlong absline;
+-	vlong line;
+-	int file;
+-};
+-
+-static Linehist *linehist;
+-
+-static void
+-checknesting(void)
+-{
+-	if (includetop < 0) {
+-		diag("dwarf: corrupt z stack");
+-		errorexit();
+-	}
+-	if (includetop >= includestacksize) {
+-		includestacksize += 1;
+-		includestacksize <<= 2;
+-//		print("checknesting: growing to %d\n", includestacksize);
+-		includestack = erealloc(includestack, includestacksize * sizeof *includestack);	       
+-	}
+-}
+-
+-/*
+- * Return false if the a->link chain contains no history, otherwise
+- * returns true and finds z and Z entries in the Auto list (of a
+- * Prog), and resets the history stack
+- */
+-static int
+-inithist(Auto *a)
+-{
+-	Linehist *lh;
+-
+-	for (; a; a = a->link)
+-		if (a->type == D_FILE)
+-			break;
+-	if (a==nil)
+-		return 0;
+-
+-	// We have a new history.  They are guaranteed to come completely
+-	// at the beginning of the compilation unit.
+-	if (a->aoffset != 1) {
+-		diag("dwarf: stray 'z' with offset %d", a->aoffset);
+-		return 0;
+-	}
+-
+-	// Clear the history.
+-	clearhistfile();
+-	includetop = 0;
+-	checknesting();
+-	includestack[includetop].file = 0;
+-	includestack[includetop].line = -1;
+-	absline = 0;
+-	while (linehist != nil) {
+-		lh = linehist->link;
+-		free(linehist);
+-		linehist = lh;
+-	}
+-
+-	// Construct the new one.
+-	for (; a; a = a->link) {
+-		if (a->type == D_FILE) {  // 'z'
+-			int f = addhistfile(a->asym->name);
+-			if (f < 0) {	// pop file
+-				includetop--;
+-				checknesting();
+-			} else {	// pushed a file (potentially same)
+-				includestack[includetop].line += a->aoffset - absline;
+-				includetop++;
+-				checknesting();
+-				includestack[includetop].file = f;
+-				includestack[includetop].line = 1;
+-			}
+-			absline = a->aoffset;
+-		} else if (a->type == D_FILE1) {  // 'Z'
+-			// We could just fixup the current
+-			// linehist->lineno, but there doesn't appear to
+-			// be a guarantee that every 'Z' is preceded
+-			// by its own 'z', so do the safe thing and
+-			// update the stack and push a new Linehist
+-			// entry
+-			includestack[includetop].line =	 a->aoffset;
+-		} else
+-			continue;
+-		if (linehist == 0 || linehist->absline != absline) {
+-			Linehist* lh = malloc(sizeof *lh);
+-			if(lh == nil) {
+-				diag("out of memory");
+-				errorexit();
+-			}
+-			lh->link = linehist;
+-			lh->absline = absline;
+-			linehist = lh;
+-		}
+-		linehist->file = includestack[includetop].file;
+-		linehist->line = includestack[includetop].line;
+-	}
+-	return 1;
+-}
+-
+-static Linehist *
+-searchhist(vlong absline)
+-{
+-	Linehist *lh;
+-
+-	for (lh = linehist; lh; lh = lh->link)
+-		if (lh->absline <= absline)
+-			break;
+-	return lh;
+-}
+-
+-static int
+-guesslang(char *s)
+-{
+-	if(strlen(s) >= 3 && strcmp(s+strlen(s)-3, ".go") == 0)
+-		return DW_LANG_Go;
+-
+-	return DW_LANG_C;
++*/
+ }
+ 
+ /*
+@@ -1744,17 +1497,16 @@ flushunit(DWDie *dwinfo, vlong pc, LSym *pcsym, vlong unitstart, int32 header_le
+ static void
+ writelines(void)
+ {
+-	Prog *q;
+ 	LSym *s, *epcs;
+ 	Auto *a;
+ 	vlong unitstart, headerend, offs;
+-	vlong pc, epc, lc, llc, lline;
+-	int currfile;
+-	int i, lang, da, dt;
+-	Linehist *lh;
++	vlong pc, epc;
++	int i, lang, da, dt, line, file;
+ 	DWDie *dwinfo, *dwfunc, *dwvar, **dws;
+ 	DWDie *varhash[HASHSIZE];
+ 	char *n, *nn;
++	Pciter pcfile, pcline;
++	LSym **files, *f;
+ 
+ 	if(linesec == S)
+ 		linesec = linklookup(ctxt, ".dwarfline", 0);
+@@ -1765,126 +1517,104 @@ writelines(void)
+ 	pc = 0;
+ 	epc = 0;
+ 	epcs = S;
+-	lc = 1;
+-	llc = 1;
+-	currfile = -1;
+ 	lineo = cpos();
+ 	dwinfo = nil;
++	
++	flushunit(dwinfo, epc, epcs, unitstart, headerend - unitstart - 10);
++	unitstart = cpos();
++	
++	lang = DW_LANG_Go;
++	
++	s = ctxt->textp;
++
++	dwinfo = newdie(&dwroot, DW_ABRV_COMPUNIT, estrdup("go"));
++	newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT,lang, 0);
++	newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart - lineo, 0);
++	newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, (char*)s);
++
++	// Write .debug_line Line Number Program Header (sec 6.2.4)
++	// Fields marked with (*) must be changed for 64-bit dwarf
++	LPUT(0);   // unit_length (*), will be filled in by flushunit.
++	WPUT(2);   // dwarf version (appendix F)
++	LPUT(0);   // header_length (*), filled in by flushunit.
++	// cpos == unitstart + 4 + 2 + 4
++	cput(1);   // minimum_instruction_length
++	cput(1);   // default_is_stmt
++	cput(LINE_BASE);     // line_base
++	cput(LINE_RANGE);    // line_range
++	cput(OPCODE_BASE);   // opcode_base (we only use 1..4)
++	cput(0);   // standard_opcode_lengths[1]
++	cput(1);   // standard_opcode_lengths[2]
++	cput(1);   // standard_opcode_lengths[3]
++	cput(1);   // standard_opcode_lengths[4]
++	cput(0);   // include_directories  (empty)
++
++	files = emallocz(ctxt->nhistfile*sizeof files[0]);
++	for(f = ctxt->filesyms; f != nil; f = f->next)
++		files[f->value-1] = f;
++
++	for(i=0; i<ctxt->nhistfile; i++) {
++		strnput(files[i]->name, strlen(files[i]->name) + 4);
++		// 4 zeros: the string termination + 3 fields.
++	}
++
++	cput(0);   // terminate file_names.
++	headerend = cpos();
++
++	cput(0);  // start extended opcode
++	uleb128put(1 + PtrSize);
++	cput(DW_LNE_set_address);
++
++	pc = s->value;
++	line = 1;
++	file = 1;
++	if(linkmode == LinkExternal)
++		adddwarfrel(linesec, s, lineo, PtrSize, 0);
++	else
++		addrput(pc);
+ 
+ 	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
+ 		s = ctxt->cursym;
+-		if(s->text == P)
+-			continue;
+-
+-		// Look for history stack.  If we find one,
+-		// we're entering a new compilation unit
+-
+-		if (inithist(s->autom)) {
+-			flushunit(dwinfo, epc, epcs, unitstart, headerend - unitstart - 10);
+-			unitstart = cpos();
+-
+-			if(debug['v'] > 1) {
+-				print("dwarf writelines found %s\n", histfile[1]);
+-				Linehist* lh;
+-				for (lh = linehist; lh; lh = lh->link)
+-					print("\t%8lld: [%4lld]%s\n",
+-					      lh->absline, lh->line, histfile[lh->file]);
+-			}
+-
+-			lang = guesslang(histfile[1]);
+-			finddebugruntimepath();
+-
+-			dwinfo = newdie(&dwroot, DW_ABRV_COMPUNIT, estrdup(histfile[1]));
+-			newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT,lang, 0);
+-			newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart - lineo, 0);
+-			newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->text->pc, (char*)s);
+-
+-			// Write .debug_line Line Number Program Header (sec 6.2.4)
+-			// Fields marked with (*) must be changed for 64-bit dwarf
+-			LPUT(0);   // unit_length (*), will be filled in by flushunit.
+-			WPUT(2);   // dwarf version (appendix F)
+-			LPUT(0);   // header_length (*), filled in by flushunit.
+-			// cpos == unitstart + 4 + 2 + 4
+-			cput(1);   // minimum_instruction_length
+-			cput(1);   // default_is_stmt
+-			cput(LINE_BASE);     // line_base
+-			cput(LINE_RANGE);    // line_range
+-			cput(OPCODE_BASE);   // opcode_base (we only use 1..4)
+-			cput(0);   // standard_opcode_lengths[1]
+-			cput(1);   // standard_opcode_lengths[2]
+-			cput(1);   // standard_opcode_lengths[3]
+-			cput(1);   // standard_opcode_lengths[4]
+-			cput(0);   // include_directories  (empty)
+-
+-			for (i=1; i < histfilesize; i++) {
+-				strnput(histfile[i], strlen(histfile[i]) + 4);
+-				// 4 zeros: the string termination + 3 fields.
+-			}
+-
+-			cput(0);   // terminate file_names.
+-			headerend = cpos();
+-
+-			pc = s->text->pc;
+-			epc = pc;
+-			epcs = s;
+-			currfile = 1;
+-			lc = 1;
+-			llc = 1;
+-
+-			cput(0);  // start extended opcode
+-			uleb128put(1 + PtrSize);
+-			cput(DW_LNE_set_address);
+-
+-			if(linkmode == LinkExternal)
+-				adddwarfrel(linesec, s, lineo, PtrSize, 0);
+-			else
+-				addrput(pc);
+-		}
+-		if(s->text == nil)
+-			continue;
+-
+-		if (unitstart < 0) {
+-			diag("dwarf: reachable code before seeing any history: %P", s->text);
+-			continue;
+-		}
+ 
+ 		dwfunc = newdie(dwinfo, DW_ABRV_FUNCTION, s->name);
+ 		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, (char*)s);
+ 		epc = s->value + s->size;
++		epcs = s;
+ 		newattr(dwfunc, DW_AT_high_pc, DW_CLS_ADDRESS, epc, (char*)s);
+ 		if (s->version == 0)
+ 			newattr(dwfunc, DW_AT_external, DW_CLS_FLAG, 1, 0);
+ 
+-		if(s->text->link == nil)
++		if(s->pcln == nil)
+ 			continue;
+ 
+-		for(q = s->text; q != P; q = q->link) {
+-			lh = searchhist(q->lineno);
+-			if (lh == nil) {
+-				diag("dwarf: corrupt history or bad absolute line: %P", q);
++		finddebugruntimepath(s);
++
++		pciterinit(&pcfile, &s->pcln->pcfile);
++		pciterinit(&pcline, &s->pcln->pcline);
++		while(!pcfile.done && !pcline.done) {
++			if(pc - s->value >= pcfile.nextpc) {
++				pciternext(&pcfile);
+ 				continue;
+ 			}
+-
+-			if (lh->file < 1) {  // 0 is the past-EOF entry.
+-				// diag("instruction with line number past EOF in %s: %P", histfile[1], q);
++			if(pc - s->value >= pcline.nextpc) {
++				pciternext(&pcline);
+ 				continue;
+ 			}
+ 
+-			lline = lh->line + q->lineno - lh->absline;
+-			if (debug['v'] > 1)
+-				print("%6llux %s[%lld] %P\n", (vlong)q->pc, histfile[lh->file], lline, q);
++			if(pcfile.nextpc < pcline.nextpc)
++				epc = pcfile.nextpc;
++			else
++				epc = pcline.nextpc;
++			epc += s->value;
+ 
+-			if (q->lineno == lc)
+-				continue;
+-			if (currfile != lh->file) {
+-				currfile = lh->file;
++			if(file != pcfile.value) {
+ 				cput(DW_LNS_set_file);
+-				uleb128put(currfile);
++				uleb128put(pcfile.value);
++				file = pcfile.value;
+ 			}
+-			putpclcdelta(q->pc - pc, lline - llc);
+-			pc  = q->pc;
+-			lc  = q->lineno;
+-			llc = lline;
++			putpclcdelta(epc - pc, pcline.value - line);
++			pc = epc;
++			line = pcline.value;
+ 		}
+ 
+ 		da = 0;
+@@ -1970,9 +1700,9 @@ putpccfadelta(vlong deltapc, vlong cfa)
+ static void
+ writeframes(void)
+ {
+-	Prog *p, *q;
+ 	LSym *s;
+-	vlong fdeo, fdesize, pad, cfa, pc;
++	vlong fdeo, fdesize, pad;
++	Pciter pcsp;
+ 
+ 	if(framesec == S)
+ 		framesec = linklookup(ctxt, ".dwarfframe", 0);
+@@ -2005,7 +1735,7 @@ writeframes(void)
+ 
+ 	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
+ 		s = ctxt->cursym;
+-		if(s->text == nil)
++		if(s->pcln == nil)
+ 			continue;
+ 
+ 		fdeo = cpos();
+@@ -2015,17 +1745,8 @@ writeframes(void)
+ 		addrput(0);	// initial location
+ 		addrput(0);	// address range
+ 
+-		cfa = PtrSize;	// CFA starts at sp+PtrSize
+-		p = s->text;
+-		pc = p->pc;
+-
+-		for(q = p; q->link != P; q = q->link) {
+-			if (q->spadj == 0)
+-				continue;
+-			cfa += q->spadj;
+-			putpccfadelta(q->link->pc - pc, cfa);
+-			pc = q->link->pc;
+-		}
++		for(pciterinit(&pcsp, &s->pcln->pcsp); !pcsp.done; pciternext(&pcsp))
++			putpccfadelta(pcsp.nextpc - pcsp.pc, PtrSize + pcsp.value);
+ 
+ 		fdesize = cpos() - fdeo - 4;	// exclude the length field.
+ 		pad = rnd(fdesize, PtrSize) - fdesize;
+@@ -2041,7 +1762,7 @@ writeframes(void)
+ 		}
+ 		else {
+ 			LPUT(0);
+-			addrput(p->pc);
++			addrput(s->value);
+ 		}
+ 		addrput(s->size);
+ 		cseek(fdeo + 4 + fdesize);
+diff --git a/src/cmd/ld/dwarf.h b/src/cmd/ld/dwarf.h
+index 7952a74369..32db36dcd3 100644
+--- a/src/cmd/ld/dwarf.h
++++ b/src/cmd/ld/dwarf.h
+@@ -2,12 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-/*
+- * Register 'f' symbol file fragments.  Doing this while parsing the
+- * .6 input saves a pass over the symbol table later.
+- */
+-void dwarfaddfrag(int n, char* frag);
+-
+ /*
+  * Emit debug_abbrevs, debug_info and debug_line sections to current
+  * offset in cout.
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 9950a3886e..900ecb0ae9 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -558,23 +558,22 @@ static void
+ markflood(void)
+ {
+ 	Auto *a;
+-	Prog *p;
+ 	LSym *s;
+ 	int i;
+ 	
+ 	for(s=markq; s!=S; s=s->queue) {
+-		if(s->text) {
++		if(s->type == STEXT) {
+ 			if(debug['v'] > 1)
+ 				Bprint(&bso, "marktext %s\n", s->name);
+ 			for(a=s->autom; a; a=a->link)
+ 				mark1(a->gotype, s);
+-			for(p=s->text; p != P; p=p->link) {
+-				mark1(p->from.sym, s);
+-				mark1(p->to.sym, s);
+-			}
+ 		}
+ 		for(i=0; i<s->nr; i++)
+ 			mark1(s->r[i].sym, s);
++		if(s->pcln) {
++			for(i=0; i<s->pcln->nfuncdata; i++)
++				mark1(s->pcln->funcdata[i], s);
++		}
+ 		mark1(s->gotype, s);
+ 		mark1(s->sub, s);
+ 		mark1(s->outer, s);
+@@ -606,43 +605,11 @@ markextra[] =
+ 	"_modu",
+ };
+ 
+-static int
+-isz(Auto *a)
+-{
+-	for(; a; a=a->link)
+-		if(a->type == D_FILE || a->type == D_FILE1)
+-			return 1;
+-	return 0;
+-}
+-
+-static void
+-addz(LSym *s, Auto *z)
+-{
+-	Auto *a, *last;
+-
+-	// strip out non-z
+-	last = nil;
+-	for(a = z; a != nil; a = a->link) {
+-		if(a->type == D_FILE || a->type == D_FILE1) {
+-			if(last == nil)
+-				z = a;
+-			else
+-				last->link = a;
+-			last = a;
+-		}
+-	}
+-	if(last) {
+-		last->link = s->autom;
+-		s->autom = z;
+-	}
+-}
+-
+ void
+ deadcode(void)
+ {
+ 	int i;
+ 	LSym *s, *last, *p;
+-	Auto *z;
+ 	Fmt fmt;
+ 
+ 	if(debug['v'])
+@@ -665,23 +632,14 @@ deadcode(void)
+ 
+ 	// remove dead text but keep file information (z symbols).
+ 	last = nil;
+-	z = nil;
+ 	for(s = ctxt->textp; s != nil; s = s->next) {
+-		if(!s->reachable) {
+-			if(isz(s->autom))
+-				z = s->autom;
++		if(!s->reachable)
+ 			continue;
+-		}
+ 		if(last == nil)
+ 			ctxt->textp = s;
+ 		else
+ 			last->next = s;
+ 		last = s;
+-		if(z != nil) {
+-			if(!isz(s->autom))
+-				addz(s, z);
+-			z = nil;
+-		}
+ 	}
+ 	if(last == nil)
+ 		ctxt->textp = nil;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 56e50acb95..53c3ebd43c 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -182,12 +182,17 @@ loadlib(void)
+ 		// whether to initialize the TLS.  So give it one.  This could
+ 		// be handled differently but it's an unusual case.
+ 		loadinternal("runtime/cgo");
++
+ 		// Pretend that we really imported the package.
+ 		// This will do no harm if we did in fact import it.
+ 		s = linklookup(ctxt, "go.importpath.runtime/cgo.", 0);
+ 		s->type = SDATA;
+ 		s->dupok = 1;
+ 		s->reachable = 1;
++
++		// Provided by the code that imports the package.
++		// Since we are simulating the import, we have to provide this string.
++		addstrdata("go.string.\"runtime/cgo\"", "runtime/cgo");
+ 	}
+ 
+ 	for(i=0; i<ctxt->libraryp; i++) {
+@@ -765,7 +770,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
+ 	ldpkg(f, pkg, import1 - import0 - 2, pn, whence);	// -2 for !\n
+ 	Bseek(f, import1, 0);
+ 
+-	ctxt->arch->ldobj(ctxt, f, pkg, eof - Boffset(f), pn);
++	ldobjfile(ctxt, f, pkg, eof - Boffset(f), pn);
+ 	free(pn);
+ 	return;
+ 
+@@ -979,6 +984,9 @@ enum
+ 	CallSize = (!HasLinkRegister)*PtrSize,	// bytes of stack required for a call
+ };
+ 
++// TODO: Record enough information in new object files to
++// allow stack checks here.
++
+ void
+ dostkcheck(void)
+ {
+@@ -988,6 +996,7 @@ dostkcheck(void)
+ 	morestack = linklookup(ctxt, "runtime.morestack", 0);
+ 	newstack = linklookup(ctxt, "runtime.newstack", 0);
+ 
++	// TODO
+ 	// First the nosplits on their own.
+ 	for(s = ctxt->textp; s != nil; s = s->next) {
+ 		if(s->text == nil || s->text->link == nil || (ctxt->arch->textflag(s->text) & NOSPLIT) == 0)
+@@ -1137,34 +1146,6 @@ stkprint(Chain *ch, int limit)
+ 		print("\t%d\tafter %s uses %d\n", limit, name, ch->limit - limit);
+ }
+ 
+-int
+-headtype(char *name)
+-{
+-	int i;
+-
+-	for(i=0; headers[i].name; i++)
+-		if(strcmp(name, headers[i].name) == 0) {
+-			headstring = headers[i].name;
+-			return headers[i].val;
+-		}
+-	fprint(2, "unknown header type -H %s\n", name);
+-	errorexit();
+-	return -1;  // not reached
+-}
+-
+-char*
+-headstr(int v)
+-{
+-	static char buf[20];
+-	int i;
+-
+-	for(i=0; headers[i].name; i++)
+-		if(v == headers[i].val)
+-			return headers[i].name;
+-	snprint(buf, sizeof buf, "%d", v);
+-	return buf;
+-}
+-
+ int
+ Yconv(Fmt *fp)
+ {
+@@ -1267,6 +1248,13 @@ usage(void)
+ void
+ setheadtype(char *s)
+ {
++	int h;
++	
++	h = headtype(s);
++	if(h < 0) {
++		fprint(2, "unknown header type -H %s\n", s);
++		errorexit();
++	}
+ 	HEADTYPE = headtype(s);
+ }
+ 
+@@ -1337,9 +1325,6 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
+ 	}
+ 
+ 	for(s = ctxt->textp; s != nil; s = s->next) {
+-		if(s->text == nil)
+-			continue;
+-
+ 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
+ 
+ 		for(a=s->autom; a; a=a->link) {
+@@ -1434,10 +1419,8 @@ undefsym(LSym *s)
+ 		r = &s->r[i];
+ 		if(r->sym == nil) // happens for some external ARM relocs
+ 			continue;
+-		if(r->sym->type == Sxxx || r->sym->type == SXREF) {
++		if(r->sym->type == Sxxx || r->sym->type == SXREF)
+ 			diag("undefined: %s", r->sym->name);
+-			continue;
+-		}
+ 		if(!r->sym->reachable)
+ 			diag("use of unreachable symbol: %s", r->sym->name);
+ 	}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 63e2825119..761678ec02 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -162,8 +162,6 @@ EXTERN	char*	cbpmax;
+ 	if(--cbc <= 0)\
+ 		cflush(); }
+ 
+-EXTERN	int	goarm;
+-
+ void	Lflag(char *arg);
+ int	Yconv(Fmt *fp);
+ int	Zconv(Fmt *fp);
+diff --git a/src/cmd/ld/pcln.c b/src/cmd/ld/pcln.c
+index 5934dbcdfa..ac7294a78c 100644
+--- a/src/cmd/ld/pcln.c
++++ b/src/cmd/ld/pcln.c
+@@ -54,33 +54,15 @@ ftabaddstring(LSym *ftab, char *s)
+ 	return start;
+ }
+ 
+-static uint32
+-getvarint(uchar **pp)
+-{
+-	uchar *p;
+-	int shift;
+-	uint32 v;
+-
+-	v = 0;
+-	p = *pp;
+-	for(shift = 0;; shift += 7) {
+-		v |= (*p & 0x7F) << shift;
+-		if(!(*p++ & 0x80))
+-			break;
+-	}
+-	*pp = p;
+-	return v;
+-}
+-
+ static void
+ renumberfiles(LSym **files, int nfiles, Pcdata *d)
+ {
+ 	int i;
+ 	LSym *f;
+ 	Pcdata out;
++	Pciter it;
+ 	uint32 v;
+ 	int32 oldval, newval, val, dv;
+-	uchar *p;
+ 	
+ 	// Give files numbers.
+ 	for(i=0; i<nfiles; i++) {
+@@ -93,34 +75,29 @@ renumberfiles(LSym **files, int nfiles, Pcdata *d)
+ 		}
+ 	}
+ 
+-	oldval = -1;
+ 	newval = -1;
+ 	memset(&out, 0, sizeof out);
+-	p = d->p;
+-	while(p < d->p + d->n) {
++
++	for(pciterinit(&it, d); !it.done; pciternext(&it)) {
+ 		// value delta
+-		v = getvarint(&p);
+-		if(v == 0 && p != d->p) {
+-			addvarint(&out, 0);
+-			break;
+-		}
+-		dv = (int32)(v>>1) ^ ((int32)(v<<31)>>31);
+-		oldval += dv;
++		oldval = it.value;
+ 		if(oldval == -1)
+ 			val = -1;
+-		else {
++		else {	
+ 			if(oldval < 0 || oldval >= nfiles)
+ 				sysfatal("bad pcdata %d", oldval);
+ 			val = files[oldval]->value;
+ 		}
+ 		dv = val - newval;
+-		v = (uint32)(dv<<1) ^ (uint32)(dv>>31);
++		v = (uint32)(dv<<1) ^ (uint32)(int32)(dv>>31);
+ 		addvarint(&out, v);
+ 
+ 		// pc delta
+-		v = getvarint(&p);
+-		addvarint(&out, v);
++		addvarint(&out, it.nextpc - it.pc);
+ 	}
++	
++	// terminating value delta
++	addvarint(&out, 0);
+ 
+ 	free(d->p);
+ 	*d = out;	
+@@ -186,10 +163,7 @@ pclntab(void)
+ 		
+ 		// args int32
+ 		// TODO: Move into funcinfo.
+-		if(ctxt->cursym->text == nil)
+-			off = setuint32(ctxt, ftab, off, ArgsSizeUnknown);
+-		else
+-			off = setuint32(ctxt, ftab, off, ctxt->cursym->args);
++		off = setuint32(ctxt, ftab, off, ctxt->cursym->args);
+ 	
+ 		// frame int32
+ 		// TODO: Remove entirely. The pcsp table is more precise.
+@@ -197,10 +171,7 @@ pclntab(void)
+ 		// when a called function doesn't have argument information.
+ 		// We need to make sure everything has argument information
+ 		// and then remove this.
+-		if(ctxt->cursym->text == nil)
+-			off = setuint32(ctxt, ftab, off, 0);
+-		else
+-			off = setuint32(ctxt, ftab, off, (uint32)ctxt->cursym->text->to.offset+PtrSize);
++		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + PtrSize);
+ 		
+ 		if(pcln != &zpcln)
+ 			renumberfiles(pcln->file, pcln->nfile, &pcln->pcfile);
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 2274c2fb55..16d908a407 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -42,30 +42,13 @@
+ char	*noname		= "<none>";
+ char*	paramspace	= "FP";
+ 
+-Header headers[] = {
+-	"darwin",	Hdarwin,
+-	"dragonfly",	Hdragonfly,
+-	"elf",		Helf,
+-	"freebsd",	Hfreebsd,
+-	"linux",	Hlinux,
+-	"netbsd",	Hnetbsd,
+-	"openbsd",	Hopenbsd,
+-	"plan9",	Hplan9,
+-	"windows",	Hwindows,
+-	"windowsgui",	Hwindows,
+-	0, 0
+-};
+-
+ void
+ main(int argc, char *argv[])
+ {
+-	char *p;
+-
+ 	ctxt = linknew(thelinkarch);
+ 	ctxt->thechar = thechar;
+ 	ctxt->thestring = thestring;
+ 	ctxt->diag = diag;
+-	ctxt->dwarfaddfrag = dwarfaddfrag;
+ 	ctxt->bso = &bso;
+ 
+ 	Binit(&bso, 1, OWRITE);
+@@ -81,16 +64,8 @@ main(int argc, char *argv[])
+ 	linkmode = LinkAuto;
+ 	nuxiinit();
+ 	
+-	if(thechar == '5') {
+-		p = getgoarm();
+-		if(p != nil)
+-			goarm = atoi(p);
+-		else
+-			goarm = 6;
+-		if(goarm == 5)
+-			debug['F'] = 1;
+-		ctxt->goarm = goarm;
+-	}
++	if(thechar == '5' && ctxt->goarm == 5)
++		debug['F'] = 1;
+ 
+ 	flagcount("1", "use alternate profiling code", &debug['1']);
+ 	if(thechar == '6')
+@@ -186,13 +161,8 @@ main(int argc, char *argv[])
+ 		mark(linklookup(ctxt, "runtime.read_tls_fallback", 0));
+ 	}
+ 
+-	patch();
+ 	deadcode();
+-	follow();
+-	dostkoff();
+ 	paramspace = "SP";	/* (FP) now (SP) on output */
+-	span();
+-	pcln();
+ 
+ 	doelf();
+ 	if(HEADTYPE == Hdarwin)
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 8ed8bea57e..4501e47f7a 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -383,8 +383,6 @@ static int32	oshrr(Link*, int, int, int, int);
+ static int32	omvl(Link*, Prog*, Addr*, int);
+ static int32	immaddr(int32);
+ static int	aclass(Link*, Addr*);
+-static int	chipzero(Link*, float64);
+-static int	chipfloat(Link*, float64);
+ static int32	immrot(uint32);
+ static int32	immaddr(int32);
+ static int32	opbra(Link*, int, int);
+@@ -857,9 +855,9 @@ aclass(Link *ctxt, Addr *a)
+ 		return C_GOK;
+ 
+ 	case D_FCONST:
+-		if(chipzero(ctxt, a->u.dval) >= 0)
++		if(chipzero5(ctxt, a->u.dval) >= 0)
+ 			return C_ZFCON;
+-		if(chipfloat(ctxt, a->u.dval) >= 0)
++		if(chipfloat5(ctxt, a->u.dval) >= 0)
+ 			return C_SFCON;
+ 		return C_LFCON;
+ 
+@@ -950,7 +948,7 @@ oplook(Link *ctxt, Prog *p)
+ 		o = oprange[r].stop; /* just generate an error */
+ 	}
+ 	if(0 /*debug['O']*/) {
+-		print("oplook %A %O %O %O\n",
++		print("oplook %A %d %d %d\n",
+ 			(int)p->as, a1, a2, a3);
+ 		print("		%d %d\n", p->from.type, p->to.type);
+ 	}
+@@ -964,8 +962,9 @@ oplook(Link *ctxt, Prog *p)
+ 			p->optab = (o-optab)+1;
+ 			return o;
+ 		}
+-	ctxt->diag("illegal combination %A %O %O %O, %d %d",
+-		p->as, a1, a2, a3, p->from.type, p->to.type);
++	ctxt->diag("illegal combination %P; %d %d %d, %d %d",
++		p, a1, a2, a3, p->from.type, p->to.type);
++	ctxt->diag("from %d %d to %d %d\n", p->from.type, p->from.name, p->to.type, p->to.name);
+ 	prasm(p);
+ 	if(o == 0)
+ 		o = optab;
+@@ -1557,7 +1556,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 		aclass(ctxt, &p->from);
+ 	movm:
+ 		if(ctxt->instoffset != 0)
+-			ctxt->diag("offset must be zero in MOVM");
++			ctxt->diag("offset must be zero in MOVM; %P", p);
+ 		o1 |= (p->scond & C_SCOND) << 28;
+ 		if(p->scond & C_PBIT)
+ 			o1 |= 1 << 24;
+@@ -1878,7 +1877,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 			o1 = 0xeeb00b00;	// VMOV imm 64
+ 		o1 |= (p->scond & C_SCOND) << 28;
+ 		o1 |= p->to.reg << 12;
+-		v = chipfloat(ctxt, p->from.u.dval);
++		v = chipfloat5(ctxt, p->from.u.dval);
+ 		o1 |= (v&0xf) << 0;
+ 		o1 |= (v&0xf0) << 12;
+ 		break;
+@@ -2392,8 +2391,8 @@ omvl(Link *ctxt, Prog *p, Addr *a, int dr)
+ 	return o1;
+ }
+ 
+-static int
+-chipzero(Link *ctxt, float64 e)
++int
++chipzero5(Link *ctxt, float64 e)
+ {
+ 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+ 	if(ctxt->goarm < 7 || e != 0)
+@@ -2401,8 +2400,8 @@ chipzero(Link *ctxt, float64 e)
+ 	return 0;
+ }
+ 
+-static int
+-chipfloat(Link *ctxt, float64 e)
++int
++chipfloat5(Link *ctxt, float64 e)
+ {
+ 	int n;
+ 	ulong h1;
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 019ec06849..5ef00f849d 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -1677,6 +1677,7 @@ span6(Link *ctxt, LSym *s)
+ 			sysfatal("loop");
+ 		}
+ 	} while(loop);
++	c += -c&(FuncAlign-1);
+ 	s->size = c;
+ 
+ 	if(0 /* debug['a'] > 1 */) {
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index 6246276567..e2ff530cca 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -155,11 +155,15 @@ static uchar	ytext[] =
+ };
+ static uchar	ynop[] =
+ {
+-	Ynone,	Ynone,	Zpseudo,1,
+-	Ynone,	Yml,	Zpseudo,1,
+-	Ynone,	Yrf,	Zpseudo,1,
+-	Yml,	Ynone,	Zpseudo,1,
+-	Yrf,	Ynone,	Zpseudo,1,
++	Ynone,	Ynone,	Zpseudo,0,
++	Ynone,	Yiauto,	Zpseudo,0,
++	Ynone,	Yml,	Zpseudo,0,
++	Ynone,	Yrf,	Zpseudo,0,
++	Yiauto,	Ynone,	Zpseudo,0,
++	Ynone,	Yxr,	Zpseudo,0,
++	Yml,	Ynone,	Zpseudo,0,
++	Yrf,	Ynone,	Zpseudo,0,
++	Yxr,	Ynone,	Zpseudo,1,
+ 	0
+ };
+ static uchar	yfuncdata[] =
+@@ -1255,6 +1259,7 @@ span8(Link *ctxt, LSym *s)
+ 			sysfatal("bad code");
+ 		}
+ 	} while(loop);
++	c += -c&(FuncAlign-1);
+ 	s->size = c;
+ 
+ 	if(0 /* debug['a'] > 1 */) {
+diff --git a/src/liblink/ld.c b/src/liblink/ld.c
+index f6632877bb..1d06f809a4 100644
+--- a/src/liblink/ld.c
++++ b/src/liblink/ld.c
+@@ -35,329 +35,14 @@
+ #include <link.h>
+ 
+ void
+-copyhistfrog(Link *ctxt, char *buf, int nbuf)
++addlib(Link *ctxt, char *src, char *obj, char *pathname)
+ {
+-	char *p, *ep;
++	char name[1024], pname[1024], *p;
+ 	int i;
+ 
+-	p = buf;
+-	ep = buf + nbuf;
+-	for(i=0; i<ctxt->histfrogp; i++) {
+-		p = seprint(p, ep, "%s", ctxt->histfrog[i]->name+1);
+-		if(i+1<ctxt->histfrogp && (p == buf || p[-1] != '/'))
+-			p = seprint(p, ep, "/");
+-	}
+-}
+-
+-void
+-addhist(Link *ctxt, int32 line, int type)
+-{
+-	Auto *u;
+-	LSym *s;
+-	int i, j, k;
+-
+-	u = emallocz(sizeof(Auto));
+-	s = emallocz(sizeof(LSym));
+-	s->name = emallocz(2*(ctxt->histfrogp+1) + 1);
+-
+-	u->asym = s;
+-	u->type = type;
+-	u->aoffset = line;
+-	u->link = ctxt->curhist;
+-	ctxt->curhist = u;
+-
+-	s->name[0] = 0;
+-	j = 1;
+-	for(i=0; i<ctxt->histfrogp; i++) {
+-		k = ctxt->histfrog[i]->value;
+-		s->name[j+0] = k>>8;
+-		s->name[j+1] = k;
+-		j += 2;
+-	}
+-	s->name[j] = 0;
+-	s->name[j+1] = 0;
+-}
+-
+-void
+-histtoauto(Link *ctxt)
+-{
+-	Auto *l;
+-
+-	while(l = ctxt->curhist) {
+-		ctxt->curhist = l->link;
+-		l->link = ctxt->curauto;
+-		ctxt->curauto = l;
+-	}
+-}
+-
+-void
+-collapsefrog(Link *ctxt, LSym *s)
+-{
+-	int i;
+-
+-	/*
+-	 * bad encoding of path components only allows
+-	 * MAXHIST components. if there is an overflow,
+-	 * first try to collapse xxx/..
+-	 */
+-	for(i=1; i<ctxt->histfrogp; i++)
+-		if(strcmp(ctxt->histfrog[i]->name+1, "..") == 0) {
+-			memmove(ctxt->histfrog+i-1, ctxt->histfrog+i+1,
+-				(ctxt->histfrogp-i-1)*sizeof(ctxt->histfrog[0]));
+-			ctxt->histfrogp--;
+-			goto out;
+-		}
+-
+-	/*
+-	 * next try to collapse .
+-	 */
+-	for(i=0; i<ctxt->histfrogp; i++)
+-		if(strcmp(ctxt->histfrog[i]->name+1, ".") == 0) {
+-			memmove(ctxt->histfrog+i, ctxt->histfrog+i+1,
+-				(ctxt->histfrogp-i-1)*sizeof(ctxt->histfrog[0]));
+-			goto out;
+-		}
+-
+-	/*
+-	 * last chance, just truncate from front
+-	 */
+-	memmove(ctxt->histfrog+0, ctxt->histfrog+1,
+-		(ctxt->histfrogp-1)*sizeof(ctxt->histfrog[0]));
+-
+-out:
+-	ctxt->histfrog[ctxt->histfrogp-1] = s;
+-}
+-
+-// Saved history stacks encountered while reading archives.
+-// Keeping them allows us to answer virtual lineno -> file:line
+-// queries.
+-//
+-// The history stack is a complex data structure, described best at the
+-// bottom of http://plan9.bell-labs.com/magic/man2html/6/a.out.
+-// One of the key benefits of interpreting it here is that the runtime
+-// does not have to. Perhaps some day the compilers could generate
+-// a simpler linker input too.
+-
+-// savehist processes a single line, off history directive
+-// found in the input object file.
+-void
+-savehist(Link *ctxt, int32 line, int32 off)
+-{
+-	char tmp[1024];
+-	LSym *file;
+-	Hist2 *h;
+-
+-	// NOTE(rsc): We used to do the copyctxt->histfrog first and this
+-	// condition was if(tmp[0] != '\0') to check for an empty string,
+-	// implying that ctxt->histfrogp == 0, implying that this is a history pop.
+-	// However, on Windows in the misc/cgo test, the linker is
+-	// presented with an ANAME corresponding to an empty string,
+-	// that ANAME ends up being the only ctxt->histfrog, and thus we have
+-	// a situation where ctxt->histfrogp > 0 (not a pop) but the path we find
+-	// is the empty string. Really that shouldn't happen, but it doesn't
+-	// seem to be bothering anyone yet, and it's easier to fix the condition
+-	// to test ctxt->histfrogp than to track down where that empty string is
+-	// coming from. Probably it is coming from go tool pack's P command.
+-	if(ctxt->histfrogp > 0) {
+-		tmp[0] = '\0';
+-		copyhistfrog(ctxt, tmp, sizeof tmp);
+-		file = linklookup(ctxt, tmp, HistVersion);
+-	} else
+-		file = nil;
+-
+-	if(file != nil && line == 1 && off == 0) {
+-		// start of new stack
+-		if(ctxt->histdepth != 0)
+-			sysfatal("history stack phase error: unexpected start of new stack depth=%d file=%s", ctxt->histdepth, tmp);
+-		ctxt->nhist2 = 0;
+-		ctxt->histcopy = nil;
+-	}
+-	
+-	if(ctxt->nhist2 >= ctxt->maxhist2) {
+-		if(ctxt->maxhist2 == 0)
+-			ctxt->maxhist2 = 1;
+-		ctxt->maxhist2 *= 2;
+-		ctxt->hist2 = erealloc(ctxt->hist2, ctxt->maxhist2*sizeof ctxt->hist2[0]);
+-	}
+-	h = &ctxt->hist2[ctxt->nhist2++];
+-	h->line = line;
+-	h->off = off;
+-	h->file = file;
+-	
+-	if(file != nil) {
+-		if(off == 0)
+-			ctxt->histdepth++;
+-	} else {
+-		if(off != 0)
+-			sysfatal("history stack phase error: bad offset in pop");
+-		ctxt->histdepth--;
+-	}
+-}
+-
+-// gethist returns the history stack currently in effect.
+-// The result is valid indefinitely.
+-Hist2*
+-gethist(Link *ctxt)
+-{
+-	if(ctxt->histcopy == nil) {
+-		if(ctxt->nhist2 == 0)
+-			return nil;
+-		ctxt->histcopy = emallocz((ctxt->nhist2+1)*sizeof ctxt->hist2[0]);
+-		memmove(ctxt->histcopy, ctxt->hist2, ctxt->nhist2*sizeof ctxt->hist2[0]);
+-		ctxt->histcopy[ctxt->nhist2].line = -1;
+-	}
+-	return ctxt->histcopy;
+-}
+-
+-typedef struct Hstack Hstack;
+-struct Hstack
+-{
+-	Hist2 *h;
+-	int delta;
+-};
+-
+-// getline sets *f to the file number and *l to the line number
+-// of the virtual line number line according to the history stack h.
+-void
+-linkgetline(Link *ctxt, Hist2 *h, int32 line, LSym **f, int32 *l)
+-{
+-	Hstack stk[100];
+-	int nstk, start;
+-	Hist2 *top, *h0;
+-	static Hist2 *lasth;
+-	static int32 laststart, lastend, lastdelta;
+-	static LSym *lastfile;
+-
+-	h0 = h;
+-	*f = 0;
+-	*l = 0;
+-	start = 0;
+-	if(h == nil || line == 0) {
+-		print("%s: getline: h=%p line=%d\n", ctxt->cursym->name, h, line);
+-		return;
+-	}
+-
+-	// Cache span used during last lookup, so that sequential
+-	// translation of line numbers in compiled code is efficient.
+-	if(!ctxt->debughist && lasth == h && laststart <= line && line < lastend) {
+-		*f = lastfile;
+-		*l = line - lastdelta;
+-		return;
+-	}
+-
+-	if(ctxt->debughist)
+-		print("getline %d laststart=%d lastend=%d\n", line, laststart, lastend);
+-	
+-	nstk = 0;
+-	for(; h->line != -1; h++) {
+-		if(ctxt->debughist)
+-			print("\t%s %d %d\n", h->file ? h->file->name : "?", h->line, h->off);
+-
+-		if(h->line > line) {
+-			if(nstk == 0)
+-				sysfatal("history stack phase error: empty stack at line %d", (int)line);
+-			top = stk[nstk-1].h;
+-			lasth = h;
+-			lastfile = top->file;
+-			laststart = start;
+-			lastend = h->line;
+-			lastdelta = stk[nstk-1].delta;
+-			*f = lastfile;
+-			*l = line - lastdelta;
+-			if(ctxt->debughist)
+-				print("\tgot %d %d [%d %d %d]\n", *f, *l, laststart, lastend, lastdelta);
+-			return;
+-		}
+-		if(h->file == nil) {
+-			// pop included file
+-			if(nstk == 0)
+-				sysfatal("history stack phase error: stack underflow");
+-			nstk--;
+-			if(nstk > 0)
+-				stk[nstk-1].delta += h->line - stk[nstk].h->line;
+-			start = h->line;
+-		} else if(h->off == 0) {
+-			// push included file
+-			if(nstk >= nelem(stk))
+-				sysfatal("history stack phase error: stack overflow");
+-			start = h->line;
+-			stk[nstk].h = h;
+-			stk[nstk].delta = h->line - 1;
+-			nstk++;
+-		} else {
+-			// #line directive
+-			if(nstk == 0)
+-				sysfatal("history stack phase error: stack underflow");
+-			stk[nstk-1].h = h;
+-			stk[nstk-1].delta = h->line - h->off;
+-			start = h->line;
+-		}
+-		if(ctxt->debughist)
+-			print("\t\tnstk=%d delta=%d\n", nstk, stk[nstk].delta);
+-	}
+-
+-	sysfatal("history stack phase error: cannot find line for %d", line);
+-	nstk = 0;
+-	for(h = h0; h->line != -1; h++) {
+-		print("\t%d %d %s\n", h->line, h->off, h->file ? h->file->name : "");
+-		if(h->file == nil)
+-			nstk--;
+-		else if(h->off == 0)
+-			nstk++;
+-	}
+-}
+-
+-void
+-addlib(Link *ctxt, char *src, char *obj)
+-{
+-	char name[1024], pname[1024], comp[256], *p;
+-	int i, search;
+-
+-	if(ctxt->histfrogp <= 0)
+-		return;
+-
+-	search = 0;
+-	if(ctxt->histfrog[0]->name[1] == '/') {
+-		sprint(name, "");
+-		i = 1;
+-	} else
+-	if(isalpha((uchar)ctxt->histfrog[0]->name[1]) && ctxt->histfrog[0]->name[2] == ':') {
+-		strcpy(name, ctxt->histfrog[0]->name+1);
+-		i = 1;
+-	} else
+-	if(ctxt->histfrog[0]->name[1] == '.') {
+-		sprint(name, ".");
+-		i = 0;
+-	} else {
+-		sprint(name, "");
+-		i = 0;
+-		search = 1;
+-	}
+-
+-	for(; i<ctxt->histfrogp; i++) {
+-		snprint(comp, sizeof comp, "%s", ctxt->histfrog[i]->name+1);
+-		for(;;) {
+-			p = strstr(comp, "$O");
+-			if(p == 0)
+-				break;
+-			memmove(p+1, p+2, strlen(p+2)+1);
+-			p[0] = ctxt->thechar;
+-		}
+-		for(;;) {
+-			p = strstr(comp, "$M");
+-			if(p == 0)
+-				break;
+-			if(strlen(comp)+strlen(ctxt->thestring)-2+1 >= sizeof comp)
+-				sysfatal("library component too long");
+-			memmove(p+strlen(ctxt->thestring), p+2, strlen(p+2)+1);
+-			memmove(p, ctxt->thestring, strlen(ctxt->thestring));
+-		}
+-		if(strlen(name) + strlen(comp) + 3 >= sizeof(name))
+-			sysfatal("library component too long");
+-		if(i > 0 || !search)
+-			strcat(name, "/");
+-		strcat(name, comp);
+-	}
++	if(strlen(pathname) >= sizeof name)
++		sysfatal("addlib pathname too long");
++	strcpy(name, pathname);
+ 	cleanname(name);
+ 	
+ 	// runtime.a -> runtime
+@@ -376,15 +61,12 @@ addlib(Link *ctxt, char *src, char *obj)
+ 	if(p != nil)
+ 		*p = '.';
+ 
+-	if(search) {
+-		// try dot, -L "libdir", and then goroot.
+-		for(i=0; i<ctxt->nlibdir; i++) {
+-			snprint(pname, sizeof pname, "%s/%s", ctxt->libdir[i], name);
+-			if(access(pname, AEXIST) >= 0)
+-				break;
+-		}
+-	}else
+-		strcpy(pname, name);
++	// try dot, -L "libdir", and then goroot.
++	for(i=0; i<ctxt->nlibdir; i++) {
++		snprint(pname, sizeof pname, "%s/%s", ctxt->libdir[i], name);
++		if(access(pname, AEXIST) >= 0)
++			break;
++	}
+ 	cleanname(pname);
+ 
+ 	/* runtime.a -> runtime */
+diff --git a/src/liblink/obj.c b/src/liblink/obj.c
+index eacbc4011a..856227fe83 100644
+--- a/src/liblink/obj.c
++++ b/src/liblink/obj.c
+@@ -87,130 +87,81 @@ linklinefmt(Link *ctxt, Fmt *fp)
+ 	return 0;
+ }
+ 
+-static void
+-outzfile(Link *ctxt, Biobuf *b, char *p)
+-{
+-	char *q, *q2;
+-
+-	while(p) {
+-		q = utfrune(p, '/');
+-		if(ctxt->windows) {
+-			q2 = utfrune(p, '\\');
+-			if(q2 && (!q || q2 < q))
+-				q = q2;
+-		}
+-		if(!q) {
+-			ctxt->arch->zfile(b, p, strlen(p));
+-			return;
+-		}
+-		if(q > p)
+-			ctxt->arch->zfile(b, p, q-p);
+-		p = q + 1;
+-	}
+-}
+-
+-#define isdelim(c) (c == '/' || c == '\\')
+-
+-static void
+-outwinname(Link *ctxt, Biobuf *b, Hist *h, char *ds, char *p)
+-{
+-	if(isdelim(p[0])) {
+-		// full rooted name
+-		ctxt->arch->zfile(b, ds, 3);	// leading "c:/"
+-		outzfile(ctxt, b, p+1);
+-	} else {
+-		// relative name
+-		if(h->offset >= 0 && ctxt->pathname && ctxt->pathname[1] == ':') {
+-			if(tolowerrune(ds[0]) == tolowerrune(ctxt->pathname[0])) {
+-				// using current drive
+-				ctxt->arch->zfile(b, ctxt->pathname, 3);	// leading "c:/"
+-				outzfile(ctxt, b, ctxt->pathname+3);
+-			} else {
+-				// using drive other then current,
+-				// we don't have any simple way to
+-				// determine current working directory
+-				// there, therefore will output name as is
+-				ctxt->arch->zfile(b, ds, 2);	// leading "c:"
+-			}
+-		}
+-		outzfile(ctxt, b, p);
+-	}
+-}
+-
++// This is a simplified copy of linklinefmt above.
++// It doesn't allow printing the full stack, and it returns the file name and line number separately.
++// TODO: Unify with linklinefmt somehow.
+ void
+-linkouthist(Link *ctxt, Biobuf *b)
++linkgetline(Link *ctxt, int32 line, LSym **f, int32 *l)
+ {
+-	Hist *h;
+-	char *p, ds[] = {'c', ':', '/', 0};
+-	char *tofree;
++	struct
++	{
++		Hist*	incl;	/* start of this include file */
++		int32	idel;	/* delta line number to apply to include */
++		Hist*	line;	/* start of this #line directive */
++		int32	ldel;	/* delta line number to apply to #line */
++	} a[HISTSZ];
++	int32 lno, d, dlno;
+ 	int n;
+-	static int first = 1;
+-	static char *goroot, *goroot_final;
+-
+-	if(first) {
+-		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
+-		first = 0;
+-		goroot = getenv("GOROOT");
+-		goroot_final = getenv("GOROOT_FINAL");
+-		if(goroot == nil)
+-			goroot = "";
+-		if(goroot_final == nil)
+-			goroot_final = goroot;
+-		if(strcmp(goroot, goroot_final) == 0) {
+-			goroot = nil;
+-			goroot_final = nil;
+-		}
+-	}
++	Hist *h;
++	char buf[1024], *file;
+ 
+-	tofree = nil;
+-	for(h = ctxt->hist; h != nil; h = h->link) {
+-		p = h->name;
+-		if(p) {
+-			if(goroot != nil) {
+-				n = strlen(goroot);
+-				if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
+-					tofree = smprint("%s%s", goroot_final, p+n);
+-					p = tofree;
+-				}
+-			}
+-			if(ctxt->windows) {
+-				// if windows variable is set, then, we know already,
+-				// pathname is started with windows drive specifier
+-				// and all '\' were replaced with '/' (see lex.c)
+-				if(isdelim(p[0]) && isdelim(p[1])) {
+-					// file name has network name in it, 
+-					// like \\server\share\dir\file.go
+-					ctxt->arch->zfile(b, "//", 2);	// leading "//"
+-					outzfile(ctxt, b, p+2);
+-				} else if(p[1] == ':') {
+-					// file name has drive letter in it
+-					ds[0] = p[0];
+-					outwinname(ctxt, b, h, ds, p+2);
+-				} else {
+-					// no drive letter in file name
+-					outwinname(ctxt, b, h, ctxt->pathname, p);
++	lno = line;
++	n = 0;
++	for(h=ctxt->hist; h!=nil; h=h->link) {
++		if(h->offset < 0)
++			continue;
++		if(lno < h->line)
++			break;
++		if(h->name) {
++			if(h->offset > 0) {
++				// #line directive
++				if(n > 0 && n < HISTSZ) {
++					a[n-1].line = h;
++					a[n-1].ldel = h->line - h->offset + 1;
+ 				}
+ 			} else {
+-				if(p[0] == '/') {
+-					// full rooted name, like /home/rsc/dir/file.go
+-					ctxt->arch->zfile(b, "/", 1);	// leading "/"
+-					outzfile(ctxt, b, p+1);
+-				} else {
+-					// relative name, like dir/file.go
+-					if(h->offset >= 0 && ctxt->pathname && ctxt->pathname[0] == '/') {
+-						ctxt->arch->zfile(b, "/", 1);	// leading "/"
+-						outzfile(ctxt, b, ctxt->pathname+1);
+-					}
+-					outzfile(ctxt, b, p);
++				// beginning of file
++				if(n < HISTSZ) {
++					a[n].incl = h;
++					a[n].idel = h->line;
++					a[n].line = 0;
+ 				}
++				n++;
+ 			}
++			continue;
+ 		}
+-		ctxt->arch->zhist(b, h->line, h->offset);
+-		if(tofree) {
+-			free(tofree);
+-			tofree = nil;
++		n--;
++		if(n > 0 && n < HISTSZ) {
++			d = h->line - a[n].incl->line;
++			a[n-1].ldel += d;
++			a[n-1].idel += d;
+ 		}
+ 	}
++
++	if(n > HISTSZ)
++		n = HISTSZ;
++
++	if(n <= 0) {
++		*f = linklookup(ctxt, "??", HistVersion);
++		*l = 0;
++		return;
++	}
++	
++	n--;
++	if(a[n].line) {
++		file = a[n].line->name;
++		dlno = a[n].ldel-1;
++	} else {
++		file = a[n].incl->name;
++		dlno = a[n].idel-1;
++	}
++	if((!ctxt->windows && file[0] == '/') || (ctxt->windows && file[1] == ':'))
++		snprint(buf, sizeof buf, "%s", file);
++	else
++		snprint(buf, sizeof buf, "%s/%s", ctxt->pathname, file);
++	lno -= dlno;
++	*f = linklookup(ctxt, buf, HistVersion);
++	*l = lno;
+ }
+ 
+ void
+@@ -299,105 +250,3 @@ linknewplist(Link *ctxt)
+ 
+ 	return pl;
+ }
+-
+-static struct {
+-	struct { LSym *sym; short type; } h[NSYM];
+-	int sym;
+-} z;
+-
+-static void
+-zsymreset(void)
+-{
+-	for(z.sym=0; z.sym<NSYM; z.sym++) {
+-		z.h[z.sym].sym = nil;
+-		z.h[z.sym].type = 0;
+-	}
+-	z.sym = 1;
+-}
+-
+-
+-static int
+-zsym(Link *ctxt, Biobuf *b, LSym *s, int t, int *new)
+-{
+-	int i;
+-
+-	*new = 0;
+-	if(s == nil)
+-		return 0;
+-
+-	i = s->symid;
+-	if(i < 0 || i >= NSYM)
+-		i = 0;
+-	if(z.h[i].type == t && z.h[i].sym == s)
+-		return i;
+-	i = z.sym;
+-	s->symid = i;
+-	ctxt->arch->zname(b, s, t);
+-	z.h[i].sym = s;
+-	z.h[i].type = t;
+-	if(++z.sym >= NSYM)
+-		z.sym = 1;
+-	*new = 1;
+-	return i;
+-}
+-
+-static int
+-zsymaddr(Link *ctxt, Biobuf *b, Addr *a, int *new)
+-{
+-	return zsym(ctxt, b, a->sym, ctxt->arch->symtype(a), new);
+-}
+-
+-void
+-linkwritefuncs(Link *ctxt, Biobuf *b)
+-{
+-	int32 pcloc;
+-	Plist *pl;
+-	LSym *s;
+-	Prog *p;
+-	int sf, st, gf, gt, new;
+-
+-	zsymreset();
+-
+-	// fix up pc
+-	pcloc = 0;
+-	for(pl=ctxt->plist; pl!=nil; pl=pl->link) {
+-		if(pl->name != nil && strcmp(pl->name->name, "_") == 0)
+-			continue;
+-		for(p=pl->firstpc; p!=nil; p=p->link) {
+-			p->loc = pcloc;
+-			if(!ctxt->arch->isdata(p))
+-				pcloc++;
+-		}
+-	}
+-
+-	// put out functions
+-	for(pl=ctxt->plist; pl!=nil; pl=pl->link) {
+-		if(pl->name != nil && strcmp(pl->name->name, "_") == 0)
+-			continue;
+-
+-		// -S prints code; -S -S prints code and data
+-		if(ctxt->debugasm && (pl->name || ctxt->debugasm>1)) {
+-			s = pl->name;
+-			print("\n--- prog list \"%lS\" ---\n", s);
+-			for(p=pl->firstpc; p!=nil; p=p->link)
+-				print("%P\n", p);
+-		}
+-
+-		for(p=pl->firstpc; p!=nil; p=p->link) {
+-			for(;;) {
+-				sf = zsymaddr(ctxt, b, &p->from, &new);
+-				gf = zsym(ctxt, b, p->from.gotype, ctxt->arch->D_EXTERN, &new);
+-				if(new && sf == gf)
+-					continue;
+-				st = zsymaddr(ctxt, b, &p->to, &new);
+-				if(new && (st == sf || st == gf))
+-					continue;
+-				gt = zsym(ctxt, b, p->to.gotype, ctxt->arch->D_EXTERN, &new);
+-				if(new && (gt == sf || gt == gf || gt == st))
+-					continue;
+-				break;
+-			}
+-			ctxt->arch->zprog(ctxt, b, p, sf, gf, st, gt);
+-		}
+-	}
+-}
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index e9c0b57318..6505459b0f 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -35,12 +35,6 @@
+ #include "../cmd/5l/5.out.h"
+ #include "../pkg/runtime/stack.h"
+ 
+-static Addr noaddr = {
+-	.type = D_NONE,
+-	.name = D_NONE,
+-	.reg = NREG,
+-};
+-
+ static Prog zprg = {
+ 	.as = AGOK,
+ 	.scond = 14,
+@@ -57,142 +51,12 @@ static Prog zprg = {
+ 	},
+ };
+ 
+-static void
+-zname(Biobuf *b, LSym *s, int t)
+-{
+-	BPUTC(b, ANAME);	/* as */
+-	BPUTC(b, t);		/* type */
+-	BPUTC(b, s->symid);	/* sym */
+-	Bwrite(b, s->name, strlen(s->name)+1);
+-}
+-
+-static void
+-zfile(Biobuf *b, char *p, int n)
+-{
+-	BPUTC(b, ANAME);
+-	BPUTC(b, D_FILE);
+-	BPUTC(b, 1);
+-	BPUTC(b, '<');
+-	Bwrite(b, p, n);
+-	BPUTC(b, 0);
+-}
+-
+-static void
+-zaddr(Biobuf *b, Addr *a, int s, int gotype)
+-{
+-	int32 l;
+-	uint64 e;
+-	int i;
+-	char *n;
+-
+-	switch(a->type) {
+-	case D_STATIC:
+-	case D_AUTO:
+-	case D_EXTERN:
+-	case D_PARAM:
+-		// TODO(kaib): remove once everything seems to work
+-		sysfatal("We should no longer generate these as types");
+-
+-	default:
+-		BPUTC(b, a->type);
+-		BPUTC(b, a->reg);
+-		BPUTC(b, s);
+-		BPUTC(b, a->name);
+-		BPUTC(b, gotype);
+-	}
+-
+-	switch(a->type) {
+-	default:
+-		print("unknown type %d in zaddr\n", a->type);
+-
+-	case D_NONE:
+-	case D_REG:
+-	case D_FREG:
+-	case D_PSR:
+-		break;
+-
+-	case D_CONST2:
+-		l = a->offset2;
+-		BPUTLE4(b, l); // fall through
+-	case D_OREG:
+-	case D_CONST:
+-	case D_SHIFT:
+-	case D_STATIC:
+-	case D_AUTO:
+-	case D_EXTERN:
+-	case D_PARAM:
+-		l = a->offset;
+-		BPUTLE4(b, l);
+-		break;
+-
+-	case D_BRANCH:
+-		if(a->offset == 0 || a->u.branch != nil) {
+-			if(a->u.branch == nil)
+-				sysfatal("unpatched branch %D", a);
+-			a->offset = a->u.branch->loc;
+-		}
+-		l = a->offset;
+-		BPUTLE4(b, l);
+-		break;
+-
+-	case D_SCONST:
+-		n = a->u.sval;
+-		for(i=0; i<NSNAME; i++) {
+-			BPUTC(b, *n);
+-			n++;
+-		}
+-		break;
+-
+-	case D_REGREG:
+-	case D_REGREG2:
+-		BPUTC(b, a->offset);
+-		break;
+-
+-	case D_FCONST:
+-		double2ieee(&e, a->u.dval);
+-		BPUTLE4(b, e);
+-		BPUTLE4(b, e >> 32);
+-		break;
+-	}
+-}
+-
+-static void
+-zhist(Biobuf *b, int line, vlong offset)
+-{
+-	Addr a;
+-
+-	BPUTC(b, AHISTORY);
+-	BPUTC(b, C_SCOND_NONE);
+-	BPUTC(b, NREG);
+-	BPUTLE4(b, line);
+-	zaddr(b, &noaddr, 0, 0);
+-	a = noaddr;
+-	if(offset != 0) {
+-		a.offset = offset;
+-		a.type = D_CONST;
+-	}
+-	zaddr(b, &a, 0, 0);
+-}
+-
+ static int
+ symtype(Addr *a)
+ {
+ 	return a->name;
+ }
+ 
+-static void
+-zprog(Link *ctxt, Biobuf *b, Prog *p, int sf, int gf, int st, int gt)
+-{
+-	USED(ctxt);
+-
+-	BPUTC(b, p->as);
+-	BPUTC(b, p->scond);
+- 	BPUTC(b, p->reg);
+-	BPUTLE4(b, p->lineno);
+-	zaddr(b, &p->from, sf, gf);
+-	zaddr(b, &p->to, st, gt);
+-}
+-
+ static int
+ isdata(Prog *p)
+ {
+@@ -223,6 +87,68 @@ settextflag(Prog *p, int f)
+ 	p->reg = f;
+ }
+ 
++static void
++progedit(Link *ctxt, Prog *p)
++{
++	char literal[64];
++	LSym *s;
++
++	p->from.class = 0;
++	p->to.class = 0;
++
++	// Rewrite B/BL to symbol as D_BRANCH.
++	switch(p->as) {
++	case AB:
++	case ABL:
++		if(p->to.type == D_OREG && (p->to.name == D_EXTERN || p->to.name == D_STATIC) && p->to.sym != nil)
++			p->to.type = D_BRANCH;
++		break;
++	}
++
++	// Rewrite float constants to values stored in memory.
++	switch(p->as) {
++	case AMOVF:
++		if(p->from.type == D_FCONST && chipfloat5(ctxt, p->from.u.dval) < 0 &&
++		   (chipzero5(ctxt, p->from.u.dval) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
++			int32 i32;
++			float32 f32;
++			f32 = p->from.u.dval;
++			memmove(&i32, &f32, 4);
++			sprint(literal, "$f32.%08ux", (uint32)i32);
++			s = linklookup(ctxt, literal, 0);
++			if(s->type == 0) {
++				s->type = SRODATA;
++				adduint32(ctxt, s, i32);
++				s->reachable = 0;
++			}
++			p->from.type = D_OREG;
++			p->from.sym = s;
++			p->from.name = D_EXTERN;
++			p->from.offset = 0;
++		}
++		break;
++
++	case AMOVD:
++		if(p->from.type == D_FCONST && chipfloat5(ctxt, p->from.u.dval) < 0 &&
++		   (chipzero5(ctxt, p->from.u.dval) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
++			int64 i64;
++			memmove(&i64, &p->from.u.dval, 8);
++			sprint(literal, "$f64.%016llux", (uvlong)i64);
++			s = linklookup(ctxt, literal, 0);
++			if(s->type == 0) {
++				s->type = SRODATA;
++				adduint64(ctxt, s, i64);
++				s->reachable = 0;
++			}
++			p->from.type = D_OREG;
++			p->from.sym = s;
++			p->from.name = D_EXTERN;
++			p->from.offset = 0;
++		}
++		break;
++	}
++}
++
+ static Prog*
+ prg(void)
+ {
+@@ -293,11 +219,14 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 
+ 	softfloat(ctxt, cursym);
+ 
++	p = cursym->text;
++	autoffset = p->to.offset;
++	if(autoffset < 0)
++		autoffset = 0;
++	cursym->locals = autoffset;
++	cursym->args = p->to.offset2;
++
+ 	if(ctxt->debugzerostack) {
+-		p = cursym->text;
+-		autoffset = p->to.offset;
+-		if(autoffset < 0)
+-			autoffset = 0;
+ 		if(autoffset && !(p->reg&NOSPLIT)) {
+ 			// MOVW $4(R13), R1
+ 			p = appendp(ctxt, p);
+@@ -427,15 +356,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				if(ctxt->headtype == Hopenbsd) {
+ 					p->as = ARET;
+ 				} else if(ctxt->goarm < 7) {
+-					if(tlsfallback->type != STEXT) {
+-						ctxt->diag("runtime·read_tls_fallback not defined");
+-						sysfatal("tlsfallback");
+-					}
+ 					// BL runtime.read_tls_fallback(SB)
+ 					p->as = ABL;
+ 					p->to.type = D_BRANCH;
+ 					p->to.sym = tlsfallback;
+-					p->pcond = tlsfallback->text;
+ 					p->to.offset = 0;
+ 					cursym->text->mark &= ~LEAF;
+ 				}
+@@ -578,7 +502,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 					p->from = zprg.from;
+ 					if(p->to.sym) { // retjmp
+ 						p->to.type = D_BRANCH;
+-						p->pcond = p->to.sym->text;
+ 					} else {
+ 						p->to.type = D_OREG;
+ 						p->to.offset = 0;
+@@ -643,7 +566,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				q2->as = AB;
+ 				q2->to.type = D_BRANCH;
+ 				q2->to.sym = p->to.sym;
+-				q2->pcond = p->to.sym->text;
+ 				p->to.sym = nil;
+ 				p = q2;
+ 			}
+@@ -698,7 +620,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 			p->as = ABL;
+ 			p->lineno = q1->lineno;
+ 			p->to.type = D_BRANCH;
+-			p->pcond = p;
+ 			switch(o) {
+ 			case ADIV:
+ 				p->to.sym = ctxt->sym_div;
+@@ -775,17 +696,14 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ static void
+ softfloat(Link *ctxt, LSym *cursym)
+ {
+-	Prog *p, *next, *psfloat;
++	Prog *p, *next;
+ 	LSym *symsfloat;
+ 	int wasfloat;
+ 
+-	if(!ctxt->debugfloat)
++	if(ctxt->goarm > 5)
+ 		return;
+ 
+ 	symsfloat = linklookup(ctxt, "_sfloat", 0);
+-	psfloat = nil;
+-	if(symsfloat->type == STEXT)
+-		psfloat = symsfloat->text;
+ 
+ 	wasfloat = 0;
+ 	for(p = cursym->text; p != nil; p = p->link)
+@@ -827,8 +745,6 @@ softfloat(Link *ctxt, LSym *cursym)
+ 			goto notsoft;
+ 
+ 		soft:
+-			if (psfloat == nil)
+-				ctxt->diag("floats used with _sfloat not defined");
+ 			if (!wasfloat || (p->mark&LABEL)) {
+ 				next = ctxt->arch->prg();
+ 				*next = *p;
+@@ -839,7 +755,6 @@ softfloat(Link *ctxt, LSym *cursym)
+ 				p->as = ABL;
+  				p->to.type = D_BRANCH;
+ 				p->to.sym = symsfloat;
+-				p->pcond = psfloat;
+ 				p->lineno = next->lineno;
+ 
+ 				p = next;
+@@ -1145,6 +1060,7 @@ loop:
+ 
+ LinkArch linkarm = {
+ 	.name = "arm",
++	.thechar = '5',
+ 
+ 	.addstacksplit = addstacksplit,
+ 	.assemble = span5,
+@@ -1152,16 +1068,11 @@ LinkArch linkarm = {
+ 	.follow = follow,
+ 	.iscall = iscall,
+ 	.isdata = isdata,
+-	.ldobj = ldobj5,
+-	.nopout = nopout5,
+ 	.prg = prg,
++	.progedit = progedit,
+ 	.settextflag = settextflag,
+ 	.symtype = symtype,
+ 	.textflag = textflag,
+-	.zfile = zfile,
+-	.zhist = zhist,
+-	.zname = zname,
+-	.zprog = zprog,
+ 
+ 	.minlc = 4,
+ 	.ptrsize = 4,
+@@ -1175,13 +1086,18 @@ LinkArch linkarm = {
+ 	.D_PCREL = D_PCREL,
+ 	.D_SCONST = D_SCONST,
+ 	.D_SIZE = D_SIZE,
++	.D_STATIC = D_STATIC,
+ 
+ 	.ACALL = ABL,
++	.ADATA = ADATA,
++	.AEND = AEND,
+ 	.AFUNCDATA = AFUNCDATA,
++	.AGLOBL = AGLOBL,
+ 	.AJMP = AB,
+ 	.ANOP = ANOP,
+ 	.APCDATA = APCDATA,
+ 	.ARET = ARET,
+ 	.ATEXT = ATEXT,
++	.ATYPE = ATYPE,
+ 	.AUSEFIELD = AUSEFIELD,
+ };
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 8c165335e3..802afaa835 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -35,12 +35,6 @@
+ #include "../cmd/6l/6.out.h"
+ #include "../pkg/runtime/stack.h"
+ 
+-static Addr noaddr = {
+-	.type = D_NONE,
+-	.index = D_NONE,
+-	.scale = 0,
+-};
+-
+ static Prog zprg = {
+ 	.back = 2,
+ 	.as = AGOK,
+@@ -55,118 +49,11 @@ static Prog zprg = {
+ };
+ 
+ static void
+-zname(Biobuf *b, LSym *s, int t)
+-{
+-	BPUTLE2(b, ANAME);	/* as */
+-	BPUTC(b, t);		/* type */
+-	BPUTC(b, s->symid);	/* sym */
+-	Bwrite(b, s->name, strlen(s->name)+1);
+-}
+-
+-static void
+-zfile(Biobuf *b, char *p, int n)
+-{
+-	BPUTLE2(b, ANAME);
+-	BPUTC(b, D_FILE);
+-	BPUTC(b, 1);
+-	BPUTC(b, '<');
+-	Bwrite(b, p, n);
+-	BPUTC(b, 0);
+-}
+-
+-static void
+-zaddr(Biobuf *b, Addr *a, int s, int gotype)
+-{
+-	int32 l;
+-	uint64 e;
+-	int i, t;
+-	char *n;
+-
+-	t = 0;
+-	if(a->index != D_NONE || a->scale != 0)
+-		t |= T_INDEX;
+-	if(s != 0)
+-		t |= T_SYM;
+-	if(gotype != 0)
+-		t |= T_GOTYPE;
+-
+-	switch(a->type) {
+-
+-	case D_BRANCH:
+-		if(a->offset == 0 || a->u.branch != nil) {
+-			if(a->u.branch == nil)
+-				sysfatal("unpatched branch %D", a);
+-			a->offset = a->u.branch->loc;
+-		}
+-
+-	default:
+-		t |= T_TYPE;
+-
+-	case D_NONE:
+-		if(a->offset != 0) {
+-			t |= T_OFFSET;
+-			l = a->offset;
+-			if((vlong)l != a->offset)
+-				t |= T_64;
+-		}
+-		break;
+-	case D_FCONST:
+-		t |= T_FCONST;
+-		break;
+-	case D_SCONST:
+-		t |= T_SCONST;
+-		break;
+-	}
+-	BPUTC(b, t);
+-
+-	if(t & T_INDEX) {	/* implies index, scale */
+-		BPUTC(b, a->index);
+-		BPUTC(b, a->scale);
+-	}
+-	if(t & T_OFFSET) {	/* implies offset */
+-		l = a->offset;
+-		BPUTLE4(b, l);
+-		if(t & T_64) {
+-			l = a->offset>>32;
+-			BPUTLE4(b, l);
+-		}
+-	}
+-	if(t & T_SYM)		/* implies sym */
+-		BPUTC(b, s);
+-	if(t & T_FCONST) {
+-		double2ieee(&e, a->u.dval);
+-		BPUTLE4(b, e);
+-		BPUTLE4(b, e >> 32);
+-		return;
+-	}
+-	if(t & T_SCONST) {
+-		n = a->u.sval;
+-		for(i=0; i<NSNAME; i++) {
+-			BPUTC(b, *n);
+-			n++;
+-		}
+-		return;
+-	}
+-	if(t & T_TYPE)
+-		BPUTC(b, a->type);
+-	if(t & T_GOTYPE)
+-		BPUTC(b, gotype);
+-}
+-
+-static void
+-zhist(Biobuf *b, int line, vlong offset)
++nopout(Prog *p)
+ {
+-	Addr a;
+-
+-	BPUTLE2(b, AHISTORY);
+-	BPUTLE4(b, line);
+-	zaddr(b, &noaddr, 0, 0);
+-	a = noaddr;
+-	if(offset != 0) {
+-		a.offset = offset;
+-		a.type = D_CONST;
+-	}
+-	zaddr(b, &a, 0, 0);
++	p->as = ANOP;
++	p->from.type = D_NONE;
++	p->to.type = D_NONE;
+ }
+ 
+ static int
+@@ -180,17 +67,6 @@ symtype(Addr *a)
+ 	return t;
+ }
+ 
+-static void
+-zprog(Link *ctxt, Biobuf *b, Prog *p, int sf, int gf, int st, int gt)
+-{
+-	USED(ctxt);
+-
+-	BPUTLE2(b, p->as);
+-	BPUTLE4(b, p->lineno);
+-	zaddr(b, &p->from, sf, gf);
+-	zaddr(b, &p->to, st, gt);
+-}
+-
+ static int
+ isdata(Prog *p)
+ {
+@@ -224,8 +100,15 @@ settextflag(Prog *p, int f)
+ static void
+ progedit(Link *ctxt, Prog *p)
+ {
++	char literal[64];
++	LSym *s;
+ 	Prog *q;
+ 
++	if(p->from.type == D_INDIR+D_GS || p->from.index == D_GS)
++		p->from.offset += ctxt->tlsoffset;
++	if(p->to.type == D_INDIR+D_GS || p->to.index == D_GS)
++		p->to.offset += ctxt->tlsoffset;
++
+ 	if(ctxt->gmsym == nil)
+ 		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+ 
+@@ -313,6 +196,105 @@ progedit(Link *ctxt, Prog *p)
+ 			p->from.offset = 0;
+ 		}
+ 	}
++
++	// Maintain information about code generation mode.
++	if(ctxt->mode == 0)
++		ctxt->mode = 64;
++	p->mode = ctxt->mode;
++	
++	switch(p->as) {
++	case AMODE:
++		if(p->from.type == D_CONST || p->from.type == D_INDIR+D_NONE) {
++			switch((int)p->from.offset) {
++			case 16:
++			case 32:
++			case 64:
++				ctxt->mode = p->from.offset;
++				break;
++			}
++		}
++		nopout(p);
++		break;
++	}
++	
++	// Rewrite CALL/JMP/RET to symbol as D_BRANCH.
++	switch(p->as) {
++	case ACALL:
++	case AJMP:
++	case ARET:
++		if((p->to.type == D_EXTERN || p->to.type == D_STATIC) && p->to.sym != nil)
++			p->to.type = D_BRANCH;
++		break;
++	}
++
++	// Rewrite float constants to values stored in memory.
++	switch(p->as) {
++	case AFMOVF:
++	case AFADDF:
++	case AFSUBF:
++	case AFSUBRF:
++	case AFMULF:
++	case AFDIVF:
++	case AFDIVRF:
++	case AFCOMF:
++	case AFCOMFP:
++	case AMOVSS:
++	case AADDSS:
++	case ASUBSS:
++	case AMULSS:
++	case ADIVSS:
++	case ACOMISS:
++	case AUCOMISS:
++		if(p->from.type == D_FCONST) {
++			int32 i32;
++			float32 f32;
++			f32 = p->from.u.dval;
++			memmove(&i32, &f32, 4);
++			sprint(literal, "$f32.%08ux", (uint32)i32);
++			s = linklookup(ctxt, literal, 0);
++			if(s->type == 0) {
++				s->type = SRODATA;
++				adduint32(ctxt, s, i32);
++				s->reachable = 0;
++			}
++			p->from.type = D_EXTERN;
++			p->from.sym = s;
++			p->from.offset = 0;
++		}
++		break;
++	
++	case AFMOVD:
++	case AFADDD:
++	case AFSUBD:
++	case AFSUBRD:
++	case AFMULD:
++	case AFDIVD:
++	case AFDIVRD:
++	case AFCOMD:
++	case AFCOMDP:
++	case AMOVSD:
++	case AADDSD:
++	case ASUBSD:
++	case AMULSD:
++	case ADIVSD:
++	case ACOMISD:
++	case AUCOMISD:
++		if(p->from.type == D_FCONST) {
++			int64 i64;
++			memmove(&i64, &p->from.u.dval, 8);
++			sprint(literal, "$f64.%016llux", (uvlong)i64);
++			s = linklookup(ctxt, literal, 0);
++			if(s->type == 0) {
++				s->type = SRODATA;
++				adduint64(ctxt, s, i64);
++				s->reachable = 0;
++			}
++			p->from.type = D_EXTERN;
++			p->from.sym = s;
++			p->from.offset = 0;
++		}
++		break;
++	}
+ }
+ 
+ static char*
+@@ -374,6 +356,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 	autoffset = textstksiz;
+ 	if(autoffset < 0)
+ 		autoffset = 0;
++	
++	cursym->args = p->to.offset>>32;
++	cursym->locals = textstksiz;
+ 
+ 	if(autoffset < StackSmall && !(p->from.scale & NOSPLIT)) {
+ 		for(q = p; q != nil; q = q->link)
+@@ -1033,24 +1018,19 @@ prg(void)
+ 
+ LinkArch linkamd64 = {
+ 	.name = "amd64",
++	.thechar = '6',
+ 
+-	.zprog = zprog,
+-	.zhist = zhist,
+-	.zfile = zfile,
+-	.zname = zname,
+-	.isdata = isdata,
+-	.ldobj = ldobj6,
+-	.nopout = nopout6,
+-	.symtype = symtype,
+-	.iscall = iscall,
+-	.datasize = datasize,
+-	.textflag = textflag,
+-	.settextflag = settextflag,
+-	.progedit = progedit,
+-	.prg = prg,
+ 	.addstacksplit = addstacksplit,
+ 	.assemble = span6,
++	.datasize = datasize,
+ 	.follow = follow,
++	.iscall = iscall,
++	.isdata = isdata,
++	.prg = prg,
++	.progedit = progedit,
++	.settextflag = settextflag,
++	.symtype = symtype,
++	.textflag = textflag,
+ 
+ 	.minlc = 1,
+ 	.ptrsize = 8,
+@@ -1064,13 +1044,18 @@ LinkArch linkamd64 = {
+ 	.D_PCREL = D_PCREL,
+ 	.D_SCONST = D_SCONST,
+ 	.D_SIZE = D_SIZE,
++	.D_STATIC = D_STATIC,
+ 
+ 	.ACALL = ACALL,
++	.ADATA = ADATA,
++	.AEND = AEND,
+ 	.AFUNCDATA = AFUNCDATA,
++	.AGLOBL = AGLOBL,
+ 	.AJMP = AJMP,
+ 	.ANOP = ANOP,
+ 	.APCDATA = APCDATA,
+ 	.ARET = ARET,
+ 	.ATEXT = ATEXT,
++	.ATYPE = ATYPE,
+ 	.AUSEFIELD = AUSEFIELD,
+ };
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index e22a1b912f..f81ba03c6b 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -35,12 +35,6 @@
+ #include "../cmd/8l/8.out.h"
+ #include "../pkg/runtime/stack.h"
+ 
+-static Addr noaddr = {
+-	.type = D_NONE,
+-	.index = D_NONE,
+-	.scale = 1,
+-};
+-
+ static Prog zprg = {
+ 	.back = 2,
+ 	.as = AGOK,
+@@ -56,119 +50,6 @@ static Prog zprg = {
+ 	},
+ };
+ 
+-static void
+-zname(Biobuf *b, LSym *s, int t)
+-{
+-	BPUTLE2(b, ANAME);	/* as */
+-	BPUTC(b, t);		/* type */
+-	BPUTC(b, s->symid);	/* sym */
+-	Bwrite(b, s->name, strlen(s->name)+1);
+-}
+-
+-static void
+-zfile(Biobuf *b, char *p, int n)
+-{
+-	BPUTLE2(b, ANAME);
+-	BPUTC(b, D_FILE);
+-	BPUTC(b, 1);
+-	BPUTC(b, '<');
+-	Bwrite(b, p, n);
+-	BPUTC(b, 0);
+-}
+-
+-static void
+-zaddr(Biobuf *b, Addr *a, int s, int gotype)
+-{
+-	int32 l;
+-	uint64 e;
+-	int i, t;
+-	char *n;
+-
+-	t = 0;
+-	if(a->index != D_NONE || a->scale != 0)
+-		t |= T_INDEX;
+-	if(s != 0)
+-		t |= T_SYM;
+-	if(gotype != 0)
+-		t |= T_GOTYPE;
+-
+-	switch(a->type) {
+-
+-	case D_BRANCH:
+-		if(a->offset == 0 || a->u.branch != nil) {
+-			if(a->u.branch == nil)
+-				sysfatal("unpatched branch %D", a);
+-			a->offset = a->u.branch->loc;
+-		}
+-
+-	default:
+-		t |= T_TYPE;
+-
+-	case D_NONE:
+-		if(a->offset != 0)
+-			t |= T_OFFSET;
+-		if(a->offset2 != 0)
+-			t |= T_OFFSET2;
+-		break;
+-	case D_FCONST:
+-		t |= T_FCONST;
+-		break;
+-	case D_SCONST:
+-		t |= T_SCONST;
+-		break;
+-	}
+-	BPUTC(b, t);
+-
+-	if(t & T_INDEX) {	/* implies index, scale */
+-		BPUTC(b, a->index);
+-		BPUTC(b, a->scale);
+-	}
+-	if(t & T_OFFSET) {	/* implies offset */
+-		l = a->offset;
+-		BPUTLE4(b, l);
+-	}
+-	if(t & T_OFFSET2) {	/* implies offset */
+-		l = a->offset2;
+-		BPUTLE4(b, l);
+-	}
+-	if(t & T_SYM)		/* implies sym */
+-		BPUTC(b, s);
+-	if(t & T_FCONST) {
+-		double2ieee(&e, a->u.dval);
+-		BPUTLE4(b, e);
+-		BPUTLE4(b, e >> 32);
+-		return;
+-	}
+-	if(t & T_SCONST) {
+-		n = a->u.sval;
+-		for(i=0; i<NSNAME; i++) {
+-			BPUTC(b, *n);
+-			n++;
+-		}
+-		return;
+-	}
+-	if(t & T_TYPE)
+-		BPUTC(b, a->type);
+-	if(t & T_GOTYPE)
+-		BPUTC(b, gotype);
+-}
+-
+-static void
+-zhist(Biobuf *b, int line, vlong offset)
+-{
+-	Addr a;
+-
+-	BPUTLE2(b, AHISTORY);
+-	BPUTLE4(b, line);
+-	zaddr(b, &noaddr, 0, 0);
+-	a = noaddr;
+-	if(offset != 0) {
+-		a.offset = offset;
+-		a.type = D_CONST;
+-	}
+-	zaddr(b, &a, 0, 0);
+-}
+-
+ static int
+ symtype(Addr *a)
+ {
+@@ -180,17 +61,6 @@ symtype(Addr *a)
+ 	return t;
+ }
+ 
+-static void
+-zprog(Link *ctxt, Biobuf *b, Prog *p, int sf, int gf, int st, int gt)
+-{
+-	USED(ctxt);
+-
+-	BPUTLE2(b, p->as);
+-	BPUTLE4(b, p->lineno);
+-	zaddr(b, &p->from, sf, gf);
+-	zaddr(b, &p->to, st, gt);
+-}
+-
+ static int
+ isdata(Prog *p)
+ {
+@@ -225,6 +95,13 @@ static void
+ progedit(Link *ctxt, Prog *p)
+ {
+ 	Prog *q;
++	char literal[64];
++	LSym *s;
++
++	if(p->from.type == D_INDIR+D_GS)
++		p->from.offset += ctxt->tlsoffset;
++	if(p->to.type == D_INDIR+D_GS)
++		p->to.offset += ctxt->tlsoffset;
+ 
+ 	if(ctxt->headtype == Hwindows) {
+ 		// Convert
+@@ -287,6 +164,85 @@ progedit(Link *ctxt, Prog *p)
+ 			p->from.offset = 0;
+ 		}
+ 	}
++
++	// Rewrite CALL/JMP/RET to symbol as D_BRANCH.
++	switch(p->as) {
++	case ACALL:
++	case AJMP:
++	case ARET:
++		if((p->to.type == D_EXTERN || p->to.type == D_STATIC) && p->to.sym != nil)
++			p->to.type = D_BRANCH;
++		break;
++	}
++
++	// Rewrite float constants to values stored in memory.
++	switch(p->as) {
++	case AFMOVF:
++	case AFADDF:
++	case AFSUBF:
++	case AFSUBRF:
++	case AFMULF:
++	case AFDIVF:
++	case AFDIVRF:
++	case AFCOMF:
++	case AFCOMFP:
++	case AMOVSS:
++	case AADDSS:
++	case ASUBSS:
++	case AMULSS:
++	case ADIVSS:
++	case ACOMISS:
++	case AUCOMISS:
++		if(p->from.type == D_FCONST) {
++			int32 i32;
++			float32 f32;
++			f32 = p->from.u.dval;
++			memmove(&i32, &f32, 4);
++			sprint(literal, "$f32.%08ux", (uint32)i32);
++			s = linklookup(ctxt, literal, 0);
++			if(s->type == 0) {
++				s->type = SRODATA;
++				adduint32(ctxt, s, i32);
++				s->reachable = 0;
++			}
++			p->from.type = D_EXTERN;
++			p->from.sym = s;
++			p->from.offset = 0;
++		}
++		break;
++
++	case AFMOVD:
++	case AFADDD:
++	case AFSUBD:
++	case AFSUBRD:
++	case AFMULD:
++	case AFDIVD:
++	case AFDIVRD:
++	case AFCOMD:
++	case AFCOMDP:
++	case AMOVSD:
++	case AADDSD:
++	case ASUBSD:
++	case AMULSD:
++	case ADIVSD:
++	case ACOMISD:
++	case AUCOMISD:
++		if(p->from.type == D_FCONST) {
++			int64 i64;
++			memmove(&i64, &p->from.u.dval, 8);
++			sprint(literal, "$f64.%016llux", (uvlong)i64);
++			s = linklookup(ctxt, literal, 0);
++			if(s->type == 0) {
++				s->type = SRODATA;
++				adduint64(ctxt, s, i64);
++				s->reachable = 0;
++			}
++			p->from.type = D_EXTERN;
++			p->from.sym = s;
++			p->from.offset = 0;
++		}
++		break;
++	}
+ }
+ 
+ static Prog*
+@@ -324,6 +280,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 	autoffset = p->to.offset;
+ 	if(autoffset < 0)
+ 		autoffset = 0;
++	
++	cursym->locals = autoffset;
++	cursym->args = p->to.offset2;
+ 
+ 	q = nil;
+ 
+@@ -894,6 +853,7 @@ loop:
+ 
+ LinkArch link386 = {
+ 	.name = "386",
++	.thechar = '8',
+ 
+ 	.addstacksplit = addstacksplit,
+ 	.assemble = span8,
+@@ -901,17 +861,11 @@ LinkArch link386 = {
+ 	.follow = follow,
+ 	.iscall = iscall,
+ 	.isdata = isdata,
+-	.ldobj = ldobj8,
+-	.nopout = nopout8,
+ 	.prg = prg,
+ 	.progedit = progedit,
+ 	.settextflag = settextflag,
+ 	.symtype = symtype,
+ 	.textflag = textflag,
+-	.zfile = zfile,
+-	.zhist = zhist,
+-	.zname = zname,
+-	.zprog = zprog,
+ 
+ 	.minlc = 1,
+ 	.ptrsize = 4,
+@@ -925,13 +879,18 @@ LinkArch link386 = {
+ 	.D_PCREL = D_PCREL,
+ 	.D_SCONST = D_SCONST,
+ 	.D_SIZE = D_SIZE,
++	.D_STATIC = D_STATIC,
+ 
+ 	.ACALL = ACALL,
++	.ADATA = ADATA,
++	.AEND = AEND,
+ 	.AFUNCDATA = AFUNCDATA,
++	.AGLOBL = AGLOBL,
+ 	.AJMP = AJMP,
+ 	.ANOP = ANOP,
+ 	.APCDATA = APCDATA,
+ 	.ARET = ARET,
+ 	.ATEXT = ATEXT,
++	.ATYPE = ATYPE,
+ 	.AUSEFIELD = AUSEFIELD,
+ };
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+new file mode 100644
+index 0000000000..4dd9023603
+--- /dev/null
++++ b/src/liblink/objfile.c
+@@ -0,0 +1,665 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Writing and reading of Go object files.
++//
++// Originally, Go object files were Plan 9 object files, but no longer.
++// Now they are more like standard object files, in that each symbol is defined
++// by an associated memory image (bytes) and a list of relocations to apply
++// during linking. We do not (yet?) use a standard file format, however.
++// For now, the format is chosen to be as simple as possible to read and write.
++// It may change for reasons of efficiency, or we may even switch to a
++// standard file format if there are compelling benefits to doing so.
++// See golang.org/s/go13linker for more background.
++//
++// The file format is:
++//
++//	- magic header: "\x00\x00go13ld"
++//	- sequence of strings giving dependencies (imported packages)
++//	- empty string (marks end of sequence)
++//	- sequence of defined symbols
++//	- byte 0xff (marks end of sequence)
++//	- magic footer: "\xff\xffgo13ld"
++//
++// All integers are stored in a zigzag varint format.
++// See golang.org/s/go12symtab for a definition.
++//
++// Data blocks and strings are both stored as an integer
++// followed by that many bytes.
++//
++// A symbol reference is a string name followed by a version.
++// An empty name corresponds to a nil LSym* pointer.
++//
++// Each symbol is laid out as the following fields (taken from LSym*):
++//
++//	- byte 0xfe (sanity check for synchronization)
++//	- type [int]
++//	- name [string]
++//	- version [int]
++//	- dupok [int]
++//	- size [int]
++//	- gotype [symbol reference]
++//	- p [data block]
++//	- nr [int]
++//	- r [nr relocations]
++//
++// If type == STEXT, there are a few more fields:
++//
++//	- args [int]
++//	- locals [int]
++//	- nlocal [int]
++//	- local [nlocal automatics]
++//	- pcln [pcln table]
++//
++// Each relocation has the encoding:
++//
++//	- off [int]
++//	- siz [int]
++//	- type [int]
++//	- add [int]
++//	- xadd [int]
++//	- sym [symbol reference]
++//	- xsym [symbol reference]
++//
++// Each local has the encoding:
++//
++//	- asym [symbol reference]
++//	- offset [int]
++//	- type [int]
++//	- gotype [symbol reference]
++//
++// The pcln table has the encoding:
++//
++//	- pcsp [data block]
++//	- pcfile [data block]
++//	- pcline [data block]
++//	- npcdata [int]
++//	- pcdata [npcdata data blocks]
++//	- nfuncdata [int]
++//	- funcdata [nfuncdata symbol references]
++//	- funcdatasym [nfuncdata ints]
++//	- nfile [int]
++//	- file [nfile symbol references]
++//
++// The file layout is architecture-independent.
++// The meaning is almost architecture-independent:
++// the only field with architecture-dependent meaning is the
++// relocation's type field.
++//
++// TODO(rsc): The file format is good for a first pass but needs work.
++//	- There are SymID in the object file that should really just be strings.
++//	- The actual symbol memory images are interlaced with the symbol
++//	  metadata. They should be separated, to reduce the I/O required to
++//	  load just the metadata.
++//	- The symbol references should be shortened, either with a symbol
++//	  table or by using a simple backward index to an earlier mentioned symbol.
++
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <link.h>
++#include "../cmd/ld/textflag.h"
++
++static void writesym(Link*, Biobuf*, LSym*);
++static void wrint(Biobuf*, int64);
++static void wrstring(Biobuf*, char*);
++static void wrdata(Biobuf*, void*, int);
++static void wrsym(Biobuf*, LSym*);
++
++static void readsym(Link*, Biobuf*, char*, char*);
++static int64 rdint(Biobuf*);
++static char *rdstring(Biobuf*);
++static void rddata(Biobuf*, uchar**, int*);
++static LSym *rdsym(Link*, Biobuf*, char*);
++
++void
++linkwriteobj(Link *ctxt, Biobuf *b)
++{
++	int flag;
++	Hist *h;
++	LSym *s, *text, *etext, *curtext, *data, *edata;
++	Plist *pl;
++	Prog *p, *plink;
++	Auto *a;
++
++	// Build list of symbols, and assign instructions to lists.
++	// Ignore ctxt->plist boundaries. There are no guarantees there,
++	// and the C compilers and assemblers just use one big list.
++	text = nil;
++	curtext = nil;
++	data = nil;
++	etext = nil;
++	edata = nil;
++	for(pl = ctxt->plist; pl != nil; pl = pl->link) {
++		for(p = pl->firstpc; p != nil; p = plink) {
++			plink = p->link;
++			p->link = nil;
++
++			if(p->as == ctxt->arch->AEND)
++				continue;
++
++			if(p->as == ctxt->arch->ATYPE) {
++				// Assume each TYPE instruction describes
++				// a different local variable or parameter,
++				// so no dedup.
++				// Using only the TYPE instructions means
++				// that we discard location information about local variables
++				// in C and assembly functions; that information is inferred
++				// from ordinary references, because there are no TYPE
++				// instructions there. Without the type information, gdb can't
++				// use the locations, so we don't bother to save them.
++				// If something else could use them, we could arrange to
++				// preserve them.
++				if(curtext == nil)
++					continue;
++				a = emallocz(sizeof *a);
++				a->asym = p->from.sym;
++				a->aoffset = p->from.offset;
++				a->type = ctxt->arch->symtype(&p->from);
++				a->gotype = p->from.gotype;
++				a->link = curtext->autom;
++				curtext->autom = a;
++				continue;
++			}
++
++			if(p->as == ctxt->arch->AGLOBL) {
++				s = p->from.sym;
++if(s->size) print("duplicate %P\n", p);
++				if(data == nil)
++					data = s;
++				else
++					edata->next = s;
++				s->next = nil;
++				s->size = p->to.offset;
++				if(s->type == 0 || s->type == SXREF)
++					s->type = SBSS;
++				
++				if(ctxt->arch->thechar == '5')
++					flag = p->reg;
++				else
++					flag = p->from.scale;
++					
++				if(flag & DUPOK)
++					s->dupok = 1;
++				if(flag & RODATA)
++					s->type = SRODATA;
++				else if(flag & NOPTR)
++					s->type = SNOPTRBSS;
++				edata = s;
++				continue;
++			}
++
++			if(p->as == ctxt->arch->ADATA) {
++				savedata(ctxt, p->from.sym, p, "<input>");
++				continue;
++			}
++
++			if(p->as == ctxt->arch->ATEXT) {
++				s = p->from.sym;
++				if(s == nil) {
++					// func _() { }
++					curtext = nil;
++					continue;
++				}
++				if(s->text != nil)
++					sysfatal("duplicate TEXT for %s", s->name);
++				if(text == nil)
++					text = s;
++				else
++					etext->next = s;
++				etext = s;
++				if(ctxt->arch->thechar == '5')
++					flag = p->reg;
++				else
++					flag = p->from.scale;
++				if(flag & DUPOK)
++					s->dupok = 1;
++				s->next = nil;
++				s->type = STEXT;
++				s->text = p;
++				s->etext = p;
++				curtext = s;
++				continue;
++			}
++			
++			if(curtext == nil)
++				continue;
++			s = curtext;
++			s->etext->link = p;
++			s->etext = p;
++		}
++	}
++
++	// Turn functions into machine code images.
++	for(s = text; s != nil; s = s->next) {
++		mkfwd(s);
++		linkpatch(ctxt, s);
++		ctxt->arch->follow(ctxt, s);
++		ctxt->arch->addstacksplit(ctxt, s);
++		ctxt->arch->assemble(ctxt, s);
++		linkpcln(ctxt, s);
++	}
++
++	// Emit header.
++	Bputc(b, 0);
++	Bputc(b, 0);
++	Bprint(b, "go13ld");
++	
++	// Emit autolib.
++	for(h = ctxt->hist; h != nil; h = h->link)
++		if(h->offset < 0)
++			wrstring(b, h->name);
++	wrstring(b, "");
++
++	// Emit symbols.
++	for(s = text; s != nil; s = s->next)
++		writesym(ctxt, b, s);
++	for(s = data; s != nil; s = s->next)
++		writesym(ctxt, b, s);
++
++	// Emit footer.
++	Bputc(b, 0xff);
++	Bputc(b, 0xff);
++	Bprint(b, "go13ld");
++}
++
++static void
++writesym(Link *ctxt, Biobuf *b, LSym *s)
++{
++	Reloc *r;
++	int i, j, c, n;
++	Pcln *pc;
++	Prog *p;
++	Auto *a;
++
++	if(ctxt->debugasm) {
++		Bprint(ctxt->bso, "%s ", s->name);
++		if(s->version)
++			Bprint(ctxt->bso, "v=%d ", s->version);
++		if(s->type)
++			Bprint(ctxt->bso, "t=%d ", s->type);
++		if(s->dupok)
++			Bprint(ctxt->bso, "dupok ");
++		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
++		if(s->type == STEXT)
++			Bprint(ctxt->bso, " args=%#llux locals=%#llux", (uvlong)s->args, (uvlong)s->locals);
++		Bprint(ctxt->bso, "\n");
++		for(p=s->text; p != nil; p = p->link)
++			Bprint(ctxt->bso, "\t%#06ux %P\n", (int)p->pc, p);
++		for(i=0; i<s->np; ) {
++			Bprint(ctxt->bso, "\t%#06ux", i);
++			for(j=i; j<i+16 && j<s->np; j++)
++				Bprint(ctxt->bso, " %02ux", s->p[j]);
++			for(; j<i+16; j++)
++				Bprint(ctxt->bso, "   ");
++			Bprint(ctxt->bso, "  ");
++			for(j=i; j<i+16 && j<s->np; j++) {
++				c = s->p[j];
++				if(' ' <= c && c <= 0x7e)
++					Bprint(ctxt->bso, "%c", c);
++				else
++					Bprint(ctxt->bso, ".");
++			}
++			Bprint(ctxt->bso, "\n");
++			i += 16;
++		}
++		for(i=0; i<s->nr; i++) {
++			r = &s->r[i];
++			Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%lld\n", (int)r->off, r->siz, r->type, r->sym->name, (vlong)r->add);
++		}
++	}
++
++	Bputc(b, 0xfe);
++	wrint(b, s->type);
++	wrstring(b, s->name);
++	wrint(b, s->version);
++	wrint(b, s->dupok);
++	wrint(b, s->size);
++	wrsym(b, s->gotype);
++	wrdata(b, s->p, s->np);
++
++	wrint(b, s->nr);
++	for(i=0; i<s->nr; i++) {
++		r = &s->r[i];
++		wrint(b, r->off);
++		wrint(b, r->siz);
++		wrint(b, r->type);
++		wrint(b, r->add);
++		wrint(b, r->xadd);
++		wrsym(b, r->sym);
++		wrsym(b, r->xsym);
++	}
++	
++	if(s->type == STEXT) {
++		wrint(b, s->args);
++		wrint(b, s->locals);
++		n = 0;
++		for(a = s->autom; a != nil; a = a->link)
++			n++;
++		wrint(b, n);
++		for(a = s->autom; a != nil; a = a->link) {
++			wrsym(b, a->asym);
++			wrint(b, a->aoffset);
++			wrint(b, a->type);
++			wrsym(b, a->gotype);
++		}
++
++		pc = s->pcln;
++		wrdata(b, pc->pcsp.p, pc->pcsp.n);
++		wrdata(b, pc->pcfile.p, pc->pcfile.n);
++		wrdata(b, pc->pcline.p, pc->pcline.n);
++		wrint(b, pc->npcdata);
++		for(i=0; i<pc->npcdata; i++)
++			wrdata(b, pc->pcdata[i].p, pc->pcdata[i].n);
++		wrint(b, pc->nfuncdata);
++		for(i=0; i<pc->nfuncdata; i++)
++			wrsym(b, pc->funcdata[i]);
++		for(i=0; i<pc->nfuncdata; i++)
++			wrint(b, pc->funcdataoff[i]);
++		wrint(b, pc->nfile);
++		for(i=0; i<pc->nfile; i++)
++			wrsym(b, pc->file[i]);
++	}
++}
++
++static void
++wrint(Biobuf *b, int64 sval)
++{
++	uint64 uv, v;
++	uchar buf[10], *p;
++
++	uv = (uint64)(sval<<1) ^ (uint64)(int64)(sval>>63);
++
++	p = buf;
++	for(v = uv; v >= 0x80; v >>= 7)
++		*p++ = v | 0x80;
++	*p++ = v;
++	
++	Bwrite(b, buf, p - buf);
++}
++
++static void
++wrstring(Biobuf *b, char *s)
++{
++	wrdata(b, s, strlen(s));
++}
++
++static void
++wrdata(Biobuf *b, void *v, int n)
++{
++	wrint(b, n);
++	Bwrite(b, v, n);
++}
++
++static void
++wrsym(Biobuf *b, LSym *s)
++{
++	if(s == nil) {
++		wrint(b, 0);
++		wrint(b, 0);
++		return;
++	}
++	wrstring(b, s->name);
++	wrint(b, s->version);
++}
++
++static char startmagic[] = "\x00\x00go13ld";
++static char endmagic[] = "\xff\xffgo13ld";
++
++void
++ldobjfile(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn)
++{
++	int c;
++	uchar buf[8];
++	int64 start;
++	char *lib;
++
++	start = Boffset(f);
++	ctxt->version++;
++	memset(buf, 0, sizeof buf);
++	Bread(f, buf, sizeof buf);
++	if(memcmp(buf, startmagic, sizeof buf) != 0)
++		sysfatal("%s: invalid file start %x %x %x %x %x %x %x %x", pn, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
++
++	for(;;) {
++		lib = rdstring(f);
++		if(lib[0] == 0)
++			break;
++		addlib(ctxt, pkg, pn, lib);
++	}
++	
++	for(;;) {
++		c = Bgetc(f);
++		Bungetc(f);
++		if(c == 0xff)
++			break;
++		readsym(ctxt, f, pkg, pn);
++	}
++	
++	memset(buf, 0, sizeof buf);
++	Bread(f, buf, sizeof buf);
++	if(memcmp(buf, endmagic, sizeof buf) != 0)
++		sysfatal("%s: invalid file end", pn);
++	
++	if(Boffset(f) != start+len)
++		sysfatal("%s: unexpected end at %lld, want %lld", pn, (vlong)Boffset(f), (vlong)(start+len));
++}
++
++static void
++readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
++{
++	int i, j, c, t, v, n, size, dupok;
++	static int ndup;
++	char *name;
++	Reloc *r;
++	LSym *s;
++	Pcln *pc;
++	Auto *a;
++	
++	if(Bgetc(f) != 0xfe)
++		sysfatal("readsym out of sync");
++	t = rdint(f);
++	name = expandpkg(rdstring(f), pkg);
++	v = rdint(f);
++	if(v != 0 && v != 1)
++		sysfatal("invalid symbol version %d", v);
++	dupok = rdint(f);
++	size = rdint(f);
++	
++	if(v != 0)
++		v = ctxt->version;
++	s = linklookup(ctxt, name, v);
++	if(s->type != 0 && s->type != SXREF) {
++		if(s->type != SBSS && s->type != SNOPTRBSS && (!dupok || !s->dupok))
++			sysfatal("duplicate symbol %s (types %d and %d) in %s and %s", s->name, s->type, t, s->file, pn);
++		if(s->np > 0)
++			s = linklookup(ctxt, ".dup", ndup++); // scratch
++	}
++	s->file = pkg;
++	s->dupok = dupok;
++	if(t == SXREF)
++		sysfatal("bad sxref");
++	if(t == 0)
++		sysfatal("missing type for %s in %s", name, pn);
++	s->type = t;
++	if(s->size < size)
++		s->size = size;
++	s->gotype = rdsym(ctxt, f, pkg);
++	rddata(f, &s->p, &s->np);
++	s->maxp = s->np;
++	n = rdint(f);
++	if(n > 0) {
++		s->r = emallocz(n * sizeof s->r[0]);
++		s->nr = n;
++		s->maxr = n;
++		for(i=0; i<n; i++) {
++			r = &s->r[i];
++			r->off = rdint(f);
++			r->siz = rdint(f);
++			r->type = rdint(f);
++			r->add = rdint(f);
++			r->xadd = rdint(f);
++			r->sym = rdsym(ctxt, f, pkg);
++			r->xsym = rdsym(ctxt, f, pkg);
++		}
++	}
++	
++	if(s->type == STEXT) {
++		s->args = rdint(f);
++		s->locals = rdint(f);
++		n = rdint(f);
++		for(i=0; i<n; i++) {
++			a = emallocz(sizeof *a);
++			a->asym = rdsym(ctxt, f, pkg);
++			a->aoffset = rdint(f);
++			a->type = rdint(f);
++			a->gotype = rdsym(ctxt, f, pkg);
++			a->link = s->autom;
++			s->autom = a;
++		}
++
++		s->pcln = emallocz(sizeof *s->pcln);
++		pc = s->pcln;
++		rddata(f, &pc->pcsp.p, &pc->pcsp.n);
++		rddata(f, &pc->pcfile.p, &pc->pcfile.n);
++		rddata(f, &pc->pcline.p, &pc->pcline.n);
++		n = rdint(f);
++		pc->pcdata = emallocz(n * sizeof pc->pcdata[0]);
++		pc->npcdata = n;
++		for(i=0; i<n; i++)
++			rddata(f, &pc->pcdata[i].p, &pc->pcdata[i].n);
++		n = rdint(f);
++		pc->funcdata = emallocz(n * sizeof pc->funcdata[0]);
++		pc->funcdataoff = emallocz(n * sizeof pc->funcdataoff[0]);
++		pc->nfuncdata = n;
++		for(i=0; i<n; i++)
++			pc->funcdata[i] = rdsym(ctxt, f, pkg);
++		for(i=0; i<n; i++)
++			pc->funcdataoff[i] = rdint(f);
++		n = rdint(f);
++		pc->file = emallocz(n * sizeof pc->file[0]);
++		pc->nfile = n;
++		for(i=0; i<n; i++)
++			pc->file[i] = rdsym(ctxt, f, pkg);
++
++		if(ctxt->etextp)
++			ctxt->etextp->next = s;
++		else
++			ctxt->textp = s;
++		ctxt->etextp = s;
++	}
++
++	if(ctxt->debugasm) {
++		Bprint(ctxt->bso, "%s ", s->name);
++		if(s->version)
++			Bprint(ctxt->bso, "v=%d ", s->version);
++		if(s->type)
++			Bprint(ctxt->bso, "t=%d ", s->type);
++		if(s->dupok)
++			Bprint(ctxt->bso, "dupok ");
++		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
++		if(s->type == STEXT)
++			Bprint(ctxt->bso, " args=%#llux locals=%#llux", (uvlong)s->args, (uvlong)s->locals);
++		Bprint(ctxt->bso, "\n");
++		for(i=0; i<s->np; ) {
++			Bprint(ctxt->bso, "\t%#06ux", i);
++			for(j=i; j<i+16 && j<s->np; j++)
++				Bprint(ctxt->bso, " %02ux", s->p[j]);
++			for(; j<i+16; j++)
++				Bprint(ctxt->bso, "   ");
++			Bprint(ctxt->bso, "  ");
++			for(j=i; j<i+16 && j<s->np; j++) {
++				c = s->p[j];
++				if(' ' <= c && c <= 0x7e)
++					Bprint(ctxt->bso, "%c", c);
++				else
++					Bprint(ctxt->bso, ".");
++			}
++			Bprint(ctxt->bso, "\n");
++			i += 16;
++		}
++		for(i=0; i<s->nr; i++) {
++			r = &s->r[i];
++			Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%lld\n", (int)r->off, r->siz, r->type, r->sym->name, (vlong)r->add);
++		}
++	}
++}
++
++static int64
++rdint(Biobuf *f)
++{
++	int c;
++	uint64 uv;
++	int shift;
++	
++	uv = 0;
++	for(shift = 0;; shift += 7) {
++		if(shift >= 64)
++			sysfatal("corrupt input");
++		c = Bgetc(f);
++		uv |= (uint64)(c & 0x7F) << shift;
++		if(!(c & 0x80))
++			break;
++	}
++
++	return (int64)(uv>>1) ^ ((int64)uv<<63>>63);
++}
++
++static char*
++rdstring(Biobuf *f)
++{
++	int n;
++	char *p;
++	
++	n = rdint(f);
++	p = emallocz(n+1);
++	Bread(f, p, n);
++	return p;
++}
++
++static void
++rddata(Biobuf *f, uchar **pp, int *np)
++{
++	*np = rdint(f);
++	*pp = emallocz(*np);
++	Bread(f, *pp, *np);
++}
++
++static LSym*
++rdsym(Link *ctxt, Biobuf *f, char *pkg)
++{
++	int n, v;
++	char *p;
++	LSym *s;
++	
++	n = rdint(f);
++	if(n == 0) {
++		rdint(f);
++		return nil;
++	}
++	p = emallocz(n+1);
++	Bread(f, p, n);
++	v = rdint(f);
++	if(v != 0)
++		v = ctxt->version;
++	s = linklookup(ctxt, expandpkg(p, pkg), v);
++	
++	if(v == 0 && s->name[0] == '$' && s->type == 0) {
++		if(strncmp(s->name, "$f32.", 5) == 0) {
++			int32 i32;
++			i32 = strtoul(s->name+5, nil, 16);
++			s->type = SRODATA;
++			adduint32(ctxt, s, i32);
++			s->reachable = 0;
++		} else if(strncmp(s->name, "$f64.", 5) == 0) {
++			int64 i64;
++			i64 = strtoull(s->name+5, nil, 16);
++			s->type = SRODATA;
++			adduint64(ctxt, s, i64);
++			s->reachable = 0;
++		}
++	}
++
++	return s;
++}
+diff --git a/src/liblink/pass.c b/src/liblink/pass.c
+index ed27749915..bc8eb43679 100644
+--- a/src/liblink/pass.c
++++ b/src/liblink/pass.c
+@@ -70,23 +70,21 @@ linkpatch(Link *ctxt, LSym *sym)
+ {
+ 	int32 c;
+ 	Prog *p, *q;
+-	LSym *s;
+ 
+ 	ctxt->cursym = sym;
+ 	
+ 	for(p = sym->text; p != nil; p = p->link) {
+ 		if(ctxt->arch->progedit)
+ 			ctxt->arch->progedit(ctxt, p);
+-		if(p->as == ctxt->arch->ACALL || (p->as == ctxt->arch->AJMP && p->to.type != ctxt->arch->D_BRANCH) || (p->as == ctxt->arch->ARET && p->to.sym != nil)) {
+-			s = p->to.sym;
+-			// The STEXT check avoids rewriting indirect call to addr in memory on x86.
+-			if(s && s->type == STEXT) {
+-				p->to.type = ctxt->arch->D_BRANCH;
+-				continue;
+-			}
+-		}
+ 		if(p->to.type != ctxt->arch->D_BRANCH)
+ 			continue;
++		if(p->to.u.branch != nil) {
++			// TODO: Remove to.u.branch in favor of p->pcond.
++			p->pcond = p->to.u.branch;
++			continue;
++		}
++		if(p->to.sym != nil)
++			continue;
+ 		c = p->to.offset;
+ 		for(q = sym->text; q != nil;) {
+ 			if(c == q->pc)
+@@ -101,6 +99,7 @@ linkpatch(Link *ctxt, LSym *sym)
+ 				c, p, p->to.sym ? p->to.sym->name : "<nil>");
+ 			p->to.type = ctxt->arch->D_NONE;
+ 		}
++		p->to.u.branch = q;
+ 		p->pcond = q;
+ 	}
+ 	
+diff --git a/src/liblink/pcln.c b/src/liblink/pcln.c
+index 21eb94414f..aca050602b 100644
+--- a/src/liblink/pcln.c
++++ b/src/liblink/pcln.c
+@@ -66,8 +66,10 @@ funcpctab(Link *ctxt, Pcdata *dst, LSym *func, char *desc, int32 (*valfunc)(Link
+ 
+ 	val = -1;
+ 	oldval = val;
+-	if(func->text == nil)
++	if(func->text == nil) {
++		ctxt->debugpcln -= dbg;
+ 		return;
++	}
+ 
+ 	pc = func->text->pc;
+ 	
+@@ -156,9 +158,11 @@ pctofileline(Link *ctxt, LSym *sym, int32 oldval, Prog *p, int32 phase, void *ar
+ 	LSym *f;
+ 	Pcln *pcln;
+ 
++	USED(sym);
++
+ 	if(p->as == ctxt->arch->ATEXT || p->as == ctxt->arch->ANOP || p->as == ctxt->arch->AUSEFIELD || p->lineno == 0 || phase == 1)
+ 		return oldval;
+-	linkgetline(ctxt, sym->hist, p->lineno, &f, &l);
++	linkgetline(ctxt, p->lineno, &f, &l);
+ 	if(f == nil) {
+ 	//	print("getline failed for %s %P\n", ctxt->cursym->name, p);
+ 		return oldval;
+@@ -296,3 +300,65 @@ linkpcln(Link *ctxt, LSym *cursym)
+ 		}
+ 	}
+ }
++
++// iteration over encoded pcdata tables.
++
++static uint32
++getvarint(uchar **pp)
++{
++	uchar *p;
++	int shift;
++	uint32 v;
++
++	v = 0;
++	p = *pp;
++	for(shift = 0;; shift += 7) {
++		v |= (*p & 0x7F) << shift;
++		if(!(*p++ & 0x80))
++			break;
++	}
++	*pp = p;
++	return v;
++}
++
++void
++pciternext(Pciter *it)
++{
++	uint32 v;
++	int32 dv;
++
++	it->pc = it->nextpc;
++	if(it->done)
++		return;
++	if(it->p >= it->d.p + it->d.n) {
++		it->done = 1;
++		return;
++	}
++
++	// value delta
++	v = getvarint(&it->p);
++	if(v == 0 && !it->start) {
++		it->done = 1;
++		return;
++	}
++	it->start = 0;
++	dv = (int32)(v>>1) ^ ((int32)(v<<31)>>31);
++	it->value += dv;
++	
++	// pc delta
++	v = getvarint(&it->p);
++	it->nextpc = it->pc + v;
++}
++
++void
++pciterinit(Pciter *it, Pcdata *d)
++{
++	it->d = *d;
++	it->p = it->d.p;
++	it->pc = 0;
++	it->nextpc = 0;
++	it->value = -1;
++	it->start = 1;
++	it->done = 0;
++	pciternext(it);
++}
+diff --git a/src/liblink/rdobj5.c b/src/liblink/rdobj5.c
+deleted file mode 100644
+index f2a8b82231..0000000000
+--- a/src/liblink/rdobj5.c
++++ /dev/null
+@@ -1,585 +0,0 @@
+-// Inferno utils/5l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/obj.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-#include <u.h>
+-#include <libc.h>
+-#include <bio.h>
+-#include <link.h>
+-#include "../cmd/5l/5.out.h"
+-
+-// TODO: remove duplicate chipzero, chipfloat
+-
+-static void finish(Link*);
+-
+-static int
+-chipzero(Link *ctxt, float64 e)
+-{
+-	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+-	if(ctxt->goarm < 7 || e != 0)
+-		return -1;
+-	return 0;
+-}
+-
+-static int
+-chipfloat(Link *ctxt, float64 e)
+-{
+-	int n;
+-	ulong h1;
+-	int32 l, h;
+-	uint64 ei;
+-
+-	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+-	if(ctxt->goarm < 7)
+-		goto no;
+-
+-	memmove(&ei, &e, 8);
+-	l = (int32)ei;
+-	h = (int32)(ei>>32);
+-
+-	if(l != 0 || (h&0xffff) != 0)
+-		goto no;
+-	h1 = h & 0x7fc00000;
+-	if(h1 != 0x40000000 && h1 != 0x3fc00000)
+-		goto no;
+-	n = 0;
+-
+-	// sign bit (a)
+-	if(h & 0x80000000)
+-		n |= 1<<7;
+-
+-	// exp sign bit (b)
+-	if(h1 == 0x3fc00000)
+-		n |= 1<<6;
+-
+-	// rest of exp and mantissa (cd-efgh)
+-	n |= (h >> 16) & 0x3f;
+-
+-//print("match %.8lux %.8lux %d\n", l, h, n);
+-	return n;
+-
+-no:
+-	return -1;
+-}
+-
+-static LSym*
+-zsym(char *pn, Biobuf *f, LSym *h[])
+-{	
+-	int o;
+-	
+-	o = BGETC(f);
+-	if(o == 0)
+-		return nil;
+-	if(o < 0 || o >= NSYM || h[o] == nil)
+-		mangle(pn);
+-	return h[o];
+-}
+-
+-static void
+-zaddr(Link *ctxt, char *pn, Biobuf *f, Addr *a, LSym *h[], LSym **pgotype)
+-{
+-	int i, c;
+-	int32 l;
+-	LSym *s, *gotype;
+-	Auto *u;
+-	uint64 v;
+-
+-	a->type = BGETC(f);
+-	a->reg = BGETC(f);
+-	c = BGETC(f);
+-	if(c < 0 || c > NSYM){
+-		print("sym out of range: %d\n", c);
+-		BPUTC(f, ALAST+1);
+-		return;
+-	}
+-	a->sym = h[c];
+-	a->name = BGETC(f);
+-	gotype = zsym(pn, f, h);
+-	if(pgotype)
+-		*pgotype = gotype;
+-
+-	if((schar)a->reg < 0 || a->reg > NREG) {
+-		print("register out of range %d\n", a->reg);
+-		BPUTC(f, ALAST+1);
+-		return;	/*  force real diagnostic */
+-	}
+-
+-	if(a->type == D_CONST || a->type == D_OCONST) {
+-		if(a->name == D_EXTERN || a->name == D_STATIC) {
+-			s = a->sym;
+-			if(s != nil && (s->type == STEXT || s->type == SCONST || s->type == SXREF)) {
+-				if(0 && !s->fnptr && s->name[0] != '.')
+-					print("%s used as function pointer\n", s->name);
+-				s->fnptr = 1;	// over the top cos of SXREF
+-			}
+-		}
+-	}
+-
+-	switch(a->type) {
+-	default:
+-		print("unknown type %d\n", a->type);
+-		BPUTC(f, ALAST+1);
+-		return;	/*  force real diagnostic */
+-
+-	case D_NONE:
+-	case D_REG:
+-	case D_FREG:
+-	case D_PSR:
+-	case D_FPCR:
+-		break;
+-
+-	case D_REGREG:
+-	case D_REGREG2:
+-		a->offset = BGETC(f);
+-		break;
+-
+-	case D_CONST2:
+-		a->offset2 = BGETLE4(f);	// fall through
+-	case D_BRANCH:
+-	case D_OREG:
+-	case D_CONST:
+-	case D_OCONST:
+-	case D_SHIFT:
+-		a->offset = BGETLE4(f);
+-		break;
+-
+-	case D_SCONST:
+-		Bread(f, a->u.sval, NSNAME);
+-		break;
+-
+-	case D_FCONST:
+-		v = (uint32)BGETLE4(f);
+-		v |= (uint64)BGETLE4(f)<<32;
+-		memmove(&a->u.dval, &v, 8);
+-		break;
+-	}
+-	s = a->sym;
+-	if(s == nil)
+-		return;
+-	i = a->name;
+-	if(i != D_AUTO && i != D_PARAM) {
+-		if(s && gotype)
+-			s->gotype = gotype;
+-		return;
+-	}
+-
+-	l = a->offset;
+-	for(u=ctxt->curauto; u; u=u->link)
+-		if(u->asym == s)
+-		if(u->type == i) {
+-			if(u->aoffset > l)
+-				u->aoffset = l;
+-			if(gotype)
+-				u->gotype = gotype;
+-			return;
+-		}
+-
+-	u = emallocz(sizeof(Auto));
+-	u->link = ctxt->curauto;
+-	ctxt->curauto = u;
+-	u->asym = s;
+-	u->aoffset = l;
+-	u->type = i;
+-	u->gotype = gotype;
+-}
+-
+-void
+-nopout5(Prog *p)
+-{
+-	p->as = ANOP;
+-	p->from.type = D_NONE;
+-	p->to.type = D_NONE;
+-}
+-
+-void
+-ldobj5(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn)
+-{
+-	int32 ipc;
+-	Prog *p;
+-	LSym *h[NSYM], *s;
+-	int v, o, r, skip;
+-	uint32 sig;
+-	char *name;
+-	int ntext;
+-	int32 eof, autosize;
+-	char src[1024], *x, literal[64];
+-	Prog *lastp;
+-	LSym *fromgotype;
+-
+-	lastp = nil;
+-	ntext = 0;
+-	eof = Boffset(f) + len;
+-	src[0] = 0;
+-	pn = estrdup(pn); // we keep it in LSym* references
+-
+-newloop:
+-	memset(h, 0, sizeof(h));
+-	ctxt->version++;
+-	ctxt->histfrogp = 0;
+-	ipc = ctxt->pc;
+-	skip = 0;
+-
+-loop:
+-	if(f->state == Bracteof || Boffset(f) >= eof)
+-		goto eof;
+-	o = BGETC(f);
+-	if(o == Beof)
+-		goto eof;
+-
+-	if(o <= AXXX || o >= ALAST) {
+-		ctxt->diag("%s:#%lld: opcode out of range: %#ux", pn, Boffset(f), o);
+-		sysfatal("probably not a .5 file");
+-	}
+-	if(o == ANAME || o == ASIGNAME) {
+-		sig = 0;
+-		if(o == ASIGNAME)
+-			sig = BGETLE4(f);
+-		v = BGETC(f); /* type */
+-		o = BGETC(f); /* sym */
+-		r = 0;
+-		if(v == D_STATIC)
+-			r = ctxt->version;
+-		name = Brdline(f, '\0');
+-		if(name == nil) {
+-			if(Blinelen(f) > 0) {
+-				fprint(2, "%s: name too long\n", pn);
+-				sysfatal("invalid object file");
+-			}
+-			goto eof;
+-		}
+-		x = expandpkg(name, pkg);
+-		s = linklookup(ctxt, x, r);
+-		if(x != name)
+-			free(x);
+-
+-		if(sig != 0){
+-			if(s->sig != 0 && s->sig != sig)
+-				ctxt->diag("incompatible type signatures %ux(%s) and %ux(%s) for %s", s->sig, s->file, sig, pn, s->name);
+-			s->sig = sig;
+-			s->file = pn;
+-		}
+-
+-		if(ctxt->debugread)
+-			print("	ANAME	%s\n", s->name);
+-		if(o < 0 || o >= nelem(h)) {
+-			fprint(2, "%s: mangled input file\n", pn);
+-			sysfatal("invalid object");
+-		}
+-		h[o] = s;
+-		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
+-			s->type = SXREF;
+-		if(v == D_FILE) {
+-			if(s->type != SFILE) {
+-				ctxt->histgen++;
+-				s->type = SFILE;
+-				s->value = ctxt->histgen;
+-			}
+-			if(ctxt->histfrogp < LinkMaxHist) {
+-				ctxt->histfrog[ctxt->histfrogp] = s;
+-				ctxt->histfrogp++;
+-			} else
+-				collapsefrog(ctxt, s);
+-			ctxt->dwarfaddfrag(s->value, s->name);
+-		}
+-		goto loop;
+-	}
+-
+-	p = emallocz(sizeof(Prog));
+-	p->as = o;
+-	p->scond = BGETC(f);
+-	p->reg = BGETC(f);
+-	p->lineno = BGETLE4(f);
+-
+-	zaddr(ctxt, pn, f, &p->from, h, &fromgotype);
+-	zaddr(ctxt, pn, f, &p->to, h, nil);
+-
+-	if(p->as != ATEXT && p->as != AGLOBL && p->reg > NREG)
+-		ctxt->diag("register out of range %A %d", p->as, p->reg);
+-
+-	p->link = nil;
+-	p->pcond = nil;
+-
+-	if(ctxt->debugread)
+-		print("%P\n", p);
+-
+-	switch(o) {
+-	case AHISTORY:
+-		if(p->to.offset == -1) {
+-			addlib(ctxt, src, pn);
+-			ctxt->histfrogp = 0;
+-			goto loop;
+-		}
+-		if(src[0] == '\0')
+-			copyhistfrog(ctxt, src, sizeof src);
+-		addhist(ctxt, p->lineno, D_FILE);		/* 'z' */
+-		if(p->to.offset)
+-			addhist(ctxt, p->to.offset, D_FILE1);	/* 'Z' */
+-		savehist(ctxt, p->lineno, p->to.offset);
+-		ctxt->histfrogp = 0;
+-		goto loop;
+-
+-	case AEND:
+-		finish(ctxt);
+-		if(Boffset(f) == eof)
+-			return;
+-		goto newloop;
+-
+-	case AGLOBL:
+-		s = p->from.sym;
+-		if(s == nil) {
+-			ctxt->diag("GLOBL must have a name\n%P", p);
+-			sysfatal("mangled input");
+-		}
+-		if(s->type == 0 || s->type == SXREF) {
+-			s->type = SBSS;
+-			s->value = 0;
+-		}
+-		if(s->type != SBSS && s->type != SNOPTRBSS && !s->dupok) {
+-			ctxt->diag("redefinition: %s\n%P", s->name, p);
+-			s->type = SBSS;
+-			s->value = 0;
+-		}
+-		if(p->to.offset > s->size)
+-			s->size = p->to.offset;
+-		if(p->reg & DUPOK)
+-			s->dupok = 1;
+-		if(p->reg & RODATA)
+-			s->type = SRODATA;
+-		else if(p->reg & NOPTR)
+-			s->type = SNOPTRBSS;
+-		break;
+-
+-	case ADATA:
+-		// Assume that AGLOBL comes after ADATA.
+-		// If we've seen an AGLOBL that said this sym was DUPOK,
+-		// ignore any more ADATA we see, which must be
+-		// redefinitions.
+-		s = p->from.sym;
+-		if(s->dupok) {
+-//			if(debug['v'])
+-//				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
+-			goto loop;
+-		}
+-		if(s->file == nil)
+-			s->file = pn;
+-		else if(s->file != pn) {
+-			ctxt->diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
+-			sysfatal("mangled input");
+-		}
+-		savedata(ctxt, s, p, pn);
+-		free(p);
+-		break;
+-
+-	case AGOK:
+-		ctxt->diag("unknown opcode\n%P", p);
+-		p->pc = ctxt->pc;
+-		ctxt->pc++;
+-		break;
+-
+-	case ATYPE:
+-		if(skip)
+-			goto casedef;
+-		ctxt->pc++;
+-		goto loop;
+-
+-	case ATEXT:
+-		if(ctxt->cursym != nil && ctxt->cursym->text)
+-			finish(ctxt);
+-		s = p->from.sym;
+-		if(s == nil) {
+-			ctxt->diag("TEXT must have a name\n%P", p);
+-			sysfatal("mangled input");
+-		}
+-		ctxt->cursym = s;
+-		if(s->type != 0 && s->type != SXREF && (p->reg & DUPOK)) {
+-			skip = 1;
+-			goto casedef;
+-		}
+-		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
+-			/* redefinition, so file has probably been seen before */
+-			if(ctxt->debugvlog)
+-				Bprint(ctxt->bso, "skipping: %s: redefinition: %s", pn, s->name);
+-			return;
+-		}
+-		skip = 0;
+-		if(s->type != 0 && s->type != SXREF)
+-			ctxt->diag("redefinition: %s\n%P", s->name, p);
+-		if(ctxt->etextp)
+-			ctxt->etextp->next = s;
+-		else
+-			ctxt->textp = s;
+-		if(fromgotype) {
+-			if(s->gotype && s->gotype != fromgotype)
+-				ctxt->diag("%s: type mismatch for %s", pn, s->name);
+-			s->gotype = fromgotype;
+-		}
+-		ctxt->etextp = s;
+-		autosize = (p->to.offset+3L) & ~3L;
+-		p->to.offset = autosize;
+-		autosize += 4;
+-		s->type = STEXT;
+-		s->hist = gethist(ctxt);
+-		s->text = p;
+-		s->value = ctxt->pc;
+-		s->args = p->to.offset2;
+-		lastp = p;
+-		p->pc = ctxt->pc;
+-		ctxt->pc++;
+-		break;
+-
+-	case ASUB:
+-		if(p->from.type == D_CONST)
+-		if(p->from.name == D_NONE)
+-		if(p->from.offset < 0) {
+-			p->from.offset = -p->from.offset;
+-			p->as = AADD;
+-		}
+-		goto casedef;
+-
+-	case AADD:
+-		if(p->from.type == D_CONST)
+-		if(p->from.name == D_NONE)
+-		if(p->from.offset < 0) {
+-			p->from.offset = -p->from.offset;
+-			p->as = ASUB;
+-		}
+-		goto casedef;
+-
+-	case AMOVWD:
+-	case AMOVWF:
+-	case AMOVDW:
+-	case AMOVFW:
+-	case AMOVFD:
+-	case AMOVDF:
+-	// case AMOVF:
+-	// case AMOVD:
+-	case ACMPF:
+-	case ACMPD:
+-	case AADDF:
+-	case AADDD:
+-	case ASUBF:
+-	case ASUBD:
+-	case AMULF:
+-	case AMULD:
+-	case ADIVF:
+-	case ADIVD:
+-		goto casedef;
+-
+-	case AMOVF:
+-		if(skip)
+-			goto casedef;
+-
+-		if(p->from.type == D_FCONST && chipfloat(ctxt, p->from.u.dval) < 0 &&
+-		   (chipzero(ctxt, p->from.u.dval) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
+-			/* size sb 9 max */
+-			sprint(literal, "$%.17gf", (float32)p->from.u.dval);
+-			s = linklookup(ctxt, literal, 0);
+-			if(s->type == 0) {
+-				float32 f32;
+-				int32 i32;
+-				s->type = SRODATA;
+-				f32 = p->from.u.dval;
+-				memmove(&i32, &f32, 4);
+-				adduint32(ctxt, s, i32);
+-				s->reachable = 0;
+-			}
+-			p->from.type = D_OREG;
+-			p->from.sym = s;
+-			p->from.name = D_EXTERN;
+-			p->from.offset = 0;
+-		}
+-		goto casedef;
+-
+-	case AMOVD:
+-		if(skip)
+-			goto casedef;
+-
+-		if(p->from.type == D_FCONST && chipfloat(ctxt, p->from.u.dval) < 0 &&
+-		   (chipzero(ctxt, p->from.u.dval) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
+-			/* size sb 18 max */
+-			sprint(literal, "$%.17g", p->from.u.dval);
+-			s = linklookup(ctxt, literal, 0);
+-			if(s->type == 0) {
+-				int64 i64;
+-				s->type = SRODATA;
+-				memmove(&i64, &p->from.u.dval, 8);
+-				adduint64(ctxt, s, i64);
+-				s->reachable = 0;
+-			}
+-			p->from.type = D_OREG;
+-			p->from.sym = s;
+-			p->from.name = D_EXTERN;
+-			p->from.offset = 0;
+-		}
+-		goto casedef;
+-
+-	default:
+-	casedef:
+-		if(skip)
+-			nopout5(p);
+-		p->pc = ctxt->pc;
+-		ctxt->pc++;
+-		if(p->to.type == D_BRANCH)
+-			p->to.offset += ipc;
+-		if(lastp == nil) {
+-			if(p->as != ANOP)
+-				ctxt->diag("unexpected instruction: %P", p);
+-			break;
+-		}
+-		lastp->link = p;
+-		lastp = p;
+-		break;
+-	}
+-	goto loop;
+-
+-eof:
+-	ctxt->diag("truncated object file: %s", pn);
+-}
+-
+-static void
+-finish(Link *ctxt)
+-{
+-	LSym *s;
+-	
+-	histtoauto(ctxt);
+-	if(ctxt->cursym != nil && ctxt->cursym->text) {
+-		s = ctxt->cursym;
+-		s->autom = ctxt->curauto;
+-	//	mkfwd(s);
+-	//	linkpatch(ctxt, s);
+-	//	ctxt->arch->follow(ctxt, s);
+-	//	ctxt->arch->addstacksplit(ctxt, s);
+-	//	ctxt->arch->assemble(ctxt, s);
+-	//	linkpcln(ctxt, s);
+-	}
+-
+-	ctxt->curauto = 0;
+-	ctxt->cursym = nil;
+-}
+-
+diff --git a/src/liblink/rdobj6.c b/src/liblink/rdobj6.c
+deleted file mode 100644
+index 52ed18b93d..0000000000
+--- a/src/liblink/rdobj6.c
++++ /dev/null
+@@ -1,495 +0,0 @@
+-// Inferno utils/6l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-#include <u.h>
+-#include <libc.h>
+-#include <bio.h>
+-#include <link.h>
+-#include "../cmd/6l/6.out.h"
+-
+-static LSym*
+-zsym(char *pn, Biobuf *f, LSym *h[])
+-{	
+-	int o;
+-	
+-	o = BGETC(f);
+-	if(o < 0 || o >= NSYM || h[o] == nil)
+-		mangle(pn);
+-	return h[o];
+-}
+-
+-static void finish(Link*);
+-
+-static void
+-zaddr(Link *ctxt, char *pn, Biobuf *f, Addr *a, LSym *h[], LSym **pgotype)
+-{
+-	int t;
+-	int32 l;
+-	LSym *s, *gotype;
+-	Auto *u;
+-	uint64 v;
+-
+-	t = BGETC(f);
+-	a->index = D_NONE;
+-	a->scale = 0;
+-	if(t & T_INDEX) {
+-		a->index = BGETC(f);
+-		a->scale = BGETC(f);
+-	}
+-	a->offset = 0;
+-	if(t & T_OFFSET) {
+-		a->offset = BGETLE4(f);
+-		if(t & T_64) {
+-			a->offset &= 0xFFFFFFFFULL;
+-			a->offset |= (uvlong)BGETLE4(f) << 32;
+-		}
+-	}
+-	a->sym = nil;
+-	if(t & T_SYM)
+-		a->sym = zsym(pn, f, h);
+-	a->type = D_NONE;
+-	if(t & T_FCONST) {
+-		v = (uint32)BGETLE4(f);
+-		v |= (uint64)BGETLE4(f)<<32;
+-		memmove(&a->u.dval, &v, 8);
+-		a->type = D_FCONST;
+-	} else
+-	if(t & T_SCONST) {
+-		Bread(f, a->u.sval, NSNAME);
+-		a->type = D_SCONST;
+-	}
+-	if(t & T_TYPE)
+-		a->type = BGETC(f);
+-	if(a->type < 0 || a->type >= D_SIZE)
+-		mangle(pn);
+-	gotype = nil;
+-	if(t & T_GOTYPE)
+-		gotype = zsym(pn, f, h);
+-	if(pgotype)
+-		*pgotype = gotype;
+-	s = a->sym;
+-	t = a->type;
+-	if(t == D_INDIR+D_GS || a->index == D_GS)
+-		a->offset += ctxt->tlsoffset;
+-	if(t != D_AUTO && t != D_PARAM) {
+-		if(s && gotype)
+-			s->gotype = gotype;
+-		return;
+-	}
+-	l = a->offset;
+-	for(u=ctxt->curauto; u; u=u->link) {
+-		if(u->asym == s)
+-		if(u->type == t) {
+-			if(u->aoffset > l)
+-				u->aoffset = l;
+-			if(gotype)
+-				u->gotype = gotype;
+-			return;
+-		}
+-	}
+-	
+-	switch(t) {
+-	case D_FILE:
+-	case D_FILE1:
+-	case D_AUTO:
+-	case D_PARAM:
+-		if(s == nil)
+-			mangle(pn);
+-	}
+-
+-	u = emallocz(sizeof(*u));
+-	u->link = ctxt->curauto;
+-	ctxt->curauto = u;
+-	u->asym = s;
+-	u->aoffset = l;
+-	u->type = t;
+-	u->gotype = gotype;
+-}
+-
+-void
+-nopout6(Prog *p)
+-{
+-	p->as = ANOP;
+-	p->from.type = D_NONE;
+-	p->to.type = D_NONE;
+-}
+-
+-void
+-ldobj6(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn)
+-{
+-	vlong ipc;
+-	Prog *p;
+-	int v, o, r, skip, mode;
+-	LSym *h[NSYM], *s;
+-	uint32 sig;
+-	char *name, *x;
+-	int ntext;
+-	vlong eof;
+-	char src[1024], literal[64];
+-	Prog *lastp;
+-	LSym *fromgotype;
+-
+-	lastp = nil;
+-	ntext = 0;
+-	eof = Boffset(f) + len;
+-	src[0] = 0;
+-	pn = estrdup(pn); // we keep it in LSym* references
+-
+-newloop:
+-	memset(h, 0, sizeof(h));
+-	ctxt->version++;
+-	ctxt->histfrogp = 0;
+-	ipc = ctxt->pc;
+-	skip = 0;
+-	mode = 64;
+-
+-loop:
+-	if(f->state == Bracteof || Boffset(f) >= eof)
+-		goto eof;
+-	o = BGETC(f);
+-	if(o == Beof)
+-		goto eof;
+-	o |= BGETC(f) << 8;
+-	if(o <= AXXX || o >= ALAST) {
+-		if(o < 0)
+-			goto eof;
+-		sysfatal("%s:#%lld: opcode out of range: %#ux\n\tprobably not a .6 file", pn, Boffset(f), o);
+-	}
+-
+-	if(o == ANAME || o == ASIGNAME) {
+-		sig = 0;
+-		if(o == ASIGNAME)
+-			sig = BGETLE4(f);
+-		USED(sig);
+-		v = BGETC(f);	/* type */
+-		o = BGETC(f);	/* sym */
+-		r = 0;
+-		if(v == D_STATIC)
+-			r = ctxt->version;
+-		name = Brdline(f, '\0');
+-		if(name == nil) {
+-			if(Blinelen(f) > 0)
+-				sysfatal("%s: name too long", pn);
+-			goto eof;
+-		}
+-		x = expandpkg(name, pkg);
+-		s = linklookup(ctxt, x, r);
+-		if(x != name)
+-			free(x);
+-
+-		if(ctxt->debugread)
+-			print("	ANAME	%s\n", s->name);
+-		if(o < 0 || o >= nelem(h))
+-			mangle(pn);
+-		h[o] = s;
+-		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
+-			s->type = SXREF;
+-		if(v == D_FILE) {
+-			if(s->type != SFILE) {
+-				ctxt->histgen++;
+-				s->type = SFILE;
+-				s->value = ctxt->histgen;
+-			}
+-			if(ctxt->histfrogp < LinkMaxHist) {
+-				ctxt->histfrog[ctxt->histfrogp] = s;
+-				ctxt->histfrogp++;
+-			} else
+-				collapsefrog(ctxt, s);
+-			if(ctxt->dwarfaddfrag)
+-				ctxt->dwarfaddfrag(s->value, s->name);
+-		}
+-		goto loop;
+-	}
+-
+-	p = emallocz(sizeof(*p));
+-	p->as = o;
+-	p->lineno = BGETLE4(f);
+-	p->back = 2;
+-	p->mode = mode;
+-	zaddr(ctxt, pn, f, &p->from, h, &fromgotype);
+-	zaddr(ctxt, pn, f, &p->to, h, nil);
+-	
+-	switch(p->as) {
+-	case ATEXT:
+-	case ADATA:
+-	case AGLOBL:
+-		if(p->from.sym == nil)
+-			mangle(pn);
+-		break;
+-	}
+-
+-	if(ctxt->debugread)
+-		print("%P\n", p);
+-
+-	switch(p->as) {
+-	case AHISTORY:
+-		if(p->to.offset == -1) {
+-			addlib(ctxt, src, pn);
+-			ctxt->histfrogp = 0;
+-			goto loop;
+-		}
+-		if(src[0] == '\0')
+-			copyhistfrog(ctxt, src, sizeof src);
+-		addhist(ctxt, p->lineno, D_FILE);		/* 'z' */
+-		if(p->to.offset)
+-			addhist(ctxt, p->to.offset, D_FILE1);	/* 'Z' */
+-		savehist(ctxt, p->lineno, p->to.offset);
+-		ctxt->histfrogp = 0;
+-		goto loop;
+-
+-	case AEND:
+-		finish(ctxt);
+-		if(Boffset(f) == eof)
+-			return;
+-		goto newloop;
+-
+-	case AGLOBL:
+-		s = p->from.sym;
+-		if(s->type == 0 || s->type == SXREF) {
+-			s->type = SBSS;
+-			s->size = 0;
+-		}
+-		if(s->type != SBSS && s->type != SNOPTRBSS && !s->dupok) {
+-			ctxt->diag("%s: redefinition: %s in %s",
+-				pn, s->name, ctxt->cursym ? ctxt->cursym->name : "<none>");
+-			s->type = SBSS;
+-			s->size = 0;
+-		}
+-		if(p->to.offset > s->size)
+-			s->size = p->to.offset;
+-		if(p->from.scale & DUPOK)
+-			s->dupok = 1;
+-		if(p->from.scale & RODATA)
+-			s->type = SRODATA;
+-		else if(p->from.scale & NOPTR)
+-			s->type = SNOPTRBSS;
+-		goto loop;
+-
+-	case ADATA:
+-		// Assume that AGLOBL comes after ADATA.
+-		// If we've seen an AGLOBL that said this sym was DUPOK,
+-		// ignore any more ADATA we see, which must be
+-		// redefinitions.
+-		s = p->from.sym;
+-		if(s->dupok) {
+-//			if(ctxt->debugvlog)
+-//				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
+-			goto loop;
+-		}
+-		if(s->file == nil)
+-			s->file = pn;
+-		else if(s->file != pn)
+-			sysfatal("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
+-		savedata(ctxt, s, p, pn);
+-		free(p);
+-		goto loop;
+-
+-	case AGOK:
+-		ctxt->diag("%s: GOK opcode in %s", pn, ctxt->cursym ? ctxt->cursym->name : "<none>");
+-		ctxt->pc++;
+-		goto loop;
+-
+-	case ATYPE:
+-		if(skip)
+-			goto casdef;
+-		ctxt->pc++;
+-		goto loop;
+-
+-	case ATEXT:
+-		s = p->from.sym;
+-		if(s->text != nil) {
+-			if(p->from.scale & DUPOK) {
+-				skip = 1;
+-				goto casdef;
+-			}
+-			ctxt->diag("%s: %s: redefinition", pn, s->name);
+-			return;
+-		}
+-		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
+-			/* redefinition, so file has probably been seen before */
+-			if(ctxt->debugvlog && ctxt->bso)
+-				Bprint(ctxt->bso, "skipping: %s: redefinition: %s", pn, s->name);
+-			return;
+-		}
+-		if(ctxt->cursym != nil && ctxt->cursym->text)
+-			finish(ctxt);
+-		skip = 0;
+-		if(ctxt->etextp)
+-			ctxt->etextp->next = s;
+-		else
+-			ctxt->textp = s;
+-		ctxt->etextp = s;
+-		s->text = p;
+-		ctxt->cursym = s;
+-		if(s->type != 0 && s->type != SXREF) {
+-			if(p->from.scale & DUPOK) {
+-				skip = 1;
+-				goto casdef;
+-			}
+-			ctxt->diag("%s: redefinition: %s\n%P", pn, s->name, p);
+-		}
+-		if(fromgotype) {
+-			if(s->gotype && s->gotype != fromgotype)
+-				ctxt->diag("%s: type mismatch for %s", pn, s->name);
+-			s->gotype = fromgotype;
+-		}
+-		s->type = STEXT;
+-		s->hist = gethist(ctxt);
+-		s->value = ctxt->pc;
+-		s->args = p->to.offset >> 32;
+-		lastp = p;
+-		p->pc = ctxt->pc++;
+-		goto loop;
+-
+-	case AMODE:
+-		if(p->from.type == D_CONST || p->from.type == D_INDIR+D_NONE){
+-			switch((int)p->from.offset){
+-			case 16: case 32: case 64:
+-				mode = p->from.offset;
+-				break;
+-			}
+-		}
+-		goto loop;
+-
+-	case AFMOVF:
+-	case AFADDF:
+-	case AFSUBF:
+-	case AFSUBRF:
+-	case AFMULF:
+-	case AFDIVF:
+-	case AFDIVRF:
+-	case AFCOMF:
+-	case AFCOMFP:
+-	case AMOVSS:
+-	case AADDSS:
+-	case ASUBSS:
+-	case AMULSS:
+-	case ADIVSS:
+-	case ACOMISS:
+-	case AUCOMISS:
+-		if(skip)
+-			goto casdef;
+-		if(p->from.type == D_FCONST) {
+-			/* size sb 9 max */
+-			sprint(literal, "$%.17gf", (float32)p->from.u.dval);
+-			s = linklookup(ctxt, literal, 0);
+-			if(s->type == 0) {
+-				int32 i32;
+-				float32 f32;
+-				s->type = SRODATA;
+-				f32 = p->from.u.dval;
+-				memmove(&i32, &f32, 4);
+-				adduint32(ctxt, s, i32);
+-				s->reachable = 0;
+-			}
+-			p->from.type = D_EXTERN;
+-			p->from.sym = s;
+-			p->from.offset = 0;
+-		}
+-		goto casdef;
+-
+-	case AFMOVD:
+-	case AFADDD:
+-	case AFSUBD:
+-	case AFSUBRD:
+-	case AFMULD:
+-	case AFDIVD:
+-	case AFDIVRD:
+-	case AFCOMD:
+-	case AFCOMDP:
+-	case AMOVSD:
+-	case AADDSD:
+-	case ASUBSD:
+-	case AMULSD:
+-	case ADIVSD:
+-	case ACOMISD:
+-	case AUCOMISD:
+-		if(skip)
+-			goto casdef;
+-		if(p->from.type == D_FCONST) {
+-			/* size sb 18 max */
+-			sprint(literal, "$%.17g", p->from.u.dval);
+-			s = linklookup(ctxt, literal, 0);
+-			if(s->type == 0) {
+-				int64 i64;
+-				s->type = SRODATA;
+-				memmove(&i64, &p->from.u.dval, 8);
+-				adduint64(ctxt, s, i64);
+-				s->reachable = 0;
+-			}
+-			p->from.type = D_EXTERN;
+-			p->from.sym = s;
+-			p->from.offset = 0;
+-		}
+-		goto casdef;
+-
+-	casdef:
+-	default:
+-		if(skip)
+-			nopout6(p);
+-		p->pc = ctxt->pc;
+-		ctxt->pc++;
+-
+-		if(p->to.type == D_BRANCH)
+-			p->to.offset += ipc;
+-		if(lastp == nil) {
+-			if(p->as != ANOP)
+-				ctxt->diag("unexpected instruction: %P", p);
+-			goto loop;
+-		}
+-		lastp->link = p;
+-		lastp = p;
+-		goto loop;
+-	}
+-
+-eof:
+-	ctxt->diag("truncated object file: %s", pn);
+-}
+-
+-static void
+-finish(Link *ctxt)
+-{
+-	LSym *s;
+-	
+-	histtoauto(ctxt);
+-	if(ctxt->cursym != nil && ctxt->cursym->text) {
+-		s = ctxt->cursym;
+-		s->autom = ctxt->curauto;
+-	//	mkfwd(s);
+-	//	linkpatch(ctxt, s);
+-	//	ctxt->arch->follow(ctxt, s);
+-	//	ctxt->arch->addstacksplit(ctxt, s);
+-	//	ctxt->arch->assemble(ctxt, s);
+-	//	linkpcln(ctxt, s);
+-	}
+-
+-	ctxt->curauto = 0;
+-	ctxt->cursym = nil;
+-}
+diff --git a/src/liblink/rdobj8.c b/src/liblink/rdobj8.c
+deleted file mode 100644
+index d84e42889a..0000000000
+--- a/src/liblink/rdobj8.c
++++ /dev/null
+@@ -1,466 +0,0 @@
+-// Inferno utils/8l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/8l/obj.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-#include <u.h>
+-#include <libc.h>
+-#include <bio.h>
+-#include <link.h>
+-#include "../cmd/8l/8.out.h"
+-
+-static LSym*
+-zsym(char *pn, Biobuf *f, LSym *h[])
+-{	
+-	int o;
+-	
+-	o = BGETC(f);
+-	if(o < 0 || o >= NSYM || h[o] == nil)
+-		mangle(pn);
+-	return h[o];
+-}
+-
+-static void finish(Link*);
+-
+-static void
+-zaddr(Link *ctxt, char *pn, Biobuf *f, Addr *a, LSym *h[], LSym **pgotype)
+-{
+-	int t;
+-	int32 l;
+-	LSym *s, *gotype;
+-	Auto *u;
+-	uint64 v;
+-
+-	t = BGETC(f);
+-	a->index = D_NONE;
+-	a->scale = 0;
+-	if(t & T_INDEX) {
+-		a->index = BGETC(f);
+-		a->scale = BGETC(f);
+-	}
+-	a->type = D_NONE;
+-	a->offset = 0;
+-	if(t & T_OFFSET)
+-		a->offset = BGETLE4(f);
+-	a->offset2 = 0;
+-	if(t & T_OFFSET2) {
+-		a->offset2 = BGETLE4(f);
+-		a->type = D_CONST2;
+-	}
+-	a->sym = nil;
+-	if(t & T_SYM)
+-		a->sym = zsym(pn, f, h);
+-	if(t & T_FCONST) {
+-		v = (uint32)BGETLE4(f);
+-		v |= (uint64)BGETLE4(f)<<32;
+-		memmove(&a->u.dval, &v, 8);
+-		a->type = D_FCONST;
+-	} else
+-	if(t & T_SCONST) {
+-		Bread(f, a->u.sval, NSNAME);
+-		a->type = D_SCONST;
+-	}
+-	if(t & T_TYPE)
+-		a->type = BGETC(f);
+-	gotype = nil;
+-	if(t & T_GOTYPE)
+-		gotype = zsym(pn, f, h);
+-	if(pgotype)
+-		*pgotype = gotype;
+-	t = a->type;
+-	if(t == D_INDIR+D_GS)
+-		a->offset += ctxt->tlsoffset;
+-
+-	s = a->sym;
+-	if(s == nil)
+-		return;
+-	if(t != D_AUTO && t != D_PARAM) {
+-		if(gotype)
+-			s->gotype = gotype;
+-		return;
+-	}
+-	l = a->offset;
+-	for(u=ctxt->curauto; u; u=u->link) {
+-		if(u->asym == s)
+-		if(u->type == t) {
+-			if(u->aoffset > l)
+-				u->aoffset = l;
+-			if(gotype)
+-				u->gotype = gotype;
+-			return;
+-		}
+-	}
+-
+-	u = emallocz(sizeof(*u));
+-	u->link = ctxt->curauto;
+-	ctxt->curauto = u;
+-	u->asym = s;
+-	u->aoffset = l;
+-	u->type = t;
+-	u->gotype = gotype;
+-}
+-
+-void
+-nopout8(Prog *p)
+-{
+-	p->as = ANOP;
+-	p->from.type = D_NONE;
+-	p->to.type = D_NONE;
+-}
+-
+-void
+-ldobj8(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn)
+-{
+-	int32 ipc;
+-	Prog *p;
+-	int v, o, r, skip;
+-	LSym *h[NSYM], *s;
+-	uint32 sig;
+-	int ntext;
+-	int32 eof;
+-	char *name, *x;
+-	char src[1024], literal[64];
+-	Prog *lastp;
+-	LSym *fromgotype;
+-
+-	lastp = nil;
+-	ntext = 0;
+-	eof = Boffset(f) + len;
+-	src[0] = 0;
+-	pn = estrdup(pn); // we keep it in LSym* references
+-
+-newloop:
+-	memset(h, 0, sizeof(h));
+-	ctxt->version++;
+-	ctxt->histfrogp = 0;
+-	ipc = ctxt->pc;
+-	skip = 0;
+-
+-loop:
+-	if(f->state == Bracteof || Boffset(f) >= eof)
+-		goto eof;
+-	o = BGETC(f);
+-	if(o == Beof)
+-		goto eof;
+-	o |= BGETC(f) << 8;
+-	if(o <= AXXX || o >= ALAST) {
+-		if(o < 0)
+-			goto eof;
+-		ctxt->diag("%s:#%lld: opcode out of range: %#ux", pn, Boffset(f), o);
+-		print("	probably not a .%c file\n", ctxt->thechar);
+-		sysfatal("invalid file");
+-	}
+-
+-	if(o == ANAME || o == ASIGNAME) {
+-		sig = 0;
+-		if(o == ASIGNAME)
+-			sig = BGETLE4(f);
+-		USED(sig);
+-
+-		v = BGETC(f);	/* type */
+-		o = BGETC(f);	/* sym */
+-		r = 0;
+-		if(v == D_STATIC)
+-			r = ctxt->version;
+-		name = Brdline(f, '\0');
+-		if(name == nil) {
+-			if(Blinelen(f) > 0)
+-				sysfatal("%s: name too long", pn);
+-			goto eof;
+-		}
+-		x = expandpkg(name, pkg);
+-		s = linklookup(ctxt, x, r);
+-		if(x != name)
+-			free(x);
+-
+-		if(ctxt->debugread)
+-			print("	ANAME	%s\n", s->name);
+-		if(o < 0 || o >= nelem(h))
+-			mangle(pn);
+-		h[o] = s;
+-		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
+-			s->type = SXREF;
+-		if(v == D_FILE) {
+-			if(s->type != SFILE) {
+-				ctxt->histgen++;
+-				s->type = SFILE;
+-				s->value = ctxt->histgen;
+-			}
+-			if(ctxt->histfrogp < LinkMaxHist) {
+-				ctxt->histfrog[ctxt->histfrogp] = s;
+-				ctxt->histfrogp++;
+-			} else
+-				collapsefrog(ctxt, s);
+-			ctxt->dwarfaddfrag(s->value, s->name);
+-		}
+-		goto loop;
+-	}
+-
+-	p = emallocz(sizeof(*p));
+-	p->as = o;
+-	p->lineno = BGETLE4(f);
+-	p->back = 2;
+-	zaddr(ctxt, pn, f, &p->from, h, &fromgotype);
+-	zaddr(ctxt, pn, f, &p->to, h, nil);
+-
+-	if(ctxt->debugread)
+-		print("%P\n", p);
+-
+-	switch(p->as) {
+-	case AHISTORY:
+-		if(p->to.offset == -1) {
+-			addlib(ctxt, src, pn);
+-			ctxt->histfrogp = 0;
+-			goto loop;
+-		}
+-		if(src[0] == '\0')
+-			copyhistfrog(ctxt, src, sizeof src);
+-		addhist(ctxt, p->lineno, D_FILE);		/* 'z' */
+-		if(p->to.offset)
+-			addhist(ctxt, p->to.offset, D_FILE1);	/* 'Z' */
+-		savehist(ctxt, p->lineno, p->to.offset);
+-		ctxt->histfrogp = 0;
+-		goto loop;
+-
+-	case AEND:
+-		finish(ctxt);
+-		if(Boffset(f) == eof)
+-			return;
+-		goto newloop;
+-
+-	case AGLOBL:
+-		s = p->from.sym;
+-		if(s->type == 0 || s->type == SXREF) {
+-			s->type = SBSS;
+-			s->size = 0;
+-		}
+-		if(s->type != SBSS && s->type != SNOPTRBSS && !s->dupok) {
+-			ctxt->diag("%s: redefinition: %s in %s",
+-				pn, s->name, ctxt->cursym ? ctxt->cursym->name : "<none>");
+-			s->type = SBSS;
+-			s->size = 0;
+-		}
+-		if(p->to.offset > s->size)
+-			s->size = p->to.offset;
+-		if(p->from.scale & DUPOK)
+-			s->dupok = 1;
+-		if(p->from.scale & RODATA)
+-			s->type = SRODATA;
+-		else if(p->from.scale & NOPTR)
+-			s->type = SNOPTRBSS;
+-		goto loop;
+-
+-	case ADATA:
+-		// Assume that AGLOBL comes after ADATA.
+-		// If we've seen an AGLOBL that said this sym was DUPOK,
+-		// ignore any more ADATA we see, which must be
+-		// redefinitions.
+-		s = p->from.sym;
+-		if(s->dupok) {
+-//			if(ctxt->debugvlog)
+-//				Bprint(ctxt->bso, "skipping %s in %s: dupok\n", s->name, pn);
+-			goto loop;
+-		}
+-		if(s->file == nil)
+-			s->file = pn;
+-		else if(s->file != pn) {
+-			ctxt->diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
+-			sysfatal("multiple init");
+-		}
+-		savedata(ctxt, s, p, pn);
+-		free(p);
+-		goto loop;
+-
+-	case AGOK:
+-		ctxt->diag("%s: GOK opcode in %s", pn, ctxt->cursym ? ctxt->cursym->name : "<none>");
+-		ctxt->pc++;
+-		goto loop;
+-
+-	case ATYPE:
+-		if(skip)
+-			goto casdef;
+-		ctxt->pc++;
+-		goto loop;
+-
+-	case ATEXT:
+-		s = p->from.sym;
+-		if(s->text != nil) {
+-			if(p->from.scale & DUPOK) {
+-				skip = 1;
+-				goto casdef;
+-			}
+-			ctxt->diag("%s: %s: redefinition", pn, s->name);
+-			return;
+-		}
+-		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
+-			/* redefinition, so file has probably been seen before */
+-			if(ctxt->debugvlog)
+-				ctxt->diag("skipping: %s: redefinition: %s", pn, s->name);
+-			return;
+-		}
+-		if(ctxt->cursym != nil && ctxt->cursym->text)
+-			finish(ctxt);
+-		skip = 0;
+-		if(ctxt->etextp)
+-			ctxt->etextp->next = s;
+-		else
+-			ctxt->textp = s;
+-		ctxt->etextp = s;
+-		s->text = p;
+-		ctxt->cursym = s;
+-		if(s->type != 0 && s->type != SXREF) {
+-			if(p->from.scale & DUPOK) {
+-				skip = 1;
+-				goto casdef;
+-			}
+-			ctxt->diag("%s: redefinition: %s\n%P", pn, s->name, p);
+-		}
+-		s->type = STEXT;
+-		s->hist = gethist(ctxt);
+-		s->value = ctxt->pc;
+-		s->args = p->to.offset2;
+-		lastp = p;
+-		p->pc = ctxt->pc++;
+-		goto loop;
+-
+-	case AFMOVF:
+-	case AFADDF:
+-	case AFSUBF:
+-	case AFSUBRF:
+-	case AFMULF:
+-	case AFDIVF:
+-	case AFDIVRF:
+-	case AFCOMF:
+-	case AFCOMFP:
+-	case AMOVSS:
+-	case AADDSS:
+-	case ASUBSS:
+-	case AMULSS:
+-	case ADIVSS:
+-	case ACOMISS:
+-	case AUCOMISS:
+-		if(skip)
+-			goto casdef;
+-		if(p->from.type == D_FCONST) {
+-			/* size sb 9 max */
+-			sprint(literal, "$(%.17gf)", (float32)p->from.u.dval);
+-			s = linklookup(ctxt, literal, 0);
+-			if(s->type == 0) {
+-				float32 f32;
+-				int32 i32;
+-				s->type = SRODATA;
+-				f32 = p->from.u.dval;
+-				memmove(&i32, &f32, 4);
+-				adduint32(ctxt, s, i32);
+-				s->reachable = 0;
+-			}
+-			p->from.type = D_EXTERN;
+-			p->from.sym = s;
+-			p->from.offset = 0;
+-		}
+-		goto casdef;
+-
+-	case AFMOVD:
+-	case AFADDD:
+-	case AFSUBD:
+-	case AFSUBRD:
+-	case AFMULD:
+-	case AFDIVD:
+-	case AFDIVRD:
+-	case AFCOMD:
+-	case AFCOMDP:
+-	case AMOVSD:
+-	case AADDSD:
+-	case ASUBSD:
+-	case AMULSD:
+-	case ADIVSD:
+-	case ACOMISD:
+-	case AUCOMISD:
+-		if(skip)
+-			goto casdef;
+-		if(p->from.type == D_FCONST) {
+-			/* size sb 18 max */
+-			sprint(literal, "$%.17g",
+-				p->from.u.dval);
+-			s = linklookup(ctxt, literal, 0);
+-			if(s->type == 0) {
+-				int64 i64;
+-				s->type = SRODATA;
+-				memmove(&i64, &p->from.u.dval, 8);
+-				adduint64(ctxt, s, i64);
+-				s->reachable = 0;
+-			}
+-			p->from.type = D_EXTERN;
+-			p->from.sym = s;
+-			p->from.offset = 0;
+-		}
+-		goto casdef;
+-
+-	casdef:
+-	default:
+-		if(skip)
+-			nopout8(p);
+-		p->pc = ctxt->pc;
+-		ctxt->pc++;
+-
+-		if(p->to.type == D_BRANCH)
+-			p->to.offset += ipc;
+-		if(lastp == nil) {
+-			if(p->as != ANOP)
+-				ctxt->diag("unexpected instruction: %P", p);
+-			goto loop;
+-		}
+-		lastp->link = p;
+-		lastp = p;
+-		goto loop;
+-	}
+-
+-eof:
+-	ctxt->diag("truncated object file: %s", pn);
+-}
+-
+-static void
+-finish(Link *ctxt)
+-{
+-	LSym *s;
+-	
+-	histtoauto(ctxt);
+-	if(ctxt->cursym != nil && ctxt->cursym->text) {
+-		s = ctxt->cursym;
+-		s->autom = ctxt->curauto;
+-	//	mkfwd(s);
+-	//	linkpatch(ctxt, s);
+-	//	ctxt->arch->follow(ctxt, s);
+-	//	ctxt->arch->addstacksplit(ctxt, s);
+-	//	ctxt->arch->assemble(ctxt, s);
+-	//	linkpcln(ctxt, s);
+-	}
+-
+-	ctxt->curauto = 0;
+-	ctxt->cursym = nil;
+-}
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index e876a5ca04..e2527da3a7 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -40,6 +40,47 @@ yy_isalpha(int c)
+ 	return c >= 0 && c <= 0xFF && isalpha(c);
+ }
+ 
++static struct {
++	char *name;
++	int val;
++} headers[] = {
++	"darwin",	Hdarwin,
++	"dragonfly",	Hdragonfly,
++	"elf",		Helf,
++	"freebsd",	Hfreebsd,
++	"linux",	Hlinux,
++	"netbsd",	Hnetbsd,
++	"openbsd",	Hopenbsd,
++	"plan9",	Hplan9,
++	"windows",	Hwindows,
++	"windowsgui",	Hwindows,
++	0, 0
++};
++
++int
++headtype(char *name)
++{
++	int i;
++
++	for(i=0; headers[i].name; i++)
++		if(strcmp(name, headers[i].name) == 0)
++			return headers[i].val;
++	return -1;
++}
++
++char*
++headstr(int v)
++{
++	static char buf[20];
++	int i;
++
++	for(i=0; headers[i].name; i++)
++		if(v == headers[i].val)
++			return headers[i].name;
++	snprint(buf, sizeof buf, "%d", v);
++	return buf;
++}
++
+ Link*
+ linknew(LinkArch *arch)
+ {
+@@ -53,8 +94,6 @@ linknew(LinkArch *arch)
+ 	ctxt->arch = arch;
+ 	ctxt->version = HistVersion;
+ 
+-	// TODO: Make caller pass in ctxt->arch,
+-	// so that for example 6g only has the linkamd64 code.
+ 	p = getgoarch();
+ 	if(strncmp(p, arch->name, strlen(arch->name)) != 0)
+ 		sysfatal("invalid goarch %s (want %s or derivative)", p, arch->name);
+@@ -71,6 +110,59 @@ linknew(LinkArch *arch)
+ 				*p = '/';
+ 	}
+ 	ctxt->pathname = strdup(buf);
++	
++	ctxt->headtype = headtype(getgoos());
++	if(ctxt->headtype < 0)
++		sysfatal("unknown goos %s", getgoos());
++	
++	// Record thread-local storage offset.
++	switch(ctxt->headtype) {
++	default:
++		sysfatal("unknown thread-local storage offset for %s", headstr(ctxt->headtype));
++	case Hplan9:
++		ctxt->tlsoffset = -2*ctxt->arch->ptrsize;
++		break;
++	case Hwindows:
++		break;
++	case Hlinux:
++	case Hfreebsd:
++	case Hnetbsd:
++	case Hopenbsd:
++	case Hdragonfly:
++		/*
++		 * ELF uses TLS offset negative from FS.
++		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
++		 * Known to low-level assembly in package runtime and runtime/cgo.
++		 */
++		ctxt->tlsoffset = -2*ctxt->arch->ptrsize;
++		break;
++
++	case Hdarwin:
++		/*
++		 * OS X system constants - offset from 0(GS) to our TLS.
++		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_*.c.
++		 */
++		switch(ctxt->arch->thechar) {
++		default:
++			sysfatal("unknown thread-local storage offset for darwin/%s", ctxt->arch->name);
++		case '6':
++			ctxt->tlsoffset = 0x8a0;
++			break;
++		case '8':
++			ctxt->tlsoffset = 0x468;
++			break;
++		}
++		break;
++	}
++	
++	// On arm, record goarm.
++	if(ctxt->arch->thechar == '5') {
++		p = getgoarm();
++		if(p != nil)
++			ctxt->goarm = atoi(p);
++		else
++			ctxt->goarm = 6;
++	}
+ 
+ 	return ctxt;
+ }

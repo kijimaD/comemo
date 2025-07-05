@@ -11,6 +11,27 @@ Date:   Mon Jul 31 10:30:16 2017 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/cookie.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index cf522488c1..38b1b3630e 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -208,7 +208,6 @@ func readCookies(h Header, filter string) []*Cookie {
+ 			continue
+ 		}
+ 		// Per-line attributes
+-		parsedPairs := 0
+ 		for i := 0; i < len(parts); i++ {
+ 			parts[i] = strings.TrimSpace(parts[i])
+ 			if len(parts[i]) == 0 {
+@@ -229,7 +228,6 @@ func readCookies(h Header, filter string) []*Cookie {
+ 				continue
+ 			}
+ 			cookies = append(cookies, &Cookie{Name: name, Value: val})
+-			parsedPairs++
+ 		}
+ 	}
+ 	return cookies

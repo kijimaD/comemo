@@ -7,6 +7,19 @@ Date:   Thu Jul 22 08:54:32 2010 -0700
     R=kaib
     CC=golang-dev
     https://golang.org/cl/1847043
-
+---
  test/run | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/test/run b/test/run
+index 5920e8d994..241e550263 100755
+--- a/test/run
++++ b/test/run
+@@ -71,7 +71,6 @@ do
+ 			cat $TMP1FILE
+ 			if grep -q '^BUG' $TMP1FILE
+ 			then
+-				echo >&2 fail: $i
+ 				echo "# $i	# fail, BUG" >>pass.out
+ 			else
+ 				echo $i >>pass.out

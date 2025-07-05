@@ -22,7 +22,53 @@ Date:   Thu Apr 21 17:49:12 2022 +0900
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/go1.19.html      | 10 ++++++++++
  src/reflect/value.go |  6 ++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 164f967bdd..0bf5472246 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -166,6 +166,16 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl> <!-- os/exec -->
+ 
++<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
++  <dd>
++    <p><!-- CL 401434 -->
++      <a href="/pkg/strconv/#reflect.SliceHeader"></a><code>reflect.SliceHeader</code>
++      and <a href="/pkg/strconv/#reflect.StringHeader"></a><code>reflect.StringHeader</code>
++      are now deprecated, and their use should be avoided.
++    </p>
++  </dd>
++</dl><!-- reflect -->
++
+ <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/51461 -->
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index d68f7ad2e6..0fc19ef101 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2660,6 +2660,9 @@ func (v Value) UnsafePointer() unsafe.Pointer {
+ // Moreover, the Data field is not sufficient to guarantee the data
+ // it references will not be garbage collected, so programs must keep
+ // a separate, correctly typed pointer to the underlying data.
++//
++// Deprecated: this type should not be used, it exists only for
++// backward compatibility.
+ type StringHeader struct {
+ 	Data uintptr
+ 	Len  int
+@@ -2671,6 +2674,9 @@ type StringHeader struct {
+ // Moreover, the Data field is not sufficient to guarantee the data
+ // it references will not be garbage collected, so programs must keep
+ // a separate, correctly typed pointer to the underlying data.
++//
++// Deprecated: this type should not be used, it exists only for
++// backward compatibility.
+ type SliceHeader struct {
+ 	Data uintptr
+ 	Len  int

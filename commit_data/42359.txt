@@ -15,9 +15,110 @@ Date:   Thu Dec 5 18:56:54 2019 -0500
     Change-Id: If202eae4b37cb7f0311d6ca120ffa46609925157
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210179
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/fuse.go      |  2 +-
  src/cmd/compile/internal/ssa/fuse_test.go | 38 +++++++++++++++++++++++++++++--
  src/cmd/compile/internal/ssa/gen/main.go  |  1 +
  src/cmd/compile/internal/ssa/opGen.go     |  1 +
  4 files changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index a530874b80..c2d4051da8 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -145,7 +145,7 @@ func fuseBlockIf(b *Block) bool {
+ // There may be false positives.
+ func isEmpty(b *Block) bool {
+ 	for _, v := range b.Values {
+-		if v.Uses > 0 || v.Type.IsVoid() {
++		if v.Uses > 0 || v.Op.IsCall() || v.Op.HasSideEffects() || v.Type.IsVoid() {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/fuse_test.go b/src/cmd/compile/internal/ssa/fuse_test.go
+index c3e25a80c4..77d2aad5c1 100644
+--- a/src/cmd/compile/internal/ssa/fuse_test.go
++++ b/src/cmd/compile/internal/ssa/fuse_test.go
+@@ -63,7 +63,7 @@ func TestFuseEliminatesBothBranches(t *testing.T) {
+ 			t.Errorf("then was not eliminated, but should have")
+ 		}
+ 		if b == fun.blocks["else"] && b.Kind != BlockInvalid {
+-			t.Errorf("then was not eliminated, but should have")
++			t.Errorf("else was not eliminated, but should have")
+ 		}
+ 	}
+ }
+@@ -97,7 +97,7 @@ func TestFuseHandlesPhis(t *testing.T) {
+ 			t.Errorf("then was not eliminated, but should have")
+ 		}
+ 		if b == fun.blocks["else"] && b.Kind != BlockInvalid {
+-			t.Errorf("then was not eliminated, but should have")
++			t.Errorf("else was not eliminated, but should have")
+ 		}
+ 	}
+ }
+@@ -131,6 +131,40 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
+ 	}
+ }
+ 
++func TestFuseSideEffects(t *testing.T) {
++	// Test that we don't fuse branches that have side effects but
++	// have no use (e.g. followed by infinite loop).
++	// See issue #36005.
++	c := testConfig(t)
++	fun := c.Fun("entry",
++		Bloc("entry",
++			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
++			Valu("b", OpArg, c.config.Types.Bool, 0, nil),
++			If("b", "then", "else")),
++		Bloc("then",
++			Valu("call1", OpStaticCall, types.TypeMem, 0, nil, "mem"),
++			Goto("empty")),
++		Bloc("else",
++			Valu("call2", OpStaticCall, types.TypeMem, 0, nil, "mem"),
++			Goto("empty")),
++		Bloc("empty",
++			Goto("loop")),
++		Bloc("loop",
++			Goto("loop")))
++
++	CheckFunc(fun.f)
++	fuseAll(fun.f)
++
++	for _, b := range fun.f.Blocks {
++		if b == fun.blocks["then"] && b.Kind == BlockInvalid {
++			t.Errorf("then is eliminated, but should not")
++		}
++		if b == fun.blocks["else"] && b.Kind == BlockInvalid {
++			t.Errorf("else is eliminated, but should not")
++		}
++	}
++}
++
+ func BenchmarkFuse(b *testing.B) {
+ 	for _, n := range [...]int{1, 10, 100, 1000, 10000} {
+ 		b.Run(strconv.Itoa(n), func(b *testing.B) {
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 2107da4f4e..8520c68a5a 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -405,6 +405,7 @@ func genOp() {
+ 
+ 	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
+ 	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
++	fmt.Fprintln(w, "func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }")
+ 	fmt.Fprintln(w, "func (o Op) UnsafePoint() bool { return opcodeTable[o].unsafePoint }")
+ 
+ 	// generate registers
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a5951dd4e1..99dc60640c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -31636,6 +31636,7 @@ func (o Op) String() string       { return opcodeTable[o].name }
+ func (o Op) UsesScratch() bool    { return opcodeTable[o].usesScratch }
+ func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }
+ func (o Op) IsCall() bool         { return opcodeTable[o].call }
++func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }
+ func (o Op) UnsafePoint() bool    { return opcodeTable[o].unsafePoint }
+ 
+ var registers386 = [...]Register{

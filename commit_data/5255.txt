@@ -7,10 +7,251 @@ Date:   Fri Apr 9 13:30:11 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/857045
-
+---
  src/libcgo/amd64.S          | 36 ++++++++++++++++++++++++++++++++++
  src/libcgo/darwin_amd64.c   | 32 ++++++++++++++++++++++++++++++
  src/libcgo/freebsd_amd64.c  | 25 +++++++++++++++++++++++
  src/libcgo/linux_amd64.c    | 25 +++++++++++++++++++++++
  src/pkg/runtime/amd64/asm.s | 48 +++++++++++++++++++++++++++++++++++++++------
  5 files changed, 160 insertions(+), 6 deletions(-)
+
+diff --git a/src/libcgo/amd64.S b/src/libcgo/amd64.S
+index a7adff9e97..92ded0ac26 100644
+--- a/src/libcgo/amd64.S
++++ b/src/libcgo/amd64.S
+@@ -43,3 +43,39 @@ EXT(crosscall_amd64):
+ 	popq %rbp
+ 	popq %rbx
+ 	ret
++
++/*
++ * void crosscall2(void (*fn)(void*, int32), void *arg, int32 argsize)
++ *
++ * Save registers and call fn with two arguments.  fn is a Go function
++ * which takes parameters on the stack rather than in registers.
++ */
++.globl EXT(crosscall2)
++EXT(crosscall2):
++	subq  $0x58, %rsp	/* keeps stack pointer 32-byte aligned */
++	movq  %rbx, 0x10(%rsp)
++	movq  %rbp, 0x18(%rsp)
++	movq  %r12, 0x20(%rsp)
++	movq  %r13, 0x28(%rsp)
++	movq  %r14, 0x30(%rsp)
++	movq  %r15, 0x38(%rsp)
++
++	movq  %rdi, %r12	/* fn */
++	movq  %rsi, 0(%rsp)	/* arg */
++	movq  %rdx, 8(%rsp)	/* argsize (includes padding) */
++
++	leaq  0x40(%rsp), %rdi
++	call  EXT(libcgo_get_scheduler)
++	movq  0x40(%rsp), %r14	/* m */
++	movq  0x48(%rsp), %r15	/* g */
++
++	call *%r12
++
++	movq  0x10(%rsp), %rbx
++	movq  0x18(%rsp), %rbp
++	movq  0x20(%rsp), %r12
++	movq  0x28(%rsp), %r13
++	movq  0x30(%rsp), %r14
++	movq  0x38(%rsp), %r15
++	addq  $0x58, %rsp
++	ret
+diff --git a/src/libcgo/darwin_amd64.c b/src/libcgo/darwin_amd64.c
+index 14a409f5eb..2e0e124113 100644
+--- a/src/libcgo/darwin_amd64.c
++++ b/src/libcgo/darwin_amd64.c
+@@ -7,9 +7,19 @@
+ 
+ static void* threadentry(void*);
+ 
++static pthread_key_t km, kg;
++
+ void
+ initcgo(void)
+ {
++	if(pthread_key_create(&km, nil) < 0) {
++		fprintf(stderr, "libcgo: pthread_key_create failed\n");
++		abort();
++	}
++	if(pthread_key_create(&kg, nil) < 0) {
++		fprintf(stderr, "libcgo: pthread_key_create failed\n");
++		abort();
++	}
+ }
+ 
+ void
+@@ -44,3 +54,25 @@ threadentry(void *v)
+ 	crosscall_amd64(ts.m, ts.g, ts.fn);
+ 	return nil;
+ }
++
++void
++libcgo_set_scheduler(void *m, void *g)
++{
++	pthread_setspecific(km, m);
++	pthread_setspecific(kg, g);
++}
++
++struct get_scheduler_args {
++	void *m;
++	void *g;
++};
++
++void libcgo_get_scheduler(struct get_scheduler_args *)
++  __attribute__ ((visibility("hidden")));
++
++void
++libcgo_get_scheduler(struct get_scheduler_args *p)
++{
++	p->m = pthread_getspecific(km);
++	p->g = pthread_getspecific(kg);
++}
+diff --git a/src/libcgo/freebsd_amd64.c b/src/libcgo/freebsd_amd64.c
+index 4eb0e1ee59..4baf16ee80 100644
+--- a/src/libcgo/freebsd_amd64.c
++++ b/src/libcgo/freebsd_amd64.c
+@@ -47,3 +47,28 @@ threadentry(void *v)
+ 	crosscall_amd64(ts.m, ts.g, ts.fn);
+ 	return nil;
+ }
++
++static __thread void *libcgo_m;
++static __thread void *libcgo_g;
++
++void
++libcgo_set_scheduler(void *m, void *g)
++{
++	libcgo_m = m;
++	libcgo_g = g;
++}
++
++struct get_scheduler_args {
++	void *m;
++	void *g;
++};
++
++void libcgo_get_scheduler(struct get_scheduler_args *)
++  __attribute__ ((visibility("hidden")));
++
++void
++libcgo_get_scheduler(struct get_scheduler_args *p)
++{
++	p->m = libcgo_m;
++	p->g = libcgo_g;
++}
+diff --git a/src/libcgo/linux_amd64.c b/src/libcgo/linux_amd64.c
+index 14a409f5eb..fc4a239fb1 100644
+--- a/src/libcgo/linux_amd64.c
++++ b/src/libcgo/linux_amd64.c
+@@ -44,3 +44,28 @@ threadentry(void *v)
+ 	crosscall_amd64(ts.m, ts.g, ts.fn);
+ 	return nil;
+ }
++
++static __thread void *libcgo_m;
++static __thread void *libcgo_g;
++
++void
++libcgo_set_scheduler(void *m, void *g)
++{
++	libcgo_m = m;
++	libcgo_g = g;
++}
++
++struct get_scheduler_args {
++	void *m;
++	void *g;
++};
++
++void libcgo_get_scheduler(struct get_scheduler_args *)
++  __attribute__ ((visibility("hidden")));
++
++void
++libcgo_get_scheduler(struct get_scheduler_args *p)
++{
++	p->m = libcgo_m;
++	p->g = libcgo_g;
++}
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 8fbc9802c2..627af66320 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -276,14 +276,13 @@ TEXT jmpdefer(SB), 7, $0
+ // Save g and m across the call,
+ // since the foreign code might reuse them.
+ TEXT runcgo(SB),7,$32
+-	// Save old registers.
+-	MOVQ	fn+0(FP),AX
+-	MOVQ	arg+8(FP),DI	// DI = first argument in AMD64 ABI
++	MOVQ	fn+0(FP), R12
++	MOVQ	arg+8(FP), R13
+ 	MOVQ	SP, CX
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+-	MOVQ	m_g0(m), R8
+-	CMPQ	R8, g
++	MOVQ	m_g0(m), SI
++	CMPQ	SI, g
+ 	JEQ	2(PC)
+ 	MOVQ	(m_sched+gobuf_sp)(m), SP
+ 
+@@ -293,7 +292,17 @@ TEXT runcgo(SB),7,$32
+ 	MOVQ	g, 24(SP)	// save old g, m, SP
+ 	MOVQ	m, 16(SP)
+ 	MOVQ	CX, 8(SP)
+-	CALL	AX
++
++	// Save g and m values for a potential callback.  The callback
++	// will start running with on the g0 stack and as such should
++	// have g set to m->g0.
++	MOVQ	m, DI		// DI = first argument in AMD64 ABI
++				// SI, second argument, set above
++	MOVQ	libcgo_set_scheduler(SB), BX
++	CALL	BX
++
++	MOVQ	R13, DI		// DI = first argument in AMD64 ABI
++	CALL	R12
+ 
+ 	// Restore registers, stack pointer.
+ 	MOVQ	16(SP), m
+@@ -301,6 +310,32 @@ TEXT runcgo(SB),7,$32
+ 	MOVQ	8(SP), SP
+ 	RET
+ 
++// runcgocallback(G *g1, void* sp, void (*fn)(void))
++// Switch to g1 and sp, call fn, switch back.  fn's arguments are on
++// the new stack.
++TEXT runcgocallback(SB),7,$48
++	MOVQ	g1+0(FP), DX
++	MOVQ	sp+8(FP), AX
++	MOVQ	fp+16(FP), BX
++
++	MOVQ	DX, g
++
++	// We are running on m's scheduler stack.  Save current SP
++	// into m->sched.sp so that a recursive call to runcgo doesn't
++	// clobber our stack, and also so that we can restore
++	// the SP when the call finishes.  Reusing m->sched.sp
++	// for this purpose depends on the fact that there is only
++	// one possible gosave of m->sched.
++	MOVQ	SP, (m_sched+gobuf_sp)(m)
++
++	// Set new SP, call fn
++	MOVQ	AX, SP
++	CALL	BX
++
++	// Restore old SP, return
++	MOVQ	(m_sched+gobuf_sp)(m), SP
++	RET
++
+ // check that SP is in range [g->stackbase, g->stackguard)
+ TEXT stackcheck(SB), 7, $0
+ 	CMPQ	g_stackbase(g), SP
+@@ -337,3 +372,4 @@ TEXT getcallersp(SB),7,$0
+ 	MOVQ	sp+0(FP), AX
+ 	RET
+ 
++GLOBL libcgo_set_scheduler(SB), $8

@@ -9,7 +9,32 @@ Date:   Fri Mar 29 14:16:41 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/8176043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 78d149f029..baf35355e7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -240,6 +240,7 @@ Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+ Robert Dinu <r@oktett.se>
+ Robert Figueiredo <robfig@gmail.com>
+ Robert Hencke <robert.hencke@gmail.com>
++Robert Obryk <robryk@gmail.com>
+ Robin Eklind <r.eklind.87@gmail.com>
+ Rodrigo Moraes de Oliveira <rodrigo.moraes@gmail.com>
+ Rodrigo Rafael Monti Kochenburger <divoxx@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6afe1f0d11..64c5369da0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -349,6 +349,7 @@ Robert Dinu <r@oktett.se>
+ Robert Figueiredo <robfig@gmail.com>
+ Robert Griesemer <gri@golang.org>
+ Robert Hencke <robert.hencke@gmail.com>
++Robert Obryk <robryk@gmail.com>
+ Robin Eklind <r.eklind.87@gmail.com>
+ Rodrigo Moraes de Oliveira <rodrigo.moraes@gmail.com>
+ Rodrigo Rafael Monti Kochenburger <divoxx@gmail.com>

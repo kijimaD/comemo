@@ -9,6 +9,20 @@ Date:   Tue Sep 18 01:28:58 2018 +0300
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/html.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index c51ea02262..b7d5f912db 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -484,7 +484,7 @@ func (x ByTopo) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+ func (x ByTopo) Less(i, j int) bool {
+ 	a := x[i]
+ 	b := x[j]
+-	if a.Filename == a.Filename {
++	if a.Filename == b.Filename {
+ 		return a.StartLineno < b.StartLineno
+ 	}
+ 	return a.Filename < b.Filename

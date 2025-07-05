@@ -10,7 +10,7 @@ Date:   Mon Mar 28 21:48:47 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21248
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go     |  3 +--
  src/cmd/compile/internal/gc/bexport.go   |  4 ++--
  src/cmd/compile/internal/gc/fmt.go       |  8 ++++----
@@ -22,3 +22,319 @@ Date:   Mon Mar 28 21:48:47 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
  src/cmd/compile/internal/gc/walk.go      | 16 ++++++++--------
  10 files changed, 40 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 61a3394337..e852c0b122 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -213,8 +213,7 @@ func dowidth(t *Type) {
+ 
+ 	case TMAP: // implemented as pointer
+ 		w = int64(Widthptr)
+-
+-		checkwidth(t.Type)
++		checkwidth(t.Val())
+ 		checkwidth(t.Key())
+ 
+ 	case TFORW: // should have been filled in
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 518666c767..dd1af1c0f8 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -542,8 +542,8 @@ func (p *exporter) typ(t *Type) {
+ 
+ 	case TMAP:
+ 		p.tag(mapTag)
+-		p.typ(t.Key()) // key
+-		p.typ(t.Type)  // val
++		p.typ(t.Key())
++		p.typ(t.Val())
+ 
+ 	case TCHAN:
+ 		p.tag(chanTag)
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 8f809c82ee..11122a4741 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -609,7 +609,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 		return "chan " + t.Type.String()
+ 
+ 	case TMAP:
+-		return "map[" + t.Key().String() + "]" + t.Type.String()
++		return "map[" + t.Key().String() + "]" + t.Val().String()
+ 
+ 	case TINTER:
+ 		var buf bytes.Buffer
+@@ -674,15 +674,15 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 			// Format the bucket struct for map[x]y as map.bucket[x]y.
+ 			// This avoids a recursive print that generates very long names.
+ 			if t.Map.Bucket == t {
+-				return "map.bucket[" + t.Map.Key().String() + "]" + t.Map.Type.String()
++				return "map.bucket[" + t.Map.Key().String() + "]" + t.Map.Val().String()
+ 			}
+ 
+ 			if t.Map.Hmap == t {
+-				return "map.hdr[" + t.Map.Key().String() + "]" + t.Map.Type.String()
++				return "map.hdr[" + t.Map.Key().String() + "]" + t.Map.Val().String()
+ 			}
+ 
+ 			if t.Map.Hiter == t {
+-				return "map.iter[" + t.Map.Key().String() + "]" + t.Map.Type.String()
++				return "map.iter[" + t.Map.Key().String() + "]" + t.Map.Val().String()
+ 			}
+ 
+ 			Yyerror("unknown internal map type")
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 75315aadf9..9ff1531f0d 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -55,7 +55,7 @@ func typecheckrange(n *Node) {
+ 
+ 	case TMAP:
+ 		t1 = t.Key()
+-		t2 = t.Type
++		t2 = t.Val()
+ 
+ 	case TCHAN:
+ 		if t.Chan&Crecv == 0 {
+@@ -231,7 +231,7 @@ func walkrange(n *Node) {
+ 
+ 		fn := syslook("mapiterinit")
+ 
+-		fn = substArgTypes(fn, t.Key(), t.Type, th)
++		fn = substArgTypes(fn, t.Key(), t.Val(), th)
+ 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
+ 		n.Left = Nod(ONE, NodSym(ODOT, hit, keysym), nodnil())
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 9890782916..d320d37ae5 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -82,7 +82,7 @@ func mapbucket(t *Type) *Type {
+ 
+ 	bucket := typ(TSTRUCT)
+ 	keytype := t.Key()
+-	valtype := t.Type
++	valtype := t.Val()
+ 	dowidth(keytype)
+ 	dowidth(valtype)
+ 	if keytype.Width > MAXKEYSIZE {
+@@ -125,7 +125,7 @@ func mapbucket(t *Type) *Type {
+ 	// so if the struct needs 64-bit padding (because a key or value does)
+ 	// then it would end with an extra 32-bit padding field.
+ 	// Preempt that by emitting the padding here.
+-	if int(t.Type.Align) > Widthptr || int(t.Key().Align) > Widthptr {
++	if int(t.Val().Align) > Widthptr || int(t.Key().Align) > Widthptr {
+ 		field = append(field, makefield("pad", Types[TUINTPTR]))
+ 	}
+ 
+@@ -136,7 +136,7 @@ func mapbucket(t *Type) *Type {
+ 	// the type of the overflow field to uintptr in this case.
+ 	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
+ 	otyp := Ptrto(bucket)
+-	if !haspointers(t.Type) && !haspointers(t.Key()) && t.Type.Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
++	if !haspointers(t.Val()) && !haspointers(t.Key()) && t.Val().Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
+ 		otyp = Types[TUINTPTR]
+ 	}
+ 	ovf := makefield("overflow", otyp)
+@@ -211,7 +211,7 @@ func hiter(t *Type) *Type {
+ 	// must match ../../../../runtime/hashmap.go:hiter.
+ 	var field [12]*Field
+ 	field[0] = makefield("key", Ptrto(t.Key()))
+-	field[1] = makefield("val", Ptrto(t.Type))
++	field[1] = makefield("val", Ptrto(t.Val()))
+ 	field[2] = makefield("t", Ptrto(Types[TUINT8]))
+ 	field[3] = makefield("h", Ptrto(hmap(t)))
+ 	field[4] = makefield("buckets", Ptrto(mapbucket(t)))
+@@ -1226,7 +1226,7 @@ ok:
+ 	// ../../../../runtime/type.go:/mapType
+ 	case TMAP:
+ 		s1 := dtypesym(t.Key())
+-		s2 := dtypesym(t.Type)
++		s2 := dtypesym(t.Val())
+ 		s3 := dtypesym(mapbucket(t))
+ 		s4 := dtypesym(hmap(t))
+ 		ot = dcommontype(s, ot, t)
+@@ -1242,11 +1242,11 @@ ok:
+ 			ot = duint8(s, ot, 0) // not indirect
+ 		}
+ 
+-		if t.Type.Width > MAXVALSIZE {
++		if t.Val().Width > MAXVALSIZE {
+ 			ot = duint8(s, ot, uint8(Widthptr))
+ 			ot = duint8(s, ot, 1) // indirect
+ 		} else {
+-			ot = duint8(s, ot, uint8(t.Type.Width))
++			ot = duint8(s, ot, uint8(t.Val().Width))
+ 			ot = duint8(s, ot, 0) // not indirect
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 71b54192c9..8cf22f50cf 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -860,7 +860,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		// build type [count]struct { a Tindex, b Tvalue }
+ 		t := n.Type
+ 		tk := t.Key()
+-		tv := t.Type
++		tv := t.Val()
+ 
+ 		syma := Lookup("a")
+ 		symb := Lookup("b")
+@@ -969,7 +969,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		// use temporary so that mapassign1 can have addressable key, val.
+ 		if key == nil {
+ 			key = temp(var_.Type.Key())
+-			val = temp(var_.Type.Type)
++			val = temp(var_.Type.Val())
+ 		}
+ 
+ 		setlineno(r.Left)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 0c45750acf..370380b3bb 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -773,6 +773,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
+ 		if !eqtype1(t1.Key(), t2.Key(), assumedEqual) {
+ 			return false
+ 		}
++		return eqtype1(t1.Val(), t2.Val(), assumedEqual)
+ 	}
+ 
+ 	return eqtype1(t1.Type, t2.Type, assumedEqual)
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index de0b718b45..6653f092f9 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -342,6 +342,12 @@ func (t *Type) Key() *Type {
+ 	return t.Down
+ }
+ 
++// Val returns the value type of map type t.
++func (t *Type) Val() *Type {
++	t.wantEtype(TMAP)
++	return t.Type
++}
++
+ func (t *Type) Methods() *Fields {
+ 	// TODO(mdempsky): Validate t?
+ 	return &t.methods
+@@ -524,9 +530,10 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 
+ 	switch t.Etype {
+ 	case TMAP:
+-		if c := t.Down.cmp(x.Down); c != ssa.CMPeq {
++		if c := t.Key().cmp(x.Key()); c != ssa.CMPeq {
+ 			return c
+ 		}
++		return t.Val().cmp(x.Val())
+ 
+ 	case TPTR32, TPTR64:
+ 		// No special cases for these two, they are handled
+@@ -614,7 +621,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 		panic(e)
+ 	}
+ 
+-	// Common element type comparison for TARRAY, TCHAN, TMAP, TPTR32, and TPTR64.
++	// Common element type comparison for TARRAY, TCHAN, TPTR32, and TPTR64.
+ 	return t.Type.cmp(x.Type)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 4e575d0df0..705ca5544b 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1026,7 +1026,7 @@ OpSwitch:
+ 			if n.Right.Type != nil {
+ 				n.Right = assignconv(n.Right, t.Key(), "map index")
+ 			}
+-			n.Type = t.Type
++			n.Type = t.Val()
+ 			n.Op = OINDEXMAP
+ 		}
+ 
+@@ -3021,10 +3021,10 @@ func typecheckcomplit(n *Node) *Node {
+ 			}
+ 
+ 			r = l.Right
+-			pushtype(r, t.Type)
++			pushtype(r, t.Val())
+ 			r = typecheck(r, Erv)
+-			r = defaultlit(r, t.Type)
+-			l.Right = assignconv(r, t.Type, "map value")
++			r = defaultlit(r, t.Val())
++			l.Right = assignconv(r, t.Val(), "map value")
+ 		}
+ 
+ 		n.Op = OMAPLIT
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7be30aab24..3e5f963a21 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -835,7 +835,7 @@ opswitch:
+ 		r.Right = walkexpr(r.Right, init)
+ 		t := r.Left.Type
+ 		p := ""
+-		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
++		if t.Val().Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+ 			switch algtype(t.Key()) {
+ 			case AMEM32:
+ 				p = "mapaccess2_fast32"
+@@ -879,7 +879,7 @@ opswitch:
+ 
+ 		// don't generate a = *var if a is _
+ 		if !isblank(a) {
+-			var_ := temp(Ptrto(t.Type))
++			var_ := temp(Ptrto(t.Val()))
+ 			var_.Typecheck = 1
+ 			n.List.SetIndex(0, var_)
+ 			n = walkexpr(n, init)
+@@ -1200,7 +1200,7 @@ opswitch:
+ 
+ 		t := n.Left.Type
+ 		p := ""
+-		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
++		if t.Val().Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+ 			switch algtype(t.Key()) {
+ 			case AMEM32:
+ 				p = "mapaccess1_fast32"
+@@ -1223,9 +1223,9 @@ opswitch:
+ 			p = "mapaccess1"
+ 		}
+ 
+-		n = mkcall1(mapfn(p, t), Ptrto(t.Type), init, typename(t), n.Left, key)
++		n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key)
+ 		n = Nod(OIND, n, nil)
+-		n.Type = t.Type
++		n.Type = t.Val()
+ 		n.Typecheck = 1
+ 
+ 	case ORECV:
+@@ -1393,7 +1393,7 @@ opswitch:
+ 		}
+ 
+ 		fn := syslook("makemap")
+-		fn = substArgTypes(fn, hmap(t), mapbucket(t), t.Key(), t.Type)
++		fn = substArgTypes(fn, hmap(t), mapbucket(t), t.Key(), t.Val())
+ 		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(n.Left, Types[TINT64]), a, r)
+ 
+ 	case OMAKESLICE:
+@@ -2647,7 +2647,7 @@ func mapfn(name string, t *Type) *Node {
+ 		Fatalf("mapfn %v", t)
+ 	}
+ 	fn := syslook(name)
+-	fn = substArgTypes(fn, t.Key(), t.Type, t.Key(), t.Type)
++	fn = substArgTypes(fn, t.Key(), t.Val(), t.Key(), t.Val())
+ 	return fn
+ }
+ 
+@@ -2656,7 +2656,7 @@ func mapfndel(name string, t *Type) *Node {
+ 		Fatalf("mapfn %v", t)
+ 	}
+ 	fn := syslook(name)
+-	fn = substArgTypes(fn, t.Key(), t.Type, t.Key())
++	fn = substArgTypes(fn, t.Key(), t.Val(), t.Key())
+ 	return fn
+ }
+ 

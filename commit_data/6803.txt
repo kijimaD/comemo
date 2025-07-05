@@ -8,7 +8,112 @@ Date:   Tue Nov 30 12:59:52 2010 -0800
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/3280045
-
+---
  src/pkg/fmt/scan.go      |  8 +++++++
  src/pkg/fmt/scan_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 66 insertions(+)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 41a12d9957..9b414cb9a7 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -546,8 +546,16 @@ func (s *ss) scanUint(verb int, bitSize int) uint64 {
+ // we have at least some digits, but Atof will do that.
+ func (s *ss) floatToken() string {
+ 	s.buf.Reset()
++	// NaN?
++	if s.accept("nN") && s.accept("aA") && s.accept("nN") {
++		return s.buf.String()
++	}
+ 	// leading sign?
+ 	s.accept(sign)
++	// Inf?
++	if s.accept("iI") && s.accept("nN") && s.accept("fF") {
++		return s.buf.String()
++	}
+ 	// digits?
+ 	for s.accept(decimalDigits) {
+ 	}
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 9193932003..cf8a3a766f 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	. "fmt"
+ 	"io"
++	"math"
+ 	"os"
+ 	"reflect"
+ 	"regexp"
+@@ -80,6 +81,12 @@ var (
+ 	renamedComplex128Val renamedComplex128
+ )
+ 
++type FloatTest struct {
++	text string
++	in   float64
++	out  float64
++}
++
+ // Xs accepts any non-empty run of the verb character
+ type Xs string
+ 
+@@ -399,6 +406,57 @@ func TestScanOverflow(t *testing.T) {
+ 	}
+ }
+ 
++func verifyNaN(str string, t *testing.T) {
++	var f float
++	var f32 float32
++	var f64 float64
++	text := str + " " + str + " " + str
++	n, err := Fscan(strings.NewReader(text), &f, &f32, &f64)
++	if err != nil {
++		t.Errorf("got error scanning %q: %s", text, err)
++	}
++	if n != 3 {
++		t.Errorf("count error scanning %q: got %d", text, n)
++	}
++	if !math.IsNaN(float64(f)) || !math.IsNaN(float64(f32)) || !math.IsNaN(f64) {
++		t.Errorf("didn't get NaNs scanning %q: got %g %g %g", text, f, f32, f64)
++	}
++}
++
++func TestNaN(t *testing.T) {
++	for _, s := range []string{"nan", "NAN", "NaN"} {
++		verifyNaN(s, t)
++	}
++}
++
++func verifyInf(str string, t *testing.T) {
++	var f float
++	var f32 float32
++	var f64 float64
++	text := str + " " + str + " " + str
++	n, err := Fscan(strings.NewReader(text), &f, &f32, &f64)
++	if err != nil {
++		t.Errorf("got error scanning %q: %s", text, err)
++	}
++	if n != 3 {
++		t.Errorf("count error scanning %q: got %d", text, n)
++	}
++	sign := 1
++	if str[0] == '-' {
++		sign = -1
++	}
++	if !math.IsInf(float64(f), sign) || !math.IsInf(float64(f32), sign) || !math.IsInf(f64, sign) {
++		t.Errorf("didn't get right Infs scanning %q: got %g %g %g", text, f, f32, f64)
++	}
++}
++
++
++func TestInf(t *testing.T) {
++	for _, s := range []string{"inf", "+inf", "-inf", "INF", "-INF", "+INF", "Inf", "-Inf", "+Inf"} {
++		verifyInf(s, t)
++	}
++}
++
+ // TODO: there's no conversion from []T to ...T, but we can fake it.  These
+ // functions do the faking.  We index the table by the length of the param list.
+ var fscanf = []func(io.Reader, string, []interface{}) (int, os.Error){

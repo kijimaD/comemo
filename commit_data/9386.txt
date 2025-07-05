@@ -8,8 +8,72 @@ Date:   Tue Aug 16 18:36:51 2011 -0400
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4905042
-
+---
  src/pkg/net/fd.go       | 7 ++++++-
  src/pkg/net/tcpsock.go  | 8 ++++++++
  src/pkg/net/unixsock.go | 8 ++++++++
  3 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index fd39d858c3..707dccaa42 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -585,6 +585,11 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
+ 
+ 	fd.incref()
+ 	defer fd.decref()
++	if fd.rdeadline_delta > 0 {
++		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
++	} else {
++		fd.rdeadline = 0
++	}
+ 
+ 	// See ../syscall/exec.go for description of ForkLock.
+ 	// It is okay to hold the lock across syscall.Accept
+@@ -598,7 +603,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
+ 			return nil, os.EINVAL
+ 		}
+ 		s, rsa, e = syscall.Accept(fd.sysfd)
+-		if e != syscall.EAGAIN {
++		if e != syscall.EAGAIN || fd.rdeadline < 0 {
+ 			break
+ 		}
+ 		syscall.ForkLock.RUnlock()
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index 9ee6c14f7a..a118fced4e 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -298,6 +298,14 @@ func (l *TCPListener) Close() os.Error {
+ // Addr returns the listener's network address, a *TCPAddr.
+ func (l *TCPListener) Addr() Addr { return l.fd.laddr }
+ 
++// SetTimeout sets the deadline associated with the listener
++func (l *TCPListener) SetTimeout(nsec int64) os.Error {
++	if l == nil || l.fd == nil {
++		return os.EINVAL
++	}
++	return setTimeout(l.fd, nsec)
++}
++
+ // File returns a copy of the underlying os.File, set to blocking mode.
+ // It is the caller's responsibility to close f when finished.
+ // Closing c does not affect f, and closing f does not affect c.
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index 8c26a7bafd..0bea867b18 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -423,6 +423,14 @@ func (l *UnixListener) Close() os.Error {
+ // Addr returns the listener's network address.
+ func (l *UnixListener) Addr() Addr { return l.fd.laddr }
+ 
++// SetTimeout sets the deadline associated wuth the listener
++func (l *UnixListener) SetTimeout(nsec int64) (err os.Error) {
++	if l == nil || l.fd == nil {
++		return os.EINVAL
++	}
++	return setTimeout(l.fd, nsec)
++}
++
+ // File returns a copy of the underlying os.File, set to blocking mode.
+ // It is the caller's responsibility to close f when finished.
+ // Closing c does not affect f, and closing f does not affect c.

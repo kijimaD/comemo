@@ -7,6 +7,19 @@ Date:   Wed Jun 12 14:05:13 2013 +1000
     R=golang-dev, rsc
     CC=golang-dev, jhoak
     https://golang.org/cl/10217043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 074e4150d7..a3712fad5d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -248,6 +248,7 @@ Jos Visser <josv@google.com>
+ Jose Luis Vázquez González <josvazg@gmail.com>
+ Joseph Bonneau <jcb@google.com>
+ Josh Goebel <dreamer3@gmail.com>
++Josh Hoak <jhoak@google.com>
+ Josh Holland <jrh@joshh.co.uk>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Julian Phillips <julian@quantumfyre.co.uk>

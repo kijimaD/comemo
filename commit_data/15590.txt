@@ -10,6 +10,48 @@ Date:   Tue Mar 5 09:40:17 2013 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7422054
-
+---
  src/pkg/runtime/crash_test.go | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index 5f84cb5a2f..80549a5054 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -91,6 +91,14 @@ func TestLockedDeadlock2(t *testing.T) {
+ 	testDeadlock(t, lockedDeadlockSource2)
+ }
+ 
++func TestGoexitDeadlock(t *testing.T) {
++	got := executeTest(t, goexitDeadlockSource, nil)
++	want := ""
++	if got != want {
++		t.Fatalf("expected %q, but got %q", want, got)
++	}
++}
++
+ const crashSource = `
+ package main
+ 
+@@ -175,3 +183,21 @@ func main() {
+ 	select {}
+ }
+ `
++
++const goexitDeadlockSource = `
++package main
++import (
++      "runtime"
++)
++
++func F() {
++      for i := 0; i < 10; i++ {
++      }
++}
++
++func main() {
++      go F()
++      go F()
++      runtime.Goexit()
++}
++`

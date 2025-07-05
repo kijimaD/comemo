@@ -11,6 +11,21 @@ Date:   Mon Sep 12 15:10:04 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/dist/test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index a3c565967f..dbb30fe990 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -423,7 +423,8 @@ func (t *tester) registerTests() {
+ 	}
+ 
+ 	// Test internal linking of PIE binaries where it is supported.
+-	if t.goos == "linux" && t.goarch == "amd64" {
++	// TODO(crawshaw): enable when golang.org/issue/17068 is resolved
++	if false && t.goos == "linux" && t.goarch == "amd64" {
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "pie_internal",
+ 			heading: "internal linking of -buildmode=pie",

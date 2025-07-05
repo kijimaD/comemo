@@ -9,6 +9,19 @@ Date:   Sat Mar 24 17:33:16 2018 +0000
     GitHub-Pull-Request: golang/go#24517
     Reviewed-on: https://go-review.googlesource.com/102396
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/test2json/main.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index 654c00a6df..0385d8f246 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -48,6 +48,7 @@
+ //	bench  - the benchmark printed log output but did not fail
+ //	fail   - the test or benchmark failed
+ //	output - the test printed output
++//	skip   - the test was skipped or the package contained no tests
+ //
+ // The Package field, if present, specifies the package being tested.
+ // When the go command runs parallel tests in -json mode, events from

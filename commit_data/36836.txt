@@ -11,6 +11,20 @@ Date:   Thu May 31 13:16:24 2018 -0400
     Change-Id: I4732b491e2368cff9fdbfe070c125228d6f506fd
     Reviewed-on: https://go-review.googlesource.com/115595
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/pprof/readlineui.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/pprof/readlineui.go b/src/cmd/pprof/readlineui.go
+index 67fb7aa49c..6e91816f9b 100644
+--- a/src/cmd/pprof/readlineui.go
++++ b/src/cmd/pprof/readlineui.go
+@@ -86,7 +86,7 @@ func (r *readlineUI) print(withColor bool, args ...interface{}) {
+ 	if withColor {
+ 		text = colorize(text)
+ 	}
+-	fmt.Fprintf(r.term, text)
++	fmt.Fprint(r.term, text)
+ }
+ 
+ // colorize prints the msg in red using ANSI color escapes.

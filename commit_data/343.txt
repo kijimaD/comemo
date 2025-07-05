@@ -5,7 +5,7 @@ Date:   Sun Jul 13 14:29:46 2008 -0700
     chan
     
     SVN=126958
-
+---
  src/cmd/gc/sys.go      |   6 ++
  src/cmd/gc/sysimport.c | 241 +++++++++++++++++++++++++++----------------------
  src/cmd/gc/walk.c      |  82 ++++++++++++++++-
@@ -15,3 +15,1179 @@ Date:   Sun Jul 13 14:29:46 2008 -0700
  src/runtime/runtime.c  | 147 +++++++++++++++++++++++++++++-
  src/runtime/runtime.h  | 103 ++++++++++++---------
  8 files changed, 500 insertions(+), 309 deletions(-)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index bb731315a1..31926685c1 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -45,6 +45,9 @@ func	mapassign1(hmap *map[any]any, key any, val any);
+ func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
+ 
+ func	newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
++func	chansend(hchan *chan any, elem any);
++func	chanrecv1(hchan *chan any) (elem any);
++func	chanrecv2(hchan *chan any) (elem any, pres bool);
+ 
+ func	gosched();
+ func	goexit();
+@@ -100,6 +103,9 @@ export
+ 
+ 	// chan
+ 	newchan
++	chansend
++	chanrecv1
++	chanrecv2
+ 
+ 	// go routines
+ 	gosched
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 6e01adbd49..b4812ac6fa 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -3,10 +3,10 @@ char*	sysimport =
+ 	"type sys._esys_002 {}\n"
+ 	"type sys.any 24\n"
+ 	"type sys._esys_003 *sys.any\n"
+-	"type sys._osys_281 {_esys_279 sys._esys_003}\n"
++	"type sys._osys_298 {_esys_296 sys._esys_003}\n"
+ 	"type sys.uint32 6\n"
+-	"type sys._isys_283 {_esys_280 sys.uint32}\n"
+-	"type sys._esys_001 (sys._esys_002 sys._osys_281 sys._isys_283)\n"
++	"type sys._isys_300 {_esys_297 sys.uint32}\n"
++	"type sys._esys_001 (sys._esys_002 sys._osys_298 sys._isys_300)\n"
+ 	"var !sys.mal sys._esys_001\n"
+ 	"type sys._esys_005 {}\n"
+ 	"type sys._esys_006 {}\n"
+@@ -16,209 +16,230 @@ char*	sysimport =
+ 	"type sys._esys_009 {}\n"
+ 	"type sys._esys_010 {}\n"
+ 	"type sys.int32 5\n"
+-	"type sys._isys_289 {_esys_288 sys.int32}\n"
+-	"type sys._esys_008 (sys._esys_009 sys._esys_010 sys._isys_289)\n"
++	"type sys._isys_306 {_esys_305 sys.int32}\n"
++	"type sys._esys_008 (sys._esys_009 sys._esys_010 sys._isys_306)\n"
+ 	"var !sys.panicl sys._esys_008\n"
+ 	"type sys._esys_012 {}\n"
+ 	"type sys._esys_013 {}\n"
+ 	"type sys.bool 12\n"
+-	"type sys._isys_294 {_esys_293 sys.bool}\n"
+-	"type sys._esys_011 (sys._esys_012 sys._esys_013 sys._isys_294)\n"
++	"type sys._isys_311 {_esys_310 sys.bool}\n"
++	"type sys._esys_011 (sys._esys_012 sys._esys_013 sys._isys_311)\n"
+ 	"var !sys.printbool sys._esys_011\n"
+ 	"type sys._esys_015 {}\n"
+ 	"type sys._esys_016 {}\n"
+ 	"type sys.float64 10\n"
+-	"type sys._isys_299 {_esys_298 sys.float64}\n"
+-	"type sys._esys_014 (sys._esys_015 sys._esys_016 sys._isys_299)\n"
++	"type sys._isys_316 {_esys_315 sys.float64}\n"
++	"type sys._esys_014 (sys._esys_015 sys._esys_016 sys._isys_316)\n"
+ 	"var !sys.printfloat sys._esys_014\n"
+ 	"type sys._esys_018 {}\n"
+ 	"type sys._esys_019 {}\n"
+ 	"type sys.int64 7\n"
+-	"type sys._isys_304 {_esys_303 sys.int64}\n"
+-	"type sys._esys_017 (sys._esys_018 sys._esys_019 sys._isys_304)\n"
++	"type sys._isys_321 {_esys_320 sys.int64}\n"
++	"type sys._esys_017 (sys._esys_018 sys._esys_019 sys._isys_321)\n"
+ 	"var !sys.printint sys._esys_017\n"
+ 	"type sys._esys_021 {}\n"
+ 	"type sys._esys_022 {}\n"
+ 	"type sys._esys_023 25\n"
+ 	"type sys.string *sys._esys_023\n"
+-	"type sys._isys_309 {_esys_308 sys.string}\n"
+-	"type sys._esys_020 (sys._esys_021 sys._esys_022 sys._isys_309)\n"
++	"type sys._isys_326 {_esys_325 sys.string}\n"
++	"type sys._esys_020 (sys._esys_021 sys._esys_022 sys._isys_326)\n"
+ 	"var !sys.printstring sys._esys_020\n"
+ 	"type sys._esys_025 {}\n"
+ 	"type sys._esys_026 {}\n"
+ 	"type sys.uint8 2\n"
+ 	"type sys._esys_027 *sys.uint8\n"
+-	"type sys._isys_314 {_esys_313 sys._esys_027}\n"
+-	"type sys._esys_024 (sys._esys_025 sys._esys_026 sys._isys_314)\n"
++	"type sys._isys_331 {_esys_330 sys._esys_027}\n"
++	"type sys._esys_024 (sys._esys_025 sys._esys_026 sys._isys_331)\n"
+ 	"var !sys.printpointer sys._esys_024\n"
+ 	"type sys._esys_029 {}\n"
+-	"type sys._osys_321 {_esys_318 sys.string}\n"
+-	"type sys._isys_323 {_esys_319 sys.string _esys_320 sys.string}\n"
+-	"type sys._esys_028 (sys._esys_029 sys._osys_321 sys._isys_323)\n"
++	"type sys._osys_338 {_esys_335 sys.string}\n"
++	"type sys._isys_340 {_esys_336 sys.string _esys_337 sys.string}\n"
++	"type sys._esys_028 (sys._esys_029 sys._osys_338 sys._isys_340)\n"
+ 	"var !sys.catstring sys._esys_028\n"
+ 	"type sys._esys_031 {}\n"
+-	"type sys._osys_331 {_esys_328 sys.int32}\n"
+-	"type sys._isys_333 {_esys_329 sys.string _esys_330 sys.string}\n"
+-	"type sys._esys_030 (sys._esys_031 sys._osys_331 sys._isys_333)\n"
++	"type sys._osys_348 {_esys_345 sys.int32}\n"
++	"type sys._isys_350 {_esys_346 sys.string _esys_347 sys.string}\n"
++	"type sys._esys_030 (sys._esys_031 sys._osys_348 sys._isys_350)\n"
+ 	"var !sys.cmpstring sys._esys_030\n"
+ 	"type sys._esys_033 {}\n"
+-	"type sys._osys_342 {_esys_338 sys.string}\n"
+-	"type sys._isys_344 {_esys_339 sys.string _esys_340 sys.int32 _esys_341 sys.int32}\n"
+-	"type sys._esys_032 (sys._esys_033 sys._osys_342 sys._isys_344)\n"
++	"type sys._osys_359 {_esys_355 sys.string}\n"
++	"type sys._isys_361 {_esys_356 sys.string _esys_357 sys.int32 _esys_358 sys.int32}\n"
++	"type sys._esys_032 (sys._esys_033 sys._osys_359 sys._isys_361)\n"
+ 	"var !sys.slicestring sys._esys_032\n"
+ 	"type sys._esys_035 {}\n"
+-	"type sys._osys_353 {_esys_350 sys.uint8}\n"
+-	"type sys._isys_355 {_esys_351 sys.string _esys_352 sys.int32}\n"
+-	"type sys._esys_034 (sys._esys_035 sys._osys_353 sys._isys_355)\n"
++	"type sys._osys_370 {_esys_367 sys.uint8}\n"
++	"type sys._isys_372 {_esys_368 sys.string _esys_369 sys.int32}\n"
++	"type sys._esys_034 (sys._esys_035 sys._osys_370 sys._isys_372)\n"
+ 	"var !sys.indexstring sys._esys_034\n"
+ 	"type sys._esys_037 {}\n"
+-	"type sys._osys_362 {_esys_360 sys.string}\n"
+-	"type sys._isys_364 {_esys_361 sys.int64}\n"
+-	"type sys._esys_036 (sys._esys_037 sys._osys_362 sys._isys_364)\n"
++	"type sys._osys_379 {_esys_377 sys.string}\n"
++	"type sys._isys_381 {_esys_378 sys.int64}\n"
++	"type sys._esys_036 (sys._esys_037 sys._osys_379 sys._isys_381)\n"
+ 	"var !sys.intstring sys._esys_036\n"
+ 	"type sys._esys_039 {}\n"
+-	"type sys._osys_371 {_esys_368 sys.string}\n"
++	"type sys._osys_388 {_esys_385 sys.string}\n"
+ 	"type sys._esys_040 *sys.uint8\n"
+-	"type sys._isys_373 {_esys_369 sys._esys_040 _esys_370 sys.int32}\n"
+-	"type sys._esys_038 (sys._esys_039 sys._osys_371 sys._isys_373)\n"
++	"type sys._isys_390 {_esys_386 sys._esys_040 _esys_387 sys.int32}\n"
++	"type sys._esys_038 (sys._esys_039 sys._osys_388 sys._isys_390)\n"
+ 	"var !sys.byteastring sys._esys_038\n"
+ 	"type sys._esys_042 {}\n"
+ 	"type sys._esys_043 <>\n"
+-	"type sys._osys_382 {_esys_378 sys._esys_043}\n"
++	"type sys._osys_399 {_esys_395 sys._esys_043}\n"
+ 	"type sys._esys_044 *sys.uint8\n"
+ 	"type sys._esys_045 *sys.uint8\n"
+-	"type sys._ssys_389 {}\n"
+-	"type sys._esys_046 *sys._ssys_389\n"
+-	"type sys._isys_384 {_esys_379 sys._esys_044 _esys_380 sys._esys_045 _esys_381 sys._esys_046}\n"
+-	"type sys._esys_041 (sys._esys_042 sys._osys_382 sys._isys_384)\n"
++	"type sys._ssys_406 {}\n"
++	"type sys._esys_046 *sys._ssys_406\n"
++	"type sys._isys_401 {_esys_396 sys._esys_044 _esys_397 sys._esys_045 _esys_398 sys._esys_046}\n"
++	"type sys._esys_041 (sys._esys_042 sys._osys_399 sys._isys_401)\n"
+ 	"var !sys.mkiface sys._esys_041\n"
+ 	"type sys._esys_048 {}\n"
+-	"type sys._osys_393 {_esys_392 sys.int32}\n"
++	"type sys._osys_410 {_esys_409 sys.int32}\n"
+ 	"type sys._esys_049 {}\n"
+-	"type sys._esys_047 (sys._esys_048 sys._osys_393 sys._esys_049)\n"
++	"type sys._esys_047 (sys._esys_048 sys._osys_410 sys._esys_049)\n"
+ 	"var !sys.argc sys._esys_047\n"
+ 	"type sys._esys_051 {}\n"
+-	"type sys._osys_397 {_esys_396 sys.int32}\n"
++	"type sys._osys_414 {_esys_413 sys.int32}\n"
+ 	"type sys._esys_052 {}\n"
+-	"type sys._esys_050 (sys._esys_051 sys._osys_397 sys._esys_052)\n"
++	"type sys._esys_050 (sys._esys_051 sys._osys_414 sys._esys_052)\n"
+ 	"var !sys.envc sys._esys_050\n"
+ 	"type sys._esys_054 {}\n"
+-	"type sys._osys_402 {_esys_400 sys.string}\n"
+-	"type sys._isys_404 {_esys_401 sys.int32}\n"
+-	"type sys._esys_053 (sys._esys_054 sys._osys_402 sys._isys_404)\n"
++	"type sys._osys_419 {_esys_417 sys.string}\n"
++	"type sys._isys_421 {_esys_418 sys.int32}\n"
++	"type sys._esys_053 (sys._esys_054 sys._osys_419 sys._isys_421)\n"
+ 	"var !sys.argv sys._esys_053\n"
+ 	"type sys._esys_056 {}\n"
+-	"type sys._osys_410 {_esys_408 sys.string}\n"
+-	"type sys._isys_412 {_esys_409 sys.int32}\n"
+-	"type sys._esys_055 (sys._esys_056 sys._osys_410 sys._isys_412)\n"
++	"type sys._osys_427 {_esys_425 sys.string}\n"
++	"type sys._isys_429 {_esys_426 sys.int32}\n"
++	"type sys._esys_055 (sys._esys_056 sys._osys_427 sys._isys_429)\n"
+ 	"var !sys.envv sys._esys_055\n"
+ 	"type sys._esys_058 {}\n"
+-	"type sys._osys_419 {_esys_416 sys.float64 _esys_417 sys.int32}\n"
+-	"type sys._isys_421 {_esys_418 sys.float64}\n"
+-	"type sys._esys_057 (sys._esys_058 sys._osys_419 sys._isys_421)\n"
++	"type sys._osys_436 {_esys_433 sys.float64 _esys_434 sys.int32}\n"
++	"type sys._isys_438 {_esys_435 sys.float64}\n"
++	"type sys._esys_057 (sys._esys_058 sys._osys_436 sys._isys_438)\n"
+ 	"var !sys.frexp sys._esys_057\n"
+ 	"type sys._esys_060 {}\n"
+-	"type sys._osys_428 {_esys_425 sys.float64}\n"
+-	"type sys._isys_430 {_esys_426 sys.float64 _esys_427 sys.int32}\n"
+-	"type sys._esys_059 (sys._esys_060 sys._osys_428 sys._isys_430)\n"
++	"type sys._osys_445 {_esys_442 sys.float64}\n"
++	"type sys._isys_447 {_esys_443 sys.float64 _esys_444 sys.int32}\n"
++	"type sys._esys_059 (sys._esys_060 sys._osys_445 sys._isys_447)\n"
+ 	"var !sys.ldexp sys._esys_059\n"
+ 	"type sys._esys_062 {}\n"
+-	"type sys._osys_438 {_esys_435 sys.float64 _esys_436 sys.float64}\n"
+-	"type sys._isys_440 {_esys_437 sys.float64}\n"
+-	"type sys._esys_061 (sys._esys_062 sys._osys_438 sys._isys_440)\n"
++	"type sys._osys_455 {_esys_452 sys.float64 _esys_453 sys.float64}\n"
++	"type sys._isys_457 {_esys_454 sys.float64}\n"
++	"type sys._esys_061 (sys._esys_062 sys._osys_455 sys._isys_457)\n"
+ 	"var !sys.modf sys._esys_061\n"
+ 	"type sys._esys_064 {}\n"
+-	"type sys._osys_447 {_esys_444 sys.bool}\n"
+-	"type sys._isys_449 {_esys_445 sys.float64 _esys_446 sys.int32}\n"
+-	"type sys._esys_063 (sys._esys_064 sys._osys_447 sys._isys_449)\n"
++	"type sys._osys_464 {_esys_461 sys.bool}\n"
++	"type sys._isys_466 {_esys_462 sys.float64 _esys_463 sys.int32}\n"
++	"type sys._esys_063 (sys._esys_064 sys._osys_464 sys._isys_466)\n"
+ 	"var !sys.isInf sys._esys_063\n"
+ 	"type sys._esys_066 {}\n"
+-	"type sys._osys_456 {_esys_454 sys.bool}\n"
+-	"type sys._isys_458 {_esys_455 sys.float64}\n"
+-	"type sys._esys_065 (sys._esys_066 sys._osys_456 sys._isys_458)\n"
++	"type sys._osys_473 {_esys_471 sys.bool}\n"
++	"type sys._isys_475 {_esys_472 sys.float64}\n"
++	"type sys._esys_065 (sys._esys_066 sys._osys_473 sys._isys_475)\n"
+ 	"var !sys.isNaN sys._esys_065\n"
+ 	"type sys._esys_068 {}\n"
+-	"type sys._osys_464 {_esys_462 sys.float64}\n"
+-	"type sys._isys_466 {_esys_463 sys.int32}\n"
+-	"type sys._esys_067 (sys._esys_068 sys._osys_464 sys._isys_466)\n"
++	"type sys._osys_481 {_esys_479 sys.float64}\n"
++	"type sys._isys_483 {_esys_480 sys.int32}\n"
++	"type sys._esys_067 (sys._esys_068 sys._osys_481 sys._isys_483)\n"
+ 	"var !sys.Inf sys._esys_067\n"
+ 	"type sys._esys_070 {}\n"
+-	"type sys._osys_471 {_esys_470 sys.float64}\n"
++	"type sys._osys_488 {_esys_487 sys.float64}\n"
+ 	"type sys._esys_071 {}\n"
+-	"type sys._esys_069 (sys._esys_070 sys._osys_471 sys._esys_071)\n"
++	"type sys._esys_069 (sys._esys_070 sys._osys_488 sys._esys_071)\n"
+ 	"var !sys.NaN sys._esys_069\n"
+ 	"type sys._esys_073 {}\n"
+ 	"type sys._esys_075 [sys.any] sys.any\n"
+ 	"type sys._esys_074 *sys._esys_075\n"
+-	"type sys._osys_474 {hmap sys._esys_074}\n"
+-	"type sys._isys_476 {keysize sys.uint32 valsize sys.uint32 keyalg sys.uint32 valalg sys.uint32 hint sys.uint32}\n"
+-	"type sys._esys_072 (sys._esys_073 sys._osys_474 sys._isys_476)\n"
++	"type sys._osys_491 {hmap sys._esys_074}\n"
++	"type sys._isys_493 {keysize sys.uint32 valsize sys.uint32 keyalg sys.uint32 valalg sys.uint32 hint sys.uint32}\n"
++	"type sys._esys_072 (sys._esys_073 sys._osys_491 sys._isys_493)\n"
+ 	"var !sys.newmap sys._esys_072\n"
+ 	"type sys._esys_077 {}\n"
+-	"type sys._osys_485 {val sys.any}\n"
++	"type sys._osys_502 {val sys.any}\n"
+ 	"type sys._esys_079 [sys.any] sys.any\n"
+ 	"type sys._esys_078 *sys._esys_079\n"
+-	"type sys._isys_487 {hmap sys._esys_078 key sys.any}\n"
+-	"type sys._esys_076 (sys._esys_077 sys._osys_485 sys._isys_487)\n"
++	"type sys._isys_504 {hmap sys._esys_078 key sys.any}\n"
++	"type sys._esys_076 (sys._esys_077 sys._osys_502 sys._isys_504)\n"
+ 	"var !sys.mapaccess1 sys._esys_076\n"
+ 	"type sys._esys_081 {}\n"
+-	"type sys._osys_493 {val sys.any pres sys.bool}\n"
++	"type sys._osys_510 {val sys.any pres sys.bool}\n"
+ 	"type sys._esys_083 [sys.any] sys.any\n"
+ 	"type sys._esys_082 *sys._esys_083\n"
+-	"type sys._isys_495 {hmap sys._esys_082 key sys.any}\n"
+-	"type sys._esys_080 (sys._esys_081 sys._osys_493 sys._isys_495)\n"
++	"type sys._isys_512 {hmap sys._esys_082 key sys.any}\n"
++	"type sys._esys_080 (sys._esys_081 sys._osys_510 sys._isys_512)\n"
+ 	"var !sys.mapaccess2 sys._esys_080\n"
+ 	"type sys._esys_085 {}\n"
+ 	"type sys._esys_086 {}\n"
+ 	"type sys._esys_088 [sys.any] sys.any\n"
+ 	"type sys._esys_087 *sys._esys_088\n"
+-	"type sys._isys_502 {hmap sys._esys_087 key sys.any val sys.any}\n"
+-	"type sys._esys_084 (sys._esys_085 sys._esys_086 sys._isys_502)\n"
++	"type sys._isys_519 {hmap sys._esys_087 key sys.any val sys.any}\n"
++	"type sys._esys_084 (sys._esys_085 sys._esys_086 sys._isys_519)\n"
+ 	"var !sys.mapassign1 sys._esys_084\n"
+ 	"type sys._esys_090 {}\n"
+ 	"type sys._esys_091 {}\n"
+ 	"type sys._esys_093 [sys.any] sys.any\n"
+ 	"type sys._esys_092 *sys._esys_093\n"
+-	"type sys._isys_508 {hmap sys._esys_092 key sys.any val sys.any pres sys.bool}\n"
+-	"type sys._esys_089 (sys._esys_090 sys._esys_091 sys._isys_508)\n"
++	"type sys._isys_525 {hmap sys._esys_092 key sys.any val sys.any pres sys.bool}\n"
++	"type sys._esys_089 (sys._esys_090 sys._esys_091 sys._isys_525)\n"
+ 	"var !sys.mapassign2 sys._esys_089\n"
+ 	"type sys._esys_095 {}\n"
+ 	"type sys._esys_097 1 sys.any\n"
+ 	"type sys._esys_096 *sys._esys_097\n"
+-	"type sys._osys_515 {hchan sys._esys_096}\n"
+-	"type sys._isys_517 {elemsize sys.uint32 elemalg sys.uint32 hint sys.uint32}\n"
+-	"type sys._esys_094 (sys._esys_095 sys._osys_515 sys._isys_517)\n"
++	"type sys._osys_532 {hchan sys._esys_096}\n"
++	"type sys._isys_534 {elemsize sys.uint32 elemalg sys.uint32 hint sys.uint32}\n"
++	"type sys._esys_094 (sys._esys_095 sys._osys_532 sys._isys_534)\n"
+ 	"var !sys.newchan sys._esys_094\n"
+ 	"type sys._esys_099 {}\n"
+ 	"type sys._esys_100 {}\n"
+-	"type sys._esys_101 {}\n"
+-	"type sys._esys_098 (sys._esys_099 sys._esys_100 sys._esys_101)\n"
+-	"var !sys.gosched sys._esys_098\n"
+-	"type sys._esys_103 {}\n"
++	"type sys._esys_102 1 sys.any\n"
++	"type sys._esys_101 *sys._esys_102\n"
++	"type sys._isys_541 {hchan sys._esys_101 elem sys.any}\n"
++	"type sys._esys_098 (sys._esys_099 sys._esys_100 sys._isys_541)\n"
++	"var !sys.chansend sys._esys_098\n"
+ 	"type sys._esys_104 {}\n"
+-	"type sys._esys_105 {}\n"
+-	"type sys._esys_102 (sys._esys_103 sys._esys_104 sys._esys_105)\n"
+-	"var !sys.goexit sys._esys_102\n"
+-	"type sys._esys_107 {}\n"
+-	"type sys._osys_529 {_esys_526 sys.string _esys_527 sys.bool}\n"
+-	"type sys._isys_531 {_esys_528 sys.string}\n"
+-	"type sys._esys_106 (sys._esys_107 sys._osys_529 sys._isys_531)\n"
+-	"var !sys.readfile sys._esys_106\n"
+-	"type sys._esys_109 {}\n"
+-	"type sys._osys_540 {_esys_535 sys.int32 _esys_536 sys.int32}\n"
+-	"type sys._esys_110 *sys.uint8\n"
+-	"type sys._isys_542 {_esys_537 sys._esys_110 _esys_538 sys.int32 _esys_539 sys.int32}\n"
+-	"type sys._esys_108 (sys._esys_109 sys._osys_540 sys._isys_542)\n"
+-	"var !sys.bytestorune sys._esys_108\n"
++	"type sys._osys_546 {elem sys.any}\n"
++	"type sys._esys_106 1 sys.any\n"
++	"type sys._esys_105 *sys._esys_106\n"
++	"type sys._isys_548 {hchan sys._esys_105}\n"
++	"type sys._esys_103 (sys._esys_104 sys._osys_546 sys._isys_548)\n"
++	"var !sys.chanrecv1 sys._esys_103\n"
++	"type sys._esys_108 {}\n"
++	"type sys._osys_553 {elem sys.any pres sys.bool}\n"
++	"type sys._esys_110 1 sys.any\n"
++	"type sys._esys_109 *sys._esys_110\n"
++	"type sys._isys_555 {hchan sys._esys_109}\n"
++	"type sys._esys_107 (sys._esys_108 sys._osys_553 sys._isys_555)\n"
++	"var !sys.chanrecv2 sys._esys_107\n"
+ 	"type sys._esys_112 {}\n"
+-	"type sys._osys_553 {_esys_548 sys.int32 _esys_549 sys.int32}\n"
+-	"type sys._isys_555 {_esys_550 sys.string _esys_551 sys.int32 _esys_552 sys.int32}\n"
+-	"type sys._esys_111 (sys._esys_112 sys._osys_553 sys._isys_555)\n"
+-	"var !sys.stringtorune sys._esys_111\n"
++	"type sys._esys_113 {}\n"
+ 	"type sys._esys_114 {}\n"
+-	"type sys._esys_115 {}\n"
+-	"type sys._isys_562 {_esys_561 sys.int32}\n"
+-	"type sys._esys_113 (sys._esys_114 sys._esys_115 sys._isys_562)\n"
+-	"var !sys.exit sys._esys_113\n"
++	"type sys._esys_111 (sys._esys_112 sys._esys_113 sys._esys_114)\n"
++	"var !sys.gosched sys._esys_111\n"
++	"type sys._esys_116 {}\n"
++	"type sys._esys_117 {}\n"
++	"type sys._esys_118 {}\n"
++	"type sys._esys_115 (sys._esys_116 sys._esys_117 sys._esys_118)\n"
++	"var !sys.goexit sys._esys_115\n"
++	"type sys._esys_120 {}\n"
++	"type sys._osys_566 {_esys_563 sys.string _esys_564 sys.bool}\n"
++	"type sys._isys_568 {_esys_565 sys.string}\n"
++	"type sys._esys_119 (sys._esys_120 sys._osys_566 sys._isys_568)\n"
++	"var !sys.readfile sys._esys_119\n"
++	"type sys._esys_122 {}\n"
++	"type sys._osys_577 {_esys_572 sys.int32 _esys_573 sys.int32}\n"
++	"type sys._esys_123 *sys.uint8\n"
++	"type sys._isys_579 {_esys_574 sys._esys_123 _esys_575 sys.int32 _esys_576 sys.int32}\n"
++	"type sys._esys_121 (sys._esys_122 sys._osys_577 sys._isys_579)\n"
++	"var !sys.bytestorune sys._esys_121\n"
++	"type sys._esys_125 {}\n"
++	"type sys._osys_590 {_esys_585 sys.int32 _esys_586 sys.int32}\n"
++	"type sys._isys_592 {_esys_587 sys.string _esys_588 sys.int32 _esys_589 sys.int32}\n"
++	"type sys._esys_124 (sys._esys_125 sys._osys_590 sys._isys_592)\n"
++	"var !sys.stringtorune sys._esys_124\n"
++	"type sys._esys_127 {}\n"
++	"type sys._esys_128 {}\n"
++	"type sys._isys_599 {_esys_598 sys.int32}\n"
++	"type sys._esys_126 (sys._esys_127 sys._esys_128 sys._isys_599)\n"
++	"var !sys.exit sys._esys_126\n"
+ 	"))\n"
+ ;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ef03993220..5d39554758 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -246,6 +246,7 @@ loop:
+ 		}
+ 
+ 		switch(r->op) {
++
+ 		case OCALLMETH:
+ 		case OCALLINTER:
+ 		case OCALL:
+@@ -273,6 +274,19 @@ loop:
+ 				goto ret;
+ 			}
+ 			break;
++
++		case ORECV:
++			if(cl == 2 && cr == 1) {
++				// a,b = <chan - chanrecv2
++				if(!isptrto(r->left->type, TCHAN))
++					break;
++				l = chanop(n, top);
++				if(l == N)
++					break;
++				*n = *l;
++				goto ret;
++			}
++			break;
+ 		}
+ 
+ 		switch(l->op) {
+@@ -538,7 +552,7 @@ loop:
+ 			goto badt;
+ 
+ 		case TMAP:
+-			// right side must map type
++			// right side must be map type
+ 			if(n->right->type == T) {
+ 				convlit(n->right, t->down);
+ 				if(n->right->type == T)
+@@ -570,6 +584,28 @@ loop:
+ 		}
+ 		goto ret;
+ 
++	case OSEND:
++		if(top != Elv)
++			goto nottop;
++		walktype(n->left, Erv);
++		t = n->left->type;
++		if(!isptrto(t, TCHAN))
++			goto badt;
++		n->type = t->type->type;
++		goto ret;
++
++	case ORECV:
++		if(top != Erv)
++			goto nottop;
++		walktype(n->left, Erv);
++		t = n->left->type;
++		if(!isptrto(t, TCHAN))
++			goto badt;
++		n->type = t->type->type;
++
++		*n = *chanop(n, top);
++		goto ret;
++
+ 	case OSLICE:
+ 		if(top == Etop)
+ 			goto nottop;
+@@ -1251,7 +1287,7 @@ stringop(Node *n, int top)
+ 
+ 	switch(n->op) {
+ 	default:
+-		fatal("stringop: unknown op %E", n->op);
++		fatal("stringop: unknown op %O", n->op);
+ 
+ 	case OEQ:
+ 	case ONE:
+@@ -1278,7 +1314,7 @@ stringop(Node *n, int top)
+ 		// sys_catstring(s1, s2)
+ 		switch(n->etype) {
+ 		default:
+-			fatal("stringop: unknown op %E-%E", n->op, n->etype);
++			fatal("stringop: unknown op %O-%O", n->op, n->etype);
+ 
+ 		case OADD:
+ 			// s1 = sys_catstring(s1, s2)
+@@ -1436,7 +1472,7 @@ mapop(Node *n, int top)
+ 	r = n;
+ 	switch(n->op) {
+ 	default:
+-		fatal("mapop: unknown op %E", n->op);
++		fatal("mapop: unknown op %O", n->op);
+ 
+ 	case ONEW:
+ 		if(top != Erv)
+@@ -1636,7 +1672,7 @@ chanop(Node *n, int top)
+ 	r = n;
+ 	switch(n->op) {
+ 	default:
+-		fatal("mapop: unknown op %E", n->op);
++		fatal("chanop: unknown op %O", n->op);
+ 
+ 	case ONEW:
+ 		// newchan(elemsize uint32, elemalg uint32,
+@@ -1662,8 +1698,38 @@ chanop(Node *n, int top)
+ 		walktype(r, top);
+ 		r->type = n->type;
+ 		break;
++
++	case OAS:
++		// chansend(hchan *chan any, elem any);
++
++//dump("assign1", n);
++		if(n->left->op != OSEND)
++			goto shape;
++
++		t = fixchan(n->left->left->type);
++		if(t == T)
++			break;
++
++		a = n->right;				// val
++		r = a;
++		a = n->left->left;			// chan
++		r = nod(OLIST, a, r);
++
++		on = syslook("chansend", 1);
++
++		argtype(on, t->type);	// any-1
++		argtype(on, t->type);	// any-2
++
++		r = nod(OCALL, on, r);
++		walktype(r, Erv);
++		break;
++
+ 	}
+ 	return r;
++
++shape:
++	fatal("chanop: %O", n->op);
++	return N;
+ }
+ 
+ void
+@@ -1710,6 +1776,12 @@ convas(Node *n)
+ 		return n;
+ 	}
+ 
++	if(n->left->op == OSEND)
++	if(n->left->type != T) {
++		*n = *chanop(n, Elv);
++		return n;
++	}
++
+ 	if(eqtype(lt, rt, 0))
+ 		return n;
+ 
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index 5b7da999c1..d7f351ede1 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -19,6 +19,7 @@ LIBOFILES=\
+ 	sys_$(GOARCH)_$(GOOS).$O\
+ 	runtime.$O\
+ 	map.$O\
++	chan.$O\
+ 	print.$O\
+ 	rune.$O\
+ 	string.$O\
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+new file mode 100644
+index 0000000000..b491bbda32
+--- /dev/null
++++ b/src/runtime/chan.c
+@@ -0,0 +1,75 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++static	int32	debug	= 1;
++
++typedef	struct	Hchan	Hchan;
++
++struct	Hchan
++{
++	uint32	elemsize;
++	uint32	hint;
++	uint32	eo;
++	Alg*	elemalg;
++};
++
++// newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
++void
++sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
++	Hchan* ret)
++{
++	Hchan *c;
++
++	if(elemalg >= nelem(algarray)) {
++		prints("0<=");
++		sys·printint(elemalg);
++		prints("<");
++		sys·printint(nelem(algarray));
++		prints("\n");
++
++		throw("sys·newchan: elem algorithm out of range");
++	}
++
++	c = mal(sizeof(*c));
++
++	c->elemsize = elemsize;
++	c->elemalg = &algarray[elemalg];
++	c->hint = hint;
++
++	// these calculations are compiler dependent
++	c->eo = rnd(sizeof(c), elemsize);
++
++	ret = c;
++	FLUSH(&ret);
++
++	if(debug) {
++		prints("newchan: chan=");
++		sys·printpointer(c);
++		prints("; elemsize=");
++		sys·printint(elemsize);
++		prints("; elemalg=");
++		sys·printint(elemalg);
++		prints("; hint=");
++		sys·printint(hint);
++		prints("\n");
++	}
++}
++
++// chansend(hchan *chan any, elem any);
++void
++sys·chansend(Hchan* c, ...)
++{
++	byte *ae;
++
++	ae = (byte*)&c + c->eo;
++	if(debug) {
++		prints("chansend: chan=");
++		sys·printpointer(c);
++		prints("; elem=");
++		c->elemalg->print(c->elemsize, ae);
++		prints("\n");
++	}
++}
+diff --git a/src/runtime/map.c b/src/runtime/map.c
+index 0dd655b16e..93a985f15e 100644
+--- a/src/runtime/map.c
++++ b/src/runtime/map.c
+@@ -4,17 +4,10 @@
+ 
+ #include "runtime.h"
+ 
++static	int32	debug	= 0;
++
+ typedef	struct	Link	Link;
+ typedef	struct	Hmap	Hmap;
+-typedef	struct	Alg	Alg;
+-
+-struct	Alg
+-{
+-	uint64	(*hash)(uint32, void*);
+-	uint32	(*equal)(uint32, void*, void*);
+-	void	(*print)(uint32, void*);
+-	void	(*copy)(uint32, void*, void*);
+-};
+ 
+ struct	Link
+ {
+@@ -28,154 +21,15 @@ struct	Hmap
+ 	uint32	keysize;
+ 	uint32	valsize;
+ 	uint32	hint;
+-	Alg*	keyalg;
+-	Alg*	valalg;
+ 	uint32	valoffset;
+ 	uint32	ko;
+ 	uint32	vo;
+ 	uint32	po;
++	Alg*	keyalg;
++	Alg*	valalg;
+ 	Link*	link;
+ };
+ 
+-static uint64
+-memhash(uint32 s, void *a)
+-{
+-	prints("memhash\n");
+-	return 0x12345;
+-}
+-
+-static uint32
+-memequal(uint32 s, void *a, void *b)
+-{
+-	byte *ba, *bb;
+-	uint32 i;
+-
+-	ba = a;
+-	bb = b;
+-	for(i=0; i<s; i++)
+-		if(ba[i] != bb[i])
+-			return 0;
+-	return 1;
+-}
+-
+-static void
+-memprint(uint32 s, void *a)
+-{
+-	uint64 v;
+-
+-	v = 0xbadb00b;
+-	switch(s) {
+-	case 1:
+-		v = *(uint8*)a;
+-		break;
+-	case 2:
+-		v = *(uint16*)a;
+-		break;
+-	case 4:
+-		v = *(uint32*)a;
+-		break;
+-	case 8:
+-		v = *(uint64*)a;
+-		break;
+-	}
+-	sys·printint(v);
+-}
+-
+-static void
+-memcopy(uint32 s, void *a, void *b)
+-{
+-	byte *ba, *bb;
+-	uint32 i;
+-
+-	ba = a;
+-	bb = b;
+-	if(bb == nil) {
+-		for(i=0; i<s; i++)
+-			ba[i] = 0;
+-		return;
+-	}
+-	for(i=0; i<s; i++)
+-		ba[i] = bb[i];
+-}
+-
+-static uint64
+-stringhash(uint32 s, string *a)
+-{
+-	prints("stringhash\n");
+-	return 0x12345;
+-}
+-
+-static uint32
+-stringequal(uint32 s, string *a, string *b)
+-{
+-	return cmpstring(*a, *b) == 0;
+-}
+-
+-static void
+-stringprint(uint32 s, string *a)
+-{
+-	sys·printstring(*a);
+-}
+-
+-static void
+-stringcopy(uint32 s, string *a, string *b)
+-{
+-	if(b == nil) {
+-		*a = nil;
+-		return;
+-	}
+-	*a = *b;
+-}
+-
+-static uint64
+-pointerhash(uint32 s, void **a)
+-{
+-	prints("pointerhash\n");
+-	return 0x12345;
+-}
+-
+-static uint32
+-pointerequal(uint32 s, void **a, void **b)
+-{
+-	prints("pointerequal\n");
+-	return 0;
+-}
+-
+-static void
+-pointerprint(uint32 s, void **a)
+-{
+-	prints("pointerprint\n");
+-}
+-
+-static void
+-pointercopy(uint32 s, void **a, void **b)
+-{
+-	if(b == nil) {
+-		*a = nil;
+-		return;
+-	}
+-	*a = *b;
+-}
+-
+-static uint32
+-rnd(uint32 n, uint32 m)
+-{
+-	uint32 r;
+-
+-	r = n % m;
+-	if(r)
+-		n += m-r;
+-	return n;
+-}
+-
+-static	Alg
+-algarray[] =
+-{
+-	{	&memhash,	&memequal,	&memprint,	&memcopy	},
+-	{	&stringhash,	&stringequal,	&stringprint,	&stringcopy	},
+-	{	&pointerhash,	&pointerequal,	&pointerprint,	&pointercopy	},
+-};
+-
+ // newmap(keysize uint32, valsize uint32,
+ //	keyalg uint32, valalg uint32,
+ //	hint uint32) (hmap *map[any]any);
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index f8dfa954cc..bc6c0ccb9d 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -64,6 +64,17 @@ mcpy(byte *t, byte *f, uint32 n)
+ 	}
+ }
+ 
++uint32
++rnd(uint32 n, uint32 m)
++{
++	uint32 r;
++
++	r = n % m;
++	if(r)
++		n += m-r;
++	return n;
++}
++
+ static byte*
+ brk(uint32 n)
+ {
+@@ -81,7 +92,7 @@ mal(uint32 n)
+ 	byte* v;
+ 
+ 	// round to keep everything 64-bit aligned
+-	n = (n+7) & ~7;
++	n = rnd(n, 8);
+ 	nmal += n;
+ 
+ 	// do we have enough in contiguous hunk
+@@ -469,7 +480,6 @@ static uint8**	argv;
+ static int32	envc;
+ static uint8**	envv;
+ 
+-
+ void
+ args(int32 c, uint8 **v)
+ {
+@@ -797,3 +807,136 @@ sys·morestack(uint64 u)
+ 
+ 	*(int32*)234 = 123;
+ }
++
++/*
++ * map and chan helpers for
++ * dealing with unknown types
++ */
++
++static uint64
++memhash(uint32 s, void *a)
++{
++	prints("memhash\n");
++	return 0x12345;
++}
++
++static uint32
++memequal(uint32 s, void *a, void *b)
++{
++	byte *ba, *bb;
++	uint32 i;
++
++	ba = a;
++	bb = b;
++	for(i=0; i<s; i++)
++		if(ba[i] != bb[i])
++			return 0;
++	return 1;
++}
++
++static void
++memprint(uint32 s, void *a)
++{
++	uint64 v;
++
++	v = 0xbadb00b;
++	switch(s) {
++	case 1:
++		v = *(uint8*)a;
++		break;
++	case 2:
++		v = *(uint16*)a;
++		break;
++	case 4:
++		v = *(uint32*)a;
++		break;
++	case 8:
++		v = *(uint64*)a;
++		break;
++	}
++	sys·printint(v);
++}
++
++static void
++memcopy(uint32 s, void *a, void *b)
++{
++	byte *ba, *bb;
++	uint32 i;
++
++	ba = a;
++	bb = b;
++	if(bb == nil) {
++		for(i=0; i<s; i++)
++			ba[i] = 0;
++		return;
++	}
++	for(i=0; i<s; i++)
++		ba[i] = bb[i];
++}
++
++static uint64
++stringhash(uint32 s, string *a)
++{
++	prints("stringhash\n");
++	return 0x12345;
++}
++
++static uint32
++stringequal(uint32 s, string *a, string *b)
++{
++	return cmpstring(*a, *b) == 0;
++}
++
++static void
++stringprint(uint32 s, string *a)
++{
++	sys·printstring(*a);
++}
++
++static void
++stringcopy(uint32 s, string *a, string *b)
++{
++	if(b == nil) {
++		*a = nil;
++		return;
++	}
++	*a = *b;
++}
++
++static uint64
++pointerhash(uint32 s, void **a)
++{
++	prints("pointerhash\n");
++	return 0x12345;
++}
++
++static uint32
++pointerequal(uint32 s, void **a, void **b)
++{
++	prints("pointerequal\n");
++	return 0;
++}
++
++static void
++pointerprint(uint32 s, void **a)
++{
++	prints("pointerprint\n");
++}
++
++static void
++pointercopy(uint32 s, void **a, void **b)
++{
++	if(b == nil) {
++		*a = nil;
++		return;
++	}
++	*a = *b;
++}
++
++Alg
++algarray[3] =
++{
++	{	&memhash,	&memequal,	&memprint,	&memcopy	},
++	{	&stringhash,	&stringequal,	&stringprint,	&stringcopy	},
++	{	&pointerhash,	&pointerequal,	&pointerprint,	&pointercopy	},
++};
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 3a2e3bde9e..4273f16eac 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -33,24 +33,58 @@ typedef	double			float64;
+  */
+ typedef	uint8			bool;
+ typedef	uint8			byte;
+-typedef	struct
++typedef	struct	String		*string;
++typedef	struct	Sigs		Sigs;
++typedef	struct	Sigi		Sigi;
++typedef	struct	Map		Map;
++typedef	struct	Gobuf		Gobuf;
++typedef	struct	G		G;
++typedef	struct	M		M;
++typedef struct	Stktop		Stktop;
++typedef	struct	Alg		Alg;
++
++/*
++ * per cpu declaration
++ */
++extern	register	G*	g;	// R15
++extern	register	M*	m;	// R14
++
++/*
++ * defined constants
++ */
++enum
++{
++	// G status
++	Gidle,
++	Grunnable,
++	Gdead,
++};
++enum
++{
++	true	= 1,
++	false	= 0,
++};
++
++/*
++ * structures
++ */
++struct String
+ {
+ 	int32	len;
+ 	byte	str[1];
+-}				*string;
+-typedef	struct
++};
++struct	Sigs
+ {
+ 	byte*	name;
+ 	uint32	hash;
+ 	void	(*fun)(void);
+-}				Sigs;
+-typedef	struct
++};
++struct	Sigi
+ {
+ 	byte*	name;
+ 	uint32	hash;
+ 	uint32	offset;
+-}				Sigi;
+-typedef	struct	Map		Map;
++};
+ struct	Map
+ {
+ 	Sigi*	si;
+@@ -60,13 +94,11 @@ struct	Map
+ 	int32	unused;
+ 	void	(*fun[])(void);
+ };
+-typedef	struct	Gobuf		Gobuf;
+ struct	Gobuf
+ {
+ 	byte*	SP;
+ 	byte*	PC;
+ };
+-typedef	struct	G		G;
+ struct	G
+ {
+ 	byte*	stackguard;	// must not move
+@@ -77,7 +109,6 @@ struct	G
+ 	int32	pri;
+ 	int32	goid;
+ };
+-typedef	struct	M		M;
+ struct	M
+ {
+ 	G*	g0;		// g0 w interrupt stack - must not move
+@@ -90,38 +121,24 @@ struct	M
+ 	int32	siz1;
+ 	int32	siz2;
+ };
+-typedef struct Stktop Stktop;
+-struct Stktop {
++struct Stktop
++{
+ 	uint8*	oldbase;
+ 	uint8*	oldsp;
+ 	uint64	magic;
+ 	uint8*	oldguard;
+ };
+-extern	register	G*	g;	// R15
+-extern	register	M*	m;	// R14
+-
+-enum
++struct	Alg
+ {
+-	// G status
+-	Gidle,
+-	Grunnable,
+-	Gdead,
++	uint64	(*hash)(uint32, void*);
++	uint32	(*equal)(uint32, void*, void*);
++	void	(*print)(uint32, void*);
++	void	(*copy)(uint32, void*, void*);
+ };
+-
+-/*
+- * global variables
+- */
+-M*	allm;
+-G*	allg;
+-int32	goidgen;
+-
+-/*
+- * defined constants
+- */
+-enum
++struct	SigTab
+ {
+-	true	= 1,
+-	false	= 0,
++	int32	catch;
++	int8	*name;
+ };
+ 
+ /*
+@@ -132,6 +149,15 @@ enum
+ #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
+ #define	nil		((void*)0)
+ 
++/*
++ * external data
++ */
++extern	Alg	algarray[3];
++extern	string	emptystring;
++M*	allm;
++G*	allg;
++int32	goidgen;
++
+ /*
+  * common functions and data
+  */
+@@ -141,9 +167,6 @@ void	dump(byte*, int32);
+ int32	runetochar(byte*, int32);
+ int32	chartorune(uint32*, byte*);
+ 
+-extern string	emptystring;
+-extern int32	debug;
+-
+ /*
+  * very low level c-called
+  */
+@@ -155,6 +178,7 @@ void	setspgoto(byte*, void(*)(void), void(*)(void));
+ void	FLUSH(void*);
+ void*	getu(void);
+ void	throw(int8*);
++uint32	rnd(uint32, uint32);
+ void	prints(int8*);
+ void	mcpy(byte*, byte*, uint32);
+ void*	mal(uint32);
+@@ -165,11 +189,6 @@ int32	open(byte*, int32);
+ int32	read(int32, void*, int32);
+ void	close(int32);
+ int32	fstat(int32, void*);
+-struct	SigTab
+-{
+-	int32	catch;
+-	int8	*name;
+-};
+ 
+ /*
+  * low level go -called

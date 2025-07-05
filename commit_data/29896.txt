@@ -12,6 +12,20 @@ Date:   Sat Oct 15 13:06:22 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/flate/huffman_bit_writer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/compress/flate/huffman_bit_writer.go b/src/compress/flate/huffman_bit_writer.go
+index d8b5a3ebd7..6cd6281249 100644
+--- a/src/compress/flate/huffman_bit_writer.go
++++ b/src/compress/flate/huffman_bit_writer.go
+@@ -520,7 +520,7 @@ func (w *huffmanBitWriter) writeBlockDynamic(tokens []token, eof bool, input []b
+ 	// the literalEncoding and the offsetEncoding.
+ 	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, w.offsetEncoding)
+ 	w.codegenEncoding.generate(w.codegenFreq[:], 7)
+-	size, numCodegens := w.dynamicSize(w.literalEncoding, huffOffset, 0)
++	size, numCodegens := w.dynamicSize(w.literalEncoding, w.offsetEncoding, 0)
+ 
+ 	// Store bytes, if we don't get a reasonable improvement.
+ 	if ssize, storable := w.storedSize(input); storable && ssize < (size+size>>4) {

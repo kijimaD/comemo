@@ -9,6 +9,22 @@ Date:   Fri Dec 2 13:36:21 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5437111
-
+---
  doc/devel/weekly.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 4feac2a9c1..90e773c4a5 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -20,8 +20,8 @@ hg update weekly.<i>YYYY-MM-DD</i>
+ This weekly snapshot includes changes to the hash package and a gofix for the
+ time and os.FileInfo changes in the last snapshot.
+ 
+-The hash.Hasher's Sum method has been given a []byte argument, permitting
+-the user to hash an arbitrary byte slice without Writing to the Hasher.
++The hash.Hash's Sum method has been given a []byte argument,
++permitting the user to append the hash to an existing byte slice.
+ Existing code that uses Sum can pass nil as the argument.
+ Gofix will make this change automatically.
+ 

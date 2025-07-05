@@ -8,7 +8,42 @@ Date:   Thu Oct 15 16:51:53 2009 -0700
     DELTA=11  (8 added, 0 deleted, 3 changed)
     OCL=35797
     CL=35804
-
+---
  AUTHORS      | 7 +++++--
  CONTRIBUTORS | 7 ++++++-
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 067457a279..3071dd196f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1,6 +1,9 @@
+ # This is the official list of Go authors for copyright purposes.
++# This file is distinct from the CONTRIBUTORS files.
++# See the latter for an explanation.
+ 
+-# Names should be added to this file like so:
+-# Name or Organization <email address>
++# Names should be added to this file as
++#	Name or Organization <email address>
++# The email address is not required for organizations.
+ 
+ Google Inc.
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0dce856cce..f7619779fa 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -14,7 +14,12 @@
+ #     http://code.google.com/legal/individual-cla-v1.0.html
+ #     http://code.google.com/legal/corporate-cla-v1.0.html
+ #
+-# The individual agreement can be filled out online.
++# The agreement for individuals can be filled out on the web.
++#
++# When adding J Random Contributor's name to this file,
++# either J's name or J's organization's name should be
++# added to the AUTHORS file, depending on whether the
++# individual or corporate CLA was used.
+ 
+ # Names should be added to this file like so:
+ # Name <email address>

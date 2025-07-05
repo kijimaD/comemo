@@ -7,9 +7,167 @@ Date:   Tue Aug 12 16:36:18 2008 -0700
     R=r
     OCL=14140
     CL=14140
-
+---
  src/cmd/6g/gen.c | 15 +++++++++------
  src/cmd/gc/go.h  |  4 ++--
  src/cmd/gc/go.y  | 11 ++++++++---
  src/cmd/gc/lex.c | 17 +++++++++--------
  4 files changed, 28 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index babaebbba8..876f78988f 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -303,6 +303,7 @@ void
+ agen_inter(Node *n, Node *res)
+ {
+ 	Node nodo, nodr, nodt;
++	Node *var;
+ 	Sym *s;
+ 	char *e;
+ 	int32 o,lno;
+@@ -355,9 +356,10 @@ agen_inter(Node *n, Node *res)
+ 
+ 		nodo.xoffset = 1*widthptr;
+ 		if(!n->left->addable) {
+-			agen(n->left, &nodr);
+-			gmove(&nodr, &nodo);
+-			fatal("agen_inter i2i");
++			var = nod(OXXX, N, N);
++			tempname(var, n->left->type);
++			cgen(n->left, var);
++			cgen(var, &nodo);
+ 		} else {
+ 			cgen(n->left, &nodo);
+ 		}
+@@ -380,9 +382,10 @@ agen_inter(Node *n, Node *res)
+ 
+ 		nodo.xoffset = 1*widthptr;
+ 		if(!n->left->addable) {
+-			agen(n->left, &nodr);
+-			gmove(&nodr, &nodo);
+-			fatal("agen_inter i2s");
++			var = nod(OXXX, N, N);
++			tempname(var, n->left->type);
++			cgen(n->left, var);
++			cgen(var, &nodo);
+ 		} else {
+ 			cgen(n->left, &nodo);
+ 		}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 47f1f54f41..a1377fba4b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -250,14 +250,14 @@ enum
+ 	OPTR, OARRAY,
+ 	ORETURN, OFOR, OIF, OSWITCH, OI2S, OS2I, OI2I,
+ 	OAS, OASOP, OCASE, OXCASE, OSCASE, OFALL, OXFALL,
+-	OGOTO, OPROC, ONEW, OPANIC, OPRINT, OEMPTY, OSELECT,
++	OGOTO, OPROC, ONEW, OEMPTY, OSELECT,
++	OLEN, OPANIC, OPRINT, OTYPEOF,
+ 
+ 	OOROR,
+ 	OANDAND,
+ 	OEQ, ONE, OLT, OLE, OGE, OGT,
+ 	OADD, OSUB, OOR, OXOR,
+ 	OMUL, ODIV, OMOD, OLSH, ORSH, OAND,
+-	OLEN,
+ 	OFUNC,
+ 	OLABEL,
+ 	OBREAK,
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index f660c887a7..523642dd3d 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -18,15 +18,15 @@
+ %token	<sym>		LPACKAGE LIMPORT LEXPORT
+ %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
+ %token	<sym>		LCOLAS LFALL LRETURN
+-%token	<sym>		LNEW LLEN
++%token	<sym>		LNEW LLEN LTYPEOF LPANIC LPRINT
+ %token	<sym>		LVAR LTYPE LCONST LCONVERT LSELECT
+ %token	<sym>		LFOR LIF LELSE LSWITCH LCASE LDEFAULT
+ %token	<sym>		LBREAK LCONTINUE LGO LGOTO LRANGE
+ %token	<sym>		LNIL LTRUE LFALSE LIOTA
+-%token	<sym>		LPANIC LPRINT LIGNORE
+ 
+ %token			LOROR LANDAND LEQ LNE LLE LLT LGE LGT
+ %token			LLSH LRSH LINC LDEC LSEND LRECV
++%token			LIGNORE
+ 
+ %type	<sym>		sym sym1 sym2 key1 key2 laconst lname latype
+ %type	<lint>		chandir
+@@ -733,6 +733,11 @@ pexpr:
+ 	{
+ 		$$ = nod(OLEN, $3, N);
+ 	}
++|	LTYPEOF '(' type ')'
++	{
++		$$ = nod(OTYPEOF, N, N);
++		$$->type = $3;
++	}
+ |	LNEW '(' type ')'
+ 	{
+ 		$$ = nod(ONEW, N, N);
+@@ -852,6 +857,7 @@ key1:
+ |	LPRINT
+ |	LNEW
+ |	LBASETYPE
++|	LTYPEOF
+ 
+ /*
+  * keywords that we can
+@@ -884,7 +890,6 @@ key2:
+ |	LGO
+ |	LGOTO
+ |	LRANGE
+-|	LIGNORE
+ 
+ name:
+ 	lname
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 2087ed5eab..ceec924292 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -981,12 +981,12 @@ static	struct
+ 	"chan",		LCHAN,		Txxx,
+ 	"const",	LCONST,		Txxx,
+ 	"continue",	LCONTINUE,	Txxx,
+-	"convert",	LCONVERT,	Txxx,		// should be a var
++	"convert",	LCONVERT,	Txxx,
+ 	"default",	LDEFAULT,	Txxx,
+ 	"else",		LELSE,		Txxx,
+ 	"export",	LEXPORT,	Txxx,
+ 	"fallthrough",	LFALL,		Txxx,
+-	"false",	LFALSE,		Txxx,		// should be a var
++	"false",	LFALSE,		Txxx,
+ 	"for",		LFOR,		Txxx,
+ 	"func",		LFUNC,		Txxx,
+ 	"go",		LGO,		Txxx,
+@@ -996,19 +996,20 @@ static	struct
+ 	"interface",	LINTERFACE,	Txxx,
+ 	"iota",		LIOTA,		Txxx,
+ 	"map",		LMAP,		Txxx,
+-	"new",		LNEW,		Txxx,		// should be a var
+-	"len",		LLEN,		Txxx,		// should be a var
+-	"nil",		LNIL,		Txxx,		// should be a var
++	"new",		LNEW,		Txxx,
++	"len",		LLEN,		Txxx,
++	"nil",		LNIL,		Txxx,
+ 	"package",	LPACKAGE,	Txxx,
+-	"panic",	LPANIC,		Txxx,		// temp
+-	"print",	LPRINT,		Txxx,		// temp
++	"panic",	LPANIC,		Txxx,
++	"print",	LPRINT,		Txxx,
+ 	"range",	LRANGE,		Txxx,
+ 	"return",	LRETURN,	Txxx,
+ 	"select",	LSELECT,	Txxx,
+ 	"struct",	LSTRUCT,	Txxx,
+ 	"switch",	LSWITCH,	Txxx,
+-	"true",		LTRUE,		Txxx,		// should be a var
++	"true",		LTRUE,		Txxx,
+ 	"type",		LTYPE,		Txxx,
++	"typeof",	LTYPEOF,	Txxx,
+ 	"var",		LVAR,		Txxx,
+ 
+ 	"notwithstanding",		LIGNORE,	Txxx,

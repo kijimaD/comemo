@@ -18,9 +18,85 @@ Date:   Fri Aug 11 14:22:56 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go      | 7 -------
  src/cmd/compile/internal/ir/func.go         | 8 --------
  src/cmd/compile/internal/reflectdata/alg.go | 4 ++++
  src/cmd/compile/internal/types/type.go      | 5 -----
  4 files changed, 4 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 28cd870a54..dfafd50dad 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -438,13 +438,6 @@ func InlineImpossible(fn *ir.Func) string {
+ 		return reason
+ 	}
+ 
+-	// If fn is synthetic hash or eq function, cannot inline it.
+-	// The function is not generated in Unified IR frontend at this moment.
+-	if ir.IsEqOrHashFunc(fn) {
+-		reason = "type eq/hash function"
+-		return reason
+-	}
+-
+ 	return ""
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index a232c0fb70..dcd9e56289 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -301,14 +301,6 @@ func LinkFuncName(f *Func) string {
+ 	return objabi.PathToPrefix(pkg.Path) + "." + s.Name
+ }
+ 
+-// IsEqOrHashFunc reports whether f is type eq/hash function.
+-func IsEqOrHashFunc(f *Func) bool {
+-	if f == nil || f.Nname == nil {
+-		return false
+-	}
+-	return types.IsTypePkg(f.Sym().Pkg)
+-}
+-
+ var CurFunc *Func
+ 
+ // WithFunc invokes do with CurFunc and base.Pos set to curfn and
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 4489f59c26..20b5b76265 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -152,6 +152,8 @@ func hashFunc(t *types.Type) *ir.Func {
+ 
+ 	fn := typecheck.DeclFunc(sym, nil, args, results)
+ 	sym.Def = fn.Nname
++	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
++
+ 	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
+ 	nh := ir.AsNode(fn.Type().Params().Field(1).Nname)
+ 
+@@ -375,6 +377,8 @@ func eqFunc(t *types.Type) *ir.Func {
+ 		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("r"), types.Types[types.TBOOL])},
+ 	)
+ 	sym.Def = fn.Nname
++	fn.Pragma |= ir.Noinline // TODO(mdempsky): We need to emit this during the unified frontend instead, to allow inlining.
++
+ 	np := ir.AsNode(fn.Type().Params().Field(0).Nname)
+ 	nq := ir.AsNode(fn.Type().Params().Field(1).Nname)
+ 	nr := ir.AsNode(fn.Type().Results().Field(0).Nname)
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index c390b8194b..2b72a9cd24 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1858,11 +1858,6 @@ func IsReflectPkg(p *Pkg) bool {
+ 	return p.Path == "reflect"
+ }
+ 
+-// IsTypePkg reports whether p is pesudo package type.
+-func IsTypePkg(p *Pkg) bool {
+-	return p == typepkg
+-}
+-
+ // IsNoInstrumentPkg reports whether p is a package that
+ // should not be instrumented.
+ func IsNoInstrumentPkg(p *Pkg) bool {

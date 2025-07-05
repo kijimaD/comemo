@@ -11,6 +11,44 @@ Date:   Thu Jan 21 12:08:46 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/walk/expr.go | 11 ++++-------
  1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index bc4ae23759..d7a20206c8 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -521,10 +521,6 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 	n.X = walkExpr(n.X, init)
+ 	walkExprList(args, init)
+ 
+-	// For any argument whose evaluation might require a function call,
+-	// store that argument into a temporary variable,
+-	// to prevent that calls from clobbering arguments already on the stack.
+-	var tempAssigns []ir.Node
+ 	for i, arg := range args {
+ 		// Validate argument and parameter types match.
+ 		param := params.Field(i)
+@@ -532,17 +528,18 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 			base.FatalfAt(n.Pos(), "assigning %L to parameter %v (type %v)", arg, param.Sym, param.Type)
+ 		}
+ 
++		// For any argument whose evaluation might require a function call,
++		// store that argument into a temporary variable,
++		// to prevent that calls from clobbering arguments already on the stack.
+ 		if mayCall(arg) {
+ 			// assignment of arg to Temp
+ 			tmp := typecheck.Temp(param.Type)
+-			a := convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init)
+-			tempAssigns = append(tempAssigns, a)
++			init.Append(convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init))
+ 			// replace arg with temp
+ 			args[i] = tmp
+ 		}
+ 	}
+ 
+-	init.Append(tempAssigns...)
+ 	n.Args = args
+ }
+ 

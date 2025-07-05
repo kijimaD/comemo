@@ -16,8 +16,149 @@ Date:   Thu May 15 15:53:36 2014 -0400
     R=golang-codereviews, khr
     CC=0xe2.0x9a.0x9b, golang-codereviews, iant, r
     https://golang.org/cl/100470045
-
+---
  src/cmd/gc/reflect.c        | 17 ++++++++++++-
  src/pkg/runtime/mgc0.c      | 22 +++++++++++++----
  test/fixedbugs/issue8004.go | 59 +++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 92 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index af9177f900..dbb447e4e2 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -1322,7 +1322,22 @@ dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
+ 		// NOTE: Any changes here need to be made to reflect.PtrTo as well.
+ 		if(*off % widthptr != 0)
+ 			fatal("dgcsym1: invalid alignment, %T", t);
+-		if(!haspointers(t->type) || t->type->etype == TUINT8) {
++
++		// NOTE(rsc): Emitting GC_APTR here for *nonptrtype
++		// (pointer to non-pointer-containing type) means that
++		// we do not record 'nonptrtype' and instead tell the 
++		// garbage collector to look up the type of the memory in
++		// type information stored in the heap. In effect we are telling
++		// the collector "we don't trust our information - use yours".
++		// It's not completely clear why we want to do this.
++		// It does have the effect that if you have a *SliceHeader and a *[]int
++		// pointing at the same actual slice header, *SliceHeader will not be
++		// used as an authoritative type for the memory, which is good:
++		// if the collector scanned the memory as type *SliceHeader, it would
++		// see no pointers inside but mark the block as scanned, preventing
++		// the seeing of pointers when we followed the *[]int pointer.
++		// Perhaps that kind of situation is the rationale.
++		if(!haspointers(t->type)) {
+ 			ot = duintptr(s, ot, GC_APTR);
+ 			ot = duintptr(s, ot, *off);
+ 		} else {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 3afbec2c86..7152e3b37c 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -724,7 +724,7 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 	uintptr *pc, precise_type, nominal_size;
+ 	uintptr *chan_ret, chancap;
+ 	void *obj;
+-	Type *t;
++	Type *t, *et;
+ 	Slice *sliceptr;
+ 	String *stringptr;
+ 	Frame *stack_ptr, stack_top, stack[GC_STACK_CAPACITY+4];
+@@ -941,8 +941,14 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 						continue;
+ 
+ 					obj = eface->data;
+-					if((t->kind & ~KindNoPointers) == KindPtr)
+-						objti = (uintptr)((PtrType*)t)->elem->gc;
++					if((t->kind & ~KindNoPointers) == KindPtr) {
++						// Only use type information if it is a pointer-containing type.
++						// This matches the GC programs written by cmd/gc/reflect.c's
++						// dgcsym1 in case TPTR32/case TPTR64. See rationale there.
++						et = ((PtrType*)t)->elem;
++						if(!(et->kind & KindNoPointers))
++							objti = (uintptr)((PtrType*)t)->elem->gc;
++					}
+ 				} else {
+ 					obj = eface->data;
+ 					objti = (uintptr)t->gc;
+@@ -973,8 +979,14 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 						continue;
+ 
+ 					obj = iface->data;
+-					if((t->kind & ~KindNoPointers) == KindPtr)
+-						objti = (uintptr)((PtrType*)t)->elem->gc;
++					if((t->kind & ~KindNoPointers) == KindPtr) {
++						// Only use type information if it is a pointer-containing type.
++						// This matches the GC programs written by cmd/gc/reflect.c's
++						// dgcsym1 in case TPTR32/case TPTR64. See rationale there.
++						et = ((PtrType*)t)->elem;
++						if(!(et->kind & KindNoPointers))
++							objti = (uintptr)((PtrType*)t)->elem->gc;
++					}
+ 				} else {
+ 					obj = iface->data;
+ 					objti = (uintptr)t->gc;
+diff --git a/test/fixedbugs/issue8004.go b/test/fixedbugs/issue8004.go
+new file mode 100644
+index 0000000000..37e2fe0660
+--- /dev/null
++++ b/test/fixedbugs/issue8004.go
+@@ -0,0 +1,59 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"reflect"
++	"runtime"
++	"unsafe"
++)
++
++func main() {
++	test1()
++	test2()
++}
++
++func test1() {
++	var all []interface{}
++	for i := 0; i < 100; i++ {
++		p := new([]int)
++		*p = append(*p, 1, 2, 3, 4)
++		h := (*reflect.SliceHeader)(unsafe.Pointer(p))
++		all = append(all, h, p)
++	}
++	runtime.GC()
++	for i := 0; i < 100; i++ {
++		p := *all[2*i+1].(*[]int)
++		if p[0] != 1 || p[1] != 2 || p[2] != 3 || p[3] != 4 {
++			println("BUG test1: bad slice at index", i, p[0], p[1], p[2], p[3])
++			return
++		}
++	}
++}
++
++type T struct {
++	H *reflect.SliceHeader
++	P *[]int
++}
++
++func test2() {
++	var all []T
++	for i := 0; i < 100; i++ {
++		p := new([]int)
++		*p = append(*p, 1, 2, 3, 4)
++		h := (*reflect.SliceHeader)(unsafe.Pointer(p))
++		all = append(all, T{H: h}, T{P: p})
++	}
++	runtime.GC()
++	for i := 0; i < 100; i++ {
++		p := *all[2*i+1].P
++		if p[0] != 1 || p[1] != 2 || p[2] != 3 || p[3] != 4 {
++			println("BUG test2: bad slice at index", i, p[0], p[1], p[2], p[3])
++			return
++		}
++	}
++}

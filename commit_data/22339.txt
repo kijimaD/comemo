@@ -7,6 +7,20 @@ Date:   Fri Mar 6 10:34:59 2015 +1100
     Change-Id: Idb8e211bf33d2713735f9cdc868a3458ce799c97
     Reviewed-on: https://go-review.googlesource.com/6913
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/path_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/path_test.go b/src/os/path_test.go
+index 0aa327fbc6..c2258736de 100644
+--- a/src/os/path_test.go
++++ b/src/os/path_test.go
+@@ -213,7 +213,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
+ 		}
+ 	}
+ 	RemoveAll("/_go_os_test")
+-	const dir = "/go_os_test/dir"
++	const dir = "/_go_os_test/dir"
+ 	err := MkdirAll(dir, 0777)
+ 	if err != nil {
+ 		pathErr, ok := err.(*PathError)

@@ -16,7 +16,7 @@ Date:   Fri Apr 25 06:44:51 2014 -0700
     R=iant, ruiu
     CC=golang-codereviews, gri
     https://golang.org/cl/94740044
-
+---
  src/pkg/bytes/reader.go         |  2 +-
  src/pkg/bytes/reader_test.go    | 23 ++++++++++++++++++++++-
  src/pkg/net/http/serve_test.go  | 33 +++++++++++++++++++++++++++++++++
@@ -25,3 +25,205 @@ Date:   Fri Apr 25 06:44:51 2014 -0700
  src/pkg/strings/reader_test.go  | 21 +++++++++++++++++++++
  src/pkg/strings/strings_test.go |  2 +-
  7 files changed, 90 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/bytes/reader.go b/src/pkg/bytes/reader.go
+index 73b7213446..d2d40fa7ca 100644
+--- a/src/pkg/bytes/reader.go
++++ b/src/pkg/bytes/reader.go
+@@ -30,13 +30,13 @@ func (r *Reader) Len() int {
+ }
+ 
+ func (r *Reader) Read(b []byte) (n int, err error) {
+-	r.prevRune = -1
+ 	if len(b) == 0 {
+ 		return 0, nil
+ 	}
+ 	if r.i >= int64(len(r.s)) {
+ 		return 0, io.EOF
+ 	}
++	r.prevRune = -1
+ 	n = copy(b, r.s[r.i:])
+ 	r.i += int64(n)
+ 	return
+diff --git a/src/pkg/bytes/reader_test.go b/src/pkg/bytes/reader_test.go
+index f1a51b1be4..d3dce53499 100644
+--- a/src/pkg/bytes/reader_test.go
++++ b/src/pkg/bytes/reader_test.go
+@@ -115,6 +115,27 @@ func TestReaderAtConcurrent(t *testing.T) {
+ 	wg.Wait()
+ }
+ 
++func TestEmptyReaderConcurrent(t *testing.T) {
++	// Test for the race detector, to verify a Read that doesn't yield any bytes
++	// is okay to use from multiple goroutines. This was our historic behavior.
++	// See golang.org/issue/7856
++	r := NewReader([]byte{})
++	var wg sync.WaitGroup
++	for i := 0; i < 5; i++ {
++		wg.Add(2)
++		go func() {
++			defer wg.Done()
++			var buf [1]byte
++			r.Read(buf[:])
++		}()
++		go func() {
++			defer wg.Done()
++			r.Read(nil)
++		}()
++	}
++	wg.Wait()
++}
++
+ func TestReaderWriteTo(t *testing.T) {
+ 	for i := 0; i < 30; i += 3 {
+ 		var l int
+@@ -164,7 +185,7 @@ var UnreadRuneErrorTests = []struct {
+ 	name string
+ 	f    func(*Reader)
+ }{
+-	{"Read", func(r *Reader) { r.Read([]byte{}) }},
++	{"Read", func(r *Reader) { r.Read([]byte{0}) }},
+ 	{"ReadByte", func(r *Reader) { r.ReadByte() }},
+ 	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
+ 	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 625d379c26..d9a136742c 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -2461,6 +2461,39 @@ func TestServerKeepAlivesEnabled(t *testing.T) {
+ 	}
+ }
+ 
++// golang.org/issue/7856
++func TestServerEmptyBodyRace(t *testing.T) {
++	defer afterTest(t)
++	var n int32
++	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
++		atomic.AddInt32(&n, 1)
++	}))
++	defer ts.Close()
++	var wg sync.WaitGroup
++	const reqs = 20
++	for i := 0; i < reqs; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			res, err := Get(ts.URL)
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			defer res.Body.Close()
++			_, err = io.Copy(ioutil.Discard, res.Body)
++			if err != nil {
++				t.Error(err)
++				return
++			}
++		}()
++	}
++	wg.Wait()
++	if got := atomic.LoadInt32(&n); got != reqs {
++		t.Errorf("handler ran %d times; want %d", got, reqs)
++	}
++}
++
+ func TestServerConnStateNew(t *testing.T) {
+ 	sawNew := false // if the test is buggy, we'll race on this variable.
+ 	srv := &Server{
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 6b94167aef..9c5f3ffaba 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1971,17 +1971,24 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 	}
+ }
+ 
++type eofReaderWithWriteTo struct{}
++
++func (eofReaderWithWriteTo) WriteTo(io.Writer) (int64, error) { return 0, nil }
++func (eofReaderWithWriteTo) Read([]byte) (int, error)         { return 0, io.EOF }
++
+ // eofReader is a non-nil io.ReadCloser that always returns EOF.
+-// It embeds a *strings.Reader so it still has a WriteTo method
+-// and io.Copy won't need a buffer.
++// It has a WriteTo method so io.Copy won't need a buffer.
+ var eofReader = &struct {
+-	*strings.Reader
++	eofReaderWithWriteTo
+ 	io.Closer
+ }{
+-	strings.NewReader(""),
++	eofReaderWithWriteTo{},
+ 	ioutil.NopCloser(nil),
+ }
+ 
++// Verify that an io.Copy from an eofReader won't require a buffer.
++var _ io.WriterTo = eofReader
++
+ // initNPNRequest is an HTTP handler that initializes certain
+ // uninitialized fields in its *Request. Such partially-initialized
+ // Requests come from NPN protocol handlers.
+diff --git a/src/pkg/strings/reader.go b/src/pkg/strings/reader.go
+index ee83ceb505..82df974398 100644
+--- a/src/pkg/strings/reader.go
++++ b/src/pkg/strings/reader.go
+@@ -29,13 +29,13 @@ func (r *Reader) Len() int {
+ }
+ 
+ func (r *Reader) Read(b []byte) (n int, err error) {
+-	r.prevRune = -1
+ 	if len(b) == 0 {
+ 		return 0, nil
+ 	}
+ 	if r.i >= int64(len(r.s)) {
+ 		return 0, io.EOF
+ 	}
++	r.prevRune = -1
+ 	n = copy(b, r.s[r.i:])
+ 	r.i += int64(n)
+ 	return
+diff --git a/src/pkg/strings/reader_test.go b/src/pkg/strings/reader_test.go
+index 4d95355af7..bee90eb258 100644
+--- a/src/pkg/strings/reader_test.go
++++ b/src/pkg/strings/reader_test.go
+@@ -115,6 +115,27 @@ func TestReaderAtConcurrent(t *testing.T) {
+ 	wg.Wait()
+ }
+ 
++func TestEmptyReaderConcurrent(t *testing.T) {
++	// Test for the race detector, to verify a Read that doesn't yield any bytes
++	// is okay to use from multiple goroutines. This was our historic behavior.
++	// See golang.org/issue/7856
++	r := strings.NewReader("")
++	var wg sync.WaitGroup
++	for i := 0; i < 5; i++ {
++		wg.Add(2)
++		go func() {
++			defer wg.Done()
++			var buf [1]byte
++			r.Read(buf[:])
++		}()
++		go func() {
++			defer wg.Done()
++			r.Read(nil)
++		}()
++	}
++	wg.Wait()
++}
++
+ func TestWriteTo(t *testing.T) {
+ 	const str = "0123456789"
+ 	for i := 0; i <= len(str); i++ {
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 95a42019a3..e40a18015e 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -862,7 +862,7 @@ var UnreadRuneErrorTests = []struct {
+ 	name string
+ 	f    func(*Reader)
+ }{
+-	{"Read", func(r *Reader) { r.Read([]byte{}) }},
++	{"Read", func(r *Reader) { r.Read([]byte{0}) }},
+ 	{"ReadByte", func(r *Reader) { r.ReadByte() }},
+ 	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
+ 	{"Seek", func(r *Reader) { r.Seek(0, 1) }},

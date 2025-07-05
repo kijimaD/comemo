@@ -7,6 +7,26 @@ Date:   Mon Aug 3 17:48:43 2015 -0700
     Change-Id: Ia5d41b66006682084fcbfac3da020946ea3dd116
     Reviewed-on: https://go-review.googlesource.com/13093
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/contribute.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 23371e2cff..45ed8f1553 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -40,6 +40,14 @@ It also checks that the design is sound before code is written;
+ the code review tool is not the place for high-level discussions.
+ </p>
+ 
++<p>
++When planning work, please note that the Go project follows a
++<a href="https://golang.org/wiki/Go-Release-Cycle">six-month
++development cycle</a>. The latter half of each cycle is a three-month
++feature freeze during which only bug fixes and doc updates are accepted.
++New work cannot be submitted during a feature freeze.
++</p>
++
+ <h2 id="Testing">Testing redux</h2>
+ 
+ <p>

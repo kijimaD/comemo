@@ -15,7 +15,37 @@ Date:   Tue Mar 14 08:21:51 2017 +0900
     Change-Id: Iafe9c7a77ad4a6278c8ccb00a1575b56e4bdcd79
     Reviewed-on: https://go-review.googlesource.com/38067
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/proxy_test.go | 6 ++++++
  src/net/http/transport.go  | 4 ++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/net/http/proxy_test.go b/src/net/http/proxy_test.go
+index 8d3a78b962..f59a551f0a 100644
+--- a/src/net/http/proxy_test.go
++++ b/src/net/http/proxy_test.go
+@@ -79,3 +79,9 @@ func ResetProxyEnv() {
+ 	}
+ 	ResetCachedEnvironment()
+ }
++
++func TestInvalidNoProxy(t *testing.T) {
++	ResetProxyEnv()
++	os.Setenv("NO_PROXY", ":1")
++	useProxy("example.com:80") // should not panic
++}
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 0d4f427a57..5be7488d6d 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1227,6 +1227,10 @@ func useProxy(addr string) bool {
+ 		if addr == p {
+ 			return false
+ 		}
++		if len(p) == 0 {
++			// There is no host part, likely the entry is malformed; ignore.
++			continue
++		}
+ 		if p[0] == '.' && (strings.HasSuffix(addr, p) || addr == p[1:]) {
+ 			// no_proxy ".foo.com" matches "bar.foo.com" or "foo.com"
+ 			return false

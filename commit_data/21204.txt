@@ -11,8 +11,53 @@ Date:   Fri Dec 5 19:50:09 2014 -0500
     TBR=rlh
     CC=golang-codereviews
     https://golang.org/cl/188730043
-
+---
  src/runtime/stack.h   | 2 +-
  src/runtime/stack2.go | 2 +-
  test/nosplit.go       | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/stack.h b/src/runtime/stack.h
+index 0099d05c23..0b2cd56a92 100644
+--- a/src/runtime/stack.h
++++ b/src/runtime/stack.h
+@@ -17,7 +17,7 @@ enum {
+ #endif	// Windows
+ 
+ 	StackBig = 4096,
+-	StackGuard = 512 + StackSystem,
++	StackGuard = 640 + StackSystem,
+ 	StackSmall = 128,
+ 	StackLimit = StackGuard - StackSystem - StackSmall,
+ };
+diff --git a/src/runtime/stack2.go b/src/runtime/stack2.go
+index e50b32c784..8a78b1ad96 100644
+--- a/src/runtime/stack2.go
++++ b/src/runtime/stack2.go
+@@ -84,7 +84,7 @@ const (
+ 
+ 	// The stack guard is a pointer this many bytes above the
+ 	// bottom of the stack.
+-	_StackGuard = 512 + _StackSystem
++	_StackGuard = 640 + _StackSystem
+ 
+ 	// After a stack split check the SP is allowed to be this
+ 	// many bytes below the stack guard.  This saves an instruction
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 3a63e8731d..799f2c533a 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -268,11 +268,11 @@ TestCases:
+ 				name := m[1]
+ 				size, _ := strconv.Atoi(m[2])
+ 
+-				// The limit was originally 128 but is now 384.
++				// The limit was originally 128 but is now 512.
+ 				// Instead of rewriting the test cases above, adjust
+ 				// the first stack frame to use up the extra 32 bytes.
+ 				if i == 0 {
+-					size += 384 - 128
++					size += 512 - 128
+ 				}
+ 
+ 				if size%ptrSize == 4 {

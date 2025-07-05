@@ -9,7 +9,7 @@ Date:   Wed Jan 27 15:37:08 2010 -0800
     R=ken2, r
     CC=golang-dev
     https://golang.org/cl/194097
-
+---
  src/cmd/gc/builtin.c.boot |  47 ++++++-------
  src/cmd/gc/runtime.go     |   1 +
  src/cmd/gc/walk.c         | 172 ++++++++++++++++++++++++++++++++++------------
@@ -18,3 +18,552 @@ Date:   Wed Jan 27 15:37:08 2010 -0800
  test/deferprint.go        |  14 ++++
  test/golden.out           |   4 ++
  7 files changed, 246 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 3fb75f8649..1d881c9d8e 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -1,6 +1,6 @@
+ char *runtimeimport =
+ 	"package runtime\n"
+-	"func \"\".mal (? int32) (? *any)\n"
++	"func \"\".mal (? int32) *any\n"
+ 	"func \"\".throwindex ()\n"
+ 	"func \"\".throwreturn ()\n"
+ 	"func \"\".throwinit ()\n"
+@@ -16,17 +16,18 @@ char *runtimeimport =
+ 	"func \"\".printslice (? any)\n"
+ 	"func \"\".printnl ()\n"
+ 	"func \"\".printsp ()\n"
+-	"func \"\".catstring (? string, ? string) (? string)\n"
+-	"func \"\".cmpstring (? string, ? string) (? int)\n"
+-	"func \"\".slicestring (? string, ? int, ? int) (? string)\n"
+-	"func \"\".slicestring1 (? string, ? int) (? string)\n"
+-	"func \"\".indexstring (? string, ? int) (? uint8)\n"
+-	"func \"\".intstring (? int64) (? string)\n"
+-	"func \"\".slicebytetostring (? []uint8) (? string)\n"
+-	"func \"\".sliceinttostring (? []int) (? string)\n"
+-	"func \"\".stringiter (? string, ? int) (? int)\n"
++	"func \"\".printf ()\n"
++	"func \"\".catstring (? string, ? string) string\n"
++	"func \"\".cmpstring (? string, ? string) int\n"
++	"func \"\".slicestring (? string, ? int, ? int) string\n"
++	"func \"\".slicestring1 (? string, ? int) string\n"
++	"func \"\".indexstring (? string, ? int) uint8\n"
++	"func \"\".intstring (? int64) string\n"
++	"func \"\".slicebytetostring (? []uint8) string\n"
++	"func \"\".sliceinttostring (? []int) string\n"
++	"func \"\".stringiter (? string, ? int) int\n"
+ 	"func \"\".stringiter2 (? string, ? int) (retk int, retv int)\n"
+-	"func \"\".slicecopy (to any, fr any, wid uint32) (? int)\n"
++	"func \"\".slicecopy (to any, fr any, wid uint32) int\n"
+ 	"func \"\".ifaceI2E (iface any) (ret any)\n"
+ 	"func \"\".ifaceE2I (typ *uint8, iface any) (ret any)\n"
+ 	"func \"\".ifaceT2E (typ *uint8, elem any) (ret any)\n"
+@@ -58,7 +59,7 @@ char *runtimeimport =
+ 	"func \"\".chansend1 (hchan chan<- any, elem any)\n"
+ 	"func \"\".chansend2 (hchan chan<- any, elem any) (pres bool)\n"
+ 	"func \"\".closechan (hchan any)\n"
+-	"func \"\".closedchan (hchan any) (? bool)\n"
++	"func \"\".closedchan (hchan any) bool\n"
+ 	"func \"\".newselect (size int) (sel *uint8)\n"
+ 	"func \"\".selectsend (sel *uint8, hchan chan<- any, elem any) (selected bool)\n"
+ 	"func \"\".selectrecv (sel *uint8, hchan <-chan any, elem *any) (selected bool)\n"
+@@ -69,24 +70,24 @@ char *runtimeimport =
+ 	"func \"\".sliceslice (old []any, lb int, hb int, width int) (ary []any)\n"
+ 	"func \"\".slicearray (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
+ 	"func \"\".closure ()\n"
+-	"func \"\".int64div (? int64, ? int64) (? int64)\n"
+-	"func \"\".uint64div (? uint64, ? uint64) (? uint64)\n"
+-	"func \"\".int64mod (? int64, ? int64) (? int64)\n"
+-	"func \"\".uint64mod (? uint64, ? uint64) (? uint64)\n"
+-	"func \"\".float64toint64 (? float64) (? int64)\n"
+-	"func \"\".int64tofloat64 (? int64) (? float64)\n"
++	"func \"\".int64div (? int64, ? int64) int64\n"
++	"func \"\".uint64div (? uint64, ? uint64) uint64\n"
++	"func \"\".int64mod (? int64, ? int64) int64\n"
++	"func \"\".uint64mod (? uint64, ? uint64) uint64\n"
++	"func \"\".float64toint64 (? float64) int64\n"
++	"func \"\".int64tofloat64 (? int64) float64\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+ 	"package unsafe\n"
+ 	"type \"\".Pointer *any\n"
+-	"func \"\".Offsetof (? any) (? int)\n"
+-	"func \"\".Sizeof (? any) (? int)\n"
+-	"func \"\".Alignof (? any) (? int)\n"
++	"func \"\".Offsetof (? any) int\n"
++	"func \"\".Sizeof (? any) int\n"
++	"func \"\".Alignof (? any) int\n"
+ 	"func \"\".Typeof (i interface { }) (typ interface { })\n"
+ 	"func \"\".Reflect (i interface { }) (typ interface { }, addr \"\".Pointer)\n"
+ 	"func \"\".Unreflect (typ interface { }, addr \"\".Pointer) (ret interface { })\n"
+-	"func \"\".New (typ interface { }) (? \"\".Pointer)\n"
+-	"func \"\".NewArray (typ interface { }, n int) (? \"\".Pointer)\n"
++	"func \"\".New (typ interface { }) \"\".Pointer\n"
++	"func \"\".NewArray (typ interface { }, n int) \"\".Pointer\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 880b9c9d8d..4b9b97136b 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -27,6 +27,7 @@ func printeface(any)
+ func printslice(any)
+ func printnl()
+ func printsp()
++func printf()
+ 
+ func catstring(string, string) string
+ func cmpstring(string, string) int
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index acccbec2c9..e142814f7b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -4,7 +4,7 @@
+ 
+ #include	"go.h"
+ 
+-static	Node*	walkprint(Node*, NodeList**);
++static	Node*	walkprint(Node*, NodeList**, int);
+ static	Node*	conv(Node*, Type*);
+ static	Node*	mapfn(char*, Type*);
+ static	Node*	makenewvar(Type*, NodeList**, Node**);
+@@ -355,7 +355,18 @@ walkstmt(Node **np)
+ 
+ 	case ODEFER:
+ 		hasdefer = 1;
+-		walkexpr(&n->left, &n->ninit);
++		switch(n->left->op) {
++		case OPRINT:
++		case OPRINTN:
++		case OPANIC:
++		case OPANICN:
++			walkexprlist(n->left->list, &n->ninit);
++			n->left = walkprint(n->left, &n->ninit, 1);
++			break;
++		default:
++			walkexpr(&n->left, &n->ninit);
++			break;
++		}
+ 		break;
+ 
+ 	case OFOR:
+@@ -539,7 +550,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case OPANIC:
+ 	case OPANICN:
+ 		walkexprlist(n->list, init);
+-		n = walkprint(n, init);
++		n = walkprint(n, init, 0);
+ 		goto ret;
+ 
+ 	case OLITERAL:
+@@ -1510,7 +1521,7 @@ ret:
+ 
+ // generate code for print
+ static Node*
+-walkprint(Node *nn, NodeList **init)
++walkprint(Node *nn, NodeList **init, int defer)
+ {
+ 	Node *r;
+ 	Node *n;
+@@ -1518,16 +1529,32 @@ walkprint(Node *nn, NodeList **init)
+ 	Node *on;
+ 	Type *t;
+ 	int notfirst, et, op;
+-	NodeList *calls;
++	NodeList *calls, *intypes, *args;
++	Fmt fmt;
+ 
++	on = nil;
+ 	op = nn->op;
+ 	all = nn->list;
+ 	calls = nil;
+ 	notfirst = 0;
++	intypes = nil;
++	args = nil;
++
++	memset(&fmt, 0, sizeof fmt);
++	if(defer) {
++		// defer print turns into defer printf with format string
++		fmtstrinit(&fmt);
++		intypes = list(intypes, nod(ODCLFIELD, N, typenod(types[TSTRING])));
++		args = list1(nod(OXXX, N, N));
++	}
+ 
+ 	for(l=all; l; l=l->next) {
+-		if(notfirst)
+-			calls = list(calls, mkcall("printsp", T, init));
++		if(notfirst) {
++			if(defer)
++				fmtprint(&fmt, " ");
++			else
++				calls = list(calls, mkcall("printsp", T, init));
++		}
+ 		notfirst = op == OPRINTN || op == OPANICN;
+ 
+ 		n = l->n;
+@@ -1548,62 +1575,121 @@ walkprint(Node *nn, NodeList **init)
+ 		if(n->type == T || n->type->etype == TFORW)
+ 			continue;
+ 
++		t = n->type;
+ 		et = n->type->etype;
+ 		if(isinter(n->type)) {
+-			if(isnilinter(n->type))
+-				on = syslook("printeface", 1);
+-			else
+-				on = syslook("printiface", 1);
+-			argtype(on, n->type);		// any-1
++			if(defer) {
++				if(isnilinter(n->type))
++					fmtprint(&fmt, "%%e");
++				else
++					fmtprint(&fmt, "%%i");
++			} else {
++				if(isnilinter(n->type))
++					on = syslook("printeface", 1);
++				else
++					on = syslook("printiface", 1);
++				argtype(on, n->type);		// any-1
++			}
+ 		} else if(isptr[et] || et == TCHAN || et == TMAP || et == TFUNC) {
+-			on = syslook("printpointer", 1);
+-			argtype(on, n->type);	// any-1
++			if(defer) {
++				fmtprint(&fmt, "%%p");
++			} else {
++				on = syslook("printpointer", 1);
++				argtype(on, n->type);	// any-1
++			}
+ 		} else if(isslice(n->type)) {
+-			on = syslook("printslice", 1);
+-			argtype(on, n->type);	// any-1
++			if(defer) {
++				fmtprint(&fmt, "%%a");
++			} else {
++				on = syslook("printslice", 1);
++				argtype(on, n->type);	// any-1
++			}
+ 		} else if(isint[et]) {
+-			if(et == TUINT64)
+-				on = syslook("printuint", 0);
+-			else
+-				on = syslook("printint", 0);
++			if(defer) {
++				if(et == TUINT64)
++					fmtprint(&fmt, "%%U");
++				else {
++					fmtprint(&fmt, "%%D");
++					t = types[TINT64];
++				}
++			} else {
++				if(et == TUINT64)
++					on = syslook("printuint", 0);
++				else
++					on = syslook("printint", 0);
++			}
+ 		} else if(isfloat[et]) {
+-			on = syslook("printfloat", 0);
++			if(defer) {
++				fmtprint(&fmt, "%%f");
++				t = types[TFLOAT64];
++			} else
++				on = syslook("printfloat", 0);
+ 		} else if(et == TBOOL) {
+-			on = syslook("printbool", 0);
++			if(defer)
++				fmtprint(&fmt, "%%t");
++			else
++				on = syslook("printbool", 0);
+ 		} else if(et == TSTRING) {
+-			on = syslook("printstring", 0);
++			if(defer)
++				fmtprint(&fmt, "%%S");
++			else
++				on = syslook("printstring", 0);
+ 		} else {
+ 			badtype(OPRINT, n->type, T);
+ 			continue;
+ 		}
+ 
+-		t = *getinarg(on->type);
+-		if(t != nil)
+-			t = t->type;
+-		if(t != nil)
+-			t = t->type;
++		if(!defer) {
++			t = *getinarg(on->type);
++			if(t != nil)
++				t = t->type;
++			if(t != nil)
++				t = t->type;
++		}
+ 
+ 		if(!eqtype(t, n->type)) {
+ 			n = nod(OCONV, n, N);
+ 			n->type = t;
+ 		}
+-		r = nod(OCALL, on, N);
+-		r->list = list1(n);
+-		calls = list(calls, r);
++		
++		if(defer) {
++			intypes = list(intypes, nod(ODCLFIELD, N, typenod(t)));
++			args = list(args, n);
++		} else {
++			r = nod(OCALL, on, N);
++			r->list = list1(n);
++			calls = list(calls, r);
++		}
+ 	}
+ 
+-	if(op == OPRINTN)
+-		calls = list(calls, mkcall("printnl", T, nil));
+-	typechecklist(calls, Etop);
+-	walkexprlist(calls, init);
+-
+-	if(op == OPANIC || op == OPANICN)
+-		r = mkcall("panicl", T, nil);
+-	else
+-		r = nod(OEMPTY, N, N);
+-	typecheck(&r, Etop);
+-	walkexpr(&r, init);
+-	r->ninit = calls;
++	if(defer) {
++		if(op == OPRINTN)
++			fmtprint(&fmt, "\n");
++		if(op == OPANIC || op == OPANICN)
++			fmtprint(&fmt, "%%!");
++		on = syslook("printf", 1);
++		on->type = functype(nil, intypes, nil);
++		args->n = nod(OLITERAL, N, N);
++		args->n->val.ctype = CTSTR;
++		args->n->val.u.sval = strlit(fmtstrflush(&fmt));
++		r = nod(OCALL, on, N);
++		r->list = args;
++		typecheck(&r, Etop);
++		walkexpr(&r, init);
++	} else {
++		if(op == OPRINTN)
++			calls = list(calls, mkcall("printnl", T, nil));
++		typechecklist(calls, Etop);
++		walkexprlist(calls, init);
++	
++		if(op == OPANIC || op == OPANICN)
++			r = mkcall("panicl", T, nil);
++		else
++			r = nod(OEMPTY, N, N);
++		typecheck(&r, Etop);
++		walkexpr(&r, init);
++		r->ninit = calls;
++	}
+ 	return r;
+ }
+ 
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 68a9f1e0a7..1214fed51d 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -6,6 +6,8 @@
+ 
+ //static Lock debuglock;
+ 
++static void vprintf(int8*, byte*);
++
+ void
+ dump(byte *p, int32 n)
+ {
+@@ -29,18 +31,35 @@ prints(int8 *s)
+ 	write(fd, s, findnull((byte*)s));
+ }
+ 
+-// Very simple printf.  Only for debugging prints.
+-// Do not add to this without checking with Rob.
++#pragma textflag 7
+ void
+ printf(int8 *s, ...)
++{
++	byte *arg;
++
++	arg = (byte*)(&s+1);
++	vprintf(s, arg);
++}
++
++static byte*
++vrnd(byte *p, int32 x)
++{
++	if((uint32)(uintptr)p&(x-1))
++		p += x - ((uint32)(uintptr)p&(x-1));
++	return p;
++}
++
++// Very simple printf.  Only for debugging prints.
++// Do not add to this without checking with Rob.
++static void
++vprintf(int8 *s, byte *arg)
+ {
+ 	int8 *p, *lp;
+-	byte *arg, *narg;
++	byte *narg;
+ 
+ //	lock(&debuglock);
+ 
+ 	lp = p = s;
+-	arg = (byte*)(&s+1);
+ 	for(; *p; p++) {
+ 		if(*p != '%')
+ 			continue;
+@@ -49,40 +68,58 @@ printf(int8 *s, ...)
+ 		p++;
+ 		narg = nil;
+ 		switch(*p) {
++		case 't':
++			narg = arg + 1;
++			break;
+ 		case 'd':	// 32-bit
+ 		case 'x':
++			arg = vrnd(arg, 4);
+ 			narg = arg + 4;
+ 			break;
+ 		case 'D':	// 64-bit
++		case 'U':
+ 		case 'X':
+-			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
+-				arg += 4;
++		case 'f':
++			arg = vrnd(arg, sizeof(uintptr));
+ 			narg = arg + 8;
+ 			break;
+ 		case 'p':	// pointer-sized
+ 		case 's':
+-			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
+-				arg += 4;
++			arg = vrnd(arg, sizeof(uintptr));
+ 			narg = arg + sizeof(uintptr);
+ 			break;
+ 		case 'S':	// pointer-aligned but bigger
+-			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
+-				arg += 4;
++			arg = vrnd(arg, sizeof(uintptr));
+ 			narg = arg + sizeof(String);
+ 			break;
++		case 'a':	// pointer-aligned but bigger
++			arg = vrnd(arg, sizeof(uintptr));
++			narg = arg + sizeof(Slice);
++			break;
++		case 'i':	// pointer-aligned but bigger
++		case 'e':
++			arg = vrnd(arg, sizeof(uintptr));
++			narg = arg + sizeof(Eface);
++			break;
+ 		}
+ 		switch(*p) {
++		case 'a':
++			·printslice(*(Slice*)arg);
++			break;
+ 		case 'd':
+ 			·printint(*(int32*)arg);
+ 			break;
+ 		case 'D':
+ 			·printint(*(int64*)arg);
+ 			break;
+-		case 'x':
+-			·printhex(*(uint32*)arg);
++		case 'e':
++			·printeface(*(Eface*)arg);
+ 			break;
+-		case 'X':
+-			·printhex(*(uint64*)arg);
++		case 'f':
++			·printfloat(*(float64*)arg);
++			break;
++		case 'i':
++			·printiface(*(Iface*)arg);
+ 			break;
+ 		case 'p':
+ 			·printpointer(*(void**)arg);
+@@ -93,6 +130,20 @@ printf(int8 *s, ...)
+ 		case 'S':
+ 			·printstring(*(String*)arg);
+ 			break;
++		case 't':
++			·printbool(*(bool*)arg);
++			break;
++		case 'U':
++			·printuint(*(uint64*)arg);
++			break;
++		case 'x':
++			·printhex(*(uint32*)arg);
++			break;
++		case 'X':
++			·printhex(*(uint64*)arg);
++			break;
++		case '!':
++			·panicl(-1);
+ 		}
+ 		arg = narg;
+ 		lp = p+1;
+@@ -103,6 +154,14 @@ printf(int8 *s, ...)
+ //	unlock(&debuglock);
+ }
+ 
++void
++·printf(String s, ...)
++{
++	// Can assume s has terminating NUL because only
++	// the Go compiler generates calls to ·printf, using
++	// string constants, and all the string constants have NULs.
++	vprintf((int8*)s.str, (byte*)(&s+1));
++}
+ 
+ void
+ ·printpc(void *p)
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index d09975eef1..03b54fc264 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -487,6 +487,7 @@ void	runtime_printpointer(void*);
+ void	runtime_printuint(uint64);
+ void	runtime_printhex(uint64);
+ void	runtime_printslice(Slice);
++void	·panicl(int32);
+ 
+ /*
+  * wrapped for go users
+diff --git a/test/deferprint.go b/test/deferprint.go
+new file mode 100644
+index 0000000000..f1e75266f7
+--- /dev/null
++++ b/test/deferprint.go
+@@ -0,0 +1,14 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	defer println(42, true, false, true, 1.5, "world", (chan int)(nil), []int(nil), (map[string]int)(nil), (func())(nil), byte(255))
++	defer println(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)
++//	defer panic("dead")
++	defer print("printing: ")
++}
+diff --git a/test/golden.out b/test/golden.out
+index 59a83e7a88..72719ab33e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -25,6 +25,10 @@ throw: interface hash
+ 
+ panic PC=xxx
+ 
++=========== ./deferprint.go
++printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
++42 true false true +1.500000e+000 world 0x0 [0/0]0x0 0x0 0x0 255
++
+ =========== ./helloworld.go
+ hello, world
+ 

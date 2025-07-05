@@ -15,7 +15,7 @@ Date:   Mon Mar 16 16:46:25 2015 -0400
     Change-Id: If90a12fc6729878fdae10444f9c3bedc8d85026e
     Reviewed-on: https://go-review.googlesource.com/7745
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/5g/peep.go           |  15 +-
  src/cmd/5g/prog.go           | 179 +++++++++---------
  src/cmd/6g/peep.go           |  19 +-
@@ -31,3 +31,2212 @@ Date:   Mon Mar 16 16:46:25 2015 -0400
  src/cmd/internal/gc/reg.go   |  56 +++---
  src/cmd/internal/obj/link.go |  12 ++
  14 files changed, 759 insertions(+), 798 deletions(-)
+
+diff --git a/src/cmd/5g/peep.go b/src/cmd/5g/peep.go
+index 70109ac571..6d864da9d1 100644
+--- a/src/cmd/5g/peep.go
++++ b/src/cmd/5g/peep.go
+@@ -257,7 +257,6 @@ func subprop(r0 *gc.Flow) bool {
+ 	if !regtyp(v2) {
+ 		return false
+ 	}
+-	var info gc.ProgInfo
+ 	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
+ 		if gc.Uniqs(r) == nil {
+ 			break
+@@ -266,14 +265,16 @@ func subprop(r0 *gc.Flow) bool {
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+-		info = proginfo(p)
+-		if info.Flags&gc.Call != 0 {
++		if p.Info.Flags&gc.Call != 0 {
+ 			return false
+ 		}
+ 
+-		if (info.Flags&gc.CanRegRead != 0) && p.To.Type == obj.TYPE_REG {
+-			info.Flags |= gc.RegRead
+-			info.Flags &^= (gc.CanRegRead | gc.RightRead)
++		// TODO(rsc): Whatever invalidated the info should have done this call.
++		proginfo(p)
++
++		if (p.Info.Flags&gc.CanRegRead != 0) && p.To.Type == obj.TYPE_REG {
++			p.Info.Flags |= gc.RegRead
++			p.Info.Flags &^= (gc.CanRegRead | gc.RightRead)
+ 			p.Reg = p.To.Reg
+ 		}
+ 
+@@ -284,7 +285,7 @@ func subprop(r0 *gc.Flow) bool {
+ 			return false
+ 		}
+ 
+-		if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
++		if p.Info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
+ 			if p.To.Type == v1.Type {
+ 				if p.To.Reg == v1.Reg {
+ 					if p.Scond == arm.C_SCOND_NONE {
+diff --git a/src/cmd/5g/prog.go b/src/cmd/5g/prog.go
+index 9deff0787f..bfb703e56f 100644
+--- a/src/cmd/5g/prog.go
++++ b/src/cmd/5g/prog.go
+@@ -23,118 +23,119 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [arm.ALAST]gc.ProgInfo{
+-	obj.ATYPE:     gc.ProgInfo{gc.Pseudo | gc.Skip, 0, 0, 0},
+-	obj.ATEXT:     gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.AFUNCDATA: gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.APCDATA:   gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.AUNDEF:    gc.ProgInfo{gc.Break, 0, 0, 0},
+-	obj.AUSEFIELD: gc.ProgInfo{gc.OK, 0, 0, 0},
+-	obj.ACHECKNIL: gc.ProgInfo{gc.LeftRead, 0, 0, 0},
+-	obj.AVARDEF:   gc.ProgInfo{gc.Pseudo | gc.RightWrite, 0, 0, 0},
+-	obj.AVARKILL:  gc.ProgInfo{gc.Pseudo | gc.RightWrite, 0, 0, 0},
++var progtable = [arm.ALAST]obj.ProgInfo{
++	obj.ATYPE:     {gc.Pseudo | gc.Skip, 0, 0, 0},
++	obj.ATEXT:     {gc.Pseudo, 0, 0, 0},
++	obj.AFUNCDATA: {gc.Pseudo, 0, 0, 0},
++	obj.APCDATA:   {gc.Pseudo, 0, 0, 0},
++	obj.AUNDEF:    {gc.Break, 0, 0, 0},
++	obj.AUSEFIELD: {gc.OK, 0, 0, 0},
++	obj.ACHECKNIL: {gc.LeftRead, 0, 0, 0},
++	obj.AVARDEF:   {gc.Pseudo | gc.RightWrite, 0, 0, 0},
++	obj.AVARKILL:  {gc.Pseudo | gc.RightWrite, 0, 0, 0},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+-	obj.ANOP: gc.ProgInfo{gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	obj.ANOP: {gc.LeftRead | gc.RightWrite, 0, 0, 0},
+ 
+ 	// Integer.
+-	arm.AADC:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.AADD:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.AAND:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ABIC:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ACMN:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	arm.ACMP:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	arm.ADIVU:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ADIV:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.AEOR:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.AMODU:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.AMOD:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.AMULALU: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr, 0, 0, 0},
+-	arm.AMULAL:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr, 0, 0, 0},
+-	arm.AMULA:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr, 0, 0, 0},
+-	arm.AMULU:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.AMUL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.AMULL:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.AMULLU:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.AMVN:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite, 0, 0, 0},
+-	arm.AORR:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ARSB:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ARSC:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ASBC:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ASLL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ASRA:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ASRL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ASUB:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm.ATEQ:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	arm.ATST:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm.AADC:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.AADD:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.AAND:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ABIC:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ACMN:    {gc.SizeL | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm.ACMP:    {gc.SizeL | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm.ADIVU:   {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ADIV:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.AEOR:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.AMODU:   {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.AMOD:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.AMULALU: {gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr, 0, 0, 0},
++	arm.AMULAL:  {gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr, 0, 0, 0},
++	arm.AMULA:   {gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr, 0, 0, 0},
++	arm.AMULU:   {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.AMUL:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.AMULL:   {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.AMULLU:  {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.AMVN:    {gc.SizeL | gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	arm.AORR:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ARSB:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ARSC:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ASBC:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ASLL:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ASRA:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ASRL:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ASUB:    {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm.ATEQ:    {gc.SizeL | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm.ATST:    {gc.SizeL | gc.LeftRead | gc.RightRead, 0, 0, 0},
+ 
+ 	// Floating point.
+-	arm.AADDD: gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.AADDF: gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.ACMPD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	arm.ACMPF: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	arm.ADIVD: gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.ADIVF: gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.AMULD: gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.AMULF: gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.ASUBD: gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.ASUBF: gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.AADDD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.AADDF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.ACMPD: {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm.ACMPF: {gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm.ADIVD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.ADIVF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.AMULD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.AMULF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.ASUBD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.ASUBF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+ 
+ 	// Conversions.
+-	arm.AMOVWD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm.AMOVWF: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm.AMOVDF: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm.AMOVDW: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm.AMOVFD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm.AMOVFW: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm.AMOVWD: {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm.AMOVWF: {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm.AMOVDF: {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm.AMOVDW: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm.AMOVFD: {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm.AMOVFW: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+ 
+ 	// Moves.
+-	arm.AMOVB: gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	arm.AMOVD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	arm.AMOVF: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	arm.AMOVH: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	arm.AMOVW: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	arm.AMOVB: {gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	arm.AMOVD: {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	arm.AMOVF: {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	arm.AMOVH: {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	arm.AMOVW: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+ 
+ 	// In addtion, duffzero reads R0,R1 and writes R1.  This fact is
+ 	// encoded in peep.c
+-	obj.ADUFFZERO: gc.ProgInfo{gc.Call, 0, 0, 0},
++	obj.ADUFFZERO: {gc.Call, 0, 0, 0},
+ 
+ 	// In addtion, duffcopy reads R1,R2 and writes R0,R1,R2.  This fact is
+ 	// encoded in peep.c
+-	obj.ADUFFCOPY: gc.ProgInfo{gc.Call, 0, 0, 0},
++	obj.ADUFFCOPY: {gc.Call, 0, 0, 0},
+ 
+ 	// These should be split into the two different conversions instead
+ 	// of overloading the one.
+-	arm.AMOVBS: gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm.AMOVBU: gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm.AMOVHS: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm.AMOVHU: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm.AMOVBS: {gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm.AMOVBU: {gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm.AMOVHS: {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm.AMOVHU: {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+ 
+ 	// Jumps.
+-	arm.AB:   gc.ProgInfo{gc.Jump | gc.Break, 0, 0, 0},
+-	arm.ABL:  gc.ProgInfo{gc.Call, 0, 0, 0},
+-	arm.ABEQ: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABNE: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABCS: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABHS: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABCC: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABLO: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABMI: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABPL: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABVS: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABVC: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABHI: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABLS: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABGE: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABLT: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABGT: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm.ABLE: gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	obj.ARET: gc.ProgInfo{gc.Break, 0, 0, 0},
++	arm.AB:   {gc.Jump | gc.Break, 0, 0, 0},
++	arm.ABL:  {gc.Call, 0, 0, 0},
++	arm.ABEQ: {gc.Cjmp, 0, 0, 0},
++	arm.ABNE: {gc.Cjmp, 0, 0, 0},
++	arm.ABCS: {gc.Cjmp, 0, 0, 0},
++	arm.ABHS: {gc.Cjmp, 0, 0, 0},
++	arm.ABCC: {gc.Cjmp, 0, 0, 0},
++	arm.ABLO: {gc.Cjmp, 0, 0, 0},
++	arm.ABMI: {gc.Cjmp, 0, 0, 0},
++	arm.ABPL: {gc.Cjmp, 0, 0, 0},
++	arm.ABVS: {gc.Cjmp, 0, 0, 0},
++	arm.ABVC: {gc.Cjmp, 0, 0, 0},
++	arm.ABHI: {gc.Cjmp, 0, 0, 0},
++	arm.ABLS: {gc.Cjmp, 0, 0, 0},
++	arm.ABGE: {gc.Cjmp, 0, 0, 0},
++	arm.ABLT: {gc.Cjmp, 0, 0, 0},
++	arm.ABGT: {gc.Cjmp, 0, 0, 0},
++	arm.ABLE: {gc.Cjmp, 0, 0, 0},
++	obj.ARET: {gc.Break, 0, 0, 0},
+ }
+ 
+-func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+-	info = progtable[p.As]
++func proginfo(p *obj.Prog) {
++	info := &p.Info
++	*info = progtable[p.As]
+ 	if info.Flags == 0 {
+ 		gc.Fatal("unknown instruction %v", p)
+ 	}
+@@ -160,6 +161,4 @@ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+ 		arm.AMODU:
+ 		info.Regset |= RtoB(arm.REG_R12)
+ 	}
+-
+-	return
+ }
+diff --git a/src/cmd/6g/peep.go b/src/cmd/6g/peep.go
+index 849eab768f..4ec0ff2181 100644
+--- a/src/cmd/6g/peep.go
++++ b/src/cmd/6g/peep.go
+@@ -557,7 +557,6 @@ func subprop(r0 *gc.Flow) bool {
+ 		return false
+ 	}
+ 
+-	var info gc.ProgInfo
+ 	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
+ 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 			fmt.Printf("\t? %v\n", r.Prog)
+@@ -573,22 +572,21 @@ func subprop(r0 *gc.Flow) bool {
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+-		info = proginfo(p)
+-		if info.Flags&gc.Call != 0 {
++		if p.Info.Flags&gc.Call != 0 {
+ 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 				fmt.Printf("\tfound %v; return 0\n", p)
+ 			}
+ 			return false
+ 		}
+ 
+-		if info.Reguse|info.Regset != 0 {
++		if p.Info.Reguse|p.Info.Regset != 0 {
+ 			if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 				fmt.Printf("\tfound %v; return 0\n", p)
+ 			}
+ 			return false
+ 		}
+ 
+-		if (info.Flags&gc.Move != 0) && (info.Flags&(gc.SizeL|gc.SizeQ|gc.SizeF|gc.SizeD) != 0) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
++		if (p.Info.Flags&gc.Move != 0) && (p.Info.Flags&(gc.SizeL|gc.SizeQ|gc.SizeF|gc.SizeD) != 0) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
+ 			copysub(&p.To, v1, v2, 1)
+ 			if gc.Debug['P'] != 0 {
+ 				fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
+@@ -820,25 +818,24 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 	if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 		return 0
+ 	}
+-	info := proginfo(p)
+ 
+-	if (info.Reguse|info.Regset)&RtoB(int(v.Reg)) != 0 {
++	if (p.Info.Reguse|p.Info.Regset)&RtoB(int(v.Reg)) != 0 {
+ 		return 2
+ 	}
+ 
+-	if info.Flags&gc.LeftAddr != 0 {
++	if p.Info.Flags&gc.LeftAddr != 0 {
+ 		if copyas(&p.From, v) {
+ 			return 2
+ 		}
+ 	}
+ 
+-	if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightRead|gc.RightWrite {
++	if p.Info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightRead|gc.RightWrite {
+ 		if copyas(&p.To, v) {
+ 			return 2
+ 		}
+ 	}
+ 
+-	if info.Flags&gc.RightWrite != 0 {
++	if p.Info.Flags&gc.RightWrite != 0 {
+ 		if copyas(&p.To, v) {
+ 			if s != nil {
+ 				return copysub(&p.From, v, s, 1)
+@@ -850,7 +847,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		}
+ 	}
+ 
+-	if info.Flags&(gc.LeftAddr|gc.LeftRead|gc.LeftWrite|gc.RightAddr|gc.RightRead|gc.RightWrite) != 0 {
++	if p.Info.Flags&(gc.LeftAddr|gc.LeftRead|gc.LeftWrite|gc.RightAddr|gc.RightRead|gc.RightWrite) != 0 {
+ 		if s != nil {
+ 			if copysub(&p.From, v, s, 1) != 0 {
+ 				return 1
+diff --git a/src/cmd/6g/prog.go b/src/cmd/6g/prog.go
+index f6c1df1866..0644800257 100644
+--- a/src/cmd/6g/prog.go
++++ b/src/cmd/6g/prog.go
+@@ -24,211 +24,211 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [x86.ALAST]gc.ProgInfo{
+-	obj.ATYPE:     gc.ProgInfo{gc.Pseudo | gc.Skip, 0, 0, 0},
+-	obj.ATEXT:     gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.AFUNCDATA: gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.APCDATA:   gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.AUNDEF:    gc.ProgInfo{gc.Break, 0, 0, 0},
+-	obj.AUSEFIELD: gc.ProgInfo{gc.OK, 0, 0, 0},
+-	obj.ACHECKNIL: gc.ProgInfo{gc.LeftRead, 0, 0, 0},
+-	obj.AVARDEF:   gc.ProgInfo{gc.Pseudo | gc.RightWrite, 0, 0, 0},
+-	obj.AVARKILL:  gc.ProgInfo{gc.Pseudo | gc.RightWrite, 0, 0, 0},
++var progtable = [x86.ALAST]obj.ProgInfo{
++	obj.ATYPE:     {gc.Pseudo | gc.Skip, 0, 0, 0},
++	obj.ATEXT:     {gc.Pseudo, 0, 0, 0},
++	obj.AFUNCDATA: {gc.Pseudo, 0, 0, 0},
++	obj.APCDATA:   {gc.Pseudo, 0, 0, 0},
++	obj.AUNDEF:    {gc.Break, 0, 0, 0},
++	obj.AUSEFIELD: {gc.OK, 0, 0, 0},
++	obj.ACHECKNIL: {gc.LeftRead, 0, 0, 0},
++	obj.AVARDEF:   {gc.Pseudo | gc.RightWrite, 0, 0, 0},
++	obj.AVARKILL:  {gc.Pseudo | gc.RightWrite, 0, 0, 0},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+-	obj.ANOP:       gc.ProgInfo{gc.LeftRead | gc.RightWrite, 0, 0, 0},
+-	x86.AADCL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.AADCQ:      gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.AADCW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.AADDB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AADDL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AADDW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AADDQ:      gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AADDSD:     gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.AADDSS:     gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.AANDB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AANDL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AANDQ:      gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AANDW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	obj.ACALL:      gc.ProgInfo{gc.RightAddr | gc.Call | gc.KillCarry, 0, 0, 0},
+-	x86.ACDQ:       gc.ProgInfo{gc.OK, AX, AX | DX, 0},
+-	x86.ACQO:       gc.ProgInfo{gc.OK, AX, AX | DX, 0},
+-	x86.ACWD:       gc.ProgInfo{gc.OK, AX, AX | DX, 0},
+-	x86.ACLD:       gc.ProgInfo{gc.OK, 0, 0, 0},
+-	x86.ASTD:       gc.ProgInfo{gc.OK, 0, 0, 0},
+-	x86.ACMPB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACMPL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACMPQ:      gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACMPW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACOMISD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACOMISS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACVTSD2SL:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSD2SQ:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSD2SS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSL2SD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSL2SS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSQ2SD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSQ2SS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSS2SD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSS2SL:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSS2SQ:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTTSD2SL: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTTSD2SQ: gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTTSS2SL: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTTSS2SQ: gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ADECB:      gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
+-	x86.ADECL:      gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
+-	x86.ADECQ:      gc.ProgInfo{gc.SizeQ | RightRdwr, 0, 0, 0},
+-	x86.ADECW:      gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
+-	x86.ADIVB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	x86.ADIVL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	x86.ADIVQ:      gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	x86.ADIVW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	x86.ADIVSD:     gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.ADIVSS:     gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.AIDIVB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	x86.AIDIVL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	x86.AIDIVQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	x86.AIDIVW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	x86.AIMULB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	x86.AIMULL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
+-	x86.AIMULQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
+-	x86.AIMULW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
+-	x86.AINCB:      gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
+-	x86.AINCL:      gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
+-	x86.AINCQ:      gc.ProgInfo{gc.SizeQ | RightRdwr, 0, 0, 0},
+-	x86.AINCW:      gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
+-	x86.AJCC:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJCS:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJEQ:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJGE:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJGT:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJHI:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJLE:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJLS:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJLT:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJMI:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJNE:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJOC:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJOS:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJPC:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJPL:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJPS:       gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	obj.AJMP:       gc.ProgInfo{gc.Jump | gc.Break | gc.KillCarry, 0, 0, 0},
+-	x86.ALEAL:      gc.ProgInfo{gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	x86.ALEAQ:      gc.ProgInfo{gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	x86.AMOVBLSX:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVBLZX:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVBQSX:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVBQZX:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVBWSX:   gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVBWZX:   gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVLQSX:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVLQZX:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVWLSX:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVWLZX:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVWQSX:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVWQZX:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVQL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMOVL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMOVQ:      gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMOVW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMOVSB:     gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
+-	x86.AMOVSL:     gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
+-	x86.AMOVSQ:     gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
+-	x86.AMOVSW:     gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
+-	obj.ADUFFCOPY:  gc.ProgInfo{gc.OK, DI | SI, DI | SI | CX, 0},
+-	x86.AMOVSD:     gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMOVSS:     gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	obj.ANOP:       {gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	x86.AADCL:      {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.AADCQ:      {gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.AADCW:      {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.AADDB:      {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AADDL:      {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AADDW:      {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AADDQ:      {gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AADDSD:     {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AADDSS:     {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AANDB:      {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AANDL:      {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AANDQ:      {gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AANDW:      {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	obj.ACALL:      {gc.RightAddr | gc.Call | gc.KillCarry, 0, 0, 0},
++	x86.ACDQ:       {gc.OK, AX, AX | DX, 0},
++	x86.ACQO:       {gc.OK, AX, AX | DX, 0},
++	x86.ACWD:       {gc.OK, AX, AX | DX, 0},
++	x86.ACLD:       {gc.OK, 0, 0, 0},
++	x86.ASTD:       {gc.OK, 0, 0, 0},
++	x86.ACMPB:      {gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACMPL:      {gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACMPQ:      {gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACMPW:      {gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACOMISD:    {gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACOMISS:    {gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACVTSD2SL:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSD2SQ:  {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSD2SS:  {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSL2SD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSL2SS:  {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSQ2SD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSQ2SS:  {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSS2SD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSS2SL:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSS2SQ:  {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTTSD2SL: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTTSD2SQ: {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTTSS2SL: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTTSS2SQ: {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ADECB:      {gc.SizeB | RightRdwr, 0, 0, 0},
++	x86.ADECL:      {gc.SizeL | RightRdwr, 0, 0, 0},
++	x86.ADECQ:      {gc.SizeQ | RightRdwr, 0, 0, 0},
++	x86.ADECW:      {gc.SizeW | RightRdwr, 0, 0, 0},
++	x86.ADIVB:      {gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.ADIVL:      {gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.ADIVQ:      {gc.SizeQ | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.ADIVW:      {gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.ADIVSD:     {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ADIVSS:     {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AIDIVB:     {gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.AIDIVL:     {gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.AIDIVQ:     {gc.SizeQ | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.AIDIVW:     {gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.AIMULB:     {gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.AIMULL:     {gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
++	x86.AIMULQ:     {gc.SizeQ | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
++	x86.AIMULW:     {gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
++	x86.AINCB:      {gc.SizeB | RightRdwr, 0, 0, 0},
++	x86.AINCL:      {gc.SizeL | RightRdwr, 0, 0, 0},
++	x86.AINCQ:      {gc.SizeQ | RightRdwr, 0, 0, 0},
++	x86.AINCW:      {gc.SizeW | RightRdwr, 0, 0, 0},
++	x86.AJCC:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJCS:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJEQ:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJGE:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJGT:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJHI:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJLE:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJLS:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJLT:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJMI:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJNE:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJOC:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJOS:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJPC:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJPL:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJPS:       {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	obj.AJMP:       {gc.Jump | gc.Break | gc.KillCarry, 0, 0, 0},
++	x86.ALEAL:      {gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.ALEAQ:      {gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AMOVBLSX:   {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBLZX:   {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBQSX:   {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBQZX:   {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBWSX:   {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBWZX:   {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVLQSX:   {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVLQZX:   {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVWLSX:   {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVWLZX:   {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVWQSX:   {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVWQZX:   {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVQL:     {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVB:      {gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVL:      {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVQ:      {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVW:      {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVSB:     {gc.OK, DI | SI, DI | SI, 0},
++	x86.AMOVSL:     {gc.OK, DI | SI, DI | SI, 0},
++	x86.AMOVSQ:     {gc.OK, DI | SI, DI | SI, 0},
++	x86.AMOVSW:     {gc.OK, DI | SI, DI | SI, 0},
++	obj.ADUFFCOPY:  {gc.OK, DI | SI, DI | SI | CX, 0},
++	x86.AMOVSD:     {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVSS:     {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+ 
+ 	// We use MOVAPD as a faster synonym for MOVSD.
+-	x86.AMOVAPD:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMULB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	x86.AMULL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
+-	x86.AMULQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
+-	x86.AMULW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
+-	x86.AMULSD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.AMULSS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.ANEGB:     gc.ProgInfo{gc.SizeB | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ANEGL:     gc.ProgInfo{gc.SizeL | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ANEGQ:     gc.ProgInfo{gc.SizeQ | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ANEGW:     gc.ProgInfo{gc.SizeW | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ANOTB:     gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
+-	x86.ANOTL:     gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
+-	x86.ANOTQ:     gc.ProgInfo{gc.SizeQ | RightRdwr, 0, 0, 0},
+-	x86.ANOTW:     gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
+-	x86.AORB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AORL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AORQ:      gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AORW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.APOPQ:     gc.ProgInfo{gc.SizeQ | gc.RightWrite, 0, 0, 0},
+-	x86.APUSHQ:    gc.ProgInfo{gc.SizeQ | gc.LeftRead, 0, 0, 0},
+-	x86.ARCLB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCLL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCLQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCLW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCRB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCRL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCRQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCRW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.AREP:      gc.ProgInfo{gc.OK, CX, CX, 0},
+-	x86.AREPN:     gc.ProgInfo{gc.OK, CX, CX, 0},
+-	obj.ARET:      gc.ProgInfo{gc.Break | gc.KillCarry, 0, 0, 0},
+-	x86.AROLB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.AROLL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.AROLQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.AROLW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ARORB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ARORL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ARORQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ARORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASALB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASALL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASALQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASALW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASARB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASARL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASARQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASARW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASBBB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ASBBL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ASBBQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ASBBW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ASHLB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHLL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHLQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHLW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHRB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHRL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHRQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHRW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASTOSB:    gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	x86.ASTOSL:    gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	x86.ASTOSQ:    gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	x86.ASTOSW:    gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	obj.ADUFFZERO: gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	x86.ASUBB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ASUBL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ASUBQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ASUBW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ASUBSD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.ASUBSS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.ATESTB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ATESTL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ATESTQ:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ATESTW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.AUCOMISD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	x86.AUCOMISS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	x86.AXCHGB:    gc.ProgInfo{gc.SizeB | LeftRdwr | RightRdwr, 0, 0, 0},
+-	x86.AXCHGL:    gc.ProgInfo{gc.SizeL | LeftRdwr | RightRdwr, 0, 0, 0},
+-	x86.AXCHGQ:    gc.ProgInfo{gc.SizeQ | LeftRdwr | RightRdwr, 0, 0, 0},
+-	x86.AXCHGW:    gc.ProgInfo{gc.SizeW | LeftRdwr | RightRdwr, 0, 0, 0},
+-	x86.AXORB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AXORL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AXORQ:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AXORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AMOVAPD:   {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMULB:     {gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.AMULL:     {gc.SizeL | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
++	x86.AMULQ:     {gc.SizeQ | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
++	x86.AMULW:     {gc.SizeW | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
++	x86.AMULSD:    {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AMULSS:    {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ANEGB:     {gc.SizeB | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ANEGL:     {gc.SizeL | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ANEGQ:     {gc.SizeQ | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ANEGW:     {gc.SizeW | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ANOTB:     {gc.SizeB | RightRdwr, 0, 0, 0},
++	x86.ANOTL:     {gc.SizeL | RightRdwr, 0, 0, 0},
++	x86.ANOTQ:     {gc.SizeQ | RightRdwr, 0, 0, 0},
++	x86.ANOTW:     {gc.SizeW | RightRdwr, 0, 0, 0},
++	x86.AORB:      {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AORL:      {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AORQ:      {gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AORW:      {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.APOPQ:     {gc.SizeQ | gc.RightWrite, 0, 0, 0},
++	x86.APUSHQ:    {gc.SizeQ | gc.LeftRead, 0, 0, 0},
++	x86.ARCLB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCLL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCLQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCLW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCRB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCRL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCRQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCRW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.AREP:      {gc.OK, CX, CX, 0},
++	x86.AREPN:     {gc.OK, CX, CX, 0},
++	obj.ARET:      {gc.Break | gc.KillCarry, 0, 0, 0},
++	x86.AROLB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.AROLL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.AROLQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.AROLW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ARORB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ARORL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ARORQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ARORW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASALB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASALL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASALQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASALW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASARB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASARL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASARQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASARW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASBBB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ASBBL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ASBBQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ASBBW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ASHLB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHLL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHLQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHLW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHRB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHRL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHRQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHRW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASTOSB:    {gc.OK, AX | DI, DI, 0},
++	x86.ASTOSL:    {gc.OK, AX | DI, DI, 0},
++	x86.ASTOSQ:    {gc.OK, AX | DI, DI, 0},
++	x86.ASTOSW:    {gc.OK, AX | DI, DI, 0},
++	obj.ADUFFZERO: {gc.OK, AX | DI, DI, 0},
++	x86.ASUBB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBSD:    {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ASUBSS:    {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ATESTB:    {gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ATESTL:    {gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ATESTQ:    {gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ATESTW:    {gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.AUCOMISD:  {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	x86.AUCOMISS:  {gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	x86.AXCHGB:    {gc.SizeB | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AXCHGL:    {gc.SizeL | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AXCHGQ:    {gc.SizeQ | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AXCHGW:    {gc.SizeW | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AXORB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AXORL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AXORQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AXORW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+ }
+ 
+ func progflags(p *obj.Prog) uint32 {
+@@ -243,8 +243,9 @@ func progcarryflags(p *obj.Prog) uint32 {
+ 	return progtable[p.As].Flags
+ }
+ 
+-func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+-	info = progtable[p.As]
++func proginfo(p *obj.Prog) {
++	info := &p.Info
++	*info = progtable[p.As]
+ 	if info.Flags == 0 {
+ 		gc.Fatal("unknown instruction %v", p)
+ 	}
+@@ -275,6 +276,4 @@ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+ 	if p.To.Index != x86.REG_NONE {
+ 		info.Regindex |= RtoB(int(p.To.Index))
+ 	}
+-
+-	return
+ }
+diff --git a/src/cmd/7g/prog.go b/src/cmd/7g/prog.go
+index 3c68813ced..4afb29b89a 100644
+--- a/src/cmd/7g/prog.go
++++ b/src/cmd/7g/prog.go
+@@ -24,112 +24,112 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [arm64.ALAST]gc.ProgInfo{
+-	obj.ATYPE:     gc.ProgInfo{gc.Pseudo | gc.Skip, 0, 0, 0},
+-	obj.ATEXT:     gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.AFUNCDATA: gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.APCDATA:   gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.AUNDEF:    gc.ProgInfo{gc.Break, 0, 0, 0},
+-	obj.AUSEFIELD: gc.ProgInfo{gc.OK, 0, 0, 0},
+-	obj.ACHECKNIL: gc.ProgInfo{gc.LeftRead, 0, 0, 0},
+-	obj.AVARDEF:   gc.ProgInfo{gc.Pseudo | gc.RightWrite, 0, 0, 0},
+-	obj.AVARKILL:  gc.ProgInfo{gc.Pseudo | gc.RightWrite, 0, 0, 0},
++var progtable = [arm64.ALAST]obj.ProgInfo{
++	obj.ATYPE:     {gc.Pseudo | gc.Skip, 0, 0, 0},
++	obj.ATEXT:     {gc.Pseudo, 0, 0, 0},
++	obj.AFUNCDATA: {gc.Pseudo, 0, 0, 0},
++	obj.APCDATA:   {gc.Pseudo, 0, 0, 0},
++	obj.AUNDEF:    {gc.Break, 0, 0, 0},
++	obj.AUSEFIELD: {gc.OK, 0, 0, 0},
++	obj.ACHECKNIL: {gc.LeftRead, 0, 0, 0},
++	obj.AVARDEF:   {gc.Pseudo | gc.RightWrite, 0, 0, 0},
++	obj.AVARKILL:  {gc.Pseudo | gc.RightWrite, 0, 0, 0},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Power opcode.
+-	obj.ANOP:    gc.ProgInfo{gc.LeftRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AHINT: gc.ProgInfo{gc.OK, 0, 0, 0},
++	obj.ANOP:    {gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	arm64.AHINT: {gc.OK, 0, 0, 0},
+ 
+ 	// Integer
+-	arm64.AADD:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.ASUB:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.ANEG:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AAND:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AORR:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AEOR:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AMUL:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.ASMULL: gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AUMULL: gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.ASMULH: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AUMULH: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.ASDIV:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AUDIV:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.ALSL:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.ALSR:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AASR:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.ACMP:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm64.AADD:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ASUB:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ANEG:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AAND:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AORR:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AEOR:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AMUL:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ASMULL: {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AUMULL: {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ASMULH: {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AUMULH: {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ASDIV:  {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AUDIV:  {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ALSL:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ALSR:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AASR:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.ACMP:   {gc.SizeQ | gc.LeftRead | gc.RightRead, 0, 0, 0},
+ 
+ 	// Floating point.
+-	arm64.AFADDD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFADDS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFSUBD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFSUBS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFNEGD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFNEGS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFMULD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFMULS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFDIVD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFDIVS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFCMPD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	arm64.AFCMPS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm64.AFADDD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFADDS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFSUBD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFSUBS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFNEGD: {gc.SizeD | gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFNEGS: {gc.SizeF | gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFMULD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFMULS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFDIVD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFDIVS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFCMPD: {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm64.AFCMPS: {gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
+ 
+ 	// float -> integer
+-	arm64.AFCVTZSD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AFCVTZSS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AFCVTZSDW: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AFCVTZSSW: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AFCVTZUD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AFCVTZUS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AFCVTZUDW: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AFCVTZUSW: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZSD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZSS:  {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZSDW: {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZSSW: {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZUD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZUS:  {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZUDW: {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTZUSW: {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+ 
+ 	// float -> float
+-	arm64.AFCVTSD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AFCVTDS: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTSD: {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AFCVTDS: {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+ 
+ 	// integer -> float
+-	arm64.ASCVTFD:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.ASCVTFS:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.ASCVTFWD: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.ASCVTFWS: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AUCVTFD:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AUCVTFS:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AUCVTFWD: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	arm64.AUCVTFWS: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.ASCVTFD:  {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.ASCVTFS:  {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.ASCVTFWD: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.ASCVTFWS: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AUCVTFD:  {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AUCVTFS:  {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AUCVTFWD: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	arm64.AUCVTFWS: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+ 
+ 	// Moves
+-	arm64.AMOVB:  gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	arm64.AMOVBU: gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	arm64.AMOVH:  gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	arm64.AMOVHU: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	arm64.AMOVW:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	arm64.AMOVWU: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	arm64.AMOVD:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	arm64.AFMOVS: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	arm64.AFMOVD: gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	arm64.AMOVB:  {gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVBU: {gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVH:  {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVHU: {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVW:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVWU: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AMOVD:  {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	arm64.AFMOVS: {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	arm64.AFMOVD: {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+ 
+ 	// Jumps
+-	arm64.AB:      gc.ProgInfo{gc.Jump | gc.Break, 0, 0, 0},
+-	arm64.ABL:     gc.ProgInfo{gc.Call, 0, 0, 0},
+-	arm64.ABEQ:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm64.ABNE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm64.ABGE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm64.ABLT:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm64.ABGT:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm64.ABLE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm64.ABLO:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm64.ABLS:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm64.ABHI:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	arm64.ABHS:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	obj.ARET:      gc.ProgInfo{gc.Break, 0, 0, 0},
+-	obj.ADUFFZERO: gc.ProgInfo{gc.Call, 0, 0, 0},
+-	obj.ADUFFCOPY: gc.ProgInfo{gc.Call, 0, 0, 0},
++	arm64.AB:      {gc.Jump | gc.Break, 0, 0, 0},
++	arm64.ABL:     {gc.Call, 0, 0, 0},
++	arm64.ABEQ:    {gc.Cjmp, 0, 0, 0},
++	arm64.ABNE:    {gc.Cjmp, 0, 0, 0},
++	arm64.ABGE:    {gc.Cjmp, 0, 0, 0},
++	arm64.ABLT:    {gc.Cjmp, 0, 0, 0},
++	arm64.ABGT:    {gc.Cjmp, 0, 0, 0},
++	arm64.ABLE:    {gc.Cjmp, 0, 0, 0},
++	arm64.ABLO:    {gc.Cjmp, 0, 0, 0},
++	arm64.ABLS:    {gc.Cjmp, 0, 0, 0},
++	arm64.ABHI:    {gc.Cjmp, 0, 0, 0},
++	arm64.ABHS:    {gc.Cjmp, 0, 0, 0},
++	obj.ARET:      {gc.Break, 0, 0, 0},
++	obj.ADUFFZERO: {gc.Call, 0, 0, 0},
++	obj.ADUFFCOPY: {gc.Call, 0, 0, 0},
+ }
+ 
+-func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+-	info = progtable[p.As]
++func proginfo(p *obj.Prog) {
++	info := &p.Info
++	*info = progtable[p.As]
+ 	if info.Flags == 0 {
+-		info = progtable[arm64.AADD]
+ 		gc.Fatal("proginfo: unknown instruction %v", p)
+ 	}
+ 
+@@ -168,6 +168,4 @@ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+ 
+ 		info.Regset |= RtoB(arm64.REGRT1) | RtoB(arm64.REGRT2)
+ 	}
+-
+-	return
+ }
+diff --git a/src/cmd/8g/peep.go b/src/cmd/8g/peep.go
+index 2c9da4527c..91055fd34e 100644
+--- a/src/cmd/8g/peep.go
++++ b/src/cmd/8g/peep.go
+@@ -46,14 +46,11 @@ var gactive uint32
+ 
+ // do we need the carry bit
+ func needc(p *obj.Prog) bool {
+-	var info gc.ProgInfo
+-
+ 	for p != nil {
+-		info = proginfo(p)
+-		if info.Flags&gc.UseCarry != 0 {
++		if p.Info.Flags&gc.UseCarry != 0 {
+ 			return true
+ 		}
+-		if info.Flags&(gc.SetCarry|gc.KillCarry) != 0 {
++		if p.Info.Flags&(gc.SetCarry|gc.KillCarry) != 0 {
+ 			return false
+ 		}
+ 		p = p.Link
+@@ -370,7 +367,6 @@ func subprop(r0 *gc.Flow) bool {
+ 	if !regtyp(v2) {
+ 		return false
+ 	}
+-	var info gc.ProgInfo
+ 	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
+ 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 			fmt.Printf("\t? %v\n", r.Prog)
+@@ -382,16 +378,15 @@ func subprop(r0 *gc.Flow) bool {
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+-		info = proginfo(p)
+-		if info.Flags&gc.Call != 0 {
++		if p.Info.Flags&gc.Call != 0 {
+ 			return false
+ 		}
+ 
+-		if info.Reguse|info.Regset != 0 {
++		if p.Info.Reguse|p.Info.Regset != 0 {
+ 			return false
+ 		}
+ 
+-		if (info.Flags&gc.Move != 0) && (info.Flags&(gc.SizeL|gc.SizeQ|gc.SizeF|gc.SizeD) != 0) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
++		if (p.Info.Flags&gc.Move != 0) && (p.Info.Flags&(gc.SizeL|gc.SizeQ|gc.SizeF|gc.SizeD) != 0) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
+ 			copysub(&p.To, v1, v2, 1)
+ 			if gc.Debug['P'] != 0 {
+ 				fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
+@@ -610,26 +605,24 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 	if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 		return 0
+ 	}
+-	var info gc.ProgInfo
+-	info = proginfo(p)
+ 
+-	if (info.Reguse|info.Regset)&RtoB(int(v.Reg)) != 0 {
++	if (p.Info.Reguse|p.Info.Regset)&RtoB(int(v.Reg)) != 0 {
+ 		return 2
+ 	}
+ 
+-	if info.Flags&gc.LeftAddr != 0 {
++	if p.Info.Flags&gc.LeftAddr != 0 {
+ 		if copyas(&p.From, v) {
+ 			return 2
+ 		}
+ 	}
+ 
+-	if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightRead|gc.RightWrite {
++	if p.Info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightRead|gc.RightWrite {
+ 		if copyas(&p.To, v) {
+ 			return 2
+ 		}
+ 	}
+ 
+-	if info.Flags&gc.RightWrite != 0 {
++	if p.Info.Flags&gc.RightWrite != 0 {
+ 		if copyas(&p.To, v) {
+ 			if s != nil {
+ 				return copysub(&p.From, v, s, 1)
+@@ -641,7 +634,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		}
+ 	}
+ 
+-	if info.Flags&(gc.LeftAddr|gc.LeftRead|gc.LeftWrite|gc.RightAddr|gc.RightRead|gc.RightWrite) != 0 {
++	if p.Info.Flags&(gc.LeftAddr|gc.LeftRead|gc.LeftWrite|gc.RightAddr|gc.RightRead|gc.RightWrite) != 0 {
+ 		if s != nil {
+ 			if copysub(&p.From, v, s, 1) != 0 {
+ 				return 1
+diff --git a/src/cmd/8g/prog.go b/src/cmd/8g/prog.go
+index 3cb6e518a7..1346c20f2b 100644
+--- a/src/cmd/8g/prog.go
++++ b/src/cmd/8g/prog.go
+@@ -30,234 +30,235 @@ var (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [x86.ALAST]gc.ProgInfo{
+-	obj.ATYPE:     gc.ProgInfo{gc.Pseudo | gc.Skip, 0, 0, 0},
+-	obj.ATEXT:     gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.AFUNCDATA: gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.APCDATA:   gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.AUNDEF:    gc.ProgInfo{gc.Break, 0, 0, 0},
+-	obj.AUSEFIELD: gc.ProgInfo{gc.OK, 0, 0, 0},
+-	obj.ACHECKNIL: gc.ProgInfo{gc.LeftRead, 0, 0, 0},
+-	obj.AVARDEF:   gc.ProgInfo{gc.Pseudo | gc.RightWrite, 0, 0, 0},
+-	obj.AVARKILL:  gc.ProgInfo{gc.Pseudo | gc.RightWrite, 0, 0, 0},
++var progtable = [x86.ALAST]obj.ProgInfo{
++	obj.ATYPE:     {gc.Pseudo | gc.Skip, 0, 0, 0},
++	obj.ATEXT:     {gc.Pseudo, 0, 0, 0},
++	obj.AFUNCDATA: {gc.Pseudo, 0, 0, 0},
++	obj.APCDATA:   {gc.Pseudo, 0, 0, 0},
++	obj.AUNDEF:    {gc.Break, 0, 0, 0},
++	obj.AUSEFIELD: {gc.OK, 0, 0, 0},
++	obj.ACHECKNIL: {gc.LeftRead, 0, 0, 0},
++	obj.AVARDEF:   {gc.Pseudo | gc.RightWrite, 0, 0, 0},
++	obj.AVARKILL:  {gc.Pseudo | gc.RightWrite, 0, 0, 0},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+-	obj.ANOP:       gc.ProgInfo{gc.LeftRead | gc.RightWrite, 0, 0, 0},
+-	x86.AADCL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.AADCW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.AADDB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AADDL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AADDW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AADDSD:     gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.AADDSS:     gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.AANDB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AANDL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AANDW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	obj.ACALL:      gc.ProgInfo{gc.RightAddr | gc.Call | gc.KillCarry, 0, 0, 0},
+-	x86.ACDQ:       gc.ProgInfo{gc.OK, AX, AX | DX, 0},
+-	x86.ACWD:       gc.ProgInfo{gc.OK, AX, AX | DX, 0},
+-	x86.ACLD:       gc.ProgInfo{gc.OK, 0, 0, 0},
+-	x86.ASTD:       gc.ProgInfo{gc.OK, 0, 0, 0},
+-	x86.ACMPB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACMPL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACMPW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACOMISD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACOMISS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ACVTSD2SL:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSD2SS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSL2SD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSL2SS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSS2SD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTSS2SL:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTTSD2SL: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ACVTTSS2SL: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.ADECB:      gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
+-	x86.ADECL:      gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
+-	x86.ADECW:      gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
+-	x86.ADIVB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	x86.ADIVL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	x86.ADIVW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	x86.ADIVSD:     gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.ADIVSS:     gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.AFLDCW:     gc.ProgInfo{gc.SizeW | gc.LeftAddr, 0, 0, 0},
+-	x86.AFSTCW:     gc.ProgInfo{gc.SizeW | gc.RightAddr, 0, 0, 0},
+-	x86.AFSTSW:     gc.ProgInfo{gc.SizeW | gc.RightAddr | gc.RightWrite, 0, 0, 0},
+-	x86.AFADDD:     gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFADDDP:    gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFADDF:     gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFCOMD:     gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	x86.AFCOMDP:    gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	x86.AFCOMDPP:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	x86.AFCOMF:     gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	x86.AFCOMFP:    gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	x86.AFUCOMIP:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
+-	x86.AFCHS:      gc.ProgInfo{gc.SizeD | RightRdwr, 0, 0, 0}, // also SizeF
++	obj.ANOP:       {gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	x86.AADCL:      {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.AADCW:      {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.AADDB:      {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AADDL:      {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AADDW:      {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AADDSD:     {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AADDSS:     {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AANDB:      {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AANDL:      {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AANDW:      {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	obj.ACALL:      {gc.RightAddr | gc.Call | gc.KillCarry, 0, 0, 0},
++	x86.ACDQ:       {gc.OK, AX, AX | DX, 0},
++	x86.ACWD:       {gc.OK, AX, AX | DX, 0},
++	x86.ACLD:       {gc.OK, 0, 0, 0},
++	x86.ASTD:       {gc.OK, 0, 0, 0},
++	x86.ACMPB:      {gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACMPL:      {gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACMPW:      {gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACOMISD:    {gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACOMISS:    {gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ACVTSD2SL:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSD2SS:  {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSL2SD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSL2SS:  {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSS2SD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTSS2SL:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTTSD2SL: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ACVTTSS2SL: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.ADECB:      {gc.SizeB | RightRdwr, 0, 0, 0},
++	x86.ADECL:      {gc.SizeL | RightRdwr, 0, 0, 0},
++	x86.ADECW:      {gc.SizeW | RightRdwr, 0, 0, 0},
++	x86.ADIVB:      {gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.ADIVL:      {gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.ADIVW:      {gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.ADIVSD:     {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ADIVSS:     {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AFLDCW:     {gc.SizeW | gc.LeftAddr, 0, 0, 0},
++	x86.AFSTCW:     {gc.SizeW | gc.RightAddr, 0, 0, 0},
++	x86.AFSTSW:     {gc.SizeW | gc.RightAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFADDD:     {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFADDDP:    {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFADDF:     {gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFCOMD:     {gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFCOMDP:    {gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFCOMDPP:   {gc.SizeD | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFCOMF:     {gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFCOMFP:    {gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFUCOMIP:   {gc.SizeF | gc.LeftAddr | gc.RightRead, 0, 0, 0},
++	x86.AFCHS:      {gc.SizeD | RightRdwr, 0, 0, 0}, // also SizeF
+ 
+-	x86.AFDIVDP:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFDIVF:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFDIVD:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFDIVRDP: gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFDIVRF:  gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFDIVRD:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFXCHD:   gc.ProgInfo{gc.SizeD | LeftRdwr | RightRdwr, 0, 0, 0},
+-	x86.AFSUBD:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFSUBDP:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFSUBF:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFSUBRD:  gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFSUBRDP: gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFSUBRF:  gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFMOVD:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	x86.AFMOVF:   gc.ProgInfo{gc.SizeF | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	x86.AFMOVL:   gc.ProgInfo{gc.SizeL | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	x86.AFMOVW:   gc.ProgInfo{gc.SizeW | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	x86.AFMOVV:   gc.ProgInfo{gc.SizeQ | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFDIVDP:  {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFDIVF:   {gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFDIVD:   {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFDIVRDP: {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFDIVRF:  {gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFDIVRD:  {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFXCHD:   {gc.SizeD | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AFSUBD:   {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFSUBDP:  {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFSUBF:   {gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFSUBRD:  {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFSUBRDP: {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFSUBRF:  {gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFMOVD:   {gc.SizeD | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFMOVF:   {gc.SizeF | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFMOVL:   {gc.SizeL | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFMOVW:   {gc.SizeW | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AFMOVV:   {gc.SizeQ | gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+ 
+ 	// These instructions are marked as RightAddr
+ 	// so that the register optimizer does not try to replace the
+ 	// memory references with integer register references.
+ 	// But they do not use the previous value at the address, so
+ 	// we also mark them RightWrite.
+-	x86.AFMOVDP:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
+-	x86.AFMOVFP:   gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
+-	x86.AFMOVLP:   gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
+-	x86.AFMOVWP:   gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
+-	x86.AFMOVVP:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
+-	x86.AFMULD:    gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFMULDP:   gc.ProgInfo{gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AFMULF:    gc.ProgInfo{gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
+-	x86.AIDIVB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	x86.AIDIVL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	x86.AIDIVW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
+-	x86.AIMULB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	x86.AIMULL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
+-	x86.AIMULW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
+-	x86.AINCB:     gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
+-	x86.AINCL:     gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
+-	x86.AINCW:     gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
+-	x86.AJCC:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJCS:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJEQ:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJGE:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJGT:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJHI:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJLE:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJLS:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJLT:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJMI:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJNE:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJOC:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJOS:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJPC:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJPL:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	x86.AJPS:      gc.ProgInfo{gc.Cjmp | gc.UseCarry, 0, 0, 0},
+-	obj.AJMP:      gc.ProgInfo{gc.Jump | gc.Break | gc.KillCarry, 0, 0, 0},
+-	x86.ALEAL:     gc.ProgInfo{gc.LeftAddr | gc.RightWrite, 0, 0, 0},
+-	x86.AMOVBLSX:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVBLZX:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVBWSX:  gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVBWZX:  gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVWLSX:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVWLZX:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+-	x86.AMOVB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMOVL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMOVW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMOVSB:    gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
+-	x86.AMOVSL:    gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
+-	x86.AMOVSW:    gc.ProgInfo{gc.OK, DI | SI, DI | SI, 0},
+-	obj.ADUFFCOPY: gc.ProgInfo{gc.OK, DI | SI, DI | SI | CX, 0},
+-	x86.AMOVSD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMOVSS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AFMOVDP:   {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
++	x86.AFMOVFP:   {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
++	x86.AFMOVLP:   {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
++	x86.AFMOVWP:   {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
++	x86.AFMOVVP:   {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.RightAddr, 0, 0, 0},
++	x86.AFMULD:    {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFMULDP:   {gc.SizeD | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AFMULF:    {gc.SizeF | gc.LeftAddr | RightRdwr, 0, 0, 0},
++	x86.AIDIVB:    {gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.AIDIVL:    {gc.SizeL | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.AIDIVW:    {gc.SizeW | gc.LeftRead | gc.SetCarry, AX | DX, AX | DX, 0},
++	x86.AIMULB:    {gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.AIMULL:    {gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
++	x86.AIMULW:    {gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry, 0, 0, 0},
++	x86.AINCB:     {gc.SizeB | RightRdwr, 0, 0, 0},
++	x86.AINCL:     {gc.SizeL | RightRdwr, 0, 0, 0},
++	x86.AINCW:     {gc.SizeW | RightRdwr, 0, 0, 0},
++	x86.AJCC:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJCS:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJEQ:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJGE:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJGT:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJHI:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJLE:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJLS:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJLT:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJMI:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJNE:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJOC:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJOS:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJPC:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJPL:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	x86.AJPS:      {gc.Cjmp | gc.UseCarry, 0, 0, 0},
++	obj.AJMP:      {gc.Jump | gc.Break | gc.KillCarry, 0, 0, 0},
++	x86.ALEAL:     {gc.LeftAddr | gc.RightWrite, 0, 0, 0},
++	x86.AMOVBLSX:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBLZX:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBWSX:  {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVBWZX:  {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVWLSX:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVWLZX:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	x86.AMOVB:     {gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVL:     {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVW:     {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVSB:    {gc.OK, DI | SI, DI | SI, 0},
++	x86.AMOVSL:    {gc.OK, DI | SI, DI | SI, 0},
++	x86.AMOVSW:    {gc.OK, DI | SI, DI | SI, 0},
++	obj.ADUFFCOPY: {gc.OK, DI | SI, DI | SI | CX, 0},
++	x86.AMOVSD:    {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMOVSS:    {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+ 
+ 	// We use MOVAPD as a faster synonym for MOVSD.
+-	x86.AMOVAPD:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	x86.AMULB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
+-	x86.AMULL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
+-	x86.AMULW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
+-	x86.AMULSD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.AMULSS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.ANEGB:     gc.ProgInfo{gc.SizeB | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ANEGL:     gc.ProgInfo{gc.SizeL | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ANEGW:     gc.ProgInfo{gc.SizeW | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ANOTB:     gc.ProgInfo{gc.SizeB | RightRdwr, 0, 0, 0},
+-	x86.ANOTL:     gc.ProgInfo{gc.SizeL | RightRdwr, 0, 0, 0},
+-	x86.ANOTW:     gc.ProgInfo{gc.SizeW | RightRdwr, 0, 0, 0},
+-	x86.AORB:      gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AORL:      gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AORW:      gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.APOPL:     gc.ProgInfo{gc.SizeL | gc.RightWrite, 0, 0, 0},
+-	x86.APUSHL:    gc.ProgInfo{gc.SizeL | gc.LeftRead, 0, 0, 0},
+-	x86.ARCLB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCLL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCLW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCRB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCRL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ARCRW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.AREP:      gc.ProgInfo{gc.OK, CX, CX, 0},
+-	x86.AREPN:     gc.ProgInfo{gc.OK, CX, CX, 0},
+-	obj.ARET:      gc.ProgInfo{gc.Break | gc.KillCarry, 0, 0, 0},
+-	x86.AROLB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.AROLL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.AROLW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ARORB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ARORL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ARORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASAHF:     gc.ProgInfo{gc.OK, AX, AX, 0},
+-	x86.ASALB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASALL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASALW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASARB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASARL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASARW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASBBB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ASBBL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ASBBW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
+-	x86.ASETCC:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETCS:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETEQ:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETGE:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETGT:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETHI:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETLE:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETLS:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETLT:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETMI:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETNE:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETOC:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETOS:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETPC:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETPL:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASETPS:    gc.ProgInfo{gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
+-	x86.ASHLB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHLL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHLW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHRB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHRL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASHRW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+-	x86.ASTOSB:    gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	x86.ASTOSL:    gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	x86.ASTOSW:    gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	obj.ADUFFZERO: gc.ProgInfo{gc.OK, AX | DI, DI, 0},
+-	x86.ASUBB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ASUBL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ASUBW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.ASUBSD:    gc.ProgInfo{gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.ASUBSS:    gc.ProgInfo{gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	x86.ATESTB:    gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ATESTL:    gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.ATESTW:    gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
+-	x86.AUCOMISD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	x86.AUCOMISS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	x86.AXCHGB:    gc.ProgInfo{gc.SizeB | LeftRdwr | RightRdwr, 0, 0, 0},
+-	x86.AXCHGL:    gc.ProgInfo{gc.SizeL | LeftRdwr | RightRdwr, 0, 0, 0},
+-	x86.AXCHGW:    gc.ProgInfo{gc.SizeW | LeftRdwr | RightRdwr, 0, 0, 0},
+-	x86.AXORB:     gc.ProgInfo{gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AXORL:     gc.ProgInfo{gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+-	x86.AXORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AMOVAPD:   {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	x86.AMULB:     {gc.SizeB | gc.LeftRead | gc.SetCarry, AX, AX, 0},
++	x86.AMULL:     {gc.SizeL | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
++	x86.AMULW:     {gc.SizeW | gc.LeftRead | gc.SetCarry, AX, AX | DX, 0},
++	x86.AMULSD:    {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.AMULSS:    {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ANEGB:     {gc.SizeB | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ANEGL:     {gc.SizeL | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ANEGW:     {gc.SizeW | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ANOTB:     {gc.SizeB | RightRdwr, 0, 0, 0},
++	x86.ANOTL:     {gc.SizeL | RightRdwr, 0, 0, 0},
++	x86.ANOTW:     {gc.SizeW | RightRdwr, 0, 0, 0},
++	x86.AORB:      {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AORL:      {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AORW:      {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.APOPL:     {gc.SizeL | gc.RightWrite, 0, 0, 0},
++	x86.APUSHL:    {gc.SizeL | gc.LeftRead, 0, 0, 0},
++	x86.ARCLB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCLL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCLW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCRB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCRL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ARCRW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.AREP:      {gc.OK, CX, CX, 0},
++	x86.AREPN:     {gc.OK, CX, CX, 0},
++	obj.ARET:      {gc.Break | gc.KillCarry, 0, 0, 0},
++	x86.AROLB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.AROLL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.AROLW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ARORB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ARORL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ARORW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASAHF:     {gc.OK, AX, AX, 0},
++	x86.ASALB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASALL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASALW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASARB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASARL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASARW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASBBB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ASBBL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ASBBW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry | gc.UseCarry, 0, 0, 0},
++	x86.ASETCC:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETCS:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETEQ:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETGE:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETGT:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETHI:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETLE:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETLS:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETLT:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETMI:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETNE:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETOC:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETOS:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETPC:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETPL:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASETPS:    {gc.SizeB | RightRdwr | gc.UseCarry, 0, 0, 0},
++	x86.ASHLB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHLL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHLW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHRB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHRL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASHRW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASTOSB:    {gc.OK, AX | DI, DI, 0},
++	x86.ASTOSL:    {gc.OK, AX | DI, DI, 0},
++	x86.ASTOSW:    {gc.OK, AX | DI, DI, 0},
++	obj.ADUFFZERO: {gc.OK, AX | DI, DI, 0},
++	x86.ASUBB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.ASUBSD:    {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ASUBSS:    {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	x86.ATESTB:    {gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ATESTL:    {gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.ATESTW:    {gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry, 0, 0, 0},
++	x86.AUCOMISD:  {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	x86.AUCOMISS:  {gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	x86.AXCHGB:    {gc.SizeB | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AXCHGL:    {gc.SizeL | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AXCHGW:    {gc.SizeW | LeftRdwr | RightRdwr, 0, 0, 0},
++	x86.AXORB:     {gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AXORL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
++	x86.AXORW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+ }
+ 
+-func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+-	info = progtable[p.As]
++func proginfo(p *obj.Prog) {
++	info := &p.Info
++	*info = progtable[p.As]
+ 	if info.Flags == 0 {
+ 		gc.Fatal("unknown instruction %v", p)
+ 	}
+@@ -288,6 +289,4 @@ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+ 	if p.To.Index != x86.REG_NONE {
+ 		info.Regindex |= RtoB(int(p.To.Index))
+ 	}
+-
+-	return info
+ }
+diff --git a/src/cmd/9g/peep.go b/src/cmd/9g/peep.go
+index af2e68ce2d..6992968e33 100644
+--- a/src/cmd/9g/peep.go
++++ b/src/cmd/9g/peep.go
+@@ -407,7 +407,6 @@ func subprop(r0 *gc.Flow) bool {
+ 	if !regtyp(v2) {
+ 		return false
+ 	}
+-	var info gc.ProgInfo
+ 	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
+ 		if gc.Uniqs(r) == nil {
+ 			break
+@@ -416,12 +415,11 @@ func subprop(r0 *gc.Flow) bool {
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+-		info = proginfo(p)
+-		if info.Flags&gc.Call != 0 {
++		if p.Info.Flags&gc.Call != 0 {
+ 			return false
+ 		}
+ 
+-		if info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
++		if p.Info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
+ 			if p.To.Type == v1.Type {
+ 				if p.To.Reg == v1.Reg {
+ 					copysub(&p.To, v1, v2, 1)
+diff --git a/src/cmd/9g/prog.go b/src/cmd/9g/prog.go
+index d5d534695a..e28e389fac 100644
+--- a/src/cmd/9g/prog.go
++++ b/src/cmd/9g/prog.go
+@@ -24,84 +24,84 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [ppc64.ALAST]gc.ProgInfo{
+-	obj.ATYPE:     gc.ProgInfo{gc.Pseudo | gc.Skip, 0, 0, 0},
+-	obj.ATEXT:     gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.AFUNCDATA: gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.APCDATA:   gc.ProgInfo{gc.Pseudo, 0, 0, 0},
+-	obj.AUNDEF:    gc.ProgInfo{gc.Break, 0, 0, 0},
+-	obj.AUSEFIELD: gc.ProgInfo{gc.OK, 0, 0, 0},
+-	obj.ACHECKNIL: gc.ProgInfo{gc.LeftRead, 0, 0, 0},
+-	obj.AVARDEF:   gc.ProgInfo{gc.Pseudo | gc.RightWrite, 0, 0, 0},
+-	obj.AVARKILL:  gc.ProgInfo{gc.Pseudo | gc.RightWrite, 0, 0, 0},
++var progtable = [ppc64.ALAST]obj.ProgInfo{
++	obj.ATYPE:     {gc.Pseudo | gc.Skip, 0, 0, 0},
++	obj.ATEXT:     {gc.Pseudo, 0, 0, 0},
++	obj.AFUNCDATA: {gc.Pseudo, 0, 0, 0},
++	obj.APCDATA:   {gc.Pseudo, 0, 0, 0},
++	obj.AUNDEF:    {gc.Break, 0, 0, 0},
++	obj.AUSEFIELD: {gc.OK, 0, 0, 0},
++	obj.ACHECKNIL: {gc.LeftRead, 0, 0, 0},
++	obj.AVARDEF:   {gc.Pseudo | gc.RightWrite, 0, 0, 0},
++	obj.AVARKILL:  {gc.Pseudo | gc.RightWrite, 0, 0, 0},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Power opcode.
+-	obj.ANOP: gc.ProgInfo{gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	obj.ANOP: {gc.LeftRead | gc.RightWrite, 0, 0, 0},
+ 
+ 	// Integer
+-	ppc64.AADD:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ASUB:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ANEG:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AAND:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AOR:     gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AXOR:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AMULLD:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AMULLW:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AMULHD:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AMULHDU: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ADIVD:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ADIVDU:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ASLD:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ASRD:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ASRAD:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.ACMP:    gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	ppc64.ACMPU:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	ppc64.ATD:     gc.ProgInfo{gc.SizeQ | gc.RightRead, 0, 0, 0},
++	ppc64.AADD:    {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.ASUB:    {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.ANEG:    {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AAND:    {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AOR:     {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AXOR:    {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AMULLD:  {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AMULLW:  {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AMULHD:  {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AMULHDU: {gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.ADIVD:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.ADIVDU:  {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.ASLD:    {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.ASRD:    {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.ASRAD:   {gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.ACMP:    {gc.SizeQ | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	ppc64.ACMPU:   {gc.SizeQ | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	ppc64.ATD:     {gc.SizeQ | gc.RightRead, 0, 0, 0},
+ 
+ 	// Floating point.
+-	ppc64.AFADD:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFADDS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFSUB:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFSUBS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFMUL:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFMULS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFDIV:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFDIVS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFCTIDZ: gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFCFID:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	ppc64.AFCMPU:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	ppc64.AFRSP:   gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
++	ppc64.AFADD:   {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AFADDS:  {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AFSUB:   {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AFSUBS:  {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AFMUL:   {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AFMULS:  {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AFDIV:   {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AFDIVS:  {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AFCTIDZ: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AFCFID:  {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	ppc64.AFCMPU:  {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	ppc64.AFRSP:   {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+ 
+ 	// Moves
+-	ppc64.AMOVB:  gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AMOVBU: gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc, 0, 0, 0},
+-	ppc64.AMOVBZ: gc.ProgInfo{gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AMOVH:  gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AMOVHU: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc, 0, 0, 0},
+-	ppc64.AMOVHZ: gc.ProgInfo{gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AMOVW:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	ppc64.AMOVB:  {gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	ppc64.AMOVBU: {gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc, 0, 0, 0},
++	ppc64.AMOVBZ: {gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	ppc64.AMOVH:  {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	ppc64.AMOVHU: {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc, 0, 0, 0},
++	ppc64.AMOVHZ: {gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	ppc64.AMOVW:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+ 
+ 	// there is no AMOVWU.
+-	ppc64.AMOVWZU: gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc, 0, 0, 0},
+-	ppc64.AMOVWZ:  gc.ProgInfo{gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AMOVD:   gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+-	ppc64.AMOVDU:  gc.ProgInfo{gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move | gc.PostInc, 0, 0, 0},
+-	ppc64.AFMOVS:  gc.ProgInfo{gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
+-	ppc64.AFMOVD:  gc.ProgInfo{gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	ppc64.AMOVWZU: {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc, 0, 0, 0},
++	ppc64.AMOVWZ:  {gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	ppc64.AMOVD:   {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
++	ppc64.AMOVDU:  {gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move | gc.PostInc, 0, 0, 0},
++	ppc64.AFMOVS:  {gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv, 0, 0, 0},
++	ppc64.AFMOVD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move, 0, 0, 0},
+ 
+ 	// Jumps
+-	ppc64.ABR:     gc.ProgInfo{gc.Jump | gc.Break, 0, 0, 0},
+-	ppc64.ABL:     gc.ProgInfo{gc.Call, 0, 0, 0},
+-	ppc64.ABEQ:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ABNE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ABGE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ABLT:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ABGT:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ABLE:    gc.ProgInfo{gc.Cjmp, 0, 0, 0},
+-	ppc64.ARETURN: gc.ProgInfo{gc.Break, 0, 0, 0},
+-	obj.ADUFFZERO: gc.ProgInfo{gc.Call, 0, 0, 0},
+-	obj.ADUFFCOPY: gc.ProgInfo{gc.Call, 0, 0, 0},
++	ppc64.ABR:     {gc.Jump | gc.Break, 0, 0, 0},
++	ppc64.ABL:     {gc.Call, 0, 0, 0},
++	ppc64.ABEQ:    {gc.Cjmp, 0, 0, 0},
++	ppc64.ABNE:    {gc.Cjmp, 0, 0, 0},
++	ppc64.ABGE:    {gc.Cjmp, 0, 0, 0},
++	ppc64.ABLT:    {gc.Cjmp, 0, 0, 0},
++	ppc64.ABGT:    {gc.Cjmp, 0, 0, 0},
++	ppc64.ABLE:    {gc.Cjmp, 0, 0, 0},
++	ppc64.ARETURN: {gc.Break, 0, 0, 0},
++	obj.ADUFFZERO: {gc.Call, 0, 0, 0},
++	obj.ADUFFCOPY: {gc.Call, 0, 0, 0},
+ }
+ 
+ var initproginfo_initialized int
+@@ -133,12 +133,12 @@ func initproginfo() {
+ 	}
+ }
+ 
+-func proginfo(p *obj.Prog) (info gc.ProgInfo) {
++func proginfo(p *obj.Prog) {
+ 	initproginfo()
+ 
+-	info = progtable[p.As]
++	info := &p.Info
++	*info = progtable[p.As]
+ 	if info.Flags == 0 {
+-		info = progtable[ppc64.AADD]
+ 		gc.Fatal("proginfo: unknown instruction %v", p)
+ 	}
+ 
+@@ -177,8 +177,6 @@ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+ 
+ 		info.Regset |= RtoB(ppc64.REG_R3) | RtoB(ppc64.REG_R4)
+ 	}
+-
+-	return
+ }
+ 
+ // Instruction variants table.  Initially this contains entries only
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index dbc8adce66..b88f77ec1a 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -737,12 +737,6 @@ type Graph struct {
+ /*
+  *	interface to back end
+  */
+-type ProgInfo struct {
+-	Flags    uint32 // the bits below
+-	Reguse   uint64 // registers implicitly used by this instruction
+-	Regset   uint64 // registers implicitly set by this instruction
+-	Regindex uint64 // registers used by addressing mode
+-}
+ 
+ const (
+ 	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
+@@ -823,7 +817,7 @@ type Arch struct {
+ 	Igen           func(*Node, *Node, *Node)
+ 	Linkarchinit   func()
+ 	Peep           func(*obj.Prog)
+-	Proginfo       func(*obj.Prog) ProgInfo
++	Proginfo       func(*obj.Prog) // fills in Prog.Info
+ 	Regalloc       func(*Node, *Type, *Node)
+ 	Regfree        func(*Node)
+ 	Regtyp         func(*obj.Addr) bool
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index e0f85f9bba..4cbeca0786 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -422,6 +422,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 	bb := newblock(firstp)
+ 	cfg = append(cfg, bb)
+ 	for p := firstp; p != nil; p = p.Link {
++		Thearch.Proginfo(p)
+ 		if p.To.Type == obj.TYPE_BRANCH {
+ 			if p.To.Val == nil {
+ 				Fatal("prog branch to nil")
+@@ -561,7 +562,6 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 	bvresetall(varkill)
+ 	bvresetall(avarinit)
+ 
+-	info := Thearch.Proginfo(prog)
+ 	if prog.As == obj.ARET {
+ 		// Return instructions implicitly read all the arguments.  For
+ 		// the sake of correctness, out arguments must be read.  For the
+@@ -612,7 +612,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 		return
+ 	}
+ 
+-	if info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
++	if prog.Info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
+ 		from := &prog.From
+ 		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Curfn == Curfn {
+ 			switch ((from.Node).(*Node)).Class &^ PHEAP {
+@@ -629,10 +629,10 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 				if ((from.Node).(*Node)).Addrtaken {
+ 					bvset(avarinit, pos)
+ 				} else {
+-					if info.Flags&(LeftRead|LeftAddr) != 0 {
++					if prog.Info.Flags&(LeftRead|LeftAddr) != 0 {
+ 						bvset(uevar, pos)
+ 					}
+-					if info.Flags&LeftWrite != 0 {
++					if prog.Info.Flags&LeftWrite != 0 {
+ 						if from.Node != nil && !Isfat(((from.Node).(*Node)).Type) {
+ 							bvset(varkill, pos)
+ 						}
+@@ -643,7 +643,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 	}
+ 
+ Next:
+-	if info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
++	if prog.Info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
+ 		to := &prog.To
+ 		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Curfn == Curfn {
+ 			switch ((to.Node).(*Node)).Class &^ PHEAP {
+@@ -673,10 +673,10 @@ Next:
+ 					// It is not a read. It is equivalent to RightWrite except that
+ 					// having the RightAddr bit set keeps the registerizer from
+ 					// trying to substitute a register for the memory location.
+-					if (info.Flags&RightRead != 0) || info.Flags&(RightAddr|RightWrite) == RightAddr {
++					if (prog.Info.Flags&RightRead != 0) || prog.Info.Flags&(RightAddr|RightWrite) == RightAddr {
+ 						bvset(uevar, pos)
+ 					}
+-					if info.Flags&RightWrite != 0 {
++					if prog.Info.Flags&RightWrite != 0 {
+ 						if to.Node != nil && (!Isfat(((to.Node).(*Node)).Type) || prog.As == obj.AVARDEF) {
+ 							bvset(varkill, pos)
+ 						}
+diff --git a/src/cmd/internal/gc/popt.go b/src/cmd/internal/gc/popt.go
+index 9070007dab..8dcd1df823 100644
+--- a/src/cmd/internal/gc/popt.go
++++ b/src/cmd/internal/gc/popt.go
+@@ -355,15 +355,13 @@ func fixjmp(firstp *obj.Prog) {
+ var flowmark int
+ 
+ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+-	var info ProgInfo
+-
+ 	// Count and mark instructions to annotate.
+ 	nf := 0
+ 
+ 	for p := firstp; p != nil; p = p.Link {
+ 		p.Opt = nil // should be already, but just in case
+-		info = Thearch.Proginfo(p)
+-		if info.Flags&Skip != 0 {
++		Thearch.Proginfo(p)
++		if p.Info.Flags&Skip != 0 {
+ 			continue
+ 		}
+ 		p.Opt = &flowmark
+@@ -409,8 +407,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+ 	var p *obj.Prog
+ 	for f := start; f != nil; f = f.Link {
+ 		p = f.Prog
+-		info = Thearch.Proginfo(p)
+-		if info.Flags&Break == 0 {
++		if p.Info.Flags&Break == 0 {
+ 			f1 = f.Link
+ 			f.S1 = f1
+ 			f1.P1 = f
+@@ -442,6 +439,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+ 
+ func Flowend(graph *Graph) {
+ 	for f := graph.Start; f != nil; f = f.Link {
++		f.Prog.Info.Flags = 0 // drop cached proginfo
+ 		f.Prog.Opt = nil
+ 	}
+ }
+@@ -714,12 +712,8 @@ func mergetemp(firstp *obj.Prog) {
+ 	// We assume that the earliest reference to a temporary is its definition.
+ 	// This is not true of variables in general but our temporaries are all
+ 	// single-use (that's why we have so many!).
+-	var p *obj.Prog
+-	var info ProgInfo
+ 	for f := g.Start; f != nil; f = f.Link {
+-		p = f.Prog
+-		info = Thearch.Proginfo(p)
+-
++		p := f.Prog
+ 		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt != nil {
+ 			Fatal("double node %v", p)
+ 		}
+@@ -740,7 +734,7 @@ func mergetemp(firstp *obj.Prog) {
+ 			}
+ 			f.Data = v.use
+ 			v.use = f
+-			if n == p.From.Node && (info.Flags&LeftAddr != 0) {
++			if n == p.From.Node && (p.Info.Flags&LeftAddr != 0) {
+ 				v.addr = 1
+ 			}
+ 		}
+@@ -753,9 +747,6 @@ func mergetemp(firstp *obj.Prog) {
+ 	nkill := 0
+ 
+ 	// Special case.
+-	var p1 *obj.Prog
+-	var info1 ProgInfo
+-	var f *Flow
+ 	for i := 0; i < len(var_); i++ {
+ 		v = &var_[i]
+ 		if v.addr != 0 {
+@@ -763,11 +754,10 @@ func mergetemp(firstp *obj.Prog) {
+ 		}
+ 
+ 		// Used in only one instruction, which had better be a write.
+-		f = v.use
++		f := v.use
+ 		if f != nil && f.Data.(*Flow) == nil {
+-			p = f.Prog
+-			info = Thearch.Proginfo(p)
+-			if p.To.Node == v.node && (info.Flags&RightWrite != 0) && info.Flags&RightRead == 0 {
++			p := f.Prog
++			if p.To.Node == v.node && (p.Info.Flags&RightWrite != 0) && p.Info.Flags&RightRead == 0 {
+ 				p.As = obj.ANOP
+ 				p.To = obj.Addr{}
+ 				v.removed = 1
+@@ -785,14 +775,12 @@ func mergetemp(firstp *obj.Prog) {
+ 		// no jumps to the next instruction. Happens mainly in 386 compiler.
+ 		f = v.use
+ 		if f != nil && f.Link == f.Data.(*Flow) && (f.Data.(*Flow)).Data.(*Flow) == nil && Uniqp(f.Link) == f {
+-			p = f.Prog
+-			info = Thearch.Proginfo(p)
+-			p1 = f.Link.Prog
+-			info1 = Thearch.Proginfo(p1)
++			p := f.Prog
++			p1 := f.Link.Prog
+ 			const (
+ 				SizeAny = SizeB | SizeW | SizeL | SizeQ | SizeF | SizeD
+ 			)
+-			if p.From.Node == v.node && p1.To.Node == v.node && (info.Flags&Move != 0) && (info.Flags|info1.Flags)&(LeftAddr|RightAddr) == 0 && info.Flags&SizeAny == info1.Flags&SizeAny {
++			if p.From.Node == v.node && p1.To.Node == v.node && (p.Info.Flags&Move != 0) && (p.Info.Flags|p1.Info.Flags)&(LeftAddr|RightAddr) == 0 && p.Info.Flags&SizeAny == p1.Info.Flags&SizeAny {
+ 				p1.From = p.From
+ 				Thearch.Excise(f)
+ 				v.removed = 1
+@@ -814,12 +802,12 @@ func mergetemp(firstp *obj.Prog) {
+ 	for i := 0; i < len(var_); i++ {
+ 		v = &var_[i]
+ 		gen++
+-		for f = v.use; f != nil; f = f.Data.(*Flow) {
++		for f := v.use; f != nil; f = f.Data.(*Flow) {
+ 			mergewalk(v, f, uint32(gen))
+ 		}
+ 		if v.addr != 0 {
+ 			gen++
+-			for f = v.use; f != nil; f = f.Data.(*Flow) {
++			for f := v.use; f != nil; f = f.Data.(*Flow) {
+ 				varkillwalk(v, f, uint32(gen))
+ 			}
+ 		}
+@@ -935,7 +923,7 @@ func mergetemp(firstp *obj.Prog) {
+ 
+ 	// Update node references to use merged temporaries.
+ 	for f := g.Start; f != nil; f = f.Link {
+-		p = f.Prog
++		p := f.Prog
+ 		n, _ = p.From.Node.(*Node)
+ 		if n != nil {
+ 			v, _ = n.Opt.(*TempVar)
+@@ -1109,13 +1097,9 @@ func nilopt(firstp *obj.Prog) {
+ }
+ 
+ func nilwalkback(fcheck *Flow) {
+-	var p *obj.Prog
+-	var info ProgInfo
+-
+ 	for f := fcheck; f != nil; f = Uniqp(f) {
+-		p = f.Prog
+-		info = Thearch.Proginfo(p)
+-		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
++		p := f.Prog
++		if (p.Info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
+ 			// Found initialization of value we're checking for nil.
+ 			// without first finding the check, so this one is unchecked.
+ 			return
+@@ -1146,8 +1130,7 @@ for(f1 = f0; f1 != nil; f1 = f1->p1) {
+ 	if(f1 != fcheck && p->as == ACHECKNIL && thearch.sameaddr(&p->from, &fcheck->prog->from))
+ 		break;
+ 
+-	thearch.proginfo(&info, p);
+-	if((info.flags & RightWrite) && thearch.sameaddr(&p->to, &fcheck->prog->from)) {
++	if((p.Info.flags & RightWrite) && thearch.sameaddr(&p->to, &fcheck->prog->from)) {
+ 		// Found initialization of value we're checking for nil.
+ 		// without first finding the check, so this one is unchecked.
+ 		fcheck->kill = 0;
+@@ -1168,10 +1151,8 @@ for(f = f0; f != f1; f = f->p1)
+ 	for(f2 = f->p2; f2 != nil; f2 = f2->p2link)
+ 		nilwalkback(fcheck, f2, gen);
+ */
+-func nilwalkfwd(fcheck *Flow) {
+-	var p *obj.Prog
+-	var info ProgInfo
+ 
++func nilwalkfwd(fcheck *Flow) {
+ 	// If the path down from rcheck dereferences the address
+ 	// (possibly with a small offset) before writing to memory
+ 	// and before any subsequent checks, it's okay to wait for
+@@ -1179,18 +1160,16 @@ func nilwalkfwd(fcheck *Flow) {
+ 	// avoid problems like:
+ 	//	_ = *x // should panic
+ 	//	for {} // no writes but infinite loop may be considered visible
+-	var last *Flow
+ 
++	var last *Flow
+ 	for f := Uniqs(fcheck); f != nil; f = Uniqs(f) {
+-		p = f.Prog
+-		info = Thearch.Proginfo(p)
+-
+-		if (info.Flags&LeftRead != 0) && Thearch.Smallindir(&p.From, &fcheck.Prog.From) {
++		p := f.Prog
++		if (p.Info.Flags&LeftRead != 0) && Thearch.Smallindir(&p.From, &fcheck.Prog.From) {
+ 			fcheck.Data = &killed
+ 			return
+ 		}
+ 
+-		if (info.Flags&(RightRead|RightWrite) != 0) && Thearch.Smallindir(&p.To, &fcheck.Prog.From) {
++		if (p.Info.Flags&(RightRead|RightWrite) != 0) && Thearch.Smallindir(&p.To, &fcheck.Prog.From) {
+ 			fcheck.Data = &killed
+ 			return
+ 		}
+@@ -1201,12 +1180,12 @@ func nilwalkfwd(fcheck *Flow) {
+ 		}
+ 
+ 		// Stop if value is lost.
+-		if (info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
++		if (p.Info.Flags&RightWrite != 0) && Thearch.Sameaddr(&p.To, &fcheck.Prog.From) {
+ 			return
+ 		}
+ 
+ 		// Stop if memory write.
+-		if (info.Flags&RightWrite != 0) && !Thearch.Regtyp(&p.To) {
++		if (p.Info.Flags&RightWrite != 0) && !Thearch.Regtyp(&p.To) {
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/internal/gc/reg.go b/src/cmd/internal/gc/reg.go
+index d613bd1e00..d1aa343b42 100644
+--- a/src/cmd/internal/gc/reg.go
++++ b/src/cmd/internal/gc/reg.go
+@@ -972,17 +972,11 @@ func regopt(firstp *obj.Prog) {
+ 
+ 	firstf = g.Start
+ 
+-	var r *Reg
+-	var info ProgInfo
+-	var p *obj.Prog
+-	var bit Bits
+-	var z int
+ 	for f := firstf; f != nil; f = f.Link {
+-		p = f.Prog
++		p := f.Prog
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+-		info = Thearch.Proginfo(p)
+ 
+ 		// Avoid making variables for direct-called functions.
+ 		if p.As == obj.ACALL && p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_EXTERN {
+@@ -990,30 +984,29 @@ func regopt(firstp *obj.Prog) {
+ 		}
+ 
+ 		// from vs to doesn't matter for registers.
+-		r = f.Data.(*Reg)
+-
+-		r.use1.b[0] |= info.Reguse | info.Regindex
+-		r.set.b[0] |= info.Regset
++		r := f.Data.(*Reg)
++		r.use1.b[0] |= p.Info.Reguse | p.Info.Regindex
++		r.set.b[0] |= p.Info.Regset
+ 
+-		bit = mkvar(f, &p.From)
++		bit := mkvar(f, &p.From)
+ 		if bany(&bit) {
+-			if info.Flags&LeftAddr != 0 {
++			if p.Info.Flags&LeftAddr != 0 {
+ 				setaddrs(bit)
+ 			}
+-			if info.Flags&LeftRead != 0 {
+-				for z = 0; z < BITS; z++ {
++			if p.Info.Flags&LeftRead != 0 {
++				for z := 0; z < BITS; z++ {
+ 					r.use1.b[z] |= bit.b[z]
+ 				}
+ 			}
+-			if info.Flags&LeftWrite != 0 {
+-				for z = 0; z < BITS; z++ {
++			if p.Info.Flags&LeftWrite != 0 {
++				for z := 0; z < BITS; z++ {
+ 					r.set.b[z] |= bit.b[z]
+ 				}
+ 			}
+ 		}
+ 
+ 		// Compute used register for reg
+-		if info.Flags&RegRead != 0 {
++		if p.Info.Flags&RegRead != 0 {
+ 			r.use1.b[0] |= Thearch.RtoB(int(p.Reg))
+ 		}
+ 
+@@ -1025,16 +1018,16 @@ func regopt(firstp *obj.Prog) {
+ 
+ 		bit = mkvar(f, &p.To)
+ 		if bany(&bit) {
+-			if info.Flags&RightAddr != 0 {
++			if p.Info.Flags&RightAddr != 0 {
+ 				setaddrs(bit)
+ 			}
+-			if info.Flags&RightRead != 0 {
+-				for z = 0; z < BITS; z++ {
++			if p.Info.Flags&RightRead != 0 {
++				for z := 0; z < BITS; z++ {
+ 					r.use2.b[z] |= bit.b[z]
+ 				}
+ 			}
+-			if info.Flags&RightWrite != 0 {
+-				for z = 0; z < BITS; z++ {
++			if p.Info.Flags&RightWrite != 0 {
++				for z := 0; z < BITS; z++ {
+ 					r.set.b[z] |= bit.b[z]
+ 				}
+ 			}
+@@ -1044,8 +1037,8 @@ func regopt(firstp *obj.Prog) {
+ 	for i := 0; i < nvar; i++ {
+ 		v := &var_[i]
+ 		if v.addr != 0 {
+-			bit = blsh(uint(i))
+-			for z = 0; z < BITS; z++ {
++			bit := blsh(uint(i))
++			for z := 0; z < BITS; z++ {
+ 				addrs.b[z] |= bit.b[z]
+ 			}
+ 		}
+@@ -1080,12 +1073,12 @@ func regopt(firstp *obj.Prog) {
+ 
+ 	for f := firstf; f != nil; f = f.Link {
+ 		f.Active = 0
+-		r = f.Data.(*Reg)
++		r := f.Data.(*Reg)
+ 		r.act = zbits
+ 	}
+ 
+ 	for f := firstf; f != nil; f = f.Link {
+-		p = f.Prog
++		p := f.Prog
+ 		if p.As == obj.AVARDEF && Isfat(((p.To.Node).(*Node)).Type) && ((p.To.Node).(*Node)).Opt != nil {
+ 			active++
+ 			walkvardef(p.To.Node.(*Node), f, active)
+@@ -1161,7 +1154,7 @@ loop2:
+ 	 */
+ 	mask := uint64((1 << uint(nreg)) - 1)
+ 	for f := firstf; f != nil; f = f.Link {
+-		r = f.Data.(*Reg)
++		r := f.Data.(*Reg)
+ 		r.regu = (r.refbehind.b[0] | r.set.b[0]) & mask
+ 		r.set.b[0] &^= mask
+ 		r.use1.b[0] &^= mask
+@@ -1185,6 +1178,7 @@ loop2:
+ 	 */
+ 	f = firstf
+ 
++	var bit Bits
+ 	if f != nil {
+ 		r := f.Data.(*Reg)
+ 		for z := 0; z < BITS; z++ {
+@@ -1205,8 +1199,8 @@ loop2:
+ 	nregion = 0
+ 	var rgp *Rgn
+ 	for f := firstf; f != nil; f = f.Link {
+-		r = f.Data.(*Reg)
+-		for z = 0; z < BITS; z++ {
++		r := f.Data.(*Reg)
++		for z := 0; z < BITS; z++ {
+ 			bit.b[z] = r.set.b[z] &^ (r.refahead.b[z] | r.calahead.b[z] | addrs.b[z])
+ 		}
+ 		if bany(&bit) && f.Refset == 0 {
+@@ -1217,7 +1211,7 @@ loop2:
+ 			Thearch.Excise(f)
+ 		}
+ 
+-		for z = 0; z < BITS; z++ {
++		for z := 0; z < BITS; z++ {
+ 			bit.b[z] = LOAD(r, z) &^ (r.act.b[z] | addrs.b[z])
+ 		}
+ 		for bany(&bit) {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 3b286af493..92fd7c40f7 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -225,6 +225,18 @@ type Prog struct {
+ 	Printed  uint8
+ 	Width    int8
+ 	Mode     int8
++
++	Info ProgInfo
++}
++
++// ProgInfo holds information about the instruction for use
++// by clients such as the compiler. The exact meaning of this
++// data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
++type ProgInfo struct {
++	Flags    uint32 // flag bits
++	Reguse   uint64 // registers implicitly used by this instruction
++	Regset   uint64 // registers implicitly set by this instruction
++	Regindex uint64 // registers used by addressing mode
+ }
+ 
+ // Prog.as opcodes.

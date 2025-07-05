@@ -18,6 +18,17 @@ Date:   Tue Mar 5 18:21:08 2019 +0100
     Change-Id: I06b90d595be7185df61db039dd225dc90d6f678f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/165339
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/inline_sync.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/inline_sync.go b/test/inline_sync.go
+index 271414d5f0..b25e56447b 100644
+--- a/test/inline_sync.go
++++ b/test/inline_sync.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,!386
++// +build !nacl,!386,!wasm,!arm,!gcflags_noopt
+ // errorcheck -0 -m
+ 
+ // Copyright 2019 The Go Authors. All rights reserved.

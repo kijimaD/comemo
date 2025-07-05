@@ -18,6 +18,23 @@ Date:   Wed Sep 8 13:57:07 2021 +0000
     Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/codegen/arithmetic.go | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 754c5c9bc9..eb95416b6a 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -575,11 +575,3 @@ func constantFold3(i, j int) int {
+ 	r := (5 * i) * (6 * j)
+ 	return r
+ }
+-
+-func addConst(i int64) (int64, int64) {
+-	// riscv64:`ADDI`,-`LUI`
+-	a := i + 3001
+-	// riscv64:`LUI`,`ADDIW`
+-	b := i + 5009
+-	return a, b
+-}

@@ -9,7 +9,7 @@ Date:   Tue Oct 25 22:23:54 2011 -0700
     R=golang-dev, r, borman
     CC=golang-dev
     https://golang.org/cl/5315043
-
+---
  src/pkg/csv/reader.go        | 80 ++++++++++++++++++++++----------------------
  src/pkg/csv/reader_test.go   |  4 +--
  src/pkg/csv/writer.go        | 12 +++----
@@ -26,3 +26,725 @@ Date:   Tue Oct 25 22:23:54 2011 -0700
  src/pkg/xml/read.go          |  2 +-
  src/pkg/xml/xml.go           | 16 ++++-----
  15 files changed, 123 insertions(+), 122 deletions(-)
+
+diff --git a/src/pkg/csv/reader.go b/src/pkg/csv/reader.go
+index 29ceeae85b..a06b97894d 100644
+--- a/src/pkg/csv/reader.go
++++ b/src/pkg/csv/reader.go
+@@ -101,8 +101,8 @@ var (
+ //
+ // If TrimLeadingSpace is true, leading white space in a field is ignored.
+ type Reader struct {
+-	Comma            int  // Field delimiter (set to ',' by NewReader)
+-	Comment          int  // Comment character for start of line
++	Comma            rune // Field delimiter (set to ',' by NewReader)
++	Comment          rune // Comment character for start of line
+ 	FieldsPerRecord  int  // Number of expected fields per record
+ 	LazyQuotes       bool // Allow lazy quotes
+ 	TrailingComma    bool // Allow trailing comma
+@@ -173,23 +173,23 @@ func (r *Reader) ReadAll() (records [][]string, err os.Error) {
+ // readRune reads one rune from r, folding \r\n to \n and keeping track
+ // of how far into the line we have read.  r.column will point to the start
+ // of this rune, not the end of this rune.
+-func (r *Reader) readRune() (int, os.Error) {
+-	rune, _, err := r.r.ReadRune()
++func (r *Reader) readRune() (rune, os.Error) {
++	r1, _, err := r.r.ReadRune()
+ 
+ 	// Handle \r\n here.  We make the simplifying assumption that
+ 	// anytime \r is followed by \n that it can be folded to \n.
+ 	// We will not detect files which contain both \r\n and bare \n.
+-	if rune == '\r' {
+-		rune, _, err = r.r.ReadRune()
++	if r1 == '\r' {
++		r1, _, err = r.r.ReadRune()
+ 		if err == nil {
+-			if rune != '\n' {
++			if r1 != '\n' {
+ 				r.r.UnreadRune()
+-				rune = '\r'
++				r1 = '\r'
+ 			}
+ 		}
+ 	}
+ 	r.column++
+-	return rune, err
++	return r1, err
+ }
+ 
+ // unreadRune puts the last rune read from r back.
+@@ -199,13 +199,13 @@ func (r *Reader) unreadRune() {
+ }
+ 
+ // skip reads runes up to and including the rune delim or until error.
+-func (r *Reader) skip(delim int) os.Error {
++func (r *Reader) skip(delim rune) os.Error {
+ 	for {
+-		rune, err := r.readRune()
++		r1, err := r.readRune()
+ 		if err != nil {
+ 			return err
+ 		}
+-		if rune == delim {
++		if r1 == delim {
+ 			return nil
+ 		}
+ 	}
+@@ -224,12 +224,12 @@ func (r *Reader) parseRecord() (fields []string, err os.Error) {
+ 	// If we are support comments and it is the comment character
+ 	// then skip to the end of line.
+ 
+-	rune, _, err := r.r.ReadRune()
++	r1, _, err := r.r.ReadRune()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+-	if r.Comment != 0 && rune == r.Comment {
++	if r.Comment != 0 && r1 == r.Comment {
+ 		return nil, r.skip('\n')
+ 	}
+ 	r.r.UnreadRune()
+@@ -252,10 +252,10 @@ func (r *Reader) parseRecord() (fields []string, err os.Error) {
+ // parseField parses the next field in the record.  The read field is
+ // located in r.field.  Delim is the first character not part of the field
+ // (r.Comma or '\n').
+-func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
++func (r *Reader) parseField() (haveField bool, delim rune, err os.Error) {
+ 	r.field.Reset()
+ 
+-	rune, err := r.readRune()
++	r1, err := r.readRune()
+ 	if err != nil {
+ 		// If we have EOF and are not at the start of a line
+ 		// then we return the empty field.  We have already
+@@ -267,30 +267,30 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
+ 	}
+ 
+ 	if r.TrimLeadingSpace {
+-		for rune != '\n' && unicode.IsSpace(rune) {
+-			rune, err = r.readRune()
++		for r1 != '\n' && unicode.IsSpace(r1) {
++			r1, err = r.readRune()
+ 			if err != nil {
+ 				return false, 0, err
+ 			}
+ 		}
+ 	}
+ 
+-	switch rune {
++	switch r1 {
+ 	case r.Comma:
+ 		// will check below
+ 
+ 	case '\n':
+ 		// We are a trailing empty field or a blank line
+ 		if r.column == 0 {
+-			return false, rune, nil
++			return false, r1, nil
+ 		}
+-		return true, rune, nil
++		return true, r1, nil
+ 
+ 	case '"':
+ 		// quoted field
+ 	Quoted:
+ 		for {
+-			rune, err = r.readRune()
++			r1, err = r.readRune()
+ 			if err != nil {
+ 				if err == os.EOF {
+ 					if r.LazyQuotes {
+@@ -300,16 +300,16 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
+ 				}
+ 				return false, 0, err
+ 			}
+-			switch rune {
++			switch r1 {
+ 			case '"':
+-				rune, err = r.readRune()
+-				if err != nil || rune == r.Comma {
++				r1, err = r.readRune()
++				if err != nil || r1 == r.Comma {
+ 					break Quoted
+ 				}
+-				if rune == '\n' {
+-					return true, rune, nil
++				if r1 == '\n' {
++					return true, r1, nil
+ 				}
+-				if rune != '"' {
++				if r1 != '"' {
+ 					if !r.LazyQuotes {
+ 						r.column--
+ 						return false, 0, r.error(ErrQuote)
+@@ -321,21 +321,21 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
+ 				r.line++
+ 				r.column = -1
+ 			}
+-			r.field.WriteRune(rune)
++			r.field.WriteRune(r1)
+ 		}
+ 
+ 	default:
+ 		// unquoted field
+ 		for {
+-			r.field.WriteRune(rune)
+-			rune, err = r.readRune()
+-			if err != nil || rune == r.Comma {
++			r.field.WriteRune(r1)
++			r1, err = r.readRune()
++			if err != nil || r1 == r.Comma {
+ 				break
+ 			}
+-			if rune == '\n' {
+-				return true, rune, nil
++			if r1 == '\n' {
++				return true, r1, nil
+ 			}
+-			if !r.LazyQuotes && rune == '"' {
++			if !r.LazyQuotes && r1 == '"' {
+ 				return false, 0, r.error(ErrBareQuote)
+ 			}
+ 		}
+@@ -353,20 +353,20 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
+ 		// are at the end of the line (being mindful
+ 		// of trimming spaces).
+ 		c := r.column
+-		rune, err = r.readRune()
++		r1, err = r.readRune()
+ 		if r.TrimLeadingSpace {
+-			for rune != '\n' && unicode.IsSpace(rune) {
+-				rune, err = r.readRune()
++			for r1 != '\n' && unicode.IsSpace(r1) {
++				r1, err = r.readRune()
+ 				if err != nil {
+ 					break
+ 				}
+ 			}
+ 		}
+-		if err == os.EOF || rune == '\n' {
++		if err == os.EOF || r1 == '\n' {
+ 			r.column = c // report the comma
+ 			return false, 0, r.error(ErrTrailingComma)
+ 		}
+ 		r.unreadRune()
+ 	}
+-	return true, rune, nil
++	return true, r1, nil
+ }
+diff --git a/src/pkg/csv/reader_test.go b/src/pkg/csv/reader_test.go
+index 967f96b8d1..1b23605935 100644
+--- a/src/pkg/csv/reader_test.go
++++ b/src/pkg/csv/reader_test.go
+@@ -17,8 +17,8 @@ var readTests = []struct {
+ 	UseFieldsPerRecord bool // false (default) means FieldsPerRecord is -1
+ 
+ 	// These fields are copied into the Reader
+-	Comma            int
+-	Comment          int
++	Comma            rune
++	Comment          rune
+ 	FieldsPerRecord  int
+ 	LazyQuotes       bool
+ 	TrailingComma    bool
+diff --git a/src/pkg/csv/writer.go b/src/pkg/csv/writer.go
+index ccf703f0f8..98573c29fb 100644
+--- a/src/pkg/csv/writer.go
++++ b/src/pkg/csv/writer.go
+@@ -23,7 +23,7 @@ import (
+ //
+ // If UseCRLF is true, the Writer ends each record with \r\n instead of \n.
+ type Writer struct {
+-	Comma   int  // Field delimiter (set to to ',' by NewWriter)
++	Comma   rune // Field delimiter (set to to ',' by NewWriter)
+ 	UseCRLF bool // True to use \r\n as the line terminator
+ 	w       *bufio.Writer
+ }
+@@ -58,8 +58,8 @@ func (w *Writer) Write(record []string) (err os.Error) {
+ 			return
+ 		}
+ 
+-		for _, rune := range field {
+-			switch rune {
++		for _, r1 := range field {
++			switch r1 {
+ 			case '"':
+ 				_, err = w.w.WriteString(`""`)
+ 			case '\r':
+@@ -73,7 +73,7 @@ func (w *Writer) Write(record []string) (err os.Error) {
+ 					err = w.w.WriteByte('\n')
+ 				}
+ 			default:
+-				_, err = w.w.WriteRune(rune)
++				_, err = w.w.WriteRune(r1)
+ 			}
+ 			if err != nil {
+ 				return
+@@ -117,6 +117,6 @@ func (w *Writer) fieldNeedsQuotes(field string) bool {
+ 		return true
+ 	}
+ 
+-	rune, _ := utf8.DecodeRuneInString(field)
+-	return unicode.IsSpace(rune)
++	r1, _ := utf8.DecodeRuneInString(field)
++	return unicode.IsSpace(r1)
+ }
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index a774438d38..98c0c97757 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -606,14 +606,14 @@ func TestSliceReusesMemory(t *testing.T) {
+ 	}
+ 	// general slice
+ 	{
+-		x := []int("abcd")
++		x := []rune("abcd")
+ 		enc := NewEncoder(buf)
+ 		err := enc.Encode(x)
+ 		if err != nil {
+ 			t.Errorf("ints: encode: %s", err)
+ 		}
+ 		// Decode into y, which is big enough.
+-		y := []int("ABCDE")
++		y := []rune("ABCDE")
+ 		addr := &y[0]
+ 		dec := NewDecoder(buf)
+ 		err = dec.Decode(&y)
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 31b15a400d..cd4b5f12c2 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -805,15 +805,15 @@ func (d *decodeState) literalInterface() interface{} {
+ 
+ // getu4 decodes \uXXXX from the beginning of s, returning the hex value,
+ // or it returns -1.
+-func getu4(s []byte) int {
++func getu4(s []byte) rune {
+ 	if len(s) < 6 || s[0] != '\\' || s[1] != 'u' {
+ 		return -1
+ 	}
+-	rune, err := strconv.Btoui64(string(s[2:6]), 16)
++	r, err := strconv.Btoui64(string(s[2:6]), 16)
+ 	if err != nil {
+ 		return -1
+ 	}
+-	return int(rune)
++	return rune(r)
+ }
+ 
+ // unquote converts a quoted JSON string literal s into an actual string t.
+@@ -843,8 +843,8 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
+ 			r++
+ 			continue
+ 		}
+-		rune, size := utf8.DecodeRune(s[r:])
+-		if rune == utf8.RuneError && size == 1 {
++		rr, size := utf8.DecodeRune(s[r:])
++		if rr == utf8.RuneError && size == 1 {
+ 			break
+ 		}
+ 		r += size
+@@ -899,23 +899,23 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
+ 				w++
+ 			case 'u':
+ 				r--
+-				rune := getu4(s[r:])
+-				if rune < 0 {
++				rr := getu4(s[r:])
++				if rr < 0 {
+ 					return
+ 				}
+ 				r += 6
+-				if utf16.IsSurrogate(rune) {
+-					rune1 := getu4(s[r:])
+-					if dec := utf16.DecodeRune(rune, rune1); dec != unicode.ReplacementChar {
++				if utf16.IsSurrogate(rr) {
++					rr1 := getu4(s[r:])
++					if dec := utf16.DecodeRune(rr, rr1); dec != unicode.ReplacementChar {
+ 						// A valid pair; consume.
+ 						r += 6
+ 						w += utf8.EncodeRune(b[w:], dec)
+ 						break
+ 					}
+ 					// Invalid surrogate; fall back to replacement rune.
+-					rune = unicode.ReplacementChar
++					rr = unicode.ReplacementChar
+ 				}
+-				w += utf8.EncodeRune(b[w:], rune)
++				w += utf8.EncodeRune(b[w:], rr)
+ 			}
+ 
+ 		// Quote, control characters are invalid.
+@@ -930,9 +930,9 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
+ 
+ 		// Coerce to well-formed UTF-8.
+ 		default:
+-			rune, size := utf8.DecodeRune(s[r:])
++			rr, size := utf8.DecodeRune(s[r:])
+ 			r += size
+-			w += utf8.EncodeRune(b[w:], rune)
++			w += utf8.EncodeRune(b[w:], rr)
+ 		}
+ 	}
+ 	return b[0:w], true
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 2c7cbc4a29..6a6c32d292 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -243,7 +243,7 @@ func TestHTMLEscape(t *testing.T) {
+ 	}
+ }
+ 
+-func noSpace(c int) int {
++func noSpace(c rune) rune {
+ 	if isSpace(c) {
+ 		return -1
+ 	}
+diff --git a/src/pkg/json/scanner.go b/src/pkg/json/scanner.go
+index 49c2edd545..1a39b4cb34 100644
+--- a/src/pkg/json/scanner.go
++++ b/src/pkg/json/scanner.go
+@@ -176,7 +176,7 @@ func (s *scanner) popParseState() {
+ 	}
+ }
+ 
+-func isSpace(c int) bool {
++func isSpace(c rune) bool {
+ 	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
+ }
+ 
+diff --git a/src/pkg/json/scanner_test.go b/src/pkg/json/scanner_test.go
+index 4d73eac8aa..40bf295177 100644
+--- a/src/pkg/json/scanner_test.go
++++ b/src/pkg/json/scanner_test.go
+@@ -261,13 +261,13 @@ func genValue(n int) interface{} {
+ 
+ func genString(stddev float64) string {
+ 	n := int(math.Abs(rand.NormFloat64()*stddev + stddev/2))
+-	c := make([]int, n)
++	c := make([]rune, n)
+ 	for i := range c {
+ 		f := math.Abs(rand.NormFloat64()*64 + 32)
+ 		if f > 0x10ffff {
+ 			f = 0x10ffff
+ 		}
+-		c[i] = int(f)
++		c[i] = rune(f)
+ 	}
+ 	return string(c)
+ }
+diff --git a/src/pkg/json/stream.go b/src/pkg/json/stream.go
+index f143b3f0ad..98cb7935df 100644
+--- a/src/pkg/json/stream.go
++++ b/src/pkg/json/stream.go
+@@ -115,7 +115,7 @@ Input:
+ 
+ func nonSpace(b []byte) bool {
+ 	for _, c := range b {
+-		if !isSpace(int(c)) {
++		if !isSpace(rune(c)) {
+ 			return true
+ 		}
+ 	}
+diff --git a/src/pkg/mail/message.go b/src/pkg/mail/message.go
+index e227d17d6f..29249fbde1 100644
+--- a/src/pkg/mail/message.go
++++ b/src/pkg/mail/message.go
+@@ -454,7 +454,7 @@ func decodeRFC2047Word(s string) (string, os.Error) {
+ 	case "iso-8859-1":
+ 		b := new(bytes.Buffer)
+ 		for _, c := range dec {
+-			b.WriteRune(int(c))
++			b.WriteRune(rune(c))
+ 		}
+ 		return b.String(), nil
+ 	case "utf-8":
+diff --git a/src/pkg/mime/grammar.go b/src/pkg/mime/grammar.go
+index 70a94cd807..e16a06c86b 100644
+--- a/src/pkg/mime/grammar.go
++++ b/src/pkg/mime/grammar.go
+@@ -10,16 +10,16 @@ import (
+ 
+ // isTSpecial returns true if rune is in 'tspecials' as defined by RFC
+ // 1521 and RFC 2045.
+-func isTSpecial(rune int) bool {
+-	return strings.IndexRune(`()<>@,;:\"/[]?=`, rune) != -1
++func isTSpecial(r rune) bool {
++	return strings.IndexRune(`()<>@,;:\"/[]?=`, r) != -1
+ }
+ 
+ // IsTokenChar returns true if rune is in 'token' as defined by RFC
+ // 1521 and RFC 2045.
+-func IsTokenChar(rune int) bool {
++func IsTokenChar(r rune) bool {
+ 	// token := 1*<any (US-ASCII) CHAR except SPACE, CTLs,
+ 	//             or tspecials>
+-	return rune > 0x20 && rune < 0x7f && !isTSpecial(rune)
++	return r > 0x20 && r < 0x7f && !isTSpecial(r)
+ }
+ 
+ // IsToken returns true if s is a 'token' as as defined by RFC 1521
+@@ -32,14 +32,14 @@ func IsToken(s string) bool {
+ }
+ 
+ // IsQText returns true if rune is in 'qtext' as defined by RFC 822.
+-func IsQText(rune int) bool {
++func IsQText(r int) bool {
+ 	// CHAR        =  <any ASCII character>        ; (  0-177,  0.-127.)
+ 	// qtext       =  <any CHAR excepting <">,     ; => may be folded
+ 	//                "\" & CR, and including
+ 	//                linear-white-space>
+-	switch rune {
++	switch r {
+ 	case '"', '\\', '\r':
+ 		return false
+ 	}
+-	return rune < 0x80
++	return r < 0x80
+ }
+diff --git a/src/pkg/mime/mediatype.go b/src/pkg/mime/mediatype.go
+index b0d3933817..8ad8004435 100644
+--- a/src/pkg/mime/mediatype.go
++++ b/src/pkg/mime/mediatype.go
+@@ -199,8 +199,8 @@ func decode2231Enc(v string) string {
+ 	return encv
+ }
+ 
+-func isNotTokenChar(rune int) bool {
+-	return !IsTokenChar(rune)
++func isNotTokenChar(r rune) bool {
++	return !IsTokenChar(r)
+ }
+ 
+ // consumeToken consumes a token from the beginning of provided
+@@ -228,24 +228,25 @@ func consumeValue(v string) (value, rest string) {
+ 		return consumeToken(v)
+ 	}
+ 
+-	leadQuote := int(v[0])
++	leadQuote := rune(v[0])
+ 
+ 	// parse a quoted-string
+ 	rest = v[1:] // consume the leading quote
+ 	buffer := new(bytes.Buffer)
+-	var idx, rune int
++	var idx int
++	var r rune
+ 	var nextIsLiteral bool
+-	for idx, rune = range rest {
++	for idx, r = range rest {
+ 		switch {
+ 		case nextIsLiteral:
+-			buffer.WriteRune(rune)
++			buffer.WriteRune(r)
+ 			nextIsLiteral = false
+-		case rune == leadQuote:
++		case r == leadQuote:
+ 			return buffer.String(), rest[idx+1:]
+-		case rune == '\\':
++		case r == '\\':
+ 			nextIsLiteral = true
+-		case rune != '\r' && rune != '\n':
+-			buffer.WriteRune(rune)
++		case r != '\r' && r != '\n':
++			buffer.WriteRune(r)
+ 		default:
+ 			return "", v
+ 		}
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index bbb9783ce8..7f5bd72607 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -18,32 +18,32 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
+ 	var buf bytes.Buffer
+ 	buf.WriteByte(quote)
+ 	for width := 0; len(s) > 0; s = s[width:] {
+-		rune := int(s[0])
++		r := rune(s[0])
+ 		width = 1
+-		if rune >= utf8.RuneSelf {
+-			rune, width = utf8.DecodeRuneInString(s)
++		if r >= utf8.RuneSelf {
++			r, width = utf8.DecodeRuneInString(s)
+ 		}
+-		if width == 1 && rune == utf8.RuneError {
++		if width == 1 && r == utf8.RuneError {
+ 			buf.WriteString(`\x`)
+ 			buf.WriteByte(lowerhex[s[0]>>4])
+ 			buf.WriteByte(lowerhex[s[0]&0xF])
+ 			continue
+ 		}
+-		if rune == int(quote) || rune == '\\' { // always backslashed
++		if r == rune(quote) || r == '\\' { // always backslashed
+ 			buf.WriteByte('\\')
+-			buf.WriteByte(byte(rune))
++			buf.WriteByte(byte(r))
+ 			continue
+ 		}
+ 		if ASCIIonly {
+-			if rune <= unicode.MaxASCII && unicode.IsPrint(rune) {
+-				buf.WriteRune(rune)
++			if r <= unicode.MaxASCII && unicode.IsPrint(r) {
++				buf.WriteRune(r)
+ 				continue
+ 			}
+-		} else if unicode.IsPrint(rune) {
+-			buf.WriteRune(rune)
++		} else if unicode.IsPrint(r) {
++			buf.WriteRune(r)
+ 			continue
+ 		}
+-		switch rune {
++		switch r {
+ 		case '\a':
+ 			buf.WriteString(`\a`)
+ 		case '\b':
+@@ -60,22 +60,22 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
+ 			buf.WriteString(`\v`)
+ 		default:
+ 			switch {
+-			case rune < ' ':
++			case r < ' ':
+ 				buf.WriteString(`\x`)
+ 				buf.WriteByte(lowerhex[s[0]>>4])
+ 				buf.WriteByte(lowerhex[s[0]&0xF])
+-			case rune > unicode.MaxRune:
+-				rune = 0xFFFD
++			case r > unicode.MaxRune:
++				r = 0xFFFD
+ 				fallthrough
+-			case rune < 0x10000:
++			case r < 0x10000:
+ 				buf.WriteString(`\u`)
+ 				for s := 12; s >= 0; s -= 4 {
+-					buf.WriteByte(lowerhex[rune>>uint(s)&0xF])
++					buf.WriteByte(lowerhex[r>>uint(s)&0xF])
+ 				}
+ 			default:
+ 				buf.WriteString(`\U`)
+ 				for s := 28; s >= 0; s -= 4 {
+-					buf.WriteByte(lowerhex[rune>>uint(s)&0xF])
++					buf.WriteByte(lowerhex[r>>uint(s)&0xF])
+ 				}
+ 			}
+ 		}
+@@ -130,8 +130,8 @@ func CanBackquote(s string) bool {
+ 	return true
+ }
+ 
+-func unhex(b byte) (v int, ok bool) {
+-	c := int(b)
++func unhex(b byte) (v rune, ok bool) {
++	c := rune(b)
+ 	switch {
+ 	case '0' <= c && c <= '9':
+ 		return c - '0', true
+@@ -157,7 +157,7 @@ func unhex(b byte) (v int, ok bool) {
+ // If set to a single quote, it permits the sequence \' and disallows unescaped '.
+ // If set to a double quote, it permits \" and disallows unescaped ".
+ // If set to zero, it does not permit either escape and allows both quote characters to appear unescaped.
+-func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, err os.Error) {
++func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string, err os.Error) {
+ 	// easy cases
+ 	switch c := s[0]; {
+ 	case c == quote && (quote == '\'' || quote == '"'):
+@@ -167,7 +167,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string,
+ 		r, size := utf8.DecodeRuneInString(s)
+ 		return r, true, s[size:], nil
+ 	case c != '\\':
+-		return int(s[0]), false, s[1:], nil
++		return rune(s[0]), false, s[1:], nil
+ 	}
+ 
+ 	// hard case: c is backslash
+@@ -203,7 +203,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string,
+ 		case 'U':
+ 			n = 8
+ 		}
+-		v := 0
++		var v rune
+ 		if len(s) < n {
+ 			err = os.EINVAL
+ 			return
+@@ -229,13 +229,13 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string,
+ 		value = v
+ 		multibyte = true
+ 	case '0', '1', '2', '3', '4', '5', '6', '7':
+-		v := int(c) - '0'
++		v := rune(c) - '0'
+ 		if len(s) < 2 {
+ 			err = os.EINVAL
+ 			return
+ 		}
+ 		for j := 0; j < 2; j++ { // one digit already; two more
+-			x := int(s[j]) - '0'
++			x := rune(s[j]) - '0'
+ 			if x < 0 || x > 7 {
+ 				return
+ 			}
+@@ -254,7 +254,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string,
+ 			err = os.EINVAL
+ 			return
+ 		}
+-		value = int(c)
++		value = rune(c)
+ 	default:
+ 		err = os.EINVAL
+ 		return
+@@ -293,7 +293,7 @@ func Unquote(s string) (t string, err os.Error) {
+ 	}
+ 
+ 	// Is it trivial?  Avoid allocation.
+-	if strings.Index(s, `\`) < 0 && strings.IndexRune(s, int(quote)) < 0 {
++	if strings.Index(s, `\`) < 0 && strings.IndexRune(s, rune(quote)) < 0 {
+ 		switch quote {
+ 		case '"':
+ 			return s, nil
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index f64e130018..1fe20ac614 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -206,7 +206,7 @@ func fieldName(original string) string {
+ 	}
+ 
+ 	return strings.Map(
+-		func(x int) int {
++		func(x rune) rune {
+ 			if x == '_' || unicode.IsDigit(x) || unicode.IsLetter(x) {
+ 				return unicode.ToLower(x)
+ 			}
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 85c24bc450..bc03c8e0d4 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -960,13 +960,13 @@ Input:
+ // Decide whether the given rune is in the XML Character Range, per
+ // the Char production of http://www.xml.com/axml/testaxml.htm,
+ // Section 2.2 Characters.
+-func isInCharacterRange(rune int) (inrange bool) {
+-	return rune == 0x09 ||
+-		rune == 0x0A ||
+-		rune == 0x0D ||
+-		rune >= 0x20 && rune <= 0xDF77 ||
+-		rune >= 0xE000 && rune <= 0xFFFD ||
+-		rune >= 0x10000 && rune <= 0x10FFFF
++func isInCharacterRange(r rune) (inrange bool) {
++	return r == 0x09 ||
++		r == 0x0A ||
++		r == 0x0D ||
++		r >= 0x20 && r <= 0xDF77 ||
++		r >= 0xE000 && r <= 0xFFFD ||
++		r >= 0x10000 && r <= 0x10FFFF
+ }
+ 
+ // Get name space name: name with a : stuck in the middle.
+@@ -1690,7 +1690,7 @@ func procInstEncoding(s string) string {
+ 	if v[0] != '\'' && v[0] != '"' {
+ 		return ""
+ 	}
+-	idx = strings.IndexRune(v[1:], int(v[0]))
++	idx = strings.IndexRune(v[1:], rune(v[0]))
+ 	if idx == -1 {
+ 		return ""
+ 	}

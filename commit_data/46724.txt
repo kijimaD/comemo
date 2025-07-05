@@ -23,7 +23,53 @@ Date:   Fri Jan 22 16:07:00 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go | 10 ++++++++++
  test/closure6.go                          | 18 ++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 883e68a730..58cad73c76 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -781,6 +781,16 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 				}
+ 			}
+ 
++			for _, n := range fn.Dcl {
++				// Add locations for local variables of the
++				// closure, if needed, in case we're not including
++				// the closure func in the batch for escape
++				// analysis (happens for escape analysis called
++				// from reflectdata.methodWrapper)
++				if n.Op() == ir.ONAME && n.Opt == nil {
++					e.with(fn).newLoc(n, false)
++				}
++			}
+ 			e.walkFunc(fn)
+ 		}
+ 
+diff --git a/test/closure6.go b/test/closure6.go
+new file mode 100644
+index 0000000000..b5592ad3d3
+--- /dev/null
++++ b/test/closure6.go
+@@ -0,0 +1,18 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Float64Slice []float64
++
++func (a Float64Slice) Search1(x float64) int {
++	f := func(q int) bool { return a[q] >= x }
++	i := 0
++	if !f(3) {
++		i = 5
++	}
++	return i
++}

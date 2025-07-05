@@ -9,7 +9,7 @@ Date:   Tue Aug 14 13:04:14 2012 -0400
     R=golang-dev, minux.ma, r, dave
     CC=golang-dev
     https://golang.org/cl/6461056
-
+---
  src/pkg/exp/proxy/direct.go        |  18 ----
  src/pkg/exp/proxy/per_host.go      | 140 -------------------------
  src/pkg/exp/proxy/per_host_test.go |  55 ----------
@@ -17,3 +17,604 @@ Date:   Tue Aug 14 13:04:14 2012 -0400
  src/pkg/exp/proxy/proxy_test.go    |  50 ---------
  src/pkg/exp/proxy/socks5.go        | 207 -------------------------------------
  6 files changed, 564 deletions(-)
+
+diff --git a/src/pkg/exp/proxy/direct.go b/src/pkg/exp/proxy/direct.go
+deleted file mode 100644
+index 4c5ad88b1e..0000000000
+--- a/src/pkg/exp/proxy/direct.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package proxy
+-
+-import (
+-	"net"
+-)
+-
+-type direct struct{}
+-
+-// Direct is a direct proxy: one that makes network connections directly.
+-var Direct = direct{}
+-
+-func (direct) Dial(network, addr string) (net.Conn, error) {
+-	return net.Dial(network, addr)
+-}
+diff --git a/src/pkg/exp/proxy/per_host.go b/src/pkg/exp/proxy/per_host.go
+deleted file mode 100644
+index 0c627e9ab5..0000000000
+--- a/src/pkg/exp/proxy/per_host.go
++++ /dev/null
+@@ -1,140 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package proxy
+-
+-import (
+-	"net"
+-	"strings"
+-)
+-
+-// A PerHost directs connections to a default Dailer unless the hostname
+-// requested matches one of a number of exceptions.
+-type PerHost struct {
+-	def, bypass Dialer
+-
+-	bypassNetworks []*net.IPNet
+-	bypassIPs      []net.IP
+-	bypassZones    []string
+-	bypassHosts    []string
+-}
+-
+-// NewPerHost returns a PerHost Dialer that directs connections to either
+-// defaultDialer or bypass, depending on whether the connection matches one of
+-// the configured rules.
+-func NewPerHost(defaultDialer, bypass Dialer) *PerHost {
+-	return &PerHost{
+-		def:    defaultDialer,
+-		bypass: bypass,
+-	}
+-}
+-
+-// Dial connects to the address addr on the network net through either
+-// defaultDialer or bypass.
+-func (p *PerHost) Dial(network, addr string) (c net.Conn, err error) {
+-	host, _, err := net.SplitHostPort(addr)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	return p.dialerForRequest(host).Dial(network, addr)
+-}
+-
+-func (p *PerHost) dialerForRequest(host string) Dialer {
+-	if ip := net.ParseIP(host); ip != nil {
+-		for _, net := range p.bypassNetworks {
+-			if net.Contains(ip) {
+-				return p.bypass
+-			}
+-		}
+-		for _, bypassIP := range p.bypassIPs {
+-			if bypassIP.Equal(ip) {
+-				return p.bypass
+-			}
+-		}
+-		return p.def
+-	}
+-
+-	for _, zone := range p.bypassZones {
+-		if strings.HasSuffix(host, zone) {
+-			return p.bypass
+-		}
+-		if host == zone[1:] {
+-			// For a zone "example.com", we match "example.com"
+-			// too.
+-			return p.bypass
+-		}
+-	}
+-	for _, bypassHost := range p.bypassHosts {
+-		if bypassHost == host {
+-			return p.bypass
+-		}
+-	}
+-	return p.def
+-}
+-
+-// AddFromString parses a string that contains comma-separated values
+-// specifying hosts that should use the bypass proxy. Each value is either an
+-// IP address, a CIDR range, a zone (*.example.com) or a hostname
+-// (localhost). A best effort is made to parse the string and errors are
+-// ignored.
+-func (p *PerHost) AddFromString(s string) {
+-	hosts := strings.Split(s, ",")
+-	for _, host := range hosts {
+-		host = strings.TrimSpace(host)
+-		if len(host) == 0 {
+-			continue
+-		}
+-		if strings.Contains(host, "/") {
+-			// We assume that it's a CIDR address like 127.0.0.0/8
+-			if _, net, err := net.ParseCIDR(host); err == nil {
+-				p.AddNetwork(net)
+-			}
+-			continue
+-		}
+-		if ip := net.ParseIP(host); ip != nil {
+-			p.AddIP(ip)
+-			continue
+-		}
+-		if strings.HasPrefix(host, "*.") {
+-			p.AddZone(host[1:])
+-			continue
+-		}
+-		p.AddHost(host)
+-	}
+-}
+-
+-// AddIP specifies an IP address that will use the bypass proxy. Note that
+-// this will only take effect if a literal IP address is dialed. A connection
+-// to a named host will never match an IP.
+-func (p *PerHost) AddIP(ip net.IP) {
+-	p.bypassIPs = append(p.bypassIPs, ip)
+-}
+-
+-// AddIP specifies an IP range that will use the bypass proxy. Note that this
+-// will only take effect if a literal IP address is dialed. A connection to a
+-// named host will never match.
+-func (p *PerHost) AddNetwork(net *net.IPNet) {
+-	p.bypassNetworks = append(p.bypassNetworks, net)
+-}
+-
+-// AddZone specifies a DNS suffix that will use the bypass proxy. A zone of
+-// "example.com" matches "example.com" and all of its subdomains.
+-func (p *PerHost) AddZone(zone string) {
+-	if strings.HasSuffix(zone, ".") {
+-		zone = zone[:len(zone)-1]
+-	}
+-	if !strings.HasPrefix(zone, ".") {
+-		zone = "." + zone
+-	}
+-	p.bypassZones = append(p.bypassZones, zone)
+-}
+-
+-// AddHost specifies a hostname that will use the bypass proxy.
+-func (p *PerHost) AddHost(host string) {
+-	if strings.HasSuffix(host, ".") {
+-		host = host[:len(host)-1]
+-	}
+-	p.bypassHosts = append(p.bypassHosts, host)
+-}
+diff --git a/src/pkg/exp/proxy/per_host_test.go b/src/pkg/exp/proxy/per_host_test.go
+deleted file mode 100644
+index a7d8095711..0000000000
+--- a/src/pkg/exp/proxy/per_host_test.go
++++ /dev/null
+@@ -1,55 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package proxy
+-
+-import (
+-	"errors"
+-	"net"
+-	"reflect"
+-	"testing"
+-)
+-
+-type recordingProxy struct {
+-	addrs []string
+-}
+-
+-func (r *recordingProxy) Dial(network, addr string) (net.Conn, error) {
+-	r.addrs = append(r.addrs, addr)
+-	return nil, errors.New("recordingProxy")
+-}
+-
+-func TestPerHost(t *testing.T) {
+-	var def, bypass recordingProxy
+-	perHost := NewPerHost(&def, &bypass)
+-	perHost.AddFromString("localhost,*.zone,127.0.0.1,10.0.0.1/8,1000::/16")
+-
+-	expectedDef := []string{
+-		"example.com:123",
+-		"1.2.3.4:123",
+-		"[1001::]:123",
+-	}
+-	expectedBypass := []string{
+-		"localhost:123",
+-		"zone:123",
+-		"foo.zone:123",
+-		"127.0.0.1:123",
+-		"10.1.2.3:123",
+-		"[1000::]:123",
+-	}
+-
+-	for _, addr := range expectedDef {
+-		perHost.Dial("tcp", addr)
+-	}
+-	for _, addr := range expectedBypass {
+-		perHost.Dial("tcp", addr)
+-	}
+-
+-	if !reflect.DeepEqual(expectedDef, def.addrs) {
+-		t.Errorf("Hosts which went to the default proxy didn't match. Got %v, want %v", def.addrs, expectedDef)
+-	}
+-	if !reflect.DeepEqual(expectedBypass, bypass.addrs) {
+-		t.Errorf("Hosts which went to the bypass proxy didn't match. Got %v, want %v", bypass.addrs, expectedBypass)
+-	}
+-}
+diff --git a/src/pkg/exp/proxy/proxy.go b/src/pkg/exp/proxy/proxy.go
+deleted file mode 100644
+index b6cfd45108..0000000000
+--- a/src/pkg/exp/proxy/proxy.go
++++ /dev/null
+@@ -1,94 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package proxy provides support for a variety of protocols to proxy network
+-// data.
+-package proxy
+-
+-import (
+-	"errors"
+-	"net"
+-	"net/url"
+-	"os"
+-)
+-
+-// A Dialer is a means to establish a connection.
+-type Dialer interface {
+-	// Dial connects to the given address via the proxy.
+-	Dial(network, addr string) (c net.Conn, err error)
+-}
+-
+-// Auth contains authentication parameters that specific Dialers may require.
+-type Auth struct {
+-	User, Password string
+-}
+-
+-// DefaultDialer returns the dialer specified by the proxy related variables in
+-// the environment.
+-func FromEnvironment() Dialer {
+-	allProxy := os.Getenv("all_proxy")
+-	if len(allProxy) == 0 {
+-		return Direct
+-	}
+-
+-	proxyURL, err := url.Parse(allProxy)
+-	if err != nil {
+-		return Direct
+-	}
+-	proxy, err := FromURL(proxyURL, Direct)
+-	if err != nil {
+-		return Direct
+-	}
+-
+-	noProxy := os.Getenv("no_proxy")
+-	if len(noProxy) == 0 {
+-		return proxy
+-	}
+-
+-	perHost := NewPerHost(proxy, Direct)
+-	perHost.AddFromString(noProxy)
+-	return perHost
+-}
+-
+-// proxySchemes is a map from URL schemes to a function that creates a Dialer
+-// from a URL with such a scheme.
+-var proxySchemes map[string]func(*url.URL, Dialer) (Dialer, error)
+-
+-// RegisterDialerType takes a URL scheme and a function to generate Dialers from
+-// a URL with that scheme and a forwarding Dialer. Registered schemes are used
+-// by FromURL.
+-func RegisterDialerType(scheme string, f func(*url.URL, Dialer) (Dialer, error)) {
+-	if proxySchemes == nil {
+-		proxySchemes = make(map[string]func(*url.URL, Dialer) (Dialer, error))
+-	}
+-	proxySchemes[scheme] = f
+-}
+-
+-// FromURL returns a Dialer given a URL specification and an underlying
+-// Dialer for it to make network requests.
+-func FromURL(u *url.URL, forward Dialer) (Dialer, error) {
+-	var auth *Auth
+-	if u.User != nil {
+-		auth = new(Auth)
+-		auth.User = u.User.Username()
+-		if p, ok := u.User.Password(); ok {
+-			auth.Password = p
+-		}
+-	}
+-
+-	switch u.Scheme {
+-	case "socks5":
+-		return SOCKS5("tcp", u.Host, auth, forward)
+-	}
+-
+-	// If the scheme doesn't match any of the built-in schemes, see if it
+-	// was registered by another package.
+-	if proxySchemes != nil {
+-		if f, ok := proxySchemes[u.Scheme]; ok {
+-			return f(u, forward)
+-		}
+-	}
+-
+-	return nil, errors.New("proxy: unknown scheme: " + u.Scheme)
+-}
+diff --git a/src/pkg/exp/proxy/proxy_test.go b/src/pkg/exp/proxy/proxy_test.go
+deleted file mode 100644
+index 4078bc76ae..0000000000
+--- a/src/pkg/exp/proxy/proxy_test.go
++++ /dev/null
+@@ -1,50 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package proxy
+-
+-import (
+-	"net"
+-	"net/url"
+-	"testing"
+-)
+-
+-type testDialer struct {
+-	network, addr string
+-}
+-
+-func (t *testDialer) Dial(network, addr string) (net.Conn, error) {
+-	t.network = network
+-	t.addr = addr
+-	return nil, t
+-}
+-
+-func (t *testDialer) Error() string {
+-	return "testDialer " + t.network + " " + t.addr
+-}
+-
+-func TestFromURL(t *testing.T) {
+-	u, err := url.Parse("socks5://user:password@1.2.3.4:5678")
+-	if err != nil {
+-		t.Fatalf("failed to parse URL: %s", err)
+-	}
+-
+-	tp := &testDialer{}
+-	proxy, err := FromURL(u, tp)
+-	if err != nil {
+-		t.Fatalf("FromURL failed: %s", err)
+-	}
+-
+-	conn, err := proxy.Dial("tcp", "example.com:80")
+-	if conn != nil {
+-		t.Error("Dial unexpected didn't return an error")
+-	}
+-	if tp, ok := err.(*testDialer); ok {
+-		if tp.network != "tcp" || tp.addr != "1.2.3.4:5678" {
+-			t.Errorf("Dialer connected to wrong host. Wanted 1.2.3.4:5678, got: %v", tp)
+-		}
+-	} else {
+-		t.Errorf("Unexpected error from Dial: %s", err)
+-	}
+-}
+diff --git a/src/pkg/exp/proxy/socks5.go b/src/pkg/exp/proxy/socks5.go
+deleted file mode 100644
+index 62fa5c9296..0000000000
+--- a/src/pkg/exp/proxy/socks5.go
++++ /dev/null
+@@ -1,207 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package proxy
+-
+-import (
+-	"errors"
+-	"io"
+-	"net"
+-	"strconv"
+-)
+-
+-// SOCKS5 returns a Dialer that makes SOCKSv5 connections to the given address
+-// with an optional username and password. See RFC 1928.
+-func SOCKS5(network, addr string, auth *Auth, forward Dialer) (Dialer, error) {
+-	s := &socks5{
+-		network: network,
+-		addr:    addr,
+-		forward: forward,
+-	}
+-	if auth != nil {
+-		s.user = auth.User
+-		s.password = auth.Password
+-	}
+-
+-	return s, nil
+-}
+-
+-type socks5 struct {
+-	user, password string
+-	network, addr  string
+-	forward        Dialer
+-}
+-
+-const socks5Version = 5
+-
+-const (
+-	socks5AuthNone     = 0
+-	socks5AuthPassword = 2
+-)
+-
+-const socks5Connect = 1
+-
+-const (
+-	socks5IP4    = 1
+-	socks5Domain = 3
+-	socks5IP6    = 4
+-)
+-
+-var socks5Errors = []string{
+-	"",
+-	"general failure",
+-	"connection forbidden",
+-	"network unreachable",
+-	"host unreachable",
+-	"connection refused",
+-	"TTL expired",
+-	"command not supported",
+-	"address type not supported",
+-}
+-
+-// Dial connects to the address addr on the network net via the SOCKS5 proxy.
+-func (s *socks5) Dial(network, addr string) (net.Conn, error) {
+-	switch network {
+-	case "tcp", "tcp6", "tcp4":
+-		break
+-	default:
+-		return nil, errors.New("proxy: no support for SOCKS5 proxy connections of type " + network)
+-	}
+-
+-	conn, err := s.forward.Dial(s.network, s.addr)
+-	if err != nil {
+-		return nil, err
+-	}
+-	closeConn := &conn
+-	defer func() {
+-		if closeConn != nil {
+-			(*closeConn).Close()
+-		}
+-	}()
+-
+-	host, portStr, err := net.SplitHostPort(addr)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	port, err := strconv.Atoi(portStr)
+-	if err != nil {
+-		return nil, errors.New("proxy: failed to parse port number: " + portStr)
+-	}
+-	if port < 1 || port > 0xffff {
+-		return nil, errors.New("proxy: port number out of range: " + portStr)
+-	}
+-
+-	// the size here is just an estimate
+-	buf := make([]byte, 0, 6+len(host))
+-
+-	buf = append(buf, socks5Version)
+-	if len(s.user) > 0 && len(s.user) < 256 && len(s.password) < 256 {
+-		buf = append(buf, 2 /* num auth methods */, socks5AuthNone, socks5AuthPassword)
+-	} else {
+-		buf = append(buf, 1 /* num auth methods */, socks5AuthNone)
+-	}
+-
+-	if _, err = conn.Write(buf); err != nil {
+-		return nil, errors.New("proxy: failed to write greeting to SOCKS5 proxy at " + s.addr + ": " + err.Error())
+-	}
+-
+-	if _, err = io.ReadFull(conn, buf[:2]); err != nil {
+-		return nil, errors.New("proxy: failed to read greeting from SOCKS5 proxy at " + s.addr + ": " + err.Error())
+-	}
+-	if buf[0] != 5 {
+-		return nil, errors.New("proxy: SOCKS5 proxy at " + s.addr + " has unexpected version " + strconv.Itoa(int(buf[0])))
+-	}
+-	if buf[1] == 0xff {
+-		return nil, errors.New("proxy: SOCKS5 proxy at " + s.addr + " requires authentication")
+-	}
+-
+-	if buf[1] == socks5AuthPassword {
+-		buf = buf[:0]
+-		buf = append(buf, socks5Version)
+-		buf = append(buf, uint8(len(s.user)))
+-		buf = append(buf, s.user...)
+-		buf = append(buf, uint8(len(s.password)))
+-		buf = append(buf, s.password...)
+-
+-		if _, err = conn.Write(buf); err != nil {
+-			return nil, errors.New("proxy: failed to write authentication request to SOCKS5 proxy at " + s.addr + ": " + err.Error())
+-		}
+-
+-		if _, err = io.ReadFull(conn, buf[:2]); err != nil {
+-			return nil, errors.New("proxy: failed to read authentication reply from SOCKS5 proxy at " + s.addr + ": " + err.Error())
+-		}
+-
+-		if buf[1] != 0 {
+-			return nil, errors.New("proxy: SOCKS5 proxy at " + s.addr + " rejected username/password")
+-		}
+-	}
+-
+-	buf = buf[:0]
+-	buf = append(buf, socks5Version, socks5Connect, 0 /* reserved */)
+-
+-	if ip := net.ParseIP(host); ip != nil {
+-		if len(ip) == 4 {
+-			buf = append(buf, socks5IP4)
+-		} else {
+-			buf = append(buf, socks5IP6)
+-		}
+-		buf = append(buf, []byte(ip)...)
+-	} else {
+-		buf = append(buf, socks5Domain)
+-		buf = append(buf, byte(len(host)))
+-		buf = append(buf, host...)
+-	}
+-	buf = append(buf, byte(port>>8), byte(port))
+-
+-	if _, err = conn.Write(buf); err != nil {
+-		return nil, errors.New("proxy: failed to write connect request to SOCKS5 proxy at " + s.addr + ": " + err.Error())
+-	}
+-
+-	if _, err = io.ReadFull(conn, buf[:4]); err != nil {
+-		return nil, errors.New("proxy: failed to read connect reply from SOCKS5 proxy at " + s.addr + ": " + err.Error())
+-	}
+-
+-	failure := "unknown error"
+-	if int(buf[1]) < len(socks5Errors) {
+-		failure = socks5Errors[buf[1]]
+-	}
+-
+-	if len(failure) > 0 {
+-		return nil, errors.New("proxy: SOCKS5 proxy at " + s.addr + " failed to connect: " + failure)
+-	}
+-
+-	bytesToDiscard := 0
+-	switch buf[3] {
+-	case socks5IP4:
+-		bytesToDiscard = 4
+-	case socks5IP6:
+-		bytesToDiscard = 16
+-	case socks5Domain:
+-		_, err := io.ReadFull(conn, buf[:1])
+-		if err != nil {
+-			return nil, errors.New("proxy: failed to read domain length from SOCKS5 proxy at " + s.addr + ": " + err.Error())
+-		}
+-		bytesToDiscard = int(buf[0])
+-	default:
+-		return nil, errors.New("proxy: got unknown address type " + strconv.Itoa(int(buf[3])) + " from SOCKS5 proxy at " + s.addr)
+-	}
+-
+-	if cap(buf) < bytesToDiscard {
+-		buf = make([]byte, bytesToDiscard)
+-	} else {
+-		buf = buf[:bytesToDiscard]
+-	}
+-	if _, err = io.ReadFull(conn, buf); err != nil {
+-		return nil, errors.New("proxy: failed to read address from SOCKS5 proxy at " + s.addr + ": " + err.Error())
+-	}
+-
+-	// Also need to discard the port number
+-	if _, err = io.ReadFull(conn, buf[:2]); err != nil {
+-		return nil, errors.New("proxy: failed to read port from SOCKS5 proxy at " + s.addr + ": " + err.Error())
+-	}
+-
+-	closeConn = nil
+-	return conn, nil
+-}

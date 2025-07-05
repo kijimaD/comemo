@@ -19,7 +19,7 @@ Date:   Fri Mar 12 23:21:09 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/testplugin/plugin_test.go                 |  7 ++++
  .../testplugin/testdata/issue44956/base/base.go    |  7 ++++
  misc/cgo/testplugin/testdata/issue44956/main.go    | 47 ++++++++++++++++++++++
@@ -29,3 +29,178 @@ Date:   Fri Mar 12 23:21:09 2021 -0500
  src/cmd/compile/internal/walk/complit.go           |  3 +-
  src/cmd/link/internal/ld/symtab.go                 |  9 ++++-
  8 files changed, 91 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index 2d991012c8..8869528015 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -209,3 +209,10 @@ func TestMethod2(t *testing.T) {
+ 	goCmd(t, "build", "-o", "method2.exe", "./method2/main.go")
+ 	run(t, "./method2.exe")
+ }
++
++func TestIssue44956(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p1.so", "./issue44956/plugin1.go")
++	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p2.so", "./issue44956/plugin2.go")
++	goCmd(t, "build", "-o", "issue44956.exe", "./issue44956/main.go")
++	run(t, "./issue44956.exe")
++}
+diff --git a/misc/cgo/testplugin/testdata/issue44956/base/base.go b/misc/cgo/testplugin/testdata/issue44956/base/base.go
+new file mode 100644
+index 0000000000..609aa0dff4
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/issue44956/base/base.go
+@@ -0,0 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package base
++
++var X = &map[int]int{123: 456}
+diff --git a/misc/cgo/testplugin/testdata/issue44956/main.go b/misc/cgo/testplugin/testdata/issue44956/main.go
+new file mode 100644
+index 0000000000..287a60585e
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/issue44956/main.go
+@@ -0,0 +1,47 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 44956: writable static temp is not exported correctly.
++// In the test below, package base is
++//
++//     X = &map{...}
++//
++// which compiles to
++//
++//     X = &stmp           // static
++//     stmp = makemap(...) // in init function
++//
++// plugin1 and plugin2 both import base. plugin1 doesn't use
++// base.X, so that symbol is deadcoded in plugin1.
++//
++// plugin1 is loaded first. base.init runs at that point, which
++// initialize base.stmp.
++//
++// plugin2 is then loaded. base.init already ran, so it doesn't run
++// again. When base.stmp is not exported, plugin2's base.X points to
++// its own private base.stmp, which is not initialized, fail.
++
++package main
++
++import "plugin"
++
++func main() {
++	_, err := plugin.Open("issue44956p1.so")
++	if err != nil {
++		panic("FAIL")
++	}
++
++	p2, err := plugin.Open("issue44956p2.so")
++	if err != nil {
++		panic("FAIL")
++	}
++	f, err := p2.Lookup("F")
++	if err != nil {
++		panic("FAIL")
++	}
++	x := f.(func() *map[int]int)()
++	if x == nil || (*x)[123] != 456 {
++		panic("FAIL")
++	}
++}
+diff --git a/misc/cgo/testplugin/testdata/issue44956/plugin1.go b/misc/cgo/testplugin/testdata/issue44956/plugin1.go
+new file mode 100644
+index 0000000000..499fa31abf
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/issue44956/plugin1.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import _ "testplugin/issue44956/base"
++
++func main() {}
+diff --git a/misc/cgo/testplugin/testdata/issue44956/plugin2.go b/misc/cgo/testplugin/testdata/issue44956/plugin2.go
+new file mode 100644
+index 0000000000..a73542ca71
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/issue44956/plugin2.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "testplugin/issue44956/base"
++
++func F() *map[int]int { return base.X }
++
++func main() {}
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index f3ad82e7b6..0c97b6de74 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -459,7 +459,6 @@ func StaticName(t *types.Type) *ir.Name {
+ 	statuniqgen++
+ 	typecheck.Declare(n, ir.PEXTERN)
+ 	n.SetType(t)
+-	n.Linksym().Set(obj.AttrLocal, true)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 73442dc404..54f2c5fefe 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -55,11 +55,12 @@ func (c initContext) String() string {
+ 	return "inNonInitFunction"
+ }
+ 
+-// readonlystaticname returns a name backed by a (writable) static data symbol.
++// readonlystaticname returns a name backed by a read-only static data symbol.
+ func readonlystaticname(t *types.Type) *ir.Name {
+ 	n := staticinit.StaticName(t)
+ 	n.MarkReadonly()
+ 	n.Linksym().Set(obj.AttrContentAddressable, true)
++	n.Linksym().Set(obj.AttrLocal, true)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 85a8ff42ad..ca8ef8641e 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -31,6 +31,7 @@
+ package ld
+ 
+ import (
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+@@ -140,7 +141,9 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
+ 	// One pass for each binding: elf.STB_LOCAL, elf.STB_GLOBAL,
+ 	// maybe one day elf.STB_WEAK.
+ 	bind := elf.STB_GLOBAL
+-	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
++	if ldr.IsFileLocal(x) && !isStaticTmp(sname) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
++		// Static tmp is package local, but a package can be shared among multiple DSOs.
++		// They need to have a single view of the static tmp that are writable.
+ 		bind = elf.STB_LOCAL
+ 	}
+ 
+@@ -856,3 +859,7 @@ func setCarrierSize(typ sym.SymKind, sz int64) {
+ 	}
+ 	CarrierSymByType[typ].Size = sz
+ }
++
++func isStaticTmp(name string) bool {
++	return strings.Contains(name, "."+obj.StaticNamePref)
++}

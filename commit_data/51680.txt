@@ -14,7 +14,7 @@ Date:   Wed Mar 2 18:38:55 2022 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go        |  2 +-
  src/cmd/compile/internal/types2/stmt.go            | 22 ++++++++++------------
  .../types2/testdata/fixedbugs/issue51437.go        | 17 +++++++++++++++++
@@ -23,3 +23,219 @@ Date:   Wed Mar 2 18:38:55 2022 -0800
  src/go/types/testdata/fixedbugs/issue51437.go      | 17 +++++++++++++++++
  test/fixedbugs/issue51437.go                       | 19 +++++++++++++++++++
  7 files changed, 72 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 8133e963d7..5c38c59c80 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1699,7 +1699,7 @@ func F(){
+ 	var F = /*F=func:12*/ F /*F=var:17*/ ; _ = F
+ 
+ 	var a []int
+-	for i, x := range /*i=undef*/ /*x=var:16*/ a /*i=var:20*/ /*x=var:20*/ { _ = i; _ = x }
++	for i, x := range a /*i=undef*/ /*x=var:16*/ { _ = i; _ = x }
+ 
+ 	var i interface{}
+ 	switch y := i.(type) { /*y=undef*/
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 836b95df8f..4c8eac725f 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -626,14 +626,15 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 
+ 	case *syntax.ForStmt:
+ 		inner |= breakOk | continueOk
+-		check.openScope(s, "for")
+-		defer check.closeScope()
+ 
+ 		if rclause, _ := s.Init.(*syntax.RangeClause); rclause != nil {
+ 			check.rangeStmt(inner, s, rclause)
+ 			break
+ 		}
+ 
++		check.openScope(s, "for")
++		defer check.closeScope()
++
+ 		check.simpleStmt(s.Init)
+ 		if s.Cond != nil {
+ 			var x operand
+@@ -809,8 +810,6 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ }
+ 
+ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *syntax.RangeClause) {
+-	// scope already opened
+-
+ 	// determine lhs, if any
+ 	sKey := rclause.Lhs // possibly nil
+ 	var sValue, sExtra syntax.Expr
+@@ -866,6 +865,11 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 		}
+ 	}
+ 
++	// Open the for-statement block scope now, after the range clause.
++	// Iteration variables declared with := need to go in this scope (was issue #51437).
++	check.openScope(s, "range")
++	defer check.closeScope()
++
+ 	// check assignment to/declaration of iteration variables
+ 	// (irregular assignment, cannot easily map to existing assignment checks)
+ 
+@@ -874,9 +878,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	rhs := [2]Type{key, val} // key, val may be nil
+ 
+ 	if rclause.Def {
+-		// short variable declaration; variable scope starts after the range clause
+-		// (the for loop opens a new scope, so variables on the lhs never redeclare
+-		// previously declared variables)
++		// short variable declaration
+ 		var vars []*Var
+ 		for i, lhs := range lhs {
+ 			if lhs == nil {
+@@ -913,12 +915,8 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 
+ 		// declare variables
+ 		if len(vars) > 0 {
+-			scopePos := syntax.EndPos(rclause.X) // TODO(gri) should this just be s.Body.Pos (spec clarification)?
++			scopePos := s.Body.Pos()
+ 			for _, obj := range vars {
+-				// spec: "The scope of a constant or variable identifier declared inside
+-				// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
+-				// for short variable declarations) and ends at the end of the innermost
+-				// containing block."
+ 				check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
+ 			}
+ 		} else {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51437.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51437.go
+new file mode 100644
+index 0000000000..376261516e
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51437.go
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T struct{}
++
++func (T) m() []int { return nil }
++
++func f(x T) {
++	for _, x := range func() []int {
++		return x.m() // x declared in parameter list of f
++	}() {
++		_ = x // x declared by range clause
++	}
++}
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 58b59900f9..4c732dd58e 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1690,7 +1690,7 @@ func F(){
+ 	var F = /*F=func:12*/ F /*F=var:17*/ ; _ = F
+ 
+ 	var a []int
+-	for i, x := range /*i=undef*/ /*x=var:16*/ a /*i=var:20*/ /*x=var:20*/ { _ = i; _ = x }
++	for i, x := range a /*i=undef*/ /*x=var:16*/ { _ = i; _ = x }
+ 
+ 	var i interface{}
+ 	switch y := i.(type) { /*y=undef*/
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index a5aee482ac..9ebfbb6d63 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -821,8 +821,6 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 
+ 	case *ast.RangeStmt:
+ 		inner |= breakOk | continueOk
+-		check.openScope(s, "for")
+-		defer check.closeScope()
+ 
+ 		// check expression to iterate over
+ 		var x operand
+@@ -857,6 +855,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			}
+ 		}
+ 
++		// Open the for-statement block scope now, after the range clause.
++		// Iteration variables declared with := need to go in this scope (was issue #51437).
++		check.openScope(s, "range")
++		defer check.closeScope()
++
+ 		// check assignment to/declaration of iteration variables
+ 		// (irregular assignment, cannot easily map to existing assignment checks)
+ 
+@@ -865,9 +868,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		rhs := [2]Type{key, val} // key, val may be nil
+ 
+ 		if s.Tok == token.DEFINE {
+-			// short variable declaration; variable scope starts after the range clause
+-			// (the for loop opens a new scope, so variables on the lhs never redeclare
+-			// previously declared variables)
++			// short variable declaration
+ 			var vars []*Var
+ 			for i, lhs := range lhs {
+ 				if lhs == nil {
+@@ -904,12 +905,8 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 
+ 			// declare variables
+ 			if len(vars) > 0 {
+-				scopePos := s.X.End()
++				scopePos := s.Body.Pos()
+ 				for _, obj := range vars {
+-					// spec: "The scope of a constant or variable identifier declared inside
+-					// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
+-					// for short variable declarations) and ends at the end of the innermost
+-					// containing block."
+ 					check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
+ 				}
+ 			} else {
+diff --git a/src/go/types/testdata/fixedbugs/issue51437.go b/src/go/types/testdata/fixedbugs/issue51437.go
+new file mode 100644
+index 0000000000..376261516e
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51437.go
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T struct{}
++
++func (T) m() []int { return nil }
++
++func f(x T) {
++	for _, x := range func() []int {
++		return x.m() // x declared in parameter list of f
++	}() {
++		_ = x // x declared by range clause
++	}
++}
+diff --git a/test/fixedbugs/issue51437.go b/test/fixedbugs/issue51437.go
+new file mode 100644
+index 0000000000..3d1b9ee32c
+--- /dev/null
++++ b/test/fixedbugs/issue51437.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T struct{}
++
++func (T) m() []T { return nil }
++
++func f(x T) {
++	for _, x := range func() []T {
++		return x.m()
++	}() {
++		_ = x
++	}
++}

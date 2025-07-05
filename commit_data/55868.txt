@@ -31,7 +31,7 @@ Date:   Fri Mar 17 10:20:01 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  api/next/56345.txt                            | 158 +++++++
  src/go/build/deps_test.go                     |  15 +-
  src/log/slog/attr.go                          |  84 ++++
@@ -66,3 +66,5867 @@ Date:   Fri Mar 17 10:20:01 2023 -0400
  src/log/slog/value_test.go                    | 226 ++++++++++
  src/log/slog/value_unsafe.go                  | 102 +++++
  33 files changed, 5647 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/56345.txt b/api/next/56345.txt
+new file mode 100644
+index 0000000000..7a8f8254b9
+--- /dev/null
++++ b/api/next/56345.txt
+@@ -0,0 +1,158 @@
++pkg log/slog, const KindAny = 0 #56345
++pkg log/slog, const KindAny Kind #56345
++pkg log/slog, const KindBool = 1 #56345
++pkg log/slog, const KindBool Kind #56345
++pkg log/slog, const KindDuration = 2 #56345
++pkg log/slog, const KindDuration Kind #56345
++pkg log/slog, const KindFloat64 = 3 #56345
++pkg log/slog, const KindFloat64 Kind #56345
++pkg log/slog, const KindGroup = 8 #56345
++pkg log/slog, const KindGroup Kind #56345
++pkg log/slog, const KindInt64 = 4 #56345
++pkg log/slog, const KindInt64 Kind #56345
++pkg log/slog, const KindLogValuer = 9 #56345
++pkg log/slog, const KindLogValuer Kind #56345
++pkg log/slog, const KindString = 5 #56345
++pkg log/slog, const KindString Kind #56345
++pkg log/slog, const KindTime = 6 #56345
++pkg log/slog, const KindTime Kind #56345
++pkg log/slog, const KindUint64 = 7 #56345
++pkg log/slog, const KindUint64 Kind #56345
++pkg log/slog, const LevelDebug = -4 #56345
++pkg log/slog, const LevelDebug Level #56345
++pkg log/slog, const LevelError = 8 #56345
++pkg log/slog, const LevelError Level #56345
++pkg log/slog, const LevelInfo = 0 #56345
++pkg log/slog, const LevelInfo Level #56345
++pkg log/slog, const LevelKey = "level" #56345
++pkg log/slog, const LevelKey ideal-string #56345
++pkg log/slog, const LevelWarn = 4 #56345
++pkg log/slog, const LevelWarn Level #56345
++pkg log/slog, const MessageKey = "msg" #56345
++pkg log/slog, const MessageKey ideal-string #56345
++pkg log/slog, const SourceKey = "source" #56345
++pkg log/slog, const SourceKey ideal-string #56345
++pkg log/slog, const TimeKey = "time" #56345
++pkg log/slog, const TimeKey ideal-string #56345
++pkg log/slog, func Any(string, interface{}) Attr #56345
++pkg log/slog, func AnyValue(interface{}) Value #56345
++pkg log/slog, func Bool(string, bool) Attr #56345
++pkg log/slog, func BoolValue(bool) Value #56345
++pkg log/slog, func Debug(string, ...interface{}) #56345
++pkg log/slog, func DebugCtx(context.Context, string, ...interface{}) #56345
++pkg log/slog, func Default() *Logger #56345
++pkg log/slog, func Duration(string, time.Duration) Attr #56345
++pkg log/slog, func DurationValue(time.Duration) Value #56345
++pkg log/slog, func Error(string, ...interface{}) #56345
++pkg log/slog, func ErrorCtx(context.Context, string, ...interface{}) #56345
++pkg log/slog, func Float64(string, float64) Attr #56345
++pkg log/slog, func Float64Value(float64) Value #56345
++pkg log/slog, func Group(string, ...Attr) Attr #56345
++pkg log/slog, func GroupValue(...Attr) Value #56345
++pkg log/slog, func Info(string, ...interface{}) #56345
++pkg log/slog, func InfoCtx(context.Context, string, ...interface{}) #56345
++pkg log/slog, func Int(string, int) Attr #56345
++pkg log/slog, func Int64(string, int64) Attr #56345
++pkg log/slog, func Int64Value(int64) Value #56345
++pkg log/slog, func IntValue(int) Value #56345
++pkg log/slog, func Log(context.Context, Level, string, ...interface{}) #56345
++pkg log/slog, func LogAttrs(context.Context, Level, string, ...Attr) #56345
++pkg log/slog, func New(Handler) *Logger #56345
++pkg log/slog, func NewJSONHandler(io.Writer) *JSONHandler #56345
++pkg log/slog, func NewLogLogger(Handler, Level) *log.Logger #56345
++pkg log/slog, func NewRecord(time.Time, Level, string, uintptr) Record #56345
++pkg log/slog, func NewTextHandler(io.Writer) *TextHandler #56345
++pkg log/slog, func SetDefault(*Logger) #56345
++pkg log/slog, func String(string, string) Attr #56345
++pkg log/slog, func StringValue(string) Value #56345
++pkg log/slog, func Time(string, time.Time) Attr #56345
++pkg log/slog, func TimeValue(time.Time) Value #56345
++pkg log/slog, func Uint64(string, uint64) Attr #56345
++pkg log/slog, func Uint64Value(uint64) Value #56345
++pkg log/slog, func Warn(string, ...interface{}) #56345
++pkg log/slog, func WarnCtx(context.Context, string, ...interface{}) #56345
++pkg log/slog, func With(...interface{}) *Logger #56345
++pkg log/slog, method (*JSONHandler) Enabled(context.Context, Level) bool #56345
++pkg log/slog, method (*JSONHandler) Handle(context.Context, Record) error #56345
++pkg log/slog, method (*JSONHandler) WithAttrs([]Attr) Handler #56345
++pkg log/slog, method (*JSONHandler) WithGroup(string) Handler #56345
++pkg log/slog, method (*Level) UnmarshalJSON([]uint8) error #56345
++pkg log/slog, method (*Level) UnmarshalText([]uint8) error #56345
++pkg log/slog, method (*LevelVar) Level() Level #56345
++pkg log/slog, method (*LevelVar) MarshalText() ([]uint8, error) #56345
++pkg log/slog, method (*LevelVar) Set(Level) #56345
++pkg log/slog, method (*LevelVar) String() string #56345
++pkg log/slog, method (*LevelVar) UnmarshalText([]uint8) error #56345
++pkg log/slog, method (*Logger) Debug(string, ...interface{}) #56345
++pkg log/slog, method (*Logger) DebugCtx(context.Context, string, ...interface{}) #56345
++pkg log/slog, method (*Logger) Enabled(context.Context, Level) bool #56345
++pkg log/slog, method (*Logger) Error(string, ...interface{}) #56345
++pkg log/slog, method (*Logger) ErrorCtx(context.Context, string, ...interface{}) #56345
++pkg log/slog, method (*Logger) Handler() Handler #56345
++pkg log/slog, method (*Logger) Info(string, ...interface{}) #56345
++pkg log/slog, method (*Logger) InfoCtx(context.Context, string, ...interface{}) #56345
++pkg log/slog, method (*Logger) Log(context.Context, Level, string, ...interface{}) #56345
++pkg log/slog, method (*Logger) LogAttrs(context.Context, Level, string, ...Attr) #56345
++pkg log/slog, method (*Logger) Warn(string, ...interface{}) #56345
++pkg log/slog, method (*Logger) WarnCtx(context.Context, string, ...interface{}) #56345
++pkg log/slog, method (*Logger) With(...interface{}) *Logger #56345
++pkg log/slog, method (*Logger) WithGroup(string) *Logger #56345
++pkg log/slog, method (*Record) Add(...interface{}) #56345
++pkg log/slog, method (*Record) AddAttrs(...Attr) #56345
++pkg log/slog, method (*TextHandler) Enabled(context.Context, Level) bool #56345
++pkg log/slog, method (*TextHandler) Handle(context.Context, Record) error #56345
++pkg log/slog, method (*TextHandler) WithAttrs([]Attr) Handler #56345
++pkg log/slog, method (*TextHandler) WithGroup(string) Handler #56345
++pkg log/slog, method (Attr) Equal(Attr) bool #56345
++pkg log/slog, method (Attr) String() string #56345
++pkg log/slog, method (HandlerOptions) NewJSONHandler(io.Writer) *JSONHandler #56345
++pkg log/slog, method (HandlerOptions) NewTextHandler(io.Writer) *TextHandler #56345
++pkg log/slog, method (Kind) String() string #56345
++pkg log/slog, method (Level) Level() Level #56345
++pkg log/slog, method (Level) MarshalJSON() ([]uint8, error) #56345
++pkg log/slog, method (Level) MarshalText() ([]uint8, error) #56345
++pkg log/slog, method (Level) String() string #56345
++pkg log/slog, method (Record) Attrs(func(Attr)) #56345
++pkg log/slog, method (Record) Clone() Record #56345
++pkg log/slog, method (Record) NumAttrs() int #56345
++pkg log/slog, method (Value) Any() interface{} #56345
++pkg log/slog, method (Value) Bool() bool #56345
++pkg log/slog, method (Value) Duration() time.Duration #56345
++pkg log/slog, method (Value) Equal(Value) bool #56345
++pkg log/slog, method (Value) Float64() float64 #56345
++pkg log/slog, method (Value) Group() []Attr #56345
++pkg log/slog, method (Value) Int64() int64 #56345
++pkg log/slog, method (Value) Kind() Kind #56345
++pkg log/slog, method (Value) LogValuer() LogValuer #56345
++pkg log/slog, method (Value) Resolve() Value #56345
++pkg log/slog, method (Value) String() string #56345
++pkg log/slog, method (Value) Time() time.Time #56345
++pkg log/slog, method (Value) Uint64() uint64 #56345
++pkg log/slog, type Attr struct #56345
++pkg log/slog, type Attr struct, Key string #56345
++pkg log/slog, type Attr struct, Value Value #56345
++pkg log/slog, type Handler interface { Enabled, Handle, WithAttrs, WithGroup } #56345
++pkg log/slog, type Handler interface, Enabled(context.Context, Level) bool #56345
++pkg log/slog, type Handler interface, Handle(context.Context, Record) error #56345
++pkg log/slog, type Handler interface, WithAttrs([]Attr) Handler #56345
++pkg log/slog, type Handler interface, WithGroup(string) Handler #56345
++pkg log/slog, type HandlerOptions struct #56345
++pkg log/slog, type HandlerOptions struct, AddSource bool #56345
++pkg log/slog, type HandlerOptions struct, Level Leveler #56345
++pkg log/slog, type HandlerOptions struct, ReplaceAttr func([]string, Attr) Attr #56345
++pkg log/slog, type JSONHandler struct #56345
++pkg log/slog, type Kind int #56345
++pkg log/slog, type Level int #56345
++pkg log/slog, type LevelVar struct #56345
++pkg log/slog, type Leveler interface { Level } #56345
++pkg log/slog, type Leveler interface, Level() Level #56345
++pkg log/slog, type LogValuer interface { LogValue } #56345
++pkg log/slog, type LogValuer interface, LogValue() Value #56345
++pkg log/slog, type Logger struct #56345
++pkg log/slog, type Record struct #56345
++pkg log/slog, type Record struct, Level Level #56345
++pkg log/slog, type Record struct, Message string #56345
++pkg log/slog, type Record struct, PC uintptr #56345
++pkg log/slog, type Record struct, Time time.Time #56345
++pkg log/slog, type TextHandler struct #56345
++pkg log/slog, type Value struct #56345
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 36091d5a94..617ec5b336 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -317,7 +317,7 @@ var depsRules = `
+ 
+ 	# Bulk of the standard library must not use cgo.
+ 	# The prohibition stops at net and os/user.
+-	C !< fmt, go/types, CRYPTO-MATH;
++	C !< fmt, go/types, CRYPTO-MATH, log/slog;
+ 
+ 	CGO, OS
+ 	< plugin;
+@@ -372,11 +372,22 @@ var depsRules = `
+ 	FMT
+ 	< log;
+ 
+-	log !< crypto/tls, database/sql, go/importer, testing;
++	log, log/slog !< crypto/tls, database/sql, go/importer, testing;
+ 
+ 	FMT, log, net
+ 	< log/syslog;
+ 
++	RUNTIME
++	< log/slog/internal, log/slog/internal/buffer;
++
++	FMT,
++	encoding, encoding/json,
++	log,
++	log/slog/internal, log/slog/internal/buffer,
++	slices
++	< log/slog
++	< log/slog/internal/testutil;
++
+ 	NET, log
+ 	< net/mail;
+ 
+diff --git a/src/log/slog/attr.go b/src/log/slog/attr.go
+new file mode 100644
+index 0000000000..29431cb7a7
+--- /dev/null
++++ b/src/log/slog/attr.go
+@@ -0,0 +1,84 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"fmt"
++	"time"
++)
++
++// An Attr is a key-value pair.
++type Attr struct {
++	Key   string
++	Value Value
++}
++
++// String returns an Attr for a string value.
++func String(key, value string) Attr {
++	return Attr{key, StringValue(value)}
++}
++
++// Int64 returns an Attr for an int64.
++func Int64(key string, value int64) Attr {
++	return Attr{key, Int64Value(value)}
++}
++
++// Int converts an int to an int64 and returns
++// an Attr with that value.
++func Int(key string, value int) Attr {
++	return Int64(key, int64(value))
++}
++
++// Uint64 returns an Attr for a uint64.
++func Uint64(key string, v uint64) Attr {
++	return Attr{key, Uint64Value(v)}
++}
++
++// Float64 returns an Attr for a floating-point number.
++func Float64(key string, v float64) Attr {
++	return Attr{key, Float64Value(v)}
++}
++
++// Bool returns an Attr for a bool.
++func Bool(key string, v bool) Attr {
++	return Attr{key, BoolValue(v)}
++}
++
++// Time returns an Attr for a time.Time.
++// It discards the monotonic portion.
++func Time(key string, v time.Time) Attr {
++	return Attr{key, TimeValue(v)}
++}
++
++// Duration returns an Attr for a time.Duration.
++func Duration(key string, v time.Duration) Attr {
++	return Attr{key, DurationValue(v)}
++}
++
++// Group returns an Attr for a Group Value.
++// The caller must not subsequently mutate the
++// argument slice.
++//
++// Use Group to collect several Attrs under a single
++// key on a log line, or as the result of LogValue
++// in order to log a single value as multiple Attrs.
++func Group(key string, as ...Attr) Attr {
++	return Attr{key, GroupValue(as...)}
++}
++
++// Any returns an Attr for the supplied value.
++// See [Value.AnyValue] for how values are treated.
++func Any(key string, value any) Attr {
++	return Attr{key, AnyValue(value)}
++}
++
++// Equal reports whether a and b have equal keys and values.
++func (a Attr) Equal(b Attr) bool {
++	return a.Key == b.Key && a.Value.Equal(b.Value)
++}
++
++func (a Attr) String() string {
++	return fmt.Sprintf("%s=%s", a.Key, a.Value)
++}
+diff --git a/src/log/slog/attr_test.go b/src/log/slog/attr_test.go
+new file mode 100644
+index 0000000000..1187a856fd
+--- /dev/null
++++ b/src/log/slog/attr_test.go
+@@ -0,0 +1,43 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"internal/testenv"
++	"testing"
++	"time"
++)
++
++func TestAttrNoAlloc(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
++	// Assign values just to make sure the compiler doesn't optimize away the statements.
++	var (
++		i int64
++		u uint64
++		f float64
++		b bool
++		s string
++		x any
++		p = &i
++		d time.Duration
++	)
++	a := int(testing.AllocsPerRun(5, func() {
++		i = Int64("key", 1).Value.Int64()
++		u = Uint64("key", 1).Value.Uint64()
++		f = Float64("key", 1).Value.Float64()
++		b = Bool("key", true).Value.Bool()
++		s = String("key", "foo").Value.String()
++		d = Duration("key", d).Value.Duration()
++		x = Any("key", p).Value.Any()
++	}))
++	if a != 0 {
++		t.Errorf("got %d allocs, want zero", a)
++	}
++	_ = u
++	_ = f
++	_ = b
++	_ = s
++	_ = x
++}
+diff --git a/src/log/slog/doc.go b/src/log/slog/doc.go
+new file mode 100644
+index 0000000000..3b37eec0d2
+--- /dev/null
++++ b/src/log/slog/doc.go
+@@ -0,0 +1,316 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Package slog provides structured logging,
++in which log records include a message,
++a severity level, and various other attributes
++expressed as key-value pairs.
++
++It defines a type, [Logger],
++which provides several methods (such as [Logger.Info] and [Logger.Error])
++for reporting events of interest.
++
++Each Logger is associated with a [Handler].
++A Logger output method creates a [Record] from the method arguments
++and passes it to the Handler, which decides how to handle it.
++There is a default Logger accessible through top-level functions
++(such as [Info] and [Error]) that call the corresponding Logger methods.
++
++A log record consists of a time, a level, a message, and a set of key-value
++pairs, where the keys are strings and the values may be of any type.
++As an example,
++
++	slog.Info("hello", "count", 3)
++
++creates a record containing the time of the call,
++a level of Info, the message "hello", and a single
++pair with key "count" and value 3.
++
++The [Info] top-level function calls the [Logger.Info] method on the default Logger.
++In addition to [Logger.Info], there are methods for Debug, Warn and Error levels.
++Besides these convenience methods for common levels,
++there is also a [Logger.Log] method which takes the level as an argument.
++Each of these methods has a corresponding top-level function that uses the
++default logger.
++
++The default handler formats the log record's message, time, level, and attributes
++as a string and passes it to the [log] package.
++
++	2022/11/08 15:28:26 INFO hello count=3
++
++For more control over the output format, create a logger with a different handler.
++This statement uses [New] to create a new logger with a TextHandler
++that writes structured records in text form to standard error:
++
++	logger := slog.New(slog.NewTextHandler(os.Stderr))
++
++[TextHandler] output is a sequence of key=value pairs, easily and unambiguously
++parsed by machine. This statement:
++
++	logger.Info("hello", "count", 3)
++
++produces this output:
++
++	time=2022-11-08T15:28:26.000-05:00 level=INFO msg=hello count=3
++
++The package also provides [JSONHandler], whose output is line-delimited JSON:
++
++	logger := slog.New(slog.NewJSONHandler(os.Stdout))
++	logger.Info("hello", "count", 3)
++
++produces this output:
++
++	{"time":"2022-11-08T15:28:26.000000000-05:00","level":"INFO","msg":"hello","count":3}
++
++Both [TextHandler] and [JSONHandler] can be configured with a [HandlerOptions].
++There are options for setting the minimum level (see Levels, below),
++displaying the source file and line of the log call, and
++modifying attributes before they are logged.
++
++Setting a logger as the default with
++
++	slog.SetDefault(logger)
++
++will cause the top-level functions like [Info] to use it.
++[SetDefault] also updates the default logger used by the [log] package,
++so that existing applications that use [log.Printf] and related functions
++will send log records to the logger's handler without needing to be rewritten.
++
++# Attrs and Values
++
++An [Attr] is a key-value pair. The Logger output methods accept Attrs as well as
++alternating keys and values. The statement
++
++	slog.Info("hello", slog.Int("count", 3))
++
++behaves the same as
++
++	slog.Info("hello", "count", 3)
++
++There are convenience constructors for [Attr] such as [Int], [String], and [Bool]
++for common types, as well as the function [Any] for constructing Attrs of any
++type.
++
++The value part of an Attr is a type called [Value].
++Like an [any], a Value can hold any Go value,
++but it can represent typical values, including all numbers and strings,
++without an allocation.
++
++For the most efficient log output, use [Logger.LogAttrs].
++It is similar to [Logger.Log] but accepts only Attrs, not alternating
++keys and values; this allows it, too, to avoid allocation.
++
++The call
++
++	logger.LogAttrs(nil, slog.LevelInfo, "hello", slog.Int("count", 3))
++
++is the most efficient way to achieve the same output as
++
++	slog.Info("hello", "count", 3)
++
++Some attributes are common to many log calls.
++For example, you may wish to include the URL or trace identifier of a server request
++with all log events arising from the request.
++Rather than repeat the attribute with every log call, you can use [Logger.With]
++to construct a new Logger containing the attributes:
++
++	logger2 := logger.With("url", r.URL)
++
++The arguments to With are the same key-value pairs used in [Logger.Info].
++The result is a new Logger with the same handler as the original, but additional
++attributes that will appear in the output of every call.
++
++# Levels
++
++A [Level] is an integer representing the importance or severity of a log event.
++The higher the level, the more severe the event.
++This package defines constants for the most common levels,
++but any int can be used as a level.
++
++In an application, you may wish to log messages only at a certain level or greater.
++One common configuration is to log messages at Info or higher levels,
++suppressing debug logging until it is needed.
++The built-in handlers can be configured with the minimum level to output by
++setting [HandlerOptions.Level].
++The program's `main` function typically does this.
++The default value is LevelInfo.
++
++Setting the [HandlerOptions.Level] field to a [Level] value
++fixes the handler's minimum level throughout its lifetime.
++Setting it to a [LevelVar] allows the level to be varied dynamically.
++A LevelVar holds a Level and is safe to read or write from multiple
++goroutines.
++To vary the level dynamically for an entire program, first initialize
++a global LevelVar:
++
++	var programLevel = new(slog.LevelVar) // Info by default
++
++Then use the LevelVar to construct a handler, and make it the default:
++
++	h := slog.HandlerOptions{Level: programLevel}.NewJSONHandler(os.Stderr)
++	slog.SetDefault(slog.New(h))
++
++Now the program can change its logging level with a single statement:
++
++	programLevel.Set(slog.LevelDebug)
++
++# Groups
++
++Attributes can be collected into groups.
++A group has a name that is used to qualify the names of its attributes.
++How this qualification is displayed depends on the handler.
++[TextHandler] separates the group and attribute names with a dot.
++[JSONHandler] treats each group as a separate JSON object, with the group name as the key.
++
++Use [Group] to create a Group Attr from a name and a list of Attrs:
++
++	slog.Group("request",
++	    slog.String("method", r.Method),
++	    slog.Any("url", r.URL))
++
++TextHandler would display this group as
++
++	request.method=GET request.url=http://example.com
++
++JSONHandler would display it as
++
++	"request":{"method":"GET","url":"http://example.com"}
++
++Use [Logger.WithGroup] to qualify all of a Logger's output
++with a group name. Calling WithGroup on a Logger results in a
++new Logger with the same Handler as the original, but with all
++its attributes qualified by the group name.
++
++This can help prevent duplicate attribute keys in large systems,
++where subsystems might use the same keys.
++Pass each subsystem a different Logger with its own group name so that
++potential duplicates are qualified:
++
++	logger := slog.Default().With("id", systemID)
++	parserLogger := logger.WithGroup("parser")
++	parseInput(input, parserLogger)
++
++When parseInput logs with parserLogger, its keys will be qualified with "parser",
++so even if it uses the common key "id", the log line will have distinct keys.
++
++# Contexts
++
++Some handlers may wish to include information from the [context.Context] that is
++available at the call site. One example of such information
++is the identifier for the current span when tracing is is enabled.
++
++The [Logger.Log] and [Logger.LogAttrs] methods take a context as a first
++argument, as do their corresponding top-level functions.
++
++Although the convenience methods on Logger (Info and so on) and the
++corresponding top-level functions do not take a context, the alternatives ending
++in "Ctx" do. For example,
++
++	slog.InfoCtx(ctx, "message")
++
++It is recommended to pass a context to an output method if one is available.
++
++# Customizing a type's logging behavior
++
++If a type implements the [LogValuer] interface, the [Value] returned from its LogValue
++method is used for logging. You can use this to control how values of the type
++appear in logs. For example, you can redact secret information like passwords,
++or gather a struct's fields in a Group. See the examples under [LogValuer] for
++details.
++
++A LogValue method may return a Value that itself implements [LogValuer]. The [Value.Resolve]
++method handles these cases carefully, avoiding infinite loops and unbounded recursion.
++Handler authors and others may wish to use Value.Resolve instead of calling LogValue directly.
++
++# Wrapping output methods
++
++The logger functions use reflection over the call stack to find the file name
++and line number of the logging call within the application. This can produce
++incorrect source information for functions that wrap slog. For instance, if you
++define this function in file mylog.go:
++
++	func Infof(format string, args ...any) {
++	    slog.Default().Info(fmt.Sprintf(format, args...))
++	}
++
++and you call it like this in main.go:
++
++	Infof(slog.Default(), "hello, %s", "world")
++
++then slog will report the source file as mylog.go, not main.go.
++
++A correct implementation of Infof will obtain the source location
++(pc) and pass it to NewRecord.
++The Infof function in the package-level example called "wrapping"
++demonstrates how to do this.
++
++# Working with Records
++
++Sometimes a Handler will need to modify a Record
++before passing it on to another Handler or backend.
++A Record contains a mixture of simple public fields (e.g. Time, Level, Message)
++and hidden fields that refer to state (such as attributes) indirectly. This
++means that modifying a simple copy of a Record (e.g. by calling
++[Record.Add] or [Record.AddAttrs] to add attributes)
++may have unexpected effects on the original.
++Before modifying a Record, use [Clone] to
++create a copy that shares no state with the original,
++or create a new Record with [NewRecord]
++and build up its Attrs by traversing the old ones with [Record.Attrs].
++
++# Performance considerations
++
++If profiling your application demonstrates that logging is taking significant time,
++the following suggestions may help.
++
++If many log lines have a common attribute, use [Logger.With] to create a Logger with
++that attribute. The built-in handlers will format that attribute only once, at the
++call to [Logger.With]. The [Handler] interface is designed to allow that optimization,
++and a well-written Handler should take advantage of it.
++
++The arguments to a log call are always evaluated, even if the log event is discarded.
++If possible, defer computation so that it happens only if the value is actually logged.
++For example, consider the call
++
++	slog.Info("starting request", "url", r.URL.String())  // may compute String unnecessarily
++
++The URL.String method will be called even if the logger discards Info-level events.
++Instead, pass the URL directly:
++
++	slog.Info("starting request", "url", &r.URL) // calls URL.String only if needed
++
++The built-in [TextHandler] will call its String method, but only
++if the log event is enabled.
++Avoiding the call to String also preserves the structure of the underlying value.
++For example [JSONHandler] emits the components of the parsed URL as a JSON object.
++If you want to avoid eagerly paying the cost of the String call
++without causing the handler to potentially inspect the structure of the value,
++wrap the value in a fmt.Stringer implementation that hides its Marshal methods.
++
++You can also use the [LogValuer] interface to avoid unnecessary work in disabled log
++calls. Say you need to log some expensive value:
++
++	slog.Debug("frobbing", "value", computeExpensiveValue(arg))
++
++Even if this line is disabled, computeExpensiveValue will be called.
++To avoid that, define a type implementing LogValuer:
++
++	type expensive struct { arg int }
++
++	func (e expensive) LogValue() slog.Value {
++	    return slog.AnyValue(computeExpensiveValue(e.arg))
++	}
++
++Then use a value of that type in log calls:
++
++	slog.Debug("frobbing", "value", expensive{arg})
++
++Now computeExpensiveValue will only be called when the line is enabled.
++
++The built-in handlers acquire a lock before calling [io.Writer.Write]
++to ensure that each record is written in one piece. User-defined
++handlers are responsible for their own locking.
++*/
++package slog
+diff --git a/src/log/slog/example_custom_levels_test.go b/src/log/slog/example_custom_levels_test.go
+new file mode 100644
+index 0000000000..37fa9b37a3
+--- /dev/null
++++ b/src/log/slog/example_custom_levels_test.go
+@@ -0,0 +1,91 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog_test
++
++import (
++	"log/slog"
++	"os"
++)
++
++// This example demonstrates using custom log levels and custom log level names.
++// In addition to the default log levels, it introduces Trace, Notice, and
++// Emergency levels. The ReplaceAttr changes the way levels are printed for both
++// the standard log levels and the custom log levels.
++func ExampleHandlerOptions_customLevels() {
++	// Exported constants from a custom logging package.
++	const (
++		LevelTrace     = slog.Level(-8)
++		LevelDebug     = slog.LevelDebug
++		LevelInfo      = slog.LevelInfo
++		LevelNotice    = slog.Level(2)
++		LevelWarning   = slog.LevelWarn
++		LevelError     = slog.LevelError
++		LevelEmergency = slog.Level(12)
++	)
++
++	th := slog.HandlerOptions{
++		// Set a custom level to show all log output. The default value is
++		// LevelInfo, which would drop Debug and Trace logs.
++		Level: LevelTrace,
++
++		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
++			// Remove time from the output for predictable test output.
++			if a.Key == slog.TimeKey {
++				return slog.Attr{}
++			}
++
++			// Customize the name of the level key and the output string, including
++			// custom level values.
++			if a.Key == slog.LevelKey {
++				// Rename the level key from "level" to "sev".
++				a.Key = "sev"
++
++				// Handle custom level values.
++				level := a.Value.Any().(slog.Level)
++
++				// This could also look up the name from a map or other structure, but
++				// this demonstrates using a switch statement to rename levels. For
++				// maximum performance, the string values should be constants, but this
++				// example uses the raw strings for readability.
++				switch {
++				case level < LevelDebug:
++					a.Value = slog.StringValue("TRACE")
++				case level < LevelInfo:
++					a.Value = slog.StringValue("DEBUG")
++				case level < LevelNotice:
++					a.Value = slog.StringValue("INFO")
++				case level < LevelWarning:
++					a.Value = slog.StringValue("NOTICE")
++				case level < LevelError:
++					a.Value = slog.StringValue("WARNING")
++				case level < LevelEmergency:
++					a.Value = slog.StringValue("ERROR")
++				default:
++					a.Value = slog.StringValue("EMERGENCY")
++				}
++			}
++
++			return a
++		},
++	}.NewTextHandler(os.Stdout)
++
++	logger := slog.New(th)
++	logger.Log(nil, LevelEmergency, "missing pilots")
++	logger.Error("failed to start engines", "err", "missing fuel")
++	logger.Warn("falling back to default value")
++	logger.Log(nil, LevelNotice, "all systems are running")
++	logger.Info("initiating launch")
++	logger.Debug("starting background job")
++	logger.Log(nil, LevelTrace, "button clicked")
++
++	// Output:
++	// sev=EMERGENCY msg="missing pilots"
++	// sev=ERROR msg="failed to start engines" err="missing fuel"
++	// sev=WARNING msg="falling back to default value"
++	// sev=NOTICE msg="all systems are running"
++	// sev=INFO msg="initiating launch"
++	// sev=DEBUG msg="starting background job"
++	// sev=TRACE msg="button clicked"
++}
+diff --git a/src/log/slog/example_level_handler_test.go b/src/log/slog/example_level_handler_test.go
+new file mode 100644
+index 0000000000..9e0eb764bf
+--- /dev/null
++++ b/src/log/slog/example_level_handler_test.go
+@@ -0,0 +1,73 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog_test
++
++import (
++	"context"
++	"log/slog"
++	"log/slog/internal/testutil"
++	"os"
++)
++
++// A LevelHandler wraps a Handler with an Enabled method
++// that returns false for levels below a minimum.
++type LevelHandler struct {
++	level   slog.Leveler
++	handler slog.Handler
++}
++
++// NewLevelHandler returns a LevelHandler with the given level.
++// All methods except Enabled delegate to h.
++func NewLevelHandler(level slog.Leveler, h slog.Handler) *LevelHandler {
++	// Optimization: avoid chains of LevelHandlers.
++	if lh, ok := h.(*LevelHandler); ok {
++		h = lh.Handler()
++	}
++	return &LevelHandler{level, h}
++}
++
++// Enabled implements Handler.Enabled by reporting whether
++// level is at least as large as h's level.
++func (h *LevelHandler) Enabled(_ context.Context, level slog.Level) bool {
++	return level >= h.level.Level()
++}
++
++// Handle implements Handler.Handle.
++func (h *LevelHandler) Handle(ctx context.Context, r slog.Record) error {
++	return h.handler.Handle(ctx, r)
++}
++
++// WithAttrs implements Handler.WithAttrs.
++func (h *LevelHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
++	return NewLevelHandler(h.level, h.handler.WithAttrs(attrs))
++}
++
++// WithGroup implements Handler.WithGroup.
++func (h *LevelHandler) WithGroup(name string) slog.Handler {
++	return NewLevelHandler(h.level, h.handler.WithGroup(name))
++}
++
++// Handler returns the Handler wrapped by h.
++func (h *LevelHandler) Handler() slog.Handler {
++	return h.handler
++}
++
++// This example shows how to Use a LevelHandler to change the level of an
++// existing Handler while preserving its other behavior.
++//
++// This example demonstrates increasing the log level to reduce a logger's
++// output.
++//
++// Another typical use would be to decrease the log level (to LevelDebug, say)
++// during a part of the program that was suspected of containing a bug.
++func ExampleHandler_levelHandler() {
++	th := slog.HandlerOptions{ReplaceAttr: testutil.RemoveTime}.NewTextHandler(os.Stdout)
++	logger := slog.New(NewLevelHandler(slog.LevelWarn, th))
++	logger.Info("not printed")
++	logger.Warn("printed")
++
++	// Output:
++	// level=WARN msg=printed
++}
+diff --git a/src/log/slog/example_logvaluer_group_test.go b/src/log/slog/example_logvaluer_group_test.go
+new file mode 100644
+index 0000000000..4cc478fda2
+--- /dev/null
++++ b/src/log/slog/example_logvaluer_group_test.go
+@@ -0,0 +1,35 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog_test
++
++import "log/slog"
++
++type Name struct {
++	First, Last string
++}
++
++// LogValue implements slog.LogValuer.
++// It returns a group containing the fields of
++// the Name, so that they appear together in the log output.
++func (n Name) LogValue() slog.Value {
++	return slog.GroupValue(
++		slog.String("first", n.First),
++		slog.String("last", n.Last))
++}
++
++func ExampleLogValuer_group() {
++	n := Name{"Perry", "Platypus"}
++	slog.Info("mission accomplished", "agent", n)
++
++	// JSON Output would look in part like:
++	// {
++	//     ...
++	//     "msg": "mission accomplished",
++	//     "agent": {
++	//         "first": "Perry",
++	//         "last": "Platypus"
++	//     }
++	// }
++}
+diff --git a/src/log/slog/example_logvaluer_secret_test.go b/src/log/slog/example_logvaluer_secret_test.go
+new file mode 100644
+index 0000000000..05f32a54a2
+--- /dev/null
++++ b/src/log/slog/example_logvaluer_secret_test.go
+@@ -0,0 +1,32 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog_test
++
++import (
++	"log/slog"
++	"log/slog/internal/testutil"
++	"os"
++)
++
++// A token is a secret value that grants permissions.
++type Token string
++
++// LogValue implements slog.LogValuer.
++// It avoids revealing the token.
++func (Token) LogValue() slog.Value {
++	return slog.StringValue("REDACTED_TOKEN")
++}
++
++// This example demonstrates a Value that replaces itself
++// with an alternative representation to avoid revealing secrets.
++func ExampleLogValuer_secret() {
++	t := Token("shhhh!")
++	logger := slog.New(slog.HandlerOptions{ReplaceAttr: testutil.RemoveTime}.
++		NewTextHandler(os.Stdout))
++	logger.Info("permission granted", "user", "Perry", "token", t)
++
++	// Output:
++	// level=INFO msg="permission granted" user=Perry token=REDACTED_TOKEN
++}
+diff --git a/src/log/slog/example_test.go b/src/log/slog/example_test.go
+new file mode 100644
+index 0000000000..709d7a922c
+--- /dev/null
++++ b/src/log/slog/example_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog_test
++
++import (
++	"log/slog"
++	"log/slog/internal/testutil"
++	"net/http"
++	"os"
++	"time"
++)
++
++func ExampleGroup() {
++	r, _ := http.NewRequest("GET", "localhost", nil)
++	// ...
++
++	logger := slog.New(slog.HandlerOptions{ReplaceAttr: testutil.RemoveTime}.NewTextHandler(os.Stdout))
++	slog.SetDefault(logger)
++
++	slog.Info("finished",
++		slog.Group("req",
++			slog.String("method", r.Method),
++			slog.String("url", r.URL.String())),
++		slog.Int("status", http.StatusOK),
++		slog.Duration("duration", time.Second))
++
++	// Output:
++	// level=INFO msg=finished req.method=GET req.url=localhost status=200 duration=1s
++}
+diff --git a/src/log/slog/example_wrap_test.go b/src/log/slog/example_wrap_test.go
+new file mode 100644
+index 0000000000..95a493400d
+--- /dev/null
++++ b/src/log/slog/example_wrap_test.go
+@@ -0,0 +1,50 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog_test
++
++import (
++	"context"
++	"fmt"
++	"log/slog"
++	"os"
++	"path/filepath"
++	"runtime"
++	"time"
++)
++
++// Infof is an example of a user-defined logging function that wraps slog.
++// The log record contains the source position of the caller of Infof.
++func Infof(format string, args ...any) {
++	l := slog.Default()
++	if !l.Enabled(context.Background(), slog.LevelInfo) {
++		return
++	}
++	var pcs [1]uintptr
++	runtime.Callers(2, pcs[:]) // skip [Callers, Infof]
++	r := slog.NewRecord(time.Now(), slog.LevelInfo, fmt.Sprintf(format, args...), pcs[0])
++	_ = l.Handler().Handle(context.Background(), r)
++}
++
++func Example_wrapping() {
++	defer func(l *slog.Logger) { slog.SetDefault(l) }(slog.Default())
++
++	replace := func(groups []string, a slog.Attr) slog.Attr {
++		// Remove time.
++		if a.Key == slog.TimeKey && len(groups) == 0 {
++			a.Key = ""
++		}
++		// Remove the directory from the source's filename.
++		if a.Key == slog.SourceKey {
++			a.Value = slog.StringValue(filepath.Base(a.Value.String()))
++		}
++		return a
++	}
++	logger := slog.New(slog.HandlerOptions{AddSource: true, ReplaceAttr: replace}.NewTextHandler(os.Stdout))
++	slog.SetDefault(logger)
++	Infof("message, %s", "formatted")
++
++	// Output:
++	// level=INFO source=example_wrap_test.go:46 msg="message, formatted"
++}
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+new file mode 100644
+index 0000000000..87732a90f4
+--- /dev/null
++++ b/src/log/slog/handler.go
+@@ -0,0 +1,589 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"context"
++	"fmt"
++	"io"
++	"log/slog/internal/buffer"
++	"slices"
++	"strconv"
++	"sync"
++	"time"
++)
++
++// A Handler handles log records produced by a Logger..
++//
++// A typical handler may print log records to standard error,
++// or write them to a file or database, or perhaps augment them
++// with additional attributes and pass them on to another handler.
++//
++// Any of the Handler's methods may be called concurrently with itself
++// or with other methods. It is the responsibility of the Handler to
++// manage this concurrency.
++//
++// Users of the slog package should not invoke Handler methods directly.
++// They should use the methods of [Logger] instead.
++type Handler interface {
++	// Enabled reports whether the handler handles records at the given level.
++	// The handler ignores records whose level is lower.
++	// It is called early, before any arguments are processed,
++	// to save effort if the log event should be discarded.
++	// If called from a Logger method, the first argument is the context
++	// passed to that method, or context.Background() if nil was passed
++	// or the method does not take a context.
++	// The context is passed so Enabled can use its values
++	// to make a decision.
++	Enabled(context.Context, Level) bool
++
++	// Handle handles the Record.
++	// It will only be called Enabled returns true.
++	// The Context argument is as for Enabled.
++	// It is present solely to provide Handlers access to the context's values.
++	// Canceling the context should not affect record processing.
++	// (Among other things, log messages may be necessary to debug a
++	// cancellation-related problem.)
++	//
++	// Handle methods that produce output should observe the following rules:
++	//   - If r.Time is the zero time, ignore the time.
++	//   - If r.PC is zero, ignore it.
++	//   - If an Attr's key is the empty string and the value is not a group,
++	//     ignore the Attr.
++	//   - If a group's key is empty, inline the group's Attrs.
++	//   - If a group has no Attrs (even if it has a non-empty key),
++	//     ignore it.
++	Handle(context.Context, Record) error
++
++	// WithAttrs returns a new Handler whose attributes consist of
++	// both the receiver's attributes and the arguments.
++	// The Handler owns the slice: it may retain, modify or discard it.
++	// [Logger.With] will resolve the Attrs.
++	WithAttrs(attrs []Attr) Handler
++
++	// WithGroup returns a new Handler with the given group appended to
++	// the receiver's existing groups.
++	// The keys of all subsequent attributes, whether added by With or in a
++	// Record, should be qualified by the sequence of group names.
++	//
++	// How this qualification happens is up to the Handler, so long as
++	// this Handler's attribute keys differ from those of another Handler
++	// with a different sequence of group names.
++	//
++	// A Handler should treat WithGroup as starting a Group of Attrs that ends
++	// at the end of the log event. That is,
++	//
++	//     logger.WithGroup("s").LogAttrs(level, msg, slog.Int("a", 1), slog.Int("b", 2))
++	//
++	// should behave like
++	//
++	//     logger.LogAttrs(level, msg, slog.Group("s", slog.Int("a", 1), slog.Int("b", 2)))
++	//
++	// If the name is empty, WithGroup returns the receiver.
++	WithGroup(name string) Handler
++}
++
++type defaultHandler struct {
++	ch *commonHandler
++	// log.Output, except for testing
++	output func(calldepth int, message string) error
++}
++
++func newDefaultHandler(output func(int, string) error) *defaultHandler {
++	return &defaultHandler{
++		ch:     &commonHandler{json: false},
++		output: output,
++	}
++}
++
++func (*defaultHandler) Enabled(_ context.Context, l Level) bool {
++	return l >= LevelInfo
++}
++
++// Collect the level, attributes and message in a string and
++// write it with the default log.Logger.
++// Let the log.Logger handle time and file/line.
++func (h *defaultHandler) Handle(ctx context.Context, r Record) error {
++	buf := buffer.New()
++	buf.WriteString(r.Level.String())
++	buf.WriteByte(' ')
++	buf.WriteString(r.Message)
++	state := h.ch.newHandleState(buf, true, " ", nil)
++	defer state.free()
++	state.appendNonBuiltIns(r)
++
++	// skip [h.output, defaultHandler.Handle, handlerWriter.Write, log.Output]
++	return h.output(4, buf.String())
++}
++
++func (h *defaultHandler) WithAttrs(as []Attr) Handler {
++	return &defaultHandler{h.ch.withAttrs(as), h.output}
++}
++
++func (h *defaultHandler) WithGroup(name string) Handler {
++	return &defaultHandler{h.ch.withGroup(name), h.output}
++}
++
++// HandlerOptions are options for a TextHandler or JSONHandler.
++// A zero HandlerOptions consists entirely of default values.
++type HandlerOptions struct {
++	// When AddSource is true, the handler adds a ("source", "file:line")
++	// attribute to the output indicating the source code position of the log
++	// statement. AddSource is false by default to skip the cost of computing
++	// this information.
++	AddSource bool
++
++	// Level reports the minimum record level that will be logged.
++	// The handler discards records with lower levels.
++	// If Level is nil, the handler assumes LevelInfo.
++	// The handler calls Level.Level for each record processed;
++	// to adjust the minimum level dynamically, use a LevelVar.
++	Level Leveler
++
++	// ReplaceAttr is called to rewrite each non-group attribute before it is logged.
++	// The attribute's value has been resolved (see [Value.Resolve]).
++	// If ReplaceAttr returns an Attr with Key == "", the attribute is discarded.
++	//
++	// The built-in attributes with keys "time", "level", "source", and "msg"
++	// are passed to this function, except that time is omitted
++	// if zero, and source is omitted if AddSource is false.
++	//
++	// The first argument is a list of currently open groups that contain the
++	// Attr. It must not be retained or modified. ReplaceAttr is never called
++	// for Group attributes, only their contents. For example, the attribute
++	// list
++	//
++	//     Int("a", 1), Group("g", Int("b", 2)), Int("c", 3)
++	//
++	// results in consecutive calls to ReplaceAttr with the following arguments:
++	//
++	//     nil, Int("a", 1)
++	//     []string{"g"}, Int("b", 2)
++	//     nil, Int("c", 3)
++	//
++	// ReplaceAttr can be used to change the default keys of the built-in
++	// attributes, convert types (for example, to replace a `time.Time` with the
++	// integer seconds since the Unix epoch), sanitize personal information, or
++	// remove attributes from the output.
++	ReplaceAttr func(groups []string, a Attr) Attr
++}
++
++// Keys for "built-in" attributes.
++const (
++	// TimeKey is the key used by the built-in handlers for the time
++	// when the log method is called. The associated Value is a [time.Time].
++	TimeKey = "time"
++	// LevelKey is the key used by the built-in handlers for the level
++	// of the log call. The associated value is a [Level].
++	LevelKey = "level"
++	// MessageKey is the key used by the built-in handlers for the
++	// message of the log call. The associated value is a string.
++	MessageKey = "msg"
++	// SourceKey is the key used by the built-in handlers for the source file
++	// and line of the log call. The associated value is a string.
++	SourceKey = "source"
++)
++
++type commonHandler struct {
++	json              bool // true => output JSON; false => output text
++	opts              HandlerOptions
++	preformattedAttrs []byte
++	groupPrefix       string   // for text: prefix of groups opened in preformatting
++	groups            []string // all groups started from WithGroup
++	nOpenGroups       int      // the number of groups opened in preformattedAttrs
++	mu                sync.Mutex
++	w                 io.Writer
++}
++
++func (h *commonHandler) clone() *commonHandler {
++	// We can't use assignment because we can't copy the mutex.
++	return &commonHandler{
++		json:              h.json,
++		opts:              h.opts,
++		preformattedAttrs: slices.Clip(h.preformattedAttrs),
++		groupPrefix:       h.groupPrefix,
++		groups:            slices.Clip(h.groups),
++		nOpenGroups:       h.nOpenGroups,
++		w:                 h.w,
++	}
++}
++
++// enabled reports whether l is greater than or equal to the
++// minimum level.
++func (h *commonHandler) enabled(l Level) bool {
++	minLevel := LevelInfo
++	if h.opts.Level != nil {
++		minLevel = h.opts.Level.Level()
++	}
++	return l >= minLevel
++}
++
++func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
++	h2 := h.clone()
++	// Pre-format the attributes as an optimization.
++	prefix := buffer.New()
++	defer prefix.Free()
++	prefix.WriteString(h.groupPrefix)
++	state := h2.newHandleState((*buffer.Buffer)(&h2.preformattedAttrs), false, "", prefix)
++	defer state.free()
++	if len(h2.preformattedAttrs) > 0 {
++		state.sep = h.attrSep()
++	}
++	state.openGroups()
++	for _, a := range as {
++		state.appendAttr(a)
++	}
++	// Remember the new prefix for later keys.
++	h2.groupPrefix = state.prefix.String()
++	// Remember how many opened groups are in preformattedAttrs,
++	// so we don't open them again when we handle a Record.
++	h2.nOpenGroups = len(h2.groups)
++	return h2
++}
++
++func (h *commonHandler) withGroup(name string) *commonHandler {
++	if name == "" {
++		return h
++	}
++	h2 := h.clone()
++	h2.groups = append(h2.groups, name)
++	return h2
++}
++
++func (h *commonHandler) handle(r Record) error {
++	state := h.newHandleState(buffer.New(), true, "", nil)
++	defer state.free()
++	if h.json {
++		state.buf.WriteByte('{')
++	}
++	// Built-in attributes. They are not in a group.
++	stateGroups := state.groups
++	state.groups = nil // So ReplaceAttrs sees no groups instead of the pre groups.
++	rep := h.opts.ReplaceAttr
++	// time
++	if !r.Time.IsZero() {
++		key := TimeKey
++		val := r.Time.Round(0) // strip monotonic to match Attr behavior
++		if rep == nil {
++			state.appendKey(key)
++			state.appendTime(val)
++		} else {
++			state.appendAttr(Time(key, val))
++		}
++	}
++	// level
++	key := LevelKey
++	val := r.Level
++	if rep == nil {
++		state.appendKey(key)
++		state.appendString(val.String())
++	} else {
++		state.appendAttr(Any(key, val))
++	}
++	// source
++	if h.opts.AddSource {
++		frame := r.frame()
++		if frame.File != "" {
++			key := SourceKey
++			if rep == nil {
++				state.appendKey(key)
++				state.appendSource(frame.File, frame.Line)
++			} else {
++				buf := buffer.New()
++				buf.WriteString(frame.File) // TODO: escape?
++				buf.WriteByte(':')
++				buf.WritePosInt(frame.Line)
++				s := buf.String()
++				buf.Free()
++				state.appendAttr(String(key, s))
++			}
++		}
++	}
++	key = MessageKey
++	msg := r.Message
++	if rep == nil {
++		state.appendKey(key)
++		state.appendString(msg)
++	} else {
++		state.appendAttr(String(key, msg))
++	}
++	state.groups = stateGroups // Restore groups passed to ReplaceAttrs.
++	state.appendNonBuiltIns(r)
++	state.buf.WriteByte('\n')
++
++	h.mu.Lock()
++	defer h.mu.Unlock()
++	_, err := h.w.Write(*state.buf)
++	return err
++}
++
++func (s *handleState) appendNonBuiltIns(r Record) {
++	// preformatted Attrs
++	if len(s.h.preformattedAttrs) > 0 {
++		s.buf.WriteString(s.sep)
++		s.buf.Write(s.h.preformattedAttrs)
++		s.sep = s.h.attrSep()
++	}
++	// Attrs in Record -- unlike the built-in ones, they are in groups started
++	// from WithGroup.
++	s.prefix = buffer.New()
++	defer s.prefix.Free()
++	s.prefix.WriteString(s.h.groupPrefix)
++	s.openGroups()
++	r.Attrs(func(a Attr) {
++		s.appendAttr(a)
++	})
++	if s.h.json {
++		// Close all open groups.
++		for range s.h.groups {
++			s.buf.WriteByte('}')
++		}
++		// Close the top-level object.
++		s.buf.WriteByte('}')
++	}
++}
++
++// attrSep returns the separator between attributes.
++func (h *commonHandler) attrSep() string {
++	if h.json {
++		return ","
++	}
++	return " "
++}
++
++// handleState holds state for a single call to commonHandler.handle.
++// The initial value of sep determines whether to emit a separator
++// before the next key, after which it stays true.
++type handleState struct {
++	h       *commonHandler
++	buf     *buffer.Buffer
++	freeBuf bool           // should buf be freed?
++	sep     string         // separator to write before next key
++	prefix  *buffer.Buffer // for text: key prefix
++	groups  *[]string      // pool-allocated slice of active groups, for ReplaceAttr
++}
++
++var groupPool = sync.Pool{New: func() any {
++	s := make([]string, 0, 10)
++	return &s
++}}
++
++func (h *commonHandler) newHandleState(buf *buffer.Buffer, freeBuf bool, sep string, prefix *buffer.Buffer) handleState {
++	s := handleState{
++		h:       h,
++		buf:     buf,
++		freeBuf: freeBuf,
++		sep:     sep,
++		prefix:  prefix,
++	}
++	if h.opts.ReplaceAttr != nil {
++		s.groups = groupPool.Get().(*[]string)
++		*s.groups = append(*s.groups, h.groups[:h.nOpenGroups]...)
++	}
++	return s
++}
++
++func (s *handleState) free() {
++	if s.freeBuf {
++		s.buf.Free()
++	}
++	if gs := s.groups; gs != nil {
++		*gs = (*gs)[:0]
++		groupPool.Put(gs)
++	}
++}
++
++func (s *handleState) openGroups() {
++	for _, n := range s.h.groups[s.h.nOpenGroups:] {
++		s.openGroup(n)
++	}
++}
++
++// Separator for group names and keys.
++const keyComponentSep = '.'
++
++// openGroup starts a new group of attributes
++// with the given name.
++func (s *handleState) openGroup(name string) {
++	if s.h.json {
++		s.appendKey(name)
++		s.buf.WriteByte('{')
++		s.sep = ""
++	} else {
++		s.prefix.WriteString(name)
++		s.prefix.WriteByte(keyComponentSep)
++	}
++	// Collect group names for ReplaceAttr.
++	if s.groups != nil {
++		*s.groups = append(*s.groups, name)
++	}
++
++}
++
++// closeGroup ends the group with the given name.
++func (s *handleState) closeGroup(name string) {
++	if s.h.json {
++		s.buf.WriteByte('}')
++	} else {
++		(*s.prefix) = (*s.prefix)[:len(*s.prefix)-len(name)-1 /* for keyComponentSep */]
++	}
++	s.sep = s.h.attrSep()
++	if s.groups != nil {
++		*s.groups = (*s.groups)[:len(*s.groups)-1]
++	}
++}
++
++// appendAttr appends the Attr's key and value using app.
++// It handles replacement and checking for an empty key.
++// after replacement).
++func (s *handleState) appendAttr(a Attr) {
++	v := a.Value
++	// Elide a non-group with an empty key.
++	if a.Key == "" && v.Kind() != KindGroup {
++		return
++	}
++	if rep := s.h.opts.ReplaceAttr; rep != nil && v.Kind() != KindGroup {
++		var gs []string
++		if s.groups != nil {
++			gs = *s.groups
++		}
++		a = rep(gs, Attr{a.Key, v})
++		if a.Key == "" {
++			return
++		}
++		// Although all attributes in the Record are already resolved,
++		// This one came from the user, so it may not have been.
++		v = a.Value.Resolve()
++	}
++	if v.Kind() == KindGroup {
++		attrs := v.Group()
++		// Output only non-empty groups.
++		if len(attrs) > 0 {
++			// Inline a group with an empty key.
++			if a.Key != "" {
++				s.openGroup(a.Key)
++			}
++			for _, aa := range attrs {
++				s.appendAttr(aa)
++			}
++			if a.Key != "" {
++				s.closeGroup(a.Key)
++			}
++		}
++	} else {
++		s.appendKey(a.Key)
++		s.appendValue(v)
++	}
++}
++
++func (s *handleState) appendError(err error) {
++	s.appendString(fmt.Sprintf("!ERROR:%v", err))
++}
++
++func (s *handleState) appendKey(key string) {
++	s.buf.WriteString(s.sep)
++	if s.prefix != nil {
++		// TODO: optimize by avoiding allocation.
++		s.appendString(string(*s.prefix) + key)
++	} else {
++		s.appendString(key)
++	}
++	if s.h.json {
++		s.buf.WriteByte(':')
++	} else {
++		s.buf.WriteByte('=')
++	}
++	s.sep = s.h.attrSep()
++}
++
++func (s *handleState) appendSource(file string, line int) {
++	if s.h.json {
++		s.buf.WriteByte('"')
++		*s.buf = appendEscapedJSONString(*s.buf, file)
++		s.buf.WriteByte(':')
++		s.buf.WritePosInt(line)
++		s.buf.WriteByte('"')
++	} else {
++		// text
++		if needsQuoting(file) {
++			s.appendString(file + ":" + strconv.Itoa(line))
++		} else {
++			// common case: no quoting needed.
++			s.appendString(file)
++			s.buf.WriteByte(':')
++			s.buf.WritePosInt(line)
++		}
++	}
++}
++
++func (s *handleState) appendString(str string) {
++	if s.h.json {
++		s.buf.WriteByte('"')
++		*s.buf = appendEscapedJSONString(*s.buf, str)
++		s.buf.WriteByte('"')
++	} else {
++		// text
++		if needsQuoting(str) {
++			*s.buf = strconv.AppendQuote(*s.buf, str)
++		} else {
++			s.buf.WriteString(str)
++		}
++	}
++}
++
++func (s *handleState) appendValue(v Value) {
++	var err error
++	if s.h.json {
++		err = appendJSONValue(s, v)
++	} else {
++		err = appendTextValue(s, v)
++	}
++	if err != nil {
++		s.appendError(err)
++	}
++}
++
++func (s *handleState) appendTime(t time.Time) {
++	if s.h.json {
++		appendJSONTime(s, t)
++	} else {
++		writeTimeRFC3339Millis(s.buf, t)
++	}
++}
++
++// This takes half the time of Time.AppendFormat.
++func writeTimeRFC3339Millis(buf *buffer.Buffer, t time.Time) {
++	year, month, day := t.Date()
++	buf.WritePosIntWidth(year, 4)
++	buf.WriteByte('-')
++	buf.WritePosIntWidth(int(month), 2)
++	buf.WriteByte('-')
++	buf.WritePosIntWidth(day, 2)
++	buf.WriteByte('T')
++	hour, min, sec := t.Clock()
++	buf.WritePosIntWidth(hour, 2)
++	buf.WriteByte(':')
++	buf.WritePosIntWidth(min, 2)
++	buf.WriteByte(':')
++	buf.WritePosIntWidth(sec, 2)
++	ns := t.Nanosecond()
++	buf.WriteByte('.')
++	buf.WritePosIntWidth(ns/1e6, 3)
++	_, offsetSeconds := t.Zone()
++	if offsetSeconds == 0 {
++		buf.WriteByte('Z')
++	} else {
++		offsetMinutes := offsetSeconds / 60
++		if offsetMinutes < 0 {
++			buf.WriteByte('-')
++			offsetMinutes = -offsetMinutes
++		} else {
++			buf.WriteByte('+')
++		}
++		buf.WritePosIntWidth(offsetMinutes/60, 2)
++		buf.WriteByte(':')
++		buf.WritePosIntWidth(offsetMinutes%60, 2)
++	}
++}
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+new file mode 100644
+index 0000000000..d79d0bf372
+--- /dev/null
++++ b/src/log/slog/handler_test.go
+@@ -0,0 +1,510 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO: verify that the output of Marshal{Text,JSON} is suitably escaped.
++
++package slog
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"io"
++	"log/slog/internal/buffer"
++	"slices"
++	"strings"
++	"testing"
++	"time"
++)
++
++func TestDefaultHandle(t *testing.T) {
++	ctx := context.Background()
++	preAttrs := []Attr{Int("pre", 0)}
++	attrs := []Attr{Int("a", 1), String("b", "two")}
++	for _, test := range []struct {
++		name  string
++		with  func(Handler) Handler
++		attrs []Attr
++		want  string
++	}{
++		{
++			name: "no attrs",
++			want: "INFO message",
++		},
++		{
++			name:  "attrs",
++			attrs: attrs,
++			want:  "INFO message a=1 b=two",
++		},
++		{
++			name:  "preformatted",
++			with:  func(h Handler) Handler { return h.WithAttrs(preAttrs) },
++			attrs: attrs,
++			want:  "INFO message pre=0 a=1 b=two",
++		},
++		{
++			name: "groups",
++			attrs: []Attr{
++				Int("a", 1),
++				Group("g",
++					Int("b", 2),
++					Group("h", Int("c", 3)),
++					Int("d", 4)),
++				Int("e", 5),
++			},
++			want: "INFO message a=1 g.b=2 g.h.c=3 g.d=4 e=5",
++		},
++		{
++			name:  "group",
++			with:  func(h Handler) Handler { return h.WithAttrs(preAttrs).WithGroup("s") },
++			attrs: attrs,
++			want:  "INFO message pre=0 s.a=1 s.b=two",
++		},
++		{
++			name: "preformatted groups",
++			with: func(h Handler) Handler {
++				return h.WithAttrs([]Attr{Int("p1", 1)}).
++					WithGroup("s1").
++					WithAttrs([]Attr{Int("p2", 2)}).
++					WithGroup("s2")
++			},
++			attrs: attrs,
++			want:  "INFO message p1=1 s1.p2=2 s1.s2.a=1 s1.s2.b=two",
++		},
++		{
++			name: "two with-groups",
++			with: func(h Handler) Handler {
++				return h.WithAttrs([]Attr{Int("p1", 1)}).
++					WithGroup("s1").
++					WithGroup("s2")
++			},
++			attrs: attrs,
++			want:  "INFO message p1=1 s1.s2.a=1 s1.s2.b=two",
++		},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			var got string
++			var h Handler = newDefaultHandler(func(_ int, s string) error {
++				got = s
++				return nil
++			})
++			if test.with != nil {
++				h = test.with(h)
++			}
++			r := NewRecord(time.Time{}, LevelInfo, "message", 0)
++			r.AddAttrs(test.attrs...)
++			if err := h.Handle(ctx, r); err != nil {
++				t.Fatal(err)
++			}
++			if got != test.want {
++				t.Errorf("\ngot  %s\nwant %s", got, test.want)
++			}
++		})
++	}
++}
++
++// Verify the common parts of TextHandler and JSONHandler.
++func TestJSONAndTextHandlers(t *testing.T) {
++	ctx := context.Background()
++
++	// ReplaceAttr functions
++
++	// remove all Attrs
++	removeAll := func(_ []string, a Attr) Attr { return Attr{} }
++
++	attrs := []Attr{String("a", "one"), Int("b", 2), Any("", "ignore me")}
++	preAttrs := []Attr{Int("pre", 3), String("x", "y")}
++
++	for _, test := range []struct {
++		name     string
++		replace  func([]string, Attr) Attr
++		with     func(Handler) Handler
++		preAttrs []Attr
++		attrs    []Attr
++		wantText string
++		wantJSON string
++	}{
++		{
++			name:     "basic",
++			attrs:    attrs,
++			wantText: "time=2000-01-02T03:04:05.000Z level=INFO msg=message a=one b=2",
++			wantJSON: `{"time":"2000-01-02T03:04:05Z","level":"INFO","msg":"message","a":"one","b":2}`,
++		},
++		{
++			name:     "cap keys",
++			replace:  upperCaseKey,
++			attrs:    attrs,
++			wantText: "TIME=2000-01-02T03:04:05.000Z LEVEL=INFO MSG=message A=one B=2",
++			wantJSON: `{"TIME":"2000-01-02T03:04:05Z","LEVEL":"INFO","MSG":"message","A":"one","B":2}`,
++		},
++		{
++			name:     "remove all",
++			replace:  removeAll,
++			attrs:    attrs,
++			wantText: "",
++			wantJSON: `{}`,
++		},
++		{
++			name:     "preformatted",
++			with:     func(h Handler) Handler { return h.WithAttrs(preAttrs) },
++			preAttrs: preAttrs,
++			attrs:    attrs,
++			wantText: "time=2000-01-02T03:04:05.000Z level=INFO msg=message pre=3 x=y a=one b=2",
++			wantJSON: `{"time":"2000-01-02T03:04:05Z","level":"INFO","msg":"message","pre":3,"x":"y","a":"one","b":2}`,
++		},
++		{
++			name:     "preformatted cap keys",
++			replace:  upperCaseKey,
++			with:     func(h Handler) Handler { return h.WithAttrs(preAttrs) },
++			preAttrs: preAttrs,
++			attrs:    attrs,
++			wantText: "TIME=2000-01-02T03:04:05.000Z LEVEL=INFO MSG=message PRE=3 X=y A=one B=2",
++			wantJSON: `{"TIME":"2000-01-02T03:04:05Z","LEVEL":"INFO","MSG":"message","PRE":3,"X":"y","A":"one","B":2}`,
++		},
++		{
++			name:     "preformatted remove all",
++			replace:  removeAll,
++			with:     func(h Handler) Handler { return h.WithAttrs(preAttrs) },
++			preAttrs: preAttrs,
++			attrs:    attrs,
++			wantText: "",
++			wantJSON: "{}",
++		},
++		{
++			name:     "remove built-in",
++			replace:  removeKeys(TimeKey, LevelKey, MessageKey),
++			attrs:    attrs,
++			wantText: "a=one b=2",
++			wantJSON: `{"a":"one","b":2}`,
++		},
++		{
++			name:     "preformatted remove built-in",
++			replace:  removeKeys(TimeKey, LevelKey, MessageKey),
++			with:     func(h Handler) Handler { return h.WithAttrs(preAttrs) },
++			attrs:    attrs,
++			wantText: "pre=3 x=y a=one b=2",
++			wantJSON: `{"pre":3,"x":"y","a":"one","b":2}`,
++		},
++		{
++			name:    "groups",
++			replace: removeKeys(TimeKey, LevelKey), // to simplify the result
++			attrs: []Attr{
++				Int("a", 1),
++				Group("g",
++					Int("b", 2),
++					Group("h", Int("c", 3)),
++					Int("d", 4)),
++				Int("e", 5),
++			},
++			wantText: "msg=message a=1 g.b=2 g.h.c=3 g.d=4 e=5",
++			wantJSON: `{"msg":"message","a":1,"g":{"b":2,"h":{"c":3},"d":4},"e":5}`,
++		},
++		{
++			name:     "empty group",
++			replace:  removeKeys(TimeKey, LevelKey),
++			attrs:    []Attr{Group("g"), Group("h", Int("a", 1))},
++			wantText: "msg=message h.a=1",
++			wantJSON: `{"msg":"message","h":{"a":1}}`,
++		},
++		{
++			name:    "escapes",
++			replace: removeKeys(TimeKey, LevelKey),
++			attrs: []Attr{
++				String("a b", "x\t\n\000y"),
++				Group(" b.c=\"\\x2E\t",
++					String("d=e", "f.g\""),
++					Int("m.d", 1)), // dot is not escaped
++			},
++			wantText: `msg=message "a b"="x\t\n\x00y" " b.c=\"\\x2E\t.d=e"="f.g\"" " b.c=\"\\x2E\t.m.d"=1`,
++			wantJSON: `{"msg":"message","a b":"x\t\n\u0000y"," b.c=\"\\x2E\t":{"d=e":"f.g\"","m.d":1}}`,
++		},
++		{
++			name:    "LogValuer",
++			replace: removeKeys(TimeKey, LevelKey),
++			attrs: []Attr{
++				Int("a", 1),
++				Any("name", logValueName{"Ren", "Hoek"}),
++				Int("b", 2),
++			},
++			wantText: "msg=message a=1 name.first=Ren name.last=Hoek b=2",
++			wantJSON: `{"msg":"message","a":1,"name":{"first":"Ren","last":"Hoek"},"b":2}`,
++		},
++		{
++			name:     "with-group",
++			replace:  removeKeys(TimeKey, LevelKey),
++			with:     func(h Handler) Handler { return h.WithAttrs(preAttrs).WithGroup("s") },
++			attrs:    attrs,
++			wantText: "msg=message pre=3 x=y s.a=one s.b=2",
++			wantJSON: `{"msg":"message","pre":3,"x":"y","s":{"a":"one","b":2}}`,
++		},
++		{
++			name:    "preformatted with-groups",
++			replace: removeKeys(TimeKey, LevelKey),
++			with: func(h Handler) Handler {
++				return h.WithAttrs([]Attr{Int("p1", 1)}).
++					WithGroup("s1").
++					WithAttrs([]Attr{Int("p2", 2)}).
++					WithGroup("s2")
++			},
++			attrs:    attrs,
++			wantText: "msg=message p1=1 s1.p2=2 s1.s2.a=one s1.s2.b=2",
++			wantJSON: `{"msg":"message","p1":1,"s1":{"p2":2,"s2":{"a":"one","b":2}}}`,
++		},
++		{
++			name:    "two with-groups",
++			replace: removeKeys(TimeKey, LevelKey),
++			with: func(h Handler) Handler {
++				return h.WithAttrs([]Attr{Int("p1", 1)}).
++					WithGroup("s1").
++					WithGroup("s2")
++			},
++			attrs:    attrs,
++			wantText: "msg=message p1=1 s1.s2.a=one s1.s2.b=2",
++			wantJSON: `{"msg":"message","p1":1,"s1":{"s2":{"a":"one","b":2}}}`,
++		},
++		{
++			name:     "GroupValue as Attr value",
++			replace:  removeKeys(TimeKey, LevelKey),
++			attrs:    []Attr{{"v", AnyValue(IntValue(3))}},
++			wantText: "msg=message v=3",
++			wantJSON: `{"msg":"message","v":3}`,
++		},
++		{
++			name:     "byte slice",
++			replace:  removeKeys(TimeKey, LevelKey),
++			attrs:    []Attr{Any("bs", []byte{1, 2, 3, 4})},
++			wantText: `msg=message bs="\x01\x02\x03\x04"`,
++			wantJSON: `{"msg":"message","bs":"AQIDBA=="}`,
++		},
++		{
++			name:     "json.RawMessage",
++			replace:  removeKeys(TimeKey, LevelKey),
++			attrs:    []Attr{Any("bs", json.RawMessage([]byte("1234")))},
++			wantText: `msg=message bs="1234"`,
++			wantJSON: `{"msg":"message","bs":1234}`,
++		},
++		{
++			name:    "inline group",
++			replace: removeKeys(TimeKey, LevelKey),
++			attrs: []Attr{
++				Int("a", 1),
++				Group("", Int("b", 2), Int("c", 3)),
++				Int("d", 4),
++			},
++			wantText: `msg=message a=1 b=2 c=3 d=4`,
++			wantJSON: `{"msg":"message","a":1,"b":2,"c":3,"d":4}`,
++		},
++	} {
++		r := NewRecord(testTime, LevelInfo, "message", 1)
++		r.AddAttrs(test.attrs...)
++		var buf bytes.Buffer
++		opts := HandlerOptions{ReplaceAttr: test.replace}
++		t.Run(test.name, func(t *testing.T) {
++			for _, handler := range []struct {
++				name string
++				h    Handler
++				want string
++			}{
++				{"text", opts.NewTextHandler(&buf), test.wantText},
++				{"json", opts.NewJSONHandler(&buf), test.wantJSON},
++			} {
++				t.Run(handler.name, func(t *testing.T) {
++					h := handler.h
++					if test.with != nil {
++						h = test.with(h)
++					}
++					buf.Reset()
++					if err := h.Handle(ctx, r); err != nil {
++						t.Fatal(err)
++					}
++					got := strings.TrimSuffix(buf.String(), "\n")
++					if got != handler.want {
++						t.Errorf("\ngot  %s\nwant %s\n", got, handler.want)
++					}
++				})
++			}
++		})
++	}
++}
++
++// removeKeys returns a function suitable for HandlerOptions.ReplaceAttr
++// that removes all Attrs with the given keys.
++func removeKeys(keys ...string) func([]string, Attr) Attr {
++	return func(_ []string, a Attr) Attr {
++		for _, k := range keys {
++			if a.Key == k {
++				return Attr{}
++			}
++		}
++		return a
++	}
++}
++
++func upperCaseKey(_ []string, a Attr) Attr {
++	a.Key = strings.ToUpper(a.Key)
++	return a
++}
++
++type logValueName struct {
++	first, last string
++}
++
++func (n logValueName) LogValue() Value {
++	return GroupValue(
++		String("first", n.first),
++		String("last", n.last))
++}
++
++func TestHandlerEnabled(t *testing.T) {
++	levelVar := func(l Level) *LevelVar {
++		var al LevelVar
++		al.Set(l)
++		return &al
++	}
++
++	for _, test := range []struct {
++		leveler Leveler
++		want    bool
++	}{
++		{nil, true},
++		{LevelWarn, false},
++		{&LevelVar{}, true}, // defaults to Info
++		{levelVar(LevelWarn), false},
++		{LevelDebug, true},
++		{levelVar(LevelDebug), true},
++	} {
++		h := &commonHandler{opts: HandlerOptions{Level: test.leveler}}
++		got := h.enabled(LevelInfo)
++		if got != test.want {
++			t.Errorf("%v: got %t, want %t", test.leveler, got, test.want)
++		}
++	}
++}
++
++func TestAppendSource(t *testing.T) {
++	for _, test := range []struct {
++		file               string
++		wantText, wantJSON string
++	}{
++		{"a/b.go", "a/b.go:1", `"a/b.go:1"`},
++		{"a b.go", `"a b.go:1"`, `"a b.go:1"`},
++		{`C:\windows\b.go`, `C:\windows\b.go:1`, `"C:\\windows\\b.go:1"`},
++	} {
++		check := func(json bool, want string) {
++			t.Helper()
++			var buf []byte
++			state := handleState{
++				h:   &commonHandler{json: json},
++				buf: (*buffer.Buffer)(&buf),
++			}
++			state.appendSource(test.file, 1)
++			got := string(buf)
++			if got != want {
++				t.Errorf("%s, json=%t:\ngot  %s\nwant %s", test.file, json, got, want)
++			}
++		}
++		check(false, test.wantText)
++		check(true, test.wantJSON)
++	}
++}
++
++func TestSecondWith(t *testing.T) {
++	// Verify that a second call to Logger.With does not corrupt
++	// the original.
++	var buf bytes.Buffer
++	h := HandlerOptions{ReplaceAttr: removeKeys(TimeKey)}.NewTextHandler(&buf)
++	logger := New(h).With(
++		String("app", "playground"),
++		String("role", "tester"),
++		Int("data_version", 2),
++	)
++	appLogger := logger.With("type", "log") // this becomes type=met
++	_ = logger.With("type", "metric")
++	appLogger.Info("foo")
++	got := strings.TrimSpace(buf.String())
++	want := `level=INFO msg=foo app=playground role=tester data_version=2 type=log`
++	if got != want {
++		t.Errorf("\ngot  %s\nwant %s", got, want)
++	}
++}
++
++func TestReplaceAttrGroups(t *testing.T) {
++	// Verify that ReplaceAttr is called with the correct groups.
++	type ga struct {
++		groups string
++		key    string
++		val    string
++	}
++
++	var got []ga
++
++	h := HandlerOptions{ReplaceAttr: func(gs []string, a Attr) Attr {
++		v := a.Value.String()
++		if a.Key == TimeKey {
++			v = "<now>"
++		}
++		got = append(got, ga{strings.Join(gs, ","), a.Key, v})
++		return a
++	}}.NewTextHandler(io.Discard)
++	New(h).
++		With(Int("a", 1)).
++		WithGroup("g1").
++		With(Int("b", 2)).
++		WithGroup("g2").
++		With(
++			Int("c", 3),
++			Group("g3", Int("d", 4)),
++			Int("e", 5)).
++		Info("m",
++			Int("f", 6),
++			Group("g4", Int("h", 7)),
++			Int("i", 8))
++
++	want := []ga{
++		{"", "a", "1"},
++		{"g1", "b", "2"},
++		{"g1,g2", "c", "3"},
++		{"g1,g2,g3", "d", "4"},
++		{"g1,g2", "e", "5"},
++		{"", "time", "<now>"},
++		{"", "level", "INFO"},
++		{"", "msg", "m"},
++		{"g1,g2", "f", "6"},
++		{"g1,g2,g4", "h", "7"},
++		{"g1,g2", "i", "8"},
++	}
++	if !slices.Equal(got, want) {
++		t.Errorf("\ngot  %v\nwant %v", got, want)
++	}
++}
++
++const rfc3339Millis = "2006-01-02T15:04:05.000Z07:00"
++
++func TestWriteTimeRFC3339(t *testing.T) {
++	for _, tm := range []time.Time{
++		time.Date(2000, 1, 2, 3, 4, 5, 0, time.UTC),
++		time.Date(2000, 1, 2, 3, 4, 5, 400, time.Local),
++		time.Date(2000, 11, 12, 3, 4, 500, 5e7, time.UTC),
++	} {
++		want := tm.Format(rfc3339Millis)
++		buf := buffer.New()
++		defer buf.Free()
++		writeTimeRFC3339Millis(buf, tm)
++		got := buf.String()
++		if got != want {
++			t.Errorf("got %s, want %s", got, want)
++		}
++	}
++}
++
++func BenchmarkWriteTime(b *testing.B) {
++	buf := buffer.New()
++	defer buf.Free()
++	tm := time.Date(2022, 3, 4, 5, 6, 7, 823456789, time.Local)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		writeTimeRFC3339Millis(buf, tm)
++		buf.Reset()
++	}
++}
+diff --git a/src/log/slog/internal/buffer/buffer.go b/src/log/slog/internal/buffer/buffer.go
+new file mode 100644
+index 0000000000..c4fcefd775
+--- /dev/null
++++ b/src/log/slog/internal/buffer/buffer.go
+@@ -0,0 +1,84 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package buffer provides a pool-allocated byte buffer.
++package buffer
++
++import "sync"
++
++// buffer adapted from go/src/fmt/print.go
++type Buffer []byte
++
++// Having an initial size gives a dramatic speedup.
++var bufPool = sync.Pool{
++	New: func() any {
++		b := make([]byte, 0, 1024)
++		return (*Buffer)(&b)
++	},
++}
++
++func New() *Buffer {
++	return bufPool.Get().(*Buffer)
++}
++
++func (b *Buffer) Free() {
++	// To reduce peak allocation, return only smaller buffers to the pool.
++	const maxBufferSize = 16 << 10
++	if cap(*b) <= maxBufferSize {
++		*b = (*b)[:0]
++		bufPool.Put(b)
++	}
++}
++
++func (b *Buffer) Reset() {
++	*b = (*b)[:0]
++}
++
++func (b *Buffer) Write(p []byte) (int, error) {
++	*b = append(*b, p...)
++	return len(p), nil
++}
++
++func (b *Buffer) WriteString(s string) (int, error) {
++	*b = append(*b, s...)
++	return len(s), nil
++}
++
++func (b *Buffer) WriteByte(c byte) error {
++	*b = append(*b, c)
++	return nil
++}
++
++func (b *Buffer) WritePosInt(i int) {
++	b.WritePosIntWidth(i, 0)
++}
++
++// WritePosIntWidth writes non-negative integer i to the buffer, padded on the left
++// by zeroes to the given width. Use a width of 0 to omit padding.
++func (b *Buffer) WritePosIntWidth(i, width int) {
++	// Cheap integer to fixed-width decimal ASCII.
++	// Copied from log/log.go.
++
++	if i < 0 {
++		panic("negative int")
++	}
++
++	// Assemble decimal in reverse order.
++	var bb [20]byte
++	bp := len(bb) - 1
++	for i >= 10 || width > 1 {
++		width--
++		q := i / 10
++		bb[bp] = byte('0' + i - q*10)
++		bp--
++		i = q
++	}
++	// i < 10
++	bb[bp] = byte('0' + i)
++	b.Write(bb[bp:])
++}
++
++func (b *Buffer) String() string {
++	return string(*b)
++}
+diff --git a/src/log/slog/internal/buffer/buffer_test.go b/src/log/slog/internal/buffer/buffer_test.go
+new file mode 100644
+index 0000000000..323d4112f0
+--- /dev/null
++++ b/src/log/slog/internal/buffer/buffer_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package buffer
++
++import "testing"
++
++func Test(t *testing.T) {
++	b := New()
++	defer b.Free()
++	b.WriteString("hello")
++	b.WriteByte(',')
++	b.Write([]byte(" world"))
++	b.WritePosIntWidth(17, 4)
++
++	got := b.String()
++	want := "hello, world0017"
++	if got != want {
++		t.Errorf("got %q, want %q", got, want)
++	}
++}
+diff --git a/src/log/slog/internal/buffer/norace_test.go b/src/log/slog/internal/buffer/norace_test.go
+new file mode 100644
+index 0000000000..226965b5b8
+--- /dev/null
++++ b/src/log/slog/internal/buffer/norace_test.go
+@@ -0,0 +1,26 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package buffer
++
++import (
++	"internal/race"
++	"internal/testenv"
++	"testing"
++)
++
++func TestAlloc(t *testing.T) {
++	if race.Enabled {
++		t.Skip("skipping test in race mode")
++	}
++	testenv.SkipIfOptimizationOff(t)
++	got := int(testing.AllocsPerRun(5, func() {
++		b := New()
++		defer b.Free()
++		b.WriteString("not 1K worth of bytes")
++	}))
++	if got != 0 {
++		t.Errorf("got %d allocs, want 0", got)
++	}
++}
+diff --git a/src/log/slog/internal/ignorepc.go b/src/log/slog/internal/ignorepc.go
+new file mode 100644
+index 0000000000..d1256426ff
+--- /dev/null
++++ b/src/log/slog/internal/ignorepc.go
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package internal
++
++// If IgnorePC is true, do not invoke runtime.Callers to get the pc.
++// This is solely for benchmarking the slowdown from runtime.Callers.
++var IgnorePC = false
+diff --git a/src/log/slog/internal/testutil/testutil.go b/src/log/slog/internal/testutil/testutil.go
+new file mode 100644
+index 0000000000..6b9a36dead
+--- /dev/null
++++ b/src/log/slog/internal/testutil/testutil.go
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package testutil contains support functions for testing.
++package testutil
++
++import "log/slog"
++
++// RemoveTime removes the top-level time attribute.
++// It is intended to be used as a ReplaceAttr function,
++// to make example output deterministic.
++func RemoveTime(groups []string, a slog.Attr) slog.Attr {
++	if a.Key == slog.TimeKey && len(groups) == 0 {
++		a.Key = ""
++	}
++	return a
++}
+diff --git a/src/log/slog/json_handler.go b/src/log/slog/json_handler.go
+new file mode 100644
+index 0000000000..90ecc6a3a4
+--- /dev/null
++++ b/src/log/slog/json_handler.go
+@@ -0,0 +1,345 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"log/slog/internal/buffer"
++	"math"
++	"strconv"
++	"time"
++	"unicode/utf8"
++)
++
++// JSONHandler is a Handler that writes Records to an io.Writer as
++// line-delimited JSON objects.
++type JSONHandler struct {
++	*commonHandler
++}
++
++// NewJSONHandler creates a JSONHandler that writes to w,
++// using the default options.
++func NewJSONHandler(w io.Writer) *JSONHandler {
++	return (HandlerOptions{}).NewJSONHandler(w)
++}
++
++// NewJSONHandler creates a JSONHandler with the given options that writes to w.
++func (opts HandlerOptions) NewJSONHandler(w io.Writer) *JSONHandler {
++	return &JSONHandler{
++		&commonHandler{
++			json: true,
++			w:    w,
++			opts: opts,
++		},
++	}
++}
++
++// Enabled reports whether the handler handles records at the given level.
++// The handler ignores records whose level is lower.
++func (h *JSONHandler) Enabled(_ context.Context, level Level) bool {
++	return h.commonHandler.enabled(level)
++}
++
++// WithAttrs returns a new JSONHandler whose attributes consists
++// of h's attributes followed by attrs.
++func (h *JSONHandler) WithAttrs(attrs []Attr) Handler {
++	return &JSONHandler{commonHandler: h.commonHandler.withAttrs(attrs)}
++}
++
++func (h *JSONHandler) WithGroup(name string) Handler {
++	return &JSONHandler{commonHandler: h.commonHandler.withGroup(name)}
++}
++
++// Handle formats its argument Record as a JSON object on a single line.
++//
++// If the Record's time is zero, the time is omitted.
++// Otherwise, the key is "time"
++// and the value is output as with json.Marshal.
++//
++// If the Record's level is zero, the level is omitted.
++// Otherwise, the key is "level"
++// and the value of [Level.String] is output.
++//
++// If the AddSource option is set and source information is available,
++// the key is "source"
++// and the value is output as "FILE:LINE".
++//
++// The message's key is "msg".
++//
++// To modify these or other attributes, or remove them from the output, use
++// [HandlerOptions.ReplaceAttr].
++//
++// Values are formatted as with encoding/json.Marshal, with the following
++// exceptions:
++//   - Floating-point NaNs and infinities are formatted as one of the strings
++//     "NaN", "+Inf" or "-Inf".
++//   - Levels are formatted as with Level.String.
++//   - HTML characters are not escaped.
++//
++// Each call to Handle results in a single serialized call to io.Writer.Write.
++func (h *JSONHandler) Handle(_ context.Context, r Record) error {
++	return h.commonHandler.handle(r)
++}
++
++// Adapted from time.Time.MarshalJSON to avoid allocation.
++func appendJSONTime(s *handleState, t time.Time) {
++	if y := t.Year(); y < 0 || y >= 10000 {
++		// RFC 3339 is clear that years are 4 digits exactly.
++		// See golang.org/issue/4556#c15 for more discussion.
++		s.appendError(errors.New("time.Time year outside of range [0,9999]"))
++	}
++	s.buf.WriteByte('"')
++	*s.buf = t.AppendFormat(*s.buf, time.RFC3339Nano)
++	s.buf.WriteByte('"')
++}
++
++func appendJSONValue(s *handleState, v Value) error {
++	switch v.Kind() {
++	case KindString:
++		s.appendString(v.str())
++	case KindInt64:
++		*s.buf = strconv.AppendInt(*s.buf, v.Int64(), 10)
++	case KindUint64:
++		*s.buf = strconv.AppendUint(*s.buf, v.Uint64(), 10)
++	case KindFloat64:
++		f := v.Float64()
++		// json.Marshal fails on special floats, so handle them here.
++		switch {
++		case math.IsInf(f, 1):
++			s.buf.WriteString(`"+Inf"`)
++		case math.IsInf(f, -1):
++			s.buf.WriteString(`"-Inf"`)
++		case math.IsNaN(f):
++			s.buf.WriteString(`"NaN"`)
++		default:
++			// json.Marshal is funny about floats; it doesn't
++			// always match strconv.AppendFloat. So just call it.
++			// That's expensive, but floats are rare.
++			if err := appendJSONMarshal(s.buf, f); err != nil {
++				return err
++			}
++		}
++	case KindBool:
++		*s.buf = strconv.AppendBool(*s.buf, v.Bool())
++	case KindDuration:
++		// Do what json.Marshal does.
++		*s.buf = strconv.AppendInt(*s.buf, int64(v.Duration()), 10)
++	case KindTime:
++		s.appendTime(v.Time())
++	case KindAny:
++		a := v.Any()
++		if err, ok := a.(error); ok {
++			s.appendString(err.Error())
++		} else {
++			return appendJSONMarshal(s.buf, a)
++		}
++	default:
++		panic(fmt.Sprintf("bad kind: %d", v.Kind()))
++	}
++	return nil
++}
++
++func appendJSONMarshal(buf *buffer.Buffer, v any) error {
++	// Use a json.Encoder to avoid escaping HTML.
++	var bb bytes.Buffer
++	enc := json.NewEncoder(&bb)
++	enc.SetEscapeHTML(false)
++	if err := enc.Encode(v); err != nil {
++		return err
++	}
++	bs := bb.Bytes()
++	buf.Write(bs[:len(bs)-1]) // remove final newline
++	return nil
++}
++
++// appendEscapedJSONString escapes s for JSON and appends it to buf.
++// It does not surround the string in quotation marks.
++//
++// Modified from encoding/json/encode.go:encodeState.string,
++// with escapeHTML set to true.
++//
++// TODO: review whether HTML escaping is necessary.
++func appendEscapedJSONString(buf []byte, s string) []byte {
++	char := func(b byte) { buf = append(buf, b) }
++	str := func(s string) { buf = append(buf, s...) }
++
++	start := 0
++	for i := 0; i < len(s); {
++		if b := s[i]; b < utf8.RuneSelf {
++			if safeSet[b] {
++				i++
++				continue
++			}
++			if start < i {
++				str(s[start:i])
++			}
++			char('\\')
++			switch b {
++			case '\\', '"':
++				char(b)
++			case '\n':
++				char('n')
++			case '\r':
++				char('r')
++			case '\t':
++				char('t')
++			default:
++				// This encodes bytes < 0x20 except for \t, \n and \r.
++				str(`u00`)
++				char(hex[b>>4])
++				char(hex[b&0xF])
++			}
++			i++
++			start = i
++			continue
++		}
++		c, size := utf8.DecodeRuneInString(s[i:])
++		if c == utf8.RuneError && size == 1 {
++			if start < i {
++				str(s[start:i])
++			}
++			str(`\ufffd`)
++			i += size
++			start = i
++			continue
++		}
++		// U+2028 is LINE SEPARATOR.
++		// U+2029 is PARAGRAPH SEPARATOR.
++		// They are both technically valid characters in JSON strings,
++		// but don't work in JSONP, which has to be evaluated as JavaScript,
++		// and can lead to security holes there. It is valid JSON to
++		// escape them, so we do so unconditionally.
++		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
++		if c == '\u2028' || c == '\u2029' {
++			if start < i {
++				str(s[start:i])
++			}
++			str(`\u202`)
++			char(hex[c&0xF])
++			i += size
++			start = i
++			continue
++		}
++		i += size
++	}
++	if start < len(s) {
++		str(s[start:])
++	}
++	return buf
++}
++
++var hex = "0123456789abcdef"
++
++// Copied from encoding/json/tables.go.
++//
++// safeSet holds the value true if the ASCII character with the given array
++// position can be represented inside a JSON string without any further
++// escaping.
++//
++// All values are true except for the ASCII control characters (0-31), the
++// double quote ("), and the backslash character ("\").
++var safeSet = [utf8.RuneSelf]bool{
++	' ':      true,
++	'!':      true,
++	'"':      false,
++	'#':      true,
++	'$':      true,
++	'%':      true,
++	'&':      true,
++	'\'':     true,
++	'(':      true,
++	')':      true,
++	'*':      true,
++	'+':      true,
++	',':      true,
++	'-':      true,
++	'.':      true,
++	'/':      true,
++	'0':      true,
++	'1':      true,
++	'2':      true,
++	'3':      true,
++	'4':      true,
++	'5':      true,
++	'6':      true,
++	'7':      true,
++	'8':      true,
++	'9':      true,
++	':':      true,
++	';':      true,
++	'<':      true,
++	'=':      true,
++	'>':      true,
++	'?':      true,
++	'@':      true,
++	'A':      true,
++	'B':      true,
++	'C':      true,
++	'D':      true,
++	'E':      true,
++	'F':      true,
++	'G':      true,
++	'H':      true,
++	'I':      true,
++	'J':      true,
++	'K':      true,
++	'L':      true,
++	'M':      true,
++	'N':      true,
++	'O':      true,
++	'P':      true,
++	'Q':      true,
++	'R':      true,
++	'S':      true,
++	'T':      true,
++	'U':      true,
++	'V':      true,
++	'W':      true,
++	'X':      true,
++	'Y':      true,
++	'Z':      true,
++	'[':      true,
++	'\\':     false,
++	']':      true,
++	'^':      true,
++	'_':      true,
++	'`':      true,
++	'a':      true,
++	'b':      true,
++	'c':      true,
++	'd':      true,
++	'e':      true,
++	'f':      true,
++	'g':      true,
++	'h':      true,
++	'i':      true,
++	'j':      true,
++	'k':      true,
++	'l':      true,
++	'm':      true,
++	'n':      true,
++	'o':      true,
++	'p':      true,
++	'q':      true,
++	'r':      true,
++	's':      true,
++	't':      true,
++	'u':      true,
++	'v':      true,
++	'w':      true,
++	'x':      true,
++	'y':      true,
++	'z':      true,
++	'{':      true,
++	'|':      true,
++	'}':      true,
++	'~':      true,
++	'\u007f': true,
++}
+diff --git a/src/log/slog/json_handler_test.go b/src/log/slog/json_handler_test.go
+new file mode 100644
+index 0000000000..dc15df4580
+--- /dev/null
++++ b/src/log/slog/json_handler_test.go
+@@ -0,0 +1,271 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"log/slog/internal/buffer"
++	"math"
++	"os"
++	"strings"
++	"testing"
++	"time"
++)
++
++func TestJSONHandler(t *testing.T) {
++	for _, test := range []struct {
++		name string
++		opts HandlerOptions
++		want string
++	}{
++		{
++			"none",
++			HandlerOptions{},
++			`{"time":"2000-01-02T03:04:05Z","level":"INFO","msg":"m","a":1,"m":{"b":2}}`,
++		},
++		{
++			"replace",
++			HandlerOptions{ReplaceAttr: upperCaseKey},
++			`{"TIME":"2000-01-02T03:04:05Z","LEVEL":"INFO","MSG":"m","A":1,"M":{"b":2}}`,
++		},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			var buf bytes.Buffer
++			h := test.opts.NewJSONHandler(&buf)
++			r := NewRecord(testTime, LevelInfo, "m", 0)
++			r.AddAttrs(Int("a", 1), Any("m", map[string]int{"b": 2}))
++			if err := h.Handle(context.Background(), r); err != nil {
++				t.Fatal(err)
++			}
++			got := strings.TrimSuffix(buf.String(), "\n")
++			if got != test.want {
++				t.Errorf("\ngot  %s\nwant %s", got, test.want)
++			}
++		})
++	}
++}
++
++// for testing json.Marshaler
++type jsonMarshaler struct {
++	s string
++}
++
++func (j jsonMarshaler) String() string { return j.s } // should be ignored
++
++func (j jsonMarshaler) MarshalJSON() ([]byte, error) {
++	if j.s == "" {
++		return nil, errors.New("json: empty string")
++	}
++	return []byte(fmt.Sprintf(`[%q]`, j.s)), nil
++}
++
++func TestAppendJSONValue(t *testing.T) {
++	// On most values, jsonAppendAttrValue should agree with json.Marshal.
++	for _, value := range []any{
++		"hello",
++		`"[{escape}]"`,
++		"<escapeHTML&>",
++		`-123`,
++		int64(-9_200_123_456_789_123_456),
++		uint64(9_200_123_456_789_123_456),
++		-12.75,
++		1.23e-9,
++		false,
++		time.Minute,
++		testTime,
++		jsonMarshaler{"xyz"},
++	} {
++		got := jsonValueString(t, AnyValue(value))
++		want, err := marshalJSON(value)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if got != want {
++			t.Errorf("%v: got %s, want %s", value, got, want)
++		}
++	}
++}
++
++func marshalJSON(x any) (string, error) {
++	var buf bytes.Buffer
++	enc := json.NewEncoder(&buf)
++	enc.SetEscapeHTML(false)
++	if err := enc.Encode(x); err != nil {
++		return "", err
++	}
++	return strings.TrimSpace(buf.String()), nil
++}
++
++func TestJSONAppendAttrValueSpecial(t *testing.T) {
++	// Attr values that render differently from json.Marshal.
++	for _, test := range []struct {
++		value any
++		want  string
++	}{
++		{math.NaN(), `"NaN"`},
++		{math.Inf(+1), `"+Inf"`},
++		{math.Inf(-1), `"-Inf"`},
++		{LevelWarn, `"WARN"`},
++	} {
++		got := jsonValueString(t, AnyValue(test.value))
++		if got != test.want {
++			t.Errorf("%v: got %s, want %s", test.value, got, test.want)
++		}
++	}
++}
++
++func jsonValueString(t *testing.T, v Value) string {
++	t.Helper()
++	var buf []byte
++	s := &handleState{h: &commonHandler{json: true}, buf: (*buffer.Buffer)(&buf)}
++	if err := appendJSONValue(s, v); err != nil {
++		t.Fatal(err)
++	}
++	return string(buf)
++}
++
++func BenchmarkJSONHandler(b *testing.B) {
++	for _, bench := range []struct {
++		name string
++		opts HandlerOptions
++	}{
++		{"defaults", HandlerOptions{}},
++		{"time format", HandlerOptions{
++			ReplaceAttr: func(_ []string, a Attr) Attr {
++				v := a.Value
++				if v.Kind() == KindTime {
++					return String(a.Key, v.Time().Format(rfc3339Millis))
++				}
++				if a.Key == "level" {
++					return Attr{"severity", a.Value}
++				}
++				return a
++			},
++		}},
++		{"time unix", HandlerOptions{
++			ReplaceAttr: func(_ []string, a Attr) Attr {
++				v := a.Value
++				if v.Kind() == KindTime {
++					return Int64(a.Key, v.Time().UnixNano())
++				}
++				if a.Key == "level" {
++					return Attr{"severity", a.Value}
++				}
++				return a
++			},
++		}},
++	} {
++		b.Run(bench.name, func(b *testing.B) {
++			l := New(bench.opts.NewJSONHandler(io.Discard)).With(
++				String("program", "my-test-program"),
++				String("package", "log/slog"),
++				String("traceID", "2039232309232309"),
++				String("URL", "https://pkg.go.dev/golang.org/x/log/slog"))
++			b.ReportAllocs()
++			b.ResetTimer()
++			for i := 0; i < b.N; i++ {
++				l.LogAttrs(nil, LevelInfo, "this is a typical log message",
++					String("module", "github.com/google/go-cmp"),
++					String("version", "v1.23.4"),
++					Int("count", 23),
++					Int("number", 123456),
++				)
++			}
++		})
++	}
++}
++
++func BenchmarkPreformatting(b *testing.B) {
++	type req struct {
++		Method  string
++		URL     string
++		TraceID string
++		Addr    string
++	}
++
++	structAttrs := []any{
++		String("program", "my-test-program"),
++		String("package", "log/slog"),
++		Any("request", &req{
++			Method:  "GET",
++			URL:     "https://pkg.go.dev/golang.org/x/log/slog",
++			TraceID: "2039232309232309",
++			Addr:    "127.0.0.1:8080",
++		}),
++	}
++
++	outFile, err := os.Create("/tmp/bench.log")
++	if err != nil {
++		b.Fatal(err)
++	}
++	defer func() {
++		if err := outFile.Close(); err != nil {
++			b.Fatal(err)
++		}
++	}()
++
++	for _, bench := range []struct {
++		name  string
++		wc    io.Writer
++		attrs []any
++	}{
++		{"separate", io.Discard, []any{
++			String("program", "my-test-program"),
++			String("package", "log/slog"),
++			String("method", "GET"),
++			String("URL", "https://pkg.go.dev/golang.org/x/log/slog"),
++			String("traceID", "2039232309232309"),
++			String("addr", "127.0.0.1:8080"),
++		}},
++		{"struct", io.Discard, structAttrs},
++		{"struct file", outFile, structAttrs},
++	} {
++		b.Run(bench.name, func(b *testing.B) {
++			l := New(NewJSONHandler(bench.wc)).With(bench.attrs...)
++			b.ReportAllocs()
++			b.ResetTimer()
++			for i := 0; i < b.N; i++ {
++				l.LogAttrs(nil, LevelInfo, "this is a typical log message",
++					String("module", "github.com/google/go-cmp"),
++					String("version", "v1.23.4"),
++					Int("count", 23),
++					Int("number", 123456),
++				)
++			}
++		})
++	}
++}
++
++func BenchmarkJSONEncoding(b *testing.B) {
++	value := 3.14
++	buf := buffer.New()
++	defer buf.Free()
++	b.Run("json.Marshal", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			by, err := json.Marshal(value)
++			if err != nil {
++				b.Fatal(err)
++			}
++			buf.Write(by)
++			*buf = (*buf)[:0]
++		}
++	})
++	b.Run("Encoder.Encode", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			if err := json.NewEncoder(buf).Encode(value); err != nil {
++				b.Fatal(err)
++			}
++			*buf = (*buf)[:0]
++		}
++	})
++	_ = buf
++}
+diff --git a/src/log/slog/level.go b/src/log/slog/level.go
+new file mode 100644
+index 0000000000..b2365f0aa5
+--- /dev/null
++++ b/src/log/slog/level.go
+@@ -0,0 +1,201 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"errors"
++	"fmt"
++	"strconv"
++	"strings"
++	"sync/atomic"
++)
++
++// A Level is the importance or severity of a log event.
++// The higher the level, the more important or severe the event.
++type Level int
++
++// Level numbers are inherently arbitrary,
++// but we picked them to satisfy three constraints.
++// Any system can map them to another numbering scheme if it wishes.
++//
++// First, we wanted the default level to be Info, Since Levels are ints, Info is
++// the default value for int, zero.
++//
++
++// Second, we wanted to make it easy to use levels to specify logger verbosity.
++// Since a larger level means a more severe event, a logger that accepts events
++// with smaller (or more negative) level means a more verbose logger. Logger
++// verbosity is thus the negation of event severity, and the default verbosity
++// of 0 accepts all events at least as severe as INFO.
++//
++// Third, we wanted some room between levels to accommodate schemes with named
++// levels between ours. For example, Google Cloud Logging defines a Notice level
++// between Info and Warn. Since there are only a few of these intermediate
++// levels, the gap between the numbers need not be large. Our gap of 4 matches
++// OpenTelemetry's mapping. Subtracting 9 from an OpenTelemetry level in the
++// DEBUG, INFO, WARN and ERROR ranges converts it to the corresponding slog
++// Level range. OpenTelemetry also has the names TRACE and FATAL, which slog
++// does not. But those OpenTelemetry levels can still be represented as slog
++// Levels by using the appropriate integers.
++//
++// Names for common levels.
++const (
++	LevelDebug Level = -4
++	LevelInfo  Level = 0
++	LevelWarn  Level = 4
++	LevelError Level = 8
++)
++
++// String returns a name for the level.
++// If the level has a name, then that name
++// in uppercase is returned.
++// If the level is between named values, then
++// an integer is appended to the uppercased name.
++// Examples:
++//
++//	LevelWarn.String() => "WARN"
++//	(LevelInfo+2).String() => "INFO+2"
++func (l Level) String() string {
++	str := func(base string, val Level) string {
++		if val == 0 {
++			return base
++		}
++		return fmt.Sprintf("%s%+d", base, val)
++	}
++
++	switch {
++	case l < LevelInfo:
++		return str("DEBUG", l-LevelDebug)
++	case l < LevelWarn:
++		return str("INFO", l-LevelInfo)
++	case l < LevelError:
++		return str("WARN", l-LevelWarn)
++	default:
++		return str("ERROR", l-LevelError)
++	}
++}
++
++// MarshalJSON implements [encoding/json.Marshaler]
++// by quoting the output of [Level.String].
++func (l Level) MarshalJSON() ([]byte, error) {
++	// AppendQuote is sufficient for JSON-encoding all Level strings.
++	// They don't contain any runes that would produce invalid JSON
++	// when escaped.
++	return strconv.AppendQuote(nil, l.String()), nil
++}
++
++// UnmarshalJSON implements [encoding/json.Unmarshaler]
++// It accepts any string produced by [Level.MarshalJSON],
++// ignoring case.
++// It also accepts numeric offsets that would result in a different string on
++// output. For example, "Error-8" would marshal as "INFO".
++func (l *Level) UnmarshalJSON(data []byte) error {
++	s, err := strconv.Unquote(string(data))
++	if err != nil {
++		return err
++	}
++	return l.parse(s)
++}
++
++// MarshalText implements [encoding.TextMarshaler]
++// by calling [Level.String].
++func (l Level) MarshalText() ([]byte, error) {
++	return []byte(l.String()), nil
++}
++
++// UnmarshalText implements [encoding.TextUnmarshaler].
++// It accepts any string produced by [Level.MarshalText],
++// ignoring case.
++// It also accepts numeric offsets that would result in a different string on
++// output. For example, "Error-8" would marshal as "INFO".
++func (l *Level) UnmarshalText(data []byte) error {
++	return l.parse(string(data))
++}
++
++func (l *Level) parse(s string) (err error) {
++	defer func() {
++		if err != nil {
++			err = fmt.Errorf("slog: level string %q: %w", s, err)
++		}
++	}()
++
++	name := s
++	offset := 0
++	if i := strings.IndexAny(s, "+-"); i >= 0 {
++		name = s[:i]
++		offset, err = strconv.Atoi(s[i:])
++		if err != nil {
++			return err
++		}
++	}
++	switch strings.ToUpper(name) {
++	case "DEBUG":
++		*l = LevelDebug
++	case "INFO":
++		*l = LevelInfo
++	case "WARN":
++		*l = LevelWarn
++	case "ERROR":
++		*l = LevelError
++	default:
++		return errors.New("unknown name")
++	}
++	*l += Level(offset)
++	return nil
++}
++
++// Level returns the receiver.
++// It implements Leveler.
++func (l Level) Level() Level { return l }
++
++// A LevelVar is a Level variable, to allow a Handler level to change
++// dynamically.
++// It implements Leveler as well as a Set method,
++// and it is safe for use by multiple goroutines.
++// The zero LevelVar corresponds to LevelInfo.
++type LevelVar struct {
++	val atomic.Int64
++}
++
++// Level returns v's level.
++func (v *LevelVar) Level() Level {
++	return Level(int(v.val.Load()))
++}
++
++// Set sets v's level to l.
++func (v *LevelVar) Set(l Level) {
++	v.val.Store(int64(l))
++}
++
++func (v *LevelVar) String() string {
++	return fmt.Sprintf("LevelVar(%s)", v.Level())
++}
++
++// MarshalText implements [encoding.TextMarshaler]
++// by calling [Level.MarshalText].
++func (v *LevelVar) MarshalText() ([]byte, error) {
++	return v.Level().MarshalText()
++}
++
++// UnmarshalText implements [encoding.TextUnmarshaler]
++// by calling [Level.UnmarshalText].
++func (v *LevelVar) UnmarshalText(data []byte) error {
++	var l Level
++	if err := l.UnmarshalText(data); err != nil {
++		return err
++	}
++	v.Set(l)
++	return nil
++}
++
++// A Leveler provides a Level value.
++//
++// As Level itself implements Leveler, clients typically supply
++// a Level value wherever a Leveler is needed, such as in HandlerOptions.
++// Clients who need to vary the level dynamically can provide a more complex
++// Leveler implementation such as *LevelVar.
++type Leveler interface {
++	Level() Level
++}
+diff --git a/src/log/slog/level_test.go b/src/log/slog/level_test.go
+new file mode 100644
+index 0000000000..33b20fdb68
+--- /dev/null
++++ b/src/log/slog/level_test.go
+@@ -0,0 +1,168 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"flag"
++	"strings"
++	"testing"
++)
++
++func TestLevelString(t *testing.T) {
++	for _, test := range []struct {
++		in   Level
++		want string
++	}{
++		{0, "INFO"},
++		{LevelError, "ERROR"},
++		{LevelError + 2, "ERROR+2"},
++		{LevelError - 2, "WARN+2"},
++		{LevelWarn, "WARN"},
++		{LevelWarn - 1, "INFO+3"},
++		{LevelInfo, "INFO"},
++		{LevelInfo + 1, "INFO+1"},
++		{LevelInfo - 3, "DEBUG+1"},
++		{LevelDebug, "DEBUG"},
++		{LevelDebug - 2, "DEBUG-2"},
++	} {
++		got := test.in.String()
++		if got != test.want {
++			t.Errorf("%d: got %s, want %s", test.in, got, test.want)
++		}
++	}
++}
++
++func TestLevelVar(t *testing.T) {
++	var al LevelVar
++	if got, want := al.Level(), LevelInfo; got != want {
++		t.Errorf("got %v, want %v", got, want)
++	}
++	al.Set(LevelWarn)
++	if got, want := al.Level(), LevelWarn; got != want {
++		t.Errorf("got %v, want %v", got, want)
++	}
++	al.Set(LevelInfo)
++	if got, want := al.Level(), LevelInfo; got != want {
++		t.Errorf("got %v, want %v", got, want)
++	}
++
++}
++
++func TestMarshalJSON(t *testing.T) {
++	want := LevelWarn - 3
++	data, err := want.MarshalJSON()
++	if err != nil {
++		t.Fatal(err)
++	}
++	var got Level
++	if err := got.UnmarshalJSON(data); err != nil {
++		t.Fatal(err)
++	}
++	if got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++}
++
++func TestLevelMarshalText(t *testing.T) {
++	want := LevelWarn - 3
++	data, err := want.MarshalText()
++	if err != nil {
++		t.Fatal(err)
++	}
++	var got Level
++	if err := got.UnmarshalText(data); err != nil {
++		t.Fatal(err)
++	}
++	if got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++}
++
++func TestLevelParse(t *testing.T) {
++	for _, test := range []struct {
++		in   string
++		want Level
++	}{
++		{"DEBUG", LevelDebug},
++		{"INFO", LevelInfo},
++		{"WARN", LevelWarn},
++		{"ERROR", LevelError},
++		{"debug", LevelDebug},
++		{"iNfo", LevelInfo},
++		{"INFO+87", LevelInfo + 87},
++		{"Error-18", LevelError - 18},
++		{"Error-8", LevelInfo},
++	} {
++		var got Level
++		if err := got.parse(test.in); err != nil {
++			t.Fatalf("%q: %v", test.in, err)
++		}
++		if got != test.want {
++			t.Errorf("%q: got %s, want %s", test.in, got, test.want)
++		}
++	}
++}
++
++func TestLevelParseError(t *testing.T) {
++	for _, test := range []struct {
++		in   string
++		want string // error string should contain this
++	}{
++		{"", "unknown name"},
++		{"dbg", "unknown name"},
++		{"INFO+", "invalid syntax"},
++		{"INFO-", "invalid syntax"},
++		{"ERROR+23x", "invalid syntax"},
++	} {
++		var l Level
++		err := l.parse(test.in)
++		if err == nil || !strings.Contains(err.Error(), test.want) {
++			t.Errorf("%q: got %v, want string containing %q", test.in, err, test.want)
++		}
++	}
++}
++
++func TestLevelFlag(t *testing.T) {
++	fs := flag.NewFlagSet("test", flag.ContinueOnError)
++	lf := LevelInfo
++	fs.TextVar(&lf, "level", lf, "set level")
++	err := fs.Parse([]string{"-level", "WARN+3"})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if g, w := lf, LevelWarn+3; g != w {
++		t.Errorf("got %v, want %v", g, w)
++	}
++}
++
++func TestLevelVarMarshalText(t *testing.T) {
++	var v LevelVar
++	v.Set(LevelWarn)
++	data, err := v.MarshalText()
++	if err != nil {
++		t.Fatal(err)
++	}
++	var v2 LevelVar
++	if err := v2.UnmarshalText(data); err != nil {
++		t.Fatal(err)
++	}
++	if g, w := v2.Level(), LevelWarn; g != w {
++		t.Errorf("got %s, want %s", g, w)
++	}
++}
++
++func TestLevelVarFlag(t *testing.T) {
++	fs := flag.NewFlagSet("test", flag.ContinueOnError)
++	v := &LevelVar{}
++	v.Set(LevelWarn + 3)
++	fs.TextVar(v, "level", v, "set level")
++	err := fs.Parse([]string{"-level", "WARN+3"})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if g, w := v.Level(), LevelWarn+3; g != w {
++		t.Errorf("got %v, want %v", g, w)
++	}
++}
+diff --git a/src/log/slog/logger.go b/src/log/slog/logger.go
+new file mode 100644
+index 0000000000..fc734b2ba6
+--- /dev/null
++++ b/src/log/slog/logger.go
+@@ -0,0 +1,300 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"context"
++	"log"
++	"log/slog/internal"
++	"runtime"
++	"sync/atomic"
++	"time"
++)
++
++var defaultLogger atomic.Value
++
++func init() {
++	defaultLogger.Store(New(newDefaultHandler(log.Output)))
++}
++
++// Default returns the default Logger.
++func Default() *Logger { return defaultLogger.Load().(*Logger) }
++
++// SetDefault makes l the default Logger.
++// After this call, output from the log package's default Logger
++// (as with [log.Print], etc.) will be logged at LevelInfo using l's Handler.
++func SetDefault(l *Logger) {
++	defaultLogger.Store(l)
++	// If the default's handler is a defaultHandler, then don't use a handleWriter,
++	// or we'll deadlock as they both try to acquire the log default mutex.
++	// The defaultHandler will use whatever the log default writer is currently
++	// set to, which is correct.
++	// This can occur with SetDefault(Default()).
++	// See TestSetDefault.
++	if _, ok := l.Handler().(*defaultHandler); !ok {
++		capturePC := log.Flags()&(log.Lshortfile|log.Llongfile) != 0
++		log.SetOutput(&handlerWriter{l.Handler(), LevelInfo, capturePC})
++		log.SetFlags(0) // we want just the log message, no time or location
++	}
++}
++
++// handlerWriter is an io.Writer that calls a Handler.
++// It is used to link the default log.Logger to the default slog.Logger.
++type handlerWriter struct {
++	h         Handler
++	level     Level
++	capturePC bool
++}
++
++func (w *handlerWriter) Write(buf []byte) (int, error) {
++	if !w.h.Enabled(context.Background(), w.level) {
++		return 0, nil
++	}
++	var pc uintptr
++	if !internal.IgnorePC && w.capturePC {
++		// skip [runtime.Callers, w.Write, Logger.Output, log.Print]
++		var pcs [1]uintptr
++		runtime.Callers(4, pcs[:])
++		pc = pcs[0]
++	}
++
++	// Remove final newline.
++	origLen := len(buf) // Report that the entire buf was written.
++	if len(buf) > 0 && buf[len(buf)-1] == '\n' {
++		buf = buf[:len(buf)-1]
++	}
++	r := NewRecord(time.Now(), w.level, string(buf), pc)
++	return origLen, w.h.Handle(context.Background(), r)
++}
++
++// A Logger records structured information about each call to its
++// Log, Debug, Info, Warn, and Error methods.
++// For each call, it creates a Record and passes it to a Handler.
++//
++// To create a new Logger, call [New] or a Logger method
++// that begins "With".
++type Logger struct {
++	handler Handler // for structured logging
++}
++
++func (l *Logger) clone() *Logger {
++	c := *l
++	return &c
++}
++
++// Handler returns l's Handler.
++func (l *Logger) Handler() Handler { return l.handler }
++
++// With returns a new Logger that includes the given arguments, converted to
++// Attrs as in [Logger.Log] and resolved.
++// The Attrs will be added to each output from the Logger.
++// The new Logger shares the old Logger's context.
++// The new Logger's handler is the result of calling WithAttrs on the receiver's
++// handler.
++func (l *Logger) With(args ...any) *Logger {
++	var (
++		attr  Attr
++		attrs []Attr
++	)
++	for len(args) > 0 {
++		attr, args = argsToAttr(args)
++		attrs = append(attrs, attr)
++	}
++	c := l.clone()
++	c.handler = l.handler.WithAttrs(attrs)
++	return c
++}
++
++// WithGroup returns a new Logger that starts a group. The keys of all
++// attributes added to the Logger will be qualified by the given name.
++// The new Logger shares the old Logger's context.
++//
++// The new Logger's handler is the result of calling WithGroup on the receiver's
++// handler.
++func (l *Logger) WithGroup(name string) *Logger {
++	c := l.clone()
++	c.handler = l.handler.WithGroup(name)
++	return c
++
++}
++
++// New creates a new Logger with the given non-nil Handler and a nil context.
++func New(h Handler) *Logger {
++	if h == nil {
++		panic("nil Handler")
++	}
++	return &Logger{handler: h}
++}
++
++// With calls Logger.With on the default logger.
++func With(args ...any) *Logger {
++	return Default().With(args...)
++}
++
++// Enabled reports whether l emits log records at the given context and level.
++func (l *Logger) Enabled(ctx context.Context, level Level) bool {
++	if ctx == nil {
++		ctx = context.Background()
++	}
++	return l.Handler().Enabled(ctx, level)
++}
++
++// NewLogLogger returns a new log.Logger such that each call to its Output method
++// dispatches a Record to the specified handler. The logger acts as a bridge from
++// the older log API to newer structured logging handlers.
++func NewLogLogger(h Handler, level Level) *log.Logger {
++	return log.New(&handlerWriter{h, level, true}, "", 0)
++}
++
++// Log emits a log record with the current time and the given level and message.
++// The Record's Attrs consist of the Logger's attributes followed by
++// the Attrs specified by args.
++//
++// The attribute arguments are processed as follows:
++//   - If an argument is an Attr, it is used as is.
++//   - If an argument is a string and this is not the last argument,
++//     the following argument is treated as the value and the two are combined
++//     into an Attr.
++//   - Otherwise, the argument is treated as a value with key "!BADKEY".
++func (l *Logger) Log(ctx context.Context, level Level, msg string, args ...any) {
++	l.log(ctx, level, msg, args...)
++}
++
++// LogAttrs is a more efficient version of [Logger.Log] that accepts only Attrs.
++func (l *Logger) LogAttrs(ctx context.Context, level Level, msg string, attrs ...Attr) {
++	l.logAttrs(ctx, level, msg, attrs...)
++}
++
++// Debug logs at LevelDebug.
++func (l *Logger) Debug(msg string, args ...any) {
++	l.log(nil, LevelDebug, msg, args...)
++}
++
++// DebugCtx logs at LevelDebug with the given context.
++func (l *Logger) DebugCtx(ctx context.Context, msg string, args ...any) {
++	l.log(ctx, LevelDebug, msg, args...)
++}
++
++// Info logs at LevelInfo.
++func (l *Logger) Info(msg string, args ...any) {
++	l.log(nil, LevelInfo, msg, args...)
++}
++
++// InfoCtx logs at LevelInfo with the given context.
++func (l *Logger) InfoCtx(ctx context.Context, msg string, args ...any) {
++	l.log(ctx, LevelInfo, msg, args...)
++}
++
++// Warn logs at LevelWarn.
++func (l *Logger) Warn(msg string, args ...any) {
++	l.log(nil, LevelWarn, msg, args...)
++}
++
++// WarnCtx logs at LevelWarn with the given context.
++func (l *Logger) WarnCtx(ctx context.Context, msg string, args ...any) {
++	l.log(ctx, LevelWarn, msg, args...)
++}
++
++// Error logs at LevelError.
++func (l *Logger) Error(msg string, args ...any) {
++	l.log(nil, LevelError, msg, args...)
++}
++
++// ErrorCtx logs at LevelError with the given context.
++func (l *Logger) ErrorCtx(ctx context.Context, msg string, args ...any) {
++	l.log(ctx, LevelError, msg, args...)
++}
++
++// log is the low-level logging method for methods that take ...any.
++// It must always be called directly by an exported logging method
++// or function, because it uses a fixed call depth to obtain the pc.
++func (l *Logger) log(ctx context.Context, level Level, msg string, args ...any) {
++	if !l.Enabled(ctx, level) {
++		return
++	}
++	var pc uintptr
++	if !internal.IgnorePC {
++		var pcs [1]uintptr
++		// skip [runtime.Callers, this function, this function's caller]
++		runtime.Callers(3, pcs[:])
++		pc = pcs[0]
++	}
++	r := NewRecord(time.Now(), level, msg, pc)
++	r.Add(args...)
++	if ctx == nil {
++		ctx = context.Background()
++	}
++	_ = l.Handler().Handle(ctx, r)
++}
++
++// logAttrs is like [Logger.log], but for methods that take ...Attr.
++func (l *Logger) logAttrs(ctx context.Context, level Level, msg string, attrs ...Attr) {
++	if !l.Enabled(ctx, level) {
++		return
++	}
++	var pc uintptr
++	if !internal.IgnorePC {
++		var pcs [1]uintptr
++		// skip [runtime.Callers, this function, this function's caller]
++		runtime.Callers(3, pcs[:])
++		pc = pcs[0]
++	}
++	r := NewRecord(time.Now(), level, msg, pc)
++	r.AddAttrs(attrs...)
++	if ctx == nil {
++		ctx = context.Background()
++	}
++	_ = l.Handler().Handle(ctx, r)
++}
++
++// Debug calls Logger.Debug on the default logger.
++func Debug(msg string, args ...any) {
++	Default().log(nil, LevelDebug, msg, args...)
++}
++
++// DebugCtx calls Logger.DebugCtx on the default logger.
++func DebugCtx(ctx context.Context, msg string, args ...any) {
++	Default().log(ctx, LevelDebug, msg, args...)
++}
++
++// Info calls Logger.Info on the default logger.
++func Info(msg string, args ...any) {
++	Default().log(nil, LevelInfo, msg, args...)
++}
++
++// InfoCtx calls Logger.InfoCtx on the default logger.
++func InfoCtx(ctx context.Context, msg string, args ...any) {
++	Default().log(ctx, LevelInfo, msg, args...)
++}
++
++// Warn calls Logger.Warn on the default logger.
++func Warn(msg string, args ...any) {
++	Default().log(nil, LevelWarn, msg, args...)
++}
++
++// WarnCtx calls Logger.WarnCtx on the default logger.
++func WarnCtx(ctx context.Context, msg string, args ...any) {
++	Default().log(ctx, LevelWarn, msg, args...)
++}
++
++// Error calls Logger.Error on the default logger.
++func Error(msg string, args ...any) {
++	Default().log(nil, LevelError, msg, args...)
++}
++
++// ErrorCtx calls Logger.ErrorCtx on the default logger.
++func ErrorCtx(ctx context.Context, msg string, args ...any) {
++	Default().log(ctx, LevelError, msg, args...)
++}
++
++// Log calls Logger.Log on the default logger.
++func Log(ctx context.Context, level Level, msg string, args ...any) {
++	Default().log(ctx, level, msg, args...)
++}
++
++// LogAttrs calls Logger.LogAttrs on the default logger.
++func LogAttrs(ctx context.Context, level Level, msg string, attrs ...Attr) {
++	Default().logAttrs(ctx, level, msg, attrs...)
++}
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+new file mode 100644
+index 0000000000..1235caa69a
+--- /dev/null
++++ b/src/log/slog/logger_test.go
+@@ -0,0 +1,511 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"bytes"
++	"context"
++	"io"
++	"log"
++	"path/filepath"
++	"regexp"
++	"runtime"
++	"slices"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++)
++
++const timeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})`
++
++func TestLogTextHandler(t *testing.T) {
++	var buf bytes.Buffer
++
++	l := New(NewTextHandler(&buf))
++
++	check := func(want string) {
++		t.Helper()
++		if want != "" {
++			want = "time=" + timeRE + " " + want
++		}
++		checkLogOutput(t, buf.String(), want)
++		buf.Reset()
++	}
++
++	l.Info("msg", "a", 1, "b", 2)
++	check(`level=INFO msg=msg a=1 b=2`)
++
++	// By default, debug messages are not printed.
++	l.Debug("bg", Int("a", 1), "b", 2)
++	check("")
++
++	l.Warn("w", Duration("dur", 3*time.Second))
++	check(`level=WARN msg=w dur=3s`)
++
++	l.Error("bad", "a", 1)
++	check(`level=ERROR msg=bad a=1`)
++
++	l.Log(nil, LevelWarn+1, "w", Int("a", 1), String("b", "two"))
++	check(`level=WARN\+1 msg=w a=1 b=two`)
++
++	l.LogAttrs(nil, LevelInfo+1, "a b c", Int("a", 1), String("b", "two"))
++	check(`level=INFO\+1 msg="a b c" a=1 b=two`)
++
++	l.Info("info", "a", []Attr{Int("i", 1)})
++	check(`level=INFO msg=info a.i=1`)
++
++	l.Info("info", "a", GroupValue(Int("i", 1)))
++	check(`level=INFO msg=info a.i=1`)
++}
++
++func TestConnections(t *testing.T) {
++	var logbuf, slogbuf bytes.Buffer
++
++	// Revert any changes to the default logger. This is important because other
++	// tests might change the default logger using SetDefault. Also ensure we
++	// restore the default logger at the end of the test.
++	currentLogger := Default()
++	SetDefault(New(newDefaultHandler(log.Output)))
++	t.Cleanup(func() {
++		SetDefault(currentLogger)
++	})
++
++	// The default slog.Logger's handler uses the log package's default output.
++	log.SetOutput(&logbuf)
++	log.SetFlags(log.Lshortfile &^ log.LstdFlags)
++	Info("msg", "a", 1)
++	checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: INFO msg a=1`)
++	logbuf.Reset()
++	Warn("msg", "b", 2)
++	checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: WARN msg b=2`)
++	logbuf.Reset()
++	Error("msg", "err", io.EOF, "c", 3)
++	checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: ERROR msg err=EOF c=3`)
++
++	// Levels below Info are not printed.
++	logbuf.Reset()
++	Debug("msg", "c", 3)
++	checkLogOutput(t, logbuf.String(), "")
++
++	t.Run("wrap default handler", func(t *testing.T) {
++		// It should be possible to wrap the default handler and get the right output.
++		// But because the call depth to log.Output is hard-coded, the source line is wrong.
++		// We want to use the pc inside the Record, but there is no way to give that to
++		// the log package.
++		//
++		// TODO(jba): when slog lives under log in the standard library, we can
++		// move the bulk of log.Logger.Output to a function in an internal
++		// package, so both log and slog can call it.
++		//
++		// While slog lives in exp, we punt.
++		t.Skip("skip until this package is in the standard library")
++		logger := New(wrappingHandler{Default().Handler()})
++		logger.Info("msg", "d", 4)
++		checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: INFO msg d=4`)
++	})
++
++	// Once slog.SetDefault is called, the direction is reversed: the default
++	// log.Logger's output goes through the handler.
++	SetDefault(New(HandlerOptions{AddSource: true}.NewTextHandler(&slogbuf)))
++	log.Print("msg2")
++	checkLogOutput(t, slogbuf.String(), "time="+timeRE+` level=INFO source=.*logger_test.go:\d{3} msg=msg2`)
++
++	// The default log.Logger always outputs at Info level.
++	slogbuf.Reset()
++	SetDefault(New(HandlerOptions{Level: LevelWarn}.NewTextHandler(&slogbuf)))
++	log.Print("should not appear")
++	if got := slogbuf.String(); got != "" {
++		t.Errorf("got %q, want empty", got)
++	}
++
++	// Setting log's output again breaks the connection.
++	logbuf.Reset()
++	slogbuf.Reset()
++	log.SetOutput(&logbuf)
++	log.SetFlags(log.Lshortfile &^ log.LstdFlags)
++	log.Print("msg3")
++	checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: msg3`)
++	if got := slogbuf.String(); got != "" {
++		t.Errorf("got %q, want empty", got)
++	}
++}
++
++type wrappingHandler struct {
++	h Handler
++}
++
++func (h wrappingHandler) Enabled(ctx context.Context, level Level) bool {
++	return h.h.Enabled(ctx, level)
++}
++func (h wrappingHandler) WithGroup(name string) Handler              { return h.h.WithGroup(name) }
++func (h wrappingHandler) WithAttrs(as []Attr) Handler                { return h.h.WithAttrs(as) }
++func (h wrappingHandler) Handle(ctx context.Context, r Record) error { return h.h.Handle(ctx, r) }
++
++func TestAttrs(t *testing.T) {
++	check := func(got []Attr, want ...Attr) {
++		t.Helper()
++		if !attrsEqual(got, want) {
++			t.Errorf("got %v, want %v", got, want)
++		}
++	}
++
++	l1 := New(&captureHandler{}).With("a", 1)
++	l2 := New(l1.Handler()).With("b", 2)
++	l2.Info("m", "c", 3)
++	h := l2.Handler().(*captureHandler)
++	check(h.attrs, Int("a", 1), Int("b", 2))
++	check(attrsSlice(h.r), Int("c", 3))
++}
++
++func sourceLine(r Record) (string, int) {
++	f := r.frame()
++	return f.File, f.Line
++}
++
++func TestCallDepth(t *testing.T) {
++	h := &captureHandler{}
++	var startLine int
++
++	check := func(count int) {
++		t.Helper()
++		const wantFile = "logger_test.go"
++		wantLine := startLine + count*2
++		gotFile, gotLine := sourceLine(h.r)
++		gotFile = filepath.Base(gotFile)
++		if gotFile != wantFile || gotLine != wantLine {
++			t.Errorf("got (%s, %d), want (%s, %d)", gotFile, gotLine, wantFile, wantLine)
++		}
++	}
++
++	logger := New(h)
++	SetDefault(logger)
++
++	// Calls to check must be one line apart.
++	// Determine line where calls start.
++	f, _ := runtime.CallersFrames([]uintptr{callerPC(2)}).Next()
++	startLine = f.Line + 4
++	// Do not change the number of lines between here and the call to check(0).
++
++	logger.Log(nil, LevelInfo, "")
++	check(0)
++	logger.LogAttrs(nil, LevelInfo, "")
++	check(1)
++	logger.Debug("")
++	check(2)
++	logger.Info("")
++	check(3)
++	logger.Warn("")
++	check(4)
++	logger.Error("")
++	check(5)
++	Debug("")
++	check(6)
++	Info("")
++	check(7)
++	Warn("")
++	check(8)
++	Error("")
++	check(9)
++	Log(nil, LevelInfo, "")
++	check(10)
++	LogAttrs(nil, LevelInfo, "")
++	check(11)
++}
++
++func TestAlloc(t *testing.T) {
++	dl := New(discardHandler{})
++	defer func(d *Logger) { SetDefault(d) }(Default())
++	SetDefault(dl)
++
++	t.Run("Info", func(t *testing.T) {
++		wantAllocs(t, 0, func() { Info("hello") })
++	})
++	t.Run("Error", func(t *testing.T) {
++		wantAllocs(t, 0, func() { Error("hello") })
++	})
++	t.Run("logger.Info", func(t *testing.T) {
++		wantAllocs(t, 0, func() { dl.Info("hello") })
++	})
++	t.Run("logger.Log", func(t *testing.T) {
++		wantAllocs(t, 0, func() { dl.Log(nil, LevelDebug, "hello") })
++	})
++	t.Run("2 pairs", func(t *testing.T) {
++		s := "abc"
++		i := 2000
++		wantAllocs(t, 2, func() {
++			dl.Info("hello",
++				"n", i,
++				"s", s,
++			)
++		})
++	})
++	t.Run("2 pairs disabled inline", func(t *testing.T) {
++		l := New(discardHandler{disabled: true})
++		s := "abc"
++		i := 2000
++		wantAllocs(t, 2, func() {
++			l.Log(nil, LevelInfo, "hello",
++				"n", i,
++				"s", s,
++			)
++		})
++	})
++	t.Run("2 pairs disabled", func(t *testing.T) {
++		l := New(discardHandler{disabled: true})
++		s := "abc"
++		i := 2000
++		wantAllocs(t, 0, func() {
++			if l.Enabled(nil, LevelInfo) {
++				l.Log(nil, LevelInfo, "hello",
++					"n", i,
++					"s", s,
++				)
++			}
++		})
++	})
++	t.Run("9 kvs", func(t *testing.T) {
++		s := "abc"
++		i := 2000
++		d := time.Second
++		wantAllocs(t, 11, func() {
++			dl.Info("hello",
++				"n", i, "s", s, "d", d,
++				"n", i, "s", s, "d", d,
++				"n", i, "s", s, "d", d)
++		})
++	})
++	t.Run("pairs", func(t *testing.T) {
++		wantAllocs(t, 0, func() { dl.Info("", "error", io.EOF) })
++	})
++	t.Run("attrs1", func(t *testing.T) {
++		wantAllocs(t, 0, func() { dl.LogAttrs(nil, LevelInfo, "", Int("a", 1)) })
++		wantAllocs(t, 0, func() { dl.LogAttrs(nil, LevelInfo, "", Any("error", io.EOF)) })
++	})
++	t.Run("attrs3", func(t *testing.T) {
++		wantAllocs(t, 0, func() {
++			dl.LogAttrs(nil, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
++		})
++	})
++	t.Run("attrs3 disabled", func(t *testing.T) {
++		logger := New(discardHandler{disabled: true})
++		wantAllocs(t, 0, func() {
++			logger.LogAttrs(nil, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
++		})
++	})
++	t.Run("attrs6", func(t *testing.T) {
++		wantAllocs(t, 1, func() {
++			dl.LogAttrs(nil, LevelInfo, "hello",
++				Int("a", 1), String("b", "two"), Duration("c", time.Second),
++				Int("d", 1), String("e", "two"), Duration("f", time.Second))
++		})
++	})
++	t.Run("attrs9", func(t *testing.T) {
++		wantAllocs(t, 1, func() {
++			dl.LogAttrs(nil, LevelInfo, "hello",
++				Int("a", 1), String("b", "two"), Duration("c", time.Second),
++				Int("d", 1), String("e", "two"), Duration("f", time.Second),
++				Int("d", 1), String("e", "two"), Duration("f", time.Second))
++		})
++	})
++}
++
++func TestSetAttrs(t *testing.T) {
++	for _, test := range []struct {
++		args []any
++		want []Attr
++	}{
++		{nil, nil},
++		{[]any{"a", 1}, []Attr{Int("a", 1)}},
++		{[]any{"a", 1, "b", "two"}, []Attr{Int("a", 1), String("b", "two")}},
++		{[]any{"a"}, []Attr{String(badKey, "a")}},
++		{[]any{"a", 1, "b"}, []Attr{Int("a", 1), String(badKey, "b")}},
++		{[]any{"a", 1, 2, 3}, []Attr{Int("a", 1), Int(badKey, 2), Int(badKey, 3)}},
++	} {
++		r := NewRecord(time.Time{}, 0, "", 0)
++		r.Add(test.args...)
++		got := attrsSlice(r)
++		if !attrsEqual(got, test.want) {
++			t.Errorf("%v:\ngot  %v\nwant %v", test.args, got, test.want)
++		}
++	}
++}
++
++func TestSetDefault(t *testing.T) {
++	// Verify that setting the default to itself does not result in deadlock.
++	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
++	defer cancel()
++	defer func(w io.Writer) { log.SetOutput(w) }(log.Writer())
++	log.SetOutput(io.Discard)
++	go func() {
++		Info("A")
++		SetDefault(Default())
++		Info("B")
++		cancel()
++	}()
++	<-ctx.Done()
++	if err := ctx.Err(); err != context.Canceled {
++		t.Errorf("wanted canceled, got %v", err)
++	}
++}
++
++func TestLoggerError(t *testing.T) {
++	var buf bytes.Buffer
++
++	removeTime := func(_ []string, a Attr) Attr {
++		if a.Key == TimeKey {
++			return Attr{}
++		}
++		return a
++	}
++	l := New(HandlerOptions{ReplaceAttr: removeTime}.NewTextHandler(&buf))
++	l.Error("msg", "err", io.EOF, "a", 1)
++	checkLogOutput(t, buf.String(), `level=ERROR msg=msg err=EOF a=1`)
++	buf.Reset()
++	l.Error("msg", "err", io.EOF, "a")
++	checkLogOutput(t, buf.String(), `level=ERROR msg=msg err=EOF !BADKEY=a`)
++}
++
++func TestNewLogLogger(t *testing.T) {
++	var buf bytes.Buffer
++	h := NewTextHandler(&buf)
++	ll := NewLogLogger(h, LevelWarn)
++	ll.Print("hello")
++	checkLogOutput(t, buf.String(), "time="+timeRE+` level=WARN msg=hello`)
++}
++
++func checkLogOutput(t *testing.T, got, wantRegexp string) {
++	t.Helper()
++	got = clean(got)
++	wantRegexp = "^" + wantRegexp + "$"
++	matched, err := regexp.MatchString(wantRegexp, got)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !matched {
++		t.Errorf("\ngot  %s\nwant %s", got, wantRegexp)
++	}
++}
++
++// clean prepares log output for comparison.
++func clean(s string) string {
++	if len(s) > 0 && s[len(s)-1] == '\n' {
++		s = s[:len(s)-1]
++	}
++	return strings.ReplaceAll(s, "\n", "~")
++}
++
++type captureHandler struct {
++	mu     sync.Mutex
++	r      Record
++	attrs  []Attr
++	groups []string
++}
++
++func (h *captureHandler) Handle(ctx context.Context, r Record) error {
++	h.mu.Lock()
++	defer h.mu.Unlock()
++	h.r = r
++	return nil
++}
++
++func (*captureHandler) Enabled(context.Context, Level) bool { return true }
++
++func (c *captureHandler) WithAttrs(as []Attr) Handler {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	var c2 captureHandler
++	c2.r = c.r
++	c2.groups = c.groups
++	c2.attrs = concat(c.attrs, as)
++	return &c2
++}
++
++func (c *captureHandler) WithGroup(name string) Handler {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	var c2 captureHandler
++	c2.r = c.r
++	c2.attrs = c.attrs
++	c2.groups = append(slices.Clip(c.groups), name)
++	return &c2
++}
++
++type discardHandler struct {
++	disabled bool
++	attrs    []Attr
++}
++
++func (d discardHandler) Enabled(context.Context, Level) bool { return !d.disabled }
++func (discardHandler) Handle(context.Context, Record) error  { return nil }
++func (d discardHandler) WithAttrs(as []Attr) Handler {
++	d.attrs = concat(d.attrs, as)
++	return d
++}
++func (h discardHandler) WithGroup(name string) Handler {
++	return h
++}
++
++// concat returns a new slice with the elements of s1 followed
++// by those of s2. The slice has no additional capacity.
++func concat[T any](s1, s2 []T) []T {
++	s := make([]T, len(s1)+len(s2))
++	copy(s, s1)
++	copy(s[len(s1):], s2)
++	return s
++}
++
++// This is a simple benchmark. See the benchmarks subdirectory for more extensive ones.
++func BenchmarkNopLog(b *testing.B) {
++	ctx := context.Background()
++	l := New(&captureHandler{})
++	b.Run("no attrs", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			l.LogAttrs(nil, LevelInfo, "msg")
++		}
++	})
++	b.Run("attrs", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			l.LogAttrs(nil, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
++		}
++	})
++	b.Run("attrs-parallel", func(b *testing.B) {
++		b.ReportAllocs()
++		b.RunParallel(func(pb *testing.PB) {
++			for pb.Next() {
++				l.LogAttrs(nil, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
++			}
++		})
++	})
++	b.Run("keys-values", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			l.Log(nil, LevelInfo, "msg", "a", 1, "b", "two", "c", true)
++		}
++	})
++	b.Run("WithContext", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			l.LogAttrs(ctx, LevelInfo, "msg2", Int("a", 1), String("b", "two"), Bool("c", true))
++		}
++	})
++	b.Run("WithContext-parallel", func(b *testing.B) {
++		b.ReportAllocs()
++		b.RunParallel(func(pb *testing.PB) {
++			for pb.Next() {
++				l.LogAttrs(ctx, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
++			}
++		})
++	})
++}
++
++// callerPC returns the program counter at the given stack depth.
++func callerPC(depth int) uintptr {
++	var pcs [1]uintptr
++	runtime.Callers(depth, pcs[:])
++	return pcs[0]
++}
+diff --git a/src/log/slog/norace_test.go b/src/log/slog/norace_test.go
+new file mode 100644
+index 0000000000..3dbee0cb7b
+--- /dev/null
++++ b/src/log/slog/norace_test.go
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"internal/race"
++	"internal/testenv"
++	"testing"
++)
++
++func wantAllocs(t *testing.T, want int, f func()) {
++	if race.Enabled {
++		t.Skip("skipping test in race mode")
++	}
++	testenv.SkipIfOptimizationOff(t)
++	t.Helper()
++	got := int(testing.AllocsPerRun(5, f))
++	if got != want {
++		t.Errorf("got %d allocs, want %d", got, want)
++	}
++}
+diff --git a/src/log/slog/record.go b/src/log/slog/record.go
+new file mode 100644
+index 0000000000..08fb850df9
+--- /dev/null
++++ b/src/log/slog/record.go
+@@ -0,0 +1,173 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"runtime"
++	"slices"
++	"time"
++)
++
++const nAttrsInline = 5
++
++// A Record holds information about a log event.
++// Copies of a Record share state.
++// Do not modify a Record after handing out a copy to it.
++// Use [Record.Clone] to create a copy with no shared state.
++type Record struct {
++	// The time at which the output method (Log, Info, etc.) was called.
++	Time time.Time
++
++	// The log message.
++	Message string
++
++	// The level of the event.
++	Level Level
++
++	// The program counter at the time the record was constructed, as determined
++	// by runtime.Callers. If zero, no program counter is available.
++	//
++	// The only valid use for this value is as an argument to
++	// [runtime.CallersFrames]. In particular, it must not be passed to
++	// [runtime.FuncForPC].
++	PC uintptr
++
++	// Allocation optimization: an inline array sized to hold
++	// the majority of log calls (based on examination of open-source
++	// code). It holds the start of the list of Attrs.
++	front [nAttrsInline]Attr
++
++	// The number of Attrs in front.
++	nFront int
++
++	// The list of Attrs except for those in front.
++	// Invariants:
++	//   - len(back) > 0 iff nFront == len(front)
++	//   - Unused array elements are zero. Used to detect mistakes.
++	back []Attr
++}
++
++// NewRecord creates a Record from the given arguments.
++// Use [Record.AddAttrs] to add attributes to the Record.
++//
++// NewRecord is intended for logging APIs that want to support a [Handler] as
++// a backend.
++func NewRecord(t time.Time, level Level, msg string, pc uintptr) Record {
++	return Record{
++		Time:    t,
++		Message: msg,
++		Level:   level,
++		PC:      pc,
++	}
++}
++
++// frame returns the runtime.Frame of the log event.
++// If the Record was created without the necessary information,
++// or if the location is unavailable, it returns a zero Frame.
++func (r Record) frame() runtime.Frame {
++	fs := runtime.CallersFrames([]uintptr{r.PC})
++	f, _ := fs.Next()
++	return f
++}
++
++// Clone returns a copy of the record with no shared state.
++// The original record and the clone can both be modified
++// without interfering with each other.
++func (r Record) Clone() Record {
++	r.back = slices.Clip(r.back) // prevent append from mutating shared array
++	return r
++}
++
++// NumAttrs returns the number of attributes in the Record.
++func (r Record) NumAttrs() int {
++	return r.nFront + len(r.back)
++}
++
++// Attrs calls f on each Attr in the Record.
++// The Attrs are already resolved.
++func (r Record) Attrs(f func(Attr)) {
++	for i := 0; i < r.nFront; i++ {
++		f(r.front[i])
++	}
++	for _, a := range r.back {
++		f(a)
++	}
++}
++
++// AddAttrs appends the given Attrs to the Record's list of Attrs.
++// It resolves the Attrs before doing so.
++func (r *Record) AddAttrs(attrs ...Attr) {
++	resolveAttrs(attrs)
++	n := copy(r.front[r.nFront:], attrs)
++	r.nFront += n
++	// Check if a copy was modified by slicing past the end
++	// and seeing if the Attr there is non-zero.
++	if cap(r.back) > len(r.back) {
++		end := r.back[:len(r.back)+1][len(r.back)]
++		if end != (Attr{}) {
++			panic("copies of a slog.Record were both modified")
++		}
++	}
++	r.back = append(r.back, attrs[n:]...)
++}
++
++// Add converts the args to Attrs as described in [Logger.Log],
++// then appends the Attrs to the Record's list of Attrs.
++// It resolves the Attrs before doing so.
++func (r *Record) Add(args ...any) {
++	var a Attr
++	for len(args) > 0 {
++		a, args = argsToAttr(args)
++		if r.nFront < len(r.front) {
++			r.front[r.nFront] = a
++			r.nFront++
++		} else {
++			if r.back == nil {
++				r.back = make([]Attr, 0, countAttrs(args))
++			}
++			r.back = append(r.back, a)
++		}
++	}
++
++}
++
++// countAttrs returns the number of Attrs that would be created from args.
++func countAttrs(args []any) int {
++	n := 0
++	for i := 0; i < len(args); i++ {
++		n++
++		if _, ok := args[i].(string); ok {
++			i++
++		}
++	}
++	return n
++}
++
++const badKey = "!BADKEY"
++
++// argsToAttr turns a prefix of the nonempty args slice into an Attr
++// and returns the unconsumed portion of the slice.
++// If args[0] is an Attr, it returns it, resolved.
++// If args[0] is a string, it treats the first two elements as
++// a key-value pair.
++// Otherwise, it treats args[0] as a value with a missing key.
++func argsToAttr(args []any) (Attr, []any) {
++	switch x := args[0].(type) {
++	case string:
++		if len(args) == 1 {
++			return String(badKey, x), nil
++		}
++		a := Any(x, args[1])
++		a.Value = a.Value.Resolve()
++		return a, args[2:]
++
++	case Attr:
++		x.Value = x.Value.Resolve()
++		return x, args[1:]
++
++	default:
++		return Any(badKey, x), args[1:]
++	}
++}
+diff --git a/src/log/slog/record_test.go b/src/log/slog/record_test.go
+new file mode 100644
+index 0000000000..b1410f51ab
+--- /dev/null
++++ b/src/log/slog/record_test.go
+@@ -0,0 +1,163 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"log/slog/internal/buffer"
++	"slices"
++	"strconv"
++	"strings"
++	"testing"
++	"time"
++)
++
++func TestRecordAttrs(t *testing.T) {
++	as := []Attr{Int("k1", 1), String("k2", "foo"), Int("k3", 3),
++		Int64("k4", -1), Float64("f", 3.1), Uint64("u", 999)}
++	r := newRecordWithAttrs(as)
++	if g, w := r.NumAttrs(), len(as); g != w {
++		t.Errorf("NumAttrs: got %d, want %d", g, w)
++	}
++	if got := attrsSlice(r); !attrsEqual(got, as) {
++		t.Errorf("got %v, want %v", got, as)
++	}
++}
++
++func TestRecordSourceLine(t *testing.T) {
++	// Zero call depth => empty file/line
++	for _, test := range []struct {
++		depth            int
++		wantFile         string
++		wantLinePositive bool
++	}{
++		{0, "", false},
++		{-16, "", false},
++		{1, "record_test.go", true}, // 1: caller of NewRecord
++		{2, "testing.go", true},
++	} {
++		var pc uintptr
++		if test.depth > 0 {
++			pc = callerPC(test.depth + 1)
++		}
++		r := NewRecord(time.Time{}, 0, "", pc)
++		gotFile, gotLine := sourceLine(r)
++		if i := strings.LastIndexByte(gotFile, '/'); i >= 0 {
++			gotFile = gotFile[i+1:]
++		}
++		if gotFile != test.wantFile || (gotLine > 0) != test.wantLinePositive {
++			t.Errorf("depth %d: got (%q, %d), want (%q, %t)",
++				test.depth, gotFile, gotLine, test.wantFile, test.wantLinePositive)
++		}
++	}
++}
++
++func TestAliasingAndClone(t *testing.T) {
++	intAttrs := func(from, to int) []Attr {
++		var as []Attr
++		for i := from; i < to; i++ {
++			as = append(as, Int("k", i))
++		}
++		return as
++	}
++
++	check := func(r Record, want []Attr) {
++		t.Helper()
++		got := attrsSlice(r)
++		if !attrsEqual(got, want) {
++			t.Errorf("got %v, want %v", got, want)
++		}
++	}
++
++	// Create a record whose Attrs overflow the inline array,
++	// creating a slice in r.back.
++	r1 := NewRecord(time.Time{}, 0, "", 0)
++	r1.AddAttrs(intAttrs(0, nAttrsInline+1)...)
++	// Ensure that r1.back's capacity exceeds its length.
++	b := make([]Attr, len(r1.back), len(r1.back)+1)
++	copy(b, r1.back)
++	r1.back = b
++	// Make a copy that shares state.
++	r2 := r1
++	// Adding to both should panic.
++	r1.AddAttrs(Int("p", 0))
++	if !panics(func() { r2.AddAttrs(Int("p", 1)) }) {
++		t.Error("expected panic")
++	}
++	r1Attrs := attrsSlice(r1)
++	// Adding to a clone is fine.
++	r2 = r1.Clone()
++	check(r2, r1Attrs)
++	r2.AddAttrs(Int("p", 2))
++	check(r1, r1Attrs) // r1 is unchanged
++	check(r2, append(slices.Clip(r1Attrs), Int("p", 2)))
++}
++
++func newRecordWithAttrs(as []Attr) Record {
++	r := NewRecord(time.Now(), LevelInfo, "", 0)
++	r.AddAttrs(as...)
++	return r
++}
++
++func attrsSlice(r Record) []Attr {
++	s := make([]Attr, 0, r.NumAttrs())
++	r.Attrs(func(a Attr) { s = append(s, a) })
++	return s
++}
++
++func attrsEqual(as1, as2 []Attr) bool {
++	return slices.EqualFunc(as1, as2, Attr.Equal)
++}
++
++// Currently, pc(2) takes over 400ns, which is too expensive
++// to call it for every log message.
++func BenchmarkPC(b *testing.B) {
++	for depth := 0; depth < 5; depth++ {
++		b.Run(strconv.Itoa(depth), func(b *testing.B) {
++			b.ReportAllocs()
++			var x uintptr
++			for i := 0; i < b.N; i++ {
++				x = callerPC(depth)
++			}
++			_ = x
++		})
++	}
++}
++
++func BenchmarkSourceLine(b *testing.B) {
++	r := NewRecord(time.Now(), LevelInfo, "", 5)
++	b.Run("alone", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			file, line := sourceLine(r)
++			_ = file
++			_ = line
++		}
++	})
++	b.Run("stringifying", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			file, line := sourceLine(r)
++			buf := buffer.New()
++			buf.WriteString(file)
++			buf.WriteByte(':')
++			buf.WritePosInt(line)
++			s := buf.String()
++			buf.Free()
++			_ = s
++		}
++	})
++}
++
++func BenchmarkRecord(b *testing.B) {
++	const nAttrs = nAttrsInline * 10
++	var a Attr
++
++	for i := 0; i < b.N; i++ {
++		r := NewRecord(time.Time{}, LevelInfo, "", 0)
++		for j := 0; j < nAttrs; j++ {
++			r.AddAttrs(Int("k", j))
++		}
++		r.Attrs(func(b Attr) { a = b })
++	}
++	_ = a
++}
+diff --git a/src/log/slog/text_handler.go b/src/log/slog/text_handler.go
+new file mode 100644
+index 0000000000..0faa367040
+--- /dev/null
++++ b/src/log/slog/text_handler.go
+@@ -0,0 +1,167 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"context"
++	"encoding"
++	"fmt"
++	"io"
++	"reflect"
++	"strconv"
++	"unicode"
++	"unicode/utf8"
++)
++
++// TextHandler is a Handler that writes Records to an io.Writer as a
++// sequence of key=value pairs separated by spaces and followed by a newline.
++type TextHandler struct {
++	*commonHandler
++}
++
++// NewTextHandler creates a TextHandler that writes to w,
++// using the default options.
++func NewTextHandler(w io.Writer) *TextHandler {
++	return (HandlerOptions{}).NewTextHandler(w)
++}
++
++// NewTextHandler creates a TextHandler with the given options that writes to w.
++func (opts HandlerOptions) NewTextHandler(w io.Writer) *TextHandler {
++	return &TextHandler{
++		&commonHandler{
++			json: false,
++			w:    w,
++			opts: opts,
++		},
++	}
++}
++
++// Enabled reports whether the handler handles records at the given level.
++// The handler ignores records whose level is lower.
++func (h *TextHandler) Enabled(_ context.Context, level Level) bool {
++	return h.commonHandler.enabled(level)
++}
++
++// WithAttrs returns a new TextHandler whose attributes consists
++// of h's attributes followed by attrs.
++func (h *TextHandler) WithAttrs(attrs []Attr) Handler {
++	return &TextHandler{commonHandler: h.commonHandler.withAttrs(attrs)}
++}
++
++func (h *TextHandler) WithGroup(name string) Handler {
++	return &TextHandler{commonHandler: h.commonHandler.withGroup(name)}
++}
++
++// Handle formats its argument Record as a single line of space-separated
++// key=value items.
++//
++// If the Record's time is zero, the time is omitted.
++// Otherwise, the key is "time"
++// and the value is output in RFC3339 format with millisecond precision.
++//
++// If the Record's level is zero, the level is omitted.
++// Otherwise, the key is "level"
++// and the value of [Level.String] is output.
++//
++// If the AddSource option is set and source information is available,
++// the key is "source" and the value is output as FILE:LINE.
++//
++// The message's key "msg".
++//
++// To modify these or other attributes, or remove them from the output, use
++// [HandlerOptions.ReplaceAttr].
++//
++// If a value implements [encoding.TextMarshaler], the result of MarshalText is
++// written. Otherwise, the result of fmt.Sprint is written.
++//
++// Keys and values are quoted with [strconv.Quote] if they contain Unicode space
++// characters, non-printing characters, '"' or '='.
++//
++// Keys inside groups consist of components (keys or group names) separated by
++// dots. No further escaping is performed. If it is necessary to reconstruct the
++// group structure of a key even in the presence of dots inside components, use
++// [HandlerOptions.ReplaceAttr] to escape the keys.
++//
++// Each call to Handle results in a single serialized call to
++// io.Writer.Write.
++func (h *TextHandler) Handle(_ context.Context, r Record) error {
++	return h.commonHandler.handle(r)
++}
++
++func appendTextValue(s *handleState, v Value) error {
++	switch v.Kind() {
++	case KindString:
++		s.appendString(v.str())
++	case KindTime:
++		s.appendTime(v.time())
++	case KindAny:
++		if tm, ok := v.any.(encoding.TextMarshaler); ok {
++			data, err := tm.MarshalText()
++			if err != nil {
++				return err
++			}
++			// TODO: avoid the conversion to string.
++			s.appendString(string(data))
++			return nil
++		}
++		if bs, ok := byteSlice(v.any); ok {
++			// As of Go 1.19, this only allocates for strings longer than 32 bytes.
++			s.buf.WriteString(strconv.Quote(string(bs)))
++			return nil
++		}
++		s.appendString(fmt.Sprintf("%+v", v.Any()))
++	default:
++		*s.buf = v.append(*s.buf)
++	}
++	return nil
++}
++
++// byteSlice returns its argument as a []byte if the argument's
++// underlying type is []byte, along with a second return value of true.
++// Otherwise it returns nil, false.
++func byteSlice(a any) ([]byte, bool) {
++	if bs, ok := a.([]byte); ok {
++		return bs, true
++	}
++	// Like Printf's %s, we allow both the slice type and the byte element type to be named.
++	t := reflect.TypeOf(a)
++	if t != nil && t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Uint8 {
++		return reflect.ValueOf(a).Bytes(), true
++	}
++	return nil, false
++}
++
++func needsQuoting(s string) bool {
++	for i := 0; i < len(s); {
++		b := s[i]
++		if b < utf8.RuneSelf {
++			if needsQuotingSet[b] {
++				return true
++			}
++			i++
++			continue
++		}
++		r, size := utf8.DecodeRuneInString(s[i:])
++		if r == utf8.RuneError || unicode.IsSpace(r) || !unicode.IsPrint(r) {
++			return true
++		}
++		i += size
++	}
++	return false
++}
++
++var needsQuotingSet = [utf8.RuneSelf]bool{
++	'"': true,
++	'=': true,
++}
++
++func init() {
++	for i := 0; i < utf8.RuneSelf; i++ {
++		r := rune(i)
++		if unicode.IsSpace(r) || !unicode.IsPrint(r) {
++			needsQuotingSet[i] = true
++		}
++	}
++}
+diff --git a/src/log/slog/text_handler_test.go b/src/log/slog/text_handler_test.go
+new file mode 100644
+index 0000000000..a35f8438c2
+--- /dev/null
++++ b/src/log/slog/text_handler_test.go
+@@ -0,0 +1,201 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"bytes"
++	"context"
++	"errors"
++	"fmt"
++	"internal/testenv"
++	"io"
++	"regexp"
++	"strings"
++	"testing"
++	"time"
++)
++
++var testTime = time.Date(2000, 1, 2, 3, 4, 5, 0, time.UTC)
++
++func TestTextHandler(t *testing.T) {
++	for _, test := range []struct {
++		name             string
++		attr             Attr
++		wantKey, wantVal string
++	}{
++		{
++			"unquoted",
++			Int("a", 1),
++			"a", "1",
++		},
++		{
++			"quoted",
++			String("x = y", `qu"o`),
++			`"x = y"`, `"qu\"o"`,
++		},
++		{
++			"String method",
++			Any("name", name{"Ren", "Hoek"}),
++			`name`, `"Hoek, Ren"`,
++		},
++		{
++			"struct",
++			Any("x", &struct{ A, b int }{A: 1, b: 2}),
++			`x`, `"&{A:1 b:2}"`,
++		},
++		{
++			"TextMarshaler",
++			Any("t", text{"abc"}),
++			`t`, `"text{\"abc\"}"`,
++		},
++		{
++			"TextMarshaler error",
++			Any("t", text{""}),
++			`t`, `"!ERROR:text: empty string"`,
++		},
++		{
++			"nil value",
++			Any("a", nil),
++			`a`, `<nil>`,
++		},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			for _, opts := range []struct {
++				name       string
++				opts       HandlerOptions
++				wantPrefix string
++				modKey     func(string) string
++			}{
++				{
++					"none",
++					HandlerOptions{},
++					`time=2000-01-02T03:04:05.000Z level=INFO msg="a message"`,
++					func(s string) string { return s },
++				},
++				{
++					"replace",
++					HandlerOptions{ReplaceAttr: upperCaseKey},
++					`TIME=2000-01-02T03:04:05.000Z LEVEL=INFO MSG="a message"`,
++					strings.ToUpper,
++				},
++			} {
++				t.Run(opts.name, func(t *testing.T) {
++					var buf bytes.Buffer
++					h := opts.opts.NewTextHandler(&buf)
++					r := NewRecord(testTime, LevelInfo, "a message", 0)
++					r.AddAttrs(test.attr)
++					if err := h.Handle(context.Background(), r); err != nil {
++						t.Fatal(err)
++					}
++					got := buf.String()
++					// Remove final newline.
++					got = got[:len(got)-1]
++					want := opts.wantPrefix + " " + opts.modKey(test.wantKey) + "=" + test.wantVal
++					if got != want {
++						t.Errorf("\ngot  %s\nwant %s", got, want)
++					}
++				})
++			}
++		})
++	}
++}
++
++// for testing fmt.Sprint
++type name struct {
++	First, Last string
++}
++
++func (n name) String() string { return n.Last + ", " + n.First }
++
++// for testing TextMarshaler
++type text struct {
++	s string
++}
++
++func (t text) String() string { return t.s } // should be ignored
++
++func (t text) MarshalText() ([]byte, error) {
++	if t.s == "" {
++		return nil, errors.New("text: empty string")
++	}
++	return []byte(fmt.Sprintf("text{%q}", t.s)), nil
++}
++
++func TestTextHandlerSource(t *testing.T) {
++	var buf bytes.Buffer
++	h := HandlerOptions{AddSource: true}.NewTextHandler(&buf)
++	r := NewRecord(testTime, LevelInfo, "m", callerPC(2))
++	if err := h.Handle(context.Background(), r); err != nil {
++		t.Fatal(err)
++	}
++	if got := buf.String(); !sourceRegexp.MatchString(got) {
++		t.Errorf("got\n%q\nwanted to match %s", got, sourceRegexp)
++	}
++}
++
++var sourceRegexp = regexp.MustCompile(`source="?([A-Z]:)?[^:]+text_handler_test\.go:\d+"? msg`)
++
++func TestSourceRegexp(t *testing.T) {
++	for _, s := range []string{
++		`source=/tmp/path/to/text_handler_test.go:23 msg=m`,
++		`source=C:\windows\path\text_handler_test.go:23 msg=m"`,
++		`source="/tmp/tmp.XcGZ9cG9Xb/with spaces/exp/slog/text_handler_test.go:95" msg=m`,
++	} {
++		if !sourceRegexp.MatchString(s) {
++			t.Errorf("failed to match %s", s)
++		}
++	}
++}
++
++func TestTextHandlerPreformatted(t *testing.T) {
++	var buf bytes.Buffer
++	var h Handler = NewTextHandler(&buf)
++	h = h.WithAttrs([]Attr{Duration("dur", time.Minute), Bool("b", true)})
++	// Also test omitting time.
++	r := NewRecord(time.Time{}, 0 /* 0 Level is INFO */, "m", 0)
++	r.AddAttrs(Int("a", 1))
++	if err := h.Handle(context.Background(), r); err != nil {
++		t.Fatal(err)
++	}
++	got := strings.TrimSuffix(buf.String(), "\n")
++	want := `level=INFO msg=m dur=1m0s b=true a=1`
++	if got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++}
++
++func TestTextHandlerAlloc(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
++	r := NewRecord(time.Now(), LevelInfo, "msg", 0)
++	for i := 0; i < 10; i++ {
++		r.AddAttrs(Int("x = y", i))
++	}
++	var h Handler = NewTextHandler(io.Discard)
++	wantAllocs(t, 0, func() { h.Handle(context.Background(), r) })
++
++	h = h.WithGroup("s")
++	r.AddAttrs(Group("g", Int("a", 1)))
++	wantAllocs(t, 0, func() { h.Handle(context.Background(), r) })
++}
++
++func TestNeedsQuoting(t *testing.T) {
++	for _, test := range []struct {
++		in   string
++		want bool
++	}{
++		{"", false},
++		{"ab", false},
++		{"a=b", true},
++		{`"ab"`, true},
++		{"\a\b", true},
++		{"a\tb", true},
++		{"µåπ", false},
++	} {
++		got := needsQuoting(test.in)
++		if got != test.want {
++			t.Errorf("%q: got %t, want %t", test.in, got, test.want)
++		}
++	}
++}
+diff --git a/src/log/slog/value.go b/src/log/slog/value.go
+new file mode 100644
+index 0000000000..de6f22d600
+--- /dev/null
++++ b/src/log/slog/value.go
+@@ -0,0 +1,397 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"fmt"
++	"math"
++	"slices"
++	"strconv"
++	"time"
++)
++
++// Definitions for Value.
++// The Value type itself can be found in value_{safe,unsafe}.go.
++
++// Kind is the kind of a Value.
++type Kind int
++
++// The following list is sorted alphabetically, but it's also important that
++// KindAny is 0 so that a zero Value represents nil.
++
++const (
++	KindAny Kind = iota
++	KindBool
++	KindDuration
++	KindFloat64
++	KindInt64
++	KindString
++	KindTime
++	KindUint64
++	KindGroup
++	KindLogValuer
++)
++
++var kindStrings = []string{
++	"Any",
++	"Bool",
++	"Duration",
++	"Float64",
++	"Int64",
++	"String",
++	"Time",
++	"Uint64",
++	"Group",
++	"LogValuer",
++}
++
++func (k Kind) String() string {
++	if k >= 0 && int(k) < len(kindStrings) {
++		return kindStrings[k]
++	}
++	return "<unknown slog.Kind>"
++}
++
++// Unexported version of Kind, just so we can store Kinds in Values.
++// (No user-provided value has this type.)
++type kind Kind
++
++//////////////// Constructors
++
++// IntValue returns a Value for an int.
++func IntValue(v int) Value {
++	return Int64Value(int64(v))
++}
++
++// Int64Value returns a Value for an int64.
++func Int64Value(v int64) Value {
++	return Value{num: uint64(v), any: KindInt64}
++}
++
++// Uint64Value returns a Value for a uint64.
++func Uint64Value(v uint64) Value {
++	return Value{num: v, any: KindUint64}
++}
++
++// Float64Value returns a Value for a floating-point number.
++func Float64Value(v float64) Value {
++	return Value{num: math.Float64bits(v), any: KindFloat64}
++}
++
++// BoolValue returns a Value for a bool.
++func BoolValue(v bool) Value {
++	u := uint64(0)
++	if v {
++		u = 1
++	}
++	return Value{num: u, any: KindBool}
++}
++
++// Unexported version of *time.Location, just so we can store *time.Locations in
++// Values. (No user-provided value has this type.)
++type timeLocation *time.Location
++
++// TimeValue returns a Value for a time.Time.
++// It discards the monotonic portion.
++func TimeValue(v time.Time) Value {
++	if v.IsZero() {
++		// UnixNano on the zero time is undefined, so represent the zero time
++		// with a nil *time.Location instead. time.Time.Location method never
++		// returns nil, so a Value with any == timeLocation(nil) cannot be
++		// mistaken for any other Value, time.Time or otherwise.
++		return Value{any: timeLocation(nil)}
++	}
++	return Value{num: uint64(v.UnixNano()), any: timeLocation(v.Location())}
++}
++
++// DurationValue returns a Value for a time.Duration.
++func DurationValue(v time.Duration) Value {
++	return Value{num: uint64(v.Nanoseconds()), any: KindDuration}
++}
++
++// GroupValue returns a new Value for a list of Attrs.
++// The caller must not subsequently mutate the argument slice.
++func GroupValue(as ...Attr) Value {
++	return groupValue(as)
++}
++
++// AnyValue returns a Value for the supplied value.
++//
++// If the supplied value is of type Value, it is returned
++// unmodified.
++//
++// Given a value of one of Go's predeclared string, bool, or
++// (non-complex) numeric types, AnyValue returns a Value of kind
++// String, Bool, Uint64, Int64, or Float64. The width of the
++// original numeric type is not preserved.
++//
++// Given a time.Time or time.Duration value, AnyValue returns a Value of kind
++// KindTime or KindDuration. The monotonic time is not preserved.
++//
++// For nil, or values of all other types, including named types whose
++// underlying type is numeric, AnyValue returns a value of kind KindAny.
++func AnyValue(v any) Value {
++	switch v := v.(type) {
++	case string:
++		return StringValue(v)
++	case int:
++		return Int64Value(int64(v))
++	case uint:
++		return Uint64Value(uint64(v))
++	case int64:
++		return Int64Value(v)
++	case uint64:
++		return Uint64Value(v)
++	case bool:
++		return BoolValue(v)
++	case time.Duration:
++		return DurationValue(v)
++	case time.Time:
++		return TimeValue(v)
++	case uint8:
++		return Uint64Value(uint64(v))
++	case uint16:
++		return Uint64Value(uint64(v))
++	case uint32:
++		return Uint64Value(uint64(v))
++	case uintptr:
++		return Uint64Value(uint64(v))
++	case int8:
++		return Int64Value(int64(v))
++	case int16:
++		return Int64Value(int64(v))
++	case int32:
++		return Int64Value(int64(v))
++	case float64:
++		return Float64Value(v)
++	case float32:
++		return Float64Value(float64(v))
++	case []Attr:
++		return GroupValue(v...)
++	case Kind:
++		return Value{any: kind(v)}
++	case Value:
++		return v
++	default:
++		return Value{any: v}
++	}
++}
++
++//////////////// Accessors
++
++// Any returns v's value as an any.
++func (v Value) Any() any {
++	switch v.Kind() {
++	case KindAny:
++		if k, ok := v.any.(kind); ok {
++			return Kind(k)
++		}
++		return v.any
++	case KindLogValuer:
++		return v.any
++	case KindGroup:
++		return v.uncheckedGroup()
++	case KindInt64:
++		return int64(v.num)
++	case KindUint64:
++		return v.num
++	case KindFloat64:
++		return v.float()
++	case KindString:
++		return v.str()
++	case KindBool:
++		return v.bool()
++	case KindDuration:
++		return v.duration()
++	case KindTime:
++		return v.time()
++	default:
++		panic(fmt.Sprintf("bad kind: %s", v.Kind()))
++	}
++}
++
++// Int64 returns v's value as an int64. It panics
++// if v is not a signed integer.
++func (v Value) Int64() int64 {
++	if g, w := v.Kind(), KindInt64; g != w {
++		panic(fmt.Sprintf("Value kind is %s, not %s", g, w))
++	}
++	return int64(v.num)
++}
++
++// Uint64 returns v's value as a uint64. It panics
++// if v is not an unsigned integer.
++func (v Value) Uint64() uint64 {
++	if g, w := v.Kind(), KindUint64; g != w {
++		panic(fmt.Sprintf("Value kind is %s, not %s", g, w))
++	}
++	return v.num
++}
++
++// Bool returns v's value as a bool. It panics
++// if v is not a bool.
++func (v Value) Bool() bool {
++	if g, w := v.Kind(), KindBool; g != w {
++		panic(fmt.Sprintf("Value kind is %s, not %s", g, w))
++	}
++	return v.bool()
++}
++
++func (a Value) bool() bool {
++	return a.num == 1
++}
++
++// Duration returns v's value as a time.Duration. It panics
++// if v is not a time.Duration.
++func (a Value) Duration() time.Duration {
++	if g, w := a.Kind(), KindDuration; g != w {
++		panic(fmt.Sprintf("Value kind is %s, not %s", g, w))
++	}
++
++	return a.duration()
++}
++
++func (a Value) duration() time.Duration {
++	return time.Duration(int64(a.num))
++}
++
++// Float64 returns v's value as a float64. It panics
++// if v is not a float64.
++func (v Value) Float64() float64 {
++	if g, w := v.Kind(), KindFloat64; g != w {
++		panic(fmt.Sprintf("Value kind is %s, not %s", g, w))
++	}
++
++	return v.float()
++}
++
++func (a Value) float() float64 {
++	return math.Float64frombits(a.num)
++}
++
++// Time returns v's value as a time.Time. It panics
++// if v is not a time.Time.
++func (v Value) Time() time.Time {
++	if g, w := v.Kind(), KindTime; g != w {
++		panic(fmt.Sprintf("Value kind is %s, not %s", g, w))
++	}
++	return v.time()
++}
++
++func (v Value) time() time.Time {
++	loc := v.any.(timeLocation)
++	if loc == nil {
++		return time.Time{}
++	}
++	return time.Unix(0, int64(v.num)).In(loc)
++}
++
++// LogValuer returns v's value as a LogValuer. It panics
++// if v is not a LogValuer.
++func (v Value) LogValuer() LogValuer {
++	return v.any.(LogValuer)
++}
++
++// Group returns v's value as a []Attr.
++// It panics if v's Kind is not KindGroup.
++func (v Value) Group() []Attr {
++	return v.group()
++}
++
++//////////////// Other
++
++// Equal reports whether v and w have equal keys and values.
++func (v Value) Equal(w Value) bool {
++	k1 := v.Kind()
++	k2 := w.Kind()
++	if k1 != k2 {
++		return false
++	}
++	switch k1 {
++	case KindInt64, KindUint64, KindBool, KindDuration:
++		return v.num == w.num
++	case KindString:
++		return v.str() == w.str()
++	case KindFloat64:
++		return v.float() == w.float()
++	case KindTime:
++		return v.time().Equal(w.time())
++	case KindAny, KindLogValuer:
++		return v.any == w.any // may panic if non-comparable
++	case KindGroup:
++		return slices.EqualFunc(v.uncheckedGroup(), w.uncheckedGroup(), Attr.Equal)
++	default:
++		panic(fmt.Sprintf("bad kind: %s", k1))
++	}
++}
++
++// append appends a text representation of v to dst.
++// v is formatted as with fmt.Sprint.
++func (v Value) append(dst []byte) []byte {
++	switch v.Kind() {
++	case KindString:
++		return append(dst, v.str()...)
++	case KindInt64:
++		return strconv.AppendInt(dst, int64(v.num), 10)
++	case KindUint64:
++		return strconv.AppendUint(dst, v.num, 10)
++	case KindFloat64:
++		return strconv.AppendFloat(dst, v.float(), 'g', -1, 64)
++	case KindBool:
++		return strconv.AppendBool(dst, v.bool())
++	case KindDuration:
++		return append(dst, v.duration().String()...)
++	case KindTime:
++		return append(dst, v.time().String()...)
++	case KindAny, KindGroup, KindLogValuer:
++		return append(dst, fmt.Sprint(v.any)...)
++	default:
++		panic(fmt.Sprintf("bad kind: %s", v.Kind()))
++	}
++}
++
++// A LogValuer is any Go value that can convert itself into a Value for logging.
++//
++// This mechanism may be used to defer expensive operations until they are
++// needed, or to expand a single value into a sequence of components.
++type LogValuer interface {
++	LogValue() Value
++}
++
++const maxLogValues = 100
++
++// Resolve repeatedly calls LogValue on v while it implements LogValuer,
++// and returns the result.
++// If v resolves to a group, the group's attributes' values are also resolved.
++// If the number of LogValue calls exceeds a threshold, a Value containing an
++// error is returned.
++// Resolve's return value is guaranteed not to be of Kind KindLogValuer.
++func (v Value) Resolve() Value {
++	v = v.resolve()
++	if v.Kind() == KindGroup {
++		resolveAttrs(v.Group())
++	}
++	return v
++}
++
++func (v Value) resolve() Value {
++	orig := v
++	for i := 0; i < maxLogValues; i++ {
++		if v.Kind() != KindLogValuer {
++			return v
++		}
++		v = v.LogValuer().LogValue()
++	}
++	err := fmt.Errorf("LogValue called too many times on Value of type %T", orig.Any())
++	return AnyValue(err)
++}
++
++// resolveAttrs replaces the values of the given Attrs with their
++// resolutions.
++func resolveAttrs(as []Attr) {
++	for i, a := range as {
++		as[i].Value = a.Value.Resolve()
++	}
++}
+diff --git a/src/log/slog/value_access_benchmark_test.go b/src/log/slog/value_access_benchmark_test.go
+new file mode 100644
+index 0000000000..3bd70716ee
+--- /dev/null
++++ b/src/log/slog/value_access_benchmark_test.go
+@@ -0,0 +1,215 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Benchmark for accessing Value values.
++
++package slog
++
++import (
++	"testing"
++	"time"
++)
++
++// The "As" form is the slowest.
++// The switch-panic and visitor times are almost the same.
++// BenchmarkDispatch/switch-checked-8         	 8669427	       137.7 ns/op
++// BenchmarkDispatch/As-8                     	 8212087	       145.3 ns/op
++// BenchmarkDispatch/Visit-8                  	 8926146	       135.3 ns/op
++func BenchmarkDispatch(b *testing.B) {
++	vs := []Value{
++		Int64Value(32768),
++		Uint64Value(0xfacecafe),
++		StringValue("anything"),
++		BoolValue(true),
++		Float64Value(1.2345),
++		DurationValue(time.Second),
++		AnyValue(b),
++	}
++	var (
++		ii int64
++		s  string
++		bb bool
++		u  uint64
++		d  time.Duration
++		f  float64
++		a  any
++	)
++	b.Run("switch-checked", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			for _, v := range vs {
++				switch v.Kind() {
++				case KindString:
++					s = v.String()
++				case KindInt64:
++					ii = v.Int64()
++				case KindUint64:
++					u = v.Uint64()
++				case KindFloat64:
++					f = v.Float64()
++				case KindBool:
++					bb = v.Bool()
++				case KindDuration:
++					d = v.Duration()
++				case KindAny:
++					a = v.Any()
++				default:
++					panic("bad kind")
++				}
++			}
++		}
++		_ = ii
++		_ = s
++		_ = bb
++		_ = u
++		_ = d
++		_ = f
++		_ = a
++
++	})
++	b.Run("As", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			for _, kv := range vs {
++				if v, ok := kv.AsString(); ok {
++					s = v
++				} else if v, ok := kv.AsInt64(); ok {
++					ii = v
++				} else if v, ok := kv.AsUint64(); ok {
++					u = v
++				} else if v, ok := kv.AsFloat64(); ok {
++					f = v
++				} else if v, ok := kv.AsBool(); ok {
++					bb = v
++				} else if v, ok := kv.AsDuration(); ok {
++					d = v
++				} else if v, ok := kv.AsAny(); ok {
++					a = v
++				} else {
++					panic("bad kind")
++				}
++			}
++		}
++		_ = ii
++		_ = s
++		_ = bb
++		_ = u
++		_ = d
++		_ = f
++		_ = a
++	})
++
++	b.Run("Visit", func(b *testing.B) {
++		v := &setVisitor{}
++		b.ResetTimer()
++		for i := 0; i < b.N; i++ {
++			for _, kv := range vs {
++				kv.Visit(v)
++			}
++		}
++	})
++}
++
++type setVisitor struct {
++	i int64
++	s string
++	b bool
++	u uint64
++	d time.Duration
++	f float64
++	a any
++}
++
++func (v *setVisitor) String(s string)          { v.s = s }
++func (v *setVisitor) Int64(i int64)            { v.i = i }
++func (v *setVisitor) Uint64(x uint64)          { v.u = x }
++func (v *setVisitor) Float64(x float64)        { v.f = x }
++func (v *setVisitor) Bool(x bool)              { v.b = x }
++func (v *setVisitor) Duration(x time.Duration) { v.d = x }
++func (v *setVisitor) Any(x any)                { v.a = x }
++
++// When dispatching on all types, the "As" functions are slightly slower
++// than switching on the kind and then calling a function that checks
++// the kind again. See BenchmarkDispatch above.
++
++func (a Value) AsString() (string, bool) {
++	if a.Kind() == KindString {
++		return a.str(), true
++	}
++	return "", false
++}
++
++func (a Value) AsInt64() (int64, bool) {
++	if a.Kind() == KindInt64 {
++		return int64(a.num), true
++	}
++	return 0, false
++}
++
++func (a Value) AsUint64() (uint64, bool) {
++	if a.Kind() == KindUint64 {
++		return a.num, true
++	}
++	return 0, false
++}
++
++func (a Value) AsFloat64() (float64, bool) {
++	if a.Kind() == KindFloat64 {
++		return a.float(), true
++	}
++	return 0, false
++}
++
++func (a Value) AsBool() (bool, bool) {
++	if a.Kind() == KindBool {
++		return a.bool(), true
++	}
++	return false, false
++}
++
++func (a Value) AsDuration() (time.Duration, bool) {
++	if a.Kind() == KindDuration {
++		return a.duration(), true
++	}
++	return 0, false
++}
++
++func (a Value) AsAny() (any, bool) {
++	if a.Kind() == KindAny {
++		return a.any, true
++	}
++	return nil, false
++}
++
++// Problem: adding a type means adding a method, which is a breaking change.
++// Using an unexported method to force embedding will make programs compile,
++// But they will panic at runtime when we call the new method.
++type Visitor interface {
++	String(string)
++	Int64(int64)
++	Uint64(uint64)
++	Float64(float64)
++	Bool(bool)
++	Duration(time.Duration)
++	Any(any)
++}
++
++func (a Value) Visit(v Visitor) {
++	switch a.Kind() {
++	case KindString:
++		v.String(a.str())
++	case KindInt64:
++		v.Int64(int64(a.num))
++	case KindUint64:
++		v.Uint64(a.num)
++	case KindBool:
++		v.Bool(a.bool())
++	case KindFloat64:
++		v.Float64(a.float())
++	case KindDuration:
++		v.Duration(a.duration())
++	case KindAny:
++		v.Any(a.any)
++	default:
++		panic("bad kind")
++	}
++}
+diff --git a/src/log/slog/value_test.go b/src/log/slog/value_test.go
+new file mode 100644
+index 0000000000..e3c087c5c9
+--- /dev/null
++++ b/src/log/slog/value_test.go
+@@ -0,0 +1,226 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"fmt"
++	"reflect"
++	"testing"
++	"time"
++	"unsafe"
++)
++
++func TestValueEqual(t *testing.T) {
++	var x, y int
++	vals := []Value{
++		{},
++		Int64Value(1),
++		Int64Value(2),
++		Float64Value(3.5),
++		Float64Value(3.7),
++		BoolValue(true),
++		BoolValue(false),
++		TimeValue(testTime),
++		AnyValue(&x),
++		AnyValue(&y),
++		GroupValue(Bool("b", true), Int("i", 3)),
++	}
++	for i, v1 := range vals {
++		for j, v2 := range vals {
++			got := v1.Equal(v2)
++			want := i == j
++			if got != want {
++				t.Errorf("%v.Equal(%v): got %t, want %t", v1, v2, got, want)
++			}
++		}
++	}
++}
++
++func panics(f func()) (b bool) {
++	defer func() {
++		if x := recover(); x != nil {
++			b = true
++		}
++	}()
++	f()
++	return false
++}
++
++func TestValueString(t *testing.T) {
++	for _, test := range []struct {
++		v    Value
++		want string
++	}{
++		{Int64Value(-3), "-3"},
++		{Float64Value(.15), "0.15"},
++		{BoolValue(true), "true"},
++		{StringValue("foo"), "foo"},
++		{TimeValue(testTime), "2000-01-02 03:04:05 +0000 UTC"},
++		{AnyValue(time.Duration(3 * time.Second)), "3s"},
++	} {
++		if got := test.v.String(); got != test.want {
++			t.Errorf("%#v:\ngot  %q\nwant %q", test.v, got, test.want)
++		}
++	}
++}
++
++func TestValueNoAlloc(t *testing.T) {
++	// Assign values just to make sure the compiler doesn't optimize away the statements.
++	var (
++		i  int64
++		u  uint64
++		f  float64
++		b  bool
++		s  string
++		x  any
++		p  = &i
++		d  time.Duration
++		tm time.Time
++	)
++	a := int(testing.AllocsPerRun(5, func() {
++		i = Int64Value(1).Int64()
++		u = Uint64Value(1).Uint64()
++		f = Float64Value(1).Float64()
++		b = BoolValue(true).Bool()
++		s = StringValue("foo").String()
++		d = DurationValue(d).Duration()
++		tm = TimeValue(testTime).Time()
++		x = AnyValue(p).Any()
++	}))
++	if a != 0 {
++		t.Errorf("got %d allocs, want zero", a)
++	}
++	_ = u
++	_ = f
++	_ = b
++	_ = s
++	_ = x
++	_ = tm
++}
++
++func TestAnyLevelAlloc(t *testing.T) {
++	// Because typical Levels are small integers,
++	// they are zero-alloc.
++	var a Value
++	x := LevelDebug + 100
++	wantAllocs(t, 0, func() { a = AnyValue(x) })
++	_ = a
++}
++
++func TestAnyValue(t *testing.T) {
++	for _, test := range []struct {
++		in   any
++		want Value
++	}{
++		{1, IntValue(1)},
++		{1.5, Float64Value(1.5)},
++		{"s", StringValue("s")},
++		{uint(2), Uint64Value(2)},
++		{true, BoolValue(true)},
++		{testTime, TimeValue(testTime)},
++		{time.Hour, DurationValue(time.Hour)},
++		{[]Attr{Int("i", 3)}, GroupValue(Int("i", 3))},
++		{IntValue(4), IntValue(4)},
++	} {
++		got := AnyValue(test.in)
++		if !got.Equal(test.want) {
++			t.Errorf("%v (%[1]T): got %v (kind %s), want %v (kind %s)",
++				test.in, got, got.Kind(), test.want, test.want.Kind())
++		}
++	}
++}
++
++func TestValueAny(t *testing.T) {
++	for _, want := range []any{
++		nil,
++		LevelDebug + 100,
++		time.UTC, // time.Locations treated specially...
++		KindBool, // ...as are Kinds
++		[]Attr{Int("a", 1)},
++	} {
++		v := AnyValue(want)
++		got := v.Any()
++		if !reflect.DeepEqual(got, want) {
++			t.Errorf("got %v, want %v", got, want)
++		}
++	}
++}
++
++func TestLogValue(t *testing.T) {
++	want := "replaced"
++	r := &replace{StringValue(want)}
++	v := AnyValue(r)
++	if g, w := v.Kind(), KindLogValuer; g != w {
++		t.Errorf("got %s, want %s", g, w)
++	}
++	got := v.LogValuer().LogValue().Any()
++	if got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++
++	// Test Resolve.
++	got = v.Resolve().Any()
++	if got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++
++	// Test Resolve max iteration.
++	r.v = AnyValue(r) // create a cycle
++	got = AnyValue(r).Resolve().Any()
++	if _, ok := got.(error); !ok {
++		t.Errorf("expected error, got %T", got)
++	}
++
++	// Test Resolve group.
++	r = &replace{GroupValue(
++		Int("a", 1),
++		Group("b", Any("c", &replace{StringValue("d")})),
++	)}
++	v = AnyValue(r)
++	got2 := v.Resolve().Any().([]Attr)
++	want2 := []Attr{Int("a", 1), Group("b", String("c", "d"))}
++	if !attrsEqual(got2, want2) {
++		t.Errorf("got %v, want %v", got2, want2)
++	}
++
++}
++
++func TestZeroTime(t *testing.T) {
++	z := time.Time{}
++	got := TimeValue(z).Time()
++	if !got.IsZero() {
++		t.Errorf("got %s (%#[1]v), not zero time (%#v)", got, z)
++	}
++}
++
++type replace struct {
++	v Value
++}
++
++func (r *replace) LogValue() Value { return r.v }
++
++// A Value with "unsafe" strings is significantly faster:
++// safe:  1785 ns/op, 0 allocs
++// unsafe: 690 ns/op, 0 allocs
++
++// Run this with and without -tags unsafe_kvs to compare.
++func BenchmarkUnsafeStrings(b *testing.B) {
++	b.ReportAllocs()
++	dst := make([]Value, 100)
++	src := make([]Value, len(dst))
++	b.Logf("Value size = %d", unsafe.Sizeof(Value{}))
++	for i := range src {
++		src[i] = StringValue(fmt.Sprintf("string#%d", i))
++	}
++	b.ResetTimer()
++	var d string
++	for i := 0; i < b.N; i++ {
++		copy(dst, src)
++		for _, a := range dst {
++			d = a.String()
++		}
++	}
++	_ = d
++}
+diff --git a/src/log/slog/value_unsafe.go b/src/log/slog/value_unsafe.go
+new file mode 100644
+index 0000000000..76266061f3
+--- /dev/null
++++ b/src/log/slog/value_unsafe.go
+@@ -0,0 +1,102 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slog
++
++import (
++	"reflect"
++	"unsafe"
++)
++
++// A Value can represent any Go value, but unlike type any,
++// it can represent most small values without an allocation.
++// The zero Value corresponds to nil.
++type Value struct {
++	// num holds the value for Kinds Int64, Uint64, Float64, Bool and Duration,
++	// the string length for KindString, and nanoseconds since the epoch for KindTime.
++	num uint64
++	// If any is of type Kind, then the value is in num as described above.
++	// If any is of type *time.Location, then the Kind is Time and time.Time value
++	// can be constructed from the Unix nanos in num and the location (monotonic time
++	// is not preserved).
++	// If any is of type stringptr, then the Kind is String and the string value
++	// consists of the length in num and the pointer in any.
++	// Otherwise, the Kind is Any and any is the value.
++	// (This implies that Attrs cannot store values of type Kind, *time.Location
++	// or stringptr.)
++	any any
++}
++
++type (
++	stringptr unsafe.Pointer // used in Value.any when the Value is a string
++	groupptr  unsafe.Pointer // used in Value.any when the Value is a []Attr
++)
++
++// Kind returns v's Kind.
++func (v Value) Kind() Kind {
++	switch x := v.any.(type) {
++	case Kind:
++		return x
++	case stringptr:
++		return KindString
++	case timeLocation:
++		return KindTime
++	case groupptr:
++		return KindGroup
++	case LogValuer:
++		return KindLogValuer
++	case kind: // a kind is just a wrapper for a Kind
++		return KindAny
++	default:
++		return KindAny
++	}
++}
++
++// StringValue returns a new Value for a string.
++func StringValue(value string) Value {
++	hdr := (*reflect.StringHeader)(unsafe.Pointer(&value))
++	return Value{num: uint64(hdr.Len), any: stringptr(hdr.Data)}
++}
++
++func (v Value) str() string {
++	var s string
++	hdr := (*reflect.StringHeader)(unsafe.Pointer(&s))
++	hdr.Data = uintptr(v.any.(stringptr))
++	hdr.Len = int(v.num)
++	return s
++}
++
++// String returns Value's value as a string, formatted like fmt.Sprint. Unlike
++// the methods Int64, Float64, and so on, which panic if v is of the
++// wrong kind, String never panics.
++func (v Value) String() string {
++	if sp, ok := v.any.(stringptr); ok {
++		// Inlining this code makes a huge difference.
++		var s string
++		hdr := (*reflect.StringHeader)(unsafe.Pointer(&s))
++		hdr.Data = uintptr(sp)
++		hdr.Len = int(v.num)
++		return s
++	}
++	var buf []byte
++	return string(v.append(buf))
++}
++
++func groupValue(as []Attr) Value {
++	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&as))
++	return Value{num: uint64(hdr.Len), any: groupptr(hdr.Data)}
++}
++
++// group returns the Value's value as a []Attr.
++// It panics if the Value's Kind is not KindGroup.
++func (v Value) group() []Attr {
++	if sp, ok := v.any.(groupptr); ok {
++		return unsafe.Slice((*Attr)(sp), v.num)
++	}
++	panic("Group: bad kind")
++}
++
++func (v Value) uncheckedGroup() []Attr {
++	return unsafe.Slice((*Attr)(v.any.(groupptr)), v.num)
++}

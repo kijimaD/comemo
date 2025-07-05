@@ -17,6 +17,41 @@ Date:   Sun Jun 14 08:15:41 2015 -0700
     Change-Id: Iafdf3381942bc22b1f33595315c53dc6cc2e9f0f
     Reviewed-on: https://go-review.googlesource.com/11059
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/handshake_messages.go | 14 +++++++++-----
  1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index b794f05815..799a776799 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -367,12 +367,16 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 
+ 		switch extension {
+ 		case extensionServerName:
+-			if length < 2 {
++			d := data[:length]
++			if len(d) < 2 {
+ 				return false
+ 			}
+-			numNames := int(data[0])<<8 | int(data[1])
+-			d := data[2:]
+-			for i := 0; i < numNames; i++ {
++			namesLen := int(d[0])<<8 | int(d[1])
++			d = d[2:]
++			if len(d) != namesLen {
++				return false
++			}
++			for len(d) > 0 {
+ 				if len(d) < 3 {
+ 					return false
+ 				}
+@@ -383,7 +387,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 					return false
+ 				}
+ 				if nameType == 0 {
+-					m.serverName = string(d[0:nameLen])
++					m.serverName = string(d[:nameLen])
+ 					break
+ 				}
+ 				d = d[nameLen:]

@@ -8,10 +8,269 @@ Date:   Wed Dec 14 08:46:26 2011 +1100
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5421049
-
+---
  src/cmd/gofix/Makefile             |  1 +
  src/cmd/gofix/googlecode.go        | 41 +++++++++++++++++++++++++++++++
  src/cmd/gofix/googlecode_test.go   | 31 +++++++++++++++++++++++
  src/cmd/goinstall/download.go      | 50 +++++++++++++++++++-------------------
  src/cmd/goinstall/download_test.go | 33 ++++++++++++++++---------
  5 files changed, 119 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 2f64a5bfa8..fe5a55e886 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -10,6 +10,7 @@ GOFILES=\
+ 	filepath.go\
+ 	fix.go\
+ 	go1pkgrename.go\
++	googlecode.go\
+ 	hashsum.go\
+ 	htmlerr.go\
+ 	httpfinalurl.go\
+diff --git a/src/cmd/gofix/googlecode.go b/src/cmd/gofix/googlecode.go
+new file mode 100644
+index 0000000000..143781a74f
+--- /dev/null
++++ b/src/cmd/gofix/googlecode.go
+@@ -0,0 +1,41 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++	"regexp"
++)
++
++func init() {
++	register(googlecodeFix)
++}
++
++var googlecodeFix = fix{
++	"googlecode",
++	"2011-11-21",
++	googlecode,
++	`Rewrite Google Code imports from the deprecated form
++"foo.googlecode.com/vcs/path" to "code.google.com/p/foo/path".
++`,
++}
++
++var googlecodeRe = regexp.MustCompile(`^([a-z0-9\-]+)\.googlecode\.com/(svn|git|hg)(/[a-z0-9A-Z_.\-/]+)?$`)
++
++func googlecode(f *ast.File) bool {
++	fixed := false
++
++	for _, s := range f.Imports {
++		old := importPath(s)
++		if m := googlecodeRe.FindStringSubmatch(old); m != nil {
++			new := "code.google.com/p/" + m[1] + m[3]
++			if rewriteImport(f, old, new) {
++				fixed = true
++			}
++		}
++	}
++
++	return fixed
++}
+diff --git a/src/cmd/gofix/googlecode_test.go b/src/cmd/gofix/googlecode_test.go
+new file mode 100644
+index 0000000000..c62ee4f326
+--- /dev/null
++++ b/src/cmd/gofix/googlecode_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(googlecodeTests, googlecode)
++}
++
++var googlecodeTests = []testCase{
++	{
++		Name: "googlecode.0",
++		In: `package main
++
++import (
++	"foo.googlecode.com/hg/bar"
++	"go-qux-23.googlecode.com/svn"
++	"zap.googlecode.com/git/some/path"
++)
++`,
++		Out: `package main
++
++import (
++	"code.google.com/p/foo/bar"
++	"code.google.com/p/go-qux-23"
++	"code.google.com/p/zap/some/path"
++)
++`,
++	},
++}
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 2147e62f08..11f6f5f4ac 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -142,13 +142,9 @@ type host struct {
+ 
+ var knownHosts = []host{
+ 	{
+-		regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/(svn|git|hg))(/[a-z0-9A-Z_.\-/]+)?$`),
++		regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+(\.[a-z0-9\-]+)?)(/[a-z0-9A-Z_.\-/]+)?$`),
+ 		matchGoogleRepo,
+ 	},
+-	{
+-		regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+\.[a-z0-9\-]+)(/[a-z0-9A-Z_.\-/]+)?$`),
+-		matchGoogleSubrepo,
+-	},
+ 	{
+ 		regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$`),
+ 		matchGithubRepo,
+@@ -189,15 +185,6 @@ func (r *baseRepo) IsCheckedOut(srcDir string) bool {
+ 	return isDir(filepath.Join(pkgPath, r.vcs.metadir))
+ }
+ 
+-// matchGoogleRepo handles matches of the form "repo.googlecode.com/vcs/path".
+-func matchGoogleRepo(root string) (RemoteRepo, error) {
+-	p := strings.SplitN(root, "/", 2)
+-	if vcs := vcsMap[p[1]]; vcs != nil {
+-		return &baseRepo{"https://" + root, root, vcs}, nil
+-	}
+-	return nil, errors.New("unsupported googlecode vcs: " + p[1])
+-}
+-
+ // matchGithubRepo handles matches for github.com repositories.
+ func matchGithubRepo(root string) (RemoteRepo, error) {
+ 	if strings.HasSuffix(root, ".git") {
+@@ -211,21 +198,19 @@ func matchLaunchpadRepo(root string) (RemoteRepo, error) {
+ 	return &baseRepo{"https://" + root, root, vcsMap["bzr"]}, nil
+ }
+ 
+-// matchGoogleSubrepo matches repos like "code.google.com/p/repo.subrepo/path".
+-// Note that it doesn't match primary Google Code repositories,
+-// which should use the "foo.googlecode.com" form only. (for now)
+-func matchGoogleSubrepo(id string) (RemoteRepo, error) {
++// matchGoogleRepo matches repos like "code.google.com/p/repo.subrepo/path".
++func matchGoogleRepo(id string) (RemoteRepo, error) {
+ 	root := "code.google.com/p/" + id
+-	return &googleSubrepo{baseRepo{"https://" + root, root, nil}}, nil
++	return &googleRepo{baseRepo{"https://" + root, root, nil}}, nil
+ }
+ 
+-// googleSubrepo implements a RemoteRepo that discovers a Google Code
++// googleRepo implements a RemoteRepo that discovers a Google Code
+ // repository's VCS type by scraping the code.google.com source checkout page.
+-type googleSubrepo struct{ baseRepo }
++type googleRepo struct{ baseRepo }
+ 
+-var googleSubrepoRe = regexp.MustCompile(`id="checkoutcmd">(hg|git|svn)`)
++var googleRepoRe = regexp.MustCompile(`id="checkoutcmd">(hg|git|svn)`)
+ 
+-func (r *googleSubrepo) Repo(client *http.Client) (url, root string, vcs *vcs, err error) {
++func (r *googleRepo) Repo(client *http.Client) (url, root string, vcs *vcs, err error) {
+ 	if r.vcs != nil {
+ 		return r.url, r.root, r.vcs, nil
+ 	}
+@@ -233,7 +218,10 @@ func (r *googleSubrepo) Repo(client *http.Client) (url, root string, vcs *vcs, e
+ 	// Use the code.google.com source checkout page to find the VCS type.
+ 	const prefix = "code.google.com/p/"
+ 	p := strings.SplitN(r.root[len(prefix):], ".", 2)
+-	u := fmt.Sprintf("https://%s%s/source/checkout?repo=%s", prefix, p[0], p[1])
++	u := fmt.Sprintf("https://%s%s/source/checkout", prefix, p[0])
++	if len(p) == 2 {
++		u += fmt.Sprintf("?repo=%s", p[1])
++	}
+ 	resp, err := client.Get(u)
+ 	if err != nil {
+ 		return "", "", nil, err
+@@ -248,7 +236,7 @@ func (r *googleSubrepo) Repo(client *http.Client) (url, root string, vcs *vcs, e
+ 	}
+ 
+ 	// Scrape result for vcs details.
+-	m := googleSubrepoRe.FindSubmatch(b)
++	m := googleRepoRe.FindSubmatch(b)
+ 	if len(m) == 2 {
+ 		if v := vcsMap[string(m[1])]; v != nil {
+ 			r.vcs = v
+@@ -377,6 +365,8 @@ func (v *vcs) findURL(root string) (string, error) {
+ 	return "", nil
+ }
+ 
++var oldGoogleRepo = regexp.MustCompile(`^([a-z0-9\-]+)\.googlecode\.com/(svn|git|hg)(/[a-z0-9A-Z_.\-/]+)?$`)
++
+ // download checks out or updates the specified package from the remote server.
+ func download(importPath, srcDir string) (public bool, err error) {
+ 	if strings.Contains(importPath, "..") {
+@@ -384,6 +374,16 @@ func download(importPath, srcDir string) (public bool, err error) {
+ 		return
+ 	}
+ 
++	if m := oldGoogleRepo.FindStringSubmatch(importPath); m != nil {
++		fixedPath := "code.google.com/p/" + m[1] + m[3]
++		err = fmt.Errorf(
++			"unsupported import path; should be %q\n"+
++				"Run goinstall with -fix to gofix the code.",
++			fixedPath,
++		)
++		return
++	}
++
+ 	repo, err := findPublicRepo(importPath)
+ 	if err != nil {
+ 		return false, err
+diff --git a/src/cmd/goinstall/download_test.go b/src/cmd/goinstall/download_test.go
+index 934c5952fe..a4455a2ca5 100644
+--- a/src/cmd/goinstall/download_test.go
++++ b/src/cmd/goinstall/download_test.go
+@@ -18,25 +18,34 @@ var FindPublicRepoTests = []struct {
+ 	transport      *testTransport
+ }{
+ 	{
+-		"repo.googlecode.com/hg/path/foo",
++		"code.google.com/p/repo/path/foo",
+ 		"hg",
+-		"repo.googlecode.com/hg",
+-		"https://repo.googlecode.com/hg",
+-		nil,
++		"code.google.com/p/repo",
++		"https://code.google.com/p/repo",
++		&testTransport{
++			"https://code.google.com/p/repo/source/checkout",
++			`<tt id="checkoutcmd">hg clone https://...`,
++		},
+ 	},
+ 	{
+-		"repo.googlecode.com/svn/path",
++		"code.google.com/p/repo/path/foo",
+ 		"svn",
+-		"repo.googlecode.com/svn",
+-		"https://repo.googlecode.com/svn",
+-		nil,
++		"code.google.com/p/repo",
++		"https://code.google.com/p/repo",
++		&testTransport{
++			"https://code.google.com/p/repo/source/checkout",
++			`<tt id="checkoutcmd">svn checkout https://...`,
++		},
+ 	},
+ 	{
+-		"repo.googlecode.com/git",
++		"code.google.com/p/repo/path/foo",
+ 		"git",
+-		"repo.googlecode.com/git",
+-		"https://repo.googlecode.com/git",
+-		nil,
++		"code.google.com/p/repo",
++		"https://code.google.com/p/repo",
++		&testTransport{
++			"https://code.google.com/p/repo/source/checkout",
++			`<tt id="checkoutcmd">git clone https://...`,
++		},
+ 	},
+ 	{
+ 		"code.google.com/p/repo.sub/path",

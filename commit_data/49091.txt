@@ -26,10 +26,173 @@ Date:   Thu Jul 15 16:29:36 2021 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go       |  2 +-
  src/cmd/link/internal/loader/loader.go   |  9 ++++
  test/fixedbugs/issue47185.dir/bad/bad.go | 72 ++++++++++++++++++++++++++++++++
  test/fixedbugs/issue47185.dir/main.go    | 28 +++++++++++++
  test/fixedbugs/issue47185.go             | 11 +++++
  5 files changed, 121 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 55a0ab7da7..474d718525 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -148,7 +148,7 @@ func dumpdata() {
+ 	if reflectdata.ZeroSize > 0 {
+ 		zero := base.PkgLinksym("go.map", "zero", obj.ABI0)
+ 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
+-		zero.Set(obj.AttrContentAddressable, true)
++		zero.Set(obj.AttrStatic, true)
+ 	}
+ 
+ 	staticdata.WriteFuncSyms()
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index efca824d98..9d5319c312 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -459,6 +459,15 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
+ 		if l.flags&FlagStrictDups != 0 {
+ 			l.checkdup(name, r, li, oldi)
+ 		}
++		// Fix for issue #47185 -- given two dupok symbols with
++		// different sizes, favor symbol with larger size. See
++		// also issue #46653.
++		szdup := l.SymSize(oldi)
++		sz := int64(r.Sym(li).Siz())
++		if szdup < sz {
++			// new symbol overwrites old symbol.
++			l.objSyms[oldi] = objSym{r.objidx, li}
++		}
+ 		return oldi
+ 	}
+ 	oldr, oldli := l.toLocal(oldi)
+diff --git a/test/fixedbugs/issue47185.dir/bad/bad.go b/test/fixedbugs/issue47185.dir/bad/bad.go
+new file mode 100644
+index 0000000000..1aa4fbb909
+--- /dev/null
++++ b/test/fixedbugs/issue47185.dir/bad/bad.go
+@@ -0,0 +1,72 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++// Note that the use of CGO here is solely to trigger external
++// linking, since that is required to trigger that bad behavior
++// in this bug.
++
++// #include <stdlib.h>
++import "C"
++
++func Bad() {
++	m := make(map[int64]A)
++	a := m[0]
++	if len(a.B.C1.D2.E2.F1) != 0 ||
++		len(a.B.C1.D2.E2.F2) != 0 ||
++		len(a.B.C1.D2.E2.F3) != 0 ||
++		len(a.B.C1.D2.E2.F4) != 0 ||
++		len(a.B.C1.D2.E2.F5) != 0 ||
++		len(a.B.C1.D2.E2.F6) != 0 ||
++		len(a.B.C1.D2.E2.F7) != 0 ||
++		len(a.B.C1.D2.E2.F8) != 0 ||
++		len(a.B.C1.D2.E2.F9) != 0 ||
++		len(a.B.C1.D2.E2.F10) != 0 ||
++		len(a.B.C1.D2.E2.F11) != 0 ||
++		len(a.B.C1.D2.E2.F16) != 0 {
++		panic("bad")
++	}
++	C.malloc(100)
++}
++
++type A struct {
++	B
++}
++
++type B struct {
++	C1 C
++	C2 C
++}
++
++type C struct {
++	D1 D
++	D2 D
++}
++
++type D struct {
++	E1 E
++	E2 E
++	E3 E
++	E4 E
++}
++
++type E struct {
++	F1  string
++	F2  string
++	F3  string
++	F4  string
++	F5  string
++	F6  string
++	F7  string
++	F8  string
++	F9  string
++	F10 string
++	F11 string
++	F12 string
++	F13 string
++	F14 string
++	F15 string
++	F16 string
++}
+diff --git a/test/fixedbugs/issue47185.dir/main.go b/test/fixedbugs/issue47185.dir/main.go
+new file mode 100644
+index 0000000000..7b46e55d8b
+--- /dev/null
++++ b/test/fixedbugs/issue47185.dir/main.go
+@@ -0,0 +1,28 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	bad "issue47185.dir/bad"
++)
++
++func main() {
++	another()
++	bad.Bad()
++}
++
++func another() L {
++	m := make(map[string]L)
++	return m[""]
++}
++
++type L struct {
++	A Data
++	B Data
++}
++
++type Data struct {
++	F1 [22][]string
++}
+diff --git a/test/fixedbugs/issue47185.go b/test/fixedbugs/issue47185.go
+new file mode 100644
+index 0000000000..9c921b8698
+--- /dev/null
++++ b/test/fixedbugs/issue47185.go
+@@ -0,0 +1,11 @@
++// +build cgo
++// runindir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Another test to verify compiler and linker handling of multiple
++// competing map.zero symbol definitions.
++
++package ignored

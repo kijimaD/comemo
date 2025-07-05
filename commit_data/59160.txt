@@ -18,7 +18,62 @@ Date:   Tue Feb 20 16:13:33 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/565378
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modcmd/verify.go           |  5 ++++-
  src/cmd/go/testdata/script/mod_verify_work.txt | 24 ++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 4552ed1ba2..d07f730c5d 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -61,7 +61,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ 	if err != nil {
+ 		base.Fatal(err)
+ 	}
+-	mods := mg.BuildList()[modload.MainModules.Len():]
++	mods := mg.BuildList()
+ 	// Use a slice of result channels, so that the output is deterministic.
+ 	errsChans := make([]<-chan []error, len(mods))
+ 
+@@ -94,6 +94,9 @@ func verifyMod(ctx context.Context, mod module.Version) []error {
+ 		// "go" and "toolchain" have no disk footprint; nothing to verify.
+ 		return nil
+ 	}
++	if modload.MainModules.Contains(mod.Path) {
++		return nil
++	}
+ 	var errs []error
+ 	zip, zipErr := modfetch.CachePath(ctx, mod, "zip")
+ 	if zipErr == nil {
+diff --git a/src/cmd/go/testdata/script/mod_verify_work.txt b/src/cmd/go/testdata/script/mod_verify_work.txt
+new file mode 100644
+index 0000000000..d9f5a54585
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_verify_work.txt
+@@ -0,0 +1,24 @@
++# Regression test for Issue #62663: we would filter out the toolchain and
++# main modules from the build list incorrectly, leading to the workspace
++# modules being checked for correct sums. Specifically this would happen when
++# the module name sorted after the virtual 'go' version module name because
++# it could not get chopped off when we removed the MainModules.Len() modules
++# at the beginning of the build list and we would remove the go module instead.
++
++go mod verify
++
++-- go.work --
++go 1.21
++
++use (
++    ./a
++    ./b
++)
++-- a/go.mod --
++module hexample.com/a // important for test that module name sorts after 'go'
++
++go 1.21
++-- b/go.mod --
++module hexample.com/b // important for test that module name sorts after 'go'
++
++go 1.21
+\ No newline at end of file

@@ -13,6 +13,27 @@ Date:   Sat Apr 8 22:52:21 2023 +0100
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/gofmt/gofmt.go | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 00c8cbdb93..bb22aea031 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -233,12 +233,9 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
+ 	}
+ 
+ 	fileSet := token.NewFileSet()
+-	fragmentOk := false
+-	if info == nil {
+-		// If we are formatting stdin, we accept a program fragment in lieu of a
+-		// complete source file.
+-		fragmentOk = true
+-	}
++	// If we are formatting stdin, we accept a program fragment in lieu of a
++	// complete source file.
++	fragmentOk := info == nil
+ 	file, sourceAdj, indentAdj, err := parse(fileSet, filename, src, fragmentOk)
+ 	if err != nil {
+ 		return err

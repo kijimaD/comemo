@@ -10,10 +10,260 @@ Date:   Sat Jun 14 15:51:00 2014 +1000
     R=golang-codereviews, alex.brainman, shreveal, iant
     CC=golang-codereviews
     https://golang.org/cl/102320044
-
+---
  src/pkg/os/os_test.go                     | 26 ++++++++++++++++++++
  src/pkg/syscall/syscall_windows.go        | 35 +++++++++++++++++++++++++--
  src/pkg/syscall/zsyscall_windows_386.go   | 40 +++++++++++++++++++++++++++++++
  src/pkg/syscall/zsyscall_windows_amd64.go | 40 +++++++++++++++++++++++++++++++
  src/pkg/syscall/ztypes_windows.go         | 24 +++++++++++++++++++
  5 files changed, 163 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 16d5984e96..baf913c2f0 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -1293,6 +1293,32 @@ func TestKillStartProcess(t *testing.T) {
+ 	})
+ }
+ 
++func TestGetppid(t *testing.T) {
++	if runtime.GOOS == "nacl" {
++		t.Skip("skipping on nacl")
++	}
++
++	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		fmt.Print(Getppid())
++		Exit(0)
++	}
++
++	cmd := osexec.Command(Args[0], "-test.run=TestGetppid")
++	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
++
++	// verify that Getppid() from the forked process reports our process id
++	output, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("Failed to spawn child process: %v %q", err, string(output))
++	}
++
++	childPpid := string(output)
++	ourPid := fmt.Sprintf("%d", Getpid())
++	if childPpid != ourPid {
++		t.Fatalf("Child process reports parent process id '%v', expected '%v'", childPpid, ourPid)
++	}
++}
++
+ func TestKillFindProcess(t *testing.T) {
+ 	testKillProcess(t, func(p *Process) {
+ 		p2, err := FindProcess(p.Pid)
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index f9733f6cee..79db1d1f6e 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -204,6 +204,9 @@ func NewCallbackCDecl(fn interface{}) uintptr
+ //sys	GetConsoleMode(console Handle, mode *uint32) (err error) = kernel32.GetConsoleMode
+ //sys	WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) = kernel32.WriteConsoleW
+ //sys	ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) = kernel32.ReadConsoleW
++//sys	CreateToolhelp32Snapshot(flags uint32, processId uint32) (handle Handle, err error) [failretval==InvalidHandle] = kernel32.CreateToolhelp32Snapshot
++//sys	Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32FirstW
++//sys	Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32NextW
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -902,9 +905,37 @@ func FindNextFile(handle Handle, data *Win32finddata) (err error) {
+ 	return
+ }
+ 
+-// TODO(brainman): fix all needed for os
+-func Getppid() (ppid int) { return -1 }
++func getProcessEntry(pid int) (*ProcessEntry32, error) {
++	snapshot, err := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
++	if err != nil {
++		return nil, err
++	}
++	defer CloseHandle(snapshot)
++	var procEntry ProcessEntry32
++	procEntry.Size = uint32(unsafe.Sizeof(procEntry))
++	if err = Process32First(snapshot, &procEntry); err != nil {
++		return nil, err
++	}
++	for {
++		if procEntry.ProcessID == uint32(pid) {
++			return &procEntry, nil
++		}
++		err = Process32Next(snapshot, &procEntry)
++		if err != nil {
++			return nil, err
++		}
++	}
++}
++
++func Getppid() (ppid int) {
++	pe, err := getProcessEntry(Getpid())
++	if err != nil {
++		return -1
++	}
++	return int(pe.ParentProcessID)
++}
+ 
++// TODO(brainman): fix all needed for os
+ func Fchdir(fd Handle) (err error)                        { return EWINDOWS }
+ func Link(oldpath, newpath string) (err error)            { return EWINDOWS }
+ func Symlink(path, link string) (err error)               { return EWINDOWS }
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 132adafeff..23bb448df6 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -108,6 +108,9 @@ var (
+ 	procGetConsoleMode                     = modkernel32.NewProc("GetConsoleMode")
+ 	procWriteConsoleW                      = modkernel32.NewProc("WriteConsoleW")
+ 	procReadConsoleW                       = modkernel32.NewProc("ReadConsoleW")
++	procCreateToolhelp32Snapshot           = modkernel32.NewProc("CreateToolhelp32Snapshot")
++	procProcess32FirstW                    = modkernel32.NewProc("Process32FirstW")
++	procProcess32NextW                     = modkernel32.NewProc("Process32NextW")
+ 	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
+ 	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
+ 	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
+@@ -1254,6 +1257,43 @@ func ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, input
+ 	return
+ }
+ 
++func CreateToolhelp32Snapshot(flags uint32, processId uint32) (handle Handle, err error) {
++	r0, _, e1 := Syscall(procCreateToolhelp32Snapshot.Addr(), 2, uintptr(flags), uintptr(processId), 0)
++	handle = Handle(r0)
++	if handle == InvalidHandle {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) {
++	r1, _, e1 := Syscall(procProcess32FirstW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(procEntry)), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) {
++	r1, _, e1 := Syscall(procProcess32NextW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(procEntry)), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
+ 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	if r0 != 0 {
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index 353a6fd980..2ddf81b97c 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -108,6 +108,9 @@ var (
+ 	procGetConsoleMode                     = modkernel32.NewProc("GetConsoleMode")
+ 	procWriteConsoleW                      = modkernel32.NewProc("WriteConsoleW")
+ 	procReadConsoleW                       = modkernel32.NewProc("ReadConsoleW")
++	procCreateToolhelp32Snapshot           = modkernel32.NewProc("CreateToolhelp32Snapshot")
++	procProcess32FirstW                    = modkernel32.NewProc("Process32FirstW")
++	procProcess32NextW                     = modkernel32.NewProc("Process32NextW")
+ 	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
+ 	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
+ 	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
+@@ -1254,6 +1257,43 @@ func ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, input
+ 	return
+ }
+ 
++func CreateToolhelp32Snapshot(flags uint32, processId uint32) (handle Handle, err error) {
++	r0, _, e1 := Syscall(procCreateToolhelp32Snapshot.Addr(), 2, uintptr(flags), uintptr(processId), 0)
++	handle = Handle(r0)
++	if handle == InvalidHandle {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) {
++	r1, _, e1 := Syscall(procProcess32FirstW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(procEntry)), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) {
++	r1, _, e1 := Syscall(procProcess32NextW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(procEntry)), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
+ 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	if r0 != 0 {
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index a1d77e0b54..dacb2a3dc0 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -175,6 +175,17 @@ const (
+ 	CTRL_BREAK_EVENT = 1
+ )
+ 
++const (
++	// flags for CreateToolhelp32Snapshot
++	TH32CS_SNAPHEAPLIST = 0x01
++	TH32CS_SNAPPROCESS  = 0x02
++	TH32CS_SNAPTHREAD   = 0x04
++	TH32CS_SNAPMODULE   = 0x08
++	TH32CS_SNAPMODULE32 = 0x10
++	TH32CS_SNAPALL      = TH32CS_SNAPHEAPLIST | TH32CS_SNAPMODULE | TH32CS_SNAPPROCESS | TH32CS_SNAPTHREAD
++	TH32CS_INHERIT      = 0x80000000
++)
++
+ const (
+ 	// do not reorder
+ 	FILE_NOTIFY_CHANGE_FILE_NAME = 1 << iota
+@@ -462,6 +473,19 @@ type ProcessInformation struct {
+ 	ThreadId  uint32
+ }
+ 
++type ProcessEntry32 struct {
++	Size            uint32
++	Usage           uint32
++	ProcessID       uint32
++	DefaultHeapID   uintptr
++	ModuleID        uint32
++	Threads         uint32
++	ParentProcessID uint32
++	PriClassBase    int32
++	Flags           uint32
++	ExeFile         [MAX_PATH]uint16
++}
++
+ type Systemtime struct {
+ 	Year         uint16
+ 	Month        uint16

@@ -8,7 +8,61 @@ Date:   Mon Nov 6 14:41:06 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/c/76311
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/range.go | 23 ++++++++++++++++-------
  src/cmd/compile/internal/gc/ssa.go   |  2 --
  2 files changed, 16 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 13f45e164d..ac03cc5ea7 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -286,13 +286,7 @@ func walkrange(n *Node) *Node {
+ 		// This runs *after* the condition check, so we know
+ 		// advancing the pointer is safe and won't go past the
+ 		// end of the allocation.
+-		tmp = nod(OADD, hp, nodintconst(t.Elem().Width))
+-
+-		tmp.Type = hp.Type
+-		tmp.SetTypecheck(1)
+-		tmp.Right.Type = types.Types[types.Tptr]
+-		tmp.Right.SetTypecheck(1)
+-		a = nod(OAS, hp, tmp)
++		a = nod(OAS, hp, addptr(hp, t.Elem().Width))
+ 		a = typecheck(a, Etop)
+ 		n.List.Set1(a)
+ 
+@@ -613,3 +607,18 @@ func arrayClear(n, v1, v2, a *Node) bool {
+ 	n = walkstmt(n)
+ 	return true
+ }
++
++// addptr returns (*T)(uintptr(p) + n).
++func addptr(p *Node, n int64) *Node {
++	t := p.Type
++
++	p = nod(OCONVNOP, p, nil)
++	p.Type = types.Types[TUINTPTR]
++
++	p = nod(OADD, p, nodintconst(n))
++
++	p = nod(OCONVNOP, p, nil)
++	p.Type = t
++
++	return p
++}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 138ce08fec..2b67ef9a6f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1247,10 +1247,8 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OADD, TUINT16}:  ssa.OpAdd16,
+ 	opAndType{OADD, TINT32}:   ssa.OpAdd32,
+ 	opAndType{OADD, TUINT32}:  ssa.OpAdd32,
+-	opAndType{OADD, TPTR32}:   ssa.OpAdd32,
+ 	opAndType{OADD, TINT64}:   ssa.OpAdd64,
+ 	opAndType{OADD, TUINT64}:  ssa.OpAdd64,
+-	opAndType{OADD, TPTR64}:   ssa.OpAdd64,
+ 	opAndType{OADD, TFLOAT32}: ssa.OpAdd32F,
+ 	opAndType{OADD, TFLOAT64}: ssa.OpAdd64F,
+ 

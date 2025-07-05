@@ -24,7 +24,72 @@ Date:   Fri Jun 6 16:52:14 2014 -0400
     R=iant, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/102220043
-
+---
  src/pkg/runtime/proc.c      |  6 ++++++
  test/fixedbugs/issue8158.go | 41 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index da2e0f9fa4..914a02e0bf 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1459,6 +1459,12 @@ goexit0(G *gp)
+ 	gp->m = nil;
+ 	gp->lockedm = nil;
+ 	gp->paniconfault = 0;
++	gp->defer = nil; // should be true already but just in case.
++	gp->panic = nil; // non-nil for Goexit during panic. points at stack-allocated data.
++	gp->writenbuf = 0;
++	gp->writebuf = nil;
++	gp->waitreason = nil;
++	gp->param = nil;
+ 	m->curg = nil;
+ 	m->lockedg = nil;
+ 	if(m->locked & ~LockExternal) {
+diff --git a/test/fixedbugs/issue8158.go b/test/fixedbugs/issue8158.go
+new file mode 100644
+index 0000000000..b110de11f4
+--- /dev/null
++++ b/test/fixedbugs/issue8158.go
+@@ -0,0 +1,41 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"runtime"
++	"time"
++)
++
++func main() {
++	c := make(chan bool, 1)
++	go f1(c)
++	<-c
++	time.Sleep(10 * time.Millisecond)
++	go f2(c)
++	<-c
++}
++
++func f1(done chan bool) {
++	defer func() {
++		recover()
++		done <- true
++		runtime.Goexit() // left stack-allocated Panic struct on gp->panic stack
++	}()
++	panic("p")
++}
++
++func f2(done chan bool) {
++	defer func() {
++		recover()
++		done <- true
++		runtime.Goexit()
++	}()
++	time.Sleep(10 * time.Millisecond) // overwrote Panic struct with Timer struct
++	runtime.GC()                      // walked gp->panic list, found mangled Panic struct, crashed
++	panic("p")
++}

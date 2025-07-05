@@ -7,6 +7,20 @@ Date:   Mon Feb 11 18:01:18 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7300084
-
+---
  misc/dashboard/app/build/notify.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/app/build/notify.go b/misc/dashboard/app/build/notify.go
+index 0eadb909f3..52b91f6c12 100644
+--- a/misc/dashboard/app/build/notify.go
++++ b/misc/dashboard/app/build/notify.go
+@@ -38,7 +38,7 @@ var failIgnore = map[string]bool{
+ // have been retrieved from the datastore within that transaction.
+ func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
+ 	if failIgnore[builder] {
+-		return
++		return nil
+ 	}
+ 
+ 	// TODO(adg): implement notifications for packages

@@ -12,6 +12,20 @@ Date:   Tue Feb 28 21:12:13 2023 +0000
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/testdata/testprog/lockosthread.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprog/lockosthread.go b/src/runtime/testdata/testprog/lockosthread.go
+index e9d7fdbc44..90d98e4972 100644
+--- a/src/runtime/testdata/testprog/lockosthread.go
++++ b/src/runtime/testdata/testprog/lockosthread.go
+@@ -155,7 +155,7 @@ func LockOSThreadAvoidsStatePropagation() {
+ 		}
+ 		// Chdir to somewhere else on this thread.
+ 		// On systems other than Linux, this is a no-op.
+-		if err := chdir("/tmp"); err != nil {
++		if err := chdir(os.TempDir()); err != nil {
+ 			println("failed to chdir:", err.Error())
+ 			os.Exit(1)
+ 		}

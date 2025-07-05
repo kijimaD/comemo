@@ -9,6 +9,36 @@ Date:   Fri Mar 3 13:07:54 2017 -0800
     Change-Id: I0ff480e95ef5af375be2ccc655f8b233a7bcd39d
     Reviewed-on: https://go-review.googlesource.com/37755
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/srcimporter/srcimporter.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index 45fddb9fee..f259493fc7 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -93,10 +93,11 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
+ 			return nil, fmt.Errorf("import cycle through package %q", bp.ImportPath)
+ 		}
+ 		if !pkg.Complete() {
+-			// package exists but is not complete - we cannot handle this
++			// Package exists but is not complete - we cannot handle this
+ 			// at the moment since the source importer replaces the package
+-			// wholesale rather than augmenting it (see #19337 for details)
+-			return nil, fmt.Errorf("reimported partially imported package %q", bp.ImportPath)
++			// wholesale rather than augmenting it (see #19337 for details).
++			// Return incomplete package with error (see #16088).
++			return pkg, fmt.Errorf("reimported partially imported package %q", bp.ImportPath)
+ 		}
+ 		return pkg, nil
+ 	}
+@@ -135,7 +136,8 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
+ 	}
+ 	pkg, err = conf.Check(bp.ImportPath, p.fset, files, nil)
+ 	if err != nil {
+-		return nil, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
++		// return (possibly nil or incomplete) package with error (see #16088)
++		return pkg, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
+ 	}
+ 
+ 	p.packages[bp.ImportPath] = pkg

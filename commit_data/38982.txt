@@ -15,6 +15,20 @@ Date:   Thu Dec 13 08:17:09 2018 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/internal/gccgoimporter/importer_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index f678ddc3b5..7a21c5f2f4 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -159,7 +159,7 @@ func TestObjImporter(t *testing.T) {
+ 
+ 	for _, test := range importerTests {
+ 		// Support for type aliases was added in GCC 7.
+-		if test.pkgpath == "aliases" || test.pkgpath == "issue27856" {
++		if test.pkgpath == "aliases" || test.pkgpath == "issue27856" || test.pkgpath == "issue29198" {
+ 			if major < 7 {
+ 				t.Logf("skipping %q: not supported before gccgo version 7", test.pkgpath)
+ 				continue

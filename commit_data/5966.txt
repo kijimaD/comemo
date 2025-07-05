@@ -7,7 +7,34 @@ Date:   Fri Aug 6 09:42:55 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1890045
-
+---
  src/pkg/net/fd_windows.go        | 2 --
  src/pkg/time/zoneinfo_windows.go | 2 +-
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 7a78391b06..c3ed9639d2 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -11,8 +11,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-var onceStartServer sync.Once
+-
+ // BUG(brainman): The Windows implementation does not implement SetTimeout.
+ 
+ // IO completion result parameters.
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index d9112598f2..c357eec62b 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -6,7 +6,7 @@ package time
+ 
+ import (
+ 	"syscall"
+-	"once"
++	"sync"
+ 	"os"
+ )
+ 

@@ -20,7 +20,7 @@ Date:   Mon Jan 6 11:10:26 2020 -0500
     Change-Id: I2f59f8d8d6fb42d2f10006b55d605b5efd8ddc24
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213418
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/memmove_386.s         |  2 ++
  src/runtime/memmove_amd64.s       |  2 ++
  src/runtime/memmove_arm.s         |  2 ++
@@ -35,3 +35,183 @@ Date:   Mon Jan 6 11:10:26 2020 -0500
  src/runtime/memmove_wasm.s        |  2 ++
  src/runtime/stubs.go              | 12 +++++++++++-
  13 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/memmove_386.s b/src/runtime/memmove_386.s
+index 7b54070f59..ecadee39af 100644
+--- a/src/runtime/memmove_386.s
++++ b/src/runtime/memmove_386.s
+@@ -28,6 +28,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index b4243a833b..9458351fec 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -28,6 +28,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+ 
+diff --git a/src/runtime/memmove_arm.s b/src/runtime/memmove_arm.s
+index 8352fb7860..7bad8d2249 100644
+--- a/src/runtime/memmove_arm.s
++++ b/src/runtime/memmove_arm.s
+@@ -58,6 +58,8 @@
+ #define FW3	R4
+ #define FR3	R8					/* shared with TE */
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $4-12
+ _memmove:
+diff --git a/src/runtime/memmove_arm64.s b/src/runtime/memmove_arm64.s
+index cedb018005..dbb7e9a28a 100644
+--- a/src/runtime/memmove_arm64.s
++++ b/src/runtime/memmove_arm64.s
+@@ -4,6 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
+ 	MOVD	to+0(FP), R3
+diff --git a/src/runtime/memmove_mips64x.s b/src/runtime/memmove_mips64x.s
+index a4cb7dc81e..8a1b88afba 100644
+--- a/src/runtime/memmove_mips64x.s
++++ b/src/runtime/memmove_mips64x.s
+@@ -6,6 +6,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
+ 	MOVV	to+0(FP), R1
+diff --git a/src/runtime/memmove_mipsx.s b/src/runtime/memmove_mipsx.s
+index 13544a3598..6c86558f8d 100644
+--- a/src/runtime/memmove_mipsx.s
++++ b/src/runtime/memmove_mipsx.s
+@@ -14,6 +14,8 @@
+ #define MOVWLO  MOVWL
+ #endif
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB),NOSPLIT,$-0-12
+ 	MOVW	n+8(FP), R3
+diff --git a/src/runtime/memmove_plan9_386.s b/src/runtime/memmove_plan9_386.s
+index 65dec93f6b..1b2f8470ae 100644
+--- a/src/runtime/memmove_plan9_386.s
++++ b/src/runtime/memmove_plan9_386.s
+@@ -25,6 +25,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+diff --git a/src/runtime/memmove_plan9_amd64.s b/src/runtime/memmove_plan9_amd64.s
+index b729c7c0e7..68e11d59fd 100644
+--- a/src/runtime/memmove_plan9_amd64.s
++++ b/src/runtime/memmove_plan9_amd64.s
+@@ -25,6 +25,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+ 
+diff --git a/src/runtime/memmove_ppc64x.s b/src/runtime/memmove_ppc64x.s
+index 60cbcc41ec..dbb3b90fcf 100644
+--- a/src/runtime/memmove_ppc64x.s
++++ b/src/runtime/memmove_ppc64x.s
+@@ -6,6 +6,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
+ 	MOVD	to+0(FP), R3
+diff --git a/src/runtime/memmove_riscv64.s b/src/runtime/memmove_riscv64.s
+index 34e513cda7..5dec8d0a33 100755
+--- a/src/runtime/memmove_riscv64.s
++++ b/src/runtime/memmove_riscv64.s
+@@ -4,6 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // void runtime·memmove(void*, void*, uintptr)
+ TEXT runtime·memmove(SB),NOSPLIT,$-0-24
+ 	MOV	to+0(FP), T0
+diff --git a/src/runtime/memmove_s390x.s b/src/runtime/memmove_s390x.s
+index 4ce98b0a95..f4c2b87d92 100644
+--- a/src/runtime/memmove_s390x.s
++++ b/src/runtime/memmove_s390x.s
+@@ -4,6 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB),NOSPLIT|NOFRAME,$0-24
+ 	MOVD	to+0(FP), R6
+diff --git a/src/runtime/memmove_wasm.s b/src/runtime/memmove_wasm.s
+index d5e2016930..8525fea35e 100644
+--- a/src/runtime/memmove_wasm.s
++++ b/src/runtime/memmove_wasm.s
+@@ -4,6 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memmove Go doc for important implementation constraints.
++
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+ 	MOVD to+0(FP), R0
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index a58f267e7f..b8d4d6b30a 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -83,7 +83,17 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
+ }
+ 
+ // memmove copies n bytes from "from" to "to".
+-// in memmove_*.s
++//
++// memmove ensures that any pointer in "from" is written to "to" with
++// an indivisible write, so that racy reads cannot observe a
++// half-written pointer. This is necessary to prevent the garbage
++// collector from observing invalid pointers, and differs from memmove
++// in unmanaged languages. However, memmove is only required to do
++// this if "from" and "to" may contain pointers, which can only be the
++// case if "from", "to", and "n" are all be word-aligned.
++//
++// Implementations are in memmove_*.s.
++//
+ //go:noescape
+ func memmove(to, from unsafe.Pointer, n uintptr)
+ 

@@ -15,7 +15,61 @@ Date:   Tue Jan 5 08:37:41 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  test/deferfin.go            | 7 +------
  test/fixedbugs/issue5493.go | 7 +++----
  2 files changed, 4 insertions(+), 10 deletions(-)
+
+diff --git a/test/deferfin.go b/test/deferfin.go
+index 80372916d2..1312bbbe71 100644
+--- a/test/deferfin.go
++++ b/test/deferfin.go
+@@ -18,12 +18,8 @@ import (
+ var sink func()
+ 
+ func main() {
+-	// Does not work on 32-bits due to partially conservative GC.
++	// Does not work with gccgo, due to partially conservative GC.
+ 	// Try to enable when we have fully precise GC.
+-	if runtime.GOARCH != "amd64" {
+-		return
+-	}
+-	// Likewise for gccgo.
+ 	if runtime.Compiler == "gccgo" {
+ 		return
+ 	}
+@@ -60,4 +56,3 @@ func main() {
+ 		panic("not all finalizers are called")
+ 	}
+ }
+-
+diff --git a/test/fixedbugs/issue5493.go b/test/fixedbugs/issue5493.go
+index 2ee0398af2..8f771bc2db 100644
+--- a/test/fixedbugs/issue5493.go
++++ b/test/fixedbugs/issue5493.go
+@@ -14,6 +14,7 @@ import (
+ )
+ 
+ const N = 10
++
+ var count int64
+ 
+ func run() error {
+@@ -31,10 +32,9 @@ func run() error {
+ }
+ 
+ func main() {
+-	// Does not work on 32-bits, or with gccgo, due to partially
+-	// conservative GC.
++	// Does not work with gccgo, due to partially conservative GC.
+ 	// Try to enable when we have fully precise GC.
+-	if runtime.GOARCH != "amd64" || runtime.Compiler == "gccgo" {
++	if runtime.Compiler == "gccgo" {
+ 		return
+ 	}
+ 	count = N
+@@ -56,4 +56,3 @@ func main() {
+ 		panic("not all finalizers are called")
+ 	}
+ }
+-

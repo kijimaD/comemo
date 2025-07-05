@@ -13,6 +13,21 @@ Date:   Fri Oct 7 09:35:04 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 4cf957a41a..8309af2997 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1436,8 +1436,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		}
+ 		s.endRegs[b.ID] = regList
+ 
+-		// Check. TODO: remove
+-		{
++		if checkEnabled {
+ 			liveSet.clear()
+ 			for _, x := range s.live[b.ID] {
+ 				liveSet.add(x.ID)

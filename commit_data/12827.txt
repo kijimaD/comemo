@@ -9,6 +9,21 @@ Date:   Tue Apr 3 15:36:48 2012 -0700
     R=golang-dev
     CC=bradfitz, golang-dev
     https://golang.org/cl/5970076
-
+---
  src/pkg/database/sql/sql.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 51a357b37d..89136ef6e4 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -327,6 +327,9 @@ func (db *DB) prepare(query string) (stmt *Stmt, err error) {
+ // Exec executes a query without returning any rows.
+ func (db *DB) Exec(query string, args ...interface{}) (Result, error) {
+ 	sargs, err := subsetTypeArgs(args)
++	if err != nil {
++		return nil, err
++	}
+ 	var res Result
+ 	for i := 0; i < 10; i++ {
+ 		res, err = db.exec(query, sargs)

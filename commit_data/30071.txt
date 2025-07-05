@@ -23,10 +23,81 @@ Date:   Mon Oct 24 11:46:06 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 4 +++-
  src/cmd/internal/obj/link.go        | 1 -
  src/cmd/internal/obj/plist.go       | 2 +-
  src/cmd/internal/obj/sizeof_test.go | 4 ++--
  src/cmd/internal/obj/util.go        | 3 ---
  5 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 8c5925ff04..1346ca156b 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -425,7 +425,9 @@ func compile(fn *Node) {
+ 			fallthrough
+ 		case PPARAM, PPARAMOUT:
+ 			p := Gins(obj.ATYPE, n, nil)
+-			p.From.Gotype = Linksym(ngotype(n))
++			p.To.Type = obj.TYPE_MEM
++			p.To.Name = obj.NAME_EXTERN
++			p.To.Sym = Linksym(ngotype(n))
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 48137a289b..fecd71f674 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -160,7 +160,6 @@ type Addr struct {
+ 	Class  int8
+ 	Offset int64
+ 	Sym    *LSym
+-	Gotype *LSym
+ 
+ 	// argument value:
+ 	//	for TYPE_SCONST, a string
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 4890d9c03f..9264218259 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -69,7 +69,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				a.Asym = p.From.Sym
+ 				a.Aoffset = int32(p.From.Offset)
+ 				a.Name = int16(p.From.Name)
+-				a.Gotype = p.From.Gotype
++				a.Gotype = p.To.Sym
+ 				a.Link = curtext.Autom
+ 				curtext.Autom = a
+ 				continue
+diff --git a/src/cmd/internal/obj/sizeof_test.go b/src/cmd/internal/obj/sizeof_test.go
+index 6cf8275630..65028ab4b9 100644
+--- a/src/cmd/internal/obj/sizeof_test.go
++++ b/src/cmd/internal/obj/sizeof_test.go
+@@ -22,9 +22,9 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Addr{}, 44, 72},
++		{Addr{}, 40, 64},
+ 		{LSym{}, 80, 136},
+-		{Prog{}, 152, 240},
++		{Prog{}, 144, 224},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index bbff065f73..9f1c6f08c7 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -240,9 +240,6 @@ func Dconv(p *Prog, a *Addr) string {
+ 		if a.Index != REG_NONE {
+ 			str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+ 		}
+-		if p != nil && p.As == ATYPE && a.Gotype != nil {
+-			str += fmt.Sprintf("%s", a.Gotype.Name)
+-		}
+ 
+ 	case TYPE_CONST:
+ 		if a.Reg != 0 {

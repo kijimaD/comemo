@@ -15,7 +15,7 @@ Date:   Wed Sep 8 15:51:10 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/ast/ast.go                        | 10 +++++-----
  src/go/ast/walk.go                       |  2 +-
  src/go/internal/typeparams/typeparams.go | 13 ++++++-------
@@ -29,3 +29,230 @@ Date:   Wed Sep 8 15:51:10 2021 -0400
  src/go/types/struct.go                   |  2 +-
  src/go/types/typexpr.go                  |  2 +-
  12 files changed, 22 insertions(+), 23 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index f9223e4f91..70d0912f67 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -344,9 +344,9 @@ type (
+ 		Rbrack token.Pos // position of "]"
+ 	}
+ 
+-	// A MultiIndexExpr node represents an expression followed by multiple
++	// An IndexListExpr node represents an expression followed by multiple
+ 	// indices.
+-	MultiIndexExpr struct {
++	IndexListExpr struct {
+ 		X       Expr      // expression
+ 		Lbrack  token.Pos // position of "["
+ 		Indices []Expr    // index expressions
+@@ -496,7 +496,7 @@ func (x *CompositeLit) Pos() token.Pos {
+ func (x *ParenExpr) Pos() token.Pos      { return x.Lparen }
+ func (x *SelectorExpr) Pos() token.Pos   { return x.X.Pos() }
+ func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
+-func (x *MultiIndexExpr) Pos() token.Pos { return x.X.Pos() }
++func (x *IndexListExpr) Pos() token.Pos  { return x.X.Pos() }
+ func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
+ func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
+ func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
+@@ -530,7 +530,7 @@ func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
+ func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
+ func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
+ func (x *IndexExpr) End() token.Pos      { return x.Rbrack + 1 }
+-func (x *MultiIndexExpr) End() token.Pos { return x.Rbrack + 1 }
++func (x *IndexListExpr) End() token.Pos  { return x.Rbrack + 1 }
+ func (x *SliceExpr) End() token.Pos      { return x.Rbrack + 1 }
+ func (x *TypeAssertExpr) End() token.Pos { return x.Rparen + 1 }
+ func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
+@@ -562,7 +562,7 @@ func (*CompositeLit) exprNode()   {}
+ func (*ParenExpr) exprNode()      {}
+ func (*SelectorExpr) exprNode()   {}
+ func (*IndexExpr) exprNode()      {}
+-func (*MultiIndexExpr) exprNode() {}
++func (*IndexListExpr) exprNode()  {}
+ func (*SliceExpr) exprNode()      {}
+ func (*TypeAssertExpr) exprNode() {}
+ func (*CallExpr) exprNode()       {}
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index 530735e76f..308662f633 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -116,7 +116,7 @@ func Walk(v Visitor, node Node) {
+ 		Walk(v, n.X)
+ 		Walk(v, n.Index)
+ 
+-	case *MultiIndexExpr:
++	case *IndexListExpr:
+ 		Walk(v, n.X)
+ 		for _, index := range n.Indices {
+ 			Walk(v, index)
+diff --git a/src/go/internal/typeparams/typeparams.go b/src/go/internal/typeparams/typeparams.go
+index 9bf4f7bf97..3f84f2f0d0 100644
+--- a/src/go/internal/typeparams/typeparams.go
++++ b/src/go/internal/typeparams/typeparams.go
+@@ -21,7 +21,7 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.
+ 			Rbrack: rbrack,
+ 		}
+ 	default:
+-		return &ast.MultiIndexExpr{
++		return &ast.IndexListExpr{
+ 			X:       x,
+ 			Lbrack:  lbrack,
+ 			Indices: exprs,
+@@ -30,25 +30,24 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.
+ 	}
+ }
+ 
+-// IndexExpr wraps an ast.IndexExpr or ast.MultiIndexExpr into the
+-// MultiIndexExpr interface.
++// IndexExpr wraps an ast.IndexExpr or ast.IndexListExpr.
+ //
+ // Orig holds the original ast.Expr from which this IndexExpr was derived.
+ type IndexExpr struct {
+-	Orig ast.Expr // the wrapped expr, which may be distinct from MultiIndexExpr below.
+-	*ast.MultiIndexExpr
++	Orig ast.Expr // the wrapped expr, which may be distinct from the IndexListExpr below.
++	*ast.IndexListExpr
+ }
+ 
+ func UnpackIndexExpr(n ast.Node) *IndexExpr {
+ 	switch e := n.(type) {
+ 	case *ast.IndexExpr:
+-		return &IndexExpr{e, &ast.MultiIndexExpr{
++		return &IndexExpr{e, &ast.IndexListExpr{
+ 			X:       e.X,
+ 			Lbrack:  e.Lbrack,
+ 			Indices: []ast.Expr{e.Index},
+ 			Rbrack:  e.Rbrack,
+ 		}}
+-	case *ast.MultiIndexExpr:
++	case *ast.IndexListExpr:
+ 		return &IndexExpr{e, e}
+ 	}
+ 	return nil
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 5c0af8d3b8..049515656c 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1570,7 +1570,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 		panic("unreachable")
+ 	case *ast.SelectorExpr:
+ 	case *ast.IndexExpr:
+-	case *ast.MultiIndexExpr:
++	case *ast.IndexListExpr:
+ 	case *ast.SliceExpr:
+ 	case *ast.TypeAssertExpr:
+ 		// If t.Type == nil we have a type assertion of the form
+@@ -1660,7 +1660,7 @@ func (p *parser) parsePrimaryExpr() (x ast.Expr) {
+ 					return
+ 				}
+ 				// x is possibly a composite literal type
+-			case *ast.IndexExpr, *ast.MultiIndexExpr:
++			case *ast.IndexExpr, *ast.IndexListExpr:
+ 				if p.exprLev < 0 {
+ 					return
+ 				}
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 9ce0115426..053a8ef174 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -873,7 +873,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		p.expr0(x.Index, depth+1)
+ 		p.print(x.Rbrack, token.RBRACK)
+ 
+-	case *ast.MultiIndexExpr:
++	case *ast.IndexListExpr:
+ 		// TODO(gri): as for IndexExpr, should treat [] like parentheses and undo
+ 		// one level of depth
+ 		p.expr1(x.X, token.HighestPrec, 1)
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 39cd67c5f3..3710756c29 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -337,7 +337,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 	if sig.TypeParams().Len() > 0 {
+ 		if !check.allowVersion(check.pkg, 1, 18) {
+ 			switch call.Fun.(type) {
+-			case *ast.IndexExpr, *ast.MultiIndexExpr:
++			case *ast.IndexExpr, *ast.IndexListExpr:
+ 				ix := typeparams.UnpackIndexExpr(call.Fun)
+ 				check.softErrorf(inNode(call.Fun, ix.Lbrack), _Todo, "function instantiation requires go1.18 or later")
+ 			default:
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 5ca4edebcb..007205a9fb 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1392,7 +1392,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 	case *ast.SelectorExpr:
+ 		check.selector(x, e)
+ 
+-	case *ast.IndexExpr, *ast.MultiIndexExpr:
++	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		ix := typeparams.UnpackIndexExpr(e)
+ 		if check.indexExpr(x, ix) {
+ 			check.funcInst(x, ix)
+diff --git a/src/go/types/exprstring.go b/src/go/types/exprstring.go
+index aee8a5ba5f..06e7a9dcb4 100644
+--- a/src/go/types/exprstring.go
++++ b/src/go/types/exprstring.go
+@@ -67,7 +67,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 		buf.WriteByte('.')
+ 		buf.WriteString(x.Sel.Name)
+ 
+-	case *ast.IndexExpr, *ast.MultiIndexExpr:
++	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		ix := typeparams.UnpackIndexExpr(x)
+ 		WriteExpr(buf, ix.X)
+ 		buf.WriteByte('[')
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index b04a673ab7..486c09220b 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -513,7 +513,7 @@ L: // unpack receiver type
+ 
+ 	// unpack type parameters, if any
+ 	switch rtyp.(type) {
+-	case *ast.IndexExpr, *ast.MultiIndexExpr:
++	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		ix := typeparams.UnpackIndexExpr(rtyp)
+ 		rtyp = ix.X
+ 		if unpackParams {
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 0561947901..88ea07d5d3 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -326,7 +326,7 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
+ 			new.X = X
+ 			return &new
+ 		}
+-	case *ast.IndexExpr, *ast.MultiIndexExpr:
++	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		ix := typeparams.UnpackIndexExpr(x)
+ 		var newIndexes []ast.Expr
+ 		for i, index := range ix.Indices {
+diff --git a/src/go/types/struct.go b/src/go/types/struct.go
+index f6e6f2a5e6..24a2435ff7 100644
+--- a/src/go/types/struct.go
++++ b/src/go/types/struct.go
+@@ -176,7 +176,7 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
+ 		return e.Sel
+ 	case *ast.IndexExpr:
+ 		return embeddedFieldIdent(e.X)
+-	case *ast.MultiIndexExpr:
++	case *ast.IndexListExpr:
+ 		return embeddedFieldIdent(e.X)
+ 	}
+ 	return nil // invalid embedded field
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index af56297144..6b4a3538b6 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -258,7 +258,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 			check.errorf(&x, _NotAType, "%s is not a type", &x)
+ 		}
+ 
+-	case *ast.IndexExpr, *ast.MultiIndexExpr:
++	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		ix := typeparams.UnpackIndexExpr(e)
+ 		if !check.allowVersion(check.pkg, 1, 18) {
+ 			check.softErrorf(inNode(e, ix.Lbrack), _Todo, "type instantiation requires go1.18 or later")

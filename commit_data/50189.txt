@@ -18,8 +18,61 @@ Date:   Tue Oct 5 23:53:07 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/errorcodes.go            | 2 +-
  src/go/types/expr.go                  | 6 ++++++
  src/go/types/testdata/check/expr2.src | 4 ++--
  3 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index bcc850f753..49c6a74c20 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -875,7 +875,7 @@ const (
+ 	// context in which it is used.
+ 	//
+ 	// Example:
+-	//  var _ = 1 + nil
++	//  var _ = 1 + new(int)
+ 	_InvalidUntypedConversion
+ 
+ 	// _BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 2fc5aa85d2..fac5a5e31d 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -967,6 +967,12 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 		if isString(x.typ) != isString(y.typ) {
+ 			return false
+ 		}
++		if x.isNil() && !hasNil(y.typ) {
++			return false
++		}
++		if y.isNil() && !hasNil(x.typ) {
++			return false
++		}
+ 		return true
+ 	}
+ 	if canMix(x, &y) {
+diff --git a/src/go/types/testdata/check/expr2.src b/src/go/types/testdata/check/expr2.src
+index f9726b5de5..8757fd9e48 100644
+--- a/src/go/types/testdata/check/expr2.src
++++ b/src/go/types/testdata/check/expr2.src
+@@ -29,7 +29,7 @@ func arrays() {
+ 	_ = a == b
+ 	_ = a != b
+ 	_ = a /* ERROR < not defined */ < b
+-	_ = a == nil /* ERROR cannot convert */
++	_ = a /* ERROR cannot compare.*mismatched types */ == nil
+ 
+ 	type C [10]int
+ 	var c C
+@@ -53,7 +53,7 @@ func structs() {
+ 	_ = s == t
+ 	_ = s != t
+ 	_ = s /* ERROR < not defined */ < t
+-	_ = s == nil /* ERROR cannot convert */
++	_ = s /* ERROR cannot compare.*mismatched types */ == nil
+ 
+ 	type S struct {
+ 		x int

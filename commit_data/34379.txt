@@ -11,6 +11,20 @@ Date:   Mon Oct 23 17:27:34 2017 +1100
     Reviewed-on: https://go-review.googlesource.com/72592
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/netpoll_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/netpoll_windows.go b/src/runtime/netpoll_windows.go
+index 79dafb0279..134071f5e3 100644
+--- a/src/runtime/netpoll_windows.go
++++ b/src/runtime/netpoll_windows.go
+@@ -47,7 +47,7 @@ func netpolldescriptor() uintptr {
+ 
+ func netpollopen(fd uintptr, pd *pollDesc) int32 {
+ 	if stdcall4(_CreateIoCompletionPort, fd, iocphandle, 0, 0) == 0 {
+-		return -int32(getlasterror())
++		return int32(getlasterror())
+ 	}
+ 	return 0
+ }

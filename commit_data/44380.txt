@@ -9,6 +9,20 @@ Date:   Tue Jun 9 13:53:39 2020 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/stubs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 2c6f027c2c..b891a12fdd 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -130,7 +130,7 @@ func fastrandn(n uint32) uint32 {
+ //go:linkname sync_fastrand sync.fastrand
+ func sync_fastrand() uint32 { return fastrand() }
+ 
+-// in asm_*.s
++// in internal/bytealg/equal_*.s
+ //go:noescape
+ func memequal(a, b unsafe.Pointer, size uintptr) bool
+ 

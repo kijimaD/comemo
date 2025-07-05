@@ -11,7 +11,92 @@ Date:   Tue Nov 29 17:58:46 2016 -0800
     Change-Id: I2e5b24fb0b110d833a8b73bccfbf399cb6e37ea2
     Reviewed-on: https://go-review.googlesource.com/33681
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.8.html | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
  doc/go1.8.txt  |  9 ---------
  2 files changed, 53 insertions(+), 9 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 88ba6bc0a3..dd6e9af2d8 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -1281,6 +1281,59 @@ pkg debug/pe, type StringTable []uint8</pre>
+       <a href="/pkg/os/#Executable"><code>Executable</code></a> returns
+       the path name of the running executable.
+     </p>
++
++    <p> <!-- CL 30614 -->
++      An attempt to call a method on
++      an <a href="/pkg/os/#File"><code>os.File</code></a> that has
++      already been closed will now return the new error
++      value <a href="/pkg/os/#ErrClosed"><code>os.ErrClosed</code></a>.
++      Previously it returned a system-specific error such
++      as <code>syscall.EBADF</code>.
++    </p>
++
++    <p> <!-- CL 31358 -->
++      On Unix systems, <a href="/pkg/os/#Rename"><code>os.Rename</code></a>
++      will now return an error when used to rename a directory to an
++      existing empty directory.
++      Previously it would fail when renaming to a non-empty directory
++      but succeed when renaming to an empty directory.
++      This makes the behavior on Unix correspond to that on other systems.
++    </p>
++
++    <p> <!-- CL 32451 -->
++      On Windows, long absolute paths are now transparently converted to
++      extended-length paths (paths that start with <code>\\?\</code>).
++      This permits the package to work with files whose path names are
++      longer than 260 characters.
++    </p>
++
++    <p> <!-- CL 29753 -->
++      On Windows, <a href="/pkg/os/#IsExist"><code>os.IsExist</code></a>
++      will now return <code>true</code> for the system
++      error <code>ERROR_DIR_NOT_EMPTY</code>.
++      This roughly corresponds to the existing handling of the Unix
++      error <code>ENOTEMPTY</code>.
++    </p>
++
++    <p> <!-- CL 32152 -->
++      On Plan 9, files that are not served by <code>#M</code> will now
++      have <a href="/pkg/os/#ModeDevice"><code>ModeDevice</code></a> set in
++      the value returned
++      by <a href="/pkg/os/#FileInfo"><code>FileInfo.Mode</code></a>.
++    </p>
++  </dd>
++</dl>
++
++<dl id="os_signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
++  <dd>
++    <p> <!-- CL 32796 -->
++      In a Go library built with <code>-buildmode=c-archive</code>
++      or <code>c-shared</code>, when C code calls a Go function,
++      the <code>SIGPIPE</code> signal will be treated as usual for Go code.
++      In particular, when <code>SIGPIPE</code> is triggered by a write
++      to a closed Go network connection, it will not cause the program
++      to exit.
++    </p>
+   </dd>
+ </dl>
+ 
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index 7c61a4f91a..800464dc1e 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -82,15 +82,6 @@ go/types: match cmd/compile's alignment for complex64 (CL 31939)
+ 
+ html/template: check "type" attribute in <script> (CL 14336)
+ 
+-os, syscall: fix incorrect offset calculation in Readlink on windows (CL 31118)
+-os: add ErrClosed, return for use of closed File (CL 30614)
+-os: consider only files from #M as regular on Plan 9 (CL 32152)
+-os: don't let File.Readdir return an empty slice and nil error (CL 28056)
+-os: make IsExist report true on ERROR_DIR_NOT_EMPTY on Windows (CL 29753)
+-os: make Windows readConsole handle input and output correctly (CL 29493)
+-os: reject Rename("old", "new") where new is a directory (CL 31358)
+-os: use extended-length paths on Windows when possible (CL 32451)
+-
+ runtime, cmd/trace: annotate different mark worker types (CL 30702)
+ runtime, runtime/cgo: revert CL 18814; don't drop signal stack in new thread on dragonfly (CL 29971)
+ runtime/pprof: output CPU profiles in pprof protobuf format (CL 33071)

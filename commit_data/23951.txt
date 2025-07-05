@@ -9,6 +9,20 @@ Date:   Thu Jun 25 05:33:51 2015 +0200
     Change-Id: I7ef0bb8b535ef513afdfcda19317ae4ff21f7166
     Reviewed-on: https://go-review.googlesource.com/11490
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 7dfdb91734..5465fa3a32 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1421,7 +1421,7 @@ resulting slice is returned.  The function uses the fact that
+ <code>nil</code> slice, and return 0.
+ </p>
+ <pre>
+-func Append(slice, data[]byte) []byte {
++func Append(slice, data []byte) []byte {
+     l := len(slice)
+     if l + len(data) &gt; cap(slice) {  // reallocate
+         // Allocate double what's needed, for future growth.

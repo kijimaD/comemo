@@ -15,10 +15,127 @@ Date:   Sat Mar 12 02:57:24 2016 -0500
     Change-Id: I14037bdcef1b4bbefcf299a143bac8bf363718e0
     Reviewed-on: https://go-review.googlesource.com/20610
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/doc/reader.go                     | 14 +++++++++-----
  src/go/doc/testdata/predeclared.0.golden |  8 ++++++++
  src/go/doc/testdata/predeclared.1.golden | 22 ++++++++++++++++++++++
  src/go/doc/testdata/predeclared.2.golden |  8 ++++++++
  src/go/doc/testdata/predeclared.go       | 22 ++++++++++++++++++++++
  5 files changed, 69 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index c09f24d616..ca46a047d6 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -645,7 +645,9 @@ func (r *reader) computeMethodSets() {
+ func (r *reader) cleanupTypes() {
+ 	for _, t := range r.types {
+ 		visible := r.isVisible(t.name)
+-		if t.decl == nil && (predeclaredTypes[t.name] || visible && (t.isEmbedded || r.hasDotImp)) {
++		predeclared := predeclaredTypes[t.name]
++
++		if t.decl == nil && (predeclared || visible && (t.isEmbedded || r.hasDotImp)) {
+ 			// t.name is a predeclared type (and was not redeclared in this package),
+ 			// or it was embedded somewhere but its declaration is missing (because
+ 			// the AST is incomplete), or we have a dot-import (and all bets are off):
+@@ -660,10 +662,12 @@ func (r *reader) cleanupTypes() {
+ 				r.funcs[name] = f
+ 			}
+ 			// 3) move methods
+-			for name, m := range t.methods {
+-				// don't overwrite functions with the same name - drop them
+-				if _, found := r.funcs[name]; !found {
+-					r.funcs[name] = m
++			if !predeclared {
++				for name, m := range t.methods {
++					// don't overwrite functions with the same name - drop them
++					if _, found := r.funcs[name]; !found {
++						r.funcs[name] = m
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/go/doc/testdata/predeclared.0.golden b/src/go/doc/testdata/predeclared.0.golden
+new file mode 100644
+index 0000000000..9f37b069f0
+--- /dev/null
++++ b/src/go/doc/testdata/predeclared.0.golden
+@@ -0,0 +1,8 @@
++// Package predeclared is a go/doc test for handling of exported ...
++PACKAGE predeclared
++
++IMPORTPATH
++	testdata/predeclared
++
++FILENAMES
++	testdata/predeclared.go
+diff --git a/src/go/doc/testdata/predeclared.1.golden b/src/go/doc/testdata/predeclared.1.golden
+new file mode 100644
+index 0000000000..2ff8ee666b
+--- /dev/null
++++ b/src/go/doc/testdata/predeclared.1.golden
+@@ -0,0 +1,22 @@
++// Package predeclared is a go/doc test for handling of exported ...
++PACKAGE predeclared
++
++IMPORTPATH
++	testdata/predeclared
++
++FILENAMES
++	testdata/predeclared.go
++
++TYPES
++	// 
++	type bool int
++
++	// Must not be visible. 
++	func (b bool) String() string
++
++	// 
++	type error struct{}
++
++	// Must not be visible. 
++	func (e error) Error() string
++
+diff --git a/src/go/doc/testdata/predeclared.2.golden b/src/go/doc/testdata/predeclared.2.golden
+new file mode 100644
+index 0000000000..9f37b069f0
+--- /dev/null
++++ b/src/go/doc/testdata/predeclared.2.golden
+@@ -0,0 +1,8 @@
++// Package predeclared is a go/doc test for handling of exported ...
++PACKAGE predeclared
++
++IMPORTPATH
++	testdata/predeclared
++
++FILENAMES
++	testdata/predeclared.go
+diff --git a/src/go/doc/testdata/predeclared.go b/src/go/doc/testdata/predeclared.go
+new file mode 100644
+index 0000000000..c6dd806cba
+--- /dev/null
++++ b/src/go/doc/testdata/predeclared.go
+@@ -0,0 +1,22 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package predeclared is a go/doc test for handling of
++// exported methods on locally-defined predeclared types.
++// See issue 9860.
++package predeclared
++
++type error struct{}
++
++// Must not be visible.
++func (e error) Error() string {
++	return ""
++}
++
++type bool int
++
++// Must not be visible.
++func (b bool) String() string {
++	return ""
++}

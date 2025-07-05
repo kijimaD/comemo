@@ -7,7 +7,47 @@ Date:   Wed Aug 12 13:51:02 2009 -0700
     R=rsc
     OCL=33103
     CL=33103
-
+---
  src/cmd/gotest/gotest            | 9 +++++++--
  src/pkg/syscall/syscall_linux.go | 8 --------
  2 files changed, 7 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index c2e2afec07..3f154a0ccb 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -78,8 +78,13 @@ if $havex; then
+ fi
+ 
+ # They all compile; now generate the code to call them.
+-#trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+-importpath=$(make importpath)
++trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
++
++# Suppress output to stdout on Linux
++MAKEFLAGS=
++MAKELEVEL=
++
++importpath=$(make -s importpath)
+ {
+ 	# package spec
+ 	echo 'package main'
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 10fedb9394..f7e44dd57a 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -184,14 +184,6 @@ func Sleep(nsec int64) (errno int) {
+ 	return err;
+ }
+ 
+-// Implemented in syscall_linux_*.go
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
+-func bind(s int, addr uintptr, addrlen _Socklen) (errno int)
+-func connect(s int, addr uintptr, addrlen _Socklen) (errno int)
+-func socket(domain int, typ int, proto int) (fd int, errno int)
+-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+-func Listen(s int, n int) (errno int)
+-
+ // For testing: clients can set this flag to force
+ // creation of IPv6 sockets to return EAFNOSUPPORT.
+ var SocketDisableIPv6 bool

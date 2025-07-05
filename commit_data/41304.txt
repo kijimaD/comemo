@@ -33,7 +33,66 @@ Date:   Sat Jun 29 17:57:16 2019 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/printer/nodes.go        |  6 ++++--
  src/go/printer/printer_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index fa7589e868..44ec7f8665 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -1237,10 +1237,12 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
+ 			// lead to more nicely formatted code in general.
+ 			if p.indentList(s.Results) {
+ 				p.print(indent)
+-				p.exprList(s.Pos(), s.Results, 1, noIndent, token.NoPos, false)
++				// Use NoPos so that a newline never goes before
++				// the results (see issue #32854).
++				p.exprList(token.NoPos, s.Results, 1, noIndent, token.NoPos, false)
+ 				p.print(unindent)
+ 			} else {
+-				p.exprList(s.Pos(), s.Results, 1, 0, token.NoPos, false)
++				p.exprList(token.NoPos, s.Results, 1, 0, token.NoPos, false)
+ 			}
+ 		}
+ 
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index a240bf4846..8f9cd534b4 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -775,3 +775,34 @@ func TestParenthesizedDecl(t *testing.T) {
+ 		t.Errorf("got %q, want %q", noparen, original)
+ 	}
+ }
++
++// Verify that we don't print a newline between "return" and its results, as
++// that would incorrectly cause a naked return.
++func TestIssue32854(t *testing.T) {
++	src := `package foo
++
++func f() {
++        return Composite{
++                call(),
++        }
++}`
++	fset := token.NewFileSet()
++	file, err := parser.ParseFile(fset, "", src, 0)
++	if err != nil {
++		panic(err)
++	}
++
++	// Replace the result with call(), which is on the next line.
++	fd := file.Decls[0].(*ast.FuncDecl)
++	ret := fd.Body.List[0].(*ast.ReturnStmt)
++	ret.Results[0] = ret.Results[0].(*ast.CompositeLit).Elts[0]
++
++	var buf bytes.Buffer
++	if err := Fprint(&buf, fset, ret); err != nil {
++		t.Fatal(err)
++	}
++	want := "return call()"
++	if got := buf.String(); got != want {
++		t.Fatalf("got %q, want %q", got, want)
++	}
++}

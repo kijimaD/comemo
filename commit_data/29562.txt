@@ -17,10 +17,747 @@ Date:   Mon Sep 19 14:35:41 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go      |  82 ++++++++++++++++++--
  src/cmd/compile/internal/ssa/gen/386.rules   |  38 +++-------
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  38 +++-------
  src/cmd/compile/internal/ssa/rewrite386.go   | 109 +++++++--------------------
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 109 +++++++--------------------
  5 files changed, 151 insertions(+), 225 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 54cc9319db..b0635cd308 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -20,7 +20,6 @@ import (
+ 
+ // TestAssembly checks to make sure the assembly generated for
+ // functions contains certain expected instructions.
+-// Note: this test will fail if -ssa=0.
+ func TestAssembly(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	if runtime.GOOS == "windows" {
+@@ -34,7 +33,7 @@ func TestAssembly(t *testing.T) {
+ 	defer os.RemoveAll(dir)
+ 
+ 	for _, test := range asmTests {
+-		asm := compileToAsm(t, dir, test.arch, fmt.Sprintf(template, test.function))
++		asm := compileToAsm(t, dir, test.arch, test.os, fmt.Sprintf(template, test.function))
+ 		// Get rid of code for "".init. Also gets rid of type algorithms & other junk.
+ 		if i := strings.Index(asm, "\n\"\".init "); i >= 0 {
+ 			asm = asm[:i+1]
+@@ -49,7 +48,7 @@ func TestAssembly(t *testing.T) {
+ 
+ // compile compiles the package pkg for architecture arch and
+ // returns the generated assembly.  dir is a scratch directory.
+-func compileToAsm(t *testing.T, dir, arch, pkg string) string {
++func compileToAsm(t *testing.T, dir, goarch, goos, pkg string) string {
+ 	// Create source.
+ 	src := filepath.Join(dir, "test.go")
+ 	f, err := os.Create(src)
+@@ -59,9 +58,27 @@ func compileToAsm(t *testing.T, dir, arch, pkg string) string {
+ 	f.Write([]byte(pkg))
+ 	f.Close()
+ 
++	// First, install any dependencies we need.  This builds the required export data
++	// for any packages that are imported.
++	// TODO: extract dependencies automatically?
+ 	var stdout, stderr bytes.Buffer
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
+-	cmd.Env = mergeEnvLists([]string{"GOARCH=" + arch}, os.Environ())
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", filepath.Join(dir, "encoding/binary.a"), "encoding/binary")
++	cmd.Env = mergeEnvLists([]string{"GOARCH=" + goarch, "GOOS=" + goos}, os.Environ())
++	cmd.Stdout = &stdout
++	cmd.Stderr = &stderr
++	if err := cmd.Run(); err != nil {
++		panic(err)
++	}
++	if s := stdout.String(); s != "" {
++		panic(fmt.Errorf("Stdout = %s\nWant empty", s))
++	}
++	if s := stderr.String(); s != "" {
++		panic(fmt.Errorf("Stderr = %s\nWant empty", s))
++	}
++
++	// Now, compile the individual file for which we want to see the generated assembly.
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", dir, "-S", "-o", filepath.Join(dir, "out.o"), src)
++	cmd.Env = mergeEnvLists([]string{"GOARCH=" + goarch, "GOOS=" + goos}, os.Environ())
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	if err := cmd.Run(); err != nil {
+@@ -82,6 +99,8 @@ package main
+ type asmTest struct {
+ 	// architecture to compile to
+ 	arch string
++	// os to compile to
++	os string
+ 	// function to compile
+ 	function string
+ 	// regexps that must match the generated assembly
+@@ -89,19 +108,68 @@ type asmTest struct {
+ }
+ 
+ var asmTests = [...]asmTest{
+-	{"amd64", `
++	{"amd64", "linux", `
+ func f(x int) int {
+ 	return x * 64
+ }
+ `,
+ 		[]string{"\tSHLQ\t\\$6,"},
+ 	},
+-	{"amd64", `
++	{"amd64", "linux", `
+ func f(x int) int {
+ 	return x * 96
+ }`,
+ 		[]string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
+ 	},
++	// Load-combining tests.
++	{"amd64", "linux", `
++import "encoding/binary"
++func f(b []byte) uint64 {
++	return binary.LittleEndian.Uint64(b)
++}
++`,
++		[]string{"\tMOVQ\t\\(.*\\),"},
++	},
++	{"amd64", "linux", `
++import "encoding/binary"
++func f(b []byte, i int) uint64 {
++	return binary.LittleEndian.Uint64(b[i:])
++}
++`,
++		[]string{"\tMOVQ\t\\(.*\\)\\(.*\\*1\\),"},
++	},
++	{"amd64", "linux", `
++import "encoding/binary"
++func f(b []byte) uint32 {
++	return binary.LittleEndian.Uint32(b)
++}
++`,
++		[]string{"\tMOVL\t\\(.*\\),"},
++	},
++	{"amd64", "linux", `
++import "encoding/binary"
++func f(b []byte, i int) uint32 {
++	return binary.LittleEndian.Uint32(b[i:])
++}
++`,
++		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
++	},
++	{"386", "linux", `
++import "encoding/binary"
++func f(b []byte) uint32 {
++	return binary.LittleEndian.Uint32(b)
++}
++`,
++		[]string{"\tMOVL\t\\(.*\\),"},
++	},
++	{"386", "linux", `
++import "encoding/binary"
++func f(b []byte, i int) uint32 {
++	return binary.LittleEndian.Uint32(b[i:])
++}
++`,
++		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
++	},
+ }
+ 
+ // mergeEnvLists merges the two environment lists such that
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 6a0990da47..214d34a0c1 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -1123,31 +1123,24 @@
+   && clobber(s0)
+   -> @mergePoint(b,x0,x1) (MOVWload [i] {s} p mem)
+ 
+-(ORL o0:(ORL o1:(ORL
+-                       x0:(MOVBload [i]   {s} p mem)
+-    s0:(SHLLconst [8]  x1:(MOVBload [i+1] {s} p mem)))
+-    s1:(SHLLconst [16] x2:(MOVBload [i+2] {s} p mem)))
+-    s2:(SHLLconst [24] x3:(MOVBload [i+3] {s} p mem)))
++(ORL o0:(ORL
++                       x0:(MOVWload [i]   {s} p mem)
++    s0:(SHLLconst [16] x1:(MOVBload [i+2] {s} p mem)))
++    s1:(SHLLconst [24] x2:(MOVBload [i+3] {s} p mem)))
+   && x0.Uses == 1
+   && x1.Uses == 1
+   && x2.Uses == 1
+-  && x3.Uses == 1
+   && s0.Uses == 1
+   && s1.Uses == 1
+-  && s2.Uses == 1
+   && o0.Uses == 1
+-  && o1.Uses == 1
+-  && mergePoint(b,x0,x1,x2,x3) != nil
++  && mergePoint(b,x0,x1,x2) != nil
+   && clobber(x0)
+   && clobber(x1)
+   && clobber(x2)
+-  && clobber(x3)
+   && clobber(s0)
+   && clobber(s1)
+-  && clobber(s2)
+   && clobber(o0)
+-  && clobber(o1)
+-  -> @mergePoint(b,x0,x1,x2,x3) (MOVLload [i] {s} p mem)
++  -> @mergePoint(b,x0,x1,x2) (MOVLload [i] {s} p mem)
+ 
+ (ORL                  x0:(MOVBloadidx1 [i]   {s} p idx mem)
+     s0:(SHLLconst [8] x1:(MOVBloadidx1 [i+1] {s} p idx mem)))
+@@ -1160,31 +1153,24 @@
+   && clobber(s0)
+   -> @mergePoint(b,x0,x1) (MOVWloadidx1 <v.Type> [i] {s} p idx mem)
+ 
+-(ORL o0:(ORL o1:(ORL
+-                       x0:(MOVBloadidx1 [i]   {s} p idx mem)
+-    s0:(SHLLconst [8]  x1:(MOVBloadidx1 [i+1] {s} p idx mem)))
+-    s1:(SHLLconst [16] x2:(MOVBloadidx1 [i+2] {s} p idx mem)))
+-    s2:(SHLLconst [24] x3:(MOVBloadidx1 [i+3] {s} p idx mem)))
++(ORL o0:(ORL
++                       x0:(MOVWloadidx1 [i]   {s} p idx mem)
++    s0:(SHLLconst [16] x1:(MOVBloadidx1 [i+2] {s} p idx mem)))
++    s1:(SHLLconst [24] x2:(MOVBloadidx1 [i+3] {s} p idx mem)))
+   && x0.Uses == 1
+   && x1.Uses == 1
+   && x2.Uses == 1
+-  && x3.Uses == 1
+   && s0.Uses == 1
+   && s1.Uses == 1
+-  && s2.Uses == 1
+   && o0.Uses == 1
+-  && o1.Uses == 1
+-  && mergePoint(b,x0,x1,x2,x3) != nil
++  && mergePoint(b,x0,x1,x2) != nil
+   && clobber(x0)
+   && clobber(x1)
+   && clobber(x2)
+-  && clobber(x3)
+   && clobber(s0)
+   && clobber(s1)
+-  && clobber(s2)
+   && clobber(o0)
+-  && clobber(o1)
+-  -> @mergePoint(b,x0,x1,x2,x3) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
++  -> @mergePoint(b,x0,x1,x2) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
+ 
+ // Combine constant stores into larger (unaligned) stores.
+ (MOVBstoreconst [c] {s} p x:(MOVBstoreconst [a] {s} p mem))
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index bac3d70513..175c899ff6 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1331,31 +1331,24 @@
+   && clobber(s0)
+   -> @mergePoint(b,x0,x1) (MOVWload [i] {s} p mem)
+ 
+-(ORL o0:(ORL o1:(ORL
+-                       x0:(MOVBload [i]   {s} p mem)
+-    s0:(SHLLconst [8]  x1:(MOVBload [i+1] {s} p mem)))
+-    s1:(SHLLconst [16] x2:(MOVBload [i+2] {s} p mem)))
+-    s2:(SHLLconst [24] x3:(MOVBload [i+3] {s} p mem)))
++(ORL o0:(ORL
++                       x0:(MOVWload [i]   {s} p mem)
++    s0:(SHLLconst [16] x1:(MOVBload [i+2] {s} p mem)))
++    s1:(SHLLconst [24] x2:(MOVBload [i+3] {s} p mem)))
+   && x0.Uses == 1
+   && x1.Uses == 1
+   && x2.Uses == 1
+-  && x3.Uses == 1
+   && s0.Uses == 1
+   && s1.Uses == 1
+-  && s2.Uses == 1
+   && o0.Uses == 1
+-  && o1.Uses == 1
+-  && mergePoint(b,x0,x1,x2,x3) != nil
++  && mergePoint(b,x0,x1,x2) != nil
+   && clobber(x0)
+   && clobber(x1)
+   && clobber(x2)
+-  && clobber(x3)
+   && clobber(s0)
+   && clobber(s1)
+-  && clobber(s2)
+   && clobber(o0)
+-  && clobber(o1)
+-  -> @mergePoint(b,x0,x1,x2,x3) (MOVLload [i] {s} p mem)
++  -> @mergePoint(b,x0,x1,x2) (MOVLload [i] {s} p mem)
+ 
+ (ORQ o0:(ORQ o1:(ORQ o2:(ORQ o3:(ORQ o4:(ORQ o5:(ORQ
+                        x0:(MOVBload [i]   {s} p mem)
+@@ -1422,31 +1415,24 @@
+   && clobber(s0)
+   -> @mergePoint(b,x0,x1) (MOVWloadidx1 <v.Type> [i] {s} p idx mem)
+ 
+-(ORL o0:(ORL o1:(ORL
+-                       x0:(MOVBloadidx1 [i]   {s} p idx mem)
+-    s0:(SHLLconst [8]  x1:(MOVBloadidx1 [i+1] {s} p idx mem)))
+-    s1:(SHLLconst [16] x2:(MOVBloadidx1 [i+2] {s} p idx mem)))
+-    s2:(SHLLconst [24] x3:(MOVBloadidx1 [i+3] {s} p idx mem)))
++(ORL o0:(ORL
++                       x0:(MOVWloadidx1 [i]   {s} p idx mem)
++    s0:(SHLLconst [16] x1:(MOVBloadidx1 [i+2] {s} p idx mem)))
++    s1:(SHLLconst [24] x2:(MOVBloadidx1 [i+3] {s} p idx mem)))
+   && x0.Uses == 1
+   && x1.Uses == 1
+   && x2.Uses == 1
+-  && x3.Uses == 1
+   && s0.Uses == 1
+   && s1.Uses == 1
+-  && s2.Uses == 1
+   && o0.Uses == 1
+-  && o1.Uses == 1
+-  && mergePoint(b,x0,x1,x2,x3) != nil
++  && mergePoint(b,x0,x1,x2) != nil
+   && clobber(x0)
+   && clobber(x1)
+   && clobber(x2)
+-  && clobber(x3)
+   && clobber(s0)
+   && clobber(s1)
+-  && clobber(s2)
+   && clobber(o0)
+-  && clobber(o1)
+-  -> @mergePoint(b,x0,x1,x2,x3) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
++  -> @mergePoint(b,x0,x1,x2) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
+ 
+ (ORQ o0:(ORQ o1:(ORQ o2:(ORQ o3:(ORQ o4:(ORQ o5:(ORQ
+                        x0:(MOVBloadidx1 [i]   {s} p idx mem)
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 04932be887..fa7b7c17bd 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -7177,38 +7177,34 @@ func rewriteValue386_Op386ORL(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (ORL o0:(ORL o1:(ORL                        x0:(MOVBload [i]   {s} p mem)     s0:(SHLLconst [8]  x1:(MOVBload [i+1] {s} p mem)))     s1:(SHLLconst [16] x2:(MOVBload [i+2] {s} p mem)))     s2:(SHLLconst [24] x3:(MOVBload [i+3] {s} p mem)))
+-	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && x3.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && s2.Uses == 1   && o0.Uses == 1   && o1.Uses == 1   && mergePoint(b,x0,x1,x2,x3) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(x3)   && clobber(s0)   && clobber(s1)   && clobber(s2)   && clobber(o0)   && clobber(o1)
+-	// result: @mergePoint(b,x0,x1,x2,x3) (MOVLload [i] {s} p mem)
++	// match: (ORL o0:(ORL                        x0:(MOVWload [i]   {s} p mem)     s0:(SHLLconst [16] x1:(MOVBload [i+2] {s} p mem)))     s1:(SHLLconst [24] x2:(MOVBload [i+3] {s} p mem)))
++	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && o0.Uses == 1   && mergePoint(b,x0,x1,x2) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(s0)   && clobber(s1)   && clobber(o0)
++	// result: @mergePoint(b,x0,x1,x2) (MOVLload [i] {s} p mem)
+ 	for {
+ 		o0 := v.Args[0]
+ 		if o0.Op != Op386ORL {
+ 			break
+ 		}
+-		o1 := o0.Args[0]
+-		if o1.Op != Op386ORL {
+-			break
+-		}
+-		x0 := o1.Args[0]
+-		if x0.Op != Op386MOVBload {
++		x0 := o0.Args[0]
++		if x0.Op != Op386MOVWload {
+ 			break
+ 		}
+ 		i := x0.AuxInt
+ 		s := x0.Aux
+ 		p := x0.Args[0]
+ 		mem := x0.Args[1]
+-		s0 := o1.Args[1]
++		s0 := o0.Args[1]
+ 		if s0.Op != Op386SHLLconst {
+ 			break
+ 		}
+-		if s0.AuxInt != 8 {
++		if s0.AuxInt != 16 {
+ 			break
+ 		}
+ 		x1 := s0.Args[0]
+ 		if x1.Op != Op386MOVBload {
+ 			break
+ 		}
+-		if x1.AuxInt != i+1 {
++		if x1.AuxInt != i+2 {
+ 			break
+ 		}
+ 		if x1.Aux != s {
+@@ -7220,18 +7216,18 @@ func rewriteValue386_Op386ORL(v *Value, config *Config) bool {
+ 		if mem != x1.Args[1] {
+ 			break
+ 		}
+-		s1 := o0.Args[1]
++		s1 := v.Args[1]
+ 		if s1.Op != Op386SHLLconst {
+ 			break
+ 		}
+-		if s1.AuxInt != 16 {
++		if s1.AuxInt != 24 {
+ 			break
+ 		}
+ 		x2 := s1.Args[0]
+ 		if x2.Op != Op386MOVBload {
+ 			break
+ 		}
+-		if x2.AuxInt != i+2 {
++		if x2.AuxInt != i+3 {
+ 			break
+ 		}
+ 		if x2.Aux != s {
+@@ -7243,33 +7239,10 @@ func rewriteValue386_Op386ORL(v *Value, config *Config) bool {
+ 		if mem != x2.Args[1] {
+ 			break
+ 		}
+-		s2 := v.Args[1]
+-		if s2.Op != Op386SHLLconst {
+-			break
+-		}
+-		if s2.AuxInt != 24 {
+-			break
+-		}
+-		x3 := s2.Args[0]
+-		if x3.Op != Op386MOVBload {
+-			break
+-		}
+-		if x3.AuxInt != i+3 {
+-			break
+-		}
+-		if x3.Aux != s {
+-			break
+-		}
+-		if p != x3.Args[0] {
++		if !(x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && o0.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+ 			break
+ 		}
+-		if mem != x3.Args[1] {
+-			break
+-		}
+-		if !(x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1, x2, x3) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0) && clobber(o1)) {
+-			break
+-		}
+-		b = mergePoint(b, x0, x1, x2, x3)
++		b = mergePoint(b, x0, x1, x2)
+ 		v0 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+@@ -7332,20 +7305,16 @@ func rewriteValue386_Op386ORL(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (ORL o0:(ORL o1:(ORL                        x0:(MOVBloadidx1 [i]   {s} p idx mem)     s0:(SHLLconst [8]  x1:(MOVBloadidx1 [i+1] {s} p idx mem)))     s1:(SHLLconst [16] x2:(MOVBloadidx1 [i+2] {s} p idx mem)))     s2:(SHLLconst [24] x3:(MOVBloadidx1 [i+3] {s} p idx mem)))
+-	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && x3.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && s2.Uses == 1   && o0.Uses == 1   && o1.Uses == 1   && mergePoint(b,x0,x1,x2,x3) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(x3)   && clobber(s0)   && clobber(s1)   && clobber(s2)   && clobber(o0)   && clobber(o1)
+-	// result: @mergePoint(b,x0,x1,x2,x3) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
++	// match: (ORL o0:(ORL                        x0:(MOVWloadidx1 [i]   {s} p idx mem)     s0:(SHLLconst [16] x1:(MOVBloadidx1 [i+2] {s} p idx mem)))     s1:(SHLLconst [24] x2:(MOVBloadidx1 [i+3] {s} p idx mem)))
++	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && o0.Uses == 1   && mergePoint(b,x0,x1,x2) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(s0)   && clobber(s1)   && clobber(o0)
++	// result: @mergePoint(b,x0,x1,x2) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
+ 	for {
+ 		o0 := v.Args[0]
+ 		if o0.Op != Op386ORL {
+ 			break
+ 		}
+-		o1 := o0.Args[0]
+-		if o1.Op != Op386ORL {
+-			break
+-		}
+-		x0 := o1.Args[0]
+-		if x0.Op != Op386MOVBloadidx1 {
++		x0 := o0.Args[0]
++		if x0.Op != Op386MOVWloadidx1 {
+ 			break
+ 		}
+ 		i := x0.AuxInt
+@@ -7353,18 +7322,18 @@ func rewriteValue386_Op386ORL(v *Value, config *Config) bool {
+ 		p := x0.Args[0]
+ 		idx := x0.Args[1]
+ 		mem := x0.Args[2]
+-		s0 := o1.Args[1]
++		s0 := o0.Args[1]
+ 		if s0.Op != Op386SHLLconst {
+ 			break
+ 		}
+-		if s0.AuxInt != 8 {
++		if s0.AuxInt != 16 {
+ 			break
+ 		}
+ 		x1 := s0.Args[0]
+ 		if x1.Op != Op386MOVBloadidx1 {
+ 			break
+ 		}
+-		if x1.AuxInt != i+1 {
++		if x1.AuxInt != i+2 {
+ 			break
+ 		}
+ 		if x1.Aux != s {
+@@ -7379,18 +7348,18 @@ func rewriteValue386_Op386ORL(v *Value, config *Config) bool {
+ 		if mem != x1.Args[2] {
+ 			break
+ 		}
+-		s1 := o0.Args[1]
++		s1 := v.Args[1]
+ 		if s1.Op != Op386SHLLconst {
+ 			break
+ 		}
+-		if s1.AuxInt != 16 {
++		if s1.AuxInt != 24 {
+ 			break
+ 		}
+ 		x2 := s1.Args[0]
+ 		if x2.Op != Op386MOVBloadidx1 {
+ 			break
+ 		}
+-		if x2.AuxInt != i+2 {
++		if x2.AuxInt != i+3 {
+ 			break
+ 		}
+ 		if x2.Aux != s {
+@@ -7405,36 +7374,10 @@ func rewriteValue386_Op386ORL(v *Value, config *Config) bool {
+ 		if mem != x2.Args[2] {
+ 			break
+ 		}
+-		s2 := v.Args[1]
+-		if s2.Op != Op386SHLLconst {
+-			break
+-		}
+-		if s2.AuxInt != 24 {
+-			break
+-		}
+-		x3 := s2.Args[0]
+-		if x3.Op != Op386MOVBloadidx1 {
+-			break
+-		}
+-		if x3.AuxInt != i+3 {
+-			break
+-		}
+-		if x3.Aux != s {
+-			break
+-		}
+-		if p != x3.Args[0] {
+-			break
+-		}
+-		if idx != x3.Args[1] {
+-			break
+-		}
+-		if mem != x3.Args[2] {
+-			break
+-		}
+-		if !(x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1, x2, x3) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0) && clobber(o1)) {
++		if !(x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && o0.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+ 			break
+ 		}
+-		b = mergePoint(b, x0, x1, x2, x3)
++		b = mergePoint(b, x0, x1, x2)
+ 		v0 := b.NewValue0(v.Line, Op386MOVLloadidx1, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index fcc2f37ff3..a55b7ff6fb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -10340,38 +10340,34 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (ORL o0:(ORL o1:(ORL                        x0:(MOVBload [i]   {s} p mem)     s0:(SHLLconst [8]  x1:(MOVBload [i+1] {s} p mem)))     s1:(SHLLconst [16] x2:(MOVBload [i+2] {s} p mem)))     s2:(SHLLconst [24] x3:(MOVBload [i+3] {s} p mem)))
+-	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && x3.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && s2.Uses == 1   && o0.Uses == 1   && o1.Uses == 1   && mergePoint(b,x0,x1,x2,x3) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(x3)   && clobber(s0)   && clobber(s1)   && clobber(s2)   && clobber(o0)   && clobber(o1)
+-	// result: @mergePoint(b,x0,x1,x2,x3) (MOVLload [i] {s} p mem)
++	// match: (ORL o0:(ORL                        x0:(MOVWload [i]   {s} p mem)     s0:(SHLLconst [16] x1:(MOVBload [i+2] {s} p mem)))     s1:(SHLLconst [24] x2:(MOVBload [i+3] {s} p mem)))
++	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && o0.Uses == 1   && mergePoint(b,x0,x1,x2) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(s0)   && clobber(s1)   && clobber(o0)
++	// result: @mergePoint(b,x0,x1,x2) (MOVLload [i] {s} p mem)
+ 	for {
+ 		o0 := v.Args[0]
+ 		if o0.Op != OpAMD64ORL {
+ 			break
+ 		}
+-		o1 := o0.Args[0]
+-		if o1.Op != OpAMD64ORL {
+-			break
+-		}
+-		x0 := o1.Args[0]
+-		if x0.Op != OpAMD64MOVBload {
++		x0 := o0.Args[0]
++		if x0.Op != OpAMD64MOVWload {
+ 			break
+ 		}
+ 		i := x0.AuxInt
+ 		s := x0.Aux
+ 		p := x0.Args[0]
+ 		mem := x0.Args[1]
+-		s0 := o1.Args[1]
++		s0 := o0.Args[1]
+ 		if s0.Op != OpAMD64SHLLconst {
+ 			break
+ 		}
+-		if s0.AuxInt != 8 {
++		if s0.AuxInt != 16 {
+ 			break
+ 		}
+ 		x1 := s0.Args[0]
+ 		if x1.Op != OpAMD64MOVBload {
+ 			break
+ 		}
+-		if x1.AuxInt != i+1 {
++		if x1.AuxInt != i+2 {
+ 			break
+ 		}
+ 		if x1.Aux != s {
+@@ -10383,18 +10379,18 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 		if mem != x1.Args[1] {
+ 			break
+ 		}
+-		s1 := o0.Args[1]
++		s1 := v.Args[1]
+ 		if s1.Op != OpAMD64SHLLconst {
+ 			break
+ 		}
+-		if s1.AuxInt != 16 {
++		if s1.AuxInt != 24 {
+ 			break
+ 		}
+ 		x2 := s1.Args[0]
+ 		if x2.Op != OpAMD64MOVBload {
+ 			break
+ 		}
+-		if x2.AuxInt != i+2 {
++		if x2.AuxInt != i+3 {
+ 			break
+ 		}
+ 		if x2.Aux != s {
+@@ -10406,33 +10402,10 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 		if mem != x2.Args[1] {
+ 			break
+ 		}
+-		s2 := v.Args[1]
+-		if s2.Op != OpAMD64SHLLconst {
++		if !(x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && o0.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+ 			break
+ 		}
+-		if s2.AuxInt != 24 {
+-			break
+-		}
+-		x3 := s2.Args[0]
+-		if x3.Op != OpAMD64MOVBload {
+-			break
+-		}
+-		if x3.AuxInt != i+3 {
+-			break
+-		}
+-		if x3.Aux != s {
+-			break
+-		}
+-		if p != x3.Args[0] {
+-			break
+-		}
+-		if mem != x3.Args[1] {
+-			break
+-		}
+-		if !(x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1, x2, x3) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0) && clobber(o1)) {
+-			break
+-		}
+-		b = mergePoint(b, x0, x1, x2, x3)
++		b = mergePoint(b, x0, x1, x2)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVLload, config.fe.TypeUInt32())
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+@@ -10495,20 +10468,16 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (ORL o0:(ORL o1:(ORL                        x0:(MOVBloadidx1 [i]   {s} p idx mem)     s0:(SHLLconst [8]  x1:(MOVBloadidx1 [i+1] {s} p idx mem)))     s1:(SHLLconst [16] x2:(MOVBloadidx1 [i+2] {s} p idx mem)))     s2:(SHLLconst [24] x3:(MOVBloadidx1 [i+3] {s} p idx mem)))
+-	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && x3.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && s2.Uses == 1   && o0.Uses == 1   && o1.Uses == 1   && mergePoint(b,x0,x1,x2,x3) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(x3)   && clobber(s0)   && clobber(s1)   && clobber(s2)   && clobber(o0)   && clobber(o1)
+-	// result: @mergePoint(b,x0,x1,x2,x3) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
++	// match: (ORL o0:(ORL                        x0:(MOVWloadidx1 [i]   {s} p idx mem)     s0:(SHLLconst [16] x1:(MOVBloadidx1 [i+2] {s} p idx mem)))     s1:(SHLLconst [24] x2:(MOVBloadidx1 [i+3] {s} p idx mem)))
++	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && o0.Uses == 1   && mergePoint(b,x0,x1,x2) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(s0)   && clobber(s1)   && clobber(o0)
++	// result: @mergePoint(b,x0,x1,x2) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
+ 	for {
+ 		o0 := v.Args[0]
+ 		if o0.Op != OpAMD64ORL {
+ 			break
+ 		}
+-		o1 := o0.Args[0]
+-		if o1.Op != OpAMD64ORL {
+-			break
+-		}
+-		x0 := o1.Args[0]
+-		if x0.Op != OpAMD64MOVBloadidx1 {
++		x0 := o0.Args[0]
++		if x0.Op != OpAMD64MOVWloadidx1 {
+ 			break
+ 		}
+ 		i := x0.AuxInt
+@@ -10516,18 +10485,18 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 		p := x0.Args[0]
+ 		idx := x0.Args[1]
+ 		mem := x0.Args[2]
+-		s0 := o1.Args[1]
++		s0 := o0.Args[1]
+ 		if s0.Op != OpAMD64SHLLconst {
+ 			break
+ 		}
+-		if s0.AuxInt != 8 {
++		if s0.AuxInt != 16 {
+ 			break
+ 		}
+ 		x1 := s0.Args[0]
+ 		if x1.Op != OpAMD64MOVBloadidx1 {
+ 			break
+ 		}
+-		if x1.AuxInt != i+1 {
++		if x1.AuxInt != i+2 {
+ 			break
+ 		}
+ 		if x1.Aux != s {
+@@ -10542,18 +10511,18 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 		if mem != x1.Args[2] {
+ 			break
+ 		}
+-		s1 := o0.Args[1]
++		s1 := v.Args[1]
+ 		if s1.Op != OpAMD64SHLLconst {
+ 			break
+ 		}
+-		if s1.AuxInt != 16 {
++		if s1.AuxInt != 24 {
+ 			break
+ 		}
+ 		x2 := s1.Args[0]
+ 		if x2.Op != OpAMD64MOVBloadidx1 {
+ 			break
+ 		}
+-		if x2.AuxInt != i+2 {
++		if x2.AuxInt != i+3 {
+ 			break
+ 		}
+ 		if x2.Aux != s {
+@@ -10568,36 +10537,10 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 		if mem != x2.Args[2] {
+ 			break
+ 		}
+-		s2 := v.Args[1]
+-		if s2.Op != OpAMD64SHLLconst {
+-			break
+-		}
+-		if s2.AuxInt != 24 {
+-			break
+-		}
+-		x3 := s2.Args[0]
+-		if x3.Op != OpAMD64MOVBloadidx1 {
+-			break
+-		}
+-		if x3.AuxInt != i+3 {
+-			break
+-		}
+-		if x3.Aux != s {
+-			break
+-		}
+-		if p != x3.Args[0] {
+-			break
+-		}
+-		if idx != x3.Args[1] {
+-			break
+-		}
+-		if mem != x3.Args[2] {
+-			break
+-		}
+-		if !(x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && mergePoint(b, x0, x1, x2, x3) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(s0) && clobber(s1) && clobber(s2) && clobber(o0) && clobber(o1)) {
++		if !(x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && s0.Uses == 1 && s1.Uses == 1 && o0.Uses == 1 && mergePoint(b, x0, x1, x2) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(s0) && clobber(s1) && clobber(o0)) {
+ 			break
+ 		}
+-		b = mergePoint(b, x0, x1, x2, x3)
++		b = mergePoint(b, x0, x1, x2)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVLloadidx1, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)

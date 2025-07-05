@@ -24,8 +24,106 @@ Date:   Thu Aug 15 16:40:33 2013 +0900
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/12730043
-
+---
  src/pkg/net/sock_posix.go     | 20 ++++++++++++++------
  src/pkg/net/tcpsock_posix.go  |  5 -----
  src/pkg/net/unixsock_posix.go |  5 -----
  3 files changed, 14 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index 339bf4c58c..1b2bbde4a9 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -53,10 +53,6 @@ func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadl
+ 		closesocket(s)
+ 		return nil, err
+ 	}
+-	if err := fd.init(); err != nil {
+-		fd.Close()
+-		return nil, err
+-	}
+ 
+ 	// This function makes a network file descriptor for stream
+ 	// and datagram dialers, stream and datagram listeners.
+@@ -75,7 +71,7 @@ func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadl
+ 	if laddr != nil && raddr == nil {
+ 		switch t {
+ 		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
+-			if err := fd.listenStream(laddr, toAddr); err != nil {
++			if err := fd.listenStream(laddr, listenerBacklog, toAddr); err != nil {
+ 				fd.Close()
+ 				return nil, err
+ 			}
+@@ -107,6 +103,9 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(sys
+ 			}
+ 		}
+ 	}
++	if err := fd.init(); err != nil {
++		return err
++	}
+ 	var rsa syscall.Sockaddr
+ 	if raddr != nil {
+ 		if rsa, err = raddr.sockaddr(fd.family); err != nil {
+@@ -133,7 +132,7 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(sys
+ 	return nil
+ }
+ 
+-func (fd *netFD) listenStream(laddr sockaddr, toAddr func(syscall.Sockaddr) Addr) error {
++func (fd *netFD) listenStream(laddr sockaddr, backlog int, toAddr func(syscall.Sockaddr) Addr) error {
+ 	if err := setDefaultListenerSockopts(fd.sysfd); err != nil {
+ 		return err
+ 	}
+@@ -144,6 +143,12 @@ func (fd *netFD) listenStream(laddr sockaddr, toAddr func(syscall.Sockaddr) Addr
+ 			return os.NewSyscallError("bind", err)
+ 		}
+ 	}
++	if err := syscall.Listen(fd.sysfd, backlog); err != nil {
++		return os.NewSyscallError("listen", err)
++	}
++	if err := fd.init(); err != nil {
++		return err
++	}
+ 	lsa, _ := syscall.Getsockname(fd.sysfd)
+ 	fd.setAddr(toAddr(lsa), nil)
+ 	return nil
+@@ -180,6 +185,9 @@ func (fd *netFD) listenDatagram(laddr sockaddr, toAddr func(syscall.Sockaddr) Ad
+ 			return os.NewSyscallError("bind", err)
+ 		}
+ 	}
++	if err := fd.init(); err != nil {
++		return err
++	}
+ 	lsa, _ := syscall.Getsockname(fd.sysfd)
+ 	fd.setAddr(toAddr(lsa), nil)
+ 	return nil
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index e7af86bebd..7d72faade1 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -301,10 +301,5 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	err = syscall.Listen(fd.sysfd, listenerBacklog)
+-	if err != nil {
+-		fd.Close()
+-		return nil, &OpError{"listen", net, laddr, err}
+-	}
+ 	return &TCPListener{fd}, nil
+ }
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index fcc3641945..593a43516e 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -283,11 +283,6 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	err = syscall.Listen(fd.sysfd, listenerBacklog)
+-	if err != nil {
+-		fd.Close()
+-		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
+-	}
+ 	return &UnixListener{fd, laddr.Name}, nil
+ }
+ 

@@ -7,6 +7,19 @@ Date:   Sun Sep 9 20:11:58 2012 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6497106
-
+---
  src/pkg/crypto/rand/rand_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/rand/rand_test.go b/src/pkg/crypto/rand/rand_test.go
+index 394fd450fe..e46e61d374 100644
+--- a/src/pkg/crypto/rand/rand_test.go
++++ b/src/pkg/crypto/rand/rand_test.go
+@@ -38,6 +38,6 @@ func TestReadEmpty(t *testing.T) {
+ 	}
+ 	n, err = Reader.Read(nil)
+ 	if n != 0 || err != nil {
+-		t.Fatalf("Read(make(nil) = %d, %v", n, err)
++		t.Fatalf("Read(nil) = %d, %v", n, err)
+ 	}
+ }

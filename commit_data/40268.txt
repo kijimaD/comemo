@@ -11,8 +11,64 @@ Date:   Tue Jan 15 18:53:44 2019 +0800
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/download.go      | 5 +++--
  src/cmd/go/internal/modload/init.go         | 4 +++-
  src/cmd/go/testdata/script/mod_download.txt | 7 +++++++
  3 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index bbaba444f5..9f8c410b82 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -5,13 +5,14 @@
+ package modcmd
+ 
+ import (
++	"encoding/json"
++	"os"
++
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
+-	"encoding/json"
+-	"os"
+ )
+ 
+ var cmdDownload = &base.Command{
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index eaf4407529..ef2786109b 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -253,9 +253,11 @@ func Init() {
+ func init() {
+ 	load.ModInit = Init
+ 
+-	// Set modfetch.PkgMod unconditionally, so that go clean -modcache can run even without modules enabled.
++	// Set modfetch.PkgMod and codehost.WorkRoot unconditionally,
++	// so that go clean -modcache and go mod download can run even without modules enabled.
+ 	if list := filepath.SplitList(cfg.BuildContext.GOPATH); len(list) > 0 && list[0] != "" {
+ 		modfetch.PkgMod = filepath.Join(list[0], "pkg/mod")
++		codehost.WorkRoot = filepath.Join(list[0], "pkg/mod/cache/vcs")
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index 38043b2597..62b9eee547 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -82,5 +82,12 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+ go mod download -json rsc.io/quote@v1.5.1
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+ 
++# allow go mod download without go.mod
++env GO111MODULE=auto
++rm go.mod
++rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
++go mod download rsc.io/quote@v1.2.1
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
++
+ -- go.mod --
+ module m

@@ -9,6 +9,34 @@ Date:   Thu Aug 30 13:04:09 2018 -0600
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/fmt/example_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/fmt/example_test.go b/src/fmt/example_test.go
+index 5797e48080..7b7eacafb4 100644
+--- a/src/fmt/example_test.go
++++ b/src/fmt/example_test.go
+@@ -6,6 +6,7 @@ package fmt_test
+ 
+ import (
+ 	"fmt"
++	"os"
+ )
+ 
+ // The Errorf function lets us use formatting features
+@@ -27,3 +28,14 @@ func ExampleSprintf() {
+ 	// Today is 30 Aug
+ 	// 15
+ }
++
++func ExampleFprintln() {
++	n, err := fmt.Fprintln(os.Stdout, "there", "are", 99, "gophers")
++	if err != nil {
++		panic("failed writing to stdout, someting is seriously wrong")
++	}
++	fmt.Print(n)
++	// Output:
++	// there are 99 gophers
++	// 21
++}

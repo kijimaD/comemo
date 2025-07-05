@@ -7,7 +7,36 @@ Date:   Fri Mar 26 16:18:20 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/787041
-
+---
  src/pkg/regexp/regexp.go  | 3 +++
  src/pkg/testing/regexp.go | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index bf9a4bb40b..43005fba4e 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -664,6 +664,9 @@ func Compile(str string) (regexp *Regexp, error os.Error) {
+ 	regexp.expr = str
+ 	regexp.inst = new(vector.Vector)
+ 	error = regexp.doParse()
++	if error != nil {
++		regexp = nil
++	}
+ 	return
+ }
+ 
+diff --git a/src/pkg/testing/regexp.go b/src/pkg/testing/regexp.go
+index e2bde0b253..de30a13f91 100644
+--- a/src/pkg/testing/regexp.go
++++ b/src/pkg/testing/regexp.go
+@@ -615,6 +615,9 @@ func CompileRegexp(str string) (regexp *Regexp, error string) {
+ 	regexp.expr = str
+ 	regexp.inst = make([]instr, 0, 20)
+ 	error = regexp.doParse()
++	if error != nil {
++		regexp = nil
++	}
+ 	return
+ }
+ 

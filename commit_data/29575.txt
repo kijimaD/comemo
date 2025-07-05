@@ -11,6 +11,35 @@ Date:   Sun Sep 25 12:37:00 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/signal_unix.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 08e57ca0e5..3175118572 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -211,13 +211,21 @@ func sigpanic() {
+ 
+ 	switch g.sig {
+ 	case _SIGBUS:
+-		if g.sigcode0 == _BUS_ADRERR && g.sigcode1 < 0x1000 || g.paniconfault {
++		if g.sigcode0 == _BUS_ADRERR && g.sigcode1 < 0x1000 {
++			panicmem()
++		}
++		// Support runtime/debug.SetPanicOnFault.
++		if g.paniconfault {
+ 			panicmem()
+ 		}
+ 		print("unexpected fault address ", hex(g.sigcode1), "\n")
+ 		throw("fault")
+ 	case _SIGSEGV:
+-		if (g.sigcode0 == 0 || g.sigcode0 == _SEGV_MAPERR || g.sigcode0 == _SEGV_ACCERR) && g.sigcode1 < 0x1000 || g.paniconfault {
++		if (g.sigcode0 == 0 || g.sigcode0 == _SEGV_MAPERR || g.sigcode0 == _SEGV_ACCERR) && g.sigcode1 < 0x1000 {
++			panicmem()
++		}
++		// Support runtime/debug.SetPanicOnFault.
++		if g.paniconfault {
+ 			panicmem()
+ 		}
+ 		print("unexpected fault address ", hex(g.sigcode1), "\n")

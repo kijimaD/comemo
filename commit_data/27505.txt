@@ -16,7 +16,7 @@ Date:   Wed Mar 30 15:09:25 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/ggen.go   | 10 ++++----
  src/cmd/compile/internal/amd64/gsubr.go  |  4 +--
  src/cmd/compile/internal/arm/ggen.go     | 12 ++++-----
@@ -52,3 +52,1558 @@ Date:   Wed Mar 30 15:09:25 2016 -0700
  src/cmd/compile/internal/x86/ggen.go     | 12 ++++-----
  src/cmd/compile/internal/x86/gsubr.go    |  4 +--
  34 files changed, 160 insertions(+), 171 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 0ca802b058..d65d128edd 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -204,7 +204,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 
+ 	t0 := t
+ 	check := false
+-	if gc.Issigned[t.Etype] {
++	if t.IsSigned() {
+ 		check = true
+ 		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -(1<<uint64(t.Width*8-1)) {
+ 			check = false
+@@ -214,7 +214,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	}
+ 
+ 	if t.Width < 4 {
+-		if gc.Issigned[t.Etype] {
++		if t.IsSigned() {
+ 			t = gc.Types[gc.TINT32]
+ 		} else {
+ 			t = gc.Types[gc.TUINT32]
+@@ -291,7 +291,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	var olddx gc.Node
+ 	var dx gc.Node
+ 	savex(x86.REG_DX, &dx, &olddx, res, t)
+-	if !gc.Issigned[t.Etype] {
++	if !t.IsSigned() {
+ 		gc.Nodconst(&n4, t, 0)
+ 		gmove(&n4, &dx)
+ 	} else {
+@@ -478,7 +478,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node)
+ 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
+ 		gins(optoas(gc.OCMP, tcount), &n1, &n3)
+ 		p1 := gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)
+-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
++		if op == gc.ORSH && nl.Type.IsSigned() {
+ 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
+ 			gins(a, &n3, &n2)
+ 		} else {
+@@ -531,7 +531,7 @@ func cgen_bmul(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
+ 	// perform full-width multiplication.
+ 	t := gc.Types[gc.TUINT64]
+ 
+-	if gc.Issigned[nl.Type.Etype] {
++	if nl.Type.IsSigned() {
+ 		t = gc.Types[gc.TINT64]
+ 	}
+ 	var n1 gc.Node
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index cbac6c87a9..a7c1eb9c12 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -101,7 +101,7 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
+ }
+ 
+ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+-	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && gc.Smallintconst(n1) && n2.Op != gc.OLITERAL {
++	if t.IsInteger() && n1.Op == gc.OLITERAL && gc.Smallintconst(n1) && n2.Op != gc.OLITERAL {
+ 		// Reverse comparison to place constant last.
+ 		op = gc.Brrev(op)
+ 		n1, n2 = n2, n1
+@@ -124,7 +124,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 		gc.Cgen(n1, &g1)
+ 		gmove(&g1, &r1)
+ 	}
+-	if n2.Op == gc.OLITERAL && gc.Isint[t.Etype] && gc.Smallintconst(n2) {
++	if n2.Op == gc.OLITERAL && t.IsInteger() && gc.Smallintconst(n2) {
+ 		r2 = *n2
+ 	} else {
+ 		gc.Regalloc(&r2, t, n2)
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index c2551499d8..97bd22a671 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -143,7 +143,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	case gc.TINT32,
+ 		gc.TUINT32:
+ 		var p *obj.Prog
+-		if gc.Issigned[t.Etype] {
++		if t.IsSigned() {
+ 			p = gins(arm.AMULL, &n2, nil)
+ 		} else {
+ 			p = gins(arm.AMULLU, &n2, nil)
+@@ -209,13 +209,13 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node)
+ 		if sc == 0 {
+ 		} else // nothing to do
+ 		if sc >= uint64(nl.Type.Width*8) {
+-			if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
++			if op == gc.ORSH && nl.Type.IsSigned() {
+ 				gshift(arm.AMOVW, &n1, arm.SHIFT_AR, int32(w), &n1)
+ 			} else {
+ 				gins(arm.AEOR, &n1, &n1)
+ 			}
+ 		} else {
+-			if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
++			if op == gc.ORSH && nl.Type.IsSigned() {
+ 				gshift(arm.AMOVW, &n1, arm.SHIFT_AR, int32(sc), &n1)
+ 			} else if op == gc.ORSH {
+ 				gshift(arm.AMOVW, &n1, arm.SHIFT_LR, int32(sc), &n1) // OLSH
+@@ -294,7 +294,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node)
+ 	if op == gc.ORSH {
+ 		var p1 *obj.Prog
+ 		var p2 *obj.Prog
+-		if gc.Issigned[nl.Type.Etype] {
++		if nl.Type.IsSigned() {
+ 			p1 = gshift(arm.AMOVW, &n2, arm.SHIFT_AR, int32(w)-1, &n2)
+ 			p2 = gregshift(arm.AMOVW, &n2, arm.SHIFT_AR, &n1, &n2)
+ 		} else {
+@@ -475,7 +475,7 @@ func ginscon(as obj.As, c int64, n *gc.Node) {
+ }
+ 
+ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+-	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n1.Int() == 0 && n2.Op != gc.OLITERAL {
++	if t.IsInteger() && n1.Op == gc.OLITERAL && n1.Int() == 0 && n2.Op != gc.OLITERAL {
+ 		op = gc.Brrev(op)
+ 		n1, n2 = n2, n1
+ 	}
+@@ -484,7 +484,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	gc.Regalloc(&g1, n1.Type, &r1)
+ 	gc.Cgen(n1, &g1)
+ 	gmove(&g1, &r1)
+-	if gc.Isint[t.Etype] && n2.Op == gc.OLITERAL && n2.Int() == 0 {
++	if t.IsInteger() && n2.Op == gc.OLITERAL && n2.Int() == 0 {
+ 		gins(arm.ACMP, &r1, n2)
+ 	} else {
+ 		gc.Regalloc(&r2, t, n2)
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index f998bd6757..3b7a422e5c 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -149,7 +149,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 
+ 	t0 := t
+ 	check := false
+-	if gc.Issigned[t.Etype] {
++	if t.IsSigned() {
+ 		check = true
+ 		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -(1<<uint64(t.Width*8-1)) {
+ 			check = false
+@@ -159,7 +159,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	}
+ 
+ 	if t.Width < 8 {
+-		if gc.Issigned[t.Etype] {
++		if t.IsSigned() {
+ 			t = gc.Types[gc.TINT64]
+ 		} else {
+ 			t = gc.Types[gc.TUINT64]
+@@ -287,7 +287,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 
+ 	case gc.TINT64,
+ 		gc.TUINT64:
+-		if gc.Issigned[t.Etype] {
++		if t.IsSigned() {
+ 			gins(arm64.ASMULH, &n2, &n1)
+ 		} else {
+ 			gins(arm64.AUMULH, &n2, &n1)
+@@ -378,7 +378,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node)
+ 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
+ 		gcmp(optoas(gc.OCMP, tcount), &n1, &n3)
+ 		p1 := gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)
+-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
++		if op == gc.ORSH && nl.Type.IsSigned() {
+ 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
+ 			gins(a, &n3, &n2)
+ 		} else {
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index d4887c74f4..a4334517f4 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -103,7 +103,7 @@ func ginscon2(as obj.As, n2 *gc.Node, c int64) {
+ }
+ 
+ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+-	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
++	if t.IsInteger() && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
+ 		// Reverse comparison to place constant last.
+ 		op = gc.Brrev(op)
+ 		n1, n2 = n2, n1
+@@ -114,7 +114,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	gc.Regalloc(&g1, n1.Type, &r1)
+ 	gc.Cgen(n1, &g1)
+ 	gmove(&g1, &r1)
+-	if gc.Isint[t.Etype] && gc.Isconst(n2, gc.CTINT) {
++	if t.IsInteger() && gc.Isconst(n2, gc.CTINT) {
+ 		ginscon2(optoas(gc.OCMP, t), &r1, n2.Int())
+ 	} else {
+ 		gc.Regalloc(&r2, t, n2)
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 24812abf59..22de0a64bf 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -635,7 +635,7 @@ func (p *exporter) fieldName(t *Field) {
+ 
+ func basetypeName(t *Type) string {
+ 	s := t.Sym
+-	if s == nil && Isptr[t.Etype] {
++	if s == nil && t.IsPtr() {
+ 		s = t.Elem().Sym // deref
+ 	}
+ 	if s != nil {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 0ecd15a1fb..65eec96c69 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -361,7 +361,7 @@ func (p *importer) field() *Node {
+ 	} else {
+ 		// anonymous field - typ must be T or *T and T must be a type name
+ 		s := typ.Sym
+-		if s == nil && Isptr[typ.Etype] {
++		if s == nil && typ.IsPtr() {
+ 			s = typ.Type.Sym // deref
+ 		}
+ 		pkg := importpkg
+@@ -491,7 +491,7 @@ func (p *importer) value(typ *Type) (x Val) {
+ 	case floatTag:
+ 		f := newMpflt()
+ 		p.float(f)
+-		if typ == idealint || Isint[typ.Etype] {
++		if typ == idealint || typ.IsInteger() {
+ 			// uncommon case: large int encoded as float
+ 			u := new(Mpint)
+ 			u.SetFloat(f)
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 5d84f146dd..d9c37df4d8 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -127,7 +127,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 				f = false
+ 			}
+ 
+-			if !Iscomplex[n.Type.Etype] && Ctxt.Arch.Regsize == 8 && !wb {
++			if !n.Type.IsComplex() && Ctxt.Arch.Regsize == 8 && !wb {
+ 				a := Thearch.Optoas(OAS, res.Type)
+ 				var addr obj.Addr
+ 				if Thearch.Sudoaddable(a, res, &addr) {
+@@ -206,7 +206,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	if Ctxt.Arch.Thechar == '5' { // TODO(rsc): Maybe more often?
+ 		// if both are addressable, move
+ 		if n.Addable && res.Addable {
+-			if Is64(n.Type) || Is64(res.Type) || n.Op == OREGISTER || res.Op == OREGISTER || Iscomplex[n.Type.Etype] || Iscomplex[res.Type.Etype] {
++			if Is64(n.Type) || Is64(res.Type) || n.Op == OREGISTER || res.Op == OREGISTER || n.Type.IsComplex() || res.Type.IsComplex() {
+ 				Thearch.Gmove(n, res)
+ 			} else {
+ 				var n1 Node
+@@ -268,7 +268,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	}
+ 
+ 	// if n is sudoaddable generate addr and move
+-	if Ctxt.Arch.Thechar == '5' && !Is64(n.Type) && !Is64(res.Type) && !Iscomplex[n.Type.Etype] && !Iscomplex[res.Type.Etype] {
++	if Ctxt.Arch.Thechar == '5' && !Is64(n.Type) && !Is64(res.Type) && !n.Type.IsComplex() && !res.Type.IsComplex() {
+ 		a := Thearch.Optoas(OAS, n.Type)
+ 		var addr obj.Addr
+ 		if Thearch.Sudoaddable(a, n, &addr) {
+@@ -329,12 +329,12 @@ func cgen_wb(n, res *Node, wb bool) {
+ 		}
+ 	}
+ 
+-	if Thearch.Cgen_float != nil && nl != nil && Isfloat[n.Type.Etype] && Isfloat[nl.Type.Etype] {
++	if Thearch.Cgen_float != nil && nl != nil && n.Type.IsFloat() && nl.Type.IsFloat() {
+ 		Thearch.Cgen_float(n, res)
+ 		return
+ 	}
+ 
+-	if !Iscomplex[n.Type.Etype] && Ctxt.Arch.Regsize == 8 {
++	if !n.Type.IsComplex() && Ctxt.Arch.Regsize == 8 {
+ 		a := Thearch.Optoas(OAS, n.Type)
+ 		var addr obj.Addr
+ 		if Thearch.Sudoaddable(a, n, &addr) {
+@@ -388,7 +388,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 		return
+ 
+ 	case OMINUS:
+-		if Isfloat[nl.Type.Etype] {
++		if nl.Type.IsFloat() {
+ 			nr = Nodintconst(-1)
+ 			nr = convlit(nr, n.Type)
+ 			a = Thearch.Optoas(OMUL, nl.Type)
+@@ -470,14 +470,14 @@ func cgen_wb(n, res *Node, wb bool) {
+ 				Regalloc(&n1, nl.Type, res)
+ 				Thearch.Gmove(nl, &n1)
+ 			} else {
+-				if n.Type.Width > int64(Widthptr) || Is64(nl.Type) || Isfloat[nl.Type.Etype] {
++				if n.Type.Width > int64(Widthptr) || Is64(nl.Type) || nl.Type.IsFloat() {
+ 					Tempname(&n1, nl.Type)
+ 				} else {
+ 					Regalloc(&n1, nl.Type, res)
+ 				}
+ 				Cgen(nl, &n1)
+ 			}
+-			if n.Type.Width > int64(Widthptr) || Is64(n.Type) || Isfloat[n.Type.Etype] {
++			if n.Type.Width > int64(Widthptr) || Is64(n.Type) || n.Type.IsFloat() {
+ 				Tempname(&n2, n.Type)
+ 			} else {
+ 				Regalloc(&n2, n.Type, nil)
+@@ -653,7 +653,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 		cgen_callret(n, res)
+ 
+ 	case OMOD, ODIV:
+-		if Isfloat[n.Type.Etype] || Thearch.Dodiv == nil {
++		if n.Type.IsFloat() || Thearch.Dodiv == nil {
+ 			a = Thearch.Optoas(n.Op, nl.Type)
+ 			goto abop
+ 		}
+@@ -904,7 +904,7 @@ func Mgen(n *Node, n1 *Node, rg *Node) {
+ 
+ 	Tempname(n1, n.Type)
+ 	Cgen(n, n1)
+-	if n.Type.Width <= int64(Widthptr) || Isfloat[n.Type.Etype] {
++	if n.Type.Width <= int64(Widthptr) || n.Type.IsFloat() {
+ 		n2 := *n1
+ 		Regalloc(n1, n.Type, rg)
+ 		Thearch.Gmove(&n2, n1)
+@@ -1215,7 +1215,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			// i is in register n1, extend to 32 bits.
+ 			t := Types[TUINT32]
+ 
+-			if Issigned[n1.Type.Etype] {
++			if n1.Type.IsSigned() {
+ 				t = Types[TINT32]
+ 			}
+ 
+@@ -1395,7 +1395,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 		// type of the index
+ 		t := Types[TUINT64]
+ 
+-		if Issigned[n1.Type.Etype] {
++		if n1.Type.IsSigned() {
+ 			t = Types[TINT64]
+ 		}
+ 
+@@ -1690,10 +1690,10 @@ func Igen(n *Node, a *Node, res *Node) {
+ 	// Could do the same for slice except that we need
+ 	// to use the real index for the bounds checking.
+ 	case OINDEX:
+-		if n.Left.Type.IsArray() || (Isptr[n.Left.Type.Etype] && n.Left.Left.Type.IsArray()) {
++		if n.Left.Type.IsArray() || (n.Left.Type.IsPtr() && n.Left.Left.Type.IsArray()) {
+ 			if Isconst(n.Right, CTINT) {
+ 				// Compute &a.
+-				if !Isptr[n.Left.Type.Etype] {
++				if !n.Left.Type.IsPtr() {
+ 					Igen(n.Left, a, res)
+ 				} else {
+ 					var n1 Node
+@@ -1798,7 +1798,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		Genlist(n.Ninit)
+ 	}
+ 
+-	if Thearch.Bgen_float != nil && n.Left != nil && Isfloat[n.Left.Type.Etype] {
++	if Thearch.Bgen_float != nil && n.Left != nil && n.Left.Type.IsFloat() {
+ 		if genval {
+ 			bvgenjump(n, res, wantTrue, false)
+ 			return
+@@ -1916,7 +1916,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	op := n.Op
+ 
+ 	if !wantTrue {
+-		if Isfloat[nr.Type.Etype] {
++		if nr.Type.IsFloat() {
+ 			// Brcom is not valid on floats when NaN is involved.
+ 			ll := n.Ninit // avoid re-genning Ninit
+ 			n.Ninit.Set(nil)
+@@ -1972,7 +1972,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		return
+ 	}
+ 
+-	if Iscomplex[nl.Type.Etype] {
++	if nl.Type.IsComplex() {
+ 		complexbool(op, nl, nr, res, wantTrue, likely, to)
+ 		return
+ 	}
+@@ -2044,7 +2044,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	l, r := nl, nr
+ 
+ 	// On x86, only < and <= work right with NaN; reverse if needed
+-	if Ctxt.Arch.Thechar == '6' && Isfloat[nl.Type.Etype] && (op == OGT || op == OGE) {
++	if Ctxt.Arch.Thechar == '6' && nl.Type.IsFloat() && (op == OGT || op == OGE) {
+ 		l, r = r, l
+ 		op = Brrev(op)
+ 	}
+@@ -2061,7 +2061,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 
+ 	// Handle floating point special cases.
+ 	// Note that 8g has Bgen_float and is handled above.
+-	if Isfloat[nl.Type.Etype] {
++	if nl.Type.IsFloat() {
+ 		switch Ctxt.Arch.Thechar {
+ 		case '5':
+ 			if genval {
+@@ -2195,7 +2195,7 @@ func stkof(n *Node) int64 {
+ 
+ 	case ODOT:
+ 		t := n.Left.Type
+-		if Isptr[t.Etype] {
++		if t.IsPtr() {
+ 			break
+ 		}
+ 		off := stkof(n.Left)
+@@ -2220,7 +2220,7 @@ func stkof(n *Node) int64 {
+ 
+ 	case OCALLMETH, OCALLINTER, OCALLFUNC:
+ 		t := n.Left.Type
+-		if Isptr[t.Etype] {
++		if t.IsPtr() {
+ 			t = t.Elem()
+ 		}
+ 
+@@ -2575,7 +2575,7 @@ func cgen_callret(n *Node, res *Node) {
+ //	res = &return value from call.
+ func cgen_aret(n *Node, res *Node) {
+ 	t := n.Left.Type
+-	if Isptr[t.Etype] {
++	if t.IsPtr() {
+ 		t = t.Elem()
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 738a83a4d3..1c5c5eb1a2 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -489,7 +489,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, FmtLeft|FmtShort), Sconv(meth, FmtLeft))
+ 	}
+ 	basetype := rcvrtype
+-	if Isptr[rcvrtype.Etype] {
++	if rcvrtype.IsPtr() {
+ 		basetype = basetype.Elem()
+ 	}
+ 	if !basetype.IsInterface() && basetype.Sym == nil {
+@@ -582,7 +582,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 	ptr.Xoffset = 0
+ 	xfunc.Func.Dcl = append(xfunc.Func.Dcl, ptr)
+ 	var body []*Node
+-	if Isptr[rcvrtype.Etype] || rcvrtype.IsInterface() {
++	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
+ 		ptr.Name.Param.Ntype = typenod(rcvrtype)
+ 		body = append(body, Nod(OAS, ptr, cv))
+ 	} else {
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index e93c3f9dc6..af75580cbb 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -162,7 +162,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 		if t != nil && t.Etype == TIDEAL && n.Val().Ctype() != CTINT {
+ 			n.SetVal(toint(n.Val()))
+ 		}
+-		if t != nil && !Isint[t.Etype] {
++		if t != nil && !t.IsInteger() {
+ 			Yyerror("invalid operation: %v (shift of type %v)", n, t)
+ 			t = nil
+ 		}
+@@ -421,7 +421,7 @@ func toint(v Val) Val {
+ func doesoverflow(v Val, t *Type) bool {
+ 	switch v.Ctype() {
+ 	case CTINT, CTRUNE:
+-		if !Isint[t.Etype] {
++		if !t.IsInteger() {
+ 			Fatalf("overflow: %v integer constant", t)
+ 		}
+ 		if v.U.(*Mpint).Cmp(Minintval[t.Etype]) < 0 || v.U.(*Mpint).Cmp(Maxintval[t.Etype]) > 0 {
+@@ -429,7 +429,7 @@ func doesoverflow(v Val, t *Type) bool {
+ 		}
+ 
+ 	case CTFLT:
+-		if !Isfloat[t.Etype] {
++		if !t.IsFloat() {
+ 			Fatalf("overflow: %v floating-point constant", t)
+ 		}
+ 		if v.U.(*Mpflt).Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpflt).Cmp(maxfltval[t.Etype]) >= 0 {
+@@ -437,7 +437,7 @@ func doesoverflow(v Val, t *Type) bool {
+ 		}
+ 
+ 	case CTCPLX:
+-		if !Iscomplex[t.Etype] {
++		if !t.IsComplex() {
+ 			Fatalf("overflow: %v complex constant", t)
+ 		}
+ 		if v.U.(*Mpcplx).Real.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Real.Cmp(maxfltval[t.Etype]) >= 0 || v.U.(*Mpcplx).Imag.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Imag.Cmp(maxfltval[t.Etype]) >= 0 {
+@@ -773,7 +773,7 @@ func evconst(n *Node) {
+ 		nr = defaultlit(nr, Types[TUINT])
+ 
+ 		n.Right = nr
+-		if nr.Type != nil && (Issigned[nr.Type.Etype] || !Isint[nr.Type.Etype]) {
++		if nr.Type != nil && (nr.Type.IsSigned() || !nr.Type.IsInteger()) {
+ 			goto illegal
+ 		}
+ 		if nl.Val().Ctype() != CTRUNE {
+@@ -1332,13 +1332,13 @@ num:
+ 	// in the case of an untyped non-constant value, like 1<<i.
+ 	v1 := n.Val()
+ 	if t != nil {
+-		if Isint[t.Etype] {
++		if t.IsInteger() {
+ 			t1 = t
+ 			v1 = toint(n.Val())
+-		} else if Isfloat[t.Etype] {
++		} else if t.IsFloat() {
+ 			t1 = t
+ 			v1 = toflt(n.Val())
+-		} else if Iscomplex[t.Etype] {
++		} else if t.IsComplex() {
+ 			t1 = t
+ 			v1 = tocplx(n.Val())
+ 		}
+@@ -1683,7 +1683,7 @@ func isgoconst(n *Node) bool {
+ 		// function calls or channel receive operations.
+ 		t := l.Type
+ 
+-		if t != nil && Isptr[t.Etype] {
++		if t != nil && t.IsPtr() {
+ 			t = t.Elem()
+ 		}
+ 		if t != nil && t.IsArray() && !hascallchan(l) {
+diff --git a/src/cmd/compile/internal/gc/cplx.go b/src/cmd/compile/internal/gc/cplx.go
+index 4d89fb71a0..b0fa70b0ad 100644
+--- a/src/cmd/compile/internal/gc/cplx.go
++++ b/src/cmd/compile/internal/gc/cplx.go
+@@ -229,20 +229,20 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
+ 	n.SetVal(Val{fval})
+ 	n.Type = t
+ 
+-	if !Isfloat[t.Etype] {
++	if !t.IsFloat() {
+ 		Fatalf("nodfconst: bad type %v", t)
+ 	}
+ }
+ 
+ func Complexop(n *Node, res *Node) bool {
+ 	if n != nil && n.Type != nil {
+-		if Iscomplex[n.Type.Etype] {
++		if n.Type.IsComplex() {
+ 			goto maybe
+ 		}
+ 	}
+ 
+ 	if res != nil && res.Type != nil {
+-		if Iscomplex[res.Type.Etype] {
++		if res.Type.IsComplex() {
+ 			goto maybe
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 9be0b14bdf..f107a4e284 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -715,14 +715,14 @@ func checkembeddedtype(t *Type) {
+ 		return
+ 	}
+ 
+-	if t.Sym == nil && Isptr[t.Etype] {
++	if t.Sym == nil && t.IsPtr() {
+ 		t = t.Elem()
+ 		if t.IsInterface() {
+ 			Yyerror("embedded type cannot be a pointer to interface")
+ 		}
+ 	}
+ 
+-	if Isptr[t.Etype] {
++	if t.IsPtr() {
+ 		Yyerror("embedded type cannot be a pointer")
+ 	} else if t.Etype == TFORW && t.Embedlineno == 0 {
+ 		t.Embedlineno = lineno
+@@ -1017,7 +1017,7 @@ func isifacemethod(f *Type) bool {
+ 		return false
+ 	}
+ 	t := rcvr.Type
+-	if !Isptr[t.Etype] {
++	if !t.IsPtr() {
+ 		return false
+ 	}
+ 	t = t.Elem()
+@@ -1075,7 +1075,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+ 		goto bad
+ 	}
+ 	s = t.Sym
+-	if s == nil && Isptr[t.Etype] {
++	if s == nil && t.IsPtr() {
+ 		t = t.Elem()
+ 		if t == nil {
+ 			goto bad
+@@ -1103,13 +1103,13 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+ 	}
+ 
+ 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
+-		if t0.Sym == nil && Isptr[t0.Etype] {
++		if t0.Sym == nil && t0.IsPtr() {
+ 			p = fmt.Sprintf("(%v).%s.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
+ 		} else {
+ 			p = fmt.Sprintf("%v.%s.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
+ 		}
+ 	} else {
+-		if t0.Sym == nil && Isptr[t0.Etype] {
++		if t0.Sym == nil && t0.IsPtr() {
+ 			p = fmt.Sprintf("(%v).%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Name, suffix)
+ 		} else {
+ 			p = fmt.Sprintf("%v.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Name, suffix)
+@@ -1192,7 +1192,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 			return
+ 		}
+ 		if t != nil {
+-			if Isptr[t.Etype] {
++			if t.IsPtr() {
+ 				if t.Sym != nil {
+ 					Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
+ 					return
+@@ -1209,7 +1209,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 				return
+ 			}
+ 
+-			if Isptr[t.Etype] {
++			if t.IsPtr() {
+ 				Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
+ 				return
+ 			}
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index e73649c472..e6f543f05d 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -697,7 +697,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// it is also a dereference, because it is implicitly
+ 			// dereferenced (see #12588)
+ 			if n.Type.IsArray() &&
+-				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Elem(), n.Type)) {
++				!(n.Right.Type.IsPtr() && Eqtype(n.Right.Type.Elem(), n.Type)) {
+ 				escassignNilWhy(e, n.List.Second(), n.Right, "range")
+ 			} else {
+ 				escassignDereference(e, n.List.Second(), n.Right, e.stepAssign(nil, n.List.Second(), n.Right, "range-deref"))
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 8e4cc3e872..ce86fa097d 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -149,7 +149,7 @@ func reexportdep(n *Node) {
+ 		t := n.Left.Type
+ 
+ 		if t != Types[t.Etype] && t != idealbool && t != idealstring {
+-			if Isptr[t.Etype] {
++			if t.IsPtr() {
+ 				t = t.Elem()
+ 			}
+ 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
+@@ -163,7 +163,7 @@ func reexportdep(n *Node) {
+ 	case OLITERAL:
+ 		t := n.Type
+ 		if t != Types[n.Type.Etype] && t != idealbool && t != idealstring {
+-			if Isptr[t.Etype] {
++			if t.IsPtr() {
+ 				t = t.Elem()
+ 			}
+ 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 7f7b20a729..b6136b2f71 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1095,7 +1095,7 @@ func exprfmt(n *Node, prec int) string {
+ 		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != idealbool && n.Type != idealstring {
+ 			// Need parens when type begins with what might
+ 			// be misinterpreted as a unary operator: * or <-.
+-			if Isptr[n.Type.Etype] || (n.Type.IsChan() && n.Type.Chan == Crecv) {
++			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.Chan == Crecv) {
+ 				return fmt.Sprintf("(%v)(%v)", n.Type, Vconv(n.Val(), 0))
+ 			} else {
+ 				return fmt.Sprintf("%v(%v)", n.Type, Vconv(n.Val(), 0))
+@@ -1118,7 +1118,7 @@ func exprfmt(n *Node, prec int) string {
+ 		// but for export, this should be rendered as (*pkg.T).meth.
+ 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
+ 		if fmtmode == FExp && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
+-			if Isptr[n.Left.Type.Etype] {
++			if n.Left.Type.IsPtr() {
+ 				return fmt.Sprintf("(%v).%v", n.Left.Type, Sconv(n.Right.Sym, FmtShort|FmtByte))
+ 			} else {
+ 				return fmt.Sprintf("%v.%v", n.Left.Type, Sconv(n.Right.Sym, FmtShort|FmtByte))
+@@ -1181,7 +1181,7 @@ func exprfmt(n *Node, prec int) string {
+ 		return fmt.Sprintf("%v { %v }", n.Type, n.Name.Param.Closure.Nbody)
+ 
+ 	case OCOMPLIT:
+-		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && Isptr[n.Right.Type.Etype]
++		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && n.Right.Type.IsPtr()
+ 		if fmtmode == FErr {
+ 			if n.Right != nil && n.Right.Type != nil && !n.Implicit {
+ 				if ptrlit {
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 37db6d7018..1de63aed9f 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -1078,7 +1078,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
+ 			nodl.Type = t
+ 			nodl.Xoffset = lbase + offset
+ 			nodr.Type = t
+-			if Isfloat[t.Etype] {
++			if t.IsFloat() {
+ 				// TODO(rsc): Cache zero register like we do for integers?
+ 				Clearslim(&nodl)
+ 			} else {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index b9fc8153d3..117836d2cd 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -277,12 +277,10 @@ var asmhdr string
+ var Simtype [NTYPE]EType
+ 
+ var (
+-	Isptr     [NTYPE]bool
+ 	isforw    [NTYPE]bool
+ 	Isint     [NTYPE]bool
+ 	Isfloat   [NTYPE]bool
+ 	Iscomplex [NTYPE]bool
+-	Issigned  [NTYPE]bool
+ 	issimple  [NTYPE]bool
+ )
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index e5b02c451e..292113a631 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -38,7 +38,7 @@ func fnpkg(fn *Node) *Pkg {
+ 		// method
+ 		rcvr := fn.Type.Recv().Type
+ 
+-		if Isptr[rcvr.Etype] {
++		if rcvr.IsPtr() {
+ 			rcvr = rcvr.Elem()
+ 		}
+ 		if rcvr.Sym == nil {
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 4017e96d0b..8410a236cd 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -375,11 +375,11 @@ func ordercall(n *Node, order *Order) {
+ 			}
+ 			if t.Note != nil && *t.Note == unsafeUintptrTag {
+ 				xp := n.List.Addr(i)
+-				for (*xp).Op == OCONVNOP && !Isptr[(*xp).Type.Etype] {
++				for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
+ 					xp = &(*xp).Left
+ 				}
+ 				x := *xp
+-				if Isptr[x.Type.Etype] {
++				if x.Type.IsPtr() {
+ 					x = ordercopyexpr(x, x.Type, order, 0)
+ 					x.Name.Keepalive = true
+ 					*xp = x
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index a0aae5af27..ba30061041 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -3153,7 +3153,7 @@ func (p *parser) hidden_structdcl() *Node {
+ 		ss.SetVal(s3)
+ 	} else {
+ 		s := s2.Sym
+-		if s == nil && Isptr[s2.Etype] {
++		if s == nil && s2.IsPtr() {
+ 			s = s2.Elem().Sym
+ 		}
+ 		pkg := importpkg
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 9ff23115df..66c87b0414 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -318,7 +318,7 @@ func Cgen_checknil(n *Node) {
+ 	}
+ 
+ 	// Ideally we wouldn't see any integer types here, but we do.
+-	if n.Type == nil || (!Isptr[n.Type.Etype] && !Isint[n.Type.Etype] && n.Type.Etype != TUNSAFEPTR) {
++	if n.Type == nil || (!n.Type.IsPtr() && !n.Type.IsInteger() && n.Type.Etype != TUNSAFEPTR) {
+ 		Dump("checknil", n)
+ 		Fatalf("bad checknil")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 7517874b7e..e97a628ce3 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -38,7 +38,7 @@ func typecheckrange(n *Node) {
+ 		}
+ 	}
+ 
+-	if Isptr[t.Etype] && t.Elem().IsArray() {
++	if t.IsPtr() && t.Elem().IsArray() {
+ 		t = t.Elem()
+ 	}
+ 	n.Type = t
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 05cc5687e7..636ef9cf3f 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -306,10 +306,10 @@ func methods(t *Type) []*Sig {
+ 		// method does not apply.
+ 		this := f.Type.Recv().Type
+ 
+-		if Isptr[this.Etype] && this.Elem() == t {
++		if this.IsPtr() && this.Elem() == t {
+ 			continue
+ 		}
+-		if Isptr[this.Etype] && !Isptr[t.Etype] && f.Embedded != 2 && !isifacemethod(f.Type) {
++		if this.IsPtr() && !t.IsPtr() && f.Embedded != 2 && !isifacemethod(f.Type) {
+ 			continue
+ 		}
+ 
+@@ -791,7 +791,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	}
+ 
+ 	tptr := Ptrto(t)
+-	if !Isptr[t.Etype] && (t.Sym != nil || methods(tptr) != nil) {
++	if !t.IsPtr() && (t.Sym != nil || methods(tptr) != nil) {
+ 		sptr := dtypesym(tptr)
+ 		r := obj.Addrel(Linksym(s))
+ 		r.Off = 0
+@@ -918,7 +918,7 @@ func typesymprefix(prefix string, t *Type) *Sym {
+ }
+ 
+ func typenamesym(t *Type) *Sym {
+-	if t == nil || (Isptr[t.Etype] && t.Elem() == nil) || isideal(t) {
++	if t == nil || (t.IsPtr() && t.Elem() == nil) || isideal(t) {
+ 		Fatalf("typename %v", t)
+ 	}
+ 	s := typesym(t)
+@@ -946,7 +946,7 @@ func typename(t *Type) *Node {
+ }
+ 
+ func itabname(t, itype *Type) *Node {
+-	if t == nil || (Isptr[t.Etype] && t.Elem() == nil) || isideal(t) {
++	if t == nil || (t.IsPtr() && t.Elem() == nil) || isideal(t) {
+ 		Fatalf("itabname %v", t)
+ 	}
+ 	s := Pkglookup(Tconv(t, FmtLeft)+","+Tconv(itype, FmtLeft), itabpkg)
+@@ -1091,7 +1091,7 @@ func dtypesym(t *Type) *Sym {
+ 	// emit the type structures for int, float, etc.
+ 	tbase := t
+ 
+-	if Isptr[t.Etype] && t.Sym == nil && t.Elem().Sym != nil {
++	if t.IsPtr() && t.Sym == nil && t.Elem().Sym != nil {
+ 		tbase = t.Elem()
+ 	}
+ 	dupok := 0
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 21e5d1248f..2901e59d71 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1007,7 +1007,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		Fatalf("anylit: not lit")
+ 
+ 	case OPTRLIT:
+-		if !Isptr[t.Etype] {
++		if !t.IsPtr() {
+ 			Fatalf("anylit: not ptr")
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b9671a638d..c552dd01a1 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -460,7 +460,7 @@ func Nodconst(n *Node, t *Type, v int64) {
+ 	n.Val().U.(*Mpint).SetInt64(v)
+ 	n.Type = t
+ 
+-	if Isfloat[t.Etype] {
++	if t.IsFloat() {
+ 		Fatalf("nodconst: bad type %v", t)
+ 	}
+ }
+@@ -562,7 +562,7 @@ func isptrto(t *Type, et EType) bool {
+ 	if t == nil {
+ 		return false
+ 	}
+-	if !Isptr[t.Etype] {
++	if !t.IsPtr() {
+ 		return false
+ 	}
+ 	t = t.Elem()
+@@ -617,7 +617,7 @@ func methtype(t *Type, mustname int) *Type {
+ 	}
+ 
+ 	// strip away pointer if it's there
+-	if Isptr[t.Etype] {
++	if t.IsPtr() {
+ 		if t.Sym != nil {
+ 			return nil
+ 		}
+@@ -947,14 +947,14 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 
+ 	// 3. src and dst are unnamed pointer types
+ 	// and their base types have identical underlying types.
+-	if Isptr[src.Etype] && Isptr[dst.Etype] && src.Sym == nil && dst.Sym == nil {
++	if src.IsPtr() && dst.IsPtr() && src.Sym == nil && dst.Sym == nil {
+ 		if Eqtype(src.Elem().Orig, dst.Elem().Orig) {
+ 			return OCONVNOP
+ 		}
+ 	}
+ 
+ 	// 4. src and dst are both integer or floating point types.
+-	if (Isint[src.Etype] || Isfloat[src.Etype]) && (Isint[dst.Etype] || Isfloat[dst.Etype]) {
++	if (src.IsInteger() || src.IsFloat()) && (dst.IsInteger() || dst.IsFloat()) {
+ 		if Simtype[src.Etype] == Simtype[dst.Etype] {
+ 			return OCONVNOP
+ 		}
+@@ -962,7 +962,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 	}
+ 
+ 	// 5. src and dst are both complex types.
+-	if Iscomplex[src.Etype] && Iscomplex[dst.Etype] {
++	if src.IsComplex() && dst.IsComplex() {
+ 		if Simtype[src.Etype] == Simtype[dst.Etype] {
+ 			return OCONVNOP
+ 		}
+@@ -971,7 +971,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 
+ 	// 6. src is an integer or has type []byte or []rune
+ 	// and dst is a string type.
+-	if Isint[src.Etype] && dst.IsString() {
++	if src.IsInteger() && dst.IsString() {
+ 		return ORUNESTR
+ 	}
+ 
+@@ -996,12 +996,12 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 	}
+ 
+ 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
+-	if (Isptr[src.Etype] || src.Etype == TUINTPTR) && dst.Etype == TUNSAFEPTR {
++	if (src.IsPtr() || src.Etype == TUINTPTR) && dst.Etype == TUNSAFEPTR {
+ 		return OCONVNOP
+ 	}
+ 
+ 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
+-	if src.Etype == TUNSAFEPTR && (Isptr[dst.Etype] || dst.Etype == TUINTPTR) {
++	if src.Etype == TUNSAFEPTR && (dst.IsPtr() || dst.Etype == TUINTPTR) {
+ 		return OCONVNOP
+ 	}
+ 
+@@ -1265,7 +1265,7 @@ func badtype(op Op, tl *Type, tr *Type) {
+ 	}
+ 
+ 	// common mistake: *struct and *interface.
+-	if tl != nil && tr != nil && Isptr[tl.Etype] && Isptr[tr.Etype] {
++	if tl != nil && tr != nil && tl.IsPtr() && tr.IsPtr() {
+ 		if tl.Elem().IsStruct() && tr.Elem().IsInterface() {
+ 			fmt_ += "\n\t(*struct vs *interface)"
+ 		} else if tl.Elem().IsInterface() && tr.Elem().IsStruct() {
+@@ -1432,7 +1432,7 @@ var dotlist = make([]Dlist, 10)
+ // (if save is not nil).
+ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
+ 	u := t
+-	if Isptr[u.Etype] {
++	if u.IsPtr() {
+ 		u = u.Elem()
+ 	}
+ 
+@@ -1488,7 +1488,7 @@ func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more
+ 	}
+ 
+ 	u = t
+-	if Isptr[u.Etype] {
++	if u.IsPtr() {
+ 		u = u.Elem()
+ 	}
+ 	if !u.IsStruct() && !u.IsInterface() {
+@@ -1597,7 +1597,7 @@ var slist []Symlink
+ 
+ func expand0(t *Type, followptr bool) {
+ 	u := t
+-	if Isptr[u.Etype] {
++	if u.IsPtr() {
+ 		followptr = true
+ 		u = u.Elem()
+ 	}
+@@ -1637,7 +1637,7 @@ func expand1(t *Type, top, followptr bool) {
+ 	}
+ 
+ 	u := t
+-	if Isptr[u.Etype] {
++	if u.IsPtr() {
+ 		followptr = true
+ 		u = u.Elem()
+ 	}
+@@ -1814,7 +1814,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	methodrcvr := method.Type.Recv().Type
+ 
+ 	// generate nil pointer check for better error
+-	if Isptr[rcvr.Etype] && rcvr.Elem() == methodrcvr {
++	if rcvr.IsPtr() && rcvr.Elem() == methodrcvr {
+ 		// generating wrapper from *T to T.
+ 		n := Nod(OIF, nil, nil)
+ 
+@@ -1840,11 +1840,11 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	dot := adddot(NodSym(OXDOT, this.Left, method.Sym))
+ 
+ 	// generate call
+-	if !instrumenting && Isptr[rcvr.Etype] && Isptr[methodrcvr.Etype] && method.Embedded != 0 && !isifacemethod(method.Type) {
++	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) {
+ 		// generate tail call: adjust pointer receiver and jump to embedded method.
+ 		dot = dot.Left // skip final .M
+ 		// TODO(mdempsky): Remove dependency on dotlist.
+-		if !Isptr[dotlist[0].field.Type.Etype] {
++		if !dotlist[0].field.Type.IsPtr() {
+ 			dot = Nod(OADDR, dot, nil)
+ 		}
+ 		as := Nod(OAS, this.Left, Nod(OCONVNOP, dot, nil))
+@@ -1877,7 +1877,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	testdclstack()
+ 
+ 	// wrappers where T is anonymous (struct or interface) can be duplicated.
+-	if rcvr.IsStruct() || rcvr.IsInterface() || Isptr[rcvr.Etype] && rcvr.Elem().IsStruct() {
++	if rcvr.IsStruct() || rcvr.IsInterface() || rcvr.IsPtr() && rcvr.Elem().IsStruct() {
+ 		fn.Func.Dupok = true
+ 	}
+ 	fn = typecheck(fn, Etop)
+@@ -1922,7 +1922,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Field {
+ 	}
+ 
+ 	for _, d := range path {
+-		if Isptr[d.field.Type.Etype] {
++		if d.field.Type.IsPtr() {
+ 			*followptr = true
+ 			break
+ 		}
+@@ -1994,7 +1994,7 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
+ 		// the method does not exist for value types.
+ 		rcvr := tm.Type.Recv().Type
+ 
+-		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && !followptr && !isifacemethod(tm.Type) {
++		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !isifacemethod(tm.Type) {
+ 			if false && Debug['r'] != 0 {
+ 				Yyerror("interface pointer mismatch")
+ 			}
+@@ -2056,7 +2056,7 @@ func powtwo(n *Node) int {
+ 	if n == nil || n.Op != OLITERAL || n.Type == nil {
+ 		return -1
+ 	}
+-	if !Isint[n.Type.Etype] {
++	if !n.Type.IsInteger() {
+ 		return -1
+ 	}
+ 
+@@ -2069,7 +2069,7 @@ func powtwo(n *Node) int {
+ 		b = b << 1
+ 	}
+ 
+-	if !Issigned[n.Type.Etype] {
++	if !n.Type.IsSigned() {
+ 		return -1
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e7b0e3c405..9102f5b39b 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -360,7 +360,7 @@ OpSwitch:
+ 				v = toint(l.Val())
+ 
+ 			default:
+-				if l.Type != nil && Isint[l.Type.Etype] && l.Op != OLITERAL {
++				if l.Type != nil && l.Type.IsInteger() && l.Op != OLITERAL {
+ 					Yyerror("non-constant array bound %v", l)
+ 				} else {
+ 					Yyerror("invalid array bound %v", l)
+@@ -473,7 +473,7 @@ OpSwitch:
+ 			break OpSwitch
+ 		}
+ 
+-		if !Isptr[t.Etype] {
++		if !t.IsPtr() {
+ 			if top&(Erv|Etop) != 0 {
+ 				Yyerror("invalid indirect of %v", Nconv(n.Left, FmtLong))
+ 				n.Type = nil
+@@ -546,14 +546,14 @@ OpSwitch:
+ 			r = defaultlit(r, Types[TUINT])
+ 			n.Right = r
+ 			t := r.Type
+-			if !Isint[t.Etype] || Issigned[t.Etype] {
++			if !t.IsInteger() || t.IsSigned() {
+ 				Yyerror("invalid operation: %v (shift count type %v, must be unsigned integer)", n, r.Type)
+ 				n.Type = nil
+ 				return n
+ 			}
+ 
+ 			t = l.Type
+-			if t != nil && t.Etype != TIDEAL && !Isint[t.Etype] {
++			if t != nil && t.Etype != TIDEAL && !t.IsInteger() {
+ 				Yyerror("invalid operation: %v (shift of type %v)", n, t)
+ 				n.Type = nil
+ 				return n
+@@ -864,7 +864,7 @@ OpSwitch:
+ 			break OpSwitch
+ 		}
+ 
+-		if Isptr[t.Etype] && !t.Elem().IsInterface() {
++		if t.IsPtr() && !t.Elem().IsInterface() {
+ 			t = t.Elem()
+ 			if t == nil {
+ 				n.Type = nil
+@@ -886,7 +886,7 @@ OpSwitch:
+ 			case isnilinter(t):
+ 				Yyerror("%v undefined (type %v is interface with no methods)", n, n.Left.Type)
+ 
+-			case Isptr[t.Etype] && t.Elem().IsInterface():
++			case t.IsPtr() && t.Elem().IsInterface():
+ 				// Pointer to interface is almost always a mistake.
+ 				Yyerror("%v undefined (type %v is pointer to interface, not interface)", n, n.Left.Type)
+ 
+@@ -1000,7 +1000,7 @@ OpSwitch:
+ 				}
+ 			}
+ 
+-			if n.Right.Type != nil && !Isint[n.Right.Type.Etype] {
++			if n.Right.Type != nil && !n.Right.Type.IsInteger() {
+ 				Yyerror("non-integer %s index %v", why, n.Right)
+ 				break
+ 			}
+@@ -1124,7 +1124,7 @@ OpSwitch:
+ 		if Istype(t, TSTRING) {
+ 			n.Type = t
+ 			n.Op = OSLICESTR
+-		} else if Isptr[t.Etype] && t.Elem().IsArray() {
++		} else if t.IsPtr() && t.Elem().IsArray() {
+ 			tp = t.Elem()
+ 			n.Type = typSlice(tp.Elem())
+ 			dowidth(n.Type)
+@@ -1189,7 +1189,7 @@ OpSwitch:
+ 		}
+ 
+ 		var tp *Type
+-		if Isptr[t.Etype] && t.Elem().IsArray() {
++		if t.IsPtr() && t.Elem().IsArray() {
+ 			tp = t.Elem()
+ 			n.Type = typSlice(tp.Elem())
+ 			dowidth(n.Type)
+@@ -1381,7 +1381,7 @@ OpSwitch:
+ 			}
+ 
+ 		case OREAL, OIMAG:
+-			if !Iscomplex[t.Etype] {
++			if !t.IsComplex() {
+ 				goto badcall1
+ 			}
+ 			if Isconst(l, CTCPLX) {
+@@ -2204,7 +2204,7 @@ func checksliceindex(l *Node, r *Node, tp *Type) bool {
+ 	if t == nil {
+ 		return false
+ 	}
+-	if !Isint[t.Etype] {
++	if !t.IsInteger() {
+ 		Yyerror("invalid slice index %v (type %v)", r, t)
+ 		return false
+ 	}
+@@ -2296,7 +2296,7 @@ func checkdefergo(n *Node) {
+ func implicitstar(n *Node) *Node {
+ 	// insert implicit * if needed for fixed array
+ 	t := n.Type
+-	if t == nil || !Isptr[t.Etype] {
++	if t == nil || !t.IsPtr() {
+ 		return n
+ 	}
+ 	t = t.Elem()
+@@ -2377,7 +2377,7 @@ func lookdot1(errnode *Node, s *Sym, t *Type, fs *Fields, dostrcmp int) *Field {
+ 		if r != nil {
+ 			if errnode != nil {
+ 				Yyerror("ambiguous selector %v", errnode)
+-			} else if Isptr[t.Etype] {
++			} else if t.IsPtr() {
+ 				Yyerror("ambiguous selector (%v).%v", t, s)
+ 			} else {
+ 				Yyerror("ambiguous selector %v.%v", t, s)
+@@ -2421,7 +2421,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 	}
+ 
+ 	// disallow T.m if m requires *T receiver
+-	if Isptr[f2.Type.Recv().Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
++	if f2.Type.Recv().Type.IsPtr() && !t.IsPtr() && f2.Embedded != 2 && !isifacemethod(f2.Type) {
+ 		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", n, t, Sconv(f2.Sym, FmtShort))
+ 		return false
+ 	}
+@@ -2485,7 +2485,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 			dotField[typeSym{t.Orig, s}] = f1
+ 		}
+ 		if t.IsInterface() {
+-			if Isptr[n.Left.Type.Etype] {
++			if n.Left.Type.IsPtr() {
+ 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
+ 				n.Left.Implicit = true
+ 				n.Left = typecheck(n.Left, Erv)
+@@ -2538,7 +2538,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 			pll = ll
+ 			ll = ll.Left
+ 		}
+-		if pll.Implicit && Isptr[ll.Type.Etype] && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
++		if pll.Implicit && ll.Type.IsPtr() && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
+ 			// It is invalid to automatically dereference a named pointer type when selecting a method.
+ 			// Make n->left == ll to clarify error message.
+ 			n.Left = ll
+@@ -2910,7 +2910,7 @@ func typecheckcomplit(n *Node) *Node {
+ 	nerr := nerrors
+ 	n.Type = t
+ 
+-	if Isptr[t.Etype] {
++	if t.IsPtr() {
+ 		// For better or worse, we don't allow pointers as the composite literal type,
+ 		// except when using the &T syntax, which sets implicit on the OIND.
+ 		if !n.Right.Implicit {
+@@ -3126,7 +3126,7 @@ func typecheckcomplit(n *Node) *Node {
+ 	}
+ 
+ 	n.Orig = norig
+-	if Isptr[n.Type.Etype] {
++	if n.Type.IsPtr() {
+ 		n = Nod(OPTRLIT, n, nil)
+ 		n.Typecheck = 1
+ 		n.Type = n.Left.Type
+@@ -3534,7 +3534,7 @@ func copytype(n *Node, t *Type) {
+ 
+ 	if embedlineno != 0 {
+ 		lineno = embedlineno
+-		if Isptr[t.Etype] {
++		if t.IsPtr() {
+ 			Yyerror("embedded type cannot be a pointer")
+ 		}
+ 	}
+@@ -3814,7 +3814,7 @@ func checkmake(t *Type, arg string, n *Node) bool {
+ 		}
+ 	}
+ 
+-	if !Isint[n.Type.Etype] && n.Type.Etype != TIDEAL {
++	if !n.Type.IsInteger() && n.Type.Etype != TIDEAL {
+ 		Yyerror("non-integer %s argument in make(%v) - %v", arg, t, n.Type)
+ 		return false
+ 	}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 20c1c8c4d5..c2ba9c9a93 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -184,17 +184,8 @@ func typeinit() {
+ 	Iscomplex[TCOMPLEX64] = true
+ 	Iscomplex[TCOMPLEX128] = true
+ 
+-	Isptr[TPTR32] = true
+-	Isptr[TPTR64] = true
+-
+ 	isforw[TFORW] = true
+ 
+-	Issigned[TINT] = true
+-	Issigned[TINT8] = true
+-	Issigned[TINT16] = true
+-	Issigned[TINT32] = true
+-	Issigned[TINT64] = true
+-
+ 	// initialize okfor
+ 	for et := EType(0); et < NTYPE; et++ {
+ 		if Isint[et] || et == TIDEAL {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 425128eb73..bab9c00300 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -541,7 +541,7 @@ opswitch:
+ 		// delayed until now to preserve side effects.
+ 		t := n.Left.Type
+ 
+-		if Isptr[t.Etype] {
++		if t.IsPtr() {
+ 			t = t.Elem()
+ 		}
+ 		if t.IsArray() {
+@@ -1057,7 +1057,7 @@ opswitch:
+ 
+ 	case OCONV, OCONVNOP:
+ 		if Thearch.Thechar == '5' {
+-			if Isfloat[n.Left.Type.Etype] {
++			if n.Left.Type.IsFloat() {
+ 				if n.Type.Etype == TINT64 {
+ 					n = mkcall("float64toint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
+ 					break
+@@ -1069,7 +1069,7 @@ opswitch:
+ 				}
+ 			}
+ 
+-			if Isfloat[n.Type.Etype] {
++			if n.Type.IsFloat() {
+ 				if n.Left.Type.Etype == TINT64 {
+ 					n = mkcall("int64tofloat64", n.Type, init, conv(n.Left, Types[TINT64]))
+ 					break
+@@ -1154,7 +1154,7 @@ opswitch:
+ 			break
+ 		}
+ 		t := n.Left.Type
+-		if t != nil && Isptr[t.Etype] {
++		if t != nil && t.IsPtr() {
+ 			t = t.Elem()
+ 		}
+ 		if t.IsArray() {
+@@ -1930,7 +1930,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 				on = syslook("printiface")
+ 			}
+ 			on = substArgTypes(on, n.Type) // any-1
+-		} else if Isptr[et] || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
++		} else if n.Type.IsPtr() || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
+ 			on = syslook("printpointer")
+ 			on = substArgTypes(on, n.Type) // any-1
+ 		} else if n.Type.IsSlice() {
+@@ -3277,7 +3277,7 @@ func walkrotate(n *Node) *Node {
+ 	l := n.Left
+ 
+ 	r := n.Right
+-	if (n.Op != OOR && n.Op != OXOR) || (l.Op != OLSH && l.Op != ORSH) || (r.Op != OLSH && r.Op != ORSH) || n.Type == nil || Issigned[n.Type.Etype] || l.Op == r.Op {
++	if (n.Op != OOR && n.Op != OXOR) || (l.Op != OLSH && l.Op != ORSH) || (r.Op != OLSH && r.Op != ORSH) || n.Type == nil || n.Type.IsSigned() || l.Op == r.Op {
+ 		return n
+ 	}
+ 
+@@ -3322,7 +3322,7 @@ func walkrotate(n *Node) *Node {
+ // The result of walkmul MUST be assigned back to n, e.g.
+ // 	n.Left = walkmul(n.Left, init)
+ func walkmul(n *Node, init *Nodes) *Node {
+-	if !Isint[n.Type.Etype] {
++	if !n.Type.IsInteger() {
+ 		return n
+ 	}
+ 
+@@ -3434,7 +3434,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 		var m Magic
+ 		m.W = w
+ 
+-		if Issigned[nl.Type.Etype] {
++		if nl.Type.IsSigned() {
+ 			m.Sd = nr.Val().U.(*Mpint).Int64()
+ 			Smagic(&m)
+ 		} else {
+@@ -3555,7 +3555,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 		}
+ 
+ 	default:
+-		if Issigned[n.Type.Etype] {
++		if n.Type.IsSigned() {
+ 			if n.Op == OMOD {
+ 				// signed modulo 2^pow is like ANDing
+ 				// with the last pow bits, but if nl < 0,
+@@ -3652,11 +3652,11 @@ ret:
+ 
+ // return 1 if integer n must be in range [0, max), 0 otherwise
+ func bounded(n *Node, max int64) bool {
+-	if n.Type == nil || !Isint[n.Type.Etype] {
++	if n.Type == nil || !n.Type.IsInteger() {
+ 		return false
+ 	}
+ 
+-	sign := Issigned[n.Type.Etype]
++	sign := n.Type.IsSigned()
+ 	bits := int32(8 * n.Type.Width)
+ 
+ 	if Smallintconst(n) {
+@@ -3772,7 +3772,7 @@ func usefield(n *Node) {
+ 	}
+ 
+ 	t := n.Left.Type
+-	if Isptr[t.Etype] {
++	if t.IsPtr() {
+ 		t = t.Elem()
+ 	}
+ 	field := dotField[typeSym{t.Orig, n.Sym}]
+@@ -3784,7 +3784,7 @@ func usefield(n *Node) {
+ 	}
+ 
+ 	outer := n.Left.Type
+-	if Isptr[outer.Etype] {
++	if outer.IsPtr() {
+ 		outer = outer.Elem()
+ 	}
+ 	if outer.Sym == nil {
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 849d11c899..004fef5f0d 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -138,7 +138,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	t0 := t
+ 
+ 	if t.Width < 8 {
+-		if gc.Issigned[t.Etype] {
++		if t.IsSigned() {
+ 			t = gc.Types[gc.TINT64]
+ 		} else {
+ 			t = gc.Types[gc.TUINT64]
+@@ -234,7 +234,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 
+ 	case gc.TINT64,
+ 		gc.TUINT64:
+-		if gc.Issigned[t.Etype] {
++		if t.IsSigned() {
+ 			gins3(mips.AMULV, &n2, &n1, nil)
+ 		} else {
+ 			gins3(mips.AMULVU, &n2, &n1, nil)
+@@ -330,7 +330,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node)
+ 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
+ 		gins3(mips.ASGTU, &n3, &n1, &rtmp)
+ 		p1 := ginsbranch(mips.ABNE, nil, &rtmp, nil, 0)
+-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
++		if op == gc.ORSH && nl.Type.IsSigned() {
+ 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
+ 			gins(a, &n3, &n2)
+ 		} else {
+diff --git a/src/cmd/compile/internal/mips64/gsubr.go b/src/cmd/compile/internal/mips64/gsubr.go
+index d63d35d966..60805270af 100644
+--- a/src/cmd/compile/internal/mips64/gsubr.go
++++ b/src/cmd/compile/internal/mips64/gsubr.go
+@@ -88,11 +88,11 @@ func ginsbranch(as obj.As, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ }
+ 
+ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+-	if !gc.Isfloat[t.Etype] && (op == gc.OLT || op == gc.OGE) {
++	if !t.IsFloat() && (op == gc.OLT || op == gc.OGE) {
+ 		// swap nodes to fit SGT instruction
+ 		n1, n2 = n2, n1
+ 	}
+-	if gc.Isfloat[t.Etype] && (op == gc.OLT || op == gc.OLE) {
++	if t.IsFloat() && (op == gc.OLT || op == gc.OLE) {
+ 		// swap nodes to fit CMPGT, CMPGE instructions and reverse relation
+ 		n1, n2 = n2, n1
+ 		if op == gc.OLT {
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 21b19eece4..605f82ccd2 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -136,7 +136,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 
+ 	t0 := t
+ 	check := false
+-	if gc.Issigned[t.Etype] {
++	if t.IsSigned() {
+ 		check = true
+ 		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -(1<<uint64(t.Width*8-1)) {
+ 			check = false
+@@ -146,7 +146,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	}
+ 
+ 	if t.Width < 8 {
+-		if gc.Issigned[t.Etype] {
++		if t.IsSigned() {
+ 			t = gc.Types[gc.TINT64]
+ 		} else {
+ 			t = gc.Types[gc.TUINT64]
+@@ -276,7 +276,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 
+ 	case gc.TINT64,
+ 		gc.TUINT64:
+-		if gc.Issigned[t.Etype] {
++		if t.IsSigned() {
+ 			gins(ppc64.AMULHD, &n2, &n1)
+ 		} else {
+ 			gins(ppc64.AMULHDU, &n2, &n1)
+@@ -367,7 +367,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node)
+ 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
+ 		gins(optoas(gc.OCMP, tcount), &n1, &n3)
+ 		p1 := gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)
+-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
++		if op == gc.ORSH && nl.Type.IsSigned() {
+ 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
+ 			gins(a, &n3, &n2)
+ 		} else {
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index 3b6c0f1a56..a1c899d26b 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -118,7 +118,7 @@ func ginscon2(as obj.As, n2 *gc.Node, c int64) {
+ }
+ 
+ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+-	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
++	if t.IsInteger() && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
+ 		// Reverse comparison to place constant last.
+ 		op = gc.Brrev(op)
+ 		n1, n2 = n2, n1
+@@ -129,7 +129,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	gc.Regalloc(&g1, n1.Type, &r1)
+ 	gc.Cgen(n1, &g1)
+ 	gmove(&g1, &r1)
+-	if gc.Isint[t.Etype] && gc.Isconst(n2, gc.CTINT) {
++	if t.IsInteger() && gc.Isconst(n2, gc.CTINT) {
+ 		ginscon2(optoas(gc.OCMP, t), &r1, n2.Int())
+ 	} else {
+ 		gc.Regalloc(&r2, t, n2)
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 4c1ed077dd..eac13fde39 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -201,7 +201,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc
+ 
+ 	t0 := t
+ 	check := false
+-	if gc.Issigned[t.Etype] {
++	if t.IsSigned() {
+ 		check = true
+ 		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -1<<uint64(t.Width*8-1) {
+ 			check = false
+@@ -211,7 +211,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc
+ 	}
+ 
+ 	if t.Width < 4 {
+-		if gc.Issigned[t.Etype] {
++		if t.IsSigned() {
+ 			t = gc.Types[gc.TINT32]
+ 		} else {
+ 			t = gc.Types[gc.TUINT32]
+@@ -285,7 +285,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc
+ 		gc.Patch(p1, gc.Pc)
+ 	}
+ 
+-	if !gc.Issigned[t.Etype] {
++	if !t.IsSigned() {
+ 		var nz gc.Node
+ 		gc.Nodconst(&nz, t, 0)
+ 		gmove(&nz, dx)
+@@ -341,7 +341,7 @@ func cgen_div(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	}
+ 
+ 	var t *gc.Type
+-	if gc.Issigned[nl.Type.Etype] {
++	if nl.Type.IsSigned() {
+ 		t = gc.Types[gc.TINT32]
+ 	} else {
+ 		t = gc.Types[gc.TUINT32]
+@@ -459,7 +459,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node)
+ 			p1 = gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
+ 		}
+ 
+-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
++		if op == gc.ORSH && nl.Type.IsSigned() {
+ 			gins(a, ncon(uint32(w)-1), &n2)
+ 		} else {
+ 			gmove(ncon(0), &n2)
+@@ -494,7 +494,7 @@ func cgen_bmul(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
+ 	// copy from byte to full registers
+ 	t := gc.Types[gc.TUINT32]
+ 
+-	if gc.Issigned[nl.Type.Etype] {
++	if nl.Type.IsSigned() {
+ 		t = gc.Types[gc.TINT32]
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index 13ef5a9506..2b8f6b199d 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -625,7 +625,7 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
+ }
+ 
+ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+-	if gc.Isint[t.Etype] || t.Etype == gc.Tptr {
++	if t.IsInteger() || t.Etype == gc.Tptr {
+ 		if (n1.Op == gc.OLITERAL || n1.Op == gc.OADDR && n1.Left.Op == gc.ONAME) && n2.Op != gc.OLITERAL {
+ 			// Reverse comparison to place constant (including address constant) last.
+ 			op = gc.Brrev(op)
+@@ -651,7 +651,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 		gc.Cgen(n1, &g1)
+ 		gmove(&g1, &r1)
+ 	}
+-	if n2.Op == gc.OLITERAL && gc.Isint[t.Etype] || n2.Op == gc.OADDR && n2.Left.Op == gc.ONAME && n2.Left.Class == gc.PEXTERN {
++	if n2.Op == gc.OLITERAL && t.IsInteger() || n2.Op == gc.OADDR && n2.Left.Op == gc.ONAME && n2.Left.Class == gc.PEXTERN {
+ 		r2 = *n2
+ 	} else {
+ 		gc.Regalloc(&r2, t, n2)

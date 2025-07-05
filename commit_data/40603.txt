@@ -18,7 +18,41 @@ Date:   Tue Jun 4 21:21:33 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/180498
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 9 ---------
  src/net/http/server.go     | 2 +-
  2 files changed, 1 insertion(+), 10 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 1c67b40161..679936e115 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2900,15 +2900,6 @@ func TestStripPrefix(t *testing.T) {
+ 		t.Errorf("test 2: got status %v, want %v", g, e)
+ 	}
+ 	res.Body.Close()
+-
+-	res, err = c.Get(ts.URL + "/foo")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if g, e := res.Header.Get("X-Path"), "/"; g != e {
+-		t.Errorf("test 3: got %s, want %s", g, e)
+-	}
+-	res.Body.Close()
+ }
+ 
+ // https://golang.org/issue/18952.
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 30bc9680f4..82145ebd65 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2042,7 +2042,7 @@ func StripPrefix(prefix string, h Handler) Handler {
+ 			*r2 = *r
+ 			r2.URL = new(url.URL)
+ 			*r2.URL = *r.URL
+-			r2.URL.Path = cleanPath(p)
++			r2.URL.Path = p
+ 			h.ServeHTTP(w, r2)
+ 		} else {
+ 			NotFound(w, r)

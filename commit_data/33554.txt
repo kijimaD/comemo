@@ -11,7 +11,7 @@ Date:   Tue Aug 22 15:41:50 2017 +0530
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/writer.go                   | 2 +-
  src/cmd/compile/internal/ssa/looprotate.go  | 2 +-
  src/cmd/compile/internal/syntax/branches.go | 2 +-
@@ -25,3 +25,160 @@ Date:   Tue Aug 22 15:41:50 2017 +0530
  src/math/big/calibrate_test.go              | 2 +-
  src/testing/testing.go                      | 2 +-
  12 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 0d68d47129..c9237c8329 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -37,7 +37,7 @@ func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
+ // Flush finishes writing the current file's block padding.
+ // The current file must be fully written before Flush can be called.
+ //
+-// Deprecated: This is unecessary as the next call to WriteHeader or Close
++// Deprecated: This is unnecessary as the next call to WriteHeader or Close
+ // will implicitly flush out the file's padding.
+ func (tw *Writer) Flush() error {
+ 	if tw.err != nil {
+diff --git a/src/cmd/compile/internal/ssa/looprotate.go b/src/cmd/compile/internal/ssa/looprotate.go
+index c5b768264d..d9cba9e9b0 100644
+--- a/src/cmd/compile/internal/ssa/looprotate.go
++++ b/src/cmd/compile/internal/ssa/looprotate.go
+@@ -62,7 +62,7 @@ func loopRotate(f *Func) {
+ 				break
+ 			}
+ 			nextb := f.Blocks[nextIdx]
+-			if nextb == p { // original loop precedessor is next
++			if nextb == p { // original loop predecessor is next
+ 				break
+ 			}
+ 			if loopnest.b2l[nextb.ID] != loop { // about to leave loop
+diff --git a/src/cmd/compile/internal/syntax/branches.go b/src/cmd/compile/internal/syntax/branches.go
+index 5fecdd6551..2fd97a4a67 100644
+--- a/src/cmd/compile/internal/syntax/branches.go
++++ b/src/cmd/compile/internal/syntax/branches.go
+@@ -131,7 +131,7 @@ type targets struct {
+ // blockBranches processes a block's body starting at start and returns the
+ // list of unresolved (forward) gotos. parent is the immediately enclosing
+ // block (or nil), ctxt provides information about the enclosing statements,
+-// and lstmt is the labeled statement asociated with this block, or nil.
++// and lstmt is the labeled statement associated with this block, or nil.
+ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledStmt, start src.Pos, body []Stmt) []*BranchStmt {
+ 	b := &block{parent: parent, start: start, lstmt: lstmt}
+ 
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index ac91824d17..ea180d0bf8 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -52,7 +52,7 @@ const (
+ 	SBSS
+ 	// Statically data that is initially all 0s and does not contain pointers
+ 	SNOPTRBSS
+-	// Thread-local data that is initally all 0s
++	// Thread-local data that is initially all 0s
+ 	STLSBSS
+ 	// Debugging data
+ 	SDWARFINFO
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c7f14b3e04..3207bdb837 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -746,7 +746,7 @@ func genhash(ctxt *Link, lib *Library) {
+ 	// To compute the hash of a package, we hash the first line of
+ 	// __.PKGDEF (which contains the toolchain version and any
+ 	// GOEXPERIMENT flags) and the export data (which is between
+-	// the first two occurences of "\n$$").
++	// the first two occurrences of "\n$$").
+ 
+ 	pkgDefBytes := make([]byte, atolwhex(arhdr.size))
+ 	_, err = io.ReadFull(f, pkgDefBytes)
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 857957afb0..3a9314ec42 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -129,7 +129,7 @@ const (
+ 	// consulted to avoid bugs where a symbol is put on a list twice.
+ 	AttrOnList
+ 	// AttrLocal marks symbols that are only visible within the module
+-	// (exectuable or shared library) being linked. Only relevant when
++	// (executable or shared library) being linked. Only relevant when
+ 	// dynamically linking Go code.
+ 	AttrLocal
+ 	// AttrReflectMethod marks certain methods from the reflect package that
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index 4983181fe7..3c387fb25c 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -204,7 +204,7 @@ func driverArgs(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.Na
+ 		}
+ 	}
+ 
+-	// Check the length of arguments after convertion to allow for omitted
++	// Check the length of arguments after conversion to allow for omitted
+ 	// arguments.
+ 	if want != -1 && len(nvargs) != want {
+ 		return nil, fmt.Errorf("sql: expected %d arguments, got %d", want, len(nvargs))
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 644769442e..bcf0887d0e 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -3390,7 +3390,7 @@ func (c *nvcConn) CheckNamedValue(nv *driver.NamedValue) error {
+ 	case Out:
+ 		switch ov := v.Dest.(type) {
+ 		default:
+-			return errors.New("unkown NameValueCheck OUTPUT type")
++			return errors.New("unknown NameValueCheck OUTPUT type")
+ 		case *string:
+ 			*ov = "from-server"
+ 			nv.Value = "OUT:*string"
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index c9eda4069d..355ff8c41c 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -1015,7 +1015,7 @@ func TestNull(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	if !bytes.Equal(NullBytes, marshaled) {
+-		t.Errorf("Expected Marshal of NullRawValue to yeild %x, got %x", NullBytes, marshaled)
++		t.Errorf("Expected Marshal of NullRawValue to yield %x, got %x", NullBytes, marshaled)
+ 	}
+ 
+ 	unmarshaled := RawValue{}
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 6a8e23d425..3090adbbe4 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package cpu implements processor feature detection
+-// used by the Go standard libary.
++// used by the Go standard library.
+ package cpu
+ 
+ var X86 x86
+diff --git a/src/math/big/calibrate_test.go b/src/math/big/calibrate_test.go
+index 11ce064c15..2b96e74a65 100644
+--- a/src/math/big/calibrate_test.go
++++ b/src/math/big/calibrate_test.go
+@@ -32,7 +32,7 @@ func TestCalibrate(t *testing.T) {
+ 	if *calibrate {
+ 		computeKaratsubaThresholds()
+ 
+-		// compute basicSqrThreshold where overhead becomes neglible
++		// compute basicSqrThreshold where overhead becomes negligible
+ 		minSqr := computeSqrThreshold(10, 30, 1, 3)
+ 		// compute karatsubaSqrThreshold where karatsuba is faster
+ 		maxSqr := computeSqrThreshold(300, 500, 10, 3)
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 93297b2dca..579a30ca1e 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -252,7 +252,7 @@ var (
+ 	chatty               = flag.Bool("test.v", false, "verbose: print additional output")
+ 	count                = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
+ 	coverProfile         = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
+-	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarch maching `regexp` then exit")
++	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
+ 	match                = flag.String("test.run", "", "run only tests and examples matching `regexp`")
+ 	memProfile           = flag.String("test.memprofile", "", "write a memory profile to `file`")
+ 	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")

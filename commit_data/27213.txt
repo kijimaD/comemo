@@ -19,9 +19,339 @@ Date:   Tue Mar 15 19:06:00 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/20748
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go    |  97 ------------------------
  src/cmd/compile/internal/gc/fmt.go    |   5 --
  src/cmd/compile/internal/gc/parser.go | 136 +++++++++++++++++++++++++++-------
  test/fixedbugs/bug388.go              |   2 +-
  4 files changed, 112 insertions(+), 128 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index f59b99c8a2..4336f8e6d9 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1018,103 +1018,6 @@ func embedded(s *Sym, pkg *Pkg) *Node {
+ 	return n
+ }
+ 
+-// check that the list of declarations is either all anonymous or all named
+-func findtype(s []*Node) *Node {
+-	for _, n := range s {
+-		if n.Op == OKEY {
+-			return n.Right
+-		}
+-	}
+-	return nil
+-}
+-
+-func checkarglist(all []*Node, input int) []*Node {
+-	named := false
+-	for _, n := range all {
+-		if n.Op == OKEY {
+-			named = true
+-			break
+-		}
+-	}
+-
+-	if named {
+-		ok := true
+-		for _, n := range all {
+-			if n.Op != OKEY && n.Sym == nil {
+-				Yyerror("mixed named and unnamed function parameters")
+-				ok = false
+-				break
+-			}
+-		}
+-
+-		if ok && len(all) > 0 && all[len(all)-1].Op != OKEY {
+-			Yyerror("final function parameter must have type")
+-		}
+-	}
+-
+-	var nextt *Node
+-	for i, n := range all {
+-		// can cache result from findtype to avoid
+-		// quadratic behavior here, but unlikely to matter.
+-
+-		var t *Node
+-		if named {
+-			if n.Op == OKEY {
+-				t = n.Right
+-				n = n.Left
+-				nextt = nil
+-			} else {
+-				if nextt == nil {
+-					nextt = findtype(all[i:])
+-				}
+-				t = nextt
+-			}
+-		} else {
+-			t = n
+-			n = nil
+-		}
+-
+-		// during import l->n->op is OKEY, but l->n->left->sym == S
+-		// means it was a '?', not that it was
+-		// a lone type This doesn't matter for the exported
+-		// declarations, which are parsed by rules that don't
+-		// use checkargs, but can happen for func literals in
+-		// the inline bodies.
+-		// TODO(rsc) this can go when typefmt case TFIELD in exportmode fmt.go prints _ instead of ?
+-		if importpkg != nil && n.Sym == nil {
+-			n = nil
+-		}
+-
+-		if n != nil && n.Sym == nil {
+-			t = n
+-			n = nil
+-		}
+-
+-		if n != nil {
+-			n = newname(n.Sym)
+-		}
+-		n = Nod(ODCLFIELD, n, t)
+-		if n.Right != nil && n.Right.Op == ODDD {
+-			if input == 0 {
+-				Yyerror("cannot use ... in output argument list")
+-			} else if i+1 < len(all) {
+-				Yyerror("can only use ... as final argument in list")
+-			}
+-			n.Right.Op = OTARRAY
+-			n.Right.Right = n.Right.Left
+-			n.Right.Left = nil
+-			n.Isddd = true
+-			if n.Left != nil {
+-				n.Left.Isddd = true
+-			}
+-		}
+-
+-		all[i] = n
+-	}
+-
+-	return all
+-}
+-
+ func fakethis() *Node {
+ 	n := Nod(ODCLFIELD, nil, typenod(Ptrto(typ(TSTRUCT))))
+ 	return n
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 867d99a6f1..55625e40e6 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1623,11 +1623,6 @@ func Fldconv(f *Field, flag FmtFlag) string {
+ 				name = Sconv(s, 0)
+ 			}
+ 		} else if fmtmode == FExp {
+-			// TODO(rsc) this breaks on the eliding of unused arguments in the backend
+-			// when this is fixed, the special case in dcl.go checkarglist can go.
+-			//if(t->funarg)
+-			//	fmtstrcpy(fp, "_ ");
+-			//else
+ 			if f.Embedded != 0 && s.Pkg != nil && len(s.Pkg.Path) > 0 {
+ 				name = fmt.Sprintf("@%q.?", s.Pkg.Path)
+ 			} else {
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 0800b7a03f..4813cab6de 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -2333,53 +2333,52 @@ func (p *parser) interfacedcl() *Node {
+ 	}
+ }
+ 
++// param parses and returns a function parameter list entry which may be
++// a parameter name and type pair (name, typ), a single type (nil, typ),
++// or a single name (name, nil). In the last case, the name may still be
++// a type name. The result is (nil, nil) in case of a syntax error.
++//
+ // [ParameterName] Type
+-func (p *parser) par_type() *Node {
++func (p *parser) param() (name *Sym, typ *Node) {
+ 	if trace && Debug['x'] != 0 {
+-		defer p.trace("par_type")()
++		defer p.trace("param")()
+ 	}
+ 
+ 	switch p.tok {
+ 	case LNAME, '@', '?':
+-		name := p.sym()
++		name = p.sym() // nil if p.tok == '?' (importing only)
+ 		switch p.tok {
+ 		case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', LNAME, '@', '?', '(':
+ 			// sym name_or_type
+-			typ := p.ntype()
+-			nn := Nod(ONONAME, nil, nil)
+-			nn.Sym = name
+-			return Nod(OKEY, nn, typ)
++			typ = p.ntype()
+ 
+ 		case LDDD:
+ 			// sym dotdotdot
+-			typ := p.dotdotdot()
+-			nn := Nod(ONONAME, nil, nil)
+-			nn.Sym = name
+-			return Nod(OKEY, nn, typ)
++			typ = p.dotdotdot()
+ 
+ 		default:
+ 			// name_or_type
+-			name := mkname(name)
+-			// from dotname
+ 			if p.got('.') {
+-				return p.new_dotname(name)
++				// a qualified name cannot be a parameter name
++				typ = p.new_dotname(mkname(name))
++				name = nil
+ 			}
+-			return name
+ 		}
+ 
+ 	case LDDD:
+ 		// dotdotdot
+-		return p.dotdotdot()
++		typ = p.dotdotdot()
+ 
+ 	case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', '(':
+ 		// name_or_type
+-		return p.ntype()
++		typ = p.ntype()
+ 
+ 	default:
+ 		p.syntax_error("expecting )")
+ 		p.advance(',', ')')
+-		return nil
+ 	}
++
++	return
+ }
+ 
+ // Parameters    = "(" [ ParameterList [ "," ] ] ")" .
+@@ -2390,22 +2389,109 @@ func (p *parser) param_list(dddOk bool) []*Node {
+ 		defer p.trace("param_list")()
+ 	}
+ 
++	type param struct {
++		name *Sym
++		typ  *Node
++	}
++	var params []param
++	var named int // number of parameters that have a name and type
++
+ 	p.want('(')
+-	var l []*Node
+ 	for p.tok != EOF && p.tok != ')' {
+-		l = append(l, p.par_type())
++		name, typ := p.param()
++		params = append(params, param{name, typ})
++		if name != nil && typ != nil {
++			named++
++		}
+ 		if !p.ocomma(')') {
+ 			break
+ 		}
+ 	}
+ 	p.want(')')
++	// 0 <= named <= len(params)
+ 
+-	// TODO(gri) remove this with next commit
+-	input := 0
+-	if dddOk {
+-		input = 1
++	// There are 3 cases:
++	//
++	// 1) named == 0:
++	//    No parameter list entry has both a name and a type; i.e. there are only
++	//    unnamed parameters. Any name must be a type name; they are "converted"
++	//    to types when creating the final parameter list.
++	//    In case of a syntax error, there is neither a name nor a type.
++	//    Nil checks take care of this.
++	//
++	// 2) named == len(names):
++	//    All parameter list entries have both a name and a type.
++	//
++	// 3) Otherwise:
++	if named != 0 && named != len(params) {
++		// Some parameter list entries have both a name and a type:
++		// Distribute types backwards and check that there are no
++		// mixed named and unnamed parameters.
++		var T *Node // type T in a parameter sequence: a, b, c T
++		for i := len(params) - 1; i >= 0; i-- {
++			p := &params[i]
++			if t := p.typ; t != nil {
++				// explicit type: use type for earlier parameters
++				T = t
++				// an explicitly typed entry must have a name
++				// TODO(gri) remove extra importpkg == nil check below
++				//           after switch to binary eport format
++				// Exported inlined function bodies containing function
++				// literals may print parameter names as '?' resulting
++				// in nil *Sym and thus nil names. Don't report an error
++				// in this case.
++				if p.name == nil && importpkg == nil {
++					T = nil // error
++				}
++			} else {
++				// no explicit type: use type of next parameter
++				p.typ = T
++			}
++			if T == nil {
++				Yyerror("mixed named and unnamed function parameters")
++				break
++			}
++		}
++		// Unless there was an error, now all parameter entries have a type.
+ 	}
+-	return checkarglist(l, input)
++
++	// create final parameter list
++	list := make([]*Node, len(params))
++	for i, p := range params {
++		// create dcl node
++		var name, typ *Node
++		if p.typ != nil {
++			typ = p.typ
++			if p.name != nil {
++				// name must be a parameter name
++				name = newname(p.name)
++			}
++		} else if p.name != nil {
++			// p.name must be a type name (or nil in case of syntax error)
++			typ = mkname(p.name)
++		}
++		n := Nod(ODCLFIELD, name, typ)
++
++		// rewrite ...T parameter
++		if typ != nil && typ.Op == ODDD {
++			if !dddOk {
++				Yyerror("cannot use ... in receiver or result parameter list")
++			} else if i+1 < len(params) {
++				Yyerror("can only use ... with final parameter in list")
++			}
++			typ.Op = OTARRAY
++			typ.Right = typ.Left
++			typ.Left = nil
++			n.Isddd = true
++			if n.Left != nil {
++				n.Left.Isddd = true
++			}
++		}
++
++		list[i] = n
++	}
++
++	return list
+ }
+ 
+ var missing_stmt = Nod(OXXX, nil, nil)
+diff --git a/test/fixedbugs/bug388.go b/test/fixedbugs/bug388.go
+index d41f9ea543..f76170efc9 100644
+--- a/test/fixedbugs/bug388.go
++++ b/test/fixedbugs/bug388.go
+@@ -9,7 +9,7 @@
+ package main
+ import "runtime"
+ 
+-func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|named/anonymous mix|undefined identifier"
++func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|mixed named and unnamed|undefined identifier"
+ 	println(i, runtime.UintType) // GCCGO_ERROR "undefined identifier"
+ }
+ 

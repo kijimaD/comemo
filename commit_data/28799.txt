@@ -13,6 +13,24 @@ Date:   Fri Jul 15 13:28:27 2016 -0700
     Reviewed-by: Sameer Ajmani <sameer@golang.org>
     Run-TryBot: Sameer Ajmani <sameer@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/context/context_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 90e78e57ec..cf182110fb 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -255,6 +255,12 @@ func TestDeadline(t *testing.T) {
+ 	o = otherContext{c}
+ 	c, _ = WithDeadline(o, time.Now().Add(4*time.Second))
+ 	testDeadline(c, "WithDeadline+otherContext+WithDeadline", 2*time.Second, t)
++
++	c, _ = WithDeadline(Background(), time.Now().Add(-time.Millisecond))
++	testDeadline(c, "WithDeadline+inthepast", time.Second, t)
++
++	c, _ = WithDeadline(Background(), time.Now())
++	testDeadline(c, "WithDeadline+now", time.Second, t)
+ }
+ 
+ func TestTimeout(t *testing.T) {

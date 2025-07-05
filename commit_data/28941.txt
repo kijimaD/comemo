@@ -11,6 +11,28 @@ Date:   Wed Aug 17 13:27:17 2016 -0700
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/parse/parse.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index 86705e5a37..893564b983 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -277,7 +277,7 @@ func IsEmptyTree(n Node) bool {
+ // parse is the top-level parser for a template, essentially the same
+ // as itemList except it also parses {{define}} actions.
+ // It runs to EOF.
+-func (t *Tree) parse() (next Node) {
++func (t *Tree) parse() {
+ 	t.Root = t.newList(t.peek().pos)
+ 	for t.peek().typ != itemEOF {
+ 		if t.peek().typ == itemLeftDelim {
+@@ -299,7 +299,6 @@ func (t *Tree) parse() (next Node) {
+ 			t.Root.append(n)
+ 		}
+ 	}
+-	return nil
+ }
+ 
+ // parseDefinition parses a {{define}} ...  {{end}} template definition and

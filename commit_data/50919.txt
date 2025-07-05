@@ -12,8 +12,67 @@ Date:   Tue Nov 16 11:24:22 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/expr.go                       | 5 +++++
  src/go/types/stmt.go                       | 5 +++++
  src/go/types/testdata/check/typeparams.go2 | 8 ++++----
  3 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index ddb0149bf4..5e66a4a4b5 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1432,6 +1432,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
++		// TODO(gri) we may want to permit type assertions on type parameter values at some point
++		if isTypeParam(x.typ) {
++			check.invalidOp(x, _InvalidAssert, "cannot use type assertion on type parameter value %s", x)
++			goto Error
++		}
+ 		xtyp, _ := under(x.typ).(*Interface)
+ 		if xtyp == nil {
+ 			check.invalidOp(x, _InvalidAssert, "%s is not an interface", x)
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 363ea35acf..ee7d4e4cf1 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -685,6 +685,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		if x.mode == invalid {
+ 			return
+ 		}
++		// TODO(gri) we may want to permit type switches on type parameter values at some point
++		if isTypeParam(x.typ) {
++			check.errorf(&x, _InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
++			return
++		}
+ 		xtyp, _ := under(x.typ).(*Interface)
+ 		if xtyp == nil {
+ 			check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index 9e2bffb539..fdbb7a2740 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -481,8 +481,8 @@ func (_ R2[X, Y]) m2(X) Y
+ // type assertions and type switches over generic types lead to errors for now
+ 
+ func _[T any](x T) {
+-	_ = x /* ERROR not an interface */ .(int)
+-	switch x /* ERROR not an interface */ .(type) {
++	_ = x /* ERROR cannot use type assertion */ .(int)
++	switch x /* ERROR cannot use type switch */ .(type) {
+ 	}
+ 
+ 	// work-around
+@@ -493,8 +493,8 @@ func _[T any](x T) {
+ }
+ 
+ func _[T interface{~int}](x T) {
+-	_ = x /* ERROR not an interface */ .(int)
+-	switch x /* ERROR not an interface */ .(type) {
++	_ = x /* ERROR cannot use type assertion */ .(int)
++	switch x /* ERROR cannot use type switch */ .(type) {
+ 	}
+ 
+ 	// work-around

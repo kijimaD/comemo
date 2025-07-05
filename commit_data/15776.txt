@@ -7,8 +7,48 @@ Date:   Thu Mar 14 17:59:45 2013 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7719046
-
+---
  src/pkg/runtime/signal_netbsd_386.h   | 2 +-
  src/pkg/runtime/signal_netbsd_amd64.h | 2 +-
  src/pkg/runtime/signal_netbsd_arm.h   | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/signal_netbsd_386.h b/src/pkg/runtime/signal_netbsd_386.h
+index 65df84da0d..9cbd0385df 100644
+--- a/src/pkg/runtime/signal_netbsd_386.h
++++ b/src/pkg/runtime/signal_netbsd_386.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
+ 
+ #define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EAX])
+ #define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EBX])
+diff --git a/src/pkg/runtime/signal_netbsd_amd64.h b/src/pkg/runtime/signal_netbsd_amd64.h
+index a374039aab..4a339c1656 100644
+--- a/src/pkg/runtime/signal_netbsd_amd64.h
++++ b/src/pkg/runtime/signal_netbsd_amd64.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
+ 
+ #define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RAX])
+ #define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RBX])
+diff --git a/src/pkg/runtime/signal_netbsd_arm.h b/src/pkg/runtime/signal_netbsd_arm.h
+index ffdca0e32f..16df26df4b 100644
+--- a/src/pkg/runtime/signal_netbsd_arm.h
++++ b/src/pkg/runtime/signal_netbsd_arm.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
+ 
+ #define SIG_R0(info, ctxt) (SIG_REGS(ctxt).__gregs[0])
+ #define SIG_R1(info, ctxt) (SIG_REGS(ctxt).__gregs[1])

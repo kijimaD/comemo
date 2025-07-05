@@ -44,7 +44,7 @@ Date:   Mon Mar 21 13:21:55 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 185 +++++++++++++++++++++++++--------
  src/cmd/link/internal/ld/decodesym.go  |  43 +++++---
  src/reflect/type.go                    | 175 +++++++++++++++++++++++--------
@@ -52,3 +52,907 @@ Date:   Mon Mar 21 13:21:55 2016 -0400
  src/runtime/iface.go                   |  28 +++--
  src/runtime/type.go                    |  86 +++++++++++----
  6 files changed, 387 insertions(+), 138 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index a414d1b3c0..a91948fb8e 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -53,8 +53,8 @@ const (
+ 	MAXVALSIZE = 128
+ )
+ 
+-func structfieldSize() int       { return 5 * Widthptr } // Sizeof(runtime.structfield{})
+-func imethodSize() int           { return 3 * Widthptr } // Sizeof(runtime.imethod{})
++func structfieldSize() int       { return 3 * Widthptr } // Sizeof(runtime.structfield{})
++func imethodSize() int           { return 2 * Widthptr } // Sizeof(runtime.imethod{})
+ func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
+ 	if t.Sym == nil && len(methods(t)) == 0 {
+ 		return 0
+@@ -441,8 +441,12 @@ func dimportpath(p *Pkg) {
+ }
+ 
+ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
++	return dgopkgpathLSym(Linksym(s), ot, pkg)
++}
++
++func dgopkgpathLSym(s *obj.LSym, ot int, pkg *Pkg) int {
+ 	if pkg == nil {
+-		return dgostringptr(s, ot, "")
++		return duintxxLSym(s, ot, 0, Widthptr)
+ 	}
+ 
+ 	if pkg == localpkg && myimportpath == "" {
+@@ -451,39 +455,117 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
+ 		// go.importpath.""., which the linker will rewrite using the correct import path.
+ 		// Every package that imports this one directly defines the symbol.
+ 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
+-		ns := Pkglookup("importpath.\"\".", mkpkg("go"))
+-		return dsymptr(s, ot, ns, 0)
++		ns := obj.Linklookup(Ctxt, `go.importpath."".`, 0)
++		return dsymptrLSym(s, ot, ns, 0)
+ 	}
+ 
+ 	dimportpath(pkg)
+-	return dsymptr(s, ot, pkg.Pathsym, 0)
++	return dsymptrLSym(s, ot, Linksym(pkg.Pathsym), 0)
++}
++
++// isExportedField reports whether a struct field is exported.
++func isExportedField(ft *Field) bool {
++	if ft.Sym != nil && ft.Embedded == 0 {
++		return exportname(ft.Sym.Name)
++	} else {
++		if ft.Type.Sym != nil &&
++			(ft.Type.Sym.Pkg == builtinpkg || !exportname(ft.Type.Sym.Name)) {
++			return false
++		} else {
++			return true
++		}
++	}
++}
++
++// dnameField dumps a reflect.name for a struct field.
++func dnameField(s *Sym, ot int, ft *Field) int {
++	var name, tag string
++	if ft.Sym != nil && ft.Embedded == 0 {
++		name = ft.Sym.Name
++	}
++	if ft.Note != nil {
++		tag = *ft.Note
++	}
++	return dname(s, ot, name, tag, nil, isExportedField(ft))
++}
++
++var dnameCount int
++
++// dname dumps a reflect.name for a struct field or method.
++func dname(s *Sym, ot int, name, tag string, pkg *Pkg, exported bool) int {
++	if len(name) > 1<<16-1 {
++		Fatalf("name too long: %s", name)
++	}
++	if len(tag) > 1<<16-1 {
++		Fatalf("tag too long: %s", tag)
++	}
++
++	// Encode name and tag. See reflect/type.go for details.
++	var bits byte
++	l := 1 + 2 + len(name)
++	if exported {
++		bits |= 1 << 0
++	}
++	if len(tag) > 0 {
++		l += 2 + len(tag)
++		bits |= 1 << 1
++	}
++	if pkg != nil {
++		bits |= 1 << 2
++	}
++	b := make([]byte, l)
++	b[0] = bits
++	b[1] = uint8(len(name) >> 8)
++	b[2] = uint8(len(name))
++	copy(b[3:], name)
++	if len(tag) > 0 {
++		tb := b[3+len(name):]
++		tb[0] = uint8(len(tag) >> 8)
++		tb[1] = uint8(len(tag))
++		copy(tb[2:], tag)
++	}
++
++	// Very few names require a pkgPath *string (only those
++	// defined in a different package than their type). So if
++	// there is no pkgPath, we treat the name contents as string
++	// data that duplicates across packages.
++	var bsym *obj.LSym
++	if pkg == nil {
++		_, bsym = stringsym(string(b))
++	} else {
++		bsymname := fmt.Sprintf(`go.string."".methodname.%d`, dnameCount)
++		dnameCount++
++		bsym = obj.Linklookup(Ctxt, bsymname, 0)
++		bsym.P = b
++		boff := len(b)
++		boff = int(Rnd(int64(boff), int64(Widthptr)))
++		boff = dgopkgpathLSym(bsym, boff, pkg)
++		ggloblLSym(bsym, int32(boff), obj.RODATA|obj.LOCAL)
++	}
++
++	ot = dsymptrLSym(Linksym(s), ot, bsym, 0)
++
++	return ot
+ }
+ 
+ // dextratype dumps the fields of a runtime.uncommontype.
+ // dataAdd is the offset in bytes after the header where the
+ // backing array of the []method field is written (by dextratypeData).
+-func dextratype(sym *Sym, off int, t *Type, dataAdd int) int {
++func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
+ 	m := methods(t)
+ 	if t.Sym == nil && len(m) == 0 {
+-		return off
++		return ot
+ 	}
+-	noff := int(Rnd(int64(off), int64(Widthptr)))
+-	if noff != off {
+-		panic("dextratype rounding does something. :-(")
++	noff := int(Rnd(int64(ot), int64(Widthptr)))
++	if noff != ot {
++		Fatalf("unexpected alignment in dextratype for %s", t)
+ 	}
+-	off = noff
+ 
+ 	for _, a := range m {
+ 		dtypesym(a.type_)
+ 	}
+ 
+-	ot := off
+-	s := sym
+-	if t.Sym != nil && t != Types[t.Etype] && t != errortype {
+-		ot = dgopkgpath(s, ot, t.Sym.Pkg)
+-	} else {
+-		ot = dgostringptr(s, ot, "")
+-	}
++	ot = dgopkgpath(s, ot, typePkg(t))
+ 
+ 	// slice header
+ 	ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+dataAdd)
+@@ -495,15 +577,28 @@ func dextratype(sym *Sym, off int, t *Type, dataAdd int) int {
+ 	return ot
+ }
+ 
++func typePkg(t *Type) *Pkg {
++	tsym := t.Sym
++	if tsym == nil && t.Type != nil {
++		tsym = t.Type.Sym
++	}
++	if tsym != nil && t != Types[t.Etype] && t != errortype {
++		return tsym.Pkg
++	}
++	return nil
++}
++
+ // dextratypeData dumps the backing array for the []method field of
+ // runtime.uncommontype.
+ func dextratypeData(s *Sym, ot int, t *Type) int {
+ 	for _, a := range methods(t) {
+-		// method
+ 		// ../../../../runtime/type.go:/method
+-		ot = dgostringptr(s, ot, a.name)
+-
+-		ot = dgopkgpath(s, ot, a.pkg)
++		exported := exportname(a.name)
++		var pkg *Pkg
++		if !exported && a.pkg != typePkg(t) {
++			pkg = a.pkg
++		}
++		ot = dname(s, ot, a.name, "", pkg, exported)
+ 		ot = dmethodptr(s, ot, dtypesym(a.mtype))
+ 		ot = dmethodptr(s, ot, a.isym)
+ 		ot = dmethodptr(s, ot, a.tsym)
+@@ -1076,6 +1171,12 @@ ok:
+ 		// ../../../../runtime/type.go:/interfaceType
+ 		ot = dcommontype(s, ot, t)
+ 
++		var tpkg *Pkg
++		if t.Sym != nil && t != Types[t.Etype] && t != errortype {
++			tpkg = t.Sym.Pkg
++		}
++		ot = dgopkgpath(s, ot, tpkg)
++
+ 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+uncommonSize(t))
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+@@ -1084,8 +1185,12 @@ ok:
+ 
+ 		for _, a := range m {
+ 			// ../../../../runtime/type.go:/imethod
+-			ot = dgostringptr(s, ot, a.name)
+-			ot = dgopkgpath(s, ot, a.pkg)
++			exported := exportname(a.name)
++			var pkg *Pkg
++			if !exported && a.pkg != tpkg {
++				pkg = a.pkg
++			}
++			ot = dname(s, ot, a.name, "", pkg, exported)
+ 			ot = dsymptr(s, ot, dtypesym(a.type_), 0)
+ 		}
+ 
+@@ -1148,6 +1253,11 @@ ok:
+ 		}
+ 
+ 		ot = dcommontype(s, ot, t)
++		var pkg *Pkg
++		if t.Sym != nil {
++			pkg = t.Sym.Pkg
++		}
++		ot = dgopkgpath(s, ot, pkg)
+ 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+uncommonSize(t))
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+@@ -1155,28 +1265,11 @@ ok:
+ 		dataAdd := n * structfieldSize()
+ 		ot = dextratype(s, ot, t, dataAdd)
+ 
+-		for _, t1 := range t.Fields().Slice() {
++		for _, f := range t.Fields().Slice() {
+ 			// ../../../../runtime/type.go:/structField
+-			if t1.Sym != nil && t1.Embedded == 0 {
+-				ot = dgostringptr(s, ot, t1.Sym.Name)
+-				if exportname(t1.Sym.Name) {
+-					ot = dgostringptr(s, ot, "")
+-				} else {
+-					ot = dgopkgpath(s, ot, t1.Sym.Pkg)
+-				}
+-			} else {
+-				ot = dgostringptr(s, ot, "")
+-				if t1.Type.Sym != nil &&
+-					(t1.Type.Sym.Pkg == builtinpkg || !exportname(t1.Type.Sym.Name)) {
+-					ot = dgopkgpath(s, ot, localpkg)
+-				} else {
+-					ot = dgostringptr(s, ot, "")
+-				}
+-			}
+-
+-			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+-			ot = dgostrlitptr(s, ot, t1.Note)
+-			ot = duintptr(s, ot, uint64(t1.Width)) // field offset
++			ot = dnameField(s, ot, f)
++			ot = dsymptr(s, ot, dtypesym(f.Type), 0)
++			ot = duintptr(s, ot, uint64(f.Width)) // field offset
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index a7a62623d7..0a6bf094aa 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -47,7 +47,7 @@ func decode_inuxi(p []byte, sz int) uint64 {
+ }
+ 
+ func commonsize() int      { return 6*Thearch.Ptrsize + 8 }                 // runtime._type
+-func structfieldSize() int { return 5 * Thearch.Ptrsize }                   // runtime.structfield
++func structfieldSize() int { return 3 * Thearch.Ptrsize }                   // runtime.structfield
+ func uncommonSize() int    { return 2*Thearch.Ptrsize + 2*Thearch.Intsize } // runtime.uncommontype
+ 
+ // Type.commonType.kind
+@@ -203,11 +203,11 @@ func decodetype_funcouttype(s *LSym, i int) *LSym {
+ 
+ // Type.StructType.fields.Slice::length
+ func decodetype_structfieldcount(s *LSym) int {
+-	return int(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize:], Thearch.Intsize))
++	return int(decode_inuxi(s.P[commonsize()+2*Thearch.Ptrsize:], Thearch.Intsize))
+ }
+ 
+ func decodetype_structfieldarrayoff(s *LSym, i int) int {
+-	off := commonsize() + Thearch.Ptrsize + 2*Thearch.Intsize
++	off := commonsize() + 2*Thearch.Ptrsize + 2*Thearch.Intsize
+ 	if decodetype_hasUncommon(s) {
+ 		off += uncommonSize()
+ 	}
+@@ -228,24 +228,37 @@ func decodetype_stringptr(s *LSym, off int) string {
+ 	return string(r.Sym.P[r.Add : r.Add+strlen])
+ }
+ 
++// decodetype_name decodes the name from a reflect.name.
++func decodetype_name(s *LSym, off int) string {
++	r := decode_reloc(s, int32(off))
++	if r == nil {
++		return ""
++	}
++
++	data := r.Sym.P
++	namelen := int(uint16(data[1]<<8) | uint16(data[2]))
++	return string(data[3 : 3+namelen])
++
++}
++
+ func decodetype_structfieldname(s *LSym, i int) string {
+ 	off := decodetype_structfieldarrayoff(s, i)
+-	return decodetype_stringptr(s, off)
++	return decodetype_name(s, off)
+ }
+ 
+ func decodetype_structfieldtype(s *LSym, i int) *LSym {
+ 	off := decodetype_structfieldarrayoff(s, i)
+-	return decode_reloc_sym(s, int32(off+2*Thearch.Ptrsize))
++	return decode_reloc_sym(s, int32(off+Thearch.Ptrsize))
+ }
+ 
+ func decodetype_structfieldoffs(s *LSym, i int) int64 {
+ 	off := decodetype_structfieldarrayoff(s, i)
+-	return int64(decode_inuxi(s.P[off+4*Thearch.Ptrsize:], Thearch.Intsize))
++	return int64(decode_inuxi(s.P[off+2*Thearch.Ptrsize:], Thearch.Intsize))
+ }
+ 
+ // InterfaceType.methods.length
+ func decodetype_ifacemethodcount(s *LSym) int64 {
+-	return int64(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize:], Thearch.Intsize))
++	return int64(decode_inuxi(s.P[commonsize()+2*Thearch.Ptrsize:], Thearch.Intsize))
+ }
+ 
+ // methodsig is a fully qualified typed method signature, like
+@@ -266,16 +279,16 @@ const (
+ )
+ 
+ // decode_methodsig decodes an array of method signature information.
+-// Each element of the array is size bytes. The first word is a *string
+-// for the name, the third word is a *rtype for the funcType.
++// Each element of the array is size bytes. The first word is a
++// reflect.name for the name, the second word is a *rtype for the funcType.
+ //
+ // Conveniently this is the layout of both runtime.method and runtime.imethod.
+ func decode_methodsig(s *LSym, off, size, count int) []methodsig {
+ 	var buf bytes.Buffer
+ 	var methods []methodsig
+ 	for i := 0; i < count; i++ {
+-		buf.WriteString(decodetype_stringptr(s, off))
+-		mtypSym := decode_reloc_sym(s, int32(off+2*Thearch.Ptrsize))
++		buf.WriteString(decodetype_name(s, off))
++		mtypSym := decode_reloc_sym(s, int32(off+Thearch.Ptrsize))
+ 
+ 		buf.WriteRune('(')
+ 		inCount := decodetype_funcincount(mtypSym)
+@@ -306,7 +319,7 @@ func decodetype_ifacemethods(s *LSym) []methodsig {
+ 	if decodetype_kind(s)&kindMask != kindInterface {
+ 		panic(fmt.Sprintf("symbol %q is not an interface", s.Name))
+ 	}
+-	r := decode_reloc(s, int32(commonsize()))
++	r := decode_reloc(s, int32(commonsize()+Thearch.Ptrsize))
+ 	if r == nil {
+ 		return nil
+ 	}
+@@ -315,7 +328,7 @@ func decodetype_ifacemethods(s *LSym) []methodsig {
+ 	}
+ 	off := int(r.Add) // array of reflect.imethod values
+ 	numMethods := int(decodetype_ifacemethodcount(s))
+-	sizeofIMethod := 3 * Thearch.Ptrsize
++	sizeofIMethod := 2 * Thearch.Ptrsize
+ 	return decode_methodsig(s, off, sizeofIMethod, numMethods)
+ }
+ 
+@@ -326,7 +339,7 @@ func decodetype_methods(s *LSym) []methodsig {
+ 	off := commonsize() // reflect.rtype
+ 	switch decodetype_kind(s) & kindMask {
+ 	case kindStruct: // reflect.structType
+-		off += Thearch.Ptrsize + 2*Thearch.Intsize
++		off += 2*Thearch.Ptrsize + 2*Thearch.Intsize
+ 	case kindPtr: // reflect.ptrType
+ 		off += Thearch.Ptrsize
+ 	case kindFunc: // reflect.funcType
+@@ -351,6 +364,6 @@ func decodetype_methods(s *LSym) []methodsig {
+ 		panic(fmt.Sprintf("method slice pointer in %s leads to a different symbol %s", s, r.Sym))
+ 	}
+ 	off = int(r.Add)                    // array of reflect.method values
+-	sizeofMethod := 5 * Thearch.Ptrsize // sizeof reflect.method in program
++	sizeofMethod := 4 * Thearch.Ptrsize // sizeof reflect.method in program
+ 	return decode_methodsig(s, off, sizeofMethod, numMethods)
+ }
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 41e378911d..f75bfd379d 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -288,11 +288,10 @@ type typeAlg struct {
+ 
+ // Method on non-interface type
+ type method struct {
+-	name    *string        // name of method
+-	pkgPath *string        // nil for exported Names; otherwise import path
+-	mtyp    *rtype         // method type (without receiver)
+-	ifn     unsafe.Pointer // fn used in interface call (one-word receiver)
+-	tfn     unsafe.Pointer // fn used for normal method call
++	name name           // name of method
++	mtyp *rtype         // method type (without receiver)
++	ifn  unsafe.Pointer // fn used in interface call (one-word receiver)
++	tfn  unsafe.Pointer // fn used for normal method call
+ }
+ 
+ // uncommonType is present only for types with names or methods
+@@ -347,14 +346,14 @@ type funcType struct {
+ 
+ // imethod represents a method on an interface type
+ type imethod struct {
+-	name    *string // name of method
+-	pkgPath *string // nil for exported Names; otherwise import path
+-	typ     *rtype  // .(*FuncType) underneath
++	name name   // name of method
++	typ  *rtype // .(*FuncType) underneath
+ }
+ 
+ // interfaceType represents an interface type.
+ type interfaceType struct {
+ 	rtype   `reflect:"interface"`
++	pkgPath *string   // import path
+ 	methods []imethod // sorted by hash
+ }
+ 
+@@ -388,17 +387,101 @@ type sliceType struct {
+ 
+ // Struct field
+ type structField struct {
+-	name    *string // nil for embedded fields
+-	pkgPath *string // nil for exported Names; otherwise import path
+-	typ     *rtype  // type of field
+-	tag     *string // nil if no tag
+-	offset  uintptr // byte offset of field within struct
++	name   name    // name is empty for embedded fields
++	typ    *rtype  // type of field
++	offset uintptr // byte offset of field within struct
+ }
+ 
+ // structType represents a struct type.
+ type structType struct {
+-	rtype  `reflect:"struct"`
+-	fields []structField // sorted by offset
++	rtype   `reflect:"struct"`
++	pkgPath *string
++	fields  []structField // sorted by offset
++}
++
++// name is an encoded type name with optional extra data.
++//
++// The first byte is a bit field containing:
++//
++//	1<<0 the name is exported
++//	1<<1 tag data follows the name
++//	1<<2 pkgPath *string follow the name and tag
++//
++// The next two bytes are the data length:
++//
++//	 l := uint16(data[1])<<8 | uint16(data[2])
++//
++// Bytes [3:3+l] are the string data.
++//
++// If tag data follows then bytes 3+l and 3+l+1 are the tag length,
++// with the data following.
++//
++// If the import path follows, then ptrSize bytes at the end of
++// the data form a *string. The pointer is aligned to its width.
++// The import path is only set for concrete methods that are defined
++// in a different package than their type.
++type name struct {
++	bytes *byte
++}
++
++func (n *name) data(off int) *byte {
++	return (*byte)(add(unsafe.Pointer(n.bytes), uintptr(off)))
++}
++
++func (n *name) isExported() bool {
++	return (*n.bytes)&(1<<0) != 0
++}
++
++func (n *name) nameLen() int {
++	return int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
++}
++
++func (n *name) tagLen() int {
++	if *n.data(0)&(1<<1) == 0 {
++		return 0
++	}
++	off := 3 + n.nameLen()
++	return int(uint16(*n.data(off))<<8 | uint16(*n.data(off + 1)))
++}
++
++func (n *name) name() (s string) {
++	nl := n.nameLen()
++	if nl == 0 {
++		return ""
++	}
++	hdr := (*stringHeader)(unsafe.Pointer(&s))
++	hdr.Data = unsafe.Pointer(n.data(3))
++	hdr.Len = nl
++	return s
++}
++
++func (n *name) tag() (s string) {
++	tl := n.tagLen()
++	if tl == 0 {
++		return ""
++	}
++	nl := n.nameLen()
++	hdr := (*stringHeader)(unsafe.Pointer(&s))
++	hdr.Data = unsafe.Pointer(n.data(3 + nl + 2))
++	hdr.Len = tl
++	return s
++}
++
++func (n *name) pkgPath() *string {
++	if *n.data(0)&(1<<2) == 0 {
++		return nil
++	}
++	off := 3 + n.nameLen()
++	if tl := n.tagLen(); tl > 0 {
++		off += 2 + tl
++	}
++	off = int(round(uintptr(off), ptrSize))
++	return *(**string)(unsafe.Pointer(n.data(off)))
++}
++
++// round n up to a multiple of a.  a must be a power of 2.
++func round(n, a uintptr) uintptr {
++	return (n + a - 1) &^ (a - 1)
+ }
+ 
+ /*
+@@ -583,12 +666,14 @@ func (t *rtype) Method(i int) (m Method) {
+ 		panic("reflect: Method index out of range")
+ 	}
+ 	p := &ut.methods[i]
+-	if p.name != nil {
+-		m.Name = *p.name
+-	}
++	m.Name = p.name.name()
+ 	fl := flag(Func)
+-	if p.pkgPath != nil {
+-		m.PkgPath = *p.pkgPath
++	if !p.name.isExported() {
++		pkgPath := p.name.pkgPath()
++		if pkgPath == nil {
++			pkgPath = ut.pkgPath
++		}
++		m.PkgPath = *pkgPath
+ 		fl |= flagStickyRO
+ 	}
+ 	if p.mtyp != nil {
+@@ -620,10 +705,9 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+ 	if ut == nil {
+ 		return Method{}, false
+ 	}
+-	var p *method
+ 	for i := range ut.methods {
+-		p = &ut.methods[i]
+-		if p.name != nil && *p.name == name {
++		p := &ut.methods[i]
++		if p.name.name() == name {
+ 			return t.Method(i), true
+ 		}
+ 	}
+@@ -832,9 +916,13 @@ func (t *interfaceType) Method(i int) (m Method) {
+ 		return
+ 	}
+ 	p := &t.methods[i]
+-	m.Name = *p.name
+-	if p.pkgPath != nil {
+-		m.PkgPath = *p.pkgPath
++	m.Name = p.name.name()
++	if !p.name.isExported() {
++		pkgPath := p.name.pkgPath()
++		if pkgPath == nil {
++			pkgPath = t.pkgPath
++		}
++		m.PkgPath = *pkgPath
+ 	}
+ 	m.Type = toType(p.typ)
+ 	m.Index = i
+@@ -852,7 +940,7 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
+ 	var p *imethod
+ 	for i := range t.methods {
+ 		p = &t.methods[i]
+-		if *p.name == name {
++		if p.name.name() == name {
+ 			return t.Method(i), true
+ 		}
+ 	}
+@@ -950,8 +1038,8 @@ func (t *structType) Field(i int) (f StructField) {
+ 	}
+ 	p := &t.fields[i]
+ 	f.Type = toType(p.typ)
+-	if p.name != nil {
+-		f.Name = *p.name
++	if name := p.name.name(); name != "" {
++		f.Name = name
+ 	} else {
+ 		t := f.Type
+ 		if t.Kind() == Ptr {
+@@ -960,11 +1048,12 @@ func (t *structType) Field(i int) (f StructField) {
+ 		f.Name = t.Name()
+ 		f.Anonymous = true
+ 	}
+-	if p.pkgPath != nil {
+-		f.PkgPath = *p.pkgPath
++	if t.pkgPath != nil && !p.name.isExported() {
++		// Fields never have an import path in their name.
++		f.PkgPath = *t.pkgPath
+ 	}
+-	if p.tag != nil {
+-		f.Tag = StructTag(*p.tag)
++	if tag := p.name.tag(); tag != "" {
++		f.Tag = StructTag(tag)
+ 	}
+ 	f.Offset = p.offset
+ 
+@@ -1056,8 +1145,8 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (result StructFiel
+ 				// Find name and type for field f.
+ 				var fname string
+ 				var ntyp *rtype
+-				if f.name != nil {
+-					fname = *f.name
++				if name := f.name.name(); name != "" {
++					fname = name
+ 				} else {
+ 					// Anonymous field of type T or *T.
+ 					// Name taken from type.
+@@ -1122,11 +1211,12 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
+ 	if name != "" {
+ 		for i := range t.fields {
+ 			tf := &t.fields[i]
+-			if tf.name == nil {
++			tfname := tf.name.name()
++			if tfname == "" {
+ 				hasAnon = true
+ 				continue
+ 			}
+-			if *tf.name == name {
++			if tfname == name {
+ 				return t.Field(i), true
+ 			}
+ 		}
+@@ -1278,7 +1368,7 @@ func implements(T, V *rtype) bool {
+ 		for j := 0; j < len(v.methods); j++ {
+ 			tm := &t.methods[i]
+ 			vm := &v.methods[j]
+-			if *vm.name == *tm.name && vm.pkgPath == tm.pkgPath && vm.typ == tm.typ {
++			if vm.name.name() == tm.name.name() && vm.typ == tm.typ {
+ 				if i++; i >= len(t.methods) {
+ 					return true
+ 				}
+@@ -1295,7 +1385,7 @@ func implements(T, V *rtype) bool {
+ 	for j := 0; j < len(v.methods); j++ {
+ 		tm := &t.methods[i]
+ 		vm := &v.methods[j]
+-		if *vm.name == *tm.name && vm.pkgPath == tm.pkgPath && vm.mtyp == tm.typ {
++		if vm.name.name() == tm.name.name() && vm.mtyp == tm.typ {
+ 			if i++; i >= len(t.methods) {
+ 				return true
+ 			}
+@@ -1400,16 +1490,13 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
+ 		for i := range t.fields {
+ 			tf := &t.fields[i]
+ 			vf := &v.fields[i]
+-			if tf.name != vf.name && (tf.name == nil || vf.name == nil || *tf.name != *vf.name) {
+-				return false
+-			}
+-			if tf.pkgPath != vf.pkgPath && (tf.pkgPath == nil || vf.pkgPath == nil || *tf.pkgPath != *vf.pkgPath) {
++			if tf.name.name() != vf.name.name() {
+ 				return false
+ 			}
+ 			if tf.typ != vf.typ {
+ 				return false
+ 			}
+-			if tf.tag != vf.tag && (tf.tag == nil || vf.tag == nil || *tf.tag != *vf.tag) {
++			if tf.name.tag() != vf.name.tag() {
+ 				return false
+ 			}
+ 			if tf.offset != vf.offset {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 2cb4c296d1..1305bbfff4 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -554,7 +554,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
+ 			panic("reflect: internal error: invalid method index")
+ 		}
+ 		m := &tt.methods[i]
+-		if m.pkgPath != nil {
++		if !m.name.isExported() {
+ 			panic("reflect: " + op + " of unexported method")
+ 		}
+ 		iface := (*nonEmptyInterface)(v.ptr)
+@@ -571,7 +571,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
+ 			panic("reflect: internal error: invalid method index")
+ 		}
+ 		m := &ut.methods[i]
+-		if m.pkgPath != nil {
++		if !m.name.isExported() {
+ 			panic("reflect: " + op + " of unexported method")
+ 		}
+ 		fn = unsafe.Pointer(&m.ifn)
+@@ -750,8 +750,8 @@ func (v Value) Field(i int) Value {
+ 	// Inherit permission bits from v, but clear flagEmbedRO.
+ 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
+ 	// Using an unexported field forces flagRO.
+-	if field.pkgPath != nil {
+-		if field.name == nil {
++	if !field.name.isExported() {
++		if field.name.name() == "" {
+ 			fl |= flagEmbedRO
+ 		} else {
+ 			fl |= flagStickyRO
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index ff54c59a52..ced87ea816 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -30,7 +30,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 		if canfail {
+ 			return nil
+ 		}
+-		panic(&TypeAssertionError{"", typ._string, inter.typ._string, *inter.mhdr[0].name})
++		panic(&TypeAssertionError{"", typ._string, inter.typ._string, inter.mhdr[0].name.name()})
+ 	}
+ 
+ 	// compiler has provided some good hash codes for us.
+@@ -84,19 +84,25 @@ search:
+ 	j := 0
+ 	for k := 0; k < ni; k++ {
+ 		i := &inter.mhdr[k]
+-		iname := i.name
+-		ipkgpath := i.pkgpath
++		iname := i.name.name()
+ 		itype := i._type
++		ipkg := i.name.pkgPath()
++		if ipkg == nil {
++			ipkg = inter.pkgpath
++		}
+ 		for ; j < nt; j++ {
+ 			t := &x.mhdr[j]
+-			if t.name == nil {
+-				throw("itab t.name is nil")
+-			}
+-			if t.mtyp == itype && (t.name == iname || *t.name == *iname) && t.pkgpath == ipkgpath {
+-				if m != nil {
+-					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = t.ifn
++			if t.mtyp == itype && t.name.name() == iname {
++				pkgPath := t.name.pkgPath()
++				if pkgPath == nil {
++					pkgPath = x.pkgpath
++				}
++				if t.name.isExported() || pkgPath == ipkg {
++					if m != nil {
++						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = t.ifn
++					}
++					goto nextimethod
+ 				}
+-				goto nextimethod
+ 			}
+ 		}
+ 		// didn't find method
+@@ -104,7 +110,7 @@ search:
+ 			if locked != 0 {
+ 				unlock(&ifaceLock)
+ 			}
+-			panic(&TypeAssertionError{"", typ._string, inter.typ._string, *iname})
++			panic(&TypeAssertionError{"", typ._string, inter.typ._string, iname})
+ 		}
+ 		m.bad = 1
+ 		break
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index c7f11d68c2..fbf6f9973c 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -6,7 +6,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
+ 
+ // tflag is documented in ../reflect/type.go.
+ type tflag uint8
+@@ -152,11 +155,10 @@ func (t *functype) dotdotdot() bool {
+ }
+ 
+ type method struct {
+-	name    *string
+-	pkgpath *string
+-	mtyp    *_type
+-	ifn     unsafe.Pointer
+-	tfn     unsafe.Pointer
++	name name
++	mtyp *_type
++	ifn  unsafe.Pointer
++	tfn  unsafe.Pointer
+ }
+ 
+ type uncommontype struct {
+@@ -165,14 +167,14 @@ type uncommontype struct {
+ }
+ 
+ type imethod struct {
+-	name    *string
+-	pkgpath *string
+-	_type   *_type
++	name  name
++	_type *_type
+ }
+ 
+ type interfacetype struct {
+-	typ  _type
+-	mhdr []imethod
++	typ     _type
++	pkgpath *string
++	mhdr    []imethod
+ }
+ 
+ type maptype struct {
+@@ -220,14 +222,62 @@ type ptrtype struct {
+ }
+ 
+ type structfield struct {
+-	name    *string
+-	pkgpath *string
+-	typ     *_type
+-	tag     *string
+-	offset  uintptr
++	name   name
++	typ    *_type
++	offset uintptr
+ }
+ 
+ type structtype struct {
+-	typ    _type
+-	fields []structfield
++	typ     _type
++	pkgPath *string
++	fields  []structfield
++}
++
++// name is an encoded type name with optional extra data.
++// See reflect/type.go for details.
++type name struct {
++	bytes *byte
++}
++
++func (n *name) data(off int) *byte {
++	return (*byte)(add(unsafe.Pointer(n.bytes), uintptr(off)))
++}
++
++func (n *name) isExported() bool {
++	return (*n.bytes)&(1<<0) != 0
++}
++
++func (n *name) nameLen() int {
++	return int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
++}
++
++func (n *name) tagLen() int {
++	if *n.data(0)&(1<<1) == 0 {
++		return 0
++	}
++	off := 3 + n.nameLen()
++	return int(uint16(*n.data(off))<<8 | uint16(*n.data(off + 1)))
++}
++
++func (n *name) name() (s string) {
++	nl := n.nameLen()
++	if nl == 0 {
++		return ""
++	}
++	hdr := (*stringStruct)(unsafe.Pointer(&s))
++	hdr.str = unsafe.Pointer(n.data(3))
++	hdr.len = nl
++	return s
++}
++
++func (n *name) pkgPath() *string {
++	if *n.data(0)&(1<<2) == 0 {
++		return nil
++	}
++	off := 3 + n.nameLen()
++	if tl := n.tagLen(); tl > 0 {
++		off += 2 + tl
++	}
++	off = int(round(uintptr(off), sys.PtrSize))
++	return *(**string)(unsafe.Pointer(n.data(off)))
+ }

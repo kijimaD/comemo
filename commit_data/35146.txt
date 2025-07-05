@@ -22,7 +22,41 @@ Date:   Tue Jul 18 10:42:45 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/cmd/link/internal/ld/pe.go | 6 +-----
  src/runtime/os_windows.go      | 2 +-
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index f48b35c6f9..8586c359ad 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -857,14 +857,10 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
+ 		oh64.SizeOfStackCommit = 0x00200000 - 0x2000 // account for 2 guard pages
+ 	}
+ 
+-	// 32-bit is trickier since there much less address space to
+-	// work with. Here we use large stacks only in cgo binaries as
+-	// a compromise.
++	oh.SizeOfStackReserve = 0x00100000
+ 	if !iscgo {
+-		oh.SizeOfStackReserve = 0x00020000
+ 		oh.SizeOfStackCommit = 0x00001000
+ 	} else {
+-		oh.SizeOfStackReserve = 0x00100000
+ 		oh.SizeOfStackCommit = 0x00100000 - 0x2000 // account for 2 guard pages
+ 	}
+ 
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 025ff50a08..7aeadd9ef1 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -623,7 +623,7 @@ func semacreate(mp *m) {
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
+ 	// stackSize must match SizeOfStackReserve in cmd/link/internal/ld/pe.go.
+-	const stackSize = 0x00200000*_64bit + 0x00020000*(1-_64bit)
++	const stackSize = 0x00200000*_64bit + 0x00100000*(1-_64bit)
+ 	thandle := stdcall6(_CreateThread, 0, stackSize,
+ 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
+ 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)

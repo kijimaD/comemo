@@ -7,7 +7,120 @@ Date:   Wed Dec 7 11:50:39 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5434068
-
+---
  src/cmd/ld/go.c  |  7 +++++--
  src/cmd/ld/lib.c | 12 +++++++++++-
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index fd7278a7b4..2bda628cde 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -235,7 +235,7 @@ loadpkgdata(char *file, char *pkg, char *data, int len)
+ 		x = ilookup(name);
+ 		if(x->prefix == nil) {
+ 			x->prefix = prefix;
+-			x->def = def;
++			x->def = strdup(def);
+ 			x->file = file;
+ 		} else if(strcmp(x->prefix, prefix) != 0) {
+ 			fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
+@@ -248,7 +248,10 @@ loadpkgdata(char *file, char *pkg, char *data, int len)
+ 			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
+ 			nerrors++;
+ 		}
++		free(name);
++		free(def);
+ 	}
++	free(file);
+ }
+ 
+ // replace all "". with pkg.
+@@ -264,7 +267,7 @@ expandpkg(char *t0, char *pkg)
+ 		n++;
+ 
+ 	if(n == 0)
+-		return t0;
++		return strdup(t0);
+ 
+ 	// use malloc, not mal, so that caller can free
+ 	w0 = malloc(strlen(t0) + strlen(pkg)*n);
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 5a4d752892..7797d42ace 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -351,6 +351,7 @@ objfile(char *file, char *pkg)
+ 		Bseek(f, 0L, 0);
+ 		ldobj(f, pkg, l, file, FileObj);
+ 		Bterm(f);
++		free(pkg);
+ 		return;
+ 	}
+ 	
+@@ -412,6 +413,7 @@ objfile(char *file, char *pkg)
+ 
+ out:
+ 	Bterm(f);
++	free(pkg);
+ }
+ 
+ void
+@@ -439,14 +441,17 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
+ 	magic = c1<<24 | c2<<16 | c3<<8 | c4;
+ 	if(magic == 0x7f454c46) {	// \x7F E L F
+ 		ldelf(f, pkg, len, pn);
++		free(pn);
+ 		return;
+ 	}
+ 	if((magic&~1) == 0xfeedface || (magic&~0x01000000) == 0xcefaedfe) {
+ 		ldmacho(f, pkg, len, pn);
++		free(pn);
+ 		return;
+ 	}
+ 	if(c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86) {
+ 		ldpe(f, pkg, len, pn);
++		free(pn);
+ 		return;
+ 	}
+ 
+@@ -472,16 +477,18 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
+ 			return;
+ 		}
+ 		diag("%s: not an object file", pn);
++		free(pn);
+ 		return;
+ 	}
+ 	
+ 	// First, check that the basic goos, string, and version match.
+-	t = smprint("%s %s %s ", getgoos(), thestring, getgoversion());
++	t = smprint("%s %s %s ", goos, thestring, getgoversion());
+ 	line[n] = ' ';
+ 	if(strncmp(line+10, t, strlen(t)) != 0 && !debug['f']) {
+ 		line[n] = '\0';
+ 		diag("%s: object is [%s] expected [%s]", pn, line+10, t);
+ 		free(t);
++		free(pn);
+ 		return;
+ 	}
+ 	
+@@ -496,6 +503,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
+ 			line[n] = '\0';
+ 			diag("%s: object is [%s] expected [%s]", pn, line+10, theline);
+ 			free(t);
++			free(pn);
+ 			return;
+ 		}
+ 	}
+@@ -521,10 +529,12 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
+ 	Bseek(f, import1, 0);
+ 
+ 	ldobj1(f, pkg, eof - Boffset(f), pn);
++	free(pn);
+ 	return;
+ 
+ eof:
+ 	diag("truncated object file: %s", pn);
++	free(pn);
+ }
+ 
+ static Sym*

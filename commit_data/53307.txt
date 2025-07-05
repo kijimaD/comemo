@@ -15,8 +15,95 @@ Date:   Tue Aug 9 10:32:59 2022 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/testshared/shared_test.go |  3 +++
  src/cmd/dist/test.go               | 17 +++++++++++++----
  src/cmd/go/go_test.go              |  4 ++++
  3 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 634d7556a8..92c2166674 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -528,6 +528,9 @@ func checkPIE(t *testing.T, name string) {
+ }
+ 
+ func TestTrivialPIE(t *testing.T) {
++	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-alpine") {
++		t.Skip("skipping on alpine until issue #54354 resolved")
++	}
+ 	name := "trivial_pie"
+ 	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./trivial")
+ 	defer os.Remove(name)
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 536a214773..42ff0f9391 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -700,8 +700,12 @@ func (t *tester) registerTests() {
+ 		})
+ 	}
+ 
++	// Stub out following test on alpine until 54354 resolved.
++	builderName := os.Getenv("GO_BUILDER_NAME")
++	disablePIE := strings.HasSuffix(builderName, "-alpine")
++
+ 	// Test internal linking of PIE binaries where it is supported.
+-	if t.internalLinkPIE() {
++	if t.internalLinkPIE() && !disablePIE {
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "pie_internal",
+ 			heading: "internal linking of -buildmode=pie",
+@@ -711,7 +715,7 @@ func (t *tester) registerTests() {
+ 			},
+ 		})
+ 		// Also test a cgo package.
+-		if t.cgoEnabled && t.internalLink() {
++		if t.cgoEnabled && t.internalLink() && !disablePIE {
+ 			t.tests = append(t.tests, distTest{
+ 				name:    "pie_internal_cgo",
+ 				heading: "internal linking of -buildmode=pie",
+@@ -1188,6 +1192,10 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), ".")
+ 	setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=auto")
+ 
++	// Stub out various buildmode=pie tests  on alpine until 54354 resolved.
++	builderName := os.Getenv("GO_BUILDER_NAME")
++	disablePIE := strings.HasSuffix(builderName, "-alpine")
++
+ 	if t.internalLink() {
+ 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal", ".")
+ 		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=internal")
+@@ -1206,7 +1214,8 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 
+ 		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s", ".")
+ 
+-		if t.supportedBuildmode("pie") {
++		if t.supportedBuildmode("pie") && !disablePIE {
++
+ 			t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", ".")
+ 			if t.internalLink() && t.internalLinkPIE() {
+ 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie", ".")
+@@ -1262,7 +1271,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 				}
+ 			}
+ 
+-			if t.supportedBuildmode("pie") {
++			if t.supportedBuildmode("pie") && !disablePIE {
+ 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", ".")
+ 				if t.internalLink() && t.internalLinkPIE() {
+ 					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal", "-tags=internal,internal_pie", ".")
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a0082a3164..d573a7aecc 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2147,6 +2147,10 @@ func TestBuildmodePIE(t *testing.T) {
+ 	default:
+ 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
+ 	}
++	// Skip on alpine until https://go.dev/issues/54354 resolved.
++	if strings.HasSuffix(testenv.Builder(), "-alpine") {
++		t.Skip("skipping PIE tests on alpine; see https://go.dev/issues/54354")
++	}
+ 	t.Run("non-cgo", func(t *testing.T) {
+ 		testBuildmodePIE(t, false, true)
+ 	})

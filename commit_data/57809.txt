@@ -30,8 +30,110 @@ Date:   Wed Aug 9 11:17:42 2023 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.22.html         | 14 ++++++++++++++
  src/reflect/all_test.go | 21 +++++++++++++++++----
  src/reflect/value.go    |  7 +++----
  3 files changed, 34 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index c32669b13a..7fee6a09ee 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -100,6 +100,20 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl>
+ 
++<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
++  <dd>
++    <p><!-- https://go.dev/issue/61827, CL 517777 -->
++      The <a href="/pkg/reflect/#Value.IsZero"><code>Value.IsZero</code></a>
++      method will now return true for a floating-point or complex
++      negative zero, and will return true for a struct value if a
++      blank field (a field named <code>_</code>) somehow has a
++      non-zero value.
++      These changes make <code>IsZero</code> consistent with comparing
++      a value to zero using the languague <code>==</code> operator.
++    </p>
++  </dd>
++</dl>
++
+ <h2 id="ports">Ports</h2>
+ 
+ <p>
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index afd2d2ef79..c2a987f45e 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -1396,6 +1396,11 @@ func TestIsNil(t *testing.T) {
+ 	NotNil(fi, t)
+ }
+ 
++func setField[S, V any](in S, offset uintptr, value V) (out S) {
++	*(*V)(unsafe.Add(unsafe.Pointer(&in), offset)) = value
++	return in
++}
++
+ func TestIsZero(t *testing.T) {
+ 	for i, tt := range []struct {
+ 		x    any
+@@ -1429,14 +1434,14 @@ func TestIsZero(t *testing.T) {
+ 		{float32(1.2), false},
+ 		{float64(0), true},
+ 		{float64(1.2), false},
+-		{math.Copysign(0, -1), false},
++		{math.Copysign(0, -1), true},
+ 		{complex64(0), true},
+ 		{complex64(1.2), false},
+ 		{complex128(0), true},
+ 		{complex128(1.2), false},
+-		{complex(math.Copysign(0, -1), 0), false},
+-		{complex(0, math.Copysign(0, -1)), false},
+-		{complex(math.Copysign(0, -1), math.Copysign(0, -1)), false},
++		{complex(math.Copysign(0, -1), 0), true},
++		{complex(0, math.Copysign(0, -1)), true},
++		{complex(math.Copysign(0, -1), math.Copysign(0, -1)), true},
+ 		{uintptr(0), true},
+ 		{uintptr(128), false},
+ 		// Array
+@@ -1485,6 +1490,14 @@ func TestIsZero(t *testing.T) {
+ 		{struct{ s []int }{[]int{1}}, false},  // incomparable struct
+ 		{struct{ Value }{}, true},
+ 		{struct{ Value }{ValueOf(0)}, false},
++		{struct{ _, a, _ uintptr }{}, true}, // comparable struct with blank fields
++		{setField(struct{ _, a, _ uintptr }{}, 0*unsafe.Sizeof(uintptr(0)), 1), true},
++		{setField(struct{ _, a, _ uintptr }{}, 1*unsafe.Sizeof(uintptr(0)), 1), false},
++		{setField(struct{ _, a, _ uintptr }{}, 2*unsafe.Sizeof(uintptr(0)), 1), true},
++		{struct{ _, a, _ func() }{}, true}, // incomparable struct with blank fields
++		{setField(struct{ _, a, _ func() }{}, 0*unsafe.Sizeof((func())(nil)), func() {}), true},
++		{setField(struct{ _, a, _ func() }{}, 1*unsafe.Sizeof((func())(nil)), func() {}), false},
++		{setField(struct{ _, a, _ func() }{}, 2*unsafe.Sizeof((func())(nil)), func() {}), true},
+ 		// UnsafePointer
+ 		{(unsafe.Pointer)(nil), true},
+ 		{(unsafe.Pointer)(new(int)), false},
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 06bbcf7214..ec75fcced9 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1594,10 +1594,9 @@ func (v Value) IsZero() bool {
+ 	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+ 		return v.Uint() == 0
+ 	case Float32, Float64:
+-		return math.Float64bits(v.Float()) == 0
++		return v.Float() == 0
+ 	case Complex64, Complex128:
+-		c := v.Complex()
+-		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
++		return v.Complex() == 0
+ 	case Array:
+ 		// If the type is comparable, then compare directly with zero.
+ 		if v.typ().Equal != nil && v.typ().Size() <= maxZero {
+@@ -1633,7 +1632,7 @@ func (v Value) IsZero() bool {
+ 
+ 		n := v.NumField()
+ 		for i := 0; i < n; i++ {
+-			if !v.Field(i).IsZero() {
++			if !v.Field(i).IsZero() && v.Type().Field(i).Name != "_" {
+ 				return false
+ 			}
+ 		}

@@ -58,7 +58,98 @@ Date:   Mon Jul 19 12:49:57 2021 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Damien Neil <dneil@google.com>
-
+---
  src/context/benchmark_test.go | 36 ++++++++++++++++++++++++++++++++++++
  src/context/context.go        | 30 ++++++++++++++++++++++++++++--
  2 files changed, 64 insertions(+), 2 deletions(-)
+
+diff --git a/src/context/benchmark_test.go b/src/context/benchmark_test.go
+index 69d75fff18..144f473a44 100644
+--- a/src/context/benchmark_test.go
++++ b/src/context/benchmark_test.go
+@@ -152,3 +152,39 @@ func BenchmarkContextCancelDone(b *testing.B) {
+ 		}
+ 	})
+ }
++
++func BenchmarkDeepValueNewGoRoutine(b *testing.B) {
++	for _, depth := range []int{10, 20, 30, 50, 100} {
++		ctx := Background()
++		for i := 0; i < depth; i++ {
++			ctx = WithValue(ctx, i, i)
++		}
++
++		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				var wg sync.WaitGroup
++				wg.Add(1)
++				go func() {
++					defer wg.Done()
++					ctx.Value(-1)
++				}()
++				wg.Wait()
++			}
++		})
++	}
++}
++
++func BenchmarkDeepValueSameGoRoutine(b *testing.B) {
++	for _, depth := range []int{10, 20, 30, 50, 100} {
++		ctx := Background()
++		for i := 0; i < depth; i++ {
++			ctx = WithValue(ctx, i, i)
++		}
++
++		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				ctx.Value(-1)
++			}
++		})
++	}
++}
+diff --git a/src/context/context.go b/src/context/context.go
+index 733c5f56d9..a9e14703fd 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -352,7 +352,7 @@ func (c *cancelCtx) Value(key interface{}) interface{} {
+ 	if key == &cancelCtxKey {
+ 		return c
+ 	}
+-	return c.Context.Value(key)
++	return value(c.Context, key)
+ }
+ 
+ func (c *cancelCtx) Done() <-chan struct{} {
+@@ -563,5 +563,31 @@ func (c *valueCtx) Value(key interface{}) interface{} {
+ 	if c.key == key {
+ 		return c.val
+ 	}
+-	return c.Context.Value(key)
++	return value(c.Context, key)
++}
++
++func value(c Context, key interface{}) interface{} {
++	for {
++		switch ctx := c.(type) {
++		case *valueCtx:
++			if key == ctx.key {
++				return ctx.val
++			}
++			c = ctx.Context
++		case *cancelCtx:
++			if key == &cancelCtxKey {
++				return c
++			}
++			c = ctx.Context
++		case *timerCtx:
++			if key == &cancelCtxKey {
++				return &ctx.cancelCtx
++			}
++			c = ctx.Context
++		case *emptyCtx:
++			return nil
++		default:
++			return c.Value(key)
++		}
++	}
+ }

@@ -10,7 +10,71 @@ Date:   Sun Feb 3 01:44:03 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7281044
-
+---
  src/cmd/gc/const.c |  9 ++++++---
  test/const6.go     | 30 ++++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 83e62bde1d..92b87c024c 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -78,7 +78,6 @@ convlit1(Node **np, Type *t, int explicit)
+ 	if(!explicit && !isideal(n->type))
+ 		return;
+ 
+-	
+ 	if(n->op == OLITERAL) {
+ 		nn = nod(OXXX, N, N);
+ 		*nn = *n;
+@@ -88,8 +87,12 @@ convlit1(Node **np, Type *t, int explicit)
+ 
+ 	switch(n->op) {
+ 	default:
+-		if(n->type == idealbool)
+-			n->type = types[TBOOL];
++		if(n->type == idealbool) {
++			if(t->etype == TBOOL)
++				n->type = t;
++			else
++				n->type = types[TBOOL];
++		}
+ 		if(n->type->etype == TIDEAL) {
+ 			convlit(&n->left, t);
+ 			convlit(&n->right, t);
+diff --git a/test/const6.go b/test/const6.go
+new file mode 100644
+index 0000000000..c04435db63
+--- /dev/null
++++ b/test/const6.go
+@@ -0,0 +1,30 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Ideal vs non-ideal bool. See issue 3915, 3923.
++
++package p
++
++type mybool bool
++type mybool1 bool
++
++var (
++	x, y int = 1, 2
++	c1 bool = x < y
++	c2 mybool = x < y
++	c3 mybool = c2 == (x < y)
++	c4 mybool = c2 == (1 < 2)
++	c5 mybool = 1 < 2
++	c6 mybool1 = x < y
++	c7 = c1 == c2 // ERROR "mismatched types"
++	c8 = c2 == c6 // ERROR "mismatched types"
++	c9 = c1 == c6 // ERROR "mismatched types"
++	_ = c2 && (x < y)
++	_ = c2 && (1 < 2)
++	_ = c1 && c2 // ERROR "mismatched types"
++	_ = c2 && c6 // ERROR "mismatched types"
++	_ = c1 && c6 // ERROR "mismatched types"
++)

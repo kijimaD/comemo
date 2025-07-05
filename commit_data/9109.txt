@@ -13,8 +13,52 @@ Date:   Mon Jul 18 07:23:52 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4745047
-
+---
  misc/cgo/test/Makefile   |  1 +
  misc/cgo/test/exports.go | 12 ++++++++++++
  src/cmd/cgo/out.go       |  2 +-
  3 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/Makefile b/misc/cgo/test/Makefile
+index 43c45f416e..f26f972898 100644
+--- a/misc/cgo/test/Makefile
++++ b/misc/cgo/test/Makefile
+@@ -11,6 +11,7 @@ CGOFILES=\
+ 	basic.go\
+ 	callback.go\
+ 	env.go\
++	exports.go\
+ 	issue1222.go\
+ 	issue1328.go\
+ 	issue1560.go\
+diff --git a/misc/cgo/test/exports.go b/misc/cgo/test/exports.go
+new file mode 100644
+index 0000000000..f96c60b004
+--- /dev/null
++++ b/misc/cgo/test/exports.go
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "C"
++
++//export ReturnIntLong
++func ReturnIntLong() (int, C.long) {
++	return 1, 2
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 5999807322..1dde2d935d 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -412,7 +412,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 				t := p.cgoType(atype)
+ 				if off%t.Align != 0 {
+ 					pad := t.Align - off%t.Align
+-					ctype += fmt.Sprintf("\t\tchar __pad%d[%d]\n", npad, pad)
++					ctype += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+ 					off += pad
+ 					npad++
+ 				}

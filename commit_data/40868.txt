@@ -14,6 +14,20 @@ Date:   Fri Aug 2 00:31:57 2019 +0800
     Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/removeall_at.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index 3098b93368..bc632f5a75 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -173,7 +173,7 @@ func openFdAt(dirfd int, name string) (*File, error) {
+ 	var r int
+ 	for {
+ 		var e error
+-		r, e = unix.Openat(dirfd, name, O_RDONLY, 0)
++		r, e = unix.Openat(dirfd, name, O_RDONLY|syscall.O_CLOEXEC, 0)
+ 		if e == nil {
+ 			break
+ 		}

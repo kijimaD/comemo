@@ -18,7 +18,40 @@ Date:   Sun May 26 18:27:53 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/make.bash | 2 ++
  src/make.rc   | 4 +++-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 5b49fcccf7..814b7e87e1 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -166,8 +166,10 @@ bootstrapenv() {
+ export GOROOT="$(cd .. && pwd)"
+ IFS=$'\n'; for go_exe in $(type -ap go); do
+ 	if [[ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]]; then
++		goroot_bootstrap=$GOROOT_BOOTSTRAP
+ 		GOROOT_BOOTSTRAP=""
+ 		goroot=$(bootstrapenv "$go_exe" env GOROOT)
++		GOROOT_BOOTSTRAP=$goroot_bootstrap
+ 		if [[ "$goroot" != "$GOROOT" ]]; then
+ 			if [[ "$goroot_bootstrap_set" == "true" ]]; then
+ 				printf 'WARNING: %s does not exist, found %s from env\n' "$GOROOT_BOOTSTRAP/bin/go" "$go_exe" >&2
+diff --git a/src/make.rc b/src/make.rc
+index 27456f759d..54250011dc 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -60,9 +60,11 @@ if(! ~ $#GOROOT_BOOTSTRAP 1){
+ }
+ for(p in $path){
+ 	if(! test -x $GOROOT_BOOTSTRAP/bin/go){
+-		GOROOT_BOOTSTRAP = ()
+ 		if(go_exe = `{path=$p whatis go}){
++			goroot_bootstrap = $GOROOT_BOOTSTRAP
++			GOROOT_BOOTSTRAP = ()
+ 			goroot = `{bootstrapenv $go_exe env GOROOT}
++			GOROOT_BOOTSTRAP = $goroot_bootstrap
+ 			if(! ~ $goroot $GOROOT){
+ 				if(~ $goroot_bootstrap_set 'true'){
+ 					echo 'WARNING: '$GOROOT_BOOTSTRAP'/bin/go does not exist, found '$go_exe' from env' >[1=2]

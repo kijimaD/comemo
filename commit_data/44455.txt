@@ -7,6 +7,20 @@ Date:   Mon Jul 6 13:30:56 2020 -0400
     Change-Id: I7aa73861de053db6b424f113733de9caba19145b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/241086
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/editors.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/editors.html b/doc/editors.html
+index 22927bfa20..7a46fb745d 100644
+--- a/doc/editors.html
++++ b/doc/editors.html
+@@ -20,7 +20,7 @@ editing, navigation, testing, and debugging experience.
+ 
+ <ul>
+ <li><a href="https://github.com/fatih/vim-go">vim</a>: vim-go plugin provides Go programming language support</li>
+-<li><a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode.Go">Visual Studio Code</a>:
++<li><a href="https://marketplace.visualstudio.com/items?itemName=golang.go">Visual Studio Code</a>:
+ Go extension provides support for the Go programming language</li>
+ <li><a href="https://www.jetbrains.com/go">GoLand</a>: GoLand is distributed either as a standalone IDE
+ or as a plugin for IntelliJ IDEA Ultimate</li>

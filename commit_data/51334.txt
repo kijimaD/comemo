@@ -23,7 +23,7 @@ Date:   Tue Jan 11 20:55:56 2022 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../types2/testdata/fixedbugs/issue48619.go2       | 25 ++++++++++++----------
  .../types2/testdata/fixedbugs/issue48656.go2       | 11 ++++++----
  src/cmd/compile/internal/types2/unify.go           | 17 +++++++++++++++
@@ -31,3 +31,218 @@ Date:   Tue Jan 11 20:55:56 2022 -0800
  src/go/types/testdata/fixedbugs/issue48656.go2     | 11 ++++++----
  src/go/types/unify.go                              | 17 +++++++++++++++
  6 files changed, 76 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go2
+index 870bacd0bd..3d4f1b4707 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go2
+@@ -2,23 +2,26 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This issue has been re-opened.
++// This issue is still open:
++// - the error messages could be better or are incorrect
++// - unification fails due to stack overflow that is caught
+ 
+ package p
+ 
+ func f[P any](a, _ P) {
+-	// var x int
+-	// f(a, x /* ERROR type int of x does not match P */)
+-	// f(x, a /* ERROR type P of a does not match inferred type int for P */)
++	var x int
++	// TODO(gri) these error messages, while correct, could be better
++	f(a, x /* ERROR type int of x does not match P */)
++	f(x, a /* ERROR type P of a does not match inferred type int for P */)
+ }
+ 
+ func g[P any](a, b P) {
+-	// g(a, b)
+-	// g(&a, &b)
+-	// g([]P{}, []P{})
+-}
++	g(a, b)
++	// TODO(gri) these error messages are incorrect because the code is valid
++	g(&a, & /* ERROR type \*P of &b does not match inferred type \*P for P */ b)
++	g([]P{}, [ /* ERROR type \[\]P of \[\]P{} does not match inferred type \[\]P for P */ ]P{})
+ 
+-func h[P any](a, b P) {
+-	// h(&a, &b)
+-	// h([]P{a}, []P{b})
++	// work-around: provide type argument explicitly
++	g[*P](&a, &b)
++	g[[]P]([]P{}, []P{})
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go2
+index 652f8ce37a..bea3dc14a0 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go2
+@@ -2,11 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This issue is still open.
++// This issue is still open:
++// - the error messages are unclear
++// - unification fails due to stack overflow that is caught
+ 
+ package p
+ 
+-func f[P *Q, Q any](p P, q Q) {
+-	// _ = f[P]
+-        // _ = f[/* ERROR cannot infer P */ *P]
++func f[P *Q, Q any](P, Q) {
++	// TODO(gri) these error messages are unclear
++	_ = f[ /* ERROR P does not match \*Q */ P]
++	_ = f[ /* ERROR cannot infer P */ *P]
+ }
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index f663beec38..8762bae559 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -33,6 +33,10 @@ import (
+ // by setting up one of them (using init) and then assigning its value
+ // to the other.
+ 
++// Upper limit for recursion depth. Used to catch infinite recursions
++// due to implementation issues (e.g., see issues #48619, #48656).
++const unificationDepthLimit = 50
++
+ // A unifier maintains the current type parameters for x and y
+ // and the respective types inferred for each type parameter.
+ // A unifier is created by calling newUnifier.
+@@ -40,6 +44,7 @@ type unifier struct {
+ 	exact bool
+ 	x, y  tparamsList // x and y must initialized via tparamsList.init
+ 	types []Type      // inferred types, shared by x and y
++	depth int         // recursion depth during unification
+ }
+ 
+ // newUnifier returns a new unifier.
+@@ -237,6 +242,18 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
+ // code the corresponding changes should be made here.
+ // Must not be called directly from outside the unifier.
+ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
++	// Stop gap for cases where unification fails.
++	if u.depth >= unificationDepthLimit {
++		if debug {
++			panic("unification reached recursion depth limit")
++		}
++		return false
++	}
++	u.depth++
++	defer func() {
++		u.depth--
++	}()
++
+ 	if !u.exact {
+ 		// If exact unification is known to fail because we attempt to
+ 		// match a type name against an unnamed type literal, consider
+diff --git a/src/go/types/testdata/fixedbugs/issue48619.go2 b/src/go/types/testdata/fixedbugs/issue48619.go2
+index 870bacd0bd..d33040d78f 100644
+--- a/src/go/types/testdata/fixedbugs/issue48619.go2
++++ b/src/go/types/testdata/fixedbugs/issue48619.go2
+@@ -2,23 +2,26 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This issue has been re-opened.
++// This issue is still open:
++// - the error messages could be better or are incorrect
++// - unification fails due to stack overflow that is caught
+ 
+ package p
+ 
+ func f[P any](a, _ P) {
+-	// var x int
+-	// f(a, x /* ERROR type int of x does not match P */)
+-	// f(x, a /* ERROR type P of a does not match inferred type int for P */)
++	var x int
++	// TODO(gri) these error messages, while correct, could be better
++	f(a, x /* ERROR type int of x does not match P */)
++	f(x, a /* ERROR type P of a does not match inferred type int for P */)
+ }
+ 
+ func g[P any](a, b P) {
+-	// g(a, b)
+-	// g(&a, &b)
+-	// g([]P{}, []P{})
+-}
++	g(a, b)
++	// TODO(gri) these error messages are incorrect because the code is valid
++	g(&a, & /* ERROR type \*P of &b does not match inferred type \*P for P */ b)
++	g([]P{}, [ /* ERROR type \[\]P of \(\[\]P literal\) does not match inferred type \[\]P for P */ ]P{})
+ 
+-func h[P any](a, b P) {
+-	// h(&a, &b)
+-	// h([]P{a}, []P{b})
++	// work-around: provide type argument explicitly
++	g[*P](&a, &b)
++	g[[]P]([]P{}, []P{})
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue48656.go2 b/src/go/types/testdata/fixedbugs/issue48656.go2
+index 52863d446b..493f220e98 100644
+--- a/src/go/types/testdata/fixedbugs/issue48656.go2
++++ b/src/go/types/testdata/fixedbugs/issue48656.go2
+@@ -2,11 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This issue is still open.
++// This issue is still open:
++// - the error messages are unclear
++// - unification fails due to stack overflow that is caught
+ 
+ package p
+ 
+-func f[P interface{*Q}, Q any](p P, q Q) {
+-	// _ = f[P]
+-        // _ = f[/* ERROR cannot infer P */ *P]
++func f[P *Q, Q any](P, Q) {
++	// TODO(gri) these error messages are unclear
++	_ = f /* ERROR P does not match \*Q */ [P]
++	_ = f /* ERROR cannot infer P */ [*P]
+ }
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 5dcb35f6ec..ad6d316227 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -33,6 +33,10 @@ import (
+ // by setting up one of them (using init) and then assigning its value
+ // to the other.
+ 
++// Upper limit for recursion depth. Used to catch infinite recursions
++// due to implementation issues (e.g., see issues #48619, #48656).
++const unificationDepthLimit = 50
++
+ // A unifier maintains the current type parameters for x and y
+ // and the respective types inferred for each type parameter.
+ // A unifier is created by calling newUnifier.
+@@ -40,6 +44,7 @@ type unifier struct {
+ 	exact bool
+ 	x, y  tparamsList // x and y must initialized via tparamsList.init
+ 	types []Type      // inferred types, shared by x and y
++	depth int         // recursion depth during unification
+ }
+ 
+ // newUnifier returns a new unifier.
+@@ -237,6 +242,18 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
+ // code the corresponding changes should be made here.
+ // Must not be called directly from outside the unifier.
+ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
++	// Stop gap for cases where unification fails.
++	if u.depth >= unificationDepthLimit {
++		if debug {
++			panic("unification reached recursion depth limit")
++		}
++		return false
++	}
++	u.depth++
++	defer func() {
++		u.depth--
++	}()
++
+ 	if !u.exact {
+ 		// If exact unification is known to fail because we attempt to
+ 		// match a type name against an unnamed type literal, consider

@@ -10,9 +10,157 @@ Date:   Mon Nov 28 15:34:16 2011 -0500
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5440048
-
+---
  src/pkg/crypto/tls/cipher_suites.go    | 28 +++++++++++++++++-----------
  src/pkg/crypto/tls/common.go           |  6 ++----
  src/pkg/crypto/tls/handshake_client.go |  4 ++--
  src/pkg/crypto/tls/handshake_server.go | 17 ++++++++++++-----
  4 files changed, 33 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/cipher_suites.go b/src/pkg/crypto/tls/cipher_suites.go
+index 1134f36258..ff0ff2b09a 100644
+--- a/src/pkg/crypto/tls/cipher_suites.go
++++ b/src/pkg/crypto/tls/cipher_suites.go
+@@ -37,6 +37,7 @@ type keyAgreement interface {
+ // A cipherSuite is a specific combination of key agreement, cipher and MAC
+ // function. All cipher suites currently assume RSA key agreement.
+ type cipherSuite struct {
++	id uint16
+ 	// the lengths, in bytes, of the key material needed for each component.
+ 	keyLen int
+ 	macLen int
+@@ -50,13 +51,13 @@ type cipherSuite struct {
+ 	mac      func(version uint16, macKey []byte) macFunction
+ }
+ 
+-var cipherSuites = map[uint16]*cipherSuite{
+-	TLS_RSA_WITH_RC4_128_SHA:            &cipherSuite{16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
+-	TLS_RSA_WITH_3DES_EDE_CBC_SHA:       &cipherSuite{24, 20, 8, rsaKA, false, cipher3DES, macSHA1},
+-	TLS_RSA_WITH_AES_128_CBC_SHA:        &cipherSuite{16, 20, 16, rsaKA, false, cipherAES, macSHA1},
+-	TLS_ECDHE_RSA_WITH_RC4_128_SHA:      &cipherSuite{16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
+-	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA: &cipherSuite{24, 20, 8, ecdheRSAKA, true, cipher3DES, macSHA1},
+-	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:  &cipherSuite{16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
++var cipherSuites = []*cipherSuite{
++	&cipherSuite{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
++	&cipherSuite{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, false, cipher3DES, macSHA1},
++	&cipherSuite{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, false, cipherAES, macSHA1},
++	&cipherSuite{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
++	&cipherSuite{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, true, cipher3DES, macSHA1},
++	&cipherSuite{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
+ }
+ 
+ func cipherRC4(key, iv []byte, isRead bool) interface{} {
+@@ -159,15 +160,20 @@ func ecdheRSAKA() keyAgreement {
+ 	return new(ecdheRSAKeyAgreement)
+ }
+ 
+-// mutualCipherSuite returns a cipherSuite and its id given a list of supported
++// mutualCipherSuite returns a cipherSuite given a list of supported
+ // ciphersuites and the id requested by the peer.
+-func mutualCipherSuite(have []uint16, want uint16) (suite *cipherSuite, id uint16) {
++func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
+ 	for _, id := range have {
+ 		if id == want {
+-			return cipherSuites[id], id
++			for _, suite := range cipherSuites {
++				if suite.id == want {
++					return suite
++				}
++			}
++			return nil
+ 		}
+ 	}
+-	return
++	return nil
+ }
+ 
+ // A list of the possible cipher suite ids. Taken from
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index ea520859b8..e904248682 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -315,9 +315,7 @@ var (
+ 
+ func initDefaultCipherSuites() {
+ 	varDefaultCipherSuites = make([]uint16, len(cipherSuites))
+-	i := 0
+-	for id := range cipherSuites {
+-		varDefaultCipherSuites[i] = id
+-		i++
++	for i, suite := range cipherSuites {
++		varDefaultCipherSuites[i] = suite.id
+ 	}
+ }
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index aed991ccd1..0f41008bf4 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -72,7 +72,7 @@ func (c *Conn) clientHandshake() error {
+ 		return errors.New("server advertised unrequested NPN")
+ 	}
+ 
+-	suite, suiteId := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
++	suite := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
+ 	if suite == nil {
+ 		return c.sendAlert(alertHandshakeFailure)
+ 	}
+@@ -292,7 +292,7 @@ func (c *Conn) clientHandshake() error {
+ 	}
+ 
+ 	c.handshakeComplete = true
+-	c.cipherSuite = suiteId
++	c.cipherSuite = suite.id
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index d5af084eda..1fa4585189 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -56,18 +56,25 @@ Curves:
+ 	ellipticOk := supportedCurve && supportedPointFormat
+ 
+ 	var suite *cipherSuite
+-	var suiteId uint16
+ FindCipherSuite:
+ 	for _, id := range clientHello.cipherSuites {
+ 		for _, supported := range config.cipherSuites() {
+ 			if id == supported {
+-				suite = cipherSuites[id]
++				suite = nil
++				for _, s := range cipherSuites {
++					if s.id == id {
++						suite = s
++						break
++					}
++				}
++				if suite == nil {
++					continue
++				}
+ 				// Don't select a ciphersuite which we can't
+ 				// support for this client.
+ 				if suite.elliptic && !ellipticOk {
+ 					continue
+ 				}
+-				suiteId = id
+ 				break FindCipherSuite
+ 			}
+ 		}
+@@ -87,7 +94,7 @@ FindCipherSuite:
+ 	}
+ 
+ 	hello.vers = vers
+-	hello.cipherSuite = suiteId
++	hello.cipherSuite = suite.id
+ 	t := uint32(config.time())
+ 	hello.random = make([]byte, 32)
+ 	hello.random[0] = byte(t >> 24)
+@@ -296,7 +303,7 @@ FindCipherSuite:
+ 	c.writeRecord(recordTypeHandshake, finished.marshal())
+ 
+ 	c.handshakeComplete = true
+-	c.cipherSuite = suiteId
++	c.cipherSuite = suite.id
+ 
+ 	return nil
+ }

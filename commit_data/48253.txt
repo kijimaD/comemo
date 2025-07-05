@@ -15,7 +15,7 @@ Date:   Sun May 2 13:22:48 2021 +0200
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/wait_unimp.go                | 4 ++--
  src/os/wait_wait6.go                | 4 ++--
  src/syscall/zerrors_netbsd_386.go   | 1 +
@@ -27,3 +27,122 @@ Date:   Sun May 2 13:22:48 2021 +0200
  src/syscall/zsysnum_netbsd_arm.go   | 1 +
  src/syscall/zsysnum_netbsd_arm64.go | 1 +
  10 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+index 07b5b6b66b..9bb85da802 100644
+--- a/src/os/wait_unimp.go
++++ b/src/os/wait_unimp.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || (js && wasm) || netbsd || openbsd || solaris
+-// +build aix darwin js,wasm netbsd openbsd solaris
++//go:build aix || darwin || (js && wasm) || openbsd || solaris
++// +build aix darwin js,wasm openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index 51193401f9..45b370a802 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd
+-// +build dragonfly freebsd
++//go:build dragonfly || freebsd || netbsd
++// +build dragonfly freebsd netbsd
+ 
+ package os
+ 
+diff --git a/src/syscall/zerrors_netbsd_386.go b/src/syscall/zerrors_netbsd_386.go
+index 6a58946a4a..934e9ef073 100644
+--- a/src/syscall/zerrors_netbsd_386.go
++++ b/src/syscall/zerrors_netbsd_386.go
+@@ -1427,6 +1427,7 @@ const (
+ 	WALTSIG                           = 0x4
+ 	WCLONE                            = 0x4
+ 	WCOREFLAG                         = 0x80
++	WEXITED                           = 0x20
+ 	WNOHANG                           = 0x1
+ 	WNOWAIT                           = 0x10000
+ 	WNOZOMBIE                         = 0x20000
+diff --git a/src/syscall/zerrors_netbsd_amd64.go b/src/syscall/zerrors_netbsd_amd64.go
+index f5c5c2f49c..0f5ad61a9f 100644
+--- a/src/syscall/zerrors_netbsd_amd64.go
++++ b/src/syscall/zerrors_netbsd_amd64.go
+@@ -1417,6 +1417,7 @@ const (
+ 	WALTSIG                           = 0x4
+ 	WCLONE                            = 0x4
+ 	WCOREFLAG                         = 0x80
++	WEXITED                           = 0x20
+ 	WNOHANG                           = 0x1
+ 	WNOWAIT                           = 0x10000
+ 	WNOZOMBIE                         = 0x20000
+diff --git a/src/syscall/zerrors_netbsd_arm.go b/src/syscall/zerrors_netbsd_arm.go
+index c9d4579b41..9d8678750d 100644
+--- a/src/syscall/zerrors_netbsd_arm.go
++++ b/src/syscall/zerrors_netbsd_arm.go
+@@ -1403,6 +1403,7 @@ const (
+ 	WALTSIG                           = 0x4
+ 	WCLONE                            = 0x4
+ 	WCOREFLAG                         = 0x80
++	WEXITED                           = 0x20
+ 	WNOHANG                           = 0x1
+ 	WNOWAIT                           = 0x10000
+ 	WNOZOMBIE                         = 0x20000
+diff --git a/src/syscall/zerrors_netbsd_arm64.go b/src/syscall/zerrors_netbsd_arm64.go
+index e35bff7f3e..7adb72f7ed 100644
+--- a/src/syscall/zerrors_netbsd_arm64.go
++++ b/src/syscall/zerrors_netbsd_arm64.go
+@@ -1417,6 +1417,7 @@ const (
+ 	WALTSIG                           = 0x4
+ 	WCLONE                            = 0x4
+ 	WCOREFLAG                         = 0x80
++	WEXITED                           = 0x20
+ 	WNOHANG                           = 0x1
+ 	WNOWAIT                           = 0x10000
+ 	WNOZOMBIE                         = 0x20000
+diff --git a/src/syscall/zsysnum_netbsd_386.go b/src/syscall/zsysnum_netbsd_386.go
+index 4ff8d80341..fd0c329951 100644
+--- a/src/syscall/zsysnum_netbsd_386.go
++++ b/src/syscall/zsysnum_netbsd_386.go
+@@ -271,4 +271,5 @@ const (
+ 	SYS_POSIX_SPAWN          = 474 // { int|sys||posix_spawn(pid_t *pid, const char *path, const struct posix_spawn_file_actions *file_actions, const struct posix_spawnattr *attrp, char *const *argv, char *const *envp); }
+ 	SYS_RECVMMSG             = 475 // { int|sys||recvmmsg(int s, struct mmsghdr *mmsg, unsigned int vlen, unsigned int flags, struct timespec *timeout); }
+ 	SYS_SENDMMSG             = 476 // { int|sys||sendmmsg(int s, struct mmsghdr *mmsg, unsigned int vlen, unsigned int flags); }
++	SYS_WAIT6                = 481 // { int|sys||wait6(idtype_t idtype, id_t id, int *status, int options, struct wrusage *wru, siginfo_t *info); }
+ )
+diff --git a/src/syscall/zsysnum_netbsd_amd64.go b/src/syscall/zsysnum_netbsd_amd64.go
+index 929da07604..03f2cd3bd3 100644
+--- a/src/syscall/zsysnum_netbsd_amd64.go
++++ b/src/syscall/zsysnum_netbsd_amd64.go
+@@ -271,4 +271,5 @@ const (
+ 	SYS_POSIX_SPAWN          = 474 // { int|sys||posix_spawn(pid_t *pid, const char *path, const struct posix_spawn_file_actions *file_actions, const struct posix_spawnattr *attrp, char *const *argv, char *const *envp); }
+ 	SYS_RECVMMSG             = 475 // { int|sys||recvmmsg(int s, struct mmsghdr *mmsg, unsigned int vlen, unsigned int flags, struct timespec *timeout); }
+ 	SYS_SENDMMSG             = 476 // { int|sys||sendmmsg(int s, struct mmsghdr *mmsg, unsigned int vlen, unsigned int flags); }
++	SYS_WAIT6                = 481 // { int|sys||wait6(idtype_t idtype, id_t id, int *status, int options, struct wrusage *wru, siginfo_t *info); }
+ )
+diff --git a/src/syscall/zsysnum_netbsd_arm.go b/src/syscall/zsysnum_netbsd_arm.go
+index 998238518b..7b356e7102 100644
+--- a/src/syscall/zsysnum_netbsd_arm.go
++++ b/src/syscall/zsysnum_netbsd_arm.go
+@@ -271,4 +271,5 @@ const (
+ 	SYS_POSIX_SPAWN          = 474 // { int|sys||posix_spawn(pid_t *pid, const char *path, const struct posix_spawn_file_actions *file_actions, const struct posix_spawnattr *attrp, char *const *argv, char *const *envp); }
+ 	SYS_RECVMMSG             = 475 // { int|sys||recvmmsg(int s, struct mmsghdr *mmsg, unsigned int vlen, unsigned int flags, struct timespec *timeout); }
+ 	SYS_SENDMMSG             = 476 // { int|sys||sendmmsg(int s, struct mmsghdr *mmsg, unsigned int vlen, unsigned int flags); }
++	SYS_WAIT6                = 481 // { int|sys||wait6(idtype_t idtype, id_t id, int *status, int options, struct wrusage *wru, siginfo_t *info); }
+ )
+diff --git a/src/syscall/zsysnum_netbsd_arm64.go b/src/syscall/zsysnum_netbsd_arm64.go
+index b3f5034390..3f57ec4d89 100644
+--- a/src/syscall/zsysnum_netbsd_arm64.go
++++ b/src/syscall/zsysnum_netbsd_arm64.go
+@@ -271,4 +271,5 @@ const (
+ 	SYS_POSIX_SPAWN          = 474 // { int|sys||posix_spawn(pid_t *pid, const char *path, const struct posix_spawn_file_actions *file_actions, const struct posix_spawnattr *attrp, char *const *argv, char *const *envp); }
+ 	SYS_RECVMMSG             = 475 // { int|sys||recvmmsg(int s, struct mmsghdr *mmsg, unsigned int vlen, unsigned int flags, struct timespec *timeout); }
+ 	SYS_SENDMMSG             = 476 // { int|sys||sendmmsg(int s, struct mmsghdr *mmsg, unsigned int vlen, unsigned int flags); }
++	SYS_WAIT6                = 481 // { int|sys||wait6(idtype_t idtype, id_t id, int *status, int options, struct wrusage *wru, siginfo_t *info); }
+ )

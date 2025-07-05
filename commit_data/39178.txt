@@ -9,6 +9,19 @@ Date:   Tue Jan 15 23:24:52 2019 +0000
     GitHub-Pull-Request: golang/go#29752
     Reviewed-on: https://go-review.googlesource.com/c/157958
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/encode.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index f10124e67d..dea63f1850 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -259,6 +259,7 @@ func (e *InvalidUTF8Error) Error() string {
+ 	return "json: invalid UTF-8 in string: " + strconv.Quote(e.S)
+ }
+ 
++// A MarshalerError represents an error from calling a MarshalJSON or MarshalText method.
+ type MarshalerError struct {
+ 	Type reflect.Type
+ 	Err  error

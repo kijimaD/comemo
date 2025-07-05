@@ -50,6 +50,20 @@ Date:   Sun Oct 8 14:12:40 2017 +0200
     Change-Id: Ief1e409cfabb7640d7f7b0d4faabbcffaf605450
     Reviewed-on: https://go-review.googlesource.com/69112
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/syntax.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 2fc63edd25..826dd1fb22 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -571,7 +571,7 @@ const (
+ 	ORETURN   // return List
+ 	OSELECT   // select { List } (List is list of OXCASE or OCASE)
+ 	OSWITCH   // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
+-	OTYPESW   // List = Left.(type) (appears as .Left of OSWITCH)
++	OTYPESW   // Left = Right.(type) (appears as .Left of OSWITCH)
+ 
+ 	// types
+ 	OTCHAN   // chan int

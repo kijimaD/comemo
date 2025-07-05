@@ -7,6 +7,22 @@ Date:   Mon Oct 14 14:26:52 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14441070
-
+---
  src/cmd/gc/walk.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 495223e149..66409d5305 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1044,8 +1044,8 @@ walkexpr(Node **np, NodeList **init)
+ 				if(!n->bounded)
+ 					yyerror("index out of bounds");
+ 				else {
+-					// replace "abc"[2] with 'b'.
+-					// delayed until now because "abc"[2] is not
++					// replace "abc"[1] with 'b'.
++					// delayed until now because "abc"[1] is not
+ 					// an ideal constant.
+ 					v = mpgetfix(n->right->val.u.xval);
+ 					nodconst(n, n->type, n->left->val.u.sval->s[v]);

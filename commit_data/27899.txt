@@ -22,6 +22,28 @@ Date:   Fri Feb 26 15:52:13 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/19981
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 437fc066bb..c6187b0787 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of February 23, 2016",
++	"Subtitle": "Version of April 19, 2016",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -4257,7 +4257,7 @@ All other statements are not terminating.
+ 
+ <p>
+ A <a href="#Blocks">statement list</a> ends in a terminating statement if the list
+-is not empty and its final statement is terminating.
++is not empty and its final non-empty statement is terminating.
+ </p>
+ 
+ 

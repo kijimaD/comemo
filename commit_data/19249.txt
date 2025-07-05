@@ -8,6 +8,35 @@ Date:   Mon Apr 28 12:45:00 2014 -0400
     R=golang-codereviews, adonovan, rsc
     CC=golang-codereviews
     https://golang.org/cl/90440043
-
+---
  src/pkg/runtime/heapdump.c | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index e66dd6a7ae..9132e2c186 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -567,7 +567,6 @@ dumpobjs(void)
+ 		s = runtime·mheap.allspans[i];
+ 		if(s->state != MSpanInUse)
+ 			continue;
+-		runtime·MSpan_EnsureSwept(s);
+ 		p = (byte*)(s->start << PageShift);
+ 		size = s->elemsize;
+ 		n = (s->npages << PageShift) / size;
+@@ -694,6 +693,15 @@ static void
+ mdump(G *gp)
+ {
+ 	byte *hdr;
++	uintptr i;
++	MSpan *s;
++
++	// make sure we're done sweeping
++	for(i = 0; i < runtime·mheap.nspan; i++) {
++		s = runtime·mheap.allspans[i];
++		if(s->state == MSpanInUse)
++			runtime·MSpan_EnsureSwept(s);
++	}
+ 
+ 	runtime·memclr((byte*)&typecache[0], sizeof(typecache));
+ 	hdr = (byte*)"go1.3 heap dump\n";

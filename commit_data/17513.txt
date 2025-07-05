@@ -9,7 +9,65 @@ Date:   Mon Sep 9 13:04:14 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/13395046
-
+---
  src/cmd/cgo/ast.go   |  8 ++++++++
  src/cmd/go/test.bash | 20 ++++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index dbae3b7b16..37c1c8f65c 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/scanner"
+ 	"go/token"
+ 	"os"
++	"path/filepath"
+ 	"strings"
+ )
+ 
+@@ -44,6 +45,13 @@ func sourceLine(n ast.Node) int {
+ // a list of exported functions, and the actual AST, to be rewritten and
+ // printed.
+ func (f *File) ReadGo(name string) {
++	// Create absolute path for file, so that it will be used in error
++	// messages and recorded in debug line number information.
++	// This matches the rest of the toolchain. See golang.org/issue/5122.
++	if aname, err := filepath.Abs(name); err == nil {
++		name = aname
++	}
++
+ 	// Two different parses: once with comments, once without.
+ 	// The printer is not good enough at printing comments in the
+ 	// right place when we start editing the AST behind its back,
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 2a7c1927ed..847a3e10a1 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -463,6 +463,26 @@ import "C"
+ rm -rf $d
+ unset GOPATH
+ 
++TEST cgo shows full path names
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++export GOPATH=$d
++mkdir -p $d/src/x/y/dirname
++echo '
++package foo
++import "C"
++func f() {
++' >$d/src/x/y/dirname/foo.go
++if ./testgo build x/y/dirname >$d/err 2>&1; then
++	echo build succeeded unexpectedly.
++	ok=false
++elif ! grep x/y/dirname $d/err >/dev/null; then
++	echo error did not use full path.
++	cat $d/err
++	ok=false
++fi
++rm -rf $d
++unset GOPATH
++
+ # clean up
+ if $started; then stop; fi
+ rm -rf testdata/bin testdata/bin1

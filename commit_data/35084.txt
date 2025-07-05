@@ -22,7 +22,101 @@ Date:   Mon Dec 4 23:10:56 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go          | 47 ++++++++++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/ld.go | 12 ++++++++---
  2 files changed, 56 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 732628ccd8..643b3b9506 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5433,3 +5433,50 @@ func TestFailFast(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// Issue 22986.
++func TestImportPath(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++
++	tg.tempFile("src/a/a.go", `
++package main
++
++import (
++	"log"
++	p "a/p-1.0"
++)
++
++func main() {
++	if !p.V {
++		log.Fatal("false")
++	}
++}`)
++
++	tg.tempFile("src/a/a_test.go", `
++package main_test
++
++import (
++	p "a/p-1.0"
++	"testing"
++)
++
++func TestV(t *testing.T) {
++	if !p.V {
++		t.Fatal("false")
++	}
++}`)
++
++	tg.tempFile("src/a/p-1.0/p.go", `
++package p
++
++var V = true
++
++func init() {}
++`)
++
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("build", "-o", tg.path("a.exe"), "a")
++	tg.run("test", "a")
++}
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index b260ef28c8..896e1c87d2 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -87,8 +87,14 @@ func (ctxt *Link) readImportCfg(file string) {
+ 	}
+ }
+ 
+-func pkgname(lib string) string {
++func pkgname(ctxt *Link, lib string) string {
+ 	name := path.Clean(lib)
++
++	// When using importcfg, we have the final package name.
++	if ctxt.PackageFile != nil {
++		return name
++	}
++
+ 	// runtime.a -> runtime, runtime.6 -> runtime
+ 	pkg := name
+ 	if len(pkg) >= 2 && pkg[len(pkg)-2] == '.' {
+@@ -116,7 +122,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
+ 		if filepath.IsAbs(name) {
+ 			pname = name
+ 		} else {
+-			pkg := pkgname(lib)
++			pkg := pkgname(ctxt, lib)
+ 			// Add .a if needed; the new -importcfg modes
+ 			// do not put .a into the package name anymore.
+ 			// This only matters when people try to mix
+@@ -149,7 +155,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
+ }
+ 
+ func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
+-	pkg := pkgname(lib)
++	pkg := pkgname(ctxt, lib)
+ 
+ 	// already loaded?
+ 	if l := ctxt.LibraryByPkg[pkg]; l != nil {

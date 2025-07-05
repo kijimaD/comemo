@@ -28,7 +28,7 @@ Date:   Fri Feb 20 20:07:02 2015 +0300
     Change-Id: Ied25240a181b0a2d7bc98127b3ed9068e9a1a13e
     Reviewed-on: https://go-review.googlesource.com/5460
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/asm_386.s      | 2 ++
  src/runtime/asm_amd64.s    | 2 ++
  src/runtime/asm_amd64p32.s | 2 ++
@@ -36,3 +36,82 @@ Date:   Fri Feb 20 20:07:02 2015 +0300
  src/runtime/asm_ppc64x.s   | 2 ++
  src/runtime/proc1.go       | 2 --
  6 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index f559b0fd5a..2b907d6b00 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -2422,6 +2422,8 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ TEXT runtime·goexit(SB),NOSPLIT,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
++	// traceback from goexit1 must hit code range of goexit
++	BYTE	$0x90	// NOP
+ 
+ TEXT runtime·getg(SB),NOSPLIT,$0-4
+ 	get_tls(CX)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 68bf38464e..139b5059cb 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2457,6 +2457,8 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ TEXT runtime·goexit(SB),NOSPLIT,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
++	// traceback from goexit1 must hit code range of goexit
++	BYTE	$0x90	// NOP
+ 
+ TEXT runtime·getg(SB),NOSPLIT,$0-8
+ 	get_tls(CX)
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index a1af9e36c9..72dd9d7c6d 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -1085,6 +1085,8 @@ TEXT runtime·return0(SB), NOSPLIT, $0
+ TEXT runtime·goexit(SB),NOSPLIT,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
++	// traceback from goexit1 must hit code range of goexit
++	BYTE	$0x90	// NOP
+ 
+ TEXT runtime·getg(SB),NOSPLIT,$0-4
+ 	get_tls(CX)
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index ec85c82b24..21f1d45e80 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -1338,6 +1338,8 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
+ TEXT runtime·goexit(SB),NOSPLIT,$-4-0
+ 	MOVW	R0, R0	// NOP
+ 	BL	runtime·goexit1(SB)	// does not return
++	// traceback from goexit1 must hit code range of goexit
++	MOVW	R0, R0	// NOP
+ 
+ TEXT runtime·getg(SB),NOSPLIT,$-4-4
+ 	MOVW	g, ret+0(FP)
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index ccb6754631..a8adc4c981 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1241,6 +1241,8 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$-8
+ TEXT runtime·goexit(SB),NOSPLIT,$-8-0
+ 	MOVD	R0, R0	// NOP
+ 	BL	runtime·goexit1(SB)	// does not return
++	// traceback from goexit1 must hit code range of goexit
++	MOVD	R0, R0	// NOP
+ 
+ TEXT runtime·getg(SB),NOSPLIT,$-8-8
+ 	MOVD	g, ret+0(FP)
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 17be698c67..f3248a5351 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1553,8 +1553,6 @@ func gopreempt_m(gp *g) {
+ }
+ 
+ // Finishes execution of the current goroutine.
+-// Must be NOSPLIT because it is called from Go. (TODO - probably not anymore)
+-//go:nosplit
+ func goexit1() {
+ 	if raceenabled {
+ 		racegoend()

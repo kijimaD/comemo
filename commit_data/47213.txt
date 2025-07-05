@@ -28,6 +28,37 @@ Date:   Thu Feb 4 22:46:23 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  .../go/testdata/script/test_write_profiles_on_timeout.txt | 15 ++++++++++++---
  1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt b/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt
+index 08e67a429e..0db183f8f0 100644
+--- a/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt
++++ b/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt
+@@ -3,6 +3,7 @@
+ [short] skip
+ 
+ ! go test -cpuprofile cpu.pprof -memprofile mem.pprof -timeout 1ms
++stdout '^panic: test timed out'
+ grep . cpu.pprof
+ grep . mem.pprof
+ 
+@@ -12,6 +13,14 @@ module profiling
+ go 1.16
+ -- timeout_test.go --
+ package timeouttest_test
+-import "testing"
+-import "time"
+-func TestSleep(t *testing.T) { time.Sleep(time.Second) }
++
++import (
++	"testing"
++	"time"
++)
++
++func TestSleep(t *testing.T) {
++	for {
++		time.Sleep(1 * time.Second)
++	}
++}

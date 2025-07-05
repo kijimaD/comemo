@@ -13,6 +13,53 @@ Date:   Tue Sep 12 23:09:48 2023 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/path/path.go | 15 ++++-----------
  1 file changed, 4 insertions(+), 11 deletions(-)
+
+diff --git a/src/path/path.go b/src/path/path.go
+index 6f4a8eda6d..50065ac731 100644
+--- a/src/path/path.go
++++ b/src/path/path.go
+@@ -11,6 +11,8 @@
+ // operating system paths, use the [path/filepath] package.
+ package path
+ 
++import "internal/bytealg"
++
+ // A lazybuf is a lazily constructed path buffer.
+ // It supports append, reading previously appended bytes,
+ // and retrieving the final string. It does not allocate a buffer
+@@ -135,22 +137,13 @@ func Clean(path string) string {
+ 	return out.string()
+ }
+ 
+-// lastSlash(s) is strings.LastIndex(s, "/") but we can't import strings.
+-func lastSlash(s string) int {
+-	i := len(s) - 1
+-	for i >= 0 && s[i] != '/' {
+-		i--
+-	}
+-	return i
+-}
+-
+ // Split splits path immediately following the final slash,
+ // separating it into a directory and file name component.
+ // If there is no slash in path, Split returns an empty dir and
+ // file set to path.
+ // The returned values have the property that path = dir+file.
+ func Split(path string) (dir, file string) {
+-	i := lastSlash(path)
++	i := bytealg.LastIndexByteString(path, '/')
+ 	return path[:i+1], path[i+1:]
+ }
+ 
+@@ -205,7 +198,7 @@ func Base(path string) string {
+ 		path = path[0 : len(path)-1]
+ 	}
+ 	// Find the last element
+-	if i := lastSlash(path); i >= 0 {
++	if i := bytealg.LastIndexByteString(path, '/'); i >= 0 {
+ 		path = path[i+1:]
+ 	}
+ 	// If empty now, it had only slashes.

@@ -43,3 +43,34 @@ Date:   Mon Feb 23 10:15:35 2015 -0500
  src/runtime/signal_unix.h                |   14 -
  src/runtime/trace.go                     |    1 -
  35 files changed, 4979 insertions(+), 956 deletions(-)
+
+diff --cc src/cmd/go/pkg.go
+index 45de849ec5,fd6b056fc1..0d6e913334
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@@ -393,24 -393,14 +393,25 @@@ const 
+  var goTools = map[string]targetDir{
+  	"cmd/addr2line":                        toTool,
+  	"cmd/api":                              toTool,
+ +	"cmd/asm":                              toTool,
+  	"cmd/cgo":                              toTool,
+ +	"cmd/dist":                             toTool,
+  	"cmd/fix":                              toTool,
+  	"cmd/link":                             toTool,
+ +	"cmd/new5a":                            toTool,
+ +	"cmd/new6a":                            toTool,
+ +	"cmd/new8a":                            toTool,
+ +	"cmd/new9a":                            toTool,
+ +	"cmd/new5g":                            toTool,
+ +	"cmd/new6g":                            toTool,
+ +	"cmd/new8g":                            toTool,
+ +	"cmd/new9g":                            toTool,
+  	"cmd/nm":                               toTool,
+  	"cmd/objdump":                          toTool,
+ +	"cmd/objwriter":                        toTool,
+  	"cmd/pack":                             toTool,
+  	"cmd/pprof":                            toTool,
++ 	"cmd/trace":                            toTool,
+  	"cmd/yacc":                             toTool,
+  	"golang.org/x/tools/cmd/cover":         toTool,
+  	"golang.org/x/tools/cmd/godoc":         toBin,

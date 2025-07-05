@@ -7,6 +7,19 @@ Date:   Sun Jun 28 06:08:50 2015 -0700
     Change-Id: Ib142185de3f6e4d2f4983511c063492529d8fb8a
     Reviewed-on: https://go-review.googlesource.com/11656
     Reviewed-by: Michael Matloob <michaelmatloob@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8a81dbd57f..51e4735520 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -963,6 +963,7 @@ func genValue(v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
+ 	case ssa.OpAMD64SBBQcarrymask:
+ 		r := regnum(v)
+ 		p := Prog(x86.ASBBQ)

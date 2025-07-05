@@ -10,6 +10,26 @@ Date:   Sat May 9 15:44:58 2015 +0200
     Change-Id: Ib37a414ee4c85e891b0a25fed2ddad9e105f5f4e
     Reviewed-on: https://go-review.googlesource.com/9901
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/internal/syscall/windows/registry/value.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/internal/syscall/windows/registry/value.go b/src/internal/syscall/windows/registry/value.go
+index b2b28aadf8..814fe445b9 100644
+--- a/src/internal/syscall/windows/registry/value.go
++++ b/src/internal/syscall/windows/registry/value.go
+@@ -175,8 +175,14 @@ func (k Key) GetIntegerValue(name string) (val uint64, valtype uint32, err error
+ 	}
+ 	switch typ {
+ 	case DWORD:
++		if len(data) != 4 {
++			return 0, typ, errors.New("DWORD value is not 4 bytes long")
++		}
+ 		return uint64(*(*uint32)(unsafe.Pointer(&data[0]))), DWORD, nil
+ 	case QWORD:
++		if len(data) != 8 {
++			return 0, typ, errors.New("QWORD value is not 8 bytes long")
++		}
+ 		return uint64(*(*uint64)(unsafe.Pointer(&data[0]))), QWORD, nil
+ 	default:
+ 		return 0, typ, ErrUnexpectedType

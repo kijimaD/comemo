@@ -7,6 +7,20 @@ Date:   Tue Feb 17 08:21:14 2015 +1100
     Change-Id: I3ca878e9685f650a9ff02aaac0e2e3cca89634c6
     Reviewed-on: https://go-review.googlesource.com/4970
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/unicode/graphic.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/unicode/graphic.go b/src/unicode/graphic.go
+index ba90b4e518..81eae3e762 100644
+--- a/src/unicode/graphic.go
++++ b/src/unicode/graphic.go
+@@ -82,7 +82,7 @@ func IsControl(r rune) bool {
+ 	if uint32(r) <= MaxLatin1 {
+ 		return properties[uint8(r)]&pC != 0
+ 	}
+-	// All control characters are < Latin1Max.
++	// All control characters are < MaxLatin1.
+ 	return false
+ }
+ 

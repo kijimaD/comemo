@@ -11,6 +11,20 @@ Date:   Tue Oct 27 10:15:02 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/16363
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 96c9a5fc9c..d4001146b6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2335,7 +2335,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	case OCLOSUREVAR:
+ 		return s.newValue2(ssa.OpAddPtr, Ptrto(n.Type),
+-			s.entryNewValue0(ssa.OpGetClosurePtr, Types[TUINTPTR]),
++			s.entryNewValue0(ssa.OpGetClosurePtr, Ptrto(Types[TUINT8])),
+ 			s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	case OPARAM:
+ 		p := n.Left

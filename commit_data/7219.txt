@@ -7,7 +7,7 @@ Date:   Sat Jan 22 13:55:53 2011 +1100
     R=rsc, lxn, alex.brainman, dho
     CC=golang-dev
     https://golang.org/cl/1696051
-
+---
  src/pkg/exp/wingui/Makefile         |  26 +++++
  src/pkg/exp/wingui/gui.go           | 157 ++++++++++++++++++++++++++
  src/pkg/exp/wingui/winapi.go        | 148 +++++++++++++++++++++++++
@@ -19,3 +19,811 @@ Date:   Sat Jan 22 13:55:53 2011 +1100
  src/pkg/runtime/windows/thread.c    |  84 ++++++++++++++
  src/pkg/syscall/syscall_windows.go  |  20 ++++
  10 files changed, 698 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/wingui/Makefile b/src/pkg/exp/wingui/Makefile
+new file mode 100644
+index 0000000000..e9d44d2bcf
+--- /dev/null
++++ b/src/pkg/exp/wingui/Makefile
+@@ -0,0 +1,26 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++GOOS=windows
++
++include ../../../Make.inc
++
++TARG=wingui
++
++GOFILES=\
++	gui.go\
++	winapi.go\
++	zwinapi.go\
++
++include ../../../Make.cmd
++
++zwinapi.go: winapi.go
++	$(GOROOT)/src/pkg/syscall/mksyscall_windows.sh $< \
++		| sed 's/^package.*syscall$$/package main/' \
++		| sed '/^import/a \
++			import "syscall"' \
++		| sed 's/Syscall/syscall.Syscall/' \
++		| sed 's/EINVAL/syscall.EINVAL/' \
++		| gofmt \
++		> $@
+diff --git a/src/pkg/exp/wingui/gui.go b/src/pkg/exp/wingui/gui.go
+new file mode 100644
+index 0000000000..e46ced962f
+--- /dev/null
++++ b/src/pkg/exp/wingui/gui.go
+@@ -0,0 +1,157 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"syscall"
++	"os"
++	"unsafe"
++)
++
++// some help functions
++
++func abortf(format string, a ...interface{}) {
++	fmt.Fprintf(os.Stdout, format, a...)
++	os.Exit(1)
++}
++
++func abortErrNo(funcname string, err int) {
++	abortf("%s failed: %d %s\n", funcname, err, syscall.Errstr(err))
++}
++
++// global vars
++
++var (
++	mh uint32
++	bh uint32
++)
++
++// WinProc called by windows to notify us of all windows events we might be interested in.
++func WndProc(args *uintptr) uintptr {
++	p := (*[4]int32)(unsafe.Pointer(args))
++	hwnd := uint32(p[0])
++	msg := uint32(p[1])
++	wparam := int32(p[2])
++	lparam := int32(p[3])
++	var rc int32
++	switch msg {
++	case WM_CREATE:
++		var e int
++		// CreateWindowEx
++		bh, e = CreateWindowEx(
++			0,
++			syscall.StringToUTF16Ptr("button"),
++			syscall.StringToUTF16Ptr("Quit"),
++			WS_CHILD|WS_VISIBLE|BS_DEFPUSHBUTTON,
++			75, 70, 140, 25,
++			hwnd, 1, mh, 0)
++		if e != 0 {
++			abortErrNo("CreateWindowEx", e)
++		}
++		fmt.Printf("button handle is %x\n", bh)
++		rc = DefWindowProc(hwnd, msg, wparam, lparam)
++	case WM_COMMAND:
++		switch uint32(lparam) {
++		case bh:
++			if ok, e := PostMessage(hwnd, WM_CLOSE, 0, 0); !ok {
++				abortErrNo("PostMessage", e)
++			}
++		default:
++			rc = DefWindowProc(hwnd, msg, wparam, lparam)
++		}
++	case WM_CLOSE:
++		DestroyWindow(hwnd)
++	case WM_DESTROY:
++		PostQuitMessage(0)
++	default:
++		rc = DefWindowProc(hwnd, msg, wparam, lparam)
++	}
++	//fmt.Printf("WndProc(0x%08x, %d, 0x%08x, 0x%08x) (%d)\n", hwnd, msg, wparam, lparam, rc)
++	return uintptr(rc)
++}
++
++func rungui() int {
++	var e int
++
++	// GetModuleHandle
++	mh, e = GetModuleHandle(nil)
++	if e != 0 {
++		abortErrNo("GetModuleHandle", e)
++	}
++
++	// Get icon we're going to use.
++	myicon, e := LoadIcon(0, IDI_APPLICATION)
++	if e != 0 {
++		abortErrNo("LoadIcon", e)
++	}
++
++	// Get cursor we're going to use.
++	mycursor, e := LoadCursor(0, IDC_ARROW)
++	if e != 0 {
++		abortErrNo("LoadCursor", e)
++	}
++
++	// Create callback
++	wproc := syscall.NewCallback(WndProc, 4*4)
++
++	// RegisterClassEx
++	wcname := syscall.StringToUTF16Ptr("myWindowClass")
++	var wc Wndclassex
++	wc.Size = uint32(unsafe.Sizeof(wc))
++	wc.WndProc = wproc.ExtFnEntry()
++	wc.Instance = mh
++	wc.Icon = myicon
++	wc.Cursor = mycursor
++	wc.Background = COLOR_BTNFACE + 1
++	wc.MenuName = nil
++	wc.ClassName = wcname
++	wc.IconSm = myicon
++	if _, e := RegisterClassEx(&wc); e != 0 {
++		abortErrNo("RegisterClassEx", e)
++	}
++
++	// CreateWindowEx
++	wh, e := CreateWindowEx(
++		WS_EX_CLIENTEDGE,
++		wcname,
++		syscall.StringToUTF16Ptr("My window"),
++		WS_OVERLAPPEDWINDOW,
++		CW_USEDEFAULT, CW_USEDEFAULT, 300, 200,
++		0, 0, mh, 0)
++	if e != 0 {
++		abortErrNo("CreateWindowEx", e)
++	}
++	fmt.Printf("main window handle is %x\n", wh)
++
++	// ShowWindow
++	ShowWindow(wh, SW_SHOWDEFAULT)
++
++	// UpdateWindow
++	if _, e := UpdateWindow(wh); e != 0 {
++		abortErrNo("UpdateWindow", e)
++	}
++
++	// Process all windows messages until WM_QUIT.
++	var m Msg
++	for {
++		r, e := GetMessage(&m, 0, 0, 0)
++		if e != 0 {
++			abortErrNo("GetMessage", e)
++		}
++		if r == 0 {
++			// WM_QUIT received -> get out
++			break
++		}
++		TranslateMessage(&m)
++		DispatchMessage(&m)
++	}
++	return int(m.Wparam)
++}
++
++func main() {
++	rc := rungui()
++	os.Exit(rc)
++}
+diff --git a/src/pkg/exp/wingui/winapi.go b/src/pkg/exp/wingui/winapi.go
+new file mode 100644
+index 0000000000..40387f0119
+--- /dev/null
++++ b/src/pkg/exp/wingui/winapi.go
+@@ -0,0 +1,148 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func loadDll(fname string) uint32 {
++	h, e := syscall.LoadLibrary(fname)
++	if e != 0 {
++		abortf("LoadLibrary(%s) failed with err=%d.\n", fname, e)
++	}
++	return h
++}
++
++func getSysProcAddr(m uint32, pname string) uintptr {
++	p, e := syscall.GetProcAddress(m, pname)
++	if e != 0 {
++		abortf("GetProcAddress(%s) failed with err=%d.\n", pname, e)
++	}
++	return uintptr(p)
++}
++
++type Wndclassex struct {
++	Size       uint32
++	Style      uint32
++	WndProc    uint32
++	ClsExtra   int32
++	WndExtra   int32
++	Instance   uint32
++	Icon       uint32
++	Cursor     uint32
++	Background uint32
++	MenuName   *uint16
++	ClassName  *uint16
++	IconSm     uint32
++}
++
++type Point struct {
++	X int32
++	Y int32
++}
++
++type Msg struct {
++	Hwnd    uint32
++	Message uint32
++	Wparam  int32
++	Lparam  int32
++	Time    uint32
++	Pt      Point
++}
++
++const (
++	// Window styles
++	WS_OVERLAPPED   = 0
++	WS_POPUP        = 0x80000000
++	WS_CHILD        = 0x40000000
++	WS_MINIMIZE     = 0x20000000
++	WS_VISIBLE      = 0x10000000
++	WS_DISABLED     = 0x8000000
++	WS_CLIPSIBLINGS = 0x4000000
++	WS_CLIPCHILDREN = 0x2000000
++	WS_MAXIMIZE     = 0x1000000
++	WS_CAPTION      = WS_BORDER | WS_DLGFRAME
++	WS_BORDER       = 0x800000
++	WS_DLGFRAME     = 0x400000
++	WS_VSCROLL      = 0x200000
++	WS_HSCROLL      = 0x100000
++	WS_SYSMENU      = 0x80000
++	WS_THICKFRAME   = 0x40000
++	WS_GROUP        = 0x20000
++	WS_TABSTOP      = 0x10000
++	WS_MINIMIZEBOX  = 0x20000
++	WS_MAXIMIZEBOX  = 0x10000
++	WS_TILED        = WS_OVERLAPPED
++	WS_ICONIC       = WS_MINIMIZE
++	WS_SIZEBOX      = WS_THICKFRAME
++	// Common Window Styles
++	WS_OVERLAPPEDWINDOW = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX
++	WS_TILEDWINDOW      = WS_OVERLAPPEDWINDOW
++	WS_POPUPWINDOW      = WS_POPUP | WS_BORDER | WS_SYSMENU
++	WS_CHILDWINDOW      = WS_CHILD
++
++	WS_EX_CLIENTEDGE = 0x200
++
++	// Some windows messages
++	WM_CREATE  = 1
++	WM_DESTROY = 2
++	WM_CLOSE   = 16
++	WM_COMMAND = 273
++
++	// Some button control styles
++	BS_DEFPUSHBUTTON = 1
++
++	// Some colour constants
++	COLOR_WINDOW  = 5
++	COLOR_BTNFACE = 15
++
++	// Default window position
++	CW_USEDEFAULT = 0x80000000 - 0x100000000
++
++	// Show window default style
++	SW_SHOWDEFAULT = 10
++)
++
++var (
++	// Some globaly known cusrors
++	IDC_ARROW = MakeIntResource(32512)
++	IDC_IBEAM = MakeIntResource(32513)
++	IDC_WAIT  = MakeIntResource(32514)
++	IDC_CROSS = MakeIntResource(32515)
++
++	// Some globaly known icons
++	IDI_APPLICATION = MakeIntResource(32512)
++	IDI_HAND        = MakeIntResource(32513)
++	IDI_QUESTION    = MakeIntResource(32514)
++	IDI_EXCLAMATION = MakeIntResource(32515)
++	IDI_ASTERISK    = MakeIntResource(32516)
++	IDI_WINLOGO     = MakeIntResource(32517)
++	IDI_WARNING     = IDI_EXCLAMATION
++	IDI_ERROR       = IDI_HAND
++	IDI_INFORMATION = IDI_ASTERISK
++)
++
++//sys	GetModuleHandle(modname *uint16) (handle uint32, errno int) = GetModuleHandleW
++//sys	RegisterClassEx(wndclass *Wndclassex) (atom uint16, errno int) = user32.RegisterClassExW
++//sys	CreateWindowEx(exstyle uint32, classname *uint16, windowname *uint16, style uint32, x int32, y int32, width int32, height int32, wndparent uint32, menu uint32, instance uint32, param uintptr) (hwnd uint32, errno int) = user32.CreateWindowExW
++//sys	DefWindowProc(hwnd uint32, msg uint32, wparam int32, lparam int32) (lresult int32) = user32.DefWindowProcW
++//sys	DestroyWindow(hwnd uint32) (ok bool, errno int) = user32.DestroyWindow
++//sys	PostQuitMessage(exitcode int32) = user32.PostQuitMessage
++//sys	ShowWindow(hwnd uint32, cmdshow int32) (ok bool) = user32.ShowWindow
++//sys	UpdateWindow(hwnd uint32) (ok bool, errno int) = user32.UpdateWindow
++//sys	GetMessage(msg *Msg, hwnd uint32, MsgFilterMin uint32, MsgFilterMax uint32) (ret int32, errno int) [failretval==-1] = user32.GetMessageW
++//sys	TranslateMessage(msg *Msg) (ok bool) = user32.TranslateMessage
++//sys	DispatchMessage(msg *Msg) (ret int32) = user32.DispatchMessageW
++//sys	LoadIcon(instance uint32, iconname *uint16) (icon uint32, errno int) = user32.LoadIconW
++//sys	LoadCursor(instance uint32, cursorname *uint16) (cursor uint32, errno int) = user32.LoadCursorW
++//sys	SetCursor(cursor uint32) (precursor uint32, errno int) = user32.SetCursor
++//sys	SendMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (lresult int32) = user32.SendMessageW
++//sys	PostMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (ok bool, errno int) = user32.PostMessageW
++
++func MakeIntResource(id uint16) *uint16 {
++	return (*uint16)(unsafe.Pointer(uintptr(id)))
++}
+diff --git a/src/pkg/exp/wingui/zwinapi.go b/src/pkg/exp/wingui/zwinapi.go
+new file mode 100644
+index 0000000000..dc166c93d1
+--- /dev/null
++++ b/src/pkg/exp/wingui/zwinapi.go
+@@ -0,0 +1,214 @@
++// mksyscall_windows.sh winapi.go
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++package main
++
++import "unsafe"
++import "syscall"
++
++var (
++	modkernel32 = loadDll("kernel32.dll")
++	moduser32   = loadDll("user32.dll")
++
++	procGetModuleHandleW = getSysProcAddr(modkernel32, "GetModuleHandleW")
++	procRegisterClassExW = getSysProcAddr(moduser32, "RegisterClassExW")
++	procCreateWindowExW  = getSysProcAddr(moduser32, "CreateWindowExW")
++	procDefWindowProcW   = getSysProcAddr(moduser32, "DefWindowProcW")
++	procDestroyWindow    = getSysProcAddr(moduser32, "DestroyWindow")
++	procPostQuitMessage  = getSysProcAddr(moduser32, "PostQuitMessage")
++	procShowWindow       = getSysProcAddr(moduser32, "ShowWindow")
++	procUpdateWindow     = getSysProcAddr(moduser32, "UpdateWindow")
++	procGetMessageW      = getSysProcAddr(moduser32, "GetMessageW")
++	procTranslateMessage = getSysProcAddr(moduser32, "TranslateMessage")
++	procDispatchMessageW = getSysProcAddr(moduser32, "DispatchMessageW")
++	procLoadIconW        = getSysProcAddr(moduser32, "LoadIconW")
++	procLoadCursorW      = getSysProcAddr(moduser32, "LoadCursorW")
++	procSetCursor        = getSysProcAddr(moduser32, "SetCursor")
++	procSendMessageW     = getSysProcAddr(moduser32, "SendMessageW")
++	procPostMessageW     = getSysProcAddr(moduser32, "PostMessageW")
++)
++
++func GetModuleHandle(modname *uint16) (handle uint32, errno int) {
++	r0, _, e1 := syscall.Syscall(procGetModuleHandleW, uintptr(unsafe.Pointer(modname)), 0, 0)
++	handle = uint32(r0)
++	if handle == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = syscall.EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func RegisterClassEx(wndclass *Wndclassex) (atom uint16, errno int) {
++	r0, _, e1 := syscall.Syscall(procRegisterClassExW, uintptr(unsafe.Pointer(wndclass)), 0, 0)
++	atom = uint16(r0)
++	if atom == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = syscall.EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func CreateWindowEx(exstyle uint32, classname *uint16, windowname *uint16, style uint32, x int32, y int32, width int32, height int32, wndparent uint32, menu uint32, instance uint32, param uintptr) (hwnd uint32, errno int) {
++	r0, _, e1 := syscall.Syscall12(procCreateWindowExW, uintptr(exstyle), uintptr(unsafe.Pointer(classname)), uintptr(unsafe.Pointer(windowname)), uintptr(style), uintptr(x), uintptr(y), uintptr(width), uintptr(height), uintptr(wndparent), uintptr(menu), uintptr(instance), uintptr(param))
++	hwnd = uint32(r0)
++	if hwnd == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = syscall.EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func DefWindowProc(hwnd uint32, msg uint32, wparam int32, lparam int32) (lresult int32) {
++	r0, _, _ := syscall.Syscall6(procDefWindowProcW, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
++	lresult = int32(r0)
++	return
++}
++
++func DestroyWindow(hwnd uint32) (ok bool, errno int) {
++	r0, _, e1 := syscall.Syscall(procDestroyWindow, uintptr(hwnd), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = syscall.EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func PostQuitMessage(exitcode int32) {
++	syscall.Syscall(procPostQuitMessage, uintptr(exitcode), 0, 0)
++	return
++}
++
++func ShowWindow(hwnd uint32, cmdshow int32) (ok bool) {
++	r0, _, _ := syscall.Syscall(procShowWindow, uintptr(hwnd), uintptr(cmdshow), 0)
++	ok = bool(r0 != 0)
++	return
++}
++
++func UpdateWindow(hwnd uint32) (ok bool, errno int) {
++	r0, _, e1 := syscall.Syscall(procUpdateWindow, uintptr(hwnd), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = syscall.EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetMessage(msg *Msg, hwnd uint32, MsgFilterMin uint32, MsgFilterMax uint32) (ret int32, errno int) {
++	r0, _, e1 := syscall.Syscall6(procGetMessageW, uintptr(unsafe.Pointer(msg)), uintptr(hwnd), uintptr(MsgFilterMin), uintptr(MsgFilterMax), 0, 0)
++	ret = int32(r0)
++	if ret == -1 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = syscall.EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func TranslateMessage(msg *Msg) (ok bool) {
++	r0, _, _ := syscall.Syscall(procTranslateMessage, uintptr(unsafe.Pointer(msg)), 0, 0)
++	ok = bool(r0 != 0)
++	return
++}
++
++func DispatchMessage(msg *Msg) (ret int32) {
++	r0, _, _ := syscall.Syscall(procDispatchMessageW, uintptr(unsafe.Pointer(msg)), 0, 0)
++	ret = int32(r0)
++	return
++}
++
++func LoadIcon(instance uint32, iconname *uint16) (icon uint32, errno int) {
++	r0, _, e1 := syscall.Syscall(procLoadIconW, uintptr(instance), uintptr(unsafe.Pointer(iconname)), 0)
++	icon = uint32(r0)
++	if icon == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = syscall.EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func LoadCursor(instance uint32, cursorname *uint16) (cursor uint32, errno int) {
++	r0, _, e1 := syscall.Syscall(procLoadCursorW, uintptr(instance), uintptr(unsafe.Pointer(cursorname)), 0)
++	cursor = uint32(r0)
++	if cursor == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = syscall.EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func SetCursor(cursor uint32) (precursor uint32, errno int) {
++	r0, _, e1 := syscall.Syscall(procSetCursor, uintptr(cursor), 0, 0)
++	precursor = uint32(r0)
++	if precursor == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = syscall.EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func SendMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (lresult int32) {
++	r0, _, _ := syscall.Syscall6(procSendMessageW, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
++	lresult = int32(r0)
++	return
++}
++
++func PostMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (ok bool, errno int) {
++	r0, _, e1 := syscall.Syscall6(procPostMessageW, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = syscall.EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 58ca712ef7..4febe27f35 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -47,7 +47,7 @@ ok:
+ 	MOVL	CX, m_g0(AX)
+ 
+ 	// create istack out of the OS stack
+-	LEAL	(-8192+104)(SP), AX	// TODO: 104?
++	LEAL	(-16*1024+104)(SP), AX	// TODO: 104?
+ 	MOVL	AX, g_stackguard(CX)
+ 	MOVL	SP, g_stackbase(CX)
+ 	CALL	runtime·emptyfunc(SB)	// fault if stack check is wrong
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+index 18ec27ee05..ac6c870c4d 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/windows/386/sys.s
+@@ -91,6 +91,45 @@ TEXT runtime·sigtramp1(SB),0,$16-28
+ sigdone:
+ 	RET
+ 
++// Called from dynamic function created by ../thread.c compilecallback,
++// running on Windows stack (not Go stack).
++// Returns straight to DLL.
++// EBX, ESI, EDI registers and DF flag are preserved
++// as required by windows callback convention.
++// On entry to the function the stack looks like:
++//
++// 0(SP)  - return address to callback
++// 4(SP)  - address of go func we need to call
++// 8(SP)  - total size of arguments
++// 12(SP) - room to save BX register
++// 16(SP) - room to save SI
++// 20(SP) - room to save DI
++// 24(SP) - return address to DLL
++// 28(SP) - beginning of arguments
++//
++TEXT runtime·callbackasm+0(SB),7,$0
++	MOVL	BX, 12(SP)		// save registers as required for windows callback
++	MOVL	SI, 16(SP)
++	MOVL	DI, 20(SP)
++
++	LEAL	args+28(SP), AX
++	MOVL	AX, 0(SP)
++
++	CLD
++
++	CALL	runtime·callback(SB)
++
++	MOVL	12(SP), BX		// restore registers as required for windows callback
++	MOVL	16(SP), SI
++	MOVL	20(SP), DI
++	CLD
++
++	MOVL	ret+24(SP), CX
++	MOVL	size+8(SP), DX
++	ADDL	$28, DX
++	ADDL	DX, SP
++	JMP	CX
++
+ // void tstart(M *newm);
+ TEXT runtime·tstart(SB),7,$0
+ 	MOVL	newm+4(SP), CX		// m
+@@ -105,7 +144,7 @@ TEXT runtime·tstart(SB),7,$0
+ 	MOVL	SP, AX
+ 	SUBL	$256, AX		// just some space for ourselves
+ 	MOVL	AX, g_stackbase(DX)
+-	SUBL	$8192, AX		// stack size
++	SUBL	$(16*1024), AX		// stack size
+ 	MOVL	AX, g_stackguard(DX)
+ 
+ 	// Set up tls.
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/windows/os.h
+index 23f6863ae6..d4c28ab133 100644
+--- a/src/pkg/runtime/windows/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -36,3 +36,7 @@ struct StdcallParams
+ void runtime·syscall(StdcallParams *p);
+ uint32 runtime·issigpanic(uint32);
+ void runtime·sigpanic(void);
++
++// Windows dll function to go callback entry.
++void runtime·compilecallback(byte *code, void *fn, uint32 argsize);
++void* runtime·callbackasm(void);
+diff --git a/src/pkg/runtime/windows/syscall.goc b/src/pkg/runtime/windows/syscall.goc
+index d3057c540b..f161aeda27 100644
+--- a/src/pkg/runtime/windows/syscall.goc
++++ b/src/pkg/runtime/windows/syscall.goc
+@@ -27,6 +27,10 @@ func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
+ 	proc = p.r;
+ }
+ 
++func compileCallback(code *byte, fn uintptr, argsize uint32) {
++	runtime·compilecallback(code, (void*)fn, argsize);
++}
++
+ func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+ 	StdcallParams p;
+ 	p.fn = (void*)trap;
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 5ab5128eb7..ac237961f4 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -205,8 +205,16 @@ runtime·stdcall(void *fn, int32 count, ...)
+ void
+ runtime·syscall(StdcallParams *p)
+ {
++	G *oldlock;
+ 	uintptr a;
+ 
++	/*
++	 * Lock g to m to ensure we stay on the same stack if we do a callback.
++	 */
++	oldlock = m->lockedg;
++	m->lockedg = g;
++	g->lockedm = m;
++
+ 	runtime·entersyscall();
+ 	// TODO(brainman): Move calls to SetLastError and GetLastError
+ 	// to stdcall_raw to speed up syscall.
+@@ -215,6 +223,10 @@ runtime·syscall(StdcallParams *p)
+ 	p->r = (uintptr)runtime·stdcall_raw((void*)p->fn, p->n, p->args);
+ 	p->err = (uintptr)runtime·stdcall_raw(runtime·GetLastError, 0, &a);
+ 	runtime·exitsyscall();
++
++	m->lockedg = oldlock;
++	if(oldlock == nil)
++		g->lockedm = nil;
+ }
+ 
+ uint32
+@@ -256,3 +268,75 @@ runtime·sigpanic(void)
+ 	}
+ 	runtime·throw("fault");
+ }
++
++// Call back from windows dll into go.
++void
++runtime·compilecallback(byte *code, void *fn, uint32 argsize)
++{
++	byte *p;
++
++	p = code;
++	// SUBL $12, SP
++	*p++ = 0x83;
++	*p++ = 0xec;
++	*p++ = 0x0c;
++	// PUSH argsize
++	*p++ = 0x68;
++	*(uint32*)p = argsize;
++	p += 4;
++	// PUSH fn
++	*p++ = 0x68;
++	*(uint32*)p = (uint32)fn;
++	p += 4;
++	// MOV callbackasm, AX
++	void* (*x)(void) = runtime·callbackasm;
++	*p++ = 0xb8;
++	*(uint32*)p = (uint32)x;
++	p += 4;
++	// CALL AX
++	*p++ = 0xff;
++	*p = 0xd0;
++}
++
++enum { StackGuard = 2048 }; // defined in proc.c
++
++#pragma textflag 7
++void*
++runtime·callback(void *arg, void (*fn)(void), int32 argsize)
++{
++	Gobuf msched, g1sched;
++	G *g1;
++	void *sp, *gostack;
++	void **p;
++	USED(argsize);
++
++
++	if(g != m->g0)
++		runtime·throw("bad g in callback");
++
++	g1 = m->curg;
++
++	gostack = m->gostack;		// preserve previous call stack parameters
++	msched = m->sched;
++	g1sched = g1->sched;
++
++	runtime·startcgocallback(g1);
++
++	sp = g1->sched.sp - 4 - 4;	// one input, one output
++
++	if(sp < g1->stackguard - StackGuard + 4) // +4 for return address
++		runtime·throw("g stack overflow in callback");
++	
++	p = sp;
++	p[0] = arg;
++
++	runtime·runcgocallback(g1, sp, fn);
++
++	runtime·endcgocallback(g1);
++
++	g1->sched = g1sched; 
++	m->sched = msched;
++	m->gostack = gostack;		// restore previous call stack parameters
++
++	return p[1];
++}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index d3d22dba80..5336b7bd9a 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -94,6 +94,26 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ 	return p
+ }
+ 
++// callback from windows dll back to go
++
++func compileCallback(code *byte, fn CallbackFunc, argsize int)
++
++type CallbackFunc func(args *uintptr) (r uintptr)
++
++type Callback struct {
++	code [50]byte // have to be big enough to fit asm written in it by compileCallback
++}
++
++func (cb *Callback) ExtFnEntry() uint32 {
++	return uint32(uintptr(unsafe.Pointer(&cb.code[0])))
++}
++
++func NewCallback(fn CallbackFunc, argsize int) *Callback {
++	cb := Callback{}
++	compileCallback(&cb.code[0], fn, argsize)
++	return &cb
++}
++
+ // windows api calls
+ 
+ //sys	GetLastError() (lasterrno int)

@@ -23,10 +23,191 @@ Date:   Wed Dec 30 18:41:36 2020 +0100
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules | 10 ++++++
  src/cmd/compile/internal/ssa/gen/S390X.rules | 10 ++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 48 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteS390X.go | 48 ++++++++++++++++++++++++++++
  test/codegen/memcombine.go                   |  9 ++++++
  5 files changed, 125 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 01a8a16456..f2bcbd2dfc 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1969,6 +1969,16 @@
+   && clobber(x)
+   => (MOVQstore [i] {s} p0 w0 mem)
+ 
++(MOVBstore [7] p1 (SHRQconst [56] w)
++  x1:(MOVWstore [5] p1 (SHRQconst [40] w)
++  x2:(MOVLstore [1] p1 (SHRQconst [8] w)
++  x3:(MOVBstore p1 w mem))))
++  && x1.Uses == 1
++  && x2.Uses == 1
++  && x3.Uses == 1
++  && clobber(x1, x2, x3)
++  => (MOVQstore p1 w mem)
++
+ (MOVBstore [i] {s} p
+   x1:(MOVBload [j] {s2} p2 mem)
+     mem2:(MOVBstore [i-1] {s} p
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index c3421da0a2..7111d5e11a 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -1420,6 +1420,16 @@
+   && clobber(x)
+   => (MOVDBRstore [i-4] {s} p w0 mem)
+ 
++(MOVBstore [7] p1 (SRDconst w)
++  x1:(MOVHBRstore [5] p1 (SRDconst w)
++  x2:(MOVWBRstore [1] p1 (SRDconst w)
++  x3:(MOVBstore p1 w mem))))
++  && x1.Uses == 1
++  && x2.Uses == 1
++  && x3.Uses == 1
++  && clobber(x1, x2, x3)
++  => (MOVDBRstore p1 w mem)
++
+ // Combining byte loads into larger (unaligned) loads.
+ 
+ // Big-endian loads
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 5fb6c303fd..599137c806 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -11412,6 +11412,54 @@ func rewriteValueAMD64_OpAMD64MOVBstore(v *Value) bool {
+ 		v.AddArg3(p0, w0, mem)
+ 		return true
+ 	}
++	// match: (MOVBstore [7] p1 (SHRQconst [56] w) x1:(MOVWstore [5] p1 (SHRQconst [40] w) x2:(MOVLstore [1] p1 (SHRQconst [8] w) x3:(MOVBstore p1 w mem))))
++	// cond: x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && clobber(x1, x2, x3)
++	// result: (MOVQstore p1 w mem)
++	for {
++		if auxIntToInt32(v.AuxInt) != 7 {
++			break
++		}
++		p1 := v_0
++		if v_1.Op != OpAMD64SHRQconst || auxIntToInt8(v_1.AuxInt) != 56 {
++			break
++		}
++		w := v_1.Args[0]
++		x1 := v_2
++		if x1.Op != OpAMD64MOVWstore || auxIntToInt32(x1.AuxInt) != 5 {
++			break
++		}
++		_ = x1.Args[2]
++		if p1 != x1.Args[0] {
++			break
++		}
++		x1_1 := x1.Args[1]
++		if x1_1.Op != OpAMD64SHRQconst || auxIntToInt8(x1_1.AuxInt) != 40 || w != x1_1.Args[0] {
++			break
++		}
++		x2 := x1.Args[2]
++		if x2.Op != OpAMD64MOVLstore || auxIntToInt32(x2.AuxInt) != 1 {
++			break
++		}
++		_ = x2.Args[2]
++		if p1 != x2.Args[0] {
++			break
++		}
++		x2_1 := x2.Args[1]
++		if x2_1.Op != OpAMD64SHRQconst || auxIntToInt8(x2_1.AuxInt) != 8 || w != x2_1.Args[0] {
++			break
++		}
++		x3 := x2.Args[2]
++		if x3.Op != OpAMD64MOVBstore {
++			break
++		}
++		mem := x3.Args[2]
++		if p1 != x3.Args[0] || w != x3.Args[1] || !(x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && clobber(x1, x2, x3)) {
++			break
++		}
++		v.reset(OpAMD64MOVQstore)
++		v.AddArg3(p1, w, mem)
++		return true
++	}
+ 	// match: (MOVBstore [i] {s} p x1:(MOVBload [j] {s2} p2 mem) mem2:(MOVBstore [i-1] {s} p x2:(MOVBload [j-1] {s2} p2 mem) mem))
+ 	// cond: x1.Uses == 1 && x2.Uses == 1 && mem2.Uses == 1 && clobber(x1, x2, mem2)
+ 	// result: (MOVWstore [i-1] {s} p (MOVWload [j-1] {s2} p2 mem) mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index b52a1b6745..6adae3ff35 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -8880,6 +8880,54 @@ func rewriteValueS390X_OpS390XMOVBstore(v *Value) bool {
+ 		v.AddArg3(p, w0, mem)
+ 		return true
+ 	}
++	// match: (MOVBstore [7] p1 (SRDconst w) x1:(MOVHBRstore [5] p1 (SRDconst w) x2:(MOVWBRstore [1] p1 (SRDconst w) x3:(MOVBstore p1 w mem))))
++	// cond: x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && clobber(x1, x2, x3)
++	// result: (MOVDBRstore p1 w mem)
++	for {
++		if auxIntToInt32(v.AuxInt) != 7 {
++			break
++		}
++		p1 := v_0
++		if v_1.Op != OpS390XSRDconst {
++			break
++		}
++		w := v_1.Args[0]
++		x1 := v_2
++		if x1.Op != OpS390XMOVHBRstore || auxIntToInt32(x1.AuxInt) != 5 {
++			break
++		}
++		_ = x1.Args[2]
++		if p1 != x1.Args[0] {
++			break
++		}
++		x1_1 := x1.Args[1]
++		if x1_1.Op != OpS390XSRDconst || w != x1_1.Args[0] {
++			break
++		}
++		x2 := x1.Args[2]
++		if x2.Op != OpS390XMOVWBRstore || auxIntToInt32(x2.AuxInt) != 1 {
++			break
++		}
++		_ = x2.Args[2]
++		if p1 != x2.Args[0] {
++			break
++		}
++		x2_1 := x2.Args[1]
++		if x2_1.Op != OpS390XSRDconst || w != x2_1.Args[0] {
++			break
++		}
++		x3 := x2.Args[2]
++		if x3.Op != OpS390XMOVBstore {
++			break
++		}
++		mem := x3.Args[2]
++		if p1 != x3.Args[0] || w != x3.Args[1] || !(x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && clobber(x1, x2, x3)) {
++			break
++		}
++		v.reset(OpS390XMOVDBRstore)
++		v.AddArg3(p1, w, mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XMOVBstoreconst(v *Value) bool {
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 6ad9514557..121f394f29 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -367,6 +367,15 @@ func store_le64_idx(b []byte, idx int) {
+ 	binary.LittleEndian.PutUint64(b[idx:], sink64)
+ }
+ 
++func store_le64_load(b []byte, x *[8]byte) {
++	_ = b[8]
++	// amd64:-`MOV[BWL]`
++	// arm64:-`MOV[BWH]`
++	// ppc64le:-`MOV[BWH]`
++	// s390x:-`MOVB`,-`MOV[WH]BR`
++	binary.LittleEndian.PutUint64(b, binary.LittleEndian.Uint64(x[:]))
++}
++
+ func store_le32(b []byte) {
+ 	// amd64:`MOVL\s`
+ 	// arm64:`MOVW`,-`MOV[BH]`

@@ -24,7 +24,7 @@ Date:   Thu Mar 10 14:35:39 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 2 +-
  src/cmd/compile/internal/gc/type.go            | 8 ++++++--
  src/cmd/compile/internal/ssa/deadstore.go      | 2 +-
@@ -33,3 +33,140 @@ Date:   Thu Mar 10 14:35:39 2016 -0800
  src/cmd/compile/internal/ssa/type.go           | 6 +++---
  src/cmd/compile/internal/ssa/type_test.go      | 2 +-
  7 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 557564daa4..afba7db638 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1953,7 +1953,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		for !data.Type.IsPtr() {
+ 			switch {
+ 			case data.Type.IsArray():
+-				data = s.newValue1I(ssa.OpArrayIndex, data.Type.Elem(), 0, data)
++				data = s.newValue1I(ssa.OpArrayIndex, data.Type.ElemType(), 0, data)
+ 			case data.Type.IsStruct():
+ 				for i := data.Type.NumFields() - 1; i >= 0; i-- {
+ 					f := data.Type.FieldType(i)
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 8ba625dc86..ec06407ecf 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -584,8 +584,12 @@ func (t *Type) IsInterface() bool {
+ 	return t.Etype == TINTER
+ }
+ 
+-func (t *Type) Elem() ssa.Type {
+-	return t.Type
++func (t *Type) ElemType() ssa.Type {
++	switch t.Etype {
++	case TARRAY, TPTR32, TPTR64:
++		return t.Type
++	}
++	panic(fmt.Sprintf("ElemType on invalid type %v", t))
+ }
+ func (t *Type) PtrTo() ssa.Type {
+ 	return Ptrto(t)
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 20e8368cd5..5129c171bb 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -88,7 +88,7 @@ func dse(f *Func) {
+ 					v.SetArgs1(v.Args[2])
+ 				} else {
+ 					// zero addr mem
+-					sz := v.Args[0].Type.Elem().Size()
++					sz := v.Args[0].Type.ElemType().Size()
+ 					if v.AuxInt != sz {
+ 						f.Fatalf("mismatched zero/store sizes: %d and %d [%s]",
+ 							v.AuxInt, sz, v.LongString())
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index d99ea5b66e..542c50254a 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -417,8 +417,8 @@
+ // indexing operations
+ // Note: bounds check has already been done
+ (ArrayIndex <t> [0] (Load ptr mem)) -> @v.Args[0].Block (Load <t> ptr mem)
+-(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.Elem().Size()])))
+-(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.Elem().Size()])))
++(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.ElemType().Size()])))
++(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.ElemType().Size()])))
+ 
+ // struct operations
+ (StructSelect (StructMake1 x)) -> x
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 95a2caeb1e..331c93d1cf 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -5325,7 +5325,7 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (PtrIndex <t> ptr idx)
+ 	// cond: config.PtrSize == 4
+-	// result: (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.Elem().Size()])))
++	// result: (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.ElemType().Size()])))
+ 	for {
+ 		t := v.Type
+ 		ptr := v.Args[0]
+@@ -5338,14 +5338,14 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
+ 		v0 := b.NewValue0(v.Line, OpMul32, config.fe.TypeInt())
+ 		v0.AddArg(idx)
+ 		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeInt())
+-		v1.AuxInt = t.Elem().Size()
++		v1.AuxInt = t.ElemType().Size()
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+ 	// match: (PtrIndex <t> ptr idx)
+ 	// cond: config.PtrSize == 8
+-	// result: (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.Elem().Size()])))
++	// result: (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.ElemType().Size()])))
+ 	for {
+ 		t := v.Type
+ 		ptr := v.Args[0]
+@@ -5358,7 +5358,7 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
+ 		v0 := b.NewValue0(v.Line, OpMul64, config.fe.TypeInt())
+ 		v0.AddArg(idx)
+ 		v1 := b.NewValue0(v.Line, OpConst64, config.fe.TypeInt())
+-		v1.AuxInt = t.Elem().Size()
++		v1.AuxInt = t.ElemType().Size()
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index c0174cce4f..427fb011b8 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -28,8 +28,8 @@ type Type interface {
+ 	IsFlags() bool
+ 	IsVoid() bool
+ 
+-	Elem() Type  // given []T or *T or [n]T, return T
+-	PtrTo() Type // given T, return *T
++	ElemType() Type // given []T or *T or [n]T, return T
++	PtrTo() Type    // given T, return *T
+ 
+ 	NumFields() int64       // # of fields of a struct
+ 	FieldType(i int64) Type // type of ith field of the struct
+@@ -71,7 +71,7 @@ func (t *CompilerType) IsFlags() bool          { return t.Flags }
+ func (t *CompilerType) IsVoid() bool           { return t.Void }
+ func (t *CompilerType) String() string         { return t.Name }
+ func (t *CompilerType) SimpleString() string   { return t.Name }
+-func (t *CompilerType) Elem() Type             { panic("not implemented") }
++func (t *CompilerType) ElemType() Type         { panic("not implemented") }
+ func (t *CompilerType) PtrTo() Type            { panic("not implemented") }
+ func (t *CompilerType) NumFields() int64       { panic("not implemented") }
+ func (t *CompilerType) FieldType(i int64) Type { panic("not implemented") }
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index 26c8223c62..048eda5d66 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -42,7 +42,7 @@ func (t *TypeImpl) IsFlags() bool          { return false }
+ func (t *TypeImpl) IsVoid() bool           { return false }
+ func (t *TypeImpl) String() string         { return t.Name }
+ func (t *TypeImpl) SimpleString() string   { return t.Name }
+-func (t *TypeImpl) Elem() Type             { return t.Elem_ }
++func (t *TypeImpl) ElemType() Type         { return t.Elem_ }
+ func (t *TypeImpl) PtrTo() Type            { panic("not implemented") }
+ func (t *TypeImpl) NumFields() int64       { panic("not implemented") }
+ func (t *TypeImpl) FieldType(i int64) Type { panic("not implemented") }

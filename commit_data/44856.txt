@@ -22,8 +22,187 @@ Date:   Thu Aug 27 16:34:59 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go           | 25 +++++------
  src/cmd/go/testdata/script/mod_list_std.txt   | 64 ++++++++++++++++++---------
  src/cmd/go/testdata/script/mod_std_vendor.txt |  6 +--
  3 files changed, 57 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 64ef60230e..8a3af534a5 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -709,8 +709,6 @@ func Lookup(parentPath string, parentIsStd bool, path string) (dir, realPath str
+ type loader struct {
+ 	loaderParams
+ 
+-	forceStdVendor bool // if true, load standard-library dependencies from the vendor subtree
+-
+ 	work *par.Queue
+ 
+ 	// reset on each iteration
+@@ -850,13 +848,6 @@ func loadFromRoots(params loaderParams) *loader {
+ 		work:         par.NewQueue(runtime.GOMAXPROCS(0)),
+ 	}
+ 
+-	// Inside the "std" and "cmd" modules, we prefer to use the vendor directory
+-	// unless the command explicitly changes the module graph.
+-	// TODO(bcmills): Is this still needed now that we have automatic vendoring?
+-	if !targetInGorootSrc || (cfg.CmdName != "get" && !strings.HasPrefix(cfg.CmdName, "mod ")) {
+-		ld.forceStdVendor = true
+-	}
+-
+ 	var err error
+ 	reqs := Reqs()
+ 	buildList, err = mvs.BuildList(Target, reqs)
+@@ -1120,8 +1111,8 @@ func (ld *loader) load(pkg *loadPkg) {
+ 	}
+ 	for _, path := range imports {
+ 		if pkg.inStd {
+-			// Imports from packages in "std" should resolve using GOROOT/src/vendor
+-			// even when "std" is not the main module.
++			// Imports from packages in "std" and "cmd" should resolve using
++			// GOROOT/src/vendor even when "std" is not the main module.
+ 			path = ld.stdVendor(pkg.path, path)
+ 		}
+ 		pkg.imports = append(pkg.imports, ld.pkg(path, importFlags))
+@@ -1185,13 +1176,21 @@ func (ld *loader) stdVendor(parentPath, path string) string {
+ 	}
+ 
+ 	if str.HasPathPrefix(parentPath, "cmd") {
+-		if ld.forceStdVendor || Target.Path != "cmd" {
++		if Target.Path != "cmd" {
+ 			vendorPath := pathpkg.Join("cmd", "vendor", path)
+ 			if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
+ 				return vendorPath
+ 			}
+ 		}
+-	} else if ld.forceStdVendor || Target.Path != "std" {
++	} else if Target.Path != "std" || str.HasPathPrefix(parentPath, "vendor") {
++		// If we are outside of the 'std' module, resolve imports from within 'std'
++		// to the vendor directory.
++		//
++		// Do the same for importers beginning with the prefix 'vendor/' even if we
++		// are *inside* of the 'std' module: the 'vendor/' packages that resolve
++		// globally from GOROOT/src/vendor (and are listed as part of 'go list std')
++		// are distinct from the real module dependencies, and cannot import internal
++		// packages from the real module.
+ 		vendorPath := pathpkg.Join("vendor", path)
+ 		if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
+ 			return vendorPath
+diff --git a/src/cmd/go/testdata/script/mod_list_std.txt b/src/cmd/go/testdata/script/mod_list_std.txt
+index 76a3b00d1c..baf7908ab9 100644
+--- a/src/cmd/go/testdata/script/mod_list_std.txt
++++ b/src/cmd/go/testdata/script/mod_list_std.txt
+@@ -6,8 +6,13 @@ env GOPROXY=off
+ 
+ # Outside of GOROOT, our vendored packages should be reported as part of the standard library.
+ go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' std cmd
+-stdout ^vendor/golang.org/x/net/http2/hpack
++stdout ^vendor/golang\.org/x/net/http2/hpack
+ stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm
++! stdout ^golang\.org/x/
++
++# The dependencies of those packages should also be vendored.
++go list -deps vendor/golang.org/x/crypto/chacha20
++stdout ^vendor/golang\.org/x/crypto/internal/subtle
+ 
+ # cmd/... should match the same packages it used to match in GOPATH mode.
+ go list cmd/...
+@@ -23,40 +28,57 @@ stdout ^bytes$
+ ! stdout ^builtin$
+ ! stdout ^cmd/
+ ! stdout ^vendor/
++! stdout ^golang\.org/x/
++
+ 
++# Vendored dependencies should appear with their 'vendor/' paths in std (they're
++# in GOROOT/src, but not in the 'std' module following the usual module-boundary
++# rules).
+ 
+-# Within the std module, listing ./... should omit the 'std' prefix:
+-# the package paths should be the same via ./... or the 'std' meta-pattern.
+-# TODO(golang.org/issue/30241): Make that work.
+-# Today, they are listed in 'std' but not './...'.
+ cd $GOROOT/src
+-go list ./...
+-! stdout ^vendor/golang.org/x  # TODO: should be included, or should be omitted from 'std'.
+ 
+-cp stdout $WORK/listdot.txt
+ go list std
+-stdout ^vendor/golang.org/x  # TODO: remove vendor/ prefix
+-# TODO: cmp stdout $WORK/listdot.txt
++stdout ^vendor/golang.org/x/net/http2/hpack
++! stdout ^golang\.org/x
++
++# The dependencies of packages with an explicit 'vendor/' prefix should
++# still themselves resolve to vendored packages.
++go list -deps vendor/golang.org/x/crypto/chacha20
++stdout ^vendor/golang.org/x/crypto/internal/subtle
++! stdout ^golang\.org/x
++
++# Within the std module, the dependencies of the non-vendored packages within
++# std should appear to come from modules, but they should be loaded from the
++# vendor directory (just like ordinary vendored module dependencies).
+ 
+ go list all
+-stdout ^vendor/golang.org/x  # TODO: remove vendor/ prefix.
++stdout ^golang.org/x/
+ ! stdout ^std/
++! stdout ^cmd/
++! stdout ^vendor/
+ 
++go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' std
++! stdout ^vendor/golang.org/x/net/http2/hpack
++stdout ^golang.org/x/net/http2/hpack
+ 
+-# Within the std module, the vendored dependencies of std should appear
+-# to come from the actual modules.
+-# TODO(golang.org/issue/30241): Make that work.
+-# Today, they still have the vendor/ prefix.
+-go list std
+-stdout ^vendor/golang.org/x/net/http2/hpack  # TODO
+-! stdout ^golang.org/x/net/http2/hpack       # TODO
++go list -f '{{.Dir}}' golang.org/x/net/http2/hpack
++stdout $GOROOT[/\\]src[/\\]vendor
+ 
+-go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' std
+-# ! stdout ^vendor/golang.org/x/net/http2/hpack  # TODO
+-! stdout ^golang.org/x/net/http2/hpack         # TODO
++# Within the std module, the packages within the module should omit the 'std/'
++# prefix (they retain their own identities), but should respect normal module
++# boundaries (vendored packages are not included in the module, even though they
++# are included in the 'std' pattern).
++
++go list ./...
++stdout ^bytes$
++! stdout ^builtin$
++! stdout ^cmd/
++! stdout ^vendor/
++! stdout ^golang\.org/x/
+ 
+ 
+ # Within std, the vendored dependencies of cmd should still appear to be part of cmd.
++
+ go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' cmd
+ stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm
+ 
+diff --git a/src/cmd/go/testdata/script/mod_std_vendor.txt b/src/cmd/go/testdata/script/mod_std_vendor.txt
+index 5986cff594..fb954d74ed 100644
+--- a/src/cmd/go/testdata/script/mod_std_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_std_vendor.txt
+@@ -37,12 +37,10 @@ stderr 'use of vendored package'
+ 
+ # When run within the 'std' module, 'go list -test' should report vendored
+ # transitive dependencies at their original module paths.
+-# TODO(golang.org/issue/30241): Make that work.
+-# Today, they're standard packages as long as they exist.
+ cd $GOROOT/src
+ go list -test -f '{{range .Deps}}{{.}}{{"\n"}}{{end}}' net/http
+-stdout ^vendor/golang.org/x/net/http2/hpack  # TODO: remove vendor/ prefix
+-! stdout ^golang.org/x/net/http2/hpack
++stdout ^golang.org/x/net/http2/hpack
++! stdout ^vendor/golang.org/x/net/http2/hpack
+ 
+ -- go.mod --
+ module m

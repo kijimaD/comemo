@@ -9,6 +9,21 @@ Date:   Sun Apr 16 15:19:55 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index a36287865b..e1b582dbf6 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -152,8 +152,7 @@ func (ats *asmTests) runGo(t *testing.T, args ...string) string {
+ 	cmd.Stderr = &stderr
+ 
+ 	if err := cmd.Run(); err != nil {
+-		fmt.Printf(stdout.String())
+-		t.Fatalf("error running cmd: %v", err)
++		t.Fatalf("error running cmd: %v\nstdout:\n%sstderr:\n%s\n", err, stdout.String(), stderr.String())
+ 	}
+ 
+ 	if s := stderr.String(); s != "" {

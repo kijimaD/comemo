@@ -14,7 +14,7 @@ Date:   Mon May 4 16:10:49 2015 -0400
     Change-Id: I1eecd45ef9cdd65b69d2afb5db5da885c80086bb
     Reviewed-on: https://go-review.googlesource.com/9695
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/malloc.go  | 10 ++++++++++
  src/runtime/mcache.go  |  1 +
  src/runtime/mgc.go     |  1 +
@@ -22,3 +22,120 @@ Date:   Mon May 4 16:10:49 2015 -0400
  src/runtime/mheap.go   |  4 ++++
  src/runtime/mstats.go  |  7 +++++++
  6 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 22ad6b581f..1619ccb9f4 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -647,6 +647,16 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 			dataSize = unsafe.Sizeof(_defer{})
+ 		}
+ 		heapBitsSetType(uintptr(x), size, dataSize, typ)
++		if dataSize > typ.size {
++			// Array allocation. If there are any
++			// pointers, GC has to scan to the last
++			// element.
++			if typ.ptrdata != 0 {
++				c.local_scan += dataSize - typ.size + typ.ptrdata
++			}
++		} else {
++			c.local_scan += typ.ptrdata
++		}
+ 	}
+ 
+ 	// GCmarkterminate allocates black
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index f01215379a..8c2a6b00ce 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -13,6 +13,7 @@ type mcache struct {
+ 	// so they are grouped here for better caching.
+ 	next_sample      int32   // trigger heap sample after allocating this many bytes
+ 	local_cachealloc uintptr // bytes allocated from cache since last lock of heap
++	local_scan       uintptr // bytes of scannable heap allocated
+ 	// Allocator cache for tiny objects w/o pointers.
+ 	// See "Tiny allocator" comment in malloc.go.
+ 	tiny             unsafe.Pointer
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index fa3573df56..678fe8f322 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1279,6 +1279,7 @@ func gcMark(start_time int64) {
+ 	// Update other GC heap size stats.
+ 	memstats.heap_live = work.bytesMarked
+ 	memstats.heap_marked = work.bytesMarked
++	memstats.heap_scan = uint64(gcController.scanWork)
+ 
+ 	if trace.enabled {
+ 		traceHeapAlloc()
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 5b207679f8..f69166ee22 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -530,6 +530,10 @@ func gcDrainN(gcw *gcWork, scanWork int64) {
+ 
+ // scanblock scans b as scanobject would, but using an explicit
+ // pointer bitmap instead of the heap bitmap.
++//
++// This is used to scan non-heap roots, so it does not update
++// gcw.bytesMarked or gcw.scanWork.
++//
+ //go:nowritebarrier
+ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 	// Use local copies of original parameters, so that a stack trace
+@@ -565,8 +569,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 			i += ptrSize
+ 		}
+ 	}
+-
+-	gcw.scanWork += int64(n)
+ }
+ 
+ // scanobject scans the object starting at b, adding pointers to gcw.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 653448363c..10878ee5cf 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -398,6 +398,8 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan
+ 	// transfer stats from cache to global
+ 	memstats.heap_live += uint64(_g_.m.mcache.local_cachealloc)
+ 	_g_.m.mcache.local_cachealloc = 0
++	memstats.heap_scan += uint64(_g_.m.mcache.local_scan)
++	_g_.m.mcache.local_scan = 0
+ 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
+ 	_g_.m.mcache.local_tinyallocs = 0
+ 
+@@ -656,6 +658,8 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
+ 		lock(&h.lock)
+ 		memstats.heap_live += uint64(mp.mcache.local_cachealloc)
+ 		mp.mcache.local_cachealloc = 0
++		memstats.heap_scan += uint64(mp.mcache.local_scan)
++		mp.mcache.local_scan = 0
+ 		memstats.tinyallocs += uint64(mp.mcache.local_tinyallocs)
+ 		mp.mcache.local_tinyallocs = 0
+ 		if acct != 0 {
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 098f5da8dc..c8e5249156 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -69,6 +69,11 @@ type mstats struct {
+ 	// excludes unmarked objects that have not yet been swept.
+ 	heap_live uint64
+ 
++	// heap_scan is the number of bytes of "scannable" heap. This
++	// is the live heap (as counted by heap_live), but omitting
++	// no-scan objects and no-scan tails of objects.
++	heap_scan uint64
++
+ 	// heap_marked is the number of bytes marked by the previous
+ 	// GC. After mark termination, heap_live == heap_marked, but
+ 	// unlike heap_live, heap_marked does not change until the
+@@ -340,6 +345,8 @@ func purgecachedstats(c *mcache) {
+ 	if trace.enabled {
+ 		traceHeapAlloc()
+ 	}
++	memstats.heap_scan += uint64(c.local_scan)
++	c.local_scan = 0
+ 	memstats.tinyallocs += uint64(c.local_tinyallocs)
+ 	c.local_tinyallocs = 0
+ 	memstats.nlookup += uint64(c.local_nlookup)

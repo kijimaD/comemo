@@ -16,7 +16,7 @@ Date:   Fri Nov 27 12:09:14 2015 +0900
     Change-Id: Icdd3375bcddc7f5d4d3b24f134d93815073736fc
     Reviewed-on: https://go-review.googlesource.com/17216
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/cgo_unix.go      |  7 +------
  src/net/dnsclient.go     | 11 +++++++++++
  src/net/hosts.go         |  6 +++---
@@ -25,3 +25,184 @@ Date:   Fri Nov 27 12:09:14 2015 +0900
  src/net/non_unix_test.go |  4 ++--
  src/net/unix_test.go     | 14 ++++++++++----
  7 files changed, 62 insertions(+), 22 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index cb89d65457..d53c00308e 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -222,12 +222,7 @@ func cgoLookupPTR(addr string) ([]string, error, bool) {
+ 			break
+ 		}
+ 	}
+-	// Add trailing dot to match pure Go reverse resolver
+-	// and all other lookup routines. See golang.org/issue/12189.
+-	if len(b) > 0 && b[len(b)-1] != '.' {
+-		b = append(b, '.')
+-	}
+-	return []string{string(b)}, nil, true
++	return []string{absDomainName(b)}, nil, true
+ }
+ 
+ func cgoSockaddr(ip IP) (*C.struct_sockaddr, C.socklen_t) {
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index b44c06dce4..0f4ef89387 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -161,6 +161,17 @@ func isDomainName(s string) bool {
+ 	return ok
+ }
+ 
++// absDomainName returns an absoulte domain name which ends with a
++// trailing dot to match pure Go reverse resolver and all other lookup
++// routines.
++// See golang.org/issue/12189.
++func absDomainName(b []byte) string {
++	if len(b) > 0 && b[len(b)-1] != '.' {
++		b = append(b, '.')
++	}
++	return string(b)
++}
++
+ // An SRV represents a single DNS SRV record.
+ type SRV struct {
+ 	Target   string
+diff --git a/src/net/hosts.go b/src/net/hosts.go
+index 8cf73fd5db..577dba9cb9 100644
+--- a/src/net/hosts.go
++++ b/src/net/hosts.go
+@@ -70,10 +70,10 @@ func readHosts() {
+ 				continue
+ 			}
+ 			for i := 1; i < len(f); i++ {
+-				name := f[i]
++				name := absDomainName([]byte(f[i]))
+ 				h := []byte(f[i])
+ 				lowerASCIIBytes(h)
+-				key := string(h)
++				key := absDomainName(h)
+ 				hs[key] = append(hs[key], addr)
+ 				is[addr] = append(is[addr], name)
+ 			}
+@@ -97,7 +97,7 @@ func lookupStaticHost(host string) []string {
+ 		// or linear scan the byName map if it's small enough?
+ 		lowerHost := []byte(host)
+ 		lowerASCIIBytes(lowerHost)
+-		if ips, ok := hosts.byName[string(lowerHost)]; ok {
++		if ips, ok := hosts.byName[absDomainName(lowerHost)]; ok {
+ 			return ips
+ 		}
+ 	}
+diff --git a/src/net/hosts_test.go b/src/net/hosts_test.go
+index a3173ff9ef..4c67bfa982 100644
+--- a/src/net/hosts_test.go
++++ b/src/net/hosts_test.go
+@@ -64,7 +64,7 @@ func TestLookupStaticHost(t *testing.T) {
+ 	for _, tt := range lookupStaticHostTests {
+ 		testHookHostsPath = tt.name
+ 		for _, ent := range tt.ents {
+-			ins := []string{ent.in, strings.ToLower(ent.in), strings.ToUpper(ent.in)}
++			ins := []string{ent.in, absDomainName([]byte(ent.in)), strings.ToLower(ent.in), strings.ToUpper(ent.in)}
+ 			for _, in := range ins {
+ 				addrs := lookupStaticHost(in)
+ 				if !reflect.DeepEqual(addrs, ent.out) {
+@@ -130,6 +130,9 @@ func TestLookupStaticAddr(t *testing.T) {
+ 		testHookHostsPath = tt.name
+ 		for _, ent := range tt.ents {
+ 			hosts := lookupStaticAddr(ent.in)
++			for i := range ent.out {
++				ent.out[i] = absDomainName([]byte(ent.out[i]))
++			}
+ 			if !reflect.DeepEqual(hosts, ent.out) {
+ 				t.Errorf("%s, lookupStaticAddr(%s) = %v; want %v", tt.name, ent.in, hosts, ent.out)
+ 			}
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 0b6d92f6e3..e55b0ef48e 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -395,17 +395,42 @@ func TestLookupIPDeadline(t *testing.T) {
+ 	t.Logf("%v succeeded, %v failed (%v timeout, %v temporary, %v other, %v unknown)", qstats.succeeded, qstats.failed, qstats.timeout, qstats.temporary, qstats.other, qstats.unknown)
+ }
+ 
+-func TestLookupDots(t *testing.T) {
++func TestLookupDotsWithLocalSoruce(t *testing.T) {
++	if !supportsIPv4 {
++		t.Skip("IPv4 is required")
++	}
++
++	for i, fn := range []func() func(){forceGoDNS, forceCgoDNS} {
++		fixup := fn()
++		if fixup == nil {
++			continue
++		}
++		names, err := LookupAddr("127.0.0.1")
++		fixup()
++		if err != nil {
++			t.Errorf("#%d: %v", i, err)
++			continue
++		}
++		for _, name := range names {
++			if !strings.HasSuffix(name, ".") {
++				t.Errorf("#%d: got %s; want name ending with trailing dot", i, name)
++			}
++		}
++	}
++}
++
++func TestLookupDotsWithRemoteSource(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+ 		t.Skipf("skipping external network test")
+ 	}
+ 
+-	fixup := forceGoDNS()
+-	defer fixup()
+-	testDots(t, "go")
+-
+-	if forceCgoDNS() {
++	if fixup := forceGoDNS(); fixup != nil {
++		testDots(t, "go")
++		fixup()
++	}
++	if fixup := forceCgoDNS(); fixup != nil {
+ 		testDots(t, "cgo")
++		fixup()
+ 	}
+ }
+ 
+diff --git a/src/net/non_unix_test.go b/src/net/non_unix_test.go
+index eddca562f9..b25e0f1daf 100644
+--- a/src/net/non_unix_test.go
++++ b/src/net/non_unix_test.go
+@@ -7,5 +7,5 @@
+ package net
+ 
+ // See unix_test.go for what these (don't) do.
+-func forceGoDNS() func() { return func() {} }
+-func forceCgoDNS() bool  { return false }
++func forceGoDNS() func()  { return nil }
++func forceCgoDNS() func() { return nil }
+diff --git a/src/net/unix_test.go b/src/net/unix_test.go
+index 358ff31072..73f682e6bc 100644
+--- a/src/net/unix_test.go
++++ b/src/net/unix_test.go
+@@ -421,11 +421,17 @@ func forceGoDNS() func() {
+ }
+ 
+ // forceCgoDNS forces the resolver configuration to use the cgo resolver
+-// and returns true to indicate that it did so.
+-// (On non-Unix systems forceCgoDNS returns false.)
+-func forceCgoDNS() bool {
++// and returns a fixup function to restore the old settings.
++// (On non-Unix systems forceCgoDNS returns nil.)
++func forceCgoDNS() func() {
+ 	c := systemConf()
++	oldGo := c.netGo
++	oldCgo := c.netCgo
++	fixup := func() {
++		c.netGo = oldGo
++		c.netCgo = oldCgo
++	}
+ 	c.netGo = false
+ 	c.netCgo = true
+-	return true
++	return fixup
+ }

@@ -9,6 +9,75 @@ Date:   Thu Feb 7 23:22:54 2019 +0000
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/example_test.go | 57 ++++++++++++++++++++++++++++++++++++++++
  1 file changed, 57 insertions(+)
+
+diff --git a/src/database/sql/example_test.go b/src/database/sql/example_test.go
+index 6f9bd91276..2bf2a9fccf 100644
+--- a/src/database/sql/example_test.go
++++ b/src/database/sql/example_test.go
+@@ -163,6 +163,63 @@ func ExampleDB_PingContext() {
+ 	log.Println(status)
+ }
+ 
++func ExampleDB_Prepare() {
++	projects := []struct {
++		mascot  string
++		release int
++	}{
++		{"tux", 1991},
++		{"duke", 1996},
++		{"gopher", 2009},
++		{"moby dock", 2013},
++	}
++
++	stmt, err := db.Prepare("INSERT INTO projects(id, mascot, release, category) VALUES( ?, ?, ?, ? )")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer stmt.Close() // Prepared statements take up server resources and should be closed after use.
++
++	for id, project := range projects {
++		if _, err := stmt.Exec(id+1, project.mascot, project.release, "open source"); err != nil {
++			log.Fatal(err)
++		}
++	}
++}
++
++func ExampleTx_Prepare() {
++	projects := []struct {
++		mascot  string
++		release int
++	}{
++		{"tux", 1991},
++		{"duke", 1996},
++		{"gopher", 2009},
++		{"moby dock", 2013},
++	}
++
++	tx, err := db.Begin()
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer tx.Rollback() // The rollback will be ignored if the tx has been committed later in the function.
++
++	stmt, err := tx.Prepare("INSERT INTO projects(id, mascot, release, category) VALUES( ?, ?, ?, ? )")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer stmt.Close() // Prepared statements take up server resources and should be closed after use.
++
++	for id, project := range projects {
++		if _, err := stmt.Exec(id+1, project.mascot, project.release, "open source"); err != nil {
++			log.Fatal(err)
++		}
++	}
++	if err := tx.Commit(); err != nil {
++		log.Fatal(err)
++	}
++}
++
+ func ExampleConn_BeginTx() {
+ 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+ 	if err != nil {

@@ -9,6 +9,19 @@ Date:   Tue Jan 18 23:00:19 2011 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4075041
-
+---
  src/pkg/syscall/syscall_windows.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 33a86ce251..06dde518fd 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -708,6 +708,7 @@ const (
+ 	PTRACE_TRACEME = 1 + iota
+ 	WNOHANG
+ 	WSTOPPED
++	WUNTRACED
+ 	SYS_CLOSE
+ 	SYS_WRITE
+ 	SYS_EXIT

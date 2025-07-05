@@ -5,7 +5,7 @@ Date:   Wed Mar 26 09:28:57 2008 -0700
     - new directory structure
     
     SVN=113851
-
+---
  {tests => test}/char_lit.go   | 0
  {tests => test}/float_lit.go  | 0
  {tests => test}/hashmap.go    | 0
@@ -15,3 +15,36 @@ Date:   Wed Mar 26 09:28:57 2008 -0700
  {tests => test}/string_lit.go | 0
  {tests => test}/test0.go      | 0
  8 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/tests/char_lit.go b/test/char_lit.go
+similarity index 100%
+rename from tests/char_lit.go
+rename to test/char_lit.go
+diff --git a/tests/float_lit.go b/test/float_lit.go
+similarity index 100%
+rename from tests/float_lit.go
+rename to test/float_lit.go
+diff --git a/tests/hashmap.go b/test/hashmap.go
+similarity index 100%
+rename from tests/hashmap.go
+rename to test/hashmap.go
+diff --git a/tests/int_lit.go b/test/int_lit.go
+similarity index 100%
+rename from tests/int_lit.go
+rename to test/int_lit.go
+diff --git a/tests/runtests.sh b/test/runtests.sh
+similarity index 100%
+rename from tests/runtests.sh
+rename to test/runtests.sh
+diff --git a/tests/sieve.go b/test/sieve.go
+similarity index 100%
+rename from tests/sieve.go
+rename to test/sieve.go
+diff --git a/tests/string_lit.go b/test/string_lit.go
+similarity index 100%
+rename from tests/string_lit.go
+rename to test/string_lit.go
+diff --git a/tests/test0.go b/test/test0.go
+similarity index 100%
+rename from tests/test0.go
+rename to test/test0.go

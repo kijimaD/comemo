@@ -19,6 +19,40 @@ Date:   Fri Jan 9 23:25:42 2015 +0100
     Change-Id: I2b17ff8dee310ec9ab92a6f569a95932538768a9
     Reviewed-on: https://go-review.googlesource.com/2614
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/sort/sort.go | 17 ++++++++---------
  1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index 4ca027b614..b52b54ed8f 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -75,20 +75,19 @@ func heapSort(data Interface, a, b int) {
+ // Quicksort, following Bentley and McIlroy,
+ // ``Engineering a Sort Function,'' SP&E November 1993.
+ 
+-// medianOfThree moves the median of the three values data[a], data[b], data[c] into data[a].
+-func medianOfThree(data Interface, a, b, c int) {
+-	m0 := b
+-	m1 := a
+-	m2 := c
+-	// bubble sort on 3 elements
++// medianOfThree moves the median of the three values data[m0], data[m1], data[m2] into data[m1].
++func medianOfThree(data Interface, m1, m0, m2 int) {
++	// sort 3 elements
+ 	if data.Less(m1, m0) {
+ 		data.Swap(m1, m0)
+ 	}
++	// data[m0] <= data[m1]
+ 	if data.Less(m2, m1) {
+ 		data.Swap(m2, m1)
+-	}
+-	if data.Less(m1, m0) {
+-		data.Swap(m1, m0)
++		// data[m0] <= data[m2] && data[m1] < data[m2]
++		if data.Less(m1, m0) {
++			data.Swap(m1, m0)
++		}
+ 	}
+ 	// now data[m0] <= data[m1] <= data[m2]
+ }

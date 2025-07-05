@@ -21,7 +21,7 @@ Date:   Tue Jan 5 17:52:43 2021 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: fannie zhang <Fannie.Zhang@arm.com>
-
+---
  src/runtime/cgo_sigaction.go   |  7 ++++++-
  src/runtime/iface.go           |  7 +++++++
  src/runtime/malloc.go          | 44 +++++++++++++++++++++++++++++++++++++++++-
@@ -41,3 +41,552 @@ Date:   Tue Jan 5 17:52:43 2021 +0800
  src/syscall/syscall_unix.go    |  6 ++++++
  src/syscall/syscall_windows.go |  6 ++++++
  18 files changed, 200 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/cgo_sigaction.go b/src/runtime/cgo_sigaction.go
+index 7e8ae28275..a2e12f0f0e 100644
+--- a/src/runtime/cgo_sigaction.go
++++ b/src/runtime/cgo_sigaction.go
+@@ -27,7 +27,9 @@ func sigaction(sig uint32, new, old *sigactiont) {
+ 	if msanenabled && new != nil {
+ 		msanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
+ 	}
+-
++	if asanenabled && new != nil {
++		asanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
++	}
+ 	if _cgo_sigaction == nil || inForkedChild {
+ 		sysSigaction(sig, new, old)
+ 	} else {
+@@ -79,6 +81,9 @@ func sigaction(sig uint32, new, old *sigactiont) {
+ 	if msanenabled && old != nil {
+ 		msanread(unsafe.Pointer(old), unsafe.Sizeof(*old))
+ 	}
++	if asanenabled && old != nil {
++		asanread(unsafe.Pointer(old), unsafe.Sizeof(*old))
++	}
+ }
+ 
+ // callCgoSigaction calls the sigaction function in the runtime/cgo package
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 3d1d9d6ba1..e2bec10948 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -325,6 +325,9 @@ func convT(t *_type, v unsafe.Pointer) unsafe.Pointer {
+ 	if msanenabled {
+ 		msanread(v, t.size)
+ 	}
++	if asanenabled {
++		asanread(v, t.size)
++	}
+ 	x := mallocgc(t.size, t, true)
+ 	typedmemmove(t, x, v)
+ 	return x
+@@ -337,6 +340,10 @@ func convTnoptr(t *_type, v unsafe.Pointer) unsafe.Pointer {
+ 	if msanenabled {
+ 		msanread(v, t.size)
+ 	}
++	if asanenabled {
++		asanread(v, t.size)
++	}
++
+ 	x := mallocgc(t.size, t, false)
+ 	memmove(x, v, t.size)
+ 	return x
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 8af1d96f1a..e267e2df23 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -908,6 +908,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	if size == 0 {
+ 		return unsafe.Pointer(&zerobase)
+ 	}
++	userSize := size
++	if asanenabled {
++		// Refer to ASAN runtime library, the malloc() function allocates extra memory,
++		// the redzone, around the user requested memory region. And the redzones are marked
++		// as unaddressable. We perform the same operations in Go to detect the overflows or
++		// underflows.
++		size += computeRZlog(size)
++	}
+ 
+ 	if debug.malloc {
+ 		if debug.sbrk != 0 {
+@@ -971,7 +979,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	mp.mallocing = 1
+ 
+ 	shouldhelpgc := false
+-	dataSize := size
++	dataSize := userSize
+ 	c := getMCache(mp)
+ 	if c == nil {
+ 		throw("mallocgc called without a P or outside bootstrapping")
+@@ -1138,6 +1146,17 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		msanmalloc(x, size)
+ 	}
+ 
++	if asanenabled {
++		// We should only read/write the memory with the size asked by the user.
++		// The rest of the allocated memory should be poisoned, so that we can report
++		// errors when accessing poisoned memory.
++		// The allocated memory is larger than required userSize, it will also include
++		// redzone and some other padding bytes.
++		rzBeg := unsafe.Add(x, userSize)
++		asanpoison(rzBeg, size-userSize)
++		asanunpoison(x, userSize)
++	}
++
+ 	if rate := MemProfileRate; rate > 0 {
+ 		// Note cache c only valid while m acquired; see #47302
+ 		if rate != 1 && size < c.nextSample {
+@@ -1514,3 +1533,26 @@ type notInHeap struct{}
+ func (p *notInHeap) add(bytes uintptr) *notInHeap {
+ 	return (*notInHeap)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + bytes))
+ }
++
++// computeRZlog computes the size of the redzone.
++// Refer to the implementation of the compiler-rt.
++func computeRZlog(userSize uintptr) uintptr {
++	switch {
++	case userSize <= (64 - 16):
++		return 16 << 0
++	case userSize <= (128 - 32):
++		return 16 << 1
++	case userSize <= (512 - 64):
++		return 16 << 2
++	case userSize <= (4096 - 128):
++		return 16 << 3
++	case userSize <= (1<<14)-256:
++		return 16 << 4
++	case userSize <= (1<<15)-512:
++		return 16 << 5
++	case userSize <= (1<<16)-1024:
++		return 16 << 6
++	default:
++		return 16 << 7
++	}
++}
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 985c297cd4..e91b25eaec 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -402,6 +402,9 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if msanenabled && h != nil {
+ 		msanread(key, t.key.size)
+ 	}
++	if asanenabled && h != nil {
++		asanread(key, t.key.size)
++	}
+ 	if h == nil || h.count == 0 {
+ 		if t.hashMightPanic() {
+ 			t.hasher(key, 0) // see issue 23734
+@@ -460,6 +463,9 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 	if msanenabled && h != nil {
+ 		msanread(key, t.key.size)
+ 	}
++	if asanenabled && h != nil {
++		asanread(key, t.key.size)
++	}
+ 	if h == nil || h.count == 0 {
+ 		if t.hashMightPanic() {
+ 			t.hasher(key, 0) // see issue 23734
+@@ -582,6 +588,9 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if msanenabled {
+ 		msanread(key, t.key.size)
+ 	}
++	if asanenabled {
++		asanread(key, t.key.size)
++	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map writes")
+ 	}
+@@ -693,6 +702,9 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	if msanenabled && h != nil {
+ 		msanread(key, t.key.size)
+ 	}
++	if asanenabled && h != nil {
++		asanread(key, t.key.size)
++	}
+ 	if h == nil || h.count == 0 {
+ 		if t.hashMightPanic() {
+ 			t.hasher(key, 0) // see issue 23734
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 3fd1cca42c..0f8b2af5fa 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -184,6 +184,10 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 		msanwrite(dst, typ.size)
+ 		msanread(src, typ.size)
+ 	}
++	if asanenabled {
++		asanwrite(dst, typ.size)
++		asanread(src, typ.size)
++	}
+ 	typedmemmove(typ, dst, src)
+ }
+ 
+@@ -262,6 +266,10 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ 		msanwrite(dstPtr, uintptr(n)*typ.size)
+ 		msanread(srcPtr, uintptr(n)*typ.size)
+ 	}
++	if asanenabled {
++		asanwrite(dstPtr, uintptr(n)*typ.size)
++		asanread(srcPtr, uintptr(n)*typ.size)
++	}
+ 
+ 	if writeBarrier.cgo {
+ 		cgoCheckSliceCopy(typ, dstPtr, srcPtr, n)
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index b06df32b20..fdbec30cf1 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -563,7 +563,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 		spanHasNoSpecials(s)
+ 	}
+ 
+-	if debug.allocfreetrace != 0 || debug.clobberfree != 0 || raceenabled || msanenabled {
++	if debug.allocfreetrace != 0 || debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
+ 		// Find all newly freed objects. This doesn't have to
+ 		// efficient; allocfreetrace has massive overhead.
+ 		mbits := s.markBitsForBase()
+@@ -583,6 +583,9 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 				if msanenabled {
+ 					msanfree(unsafe.Pointer(x), size)
+ 				}
++				if asanenabled {
++					asanpoison(unsafe.Pointer(x), size)
++				}
+ 			}
+ 			mbits.advance()
+ 			abits.advance()
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 5fd036c1b3..057ab06b1d 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1419,6 +1419,12 @@ func (h *mheap) freeSpan(s *mspan) {
+ 			bytes := s.npages << _PageShift
+ 			msanfree(base, bytes)
+ 		}
++		if asanenabled {
++			// Tell asan that this entire span is no longer in use.
++			base := unsafe.Pointer(s.base())
++			bytes := s.npages << _PageShift
++			asanpoison(base, bytes)
++		}
+ 		h.freeSpanLocked(s, spanAllocHeap)
+ 		unlock(&h.lock)
+ 	})
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 0e6043cf2a..b4de8f53a9 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -627,6 +627,9 @@ func record(r *MemProfileRecord, b *bucket) {
+ 	if msanenabled {
+ 		msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
+ 	}
++	if asanenabled {
++		asanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
++	}
+ 	copy(r.Stack0[:], b.stk())
+ 	for i := int(b.nstk); i < len(r.Stack0); i++ {
+ 		r.Stack0[i] = 0
+@@ -680,6 +683,9 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
+ 			if msanenabled {
+ 				msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
+ 			}
++			if asanenabled {
++				asanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
++			}
+ 			i := copy(r.Stack0[:], b.stk())
+ 			for ; i < len(r.Stack0); i++ {
+ 				r.Stack0[i] = 0
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 615f53d31f..bf5fa8e4fc 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2233,6 +2233,9 @@ func newm1(mp *m) {
+ 		if msanenabled {
+ 			msanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
+ 		}
++		if asanenabled {
++			asanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
++		}
+ 		execLock.rlock() // Prevent process clone.
+ 		asmcgocall(_cgo_thread_start, unsafe.Pointer(&ts))
+ 		execLock.runlock()
+@@ -4435,6 +4438,9 @@ retry:
+ 		if msanenabled {
+ 			msanmalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+ 		}
++		if asanenabled {
++			asanunpoison(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
++		}
+ 	}
+ 	return gp
+ }
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index ee1f95ffa9..e18b2f14c0 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -406,6 +406,13 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 			msanwrite(cas.elem, c.elemtype.size)
+ 		}
+ 	}
++	if asanenabled {
++		if casi < nsends {
++			asanread(cas.elem, c.elemtype.size)
++		} else if cas.elem != nil {
++			asanwrite(cas.elem, c.elemtype.size)
++		}
++	}
+ 
+ 	selunlock(scases, lockorder)
+ 	goto retc
+@@ -421,6 +428,9 @@ bufrecv:
+ 	if msanenabled && cas.elem != nil {
+ 		msanwrite(cas.elem, c.elemtype.size)
+ 	}
++	if asanenabled && cas.elem != nil {
++		asanwrite(cas.elem, c.elemtype.size)
++	}
+ 	recvOK = true
+ 	qp = chanbuf(c, c.recvx)
+ 	if cas.elem != nil {
+@@ -444,6 +454,9 @@ bufsend:
+ 	if msanenabled {
+ 		msanread(cas.elem, c.elemtype.size)
+ 	}
++	if asanenabled {
++		asanread(cas.elem, c.elemtype.size)
++	}
+ 	typedmemmove(c.elemtype, chanbuf(c, c.sendx), cas.elem)
+ 	c.sendx++
+ 	if c.sendx == c.dataqsiz {
+@@ -482,6 +495,9 @@ send:
+ 	if msanenabled {
+ 		msanread(cas.elem, c.elemtype.size)
+ 	}
++	if asanenabled {
++		asanread(cas.elem, c.elemtype.size)
++	}
+ 	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
+ 	if debugSelect {
+ 		print("syncsend: cas0=", cas0, " c=", c, "\n")
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index aab8a598c5..ac0b7d5fef 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -76,6 +76,9 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
+ 	if msanenabled {
+ 		msanread(from, copymem)
+ 	}
++	if asanenabled {
++		asanread(from, copymem)
++	}
+ 
+ 	memmove(to, from, copymem)
+ 
+@@ -168,6 +171,9 @@ func growslice(et *_type, old slice, cap int) slice {
+ 	if msanenabled {
+ 		msanread(old.array, uintptr(old.len*int(et.size)))
+ 	}
++	if asanenabled {
++		asanread(old.array, uintptr(old.len*int(et.size)))
++	}
+ 
+ 	if cap < old.cap {
+ 		panic(errorString("growslice: cap out of range"))
+@@ -311,6 +317,10 @@ func slicecopy(toPtr unsafe.Pointer, toLen int, fromPtr unsafe.Pointer, fromLen
+ 		msanread(fromPtr, size)
+ 		msanwrite(toPtr, size)
+ 	}
++	if asanenabled {
++		asanread(fromPtr, size)
++		asanwrite(toPtr, size)
++	}
+ 
+ 	if size == 1 { // common case worth about 2x to do here
+ 		// TODO: is this still worth it with new memmove impl?
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 8ae9c1e698..52d21e4ee4 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -424,6 +424,9 @@ func stackalloc(n uint32) stack {
+ 	if msanenabled {
+ 		msanmalloc(v, uintptr(n))
+ 	}
++	if asanenabled {
++		asanunpoison(v, uintptr(n))
++	}
+ 	if stackDebug >= 1 {
+ 		print("  allocated ", v, "\n")
+ 	}
+@@ -461,6 +464,9 @@ func stackfree(stk stack) {
+ 	if msanenabled {
+ 		msanfree(v, n)
+ 	}
++	if asanenabled {
++		asanpoison(v, n)
++	}
+ 	if n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
+ 		order := uint8(0)
+ 		n2 := n
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index d6990dab9a..980a9866e6 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -94,6 +94,9 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
+ 	if msanenabled {
+ 		msanread(unsafe.Pointer(ptr), uintptr(n))
+ 	}
++	if asanenabled {
++		asanread(unsafe.Pointer(ptr), uintptr(n))
++	}
+ 	if n == 1 {
+ 		p := unsafe.Pointer(&staticuint64s[*ptr])
+ 		if goarch.BigEndian {
+@@ -158,6 +161,9 @@ func slicebytetostringtmp(ptr *byte, n int) (str string) {
+ 	if msanenabled && n > 0 {
+ 		msanread(unsafe.Pointer(ptr), uintptr(n))
+ 	}
++	if asanenabled && n > 0 {
++		asanread(unsafe.Pointer(ptr), uintptr(n))
++	}
+ 	stringStructOf(&str).str = unsafe.Pointer(ptr)
+ 	stringStructOf(&str).len = n
+ 	return
+@@ -209,6 +215,9 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
+ 	if msanenabled && len(a) > 0 {
+ 		msanread(unsafe.Pointer(&a[0]), uintptr(len(a))*unsafe.Sizeof(a[0]))
+ 	}
++	if asanenabled && len(a) > 0 {
++		asanread(unsafe.Pointer(&a[0]), uintptr(len(a))*unsafe.Sizeof(a[0]))
++	}
+ 	var dum [4]byte
+ 	size1 := 0
+ 	for _, r := range a {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 5de1abce9a..36627a6735 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1390,6 +1390,9 @@ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
+ 	if msanenabled {
+ 		msanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
+ 	}
++	if asanenabled {
++		asanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
++	}
+ 	call(cgoSymbolizer, noescape(unsafe.Pointer(arg)))
+ }
+ 
+@@ -1412,5 +1415,8 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
+ 	if msanenabled {
+ 		msanwrite(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
+ 	}
++	if asanenabled {
++		asanwrite(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
++	}
+ 	call(cgoTraceback, noescape(unsafe.Pointer(&arg)))
+ }
+diff --git a/src/syscall/asan.go b/src/syscall/asan.go
+new file mode 100644
+index 0000000000..3199130211
+--- /dev/null
++++ b/src/syscall/asan.go
+@@ -0,0 +1,23 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build asan
++// +build asan
++
++package syscall
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++const asanenabled = true
++
++func asanRead(addr unsafe.Pointer, len int) {
++	runtime.ASanRead(addr, len)
++}
++
++func asanWrite(addr unsafe.Pointer, len int) {
++	runtime.ASanWrite(addr, len)
++}
+diff --git a/src/syscall/asan0.go b/src/syscall/asan0.go
+new file mode 100644
+index 0000000000..7b69f4a64b
+--- /dev/null
++++ b/src/syscall/asan0.go
+@@ -0,0 +1,20 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !asan
++// +build !asan
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++const asanenabled = false
++
++func asanRead(addr unsafe.Pointer, len int) {
++}
++
++func asanWrite(addr unsafe.Pointer, len int) {
++}
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 9413db3832..5a91a023e1 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -197,6 +197,9 @@ func Read(fd int, p []byte) (n int, err error) {
+ 	if msanenabled && n > 0 {
+ 		msanWrite(unsafe.Pointer(&p[0]), n)
+ 	}
++	if asanenabled && n > 0 {
++		asanWrite(unsafe.Pointer(&p[0]), n)
++	}
+ 	return
+ }
+ 
+@@ -218,6 +221,9 @@ func Write(fd int, p []byte) (n int, err error) {
+ 	if msanenabled && n > 0 {
+ 		msanRead(unsafe.Pointer(&p[0]), n)
+ 	}
++	if asanenabled && n > 0 {
++		asanRead(unsafe.Pointer(&p[0]), n)
++	}
+ 	return
+ }
+ 
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index a8a78b9ef8..0456074d47 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -394,6 +394,9 @@ func Read(fd Handle, p []byte) (n int, err error) {
+ 	if msanenabled && done > 0 {
+ 		msanWrite(unsafe.Pointer(&p[0]), int(done))
+ 	}
++	if asanenabled && done > 0 {
++		asanWrite(unsafe.Pointer(&p[0]), int(done))
++	}
+ 	return int(done), nil
+ }
+ 
+@@ -412,6 +415,9 @@ func Write(fd Handle, p []byte) (n int, err error) {
+ 	if msanenabled && done > 0 {
+ 		msanRead(unsafe.Pointer(&p[0]), int(done))
+ 	}
++	if asanenabled && done > 0 {
++		asanRead(unsafe.Pointer(&p[0]), int(done))
++	}
+ 	return int(done), nil
+ }
+ 

@@ -7,7 +7,7 @@ Date:   Sun Sep 19 22:10:34 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2221042
-
+---
  src/cmd/6l/asm.c                   | 102 ++++++++-------------------
  src/cmd/6l/pass.c                  |  17 +++++
  src/cmd/6l/span.c                  |  37 +++++++---
@@ -22,3 +22,985 @@ Date:   Sun Sep 19 22:10:34 2010 -0400
  src/pkg/runtime/nacl/386/closure.c |   6 +-
  src/pkg/runtime/nacl/mem.c         |   6 ++
  13 files changed, 324 insertions(+), 194 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 53d539363c..d46721568c 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -138,6 +138,7 @@ addstring(Sym *s, char *str)
+ 	s->reachable = 1;
+ 	r = s->size;
+ 	n = strlen(str)+1;
++	elfsetstring(str, r);
+ 	while(n > 0) {
+ 		m = n;
+ 		if(m > sizeof(p->to.scon))
+@@ -236,8 +237,8 @@ addsize(Sym *s, Sym *t)
+ vlong
+ datoff(vlong addr)
+ {
+-	if(addr >= INITDAT)
+-		return addr - INITDAT + rnd(HEADR+textsize, INITRND);
++	if(addr >= segdata.vaddr)
++		return addr - segdata.vaddr + segdata.fileoff;
+ 	diag("datoff %#llx", addr);
+ 	return 0;
+ }
+@@ -297,6 +298,8 @@ doelf(void)
+ 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
+ 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
+ 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
++	addstring(shstrtab, ".elfdata");
++	addstring(shstrtab, ".rodata");
+ 	if(!debug['s']) {
+ 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
+ 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
+@@ -466,16 +469,18 @@ asmb(void)
+ 	int32 v, magic;
+ 	int a, dynsym;
+ 	uchar *op1;
+-	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink, etext;
++	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink, erodata;
+ 	vlong symdatva = SYMDATVA;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
++	Section *sect;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+ 	Bflush(&bso);
+ 
++	segtext.fileoff = 0;
+ 	elftextsh = 0;
+ 	elfsymsize = 0;
+ 	elfstro = 0;
+@@ -521,12 +526,13 @@ asmb(void)
+ 	datap = datsort(datap);
+ 
+ 	/* output read-only data in text segment */
+-	etext = INITTEXT + textsize;
+-	for(v = pc; v < etext; v += sizeof(buf)-Dbufslop) {
+-		if(etext - v > sizeof(buf)-Dbufslop)
++	sect = segtext.sect->next;
++	erodata = sect->vaddr + sect->len;
++	for(v = pc; v < erodata; v += sizeof(buf)-Dbufslop) {
++		if(erodata - v > sizeof(buf)-Dbufslop)
+ 			datblk(v, sizeof(buf)-Dbufslop);
+ 		else
+-			datblk(v, etext-v);
++			datblk(v, erodata-v);
+ 	}
+ 
+ 	switch(HEADTYPE) {
+@@ -573,6 +579,7 @@ asmb(void)
+ 		textsize = INITDAT;
+ 	}
+ 
++	segdata.fileoff = seek(cout, 0, 1);
+ 	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
+ 		if(datsize-v > sizeof(buf)-Dbufslop)
+ 			datblk(v+INITDAT, sizeof(buf)-Dbufslop);
+@@ -736,40 +743,16 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
+-		ph = newElfPhdr();
+-		ph->type = PT_LOAD;
+-		ph->flags = PF_X+PF_R;
+-		ph->vaddr = va - fo;
+-		ph->paddr = va - fo;
+-		ph->off = 0;
+-		ph->filesz = w + fo;
+-		ph->memsz = w + fo;
+-		ph->align = INITRND;
+-
+-		fo = rnd(fo+w, INITRND);
+-		va = rnd(va+w, INITRND);
+-		w = datsize;
+-
+-		ph = newElfPhdr();
+-		ph->type = PT_LOAD;
+-		ph->flags = PF_W+PF_R;
+-		ph->off = fo;
+-		ph->vaddr = va;
+-		ph->paddr = va;
+-		ph->filesz = w;
+-		ph->memsz = w+bsssize;
+-		ph->align = INITRND;
++		elfphload(&segtext);
++		elfphload(&segdata);
+ 
+ 		if(!debug['s']) {
+-			ph = newElfPhdr();
+-			ph->type = PT_LOAD;
+-			ph->flags = PF_R;
+-			ph->off = symo;
+-			ph->vaddr = symdatva;
+-			ph->paddr = symdatva;
+-			ph->filesz = rnd(8+symsize+lcsize, INITRND);
+-			ph->memsz = rnd(8+symsize+lcsize, INITRND);
+-			ph->align = INITRND;
++			segsym.rwx = 04;
++			segsym.vaddr = symdatva;
++			segsym.len = rnd(8+symsize+lcsize, INITRND);
++			segsym.fileoff = symo;
++			segsym.filelen = segsym.len;
++			elfphload(&segsym);
+ 		}
+ 
+ 		/* Dynamic linking sections */
+@@ -851,43 +834,14 @@ asmb(void)
+ 		ph->flags = PF_W+PF_R;
+ 		ph->align = 8;
+ 
+-		fo = ELFRESERVE;
+-		va = startva + fo;
+-		w = textsize;
+-
+ 		if(elftextsh != eh->shnum)
+ 			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
+-		sh = newElfShdr(elfstr[ElfStrText]);
+-		sh->type = SHT_PROGBITS;
+-		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
+-		sh->addr = va;
+-		sh->off = fo;
+-		sh->size = w;
+-		sh->addralign = 8;
+-
+-		fo = rnd(fo+w, INITRND);
+-		va = rnd(va+w, INITRND);
+-		w = datsize;
+-
+-		sh = newElfShdr(elfstr[ElfStrData]);
+-		sh->type = SHT_PROGBITS;
+-		sh->flags = SHF_WRITE+SHF_ALLOC;
+-		sh->addr = va + elfdatsize;
+-		sh->off = fo + elfdatsize;
+-		sh->size = w - elfdatsize;
+-		sh->addralign = 8;
+-
+-		fo += w;
+-		va += w;
+-		w = bsssize;
+-
+-		sh = newElfShdr(elfstr[ElfStrBss]);
+-		sh->type = SHT_NOBITS;
+-		sh->flags = SHF_WRITE+SHF_ALLOC;
+-		sh->addr = va;
+-		sh->off = fo;
+-		sh->size = w;
+-		sh->addralign = 8;
++		for(sect=segtext.sect; sect!=nil; sect=sect->next)
++			elfshbits(sect);
++		for(sect=segrodata.sect; sect!=nil; sect=sect->next)
++			elfshbits(sect);
++		for(sect=segdata.sect; sect!=nil; sect=sect->next)
++			elfshbits(sect);
+ 
+ 		if (!debug['s']) {
+ 			fo = symo;
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 275844c9b4..ea3351239f 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -45,10 +45,15 @@ dodata(void)
+ 	Sym *s;
+ 	Prog *p;
+ 	int32 t, u;
++	Section *sect;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f dodata\n", cputime());
+ 	Bflush(&bso);
++	
++	segdata.rwx = 06;
++	segdata.vaddr = 0;	/* span will += INITDAT */
++
+ 	for(p = datap; p != P; p = p->link) {
+ 		curtext = p;	// for diag messages
+ 		s = p->from.sym;
+@@ -79,6 +84,9 @@ dodata(void)
+ 		datsize += t;
+ 	}
+ 	elfdatsize = datsize;
++	
++	sect = addsection(&segdata, ".data", 06);
++	sect->vaddr = datsize;
+ 
+ 	/* allocate small guys */
+ 	for(i=0; i<NHASH; i++)
+@@ -147,6 +155,7 @@ dodata(void)
+ 		}
+ 		datsize += u;
+ 	}
++	sect->len = datsize - sect->vaddr;
+ }
+ 
+ void
+@@ -155,12 +164,16 @@ dobss(void)
+ 	int i;
+ 	Sym *s;
+ 	int32 t;
++	Section *sect;
+ 
+ 	if(dynptrsize > 0) {
+ 		/* dynamic pointer section between data and bss */
+ 		datsize = rnd(datsize, 8);
+ 	}
+ 
++	sect = addsection(&segdata, ".bss", 06);
++	sect->vaddr = datsize;
++
+ 	/* now the bss */
+ 	bsssize = 0;
+ 	for(i=0; i<NHASH; i++)
+@@ -175,6 +188,10 @@ dobss(void)
+ 		s->value = bsssize + dynptrsize + datsize;
+ 		bsssize += t;
+ 	}
++	sect->len = bsssize;
++	
++	segdata.len = datsize+bsssize;
++	segdata.filelen = datsize;
+ 
+ 	xdefine("data", SBSS, 0);
+ 	xdefine("edata", SBSS, datsize);
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index f18398a23a..49efa9a2e7 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -40,9 +40,10 @@ span(void)
+ {
+ 	Prog *p, *q;
+ 	int32 i, v;
+-	vlong c, idat;
++	vlong c, idat, etext, rodata, erodata;
+ 	int m, n, again;
+ 	Sym *s;
++	Section *sect;
+ 
+ 	xdefine("etext", STEXT, 0L);
+ 	xdefine("rodata", SRODATA, 0L);
+@@ -125,12 +126,13 @@ loop:
+ 		textsize = c;
+ 		goto loop;
+ 	}
+-	xdefine("etext", STEXT, c);
++	etext = c;
+ 	
+ 	/*
+ 	 * allocate read-only data to the text segment.
+ 	 */
+ 	c = rnd(c, 8);
++	rodata = c;
+ 	xdefine("rodata", SRODATA, c);
+ 	for(i=0; i<NHASH; i++)
+ 	for(s = hash[i]; s != S; s = s->link) {
+@@ -142,7 +144,7 @@ loop:
+ 		s->value = c;
+ 		c += v;
+ 	}
+-	xdefine("erodata", SRODATA, c);
++	erodata = c;
+ 
+ 	if(INITRND) {
+ 		INITDAT = rnd(c, INITRND);
+@@ -151,6 +153,10 @@ loop:
+ 			goto start;
+ 		}
+ 	}
++	
++	xdefine("etext", STEXT, etext);
++	xdefine("rodata", SRODATA, rodata);
++	xdefine("erodata", SRODATA, erodata);
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "etext = %llux\n", c);
+@@ -158,6 +164,23 @@ loop:
+ 	for(p = textp; p != P; p = p->pcond)
+ 		p->from.sym->value = p->pc;
+ 	textsize = c - INITTEXT;
++	
++	segtext.rwx = 05;
++	segtext.vaddr = INITTEXT - HEADR;
++	segtext.len = INITDAT - INITTEXT + HEADR;
++	segtext.filelen = textsize + HEADR;
++	
++	sect = addsection(&segtext, ".text", 05);
++	sect->vaddr = INITTEXT;
++	sect->len = etext - sect->vaddr;
++	
++	sect = addsection(&segtext, ".rodata", 04);
++	sect->vaddr = rodata;
++	sect->len = erodata - rodata;
++	
++	segdata.vaddr += INITDAT;
++	for(sect=segdata.sect; sect!=nil; sect=sect->next)
++		sect->vaddr += INITDAT;
+ }
+ 
+ void
+@@ -166,12 +189,8 @@ xdefine(char *p, int t, vlong v)
+ 	Sym *s;
+ 
+ 	s = lookup(p, 0);
+-	if(s->type == 0 || s->type == SXREF) {
+-		s->type = t;
+-		s->value = v;
+-	}
+-	if(s->type == STEXT && s->value == 0)
+-		s->value = v;
++	s->type = t;
++	s->value = v;
+ }
+ 
+ void
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 9e5790ecdc..0675b904b9 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -129,6 +129,7 @@ addstring(Sym *s, char *str)
+ 	s->reachable = 1;
+ 	r = s->size;
+ 	n = strlen(str)+1;
++	elfsetstring(str, r);
+ 	while(n > 0) {
+ 		m = n;
+ 		if(m > sizeof(p->to.scon))
+@@ -227,11 +228,8 @@ addsize(Sym *s, Sym *t)
+ vlong
+ datoff(vlong addr)
+ {
+-	if(addr >= INITDAT) {
+-		if(HEADTYPE == 8)
+-			return addr - INITDAT + rnd(HEADR+textsize, 4096);
+-		return addr - INITDAT + rnd(HEADR+textsize, INITRND);
+-	}
++	if(addr >= segdata.vaddr)
++		return addr - segdata.vaddr + segdata.fileoff;
+ 	diag("datoff %#llx", addr);
+ 	return 0;
+ }
+@@ -290,6 +288,10 @@ doelf(void)
+ 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
+ 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
+ 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
++	addstring(shstrtab, ".elfdata");
++	if(HEADTYPE == 8)
++		addstring(shstrtab, ".closure");
++	addstring(shstrtab, ".rodata");
+ 	if(!debug['s']) {
+ 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
+ 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
+@@ -455,12 +457,13 @@ asmb(void)
+ 	Prog *p;
+ 	int32 v, magic;
+ 	int a, dynsym;
+-	uint32 va, fo, w, symo, startva, machlink, etext;
++	uint32 va, fo, w, symo, startva, machlink, erodata;
+ 	uchar *op1;
+ 	ulong expectpc;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
++	Section *sect;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+@@ -523,20 +526,31 @@ asmb(void)
+ 		cbc -= a;
+ 	}
+ 	if(HEADTYPE == 8) {
+-		while(pc < INITDAT) {
++		int32 etext;
++		
++		etext = rnd(segtext.vaddr + segtext.filelen, 4096);
++		while(pc < etext) {
+ 			cput(0xf4);	// hlt
+ 			pc++;
+ 		}
++		pc = segrodata.vaddr;
+ 	}
+ 	cflush();
+-	
++
+ 	/* output read-only data in text segment */
+-	etext = INITTEXT + textsize;
+-	for(v = pc; v < etext; v += sizeof(buf)-Dbufslop) {
+-		if(etext-v > sizeof(buf)-Dbufslop)
++	if(HEADTYPE == 8) {
++		// Native Client
++		sect = segrodata.sect;
++		segrodata.fileoff = seek(cout, 0, 1);
++	} else
++		sect = segtext.sect->next;
++
++	erodata = sect->vaddr + sect->len;
++	for(v = pc; v < erodata; v += sizeof(buf)-Dbufslop) {
++		if(erodata-v > sizeof(buf)-Dbufslop)
+ 			datblk(v, sizeof(buf)-Dbufslop, 1);
+ 		else
+-			datblk(v, etext-v, 1);
++			datblk(v, erodata-v, 1);
+ 	}
+ 
+ 	switch(HEADTYPE) {
+@@ -573,12 +587,12 @@ asmb(void)
+ 		// text segment file address to 4096 bytes,
+ 		// but text segment memory address rounds
+ 		// to INITRND (65536).
+-		v = rnd(HEADR+textsize, 4096);
++		v = rnd(segrodata.fileoff+segrodata.filelen, 4096);
+ 		seek(cout, v, 0);
+ 		break;
+ 	Elfseek:
+ 	case 10:
+-		v = rnd(HEADR+textsize, INITRND);
++		v = rnd(segtext.fileoff+segtext.filelen, INITRND);
+ 		seek(cout, v, 0);
+ 		break;
+ 	}
+@@ -594,6 +608,7 @@ asmb(void)
+ 		textsize = INITDAT;
+ 	}
+ 
++	segdata.fileoff = seek(cout, 0, 1);
+ 	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
+ 		if(datsize-v > sizeof(buf)-Dbufslop)
+ 			datblk(v, sizeof(buf)-Dbufslop, 0);
+@@ -859,50 +874,18 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
+-		ph = newElfPhdr();
+-		ph->type = PT_LOAD;
+-		ph->flags = PF_X+PF_R;
+-		if(HEADTYPE != 8) {	// Include header, but not on Native Client.
+-			va -= fo;
+-			w += fo;
+-			fo = 0;
+-		}
+-		ph->vaddr = va;
+-		ph->paddr = va;
+-		ph->off = fo;
+-		ph->filesz = w;
+-		ph->memsz = INITDAT - va;
+-		ph->align = INITRND;
+-
+-		// NaCl text segment file address rounds to 4096;
+-		// only memory address rounds to INITRND.
+-		if(HEADTYPE == 8)
+-			fo = rnd(fo+w, 4096);
+-		else
+-			fo = rnd(fo+w, INITRND);
+-		va = INITDAT;
+-		w = datsize;
+-
+-		ph = newElfPhdr();
+-		ph->type = PT_LOAD;
+-		ph->flags = PF_W+PF_R;
+-		ph->off = fo;
+-		ph->vaddr = va;
+-		ph->paddr = va;
+-		ph->filesz = w;
+-		ph->memsz = w+bsssize;
+-		ph->align = INITRND;
++		elfphload(&segtext);
++		if(segrodata.len > 0)
++			elfphload(&segrodata);
++		elfphload(&segdata);
+ 
+ 		if(!debug['s'] && HEADTYPE != 8 && HEADTYPE != 11) {
+-			ph = newElfPhdr();
+-			ph->type = PT_LOAD;
+-			ph->flags = PF_R;
+-			ph->off = symo;
+-			ph->vaddr = symdatva;
+-			ph->paddr = symdatva;
+-			ph->filesz = rnd(8+symsize+lcsize, INITRND);
+-			ph->memsz = rnd(8+symsize+lcsize, INITRND);
+-			ph->align = INITRND;
++			segsym.rwx = 04;
++			segsym.vaddr = symdatva;
++			segsym.len = rnd(8+symsize+lcsize, INITRND);
++			segsym.fileoff = symo;
++			segsym.filelen = segsym.len;
++			elfphload(&segsym);
+ 		}
+ 
+ 		/* Dynamic linking sections */
+@@ -984,46 +967,12 @@ asmb(void)
+ 		ph->flags = PF_W+PF_R;
+ 		ph->align = 4;
+ 
+-		fo = HEADR;
+-		va = startva + fo;
+-		w = textsize;
+-
+-		sh = newElfShdr(elfstr[ElfStrText]);
+-		sh->type = SHT_PROGBITS;
+-		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
+-		sh->addr = va;
+-		sh->off = fo;
+-		sh->size = w;
+-		sh->addralign = 4;
+-
+-		// NaCl text segment file address rounds to 4096;
+-		// only memory address rounds to INITRND.
+-		if(HEADTYPE == 8)
+-			fo = rnd(fo+w, 4096);
+-		else
+-			fo = rnd(fo+w, INITRND);
+-		va = rnd(va+w, INITRND);
+-		w = datsize;
+-
+-		sh = newElfShdr(elfstr[ElfStrData]);
+-		sh->type = SHT_PROGBITS;
+-		sh->flags = SHF_WRITE+SHF_ALLOC;
+-		sh->addr = va + elfdatsize;
+-		sh->off = fo + elfdatsize;
+-		sh->size = w - elfdatsize;
+-		sh->addralign = 4;
+-
+-		fo += w;
+-		va += w;
+-		w = bsssize;
+-
+-		sh = newElfShdr(elfstr[ElfStrBss]);
+-		sh->type = SHT_NOBITS;
+-		sh->flags = SHF_WRITE+SHF_ALLOC;
+-		sh->addr = va;
+-		sh->off = fo;
+-		sh->size = w;
+-		sh->addralign = 4;
++		for(sect=segtext.sect; sect!=nil; sect=sect->next)
++			elfshbits(sect);
++		for(sect=segrodata.sect; sect!=nil; sect=sect->next)
++			elfshbits(sect);
++		for(sect=segdata.sect; sect!=nil; sect=sect->next)
++			elfshbits(sect);
+ 
+ 		if (!debug['s']) {
+ 			fo = symo;
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index dd27878725..bf09fd9111 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -45,10 +45,15 @@ dodata(void)
+ 	Sym *s;
+ 	Prog *p;
+ 	int32 t, u;
++	Section *sect;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f dodata\n", cputime());
+ 	Bflush(&bso);
++
++	segdata.rwx = 06;
++	segdata.vaddr = 0;	/* span will += INITDAT */
++
+ 	for(p = datap; p != P; p = p->link) {
+ 		s = p->from.sym;
+ 		if(p->as == ADYNT || p->as == AINIT)
+@@ -79,6 +84,9 @@ dodata(void)
+ 	}
+ 	elfdatsize = datsize;
+ 
++	sect = addsection(&segdata, ".data", 06);
++	sect->vaddr = datsize;
++
+ 	/* allocate small guys */
+ 	for(i=0; i<NHASH; i++)
+ 	for(s = hash[i]; s != S; s = s->link) {
+@@ -143,8 +151,11 @@ dodata(void)
+ 		/* dynamic pointer section between data and bss */
+ 		datsize = rnd(datsize, 4);
+ 	}
++	sect->len = datsize - sect->vaddr;
+ 
+ 	/* now the bss */
++	sect = addsection(&segdata, ".bss", 06);
++	sect->vaddr = datsize;
+ 	bsssize = 0;
+ 	for(i=0; i<NHASH; i++)
+ 	for(s = hash[i]; s != S; s = s->link) {
+@@ -156,6 +167,10 @@ dodata(void)
+ 		s->value = bsssize + dynptrsize + datsize;
+ 		bsssize += t;
+ 	}
++	sect->len = bsssize;
++
++	segdata.len = datsize+bsssize;
++	segdata.filelen = datsize;
+ 
+ 	xdefine("data", SBSS, 0);
+ 	xdefine("edata", SBSS, datsize);
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 373ab8a9c6..105d18b9f8 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -35,9 +35,10 @@ void
+ span(void)
+ {
+ 	Prog *p, *q;
+-	int32 i, v, c, idat;
++	int32 i, v, c, idat, etext, rodata, erodata;
+ 	int m, n, again;
+ 	Sym *s;
++	Section *sect;
+ 
+ 	xdefine("etext", STEXT, 0L);
+ 	xdefine("rodata", SRODATA, 0L);
+@@ -110,13 +111,16 @@ start:
+ 		textsize = c;
+ 		n++;
+ 	}while(again);
+-	xdefine("etext", STEXT, c);
++	etext = c;
++	c += textpad;
+ 	
+ 	/*
+ 	 * allocate read-only data to the text segment.
+ 	 */
++	if(HEADTYPE == 8)
++		c = rnd(c, INITRND);
+ 	c = rnd(c, 8);
+-	xdefine("rodata", SRODATA, c);
++	rodata = c;
+ 	for(i=0; i<NHASH; i++)
+ 	for(s = hash[i]; s != S; s = s->link) {
+ 		if(s->type != SRODATA)
+@@ -127,22 +131,59 @@ start:
+ 		s->value = c;
+ 		c += v;
+ 	}
+-	xdefine("erodata", SRODATA, c);
++	erodata = c;
+ 
+ 	if(INITRND) {
+-		INITDAT = rnd(c+textpad, INITRND);
++		INITDAT = rnd(c, INITRND);
+ 		if(INITDAT != idat) {
+ 			idat = INITDAT;
+ 			goto start;
+ 		}
+ 	}
+ 
++	xdefine("etext", STEXT, etext);
++	xdefine("rodata", SRODATA, rodata);
++	xdefine("erodata", SRODATA, erodata);
++
+ 	if(debug['v'])
+ 		Bprint(&bso, "etext = %lux\n", c);
+ 	Bflush(&bso);
+ 	for(p = textp; p != P; p = p->pcond)
+ 		p->from.sym->value = p->pc;
+ 	textsize = c - INITTEXT;
++
++	segtext.rwx = 05;
++	if(HEADTYPE == 8) {
++		segtext.vaddr = INITTEXT;
++		segtext.len = rodata - INITTEXT;
++		segtext.fileoff = HEADR;
++		segtext.filelen = etext - INITTEXT;
++
++		segrodata.rwx = 04;
++		segrodata.vaddr = rodata;
++		segrodata.len = erodata - rodata;
++		segrodata.filelen = segrodata.len;
++	} else {
++		segtext.vaddr = INITTEXT - HEADR;
++		segtext.len = INITDAT - INITTEXT + HEADR;
++		segtext.fileoff = 0;
++		segtext.filelen = segtext.len;
++	}
++
++	sect = addsection(&segtext, ".text", 05);
++	sect->vaddr = INITTEXT;
++	sect->len = etext - sect->vaddr;
++	
++	if(HEADTYPE == 8)
++		sect = addsection(&segrodata, ".rodata", 04);
++	else
++		sect = addsection(&segtext, ".rodata", 04);
++	sect->vaddr = rodata;
++	sect->len = erodata - rodata;
++
++	segdata.vaddr += INITDAT;
++	for(sect=segdata.sect; sect!=nil; sect=sect->next)
++		sect->vaddr += INITDAT;
+ }
+ 
+ void
+@@ -151,12 +192,8 @@ xdefine(char *p, int t, int32 v)
+ 	Sym *s;
+ 
+ 	s = lookup(p, 0);
+-	if(s->type == 0 || s->type == SXREF) {
+-		s->type = t;
+-		s->value = v;
+-	}
+-	if(s->type == STEXT && s->value == 0)
+-		s->value = v;
++	s->type = t;
++	s->value = v;
+ }
+ 
+ void
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index d21d05789c..add9277b36 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -812,7 +812,7 @@ enum
+ vlong elfstrdbg[NElfStrDbg];
+ 
+ void
+-dwarfaddshstrings(Sym * shstrtab)
++dwarfaddshstrings(Sym *shstrtab)
+ {
+ 	elfstrdbg[ElfStrDebugAbbrev]   = addstring(shstrtab, ".debug_abbrev");
+ 	elfstrdbg[ElfStrDebugAranges]  = addstring(shstrtab, ".debug_aranges");
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index c5d58576dc..0ebdcf024c 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -21,6 +21,16 @@ static	ElfPhdr	*phdr[NSECT];
+ static	ElfShdr	*shdr[NSECT];
+ static	char	*interp;
+ 
++typedef struct Elfstring Elfstring;
++struct Elfstring
++{
++	char *s;
++	int off;
++};
++
++static Elfstring elfstr[100];
++static int nelfstr;
++
+ /*
+  Initialize the global variable that describes the ELF header. It will be updated as
+  we write section and prog headers.
+@@ -122,6 +132,18 @@ elfwriteshdrs(void)
+ 	return hdr.shnum * ELF32SHDRSIZE;
+ }
+ 
++void
++elfsetstring(char *s, int off)
++{
++	if(nelfstr >= nelem(elfstr)) {
++		diag("too many elf strings");
++		errorexit();
++	}
++	elfstr[nelfstr].s = s;
++	elfstr[nelfstr].off = off;
++	nelfstr++;
++}
++
+ uint32
+ elfwritephdrs(void)
+ {
+@@ -365,3 +387,61 @@ elfdynhash(int nsym)
+ 	free(chain);
+ 	free(buckets);
+ }
++
++ElfPhdr*
++elfphload(Segment *seg)
++{
++	ElfPhdr *ph;
++	
++	ph = newElfPhdr();
++	ph->type = PT_LOAD;
++	if(seg->rwx & 4)
++		ph->flags |= PF_R;
++	if(seg->rwx & 2)
++		ph->flags |= PF_W;
++	if(seg->rwx & 1)
++		ph->flags |= PF_X;
++	ph->vaddr = seg->vaddr;
++	ph->paddr = seg->vaddr;
++	ph->memsz = seg->len;
++	ph->off = seg->fileoff;
++	ph->filesz = seg->filelen;
++	ph->align = INITRND;
++	
++	return ph;
++}
++
++ElfShdr*
++elfshbits(Section *sect)
++{
++	int i, off;
++	ElfShdr *sh;
++	
++	for(i=0; i<nelfstr; i++) {
++		if(strcmp(sect->name, elfstr[i].s) == 0) {
++			off = elfstr[i].off;
++			goto found;
++		}
++	}
++	diag("cannot find elf name %s", sect->name);
++	errorexit();
++	return nil;
++
++found:
++	sh = newElfShdr(off);
++	if(sect->vaddr < sect->seg->vaddr + sect->seg->filelen)
++		sh->type = SHT_PROGBITS;
++	else
++		sh->type = SHT_NOBITS;
++	sh->flags = SHF_ALLOC;
++	if(sect->rwx & 1)
++		sh->flags |= SHF_EXECINSTR;
++	if(sect->rwx & 2)
++		sh->flags |= SHF_WRITE;
++	sh->addr = sect->vaddr;
++	sh->addralign = PtrSize;
++	sh->size = sect->len;
++	sh->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
++	
++	return sh;
++}
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index 9b5fdb17e9..41a6b39669 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -965,6 +965,9 @@ extern	int	iself;
+ int	elfwriteinterp(void);
+ void	elfinterp(ElfShdr*, uint64, char*);
+ void	elfdynhash(int);
++ElfPhdr* elfphload(Segment*);
++ElfShdr* elfshbits(Section*);
++void	elfsetstring(char*, int);
+ 
+ /*
+  * Total amount of space to reserve at the start of the file
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index c91705c6ba..0cdc6778fc 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -908,3 +908,19 @@ mangle(char *file)
+ 	fprint(2, "%s: mangled input file\n", file);
+ 	errorexit();
+ }
++
++Section*
++addsection(Segment *seg, char *name, int rwx)
++{
++	Section **l;
++	Section *sect;
++	
++	for(l=&seg->sect; *l; l=&(*l)->next)
++		;
++	sect = mal(sizeof *sect);
++	sect->rwx = rwx;
++	sect->name = name;
++	sect->seg = seg;
++	*l = sect;
++	return sect;
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 501b6a2cbc..092161e14b 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -40,6 +40,34 @@ struct Library
+ 	char *pkg;	// import path
+ };
+ 
++// Terrible but standard terminology.
++// A segment describes a block of file to load into memory.
++// A section further describes the pieces of that block for
++// use in debuggers and such.
++
++typedef struct Segment Segment;
++typedef struct Section Section;
++
++struct Segment
++{
++	uchar	rwx;		// permission as usual unix bits (5 = r-x etc)
++	uvlong	vaddr;	// virtual address
++	uvlong	len;		// length in memory
++	uvlong	fileoff;	// file offset
++	uvlong	filelen;	// length on disk
++	Section*	sect;
++};
++
++struct Section
++{
++	uchar	rwx;
++	char	*name;
++	uvlong	vaddr;
++	uvlong	len;
++	Section	*next;	// in segment list
++	Segment	*seg;
++};
++
+ extern	char	symname[];
+ extern	char	*libdir[];
+ extern	int	nlibdir;
+@@ -65,8 +93,14 @@ EXTERN	char*	outfile;
+ EXTERN	int32	nsymbol;
+ EXTERN	char*	thestring;
+ 
++EXTERN	Segment	segtext;
++EXTERN	Segment	segdata;
++EXTERN	Segment	segrodata;	// NaCl only
++EXTERN	Segment	segsym;
++
+ void	addlib(char *src, char *obj);
+ void	addlibpath(char *srcref, char *objref, char *file, char *pkg);
++Section*	addsection(Segment*, char*, int);
+ void	copyhistfrog(char *buf, int nbuf);
+ void	addhist(int32 line, int type);
+ void	histtoauto(void);
+diff --git a/src/pkg/runtime/nacl/386/closure.c b/src/pkg/runtime/nacl/386/closure.c
+index 6a27d6ec6f..977e6301e6 100644
+--- a/src/pkg/runtime/nacl/386/closure.c
++++ b/src/pkg/runtime/nacl/386/closure.c
+@@ -145,7 +145,7 @@ void
+ {
+ 	byte *p, **ret;
+ 	int32 e, i, n, off;
+-	extern byte data[], etext[];
++	extern byte rodata[], etext[];
+ 	ClosureData *d, **block;
+ 	ClosureDataList *l;
+ 	ClosureFreeList *f;
+@@ -169,9 +169,9 @@ void
+ 			clos.code = (byte*)(((uintptr)etext + 65535) & ~65535);
+ 			clos.ecode = clos.code;
+ 			mheap.closure_min = clos.code;
+-			mheap.closure_max = data;
++			mheap.closure_max = rodata;
+ 		}
+-		if(clos.ecode+ClosureChunk > data) {
++		if(clos.ecode+ClosureChunk > rodata) {
+ 			// Last ditch effort: garbage collect and hope.
+ 			unlock(&clos);
+ 			gc(1);
+diff --git a/src/pkg/runtime/nacl/mem.c b/src/pkg/runtime/nacl/mem.c
+index f6fbe5016d..0bdd38211e 100644
+--- a/src/pkg/runtime/nacl/mem.c
++++ b/src/pkg/runtime/nacl/mem.c
+@@ -3,6 +3,10 @@
+ #include "os.h"
+ #include "malloc.h"
+ 
++enum {
++	NaclPage = 0x10000
++};
++
+ void*
+ SysAlloc(uintptr n)
+ {
+@@ -21,6 +25,8 @@ SysUnused(void *v, uintptr n)
+ void
+ SysFree(void *v, uintptr n)
+ {
++	// round to page size or else nacl prints annoying log messages
++	n = (n+NaclPage-1) & ~(NaclPage-1);
+ 	runtime_munmap(v, n);
+ }
+ 

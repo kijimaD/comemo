@@ -9,6 +9,20 @@ Date:   Mon Sep 18 17:07:21 2017 +0200
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/buffer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 67566a13d9..099e431a36 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -131,7 +131,7 @@ func (b *Buffer) grow(n int) int {
+ 		// slice. We only need m+n <= c to slide, but
+ 		// we instead let capacity get twice as large so we
+ 		// don't spend all our time copying.
+-		copy(b.buf[:], b.buf[b.off:])
++		copy(b.buf, b.buf[b.off:])
+ 	} else if c > maxInt-c-n {
+ 		panic(ErrTooLarge)
+ 	} else {

@@ -10,7 +10,179 @@ Date:   Fri Jan 29 16:37:20 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/196070
-
+---
  doc/gccgo_contribute.html | 70 ++++++++++++++++++++++++++---------------------
  doc/gccgo_install.html    | 41 +++++++++++++++++++++++++--
  2 files changed, 78 insertions(+), 33 deletions(-)
+
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index 844f676d80..cab6967f36 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -21,26 +21,40 @@ rules.</a>
+ <h2>Code</h2>
+ 
+ <p>
+-The source code for the <code>gccgo</code> frontend may be found in
+-the directory <code>gcc/go</code>.  The frontend is written in C++ and
+-as such the GNU coding standards do not entirely apply; in writing
+-code for the frontend, follow the formatting of the surrounding code.
+-Although the frontend is currently closely tied to the rest of the gcc
+-codebase, we plan to make it more independent.  Any new code which
+-uses other parts of gcc should be segregated in an appropriate file,
+-such as <code>gogo-tree.cc</code>.
++The source code for the <code>gccgo</code> frontend may be found at
++<a href="http://code.google.com/p/gofrontend">http://code.google.com/p/gofrontend</a>.
++Changes made to that project are routinely merged into the source code
++hosted at <code>gcc.gnu.org</code>.  The <code>gofrontend</code>
++project includes only the Go frontend proper.  These are the files
++which in the <code>gcc</code> sources may be found in the
++directories <code>gcc/go</code> and <code>libgo</code>.
++The <code>gcc</code> sources also include a copy of
++the <code>test</code> directory
++from <a href="http://code.google.com/p/go">the main Go repository</a>.
++
++<p>
++The frontend is written in C++ and as such the GNU coding standards do
++not entirely apply; in writing code for the frontend, follow the
++formatting of the surrounding code.  Although the frontend is
++currently closely tied to the rest of the <code>gcc</code> codebase,
++we plan to make it more independent.  Any new code that uses other
++parts of <code>gcc</code> should be placed in an appropriate file,
++such as <code>gogo-tree.cc</code>.  Eventually
++all <code>gcc</code>-specific code should migrate to
++a <code>gcc-interface</code> subdirectory.
+ </p>
+ 
+ <p>
+ The runtime library for <code>gccgo</code> is mostly the same as the
+-library in the main Mercurial repository.  The library code in the
+-Mercurial repository is periodically copied into
+-the <code>gccgo</code> repository.  Accordingly, most library changes
+-should be made in Mercurial.  Changes to the few <code>gccgo</code>
+-specific parts of the library should follow the process described
+-here.  The <code>gccgo</code> specific parts of the library are
+-everything in the <code>libgo</code> directory except for
+-the <code>libgo/go</code> subdirectory.
++library in <a href="http://code.google.com/p/go">the main Go
++repository</a>.  The library code in the Go repository is periodically
++copied into the <code>gofrontend</code> and the <code>gcc</code>
++repositories.  Accordingly, most library changes should be made in the
++main Go repository.  Changes to the few <code>gccgo</code>-specific
++parts of the library should follow the process described here.
++The <code>gccgo</code>-specific parts of the library are everything in
++the <code>libgo</code> directory except for the <code>libgo/go</code>
++subdirectory.
+ </p>
+ 
+ <h2>Testing</h2>
+@@ -54,8 +68,8 @@ introduces new failures is not acceptable.
+ To run the compiler test suite, run <code>make check-go</code> in the
+ <code>gcc</code> subdirectory of your build directory.  This will run
+ various tests underneath <code>gcc/testsuite/go.*</code>.  This
+-includes a copy of the tests in the Mercurial repository, which are
+-run using the DejaGNU script found in
++includes a copy of the tests in the main Go repository, which are run
++using the DejaGNU script found in
+ in <code>gcc/testsuite/go.test/go-test.exp</code>.  Many of the
+ compiler tests may be run without the Go library, but some do require
+ the library to built first.
+@@ -67,25 +81,19 @@ check-target-libgo</code> in the top level of your build directory.
+ </p>
+ 
+ <p>
+-Most new tests should be submitted to the Mercurial repository for
++Most new tests should be submitted to the main Go repository for
+ copying into the <code>gccgo</code> repository.  If there is a need
+ for specific tests for <code>gccgo</code>, they should go in
+ the <code>gcc/testsuite/go.go-torture</code>
+-or <code>gcc/testsuite/go.dg</code> directories.
++or <code>gcc/testsuite/go.dg</code> directories in
++the <code>gcc.gnu.org</code> repository.
+ </p>
+ 
+ <h2>Submitting Changes</h2>
+ 
+ <p>
+-Proposing a patch should follow the standard GCC rules.  That is, the
+-patch should be sent to the mailing
+-list <code>gcc-patches@gcc.gnu.org</code> as a diff&mdash;the output
+-of the <code>diff</code> program with the <code>-c</code>
+-or <code>-u</code> option.  In the future we are likely to set up a
+-separate gccgo-specific mailing list, which should also be CC'ed; we
+-will update this document at that time.  Patch emails should include a
+-ChangeLog entry, though the ChangeLog entry should not be in the diff
+-itself.  ChangeLog files are a standard part of GNU programs; see
+-<a href="http://www.gnu.org/prep/standards/html_node/Change-Logs.html">the
+-GNU coding standards</a>.
++Changes to the Go frontend should follow the same process as for the
++main Go repository, only for the <code>gofrontend</code> project
++rather than the <code>go</code> project.  Those changes will then be
++merged into the <code>gcc</code> sources.
+ </p>
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index 5766f91142..3ffd6a6457 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -27,6 +27,15 @@ is a branch of the main <code>gcc</code> code
+ repository: <code>svn://gcc.gnu.org/svn/gcc/branches/gccgo</code>.
+ </p>
+ 
++<p>
++Note that although <code>gcc.gnu.org</code> is the most convenient way
++to get the source code for the compiler, that is not where the master
++sources live.  If you want to contribute changes to the gccgo
++compiler, see <a href="gccgo_contribute.html">Contributing to
++gccgo</a>.
++</p>
++
++
+ <h2 id="Building">Building</h2>
+ 
+ <p>
+@@ -139,6 +148,32 @@ future the requirement of explicitly specifying
+ may be removed.
+ 
+ 
++<h2 id="Options">Options</h2>
++
++<p>
++The <code>gccgo</code> compiler supports all <code>gcc</code> options
++that are language independent, notably the <code>-O</code>
++and <code>-g</code> options.
++
++<p>
++The <code>-fgo-prefix=PREFIX</code> option may be used to set a unique
++prefix for the package being compiled.  This option is intended for
++use with large programs that contain many packages, in order to allow
++multiple packages to use the same identifier as the package name.
++The <code>PREFIX</code> may be any string; a good choice for the
++string is the directory where the package will be installed.
++
++<p>
++The <code>-fno-require-return-statement</code> option may be used to
++disable the compiler error about functions missing return statements.
++Note that there is no way to disable this error in <code>6g</code>.
++
++<p>
++The <code>-I</code> and <code>-L</code> options, which are synonyms
++for the compiler, may be used to set the search path for finding
++imports.
++
++
+ <h2 id="Imports">Imports</h2>
+ 
+ <p>
+@@ -195,8 +230,10 @@ Some Go features are not yet implemented in <code>gccgo</code>.  As of
+ <li>Garbage collection is not implemented. There is no way to free memory.
+     Thus long running programs are not supported.
+ 
+-<li>goroutines are implemented as NPTL threads with a fixed stack size.
+-    The number of goroutines that may be created at one time is limited.
++<li>goroutines are implemented as NPTL threads.  If you can not use
++    the gold linker as described above, they are created with a fixed
++    stack size, and the number of goroutines that may be created at
++    one time is limited.
+ </ul>
+ 
+ <h2 id="Debugging">Debugging</h2>

@@ -19,6 +19,21 @@ Date:   Sat Jul 29 16:33:13 2023 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/dist/build.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 8973a87168..0afa5f062e 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1577,6 +1577,9 @@ func cmdbootstrap() {
+ 		ok[f] = true
+ 	}
+ 	for _, f := range binFiles {
++		if gohostos == "darwin" && filepath.Base(f) == ".DS_Store" {
++			continue // unfortunate but not unexpected
++		}
+ 		elem := strings.TrimSuffix(filepath.Base(f), ".exe")
+ 		if !ok[f] && elem != "go" && elem != "gofmt" && elem != goos+"_"+goarch {
+ 			fatalf("unexpected new file in $GOROOT/bin: %s", elem)

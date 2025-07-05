@@ -7,8 +7,109 @@ Date:   Fri Oct 15 21:25:34 2010 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2519042
-
+---
  src/cmd/gc/go.h        | 13 +++++++------
  src/cmd/gc/subr.c      | 12 ++++++------
  src/cmd/gc/typecheck.c |  3 ++-
  3 files changed, 15 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ec1ada74ed..78472d22eb 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -41,7 +41,7 @@ enum
+ 	AMEMWORD,
+ 
+ 	BADWIDTH	= -1000000000,
+-	MAXWIDTH        = 1<<30
++	MAXWIDTH	= 1<<30
+ };
+ 
+ /*
+@@ -218,6 +218,7 @@ struct	Node
+ 	Node*	left;
+ 	Node*	right;
+ 	Type*	type;
++	Type*	realtype;	// as determined by typecheck
+ 	NodeList*	list;
+ 	NodeList*	rlist;
+ 
+@@ -636,9 +637,9 @@ EXTERN	Label*	labellist;
+  *
+  * typedef	struct
+  * {				// must not move anything
+- * 	uchar	array[8];	// pointer to data
+- * 	uchar	nel[4];		// number of elements
+- * 	uchar	cap[4];		// allocated number of elements
++ *	uchar	array[8];	// pointer to data
++ *	uchar	nel[4];		// number of elements
++ *	uchar	cap[4];		// allocated number of elements
+  * } Array;
+  */
+ EXTERN	int	Array_array;	// runtime offsetof(Array,array) - same for String
+@@ -653,8 +654,8 @@ EXTERN	int	sizeof_Array;	// runtime sizeof(Array)
+  *
+  * typedef	struct
+  * {				// must not move anything
+- * 	uchar	array[8];	// pointer to data
+- * 	uchar	nel[4];		// number of elements
++ *	uchar	array[8];	// pointer to data
++ *	uchar	nel[4];		// number of elements
+  * } String;
+  */
+ EXTERN	int	sizeof_String;	// runtime sizeof(String)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index a0cb9b4f13..ea41a1b7c4 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1273,7 +1273,7 @@ Tpretty(Fmt *fp, Type *t)
+ 			fmtprint(fp, "...%T", t->type->type);
+ 		else
+ 			fmtprint(fp, "%T", t->type);
+-		if(t->note) {	
++		if(t->note) {
+ 			fmtprint(fp, " ");
+ 			if(exporting)
+ 				fmtprint(fp, ":");
+@@ -3607,10 +3607,11 @@ umagic(Magic *m)
+ Sym*
+ ngotype(Node *n)
+ {
+-	if(n->sym != S && strncmp(n->sym->name, "autotmp_", 8) != 0)
+-	if(n->type->etype != TFUNC || n->type->thistuple == 0)
+-	if(n->type->etype != TSTRUCT || n->type->funarg == 0)
+-		return typename(n->type)->left->sym;
++	if(n->sym != S && n->realtype != T)
++	if(strncmp(n->sym->name, "autotmp_", 8) != 0)
++	if(strncmp(n->sym->name, "statictmp_", 8) != 0)
++		return typename(n->realtype)->left->sym;
++
+ 	return S;
+ }
+ 
+@@ -3684,4 +3685,3 @@ strlit(char *s)
+ 	t->len = strlen(s);
+ 	return t;
+ }
+-
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 28382f1fd2..9466c39c14 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -80,7 +80,7 @@ typecheck(Node **np, int top)
+ 	n = *np;
+ 	if(n == N)
+ 		return N;
+-	
++
+ 	// Resolve definition of name and value of iota lazily.
+ 	n = resolve(n);
+ 	*np = n;
+@@ -112,6 +112,7 @@ typecheck(Node **np, int top)
+ 			goto error;
+ 		}
+ 		walkdef(n);
++		n->realtype = n->type;
+ 		if(n->op == ONONAME)
+ 			goto error;
+ 	}

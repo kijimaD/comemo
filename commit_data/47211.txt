@@ -14,9 +14,64 @@ Date:   Thu Mar 4 10:39:32 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/list.go                  | 2 +-
  src/cmd/go/internal/modload/query.go                 | 2 +-
  src/cmd/go/internal/modload/query_test.go            | 2 +-
  src/cmd/go/testdata/script/mod_prefer_compatible.txt | 4 ++--
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index de16c2f786..6dba6bea22 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -78,7 +78,7 @@ func listModules(ctx context.Context, args []string, listVersions, listRetracted
+ 		if i := strings.Index(arg, "@"); i >= 0 {
+ 			path := arg[:i]
+ 			vers := arg[i+1:]
+-			var current string
++			current := "none"
+ 			for _, m := range buildList {
+ 				if m.Path == path {
+ 					current = m.Version
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 8affd179bb..a8012c792a 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -330,7 +330,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ 		}
+ 
+ 	case query == "patch":
+-		if current == "none" {
++		if current == "" || current == "none" {
+ 			return nil, &NoPatchBaseError{path}
+ 		}
+ 		if current == "" {
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index e225a0e71e..6e39df45a7 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -122,7 +122,7 @@ var queryTests = []struct {
+ 	{path: queryRepo, query: "upgrade", allow: "NOMATCH", err: `no matching versions for query "upgrade"`},
+ 	{path: queryRepo, query: "upgrade", current: "v1.9.9", allow: "NOMATCH", err: `vcs-test.golang.org/git/querytest.git@v1.9.9: disallowed module version`},
+ 	{path: queryRepo, query: "upgrade", current: "v1.99.99", err: `vcs-test.golang.org/git/querytest.git@v1.99.99: invalid version: unknown revision v1.99.99`},
+-	{path: queryRepo, query: "patch", current: "", vers: "v1.9.9"},
++	{path: queryRepo, query: "patch", current: "", err: `can't query version "patch" of module vcs-test.golang.org/git/querytest.git: no existing version is required`},
+ 	{path: queryRepo, query: "patch", current: "v0.1.0", vers: "v0.1.2"},
+ 	{path: queryRepo, query: "patch", current: "v1.9.0", vers: "v1.9.9"},
+ 	{path: queryRepo, query: "patch", current: "v1.9.10-pre1", vers: "v1.9.10-pre1"},
+diff --git a/src/cmd/go/testdata/script/mod_prefer_compatible.txt b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+index aa6260f63c..1b408c3e9e 100644
+--- a/src/cmd/go/testdata/script/mod_prefer_compatible.txt
++++ b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+@@ -23,8 +23,8 @@ stdout '^github.com/russross/blackfriday v1\.'
+ go list -m github.com/russross/blackfriday@upgrade
+ stdout '^github.com/russross/blackfriday v1\.'
+ 
+-go list -m github.com/russross/blackfriday@patch
+-stdout '^github.com/russross/blackfriday v1\.'
++! go list -m github.com/russross/blackfriday@patch
++stderr '^go list -m: github.com/russross/blackfriday@patch: can''t query version "patch" of module github.com/russross/blackfriday: no existing version is required$'
+ 
+ # If we're fetching directly from version control, ignored +incompatible
+ # versions should also be omitted by 'go list'.

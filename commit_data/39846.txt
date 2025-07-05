@@ -20,7 +20,69 @@ Date:   Mon Mar 25 16:34:19 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169257
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/order.go |  6 ++++++
  test/fixedbugs/issue31010.go         | 24 ++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7b86537a21..aae18ff227 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -383,6 +383,10 @@ func (o *Order) init(n *Node) {
+ // call orders the call expression n.
+ // n.Op is OCALLMETH/OCALLFUNC/OCALLINTER or a builtin like OCOPY.
+ func (o *Order) call(n *Node) {
++	if n.Ninit.Len() > 0 {
++		// Caller should have already called o.init(n).
++		Fatalf("%v with unexpected ninit", n.Op)
++	}
+ 	n.Left = o.expr(n.Left, nil)
+ 	n.Right = o.expr(n.Right, nil) // ODDDARG temp
+ 	o.exprList(n.List)
+@@ -578,6 +582,7 @@ func (o *Order) stmt(n *Node) {
+ 	case OAS2FUNC:
+ 		t := o.markTemp()
+ 		o.exprList(n.List)
++		o.init(n.Rlist.First())
+ 		o.call(n.Rlist.First())
+ 		o.as2(n)
+ 		o.cleanTemp(t)
+@@ -637,6 +642,7 @@ func (o *Order) stmt(n *Node) {
+ 	// Special: order arguments to inner call but not call itself.
+ 	case ODEFER, OGO:
+ 		t := o.markTemp()
++		o.init(n.Left)
+ 		o.call(n.Left)
+ 		o.out = append(o.out, n)
+ 		o.cleanTemp(t)
+diff --git a/test/fixedbugs/issue31010.go b/test/fixedbugs/issue31010.go
+new file mode 100644
+index 0000000000..836e85fd12
+--- /dev/null
++++ b/test/fixedbugs/issue31010.go
+@@ -0,0 +1,24 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var (
++	x  int
++	xs []int
++)
++
++func a([]int) (int, error)
++
++func b() (int, error) {
++	return a(append(xs, x))
++}
++
++func c(int, error) (int, error)
++
++func d() (int, error) {
++	return c(b())
++}

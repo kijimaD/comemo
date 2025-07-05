@@ -16,7 +16,7 @@ Date:   Tue Nov 26 10:52:43 2019 -0500
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |   2 +-
  src/cmd/compile/internal/s390x/ssa.go        |   2 +
  src/cmd/compile/internal/ssa/gen/S390X.rules |  12 +++
@@ -24,3 +24,258 @@ Date:   Tue Nov 26 10:52:43 2019 -0500
  src/cmd/compile/internal/ssa/opGen.go        | 112 +++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteS390X.go |  24 ++++++
  6 files changed, 162 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a710f81dc5..a89af236f4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2203,7 +2203,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 					conv = conv1
+ 				}
+ 			}
+-			if thearch.LinkArch.Family == sys.ARM64 || thearch.LinkArch.Family == sys.Wasm || s.softFloat {
++			if thearch.LinkArch.Family == sys.ARM64 || thearch.LinkArch.Family == sys.Wasm || thearch.LinkArch.Family == sys.S390X || s.softFloat {
+ 				if conv1, ok1 := uint64fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
+ 					conv = conv1
+ 				}
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index f1725bdda4..2de3ef4b35 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -498,6 +498,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpS390XLDGR, ssa.OpS390XLGDR,
+ 		ssa.OpS390XCEFBRA, ssa.OpS390XCDFBRA, ssa.OpS390XCEGBRA, ssa.OpS390XCDGBRA,
+ 		ssa.OpS390XCFEBRA, ssa.OpS390XCFDBRA, ssa.OpS390XCGEBRA, ssa.OpS390XCGDBRA,
++		ssa.OpS390XCELFBR, ssa.OpS390XCDLFBR, ssa.OpS390XCELGBR, ssa.OpS390XCDLGBR,
++		ssa.OpS390XCLFEBR, ssa.OpS390XCLFDBR, ssa.OpS390XCLGEBR, ssa.OpS390XCLGDBR,
+ 		ssa.OpS390XLDEBR, ssa.OpS390XLEDBR,
+ 		ssa.OpS390XFNEG, ssa.OpS390XFNEGS,
+ 		ssa.OpS390XLPDFR, ssa.OpS390XLNDFR:
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index f2c7f62dcf..5cff8df3a4 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -227,6 +227,18 @@
+ (Cvt64Fto32 ...) -> (CFDBRA ...)
+ (Cvt64Fto64 ...) -> (CGDBRA ...)
+ 
++// Lowering float <-> uint
++(Cvt32Uto32F ...) -> (CELFBR ...)
++(Cvt32Uto64F ...) -> (CDLFBR ...)
++(Cvt64Uto32F ...) -> (CELGBR ...)
++(Cvt64Uto64F ...) -> (CDLGBR ...)
++
++(Cvt32Fto32U ...) -> (CLFEBR ...)
++(Cvt32Fto64U ...) -> (CLGEBR ...)
++(Cvt64Fto32U ...) -> (CLFDBR ...)
++(Cvt64Fto64U ...) -> (CLGDBR ...)
++
++// Lowering float32 <-> float64
+ (Cvt32Fto64F ...) -> (LDEBR ...)
+ (Cvt64Fto32F ...) -> (LEDBR ...)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 6517957fd4..819046d30c 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -401,8 +401,17 @@ func init() {
+ 		{name: "CDFBRA", argLength: 1, reg: gpfp, asm: "CDFBRA"}, // convert int32 to float64
+ 		{name: "CEGBRA", argLength: 1, reg: gpfp, asm: "CEGBRA"}, // convert int64 to float32
+ 		{name: "CDGBRA", argLength: 1, reg: gpfp, asm: "CDGBRA"}, // convert int64 to float64
+-		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"},   // convert float64 to float32
+-		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"},   // convert float32 to float64
++		{name: "CLFEBR", argLength: 1, reg: fpgp, asm: "CLFEBR"}, // convert float32 to uint32
++		{name: "CLFDBR", argLength: 1, reg: fpgp, asm: "CLFDBR"}, // convert float64 to uint32
++		{name: "CLGEBR", argLength: 1, reg: fpgp, asm: "CLGEBR"}, // convert float32 to uint64
++		{name: "CLGDBR", argLength: 1, reg: fpgp, asm: "CLGDBR"}, // convert float64 to uint64
++		{name: "CELFBR", argLength: 1, reg: gpfp, asm: "CELFBR"}, // convert uint32 to float32
++		{name: "CDLFBR", argLength: 1, reg: gpfp, asm: "CDLFBR"}, // convert uint32 to float64
++		{name: "CELGBR", argLength: 1, reg: gpfp, asm: "CELGBR"}, // convert uint64 to float32
++		{name: "CDLGBR", argLength: 1, reg: gpfp, asm: "CDLGBR"}, // convert uint64 to float64
++
++		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"}, // convert float64 to float32
++		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"}, // convert float32 to float64
+ 
+ 		{name: "MOVDaddr", argLength: 1, reg: addr, aux: "SymOff", rematerializeable: true, symEffect: "Read"}, // arg0 + auxint + offset encoded in aux
+ 		{name: "MOVDaddridx", argLength: 2, reg: addridx, aux: "SymOff", symEffect: "Read"},                    // arg0 + arg1 + auxint + aux
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 963f1aa07a..d9d38a8b80 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2113,6 +2113,14 @@ const (
+ 	OpS390XCDFBRA
+ 	OpS390XCEGBRA
+ 	OpS390XCDGBRA
++	OpS390XCLFEBR
++	OpS390XCLFDBR
++	OpS390XCLGEBR
++	OpS390XCLGDBR
++	OpS390XCELFBR
++	OpS390XCDLFBR
++	OpS390XCELGBR
++	OpS390XCDLGBR
+ 	OpS390XLEDBR
+ 	OpS390XLDEBR
+ 	OpS390XMOVDaddr
+@@ -28314,6 +28322,110 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "CLFEBR",
++		argLen: 1,
++		asm:    s390x.ACLFEBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
++	{
++		name:   "CLFDBR",
++		argLen: 1,
++		asm:    s390x.ACLFDBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
++	{
++		name:   "CLGEBR",
++		argLen: 1,
++		asm:    s390x.ACLGEBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
++	{
++		name:   "CLGDBR",
++		argLen: 1,
++		asm:    s390x.ACLGDBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
++	{
++		name:   "CELFBR",
++		argLen: 1,
++		asm:    s390x.ACELFBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "CDLFBR",
++		argLen: 1,
++		asm:    s390x.ACDLFBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "CELGBR",
++		argLen: 1,
++		asm:    s390x.ACELGBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "CDLGBR",
++		argLen: 1,
++		asm:    s390x.ACDLGBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:   "LEDBR",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 2195f6aa1e..4fc90128d0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -156,12 +156,24 @@ func rewriteValueS390X(v *Value) bool {
+ 	case OpCvt32Fto32:
+ 		v.Op = OpS390XCFEBRA
+ 		return true
++	case OpCvt32Fto32U:
++		v.Op = OpS390XCLFEBR
++		return true
+ 	case OpCvt32Fto64:
+ 		v.Op = OpS390XCGEBRA
+ 		return true
+ 	case OpCvt32Fto64F:
+ 		v.Op = OpS390XLDEBR
+ 		return true
++	case OpCvt32Fto64U:
++		v.Op = OpS390XCLGEBR
++		return true
++	case OpCvt32Uto32F:
++		v.Op = OpS390XCELFBR
++		return true
++	case OpCvt32Uto64F:
++		v.Op = OpS390XCDLFBR
++		return true
+ 	case OpCvt32to32F:
+ 		v.Op = OpS390XCEFBRA
+ 		return true
+@@ -174,9 +186,21 @@ func rewriteValueS390X(v *Value) bool {
+ 	case OpCvt64Fto32F:
+ 		v.Op = OpS390XLEDBR
+ 		return true
++	case OpCvt64Fto32U:
++		v.Op = OpS390XCLFDBR
++		return true
+ 	case OpCvt64Fto64:
+ 		v.Op = OpS390XCGDBRA
+ 		return true
++	case OpCvt64Fto64U:
++		v.Op = OpS390XCLGDBR
++		return true
++	case OpCvt64Uto32F:
++		v.Op = OpS390XCELGBR
++		return true
++	case OpCvt64Uto64F:
++		v.Op = OpS390XCDLGBR
++		return true
+ 	case OpCvt64to32F:
+ 		v.Op = OpS390XCEGBRA
+ 		return true

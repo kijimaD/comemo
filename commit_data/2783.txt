@@ -7,7 +7,58 @@ Date:   Mon Jul 27 11:23:49 2009 -0700
     TBR=r
     OCL=32225
     CL=32225
-
+---
  src/pkg/gob/decode.go    |  4 ++--
  src/pkg/reflect/value.go | 10 +++++-----
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index a9148eb834..7e439e8e7a 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -446,8 +446,8 @@ func decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp
+ 	// Always write a header at p.
+ 	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p));
+ 	hdrp.Data = uintptr(unsafe.Pointer(&data[0]));
+-	hdrp.Len = uint32(length);
+-	hdrp.Cap = uint32(length);
++	hdrp.Len = int(length);
++	hdrp.Cap = int(length);
+ 	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, int(length), elemIndir);
+ }
+ 
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 00772a87c2..4dc130a6cd 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -559,7 +559,7 @@ func (v *SliceValue) SetLen(n int) {
+ 	if n < 0 || n > int(s.Cap) {
+ 		panicln("SetLen", n, "with capacity", s.Cap);
+ 	}
+-	s.Len = uint32(n);
++	s.Len = n;
+ }
+ 
+ // Set assigns x to v.
+@@ -581,8 +581,8 @@ func (v *SliceValue) Slice(beg, end int) *SliceValue {
+ 	typ := v.typ.(*SliceType);
+ 	s := new(SliceHeader);
+ 	s.Data = uintptr(v.addr()) + uintptr(beg) * typ.Elem().Size();
+-	s.Len = uint32(end - beg);
+-	s.Cap = uint32(cap - beg);
++	s.Len = end - beg;
++	s.Cap = cap - beg;
+ 	return newValue(typ, addr(s), v.canSet).(*SliceValue);
+ }
+ 
+@@ -607,8 +607,8 @@ func MakeSlice(typ *SliceType, len, cap int) *SliceValue {
+ 	}
+ 	data := make([]uint8, size);
+ 	s.Data = uintptr(addr(&data[0]));
+-	s.Len = uint32(len);
+-	s.Cap = uint32(cap);
++	s.Len = len;
++	s.Cap = cap;
+ 	return newValue(typ, addr(s), true).(*SliceValue);
+ }
+ 

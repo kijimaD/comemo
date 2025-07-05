@@ -9,10 +9,93 @@ Date:   Mon Aug 22 05:52:15 2016 +0900
     Change-Id: I41be7bb4e21e3beaa2136ee69771b0f455b2a7c6
     Reviewed-on: https://go-review.googlesource.com/27417
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/file.go      | 3 +++
  src/net/interface.go | 6 ++++++
  src/net/iprawsock.go | 6 ++++++
  src/net/tcpsock.go   | 3 +++
  src/net/udpsock.go   | 9 +++++++++
  5 files changed, 27 insertions(+)
+
+diff --git a/src/net/file.go b/src/net/file.go
+index 1aad477400..07099851cb 100644
+--- a/src/net/file.go
++++ b/src/net/file.go
+@@ -6,6 +6,9 @@ package net
+ 
+ import "os"
+ 
++// BUG(mikio): On NaCl and Windows, the FileConn, FileListener and
++// FilePacketConn functions are not implemented.
++
+ type fileAddr string
+ 
+ func (fileAddr) Network() string  { return "file+net" }
+diff --git a/src/net/interface.go b/src/net/interface.go
+index 4947b52faf..295ab2dc92 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -10,6 +10,12 @@ import (
+ 	"time"
+ )
+ 
++// BUG(mikio): On NaCl, Plan9 and Solaris, methods and functions
++// related to Interface are not implemented.
++
++// BUG(mikio): On DragonFly BSD, NetBSD and OpenBSD, the
++// MulticastAddrs method of Interface is not implemented.
++
+ var (
+ 	errInvalidInterface         = errors.New("invalid network interface")
+ 	errInvalidInterfaceIndex    = errors.New("invalid network interface index")
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index 173b3cb411..95761b3a9c 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -9,6 +9,12 @@ import (
+ 	"syscall"
+ )
+ 
++// BUG(mikio): On NaCl, Plan 9 and Windows, the ReadMsgIP and
++// WriteMsgIP methods of IPConn are not implemented.
++
++// BUG(mikio): On Windows, the File method of IPConn is not
++// implemented.
++
+ // IPAddr represents the address of an IP end point.
+ type IPAddr struct {
+ 	IP   IP
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index ce6e009451..e02e6c9c7d 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -12,6 +12,9 @@ import (
+ 	"time"
+ )
+ 
++// BUG(mikio): On Windows, the File method of TCPListener is not
++// implemented.
++
+ // TCPAddr represents the address of a TCP end point.
+ type TCPAddr struct {
+ 	IP   IP
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 980f67c81f..a859f4d4c0 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -9,6 +9,15 @@ import (
+ 	"syscall"
+ )
+ 
++// BUG(mikio): On NaCl, Plan 9 and Windows, the ReadMsgUDP and
++// WriteMsgUDP methods of UDPConn are not implemented.
++
++// BUG(mikio): On Windows, the File method of UDPConn is not
++// implemented.
++
++// BUG(mikio): On NaCl and Plan 9, the ListenMulticastUDP function is
++// not implemented.
++
+ // UDPAddr represents the address of a UDP end point.
+ type UDPAddr struct {
+ 	IP   IP

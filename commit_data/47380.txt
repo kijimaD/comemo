@@ -28,7 +28,88 @@ Date:   Tue Oct 27 00:17:15 2020 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/encoding/xml/xml.go      |  5 ++--
  src/encoding/xml/xml_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 384d6ad4b8..c902f1295a 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -1156,8 +1156,9 @@ func (d *Decoder) nsname() (name Name, ok bool) {
+ 	if !ok {
+ 		return
+ 	}
+-	i := strings.Index(s, ":")
+-	if i < 0 {
++	if strings.Count(s, ":") > 1 {
++		name.Local = s
++	} else if i := strings.Index(s, ":"); i < 1 || i > len(s)-2 {
+ 		name.Local = s
+ 	} else {
+ 		name.Space = s[0:i]
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index 5a10f5309d..47d0c39167 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -1003,3 +1003,59 @@ func TestTokenUnmarshaler(t *testing.T) {
+ 	d := NewTokenDecoder(tokReader{})
+ 	d.Decode(&Failure{})
+ }
++
++func testRoundTrip(t *testing.T, input string) {
++	d := NewDecoder(strings.NewReader(input))
++	var tokens []Token
++	var buf bytes.Buffer
++	e := NewEncoder(&buf)
++	for {
++		tok, err := d.Token()
++		if err == io.EOF {
++			break
++		}
++		if err != nil {
++			t.Fatalf("invalid input: %v", err)
++		}
++		if err := e.EncodeToken(tok); err != nil {
++			t.Fatalf("failed to re-encode input: %v", err)
++		}
++		tokens = append(tokens, CopyToken(tok))
++	}
++	if err := e.Flush(); err != nil {
++		t.Fatal(err)
++	}
++
++	d = NewDecoder(&buf)
++	for {
++		tok, err := d.Token()
++		if err == io.EOF {
++			break
++		}
++		if err != nil {
++			t.Fatalf("failed to decode output: %v", err)
++		}
++		if len(tokens) == 0 {
++			t.Fatalf("unexpected token: %#v", tok)
++		}
++		a, b := tokens[0], tok
++		if !reflect.DeepEqual(a, b) {
++			t.Fatalf("token mismatch: %#v vs %#v", a, b)
++		}
++		tokens = tokens[1:]
++	}
++	if len(tokens) > 0 {
++		t.Fatalf("lost tokens: %#v", tokens)
++	}
++}
++
++func TestRoundTrip(t *testing.T) {
++	tests := map[string]string{
++		"leading colon":  `<::Test ::foo="bar"><:::Hello></:::Hello><Hello></Hello></::Test>`,
++		"trailing colon": `<foo abc:="x"></foo>`,
++		"double colon":   `<x:y:foo></x:y:foo>`,
++	}
++	for name, input := range tests {
++		t.Run(name, func(t *testing.T) { testRoundTrip(t, input) })
++	}
++}

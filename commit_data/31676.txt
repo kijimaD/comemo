@@ -11,7 +11,60 @@ Date:   Mon Mar 6 09:59:32 2017 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/encodedword.go      | 17 ++++++++++++-----
  src/mime/encodedword_test.go |  2 ++
  2 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/mime/encodedword.go b/src/mime/encodedword.go
+index 9de91aa3d5..dffcdef053 100644
+--- a/src/mime/encodedword.go
++++ b/src/mime/encodedword.go
+@@ -194,22 +194,29 @@ type WordDecoder struct {
+ 
+ // Decode decodes an RFC 2047 encoded-word.
+ func (d *WordDecoder) Decode(word string) (string, error) {
+-	if !strings.HasPrefix(word, "=?") || !strings.HasSuffix(word, "?=") || strings.Count(word, "?") != 4 {
++	// See https://tools.ietf.org/html/rfc2047#section-2
++	if len(word) < 9 || !strings.HasPrefix(word, "=?") || !strings.HasSuffix(word, "?=") || strings.Count(word, "?") != 4 {
+ 		return "", errInvalidWord
+ 	}
+ 	word = word[2 : len(word)-2]
+ 
+ 	// split delimits the first 2 fields
+ 	split := strings.IndexByte(word, '?')
+-	// the field after split must only be one byte
+-	if word[split+2] != '?' {
+-		return "", errInvalidWord
+-	}
+ 
+ 	// split word "UTF-8?q?ascii" into "UTF-8", 'q', and "ascii"
+ 	charset := word[:split]
++	if len(charset) == 0 {
++		return "", errInvalidWord
++	}
+ 	encoding := word[split+1]
++	// the field after split must only be one byte
++	if word[split+2] != '?' {
++		return "", errInvalidWord
++	}
+ 	text := word[split+3:]
++	if len(text) == 0 {
++		return "", errInvalidWord
++	}
+ 
+ 	content, err := decode(encoding, text)
+ 	if err != nil {
+diff --git a/src/mime/encodedword_test.go b/src/mime/encodedword_test.go
+index b7ca4d05e3..ff79796042 100644
+--- a/src/mime/encodedword_test.go
++++ b/src/mime/encodedword_test.go
+@@ -88,6 +88,8 @@ func TestDecodeWord(t *testing.T) {
+ 		{"=?UTF-8?Q?A=B?=", "", true},
+ 		{"=?UTF-8?Q?=A?=", "", true},
+ 		{"=?UTF-8?A?A?=", "", true},
++		{"=????=", "", true},
++		{"=?UTF-8?Q??=", "", true},
+ 	}
+ 
+ 	for _, test := range tests {

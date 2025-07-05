@@ -25,7 +25,7 @@ Date:   Mon Sep 23 17:46:38 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/test/cgo_test.go                 |   5 +-
  misc/cgo/test/test.go                     |  11 ++
  src/runtime/callers_test.go               | 123 +++++++++++++++++++--
@@ -35,3 +35,541 @@ Date:   Mon Sep 23 17:46:38 2019 -0700
  src/runtime/testdata/testprog/deadlock.go |  35 ++++++
  test/codegen/stack.go                     |   4 +
  8 files changed, 384 insertions(+), 11 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index c66df2cd46..85f00a3653 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -91,5 +91,6 @@ func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
+ func TestUnsignedInt(t *testing.T)           { testUnsignedInt(t) }
+ func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
+ 
+-func BenchmarkCgoCall(b *testing.B)  { benchCgoCall(b) }
+-func BenchmarkGoString(b *testing.B) { benchGoString(b) }
++func BenchmarkCgoCall(b *testing.B)     { benchCgoCall(b) }
++func BenchmarkGoString(b *testing.B)    { benchGoString(b) }
++func BenchmarkCGoCallback(b *testing.B) { benchCallback(b) }
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 0a26bfb5cf..0aa80ebc82 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -1000,6 +1000,17 @@ func benchCgoCall(b *testing.B) {
+ 	}
+ }
+ 
++// Benchmark measuring overhead from Go to C and back to Go (via a callback)
++func benchCallback(b *testing.B) {
++	var x = false
++	for i := 0; i < b.N; i++ {
++		nestedCall(func() { x = true })
++	}
++	if !x {
++		b.Fatal("nestedCall was not invoked")
++	}
++}
++
+ var sinkString string
+ 
+ func benchGoString(b *testing.B) {
+diff --git a/src/runtime/callers_test.go b/src/runtime/callers_test.go
+index ad83f9969c..fcfd10deff 100644
+--- a/src/runtime/callers_test.go
++++ b/src/runtime/callers_test.go
+@@ -5,25 +5,26 @@
+ package runtime_test
+ 
+ import (
++	"reflect"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func f1(pan bool) []uintptr {
+-	return f2(pan) // line 14
++	return f2(pan) // line 15
+ }
+ 
+ func f2(pan bool) []uintptr {
+-	return f3(pan) // line 18
++	return f3(pan) // line 19
+ }
+ 
+ func f3(pan bool) []uintptr {
+ 	if pan {
+-		panic("f3") // line 23
++		panic("f3") // line 24
+ 	}
+ 	ret := make([]uintptr, 20)
+-	return ret[:runtime.Callers(0, ret)] // line 26
++	return ret[:runtime.Callers(0, ret)] // line 27
+ }
+ 
+ func testCallers(t *testing.T, pcs []uintptr, pan bool) {
+@@ -47,16 +48,16 @@ func testCallers(t *testing.T, pcs []uintptr, pan bool) {
+ 
+ 	var f3Line int
+ 	if pan {
+-		f3Line = 23
++		f3Line = 24
+ 	} else {
+-		f3Line = 26
++		f3Line = 27
+ 	}
+ 	want := []struct {
+ 		name string
+ 		line int
+ 	}{
+-		{"f1", 14},
+-		{"f2", 18},
++		{"f1", 15},
++		{"f2", 19},
+ 		{"f3", f3Line},
+ 	}
+ 	for _, w := range want {
+@@ -66,11 +67,33 @@ func testCallers(t *testing.T, pcs []uintptr, pan bool) {
+ 	}
+ }
+ 
++func testCallersEqual(t *testing.T, pcs []uintptr, want []string) {
++	got := make([]string, 0, len(want))
++
++	frames := runtime.CallersFrames(pcs)
++	for {
++		frame, more := frames.Next()
++		if !more || len(got) >= len(want) {
++			break
++		}
++		got = append(got, frame.Function)
++	}
++	if !reflect.DeepEqual(want, got) {
++		t.Fatalf("wanted %v, got %v", want, got)
++	}
++}
++
+ func TestCallers(t *testing.T) {
+ 	testCallers(t, f1(false), false)
+ }
+ 
+ func TestCallersPanic(t *testing.T) {
++	// Make sure we don't have any extra frames on the stack (due to
++	// open-coded defer processing)
++	want := []string{"runtime.Callers", "runtime_test.TestCallersPanic.func1",
++		"runtime.gopanic", "runtime_test.f3", "runtime_test.f2", "runtime_test.f1",
++		"runtime_test.TestCallersPanic"}
++
+ 	defer func() {
+ 		if r := recover(); r == nil {
+ 			t.Fatal("did not panic")
+@@ -78,6 +101,90 @@ func TestCallersPanic(t *testing.T) {
+ 		pcs := make([]uintptr, 20)
+ 		pcs = pcs[:runtime.Callers(0, pcs)]
+ 		testCallers(t, pcs, true)
++		testCallersEqual(t, pcs, want)
+ 	}()
+ 	f1(true)
+ }
++
++func TestCallersDoublePanic(t *testing.T) {
++	// Make sure we don't have any extra frames on the stack (due to
++	// open-coded defer processing)
++	want := []string{"runtime.Callers", "runtime_test.TestCallersDoublePanic.func1.1",
++		"runtime.gopanic", "runtime_test.TestCallersDoublePanic.func1", "runtime.gopanic", "runtime_test.TestCallersDoublePanic"}
++
++	defer func() {
++		defer func() {
++			pcs := make([]uintptr, 20)
++			pcs = pcs[:runtime.Callers(0, pcs)]
++			if recover() == nil {
++				t.Fatal("did not panic")
++			}
++			testCallersEqual(t, pcs, want)
++		}()
++		if recover() == nil {
++			t.Fatal("did not panic")
++		}
++		panic(2)
++	}()
++	panic(1)
++}
++
++// Test that a defer after a successful recovery looks like it is called directly
++// from the function with the defers.
++func TestCallersAfterRecovery(t *testing.T) {
++	want := []string{"runtime.Callers", "runtime_test.TestCallersAfterRecovery.func1", "runtime_test.TestCallersAfterRecovery"}
++
++	defer func() {
++		pcs := make([]uintptr, 20)
++		pcs = pcs[:runtime.Callers(0, pcs)]
++		testCallersEqual(t, pcs, want)
++	}()
++	defer func() {
++		if recover() == nil {
++			t.Fatal("did not recover from panic")
++		}
++	}()
++	panic(1)
++}
++
++func TestCallersNilPointerPanic(t *testing.T) {
++	// Make sure we don't have any extra frames on the stack (due to
++	// open-coded defer processing)
++	want := []string{"runtime.Callers", "runtime_test.TestCallersNilPointerPanic.func1",
++		"runtime.gopanic", "runtime.panicmem", "runtime.sigpanic",
++		"runtime_test.TestCallersNilPointerPanic"}
++
++	defer func() {
++		if r := recover(); r == nil {
++			t.Fatal("did not panic")
++		}
++		pcs := make([]uintptr, 20)
++		pcs = pcs[:runtime.Callers(0, pcs)]
++		testCallersEqual(t, pcs, want)
++	}()
++	var p *int
++	if *p == 3 {
++		t.Fatal("did not see nil pointer panic")
++	}
++}
++
++func TestCallersDivZeroPanic(t *testing.T) {
++	// Make sure we don't have any extra frames on the stack (due to
++	// open-coded defer processing)
++	want := []string{"runtime.Callers", "runtime_test.TestCallersDivZeroPanic.func1",
++		"runtime.gopanic", "runtime.panicdivide",
++		"runtime_test.TestCallersDivZeroPanic"}
++
++	defer func() {
++		if r := recover(); r == nil {
++			t.Fatal("did not panic")
++		}
++		pcs := make([]uintptr, 20)
++		pcs = pcs[:runtime.Callers(0, pcs)]
++		testCallersEqual(t, pcs, want)
++	}()
++	var n int
++	if 5/n == 1 {
++		t.Fatal("did not see divide-by-sizer panic")
++	}
++}
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 89b55a8011..7be52f499c 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -260,6 +260,30 @@ panic: again
+ 
+ }
+ 
++func TestRecursivePanic2(t *testing.T) {
++	output := runTestProg(t, "testprog", "RecursivePanic2")
++	want := `first panic
++second panic
++panic: third panic
++
++`
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++
++}
++
++func TestRecursivePanic3(t *testing.T) {
++	output := runTestProg(t, "testprog", "RecursivePanic3")
++	want := `panic: first panic
++
++`
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++
++}
++
+ func TestGoexitCrash(t *testing.T) {
+ 	output := runTestProg(t, "testprog", "GoexitExit")
+ 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+@@ -422,7 +446,7 @@ func TestNetpollDeadlock(t *testing.T) {
+ func TestPanicTraceback(t *testing.T) {
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "PanicTraceback")
+-	want := "panic: hello"
++	want := "panic: hello\n\tpanic: panic pt2\n\tpanic: panic pt1\n"
+ 	if !strings.HasPrefix(output, want) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+ 	}
+diff --git a/src/runtime/defer_test.go b/src/runtime/defer_test.go
+new file mode 100644
+index 0000000000..0d3e8e9d63
+--- /dev/null
++++ b/src/runtime/defer_test.go
+@@ -0,0 +1,176 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"fmt"
++	"reflect"
++	"runtime"
++	"testing"
++)
++
++// Make sure open-coded defer exit code is not lost, even when there is an
++// unconditional panic (hence no return from the function)
++func TestUnconditionalPanic(t *testing.T) {
++	defer func() {
++		if recover() == nil {
++			t.Fatal("expected unconditional panic")
++		}
++	}()
++	panic("panic should be recovered")
++}
++
++var glob int = 3
++
++// Test an open-coded defer and non-open-coded defer - make sure both defers run
++// and call recover()
++func TestOpenAndNonOpenDefers(t *testing.T) {
++	for {
++		// Non-open defer because in a loop
++		defer func(n int) {
++			if recover() == nil {
++				t.Fatal("expected testNonOpen panic")
++			}
++		}(3)
++		if glob > 2 {
++			break
++		}
++	}
++	testOpen(t, 47)
++	panic("testNonOpenDefer")
++}
++
++//go:noinline
++func testOpen(t *testing.T, arg int) {
++	defer func(n int) {
++		if recover() == nil {
++			t.Fatal("expected testOpen panic")
++		}
++	}(4)
++	if arg > 2 {
++		panic("testOpenDefer")
++	}
++}
++
++// Test a non-open-coded defer and an open-coded defer - make sure both defers run
++// and call recover()
++func TestNonOpenAndOpenDefers(t *testing.T) {
++	testOpen(t, 47)
++	for {
++		// Non-open defer because in a loop
++		defer func(n int) {
++			if recover() == nil {
++				t.Fatal("expected testNonOpen panic")
++			}
++		}(3)
++		if glob > 2 {
++			break
++		}
++	}
++	panic("testNonOpenDefer")
++}
++
++var list []int
++
++// Make sure that conditional open-coded defers are activated correctly and run in
++// the correct order.
++func TestConditionalDefers(t *testing.T) {
++	list = make([]int, 0, 10)
++
++	defer func() {
++		if recover() == nil {
++			t.Fatal("expected panic")
++		}
++		want := []int{4, 2, 1}
++		if !reflect.DeepEqual(want, list) {
++			t.Fatal(fmt.Sprintf("wanted %v, got %v", want, list))
++		}
++
++	}()
++	testConditionalDefers(8)
++}
++
++func testConditionalDefers(n int) {
++	doappend := func(i int) {
++		list = append(list, i)
++	}
++
++	defer doappend(1)
++	if n > 5 {
++		defer doappend(2)
++		if n > 8 {
++			defer doappend(3)
++		} else {
++			defer doappend(4)
++		}
++	}
++	panic("test")
++}
++
++// Test that there is no compile-time or run-time error if an open-coded defer
++// call is removed by constant propagation and dead-code elimination.
++func TestDisappearingDefer(t *testing.T) {
++	switch runtime.GOOS {
++	case "invalidOS":
++		defer func() {
++			t.Fatal("Defer shouldn't run")
++		}()
++	}
++}
++
++// This tests an extra recursive panic behavior that is only specified in the
++// code.  Suppose a first panic P1 happens and starts processing defer calls.  If
++// a second panic P2 happens while processing defer call D in frame F, then defer
++// call processing is restarted (with some potentially new defer calls created by
++// D or its callees).  If the defer processing reaches the started defer call D
++// again in the defer stack, then the original panic P1 is aborted and cannot
++// continue panic processing or be recovered.  If the panic P2 does a recover at
++// some point, it will naturally the original panic P1 from the stack, since the
++// original panic had to be in frame F or a descendant of F.
++func TestAbortedPanic(t *testing.T) {
++	defer func() {
++		// The first panic should have been "aborted", so there is
++		// no other panic to recover
++		r := recover()
++		if r != nil {
++			t.Fatal(fmt.Sprintf("wanted nil recover, got %v", r))
++		}
++	}()
++	defer func() {
++		r := recover()
++		if r != "panic2" {
++			t.Fatal(fmt.Sprintf("wanted %v, got %v", "panic2", r))
++		}
++	}()
++	defer func() {
++		panic("panic2")
++	}()
++	panic("panic1")
++}
++
++// This tests that recover() does not succeed unless it is called directly from a
++// defer function that is directly called by the panic.  Here, we first call it
++// from a defer function that is created by the defer function called directly by
++// the panic.  In
++func TestRecoverMatching(t *testing.T) {
++	defer func() {
++		r := recover()
++		if r != "panic1" {
++			t.Fatal(fmt.Sprintf("wanted %v, got %v", "panic1", r))
++		}
++	}()
++	defer func() {
++		defer func() {
++			// Shouldn't succeed, even though it is called directly
++			// from a defer function, since this defer function was
++			// not directly called by the panic.
++			r := recover()
++			if r != nil {
++				t.Fatal(fmt.Sprintf("wanted nil recover, got %v", r))
++			}
++		}()
++	}()
++	panic("panic1")
++}
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 5ea9cbd88a..37eacfea64 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -122,6 +122,21 @@ func BenchmarkDeferMany(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkPanicRecover(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		defer3()
++	}
++}
++
++func defer3() {
++	defer func(x, y, z int) {
++		if recover() == nil {
++			panic("failed recover")
++		}
++	}(1, 2, 3)
++	panic("hi")
++}
++
+ // golang.org/issue/7063
+ func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
+ 	SetCPUProfileRate(0)
+diff --git a/src/runtime/testdata/testprog/deadlock.go b/src/runtime/testdata/testprog/deadlock.go
+index 5f0d120004..9ca0fc344f 100644
+--- a/src/runtime/testdata/testprog/deadlock.go
++++ b/src/runtime/testdata/testprog/deadlock.go
+@@ -22,6 +22,8 @@ func init() {
+ 	register("StackOverflow", StackOverflow)
+ 	register("ThreadExhaustion", ThreadExhaustion)
+ 	register("RecursivePanic", RecursivePanic)
++	register("RecursivePanic2", RecursivePanic2)
++	register("RecursivePanic3", RecursivePanic3)
+ 	register("GoexitExit", GoexitExit)
+ 	register("GoNil", GoNil)
+ 	register("MainGoroutineID", MainGoroutineID)
+@@ -111,6 +113,39 @@ func RecursivePanic() {
+ 	panic("again")
+ }
+ 
++// Same as RecursivePanic, but do the first recover and the second panic in
++// separate defers, and make sure they are executed in the correct order.
++func RecursivePanic2() {
++	func() {
++		defer func() {
++			fmt.Println(recover())
++		}()
++		var x [8192]byte
++		func(x [8192]byte) {
++			defer func() {
++				panic("second panic")
++			}()
++			defer func() {
++				fmt.Println(recover())
++			}()
++			panic("first panic")
++		}(x)
++	}()
++	panic("third panic")
++}
++
++// Make sure that the first panic finished as a panic, even though the second
++// panic was recovered
++func RecursivePanic3() {
++	defer func() {
++		defer func() {
++			recover()
++		}()
++		panic("second panic")
++	}()
++	panic("first panic")
++}
++
+ func GoexitExit() {
+ 	println("t1")
+ 	go func() {
+diff --git a/test/codegen/stack.go b/test/codegen/stack.go
+index 37d378aa78..7d70024cdd 100644
+--- a/test/codegen/stack.go
++++ b/test/codegen/stack.go
+@@ -110,7 +110,11 @@ func MightPanic(a []int, i, j, k, s int) {
+ 	_ = i / j    // panicDivide
+ }
+ 
++// Put a defer in a loop, so second defer is not open-coded
+ func Defer() {
++	for i := 0; i < 2; i++ {
++		defer func() {}()
++	}
+ 	// amd64:`CALL\truntime\.deferprocStack`
+ 	defer func() {}()
+ }

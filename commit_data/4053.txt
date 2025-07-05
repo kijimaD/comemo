@@ -8,6 +8,20 @@ Date:   Sun Nov 15 00:00:05 2009 -0800
     
     R=ken2
     https://golang.org/cl/155047
-
+---
  src/cmd/cc/lex.c | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 1635e8b9de..428ba55ad9 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -419,8 +419,6 @@ lookup(void)
+ 	s = alloc(sizeof(*s));
+ 	s->name = alloc(n);
+ 	memmove(s->name, symb, n);
+-
+-	strcpy(s->name, symb);
+ 	s->link = hash[h];
+ 	hash[h] = s;
+ 	syminit(s);

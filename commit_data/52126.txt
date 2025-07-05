@@ -11,6 +11,21 @@ Date:   Mon Apr 4 11:40:44 2022 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/typeparam/issue52124.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/test/typeparam/issue52124.go b/test/typeparam/issue52124.go
+index 56318d5d4c..a113fc7444 100644
+--- a/test/typeparam/issue52124.go
++++ b/test/typeparam/issue52124.go
+@@ -7,3 +7,9 @@
+ package p
+ 
+ type I interface{ any | int }
++
++var (
++	X I = 42
++	Y I = "xxx"
++	Z I = true
++)

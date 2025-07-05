@@ -7,6 +7,20 @@ Date:   Mon May 11 20:59:59 2015 -0400
     Change-Id: I58c6e914d0e977d5748c87d277e30c933ed86f99
     Reviewed-on: https://go-review.googlesource.com/9924
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/mkall.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index 1b7cd64c8d..739663ed9c 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -285,7 +285,7 @@ esac
+ 		syscall_goos="syscall_bsd.go $syscall_goos"
+  		;;
+  	esac
+-	if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
++	if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go"; fi
+ 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
+ 	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
+ 	if [ -n "$mktypes" ]; then echo "$mktypes types_$GOOS.go |gofmt >ztypes_$GOOSARCH.go"; fi

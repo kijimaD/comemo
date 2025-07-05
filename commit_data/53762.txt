@@ -15,7 +15,54 @@ Date:   Mon Aug 29 16:10:03 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/resolver.go                      |  4 ++--
  src/go/types/testdata/fixedbugs/issue47818.go | 10 ++++++----
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index ae0289ad83..09fb7b45ad 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -383,7 +383,7 @@ func (check *Checker) collectObjects() {
+ 				}
+ 			case typeDecl:
+ 				if d.spec.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) {
+-					check.softErrorf(d.spec.TypeParams.List[0], _UnsupportedFeature, "type parameters require go1.18 or later")
++					check.softErrorf(d.spec.TypeParams.List[0], _UnsupportedFeature, "type parameter requires go1.18 or later")
+ 				}
+ 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
+ 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
+@@ -441,7 +441,7 @@ func (check *Checker) collectObjects() {
+ 					check.recordDef(d.decl.Name, obj)
+ 				}
+ 				if d.decl.Type.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
+-					check.softErrorf(d.decl.Type.TypeParams.List[0], _UnsupportedFeature, "type parameters require go1.18 or later")
++					check.softErrorf(d.decl.Type.TypeParams.List[0], _UnsupportedFeature, "type parameter requires go1.18 or later")
+ 				}
+ 				info := &declInfo{file: fileScope, fdecl: d.decl}
+ 				// Methods are not package-level objects but we still track them in the
+diff --git a/src/go/types/testdata/fixedbugs/issue47818.go b/src/go/types/testdata/fixedbugs/issue47818.go
+index 2db095c243..5aa3b82a8d 100644
+--- a/src/go/types/testdata/fixedbugs/issue47818.go
++++ b/src/go/types/testdata/fixedbugs/issue47818.go
+@@ -10,13 +10,15 @@
+ 
+ package p
+ 
+-type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */ ] struct{}
++type T[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */] struct{}
+ 
+ // for init (and main, but we're not in package main) we should only get one error
+-func init[P /* ERROR func init must have no type parameters */ any /* ERROR predeclared any requires go1\.18 or later */ ]()   {}
+-func main[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */ ]() {}
++func init[P /* ERROR func init must have no type parameters */ any /* ERROR predeclared any requires go1\.18 or later */]() {
++}
++func main[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */]() {
++}
+ 
+-func f[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */ ](x P) {
++func f[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */](x P) {
+ 	var _ T[ /* ERROR type instantiation requires go1\.18 or later */ int]
+ 	var _ (T[ /* ERROR type instantiation requires go1\.18 or later */ int])
+ 	_ = T[ /* ERROR type instantiation requires go1\.18 or later */ int]{}

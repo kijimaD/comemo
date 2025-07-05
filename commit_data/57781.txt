@@ -11,7 +11,49 @@ Date:   Tue Aug 29 13:52:07 2023 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/internal/poll/sockopt_windows.go | 9 ---------
  src/net/sockoptip_windows.go         | 3 +--
  2 files changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/src/internal/poll/sockopt_windows.go b/src/internal/poll/sockopt_windows.go
+index dd5fb70bab..f32bca4f0f 100644
+--- a/src/internal/poll/sockopt_windows.go
++++ b/src/internal/poll/sockopt_windows.go
+@@ -6,15 +6,6 @@ package poll
+ 
+ import "syscall"
+ 
+-// Setsockopt wraps the setsockopt network call.
+-func (fd *FD) Setsockopt(level, optname int32, optval *byte, optlen int32) error {
+-	if err := fd.incref(); err != nil {
+-		return err
+-	}
+-	defer fd.decref()
+-	return syscall.Setsockopt(fd.Sysfd, level, optname, optval, optlen)
+-}
+-
+ // WSAIoctl wraps the WSAIoctl network call.
+ func (fd *FD) WSAIoctl(iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *syscall.Overlapped, completionRoutine uintptr) error {
+ 	if err := fd.incref(); err != nil {
+diff --git a/src/net/sockoptip_windows.go b/src/net/sockoptip_windows.go
+index 62676039a3..9dfa37c51e 100644
+--- a/src/net/sockoptip_windows.go
++++ b/src/net/sockoptip_windows.go
+@@ -8,7 +8,6 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"syscall"
+-	"unsafe"
+ )
+ 
+ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
+@@ -18,7 +17,7 @@ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
+ 	}
+ 	var a [4]byte
+ 	copy(a[:], ip.To4())
+-	err = fd.pfd.Setsockopt(syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, (*byte)(unsafe.Pointer(&a[0])), 4)
++	err = fd.pfd.SetsockoptInet4Addr(syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, a)
+ 	runtime.KeepAlive(fd)
+ 	return wrapSyscallError("setsockopt", err)
+ }

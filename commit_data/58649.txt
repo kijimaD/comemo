@@ -23,7 +23,77 @@ Date:   Tue Nov 21 19:34:36 2023 +0000
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../internal/atomic/atomic_andor_generic.go        |  2 +-
  src/runtime/internal/atomic/atomic_wasm.go         | 48 ----------------------
  2 files changed, 1 insertion(+), 49 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_andor_generic.go b/src/runtime/internal/atomic/atomic_andor_generic.go
+index 57f80ff871..00b402681e 100644
+--- a/src/runtime/internal/atomic/atomic_andor_generic.go
++++ b/src/runtime/internal/atomic/atomic_andor_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build arm || s390x || loong64 || mips || mipsle || mips64 || mips64le
++//go:build arm || s390x || loong64 || mips || mipsle || mips64 || mips64le || wasm
+ 
+ package atomic
+ 
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/runtime/internal/atomic/atomic_wasm.go
+index d1ca994205..835fc43ccf 100644
+--- a/src/runtime/internal/atomic/atomic_wasm.go
++++ b/src/runtime/internal/atomic/atomic_wasm.go
+@@ -339,51 +339,3 @@ func Xaddint64(ptr *int64, delta int64) int64 {
+ 	*ptr = new
+ 	return new
+ }
+-
+-//go:nosplit
+-//go:noinline
+-func And32(ptr *uint32, val uint32) uint32 {
+-	old := *ptr
+-	*ptr = old & val
+-	return old
+-}
+-
+-//go:nosplit
+-//go:noinline
+-func And64(ptr *uint64, val uint64) uint64 {
+-	old := *ptr
+-	*ptr = old & val
+-	return old
+-}
+-
+-//go:nosplit
+-//go:noinline
+-func Anduintptr(ptr *uintptr, val uintptr) uintptr {
+-	old := *ptr
+-	*ptr = old & val
+-	return old
+-}
+-
+-//go:nosplit
+-//go:noinline
+-func Or32(ptr *uint32, val uint32) uint32 {
+-	old := *ptr
+-	*ptr = old | val
+-	return old
+-}
+-
+-//go:nosplit
+-//go:noinline
+-func Or64(ptr *uint64, val uint64) uint64 {
+-	old := *ptr
+-	*ptr = old | val
+-	return old
+-}
+-
+-//go:nosplit
+-//go:noinline
+-func Oruintptr(ptr *uintptr, val uintptr) uintptr {
+-	old := *ptr
+-	*ptr = old | val
+-	return old
+-}

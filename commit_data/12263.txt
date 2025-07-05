@@ -11,7 +11,51 @@ Date:   Tue Feb 28 16:03:32 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5709050
-
+---
  src/pkg/net/http/httputil/dump.go      |  9 +++++++++
  src/pkg/net/http/httputil/dump_test.go | 12 ++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/pkg/net/http/httputil/dump.go b/src/pkg/net/http/httputil/dump.go
+index c853066f1c..5aba5d9e0b 100644
+--- a/src/pkg/net/http/httputil/dump.go
++++ b/src/pkg/net/http/httputil/dump.go
+@@ -59,6 +59,15 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 		}
+ 	}
+ 
++	// Since we're using the actual Transport code to write the request,
++	// switch to http so the Transport doesn't try to do an SSL
++	// negotiation with our dumpConn and its bytes.Buffer & pipe.
++	// The wire format for https and http are the same, anyway.
++	if req.URL.Scheme == "https" {
++		defer func() { req.URL.Scheme = "https" }()
++		req.URL.Scheme = "http"
++	}
++
+ 	// Use the actual Transport code to record what we would send
+ 	// on the wire, but not using TCP.  Use a Transport with a
+ 	// customer dialer that returns a fake net.Conn that waits
+diff --git a/src/pkg/net/http/httputil/dump_test.go b/src/pkg/net/http/httputil/dump_test.go
+index 819efb5847..5afe9ba74e 100644
+--- a/src/pkg/net/http/httputil/dump_test.go
++++ b/src/pkg/net/http/httputil/dump_test.go
+@@ -71,6 +71,18 @@ var dumpTests = []dumpTest{
+ 			"User-Agent: Go http package\r\n" +
+ 			"Accept-Encoding: gzip\r\n\r\n",
+ 	},
++
++	// Test that an https URL doesn't try to do an SSL negotiation
++	// with a bytes.Buffer and hang with all goroutines not
++	// runnable.
++	{
++		Req: *mustNewRequest("GET", "https://example.com/foo", nil),
++
++		WantDumpOut: "GET /foo HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Accept-Encoding: gzip\r\n\r\n",
++	},
+ }
+ 
+ func TestDumpRequest(t *testing.T) {

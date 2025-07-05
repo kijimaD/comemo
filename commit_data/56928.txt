@@ -16,6 +16,32 @@ Date:   Wed May 31 23:35:14 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Eli Bendersky <eliben@google.com>
-
+---
  doc/go1.21.html | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 9a159e747d..970ff47394 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -771,10 +771,19 @@ Do not send CLs removing the interior tags from such phrases.
+       <a href="/pkg/io/fs/#DirEntry"><code>io/fs.DirEntry</code></a>
+       interface returned by the
+       <a href="/pkg/os/#ReadDir"><code>ReadDir</code></a> function and
+-      the <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code>
++      the <a href="/pkg/os/#File.ReadDir"><code>File.ReadDir</code></a>
+       method now implements a <code>String</code> method that calls
+       <a href="/pkg/io/fs/#FormatDirEntry"><code>io/fs.FormatDirEntry</code></a>.
+     </p>
++
++    <p><!-- https://go.dev/issue/53761, CL 416775, CL 498015-->
++    The implementation of the
++    <a href="/pkg/io/fs/#FS"><code>io/fs.FS</code></a> interface returned by
++    the <a href="/pkg/os/#DirFS"><code>DirFS</code></a> function now implements
++    the <a href="/pkg/io/fs/#ReadFileFS"><code>io/fs.ReadFileFS</code></a> and
++    the <a href="/pkg/io/fs/#ReadDirFS"><code></code>ios/fs.ReadDirFS</a>
++    interfaces.
++    </p>
+   </dd>
+ </dl><!-- os -->
+ 

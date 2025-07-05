@@ -13,7 +13,64 @@ Date:   Fri Apr 3 20:09:53 2015 -0400
     Change-Id: Icdbeb2392782ccf66f9d0a70ea57af22fb93f01b
     Reviewed-on: https://go-review.googlesource.com/8473
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/regexp/backtrack.go | 11 ++++++++++-
  src/regexp/exec_test.go | 12 ++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/regexp/backtrack.go b/src/regexp/backtrack.go
+index 824014ba2a..a387fa66ac 100644
+--- a/src/regexp/backtrack.go
++++ b/src/regexp/backtrack.go
+@@ -47,6 +47,9 @@ var notBacktrack *bitState = nil
+ // maxBitStateLen returns the maximum length of a string to search with
+ // the backtracker using prog.
+ func maxBitStateLen(prog *syntax.Prog) int {
++	if !shouldBacktrack(prog) {
++		return 0
++	}
+ 	return maxBacktrackVector / len(prog.Inst)
+ }
+ 
+@@ -54,7 +57,7 @@ func maxBitStateLen(prog *syntax.Prog) int {
+ // or notBacktrack if the size of the prog exceeds the maximum size that
+ // the backtracker will be run for.
+ func newBitState(prog *syntax.Prog) *bitState {
+-	if len(prog.Inst) > maxBacktrackProg {
++	if !shouldBacktrack(prog) {
+ 		return notBacktrack
+ 	}
+ 	return &bitState{
+@@ -62,6 +65,12 @@ func newBitState(prog *syntax.Prog) *bitState {
+ 	}
+ }
+ 
++// shouldBacktrack reports whether the program is too
++// long for the backtracker to run.
++func shouldBacktrack(prog *syntax.Prog) bool {
++	return len(prog.Inst) <= maxBacktrackProg
++}
++
+ // reset resets the state of the backtracker.
+ // end is the end position in the input. ncap and reqcap are the number
+ // of the machine's capture registers and the number of user-requested
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index b1bf4053f5..b6272d656f 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -713,3 +713,15 @@ func TestLongest(t *testing.T) {
+ 		t.Errorf("longest match was %q, want %q", g, w)
+ 	}
+ }
++
++// TestProgramTooLongForBacktrace tests that a regex which is too long
++// for the backtracker still executes properly.
++func TestProgramTooLongForBacktrack(t *testing.T) {
++	longRegex := MustCompile(`(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|twentyone|twentytwo|twentythree|twentyfour|twentyfive|twentysix|twentyseven|twentyeight|twentynine|thirty|thirtyone|thirtytwo|thirtythree|thirtyfour|thirtyfive|thirtysix|thirtyseven|thirtyeight|thirtynine|forty|fortyone|fortytwo|fortythree|fortyfour|fortyfive|fortysix|fortyseven|fortyeight|fortynine|fifty|fiftyone|fiftytwo|fiftythree|fiftyfour|fiftyfive|fiftysix|fiftyseven|fiftyeight|fiftynine|sixty|sixtyone|sixtytwo|sixtythree|sixtyfour|sixtyfive|sixtysix|sixtyseven|sixtyeight|sixtynine|seventy|seventyone|seventytwo|seventythree|seventyfour|seventyfive|seventysix|seventyseven|seventyeight|seventynine|eighty|eightyone|eightytwo|eightythree|eightyfour|eightyfive|eightysix|eightyseven|eightyeight|eightynine|ninety|ninetyone|ninetytwo|ninetythree|ninetyfour|ninetyfive|ninetysix|ninetyseven|ninetyeight|ninetynine|onehundred)`)
++	if !longRegex.MatchString("two") {
++		t.Errorf("longRegex.MatchString(\"two\") was false, want true")
++	}
++	if longRegex.MatchString("xxx") {
++		t.Errorf("longRegex.MatchString(\"xxx\") was true, want false")
++	}
++}

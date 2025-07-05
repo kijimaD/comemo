@@ -13,6 +13,20 @@ Date:   Thu Oct 13 12:25:25 2011 -0400
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/5252055
-
+---
  src/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 84b9908f45..57a57077c7 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -10,7 +10,7 @@ if [ ! -f env.bash ]; then
+ fi
+ . ./env.bash
+ 
+-if ld --version 2>&1 | grep 'gold.*2\.20' >/dev/null; then
++if ld --version 2>&1 | grep 'gold.* 2\.20' >/dev/null; then
+ 	echo 'ERROR: Your system has gold 2.20 installed.'
+ 	echo 'This version is shipped by Ubuntu even though'
+ 	echo 'it is known not to work on Ubuntu.'

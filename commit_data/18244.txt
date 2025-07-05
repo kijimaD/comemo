@@ -19,9 +19,74 @@ Date:   Tue Jan 14 10:43:13 2014 -0500
     R=khr, dave, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/51010045
-
+---
  src/cmd/gc/gen.c            |  2 +-
  src/cmd/gc/sinit.c          |  1 +
  src/cmd/gc/typecheck.c      |  2 ++
  test/fixedbugs/issue7083.go | 22 ++++++++++++++++++++++
  4 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 49b3f7a999..21a1849444 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -939,5 +939,5 @@ temp(Type *t)
+ 	n = nod(OXXX, N, N);
+ 	tempname(n, t);
+ 	n->sym->def->used = 1;
+-	return n;
++	return n->orig;
+ }
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 59c5097e04..ece0b8fdfa 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -468,6 +468,7 @@ staticassign(Node *l, Node *r, NodeList **out)
+ 			else {
+ 				a = nod(OXXX, N, N);
+ 				*a = n1;
++				a->orig = a; // completely separate copy
+ 				if(!staticassign(a, e->expr, out))
+ 					*out = list(*out, nod(OAS, a, e->expr));
+ 			}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 4d0a636bb9..68d2c3404d 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -723,6 +723,8 @@ reswitch:
+ 		checklvalue(n->left, "take the address of");
+ 		for(l=n->left; l->op == ODOT; l=l->left)
+ 			l->addrtaken = 1;
++		if(l->orig != l && l->op == ONAME)
++			fatal("found non-orig name node %N", l);
+ 		l->addrtaken = 1;
+ 		defaultlit(&n->left, T);
+ 		l = n->left;
+diff --git a/test/fixedbugs/issue7083.go b/test/fixedbugs/issue7083.go
+new file mode 100644
+index 0000000000..79bfd3b5ef
+--- /dev/null
++++ b/test/fixedbugs/issue7083.go
+@@ -0,0 +1,22 @@
++// run
++
++package main
++
++import "runtime/debug"
++
++func f(m map[int]*string, i int) {
++	s := ""
++	m[i] = &s
++}
++
++func main() {
++	debug.SetGCPercent(0)
++	m := map[int]*string{}
++	for i := 0; i < 40; i++ {
++		f(m, i)
++		if len(*m[i]) != 0 {
++			println("bad length", i, m[i], len(*m[i]))
++			panic("bad length")
++		}
++	}
++}

@@ -49,8 +49,177 @@ Date:   Tue Mar 6 14:36:49 2018 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go | 20 +-----------
  src/cmd/compile/internal/gc/walk.go  | 60 ++++++++++++++++--------------------
  src/runtime/map_test.go              | 21 +++++++++++++
  3 files changed, 48 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7d04e10e1d..8ae1dbcbef 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -618,25 +618,7 @@ func (o *Order) stmt(n *Node) {
+ 	// Special: order arguments to inner call but not call itself.
+ 	case ODEFER, OPROC:
+ 		t := o.markTemp()
+-
+-		switch n.Left.Op {
+-		// Delete will take the address of the key.
+-		// Copy key into new temp and do not clean it
+-		// (it persists beyond the statement).
+-		case ODELETE:
+-			o.exprList(n.Left.List)
+-
+-			if mapfast(n.Left.List.First().Type) == mapslow {
+-				t1 := o.markTemp()
+-				np := n.Left.List.Addr(1) // map key
+-				*np = o.copyExpr(*np, (*np).Type, false)
+-				o.popTemp(t1)
+-			}
+-
+-		default:
+-			o.call(n.Left)
+-		}
+-
++		o.call(n.Left)
+ 		o.out = append(o.out, n)
+ 		o.cleanTemp(t)
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f1ef2341ee..8770684d87 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -242,9 +242,18 @@ func walkstmt(n *Node) *Node {
+ 
+ 	case ODEFER:
+ 		Curfn.Func.SetHasDefer(true)
++		fallthrough
++	case OPROC:
+ 		switch n.Left.Op {
+ 		case OPRINT, OPRINTN:
+-			n.Left = walkprintfunc(n.Left, &n.Ninit)
++			n.Left = wrapCall(n.Left, &n.Ninit)
++
++		case ODELETE:
++			if mapfast(n.Left.List.First().Type) == mapslow {
++				n.Left = wrapCall(n.Left, &n.Ninit)
++			} else {
++				n.Left = walkexpr(n.Left, &n.Ninit)
++			}
+ 
+ 		case OCOPY:
+ 			n.Left = copyany(n.Left, &n.Ninit, true)
+@@ -273,21 +282,6 @@ func walkstmt(n *Node) *Node {
+ 		walkstmtlist(n.Nbody.Slice())
+ 		walkstmtlist(n.Rlist.Slice())
+ 
+-	case OPROC:
+-		switch n.Left.Op {
+-		case OPRINT, OPRINTN:
+-			n.Left = walkprintfunc(n.Left, &n.Ninit)
+-
+-		case OCOPY:
+-			n.Left = copyany(n.Left, &n.Ninit, true)
+-
+-		default:
+-			n.Left = walkexpr(n.Left, &n.Ninit)
+-		}
+-
+-		// make room for size & fn arguments.
+-		adjustargs(n, 2*Widthptr)
+-
+ 	case ORETURN:
+ 		walkexprlist(n.List.Slice(), &n.Ninit)
+ 		if n.List.Len() == 0 {
+@@ -3847,45 +3841,43 @@ func candiscard(n *Node) bool {
+ 	return true
+ }
+ 
+-// rewrite
+-//	print(x, y, z)
++// Rewrite
++//	go builtin(x, y, z)
+ // into
+-//	func(a1, a2, a3) {
+-//		print(a1, a2, a3)
++//	go func(a1, a2, a3) {
++//		builtin(a1, a2, a3)
+ //	}(x, y, z)
+-// and same for println.
++// for print, println, and delete.
+ 
+-var walkprintfunc_prgen int
++var wrapCall_prgen int
+ 
+-// The result of walkprintfunc MUST be assigned back to n, e.g.
+-// 	n.Left = walkprintfunc(n.Left, init)
+-func walkprintfunc(n *Node, init *Nodes) *Node {
++// The result of wrapCall MUST be assigned back to n, e.g.
++// 	n.Left = wrapCall(n.Left, init)
++func wrapCall(n *Node, init *Nodes) *Node {
+ 	if n.Ninit.Len() != 0 {
+ 		walkstmtlist(n.Ninit.Slice())
+ 		init.AppendNodes(&n.Ninit)
+ 	}
+ 
+ 	t := nod(OTFUNC, nil, nil)
+-	var printargs []*Node
+-	for i, n1 := range n.List.Slice() {
++	var args []*Node
++	for i, arg := range n.List.Slice() {
+ 		buf := fmt.Sprintf("a%d", i)
+-		a := namedfield(buf, n1.Type)
++		a := namedfield(buf, arg.Type)
+ 		t.List.Append(a)
+-		printargs = append(printargs, a.Left)
++		args = append(args, a.Left)
+ 	}
+ 
+ 	oldfn := Curfn
+ 	Curfn = nil
+ 
+-	walkprintfunc_prgen++
+-	sym := lookupN("print·%d", walkprintfunc_prgen)
++	wrapCall_prgen++
++	sym := lookupN("wrap·", wrapCall_prgen)
+ 	fn := dclfunc(sym, t)
+ 
+ 	a := nod(n.Op, nil, nil)
+-	a.List.Set(printargs)
++	a.List.Set(args)
+ 	a = typecheck(a, Etop)
+-	a = walkstmt(a)
+-
+ 	fn.Nbody.Set1(a)
+ 
+ 	funcbody()
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index b12b09eeb6..d1b268bda4 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -875,3 +875,24 @@ func BenchmarkMapDelete(b *testing.B) {
+ 	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 100, 1000, 10000))
+ 	b.Run("Str", runWith(benchmarkMapDeleteStr, 100, 1000, 10000))
+ }
++
++func TestDeferDeleteSlow(t *testing.T) {
++	ks := []complex128{0, 1, 2, 3}
++
++	m := make(map[interface{}]int)
++	for i, k := range ks {
++		m[k] = i
++	}
++	if len(m) != len(ks) {
++		t.Errorf("want %d elements, got %d", len(ks), len(m))
++	}
++
++	func() {
++		for _, k := range ks {
++			defer delete(m, k)
++		}
++	}()
++	if len(m) != 0 {
++		t.Errorf("want 0 elements, got %d", len(m))
++	}
++}

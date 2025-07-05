@@ -8,6 +8,20 @@ Date:   Thu Jan 26 20:06:27 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev, mpimenov
     https://golang.org/cl/5577053
-
+---
  src/pkg/net/rpc/server_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/rpc/server_test.go b/src/pkg/net/rpc/server_test.go
+index 7536c6dd6f..b05c63c056 100644
+--- a/src/pkg/net/rpc/server_test.go
++++ b/src/pkg/net/rpc/server_test.go
+@@ -518,7 +518,7 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
+ 		go func() {
+ 			reply := new(Reply)
+ 			for atomic.AddInt32(&N, -1) >= 0 {
+-				err = client.Call("Arith.Add", args, reply)
++				err := client.Call("Arith.Add", args, reply)
+ 				if err != nil {
+ 					b.Fatalf("rpc error: Add: expected no error but got string %q", err.Error())
+ 				}

@@ -43,7 +43,7 @@ Date:   Wed Feb 2 16:44:20 2011 -0500
     R=ken2, r
     CC=golang-dev
     https://golang.org/cl/4000053
-
+---
  src/pkg/runtime/amd64/traceback.c | 124 +++++++++++++++++++++++++++-----------
  src/pkg/runtime/arm/traceback.c   |  99 +++++++++++++++++++++++++-----
  src/pkg/runtime/extern.go         |  38 ++++++++----
@@ -52,3 +52,635 @@ Date:   Wed Feb 2 16:44:20 2011 -0500
  src/pkg/runtime/runtime.h         |   2 +-
  src/pkg/runtime/symtab.c          |  99 ++++++++++++++++++++++--------
  7 files changed, 289 insertions(+), 91 deletions(-)
+
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 86e96f3488..d3aae0db95 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -8,6 +8,8 @@
+ static uintptr isclosureentry(uintptr);
+ void runtime·deferproc(void);
+ void runtime·newproc(void);
++void runtime·newstack(void);
++void runtime·morestack(void);
+ 
+ // This code is also used for the 386 tracebacks.
+ // Use uintptr for an appropriate word-sized integer.
+@@ -17,15 +19,32 @@ void runtime·newproc(void);
+ // A little clunky to merge the two but avoids duplicating
+ // the code and all its subtlety.
+ static int32
+-gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
++gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 max)
+ {
+ 	byte *p;
+-	int32 i, n, iter, nascent;
+-	uintptr pc, tracepc, *fp;
++	int32 i, n, iter, sawnewstack;
++	uintptr pc, lr, tracepc;
++	byte *fp;
+ 	Stktop *stk;
+ 	Func *f;
+-	
++
+ 	pc = (uintptr)pc0;
++	lr = 0;
++	fp = nil;
++	
++	// If the PC is goexit, the goroutine hasn't started yet.
++	if(pc0 == g->sched.pc && sp == g->sched.sp && pc0 == (byte*)runtime·goexit) {
++		fp = sp;
++		lr = pc;
++		pc = (uintptr)g->entry;
++	}
++	
++	// If the PC is zero, it's likely a nil function call.
++	// Start in the caller's frame.
++	if(pc == 0) {
++		pc = lr;
++		lr = 0;
++	}
+ 
+ 	// If the PC is zero, it's likely a nil function call.
+ 	// Start in the caller's frame.
+@@ -33,26 +52,29 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
+ 		pc = *(uintptr*)sp;
+ 		sp += sizeof(uintptr);
+ 	}
+-	
+-	nascent = 0;
+-	if(pc0 == g->sched.pc && sp == g->sched.sp && pc0 == (byte*)runtime·goexit) {
+-		// Hasn't started yet.  g->sched is set up for goexit
+-		// but goroutine will start at g->entry.
+-		nascent = 1;
+-		pc = (uintptr)g->entry;
+-	}
+-	
++
+ 	n = 0;
++	sawnewstack = 0;
+ 	stk = (Stktop*)g->stackbase;
+-	for(iter = 0; iter < 100 && n < m; iter++) {	// iter avoids looping forever
++	for(iter = 0; iter < 100 && n < max; iter++) {	// iter avoids looping forever
++		// Typically:
++		//	pc is the PC of the running function.
++		//	sp is the stack pointer at that program counter.
++		//	fp is the frame pointer (caller's stack pointer) at that program counter, or nil if unknown.
++		//	stk is the stack containing sp.
++		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
++	
+ 		if(pc == (uintptr)runtime·lessstack) {
+ 			// Hit top of stack segment.  Unwind to next segment.
+ 			pc = (uintptr)stk->gobuf.pc;
+ 			sp = stk->gobuf.sp;
++			lr = 0;
++			fp = nil;
++			if(pcbuf == nil)
++				runtime·printf("----- stack segment boundary -----\n");
+ 			stk = (Stktop*)stk->stackbase;
+ 			continue;
+ 		}
+-
+ 		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil) {
+ 			// Dangerous, but worthwhile: see if this is a closure:
+ 			//	ADDQ $wwxxyyzz, SP; RET
+@@ -66,17 +88,32 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
+ 				sp += *(uint32*)(p+2);
+ 				pc = *(uintptr*)sp;
+ 				sp += sizeof(uintptr);
++				lr = 0;
++				fp = nil;
+ 				continue;
+ 			}
+ 			
+-			if(nascent && (pc = isclosureentry(pc)) != 0)
++			// Closure at top of stack, not yet started.
++			if(lr == (uintptr)runtime·goexit && (pc = isclosureentry(pc)) != 0) {
++				fp = sp;
+ 				continue;
++			}
+ 
+-			// Unknown pc; stop.
++			// Unknown pc: stop.
+ 			break;
+ 		}
+ 
+-		// Found an actual function worth reporting.
++		// Found an actual function.
++		if(fp == nil) {
++			fp = sp;
++			if(pc > f->entry && f->frame >= sizeof(uintptr))
++				fp += f->frame - sizeof(uintptr);
++			if(lr == 0)
++				lr = *(uintptr*)fp;
++			fp += sizeof(uintptr);
++		} else if(lr == 0)
++			lr = *(uintptr*)fp;
++
+ 		if(skip > 0)
+ 			skip--;
+ 		else if(pcbuf != nil)
+@@ -93,15 +130,10 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
+ 				tracepc--;
+ 			runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
+ 			runtime·printf("\t%S(", f->name);
+-			fp = (uintptr*)sp;
+-			if(f->frame < sizeof(uintptr))
+-				fp++;
+-			else
+-				fp += f->frame/sizeof(uintptr);
+ 			for(i = 0; i < f->args; i++) {
+ 				if(i != 0)
+ 					runtime·prints(", ");
+-				runtime·printhex(fp[i]);
++				runtime·printhex(((uintptr*)fp)[i]);
+ 				if(i >= 4) {
+ 					runtime·prints(", ...");
+ 					break;
+@@ -111,20 +143,32 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
+ 			n++;
+ 		}
+ 		
+-		if(nascent) {
+-			pc = (uintptr)g->sched.pc;
+-			sp = g->sched.sp;
+-			nascent = 0;
++		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
++			fp += 2*sizeof(uintptr);
++
++		if(f->entry == (uintptr)runtime·newstack)
++			sawnewstack = 1;
++
++		if(pcbuf == nil && f->entry == (uintptr)runtime·morestack && g == m->g0 && sawnewstack) {
++			// The fact that we saw newstack means that morestack
++			// has managed to record its information in m, so we can
++			// use it to keep unwinding the stack.
++			runtime·printf("----- morestack called from goroutine %d -----\n", m->curg->goid);
++			pc = (uintptr)m->morepc;
++			sp = m->morebuf.sp - sizeof(void*);
++			lr = (uintptr)m->morebuf.pc;
++			fp = m->morebuf.sp;
++			sawnewstack = 0;
++			g = m->curg;
++			stk = (Stktop*)g->stackbase;
+ 			continue;
+ 		}
+ 
+-		if(f->frame < sizeof(uintptr))	// assembly functions lie
+-			sp += sizeof(uintptr);
+-		else
+-			sp += f->frame;
+-		pc = *((uintptr*)sp - 1);
+-		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
+-			sp += 2*sizeof(uintptr);
++		// Unwind to next frame.
++		pc = lr;
++		lr = 0;
++		sp = fp;
++		fp = nil;
+ 	}
+ 	return n;
+ }
+@@ -156,7 +200,17 @@ isclosureentry(uintptr pc)
+ 	p = (byte*)pc;
+ 	if(p < runtime·mheap.arena_start || p+32 > runtime·mheap.arena_used)
+ 		return 0;
++
++	if(*p == 0xe8) {
++		// CALL fn
++		return pc+5+*(int32*)(p+1);
++	}
+ 	
++	if(sizeof(uintptr) == 8 && p[0] == 0x48 && p[1] == 0xb9 && p[10] == 0xff && p[11] == 0xd1) {
++		// MOVQ $fn, CX; CALL *CX
++		return *(uintptr*)(p+2);
++	}
++
+ 	// SUBQ $siz, SP
+ 	if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0x81 || *p++ != 0xec)
+ 		return 0;
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index 8289fdb283..2307e98e85 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -3,19 +3,27 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "malloc.h"
++
++void runtime·deferproc(void);
++void runtime·newproc(void);
++void runtime·newstack(void);
++void runtime·morestack(void);
+ 
+ static int32
+-gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 m)
++gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 max)
+ {
+ 	int32 i, n, iter;
+-	uintptr pc, lr, tracepc;
++	uintptr pc, lr, tracepc, x;
++	byte *fp, *p;
+ 	Stktop *stk;
+ 	Func *f;
+ 	
+ 	pc = (uintptr)pc0;
+ 	lr = (uintptr)lr0;
+-	
+-	// If the PC is goexit, it hasn't started yet.
++	fp = nil;
++
++	// If the PC is goexit, the goroutine hasn't started yet.
+ 	if(pc == (uintptr)runtime·goexit) {
+ 		pc = (uintptr)g->entry;
+ 		lr = (uintptr)runtime·goexit;
+@@ -30,21 +38,73 @@ gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, i
+ 
+ 	n = 0;
+ 	stk = (Stktop*)g->stackbase;
+-	for(iter = 0; iter < 100 && n < m; iter++) {	// iter avoids looping forever
++	for(iter = 0; iter < 100 && n < max; iter++) {	// iter avoids looping forever
++		// Typically:
++		//	pc is the PC of the running function.
++		//	sp is the stack pointer at that program counter.
++		//	fp is the frame pointer (caller's stack pointer) at that program counter, or nil if unknown.
++		//	stk is the stack containing sp.
++		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
++		
+ 		if(pc == (uintptr)runtime·lessstack) {
+ 			// Hit top of stack segment.  Unwind to next segment.
+ 			pc = (uintptr)stk->gobuf.pc;
+ 			sp = stk->gobuf.sp;
+-			lr = *(uintptr*)sp;
++			lr = 0;
++			fp = nil;
++			if(pcbuf == nil)
++				runtime·printf("----- stack segment boundary -----\n");
+ 			stk = (Stktop*)stk->stackbase;
+ 			continue;
+ 		}
+-		if(pc <= 0x1000 || (f = runtime·findfunc(pc-4)) == nil) {
+-			// TODO: Check for closure.
++		
++		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil) {
++			// Dangerous, but worthwhile: see if this is a closure by
++			// decoding the instruction stream.
++			//
++			// We check p < p+4 to avoid wrapping and faulting if
++			// we have lost track of where we are.
++			p = (byte*)pc;
++			if((pc&3) == 0 && p < p+4 &&
++			   runtime·mheap.arena_start < p &&
++			   p+4 < runtime·mheap.arena_used) {
++			   	x = *(uintptr*)p;
++				if((x&0xfffff000) == 0xe49df000) {
++					// End of closure:
++					// MOVW.P frame(R13), R15
++					pc = *(uintptr*)sp;
++					lr = 0;
++					sp += x & 0xfff;
++					fp = nil;
++					continue;
++				}
++				if((x&0xfffff000) == 0xe52de000 && lr == (uintptr)runtime·goexit) {
++					// Beginning of closure.
++					// Closure at top of stack, not yet started.
++					p += 5*4;
++					if((x&0xfff) != 4) {
++						// argument copying
++						p += 7*4;
++					}
++					if((byte*)pc < p && p < p+4 && p+4 < runtime·mheap.arena_used) {
++						pc = *(uintptr*)p;
++						fp = nil;
++						continue;
++					}
++				}
++			}
+ 			break;
+ 		}
+ 		
+-		// Found an actual function worth reporting.
++		// Found an actual function.
++		if(lr == 0)
++			lr = *(uintptr*)sp;
++		if(fp == nil) {
++			fp = sp;
++			if(pc > f->entry && f->frame >= 0)
++				fp += f->frame;
++		}
++
+ 		if(skip > 0)
+ 			skip--;
+ 		else if(pcbuf != nil)
+@@ -64,7 +124,7 @@ gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, i
+ 			for(i = 0; i < f->args; i++) {
+ 				if(i != 0)
+ 					runtime·prints(", ");
+-				runtime·printhex(((uintptr*)sp)[1+i]);
++				runtime·printhex(((uintptr*)fp)[1+i]);
+ 				if(i >= 4) {
+ 					runtime·prints(", ...");
+ 					break;
+@@ -73,17 +133,28 @@ gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, i
+ 			runtime·prints(")\n");
+ 			n++;
+ 		}
++
++		if(pcbuf == nil && f->entry == (uintptr)runtime·newstack && g == m->g0) {
++			runtime·printf("----- newstack called from goroutine %d -----\n", m->curg->goid);
++			pc = (uintptr)m->morepc;
++			sp = (byte*)m->moreargp - sizeof(void*);
++			lr = (uintptr)m->morebuf.pc;
++			fp = m->morebuf.sp;
++			g = m->curg;
++			stk = (Stktop*)g->stackbase;
++			continue;
++		}
+ 		
+-		if(lr == 0)
+-			lr = *(uintptr*)sp;
++		// Unwind to next frame.
+ 		pc = lr;
+ 		lr = 0;
+-		if(f->frame >= 0)
+-			sp += f->frame;
++		sp = fp;
++		fp = nil;
+ 	}
+ 	return n;		
+ }
+ 
++
+ void
+ runtime·traceback(byte *pc0, byte *sp, byte *lr, G *g)
+ {
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index dba28324c4..c6e664abbb 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -60,31 +60,47 @@ func (f *Func) Entry() uintptr { return f.entry }
+ // counter within f.
+ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ 	// NOTE(rsc): If you edit this function, also edit
+-	// symtab.c:/^funcline.
++	// symtab.c:/^funcline.  That function also has the
++	// comments explaining the logic.
++	targetpc := pc
++
+ 	var pcQuant uintptr = 1
+ 	if GOARCH == "arm" {
+ 		pcQuant = 4
+ 	}
+ 
+-	targetpc := pc
+ 	p := f.pcln
+ 	pc = f.pc0
+ 	line = int(f.ln0)
+-	file = f.src
+-	for i := 0; i < len(p) && pc <= targetpc; i++ {
+-		switch {
+-		case p[i] == 0:
++	i := 0
++	//print("FileLine start pc=", pc, " targetpc=", targetpc, " line=", line,
++	//	" tab=", p, " ", p[0], " quant=", pcQuant, " GOARCH=", GOARCH, "\n")
++	for {
++		for i < len(p) && p[i] > 128 {
++			pc += pcQuant * uintptr(p[i]-128)
++			i++
++		}
++		//print("pc<", pc, " targetpc=", targetpc, " line=", line, "\n")
++		if pc > targetpc || i >= len(p) {
++			break
++		}
++		if p[i] == 0 {
++			if i+5 > len(p) {
++				break
++			}
+ 			line += int(p[i+1]<<24) | int(p[i+2]<<16) | int(p[i+3]<<8) | int(p[i+4])
+-			i += 4
+-		case p[i] <= 64:
++			i += 5
++		} else if p[i] <= 64 {
+ 			line += int(p[i])
+-		case p[i] <= 128:
++			i++
++		} else {
+ 			line -= int(p[i] - 64)
+-		default:
+-			pc += pcQuant * uintptr(p[i]-129)
++			i++
+ 		}
++		//print("pc=", pc, " targetpc=", targetpc, " line=", line, "\n")
+ 		pc += pcQuant
+ 	}
++	file = f.src
+ 	return
+ }
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 998cbc7bc2..26c1f13a48 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -752,8 +752,8 @@ runtime·newstack(void)
+ 		free = framesize;
+ 	}
+ 
+-//printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n",
+-//frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
++//runtime·printf("newstack framesize=%d argsize=%d morepc=%p moreargp=%p gobuf=%p, %p top=%p old=%p\n",
++//framesize, argsize, m->morepc, m->moreargp, m->morebuf.pc, m->morebuf.sp, top, g1->stackbase);
+ 
+ 	top->stackbase = g1->stackbase;
+ 	top->stackguard = g1->stackguard;
+@@ -761,7 +761,7 @@ runtime·newstack(void)
+ 	top->argp = m->moreargp;
+ 	top->argsize = argsize;
+ 	top->free = free;
+-	
++
+ 	// copy flag from panic
+ 	top->panic = g1->ispanic;
+ 	g1->ispanic = false;
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 284b1e4585..e3a20d48af 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -528,14 +528,22 @@ void
+ runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool retbool)
+ {
+ 	Func *f;
++	uintptr pc;
+ 
+-	if(runtime·callers(1+skip, &retpc, 1) == 0 || (f = runtime·findfunc(retpc-1)) == nil) {
++	if(runtime·callers(1+skip, &retpc, 1) == 0) {
+ 		retfile = runtime·emptystring;
+ 		retline = 0;
+ 		retbool = false;
++	} else if((f = runtime·findfunc(retpc)) == nil) {
++		retfile = runtime·emptystring;
++		retline = 0;
++		retbool = true;  // have retpc at least
+ 	} else {
+ 		retfile = f->src;
+-		retline = runtime·funcline(f, retpc-1);
++		pc = retpc;
++		if(pc > f->entry)
++			pc--;
++		retline = runtime·funcline(f, pc);
+ 		retbool = true;
+ 	}
+ 	FLUSH(&retfile);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 2c19f851e4..b76632a2d4 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -419,7 +419,7 @@ void	runtime·signalstack(byte*, int32);
+ G*	runtime·malg(int32);
+ void	runtime·minit(void);
+ Func*	runtime·findfunc(uintptr);
+-int32	runtime·funcline(Func*, uint64);
++int32	runtime·funcline(Func*, uintptr);
+ void*	runtime·stackalloc(uint32);
+ void	runtime·stackfree(void*, uintptr);
+ MCache*	runtime·allocmcache(void);
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index b2cccd3cf2..6f0eea0e76 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -258,28 +258,49 @@ splitpcln(void)
+ 	ef = func + nfunc;
+ 	pc = func[0].entry;	// text base
+ 	f->pcln.array = p;
+-	f->pc0 = pc - pcquant;
++	f->pc0 = pc;
+ 	line = 0;
+-	for(; p < ep; p++) {
+-		if(f < ef && pc > (f+1)->entry) {
++	for(;;) {
++		while(p < ep && *p > 128)
++			pc += pcquant * (*p++ - 128);
++		// runtime·printf("pc<%p targetpc=%p line=%d\n", pc, targetpc, line);
++		if(*p == 0) {
++			if(p+5 > ep)
++				break;
++			// 4 byte add to line
++			line += (p[1]<<24) | (p[2]<<16) | (p[3]<<8) | p[4];
++			p += 5;
++		} else if(*p <= 64)
++			line += *p++;
++		else
++			line -= *p++ - 64;
++		
++		// pc, line now match.
++		// Because the state machine begins at pc==entry and line==0,
++		// it can happen - just at the beginning! - that the update may
++		// have updated line but left pc alone, to tell us the true line
++		// number for pc==entry.  In that case, update f->ln0.
++		// Having the correct initial line number is important for choosing
++		// the correct file in dosrcline above.
++		if(f == func && pc == f->pc0) {
++			f->pcln.array = p;
++			f->pc0 = pc + pcquant;
++			f->ln0 = line;
++		}
++
++		if(f < ef && pc >= (f+1)->entry) {
+ 			f->pcln.len = p - f->pcln.array;
+ 			f->pcln.cap = f->pcln.len;
+ 			f++;
+ 			f->pcln.array = p;
+-			f->pc0 = pc;
++			// pc0 and ln0 are the starting values for
++			// the loop over f->pcln, so pc must be 
++			// adjusted by the same pcquant update
++			// that we're going to do as we continue our loop.
++			f->pc0 = pc + pcquant;
+ 			f->ln0 = line;
+ 		}
+-		if(*p == 0) {
+-			// 4 byte add to line
+-			line += (p[1]<<24) | (p[2]<<16) | (p[3]<<8) | p[4];
+-			p += 4;
+-		} else if(*p <= 64) {
+-			line += *p;
+-		} else if(*p <= 128) {
+-			line -= *p - 64;
+-		} else {
+-			pc += pcquant*(*p - 129);
+-		}
++
+ 		pc += pcquant;
+ 	}
+ 	if(f < ef) {
+@@ -293,13 +314,17 @@ splitpcln(void)
+ // (Source file is f->src.)
+ // NOTE(rsc): If you edit this function, also edit extern.go:/FileLine
+ int32
+-runtime·funcline(Func *f, uint64 targetpc)
++runtime·funcline(Func *f, uintptr targetpc)
+ {
+ 	byte *p, *ep;
+ 	uintptr pc;
+ 	int32 line;
+ 	int32 pcquant;
+ 	
++	enum {
++		debug = 0
++	};
++	
+ 	switch(thechar) {
+ 	case '5':
+ 		pcquant = 4;
+@@ -313,17 +338,41 @@ runtime·funcline(Func *f, uint64 targetpc)
+ 	ep = p + f->pcln.len;
+ 	pc = f->pc0;
+ 	line = f->ln0;
+-	for(; p < ep && pc <= targetpc; p++) {
++	if(debug && !runtime·panicking)
++		runtime·printf("funcline start pc=%p targetpc=%p line=%d tab=%p+%d\n",
++			pc, targetpc, line, p, (int32)f->pcln.len);
++	for(;;) {
++		// Table is a sequence of updates.
++
++		// Each update says first how to adjust the pc,
++		// in possibly multiple instructions...
++		while(p < ep && *p > 128)
++			pc += pcquant * (*p++ - 128);
++
++		if(debug && !runtime·panicking)
++			runtime·printf("pc<%p targetpc=%p line=%d\n", pc, targetpc, line);
++		
++		// If the pc has advanced too far or we're out of data,
++		// stop and the last known line number.
++		if(pc > targetpc || p >= ep)
++			break;
++
++		// ... and then how to adjust the line number,
++		// in a single instruction.
+ 		if(*p == 0) {
++			if(p+5 > ep)
++				break;
+ 			line += (p[1]<<24) | (p[2]<<16) | (p[3]<<8) | p[4];
+-			p += 4;
+-		} else if(*p <= 64) {
+-			line += *p;
+-		} else if(*p <= 128) {
+-			line -= *p - 64;
+-		} else {
+-			pc += pcquant*(*p - 129);
+-		}
++			p += 5;
++		} else if(*p <= 64)
++			line += *p++;
++		else
++			line -= *p++ - 64;
++		// Now pc, line pair is consistent.
++		if(debug && !runtime·panicking)
++			runtime·printf("pc=%p targetpc=%p line=%d\n", pc, targetpc, line);
++
++		// PC increments implicitly on each iteration.
+ 		pc += pcquant;
+ 	}
+ 	return line;

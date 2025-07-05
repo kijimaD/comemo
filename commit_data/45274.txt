@@ -25,7 +25,7 @@ Date:   Mon Oct 12 15:32:49 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go        |  2 +-
  src/cmd/go/internal/modload/buildlist.go | 15 +++++++++++++++
  src/cmd/go/internal/modload/import.go    |  2 +-
@@ -33,3 +33,123 @@ Date:   Mon Oct 12 15:32:49 2020 -0400
  src/cmd/go/internal/modload/query.go     | 15 +++------------
  src/cmd/go/internal/work/build.go        |  2 +-
  6 files changed, 22 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 9e2fb8e408..171c070ab3 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -912,7 +912,7 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
+ 	// If it turns out to only exist as a module, we can detect the resulting
+ 	// PackageNotInModuleError and avoid a second round-trip through (potentially)
+ 	// all of the configured proxies.
+-	results, err := modload.QueryPattern(ctx, path, vers, allowed)
++	results, err := modload.QueryPattern(ctx, path, vers, modload.Selected, allowed)
+ 	if err != nil {
+ 		// If the path doesn't contain a wildcard, check whether it was actually a
+ 		// module path instead. If so, return that.
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 059b020420..95a68637c6 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -52,6 +52,21 @@ func LoadedModules() []module.Version {
+ 	return buildList
+ }
+ 
++// Selected returns the selected version of the module with the given path, or
++// the empty string if the given module has no selected version
++// (either because it is not required or because it is the Target module).
++func Selected(path string) (version string) {
++	if path == Target.Path {
++		return ""
++	}
++	for _, m := range buildList {
++		if m.Path == path {
++			return m.Version
++		}
++	}
++	return ""
++}
++
+ // SetBuildList sets the module build list.
+ // The caller is responsible for ensuring that the list is valid.
+ // SetBuildList does not retain a reference to the original list.
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 1c572d5d6d..6d0d8de944 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -345,7 +345,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 	// and return m, dir, ImpportMissingError.
+ 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
+ 
+-	candidates, err := QueryPattern(ctx, path, "latest", CheckAllowed)
++	candidates, err := QueryPattern(ctx, path, "latest", Selected, CheckAllowed)
+ 	if err != nil {
+ 		if errors.Is(err, os.ErrNotExist) {
+ 			// Return "cannot find module providing package […]" instead of whatever
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index d15da892e6..006db4f169 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -116,7 +116,7 @@ func checkRetractions(ctx context.Context, m module.Version) error {
+ 		// Ignore exclusions from the main module's go.mod.
+ 		// We may need to account for the current version: for example,
+ 		// v2.0.0+incompatible is not "latest" if v1.0.0 is current.
+-		rev, err := Query(ctx, path, "latest", findCurrentVersion(path), nil)
++		rev, err := Query(ctx, path, "latest", Selected(path), nil)
+ 		if err != nil {
+ 			return &entry{nil, err}
+ 		}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 6a3fd103fc..d16a247f72 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -516,7 +516,7 @@ type QueryResult struct {
+ // If any matching package is in the main module, QueryPattern considers only
+ // the main module and only the version "latest", without checking for other
+ // possible modules.
+-func QueryPattern(ctx context.Context, pattern, query string, allowed AllowedFunc) ([]QueryResult, error) {
++func QueryPattern(ctx context.Context, pattern, query string, current func(string) string, allowed AllowedFunc) ([]QueryResult, error) {
+ 	ctx, span := trace.StartSpan(ctx, "modload.QueryPattern "+pattern+" "+query)
+ 	defer span.Done()
+ 
+@@ -591,9 +591,9 @@ func QueryPattern(ctx context.Context, pattern, query string, allowed AllowedFun
+ 			ctx, span := trace.StartSpan(ctx, "modload.QueryPattern.queryModule ["+proxy+"] "+path)
+ 			defer span.Done()
+ 
+-			current := findCurrentVersion(path)
++			pathCurrent := current(path)
+ 			r.Mod.Path = path
+-			r.Rev, err = queryProxy(ctx, proxy, path, query, current, allowed)
++			r.Rev, err = queryProxy(ctx, proxy, path, query, pathCurrent, allowed)
+ 			if err != nil {
+ 				return r, err
+ 			}
+@@ -649,15 +649,6 @@ func modulePrefixesExcludingTarget(path string) []string {
+ 	return prefixes
+ }
+ 
+-func findCurrentVersion(path string) string {
+-	for _, m := range buildList {
+-		if m.Path == path {
+-			return m.Version
+-		}
+-	}
+-	return ""
+-}
+-
+ type prefixResult struct {
+ 	QueryResult
+ 	err error
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 21342ac8ba..3531612dc6 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -741,7 +741,7 @@ func installOutsideModule(ctx context.Context, args []string) {
+ 		// Don't check for retractions if a specific revision is requested.
+ 		allowed = nil
+ 	}
+-	qrs, err := modload.QueryPattern(ctx, patterns[0], version, allowed)
++	qrs, err := modload.QueryPattern(ctx, patterns[0], version, modload.Selected, allowed)
+ 	if err != nil {
+ 		base.Fatalf("go install %s: %v", args[0], err)
+ 	}

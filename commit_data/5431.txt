@@ -7,6 +7,20 @@ Date:   Mon May 3 14:28:45 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1084041
-
+---
  src/pkg/big/nat.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 30ca1e646b..fd4c49f5cf 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -785,7 +785,7 @@ func (z nat) shr(x nat, s uint) nat {
+ 	}
+ 
+ 	z = z.make(n)
+-	shrVW(&z[0], &x[m-n], Word(s%_W), m)
++	shrVW(&z[0], &x[m-n], Word(s%_W), n)
+ 
+ 	return z.norm()
+ }

@@ -12,7 +12,73 @@ Date:   Sun Jun 11 23:29:26 2023 +0100
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/syscall/syscall_windows.go      | 18 ++++++++++++++----
  src/syscall/syscall_windows_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 9f1b384de4..e348905abf 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -533,11 +533,21 @@ const ImplementsGetwd = true
+ 
+ func Getwd() (wd string, err error) {
+ 	b := make([]uint16, 300)
+-	n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
+-	if e != nil {
+-		return "", e
++	// The path of the current directory may not fit in the initial 300-word
++	// buffer when long path support is enabled. The current directory may also
++	// change between subsequent calls of GetCurrentDirectory. As a result, we
++	// need to retry the call in a loop until the current directory fits, each
++	// time with a bigger buffer.
++	for {
++		n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
++		if e != nil {
++			return "", e
++		}
++		if int(n) <= len(b) {
++			return UTF16ToString(b[:n]), nil
++		}
++		b = make([]uint16, n)
+ 	}
+-	return UTF16ToString(b[0:n]), nil
+ }
+ 
+ func Chdir(path string) (err error) {
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 7b31a863c3..81285e9a38 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -180,6 +180,30 @@ int main(int argc, char *argv[])
+ 	}
+ }
+ 
++func TestGetwd_DoesNotPanicWhenPathIsLong(t *testing.T) {
++	// Regression test for https://github.com/golang/go/issues/60051.
++
++	// The length of a filename is also limited, so we can't reproduce the
++	// crash by creating a single directory with a very long name; we need two
++	// layers.
++	a200 := strings.Repeat("a", 200)
++	dirname := filepath.Join(t.TempDir(), a200, a200)
++
++	err := os.MkdirAll(dirname, 0o700)
++	if err != nil {
++		t.Skipf("MkdirAll failed: %v", err)
++	}
++	err = os.Chdir(dirname)
++	if err != nil {
++		t.Skipf("Chdir failed: %v", err)
++	}
++	// Change out of the temporary directory so that we don't inhibit its
++	// removal during test cleanup.
++	defer os.Chdir(`\`)
++
++	syscall.Getwd()
++}
++
+ func FuzzUTF16FromString(f *testing.F) {
+ 	f.Add("hi")           // ASCII
+ 	f.Add("â")            // latin1

@@ -21,8 +21,55 @@ Date:   Thu Jun 28 17:18:01 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                    | 5 +++++
  src/cmd/go/testdata/src/vetfail/p1/p1.go | 2 ++
  src/cmd/vet/main.go                      | 2 +-
  3 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index cb4a1a04b9..c2d85c8730 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5817,6 +5817,11 @@ func TestTestVet(t *testing.T) {
+ 	tg.runFail("test", "vetfail/...")
+ 	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
+ 	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
++
++	// Use -a so that we need to recompute the vet-specific export data for
++	// vetfail/p1.
++	tg.run("test", "-a", "vetfail/p2")
++	tg.grepStderrNot(`invalid.*constraint`, "did diagnose bad build constraint in vetxonly mode")
+ }
+ 
+ func TestTestVetRebuild(t *testing.T) {
+diff --git a/src/cmd/go/testdata/src/vetfail/p1/p1.go b/src/cmd/go/testdata/src/vetfail/p1/p1.go
+index 248317b779..eaa9b18333 100644
+--- a/src/cmd/go/testdata/src/vetfail/p1/p1.go
++++ b/src/cmd/go/testdata/src/vetfail/p1/p1.go
+@@ -1,3 +1,5 @@
++// +build !foo-bar
++
+ package p1
+ 
+ import "fmt"
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 959a536d25..28da9e2d74 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -489,7 +489,6 @@ func doPackage(names []string, basePkg *Package) *Package {
+ 			file:    parsedFile,
+ 			dead:    make(map[ast.Node]bool),
+ 		}
+-		checkBuildTag(file)
+ 		files = append(files, file)
+ 	}
+ 	if len(astFiles) == 0 {
+@@ -541,6 +540,7 @@ func doPackage(names []string, basePkg *Package) *Package {
+ 		}
+ 	}
+ 	for _, file := range files {
++		checkBuildTag(file)
+ 		file.checkers = chk
+ 		if file.file != nil {
+ 			file.walkFile(file.name, file.file)

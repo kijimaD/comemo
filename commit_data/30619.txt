@@ -16,6 +16,26 @@ Date:   Wed Nov 16 22:39:25 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/33278
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cover/html.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cover/html.go b/src/cmd/cover/html.go
+index b49f934d1b..04dc76fd59 100644
+--- a/src/cmd/cover/html.go
++++ b/src/cmd/cover/html.go
+@@ -64,9 +64,12 @@ func htmlOutput(profile, outfile string) error {
+ 	} else {
+ 		out, err = os.Create(outfile)
+ 	}
++	if err != nil {
++		return err
++	}
+ 	err = htmlTemplate.Execute(out, d)
+-	if err == nil {
+-		err = out.Close()
++	if err2 := out.Close(); err == nil {
++		err = err2
+ 	}
+ 	if err != nil {
+ 		return err

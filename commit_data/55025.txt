@@ -12,7 +12,57 @@ Date:   Mon Dec 5 16:26:26 2022 -0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/walk/switch.go |  2 +-
  test/codegen/retpoline.go               | 28 ++++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index d38ba500f2..8ca8fa82e1 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -290,7 +290,7 @@ func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
+ 	const minCases = 8   // have at least minCases cases in the switch
+ 	const minDensity = 4 // use at least 1 out of every minDensity entries
+ 
+-	if !go119UseJumpTables || base.Flag.N != 0 || !ssagen.Arch.LinkArch.CanJumpTable {
++	if !go119UseJumpTables || base.Flag.N != 0 || !ssagen.Arch.LinkArch.CanJumpTable || base.Ctxt.Retpoline {
+ 		return false
+ 	}
+ 	if len(cc) < minCases {
+diff --git a/test/codegen/retpoline.go b/test/codegen/retpoline.go
+index 15d6a26615..a04a005e2e 100644
+--- a/test/codegen/retpoline.go
++++ b/test/codegen/retpoline.go
+@@ -12,3 +12,31 @@ func CallInterface(x interface{ M() }) {
+ 	// amd64:`CALL\truntime.retpoline`
+ 	x.M()
+ }
++
++// Check to make sure that jump tables are disabled
++// when retpoline is on. See issue 57097.
++func noJumpTables(x int) int {
++	switch x {
++	case 0:
++		return 0
++	case 1:
++		return 1
++	case 2:
++		return 2
++	case 3:
++		return 3
++	case 4:
++		return 4
++	case 5:
++		return 5
++	case 6:
++		return 6
++	case 7:
++		return 7
++	case 8:
++		return 8
++	case 9:
++		return 9
++	}
++	return 10
++}

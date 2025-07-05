@@ -40,10 +40,500 @@ Date:   Sat Oct 1 12:44:33 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/32447
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes_generic.go     |   2 +-
  src/bytes/bytes_s390x.go       | 118 ++++++++++++++++++++++
  src/runtime/asm_s390x.s        | 224 +++++++++++++++++++++++++++++++++++++++++
  src/strings/strings_generic.go |   2 +-
  src/strings/strings_s390x.go   |  98 ++++++++++++++++++
  5 files changed, 442 insertions(+), 2 deletions(-)
+
+diff --git a/src/bytes/bytes_generic.go b/src/bytes/bytes_generic.go
+index 88e232eccf..e8a4fe347e 100644
+--- a/src/bytes/bytes_generic.go
++++ b/src/bytes/bytes_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64
++// +build !amd64,!s390x
+ 
+ package bytes
+ 
+diff --git a/src/bytes/bytes_s390x.go b/src/bytes/bytes_s390x.go
+new file mode 100644
+index 0000000000..9eec3b7b5d
+--- /dev/null
++++ b/src/bytes/bytes_s390x.go
+@@ -0,0 +1,118 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bytes
++
++//go:noescape
++
++// indexShortStr returns the index of the first instance of sep in s,
++// or -1 if sep is not present in s.
++// indexShortStr requires 2 <= len(sep) <= shortStringLen
++func indexShortStr(s, c []byte) int // ../runtime/asm_s390x.s
++
++// supportsVX reports whether the vector facility is available.
++// indexShortStr must not be called if the vector facility is not
++// available.
++func supportsVX() bool // ../runtime/asm_s390x.s
++
++var shortStringLen = -1
++
++func init() {
++	if supportsVX() {
++		shortStringLen = 64
++	}
++}
++
++// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
++func Index(s, sep []byte) int {
++	n := len(sep)
++	switch {
++	case n == 0:
++		return 0
++	case n == 1:
++		return IndexByte(s, sep[0])
++	case n <= shortStringLen:
++		// Use brute force when s and sep both are small
++		if len(s) <= 64 {
++			return indexShortStr(s, sep)
++		}
++		c := sep[0]
++		i := 0
++		t := s[:len(s)-n+1]
++		fails := 0
++		for i < len(t) {
++			if t[i] != c {
++				// IndexByte skips 16/32 bytes per iteration,
++				// so it's faster than indexShortStr.
++				o := IndexByte(t[i:], c)
++				if o < 0 {
++					return -1
++				}
++				i += o
++			}
++			if Equal(s[i:i+n], sep) {
++				return i
++			}
++			fails++
++			i++
++			// Switch to indexShortStr when IndexByte produces too many false positives.
++			// Too many means more that 1 error per 8 characters.
++			// Allow some errors in the beginning.
++			if fails > (i+16)/8 {
++				r := indexShortStr(s[i:], sep)
++				if r >= 0 {
++					return r + i
++				}
++				return -1
++			}
++		}
++		return -1
++	case n == len(s):
++		if Equal(sep, s) {
++			return 0
++		}
++		return -1
++	case n > len(s):
++		return -1
++	}
++	// Rabin-Karp search
++	hashsep, pow := hashStr(sep)
++	var h uint32
++	for i := 0; i < n; i++ {
++		h = h*primeRK + uint32(s[i])
++	}
++	if h == hashsep && Equal(s[:n], sep) {
++		return 0
++	}
++	for i := n; i < len(s); {
++		h *= primeRK
++		h += uint32(s[i])
++		h -= pow * uint32(s[i-n])
++		i++
++		if h == hashsep && Equal(s[i-n:i], sep) {
++			return i - n
++		}
++	}
++	return -1
++}
++
++// primeRK is the prime base used in Rabin-Karp algorithm.
++const primeRK = 16777619
++
++// hashStr returns the hash and the appropriate multiplicative
++// factor for use in Rabin-Karp algorithm.
++func hashStr(sep []byte) (uint32, uint32) {
++	hash := uint32(0)
++	for i := 0; i < len(sep); i++ {
++		hash = hash*primeRK + uint32(sep[i])
++	}
++	var pow, sq uint32 = 1, primeRK
++	for i := len(sep); i > 0; i >>= 1 {
++		if i&1 != 0 {
++			pow *= sq
++		}
++		sq *= sq
++	}
++	return hash, pow
++}
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 614a799432..b936b528b5 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -1076,6 +1076,230 @@ TEXT runtime·cmpbodyclc(SB),NOSPLIT|NOFRAME,$0-0
+ 	CLC	$1, 0(R3), 0(R5)
+ 	RET
+ 
++// func supportsVX() bool
++TEXT strings·supportsVX(SB),NOSPLIT,$0-1
++	MOVBZ	runtime·cpu+facilities_hasVX(SB), R0
++	MOVB	R0, ret+0(FP)
++	RET
++
++// func supportsVX() bool
++TEXT bytes·supportsVX(SB),NOSPLIT,$0-1
++	MOVBZ	runtime·cpu+facilities_hasVX(SB), R0
++	MOVB	R0, ret+0(FP)
++	RET
++
++// func indexShortStr(s, sep string) int
++// Caller must confirm availability of vx facility before calling.
++TEXT strings·indexShortStr(SB),NOSPLIT|NOFRAME,$0-40
++	LMG	s+0(FP), R1, R2   // R1=&s[0],   R2=len(s)
++	LMG	sep+16(FP), R3, R4 // R3=&sep[0], R4=len(sep)
++	MOVD	$ret+32(FP), R5
++	BR	runtime·indexShortStr(SB)
++
++// func indexShortStr(s, sep []byte) int
++// Caller must confirm availability of vx facility before calling.
++TEXT bytes·indexShortStr(SB),NOSPLIT|NOFRAME,$0-56
++	LMG	s+0(FP), R1, R2    // R1=&s[0],   R2=len(s)
++	LMG	sep+24(FP), R3, R4 // R3=&sep[0], R4=len(sep)
++	MOVD	$ret+48(FP), R5
++	BR	runtime·indexShortStr(SB)
++
++// s: string we are searching
++// sep: string to search for
++// R1=&s[0], R2=len(s)
++// R3=&sep[0], R4=len(sep)
++// R5=&ret (int)
++// Caller must confirm availability of vx facility before calling.
++TEXT runtime·indexShortStr(SB),NOSPLIT|NOFRAME,$0
++	CMPBGT	R4, R2, notfound
++	ADD	R1, R2
++	SUB	R4, R2 // R2=&s[len(s)-len(sep)] (last valid index)
++	CMPBEQ	R4, $0, notfound
++	SUB	$1, R4 // R4=len(sep)-1 for use as VLL index
++	VLL	R4, (R3), V0 // contains first 16 bytes of sep
++	MOVD	R1, R7
++index2plus:
++	CMPBNE	R4, $1, index3plus
++	MOVD	$15(R7), R9
++	CMPBGE	R9, R2, index2to16
++	VGBM	$0xaaaa, V31       // 0xff00ff00ff00ff00...
++	VONE	V16
++	VREPH	$0, V0, V1
++	CMPBGE	R9, R2, index2to16
++index2loop:
++	VL	0(R7), V2          // 16 bytes, even indices
++	VL	1(R7), V4          // 16 bytes, odd indices
++	VCEQH	V1, V2, V5         // compare even indices
++	VCEQH	V1, V4, V6         // compare odd indices
++	VSEL	V5, V6, V31, V7    // merge even and odd indices
++	VFEEBS	V16, V7, V17       // find leftmost index, set condition to 1 if found
++	BLT	foundV17
++	MOVD	$16(R7), R7        // R7+=16
++	ADD	$15, R7, R9
++	CMPBLE	R9, R2, index2loop // continue if (R7+15) <= R2 (last index to search)
++	CMPBLE	R7, R2, index2to16
++	BR	notfound
++
++index3plus:
++	CMPBNE	R4, $2, index4plus
++	ADD	$15, R7, R9
++	CMPBGE	R9, R2, index2to16
++	MOVD	$1, R0
++	VGBM	$0xaaaa, V31       // 0xff00ff00ff00ff00...
++	VONE	V16
++	VREPH	$0, V0, V1
++	VREPB	$2, V0, V8
++index3loop:
++	VL	(R7), V2           // load 16-bytes into V2
++	VLL	R0, 16(R7), V3     // load 2-bytes into V3
++	VSLDB	$1, V2, V3, V4     // V4=(V2:V3)<<1
++	VSLDB	$2, V2, V3, V9     // V9=(V2:V3)<<2
++	VCEQH	V1, V2, V5         // compare 2-byte even indices
++	VCEQH	V1, V4, V6         // compare 2-byte odd indices
++	VCEQB	V8, V9, V10        // compare last bytes
++	VSEL	V5, V6, V31, V7    // merge even and odd indices
++	VN	V7, V10, V7        // AND indices with last byte
++	VFEEBS	V16, V7, V17       // find leftmost index, set condition to 1 if found
++	BLT	foundV17
++	MOVD	$16(R7), R7        // R7+=16
++	ADD	$15, R7, R9
++	CMPBLE	R9, R2, index3loop // continue if (R7+15) <= R2 (last index to search)
++	CMPBLE	R7, R2, index2to16
++	BR	notfound
++
++index4plus:
++	CMPBNE	R4, $3, index5plus
++	ADD	$15, R7, R9
++	CMPBGE	R9, R2, index2to16
++	MOVD	$2, R0
++	VGBM	$0x8888, V29       // 0xff000000ff000000...
++	VGBM	$0x2222, V30       // 0x0000ff000000ff00...
++	VGBM	$0xcccc, V31       // 0xffff0000ffff0000...
++	VONE	V16
++	VREPF	$0, V0, V1
++index4loop:
++	VL	(R7), V2           // load 16-bytes into V2
++	VLL	R0, 16(R7), V3     // load 3-bytes into V3
++	VSLDB	$1, V2, V3, V4     // V4=(V2:V3)<<1
++	VSLDB	$2, V2, V3, V9     // V9=(V2:V3)<<1
++	VSLDB	$3, V2, V3, V10    // V10=(V2:V3)<<1
++	VCEQF	V1, V2, V5         // compare index 0, 4, ...
++	VCEQF	V1, V4, V6         // compare index 1, 5, ...
++	VCEQF	V1, V9, V11        // compare index 2, 6, ...
++	VCEQF	V1, V10, V12       // compare index 3, 7, ...
++	VSEL	V5, V6, V29, V13   // merge index 0, 1, 4, 5, ...
++	VSEL	V11, V12, V30, V14 // merge index 2, 3, 6, 7, ...
++	VSEL	V13, V14, V31, V7  // final merge
++	VFEEBS	V16, V7, V17       // find leftmost index, set condition to 1 if found
++	BLT	foundV17
++	MOVD	$16(R7), R7        // R7+=16
++	ADD	$15, R7, R9
++	CMPBLE	R9, R2, index4loop // continue if (R7+15) <= R2 (last index to search)
++	CMPBLE	R7, R2, index2to16
++	BR	notfound
++
++index5plus:
++	CMPBGT	R4, $15, index17plus
++index2to16:
++	CMPBGT	R7, R2, notfound
++	MOVD	$1(R7), R8
++	CMPBGT	R8, R2, index2to16tail
++index2to16loop:
++	// unrolled 2x
++	VLL	R4, (R7), V1
++	VLL	R4, 1(R7), V2
++	VCEQGS	V0, V1, V3
++	BEQ	found
++	MOVD	$1(R7), R7
++	VCEQGS	V0, V2, V4
++	BEQ	found
++	MOVD	$1(R7), R7
++	CMPBLT	R7, R2, index2to16loop
++	CMPBGT	R7, R2, notfound
++index2to16tail:
++	VLL	R4, (R7), V1
++	VCEQGS	V0, V1, V2
++	BEQ	found
++	BR	notfound
++
++index17plus:
++	CMPBGT	R4, $31, index33plus
++	SUB	$16, R4, R0
++	VLL	R0, 16(R3), V1
++	VONE	V7
++index17to32loop:
++	VL	(R7), V2
++	VLL	R0, 16(R7), V3
++	VCEQG	V0, V2, V4
++	VCEQG	V1, V3, V5
++	VN	V4, V5, V6
++	VCEQGS	V6, V7, V8
++	BEQ	found
++	MOVD	$1(R7), R7
++	CMPBLE  R7, R2, index17to32loop
++	BR	notfound
++
++index33plus:
++	CMPBGT	R4, $47, index49plus
++	SUB	$32, R4, R0
++	VL	16(R3), V1
++	VLL	R0, 32(R3), V2
++	VONE	V11
++index33to48loop:
++	VL	(R7), V3
++	VL	16(R7), V4
++	VLL	R0, 32(R7), V5
++	VCEQG	V0, V3, V6
++	VCEQG	V1, V4, V7
++	VCEQG	V2, V5, V8
++	VN	V6, V7, V9
++	VN	V8, V9, V10
++	VCEQGS	V10, V11, V12
++	BEQ	found
++	MOVD	$1(R7), R7
++	CMPBLE  R7, R2, index33to48loop
++	BR	notfound
++
++index49plus:
++	CMPBGT	R4, $63, index65plus
++	SUB	$48, R4, R0
++	VL	16(R3), V1
++	VL	32(R3), V2
++	VLL	R0, 48(R3), V3
++	VONE	V15
++index49to64loop:
++	VL	(R7), V4
++	VL	16(R7), V5
++	VL	32(R7), V6
++	VLL	R0, 48(R7), V7
++	VCEQG	V0, V4, V8
++	VCEQG	V1, V5, V9
++	VCEQG	V2, V6, V10
++	VCEQG	V3, V7, V11
++	VN	V8, V9, V12
++	VN	V10, V11, V13
++	VN	V12, V13, V14
++	VCEQGS	V14, V15, V16
++	BEQ	found
++	MOVD	$1(R7), R7
++	CMPBLE  R7, R2, index49to64loop
++notfound:
++	MOVD	$-1, (R5)
++	RET
++
++index65plus:
++	// not implemented
++	MOVD	$0, (R0)
++	RET
++
++foundV17: // index is in doubleword V17[0]
++	VLGVG	$0, V17, R8
++	ADD	R8, R7
++found:
++	SUB	R1, R7
++	MOVD	R7, (R5)
++	RET
++
+ // This is called from .init_array and follows the platform, not Go, ABI.
+ // We are overly conservative. We could only save the registers we use.
+ // However, since this function is only called once per loaded module
+diff --git a/src/strings/strings_generic.go b/src/strings/strings_generic.go
+index d356f50f87..6e8055925f 100644
+--- a/src/strings/strings_generic.go
++++ b/src/strings/strings_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64
++// +build !amd64,!s390x
+ 
+ package strings
+ 
+diff --git a/src/strings/strings_s390x.go b/src/strings/strings_s390x.go
+new file mode 100644
+index 0000000000..64204ab09e
+--- /dev/null
++++ b/src/strings/strings_s390x.go
+@@ -0,0 +1,98 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strings
++
++//go:noescape
++
++// indexShortStr returns the index of the first instance of sep in s,
++// or -1 if sep is not present in s.
++// indexShortStr requires 2 <= len(sep) <= shortStringLen
++func indexShortStr(s, sep string) int // ../runtime/asm_$GOARCH.s
++
++// supportsVX reports whether the vector facility is available.
++// indexShortStr must not be called if the vector facility is not
++// available.
++func supportsVX() bool // ../runtime/asm_s390x.s
++
++var shortStringLen = -1
++
++func init() {
++	if supportsVX() {
++		shortStringLen = 64
++	}
++}
++
++// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
++func Index(s, sep string) int {
++	n := len(sep)
++	switch {
++	case n == 0:
++		return 0
++	case n == 1:
++		return IndexByte(s, sep[0])
++	case n <= shortStringLen:
++		// Use brute force when s and sep both are small
++		if len(s) <= 64 {
++			return indexShortStr(s, sep)
++		}
++		c := sep[0]
++		i := 0
++		t := s[:len(s)-n+1]
++		fails := 0
++		for i < len(t) {
++			if t[i] != c {
++				// IndexByte skips 16/32 bytes per iteration,
++				// so it's faster than indexShortStr.
++				o := IndexByte(t[i:], c)
++				if o < 0 {
++					return -1
++				}
++				i += o
++			}
++			if s[i:i+n] == sep {
++				return i
++			}
++			fails++
++			i++
++			// Switch to indexShortStr when IndexByte produces too many false positives.
++			// Too many means more that 1 error per 8 characters.
++			// Allow some errors in the beginning.
++			if fails > (i+16)/8 {
++				r := indexShortStr(s[i:], sep)
++				if r >= 0 {
++					return r + i
++				}
++				return -1
++			}
++		}
++		return -1
++	case n == len(s):
++		if sep == s {
++			return 0
++		}
++		return -1
++	case n > len(s):
++		return -1
++	}
++	// Rabin-Karp search
++	hashsep, pow := hashStr(sep)
++	var h uint32
++	for i := 0; i < n; i++ {
++		h = h*primeRK + uint32(s[i])
++	}
++	if h == hashsep && s[:n] == sep {
++		return 0
++	}
++	for i := n; i < len(s); {
++		h *= primeRK
++		h += uint32(s[i])
++		h -= pow * uint32(s[i-n])
++		i++
++		if h == hashsep && s[i-n:i] == sep {
++			return i - n
++		}
++	}
++	return -1
++}

@@ -17,7 +17,7 @@ Date:   Wed Sep 1 17:01:26 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/error_test.go   |  2 +-
  src/cmd/compile/internal/syntax/parser.go       | 11 ++++++---
  src/cmd/compile/internal/syntax/parser_test.go  |  2 +-
@@ -29,3 +29,262 @@ Date:   Wed Sep 1 17:01:26 2021 -0700
  test/typeparam/settable.go                      |  2 +-
  test/typeparam/typelist.go                      | 31 ++++++++++++++-----------
  10 files changed, 34 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/error_test.go b/src/cmd/compile/internal/syntax/error_test.go
+index e4bedf54fd..30e68ff1d9 100644
+--- a/src/cmd/compile/internal/syntax/error_test.go
++++ b/src/cmd/compile/internal/syntax/error_test.go
+@@ -130,7 +130,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
+ 
+ 	var mode Mode
+ 	if strings.HasSuffix(filename, ".go2") {
+-		mode = AllowGenerics
++		mode = AllowGenerics | AllowTypeLists
+ 	}
+ 	ParseFile(filename, func(err error) {
+ 		e, ok := err.(Error)
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 3d1ca9d6d4..e89796cb31 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1448,7 +1448,7 @@ func (p *parser) interfaceType() *InterfaceType {
+ 
+ 		case _Type:
+ 			// TODO(gri) remove TypeList syntax if we accept #45346
+-			if p.mode&AllowGenerics != 0 {
++			if p.mode&AllowGenerics != 0 && p.mode&AllowTypeLists != 0 {
+ 				type_ := NewName(p.pos(), "type") // cannot have a method named "type"
+ 				p.next()
+ 				if p.tok != _Semi && p.tok != _Rbrace {
+@@ -1484,8 +1484,13 @@ func (p *parser) interfaceType() *InterfaceType {
+ 		}
+ 
+ 		if p.mode&AllowGenerics != 0 {
+-			p.syntaxError("expecting method, type list, or embedded element")
+-			p.advance(_Semi, _Rbrace, _Type) // TODO(gri) remove _Type if we don't accept it anymore
++			if p.mode&AllowTypeLists != 0 {
++				p.syntaxError("expecting method, type list, or embedded element")
++				p.advance(_Semi, _Rbrace, _Type)
++			} else {
++				p.syntaxError("expecting method or embedded element")
++				p.advance(_Semi, _Rbrace)
++			}
+ 			return false
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 340ca6bb6f..6afe109e1b 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -46,7 +46,7 @@ func TestParseGo2(t *testing.T) {
+ 	for _, fi := range list {
+ 		name := fi.Name()
+ 		if !fi.IsDir() && !strings.HasPrefix(name, ".") {
+-			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics)
++			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics|AllowTypeLists)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index 638e6d4a9d..d3469a2599 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -90,7 +90,7 @@ var stringTests = []string{
+ 
+ func TestPrintString(t *testing.T) {
+ 	for _, want := range stringTests {
+-		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics)
++		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics|AllowTypeLists)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+@@ -210,7 +210,7 @@ var exprTests = [][2]string{
+ func TestShortString(t *testing.T) {
+ 	for _, test := range exprTests {
+ 		src := "package p; var _ = " + test[0]
+-		ast, err := Parse(nil, strings.NewReader(src), nil, nil, AllowGenerics)
++		ast, err := Parse(nil, strings.NewReader(src), nil, nil, AllowGenerics|AllowTypeLists)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", test[0], err)
+ 			continue
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index f3d4c09ed5..08f450c94f 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -17,6 +17,7 @@ type Mode uint
+ const (
+ 	CheckBranches Mode = 1 << iota // check correct use of labels, break, continue, and goto statements
+ 	AllowGenerics
++	AllowTypeLists // requires AllowGenerics; remove once 1.18 is out
+ )
+ 
+ // Error describes a syntax error. Error implements the error interface.
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index bc68e76407..26c8eba727 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -100,7 +100,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 
+ 	var mode syntax.Mode
+ 	if strings.HasSuffix(filenames[0], ".go2") {
+-		mode |= syntax.AllowGenerics
++		mode |= syntax.AllowGenerics | syntax.AllowTypeLists
+ 	}
+ 	// parse files and collect parser errors
+ 	files, errlist := parseFiles(t, filenames, mode)
+diff --git a/test/typeparam/append.go b/test/typeparam/append.go
+index 8b9bc2039f..42b542ed78 100644
+--- a/test/typeparam/append.go
++++ b/test/typeparam/append.go
+@@ -9,7 +9,7 @@ package main
+ type Recv <-chan int
+ 
+ type sliceOf[E any] interface {
+-	type []E
++	~[]E
+ }
+ 
+ func _Append[S sliceOf[T], T any](s S, t ...T) S {
+diff --git a/test/typeparam/double.go b/test/typeparam/double.go
+index 6ddb6b2d08..3dbdd1b05e 100644
+--- a/test/typeparam/double.go
++++ b/test/typeparam/double.go
+@@ -19,7 +19,7 @@ type MySlice []int
+ type MyFloatSlice []float64
+ 
+ type _SliceOf[E any] interface {
+-	type []E
++	~[]E
+ }
+ 
+ func _DoubleElems[S _SliceOf[E], E Number](s S) S {
+diff --git a/test/typeparam/settable.go b/test/typeparam/settable.go
+index 99455e93fa..412023b20a 100644
+--- a/test/typeparam/settable.go
++++ b/test/typeparam/settable.go
+@@ -15,7 +15,7 @@ import (
+ 
+ type Setter[B any] interface {
+ 	Set(string)
+-	type *B
++	~*B
+ }
+ 
+ // Takes two type parameters where PT = *T
+diff --git a/test/typeparam/typelist.go b/test/typeparam/typelist.go
+index 5ba14261ab..8d6a228de5 100644
+--- a/test/typeparam/typelist.go
++++ b/test/typeparam/typelist.go
+@@ -6,23 +6,26 @@
+ 
+ // This file tests type lists & structural constraints.
+ 
++// Note: This test has been adjusted to use the new
++//       type set notation rather than type lists.
++
+ package p
+ 
+ // Assignability of an unnamed pointer type to a type parameter that
+ // has a matching underlying type.
+-func _[T interface{}, PT interface{ type *T }](x T) PT {
++func _[T interface{}, PT interface{ ~*T }](x T) PT {
+ 	return &x
+ }
+ 
+ // Indexing of generic types containing type parameters in their type list:
+-func at[T interface{ type []E }, E any](x T, i int) E {
++func at[T interface{ ~[]E }, E any](x T, i int) E {
+ 	return x[i]
+ }
+ 
+ // A generic type inside a function acts like a named type. Its underlying
+ // type is itself, its "operational type" is defined by the type list in
+ // the tybe bound, if any.
+-func _[T interface{ type int }](x T) {
++func _[T interface{ ~int }](x T) {
+ 	type myint int
+ 	var _ int = int(x)
+ 	var _ T = 42
+@@ -30,36 +33,36 @@ func _[T interface{ type int }](x T) {
+ }
+ 
+ // Indexing a generic type which has a structural contraints to be an array.
+-func _[T interface{ type [10]int }](x T) {
++func _[T interface{ ~[10]int }](x T) {
+ 	_ = x[9] // ok
+ }
+ 
+ // Dereference of a generic type which has a structural contraint to be a pointer.
+-func _[T interface{ type *int }](p T) int {
++func _[T interface{ ~*int }](p T) int {
+ 	return *p
+ }
+ 
+ // Channel send and receive on a generic type which has a structural constraint to
+ // be a channel.
+-func _[T interface{ type chan int }](ch T) int {
++func _[T interface{ ~chan int }](ch T) int {
+ 	// This would deadlock if executed (but ok for a compile test)
+ 	ch <- 0
+ 	return <-ch
+ }
+ 
+ // Calling of a generic type which has a structural constraint to be a function.
+-func _[T interface{ type func() }](f T) {
++func _[T interface{ ~func() }](f T) {
+ 	f()
+ 	go f()
+ }
+ 
+ // Same, but function has a parameter and return value.
+-func _[T interface{ type func(string) int }](f T) int {
++func _[T interface{ ~func(string) int }](f T) int {
+ 	return f("hello")
+ }
+ 
+ // Map access of a generic type which has a structural constraint to be a map.
+-func _[V any, T interface{ type map[string]V }](p T) V {
++func _[V any, T interface{ ~map[string]V }](p T) V {
+ 	return p["test"]
+ }
+ 
+@@ -85,7 +88,7 @@ func f1x() {
+ }
+ */
+ 
+-func f2[A any, B interface{ type []A }](_ A, _ B) {}
++func f2[A any, B interface{ ~[]A }](_ A, _ B) {}
+ func f2x() {
+ 	f := f2[byte]
+ 	f(byte(0), []byte{})
+@@ -105,7 +108,7 @@ func f3x() {
+ }
+ */
+ 
+-func f4[A any, B interface{ type []C }, C interface{ type *A }](_ A, _ B, c C) {}
++func f4[A any, B interface{ ~[]C }, C interface{ ~*A }](_ A, _ B, c C) {}
+ func f4x() {
+ 	f := f4[int]
+ 	var x int
+@@ -114,18 +117,18 @@ func f4x() {
+ }
+ 
+ func f5[A interface {
+-	type struct {
++	~struct {
+ 		b B
+ 		c C
+ 	}
+-}, B any, C interface{ type *B }](x B) A { panic(0) }
++}, B any, C interface{ ~*B }](x B) A { panic(0) }
+ func f5x() {
+ 	x := f5(1.2)
+ 	var _ float64 = x.b
+ 	var _ float64 = *x.c
+ }
+ 
+-func f6[A any, B interface{ type struct{ f []A } }](B) A { panic(0) }
++func f6[A any, B interface{ ~struct{ f []A } }](B) A { panic(0) }
+ func f6x() {
+ 	x := f6(struct{ f []string }{})
+ 	var _ string = x

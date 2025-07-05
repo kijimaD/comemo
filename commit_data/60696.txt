@@ -24,7 +24,7 @@ Date:   Fri Aug 16 07:32:00 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/doc.go                                 | 24 +++++++++
  src/cmd/cgo/gcc.go                                 |  2 -
  src/cmd/cgo/internal/test/test.go                  |  4 +-
@@ -37,3 +37,294 @@ Date:   Fri Aug 16 07:32:00 2024 +0000
  src/runtime/testdata/testprogcgo/cgonoescape.go    |  3 +-
  src/runtime/testdata/testprogcgo/issue63739.go     | 59 ++++++++++++++++++++++
  11 files changed, 125 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index eb20ebdb0d..16d0c0fa81 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -425,6 +425,30 @@ passing uninitialized C memory to Go code if the Go code is going to
+ store pointer values in it. Zero out the memory in C before passing it
+ to Go.
+ 
++# Optimizing calls of C code
++
++When passing a Go pointer to a C function the compiler normally ensures
++that the Go object lives on the heap. If the C function does not keep
++a copy of the Go pointer, and never passes the Go pointer back to Go code,
++then this is unnecessary. The #cgo noescape directive may be used to tell
++the compiler that no Go pointers escape via the named C function.
++If the noescape directive is used and the C function does not handle the
++pointer safely, the program may crash or see memory corruption.
++
++For example:
++
++	// #cgo noescape cFunctionName
++
++When a Go function calls a C function, it prepares for the C function to
++call back to a Go function. The #cgo nocallback directive may be used to
++tell the compiler that these preparations are not necessary.
++If the nocallback directive is used and the C function does call back into
++Go code, the program will panic.
++
++For example:
++
++	// #cgo nocallback cFunctionName
++
+ # Special cases
+ 
+ A few special C types which would normally be represented by a pointer
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 6c23e59adf..504a565063 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -94,10 +94,8 @@ func (f *File) ProcessCgoDirectives() {
+ 				directive := fields[1]
+ 				funcName := fields[2]
+ 				if directive == "nocallback" {
+-					fatalf("#cgo nocallback disabled until Go 1.23")
+ 					f.NoCallbacks[funcName] = true
+ 				} else if directive == "noescape" {
+-					fatalf("#cgo noescape disabled until Go 1.23")
+ 					f.NoEscapes[funcName] = true
+ 				}
+ 			}
+diff --git a/src/cmd/cgo/internal/test/test.go b/src/cmd/cgo/internal/test/test.go
+index 374689631d..34a812ed22 100644
+--- a/src/cmd/cgo/internal/test/test.go
++++ b/src/cmd/cgo/internal/test/test.go
+@@ -117,8 +117,8 @@ int add(int x, int y) {
+ 
+ // escape vs noescape
+ 
+-// TODO(#56378): enable in Go 1.23:
+-// #cgo noescape handleGoStringPointerNoescape
++#cgo noescape handleGoStringPointerNoescape
++#cgo nocallback handleGoStringPointerNoescape
+ void handleGoStringPointerNoescape(void *s) {}
+ 
+ void handleGoStringPointerEscape(void *s) {}
+diff --git a/src/cmd/cgo/internal/testerrors/testdata/notmatchedcfunction.go b/src/cmd/cgo/internal/testerrors/testdata/notmatchedcfunction.go
+index 5ec9ec5d4a..46afeefcc0 100644
+--- a/src/cmd/cgo/internal/testerrors/testdata/notmatchedcfunction.go
++++ b/src/cmd/cgo/internal/testerrors/testdata/notmatchedcfunction.go
+@@ -5,8 +5,7 @@
+ package main
+ 
+ /*
+-// TODO(#56378): change back to "#cgo noescape noMatchedCFunction: no matched C function" in Go 1.23
+-// ERROR MESSAGE: #cgo noescape disabled until Go 1.23
++// ERROR MESSAGE: #cgo noescape noMatchedCFunction: no matched C function
+ #cgo noescape noMatchedCFunction
+ */
+ import "C"
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 0a0ef88fbc..20b688b7db 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -104,6 +104,9 @@ func (p *Package) writeDefs() {
+ 		fmt.Fprintf(fgo2, "var _Cgo_always_false bool\n")
+ 		fmt.Fprintf(fgo2, "//go:linkname _Cgo_use runtime.cgoUse\n")
+ 		fmt.Fprintf(fgo2, "func _Cgo_use(interface{})\n")
++		fmt.Fprintf(fgo2, "//go:linkname _Cgo_keepalive runtime.cgoKeepAlive\n")
++		fmt.Fprintf(fgo2, "//go:noescape\n")
++		fmt.Fprintf(fgo2, "func _Cgo_keepalive(interface{})\n")
+ 	}
+ 	fmt.Fprintf(fgo2, "//go:linkname _Cgo_no_callback runtime.cgoNoCallback\n")
+ 	fmt.Fprintf(fgo2, "func _Cgo_no_callback(bool)\n")
+@@ -639,17 +642,20 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
+ 		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(false)\n")
+ 	}
+ 
+-	// skip _Cgo_use when noescape exist,
++	// Use _Cgo_keepalive instead of _Cgo_use when noescape & nocallback exist,
+ 	// so that the compiler won't force to escape them to heap.
+-	if !p.noEscapes[n.C] {
+-		fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
+-		if d.Type.Params != nil {
+-			for i := range d.Type.Params.List {
+-				fmt.Fprintf(fgo2, "\t\t_Cgo_use(p%d)\n", i)
+-			}
++	// Instead, make the compiler keep them alive by using _Cgo_keepalive.
++	touchFunc := "_Cgo_use"
++	if p.noEscapes[n.C] && p.noCallbacks[n.C] {
++		touchFunc = "_Cgo_keepalive"
++	}
++	fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
++	if d.Type.Params != nil {
++		for _, name := range paramnames {
++			fmt.Fprintf(fgo2, "\t\t%s(%s)\n", touchFunc, name)
+ 		}
+-		fmt.Fprintf(fgo2, "\t}\n")
+ 	}
++	fmt.Fprintf(fgo2, "\t}\n")
+ 	fmt.Fprintf(fgo2, "\treturn\n")
+ 	fmt.Fprintf(fgo2, "}\n")
+ }
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+index 8285d87fcf..eca905bad9 100644
+--- a/src/runtime/cgo.go
++++ b/src/runtime/cgo.go
+@@ -72,11 +72,20 @@ var cgoHasExtraM bool
+ // cgoUse should not actually be called (see cgoAlwaysFalse).
+ func cgoUse(any) { throw("cgoUse should not be called") }
+ 
++// cgoKeepAlive is called by cgo-generated code (using go:linkname to get at
++// an unexported name). This call keeps its argument alive until the call site;
++// cgo emits the call after the last possible use of the argument by C code.
++// cgoKeepAlive is marked in the cgo-generated code as //go:noescape, so
++// unlike cgoUse it does not force the argument to escape to the heap.
++// This is used to implement the #cgo noescape directive.
++func cgoKeepAlive(any) { throw("cgoKeepAlive should not be called") }
++
+ // cgoAlwaysFalse is a boolean value that is always false.
+-// The cgo-generated code says if cgoAlwaysFalse { cgoUse(p) }.
++// The cgo-generated code says if cgoAlwaysFalse { cgoUse(p) },
++// or if cgoAlwaysFalse { cgoKeepAlive(p) }.
+ // The compiler cannot see that cgoAlwaysFalse is always false,
+ // so it emits the test and keeps the call, giving the desired
+-// escape analysis result. The test is cheaper than the call.
++// escape/alive analysis result. The test is cheaper than the call.
+ var cgoAlwaysFalse bool
+ 
+ var cgo_yield = &_cgo_yield
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 57111c9aef..d164a07047 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -750,7 +750,6 @@ func TestNeedmDeadlock(t *testing.T) {
+ }
+ 
+ func TestCgoNoCallback(t *testing.T) {
+-	t.Skip("TODO(#56378): enable in Go 1.23")
+ 	got := runTestProg(t, "testprogcgo", "CgoNoCallback")
+ 	want := "function marked with #cgo nocallback called back into Go"
+ 	if !strings.Contains(got, want) {
+@@ -759,7 +758,6 @@ func TestCgoNoCallback(t *testing.T) {
+ }
+ 
+ func TestCgoNoEscape(t *testing.T) {
+-	t.Skip("TODO(#56378): enable in Go 1.23")
+ 	got := runTestProg(t, "testprogcgo", "CgoNoEscape")
+ 	want := "OK\n"
+ 	if got != want {
+@@ -767,6 +765,15 @@ func TestCgoNoEscape(t *testing.T) {
+ 	}
+ }
+ 
++// Issue #63739.
++func TestCgoEscapeWithMultiplePointers(t *testing.T) {
++	got := runTestProg(t, "testprogcgo", "CgoEscapeWithMultiplePointers")
++	want := "OK\n"
++	if got != want {
++		t.Fatalf("output is %s; want %s", got, want)
++	}
++}
++
+ func TestCgoTracebackGoroutineProfile(t *testing.T) {
+ 	output := runTestProg(t, "testprogcgo", "GoroutineProfile")
+ 	want := "OK\n"
+diff --git a/src/runtime/linkname.go b/src/runtime/linkname.go
+index dd7f674251..eec190c39c 100644
+--- a/src/runtime/linkname.go
++++ b/src/runtime/linkname.go
+@@ -13,6 +13,7 @@ import _ "unsafe"
+ //go:linkname _cgo_panic_internal
+ //go:linkname cgoAlwaysFalse
+ //go:linkname cgoUse
++//go:linkname cgoKeepAlive
+ //go:linkname cgoCheckPointer
+ //go:linkname cgoCheckResult
+ //go:linkname cgoNoCallback
+diff --git a/src/runtime/testdata/testprogcgo/cgonocallback.go b/src/runtime/testdata/testprogcgo/cgonocallback.go
+index c13bf271a4..8cbbfd1957 100644
+--- a/src/runtime/testdata/testprogcgo/cgonocallback.go
++++ b/src/runtime/testdata/testprogcgo/cgonocallback.go
+@@ -8,7 +8,8 @@ package main
+ // But it do callback to go in this test, Go should crash here.
+ 
+ /*
+-// TODO(#56378): #cgo nocallback runCShouldNotCallback
++#cgo nocallback runCShouldNotCallback
++
+ extern void runCShouldNotCallback();
+ */
+ import "C"
+diff --git a/src/runtime/testdata/testprogcgo/cgonoescape.go b/src/runtime/testdata/testprogcgo/cgonoescape.go
+index f5eebac677..2b7c7a9c55 100644
+--- a/src/runtime/testdata/testprogcgo/cgonoescape.go
++++ b/src/runtime/testdata/testprogcgo/cgonoescape.go
+@@ -13,7 +13,8 @@ package main
+ // 2. less than 100 new allocated heap objects after invoking withoutNoEscape 100 times.
+ 
+ /*
+-// TODO(#56378): #cgo noescape runCWithNoEscape
++#cgo noescape runCWithNoEscape
++#cgo nocallback runCWithNoEscape
+ 
+ void runCWithNoEscape(void *p) {
+ }
+diff --git a/src/runtime/testdata/testprogcgo/issue63739.go b/src/runtime/testdata/testprogcgo/issue63739.go
+new file mode 100644
+index 0000000000..dbe37b6d0e
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/issue63739.go
+@@ -0,0 +1,59 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// This is for issue #63739.
++// Ensure that parameters are kept alive until the end of the C call. If not,
++// then a stack copy at just the right time while calling into C might think
++// that any stack pointers are not alive and fail to update them, causing the C
++// function to see the old, no longer correct, pointer values.
++
++/*
++int add_from_multiple_pointers(int *a, int *b, int *c) {
++	*a = *a + 1;
++	*b = *b + 1;
++	*c = *c + 1;
++	return *a + *b + *c;
++}
++#cgo noescape add_from_multiple_pointers
++#cgo nocallback add_from_multiple_pointers
++*/
++import "C"
++
++import (
++	"fmt"
++)
++
++const (
++	maxStack = 1024
++)
++
++func init() {
++	register("CgoEscapeWithMultiplePointers", CgoEscapeWithMultiplePointers)
++}
++
++func CgoEscapeWithMultiplePointers() {
++	stackGrow(maxStack)
++	fmt.Println("OK")
++}
++
++//go:noinline
++func testCWithMultiplePointers() {
++	var a C.int = 1
++	var b C.int = 2
++	var c C.int = 3
++	v := C.add_from_multiple_pointers(&a, &b, &c)
++	if v != 9 || a != 2 || b != 3 || c != 4 {
++		fmt.Printf("%d + %d + %d != %d\n", a, b, c, v)
++	}
++}
++
++func stackGrow(n int) {
++	if n == 0 {
++		return
++	}
++	testCWithMultiplePointers()
++	stackGrow(n - 1)
++}

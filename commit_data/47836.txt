@@ -17,7 +17,7 @@ Date:   Tue Apr 13 08:20:08 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/link/internal/ld/pe.go  |  4 ++--
  src/runtime/os_windows.go       | 15 +++++++--------
  src/runtime/sys_windows_386.s   |  9 ---------
@@ -25,3 +25,134 @@ Date:   Tue Apr 13 08:20:08 2021 -0400
  src/runtime/sys_windows_arm.s   |  4 ----
  src/runtime/sys_windows_arm64.s |  4 ----
  6 files changed, 9 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index b590d5082d..dc1b53010a 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -947,8 +947,8 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
+ 	// calls that may need more stack than we think.
+ 	//
+ 	// The default stack reserve size directly affects only the main
+-	// thread, ctrlhandler thread, and profileloop thread. For
+-	// these, it must be greater than the stack size assumed by
++	// thread and threads that enter in externalthreadhandler.
++	// For this, it must be greater than the stack size assumed by
+ 	// externalthreadhandler.
+ 	//
+ 	// For other threads, the runtime explicitly asks the kernel
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 705b42c61c..77ad075be1 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -149,9 +149,6 @@ var (
+ // to start new os thread.
+ func tstart_stdcall(newm *m)
+ 
+-// Called by OS using stdcall ABI.
+-func ctrlhandler()
+-
+ // Init-time helper
+ func wintls()
+ 
+@@ -557,8 +554,6 @@ func osinit() {
+ 
+ 	initExceptionHandler()
+ 
+-	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
+-
+ 	initHighResTimer()
+ 	timeBeginPeriodRetValue = osRelax(false)
+ 
+@@ -685,8 +680,12 @@ func goenvs() {
+ 
+ 	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
+ 
+-	// We call this all the way here, late in init, so that malloc works
+-	// for the callback function this generates.
++	// We call these all the way here, late in init, so that malloc works
++	// for the callback functions these generate.
++	var fn interface{} = ctrlHandler
++	ctrlHandlerPC := compileCallback(*efaceOf(&fn), true)
++	stdcall2(_SetConsoleCtrlHandler, ctrlHandlerPC, 1)
++
+ 	monitorSuspendResume()
+ }
+ 
+@@ -1176,7 +1175,7 @@ func usleep(us uint32) {
+ 	})
+ }
+ 
+-func ctrlhandler1(_type uint32) uint32 {
++func ctrlHandler(_type uint32) uintptr {
+ 	var s uint32
+ 
+ 	switch _type {
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index be4268a9c0..b1c27c40d9 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -156,15 +156,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
+ 	MOVL	$runtime·lastcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-// Called by OS using stdcall ABI: bool ctrlhandler(uint32).
+-TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT,$0
+-	PUSHL	$runtime·ctrlhandler1(SB)
+-	NOP	SP	// tell vet SP changed - stop checking offsets
+-	CALL	runtime·externalthreadhandler<ABIInternal>(SB)
+-	MOVL	4(SP), CX
+-	ADDL	$12, SP
+-	JMP	CX
+-
+ // Called by OS using stdcall ABI: uint32 profileloop(void*).
+ TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHL	$runtime·profileloop1(SB)
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 1fd8bf5c5c..e9428c36db 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -202,13 +202,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$runtime·lastcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT|NOFRAME,$8
+-	MOVQ	CX, 16(SP)		// spill
+-	MOVQ	$runtime·ctrlhandler1(SB), CX
+-	MOVQ	CX, 0(SP)
+-	CALL	runtime·externalthreadhandler<ABIInternal>(SB)
+-	RET
+-
+ TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$8
+ 	MOVQ	$runtime·profileloop1(SB), CX
+ 	MOVQ	CX, 0(SP)
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 72de89dc84..304bba22e0 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -233,10 +233,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·lastcontinuehandler(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	$runtime·ctrlhandler1(SB), R1
+-	B	runtime·externalthreadhandler<ABIInternal>(SB)
+-
+ TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·profileloop1(SB), R1
+ 	B	runtime·externalthreadhandler<ABIInternal>(SB)
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index f54c868b26..4512fbc8b0 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -299,10 +299,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$runtime·lastcontinuehandler<ABIInternal>(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	MOVD	$runtime·ctrlhandler1(SB), R1
+-	B	runtime·externalthreadhandler<ABIInternal>(SB)
+-
+ TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$runtime·profileloop1(SB), R1
+ 	B	runtime·externalthreadhandler<ABIInternal>(SB)

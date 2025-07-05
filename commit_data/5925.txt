@@ -7,6 +7,20 @@ Date:   Fri Jul 30 12:26:50 2010 -0700
     R=wcn
     CC=golang-dev
     https://golang.org/cl/1902043
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f712097432..ced07f32b2 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -43,7 +43,7 @@ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Austin Clements <aclements@csail.mit.edu>
+ Ben Eitzen <eitzenb@golang.org>
+ Ben Olive <sionide21@gmail.com>
+-Bill Neubauer <wcn@golang.org>
++Bill Neubauer <wcn@golang.org> <wcn@google.com>
+ Brad Fitzpatrick <brad@danga.com>
+ Brendan O'Dea <bod@golang.org>
+ Cary Hull <chull@google.com>

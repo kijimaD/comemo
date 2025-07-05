@@ -10,7 +10,7 @@ Date:   Tue May 5 17:05:39 2009 -0700
     R=rsc
     OCL=28310
     CL=28310
-
+---
  src/lib/Makefile                      | 167 +++++++++++++++++-----------------
  src/lib/bignum/Makefile               |  68 ++++++++++++++
  src/lib/{ => bignum}/bignum.go        |   0
@@ -53,3 +53,1357 @@ Date:   Tue May 5 17:05:39 2009 -0700
  src/lib/{ => utf8}/utf8_test.go       |   0
  src/lib/{ => xml}/xml.go              |   0
  41 files changed, 1037 insertions(+), 82 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index f9c61f11dc..97a33793f9 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -7,123 +7,126 @@ all: install
+ GC=6g
+ 
+ DIRS=\
++	bignum\
++	bufio\
+ 	container\
++	exec\
++	exvar\
++	flag\
+ 	fmt\
+ 	go\
+ 	hash\
+ 	http\
+ 	io\
+ 	json\
++	log\
++	malloc\
+ 	math\
+ 	net\
++	once\
+ 	os\
++	path\
++	rand\
+ 	reflect\
+ 	regexp\
++	sort\
+ 	strconv\
++	strings\
+ 	sync\
+ 	tabwriter\
+ 	template\
++	testing\
+ 	time\
+ 	unicode\
+-
+-FILES=\
+-	bignum\
+-	bufio\
+-	exec\
+-	exvar\
+-	flag\
+-	log\
+-	malloc\
+-	once\
+-	rand\
+-	sort\
+-	strings\
+-	testing\
+ 	utf8\
+ 
+ TEST=\
+-	bignum\
+-	bufio\
+-	exec\
+-	exvar\
+-	flag\
+-	log\
+-	once\
+-	sort\
+-	strings\
+-	utf8\
+-
+-clean.dirs: $(addsuffix .dirclean, $(DIRS))
+-install.dirs: $(addsuffix .dirinstall, $(DIRS))
+-install.files: $(addsuffix .install, $(FILES))
+-nuke.dirs: $(addsuffix .dirnuke, $(DIRS))
+-test.files: $(addsuffix .test, $(TEST))
+-
+-%.6: %.go
+-	$(GC) $*.go
+-
+-%.test: %.6
+-	gotest $*_test.go
++	bignum \
++	bufio \
++	container \
++	exec \
++	exvar \
++	flag \
++	fmt \
++	go \
++	hash \
++	http \
++	io \
++	json \
++	log \
++	math \
++	net \
++	once \
++	os \
++	path \
++	reflect \
++	regexp \
++	sort \
++	strconv \
++	strings \
++	sync \
++	tabwriter \
++	template \
++	time \
++	unicode \
++	utf8 \
++
++clean.dirs: $(addsuffix .clean, $(DIRS))
++install.dirs: $(addsuffix .install, $(DIRS))
++nuke.dirs: $(addsuffix .nuke, $(DIRS))
++test.dirs: $(addsuffix .test, $(TEST))
+ 
+ %.clean:
+-	rm -f $*.6
+-
+-%.install: %.6
+-	6ar grc $*.a $*.6
+-	mv $*.a $(GOROOT)/pkg/$*.a
+-	rm -f $*.6
+-
+-%.dirclean:
+ 	+cd $* && make clean
+ 
+-%.dirinstall:
++%.install:
+ 	+cd $* && make install
+ 
+-%.dirnuke:
++%.nuke:
+ 	+cd $* && make nuke
+ 
+-clean.files:
+-	rm -f 6.out *.6
++%.test:
++	+cd $* && make test
+ 
+-clean: clean.dirs clean.files
++clean: clean.dirs
+ 
+-install: install.dirs install.files
++install: install.dirs
+ 
+-nuke: nuke.dirs clean.files
+-	rm -f $(GOROOT)/pkg/*
++test:	test.dirs
+ 
+-test: test.files
++nuke: nuke.dirs
++	rm -rf $(GOROOT)/pkg/*
+ 
+ # TODO: dependencies - should auto-generate
+ 
+-bignum.6: fmt.dirinstall
+-bufio.6: io.dirinstall os.dirinstall
+-exec.6: os.dirinstall strings.install
+-exvar.6: fmt.dirinstall http.dirinstall log.install strconv.dirinstall sync.dirinstall
+-flag.6: fmt.dirinstall os.dirinstall strconv.dirinstall
+-log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
+-path.6: io.dirinstall
+-once.6: sync.dirinstall
+-strings.6: utf8.install
+-testing.6: flag.install fmt.dirinstall
+-
+-fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
+-go.dirinstall: regexp.dirinstall sort.install strconv.dirinstall strings.install \
+-	utf8.install unicode.dirinstall fmt.dirinstall
+-hash.dirinstall: os.dirinstall
+-http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall path.install strings.install log.install
+-io.dirinstall: os.dirinstall sync.dirinstall
+-json.dirinstall: container.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
+-	strconv.dirinstall strings.install utf8.install
++bignum.install: fmt.install
++bufio.install: io.install os.install
++exec.install: os.install strings.install
++exvar.install: fmt.install http.install log.install strconv.install sync.install
++flag.install: fmt.install os.install strconv.install
++log.install: fmt.install io.install os.install time.install
++path.install: io.install
++once.install: sync.install
++strings.install: utf8.install
++testing.install: flag.install fmt.install
++
++fmt.install: io.install reflect.install strconv.install
++go.install: regexp.install sort.install strconv.install strings.install \
++	utf8.install unicode.install fmt.install
++hash.install: os.install
++http.install: bufio.install io.install net.install os.install path.install strings.install log.install
++io.install: os.install sync.install
++json.install: container.install fmt.install io.install math.install \
++	strconv.install strings.install utf8.install
+ # TODO(rsc): net is not supposed to depend on fmt or strings or strconv
+-net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall strings.install
+-os.dirinstall: syscall.dirinstall once.install
+-regexp.dirinstall: os.dirinstall
+-reflect.dirinstall: strconv.dirinstall sync.dirinstall
+-strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
+-sync.dirinstall:
+-syscall.dirinstall: sync.dirinstall
+-tabwriter.dirinstall: os.dirinstall io.dirinstall container.dirinstall
+-template.dirinstall: fmt.dirinstall io.dirinstall os.dirinstall reflect.dirinstall strings.install
+-time.dirinstall: once.install os.dirinstall io.dirinstall
++net.install: fmt.install once.install os.install strconv.install strings.install
++os.install: syscall.install once.install
++regexp.install: os.install
++reflect.install: strconv.install sync.install
++strconv.install: math.install os.install utf8.install
++sync.install:
++syscall.install: sync.install
++tabwriter.install: os.install io.install container.install
++template.install: fmt.install io.install os.install reflect.install strings.install
++time.install: once.install os.install io.install
+ 
+diff --git a/src/lib/bignum/Makefile b/src/lib/bignum/Makefile
+new file mode 100644
+index 0000000000..fae6ed6477
+--- /dev/null
++++ b/src/lib/bignum/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	bignum.$O\
++
++
++phases: a1
++_obj$D/bignum.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/bignum.a bignum.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/bignum.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/bignum.a
++
++packages: _obj$D/bignum.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/bignum.a $(GOROOT)/pkg$D/bignum.a
+diff --git a/src/lib/bignum.go b/src/lib/bignum/bignum.go
+similarity index 100%
+rename from src/lib/bignum.go
+rename to src/lib/bignum/bignum.go
+diff --git a/src/lib/bignum_test.go b/src/lib/bignum/bignum_test.go
+similarity index 100%
+rename from src/lib/bignum_test.go
+rename to src/lib/bignum/bignum_test.go
+diff --git a/src/lib/bufio/Makefile b/src/lib/bufio/Makefile
+new file mode 100644
+index 0000000000..7cd095aa8c
+--- /dev/null
++++ b/src/lib/bufio/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	bufio.$O\
++
++
++phases: a1
++_obj$D/bufio.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/bufio.a bufio.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/bufio.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/bufio.a
++
++packages: _obj$D/bufio.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/bufio.a $(GOROOT)/pkg$D/bufio.a
+diff --git a/src/lib/bufio.go b/src/lib/bufio/bufio.go
+similarity index 100%
+rename from src/lib/bufio.go
+rename to src/lib/bufio/bufio.go
+diff --git a/src/lib/bufio_test.go b/src/lib/bufio/bufio_test.go
+similarity index 100%
+rename from src/lib/bufio_test.go
+rename to src/lib/bufio/bufio_test.go
+diff --git a/src/lib/exec/Makefile b/src/lib/exec/Makefile
+new file mode 100644
+index 0000000000..2738143bab
+--- /dev/null
++++ b/src/lib/exec/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	exec.$O\
++
++
++phases: a1
++_obj$D/exec.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/exec.a exec.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/exec.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/exec.a
++
++packages: _obj$D/exec.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/exec.a $(GOROOT)/pkg$D/exec.a
+diff --git a/src/lib/exec.go b/src/lib/exec/exec.go
+similarity index 100%
+rename from src/lib/exec.go
+rename to src/lib/exec/exec.go
+diff --git a/src/lib/exec_test.go b/src/lib/exec/exec_test.go
+similarity index 100%
+rename from src/lib/exec_test.go
+rename to src/lib/exec/exec_test.go
+diff --git a/src/lib/exvar/Makefile b/src/lib/exvar/Makefile
+new file mode 100644
+index 0000000000..fa63fde50b
+--- /dev/null
++++ b/src/lib/exvar/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	exvar.$O\
++
++
++phases: a1
++_obj$D/exvar.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/exvar.a exvar.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/exvar.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/exvar.a
++
++packages: _obj$D/exvar.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/exvar.a $(GOROOT)/pkg$D/exvar.a
+diff --git a/src/lib/exvar.go b/src/lib/exvar/exvar.go
+similarity index 100%
+rename from src/lib/exvar.go
+rename to src/lib/exvar/exvar.go
+diff --git a/src/lib/exvar_test.go b/src/lib/exvar/exvar_test.go
+similarity index 100%
+rename from src/lib/exvar_test.go
+rename to src/lib/exvar/exvar_test.go
+diff --git a/src/lib/flag/Makefile b/src/lib/flag/Makefile
+new file mode 100644
+index 0000000000..5966391210
+--- /dev/null
++++ b/src/lib/flag/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	flag.$O\
++
++
++phases: a1
++_obj$D/flag.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/flag.a flag.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/flag.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/flag.a
++
++packages: _obj$D/flag.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/flag.a $(GOROOT)/pkg$D/flag.a
+diff --git a/src/lib/flag.go b/src/lib/flag/flag.go
+similarity index 100%
+rename from src/lib/flag.go
+rename to src/lib/flag/flag.go
+diff --git a/src/lib/flag_test.go b/src/lib/flag/flag_test.go
+similarity index 100%
+rename from src/lib/flag_test.go
+rename to src/lib/flag/flag_test.go
+diff --git a/src/lib/log/Makefile b/src/lib/log/Makefile
+new file mode 100644
+index 0000000000..b135ec31fe
+--- /dev/null
++++ b/src/lib/log/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	log.$O\
++
++
++phases: a1
++_obj$D/log.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/log.a log.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/log.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/log.a
++
++packages: _obj$D/log.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/log.a $(GOROOT)/pkg$D/log.a
+diff --git a/src/lib/log.go b/src/lib/log/log.go
+similarity index 100%
+rename from src/lib/log.go
+rename to src/lib/log/log.go
+diff --git a/src/lib/log_test.go b/src/lib/log/log_test.go
+similarity index 100%
+rename from src/lib/log_test.go
+rename to src/lib/log/log_test.go
+diff --git a/src/lib/malloc/Makefile b/src/lib/malloc/Makefile
+new file mode 100644
+index 0000000000..771896005b
+--- /dev/null
++++ b/src/lib/malloc/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	malloc.$O\
++
++
++phases: a1
++_obj$D/malloc.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/malloc.a malloc.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/malloc.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/malloc.a
++
++packages: _obj$D/malloc.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/malloc.a $(GOROOT)/pkg$D/malloc.a
+diff --git a/src/lib/malloc.go b/src/lib/malloc/malloc.go
+similarity index 100%
+rename from src/lib/malloc.go
+rename to src/lib/malloc/malloc.go
+diff --git a/src/lib/once/Makefile b/src/lib/once/Makefile
+new file mode 100644
+index 0000000000..7e700520d7
+--- /dev/null
++++ b/src/lib/once/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	once.$O\
++
++
++phases: a1
++_obj$D/once.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/once.a once.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/once.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/once.a
++
++packages: _obj$D/once.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/once.a $(GOROOT)/pkg$D/once.a
+diff --git a/src/lib/once.go b/src/lib/once/once.go
+similarity index 100%
+rename from src/lib/once.go
+rename to src/lib/once/once.go
+diff --git a/src/lib/once_test.go b/src/lib/once/once_test.go
+similarity index 100%
+rename from src/lib/once_test.go
+rename to src/lib/once/once_test.go
+diff --git a/src/lib/path/Makefile b/src/lib/path/Makefile
+new file mode 100644
+index 0000000000..020a66035c
+--- /dev/null
++++ b/src/lib/path/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	path.$O\
++
++
++phases: a1
++_obj$D/path.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/path.a path.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/path.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/path.a
++
++packages: _obj$D/path.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/path.a $(GOROOT)/pkg$D/path.a
+diff --git a/src/lib/path.go b/src/lib/path/path.go
+similarity index 100%
+rename from src/lib/path.go
+rename to src/lib/path/path.go
+diff --git a/src/lib/path_test.go b/src/lib/path/path_test.go
+similarity index 100%
+rename from src/lib/path_test.go
+rename to src/lib/path/path_test.go
+diff --git a/src/lib/rand/Makefile b/src/lib/rand/Makefile
+new file mode 100644
+index 0000000000..b0a415f27a
+--- /dev/null
++++ b/src/lib/rand/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	rand.$O\
++
++
++phases: a1
++_obj$D/rand.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/rand.a rand.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/rand.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/rand.a
++
++packages: _obj$D/rand.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/rand.a $(GOROOT)/pkg$D/rand.a
+diff --git a/src/lib/rand.go b/src/lib/rand/rand.go
+similarity index 100%
+rename from src/lib/rand.go
+rename to src/lib/rand/rand.go
+diff --git a/src/lib/sort/Makefile b/src/lib/sort/Makefile
+new file mode 100644
+index 0000000000..0a360ac4d2
+--- /dev/null
++++ b/src/lib/sort/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	sort.$O\
++
++
++phases: a1
++_obj$D/sort.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/sort.a sort.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/sort.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/sort.a
++
++packages: _obj$D/sort.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/sort.a $(GOROOT)/pkg$D/sort.a
+diff --git a/src/lib/sort.go b/src/lib/sort/sort.go
+similarity index 100%
+rename from src/lib/sort.go
+rename to src/lib/sort/sort.go
+diff --git a/src/lib/sort_test.go b/src/lib/sort/sort_test.go
+similarity index 100%
+rename from src/lib/sort_test.go
+rename to src/lib/sort/sort_test.go
+diff --git a/src/lib/strings/Makefile b/src/lib/strings/Makefile
+new file mode 100644
+index 0000000000..9372f4d16e
+--- /dev/null
++++ b/src/lib/strings/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	strings.$O\
++
++
++phases: a1
++_obj$D/strings.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/strings.a strings.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/strings.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/strings.a
++
++packages: _obj$D/strings.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/strings.a $(GOROOT)/pkg$D/strings.a
+diff --git a/src/lib/strings.go b/src/lib/strings/strings.go
+similarity index 100%
+rename from src/lib/strings.go
+rename to src/lib/strings/strings.go
+diff --git a/src/lib/strings_test.go b/src/lib/strings/strings_test.go
+similarity index 100%
+rename from src/lib/strings_test.go
+rename to src/lib/strings/strings_test.go
+diff --git a/src/lib/testing/Makefile b/src/lib/testing/Makefile
+new file mode 100644
+index 0000000000..f8adc5934d
+--- /dev/null
++++ b/src/lib/testing/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	testing.$O\
++
++
++phases: a1
++_obj$D/testing.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/testing.a testing.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/testing.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/testing.a
++
++packages: _obj$D/testing.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/testing.a $(GOROOT)/pkg$D/testing.a
+diff --git a/src/lib/testing.go b/src/lib/testing/testing.go
+similarity index 100%
+rename from src/lib/testing.go
+rename to src/lib/testing/testing.go
+diff --git a/src/lib/utf8/Makefile b/src/lib/utf8/Makefile
+new file mode 100644
+index 0000000000..2919ddb4e0
+--- /dev/null
++++ b/src/lib/utf8/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m >Makefile
++
++D=
++
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
++GC=$(O)g -I_obj
++CC=$(O)c -FVw
++AS=$(O)a
++AR=6ar
++
++default: packages
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
++
++test: packages
++	gotest
++
++coverage: packages
++	gotest
++	6cov -g `pwd` | grep -v '_test\.go:'
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++O1=\
++	utf8.$O\
++
++
++phases: a1
++_obj$D/utf8.a: phases
++
++a1: $(O1)
++	$(AR) grc _obj$D/utf8.a utf8.$O
++	rm -f $(O1)
++
++
++newpkg: clean
++	mkdir -p _obj$D
++	$(AR) grc _obj$D/utf8.a
++
++$(O1): newpkg
++$(O2): a1
++
++nuke: clean
++	rm -f $(GOROOT)/pkg$D/utf8.a
++
++packages: _obj$D/utf8.a
++
++install: packages
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
++	cp _obj$D/utf8.a $(GOROOT)/pkg$D/utf8.a
+diff --git a/src/lib/utf8.go b/src/lib/utf8/utf8.go
+similarity index 100%
+rename from src/lib/utf8.go
+rename to src/lib/utf8/utf8.go
+diff --git a/src/lib/utf8_test.go b/src/lib/utf8/utf8_test.go
+similarity index 100%
+rename from src/lib/utf8_test.go
+rename to src/lib/utf8/utf8_test.go
+diff --git a/src/lib/xml.go b/src/lib/xml/xml.go
+similarity index 100%
+rename from src/lib/xml.go
+rename to src/lib/xml/xml.go

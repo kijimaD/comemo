@@ -13,9 +13,84 @@ Date:   Tue Mar 7 17:49:34 2023 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/go/alldocs.go                         |  2 +-
  src/cmd/go/internal/load/pkg.go               |  2 --
  src/cmd/go/internal/work/build.go             |  4 ++--
  src/cmd/go/testdata/script/build_pgo_auto.txt | 15 +++++++++++++++
  4 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ca676d5a88..d6701dcfff 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -206,7 +206,7 @@
+ //		build, the go command selects a file named "default.pgo" in the package's
+ //		directory if that file exists, and applies it to the (transitive)
+ //		dependencies of the main package (other packages are not affected).
+-//		Special name "off" turns off PGO.
++//		Special name "off" turns off PGO. The default is "auto".
+ //	-pkgdir dir
+ //		install and load all packages from dir instead of the usual locations.
+ //		For example, when building with a non-standard configuration,
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index e8201efe9c..6855f67d37 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2939,8 +2939,6 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
+ // In -pgo=auto mode, it finds the default PGO profile.
+ func setPGOProfilePath(pkgs []*Package) {
+ 	switch cfg.BuildPGO {
+-	case "":
+-		fallthrough // default to "off"
+ 	case "off":
+ 		return
+ 
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index ac9718bfb3..6ba66be9b6 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -163,7 +163,7 @@ and test commands:
+ 		build, the go command selects a file named "default.pgo" in the package's
+ 		directory if that file exists, and applies it to the (transitive)
+ 		dependencies of the main package (other packages are not affected).
+-		Special name "off" turns off PGO.
++		Special name "off" turns off PGO. The default is "auto".
+ 	-pkgdir dir
+ 		install and load all packages from dir instead of the usual locations.
+ 		For example, when building with a non-standard configuration,
+@@ -318,7 +318,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+ 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
+-	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "", "")
++	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "auto", "")
+ 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto.txt b/src/cmd/go/testdata/script/build_pgo_auto.txt
+index b3dcdcc481..77f32d43b8 100644
+--- a/src/cmd/go/testdata/script/build_pgo_auto.txt
++++ b/src/cmd/go/testdata/script/build_pgo_auto.txt
+@@ -34,6 +34,21 @@ go list -test -pgo=auto ./a/a1
+ 
+ go list -deps -pgo=auto ./a/a1
+ 
++# -pgo=auto is the default. Commands without explicit -pgo=auto
++# should work as -pgo=auto.
++go build -n ./a/a1
++stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
++stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
++
++go build -n -o nopgo.exe ./nopgo
++stderr 'compile.*nopgo.go'
++! stderr '-pgoprofile'
++
++# -pgo=off should turn off PGO.
++go build -n -pgo=off ./a/a1
++stderr 'compile.*a1.go'
++! stderr '-pgoprofile'
++
+ -- go.mod --
+ module test
+ go 1.20

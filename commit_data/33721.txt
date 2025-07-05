@@ -27,6 +27,79 @@ Date:   Fri Aug 25 15:00:00 2017 -0300
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/runtime/asm_ppc64x.s | 41 +++++++++++++++++++++++++++++++++++++++--
  1 file changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 0251689b37..68f6dd865e 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1258,28 +1258,65 @@ small_string:
+ 
+ TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVD	s1_base+0(FP), R5
+-	MOVD	s1_len+8(FP), R3
+ 	MOVD	s2_base+16(FP), R6
++	MOVD	s1_len+8(FP), R3
++	CMP	R5,R6,CR7
+ 	MOVD	s2_len+24(FP), R4
+ 	MOVD	$ret+32(FP), R7
++	CMP	R3,R4,CR6
++	BEQ	CR7,equal
++
++notequal:
+ #ifdef	GOARCH_ppc64le
+ 	BR	cmpbodyLE<>(SB)
+ #else
+ 	BR      cmpbodyBE<>(SB)
+ #endif
+ 
++equal:
++	BEQ	CR6,done
++	MOVD	$1, R8
++	BGT	CR6,greater
++	NEG	R8
++
++greater:
++	MOVD	R8, (R7)
++	RET
++
++done:
++	MOVD	$0, (R7)
++	RET
++
+ TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
+ 	MOVD	s1+0(FP), R5
+-	MOVD	s1+8(FP), R3
+ 	MOVD	s2+24(FP), R6
++	MOVD	s1+8(FP), R3
++	CMP	R5,R6,CR7
+ 	MOVD	s2+32(FP), R4
+ 	MOVD	$ret+48(FP), R7
++	CMP	R3,R4,CR6
++	BEQ	CR7,equal
++
+ #ifdef	GOARCH_ppc64le
+ 	BR	cmpbodyLE<>(SB)
+ #else
+ 	BR      cmpbodyBE<>(SB)
+ #endif
+ 
++equal:
++	BEQ	CR6,done
++	MOVD	$1, R8
++	BGT	CR6,greater
++	NEG	R8
++
++greater:
++	MOVD	R8, (R7)
++	RET
++
++done:
++	MOVD	$0, (R7)
++	RET
++
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R3
+ 	RET

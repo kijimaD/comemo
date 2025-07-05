@@ -10,6 +10,20 @@ Date:   Thu Oct 24 18:43:43 2019 +0700
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/syscall_darwin.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 7d795ee4d3..c84547c628 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -380,8 +380,6 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
+-	const ptrSize = unsafe.Sizeof(uintptr(0))
+-
+ 	// We store the number of entries to skip in the seek
+ 	// offset of fd. See issue #31368.
+ 	// It's not the full required semantics, but should handle the case

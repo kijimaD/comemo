@@ -12,6 +12,20 @@ Date:   Fri Sep 30 14:25:29 2022 +0000
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index fa2ee676a9..d971234d87 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1081,6 +1081,8 @@ var internalpkg = []string{
+ 	"os/user",
+ 	"runtime/cgo",
+ 	"runtime/race",
++	"runtime/race/internal/amd64v1",
++	"runtime/race/internal/amd64v3",
+ 	"runtime/msan",
+ 	"runtime/asan",
+ }

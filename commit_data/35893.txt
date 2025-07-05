@@ -62,8 +62,63 @@ Date:   Wed Mar 14 16:54:33 2018 -0400
     Change-Id: I250055813cadd25cebee8da1f9a7f995a6eae432
     Reviewed-on: https://go-review.googlesource.com/100738
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go        |  2 +-
  src/cmd/compile/internal/ssa/debug_test.go |  4 ++--
  src/runtime/runtime-gdb_test.go            | 11 ++++++++---
  3 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 79017d2721..2fa7ef84f5 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -192,7 +192,7 @@ func Main(archInit func(*Arch)) {
+ 	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
+ 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
+ 	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")
+-	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", false, "add location lists to DWARF in optimized mode")
++	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
+ 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
+ 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
+ 	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 48dbaea27f..b066816dc9 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -135,10 +135,10 @@ func TestNexting(t *testing.T) {
+ 		t.Skip(skipReasons[:len(skipReasons)-2])
+ 	}
+ 
+-	optFlags := "-dwarflocationlists"
++	optFlags := "" // Whatever flags are needed to test debugging of optimized code.
+ 	if !*useDelve && !*inlines {
+ 		// For gdb (default), disable inlining so that a compiler test does not depend on library code.
+-		// TODO: This may not be necessary with 1.10 and later.
++		// TODO: Technically not necessary in 1.10, but it causes a largish regression that needs investigation.
+ 		optFlags += " -l"
+ 	}
+ 
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index c96bb95222..090e1c61d0 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -234,11 +234,16 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		t.Fatalf("print strvar failed: %s", bl)
+ 	}
+ 
+-	// Issue 16338: ssa decompose phase can split a structure into
+-	// a collection of scalar vars holding the fields. In such cases
++	// The exact format of composite values has changed over time.
++	// For issue 16338: ssa decompose phase split a slice into
++	// a collection of scalar vars holding its fields. In such cases
+ 	// the DWARF variable location expression should be of the
+ 	// form "var.field" and not just "field".
+-	infoLocalsRe := regexp.MustCompile(`.*\sslicevar.cap = `)
++	// However, the newer dwarf location list code reconstituted
++	// aggregates from their fields and reverted their printing
++	// back to its original form.
++
++	infoLocalsRe := regexp.MustCompile(`slicevar *= *\[\]string *= *{"def"}`)
+ 	if bl := blocks["info locals"]; !infoLocalsRe.MatchString(bl) {
+ 		t.Fatalf("info locals failed: %s", bl)
+ 	}

@@ -9,6 +9,20 @@ Date:   Sat Jul 30 18:02:09 2011 -0700
     R=golang-dev, r, iant
     CC=golang-dev
     https://golang.org/cl/4815073
-
+---
  src/pkg/exp/norm/normalize.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/norm/normalize.go b/src/pkg/exp/norm/normalize.go
+index e219263d4a..81311bfcbd 100644
+--- a/src/pkg/exp/norm/normalize.go
++++ b/src/pkg/exp/norm/normalize.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package form contains types and functions for normalizing Unicode strings.
++// Package norm contains types and functions for normalizing Unicode strings.
+ package norm
+ 
+ // A Form denotes a canonical representation of Unicode code points.

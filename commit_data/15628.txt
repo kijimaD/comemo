@@ -9,9 +9,155 @@ Date:   Thu Mar 7 09:18:48 2013 -0500
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/7563043
-
+---
  misc/cgo/test/cthread.go            |  5 +----
  src/pkg/runtime/sys_windows_386.s   | 43 +++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/sys_windows_amd64.s | 32 +++++++++++++++++++++++++++
  src/pkg/runtime/thread_windows.c    | 19 +++-------------
  4 files changed, 79 insertions(+), 20 deletions(-)
+
+diff --git a/misc/cgo/test/cthread.go b/misc/cgo/test/cthread.go
+index d295d008ab..bdfd1103d6 100644
+--- a/misc/cgo/test/cthread.go
++++ b/misc/cgo/test/cthread.go
+@@ -34,11 +34,8 @@ func testCthread(t *testing.T) {
+ 	if runtime.GOARCH == "arm" {
+ 		t.Skip("testCthread disabled on arm")
+ 	}
+-	// TODO(brainman): http://golang.org/issue/4955
+-	if runtime.GOOS == "windows" {
+-		t.Skip("testCthread disabled on windows: http://golang.org/issue/4955")
+-	}
+ 
++	sum.i = 0
+ 	C.doAdd(10, 6)
+ 
+ 	want := 10 * (10 - 1) / 2 * 6
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index ca59f0a1d5..206cdccc42 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -314,3 +314,46 @@ TEXT runtime·remove_exception_handler(SB),7,$0
+ 	MOVL	AX, 0(FS)
+ 
+ 	RET
++
++TEXT runtime·osyield(SB),7,$20
++	// Tried NtYieldExecution but it doesn't yield hard enough.
++	// NtWaitForSingleObject being used here as Sleep(0).
++	MOVL	runtime·NtWaitForSingleObject(SB), AX
++	MOVL	$-1, hi-4(SP)
++	MOVL	$-1, lo-8(SP)
++	LEAL	lo-8(SP), BX
++	MOVL	BX, ptime-12(SP)
++	MOVL	$0, alertable-16(SP)
++	MOVL	$-1, handle-20(SP)
++	MOVL	SP, BP
++	CALL	checkstack4<>(SB)
++	CALL	AX
++	MOVL	BP, SP
++	RET
++
++TEXT runtime·usleep(SB),7,$20
++	MOVL	runtime·NtWaitForSingleObject(SB), AX 
++	// Have 1us units; need negative 100ns units.
++	// Assume multiply by 10 will not overflow 32-bit word.
++	MOVL	usec+0(FP), BX
++	IMULL	$10, BX
++	NEGL	BX
++	MOVL	$-1, hi-4(SP)
++	MOVL	BX, lo-8(SP)
++	LEAL	lo-8(SP), BX
++	MOVL	BX, ptime-12(SP)
++	MOVL	$0, alertable-16(SP)
++	MOVL	$-1, handle-20(SP)
++	MOVL	SP, BP
++	CALL	checkstack4<>(SB)
++	CALL	AX
++	MOVL	BP, SP
++	RET
++
++// This function requires 4 bytes of stack,
++// to simulate what calling NtWaitForSingleObject will use.
++// (It is just a CALL to the system call dispatch.)
++// If the linker okays the call to checkstack4 (a NOSPLIT function)
++// then the call to NtWaitForSingleObject is okay too.
++TEXT checkstack4<>(SB),7,$4
++	RET
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index fe88f3b754..c20a268b10 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -346,3 +346,35 @@ TEXT runtime·install_exception_handler(SB),7,$0
+ 
+ TEXT runtime·remove_exception_handler(SB),7,$0
+ 	RET
++
++TEXT runtime·osyield(SB),7,$8
++	// Tried NtYieldExecution but it doesn't yield hard enough.
++	// NtWaitForSingleObject being used here as Sleep(0).
++	// The CALL is safe because NtXxx is a system call wrapper:
++	// it puts the right system call number in AX, then does
++	// a SYSENTER and a RET.
++	MOVQ	runtime·NtWaitForSingleObject(SB), AX
++	MOVQ	$1, BX
++	NEGQ	BX
++	MOVQ	SP, R8 // ptime
++	MOVQ	BX, (R8)
++	MOVQ	$-1, CX // handle
++	MOVQ	$0, DX // alertable
++	CALL	AX
++	RET
++
++TEXT runtime·usleep(SB),7,$8
++	// The CALL is safe because NtXxx is a system call wrapper:
++	// it puts the right system call number in AX, then does
++	// a SYSENTER and a RET.
++	MOVQ	runtime·NtWaitForSingleObject(SB), AX
++	// Have 1us units; want negative 100ns units.
++	MOVL	usec+0(FP), BX
++	IMULQ	$10, BX
++	NEGQ	BX
++	MOVQ	SP, R8 // ptime
++	MOVQ	BX, (R8)
++	MOVQ	$-1, CX // handle
++	MOVQ	$0, DX // alertable
++	CALL	AX
++	RET
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index ae4e82e50e..a7607a470a 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -31,6 +31,9 @@
+ #pragma dynimport runtime·timeBeginPeriod timeBeginPeriod "winmm.dll"
+ #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
+ #pragma dynimport runtime·WriteFile WriteFile "kernel32.dll"
++#pragma dynimport runtime·NtWaitForSingleObject NtWaitForSingleObject "ntdll.dll"
++
++extern void *runtime·NtWaitForSingleObject;
+ 
+ extern void *runtime·CloseHandle;
+ extern void *runtime·CreateEvent;
+@@ -135,22 +138,6 @@ runtime·write(int32 fd, void *buf, int32 n)
+ 	return written;
+ }
+ 
+-#pragma textflag 7
+-void
+-runtime·osyield(void)
+-{
+-	runtime·stdcall(runtime·Sleep, 1, (uintptr)0);
+-}
+-
+-void
+-runtime·usleep(uint32 us)
+-{
+-	us /= 1000;
+-	if(us == 0)
+-		us = 1;
+-	runtime·stdcall(runtime·Sleep, 1, (uintptr)us);
+-}
+-
+ #define INFINITE ((uintptr)0xFFFFFFFF)
+ 
+ int32

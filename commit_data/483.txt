@@ -8,7 +8,7 @@ Date:   Mon Aug 4 17:24:25 2008 -0700
     DELTA=7031  (6906 added, 113 deleted, 12 changed)
     OCL=13847
     CL=13852
-
+---
  src/libmach_amd64/8db.c    |   3 +-
  src/libmach_amd64/Makefile |   1 +
  src/libmach_amd64/access.c |  75 +------
@@ -17,3 +17,944 @@ Date:   Mon Aug 4 17:24:25 2008 -0700
  src/libmach_amd64/map.c    |  82 +++----
  src/runtime/Makefile       |   8 +-
  7 files changed, 651 insertions(+), 125 deletions(-)
+
+diff --git a/src/libmach_amd64/8db.c b/src/libmach_amd64/8db.c
+index e4c62489fa..3984ea4e9c 100644
+--- a/src/libmach_amd64/8db.c
++++ b/src/libmach_amd64/8db.c
+@@ -127,8 +127,8 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 	Symbol s, f;
+ 
+ 	USED(link);
+-	i = 0;
+ 	osp = 0;
++	i = 0;
+ 	while(findsym(pc, CTEXT, &s)) {
+ 		if (osp == sp)
+ 			break;
+@@ -142,7 +142,6 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 				break;
+ 			sp += f.value-mach->szaddr;
+ 		}
+-
+ 		if (geta(map, sp, &pc) < 0)
+ 			break;
+ 
+diff --git a/src/libmach_amd64/Makefile b/src/libmach_amd64/Makefile
+index e4a80d8d29..66ed283b88 100644
+--- a/src/libmach_amd64/Makefile
++++ b/src/libmach_amd64/Makefile
+@@ -43,6 +43,7 @@ OFILES=\
+ 	8.$O\
+ 	8db.$O\
+ 	6obj.$O\
++	$(GOOS).$O\
+ #	v.$O\
+ #	k.$O\
+ #	u.$O\
+diff --git a/src/libmach_amd64/access.c b/src/libmach_amd64/access.c
+index 68cb927549..0ab01d40c6 100644
+--- a/src/libmach_amd64/access.c
++++ b/src/libmach_amd64/access.c
+@@ -37,7 +37,7 @@
+ 
+ static	int	mget(Map*, uvlong, void*, int);
+ static	int	mput(Map*, uvlong, void*, int);
+-static	struct	segment*	reloc(Map*, uvlong, vlong*);
++static	Seg*	reloc(Map*, uvlong, vlong*);
+ 
+ /*
+  * routines to get/put various types
+@@ -189,101 +189,42 @@ put1(Map *map, uvlong addr, uchar *v, int size)
+ 	return mput(map, addr, v, size);
+ }
+ 
+-static int
+-spread(struct segment *s, void *buf, int n, uvlong off)
+-{
+-	uvlong base;
+-
+-	static struct {
+-		struct segment *s;
+-		char a[8192];
+-		uvlong off;
+-	} cache;
+-
+-	if(s->cache){
+-		base = off&~(sizeof cache.a-1);
+-		if(cache.s != s || cache.off != base){
+-			cache.off = ~0;
+-			if(seek(s->fd, base, 0) >= 0
+-			&& readn(s->fd, cache.a, sizeof cache.a) == sizeof cache.a){
+-				cache.s = s;
+-				cache.off = base;
+-			}
+-		}
+-		if(cache.s == s && cache.off == base){
+-			off &= sizeof cache.a-1;
+-			if(off+n > sizeof cache.a)
+-				n = sizeof cache.a - off;
+-			memmove(buf, cache.a+off, n);
+-			return n;
+-		}
+-	}
+-
+-	return pread(s->fd, buf, n, off);
+-}
+-
+ static int
+ mget(Map *map, uvlong addr, void *buf, int size)
+ {
+ 	uvlong off;
+-	int i, j, k;
+-	struct segment *s;
++	Seg *s;
+ 
+ 	s = reloc(map, addr, (vlong*)&off);
+ 	if (!s)
+ 		return -1;
+-	if (s->fd < 0) {
++	if (s->rw == nil) {
+ 		werrstr("unreadable map");
+ 		return -1;
+ 	}
+-	for (i = j = 0; i < 2; i++) {	/* in case read crosses page */
+-		k = spread(s, buf, size-j, off+j);
+-		if (k < 0) {
+-			werrstr("can't read address %llux: %r", addr);
+-			return -1;
+-		}
+-		j += k;
+-		if (j == size)
+-			return j;
+-	}
+-	werrstr("partial read at address %llux (size %d j %d)", addr, size, j);
+-	return -1;
++	return s->rw(map, s, off, buf, size, 1);
+ }
+ 
+ static int
+ mput(Map *map, uvlong addr, void *buf, int size)
+ {
+ 	vlong off;
+-	int i, j, k;
+-	struct segment *s;
++	Seg *s;
+ 
+ 	s = reloc(map, addr, &off);
+ 	if (!s)
+ 		return -1;
+-	if (s->fd < 0) {
++	if (s->rw == nil) {
+ 		werrstr("unwritable map");
+ 		return -1;
+ 	}
+-
+-	seek(s->fd, off, 0);
+-	for (i = j = 0; i < 2; i++) {	/* in case read crosses page */
+-		k = write(s->fd, buf, size-j);
+-		if (k < 0) {
+-			werrstr("can't write address %llux: %r", addr);
+-			return -1;
+-		}
+-		j += k;
+-		if (j == size)
+-			return j;
+-	}
+-	werrstr("partial write at address %llux", addr);
+-	return -1;
++	return s->rw(map, s, off, buf, size, 0);
+ }
+ 
+ /*
+  *	convert address to file offset; returns nonzero if ok
+  */
+-static struct segment*
++static Seg*
+ reloc(Map *map, uvlong addr, vlong *offp)
+ {
+ 	int i;
+diff --git a/src/libmach_amd64/darwin.c b/src/libmach_amd64/darwin.c
+new file mode 100644
+index 0000000000..0703f9a217
+--- /dev/null
++++ b/src/libmach_amd64/darwin.c
+@@ -0,0 +1,66 @@
++//	Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <mach_amd64.h>
++
++Map*	
++attachproc(int pid, Fhdr *fp)
++{
++	sysfatal("attachproc not implemented");
++	return nil;
++}
++
++int
++ctlproc(int pid, char *msg)
++{
++	sysfatal("ctlproc not implemented");
++	return -1;
++}
++
++void
++detachproc(Map *m)
++{
++	sysfatal("detachproc not implemented");
++}
++
++int
++procnotes(int pid, char ***pnotes)
++{
++	sysfatal("procnotes not implemented");
++	return -1;
++}
++
++char*
++proctextfile(int pid)
++{
++	sysfatal("proctextfile not implemented");
++	return nil;
++}
++
++int	
++procthreadpids(int pid, int **thread)
++{
++	sysfatal("procthreadpids not implemented");
++	return -1;
++}
++
+diff --git a/src/libmach_amd64/linux.c b/src/libmach_amd64/linux.c
+new file mode 100644
+index 0000000000..3f66d2f1b3
+--- /dev/null
++++ b/src/libmach_amd64/linux.c
+@@ -0,0 +1,541 @@
++// Derived from Plan 9 from User Space src/libmach/Linux.c
++// http://code.swtch.com/plan9port/src/tip/src/libmach/Linux.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.
++//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
++//	Portions Copyright © 1997-1999 Vita Nuova Limited.
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
++//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
++//	Portions Copyright © 2001-2007 Russ Cox.
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include <u.h>
++#include <sys/ptrace.h>
++#include <sys/signal.h>
++#include <errno.h>
++#include <libc.h>
++#include <bio.h>
++#include <mach_amd64.h>
++#include <ureg_amd64.h>
++#undef waitpid
++
++typedef struct Ureg Ureg;
++
++static Maprw ptracesegrw;
++static Maprw ptraceregrw;
++
++// /usr/include/asm-x86_64/user.h
++struct user_regs_struct {
++	unsigned long r15,r14,r13,r12,rbp,rbx,r11,r10;
++	unsigned long r9,r8,rax,rcx,rdx,rsi,rdi,orig_rax;
++	unsigned long rip,cs,eflags;
++	unsigned long rsp,ss;
++  	unsigned long fs_base, gs_base;
++	unsigned long ds,es,fs,gs; 
++}; 
++
++static int
++isstopped(int pid)
++{
++	char buf[1024];
++	int fd, n;
++	char *p;
++
++	snprint(buf, sizeof buf, "/proc/%d/stat", pid);
++	if((fd = open(buf, OREAD)) < 0)
++		return 0;
++	n = read(fd, buf, sizeof buf-1);
++	close(fd);
++	if(n <= 0)
++		return 0;
++	buf[n] = 0;
++
++	/* command name is in parens, no parens afterward */
++	p = strrchr(buf, ')');
++	if(p == nil || *++p != ' ')
++		return 0;
++	++p;
++
++	/* next is state - T is stopped for tracing */
++	return *p == 'T';
++}
++
++static int
++waitstop(int pid)
++{
++	int p, status;
++
++	if(isstopped(pid))
++		return 0;
++	for(;;){
++		p = waitpid(pid, &status, WUNTRACED|__WALL);
++		if(p <= 0){
++			if(errno == ECHILD){
++				if(isstopped(pid))
++					return 0;
++			}
++			return -1;
++		}
++		if(WIFEXITED(status) || WIFSTOPPED(status))
++			return 0;
++	}
++}
++
++static int attachedpids[1000];
++static int nattached;
++
++static int
++ptraceattach(int pid)
++{
++	int i;
++
++	for(i=0; i<nattached; i++)
++		if(attachedpids[i] == pid)
++			return 0;
++	if(nattached == nelem(attachedpids)){
++		werrstr("attached to too many processes");
++		return -1;
++	}
++
++	if(ptrace(PTRACE_ATTACH, pid, 0, 0) < 0){
++		werrstr("ptrace attach %d: %r", pid);
++		return -1;
++	}
++	
++	if(waitstop(pid) < 0){
++		fprint(2, "waitstop %d: %r", pid);
++		ptrace(PTRACE_DETACH, pid, 0, 0);
++		return -1;
++	}
++	attachedpids[nattached++] = pid;
++	return 0;
++}
++
++Map*
++attachproc(int pid, Fhdr *fp)
++{
++	char buf[64];
++	Map *map;
++	vlong n;
++
++	if(ptraceattach(pid) < 0)
++		return nil;
++
++	map = newmap(0, 4);
++	if (!map)
++		return 0;
++	map->pid = pid;
++	if(mach->regsize)
++		setmap(map, -1, 0, mach->regsize, 0, "regs", ptraceregrw);
++//	if(mach->fpregsize)
++//		setmap(map, -1, mach->regsize, mach->regsize+mach->fpregsize, 0, "fpregs", ptraceregrw);
++	setmap(map, -1, fp->txtaddr, fp->txtaddr+fp->txtsz, fp->txtaddr, "*text", ptracesegrw);
++	setmap(map, -1, fp->dataddr, mach->utop, fp->dataddr, "*data", ptracesegrw);
++	return map;
++}
++	
++void
++detachproc(Map *m)
++{
++	if(m->pid > 0)
++		ptrace(PTRACE_DETACH, m->pid, 0, 0);
++	free(m);
++}
++
++/* /proc/pid/stat contains 
++	pid
++	command in parens
++	0. state
++	1. ppid
++	2. pgrp
++	3. session
++	4. tty_nr
++	5. tpgid
++	6. flags (math=4, traced=10)
++	7. minflt
++	8. cminflt
++	9. majflt
++	10. cmajflt
++	11. utime
++	12. stime
++	13. cutime
++	14. cstime
++	15. priority
++	16. nice
++	17. 0
++	18. itrealvalue
++	19. starttime
++	20. vsize
++	21. rss
++	22. rlim
++	23. startcode
++	24. endcode
++	25. startstack
++	26. kstkesp
++	27. kstkeip
++	28. pending signal bitmap
++	29. blocked signal bitmap
++	30. ignored signal bitmap
++	31. caught signal bitmap
++	32. wchan
++	33. nswap
++	34. cnswap
++	35. exit_signal
++	36. processor
++*/
++
++int
++procnotes(int pid, char ***pnotes)
++{
++	char buf[1024], *f[40];
++	int fd, i, n, nf;
++	char *p, *s, **notes;
++	ulong sigs;
++	extern char *_p9sigstr(int, char*);
++
++	*pnotes = nil;
++	snprint(buf, sizeof buf, "/proc/%d/stat", pid);
++	if((fd = open(buf, OREAD)) < 0){
++		fprint(2, "open %s: %r\n", buf);
++		return -1;
++	}
++	n = read(fd, buf, sizeof buf-1);
++	close(fd);
++	if(n <= 0){
++		fprint(2, "read %s: %r\n", buf);
++		return -1;
++	}
++	buf[n] = 0;
++
++	/* command name is in parens, no parens afterward */
++	p = strrchr(buf, ')');
++	if(p == nil || *++p != ' '){
++		fprint(2, "bad format in /proc/%d/stat\n", pid);
++		return -1;
++	}
++	++p;
++
++	nf = tokenize(p, f, nelem(f));
++	if(0) print("code 0x%lux-0x%lux stack 0x%lux kstk 0x%lux keip 0x%lux pending 0x%lux\n",
++		strtoul(f[23], 0, 0), strtoul(f[24], 0, 0), strtoul(f[25], 0, 0),
++		strtoul(f[26], 0, 0), strtoul(f[27], 0, 0), strtoul(f[28], 0, 0));
++	if(nf <= 28)
++		return -1;
++
++	sigs = strtoul(f[28], 0, 0) & ~(1<<SIGCONT);
++	if(sigs == 0){
++		*pnotes = nil;
++		return 0;
++	}
++
++	notes = mallocz(32*sizeof(char*), 0);
++	if(notes == nil)
++		return -1;
++	n = 0;
++	for(i=0; i<32; i++){
++		if((sigs&(1<<i)) == 0)
++			continue;
++		if((s = _p9sigstr(i, nil)) == nil)
++			continue;
++		notes[n++] = s;
++	}
++	*pnotes = notes;
++	return n;
++}
++
++int
++ctlproc(int pid, char *msg)
++{
++	int i, p, status;
++
++	if(strcmp(msg, "attached") == 0){
++		for(i=0; i<nattached; i++)
++			if(attachedpids[i]==pid)
++				return 0;
++		if(nattached == nelem(attachedpids)){
++			werrstr("attached to too many processes");
++			return -1;
++		}
++		attachedpids[nattached++] = pid;
++		return 0;
++	}
++
++	if(strcmp(msg, "hang") == 0){
++		if(pid == getpid())
++			return ptrace(PTRACE_TRACEME, 0, 0, 0);
++		werrstr("can only hang self");
++		return -1;
++	}
++	if(strcmp(msg, "kill") == 0)
++		return ptrace(PTRACE_KILL, pid, 0, 0);
++	if(strcmp(msg, "startstop") == 0){
++		if(ptrace(PTRACE_CONT, pid, 0, 0) < 0)
++			return -1;
++		goto waitstop;
++	}
++	if(strcmp(msg, "sysstop") == 0){
++		if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0)
++			return -1;
++		goto waitstop;
++	}
++	if(strcmp(msg, "stop") == 0){
++		if(kill(pid, SIGSTOP) < 0)
++			return -1;
++		goto waitstop;
++	}
++	if(strcmp(msg, "step") == 0){
++		if(ptrace(PTRACE_SINGLESTEP, pid, 0, 0) < 0)
++			return -1;
++		goto waitstop;
++	}
++	if(strcmp(msg, "waitstop") == 0){
++	waitstop:
++		if(isstopped(pid))
++			return 0;
++		for(;;){
++			p = waitpid(pid, &status, WUNTRACED|__WALL);
++			if(p <= 0){
++				if(errno == ECHILD){
++					if(isstopped(pid))
++						return 0;
++				}
++				return -1;
++			}
++/*fprint(2, "got pid %d status %x\n", pid, status); */
++			if(WIFEXITED(status) || WIFSTOPPED(status))
++				return 0;
++		}
++	}
++	if(strcmp(msg, "start") == 0)
++		return ptrace(PTRACE_CONT, pid, 0, 0);
++	werrstr("unknown control message '%s'", msg);
++	return -1;
++}
++
++char*
++proctextfile(int pid)
++{
++	static char buf[1024], pbuf[128];
++
++	snprint(pbuf, sizeof pbuf, "/proc/%d/exe", pid);
++	if(readlink(pbuf, buf, sizeof buf) >= 0)
++		return strdup(buf);
++	if(access(pbuf, AEXIST) >= 0)
++		return strdup(pbuf);
++	return nil;
++}
++
++int
++procthreadpids(int pid, int **thread)
++{
++	int i, fd, nd, *t, nt;
++	char buf[100];
++	Dir *d;
++	
++	snprint(buf, sizeof buf, "/proc/%d/task", pid);
++	if((fd = open(buf, OREAD)) < 0)
++		return -1;
++	nd = dirreadall(fd, &d);
++	close(fd);
++	if(nd < 0)
++		return -1;
++	nt = 0;
++	for(i=0; i<nd; i++)
++		if(d[i].mode&DMDIR)
++			nt++;
++	t = malloc(nt*sizeof t[0]);
++	nt = 0;
++	for(i=0; i<nd; i++)
++		if(d[i].mode&DMDIR)
++			t[nt++] = atoi(d[i].name);
++	*thread = t;
++	return nt;
++}
++
++static int
++ptracerw(int type, int xtype, int isr, int pid, uvlong addr, void *v, uint n)
++{
++	int i;
++	uintptr u;
++	uchar buf[sizeof(uintptr)];
++
++	for(i=0; i<n; i+=sizeof(uintptr)){
++		if(isr){
++			errno = 0;
++			u = ptrace(type, pid, addr+i, 0);
++			if(errno)
++				goto ptraceerr;
++			if(n-i >= sizeof(uintptr))
++				*(uintptr*)((char*)v+i) = u;
++			else{
++				*(uintptr*)buf = u;
++				memmove((char*)v+i, buf, n-i);
++			}
++		}else{
++			if(n-i >= sizeof(uintptr))
++				u = *(uintptr*)((char*)v+i);
++			else{
++				errno = 0;
++				u = ptrace(xtype, pid, addr+i, 0);
++				if(errno)
++					return -1;
++				*(uintptr*)buf = u;
++				memmove(buf, (char*)v+i, n-i);
++				u = *(uintptr*)buf;
++			}
++			if(ptrace(type, pid, addr+i, u) < 0)
++				goto ptraceerr;
++		}
++	}
++	return 0;
++
++ptraceerr:
++	werrstr("ptrace %s addr=%#llux pid=%d: %r", isr ? "read" : "write", addr, pid);
++	return -1;
++}
++
++static int
++ptracesegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
++{
++	return ptracerw(isr ? PTRACE_PEEKDATA : PTRACE_POKEDATA, PTRACE_PEEKDATA,
++		isr, map->pid, addr, v, n);
++}
++
++static int
++go2linux(uvlong addr)
++{
++	switch(addr){
++	case offsetof(Ureg, ax):
++		return offsetof(struct user_regs_struct, rax);
++	case offsetof(Ureg, bx):
++		return offsetof(struct user_regs_struct, rbx);
++	case offsetof(Ureg, cx):
++		return offsetof(struct user_regs_struct, rcx);
++	case offsetof(Ureg, dx):
++		return offsetof(struct user_regs_struct, rdx);
++	case offsetof(Ureg, si):
++		return offsetof(struct user_regs_struct, rsi);
++	case offsetof(Ureg, di):
++		return offsetof(struct user_regs_struct, rdi);
++	case offsetof(Ureg, bp):
++		return offsetof(struct user_regs_struct, rbp);
++	case offsetof(Ureg, r8):
++		return offsetof(struct user_regs_struct, r8);
++	case offsetof(Ureg, r9):
++		return offsetof(struct user_regs_struct, r9);
++	case offsetof(Ureg, r10):
++		return offsetof(struct user_regs_struct, r10);
++	case offsetof(Ureg, r11):
++		return offsetof(struct user_regs_struct, r11);
++	case offsetof(Ureg, r12):
++		return offsetof(struct user_regs_struct, r12);
++	case offsetof(Ureg, r13):
++		return offsetof(struct user_regs_struct, r13);
++	case offsetof(Ureg, r14):
++		return offsetof(struct user_regs_struct, r14);
++	case offsetof(Ureg, r15):
++		return offsetof(struct user_regs_struct, r15);
++	case offsetof(Ureg, ds):
++		return offsetof(struct user_regs_struct, ds);
++	case offsetof(Ureg, es):
++		return offsetof(struct user_regs_struct, es);
++	case offsetof(Ureg, fs):
++		return offsetof(struct user_regs_struct, fs);
++	case offsetof(Ureg, gs):
++		return offsetof(struct user_regs_struct, gs);
++	case offsetof(Ureg, ip):
++		return offsetof(struct user_regs_struct, rip);
++	case offsetof(Ureg, cs):
++		return offsetof(struct user_regs_struct, cs);
++	case offsetof(Ureg, flags):
++		return offsetof(struct user_regs_struct, eflags);
++	case offsetof(Ureg, sp):
++		return offsetof(struct user_regs_struct, rsp);
++	case offsetof(Ureg, ss):
++		return offsetof(struct user_regs_struct, ss);
++	}
++	return -1;
++}
++
++static int
++ptraceregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
++{
++	int laddr;
++	uvlong u;
++	
++	if((laddr = go2linux(addr)) < 0){
++		if(isr){
++			memset(v, 0, n);
++			return 0;
++		}
++		werrstr("register %llud not available", addr);
++		return -1;
++	}
++	
++	if(isr){
++		errno = 0;
++		u = ptrace(PTRACE_PEEKUSER, map->pid, laddr, 0);
++		if(errno)
++			goto ptraceerr;
++		switch(n){
++		case 1:
++			*(uint8*)v = u;
++			break;
++		case 2:
++			*(uint16*)v = u;
++			break;
++		case 4:
++			*(uint32*)v = u;
++			break;
++		case 8:
++			*(uint64*)v = u;
++			break;
++		default:
++			werrstr("bad register size");
++			return -1;
++		}
++	}else{
++		switch(n){
++		case 1:
++			u = *(uint8*)v;
++			break;
++		case 2:
++			u = *(uint16*)v;
++			break;
++		case 4:
++			u = *(uint32*)v;
++			break;
++		case 8:
++			u = *(uint64*)v;
++			break;
++		default:
++			werrstr("bad register size");
++			return -1;
++		}
++		if(ptrace(PTRACE_POKEUSER, map->pid, laddr, (void*)(uintptr)u) < 0)
++			goto ptraceerr;
++	}
++	return 0;
++
++ptraceerr:
++	werrstr("ptrace %s register laddr=%d pid=%d: %r", isr ? "read" : "write", laddr, map->pid);
++	return -1;	
++}
+diff --git a/src/libmach_amd64/map.c b/src/libmach_amd64/map.c
+index 5bc806736e..eb7eaf9990 100644
+--- a/src/libmach_amd64/map.c
++++ b/src/libmach_amd64/map.c
+@@ -44,7 +44,7 @@ newmap(Map *map, int n)
+ {
+ 	int size;
+ 
+-	size = sizeof(Map)+(n-1)*sizeof(struct segment);
++	size = sizeof(Map)+(n-1)*sizeof(Seg);
+ 	if (map == 0)
+ 		map = malloc(size);
+ 	else
+@@ -59,7 +59,7 @@ newmap(Map *map, int n)
+ }
+ 
+ int
+-setmap(Map *map, int fd, uvlong b, uvlong e, vlong f, char *name)
++setmap(Map *map, int fd, uvlong b, uvlong e, vlong f, char *name, Maprw *rw)
+ {
+ 	int i;
+ 
+@@ -76,6 +76,7 @@ setmap(Map *map, int fd, uvlong b, uvlong e, vlong f, char *name)
+ 	map->seg[i].inuse = 1;
+ 	map->seg[i].name = name;
+ 	map->seg[i].fd = fd;
++	map->seg[i].rw = rw;
+ 	return 1;
+ }
+ 
+@@ -110,58 +111,6 @@ stacktop(int pid)
+ 	return strtoull(cp, 0, 16);
+ }
+ 
+-Map*
+-attachproc(int pid, int kflag, int corefd, Fhdr *fp)
+-{
+-	char buf[64], *regs;
+-	int fd;
+-	Map *map;
+-	uvlong n;
+-	int mode;
+-
+-	map = newmap(0, 4);
+-	if (!map)
+-		return 0;
+-	if(kflag) {
+-		regs = "kregs";
+-		mode = OREAD;
+-	} else {
+-		regs = "regs";
+-		mode = ORDWR;
+-	}
+-	if (mach->regsize) {
+-		sprint(buf, "/proc/%d/%s", pid, regs);
+-		fd = open(buf, mode);
+-		if(fd < 0) {
+-			free(map);
+-			return 0;
+-		}
+-		setmap(map, fd, 0, mach->regsize, 0, "regs");
+-	}
+-	if (mach->fpregsize) {
+-		sprint(buf, "/proc/%d/fpregs", pid);
+-		fd = open(buf, mode);
+-		if(fd < 0) {
+-			close(map->seg[0].fd);
+-			free(map);
+-			return 0;
+-		}
+-		setmap(map, fd, mach->regsize, mach->regsize+mach->fpregsize, 0, "fpregs");
+-	}
+-	setmap(map, corefd, fp->txtaddr, fp->txtaddr+fp->txtsz, fp->txtaddr, "text");
+-	if(kflag || fp->dataddr >= mach->utop) {
+-		setmap(map, corefd, fp->dataddr, ~0, fp->dataddr, "data");
+-		return map;
+-	}
+-	n = stacktop(pid);
+-	if (n == 0) {
+-		setmap(map, corefd, fp->dataddr, mach->utop, fp->dataddr, "data");
+-		return map;
+-	}
+-	setmap(map, corefd, fp->dataddr, n, fp->dataddr, "data");
+-	return map;
+-}
+-	
+ int
+ findseg(Map *map, char *name)
+ {
+@@ -182,6 +131,29 @@ unusemap(Map *map, int i)
+ 		map->seg[i].inuse = 0;
+ }
+ 
++int
++fdrw(Map *map, Seg *s, uvlong addr, void *v, uint n, int isread)
++{
++	int tot, m;
++
++	for(tot=0; tot<n; tot+=m){
++		if(isread)
++			m = pread(s->fd, (uchar*)v+tot, n-tot, addr+tot);
++		else
++			m = pwrite(s->fd, (uchar*)v+tot, n-tot, addr+tot);
++		if(m == 0){
++			werrstr("short %s", isread ? "read" : "write");
++			return -1;
++		}
++		if(m < 0){
++			werrstr("%s %d at %#llux (+%#llux): %r", isread ? "read" : "write", n, addr, s->f);
++			return -1;
++		}
++	}
++	return 0;
++}
++
++
+ Map*
+ loadmap(Map *map, int fd, Fhdr *fp)
+ {
+@@ -195,11 +167,13 @@ loadmap(Map *map, int fd, Fhdr *fp)
+ 	map->seg[0].fd = fd;
+ 	map->seg[0].inuse = 1;
+ 	map->seg[0].name = "text";
++	map->seg[0].rw = fdrw;
+ 	map->seg[1].b = fp->dataddr;
+ 	map->seg[1].e = fp->dataddr+fp->datsz;
+ 	map->seg[1].f = fp->datoff;
+ 	map->seg[1].fd = fd;
+ 	map->seg[1].inuse = 1;
+ 	map->seg[1].name = "data";
++	map->seg[0].rw = fdrw;
+ 	return map;
+ }
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index f50ac826ca..02bc025634 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -30,9 +30,10 @@ OFILES=$(RT0OFILES) $(LIBOFILES)
+ OS_H=$(GOARCH)_$(GOOS).h
+ HFILES=runtime.h $(OS_H_)
+ 
+-install: rt0 $(LIB)
++install: rt0 $(LIB) runtime.acid
+ 	cp $(RT0OFILES) $(GOROOT)/lib
+ 	cp $(LIB) $(GOROOT)/lib
++	cp runtime.acid $(GOROOT)/acid/runtime.acid
+ 
+ rt0:	$(RT0OFILES)
+ 
+@@ -45,7 +46,7 @@ nuke:
+ 	rm -f *.$(O) *.a $(GOROOT)/lib/$(LIB)
+ 
+ clean:
+-	rm -f *.$(O) *.a
++	rm -f *.$(O) *.a runtime.acid
+ 
+ %.$O:	%.c
+ 	$(CC) $<
+@@ -55,3 +56,6 @@ sys_file.$O:	sys_file.c sys_types.h $(OS_H)
+ 
+ %.$O:	%.s
+ 	$(AS) $<
++
++runtime.acid: runtime.h
++	$(CC) -a runtime.h >runtime.acid

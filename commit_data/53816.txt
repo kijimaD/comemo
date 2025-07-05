@@ -16,8 +16,107 @@ Date:   Fri Sep 2 07:54:43 2022 +0000
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/internal/str/str.go          |  8 ++++----
  src/go/internal/gccgoimporter/parser.go |  9 ++++-----
  src/net/mail/message.go                 | 14 +++++++-------
  3 files changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/str/str.go b/src/cmd/go/internal/str/str.go
+index 975869d760..af7c699972 100644
+--- a/src/cmd/go/internal/str/str.go
++++ b/src/cmd/go/internal/str/str.go
+@@ -6,8 +6,8 @@
+ package str
+ 
+ import (
+-	"bytes"
+ 	"fmt"
++	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -49,7 +49,7 @@ func ToFold(s string) string {
+ 	return s
+ 
+ Slow:
+-	var buf bytes.Buffer
++	var b strings.Builder
+ 	for _, r := range s {
+ 		// SimpleFold(x) cycles to the next equivalent rune > x
+ 		// or wraps around to smaller values. Iterate until it wraps,
+@@ -65,9 +65,9 @@ Slow:
+ 		if 'A' <= r && r <= 'Z' {
+ 			r += 'a' - 'A'
+ 		}
+-		buf.WriteRune(r)
++		b.WriteRune(r)
+ 	}
+-	return buf.String()
++	return b.String()
+ }
+ 
+ // FoldDup reports a pair of strings from the list that are
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 536083ae08..de9df0bbfb 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -5,7 +5,6 @@
+ package gccgoimporter
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"go/constant"
+@@ -129,16 +128,16 @@ func (p *parser) parseUnquotedString() string {
+ 	if p.tok == scanner.EOF {
+ 		p.error("unexpected EOF")
+ 	}
+-	var buf bytes.Buffer
+-	buf.WriteString(p.scanner.TokenText())
++	var b strings.Builder
++	b.WriteString(p.scanner.TokenText())
+ 	// This loop needs to examine each character before deciding whether to consume it. If we see a semicolon,
+ 	// we need to let it be consumed by p.next().
+ 	for ch := p.scanner.Peek(); ch != '\n' && ch != ';' && ch != scanner.EOF && p.scanner.Whitespace&(1<<uint(ch)) == 0; ch = p.scanner.Peek() {
+-		buf.WriteRune(ch)
++		b.WriteRune(ch)
+ 		p.scanner.Next()
+ 	}
+ 	p.next()
+-	return buf.String()
++	return b.String()
+ }
+ 
+ func (p *parser) next() {
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index c91aa3af12..5de47eb45b 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -829,18 +829,18 @@ func isQtext(r rune) bool {
+ 
+ // quoteString renders a string as an RFC 5322 quoted-string.
+ func quoteString(s string) string {
+-	var buf strings.Builder
+-	buf.WriteByte('"')
++	var b strings.Builder
++	b.WriteByte('"')
+ 	for _, r := range s {
+ 		if isQtext(r) || isWSP(r) {
+-			buf.WriteRune(r)
++			b.WriteRune(r)
+ 		} else if isVchar(r) {
+-			buf.WriteByte('\\')
+-			buf.WriteRune(r)
++			b.WriteByte('\\')
++			b.WriteRune(r)
+ 		}
+ 	}
+-	buf.WriteByte('"')
+-	return buf.String()
++	b.WriteByte('"')
++	return b.String()
+ }
+ 
+ // isVchar reports whether r is an RFC 5322 VCHAR character.

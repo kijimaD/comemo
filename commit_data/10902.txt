@@ -9,7 +9,16 @@ Date:   Tue Dec 20 14:42:58 2011 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5502046
-
+---
  src/pkg/runtime/cgo/{386.S => gcc_386.S} | 0
  src/pkg/runtime/cgo/{arm.S => gcc_arm.S} | 0
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/386.S b/src/pkg/runtime/cgo/gcc_386.S
+similarity index 100%
+rename from src/pkg/runtime/cgo/386.S
+rename to src/pkg/runtime/cgo/gcc_386.S
+diff --git a/src/pkg/runtime/cgo/arm.S b/src/pkg/runtime/cgo/gcc_arm.S
+similarity index 100%
+rename from src/pkg/runtime/cgo/arm.S
+rename to src/pkg/runtime/cgo/gcc_arm.S

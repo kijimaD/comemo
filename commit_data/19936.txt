@@ -8,6 +8,24 @@ Date:   Thu Aug 7 10:22:10 2014 +1000
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/122910043
-
+---
  src/pkg/path/filepath/path_test.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 17b53bdf92..8cdc763f1b 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -784,12 +784,6 @@ var absTests = []string{
+ }
+ 
+ func TestAbs(t *testing.T) {
+-	oldwd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal("Getwd failed: ", err)
+-	}
+-	defer os.Chdir(oldwd)
+-
+ 	root, err := ioutil.TempDir("", "TestAbs")
+ 	if err != nil {
+ 		t.Fatal("TempDir failed: ", err)

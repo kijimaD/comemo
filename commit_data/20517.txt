@@ -11,6 +11,34 @@ Date:   Mon Sep 15 15:09:17 2014 -0700
     R=golang-codereviews, dvyukov, bradfitz, khr
     CC=golang-codereviews
     https://golang.org/cl/140650043
-
+---
  src/runtime/crash_test.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index a86a3b7904..d1577fb5fe 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -159,6 +159,22 @@ func TestGoexitCrash(t *testing.T) {
+ 	}
+ }
+ 
++func TestGoexitDefer(t *testing.T) {
++	c := make(chan struct{})
++	go func() {
++		defer func() {
++			r := recover()
++			if r != nil {
++				t.Errorf("non-nil recover during Goexit")
++			}
++			c <- struct{}{}
++		}()
++		runtime.Goexit()
++	}()
++	// Note: if the defer fails to run, we will get a deadlock here
++	<-c
++}
++
+ func TestGoNil(t *testing.T) {
+ 	output := executeTest(t, goNilSource, nil)
+ 	want := "go of nil func value"

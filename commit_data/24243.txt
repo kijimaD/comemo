@@ -13,6 +13,47 @@ Date:   Fri Jul 17 10:46:38 2015 -0700
     Change-Id: I41beb8c9d8356c737de251fdc6f652caab3ee636
     Reviewed-on: https://go-review.googlesource.com/12329
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/os_test.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 635842693a..6b726745cf 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -768,6 +768,35 @@ func TestRenameOverwriteDest(t *testing.T) {
+ 	}
+ }
+ 
++func TestRenameFailed(t *testing.T) {
++	defer chtmpdir(t)()
++	from, to := "renamefrom", "renameto"
++	// Ensure we are not testing the overwrite case here.
++	Remove(from)
++	Remove(to)
++
++	err := Rename(from, to)
++	switch err := err.(type) {
++	case *LinkError:
++		if err.Op != "rename" {
++			t.Errorf("rename %q, %q: err.Op: want %q, got %q", from, to, "rename", err.Op)
++		}
++		if err.Old != from {
++			t.Errorf("rename %q, %q: err.Old: want %q, got %q", from, to, from, err.Old)
++		}
++		if err.New != to {
++			t.Errorf("rename %q, %q: err.New: want %q, got %q", from, to, to, err.New)
++		}
++	case nil:
++		t.Errorf("rename %q, %q: expected error, got nil", from, to)
++
++		// cleanup whatever was placed in "renameto"
++		Remove(to)
++	default:
++		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
++	}
++}
++
+ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
+ 	r, w, err := Pipe()
+ 	if err != nil {

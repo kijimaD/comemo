@@ -11,6 +11,25 @@ Date:   Sat Jun 9 20:14:44 2018 -0700
     Change-Id: I4391afa6ed3873107628630adc1d409d77fb3f20
     Reviewed-on: https://go-review.googlesource.com/117675
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httptest/recorder.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 22170cf98b..1d0310625b 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -27,9 +27,11 @@ type ResponseRecorder struct {
+ 	Code int
+ 
+ 	// HeaderMap contains the headers explicitly set by the Handler.
++	// It is an internal detail.
+ 	//
+-	// To get the implicit headers set by the server (such as
+-	// automatic Content-Type), use the Result method.
++	// Deprecated: HeaderMap exists for historical compatibility
++	// and should not be used. To access the headers returned by a handler,
++	// use the Response.Header map as returned by the Result method.
+ 	HeaderMap http.Header
+ 
+ 	// Body is the buffer to which the Handler's Write calls are sent.

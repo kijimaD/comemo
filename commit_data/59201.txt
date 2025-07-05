@@ -13,9 +13,84 @@ Date:   Sat Feb 24 11:52:38 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  doc/next/6-stdlib/99-minor/net/http/64910.md |  2 ++
  src/net/http/pattern.go                      |  7 +++++--
  src/net/http/pattern_test.go                 | 17 +++++++++++++++++
  src/net/http/server.go                       |  2 +-
  4 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/net/http/64910.md b/doc/next/6-stdlib/99-minor/net/http/64910.md
+new file mode 100644
+index 0000000000..020e18b97b
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/http/64910.md
+@@ -0,0 +1,2 @@
++The patterns used by [`net/http.ServeMux`](//net/http#ServeMux) allow
++multiple spaces matching regexp '[ \t]+'.
+diff --git a/src/net/http/pattern.go b/src/net/http/pattern.go
+index f6af19b0f4..8fd120e777 100644
+--- a/src/net/http/pattern.go
++++ b/src/net/http/pattern.go
+@@ -76,7 +76,7 @@ type segment struct {
+ //     a literal or a wildcard of the form "{name}", "{name...}", or "{$}".
+ //
+ // METHOD, HOST and PATH are all optional; that is, the string can be "/".
+-// If METHOD is present, it must be followed by a single space.
++// If METHOD is present, it must be followed by at least one space or tab.
+ // Wildcard names must be valid Go identifiers.
+ // The "{$}" and "{name...}" wildcard must occur at the end of PATH.
+ // PATH may end with a '/'.
+@@ -92,7 +92,10 @@ func parsePattern(s string) (_ *pattern, err error) {
+ 		}
+ 	}()
+ 
+-	method, rest, found := strings.Cut(s, " ")
++	method, rest, found := s, "", false
++	if i := strings.IndexAny(s, " \t"); i >= 0 {
++		method, rest, found = s[:i], strings.TrimLeft(s[i+1:], " \t"), true
++	}
+ 	if !found {
+ 		rest = method
+ 		method = ""
+diff --git a/src/net/http/pattern_test.go b/src/net/http/pattern_test.go
+index f0c84d243e..833fe88bf6 100644
+--- a/src/net/http/pattern_test.go
++++ b/src/net/http/pattern_test.go
+@@ -98,6 +98,23 @@ func TestParsePattern(t *testing.T) {
+ 			"/%61%62/%7b/%",
+ 			pattern{segments: []segment{lit("ab"), lit("{"), lit("%")}},
+ 		},
++		// Allow multiple spaces matching regexp '[ \t]+' between method and path.
++		{
++			"GET\t  /",
++			pattern{method: "GET", segments: []segment{multi("")}},
++		},
++		{
++			"POST \t  example.com/foo/{w}",
++			pattern{
++				method:   "POST",
++				host:     "example.com",
++				segments: []segment{lit("foo"), wild("w")},
++			},
++		},
++		{
++			"DELETE    \texample.com/a/{foo12}/{$}",
++			pattern{method: "DELETE", host: "example.com", segments: []segment{lit("a"), wild("foo12"), lit("/")}},
++		},
+ 	} {
+ 		got := mustParsePattern(t, test.in)
+ 		if !got.equal(&test.want) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 0ba88d1119..7d73cca43f 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2335,7 +2335,7 @@ func RedirectHandler(url string, code int) Handler {
+ //	[METHOD ][HOST]/[PATH]
+ //
+ // All three parts are optional; "/" is a valid pattern.
+-// If METHOD is present, it must be followed by a single space.
++// If METHOD is present, it must be followed by at least one space or tab.
+ //
+ // Literal (that is, non-wildcard) parts of a pattern match
+ // the corresponding parts of a request case-sensitively.

@@ -18,7 +18,7 @@ Date:   Wed Jul 14 17:17:53 2010 -0700
     R=r
     CC=dho, golang-dev, iant
     https://golang.org/cl/1734047
-
+---
  misc/cgo/stdio/Makefile |   4 +-
  misc/cgo/stdio/align.go |  78 ++++++++
  misc/cgo/stdio/chain.go |   4 +-
@@ -33,3 +33,2593 @@ Date:   Wed Jul 14 17:17:53 2010 -0700
  src/cmd/cgo/out.go      | 403 ++++++++++++++++++++-------------------
  src/cmd/cgo/util.go     |  45 ++++-
  13 files changed, 1240 insertions(+), 651 deletions(-)
+
+diff --git a/misc/cgo/stdio/Makefile b/misc/cgo/stdio/Makefile
+index 2e3d466318..a0093ff529 100644
+--- a/misc/cgo/stdio/Makefile
++++ b/misc/cgo/stdio/Makefile
+@@ -6,7 +6,9 @@ include ../../../src/Make.$(GOARCH)
+ 
+ TARG=stdio
+ CGOFILES=\
+-	file.go
++	align.go\
++	file.go\
++	test.go\
+ 
+ CLEANFILES+=hello fib chain run.out
+ 
+diff --git a/misc/cgo/stdio/align.go b/misc/cgo/stdio/align.go
+new file mode 100644
+index 0000000000..6cdfd902f4
+--- /dev/null
++++ b/misc/cgo/stdio/align.go
+@@ -0,0 +1,78 @@
++package stdio
++
++/*
++#include <stdio.h>
++
++typedef unsigned char Uint8;
++typedef unsigned short Uint16;
++
++typedef enum {
++ MOD1 = 0x0000,
++ MODX = 0x8000
++} SDLMod;
++
++typedef enum {
++ A = 1,
++ B = 322,
++ SDLK_LAST
++} SDLKey;
++
++typedef struct SDL_keysym {
++	Uint8 scancode;
++	SDLKey sym;
++	SDLMod mod;
++	Uint16 unicode;
++} SDL_keysym;
++
++typedef struct SDL_KeyboardEvent {
++	Uint8 typ;
++	Uint8 which;
++	Uint8 state;
++	SDL_keysym keysym;
++} SDL_KeyboardEvent;
++
++void makeEvent(SDL_KeyboardEvent *event) {
++ unsigned char *p;
++ int i;
++
++ p = (unsigned char*)event;
++ for (i=0; i<sizeof *event; i++) {
++   p[i] = i;
++ }
++}
++
++int same(SDL_KeyboardEvent* e, Uint8 typ, Uint8 which, Uint8 state, Uint8 scan, SDLKey sym, SDLMod mod, Uint16 uni) {
++  return e->typ == typ && e->which == which && e->state == state && e->keysym.scancode == scan && e->keysym.sym == sym && e->keysym.mod == mod && e->keysym.unicode == uni;
++}
++
++void cTest(SDL_KeyboardEvent *event) {
++ printf("C: %#x %#x %#x %#x %#x %#x %#x\n", event->typ, event->which, event->state,
++   event->keysym.scancode, event->keysym.sym, event->keysym.mod, event->keysym.unicode);
++ fflush(stdout);
++}
++
++*/
++import "C"
++
++import (
++	"fmt"
++	"syscall"
++)
++
++func TestAlign() {
++	if syscall.ARCH == "amd64" {
++		// alignment is known to be broken on amd64.
++		// http://code.google.com/p/go/issues/detail?id=609
++		return
++	}
++	var evt C.SDL_KeyboardEvent
++	C.makeEvent(&evt)
++	if C.same(&evt, evt.typ, evt.which, evt.state, evt.keysym.scancode, evt.keysym.sym, evt.keysym.mod, evt.keysym.unicode) == 0 {
++		fmt.Println("*** bad alignment")
++		C.cTest(&evt)
++		fmt.Printf("Go: %#x %#x %#x %#x %#x %#x %#x\n",
++			evt.typ, evt.which, evt.state, evt.keysym.scancode,
++			evt.keysym.sym, evt.keysym.mod, evt.keysym.unicode)
++		fmt.Println(evt)
++	}
++}
+diff --git a/misc/cgo/stdio/chain.go b/misc/cgo/stdio/chain.go
+index dd5e01542b..c2b105072e 100644
+--- a/misc/cgo/stdio/chain.go
++++ b/misc/cgo/stdio/chain.go
+@@ -22,7 +22,7 @@ func link(left chan<- int, right <-chan int) {
+ 	runtime.LockOSThread()
+ 	for {
+ 		v := <-right
+-		stdio.Puts(strconv.Itoa(v))
++		stdio.Stdout.WriteString(strconv.Itoa(v) + "\n")
+ 		left <- 1+v
+ 	}
+ }
+@@ -38,6 +38,6 @@ func main() {
+ 	for i := 0; i < R; i++ {
+ 		right <- 0
+ 		x := <-leftmost
+-		stdio.Puts(strconv.Itoa(x))
++		stdio.Stdout.WriteString(strconv.Itoa(x) + "\n")
+ 	}
+ }
+diff --git a/misc/cgo/stdio/fib.go b/misc/cgo/stdio/fib.go
+index 63ae049886..c02e31fd8d 100644
+--- a/misc/cgo/stdio/fib.go
++++ b/misc/cgo/stdio/fib.go
+@@ -26,7 +26,7 @@ func fibber(c, out chan int64, i int64) {
+ 	}
+ 	for {
+ 		j := <-c
+-		stdio.Puts(strconv.Itoa64(j))
++		stdio.Stdout.WriteString(strconv.Itoa64(j) + "\n")
+ 		out <- j
+ 		<-out
+ 		i += j
+diff --git a/misc/cgo/stdio/file.go b/misc/cgo/stdio/file.go
+index 7d1f222805..1f461f2939 100644
+--- a/misc/cgo/stdio/file.go
++++ b/misc/cgo/stdio/file.go
+@@ -10,33 +10,31 @@ see ../gmp/gmp.go.
+ 
+ package stdio
+ 
+-// TODO(rsc): Remove fflushstdout when C.fflush(C.stdout) works in cgo.
+-
+ /*
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <sys/stat.h>
++#include <errno.h>
+ 
+-void fflushstdout(void) { fflush(stdout); }
++char* greeting = "hello, world";
+ */
+ import "C"
+ import "unsafe"
+ 
+-/*
+ type File C.FILE
+ 
+ var Stdout = (*File)(C.stdout)
+ var Stderr = (*File)(C.stderr)
+ 
+ func (f *File) WriteString(s string) {
+-	p := C.CString(s);
+-	C.fputs(p, (*C.FILE)(f));
+-	C.free(p);
+-}
+-*/
+-
+-func Puts(s string) {
+ 	p := C.CString(s)
+-	C.puts(p)
++	C.fputs(p, (*C.FILE)(f))
+ 	C.free(unsafe.Pointer(p))
+-	C.fflushstdout()
++	f.Flush()
++}
++
++func (f *File) Flush() {
++	C.fflush((*C.FILE)(f))
+ }
++
++var Greeting = C.GoString(C.greeting)
+diff --git a/misc/cgo/stdio/hello.go b/misc/cgo/stdio/hello.go
+index 47f9de02f1..9cb6e6884c 100644
+--- a/misc/cgo/stdio/hello.go
++++ b/misc/cgo/stdio/hello.go
+@@ -4,9 +4,26 @@
+ 
+ package main
+ 
+-import "stdio"
++import (
++	"os"
++	"stdio"
++)
+ 
+ func main() {
+-	//	stdio.Stdout.WriteString("hello, world\n");
+-	stdio.Puts("hello, world")
++	stdio.Stdout.WriteString(stdio.Greeting + "\n")
++
++	l := stdio.Atol("123")
++	if l != 123 {
++		println("Atol 123: ", l)
++		panic("bad atol")
++	}
++
++	n, err := stdio.Strtol("asdf", 123)
++	if n != 0 || err != os.EINVAL {
++		println("Strtol: ", n, err)
++		panic("bad atoi2")
++	}
++
++	stdio.TestAlign()
++	stdio.TestEnum()
+ }
+diff --git a/misc/cgo/stdio/test.go b/misc/cgo/stdio/test.go
+new file mode 100644
+index 0000000000..490eb93c64
+--- /dev/null
++++ b/misc/cgo/stdio/test.go
+@@ -0,0 +1,91 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains test cases for cgo.
++
++package stdio
++
++/*
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/stat.h>
++#include <errno.h>
++
++#define SHIFT(x, y)  ((x)<<(y))
++#define KILO SHIFT(1, 10)
++
++enum {
++	Enum1 = 1,
++	Enum2 = 2,
++};
++*/
++import "C"
++import (
++	"os"
++	"unsafe"
++)
++
++const EINVAL = C.EINVAL /* test #define */
++
++var KILO = C.KILO
++
++func Size(name string) (int64, os.Error) {
++	var st C.struct_stat
++	p := C.CString(name)
++	_, err := C.stat(p, &st)
++	C.free(unsafe.Pointer(p))
++	if err != nil {
++		return 0, err
++	}
++	return int64(C.ulong(st.st_size)), nil
++}
++
++func Strtol(s string, base int) (int, os.Error) {
++	p := C.CString(s)
++	n, err := C.strtol(p, nil, C.int(base))
++	C.free(unsafe.Pointer(p))
++	return int(n), err
++}
++
++func Atol(s string) int {
++	p := C.CString(s)
++	n := C.atol(p)
++	C.free(unsafe.Pointer(p))
++	return int(n)
++}
++
++func TestEnum() {
++	if C.Enum1 != 1 || C.Enum2 != 2 {
++		println("bad enum", C.Enum1, C.Enum2)
++	}
++}
++
++func TestAtol() {
++	l := Atol("123")
++	if l != 123 {
++		println("Atol 123: ", l)
++		panic("bad atol")
++	}
++}
++
++func TestErrno() {
++	n, err := Strtol("asdf", 123)
++	if n != 0 || err != os.EINVAL {
++		println("Strtol: ", n, err)
++		panic("bad atoi2")
++	}
++}
++
++var (
++	uint  = (C.uint)(0)
++	ulong C.ulong
++	char  C.char
++)
++
++func Test() {
++	TestAlign()
++	TestAtol()
++	TestEnum()
++	TestErrno()
++}
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 580a72a958..2167e9e650 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -16,59 +16,8 @@ import (
+ 	"strings"
+ )
+ 
+-// A Cref refers to an expression of the form C.xxx in the AST.
+-type Cref struct {
+-	Name     string
+-	Expr     *ast.Expr
+-	Context  string // "type", "expr", "const", or "call"
+-	TypeName bool   // whether xxx is a C type name
+-	Type     *Type  // the type of xxx
+-	FuncType *FuncType
+-}
+-
+-// A ExpFunc is an exported function, callable from C.
+-type ExpFunc struct {
+-	Func    *ast.FuncDecl
+-	ExpName string // name to use from C
+-}
+-
+-// A Prog collects information about a cgo program.
+-type Prog struct {
+-	AST         *ast.File // parsed AST
+-	Preamble    string    // C preamble (doc comment on import "C")
+-	PackagePath string
+-	Package     string
+-	Crefs       []*Cref
+-	Typedef     map[string]ast.Expr
+-	Vardef      map[string]*Type
+-	Funcdef     map[string]*FuncType
+-	Enumdef     map[string]int64
+-	Constdef    map[string]string
+-	ExpFuncs    []*ExpFunc
+-	PtrSize     int64
+-	GccOptions  []string
+-	OutDefs     map[string]bool
+-}
+-
+-// A Type collects information about a type in both the C and Go worlds.
+-type Type struct {
+-	Size       int64
+-	Align      int64
+-	C          string
+-	Go         ast.Expr
+-	EnumValues map[string]int64
+-}
+-
+-// A FuncType collects information about a function type in both the C and Go worlds.
+-type FuncType struct {
+-	Params []*Type
+-	Result *Type
+-	Go     *ast.FuncType
+-}
+-
+-func openProg(name string, p *Prog) {
+-	var err os.Error
+-	p.AST, err = parser.ParseFile(name, nil, nil, parser.ParseComments)
++func parse(name string, flags uint) *ast.File {
++	ast1, err := parser.ParseFile(name, nil, nil, flags)
+ 	if err != nil {
+ 		if list, ok := err.(scanner.ErrorList); ok {
+ 			// If err is a scanner.ErrorList, its String will print just
+@@ -82,25 +31,37 @@ func openProg(name string, p *Prog) {
+ 		}
+ 		fatal("parsing %s: %s", name, err)
+ 	}
+-	p.Package = p.AST.Name.Name()
++	return ast1
++}
++
++// ReadGo populates f with information learned from reading the
++// Go source file with the given file name.  It gathers the C preamble
++// attached to the import "C" comment, a list of references to C.xxx,
++// a list of exported functions, and the actual AST, to be rewritten and
++// printed.
++func (f *File) ReadGo(name string) {
++	// Two different parses: once with comments, once without.
++	// The printer is not good enough at printing comments in the
++	// right place when we start editing the AST behind its back,
++	// so we use ast1 to look for the doc comments on import "C"
++	// and on exported functions, and we use ast2 for translating
++	// and reprinting.
++	ast1 := parse(name, parser.ParseComments)
++	ast2 := parse(name, 0)
+ 
+-	// Find the import "C" line and get any extra C preamble.
+-	// Delete the import "C" line along the way.
++	f.Package = ast1.Name.Name()
++	f.Name = make(map[string]*Name)
++
++	// In ast1, find the import "C" line and get any extra C preamble.
+ 	sawC := false
+-	w := 0
+-	for _, decl := range p.AST.Decls {
++	for _, decl := range ast1.Decls {
+ 		d, ok := decl.(*ast.GenDecl)
+ 		if !ok {
+-			p.AST.Decls[w] = decl
+-			w++
+ 			continue
+ 		}
+-		ws := 0
+ 		for _, spec := range d.Specs {
+ 			s, ok := spec.(*ast.ImportSpec)
+ 			if !ok || string(s.Path.Value) != `"C"` {
+-				d.Specs[ws] = spec
+-				ws++
+ 				continue
+ 			}
+ 			sawC = true
+@@ -108,269 +69,343 @@ func openProg(name string, p *Prog) {
+ 				error(s.Path.Pos(), `cannot rename import "C"`)
+ 			}
+ 			if s.Doc != nil {
+-				p.Preamble += doc.CommentText(s.Doc) + "\n"
++				f.Preamble += doc.CommentText(s.Doc) + "\n"
+ 			} else if len(d.Specs) == 1 && d.Doc != nil {
+-				p.Preamble += doc.CommentText(d.Doc) + "\n"
++				f.Preamble += doc.CommentText(d.Doc) + "\n"
++			}
++		}
++	}
++	if !sawC {
++		error(noPos, `cannot find import "C"`)
++	}
++
++	// In ast2, strip the import "C" line.
++	w := 0
++	for _, decl := range ast2.Decls {
++		d, ok := decl.(*ast.GenDecl)
++		if !ok {
++			ast2.Decls[w] = decl
++			w++
++			continue
++		}
++		ws := 0
++		for _, spec := range d.Specs {
++			s, ok := spec.(*ast.ImportSpec)
++			if !ok || string(s.Path.Value) != `"C"` {
++				d.Specs[ws] = spec
++				ws++
+ 			}
+ 		}
+ 		if ws == 0 {
+ 			continue
+ 		}
+ 		d.Specs = d.Specs[0:ws]
+-		p.AST.Decls[w] = d
++		ast2.Decls[w] = d
+ 		w++
+ 	}
+-	p.AST.Decls = p.AST.Decls[0:w]
+-
+-	if !sawC {
+-		error(noPos, `cannot find import "C"`)
+-	}
++	ast2.Decls = ast2.Decls[0:w]
+ 
+ 	// Accumulate pointers to uses of C.x.
+-	if p.Crefs == nil {
+-		p.Crefs = make([]*Cref, 0, 8)
++	if f.Ref == nil {
++		f.Ref = make([]*Ref, 0, 8)
+ 	}
+-	walk(p.AST, p, "prog")
++	f.walk(ast2, "prog", (*File).saveRef)
++
++	// Accumulate exported functions.
++	// The comments are only on ast1 but we need to
++	// save the function bodies from ast2.
++	// The first walk fills in ExpFunc, and the
++	// second walk changes the entries to
++	// refer to ast2 instead.
++	f.walk(ast1, "prog", (*File).saveExport)
++	f.walk(ast2, "prog", (*File).saveExport2)
++
++	f.AST = ast2
+ }
+ 
+-func walk(x interface{}, p *Prog, context string) {
+-	switch n := x.(type) {
+-	case *ast.Expr:
+-		if sel, ok := (*n).(*ast.SelectorExpr); ok {
+-			// For now, assume that the only instance of capital C is
+-			// when used as the imported package identifier.
+-			// The parser should take care of scoping in the future,
+-			// so that we will be able to distinguish a "top-level C"
+-			// from a local C.
+-			if l, ok := sel.X.(*ast.Ident); ok && l.Name() == "C" {
+-				i := len(p.Crefs)
+-				if i >= cap(p.Crefs) {
+-					new := make([]*Cref, 2*i)
+-					for j, v := range p.Crefs {
+-						new[j] = v
+-					}
+-					p.Crefs = new
++// Save references to C.xxx for later processing.
++func (f *File) saveRef(x interface{}, context string) {
++	n, ok := x.(*ast.Expr)
++	if !ok {
++		return
++	}
++	if sel, ok := (*n).(*ast.SelectorExpr); ok {
++		// For now, assume that the only instance of capital C is
++		// when used as the imported package identifier.
++		// The parser should take care of scoping in the future,
++		// so that we will be able to distinguish a "top-level C"
++		// from a local C.
++		if l, ok := sel.X.(*ast.Ident); ok && l.Name() == "C" {
++			i := len(f.Ref)
++			if i >= cap(f.Ref) {
++				new := make([]*Ref, 2*i)
++				for j, v := range f.Ref {
++					new[j] = v
+ 				}
+-				p.Crefs = p.Crefs[0 : i+1]
+-				p.Crefs[i] = &Cref{
+-					Name:    sel.Sel.Name(),
+-					Expr:    n,
+-					Context: context,
++				f.Ref = new
++			}
++			if context == "as2" {
++				context = "expr"
++			}
++			goname := sel.Sel.Name()
++			name := f.Name[goname]
++			if name == nil {
++				name = &Name{
++					Go: goname,
+ 				}
+-				break
++				f.Name[goname] = name
++			}
++			f.Ref = f.Ref[0 : i+1]
++			f.Ref[i] = &Ref{
++				Name:    name,
++				Expr:    n,
++				Context: context,
+ 			}
++			return
+ 		}
+-		walk(*n, p, context)
++	}
++}
++
++// If a function should be exported add it to ExpFunc.
++func (f *File) saveExport(x interface{}, context string) {
++	n, ok := x.(*ast.FuncDecl)
++	if !ok {
++		return
++	}
++
++	if n.Doc == nil {
++		return
++	}
++	for _, c := range n.Doc.List {
++		if string(c.Text[0:9]) != "//export " {
++			continue
++		}
++
++		name := strings.TrimSpace(string(c.Text[9:]))
++		if name == "" {
++			error(c.Position, "export missing name")
++		}
++
++		if f.ExpFunc == nil {
++			f.ExpFunc = make([]*ExpFunc, 0, 8)
++		}
++		i := len(f.ExpFunc)
++		if i >= cap(f.ExpFunc) {
++			new := make([]*ExpFunc, i, 2*i)
++			copy(new, f.ExpFunc)
++			f.ExpFunc = new
++		}
++		f.ExpFunc = f.ExpFunc[0 : i+1]
++		f.ExpFunc[i] = &ExpFunc{
++			Func:    n,
++			ExpName: name,
++		}
++		break
++	}
++}
++
++// Make f.ExpFunc[i] point at the Func from this AST instead of the other one.
++func (f *File) saveExport2(x interface{}, context string) {
++	n, ok := x.(*ast.FuncDecl)
++	if !ok {
++		return
++	}
++
++	for _, exp := range f.ExpFunc {
++		if exp.Func.Name.Name() == n.Name.Name() {
++			exp.Func = n
++			break
++		}
++	}
++}
++
++// walk walks the AST x, calling visit(f, x, context) for each node.
++func (f *File) walk(x interface{}, context string, visit func(*File, interface{}, string)) {
++	visit(f, x, context)
++	switch n := x.(type) {
++	case *ast.Expr:
++		f.walk(*n, context, visit)
+ 
+ 	// everything else just recurs
+ 	default:
+-		error(noPos, "unexpected type %T in walk", x)
++		error(noPos, "unexpected type %T in walk", x, visit)
+ 		panic("unexpected type")
+ 
+ 	case nil:
+ 
+ 	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
+ 	case *ast.Field:
+-		walk(&n.Type, p, "type")
++		f.walk(&n.Type, "type", visit)
+ 	case *ast.FieldList:
+-		for _, f := range n.List {
+-			walk(f, p, context)
++		for _, field := range n.List {
++			f.walk(field, context, visit)
+ 		}
+ 	case *ast.BadExpr:
+ 	case *ast.Ident:
+ 	case *ast.Ellipsis:
+ 	case *ast.BasicLit:
+ 	case *ast.FuncLit:
+-		walk(n.Type, p, "type")
+-		walk(n.Body, p, "stmt")
++		f.walk(n.Type, "type", visit)
++		f.walk(n.Body, "stmt", visit)
+ 	case *ast.CompositeLit:
+-		walk(&n.Type, p, "type")
+-		walk(n.Elts, p, "expr")
++		f.walk(&n.Type, "type", visit)
++		f.walk(n.Elts, "expr", visit)
+ 	case *ast.ParenExpr:
+-		walk(&n.X, p, context)
++		f.walk(&n.X, context, visit)
+ 	case *ast.SelectorExpr:
+-		walk(&n.X, p, "selector")
++		f.walk(&n.X, "selector", visit)
+ 	case *ast.IndexExpr:
+-		walk(&n.X, p, "expr")
+-		walk(&n.Index, p, "expr")
++		f.walk(&n.X, "expr", visit)
++		f.walk(&n.Index, "expr", visit)
+ 	case *ast.SliceExpr:
+-		walk(&n.X, p, "expr")
+-		walk(&n.Index, p, "expr")
++		f.walk(&n.X, "expr", visit)
++		f.walk(&n.Index, "expr", visit)
+ 		if n.End != nil {
+-			walk(&n.End, p, "expr")
++			f.walk(&n.End, "expr", visit)
+ 		}
+ 	case *ast.TypeAssertExpr:
+-		walk(&n.X, p, "expr")
+-		walk(&n.Type, p, "type")
++		f.walk(&n.X, "expr", visit)
++		f.walk(&n.Type, "type", visit)
+ 	case *ast.CallExpr:
+-		walk(&n.Fun, p, "call")
+-		walk(n.Args, p, "expr")
++		if context == "as2" {
++			f.walk(&n.Fun, "call2", visit)
++		} else {
++			f.walk(&n.Fun, "call", visit)
++		}
++		f.walk(n.Args, "expr", visit)
+ 	case *ast.StarExpr:
+-		walk(&n.X, p, context)
++		f.walk(&n.X, context, visit)
+ 	case *ast.UnaryExpr:
+-		walk(&n.X, p, "expr")
++		f.walk(&n.X, "expr", visit)
+ 	case *ast.BinaryExpr:
+-		walk(&n.X, p, "expr")
+-		walk(&n.Y, p, "expr")
++		f.walk(&n.X, "expr", visit)
++		f.walk(&n.Y, "expr", visit)
+ 	case *ast.KeyValueExpr:
+-		walk(&n.Key, p, "expr")
+-		walk(&n.Value, p, "expr")
++		f.walk(&n.Key, "expr", visit)
++		f.walk(&n.Value, "expr", visit)
+ 
+ 	case *ast.ArrayType:
+-		walk(&n.Len, p, "expr")
+-		walk(&n.Elt, p, "type")
++		f.walk(&n.Len, "expr", visit)
++		f.walk(&n.Elt, "type", visit)
+ 	case *ast.StructType:
+-		walk(n.Fields, p, "field")
++		f.walk(n.Fields, "field", visit)
+ 	case *ast.FuncType:
+-		walk(n.Params, p, "field")
++		f.walk(n.Params, "field", visit)
+ 		if n.Results != nil {
+-			walk(n.Results, p, "field")
++			f.walk(n.Results, "field", visit)
+ 		}
+ 	case *ast.InterfaceType:
+-		walk(n.Methods, p, "field")
++		f.walk(n.Methods, "field", visit)
+ 	case *ast.MapType:
+-		walk(&n.Key, p, "type")
+-		walk(&n.Value, p, "type")
++		f.walk(&n.Key, "type", visit)
++		f.walk(&n.Value, "type", visit)
+ 	case *ast.ChanType:
+-		walk(&n.Value, p, "type")
++		f.walk(&n.Value, "type", visit)
+ 
+ 	case *ast.BadStmt:
+ 	case *ast.DeclStmt:
+-		walk(n.Decl, p, "decl")
++		f.walk(n.Decl, "decl", visit)
+ 	case *ast.EmptyStmt:
+ 	case *ast.LabeledStmt:
+-		walk(n.Stmt, p, "stmt")
++		f.walk(n.Stmt, "stmt", visit)
+ 	case *ast.ExprStmt:
+-		walk(&n.X, p, "expr")
++		f.walk(&n.X, "expr", visit)
+ 	case *ast.IncDecStmt:
+-		walk(&n.X, p, "expr")
++		f.walk(&n.X, "expr", visit)
+ 	case *ast.AssignStmt:
+-		walk(n.Lhs, p, "expr")
+-		walk(n.Rhs, p, "expr")
++		f.walk(n.Lhs, "expr", visit)
++		if len(n.Lhs) == 2 {
++			f.walk(n.Rhs, "as2", visit)
++		} else {
++			f.walk(n.Rhs, "expr", visit)
++		}
+ 	case *ast.GoStmt:
+-		walk(n.Call, p, "expr")
++		f.walk(n.Call, "expr", visit)
+ 	case *ast.DeferStmt:
+-		walk(n.Call, p, "expr")
++		f.walk(n.Call, "expr", visit)
+ 	case *ast.ReturnStmt:
+-		walk(n.Results, p, "expr")
++		f.walk(n.Results, "expr", visit)
+ 	case *ast.BranchStmt:
+ 	case *ast.BlockStmt:
+-		walk(n.List, p, "stmt")
++		f.walk(n.List, "stmt", visit)
+ 	case *ast.IfStmt:
+-		walk(n.Init, p, "stmt")
+-		walk(&n.Cond, p, "expr")
+-		walk(n.Body, p, "stmt")
+-		walk(n.Else, p, "stmt")
++		f.walk(n.Init, "stmt", visit)
++		f.walk(&n.Cond, "expr", visit)
++		f.walk(n.Body, "stmt", visit)
++		f.walk(n.Else, "stmt", visit)
+ 	case *ast.CaseClause:
+-		walk(n.Values, p, "expr")
+-		walk(n.Body, p, "stmt")
++		f.walk(n.Values, "expr", visit)
++		f.walk(n.Body, "stmt", visit)
+ 	case *ast.SwitchStmt:
+-		walk(n.Init, p, "stmt")
+-		walk(&n.Tag, p, "expr")
+-		walk(n.Body, p, "stmt")
++		f.walk(n.Init, "stmt", visit)
++		f.walk(&n.Tag, "expr", visit)
++		f.walk(n.Body, "stmt", visit)
+ 	case *ast.TypeCaseClause:
+-		walk(n.Types, p, "type")
+-		walk(n.Body, p, "stmt")
++		f.walk(n.Types, "type", visit)
++		f.walk(n.Body, "stmt", visit)
+ 	case *ast.TypeSwitchStmt:
+-		walk(n.Init, p, "stmt")
+-		walk(n.Assign, p, "stmt")
+-		walk(n.Body, p, "stmt")
++		f.walk(n.Init, "stmt", visit)
++		f.walk(n.Assign, "stmt", visit)
++		f.walk(n.Body, "stmt", visit)
+ 	case *ast.CommClause:
+-		walk(n.Lhs, p, "expr")
+-		walk(n.Rhs, p, "expr")
+-		walk(n.Body, p, "stmt")
++		f.walk(n.Lhs, "expr", visit)
++		f.walk(n.Rhs, "expr", visit)
++		f.walk(n.Body, "stmt", visit)
+ 	case *ast.SelectStmt:
+-		walk(n.Body, p, "stmt")
++		f.walk(n.Body, "stmt", visit)
+ 	case *ast.ForStmt:
+-		walk(n.Init, p, "stmt")
+-		walk(&n.Cond, p, "expr")
+-		walk(n.Post, p, "stmt")
+-		walk(n.Body, p, "stmt")
++		f.walk(n.Init, "stmt", visit)
++		f.walk(&n.Cond, "expr", visit)
++		f.walk(n.Post, "stmt", visit)
++		f.walk(n.Body, "stmt", visit)
+ 	case *ast.RangeStmt:
+-		walk(&n.Key, p, "expr")
+-		walk(&n.Value, p, "expr")
+-		walk(&n.X, p, "expr")
+-		walk(n.Body, p, "stmt")
++		f.walk(&n.Key, "expr", visit)
++		f.walk(&n.Value, "expr", visit)
++		f.walk(&n.X, "expr", visit)
++		f.walk(n.Body, "stmt", visit)
+ 
+ 	case *ast.ImportSpec:
+ 	case *ast.ValueSpec:
+-		walk(&n.Type, p, "type")
+-		walk(n.Values, p, "expr")
++		f.walk(&n.Type, "type", visit)
++		f.walk(n.Values, "expr", visit)
+ 	case *ast.TypeSpec:
+-		walk(&n.Type, p, "type")
++		f.walk(&n.Type, "type", visit)
+ 
+ 	case *ast.BadDecl:
+ 	case *ast.GenDecl:
+-		walk(n.Specs, p, "spec")
++		f.walk(n.Specs, "spec", visit)
+ 	case *ast.FuncDecl:
+ 		if n.Recv != nil {
+-			walk(n.Recv, p, "field")
++			f.walk(n.Recv, "field", visit)
+ 		}
+-		walk(n.Type, p, "type")
++		f.walk(n.Type, "type", visit)
+ 		if n.Body != nil {
+-			walk(n.Body, p, "stmt")
++			f.walk(n.Body, "stmt", visit)
+ 		}
+ 
+-		checkExpFunc(n, p)
+-
+ 	case *ast.File:
+-		walk(n.Decls, p, "decl")
++		f.walk(n.Decls, "decl", visit)
+ 
+ 	case *ast.Package:
+-		for _, f := range n.Files {
+-			walk(f, p, "file")
++		for _, file := range n.Files {
++			f.walk(file, "file", visit)
+ 		}
+ 
+ 	case []ast.Decl:
+ 		for _, d := range n {
+-			walk(d, p, context)
++			f.walk(d, context, visit)
+ 		}
+ 	case []ast.Expr:
+ 		for i := range n {
+-			walk(&n[i], p, context)
++			f.walk(&n[i], context, visit)
+ 		}
+ 	case []ast.Stmt:
+ 		for _, s := range n {
+-			walk(s, p, context)
++			f.walk(s, context, visit)
+ 		}
+ 	case []ast.Spec:
+ 		for _, s := range n {
+-			walk(s, p, context)
+-		}
+-	}
+-}
+-
+-// If a function should be exported add it to ExpFuncs.
+-func checkExpFunc(n *ast.FuncDecl, p *Prog) {
+-	if n.Doc == nil {
+-		return
+-	}
+-	for _, c := range n.Doc.List {
+-		if string(c.Text[0:9]) != "//export " {
+-			continue
+-		}
+-
+-		name := strings.TrimSpace(string(c.Text[9:]))
+-		if name == "" {
+-			error(c.Position, "export missing name")
+-		}
+-
+-		if p.ExpFuncs == nil {
+-			p.ExpFuncs = make([]*ExpFunc, 0, 8)
+-		}
+-		i := len(p.ExpFuncs)
+-		if i >= cap(p.ExpFuncs) {
+-			new := make([]*ExpFunc, 2*i)
+-			for j, v := range p.ExpFuncs {
+-				new[j] = v
+-			}
+-			p.ExpFuncs = new
++			f.walk(s, context, visit)
+ 		}
+-		p.ExpFuncs = p.ExpFuncs[0 : i+1]
+-		p.ExpFuncs[i] = &ExpFunc{
+-			Func:    n,
+-			ExpName: name,
+-		}
+-		break
+ 	}
+ }
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 022a87c154..dce8e86828 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -23,6 +23,19 @@ the package.  For example:
+ 	// #include <errno.h>
+ 	import "C"
+ 
++C identifiers or field names that are keywords in Go can be
++accessed by prefixing them with an underscore: if x points at
++a C struct with a field named "type", x._type accesses the field.
++
++To access a struct, union, or enum type directly, prefix it with
++struct_, union_, or enum_, as in C.struct_stat.
++
++Any C function that returns a value may be called in a multiple
++assignment context to retrieve both the return value and the
++C errno variable as an os.Error.  For example:
++
++	n, err := C.atoi("abc")
++
+ Cgo transforms the input file into four output files: two Go source
+ files, a C file for 6c (or 8c or 5c), and a C file for gcc.
+ 
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 5e12a66877..7638e32d85 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Annotate Crefs in Prog with C types by parsing gcc debug output.
++// Annotate Ref in Prog with C types by parsing gcc debug output.
+ // Conversion of debug output to Go types.
+ 
+ package main
+@@ -12,6 +12,7 @@ import (
+ 	"debug/dwarf"
+ 	"debug/elf"
+ 	"debug/macho"
++	"flag"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/parser"
+@@ -21,12 +22,64 @@ import (
+ 	"strings"
+ )
+ 
+-func (p *Prog) loadDebugInfo() {
++var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
++var debugGcc = flag.Bool("debug-gcc", false, "print gcc invocations")
++
++var nameToC = map[string]string{
++	"schar":     "signed char",
++	"uchar":     "unsigned char",
++	"ushort":    "unsigned short",
++	"uint":      "unsigned int",
++	"ulong":     "unsigned long",
++	"longlong":  "long long",
++	"ulonglong": "unsigned long long",
++}
++
++// cname returns the C name to use for C.s.
++// The expansions are listed in nameToC and also
++// struct_foo becomes "struct foo", and similarly for
++// union and enum.
++func cname(s string) string {
++	if t, ok := nameToC[s]; ok {
++		return t
++	}
++
++	if strings.HasPrefix(s, "struct_") {
++		return "struct " + s[len("struct_"):]
++	}
++	if strings.HasPrefix(s, "union_") {
++		return "union " + s[len("union_"):]
++	}
++	if strings.HasPrefix(s, "enum_") {
++		return "enum " + s[len("enum_"):]
++	}
++	return s
++}
++
++// Translate rewrites f.AST, the original Go input, to remove
++// references to the imported package C, replacing them with
++// references to the equivalent Go types, functions, and variables.
++func (p *Package) Translate(f *File) {
++	for _, cref := range f.Ref {
++		// Convert C.ulong to C.unsigned long, etc.
++		cref.Name.C = cname(cref.Name.Go)
++	}
++	p.loadDefines(f)
++	needType := p.guessKinds(f)
++	if len(needType) > 0 {
++		p.loadDWARF(f, needType)
++	}
++	p.rewriteRef(f)
++}
++
++// loadDefines coerces gcc into spitting out the #defines in use
++// in the file f and saves relevant renamings in f.Name[name].Define.
++func (p *Package) loadDefines(f *File) {
+ 	var b bytes.Buffer
++	b.WriteString(builtinProlog)
++	b.WriteString(f.Preamble)
++	stdout := p.gccDefines(b.Bytes())
+ 
+-	b.WriteString(p.Preamble)
+-	stdout := p.gccPostProc(b.Bytes())
+-	defines := make(map[string]string)
+ 	for _, line := range strings.Split(stdout, "\n", -1) {
+ 		if len(line) < 9 || line[0:7] != "#define" {
+ 			continue
+@@ -48,68 +101,107 @@ func (p *Prog) loadDebugInfo() {
+ 			val = strings.TrimSpace(line[tabIndex:])
+ 		}
+ 
+-		// Only allow string, character, and numeric constants. Ignoring #defines for
+-		// symbols allows those symbols to be referenced in Go, as they will be
+-		// translated by gcc later.
+-		_, err := strconv.Atoi(string(val[0]))
+-		if err == nil || val[0] == '\'' || val[0] == '"' {
+-			defines[key] = val
+-		}
+-	}
+-
+-	// Construct a slice of unique names from p.Crefs.
+-	m := make(map[string]int)
+-	for _, c := range p.Crefs {
+-		// If we've already found this name as a define, it is not a Cref.
+-		if val, ok := defines[c.Name]; ok {
+-			_, err := parser.ParseExpr("", val, nil)
+-			if err != nil {
+-				fmt.Fprintf(os.Stderr, "The value in C.%s does not parse as a Go expression; cannot use.\n", c.Name)
+-				os.Exit(2)
++		if n := f.Name[key]; n != nil {
++			if *debugDefine {
++				fmt.Fprintf(os.Stderr, "#define %s %s\n", key, val)
+ 			}
+-
+-			c.Context = "const"
+-			c.TypeName = false
+-			p.Constdef[c.Name] = val
+-			continue
++			n.Define = val
+ 		}
+-		m[c.Name] = -1
+-	}
+-	names := make([]string, 0, len(m))
+-	for name, _ := range m {
+-		i := len(names)
+-		names = names[0 : i+1]
+-		names[i] = name
+-		m[name] = i
+ 	}
++}
+ 
++// guessKinds tricks gcc into revealing the kind of each
++// name xxx for the references C.xxx in the Go input.
++// The kind is either a constant, type, or variable.
++func (p *Package) guessKinds(f *File) []*Name {
+ 	// Coerce gcc into telling us whether each name is
+ 	// a type, a value, or undeclared.  We compile a function
+ 	// containing the line:
+ 	//	name;
+ 	// If name is a type, gcc will print:
+-	//	x.c:2: warning: useless type name in empty declaration
++	//	cgo-test:2: warning: useless type name in empty declaration
+ 	// If name is a value, gcc will print
+-	//	x.c:2: warning: statement with no effect
++	//	cgo-test:2: warning: statement with no effect
+ 	// If name is undeclared, gcc will print
+-	//	x.c:2: error: 'name' undeclared (first use in this function)
++	//	cgo-test:2: error: 'name' undeclared (first use in this function)
+ 	// A line number directive causes the line number to
+ 	// correspond to the index in the names array.
+-	b.Reset()
+-	b.WriteString(p.Preamble)
++	//
++	// The line also has an enum declaration:
++	//	name; enum { _cgo_enum_1 = name };
++	// If name is not a constant, gcc will print:
++	//	cgo-test:4: error: enumerator value for '_cgo_enum_4' is not an integer constant
++	// we assume lines without that error are constants.
++
++	// Make list of names that need sniffing, type lookup.
++	toSniff := make([]*Name, 0, len(f.Name))
++	needType := make([]*Name, 0, len(f.Name))
++
++	for _, n := range f.Name {
++		// If we've already found this name as a #define
++		// and we can translate it as a constant value, do so.
++		if n.Define != "" {
++			ok := false
++			if _, err := strconv.Atoi(n.Define); err == nil {
++				ok = true
++			} else if n.Define[0] == '"' || n.Define[0] == '\'' {
++				_, err := parser.ParseExpr("", n.Define, nil)
++				if err == nil {
++					ok = true
++				}
++			}
++			if ok {
++				n.Kind = "const"
++				n.Const = n.Define
++				continue
++			}
++
++			if isName(n.Define) {
++				n.C = n.Define
++			}
++		}
++
++		// If this is a struct, union, or enum type name,
++		// record the kind but also that we need type information.
++		if strings.HasPrefix(n.C, "struct ") || strings.HasPrefix(n.C, "union ") || strings.HasPrefix(n.C, "enum ") {
++			n.Kind = "type"
++			i := len(needType)
++			needType = needType[0 : i+1]
++			needType[i] = n
++			continue
++		}
++
++		i := len(toSniff)
++		toSniff = toSniff[0 : i+1]
++		toSniff[i] = n
++	}
++
++	if len(toSniff) == 0 {
++		return needType
++	}
++
++	var b bytes.Buffer
++	b.WriteString(builtinProlog)
++	b.WriteString(f.Preamble)
+ 	b.WriteString("void f(void) {\n")
+ 	b.WriteString("#line 0 \"cgo-test\"\n")
+-	for _, n := range names {
+-		b.WriteString(n)
+-		b.WriteString(";\n")
++	for i, n := range toSniff {
++		fmt.Fprintf(&b, "%s; enum { _cgo_enum_%d = %s }; /* cgo-test:%d */\n", n.C, i, n.C, i)
+ 	}
+ 	b.WriteString("}\n")
+-
+-	kind := make(map[string]string)
+-	_, stderr := p.gccDebug(b.Bytes())
++	stderr := p.gccErrors(b.Bytes())
+ 	if stderr == "" {
+-		fatal("gcc produced no output")
++		fatal("gcc produced no output\non input:\n%s", b.Bytes())
++	}
++
++	names := make([]*Name, len(toSniff))
++	copy(names, toSniff)
++
++	isConst := make([]bool, len(toSniff))
++	for i := range isConst {
++		isConst[i] = true // until proven otherwise
+ 	}
++
+ 	for _, line := range strings.Split(stderr, "\n", -1) {
+ 		if len(line) < 9 || line[0:9] != "cgo-test:" {
+ 			continue
+@@ -129,26 +221,50 @@ func (p *Prog) loadDebugInfo() {
+ 			continue
+ 		case strings.Index(line, ": useless type name in empty declaration") >= 0:
+ 			what = "type"
++			isConst[i] = false
+ 		case strings.Index(line, ": statement with no effect") >= 0:
+-			what = "value"
++			what = "not-type" // const or func or var
+ 		case strings.Index(line, "undeclared") >= 0:
+-			what = "error"
++			error(noPos, "%s", strings.TrimSpace(line[colon+1:]))
++		case strings.Index(line, "is not an integer constant") >= 0:
++			isConst[i] = false
++			continue
+ 		}
+-		if old, ok := kind[names[i]]; ok && old != what {
+-			error(noPos, "inconsistent gcc output about C.%s", names[i])
++		n := toSniff[i]
++		if n == nil {
++			continue
+ 		}
+-		kind[names[i]] = what
++		toSniff[i] = nil
++		n.Kind = what
++
++		j := len(needType)
++		needType = needType[0 : j+1]
++		needType[j] = n
+ 	}
+-	for _, n := range names {
+-		if _, ok := kind[n]; !ok {
+-			error(noPos, "could not determine kind of name for C.%s", n)
++	for i, b := range isConst {
++		if b {
++			names[i].Kind = "const"
+ 		}
+ 	}
+-
++	for _, n := range toSniff {
++		if n == nil {
++			continue
++		}
++		if n.Kind != "" {
++			continue
++		}
++		error(noPos, "could not determine kind of name for C.%s", n.Go)
++	}
+ 	if nerrors > 0 {
+-		fatal("failed to interpret gcc output:\n%s", stderr)
++		fatal("unresolved names")
+ 	}
++	return needType
++}
+ 
++// loadDWARF parses the DWARF debug information generated
++// by gcc to learn the details of the constants, variables, and types
++// being referred to as C.xxx.
++func (p *Package) loadDWARF(f *File, names []*Name) {
+ 	// Extract the types from the DWARF section of an object
+ 	// from a well-formed C program.  Gcc only generates DWARF info
+ 	// for symbols in the object file, so it is not enough to print the
+@@ -157,19 +273,24 @@ func (p *Prog) loadDebugInfo() {
+ 	//	typeof(names[i]) *__cgo__i;
+ 	// for each entry in names and then dereference the type we
+ 	// learn for __cgo__i.
+-	b.Reset()
+-	b.WriteString(p.Preamble)
++	var b bytes.Buffer
++	b.WriteString(builtinProlog)
++	b.WriteString(f.Preamble)
+ 	for i, n := range names {
+-		fmt.Fprintf(&b, "typeof(%s) *__cgo__%d;\n", n, i)
+-	}
+-	d, stderr := p.gccDebug(b.Bytes())
+-	if d == nil {
+-		fatal("gcc failed:\n%s\non input:\n%s", stderr, b.Bytes())
++		fmt.Fprintf(&b, "typeof(%s) *__cgo__%d;\n", n.C, i)
++		if n.Kind == "const" {
++			fmt.Fprintf(&b, "enum { __cgo_enum__%d = %s };\n", i, n.C)
++		}
+ 	}
++	d := p.gccDebug(b.Bytes())
+ 
+ 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
+ 	types := make([]dwarf.Type, len(names))
+ 	enums := make([]dwarf.Offset, len(names))
++	nameToIndex := make(map[*Name]int)
++	for i, n := range names {
++		nameToIndex[n] = i
++	}
+ 	r := d.Reader()
+ 	for {
+ 		e, err := r.Next()
+@@ -192,9 +313,11 @@ func (p *Prog) loadDebugInfo() {
+ 				}
+ 				if e.Tag == dwarf.TagEnumerator {
+ 					entryName := e.Val(dwarf.AttrName).(string)
+-					i, ok := m[entryName]
+-					if ok {
+-						enums[i] = offset
++					if strings.HasPrefix(entryName, "__cgo_enum__") {
++						n, _ := strconv.Atoi(entryName[len("__cgo_enum__"):])
++						if 0 <= n && n < len(names) {
++							enums[n] = offset
++						}
+ 					}
+ 				}
+ 			}
+@@ -234,97 +357,205 @@ func (p *Prog) loadDebugInfo() {
+ 		}
+ 	}
+ 
+-	// Record types and typedef information in Crefs.
++	// Record types and typedef information.
+ 	var conv typeConv
+ 	conv.Init(p.PtrSize)
+-	for _, c := range p.Crefs {
+-		i, ok := m[c.Name]
+-		if !ok {
+-			if _, ok := p.Constdef[c.Name]; !ok {
+-				fatal("Cref %s is no longer around", c.Name)
+-			}
+-			continue
+-		}
+-		c.TypeName = kind[c.Name] == "type"
++	for i, n := range names {
+ 		f, fok := types[i].(*dwarf.FuncType)
+-		if c.Context == "call" && !c.TypeName && fok {
+-			c.FuncType = conv.FuncType(f)
++		if n.Kind != "type" && fok {
++			n.Kind = "func"
++			n.FuncType = conv.FuncType(f)
+ 		} else {
+-			c.Type = conv.Type(types[i])
++			n.Type = conv.Type(types[i])
++			if enums[i] != 0 && n.Type.EnumValues != nil {
++				n.Kind = "const"
++				n.Const = strconv.Itoa64(n.Type.EnumValues[fmt.Sprintf("__cgo_enum__%d", i)])
++			}
+ 		}
+ 	}
+-	p.Typedef = conv.typedef
++	f.Typedef = conv.typedef
+ }
+ 
+-func concat(a, b []string) []string {
+-	c := make([]string, len(a)+len(b))
+-	for i, s := range a {
+-		c[i] = s
++// rewriteRef rewrites all the C.xxx references in f.AST to refer to the
++// Go equivalents, now that we have figured out the meaning of all
++// the xxx.
++func (p *Package) rewriteRef(f *File) {
++	// Assign mangled names.
++	for _, n := range f.Name {
++		if n.Kind == "not-type" {
++			n.Kind = "var"
++		}
++		if n.Mangle == "" {
++			n.Mangle = "_C" + n.Kind + "_" + n.Go
++		}
+ 	}
+-	for i, s := range b {
+-		c[i+len(a)] = s
++
++	// Now that we have all the name types filled in,
++	// scan through the Refs to identify the ones that
++	// are trying to do a ,err call.  Also check that
++	// functions are only used in calls.
++	for _, r := range f.Ref {
++		var expr ast.Expr = ast.NewIdent(r.Name.Mangle) // default
++		switch r.Context {
++		case "call", "call2":
++			if r.Name.Kind != "func" {
++				if r.Name.Kind == "type" {
++					r.Context = "type"
++					expr = r.Name.Type.Go
++					break
++				}
++				error(r.Pos(), "call of non-function C.%s", r.Name.Go)
++				break
++			}
++			if r.Context == "call2" {
++				if r.Name.FuncType.Result == nil {
++					error(r.Pos(), "assignment count mismatch: 2 = 0")
++				}
++				// Invent new Name for the two-result function.
++				n := f.Name["2"+r.Name.Go]
++				if n == nil {
++					n = new(Name)
++					*n = *r.Name
++					n.AddError = true
++					n.Mangle = "_C2func_" + n.Go
++					f.Name["2"+r.Name.Go] = n
++					expr = ast.NewIdent(n.Mangle)
++				}
++				r.Name = n
++				break
++			}
++		case "expr":
++			if r.Name.Kind == "func" {
++				error(r.Pos(), "must call C.%s", r.Name.Go)
++			}
++			if r.Name.Kind == "type" {
++				// Okay - might be new(T)
++				expr = r.Name.Type.Go
++			}
++			if r.Name.Kind == "var" {
++				expr = &ast.StarExpr{X: expr}
++			}
++
++		case "type":
++			if r.Name.Kind != "type" {
++				error(r.Pos(), "expression C.%s used as type", r.Name.Go)
++			}
++			expr = r.Name.Type.Go
++		default:
++			if r.Name.Kind == "func" {
++				error(r.Pos(), "must call C.%s", r.Name.Go)
++			}
++		}
++		*r.Expr = expr
+ 	}
+-	return c
+ }
+ 
+-// gccDebug runs gcc -gdwarf-2 over the C program stdin and
+-// returns the corresponding DWARF data and any messages
+-// printed to standard error.
+-func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
+-	machine := "-m32"
++// gccMachine returns the gcc -m flag to use, either "-m32" or "-m64".
++func (p *Package) gccMachine() string {
+ 	if p.PtrSize == 8 {
+-		machine = "-m64"
++		return "-m64"
+ 	}
++	return "-m32"
++}
+ 
+-	tmp := "_cgo_.o"
+-	base := []string{
++const gccTmp = "_cgo_.o"
++
++// gccCmd returns the gcc command line to use for compiling
++// the input.
++func (p *Package) gccCmd() []string {
++	return []string{
+ 		"gcc",
+-		machine,
++		p.gccMachine(),
+ 		"-Wall",                             // many warnings
+ 		"-Werror",                           // warnings are errors
+-		"-o" + tmp,                          // write object to tmp
++		"-o" + gccTmp,                       // write object to tmp
+ 		"-gdwarf-2",                         // generate DWARF v2 debugging symbols
+ 		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
+ 		"-c",                                // do not link
+ 		"-xc",                               // input language is C
+ 		"-",                                 // read input from standard input
+ 	}
+-	_, stderr, ok := run(stdin, concat(base, p.GccOptions))
+-	if !ok {
+-		return nil, string(stderr)
+-	}
++}
++
++// gccDebug runs gcc -gdwarf-2 over the C program stdin and
++// returns the corresponding DWARF data and any messages
++// printed to standard error.
++func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
++	runGcc(stdin, concat(p.gccCmd(), p.GccOptions))
+ 
+ 	// Try to parse f as ELF and Mach-O and hope one works.
+ 	var f interface {
+ 		DWARF() (*dwarf.Data, os.Error)
+ 	}
+ 	var err os.Error
+-	if f, err = elf.Open(tmp); err != nil {
+-		if f, err = macho.Open(tmp); err != nil {
+-			fatal("cannot parse gcc output %s as ELF or Mach-O object", tmp)
++	if f, err = elf.Open(gccTmp); err != nil {
++		if f, err = macho.Open(gccTmp); err != nil {
++			fatal("cannot parse gcc output %s as ELF or Mach-O object", gccTmp)
+ 		}
+ 	}
+ 
+ 	d, err := f.DWARF()
+ 	if err != nil {
+-		fatal("cannot load DWARF debug information from %s: %s", tmp, err)
++		fatal("cannot load DWARF debug information from %s: %s", gccTmp, err)
+ 	}
+-	return d, ""
++	return d
+ }
+ 
+-func (p *Prog) gccPostProc(stdin []byte) string {
+-	machine := "-m32"
+-	if p.PtrSize == 8 {
+-		machine = "-m64"
++// gccDefines runs gcc -E -dM -xc - over the C program stdin
++// and returns the corresponding standard output, which is the
++// #defines that gcc encountered while processing the input
++// and its included files.
++func (p *Package) gccDefines(stdin []byte) string {
++	base := []string{"gcc", p.gccMachine(), "-E", "-dM", "-xc", "-"}
++	stdout, _ := runGcc(stdin, concat(base, p.GccOptions))
++	return stdout
++}
++
++// gccErrors runs gcc over the C program stdin and returns
++// the errors that gcc prints.  That is, this function expects
++// gcc to fail.
++func (p *Package) gccErrors(stdin []byte) string {
++	// TODO(rsc): require failure
++	args := concat(p.gccCmd(), p.GccOptions)
++	if *debugGcc {
++		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
++		os.Stderr.Write(stdin)
++		fmt.Fprint(os.Stderr, "EOF\n")
++	}
++	stdout, stderr, _ := run(stdin, args)
++	if *debugGcc {
++		os.Stderr.Write(stdout)
++		os.Stderr.Write(stderr)
+ 	}
++	return string(stderr)
++}
+ 
+-	base := []string{"gcc", machine, "-E", "-dM", "-xc", "-"}
+-	stdout, stderr, ok := run(stdin, concat(base, p.GccOptions))
++// runGcc runs the gcc command line args with stdin on standard input.
++// If the command exits with a non-zero exit status, runGcc prints
++// details about what was run and exits.
++// Otherwise runGcc returns the data written to standard output and standard error.
++// Note that for some of the uses we expect useful data back
++// on standard error, but for those uses gcc must still exit 0.
++func runGcc(stdin []byte, args []string) (string, string) {
++	if *debugGcc {
++		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
++		os.Stderr.Write(stdin)
++		fmt.Fprint(os.Stderr, "EOF\n")
++	}
++	stdout, stderr, ok := run(stdin, args)
++	if *debugGcc {
++		os.Stderr.Write(stdout)
++		os.Stderr.Write(stderr)
++	}
+ 	if !ok {
+-		return string(stderr)
++		fmt.Fprint(os.Stderr, "Error running gcc:\n")
++		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
++		os.Stderr.Write(stdin)
++		fmt.Fprint(os.Stderr, "EOF\n")
++		os.Stderr.Write(stderr)
++		os.Exit(2)
+ 	}
+-
+-	return string(stdout)
++	return string(stdout), string(stderr)
+ }
+ 
+ // A typeConv is a translator from dwarf types to Go types
+@@ -388,7 +619,7 @@ func base(dt dwarf.Type) dwarf.Type {
+ }
+ 
+ // Map from dwarf text names to aliases we use in package "C".
+-var cnameMap = map[string]string{
++var dwarfToName = map[string]string{
+ 	"long int":               "long",
+ 	"long unsigned int":      "ulong",
+ 	"unsigned int":           "uint",
+@@ -415,6 +646,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 	t.C = dtype.Common().Name
+ 	t.EnumValues = nil
+ 	c.m[dtype] = t
++
+ 	if t.Size < 0 {
+ 		// Unsized types are [0]byte
+ 		t.Size = 0
+@@ -555,7 +787,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		} else if t.C == "" {
+ 			t.C = dt.Kind + " " + tag
+ 		}
+-		name := c.Ident("_C" + dt.Kind + "_" + tag)
++		name := c.Ident("_Ctype_" + dt.Kind + "_" + tag)
+ 		t.Go = name // publish before recursive calls
+ 		switch dt.Kind {
+ 		case "union", "class":
+@@ -583,7 +815,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 			t.Align = c.ptrSize
+ 			break
+ 		}
+-		name := c.Ident("_C_" + dt.Name)
++		name := c.Ident("_Ctypedef_" + dt.Name)
+ 		t.Go = name // publish before recursive call
+ 		sub := c.Type(dt.Type)
+ 		t.Size = sub.Size
+@@ -628,11 +860,11 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 	case *dwarf.AddrType, *dwarf.BoolType, *dwarf.CharType, *dwarf.IntType, *dwarf.FloatType, *dwarf.UcharType, *dwarf.UintType:
+ 		s := dtype.Common().Name
+ 		if s != "" {
+-			if ss, ok := cnameMap[s]; ok {
++			if ss, ok := dwarfToName[s]; ok {
+ 				s = ss
+ 			}
+ 			s = strings.Join(strings.Split(s, " ", -1), "") // strip spaces
+-			name := c.Ident("_C_" + s)
++			name := c.Ident("_Ctype_" + s)
+ 			c.typedef[name.Name()] = t.Go
+ 			t.Go = name
+ 		}
+@@ -710,7 +942,9 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
+ }
+ 
+ // Identifier
+-func (c *typeConv) Ident(s string) *ast.Ident { return ast.NewIdent(s) }
++func (c *typeConv) Ident(s string) *ast.Ident {
++	return ast.NewIdent(s)
++}
+ 
+ // Opaque type of n bytes.
+ func (c *typeConv) Opaque(n int64) ast.Expr {
+@@ -736,13 +970,14 @@ func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
+ 	return fld
+ }
+ 
+-// Struct conversion
++// Struct conversion: return Go and (6g) C syntax for type.
+ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax string, align int64) {
+-	csyntax = "struct { "
++	var buf bytes.Buffer
++	buf.WriteString("struct {")
+ 	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1) // enough for padding around every field
+ 	off := int64(0)
+ 
+-	// Mangle struct fields that happen to be named Go keywords into
++	// Rename struct fields that happen to be named Go keywords into
+ 	// _{keyword}.  Create a map from C ident -> Go ident.  The Go ident will
+ 	// be mangled.  Any existing identifier that already has the same name on
+ 	// the C-side will cause the Go-mangled version to be prefixed with _.
+@@ -783,7 +1018,10 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
+ 
+ 		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(ident[f.Name])}, Type: t.Go}
+ 		off += t.Size
+-		csyntax += t.C + " " + f.Name + "; "
++		buf.WriteString(t.C)
++		buf.WriteString(" ")
++		buf.WriteString(f.Name)
++		buf.WriteString("; ")
+ 		if t.Align > align {
+ 			align = t.Align
+ 		}
+@@ -795,7 +1033,8 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
+ 	if off != dt.ByteSize {
+ 		fatal("struct size calculation error")
+ 	}
+-	csyntax += "}"
++	buf.WriteString("}")
++	csyntax = buf.String()
+ 	expr = &ast.StructType{Fields: &ast.FieldList{List: fld}}
+ 	return
+ }
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 070146c9ac..f0c64407e8 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -11,13 +11,91 @@
+ package main
+ 
+ import (
++	"flag"
+ 	"fmt"
+ 	"go/ast"
++	"go/token"
+ 	"os"
++	"reflect"
+ 	"strings"
+ )
+ 
+-func usage() { fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go ...\n") }
++// A Package collects information about the package we're going to write.
++type Package struct {
++	PackageName string // name of package
++	PackagePath string
++	PtrSize     int64
++	GccOptions  []string
++	Written     map[string]bool
++	Name        map[string]*Name    // accumulated Name from Files
++	Typedef     map[string]ast.Expr // accumulated Typedef from Files
++	ExpFunc     []*ExpFunc          // accumulated ExpFunc from Files
++	Decl        []ast.Decl
++}
++
++// A File collects information about a single Go input file.
++type File struct {
++	AST      *ast.File           // parsed AST
++	Package  string              // Package name
++	Preamble string              // C preamble (doc comment on import "C")
++	Ref      []*Ref              // all references to C.xxx in AST
++	ExpFunc  []*ExpFunc          // exported functions for this file
++	Name     map[string]*Name    // map from Go name to Name
++	Typedef  map[string]ast.Expr // translations of all necessary types from C
++}
++
++// A Ref refers to an expression of the form C.xxx in the AST.
++type Ref struct {
++	Name    *Name
++	Expr    *ast.Expr
++	Context string // "type", "expr", "call", or "call2"
++}
++
++func (r *Ref) Pos() token.Position {
++	return (*r.Expr).Pos()
++}
++
++// A Name collects information about C.xxx.
++type Name struct {
++	Go       string // name used in Go referring to package C
++	Mangle   string // name used in generated Go
++	C        string // name used in C
++	Define   string // #define expansion
++	Kind     string // "const", "type", "var", "func", "not-type"
++	Type     *Type  // the type of xxx
++	FuncType *FuncType
++	AddError bool
++	Const    string // constant definition
++}
++
++// A ExpFunc is an exported function, callable from C.
++// Such functions are identified in the Go input file
++// by doc comments containing the line //export ExpName
++type ExpFunc struct {
++	Func    *ast.FuncDecl
++	ExpName string // name to use from C
++}
++
++// A Type collects information about a type in both the C and Go worlds.
++type Type struct {
++	Size       int64
++	Align      int64
++	C          string
++	Go         ast.Expr
++	EnumValues map[string]int64
++}
++
++// A FuncType collects information about a function type in both the C and Go worlds.
++type FuncType struct {
++	Params []*Type
++	Result *Type
++	Go     *ast.FuncType
++}
++
++func usage() {
++	fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go ...\n")
++	os.Exit(2)
++}
+ 
+ var ptrSizeMap = map[string]int64{
+ 	"386":   4,
+@@ -25,43 +103,34 @@ var ptrSizeMap = map[string]int64{
+ 	"arm":   4,
+ }
+ 
+-var expandName = map[string]string{
+-	"schar":     "signed char",
+-	"uchar":     "unsigned char",
+-	"ushort":    "unsigned short",
+-	"uint":      "unsigned int",
+-	"ulong":     "unsigned long",
+-	"longlong":  "long long",
+-	"ulonglong": "unsigned long long",
+-}
+-
+ func main() {
+-	args := os.Args
+-	if len(args) < 2 {
++	flag.Usage = usage
++	flag.Parse()
++	args := flag.Args()
++	if len(args) < 1 {
+ 		usage()
+-		os.Exit(2)
+ 	}
+ 
+ 	// Find first arg that looks like a go file and assume everything before
+ 	// that are options to pass to gcc.
+ 	var i int
+-	for i = len(args) - 1; i > 0; i-- {
+-		if !strings.HasSuffix(args[i], ".go") {
++	for i = len(args); i > 0; i-- {
++		if !strings.HasSuffix(args[i-1], ".go") {
+ 			break
+ 		}
+ 	}
+-
+-	i += 1
+-
+-	gccOptions, goFiles := args[1:i], args[i:]
++	if i == len(args) {
++		usage()
++	}
++	gccOptions, goFiles := args[0:i], args[i:]
+ 
+ 	arch := os.Getenv("GOARCH")
+ 	if arch == "" {
+ 		fatal("$GOARCH is not set")
+ 	}
+-	ptrSize, ok := ptrSizeMap[arch]
+-	if !ok {
+-		fatal("unknown architecture %s", arch)
++	ptrSize := ptrSizeMap[arch]
++	if ptrSize == 0 {
++		fatal("unknown $GOARCH %q", arch)
+ 	}
+ 
+ 	// Clear locale variables so gcc emits English errors [sic].
+@@ -69,75 +138,88 @@ func main() {
+ 	os.Setenv("LC_ALL", "C")
+ 	os.Setenv("LC_CTYPE", "C")
+ 
+-	p := new(Prog)
+-
+-	p.PtrSize = ptrSize
+-	p.GccOptions = gccOptions
+-	p.Vardef = make(map[string]*Type)
+-	p.Funcdef = make(map[string]*FuncType)
+-	p.Enumdef = make(map[string]int64)
+-	p.Constdef = make(map[string]string)
+-	p.OutDefs = make(map[string]bool)
++	p := &Package{
++		PtrSize:    ptrSize,
++		GccOptions: gccOptions,
++		Written:    make(map[string]bool),
++	}
+ 
+ 	for _, input := range goFiles {
+-		// Reset p.Preamble so that we don't end up with conflicting headers / defines
+-		p.Preamble = builtinProlog
+-		openProg(input, p)
+-		for _, cref := range p.Crefs {
+-			// Convert C.ulong to C.unsigned long, etc.
+-			if expand, ok := expandName[cref.Name]; ok {
+-				cref.Name = expand
+-			}
+-		}
+-		p.loadDebugInfo()
+-		for _, cref := range p.Crefs {
++		f := new(File)
++		// Reset f.Preamble so that we don't end up with conflicting headers / defines
++		f.Preamble = ""
++		f.ReadGo(input)
++		p.Translate(f)
++		for _, cref := range f.Ref {
+ 			switch cref.Context {
+-			case "const":
+-				// This came from a #define and we'll output it later.
+-				*cref.Expr = ast.NewIdent(cref.Name)
+-				break
+-			case "call":
+-				if !cref.TypeName {
+-					// Is an actual function call.
+-					pos := (*cref.Expr).Pos()
+-					*cref.Expr = &ast.Ident{Position: pos, Obj: ast.NewObj(ast.Err, pos, "_C_"+cref.Name)}
+-					p.Funcdef[cref.Name] = cref.FuncType
+-					break
+-				}
+-				*cref.Expr = cref.Type.Go
+-			case "expr":
+-				if cref.TypeName {
+-					error((*cref.Expr).Pos(), "type C.%s used as expression", cref.Name)
+-				}
+-				// If the expression refers to an enumerated value, then
+-				// place the identifier for the value and add it to Enumdef so
+-				// it will be declared as a constant in the later stage.
+-				if cref.Type.EnumValues != nil {
+-					*cref.Expr = ast.NewIdent(cref.Name)
+-					p.Enumdef[cref.Name] = cref.Type.EnumValues[cref.Name]
++			case "call", "call2":
++				if cref.Name.Kind != "type" {
+ 					break
+ 				}
+-				// Reference to C variable.
+-				// We declare a pointer and arrange to have it filled in.
+-				*cref.Expr = &ast.StarExpr{X: ast.NewIdent("_C_" + cref.Name)}
+-				p.Vardef[cref.Name] = cref.Type
+-			case "type":
+-				if !cref.TypeName {
+-					error((*cref.Expr).Pos(), "expression C.%s used as type", cref.Name)
+-				}
+-				*cref.Expr = cref.Type.Go
++				*cref.Expr = cref.Name.Type.Go
+ 			}
+ 		}
+ 		if nerrors > 0 {
+ 			os.Exit(2)
+ 		}
+-		pkg := p.Package
++		pkg := f.Package
+ 		if dir := os.Getenv("CGOPKGPATH"); dir != "" {
+ 			pkg = dir + "/" + pkg
+ 		}
+ 		p.PackagePath = pkg
+-		p.writeOutput(input)
++		p.writeOutput(f, input)
++
++		p.Record(f)
+ 	}
+ 
+ 	p.writeDefs()
+ }
++
++// Record what needs to be recorded about f.
++func (p *Package) Record(f *File) {
++	if p.PackageName == "" {
++		p.PackageName = f.Package
++	} else if p.PackageName != f.Package {
++		error(noPos, "inconsistent package names: %s, %s", p.PackageName, f.Package)
++	}
++
++	if p.Typedef == nil {
++		p.Typedef = f.Typedef
++	} else {
++		for k, v := range f.Typedef {
++			if p.Typedef[k] == nil {
++				p.Typedef[k] = v
++			} else if !reflect.DeepEqual(p.Typedef[k], v) {
++				error(noPos, "inconsistent definitions for C type %s", k)
++			}
++		}
++	}
++
++	if p.Name == nil {
++		p.Name = f.Name
++	} else {
++		for k, v := range f.Name {
++			if p.Name[k] == nil {
++				p.Name[k] = v
++			} else if !reflect.DeepEqual(p.Name[k], v) {
++				error(noPos, "inconsistent definitions for C.%s", k)
++			}
++		}
++	}
++
++	if len(f.ExpFunc) > 0 {
++		n := len(p.ExpFunc)
++		ef := make([]*ExpFunc, n+len(f.ExpFunc))
++		copy(ef, p.ExpFunc)
++		copy(ef[n:], f.ExpFunc)
++		p.ExpFunc = ef
++	}
++
++	if len(f.AST.Decls) > 0 {
++		n := len(p.Decl)
++		d := make([]ast.Decl, n+len(f.AST.Decls))
++		copy(d, p.Decl)
++		copy(d[n:], f.AST.Decls)
++		p.Decl = d
++	}
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 7cdf483f0e..8b11492e4b 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/printer"
+@@ -13,30 +14,9 @@ import (
+ 	"strings"
+ )
+ 
+-func creat(name string) *os.File {
+-	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
+-	if err != nil {
+-		fatal("%s", err)
+-	}
+-	return f
+-}
+-
+-func slashToUnderscore(c int) int {
+-	if c == '/' {
+-		c = '_'
+-	}
+-	return c
+-}
+-
+ // writeDefs creates output files to be compiled by 6g, 6c, and gcc.
+ // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
+-func (p *Prog) writeDefs() {
+-	pkgroot := os.Getenv("GOROOT") + "/pkg/" + os.Getenv("GOOS") + "_" + os.Getenv("GOARCH")
+-	path := p.PackagePath
+-	if !strings.HasPrefix(path, "/") {
+-		path = pkgroot + "/" + path
+-	}
+-
++func (p *Package) writeDefs() {
+ 	// The path for the shared object is slash-free so that ELF loaders
+ 	// will treat it as a relative path.  We rewrite slashes to underscores.
+ 	sopath := "cgo_" + strings.Map(slashToUnderscore, p.PackagePath)
+@@ -53,221 +33,245 @@ func (p *Prog) writeDefs() {
+ 	// In a separate file so that the import of "unsafe" does not
+ 	// pollute the original file.
+ 	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n")
+-	fmt.Fprintf(fgo2, "package %s\n\n", p.Package)
++	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
+ 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
++	fmt.Fprintf(fgo2, "import \"os\"\n\n")
+ 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
++	fmt.Fprintf(fgo2, "func _Cerrno(dst *os.Error, x int) { *dst = os.Errno(x) }\n")
+ 
+ 	for name, def := range p.Typedef {
+ 		fmt.Fprintf(fgo2, "type %s ", name)
+ 		printer.Fprint(fgo2, def)
+ 		fmt.Fprintf(fgo2, "\n")
+ 	}
+-	fmt.Fprintf(fgo2, "type _C_void [0]byte\n")
++	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
+ 
+ 	fmt.Fprintf(fc, cProlog, soprefix, soprefix, soprefix, soprefix, soprefix)
+ 
+-	for name, def := range p.Vardef {
+-		fmt.Fprintf(fc, "#pragma dynimport ·_C_%s %s \"%s%s.so\"\n", name, name, soprefix, sopath)
+-		fmt.Fprintf(fgo2, "var _C_%s ", name)
+-		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go})
++	for _, n := range p.Name {
++		if n.Kind != "var" {
++			continue
++		}
++		fmt.Fprintf(fc, "#pragma dynimport ·%s %s \"%s%s.so\"\n", n.Mangle, n.C, soprefix, sopath)
++		fmt.Fprintf(fgo2, "var %s ", n.Mangle)
++		printer.Fprint(fgo2, &ast.StarExpr{X: n.Type.Go})
+ 		fmt.Fprintf(fgo2, "\n")
+ 	}
+ 	fmt.Fprintf(fc, "\n")
+ 
+-	for name, value := range p.Constdef {
+-		fmt.Fprintf(fgo2, "const %s = %s\n", name, value)
+-	}
+-
+-	for name, value := range p.Enumdef {
+-		fmt.Fprintf(fgo2, "const %s = %d\n", name, value)
++	for _, n := range p.Name {
++		if n.Const != "" {
++			fmt.Fprintf(fgo2, "const _Cconst_%s = %s\n", n.Go, n.Const)
++		}
+ 	}
+ 	fmt.Fprintf(fgo2, "\n")
+ 
+-	for name, def := range p.Funcdef {
+-		// Go func declaration.
+-		d := &ast.FuncDecl{
+-			Name: ast.NewIdent("_C_" + name),
+-			Type: def.Go,
++	for _, n := range p.Name {
++		if n.FuncType != nil {
++			p.writeDefsFunc(fc, fgo2, n, soprefix, sopath)
+ 		}
+-		printer.Fprint(fgo2, d)
+-		fmt.Fprintf(fgo2, "\n")
++	}
+ 
+-		if name == "CString" || name == "GoString" {
+-			// The builtins are already defined in the C prolog.
+-			continue
+-		}
++	p.writeExports(fgo2, fc)
+ 
+-		// Construct a gcc struct matching the 6c argument frame.
+-		// Assumes that in gcc, char is 1 byte, short 2 bytes, int 4 bytes, long long 8 bytes.
+-		// These assumptions are checked by the gccProlog.
+-		// Also assumes that 6c convention is to word-align the
+-		// input and output parameters.
+-		structType := "struct {\n"
+-		off := int64(0)
+-		npad := 0
+-		for i, t := range def.Params {
+-			if off%t.Align != 0 {
+-				pad := t.Align - off%t.Align
+-				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+-				off += pad
+-				npad++
+-			}
+-			structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i)
+-			off += t.Size
+-		}
+-		if off%p.PtrSize != 0 {
+-			pad := p.PtrSize - off%p.PtrSize
+-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
++	fgo2.Close()
++	fc.Close()
++}
++
++// Construct a gcc struct matching the 6c argument frame.
++// Assumes that in gcc, char is 1 byte, short 2 bytes, int 4 bytes, long long 8 bytes.
++// These assumptions are checked by the gccProlog.
++// Also assumes that 6c convention is to word-align the
++// input and output parameters.
++func (p *Package) structType(n *Name) (string, int64) {
++	var buf bytes.Buffer
++	fmt.Fprint(&buf, "struct {\n")
++	off := int64(0)
++	for i, t := range n.FuncType.Params {
++		if off%t.Align != 0 {
++			pad := t.Align - off%t.Align
++			fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
+ 			off += pad
+-			npad++
+ 		}
+-		if t := def.Result; t != nil {
+-			if off%t.Align != 0 {
+-				pad := t.Align - off%t.Align
+-				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+-				off += pad
+-				npad++
+-			}
+-			structType += fmt.Sprintf("\t\t%s r;\n", t.C)
+-			off += t.Size
+-		}
+-		if off%p.PtrSize != 0 {
+-			pad := p.PtrSize - off%p.PtrSize
+-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
++		fmt.Fprintf(&buf, "\t\t%s p%d;\n", t.C, i)
++		off += t.Size
++	}
++	if off%p.PtrSize != 0 {
++		pad := p.PtrSize - off%p.PtrSize
++		fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
++		off += pad
++	}
++	if t := n.FuncType.Result; t != nil {
++		if off%t.Align != 0 {
++			pad := t.Align - off%t.Align
++			fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
+ 			off += pad
+-			npad++
+ 		}
+-		if len(def.Params) == 0 && def.Result == nil {
+-			structType += "\t\tchar unused;\n" // avoid empty struct
+-			off++
++		fmt.Fprintf(&buf, "\t\t%s r;\n", t.C)
++		off += t.Size
++	}
++	if off%p.PtrSize != 0 {
++		pad := p.PtrSize - off%p.PtrSize
++		fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
++		off += pad
++	}
++	if n.AddError {
++		fmt.Fprint(&buf, "\t\tvoid *e[2]; /* os.Error */\n")
++		off += 2 * p.PtrSize
++	}
++	if off == 0 {
++		fmt.Fprintf(&buf, "\t\tchar unused;\n") // avoid empty struct
++		off++
++	}
++	fmt.Fprintf(&buf, "\t}\n")
++	return buf.String(), off
++}
++
++func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath string) {
++	name := n.Go
++	gtype := n.FuncType.Go
++	if n.AddError {
++		// Add "os.Error" to return type list.
++		// Type list is known to be 0 or 1 element - it's a C function.
++		err := &ast.Field{Type: ast.NewIdent("os.Error")}
++		l := gtype.Results.List
++		if len(l) == 0 {
++			l = []*ast.Field{err}
++		} else {
++			l = []*ast.Field{l[0], err}
+ 		}
+-		structType += "\t}"
+-		argSize := off
+-
+-		// C wrapper calls into gcc, passing a pointer to the argument frame.
+-		// Also emit #pragma to get a pointer to the gcc wrapper.
+-		fmt.Fprintf(fc, "#pragma dynimport _cgo_%s _cgo_%s \"%s%s.so\"\n", name, name, soprefix, sopath)
+-		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name)
+-		fmt.Fprintf(fc, "\n")
+-		fmt.Fprintf(fc, "void\n")
+-		fmt.Fprintf(fc, "·_C_%s(struct{uint8 x[%d];}p)\n", name, argSize)
+-		fmt.Fprintf(fc, "{\n")
+-		fmt.Fprintf(fc, "\tcgocall(_cgo_%s, &p);\n", name)
+-		fmt.Fprintf(fc, "}\n")
+-		fmt.Fprintf(fc, "\n")
++		t := new(ast.FuncType)
++		*t = *gtype
++		t.Results = &ast.FieldList{List: l}
++		gtype = t
+ 	}
+ 
+-	p.writeExports(fgo2, fc)
++	// Go func declaration.
++	d := &ast.FuncDecl{
++		Name: ast.NewIdent(n.Mangle),
++		Type: gtype,
++	}
++	printer.Fprint(fgo2, d)
++	fmt.Fprintf(fgo2, "\n")
+ 
+-	fgo2.Close()
+-	fc.Close()
++	if name == "CString" || name == "GoString" {
++		// The builtins are already defined in the C prolog.
++		return
++	}
++
++	var argSize int64
++	_, argSize = p.structType(n)
++
++	// C wrapper calls into gcc, passing a pointer to the argument frame.
++	// Also emit #pragma to get a pointer to the gcc wrapper.
++	fmt.Fprintf(fc, "#pragma dynimport _cgo%s _cgo%s \"%s%s.so\"\n", n.Mangle, n.Mangle, soprefix, sopath)
++	fmt.Fprintf(fc, "void (*_cgo%s)(void*);\n", n.Mangle)
++	fmt.Fprintf(fc, "\n")
++	fmt.Fprintf(fc, "void\n")
++	fmt.Fprintf(fc, "·%s(struct{uint8 x[%d];}p)\n", n.Mangle, argSize)
++	fmt.Fprintf(fc, "{\n")
++	fmt.Fprintf(fc, "\tcgocall(_cgo%s, &p);\n", n.Mangle)
++	if n.AddError {
++		// gcc leaves errno in first word of interface at end of p.
++		// check whether it is zero; if so, turn interface into nil.
++		// if not, turn interface into errno.
++		// Go init function initializes ·_Cerrno with an os.Errno
++		// for us to copy.
++		fmt.Fprintln(fc, `	{
++			int32 e;
++			void **v;
++			v = (void**)(&p+1) - 2;	/* v = final two void* of p */
++			e = *(int32*)v;
++			v[0] = (void*)0xdeadbeef;
++			v[1] = (void*)0xdeadbeef;
++			if(e == 0) {
++				/* nil interface */
++				v[0] = 0;
++				v[1] = 0;
++			} else {
++				·_Cerrno(v, e);	/* fill in v as os.Error for errno e */
++			}
++		}`)
++	}
++	fmt.Fprintf(fc, "}\n")
++	fmt.Fprintf(fc, "\n")
+ }
+ 
+ // writeOutput creates stubs for a specific source file to be compiled by 6g
+ // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
+-func (p *Prog) writeOutput(srcfile string) {
++func (p *Package) writeOutput(f *File, srcfile string) {
+ 	base := srcfile
+ 	if strings.HasSuffix(base, ".go") {
+ 		base = base[0 : len(base)-3]
+ 	}
++	base = strings.Map(slashToUnderscore, base)
+ 	fgo1 := creat(base + ".cgo1.go")
+ 	fgcc := creat(base + ".cgo2.c")
+ 
+ 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
+ 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n")
+ 	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
+-	printer.Fprint(fgo1, p.AST)
++	printer.Fprint(fgo1, f.AST)
+ 
+ 	// While we process the vars and funcs, also write 6c and gcc output.
+ 	// Gcc output starts with the preamble.
+-	fmt.Fprintf(fgcc, "%s\n", p.Preamble)
++	fmt.Fprintf(fgcc, "%s\n", f.Preamble)
+ 	fmt.Fprintf(fgcc, "%s\n", gccProlog)
+ 
+-	for name, def := range p.Funcdef {
+-		_, ok := p.OutDefs[name]
+-		if name == "CString" || name == "GoString" || ok {
+-			// The builtins are already defined in the C prolog, and we don't
+-			// want to duplicate function definitions we've already done.
+-			continue
+-		}
+-		p.OutDefs[name] = true
+-
+-		// Construct a gcc struct matching the 6c argument frame.
+-		// Assumes that in gcc, char is 1 byte, short 2 bytes, int 4 bytes, long long 8 bytes.
+-		// These assumptions are checked by the gccProlog.
+-		// Also assumes that 6c convention is to word-align the
+-		// input and output parameters.
+-		structType := "struct {\n"
+-		off := int64(0)
+-		npad := 0
+-		for i, t := range def.Params {
+-			if off%t.Align != 0 {
+-				pad := t.Align - off%t.Align
+-				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+-				off += pad
+-				npad++
+-			}
+-			structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i)
+-			off += t.Size
+-		}
+-		if off%p.PtrSize != 0 {
+-			pad := p.PtrSize - off%p.PtrSize
+-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+-			off += pad
+-			npad++
+-		}
+-		if t := def.Result; t != nil {
+-			if off%t.Align != 0 {
+-				pad := t.Align - off%t.Align
+-				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+-				off += pad
+-				npad++
+-			}
+-			structType += fmt.Sprintf("\t\t%s r;\n", t.C)
+-			off += t.Size
+-		}
+-		if off%p.PtrSize != 0 {
+-			pad := p.PtrSize - off%p.PtrSize
+-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+-			off += pad
+-			npad++
+-		}
+-		if len(def.Params) == 0 && def.Result == nil {
+-			structType += "\t\tchar unused;\n" // avoid empty struct
+-			off++
+-		}
+-		structType += "\t}"
+-
+-		// Gcc wrapper unpacks the C argument struct
+-		// and calls the actual C function.
+-		fmt.Fprintf(fgcc, "void\n")
+-		fmt.Fprintf(fgcc, "_cgo_%s(void *v)\n", name)
+-		fmt.Fprintf(fgcc, "{\n")
+-		fmt.Fprintf(fgcc, "\t%s *a = v;\n", structType)
+-		fmt.Fprintf(fgcc, "\t")
+-		if def.Result != nil {
+-			fmt.Fprintf(fgcc, "a->r = ")
+-		}
+-		fmt.Fprintf(fgcc, "%s(", name)
+-		for i := range def.Params {
+-			if i > 0 {
+-				fmt.Fprintf(fgcc, ", ")
+-			}
+-			fmt.Fprintf(fgcc, "a->p%d", i)
++	for _, n := range f.Name {
++		if n.FuncType != nil {
++			p.writeOutputFunc(fgcc, n)
+ 		}
+-		fmt.Fprintf(fgcc, ");\n")
+-		fmt.Fprintf(fgcc, "}\n")
+-		fmt.Fprintf(fgcc, "\n")
+ 	}
+ 
+ 	fgo1.Close()
+ 	fgcc.Close()
+ }
+ 
++func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
++	name := n.Mangle
++	if name == "_Cfunc_CString" || name == "_Cfunc_GoString" || p.Written[name] {
++		// The builtins are already defined in the C prolog, and we don't
++		// want to duplicate function definitions we've already done.
++		return
++	}
++	p.Written[name] = true
++
++	ctype, _ := p.structType(n)
++
++	// Gcc wrapper unpacks the C argument struct
++	// and calls the actual C function.
++	fmt.Fprintf(fgcc, "void\n")
++	fmt.Fprintf(fgcc, "_cgo%s(void *v)\n", n.Mangle)
++	fmt.Fprintf(fgcc, "{\n")
++	if n.AddError {
++		fmt.Fprintf(fgcc, "\tint e;\n") // assuming 32 bit (see comment above structType)
++		fmt.Fprintf(fgcc, "\terrno = 0;\n")
++	}
++	fmt.Fprintf(fgcc, "\t%s *a = v;\n", ctype)
++	fmt.Fprintf(fgcc, "\t")
++	if n.FuncType.Result != nil {
++		fmt.Fprintf(fgcc, "a->r = ")
++	}
++	fmt.Fprintf(fgcc, "%s(", n.C)
++	for i := range n.FuncType.Params {
++		if i > 0 {
++			fmt.Fprintf(fgcc, ", ")
++		}
++		fmt.Fprintf(fgcc, "a->p%d", i)
++	}
++	fmt.Fprintf(fgcc, ");\n")
++	if n.AddError {
++		fmt.Fprintf(fgcc, "\t*(int*)(a->e) = errno;\n")
++	}
++	fmt.Fprintf(fgcc, "}\n")
++	fmt.Fprintf(fgcc, "\n")
++}
++
+ // Write out the various stubs we need to support functions exported
+ // from Go so that they are callable from C.
+-func (p *Prog) writeExports(fgo2, fc *os.File) {
+-	if len(p.ExpFuncs) == 0 {
++func (p *Package) writeExports(fgo2, fc *os.File) {
++	if len(p.ExpFunc) == 0 {
+ 		return
+ 	}
+ 
+@@ -280,17 +284,17 @@ func (p *Prog) writeExports(fgo2, fc *os.File) {
+ 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
+ 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
+ 
+-	for _, exp := range p.ExpFuncs {
++	for _, exp := range p.ExpFunc {
+ 		fn := exp.Func
+ 
+ 		// Construct a gcc struct matching the 6c argument and
+ 		// result frame.
+-		structType := "struct {\n"
++		ctype := "struct {\n"
+ 		off := int64(0)
+ 		npad := 0
+ 		if fn.Recv != nil {
+ 			t := p.cgoType(fn.Recv.List[0].Type)
+-			structType += fmt.Sprintf("\t\t%s recv;\n", t.C)
++			ctype += fmt.Sprintf("\t\t%s recv;\n", t.C)
+ 			off += t.Size
+ 		}
+ 		fntype := fn.Type
+@@ -299,16 +303,16 @@ func (p *Prog) writeExports(fgo2, fc *os.File) {
+ 				t := p.cgoType(atype)
+ 				if off%t.Align != 0 {
+ 					pad := t.Align - off%t.Align
+-					structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
++					ctype += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+ 					off += pad
+ 					npad++
+ 				}
+-				structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i)
++				ctype += fmt.Sprintf("\t\t%s p%d;\n", t.C, i)
+ 				off += t.Size
+ 			})
+ 		if off%p.PtrSize != 0 {
+ 			pad := p.PtrSize - off%p.PtrSize
+-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
++			ctype += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+ 			off += pad
+ 			npad++
+ 		}
+@@ -317,24 +321,24 @@ func (p *Prog) writeExports(fgo2, fc *os.File) {
+ 				t := p.cgoType(atype)
+ 				if off%t.Align != 0 {
+ 					pad := t.Align - off%t.Align
+-					structType += fmt.Sprintf("\t\tchar __pad%d[%d]\n", npad, pad)
++					ctype += fmt.Sprintf("\t\tchar __pad%d[%d]\n", npad, pad)
+ 					off += pad
+ 					npad++
+ 				}
+-				structType += fmt.Sprintf("\t\t%s r%d;\n", t.C, i)
++				ctype += fmt.Sprintf("\t\t%s r%d;\n", t.C, i)
+ 				off += t.Size
+ 			})
+ 		if off%p.PtrSize != 0 {
+ 			pad := p.PtrSize - off%p.PtrSize
+-			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
++			ctype += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+ 			off += pad
+ 			npad++
+ 		}
+-		if structType == "struct {\n" {
+-			structType += "\t\tchar unused;\n" // avoid empty struct
++		if ctype == "struct {\n" {
++			ctype += "\t\tchar unused;\n" // avoid empty struct
+ 			off++
+ 		}
+-		structType += "\t}"
++		ctype += "\t}"
+ 
+ 		// Get the return type of the wrapper function
+ 		// compiled by gcc.
+@@ -373,7 +377,7 @@ func (p *Prog) writeExports(fgo2, fc *os.File) {
+ 		fmt.Fprintf(fgcc, "extern _cgoexp_%s(void *, int);\n", exp.ExpName)
+ 		fmt.Fprintf(fgcc, "\n%s\n", s)
+ 		fmt.Fprintf(fgcc, "{\n")
+-		fmt.Fprintf(fgcc, "\t%s a;\n", structType)
++		fmt.Fprintf(fgcc, "\t%s a;\n", ctype)
+ 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
+ 			fmt.Fprintf(fgcc, "\t%s r;\n", gccResult)
+ 		}
+@@ -493,7 +497,7 @@ var goTypes = map[string]*Type{
+ }
+ 
+ // Map an ast type to a Type.
+-func (p *Prog) cgoType(e ast.Expr) *Type {
++func (p *Package) cgoType(e ast.Expr) *Type {
+ 	switch t := e.(type) {
+ 	case *ast.StarExpr:
+ 		x := p.cgoType(t.X)
+@@ -515,7 +519,7 @@ func (p *Prog) cgoType(e ast.Expr) *Type {
+ 	case *ast.Ident:
+ 		// Look up the type in the top level declarations.
+ 		// TODO: Handle types defined within a function.
+-		for _, d := range p.AST.Decls {
++		for _, d := range p.Decl {
+ 			gd, ok := d.(*ast.GenDecl)
+ 			if !ok || gd.Tok != token.TYPE {
+ 				continue
+@@ -568,6 +572,9 @@ typedef long long __cgo_long_long;
+ __cgo_size_assert(__cgo_long_long, 8)
+ __cgo_size_assert(float, 4)
+ __cgo_size_assert(double, 8)
++
++#include <errno.h>
++#include <string.h>
+ `
+ 
+ const builtinProlog = `
+@@ -586,15 +593,17 @@ const cProlog = `
+ #pragma dynimport _cgo_malloc _cgo_malloc "%slibcgo.so"
+ #pragma dynimport _cgo_free _cgo_free "%slibcgo.so"
+ 
++void ·_Cerrno(void*, int32);
++
+ void
+-·_C_GoString(int8 *p, String s)
++·_Cfunc_GoString(int8 *p, String s)
+ {
+ 	s = gostring((byte*)p);
+ 	FLUSH(&s);
+ }
+ 
+ void
+-·_C_CString(String s, int8 *p)
++·_Cfunc_CString(String s, int8 *p)
+ {
+ 	p = cmalloc(s.len+1);
+ 	mcpy((byte*)p, s.str, s.len);
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 95067039ca..3911982951 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -12,16 +12,6 @@ import (
+ 	"os"
+ )
+ 
+-// A ByteReaderAt implements io.ReadAt using a slice of bytes.
+-type ByteReaderAt []byte
+-
+-func (r ByteReaderAt) ReadAt(p []byte, off int64) (n int, err os.Error) {
+-	if off >= int64(len(r)) || off < 0 {
+-		return 0, os.EOF
+-	}
+-	return copy(p, r[off:]), nil
+-}
+-
+ // run runs the command argv, feeding in stdin on standard input.
+ // It returns the output to standard output and standard error.
+ // ok indicates whether the command exited successfully.
+@@ -92,3 +82,38 @@ func error(pos token.Position, msg string, args ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, msg, args)
+ 	fmt.Fprintf(os.Stderr, "\n")
+ }
++
++// isName returns true if s is a valid C identifier
++func isName(s string) bool {
++	for i, v := range s {
++		if v != '_' && (v < 'A' || v > 'Z') && (v < 'a' || v > 'z') && (v < '0' || v > '9') {
++			return false
++		}
++		if i == 0 && '0' <= v && v <= '9' {
++			return false
++		}
++	}
++	return s != ""
++}
++
++func creat(name string) *os.File {
++	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
++	if err != nil {
++		fatal("%s", err)
++	}
++	return f
++}
++
++func slashToUnderscore(c int) int {
++	if c == '/' {
++		c = '_'
++	}
++	return c
++}
++
++func concat(a, b []string) []string {
++	c := make([]string, len(a)+len(b))
++	copy(c, a)
++	copy(c[len(a):], b)
++	return c
++}

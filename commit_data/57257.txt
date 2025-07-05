@@ -12,7 +12,50 @@ Date:   Wed Jul 19 11:21:00 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go | 10 +++++-----
  src/go/types/api.go                    | 10 +++++-----
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 63ef31ba84..d0c0cdb8f9 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -110,11 +110,11 @@ type Config struct {
+ 	// type checker will initialize this field with a newly created context.
+ 	Context *Context
+ 
+-	// GoVersion describes the accepted Go language version. The string
+-	// must follow the format "go%d.%d" (e.g. "go1.12") or ist must be
+-	// empty; an empty string disables Go language version checks.
+-	// If the format is invalid, invoking the type checker will cause a
+-	// panic.
++	// GoVersion describes the accepted Go language version. The string must
++	// start with a prefix of the form "go%d.%d" (e.g. "go1.20", "go1.21rc1", or
++	// "go1.21.0") or it must be empty; an empty string disables Go language
++	// version checks. If the format is invalid, invoking the type checker will
++	// result in an error.
+ 	GoVersion string
+ 
+ 	// If IgnoreFuncBodies is set, function bodies are not
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 61d313c0e1..ad4c1a2e9f 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -114,11 +114,11 @@ type Config struct {
+ 	// type checker will initialize this field with a newly created context.
+ 	Context *Context
+ 
+-	// GoVersion describes the accepted Go language version. The string
+-	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
+-	// empty; an empty string disables Go language version checks.
+-	// If the format is invalid, invoking the type checker will cause a
+-	// panic.
++	// GoVersion describes the accepted Go language version. The string must
++	// start with a prefix of the form "go%d.%d" (e.g. "go1.20", "go1.21rc1", or
++	// "go1.21.0") or it must be empty; an empty string disables Go language
++	// version checks. If the format is invalid, invoking the type checker will
++	// result in an error.
+ 	GoVersion string
+ 
+ 	// If IgnoreFuncBodies is set, function bodies are not

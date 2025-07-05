@@ -8,6 +8,29 @@ Date:   Mon Apr 13 19:27:35 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=27397
     CL=27400
-
+---
  src/lib/template/template.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index 824b9d626b..a40a8b86ca 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -99,7 +99,7 @@ func (t *template) error(err *os.Error, args ...) {
+ }
+ 
+ func white(c uint8) bool {
+-	return c == ' ' || c == '\t' || c == '\n'
++	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
+ }
+ 
+ func (t *template) execute()
+@@ -126,7 +126,7 @@ Loop:
+ 			*t.linenum++;
+ 			i++;
+ 			break Loop;
+-		case ' ', '\t':
++		case ' ', '\t', '\r':
+ 			// white space, do nothing
+ 		case '{':
+ 			if brace {

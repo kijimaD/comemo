@@ -7,6 +7,19 @@ Date:   Mon May 24 14:31:10 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1254044
-
+---
  src/pkg/runtime/hashmap.h | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/hashmap.h b/src/pkg/runtime/hashmap.h
+index 06b98349b8..906de47643 100644
+--- a/src/pkg/runtime/hashmap.h
++++ b/src/pkg/runtime/hashmap.h
+@@ -64,7 +64,6 @@
+  */
+ 
+ #define	malloc		mal
+-#define	free(a)		USED(a)
+ #define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
+ #define	memset(a,b,c)	·memclr((byte*)(a), (uint32)(c))
+ #define	memcpy(a,b,c)	mcpy((byte*)(a),(byte*)(b),(uint32)(c))

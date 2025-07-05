@@ -16,7 +16,94 @@ Date:   Sun Oct 24 14:11:07 2021 +1100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/value.go              | 27 ++++++++++++++++++++++++++-
  src/reflect/visiblefields_test.go | 19 +++++++++++++++++++
  2 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 618d38893e..90edf8e31d 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -5,6 +5,7 @@
+ package reflect
+ 
+ import (
++	"errors"
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/itoa"
+@@ -1232,7 +1233,8 @@ func (v Value) Field(i int) Value {
+ }
+ 
+ // FieldByIndex returns the nested field corresponding to index.
+-// It panics if v's Kind is not struct.
++// It panics if evaluation requires stepping through a nil
++// pointer or a field that is not a struct.
+ func (v Value) FieldByIndex(index []int) Value {
+ 	if len(index) == 1 {
+ 		return v.Field(index[0])
+@@ -1252,6 +1254,29 @@ func (v Value) FieldByIndex(index []int) Value {
+ 	return v
+ }
+ 
++// FieldByIndexErr returns the nested field corresponding to index.
++// It returns an error if evaluation requires stepping through a nil
++// pointer, but panics if it must step through a field that
++// is not a struct.
++func (v Value) FieldByIndexErr(index []int) (Value, error) {
++	if len(index) == 1 {
++		return v.Field(index[0]), nil
++	}
++	v.mustBe(Struct)
++	for i, x := range index {
++		if i > 0 {
++			if v.Kind() == Ptr && v.typ.Elem().Kind() == Struct {
++				if v.IsNil() {
++					return Value{}, errors.New("reflect: indirection through nil pointer to embedded struct field " + v.typ.Elem().Name())
++				}
++				v = v.Elem()
++			}
++		}
++		v = v.Field(x)
++	}
++	return v, nil
++}
++
+ // FieldByName returns the struct field with the given name.
+ // It returns the zero Value if no field was found.
+ // It panics if v's Kind is not struct.
+diff --git a/src/reflect/visiblefields_test.go b/src/reflect/visiblefields_test.go
+index 915bbee867..5ae322321b 100644
+--- a/src/reflect/visiblefields_test.go
++++ b/src/reflect/visiblefields_test.go
+@@ -6,6 +6,7 @@ package reflect_test
+ 
+ import (
+ 	. "reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -328,3 +329,21 @@ func TestFields(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// Must not panic with nil embedded pointer.
++func TestFieldByIndexErr(t *testing.T) {
++	type A struct {
++		S string
++	}
++	type B struct {
++		*A
++	}
++	v := ValueOf(B{})
++	_, err := v.FieldByIndexErr([]int{0, 0})
++	if err == nil {
++		t.Fatal("expected error")
++	}
++	if !strings.Contains(err.Error(), "embedded struct field A") {
++		t.Fatal(err)
++	}
++}

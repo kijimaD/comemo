@@ -11,6 +11,23 @@ Date:   Thu Nov 6 15:35:53 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/171220043
-
+---
  src/cmd/5g/gsubr.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 06e274e14d..f09197963c 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1353,9 +1353,10 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OITAB:
+ 		// itable of interface value
+ 		naddr(n->left, a, canemitcode);
+-		a->etype = TINT32;
++		a->etype = simtype[tptr];
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// len(nil)
++		a->width = widthptr;
+ 		break;
+ 
+ 	case OSPTR:

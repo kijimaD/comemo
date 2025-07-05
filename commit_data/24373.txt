@@ -9,6 +9,25 @@ Date:   Thu Jul 23 00:14:33 2015 -0400
     Change-Id: I46efc24b687b9d060ad864fbb238c74544348e38
     Reviewed-on: https://go-review.googlesource.com/12556
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/runtime/pprof/pprof.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 7d888e4ab0..23fc85093b 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -41,6 +41,13 @@ import (
+ // These predefined profiles maintain themselves and panic on an explicit
+ // Add or Remove method call.
+ //
++// The heap profile reports statistics as of the most recently completed
++// garbage collection; it elides more recent allocation to avoid skewing
++// the profile away from live data and toward garbage.
++// If there has been no garbage collection at all, the heap profile reports
++// all known allocations. This exception helps mainly in programs running
++// without garbage collection enabled, usually for debugging purposes.
++//
+ // The CPU profile is not available as a Profile.  It has a special API,
+ // the StartCPUProfile and StopCPUProfile functions, because it streams
+ // output to a writer during profiling.

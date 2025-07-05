@@ -7,7 +7,34 @@ Date:   Wed Jan 22 10:58:38 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/55720044
-
+---
  src/pkg/archive/tar/stat_atim.go | 2 +-
  src/pkg/archive/tar/stat_unix.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/archive/tar/stat_atim.go b/src/pkg/archive/tar/stat_atim.go
+index 72342ef37a..cf9cc79c59 100644
+--- a/src/pkg/archive/tar/stat_atim.go
++++ b/src/pkg/archive/tar/stat_atim.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux openbsd solaris
++// +build linux dragonfly openbsd solaris
+ 
+ package tar
+ 
+diff --git a/src/pkg/archive/tar/stat_unix.go b/src/pkg/archive/tar/stat_unix.go
+index e5ba673ccf..cb843db4cf 100644
+--- a/src/pkg/archive/tar/stat_unix.go
++++ b/src/pkg/archive/tar/stat_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux darwin freebsd openbsd netbsd solaris
++// +build linux darwin dragonfly freebsd openbsd netbsd solaris
+ 
+ package tar
+ 

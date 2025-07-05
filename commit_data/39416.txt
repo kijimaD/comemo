@@ -12,6 +12,24 @@ Date:   Thu Feb 21 15:39:34 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/go.mod | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/misc/go.mod b/misc/go.mod
+new file mode 100644
+index 0000000000..fc9f1133a4
+--- /dev/null
++++ b/misc/go.mod
+@@ -0,0 +1,11 @@
++// Module misc contains tests and binaries that pertain to specific build modes
++// (cgo) and platforms (Android and iOS).
++//
++// The 'run' scripts in ../src execute these tests and binaries, which need to
++// be in a module in order to build and run successfully in module mode.
++// (Otherwise, they lack well-defined import paths, and module mode — unlike
++// GOPATH mode — does not synthesize import paths from the absolute working
++// directory.)
++module misc
++
++go 1.12

@@ -11,8 +11,110 @@ Date:   Tue Dec 9 07:59:24 2014 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Chris Manghane <cmang@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/gc/subr.go      |  3 +++
  src/cmd/internal/gc/typecheck.go | 13 +++++++++
  test/fixedbugs/issue9017.go      | 57 ++++++++++++++++++++++++++++++++++++++++
  3 files changed, 73 insertions(+)
+
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index f7c0758400..9dc573e795 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -2172,6 +2172,9 @@ out:
+ 
+ 	// rebuild elided dots
+ 	for c := d - 1; c >= 0; c-- {
++		if n.Left.Type != nil && Isptr[n.Left.Type.Etype] != 0 {
++			n.Left.Implicit = 1
++		}
+ 		n.Left = Nod(ODOT, n.Left, newname(dotlist[c].field.Sym))
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 9fa19300af..1468d5fb45 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -2433,6 +2433,19 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
+ 			}
+ 		}
+ 
++		ll := n.Left
++		for ll.Left != nil {
++			ll = ll.Left
++		}
++		if ll.Implicit != 0 {
++			if Isptr[ll.Type.Etype] != 0 && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
++				// It is invalid to automatically dereference a named pointer type when selecting a method.
++				// Make n->left == ll to clarify error message.
++				n.Left = ll
++				return false
++			}
++		}
++
+ 		n.Right = methodname(n.Right, n.Left.Type)
+ 		n.Xoffset = f2.Width
+ 		n.Type = f2.Type
+diff --git a/test/fixedbugs/issue9017.go b/test/fixedbugs/issue9017.go
+new file mode 100644
+index 0000000000..e19bac2bd9
+--- /dev/null
++++ b/test/fixedbugs/issue9017.go
+@@ -0,0 +1,57 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 9017: Method selector shouldn't automatically dereference a named pointer type.
++
++package main
++
++type T struct{ x int }
++
++func (T) mT() {}
++
++type S struct {
++	T
++}
++
++func (S) mS() {}
++
++type P *S
++
++type I interface {
++	mT()
++}
++
++func main() {
++	var s S
++	s.T.mT()
++	s.mT() // == s.T.mT()
++
++	var i I
++	_ = i
++	i = s.T
++	i = s
++
++	var ps = &s
++	ps.mS()
++	ps.T.mT()
++	ps.mT() // == ps.T.mT()
++
++	i = ps.T
++	i = ps
++
++	var p P = ps
++	(*p).mS()
++	p.mS() // ERROR "undefined"
++
++	i = *p
++	i = p // ERROR "cannot use|incompatible types"
++
++	p.T.mT()
++	p.mT() // ERROR "undefined"
++
++	i = p.T
++	i = p // ERROR "cannot use|incompatible types"
++}

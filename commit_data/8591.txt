@@ -7,6 +7,45 @@ Date:   Thu Jun 2 10:52:46 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4529100
-
+---
  src/pkg/testing/benchmark.go | 17 ++++++++++++-----
  1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index cf73e2b48f..db4c65941c 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -150,7 +150,7 @@ func (b *B) run() BenchmarkResult {
+ type BenchmarkResult struct {
+ 	N     int   // The number of iterations.
+ 	Ns    int64 // The total time taken.
+-	Bytes int64 // The total number of bytes processed.
++	Bytes int64 // Bytes processed in one iteration.
+ }
+ 
+ func (r BenchmarkResult) NsPerOp() int64 {
+@@ -160,13 +160,20 @@ func (r BenchmarkResult) NsPerOp() int64 {
+ 	return r.Ns / int64(r.N)
+ }
+ 
++func (r BenchmarkResult) mbPerSec() float64 {
++	if r.Bytes <= 0 || r.Ns <= 0 || r.N <= 0 {
++		return 0
++	}
++	return float64(r.Bytes) * float64(r.N) / float64(r.Ns) * 1e3
++}
++
+ func (r BenchmarkResult) String() string {
+-	ns := r.NsPerOp()
++	mbs := r.mbPerSec()
+ 	mb := ""
+-	if ns > 0 && r.Bytes > 0 {
+-		mb = fmt.Sprintf("\t%7.2f MB/s", (float64(r.Bytes)/1e6)/(float64(ns)/1e9))
++	if mbs != 0 {
++		mb = fmt.Sprintf("\t%7.2f MB/s", mbs)
+ 	}
+-	return fmt.Sprintf("%8d\t%10d ns/op%s", r.N, ns, mb)
++	return fmt.Sprintf("%8d\t%10d ns/op%s", r.N, r.NsPerOp(), mb)
+ }
+ 
+ // An internal function but exported because it is cross-package; part of the implementation

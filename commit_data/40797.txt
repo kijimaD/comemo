@@ -23,7 +23,81 @@ Date:   Tue Jul 2 23:56:41 2019 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Caleb Spare <cespare@gmail.com>
-
+---
  src/encoding/json/encode.go      |  4 ++--
  src/encoding/json/stream_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 464ee3ece4..3474d4a667 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -460,7 +460,7 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+ 	}
+ }
+ 
+-func addrMarshalerEncoder(e *encodeState, v reflect.Value, _ encOpts) {
++func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+ 	va := v.Addr()
+ 	if va.IsNil() {
+ 		e.WriteString("null")
+@@ -470,7 +470,7 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, _ encOpts) {
+ 	b, err := m.MarshalJSON()
+ 	if err == nil {
+ 		// copy JSON into buffer, checking validity.
+-		err = compact(&e.Buffer, b, true)
++		err = compact(&e.Buffer, b, opts.escapeHTML)
+ 	}
+ 	if err != nil {
+ 		e.error(&MarshalerError{v.Type(), err})
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index 1d1999da25..e3317ddeb0 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -90,6 +90,18 @@ func TestEncoderIndent(t *testing.T) {
+ 	}
+ }
+ 
++type strMarshaler string
++
++func (s strMarshaler) MarshalJSON() ([]byte, error) {
++	return []byte(s), nil
++}
++
++type strPtrMarshaler string
++
++func (s *strPtrMarshaler) MarshalJSON() ([]byte, error) {
++	return []byte(*s), nil
++}
++
+ func TestEncoderSetEscapeHTML(t *testing.T) {
+ 	var c C
+ 	var ct CText
+@@ -97,6 +109,15 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
+ 		Valid   int `json:"<>&#! "`
+ 		Invalid int `json:"\\"`
+ 	}
++
++	// This case is particularly interesting, as we force the encoder to
++	// take the address of the Ptr field to use its MarshalJSON method. This
++	// is why the '&' is important.
++	marshalerStruct := &struct {
++		NonPtr strMarshaler
++		Ptr    strPtrMarshaler
++	}{`"<str>"`, `"<str>"`}
++
+ 	for _, tt := range []struct {
+ 		name       string
+ 		v          interface{}
+@@ -111,6 +132,11 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
+ 			`{"\u003c\u003e\u0026#! ":0,"Invalid":0}`,
+ 			`{"<>&#! ":0,"Invalid":0}`,
+ 		},
++		{
++			`"<str>"`, marshalerStruct,
++			`{"NonPtr":"\u003cstr\u003e","Ptr":"\u003cstr\u003e"}`,
++			`{"NonPtr":"<str>","Ptr":"<str>"}`,
++		},
+ 	} {
+ 		var buf bytes.Buffer
+ 		enc := NewEncoder(&buf)

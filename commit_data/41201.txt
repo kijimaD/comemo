@@ -14,7 +14,41 @@ Date:   Thu Sep 12 07:09:39 2019 +0000
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/renameio/umask_test.go | 2 +-
  src/runtime/signal_windows_test.go         | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/renameio/umask_test.go b/src/cmd/go/internal/renameio/umask_test.go
+index 031fe46e09..1d5e594e7e 100644
+--- a/src/cmd/go/internal/renameio/umask_test.go
++++ b/src/cmd/go/internal/renameio/umask_test.go
+@@ -19,6 +19,7 @@ func TestWriteFileModeAppliesUmask(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Failed to create temporary directory: %v", err)
+ 	}
++	defer os.RemoveAll(dir)
+ 
+ 	const mode = 0644
+ 	const umask = 0007
+@@ -29,7 +30,6 @@ func TestWriteFileModeAppliesUmask(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Failed to write file: %v", err)
+ 	}
+-	defer os.RemoveAll(dir)
+ 
+ 	fi, err := os.Stat(file)
+ 	if err != nil {
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index c56da15292..9748403412 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -28,7 +28,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("failed to create temp directory: %v", err)
+ 	}
+-	defer os.Remove(dir)
++	defer os.RemoveAll(dir)
+ 
+ 	// build go dll
+ 	dll := filepath.Join(dir, "testwinlib.dll")

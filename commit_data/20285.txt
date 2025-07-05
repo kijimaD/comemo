@@ -8,8 +8,212 @@ Date:   Thu Aug 28 21:35:59 2014 -0700
     R=golang-codereviews, bradfitz, rsc
     CC=golang-codereviews
     https://golang.org/cl/135150043
-
+---
  src/pkg/runtime/chan.go  | 75 +++++++++++++++++++++++++++++++++++++++++++-----
  src/pkg/runtime/chan.goc | 75 ------------------------------------------------
  src/pkg/runtime/thunk.s  |  9 ++++++
  3 files changed, 77 insertions(+), 82 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.go b/src/pkg/runtime/chan.go
+index fe7e72edc2..239c29f9e2 100644
+--- a/src/pkg/runtime/chan.go
++++ b/src/pkg/runtime/chan.go
+@@ -150,12 +150,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 				memmove(unsafe.Pointer(sg.elem), ep, uintptr(c.elemsize))
+ 			}
+ 			if sg.releasetime != 0 {
+-				// Yes, this is ugly.  On 64-bit sg.releasetime has type
+-				// int.  On 32-bit it has type int64.  There's no easy way
+-				// to assign to both types in Go.  At some point we'll
+-				// write the Go types directly instead of generating them
+-				// via the C types.  At that point, this nastiness goes away.
+-				*(*int64)(unsafe.Pointer(&sg.releasetime)) = cputicks()
++				sg.releasetime = cputicks()
+ 			}
+ 			goready(recvg)
+ 			return true
+@@ -248,7 +243,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		recvg := sg.g
+ 		unlock(&c.lock)
+ 		if sg.releasetime != 0 {
+-			*(*int64)(unsafe.Pointer(&sg.releasetime)) = cputicks()
++			sg.releasetime = cputicks()
+ 		}
+ 		goready(recvg)
+ 	} else {
+@@ -260,6 +255,72 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 	return true
+ }
+ 
++func closechan(c *hchan) {
++	if c == nil {
++		panic("close of nil channel")
++	}
++
++	lock(&c.lock)
++	if c.closed != 0 {
++		unlock(&c.lock)
++		panic("close of closed channel")
++	}
++
++	if raceenabled {
++		callerpc := getcallerpc(unsafe.Pointer(&c))
++		fn := closechan
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racewritepc(unsafe.Pointer(c), callerpc, pc)
++		racerelease(unsafe.Pointer(c))
++	}
++
++	c.closed = 1
++
++	// release all readers
++	for {
++		sg := c.recvq.dequeue()
++		if sg == nil {
++			break
++		}
++		gp := sg.g
++		gp.param = nil
++		if sg.releasetime != 0 {
++			sg.releasetime = cputicks()
++		}
++		goready(gp)
++	}
++
++	// release all writers
++	for {
++		sg := c.sendq.dequeue()
++		if sg == nil {
++			break
++		}
++		gp := sg.g
++		gp.param = nil
++		if sg.releasetime != 0 {
++			sg.releasetime = cputicks()
++		}
++		goready(gp)
++	}
++
++	unlock(&c.lock)
++}
++
++func reflect_chanlen(c *hchan) int {
++	if c == nil {
++		return 0
++	}
++	return int(c.qcount)
++}
++
++func reflect_chancap(c *hchan) int {
++	if c == nil {
++		return 0
++	}
++	return int(c.dataqsiz)
++}
++
+ func (q *waitq) enqueue(sgp *sudog) {
+ 	sgp.next = nil
+ 	if q.first == nil {
+diff --git a/src/pkg/runtime/chan.goc b/src/pkg/runtime/chan.goc
+index 7d6ee1be2b..a4a0d1d9ba 100644
+--- a/src/pkg/runtime/chan.goc
++++ b/src/pkg/runtime/chan.goc
+@@ -1005,81 +1005,6 @@ func reflect·rselect(cases Slice) (chosen int, recvOK bool) {
+ 	chosen = (intgo)(uintptr)selectgo(&sel);
+ }
+ 
+-static void closechan(Hchan *c, void *pc);
+-
+-#pragma textflag NOSPLIT
+-func closechan(c *Hchan) {
+-	closechan(c, runtime·getcallerpc(&c));
+-}
+-
+-#pragma textflag NOSPLIT
+-func reflect·chanclose(c *Hchan) {
+-	closechan(c, runtime·getcallerpc(&c));
+-}
+-
+-static void
+-closechan(Hchan *c, void *pc)
+-{
+-	SudoG *sg;
+-	G* gp;
+-
+-	if(c == nil)
+-		runtime·panicstring("close of nil channel");
+-
+-	runtime·lock(&c->lock);
+-	if(c->closed) {
+-		runtime·unlock(&c->lock);
+-		runtime·panicstring("close of closed channel");
+-	}
+-
+-	if(raceenabled) {
+-		runtime·racewritepc(c, pc, runtime·closechan);
+-		runtime·racerelease(c);
+-	}
+-
+-	c->closed = true;
+-
+-	// release all readers
+-	for(;;) {
+-		sg = dequeue(&c->recvq);
+-		if(sg == nil)
+-			break;
+-		gp = sg->g;
+-		gp->param = nil;
+-		if(sg->releasetime)
+-			sg->releasetime = runtime·cputicks();
+-		runtime·ready(gp);
+-	}
+-
+-	// release all writers
+-	for(;;) {
+-		sg = dequeue(&c->sendq);
+-		if(sg == nil)
+-			break;
+-		gp = sg->g;
+-		gp->param = nil;
+-		if(sg->releasetime)
+-			sg->releasetime = runtime·cputicks();
+-		runtime·ready(gp);
+-	}
+-
+-	runtime·unlock(&c->lock);
+-}
+-
+-func reflect·chanlen(c *Hchan) (len int) {
+-	if(c == nil)
+-		len = 0;
+-	else
+-		len = c->qcount;
+-}
+-
+-func reflect·chancap(c *Hchan) (cap int) {
+-	if(c == nil)
+-		cap = 0;
+-	else
+-		cap = c->dataqsiz;
+-}
+-
+ static SudoG*
+ dequeue(WaitQ *q)
+ {
+diff --git a/src/pkg/runtime/thunk.s b/src/pkg/runtime/thunk.s
+index 4d2a49829c..6093656c6f 100644
+--- a/src/pkg/runtime/thunk.s
++++ b/src/pkg/runtime/thunk.s
+@@ -52,3 +52,12 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-0
+ 
+ TEXT runtime·reflectcall(SB), NOSPLIT, $0-0
+ 	JMP	reflect·call(SB)
++
++TEXT reflect·chanclose(SB), NOSPLIT, $0-0
++	JMP	runtime·closechan(SB)
++
++TEXT reflect·chanlen(SB), NOSPLIT, $0-0
++	JMP	runtime·reflect_chanlen(SB)
++
++TEXT reflect·chancap(SB), NOSPLIT, $0-0
++	JMP	runtime·reflect_chancap(SB)

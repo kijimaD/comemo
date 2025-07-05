@@ -11,9 +11,158 @@ Date:   Mon Dec 3 10:53:10 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  misc/cgo/errors/errors_test.go    |  7 ++++++-
  misc/cgo/errors/src/issue28069.go | 26 ++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go                | 35 +++++++++++++++++++----------------
  src/cmd/cgo/main.go               |  9 ++++++++-
  4 files changed, 59 insertions(+), 18 deletions(-)
+
+diff --git a/misc/cgo/errors/errors_test.go b/misc/cgo/errors/errors_test.go
+index 118187f23b..0d7ca4cf9d 100644
+--- a/misc/cgo/errors/errors_test.go
++++ b/misc/cgo/errors/errors_test.go
+@@ -126,7 +126,12 @@ func TestReportsTypeErrors(t *testing.T) {
+ 	}
+ 
+ 	if sizeofLongDouble(t) > 8 {
+-		check(t, "err4.go")
++		for _, file := range []string{
++			"err4.go",
++			"issue28069.go",
++		} {
++			check(t, file)
++		}
+ 	}
+ }
+ 
+diff --git a/misc/cgo/errors/src/issue28069.go b/misc/cgo/errors/src/issue28069.go
+new file mode 100644
+index 0000000000..e19a3b45bd
+--- /dev/null
++++ b/misc/cgo/errors/src/issue28069.go
+@@ -0,0 +1,26 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that the error message for an unrepresentable typedef in a
++// union appears on the right line. This test is only run if the size
++// of long double is larger than 64.
++
++package main
++
++/*
++typedef long double             Float128;
++
++typedef struct SV {
++    union {
++        Float128         float128;
++    } value;
++} SV;
++*/
++import "C"
++
++type ts struct {
++	tv *C.SV // ERROR HERE
++}
++
++func main() {}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 3c96af2be6..4464b840dd 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -171,11 +171,13 @@ func (p *Package) Translate(f *File) {
+ 	for len(p.typedefs) > numTypedefs {
+ 		numTypedefs = len(p.typedefs)
+ 		// Also ask about any typedefs we've seen so far.
+-		for _, a := range p.typedefList {
+-			f.Name[a] = &Name{
+-				Go: a,
+-				C:  a,
++		for _, info := range p.typedefList {
++			n := &Name{
++				Go: info.typedef,
++				C:  info.typedef,
+ 			}
++			f.Name[info.typedef] = n
++			f.NamePos[n] = info.pos
+ 		}
+ 		needType := p.guessKinds(f)
+ 		if len(needType) > 0 {
+@@ -573,7 +575,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 				fatalf("malformed __cgo__ name: %s", name)
+ 			}
+ 			types[i] = t.Type
+-			p.recordTypedefs(t.Type)
++			p.recordTypedefs(t.Type, f.NamePos[names[i]])
+ 		}
+ 		if e.Tag != dwarf.TagCompileUnit {
+ 			r.SkipChildren()
+@@ -641,10 +643,11 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ }
+ 
+ // recordTypedefs remembers in p.typedefs all the typedefs used in dtypes and its children.
+-func (p *Package) recordTypedefs(dtype dwarf.Type) {
+-	p.recordTypedefs1(dtype, map[dwarf.Type]bool{})
++func (p *Package) recordTypedefs(dtype dwarf.Type, pos token.Pos) {
++	p.recordTypedefs1(dtype, pos, map[dwarf.Type]bool{})
+ }
+-func (p *Package) recordTypedefs1(dtype dwarf.Type, visited map[dwarf.Type]bool) {
++
++func (p *Package) recordTypedefs1(dtype dwarf.Type, pos token.Pos, visited map[dwarf.Type]bool) {
+ 	if dtype == nil {
+ 		return
+ 	}
+@@ -660,23 +663,23 @@ func (p *Package) recordTypedefs1(dtype dwarf.Type, visited map[dwarf.Type]bool)
+ 		}
+ 		if !p.typedefs[dt.Name] {
+ 			p.typedefs[dt.Name] = true
+-			p.typedefList = append(p.typedefList, dt.Name)
+-			p.recordTypedefs1(dt.Type, visited)
++			p.typedefList = append(p.typedefList, typedefInfo{dt.Name, pos})
++			p.recordTypedefs1(dt.Type, pos, visited)
+ 		}
+ 	case *dwarf.PtrType:
+-		p.recordTypedefs1(dt.Type, visited)
++		p.recordTypedefs1(dt.Type, pos, visited)
+ 	case *dwarf.ArrayType:
+-		p.recordTypedefs1(dt.Type, visited)
++		p.recordTypedefs1(dt.Type, pos, visited)
+ 	case *dwarf.QualType:
+-		p.recordTypedefs1(dt.Type, visited)
++		p.recordTypedefs1(dt.Type, pos, visited)
+ 	case *dwarf.FuncType:
+-		p.recordTypedefs1(dt.ReturnType, visited)
++		p.recordTypedefs1(dt.ReturnType, pos, visited)
+ 		for _, a := range dt.ParamType {
+-			p.recordTypedefs1(a, visited)
++			p.recordTypedefs1(a, pos, visited)
+ 		}
+ 	case *dwarf.StructType:
+ 		for _, f := range dt.Field {
+-			p.recordTypedefs1(f.Type, visited)
++			p.recordTypedefs1(f.Type, pos, visited)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index e28a57b148..7a845b17a4 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -47,7 +47,14 @@ type Package struct {
+ 	GccFiles    []string        // list of gcc output files
+ 	Preamble    string          // collected preamble for _cgo_export.h
+ 	typedefs    map[string]bool // type names that appear in the types of the objects we're interested in
+-	typedefList []string
++	typedefList []typedefInfo
++}
++
++// A typedefInfo is an element on Package.typedefList: a typedef name
++// and the position where it was required.
++type typedefInfo struct {
++	typedef string
++	pos     token.Pos
+ }
+ 
+ // A File collects information about a single Go input file.

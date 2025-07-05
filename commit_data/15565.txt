@@ -9,6 +9,22 @@ Date:   Sun Mar 3 20:06:51 2013 +0900
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7454049
-
+---
  src/pkg/net/packetconn_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/net/packetconn_test.go b/src/pkg/net/packetconn_test.go
+index b0f3f85cc3..93c7a6472e 100644
+--- a/src/pkg/net/packetconn_test.go
++++ b/src/pkg/net/packetconn_test.go
+@@ -143,6 +143,10 @@ func TestConnAndPacketConn(t *testing.T) {
+ 				t.Fatalf("icmpMessage.Marshal failed: %v", err)
+ 			}
+ 		case "unixgram":
++			switch runtime.GOOS {
++			case "plan9", "windows":
++				continue
++			}
+ 			wb = []byte("UNIXGRAM PACKETCONN TEST")
+ 		default:
+ 			continue

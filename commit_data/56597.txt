@@ -20,8 +20,462 @@ Date:   Thu May 11 16:20:36 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/dist/test.go          |  96 +++++++++++++++++++----
  src/cmd/dist/testjson.go      | 176 ++++++++++++++++++++++++++++++++++++++++++
  src/cmd/dist/testjson_test.go |  86 +++++++++++++++++++++
  3 files changed, 344 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 4b33933459..04dfd22f88 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+@@ -41,6 +42,7 @@ func cmdtest() {
+ 			"Special exception: if the string begins with '!', the match is inverted.")
+ 	flag.BoolVar(&t.msan, "msan", false, "run in memory sanitizer builder mode")
+ 	flag.BoolVar(&t.asan, "asan", false, "run in address sanitizer builder mode")
++	flag.BoolVar(&t.json, "json", false, "report test results in JSON")
+ 
+ 	xflagparse(-1) // any number of args
+ 	if noRebuild {
+@@ -70,6 +72,7 @@ type tester struct {
+ 	short      bool
+ 	cgoEnabled bool
+ 	partial    bool
++	json       bool
+ 
+ 	tests        []distTest // use addTest to extend
+ 	testNames    map[string]bool
+@@ -212,12 +215,14 @@ func (t *tester) run() {
+ 		}
+ 	}
+ 
+-	if err := t.maybeLogMetadata(); err != nil {
+-		t.failed = true
+-		if t.keepGoing {
+-			log.Printf("Failed logging metadata: %v", err)
+-		} else {
+-			fatalf("Failed logging metadata: %v", err)
++	if !t.json {
++		if err := t.maybeLogMetadata(); err != nil {
++			t.failed = true
++			if t.keepGoing {
++				log.Printf("Failed logging metadata: %v", err)
++			} else {
++				fatalf("Failed logging metadata: %v", err)
++			}
+ 		}
+ 	}
+ 
+@@ -240,13 +245,17 @@ func (t *tester) run() {
+ 	t.runPending(nil)
+ 	timelog("end", "dist test")
+ 
++	if !t.json {
++		if t.failed {
++			fmt.Println("\nFAILED")
++		} else if t.partial {
++			fmt.Println("\nALL TESTS PASSED (some were excluded)")
++		} else {
++			fmt.Println("\nALL TESTS PASSED")
++		}
++	}
+ 	if t.failed {
+-		fmt.Println("\nFAILED")
+ 		xexit(1)
+-	} else if t.partial {
+-		fmt.Println("\nALL TESTS PASSED (some were excluded)")
+-	} else {
+-		fmt.Println("\nALL TESTS PASSED")
+ 	}
+ }
+ 
+@@ -302,7 +311,8 @@ type goTest struct {
+ 	runOnHost bool // When cross-compiling, run this test on the host instead of guest
+ 
+ 	// variant, if non-empty, is a name used to distinguish different
+-	// configurations of the same test package(s).
++	// configurations of the same test package(s). If set and sharded is false,
++	// the Package field in test2json output is rewritten to pkg:variant.
+ 	variant string
+ 	// sharded indicates that variant is used solely for sharding and that
+ 	// the set of test names run by each variant of a package is non-overlapping.
+@@ -335,7 +345,31 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
+ 
+ 	cmd := exec.Command(goCmd, args...)
+ 	setupCmd(cmd)
+-	cmd.Stdout = stdout
++	if t.json && opts.variant != "" && !opts.sharded {
++		// Rewrite Package in the JSON output to be pkg:variant. For sharded
++		// variants, pkg.TestName is already unambiguous, so we don't need to
++		// rewrite the Package field.
++		if len(opts.pkgs) != 0 {
++			panic("cannot combine multiple packages with variants")
++		}
++		// We only want to process JSON on the child's stdout. Ideally if
++		// stdout==stderr, we would also use the same testJSONFilter for
++		// cmd.Stdout and cmd.Stderr in order to keep the underlying
++		// interleaving of writes, but then it would see even partial writes
++		// interleaved, which would corrupt the JSON. So, we only process
++		// cmd.Stdout. This has another consequence though: if stdout==stderr,
++		// we have to serialize Writes in case the Writer is not concurrent
++		// safe. If we were just passing stdout/stderr through to exec, it would
++		// do this for us, but since we're wrapping stdout, we have to do it
++		// ourselves.
++		if stdout == stderr {
++			stdout = &lockedWriter{w: stdout}
++			stderr = stdout
++		}
++		cmd.Stdout = &testJSONFilter{w: stdout, variant: opts.variant}
++	} else {
++		cmd.Stdout = stdout
++	}
+ 	cmd.Stderr = stderr
+ 
+ 	return cmd
+@@ -403,6 +437,9 @@ func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs, testFl
+ 	if opts.cpu != "" {
+ 		run = append(run, "-cpu="+opts.cpu)
+ 	}
++	if t.json {
++		run = append(run, "-json")
++	}
+ 
+ 	if opts.gcflags != "" {
+ 		build = append(build, "-gcflags=all="+opts.gcflags)
+@@ -948,7 +985,7 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
+ 		if skipFunc != nil {
+ 			msg, skip := skipFunc(dt)
+ 			if skip {
+-				fmt.Println(msg)
++				t.printSkip(test, msg)
+ 				return nil
+ 			}
+ 		}
+@@ -959,6 +996,34 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
+ 	})
+ }
+ 
++func (t *tester) printSkip(test *goTest, msg string) {
++	if !t.json {
++		fmt.Println(msg)
++		return
++	}
++	type event struct {
++		Time    time.Time
++		Action  string
++		Package string
++		Output  string `json:",omitempty"`
++	}
++	out := json.NewEncoder(os.Stdout)
++	for _, pkg := range test.packages() {
++		variantName := pkg
++		if test.variant != "" {
++			variantName += ":" + test.variant
++		}
++		ev := event{Time: time.Now(), Package: variantName, Action: "start"}
++		out.Encode(ev)
++		ev.Action = "output"
++		ev.Output = msg
++		out.Encode(ev)
++		ev.Action = "skip"
++		ev.Output = ""
++		out.Encode(ev)
++	}
++}
++
+ // dirCmd constructs a Cmd intended to be run in the foreground.
+ // The command will be run in dir, and Stdout and Stderr will go to os.Stdout
+ // and os.Stderr.
+@@ -1005,6 +1070,9 @@ func (t *tester) iOS() bool {
+ }
+ 
+ func (t *tester) out(v string) {
++	if t.json {
++		return
++	}
+ 	if t.banner == "" {
+ 		return
+ 	}
+diff --git a/src/cmd/dist/testjson.go b/src/cmd/dist/testjson.go
+new file mode 100644
+index 0000000000..261b9584ce
+--- /dev/null
++++ b/src/cmd/dist/testjson.go
+@@ -0,0 +1,176 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"sync"
++)
++
++// lockedWriter serializes Write calls to an underlying Writer.
++type lockedWriter struct {
++	lock sync.Mutex
++	w    io.Writer
++}
++
++func (w *lockedWriter) Write(b []byte) (int, error) {
++	w.lock.Lock()
++	defer w.lock.Unlock()
++	return w.w.Write(b)
++}
++
++// testJSONFilter is an io.Writer filter that replaces the Package field in
++// test2json output.
++type testJSONFilter struct {
++	w       io.Writer // Underlying writer
++	variant string    // Add ":variant" to Package field
++
++	lineBuf bytes.Buffer // Buffer for incomplete lines
++}
++
++func (f *testJSONFilter) Write(b []byte) (int, error) {
++	bn := len(b)
++
++	// Process complete lines, and buffer any incomplete lines.
++	for len(b) > 0 {
++		nl := bytes.IndexByte(b, '\n')
++		if nl < 0 {
++			f.lineBuf.Write(b)
++			break
++		}
++		var line []byte
++		if f.lineBuf.Len() > 0 {
++			// We have buffered data. Add the rest of the line from b and
++			// process the complete line.
++			f.lineBuf.Write(b[:nl+1])
++			line = f.lineBuf.Bytes()
++		} else {
++			// Process a complete line from b.
++			line = b[:nl+1]
++		}
++		b = b[nl+1:]
++		f.process(line)
++		f.lineBuf.Reset()
++	}
++
++	return bn, nil
++}
++
++func (f *testJSONFilter) process(line []byte) {
++	if len(line) > 0 && line[0] == '{' {
++		// Plausible test2json output. Parse it generically.
++		//
++		// We go to some effort here to preserve key order while doing this
++		// generically. This will stay robust to changes in the test2json
++		// struct, or other additions outside of it. If humans are ever looking
++		// at the output, it's really nice to keep field order because it
++		// preserves a lot of regularity in the output.
++		dec := json.NewDecoder(bytes.NewBuffer(line))
++		dec.UseNumber()
++		val, err := decodeJSONValue(dec)
++		if err == nil && val.atom == json.Delim('{') {
++			// Rewrite the Package field.
++			found := false
++			for i := 0; i < len(val.seq); i += 2 {
++				if val.seq[i].atom == "Package" {
++					if pkg, ok := val.seq[i+1].atom.(string); ok {
++						val.seq[i+1].atom = pkg + ":" + f.variant
++						found = true
++						break
++					}
++				}
++			}
++			if found {
++				data, err := json.Marshal(val)
++				if err != nil {
++					// Should never happen.
++					panic(fmt.Sprintf("failed to round-trip JSON %q: %s", string(line), err))
++				}
++				data = append(data, '\n')
++				f.w.Write(data)
++				return
++			}
++		}
++	}
++
++	// Something went wrong. Just pass the line through.
++	f.w.Write(line)
++}
++
++type jsonValue struct {
++	atom json.Token  // If json.Delim, then seq will be filled
++	seq  []jsonValue // If atom == json.Delim('{'), alternating pairs
++}
++
++var jsonPop = errors.New("end of JSON sequence")
++
++func decodeJSONValue(dec *json.Decoder) (jsonValue, error) {
++	t, err := dec.Token()
++	if err != nil {
++		if err == io.EOF {
++			err = io.ErrUnexpectedEOF
++		}
++		return jsonValue{}, err
++	}
++
++	switch t := t.(type) {
++	case json.Delim:
++		if t == '}' || t == ']' {
++			return jsonValue{}, jsonPop
++		}
++
++		var seq []jsonValue
++		for {
++			val, err := decodeJSONValue(dec)
++			if err == jsonPop {
++				break
++			} else if err != nil {
++				return jsonValue{}, err
++			}
++			seq = append(seq, val)
++		}
++		return jsonValue{t, seq}, nil
++	default:
++		return jsonValue{t, nil}, nil
++	}
++}
++
++func (v jsonValue) MarshalJSON() ([]byte, error) {
++	var buf bytes.Buffer
++	var marshal1 func(v jsonValue) error
++	marshal1 = func(v jsonValue) error {
++		if t, ok := v.atom.(json.Delim); ok {
++			buf.WriteRune(rune(t))
++			for i, v2 := range v.seq {
++				if t == '{' && i%2 == 1 {
++					buf.WriteByte(':')
++				} else if i > 0 {
++					buf.WriteByte(',')
++				}
++				if err := marshal1(v2); err != nil {
++					return err
++				}
++			}
++			if t == '{' {
++				buf.WriteByte('}')
++			} else {
++				buf.WriteByte(']')
++			}
++			return nil
++		}
++		bytes, err := json.Marshal(v.atom)
++		if err != nil {
++			return err
++		}
++		buf.Write(bytes)
++		return nil
++	}
++	err := marshal1(v)
++	return buf.Bytes(), err
++}
+diff --git a/src/cmd/dist/testjson_test.go b/src/cmd/dist/testjson_test.go
+new file mode 100644
+index 0000000000..2ff7bf61f5
+--- /dev/null
++++ b/src/cmd/dist/testjson_test.go
+@@ -0,0 +1,86 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestJSONFilterRewritePackage(t *testing.T) {
++	const in = `{"Package":"abc"}
++{"Field1":"1","Package":"abc","Field3":"3"}
++{"Package":123}
++{}
++{"Package":"abc","Unexpected":[null,true,false,99999999999999999999]}
++`
++	want := strings.ReplaceAll(in, `"Package":"abc"`, `"Package":"abc:variant"`)
++
++	checkJSONFilter(t, in, want)
++}
++
++func TestJSONFilterMalformed(t *testing.T) {
++	const in = `unexpected text
++{"Package":"abc"}
++more text
++{"Package":"abc"}trailing text
++{not json}
++`
++	const want = `unexpected text
++{"Package":"abc:variant"}
++more text
++{"Package":"abc:variant"}
++{not json}
++`
++	// Note that currently we won't round-trip trailing text after a valid JSON
++	// line. That might be a mistake.
++	checkJSONFilter(t, in, want)
++}
++
++func TestJSONFilterBoundaries(t *testing.T) {
++	const in = `{"Package":"abc"}
++{"Package":"def"}
++{"Package":"ghi"}
++`
++	want := strings.ReplaceAll(in, `"}`, `:variant"}`)
++
++	// Write one bytes at a time.
++	t.Run("bytes", func(t *testing.T) {
++		checkJSONFilterWith(t, want, func(f *testJSONFilter) {
++			for i := 0; i < len(in); i++ {
++				f.Write([]byte{in[i]})
++			}
++		})
++	})
++	// Write a block containing a whole line bordered by two partial lines.
++	t.Run("bytes", func(t *testing.T) {
++		checkJSONFilterWith(t, want, func(f *testJSONFilter) {
++			const b1 = 5
++			const b2 = len(in) - 5
++			f.Write([]byte(in[:b1]))
++			f.Write([]byte(in[b1:b2]))
++			f.Write([]byte(in[b2:]))
++		})
++	})
++}
++
++func checkJSONFilter(t *testing.T, in, want string) {
++	t.Helper()
++	checkJSONFilterWith(t, want, func(f *testJSONFilter) {
++		f.Write([]byte(in))
++	})
++}
++
++func checkJSONFilterWith(t *testing.T, want string, write func(*testJSONFilter)) {
++	t.Helper()
++
++	out := new(strings.Builder)
++	f := &testJSONFilter{w: out, variant: "variant"}
++	write(f)
++	got := out.String()
++	if want != got {
++		t.Errorf("want:\n%s\ngot:\n%s", want, got)
++	}
++}

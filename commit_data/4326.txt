@@ -6,6 +6,20 @@ Date:   Fri Dec 4 17:08:54 2009 -0800
     
     R=r
     https://golang.org/cl/166064
-
+---
  src/cmd/gotest/gotest | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 75fd192171..8de0665886 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -65,7 +65,7 @@ done
+ 
+ case "x$gofiles" in
+ x)
+-	gofiles=$(echo -n $(ls *_test.go *_test.pb.go 2>/dev/null))
++	gofiles=$(echo -n $(ls *_test.go 2>/dev/null))
+ esac
+ 
+ case "x$gofiles" in

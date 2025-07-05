@@ -9,9 +9,112 @@ Date:   Fri Oct 14 17:34:00 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5256041
-
+---
  src/cmd/godefs/testdata.c                   | 13 +++++++++-
  src/cmd/godefs/testdata_darwin_386.golden   |  7 ++++++
  src/cmd/godefs/testdata_darwin_amd64.golden |  7 ++++++
  src/cmd/godefs/testdata_linux_arm.golden    | 38 +++++++++++++++++++++++++++++
  4 files changed, 64 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godefs/testdata.c b/src/cmd/godefs/testdata.c
+index 3f459c41ba..f12589bf47 100644
+--- a/src/cmd/godefs/testdata.c
++++ b/src/cmd/godefs/testdata.c
+@@ -38,4 +38,15 @@ struct T5 {
+ 
+ typedef struct T5 T5;
+ typedef struct T4 $T4;
+-typedef T5 $T5;
+\ No newline at end of file
++typedef T5 $T5;
++
++// Test constants and enumerations are printed correctly. clang/2.9 with 
++// -O2 and above causes Bprint to print %#llx values incorrectly.
++enum {
++	$sizeofPtr = sizeof(void*),
++	$sizeofShort = sizeof(short),
++	$sizeofInt = sizeof(int),
++	$sizeofLong = sizeof(long),
++	$sizeofLongLong = sizeof(long long),
++};
++
+diff --git a/src/cmd/godefs/testdata_darwin_386.golden b/src/cmd/godefs/testdata_darwin_386.golden
+index d929238b0a..0b269cc8c4 100644
+--- a/src/cmd/godefs/testdata_darwin_386.golden
++++ b/src/cmd/godefs/testdata_darwin_386.golden
+@@ -5,6 +5,13 @@
+ package test
+ 
+ // Constants
++const (
++	sizeofPtr = 0x4;
++	sizeofShort = 0x2;
++	sizeofInt = 0x4;
++	sizeofLong = 0x4;
++	sizeofLongLong = 0x8;
++)
+ 
+ // Types
+ 
+diff --git a/src/cmd/godefs/testdata_darwin_amd64.golden b/src/cmd/godefs/testdata_darwin_amd64.golden
+index a694f4a73d..c9e18a9b0b 100644
+--- a/src/cmd/godefs/testdata_darwin_amd64.golden
++++ b/src/cmd/godefs/testdata_darwin_amd64.golden
+@@ -5,6 +5,13 @@
+ package test
+ 
+ // Constants
++const (
++	sizeofPtr = 0x8;
++	sizeofShort = 0x2;
++	sizeofInt = 0x4;
++	sizeofLong = 0x8;
++	sizeofLongLong = 0x8;
++)
+ 
+ // Types
+ 
+diff --git a/src/cmd/godefs/testdata_linux_arm.golden b/src/cmd/godefs/testdata_linux_arm.golden
+new file mode 100644
+index 0000000000..9fd4818a30
+--- /dev/null
++++ b/src/cmd/godefs/testdata_linux_arm.golden
+@@ -0,0 +1,38 @@
++// ./godefs -g test testdata.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++package test
++
++// Constants
++const (
++	sizeofPtr = 0x4;
++	sizeofShort = 0x2;
++	sizeofInt = 0x4;
++	sizeofLong = 0x4;
++	sizeofLongLong = 0x8;
++)
++
++// Types
++
++type T2 struct {
++	A uint8;
++	Pad_godefs_0 [3]byte;
++	B uint32;
++	C uint32;
++	D uint16;
++	Pad_godefs_1 [2]byte;
++}
++
++type T3 struct {
++	A uint8;
++	Pad_godefs_0 [3]byte;
++	Pad0 int32;
++}
++
++type T4 struct {
++}
++
++type T5 struct {
++	A *T4;
++}

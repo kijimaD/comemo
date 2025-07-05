@@ -7,8 +7,65 @@ Date:   Wed Sep 2 13:13:40 2009 -0700
     TBR=gri
     OCL=34264
     CL=34264
-
+---
  src/pkg/debug/gosym/Makefile     | 13 +++++++++++++
  src/pkg/debug/proc/proc.go       | 10 ++++++++++
  src/pkg/debug/proc/proc_linux.go |  2 ++
  3 files changed, 25 insertions(+)
+
+diff --git a/src/pkg/debug/gosym/Makefile b/src/pkg/debug/gosym/Makefile
+new file mode 100644
+index 0000000000..715288250f
+--- /dev/null
++++ b/src/pkg/debug/gosym/Makefile
+@@ -0,0 +1,13 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=debug/gosym
++GOFILES=\
++	pclntab.go\
++	symtab.go\
++
++include $(GOROOT)/src/Make.pkg
++
+diff --git a/src/pkg/debug/proc/proc.go b/src/pkg/debug/proc/proc.go
+index 023f4775c0..e8c62f22b5 100644
+--- a/src/pkg/debug/proc/proc.go
++++ b/src/pkg/debug/proc/proc.go
+@@ -9,9 +9,19 @@
+ // memory and registers.
+ package proc
+ 
++// TODO(rsc): Have to import everything that proc_linux.go
++// and proc_darwin.go do, because deps.bash only looks at
++// this file.
+ import (
++	"container/vector";
++	"fmt";
++	"io";
+ 	"os";
++	"runtime";
+ 	"strconv";
++	"strings";
++	"sync";
++	"syscall";
+ )
+ 
+ type Word uint64
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index 88269100fd..87d3bf1ef7 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -4,6 +4,8 @@
+ 
+ package proc
+ 
++// TODO(rsc): Imports here after to be in proc.go too in order
++// for deps.bash to get the right answer.
+ import (
+ 	"container/vector";
+ 	"fmt";

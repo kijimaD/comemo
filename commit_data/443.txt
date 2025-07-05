@@ -7,7 +7,46 @@ Date:   Mon Jul 28 16:08:38 2008 -0700
     R=gri
     OCL=13526
     CL=13526
-
+---
  test/{bugs => fixedbugs}/bug057.go | 0
  test/golden.out                    | 9 +++++----
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/test/bugs/bug057.go b/test/fixedbugs/bug057.go
+similarity index 100%
+rename from test/bugs/bug057.go
+rename to test/fixedbugs/bug057.go
+diff --git a/test/golden.out b/test/golden.out
+index 307a8a5f24..368ac538bd 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -183,10 +183,6 @@ BUG: len should not be a keyword
+ bugs/bug054.go:25: fatal error: agen_inter i2s
+ BUG: known to fail incorrectly
+ 
+-=========== bugs/bug057.go
+-bugs/bug057.go:14: syntax error
+-BUG: compilation should succeed
+-
+ =========== bugs/bug060.go
+ BUG: crashes
+ 
+@@ -242,6 +238,9 @@ BUG: known to succeed incorrectly
+ 
+ =========== bugs/bug078.go
+ 
++=========== bugs/bug079.go
++BUG: succeeds incorrectly
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go
+@@ -336,6 +335,8 @@ fixedbugs/bug051.go:10: expression must be a constant
+ 
+ =========== fixedbugs/bug056.go
+ 
++=========== fixedbugs/bug057.go
++
+ =========== fixedbugs/bug058.go
+ 
+ =========== fixedbugs/bug059.go

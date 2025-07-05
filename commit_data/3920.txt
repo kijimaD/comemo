@@ -20,8 +20,161 @@ Date:   Sun Nov 8 23:34:08 2009 -0800
     R=rsc
     CC=r, dsymonds
     http://go/go-review/1026033
-
+---
  lib/godoc/search.html  | 10 ++++++---
  src/cmd/godoc/godoc.go |  3 ++-
  src/cmd/godoc/index.go | 56 +++++++++++++++++++++++++++++++++++---------------
  3 files changed, 49 insertions(+), 20 deletions(-)
+
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index 927910f656..e715df3439 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -22,7 +22,7 @@
+ 	{.section Decls}
+ 		<h2>Package-level declarations</h2>
+ 		{.repeated section @}
+-			<h3>package {Pak.Name|html}</h3>
++			<h3>package <a href="{Pak.Path|path}" class="noline">{Pak.Name|html}</a></h3>
+ 			{.repeated section Files}
+ 				{.repeated section Groups}
+ 					{.repeated section Infos}
+@@ -36,7 +36,7 @@
+ 	{.section Others}
+ 		<h2>Local declarations and uses</h2>
+ 		{.repeated section @}
+-			<h3>package {Pak.Name|html}</h3>
++			<h3>package <a href="{Pak.Path|path}" class="noline">{Pak.Name|html}</a></h3>
+ 			{.repeated section Files}
+ 				<a href="{File.Path|html}?h={Query|html}" class="noline">{File.Path|html}</a>
+ 				<table class="layout">
+@@ -56,7 +56,11 @@
+ 			{.end}
+ 		{.end}
+ 	{.end}
+-{.or}
++{.end}
++{.section Illegal}
++	<p>
++	<span class="alert" style="font-size:120%">Illegal query syntax</span>
++	</p>
+ 	<p>
+ 	A legal query is a single identifier (such as <a href="search?q=ToLower">ToLower</a>)
+ 	or a qualified identifier (such as <a href="search?q=math.Sin">math.Sin</a>).
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index eb97253508..91e21ea463 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1088,6 +1088,7 @@ type SearchResult struct {
+ 	Query		string;
+ 	Hit		*LookupResult;
+ 	Alt		*AltWords;
++	Illegal		bool;
+ 	Accurate	bool;
+ }
+ 
+@@ -1097,7 +1098,7 @@ func search(c *http.Conn, r *http.Request) {
+ 
+ 	if index, timestamp := searchIndex.get(); index != nil {
+ 		result.Query = query;
+-		result.Hit, result.Alt = index.(*Index).Lookup(query);
++		result.Hit, result.Alt, result.Illegal = index.(*Index).Lookup(query);
+ 		_, ts := fsTree.get();
+ 		result.Accurate = timestamp >= ts;
+ 	}
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 00c8cf2c73..223019cf87 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -29,6 +29,7 @@ import (
+ 	"go/ast";
+ 	"go/parser";
+ 	"go/token";
++	"go/scanner";
+ 	"os";
+ 	pathutil "path";
+ 	"sort";
+@@ -411,6 +412,11 @@ func (a *AltWords) filter(s string) *AltWords {
+ // ----------------------------------------------------------------------------
+ // Indexer
+ 
++// Adjust these flags as seems best.
++const excludeMainPackages = false
++const excludeTestFiles = false
++
++
+ type IndexResult struct {
+ 	Decls	RunList;	// package-level declarations (with snippets)
+ 	Others	RunList;	// all other occurences
+@@ -583,6 +589,14 @@ func (x *Indexer) VisitFile(path string, d *os.Dir) {
+ 		return;
+ 	}
+ 
++	if excludeTestFiles && (!isPkgFile(d) || strings.HasPrefix(path, "test/")) {
++		return;
++	}
++
++	if excludeMainPackages && pkgName(path) == "main" {
++		return;
++	}
++
+ 	file, err := parser.ParseFile(path, nil, parser.ParseComments);
+ 	if err != nil {
+ 		return;	// ignore files with (parse) errors
+@@ -681,11 +695,30 @@ func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
+ }
+ 
+ 
+-// For a given string s, which is either a single identifier or a qualified
++func isIdentifier(s string) bool {
++	var S scanner.Scanner;
++	S.Init("", strings.Bytes(s), nil, 0);
++	if _, tok, _ := S.Scan(); tok == token.IDENT {
++		_, tok, _ := S.Scan();
++		return tok == token.EOF;
++	}
++	return false;
++}
++
++
++// For a given query, which is either a single identifier or a qualified
+ // identifier, Lookup returns a LookupResult, and a list of alternative
+-// spellings, if any.
+-func (x *Index) Lookup(s string) (match *LookupResult, alt *AltWords) {
+-	ss := strings.Split(s, ".", 0);
++// spellings, if any. If the query syntax is wrong, illegal is set.
++func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, illegal bool) {
++	ss := strings.Split(query, ".", 0);
++
++	// check query syntax
++	for _, s := range ss {
++		if !isIdentifier(s) {
++			illegal = true;
++			return;
++		}
++	}
+ 
+ 	switch len(ss) {
+ 	case 1:
+@@ -700,18 +733,9 @@ func (x *Index) Lookup(s string) (match *LookupResult, alt *AltWords) {
+ 			others := match.Others.filter(pakname);
+ 			match = &LookupResult{decls, others};
+ 		}
+-		if alt != nil {
+-			// alternative spellings found - add package name
+-			// TODO(gri): At the moment this is not very smart
+-			// and likely will produce suggestions that have
+-			// no match. Should filter incorrect alternatives.
+-			canon := pakname + "." + alt.Canon;	// for completeness (currently not used)
+-			alts := make([]string, len(alt.Alts));
+-			for i, a := range alt.Alts {
+-				alts[i] = pakname+"."+a;
+-			}
+-			alt = &AltWords{canon, alts};
+-		}
++
++	default:
++		illegal = true;
+ 	}
+ 
+ 	return;

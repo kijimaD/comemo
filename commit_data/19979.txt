@@ -8,6 +8,20 @@ Date:   Thu Aug 7 21:48:34 2014 -0400
     R=golang-codereviews, adg, dave
     CC=golang-codereviews
     https://golang.org/cl/123050043
-
+---
  misc/nacl/testzip.proto | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 57c2e1b08a..596f50303c 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -10,6 +10,8 @@ usr	src=../misc/nacl/testdata
+ go	src=..
+ 	src
+ 		cmd
++			internal
++				+
+ 			gofmt
+ 				testdata
+ 					+

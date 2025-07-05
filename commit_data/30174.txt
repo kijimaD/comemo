@@ -14,8 +14,74 @@ Date:   Wed Oct 26 17:14:35 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go       | 7 ++++---
  src/cmd/compile/internal/gc/go.go        | 8 ++------
  src/cmd/compile/internal/gc/typecheck.go | 6 ++----
  3 files changed, 8 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index a3ef2e34c1..45c0d789d1 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -589,9 +589,10 @@ func (e *EscState) escfunc(fn *Node) {
+ // Mark labels that have no backjumps to them as not increasing e.loopdepth.
+ // Walk hasn't generated (goto|label).Left.Sym.Label yet, so we'll cheat
+ // and set it to one of the following two. Then in esc we'll clear it again.
+-var looping Label
+-
+-var nonlooping Label
++var (
++	looping    Node
++	nonlooping Node
++)
+ 
+ func (e *EscState) escloopdepthlist(l Nodes) {
+ 	for _, n := range l.Slice() {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 97066cde01..9ab1a8557d 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -47,16 +47,12 @@ type Sym struct {
+ 	Block      int32  // blocknumber to catch redeclaration
+ 	Lastlineno int32  // last declaration for diagnostic
+ 
+-	Label   *Label // corresponding label (ephemeral)
+-	Origpkg *Pkg   // original package for . import
++	Label   *Node // corresponding label (ephemeral)
++	Origpkg *Pkg  // original package for . import
+ 	Lsym    *obj.LSym
+ 	Fsym    *Sym // funcsym
+ }
+ 
+-type Label struct {
+-	Def *Node
+-}
+-
+ type SymFlags uint8
+ 
+ const (
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7de8ab7d04..eb95c20992 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3841,7 +3841,7 @@ func markbreak(n *Node, implicit *Node) {
+ 		} else {
+ 			lab := n.Left.Sym.Label
+ 			if lab != nil {
+-				lab.Def.SetHasBreak(true)
++				lab.SetHasBreak(true)
+ 			}
+ 		}
+ 
+@@ -3872,9 +3872,7 @@ func markbreaklist(l Nodes, implicit *Node) {
+ 		if n.Op == OLABEL && i+1 < len(s) && n.Name.Defn == s[i+1] {
+ 			switch n.Name.Defn.Op {
+ 			case OFOR, OSWITCH, OTYPESW, OSELECT, ORANGE:
+-				lab := new(Label)
+-				lab.Def = n.Name.Defn
+-				n.Left.Sym.Label = lab
++				n.Left.Sym.Label = n.Name.Defn
+ 				markbreak(n.Name.Defn, n.Name.Defn)
+ 				n.Left.Sym.Label = nil
+ 				i++

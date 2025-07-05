@@ -8,8 +8,97 @@ Date:   Sat Nov 7 23:59:24 2009 -0800
     
     R=rsc
     http://go/go-review/1026022
-
+---
  src/cmd/gofmt/gofmt.go              |  4 ++++
  src/pkg/tabwriter/tabwriter.go      |  4 ++++
  src/pkg/tabwriter/tabwriter_test.go | 12 ++++++------
  3 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 4fab0aec4f..b554c4f151 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -153,6 +153,10 @@ func walkDir(path string) {
+ func main() {
+ 	flag.Usage = usage;
+ 	flag.Parse();
++	if *tabwidth < 0 {
++		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabwidth);
++		os.Exit(2);
++	}
+ 
+ 	if flag.NArg() == 0 {
+ 		if err := processFile("/dev/stdin"); err != nil {
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index 9370bb4a0b..0946f2edd5 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -229,6 +229,10 @@ func (b *Writer) write0(buf []byte) os.Error {
+ var newline = []byte{'\n'}
+ 
+ func (b *Writer) writePadding(textw, cellw int) os.Error {
++	if b.cellwidth == 0 {
++		return nil;
++	}
++
+ 	if b.padbytes[0] == '\t' {
+ 		// make cell width a multiple of cellwidth
+ 		cellw = ((cellw + b.cellwidth - 1) / b.cellwidth) * b.cellwidth;
+diff --git a/src/pkg/tabwriter/tabwriter_test.go b/src/pkg/tabwriter/tabwriter_test.go
+index 6016e36cfe..1f52eef827 100644
+--- a/src/pkg/tabwriter/tabwriter_test.go
++++ b/src/pkg/tabwriter/tabwriter_test.go
+@@ -283,7 +283,7 @@ var tests = []entry{
+ 
+ 	entry{
+ 		"9a",
+-		0, 0, '.', 0,
++		1, 0, '.', 0,
+ 		"1\t2\t3\t4\n"
+ 			"11\t222\t3333\t44444\n",
+ 
+@@ -293,7 +293,7 @@ var tests = []entry{
+ 
+ 	entry{
+ 		"9b",
+-		0, 0, '.', FilterHTML,
++		1, 0, '.', FilterHTML,
+ 		"1\t2<!---\f--->\t3\t4\n"	// \f inside HTML is ignored
+ 			"11\t222\t3333\t44444\n",
+ 
+@@ -303,7 +303,7 @@ var tests = []entry{
+ 
+ 	entry{
+ 		"9c",
+-		0, 0, '.', 0,
++		1, 0, '.', 0,
+ 		"1\t2\t3\t4\f"	// \f causes a newline and flush
+ 			"11\t222\t3333\t44444\n",
+ 
+@@ -313,7 +313,7 @@ var tests = []entry{
+ 
+ 	entry{
+ 		"9c debug",
+-		0, 0, '.', Debug,
++		1, 0, '.', Debug,
+ 		"1\t2\t3\t4\f"	// \f causes a newline and flush
+ 			"11\t222\t3333\t44444\n",
+ 
+@@ -445,7 +445,7 @@ var tests = []entry{
+ 
+ 	entry{
+ 		"14",
+-		0, 2, ' ', AlignRight,
++		1, 2, ' ', AlignRight,
+ 		".0\t.3\t2.4\t-5.1\t\n"
+ 			"23.0\t12345678.9\t2.4\t-989.4\t\n"
+ 			"5.1\t12.0\t2.4\t-7.0\t\n"
+@@ -463,7 +463,7 @@ var tests = []entry{
+ 
+ 	entry{
+ 		"14 debug",
+-		0, 2, ' ', AlignRight | Debug,
++		1, 2, ' ', AlignRight | Debug,
+ 		".0\t.3\t2.4\t-5.1\t\n"
+ 			"23.0\t12345678.9\t2.4\t-989.4\t\n"
+ 			"5.1\t12.0\t2.4\t-7.0\t\n"

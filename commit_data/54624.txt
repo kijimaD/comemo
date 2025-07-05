@@ -14,7 +14,34 @@ Date:   Fri Nov 4 11:23:12 2022 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/hashdebug.go      | 2 +-
  src/cmd/compile/internal/base/hashdebug_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index c93d042f71..609f80393e 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -140,7 +140,7 @@ func NewHashDebug(ev, s string, file writeSyncer) *HashDebug {
+ 		hd.no = true
+ 		return hd
+ 	}
+-	ss := strings.Split(s, ";")
++	ss := strings.Split(s, "/")
+ 	hd.matches = append(hd.matches, toHashAndMask(ss[0], ev))
+ 	// hash searches may use additional EVs with 0, 1, 2, ... suffixes.
+ 	for i := 1; i < len(ss); i++ {
+diff --git a/src/cmd/compile/internal/base/hashdebug_test.go b/src/cmd/compile/internal/base/hashdebug_test.go
+index decdf5ce0f..b74169f895 100644
+--- a/src/cmd/compile/internal/base/hashdebug_test.go
++++ b/src/cmd/compile/internal/base/hashdebug_test.go
+@@ -130,7 +130,7 @@ func TestHashNoMatch(t *testing.T) {
+ 
+ func TestHashSecondMatch(t *testing.T) {
+ 	ws := new(bufferWithSync)
+-	hd := NewHashDebug("GOSSAHASH", "001100;0011", ws)
++	hd := NewHashDebug("GOSSAHASH", "001100/0011", ws)
+ 
+ 	check := hd.DebugHashMatch("bar")
+ 	msg := ws.String()

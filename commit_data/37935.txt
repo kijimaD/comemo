@@ -18,7 +18,92 @@ Date:   Wed Sep 12 16:45:10 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/example_test.go | 21 ++++++++++++++++-----
  src/go/types/scope.go        | 10 ++--------
  2 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index 2a2fb3fc59..492127bbab 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -51,6 +51,7 @@ type Celsius float64
+ func (c Celsius) String() string { return fmt.Sprintf("%g°C", c) }
+ func FToC(f float64) Celsius { return Celsius(f - 32 / 9 * 5) }
+ const Boiling Celsius = 100
++func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get printed
+ `},
+ 	} {
+ 		f, err := parser.ParseFile(fset, file.name, file.input, 0)
+@@ -81,23 +82,33 @@ const Boiling Celsius = 100
+ 	// .  const temperature.Boiling temperature.Celsius
+ 	// .  type temperature.Celsius float64
+ 	// .  func temperature.FToC(f float64) temperature.Celsius
++	// .  func temperature.Unused()
+ 	// .  func temperature.main()
+-	//
+ 	// .  main.go scope {
+ 	// .  .  package fmt
+-	//
+ 	// .  .  function scope {
+ 	// .  .  .  var freezing temperature.Celsius
+-	// .  .  }.  }
++	// .  .  }
++	// .  }
+ 	// .  celsius.go scope {
+ 	// .  .  package fmt
+-	//
+ 	// .  .  function scope {
+ 	// .  .  .  var c temperature.Celsius
+ 	// .  .  }
+ 	// .  .  function scope {
+ 	// .  .  .  var f float64
+-	// .  .  }.  }}
++	// .  .  }
++	// .  .  function scope {
++	// .  .  .  block scope {
++	// .  .  .  }
++	// .  .  .  block scope {
++	// .  .  .  .  block scope {
++	// .  .  .  .  .  var x int
++	// .  .  .  .  }
++	// .  .  .  }
++	// .  .  }
++	// .  }
++	// }
+ }
+ 
+ // ExampleMethodSet prints the method sets of various types.
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index 39e42d758a..839a60db2e 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -161,13 +161,8 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
+ 	const ind = ".  "
+ 	indn := strings.Repeat(ind, n)
+ 
+-	fmt.Fprintf(w, "%s%s scope %p {", indn, s.comment, s)
+-	if len(s.elems) == 0 {
+-		fmt.Fprintf(w, "}\n")
+-		return
+-	}
++	fmt.Fprintf(w, "%s%s scope %p {\n", indn, s.comment, s)
+ 
+-	fmt.Fprintln(w)
+ 	indn1 := indn + ind
+ 	for _, name := range s.Names() {
+ 		fmt.Fprintf(w, "%s%s\n", indn1, s.elems[name])
+@@ -175,12 +170,11 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
+ 
+ 	if recurse {
+ 		for _, s := range s.children {
+-			fmt.Fprintln(w)
+ 			s.WriteTo(w, n+1, recurse)
+ 		}
+ 	}
+ 
+-	fmt.Fprintf(w, "%s}", indn)
++	fmt.Fprintf(w, "%s}\n", indn)
+ }
+ 
+ // String returns a string representation of the scope, for debugging.

@@ -12,8 +12,137 @@ Date:   Tue Apr 20 16:15:29 2021 +0300
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/database/sql/fakedb_test.go |  8 +++++-
  src/database/sql/sql.go         | 54 +++++++++++++++++++++++++++++++++++++++++
  src/database/sql/sql_test.go    | 24 ++++++++++++++++++
  3 files changed, 85 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index 72e16e05b1..4b68f1cba9 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -1186,9 +1186,11 @@ func converterForType(typ string) driver.ValueConverter {
+ 		return driver.Bool
+ 	case "nullbool":
+ 		return driver.Null{Converter: driver.Bool}
++	case "byte", "int16":
++		return driver.NotNull{Converter: driver.DefaultParameterConverter}
+ 	case "int32":
+ 		return driver.Int32
+-	case "nullint32":
++	case "nullbyte", "nullint32", "nullint16":
+ 		return driver.Null{Converter: driver.DefaultParameterConverter}
+ 	case "string":
+ 		return driver.NotNull{Converter: fakeDriverString{}}
+@@ -1222,6 +1224,10 @@ func colTypeToReflectType(typ string) reflect.Type {
+ 		return reflect.TypeOf(false)
+ 	case "nullbool":
+ 		return reflect.TypeOf(NullBool{})
++	case "int16":
++		return reflect.TypeOf(int16(0))
++	case "nullint16":
++		return reflect.TypeOf(NullInt16{})
+ 	case "int32":
+ 		return reflect.TypeOf(int32(0))
+ 	case "nullint32":
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 61b5018f0b..68fb392e0d 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -260,6 +260,60 @@ func (n NullInt32) Value() (driver.Value, error) {
+ 	return int64(n.Int32), nil
+ }
+ 
++// NullInt16 represents an int16 that may be null.
++// NullInt16 implements the Scanner interface so
++// it can be used as a scan destination, similar to NullString.
++type NullInt16 struct {
++	Int16 int16
++	Valid bool // Valid is true if Int16 is not NULL
++}
++
++// Scan implements the Scanner interface.
++func (n *NullInt16) Scan(value interface{}) error {
++	if value == nil {
++		n.Int16, n.Valid = 0, false
++		return nil
++	}
++	err := convertAssign(&n.Int16, value)
++	n.Valid = err == nil
++	return err
++}
++
++// Value implements the driver Valuer interface.
++func (n NullInt16) Value() (driver.Value, error) {
++	if !n.Valid {
++		return nil, nil
++	}
++	return int64(n.Int16), nil
++}
++
++// NullByte represents a byte that may be null.
++// NullByte implements the Scanner interface so
++// it can be used as a scan destination, similar to NullString.
++type NullByte struct {
++	Byte  byte
++	Valid bool // Valid is true if Byte is not NULL
++}
++
++// Scan implements the Scanner interface.
++func (n *NullByte) Scan(value interface{}) error {
++	if value == nil {
++		n.Byte, n.Valid = 0, false
++		return nil
++	}
++	err := convertAssign(&n.Byte, value)
++	n.Valid = err == nil
++	return err
++}
++
++// Value implements the driver Valuer interface.
++func (n NullByte) Value() (driver.Value, error) {
++	if !n.Valid {
++		return nil, nil
++	}
++	return int64(n.Byte), nil
++}
++
+ // NullFloat64 represents a float64 that may be null.
+ // NullFloat64 implements the Scanner interface so
+ // it can be used as a scan destination, similar to NullString.
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 94af39c207..80f63e877d 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -1819,6 +1819,30 @@ func TestNullInt32Param(t *testing.T) {
+ 	nullTestRun(t, spec)
+ }
+ 
++func TestNullInt16Param(t *testing.T) {
++	spec := nullTestSpec{"nullint16", "int16", [6]nullTestRow{
++		{NullInt16{31, true}, 1, NullInt16{31, true}},
++		{NullInt16{-22, false}, 1, NullInt16{0, false}},
++		{22, 1, NullInt16{22, true}},
++		{NullInt16{33, true}, 1, NullInt16{33, true}},
++		{NullInt16{222, false}, 1, NullInt16{0, false}},
++		{0, NullInt16{31, false}, nil},
++	}}
++	nullTestRun(t, spec)
++}
++
++func TestNullByteParam(t *testing.T) {
++	spec := nullTestSpec{"nullbyte", "byte", [6]nullTestRow{
++		{NullByte{31, true}, 1, NullByte{31, true}},
++		{NullByte{0, false}, 1, NullByte{0, false}},
++		{22, 1, NullByte{22, true}},
++		{NullByte{33, true}, 1, NullByte{33, true}},
++		{NullByte{222, false}, 1, NullByte{0, false}},
++		{0, NullByte{31, false}, nil},
++	}}
++	nullTestRun(t, spec)
++}
++
+ func TestNullFloat64Param(t *testing.T) {
+ 	spec := nullTestSpec{"nullfloat64", "float64", [6]nullTestRow{
+ 		{NullFloat64{31.2, true}, 1, NullFloat64{31.2, true}},

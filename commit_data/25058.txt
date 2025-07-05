@@ -13,6 +13,29 @@ Date:   Fri Sep 18 22:12:38 2015 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 186c1a2996..fb7e0c54ac 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -574,7 +574,16 @@ func (s *state) stmt(n *Node) {
+ 		}
+ 		var r *ssa.Value
+ 		if n.Right != nil {
+-			r = s.expr(n.Right)
++			if n.Right.Op == OSTRUCTLIT || n.Right.Op == OARRAYLIT {
++				// All literals with nonzero fields have already been
++				// rewritten during walk.  Any that remain are just T{}
++				// or equivalents.  Leave r = nil to get zeroing behavior.
++				if !iszero(n.Right) {
++					Fatalf("literal with nonzero value in SSA: %v", n.Right)
++				}
++			} else {
++				r = s.expr(n.Right)
++			}
+ 		}
+ 		if n.Right != nil && n.Right.Op == OAPPEND {
+ 			// Yuck!  The frontend gets rid of the write barrier, but we need it!

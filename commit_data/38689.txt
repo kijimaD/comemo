@@ -9,9 +9,215 @@ Date:   Wed Nov 14 12:34:38 2018 -0500
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/boring_test.go            | 65 ++++++++++----------------------
  src/crypto/tls/cipher_suites.go          |  8 ++--
  src/crypto/tls/handshake_client_tls13.go |  4 ++
  src/crypto/tls/handshake_server_tls13.go |  4 ++
  4 files changed, 31 insertions(+), 50 deletions(-)
+
+diff --git a/src/crypto/tls/boring_test.go b/src/crypto/tls/boring_test.go
+index 258a1f2ccf..7a522c6a1f 100644
+--- a/src/crypto/tls/boring_test.go
++++ b/src/crypto/tls/boring_test.go
+@@ -32,6 +32,7 @@ func TestBoringServerProtocolVersion(t *testing.T) {
+ 				random:             make([]byte, 32),
+ 				cipherSuites:       allCipherSuites(),
+ 				compressionMethods: []uint8{compressionNone},
++				supportedVersions:  []uint16{v},
+ 			}
+ 			testClientHelloFailure(t, serverConfig, clientHello, msg)
+ 		})
+@@ -41,6 +42,7 @@ func TestBoringServerProtocolVersion(t *testing.T) {
+ 	test("VersionTLS10", VersionTLS10, "")
+ 	test("VersionTLS11", VersionTLS11, "")
+ 	test("VersionTLS12", VersionTLS12, "")
++	test("VersionTLS13", VersionTLS13, "")
+ 
+ 	fipstls.Force()
+ 	defer fipstls.Abandon()
+@@ -48,6 +50,11 @@ func TestBoringServerProtocolVersion(t *testing.T) {
+ 	test("VersionTLS10", VersionTLS10, "client offered only unsupported versions")
+ 	test("VersionTLS11", VersionTLS11, "client offered only unsupported versions")
+ 	test("VersionTLS12", VersionTLS12, "")
++	test("VersionTLS13", VersionTLS13, "client offered only unsupported versions")
++}
++
++func isBoringVersion(v uint16) bool {
++	return v == VersionTLS12
+ }
+ 
+ func isBoringCipherSuite(id uint16) bool {
+@@ -171,7 +178,7 @@ func TestBoringServerCurves(t *testing.T) {
+ }
+ 
+ func boringHandshake(t *testing.T, clientConfig, serverConfig *Config) (clientErr, serverErr error) {
+-	c, s := realNetPipe(t)
++	c, s := localPipe(t)
+ 	client := Client(c, clientConfig)
+ 	server := Server(s, serverConfig)
+ 	done := make(chan error, 1)
+@@ -196,7 +203,7 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
+ 	for _, sigHash := range defaultSupportedSignatureAlgorithms {
+ 		testingOnlyForceClientHelloSignatureAlgorithms = []SignatureScheme{sigHash}
+ 
+-		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
++		t.Run(fmt.Sprintf("%#x", sigHash), func(t *testing.T) {
+ 			switch sigHash {
+ 			case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512,
+ 				PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
+@@ -214,9 +221,9 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
+ 			// 1.3, and the ECDSA ones bind to the curve used.
+ 			serverConfig.MaxVersion = VersionTLS12
+ 
+-			clientErr, _ := boringHandshake(t, testConfig, serverConfig)
++			clientErr, serverErr := boringHandshake(t, testConfig, serverConfig)
+ 			if clientErr != nil {
+-				t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
++				t.Fatalf("expected handshake with %#x to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
+ 			}
+ 
+ 			// With fipstls forced, bad curves should be rejected.
+@@ -226,11 +233,11 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
+ 				clientErr, _ := boringHandshake(t, testConfig, serverConfig)
+ 				if isBoringSignatureScheme(sigHash) {
+ 					if clientErr != nil {
+-						t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
++						t.Fatalf("expected handshake with %#x to succeed; err=%v", sigHash, clientErr)
+ 					}
+ 				} else {
+ 					if clientErr == nil {
+-						t.Fatalf("expected handshake with %v to fail, but it succeeded", sigHash)
++						t.Fatalf("expected handshake with %#x to fail, but it succeeded", sigHash)
+ 					}
+ 				}
+ 			})
+@@ -251,6 +258,7 @@ func TestBoringClientHello(t *testing.T) {
+ 	clientConfig := testConfig.Clone()
+ 	// All sorts of traps for the client to avoid.
+ 	clientConfig.MinVersion = VersionSSL30
++	clientConfig.MaxVersion = VersionTLS13
+ 	clientConfig.CipherSuites = allCipherSuites()
+ 	clientConfig.CurvePreferences = defaultCurvePreferences
+ 
+@@ -265,9 +273,14 @@ func TestBoringClientHello(t *testing.T) {
+ 		t.Fatalf("unexpected message type %T", msg)
+ 	}
+ 
+-	if hello.vers != VersionTLS12 {
++	if !isBoringVersion(hello.vers) {
+ 		t.Errorf("client vers=%#x, want %#x (TLS 1.2)", hello.vers, VersionTLS12)
+ 	}
++	for _, v := range hello.supportedVersions {
++		if !isBoringVersion(v) {
++			t.Errorf("client offered disallowed version %#x", v)
++		}
++	}
+ 	for _, id := range hello.cipherSuites {
+ 		if !isBoringCipherSuite(id) {
+ 			t.Errorf("client offered disallowed suite %#x", id)
+@@ -549,26 +562,6 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
+ 	return &boringCertificate{name, org, parentOrg, der, cert, key, fipsOK}
+ }
+ 
+-func boringPool(t *testing.T, list ...*boringCertificate) *x509.CertPool {
+-	pool := x509.NewCertPool()
+-	for _, c := range list {
+-		cert, err := x509.ParseCertificate(c.der)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		pool.AddCert(cert)
+-	}
+-	return pool
+-}
+-
+-func boringList(t *testing.T, list ...*boringCertificate) [][]byte {
+-	var all [][]byte
+-	for _, c := range list {
+-		all = append(all, c.der)
+-	}
+-	return all
+-}
+-
+ // A self-signed test certificate with an RSA key of size 2048, for testing
+ // RSA-PSS with SHA512. SAN of example.golang.
+ var (
+@@ -633,21 +626,3 @@ oOrtvMdrl6upy9Hz4BJD3FXwVFiPFE7jqeNqi0F21viLxBPMMD3UODF6LL5EyLiR
+ 		panic(err)
+ 	}
+ }
+-
+-// realNetPipe is like net.Pipe but returns an actual network socket pair,
+-// which has buffering that avoids various deadlocks if both sides
+-// try to speak at the same time.
+-func realNetPipe(t *testing.T) (net.Conn, net.Conn) {
+-	l := newLocalListener(t)
+-	defer l.Close()
+-	c, err := net.Dial("tcp", l.Addr().String())
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	s, err := l.Accept()
+-	if err != nil {
+-		c.Close()
+-		t.Fatal(err)
+-	}
+-	return c, s
+-}
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index c78bb4ba0b..59df726d77 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -151,6 +151,8 @@ func macSHA1(version uint16, key []byte) macFunction {
+ 		return mac
+ 	}
+ 	h := sha1.New
++	// The BoringCrypto SHA1 does not have a constant-time
++	// checksum function, so don't try to use it.
+ 	if !boring.Enabled {
+ 		h = newConstantTimeHash(h)
+ 	}
+@@ -361,11 +363,7 @@ func (c *cthWrapper) Write(p []byte) (int, error) { return c.h.Write(p) }
+ func (c *cthWrapper) Sum(b []byte) []byte         { return c.h.ConstantTimeSum(b) }
+ 
+ func newConstantTimeHash(h func() hash.Hash) func() hash.Hash {
+-	if boring.Enabled {
+-		// The BoringCrypto SHA1 does not have a constant-time
+-		// checksum function, so don't try to use it.
+-		return h
+-	}
++	boring.Unreachable()
+ 	return func() hash.Hash {
+ 		return &cthWrapper{h().(constantTimeHash)}
+ 	}
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index 0fb70ba3ef..783047470a 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -40,6 +40,10 @@ type clientHandshakeStateTLS13 struct {
+ func (hs *clientHandshakeStateTLS13) handshake() error {
+ 	c := hs.c
+ 
++	if needFIPS() {
++		return errors.New("tls: internal error: TLS 1.3 reached in FIPS mode")
++	}
++
+ 	// The server must not select TLS 1.3 in a renegotiation. See RFC 8446,
+ 	// sections 4.1.2 and 4.1.3.
+ 	if c.handshakes > 0 {
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index b05fa4e00b..9097670010 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -43,6 +43,10 @@ type serverHandshakeStateTLS13 struct {
+ func (hs *serverHandshakeStateTLS13) handshake() error {
+ 	c := hs.c
+ 
++	if needFIPS() {
++		return errors.New("tls: internal error: TLS 1.3 reached in FIPS mode")
++	}
++
+ 	// For an overview of the TLS 1.3 handshake, see RFC 8446, Section 2.
+ 	if err := hs.processClientHello(); err != nil {
+ 		return err

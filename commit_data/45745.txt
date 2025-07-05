@@ -10,6 +10,25 @@ Date:   Sun Nov 8 15:35:35 2020 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Giovanni Bajo <rasky@develer.com>
-
+---
  src/bytes/example_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 5ba7077c1d..ae93202b57 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -30,6 +30,13 @@ func ExampleBuffer_reader() {
+ 	// Output: Gophers rule!
+ }
+ 
++func ExampleBuffer_Bytes() {
++	buf := bytes.Buffer{}
++	buf.Write([]byte{'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'})
++	os.Stdout.Write(buf.Bytes())
++	// Output: hello world
++}
++
+ func ExampleBuffer_Grow() {
+ 	var b bytes.Buffer
+ 	b.Grow(64)

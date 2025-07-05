@@ -18,9 +18,121 @@ Date:   Wed Jan 18 13:39:12 2017 -0500
     Change-Id: Iec17bf2243de129942ae5fba126ec5f217be7303
     Reviewed-on: https://go-review.googlesource.com/36202
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/{ => internal/get}/discovery.go |  9 +--------
  src/cmd/go/{ => internal/get}/get.go       | 21 +++++++++++----------
  src/cmd/go/{ => internal/get}/vcs.go       |  2 +-
  src/cmd/go/main.go                         |  3 ++-
  4 files changed, 15 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/discovery.go b/src/cmd/go/internal/get/discovery.go
+similarity index 89%
+rename from src/cmd/go/discovery.go
+rename to src/cmd/go/internal/get/discovery.go
+index b60eaef739..b2918dbb4f 100644
+--- a/src/cmd/go/discovery.go
++++ b/src/cmd/go/internal/get/discovery.go
+@@ -2,14 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !cmd_go_bootstrap
+-
+-// This code is compiled into the real 'go' binary, but it is not
+-// compiled into the binary that is built during all.bash, so as
+-// to avoid needing to build net (and thus use cgo) during the
+-// bootstrap process.
+-
+-package main
++package get
+ 
+ import (
+ 	"encoding/xml"
+diff --git a/src/cmd/go/get.go b/src/cmd/go/internal/get/get.go
+similarity index 97%
+rename from src/cmd/go/get.go
+rename to src/cmd/go/internal/get/get.go
+index ddbab68540..3f1349286e 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++// Package get implements the ``go get'' command.
++package get
+ 
+ import (
+ 	"fmt"
+@@ -22,7 +23,7 @@ import (
+ 	"cmd/go/internal/work"
+ )
+ 
+-var cmdGet = &base.Command{
++var CmdGet = &base.Command{
+ 	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+@@ -78,16 +79,16 @@ See also: go build, go install, go clean.
+ 	`,
+ }
+ 
+-var getD = cmdGet.Flag.Bool("d", false, "")
+-var getF = cmdGet.Flag.Bool("f", false, "")
+-var getT = cmdGet.Flag.Bool("t", false, "")
+-var getU = cmdGet.Flag.Bool("u", false, "")
+-var getFix = cmdGet.Flag.Bool("fix", false, "")
+-var getInsecure = cmdGet.Flag.Bool("insecure", false, "")
++var getD = CmdGet.Flag.Bool("d", false, "")
++var getF = CmdGet.Flag.Bool("f", false, "")
++var getT = CmdGet.Flag.Bool("t", false, "")
++var getU = CmdGet.Flag.Bool("u", false, "")
++var getFix = CmdGet.Flag.Bool("fix", false, "")
++var getInsecure = CmdGet.Flag.Bool("insecure", false, "")
+ 
+ func init() {
+-	work.AddBuildFlags(cmdGet)
+-	cmdGet.Run = runGet // break init loop
++	work.AddBuildFlags(CmdGet)
++	CmdGet.Run = runGet // break init loop
+ }
+ 
+ func runGet(cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/internal/get/vcs.go
+similarity index 99%
+rename from src/cmd/go/vcs.go
+rename to src/cmd/go/internal/get/vcs.go
+index e6797ad19e..187f635557 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package get
+ 
+ import (
+ 	"bytes"
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 68a6976537..5b7aa8a1c4 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -17,6 +17,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/env"
+ 	fmtcmd "cmd/go/internal/fmt"
++	"cmd/go/internal/get"
+ 	"cmd/go/internal/help"
+ 	"cmd/go/internal/test"
+ 	"cmd/go/internal/work"
+@@ -32,7 +33,7 @@ func init() {
+ 		cmdFix,
+ 		fmtcmd.CmdFmt,
+ 		cmdGenerate,
+-		cmdGet,
++		get.CmdGet,
+ 		work.CmdInstall,
+ 		cmdList,
+ 		cmdRun,

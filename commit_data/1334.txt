@@ -13,7 +13,40 @@ Date:   Thu Dec 11 18:19:07 2008 -0800
     R=ken
     OCL=21036
     CL=21036
-
+---
  test/bugs/bug129.go | 11 +++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 15 insertions(+)
+
+diff --git a/test/bugs/bug129.go b/test/bugs/bug129.go
+new file mode 100644
+index 0000000000..f388dca88c
+--- /dev/null
++++ b/test/bugs/bug129.go
+@@ -0,0 +1,11 @@
++// $G $D/$F.go || echo BUG129
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo
++import "syscall"
++func f() {
++	syscall := 1
++}
+diff --git a/test/golden.out b/test/golden.out
+index 5ed3174070..30badd3b14 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -164,6 +164,10 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug123.go
+ =========== bugs/bug125.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
+ 
++=========== bugs/bug129.go
++bugs/bug129.go:6: syscall is package, not var
++BUG129
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

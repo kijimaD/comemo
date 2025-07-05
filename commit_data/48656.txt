@@ -17,7 +17,63 @@ Date:   Thu Jun 3 20:53:08 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/325009
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go               | 17 ++++++++++++++++-
  src/cmd/compile/internal/syntax/testdata/issue46558.src | 14 ++++++++++++++
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 0e711a0113..503dea7fae 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1100,7 +1100,7 @@ loop:
+ 					complit_ok = true
+ 				}
+ 			case *IndexExpr:
+-				if p.xnest >= 0 {
++				if p.xnest >= 0 && !isValue(t) {
+ 					// x is possibly a composite literal type
+ 					complit_ok = true
+ 				}
+@@ -1127,6 +1127,21 @@ loop:
+ 	return x
+ }
+ 
++// isValue reports whether x syntactically must be a value (and not a type) expression.
++func isValue(x Expr) bool {
++	switch x := x.(type) {
++	case *BasicLit, *CompositeLit, *FuncLit, *SliceExpr, *AssertExpr, *TypeSwitchGuard, *CallExpr:
++		return true
++	case *Operation:
++		return x.Op != Mul || x.Y != nil // *T may be a type
++	case *ParenExpr:
++		return isValue(x.X)
++	case *IndexExpr:
++		return isValue(x.X) || isValue(x.Index)
++	}
++	return false
++}
++
+ // Element = Expression | LiteralValue .
+ func (p *parser) bare_complitexpr() Expr {
+ 	if trace {
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue46558.src b/src/cmd/compile/internal/syntax/testdata/issue46558.src
+new file mode 100644
+index 0000000000..a22b600825
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue46558.src
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func F(s string) {
++	switch s[0] {
++	case 'a':
++		case s[2] { // ERROR unexpected {
++		case 'b':
++		}
++	}
++} // ERROR non-declaration statement

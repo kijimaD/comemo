@@ -7,6 +7,20 @@ Date:   Thu Nov 8 20:06:05 2018 +0000
     Change-Id: Ia0caf2fb06097ac184f78779334460900e8c0149
     Reviewed-on: https://go-review.googlesource.com/c/148580
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/cache/hash.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/cache/hash.go b/src/cmd/go/internal/cache/hash.go
+index 0e45e7db54..e4bb2a34bb 100644
+--- a/src/cmd/go/internal/cache/hash.go
++++ b/src/cmd/go/internal/cache/hash.go
+@@ -123,7 +123,7 @@ var hashFileCache struct {
+ 	m map[string][HashSize]byte
+ }
+ 
+-// HashFile returns the hash of the named file.
++// FileHash returns the hash of the named file.
+ // It caches repeated lookups for a given file,
+ // and the cache entry for a file can be initialized
+ // using SetFileHash.

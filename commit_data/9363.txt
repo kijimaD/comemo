@@ -11,6 +11,21 @@ Date:   Mon Aug 15 14:14:15 2011 -0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4890043
-
+---
  src/pkg/reflect/value.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 82985c5751..87d12bb0b7 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -860,6 +860,9 @@ func (v Value) Interface() interface{} {
+ }
+ 
+ func (iv internalValue) Interface() interface{} {
++	if iv.kind == 0 {
++		panic(&ValueError{"reflect.Value.Interface", iv.kind})
++	}
+ 	if iv.method {
+ 		panic("reflect.Value.Interface: cannot create interface value for method with bound receiver")
+ 	}

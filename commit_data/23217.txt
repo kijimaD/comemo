@@ -34,7 +34,139 @@ Date:   Wed Apr 29 18:59:04 2015 +0000
     Change-Id: Ia33ddee164ab608a69ac4183e16ec506bbeaa54c
     Reviewed-on: https://go-review.googlesource.com/9502
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/html/template/transition.go      | 42 +++++++++++++++++++++----
  src/html/template/transition_test.go | 60 ++++++++++++++++++++++++++++++++++++
  2 files changed, 96 insertions(+), 6 deletions(-)
+
+diff --git a/src/html/template/transition.go b/src/html/template/transition.go
+index b486fcd285..d2e028741a 100644
+--- a/src/html/template/transition.go
++++ b/src/html/template/transition.go
+@@ -183,24 +183,54 @@ func tHTMLCmt(c context, s []byte) (context, int) {
+ 
+ // specialTagEndMarkers maps element types to the character sequence that
+ // case-insensitively signals the end of the special tag body.
+-var specialTagEndMarkers = [...]string{
+-	elementScript:   "</script",
+-	elementStyle:    "</style",
+-	elementTextarea: "</textarea",
+-	elementTitle:    "</title",
++var specialTagEndMarkers = [...][]byte{
++	elementScript:   []byte("script"),
++	elementStyle:    []byte("style"),
++	elementTextarea: []byte("textarea"),
++	elementTitle:    []byte("title"),
+ }
+ 
++var (
++	specialTagEndPrefix = []byte("</")
++	tagEndSeparators    = []byte("> \t\n\f/")
++)
++
+ // tSpecialTagEnd is the context transition function for raw text and RCDATA
+ // element states.
+ func tSpecialTagEnd(c context, s []byte) (context, int) {
+ 	if c.element != elementNone {
+-		if i := strings.Index(strings.ToLower(string(s)), specialTagEndMarkers[c.element]); i != -1 {
++		if i := indexTagEnd(s, specialTagEndMarkers[c.element]); i != -1 {
+ 			return context{}, i
+ 		}
+ 	}
+ 	return c, len(s)
+ }
+ 
++// indexTagEnd finds the index of a special tag end in a case insensitive way, or returns -1
++func indexTagEnd(s []byte, tag []byte) int {
++	res := 0
++	plen := len(specialTagEndPrefix)
++	for len(s) > 0 {
++		// Try to find the tag end prefix first
++		i := bytes.Index(s, specialTagEndPrefix)
++		if i == -1 {
++			return i
++		}
++		s = s[i+plen:]
++		// Try to match the actual tag if there is still space for it
++		if len(tag) <= len(s) && bytes.EqualFold(tag, s[:len(tag)]) {
++			s = s[len(tag):]
++			// Check the tag is followed by a proper separator
++			if len(s) > 0 && bytes.IndexByte(tagEndSeparators, s[0]) != -1 {
++				return res + i
++			}
++			res += len(tag)
++		}
++		res += i + plen
++	}
++	return -1
++}
++
+ // tAttr is the context transition function for the attribute state.
+ func tAttr(c context, s []byte) (context, int) {
+ 	return c, len(s)
+diff --git a/src/html/template/transition_test.go b/src/html/template/transition_test.go
+new file mode 100644
+index 0000000000..412a4c71b7
+--- /dev/null
++++ b/src/html/template/transition_test.go
+@@ -0,0 +1,60 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package template
++
++import (
++	"bytes"
++	"strings"
++	"testing"
++)
++
++func TestFindEndTag(t *testing.T) {
++	tests := []struct {
++		s, tag string
++		want   int
++	}{
++		{"", "tag", -1},
++		{"hello </textarea> hello", "textarea", 6},
++		{"hello </TEXTarea> hello", "textarea", 6},
++		{"hello </textAREA>", "textarea", 6},
++		{"hello </textarea", "textareax", -1},
++		{"hello </textarea>", "tag", -1},
++		{"hello tag </textarea", "tag", -1},
++		{"hello </tag> </other> </textarea> <other>", "textarea", 22},
++		{"</textarea> <other>", "textarea", 0},
++		{"<div> </div> </TEXTAREA>", "textarea", 13},
++		{"<div> </div> </TEXTAREA\t>", "textarea", 13},
++		{"<div> </div> </TEXTAREA >", "textarea", 13},
++		{"<div> </div> </TEXTAREAfoo", "textarea", -1},
++		{"</TEXTAREAfoo </textarea>", "textarea", 14},
++		{"<</script >", "script", 1},
++		{"</script>", "textarea", -1},
++	}
++	for _, test := range tests {
++		if got := indexTagEnd([]byte(test.s), []byte(test.tag)); test.want != got {
++			t.Errorf("%q/%q: want\n\t%d\nbut got\n\t%d", test.s, test.tag, test.want, got)
++		}
++	}
++}
++
++func BenchmarkTemplateSpecialTags(b *testing.B) {
++
++	r := struct {
++		Name, Gift string
++	}{"Aunt Mildred", "bone china tea set"}
++
++	h1 := "<textarea> Hello Hello Hello </textarea> "
++	h2 := "<textarea> <p> Dear {{.Name}},\n{{with .Gift}}Thank you for the lovely {{.}}. {{end}}\nBest wishes. </p>\n</textarea>"
++	html := strings.Repeat(h1, 100) + h2 + strings.Repeat(h1, 100) + h2
++
++	var buf bytes.Buffer
++	for i := 0; i < b.N; i++ {
++		tmpl := Must(New("foo").Parse(html))
++		if err := tmpl.Execute(&buf, r); err != nil {
++			b.Fatal(err)
++		}
++		buf.Reset()
++	}
++}

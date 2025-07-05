@@ -28,7 +28,7 @@ Date:   Wed Apr 17 17:44:55 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go        |  8 +++---
  src/cmd/compile/internal/types2/api.go         |  6 +++++
  src/cmd/compile/internal/types2/check.go       | 29 +++++++++-------------
@@ -46,3 +46,419 @@ Date:   Wed Apr 17 17:44:55 2024 -0700
  src/go/types/resolver.go                       |  2 +-
  src/go/types/typexpr.go                        |  2 +-
  16 files changed, 64 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index c159e4823e..34201545b5 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"internal/types/errors"
+-	"os"
+ 	"regexp"
+ 	"sort"
+ 
+@@ -50,6 +49,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 		IgnoreBranchErrors: true, // parser already checked via syntax.CheckBranches mode
+ 		Importer:           &importer,
+ 		Sizes:              types2.SizesFor("gc", buildcfg.GOARCH),
++		// Currently, the compiler panics when using Alias types.
++		// TODO(gri) set to true once this is fixed (issue #66873)
++		EnableAlias: false,
+ 	}
+ 	if base.Flag.ErrorURL {
+ 		conf.ErrorURL = " [go.dev/e/%s]"
+@@ -86,10 +88,6 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 		base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
+ 	}
+ 
+-	// Currently, the compiler panics when using Alias types.
+-	// Use the non-default setting for now.
+-	// TODO(gri) set this to gotypesalias=1 or remove this call.
+-	os.Setenv("GODEBUG", "gotypesalias=0")
+ 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+ 	base.ExitIfErrors()
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 0b44d4ff38..36d900401d 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -175,6 +175,12 @@ type Config struct {
+ 	// of an error message. ErrorURL must be a format string containing
+ 	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
+ 	ErrorURL string
++
++	// If EnableAlias is set, alias declarations produce an Alias type.
++	// Otherwise the alias information is only in the type name, which
++	// points directly to the actual (aliased) type.
++	// This flag will eventually be removed (with Go 1.24 at the earliest).
++	EnableAlias bool
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index cc723f2012..6066acdb35 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -98,12 +98,6 @@ type actionDesc struct {
+ type Checker struct {
+ 	// package information
+ 	// (initialized by NewChecker, valid for the life-time of checker)
+-
+-	// If enableAlias is set, alias declarations produce an Alias type.
+-	// Otherwise the alias information is only in the type name, which
+-	// points directly to the actual (aliased) type.
+-	enableAlias bool
+-
+ 	conf *Config
+ 	ctxt *Context // context for de-duplicating instances
+ 	pkg  *Package
+@@ -169,9 +163,9 @@ func (check *Checker) addDeclDep(to Object) {
+ 
+ // brokenAlias records that alias doesn't have a determined type yet.
+ // It also sets alias.typ to Typ[Invalid].
+-// Not used if check.enableAlias is set.
++// Not used if check.conf.EnableAlias is set.
+ func (check *Checker) brokenAlias(alias *TypeName) {
+-	assert(!check.enableAlias)
++	assert(!check.conf.EnableAlias)
+ 	if check.brokenAliases == nil {
+ 		check.brokenAliases = make(map[*TypeName]bool)
+ 	}
+@@ -181,14 +175,14 @@ func (check *Checker) brokenAlias(alias *TypeName) {
+ 
+ // validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
+ func (check *Checker) validAlias(alias *TypeName, typ Type) {
+-	assert(!check.enableAlias)
++	assert(!check.conf.EnableAlias)
+ 	delete(check.brokenAliases, alias)
+ 	alias.typ = typ
+ }
+ 
+ // isBrokenAlias reports whether alias doesn't have a determined type yet.
+ func (check *Checker) isBrokenAlias(alias *TypeName) bool {
+-	assert(!check.enableAlias)
++	assert(!check.conf.EnableAlias)
+ 	return check.brokenAliases[alias]
+ }
+ 
+@@ -258,14 +252,13 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
+ 
+ 	return &Checker{
+-		enableAlias: gotypesalias.Value() != "0",
+-		conf:        conf,
+-		ctxt:        conf.Context,
+-		pkg:         pkg,
+-		Info:        info,
+-		version:     asGoVersion(conf.GoVersion),
+-		objMap:      make(map[Object]*declInfo),
+-		impMap:      make(map[importKey]*Package),
++		conf:    conf,
++		ctxt:    conf.Context,
++		pkg:     pkg,
++		Info:    info,
++		version: asGoVersion(conf.GoVersion),
++		objMap:  make(map[Object]*declInfo),
++		impMap:  make(map[importKey]*Package),
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 066218772e..63f831aa92 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -122,10 +122,11 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
+ //
+ // If provided, opts may be used to mutate the Config before type-checking.
+ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
+-	// Alias types are enabled by default
++	enableAlias := true
++	opts = append(opts, func(conf *Config) { conf.EnableAlias = enableAlias })
+ 	testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
+ 	if !manual {
+-		t.Setenv("GODEBUG", "gotypesalias=0")
++		enableAlias = false
+ 		testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
+ 	}
+ }
+@@ -192,7 +193,7 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uin
+ 
+ 	// By default, gotypesalias is not set.
+ 	if gotypesalias != "" {
+-		t.Setenv("GODEBUG", "gotypesalias="+gotypesalias)
++		conf.EnableAlias = gotypesalias != "0"
+ 	}
+ 
+ 	// Provide Config.Info with all maps so that info recording is tested.
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 26ce49d87a..246568e25e 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -241,7 +241,7 @@ loop:
+ 			// the syntactic information. We should consider storing
+ 			// this information explicitly in the object.
+ 			var alias bool
+-			if check.enableAlias {
++			if check.conf.EnableAlias {
+ 				alias = obj.IsAlias()
+ 			} else {
+ 				if d := check.objMap[obj]; d != nil {
+@@ -313,7 +313,7 @@ func (check *Checker) cycleError(cycle []Object, start int) {
+ 	if tname != nil && tname.IsAlias() {
+ 		// If we use Alias nodes, it is initialized with Typ[Invalid].
+ 		// TODO(gri) Adjust this code if we initialize with nil.
+-		if !check.enableAlias {
++		if !check.conf.EnableAlias {
+ 			check.validAlias(tname, Typ[Invalid])
+ 		}
+ 	}
+@@ -508,7 +508,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
+ 			versionErr = true
+ 		}
+ 
+-		if check.enableAlias {
++		if check.conf.EnableAlias {
+ 			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
+ 			//           the alias as incomplete. Currently this causes problems
+ 			//           with certain cycles. Investigate.
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 8c9dfb32f5..b087550b80 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -988,8 +988,8 @@ type A = []int
+ type S struct{ A }
+ `
+ 
+-	t.Setenv("GODEBUG", "gotypesalias=1")
+-	pkg := mustTypecheck(src, nil, nil)
++	conf := Config{EnableAlias: true}
++	pkg := mustTypecheck(src, &conf, nil)
+ 
+ 	S := pkg.Scope().Lookup("S")
+ 	if S == nil {
+diff --git a/src/cmd/compile/internal/types2/object_test.go b/src/cmd/compile/internal/types2/object_test.go
+index 20a9a5fd0c..7e84d52966 100644
+--- a/src/cmd/compile/internal/types2/object_test.go
++++ b/src/cmd/compile/internal/types2/object_test.go
+@@ -113,12 +113,9 @@ func TestObjectString(t *testing.T) {
+ 
+ 	for i, test := range testObjects {
+ 		t.Run(fmt.Sprint(i), func(t *testing.T) {
+-			if test.alias {
+-				t.Setenv("GODEBUG", "gotypesalias=1")
+-			}
+-
+ 			src := "package p; " + test.src
+-			pkg, err := typecheck(src, nil, nil)
++			conf := Config{Error: func(error) {}, Importer: defaultImporter(), EnableAlias: test.alias}
++			pkg, err := typecheck(src, &conf, nil)
+ 			if err != nil {
+ 				t.Fatalf("%s: %s", src, err)
+ 			}
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 2b1de600a7..5676aa3618 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -677,7 +677,7 @@ func (check *Checker) packageObjects() {
+ 		}
+ 	}
+ 
+-	if false && check.enableAlias {
++	if false && check.conf.EnableAlias {
+ 		// With Alias nodes we can process declarations in any order.
+ 		//
+ 		// TODO(adonovan): unfortunately, Alias nodes
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index c2037b26d6..ec012c24eb 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -108,7 +108,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 		x.mode = constant_
+ 
+ 	case *TypeName:
+-		if !check.enableAlias && check.isBrokenAlias(obj) {
++		if !check.conf.EnableAlias && check.isBrokenAlias(obj) {
+ 			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", quote(obj.name))
+ 			return
+ 		}
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 5b4f59c94e..cfe86f9dd6 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -180,6 +180,12 @@ type Config struct {
+ 	// of an error message. ErrorURL must be a format string containing
+ 	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
+ 	_ErrorURL string
++
++	// If _EnableAlias is set, alias declarations produce an Alias type.
++	// Otherwise the alias information is only in the type name, which
++	// points directly to the actual (aliased) type.
++	// This flag will eventually be removed (with Go 1.24 at the earliest).
++	_EnableAlias bool
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index be990eabfe..87106c4d01 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -101,12 +101,6 @@ type actionDesc struct {
+ type Checker struct {
+ 	// package information
+ 	// (initialized by NewChecker, valid for the life-time of checker)
+-
+-	// If EnableAlias is set, alias declarations produce an Alias type.
+-	// Otherwise the alias information is only in the type name, which
+-	// points directly to the actual (aliased) type.
+-	enableAlias bool
+-
+ 	conf *Config
+ 	ctxt *Context // context for de-duplicating instances
+ 	fset *token.FileSet
+@@ -173,9 +167,9 @@ func (check *Checker) addDeclDep(to Object) {
+ 
+ // brokenAlias records that alias doesn't have a determined type yet.
+ // It also sets alias.typ to Typ[Invalid].
+-// Not used if check.enableAlias is set.
++// Not used if check.conf._EnableAlias is set.
+ func (check *Checker) brokenAlias(alias *TypeName) {
+-	assert(!check.enableAlias)
++	assert(!check.conf._EnableAlias)
+ 	if check.brokenAliases == nil {
+ 		check.brokenAliases = make(map[*TypeName]bool)
+ 	}
+@@ -185,14 +179,14 @@ func (check *Checker) brokenAlias(alias *TypeName) {
+ 
+ // validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
+ func (check *Checker) validAlias(alias *TypeName, typ Type) {
+-	assert(!check.enableAlias)
++	assert(!check.conf._EnableAlias)
+ 	delete(check.brokenAliases, alias)
+ 	alias.typ = typ
+ }
+ 
+ // isBrokenAlias reports whether alias doesn't have a determined type yet.
+ func (check *Checker) isBrokenAlias(alias *TypeName) bool {
+-	assert(!check.enableAlias)
++	assert(!check.conf._EnableAlias)
+ 	return check.brokenAliases[alias]
+ }
+ 
+@@ -261,16 +255,18 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 	//
+ 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
+ 
++	// In go/types, conf._EnableAlias is controlled by gotypesalias.
++	conf._EnableAlias = gotypesalias.Value() != "0"
++
+ 	return &Checker{
+-		enableAlias: gotypesalias.Value() != "0",
+-		conf:        conf,
+-		ctxt:        conf.Context,
+-		fset:        fset,
+-		pkg:         pkg,
+-		Info:        info,
+-		version:     asGoVersion(conf.GoVersion),
+-		objMap:      make(map[Object]*declInfo),
+-		impMap:      make(map[importKey]*Package),
++		conf:    conf,
++		ctxt:    conf.Context,
++		fset:    fset,
++		pkg:     pkg,
++		Info:    info,
++		version: asGoVersion(conf.GoVersion),
++		objMap:  make(map[Object]*declInfo),
++		impMap:  make(map[importKey]*Package),
+ 	}
+ }
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 937163fc75..679dc1a136 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -242,7 +242,7 @@ loop:
+ 			// the syntactic information. We should consider storing
+ 			// this information explicitly in the object.
+ 			var alias bool
+-			if check.enableAlias {
++			if check.conf._EnableAlias {
+ 				alias = obj.IsAlias()
+ 			} else {
+ 				if d := check.objMap[obj]; d != nil {
+@@ -314,7 +314,7 @@ func (check *Checker) cycleError(cycle []Object, start int) {
+ 	if tname != nil && tname.IsAlias() {
+ 		// If we use Alias nodes, it is initialized with Typ[Invalid].
+ 		// TODO(gri) Adjust this code if we initialize with nil.
+-		if !check.enableAlias {
++		if !check.conf._EnableAlias {
+ 			check.validAlias(tname, Typ[Invalid])
+ 		}
+ 	}
+@@ -583,7 +583,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
+ 			versionErr = true
+ 		}
+ 
+-		if check.enableAlias {
++		if check.conf._EnableAlias {
+ 			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
+ 			//           the alias as incomplete. Currently this causes problems
+ 			//           with certain cycles. Investigate.
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index 2b0e4a4289..f3047b2846 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -144,10 +144,11 @@ var filemap = map[string]action{
+ 		insertImportPath(f, `"go/ast"`)
+ 		renameSelectorExprs(f, "syntax.Expr->ast.Expr")
+ 	},
+-	"named.go":       func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+-	"object.go":      func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
+-	"object_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
+-	"objset.go":      nil,
++	"named.go":  func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
++	"object.go": func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
++	// TODO(gri) needs adjustments for TestObjectString - disabled for now
++	// "object_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
++	"objset.go": nil,
+ 	"operand.go": func(f *ast.File) {
+ 		insertImportPath(f, `"go/token"`)
+ 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index a9f7eed69c..43ff5b35e5 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -1,6 +1,3 @@
+-// Code generated by "go test -run=Generate -write=all"; DO NOT EDIT.
+-// Source: ../../cmd/compile/internal/types2/object_test.go
+-
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 69cc6ba154..f336057c53 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -665,7 +665,7 @@ func (check *Checker) packageObjects() {
+ 		}
+ 	}
+ 
+-	if check.enableAlias {
++	if check.conf._EnableAlias {
+ 		// With Alias nodes we can process declarations in any order.
+ 		for _, obj := range objList {
+ 			check.objDecl(obj, nil)
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 79e4c0ab66..4bbc8b2448 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -109,7 +109,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 		x.mode = constant_
+ 
+ 	case *TypeName:
+-		if !check.enableAlias && check.isBrokenAlias(obj) {
++		if !check.conf._EnableAlias && check.isBrokenAlias(obj) {
+ 			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", quote(obj.name))
+ 			return
+ 		}

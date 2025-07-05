@@ -16,7 +16,32 @@ Date:   Fri Jan 11 15:28:04 2019 +0000
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go               | 1 -
  src/cmd/go/internal/help/helpdoc.go | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 9d9304a3b6..5a6a1c82cc 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1397,7 +1397,6 @@
+ // in the standard user cache directory for the current operating system.
+ // Setting the GOCACHE environment variable overrides this default,
+ // and running 'go env GOCACHE' prints the current cache directory.
+-// You can set the variable to 'off' to disable the cache.
+ //
+ // The go command periodically deletes cached data that has not been
+ // used recently. Running 'go clean -cache' deletes all cached data.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 973bfbc611..6545a43abe 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -705,7 +705,6 @@ The default location for cache data is a subdirectory named go-build
+ in the standard user cache directory for the current operating system.
+ Setting the GOCACHE environment variable overrides this default,
+ and running 'go env GOCACHE' prints the current cache directory.
+-You can set the variable to 'off' to disable the cache.
+ 
+ The go command periodically deletes cached data that has not been
+ used recently. Running 'go clean -cache' deletes all cached data.

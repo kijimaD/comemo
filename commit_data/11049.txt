@@ -7,6 +7,20 @@ Date:   Mon Jan 9 12:48:42 2012 +1100
     R=r, dsymonds
     CC=golang-dev
     https://golang.org/cl/5530047
-
+---
  doc/effective_go.tmpl | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index 21b3b22df6..e3d311eea2 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -1490,7 +1490,7 @@ format <code>%#v</code> prints the value in full Go syntax.
+ <pre>
+ type T struct {
+     a int
+-    b float
++    b float64
+     c string
+ }
+ t := &amp;T{ 7, -2.35, "abc\tdef" }

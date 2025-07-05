@@ -15,7 +15,87 @@ Date:   Mon Jul 27 14:05:05 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/select.go |  1 -
  src/runtime/select.go                 | 23 ++++++++++-------------
  2 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 49cc23cd3d..eb5ff8469b 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -386,7 +386,6 @@ func scasetype() *types.Type {
+ 			namedfield("elem", types.Types[TUNSAFEPTR]),
+ 			namedfield("kind", types.Types[TUINT16]),
+ 			namedfield("pc", types.Types[TUINTPTR]),
+-			namedfield("releasetime", types.Types[TINT64]),
+ 		})
+ 		scase.SetNoalg(true)
+ 	}
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 081db7bad4..2f8b139155 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -26,11 +26,10 @@ const (
+ // Known to compiler.
+ // Changes here must also be made in src/cmd/internal/gc/select.go's scasetype.
+ type scase struct {
+-	c           *hchan         // chan
+-	elem        unsafe.Pointer // data element
+-	kind        uint16
+-	pc          uintptr // race pc (for race detector / msan)
+-	releasetime int64
++	c    *hchan         // chan
++	elem unsafe.Pointer // data element
++	kind uint16
++	pc   uintptr // race pc (for race detector / msan)
+ }
+ 
+ var (
+@@ -142,9 +141,6 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
+ 	var t0 int64
+ 	if blockprofilerate > 0 {
+ 		t0 = cputicks()
+-		for i := 0; i < ncases; i++ {
+-			scases[i].releasetime = -1
+-		}
+ 	}
+ 
+ 	// The compiler rewrites selects that statically have
+@@ -227,6 +223,7 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
+ 	var casi int
+ 	var cas *scase
+ 	var caseSuccess bool
++	var caseReleaseTime int64 = -1
+ 	var recvOK bool
+ 	for i := 0; i < ncases; i++ {
+ 		casi = int(pollorder[i])
+@@ -346,14 +343,14 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
+ 		if k.kind == caseNil {
+ 			continue
+ 		}
+-		if sglist.releasetime > 0 {
+-			k.releasetime = sglist.releasetime
+-		}
+ 		if sg == sglist {
+ 			// sg has already been dequeued by the G that woke us up.
+ 			casi = int(casei)
+ 			cas = k
+ 			caseSuccess = sglist.success
++			if sglist.releasetime > 0 {
++				caseReleaseTime = sglist.releasetime
++			}
+ 		} else {
+ 			c = k.c
+ 			if k.kind == caseSend {
+@@ -483,8 +480,8 @@ send:
+ 	goto retc
+ 
+ retc:
+-	if cas.releasetime > 0 {
+-		blockevent(cas.releasetime-t0, 1)
++	if caseReleaseTime > 0 {
++		blockevent(caseReleaseTime-t0, 1)
+ 	}
+ 	return casi, recvOK
+ 

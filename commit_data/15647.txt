@@ -9,7 +9,57 @@ Date:   Fri Mar 8 10:04:17 2013 -0800
     R=golang-dev, alex.brainman, r, google
     CC=golang-dev
     https://golang.org/cl/7579045
-
+---
  src/pkg/database/sql/sql.go      |  1 +
  src/pkg/database/sql/sql_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 4faaa11b11..6d52d2986d 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -445,6 +445,7 @@ func (db *DB) prepare(query string) (*Stmt, error) {
+ 		css:   []connStmt{{ci, si}},
+ 	}
+ 	db.addDep(stmt, stmt)
++	db.putConn(ci, nil)
+ 	return stmt, nil
+ }
+ 
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 53b229600d..f5c3f1ed65 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -708,3 +708,32 @@ func TestQueryRowNilScanDest(t *testing.T) {
+ 		t.Errorf("error = %q; want %q", err.Error(), want)
+ 	}
+ }
++
++func TestIssue4902(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++
++	driver := db.driver.(*fakeDriver)
++	opens0 := driver.openCount
++
++	var stmt *Stmt
++	var err error
++	for i := 0; i < 10; i++ {
++		stmt, err = db.Prepare("SELECT|people|name|")
++		if err != nil {
++			t.Fatal(err)
++		}
++		err = stmt.Close()
++		if err != nil {
++			t.Fatal(err)
++		}
++	}
++
++	opens := driver.openCount - opens0
++	if opens > 1 {
++		t.Errorf("opens = %d; want <= 1", opens)
++		t.Logf("db = %#v", db)
++		t.Logf("driver = %#v", driver)
++		t.Logf("stmt = %#v", stmt)
++	}
++}

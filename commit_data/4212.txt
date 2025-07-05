@@ -11,7 +11,7 @@ Date:   Tue Nov 24 13:43:18 2009 -0800
     
     R=rsc, r, r1
     https://golang.org/cl/157143
-
+---
  src/cmd/godoc/index.go                   |   2 +-
  src/pkg/container/heap/heap_test.go      |  11 +--
  src/pkg/container/vector/intvector.go    |  20 +++---
@@ -38,3 +38,1002 @@ Date:   Tue Nov 24 13:43:18 2009 -0800
  src/pkg/template/template_test.go        |   2 +-
  test/vectors.go                          |  22 +++---
  25 files changed, 195 insertions(+), 165 deletions(-)
+
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 9ee9e77b4a..94f2b9cba4 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -255,7 +255,7 @@ func newFileRun(h0 *RunList, i, j int) interface{} {
+ 
+ 	// reduce the list of Spots into a list of KindRuns
+ 	var h1 RunList;
+-	h1.Vector.Init(j - i);
++	h1.Vector.Resize(j-i, 0);
+ 	k := 0;
+ 	for ; i < j; i++ {
+ 		h1.Set(k, h0.At(i).(Spot).Info);
+diff --git a/src/pkg/container/heap/heap_test.go b/src/pkg/container/heap/heap_test.go
+index 3259be8126..12e952f88b 100644
+--- a/src/pkg/container/heap/heap_test.go
++++ b/src/pkg/container/heap/heap_test.go
+@@ -15,13 +15,6 @@ type myHeap struct {
+ }
+ 
+ 
+-func newHeap() *myHeap {
+-	var h myHeap;
+-	h.IntVector.Init(0);
+-	return &h;
+-}
+-
+-
+ func (h *myHeap) verify(t *testing.T, i int) {
+ 	n := h.Len();
+ 	j1 := 2*i + 1;
+@@ -50,7 +43,7 @@ func (h *myHeap) Pop() interface{}	{ return h.IntVector.Pop() }
+ 
+ 
+ func TestInit(t *testing.T) {
+-	h := newHeap();
++	h := new(myHeap);
+ 	for i := 20; i > 0; i-- {
+ 		h.Push(i)
+ 	}
+@@ -68,7 +61,7 @@ func TestInit(t *testing.T) {
+ 
+ 
+ func Test(t *testing.T) {
+-	h := newHeap();
++	h := new(myHeap);
+ 	h.verify(t, 0);
+ 
+ 	for i := 20; i > 10; i-- {
+diff --git a/src/pkg/container/vector/intvector.go b/src/pkg/container/vector/intvector.go
+index 75f794f79a..43f8ff8081 100644
+--- a/src/pkg/container/vector/intvector.go
++++ b/src/pkg/container/vector/intvector.go
+@@ -11,19 +11,21 @@ type IntVector struct {
+ }
+ 
+ 
+-// Init initializes a new or resized vector.  The initial length may be <= 0 to
+-// request a default length.  If initial_len is shorter than the current
+-// length of the IntVector, trailing elements of the IntVector will be cleared.
+-func (p *IntVector) Init(len int) *IntVector {
+-	p.Vector.Init(len);
++// Resize changes the length and capacity of a vector.
++// If the new length is shorter than the current length, Resize discards
++// trailing elements. If the new length is longer than the current length,
++// Resize adds 0 elements. The capacity parameter is ignored unless the
++// new length or capacity is longer that the current capacity.
++func (p *IntVector) Resize(length, capacity int) *IntVector {
++	i := p.Len();
++	p.Vector.Resize(length, capacity);
++	for a := p.a; i < len(a); i++ {
++		a[i] = 0
++	}
+ 	return p;
+ }
+ 
+ 
+-// NewIntVector returns an initialized new IntVector with length at least len.
+-func NewIntVector(len int) *IntVector	{ return new(IntVector).Init(len) }
+-
+-
+ // At returns the i'th element of the vector.
+ func (p *IntVector) At(i int) int	{ return p.Vector.At(i).(int) }
+ 
+diff --git a/src/pkg/container/vector/stringvector.go b/src/pkg/container/vector/stringvector.go
+index 0178f6be2e..93a4197a58 100644
+--- a/src/pkg/container/vector/stringvector.go
++++ b/src/pkg/container/vector/stringvector.go
+@@ -10,19 +10,21 @@ type StringVector struct {
+ }
+ 
+ 
+-// Init initializes a new or resized vector.  The initial length may be <= 0 to
+-// request a default length.  If initial_len is shorter than the current
+-// length of the StringVector, trailing elements of the StringVector will be cleared.
+-func (p *StringVector) Init(len int) *StringVector {
+-	p.Vector.Init(len);
++// Resize changes the length and capacity of a vector.
++// If the new length is shorter than the current length, Resize discards
++// trailing elements. If the new length is longer than the current length,
++// Resize adds "" elements. The capacity parameter is ignored unless the
++// new length or capacity is longer that the current capacity.
++func (p *StringVector) Resize(length, capacity int) *StringVector {
++	i := p.Len();
++	p.Vector.Resize(length, capacity);
++	for a := p.a; i < len(a); i++ {
++		a[i] = ""
++	}
+ 	return p;
+ }
+ 
+ 
+-// NewStringVector returns an initialized new StringVector with length at least len.
+-func NewStringVector(len int) *StringVector	{ return new(StringVector).Init(len) }
+-
+-
+ // At returns the i'th element of the vector.
+ func (p *StringVector) At(i int) string	{ return p.Vector.At(i).(string) }
+ 
+diff --git a/src/pkg/container/vector/vector.go b/src/pkg/container/vector/vector.go
+index fa87e58349..94184eac4a 100644
+--- a/src/pkg/container/vector/vector.go
++++ b/src/pkg/container/vector/vector.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The vector package implements an efficient container for managing
+-// linear arrays of elements.  Unlike arrays, vectors can change size dynamically.
++// The vector package implements a container for managing sequences
++// of elements. Vectors grow and shrink dynamically as necessary.
+ package vector
+ 
+ // Vector is the container itself.
+@@ -13,29 +13,22 @@ type Vector struct {
+ }
+ 
+ 
+-func copy(dst, src []interface{}) {
+-	for i, x := range src {
+-		dst[i] = x
+-	}
+-}
+-
+-
+ // Insert n elements at position i.
+ func expand(a []interface{}, i, n int) []interface{} {
+ 	// make sure we have enough space
+ 	len0 := len(a);
+ 	len1 := len0 + n;
+-	if len1 < cap(a) {
++	if len1 <= cap(a) {
+ 		// enough space - just expand
+ 		a = a[0:len1]
+ 	} else {
+ 		// not enough space - double capacity
+ 		capb := cap(a) * 2;
+-		if capb < len1 {
++		if capb <= len1 {
+ 			// still not enough - use required length
+ 			capb = len1
+ 		}
+-		// capb >= len1
++		// capb > len1
+ 		b := make([]interface{}, len1, capb);
+ 		copy(b, a);
+ 		a = b;
+@@ -49,42 +42,38 @@ func expand(a []interface{}, i, n int) []interface{} {
+ }
+ 
+ 
+-// Init initializes a new or resized vector.  The initial_len may be <= 0 to
+-// request a default length.  If initial_len is shorter than the current
+-// length of the Vector, trailing elements of the Vector will be cleared.
+-func (p *Vector) Init(initial_len int) *Vector {
++// Resize changes the length and capacity of a vector.
++// If the new length is shorter than the current length, Resize discards
++// trailing elements. If the new length is longer than the current length,
++// Resize adds nil elements. The capacity parameter is ignored unless the
++// new length or capacity is longer that the current capacity.
++func (p *Vector) Resize(length, capacity int) *Vector {
+ 	a := p.a;
+ 
+-	if cap(a) == 0 || cap(a) < initial_len {
+-		n := 8;	// initial capacity
+-		if initial_len > n {
+-			n = initial_len
+-		}
+-		a = make([]interface{}, n);
+-	} else {
+-		// nil out entries
+-		for j := len(a) - 1; j >= 0; j-- {
+-			a[j] = nil
++	if length > cap(a) || capacity > cap(a) {
++		// not enough space or larger capacity requested explicitly
++		b := make([]interface{}, length, capacity);
++		copy(b, a);
++		a = b;
++	} else if length < len(a) {
++		// clear trailing elements
++		for i := range a[length:] {
++			a[length+i] = nil
+ 		}
+ 	}
+ 
+-	p.a = a[0:initial_len];
++	p.a = a[0:length];
+ 	return p;
+ }
+ 
+ 
+-// New returns an initialized new Vector with length at least len.
+-func New(len int) *Vector	{ return new(Vector).Init(len) }
++// Len returns the number of elements in the vector.
++func (p *Vector) Len() int	{ return len(p.a) }
+ 
+ 
+-// Len returns the number of elements in the vector.
+-// Len is 0 if p == nil.
+-func (p *Vector) Len() int {
+-	if p == nil {
+-		return 0
+-	}
+-	return len(p.a);
+-}
++// Cap returns the capacity of the vector; that is, the
++// maximum length the vector can grow without resizing.
++func (p *Vector) Cap() int	{ return cap(p.a) }
+ 
+ 
+ // At returns the i'th element of the vector.
+@@ -155,7 +144,7 @@ func (p *Vector) Cut(i, j int) {
+ // Slice returns a new Vector by slicing the old one to extract slice [i:j].
+ // The elements are copied. The original vector is unchanged.
+ func (p *Vector) Slice(i, j int) *Vector {
+-	s := New(j - i);	// will fail in Init() if j < j
++	s := new(Vector).Resize(j-i, 0);	// will fail in Init() if j < i
+ 	copy(s.a, p.a[i:j]);
+ 	return s;
+ }
+diff --git a/src/pkg/container/vector/vector_test.go b/src/pkg/container/vector/vector_test.go
+index dbfa685126..80221392ee 100644
+--- a/src/pkg/container/vector/vector_test.go
++++ b/src/pkg/container/vector/vector_test.go
+@@ -10,41 +10,100 @@ import "fmt"
+ 
+ 
+ func TestZeroLen(t *testing.T) {
+-	var a *Vector;
+-	if a.Len() != 0 {
+-		t.Errorf("A) expected 0, got %d", a.Len())
+-	}
+-	a = New(0);
++	a := new(Vector);
+ 	if a.Len() != 0 {
+ 		t.Errorf("B) expected 0, got %d", a.Len())
+ 	}
+ }
+ 
+ 
+-func TestInit(t *testing.T) {
+-	var a Vector;
+-	if a.Init(0).Len() != 0 {
+-		t.Error("A")
++type VectorInterface interface {
++	Len() int;
++	Cap() int;
++}
++
++
++func checkSize(t *testing.T, v VectorInterface, len, cap int) {
++	if v.Len() != len {
++		t.Errorf("expected len = %d; found %d", len, v.Len())
+ 	}
+-	if a.Init(1).Len() != 1 {
+-		t.Error("B")
++	if v.Cap() != cap {
++		t.Errorf("expected cap = %d; found %d", cap, v.Cap())
+ 	}
+-	if a.Init(10).Len() != 10 {
+-		t.Error("C")
++}
++
++
++func TestResize(t *testing.T) {
++	var a Vector;
++	checkSize(t, &a, 0, 0);
++	checkSize(t, a.Resize(0, 5), 0, 5);
++	checkSize(t, a.Resize(1, 0), 1, 5);
++	checkSize(t, a.Resize(10, 0), 10, 10);
++	checkSize(t, a.Resize(5, 0), 5, 10);
++	checkSize(t, a.Resize(3, 8), 3, 10);
++	checkSize(t, a.Resize(0, 100), 0, 100);
++	checkSize(t, a.Resize(11, 100), 11, 100);
++}
++
++
++func TestIntResize(t *testing.T) {
++	var a IntVector;
++	checkSize(t, &a, 0, 0);
++	a.Push(1);
++	a.Push(2);
++	a.Push(3);
++	a.Push(4);
++	checkSize(t, &a, 4, 4);
++	checkSize(t, a.Resize(10, 0), 10, 10);
++	for i := 4; i < a.Len(); i++ {
++		if a.At(i) != 0 {
++			t.Errorf("expected a.At(%d) == 0; found %d", i, a.At(i))
++		}
++	}
++}
++
++
++func TestStringResize(t *testing.T) {
++	var a StringVector;
++	checkSize(t, &a, 0, 0);
++	a.Push("1");
++	a.Push("2");
++	a.Push("3");
++	a.Push("4");
++	checkSize(t, &a, 4, 4);
++	checkSize(t, a.Resize(10, 0), 10, 10);
++	for i := 4; i < a.Len(); i++ {
++		if a.At(i) != "" {
++			t.Errorf("expected a.At(%d) == " "; found %s", i, a.At(i))
++		}
+ 	}
+ }
+ 
+ 
+-func TestNew(t *testing.T) {
+-	if New(0).Len() != 0 {
+-		t.Error("A")
++func checkNil(t *testing.T, a *Vector, i int) {
++	for j := 0; j < i; j++ {
++		if a.At(j) == nil {
++			t.Errorf("expected a.At(%d) == %d; found %v", j, j, a.At(j))
++		}
+ 	}
+-	if New(1).Len() != 1 {
+-		t.Error("B")
++	for ; i < a.Len(); i++ {
++		if a.At(i) != nil {
++			t.Errorf("expected a.At(%d) == nil; found %v", i, a.At(i))
++		}
+ 	}
+-	if New(10).Len() != 10 {
+-		t.Error("C")
++}
++
++
++func TestTrailingElements(t *testing.T) {
++	var a Vector;
++	for i := 0; i < 10; i++ {
++		a.Push(i)
+ 	}
++	checkNil(t, &a, 10);
++	checkSize(t, &a, 10, 16);
++	checkSize(t, a.Resize(5, 0), 5, 16);
++	checkSize(t, a.Resize(10, 0), 10, 16);
++	checkNil(t, &a, 5);
+ }
+ 
+ 
+@@ -54,7 +113,7 @@ func val(i int) int	{ return i*991 - 1234 }
+ func TestAccess(t *testing.T) {
+ 	const n = 100;
+ 	var a Vector;
+-	a.Init(n);
++	a.Resize(n, 0);
+ 	for i := 0; i < n; i++ {
+ 		a.Set(i, val(i))
+ 	}
+@@ -104,7 +163,7 @@ func TestInsertDeleteClear(t *testing.T) {
+ 			t.Error("H")
+ 		}
+ 	}
+-	a.Init(0);
++	a.Resize(0, 0);
+ 	if a.Len() != 0 {
+ 		t.Errorf("I wrong len %d (expected 0)", a.Len())
+ 	}
+@@ -157,7 +216,7 @@ func verify_pattern(t *testing.T, x *Vector, a, b, c int) {
+ 
+ 
+ func make_vector(elt, len int) *Vector {
+-	x := New(len);
++	x := new(Vector).Resize(len, 0);
+ 	for i := 0; i < len; i++ {
+ 		x.Set(i, elt)
+ 	}
+@@ -193,7 +252,7 @@ func TestInsertVector(t *testing.T) {
+ func TestSorting(t *testing.T) {
+ 	const n = 100;
+ 
+-	a := NewIntVector(n);
++	a := new(IntVector).Resize(n, 0);
+ 	for i := n - 1; i >= 0; i-- {
+ 		a.Set(i, n-1-i)
+ 	}
+@@ -201,7 +260,7 @@ func TestSorting(t *testing.T) {
+ 		t.Error("int vector not sorted")
+ 	}
+ 
+-	b := NewStringVector(n);
++	b := new(StringVector).Resize(n, 0);
+ 	for i := n - 1; i >= 0; i-- {
+ 		b.Set(i, fmt.Sprint(n-1-i))
+ 	}
+@@ -214,7 +273,7 @@ func TestSorting(t *testing.T) {
+ func TestDo(t *testing.T) {
+ 	const n = 25;
+ 	const salt = 17;
+-	a := NewIntVector(n);
++	a := new(IntVector).Resize(n, 0);
+ 	for i := 0; i < n; i++ {
+ 		a.Set(i, salt*i)
+ 	}
+@@ -234,7 +293,7 @@ func TestDo(t *testing.T) {
+ 
+ func TestIter(t *testing.T) {
+ 	const Len = 100;
+-	x := New(Len);
++	x := new(Vector).Resize(Len, 0);
+ 	for i := 0; i < Len; i++ {
+ 		x.Set(i, i*i)
+ 	}
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 37bc894bac..6a6239b1b6 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -566,7 +566,7 @@ func ParseCertificate(asn1Data []byte) (*Certificate, os.Error) {
+ // ParseCertificates parses one or more certificates from the given ASN.1 DER
+ // data. The certificates must be concatenated with no intermediate padding.
+ func ParseCertificates(asn1Data []byte) ([]*Certificate, os.Error) {
+-	v := vector.New(0);
++	v := new(vector.Vector);
+ 
+ 	for len(asn1Data) > 0 {
+ 		cert := new(certificate);
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index 5619550d18..28b85dcdff 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -472,7 +472,7 @@ func (t *thread) setState(new threadState) {
+ 		return
+ 	}
+ 
+-	t.proc.transitionHandlers = vector.New(0);
++	t.proc.transitionHandlers = new(vector.Vector);
+ 	for _, h := range handlers.Data() {
+ 		h := h.(*transitionHandler);
+ 		h.handle(t, old, new);
+@@ -1256,7 +1256,7 @@ func newProcess(pid int) *process {
+ 		debugEvents: make(chan *debugEvent),
+ 		debugReqs: make(chan *debugReq),
+ 		stopReq: make(chan os.Error),
+-		transitionHandlers: vector.New(0),
++		transitionHandlers: new(vector.Vector),
+ 	};
+ 
+ 	go p.monitor();
+diff --git a/src/pkg/ebnf/ebnf.go b/src/pkg/ebnf/ebnf.go
+index 4cf20d957c..08f3b8c7fd 100644
+--- a/src/pkg/ebnf/ebnf.go
++++ b/src/pkg/ebnf/ebnf.go
+@@ -204,8 +204,8 @@ func (v *verifier) verify(grammar Grammar, start string) {
+ 	}
+ 
+ 	// initialize verifier
+-	v.ErrorVector.Init();
+-	v.worklist.Init(0);
++	v.ErrorVector.Reset();
++	v.worklist.Resize(0, 0);
+ 	v.reached = make(Grammar);
+ 	v.grammar = grammar;
+ 
+diff --git a/src/pkg/ebnf/parser.go b/src/pkg/ebnf/parser.go
+index a08cf821b6..5193f8b261 100644
+--- a/src/pkg/ebnf/parser.go
++++ b/src/pkg/ebnf/parser.go
+@@ -117,7 +117,6 @@ func (p *parser) parseTerm() (x Expression) {
+ 
+ func (p *parser) parseSequence() Expression {
+ 	var list vector.Vector;
+-	list.Init(0);
+ 
+ 	for x := p.parseTerm(); x != nil; x = p.parseTerm() {
+ 		list.Push(x)
+@@ -142,7 +141,6 @@ func (p *parser) parseSequence() Expression {
+ 
+ func (p *parser) parseExpression() Expression {
+ 	var list vector.Vector;
+-	list.Init(0);
+ 
+ 	for {
+ 		x := p.parseSequence();
+@@ -183,7 +181,7 @@ func (p *parser) parseProduction() *Production {
+ 
+ func (p *parser) parse(filename string, src []byte) Grammar {
+ 	// initialize parser
+-	p.ErrorVector.Init();
++	p.ErrorVector.Reset();
+ 	p.scanner.Init(filename, src, p, 0);
+ 	p.next();	// initializes pos, tok, lit
+ 
+diff --git a/src/pkg/exp/datafmt/parser.go b/src/pkg/exp/datafmt/parser.go
+index 648ffd6619..c8144d9f2f 100644
+--- a/src/pkg/exp/datafmt/parser.go
++++ b/src/pkg/exp/datafmt/parser.go
+@@ -40,7 +40,7 @@ func (p *parser) next() {
+ 
+ 
+ func (p *parser) init(filename string, src []byte) {
+-	p.ErrorVector.Init();
++	p.ErrorVector.Reset();
+ 	p.scanner.Init(filename, src, p, scanner.AllowIllegalChars);	// return '@' as token.ILLEGAL w/o error message
+ 	p.next();							// initializes pos, tok, lit
+ 	p.packs = make(map[string]string);
+@@ -144,7 +144,6 @@ func (p *parser) parseLiteral() literal {
+ 	// that start with "%" possibly followed by a last segment that
+ 	// starts with some other character.
+ 	var list vector.Vector;
+-	list.Init(0);
+ 	i0 := 0;
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] == '%' && i+1 < len(s) {
+@@ -239,7 +238,6 @@ func (p *parser) parseOperand() (x expr) {
+ 
+ func (p *parser) parseSequence() expr {
+ 	var list vector.Vector;
+-	list.Init(0);
+ 
+ 	for x := p.parseOperand(); x != nil; x = p.parseOperand() {
+ 		list.Push(x)
+@@ -264,7 +262,6 @@ func (p *parser) parseSequence() expr {
+ 
+ func (p *parser) parseExpression() expr {
+ 	var list vector.Vector;
+-	list.Init(0);
+ 
+ 	for {
+ 		x := p.parseSequence();
+diff --git a/src/pkg/exp/eval/world.go b/src/pkg/exp/eval/world.go
+index e6e6eed419..c442f79237 100644
+--- a/src/pkg/exp/eval/world.go
++++ b/src/pkg/exp/eval/world.go
+@@ -47,7 +47,7 @@ func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
+ 			return w.CompileExpr(s.X)
+ 		}
+ 	}
+-	errors := scanner.NewErrorVector();
++	errors := new(scanner.ErrorVector);
+ 	cc := &compiler{errors, 0, 0};
+ 	cb := newCodeBuf();
+ 	fc := &funcCompiler{
+@@ -96,7 +96,7 @@ type exprCode struct {
+ }
+ 
+ func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
+-	errors := scanner.NewErrorVector();
++	errors := new(scanner.ErrorVector);
+ 	cc := &compiler{errors, 0, 0};
+ 
+ 	ec := cc.compileExpr(w.scope.block, false, e);
+diff --git a/src/pkg/exp/iterable/iterable.go b/src/pkg/exp/iterable/iterable.go
+index ec09fc7e86..4ca0e6d057 100644
+--- a/src/pkg/exp/iterable/iterable.go
++++ b/src/pkg/exp/iterable/iterable.go
+@@ -36,7 +36,7 @@ func Any(iter Iterable, f func(interface{}) bool) bool {
+ 
+ // Data returns a slice containing the elements of iter.
+ func Data(iter Iterable) []interface{} {
+-	vec := vector.New(0);
++	vec := new(vector.Vector);
+ 	for e := range iter.Iter() {
+ 		vec.Push(e)
+ 	}
+diff --git a/src/pkg/exp/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+index 6f0615f921..2e75fe519d 100644
+--- a/src/pkg/exp/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -63,7 +63,6 @@ func Main() {
+ func newScanner(input []byte) (*scanner.Scanner, *scanner.ErrorVector) {
+ 	sc := new(scanner.Scanner);
+ 	ev := new(scanner.ErrorVector);
+-	ev.Init();
+ 	sc.Init("input", input, ev, 0);
+ 
+ 	return sc, ev;
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index c713ffc459..6b8cf87c82 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -46,10 +46,10 @@ type docReader struct {
+ 
+ func (doc *docReader) init(pkgName string) {
+ 	doc.pkgName = pkgName;
+-	doc.values = vector.New(0);
++	doc.values = new(vector.Vector);
+ 	doc.types = make(map[string]*typeDoc);
+ 	doc.funcs = make(map[string]*ast.FuncDecl);
+-	doc.bugs = vector.New(0);
++	doc.bugs = new(vector.Vector);
+ }
+ 
+ 
+@@ -74,7 +74,7 @@ func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
+ 		return tdoc
+ 	}
+ 	// type wasn't found - add one without declaration
+-	tdoc := &typeDoc{nil, vector.New(0), make(map[string]*ast.FuncDecl), make(map[string]*ast.FuncDecl)};
++	tdoc := &typeDoc{nil, new(vector.Vector), make(map[string]*ast.FuncDecl), make(map[string]*ast.FuncDecl)};
+ 	doc.types[name] = tdoc;
+ 	return tdoc;
+ }
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 1195a24fa6..f51d3fab79 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -76,7 +76,6 @@ func scannerMode(mode uint) uint {
+ 
+ 
+ func (p *parser) init(filename string, src []byte, mode uint) {
+-	p.ErrorVector.Init();
+ 	p.scanner.Init(filename, src, p, scannerMode(mode));
+ 	p.mode = mode;
+ 	p.trace = mode&Trace != 0;	// for convenience (p.trace is used frequently)
+@@ -164,7 +163,7 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
+ // a comment group.
+ //
+ func (p *parser) consumeCommentGroup() int {
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	endline := p.pos.Line;
+ 	for p.tok == token.COMMENT && endline+1 >= p.pos.Line {
+ 		var comment *ast.Comment;
+@@ -309,7 +308,7 @@ func (p *parser) parseIdentList() []*ast.Ident {
+ 		defer un(trace(p, "IdentList"))
+ 	}
+ 
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	list.Push(p.parseIdent());
+ 	for p.tok == token.COMMA {
+ 		p.next();
+@@ -331,7 +330,7 @@ func (p *parser) parseExprList() []ast.Expr {
+ 		defer un(trace(p, "ExpressionList"))
+ 	}
+ 
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	list.Push(p.parseExpr());
+ 	for p.tok == token.COMMA {
+ 		p.next();
+@@ -436,7 +435,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
+ 	doc := p.leadComment;
+ 
+ 	// a list of identifiers looks like a list of type names
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	for {
+ 		// TODO(gri): do not allow ()'s here
+ 		list.Push(p.parseType());
+@@ -483,7 +482,7 @@ func (p *parser) parseStructType() *ast.StructType {
+ 
+ 	pos := p.expect(token.STRUCT);
+ 	lbrace := p.expect(token.LBRACE);
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	for p.tok == token.IDENT || p.tok == token.MUL {
+ 		f := p.parseFieldDecl();
+ 		if p.tok != token.RBRACE {
+@@ -548,7 +547,7 @@ func (p *parser) parseParameterDecl(ellipsisOk bool) (*vector.Vector, ast.Expr)
+ 	}
+ 
+ 	// a list of identifiers looks like a list of type names
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	for {
+ 		// TODO(gri): do not allow ()'s here
+ 		list.Push(p.parseParameterType(ellipsisOk));
+@@ -575,7 +574,7 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
+ 	if typ != nil {
+ 		// IdentifierList Type
+ 		idents := p.makeIdentList(list);
+-		list.Init(0);
++		list.Resize(0, 0);
+ 		list.Push(&ast.Field{nil, idents, typ, nil, nil});
+ 
+ 		for p.tok == token.COMMA {
+@@ -693,7 +692,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 
+ 	pos := p.expect(token.INTERFACE);
+ 	lbrace := p.expect(token.LBRACE);
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	for p.tok == token.IDENT {
+ 		m := p.parseMethodSpec();
+ 		if p.tok != token.RBRACE {
+@@ -805,7 +804,7 @@ func (p *parser) parseStmtList() []ast.Stmt {
+ 		defer un(trace(p, "StatementList"))
+ 	}
+ 
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	expectSemi := false;
+ 	for p.tok != token.CASE && p.tok != token.DEFAULT && p.tok != token.RBRACE && p.tok != token.EOF {
+ 		if expectSemi {
+@@ -850,7 +849,7 @@ func (p *parser) parseStringList(x *ast.BasicLit) []*ast.BasicLit {
+ 		defer un(trace(p, "StringList"))
+ 	}
+ 
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	if x != nil {
+ 		list.Push(x)
+ 	}
+@@ -1024,7 +1023,7 @@ func (p *parser) parseElementList() []ast.Expr {
+ 		defer un(trace(p, "ElementList"))
+ 	}
+ 
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	for p.tok != token.RBRACE && p.tok != token.EOF {
+ 		list.Push(p.parseElement());
+ 		if p.tok == token.COMMA {
+@@ -1464,7 +1463,7 @@ func (p *parser) parseTypeList() []ast.Expr {
+ 		defer un(trace(p, "TypeList"))
+ 	}
+ 
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	list.Push(p.parseType());
+ 	for p.tok == token.COMMA {
+ 		p.next();
+@@ -1533,7 +1532,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
+ 
+ 	if isExprSwitch(s2) {
+ 		lbrace := p.expect(token.LBRACE);
+-		cases := vector.New(0);
++		cases := new(vector.Vector);
+ 		for p.tok == token.CASE || p.tok == token.DEFAULT {
+ 			cases.Push(p.parseCaseClause())
+ 		}
+@@ -1546,7 +1545,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
+ 	// type switch
+ 	// TODO(gri): do all the checks!
+ 	lbrace := p.expect(token.LBRACE);
+-	cases := vector.New(0);
++	cases := new(vector.Vector);
+ 	for p.tok == token.CASE || p.tok == token.DEFAULT {
+ 		cases.Push(p.parseTypeCaseClause())
+ 	}
+@@ -1608,7 +1607,7 @@ func (p *parser) parseSelectStmt() *ast.SelectStmt {
+ 
+ 	pos := p.expect(token.SELECT);
+ 	lbrace := p.expect(token.LBRACE);
+-	cases := vector.New(0);
++	cases := new(vector.Vector);
+ 	for p.tok == token.CASE || p.tok == token.DEFAULT {
+ 		cases.Push(p.parseCommClause())
+ 	}
+@@ -1818,7 +1817,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi
+ 	doc := p.leadComment;
+ 	pos := p.expect(keyword);
+ 	var lparen, rparen token.Position;
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	if p.tok == token.LPAREN {
+ 		lparen = p.pos;
+ 		p.next();
+@@ -1947,7 +1946,7 @@ func (p *parser) parseDeclList() []ast.Decl {
+ 		defer un(trace(p, "DeclList"))
+ 	}
+ 
+-	list := vector.New(0);
++	list := new(vector.Vector);
+ 	for p.tok != token.EOF {
+ 		decl, _ := p.parseDecl(true);	// consume optional semicolon
+ 		list.Push(decl);
+@@ -1985,7 +1984,7 @@ func (p *parser) parseFile() *ast.File {
+ 
+ 	if p.ErrorCount() == 0 && p.mode&PackageClauseOnly == 0 {
+ 		// import decls
+-		list := vector.New(0);
++		list := new(vector.Vector);
+ 		for p.tok == token.IMPORT {
+ 			decl, _ := p.parseGenDecl(token.IMPORT, parseImportSpec, true);	// consume optional semicolon
+ 			list.Push(decl);
+diff --git a/src/pkg/go/scanner/errors.go b/src/pkg/go/scanner/errors.go
+index 16ad53260e..12c1c852fd 100644
+--- a/src/pkg/go/scanner/errors.go
++++ b/src/pkg/go/scanner/errors.go
+@@ -24,9 +24,9 @@ type ErrorHandler interface {
+ }
+ 
+ 
+-// ErrorVector implements the ErrorHandler interface. It must be
+-// initialized with Init(). It maintains a list of errors which can
+-// be retrieved with GetErrorList and GetError.
++// ErrorVector implements the ErrorHandler interface. It maintains a list
++// of errors which can be retrieved with GetErrorList and GetError. The
++// zero value for an ErrorVector is an empty ErrorVector ready to use.
+ //
+ // A common usage pattern is to embed an ErrorVector alongside a
+ // scanner in a data structure that uses the scanner. By passing a
+@@ -38,16 +38,8 @@ type ErrorVector struct {
+ }
+ 
+ 
+-// Init initializes an ErrorVector.
+-func (h *ErrorVector) Init()	{ h.errors.Init(0) }
+-
+-
+-// NewErrorVector creates a new ErrorVector.
+-func NewErrorVector() *ErrorVector {
+-	h := new(ErrorVector);
+-	h.Init();
+-	return h;
+-}
++// Reset resets an ErrorVector to no errors.
++func (h *ErrorVector) Reset()	{ h.errors.Resize(0, 0) }
+ 
+ 
+ // ErrorCount returns the number of errors collected.
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index be1b44ec72..5ce7bd9bea 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -355,7 +355,7 @@ func TestStdErrorHander(t *testing.T) {
+ 		"@ @ @";	// original file, line 1 again
+ 
+ 
+-	v := NewErrorVector();
++	v := new(ErrorVector);
+ 	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,
+ 		func(pos token.Position, tok token.Token, litb []byte) bool {
+ 			return tok != token.EOF
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 0d296a6b1d..ce49f7cf85 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -593,7 +593,7 @@ func parseForm(m map[string][]string, query string) (err os.Error) {
+ 
+ 		vec, ok := data[key];
+ 		if !ok {
+-			vec = vector.NewStringVector(0);
++			vec = new(vector.StringVector);
+ 			data[key] = vec;
+ 		}
+ 		vec.Push(value);
+diff --git a/src/pkg/json/generic.go b/src/pkg/json/generic.go
+index 0140b50e48..860d9995f6 100644
+--- a/src/pkg/json/generic.go
++++ b/src/pkg/json/generic.go
+@@ -295,7 +295,7 @@ func (b *_JsonBuilder) Null()	{ b.Put(Null) }
+ func (b *_JsonBuilder) String(s string)	{ b.Put(&_String{s, _Null{}}) }
+ 
+ 
+-func (b *_JsonBuilder) Array()	{ b.Put(&_Array{vector.New(0), _Null{}}) }
++func (b *_JsonBuilder) Array()	{ b.Put(&_Array{new(vector.Vector), _Null{}}) }
+ 
+ func (b *_JsonBuilder) Map()	{ b.Put(&_Map{make(map[string]Json), _Null{}}) }
+ 
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 014a9fdc7a..6135fb61b3 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -188,7 +188,7 @@ func (cclass *_CharClass) matches(c int) bool {
+ 
+ func newCharClass() *_CharClass {
+ 	c := new(_CharClass);
+-	c.ranges = vector.NewIntVector(0);
++	c.ranges = new(vector.IntVector);
+ 	return c;
+ }
+ 
+@@ -661,7 +661,7 @@ Loop:
+ func Compile(str string) (regexp *Regexp, error os.Error) {
+ 	regexp = new(Regexp);
+ 	regexp.expr = str;
+-	regexp.inst = vector.New(0);
++	regexp.inst = new(vector.Vector);
+ 	error = regexp.doParse();
+ 	return;
+ }
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index 7099d3fd47..1865d6e699 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -93,7 +93,7 @@ type Writer struct {
+ }
+ 
+ 
+-func (b *Writer) addLine()	{ b.lines.Push(vector.New(0)) }
++func (b *Writer) addLine()	{ b.lines.Push(new(vector.Vector)) }
+ 
+ 
+ func (b *Writer) line(i int) *vector.Vector	{ return b.lines.At(i).(*vector.Vector) }
+@@ -105,8 +105,8 @@ func (b *Writer) reset() {
+ 	b.pos = 0;
+ 	b.cell = cell{};
+ 	b.endChar = 0;
+-	b.lines.Init(0);
+-	b.widths.Init(0);
++	b.lines.Resize(0, 0);
++	b.widths.Resize(0, 0);
+ 	b.addLine();
+ }
+ 
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 3cd9b542c5..0a713de52c 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -176,7 +176,7 @@ func New(fmap FormatterMap) *Template {
+ 	t.fmap = fmap;
+ 	t.ldelim = lbrace;
+ 	t.rdelim = rbrace;
+-	t.elems = vector.New(0);
++	t.elems = new(vector.Vector);
+ 	return t;
+ }
+ 
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 8dadd27f7d..7384da9e5b 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -308,7 +308,7 @@ func TestAll(t *testing.T) {
+ 	s.pdata = []*T{&t1, &t2};
+ 	s.empty = []*T{};
+ 	s.null = nil;
+-	s.vec = vector.New(0);
++	s.vec = new(vector.Vector);
+ 	s.vec.Push("elt1");
+ 	s.vec.Push("elt2");
+ 	s.true = true;
+diff --git a/test/vectors.go b/test/vectors.go
+index 59e2eb5bea..5696c2aa5e 100644
+--- a/test/vectors.go
++++ b/test/vectors.go
+@@ -10,7 +10,7 @@ import "container/vector"
+ 
+ 
+ type S struct {
+-	val int
++	val int;
+ }
+ 
+ 
+@@ -21,36 +21,36 @@ func (p *S) Init(val int) *S {
+ 
+ 
+ func test0() {
+-	v := vector.New(0);
++	v := new(vector.Vector);
+ 	if v.Len() != 0 {
+-		panic("len = ", v.Len(), "\n");
++		panic("len = ", v.Len(), "\n")
+ 	}
+ }
+ 
+ 
+ func test1() {
+-	var a [1000] *S;
++	var a [1000]*S;
+ 	for i := 0; i < len(a); i++ {
+-		a[i] = new(S).Init(i);
++		a[i] = new(S).Init(i)
+ 	}
+ 
+-	v := vector.New(0);
++	v := new(vector.Vector);
+ 	for i := 0; i < len(a); i++ {
+ 		v.Insert(0, a[i]);
+-		if v.Len() != i + 1 {
+-			panic("len = ", v.Len(), "\n");
++		if v.Len() != i+1 {
++			panic("len = ", v.Len(), "\n")
+ 		}
+ 	}
+ 
+ 	for i := 0; i < v.Len(); i++ {
+ 		x := v.At(i).(*S);
+-		if x.val != v.Len() - i - 1 {
+-			panic("expected ", i, ", found ", x.val, "\n");
++		if x.val != v.Len()-i-1 {
++			panic("expected ", i, ", found ", x.val, "\n")
+ 		}
+ 	}
+ 
+ 	for v.Len() > 10 {
+-		v.Delete(10);
++		v.Delete(10)
+ 	}
+ }
+ 

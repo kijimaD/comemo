@@ -15,8 +15,110 @@ Date:   Thu Jun 22 16:24:05 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go           | 13 +++++++++++--
  src/cmd/go/internal/load/pkg.go | 21 +++++++++++----------
  src/cmd/go/internal/str/str.go  |  8 ++++----
  3 files changed, 26 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 71b34b6ec4..436a9560ab 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2040,8 +2040,10 @@ func TestCaseCollisions(t *testing.T) {
+ 		)`)
+ 	tg.tempFile("src/example/a/pkg/pkg.go", `package pkg`)
+ 	tg.tempFile("src/example/a/Pkg/pkg.go", `package pkg`)
+-	tg.runFail("list", "example/a")
+-	tg.grepStderr("case-insensitive import collision", "go list example/a did not report import collision")
++	tg.run("list", "-json", "example/a")
++	tg.grepStdout("case-insensitive import collision", "go list -json example/a did not report import collision")
++	tg.runFail("build", "example/a")
++	tg.grepStderr("case-insensitive import collision", "go build example/a did not report import collision")
+ 	tg.tempFile("src/example/b/file.go", `package b`)
+ 	tg.tempFile("src/example/b/FILE.go", `package b`)
+ 	f, err := os.Open(tg.path("src/example/b"))
+@@ -2059,6 +2061,13 @@ func TestCaseCollisions(t *testing.T) {
+ 	}
+ 	tg.runFail(args...)
+ 	tg.grepStderr("case-insensitive file name collision", "go list example/b did not report file name collision")
++
++	tg.runFail("list", "example/a/pkg", "example/a/Pkg")
++	tg.grepStderr("case-insensitive import collision", "go list example/a/pkg example/a/Pkg did not report import collision")
++	tg.run("list", "-json", "-e", "example/a/pkg", "example/a/Pkg")
++	tg.grepStdout("case-insensitive import collision", "go list -json -e example/a/pkg example/a/Pkg did not report import collision")
++	tg.runFail("build", "example/a/pkg", "example/a/Pkg")
++	tg.grepStderr("case-insensitive import collision", "go build example/a/pkg example/a/Pkg did not report import collision")
+ }
+ 
+ // Issue 8181.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 9264681468..a8a61f0635 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -828,6 +828,8 @@ var cgoSyscallExclude = map[string]bool{
+ 	"runtime/msan": true,
+ }
+ 
++var foldPath = make(map[string]string)
++
+ // load populates p using information from bp, err, which should
+ // be the result of calling build.Context.Import.
+ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package {
+@@ -1109,17 +1111,16 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package
+ 		return p
+ 	}
+ 
+-	// In the absence of errors lower in the dependency tree,
+-	// check for case-insensitive collisions of import paths.
+-	if len(p.DepsErrors) == 0 {
+-		dep1, dep2 := str.FoldDup(p.Deps)
+-		if dep1 != "" {
+-			p.Error = &PackageError{
+-				ImportStack: stk.Copy(),
+-				Err:         fmt.Sprintf("case-insensitive import collision: %q and %q", dep1, dep2),
+-			}
+-			return p
++	// Check for case-insensitive collisions of import paths.
++	fold := str.ToFold(p.ImportPath)
++	if other := foldPath[fold]; other == "" {
++		foldPath[fold] = p.ImportPath
++	} else if other != p.ImportPath {
++		p.Error = &PackageError{
++			ImportStack: stk.Copy(),
++			Err:         fmt.Sprintf("case-insensitive import collision: %q and %q", p.ImportPath, other),
+ 		}
++		return p
+ 	}
+ 
+ 	if p.BinaryOnly {
+diff --git a/src/cmd/go/internal/str/str.go b/src/cmd/go/internal/str/str.go
+index 5d06bbeb25..0413ed8e69 100644
+--- a/src/cmd/go/internal/str/str.go
++++ b/src/cmd/go/internal/str/str.go
+@@ -29,13 +29,13 @@ func StringList(args ...interface{}) []string {
+ 	return x
+ }
+ 
+-// toFold returns a string with the property that
+-//	strings.EqualFold(s, t) iff toFold(s) == toFold(t)
++// ToFold returns a string with the property that
++//	strings.EqualFold(s, t) iff ToFold(s) == ToFold(t)
+ // This lets us test a large set of strings for fold-equivalent
+ // duplicates without making a quadratic number of calls
+ // to EqualFold. Note that strings.ToUpper and strings.ToLower
+ // do not have the desired property in some corner cases.
+-func toFold(s string) string {
++func ToFold(s string) string {
+ 	// Fast path: all ASCII, no upper case.
+ 	// Most paths look like this already.
+ 	for i := 0; i < len(s); i++ {
+@@ -74,7 +74,7 @@ Slow:
+ func FoldDup(list []string) (string, string) {
+ 	clash := map[string]string{}
+ 	for _, s := range list {
+-		fold := toFold(s)
++		fold := ToFold(s)
+ 		if t := clash[fold]; t != "" {
+ 			if s > t {
+ 				s, t = t, s

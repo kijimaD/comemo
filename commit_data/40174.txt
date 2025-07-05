@@ -20,7 +20,7 @@ Date:   Mon Apr 22 14:39:55 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes.go                    | 17 +++--------------
  src/bytes/bytes_test.go               | 23 ++++++++++-------------
  src/bytes/export_test.go              |  1 -
@@ -38,3 +38,444 @@ Date:   Mon Apr 22 14:39:55 2019 -0700
  src/internal/bytealg/equal_s390x.s    | 12 ------------
  src/internal/bytealg/equal_wasm.s     | 20 --------------------
  16 files changed, 31 insertions(+), 233 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 22aeded5e1..9d586581f5 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -12,23 +12,12 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// Equal returns a boolean reporting whether a and b
++// Equal reports whether a and b
+ // are the same length and contain the same bytes.
+ // A nil argument is equivalent to an empty slice.
+ func Equal(a, b []byte) bool {
+-	return bytealg.Equal(a, b)
+-}
+-
+-func equalPortable(a, b []byte) bool {
+-	if len(a) != len(b) {
+-		return false
+-	}
+-	for i, c := range a {
+-		if c != b[i] {
+-			return false
+-		}
+-	}
+-	return true
++	// Neither cmd/compile nor gccgo allocates for these string conversions.
++	return string(a) == string(b)
+ }
+ 
+ // Compare returns an integer comparing two byte slices lexicographically.
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 340810facf..4c50755e7c 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -51,15 +51,17 @@ type BinOpTest struct {
+ }
+ 
+ func TestEqual(t *testing.T) {
+-	for _, tt := range compareTests {
+-		eql := Equal(tt.a, tt.b)
+-		if eql != (tt.i == 0) {
+-			t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql)
+-		}
+-		eql = EqualPortable(tt.a, tt.b)
+-		if eql != (tt.i == 0) {
+-			t.Errorf(`EqualPortable(%q, %q) = %v`, tt.a, tt.b, eql)
++	// Run the tests and check for allocation at the same time.
++	allocs := testing.AllocsPerRun(10, func() {
++		for _, tt := range compareTests {
++			eql := Equal(tt.a, tt.b)
++			if eql != (tt.i == 0) {
++				t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql)
++			}
+ 		}
++	})
++	if allocs > 0 {
++		t.Errorf("Equal allocated %v times", allocs)
+ 	}
+ }
+ 
+@@ -572,11 +574,6 @@ func BenchmarkEqual(b *testing.B) {
+ 	benchBytes(b, sizes, bmEqual(Equal))
+ }
+ 
+-func BenchmarkEqualPort(b *testing.B) {
+-	sizes := []int{1, 6, 32, 4 << 10, 4 << 20, 64 << 20}
+-	benchBytes(b, sizes, bmEqual(EqualPortable))
+-}
+-
+ func bmEqual(equal func([]byte, []byte) bool) func(b *testing.B, n int) {
+ 	return func(b *testing.B, n int) {
+ 		if len(bmbuf) < 2*n {
+diff --git a/src/bytes/export_test.go b/src/bytes/export_test.go
+index f61523e60b..b65428d9ce 100644
+--- a/src/bytes/export_test.go
++++ b/src/bytes/export_test.go
+@@ -6,4 +6,3 @@ package bytes
+ 
+ // Export func for testing
+ var IndexBytePortable = indexBytePortable
+-var EqualPortable = equalPortable
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index abcb38b003..81a1f1831e 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -12,4 +12,3 @@ runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
+ runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
+ 
+ runtime/internal/atomic/asm_arm.s: [arm] cas: function cas missing Go declaration
+-internal/bytealg/equal_arm.s: [arm] Equal: invalid MOVW of ret+24(FP); bool is 1-byte value
+diff --git a/src/internal/bytealg/equal_386.s b/src/internal/bytealg/equal_386.s
+index ad7da0ea8b..87233635a9 100644
+--- a/src/internal/bytealg/equal_386.s
++++ b/src/internal/bytealg/equal_386.s
+@@ -5,24 +5,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Equal(SB),NOSPLIT,$0-25
+-	MOVL	a_len+4(FP), BX
+-	MOVL	b_len+16(FP), CX
+-	CMPL	BX, CX
+-	JNE	neq
+-	MOVL	a_base+0(FP), SI
+-	MOVL	b_base+12(FP), DI
+-	CMPL	SI, DI
+-	JEQ	eq
+-	LEAL	ret+24(FP), AX
+-	JMP	memeqbody<>(SB)
+-neq:
+-	MOVB	$0, ret+24(FP)
+-	RET
+-eq:
+-	MOVB	$1, ret+24(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT,$0-13
+ 	MOVL	a+0(FP), SI
+diff --git a/src/internal/bytealg/equal_amd64.s b/src/internal/bytealg/equal_amd64.s
+index fa82589644..c816409545 100644
+--- a/src/internal/bytealg/equal_amd64.s
++++ b/src/internal/bytealg/equal_amd64.s
+@@ -5,24 +5,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Equal(SB),NOSPLIT,$0-49
+-	MOVQ	a_len+8(FP), BX
+-	MOVQ	b_len+32(FP), CX
+-	CMPQ	BX, CX
+-	JNE	neq
+-	MOVQ	a_base+0(FP), SI
+-	MOVQ	b_base+24(FP), DI
+-	CMPQ	SI, DI
+-	JEQ	eq
+-	LEAQ	ret+48(FP), AX
+-	JMP	memeqbody<>(SB)
+-neq:
+-	MOVB	$0, ret+48(FP)
+-	RET
+-eq:
+-	MOVB	$1, ret+48(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT,$0-25
+ 	MOVQ	a+0(FP), SI
+diff --git a/src/internal/bytealg/equal_amd64p32.s b/src/internal/bytealg/equal_amd64p32.s
+index 00d5c0afcc..cd369c6731 100644
+--- a/src/internal/bytealg/equal_amd64p32.s
++++ b/src/internal/bytealg/equal_amd64p32.s
+@@ -5,25 +5,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Equal(SB),NOSPLIT,$0-25
+-	MOVL	a_len+4(FP), BX
+-	MOVL	b_len+16(FP), CX
+-	CMPL	BX, CX
+-	JNE	neq
+-	MOVL	a_base+0(FP), SI
+-	MOVL	b_base+12(FP), DI
+-	CMPL	SI, DI
+-	JEQ	eq
+-	CALL	memeqbody<>(SB)
+-	MOVB	AX, ret+24(FP)
+-	RET
+-neq:
+-	MOVB	$0, ret+24(FP)
+-	RET
+-eq:
+-	MOVB    $1, ret+24(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT,$0-17
+ 	MOVL	a+0(FP), SI
+diff --git a/src/internal/bytealg/equal_arm.s b/src/internal/bytealg/equal_arm.s
+index b8f2b69bbe..a6c4369603 100644
+--- a/src/internal/bytealg/equal_arm.s
++++ b/src/internal/bytealg/equal_arm.s
+@@ -5,27 +5,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Equal(SB),NOSPLIT,$0-25
+-	MOVW	a_len+4(FP), R1
+-	MOVW	b_len+16(FP), R3
+-	CMP	R1, R3		// unequal lengths are not equal
+-	B.NE	notequal
+-	CMP	$0, R1		// short path to handle 0-byte case
+-	B.EQ	equal
+-
+-	MOVW	a_base+0(FP), R0
+-	MOVW	b_base+12(FP), R2
+-	MOVW	$ret+24(FP), R7
+-	B	memeqbody<>(SB)
+-equal:
+-	MOVW	$1, R0
+-	MOVB	R0, ret+24(FP)
+-	RET
+-notequal:
+-	MOVW	$0, R0
+-	MOVBU	R0, ret+24(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-13
+ 	MOVW	a+0(FP), R0
+diff --git a/src/internal/bytealg/equal_arm64.s b/src/internal/bytealg/equal_arm64.s
+index 2c6af01e0a..01aa7b7b7a 100644
+--- a/src/internal/bytealg/equal_arm64.s
++++ b/src/internal/bytealg/equal_arm64.s
+@@ -5,26 +5,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Equal(SB),NOSPLIT,$0-49
+-	MOVD	a_len+8(FP), R1
+-	MOVD	b_len+32(FP), R3
+-	CMP	R1, R3
+-	// unequal lengths are not equal
+-	BNE	not_equal
+-	// short path to handle 0-byte case
+-	CBZ	R1, equal
+-	MOVD	a_base+0(FP), R0
+-	MOVD	b_base+24(FP), R2
+-	MOVD	$ret+48(FP), R8
+-	B	memeqbody<>(SB)
+-equal:
+-	MOVD	$1, R0
+-	MOVB	R0, ret+48(FP)
+-	RET
+-not_equal:
+-	MOVB	ZR, ret+48(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+ 	MOVD	size+16(FP), R1
+diff --git a/src/internal/bytealg/equal_generic.go b/src/internal/bytealg/equal_generic.go
+new file mode 100644
+index 0000000000..59bdf8fdd5
+--- /dev/null
++++ b/src/internal/bytealg/equal_generic.go
+@@ -0,0 +1,18 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bytealg
++
++// Equal reports whether a and b
++// are the same length and contain the same bytes.
++// A nil argument is equivalent to an empty slice.
++//
++// Equal is equivalent to bytes.Equal.
++// It is provided here for convenience,
++// because some packages cannot depend on bytes.
++func Equal(a, b []byte) bool {
++	// Neither cmd/compile nor gccgo allocates for these string conversions.
++	// There is a test for this in package bytes.
++	return string(a) == string(b)
++}
+diff --git a/src/internal/bytealg/equal_mips64x.s b/src/internal/bytealg/equal_mips64x.s
+index a75b957e8b..58dc4303b4 100644
+--- a/src/internal/bytealg/equal_mips64x.s
++++ b/src/internal/bytealg/equal_mips64x.s
+@@ -9,32 +9,6 @@
+ 
+ #define	REGCTXT	R22
+ 
+-TEXT ·Equal(SB),NOSPLIT,$0-49
+-	MOVV	a_len+8(FP), R3
+-	MOVV	b_len+32(FP), R4
+-	BNE	R3, R4, noteq		// unequal lengths are not equal
+-
+-	MOVV	a_base+0(FP), R1
+-	MOVV	b_base+24(FP), R2
+-	ADDV	R1, R3		// end
+-
+-loop:
+-	BEQ	R1, R3, equal		// reached the end
+-	MOVBU	(R1), R6
+-	ADDV	$1, R1
+-	MOVBU	(R2), R7
+-	ADDV	$1, R2
+-	BEQ	R6, R7, loop
+-
+-noteq:
+-	MOVB	R0, ret+48(FP)
+-	RET
+-
+-equal:
+-	MOVV	$1, R1
+-	MOVB	R1, ret+48(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+ 	MOVV	a+0(FP), R1
+diff --git a/src/internal/bytealg/equal_mipsx.s b/src/internal/bytealg/equal_mipsx.s
+index 70d579d5d4..1cabc70178 100644
+--- a/src/internal/bytealg/equal_mipsx.s
++++ b/src/internal/bytealg/equal_mipsx.s
+@@ -9,32 +9,6 @@
+ 
+ #define	REGCTXT	R22
+ 
+-TEXT ·Equal(SB),NOSPLIT,$0-25
+-	MOVW	a_len+4(FP), R3
+-	MOVW	b_len+16(FP), R4
+-	BNE	R3, R4, noteq	// unequal lengths are not equal
+-
+-	MOVW	a_base+0(FP), R1
+-	MOVW	b_base+12(FP), R2
+-	ADDU	R1, R3	// end
+-
+-loop:
+-	BEQ	R1, R3, equal	// reached the end
+-	MOVBU	(R1), R6
+-	ADDU	$1, R1
+-	MOVBU	(R2), R7
+-	ADDU	$1, R2
+-	BEQ	R6, R7, loop
+-
+-noteq:
+-	MOVB	R0, ret+24(FP)
+-	RET
+-
+-equal:
+-	MOVW	$1, R1
+-	MOVB	R1, ret+24(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT,$0-13
+ 	MOVW	a+0(FP), R1
+diff --git a/src/internal/bytealg/equal_native.go b/src/internal/bytealg/equal_native.go
+index 995f0749d4..cf3a245bc0 100644
+--- a/src/internal/bytealg/equal_native.go
++++ b/src/internal/bytealg/equal_native.go
+@@ -6,11 +6,6 @@ package bytealg
+ 
+ import "unsafe"
+ 
+-// Note: there's no equal_generic.go because every platform must implement at least memequal_varlen in assembly.
+-
+-//go:noescape
+-func Equal(a, b []byte) bool
+-
+ // The declarations below generate ABI wrappers for functions
+ // implemented in assembly in this package but declared in another
+ // package.
+diff --git a/src/internal/bytealg/equal_ppc64x.s b/src/internal/bytealg/equal_ppc64x.s
+index 74ea34834d..18171eaedc 100644
+--- a/src/internal/bytealg/equal_ppc64x.s
++++ b/src/internal/bytealg/equal_ppc64x.s
+@@ -7,25 +7,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Equal(SB),NOSPLIT|NOFRAME,$0-49
+-	MOVD	a_len+8(FP), R4
+-	MOVD	b_len+32(FP), R5
+-	CMP	R5, R4		// unequal lengths are not equal
+-	BNE	noteq
+-	MOVD	a_base+0(FP), R3
+-	MOVD	b_base+24(FP), R4
+-	MOVD	$ret+48(FP), R10
+-	BR	memeqbody<>(SB)
+-
+-noteq:
+-	MOVBZ	$0,ret+48(FP)
+-	RET
+-
+-equal:
+-	MOVD	$1,R3
+-	MOVBZ	R3,ret+48(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+ 	MOVD    a+0(FP), R3
+diff --git a/src/internal/bytealg/equal_s390x.s b/src/internal/bytealg/equal_s390x.s
+index d7724747d4..67f814dfc1 100644
+--- a/src/internal/bytealg/equal_s390x.s
++++ b/src/internal/bytealg/equal_s390x.s
+@@ -5,18 +5,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Equal(SB),NOSPLIT|NOFRAME,$0-49
+-	MOVD	a_len+8(FP), R2
+-	MOVD	b_len+32(FP), R6
+-	MOVD	a_base+0(FP), R3
+-	MOVD	b_base+24(FP), R5
+-	LA	ret+48(FP), R7
+-	CMPBNE	R2, R6, notequal
+-	BR	memeqbody<>(SB)
+-notequal:
+-	MOVB	$0, ret+48(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+ 	MOVD	a+0(FP), R3
+diff --git a/src/internal/bytealg/equal_wasm.s b/src/internal/bytealg/equal_wasm.s
+index cac3fb2d13..a2b76c1368 100644
+--- a/src/internal/bytealg/equal_wasm.s
++++ b/src/internal/bytealg/equal_wasm.s
+@@ -5,26 +5,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Equal(SB), NOSPLIT, $0-49
+-	MOVD a_len+8(FP), R0
+-	MOVD b_len+32(FP), R1
+-	Get R0
+-	Get R1
+-	I64Eq
+-	If
+-		Get SP
+-		I64Load a+0(FP)
+-		I64Load b+24(FP)
+-		Get R0
+-		Call memeqbody<>(SB)
+-		I64Store8 ret+48(FP)
+-	Else
+-		Get SP
+-		I64Const $0
+-		I64Store8 ret+48(FP)
+-	End
+-	RET
+-
+ // memequal(p, q unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB), NOSPLIT, $0-25
+ 	Get SP

@@ -17,9 +17,160 @@ Date:   Sun Feb 4 20:57:56 2018 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/cpu/cpu_arm64.go  | 52 +++++++++++++++++++++---------------------
  src/internal/cpu/cpu_ppc64x.go | 26 ++++++++++-----------
  src/runtime/os_linux_arm64.go  |  4 ++--
  src/runtime/os_linux_ppc64x.go |  5 ++--
  4 files changed, 44 insertions(+), 43 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index c15b6825ee..78f90f4a7d 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -9,8 +9,8 @@ const CacheLineSize = 64
+ // arm64 doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
+ // These are linknamed in runtime/os_linux_arm64.go and are initialized by
+ // archauxv().
+-var arm64_hwcap uint
+-var arm64_hwcap2 uint
++var hwcap uint
++var hwcap2 uint
+ 
+ // HWCAP/HWCAP2 bits. These are exposed by Linux.
+ const (
+@@ -42,30 +42,30 @@ const (
+ 
+ func doinit() {
+ 	// HWCAP feature bits
+-	ARM64.HasFP = isSet(arm64_hwcap, hwcap_FP)
+-	ARM64.HasASIMD = isSet(arm64_hwcap, hwcap_ASIMD)
+-	ARM64.HasEVTSTRM = isSet(arm64_hwcap, hwcap_EVTSTRM)
+-	ARM64.HasAES = isSet(arm64_hwcap, hwcap_AES)
+-	ARM64.HasPMULL = isSet(arm64_hwcap, hwcap_PMULL)
+-	ARM64.HasSHA1 = isSet(arm64_hwcap, hwcap_SHA1)
+-	ARM64.HasSHA2 = isSet(arm64_hwcap, hwcap_SHA2)
+-	ARM64.HasCRC32 = isSet(arm64_hwcap, hwcap_CRC32)
+-	ARM64.HasATOMICS = isSet(arm64_hwcap, hwcap_ATOMICS)
+-	ARM64.HasFPHP = isSet(arm64_hwcap, hwcap_FPHP)
+-	ARM64.HasASIMDHP = isSet(arm64_hwcap, hwcap_ASIMDHP)
+-	ARM64.HasCPUID = isSet(arm64_hwcap, hwcap_CPUID)
+-	ARM64.HasASIMDRDM = isSet(arm64_hwcap, hwcap_ASIMDRDM)
+-	ARM64.HasJSCVT = isSet(arm64_hwcap, hwcap_JSCVT)
+-	ARM64.HasFCMA = isSet(arm64_hwcap, hwcap_FCMA)
+-	ARM64.HasLRCPC = isSet(arm64_hwcap, hwcap_LRCPC)
+-	ARM64.HasDCPOP = isSet(arm64_hwcap, hwcap_DCPOP)
+-	ARM64.HasSHA3 = isSet(arm64_hwcap, hwcap_SHA3)
+-	ARM64.HasSM3 = isSet(arm64_hwcap, hwcap_SM3)
+-	ARM64.HasSM4 = isSet(arm64_hwcap, hwcap_SM4)
+-	ARM64.HasASIMDDP = isSet(arm64_hwcap, hwcap_ASIMDDP)
+-	ARM64.HasSHA512 = isSet(arm64_hwcap, hwcap_SHA512)
+-	ARM64.HasSVE = isSet(arm64_hwcap, hwcap_SVE)
+-	ARM64.HasASIMDFHM = isSet(arm64_hwcap, hwcap_ASIMDFHM)
++	ARM64.HasFP = isSet(hwcap, hwcap_FP)
++	ARM64.HasASIMD = isSet(hwcap, hwcap_ASIMD)
++	ARM64.HasEVTSTRM = isSet(hwcap, hwcap_EVTSTRM)
++	ARM64.HasAES = isSet(hwcap, hwcap_AES)
++	ARM64.HasPMULL = isSet(hwcap, hwcap_PMULL)
++	ARM64.HasSHA1 = isSet(hwcap, hwcap_SHA1)
++	ARM64.HasSHA2 = isSet(hwcap, hwcap_SHA2)
++	ARM64.HasCRC32 = isSet(hwcap, hwcap_CRC32)
++	ARM64.HasATOMICS = isSet(hwcap, hwcap_ATOMICS)
++	ARM64.HasFPHP = isSet(hwcap, hwcap_FPHP)
++	ARM64.HasASIMDHP = isSet(hwcap, hwcap_ASIMDHP)
++	ARM64.HasCPUID = isSet(hwcap, hwcap_CPUID)
++	ARM64.HasASIMDRDM = isSet(hwcap, hwcap_ASIMDRDM)
++	ARM64.HasJSCVT = isSet(hwcap, hwcap_JSCVT)
++	ARM64.HasFCMA = isSet(hwcap, hwcap_FCMA)
++	ARM64.HasLRCPC = isSet(hwcap, hwcap_LRCPC)
++	ARM64.HasDCPOP = isSet(hwcap, hwcap_DCPOP)
++	ARM64.HasSHA3 = isSet(hwcap, hwcap_SHA3)
++	ARM64.HasSM3 = isSet(hwcap, hwcap_SM3)
++	ARM64.HasSM4 = isSet(hwcap, hwcap_SM4)
++	ARM64.HasASIMDDP = isSet(hwcap, hwcap_ASIMDDP)
++	ARM64.HasSHA512 = isSet(hwcap, hwcap_SHA512)
++	ARM64.HasSVE = isSet(hwcap, hwcap_SVE)
++	ARM64.HasASIMDFHM = isSet(hwcap, hwcap_ASIMDFHM)
+ }
+ 
+ func isSet(hwc uint, value uint) bool {
+diff --git a/src/internal/cpu/cpu_ppc64x.go b/src/internal/cpu/cpu_ppc64x.go
+index 7f093723b2..52aa374d54 100644
+--- a/src/internal/cpu/cpu_ppc64x.go
++++ b/src/internal/cpu/cpu_ppc64x.go
+@@ -11,8 +11,8 @@ const CacheLineSize = 128
+ // ppc64x doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
+ // These are linknamed in runtime/os_linux_ppc64x.go and are initialized by
+ // archauxv().
+-var ppc64x_hwcap uint
+-var ppc64x_hwcap2 uint
++var hwcap uint
++var hwcap2 uint
+ 
+ // HWCAP/HWCAP2 bits. These are exposed by the kernel.
+ const (
+@@ -34,19 +34,19 @@ const (
+ 
+ func init() {
+ 	// HWCAP feature bits
+-	PPC64.HasVMX = isSet(ppc64x_hwcap, _PPC_FEATURE_HAS_ALTIVEC)
+-	PPC64.HasDFP = isSet(ppc64x_hwcap, _PPC_FEATURE_HAS_DFP)
+-	PPC64.HasVSX = isSet(ppc64x_hwcap, _PPC_FEATURE_HAS_VSX)
++	PPC64.HasVMX = isSet(hwcap, _PPC_FEATURE_HAS_ALTIVEC)
++	PPC64.HasDFP = isSet(hwcap, _PPC_FEATURE_HAS_DFP)
++	PPC64.HasVSX = isSet(hwcap, _PPC_FEATURE_HAS_VSX)
+ 
+ 	// HWCAP2 feature bits
+-	PPC64.IsPOWER8 = isSet(ppc64x_hwcap2, _PPC_FEATURE2_ARCH_2_07)
+-	PPC64.HasHTM = isSet(ppc64x_hwcap2, _PPC_FEATURE2_HAS_HTM)
+-	PPC64.HasISEL = isSet(ppc64x_hwcap2, _PPC_FEATURE2_HAS_ISEL)
+-	PPC64.HasVCRYPTO = isSet(ppc64x_hwcap2, _PPC_FEATURE2_HAS_VEC_CRYPTO)
+-	PPC64.HasHTMNOSC = isSet(ppc64x_hwcap2, _PPC_FEATURE2_HTM_NOSC)
+-	PPC64.IsPOWER9 = isSet(ppc64x_hwcap2, _PPC_FEATURE2_ARCH_3_00)
+-	PPC64.HasDARN = isSet(ppc64x_hwcap2, _PPC_FEATURE2_DARN)
+-	PPC64.HasSCV = isSet(ppc64x_hwcap2, _PPC_FEATURE2_SCV)
++	PPC64.IsPOWER8 = isSet(hwcap2, _PPC_FEATURE2_ARCH_2_07)
++	PPC64.HasHTM = isSet(hwcap2, _PPC_FEATURE2_HAS_HTM)
++	PPC64.HasISEL = isSet(hwcap2, _PPC_FEATURE2_HAS_ISEL)
++	PPC64.HasVCRYPTO = isSet(hwcap2, _PPC_FEATURE2_HAS_VEC_CRYPTO)
++	PPC64.HasHTMNOSC = isSet(hwcap2, _PPC_FEATURE2_HTM_NOSC)
++	PPC64.IsPOWER9 = isSet(hwcap2, _PPC_FEATURE2_ARCH_3_00)
++	PPC64.HasDARN = isSet(hwcap2, _PPC_FEATURE2_DARN)
++	PPC64.HasSCV = isSet(hwcap2, _PPC_FEATURE2_SCV)
+ }
+ 
+ func isSet(hwc uint, value uint) bool {
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index ed4af0dd41..28a0319f10 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -14,10 +14,10 @@ var randomNumber uint32
+ // arm64 doesn't have a 'cpuid' instruction equivalent and relies on
+ // HWCAP/HWCAP2 bits for hardware capabilities.
+ 
+-//go:linkname cpu_hwcap internal/cpu.arm64_hwcap
++//go:linkname cpu_hwcap internal/cpu.hwcap
+ var cpu_hwcap uint
+ 
+-//go:linkname cpu_hwcap2 internal/cpu.arm64_hwcap2
++//go:linkname cpu_hwcap2 internal/cpu.hwcap2
+ var cpu_hwcap2 uint
+ 
+ func archauxv(tag, val uintptr) {
+diff --git a/src/runtime/os_linux_ppc64x.go b/src/runtime/os_linux_ppc64x.go
+index 3d2a3a198c..2c67864a96 100644
+--- a/src/runtime/os_linux_ppc64x.go
++++ b/src/runtime/os_linux_ppc64x.go
+@@ -13,9 +13,10 @@ import _ "unsafe"
+ // ppc64x doesn't have a 'cpuid' instruction equivalent and relies on
+ // HWCAP/HWCAP2 bits for hardware capabilities.
+ 
+-//go:linkname cpu_hwcap internal/cpu.ppc64x_hwcap
+-//go:linkname cpu_hwcap2 internal/cpu.ppc64x_hwcap2
++//go:linkname cpu_hwcap internal/cpu.hwcap
+ var cpu_hwcap uint
++
++//go:linkname cpu_hwcap2 internal/cpu.hwcap2
+ var cpu_hwcap2 uint
+ 
+ func archauxv(tag, val uintptr) {

@@ -14,7 +14,7 @@ Date:   Thu Aug 18 12:17:09 2011 -0400
     R=dvyukov, rsc
     CC=golang-dev
     https://golang.org/cl/4910041
-
+---
  misc/cgo/test/basic.go      | 12 ++++++++++++
  misc/cgo/test/cgo_test.go   |  2 ++
  src/pkg/runtime/386/asm.s   |  8 ++++----
@@ -23,3 +23,253 @@ Date:   Thu Aug 18 12:17:09 2011 -0400
  src/pkg/runtime/proc.c      | 12 ++++++++----
  src/pkg/runtime/runtime.h   |  1 +
  7 files changed, 52 insertions(+), 35 deletions(-)
+
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index b9d0953bd3..626e0e91bd 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -48,6 +48,10 @@ struct ibv_async_event {
+ struct ibv_context {
+ 	xxpthread_mutex_t mutex;
+ };
++
++int add(int x, int y) {
++	return x+y;
++};
+ */
+ import "C"
+ import (
+@@ -132,3 +136,11 @@ var (
+ type Context struct {
+ 	ctx *C.struct_ibv_context
+ }
++
++func benchCgoCall(b *testing.B) {
++	const x = C.int(2)
++	const y = C.int(3)
++	for i := 0; i < b.N; i++ {
++		C.add(x, y)
++	}
++}
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 94fba15dbf..03f02370a1 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -26,3 +26,5 @@ func TestBlocking(t *testing.T)            { testBlocking(t) }
+ func Test1328(t *testing.T)                { test1328(t) }
+ func TestParallelSleep(t *testing.T)       { testParallelSleep(t) }
+ func TestSetEnv(t *testing.T)              { testSetEnv(t) }
++
++func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index a14518839a..c64e78f59f 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -432,17 +432,17 @@ TEXT runtime·cgocallback(SB),7,$12
+ 	PUSHL	(g_sched+gobuf_sp)(SI)
+ 	MOVL	SP, (g_sched+gobuf_sp)(SI)
+ 
+-	// Switch to m->curg stack and call runtime.cgocallback
++	// Switch to m->curg stack and call runtime.cgocallbackg
+ 	// with the three arguments.  Because we are taking over
+ 	// the execution of m->curg but *not* resuming what had
+ 	// been running, we need to save that information (m->curg->gobuf)
+ 	// so that we can restore it when we're done. 
+ 	// We can restore m->curg->gobuf.sp easily, because calling
+-	// runtime.cgocallback leaves SP unchanged upon return.
++	// runtime.cgocallbackg leaves SP unchanged upon return.
+ 	// To save m->curg->gobuf.pc, we push it onto the stack.
+ 	// This has the added benefit that it looks to the traceback
+-	// routine like cgocallback is going to return to that
+-	// PC (because we defined cgocallback to have
++	// routine like cgocallbackg is going to return to that
++	// PC (because we defined cgocallbackg to have
+ 	// a frame size of 12, the same amount that we use below),
+ 	// so that the traceback will seamlessly trace back into
+ 	// the earlier calls.
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 3e3818c101..acd131bb31 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -477,17 +477,17 @@ TEXT runtime·cgocallback(SB),7,$24
+ 	PUSHQ	(g_sched+gobuf_sp)(SI)
+ 	MOVQ	SP, (g_sched+gobuf_sp)(SI)
+ 
+-	// Switch to m->curg stack and call runtime.cgocallback
++	// Switch to m->curg stack and call runtime.cgocallbackg
+ 	// with the three arguments.  Because we are taking over
+ 	// the execution of m->curg but *not* resuming what had
+ 	// been running, we need to save that information (m->curg->gobuf)
+ 	// so that we can restore it when we're done. 
+ 	// We can restore m->curg->gobuf.sp easily, because calling
+-	// runtime.cgocallback leaves SP unchanged upon return.
++	// runtime.cgocallbackg leaves SP unchanged upon return.
+ 	// To save m->curg->gobuf.pc, we push it onto the stack.
+ 	// This has the added benefit that it looks to the traceback
+-	// routine like cgocallback is going to return to that
+-	// PC (because we defined cgocallback to have
++	// routine like cgocallbackg is going to return to that
++	// PC (because we defined cgocallbackg to have
+ 	// a frame size of 24, the same amount that we use below),
+ 	// so that the traceback will seamlessly trace back into
+ 	// the earlier calls.
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 829448b020..c2f8620a65 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -68,7 +68,7 @@
+ // stack (not an m->g0 stack).  First it calls runtime.exitsyscall, which will
+ // block until the $GOMAXPROCS limit allows running this goroutine.
+ // Once exitsyscall has returned, it is safe to do things like call the memory
+-// allocator or invoke the Go callback function p.GoF.  runtime.cgocallback
++// allocator or invoke the Go callback function p.GoF.  runtime.cgocallbackg
+ // first defers a function to unwind m->g0.sched.sp, so that if p.GoF
+ // panics, m->g0.sched.sp will be restored to its old value: the m->g0 stack
+ // and the m->curg stack will be unwound in lock step.
+@@ -92,7 +92,7 @@ static void unwindm(void);
+ void
+ runtime·cgocall(void (*fn)(void*), void *arg)
+ {
+-	Defer *d;
++	Defer d;
+ 
+ 	if(!runtime·iscgo)
+ 		runtime·throw("cgocall unavailable");
+@@ -106,18 +106,18 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	 * Lock g to m to ensure we stay on the same stack if we do a
+ 	 * cgo callback.
+ 	 */
+-	d = nil;
++	d.nofree = false;
+ 	if(m->lockedg == nil) {
+ 		m->lockedg = g;
+ 		g->lockedm = m;
+ 
+ 		// Add entry to defer stack in case of panic.
+-		d = runtime·malloc(sizeof(*d));
+-		d->fn = (byte*)unlockm;
+-		d->siz = 0;
+-		d->link = g->defer;
+-		d->argp = (void*)-1;  // unused because unwindm never recovers
+-		g->defer = d;
++		d.fn = (byte*)unlockm;
++		d.siz = 0;
++		d.link = g->defer;
++		d.argp = (void*)-1;  // unused because unlockm never recovers
++		d.nofree = true;
++		g->defer = &d;
+ 	}
+ 
+ 	/*
+@@ -135,11 +135,10 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	runtime·asmcgocall(fn, arg);
+ 	runtime·exitsyscall();
+ 
+-	if(d != nil) {
+-		if(g->defer != d || d->fn != (byte*)unlockm)
++	if(d.nofree) {
++		if(g->defer != &d || d.fn != (byte*)unlockm)
+ 			runtime·throw("runtime: bad defer entry in cgocallback");
+-		g->defer = d->link;
+-		runtime·free(d);
++		g->defer = d.link;
+ 		unlockm();
+ 	}
+ }
+@@ -192,7 +191,7 @@ runtime·cfree(void *p)
+ void
+ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ {
+-	Defer *d;
++	Defer d;
+ 
+ 	if(g != m->curg)
+ 		runtime·throw("runtime: bad g in cgocallback");
+@@ -200,12 +199,12 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ 	runtime·exitsyscall();	// coming out of cgo call
+ 
+ 	// Add entry to defer stack in case of panic.
+-	d = runtime·malloc(sizeof(*d));
+-	d->fn = (byte*)unwindm;
+-	d->siz = 0;
+-	d->link = g->defer;
+-	d->argp = (void*)-1;  // unused because unwindm never recovers
+-	g->defer = d;
++	d.fn = (byte*)unwindm;
++	d.siz = 0;
++	d.link = g->defer;
++	d.argp = (void*)-1;  // unused because unwindm never recovers
++	d.nofree = true;
++	g->defer = &d;
+ 
+ 	// Invoke callback.
+ 	reflect·call((byte*)fn, arg, argsize);
+@@ -213,10 +212,9 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ 	// Pop defer.
+ 	// Do not unwind m->g0->sched.sp.
+ 	// Our caller, cgocallback, will do that.
+-	if(g->defer != d || d->fn != (byte*)unwindm)
++	if(g->defer != &d || d.fn != (byte*)unwindm)
+ 		runtime·throw("runtime: bad defer entry in cgocallback");
+-	g->defer = d->link;
+-	runtime·free(d);
++	g->defer = d.link;
+ 
+ 	runtime·entersyscall();	// going back to cgo call
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 5f396b49f3..f71491dd24 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1153,7 +1153,8 @@ runtime·deferreturn(uintptr arg0)
+ 	runtime·memmove(argp, d->args, d->siz);
+ 	g->defer = d->link;
+ 	fn = d->fn;
+-	runtime·free(d);
++	if(!d->nofree)
++		runtime·free(d);
+ 	runtime·jmpdefer(fn, argp);
+ }
+ 
+@@ -1165,7 +1166,8 @@ rundefer(void)
+ 	while((d = g->defer) != nil) {
+ 		g->defer = d->link;
+ 		reflect·call(d->fn, d->args, d->siz);
+-		runtime·free(d);
++		if(!d->nofree)
++			runtime·free(d);
+ 	}
+ }
+ 
+@@ -1245,7 +1247,8 @@ runtime·panic(Eface e)
+ 			runtime·mcall(recovery);
+ 			runtime·throw("recovery failed"); // mcall should not return
+ 		}
+-		runtime·free(d);
++		if(!d->nofree)
++			runtime·free(d);
+ 	}
+ 
+ 	// ran out of deferred calls - old-school panic now
+@@ -1280,7 +1283,8 @@ recovery(G *gp)
+ 	else
+ 		gp->sched.sp = (byte*)d->argp - 2*sizeof(uintptr);
+ 	gp->sched.pc = d->pc;
+-	runtime·free(d);
++	if(!d->nofree)
++		runtime·free(d);
+ 	runtime·gogo(&gp->sched, 1);
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 526a320ea6..bea8636a9f 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -359,6 +359,7 @@ enum {
+ struct Defer
+ {
+ 	int32	siz;
++	bool	nofree;
+ 	byte*	argp;  // where args were copied from
+ 	byte*	pc;
+ 	byte*	fn;

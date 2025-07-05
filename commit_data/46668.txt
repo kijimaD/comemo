@@ -36,6 +36,26 @@ Date:   Tue Jan 19 21:30:36 2021 -0800
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/time.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index d338705b7c..8ab2a03430 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -609,8 +609,14 @@ func moveTimers(pp *p, timers []*timer) {
+ 		for {
+ 			switch s := atomic.Load(&t.status); s {
+ 			case timerWaiting:
++				if !atomic.Cas(&t.status, s, timerMoving) {
++					continue
++				}
+ 				t.pp = 0
+ 				doaddtimer(pp, t)
++				if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
++					badTimer()
++				}
+ 				break loop
+ 			case timerModifiedEarlier, timerModifiedLater:
+ 				if !atomic.Cas(&t.status, s, timerMoving) {

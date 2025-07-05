@@ -8,6 +8,21 @@ Date:   Tue Nov 30 14:28:33 2010 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/3361041
-
+---
  src/pkg/fmt/doc.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index a026a5e197..15aae50e3d 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -126,8 +126,7 @@
+ 
+ 	%p is not implemented
+ 	%T is not implemented
+-	%e %E %f %F %g %g are all equivalent and scan any floating
+-		point or complex value
++	%e %E %f %F %g %g are all equivalent and scan any floating point or complex value
+ 	%s and %v on strings scan a space-delimited token
+ 
+ 	Width is interpreted in the input text (%5s means at most
